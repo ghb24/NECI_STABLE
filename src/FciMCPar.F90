@@ -43,12 +43,21 @@ MODULE FciMCParMod
                                     init_excit_gen_store,clean_excit_gen_store
     use GenRandSymExcitCSF, only: gen_csf_excit
     use IntegralsData , only : fck,NMax,UMat,tPartFreezeCore,NPartFrozen,NHolesFrozen,tPartFreezeVirt,NVirtPartFrozen,NElVirtFrozen
-    USE Logging , only : iWritePopsEvery,TPopsFile,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies,IterShiftBlock,AllHistInitPops
-    USE Logging , only : BinRange,iNoBins,OffDiagBinRange,OffDiagMax,AllHistInitPopsTag,tLogComplexPops
-    USE Logging , only : tPrintFCIMCPsi,tCalcFCIMCPsi,NHistEquilSteps,tPrintOrbOcc,StartPrintOrbOcc,tPrintOrbOccInit
-    USE Logging , only : tHFPopStartBlock,tIterStartBlock,IterStartBlocking,HFPopStartBlocking,tInitShiftBlocking,tHistHamil,iWriteHamilEvery,HistInitPopsTag
-    USE Logging , only : OrbOccs,OrbOccsTag,tPrintPopsDefault,iWriteBlockingEvery,tBlockEveryIteration,tHistInitPops,HistInitPopsIter,HistInitPops
-    USE Logging , only : FCIMCDebug
+    use Logging, only: iWritePopsEvery, TPopsFile, iPopsPartEvery, tBinPops, &
+                       tHistSpawn, iWriteHistEvery, tHistEnergies, &
+                       IterShiftBlock, AllHistInitPops, BinRange, iNoBins, &
+                       OffDiagBinRange, OffDiagMax, AllHistInitPopsTag, &
+                       tLogComplexPops, tPrintFCIMCPsi, tCalcFCIMCPsi, &
+                       NHistEquilSteps, tPrintOrbOcc, StartPrintOrbOcc, &
+                       tPrintOrbOccInit, tHFPopStartBlock, tIterStartBlock, &
+                       IterStartBlocking, HFPopStartBlocking, &
+                       tInitShiftBlocking, tHistHamil, iWriteHamilEvery, &
+                       HistInitPopsTag, OrbOccs, OrbOccsTag, &
+                       tPrintPopsDefault, iWriteBlockingEvery, &
+                       tBlockEveryIteration, tHistInitPops, HistInitPopsIter,&
+                       HistInitPops, FCIMCDebug
+    use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
+                    hist_spin_dist, ilut_spindist, tHistSpinDist
     USE SymData , only : nSymLabels
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE Parallel
@@ -3721,6 +3730,12 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
+
+        ! Initialise the spin distribution histogramming
+        if (tHistSpinDist) then
+            call init_hist_spin_dist ()
+        endif
+
 !Need to declare a new MPI type to deal with the long integers we use in the hashing, and when reading in from POPSFILEs
 !        CALL MPI_Type_create_f90_integer(18,mpilongintegertype,error)
 !        CALL MPI_Type_commit(mpilongintegertype,error)
@@ -4442,7 +4457,7 @@ MODULE FciMCParMod
         INTEGER , intent(in) :: DetCurr(NEl),ExcitLevel
         INTEGER, DIMENSION(lenof_sign) , INTENT(IN) :: WSign
         INTEGER(KIND=n_int), intent(in) :: iLutCurr(0:NIfTot)
-        INTEGER :: i,Bin
+        integer :: i, bin, pos
         INTEGER :: PartInd,OpenOrbs
         INTEGER(KIND=n_int) :: iLutSym(0:NIfTot)
         LOGICAL :: tSuccess
@@ -4493,7 +4508,9 @@ MODULE FciMCParMod
             ENDIF
           endif 
 
-        ENDIF
+        ENDIF   ! ExcitLevel == 1, 2, 3
+
+        ! ---------------------------------------------------------
 
 !Histogramming diagnostic options...
         IF((tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC)).and.(Iter.ge.NHistEquilSteps)) THEN
@@ -4629,6 +4646,19 @@ MODULE FciMCParMod
             ENDIF
             HistogramEnergy(Bin)=HistogramEnergy(Bin)+real(abs(WSign(1)),dp)
         ENDIF
+
+        ! Are we doing a spin-projection histogram?
+        if (tHistSpinDist) then
+            ! Is this determinant in the spin distribution that we are
+            ! looking for?
+            if (DetBitEq(iLutCurr, ilut_spindist)) then
+                pos = binary_search(hist_spin_dist, iLutCurr, NIfD+1)
+                if (pos < 0) &
+                    call stop_all ("SumEContrib", "Determinant not found in &
+                                   &spin histogram list.")
+                call encode_sign(hist_spin_dist(:,pos), wSign)
+            endif
+        endif
 
         IF(tPrintOrbOcc.and.(Iter.ge.StartPrintOrbOcc)) THEN
             IF((tPrintOrbOccInit.and.(test_flag(iLutCurr,flag_is_initiator(1)))).or.(.not.tPrintOrbOccInit)) then
@@ -5018,6 +5048,7 @@ MODULE FciMCParMod
                 DEALLOCATE(AllAvHistHamil)
             ENDIF
         ENDIF
+        if (tHistSpinDist) call clean_hist_spin_dist()
         DEALLOCATE(WalkVecDets)
         CALL LogMemDealloc(this_routine,WalkVecDetsTag)
         IF(.not.tRegenDiagHEls) THEN

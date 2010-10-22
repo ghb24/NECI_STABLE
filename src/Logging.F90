@@ -1,10 +1,12 @@
+#include "macros.h"
+
 MODULE Logging
 
     use input
     use MemoryManager, only: LogMemAlloc, LogMemDealloc
-    use SystemData, only: nel
-    use constants, only: n_int
-    use bit_rep_data, only: NIfTot
+    use SystemData, only: nel, LMS, nbasis, tHistSpinDist, ilut_spindist
+    use constants, only: n_int, size_n_int, bits_n_int
+    use bit_rep_data, only: NIfTot, NIfD
     use DetBitOps, only: EncodeBitDet
 
     IMPLICIT NONE
@@ -33,10 +35,6 @@ MODULE Logging
     LOGICAL :: tBlockEveryIteration
     LOGICAL tLogDets       ! Write out the DETS and SymDETS files.
     LOGICAL tLogComplexPops     ! Write out complex walker information 
-
-    ! Should we histogram the distribution of spin dets within a given
-    ! spatial structure --> Analyse spin development
-    logical :: tHistSpinDist
 
     contains
 
@@ -130,7 +128,6 @@ MODULE Logging
 
         logical eof
         integer :: i, ierr, nI_tmp(nel)
-        integer(n_int) :: ilut_tmp(0:NIfTot)
         character(100) :: w
         character(*), parameter :: t_r = 'LogReadInput'
 
@@ -265,7 +262,9 @@ MODULE Logging
             do i = 1, nel
                 call geti(nI_tmp(i))
             enddo
-            call EncodeBitDet(nI_tmp, ilut_tmp)
+            if (.not. allocated(ilut_spindist)) &
+                allocate(ilut_spindist(0:NIfTot))
+            call EncodeBitDet(nI_tmp, ilut_spindist)
 
 
         case("ROHISTOGRAMALL")
@@ -619,5 +618,6 @@ MODULE Logging
         end select
       end do logging
     END SUBROUTINE LogReadInput
+
 
 END MODULE Logging

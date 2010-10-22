@@ -1,5 +1,7 @@
 module SystemData
 
+    use constants, only: n_int
+
 implicit none
 
 save
@@ -170,6 +172,11 @@ LOGICAL :: tHFNoOrder
 ! When set, ignore differences in orbital energies between pairs of orbitals (which should be beta/alpha)
 !  and group them under the same symrep
 LOGICAL :: tSymIgnoreEnergies
+
+    ! These should really be in hist.F90, but we get circular dependencies
+    ! These are bad.
+    logical :: tHistSpinDist
+    integer(n_int), allocatable :: ilut_spindist(:)
 
 ! Operators for type(symmetry)
 interface assignment (=)
