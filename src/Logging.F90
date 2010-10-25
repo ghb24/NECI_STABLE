@@ -4,7 +4,8 @@ MODULE Logging
 
     use input
     use MemoryManager, only: LogMemAlloc, LogMemDealloc
-    use SystemData, only: nel, LMS, nbasis, tHistSpinDist, ilut_spindist
+    use SystemData, only: nel, LMS, nbasis, tHistSpinDist, ilut_spindist, &
+                          hist_spin_dist_iter
     use constants, only: n_int, size_n_int, bits_n_int
     use bit_rep_data, only: NIfTot, NIfD
     use DetBitOps, only: EncodeBitDet
@@ -110,6 +111,7 @@ MODULE Logging
       tHistInitPops=.false.
       tHistSpinDist = .false.
       HistInitPopsIter=100000
+      hist_spin_dist_iter = 1000
       tLogDets=.false.
 
 ! Feb08 defaults
@@ -259,6 +261,7 @@ MODULE Logging
             !     are converted to a spatial structure for use.
 
             tHistSpinDist = .true.
+            call readi(hist_spin_dist_iter)
             do i = 1, nel
                 call geti(nI_tmp(i))
             enddo

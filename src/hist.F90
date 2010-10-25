@@ -87,6 +87,47 @@ contains
 
     end subroutine
 
+    subroutine write_clear_spin_hist_hist (iter, nsteps)
+
+        ! Output a spin histogram to the file: spin-hist-%iter
+        ! The values contain the values in hist_spin_dist / niter
+        !
+        ! --> Only need to print out every nsteps, and get averaged value
+        !     over those steps.
+
+        integer, intent(in) :: iter, nsteps
+        integer :: fd, i, sgn(lenof_sign)
+        character(22) :: fname, iterstr
+
+        ! Open the file for writing
+        fd = get_free_unit ()
+        format(iterstr, '(i12)') iter
+        format(fname, '("spin-hist-",a)') trim(adjustl(iterstr))
+        open(unit=fd, file=trim(fname), status='replace')
+
+        ! Output file header
+        write(fd, '("1. Determinant(niftot+1)\t2. sign(lenof_sign)")')
+
+        do i = 1, ubound(hist_spin_dist, 2)
+
+            ! Extract sign
+            call extract_sign (hist_spin_dist(:,i), sgn)
+
+            ! Output to file
+            write(fd, *) hist_spin_dist(0:NIfD, i), float(sgn)/nsteps
+
+            ! Zero the element for the next time around
+            sgn = 0
+            call encode_sign(hist_spin_dist(:,i), sgn)
+
+        enddo
+
+        ! Close the file
+        close(fd)
+
+    end subroutine
+
+
     subroutine clean_hist_spin_dist ()
 
         character(*), parameter :: this_routine = 'clean_hist_spin_dist'
