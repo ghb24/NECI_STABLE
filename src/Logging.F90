@@ -4,7 +4,7 @@ MODULE Logging
 
     use input
     use MemoryManager, only: LogMemAlloc, LogMemDealloc
-    use SystemData, only: nel, LMS, nbasis, tHistSpinDist, ilut_spindist, &
+    use SystemData, only: nel, LMS, nbasis, tHistSpinDist, nI_spindist, &
                           hist_spin_dist_iter
     use constants, only: n_int, size_n_int, bits_n_int
     use bit_rep_data, only: NIfTot, NIfD
@@ -129,7 +129,7 @@ MODULE Logging
         ! Read the logging section from the input file
 
         logical eof
-        integer :: i, ierr, nI_tmp(nel)
+        integer :: i, ierr
         character(100) :: w
         character(*), parameter :: t_r = 'LogReadInput'
 
@@ -262,12 +262,14 @@ MODULE Logging
 
             tHistSpinDist = .true.
             call readi(hist_spin_dist_iter)
-            do i = 1, nel
-                call geti(nI_tmp(i))
+            if (.not. allocated(nI_spindist)) &
+                allocate(nI_spindist(nel))
+            nI_spindist = 0
+            i = 1
+            do while (item < nitems .and. i <= nel)
+                call geti(nI_spindist(i))
+                i = i+1
             enddo
-            if (.not. allocated(ilut_spindist)) &
-                allocate(ilut_spindist(0:NIfTot))
-            call EncodeBitDet(nI_tmp, ilut_spindist)
 
 
         case("ROHISTOGRAMALL")

@@ -4,11 +4,13 @@ module hist
 
     use DeterminantData, only: get_lexicographic
     use MemoryManager
-    use SystemData, only: tHistSpinDist, ilut_spindist, nbasis, nel, LMS
-    use DetBitOps, only: count_open_orbs
-    use util_mod, only: choose
-    use constants, only: n_int, bits_n_int, size_n_int
+    use SystemData, only: tHistSpinDist, ilut_spindist, nbasis, nel, LMS, &
+                          hist_spin_dist_iter, nI_spindist
+    use DetBitOps, only: count_open_orbs, EncodeBitDet
+    use util_mod, only: choose, get_free_unit
+    use constants, only: n_int, bits_n_int, size_n_int, lenof_sign
     use bit_rep_data, only: NIfTot, NIfD
+    use bit_reps, only: extract_sign, encode_sign
 
     implicit none
 
@@ -26,6 +28,11 @@ contains
         integer(n_int), pointer :: p_ilut(:)
         character(*), parameter :: this_routine = 'init_hist_spin_dist'
 
+        ! Encode spin distribution
+        if (.not. allocated(ilut_spindist)) &
+            allocate(ilut_spindist(0:NIfTot))
+        call EncodeBitDet(nI_spindist(1:nel), ilut_spindist)
+
         ! Initialise the spin distribution histograms
         if (.not. allocated(ilut_spindist)) &
             call stop_all (this_routine, 'Spin distribution must be specified&
@@ -41,8 +48,7 @@ contains
 
         ! Allocate and initialise storage
         allocate(hist_spin_dist(0:NIfTot, ndets), stat=ierr)
-        LogAlloc(ierr, 'hist_spin_dist', (niftot+1)*ndets, size_n_int, &
-                 tag_spindist)
+        LogAlloc(ierr, 'hist_spin_dist', (niftot+1)*ndets, size_n_int, tag_spindist)
         hist_spin_dist = 0
 
         ! Obtain a list of the open spatial orbitals.
@@ -80,14 +86,14 @@ contains
 
             call get_lexicographic (dorder, nopen, nup)
         enddo
+        p_ilut => null()
 
         if (nfound /= ndets) &
             call stop_all (this_routine, &
                            "Generated incorrect number of determinants")
-
     end subroutine
 
-    subroutine write_clear_spin_hist_hist (iter, nsteps)
+    subroutine write_clear_hist_spin_dist (iter, nsteps)
 
         ! Output a spin histogram to the file: spin-hist-%iter
         ! The values contain the values in hist_spin_dist / niter
@@ -101,8 +107,8 @@ contains
 
         ! Open the file for writing
         fd = get_free_unit ()
-        format(iterstr, '(i12)') iter
-        format(fname, '("spin-hist-",a)') trim(adjustl(iterstr))
+        write(iterstr, '(i12)') iter
+        write(fname, '("spin-hist-",a)') trim(adjustl(iterstr))
         open(unit=fd, file=trim(fname), status='replace')
 
         ! Output file header
@@ -134,6 +140,9 @@ contains
 
         if (allocated(ilut_spindist)) &
             deallocate(ilut_spindist)
+
+        if (allocated(nI_spindist)) &
+            deallocate(nI_spindist)
 
         if (allocated(hist_spin_dist)) then
             deallocate(hist_spin_dist)

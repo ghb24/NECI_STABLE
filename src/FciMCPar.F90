@@ -57,7 +57,8 @@ MODULE FciMCParMod
                        tBlockEveryIteration, tHistInitPops, HistInitPopsIter,&
                        HistInitPops, FCIMCDebug
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
-                    hist_spin_dist, ilut_spindist, tHistSpinDist
+                    hist_spin_dist, ilut_spindist, tHistSpinDist, &
+                    write_clear_hist_spin_dist, hist_spin_dist_iter
     USE SymData , only : nSymLabels
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE Parallel
@@ -286,6 +287,9 @@ MODULE FciMCParMod
 !                IF(tErrorBlocking.and.(Iter.gt.IterStartBlocking)) CALL PrintBlocking(Iter) 
 !                IF(tShiftBlocking.and.(Iter.gt.(VaryShiftIter+IterShiftBlock))) CALL PrintShiftBlocking(Iter)
 !            ENDIF
+            
+            if (tHistSpinDist .and. (mod(iter, hist_spin_dist_iter) == 0)) &
+                call write_clear_hist_spin_dist (iter, 1000)
 
             IF(TPopsFile.and.(.not.tPrintPopsDefault).and.(mod(Iter,iWritePopsEvery).eq.0)) THEN
 !This will write out the POPSFILE if wanted

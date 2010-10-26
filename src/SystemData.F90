@@ -178,6 +178,7 @@ LOGICAL :: tSymIgnoreEnergies
     logical :: tHistSpinDist
     integer(n_int), allocatable :: ilut_spindist(:)
     integer :: hist_spin_dist_iter
+    integer, allocatable :: nI_spindist(:)
 
 ! Operators for type(symmetry)
 interface assignment (=)
