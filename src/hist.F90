@@ -70,7 +70,8 @@ contains
         do while (dorder(1) /= -1)
 
             nfound = nfound + 1
-            p_ilut => hist_spin_dist(0:NIfD, nfound)
+            call ilut_nifd_pointer_assign(p_ilut, &
+                                          hist_spin_dist(0:NIfD, nfound))
             p_ilut = ilut_spindist(0:NIfD)
 
             ! Obtain bit representation by shifting things
@@ -148,6 +149,20 @@ contains
             deallocate(hist_spin_dist)
             LogDealloc(tag_spindist)
         endif
+
+    end subroutine
+
+
+    subroutine ilut_nifd_pointer_assign (ptr, ilut)
+
+        ! This is a useful helper function to get around some irritating
+        ! behaviour (namely that pointer array slices are indexed to
+        ! begin at 0, not 1 --> wrong for iluts).
+
+        integer(n_int), intent(in), target :: ilut(0:NIfD)
+        integer(n_int), intent(out), pointer :: ptr(:)
+
+        ptr => ilut
 
     end subroutine
 
