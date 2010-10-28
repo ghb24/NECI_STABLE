@@ -380,8 +380,6 @@ contains
             endif
         endif
 
-        print*, 'RETURN value', pos
-
     end function
 
 !--- File utilities ---
