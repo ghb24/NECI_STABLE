@@ -290,7 +290,7 @@ MODULE FciMCParMod
 !            ENDIF
             
             if (tHistSpinDist .and. (mod(iter, hist_spin_dist_iter) == 0)) &
-                call write_clear_hist_spin_dist (iter, 1000)
+                call write_clear_hist_spin_dist (iter, hist_spin_dist_iter)
 
             IF(TPopsFile.and.(.not.tPrintPopsDefault).and.(mod(Iter,iWritePopsEvery).eq.0)) THEN
 !This will write out the POPSFILE if wanted

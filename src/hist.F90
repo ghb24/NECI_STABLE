@@ -185,6 +185,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer(n_int) :: ilut_tmp(0:NIfTot)
         integer, dimension(lenof_sign), intent(in) :: sgn
+        integer, dimension(lenof_sign) :: sgn_old
         integer :: pos, i
 
         ! Should we add this ilut to the histogram?
@@ -202,7 +203,8 @@ contains
                 call stop_all ("test_add_hist_spin_dist_det", &
                                "Determinant not found in spin histogram list")
             endif
-            call encode_sign(hist_spin_dist(:,pos), sgn)
+            call extract_sign (hist_spin_dist(:,pos), sgn_old)
+            call encode_sign(hist_spin_dist(:,pos), sgn + sgn_old)
         endif
 
     end subroutine
