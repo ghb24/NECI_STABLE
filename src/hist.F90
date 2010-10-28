@@ -6,8 +6,9 @@ module hist
     use MemoryManager
     use SystemData, only: tHistSpinDist, ilut_spindist, nbasis, nel, LMS, &
                           hist_spin_dist_iter, nI_spindist
-    use DetBitOps, only: count_open_orbs, EncodeBitDet
-    use util_mod, only: choose, get_free_unit
+    use DetBitOps, only: count_open_orbs, EncodeBitDet, spatial_bit_det, &
+                         DetBitEq
+    use util_mod, only: choose, get_free_unit, binary_search
     use constants, only: n_int, bits_n_int, size_n_int, lenof_sign
     use bit_rep_data, only: NIfTot, NIfD
     use bit_reps, only: extract_sign, encode_sign
@@ -26,12 +27,20 @@ contains
         integer :: open_orbs(nel), dorder(nel), ierr, orb, i
         integer :: nfound, nopen, nup, ndets
         integer(n_int), pointer :: p_ilut(:)
+        integer(n_int) :: ilut_tmp(0:NIfTot)
         character(*), parameter :: this_routine = 'init_hist_spin_dist'
 
         ! Encode spin distribution
         if (.not. allocated(ilut_spindist)) &
             allocate(ilut_spindist(0:NIfTot))
-        call EncodeBitDet(nI_spindist(1:nel), ilut_spindist)
+        call EncodeBitDet(nI_spindist(1:nel), ilut_tmp)
+        print*, 'encoded', ilut_tmp
+        call writebitdet(6, ilut_tmp, .true.)
+        call flush(6)
+        ilut_spindist = spatial_bit_det(ilut_tmp)
+        print*, 'encoded', ilut_spindist
+        call writebitdet(6, ilut_spindist, .true.)
+        call flush(6)
 
         ! Initialise the spin distribution histograms
         if (.not. allocated(ilut_spindist)) &
@@ -45,6 +54,8 @@ contains
 
         ! How many dets with this config?
         ndets = int(choose(nopen, nup))
+        print*, 'nop, up, dets', nopen, nup, ndets
+        call flush(6)
 
         ! Allocate and initialise storage
         allocate(hist_spin_dist(0:NIfTot, ndets), stat=ierr)
@@ -54,13 +65,14 @@ contains
         ! Obtain a list of the open spatial orbitals.
         ! N.B. This is a ZERO BASED list
         nfound = 0
-        do i = 0, nbasis-2, 2
-            if (IsOcc(ilut_spindist, i)) then
+        do i = 1, nbasis-1, 2
+            if (IsOcc(ilut_spindist, i) .and. IsNotOcc(ilut_spindist, i+1)) then
                 nfound = nfound + 1
                 open_orbs(nfound) = i
                 if (nfound == nopen) exit
             endif
         enddo
+        print*, 'open orbs', open_orbs(1:nopen)
 
         ! Generate all possible determinants with the given spatial structure
         ! and value of Ms
@@ -84,6 +96,8 @@ contains
                 set_orb(p_ilut, orb)
                 clr_orb(p_ilut, ab_pair(orb))
             enddo
+            call writebitdet(6, p_ilut, .false.)
+            print*, p_ilut
 
             call get_lexicographic (dorder, nopen, nup)
         enddo
@@ -113,7 +127,7 @@ contains
         open(unit=fd, file=trim(fname), status='replace')
 
         ! Output file header
-        write(fd, '("1. Determinant(niftot+1)\t2. sign(lenof_sign)")')
+        write(fd, '("# 1. Determinant(niftot+1)\t2. sign(lenof_sign)")')
 
         do i = 1, ubound(hist_spin_dist, 2)
 
@@ -163,6 +177,33 @@ contains
         integer(n_int), intent(out), pointer :: ptr(:)
 
         ptr => ilut
+
+    end subroutine
+
+    subroutine test_add_hist_spin_dist_det (ilut, sgn)
+
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer(n_int) :: ilut_tmp(0:NIfTot)
+        integer, dimension(lenof_sign), intent(in) :: sgn
+        integer :: pos, i
+
+        ! Should we add this ilut to the histogram?
+        ilut_tmp = spatial_bit_det (ilut)
+        
+        if (DetBitEq(ilut_tmp, ilut_spindist)) then
+            pos = binary_search (hist_spin_dist, ilut, NIfD+1)
+            if (pos < 0) then
+                call writebitdet(6, ilut, .false.)
+                write(6,*) ilut
+                write(6,*) '----------------'
+                do i=1,ubound(hist_spin_dist, 2)
+                    write(6,*) hist_spin_dist(:,i)
+                enddo
+                call stop_all ("test_add_hist_spin_dist_det", &
+                               "Determinant not found in spin histogram list")
+            endif
+            call encode_sign(hist_spin_dist(:,pos), sgn)
+        endif
 
     end subroutine
 

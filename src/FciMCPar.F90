@@ -58,7 +58,8 @@ MODULE FciMCParMod
                        HistInitPops, FCIMCDebug
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
                     hist_spin_dist, ilut_spindist, tHistSpinDist, &
-                    write_clear_hist_spin_dist, hist_spin_dist_iter
+                    write_clear_hist_spin_dist, hist_spin_dist_iter, &
+                    test_add_hist_spin_dist_det
     USE SymData , only : nSymLabels
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE Parallel
@@ -4652,17 +4653,8 @@ MODULE FciMCParMod
         ENDIF
 
         ! Are we doing a spin-projection histogram?
-        if (tHistSpinDist) then
-            ! Is this determinant in the spin distribution that we are
-            ! looking for?
-            if (DetBitEq(iLutCurr, ilut_spindist)) then
-                pos = binary_search(hist_spin_dist, iLutCurr, NIfD+1)
-                if (pos < 0) &
-                    call stop_all ("SumEContrib", "Determinant not found in &
-                                   &spin histogram list.")
-                call encode_sign(hist_spin_dist(:,pos), wSign)
-            endif
-        endif
+        if (tHistSpinDist) &
+            call test_add_hist_spin_dist_det (iLutCurr, wSign)
 
         IF(tPrintOrbOcc.and.(Iter.ge.StartPrintOrbOcc)) THEN
             IF((tPrintOrbOccInit.and.(test_flag(iLutCurr,flag_is_initiator(1)))).or.(.not.tPrintOrbOccInit)) then
