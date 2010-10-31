@@ -45,9 +45,9 @@ MODULE FciMCParMod
     use IntegralsData , only : fck,NMax,UMat,tPartFreezeCore,NPartFrozen,NHolesFrozen,tPartFreezeVirt,NVirtPartFrozen,NElVirtFrozen
     USE Logging , only : iWritePopsEvery,TPopsFile,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies,IterShiftBlock,AllHistInitPops
     USE Logging , only : BinRange,iNoBins,OffDiagBinRange,OffDiagMax,AllHistInitPopsTag,tLogComplexPops
-    USE Logging , only : tPrintFCIMCPsi,tCalcFCIMCPsi,NHistEquilSteps,tPrintOrbOcc,StartPrintOrbOcc,tPrintOrbOccInit
+    USE Logging , only : tPrintFCIMCPsi,tCalcFCIMCPsi,NHistEquilSteps,tPrintOrbOcc,StartPrintOrbOcc,tPrintOrbOccInit,tPrintDoubsUEG,StartPrintDoubsUEG
     USE Logging , only : tHFPopStartBlock,tIterStartBlock,IterStartBlocking,HFPopStartBlocking,tInitShiftBlocking,tHistHamil,iWriteHamilEvery,HistInitPopsTag
-    USE Logging , only : OrbOccs,OrbOccsTag,tPrintPopsDefault,iWriteBlockingEvery,tBlockEveryIteration,tHistInitPops,HistInitPopsIter,HistInitPops
+    USE Logging , only : OrbOccs,DoubsUEG,DoubsUEGLookup,OrbOccsTag,tPrintPopsDefault,iWriteBlockingEvery,tBlockEveryIteration,tHistInitPops,HistInitPopsIter,HistInitPops
     USE Logging , only : FCIMCDebug
     USE SymData , only : nSymLabels
     USE dSFMT_interface , only : genrand_real2_dSFMT
@@ -69,7 +69,7 @@ MODULE FciMCParMod
                                InitErrorBlocking, InitShiftErrorBlocking, &
                                SumInShiftErrorContrib
     use RotateOrbsMod, only: RotateOrbs
-    use NatOrbsMod, only: PrintOrbOccs
+    use NatOrbsMod, only: PrintOrbOccs,PrintDoubUEGOccs
     use spin_project, only: tSpinProject, spin_proj_interval, &
                             spin_proj_gamma, get_spawn_helement_spin_proj, &
                             generate_excit_spin_proj, attempt_die_spin_proj, &
@@ -324,6 +324,10 @@ MODULE FciMCParMod
 
         IF(tPrintOrbOcc) THEN
             CALL PrintOrbOccs(OrbOccs)
+        ENDIF
+
+        IF(tPrintDoubsUEG) THEN
+            CALL PrintDoubUEGOccs(DoubsUEG)
         ENDIF
 
 ! Print out some load balancing stats nicely to end.
@@ -4442,12 +4446,14 @@ MODULE FciMCParMod
         INTEGER , intent(in) :: DetCurr(NEl),ExcitLevel
         INTEGER, DIMENSION(lenof_sign) , INTENT(IN) :: WSign
         INTEGER(KIND=n_int), intent(in) :: iLutCurr(0:NIfTot)
-        INTEGER :: i,Bin
+        INTEGER :: i,Bin,iUEG1,iUEG2
         INTEGER :: PartInd,OpenOrbs
         INTEGER(KIND=n_int) :: iLutSym(0:NIfTot)
         LOGICAL :: tSuccess
         REAL*8 , intent(in) :: HDiagCurr,dProbFin
         HElement_t :: HOffDiag
+        INTEGER :: DoubEx(2,2)
+        LOGICAL :: tDoubParity
 
         IF(ExcitLevel.eq.0) THEN
             IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+WSign
@@ -4637,6 +4643,28 @@ MODULE FciMCParMod
                 enddo
             ENDIF
         ENDIF
+        
+        IF(tPrintDoubsUEG.and.(Iter.ge.StartPrintDoubsUEG)) THEN
+            IF(ExcitLevel.eq.2) THEN
+                DoubEx=0
+                DoubEx(1,1)=2
+!                write(6,*) "1", ProjEDet
+!                write(6,*) "2", DetCurr
+!                write(6,*) "3", DoubEx
+!                write(6,*) "4", tDoubParity
+                call GetExcitation (ProjEDet,DetCurr,NEl,DoubEx,tDoubParity)
+                do i=1,NEl
+!                    write(6,*) "DoubEx",DoubEx 
+                    iUEG1=0
+                    iUEG2=0
+                    iUEG1=DoubsUEGLookup(DoubEx(1,1))
+                    iUEG2=DoubsUEGLookup(DoubEx(1,2))
+!                    write(6,*) "indicies",iUEG1,iUEG2,DoubEx(2,1) 
+                    if (iUEG1.eq.0.or.iUEG2.eq.0) call stop_all("SumEContrib","Array bounds issue")
+                    DoubsUEG(iUEG1,iUEG2,DoubEx(2,1))=DoubsUEG(iUEG1,iUEG2,DoubEx(2,1))+(REAL(WSign(1)))
+                enddo
+            ENDIF
+        ENDIF
 
         RETURN
 
@@ -4653,7 +4681,7 @@ MODULE FciMCParMod
         use constants , only : size_n_int
         INTEGER :: ierr,iunithead
         LOGICAL :: formpops,binpops
-        INTEGER :: error,MemoryAlloc,PopsVersion,WalkerListSize,j
+        INTEGER :: error,MemoryAlloc,PopsVersion,WalkerListSize,j,iLookup
         INTEGER, DIMENSION(lenof_sign) :: InitialSign
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
         integer :: ReadBatch    !This parameter determines the length of the array to batch read in walkers from a popsfile
@@ -4892,6 +4920,17 @@ MODULE FciMCParMod
             OrbOccs(:)=0.D0
         ENDIF
 
+        IF(tPrintDoubsUEG) THEN
+            ALLOCATE(DoubsUEG(NEl,NEl,nBasis),stat=ierr)
+            DoubsUEG(:,:,:)=0.D0
+            ALLOCATE(DoubsUEGLookup(nBasis),stat=ierr)
+            DoubsUEGLookup(:)=0
+!Add LogMemAllocs
+            do iLookup=1,NEl                    
+                DoubsUEGLookup(HFDet(iLookup))=iLookup
+            enddo
+        ENDIF
+
         IF(tHistInitPops) THEN
             CALL InitHistInitPops()
         ENDIF
@@ -5048,6 +5087,10 @@ MODULE FciMCParMod
         IF(tPrintOrbOcc) THEN
             DEALLOCATE(OrbOccs)
             CALL LogMemDeAlloc(this_routine,OrbOccsTag)
+        ENDIF
+        IF(tPrintDoubsUEG) THEN
+            DEALLOCATE(DoubsUEG)
+            DEALLOCATE(DoubsUEGLookup)
         ENDIF
 
         IF(tHistInitPops) THEN
