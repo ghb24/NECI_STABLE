@@ -4452,8 +4452,8 @@ MODULE FciMCParMod
         LOGICAL :: tSuccess
         REAL*8 , intent(in) :: HDiagCurr,dProbFin
         HElement_t :: HOffDiag
-        INTEGER :: DoubEx(2,2)
-        LOGICAL :: tDoubParity
+        INTEGER :: DoubEx(2,2),DoubEx2(2,2) ! For histogramming UEG doubles
+        LOGICAL :: tDoubParity,tDoubParity2 ! As above
 
         IF(ExcitLevel.eq.0) THEN
             IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+WSign
@@ -4646,13 +4646,25 @@ MODULE FciMCParMod
         
         IF(tPrintDoubsUEG.and.(Iter.ge.StartPrintDoubsUEG)) THEN
             IF(ExcitLevel.eq.2) THEN
-                DoubEx=0
-                DoubEx(1,1)=2
+                DoubEx2=0
+                DoubEx2(1,1)=2
 !                write(6,*) "1", ProjEDet
 !                write(6,*) "2", DetCurr
 !                write(6,*) "3", DoubEx
 !                write(6,*) "4", tDoubParity
-                call GetExcitation (ProjEDet,DetCurr,NEl,DoubEx,tDoubParity)
+                call GetExcitation (ProjEDet,DetCurr,NEl,DoubEx2,tDoubParity2)
+!                write(6,*) "DoubEx",DoubEx,"tParity",tDoubParity
+                DoubEx=0
+                DoubEx(1,1)=2
+                call GetBitExcitation(iLutRef,iLutCurr,DoubEx,tDoubParity)
+                if (DoubEx2(1,1).ne.DoubEx(1,1) &
+                    .or. DoubEx2(1,2).ne.DoubEx(1,2) &
+                    .or. DoubEx2(2,2).ne.DoubEx(2,2) &
+                    .or. DoubEx2(2,1).ne.DoubEx(2,1) &
+                    .or. tDoubParity.ne.tDoubParity2) then
+                    call stop_all("SumEContrib","GetBitExcitation doesn't agree with GetExcitation")
+                endif
+!                write(6,*) "DoubEx",DoubEx,"tParity",tDoubParity
                 do i=1,NEl
 !                    write(6,*) "DoubEx",DoubEx 
                     iUEG1=0
@@ -4661,7 +4673,15 @@ MODULE FciMCParMod
                     iUEG2=DoubsUEGLookup(DoubEx(1,2))
 !                    write(6,*) "indicies",iUEG1,iUEG2,DoubEx(2,1) 
                     if (iUEG1.eq.0.or.iUEG2.eq.0) call stop_all("SumEContrib","Array bounds issue")
-                    DoubsUEG(iUEG1,iUEG2,DoubEx(2,1))=DoubsUEG(iUEG1,iUEG2,DoubEx(2,1))+(REAL(WSign(1)))
+                    DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),1)=DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),1)+(REAL(WSign(1))*REAL(WSign(1)))
+! Test against natural orbital generation. For a two electron system, this should just be the same 
+! as the nat orbs if WSign is squared
+!                    DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),1)=DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),1)+(REAL(WSign(1))*REAL(WSign(1)))
+                    IF(tDoubParity) THEN
+                        DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),2)=1.D0
+                    ELSE
+                        DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),2)=-1.D0
+                    ENDIF
                 enddo
             ENDIF
         ENDIF
@@ -4921,8 +4941,8 @@ MODULE FciMCParMod
         ENDIF
 
         IF(tPrintDoubsUEG) THEN
-            ALLOCATE(DoubsUEG(NEl,NEl,nBasis),stat=ierr)
-            DoubsUEG(:,:,:)=0.D0
+            ALLOCATE(DoubsUEG(NEl,NEl,nBasis,2),stat=ierr)
+            DoubsUEG(:,:,:,:)=0.D0
             ALLOCATE(DoubsUEGLookup(nBasis),stat=ierr)
             DoubsUEGLookup(:)=0
 !Add LogMemAllocs

@@ -1725,19 +1725,19 @@ MODULE NatOrbsMod
     END SUBROUTINE PrintOrbOccs
 
     SUBROUTINE PrintDoubUEGOccs(OrbOccs)
-! Based on PrintOrbOccs (above)
+! Based on PrintOrbOccs (above), but for PrintDoubsUEG
 ! Histogram determinant populations for all doubles
 ! This hopefully prints it all out
         use util_mod, only: get_free_unit
         IMPLICIT NONE
-        REAL*8 :: Norm,OrbOccs(nEl,nEl,nBasis),AllOrbOccs(nEl,nEl,nBasis)
+        REAL*8 :: Norm,OrbOccs(nEl,nEl,nBasis,2),AllOrbOccs(nEl,nEl,nBasis,2)
         INTEGER :: i,i2,i3,error, iunit
         LOGICAL :: tWarning
 
         AllOrbOccs = 0.D0
 
 #ifdef PARALLEL
-        CALL MPI_Reduce(OrbOccs,AllOrbOccs,nEl*nEl*nBasis,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(OrbOccs,AllOrbOccs,nEl*nEl*nBasis*2,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD,error)
 #else
         AllOrbOccs=OrbOccs
 #endif
@@ -1749,11 +1749,12 @@ MODULE NatOrbsMod
             do i2=1,nEl
                 do i3=1,nEl
                     do i=1,nBasis
-                        Norm=Norm+AllOrbOccs(i2,i3,i)
-                        IF((AllOrbOccs(i2,i3,i).lt.0).or.(Norm.lt.0)) THEN
-                            WRITE(6,*) 'WARNING: Integer overflow when calculating the orbital occupations.'
-                            tWarning=.true.
-                        ENDIF
+                        Norm=Norm+AllOrbOccs(i2,i3,i,1)
+                        !No need for this test at the moment
+                        !IF((Norm.lt.0)) THEN
+                        !    WRITE(6,*) 'WARNING: Integer overflow when calculating the orbital occupations.'
+                        !    tWarning=.true.
+                        !ENDIF
                     enddo
                 enddo
             enddo
@@ -1761,7 +1762,7 @@ MODULE NatOrbsMod
                 do i2=1,nEl
                     do i3=1,nEl
                         do i=1,nBasis
-                            AllOrbOccs(i2,i3,i)=AllOrbOccs(i2,i3,i)/Norm
+                            AllOrbOccs(i2,i3,i,1)=AllOrbOccs(i2,i3,i,1)/Norm
                         enddo
                     enddo
                 enddo
@@ -1774,7 +1775,7 @@ MODULE NatOrbsMod
             do i2=1,nEl
                 do i3=1,nEl
                     do i=1,nBasis
-                        WRITE(iunit,'(I15,I15,I15,F30.10)') i2,i3,i,AllOrbOccs(i2,i3,i)
+                        WRITE(iunit,'(I15,I15,I15,F30.10,F30.10)') i2,i3,i,AllOrbOccs(i2,i3,i,2),AllOrbOccs(i2,i3,i,1)
                     enddo
                 enddo
             enddo
