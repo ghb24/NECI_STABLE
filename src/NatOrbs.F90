@@ -1730,7 +1730,7 @@ MODULE NatOrbsMod
 ! This hopefully prints it all out
         use util_mod, only: get_free_unit
         IMPLICIT NONE
-        REAL*8 :: Norm,OrbOccs(nEl,nEl,nBasis,2),AllOrbOccs(nEl,nEl,nBasis,2)
+        REAL*8 :: Norm,OrbOccs(nEl,nEl,nBasis,3),AllOrbOccs(nEl,nEl,nBasis,3)
         INTEGER :: i,i2,i3,error, iunit
         LOGICAL :: tWarning
 
@@ -1775,7 +1775,7 @@ MODULE NatOrbsMod
             do i2=1,nEl
                 do i3=1,nEl
                     do i=1,nBasis
-                        WRITE(iunit,'(I15,I15,I15,F30.10,F30.10)') i2,i3,i,AllOrbOccs(i2,i3,i,2),AllOrbOccs(i2,i3,i,1)
+                        WRITE(iunit,'(I15,I15,I15,F30.10,F30.10,F30.10)') i2,i3,i,AllOrbOccs(i2,i3,i,1),AllOrbOccs(i2,i3,i,2),AllOrbOccs(i2,i3,i,3)
                     enddo
                 enddo
             enddo

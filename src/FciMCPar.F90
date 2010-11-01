@@ -4673,15 +4673,17 @@ MODULE FciMCParMod
                     iUEG2=DoubsUEGLookup(DoubEx(1,2))
 !                    write(6,*) "indicies",iUEG1,iUEG2,DoubEx(2,1) 
                     if (iUEG1.eq.0.or.iUEG2.eq.0) call stop_all("SumEContrib","Array bounds issue")
-                    DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),1)=DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),1)+(REAL(WSign(1))*REAL(WSign(1)))
+                    DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),1)=DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),1)+REAL(WSign(1))
 ! Test against natural orbital generation. For a two electron system, this should just be the same 
 ! as the nat orbs if WSign is squared
 !                    DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),1)=DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),1)+(REAL(WSign(1))*REAL(WSign(1)))
-                    IF(tDoubParity) THEN
-                        DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),2)=1.D0
-                    ELSE
-                        DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),2)=-1.D0
-                    ENDIF
+                    DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),2)=HOffDiag
+                    DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),3)=HDiagCurr
+!                    IF(tDoubParity) THEN
+!                        DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),2)=1.D0
+!                    ELSE
+!                        DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),2)=-1.D0
+!                    ENDIF
                 enddo
             ENDIF
         ENDIF
@@ -4941,7 +4943,7 @@ MODULE FciMCParMod
         ENDIF
 
         IF(tPrintDoubsUEG) THEN
-            ALLOCATE(DoubsUEG(NEl,NEl,nBasis,2),stat=ierr)
+            ALLOCATE(DoubsUEG(NEl,NEl,nBasis,3),stat=ierr)
             DoubsUEG(:,:,:,:)=0.D0
             ALLOCATE(DoubsUEGLookup(nBasis),stat=ierr)
             DoubsUEGLookup(:)=0
