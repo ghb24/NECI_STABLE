@@ -12,6 +12,7 @@ module hist
     use constants, only: n_int, bits_n_int, size_n_int, lenof_sign
     use bit_rep_data, only: NIfTot, NIfD
     use bit_reps, only: extract_sign, encode_sign
+    use parallel
 
     implicit none
 
@@ -117,34 +118,47 @@ contains
         !     over those steps.
 
         integer, intent(in) :: iter, nsteps
-        integer :: fd, i, sgn(lenof_sign)
+        integer :: fd, i, sgn(lenof_sign), ierr
+        integer(n_int) :: all_hist(0:NIfTot, ubound(hist_spin_dist, 2))
         character(22) :: fname, iterstr
 
-        ! Open the file for writing
-        fd = get_free_unit ()
-        write(iterstr, '(i12)') iter
-        write(fname, '("spin-hist-",a)') trim(adjustl(iterstr))
-        open(unit=fd, file=trim(fname), status='replace')
+        ! Collate the data on the head node.
+        call MPIReduce (hist_spin_dist, MPI_SUM, all_hist)
 
-        ! Output file header
-        write(fd, '("# 1. Determinant(niftot+1)\t2. sign(lenof_sign)")')
+        if (iProcIndex == Root) then
 
+            ! Open the file for writing
+            fd = get_free_unit ()
+            write(iterstr, '(i12)') iter
+            write(fname, '("spin-hist-",a)') trim(adjustl(iterstr))
+            open(unit=fd, file=trim(fname), status='replace')
+
+            ! Output file header
+            write(fd, '("# 1. Determinant(niftot+1)\t2. sign(lenof_sign)")')
+
+            do i = 1, ubound(all_hist, 2)
+
+                ! Extract sign
+                call extract_sign (all_hist(:,i), sgn)
+
+                ! Output to file
+                write(fd, *) all_hist(0:NIfD, i), float(sgn)/nsteps
+
+            enddo
+
+            ! Close the file
+            close(fd)
+
+        endif
+
+
+        ! Zero all of the elements
+        sgn = 0
         do i = 1, ubound(hist_spin_dist, 2)
-
-            ! Extract sign
-            call extract_sign (hist_spin_dist(:,i), sgn)
-
-            ! Output to file
-            write(fd, *) hist_spin_dist(0:NIfD, i), float(sgn)/nsteps
-
-            ! Zero the element for the next time around
-            sgn = 0
             call encode_sign(hist_spin_dist(:,i), sgn)
-
         enddo
 
-        ! Close the file
-        close(fd)
+        call MPIBarrier (ierr)
 
     end subroutine
 
