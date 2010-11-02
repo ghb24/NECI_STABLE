@@ -5,7 +5,7 @@ module hist
     use DeterminantData, only: get_lexicographic
     use MemoryManager
     use SystemData, only: tHistSpinDist, ilut_spindist, nbasis, nel, LMS, &
-                          hist_spin_dist_iter, nI_spindist
+                          hist_spin_dist_iter, nI_spindist, LMS
     use DetBitOps, only: count_open_orbs, EncodeBitDet, spatial_bit_det, &
                          DetBitEq
     use util_mod, only: choose, get_free_unit, binary_search
@@ -13,6 +13,7 @@ module hist
     use bit_rep_data, only: NIfTot, NIfD
     use bit_reps, only: extract_sign, encode_sign
     use parallel
+    use csf, only: get_num_csfs, csf_coeff, csf_get_yamas, write_yama
 
     implicit none
 
@@ -25,23 +26,39 @@ contains
 
     subroutine init_hist_spin_dist ()
 
-        integer :: open_orbs(nel), dorder(nel), ierr, orb, i
-        integer :: nfound, nopen, nup, ndets
-        integer(n_int), pointer :: p_ilut(:)
+        ! Initialise the spin histogramming. This precalculates nopen and
+        ! ncsf, so that dynamic local arrays can be used without using
+        ! heap allocation.
+
+        integer :: nopen, ncsf
         integer(n_int) :: ilut_tmp(0:NIfTot)
-        character(*), parameter :: this_routine = 'init_hist_spin_dist'
 
         ! Encode spin distribution
         if (.not. allocated(ilut_spindist)) &
             allocate(ilut_spindist(0:NIfTot))
         call EncodeBitDet(nI_spindist(1:nel), ilut_tmp)
-        print*, 'encoded', ilut_tmp
-        call writebitdet(6, ilut_tmp, .true.)
-        call flush(6)
         ilut_spindist = spatial_bit_det(ilut_tmp)
-        print*, 'encoded', ilut_spindist
-        call writebitdet(6, ilut_spindist, .true.)
-        call flush(6)
+
+        ! How many unpaired electrons
+        nopen = count_open_orbs (ilut_spindist)
+
+        ! How many csfs are there?
+        ncsf = get_num_csfs (nopen, LMS)
+
+        call init_hist_spin_dist_local (nopen, ncsf)
+
+    end subroutine
+
+
+    subroutine init_hist_spin_dist_local (nopen, ncsf)
+    
+        integer, intent(in) :: ncsf, nopen
+        integer :: open_orbs(nel), dorder(nel), ierr, orb, i
+        integer :: nfound, nup, ndets, fd
+        integer(n_int), pointer :: p_ilut(:)
+        integer :: yamas(ncsf, nopen)
+        real(dp) :: csf_coeffs(ncsf)
+        character(*), parameter :: this_routine = 'init_hist_spin_dist'
 
         ! Initialise the spin distribution histograms
         if (.not. allocated(ilut_spindist)) &
@@ -49,14 +66,11 @@ contains
                                 & and initialised to use spin distribution &
                                 &histogramming.')
 
-        ! How many open shell electrons are there in this spatial config
-        nopen = count_open_orbs(ilut_spindist)
+        ! How many spin alpha electrons are there?
         nup = (nopen + LMS) / 2
 
         ! How many dets with this config?
         ndets = int(choose(nopen, nup))
-        print*, 'nop, up, dets', nopen, nup, ndets
-        call flush(6)
 
         ! Allocate and initialise storage
         allocate(hist_spin_dist(0:NIfTot, ndets), stat=ierr)
@@ -73,10 +87,24 @@ contains
                 if (nfound == nopen) exit
             endif
         enddo
-        print*, 'open orbs', open_orbs(1:nopen)
+
+        ! Obtain a list of the CSFs required, and open a file to output their
+        ! coefficients
+        call csf_get_yamas (nopen, LMS, yamas, ncsf)
+        fd = get_free_unit ()
+        open(unit=fd, file='det-csf-coeffs', status='replace')
+        write(fd,*) '# Plot ilut(0:NIfD), then coeffs of each avail csf.'
+        write(fd,*) '# NIfD = ', NIfD
+        write(fd,*) '# Assuming that 2*S = 2*Ms = ', LMS
+        write(fd,*) '# Num csfs = ', ncsf
+        do i = 1, ncsf
+            write(fd,'("# ",i4,": ")', advance='no') i
+            call write_yama(fd, yamas(i,:), .true.)
+        enddo
 
         ! Generate all possible determinants with the given spatial structure
         ! and value of Ms
+        write(6,*) 'Initialising Spin distribution histogramming'
         nfound = 0
         dorder(1) = -1
         call get_lexicographic (dorder, nopen, nup)
@@ -97,9 +125,16 @@ contains
                 set_orb(p_ilut, orb)
                 clr_orb(p_ilut, ab_pair(orb))
             enddo
+            write(6,'(i5,": ")', advance='no')
             call writebitdet(6, p_ilut, .false.)
-            print*, p_ilut
 
+            ! Look at the csf coeffs.
+            ! TODO: we may need to invert the dorder...
+            forall(i=1:ncsf) &
+                csf_coeffs(i) = csf_coeff(yamas(i,:), dorder, nopen) 
+            write(fd,*) p_ilut(0:NIfD), csf_coeffs
+
+            ! Continue the loop
             call get_lexicographic (dorder, nopen, nup)
         enddo
         p_ilut => null()
@@ -107,6 +142,7 @@ contains
         if (nfound /= ndets) &
             call stop_all (this_routine, &
                            "Generated incorrect number of determinants")
+
     end subroutine
 
     subroutine write_clear_hist_spin_dist (iter, nsteps)
