@@ -2515,6 +2515,10 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       tMoreClusters=.true.
       iMin=min(iNumExcitors,nEl)
       call AccumulateAmplitudeList(AL,nAmpl,iCurAmpList,iRefPos, dTotLocAbsAmpl)
+      IFDEBUG(iDebug,7) THEN
+         call WriteExcitorListA(6,AL%CumlAmplitude,DetList,0,nAmpl,0,"Cuml Amp List")
+      ENDIF
+          
       do while (tMoreClusters)
          tMoreClusters=GetNextCluster(CS,DetList,nAmpl,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,dNorm, iMin,iDebug)
          if(.not.tMoreClusters) exit
