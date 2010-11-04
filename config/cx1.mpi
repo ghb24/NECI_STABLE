@@ -10,8 +10,8 @@ libs = -L /apps/fftw/3.2.2-double/lib -L /apps/intel/ict/3.1.022/cmkl/10.0.011/l
 module_flag = -module
 
 [dbg]
-fflags = -r8 -g -warn
-cflags = -g -warn
+fflags = -r8 -g
+cflags = -g
 
 [opt]
 fflags = -r8 -O3 
