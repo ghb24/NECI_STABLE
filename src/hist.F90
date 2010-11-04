@@ -20,7 +20,8 @@ module hist
     ! Should we histogram the distribution of spin dets within a given
     ! spatial structure --> Analyse spin development
     integer(n_int), allocatable, target :: hist_spin_dist(:,:)
-    integer :: tag_spindist=0
+    real(dp), allocatable :: hist_csf_coeffs(:,:)
+    integer :: tag_spindist=0, tag_histcsfs=0
 
 contains
 
@@ -30,7 +31,7 @@ contains
         ! ncsf, so that dynamic local arrays can be used without using
         ! heap allocation.
 
-        integer :: nopen, ncsf
+        integer :: nopen, ncsf, S
         integer(n_int) :: ilut_tmp(0:NIfTot)
 
         ! Encode spin distribution
@@ -43,7 +44,10 @@ contains
         nopen = count_open_orbs (ilut_spindist)
 
         ! How many csfs are there?
-        ncsf = get_num_csfs (nopen, LMS)
+        ncsf = 0
+        do S = LMS, nopen, 2
+            ncsf = ncsf + get_num_csfs (nopen, S)
+        enddo
 
         call init_hist_spin_dist_local (nopen, ncsf)
 
@@ -53,12 +57,12 @@ contains
     subroutine init_hist_spin_dist_local (nopen, ncsf)
     
         integer, intent(in) :: ncsf, nopen
-        integer :: open_orbs(nel), dorder(nel), ierr, orb, i
+        integer :: open_orbs(nel), dorder(nel), ierr, orb, i, S, tmp
         integer :: nfound, nup, ndets, fd
         integer(n_int), pointer :: p_ilut(:)
         integer :: yamas(ncsf, nopen)
-        real(dp) :: csf_coeffs(ncsf)
         character(*), parameter :: this_routine = 'init_hist_spin_dist'
+        character(20) :: fmt_str
 
         ! Initialise the spin distribution histograms
         if (.not. allocated(ilut_spindist)) &
@@ -93,18 +97,34 @@ contains
         call csf_get_yamas (nopen, LMS, yamas, ncsf)
         fd = get_free_unit ()
         open(unit=fd, file='det-csf-coeffs', status='replace')
-        write(fd,*) '# Plot ilut(0:NIfD), then coeffs of each avail csf.'
-        write(fd,*) '# NIfD = ', NIfD
-        write(fd,*) '# Assuming that 2*S = 2*Ms = ', LMS
-        write(fd,*) '# Num csfs = ', ncsf
-        do i = 1, ncsf
-            write(fd,'("# ",i4,": ")', advance='no') i
-            call write_yama(fd, yamas(i,:), .true.)
+        write(fd,'("# Print ilut(0:NIfD), then coeffs of each avail csf.")')
+        write(fd,'("# NIfD = ",i2)') NIfD
+        write(fd,'("# 2*Ms = ",i2)') LMS
+        write(fd,'("# Total num csfs = ", i4)') ncsf
+        nfound = 0
+        do S = LMS, nopen, 2
+            tmp = get_num_csfs (nopen, S)
+            write(fd,'("# S = ",i2,", Num csfs = ",i4)') S, tmp
+            call csf_get_yamas (nopen, S, yamas(nfound+1:nfound+tmp,:), tmp)
+            do i = 1, tmp
+                write(fd,'("# ",i4,": ")', advance='no') nfound + i
+                call write_yama(fd, yamas(nfound + i,:), .true.)
+            enddo
+            nfound = nfound + tmp
         enddo
+        if (nfound /= ncsf) &
+            call stop_all ("Incorrect number of CSFs found")
+
+        ! Allocate list of csf coefficients
+        if (allocated(hist_csf_coeffs)) deallocate(hist_csf_coeffs)
+        allocate(hist_csf_coeffs(ndets, ncsf), stat=ierr)
+        LogAlloc(ierr, 'hist_csf_coeffs', ndets*ncsf, sizeof_dp, tag_histcsfs)
 
         ! Generate all possible determinants with the given spatial structure
         ! and value of Ms
         write(6,*) 'Initialising Spin distribution histogramming'
+        write(fmt_str,'("(",i2,"i20,",i4,"f20.15)")') NIfD+1, ncsf
+        call flush(6)
         nfound = 0
         dorder(1) = -1
         call get_lexicographic (dorder, nopen, nup)
@@ -131,8 +151,9 @@ contains
             ! Look at the csf coeffs.
             ! TODO: we may need to invert the dorder...
             forall(i=1:ncsf) &
-                csf_coeffs(i) = csf_coeff(yamas(i,:), dorder, nopen) 
-            write(fd,*) p_ilut(0:NIfD), csf_coeffs
+                hist_csf_coeffs(nfound, i) = &
+                    csf_coeff(yamas(i,:), dorder, nopen) 
+            write(fd,fmt_str) p_ilut(0:NIfD), hist_csf_coeffs(nfound, :)
 
             ! Continue the loop
             call get_lexicographic (dorder, nopen, nup)
@@ -154,8 +175,9 @@ contains
         !     over those steps.
 
         integer, intent(in) :: iter, nsteps
-        integer :: fd, i, sgn(lenof_sign), ierr
+        integer :: fd, i, j, sgn(lenof_sign), ierr
         integer(n_int) :: all_hist(0:NIfTot, ubound(hist_spin_dist, 2))
+        real(dp) :: csf_contrib(lenof_sign, ubound(hist_csf_coeffs, 2))
         character(22) :: fname, iterstr
 
         ! Collate the data on the head node.
@@ -172,6 +194,7 @@ contains
             ! Output file header
             write(fd, '("# 1. Determinant(niftot+1)\t2. sign(lenof_sign)")')
 
+            csf_contrib = 0
             do i = 1, ubound(all_hist, 2)
 
                 ! Extract sign
@@ -179,7 +202,25 @@ contains
 
                 ! Output to file
                 write(fd, *) all_hist(0:NIfD, i), float(sgn)/nsteps
+                
+                ! Add csf contribs
+                do j = 1, ubound(csf_contrib, 2)
+                    csf_contrib(:,j) = csf_contrib(:,j) + &
+                        hist_csf_coeffs(i, j) * sgn
+                enddo
 
+            enddo
+
+            ! Close the file
+            close(fd)
+
+            ! Open csf histogram file
+            write(fname, '("csf-hist-",a)') trim(adjustl(iterstr))
+            open(unit=fd, file=trim(fname), status='replace')
+            
+            ! Output csf components to hist file
+            do i = 1, ubound(csf_contrib, 2)
+                write(fd,*) csf_contrib(:,i)/nsteps
             enddo
 
             ! Close the file
