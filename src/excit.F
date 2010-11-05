@@ -353,6 +353,7 @@ C.. determinants within double excitations, which will end up fairly inefficient
          LOGICAL TSYM,TCOUNT
          INTEGER NMIN
          type(BasisFN) G1(*)
+         INTEGER nBRR(1)
 
          INTEGER*8 STORE(6)
          INTEGER ICOUNT,ILEVEL
@@ -364,7 +365,7 @@ C.. determinants within double excitations, which will end up fairly inefficient
          IF(NBASISMAX(4,7).EQ.1) THEN
             NLIST=0
 C.. If we're actually using CSFs
-            CALL GNCSFS(NEL,NBASIS,0,NBASISMAX,
+            CALL GNCSFS(NEL,NBASIS,nBrr,NBASISMAX,
      &         LIST,TCOUNT,G1,TSYM,ISYM%MS,TSYM,ISYM,NLIST,IFDET,
      &         .TRUE.,NI,ICLIST,.TRUE.,NO)
          ELSE

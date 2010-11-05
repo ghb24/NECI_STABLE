@@ -7,7 +7,7 @@ C.. determinants of Sin function basis, using the Fourier
 C.. method. 
 C=========================================================
       IMPLICIT REAL*8(A-H,O-Z)
-      INTEGER G1(4),G2(4),G1P(4),G2P(4)
+      INTEGER G1(3),G2(3),G1P(3),G2P(3)
       COMPLEX*16 ZIA(-N/2:N/2,NMAX,NMAX) 
       COMPLEX*16 CK(-N/2:N/2-1,-N/2:N/2-1,-N/2:N/2-1)
 
@@ -25,7 +25,7 @@ C =============================================================
       IMPLICIT REAL*8(A-H,O-Z)
       INTEGER N
       COMPLEX*16 ZIA(-N/2:N/2,NMAX,NMAX) 
-      INTEGER G1(4),G2(4),G1P(4),G2P(4)
+      INTEGER G1(3),G2(3),G1P(3),G2P(3)
       COMPLEX*16 CK(-N/2:N/2-1,-N/2:N/2-1,-N/2:N/2-1)
       COMPLEX*16 CAUX,CAUX1,CAUX2,CAUX3,ZZERO
 C..Sum over k
