@@ -797,7 +797,7 @@ MODULE System
         
     Subroutine SysInit
       Use global_utilities
-      use SymData, only: tAbelian,TwoCycleSymGens
+      use SymData, only: tAbelian,TwoCycleSymGens,nSymLabels
       use constants, only: Pi, Pi2, THIRD
       use legacy_data, only: CSF_NBSTART
       use read_fci
@@ -1316,6 +1316,9 @@ MODULE System
           WRITE(6,'(A)') "****** USING Lz SYMMETRY *******"
           WRITE(6,'(A,I5)') "Pure spherical harmonics with complex orbitals used to constrain Lz to: ",LzTot
           WRITE(6,*) "Due to the breaking of the Ml degeneracy, the fock energies are slightly wrong, on order of 1.D-4 - do not use for MP2!"
+          if(nsymlabels.gt.4) then
+              call stop_all(this_routine,"D2h point group detected. Incompatable with Lz symmetry conserving orbitals. Have you transformed these orbitals into spherical harmonics correctly?!")
+          endif
       ENDIF
 
 !C..        (.NOT.TREADINT)
