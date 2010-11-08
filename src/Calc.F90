@@ -232,6 +232,9 @@ contains
           tUseProcsAsNodes=.false.
 
           tSpawnSpatialInit = .false.
+
+          ! Truncation based on number of unpaired electrons
+          tTruncNOpen = .false.
       
         end subroutine SetCalcDefaults
 
@@ -1245,6 +1248,12 @@ contains
                 ! with the same spatial structure should be allowed.
                 tSpawnSpatialInit = .true.
                 tSpatialOnlyHash = .true.
+
+            case("TRUNC-NOPEN")
+                ! Truncate determinant spawning at a specified number of
+                ! unpaired electrons.
+                tTruncNOpen = .true.
+                call geti (trunc_nopen_max)
 
             case default
                 call report("Keyword "                                &
