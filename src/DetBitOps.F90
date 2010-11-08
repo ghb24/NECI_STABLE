@@ -1,26 +1,29 @@
 #include "macros.h"
 
-!This file contains a load of useful operations to perform on determinants represented as bit-strings.
-! Start the process of modularising this bit!!
 module DetBitOps
+
+    ! A collection of useful operations to perform on the bit-representation
+    ! of determinants.
+
     use Systemdata, only: nel, tCSF, tTruncateCSF, csf_trunc_level
     use CalcData, only: tTruncInitiator
     use bit_rep_data, only: NIfY, NIfTot, NIfD, NOffFlag, NIfFlag, &
                             test_flag, flag_is_initiator,NIfDBO
     use csf_data, only: iscsf, csf_yama_bit, csf_orbital_mask, csf_test_bit
-    ! TODO: remove
-    use systemdata, only: g1
     use constants, only: n_int,bits_n_int,end_n_int
+
     implicit none
 
 #ifdef __INT64
-    INTEGER(KIND=n_int), PARAMETER :: MaskBeta=Z'5555555555555555'              !This is 1010101... in binary
-    INTEGER(KIND=n_int), PARAMETER :: MaskAlpha=IShft(MaskBeta,1)   !This is 0101010... in binary  
+    ! 10101010 and 01010101 in binary respectively.
+    integer(n_int), parameter :: MaskBeta=Z'5555555555555555'
+    integer(n_int), parameter :: MaskAlpha=IShft(MaskBeta,1)
 #else
-    INTEGER(KIND=n_int), PARAMETER :: MaskBeta=1431655765    !This is 1010101... in binary
-    INTEGER(KIND=n_int), PARAMETER :: MaskAlpha=-1431655766  !This is 0101010... in binary
+    integer(n_int), parameter :: MaskBeta=1431655765
+    integer(n_int), parameter :: MaskAlpha=-1431655766
 #endif
 
+    ! Which count-bits procedure do we use?
     ! http://gurmeetsingh.wordpress.com/2008/08/05/fast-bit-counting-routines/
     ! for a variety of interesting bit counters
     interface CountBits

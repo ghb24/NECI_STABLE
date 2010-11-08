@@ -7,7 +7,7 @@ reporter: Simon
 severity: minor
 
 
-status: open
+status: fixed
 
 
 summary: nopen truncation
