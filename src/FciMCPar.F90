@@ -1931,6 +1931,10 @@ MODULE FciMCParMod
 
         fac = tau * (Kii-DiagSft)
 
+        if(fac.gt.1.D0) then
+            write(6,"(A,F20.10)") "** WARNING ** Death probability > 1: Creating Antiparticles. Timestep errors possible: ",fac
+        endif
+
         do i=1,lenof_sign
             ! Subtract the current value of the shift, and multiply by tau.
             ! If there are multiple particles, scale the probability.
