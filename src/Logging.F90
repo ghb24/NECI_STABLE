@@ -23,6 +23,7 @@ MODULE Logging
     INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs,NoTruncOrbsTag,TruncEvaluesTag,iWriteHamilEvery,OrbOccsTag,HistInitPopsTag,AllHistInitPopsTag
     INTEGER , ALLOCATABLE :: NoTruncOrbs(:),HistInitPops(:,:),AllHistInitPops(:,:)
     REAL*8 , ALLOCATABLE :: TruncEvalues(:),OrbOccs(:),DoubsUEG(:,:,:,:),DoubsUEGLookup(:)
+    LOGICAL, ALLOCATABLE :: DoubsUEGStore(:,:,:)
     LOGICAL :: tBlockEveryIteration
     LOGICAL tLogDets       ! Write out the DETS and SymDETS files.
     LOGICAL tLogComplexPops     ! Write out complex walker information 
