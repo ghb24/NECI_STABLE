@@ -1745,28 +1745,29 @@ MODULE NatOrbsMod
 ! Want to normalise the orbital contributions for convenience.        
         tWarning=.false.
         IF(iProcIndex.eq.0) THEN
-            Norm=0.D0
-            do i2=1,nEl
-                do i3=1,nEl
-                    do i=1,nBasis
-                        Norm=Norm+AllOrbOccs(i2,i3,i,1)
-                        !No need for this test at the moment
-                        !IF((Norm.lt.0)) THEN
-                        !    WRITE(6,*) 'WARNING: Integer overflow when calculating the orbital occupations.'
-                        !    tWarning=.true.
-                        !ENDIF
-                    enddo
-                enddo
-            enddo
-            IF(Norm.ne.0.D0) THEN
-                do i2=1,nEl
-                    do i3=1,nEl
-                        do i=1,nBasis
-                            AllOrbOccs(i2,i3,i,1)=AllOrbOccs(i2,i3,i,1)/Norm
-                        enddo
-                    enddo
-                enddo
-            ENDIF
+
+!            Norm=0.D0
+!            do i2=1,nEl
+!                do i3=1,nEl
+!                    do i=1,nBasis
+!                        Norm=Norm+AllOrbOccs(i2,i3,i,1)
+!                        !No need for this test at the moment
+!                        !IF((Norm.lt.0)) THEN
+!                        !    WRITE(6,*) 'WARNING: Integer overflow when calculating the orbital occupations.'
+!                        !    tWarning=.true.
+!                        !ENDIF
+!                    enddo
+!                enddo
+!            enddo
+!            IF(Norm.ne.0.D0) THEN
+!                do i2=1,nEl
+!                    do i3=1,nEl
+!                        do i=1,nBasis
+!                            AllOrbOccs(i2,i3,i,1)=AllOrbOccs(i2,i3,i,1)/Norm
+!                        enddo
+!                    enddo
+!                enddo
+!            ENDIF
 
             iunit = get_free_unit()
             OPEN(iunit,FILE='DOUBOCCUPATIONS',STATUS='UNKNOWN')
