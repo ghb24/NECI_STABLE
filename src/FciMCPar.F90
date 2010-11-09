@@ -4446,13 +4446,14 @@ MODULE FciMCParMod
         INTEGER , intent(in) :: DetCurr(NEl),ExcitLevel
         INTEGER, DIMENSION(lenof_sign) , INTENT(IN) :: WSign
         INTEGER(KIND=n_int), intent(in) :: iLutCurr(0:NIfTot)
-        INTEGER :: i,Bin,iUEG1,iUEG2
+        INTEGER :: i,i2,Bin,iUEG1,iUEG2
         INTEGER :: PartInd,OpenOrbs
         INTEGER(KIND=n_int) :: iLutSym(0:NIfTot)
         LOGICAL :: tSuccess
         REAL*8 , intent(in) :: HDiagCurr,dProbFin
         HElement_t :: HOffDiag
-        INTEGER :: DoubEx(2,2),DoubEx2(2,2) ! For histogramming UEG doubles
+        HElement_t :: HDoubDiag
+        INTEGER :: DoubEx(2,2),DoubEx2(2,2),kDoub(3) ! For histogramming UEG doubles
         LOGICAL :: tDoubParity,tDoubParity2 ! As above
 
         IF(ExcitLevel.eq.0) THEN
@@ -4678,7 +4679,20 @@ MODULE FciMCParMod
 ! as the nat orbs if WSign is squared
 !                    DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),1)=DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),1)+(REAL(WSign(1))*REAL(WSign(1)))
                     DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),2)=HOffDiag
-                    DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),3)=HDiagCurr
+                    IF(tHPHF) THEN
+                        HDoubDiag = hphf_off_diag_helement (DetCurr, DetCurr, iLutCurr, &
+                                                           iLutCurr)
+                    ELSE
+                        HDoubDiag = get_helement (DetCurr, DetCurr, 0) !, iLutCurr, &
+                                                ! iLutCurr)
+                    ENDIF
+!                    write(6,*) "DetCurr", DetCurr
+!                    write(6,*) HDoubDiag
+                    DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),3)=HDoubDiag
+                    kDoub=0
+                    kDoub=G1(DoubEx(2,1))%k
+                    DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),4)=REAL(kDoub(1))**2.D0+REAL(kDoub(2))**2.D0+REAL(kDoub(3))**2.D0
+! Commented out - but a way of extracting parity
 !                    IF(tDoubParity) THEN
 !                        DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),2)=1.D0
 !                    ELSE
@@ -4943,7 +4957,7 @@ MODULE FciMCParMod
         ENDIF
 
         IF(tPrintDoubsUEG) THEN
-            ALLOCATE(DoubsUEG(NEl,NEl,nBasis,3),stat=ierr)
+            ALLOCATE(DoubsUEG(NEl,NEl,nBasis,4),stat=ierr)
             DoubsUEG(:,:,:,:)=0.D0
             ALLOCATE(DoubsUEGLookup(nBasis),stat=ierr)
             DoubsUEGLookup(:)=0

@@ -1730,14 +1730,14 @@ MODULE NatOrbsMod
 ! This hopefully prints it all out
         use util_mod, only: get_free_unit
         IMPLICIT NONE
-        REAL*8 :: Norm,OrbOccs(nEl,nEl,nBasis,3),AllOrbOccs(nEl,nEl,nBasis,3)
+        REAL*8 :: Norm,OrbOccs(nEl,nEl,nBasis,4),AllOrbOccs(nEl,nEl,nBasis,4)
         INTEGER :: i,i2,i3,error, iunit
         LOGICAL :: tWarning
 
         AllOrbOccs = 0.D0
 
 #ifdef PARALLEL
-        CALL MPI_Reduce(OrbOccs,AllOrbOccs,nEl*nEl*nBasis*2,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(OrbOccs,AllOrbOccs,nEl*nEl*nBasis*4,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD,error)
 #else
         AllOrbOccs=OrbOccs
 #endif
@@ -1775,7 +1775,7 @@ MODULE NatOrbsMod
             do i2=1,nEl
                 do i3=1,nEl
                     do i=1,nBasis
-                        WRITE(iunit,'(I15,I15,I15,F30.10,F30.10,F30.10)') i2,i3,i,AllOrbOccs(i2,i3,i,1),AllOrbOccs(i2,i3,i,2),AllOrbOccs(i2,i3,i,3)
+                        WRITE(iunit,'(I15,I15,I15,F30.10,F30.10,F30.10,F30.10)') i2,i3,i,AllOrbOccs(i2,i3,i,1),AllOrbOccs(i2,i3,i,2),AllOrbOccs(i2,i3,i,3),AllOrbOccs(i2,i3,i,4)
                     enddo
                 enddo
             enddo
