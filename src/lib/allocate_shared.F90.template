@@ -368,7 +368,7 @@ contains
         pt1 => ptr(lbound(ptr,1) %(elem1)s)
 
 #ifdef __PATHSCALE__
-        tmp = loc(ptr(%(elem1)s))
+        tmp = loc(ptr(:%(elem1)s))
 #else
         tmp = c_loc(pt1)
 #endif
