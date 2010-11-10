@@ -205,6 +205,7 @@ contains
           MaxNoatHF=0
           HFPopThresh=0
           tSpatialOnlyHash = .false.
+          tSpawn_Only_Init = .false.
 
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
 
@@ -1044,6 +1045,10 @@ contains
 !The minimum walker population for a determinant to be added to the initiator space is InitiatorWalkNo.
                 tAddtoInitiator=.true.
                 call Geti(InitiatorWalkNo)
+
+            case("SPAWNONLYINIT")
+!This option means only the initiators have the ability to spawn.  The non-initiators can live/die but not spawn walkers of their own.                
+                tSpawn_Only_Init = .true.
 
             case("RETESTINITPOP")                
 !This keyword is on by default.  It corresponds to the original initiator algorithm whereby a determinant may be added to the initiator space if its population becomes higher 

@@ -32,7 +32,7 @@ MODULE FciMCParMod
                         tReadPopsRestart, tCheckHighestPopOnce, &
                         iRestartWalkNum, tRestartHighPop, FracLargerDet, &
                         tChangeProjEDet, tCheckHighestPop, tSpawnSpatialInit,&
-                        MemoryFacInit, tMaxBloom
+                        MemoryFacInit, tMaxBloom, tSpawn_Only_Init
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use Determinants, only: FDet, get_helement, write_det, &
                             get_helement_det_only
@@ -729,8 +729,19 @@ MODULE FciMCParMod
             ! excite from the first particle on a determinant).
             fcimc_excit_gen_store%tFilled = .false.
 
-            ! Decode determinant from (stored) bit-representation.
-            call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
+            call extract_sign (CurrentDets(:,j), SignCurr)
+
+            ! TODO: Ensure that the HF determinant has its flags setup
+            !       correctly at the start of a run.
+            if (tTruncInitiator) call CalcParentFlag (j, VecSlot, Iter, &
+                                                      parent_flags)
+
+            ! If we are only spawning from initiators, we don't need to do this decoding
+            ! if CurrentDet is a non-initiator otherwise it is necessary either way.
+
+            if ((.not.tSpawn_Only_Init) .or. tcurr_initiator)              & 
+                ! Decode determinant from (stored) bit-representation.
+                call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
                                   FlagsCurr, fcimc_excit_gen_store)
 
             !Debug output.
@@ -788,57 +799,57 @@ MODULE FciMCParMod
             call SumEContrib (DetCurr, WalkExcitLevel, SignCurr, &
                               CurrentDets(:,j), HDiagCurr, 1.d0)
 
-            ! TODO: Ensure that the HF determinant has its flags setup
-            !       correctly at the start of a run.
-            if (tTruncInitiator) call CalcParentFlag (j, VecSlot, Iter, &
-                                                      parent_flags)
-
             ! Loop over the 'type' of particle. 
             ! lenof_sign == 1 --> Only real particles
             ! lenof_sign == 2 --> complex walkers
             !                 --> part_type == 1, 2; real and complex walkers
             do part_type=1,lenof_sign
 
-                ! Loop over all the particles of a given type on the 
-                ! determinant. CurrentSign gives number of walkers. Multiply 
-                ! up by noMCExcits if attempting multiple excitations from 
-                ! each walker (default 1)
-                do p = 1, abs(SignCurr(part_type)) * noMCExcits
-                    ! Zero the bit representation, to ensure no extraneous
-                    ! data gets through.
-                    ilutnJ = 0
+                if ((.not.tSpawn_Only_Init) .or. &
+                    test_flag (CurrentDets(:,j), flag_parent_initiator(part_type))) then
 
-                    ! Generate a (random) excitation
-                    call generate_excitation (DetCurr, CurrentDets(:,j), nJ, &
-                                   ilutnJ, exFlag, IC, ex, tParity, prob, &
-                                   HElGen, fcimc_excit_gen_store)
+                    ! Loop over all the particles of a given type on the 
+                    ! determinant. CurrentSign gives number of walkers. Multiply 
+                    ! up by noMCExcits if attempting multiple excitations from 
+                    ! each walker (default 1)
+                    do p = 1, abs(SignCurr(part_type)) * noMCExcits
+                        ! Zero the bit representation, to ensure no extraneous
+                        ! data gets through.
+                        ilutnJ = 0
 
-                    ! If a valid excitation, see if we should spawn children.
-                    if (.not. IsNullDet(nJ)) then
-                        child = attempt_create (get_spawn_helement, DetCurr, &
-                                            CurrentDets(:,j), SignCurr, &
-                                            nJ,iLutnJ, Prob, HElGen, IC, ex, &
-                                            tParity, walkExcitLevel,part_type)
-                    else
-                        child = 0
-                    endif
+                        ! Generate a (random) excitation
+                        call generate_excitation (DetCurr, CurrentDets(:,j), nJ, &
+                                       ilutnJ, exFlag, IC, ex, tParity, prob, &
+                                       HElGen, fcimc_excit_gen_store)
 
-                    ! Children have been chosen to be spawned.
-                    if (any(child /= 0)) then
-                        ! We know we want to create a particle of this type.
-                        ! Encode the bit representation if it isn't already.
-                        call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
+                        ! If a valid excitation, see if we should spawn children.
+                        if (.not. IsNullDet(nJ)) then
+                            child = attempt_create (get_spawn_helement, DetCurr, &
+                                                CurrentDets(:,j), SignCurr, &
+                                                nJ,iLutnJ, Prob, HElGen, IC, ex, &
+                                                tParity, walkExcitLevel,part_type)
+                        else
+                            child = 0
+                        endif
 
-                        call new_child_stats (iter_data, CurrentDets(:,j), &
-                                              nJ, iLutnJ, ic, walkExcitLevel,&
-                                              child, parent_flags, part_type)
+                        ! Children have been chosen to be spawned.
+                        if (any(child /= 0)) then
+                            ! We know we want to create a particle of this type.
+                            ! Encode the bit representation if it isn't already.
+                            call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
 
-                        call create_particle (nJ, iLutnJ, child, &
-                                              parent_flags, part_type)
-                    
-                    endif ! (child /= 0). Child created
+                            call new_child_stats (iter_data, CurrentDets(:,j), &
+                                                  nJ, iLutnJ, ic, walkExcitLevel,&
+                                                  child, parent_flags, part_type)
 
-                enddo ! Cycling over mulitple particles on same determinant.
+                            call create_particle (nJ, iLutnJ, child, &
+                                                  parent_flags, part_type)
+                        
+                        endif ! (child /= 0). Child created
+
+                    enddo ! Cycling over mulitple particles on same determinant.
+
+                endif
 
             enddo   ! Cycling over 'type' of particle on a given determinant.
 
@@ -1044,6 +1055,7 @@ MODULE FciMCParMod
 
         call extract_sign (CurrentDets(:,j), CurrentSign)
 
+        tcurr_initiator = .false.
         do part_type=1,lenof_sign
             ! By default, the parent_flags are the flags of the parent...
             parent_init = test_flag (CurrentDets(:,j), flag_parent_initiator(part_type))
@@ -1101,6 +1113,10 @@ MODULE FciMCParMod
             ! Update the parent flag as required.
             call set_flag (CurrentDets(:,j), flag_parent_initiator(part_type), &
                            parent_init)
+            
+            if(parent_init) then                           
+                tcurr_initiator = .true.
+            endif
 
         enddo
 
@@ -4909,6 +4925,8 @@ MODULE FciMCParMod
 
         IF((NMCyc.ne.0).and.(tRotateOrbs.and.(.not.tFindCINatOrbs))) CALL Stop_All(this_routine,"Currently not set up to rotate and then go straight into a spawning &
                                                                                     & calculation.  Ordering of orbitals is incorrect.  This may be fixed if needed.")
+        
+        if(tSpawn_Only_Init .and. (.not.tTruncInitiator)) CALL Stop_All(this_routine,"Cannot use the SPAWNONLYINIT option without the TRUNCINITIATOR option.")
 
     end subroutine InitFCIMCCalcPar
             
