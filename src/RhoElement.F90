@@ -26,8 +26,9 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
       REAL*8 ALAT(3)  
       HElement_t hE,UExp,B,EDIAG
       IF(NTAY(1).LT.0) THEN
-!.. We've actually hidden a matrix of rhos in the coeffs for calcing RHO
-         CALL GETRHOEXND(NI,NJ,NEL,BETA,NMSH,FCK,UMAT,RH)
+!.. We've actually hidden a matrix of rhos in the coeffs for calcing RHOa
+          STOP "GETRHOEXND has been removed."
+!         CALL GETRHOEXND(NI,NJ,NEL,BETA,NMSH,FCK,UMAT,RH)
          RETURN
       ELSEIF(NTAY(1).EQ.0) THEN
 !.. NTAY=0 signifying we're going to calculate the RHO values when we
@@ -37,7 +38,8 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
 !..      ZIA=CK
 !..      UMAT=NDET
 !..      ALAT=NMRKS
-          CALL CALCRHOEXND(NI,NJ,NEL,BETA,NMSH,FCK,UMAT,ALAT,I_P,RH)
+          STOP "Exact RHO calculation broken."
+!          CALL CALCRHOEXND(NI,NJ,NEL,BETA,NMSH,FCK,UMAT,ALAT,I_P,RH)
          RETURN
       ENDIF
       proc_timer%timer_name='CALCRHO2  '

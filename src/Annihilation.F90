@@ -847,6 +847,7 @@ MODULE AnnihilationMod
         INTEGER, DIMENSION(lenof_sign) :: CurrentSign,SpawnedSign
         REAL*8 :: HDiag
         LOGICAL :: TestClosedShellDet
+        character(*), parameter :: this_routine = 'InsertRemoveParts'
         HElement_t :: HDiagTemp
 
 !It appears that the rest of this routine isn't thread-safe if ValidSpawned is zero.
@@ -937,6 +938,13 @@ MODULE AnnihilationMod
 !TotWalkersNew is now the number of determinants in the main list left.
 !We now want to merge the main list with the spawned list of non-annihilated spawned particles.
 !The final list will be of length TotWalkersNew+ValidSpawned. This will be returned in the first element of MergeLists updated.
+        if(TotWalkersNew+ValidSpawned>MaxWalkersPart) then
+            WRITE(6,*) "Non-annihilated old walkers:",TotWalkersNew
+            WRITE(6,*) "Non-annihilated spawned:",ValidSpawned
+            WRITE(6,*) "Total walkers to remain:", TotWalkersNew+ValidSpawned
+            WRITE(6,*) "Size of Particle List:", MaxWalkersPart
+            call stop_all(this_routine, "Not enough space in particle list for merge.") 
+        endif
         IF(tRegenDiagHEls) THEN
             IF(TotWalkersNew.eq.0) THEN
 !Merging algorithm will not work with no determinants in the main list.

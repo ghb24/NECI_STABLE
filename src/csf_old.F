@@ -279,6 +279,7 @@ C.. test if NCI is a CSF
          TYPE(BASISFN) ISYM,KSYM
          INTEGER SFORCE,SZFORCE
          INTEGER IEXCITS
+         INTEGER ICL(1)
          CALL SYMGETSSZ(LMS,SFORCE,SZFORCE)
          ISYM = IPARITY
 C.. make sure Sz=0 as this is dealt with in the csfgen part
@@ -339,7 +340,7 @@ C.. go and create a set of CSFs from these electrons
 !   Warning: code divergence has meant this hasn't been tested in a long
 !   time.  At the very least, the number of arguments is wrong. (JSS)
      &           CALL CSFGENCSFS(NI,NEL,NOPEN,NCLOSED,NMRKS,NDET,TCOUNT,
-     &            TSPN,SFORCE,SZFORCE,.false.,0,0,0,0)
+     &            TSPN,SFORCE,SZFORCE,.false.,ICL,0,ICL,0)
             ENDIF
 C.. We've now added some electrons, so we need to now check that the new
 C.. places our orbitals are pointing at have not been used up already.
