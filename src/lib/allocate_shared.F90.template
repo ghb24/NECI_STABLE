@@ -223,6 +223,10 @@ module shared_alloc
             implicit none
             type(c_ptr), value :: ptr
         end subroutine
+        subroutine warn_shared_permissions () bind(c)
+            use, intrinsic :: iso_c_binding
+            implicit none
+        end subroutine
     end interface
 
 contains
@@ -250,7 +254,13 @@ contains
         integer(int64) :: sz
         type(c_ptr) :: tmp
         integer :: error
+
+        ! Print specific warnings to STDOUT if the required permissions
+        ! are unavailable
+        ! TODO: automatically fall back on normal allocation if required
+        call warn_shared_permissions ()
 #endif
+
         call conv_name(nm,name_tmp,node)
         ! Prepare name of shared memory object to pass to C.
         name_tmp = trim(name_tmp)//c_null_char
@@ -300,7 +310,13 @@ contains
         integer(int64) :: sz
         type(c_ptr) :: tmp
         integer :: error
+
+        ! Print specific warnings to STDOUT if the required permissions
+        ! are unavailable
+        ! TODO: automatically fall back on normal allocation if required
+        call warn_shared_permissions ()
 #endif
+
         call conv_name(nm,name_tmp,node)
 
         ! Prepare name of shared memory object to pass to C.

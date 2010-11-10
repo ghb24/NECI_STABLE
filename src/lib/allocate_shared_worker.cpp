@@ -129,3 +129,37 @@ extern "C" void cleanup_shared_alloc ()
 	g_shared_mem_map.clear();
 }
 
+
+//
+// Test if shared memory is going to be OK. If not, print a warning...
+extern "C" void warn_shared_permissions ()
+{
+	const char* shm_dir = "/dev/shm";
+
+	int stat = access (shm_dir, F_OK);
+	if (stat)
+		printf ("SHM directory not found: %s\n", strerror(errno));
+	else
+		printf ("SHM directory present\n");
+
+	stat = access (shm_dir, R_OK);
+	if (stat)
+		printf ("Read access to SHM directory unavailable: %s\n", strerror(errno));
+	else
+		printf ("Read access to SHM directory available\n");
+
+	stat = access (shm_dir, W_OK);
+	if (stat)
+		printf ("Write access to SHM directory unavailable: %s\n", strerror(errno));
+	else
+		printf ("Write access to SHM directory available\n");
+
+	stat = access (shm_dir, X_OK);
+	if (stat)
+		printf ("Execute permissions for SHM directory unavailable: %s\n", strerror(errno));
+	else
+		printf ("Execute permissions for SHM directory available\n");
+
+	fflush (stdout);
+}
+
