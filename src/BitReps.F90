@@ -31,14 +31,10 @@ module bit_reps
 
     ! Which decoding function do we want to use?
     interface decode_bit_det
-#ifdef __PGI__
         module procedure decode_bit_det_bitwise
-#else
-        module procedure decode_bit_det_chunks
-#endif
+!        module procedure decode_bit_det_chunks
     end interface
 
-#ifndef __PGI__
     ! Some (rather nasty) data for the chunkwise decoding
     integer, parameter :: decode_map_arr(0:8,0:255) = reshape(&
         (/0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,1,2,0,0,0,0,0,0,0,2,1,2,0,0,0,&
@@ -110,9 +106,8 @@ module bit_reps
         5,2,5,6,7,8,0,0,0,6,1,2,5,6,7,8,0,0,5,3,5,6,7,8,0,0,0,6,1,3,5,6,7,&
         8,0,0,6,2,3,5,6,7,8,0,0,7,1,2,3,5,6,7,8,0,5,4,5,6,7,8,0,0,0,6,1,4,&
         5,6,7,8,0,0,6,2,4,5,6,7,8,0,0,7,1,2,4,5,6,7,8,0,6,3,4,5,6,7,8,0,0,&
-        7,1,3,4,5,6,7,8,0,7,2,3,4,5,6,7,8,0,8,1,2,3,4,5,6,7,8/), &
-        shape(decode_map_arr))
-#endif
+        7,1,3,4,5,6,7,8,0,7,2,3,4,5,6,7,8,0,8,1,2,3,4,5,6,7,8/),&
+        (/9,256/) )
 
 contains
 
@@ -461,7 +456,6 @@ contains
     end subroutine
 
 
-#ifndef __PGI__
     subroutine decode_bit_det_chunks (nI, iLut)
 
         ! This is a routine to take a determinant in bit form and construct
@@ -550,7 +544,6 @@ contains
         endif
 
     end subroutine
-#endif
 
 
     subroutine decode_bit_det_bitwise (nI, iLut)
