@@ -149,10 +149,11 @@ contains
             call writebitdet(6, p_ilut, .false.)
 
             ! Look at the csf coeffs.
-            ! TODO: we may need to invert the dorder...
-            forall(i=1:ncsf) &
+            ! This could be a forall, but PGI doesn't like it.
+            do i = 1, ncsf
                 hist_csf_coeffs(nfound, i) = &
                     csf_coeff(yamas(i,:), dorder, nopen) 
+            enddo
             write(fd,fmt_str) p_ilut(0:NIfD), hist_csf_coeffs(nfound, :)
 
             ! Continue the loop

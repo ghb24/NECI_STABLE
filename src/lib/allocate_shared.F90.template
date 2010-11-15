@@ -226,7 +226,11 @@ module shared_alloc
         function test_shared_permissions () result(bAvail) bind(c)
             use, intrinsic :: iso_c_binding
             implicit none
+#ifdef __PGI__
+            logical :: bAvail
+#else
             logical(c_bool) :: bAvail
+#endif
         end function
     end interface
 
