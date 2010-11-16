@@ -137,6 +137,8 @@ MODULE FciMCData
       REAL(KIND=dp) , ALLOCATABLE :: SinglesHistOccOcc(:),SinglesHistOccVirt(:),SinglesHistVirtOcc(:),SinglesHistVirtVirt(:)
       REAL(KIND=dp) , ALLOCATABLE :: AllSinglesHistOccOcc(:),AllSinglesHistVirtOcc(:),AllSinglesHistOccVirt(:),AllSinglesHistVirtVirt(:)
 
+      real(dp), allocatable :: spin_det_hist(:,:)
+
       INTEGER :: MaxDet,iOffDiagNoBins
       INTEGER , ALLOCATABLE :: HistMinInd(:),HistMinInd2(:)
 

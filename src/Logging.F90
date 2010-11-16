@@ -1,4 +1,14 @@
+#include "macros.h"
+
 MODULE Logging
+
+    use input
+    use MemoryManager, only: LogMemAlloc, LogMemDealloc
+    use SystemData, only: nel, LMS, nbasis, tHistSpinDist, nI_spindist, &
+                          hist_spin_dist_iter
+    use constants, only: n_int, size_n_int, bits_n_int
+    use bit_rep_data, only: NIfTot, NIfD
+    use DetBitOps, only: EncodeBitDet
 
     IMPLICIT NONE
     Save
@@ -99,7 +109,9 @@ MODULE Logging
       tCCMCLogTransitions=.false.
       tCCMCLogUniq=.true.
       tHistInitPops=.false.
+      tHistSpinDist = .false.
       HistInitPopsIter=100000
+      hist_spin_dist_iter = 1000
       tLogDets=.false.
 
 ! Feb08 defaults
@@ -112,14 +124,14 @@ MODULE Logging
 
 
 
-    SUBROUTINE LogReadInput()
-      USE input
-      USE MemoryManager, only: LogMemAlloc,LogMemDealloc
-      IMPLICIT NONE
-      LOGICAL eof
-      INTEGER :: i,ierr
-      CHARACTER (LEN=100) w
-      CHARACTER(*),PARAMETER :: t_r='LogReadInput'
+    subroutine LogReadInput()
+
+        ! Read the logging section from the input file
+
+        logical eof
+        integer :: i, ierr
+        character(100) :: w
+        character(*), parameter :: t_r = 'LogReadInput'
 
       ILogging=iLoggingDef
 
@@ -240,6 +252,24 @@ MODULE Logging
 !with writing and reading binary - this option is only compatible with QChem if the code is compiled using PGI - this will be fixed at 
 !some stage.  Also - QChem INTDUMP files must be used to be compatible.  
             tWriteTransMat=.true.
+
+
+        case("HIST-SPIN-DIST")
+            ! Histogram the distribution of walkers within determinants of the
+            ! given spatial configuration
+            ! --> The determinant is specified using SPIN orbitals, but these
+            !     are converted to a spatial structure for use.
+
+            tHistSpinDist = .true.
+            call readi(hist_spin_dist_iter)
+            if (.not. allocated(nI_spindist)) &
+                allocate(nI_spindist(nel))
+            nI_spindist = 0
+            i = 1
+            do while (item < nitems .and. i <= nel)
+                call geti(nI_spindist(i))
+                i = i+1
+            enddo
 
 
         case("ROHISTOGRAMALL")
@@ -593,5 +623,6 @@ MODULE Logging
         end select
       end do logging
     END SUBROUTINE LogReadInput
+
 
 END MODULE Logging
