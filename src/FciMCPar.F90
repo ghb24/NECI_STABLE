@@ -32,7 +32,7 @@ MODULE FciMCParMod
                         tReadPopsRestart, tCheckHighestPopOnce, &
                         iRestartWalkNum, tRestartHighPop, FracLargerDet, &
                         tChangeProjEDet, tCheckHighestPop, tSpawnSpatialInit,&
-                        MemoryFacInit, tMaxBloom
+                        MemoryFacInit, tMaxBloom, tTruncNOpen, trunc_nopen_max
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use Determinants, only: FDet, get_helement, write_det, &
                             get_helement_det_only
@@ -43,12 +43,23 @@ MODULE FciMCParMod
                                     init_excit_gen_store,clean_excit_gen_store
     use GenRandSymExcitCSF, only: gen_csf_excit
     use IntegralsData , only : fck,NMax,UMat,tPartFreezeCore,NPartFrozen,NHolesFrozen,tPartFreezeVirt,NVirtPartFrozen,NElVirtFrozen
-    USE Logging , only : iWritePopsEvery,TPopsFile,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies,IterShiftBlock,AllHistInitPops
-    USE Logging , only : BinRange,iNoBins,OffDiagBinRange,OffDiagMax,AllHistInitPopsTag,tLogComplexPops
-    USE Logging , only : tPrintFCIMCPsi,tCalcFCIMCPsi,NHistEquilSteps,tPrintOrbOcc,StartPrintOrbOcc,tPrintOrbOccInit
-    USE Logging , only : tHFPopStartBlock,tIterStartBlock,IterStartBlocking,HFPopStartBlocking,tInitShiftBlocking,tHistHamil,iWriteHamilEvery,HistInitPopsTag
-    USE Logging , only : OrbOccs,OrbOccsTag,tPrintPopsDefault,iWriteBlockingEvery,tBlockEveryIteration,tHistInitPops,HistInitPopsIter,HistInitPops
-    USE Logging , only : FCIMCDebug
+    use Logging, only: iWritePopsEvery, TPopsFile, iPopsPartEvery, tBinPops, &
+                       tHistSpawn, iWriteHistEvery, tHistEnergies, &
+                       IterShiftBlock, AllHistInitPops, BinRange, iNoBins, &
+                       OffDiagBinRange, OffDiagMax, AllHistInitPopsTag, &
+                       tLogComplexPops, tPrintFCIMCPsi, tCalcFCIMCPsi, &
+                       NHistEquilSteps, tPrintOrbOcc, StartPrintOrbOcc, &
+                       tPrintOrbOccInit, tHFPopStartBlock, tIterStartBlock, &
+                       IterStartBlocking, HFPopStartBlocking, &
+                       tInitShiftBlocking, tHistHamil, iWriteHamilEvery, &
+                       HistInitPopsTag, OrbOccs, OrbOccsTag, &
+                       tPrintPopsDefault, iWriteBlockingEvery, &
+                       tBlockEveryIteration, tHistInitPops, HistInitPopsIter,&
+                       HistInitPops, FCIMCDebug
+    use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
+                    hist_spin_dist, ilut_spindist, tHistSpinDist, &
+                    write_clear_hist_spin_dist, hist_spin_dist_iter, &
+                    test_add_hist_spin_dist_det
     USE SymData , only : nSymLabels
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE Parallel
@@ -277,6 +288,9 @@ MODULE FciMCParMod
 !                IF(tErrorBlocking.and.(Iter.gt.IterStartBlocking)) CALL PrintBlocking(Iter) 
 !                IF(tShiftBlocking.and.(Iter.gt.(VaryShiftIter+IterShiftBlock))) CALL PrintShiftBlocking(Iter)
 !            ENDIF
+            
+            if (tHistSpinDist .and. (mod(iter, hist_spin_dist_iter) == 0)) &
+                call write_clear_hist_spin_dist (iter, hist_spin_dist_iter)
 
             IF(TPopsFile.and.(.not.tPrintPopsDefault).and.(mod(Iter,iWritePopsEvery).eq.0)) THEN
 !This will write out the POPSFILE if wanted
@@ -1245,7 +1259,8 @@ MODULE FciMCParMod
 
         ! How many children should we spawn given an excitation?
         if ((tTruncCas .and. (.not. tTruncInitiator)) .or. tTruncSpace .or. &
-            tPartFreezeCore .or. tPartFreezeVirt .or. tFixLz .or. tUEG) then
+            tPartFreezeCore .or. tPartFreezeVirt .or. tFixLz .or. &
+			(tUEG .and. .not. tLatticeGens) .or. tTruncNOpen) then
             if (tHPHF .or. tCSF) then
                 call set_attempt_create (attempt_create_trunc_spawn)
             else
@@ -3725,6 +3740,12 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
+
+        ! Initialise the spin distribution histogramming
+        if (tHistSpinDist) then
+            call init_hist_spin_dist ()
+        endif
+
 !Need to declare a new MPI type to deal with the long integers we use in the hashing, and when reading in from POPSFILEs
 !        CALL MPI_Type_create_f90_integer(18,mpilongintegertype,error)
 !        CALL MPI_Type_commit(mpilongintegertype,error)
@@ -3834,6 +3855,11 @@ MODULE FciMCParMod
             WRITE(6,'(A,I4,A,I5)') 'Partially freezing the highest ',NVirtPartFrozen,' virtual spin orbitals so that no more than ',NElVirtFrozen,' electrons occupy these orbitals.'
             CALL CreateSpinInvBRR()
         ENDIF
+
+		if (tTruncNOpen) then
+			write(6, '("Truncating determinant space at a maximum of ",i3," &
+			           &unpaired electrons.")') trunc_nopen_max
+		endif
 
         SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.D0)
         TotDets=1.D0
@@ -3985,137 +4011,116 @@ MODULE FciMCParMod
 
     END FUNCTION TestifDETinCAS
 
-!This function will tell us whether we should allow attempted spawning at an excitation when we are truncating the space.
-!We pass in the excitation level of the original particle, the two representations of the excitation (we only need the bit-representation of the excitation
-!for HPHF) and the magnitude of the excitation (for determinant representation).
-    LOGICAL FUNCTION CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)
-        INTEGER :: nJ(NEl),WalkExcitLevel,ExcitLevel,IC,iGetExcitLevel_2,i,NoInFrozenCore,MinVirt
-        INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot)
-        INTEGER :: kx,ky,kz ! For UEG
-
-        CheckAllowedTruncSpawn=.true.
-
-        IF(tTruncSpace) THEN
-!We are truncating the space by excitation level
-            IF(tHPHF) THEN
-!With HPHF, we can't rely on this, since one excitation could be a single, and one a double. Also, IC is not returned.
-                ExcitLevel = FindBitExcitLevel(iLutHF, iLutnJ, ICILevel)
-                IF(ExcitLevel.gt.ICILevel) THEN
-                    CheckAllowedTruncSpawn=.false.
-                ENDIF
-
-            ELSE
-!Determinant representation.
-
-                IF(WalkExcitLevel.eq.(ICILevel-1)) THEN
-!The current walker is one below the excitation cutoff - if IC is a double, then could go over - we need to check
-                    
-                    IF(IC.eq.2) THEN
-                        ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,ICILevel)
-                    ELSE
-!Always allow this - a single cannot put us over the truncated excitation level
-                        ExcitLevel=0
-!                        CheckAllowedTruncSpawn=.true.
-!                        RETURN
-                    ENDIF
-                    IF(ExcitLevel.gt.ICILevel) THEN
-                        CheckAllowedTruncSpawn=.false.
-!                    ELSE
-!                        CheckAllowedTruncSpawn=.true.
-                    ENDIF
-
-                ELSEIF(WalkExcitLevel.ge.ICILevel) THEN
-!Walker is at the excitation cutoff level - all possible excitations could be disallowed - check the actual excitation level
-                    ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,ICILevel)
-                    IF(ExcitLevel.gt.ICILevel) THEN
-!Attempted excitation is above the excitation level cutoff - do not allow the creation of children
-                        CheckAllowedTruncSpawn=.false.
-!                    ELSE
-!                        CheckAllowedTruncSpawn=.true.
-                    ENDIF
-!                ELSE
-!!Excitation cannot be in a dissallowed excitation level - allow it as normal
-!                    CheckAllowedTruncSpawn=.true.
-                ENDIF 
-
-            ENDIF   !endif tHPHF
-
-        ENDIF   !endif tTruncSpace
-
-        IF((tTruncCAS.and.(.not.tTruncInitiator)).and.CheckAllowedTruncSpawn) THEN
-!This flag determines if the FCI space is restricted by whether the determinants are in the predescribed CAS.
-!            IF(.not.TestIfDetinCAS(nJ)) THEN
-            IF(.not.TestIfDetinCASBit(iLutnJ(0:NIfD))) THEN
-!Excitation not in allowed CAS space.
-                CheckAllowedTruncSpawn=.false.
-            ENDIF
-
-        ENDIF
-
-        IF(tPartFreezeCore) THEN
-!Want to check if the determinant we're about to spawn on has more than the restricted number of holes in the partially frozen core.            
-
-!Run through the electrons in nJ, count the number in the partially frozen core - ie those occupying orbitals with energy (from BRR) 
-!less than that of the partially frozen core limit.
-!If this is less than NPartFrozen-NHolesFrozen then spawning is forbidden.
-            NoInFrozenCore=0
-!BRR(i)=j: orbital i is the j-th lowest in energy  
-            do i=1,NEl
-                IF(SpinInvBRR(nJ(i)).le.NPartFrozen) NoInFrozenCore=NoInFrozenCore+1
-                IF(NoInFrozenCore.eq.(NPartFrozen-NHolesFrozen)) EXIT   ! Can exit out of the loop if this is satisfied, since excitation will definitely be accepted.
-            enddo
-            IF(NoInFrozenCore.lt.(NPartFrozen-NHolesFrozen)) THEN
-!There are more holes in the partially frozen core than has been specified as allowed.
-                CheckAllowedTruncSpawn=.false.
-!            ELSE
-!Either the 'partially frozen core' is completely full, or it has the allowed number of holes or less.                
-!Allowed to spawn, CheckAllowedTruncSpawn=.true.
-!                CheckAllowedTruncSpawn=.true.
-            ENDIF
-
-        ENDIF
-
-        IF(tPartFreezeVirt) THEN
-!Want to check if the determinant we're about to spawn on has more than the restricted number of electrons in the partially frozen virtual orbitals.
-
-!Run through the electrons in nJ, count the number in the partially frozen virtual orbitals - ie those occupying orbitals with energy (from BRR) 
-!greater than that of the minimum unfrozen virtual.
-!If this is greater than NElVirtFrozen then spawning is forbidden.
-            NoInFrozenCore=0
-            MinVirt=nBasis-NVirtPartFrozen
-!BRR(i)=j: orbital i is the j-th lowest in energy  
-            do i=1,NEl
-                IF(SpinInvBRR(nJ(i)).gt.MinVirt) NoInFrozenCore=NoInFrozenCore+1
-                IF(NoInFrozenCore.gt.NElVirtFrozen) THEN
-!There are more electrons in the partially frozen virtual orbitals than has been specified as allowed.
-                    CheckAllowedTruncSpawn=.false.
-                    EXIT   ! Can exit out of the loop if this is satisfied, since excitation will definitely be accepted.
-                ENDIF
-            enddo
-!Either the 'partially frozen virtual orbitals' are completely empty, or have the allowed number of electrons or less.                
-!Allowed to spawn, CheckAllowedTruncSpawn=.true.
-!                CheckAllowedTruncSpawn=.true.
-!Want to be able to make it unable to spawn, but not able to spawn again.
-        ENDIF
-
-        IF(tUEG.and.(.not.tLatticeGens)) THEN
-!Check to see if this is an allowed excitation
-!by summing kx, ky and kz to zero over all the electrons.
-            kx=0
-            ky=0
-            kz=0
-            do i=1,NEl
-                kx=kx+G1(nJ(i))%k(1)
-                ky=ky+G1(nJ(i))%k(2)
-                kz=kz+G1(nJ(i))%k(3)
-            enddo
-            if( .not.((kx.eq.0) .and. (ky.eq.0) .and. (kz.eq.0)) ) then
-                CheckAllowedTruncSpawn=.false.
-            endif
-        ENDIF
 
 
-    END FUNCTION CheckAllowedTruncSpawn
+
+    function CheckAllowedTruncSpawn (WalkExcitLevel, nJ, ilutnJ, IC) &
+                                    result(bAllowed)
+
+        ! Under any currently applied truncation schemes, is an excitation to
+        ! this determinant allowed?
+        !
+        ! In:  WalkExcitLevel - Current excitation level relative to HF
+        !      nJ             - Natural integer representation of det
+        !                       (not Needed for HPHF or tTruncNOpen)
+        !      ilutnJ         - Bit representation of det
+        !      IC             - Excitation level relative to parent
+        ! Ret: bAllowed       - .true. if excitation is allowed
+
+        integer, intent(in) :: nJ(nel), WalkExcitLevel, IC
+        integer(n_int), intent(in) :: ilutnJ(0:NIfTot)
+		logical :: bAllowed
+
+		integer :: NoInFrozenCore, MinVirt, ExcitLevel, nopen, i
+        ! For UEG
+        integer :: k(3)
+
+        bAllowed = .true.
+
+		! Truncate space by excitation level
+		if (tTruncSpace) then
+			! If parent walker is one below excitation cutoff, could be
+			! disallowed if double. If higher, then all excits could
+			! be disallowed. If HPHF, excit could be single or double,
+			! and IC not returned --> Always test.
+			if (tHPHF .or. WalkExcitLevel >= ICILevel .or. &
+				(WalkExcitLevel == (ICILevel-1) .and. IC == 2)) then
+				ExcitLevel = FindBitExcitLevel (iLutHF, ilutnJ, ICILevel)
+				if (ExcitLevel > ICILevel) &
+					bAllowed = .false.
+			endif
+		endif
+
+		! Is the number of unpaired electrons too high?
+		if (tTruncNOpen .and. bAllowed) then
+			nopen = count_open_orbs (ilutnJ)
+			if (nopen > trunc_nopen_max) &
+				bAllowed = .false.
+		endif
+
+
+		! If the FCI space is restricted by a predetermined CAS space
+		if (tTruncCAS .and. .not. tTruncInitiator .and. bAllowed) then
+			if (.not. TestIfdetinCASBit(ilutnJ(0:NIfD))) &
+				bAllowed = .false.
+		endif
+
+				
+		! Does the spawned determinant have more than the restricted number
+		! of holes in the partially frozen core?
+		!
+		! --> Run through the e- in nJ, count the number in the partially
+		!     frozen core (i.e. with energy, from BRR, less than the frozen
+		!     core limit). If too few, then forbidden.
+		if (tPartFreezeCore .and. bAllowed) then
+			NoInFrozenCore = 0
+			bAllowed = .false.
+			do i = 1, nel
+				if (SpinInvBRR(nJ(i)) <= NPartFrozen) &
+					NoInFrozenCore = NoInFrozenCore + 1
+				if (NoInFrozenCore == (NPartFrozen - NHolesFrozen)) then
+					bAllowed = .true.
+					exit
+				endif
+			enddo
+		endif
+
+
+		! Does the spawned determinant have more than the restricted number
+		! of e- in the partially frozen virtual orbitals?
+		!
+		! --> Run through the e- in nJ, count the number in the partially
+		!     frozen orbitals (i.e. with energy, from BRR, greater than
+		!     minumum unfrozen virtual). If too many, then forbidden
+		if (tPartFreezeVirt .and. bAllowed) then
+			NoInFrozenCore = 0
+			MinVirt = nBasis - NVirtPartFrozen
+			! BRR(i) = j: orbital i is the j-th lowest in energy
+			do i = 1, nel
+				if (SpinInvBRR(nJ(i)) > MinVirt) &
+					NoInFrozenCore = NoInFrozenCore + 1
+				if (NoInFrozenCore > NElVirtFrozen) then
+					! Too many e- in part-frozen orbs
+					bAllowed = .false.
+					exit
+				endif
+			enddo
+		endif
+
+
+		! Check to see if UEG excitation is allowed, by summing kx, ky, kz
+		! over all the electrons
+		if (tUEG .and. .not. tLatticeGens .and. bAllowed) then
+			k = 0
+			do i = 1, nel
+				k = k + G1(nJ(i))%k
+			enddo
+			if (.not. all(k == 0)) &
+				bAllowed = .false.
+		endif
+
+
+	end function CheckAllowedTruncSpawn
 
 
 
@@ -4446,7 +4451,7 @@ MODULE FciMCParMod
         INTEGER , intent(in) :: DetCurr(NEl),ExcitLevel
         INTEGER, DIMENSION(lenof_sign) , INTENT(IN) :: WSign
         INTEGER(KIND=n_int), intent(in) :: iLutCurr(0:NIfTot)
-        INTEGER :: i,Bin
+        integer :: i, bin, pos
         INTEGER :: PartInd,OpenOrbs
         INTEGER(KIND=n_int) :: iLutSym(0:NIfTot)
         LOGICAL :: tSuccess
@@ -4497,7 +4502,9 @@ MODULE FciMCParMod
             ENDIF
           endif 
 
-        ENDIF
+        ENDIF   ! ExcitLevel == 1, 2, 3
+
+        ! ---------------------------------------------------------
 
 !Histogramming diagnostic options...
         IF((tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC)).and.(Iter.ge.NHistEquilSteps)) THEN
@@ -4633,6 +4640,10 @@ MODULE FciMCParMod
             ENDIF
             HistogramEnergy(Bin)=HistogramEnergy(Bin)+real(abs(WSign(1)),dp)
         ENDIF
+
+        ! Are we doing a spin-projection histogram?
+        if (tHistSpinDist) &
+            call test_add_hist_spin_dist_det (iLutCurr, wSign)
 
         IF(tPrintOrbOcc.and.(Iter.ge.StartPrintOrbOcc)) THEN
             IF((tPrintOrbOccInit.and.(test_flag(iLutCurr,flag_is_initiator(1)))).or.(.not.tPrintOrbOccInit)) then
@@ -5022,6 +5033,7 @@ MODULE FciMCParMod
                 DEALLOCATE(AllAvHistHamil)
             ENDIF
         ENDIF
+        if (tHistSpinDist) call clean_hist_spin_dist()
         DEALLOCATE(WalkVecDets)
         CALL LogMemDealloc(this_routine,WalkVecDetsTag)
         IF(.not.tRegenDiagHEls) THEN

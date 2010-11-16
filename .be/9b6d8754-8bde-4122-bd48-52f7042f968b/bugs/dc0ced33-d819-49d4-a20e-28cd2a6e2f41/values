@@ -1,0 +1,17 @@
+creator: sds50 <sds50@obex>
+
+
+reporter: Simon Smart <sds50@cam.ac.uk>
+
+
+severity: minor
+
+
+status: fixed
+
+
+summary: Implement HIST-SPIN-DIST histogramming for given spatial structure
+
+
+time: Thu, 21 Oct 2010 09:17:50 +0000
+

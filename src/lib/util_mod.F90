@@ -320,7 +320,7 @@ contains
         integer(kind=n_int), intent(in) :: arr(:,:)
         integer(kind=n_int), intent(in) :: val(:)
         integer, intent(in), optional :: cf_len
-        integer :: data_lo, data_hi
+        integer :: data_lo, data_hi, val_lo, val_hi
         integer :: pos, len
 
         integer :: hi, lo
@@ -332,10 +332,13 @@ contains
 
         ! Have we specified how much to look at?
         data_lo = lbound(arr, 1)
+        val_lo = lbound(val, 1)
         if (present(cf_len)) then
             data_hi = data_lo + cf_len - 1
+            val_hi = val_lo + cf_len - 1
         else
             data_hi = ubound(arr, 1)
+            val_hi = ubound(val, 1)
         endif
 
         ! Narrow the search range down in steps.
@@ -344,9 +347,9 @@ contains
 !>>>!            write(6,*) 'pos', pos
 !>>>!            call flush(6)
 
-            if (all(arr(data_lo:data_hi,pos) == val)) then
+            if (all(arr(data_lo:data_hi,pos) == val(val_lo:val_hi))) then
                 exit
-            else if (arr_gt(val, arr(data_lo:data_hi,pos))) then
+            else if (arr_gt(val(val_lo:val_hi), arr(data_lo:data_hi,pos))) then
                 ! val is "greater" than arr(:len,pos).
                 ! The lowest position val can take is hence pos + 1 (i.e. if
                 ! val is greater than pos by smaller than pos + 1).
@@ -368,9 +371,9 @@ contains
         ! then return -pos to indicate that the item is not present, but that
         ! this is the location it should be in.
         if (hi == lo) then
-            if (all(arr(data_lo:data_hi,hi) == val)) then
+            if (all(arr(data_lo:data_hi,hi) == val(val_lo:val_hi))) then
                 pos = hi
-            else if (arr_gt(val, arr(data_lo:data_hi,hi))) then
+            else if (arr_gt(val(val_lo:val_hi), arr(data_lo:data_hi,hi))) then
                 pos = -hi - 1
             else
                 pos = -hi

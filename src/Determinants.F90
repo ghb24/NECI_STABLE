@@ -467,6 +467,7 @@ contains
        write(iUnit,"(A,I5)", advance='no') ") ",flags
        if(lTerm) write(iUnit,*)
     end subroutine write_bit_rep
+
 END MODULE Determinants
 
       subroutine GetH0Element(nI,nEl,Arr,nBasis,ECore,hEl)

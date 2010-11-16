@@ -34,6 +34,10 @@ logical :: tSpatialOnlyHash
 ! with the same spatial configuration is an initiator?
 logical :: tSpawnSpatialInit
 
+! Do we truncate spawning based on the number of unpaired electrons
+logical :: tTruncNOpen
+integer :: trunc_nopen_max
+
 logical :: tMaxBloom    !If this is on, then we only print out a bloom warning if it is the biggest to date.
 
 INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits,IterTruncInit,InitiatorWalkNo,NShiftEquilSteps

@@ -5,7 +5,7 @@ module spatial_initiator
     use constants, only: n_int, lenof_sign
     use bit_reps, only: NIfDBO, NIfTot, NIfD, extract_part_sign, &
                         encode_part_sign, encode_bit_rep
-    use DetBitOps, only: MaskAlpha, MaskBeta
+    use DetBitOps, only: MaskAlpha, MaskBeta, spatial_bit_det
     use FciMCData, only: CurrentInits, no_spatial_init_dets, max_inits
     use util_mod, only: binary_search
 
@@ -26,19 +26,8 @@ contains
         integer, dimension(lenof_sign) :: sgn
         integer :: flag, pos
         
-!        tmp = no_spatial_init_dets
-
-        ! Obtain alpha/beta orbital representations
-        alpha = iand(ilut(0:NIfD), MaskAlpha)
-        beta = iand(ilut(0:NIfD), MaskBeta)
-
-        ! Shift alphas to beta pos and vice versa
-        a_sft = ishft(alpha, -1)
-        b_sft = ishft(beta, +1)
-
-        ! Obtain the representation with all singly occupied orbitals in the
-        ! beta position, and double occupied orbitals doubly occupied.
-        spat(0:NIfD) = ior(beta, ior(a_sft, iand(b_sft, alpha)))
+        ! Obtain standard spatial representation
+        spat = spatial_bit_det (ilut)
 
         if (no_spatial_init_dets == 0) then
             ! If list is empty, start it.
@@ -62,8 +51,6 @@ contains
             endif
         endif
 
-!        write(6,*) 'add [', tmp, '] -->', no_spatial_init_dets
-
     end subroutine
 
     subroutine rm_initiator_list (ilut)
@@ -79,19 +66,8 @@ contains
         integer :: pos, sgn
         character(*), parameter :: this_routine = 'rm_initiator_list'
 
- !       tmp = no_spatial_init_dets
-
-        ! Obtain alpha/beta orbital representations
-        alpha = iand(ilut(0:NIfD), MaskAlpha)
-        beta = iand(ilut(0:NIfD), MaskBeta)
-
-        ! Shift alphas to beta pos and vice versa
-        a_sft = ishft(alpha, -1)
-        b_sft = ishft(beta, +1)
-
-        ! Obtain the representation with all singly occupied orbitals in the
-        ! beta position, and double occupied orbitals doubly occupied.
-        spat(0:NIfD) = ior(beta, ior(a_sft, iand(b_sft, alpha)))
+        ! Obtain standard spatial representation
+        spat = spatial_bit_det (ilut)
 
         ! Find the spatial initiator in the list. If it is not there, then
         ! something is very wrong.
@@ -116,8 +92,6 @@ contains
             call encode_part_sign (CurrentInits(:,pos), sgn - 1, 1)
         endif
 
-!        write(6,*) 'rm [', tmp, '] -->', no_spatial_init_dets
-
     end subroutine
 
     function is_spatial_init (ilut) result (bInit)
@@ -132,17 +106,8 @@ contains
         bInit = .false.
         if (no_spatial_init_dets == 0) return
 
-        ! Obtain alpha/beta orbital representations
-        alpha = iand(ilut(0:NIfD), MaskAlpha)
-        beta = iand(ilut(0:NIfD), MaskBeta)
-
-        ! Shift alphas to beta pos and vice versa
-        a_sft = ishft(alpha, -1)
-        b_sft = ishft(beta, +1)
-
-        ! Obtain the representation with all singly occupied orbitals in the
-        ! beta position, and double occupied orbitals doubly occupied.
-        spat(0:NIfD) = ior(beta, ior(a_sft, iand(b_sft, alpha)))
+        ! Obtain standard spatial representation
+        spat = spatial_bit_det (ilut)
 
         ! If we find the spatial det in the list, then this is a spatial
         ! initiator
