@@ -31,8 +31,8 @@ module bit_reps
 
     ! Which decoding function do we want to use?
     interface decode_bit_det
-        module procedure decode_bit_det_bitwise
-!        module procedure decode_bit_det_chunks
+!        module procedure decode_bit_det_bitwise
+        module procedure decode_bit_det_chunks
     end interface
 
     ! Some (rather nasty) data for the chunkwise decoding
