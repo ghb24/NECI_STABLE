@@ -7,7 +7,7 @@ reporter: Simon
 severity: minor
 
 
-status: fixed
+status: open
 
 
 summary: Get Energy histogramming working w/ function pointers
