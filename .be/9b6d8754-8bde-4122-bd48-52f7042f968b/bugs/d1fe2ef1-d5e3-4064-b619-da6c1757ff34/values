@@ -7,7 +7,7 @@ reporter: Simon
 severity: minor
 
 
-status: open
+status: fixed
 
 
 summary: Default NMCYC == -1

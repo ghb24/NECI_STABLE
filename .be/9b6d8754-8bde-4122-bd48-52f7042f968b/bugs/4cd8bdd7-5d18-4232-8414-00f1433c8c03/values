@@ -7,7 +7,7 @@ reporter: Simon
 severity: minor
 
 
-status: open
+status: fixed
 
 
 summary: Do decoding/bit counting by lookup table?

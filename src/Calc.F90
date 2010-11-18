@@ -106,7 +106,7 @@ contains
           tExactEnergy=.false.
           tSharedExcitors=.false.
           tSpawnProp=.false.
-          NMCyc=2000
+          NMCyc = -1
           DiagSft=0.D0
           HApp=1
           TMCStar=.false.
