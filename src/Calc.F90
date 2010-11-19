@@ -181,7 +181,7 @@ contains
           DETINV = 0
           TSPECDET = .false.
           TTROT=.true.
-          BETA=0.D0
+          BETA = 1000
           BETAP=1.D-4
           TBETAP=.false.
           RHOEPSILON=1.D-6
