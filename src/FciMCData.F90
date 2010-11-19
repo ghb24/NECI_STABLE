@@ -131,7 +131,7 @@ MODULE FciMCData
     
       REAL(4) :: IterTime
     
-      REAL(KIND=dp) , ALLOCATABLE :: Histogram(:,:),AllHistogram(:,:),InstHist(:,:),AllInstHist(:,:),AttemptHist(:),AllAttemptHist(:),SpawnHist(:),AllSpawnHist(:),HistogramEnergy(:),AllHistogramEnergy(:)
+      REAL(KIND=dp) , ALLOCATABLE :: AttemptHist(:),AllAttemptHist(:),SpawnHist(:),AllSpawnHist(:)
       REAL(KIND=dp) , ALLOCATABLE :: AvAnnihil(:,:),AllAvAnnihil(:,:),InstAnnihil(:,:),AllInstAnnihil(:,:)
       REAL(KIND=dp) , ALLOCATABLE :: SinglesAttemptHist(:),AllSinglesAttemptHist(:),SinglesHist(:),AllSinglesHist(:),DoublesHist(:),AllDoublesHist(:),DoublesAttemptHist(:),AllDoublesAttemptHist(:)
       REAL(KIND=dp) , ALLOCATABLE :: SinglesHistOccOcc(:),SinglesHistOccVirt(:),SinglesHistVirtOcc(:),SinglesHistVirtVirt(:)
@@ -140,7 +140,6 @@ MODULE FciMCData
       real(dp), allocatable :: spin_det_hist(:,:)
 
       INTEGER :: MaxDet,iOffDiagNoBins
-      INTEGER , ALLOCATABLE :: HistMinInd(:),HistMinInd2(:)
 
       INTEGER , ALLOCATABLE :: DoublesDets(:,:)
       INTEGER :: DoublesDetsTag,NoDoubs

@@ -32,7 +32,8 @@ MODULE FciMCParMod
                         tReadPopsRestart, tCheckHighestPopOnce, &
                         iRestartWalkNum, tRestartHighPop, FracLargerDet, &
                         tChangeProjEDet, tCheckHighestPop, tSpawnSpatialInit,&
-                        MemoryFacInit, tMaxBloom, tTruncNOpen, trunc_nopen_max
+                        MemoryFacInit, tMaxBloom, tTruncNOpen, &
+                        trunc_nopen_max, tFCIMC
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use Determinants, only: FDet, get_helement, write_det, &
                             get_helement_det_only
@@ -44,7 +45,7 @@ MODULE FciMCParMod
     use GenRandSymExcitCSF, only: gen_csf_excit
     use IntegralsData , only : fck,NMax,UMat,tPartFreezeCore,NPartFrozen,NHolesFrozen,tPartFreezeVirt,NVirtPartFrozen,NElVirtFrozen
     use Logging, only: iWritePopsEvery, TPopsFile, iPopsPartEvery, tBinPops, &
-                       tHistSpawn, iWriteHistEvery, tHistEnergies, &
+                       iWriteHistEvery, tHistEnergies, FCIMCDebug, &
                        IterShiftBlock, AllHistInitPops, BinRange, iNoBins, &
                        OffDiagBinRange, OffDiagMax, AllHistInitPopsTag, &
                        tLogComplexPops, tPrintFCIMCPsi, tCalcFCIMCPsi, &
@@ -55,11 +56,14 @@ MODULE FciMCParMod
                        HistInitPopsTag, OrbOccs, OrbOccsTag, &
                        tPrintPopsDefault, iWriteBlockingEvery, &
                        tBlockEveryIteration, tHistInitPops, HistInitPopsIter,&
-                       HistInitPops, FCIMCDebug
+                       HistInitPops
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
                     hist_spin_dist, ilut_spindist, tHistSpinDist, &
                     write_clear_hist_spin_dist, hist_spin_dist_iter, &
-                    test_add_hist_spin_dist_det
+                    test_add_hist_spin_dist_det, add_hist_energies, &
+                    add_hist_spawn, tHistSpawn, AllHistogramEnergy, &
+                    AllHistogram, HistogramEnergy, Histogram, AllInstHist, &
+                    InstHist, HistMinInd
     USE SymData , only : nSymLabels
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE Parallel
@@ -2032,6 +2036,7 @@ MODULE FciMCParMod
 
 
 
+    ! TODO: Move to hist.F90
     SUBROUTINE WriteHistogramEnergies()
         use util_mod, only: get_free_unit
         INTEGER :: i, io(8)
@@ -4445,210 +4450,102 @@ MODULE FciMCParMod
 !This routine sums in the energy contribution from a given walker and updates stats such as mean excit level
 !AJWT added optional argument dProbFin which is a probability that whatever gave this contribution was generated.
 !  It defaults to 1, and weights the contribution of this det (only in the projected energy) by dividing its contribution by this number 
-    SUBROUTINE SumEContrib(DetCurr,ExcitLevel,WSign,iLutCurr,HDiagCurr,dProbFin)
-        use SystemData, only : tNoBrillouin
-        use CalcData, only: tFCIMC
-        INTEGER , intent(in) :: DetCurr(NEl),ExcitLevel
-        INTEGER, DIMENSION(lenof_sign) , INTENT(IN) :: WSign
-        INTEGER(KIND=n_int), intent(in) :: iLutCurr(0:NIfTot)
+    subroutine SumEContrib (nI, ExcitLevel, WSign, ilut, HDiagCurr, dProbFin)
+
+        integer, intent(in) :: nI(nel), ExcitLevel
+        integer, intent(in) :: wSign(lenof_sign)
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        real(dp), intent(in) :: HDiagCurr, dProbFin
+
         integer :: i, bin, pos
-        INTEGER :: PartInd,OpenOrbs
-        INTEGER(KIND=n_int) :: iLutSym(0:NIfTot)
-        LOGICAL :: tSuccess
-        REAL*8 , intent(in) :: HDiagCurr,dProbFin
+        integer :: PartInd, OpenOrbs
+        integer(n_int) :: iLutSym(0:NIfTot)
+        logical tSuccess
         HElement_t :: HOffDiag
 
-        IF(ExcitLevel.eq.0) THEN
-            IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+WSign
-            NoatHF=NoatHF+WSign
-            HFCyc=HFCyc+WSign      !This is simply the number at HF*sign over the course of the update cycle 
+        if (ExcitLevel == 0) then
+
+            if (iter > NEquilSteps) SumNoatHF = SumNoatHF + wSign
+            NoatHF = NoatHF + wSign
+            ! Number at HF * sign over course of update cycle
+            HFCyc = HFCyc + wSign
+
+        elseif (ExcitLevel == 2) then
             
-        ELSEIF(ExcitLevel.eq.2) THEN
-            NoatDoubs=NoatDoubs+sum(abs(WSign(:)))
-!At double excit - find and sum in energy
-            IF(tHPHF) THEN
-                HOffDiag = hphf_off_diag_helement (ProjEDet, DetCurr, iLutRef, &
-                                                   iLutCurr)
-            ELSE
-                HOffDiag = get_helement (ProjEDet, DetCurr, ExcitLevel, iLutRef, &
-                                         iLutCurr)
-            ENDIF
-            IF(lenof_sign.eq.1) THEN
-                IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag,dp)*WSign(1)/dProbFin)
-                ENumCyc=ENumCyc+(REAL(HOffDiag,dp)*WSign(1)/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
-            ELSE
-                IF(Iter.gt.NEquilSteps) SumENum=SumENum+(HOffDiag*CMPLX(WSign(1),WSign(2),dp))/dProbFin
-                ENumCyc=ENumCyc+(HOffDiag*CMPLX(WSign(1),WSign(2),dp))/dProbFin     !This is simply the Hij*sign summed over the course of the update cycle
-            ENDIF
+            NoatDoubs = NoatDoubs + sum(abs(wSign))
+            ! At double excit - gfind and sum in energy
+            if (tHPHF) then
+                HOffDiag = hphf_off_diag_helement (ProjEDet, nI, iLutRef, &
+                                                   ilut)
+            else
+                HOffDiag = get_helement (ProjEDet, nI, ExcitLevel, ilutRef, &
+                                         ilut)
+            endif
+            if (lenof_sign == 1) then
+                if (iter > NEquilSteps) SumENum = SumENum + &
+                        (real(HOffDiag, dp) * wSign(1) / dProbFin)
+                ENumCyc = ENumCyc + (real(HOffDiag, dp) * wSign(1) / dProbFin)
+            else
+                if (iter > NEquilSteps) SumENum = SumENum + &
+                        (HOffDiag * cmplx(wSign(1), wSign(2), dp)) / dProbFin
+                ENumCyc = ENumCyc + &
+                        (HOffDiag * cmplx(wSign(1), wSign(2), dp)) / dProbFin
+            endif
 
-        ELSEIF(ExcitLevel.eq.1) THEN
-          if(tNoBrillouin) then
-!For the real-space hubbard model, determinants are only connected to excitations one level away, and brillouins theorem can not hold.
-!For Rotated orbitals, brillouins theorem also cannot hold, and energy contributions from walkers on singly excited determinants must
-!be included in the energy values along with the doubles.
-            IF(tHPHF) THEN
-                HOffDiag = hphf_off_diag_helement (ProjEDet, DetCurr, iLutRef, &
-                                                   iLutCurr)
-            ELSE
-                HOffDiag = get_helement (ProjEDet, DetCurr, ExcitLevel, ilutRef, &
-                                         iLutCurr)
-            ENDIF
-            IF(lenof_sign.eq.1) THEN
-                IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag,dp)*WSign(1)/dProbFin)
-                ENumCyc=ENumCyc+(REAL(HOffDiag,dp)*WSign(1)/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
-            ELSE
-                IF(Iter.gt.NEquilSteps) SumENum=SumENum+(HOffDiag*CMPLX(WSign(1),WSign(2),dp))/dProbFin
-                ENumCyc=ENumCyc+(HOffDiag*CMPLX(WSign(1),WSign(2),dp))/dProbFin     !This is simply the Hij*sign summed over the course of the update cycle
-            ENDIF
-          endif 
+        elseif (ExcitLevel == 1) then
+            
+            if (tNoBrillouin) then
+                
+                ! For the real-space Hubbard model, determinants are only
+                ! connected to excitations one level away, and Brillouins
+                ! theorem cannot hold.
+                ! For Rotated orbitals, Brillouins theorem also cannot hold,
+                ! and energy contributions from walkers on singly excited
+                ! determinants must also be included in the energy values
+                ! along with the doubles
+                if (tHPHF) then
+                    HOffDiag = hphf_off_diag_helement (ProjEDet, nI, iLutRef,&
+                                                       ilut)
+                else
+                    HOffDiag = get_helement (ProjEDet, nI, ExcitLevel, &
+                                             ilutRef, ilut)
+                endif
+                if (lenof_sign == 1) then
+                    if (iter > NEquilSteps) SumENum = SumENum + &
+                            (real(HOffDiag, dp) * wSign(1) / dProbFin)
+                    ENumCyc = ENumCyc + &
+                            (real(HOffDiag, dp) * wSign(1) / dProbFin)
+                else
+                    if (iter > NEquilSteps) SumENum = SumENum + &
+                        (HOffDiag * cmplx(wSign(1), wSign(2), dp)) / dProbFin
+                    ENumCyc = ENumCyc + &
+                        (HOffDiag * cmplx(wSign(1), wSign(2), dp)) / dProbFin
+                endif
+            endif
 
-        ENDIF   ! ExcitLevel == 1, 2, 3
+        endif ! ExcitLevel == 1, 2, 3
 
-        ! ---------------------------------------------------------
+        ! -----------------------------------
+        ! HISTOGRAMMING
+        ! -----------------------------------
 
-!Histogramming diagnostic options...
-        IF((tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC)).and.(Iter.ge.NHistEquilSteps)) THEN
-            IF(ExcitLevel.eq.NEl) THEN
-                CALL BinSearchParts2(iLutCurr,HistMinInd(ExcitLevel),Det,PartInd,tSuccess)
-                if(tFCIMC) HistMinInd(ExcitLevel)=PartInd  !CCMC doesn't sum particle contributions in order, so we must search the whole space again
-            ELSEIF(ExcitLevel.eq.0) THEN
-                PartInd=1
-                tSuccess=.true.
-            ELSE
-                CALL BinSearchParts2(iLutCurr,HistMinInd(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartInd,tSuccess)
-                if(tFCIMC) HistMinInd(ExcitLevel)=PartInd  !CCMC doesn't sum particle contributions in order, so we must search the whole space again
-            ENDIF
-            IF(tSuccess) THEN
-                IF(tHPHF) THEN
-                    CALL FindExcitBitDetSym(iLutCurr,iLutSym)
-                    IF(.not.DetBitEQ(iLutCurr,iLutSym)) THEN
-                        IF(tFlippedSign) THEN
-                            Histogram(1,PartInd)=Histogram(1,PartInd)-(REAL(WSign(1),dp)/SQRT(2.0))/dProbFin
-                            IF(lenof_sign.eq.2) Histogram(lenof_sign,PartInd)=Histogram(lenof_sign,PartInd)-(REAL(WSign(lenof_sign),dp)/SQRT(2.0))/dProbFin
-                            IF(tHistSpawn) THEN 
-                                InstHist(1,PartInd)=InstHist(1,PartInd)-(REAL(WSign(1),dp)/SQRT(2.0))/dProbFin
-                                IF(lenof_sign.eq.2) InstHist(lenof_sign,PartInd)=InstHist(lenof_sign,PartInd)-(REAL(WSign(lenof_sign),dp)/SQRT(2.0))/dProbFin
-                            ENDIF
-                        ELSE
-                            Histogram(1,PartInd)=Histogram(1,PartInd)+(REAL(WSign(1),dp)/SQRT(2.0))/dProbFin
-                            IF(lenof_sign.eq.2) Histogram(lenof_sign,PartInd)=Histogram(lenof_sign,PartInd)+(REAL(WSign(lenof_sign),dp)/SQRT(2.0))/dProbFin
-                            IF(tHistSpawn) THEN
-                                InstHist(1,PartInd)=InstHist(1,PartInd)+(REAL(WSign(1),dp)/SQRT(2.0))/dProbFin
-                                IF(lenof_sign.eq.2) InstHist(lenof_sign,PartInd)=InstHist(lenof_sign,PartInd)+(REAL(WSign(lenof_sign),dp)/SQRT(2.0))/dProbFin
-                            ENDIF
-                        ENDIF
-                    ELSE
-                        IF(tFlippedSign) THEN
-                            Histogram(1,PartInd)=Histogram(1,PartInd)-REAL(WSign(1),dp)/dProbFin
-                            IF(lenof_sign.eq.2) Histogram(lenof_sign,PartInd)=Histogram(lenof_sign,PartInd)-REAL(WSign(lenof_sign),dp)/dProbFin
-                            IF(tHistSpawn) THEN
-                                InstHist(1,PartInd)=InstHist(1,PartInd)-REAL(WSign(1),dp)/dProbFin
-                                IF(lenof_sign.eq.2) InstHist(lenof_sign,PartInd)=InstHist(lenof_sign,PartInd)-REAL(WSign(lenof_sign),dp)/dProbFin
-                            ENDIF
-                        ELSE
-                            Histogram(1,PartInd)=Histogram(1,PartInd)+REAL(WSign(1),dp)/dProbFin
-                            IF(lenof_sign.eq.2) Histogram(lenof_sign,PartInd)=Histogram(lenof_sign,PartInd)+REAL(WSign(lenof_sign),dp)/dProbFin
-                            IF(tHistSpawn) THEN
-                                InstHist(1,PartInd)=InstHist(1,PartInd)+REAL(WSign(1),dp)/dProbFin
-                                IF(lenof_sign.eq.2) InstHist(lenof_sign,PartInd)=InstHist(lenof_sign,PartInd)+REAL(WSign(lenof_sign),dp)/dProbFin
-                            ENDIF
-                        ENDIF
-                    ENDIF
-                ELSE    !not HPHF
-                    IF(tFlippedSign) THEN
-                        Histogram(1,PartInd)=Histogram(1,PartInd)-REAL(WSign(1),dp)/dProbFin
-                        IF(lenof_sign.eq.2) Histogram(lenof_sign,PartInd)=Histogram(lenof_sign,PartInd)-REAL(WSign(lenof_sign),dp)/dProbFin
-                        IF(tHistSpawn) THEN
-                            InstHist(1,PartInd)=InstHist(1,PartInd)-REAL(WSign(1),dp)/dProbFin
-                            IF(lenof_sign.eq.2) InstHist(lenof_sign,PartInd)=InstHist(lenof_sign,PartInd)-REAL(WSign(lenof_sign),dp)/dProbFin
-                        ENDIF
-                    ELSE
-                        Histogram(1,PartInd)=Histogram(1,PartInd)+REAL(WSign(1),dp)/dProbFin
-                        IF(lenof_sign.eq.2) Histogram(lenof_sign,PartInd)=Histogram(lenof_sign,PartInd)+REAL(WSign(lenof_sign),dp)/dProbFin
-                        IF(tHistSpawn) THEN
-                            InstHist(1,PartInd)=InstHist(1,PartInd)+REAL(WSign(1),dp)/dProbFin
-                            IF(lenof_sign.eq.2) InstHist(lenof_sign,PartInd)=InstHist(lenof_sign,PartInd)+REAL(WSign(lenof_sign),dp)/dProbFin
-                        ENDIF
-                    ENDIF
-                ENDIF
-                IF(tHPHF) THEN
-!With HPHF space, we need to also include the spin-coupled determinant, which will have the same amplitude as the original determinant, unless it is antisymmetric.
-                    IF(.not.DetBitEQ(iLutCurr,iLutSym)) THEN
-                        IF(ExcitLevel.eq.NEl) THEN
-                            CALL BinSearchParts2(iLutSym,FCIDetIndex(ExcitLevel),Det,PartInd,tSuccess)
-                        ELSEIF(ExcitLevel.eq.0) THEN
-                            PartInd=1
-                            tSuccess=.true.
-                        ELSE
-                            CALL BinSearchParts2(iLutSym,FCIDetIndex(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartInd,tSuccess)
-                        ENDIF
-                        IF(tSuccess) THEN
-                            CALL CalcOpenOrbs(iLutSym,OpenOrbs)
-                            IF(tFlippedSign) THEN
-                                IF(mod(OpenOrbs,2).eq.1) THEN
-                                    Histogram(1,PartInd)=Histogram(1,PartInd)+(REAL(WSign(1),dp)/SQRT(2.0))/dProbFin
-                                    IF(lenof_sign.eq.2) Histogram(lenof_sign,PartInd)=Histogram(lenof_sign,PartInd)+(REAL(WSign(lenof_sign),dp)/SQRT(2.0))/dProbFin
-                                    IF(tHistSpawn) THEN
-                                        InstHist(1,PartInd)=InstHist(1,PartInd)+(REAL(WSign(1),dp)/SQRT(2.0))/dProbFin
-                                        IF(lenof_sign.eq.2) InstHist(lenof_sign,PartInd)=InstHist(lenof_sign,PartInd)+(REAL(WSign(lenof_sign),dp)/SQRT(2.0))/dProbFin
-                                    ENDIF
-                                ELSE
-                                    Histogram(1,PartInd)=Histogram(1,PartInd)-(REAL(WSign(1),dp)/SQRT(2.0))/dProbFin
-                                    IF(lenof_sign.eq.2) Histogram(lenof_sign,PartInd)=Histogram(lenof_sign,PartInd)-(REAL(WSign(lenof_sign),dp)/SQRT(2.0))/dProbFin
-                                    IF(tHistSpawn) THEN
-                                        InstHist(1,PartInd)=InstHist(1,PartInd)-(REAL(WSign(1),dp)/SQRT(2.0))/dProbFin
-                                        IF(lenof_sign.eq.2) InstHist(lenof_sign,PartInd)=InstHist(lenof_sign,PartInd)-(REAL(WSign(lenof_sign),dp)/SQRT(2.0))/dProbFin
-                                    ENDIF
-                                ENDIF
-                            ELSE
-                                IF(mod(OpenOrbs,2).eq.1) THEN
-                                    Histogram(1,PartInd)=Histogram(1,PartInd)-(REAL(WSign(1),dp)/SQRT(2.0))/dProbFin
-                                    IF(lenof_sign.eq.2) Histogram(lenof_sign,PartInd)=Histogram(lenof_sign,PartInd)-(REAL(WSign(lenof_sign),dp)/SQRT(2.0))/dProbFin
-                                    IF(tHistSpawn) THEN
-                                        InstHist(1,PartInd)=InstHist(1,PartInd)-(REAL(WSign(1),dp)/SQRT(2.0))/dProbFin
-                                        IF(lenof_sign.eq.2) InstHist(lenof_sign,PartInd)=InstHist(lenof_sign,PartInd)-(REAL(WSign(lenof_sign),dp)/SQRT(2.0))/dProbFin
-                                    ENDIF
-                                ELSE
-                                    Histogram(1,PartInd)=Histogram(1,PartInd)+(REAL(WSign(1),dp)/SQRT(2.0))/dProbFin
-                                    IF(lenof_sign.eq.2) Histogram(lenof_sign,PartInd)=Histogram(lenof_sign,PartInd)+(REAL(WSign(lenof_sign),dp)/SQRT(2.0))/dProbFin
-                                    IF(tHistSpawn) THEN
-                                        InstHist(1,PartInd)=InstHist(1,PartInd)+(REAL(WSign(1),dp)/SQRT(2.0))/dProbFin
-                                        IF(lenof_sign.eq.2) InstHist(lenof_sign,PartInd)=InstHist(lenof_sign,PartInd)+(REAL(WSign(lenof_sign),dp)/SQRT(2.0))/dProbFin
-                                    ENDIF
-                                ENDIF
-                            ENDIF
-                        ELSE
-                            WRITE(6,*) DetCurr(:)
-                            WRITE(6,*) "***",iLutSym(0:NIfTot)
-                            WRITE(6,*) "***",ExcitLevel,Det
-                            CALL Stop_All("SumEContrib","Cannot find corresponding spin-coupled FCI determinant when histogramming")
-                        ENDIF
-                    ENDIF
-                ENDIF
-            ELSE
-                WRITE(6,*) DetCurr(:)
-                WRITE(6,*) "***",iLutCurr(0:NIfTot)
-                WRITE(6,*) "***",ExcitLevel,HistMinInd(ExcitLevel),Det
-                Call WriteBitDet(6,iLutCurr(0:NIfTot),.true.)
-                CALL Stop_All("SumEContrib","Cannot find corresponding FCI determinant when histogramming")
-            ENDIF
-        ELSEIF(tHistEnergies) THEN
-!This wil histogramm the energies of the particles, rather than the determinants themselves.
-            Bin=INT(HDiagCurr/BinRange)+1
-            IF(Bin.gt.iNoBins) THEN
-                CALL Stop_All("SumEContrib","Histogramming energies higher than the arrays can cope with. Increase iNoBins or BinRange")
-            ENDIF
-            HistogramEnergy(Bin)=HistogramEnergy(Bin)+real(abs(WSign(1)),dp)
-        ENDIF
+        if ((tHistSpawn .or. (tCalcFCIMCPsi .and. tFCIMC)) .and. &
+            (iter >= NHistEquilSteps)) then
+            ! Histogram particles by determinant
+            call add_hist_spawn (ilut, wSign, ExcitLevel, dProbFin)
+        elseif (tHistEnergies) then
+            ! Histogram particles by energy
+            call add_hist_energies (ilut, wSign, HDiagCurr)
+        endif
 
         ! Are we doing a spin-projection histogram?
         if (tHistSpinDist) &
-            call test_add_hist_spin_dist_det (iLutCurr, wSign)
+            call test_add_hist_spin_dist_det (ilut, wSign)
 
         IF(tPrintOrbOcc.and.(Iter.ge.StartPrintOrbOcc)) THEN
-            IF((tPrintOrbOccInit.and.(test_flag(iLutCurr,flag_is_initiator(1)))).or.(.not.tPrintOrbOccInit)) then
+            IF((tPrintOrbOccInit.and.(test_flag(ilut,flag_is_initiator(1)))).or.(.not.tPrintOrbOccInit)) then
                 do i=1,NEl
-                    OrbOccs(DetCurr(i))=OrbOccs(DetCurr(i))+(REAL(WSign(1))*REAL(WSign(1)))
+                    OrbOccs(nI(i))=OrbOccs(nI(i))+(REAL(WSign(1))*REAL(WSign(1)))
                 enddo
             ENDIF
         ENDIF

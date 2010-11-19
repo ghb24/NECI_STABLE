@@ -384,7 +384,7 @@ MODULE NatOrbsMod
 ! FCIDetIndex(1:NEl) contains the index of FCIDets where each excitation level starts.
 ! As in FCIDetIndex(1) = 2 always I think - Excitation level 1 starts at the second determinant (after HF).
 ! Pretty sure FCIDetIndex always goes from 1:NEl even from truncated excite calculations.
-        USE FciMCData , only : AllHistogram
+        use hist_data, only: AllHistogram
 ! The elements of AllHistogram correspond to the rows of FCIDets - i.e to each determinant in the system.
 ! AllHistogram contains the final (normalised) amplitude of the determinant - with sign.
         IMPLICIT NONE

@@ -3,7 +3,6 @@ MODULE AnnihilationMod
     use SystemData , only : NEl, tHPHF
     use CalcData , only : TRegenExcitgens,tRegenDiagHEls
     USE DetCalcData , only : Det,FCIDetIndex
-    USE Logging , only : tHistSpawn
     USE Parallel
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE FciMCData
@@ -22,6 +21,7 @@ MODULE AnnihilationMod
                         clr_flag, flag_parent_initiator, encode_part_sign, &
                         extract_part_sign, copy_flag
     use csf_data, only: csf_orbital_mask
+    use hist_data, only: tHistSpawn, HistMinInd2
     IMPLICIT NONE
 
     contains
