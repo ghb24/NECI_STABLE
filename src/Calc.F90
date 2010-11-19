@@ -168,7 +168,7 @@ contains
           G_VMC_EXCITWEIGHTS(:,:)=0.D0
           EXCITFUNCS(:)=.false.
           EXCITFUNCS(10)=.true.
-          NPaths=0
+          NPaths = 1
           iActiveBasis=0
           nActiveSpace(:)=0 
           TNPDERIV = .false.
