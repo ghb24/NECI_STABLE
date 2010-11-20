@@ -168,7 +168,7 @@ contains
           G_VMC_EXCITWEIGHTS(:,:)=0.D0
           EXCITFUNCS(:)=.false.
           EXCITFUNCS(10)=.true.
-          NPaths=0
+          NPaths = 1
           iActiveBasis=0
           nActiveSpace(:)=0 
           TNPDERIV = .false.
@@ -181,7 +181,7 @@ contains
           DETINV = 0
           TSPECDET = .false.
           TTROT=.true.
-          BETA=0.D0
+          BETA = 1000
           BETAP=1.D-4
           TBETAP=.false.
           RHOEPSILON=1.D-6
