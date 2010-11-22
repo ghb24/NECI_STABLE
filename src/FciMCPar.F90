@@ -4542,17 +4542,16 @@ MODULE FciMCParMod
         if (tHistSpinDist) &
             call test_add_hist_spin_dist_det (ilut, wSign)
 
-        IF(tPrintOrbOcc.and.(Iter.ge.StartPrintOrbOcc)) THEN
-            IF((tPrintOrbOccInit.and.(test_flag(ilut,flag_is_initiator(1)))).or.(.not.tPrintOrbOccInit)) then
-                do i=1,NEl
-                    OrbOccs(nI(i))=OrbOccs(nI(i))+(REAL(WSign(1))*REAL(WSign(1)))
-                enddo
-            ENDIF
-        ENDIF
+        ! Maintain a list of the degree of occupation of each orbital
+        if (tPrintOrbOcc .and. (iter >= StartPrintOrbOcc)) then
+            if ((tPrintOrbOccInit .and. test_flag(ilut,flag_is_initiator(1)))&
+                .or. .not. tPrintOrbOccInit) then
+                forall (i = 1:nel) OrbOccs(nI(i)) = OrbOccs(nI(i)) &
+                                          + (real(wSign(1)) * real(wSign(1)))
+            endif
+        endif
 
-        RETURN
-
-    END SUBROUTINE SumEContrib
+    end subroutine SumEContrib
 
 
     
