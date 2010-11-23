@@ -744,20 +744,28 @@ MODULE FciMCParMod
             ! excite from the first particle on a determinant).
             fcimc_excit_gen_store%tFilled = .false.
 
-            call extract_sign (CurrentDets(:,j), SignCurr)
 
-            ! TODO: Ensure that the HF determinant has its flags setup
-            !       correctly at the start of a run.
-            if (tTruncInitiator) call CalcParentFlag (j, VecSlot, Iter, &
-                                                      parent_flags)
+            if (tSpawn_Only_Init) then
+                call extract_sign (CurrentDets(:,j), SignCurr)
 
-            ! If we are only spawning from initiators, we don't need to do this decoding
-            ! if CurrentDet is a non-initiator otherwise it is necessary either way.
+                ! TODO: Ensure that the HF determinant has its flags setup
+                !       correctly at the start of a run.
+                call CalcParentFlag (j, VecSlot, Iter, parent_flags)
 
-            if ((.not.tSpawn_Only_Init) .or. tcurr_initiator)              & 
-                ! Decode determinant from (stored) bit-representation.
+                ! If we are only spawning from initiators, we don't need to do this decoding
+                ! if CurrentDet is a non-initiator otherwise it is necessary either way.
+
+                if (tcurr_initiator)                                         & 
+                    ! Decode determinant from (stored) bit-representation.
+                    call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
+                                      FlagsCurr, fcimc_excit_gen_store)
+            else                                      
                 call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
                                   FlagsCurr, fcimc_excit_gen_store)
+
+                if (tTruncInitiator) call CalcParentFlag (j, VecSlot, Iter, &
+                                                          parent_flags)
+            endif                                                          
 
             !Debug output.
             IFDEBUGTHEN(FCIMCDebug,3)
