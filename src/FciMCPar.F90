@@ -138,7 +138,7 @@ MODULE FciMCParMod
 !Start MC simulation...
         TIncrement=.true.   !If TIncrement is true, it means that when it comes out of the loop, it wants to subtract 1 from the Iteration count to get the true number of iterations
         Iter=1
-        do while(Iter.le.NMCyc)   !Iter=1,NMCyc
+        do while (Iter <= NMCyc .or. NMCyc == -1)
 !Main iteration loop...
 !            WRITE(6,*) 'Iter',Iter
 
