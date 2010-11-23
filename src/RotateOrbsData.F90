@@ -23,4 +23,6 @@ MODULE RotateOrbsData
 
     TYPE(timer) :: FillOneRDM_Time,FillMP2VDM_Time,DiagNatOrbMat_Time,OrderCoeff_Time,FillCoeff_Time
 
+    LOGICAL :: tTurnStoreSpinOff
+
 END MODULE RotateOrbsData

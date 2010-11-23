@@ -19,10 +19,11 @@ MODULE Logging
     REAL*8 MaxHistE,BinRange,OffDiagMax,OffDiagBinRange
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn,tPrintPopsDefault
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tIncrementPops,tROHistogramAll,tROHistER,tHistSpawn,tROHistSingExc,tRoHistOneElInts
-    LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump
+    LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump,tRDMonFly,tDiagRDM,tCalc_RDMEnergy
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking,tTruncDumpbyVal
     LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit
-    INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NHistEquilSteps,IterShiftBlock
+    INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NHistEquilSteps,IterShiftBlock,IterRDMonFly,RDMExcitLevel
+
     INTEGER CCMCDebug  !CCMC Debugging Level 0-6.  Default 0
     INTEGER FCIMCDebug !FciMC Debugging Level 0-6.  Default 0
 
@@ -113,6 +114,11 @@ MODULE Logging
       HistInitPopsIter=100000
       hist_spin_dist_iter = 1000
       tLogDets=.false.
+      tRDMonFly=.false.
+      tDiagRDM=.false.
+      IterRDMonFly=0
+      RDMExcitLevel=1
+      tCalc_RDMEnergy = .false.
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -409,6 +415,23 @@ MODULE Logging
 !and the number with this population. The range of populations histogrammed goes from ln(N_add) -> ln(1,000,000) with 50,000 bins.
             tHistInitPops=.true.
             call readi(HistInitPopsIter)
+
+        case("CALCRDMONFLY")
+!This keyword sets the calculation to calculate the reduced density matrix on the fly.  This starts at iteration number IterRDMonFly.
+!If RDMExcitLevel = 1, only the 1 electron RDM is found, if RDMExcitLevel = 2, only the 2 electron RDM is found and if RDMExcitLevel = 3, both are found. 
+            tRDMonFly=.true.
+            call readi(RDMExcitLevel)
+            call readi(IterRDMonFly)
+
+        case("DIAGFLYONERDM")
+!This sets the calculation to diagonalise the *1* electron reduced density matrix.  Obviously this doesn't work if RDMExcitLevel = 2.            
+!The eigenvalues give the occupation numbers of the natural orbitals (eigenfunctions).
+            tDiagRDM=.true.
+
+        case("CALCRDMENERGY")
+!This takes the 1 and 2 electron RDM and calculates the energy using the RDM expression.            
+!For this to be calculated, RDMExcitLevel must be = 3, so there is a check to make sure this is so if the CALCRDMENERGY keyword is present.
+            tCalc_RDMEnergy = .true.
         
         case("AUTOCORR")
 !This is a Parallel FCIMC option - it will calculate the largest weight MP1 determinants and histogramm them

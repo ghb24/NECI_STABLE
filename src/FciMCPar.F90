@@ -56,7 +56,8 @@ MODULE FciMCParMod
                        HistInitPopsTag, OrbOccs, OrbOccsTag, &
                        tPrintPopsDefault, iWriteBlockingEvery, &
                        tBlockEveryIteration, tHistInitPops, HistInitPopsIter,&
-                       HistInitPops, FCIMCDebug
+                       HistInitPops, FCIMCDebug, tRDMonFly, IterRDMonFly, &
+                       RDMExcitLevel
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
                     hist_spin_dist, ilut_spindist, tHistSpinDist, &
                     write_clear_hist_spin_dist, hist_spin_dist_iter, &
@@ -88,6 +89,7 @@ MODULE FciMCParMod
                             iter_data_spin_proj, test_spin_proj, &
                             spin_proj_shift, spin_proj_iter_count
     use symrandexcit3, only: gen_rand_excit3, test_sym_excit3
+    use nElRDMMod, only: FinaliseRDM,FillRDMthisIter
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
 #endif
@@ -340,6 +342,8 @@ MODULE FciMCParMod
         IF(tPrintOrbOcc) THEN
             CALL PrintOrbOccs(OrbOccs)
         ENDIF
+
+        IF(tRDMonFly) CALL FinaliseRDM()
 
 ! Print out some load balancing stats nicely to end.
         CALL MPIReduce(TotWalkers,MPI_MAX,MaxWalkers)
@@ -918,6 +922,11 @@ MODULE FciMCParMod
                                 - iter_data%ndied - iter_data%nannihil &
                                 - iter_data%naborted
         iter_data%update_iters = iter_data%update_iters + 1
+
+        IF(tRDMonFly.and.(Iter.ge.IterRDMonFly)) THEN
+            IF(Iter.eq.IterRDMonFly) WRITE(6,'(A28,I1,A36)') ' Beginning to calculate the ',RDMExcitLevel,' electron density matrix on the fly.'
+            CALL FillRDMthisIter(TotWalkers)
+        ENDIF
 
     end subroutine
 
@@ -3235,6 +3244,7 @@ MODULE FciMCParMod
         use DetBitOps, only: CountBits
         use constants, only: bits_n_int
         use util_mod, only: get_free_unit
+        use nElRDMMod, only: InitRDM
         use sym_mod
         use HElem
         INTEGER :: ierr,i,j,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate
@@ -3899,6 +3909,8 @@ MODULE FciMCParMod
         ELSE
             WRITE(6,*) "Initial number of walkers per processor chosen to be: ", InitWalkers
         ENDIF
+
+        IF(tRDMonFly) CALL InitRDM()
 
     END SUBROUTINE SetupParameters
 
@@ -5008,6 +5020,7 @@ MODULE FciMCParMod
     END SUBROUTINE CountExcitsOld
 
     SUBROUTINE DeallocFCIMCMemPar()
+        use nElRDMMod, only: DeallocateRDM
         CHARACTER(len=*), PARAMETER :: this_routine='DeallocFciMCMemPar'
 
 
@@ -5105,6 +5118,8 @@ MODULE FciMCParMod
                 endif
             ENDIF
         ENDIF
+
+        IF(tRDMonFly) CALL DeallocateRDM()
 
         ! Cleanup excitation generation storage
         call clean_excit_gen_store (fcimc_excit_gen_store)

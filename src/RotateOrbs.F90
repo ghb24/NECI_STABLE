@@ -2130,13 +2130,29 @@ MODULE RotateOrbsMod
 ! The untransformed <alpha beta | gamma delta> integrals are found from UMAT(UMatInd(i,j,k,l,0,0)
 
         do b=1,NoOrbs
-            b2=SymLabelList2(b)
+            IF(tTurnStoreSpinOff) THEN
+                b2=CEILING(REAL(SymLabelList2(b))/2.D0)
+            ELSE
+                b2=SymLabelList2(b)
+            ENDIF
             do d=1,b
-                d2=SymLabelList2(d)
+                IF(tTurnStoreSpinOff) THEN
+                    d2=CEILING(REAL(SymLabelList2(d))/2.D0)
+                ELSE
+                    d2=SymLabelList2(d)
+                ENDIF
                 do a=1,NoOrbs
-                    a2=SymLabelList2(a)
+                    IF(tTurnStoreSpinOff) THEN
+                        a2=CEILING(REAL(SymLabelList2(a))/2.D0)
+                    ELSE
+                        a2=SymLabelList2(a)
+                    ENDIF
                     do g=1,a
-                        g2=SymLabelList2(g)
+                        IF(tTurnStoreSpinOff) THEN
+                            g2=CEILING(REAL(SymLabelList2(g))/2.D0)
+                        ELSE
+                            g2=SymLabelList2(g)
+                        ENDIF
                         FourIndInts(a,g,b,d)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0)),8)
                         FourIndInts(g,a,b,d)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0)),8)
                         FourIndInts(a,g,d,b)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0)),8)
@@ -4989,14 +5005,34 @@ MODULE RotateOrbsMod
 ! coefficients that have been found
         IF(NoDumpTruncs.le.1) THEN
             do l=1,(NoOrbs-(NoFrozenVirt))
-                d=SymLabelList3(l)
+                IF(tTurnStoreSpinOff) THEN
+                    d=CEILING(REAL(SymLabelList3(l))/2.D0)
+                ELSE
+                    d=SymLabelList3(l)
+                ENDIF
                 do k=1,(NoOrbs-(NoFrozenVirt))
-                    g=SymLabelList3(k)
+
+                    IF(tTurnStoreSpinOff) THEN
+                        g=CEILING(REAL(SymLabelList3(k))/2.D0)
+                    ELSE
+                        g=SymLabelList3(k)
+                    ENDIF
      
                     do j=1,(NoOrbs-(NoFrozenVirt))
-                        b=SymLabelList3(j)
+
+                        IF(tTurnStoreSpinOff) THEN
+                            b=CEILING(REAL(SymLabelList3(j))/2.D0)
+                        ELSE
+                            b=SymLabelList3(j)
+                        ENDIF
                         do i=1,(NoOrbs-(NoFrozenVirt))
-                            a=SymLabelList3(i)
+
+                            IF(tTurnStoreSpinOff) THEN
+                                a=CEILING(REAL(SymLabelList3(i))/2.D0)
+                            ELSE
+                                a=SymLabelList3(i)
+                            ENDIF
+
                             IF(tUseMP2VarDenMat.or.tFindCINatOrbs.or.tReadInCoeff) THEN
                                 UMAT(UMatInd(a,b,g,d,0,0))=(FourIndInts(i,k,j,l))
                             ELSE
@@ -5134,6 +5170,11 @@ MODULE RotateOrbsMod
         IF(tROHistSingExc) CALL WriteSingHisttofile()
 
         CALL set_timer(RefillUMAT_Time,30)
+
+        IF(tTurnStoreSpinOff) THEN
+            tStoreSpinOrbs = .false.
+            NoOrbs = nBasis / 2
+        ENDIF
 
         WRITE(6,'(A,I5,A)') ' Printing the new ROFCIDUMP file for a truncation of ',NoFrozenVirt,' orbitals.'
         IF(tROFciDump.and.(NoDumpTruncs.gt.1)) THEN
