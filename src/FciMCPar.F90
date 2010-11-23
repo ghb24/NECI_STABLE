@@ -756,6 +756,8 @@ MODULE FciMCParMod
                 ! if CurrentDet is a non-initiator otherwise it is necessary either way.
 
                 if (tcurr_initiator)                                         & 
+                    ! tcurr_initiator is a global variable which indicates that at least one of the 'types' of
+                    ! walker on this determinant is an initiator.
                     ! Decode determinant from (stored) bit-representation.
                     call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
                                       FlagsCurr, fcimc_excit_gen_store)
@@ -828,51 +830,57 @@ MODULE FciMCParMod
             !                 --> part_type == 1, 2; real and complex walkers
             do part_type=1,lenof_sign
 
-                if ((.not.tSpawn_Only_Init) .or. &
-                    test_flag (CurrentDets(:,j), flag_parent_initiator(part_type))) then
-
-                    ! Loop over all the particles of a given type on the 
-                    ! determinant. CurrentSign gives number of walkers. Multiply 
-                    ! up by noMCExcits if attempting multiple excitations from 
-                    ! each walker (default 1)
-                    do p = 1, abs(SignCurr(part_type)) * noMCExcits
-                        ! Zero the bit representation, to ensure no extraneous
-                        ! data gets through.
-                        ilutnJ = 0
-
-                        ! Generate a (random) excitation
-                        call generate_excitation (DetCurr, CurrentDets(:,j), nJ, &
-                                       ilutnJ, exFlag, IC, ex, tParity, prob, &
-                                       HElGen, fcimc_excit_gen_store)
-
-                        ! If a valid excitation, see if we should spawn children.
-                        if (.not. IsNullDet(nJ)) then
-                            child = attempt_create (get_spawn_helement, DetCurr, &
-                                                CurrentDets(:,j), SignCurr, &
-                                                nJ,iLutnJ, Prob, HElGen, IC, ex, &
-                                                tParity, walkExcitLevel,part_type)
-                        else
-                            child = 0
-                        endif
-
-                        ! Children have been chosen to be spawned.
-                        if (any(child /= 0)) then
-                            ! We know we want to create a particle of this type.
-                            ! Encode the bit representation if it isn't already.
-                            call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
-
-                            call new_child_stats (iter_data, CurrentDets(:,j), &
-                                                  nJ, iLutnJ, ic, walkExcitLevel,&
-                                                  child, parent_flags, part_type)
-
-                            call create_particle (nJ, iLutnJ, child, &
-                                                  parent_flags, part_type)
-                        
-                        endif ! (child /= 0). Child created
-
-                    enddo ! Cycling over mulitple particles on same determinant.
-
+                !The logic here is a little messy, but relates to the tSpawn_only_init option.
+                !With this, only initiators are allowed to spawn, therefore we are testing whether 
+                !the 'type' of walker we are currently considering is an initiator or not.
+                !This is determined uniquely for real walkers, where there is only one 'type' of walker,
+                !but otherwise we need to test each type independently.
+                if((lenof_sign.gt.1).and.tSpawn_Only_Init) then
+                    if(.not.test_flag (CurrentDets(:,j), flag_parent_initiator(part_type))) cycle
+                elseif(tSpawn_Only_Init) then
+                    if(.not.tCurr_initiator) cycle
                 endif
+
+                ! Loop over all the particles of a given type on the 
+                ! determinant. CurrentSign gives number of walkers. Multiply 
+                ! up by noMCExcits if attempting multiple excitations from 
+                ! each walker (default 1)
+                do p = 1, abs(SignCurr(part_type)) * noMCExcits
+                    ! Zero the bit representation, to ensure no extraneous
+                    ! data gets through.
+                    ilutnJ = 0
+
+                    ! Generate a (random) excitation
+                    call generate_excitation (DetCurr, CurrentDets(:,j), nJ, &
+                                   ilutnJ, exFlag, IC, ex, tParity, prob, &
+                                   HElGen, fcimc_excit_gen_store)
+
+                    ! If a valid excitation, see if we should spawn children.
+                    if (.not. IsNullDet(nJ)) then
+                        child = attempt_create (get_spawn_helement, DetCurr, &
+                                            CurrentDets(:,j), SignCurr, &
+                                            nJ,iLutnJ, Prob, HElGen, IC, ex, &
+                                            tParity, walkExcitLevel,part_type)
+                    else
+                        child = 0
+                    endif
+
+                    ! Children have been chosen to be spawned.
+                    if (any(child /= 0)) then
+                        ! We know we want to create a particle of this type.
+                        ! Encode the bit representation if it isn't already.
+                        call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
+
+                        call new_child_stats (iter_data, CurrentDets(:,j), &
+                                              nJ, iLutnJ, ic, walkExcitLevel,&
+                                              child, parent_flags, part_type)
+
+                        call create_particle (nJ, iLutnJ, child, &
+                                              parent_flags, part_type)
+                    
+                    endif ! (child /= 0). Child created
+
+                enddo ! Cycling over mulitple particles on same determinant.
 
             enddo   ! Cycling over 'type' of particle on a given determinant.
 
