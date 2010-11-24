@@ -32,8 +32,8 @@ MODULE FciMCParMod
                         tReadPopsRestart, tCheckHighestPopOnce, &
                         iRestartWalkNum, tRestartHighPop, FracLargerDet, &
                         tChangeProjEDet, tCheckHighestPop, tSpawnSpatialInit,&
-                        MemoryFacInit, tMaxBloom, tTruncNOpen, &
-                        trunc_nopen_max, tFCIMC
+                        MemoryFacInit, tMaxBloom, tTruncNOpen, tFCIMC, &
+                        trunc_nopen_max, tFCIMC, tSpawn_Only_Init
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use Determinants, only: FDet, get_helement, write_det, &
                             get_helement_det_only
@@ -747,9 +747,30 @@ MODULE FciMCParMod
             ! excite from the first particle on a determinant).
             fcimc_excit_gen_store%tFilled = .false.
 
-            ! Decode determinant from (stored) bit-representation.
-            call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
+
+            if (tSpawn_Only_Init) then
+                call extract_sign (CurrentDets(:,j), SignCurr)
+
+                ! TODO: Ensure that the HF determinant has its flags setup
+                !       correctly at the start of a run.
+                call CalcParentFlag (j, VecSlot, Iter, parent_flags)
+
+                ! If we are only spawning from initiators, we don't need to do this decoding
+                ! if CurrentDet is a non-initiator otherwise it is necessary either way.
+
+                if (tcurr_initiator)                                         & 
+                    ! tcurr_initiator is a global variable which indicates that at least one of the 'types' of
+                    ! walker on this determinant is an initiator.
+                    ! Decode determinant from (stored) bit-representation.
+                    call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
+                                      FlagsCurr, fcimc_excit_gen_store)
+            else                                      
+                call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
                                   FlagsCurr, fcimc_excit_gen_store)
+
+                if (tTruncInitiator) call CalcParentFlag (j, VecSlot, Iter, &
+                                                          parent_flags)
+            endif                                                          
 
             !Debug output.
             IFDEBUGTHEN(FCIMCDebug,3)
@@ -806,16 +827,22 @@ MODULE FciMCParMod
             call SumEContrib (DetCurr, WalkExcitLevel, SignCurr, &
                               CurrentDets(:,j), HDiagCurr, 1.d0)
 
-            ! TODO: Ensure that the HF determinant has its flags setup
-            !       correctly at the start of a run.
-            if (tTruncInitiator) call CalcParentFlag (j, VecSlot, Iter, &
-                                                      parent_flags)
-
             ! Loop over the 'type' of particle. 
             ! lenof_sign == 1 --> Only real particles
             ! lenof_sign == 2 --> complex walkers
             !                 --> part_type == 1, 2; real and complex walkers
             do part_type=1,lenof_sign
+
+                !The logic here is a little messy, but relates to the tSpawn_only_init option.
+                !With this, only initiators are allowed to spawn, therefore we are testing whether 
+                !the 'type' of walker we are currently considering is an initiator or not.
+                !This is determined uniquely for real walkers, where there is only one 'type' of walker,
+                !but otherwise we need to test each type independently.
+                if((lenof_sign.gt.1).and.tSpawn_Only_Init) then
+                    if(.not.test_flag (CurrentDets(:,j), flag_parent_initiator(part_type))) cycle
+                elseif(tSpawn_Only_Init) then
+                    if(.not.tCurr_initiator) cycle
+                endif
 
                 ! Loop over all the particles of a given type on the 
                 ! determinant. CurrentSign gives number of walkers. Multiply 
@@ -1062,6 +1089,7 @@ MODULE FciMCParMod
 
         call extract_sign (CurrentDets(:,j), CurrentSign)
 
+        tcurr_initiator = .false.
         do part_type=1,lenof_sign
             ! By default, the parent_flags are the flags of the parent...
             parent_init = test_flag (CurrentDets(:,j), flag_parent_initiator(part_type))
@@ -1119,6 +1147,10 @@ MODULE FciMCParMod
             ! Update the parent flag as required.
             call set_flag (CurrentDets(:,j), flag_parent_initiator(part_type), &
                            parent_init)
+            
+            if(parent_init) then                           
+                tcurr_initiator = .true.
+            endif
 
         enddo
 
@@ -4801,6 +4833,8 @@ MODULE FciMCParMod
 
         IF((NMCyc.ne.0).and.(tRotateOrbs.and.(.not.tFindCINatOrbs))) CALL Stop_All(this_routine,"Currently not set up to rotate and then go straight into a spawning &
                                                                                     & calculation.  Ordering of orbitals is incorrect.  This may be fixed if needed.")
+        
+        if(tSpawn_Only_Init .and. (.not.tTruncInitiator)) CALL Stop_All(this_routine,"Cannot use the SPAWNONLYINIT option without the TRUNCINITIATOR option.")
 
     end subroutine InitFCIMCCalcPar
             
