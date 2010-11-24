@@ -34,6 +34,8 @@ logical :: tSpatialOnlyHash
 ! with the same spatial configuration is an initiator?
 logical :: tSpawnSpatialInit
 
+logical :: tSpawn_Only_Init
+
 ! Do we truncate spawning based on the number of unpaired electrons
 logical :: tTruncNOpen
 integer :: trunc_nopen_max
