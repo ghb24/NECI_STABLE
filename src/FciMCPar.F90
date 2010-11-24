@@ -4470,7 +4470,7 @@ MODULE FciMCParMod
             ! Number at HF * sign over course of update cycle
             HFCyc = HFCyc + wSign
 
-        elseif (ExcitLevel == 2 .or. (ExcitLevel == 1 .and. tNoBrillouin) then
+        elseif (ExcitLevel == 2 .or. (ExcitLevel == 1 .and. tNoBrillouin)) then
 
             ! For the real-space Hubbard model, determinants are only
             ! connected to excitations one level away, and Brillouins
