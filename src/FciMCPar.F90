@@ -4470,10 +4470,20 @@ MODULE FciMCParMod
             ! Number at HF * sign over course of update cycle
             HFCyc = HFCyc + wSign
 
-        elseif (ExcitLevel == 2) then
+        elseif (ExcitLevel == 2 .or. (ExcitLevel == 1 .and. tNoBrillouin) then
+
+            ! For the real-space Hubbard model, determinants are only
+            ! connected to excitations one level away, and Brillouins
+            ! theorem cannot hold.
+            !
+            ! For Rotated orbitals, Brillouins theorem also cannot hold,
+            ! and energy contributions from walkers on singly excited
+            ! determinants must also be included in the energy values
+            ! along with the doubles
             
-            NoatDoubs = NoatDoubs + sum(abs(wSign))
-            ! At double excit - gfind and sum in energy
+            if (ExcitLevel == 2) NoatDoubs = NoatDoubs + sum(abs(wSign))
+
+            ! Obtain diagonal element
             if (tHPHF) then
                 HOffDiag = hphf_off_diag_helement (ProjEDet, nI, iLutRef, &
                                                    ilut)
@@ -4481,6 +4491,8 @@ MODULE FciMCParMod
                 HOffDiag = get_helement (ProjEDet, nI, ExcitLevel, ilutRef, &
                                          ilut)
             endif
+
+            ! Sum in energy contribution
             if (lenof_sign == 1) then
                 if (iter > NEquilSteps) SumENum = SumENum + &
                         (real(HOffDiag, dp) * wSign(1) / dProbFin)
@@ -4490,37 +4502,6 @@ MODULE FciMCParMod
                         (HOffDiag * cmplx(wSign(1), wSign(2), dp)) / dProbFin
                 ENumCyc = ENumCyc + &
                         (HOffDiag * cmplx(wSign(1), wSign(2), dp)) / dProbFin
-            endif
-
-        elseif (ExcitLevel == 1) then
-            
-            if (tNoBrillouin) then
-                
-                ! For the real-space Hubbard model, determinants are only
-                ! connected to excitations one level away, and Brillouins
-                ! theorem cannot hold.
-                ! For Rotated orbitals, Brillouins theorem also cannot hold,
-                ! and energy contributions from walkers on singly excited
-                ! determinants must also be included in the energy values
-                ! along with the doubles
-                if (tHPHF) then
-                    HOffDiag = hphf_off_diag_helement (ProjEDet, nI, iLutRef,&
-                                                       ilut)
-                else
-                    HOffDiag = get_helement (ProjEDet, nI, ExcitLevel, &
-                                             ilutRef, ilut)
-                endif
-                if (lenof_sign == 1) then
-                    if (iter > NEquilSteps) SumENum = SumENum + &
-                            (real(HOffDiag, dp) * wSign(1) / dProbFin)
-                    ENumCyc = ENumCyc + &
-                            (real(HOffDiag, dp) * wSign(1) / dProbFin)
-                else
-                    if (iter > NEquilSteps) SumENum = SumENum + &
-                        (HOffDiag * cmplx(wSign(1), wSign(2), dp)) / dProbFin
-                    ENumCyc = ENumCyc + &
-                        (HOffDiag * cmplx(wSign(1), wSign(2), dp)) / dProbFin
-                endif
             endif
 
         endif ! ExcitLevel == 1, 2, 3
