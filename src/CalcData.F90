@@ -34,7 +34,9 @@ logical :: tSpatialOnlyHash
 ! with the same spatial configuration is an initiator?
 logical :: tSpawnSpatialInit
 
-logical :: tSpawn_Only_Init
+!These options mean that only initiators can spawn walkers.
+!tSpawn_Only_Init_Grow means that this option is removed once variable shift is entered.
+logical :: tSpawn_Only_Init,tSpawn_Only_Init_Grow
 
 ! Do we truncate spawning based on the number of unpaired electrons
 logical :: tTruncNOpen
