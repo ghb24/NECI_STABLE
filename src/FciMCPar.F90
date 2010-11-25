@@ -4567,6 +4567,19 @@ MODULE FciMCParMod
     end subroutine SumEContrib
 
 
+    subroutine clean_proje_linear_sum ()
+
+        if (allocated(proje_ref_iluts)) deallocate(proje_ref_iluts)
+
+        if (allocated(proje_ref_dets)) deallocate(proje_ref_dets)
+
+        if (allocated(proje_ref_det_init)) deallocate(proje_ref_det_init)
+
+        if (allocated(proje_ref_coeffs)) deallocate(proje_ref_coeffs)
+
+    end subroutine
+
+
     
 !This initialises the calculation, by allocating memory, setting up the initial walkers, and reading from a file if needed
     SUBROUTINE InitFCIMCCalcPar()

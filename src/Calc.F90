@@ -935,6 +935,21 @@ contains
                 IF(item.lt.nitems) then
                     call Getf(FracLargerDet)
                 ENDIF
+
+            case("PROJE-SPATIAL")
+                ! Calculate the projected energy by projection onto a linear
+                ! combination of determinants, specified by a particular 
+                ! spatial determinant.
+                proje_linear_comb = .true.
+                if (.not. allocated(proje_ref_det_init)) &
+                    allocate(proje_ref_det_init(nel))
+                proje_ref_det_init = 0
+                i = 1
+                do while (item < nitems .and. i <= nel)
+                    call geti(proje_ref_det_init(i))
+                    i = i+1
+                enddo
+
             case("RESTARTLARGEPOP")
                 tCheckHighestPop=.true.
                 tRestartHighPop=.true.

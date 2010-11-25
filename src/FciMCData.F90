@@ -180,6 +180,13 @@ MODULE FciMCData
       TYPE(BasisFN) :: HFSym
       integer :: iMaxBloom !If tMaxBloom is on, this stores the largest bloom to date.
 
+      ! If we are calculating the projected energy based on a linear
+      ! sum of multiple determinants, we need them and their coeffs
+      ! to have been enumerated.
+      integer(n_int), allocatable :: proje_ref_iluts(:,:)
+      integer, allocatable :: proje_ref_dets(:,:), proje_ref_det_init(:)
+      real(dp), allocatable :: proje_ref_coeffs(:)
+      
 
       ! ********************** FCIMCPar control variables *****************
       ! Store data from one fcimc iteration
