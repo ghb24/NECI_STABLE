@@ -2674,7 +2674,7 @@ MODULE FciMCParMod
 !                call SumInShiftErrorContrib (iter, DiagSft)
         endif
 
-    end subroutine
+    end subroutine iter_diagnostics
 
     subroutine population_check ()
         
@@ -2693,7 +2693,7 @@ MODULE FciMCParMod
 
             ! How many walkers do we need to switch dets?
             pop_change = int(FracLargerDet * real(abs_int_sign(AllNoAtHF), dp))
-            if (pop_change < pop_highest .and. sum(AllTotParts) > 10000) then
+            if (pop_change < pop_highest .and. pop_highest > 250) then
 
                 ! Write out info!
                 if (tHPHF) then
@@ -2873,7 +2873,7 @@ MODULE FciMCParMod
 !        WRITE(6,*) "***",iter_data%update_growth_tot,AllTotParts-AllTotPartsOld
         ASSERTROOT(all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld))
         
-    end subroutine
+    end subroutine collate_iter_data
 
     subroutine update_shift (iter_data)
 
