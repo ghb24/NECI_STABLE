@@ -19,6 +19,7 @@ MODULE Calc
     use CCMCData, only: dInitAmplitude, dProbSelNewExcitor, nSpawnings, &
                         tSpawnProp, nClustSelections, tExactEnergy,     &
                         dClustSelectionRatio,tSharedExcitors
+    use FciMCData, only: proje_linear_comb, proje_ref_det_init
 
     implicit none
 
@@ -236,6 +237,8 @@ contains
 
           ! Truncation based on number of unpaired electrons
           tTruncNOpen = .false.
+
+          proje_linear_comb = .false.
       
         end subroutine SetCalcDefaults
 
