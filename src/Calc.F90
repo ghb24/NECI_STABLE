@@ -206,7 +206,7 @@ contains
           HFPopThresh=0
           tSpatialOnlyHash = .false.
           tSpawn_Only_Init = .false.
-
+          tSpawn_Only_Init_Grow = .false.
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
 
           lNoTriples=.false.
@@ -1067,6 +1067,16 @@ contains
             case("SPAWNONLYINIT")
 !This option means only the initiators have the ability to spawn.  The non-initiators can live/die but not spawn walkers of their own.                
                 tSpawn_Only_Init = .true.
+
+            case("SPAWNONLYINITGROWTH")
+                ! Only allow initiators to spawn progeny. Non-initiators can
+                ! live/die but are not allowed to spawn.
+                !
+                ! This option is disabled in variable shift mode. Allows
+                ! rapid but controlled growth of walkers
+                tSpawn_Only_Init = .true.
+                tSpawn_Only_Init_Grow = .true.
+
 
             case("RETESTINITPOP")                
 !This keyword is on by default.  It corresponds to the original initiator algorithm whereby a determinant may be added to the initiator space if its population becomes higher 

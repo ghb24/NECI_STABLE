@@ -33,7 +33,7 @@ MODULE FciMCParMod
                         iRestartWalkNum, tRestartHighPop, FracLargerDet, &
                         tChangeProjEDet, tCheckHighestPop, tSpawnSpatialInit,&
                         MemoryFacInit, tMaxBloom, tTruncNOpen, tFCIMC, &
-                        trunc_nopen_max, tFCIMC, tSpawn_Only_Init
+                        trunc_nopen_max, tSpawn_Only_Init, tSpawn_Only_Init_Grow
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use Determinants, only: FDet, get_helement, write_det, &
                             get_helement_det_only
@@ -2678,7 +2678,7 @@ MODULE FciMCParMod
 !                call SumInShiftErrorContrib (iter, DiagSft)
         endif
 
-    end subroutine
+    end subroutine iter_diagnostics
 
     subroutine population_check ()
         
@@ -2697,7 +2697,7 @@ MODULE FciMCParMod
 
             ! How many walkers do we need to switch dets?
             pop_change = int(FracLargerDet * real(abs_int_sign(AllNoAtHF), dp))
-            if (pop_change < pop_highest .and. sum(AllTotParts) > 10000) then
+            if (pop_change < pop_highest .and. pop_highest > 250) then
 
                 ! Write out info!
                 if (tHPHF) then
@@ -2877,7 +2877,7 @@ MODULE FciMCParMod
 !        WRITE(6,*) "***",iter_data%update_growth_tot,AllTotParts-AllTotPartsOld
         ASSERTROOT(all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld))
         
-    end subroutine
+    end subroutine collate_iter_data
 
     subroutine update_shift (iter_data)
 
@@ -2948,6 +2948,11 @@ MODULE FciMCParMod
                                  &shift can now change'
                     VaryShiftIter = Iter
                     tSinglePartPhase = .false.
+                    if(tSpawn_Only_Init.and.tSpawn_Only_Init_Grow) then
+                        !Remove the restriction that only initiators can spawn.
+                        write(6,*) "All determinants now with the ability to spawn new walkers."
+                        tSpawn_Only_Init=.false.
+                    endif
                 endif
             elseif (abs_int_sign(AllNoatHF) < (MaxNoatHF - HFPopThresh)) then
                 write (6, *) 'No at HF has fallen too low - reentering the &
@@ -3035,6 +3040,11 @@ MODULE FciMCParMod
         endif ! iProcIndex == root
 
         ! Broadcast the shift from root to all the other processors
+        if(tSpawn_Only_Init_Grow) then
+            !if tSpawn_Only_Init_Grow is on, the the tSpawn_Only_Init variable can change,
+            !and thus needs to be broadcast in case it does.
+            call MPIBcast(tSpawn_Only_Init)
+        endif
         call MPIBcast (tSinglePartPhase)
         call MPIBcast (VaryShiftIter)
         call MPIBcast (DiagSft)
@@ -3460,6 +3470,12 @@ MODULE FciMCParMod
             WRITE(6,'(A)') " *********** INITIATOR METHOD IN USE ***********"
             WRITE(6,'(A /)') " Starting with only the HF determinant in the fixed initiator space."
         ENDIF
+
+        if(tSpawn_Only_Init.and.tSpawn_Only_Init_Grow) then
+            write(6,"(A)") "Only allowing initiator determinants to spawn during growth phase, but allowing all to spawn after fixed shift."
+        elseif(tSpawn_Only_Init) then
+            write(6,"(A)") "Only allowing initiator determinants to spawn"
+        endif
  
 !Setup excitation generator for the HF determinant. If we are using assumed sized excitgens, this will also be assumed size.
         IF(tUEG.or.tHub) THEN
