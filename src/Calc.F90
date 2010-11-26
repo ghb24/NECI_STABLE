@@ -1054,7 +1054,11 @@ contains
                 tSpawn_Only_Init = .true.
 
             case("SPAWNONLYINITGROWTH")
-!This option means only the initiators have the ability to spawn.  The non-initiators can live/die but not spawn walkers of their own.         !However, this option will be disables once variable shift kicks in. Therefore this can be used to grow the walkers quickly in a controlled fasion.
+                ! Only allow initiators to spawn progeny. Non-initiators can
+                ! live/die but are not allowed to spawn.
+                !
+                ! This option is disabled in variable shift mode. Allows
+                ! rapid but controlled growth of walkers
                 tSpawn_Only_Init = .true.
                 tSpawn_Only_Init_Grow = .true.
 
