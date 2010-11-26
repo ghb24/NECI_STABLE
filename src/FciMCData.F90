@@ -185,6 +185,7 @@ MODULE FciMCData
       ! to have been enumerated.
       logical :: proje_linear_comb
       integer(n_int), allocatable :: proje_ref_iluts(:,:)
+      integer :: nproje_sum
       integer, allocatable :: proje_ref_dets(:,:), proje_ref_det_init(:)
       real(dp), allocatable :: proje_ref_coeffs(:)
       

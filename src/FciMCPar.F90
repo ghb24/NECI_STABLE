@@ -71,7 +71,8 @@ MODULE FciMCParMod
     USE AnnihilationMod
     use PopsfileMod
     use DetBitops, only: EncodeBitDet, DetBitEQ, DetBitLT, FindExcitBitDet, &
-                         FindBitExcitLevel, countbits
+                         FindBitExcitLevel, countbits, &
+                         FindSpatialBitExcitLevel
     use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask, get_csf_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
@@ -4506,53 +4507,74 @@ MODULE FciMCParMod
         real(dp), intent(in) :: HDiagCurr, dProbFin
 
         integer :: i, bin, pos
-        integer :: PartInd, OpenOrbs
+        integer :: PartInd, OpenOrbs, spatial_ic
         integer(n_int) :: iLutSym(0:NIfTot)
         logical tSuccess
         HElement_t :: HOffDiag
 
-        if (ExcitLevel == 0) then
+        ! Are we performing a linear sum over various determinants?
+        ! TODO: If we use this, function pointer it.
+        if (proje_linear_comb .and. proje_linear_comb > 1) then
 
-            if (iter > NEquilSteps) SumNoatHF = SumNoatHF + wSign
-            NoatHF = NoatHF + wSign
-            ! Number at HF * sign over course of update cycle
-            HFCyc = HFCyc + wSign
-
-        elseif (ExcitLevel == 2 .or. (ExcitLevel == 1 .and. tNoBrillouin)) then
-
-            ! For the real-space Hubbard model, determinants are only
-            ! connected to excitations one level away, and Brillouins
-            ! theorem cannot hold.
-            !
-            ! For Rotated orbitals, Brillouins theorem also cannot hold,
-            ! and energy contributions from walkers on singly excited
-            ! determinants must also be included in the energy values
-            ! along with the doubles
-            
-            if (ExcitLevel == 2) NoatDoubs = NoatDoubs + sum(abs(wSign))
-
-            ! Obtain diagonal element
-            if (tHPHF) then
-                HOffDiag = hphf_off_diag_helement (ProjEDet, nI, iLutRef, &
-                                                   ilut)
-            else
-                HOffDiag = get_helement (ProjEDet, nI, ExcitLevel, ilutRef, &
-                                         ilut)
+            HOffDiag = 0
+            spatial_ic = FindSpatialBitExcitLevel (ilut, proje_ref_iluts(:,1))
+            if (spatial_ic <= 2) then
+                do i = 1, nproje_sum
+                    HOffDiag = HOffDiag + proje_ref_coeffs(i) &
+                             * get_helement (proje_ref_dets(:,i), nI, &
+                                             proje_ref_iluts(:,i), ilut)
+                enddo
             endif
 
-            ! Sum in energy contribution
-            if (lenof_sign == 1) then
-                if (iter > NEquilSteps) SumENum = SumENum + &
-                        (real(HOffDiag, dp) * wSign(1) / dProbFin)
-                ENumCyc = ENumCyc + (real(HOffDiag, dp) * wSign(1) / dProbFin)
-            else
-                if (iter > NEquilSteps) SumENum = SumENum + &
-                        (HOffDiag * cmplx(wSign(1), wSign(2), dp)) / dProbFin
-                ENumCyc = ENumCyc + &
-                        (HOffDiag * cmplx(wSign(1), wSign(2), dp)) / dProbFin
-            endif
+        else
+            ! Perform normal projection onto reference determinant
+            if (ExcitLevel == 0) then
 
-        endif ! ExcitLevel == 1, 2, 3
+                if (iter > NEquilSteps) SumNoatHF = SumNoatHF + wSign
+                NoatHF = NoatHF + wSign
+                ! Number at HF * sign over course of update cycle
+                HFCyc = HFCyc + wSign
+
+            elseif (ExcitLevel == 2 .or. &
+                    (ExcitLevel == 1 .and. tNoBrillouin)) then
+
+                ! For the real-space Hubbard model, determinants are only
+                ! connected to excitations one level away, and Brillouins
+                ! theorem cannot hold.
+                !
+                ! For Rotated orbitals, Brillouins theorem also cannot hold,
+                ! and energy contributions from walkers on singly excited
+                ! determinants must also be included in the energy values
+                ! along with the doubles
+                
+                if (ExcitLevel == 2) NoatDoubs = NoatDoubs + sum(abs(wSign))
+
+                ! Obtain diagonal element
+                if (tHPHF) then
+                    HOffDiag = hphf_off_diag_helement (ProjEDet, nI, iLutRef,&
+                                                       ilut)
+                else
+                    HOffDiag = get_helement (ProjEDet, nI, ExcitLevel, &
+                                             ilutRef, ilut)
+                endif
+
+
+            endif ! ExcitLevel == 1, 2, 3
+
+        endif ! sume_linear_contrib
+
+        ! Sum in energy contribution
+        if (lenof_sign == 1) then
+            if (iter > NEquilSteps) SumENum = SumENum + &
+                    (real(HOffDiag, dp) * wSign(1) / dProbFin)
+            ENumCyc = ENumCyc + &
+                    (real(HOffDiag, dp) * wSign(1) / dProbFin)
+        else
+            if (iter > NEquilSteps) SumENum = SumENum + &
+                (HOffDiag * cmplx(wSign(1), wSign(2), dp)) / dProbFin
+            ENumCyc = ENumCyc + &
+                (HOffDiag * cmplx(wSign(1), wSign(2), dp)) / dProbFin
+        endif
 
         ! -----------------------------------
         ! HISTOGRAMMING
