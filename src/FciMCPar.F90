@@ -3011,13 +3011,9 @@ MODULE FciMCParMod
 
 
             ! AllSumNoatHF can be 0 if equilsteps is on.
-#ifdef __CMPLX
-            if (AllSumNoatHF(1).ne.0.or.AllSumNoatHF(2).ne.0) then
-                ProjectionE = AllSumENum / CMPLX(AllSumNoatHF(1), AllSumNoatHF(2), dp) 
+            if (any(AllSumNoatHF /= 0)) then
+                ProjectionE = AllSumENum / ARR_RE_OR_CPLX(AllSumNoatHF)
             endif
-#else
-            if (AllSumNoatHF(1) /= 0) ProjectionE = AllSumENum / AllSumNoatHF(1)
-#endif
 
             ! Calculate the projected energy where each update cycle 
             ! contributes the same weight to the average for its estimator 
@@ -4495,6 +4491,12 @@ MODULE FciMCParMod
             HistMinInd(1:NEl)=FCIDetIndex(1:NEl)    !This is for the binary search when histogramming
         ENDIF
     END SUBROUTINE InitHistMin
+
+
+    subroutine setup_linear_comb ()
+
+        
+    end subroutine setup_linear_comb
 
 !This routine sums in the energy contribution from a given walker and updates stats such as mean excit level
 !AJWT added optional argument dProbFin which is a probability that whatever gave this contribution was generated.

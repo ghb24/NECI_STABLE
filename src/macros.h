@@ -61,3 +61,10 @@ endif
 #define root_write if (iProcIndex == 0) write
 #define root_print root_write (6, *) 
 
+! Make Re / Cplx builds easier
+#ifdef __CMPLX
+#define ARR_RE_OR_CPLX(arr) cmplx(arr(1), arr(2), dp)
+#else
+#define ARR_RE_OR_CPLX(arr) real(arr(1), dp)
+#endif
+
