@@ -374,13 +374,12 @@ subroutine MPISum_len(Values, iLen, Ret, Node)
 
 end subroutine
 
-subroutine MPISum_len(Values, Ret, Node)
+subroutine MPISum_auto(Values, Ret, Node)
 
     ! Sum data on different processors, leaving the result only on the root
-    ! node. (Or the node specified)
+    ! node. (Or the node specified). We don't need to specify the length.
     !
     ! In:  Values  - Array of data to contribute to the sum
-    !      iLen    - Number of data elements in Values
     !      Node    - The node leave the final values on.
     ! Out: Ret     - An array of the same size as values to contain the
     !                summed values.
