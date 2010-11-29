@@ -4514,7 +4514,7 @@ MODULE FciMCParMod
 
         ! Are we performing a linear sum over various determinants?
         ! TODO: If we use this, function pointer it.
-        if (proje_linear_comb .and. proje_linear_comb > 1) then
+        if (proje_linear_comb .and. nproje_sum > 1) then
 
             HOffDiag = 0
             spatial_ic = FindSpatialBitExcitLevel (ilut, proje_ref_iluts(:,1))
