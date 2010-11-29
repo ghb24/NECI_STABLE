@@ -3264,7 +3264,7 @@ MODULE FciMCParMod
         CHARACTER(len=*), PARAMETER :: this_routine='SetupParameters'
         CHARACTER(len=12) :: abstr
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair
-        INTEGER :: nSingles,nDoubles,HFLz,ChosenOrb,KPnt(3), step
+        INTEGER :: nSingles,nDoubles,HFLz,ChosenOrb,KPnt(3), step,SymHF
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
         WRITE(6,*) ""
@@ -3324,8 +3324,7 @@ MODULE FciMCParMod
         hash_shift=0
 
         HFHash=CreateHash(HFDet)
-        CALL GetSym(HFDet,NEl,G1,NBasisMax,HFSym)
-        WRITE(6,"(A,I10)") "Symmetry of reference determinant is: ",INT(HFSym%Sym%S,4)
+
         IF(tKPntSym) THEN
             CALL DecomposeAbelianSym(HFSym%Sym%S,KPnt)
             WRITE(6,"(A,3I5)") "Crystal momentum of reference determinant is: ",KPnt(1),KPnt(2),KPnt(3)
@@ -3439,6 +3438,17 @@ MODULE FciMCParMod
 ! These are stored using spin orbitals.
 !Assume that if we want to use the non-uniform random excitation generator, we also want to use the NoSpinSym full excitation generators if they are needed. 
 
+        CALL GetSym(HFDet,NEl,G1,NBasisMax,HFSym)
+        
+        WRITE(6,"(A,I10)") "Symmetry of reference determinant is: ",INT(HFSym%Sym%S,4)
+        SymHF=0
+        do i=1,NEl
+            SymHF=IEOR(SymHF,INT(G1(HFDet(i))%Sym%S,4))
+        enddo
+        WRITE(6,"(A,I10)") "Symmetry of reference determinant from spin orbital symmetry info is: ",SymHF
+        if(SymHF.ne.INT(HFSym%Sym%S,4)) then
+            call warning(this_routine,"Inconsistency in the symmetry arrays. Beware.")
+        endif
 
 !If using a CAS space truncation, write out this CAS space
         IF(tTruncCAS) THEN
