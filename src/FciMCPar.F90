@@ -2886,8 +2886,9 @@ MODULE FciMCParMod
         integer(int64) :: tot_walkers
         logical :: tReZeroShift
         real(dp) :: AllGrowRateRe, AllGrowRateIm
+        real(dp), dimension(lenof_sign) :: denominator, all_denominator
 
-        integer :: error
+        integer :: error, i, proc, sgn(lenof_sign), pos
 
 !        call flush(6)
         CALL MPIBarrier(error)
@@ -3011,8 +3012,28 @@ MODULE FciMCParMod
 
 
             ! AllSumNoatHF can be 0 if equilsteps is on.
-            if (any(AllSumNoatHF /= 0)) then
+            if (any(AllSumNoatHF /= 0) .and. &
+                .not. (proje_linear_comb .and. proje_linear_comb)) then
                 ProjectionE = AllSumENum / ARR_RE_OR_CPLX(AllSumNoatHF)
+            else
+                ! Calculate the projected energy as a linear combination.
+                ! We need to 
+                denominator = 0
+                do i = 1, nproje_sum
+                    ! TODO: The proc info could be stored
+                    proc = DetermineDetNode(proje_ref_dets(:,i), 0) 
+                    if (iProcIndex == proc) then
+                        pos = binary_search(CurrentDets(:,1:TotWalkers), &
+                                            proje_ref_iluts(:,i), NIfD+1)
+                        if (pos > 0) then
+                            call extract_sign (proje_ref_iluts(:,i), sgn)
+                            denominator = denominator + &
+                                          (sgn * proje_ref_coeffs(i))
+                        endif
+                    endif
+                enddo
+                call MPISum(denominator, all_denominator)
+                ProjectionE = AllSumENum / ARR_RE_OR_CPLX(all_denominator)
             endif
 
             ! Calculate the projected energy where each update cycle 
