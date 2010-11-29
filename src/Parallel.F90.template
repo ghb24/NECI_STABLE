@@ -140,6 +140,11 @@ module Parallel
         module procedure MPIReduce_auto_%(name)s
     end interface
 
+    interface MPISum
+        module procedure MPISum_len_%(name)s
+        module procedure MPISum_auto_%(name)s
+    end interface
+
     interface MPIBcast
         module procedure MPIBcast_lenroot_%(name)s
         module procedure MPIBcast_len_%(name)s
@@ -349,29 +354,43 @@ subroutine MPISumAll_auto (Values, Ret, Node)
 
 end subroutine
 
-Subroutine MPISum(Values, iLen, Ret, Node)
-   !=  Sum data among all processors, and give the results to the root 
-   !=  In:
-   !=     Values(iLen)   Data (array possibly)  The corresponding elements for each
-   !=                    processor are summed and returnd into Ret
-   !=     iLen           Length of the data (in elements of its type)
-   !=  Out:
-   !=     Return(iLen)   Variable (array possibly) to get the results.
-   %(type1)s, intent(in)  :: Values()
-   %(type1)s, intent(out) :: Ret()
-   integer, intent(in) :: iLen
-   integer ierr
-   type(CommI), intent(in),optional :: Node
-   integer Comm,rt
-#if PARALLEL
-    call GetComm(Comm,Node,rt)
-   call MPI_REDUCE(Values,Ret,iLen,%(mpitype)s,MPI_SUM,rt,Comm,ierr)
-   if (ierr .ne. MPI_SUCCESS) then
-      call Stop_All("MPISum",'Error in MPISum. Terminating.')
-   end if
-#else
-   Ret=Values
-#endif
+subroutine MPISum_len(Values, iLen, Ret, Node)
+
+    ! Sum data on different processors, leaving the result only on the root
+    ! node. (Or the node specified)
+    !
+    ! In:  Values  - Array of data to contribute to the sum
+    !      iLen    - Number of data elements in Values
+    !      Node    - The node leave the final values on.
+    ! Out: Ret     - An array of the same size as values to contain the
+    !                summed values.
+
+    %(type1)s, intent(in)  :: Values()
+    %(type1)s, intent(out) :: Ret()
+    integer, intent(in) :: iLen
+    type(CommI), intent(in), optional :: Node
+
+    call MPIReduce (Values, iLen, MPI_SUM, Ret, Node)
+
+end subroutine
+
+subroutine MPISum_len(Values, Ret, Node)
+
+    ! Sum data on different processors, leaving the result only on the root
+    ! node. (Or the node specified)
+    !
+    ! In:  Values  - Array of data to contribute to the sum
+    !      iLen    - Number of data elements in Values
+    !      Node    - The node leave the final values on.
+    ! Out: Ret     - An array of the same size as values to contain the
+    !                summed values.
+
+    %(type1)s, intent(in)  :: Values()
+    %(type1)s, intent(out) :: Ret()
+    type(CommI), intent(in), optional :: Node
+
+    call MPIReduce (Values, MPI_SUM, Ret, Node)
+
 end subroutine
 
 subroutine MPIBCast_lenroot (Values, iLen, rt)
