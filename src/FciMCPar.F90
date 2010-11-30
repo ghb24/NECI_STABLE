@@ -36,7 +36,8 @@ MODULE FciMCParMod
                         trunc_nopen_max, tSpawn_Only_Init, tSpawn_Only_Init_Grow
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use Determinants, only: FDet, get_helement, write_det, &
-                            get_helement_det_only
+                            get_helement_det_only, lexicographic_store, &
+                            get_lexicographic_dets
     USE DetCalcData , only : ICILevel,nDet,Det,FCIDetIndex
     use GenRandSymExcitNUMod, only: gen_rand_excit, GenRandSymExcitNU, &
                                     ScratchSize, TestGenRandSymExcitNU, &
@@ -4516,6 +4517,68 @@ MODULE FciMCParMod
 
     subroutine setup_linear_comb ()
 
+        ! Take the specified spatial orbital, and configure to calculate the
+        ! projected energy on a linear combination of these orbitals.
+        !
+        ! For now, weight the linear combination as per the current weightings
+        ! --> works for from a pops file.
+
+        ! --> Need current dets
+
+        type(lexicographic_store) :: store
+        integer(n_int) :: ilut_init(0:NIfTot), ilut_tmp(0:NIfTot)
+        integer :: nopen, nup, pos, sgn(lenof_sign), nfound
+        real(dp) :: norm
+        character(*), parameter :: t_r = 'setup_linear_comb'
+
+        ! This currently only works with real walkers
+        if (lenof_sign > 1) then
+            call stop_all (t_r, 'Currently only available for real walkers')
+            ! To enable for complex walkers, need to deal with complex
+            ! amplitudes more sensibly in determining coeffs
+        endif
+
+        ! Get the initial ilut
+        call EncodeBitDet (proje_ref_det_init, ilut_init)
+
+        ! How many dets do we need?
+        nopen = count_open_orbs(ilut_init)
+        nup = (nopen + LMS) / 2
+        nproje_sum = int(choose(nopen, nup))
+        ! TODO: log these.
+        allocate(proje_ref_dets(nel, nproje_sum))
+        allocate(proje_ref_iluts(0:NIfTot, nproje_sum))
+        allocate(proje_ref_coeffs(nproje_sum))
+        proje_ref_coeffs = 0
+
+        ! Get all the dets
+        nfound = 0
+        call get_lexicographic_dets (ilut_init, store, ilut_tmp)
+        do while (.not. all(ilut_tmp == 0))
+            
+            ! Store the ilut/det for later usage
+            nfound = nfound + 1
+            proje_ref_iluts(:,nfound) = ilut_tmp
+            call decode_bit_det (proje_ref_dets(:,nfound), ilut_tmp)
+
+            ! Find the ilut in CurrentDets, and use it to get coeffs
+            ! TODO: 
+            pos = binary_search(CurrentDets(:,1:TotWalkers), ilut_tmp, NIfD+1)
+            if (pos > 0) then
+                call extract_sign(CurrentDets(:,pos), sgn)
+                proje_ref_coeffs(nfound) = sgn(1)
+            endif
+
+            call get_lexicographic_dets (ilut_init, store, ilut_tmp)
+        enddo
+
+        if (nfound /= nproje_sum) &
+            call stop_all (t_r, 'Incorrect number of determinants found')
+
+        ! Get the total number of walkers on each site
+        call MPISumAll_inplace (proje_ref_coeffs)
+        norm = sqrt(sum(proje_ref_coeffs**2))
+        proje_ref_coeffs = proje_ref_coeffs / norm
         
     end subroutine setup_linear_comb
 

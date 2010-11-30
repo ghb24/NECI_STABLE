@@ -294,6 +294,26 @@ subroutine MPIAllReduce_auto (Values, iType, Ret, Node)
 #endif
 end subroutine
 
+subroutine MPIAllReduce_inplace (Values, iType, Node)
+
+    ! The same as MPIAllReduce_len, but the length of array Value (and thus
+    ! Ret) is determinend automagically
+
+    %(type1)s, intent(inout) :: Values()
+    integer, intent(in) :: iType
+    integer :: ierr
+    type(CommI), intent(in),optional :: Node
+    integer Comm
+#if PARALLEL
+    call GetComm(Comm,Node)
+    call MPI_ALLREDUCE (MPI_IN_PLACE, Values, %(mpilen)s, %(mpitype)s, iType,&
+                        Comm, ierr)
+    if (ierr /= MPI_SUCCESS) then
+        call stop_all ("MPIAllReduce", 'Error in MPI_ALLREDUCE. Terminating.')
+    endif
+#endif
+end subroutine
+
 Subroutine MPIAllReduceDatatype(Values, iLen, iType, iDatatype, Ret, Node)
    !=  In:
    !=     Values         The corresponding elements for each
@@ -343,7 +363,7 @@ end subroutine
 
 subroutine MPISumAll_auto (Values, Ret, Node)
 
-    ! The same as MPISum_auto, but the length of Values is determined
+    ! The same as MPISumAll_auto, but the length of Values is determined
     ! automagically
 
     %(type1)s, intent(in) :: Values()
@@ -353,6 +373,19 @@ subroutine MPISumAll_auto (Values, Ret, Node)
     call MPIAllReduce (Values, MPI_SUM, Ret, Node)
 
 end subroutine
+
+subroutine MPISumAll_inplace (Values, Node)
+
+    ! The same as MPISumAll, but returning the results destructively 
+    ! in values
+
+    %(type1)s, intent(inout) :: Values()
+    type(CommI), intent(in),optional :: Node
+
+    call MPIAllReduce_inplace (Values, MPI_SUM, Node)
+
+end subroutine
+
 
 subroutine MPISum_len(Values, iLen, Ret, Node)
 
