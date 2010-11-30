@@ -4582,6 +4582,18 @@ MODULE FciMCParMod
         
     end subroutine setup_linear_comb
 
+
+    subroutine clean_linear_comb ()
+
+        if (allocated(proje_ref_dets)) &
+            allocate(proje_ref_dets(nel, nproje_sum))
+        if (allocated(proje_ref_iluts)) &
+            allocate(proje_ref_iluts(0:NIfTot, nproje_sum))
+        if (allocated(proje_ref_coeffs)) &
+            allocate(proje_ref_coeffs(nproje_sum))
+
+    end subroutine clean_linear_comb
+
 !This routine sums in the energy contribution from a given walker and updates stats such as mean excit level
 !AJWT added optional argument dProbFin which is a probability that whatever gave this contribution was generated.
 !  It defaults to 1, and weights the contribution of this det (only in the projected energy) by dividing its contribution by this number 
