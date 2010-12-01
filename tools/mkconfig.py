@@ -171,8 +171,11 @@ TOOLS = tools
 # Directories that make searches for pre-requisites in addition to the local directory (./).
 # Colon separated list.
 # We include $(DEST) in this so we can do pre-processing and compilation in 2 steps.
+# stupid make language...(note empty and space *can't* have comments at the end
+# of the line without preventing them from meaning a null string and a space
+# resectively!)
 empty :=
-space := $(empty) $(empty) # stupid make language...
+space := $(empty) $(empty)
 VPATH = $(subst $(space),:,$(SRC) $(DEST))
 
 # Create output directories if they don't exist.
