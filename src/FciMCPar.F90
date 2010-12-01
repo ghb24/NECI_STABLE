@@ -3581,6 +3581,11 @@ MODULE FciMCParMod
             tHPHFInts=.true.
         ENDIF
 
+        ! If we are projecting onto a linear combination to calculate projE,
+        ! then do the setup
+        if (proje_linear_comb) &
+            call setup_linear_comb ()
+
 !Calculate Hii
         IF(tHPHF) THEN
             TempHii = hphf_diag_helement (HFDet, iLutHF)
@@ -4545,40 +4550,47 @@ MODULE FciMCParMod
         nopen = count_open_orbs(ilut_init)
         nup = (nopen + LMS) / 2
         nproje_sum = int(choose(nopen, nup))
-        ! TODO: log these.
-        allocate(proje_ref_dets(nel, nproje_sum))
-        allocate(proje_ref_iluts(0:NIfTot, nproje_sum))
-        allocate(proje_ref_coeffs(nproje_sum))
-        proje_ref_coeffs = 0
 
-        ! Get all the dets
-        nfound = 0
-        call get_lexicographic_dets (ilut_init, store, ilut_tmp)
-        do while (.not. all(ilut_tmp == 0))
-            
-            ! Store the ilut/det for later usage
-            nfound = nfound + 1
-            proje_ref_iluts(:,nfound) = ilut_tmp
-            call decode_bit_det (proje_ref_dets(:,nfound), ilut_tmp)
+        ! We only need a linear combination if there is more than one det...
+        if (nproje_sum > 1) then
 
-            ! Find the ilut in CurrentDets, and use it to get coeffs
-            ! TODO: 
-            pos = binary_search(CurrentDets(:,1:TotWalkers), ilut_tmp, NIfD+1)
-            if (pos > 0) then
-                call extract_sign(CurrentDets(:,pos), sgn)
-                proje_ref_coeffs(nfound) = sgn(1)
-            endif
+            ! TODO: log these.
+            allocate(proje_ref_dets(nel, nproje_sum))
+            allocate(proje_ref_iluts(0:NIfTot, nproje_sum))
+            allocate(proje_ref_coeffs(nproje_sum))
+            proje_ref_coeffs = 0
 
+            ! Get all the dets
+            nfound = 0
             call get_lexicographic_dets (ilut_init, store, ilut_tmp)
-        enddo
+            do while (.not. all(ilut_tmp == 0))
+                
+                ! Store the ilut/det for later usage
+                nfound = nfound + 1
+                proje_ref_iluts(:,nfound) = ilut_tmp
+                call decode_bit_det (proje_ref_dets(:,nfound), ilut_tmp)
 
-        if (nfound /= nproje_sum) &
-            call stop_all (t_r, 'Incorrect number of determinants found')
+                ! Find the ilut in CurrentDets, and use it to get coeffs
+                ! TODO: 
+                pos = binary_search(CurrentDets(:,1:TotWalkers), ilut_tmp, &
+                                    NIfD+1)
+                if (pos > 0) then
+                    call extract_sign(CurrentDets(:,pos), sgn)
+                    proje_ref_coeffs(nfound) = sgn(1)
+                endif
 
-        ! Get the total number of walkers on each site
-        call MPISumAll_inplace (proje_ref_coeffs)
-        norm = sqrt(sum(proje_ref_coeffs**2))
-        proje_ref_coeffs = proje_ref_coeffs / norm
+                call get_lexicographic_dets (ilut_init, store, ilut_tmp)
+            enddo
+
+            if (nfound /= nproje_sum) &
+                call stop_all (t_r, 'Incorrect number of determinants found')
+
+            ! Get the total number of walkers on each site
+            call MPISumAll_inplace (proje_ref_coeffs)
+            norm = sqrt(sum(proje_ref_coeffs**2))
+            proje_ref_coeffs = proje_ref_coeffs / norm
+
+        endif
         
     end subroutine setup_linear_comb
 
@@ -5141,6 +5153,10 @@ MODULE FciMCParMod
 
         ! Cleanup excitation generation storage
         call clean_excit_gen_store (fcimc_excit_gen_store)
+
+        ! Cleanup linear combination projected energy
+        call clean_linear_comb ()
+
 
 !There seems to be some problems freeing the derived mpi type.
 !        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
