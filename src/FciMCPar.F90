@@ -3591,11 +3591,6 @@ MODULE FciMCParMod
             tHPHFInts=.true.
         ENDIF
 
-        ! If we are projecting onto a linear combination to calculate projE,
-        ! then do the setup
-        if (proje_linear_comb) &
-            call setup_linear_comb ()
-
 !Calculate Hii
         IF(tHPHF) THEN
             TempHii = hphf_diag_helement (HFDet, iLutHF)
@@ -4546,6 +4541,9 @@ MODULE FciMCParMod
         real(dp) :: norm
         character(*), parameter :: t_r = 'setup_linear_comb'
 
+        write(6,*) 'Initialising projection onto linear combination of &
+                   &determinants to calculate projected energy.'
+
         ! This currently only works with real walkers
         if (lenof_sign > 1) then
             call stop_all (t_r, 'Currently only available for real walkers')
@@ -4973,6 +4971,12 @@ MODULE FciMCParMod
             CALL FLUSH(6)
 
         ENDIF   !End if initial walkers method
+
+        ! If we are projecting onto a linear combination to calculate projE,
+        ! then do the setup
+        if (proje_linear_comb) &
+            call setup_linear_comb ()
+
             
 !Put a barrier here so all processes synchronise
         CALL MPIBarrier(error)
