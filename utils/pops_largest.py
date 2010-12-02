@@ -2,15 +2,22 @@
 
 import sys
 
-def ilut_to_ni (ilut):
+#
+# N.B. ALL of the following assume unsigned integers
+#
+def ilut_to_ni (ilut, bits):
 	'''Convert ilut to nI. Assume ilut is length 1 for now.'''
 
-	i = 0
 	nI = []
-	while (1 << i) < ilut:
-		if not (ilut & (1 << i)) == 0:
-			nI.append(i + 1)
-		i += 1
+	offset = 0
+	for tmp in ilut:
+		i = 0
+		while (1 << i) < tmp:
+			if not (tmp & (1 << i)) == 0:
+				nI.append(i + 1 + offset)
+			i += 1
+		offset += bits
+
 	return nI
 
 def nopen (ilut):
@@ -25,6 +32,53 @@ def nopen (ilut):
 			i += 2
 	return n
 
+def count_bits (ilut):
+	'''Naive bit counting algorithm'''
+
+	n = 0
+	for tmp in ilut:
+		i = 0
+		while (1 << i) < tmp:
+			if (tmp & (1 << i)) != 0:
+				n += 1
+			i += 1
+
+	return n
+
+
+
+class sorted_list:
+	def __init__ (self, nmax):
+		self.keys = []
+		self.values = []
+		self.nmax = nmax
+
+	def insert (self, key, value):
+		'''Insert a value into the list ONLY if big enough'''
+		if len(self.values) < self.nmax or value > self.values[0]:
+
+			# If we need to shrink the list appropriately
+			if len(self.values) >= self.nmax:
+				del self.values[0]
+				del self.keys[0]
+
+			for i in range(len(self.values)):
+				if self.values[i] > value:
+					self.values.insert(i, value)
+					self.keys.insert(i, key)
+					return
+
+			self.values.append(value)
+			self.keys.append(key)
+
+	def sorted_list (self):
+		ind = 0
+		for key in self.keys:
+			yield (key, self.values[ind])
+			ind += 1
+
+
+
 
 # What popsfile should we use?
 if __name__ == "__main__":
@@ -34,33 +88,67 @@ if __name__ == "__main__":
 		pops = 'POPSFILE'
 	print 'Using POPS file: %s' % pops
 
+	# Parameters
 	nfind = 20
-	nopen_req = 4
+	nopen_req = 0
+	update_iters = 10000
+
+	# Dictionary of largest values
+	largest = sorted_list(nfind)
+	nlargest = 0
+
+	nw_found = 0
 	with open(pops, 'r') as f:
 
-		# Check version information
-		for line in range(12):
-			ltmp = f.readline().rstrip()
+		# Read all the lines in the file
+		nline = 0
+		for line in f:
 
-			if line == 0:
-				assert ltmp == "# POPSFILE VERSION 3"
-			elif line == 1:
-				bits = 64 if bool(ltmp.split()[1]) else 32
-				nel = int(ltmp.split()[9])
-			elif line == 2:
-				nw = int(ltmp.split()[0])
-			elif line == 7:
-				nifd = int(ltmp.split()[0])
-			elif line == 8:
-				nify = int(ltmp.split()[0])
-			elif line == 9:
-				nifsgn = int(ltmp.split()[0])
-			elif line == 10:
-				nifflg = int(ltmp.split()[0])
-			elif line == 11:
-				niftot = int(ltmp.split()[0])
+			txt = line.rstrip()
+			nline += 1
+
+			# Check version/header information
+			if nline == 1:
+				if txt == "# POPSFILE VERSION 3":
+					ver = 3
+				elif txt == "# POPSFILE VERSION 2":
+					ver = 2
+				else:
+					sys.exit('Invalid popsfile version')
+			elif ver == 3:
+				if nline == 2:
+					bits = 64 if bool(txt.split()[1]) else 32
+					nel = int(txt.split()[9])
+				elif nline == 3:
+					nw = int(txt.split()[0])
+				elif nline == 8:
+					nifd = int(txt.split()[0])
+				elif nline == 9:
+					nify = int(txt.split()[0])
+				elif nline == 10:
+					nifsgn = int(txt.split()[0])
+				elif nline == 11:
+					nifflg = int(txt.split()[0])
+				elif nline == 12:
+					niftot = int(txt.split()[0])
+					break
+
+			elif ver == 2:
+				niftot = -1
+				nify = -1
+				nifflg = -1
+				nifsgn = -1
+				nifd = -1
+				nel = -1
+				if nline == 2:
+					bits = 64 if bool(txt.split()[1]) else 32
+				elif nline == 3:
+					nw = int(float(txt.split()[0]))
+				elif nline == 7:
+					break
 
 		# Output the gathered information
+		# (These should all be defined by now...)
 		print 'nel: %d' % nel
 		print 'bits', bits
 		print 'nwalkers: %d' % nw
@@ -69,45 +157,72 @@ if __name__ == "__main__":
 		print 'NIfSgn: %d' % nifsgn
 		print 'NIfFlag: %d' % nifflg
 		print 'NIfTot: %d' % niftot
+		print '----------------'
 
+		# unsigned value of -1:
+		minus1 = 0xFFFFFFFF if bits == 32 else 0xFFFFFFFFFFFFFFFF
 
-		largest = {}
-		top = 0
-		for i in range(nw):
-			
-			if i % 100 == 0:
-				print '%d: %d' % (i, len(largest))
+		for line in f:
 
-			tmp = f.readline().rstrip().split()
+			nline += 1
 
-			w = map(int, tmp[0:nifd+1])
-			sgn = int(tmp[nifsgn])
-			top = max(top, abs(sgn))
+			if nw_found % update_iters == 0:
+				print '%d/%d: %d' % (nw_found, nw, nlargest)
+
+			# Is there an incomplete line at the end of the POPSFILE
+			try:
+				tsplit = map(int, line.rstrip().split())
+
+				# Make a stab at this information if we need to
+				if ver == 2 and niftot == -1:
+					nifsgn = 1
+					nifflg = 0
+					nify = 0
+					niftot = len(tsplit) - 1
+					nifd = niftot - nifsgn
+					wtmp = map(lambda x: x if x >= 0 else minus1+x+1, 
+					           tsplit[0:nifd+1])
+					nel = count_bits(wtmp)
+					print 'UPDATED'
+					print 'nel: %d' % nel
+					print 'bits', bits
+					print 'nwalkers: %d' % nw
+					print 'NIfD: %d' % nifd
+					print 'NIfY: %d' % nify
+					print 'NIfSgn: %d' % nifsgn
+					print 'NIfFlag: %d' % nifflg
+					print 'NIfTot: %d' % niftot
+					print '----------------'
+
+			except:
+				print 'Invalid walker found in popsfile, line %d' % nline
+				sys.exit('bad')
+				continue
+
+			if len(tsplit) < niftot + 1:
+				print 'Incomplete walker found in popsfile, line %d' % nline
+				continue
+
+			# Ensure we use unsigned integers for these.
+			w = map(lambda x: x if x >= 0 else minus1+x+1, tsplit[0:nifd+1])
+			sgn = tsplit[nifd+1]
+			nlargest = max(nlargest, abs(sgn))
 			nop = nopen(w)
 
-			if nop >= nopen_req and (len(largest) == 0 or abs(sgn) > min(largest.values())):
+			# Keep track of number of walkers found
+			nw_found += 1
 
-				largest[w[0]] = abs(sgn)
-				if len(largest) > 10:
-					key = None
-					valmin = None
-					for k,v in largest.items():
-						if not valmin or v < valmin:
-							valmin = v
-							key = k
-					del largest[key]
+			# Should we store this one?
+			if nop >= nopen_req:
+				largest.insert(w, abs(sgn))
 
-
+		print '----------------'
+		print 'nlargest', nlargest
 		print 'Largest items'
-		sortkeys = largest.keys()
-		sortkeys.sort()
-		for k in sortkeys:
-			print '(',
-			print  k,
-			print ') %d - ' % largest[k],
-			print ilut_to_ni(k)
-
-		print 'top', top
+		for pair in largest.sorted_list():
+			print pair[0],
+			print '%d - ' % pair[1],
+			print ilut_to_ni(pair[0], bits)
 
 		print 'Cleaning up'
 		f.close()
