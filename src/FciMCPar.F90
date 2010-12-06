@@ -3253,6 +3253,7 @@ MODULE FciMCParMod
         use DetBitOps, only: CountBits
         use constants, only: bits_n_int
         use util_mod, only: get_free_unit
+        use HPHFRandExcitMod, only: ReturnAlphaOpenDet
         use sym_mod
         use HElem
         INTEGER :: ierr,i,j,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate
@@ -3263,7 +3264,7 @@ MODULE FciMCParMod
         REAL*8 :: TotDets,SymFactor,r,Gap
         CHARACTER(len=*), PARAMETER :: this_routine='SetupParameters'
         CHARACTER(len=12) :: abstr
-        LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair
+        LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped,TestClosedShellDet
         INTEGER :: nSingles,nDoubles,HFLz,ChosenOrb,KPnt(3), step,SymHF
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
@@ -3299,12 +3300,12 @@ MODULE FciMCParMod
             end if
             IF(tTruncInitiator.or.tDelayTruncInit) THEN
                 initiatorstats_unit = get_free_unit()
-            	if (tReadPops) then
-		! Restart calculation.  Append to stats file (if it exists)
-                	OPEN(initiatorstats_unit,file='INITIATORStats',status='unknown',form='formatted',position='append')
-		else
-                	OPEN(initiatorstats_unit,file='INITIATORStats',status='unknown',form='formatted')
-		endif
+                if (tReadPops) then
+! Restart calculation.  Append to stats file (if it exists)
+                    OPEN(initiatorstats_unit,file='INITIATORStats',status='unknown',form='formatted',position='append')
+                else
+                    OPEN(initiatorstats_unit,file='INITIATORStats',status='unknown',form='formatted')
+                endif
             ENDIF
             IF(tLogComplexPops) THEN
                 ComplexStats_unit = get_free_unit()
@@ -3315,9 +3316,47 @@ MODULE FciMCParMod
 !Store information specifically for the HF determinant
         ALLOCATE(HFDet(NEl),stat=ierr)
         CALL LogMemAlloc('HFDet',NEl,4,this_routine,HFDetTag)
+        ALLOCATE(iLutHF(0:NIfTot),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutHF")
+
         do i=1,NEl
             HFDet(i)=FDet(i)
         enddo
+        CALL EncodeBitDet(HFDet,iLutHF)
+
+        !iLutRef is the reference determinant for the projected energy.
+        !Initially, it is chosen to be the same as the inputted reference determinant
+        ALLOCATE(iLutRef(0:NIfTot),stat=ierr)
+        ALLOCATE(ProjEDet(NEl),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutRef")
+        
+        ! The reference / projected energy determinants are the same as the
+        ! HF determinant.
+        ! TODO: Make these pointers rather than copies?
+        iLutRef = iLutHF
+        ProjEDet = HFDet
+
+        if(tHPHF) then
+            if(.not.TestClosedShellDet(iLutRef)) then
+                !We test here whether the reference determinant actually corresponds to an open shell HPHF.
+                !If so, we need to ensure that we are specifying the correct determinant of the pair, and also
+                !indicate that the projected energy needs to be calculated as a projection onto both of these determinants.
+                ALLOCATE(RefDetFlip(NEl))
+                ALLOCATE(iLutRefFlip(0:NIfTot))
+                !We need to ensure that the correct pair of the HPHF det is used to project onto/start from.
+                call ReturnAlphaOpenDet(ProjEDet,RefDetFlip,iLutRef,iLutRefFlip,.true.,.true.,tSwapped)
+                if(tSwapped) then
+                    write(6,*) "HPHF used, and open shell determinant spin-flipped for consistency."
+                endif
+                write(6,*) "Two *different* determinants contained in initial HPHF"
+                write(6,*) "Projected energy will be calculated as projection onto both of these"
+                tSpinCoupProjE=.true.
+            else
+                tSpinCoupProjE=.false.
+            endif
+        else
+            tSpinCoupProjE=.false.
+        endif
 
 !Init hash shifting data
         hash_iter=0
@@ -3341,13 +3380,9 @@ MODULE FciMCParMod
         IF(tBrillouinsDefault) CALL CheckforBrillouins() 
         
 !test the encoding of the HFdet to bit representation.
-        ALLOCATE(iLutHF(0:NIfTot),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutHF")
-
         ! Test that the bit operations are working correctly...
         ! TODO: Move this to using the extract_bit_det routines to test those
         !       too...
-        CALL EncodeBitDet(HFDet,iLutHF)
         call decode_bit_det (HFDetTest, iLutHF)
         do i=1,NEl
             IF(HFDetTest(i).ne.HFDet(i)) THEN
@@ -3364,17 +3399,6 @@ MODULE FciMCParMod
         IF(nBits.ne.NEl) THEN
             CALL Stop_All(this_routine,"CountBits FAIL")
         ENDIF
-
-        !iLutRef is the reference determinant for the projected energy.
-        ALLOCATE(iLutRef(0:NIfTot),stat=ierr)
-        ALLOCATE(ProjEDet(NEl),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutRef")
-        
-        ! The reference / projected energy determinants are the same as the
-        ! HF determinant.
-        ! TODO: Make these pointers rather than copies?
-        iLutRef = iLutHF
-        ProjEDet = HFDet
 
         IF(tCheckHighestPop) THEN
             ALLOCATE(HighestPopDet(0:NIfDBO),stat=ierr)
@@ -4507,15 +4531,27 @@ MODULE FciMCParMod
     SUBROUTINE SumEContrib(DetCurr,ExcitLevel,WSign,iLutCurr,HDiagCurr,dProbFin)
         use SystemData, only : tNoBrillouin
         use CalcData, only: tFCIMC
-        INTEGER , intent(in) :: DetCurr(NEl),ExcitLevel
+        INTEGER , intent(in) :: DetCurr(NEl)
+        INTEGER , intent(inout) :: ExcitLevel
         INTEGER, DIMENSION(lenof_sign) , INTENT(IN) :: WSign
         INTEGER(KIND=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer :: i, bin, pos
-        INTEGER :: PartInd,OpenOrbs
+        INTEGER :: PartInd,OpenOrbs,ExcitLevelSpinCoup
         INTEGER(KIND=n_int) :: iLutSym(0:NIfTot)
         LOGICAL :: tSuccess
         REAL*8 , intent(in) :: HDiagCurr,dProbFin
         HElement_t :: HOffDiag
+
+        if(tSpinCoupProjE.and.(ExcitLevel.ne.0)) then
+            !ExcitLevel indicates the excitation level between the determinant and *one* of the determinants
+            !in the HPHF function. Calculate the connection between it and the other one. If either of the determinants
+            !is connected, then it has to be counted. Since the excitation level is the same to either determinants, we
+            !don't need to consider the spin-coupled determinants of both the reference HPHF and the current HPHF.
+            ExcitLevelSpinCoup = FindBitExcitLevel (iLutRefFlip, iLutCurr,2)
+            if((ExcitLevelSpinCoup.le.2).or.(ExcitLevel.le.2)) then !Either determinant connected
+                ExcitLevel=2    !indicate that the HPHF *is* connected to reference
+            endif
+        endif
 
         IF(ExcitLevel.eq.0) THEN
             IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+WSign

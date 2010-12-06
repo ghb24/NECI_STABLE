@@ -174,6 +174,10 @@ MODULE FciMCData
       INTEGER :: iHighestPop
       INTEGER , ALLOCATABLE :: ProjEDet(:)
       INTEGER(KIND=n_int) , ALLOCATABLE :: HighestPopDet(:),iLutRef(:)
+      INTEGER(n_int) , ALLOCATABLE :: iLutRefFlip(:)     !If we are using HPHF and projecting onto an open-shell determinant, then it is useful
+                                                        !to store the spin-coupled determinant, so we can calculate projection onto both.
+      INTEGER , ALLOCATABLE :: RefDetFlip(:)
+      LOGICAL :: tSpinCoupProjE
 
       ! Store data about all processors for calculating load balancing
       integer(int64) :: MaxWalkersProc, MinWalkersProc
