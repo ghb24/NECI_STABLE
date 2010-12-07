@@ -2677,9 +2677,10 @@ MODULE FciMCParMod
     end subroutine iter_diagnostics
 
     subroutine population_check ()
-        
+        use HPHFRandExcitMod, only: ReturnAlphaOpenDet
         integer :: int_tmp(2), pop_highest, proc_highest, pop_change
         integer :: det(nel), i, error
+        logical :: tSwapped, TestClosedShellDet
         HElement_t :: h_tmp
 
         if (tCheckHighestPop) then
@@ -2696,13 +2697,8 @@ MODULE FciMCParMod
             if (pop_change < pop_highest .and. pop_highest > 250) then
 
                 ! Write out info!
-                if (tHPHF) then
-                    root_print 'Highest weighted CLOSED-SHELL determinant not&
-                               & reference det: ', pop_highest, abs_int_sign(AllNoAtHF)
-                else
                     root_print 'Highest weighted determinant not reference &
                                &det: ', pop_highest, abs_int_sign(AllNoAtHF)
-                endif
 
                 ! Are we changing the reference determinant?
                 if (tChangeProjEDet) then
@@ -2724,6 +2720,26 @@ MODULE FciMCParMod
                     write (6, '(a)', advance='no') 'Changing projected &
                           &energy reference determinant for the next update cycle to: '
                     call write_det (6, ProjEDet, .true.)
+
+                    if(tHPHF.and.(.not.TestClosedShellDet(iLutRef))) then
+                        !Complications. We are now effectively projecting onto a LC of two dets.
+                        !Ensure this is done correctly.
+                        if(.not.Allocated(RefDetFlip)) then
+                            allocate(RefDetFlip(NEl))
+                            allocate(iLutRefFlip(0:NIfTot))
+                            RefDetFlip = 0
+                            iLutRefFlip = 0
+                        endif
+                        call ReturnAlphaOpenDet(ProjEDet,RefDetFlip,iLutRef,iLutRefFlip,.true.,.true.,tSwapped)
+                        if(tSwapped) then
+                            !The iLutRef should already be the correct one, since it was obtained by the normal calculation!
+                            call stop_all("population_check","Error in changing reference determinant to open shell HPHF")
+                        endif
+                        write(6,*) "Now projecting onto open-shell HPHF as a linear combo of two determinants..."
+                        tSpinCoupProjE=.true.
+                    else
+                        tSpinCoupProjE=.false.  !In case it was already on, and is now projecting onto a CS HPHF.
+                    endif
 
                     ! We can't use Brillouin's theorem if not a converged,
                     ! closed shell, ground state HF det.
@@ -2777,8 +2793,21 @@ MODULE FciMCParMod
                         iRestartWalkNum < sum(AllTotParts)) then
                     
                     ! Broadcast the changed det to all processors
-                    call MPIBcast (HighestPopDet, proc_highest)
-                    iLutRef = HighestPopDet
+
+#if PARALLEL
+                    !TODO: This explicit PARALLEL block is a temporary bugfix since the commented
+                    !out line below is buggy. The MPIBCast doesn't broadcast from the correct process,
+                    !it seems to be always broadcasting from root. This can be traced to an issue with GetComm
+                    !AJWT - can you look at this?
+                    call MPI_BCast(HighestPopDet(0:NIfTot),NIfTot+1,MPI_INTEGER8,proc_highest,MPI_COMM_WORLD,error)
+                    if(error.ne.MPI_SUCCESS) then
+                        call stop_all("population_check","error in bugfix!")
+                    endif
+#endif
+!                    call MPIBcast (HighestPopDet, proc_highest)
+                    iLutRef = 0
+                    iLutRef(0:NIfDBO) = HighestPopDet(0:NIfDBO)
+
                     call decode_bit_det (ProjEDet, iLutRef)
                     write (6, '(a)', advance='no') 'Changing projected &
                              &energy reference determinant to: '
