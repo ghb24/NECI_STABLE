@@ -4572,7 +4572,8 @@ MODULE FciMCParMod
         use SystemData, only : tNoBrillouin
         use CalcData, only: tFCIMC
         INTEGER , intent(in) :: DetCurr(NEl)
-        INTEGER , intent(inout) :: ExcitLevel
+        INTEGER :: ExcitLevel_local
+        INTEGER , intent(in) :: ExcitLevel
         INTEGER, DIMENSION(lenof_sign) , INTENT(IN) :: WSign
         INTEGER(KIND=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer :: i, bin, pos
@@ -4589,23 +4590,30 @@ MODULE FciMCParMod
             !don't need to consider the spin-coupled determinants of both the reference HPHF and the current HPHF.
             ExcitLevelSpinCoup = FindBitExcitLevel (iLutRefFlip, iLutCurr,2)
             if((ExcitLevelSpinCoup.le.2).or.(ExcitLevel.le.2)) then !Either determinant connected
-                ExcitLevel=2    !indicate that the HPHF *is* connected to reference
+                ExcitLevel_local=2    !indicate that the HPHF *is* connected to reference
+            else
+                ExcitLevel_local=ExcitLevel
             endif
+        else
+            !For determinants, ExcitLevel_local is the same as ExcitLevel.
+            !This local variable is used so that ExcitLevel can be an intent in, since
+            !it can get changed for HPHF space where excitation level has less meaning.
+            ExcitLevel_local=ExcitLevel
         endif
 
-        IF(ExcitLevel.eq.0) THEN
+        IF(ExcitLevel_local.eq.0) THEN
             IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+WSign
             NoatHF=NoatHF+WSign
             HFCyc=HFCyc+WSign      !This is simply the number at HF*sign over the course of the update cycle 
             
-        ELSEIF(ExcitLevel.eq.2) THEN
+        ELSEIF(ExcitLevel_local.eq.2) THEN
             NoatDoubs=NoatDoubs+sum(abs(WSign(:)))
 !At double excit - find and sum in energy
             IF(tHPHF) THEN
                 HOffDiag = hphf_off_diag_helement (ProjEDet, DetCurr, iLutRef, &
                                                    iLutCurr)
             ELSE
-                HOffDiag = get_helement (ProjEDet, DetCurr, ExcitLevel, iLutRef, &
+                HOffDiag = get_helement (ProjEDet, DetCurr, ExcitLevel_local, iLutRef, &
                                          iLutCurr)
             ENDIF
             IF(lenof_sign.eq.1) THEN
@@ -4616,7 +4624,7 @@ MODULE FciMCParMod
                 ENumCyc=ENumCyc+(HOffDiag*CMPLX(WSign(1),WSign(2),dp))/dProbFin     !This is simply the Hij*sign summed over the course of the update cycle
             ENDIF
 
-        ELSEIF(ExcitLevel.eq.1) THEN
+        ELSEIF(ExcitLevel_local.eq.1) THEN
           if(tNoBrillouin) then
 !For the real-space hubbard model, determinants are only connected to excitations one level away, and brillouins theorem can not hold.
 !For Rotated orbitals, brillouins theorem also cannot hold, and energy contributions from walkers on singly excited determinants must
@@ -4625,7 +4633,7 @@ MODULE FciMCParMod
                 HOffDiag = hphf_off_diag_helement (ProjEDet, DetCurr, iLutRef, &
                                                    iLutCurr)
             ELSE
-                HOffDiag = get_helement (ProjEDet, DetCurr, ExcitLevel, ilutRef, &
+                HOffDiag = get_helement (ProjEDet, DetCurr, ExcitLevel_local, ilutRef, &
                                          iLutCurr)
             ENDIF
             IF(lenof_sign.eq.1) THEN
@@ -4637,21 +4645,21 @@ MODULE FciMCParMod
             ENDIF
           endif 
 
-        ENDIF   ! ExcitLevel == 1, 2, 3
+        ENDIF   ! ExcitLevel_local == 1, 2, 3
 
         ! ---------------------------------------------------------
 
 !Histogramming diagnostic options...
         IF((tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC)).and.(Iter.ge.NHistEquilSteps)) THEN
-            IF(ExcitLevel.eq.NEl) THEN
-                CALL BinSearchParts2(iLutCurr,HistMinInd(ExcitLevel),Det,PartInd,tSuccess)
-                if(tFCIMC) HistMinInd(ExcitLevel)=PartInd  !CCMC doesn't sum particle contributions in order, so we must search the whole space again
-            ELSEIF(ExcitLevel.eq.0) THEN
+            IF(ExcitLevel_local.eq.NEl) THEN
+                CALL BinSearchParts2(iLutCurr,HistMinInd(ExcitLevel_local),Det,PartInd,tSuccess)
+                if(tFCIMC) HistMinInd(ExcitLevel_local)=PartInd  !CCMC doesn't sum particle contributions in order, so we must search the whole space again
+            ELSEIF(ExcitLevel_local.eq.0) THEN
                 PartInd=1
                 tSuccess=.true.
             ELSE
-                CALL BinSearchParts2(iLutCurr,HistMinInd(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartInd,tSuccess)
-                if(tFCIMC) HistMinInd(ExcitLevel)=PartInd  !CCMC doesn't sum particle contributions in order, so we must search the whole space again
+                CALL BinSearchParts2(iLutCurr,HistMinInd(ExcitLevel_local),FCIDetIndex(ExcitLevel_local+1)-1,PartInd,tSuccess)
+                if(tFCIMC) HistMinInd(ExcitLevel_local)=PartInd  !CCMC doesn't sum particle contributions in order, so we must search the whole space again
             ENDIF
             IF(tSuccess) THEN
                 IF(tHPHF) THEN
@@ -4709,13 +4717,13 @@ MODULE FciMCParMod
                 IF(tHPHF) THEN
 !With HPHF space, we need to also include the spin-coupled determinant, which will have the same amplitude as the original determinant, unless it is antisymmetric.
                     IF(.not.DetBitEQ(iLutCurr,iLutSym)) THEN
-                        IF(ExcitLevel.eq.NEl) THEN
-                            CALL BinSearchParts2(iLutSym,FCIDetIndex(ExcitLevel),Det,PartInd,tSuccess)
-                        ELSEIF(ExcitLevel.eq.0) THEN
+                        IF(ExcitLevel_local.eq.NEl) THEN
+                            CALL BinSearchParts2(iLutSym,FCIDetIndex(ExcitLevel_local),Det,PartInd,tSuccess)
+                        ELSEIF(ExcitLevel_local.eq.0) THEN
                             PartInd=1
                             tSuccess=.true.
                         ELSE
-                            CALL BinSearchParts2(iLutSym,FCIDetIndex(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartInd,tSuccess)
+                            CALL BinSearchParts2(iLutSym,FCIDetIndex(ExcitLevel_local),FCIDetIndex(ExcitLevel_local+1)-1,PartInd,tSuccess)
                         ENDIF
                         IF(tSuccess) THEN
                             CALL CalcOpenOrbs(iLutSym,OpenOrbs)
@@ -4755,7 +4763,7 @@ MODULE FciMCParMod
                         ELSE
                             WRITE(6,*) DetCurr(:)
                             WRITE(6,*) "***",iLutSym(0:NIfTot)
-                            WRITE(6,*) "***",ExcitLevel,Det
+                            WRITE(6,*) "***",ExcitLevel_local,Det
                             CALL Stop_All("SumEContrib","Cannot find corresponding spin-coupled FCI determinant when histogramming")
                         ENDIF
                     ENDIF
@@ -4763,7 +4771,7 @@ MODULE FciMCParMod
             ELSE
                 WRITE(6,*) DetCurr(:)
                 WRITE(6,*) "***",iLutCurr(0:NIfTot)
-                WRITE(6,*) "***",ExcitLevel,HistMinInd(ExcitLevel),Det
+                WRITE(6,*) "***",ExcitLevel_local,HistMinInd(ExcitLevel_local),Det
                 Call WriteBitDet(6,iLutCurr(0:NIfTot),.true.)
                 CALL Stop_All("SumEContrib","Cannot find corresponding FCI determinant when histogramming")
             ENDIF
