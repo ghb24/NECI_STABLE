@@ -108,7 +108,7 @@ MODULE FciMCParMod
         real(dp) :: grow_rate
 
         TDebug=.false.  !Set debugging flag
-
+                    
 !OpenMPI does not currently support MPI_Comm_set_errhandler - a bug in its F90 interface code.
 !Ask Nick McLaren if we need to change the err handler - he has a fix/bypass.
 !        CALL MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_RETURN,error)
@@ -2679,7 +2679,7 @@ MODULE FciMCParMod
     subroutine population_check ()
         
         integer :: int_tmp(2), pop_highest, proc_highest, pop_change
-        integer :: det(nel), i
+        integer :: det(nel), i, error
         HElement_t :: h_tmp
 
         if (tCheckHighestPop) then
@@ -2707,11 +2707,22 @@ MODULE FciMCParMod
                 ! Are we changing the reference determinant?
                 if (tChangeProjEDet) then
                     ! Communicate the change to all dets and print out.
-                    call MPIBcast (HighestPopDet(0:NIfTot), proc_highest)
-                    iLutRef = HighestPopDet
+#if PARALLEL
+                    !TODO: This explicit PARALLEL block is a temporary bugfix since the commented
+                    !out line below is buggy. The MPIBCast doesn't broadcast from the correct process,
+                    !it seems to be always broadcasting from root. This can be traced to an issue with GetComm
+                    !AJWT - can you look at this?
+                    call MPI_BCast(HighestPopDet(0:NIfTot),NIfTot+1,MPI_INTEGER8,proc_highest,MPI_COMM_WORLD,error)
+                    if(error.ne.MPI_SUCCESS) then
+                        call stop_all("population_check","error in bugfix!")
+                    endif
+#endif
+!                    call MPIBcast (HighestPopDet(0:NIfTot), proc_highest)
+                    iLutRef = 0
+                    iLutRef(0:NIfDBO) = HighestPopDet(0:NIfDBO)
                     call decode_bit_det (ProjEDet, iLutRef)
                     write (6, '(a)', advance='no') 'Changing projected &
-                                  &energy reference & &determinant to: '
+                          &energy reference determinant for the next update cycle to: '
                     call write_det (6, ProjEDet, .true.)
 
                     ! We can't use Brillouin's theorem if not a converged,

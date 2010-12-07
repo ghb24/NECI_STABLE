@@ -77,7 +77,7 @@ module hphf_integrals
         iUnused = nJ(1)
 
         if (DetBitEQ(iLutnI, iLutnJ, NIfDBO)) then
-            ! Do not allow an 'off-diagonal' matrix element. The problem is 
+            ! Do not allow a 'diagonal' matrix element. The problem is 
             ! that the HPHF excitation generator can generate the same HPHF 
             ! function. We do not want to allow spawns here.
             hel = (0)
