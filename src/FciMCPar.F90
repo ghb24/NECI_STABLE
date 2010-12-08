@@ -2811,7 +2811,7 @@ MODULE FciMCParMod
     end subroutine
 
     subroutine collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all)
-        integer :: int_tmp(5+2*lenof_sign)
+        integer :: int_tmp(5+2*lenof_sign), proc, sgn(lenof_sign), pos, i
         HElement_t :: real_tmp(2)
         integer(int64) :: int64_tmp(9)
         type(fcimc_iter_data) :: iter_data
@@ -2875,6 +2875,27 @@ MODULE FciMCParMod
         ! ALL processors (n.b. one of these is 32bit, the other 64)
         call MPISumAll (NoatHF, AllNoatHF)
         call MPISumAll (SumWalkersCyc, AllSumWalkersCyc)
+
+        ! This seems like the most appropriate place to put this, but I don't
+        ! really like it.
+        ! Calculate the denominator for projection onto a linear sum of dets.
+        if (proje_linear_comb .and. nproje_sum > 1) then
+            sume_denominator = 0
+            do i = 1, nproje_sum
+                ! This proc info could be stored
+                proc = DetermineDetNode(proje_ref_dets(:,i), 0)
+                if (iProcIndex == proc) then
+                    pos = binary_search(CurrentDets(:,1:TotWalkers), &
+                                        proje_ref_iluts(:,i), NIfD+1)
+                    if (pos > 0) then
+                        call extract_sign (proje_ref_iluts(:,i), sgn)
+                        sume_denominator = sume_denominator + &
+                                           (sgn * proje_ref_coeffs(i))
+                    endif
+                endif
+            enddo
+            call MPISum_inplace (sume_denominator)
+        endif
 
 !        WRITE(6,*) "***",iter_data%update_growth_tot,AllTotParts-AllTotPartsOld
         ASSERTROOT(all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld))
@@ -3012,30 +3033,17 @@ MODULE FciMCParMod
                          (Tau * real(StepsSft, dp)))
 
 
-            ! AllSumNoatHF can be 0 if equilsteps is on.
-            if (any(AllSumNoatHF /= 0) .and. &
-                .not. (proje_linear_comb .and. proje_linear_comb)) then
-                ProjectionE = AllSumENum / ARR_RE_OR_CPLX(AllSumNoatHF)
-            else
+            if (proje_linear_comb .and. nproje_sum > 1) then
+
                 ! Calculate the projected energy as a linear combination.
-                ! We need to 
-                denominator = 0
-                do i = 1, nproje_sum
-                    ! TODO: The proc info could be stored
-                    proc = DetermineDetNode(proje_ref_dets(:,i), 0) 
-                    if (iProcIndex == proc) then
-                        pos = binary_search(CurrentDets(:,1:TotWalkers), &
-                                            proje_ref_iluts(:,i), NIfD+1)
-                        if (pos > 0) then
-                            call extract_sign (proje_ref_iluts(:,i), sgn)
-                            denominator = denominator + &
-                                          (sgn * proje_ref_coeffs(i))
-                        endif
-                    endif
-                enddo
-                call MPISum(denominator, all_denominator)
-                ProjectionE = AllSumENum / ARR_RE_OR_CPLX(all_denominator)
+                ProjectionE = AllSumENum / ARR_RE_OR_CPLX(sume_denominator)
+
+            elseif (any(AllSumNoatHF /= 0)) then
+
+                ! AllSumNoatHF can be 0 if equilsteps is on.
+                ProjectionE = AllSumENum / ARR_RE_OR_CPLX(AllSumNoatHF)
             endif
+
 
             ! Calculate the projected energy where each update cycle 
             ! contributes the same weight to the average for its estimator 
@@ -4596,11 +4604,19 @@ MODULE FciMCParMod
             ! Get the total number of walkers on each site
             call MPISumAll_inplace (proje_ref_coeffs)
             norm = sqrt(sum(proje_ref_coeffs**2))
+            if (norm == 0) norm = 1
             proje_ref_coeffs = proje_ref_coeffs / norm
 
         endif
-        
+
     end subroutine setup_linear_comb
+
+    subroutine update_linear_comb_coeffs ()
+
+        if (nproje_sum > 1) then
+
+        endif
+    end subroutine
 
 
     subroutine clean_linear_comb ()
@@ -4638,9 +4654,11 @@ MODULE FciMCParMod
             spatial_ic = FindSpatialBitExcitLevel (ilut, proje_ref_iluts(:,1))
             if (spatial_ic <= 2) then
                 do i = 1, nproje_sum
-                    HOffDiag = HOffDiag + proje_ref_coeffs(i) &
-                             * get_helement (proje_ref_dets(:,i), nI, &
-                                             proje_ref_iluts(:,i), ilut)
+                    if (proje_ref_coeffs(i) /= 0) then
+                        HOffDiag = HOffDiag + proje_ref_coeffs(i) &
+                                 * get_helement (proje_ref_dets(:,i), nI, &
+                                                 proje_ref_iluts(:,i), ilut)
+                    endif
                 enddo
             endif
 
@@ -4723,20 +4741,6 @@ MODULE FciMCParMod
     end subroutine SumEContrib
 
 
-    subroutine clean_proje_linear_sum ()
-
-        if (allocated(proje_ref_iluts)) deallocate(proje_ref_iluts)
-
-        if (allocated(proje_ref_dets)) deallocate(proje_ref_dets)
-
-        if (allocated(proje_ref_det_init)) deallocate(proje_ref_det_init)
-
-        if (allocated(proje_ref_coeffs)) deallocate(proje_ref_coeffs)
-
-    end subroutine
-
-
-    
 !This initialises the calculation, by allocating memory, setting up the initial walkers, and reading from a file if needed
     SUBROUTINE InitFCIMCCalcPar()
         use FciMCLoggingMOD , only : InitHistInitPops

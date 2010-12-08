@@ -120,7 +120,7 @@ module Parallel
 #ifdef PARALLEL
    uSe MPI
 #endif
-   use ParallelHelper,  only: CommI, GetComm, MPIErr
+   use ParallelHelper,  only: CommI, GetComm, MPIErr, iProcIndex
    use constants
    implicit none
 
@@ -241,6 +241,34 @@ subroutine MPIReduce_auto (Values, iType, Ret, Node)
     Ret=Values
 #endif
 end subroutine
+
+
+subroutine MPIReduce_inplace (Values, iType, Node)
+
+    ! The same as MPIReduce, but using the Values array as the return
+    ! array on the target node.
+
+    %(type1)s, intent(inout)  :: Values()
+    integer, intent(in) :: iType
+    integer :: ierr
+    type(CommI), intent(in), optional :: node
+    integer :: comm, rt
+
+#if PARALLEL
+    call GetComm (Comm, Node, rt)
+    if (iProcIndex == rt) then
+        call MPI_REDUCE (MPI_IN_PLACE, Values, %(mpilen)s, %(mpitype)s, &
+                         iType, rt, Comm, ierr)
+    else
+        call MPI_REDUCE (Values, MPI_IN_PLACE, %(mpilen)s, %(mpitype)s, &
+                         iType, rt, Comm, ierr)
+    endif
+    if (ierr /= MPI_SUCCESS) &
+        call stop_all('MPIReduce_inplace', 'Error in MPI_REDUCE')
+#endif
+
+end subroutine
+
 
 subroutine MPIAllReduce_len (Values, iLen, iType, Ret, Node)
 
@@ -422,6 +450,15 @@ subroutine MPISum_auto(Values, Ret, Node)
     type(CommI), intent(in), optional :: Node
 
     call MPIReduce (Values, MPI_SUM, Ret, Node)
+
+end subroutine
+
+subroutine MPISum_inplace (Values, Node)
+
+    %(type1)s, intent(inout) :: Values()
+    type(CommI), intent(in), optional :: Node
+
+    call MPIReduce_inplace (Values, MPI_SUM, Node)
 
 end subroutine
 

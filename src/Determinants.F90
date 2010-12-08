@@ -497,7 +497,7 @@ contains
             ilut_tmp = spatial_bit_det(ilut_src)
             do i = 1, nbasis-1, 2
                 if (IsOcc(ilut_tmp, i)) then
-                    if (IsOcc(ilut_src, i+1)) then
+                    if (IsOcc(ilut_tmp, i+1)) then
                     !    nelec = nelec + 2
                     else
                         nfound = nfound + 1
@@ -515,7 +515,7 @@ contains
 
         if (store%dorder(1) == -1) then
             deallocate(store%dorder)
-            deallocate(store%open_indices)
+            !deallocate(store%open_indices)
             deallocate(store%open_orbs)
             if (present(ilut_gen)) ilut_gen = 0
             !if (present(det)) det = 0
