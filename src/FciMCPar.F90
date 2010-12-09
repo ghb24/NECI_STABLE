@@ -4704,7 +4704,7 @@ MODULE FciMCParMod
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         real(dp), intent(in) :: HDiagCurr, dProbFin
 
-        integer :: i, bin, pos
+        integer :: i, bin, pos, ExcitLevel_local, ExcitLevelSpinCoup
         integer :: PartInd, OpenOrbs, spatial_ic
         integer(n_int) :: iLutSym(0:NIfTot)
         logical tSuccess
