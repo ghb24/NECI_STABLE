@@ -6,18 +6,19 @@ module csf
                           LMS, iSpinSkip, STOT, ECore
     use memorymanager, only: LogMemAlloc, LogMemDealloc
     use integralsdata, only: umat, fck, nmax
-    use constants, only: dp,n_int
+    use constants, only: dp, n_int, lenof_sign
     use dSFMT_interface, only: genrand_real2_dSFMT
     use sltcnd_mod, only: sltcnd, sltcnd_2
     use DetBitOps, only: EncodeBitDet, FindBitExcitLevel, count_open_orbs, &
                          get_bit_open_unique_ind, FindSpatialBitExcitLevel
+    use CalcData, only: InitiatorWalkNo
     use OneEInts, only: GetTMatEl
     use Integrals, only: GetUMatEl
     use UMatCache, only: gtID
     use csf_data
     use timing
     use util_mod, only: swap, choose
-    use bit_reps, only: NIfD, NIfTot, NIfY
+    use bit_reps, only: NIfD, NIfTot, NIfY, extract_sign
 
     implicit none
 
@@ -1631,5 +1632,69 @@ contains
         write(nunit,'(")")',advance='no')
         if (lTerm) write(nunit,*)
     end subroutine
+
+
+    function determine_s_converged (iluts, coeffs) result(s_final)
+
+        ! Determine the S value for a converged set of determinants.
+        !
+        ! --> There are no determinants in a final wavefunction with a number
+        !     of unpaired electrons lower than 2S (as this wavefunction needs
+        !     to be equivalent by rotation to a wavefunction with S = Ms).
+        !
+        ! In:  iluts   - An array of bit representations of determinants to
+        !                use.
+        !      coeffs  - (optional) The coefficients to use for the 
+        !                determinants provided. If not provided, use the sign
+        !                value from the iluts.
+        ! Ret: s_final - 2*S (i.e. return an integer value).
+
+        integer(n_int), intent(in) :: iluts(:,:)
+        real(dp), intent(in), optional :: coeffs(:)
+        integer :: s_final
+
+        integer :: i, sgn(lenof_sign), nopen, nopen_min
+        real(dp) :: threshold, c
+
+
+        ! If we are using sign values, then consider the cutoff value to be
+        ! equivalent to the initiator threshold
+        if (present(coeffs)) then
+            threshold = real(InitiatorWalkNo, dp)
+        else
+            threshold = 1e-5
+        endif
+
+        ! We want to find the minimum number of unpaired electrons
+        nopen_min = nel
+
+        ! Loop over all the provided dets.
+        do i = lbound(iluts, 2), ubound(iluts, 2)
+
+            nopen = count_open_orbs(iluts(:,i))
+
+            if (nopen < nopen_min) then
+
+                if (present(coeffs)) then
+                    c = coeffs(i)
+                else
+                    call extract_sign (iluts(:,i), sgn)
+                    c = ARR_ABS(sgn)
+                endif
+
+                if (c > threshold) nopen_min = nopen
+
+            endif
+        enddo
+
+        ! S = (nopen_min / 2). We multiply this value by 2 to represent it
+        ! within an integer
+        !
+        ! --> return nopen_min
+
+        s_final = nopen_min
+
+    end function
+
 end module
 

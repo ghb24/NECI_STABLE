@@ -886,17 +886,8 @@ MODULE AnnihilationMod
 !Record the highest weighted determinant on each processor.
 !TODO: NOTE: THIS STILL ONLY WORKS EXPLICITLY FOR REAL WALKERS ONLY
                         IF((abs(CurrentSign(1))).gt.iHighestPop) THEN
-                            IF(tHPHF) THEN
-                                !For HPHF functions, we restrict ourselves to closed shell determinants for simplicity.
-                                IF(TestClosedShellDet(CurrentDets(0:NIfDBO,i))) THEN
-                                    !HPHF func is closed shell - we can move to this without problems.
-                                    iHighestPop=abs(CurrentSign(1))
-                                    HighestPopDet(:)=CurrentDets(:,i)
-                                ENDIF
-                            ELSE
-                                iHighestPop=abs(CurrentSign(1))
-                                HighestPopDet(:)=CurrentDets(:,i)
-                            ENDIF
+                            iHighestPop=abs(CurrentSign(1))
+                            HighestPopDet(:)=CurrentDets(:,i)
                         ENDIF
                     ENDIF
                 ENDIF

@@ -113,7 +113,7 @@ MODULE FciMCParMod
         real(dp) :: grow_rate
 
         TDebug=.false.  !Set debugging flag
-
+                    
 !OpenMPI does not currently support MPI_Comm_set_errhandler - a bug in its F90 interface code.
 !Ask Nick McLaren if we need to change the err handler - he has a fix/bypass.
 !        CALL MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_RETURN,error)
@@ -2683,9 +2683,10 @@ MODULE FciMCParMod
     end subroutine iter_diagnostics
 
     subroutine population_check ()
-        
+        use HPHFRandExcitMod, only: ReturnAlphaOpenDet
         integer :: int_tmp(2), pop_highest, proc_highest, pop_change
-        integer :: det(nel), i
+        integer :: det(nel), i, error
+        logical :: tSwapped, TestClosedShellDet
         HElement_t :: h_tmp
 
         if (tCheckHighestPop) then
@@ -2702,23 +2703,49 @@ MODULE FciMCParMod
             if (pop_change < pop_highest .and. pop_highest > 250) then
 
                 ! Write out info!
-                if (tHPHF) then
-                    root_print 'Highest weighted CLOSED-SHELL determinant not&
-                               & reference det: ', pop_highest, abs_int_sign(AllNoAtHF)
-                else
                     root_print 'Highest weighted determinant not reference &
                                &det: ', pop_highest, abs_int_sign(AllNoAtHF)
-                endif
 
                 ! Are we changing the reference determinant?
                 if (tChangeProjEDet) then
                     ! Communicate the change to all dets and print out.
-                    call MPIBcast (HighestPopDet(0:NIfTot), proc_highest)
-                    iLutRef = HighestPopDet
+#if PARALLEL
+                    !TODO: This explicit PARALLEL block is a temporary bugfix since the commented
+                    !out line below is buggy. The MPIBCast doesn't broadcast from the correct process,
+                    !it seems to be always broadcasting from root. This can be traced to an issue with GetComm
+                    !AJWT - can you look at this?
+                    call MPI_BCast(HighestPopDet(0:NIfTot),NIfTot+1,MPI_INTEGER8,proc_highest,MPI_COMM_WORLD,error)
+                    if(error.ne.MPI_SUCCESS) then
+                        call stop_all("population_check","error in bugfix!")
+                    endif
+#endif
+!                    call MPIBcast (HighestPopDet(0:NIfTot), proc_highest)
+                    iLutRef = 0
+                    iLutRef(0:NIfDBO) = HighestPopDet(0:NIfDBO)
                     call decode_bit_det (ProjEDet, iLutRef)
                     write (6, '(a)', advance='no') 'Changing projected &
-                                  &energy reference & &determinant to: '
+                          &energy reference determinant for the next update cycle to: '
                     call write_det (6, ProjEDet, .true.)
+
+                    if(tHPHF.and.(.not.TestClosedShellDet(iLutRef))) then
+                        !Complications. We are now effectively projecting onto a LC of two dets.
+                        !Ensure this is done correctly.
+                        if(.not.Allocated(RefDetFlip)) then
+                            allocate(RefDetFlip(NEl))
+                            allocate(iLutRefFlip(0:NIfTot))
+                            RefDetFlip = 0
+                            iLutRefFlip = 0
+                        endif
+                        call ReturnAlphaOpenDet(ProjEDet,RefDetFlip,iLutRef,iLutRefFlip,.true.,.true.,tSwapped)
+                        if(tSwapped) then
+                            !The iLutRef should already be the correct one, since it was obtained by the normal calculation!
+                            call stop_all("population_check","Error in changing reference determinant to open shell HPHF")
+                        endif
+                        write(6,*) "Now projecting onto open-shell HPHF as a linear combo of two determinants..."
+                        tSpinCoupProjE=.true.
+                    else
+                        tSpinCoupProjE=.false.  !In case it was already on, and is now projecting onto a CS HPHF.
+                    endif
 
                     ! We can't use Brillouin's theorem if not a converged,
                     ! closed shell, ground state HF det.
@@ -2772,8 +2799,21 @@ MODULE FciMCParMod
                         iRestartWalkNum < sum(AllTotParts)) then
                     
                     ! Broadcast the changed det to all processors
-                    call MPIBcast (HighestPopDet, proc_highest)
-                    iLutRef = HighestPopDet
+
+#if PARALLEL
+                    !TODO: This explicit PARALLEL block is a temporary bugfix since the commented
+                    !out line below is buggy. The MPIBCast doesn't broadcast from the correct process,
+                    !it seems to be always broadcasting from root. This can be traced to an issue with GetComm
+                    !AJWT - can you look at this?
+                    call MPI_BCast(HighestPopDet(0:NIfTot),NIfTot+1,MPI_INTEGER8,proc_highest,MPI_COMM_WORLD,error)
+                    if(error.ne.MPI_SUCCESS) then
+                        call stop_all("population_check","error in bugfix!")
+                    endif
+#endif
+!                    call MPIBcast (HighestPopDet, proc_highest)
+                    iLutRef = 0
+                    iLutRef(0:NIfDBO) = HighestPopDet(0:NIfDBO)
+
                     call decode_bit_det (ProjEDet, iLutRef)
                     write (6, '(a)', advance='no') 'Changing projected &
                              &energy reference determinant to: '
@@ -3284,6 +3324,7 @@ MODULE FciMCParMod
         use DetBitOps, only: CountBits
         use constants, only: bits_n_int
         use util_mod, only: get_free_unit
+        use HPHFRandExcitMod, only: ReturnAlphaOpenDet
         use sym_mod
         use HElem
         INTEGER :: ierr,i,j,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate
@@ -3294,7 +3335,7 @@ MODULE FciMCParMod
         REAL*8 :: TotDets,SymFactor,r,Gap
         CHARACTER(len=*), PARAMETER :: this_routine='SetupParameters'
         CHARACTER(len=12) :: abstr
-        LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair
+        LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped,TestClosedShellDet
         INTEGER :: nSingles,nDoubles,HFLz,ChosenOrb,KPnt(3), step,SymHF
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
@@ -3330,12 +3371,12 @@ MODULE FciMCParMod
             end if
             IF(tTruncInitiator.or.tDelayTruncInit) THEN
                 initiatorstats_unit = get_free_unit()
-            	if (tReadPops) then
-		! Restart calculation.  Append to stats file (if it exists)
-                	OPEN(initiatorstats_unit,file='INITIATORStats',status='unknown',form='formatted',position='append')
-		else
-                	OPEN(initiatorstats_unit,file='INITIATORStats',status='unknown',form='formatted')
-		endif
+                if (tReadPops) then
+! Restart calculation.  Append to stats file (if it exists)
+                    OPEN(initiatorstats_unit,file='INITIATORStats',status='unknown',form='formatted',position='append')
+                else
+                    OPEN(initiatorstats_unit,file='INITIATORStats',status='unknown',form='formatted')
+                endif
             ENDIF
             IF(tLogComplexPops) THEN
                 ComplexStats_unit = get_free_unit()
@@ -3346,9 +3387,47 @@ MODULE FciMCParMod
 !Store information specifically for the HF determinant
         ALLOCATE(HFDet(NEl),stat=ierr)
         CALL LogMemAlloc('HFDet',NEl,4,this_routine,HFDetTag)
+        ALLOCATE(iLutHF(0:NIfTot),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutHF")
+
         do i=1,NEl
             HFDet(i)=FDet(i)
         enddo
+        CALL EncodeBitDet(HFDet,iLutHF)
+
+        !iLutRef is the reference determinant for the projected energy.
+        !Initially, it is chosen to be the same as the inputted reference determinant
+        ALLOCATE(iLutRef(0:NIfTot),stat=ierr)
+        ALLOCATE(ProjEDet(NEl),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutRef")
+        
+        ! The reference / projected energy determinants are the same as the
+        ! HF determinant.
+        ! TODO: Make these pointers rather than copies?
+        iLutRef = iLutHF
+        ProjEDet = HFDet
+
+        if(tHPHF) then
+            if(.not.TestClosedShellDet(iLutRef)) then
+                !We test here whether the reference determinant actually corresponds to an open shell HPHF.
+                !If so, we need to ensure that we are specifying the correct determinant of the pair, and also
+                !indicate that the projected energy needs to be calculated as a projection onto both of these determinants.
+                ALLOCATE(RefDetFlip(NEl))
+                ALLOCATE(iLutRefFlip(0:NIfTot))
+                !We need to ensure that the correct pair of the HPHF det is used to project onto/start from.
+                call ReturnAlphaOpenDet(ProjEDet,RefDetFlip,iLutRef,iLutRefFlip,.true.,.true.,tSwapped)
+                if(tSwapped) then
+                    write(6,*) "HPHF used, and open shell determinant spin-flipped for consistency."
+                endif
+                write(6,*) "Two *different* determinants contained in initial HPHF"
+                write(6,*) "Projected energy will be calculated as projection onto both of these"
+                tSpinCoupProjE=.true.
+            else
+                tSpinCoupProjE=.false.
+            endif
+        else
+            tSpinCoupProjE=.false.
+        endif
 
 !Init hash shifting data
         hash_iter=0
@@ -3372,13 +3451,9 @@ MODULE FciMCParMod
         IF(tBrillouinsDefault) CALL CheckforBrillouins() 
         
 !test the encoding of the HFdet to bit representation.
-        ALLOCATE(iLutHF(0:NIfTot),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutHF")
-
         ! Test that the bit operations are working correctly...
         ! TODO: Move this to using the extract_bit_det routines to test those
         !       too...
-        CALL EncodeBitDet(HFDet,iLutHF)
         call decode_bit_det (HFDetTest, iLutHF)
         do i=1,NEl
             IF(HFDetTest(i).ne.HFDet(i)) THEN
@@ -3395,17 +3470,6 @@ MODULE FciMCParMod
         IF(nBits.ne.NEl) THEN
             CALL Stop_All(this_routine,"CountBits FAIL")
         ENDIF
-
-        !iLutRef is the reference determinant for the projected energy.
-        ALLOCATE(iLutRef(0:NIfTot),stat=ierr)
-        ALLOCATE(ProjEDet(NEl),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutRef")
-        
-        ! The reference / projected energy determinants are the same as the
-        ! HF determinant.
-        ! TODO: Make these pointers rather than copies?
-        iLutRef = iLutHF
-        ProjEDet = HFDet
 
         IF(tCheckHighestPop) THEN
             ALLOCATE(HighestPopDet(0:NIfDBO),stat=ierr)
@@ -4663,16 +4727,32 @@ MODULE FciMCParMod
             endif
 
         else
+            ! ExcitLevel indicates the excitation level between the det and
+            ! *one* of the determinants in an HPHF function. If needed,
+            ! calculate the connection between it and the other one. If either
+            ! is connected, then it has to be counted. Since the excitation
+            ! level is the same to either det, we don't need to consider the
+            ! spin-coupled det of both reference and current HPHFs.
+            !
+            ! For determinants, set ExcitLevel_local == ExcitLevel.
+            ExcitLevel_local = ExcitLevel
+            if (tSpinCoupProjE .and. (ExcitLevel /= 0)) then
+                ExcitLevelSpinCoup = FindBitExcitLevel (iLutRefFlip, &
+                                                        ilut, 2)
+                if (ExcitLevelSpinCoup <= 2 .or. ExcitLevel <= 2) &
+                    ExcitLevel_local = 2
+            endif
+
             ! Perform normal projection onto reference determinant
-            if (ExcitLevel == 0) then
+            if (ExcitLevel_local == 0) then
 
                 if (iter > NEquilSteps) SumNoatHF = SumNoatHF + wSign
                 NoatHF = NoatHF + wSign
                 ! Number at HF * sign over course of update cycle
                 HFCyc = HFCyc + wSign
 
-            elseif (ExcitLevel == 2 .or. &
-                    (ExcitLevel == 1 .and. tNoBrillouin)) then
+            elseif (ExcitLevel_local == 2 .or. &
+                    (ExcitLevel_local == 1 .and. tNoBrillouin)) then
 
                 ! For the real-space Hubbard model, determinants are only
                 ! connected to excitations one level away, and Brillouins
@@ -4694,8 +4774,7 @@ MODULE FciMCParMod
                                              ilutRef, ilut)
                 endif
 
-
-            endif ! ExcitLevel == 1, 2, 3
+            endif ! ExcitLevel_local == 1, 2, 3
 
         endif ! sume_linear_contrib
 
@@ -4719,7 +4798,7 @@ MODULE FciMCParMod
         if ((tHistSpawn .or. (tCalcFCIMCPsi .and. tFCIMC)) .and. &
             (iter >= NHistEquilSteps)) then
             ! Histogram particles by determinant
-            call add_hist_spawn (ilut, wSign, ExcitLevel, dProbFin)
+            call add_hist_spawn (ilut, wSign, ExcitLevel_local, dProbFin)
         elseif (tHistEnergies) then
             ! Histogram particles by energy
             call add_hist_energies (ilut, wSign, HDiagCurr)
