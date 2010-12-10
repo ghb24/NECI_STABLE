@@ -7,7 +7,7 @@ MODULE HPHFRandExcitMod
 ![ P(i->a) + P(i->b) + P(j->a) + P(j->b) ]/2
 !We therefore need to find the excitation matrix between the determinant which wasn't excited and the determinant which was created.
 
-    use SystemData, only: nel, tCSF, Alat, G1, nbasis, nbasismax, nmsh, arr
+    use SystemData, only: nel, tCSF, Alat, G1, nbasis, nbasismax, nmsh, arr, tOddS_HPHF
     use IntegralsData, only: UMat, fck, nMax
     use SymData, only: nSymLabels
     use dSFMT_interface, only : genrand_real2_dSFMT
@@ -89,11 +89,20 @@ MODULE HPHFRandExcitMod
 !Generate matrix element -> HPHF to closed shell det.
                 IF(TestClosedShellDet(iLutnI)) THEN
                     !Closed shell -> Closed Shell
-                    HEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
+                    if(tOddS_HPHF) then
+                        call stop_all("gen_hphf_excit","Should not be at closed shell det with Odd S")
+                    else
+                        HEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
+                    endif
                 ELSE
                     !Open shell -> Closed Shell
-                    MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
-                    HEl=MatEl*SQRT(2.D0)
+                    if(tOddS_HPHF) then
+                        !Odd S States cannot have CS components
+                        HEl=0.D0
+                    else
+                        MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
+                        HEl=MatEl*SQRT(2.D0)
+                    endif
                 ENDIF
             ENDIF
         ELSE
@@ -130,15 +139,18 @@ MODULE HPHFRandExcitMod
                 IF(tGenMatHEl) THEN
 !Generate matrix element to open shell excitation
                     IF(TestClosedShellDet(iLutnI)) THEN    !Closed shell -> Open shell : Want to sum in SQRT(2)* Hij
-                        
-                        IF(tSwapped) THEN
-                            MatEl = sltcnd_excit (nI, IC, Ex2, tSign)
-                        ELSE
-                            MatEl = sltcnd_excit (nI, IC, ExcitMat, &
-                                                  tSignOrig)
-                        ENDIF
-                        HEl=MatEl*SQRT(2.D0)
-
+                        if(tOddS_HPHF) then
+                            !Cannot have CS components
+                            HEl=0.D0
+                        else
+                            IF(tSwapped) THEN
+                                MatEl = sltcnd_excit (nI, IC, Ex2, tSign)
+                            ELSE
+                                MatEl = sltcnd_excit (nI, IC, ExcitMat, &
+                                                      tSignOrig)
+                            ENDIF
+                            HEl=MatEl*SQRT(2.D0)
+                        endif
                     ELSE     !Open shell -> Open shell
                         
 !First find nI -> nJ. If nJ has swapped, then this will be different.

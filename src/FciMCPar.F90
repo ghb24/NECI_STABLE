@@ -14,7 +14,7 @@ MODULE FciMCParMod
     use SystemData, only: nel, Brr, nBasis, nBasisMax, LMS, tHPHF, tHub, &
                           tReal, tRotatedOrbs, tFindCINatOrbs, tFixLz, &
                           LzTot, tUEG, tLatticeGens, tCSF, G1, Arr, &
-                          tNoBrillouin, tKPntSym, tPickVirtUniform
+                          tNoBrillouin, tKPntSym, tPickVirtUniform, tOddS_HPHF
     use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY, decode_bit_det, &
                         encode_bit_rep, encode_det, extract_bit_rep, &
                         test_flag, set_flag, extract_flags, &
@@ -36,7 +36,7 @@ MODULE FciMCParMod
                         tSpawn_Only_Init,tSpawn_Only_Init_Grow
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use Determinants, only: FDet, get_helement, write_det, &
-                            get_helement_det_only
+                            get_helement_det_only, DefDet
     USE DetCalcData , only : ICILevel,nDet,Det,FCIDetIndex
     use GenRandSymExcitNUMod, only: gen_rand_excit, GenRandSymExcitNU, &
                                     ScratchSize, TestGenRandSymExcitNU, &
@@ -3359,9 +3359,16 @@ MODULE FciMCParMod
         ALLOCATE(iLutHF(0:NIfTot),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutHF")
 
-        do i=1,NEl
-            HFDet(i)=FDet(i)
-        enddo
+        if(allocated(DefDet)) then
+            !We have defined a determinant in the input
+            do i=1,NEl
+                HFDet(i)=DefDet(i)
+            enddo
+        else
+            do i=1,NEl
+                HFDet(i)=FDet(i)
+            enddo
+        endif
         CALL EncodeBitDet(HFDet,iLutHF)
 
         !iLutRef is the reference determinant for the projected energy.
@@ -4727,8 +4734,9 @@ MODULE FciMCParMod
                         ENDIF
                         IF(tSuccess) THEN
                             CALL CalcOpenOrbs(iLutSym,OpenOrbs)
-                            IF(tFlippedSign) THEN
-                                IF(mod(OpenOrbs,2).eq.1) THEN
+!                            IF((tFlippedSign.and.(.not.tOddS_HPHF)).or.((.not.tFlippedSign).and.tOddS_HPHF)) THEN
+                            IF(tFlippedSign.neqv.tOddS_HPHF) THEN
+                                IF(((mod(OpenOrbs,2).eq.1).and..not.tOddS_HPHF).or.(tOddS_HPHF.and.(mod(OpenOrbs,2).eq.0))) THEN
                                     Histogram(1,PartInd)=Histogram(1,PartInd)+(REAL(WSign(1),dp)/SQRT(2.0))/dProbFin
                                     IF(lenof_sign.eq.2) Histogram(lenof_sign,PartInd)=Histogram(lenof_sign,PartInd)+(REAL(WSign(lenof_sign),dp)/SQRT(2.0))/dProbFin
                                     IF(tHistSpawn) THEN
@@ -4744,7 +4752,7 @@ MODULE FciMCParMod
                                     ENDIF
                                 ENDIF
                             ELSE
-                                IF(mod(OpenOrbs,2).eq.1) THEN
+                                IF(((mod(OpenOrbs,2).eq.1).and..not.tOddS_HPHF).or.(tOddS_HPHF.and.(mod(OpenOrbs,2).eq.0))) THEN
                                     Histogram(1,PartInd)=Histogram(1,PartInd)-(REAL(WSign(1),dp)/SQRT(2.0))/dProbFin
                                     IF(lenof_sign.eq.2) Histogram(lenof_sign,PartInd)=Histogram(lenof_sign,PartInd)-(REAL(WSign(lenof_sign),dp)/SQRT(2.0))/dProbFin
                                     IF(tHistSpawn) THEN
