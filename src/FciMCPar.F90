@@ -3338,16 +3338,9 @@ MODULE FciMCParMod
         ALLOCATE(iLutHF(0:NIfTot),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutHF")
 
-        if(allocated(DefDet)) then
-            !We have defined a determinant in the input
-            do i=1,NEl
-                HFDet(i)=DefDet(i)
-            enddo
-        else
-            do i=1,NEl
-                HFDet(i)=FDet(i)
-            enddo
-        endif
+        do i=1,NEl
+            HFDet(i)=FDet(i)
+        enddo
         CALL EncodeBitDet(HFDet,iLutHF)
 
         !iLutRef is the reference determinant for the projected energy.
@@ -4796,6 +4789,7 @@ MODULE FciMCParMod
         use CalcData , only : InitialPart
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil
         use constants , only : size_n_int
+        use DeterminantData , only : write_det
         INTEGER :: ierr,iunithead
         LOGICAL :: formpops,binpops
         INTEGER :: error,MemoryAlloc,PopsVersion,WalkerListSize,j
@@ -4887,7 +4881,9 @@ MODULE FciMCParMod
         
             ! Get the (0-based) processor index for the HF det.
             iHFProc = DetermineDetNode(HFDet,0)
-            WRITE(6,*) "HF processor is: ",iHFProc
+            WRITE(6,*) "Reference processor is: ",iHFProc
+            write(6,*) "Initial reference is: "
+            call write_det(6,HFDet,.true.)
 
             TotParts(:)=0
             TotPartsOld(:)=0

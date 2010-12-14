@@ -152,7 +152,7 @@ MODULE HPHFRandExcitMod
                             HEl=MatEl*SQRT(2.D0)
                         endif
                     ELSE     !Open shell -> Open shell
-                        
+
 !First find nI -> nJ. If nJ has swapped, then this will be different.
                         IF(tSwapped) THEN
                             MatEl = sltcnd_excit (nI, ExcitLevel, Ex2, &
@@ -185,22 +185,19 @@ MODULE HPHFRandExcitMod
                                                        Ex2, tSign)
                             ENDIF
 
-
-!                            Ex2(1,1)=ExcitLevel
-!                            CALL GetExcitation(nI2,nJ,NEl,Ex2,tSign)
-!                            CALL SltCndExcit2(NEl,nBasisMax,nBasis,nI2,nJ,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl2,Ex2,tSign)
-
-!                            IF((MatEl3-MatEl2).gt.1.D-7) THEN!.and..not.tSwapped.and.((mod(OpenOrbsJ,2).eq.0.and.mod(OpenOrbsI,2).eq.1).or.(mod(OpenOrbsJ,2).eq.1.and.mod(OpenOrbsI,2).eq.0))) THEN
-!                                WRITE(6,*) MatEl3,MatEl2,ExcitLevel,IC,tSwapped,OpenOrbsI,OpenOrbsJ
-!                                WRITE(6,*) "***********, ERROR"
-!                                CALL Stop_All("ikb","Error in getting correct HEl - 2")
-!                            ENDIF
-
-!                            IF(((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.0)).or.((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.1))) THEN
-                            IF(OpenOrbsI.eq.2) THEN     !again, since these can only be at max quads, then they can only have 1/2 open orbs...
-                                MatEl=MatEl+MatEl2
+                            IF(tOddS_HPHF) THEN
+                                IF(OpenOrbsI.eq.2) THEN     !again, since these can only be at max quads, then they can only have 1/2 open orbs...
+                                    MatEl=MatEl-MatEl2
+                                ELSE
+                                    MatEl=MatEl+MatEl2
+                                ENDIF
                             ELSE
-                                MatEl=MatEl-MatEl2
+
+                                IF(OpenOrbsI.eq.2) THEN     !again, since these can only be at max quads, then they can only have 1/2 open orbs...
+                                    MatEl=MatEl+MatEl2
+                                ELSE
+                                    MatEl=MatEl-MatEl2
+                                ENDIF
                             ENDIF
 !                            WRITE(6,*) "MatEl2 NEW: ",MatEl2
                         ENDIF
@@ -219,7 +216,7 @@ MODULE HPHFRandExcitMod
                     HEl=0.D0
                 ENDIF
 
-            ELSE
+            ELSE    !Open-shell to Open-shell, but with no cross-connection.
                 
 !                CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.false.,.true.,tSwapped)
 
@@ -229,13 +226,17 @@ MODULE HPHFRandExcitMod
                         CALL CalcOpenOrbs(iLutnJ,OpenOrbsJ)
 !                        CALL CalcOpenOrbs(iLutnI,OpenOrbsI)
 !                        IF(((mod(OpenOrbsI,2).eq.1).and.(mod(OpenOrbsJ,2).eq.1)).or.((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.1))) THEN
-                        IF(mod(OpenOrbsJ,2).eq.1) THEN
-!                            WRITE(6,*) "Swapped parity"
-                            tSignOrig=.not.tSignOrig
+                        IF(tOddS_HPHF) then
+                            IF(mod(OpenOrbsJ,2).eq.0) THEN
+    !                            WRITE(6,*) "Swapped parity"
+                                tSignOrig=.not.tSignOrig
+                            ENDIF
+                        ELSE
+                            IF(mod(OpenOrbsJ,2).eq.1) THEN
+    !                            WRITE(6,*) "Swapped parity"
+                                tSignOrig=.not.tSignOrig
+                            ENDIF
                         ENDIF
-                    ENDIF
-
-                    IF(tSwapped) THEN
                         MatEl = sltcnd_excit(nI,  IC, ExcitMat, tSignOrig)
                     ELSE
                         MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
@@ -255,6 +256,15 @@ MODULE HPHFRandExcitMod
 !            WRITE(6,*) MatEl2,MatEl
 !            CALL Stop_All("ikb","Error in getting correct HEl - 2")
 !        ENDIF
+!        if(TestClosedShellDet(iLutnJ)) then
+!            write(6,*) "Trying to excite TO closed shell det - why!?"
+!            write(6,*) nI
+!            write(6,*) "***"
+!            write(6,*) iLutnI
+!            write(6,*) "HEl: ",HEl
+!            if(HEl.ne.0.D0) call stop_all("gen_hphf_excit","WHY?!")
+!            call flush(6)
+!        endif
 
     end subroutine
 
