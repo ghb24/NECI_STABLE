@@ -9,13 +9,14 @@ PROGRAM TransLz
     REAL*8 , ALLOCATABLE :: UMAT(:),ARR(:),TMAT(:,:)
     REAL*8 :: Z,ECore
     REAL*8 :: Norm
-    LOGICAL :: UHF,FlipInt,exists,tDiatomic,LinearExists,AtomExists,tSphericalSym,tPairbyEnergy
+    LOGICAL :: UHF,FlipInt,exists,tDiatomic,LinearExists,AtomExists,tSphericalSym,tPairbyEnergy,tError
     LOGICAL , ALLOCATABLE :: FlipSign(:)
     COMPLEX*16 :: CompZ,alpha1Coeff,alpha2Coeff,beta1Coeff,beta2Coeff,gamma1Coeff,gamma2Coeff,Delta1Coeff,Delta2Coeff
     INTEGER :: alpha1,alpha2,beta1,beta2,gamma1,gamma2,delta1,delta2,SymLTot,Degen
     NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ
 
     UHF=.false.
+    tError=.false.
 
     OPEN(8,FILE='INTDUMP',STATUS='OLD',FORM='FORMATTED')
     READ(8,FCI)
@@ -790,7 +791,8 @@ PROGRAM TransLz
                              CompZ=DCMPLX(0.D0,0.D0)
                          ELSE
                              WRITE(6,*) i,j,k,l,CompZ
-                             STOP 'Conservation of Ml error'
+                             WRITE(6,*) 'Conservation of Ml error - stopping'
+                             tError=.true.
                          ENDIF
                      ENDIF
                      IF(ABS(AIMAG(CompZ)).gt.1.D-9) THEN
@@ -944,7 +946,11 @@ PROGRAM TransLz
 
     WRITE(8,'(1X,G20.12,4I3)') ECore,0,0,0,0
 
-    CLOSE(8)
+    if(tError) then
+        CLOSE(8,status='delete')
+    else
+        CLOSE(8)
+    endif
 
     DEALLOCATE(UMAT)
     DEALLOCATE(ARR)
