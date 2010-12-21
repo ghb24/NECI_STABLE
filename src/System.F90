@@ -24,6 +24,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tOddS_HPHF=.false.
       tRotatedOrbsReal=.false.  !This is set if compiled in real, but reading in a complex FCIDUMP.
       tISKFuncs=.false.       !This is for kpoint symmetry with inversion so that determinants can be combined.
       tKPntSym=.false.        !This is for k-point symmetry with the symrandexcit2 excitation generators.
@@ -164,7 +165,7 @@ MODULE System
       IMPLICIT NONE
       LOGICAL eof
       CHARACTER (LEN=100) w
-      INTEGER I
+      INTEGER I,Odd_EvenHPHF
       
       ! The system block is specified with at least one keyword on the same
       ! line, giving the system type being used.
@@ -468,8 +469,18 @@ MODULE System
             tAssumeSizeExcitgen=.true.
         case("HPHF")
             tHPHF=.true.
-
-
+            if(item.lt.nitems) then
+                call geti(Odd_EvenHPHF)
+                if(Odd_EvenHPHF.eq.1) then
+                    !Want to converge onto an Odd S State
+                    tOddS_HPHF=.true.
+                elseif(Odd_EvenHPHF.eq.0) then
+                    !Want to converge onto an Even S State
+                    !tOddS_HPHF should be false by default.
+                else
+                    call stop_all("SysReadInput","Invalid variable given to HPHF option: 0 = Even S; 1 = Odd S")
+                endif
+            endif
         case("ROTATEORBS")
 ! The ROTATEORBS calculation initiates a routine which takes the HF orbitals
 ! and finds the optimal set of transformation coefficients to fit a particular criteria specified below.
