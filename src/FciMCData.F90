@@ -60,7 +60,13 @@ MODULE FciMCData
 !The following variables are calculated as per processor, but at the end of each update cycle, are combined to the root processor
       REAL*8 :: GrowRate,DieRat
       HElement_t :: SumENum
+
+      ! The averaged projected energy - calculated from accumulated values.
       HElement_t :: ProjectionE
+
+      ! The averaged projected energy - calculated over the last update cycle
+      HElement_t :: proje_iter
+
       integer(int64), dimension(lenof_sign) :: SumNoatHF      !This is the sum over all previous cycles of the number of particles at the HF determinant
       REAL*8 :: AvSign           !This is the average sign of the particles on each node
       REAL*8 :: AvSignHFD        !This is the average sign of the particles at HF or Double excitations on each node
@@ -74,12 +80,14 @@ MODULE FciMCData
       INTEGER :: NoBorn,NoDied
       INTEGER :: SpawnFromSing  !These will output the number of particles in the last update cycle which have been spawned by a single excitation.
       INTEGER :: AllSpawnFromSing
-      INTEGER :: HFPopCyc         !This is the number of update cycles which have a HF particle at some point
       INTEGER, DIMENSION(lenof_sign) :: HFCyc            !This is the number of HF*sign particles on a given processor over the course of the update cycle
       HElement_t :: AllHFCyc          !This is the sum of HF*sign particles over all processors over the course of the update cycle
       HElement_t :: ENumCyc           !This is the sum of doubles*sign*Hij on a given processor over the course of the update cycle
       HElement_t :: AllENumCyc        !This is the sum of double*sign*Hij over all processors over the course of the update cycle
-      HElement_t :: ProjEIter,ProjEIterSum    !This is the energy estimator where each update cycle contributes an energy and each is given equal weighting.
+
+      ! The projected energy over the current update cycle.
+      HElement_t :: ProjECyc
+
       integer :: iPartBloom   ! The maximum number of children spawned from a
                               ! single excitation. Used to calculate blooms.
 
@@ -91,6 +99,9 @@ MODULE FciMCData
       INTEGER(KIND=int64) :: AllSumWalkersCyc
       INTEGER :: AllAnnihilated,AllNoatDoubs
       INTEGER, DIMENSION(lenof_sign) :: AllNoatHF
+      real(dp), dimension(lenof_sign) :: sum_proje_denominator, &
+                        cyc_proje_denominator, all_cyc_proje_denominator, &
+                        all_sum_proje_denominator
       REAL*8 :: AllAvSign,AllAvSignHFD
       INTEGER :: AllNoBorn,AllNoDied,MaxSpawned
 
@@ -193,7 +204,8 @@ MODULE FciMCData
       integer, allocatable :: proje_ref_dets(:,:), proje_ref_det_init(:)
       real(dp), allocatable :: proje_ref_coeffs(:)
       integer :: tag_ref_iluts = 0, tag_ref_dets = 0, tag_ref_coeffs = 0
-      real(dp) :: sume_denominator(lenof_sign)
+      real(dp) :: proje_denominator_cyc(lenof_sign)
+      real(dp) :: proje_denominator_sum(lenof_sign)
       
 
       ! ********************** FCIMCPar control variables *****************

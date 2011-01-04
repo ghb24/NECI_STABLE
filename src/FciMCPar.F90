@@ -190,6 +190,7 @@ MODULE FciMCParMod
 !                HFIter=0
 !            ENDIF
 
+            write(6,*) 'enumcyc', ENumCyc
             if (mod(Iter, StepsSft) == 0) then
 
                 ! Has there been a particle bloom this update cycle?
@@ -895,23 +896,10 @@ MODULE FciMCParMod
                                CurrentDets(:,j), HDiagCurr, SignCurr, VecSlot)
 
         enddo ! Loop over determinants.
+        IFDEBUG(FCIMCDebug,2) write(6,*) 'Finished loop over determinants'
 
-        IFDEBUG(FCIMCDebug,2) WRITE(6,*) "Finished loop over determinants"
-
-        ! SumWalkersCyc calculates the total number of walkers over an update
-        ! cycle on each process.
-        SumWalkersCyc = SumWalkersCyc + int(sum(TotParts), int64)
-
-        ! Since VecSlot holds the next vacant slot in the array, TotWalkers
-        ! should be one less than this.
-        TotWalkersNew = VecSlot - 1
-
-        IF((tHistInitPops.and.(MOD(Iter,HistInitPopsIter).eq.0))    &
-            .or.tPrintHighPop) THEN
-            CALL FindHighPopDet(TotWalkersNew)
-            IF(iProcIndex.eq.0) WRITE(6,'(A)') 'Writing out the spread of the initiator determinant populations.'
-            CALL WriteInitPops(Iter+PreviousCycles)
-        ENDIF
+        ! Update the statistics for the end of an iteration.
+        call end_iter_stats (TotWalkersNew, VecSlot)
         
         ! Print bloom/memory warnings
         call end_iteration_print_warn (totWalkersNew)
@@ -925,12 +913,56 @@ MODULE FciMCParMod
         TotWalkers=TotWalkersNew
         CALL halt_timer(Annihil_Time)
         IFDEBUG(FCIMCDebug,2) WRITE(6,*) "Finished Annihilation step"
-        
+
         ! Update iteration data
         iter_data%update_growth = iter_data%update_growth + iter_data%nborn &
                                 - iter_data%ndied - iter_data%nannihil &
                                 - iter_data%naborted
         iter_data%update_iters = iter_data%update_iters + 1
+
+    end subroutine
+
+    subroutine end_iter_stats (TotWalkersNew, VecSlot)
+
+        integer, intent(out) :: TotWalkersNew
+        integer, intent(in) :: VecSlot
+        real(dp) :: delta(lenof_sign)
+        integer :: proc, pos, sgn(lenof_sign), i
+
+        ! SumWalkersCyc calculates the total number of walkers over an update
+        ! cycle on each process.
+        SumWalkersCyc = SumWalkersCyc + int(sum(TotParts), int64)
+
+        ! Since VecSlot holds the next vacant slot in the array, TotWalkers
+        ! should be one less than this.
+        TotWalkersNew = VecSlot - 1
+
+        ! Write initiator histograms if on the correct iteration.
+        if ((tHistInitPops .and. mod(iter, HistInitPopsIter) == 0) &
+            .or. tPrintHighPop) then
+            call FindHighPopDet (TotWalkersNew)
+            root_write(6,'(a)') 'Writing out the spreaod of the initiator &
+                                &determinant populations.'
+            call WriteInitPops (iter + PreviousCycles)
+        endif
+
+        ! Update the sum for the projected-energy denominatior if projecting
+        ! onto a linear combination of determinants.
+        if (proje_linear_comb .and. nproje_sum > 1) then
+            do i = 1, nproje_sum
+                proc = DetermineDetNode (proje_ref_dets(:,i), 0)
+                if (iProcIndex == proc) then
+                    pos = binary_search (CurrentDets(:,1:TotWalkers), &
+                                         proje_ref_iluts(:,i), NIfD+1)
+                    if (pos > 0) then
+                        call extract_sign (CurrentDets(:,pos), sgn)
+                        delta = sgn * proje_ref_coeffs(i)
+                        cyc_proje_denominator = cyc_proje_denominator + delta
+                        sum_proje_denominator = sum_proje_denominator + delta
+                    endif
+                endif
+            enddo
+        endif
 
     end subroutine
 
@@ -2766,8 +2798,6 @@ MODULE FciMCParMod
                     ! Reset averages
                     SumENum = 0
                     SumNoatHF = 0
-                    HFPopCyc = 0
-                    ProjEIterSum = 0
                     VaryShiftCycles = 0
                     SumDiagSft = 0
                     root_print 'Zeroing all energy estimators.'
@@ -2852,8 +2882,9 @@ MODULE FciMCParMod
 
     subroutine collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all)
         integer :: int_tmp(5+2*lenof_sign), proc, sgn(lenof_sign), pos, i
-        HElement_t :: real_tmp(2)
-        integer(int64) :: int64_tmp(9)
+        HElement_t :: helem_tmp(2)
+        real(dp) :: real_tmp(2*lenof_sign)
+        Integer(int64) :: int64_tmp(9)
         type(fcimc_iter_data) :: iter_data
         integer(int64), dimension(lenof_sign), intent(in) :: tot_parts_new
         integer(int64), dimension(lenof_sign), intent(out) :: tot_parts_new_all
@@ -2901,11 +2932,16 @@ MODULE FciMCParMod
         AllSumNoatHF = int64_tmp(2+lenof_sign:1+2*lenof_sign)
         tot_parts_new_all = int64_tmp(2+2*lenof_sign:1+3*lenof_sign)
 
-        ! real(dp) values (Calculates the energy by summing all on HF and 
+        ! HElement_t values (Calculates the energy by summing all on HF and 
         ! doubles)
-        call MPIReduce ((/ENumCyc, SumENum/), MPI_SUM, real_tmp)
-        AllENumCyc = real_tmp(1)
-        AllSumENum = real_tmp(2)
+        call MPISum ((/ENumCyc, SumENum/), helem_tmp)
+        AllENumCyc = helem_tmp(1)
+        AllSumENum = helem_tmp(2)
+
+        ! real(dp) values
+        call MPISum((/cyc_proje_denominator, sum_proje_denominator/),real_tmp)
+        all_cyc_proje_denominator = real_tmp(1:lenof_sign)
+        all_sum_proje_denominator = real_tmp(lenof_sign+1:2*lenof_sign)
 
         ! Max/Min values (check load balancing)
         call MPIReduce (TotWalkers, MPI_MAX, MaxWalkersProc)
@@ -2915,27 +2951,6 @@ MODULE FciMCParMod
         ! ALL processors (n.b. one of these is 32bit, the other 64)
         call MPISumAll (NoatHF, AllNoatHF)
         call MPISumAll (SumWalkersCyc, AllSumWalkersCyc)
-
-        ! This seems like the most appropriate place to put this, but I don't
-        ! really like it.
-        ! Calculate the denominator for projection onto a linear sum of dets.
-        if (proje_linear_comb .and. nproje_sum > 1) then
-            sume_denominator = 0
-            do i = 1, nproje_sum
-                ! This proc info could be stored
-                proc = DetermineDetNode(proje_ref_dets(:,i), 0)
-                if (iProcIndex == proc) then
-                    pos = binary_search(CurrentDets(:,1:TotWalkers), &
-                                        proje_ref_iluts(:,i), NIfD+1)
-                    if (pos > 0) then
-                        call extract_sign (proje_ref_iluts(:,i), sgn)
-                        sume_denominator = sume_denominator + &
-                                           (sgn * proje_ref_coeffs(i))
-                    endif
-                endif
-            enddo
-            call MPISum_inplace (sume_denominator)
-        endif
 
 !        WRITE(6,*) "***",iter_data%update_growth_tot,AllTotParts-AllTotPartsOld
         ASSERTROOT(all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld))
@@ -3072,30 +3087,22 @@ MODULE FciMCParMod
                         ((sum(AllTotParts) - sum(AllTotPartsOld)) / &
                          (Tau * real(StepsSft, dp)))
 
-
-            if (proje_linear_comb .and. nproje_sum > 1) then
-
-                ! Calculate the projected energy as a linear combination.
-                ProjectionE = AllSumENum / ARR_RE_OR_CPLX(sume_denominator)
-
-            elseif (any(AllSumNoatHF /= 0)) then
-
-                ! AllSumNoatHF can be 0 if equilsteps is on.
-                ProjectionE = AllSumENum / ARR_RE_OR_CPLX(AllSumNoatHF)
+            ! When using a linear combination, the denominator is summed
+            ! directly.
+            if (.not. (proje_linear_comb .and. nproje_sum > 1)) then
+                all_sum_proje_denominator = AllSumNoatHF
+                all_cyc_proje_denominator = AllHFCyc
             endif
 
-
-            ! Calculate the projected energy where each update cycle 
-            ! contributes the same weight to the average for its estimator 
-            ! for the energy.
-            if (abs(AllHFCyc) /= 0.D0) then
-                ProjEItersum = ProjEIterSum + (AllENumCyc / AllHFCyc)
-                ! Count the number of interactions where we have a non-zero
-                ! contribution from HF particles
-                HFPopCyc = HFPopCyc + 1
-                ProjEIter = ProjEIterSum / real(HFPopCyc, dp)
+            ! Calculate the projected energy.
+            if (any(AllSumNoatHF /= 0) .or. &
+                (proje_linear_comb .and. nproje_sum > 1)) then
+                ProjectionE = AllSumENum / &
+                              ARR_RE_OR_CPLX(all_sum_proje_denominator)
+                proje_iter = AllSumEnum / &
+                              ARR_RE_OR_CPLX(all_cyc_proje_denominator)
             endif
-        
+
             ! If we are re-zeroing the shift
             if (tReZeroShift) then
                 DiagSft = 0
@@ -3154,11 +3161,6 @@ MODULE FciMCParMod
         SpawnFromSing = 0
         NoDied = 0
         ENumCyc = 0
-
-        ! We don't want to rezero projEIter, as PrintFCIMCStats will print
-        ! out zero on next iteration if NoAtHF = 0.
-        ! ProjEIter = 0
-
         HFCyc = 0
 
         ! Reset TotWalkersOld so that it is the number of walkers now
@@ -3177,6 +3179,12 @@ MODULE FciMCParMod
         iter_data%update_growth = 0
         iter_data%update_iters = 0
         iter_data%tot_parts_old = tot_parts_new_all
+
+        ! Reset the linear combination coefficients
+        ! TODO: Need to rethink how/when this is done. This is just for tests
+        if (proje_linear_comb) &
+            call update_linear_comb_coeffs()
+
 
     end subroutine
 
@@ -3250,41 +3258,97 @@ MODULE FciMCParMod
 #ifdef __CMPLX
             write(fcimcstats_unit,"(I12,G16.7,2I10,2I12,4G17.9,3I10,&
                                   &G13.5,I12,G13.5,G17.5,I13,G13.5,7G17.9)") &
-                Iter + PreviousCycles, DiagSft, &
-                AllTotParts(1)-AllTotPartsOld(1), AllTotParts(2)-AllTotPartsOld(2), &
-                AllTotParts(1),AllTotParts(2), &
-                REAL(ProjectionE,dp),AIMAG(ProjectionE), REAL(AllENumCyc / AllHFCyc,dp),AIMAG(AllENumCyc / AllHFCyc), &
-                AllNoatHF(1),AllNoatHF(2), &
-                AllNoatDoubs, AccRat, AllTotWalkers, IterTime, &
-                real(AllSpawnFromSing) / real(AllNoBorn), WalkersDiffProc, &
-                TotImagTime, HFShift, InstShift, &
-                REAL(AllENumCyc / AllHFCyc,dp) + Hii, REAL(AllHFCyc / StepsSft,dp), AIMAG(AllHFCyc / StepsSft), &
-                REAL(AllENumCyc / StepsSft,dp),AIMAG(AllENumCyc / StepsSft)
-            write (6, "(I12,G16.7,2I10,2I12,4G17.9,3I10,G13.5,I12,&
-                      &G13.5)") Iter + PreviousCycles, DiagSft, &
-                AllTotParts(1)-AllTotPartsOld(1),AllTotParts(2)-AllTotPartsOld(2), &
-                AllTotParts(1),AllTotParts(2), &
-                real(ProjectionE,dp),aimag(ProjectionE), real(AllENumCyc / AllHFCyc,dp),aimag(AllENumCyc / AllHFCyc), &
-                AllNoatHF(1),AllNoatHF(2), &
-                AllNoatDoubs, AccRat, AllTotWalkers, IterTime
+                Iter + PreviousCycles, &
+                DiagSft, &
+                AllTotParts(1) - AllTotPartsOld(1), &
+                AllTotParts(2) - AllTotPartsOld(2), &
+                AllTotParts(1), &
+                AllTotParts(2), &
+                real(ProjectionE, dp), &
+                aimag(projectionE), &
+                real(proje_iter, dp), &
+                aimag(proje_iter)
+                AllNoatHF(1), &
+                AllNoatHF(2), &
+                AllNoatDoubs, &
+                AccRat, &
+                AllTotWalkers, &
+                IterTime, &
+                real(AllSpawnFromSing, dp) / real(AllNoBorn), &
+                WalkersDiffProc, &
+                TotImagTime, &
+                HFShift, &
+                InstShift, &
+                real(AllENumCyc / AllHFCyc, dp), &
+                real(AllHFCyc, StepsSft, dp), &
+                aimag(AllHFCyc / StepsSft), &
+                real(AllENumCyc / StepsSft, dp), &
+                aimag(AllENumCyc / StepsSft)
+
+            write (6, "(I12,G16.7,2I10,2I12,4G17.9,3I10,G13.5,I12,G13.5)") &
+                Iter + PreviousCycles, &
+                DiagSft, &
+                AllTotParts(1) - AllTotPartsOld(1), &
+                AllTotParts(2) - AllTotPartsOld(2), &
+                AllTotParts(1), AllTotParts(2), &
+                real(ProjectionE, dp), &
+                aimag(ProjectionE), &
+                real(proje_iter, dp), &
+                aimag(proje_iter), &
+                AllNoatHF(1), &
+                AllNoatHF(2), &
+                AllNoatDoubs, &
+                AccRat, &
+                AllTotWalkers, &
+                IterTime
 #else
+
             write(fcimcstats_unit,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,&
                                   &G13.5,I12,G13.5,G17.5,I13,G13.5,6G17.9)") &
-                Iter + PreviousCycles, DiagSft, &
-                sum(AllTotParts) - sum(AllTotPartsOld), AllGrowRate, &
-                sum(AllTotParts), AllAnnihilated, AllNoDied, AllNoBorn, &
-                ProjectionE, AvDiagSft, AllENumCyc / AllHFCyc, AllNoatHF, &
-                AllNoatDoubs, AccRat, AllTotWalkers, IterTime, &
-                real(AllSpawnFromSing) / real(AllNoBorn), WalkersDiffProc, &
-                TotImagTime, 0.D0, HFShift, InstShift, &
-                AllENumCyc / AllHFCyc + Hii, AllHFCyc / StepsSft, &
+                Iter + PreviousCycles, &
+                DiagSft, &
+                sum(AllTotParts) - sum(AllTotPartsOld), &
+                AllGrowRate, &
+                sum(AllTotParts), &
+                AllAnnihilated, &
+                AllNoDied, &
+                AllNoBorn, &
+                ProjectionE, &
+                AvDiagSft, &
+                proje_iter, &
+                AllNoatHF, &
+                AllNoatDoubs, &
+                AccRat, &
+                AllTotWalkers, &
+                IterTime, &
+                real(AllSpawnFromSing) / real(AllNoBorn), &
+                WalkersDiffProc, &
+                TotImagTime, &
+                0.D0, &
+                HFShift, &
+                InstShift, &
+                proje_iter + Hii, &
+                AllHFCyc / StepsSft, &
                 AllENumCyc / StepsSft
+
             write (6, "(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,&
-                      &G13.5)") Iter + PreviousCycles, DiagSft, &
-                sum(AllTotParts) - sum(AllTotPartsOld), AllGrowRate, &
-                sum(AllTotParts), AllAnnihilated, AllNoDied, AllNoBorn, &
-                ProjectionE, AvDiagSft, AllENumCyc / AllHFCyc, AllNoatHF, &
-                AllNoatDoubs, AccRat, AllTotWalkers, IterTime
+                      &G13.5)") &
+                Iter + PreviousCycles, &
+                DiagSft, &
+                sum(AllTotParts) - sum(AllTotPartsOld), &
+                AllGrowRate, &
+                sum(AllTotParts), &
+                AllAnnihilated, &
+                AllNoDied, &
+                AllNoBorn, &
+                ProjectionE, &
+                AvDiagSft, &
+                proje_iter, &
+                AllNoatHF, &
+                AllNoatDoubs, &
+                AccRat, &
+                AllTotWalkers, &
+                IterTime
 #endif
 
             if (tTruncInitiator .or. tDelayTruncInit) then
@@ -3731,10 +3795,7 @@ MODULE FciMCParMod
         SpawnFromSing=0
         NoDied=0
         HFCyc=0
-        HFPopCyc=0
         ENumCyc=0.D0
-        ProjEIter=0.D0
-        ProjEIterSum=0.D0
         VaryShiftCycles=0
         AvDiagSft=0.D0
         SumDiagSft=0.D0
@@ -4677,20 +4738,40 @@ MODULE FciMCParMod
 
     subroutine update_linear_comb_coeffs ()
 
+        integer :: i, pos, sgn(lenof_sign)
+        real(dp) :: norm
+
         if (nproje_sum > 1) then
 
+            proje_ref_coeffs = 0
+            do i = 1, nproje_sum
+
+                pos = binary_search (CurrentDets(:,1:TotWalkers), &
+                                     proje_ref_iluts(:,i), NIfD+1)
+                if (pos > 0) then
+                    call extract_sign (CurrentDets(:,pos), sgn)
+                    proje_ref_coeffs(i) = sgn(1)
+                endif
+            enddo
+
+            call MPISumAll_inplace (proje_ref_coeffs)
+            norm = sqrt(sum(proje_ref_coeffs**2))
+            if (norm == 0) norm = 1
+            proje_ref_coeffs = proje_ref_coeffs / norm
+            
         endif
+
     end subroutine
 
 
     subroutine clean_linear_comb ()
 
         if (allocated(proje_ref_dets)) &
-            allocate(proje_ref_dets(nel, nproje_sum))
+            deallocate(proje_ref_dets)
         if (allocated(proje_ref_iluts)) &
-            allocate(proje_ref_iluts(0:NIfTot, nproje_sum))
+            deallocate(proje_ref_iluts)
         if (allocated(proje_ref_coeffs)) &
-            allocate(proje_ref_coeffs(nproje_sum))
+            deallocate(proje_ref_coeffs)
 
     end subroutine clean_linear_comb
 
@@ -4955,13 +5036,10 @@ MODULE FciMCParMod
                 OldAllNoatHF=AllNoatHF
                 AllNoAbortedOld=0.D0
                 iter_data_fciqmc%tot_parts_old = AllTotParts
-#ifdef __CMPLX
-                if (AllSumNoatHF(1).ne.0.or.AllSumNoatHF(2).ne.0) then
-                    ProjectionE = AllSumENum / CMPLX(AllSumNoatHF(1), AllSumNoatHF(2), dp) 
-                endif
-#else
-                if (AllSumNoatHF(1) /= 0) ProjectionE = AllSumENum / AllSumNoatHF(1)
-#endif
+
+                ! Calculate the projected energy for this iteration.
+                if (any(AllSumNoatHF /= 0)) &
+                    ProjectionE = AllSumENum / ARR_RE_OR_CPLX(AllSumNoatHF)
                 
                 if(iProcIndex.eq.iHFProc) then
                     !Need to store SumENum and SumNoatHF, since the global variable All... gets wiped each iteration. 
