@@ -3267,7 +3267,7 @@ MODULE FciMCParMod
                 real(ProjectionE, dp), &
                 aimag(projectionE), &
                 real(proje_iter, dp), &
-                aimag(proje_iter)
+                aimag(proje_iter), &
                 AllNoatHF(1), &
                 AllNoatHF(2), &
                 AllNoatDoubs, &
@@ -3280,7 +3280,7 @@ MODULE FciMCParMod
                 HFShift, &
                 InstShift, &
                 real(AllENumCyc / AllHFCyc, dp), &
-                real(AllHFCyc, StepsSft, dp), &
+                real(AllHFCyc / StepsSft, dp), &
                 aimag(AllHFCyc / StepsSft), &
                 real(AllENumCyc / StepsSft, dp), &
                 aimag(AllENumCyc / StepsSft)
