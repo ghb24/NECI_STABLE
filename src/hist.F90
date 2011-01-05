@@ -5,7 +5,8 @@ module hist
     use DeterminantData, only: get_lexicographic
     use MemoryManager
     use SystemData, only: tHistSpinDist, ilut_spindist, nbasis, nel, LMS, &
-                          hist_spin_dist_iter, nI_spindist, LMS, tHPHF
+                          hist_spin_dist_iter, nI_spindist, LMS, tHPHF, &
+                          tOddS_HPHF
     use DetBitOps, only: count_open_orbs, EncodeBitDet, spatial_bit_det, &
                          DetBitEq
     use CalcData, only: tFCIMC
@@ -364,9 +365,10 @@ contains
                     delta = (real(sgn(:), dp) / sqrt(2.0)) / dProbFin
 
                     call CalcOpenOrbs(ilut_sym, open_orbs)
-                    if (mod(open_orbs, 2) == 1) delta = -delta
+                    if ((mod(open_orbs, 2) == 1) .neqv. tOddS_HPHF) &
+                        delta = -delta
 
-                    if (tFlippedSign) delta = -delta
+                    if (tFlippedSign .neqv. tOddS_HPHF) delta = -delta
 
                     Histogram(:, PartInd) = Histogram(:, PartInd) + delta
                     if (tHistSpawn) &
