@@ -1,7 +1,7 @@
 module hphf_integrals
     use constants, only: dp,n_int
     use SystemData, only: NEl, nBasisMax, G1, nBasis, Brr, tHub, ECore, &
-                          ALat, NMSH
+                          ALat, NMSH, tOddS_HPHF
     use IntegralsData, only: UMat,FCK,NMAX
     use HPHFRandExcitMod, only: FindDetSpinSym, FindExcitBitDetSym
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel
@@ -86,7 +86,10 @@ module hphf_integrals
 
         hel = sltcnd (nI, iLutnI, iLutnJ)
         if (TestClosedShellDet(iLutnI)) then
-            if (.not. TestClosedShellDet(iLutnJ)) then
+            if(tOddS_HPHF) then
+                !For odd S states, all matrix elements to CS determinants should be 0
+                hel = 0.D0
+            elseif (.not. TestClosedShellDet(iLutnJ)) then
                 ! Closed shell --> Open shell, <X|H|Y> = 1/sqrt(2) [Hia + Hib]
                 ! or with minus if iLutnJ has an odd number of spin orbitals.
                 ! OTHERWISE Closed shell -> closed shell. Both the alpha and 
@@ -96,10 +99,15 @@ module hphf_integrals
             endif
         else
             if (TestClosedShellDet(iLutnJ)) then
-                ! Open shell -> Closed shell. If one of
-                ! the determinants is connected, then the other is connected 
-                ! with the same IC & matrix element
-                hel = hel * (sqrt(2.d0))
+                if(tOddS_HPHF) then
+                    !For odd S states, all matrix elements to CS determinants should be 0
+                    hel = 0.D0
+                else
+                    ! Open shell -> Closed shell. If one of
+                    ! the determinants is connected, then the other is connected 
+                    ! with the same IC & matrix element
+                    hel = hel * (sqrt(2.d0))
+                endif
             else
                 ! Open shell -> Open shell. Find the spin pair of nJ.
                 call FindExcitBitDetSym(iLutnI, iLutnI2)
@@ -108,27 +116,38 @@ module hphf_integrals
                 if (ExcitLevel.le.2) then
                     ! We need to find out whether the nJ HPHF wavefunction is 
                     ! symmetric or antisymmetric. This is dependant on the 
-                    ! number of open shell orbitals.
+                    ! number of open shell orbitals and total spin of the wavefunction.
                     call FindDetSpinSym(nI, nI2, nel)
                     call CalcOpenOrbs(iLutnJ, OpenOrbsJ)
 
-                    ! Original HPHF is antispmmetric if OpenOrbs is odd, or
-                    ! symmetric if it is even.
+                    ! Original HPHF is antisymmetric if OpenOrbs is odd (and S even), 
+                    ! or symmetric if it is even.
+                    ! If S is odd, then HPHF is Symmetric if OpenOrbs is odd, and 
+                    ! antisymmetric if it is even.
                     call CalcOpenOrbs(iLutnI,OpenOrbsI)
                     Ex(1,1)=ExcitLevel
                     call GetBitExcitation(iLutnI2,iLutnJ,Ex,tSign)
 
                     MatEl2 = sltcnd_excit (nI2, ExcitLevel, Ex, tSign)
 
-                    if (((mod(OpenOrbsI,2) == 0).and.(mod(OpenOrbsJ,2) == 0))&
-                        .or. ((mod(OpenOrbsI,2) == 0) .and. &
-                              (mod(OpenOrbsJ,2) == 1))) then
-                        hel = hel + MatEl2
+                    if(tOddS_HPHF) then
+                        if (((mod(OpenOrbsI,2) == 1).and.(mod(OpenOrbsJ,2) == 1))&
+                            .or. ((mod(OpenOrbsI,2) == 1) .and. &
+                                  (mod(OpenOrbsJ,2) == 0))) then
+                            hel = hel + MatEl2
+                        else
+                            hel = hel - MatEl2
+                        endif
                     else
-                        hel = hel - MatEl2
+                        if (((mod(OpenOrbsI,2) == 0).and.(mod(OpenOrbsJ,2) == 0))&
+                            .or. ((mod(OpenOrbsI,2) == 0) .and. &
+                                  (mod(OpenOrbsJ,2) == 1))) then
+                            hel = hel + MatEl2
+                        else
+                            hel = hel - MatEl2
+                        endif
                     endif
                 endif
-            
             endif
         endif
     end function
@@ -168,11 +187,20 @@ module hphf_integrals
                 call FindDetSpinSym (nI, nI2, nel)
                 MatEl2 = sltcnd (nI,  iLutnI, iLutnI2)
 
-                if (mod(OpenOrbs,2).eq.1) then
-                    ! Subtract cross terms if determinant is antisymmetric.
-                    hel = hel - MatEl2
+                if (tOddS_HPHF) then
+                    if (mod(OpenOrbs,2).eq.1) then
+                        ! Subtract cross terms if determinant is antisymmetric.
+                        hel = hel + MatEl2
+                    else
+                        hel = hel - MatEl2
+                    endif
                 else
-                    hel = hel + MatEl2
+                    if (mod(OpenOrbs,2).eq.1) then
+                        ! Subtract cross terms if determinant is antisymmetric.
+                        hel = hel - MatEl2
+                    else
+                        hel = hel + MatEl2
+                    endif
                 endif
             endif
         endif

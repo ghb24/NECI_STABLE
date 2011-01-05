@@ -14,7 +14,7 @@ MODULE FciMCParMod
     use SystemData, only: nel, Brr, nBasis, nBasisMax, LMS, tHPHF, tHub, &
                           tReal, tRotatedOrbs, tFindCINatOrbs, tFixLz, &
                           LzTot, tUEG, tLatticeGens, tCSF, G1, Arr, &
-                          tNoBrillouin, tKPntSym, tPickVirtUniform
+                          tNoBrillouin, tKPntSym, tPickVirtUniform, tOddS_HPHF
     use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY, decode_bit_det, &
                         encode_bit_rep, encode_det, extract_bit_rep, &
                         test_flag, set_flag, extract_flags, &
@@ -37,7 +37,7 @@ MODULE FciMCParMod
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use Determinants, only: FDet, get_helement, write_det, &
                             get_helement_det_only, lexicographic_store, &
-                            get_lexicographic_dets
+                            get_lexicographic_dets, DefDet
     USE DetCalcData , only : ICILevel,nDet,Det,FCIDetIndex
     use GenRandSymExcitNUMod, only: gen_rand_excit, GenRandSymExcitNU, &
                                     ScratchSize, TestGenRandSymExcitNU, &
@@ -2741,17 +2741,7 @@ MODULE FciMCParMod
                 ! Are we changing the reference determinant?
                 if (tChangeProjEDet) then
                     ! Communicate the change to all dets and print out.
-#if PARALLEL
-                    !TODO: This explicit PARALLEL block is a temporary bugfix since the commented
-                    !out line below is buggy. The MPIBCast doesn't broadcast from the correct process,
-                    !it seems to be always broadcasting from root. This can be traced to an issue with GetComm
-                    !AJWT - can you look at this?
-                    call MPI_BCast(HighestPopDet(0:NIfTot),NIfTot+1,MPI_INTEGER8,proc_highest,MPI_COMM_WORLD,error)
-                    if(error.ne.MPI_SUCCESS) then
-                        call stop_all("population_check","error in bugfix!")
-                    endif
-#endif
-!                    call MPIBcast (HighestPopDet(0:NIfTot), proc_highest)
+                    call MPIBcast (HighestPopDet(0:NIfTot), NIfTot+1, proc_highest)
                     iLutRef = 0
                     iLutRef(0:NIfDBO) = HighestPopDet(0:NIfDBO)
                     call decode_bit_det (ProjEDet, iLutRef)
@@ -2829,18 +2819,7 @@ MODULE FciMCParMod
                         iRestartWalkNum < sum(AllTotParts)) then
                     
                     ! Broadcast the changed det to all processors
-
-#if PARALLEL
-                    !TODO: This explicit PARALLEL block is a temporary bugfix since the commented
-                    !out line below is buggy. The MPIBCast doesn't broadcast from the correct process,
-                    !it seems to be always broadcasting from root. This can be traced to an issue with GetComm
-                    !AJWT - can you look at this?
-                    call MPI_BCast(HighestPopDet(0:NIfTot),NIfTot+1,MPI_INTEGER8,proc_highest,MPI_COMM_WORLD,error)
-                    if(error.ne.MPI_SUCCESS) then
-                        call stop_all("population_check","error in bugfix!")
-                    endif
-#endif
-!                    call MPIBcast (HighestPopDet, proc_highest)
+                    call MPIBcast (HighestPopDet, NIfTot+1, proc_highest)
                     iLutRef = 0
                     iLutRef(0:NIfDBO) = HighestPopDet(0:NIfDBO)
 
@@ -4908,6 +4887,7 @@ MODULE FciMCParMod
         use CalcData , only : InitialPart
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil
         use constants , only : size_n_int
+        use DeterminantData , only : write_det
         INTEGER :: ierr,iunithead
         LOGICAL :: formpops,binpops
         INTEGER :: error,MemoryAlloc,PopsVersion,WalkerListSize,j
@@ -4999,7 +4979,9 @@ MODULE FciMCParMod
         
             ! Get the (0-based) processor index for the HF det.
             iHFProc = DetermineDetNode(HFDet,0)
-            WRITE(6,*) "HF processor is: ",iHFProc
+            WRITE(6,*) "Reference processor is: ",iHFProc
+            write(6,*) "Initial reference is: "
+            call write_det(6,HFDet,.true.)
 
             TotParts(:)=0
             TotPartsOld(:)=0
