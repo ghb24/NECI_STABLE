@@ -4839,17 +4839,9 @@ MODULE FciMCParMod
         endif ! sume_linear_contrib
 
         ! Sum in energy contribution
-        if (lenof_sign == 1) then
-            if (iter > NEquilSteps) SumENum = SumENum + &
-                    (real(HOffDiag, dp) * wSign(1) / dProbFin)
-            ENumCyc = ENumCyc + &
-                    (real(HOffDiag, dp) * wSign(1) / dProbFin)
-        else
-            if (iter > NEquilSteps) SumENum = SumENum + &
-                (HOffDiag * cmplx(wSign(1), wSign(2), dp)) / dProbFin
-            ENumCyc = ENumCyc + &
-                (HOffDiag * cmplx(wSign(1), wSign(2), dp)) / dProbFin
-        endif
+        if (iter > NEquilSteps) &
+            SumENum = SumENum + (HOffDiag * ARR_RE_OR_CPLX(wSign)) / dProbFin
+        ENumCyc = ENumCyc + (HOffDiag * ARR_RE_OR_CPLX(wSign)) / dProbFin
 
         ! -----------------------------------
         ! HISTOGRAMMING
