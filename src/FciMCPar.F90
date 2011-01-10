@@ -190,7 +190,7 @@ MODULE FciMCParMod
 !                HFIter=0
 !            ENDIF
 
-            write(6,*) 'enumcyc', ENumCyc
+!            write(6,*) 'enumcyc', ENumCyc
             if (mod(Iter, StepsSft) == 0) then
 
                 ! Has there been a particle bloom this update cycle?
