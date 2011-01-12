@@ -55,6 +55,8 @@ MODULE FciMCData
       INTEGER :: MaxWalkersPart,PreviousNMCyc,Iter,NoComps,MaxWalkersAnnihil
       integer(int64) :: TotWalkers, TotWalkersOld
       integer(int64), dimension(lenof_sign) :: TotParts, TotPartsOld
+      integer(int64) :: norm_psi_squared
+      real(dp) :: norm_psi
       INTEGER :: exFlag=3
 
 !The following variables are calculated as per processor, but at the end of each update cycle, are combined to the root processor

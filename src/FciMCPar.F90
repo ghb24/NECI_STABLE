@@ -190,7 +190,6 @@ MODULE FciMCParMod
 !                HFIter=0
 !            ENDIF
 
-            write(6,*) 'enumcyc', ENumCyc
             if (mod(Iter, StepsSft) == 0) then
 
                 ! Has there been a particle bloom this update cycle?
@@ -2863,7 +2862,7 @@ MODULE FciMCParMod
         integer :: int_tmp(5+2*lenof_sign), proc, sgn(lenof_sign), pos, i
         HElement_t :: helem_tmp(2)
         real(dp) :: real_tmp(2*lenof_sign)
-        Integer(int64) :: int64_tmp(9)
+        integer(int64) :: int64_tmp(9)
         type(fcimc_iter_data) :: iter_data
         integer(int64), dimension(lenof_sign), intent(in) :: tot_parts_new
         integer(int64), dimension(lenof_sign), intent(out) :: tot_parts_new_all
@@ -2889,10 +2888,10 @@ MODULE FciMCParMod
 
         ! Integer summations required for the initiator method
         if (tTruncInitiator) then
-            call MPIReduce ((/NoAborted, NoAddedInitiators, NoInitDets, &
-                              NoNonInitDets, NoInitWalk, NoNonInitWalk, &
-                              NoExtraInitdoubs, InitRemoved/), &
-                            MPI_SUM, int64_tmp)
+            call MPISum ((/NoAborted, NoAddedInitiators, NoInitDets, &
+                           NoNonInitDets, NoInitWalk, NoNonInitWalk, &
+                           NoExtraInitdoubs, InitRemoved/),&
+                          int64_tmp)
             AllNoAborted = int64_tmp(1)
             AllNoAddedInitiators = int64_tmp(2)
             AllNoInitDets = int64_tmp(3)
@@ -2904,12 +2903,14 @@ MODULE FciMCParMod
         endif
 
         ! 64bit integers
-        call MPIReduce ((/TotWalkers, TotParts, SumNoatHF, tot_parts_new/), &
-                        MPI_SUM, int64_tmp(1:1+3*lenof_sign))
+        call MPISum ((/TotWalkers, norm_psi_squared, TotParts, SumNoatHF, &
+                       tot_parts_new/), int64_tmp(1:2+3*lenof_sign))
         AllTotWalkers = int64_tmp(1)
-        AllTotParts = int64_tmp(2:1+lenof_sign)
-        AllSumNoatHF = int64_tmp(2+lenof_sign:1+2*lenof_sign)
-        tot_parts_new_all = int64_tmp(2+2*lenof_sign:1+3*lenof_sign)
+        norm_psi = sqrt(real(int64_tmp(2), dp))
+        AllTotParts = int64_tmp(3:2+lenof_sign)
+        AllSumNoatHF = int64_tmp(3+lenof_sign:2+2*lenof_sign)
+        tot_parts_new_all = int64_tmp(3+2*lenof_sign:2+3*lenof_sign)
+        write(6,*) 'squared', int64_tmp(2)
 
         ! HElement_t values (Calculates the energy by summing all on HF and 
         ! doubles)
@@ -3213,18 +3214,44 @@ MODULE FciMCParMod
             ENDIF
 
 #ifdef __CMPLX
-            WRITE(6,"(A)") "       Step     Shift      WalkerCng(Re)  WalkerCng(Im)    TotWalkers(Re)   TotWalkers(Im)    Proj.E(Re)   ProjE(Im)     Proj.E.ThisCyc(Re)  Proj.E.ThisCyc(Im)"&
-&             //"   NoatHF(Re)   NoatHF(Im)   NoatDoubs      AccRat     UniqueDets     IterTime"
-            WRITE(fcimcstats_unit,"(A,I4,A,L,A,L,A,L)") "# FCIMCStats VERSION 2 - COMPLEX : NEl=",NEl," HPHF=",tHPHF,' Lz=',tFixLz,' Initiator=',tTruncInitiator
-            WRITE(fcimcstats_unit,"(A)") "#     1.Step   2.Shift    3.WalkerCng(Re)  4.WalkerCng(Im)   5.TotWalkers(Re)  6.TotWalkers(Im)  7.Proj.E(Re)   8.Proj.E(Im)  "&
-&           // " 9.Proj.E.ThisCyc(Re)  10.Proj.E.ThisCyc(Im)  11.NoatHF(Re)   12.NoatHF(Im)  13.NoatDoubs  14.AccRat  15.UniqueDets  16.IterTime 17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime  "&
-&           // " 20.HFInstShift  21.TotInstShift  22.Tot-Proj.E.ThisCyc(Re)  23.HFContribtoE(Re)  24.HFContribtoE(Im)   25.NumContribtoE(Re)  26.NumContribtoE(Im)"
+            write(6, '(a)') "       Step     Shift      WalkerCng(Re)  &
+                   &WalkerCng(Im)    TotWalkers(Re)   TotWalkers(Im)    &
+                   &Proj.E(Re)   ProjE(Im)     Proj.E.ThisCyc(Re)  &
+                   &Proj.E.ThisCyc(Im)   NoatHF(Re)   NoatHF(Im)   &
+                   &NoatDoubs      AccRat     UniqueDets     IterTime"
+            write(fcimcstats_unit, "(a,i4,a,l,a,l,a,l)") &
+                   "# FCIMCStats VERSION 2 - COMPLEX : NEl=", nel, &
+                   " HPHF=", tHPHF, ' Lz=', tFixLz, &
+                   ' Initiator=', tTruncInitiator
+            write(fcimcstats_unit, "(a)") &
+                   "#     1.Step   2.Shift    3.WalkerCng(Re)  &
+                   &4.WalkerCng(Im)   5.TotWalkers(Re)  6.TotWalkers(Im)  &
+                   &7.Proj.E(Re)   8.Proj.E(Im)   9.Proj.E.ThisCyc(Re)  &
+                   &10.Proj.E.ThisCyc(Im)  11.NoatHF(Re)   12.NoatHF(Im)  &
+                   &13.NoatDoubs  14.AccRat  15.UniqueDets  16.IterTime &
+                   &17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime &
+                   &  20.HFInstShift  21.TotInstShift  &
+                   &22.Tot-Proj.E.ThisCyc(Re)  23.HFContribtoE(Re)  &
+                   &24.HFContribtoE(Im)   25.NumContribtoE(Re)  &
+                   &26.NumContribtoE(Im)  27.HF weight   28.|Psi|"
 #else
-            WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Av.Shift     Proj.E.ThisCyc   NoatHF NoatDoubs      AccRat     UniqueDets     IterTime"
-            WRITE(fcimcstats_unit,"(A,I4,A,L,A,L,A,L)") "# FCIMCStats VERSION 2 - REAL : NEl=",NEl," HPHF=",tHPHF,' Lz=',tFixLz,' Initiator=',tTruncInitiator
-            WRITE(fcimcstats_unit,"(A)") "#     1.Step   2.Shift    3.WalkerCng  4.GrowRate     5.TotWalkers  6.Annihil  7.NoDied  8.NoBorn  9.Proj.E       10.Av.Shift"&
-&           // " 11.Proj.E.ThisCyc  12.NoatHF 13.NoatDoubs  14.AccRat  15.UniqueDets  16.IterTime 17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime  20.ProjE.ThisIter "&
-&           // " 21.HFInstShift  22.TotInstShift  23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE"
+            write(6,"(A)") "       Step     Shift      WalkerCng    &
+                  &GrowRate       TotWalkers    Annihil    NoDied    &
+                  &NoBorn    Proj.E          Av.Shift     Proj.E.ThisCyc   &
+                  &NoatHF NoatDoubs      AccRat     UniqueDets     IterTime"
+            write(fcimcstats_unit, "(a,i4,a,l,a,l,a,l)") &
+                  "# FCIMCStats VERSION 2 - REAL : NEl=", nel, &
+                  " HPHF=", tHPHF, ' Lz=', tFixLz, &
+                  ' Initiator=', tTruncInitiator
+            write(fcimcstats_unit, "(A)") &
+                  "#     1.Step   2.Shift    3.WalkerCng  4.GrowRate     &
+                  &5.TotWalkers  6.Annihil  7.NoDied  8.NoBorn  &
+                  &9.Proj.E       10.Av.Shift 11.Proj.E.ThisCyc  12.NoatHF &
+                  &13.NoatDoubs  14.AccRat  15.UniqueDets  16.IterTime &
+                  &17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime  &
+                  &20.ProjE.ThisIter  21.HFInstShift  22.TotInstShift  &
+                  &23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE &
+                  &26.HF weight    27.|Psi|"
 #endif
             
         ENDIF
@@ -3236,7 +3263,7 @@ MODULE FciMCParMod
         if (iProcIndex == root) then
 #ifdef __CMPLX
             write(fcimcstats_unit,"(I12,G16.7,2I10,2I12,4G17.9,3I10,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,7G17.9)") &
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9)") &
                 Iter + PreviousCycles, &
                 DiagSft, &
                 AllTotParts(1) - AllTotPartsOld(1), &
@@ -3262,7 +3289,9 @@ MODULE FciMCParMod
                 real(AllHFCyc / StepsSft, dp), &
                 aimag(AllHFCyc / StepsSft), &
                 real(AllENumCyc / StepsSft, dp), &
-                aimag(AllENumCyc / StepsSft)
+                aimag(AllENumCyc / StepsSft), &
+                sqrt(float(sum(AllNoatHF**2))) / norm_psi, &
+                norm_psi
 
             write (6, "(I12,G16.7,2I10,2I12,4G17.9,3I10,G13.5,I12,G13.5)") &
                 Iter + PreviousCycles, &
@@ -3283,7 +3312,7 @@ MODULE FciMCParMod
 #else
 
             write(fcimcstats_unit,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,6G17.9)") &
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9)") &
                 Iter + PreviousCycles, &
                 DiagSft, &
                 sum(AllTotParts) - sum(AllTotPartsOld), &
@@ -3308,7 +3337,9 @@ MODULE FciMCParMod
                 InstShift, &
                 proje_iter + Hii, &
                 AllHFCyc / StepsSft, &
-                AllENumCyc / StepsSft
+                AllENumCyc / StepsSft, &
+                real(AllNoatHF, dp) / norm_psi, &
+                norm_psi
 
             write (6, "(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,&
                       &G13.5)") &
@@ -4901,6 +4932,9 @@ MODULE FciMCParMod
             if(iProcIndex.eq.root) close(iunithead)
             write(6,*) "POPSFILE VERSION ",PopsVersion," detected."
         endif
+
+        ! Initialise measurement of norm, to avoid divide by zero
+        norm_psi = 1
 
         if (tReadPops .and. (PopsVersion.lt.3) .and..not.tPopsAlreadyRead) then
 !Read in particles from multiple POPSFILES for each processor
