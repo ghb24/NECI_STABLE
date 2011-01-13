@@ -1,5 +1,7 @@
 module SystemData
 
+    use constants, only: n_int
+
 implicit none
 
 save
@@ -33,8 +35,14 @@ logical :: tRotatedOrbsReal     !This means we are reading in a complex FCIDUMP,
 logical :: tRIIntegrals   ! Read in RI 2-e integrals from RIDUMP file
 logical :: tStoreSpinOrbs ! This is set when the orbitals are stored in 
                           ! spin-orbital notation
+
+logical :: tPickVirtUniform ! Use the 3rd generation, random excitation
+                            ! generators, which pick pairs of virtual orbitals
+                            ! at random (but uniformly)
+
 logical :: tISKFuncs      ! Only for use in systems where the kpoint mesh has inversion symmetry,this ensures all
                           ! integrals are real.
+logical :: tOddS_HPHF     !If this is true, and you are using HPHF, then it will converge onto an Odd S HPHF state.
 integer :: iParity(5), nMaxX, nMaxY, nMaxZ, nMSH, coulDampOrb, elecPairs
 integer :: roIterMax, iRanLuxLev, DiagMaxMinFac, OneElmaxMinFac, iState
 integer :: iTiltX, iTiltY, nOccAlpha, nOccBeta, ShakeIterMax, ShakeStart
@@ -165,6 +173,13 @@ LOGICAL :: tHFNoOrder
 ! When set, ignore differences in orbital energies between pairs of orbitals (which should be beta/alpha)
 !  and group them under the same symrep
 LOGICAL :: tSymIgnoreEnergies
+
+    ! These should really be in hist.F90, but we get circular dependencies
+    ! These are bad.
+    logical :: tHistSpinDist
+    integer(n_int), allocatable :: ilut_spindist(:)
+    integer :: hist_spin_dist_iter
+    integer, allocatable :: nI_spindist(:)
 
 ! Operators for type(symmetry)
 interface assignment (=)

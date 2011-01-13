@@ -3,13 +3,14 @@ MODULE AnnihilationMod
     use SystemData , only : NEl, tHPHF
     use CalcData , only : TRegenExcitgens,tRegenDiagHEls
     USE DetCalcData , only : Det,FCIDetIndex
-    USE Logging , only : tHistSpawn
     USE Parallel
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE FciMCData
     use DetBitOps, only: DetBitEQ, DetBitLT, FindBitExcitLevel, ilut_lt, &
                          ilut_gt
-    use CalcData , only : tTruncInitiator
+    use spatial_initiator, only: add_initiator_list, rm_initiator_list, &
+                                 is_spatial_init
+    use CalcData , only : tTruncInitiator, tSpawnSpatialInit
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use sort_mod
@@ -20,6 +21,7 @@ MODULE AnnihilationMod
                         clr_flag, flag_parent_initiator, encode_part_sign, &
                         extract_part_sign, copy_flag
     use csf_data, only: csf_orbital_mask
+    use hist_data, only: tHistSpawn, HistMinInd2
     IMPLICIT NONE
 
     contains
@@ -673,6 +675,8 @@ MODULE AnnihilationMod
                                     call set_flag (CurrentDets(:,PartInd), flag_is_initiator(j))
                                     call set_flag (CurrentDets(:,PartInd), flag_make_initiator(j))
                                     NoAddedInitiators = NoAddedInitiators + 1
+                                    if (tSpawnSpatialInit) &
+                                        call add_initiator_list (CurrentDets(:,PartInd))
                                 else
                                     ! If the residual particles were spawned from non-initiator 
                                     ! particles, abort them. Encode only the correct 'type'
@@ -717,6 +721,8 @@ MODULE AnnihilationMod
                                 call set_flag (CurrentDets(:,PartInd), flag_is_initiator(j))
                                 call set_flag (CurrentDets(:,PartInd), flag_make_initiator(j))
                                 NoAddedInitiators = NoAddedInitiators + 1
+                                if (tSpawnSpatialInit) &
+                                    call add_initiator_list (CurrentDets(:,PartInd))
                             endif
                         endif
 
@@ -736,6 +742,17 @@ MODULE AnnihilationMod
                 do j = 1, lenof_sign
                     if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(j)) .and. &
                         .not. test_flag (SpawnedParts(:,i), flag_make_initiator(j))) then
+                        ! Are we allowing particles to survive if there is an
+                        ! initiator with the same spatial structure?
+                        ! TODO: optimise this. Only call it once?
+                        if (tSpawnSpatialInit) then
+                            if (is_spatial_init(SpawnedParts(:,i))) then
+                                call set_flag (SpawnedParts(:,i), &
+                                               flag_parent_initiator(j))
+                            endif
+                        endif
+
+
                         ! Walkers came from outside initiator space.
                         NoAborted = NoAborted + abs(SignTemp(j))
                         iter_data%naborted(j) = iter_data%naborted(j) + abs(SignTemp(j))
@@ -830,6 +847,7 @@ MODULE AnnihilationMod
         INTEGER, DIMENSION(lenof_sign) :: CurrentSign,SpawnedSign
         REAL*8 :: HDiag
         LOGICAL :: TestClosedShellDet
+        character(*), parameter :: this_routine = 'InsertRemoveParts'
         HElement_t :: HDiagTemp
 
 !It appears that the rest of this routine isn't thread-safe if ValidSpawned is zero.
@@ -849,6 +867,8 @@ MODULE AnnihilationMod
                             if (test_flag(CurrentDets(:,i),flag_parent_initiator(part_type))) then
                                 !determinant was an initiator...it obviously isn't any more...
                                 NoAddedInitiators=NoAddedInitiators-1.D0
+                                if (tSpawnSpatialInit) &
+                                    call rm_initiator_list (CurrentDets(:,i))
                             endif
                         enddo
                     ENDIF
@@ -866,17 +886,8 @@ MODULE AnnihilationMod
 !Record the highest weighted determinant on each processor.
 !TODO: NOTE: THIS STILL ONLY WORKS EXPLICITLY FOR REAL WALKERS ONLY
                         IF((abs(CurrentSign(1))).gt.iHighestPop) THEN
-                            IF(tHPHF) THEN
-                                !For HPHF functions, we restrict ourselves to closed shell determinants for simplicity.
-                                IF(TestClosedShellDet(CurrentDets(0:NIfDBO,i))) THEN
-                                    !HPHF func is closed shell - we can move to this without problems.
-                                    iHighestPop=abs(CurrentSign(1))
-                                    HighestPopDet(:)=CurrentDets(:,i)
-                                ENDIF
-                            ELSE
-                                iHighestPop=abs(CurrentSign(1))
-                                HighestPopDet(:)=CurrentDets(:,i)
-                            ENDIF
+                            iHighestPop=abs(CurrentSign(1))
+                            HighestPopDet(:)=CurrentDets(:,i)
                         ENDIF
                     ENDIF
                 ENDIF
@@ -918,6 +929,13 @@ MODULE AnnihilationMod
 !TotWalkersNew is now the number of determinants in the main list left.
 !We now want to merge the main list with the spawned list of non-annihilated spawned particles.
 !The final list will be of length TotWalkersNew+ValidSpawned. This will be returned in the first element of MergeLists updated.
+        if(TotWalkersNew+ValidSpawned>MaxWalkersPart) then
+            WRITE(6,*) "Non-annihilated old walkers:",TotWalkersNew
+            WRITE(6,*) "Non-annihilated spawned:",ValidSpawned
+            WRITE(6,*) "Total walkers to remain:", TotWalkersNew+ValidSpawned
+            WRITE(6,*) "Size of Particle List:", MaxWalkersPart
+            call stop_all(this_routine, "Not enough space in particle list for merge.") 
+        endif
         IF(tRegenDiagHEls) THEN
             IF(TotWalkersNew.eq.0) THEN
 !Merging algorithm will not work with no determinants in the main list.

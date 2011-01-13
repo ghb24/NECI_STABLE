@@ -1,3 +1,5 @@
+#include "macros.h"
+
 module DeterminantData
     use SystemData, only: nel, tCSF
     use csf_data, only: iscsf, csf_orbital_mask, csf_yama_bit
@@ -5,6 +7,13 @@ module DeterminantData
 
     integer, pointer :: FDet(:)
     integer :: tagFDet
+
+    type lexicographic_store
+        integer, allocatable :: dorder(:)
+        integer, allocatable :: open_orbs(:)
+        integer, allocatable :: open_indices(:)
+        integer :: nopen, nup
+    end type
 
 contains
 
@@ -71,4 +80,60 @@ contains
         write(nunit,'(")")',advance='no')
         if (lTerm) write(nunit,*)
     end subroutine write_det_len
+
+    subroutine get_lexicographic (dorder, nopen, nup)
+
+        ! Unlike the csf version, this uses 1 == alpha, 0 = beta.
+
+        integer, intent(in) :: nopen, nup
+        integer, intent(inout) :: dorder(nopen)
+        integer :: comb(nup)
+        integer :: i, j
+        logical :: bInc
+
+        ! Initialise
+        if (dorder(1) == -1) then
+            dorder(1:nup) = 0
+            dorder(nup+1:nopen) = 1
+        else
+            ! Get the list of positions of the beta electrons
+            j = 0
+            do i = 1, nopen
+                if (dorder(i) == 0) then
+                    j = j + 1
+                    comb(j) = i
+                    
+                    ! Have we reached the last possibility?
+                    if (j == 1 .and. i == nopen - nup + 1) then
+                        dorder(1) = -1
+                        return
+                    endif
+
+                    if (j == nup) exit
+                endif
+            enddo
+
+            do i = 1, nup
+                bInc = .false.
+                if (i == nup) then
+                    bInc = .true.
+                else if (i < nup) then
+                    if (comb(i+1) /= comb(i) + 1) bInc = .true.
+                endif
+
+                if (bInc) then
+                    comb(i) = comb(i) + 1
+                    exit
+                else
+                    comb(i) = i
+                endif
+            enddo
+
+            dorder = 1
+            dorder(comb) = 0
+        endif
+    end subroutine
+
+
+
 end module

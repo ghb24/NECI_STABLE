@@ -1,147 +1,113 @@
+#####################
+# Scalar values
+#####################
 [int]
-type1=integer(kind=int32)
+type1=integer(int32)
 mpitype=MPI_INTEGER
 mpilen=1
 mpilen2=1
 ndim=0
 
-[arr_int]
-type1=integer(kind=int32), dimension(:)
-mpilen=(ubound(values,1)-lbound(values,1)+1)
-mpilen2=(ubound(values2,1)-lbound(values2,1)+1)
-ndim=1
-
-[arr2_int]
-type1=integer(kind=int32), dimension(:,:)
-mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1))
-mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1))
-ndim=2
-
 [int64]
-type1=integer(kind=int64)
+type1=integer(int64)
 mpitype=MPI_INTEGER8
-mpilen=1
-mpilen2=1
-ndim=0
-
-[arr_int64]
-type1=integer(kind=int64), dimension(:)
-mpilen=(ubound(values,1)-lbound(values,1)+1)
-mpilen2=(ubound(values2,1)-lbound(values2,1)+1)
-ndim=1
-
-[arr2_int64]
-type1=integer(kind=int64), dimension(:,:)
-mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1))
-mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1))
-ndim=2
-
 
 [double]
-type1=real*8
+type1=real(dp)
 mpitype=MPI_DOUBLE_PRECISION
-mpilen=1
-mpilen2=1
-ndim=0
-
-[arr_double]
-type1=real*8, dimension(:)
-mpilen=(ubound(values,1)-lbound(values,1)+1)
-mpilen2=(ubound(values2,1)-lbound(values2,1)+1)
-ndim=1
-
-[arr2_double]
-type1=real*8, dimension(:,:)
-mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1))
-mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1))
-ndim=2
-
-[arr3_double]
-type1=real*8, dimension(:,:,:)
-mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1)*(ubound(values,3)-lbound(values,3)+1))
-mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1)*(ubound(values2,3)-lbound(values2,3)+1))
-ndim=3
 
 [logical]
 type1=LOGICAL
 mpitype=MPI_LOGICAL
-mpilen=1
-mpilen2=1
-ndim=0
 
+[complex]
+type1=complex(dp)
+mpitype=MPI_DOUBLE_COMPLEX
+
+
+#####################
+# 1-D Arrays
+#####################
 [arr_int]
-type1=integer(kind=int32), dimension(:)
+type1=integer(int32), dimension(:)
 mpitype=MPI_INTEGER
 mpilen=(ubound(values,1)-lbound(values,1)+1)
 mpilen2=(ubound(values2,1)-lbound(values2,1)+1)
 ndim=1
-
-[arr2_int]
-type1=integer(kind=int32), dimension(:,:)
-mpitype=MPI_INTEGER
-mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1))
-mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1))
-ndim=2
 
 [arr_int64]
-type1=integer(kind=int64), dimension(:)
+type1=integer(int64), dimension(:)
 mpitype=MPI_INTEGER8
-mpilen=(ubound(values,1)-lbound(values,1)+1)
-mpilen2=(ubound(values2,1)-lbound(values2,1)+1)
-ndim=1
+
+[arr_double]
+type1=real(dp), dimension(:)
+mpitype=MPI_DOUBLE_PRECISION
+
+[arr_complex]
+type1=complex(dp), dimension(:)
+mpitype=MPI_DOUBLE_COMPLEX
 
 [arr_logical]
 type1=logical, dimension(:)
 mpitype=MPI_LOGICAL
-mpilen=(ubound(values,1)-lbound(values,1)+1)
-mpilen2=(ubound(values2,1)-lbound(values2,1)+1)
-ndim=1
 
-[arr3_double]
-type1=real*8, dimension(:,:,:)
-mpitype=MPI_DOUBLE_PRECISION
-mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1)*(ubound(values,3)-lbound(values,3)+1))
-mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1)*(ubound(values2,3)-lbound(values2,3)+1))
-ndim=3
+######################
+# 2-D Arrays
+######################
+[arr2_int]
+type1=integer(int32), dimension(:,:)
+mpitype=MPI_INTEGER
+mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1))
+mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1))
+ndim=2
+
+[arr2_int64]
+type1=integer(int64), dimension(:,:)
+mpitype=MPI_INTEGER8
 
 [arr2_double]
-type1=real*8, dimension(:,:)
+type1=real(dp), dimension(:,:)
 mpitype=MPI_DOUBLE_PRECISION
-mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1))
-mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1))
-ndim=2
-
-[arr_double]
-type1=real*8, dimension(:)
-mpitype=MPI_DOUBLE_PRECISION
-mpilen=(ubound(values,1)-lbound(values,1)+1)
-mpilen2=(ubound(values2,1)-lbound(values2,1)+1)
-ndim=1
-
-[complex]
-type1=complex*16
-mpitype=MPI_DOUBLE_COMPLEX
-mpilen=1
-mpilen2=1
-ndim=0
-
-[arr_complex]
-type1=complex*16, dimension(:)
-mpilen=(ubound(values,1)-lbound(values,1)+1)
-mpilen2=(ubound(values2,1)-lbound(values2,1)+1)
-ndim=1
 
 [arr2_complex]
-type1=complex*16, dimension(:,:)
-mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1))
-mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1))
-ndim=2
+type1=complex(dp), dimension(:,:)
+mpitype=MPI_DOUBLE_COMPLEX
 
-[arr3_complex]
-type1=complex*16, dimension(:,:,:)
+[arr2_logical]
+type1=logical, dimension(:,:)
+mpitype=MPI_LOGICAL
+
+######################
+# 3-D Arrays
+######################
+[arr3_int]
+type1=integer(int32), dimension(:,:,:)
+mpitype=MPI_INTEGER
 mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1)*(ubound(values,3)-lbound(values,3)+1))
 mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1)*(ubound(values2,3)-lbound(values2,3)+1))
 ndim=3
+
+[arr3_double]
+type1=real(dp), dimension(:,:,:)
+mpitype=MPI_DOUBLE_PRECISION
+
+[arr3_complex]
+type1=complex(dp), dimension(:,:,:)
+mpitype=MPI_DOUBLE_COMPLEX
+
+######################
+# 4-D Arrays
+######################
+[arr4_int]
+type1=integer(int32), dimension(:,:,:,:)
+mpitype=MPI_INTEGER
+mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1)*(ubound(values,3)-lbound(values,3)+1)*(ubound(values,4)-lbound(values,4)+1))
+mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1)*(ubound(values2,3)-lbound(values2,3)+1)*(ubound(values2,4)-lbound(values2,4)+1))
+ndim=4
+
+[arr4_double]
+type1=real(dp), dimension(:,:,:,:)
+mpitype=MPI_DOUBLE_PRECISION
 
 =========================
 
@@ -154,7 +120,7 @@ module Parallel
 #ifdef PARALLEL
    uSe MPI
 #endif
-   use ParallelHelper,  only: CommI, GetComm, MPIErr
+   use ParallelHelper,  only: CommI, GetComm, MPIErr, iProcIndex
    use constants
    implicit none
 
@@ -172,6 +138,11 @@ module Parallel
     interface MPIReduce
         module procedure MPIReduce_len_%(name)s
         module procedure MPIReduce_auto_%(name)s
+    end interface
+
+    interface MPISum
+        module procedure MPISum_len_%(name)s
+        module procedure MPISum_auto_%(name)s
     end interface
 
     interface MPIBcast
@@ -271,6 +242,34 @@ subroutine MPIReduce_auto (Values, iType, Ret, Node)
 #endif
 end subroutine
 
+
+subroutine MPIReduce_inplace (Values, iType, Node)
+
+    ! The same as MPIReduce, but using the Values array as the return
+    ! array on the target node.
+
+    %(type1)s, intent(inout)  :: Values()
+    integer, intent(in) :: iType
+    integer :: ierr
+    type(CommI), intent(in), optional :: node
+    integer :: comm, rt
+
+#if PARALLEL
+    call GetComm (Comm, Node, rt)
+    if (iProcIndex == rt) then
+        call MPI_REDUCE (MPI_IN_PLACE, Values, %(mpilen)s, %(mpitype)s, &
+                         iType, rt, Comm, ierr)
+    else
+        call MPI_REDUCE (Values, MPI_IN_PLACE, %(mpilen)s, %(mpitype)s, &
+                         iType, rt, Comm, ierr)
+    endif
+    if (ierr /= MPI_SUCCESS) &
+        call stop_all('MPIReduce_inplace', 'Error in MPI_REDUCE')
+#endif
+
+end subroutine
+
+
 subroutine MPIAllReduce_len (Values, iLen, iType, Ret, Node)
 
     ! Call MPI_REDUCE with the type iType on the array Values (with length
@@ -323,6 +322,26 @@ subroutine MPIAllReduce_auto (Values, iType, Ret, Node)
 #endif
 end subroutine
 
+subroutine MPIAllReduce_inplace (Values, iType, Node)
+
+    ! The same as MPIAllReduce_len, but the length of array Value (and thus
+    ! Ret) is determinend automagically
+
+    %(type1)s, intent(inout) :: Values()
+    integer, intent(in) :: iType
+    integer :: ierr
+    type(CommI), intent(in),optional :: Node
+    integer Comm
+#if PARALLEL
+    call GetComm(Comm,Node)
+    call MPI_ALLREDUCE (MPI_IN_PLACE, Values, %(mpilen)s, %(mpitype)s, iType,&
+                        Comm, ierr)
+    if (ierr /= MPI_SUCCESS) then
+        call stop_all ("MPIAllReduce", 'Error in MPI_ALLREDUCE. Terminating.')
+    endif
+#endif
+end subroutine
+
 Subroutine MPIAllReduceDatatype(Values, iLen, iType, iDatatype, Ret, Node)
    !=  In:
    !=     Values         The corresponding elements for each
@@ -372,7 +391,7 @@ end subroutine
 
 subroutine MPISumAll_auto (Values, Ret, Node)
 
-    ! The same as MPISum_auto, but the length of Values is determined
+    ! The same as MPISumAll_auto, but the length of Values is determined
     ! automagically
 
     %(type1)s, intent(in) :: Values()
@@ -383,29 +402,64 @@ subroutine MPISumAll_auto (Values, Ret, Node)
 
 end subroutine
 
-Subroutine MPISum(Values, iLen, Ret, Node)
-   !=  Sum data among all processors, and give the results to the root 
-   !=  In:
-   !=     Values(iLen)   Data (array possibly)  The corresponding elements for each
-   !=                    processor are summed and returnd into Ret
-   !=     iLen           Length of the data (in elements of its type)
-   !=  Out:
-   !=     Return(iLen)   Variable (array possibly) to get the results.
-   %(type1)s, intent(in)  :: Values()
-   %(type1)s, intent(out) :: Ret()
-   integer, intent(in) :: iLen
-   integer ierr
-   type(CommI), intent(in),optional :: Node
-   integer Comm,rt
-#if PARALLEL
-    call GetComm(Comm,Node,rt)
-   call MPI_REDUCE(Values,Ret,iLen,%(mpitype)s,MPI_SUM,rt,Comm,ierr)
-   if (ierr .ne. MPI_SUCCESS) then
-      call Stop_All("MPISum",'Error in MPISum. Terminating.')
-   end if
-#else
-   Ret=Values
-#endif
+subroutine MPISumAll_inplace (Values, Node)
+
+    ! The same as MPISumAll, but returning the results destructively 
+    ! in values
+
+    %(type1)s, intent(inout) :: Values()
+    type(CommI), intent(in),optional :: Node
+
+    call MPIAllReduce_inplace (Values, MPI_SUM, Node)
+
+end subroutine
+
+
+subroutine MPISum_len(Values, iLen, Ret, Node)
+
+    ! Sum data on different processors, leaving the result only on the root
+    ! node. (Or the node specified)
+    !
+    ! In:  Values  - Array of data to contribute to the sum
+    !      iLen    - Number of data elements in Values
+    !      Node    - The node leave the final values on.
+    ! Out: Ret     - An array of the same size as values to contain the
+    !                summed values.
+
+    %(type1)s, intent(in)  :: Values()
+    %(type1)s, intent(out) :: Ret()
+    integer, intent(in) :: iLen
+    type(CommI), intent(in), optional :: Node
+
+    call MPIReduce (Values, iLen, MPI_SUM, Ret, Node)
+
+end subroutine
+
+subroutine MPISum_auto(Values, Ret, Node)
+
+    ! Sum data on different processors, leaving the result only on the root
+    ! node. (Or the node specified). We don't need to specify the length.
+    !
+    ! In:  Values  - Array of data to contribute to the sum
+    !      Node    - The node leave the final values on.
+    ! Out: Ret     - An array of the same size as values to contain the
+    !                summed values.
+
+    %(type1)s, intent(in)  :: Values()
+    %(type1)s, intent(out) :: Ret()
+    type(CommI), intent(in), optional :: Node
+
+    call MPIReduce (Values, MPI_SUM, Ret, Node)
+
+end subroutine
+
+subroutine MPISum_inplace (Values, Node)
+
+    %(type1)s, intent(inout) :: Values()
+    type(CommI), intent(in), optional :: Node
+
+    call MPIReduce_inplace (Values, MPI_SUM, Node)
+
 end subroutine
 
 subroutine MPIBCast_lenroot (Values, iLen, rt)

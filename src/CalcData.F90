@@ -30,6 +30,20 @@ logical :: tReadPopsRestart, tReadPopsChangeRef
 ! --> All dets with same spatial structure on the same processor.
 logical :: tSpatialOnlyHash
 
+! Do we allow walkers to survive (in the initiator approx.) if a determinant
+! with the same spatial configuration is an initiator?
+logical :: tSpawnSpatialInit
+
+!These options mean that only initiators can spawn walkers.
+!tSpawn_Only_Init_Grow means that this option is removed once variable shift is entered.
+logical :: tSpawn_Only_Init,tSpawn_Only_Init_Grow
+
+! Do we truncate spawning based on the number of unpaired electrons
+logical :: tTruncNOpen
+integer :: trunc_nopen_max
+
+logical :: tMaxBloom    !If this is on, then we only print out a bloom warning if it is the biggest to date.
+
 INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits,IterTruncInit,InitiatorWalkNo,NShiftEquilSteps
 INTEGER :: NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp,iFullSpaceIter
 INTEGER :: IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets,iDetGroup
@@ -47,6 +61,8 @@ REAL*8 :: GrowGraphsExpo,Tau,SftDamp,ScaleWalkers
 REAL*8 :: GrowMaxFactor,CullFactor,PRet,FracLargerDet
 REAL*8 :: MemoryFacPart,MemoryFacAnnihil
 REAL*8 :: MemoryFacSpawn,SinglesBias,TauFactor,StepsSftImag
+
+real(dp) :: MemoryFacInit
 
 real(dp), target :: DiagSft
 

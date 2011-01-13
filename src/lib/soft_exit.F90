@@ -93,8 +93,8 @@ module soft_exit
     use bit_reps, only: NIfTot
     use util_mod, only: binary_search, get_free_unit
     use FciMCData, only: iter, CASMin, CASMax, tTruncSpace, tSinglePartPhase,&
-                         SumENum, SumNoatHF, HFPopCyc, ProjEIterSum, &
-                         Histogram, AvAnnihil, VaryShiftCycles, SumDiagSft, &
+                         SumENum, SumNoatHF, &
+                         AvAnnihil, VaryShiftCycles, SumDiagSft, &
                          VaryShiftIter, CurrentDets, iLutHF, HFDet, &
                          TotWalkers,tPrintHighPop
     use CalcData, only: DiagSft, SftDamp, StepsSft, OccCASOrbs, VirtCASOrbs, &
@@ -102,7 +102,7 @@ module soft_exit
                         InitiatorWalkNo, tCheckHighestPop, tRestartHighPop, &
                         tChangeProjEDet, tCheckHighestPopOnce, FracLargerDet,&
                         SinglesBias_value => SinglesBias, tau_value => tau, &
-                        nmcyc_value => nmcyc
+                        nmcyc_value => nmcyc, tTruncNOpen, trunc_nopen_max
     use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
                              NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt
@@ -119,6 +119,7 @@ module soft_exit
                             spin_proj_interval, spin_proj_shift, &
                             spin_proj_cutoff, spin_proj_spawn_initiators, &
                             spin_proj_no_death, spin_proj_iter_count
+    use hist_data, only: Histogram
     use Parallel
     implicit none
 
@@ -155,9 +156,9 @@ contains
                               spin_project_cutoff = 33, &
                               spin_project_spawn_initiators = 34, &
                               spin_project_no_death = 35, &
-                              spin_project_iter_count = 36
+                              spin_project_iter_count = 36, trunc_nopen = 37
 
-        integer, parameter :: last_item = spin_project_iter_count
+        integer, parameter :: last_item = trunc_nopen
         integer, parameter :: max_item_len = 29
         character(max_item_len), parameter :: option_list(last_item) &
                                = (/"excite                       ", &
@@ -195,14 +196,15 @@ contains
                                    "spin-project-cutoff          ", &
                                    "spin-project-spawn-initiators", &
                                    "spin-project-no-death        ", &
-                                   "spin-project-iter-count      "/)
+                                   "spin-project-iter-count      ", &
+                                   "trunc-nopen                  "/)
 
 
         logical :: exists, any_exist, eof, deleted, any_deleted
         logical :: opts_selected(last_item)
         logical, intent(out) :: tSingBiasChange, tSoftExitFound
         logical, intent(out) :: tWritePopsFound
-        integer :: i, proc, nmcyc_new, ios, pos
+        integer :: i, proc, nmcyc_new, ios, pos, trunc_nop_new
         integer, dimension(lenof_sign) :: hfsign
         real(dp) :: hfScaleFactor
         character(len=100) :: w
@@ -298,6 +300,8 @@ contains
                             spin_proj_no_death = readt_default (.true.)
                         elseif (i == spin_project_iter_count) then
                             call readi (spin_proj_iter_count)
+                        elseif (i == trunc_nopen) then
+                            call readi (trunc_nop_new)
                         endif
                     enddo
 
@@ -442,8 +446,6 @@ contains
             if (opts_selected(zeroproje)) then
                 SumENum = 0
                 SumNoatHF = 0
-                HFPopCyc = 0
-                ProjEIterSum = 0
                 VaryShiftCycles = 0
                 SumDiagSft = 0
                 root_print 'Zeroing all average energy estimators.'
@@ -584,8 +586,8 @@ contains
 
                 SumNoatHF = SumNoatHF * hfScaleFactor
                 if (iNodeIndex == DetermineDetNode(HFDet,0).and. bNodeRoot) then
-                    pos = binary_search (CurrentDets, iLutHF, NIfTot+1, &
-                                         int(TotWalkers,int32))
+                    pos = binary_search (CurrentDets(:,1:TotWalkers), &
+                                         iLutHF)
                     call extract_sign (CurrentDets(:,pos), hfsign)
                     do i = 1, lenof_sign
                         hfsign(i) = hfsign(i) * hfScaleFactor
@@ -675,6 +677,30 @@ contains
                 root_print 'The stochastic spin projection operator will now &
                            &be applied ', spin_proj_iter_count, ' times on &
                            &each occasion.'
+            endif
+
+            ! Change the maximum nopen truncation level
+            if (opts_selected(trunc_nopen)) then
+                if (tTruncNOpen) then
+                    call MPIBcast (trunc_nop_new, proc)
+                    if (trunc_nop_new < 0 .or. trunc_nop_new > nel) then
+                        tTruncNOpen = .false.
+                        root_print 'Truncation by number of unpaired &
+                                   &electrons disabled.'
+                    elseif (trunc_nop_new >= trunc_nopen_max) then
+                        trunc_nopen_max = trunc_nop_new
+                        root_print 'Truncating space to a maximum of ', &
+                                   trunc_nopen_max, ' unpaired electrons per &
+                                   &determinant.'
+                    else
+                        root_print 'Cannot decrease truncation level for &
+                                   &truncation by number of unpaired &
+                                   &electrons during a run.'
+                    endif
+                else
+                    root_print 'WARNING: Cannot enable truncation by number &
+                               &of unpaired electrons during a run.'
+                endif
             endif
 
         endif

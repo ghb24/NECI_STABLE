@@ -6,6 +6,10 @@ module bit_reps
     use constants, only: lenof_sign, end_n_int, bits_n_int, n_int
     use DetBitOps, only: count_open_orbs
     use bit_rep_data
+    use SymExcitDataMod, only: excit_gen_store_type, tBuildOccVirtList, &
+                               OrbClassCount, ScratchSize, SymLabelList2, &
+                               SymLabelCounts2
+    use sym_general_mod, only: ClassCountInd
     implicit none
 
     ! Structure of a bit representation:
@@ -24,6 +28,86 @@ module bit_reps
         module procedure set_flag_single
         module procedure set_flag_general
     end interface
+
+    ! Which decoding function do we want to use?
+    interface decode_bit_det
+!        module procedure decode_bit_det_bitwise
+        module procedure decode_bit_det_chunks
+    end interface
+
+    ! Some (rather nasty) data for the chunkwise decoding
+    integer, parameter :: decode_map_arr(0:8,0:255) = reshape(&
+        (/0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,1,2,0,0,0,0,0,0,0,2,1,2,0,0,0,&
+        0,0,0,1,3,0,0,0,0,0,0,0,2,1,3,0,0,0,0,0,0,2,2,3,0,0,0,0,0,0,3,1,2,&
+        3,0,0,0,0,0,1,4,0,0,0,0,0,0,0,2,1,4,0,0,0,0,0,0,2,2,4,0,0,0,0,0,0,&
+        3,1,2,4,0,0,0,0,0,2,3,4,0,0,0,0,0,0,3,1,3,4,0,0,0,0,0,3,2,3,4,0,0,&
+        0,0,0,4,1,2,3,4,0,0,0,0,1,5,0,0,0,0,0,0,0,2,1,5,0,0,0,0,0,0,2,2,5,&
+        0,0,0,0,0,0,3,1,2,5,0,0,0,0,0,2,3,5,0,0,0,0,0,0,3,1,3,5,0,0,0,0,0,&
+        3,2,3,5,0,0,0,0,0,4,1,2,3,5,0,0,0,0,2,4,5,0,0,0,0,0,0,3,1,4,5,0,0,&
+        0,0,0,3,2,4,5,0,0,0,0,0,4,1,2,4,5,0,0,0,0,3,3,4,5,0,0,0,0,0,4,1,3,&
+        4,5,0,0,0,0,4,2,3,4,5,0,0,0,0,5,1,2,3,4,5,0,0,0,1,6,0,0,0,0,0,0,0,&
+        2,1,6,0,0,0,0,0,0,2,2,6,0,0,0,0,0,0,3,1,2,6,0,0,0,0,0,2,3,6,0,0,0,&
+        0,0,0,3,1,3,6,0,0,0,0,0,3,2,3,6,0,0,0,0,0,4,1,2,3,6,0,0,0,0,2,4,6,&
+        0,0,0,0,0,0,3,1,4,6,0,0,0,0,0,3,2,4,6,0,0,0,0,0,4,1,2,4,6,0,0,0,0,&
+        3,3,4,6,0,0,0,0,0,4,1,3,4,6,0,0,0,0,4,2,3,4,6,0,0,0,0,5,1,2,3,4,6,&
+        0,0,0,2,5,6,0,0,0,0,0,0,3,1,5,6,0,0,0,0,0,3,2,5,6,0,0,0,0,0,4,1,2,&
+        5,6,0,0,0,0,3,3,5,6,0,0,0,0,0,4,1,3,5,6,0,0,0,0,4,2,3,5,6,0,0,0,0,&
+        5,1,2,3,5,6,0,0,0,3,4,5,6,0,0,0,0,0,4,1,4,5,6,0,0,0,0,4,2,4,5,6,0,&
+        0,0,0,5,1,2,4,5,6,0,0,0,4,3,4,5,6,0,0,0,0,5,1,3,4,5,6,0,0,0,5,2,3,&
+        4,5,6,0,0,0,6,1,2,3,4,5,6,0,0,1,7,0,0,0,0,0,0,0,2,1,7,0,0,0,0,0,0,&
+        2,2,7,0,0,0,0,0,0,3,1,2,7,0,0,0,0,0,2,3,7,0,0,0,0,0,0,3,1,3,7,0,0,&
+        0,0,0,3,2,3,7,0,0,0,0,0,4,1,2,3,7,0,0,0,0,2,4,7,0,0,0,0,0,0,3,1,4,&
+        7,0,0,0,0,0,3,2,4,7,0,0,0,0,0,4,1,2,4,7,0,0,0,0,3,3,4,7,0,0,0,0,0,&
+        4,1,3,4,7,0,0,0,0,4,2,3,4,7,0,0,0,0,5,1,2,3,4,7,0,0,0,2,5,7,0,0,0,&
+        0,0,0,3,1,5,7,0,0,0,0,0,3,2,5,7,0,0,0,0,0,4,1,2,5,7,0,0,0,0,3,3,5,&
+        7,0,0,0,0,0,4,1,3,5,7,0,0,0,0,4,2,3,5,7,0,0,0,0,5,1,2,3,5,7,0,0,0,&
+        3,4,5,7,0,0,0,0,0,4,1,4,5,7,0,0,0,0,4,2,4,5,7,0,0,0,0,5,1,2,4,5,7,&
+        0,0,0,4,3,4,5,7,0,0,0,0,5,1,3,4,5,7,0,0,0,5,2,3,4,5,7,0,0,0,6,1,2,&
+        3,4,5,7,0,0,2,6,7,0,0,0,0,0,0,3,1,6,7,0,0,0,0,0,3,2,6,7,0,0,0,0,0,&
+        4,1,2,6,7,0,0,0,0,3,3,6,7,0,0,0,0,0,4,1,3,6,7,0,0,0,0,4,2,3,6,7,0,&
+        0,0,0,5,1,2,3,6,7,0,0,0,3,4,6,7,0,0,0,0,0,4,1,4,6,7,0,0,0,0,4,2,4,&
+        6,7,0,0,0,0,5,1,2,4,6,7,0,0,0,4,3,4,6,7,0,0,0,0,5,1,3,4,6,7,0,0,0,&
+        5,2,3,4,6,7,0,0,0,6,1,2,3,4,6,7,0,0,3,5,6,7,0,0,0,0,0,4,1,5,6,7,0,&
+        0,0,0,4,2,5,6,7,0,0,0,0,5,1,2,5,6,7,0,0,0,4,3,5,6,7,0,0,0,0,5,1,3,&
+        5,6,7,0,0,0,5,2,3,5,6,7,0,0,0,6,1,2,3,5,6,7,0,0,4,4,5,6,7,0,0,0,0,&
+        5,1,4,5,6,7,0,0,0,5,2,4,5,6,7,0,0,0,6,1,2,4,5,6,7,0,0,5,3,4,5,6,7,&
+        0,0,0,6,1,3,4,5,6,7,0,0,6,2,3,4,5,6,7,0,0,7,1,2,3,4,5,6,7,0,1,8,0,&
+        0,0,0,0,0,0,2,1,8,0,0,0,0,0,0,2,2,8,0,0,0,0,0,0,3,1,2,8,0,0,0,0,0,&
+        2,3,8,0,0,0,0,0,0,3,1,3,8,0,0,0,0,0,3,2,3,8,0,0,0,0,0,4,1,2,3,8,0,&
+        0,0,0,2,4,8,0,0,0,0,0,0,3,1,4,8,0,0,0,0,0,3,2,4,8,0,0,0,0,0,4,1,2,&
+        4,8,0,0,0,0,3,3,4,8,0,0,0,0,0,4,1,3,4,8,0,0,0,0,4,2,3,4,8,0,0,0,0,&
+        5,1,2,3,4,8,0,0,0,2,5,8,0,0,0,0,0,0,3,1,5,8,0,0,0,0,0,3,2,5,8,0,0,&
+        0,0,0,4,1,2,5,8,0,0,0,0,3,3,5,8,0,0,0,0,0,4,1,3,5,8,0,0,0,0,4,2,3,&
+        5,8,0,0,0,0,5,1,2,3,5,8,0,0,0,3,4,5,8,0,0,0,0,0,4,1,4,5,8,0,0,0,0,&
+        4,2,4,5,8,0,0,0,0,5,1,2,4,5,8,0,0,0,4,3,4,5,8,0,0,0,0,5,1,3,4,5,8,&
+        0,0,0,5,2,3,4,5,8,0,0,0,6,1,2,3,4,5,8,0,0,2,6,8,0,0,0,0,0,0,3,1,6,&
+        8,0,0,0,0,0,3,2,6,8,0,0,0,0,0,4,1,2,6,8,0,0,0,0,3,3,6,8,0,0,0,0,0,&
+        4,1,3,6,8,0,0,0,0,4,2,3,6,8,0,0,0,0,5,1,2,3,6,8,0,0,0,3,4,6,8,0,0,&
+        0,0,0,4,1,4,6,8,0,0,0,0,4,2,4,6,8,0,0,0,0,5,1,2,4,6,8,0,0,0,4,3,4,&
+        6,8,0,0,0,0,5,1,3,4,6,8,0,0,0,5,2,3,4,6,8,0,0,0,6,1,2,3,4,6,8,0,0,&
+        3,5,6,8,0,0,0,0,0,4,1,5,6,8,0,0,0,0,4,2,5,6,8,0,0,0,0,5,1,2,5,6,8,&
+        0,0,0,4,3,5,6,8,0,0,0,0,5,1,3,5,6,8,0,0,0,5,2,3,5,6,8,0,0,0,6,1,2,&
+        3,5,6,8,0,0,4,4,5,6,8,0,0,0,0,5,1,4,5,6,8,0,0,0,5,2,4,5,6,8,0,0,0,&
+        6,1,2,4,5,6,8,0,0,5,3,4,5,6,8,0,0,0,6,1,3,4,5,6,8,0,0,6,2,3,4,5,6,&
+        8,0,0,7,1,2,3,4,5,6,8,0,2,7,8,0,0,0,0,0,0,3,1,7,8,0,0,0,0,0,3,2,7,&
+        8,0,0,0,0,0,4,1,2,7,8,0,0,0,0,3,3,7,8,0,0,0,0,0,4,1,3,7,8,0,0,0,0,&
+        4,2,3,7,8,0,0,0,0,5,1,2,3,7,8,0,0,0,3,4,7,8,0,0,0,0,0,4,1,4,7,8,0,&
+        0,0,0,4,2,4,7,8,0,0,0,0,5,1,2,4,7,8,0,0,0,4,3,4,7,8,0,0,0,0,5,1,3,&
+        4,7,8,0,0,0,5,2,3,4,7,8,0,0,0,6,1,2,3,4,7,8,0,0,3,5,7,8,0,0,0,0,0,&
+        4,1,5,7,8,0,0,0,0,4,2,5,7,8,0,0,0,0,5,1,2,5,7,8,0,0,0,4,3,5,7,8,0,&
+        0,0,0,5,1,3,5,7,8,0,0,0,5,2,3,5,7,8,0,0,0,6,1,2,3,5,7,8,0,0,4,4,5,&
+        7,8,0,0,0,0,5,1,4,5,7,8,0,0,0,5,2,4,5,7,8,0,0,0,6,1,2,4,5,7,8,0,0,&
+        5,3,4,5,7,8,0,0,0,6,1,3,4,5,7,8,0,0,6,2,3,4,5,7,8,0,0,7,1,2,3,4,5,&
+        7,8,0,3,6,7,8,0,0,0,0,0,4,1,6,7,8,0,0,0,0,4,2,6,7,8,0,0,0,0,5,1,2,&
+        6,7,8,0,0,0,4,3,6,7,8,0,0,0,0,5,1,3,6,7,8,0,0,0,5,2,3,6,7,8,0,0,0,&
+        6,1,2,3,6,7,8,0,0,4,4,6,7,8,0,0,0,0,5,1,4,6,7,8,0,0,0,5,2,4,6,7,8,&
+        0,0,0,6,1,2,4,6,7,8,0,0,5,3,4,6,7,8,0,0,0,6,1,3,4,6,7,8,0,0,6,2,3,&
+        4,6,7,8,0,0,7,1,2,3,4,6,7,8,0,4,5,6,7,8,0,0,0,0,5,1,5,6,7,8,0,0,0,&
+        5,2,5,6,7,8,0,0,0,6,1,2,5,6,7,8,0,0,5,3,5,6,7,8,0,0,0,6,1,3,5,6,7,&
+        8,0,0,6,2,3,5,6,7,8,0,0,7,1,2,3,5,6,7,8,0,5,4,5,6,7,8,0,0,0,6,1,4,&
+        5,6,7,8,0,0,6,2,4,5,6,7,8,0,0,7,1,2,4,5,6,7,8,0,6,3,4,5,6,7,8,0,0,&
+        7,1,3,4,5,6,7,8,0,7,2,3,4,5,6,7,8,0,8,1,2,3,4,5,6,7,8/),&
+        (/9,256/) )
 
 contains
 
@@ -104,15 +188,20 @@ contains
          
     end subroutine
 
-    subroutine extract_bit_rep (ilut, nI, sgn, flags)
+    subroutine extract_bit_rep (ilut, nI, sgn, flags, store)
         
         ! Extract useful terms out of the bit-representation of a walker
 
         integer(n_int), intent(in) :: ilut(0:nIfTot)
         integer, intent(out) :: nI(nel), flags
         integer, dimension(lenof_sign), intent(out) :: sgn
+        type(excit_gen_store_type), intent(inout), optional :: store
 
-        call decode_bit_det (nI, ilut)
+        if (tBuildOccVirtList .and. present(store)) then
+            call decode_bit_det_lists (nI, ilut, store)
+        else
+            call decode_bit_det (nI, ilut)
+        endif
 
         sgn = iLut(NOffSgn:NOffSgn+lenof_sign-1)
         IF(NifFlag.eq.1) THEN
@@ -301,7 +390,163 @@ contains
 
     end subroutine encode_det
 
-    subroutine decode_bit_det (nI, iLut)
+    subroutine decode_bit_det_lists (nI, iLut, store)
+
+        ! This routine decodes a determinant in bit form and constructs
+        ! the natural ordered NEl integer representation of the det.
+        !
+        ! It also constructs lists of the occupied and unoccupied orbitals
+        ! within a symmetry.
+
+        integer(n_int), intent(in) :: iLut(0:niftot)
+        integer, intent(out) :: nI(nel)
+        type(excit_gen_store_type), intent(inout) :: store
+        integer :: i, j, elec, orb, ind, virt(ScratchSize)
+
+        ! Initialise the class counts
+        store%ClassCountOcc = 0
+        virt = 0
+
+        elec = 0
+        do i = 0, NIfD
+            do j = 0, end_n_int
+                orb = (i * bits_n_int) + (j + 1)
+                ind = ClassCountInd(orb)
+                if (btest(iLut(i), j)) then
+                    !An electron is at this orbital
+                    elec = elec + 1
+                    nI(elec) = orb
+
+                    ! Update class counts
+                    store%ClassCountOcc(ind) = store%ClassCountOcc(ind) + 1
+
+                    ! Store orbital INDEX in list of occ. orbs.
+                    store%occ_list(store%ClassCountOcc(ind), ind) = elec
+
+                    if (elec == nel) exit
+                else
+                    ! Update count
+                    virt(ind) = virt(ind)+1
+
+                    ! Store orbital in list of unocc. orbs.
+                    store%virt_list(virt(ind), ind) = orb
+                endif
+            enddo
+            if (elec == nel) exit
+        enddo
+
+        ! Give final class count
+        store%ClassCountUnocc = OrbClassCount - store%ClassCountOcc
+        store%tFilled = .true.
+        store%scratch3(1) = -1
+
+        ! Fill in the remaineder of the virtuals list
+        forall (ind = 1:ScratchSize)
+            !if (virt(ind) /= store%ClassCountUnocc(ind)) then
+                store%virt_list ( &
+                    virt(ind) + 1 : &
+                    store%ClassCountUnocc(ind), ind) = &
+                SymLabelList2 (&
+                    SymLabelCounts2(1, ind) + virt(ind) + &
+                        store%ClassCountOcc(ind) : &
+                    SymLabelCounts2(1, ind) + OrbClassCount(ind) - 1)
+            !endif
+        endforall
+
+    end subroutine
+
+
+    subroutine decode_bit_det_chunks (nI, iLut)
+
+        ! This is a routine to take a determinant in bit form and construct
+        ! the natural ordered Nel integer form of the det.
+        ! If CSFs are enabled, transfer the Yamanouchi symbol as well.
+
+        integer(n_int), intent(in) :: ilut(0:NIftot)
+        integer, intent(out) :: nI(nel)
+        integer :: nopen, i, j, k, val, elec, offset, pos
+        logical :: bIsCsf
+
+        ! We need to use the CSF decoding routine if CSFs are enabled, and 
+        ! we are below a truncation limit if set.
+        bIsCsf = .false.
+        if (tCSF) then
+            if (tTruncateCSF) then
+                nopen = count_open_orbs(ilut)
+                if (nopen <= csf_trunc_level) then
+                    bIsCsf = .true.
+                endif
+            else
+                bIsCsf = .true.
+            endif
+        endif
+
+        elec = 0
+        if (bIsCsf) then
+            ! ****************
+            ! Currently this just works in the old fashioned way. We aren't
+            ! really that worried about CSF efficiency atm.
+            ! ****************
+            ! Consider the closed shell electrons first
+            do i=0,NIfD
+                do j=0,bits_n_int-2,2
+                    if (btest(iLut(i),j)) then
+                        if (btest(iLut(i),j+1)) then
+                            ! An electron pair is in this spatial orbital
+                            ! (2 matched spin orbitals)
+                            elec = elec + 2
+                            nI(elec-1) = (bits_n_int*i) + (j+1)
+                            nI(elec) = (bits_n_int*i) + (j+2)
+                            if (elec == nel) return
+                        endif
+                    endif
+                enddo
+            enddo
+
+            ! Now consider the open shell electrons
+            ! TODO: can we move in steps of two, to catch unmatched pairs?
+            nopen = 0
+            do i=0,NIfD
+                do j=0,end_n_int
+                    if (btest(iLut(i),j)) then
+                        if (.not.btest(iLut(i),ieor(j,1))) then
+                            elec = elec + 1
+                            nI(elec) = (bits_n_int*i) + (j+1)
+                            pos = NIfD + 1 + (nopen/bits_n_int)
+                            if (btest(iLut(Pos),mod(nopen,bits_n_int))) then
+                                nI(elec) = ibset(nI(elec),csf_yama_bit)
+                            endif
+                            nopen = nopen + 1
+                        endif
+                    endif
+                    if (elec==nel) exit
+                enddo
+                if (elec==nel) exit
+            enddo
+            ! If there are any open shell e-, set the csf bit
+            nI = ibset(nI, csf_test_bit)
+        else
+            offset = 0
+            do i = 0, NIfD
+                do j = 0, bits_n_int - 1, 8
+                    val = iand(ishft(ilut(i), -j), Z'FF')
+                    do k = 1, decode_map_arr(0, val)
+                        elec = elec + 1
+                        nI(elec) = offset + decode_map_arr(k, val)
+                        if (elec == nel) exit
+                    enddo
+                    if (elec == nel) exit
+                    offset = offset + 8
+                enddo
+                if (elec == nel) exit
+            enddo
+
+        endif
+
+    end subroutine
+
+
+    subroutine decode_bit_det_bitwise (nI, iLut)
 
         ! This is a routine to take a determinant in bit form and construct 
         ! the natural ordered NEl integer forim of the det.
@@ -379,5 +624,6 @@ contains
                 if (elec == nel) exit
             enddo
         endif
-    end subroutine decode_bit_det
+    end subroutine decode_bit_det_bitwise
+
 end module bit_reps

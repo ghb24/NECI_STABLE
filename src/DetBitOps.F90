@@ -1,26 +1,29 @@
 #include "macros.h"
 
-!This file contains a load of useful operations to perform on determinants represented as bit-strings.
-! Start the process of modularising this bit!!
 module DetBitOps
+
+    ! A collection of useful operations to perform on the bit-representation
+    ! of determinants.
+
     use Systemdata, only: nel, tCSF, tTruncateCSF, csf_trunc_level
     use CalcData, only: tTruncInitiator
     use bit_rep_data, only: NIfY, NIfTot, NIfD, NOffFlag, NIfFlag, &
                             test_flag, flag_is_initiator,NIfDBO
     use csf_data, only: iscsf, csf_yama_bit, csf_orbital_mask, csf_test_bit
-    ! TODO: remove
-    use systemdata, only: g1
     use constants, only: n_int,bits_n_int,end_n_int
+
     implicit none
 
 #ifdef __INT64
-    INTEGER(KIND=n_int), PARAMETER :: MaskBeta=Z'5555555555555555'              !This is 1010101... in binary
-    INTEGER(KIND=n_int), PARAMETER :: MaskAlpha=IShft(MaskBeta,1)   !This is 0101010... in binary  
+    ! 10101010 and 01010101 in binary respectively.
+    integer(n_int), parameter :: MaskBeta=Z'5555555555555555'
+    integer(n_int), parameter :: MaskAlpha=IShft(MaskBeta,1)
 #else
-    INTEGER(KIND=n_int), PARAMETER :: MaskBeta=1431655765    !This is 1010101... in binary
-    INTEGER(KIND=n_int), PARAMETER :: MaskAlpha=-1431655766  !This is 0101010... in binary
+    integer(n_int), parameter :: MaskBeta=1431655765
+    integer(n_int), parameter :: MaskAlpha=-1431655766
 #endif
 
+    ! Which count-bits procedure do we use?
     ! http://gurmeetsingh.wordpress.com/2008/08/05/fast-bit-counting-routines/
     ! for a variety of interesting bit counters
     interface CountBits
@@ -660,6 +663,36 @@ module DetBitOps
     end subroutine EncodeBitDet
 
 
+    pure function spatial_bit_det (ilut) result(ilut_s)
+
+        ! Convert the spin orbital representation in ilut_s into a spatial
+        ! orbital representation, with all singly occupied orbitals in the 
+        ! 'beta' position.
+        !
+        ! In:  ilut   - Spin orbital, bit representation
+        ! Out: ilut_s - Spatial orbital, bit representation. Loses all sign
+        !               etc. info (i.e. for ints > NIfD --> 0)
+
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer(n_int) :: ilut_s (0:NIfTot)
+        integer(n_int), dimension(0:NIfD) :: alpha, beta, a_sft, b_sft
+
+        ! Obtain alpha/beta orbital representations
+        alpha = iand(ilut(0:NIfD), MaskAlpha)
+        beta = iand(ilut(0:NIfD), MaskBeta)
+
+        ! Shift alphas to beta pos and vice-versa
+        a_sft = ishft(alpha, -1)
+        b_sft = ishft(beta, +1)
+
+        ! Obtain representation with all singly occupied orbitals in the beta
+        ! position, and doubly occupied orbitals doubly occupied
+        ilut_s(NIfD+1:NIfTot) = 0
+        ilut_s(0:NIfD) = ior(beta, ior(a_sft, iand(b_sft, alpha)))
+
+    end function
+
+
     subroutine FindExcitBitDet(iLutnI, iLutnJ, IC, ExcitMat)
 
         ! This routine will find the bit-representation of an excitation by
@@ -755,6 +788,7 @@ module DetBitOps
             if (i < first_beta_bit) is_canonical_ms_order = .true.
         endif
     end function
+
 end module
 
     pure subroutine GetBitExcitation(iLutnI,iLutnJ,Ex,tSign)

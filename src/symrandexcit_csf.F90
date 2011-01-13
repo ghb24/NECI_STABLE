@@ -6,14 +6,15 @@ module GenRandSymExcitCSF
                           nbasismax, lztot, tFixLz, iMaxLz, tTruncateCSF, &
                           csf_trunc_level, LMS
     use SymExcitDataMod
-    use FciMCData, only: pSingles, pDoubles
+    use FciMCData, only: pSingles, pDoubles, excit_gen_store_type
     use SymData, only: TwoCycleSymGens, nSymLabels
     use csf, only: csf_orbital_mask, csf_test_bit, csf_apply_random_yama, &
                    get_num_csfs, csf_apply_yama, csf_get_yamas, write_yama, &
                    get_csf_yama, num_csf_dets, csf_get_random_det, iscsf, &
                    det_to_random_csf, get_csf_bit_yama
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use GenRandSymExcitNUMod, only: ClassCountInd, gen_rand_excit
+    use GenRandSymExcitNUMod, only: ClassCountInd, gen_rand_excit, &
+                                    init_excit_gen_store,clean_excit_gen_store
     use DetBitOps, only: EncodeBitDet, is_canonical_ms_order, &
                          shift_det_bit_singles_to_beta, count_open_orbs
     use Determinants, only: write_det
@@ -23,10 +24,9 @@ module GenRandSymExcitCSF
     implicit none
 
 contains
-    
+
     subroutine gen_csf_excit (nI, iLut, nJ, ilutnJ, exFlag, IC, &
-                                   excitMat, tParity, pGen, HElGen, tFilled, CCdblS, &
-                                   CCSglS, CCUnS)
+                              excitMat, tParity, pGen, HElGen, store)
 
         ! Generate an excitation from a CSF at random, as specified by exFlag,
         ! and return the Excitation matrix and the probability of generating
@@ -46,9 +46,9 @@ contains
         integer, intent(in)    :: nI(nel), exFlag
         integer(kind=n_int), intent(in)    :: iLut(0:NIfTot)
         integer, intent(out)   :: nJ(nel), IC, ExcitMat(2,2)
-        logical, intent(inout) :: tFilled
         logical, intent(out)   :: tParity
         real*8,  intent(out)   :: pGen
+        type(excit_gen_store_type), intent(inout), target :: store
 
         ! Unused:
         integer(kind=n_int), intent(out) :: iLutnJ(0:niftot)
@@ -57,12 +57,17 @@ contains
         ! We only need the spatial terms for the CSF stuff. However, keep the
         ! full 1-ScratchSize array, so we can pass it through to the normal
         ! excitation routines for truncated mode.
-        integer, intent(inout) :: CCDblS(ScratchSize), CCSglS(ScratchSize)
-        integer, intent(inout) :: CCUnS(ScratchSize)
+        integer, pointer :: CCDblS(:), CCSglS(:)
+        integer, pointer :: CCUnS(:)
 
         character(*), parameter   :: this_routine = 'GenRandSymExcitCSF'
         integer :: nopen, ncsf, exTmp
         real*8 :: r
+
+        ! Point to the correct bits
+        CCDblS => store%ClassCountOcc
+        CCSglS => store%ClassCountUnocc
+        CCUnS => store%scratch3
 
         ! Count the open shell electrons
         nopen = count_open_orbs(iLut) 
@@ -81,8 +86,7 @@ contains
                     exTmp = 3
             end select
             call gen_rand_excit (nI, iLut, nJ, iLutnJ, exTmp, IC, ExcitMat, &
-                                 tParity, pGen, HElGen, tFilled, CCDblS, CCUnS, &
-                                 CCSglS)
+                                 tParity, pGen, HElGen, store)
 
             ! If we have fallen back below the truncation level, then
             ! regenerate a CSF (pick Yamanouchi symbol at random).
@@ -111,7 +115,7 @@ contains
         ! If the array is not already populated, perform an O[N] operation to
         ! find the number of occupied alpha/beta electrons, and number of
         ! occupied e- of each symmetry class and spin.
-        if (.not. tFilled) then
+        if (.not. store%tFilled) then
             if ((.not.TwoCycleSymgens) .and. (.not.tNoSymGenRandExcits)) then
                 write(6,'("GenRandSymExcitCSF can only be used for molecular&
                           & systems")')
@@ -127,7 +131,7 @@ contains
 
             call ConstructClassCountsSpatial(nI, nel-nopen, CCDblS, CCSglS, &
                                              CCUnS)
-            tFilled = .true.
+            store%tFilled = .true.
         endif
 
         ! Select type of excitation depending on ExcitFlag.
@@ -1801,10 +1805,8 @@ contains
         character(*), parameter :: this_routine = 'TestGenRandSymCSFExcit'
         integer(kind=n_int) :: iLut(0:NIfTot)
         integer :: nJ(nel), ExcitMat(2,2), IC, nopen
-        integer :: CCDblS(ScratchSize/2), CCSglS(ScratchSize/2)
-        integer :: CCUnS(ScratchSize/2)
         integer :: i, j, k, l, ierr, nexcit, ind(4)
-        logical :: tFilled, bTestList, tParity
+        logical :: bTestList, tParity
         real*8  :: pGen, avContrib, avContribAll
         ! Store the generated excitations and if they have been generated.
         integer, allocatable, dimension(:,:) :: nK
@@ -1814,15 +1816,23 @@ contains
         real*8,  allocatable, dimension(:,:,:,:) :: DoublesHist,AllDoublesHist
         ! Unused
         integer(kind=n_int) :: iLutnJ(0:niftot)
+        type(excit_gen_store_type), target :: store
+        integer, pointer :: CCDblS(:), CCSglS(:), CCUnS(:)
         HElement_t :: HElGen
 
         ! Generate bit representation, and count open shell electrons
         call EncodeBitDet (nI, iLut)
         nopen = count_open_orbs (iLut)
 
+        ! Generate excitation store
+        call init_excit_gen_store (store)
+
         ! Obtain the orbital symmetries for the following steps
+        CCDblS => store%ClassCountOcc
+        CCSglS => store%ClassCountUnocc
+        CCUnS => store%scratch3
         call ConstructClassCountsSpatial(nI, nel-nopen, CCDblS, CCSglS, CCUnS)
-        tFilled = .true.
+        store%tFilled = .true.
 
         ! Set the global variables appropriately.
         pSingles = pSingle
@@ -1881,8 +1891,7 @@ contains
         do i=1,iterations
             ! Generate a random excitation
             call gen_csf_excit (nI, iLut, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                                tParity, pGen, HElGen, tFilled, CCDblS, CCSglS, &
-                                CCUnS)
+                                tParity, pGen, HElGen, store)
 
             ! Only average etc. for an allowed transition
             if (nJ(1) /= 0) then
@@ -2002,5 +2011,21 @@ contains
         deallocate (SinglesHist, AllSinglesHist, DoublesHist, AllDoublesHist)
         if (allocated(nK)) deallocate(nK)
         if (allocated(ex_list)) deallocate(ex_list)
+        call clean_excit_gen_store (store)
     end subroutine
 end module
+
+
+! N.B. This is outside the module *sigh*
+subroutine csf_sym_setup ()
+
+    use SymExcitDataMod, only: ScratchSize, ScratchSize3
+    implicit none
+
+    ! We use the third scratch array to store the third class count.
+
+    call SpinOrbSymSetup ()
+    ScratchSize3 = ScratchSize / 2
+
+end subroutine
+    

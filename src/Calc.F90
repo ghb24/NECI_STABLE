@@ -19,6 +19,7 @@ MODULE Calc
     use CCMCData, only: dInitAmplitude, dProbSelNewExcitor, nSpawnings, &
                         tSpawnProp, nClustSelections, tExactEnergy,     &
                         dClustSelectionRatio,tSharedExcitors
+    use FciMCData, only: proje_linear_comb, proje_ref_det_init
 
     implicit none
 
@@ -44,6 +45,7 @@ contains
 
 
 !       Calc defaults 
+          tMaxBloom=.false.
           iRestartWalkNum=0
           iWeightPopRead=0
           tCheckHighestPop=.false.
@@ -68,6 +70,7 @@ contains
           MemoryFacPart=10.D0
           MemoryFacAnnihil=10.D0
           MemoryFacSpawn=0.5
+          MemoryFacInit = 0.3
           TStartSinglePart=.true.
           TFixParticleSign=.false.
           TProjEMP2=.false.
@@ -104,7 +107,7 @@ contains
           tExactEnergy=.false.
           tSharedExcitors=.false.
           tSpawnProp=.false.
-          NMCyc=2000
+          NMCyc = -1
           DiagSft=0.D0
           HApp=1
           TMCStar=.false.
@@ -166,7 +169,7 @@ contains
           G_VMC_EXCITWEIGHTS(:,:)=0.D0
           EXCITFUNCS(:)=.false.
           EXCITFUNCS(10)=.true.
-          NPaths=0
+          NPaths = 1
           iActiveBasis=0
           nActiveSpace(:)=0 
           TNPDERIV = .false.
@@ -179,7 +182,7 @@ contains
           DETINV = 0
           TSPECDET = .false.
           TTROT=.true.
-          BETA=0.D0
+          BETA = 1000
           BETAP=1.D-4
           TBETAP=.false.
           RHOEPSILON=1.D-6
@@ -203,7 +206,8 @@ contains
           MaxNoatHF=0
           HFPopThresh=0
           tSpatialOnlyHash = .false.
-
+          tSpawn_Only_Init = .false.
+          tSpawn_Only_Init_Grow = .false.
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
 
           lNoTriples=.false.
@@ -228,6 +232,13 @@ contains
           spin_proj_cutoff = 0
           spin_proj_iter_count = 1
           tUseProcsAsNodes=.false.
+
+          tSpawnSpatialInit = .false.
+
+          ! Truncation based on number of unpaired electrons
+          tTruncNOpen = .false.
+
+          proje_linear_comb = .false.
       
         end subroutine SetCalcDefaults
 
@@ -927,6 +938,21 @@ contains
                 IF(item.lt.nitems) then
                     call Getf(FracLargerDet)
                 ENDIF
+
+            case("PROJE-SPATIAL")
+                ! Calculate the projected energy by projection onto a linear
+                ! combination of determinants, specified by a particular 
+                ! spatial determinant.
+                proje_linear_comb = .true.
+                if (.not. allocated(proje_ref_det_init)) &
+                    allocate(proje_ref_det_init(nel))
+                proje_ref_det_init = 0
+                i = 1
+                do while (item < nitems .and. i <= nel)
+                    call geti(proje_ref_det_init(i))
+                    i = i+1
+                enddo
+
             case("RESTARTLARGEPOP")
                 tCheckHighestPop=.true.
                 tRestartHighPop=.true.
@@ -940,6 +966,9 @@ contains
 !This uses a modified hamiltonian, whereby all the positive off-diagonal hamiltonian matrix elements are zero. Instead, their diagonals are modified to change the
 !on-site death rate. Particles now have a fixed (positive) sign which cannot be changed and so no annihilation occurs.
                 TFixParticleSign=.true.
+            case("MAXBLOOMWARNONLY")
+                !This means that we only get a particle bloom warning if the bloom is larger than any previous blooming event.
+                tMaxBloom=.true.
             case("STARTSINGLEPART")
 !A FCIMC option - this will start the simulation with a single positive particle at the HF, and fix the shift at its initial value, until the number of particles gets to the INITPARTICLES value.
                 TStartSinglePart=.true.
@@ -963,6 +992,11 @@ contains
 !A parallel FCIMC option for use with ROTOANNIHILATION. This is the factor by which space will be made available for spawned particles each iteration. 
 !Several of these arrays are needed for the annihilation process. With ROTOANNIHILATION, MEMORYFACANNIHIL is redundant, but MEMORYFACPART still need to be specified.
                 CALL Getf(MemoryFacSpawn)
+            case("MEMORYFACINIT")
+                ! If we are maintaining a list of initiators on each
+                ! processor, this is the factor of InitWalkers which will be
+                ! used for the size
+                call getf(MemoryFacInit)
             case("REGENEXCITGENS")
 !An FCIMC option. With this, the excitation generators for the walkers will NOT be stored, and regenerated each time. This will be slower, but save on memory.
                 TRegenExcitGens=.true.
@@ -1032,6 +1066,20 @@ contains
 !The minimum walker population for a determinant to be added to the initiator space is InitiatorWalkNo.
                 tAddtoInitiator=.true.
                 call Geti(InitiatorWalkNo)
+
+            case("SPAWNONLYINIT")
+!This option means only the initiators have the ability to spawn.  The non-initiators can live/die but not spawn walkers of their own.                
+                tSpawn_Only_Init = .true.
+
+            case("SPAWNONLYINITGROWTH")
+                ! Only allow initiators to spawn progeny. Non-initiators can
+                ! live/die but are not allowed to spawn.
+                !
+                ! This option is disabled in variable shift mode. Allows
+                ! rapid but controlled growth of walkers
+                tSpawn_Only_Init = .true.
+                tSpawn_Only_Init_Grow = .true.
+
 
             case("RETESTINITPOP")                
 !This keyword is on by default.  It corresponds to the original initiator algorithm whereby a determinant may be added to the initiator space if its population becomes higher 
@@ -1227,6 +1275,18 @@ contains
                 ! How many times should the spin projection step be applied 
                 ! on each occasion it gets called? (default 1)
                 call geti (spin_proj_iter_count)
+
+            case("ALLOW-SPATIAL-INIT-SPAWNS")
+                ! If a determinant is an initiator, all spawns to other dets
+                ! with the same spatial structure should be allowed.
+                tSpawnSpatialInit = .true.
+                tSpatialOnlyHash = .true.
+
+            case("TRUNC-NOPEN")
+                ! Truncate determinant spawning at a specified number of
+                ! unpaired electrons.
+                tTruncNOpen = .true.
+                call geti (trunc_nopen_max)
 
             case default
                 call report("Keyword "                                &

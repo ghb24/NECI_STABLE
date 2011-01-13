@@ -4,6 +4,7 @@ MODULE System
     use SystemData
     use CalcData, only: tRotoAnnihil
     use sort_mod
+    use SymExcitDataMod, only: tBuildOccVirtList
 
     IMPLICIT NONE
 
@@ -17,9 +18,13 @@ MODULE System
       USE SymData, only: tStoreStateList
       implicit none
 
+      ! Default from SymExcitDataMod
+      tBuildOccVirtList = .false.
+
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tOddS_HPHF=.false.
       tRotatedOrbsReal=.false.  !This is set if compiled in real, but reading in a complex FCIDUMP.
       tISKFuncs=.false.       !This is for kpoint symmetry with inversion so that determinants can be combined.
       tKPntSym=.false.        !This is for k-point symmetry with the symrandexcit2 excitation generators.
@@ -140,6 +145,7 @@ MODULE System
       tDiagonalizehij=.false.
       tHFNoOrder=.false.
       tSymIgnoreEnergies=.false.
+      tPickVirtUniform = .false.
 
 !Feb08 defaults:
       IF(Feb08) THEN
@@ -159,7 +165,7 @@ MODULE System
       IMPLICIT NONE
       LOGICAL eof
       CHARACTER (LEN=100) w
-      INTEGER I
+      INTEGER I,Odd_EvenHPHF
       
       ! The system block is specified with at least one keyword on the same
       ! line, giving the system type being used.
@@ -463,8 +469,18 @@ MODULE System
             tAssumeSizeExcitgen=.true.
         case("HPHF")
             tHPHF=.true.
-
-
+            if(item.lt.nitems) then
+                call geti(Odd_EvenHPHF)
+                if(Odd_EvenHPHF.eq.1) then
+                    !Want to converge onto an Odd S State
+                    tOddS_HPHF=.true.
+                elseif(Odd_EvenHPHF.eq.0) then
+                    !Want to converge onto an Even S State
+                    !tOddS_HPHF should be false by default.
+                else
+                    call stop_all("SysReadInput","Invalid variable given to HPHF option: 0 = Even S; 1 = Odd S")
+                endif
+            endif
         case("ROTATEORBS")
 ! The ROTATEORBS calculation initiates a routine which takes the HF orbitals
 ! and finds the optimal set of transformation coefficients to fit a particular criteria specified below.
@@ -732,6 +748,12 @@ MODULE System
 !Importance sample the excitations for FCIMCPar
                         CALL Stop_All("ReadSysInp","IMPORTANCESAMPLE option depreciated")
 !                        tImportanceSample=.true.
+                    case("PICK-VIRT-UNIFORM")
+                        ! Pick virtual orbitals randomly and uniformly in the
+                        ! 3rd generation of random excitation generators
+                        ! (symrandexcit3.F90)
+                        tPickVirtUniform = .true.
+                        tBuildOccVirtList = .true.
                     case default
                         call Stop_All("ReadSysInp",trim(w)//" not a valid keyword")
                 end select
@@ -786,7 +808,7 @@ MODULE System
         
     Subroutine SysInit
       Use global_utilities
-      use SymData, only: tAbelian,TwoCycleSymGens
+      use SymData, only: tAbelian,TwoCycleSymGens,nSymLabels
       use constants, only: Pi, Pi2, THIRD
       use legacy_data, only: CSF_NBSTART
       use read_fci
@@ -1305,6 +1327,9 @@ MODULE System
           WRITE(6,'(A)') "****** USING Lz SYMMETRY *******"
           WRITE(6,'(A,I5)') "Pure spherical harmonics with complex orbitals used to constrain Lz to: ",LzTot
           WRITE(6,*) "Due to the breaking of the Ml degeneracy, the fock energies are slightly wrong, on order of 1.D-4 - do not use for MP2!"
+          if(nsymlabels.gt.4) then
+              call stop_all(this_routine,"D2h point group detected. Incompatable with Lz symmetry conserving orbitals. Have you transformed these orbitals into spherical harmonics correctly?!")
+          endif
       ENDIF
 
 !C..        (.NOT.TREADINT)

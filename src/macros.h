@@ -15,6 +15,9 @@
 #define get_beta(orb) (ibclr(orb-1,0)+1)
 #define get_alpha(orb) (ibset(orb-1,0)+1)
 
+! The spin where 1=alpha, 2=beta
+#define get_spin(orb) (1+iand(orb,1))
+
 ! Is the specified orbital part of a doubly occupied pair?
 #define IsDoub(ilut,orb) (IsOcc(ilut,orb) .and. IsOcc(ilut,ab_pair(orb)))
 
@@ -58,3 +61,11 @@ endif
 #define root_write if (iProcIndex == 0) write
 #define root_print root_write (6, *) 
 
+! Make Re / Cplx builds easier
+#ifdef __CMPLX
+#define ARR_RE_OR_CPLX(arr) cmplx(arr(1), arr(2), dp)
+#define ARR_ABS(arr) abs(cmplx(arr(1), arr(2), dp))
+#else
+#define ARR_RE_OR_CPLX(arr) real(arr(1), dp)
+#define ARR_ABS(arr) abs(arr(1))
+#endif

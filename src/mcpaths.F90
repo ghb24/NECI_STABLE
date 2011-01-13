@@ -554,10 +554,11 @@ contains
             CALL WRITECLASSPATHS()
             RETURN
          ELSEIF(I_HMAX.EQ.-6) THEN
-!C.. Pick the largest cluster
-            CALL MCPATHSR6(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,  &
-     &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,     &
-     &               NWHTAY(1,1),ILOGGING,ECORE, WLRI,WLSI,DBETA,DLWDB)
+!C.. Pick the largest clustera
+            stop "MCPATHSR6 has been removed."
+!            CALL MCPATHSR6(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,  &
+!     &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,     &
+!     &               NWHTAY(1,1),ILOGGING,ECORE, WLRI,WLSI,DBETA,DLWDB)
             RETURN
          ELSEIF(I_HMAX.EQ.-10) THEN
 !C.. Use a different method at each vertex level
@@ -570,10 +571,11 @@ contains
          ENDIF
          IF(I_VMAX.EQ.0) THEN
 !C.. Pick graphs which may not contain distinct vertices 
-            CALL MCPATHSR2(NI,BETA,I_P,I_HMAX,NEL,NBASISMAX,G1,         &
-     &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,     &
-     &               LSTE,ICE,NWHTAY(1,1),ILOGGING,ECORE,ILMAX,WLRI,WLSI,    &
-     &               TSYM)
+            stop "MCPATHSR2 has been removed."
+!            CALL MCPATHSR2(NI,BETA,I_P,I_HMAX,NEL,NBASISMAX,G1,         &
+!     &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,     &
+!     &               LSTE,ICE,NWHTAY(1,1),ILOGGING,ECORE,ILMAX,WLRI,WLSI,    &
+!     &               TSYM)
             RETURN
          ENDIF
          proc_timer%timer_name='MCPATHSR3 '
