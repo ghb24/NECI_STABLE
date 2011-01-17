@@ -2786,6 +2786,8 @@ MODULE FciMCParMod
 
                     ! Reset averages
                     SumENum = 0
+                    sum_proje_denominator = 0
+                    cyc_proje_denominator = 0
                     SumNoatHF = 0
                     VaryShiftCycles = 0
                     SumDiagSft = 0
@@ -2876,15 +2878,14 @@ MODULE FciMCParMod
         AllNoAtDoubs = int_tmp(2)
         AllNoBorn = int_tmp(3)
         AllNoDied = int_tmp(4)
-        IF(lenof_sign.eq.1) THEN
+        !AllHFCyc = ARR_RE_OR_CPLX(int_tmp(5:4+lenof_sign))
+        AllSpawnFromSing = int_tmp(5+lenof_sign)
+        iter_data%update_growth_tot = int_tmp(6+lenof_sign:5+2*lenof_sign)
+        if (lenof_sign == 1) then
             AllHFCyc = real(int_tmp(5), dp)
-            AllSpawnFromSing = int_tmp(6)
-            iter_data%update_growth_tot = int_tmp(7:6+lenof_sign)
-        ELSE
+        else
             AllHFCyc = cmplx(int_tmp(5),int_tmp(6), dp)
-            AllSpawnFromSing = int_tmp(7)
-            iter_data%update_growth_tot = int_tmp(8:7+lenof_sign)
-        ENDIF
+        endif
 
         ! Integer summations required for the initiator method
         if (tTruncInitiator) then
@@ -3078,7 +3079,7 @@ MODULE FciMCParMod
                 (proje_linear_comb .and. nproje_sum > 1)) then
                 ProjectionE = AllSumENum / &
                               ARR_RE_OR_CPLX(all_sum_proje_denominator)
-                proje_iter = AllSumEnum / &
+                proje_iter = AllENumCyc / &
                               ARR_RE_OR_CPLX(all_cyc_proje_denominator)
             endif
 
@@ -3821,6 +3822,8 @@ MODULE FciMCParMod
         TotImagTime=0.D0
         DiagSftRe=0.D0
         DiagSftIm=0.D0
+        sum_proje_denominator = 0
+        cyc_proje_denominator = 0
 
 !Also reinitialise the global variables - should not necessarily need to do this...
         AllSumENum=0.D0
@@ -4802,9 +4805,9 @@ MODULE FciMCParMod
 
         ! Are we performing a linear sum over various determinants?
         ! TODO: If we use this, function pointer it.
+        HOffDiag = 0
         if (proje_linear_comb .and. nproje_sum > 1) then
 
-            HOffDiag = 0
             spatial_ic = FindSpatialBitExcitLevel (ilut, proje_ref_iluts(:,1))
             if (spatial_ic <= 2) then
                 do i = 1, nproje_sum
