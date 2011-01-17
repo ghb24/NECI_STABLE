@@ -3003,8 +3003,8 @@ MODULE FciMCParMod
                 if ( (sum(AllTotParts) > tot_walkers) .or. &
                      (abs_int_sign(AllNoatHF) > MaxNoatHF)) then
 !                     WRITE(6,*) "AllTotParts: ",AllTotParts(1),AllTotParts(2),tot_walkers
-                    write (6, *) 'Exiting the single particle growth phase - &
-                                 &shift can now change'
+                    write (6, "(A,I12)") 'Exiting the single particle growth phase - &
+                                 &shift can now change from iteration: ',iter
                     VaryShiftIter = Iter
                     tSinglePartPhase = .false.
                     if(tSpawn_Only_Init.and.tSpawn_Only_Init_Grow) then
@@ -3014,9 +3014,9 @@ MODULE FciMCParMod
                     endif
                 endif
             elseif (abs_int_sign(AllNoatHF) < (MaxNoatHF - HFPopThresh)) then
-                write (6, *) 'No at HF has fallen too low - reentering the &
+                write (6, "(A,I12)") 'No at HF has fallen too low - reentering the &
                              &single particle growth phase - particle number &
-                             &may grow again.'
+                             &may grow again from iteration: ',iter
                 tSinglePartPhase = .true.
                 tReZeroShift = .true.
             endif
@@ -3039,7 +3039,7 @@ MODULE FciMCParMod
                 ! Update the shift averages
                 if ((iter - VaryShiftIter) >= nShiftEquilSteps) then
                     if ((iter-VaryShiftIter-nShiftEquilSteps) < StepsSft) &
-                        write (6, *) 'Beginning to average shift value.'
+                        write (6, "(A,I12)") 'Beginning to average shift value from iteration: ',iter
                     VaryShiftCycles = VaryShiftCycles + 1
                     SumDiagSft = SumDiagSft + DiagSft
                     AvDiagSft = SumDiagSft / real(VaryShiftCycles, dp)
@@ -3259,6 +3259,7 @@ MODULE FciMCParMod
     END SUBROUTINE WriteFciMCStatsHeader
 
     subroutine WriteFCIMCStats()
+        use Logging , only : tMCOutput
 
         if (iProcIndex == root) then
 #ifdef __CMPLX
@@ -3293,22 +3294,24 @@ MODULE FciMCParMod
                 sqrt(float(sum(AllNoatHF**2))) / norm_psi, &
                 norm_psi
 
-            write (6, "(I12,G16.7,2I10,2I12,4G17.9,3I10,G13.5,I12,G13.5)") &
-                Iter + PreviousCycles, &
-                DiagSft, &
-                AllTotParts(1) - AllTotPartsOld(1), &
-                AllTotParts(2) - AllTotPartsOld(2), &
-                AllTotParts(1), AllTotParts(2), &
-                real(ProjectionE, dp), &
-                aimag(ProjectionE), &
-                real(proje_iter, dp), &
-                aimag(proje_iter), &
-                AllNoatHF(1), &
-                AllNoatHF(2), &
-                AllNoatDoubs, &
-                AccRat, &
-                AllTotWalkers, &
-                IterTime
+                if(tMCOutput) then
+                    write (6, "(I12,G16.7,2I10,2I12,4G17.9,3I10,G13.5,I12,G13.5)") &
+                    Iter + PreviousCycles, &
+                    DiagSft, &
+                    AllTotParts(1) - AllTotPartsOld(1), &
+                    AllTotParts(2) - AllTotPartsOld(2), &
+                    AllTotParts(1), AllTotParts(2), &
+                    real(ProjectionE, dp), &
+                    aimag(ProjectionE), &
+                    real(proje_iter, dp), &
+                    aimag(proje_iter), &
+                    AllNoatHF(1), &
+                    AllNoatHF(2), &
+                    AllNoatDoubs, &
+                    AccRat, &
+                    AllTotWalkers, &
+                    IterTime
+                endif
 #else
 
             write(fcimcstats_unit,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,&
@@ -3341,24 +3344,26 @@ MODULE FciMCParMod
                 real(AllNoatHF, dp) / norm_psi, &
                 norm_psi
 
-            write (6, "(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,&
-                      &G13.5)") &
-                Iter + PreviousCycles, &
-                DiagSft, &
-                sum(AllTotParts) - sum(AllTotPartsOld), &
-                AllGrowRate, &
-                sum(AllTotParts), &
-                AllAnnihilated, &
-                AllNoDied, &
-                AllNoBorn, &
-                ProjectionE, &
-                AvDiagSft, &
-                proje_iter, &
-                AllNoatHF, &
-                AllNoatDoubs, &
-                AccRat, &
-                AllTotWalkers, &
-                IterTime
+                if(tMCOutput) then
+                    write (6, "(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,&
+                          &G13.5)") &
+                    Iter + PreviousCycles, &
+                    DiagSft, &
+                    sum(AllTotParts) - sum(AllTotPartsOld), &
+                    AllGrowRate, &
+                    sum(AllTotParts), &
+                    AllAnnihilated, &
+                    AllNoDied, &
+                    AllNoBorn, &
+                    ProjectionE, &
+                    AvDiagSft, &
+                    proje_iter, &
+                    AllNoatHF, &
+                    AllNoatDoubs, &
+                    AccRat, &
+                    AllTotWalkers, &
+                    IterTime
+                endif
 #endif
 
             if (tTruncInitiator .or. tDelayTruncInit) then
@@ -3375,7 +3380,8 @@ MODULE FciMCParMod
                     sum(AllTotParts), AllTotParts(1), AllTotParts(lenof_sign)
             endif
 
-            call flush(6)
+            if(tMCOutput) call flush(6)
+!            call flush(6)
             call flush(fcimcstats_unit)
             
         endif
