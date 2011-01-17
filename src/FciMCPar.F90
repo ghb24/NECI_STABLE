@@ -2910,7 +2910,6 @@ MODULE FciMCParMod
         AllTotParts = int64_tmp(3:2+lenof_sign)
         AllSumNoatHF = int64_tmp(3+lenof_sign:2+2*lenof_sign)
         tot_parts_new_all = int64_tmp(3+2*lenof_sign:2+3*lenof_sign)
-        write(6,*) 'squared', int64_tmp(2)
 
         ! HElement_t values (Calculates the energy by summing all on HF and 
         ! doubles)
