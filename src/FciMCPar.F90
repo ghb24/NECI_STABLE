@@ -3363,7 +3363,7 @@ MODULE FciMCParMod
         use SymData , only : nSymLabels,SymLabelList,SymLabelCounts,TwoCycleSymGens
         use Logging , only : tTruncRODump
         use DetCalcData, only : NMRKS,tagNMRKS,FCIDets
-        use SymExcit3, only : CountExcitations3 
+        use SymExcit3, only : CountExcitations3, GenExcitations3
         use DetBitOps, only: CountBits
         use constants, only: bits_n_int
         use util_mod, only: get_free_unit
@@ -3379,7 +3379,8 @@ MODULE FciMCParMod
         CHARACTER(len=*), PARAMETER :: this_routine='SetupParameters'
         CHARACTER(len=12) :: abstr
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped,TestClosedShellDet
-        INTEGER :: nSingles,nDoubles,HFLz,ChosenOrb,KPnt(3), step,SymHF
+        INTEGER :: HFLz,ChosenOrb,KPnt(3), step,SymHF
+        
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
         WRITE(6,*) ""
@@ -4408,9 +4409,9 @@ MODULE FciMCParMod
         use SystemData , only : tAssumeSizeExcitgen,tUseBrillouin
         use CalcData , only : SinglesBias
         use SymData , only : SymClassSize
-        use SymExcit3 , only : CountExcitations3
+!        use SymExcit3 , only : CountExcitations3
         INTEGER :: iTotal
-        integer :: nSing, nDoub, ncsf, excitcount, ierr, iExcit
+        integer :: ncsf, excitcount, ierr, iExcit
         integer :: nStore(6), iMaxExcit, nExcitMemLen, nJ(nel)
         integer, allocatable :: EXCITGEN(:)
         character(*), parameter :: this_routine = 'CalcApproxpDoubles'
@@ -4422,8 +4423,8 @@ MODULE FciMCParMod
         else
             ncsf = 0
         endif
-        nSing=0
-        nDoub=0
+!        nSing=0
+!        nDoub=0
 
         IF(tHub.or.tUEG) THEN
             IF(tReal) THEN
@@ -4444,6 +4445,8 @@ MODULE FciMCParMod
         WRITE(6,"(A)") " Calculating approximate pDoubles for use with excitation generator by looking a excitations from HF."
         exflag=3
         IF(tKPntSym) THEN
+            nSingles = 0
+            nDoubles = 0
             !use Alex's old excitation generators.
             !However, we have to ensure that brillouins theorem isn't on!
             IF(tUseBrillouin) THEN
@@ -4467,34 +4470,39 @@ MODULE FciMCParMod
                 CALL GenSymExcitIt2(HFDet,nEl,G1,nBasis,.false.,EXCITGEN,nJ,iExcit,nStore,exFlag)
                 IF(nJ(1).eq.0) exit lp2
                 IF(iExcit.eq.1) THEN
-                    nSing=nSing+1
+!                    nSing=nSing+1
+                    nSingles=nSingles+1
                 ELSEIF(iExcit.eq.2) THEN
-                    nDoub=nDoub+1
+                    nDoubles=nDoubles+1
                 ELSE
                     CALL Stop_All(this_routine,"Trying to generate more than doubles!")
                 ENDIF
             enddo lp2
             tUseBrillouin=TempUseBrill
-        ELSE
-            CALL CountExcitations3(HFDet,exflag,nSing,nDoub)
+!        ELSE
+!            CALL CountExcitations3(HFDet,exflag,nSing,nDoub)
         ENDIF
-        iTotal=nSing + nDoub + ncsf
+        iTotal=nSingles + nDoubles + ncsf
 
-        WRITE(6,"(I7,A,I7,A)") NDoub, " double excitations, and ",NSing," single excitations found from HF. This will be used to calculate pDoubles."
+!        WRITE(6,"(I7,A,I7,A)") NDoub, " double excitations, and ",NSing," single excitations found from HF. This will be used to calculate pDoubles."
+        WRITE(6,"(I7,A,I7,A)") nDoubles, " double excitations, and ",nSingles," single excitations found from HF. This will be used to calculate pDoubles."
 
         IF(SinglesBias.ne.1.D0) THEN
             WRITE(6,*) "Singles Bias detected. Multiplying single excitation connectivity of HF determinant by ",SinglesBias," to determine pDoubles."
         ENDIF
 
-        IF((NSing+nDoub+ncsf).ne.iTotal) THEN
+!        IF((NSing+nDoub+ncsf).ne.iTotal) THEN
+        IF((nSingles+nDoubles+ncsf).ne.iTotal) THEN
             CALL Stop_All("CalcApproxpDoubles","Sum of number of singles and number of doubles does not equal total number of excitations")
         ENDIF
-        IF((NSing.eq.0).or.(NDoub.eq.0)) THEN
+!        IF((NSing.eq.0).or.(NDoub.eq.0)) THEN
+        IF((nSingles.eq.0).or.(nDoubles.eq.0)) THEN
             WRITE(6,*) "Number of singles or doubles found equals zero. pDoubles will be set to 0.95. Is this correct?"
             pDoubles = 0.95
             pSingles = 0.05
             RETURN
-        elseif ((NSing < 0) .or. (NDoub < 0) .or. (ncsf < 0)) then
+!        elseif ((NSing < 0) .or. (NDoub < 0) .or. (ncsf < 0)) then
+        elseif ((nSingles < 0) .or. (nDoubles < 0) .or. (ncsf < 0)) then
             call stop_all("CalcApproxpDoubles", &
                           "Number of singles, doubles or Yamanouchi symbols &
                           &found to be a negative number. Error here.")
@@ -4503,33 +4511,49 @@ MODULE FciMCParMod
         ! Set pDoubles to be the fraction of double excitations.
         ! If using CSFs, also consider only changing Yamanouchi Symbol
         if (tCSF) then
-            pDoubles = real(nDoub,dp) / &
-                   ((real(nSing,dp)*SinglesBias)+real(nDoub,dp)+real(ncsf,dp))
-            pSingles = real(nSing,dp) / &
-                   ((real(nSing,dp)*SinglesBias)+real(nDoub,dp)+real(ncsf,dp))
+!            pDoubles = real(nDoub,dp) / &
+!                   ((real(nSing,dp)*SinglesBias)+real(nDoub,dp)+real(ncsf,dp))
+!            pSingles = real(nSing,dp) / &
+!                   ((real(nSing,dp)*SinglesBias)+real(nDoub,dp)+real(ncsf,dp))
+
+            pDoubles = real(nDoubles,dp) / &
+                   ((real(nSingles,dp)*SinglesBias)+real(nDoubles,dp)+real(ncsf,dp))
+            pSingles = real(nSingles,dp) / &
+                   ((real(nSingles,dp)*SinglesBias)+real(nDoubles,dp)+real(ncsf,dp))
+
 
         else
-            pDoubles = real(nDoub,dp) / &
-                   ((real(NSing,dp)*SinglesBias) + real(NDoub,dp))
-            pSingles = real(nSing,dp) * SinglesBias/ &
-                   ((real(nSing,dp)*SinglesBias) + real(nDoub,dp))
+!            pDoubles = real(nDoub,dp) / &
+!                   ((real(NSing,dp)*SinglesBias) + real(NDoub,dp))
+!            pSingles = real(nSing,dp) * SinglesBias/ &
+!                   ((real(nSing,dp)*SinglesBias) + real(nDoub,dp))
+
+            pDoubles = real(nDoubles,dp) / &
+                   ((real(nSingles,dp)*SinglesBias) + real(nDoubles,dp))
+            pSingles = real(nSingles,dp) * SinglesBias/ &
+                   ((real(nSingles,dp)*SinglesBias) + real(nDoubles,dp))
+ 
         endif
 
         IF(SinglesBias.ne.1.D0) THEN
             write (6, '("pDoubles set to ", f14.6, &
                        &" rather than (without bias): ", f14.6)') &
-                       pDoubles, real(nDoub,dp) / real(iTotal,dp)
+!                       pDoubles, real(nDoub,dp) / real(iTotal,dp)
+                       pDoubles, real(nDoubles,dp) / real(iTotal,dp)
             write (6, '("pSingles set to ", f14.6, &
                        &" rather than (without bias): ", f14.6)') &
-                       pSingles, real(nSing,dp) / real(iTotal,dp)
+!                       pSingles, real(nSing,dp) / real(iTotal,dp)
+                       pSingles, real(nSingles,dp) / real(iTotal,dp)
 
-            WRITE(6,"(A,F14.6,A,F14.6)") "pDoubles set to: ",pDoubles, " rather than (without bias): ",real(nDoub,dp)/real(iTotal,dp)
+!            WRITE(6,"(A,F14.6,A,F14.6)") "pDoubles set to: ",pDoubles, " rather than (without bias): ",real(nDoub,dp)/real(iTotal,dp)
+            WRITE(6,"(A,F14.6,A,F14.6)") "pDoubles set to: ",pDoubles, " rather than (without bias): ",real(nDoubles,dp)/real(iTotal,dp)
         ELSE
             write (6,'(A,F14.6)') " pDoubles set to: ", pDoubles
             write (6,'(A,F14.6)') " pSingles set to: ", pSingles
         ENDIF
 
-        WRITE(6,'(A,F15.10)') " Assuming an average K_ij magnitude of approx 0.01, an appropriate tau is predicted to be around: ",(0.02*(1.D0/(REAL(NSing)+REAL(NDoub))))/0.01
+!        WRITE(6,'(A,F15.10)') " Assuming an average K_ij magnitude of approx 0.01, an appropriate tau is predicted to be around: ",(0.02*(1.D0/(REAL(NSing)+REAL(NDoub))))/0.01
+        WRITE(6,'(A,F15.10)') " Assuming an average K_ij magnitude of approx 0.01, an appropriate tau is predicted to be around: ",(0.02*(1.D0/(REAL(nSingles)+REAL(nDoubles))))/0.01
 !This is a rough guesstimate of what tau might like to be, assuming K_ij is approx 0.01 on average, and we want a probability of spawning to be about 0.02.        
 !These are just stats taken from one system... will investigate further...
 
@@ -4586,7 +4610,7 @@ MODULE FciMCParMod
     SUBROUTINE StoreDoubs()
         use SystemData , only : tUseBrillouin
         use SymExcit3 , only : CountExcitations3,GenExcitations3
-        INTEGER :: nJ(NEl),ierr,VecSlot,nSingles,ExcitMat3(2,2)
+        INTEGER :: nJ(NEl),ierr,VecSlot,ExcitMat3(2,2)
         LOGICAL :: tAllExcitFound,tParity
 
         IF(tUseBrillouin) THEN
@@ -4594,9 +4618,9 @@ MODULE FciMCParMod
         ENDIF
         
 !NoDoubs here is actually the singles + doubles of HF
-        exflag=3
-        CALL CountExcitations3(HFDet,exflag,nSingles,NoDoubs)
-        NoDoubs=nSingles+NoDoubs
+!        exflag=3
+!        CALL CountExcitations3(HFDet,exflag,nSingles,NoDoubs)
+        NoDoubs=nSingles+nDoubles
 
         ALLOCATE(DoublesDets(NEl,NoDoubs),stat=ierr)
         CALL LogMemAlloc('DoublesDets',NoDoubs*NEl,4,"StoreDoubs",DoublesDetsTag,ierr)

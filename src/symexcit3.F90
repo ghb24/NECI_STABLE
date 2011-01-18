@@ -19,13 +19,14 @@ MODULE SymExcit3
 ! The exflag sent through indicates which should be counted - exflag=1 means only singles, exflag=2 means
 ! only doubles, and anything else both are counted.
         USE SymData, only: nSymLabels
-        USE SystemData , only: ElecPairs
+        USE SystemData , only: ElecPairs,tFixLz,iMaxLz
         USE GenRandSymExcitNUMod , only: PickElecPair,construct_class_counts,ClassCountInd,ScratchSize 
         INTEGER :: nSingleExcits,nDoubleExcits,Symi,i,Spini,nI(NEl)
         INTEGER :: iSpn,Elec1Ind,Elec2Ind,SymProduct,exflag
         INTEGER :: Syma,Symb,Spina,Spinb,StartSpin,EndSpin
         INTEGER :: ClassCount2(ScratchSize),SumMl
         INTEGER :: ClassCountUnocc2(ScratchSize)
+        INTEGER :: StartMl, EndMl, Mla, Mlb
 
         CALL construct_class_counts(nI,ClassCount2,ClassCountUnocc2)
 ! This sets up arrays containing the number of occupied and unoccupied in each symmetry.
@@ -50,11 +51,16 @@ MODULE SymExcit3
                 IF((G1(nI(i))%Ms).eq.-1) Spini=2        ! G1(i)%Ms is -1 for beta, and 1 for alpha.
                 IF((G1(nI(i))%Ms).eq.1) Spini=1         ! Translate this into 1 for alpha and 2 for beta
                                                         ! for the ClassCount arrays.
+                IF(tFixLz) THEN                                                        
+                    Mla = G1(nI(i))%Ml                                                        
+                ELSE
+                    Mla = 0
+                ENDIF
 
 ! This electron in orbital of SymI and SpinI can only be excited to orbitals with the same spin and symmetry.                
 ! Then add in the number of unoccupied orbitals with the same spin and symmetry to which each electron may be excited.
             
-                nSingleExcits=nSingleExcits+ClassCountUnocc2(ClassCountInd(Spini,Symi,0))
+                nSingleExcits=nSingleExcits+ClassCountUnocc2(ClassCountInd(Spini,Symi,Mla))
 
             enddo
         ENDIF
@@ -66,6 +72,7 @@ MODULE SymExcit3
 ! Based on these orbitals, run through each spin and each symmetry - take this to be orbital a.
 ! Multiply the number with these symmetries by the number of possible b orbitals which correspond.
 ! Do this for all a and then all i,j pairs.
+        
         IF(exflag.ne.1) THEN
             do i=1,ElecPairs
 
@@ -82,7 +89,7 @@ MODULE SymExcit3
                         IF(Spina.eq.1) Spinb=2
                         IF(Spina.eq.2) Spinb=1
                     ELSE
-! Spin of orbital b should be opposite to orbital a.                    
+! Spin of orbital b should be the same as orbital a.                    
                         IF(Spina.eq.1) Spinb=1
                         IF(Spina.eq.2) Spinb=2
                     ENDIF
@@ -92,13 +99,28 @@ MODULE SymExcit3
 ! Need to work out the symmetry of b, given the symmetry of a (Sym).                    
                         Symb=IEOR(Syma,SymProduct)
 
-                        IF((Spina.eq.Spinb).and.(Syma.eq.Symb)) THEN
-                            ! If the spin and spatial symmetries of a and b are the same
-                            ! there will exist a case where Orba = Orbb, want to remove this.
-                            nDoubleExcits=nDoubleExcits+(ClassCountUnocc2(ClassCountInd(Spina,Syma,0))*(ClassCountUnocc2(ClassCountInd(Spinb,Symb,0))-1))
+                        IF(tFixLz) THEN
+                            StartMl = -iMaxLz
+                            EndMl = iMaxLz
                         ELSE
-                            nDoubleExcits=nDoubleExcits+(ClassCountUnocc2(ClassCountInd(Spina,Syma,0))*ClassCountUnocc2(ClassCountInd(Spinb,Symb,0)))
+                            StartMl = 0
+                            EndMl = 0
                         ENDIF
+
+                        do Mla = StartMl, EndMl
+                            
+                            Mlb = SumMl - Mla   !Will be 0 if no Lz, otherwise we need Mla + Mlb = Mli + Mlj = SumMl
+
+                            IF(abs(Mlb).le.iMaxLz) THEN
+                                IF((Spina.eq.Spinb).and.(Syma.eq.Symb).and.(Mla.eq.Mlb)) THEN
+                                    ! If the spin and spatial symmetries of a and b are the same
+                                    ! there will exist a case where Orba = Orbb, want to remove this.
+                                    nDoubleExcits=nDoubleExcits+(ClassCountUnocc2(ClassCountInd(Spina,Syma,Mla))*(ClassCountUnocc2(ClassCountInd(Spinb,Symb,Mlb))-1))
+                                ELSE
+                                    nDoubleExcits=nDoubleExcits+(ClassCountUnocc2(ClassCountInd(Spina,Syma,Mla))*ClassCountUnocc2(ClassCountInd(Spinb,Symb,Mlb)))
+                                ENDIF
+                            ENDIF
+                        enddo
                     enddo
 
                 enddo
@@ -164,13 +186,14 @@ MODULE SymExcit3
 ! The single excitation goes from orbital i to a, from determinant nI to nJ.
 ! When the last single is found it then finds the first double excitation, unless exflag=1 in which tAllExcitFound 
 ! becomes true and no more excitations are generated.
+        use SystemData , only : tFixLz
         USE SymData, only: nSymLabels
         use constants, only: bits_n_int
         INTEGER :: nI(NEl),Orbi,Orba,Symi,nJ(NEl)
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
-        INTEGER :: NoOcc,ExcitMat3(2,2),exflag,SymInd,Spina
+        INTEGER :: NoOcc,ExcitMat3(2,2),exflag,SymInd,Spina, Mla
         LOGICAL :: tInitOrbsFound,tParity,tAllExcitFound,tEndaOrbs
-        INTEGER , SAVE :: OrbiIndex,OrbaIndex,Spini,NewSym
+        INTEGER , SAVE :: OrbiIndex,OrbaIndex,Spini,NewSym,Mli
 
 !        WRITE(6,*) 'Original Determinant',nI
 !        WRITE(6,*) "SymLabelList2(:)",SymLabelList2(:)
@@ -192,14 +215,19 @@ MODULE SymExcit3
             ENDIF
             IF((G1(Orbi)%Ms).eq.-1) Spini=2  
             IF((G1(Orbi)%Ms).eq.1) Spini=1  
-            OrbaIndex=SymLabelCounts2(1,ClassCountInd(Spini,Symi,0))  ! Start considering a at the first allowed symmetry.
+            IF(tFixLz) THEN
+                Mli = G1(Orbi)%Ml
+            ELSE
+                Mli = 0
+            ENDIF
+            OrbaIndex=SymLabelCounts2(1,ClassCountInd(Spini,Symi,Mli))  ! Start considering a at the first allowed symmetry.
 
         ELSE
             Orbi=nI(OrbiIndex)                              ! Begin by using the same i as last time - check if there are any 
                                                             ! more possible excitations from this.
 
 ! At this stage, OrbaIndex is the a from the previous excitation.
-            SymInd=ClassCountInd(Spini,INT(G1(Orbi)%Sym%S,4),0)
+            SymInd=ClassCountInd(Spini,INT(G1(Orbi)%Sym%S,4),Mli)
 
             IF(OrbaIndex.eq.(SymLabelCounts2(1,SymInd)+SymLabelCounts2(2,SymInd)-1)) THEN
                 !Orba was the last in the symmetry block. Do not allow OrbaIndex+1
@@ -216,7 +244,12 @@ MODULE SymExcit3
                     ENDIF
                     IF((G1(Orbi)%Ms).eq.-1) Spini=2  
                     IF((G1(Orbi)%Ms).eq.1) Spini=1  
-                    OrbaIndex=SymLabelCounts2(1,ClassCountInd(Spini,Symi,0))
+                    IF(tFixLz) THEN
+                        Mli = G1(Orbi)%Ml
+                    ELSE
+                        Mli = 0
+                    ENDIF
+                    OrbaIndex=SymLabelCounts2(1,ClassCountInd(Spini,Symi,Mli))
                 ELSE
                     IF(exflag.ne.1) THEN
                         ExcitMat3(:,:)=0
@@ -266,7 +299,7 @@ MODULE SymExcit3
                 Orba=SymLabelList2(OrbaIndex)
             ENDIF
 
-            SymInd=ClassCountInd(Spini,INT(G1(Orbi)%Sym%S,4),0)
+            SymInd=ClassCountInd(Spini,INT(G1(Orbi)%Sym%S,4),Mli)
 
 ! Need to also make sure orbital a is unoccupied, so make sure the orbital is not in nI.
             NoOcc=0
@@ -294,9 +327,14 @@ MODULE SymExcit3
                 ENDIF
                 IF((G1(Orba)%Ms).eq.-1) Spina=2  
                 IF((G1(Orba)%Ms).eq.1) Spina=1  
+                IF(tFixLz) THEN
+                    Mla = G1(Orba)%Ml
+                ELSE
+                    Mla = 0
+                ENDIF
             ENDIF
 
-            IF(NewSym.eq.Symi.and.(Spina.eq.Spini).and.(.not.tEndaOrbs)) THEN
+            IF(NewSym.eq.Symi.and.(Spina.eq.Spini).and.(Mli.eq.Mla).and.(.not.tEndaOrbs)) THEN
 ! If not, then these are the new Orbi and Orba.                
                 tInitOrbsFound=.true.
                 OrbaIndex=OrbaIndex+NoOcc
@@ -313,7 +351,12 @@ MODULE SymExcit3
                     ENDIF
                     IF((G1(Orbi)%Ms).eq.-1) Spini=2  
                     IF((G1(Orbi)%Ms).eq.1) Spini=1  
-                    OrbaIndex=SymLabelCounts2(1,ClassCountInd(Spini,Symi,0))
+                    IF(tFixLz) THEN
+                        Mli = G1(Orbi)%Ml
+                    ELSE
+                        Mli = 0
+                    ENDIF
+                    OrbaIndex=SymLabelCounts2(1,ClassCountInd(Spini,Symi,Mli))
                 ENDIF
             ENDIF
 
@@ -330,7 +373,7 @@ MODULE SymExcit3
 ! This involves a way of ordering the electron pairs i,j and a,b so that given an i,j and a,b we can find the next.
 ! The overall symmetry must also be maintained - i.e. if i and j are alpha and beta, a and b must be alpha and beta
 ! or vice versa.
-        USE SystemData , only: ElecPairs
+        USE SystemData , only: ElecPairs, tFixLz, iMaxLz
         USE GenRandSymExcitNUMod , only: PickElecPair,FindNewDet 
         use constants, only: bits_n_int
         INTEGER :: nI(NEl),Orbj,Orbi,Orba,Orbb,Syma,Symb,NewSym
@@ -338,6 +381,7 @@ MODULE SymExcit3
         INTEGER :: Elec1Ind,Elec2Ind,SymProduct,iSpn,Spinb,nJ(NEl),ExcitMat3(2,2),SumMl
         INTEGER , SAVE :: ijInd,OrbaChosen,OrbbIndex,Spina,SymInd
         LOGICAL :: tDoubleExcitFound,tFirsta,tFirstb,tNewij,tNewa,tAllExcitFound,tParity
+        INTEGER :: Mli, Mla, Mlb
 
 !        write(6,*) "SymLabelCounts2: ",SymLabelCounts2(1,:)
 !        write(6,*) "SymLabelCounts2: ",SymLabelCounts2(2,:)
@@ -399,7 +443,9 @@ MODULE SymExcit3
 !                WRITE(6,*) "Chosen index, orbital for a: ",OrbaChosen,Orba
 
 ! The orbital chosen must be unoccupied.  This is just a test to make sure this is the case.
-                do while (BTEST(iLut((Orba-1)/bits_n_int),MOD((Orba-1),bits_n_int))) 
+                do while ((BTEST(iLut((Orba-1)/bits_n_int),MOD((Orba-1),bits_n_int))).or.(abs(SumMl - G1(Orba)%Ml).gt.iMaxLz))
+                    !We also test that the summl value and ml of Orba is such that it is possible for orbb to conserve ml.
+                    !Will get into this loop if the orbital is occupied, or if the ml is such that no orbb is possible.
 
 ! If not, we move onto the next orbital.                    
                     IF(iSpn.ne.2) THEN
@@ -415,7 +461,7 @@ MODULE SymExcit3
                         ENDIF
                     ENDIF
 
-                    IF(Orba.gt.nBasis) THEN
+                    IF(OrbaChosen.gt.nBasis) THEN
 !We have reached the end of all allowed symmetries for the a orbital, only taking into account spin symmetry. Choose new ij pair now.
                         tNewij=.true.
                         EXIT
@@ -462,6 +508,13 @@ MODULE SymExcit3
                         Syma=INT(G1(Orba)%Sym%S,4)
                     ENDIF
                     Symb=IEOR(Syma,SymProduct)
+! Then find the ml of b.
+                    IF(tFixLz) THEN
+                        Mla = G1(Orba)%Ml
+                    ELSE
+                        Mla = 0
+                    ENDIF
+                    Mlb = SumMl - Mla
 
 !                    WRITE(6,*) "SymLabelList2:" ,SymLabelList2(1:nBasis)
 !                    write(6,*) "tFirstb: ",tFirstb
@@ -469,7 +522,7 @@ MODULE SymExcit3
 ! If this is the first time we've picked an orbital b for these i,j and a, begin at the start of the symmetry block.
 ! Otherwise pick up where we left off last time.
                     IF(tFirstb) THEN
-                        SymInd=ClassCountInd(Spinb,Symb,0)
+                        SymInd=ClassCountInd(Spinb,Symb,Mlb)
 !                        write(6,*) SymInd
                         OrbbIndex=SymLabelCounts2(1,SymInd)
                     ELSE
@@ -502,10 +555,14 @@ MODULE SymExcit3
                         ELSE
                             Orbb=SymLabelList2(OrbbIndex)
 !                            write(6,"(B64.64)") iLut(0)
+!                            WRITE(6,*) 'chosen orbb',orbb
 ! Checking the orbital b is unoccupied and > a.                        
                             do while ((BTEST(iLut((Orbb-1)/bits_n_int),MOD((Orbb-1),bits_n_int))).or.(Orbb.le.Orba))
                                 !Orbital is occupied - try again
-                                IF(OrbbIndex.ge.(SymLabelCounts2(1,SymInd)+SymLabelCounts2(2,SymInd)-1)) THEN
+
+                                OrbbIndex=OrbbIndex+1
+
+                                IF(OrbbIndex.gt.(SymLabelCounts2(1,SymInd)+SymLabelCounts2(2,SymInd)-1)) THEN
                                     !Reached end of symmetry block - need new a
 !                                    write(6,*) "Reached end of sym block",Orbb,Orba
                                     tNewa=.true.
@@ -515,9 +572,7 @@ MODULE SymExcit3
 
 !                                write(6,*) "Cycling through orbitals: ",OrbbIndex,Orbb
                                 !Update new orbital b index
-                                OrbbIndex=OrbbIndex+1
                                 Orbb=SymLabelList2(OrbbIndex)
-
 !                                write(6,*) "Attempting again with orbital: ",Orbb
                             enddo
                         ENDIF
@@ -574,11 +629,12 @@ MODULE SymExcit3
 !            write(6,*) "Exiting loop with all excitations found: ",tAllExcitFound
         endif
 
-!        WRITE(6,*) 'From',ExcitMat3(1,:)
-!        WRITE(6,*) 'To',ExcitMat3(2,:)
+        
+!        WRITE(6,*) 'From',ExcitMat3(1,:),'To',ExcitMat3(2,:)
 !
 !        WRITE(6,*) 'Excitation from : ',ExcitMat3(1,1),ExcitMat3(1,2),' to ',Orba,Orbb
 !        WRITE(6,*) 'These have symmetries : ',INT(G1(ExcitMat3(1,1))%Sym%S,4),INT(G1(ExcitMat3(1,2))%Sym%S,4),' to ',INT(G1(Orba)%Sym%S,4),INT(G1(Orbb)%Sym%S,4)
+!        WRITE(6,*) 'These have symmetries : ',G1(ExcitMat3(1,1))%Ml,G1(ExcitMat3(1,2))%Ml,' to ',G1(Orba)%Ml,G1(Orbb)%Ml
 !        WRITE(6,*) 'The new determinant is : ',nJ(:)
 !        CALL FLUSH(6)
 

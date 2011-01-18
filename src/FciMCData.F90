@@ -136,6 +136,7 @@ MODULE FciMCData
       ! The approximate fraction of singles and doubles. This is calculated
       ! using the HF determinant, if using non-uniform random excitations.
       real(dp) :: pDoubles, pSingles
+      integer :: nSingles, nDoubles
       
       ! Bit representation of the HF determinant
       integer(kind=n_int), allocatable :: iLutHF(:)
