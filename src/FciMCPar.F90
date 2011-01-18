@@ -755,7 +755,7 @@ MODULE FciMCParMod
 
                 ! TODO: Ensure that the HF determinant has its flags setup
                 !       correctly at the start of a run.
-                call CalcParentFlag (j, VecSlot, Iter, parent_flags)
+                call CalcParentFlag (j, VecSlot, parent_flags)
 
                 ! If we are only spawning from initiators, we don't need to do this decoding
                 ! if CurrentDet is a non-initiator otherwise it is necessary either way.
@@ -770,7 +770,7 @@ MODULE FciMCParMod
                 call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
                                   FlagsCurr, fcimc_excit_gen_store)
 
-                if (tTruncInitiator) call CalcParentFlag (j, VecSlot, Iter, &
+                if (tTruncInitiator) call CalcParentFlag (j, VecSlot, &
                                                           parent_flags)
             endif                                                          
 
@@ -1107,14 +1107,14 @@ MODULE FciMCParMod
     end subroutine
 
 
-    subroutine CalcParentFlag(j, VecSlot, Iter, parent_flags)
+    subroutine CalcParentFlag(j, VecSlot, parent_flags)
 !In the CurrentDets array, the flag at NIfTot refers to whether that determinant *itself* is an initiator or not.    
 !We need to decide if this willchange due to the determinant acquiring a certain population, or its population dropping
 !below the threshold.
 !The CurrentDets(:,j) is the determinant we are currently spawning from, so this determines the ParentInitiator flag
 !which is passed to the SpawnedDets array and refers to whether or not the walkers *parent* is an initiator or not.
 !A flag of 0 means the determinant is an initiator, and 1 it is a non-initiator.
-        integer, intent(in) :: j, VecSlot, Iter
+        integer, intent(in) :: j, VecSlot
         integer, intent(out) :: parent_flags
         integer, dimension(lenof_sign) :: CurrentSign
         integer :: part_type
@@ -3003,8 +3003,8 @@ MODULE FciMCParMod
                 if ( (sum(AllTotParts) > tot_walkers) .or. &
                      (abs_int_sign(AllNoatHF) > MaxNoatHF)) then
 !                     WRITE(6,*) "AllTotParts: ",AllTotParts(1),AllTotParts(2),tot_walkers
-                    write (6, "(A,I12)") 'Exiting the single particle growth phase - &
-                                 &shift can now change from iteration: ',iter
+                    write (6, *) 'Exiting the single particle growth phase - &
+                                 &shift can now change'
                     VaryShiftIter = Iter
                     tSinglePartPhase = .false.
                     if(tSpawn_Only_Init.and.tSpawn_Only_Init_Grow) then
@@ -3014,9 +3014,9 @@ MODULE FciMCParMod
                     endif
                 endif
             elseif (abs_int_sign(AllNoatHF) < (MaxNoatHF - HFPopThresh)) then
-                write (6, "(A,I12)") 'No at HF has fallen too low - reentering the &
+                write (6, *) 'No at HF has fallen too low - reentering the &
                              &single particle growth phase - particle number &
-                             &may grow again from iteration: ',iter
+                             &may grow again.'
                 tSinglePartPhase = .true.
                 tReZeroShift = .true.
             endif
@@ -3039,7 +3039,7 @@ MODULE FciMCParMod
                 ! Update the shift averages
                 if ((iter - VaryShiftIter) >= nShiftEquilSteps) then
                     if ((iter-VaryShiftIter-nShiftEquilSteps) < StepsSft) &
-                        write (6, "(A,I12)") 'Beginning to average shift value from iteration: ',iter
+                        write (6, *) 'Beginning to average shift value.'
                     VaryShiftCycles = VaryShiftCycles + 1
                     SumDiagSft = SumDiagSft + DiagSft
                     AvDiagSft = SumDiagSft / real(VaryShiftCycles, dp)
@@ -3259,7 +3259,6 @@ MODULE FciMCParMod
     END SUBROUTINE WriteFciMCStatsHeader
 
     subroutine WriteFCIMCStats()
-        use Logging , only : tMCOutput
 
         if (iProcIndex == root) then
 #ifdef __CMPLX
@@ -3294,24 +3293,22 @@ MODULE FciMCParMod
                 sqrt(float(sum(AllNoatHF**2))) / norm_psi, &
                 norm_psi
 
-                if(tMCOutput) then
-                    write (6, "(I12,G16.7,2I10,2I12,4G17.9,3I10,G13.5,I12,G13.5)") &
-                    Iter + PreviousCycles, &
-                    DiagSft, &
-                    AllTotParts(1) - AllTotPartsOld(1), &
-                    AllTotParts(2) - AllTotPartsOld(2), &
-                    AllTotParts(1), AllTotParts(2), &
-                    real(ProjectionE, dp), &
-                    aimag(ProjectionE), &
-                    real(proje_iter, dp), &
-                    aimag(proje_iter), &
-                    AllNoatHF(1), &
-                    AllNoatHF(2), &
-                    AllNoatDoubs, &
-                    AccRat, &
-                    AllTotWalkers, &
-                    IterTime
-                endif
+            write (6, "(I12,G16.7,2I10,2I12,4G17.9,3I10,G13.5,I12,G13.5)") &
+                Iter + PreviousCycles, &
+                DiagSft, &
+                AllTotParts(1) - AllTotPartsOld(1), &
+                AllTotParts(2) - AllTotPartsOld(2), &
+                AllTotParts(1), AllTotParts(2), &
+                real(ProjectionE, dp), &
+                aimag(ProjectionE), &
+                real(proje_iter, dp), &
+                aimag(proje_iter), &
+                AllNoatHF(1), &
+                AllNoatHF(2), &
+                AllNoatDoubs, &
+                AccRat, &
+                AllTotWalkers, &
+                IterTime
 #else
 
             write(fcimcstats_unit,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,&
@@ -3344,26 +3341,24 @@ MODULE FciMCParMod
                 real(AllNoatHF, dp) / norm_psi, &
                 norm_psi
 
-                if(tMCOutput) then
-                    write (6, "(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,&
-                          &G13.5)") &
-                    Iter + PreviousCycles, &
-                    DiagSft, &
-                    sum(AllTotParts) - sum(AllTotPartsOld), &
-                    AllGrowRate, &
-                    sum(AllTotParts), &
-                    AllAnnihilated, &
-                    AllNoDied, &
-                    AllNoBorn, &
-                    ProjectionE, &
-                    AvDiagSft, &
-                    proje_iter, &
-                    AllNoatHF, &
-                    AllNoatDoubs, &
-                    AccRat, &
-                    AllTotWalkers, &
-                    IterTime
-                endif
+            write (6, "(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,&
+                      &G13.5)") &
+                Iter + PreviousCycles, &
+                DiagSft, &
+                sum(AllTotParts) - sum(AllTotPartsOld), &
+                AllGrowRate, &
+                sum(AllTotParts), &
+                AllAnnihilated, &
+                AllNoDied, &
+                AllNoBorn, &
+                ProjectionE, &
+                AvDiagSft, &
+                proje_iter, &
+                AllNoatHF, &
+                AllNoatDoubs, &
+                AccRat, &
+                AllTotWalkers, &
+                IterTime
 #endif
 
             if (tTruncInitiator .or. tDelayTruncInit) then
@@ -3380,8 +3375,7 @@ MODULE FciMCParMod
                     sum(AllTotParts), AllTotParts(1), AllTotParts(lenof_sign)
             endif
 
-            if(tMCOutput) call flush(6)
-!            call flush(6)
+            call flush(6)
             call flush(fcimcstats_unit)
             
         endif
@@ -3400,7 +3394,7 @@ MODULE FciMCParMod
         use SymData , only : nSymLabels,SymLabelList,SymLabelCounts,TwoCycleSymGens
         use Logging , only : tTruncRODump
         use DetCalcData, only : NMRKS,tagNMRKS,FCIDets
-        use SymExcit3, only : CountExcitations3, GenExcitations3
+        use SymExcit3, only : CountExcitations3 
         use DetBitOps, only: CountBits
         use constants, only: bits_n_int
         use util_mod, only: get_free_unit
@@ -3416,7 +3410,7 @@ MODULE FciMCParMod
         CHARACTER(len=*), PARAMETER :: this_routine='SetupParameters'
         CHARACTER(len=12) :: abstr
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped,TestClosedShellDet
-        INTEGER :: HFLz,ChosenOrb,KPnt(3), step,SymHF
+        INTEGER :: nSingles,nDoubles,HFLz,ChosenOrb,KPnt(3), step,SymHF
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
         WRITE(6,*) ""
@@ -3796,6 +3790,7 @@ MODULE FciMCParMod
         ENDIF
 
 !Initialise variables for calculation on each node
+        iter=0          !This is set so that calls to CalcParentFlag in the initialisation are ok with the logging.
         IterTime=0.0
         ProjectionE=0.D0
         AvSign=0.D0
@@ -4447,9 +4442,9 @@ MODULE FciMCParMod
         use SystemData , only : tAssumeSizeExcitgen,tUseBrillouin
         use CalcData , only : SinglesBias
         use SymData , only : SymClassSize
-!        use SymExcit3 , only : CountExcitations3
+        use SymExcit3 , only : CountExcitations3
         INTEGER :: iTotal
-        integer :: ncsf, excitcount, ierr, iExcit
+        integer :: nSing, nDoub, ncsf, excitcount, ierr, iExcit
         integer :: nStore(6), iMaxExcit, nExcitMemLen, nJ(nel)
         integer, allocatable :: EXCITGEN(:)
         character(*), parameter :: this_routine = 'CalcApproxpDoubles'
@@ -4461,8 +4456,8 @@ MODULE FciMCParMod
         else
             ncsf = 0
         endif
-!        nSing=0
-!        nDoub=0
+        nSing=0
+        nDoub=0
 
         IF(tHub.or.tUEG) THEN
             IF(tReal) THEN
@@ -4483,8 +4478,6 @@ MODULE FciMCParMod
         WRITE(6,"(A)") " Calculating approximate pDoubles for use with excitation generator by looking a excitations from HF."
         exflag=3
         IF(tKPntSym) THEN
-            nSingles = 0
-            nDoubles = 0
             !use Alex's old excitation generators.
             !However, we have to ensure that brillouins theorem isn't on!
             IF(tUseBrillouin) THEN
@@ -4508,39 +4501,34 @@ MODULE FciMCParMod
                 CALL GenSymExcitIt2(HFDet,nEl,G1,nBasis,.false.,EXCITGEN,nJ,iExcit,nStore,exFlag)
                 IF(nJ(1).eq.0) exit lp2
                 IF(iExcit.eq.1) THEN
-!                    nSing=nSing+1
-                    nSingles=nSingles+1
+                    nSing=nSing+1
                 ELSEIF(iExcit.eq.2) THEN
-                    nDoubles=nDoubles+1
+                    nDoub=nDoub+1
                 ELSE
                     CALL Stop_All(this_routine,"Trying to generate more than doubles!")
                 ENDIF
             enddo lp2
             tUseBrillouin=TempUseBrill
-!        ELSE
-!            CALL CountExcitations3(HFDet,exflag,nSing,nDoub)
+        ELSE
+            CALL CountExcitations3(HFDet,exflag,nSing,nDoub)
         ENDIF
-        iTotal=nSingles + nDoubles + ncsf
+        iTotal=nSing + nDoub + ncsf
 
-!        WRITE(6,"(I7,A,I7,A)") NDoub, " double excitations, and ",NSing," single excitations found from HF. This will be used to calculate pDoubles."
-        WRITE(6,"(I7,A,I7,A)") nDoubles, " double excitations, and ",nSingles," single excitations found from HF. This will be used to calculate pDoubles."
+        WRITE(6,"(I7,A,I7,A)") NDoub, " double excitations, and ",NSing," single excitations found from HF. This will be used to calculate pDoubles."
 
         IF(SinglesBias.ne.1.D0) THEN
             WRITE(6,*) "Singles Bias detected. Multiplying single excitation connectivity of HF determinant by ",SinglesBias," to determine pDoubles."
         ENDIF
 
-!        IF((NSing+nDoub+ncsf).ne.iTotal) THEN
-        IF((nSingles+nDoubles+ncsf).ne.iTotal) THEN
+        IF((NSing+nDoub+ncsf).ne.iTotal) THEN
             CALL Stop_All("CalcApproxpDoubles","Sum of number of singles and number of doubles does not equal total number of excitations")
         ENDIF
-!        IF((NSing.eq.0).or.(NDoub.eq.0)) THEN
-        IF((nSingles.eq.0).or.(nDoubles.eq.0)) THEN
+        IF((NSing.eq.0).or.(NDoub.eq.0)) THEN
             WRITE(6,*) "Number of singles or doubles found equals zero. pDoubles will be set to 0.95. Is this correct?"
             pDoubles = 0.95
             pSingles = 0.05
             RETURN
-!        elseif ((NSing < 0) .or. (NDoub < 0) .or. (ncsf < 0)) then
-        elseif ((nSingles < 0) .or. (nDoubles < 0) .or. (ncsf < 0)) then
+        elseif ((NSing < 0) .or. (NDoub < 0) .or. (ncsf < 0)) then
             call stop_all("CalcApproxpDoubles", &
                           "Number of singles, doubles or Yamanouchi symbols &
                           &found to be a negative number. Error here.")
@@ -4549,49 +4537,33 @@ MODULE FciMCParMod
         ! Set pDoubles to be the fraction of double excitations.
         ! If using CSFs, also consider only changing Yamanouchi Symbol
         if (tCSF) then
-!            pDoubles = real(nDoub,dp) / &
-!                   ((real(nSing,dp)*SinglesBias)+real(nDoub,dp)+real(ncsf,dp))
-!            pSingles = real(nSing,dp) / &
-!                   ((real(nSing,dp)*SinglesBias)+real(nDoub,dp)+real(ncsf,dp))
-
-            pDoubles = real(nDoubles,dp) / &
-                   ((real(nSingles,dp)*SinglesBias)+real(nDoubles,dp)+real(ncsf,dp))
-            pSingles = real(nSingles,dp) / &
-                   ((real(nSingles,dp)*SinglesBias)+real(nDoubles,dp)+real(ncsf,dp))
-
+            pDoubles = real(nDoub,dp) / &
+                   ((real(nSing,dp)*SinglesBias)+real(nDoub,dp)+real(ncsf,dp))
+            pSingles = real(nSing,dp) / &
+                   ((real(nSing,dp)*SinglesBias)+real(nDoub,dp)+real(ncsf,dp))
 
         else
-!            pDoubles = real(nDoub,dp) / &
-!                   ((real(NSing,dp)*SinglesBias) + real(NDoub,dp))
-!            pSingles = real(nSing,dp) * SinglesBias/ &
-!                   ((real(nSing,dp)*SinglesBias) + real(nDoub,dp))
-
-            pDoubles = real(nDoubles,dp) / &
-                   ((real(nSingles,dp)*SinglesBias) + real(nDoubles,dp))
-            pSingles = real(nSingles,dp) * SinglesBias/ &
-                   ((real(nSingles,dp)*SinglesBias) + real(nDoubles,dp))
- 
+            pDoubles = real(nDoub,dp) / &
+                   ((real(NSing,dp)*SinglesBias) + real(NDoub,dp))
+            pSingles = real(nSing,dp) * SinglesBias/ &
+                   ((real(nSing,dp)*SinglesBias) + real(nDoub,dp))
         endif
 
         IF(SinglesBias.ne.1.D0) THEN
             write (6, '("pDoubles set to ", f14.6, &
                        &" rather than (without bias): ", f14.6)') &
-!                       pDoubles, real(nDoub,dp) / real(iTotal,dp)
-                       pDoubles, real(nDoubles,dp) / real(iTotal,dp)
+                       pDoubles, real(nDoub,dp) / real(iTotal,dp)
             write (6, '("pSingles set to ", f14.6, &
                        &" rather than (without bias): ", f14.6)') &
-!                       pSingles, real(nSing,dp) / real(iTotal,dp)
-                       pSingles, real(nSingles,dp) / real(iTotal,dp)
+                       pSingles, real(nSing,dp) / real(iTotal,dp)
 
-!            WRITE(6,"(A,F14.6,A,F14.6)") "pDoubles set to: ",pDoubles, " rather than (without bias): ",real(nDoub,dp)/real(iTotal,dp)
-            WRITE(6,"(A,F14.6,A,F14.6)") "pDoubles set to: ",pDoubles, " rather than (without bias): ",real(nDoubles,dp)/real(iTotal,dp)
+            WRITE(6,"(A,F14.6,A,F14.6)") "pDoubles set to: ",pDoubles, " rather than (without bias): ",real(nDoub,dp)/real(iTotal,dp)
         ELSE
             write (6,'(A,F14.6)') " pDoubles set to: ", pDoubles
             write (6,'(A,F14.6)') " pSingles set to: ", pSingles
         ENDIF
 
-!        WRITE(6,'(A,F15.10)') " Assuming an average K_ij magnitude of approx 0.01, an appropriate tau is predicted to be around: ",(0.02*(1.D0/(REAL(NSing)+REAL(NDoub))))/0.01
-        WRITE(6,'(A,F15.10)') " Assuming an average K_ij magnitude of approx 0.01, an appropriate tau is predicted to be around: ",(0.02*(1.D0/(REAL(nSingles)+REAL(nDoubles))))/0.01
+        WRITE(6,'(A,F15.10)') " Assuming an average K_ij magnitude of approx 0.01, an appropriate tau is predicted to be around: ",(0.02*(1.D0/(REAL(NSing)+REAL(NDoub))))/0.01
 !This is a rough guesstimate of what tau might like to be, assuming K_ij is approx 0.01 on average, and we want a probability of spawning to be about 0.02.        
 !These are just stats taken from one system... will investigate further...
 
@@ -4648,7 +4620,7 @@ MODULE FciMCParMod
     SUBROUTINE StoreDoubs()
         use SystemData , only : tUseBrillouin
         use SymExcit3 , only : CountExcitations3,GenExcitations3
-        INTEGER :: nJ(NEl),ierr,VecSlot,ExcitMat3(2,2)
+        INTEGER :: nJ(NEl),ierr,VecSlot,nSingles,ExcitMat3(2,2)
         LOGICAL :: tAllExcitFound,tParity
 
         IF(tUseBrillouin) THEN
@@ -4656,9 +4628,9 @@ MODULE FciMCParMod
         ENDIF
         
 !NoDoubs here is actually the singles + doubles of HF
-!        exflag=3
-!        CALL CountExcitations3(HFDet,exflag,nSingles,NoDoubs)
-        NoDoubs=nSingles+nDoubles
+        exflag=3
+        CALL CountExcitations3(HFDet,exflag,nSingles,NoDoubs)
+        NoDoubs=nSingles+NoDoubs
 
         ALLOCATE(DoublesDets(NEl,NoDoubs),stat=ierr)
         CALL LogMemAlloc('DoublesDets',NoDoubs*NEl,4,"StoreDoubs",DoublesDetsTag,ierr)
@@ -4938,7 +4910,7 @@ MODULE FciMCParMod
     SUBROUTINE InitFCIMCCalcPar()
         use FciMCLoggingMOD , only : InitHistInitPops
         use SystemData , only : tRotateOrbs
-        use CalcData , only : InitialPart
+        use CalcData , only : InitialPart,tstartmp1
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil
         use constants , only : size_n_int
         use DeterminantData , only : write_det
@@ -5094,76 +5066,84 @@ MODULE FciMCParMod
             
             else
 
-                !Setup initial walker local variables for HF walkers start
-                IF(iProcIndex.eq.iHFProc) THEN
+                if(tStartMP1) then
+                    !Initialise walkers according to mp1 amplitude.
+                    call InitFCIMC_MP1()
 
-                    ! Encode the reference determinant identification.
-                    call encode_det(CurrentDets(:,1), iLutHF)
+                    
 
-                    ! Clear the flags
-                    call clear_all_flags (CurrentDets(:,1))
+                else !Set up walkers on HF det
+                    !Setup initial walker local variables for HF walkers start
+                    IF(iProcIndex.eq.iHFProc) THEN
 
-                    ! Set reference determinant as an initiator if
-                    ! tTruncInitiator is set, for both imaginary and real flags
-                    if (tTruncInitiator) then
-                        call set_flag (CurrentDets(:,1), flag_is_initiator(1))
-                        call set_flag (CurrentDets(:,1), flag_is_initiator(2))
-                        if (tSpawnSpatialInit) &
-                            call add_initiator_list (CurrentDets(:,1))
-                    endif
+                        ! Encode the reference determinant identification.
+                        call encode_det(CurrentDets(:,1), iLutHF)
 
-                    ! HF energy is equal to 0 (by definition)
-                    if (.not. tRegenDiagHEls) CurrentH(1) = 0
+                        ! Clear the flags
+                        call clear_all_flags (CurrentDets(:,1))
 
-                    ! Obtain the initial sign
-                    InitialSign = 0
-                    if (tStartSinglePart) then
-                        InitialSign(1) = InitialPart
-                    else
-                        InitialSign(1) = InitWalkers
-                    endif
-                    call encode_sign (CurrentDets(:,1), InitialSign)
+                        ! Set reference determinant as an initiator if
+                        ! tTruncInitiator is set, for both imaginary and real flags
+                        if (tTruncInitiator) then
+                            call set_flag (CurrentDets(:,1), flag_is_initiator(1))
+                            call set_flag (CurrentDets(:,1), flag_is_initiator(2))
+                            if (tSpawnSpatialInit) &
+                                call add_initiator_list (CurrentDets(:,1))
+                        endif
 
-                    ! set initial values for global control variables.
-                    TotWalkers = 1
-                    TotWalkersOld = 1
-                    TotParts = InitialSign
-                    TotPartsOld = InitialSign
-                    NoatHF = InitialSign
+                        ! HF energy is equal to 0 (by definition)
+                        if (.not. tRegenDiagHEls) CurrentH(1) = 0
 
-                ELSE
-                    NoatHF = 0
-                    TotWalkers = 0
-                    TotWalkersOld = 0
-                ENDIF
+                        ! Obtain the initial sign
+                        InitialSign = 0
+                        if (tStartSinglePart) then
+                            InitialSign(1) = InitialPart
+                        else
+                            InitialSign(1) = InitWalkers
+                        endif
+                        call encode_sign (CurrentDets(:,1), InitialSign)
 
-                OldAllNoatHF=0
-                AllNoatHF=0
-                IF(TStartSinglePart) THEN
-    !Initialise global variables for calculation on the root node
-                    IF(iProcIndex.eq.root) THEN
-                        OldAllNoatHF(1)=InitialPart
-                        AllNoatHF(1)=InitialPart
-                        AllTotWalkers = 1
-                        AllTotWalkersOld = 1
-                        iter_data_fciqmc%tot_parts_old(1) = InitialPart
-                        AllTotParts(1)=InitialPart
-                        AllTotPartsOld(1)=InitialPart
-                        AllNoAbortedOld=0.D0
+                        ! set initial values for global control variables.
+                        TotWalkers = 1
+                        TotWalkersOld = 1
+                        TotParts = InitialSign
+                        TotPartsOld = InitialSign
+                        NoatHF = InitialSign
+
+                    ELSE
+                        NoatHF = 0
+                        TotWalkers = 0
+                        TotWalkersOld = 0
                     ENDIF
-                ELSE
-    !In this, only one processor has initial particles.
-                    IF(iProcIndex.eq.Root) THEN
-                        AllTotWalkers = 1
-                        AllTotWalkersOld = 1
-                        iter_data_fciqmc%tot_parts_old(1) = InitWalkers
-                        AllTotParts(1)=InitWalkers
-                        AllTotPartsOld(1)=InitWalkers
-                        AllNoAbortedOld=0.D0
-                    ENDIF
-                ENDIF
 
-            endif   !End if reading in popsfile v.3
+                    OldAllNoatHF=0
+                    AllNoatHF=0
+                    IF(TStartSinglePart) THEN
+        !Initialise global variables for calculation on the root node
+                        IF(iProcIndex.eq.root) THEN
+                            OldAllNoatHF(1)=InitialPart
+                            AllNoatHF(1)=InitialPart
+                            AllTotWalkers = 1
+                            AllTotWalkersOld = 1
+                            iter_data_fciqmc%tot_parts_old(1) = InitialPart
+                            AllTotParts(1)=InitialPart
+                            AllTotPartsOld(1)=InitialPart
+                            AllNoAbortedOld=0.D0
+                        ENDIF
+                    ELSE
+        !In this, only one processor has initial particles.
+                        IF(iProcIndex.eq.Root) THEN
+                            AllTotWalkers = 1
+                            AllTotWalkersOld = 1
+                            iter_data_fciqmc%tot_parts_old(1) = InitWalkers
+                            AllTotParts(1)=InitWalkers
+                            AllTotPartsOld(1)=InitWalkers
+                            AllNoAbortedOld=0.D0
+                        ENDIF
+                    ENDIF
+
+                endif   !tStartmp1
+            endif  
         
             WRITE(6,"(A,F14.6,A)") " Initial memory (without excitgens + temp arrays) consists of : ",REAL(MemoryAlloc,dp)/1048576.D0," Mb/Processor"
             WRITE(6,*) "Only one array of memory to store main particle list allocated..."
@@ -5212,6 +5192,125 @@ MODULE FciMCParMod
         if(tSpawn_Only_Init .and. (.not.tTruncInitiator)) CALL Stop_All(this_routine,"Cannot use the SPAWNONLYINIT option without the TRUNCINITIATOR option.")
 
     end subroutine InitFCIMCCalcPar
+
+!Routine to initialise the particle distribution according to the MP1 wavefunction.
+!This hopefully will help with close-lying excited states of the same sym.
+    subroutine InitFCIMC_MP1()
+
+        write(6,*) "Initialising walkers proportional to the MP1 amplitudes..."
+    
+        !First, calculate the total weight - TotMP1Weight
+        TotMP1Weight=1.D0
+        iExcits=0
+        tAllExcitsFound=.false.
+        exflag=3
+        Ex(:,:)=0
+        do while(.true.)
+            call GenExcitations3(HFDet,iLutHF,nJ,exflag,Ex,tParity,tAllExcitsFound)
+            if(tAllExcitsFound) exit !All excits found
+            iExcits=iExcits+1
+            if(Ex(1,2).eq.0) then
+                ic=1
+            else
+                ic=2
+            endif
+            hel=get_helement(HFDet,nJ,ic,Ex,tParity)
+            H0tmp=getH0Element3(nJ)
+            H0tmp=Fii-H0tmp
+            amp=real(hel,dp)/H0tmp
+            TotMP1Weight=TotMP1Weight+abs(amp)
+            MP2Energy=MP2Energy+((real(hel,dp))**2)/H0tmp
+        enddo
+
+        if(iExcits.ne.(nDoubles+nSingles)) then
+            call stop_all(this_routine,"Not all excitations accounted for in StartMP1")
+        endif
+
+        write(6,"(A,2G25.15)") "MP2 energy calculated: ",MP2Energy,MP2Energy+Hii
+        write(6,*) "Setting initial shift to equal MP2 correlation energy"
+        DiagSft=MP2Energy
+
+        PartFac=(real(InitWalkers,dp)* real(nNodes,dp))/TotMP1Weight
+
+        !Now generate all excitations again, creating the required number of walkers on each one.
+        DetIndex=1
+        tAllExcitsFound=.false.
+        exflag=3
+        Ex(:,:)=0
+        do while(.true.)
+            call GenExcitations3(HFDet,iLutHF,nJ,exflag,Ex,tParity,tAllExcitsFound)
+            if(tAllExcitsFound) exit !All excits found
+            iNode=DetermineDetNode(nJ,0)
+            if(iProcIndex.eq.iNode) then
+                if(Ex(1,2).eq.0) then
+                    ic=1
+                else
+                    ic=2
+                endif
+                hel=get_helement(HFDet,nJ,ic,Ex,tParity)
+                H0tmp=getH0Element3(nJ)
+                H0tmp=Fii-H0tmp
+                !No parts on this det = PartFac*Amplitude
+                amp=(real(hel,dp)/H0tmp)*PartFac
+                NoWalkers=int(amp)
+                rat=amp-real(NoWalkers,dp)
+
+                r=genrand_real2_dSFMT()
+                if(abs(rat).gt.r) then
+                    if(amp.lt.0.D0) then
+                        NoWalkers=NoWalkers-1
+                    else
+                        NoWalkers=NoWalkers+1
+                    endif
+                endif
+
+                if(NoWalkers.ne.0) then
+                    call EncodeBitDet(nJ,iLutnJ)
+                    call encode_det(CurrentDets(:,DetIndex),iLutnJ)
+                    call clear_all_flags(CurrentDets(:,DetIndex)
+                    call encode_sign(CurrentDets(:,DetIndex),NoWalkers)
+                    if(tInitiator) then
+                        !Set initiator flag if needed (always for HF)
+                        call CalcParentFlag(DetIndex,1,tInit)
+                    endif
+                    if(.not.tRegenDiagHEls) then
+                        HDiagTemp = get_helement(nJ,nJ,0)
+                        CurrentH(DetIndex)=real(HDiagTemp,dp)-Hii
+                    endif
+                    DetIndex=DetIndex+1
+                endif
+            endif   !End if desired node
+
+            
+        enddo
+
+        !Now for the walkers on the HF det
+        if(iHFProc.eq.iProcIndex) then
+            NoWalkers=int(PartFac)  !This will always be positive
+            rat=PartFac-real(NoWalkers,dp)
+            if(rat.lt.0.D0) call stop_all(this_routine,"Should not have negative weight on HF")
+            r=genrand_real2_dSFMT()
+            if(abs(rat).gt.r) NoWalkers=NoWalkers+1
+            if(NoWalkers.ne.0) then
+                call encode_det(CurrentDets(:,DetIndex),iLutHF)
+                call clear_all_flags(CurrentDets(:,DetIndex)
+                call encode_sign(CurrentDets(:,DetIndex),NoWalkers)
+                if(tInitiator) then
+                    !Set initiator flag (always for HF)
+                    call set_flag(CurrentDets(:,DetIndex),flag_parent_initiator(part_type),.true.)
+                endif
+                if(.not.tRegenDiagHEls) CurrentH(DetIndex)=0.D0
+                DetIndex=DetIndex+1
+            else
+                call stop_all(this_routine,"No walkers initialised on the HF det with StartMP1")
+            endif
+        endif
+            
+        call sort(CurrentDets,CurrentH) !Check this will work!
+
+        !Set local&global variables
+
+    end subroutine InitFCIMC_MP1
             
     !Count excitations using ajwt3's old excitation generators which can handle non-abelian and
     !k-point symmetry
