@@ -1306,6 +1306,7 @@ contains
             IF(ISYM%K(I).NE.JSYM%K(I)) LCHKSYM=.FALSE.
          ENDDO
          IF(ISYM%Ms.NE.JSYM%Ms) LCHKSYM=.FALSE.
+         IF(ISYM%Ml.NE.JSYM%Ml) LCHKSYM=.FALSE.
 !   if the symmetry product of I and J doesn't contain the totally
 !   symmetric irrep, we set sym to .FALSE.
         LCHKSYM=LCHKSYM.AND.LSYMSYM(SYMPROD(SymConj(ISYM%SYM),JSYM%SYM))
