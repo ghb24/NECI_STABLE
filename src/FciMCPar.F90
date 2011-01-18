@@ -3417,7 +3417,6 @@ MODULE FciMCParMod
         CHARACTER(len=12) :: abstr
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped,TestClosedShellDet
         INTEGER :: HFLz,ChosenOrb,KPnt(3), step,SymHF
-        
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
         WRITE(6,*) ""

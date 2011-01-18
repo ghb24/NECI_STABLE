@@ -111,7 +111,7 @@ MODULE SymExcit3
                             
                             Mlb = SumMl - Mla   !Will be 0 if no Lz, otherwise we need Mla + Mlb = Mli + Mlj = SumMl
 
-                            IF(abs(Mlb).le.iMaxLz) THEN
+                            IF(ABS(Mlb).le.iMaxLz) THEN
                                 IF((Spina.eq.Spinb).and.(Syma.eq.Symb).and.(Mla.eq.Mlb)) THEN
                                     ! If the spin and spatial symmetries of a and b are the same
                                     ! there will exist a case where Orba = Orbb, want to remove this.
@@ -121,6 +121,7 @@ MODULE SymExcit3
                                 ENDIF
                             ENDIF
                         enddo
+
                     enddo
 
                 enddo
@@ -511,10 +512,11 @@ MODULE SymExcit3
 ! Then find the ml of b.
                     IF(tFixLz) THEN
                         Mla = G1(Orba)%Ml
+                        Mlb = SumMl - Mla
                     ELSE
                         Mla = 0
+                        Mlb = 0
                     ENDIF
-                    Mlb = SumMl - Mla
 
 !                    WRITE(6,*) "SymLabelList2:" ,SymLabelList2(1:nBasis)
 !                    write(6,*) "tFirstb: ",tFirstb
