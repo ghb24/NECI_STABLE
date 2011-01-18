@@ -37,6 +37,7 @@ MODULE Logging
     LOGICAL :: tBlockEveryIteration
     LOGICAL tLogDets       ! Write out the DETS and SymDETS files.
     LOGICAL tLogComplexPops     ! Write out complex walker information 
+    LOGICAL tMCOutput
 
     contains
 
@@ -46,6 +47,7 @@ MODULE Logging
       use default_sets
       implicit none
 
+      tMCOutput=.true.
       tLogComplexPops=.false.
       iWriteBlockingEvery=1000
       tSaveBlocking=.false.
@@ -144,6 +146,9 @@ MODULE Logging
         call readu(w)
         select case(w)
 
+        case("NOMCOUTPUT")
+            !No output to stdout from the fcimc or ccmc iterations
+            tMCOutput=.false.
         case("LOGCOMPLEXWALKERS")
             !This means that the complex walker populations are now logged.
             tLogComplexPops=.true.
