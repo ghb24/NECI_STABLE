@@ -5066,13 +5066,13 @@ MODULE FciMCParMod
             
             else
 
-                if(tStartMP1) then
-                    !Initialise walkers according to mp1 amplitude.
-                    call InitFCIMC_MP1()
-
-                    
-
-                else !Set up walkers on HF det
+!                if(tStartMP1) then
+!                    !Initialise walkers according to mp1 amplitude.
+!                    call InitFCIMC_MP1()
+!
+!                    
+!
+!                else !Set up walkers on HF det
                     !Setup initial walker local variables for HF walkers start
                     IF(iProcIndex.eq.iHFProc) THEN
 
@@ -5142,7 +5142,7 @@ MODULE FciMCParMod
                         ENDIF
                     ENDIF
 
-                endif   !tStartmp1
+!                endif   !tStartmp1
             endif  
         
             WRITE(6,"(A,F14.6,A)") " Initial memory (without excitgens + temp arrays) consists of : ",REAL(MemoryAlloc,dp)/1048576.D0," Mb/Processor"
@@ -5193,124 +5193,127 @@ MODULE FciMCParMod
 
     end subroutine InitFCIMCCalcPar
 
-!Routine to initialise the particle distribution according to the MP1 wavefunction.
-!This hopefully will help with close-lying excited states of the same sym.
-    subroutine InitFCIMC_MP1()
-
-        write(6,*) "Initialising walkers proportional to the MP1 amplitudes..."
-    
-        !First, calculate the total weight - TotMP1Weight
-        TotMP1Weight=1.D0
-        iExcits=0
-        tAllExcitsFound=.false.
-        exflag=3
-        Ex(:,:)=0
-        do while(.true.)
-            call GenExcitations3(HFDet,iLutHF,nJ,exflag,Ex,tParity,tAllExcitsFound)
-            if(tAllExcitsFound) exit !All excits found
-            iExcits=iExcits+1
-            if(Ex(1,2).eq.0) then
-                ic=1
-            else
-                ic=2
-            endif
-            hel=get_helement(HFDet,nJ,ic,Ex,tParity)
-            H0tmp=getH0Element3(nJ)
-            H0tmp=Fii-H0tmp
-            amp=real(hel,dp)/H0tmp
-            TotMP1Weight=TotMP1Weight+abs(amp)
-            MP2Energy=MP2Energy+((real(hel,dp))**2)/H0tmp
-        enddo
-
-        if(iExcits.ne.(nDoubles+nSingles)) then
-            call stop_all(this_routine,"Not all excitations accounted for in StartMP1")
-        endif
-
-        write(6,"(A,2G25.15)") "MP2 energy calculated: ",MP2Energy,MP2Energy+Hii
-        write(6,*) "Setting initial shift to equal MP2 correlation energy"
-        DiagSft=MP2Energy
-
-        PartFac=(real(InitWalkers,dp)* real(nNodes,dp))/TotMP1Weight
-
-        !Now generate all excitations again, creating the required number of walkers on each one.
-        DetIndex=1
-        tAllExcitsFound=.false.
-        exflag=3
-        Ex(:,:)=0
-        do while(.true.)
-            call GenExcitations3(HFDet,iLutHF,nJ,exflag,Ex,tParity,tAllExcitsFound)
-            if(tAllExcitsFound) exit !All excits found
-            iNode=DetermineDetNode(nJ,0)
-            if(iProcIndex.eq.iNode) then
-                if(Ex(1,2).eq.0) then
-                    ic=1
-                else
-                    ic=2
-                endif
-                hel=get_helement(HFDet,nJ,ic,Ex,tParity)
-                H0tmp=getH0Element3(nJ)
-                H0tmp=Fii-H0tmp
-                !No parts on this det = PartFac*Amplitude
-                amp=(real(hel,dp)/H0tmp)*PartFac
-                NoWalkers=int(amp)
-                rat=amp-real(NoWalkers,dp)
-
-                r=genrand_real2_dSFMT()
-                if(abs(rat).gt.r) then
-                    if(amp.lt.0.D0) then
-                        NoWalkers=NoWalkers-1
-                    else
-                        NoWalkers=NoWalkers+1
-                    endif
-                endif
-
-                if(NoWalkers.ne.0) then
-                    call EncodeBitDet(nJ,iLutnJ)
-                    call encode_det(CurrentDets(:,DetIndex),iLutnJ)
-                    call clear_all_flags(CurrentDets(:,DetIndex)
-                    call encode_sign(CurrentDets(:,DetIndex),NoWalkers)
-                    if(tInitiator) then
-                        !Set initiator flag if needed (always for HF)
-                        call CalcParentFlag(DetIndex,1,tInit)
-                    endif
-                    if(.not.tRegenDiagHEls) then
-                        HDiagTemp = get_helement(nJ,nJ,0)
-                        CurrentH(DetIndex)=real(HDiagTemp,dp)-Hii
-                    endif
-                    DetIndex=DetIndex+1
-                endif
-            endif   !End if desired node
-
-            
-        enddo
-
-        !Now for the walkers on the HF det
-        if(iHFProc.eq.iProcIndex) then
-            NoWalkers=int(PartFac)  !This will always be positive
-            rat=PartFac-real(NoWalkers,dp)
-            if(rat.lt.0.D0) call stop_all(this_routine,"Should not have negative weight on HF")
-            r=genrand_real2_dSFMT()
-            if(abs(rat).gt.r) NoWalkers=NoWalkers+1
-            if(NoWalkers.ne.0) then
-                call encode_det(CurrentDets(:,DetIndex),iLutHF)
-                call clear_all_flags(CurrentDets(:,DetIndex)
-                call encode_sign(CurrentDets(:,DetIndex),NoWalkers)
-                if(tInitiator) then
-                    !Set initiator flag (always for HF)
-                    call set_flag(CurrentDets(:,DetIndex),flag_parent_initiator(part_type),.true.)
-                endif
-                if(.not.tRegenDiagHEls) CurrentH(DetIndex)=0.D0
-                DetIndex=DetIndex+1
-            else
-                call stop_all(this_routine,"No walkers initialised on the HF det with StartMP1")
-            endif
-        endif
-            
-        call sort(CurrentDets,CurrentH) !Check this will work!
-
-        !Set local&global variables
-
-    end subroutine InitFCIMC_MP1
+!!Routine to initialise the particle distribution according to the MP1 wavefunction.
+!!This hopefully will help with close-lying excited states of the same sym.
+!    subroutine InitFCIMC_MP1()
+!
+!
+!    !DO NOT ALLOW WITH: StartSinglePart,Complex, restart, POPSFILE read or HPHF <=- Fix last one.
+!
+!        write(6,*) "Initialising walkers proportional to the MP1 amplitudes..."
+!    
+!        !First, calculate the total weight - TotMP1Weight
+!        TotMP1Weight=1.D0
+!        iExcits=0
+!        tAllExcitsFound=.false.
+!        exflag=3
+!        Ex(:,:)=0
+!        do while(.true.)
+!            call GenExcitations3(HFDet,iLutHF,nJ,exflag,Ex,tParity,tAllExcitsFound)
+!            if(tAllExcitsFound) exit !All excits found
+!            iExcits=iExcits+1
+!            if(Ex(1,2).eq.0) then
+!                ic=1
+!            else
+!                ic=2
+!            endif
+!            hel=get_helement(HFDet,nJ,ic,Ex,tParity)
+!            H0tmp=getH0Element3(nJ)
+!            H0tmp=Fii-H0tmp
+!            amp=real(hel,dp)/H0tmp
+!            TotMP1Weight=TotMP1Weight+abs(amp)
+!            MP2Energy=MP2Energy+((real(hel,dp))**2)/H0tmp
+!        enddo
+!
+!        if(iExcits.ne.(nDoubles+nSingles)) then
+!            call stop_all(this_routine,"Not all excitations accounted for in StartMP1")
+!        endif
+!
+!        write(6,"(A,2G25.15)") "MP2 energy calculated: ",MP2Energy,MP2Energy+Hii
+!        write(6,*) "Setting initial shift to equal MP2 correlation energy"
+!        DiagSft=MP2Energy
+!
+!        PartFac=(real(InitWalkers,dp)* real(nNodes,dp))/TotMP1Weight
+!
+!        !Now generate all excitations again, creating the required number of walkers on each one.
+!        DetIndex=1
+!        tAllExcitsFound=.false.
+!        exflag=3
+!        Ex(:,:)=0
+!        do while(.true.)
+!            call GenExcitations3(HFDet,iLutHF,nJ,exflag,Ex,tParity,tAllExcitsFound)
+!            if(tAllExcitsFound) exit !All excits found
+!            iNode=DetermineDetNode(nJ,0)
+!            if(iProcIndex.eq.iNode) then
+!                if(Ex(1,2).eq.0) then
+!                    ic=1
+!                else
+!                    ic=2
+!                endif
+!                hel=get_helement(HFDet,nJ,ic,Ex,tParity)
+!                H0tmp=getH0Element3(nJ)
+!                H0tmp=Fii-H0tmp
+!                !No parts on this det = PartFac*Amplitude
+!                amp=(real(hel,dp)/H0tmp)*PartFac
+!                NoWalkers=int(amp)
+!                rat=amp-real(NoWalkers,dp)
+!
+!                r=genrand_real2_dSFMT()
+!                if(abs(rat).gt.r) then
+!                    if(amp.lt.0.D0) then
+!                        NoWalkers=NoWalkers-1
+!                    else
+!                        NoWalkers=NoWalkers+1
+!                    endif
+!                endif
+!
+!                if(NoWalkers.ne.0) then
+!                    call EncodeBitDet(nJ,iLutnJ)
+!                    call encode_det(CurrentDets(:,DetIndex),iLutnJ)
+!                    call clear_all_flags(CurrentDets(:,DetIndex)
+!                    call encode_sign(CurrentDets(:,DetIndex),NoWalkers)
+!                    if(tInitiator) then
+!                        !Set initiator flag if needed (always for HF)
+!                        call CalcParentFlag(DetIndex,1,tInit)
+!                    endif
+!                    if(.not.tRegenDiagHEls) then
+!                        HDiagTemp = get_helement(nJ,nJ,0)
+!                        CurrentH(DetIndex)=real(HDiagTemp,dp)-Hii
+!                    endif
+!                    DetIndex=DetIndex+1
+!                endif
+!            endif   !End if desired node
+!
+!            
+!        enddo
+!
+!        !Now for the walkers on the HF det
+!        if(iHFProc.eq.iProcIndex) then
+!            NoWalkers=int(PartFac)  !This will always be positive
+!            rat=PartFac-real(NoWalkers,dp)
+!            if(rat.lt.0.D0) call stop_all(this_routine,"Should not have negative weight on HF")
+!            r=genrand_real2_dSFMT()
+!            if(abs(rat).gt.r) NoWalkers=NoWalkers+1
+!            if(NoWalkers.ne.0) then
+!                call encode_det(CurrentDets(:,DetIndex),iLutHF)
+!                call clear_all_flags(CurrentDets(:,DetIndex)
+!                call encode_sign(CurrentDets(:,DetIndex),NoWalkers)
+!                if(tInitiator) then
+!                    !Set initiator flag (always for HF)
+!                    call set_flag(CurrentDets(:,DetIndex),flag_parent_initiator(part_type),.true.)
+!                endif
+!                if(.not.tRegenDiagHEls) CurrentH(DetIndex)=0.D0
+!                DetIndex=DetIndex+1
+!            else
+!                call stop_all(this_routine,"No walkers initialised on the HF det with StartMP1")
+!            endif
+!        endif
+!            
+!        call sort(CurrentDets,CurrentH) !Check this will work!
+!
+!        !Set local&global variables
+!
+!    end subroutine InitFCIMC_MP1
             
     !Count excitations using ajwt3's old excitation generators which can handle non-abelian and
     !k-point symmetry
