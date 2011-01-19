@@ -19,6 +19,7 @@ MODULE Calc
     use CCMCData, only: dInitAmplitude, dProbSelNewExcitor, nSpawnings, &
                         tSpawnProp, nClustSelections, tExactEnergy,     &
                         dClustSelectionRatio,tSharedExcitors
+    use FciMCData, only: proje_linear_comb, proje_ref_det_init
 
     implicit none
 
@@ -206,7 +207,7 @@ contains
           HFPopThresh=0
           tSpatialOnlyHash = .false.
           tSpawn_Only_Init = .false.
-
+          tSpawn_Only_Init_Grow = .false.
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
 
           lNoTriples=.false.
@@ -236,6 +237,8 @@ contains
 
           ! Truncation based on number of unpaired electrons
           tTruncNOpen = .false.
+
+          proje_linear_comb = .false.
       
         end subroutine SetCalcDefaults
 
@@ -935,6 +938,21 @@ contains
                 IF(item.lt.nitems) then
                     call Getf(FracLargerDet)
                 ENDIF
+
+            case("PROJE-SPATIAL")
+                ! Calculate the projected energy by projection onto a linear
+                ! combination of determinants, specified by a particular 
+                ! spatial determinant.
+                proje_linear_comb = .true.
+                if (.not. allocated(proje_ref_det_init)) &
+                    allocate(proje_ref_det_init(nel))
+                proje_ref_det_init = 0
+                i = 1
+                do while (item < nitems .and. i <= nel)
+                    call geti(proje_ref_det_init(i))
+                    i = i+1
+                enddo
+
             case("RESTARTLARGEPOP")
                 tCheckHighestPop=.true.
                 tRestartHighPop=.true.
@@ -1052,6 +1070,16 @@ contains
             case("SPAWNONLYINIT")
 !This option means only the initiators have the ability to spawn.  The non-initiators can live/die but not spawn walkers of their own.                
                 tSpawn_Only_Init = .true.
+
+            case("SPAWNONLYINITGROWTH")
+                ! Only allow initiators to spawn progeny. Non-initiators can
+                ! live/die but are not allowed to spawn.
+                !
+                ! This option is disabled in variable shift mode. Allows
+                ! rapid but controlled growth of walkers
+                tSpawn_Only_Init = .true.
+                tSpawn_Only_Init_Grow = .true.
+
 
             case("RETESTINITPOP")                
 !This keyword is on by default.  It corresponds to the original initiator algorithm whereby a determinant may be added to the initiator space if its population becomes higher 

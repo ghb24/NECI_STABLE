@@ -7,7 +7,7 @@ reporter: Simon
 severity: minor
 
 
-status: open
+status: fixed
 
 
 summary: Remove need for BETA and PATHS options

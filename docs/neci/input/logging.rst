@@ -20,6 +20,10 @@ Logging
 
 General options
 ---------------
+
+**NOMCOUTPUT**
+    
+    Ensures no output to stdout from the fcimc or ccmc iterations
     
 **FMCPR** [**LABEL**, **RHO**, **1000**, **EXCITATION**]
     More than one of the options can be specified.

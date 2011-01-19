@@ -613,7 +613,7 @@ MODULE PopsfileMod
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
         INTEGER :: AvSumNoatHF,IntegerPart,TempnI(NEl),ExcitLevel
         INTEGER :: NIfWriteOut,pos,orb,PopsVersion, iunit
-        REAL*8 :: r,FracPart,Gap,DiagSftTemp
+        real(dp) :: r, FracPart, Gap, DiagSftTemp, tmp_dp
         HElement_t :: HElemTemp
         CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsfilePar'
         character(255) :: popsfile,FirstLine
@@ -680,7 +680,8 @@ MODULE PopsfileMod
         ELSE
             WRITE(6,'(A)') "Reading in from depreciated POPSFILE - assuming that parameters are the same as when POPSFILE was written"
         ENDIF
-        READ(iunit,*) AllTotWalkers
+        READ(iunit,*) tmp_dp
+        AllTotWalkers = tmp_dp
         READ(iunit,*) DiagSftTemp
         READ(iunit,*) AllSumNoatHF
         READ(iunit,*) AllSumENum

@@ -120,7 +120,7 @@ module Parallel
 #ifdef PARALLEL
    uSe MPI
 #endif
-   use ParallelHelper,  only: CommI, GetComm, MPIErr
+   use ParallelHelper,  only: CommI, GetComm, MPIErr, iProcIndex
    use constants
    implicit none
 
@@ -138,6 +138,11 @@ module Parallel
     interface MPIReduce
         module procedure MPIReduce_len_%(name)s
         module procedure MPIReduce_auto_%(name)s
+    end interface
+
+    interface MPISum
+        module procedure MPISum_len_%(name)s
+        module procedure MPISum_auto_%(name)s
     end interface
 
     interface MPIBcast
@@ -237,6 +242,34 @@ subroutine MPIReduce_auto (Values, iType, Ret, Node)
 #endif
 end subroutine
 
+
+subroutine MPIReduce_inplace (Values, iType, Node)
+
+    ! The same as MPIReduce, but using the Values array as the return
+    ! array on the target node.
+
+    %(type1)s, intent(inout)  :: Values()
+    integer, intent(in) :: iType
+    integer :: ierr
+    type(CommI), intent(in), optional :: node
+    integer :: comm, rt
+
+#if PARALLEL
+    call GetComm (Comm, Node, rt)
+    if (iProcIndex == rt) then
+        call MPI_REDUCE (MPI_IN_PLACE, Values, %(mpilen)s, %(mpitype)s, &
+                         iType, rt, Comm, ierr)
+    else
+        call MPI_REDUCE (Values, MPI_IN_PLACE, %(mpilen)s, %(mpitype)s, &
+                         iType, rt, Comm, ierr)
+    endif
+    if (ierr /= MPI_SUCCESS) &
+        call stop_all('MPIReduce_inplace', 'Error in MPI_REDUCE')
+#endif
+
+end subroutine
+
+
 subroutine MPIAllReduce_len (Values, iLen, iType, Ret, Node)
 
     ! Call MPI_REDUCE with the type iType on the array Values (with length
@@ -289,6 +322,26 @@ subroutine MPIAllReduce_auto (Values, iType, Ret, Node)
 #endif
 end subroutine
 
+subroutine MPIAllReduce_inplace (Values, iType, Node)
+
+    ! The same as MPIAllReduce_len, but the length of array Value (and thus
+    ! Ret) is determinend automagically
+
+    %(type1)s, intent(inout) :: Values()
+    integer, intent(in) :: iType
+    integer :: ierr
+    type(CommI), intent(in),optional :: Node
+    integer Comm
+#if PARALLEL
+    call GetComm(Comm,Node)
+    call MPI_ALLREDUCE (MPI_IN_PLACE, Values, %(mpilen)s, %(mpitype)s, iType,&
+                        Comm, ierr)
+    if (ierr /= MPI_SUCCESS) then
+        call stop_all ("MPIAllReduce", 'Error in MPI_ALLREDUCE. Terminating.')
+    endif
+#endif
+end subroutine
+
 Subroutine MPIAllReduceDatatype(Values, iLen, iType, iDatatype, Ret, Node)
    !=  In:
    !=     Values         The corresponding elements for each
@@ -338,7 +391,7 @@ end subroutine
 
 subroutine MPISumAll_auto (Values, Ret, Node)
 
-    ! The same as MPISum_auto, but the length of Values is determined
+    ! The same as MPISumAll_auto, but the length of Values is determined
     ! automagically
 
     %(type1)s, intent(in) :: Values()
@@ -349,29 +402,64 @@ subroutine MPISumAll_auto (Values, Ret, Node)
 
 end subroutine
 
-Subroutine MPISum(Values, iLen, Ret, Node)
-   !=  Sum data among all processors, and give the results to the root 
-   !=  In:
-   !=     Values(iLen)   Data (array possibly)  The corresponding elements for each
-   !=                    processor are summed and returnd into Ret
-   !=     iLen           Length of the data (in elements of its type)
-   !=  Out:
-   !=     Return(iLen)   Variable (array possibly) to get the results.
-   %(type1)s, intent(in)  :: Values()
-   %(type1)s, intent(out) :: Ret()
-   integer, intent(in) :: iLen
-   integer ierr
-   type(CommI), intent(in),optional :: Node
-   integer Comm,rt
-#if PARALLEL
-    call GetComm(Comm,Node,rt)
-   call MPI_REDUCE(Values,Ret,iLen,%(mpitype)s,MPI_SUM,rt,Comm,ierr)
-   if (ierr .ne. MPI_SUCCESS) then
-      call Stop_All("MPISum",'Error in MPISum. Terminating.')
-   end if
-#else
-   Ret=Values
-#endif
+subroutine MPISumAll_inplace (Values, Node)
+
+    ! The same as MPISumAll, but returning the results destructively 
+    ! in values
+
+    %(type1)s, intent(inout) :: Values()
+    type(CommI), intent(in),optional :: Node
+
+    call MPIAllReduce_inplace (Values, MPI_SUM, Node)
+
+end subroutine
+
+
+subroutine MPISum_len(Values, iLen, Ret, Node)
+
+    ! Sum data on different processors, leaving the result only on the root
+    ! node. (Or the node specified)
+    !
+    ! In:  Values  - Array of data to contribute to the sum
+    !      iLen    - Number of data elements in Values
+    !      Node    - The node leave the final values on.
+    ! Out: Ret     - An array of the same size as values to contain the
+    !                summed values.
+
+    %(type1)s, intent(in)  :: Values()
+    %(type1)s, intent(out) :: Ret()
+    integer, intent(in) :: iLen
+    type(CommI), intent(in), optional :: Node
+
+    call MPIReduce (Values, iLen, MPI_SUM, Ret, Node)
+
+end subroutine
+
+subroutine MPISum_auto(Values, Ret, Node)
+
+    ! Sum data on different processors, leaving the result only on the root
+    ! node. (Or the node specified). We don't need to specify the length.
+    !
+    ! In:  Values  - Array of data to contribute to the sum
+    !      Node    - The node leave the final values on.
+    ! Out: Ret     - An array of the same size as values to contain the
+    !                summed values.
+
+    %(type1)s, intent(in)  :: Values()
+    %(type1)s, intent(out) :: Ret()
+    type(CommI), intent(in), optional :: Node
+
+    call MPIReduce (Values, MPI_SUM, Ret, Node)
+
+end subroutine
+
+subroutine MPISum_inplace (Values, Node)
+
+    %(type1)s, intent(inout) :: Values()
+    type(CommI), intent(in), optional :: Node
+
+    call MPIReduce_inplace (Values, MPI_SUM, Node)
+
 end subroutine
 
 subroutine MPIBCast_lenroot (Values, iLen, rt)
