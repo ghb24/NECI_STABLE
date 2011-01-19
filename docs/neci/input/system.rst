@@ -143,6 +143,19 @@ General options
     a cutoff for the magnitude of the two-electron integrals. If the integrals are larger
     than the size specified, they will be zeroed.
 
+**CALCMCSIZETRUNCSPACE** [iMCCalcTruncLev] [CalcDetCycles] [CalcDetPrint]
+
+    This option will stochastically calculate the size of a truncated determinant space
+    from the reference determinant FDet. This algorithm is far better for calculation 
+    the size of the truncated space compared to **CALCMCSIZESPACE**. It is also parallelised,
+    and takes into account all the symmetries (including HPHF). It takes the truncation level
+    (this does not need to be the same as the **EXCITE** specification, CalcDetCycles
+    - the number of MC *acceptances* (this is subtly different to the cycles in **CALCMCSIZESPACE**) 
+    per processor, and CalcDetPrint - the number of cycles before
+    the stats of the MC run are printed to a "SpaceMCStats" file. This file gives the iteration
+    number, the number of allowed determinants generated, the fraction of generated determinants
+    which were allowed, and finally, the expected size of the space from the run so far.
+
 **CALCMCSIZESPACE** [CalcDetCycles] [CalcDetPrint]
 
     This option will calculation the exact size of the determinant space, including spin-

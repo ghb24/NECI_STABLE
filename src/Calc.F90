@@ -1319,7 +1319,8 @@ contains
           Use Determinants, only: FDet, tSpecDet, SpecDet, get_helement
           Use DetCalc, only: DetInv, nDet, tRead
           Use DetCalcData, only:  ICILevel
-          use hilbert_space_size, only: FindSymSizeofSpace, FindSymSizeofTruncSpace, FindSymMCSizeofSpace
+          use hilbert_space_size, only: FindSymSizeofSpace, FindSymSizeofTruncSpace 
+          use hilbert_space_size, only: FindSymMCSizeofSpace, FindSymMCSizeExcitLevel
           use global_utilities
           
           REAL*8 CalcT, CalcT2, GetRhoEps
@@ -1409,9 +1410,13 @@ contains
               ELSE
                   CALL FindSymSizeofTruncSpace(6)
               ENDIF
-          ELSEIF(tMCSizeSpace) THEN
+          endif
+          IF(tMCSizeSpace) THEN
               CALL FindSymMCSizeofSpace(6) 
           ENDIF
+          if(tMCSizeTruncSpace) then
+              CALL FindSymMCSizeExcitLevel(6)
+          endif
 
           IF(TMCDET) THEN
 !C.. Generate the determinant from which we start the MC

@@ -1,17 +1,19 @@
+#include "macros.h"
+
 module hilbert_space_size
 
 implicit none
 
 contains
 
-!This routine stochastically finds the size of a given excitation level (iExcitLevelTest).
+!This routine stochastically finds the size of a given excitation level (iExcitLevelTest), or
+!lower, with equal probably given to all determinants.
       SUBROUTINE FindSymMCSizeExcitLevel(IUNIT,iExcitLevTest)
          use SymData, only : TwoCycleSymGens
-         use SystemData, only: nEl,G1,nBasis,nOccAlpha,nOccBeta,G1
+         use SystemData, only: nEl,G1,nBasis
          use SystemData, only: tUEG,tHPHF,tHub
          use SystemData, only : CalcDetCycles, CalcDetPrint,tFixLz
          use DeterminantData, only : FDet
-         use DetCalcData, only : ICILevel
          use dSFMT_interface
          use soft_exit, only : ChangeVars
          use Parallel
@@ -20,24 +22,25 @@ contains
          use util_mod, only: choose
          use bit_rep_data, only: NIfTot
          IMPLICIT NONE
-         INTEGER :: IUNIT,j,SpatOrbs,FDetMom,ExcitLev
+         INTEGER , intent(in) :: iExcitLevTest,IUNIT
+         INTEGER :: j,SpatOrbs,FDetMom,Attempts
          INTEGER(KIND=n_int) :: FDetiLut(0:NIfTot),iLut(0:NIfTot)
          INTEGER :: FDetSym,TotalSym,TotalMom,alpha,beta,ierr,Momx,Momy
-         INTEGER :: Momz,iExcitLevTest
-         INTEGER*8 :: Accept,AcceptAll,i
-         INTEGER*8 :: ExcitBin(0:NEl),ExcitBinAll(0:NEl)
+         INTEGER*8 :: Accept,AcceptAll,TotalAttempts,TotalAttemptsAll
+         INTEGER*8 :: ExcitBin(0:iExcitLevTest),ExcitBinAll(0:iExcitLevTest)
          REAL*8 :: FullSpace,r,Frac
-         REAL*8 :: SizeLevel(0:NEl) 
-         LOGICAL :: truncate_space,tDummy,tDummy2,tSoftExitFound
-         LOGICAL :: tNotAllowed,tAcc
+         REAL*8 :: SizeLevel(0:iExcitLevTest) 
+         LOGICAL :: tDummy,tDummy2,tSoftExitFound
 
          WRITE(IUNIT,*) "Calculating MC size of symmetry-allowed "   &
-             //"space of only excitation level: ",iExcitLevTest
+             //"space of excitation levels up to level: ",iExcitLevTest
 
          WRITE(IUNIT,*) CalcDetCycles, " MC cycles will be used, and "  &
              //"statistics printed out every ",CalcDetPrint," cycles."
          FDetSym=0
          FDetMom=0
+         ExcitBin(:)=0
+         ExcitBinAll(:)=0
 
          do i=1,NEl
             FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,4))
@@ -56,11 +59,14 @@ contains
          ENDIF
 
          Accept=0
+         AcceptAll=0
+         TotalAttemptsAll=0
+         TotalAttempts=0    !This is the total number of attempts at creating a sym-allowed det (including successful ones)
          
          !Sz symmetry could be put in here to make it more efficient
          !(would be a little fiddly for OS systems though)
-         FullSpace=Choose(NEl,iExcitLevTest)
-         FullSpace=FullSpace*Choose(nBasis-NEl,iExcitLevTest)
+         FullSpace=Choose(NEl,iExcitLevTest)    !Pick 4 holes
+         FullSpace=FullSpace*Choose(nBasis-NEl+iExcitLevTest,iExcitLevTest) !Pick total unoccupied space
 
          WRITE(IUNIT,*) "Size of excitation level neglecting all symmetry: "&
             ,FullSpace
@@ -78,199 +84,15 @@ contains
 
          do i=1,CalcDetCycles
 
-             CALL CreateRandomExcitLevDet(iExcitLevTest)
+             !Create a random determinant up to excitation level iExcitLevTest from FDetiLut
+             !Returns det (iLut) and its excitation level, ExcitLevel, and the number of attempts
+             !needed to generate the symmetry allowed determinant.
+             CALL CreateRandomExcitLevDet(iExcitLevTest,FDetiLut,iLut,ExcitLev,Attempts)
+             TotalAttempts=TotalAttempts+Attempts
+             Accept=Accept+1
 
-             SUBROUTINE CreateRandomExcitLevDet(iExcitLevTest)
-
-             TotalSym=0
-             TotalMom=0
-             Momx=0
-             Momy=0
-             Momz=0
-             iLut(:)=FDetiLut(:)
-             MsChange=0
-
-             !Create random determinant
-             !Loop over holes in occupied space
-             do j=1,ExcitLevTest
-
-                 tNotAllowed=.true.
-                 do while(tNotAllowed) 
-                     r = genrand_real2_dSFMT()
-                     Elec = int(NEl*r)+1
-                     Orb = FDet(Elec)
-
-                     !Electron picked must not be one which has been picked before
-                     !i.e. it must be occupied in iLut
-                     if(IsOcc(iLut,Orb)) then
-
-
-
-
-
-             do j=1,nOccAlpha
-
-                 tNotAllowed=.true.
-                 do while(tNotAllowed)
-
-                     r = genrand_real2_dSFMT()
-                     alpha=2*(INT(SpatOrbs*r)+1)
-                     IF(.not.BTEST(iLut((alpha-1)/bits_n_int),mod((alpha-1),bits_n_int))) THEN
-                         !Has *not* been picked before
-                         iLut((alpha-1)/bits_n_int)= &
-                            IBSET(iLut((alpha-1)/bits_n_int),mod(alpha-1,bits_n_int))
-                         tNotAllowed=.false.
-                     ENDIF
-                 enddo
-
-                 TotalSym=IEOR(TotalSym,INT((G1(alpha)%Sym%S),4))
-                 IF(tFixLz) THEN
-                     TotalMom=TotalMom+G1(alpha)%Ml
-                 ENDIF
-                 IF(tUEG.or.tHub) THEN
-                     Momx=Momx+G1(alpha)%k(1)
-                     Momy=Momy+G1(alpha)%k(2)
-                     Momz=Momz+G1(alpha)%k(3)
-                 ENDIF
-                 IF(.not.BTEST(FDetiLut((alpha-1)/bits_n_int),mod((alpha-1),bits_n_int))) THEN
-                     !orbital chosen is *not* in the reference determinant
-                     ExcitLev=ExcitLev+1
-                 ENDIF
-
-                 !Test
-!                 IF((alpha.lt.2).or.(alpha.gt.nBasis)) THEN
-!                     CALL Stop_All("FindSymMCSizeofSpace","Error "      &
-!     &                   //"calculating whether determinant is allowed")
-!                 ENDIF
-
-             enddo
-
-             !Loop over beta electrons
-             do j=1,nOccBeta
-
-                 tNotAllowed=.true.
-                 do while(tNotAllowed)
-                     r = genrand_real2_dSFMT()
-                     beta=2*(INT(SpatOrbs*r)+1)-1
-                     IF(.not.BTEST(iLut((beta-1)/bits_n_int),mod((beta-1),bits_n_int))) THEN
-                         !Has *not* been picked before
-                         iLut((beta-1)/bits_n_int)= &
-                             IBSET(iLut((beta-1)/bits_n_int),mod(beta-1,bits_n_int))
-                         tNotAllowed=.false.
-                     ENDIF
-                 enddo
-
-                 TotalSym=IEOR(TotalSym,INT((G1(beta)%Sym%S),4))
-                 IF(tFixLz) THEN
-                     TotalMom=TotalMom+G1(beta)%Ml
-                 ENDIF
-                 IF(tUEG.or.tHub) THEN
-                     Momx=Momx+G1(beta)%k(1)
-                     Momy=Momy+G1(beta)%k(2)
-                     Momz=Momz+G1(beta)%k(3)
-                 ENDIF
-            IF(.not.BTEST(FDetiLut((beta-1)/bits_n_int),mod((beta-1),bits_n_int))) THEN
-                     !orbital chosen is *not* in the reference determinant
-                     ExcitLev=ExcitLev+1
-                 ENDIF
-                 
-                 !Test
-!                 IF((beta.lt.1).or.(beta.gt.(nBasis-1))) THEN
-!                     CALL Stop_All("FindSymMCSizeofSpace","Error "      &
-!     &                   //"calculating whether determinant is allowed")
-!                 ENDIF
-
-             enddo
-
-             tAcc=.false.
-             IF(TotalSym.eq.FDetSym) THEN
-             !Allow/disallow the determinant
-                 IF(tHPHF) THEN
-                     IF(IsAllowedHPHF(NEl,iLut)) THEN
-                         IF(tFixLz) THEN
-                             IF(TotalMom.eq.FDetMom) THEN
-                                 IF(truncate_space) THEN
-                                     IF(ExcitLev.le.ICILevel) THEN
-                                         Accept=Accept+1
-                                         tAcc=.true.
-                                     ENDIF
-                                 ELSE
-                                     Accept=Accept+1
-                                     tAcc=.true.
-                                 ENDIF
-                             ENDIF
-                         ELSE
-                             IF(truncate_space) THEN
-                                 IF(ExcitLev.le.ICILevel) THEN
-                                     IF(tUEG.or.tHub) THEN
-                                         IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN 
-                                            Accept=Accept+1
-                                            tAcc=.true.
-                                         ENDIF
-                                     ELSE
-                                         Accept=Accept+1
-                                         tAcc=.true.
-                                     ENDIF
-                                 ENDIF
-                             ELSE
-                                 IF(tUEG.or.tHub) THEN
-                                     IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN
-                                        Accept=Accept+1
-                                        tAcc=.true.
-                                     ENDIF
-                                 ELSE
-                                     Accept=Accept+1
-                                     tAcc=.true.
-                                 ENDIF
-                             ENDIF
-                         ENDIF
-                     ENDIF
-                 ELSE
-                     IF(tFixLz) THEN
-                         IF(TotalMom.eq.FDetMom) THEN
-                             IF(truncate_space) THEN
-                                 IF(ExcitLev.le.ICILevel) THEN
-                                     Accept=Accept+1
-                                     tAcc=.true.
-                                 ENDIF
-                             ELSE
-                                 Accept=Accept+1
-                                 tAcc=.true.
-                             ENDIF
-                         ENDIF
-                     ELSE
-                         IF(truncate_space) THEN
-                             IF(ExcitLev.le.ICILevel) THEN
-                                 IF(tUEG.or.tHub) THEN
-                                     IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN
-                                        Accept=Accept+1
-                                        tAcc=.true.
-                                     ENDIF
-                                 ELSE
-                                     Accept=Accept+1
-                                     tAcc=.true.
-                                 ENDIF
-                             ENDIF
-                         ELSE
-                             IF(tUEG.or.tHub) THEN
-                                 IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN
-                                    Accept=Accept+1
-                                    tAcc=.true.
-                                 ENDIF
-                             ELSE
-                                 Accept=Accept+1
-                                 tAcc=.true.
-                             ENDIF
-                         ENDIF
-                     ENDIF
-                 ENDIF
-             ENDIF
-
-             IF(tAcc) THEN
 !Add to correct bin for the excitation level
-                 ExcitBin(ExcitLev)=ExcitBin(ExcitLev)+1
-             ENDIF
-
+             ExcitBin(ExcitLev)=ExcitBin(ExcitLev)+1
              
              IF(mod(i,CalcDetPrint).eq.0) THEN
                  !Write out statistics
@@ -278,19 +100,22 @@ contains
 !                 WRITE(6,*) Accept,AcceptAll
                  CALL MPI_Reduce(Accept,AcceptAll,1,                    &
                   MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
-                 CALL MPI_Reduce(ExcitBin(0:NEl),ExcitBinAll(0:NEl),    &
+                 CALL MPI_Reduce(TotalAttempts,TotalAttemptsAll,1,                    &
+                  MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+                 CALL MPI_Reduce(ExcitBin(0:iExcitLevTest),ExcitBinAll(0:iExcitLevTest),    &
                   NEl+1,MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
 #else
                  AcceptAll=Accept
-                 ExcitBinAll(0:NEl)=ExcitBin(0:NEl)
+                 TotalAttemptsAll=TotalAttempts
+                 ExcitBinAll(0:iExcitLevTest)=ExcitBin(0:iExcitLevTest)
 #endif
-                 Frac=REAL(AcceptAll,8)/REAL(i*nProcessors,8)
-                 do j=0,NEl
+                 Frac=REAL(AcceptAll,dp)/REAL(TotalAttemptsAll,dp)  !Fraction of the 'full' space which is symmetry allowed
+                 do j=0,iExcitLevTest
                      SizeLevel(j)=(REAL(ExcitBinAll(j),8)/REAL(AcceptAll,8))*Frac*FullSpace
                  enddo
                  IF(iProcIndex.eq.0) THEN
                      WRITE(14,"(2I16,2G35.15)",advance='no') i,AcceptAll,Frac,Frac*FullSpace
-                     do j=0,NEl
+                     do j=0,iExcitLevTest
                          WRITE(14,"(F30.5)",advance='no') SizeLevel(j)
                      enddo
                      WRITE(14,"(A)") ""
@@ -298,6 +123,7 @@ contains
 
                  AcceptAll=0
                  ExcitBinAll(0:NEl)=0
+                 TotalAttemptsAll=0
 
                  CALL ChangeVars(tDummy,tSoftExitFound,tDummy2)
                  IF(tSoftExitFound) EXIT
@@ -307,42 +133,146 @@ contains
          enddo
 
 #ifdef PARALLEL
-         CALL MPI_Reduce(Accept,AcceptAll,1,                            &
-           MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
-         CALL MPI_Reduce(ExcitBin(0:NEl),ExcitBinAll(0:NEl),            &
-           NEl+1,MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+         CALL MPI_Reduce(Accept,AcceptAll,1,                    &
+          MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+         CALL MPI_Reduce(TotalAttempts,TotalAttemptsAll,1,                    &
+          MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+         CALL MPI_Reduce(ExcitBin(0:iExcitLevTest),ExcitBinAll(0:iExcitLevTest),    &
+          iExcitLevTest+1,MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
 #else
          AcceptAll=Accept
-         ExcitBinAll(0:NEl)=ExcitBin(0:NEl)
+         TotalAttemptsAll=TotalAttempts
+         ExcitBinAll(0:iExcitLevTest)=ExcitBin(0:iExcitLevTest)
 #endif
-         Frac=REAL(AcceptAll,8)/REAL(i*nProcessors,8)
-         do j=0,NEl
+         Frac=REAL(AcceptAll,dp)/REAL(TotalAttemptsAll,dp)  !Fraction of the 'full' space which is symmetry allowed
+         do j=0,iExcitLevTest
              SizeLevel(j)=(REAL(ExcitBinAll(j),8)/REAL(AcceptAll,8))*Frac*FullSpace
          enddo
-
          IF(iProcIndex.eq.0) THEN
              WRITE(14,"(2I16,2G35.15)",advance='no') i,AcceptAll,Frac,Frac*FullSpace
-                 do j=0,NEl
-                     WRITE(14,"(F30.5)",advance='no') SizeLevel(j)
-                 enddo
-                 WRITE(14,"(A)") ""
+             do j=0,iExcitLevTest
+                 WRITE(14,"(F30.5)",advance='no') SizeLevel(j)
+             enddo
+             WRITE(14,"(A)") ""
              CLOSE(14)
          ENDIF
 
-         WRITE(IUNIT,*) "MC size of space: ",Frac*FullSpace
+         WRITE(IUNIT,*) "MC size of truncated space: ",Frac*FullSpace
          WRITE(IUNIT,*) "Individual excitation level contributions: "
-         do j=0,NEl
+         do j=0,iExcitLevTest
              WRITE(IUNIT,"(I5,F30.5)") j,SizeLevel(j)
          enddo
          CALL FLUSH(IUNIT)
       
       END SUBROUTINE FindSymMCSizeExcitLevel
 
+      
+!Create stochastically a random symmetry-allowed determinant from excitation level iExcitLevTest or less, with respect to i
+!the bit representation determinant iLutFDet, which is passed in.
+!The determinant is returned in bit-form in iLut, and the excitation level of the determinant in ExcitLev.
+!This routine will only work when TwoCycleSymGens is true.
+     SUBROUTINE CreateRandomExcitLevDet(iExcitLevTest,FDetiLut,iLut,ExcitLev,Attempts)
+         use SystemData, only: nEl,G1,nBasis
+         use SystemData, only: tUEG,tHPHF,tHub
+         use SystemData, only : tFixLz
+         use dSFMT_interface
+         use constants, only : n_int,bits_n_int
+         use bit_rep_data, only: NIfTot
+         integer, intent(in) :: iExcitLevTest
+         integer, intent(out) :: ExcitLev,Attempts
+         integer(n_int) , intent(out) :: iLut(0:NIfTot)
+         integer(n_int) , intent(in) :: FDetiLut(0:NIfTot)
+         logical :: tSymAllowedDet,tNotAllowed
+         integer :: TotalSym,TotalMom,TotalMs,Momx,Momy,Momz,j,Elec,Orb,Hole
+         real(dp) :: r
+
+         Attempts=0 !Count the number of attempts needed to generate the sym-allowed determinant.
+
+         tSymAllowedDet=.false.
+         do while(.not.tSymAllowedDet)
+
+             TotalSym=0
+             TotalMom=0
+             TotalMs=0
+             Momx=0
+             Momy=0
+             Momz=0
+             ExcitLev=0
+             iLut(:)=FDetiLut(:)
+
+             !Create random determinant
+             !Loop over holes in occupied space
+             do j=1,iExcitLevTest
+
+                 tNotAllowed=.true.
+                 do while(tNotAllowed)  !Loop until we have created an allowed hole.
+                     r = genrand_real2_dSFMT()
+                     Elec = int(NEl*r)+1
+                     Orb = FDet(Elec)
+
+                     !Electron picked must not be one which has been picked before
+                     !i.e. it must be occupied in iLut
+                     if(IsOcc(iLut,Orb)) then
+                        clr_orb(iLut,Orb)   !Clear orbital to indicate it is gone. 
+                        tNotAllowed=.false.
+                        !Deal with totting up the symmetry for the now unocc orbital
+                        TotalSym=IEOR(TotalSym,INT((G1(Orb)%Sym%S),4))
+                        TotalMom=TotalMom+G1(Orb)%Ml
+                        TotalMs=TotalMs+G1(Orb)%Ms
+                        IF(tUEG.or.tHub) THEN
+                            Momx=Momx+G1(alpha)%k(1)
+                            Momy=Momy+G1(alpha)%k(2)
+                            Momz=Momz+G1(alpha)%k(3)
+                        ENDIF
+                     endif
+                 enddo
+             enddo
+
+             !Loop over electrons in the unoccupied space
+             do j=1,iExcitLevTest
+
+                 tNotAllowed=.true.
+                 do while(tNotAllowed)  !Loop until we have created an allowed electron
+                     r = genrand_real2_dSFMT()
+                     Hole = int(nBasis*r)+1
+
+                     if(IsNotOcc(iLut,Hole)) then
+                         set_orb(iLut,Hole) !Set orbital to indicate it is now occupied
+                         tNotAllowed=.false.
+                         if(IsNotOcc(FDetiLut,Hole)) ExcitLev=ExcitLev+1    !Increase excitation level
+                         !Deal with totting up the symmetry for the now occ orbital
+                         TotalSym=IEOR(TotalSym,INT((G1(Hole)%Sym%S),4))
+                         TotalMom=TotalMom-G1(Hole)%Ml
+                         TotalMs=TotalMs-G1(Hole)%Ms
+                         if(tUEG.or.tHub) then
+                            Momx=Momx-G1(alpha)%k(1)
+                            Momy=Momy-G1(alpha)%k(2)
+                            Momz=Momz-G1(alpha)%k(3)
+                         endif
+                     endif
+                 enddo
+             enddo
+
+             if((TotalSym.eq.0).and.(TotalMom.eq.0).and.(Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0).and.(TotalMs.eq.0)) then
+                 !Created determinant is symmetry allowed.
+                 if(tHPHF) then
+                     if(IsAllowedHPHF(NEl,iLut)) tSymAllowedDet=.true.
+                 else
+                     tSymAllowedDet=.true.
+                 endif
+             endif
+
+             Attempts=Attempts+1
+             
+         enddo
+
+     END SUBROUTINE CreateRandomExcitLevDet
+
 !This routine *stochastically* finds the size of the determinant space. For certain symmetries, its hard to find the
 !allowed size of the determinant space. However, it can be simply found using a MC technique.
       SUBROUTINE FindSymMCSizeofSpace(IUNIT)
          use SymData, only : TwoCycleSymGens
-         use SystemData, only: nEl,G1,nBasis,nOccAlpha,nOccBeta,G1
+         use SystemData, only: nEl,G1,nBasis,nOccAlpha,nOccBeta
          use SystemData, only: tUEG,tHPHF,tHub
          use SystemData, only : CalcDetCycles, CalcDetPrint,tFixLz
          use DeterminantData, only : FDet
