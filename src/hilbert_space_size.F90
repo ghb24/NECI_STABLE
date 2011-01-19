@@ -8,9 +8,9 @@ contains
 
 !This routine stochastically finds the size of a given excitation level (iExcitLevelTest), or
 !lower, with equal probably given to all determinants.
-      SUBROUTINE FindSymMCSizeExcitLevel(IUNIT,iExcitLevTest)
+      SUBROUTINE FindSymMCSizeExcitLevel(IUNIT)
          use SymData, only : TwoCycleSymGens
-         use SystemData, only: nEl,G1,nBasis
+         use SystemData, only: nEl,G1,nBasis,iMCCalcTruncLev
          use SystemData, only: tUEG,tHPHF,tHub
          use SystemData, only : CalcDetCycles, CalcDetPrint,tFixLz
          use DeterminantData, only : FDet
@@ -22,20 +22,23 @@ contains
          use util_mod, only: choose
          use bit_rep_data, only: NIfTot
          IMPLICIT NONE
-         INTEGER , intent(in) :: iExcitLevTest,IUNIT
-         INTEGER :: j,SpatOrbs,FDetMom,Attempts
+         INTEGER , intent(in) :: IUNIT
+         INTEGER :: j,SpatOrbs,FDetMom,Attempts,iExcitLevTest,i,ExcitLev
          INTEGER(KIND=n_int) :: FDetiLut(0:NIfTot),iLut(0:NIfTot)
          INTEGER :: FDetSym,TotalSym,TotalMom,alpha,beta,ierr,Momx,Momy
          INTEGER*8 :: Accept,AcceptAll,TotalAttempts,TotalAttemptsAll
-         INTEGER*8 :: ExcitBin(0:iExcitLevTest),ExcitBinAll(0:iExcitLevTest)
-         REAL*8 :: FullSpace,r,Frac
-         REAL*8 :: SizeLevel(0:iExcitLevTest) 
+         INTEGER*8 :: ExcitBin(0:iMCCalcTruncLev),ExcitBinAll(0:iMCCalcTruncLev)
+         REAL*8 :: ExcitLevBias(0:iMCCalcTruncLev)
+         REAL*8 :: FullSpace,r,Frac,SymSpace
+         REAL*8 :: SizeLevel(0:iMCCalcTruncLev) 
          LOGICAL :: tDummy,tDummy2,tSoftExitFound
 
-         WRITE(IUNIT,*) "Calculating MC size of symmetry-allowed "   &
+         iExcitLevTest=iMCCalcTruncLev
+
+         WRITE(IUNIT,"(A,I6)") "Calculating MC size of symmetry-allowed "   &
              //"space of excitation levels up to level: ",iExcitLevTest
 
-         WRITE(IUNIT,*) CalcDetCycles, " MC cycles will be used, and "  &
+         WRITE(IUNIT,"(I18,A,I18,A)") CalcDetCycles, " MC cycles will be used, and "  &
              //"statistics printed out every ",CalcDetPrint," cycles."
          FDetSym=0
          FDetMom=0
@@ -68,13 +71,19 @@ contains
          FullSpace=Choose(NEl,iExcitLevTest)    !Pick 4 holes
          FullSpace=FullSpace*Choose(nBasis-NEl+iExcitLevTest,iExcitLevTest) !Pick total unoccupied space
 
+         !Calculate excitation level bias due to the way the determinants are constructed.
+         do i=0,iExcitLevTest
+             ExcitLevBias(i)=Choose(NEl-i,iExcitLevTest-i)
+!             write(6,*) ExcitLevBias(i)
+         enddo
+
          WRITE(IUNIT,*) "Size of excitation level neglecting all symmetry: "&
             ,FullSpace
 
          CALL FLUSH(IUNIT)
 
          IF(iProcIndex.eq.0) THEN
-             OPEN(14,file="SpaceMCStats",status='unknown',              &
+             OPEN(14,file="TruncSpaceMCStats",status='unknown',              &
                  form='formatted')
          ENDIF
 
@@ -87,7 +96,7 @@ contains
              !Create a random determinant up to excitation level iExcitLevTest from FDetiLut
              !Returns det (iLut) and its excitation level, ExcitLevel, and the number of attempts
              !needed to generate the symmetry allowed determinant.
-             CALL CreateRandomExcitLevDet(iExcitLevTest,FDetiLut,iLut,ExcitLev,Attempts)
+             CALL CreateRandomExcitLevDet(iExcitLevTest,FDet,FDetiLut,iLut,ExcitLev,Attempts)
              TotalAttempts=TotalAttempts+Attempts
              Accept=Accept+1
 
@@ -103,18 +112,21 @@ contains
                  CALL MPI_Reduce(TotalAttempts,TotalAttemptsAll,1,                    &
                   MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
                  CALL MPI_Reduce(ExcitBin(0:iExcitLevTest),ExcitBinAll(0:iExcitLevTest),    &
-                  NEl+1,MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+                  iExcitLevTest+1,MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
 #else
                  AcceptAll=Accept
                  TotalAttemptsAll=TotalAttempts
                  ExcitBinAll(0:iExcitLevTest)=ExcitBin(0:iExcitLevTest)
 #endif
+                 SymSpace=0.D0
                  Frac=REAL(AcceptAll,dp)/REAL(TotalAttemptsAll,dp)  !Fraction of the 'full' space which is symmetry allowed
                  do j=0,iExcitLevTest
-                     SizeLevel(j)=(REAL(ExcitBinAll(j),8)/REAL(AcceptAll,8))*Frac*FullSpace
+!                     write(6,*) REAL(ExcitBinAll(j),dp),REAL(AcceptAll,dp),Frac,FullSpace,ExcitLevBias(j)
+                     SizeLevel(j)=((REAL(ExcitBinAll(j),dp)/REAL(AcceptAll,dp))*Frac*FullSpace)/ExcitLevBias(j)
+                     SymSpace=SymSpace+SizeLevel(j)
                  enddo
                  IF(iProcIndex.eq.0) THEN
-                     WRITE(14,"(2I16,2G35.15)",advance='no') i,AcceptAll,Frac,Frac*FullSpace
+                     WRITE(14,"(2I16,2G35.15)",advance='no') i,AcceptAll,Frac,SymSpace
                      do j=0,iExcitLevTest
                          WRITE(14,"(F30.5)",advance='no') SizeLevel(j)
                      enddo
@@ -122,7 +134,7 @@ contains
                  ENDIF
 
                  AcceptAll=0
-                 ExcitBinAll(0:NEl)=0
+                 ExcitBinAll(0:iExcitLevTest)=0
                  TotalAttemptsAll=0
 
                  CALL ChangeVars(tDummy,tSoftExitFound,tDummy2)
@@ -144,12 +156,15 @@ contains
          TotalAttemptsAll=TotalAttempts
          ExcitBinAll(0:iExcitLevTest)=ExcitBin(0:iExcitLevTest)
 #endif
+         SymSpace=0.D0
          Frac=REAL(AcceptAll,dp)/REAL(TotalAttemptsAll,dp)  !Fraction of the 'full' space which is symmetry allowed
          do j=0,iExcitLevTest
-             SizeLevel(j)=(REAL(ExcitBinAll(j),8)/REAL(AcceptAll,8))*Frac*FullSpace
+!             write(6,*) REAL(ExcitBinAll(j),dp),REAL(AcceptAll,dp),Frac,FullSpace,ExcitLevBias(j)
+             SizeLevel(j)=((REAL(ExcitBinAll(j),8)/REAL(AcceptAll,8))*Frac*FullSpace)/ExcitLevBias(j)
+             SymSpace=SymSpace+SizeLevel(j)
          enddo
          IF(iProcIndex.eq.0) THEN
-             WRITE(14,"(2I16,2G35.15)",advance='no') i,AcceptAll,Frac,Frac*FullSpace
+             WRITE(14,"(2I16,2G35.15)",advance='no') i,AcceptAll,Frac,SymSpace
              do j=0,iExcitLevTest
                  WRITE(14,"(F30.5)",advance='no') SizeLevel(j)
              enddo
@@ -157,7 +172,7 @@ contains
              CLOSE(14)
          ENDIF
 
-         WRITE(IUNIT,*) "MC size of truncated space: ",Frac*FullSpace
+         WRITE(IUNIT,*) "MC size of truncated space: ",SymSpace
          WRITE(IUNIT,*) "Individual excitation level contributions: "
          do j=0,iExcitLevTest
              WRITE(IUNIT,"(I5,F30.5)") j,SizeLevel(j)
@@ -171,14 +186,18 @@ contains
 !the bit representation determinant iLutFDet, which is passed in.
 !The determinant is returned in bit-form in iLut, and the excitation level of the determinant in ExcitLev.
 !This routine will only work when TwoCycleSymGens is true.
-     SUBROUTINE CreateRandomExcitLevDet(iExcitLevTest,FDetiLut,iLut,ExcitLev,Attempts)
+!***WARNING*** The determinants created in this way are *NOT* uniform.
+!Determinants of a certain excitation level are more likely to be generated than others.
+!The bias towards a given determinant is given by:
+!(NEl-ExcitLev) Choose (iExcitLevTest-ExcitLev)
+     SUBROUTINE CreateRandomExcitLevDet(iExcitLevTest,FDet,FDetiLut,iLut,ExcitLev,Attempts)
          use SystemData, only: nEl,G1,nBasis
          use SystemData, only: tUEG,tHPHF,tHub
          use SystemData, only : tFixLz
          use dSFMT_interface
          use constants, only : n_int,bits_n_int
          use bit_rep_data, only: NIfTot
-         integer, intent(in) :: iExcitLevTest
+         integer, intent(in) :: iExcitLevTest,FDet(NEl)
          integer, intent(out) :: ExcitLev,Attempts
          integer(n_int) , intent(out) :: iLut(0:NIfTot)
          integer(n_int) , intent(in) :: FDetiLut(0:NIfTot)
@@ -220,9 +239,9 @@ contains
                         TotalMom=TotalMom+G1(Orb)%Ml
                         TotalMs=TotalMs+G1(Orb)%Ms
                         IF(tUEG.or.tHub) THEN
-                            Momx=Momx+G1(alpha)%k(1)
-                            Momy=Momy+G1(alpha)%k(2)
-                            Momz=Momz+G1(alpha)%k(3)
+                            Momx=Momx+G1(Orb)%k(1)
+                            Momy=Momy+G1(Orb)%k(2)
+                            Momz=Momz+G1(Orb)%k(3)
                         ENDIF
                      endif
                  enddo
@@ -245,9 +264,9 @@ contains
                          TotalMom=TotalMom-G1(Hole)%Ml
                          TotalMs=TotalMs-G1(Hole)%Ms
                          if(tUEG.or.tHub) then
-                            Momx=Momx-G1(alpha)%k(1)
-                            Momy=Momy-G1(alpha)%k(2)
-                            Momz=Momz-G1(alpha)%k(3)
+                            Momx=Momx-G1(Hole)%k(1)
+                            Momy=Momy-G1(Hole)%k(2)
+                            Momz=Momz-G1(Hole)%k(3)
                          endif
                      endif
                  enddo
