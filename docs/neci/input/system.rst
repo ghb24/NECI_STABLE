@@ -153,7 +153,7 @@ General options
     (this does not need to be the same as the **EXCITE** specification, CalcDetCycles
     - the number of MC *acceptances* (this is subtly different to the cycles in **CALCMCSIZESPACE**) 
     per processor, and CalcDetPrint - the number of cycles before
-    the stats of the MC run are printed to a "SpaceMCStats" file. This file gives the iteration
+    the stats of the MC run are printed to a "TruncSpaceMCStats" file. This file gives the iteration
     number, the number of allowed determinants generated, the fraction of generated determinants
     which were allowed, and finally, the expected size of the space from the run so far.
 
