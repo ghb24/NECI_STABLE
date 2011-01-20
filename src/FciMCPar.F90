@@ -3263,7 +3263,7 @@ MODULE FciMCParMod
         if (iProcIndex == root) then
 #ifdef __CMPLX
             write(fcimcstats_unit,"(I12,G16.7,2I10,2I12,4G17.9,3I10,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9)") &
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,9G17.9)") &
                 Iter + PreviousCycles, &
                 DiagSft, &
                 AllTotParts(1) - AllTotPartsOld(1), &
