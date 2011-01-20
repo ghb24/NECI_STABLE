@@ -191,6 +191,7 @@ contains
 !The bias towards a given determinant is given by:
 !(NEl-ExcitLev) Choose (iExcitLevTest-ExcitLev)
      SUBROUTINE CreateRandomExcitLevDet(iExcitLevTest,FDet,FDetiLut,iLut,ExcitLev,Attempts)
+         use HPHFRandExcitMod , only : IsAllowedHPHF
          use SystemData, only: nEl,G1,nBasis
          use SystemData, only: tUEG,tHPHF,tHub
          use SystemData, only : tFixLz
@@ -275,7 +276,7 @@ contains
              if((TotalSym.eq.0).and.(TotalMom.eq.0).and.(Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0).and.(TotalMs.eq.0)) then
                  !Created determinant is symmetry allowed.
                  if(tHPHF) then
-                     if(IsAllowedHPHF(NEl,iLut)) tSymAllowedDet=.true.
+                     if(IsAllowedHPHF(iLut)) tSymAllowedDet=.true.
                  else
                      tSymAllowedDet=.true.
                  endif
@@ -290,6 +291,7 @@ contains
 !This routine *stochastically* finds the size of the determinant space. For certain symmetries, its hard to find the
 !allowed size of the determinant space. However, it can be simply found using a MC technique.
       SUBROUTINE FindSymMCSizeofSpace(IUNIT)
+         use HPHFRandExcitMod , only : IsAllowedHPHF
          use SymData, only : TwoCycleSymGens
          use SystemData, only: nEl,G1,nBasis,nOccAlpha,nOccBeta
          use SystemData, only: tUEG,tHPHF,tHub
@@ -466,7 +468,7 @@ contains
              IF(TotalSym.eq.FDetSym) THEN
              !Allow/disallow the determinant
                  IF(tHPHF) THEN
-                     IF(IsAllowedHPHF(NEl,iLut)) THEN
+                     IF(IsAllowedHPHF(iLut)) THEN
                          IF(tFixLz) THEN
                              IF(TotalMom.eq.FDetMom) THEN
                                  IF(truncate_space) THEN
@@ -617,35 +619,6 @@ contains
          CALL FLUSH(IUNIT)
 
       END SUBROUTINE FindSymMCSizeofSpace
-
-      FUNCTION IsAllowedHPHF(NEl,iLutnI)
-          USE HPHFRandExcitMod , only : ReturnAlphaOpenDet
-          USE Bit_reps , only : Decode_Bit_Det
-          use constants , only : n_int
-          use bit_rep_data, only: NIfTot
-          IMPLICIT NONE
-          INTEGER :: nI(NEl),NEl
-          INTEGER(KIND=n_int) :: iLutnI(0:NIfTot),iLutSym(0:NIfTot)
-          INTEGER :: nJ(NEl)
-          LOGICAL :: IsAllowedHPHF,tClosedShell,tSwapped
-          LOGICAL :: TestClosedShellDet
-
-          CALL Decode_Bit_Det(nI,iLutnI)
-
-          tClosedShell=TestClosedShellDet(iLutnI)
-          IF(tClosedShell) THEN
-              IsAllowedHPHF=.true.
-              RETURN
-          ENDIF
-
-          CALL ReturnAlphaOpenDet(nI,nJ,iLutnI,iLutSym,.true.,.true.,tSwapped)
-
-          IF(tSwapped) THEN
-              IsAllowedHPHF=.false.
-          ELSE
-              IsAllowedHPHF=.true.
-          ENDIF
-      END FUNCTION IsAllowedHPHF
 
 !!This routine finds the size of the determinant space in terms, including all symmetry allowed determinants.
 !!This is written to IUNIT. This is only available for molecular (i.e. abelian) systems with a maximum of eigth irreps.

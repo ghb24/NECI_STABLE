@@ -5070,8 +5070,6 @@ MODULE FciMCParMod
 !                    !Initialise walkers according to mp1 amplitude.
 !                    call InitFCIMC_MP1()
 !
-!                    
-!
 !                else !Set up walkers on HF det
                     !Setup initial walker local variables for HF walkers start
                     IF(iProcIndex.eq.iHFProc) THEN
@@ -5197,11 +5195,17 @@ MODULE FciMCParMod
 !!This hopefully will help with close-lying excited states of the same sym.
 !    subroutine InitFCIMC_MP1()
 !
-!
-!    !DO NOT ALLOW WITH: StartSinglePart,Complex, restart, POPSFILE read or HPHF <=- Fix last one.
+!        if(lenof_sign.ne.1) call stop_all(this_routine,"StartMP1 currently does not work with complex walkers")
+!        if(tReadPops) call stop_all(this_routine,"StartMP1 cannot work with with ReadPops")
+!        if(tStartSinglePart) call stop_all(this_routine,"StartMP1 cannot work with StartSinglePart")
+!        if(tRestartHighPop) call stop_all(this_routine,"StartMP1 cannot with with dynamically restarting calculations")
 !
 !        write(6,*) "Initialising walkers proportional to the MP1 amplitudes..."
-!    
+!
+!        if(tHPHF) then
+!            if(.not.TestClosedShellDet(iLutHF)) call stop_all(this_routine,"Cannot use HPHF with StartMP1 if your reference is open-shell")
+!        endif
+!                
 !        !First, calculate the total weight - TotMP1Weight
 !        TotMP1Weight=1.D0
 !        iExcits=0
@@ -5211,21 +5215,39 @@ MODULE FciMCParMod
 !        do while(.true.)
 !            call GenExcitations3(HFDet,iLutHF,nJ,exflag,Ex,tParity,tAllExcitsFound)
 !            if(tAllExcitsFound) exit !All excits found
-!            iExcits=iExcits+1
-!            if(Ex(1,2).eq.0) then
-!                ic=1
+!            if(tHPHF) then
+!                !Working in HPHF Space. Check whether determinant generated is an 'HPHF'
+!                call EncodeBitDet(nJ,iLutnJ)
+!                if(IsAllowedHPHF(iLutnJ)) then
+!                    iExcits=iExcits+1
+!                    
+!                    hel=hphf_off_diag_helement_norm(HFDet,nJ,iLutHF,iLutnJ)
+!                    H0tmp=getH0Element3(nJ) !Assume since we are using HPHF that the alpha and
+!                                            !beta orbitals of the same spatial orbital have the same
+!                                            !fock energies, so can consider either.
+!                    H0tmp=Fii-H0tmp
+!                    amp=hel/H0tmp
+!                    TotMP1Weight=TotMP1Weight+abs(amp)
+!                    MP2Energy=MP2Energy+((real(hel,dp))**2)/H0tmp
+!                endif
 !            else
-!                ic=2
+!                !Working in normal determinant space
+!                iExcits=iExcits+1
+!                if(Ex(1,2).eq.0) then
+!                    ic=1
+!                else
+!                    ic=2
+!                endif
+!                hel=get_helement(HFDet,nJ,ic,Ex,tParity)
+!                H0tmp=getH0Element3(nJ)
+!                H0tmp=Fii-H0tmp
+!                amp=hel/H0tmp
+!                TotMP1Weight=TotMP1Weight+abs(amp)
+!                MP2Energy=MP2Energy+((real(hel,dp))**2)/H0tmp
 !            endif
-!            hel=get_helement(HFDet,nJ,ic,Ex,tParity)
-!            H0tmp=getH0Element3(nJ)
-!            H0tmp=Fii-H0tmp
-!            amp=real(hel,dp)/H0tmp
-!            TotMP1Weight=TotMP1Weight+abs(amp)
-!            MP2Energy=MP2Energy+((real(hel,dp))**2)/H0tmp
 !        enddo
 !
-!        if(iExcits.ne.(nDoubles+nSingles)) then
+!        if((.not.tHPHF).and.(iExcits.ne.(nDoubles+nSingles))) then
 !            call stop_all(this_routine,"Not all excitations accounted for in StartMP1")
 !        endif
 !
@@ -5243,6 +5265,11 @@ MODULE FciMCParMod
 !        do while(.true.)
 !            call GenExcitations3(HFDet,iLutHF,nJ,exflag,Ex,tParity,tAllExcitsFound)
 !            if(tAllExcitsFound) exit !All excits found
+!            if(tHPHF) then
+!                call EncodeBitDet(nJ,iLutnJ)
+!                if(.not.IsAllowedHPHF(iLutnJ)) cycle
+!            endif
+!
 !            iNode=DetermineDetNode(nJ,0)
 !            if(iProcIndex.eq.iNode) then
 !                if(Ex(1,2).eq.0) then
@@ -5250,11 +5277,15 @@ MODULE FciMCParMod
 !                else
 !                    ic=2
 !                endif
-!                hel=get_helement(HFDet,nJ,ic,Ex,tParity)
+!                if(tHPHF) then
+!                    hel=hphf_off_diag_helement_norm(HFDet,nJ,iLutHF,iLutnJ)
+!                else
+!                    hel=get_helement(HFDet,nJ,ic,Ex,tParity)
+!                endif
 !                H0tmp=getH0Element3(nJ)
 !                H0tmp=Fii-H0tmp
 !                !No parts on this det = PartFac*Amplitude
-!                amp=(real(hel,dp)/H0tmp)*PartFac
+!                amp=(hel/H0tmp)*PartFac
 !                NoWalkers=int(amp)
 !                rat=amp-real(NoWalkers,dp)
 !
