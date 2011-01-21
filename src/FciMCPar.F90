@@ -3410,7 +3410,7 @@ MODULE FciMCParMod
         CHARACTER(len=*), PARAMETER :: this_routine='SetupParameters'
         CHARACTER(len=12) :: abstr
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped,TestClosedShellDet
-        INTEGER :: nSingles,nDoubles,HFLz,ChosenOrb,KPnt(3), step,SymHF
+        INTEGER :: HFLz,ChosenOrb,KPnt(3), step,SymHF
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
         WRITE(6,*) ""
@@ -5241,6 +5241,9 @@ MODULE FciMCParMod
                 !beta orbitals of the same spatial orbital have the same
                 !fock energies, so can consider either.
                 hel=hphf_off_diag_helement_norm(HFDet,nJ,iLutHF,iLutnJ)
+!                if(.not.TestClosedShellDet(iLutnJ)) then
+!                    hel=sqrt(2.D0)*hel
+!                endif
             else
                 hel=get_helement(HFDet,nJ,ic,Ex,tParity)
             endif
@@ -5252,6 +5255,7 @@ MODULE FciMCParMod
         enddo
 
         if((.not.tHPHF).and.(iExcits.ne.(nDoubles+nSingles))) then
+            write(6,*) nDoubles,nSingles,iExcits
             call stop_all(this_routine,"Not all excitations accounted for in StartMP1")
         endif
 
@@ -5314,7 +5318,11 @@ MODULE FciMCParMod
                         call CalcParentFlag(DetIndex,1,iInit)
                     endif
                     if(.not.tRegenDiagHEls) then
-                        HDiagTemp = get_helement(nJ,nJ,0)
+                        if(tHPHF) then
+                            HDiagTemp = hphf_diag_helement(nJ,iLutnJ) 
+                        else
+                            HDiagTemp = get_helement(nJ,nJ,0)
+                        endif
                         CurrentH(DetIndex)=real(HDiagTemp,dp)-Hii
                     endif
                     DetIndex=DetIndex+1
