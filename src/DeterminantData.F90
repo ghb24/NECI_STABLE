@@ -1,3 +1,5 @@
+#include "macros.h"
+
 module DeterminantData
     use SystemData, only: nel, tCSF
     use csf_data, only: iscsf, csf_orbital_mask, csf_yama_bit
@@ -5,6 +7,13 @@ module DeterminantData
 
     integer, pointer :: FDet(:)
     integer :: tagFDet
+
+    type lexicographic_store
+        integer, allocatable :: dorder(:)
+        integer, allocatable :: open_orbs(:)
+        integer, allocatable :: open_indices(:)
+        integer :: nopen, nup
+    end type
 
 contains
 
@@ -124,5 +133,7 @@ contains
             dorder(comb) = 0
         endif
     end subroutine
+
+
 
 end module

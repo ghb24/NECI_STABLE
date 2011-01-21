@@ -1120,9 +1120,7 @@ MODULE GenRandSymExcitNUMod
             ENDIF
         ENDIF
         
-        IF(tFixLz) THEN
-            SumMl=G1(Orb1)%Ml+G1(Orb2)%Ml
-        ENDIF
+        SumMl=G1(Orb1)%Ml+G1(Orb2)%Ml
 
     END SUBROUTINE PickElecPair
 

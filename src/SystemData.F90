@@ -66,7 +66,8 @@ logical :: tTruncateCSF   ! Use determinants not CSFs for nopen >
                           ! csf_trunc_level
 
 ! Calculate size of FCI determinant space using MC
-logical :: tMCSizeSpace 
+logical :: tMCSizeSpace,tMCSizeTruncSpace
+integer :: iMCCalcTruncLev
 integer*8 :: CalcDetPrint, CalcDetCycles   ! parameters
 
 ! Inputs for the UEG

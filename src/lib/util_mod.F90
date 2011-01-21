@@ -328,7 +328,13 @@ contains
         ! The search range
         lo = lbound(arr,2)
         hi = ubound(arr,2)
+
 !>>>!        write(6,*) 'hi, lo', hi, lo
+        ! Account for poor usage (i.e. array len == 0)
+        if (hi < lo) then
+            pos = -lo
+            return
+        endif
 
         ! Have we specified how much to look at?
         data_lo = lbound(arr, 1)
@@ -344,7 +350,7 @@ contains
         ! Narrow the search range down in steps.
         do while (hi /= lo)
             pos = int(real(hi + lo) / 2)
-!>>>!            write(6,*) 'pos', pos
+!>>>!            write(6,*) 'pos', pos, lo, hi
 !>>>!            call flush(6)
 
             if (all(arr(data_lo:data_hi,pos) == val(val_lo:val_hi))) then

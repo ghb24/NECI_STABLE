@@ -19,6 +19,7 @@ MODULE Calc
     use CCMCData, only: dInitAmplitude, dProbSelNewExcitor, nSpawnings, &
                         tSpawnProp, nClustSelections, tExactEnergy,     &
                         dClustSelectionRatio,tSharedExcitors
+    use FciMCData, only: proje_linear_comb, proje_ref_det_init
 
     implicit none
 
@@ -236,6 +237,8 @@ contains
 
           ! Truncation based on number of unpaired electrons
           tTruncNOpen = .false.
+
+          proje_linear_comb = .false.
       
         end subroutine SetCalcDefaults
 
@@ -935,6 +938,21 @@ contains
                 IF(item.lt.nitems) then
                     call Getf(FracLargerDet)
                 ENDIF
+
+            case("PROJE-SPATIAL")
+                ! Calculate the projected energy by projection onto a linear
+                ! combination of determinants, specified by a particular 
+                ! spatial determinant.
+                proje_linear_comb = .true.
+                if (.not. allocated(proje_ref_det_init)) &
+                    allocate(proje_ref_det_init(nel))
+                proje_ref_det_init = 0
+                i = 1
+                do while (item < nitems .and. i <= nel)
+                    call geti(proje_ref_det_init(i))
+                    i = i+1
+                enddo
+
             case("RESTARTLARGEPOP")
                 tCheckHighestPop=.true.
                 tRestartHighPop=.true.
@@ -1295,13 +1313,14 @@ contains
         Subroutine CalcInit()
           use constants, only: dp
           use SystemData, only: G1, Alat, Beta, BRR, ECore, LMS, nBasis, nBasisMax, STot,tCSF,nMsh,nEl
-          use SystemData, only: tUEG,nOccAlpha,nOccBeta,ElecPairs,tExactSizeSpace,tMCSizeSpace,MaxABPairs
+          use SystemData, only: tUEG,nOccAlpha,nOccBeta,ElecPairs,tExactSizeSpace,tMCSizeSpace,MaxABPairs,tMCSizeTruncSpace
           use IntegralsData, only: FCK, CST, nMax, UMat
           use IntegralsData, only: HFEDelta, HFMix, NHFIt, tHFCalc
           Use Determinants, only: FDet, tSpecDet, SpecDet, get_helement
           Use DetCalc, only: DetInv, nDet, tRead
           Use DetCalcData, only:  ICILevel
-          use hilbert_space_size, only: FindSymSizeofSpace, FindSymSizeofTruncSpace, FindSymMCSizeofSpace
+          use hilbert_space_size, only: FindSymSizeofSpace, FindSymSizeofTruncSpace 
+          use hilbert_space_size, only: FindSymMCSizeofSpace, FindSymMCSizeExcitLevel
           use global_utilities
           
           REAL*8 CalcT, CalcT2, GetRhoEps
@@ -1391,9 +1410,13 @@ contains
               ELSE
                   CALL FindSymSizeofTruncSpace(6)
               ENDIF
-          ELSEIF(tMCSizeSpace) THEN
+          endif
+          IF(tMCSizeSpace) THEN
               CALL FindSymMCSizeofSpace(6) 
           ENDIF
+          if(tMCSizeTruncSpace) then
+              CALL FindSymMCSizeExcitLevel(6)
+          endif
 
           IF(TMCDET) THEN
 !C.. Generate the determinant from which we start the MC

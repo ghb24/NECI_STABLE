@@ -3,7 +3,6 @@ MODULE AnnihilationMod
     use SystemData , only : NEl, tHPHF
     use CalcData , only : TRegenExcitgens,tRegenDiagHEls
     USE DetCalcData , only : Det,FCIDetIndex
-    USE Logging , only : tHistSpawn
     USE Parallel
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE FciMCData
@@ -22,6 +21,7 @@ MODULE AnnihilationMod
                         clr_flag, flag_parent_initiator, encode_part_sign, &
                         extract_part_sign, copy_flag
     use csf_data, only: csf_orbital_mask
+    use hist_data, only: tHistSpawn, HistMinInd2
     IMPLICIT NONE
 
     contains
@@ -855,6 +855,7 @@ MODULE AnnihilationMod
 !Annihilated determinants first are removed from the main array (zero sign). 
 !Surely we only need to perform this loop if the number of annihilated particles > 0?
         TotParts=0
+        norm_psi_squared = 0
         DetsMerged=0
         iHighestPop=0
         IF(TotWalkersNew.gt.0) THEN
@@ -881,6 +882,7 @@ MODULE AnnihilationMod
                         ENDIF
                     ENDIF
                     TotParts=TotParts+abs(CurrentSign)
+                    norm_psi_squared = norm_psi_squared + sum(CurrentSign**2)
                     IF(tCheckHighestPop) THEN
 !If this option is on, then we want to compare the weight on each determinant to the weight at the HF determinant.
 !Record the highest weighted determinant on each processor.
@@ -907,10 +909,12 @@ MODULE AnnihilationMod
         IF(ValidSpawned.gt.0) THEN
             call extract_sign(SpawnedParts(:,1),SpawnedSign)
             TotParts=TotParts+abs(SpawnedSign)
+            norm_psi_squared = norm_psi_squared + sum(SpawnedSign**2)
         ENDIF
         do i=2,ValidSpawned
             call extract_sign(SpawnedParts(:,i),SpawnedSign)
             TotParts=TotParts+abs(SpawnedSign)
+            norm_psi_squared = norm_psi_squared + sum(SpawnedSign**2)
         enddo
 
 !        CALL CheckOrdering(SpawnedParts,SpawnedSign(1:ValidSpawned),ValidSpawned,.true.)

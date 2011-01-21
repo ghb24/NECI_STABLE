@@ -93,8 +93,8 @@ module soft_exit
     use bit_reps, only: NIfTot
     use util_mod, only: binary_search, get_free_unit
     use FciMCData, only: iter, CASMin, CASMax, tTruncSpace, tSinglePartPhase,&
-                         SumENum, SumNoatHF, HFPopCyc, ProjEIterSum, &
-                         Histogram, AvAnnihil, VaryShiftCycles, SumDiagSft, &
+                         SumENum, SumNoatHF, &
+                         AvAnnihil, VaryShiftCycles, SumDiagSft, &
                          VaryShiftIter, CurrentDets, iLutHF, HFDet, &
                          TotWalkers,tPrintHighPop
     use CalcData, only: DiagSft, SftDamp, StepsSft, OccCASOrbs, VirtCASOrbs, &
@@ -119,6 +119,7 @@ module soft_exit
                             spin_proj_interval, spin_proj_shift, &
                             spin_proj_cutoff, spin_proj_spawn_initiators, &
                             spin_proj_no_death, spin_proj_iter_count
+    use hist_data, only: Histogram
     use Parallel
     implicit none
 
@@ -445,8 +446,6 @@ contains
             if (opts_selected(zeroproje)) then
                 SumENum = 0
                 SumNoatHF = 0
-                HFPopCyc = 0
-                ProjEIterSum = 0
                 VaryShiftCycles = 0
                 SumDiagSft = 0
                 root_print 'Zeroing all average energy estimators.'

@@ -5,23 +5,24 @@ module hist
     use DeterminantData, only: get_lexicographic
     use MemoryManager
     use SystemData, only: tHistSpinDist, ilut_spindist, nbasis, nel, LMS, &
-                          hist_spin_dist_iter, nI_spindist, LMS
+                          hist_spin_dist_iter, nI_spindist, LMS, tHPHF, &
+                          tOddS_HPHF
     use DetBitOps, only: count_open_orbs, EncodeBitDet, spatial_bit_det, &
                          DetBitEq
+    use CalcData, only: tFCIMC
+    use DetCalcData, only: FCIDetIndex, det
+    use FciMCData, only: tFlippedSign
     use util_mod, only: choose, get_free_unit, binary_search
+    use HPHFRandExcitMod, only: FindExcitBitDetSym
     use constants, only: n_int, bits_n_int, size_n_int, lenof_sign
     use bit_rep_data, only: NIfTot, NIfD
     use bit_reps, only: extract_sign, encode_sign
     use parallel
     use csf, only: get_num_csfs, csf_coeff, csf_get_yamas, write_yama
+    use hist_data
 
     implicit none
 
-    ! Should we histogram the distribution of spin dets within a given
-    ! spatial structure --> Analyse spin development
-    integer(n_int), allocatable, target :: hist_spin_dist(:,:)
-    real(dp), allocatable :: hist_csf_coeffs(:,:)
-    integer :: tag_spindist=0, tag_histcsfs=0
 
 contains
 
@@ -298,6 +299,108 @@ contains
             call extract_sign (hist_spin_dist(:,pos), sgn_old)
             call encode_sign(hist_spin_dist(:,pos), sgn + sgn_old)
         endif
+
+    end subroutine
+
+    subroutine add_hist_spawn (ilut, sgn, ExcitLevel, dProbFin)
+
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer, intent(in) :: sgn(lenof_sign), ExcitLevel
+        real(dp), intent(in) :: dProbFin
+
+        integer :: PartInd, open_orbs
+        integer(n_int) :: ilut_sym(0:NIfTot)
+        real(dp) :: delta(lenof_sign)
+        logical :: tSuccess
+        character(*), parameter :: t_r = 'add_hist_spawn'
+
+        if (ExcitLevel == nel) then
+            call BinSearchParts2 (ilut, HistMinInd(ExcitLevel), det, PartInd,&
+                                  tSuccess)
+            ! CCMC doesn't sum particle contributions in order, so we must 
+            ! search the whole space again!
+            if (tFCIMC) HistMinInd(ExcitLevel) = PartInd
+        elseif (ExcitLevel == 0) then
+            PartInd = 1
+            tSuccess = .true.
+        else
+            call BinSearchParts2 (ilut, HistMinInd(ExcitLevel), &
+                                  FCIDetIndex(ExcitLevel+1)-1, PartInd, &
+                                  tSuccess)
+            ! CCMC doesn't sum particle contributions in order, so we must
+            ! search the whole space again!
+            if (tFCIMC) HistMinInd(ExcitLevel) = PartInd
+        endif
+
+        if (tSuccess) then
+            delta = real(sgn(:), dp) / dProbFin
+
+            if (tHPHF) then
+                call FindExcitBitDetSym (ilut, ilut_sym)
+                if (.not. DetBitEq(ilut, ilut_sym)) delta = delta / sqrt(2.0)
+            endif
+
+            if (tFlippedSign) delta = -delta
+
+            Histogram(:, PartInd) = Histogram(:, PartInd) + delta
+            if (tHistSpawn) &
+                InstHist(:, PartInd) = InstHist(:, PartInd) + delta
+
+            ! In HPHF we also include the spin-coupled determinant, which will
+            ! have the same amplitude as the original determinant, unless it
+            ! is antisymmetric.
+            if (tHPHF .and. .not. DetBitEQ(ilut, ilut_sym)) then
+                if (ExcitLevel == nel) then
+                    call BinSearchParts2 (ilut_sym, FCIDetIndex(ExcitLevel), &
+                                          Det, PartInd, tSuccess)
+                elseif (ExcitLevel == 0) then
+                    PartInd = 1
+                    tSuccess = .true.
+                else
+                    call BinSearchParts2 (ilut_sym, FCIDetIndex(ExcitLevel), &
+                                          FCIDetIndex(ExcitLevel+1)-1, &
+                                          PartInd, tSuccess)
+                endif
+                if (tSuccess) then
+                    delta = (real(sgn(:), dp) / sqrt(2.0)) / dProbFin
+
+                    call CalcOpenOrbs(ilut_sym, open_orbs)
+                    if ((mod(open_orbs, 2) == 1) .neqv. tOddS_HPHF) &
+                        delta = -delta
+
+                    if (tFlippedSign .neqv. tOddS_HPHF) delta = -delta
+
+                    Histogram(:, PartInd) = Histogram(:, PartInd) + delta
+                    if (tHistSpawn) &
+                        InstHist(:, PartInd) = InstHist(:, PartInd) + delta
+                endif
+            endif
+        else
+            call writebitdet (6, ilut, .true.)
+            write(6,*) '***', ilut
+            write(6,*) '***', ExcitLevel, HistMinInd(ExcitLevel), Det
+            call stop_all (t_r, "Cannot find corresponding FCI determinant &
+                                &when histogramming")
+        endif
+
+    end subroutine
+
+    subroutine add_hist_energies (ilut, sgn, HDiag)
+
+        ! This will histogram the energies of the particles, rather than the
+        ! determinants themselves.
+
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer, dimension(lenof_sign), intent(in) :: sgn
+        real(dp), intent(in) :: HDiag
+        integer :: bin
+        character(*), parameter :: t_r = "add_hist_energies"
+
+        bin = int(HDiag / BinRange) + 1
+        if (bin > iNoBins) &
+            call stop_all (t_r, "Histogramming energies higher than the &
+                         &arrays can cope with. Increase iNoBins or BinRange")
+        HistogramEnergy(bin) = HistogramEnergy(bin) + real(sum(abs(sgn)),dp)
 
     end subroutine
 
