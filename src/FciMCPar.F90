@@ -5240,7 +5240,7 @@ MODULE FciMCParMod
                 !Assume since we are using HPHF that the alpha and
                 !beta orbitals of the same spatial orbital have the same
                 !fock energies, so can consider either.
-                hel=hphf_off_diag_helement_norm(HFDet,nJ,iLutHF,iLutnJ)
+                hel=hphf_off_diag_helement(HFDet,nJ,iLutHF,iLutnJ)
 !                if(.not.TestClosedShellDet(iLutnJ)) then
 !                    hel=sqrt(2.D0)*hel
 !                endif
@@ -5287,7 +5287,7 @@ MODULE FciMCParMod
                     ic=2
                 endif
                 if(tHPHF) then
-                    hel=hphf_off_diag_helement_norm(HFDet,nJ,iLutHF,iLutnJ)
+                    hel=hphf_off_diag_helement(HFDet,nJ,iLutHF,iLutnJ)
                 else
                     hel=get_helement(HFDet,nJ,ic,Ex,tParity)
                 endif
