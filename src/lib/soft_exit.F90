@@ -380,7 +380,7 @@ contains
             ! Write POPS file
             if (opts_selected(writepops)) then
                 tWritePopsFound = .true.
-                root_print 'Asked to write out a popsfile'
+                write(6,*) 'Asked to write out a popsfile on iteration: ',iter
             endif
 
             ! Enter variable shift mode
@@ -391,7 +391,7 @@ contains
                 else
                     tSinglePartPhase = .false.
                     VaryShiftIter = iter
-                    root_print 'Request to vary the shift detected on a node.'
+                    write(6,*) 'Request to vary the shift detected on a node on iteration: ',iter
                 endif
             endif
 
@@ -414,32 +414,32 @@ contains
             ! Change Tau
             if (opts_selected(tau)) then
                 call MPIBCast (tau_value, proc)
-                root_print 'Tau changed to: ', tau_value
+                write(6,*) 'Tau changed to: ', tau_value, 'on iteration: ',iter
             endif
 
             ! Change the shift value
             if (opts_selected(diagshift)) then
                 call MPIBCast (DiagSft, proc)
-                root_print 'DIAGSHIFT change to: ', DiagSft
+                write(6,*) 'DIAGSHIFT change to: ', DiagSft, 'on iteration: ',iter
             endif
 
             ! Change the shift damping parameter
             if (opts_selected(shiftdamp)) then
                 call MPIBCast (SftDamp, proc)
-                root_print 'SHIFTDAMP changed to: ', SftDamp
+                write(6,*) 'SHIFTDAMP changed to: ', SftDamp, 'on iteration: ',iter
             endif
 
             ! Change the shift update (and output) interval
             if (opts_selected(stepsshift)) then
                 call MPIBCast (StepsSft, proc)
-                root_print 'STEPSSHIFT changed to: ', StepsSft
+                write(6,*) 'STEPSSHIFT changed to: ', StepsSft, 'on iteration: ',iter
             endif
 
             ! Change the singles bias
             if (opts_selected(singlesbias)) then
                 call MPIBcast (SinglesBias_value, proc)
                 tSingBiasChange = .true.
-                root_print 'SINGLESBIAS changed to: ', SinglesBias
+                write(6,*) 'SINGLESBIAS changed to: ', SinglesBias, 'on iteration: ',iter
             endif
 
             ! Zero the average energy estimators
@@ -448,7 +448,7 @@ contains
                 SumNoatHF = 0
                 VaryShiftCycles = 0
                 SumDiagSft = 0
-                root_print 'Zeroing all average energy estimators.'
+                write(6,*) 'Zeroing all average energy estimators on iteration: ',iter
             endif
 
             ! Zero average histograms
@@ -463,14 +463,14 @@ contains
                 call MPIBCast (NPartFrozen, proc)
                 call MPIBcast (NHolesFrozen, proc)
 
-                root_print 'Allowing ', nHolesFrozen, ' holes in ', &
-                           nPartFrozen, ' partially frozen orbitals.'
+                write(6,*) 'Allowing ', nHolesFrozen, ' holes in ', &
+                           nPartFrozen, ' partially frozen orbitals on iteration: ',iter
 
                 if (nHolesFrozen == nPartFrozen) then
                     ! Allowing as many holes as there are orbitals
                     !  --> equivalent to not freezing at all.
                     tPartFreezeCore = .false.
-                    root_print 'Unfreezing any partially frozen core'
+                    write(6,*) 'Unfreezing any partially frozen core on iteration: ',iter
                 else
                     tPartFreezeCore = .true.
                 endif
@@ -480,15 +480,15 @@ contains
                 call MPIBcast (nVirtPartFrozen, proc)
                 call MPIBcast (nelVirtFrozen, proc)
 
-                root_print 'Allowing ', nelVirtFrozen, ' electrons in ', &
+                write(6,*) 'Allowing ', nelVirtFrozen, ' electrons in ', &
                            nVirtPartFrozen, ' partially frozen virtual &
-                          &orbitals.'
+                          &orbitals on iteration: ',iter
                 if (nelVirtFrozen == nel) then
                     ! Allowing as many holes as there are orbitals
                     ! --> Equivalent ton not freezing at all
                     tPartFreezeVirt = .false.
-                    root_print 'Unfreezing any partially frozen virtual &
-                               &orbitals'
+                    write(6,*) 'Unfreezing any partially frozen virtual &
+                               &orbitals on iteration: ',iter
                 else
                     tPartFreezeVirt = .true.
                 endif
@@ -512,14 +512,14 @@ contains
 
             ! Restart error blocking
             if (opts_selected(restarterrorblocking)) then
-                root_print 'Restarting the error calculations. All blocking &
-                           &arrays are re-set to zero.'
+                write(6,*) 'Restarting the error calculations. All blocking &
+                           &arrays are re-set to zero on iteration: ',iter
                 if (iProcIndex == 0) call RestartBlocking (iter)
             endif
 
             ! Print shift blocking analysis here
             if (opts_selected(printshiftblocking)) then
-                root_print 'Printing shift error blocking.'
+                write(6,*) 'Printing shift error blocking on iteration: ',iter
                 if (iProcIndex == 0) call PrintShiftBlocking_proc (iter)
             endif
 
@@ -599,8 +599,8 @@ contains
             ! Print the determinants with the largest +- populations
             if (opts_selected(printhighpopdet)) then
                 tPrintHighPop = .true.
-                root_print 'Request to print the determinants with the &
-                           &largest populations detected.'
+                write(6,*) 'Request to print the determinants with the &
+                           &largest populations detected on iteration: ',iter
             endif
 
             ! Change the reference determinant on the fly
@@ -609,8 +609,8 @@ contains
                 tCheckHighestPop = .true.
                 tChangeProjEDet = .true.
                 FracLargerDet = 1.0
-                root_print 'Changing the reference determinant to the most &
-                           &highly weighted determinants.'
+                write(6,*) 'Changing the reference determinant to the most &
+                           &highly weighted determinant on iteration: ',iter
             endif
 
             ! Restart with new reference determinant
