@@ -863,6 +863,11 @@ contains
 !                CALL Stop_All(t_r,"STARTMP1 option depreciated")
                 TStartMP1=.true.
                 TStartSinglePart=.false.
+                if(item.lt.nitems) then
+                    !Allow us to specify a desired number of particles to start with, so that the shift doesn't
+                    !change dramatically to start with.
+                    call geti(InitialPart)
+                endif
             case("GROWMAXFACTOR")
 !For FCIMC, this is the factor to which the initial number of particles is allowed to go before it is culled
                 call getf(GrowMaxFactor)
