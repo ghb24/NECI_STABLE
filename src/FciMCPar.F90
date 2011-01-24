@@ -5228,7 +5228,7 @@ MODULE FciMCParMod
             if(tHPHF) then
                 !Working in HPHF Space. Check whether determinant generated is an 'HPHF'
                 call EncodeBitDet(nJ,iLutnJ)
-                if(IsAllowedHPHF(iLutnJ)) cycle
+                if(.not.IsAllowedHPHF(iLutnJ)) cycle
             endif
             iExcits=iExcits+1
             if(Ex(1,2).eq.0) then
@@ -5241,9 +5241,6 @@ MODULE FciMCParMod
                 !beta orbitals of the same spatial orbital have the same
                 !fock energies, so can consider either.
                 hel=hphf_off_diag_helement(HFDet,nJ,iLutHF,iLutnJ)
-!                if(.not.TestClosedShellDet(iLutnJ)) then
-!                    hel=sqrt(2.D0)*hel
-!                endif
             else
                 hel=get_helement(HFDet,nJ,ic,Ex,tParity)
             endif
