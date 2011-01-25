@@ -200,7 +200,7 @@ contains
                                    "trunc-nopen                  "/)
 
 
-        logical :: exists, any_exist, eof, deleted, any_deleted
+        logical :: exists, any_exist, eof, deleted, any_deleted, tSource
         logical :: opts_selected(last_item)
         logical, intent(out) :: tSingBiasChange, tSoftExitFound
         logical, intent(out) :: tWritePopsFound
@@ -230,6 +230,7 @@ contains
             ! condition between processors sharing the same disk.
             do proc = 0, nProcessors - 1
                 if (proc == iProcIndex .and. exists) then
+
                     ! Set unit for read_line routine
                     ir = get_free_unit ()
                     open (ir, file='CHANGEVARS', status='old', iostat=ios)
@@ -315,8 +316,12 @@ contains
                 if (any_deleted) exit
             enddo ! Loop to read CHANGEVARS
 
+            ! Relabel 'deleted' as 'tSource' for clarity
+            ! --> If we have had the file, we should be the source node
+            tSource = deleted
+
             ! Broadcast the selected options list to all processors
-            call MPIBCast (opts_selected, last_item, proc)
+            call MPIBCast (opts_selected, tSource)
 
             ! ***********************
             ! Now we need to deal with the specific options.
@@ -332,7 +337,7 @@ contains
                         root_print 'Cannot increase truncation level, since &
                                    &histogramming wavefunction.'
                     else
-                        call MPIBcast (ICILevel, proc)
+                        call MPIBcast (ICILevel, tSource)
 
                         if ((ICILevel < 0) .or. (ICILevel > nel)) then
                             tTruncSpace = .false.
@@ -353,8 +358,8 @@ contains
                                &effect'
                 else
 
-                    call MPIBCast (OccCASORbs, proc)
-                    call MPIBCast (VirtCASOrbs, proc)
+                    call MPIBCast (OccCASORbs, tSource)
+                    call MPIBCast (VirtCASOrbs, tSource)
 
                     if ( ((occCASOrbs>nel) .and. (VirtCASOrbs>nBasis - nel)) &
                         .or. (occCASORbs < 0) .or. (VirtCASORbs < 0) ) then
@@ -397,7 +402,7 @@ contains
 
             ! Change number of MC steps
             if (opts_selected(nmcyc)) then
-                call MPIBCast (nmcyc_new, proc)
+                call MPIBCast (nmcyc_new, tSource)
 
                 if (nmcyc_new < iter) then
                     root_print 'New value of NMCyc is LESS than the current &
@@ -413,31 +418,31 @@ contains
 
             ! Change Tau
             if (opts_selected(tau)) then
-                call MPIBCast (tau_value, proc)
-                write(6,*) 'Tau changed to: ', tau_value, 'on iteration: ',iter
+                call MPIBCast (tau_value, tSource)
+                write(6,*) 'TAU changed to: ', tau_value, 'on iteration: ', iter
             endif
 
             ! Change the shift value
             if (opts_selected(diagshift)) then
-                call MPIBCast (DiagSft, proc)
-                write(6,*) 'DIAGSHIFT change to: ', DiagSft, 'on iteration: ',iter
+                call MPIBCast (DiagSft, tSource)
+                write(6,*) 'DIAGSHIFT changed to: ', DiagSft, 'on iteration: ',iter
             endif
 
             ! Change the shift damping parameter
             if (opts_selected(shiftdamp)) then
-                call MPIBCast (SftDamp, proc)
+                call MPIBCast (SftDamp, tSource)
                 write(6,*) 'SHIFTDAMP changed to: ', SftDamp, 'on iteration: ',iter
             endif
 
             ! Change the shift update (and output) interval
             if (opts_selected(stepsshift)) then
-                call MPIBCast (StepsSft, proc)
+                call MPIBCast (StepsSft, tSource)
                 write(6,*) 'STEPSSHIFT changed to: ', StepsSft, 'on iteration: ',iter
             endif
 
             ! Change the singles bias
             if (opts_selected(singlesbias)) then
-                call MPIBcast (SinglesBias_value, proc)
+                call MPIBcast (SinglesBias_value, tSource)
                 tSingBiasChange = .true.
                 write(6,*) 'SINGLESBIAS changed to: ', SinglesBias, 'on iteration: ',iter
             endif
@@ -460,8 +465,8 @@ contains
 
             ! Change the number of holes/electrons in the core valence region
             if (opts_selected(partiallyfreeze)) then
-                call MPIBCast (NPartFrozen, proc)
-                call MPIBcast (NHolesFrozen, proc)
+                call MPIBCast (NPartFrozen, tSource)
+                call MPIBcast (NHolesFrozen, tSource)
 
                 write(6,*) 'Allowing ', nHolesFrozen, ' holes in ', &
                            nPartFrozen, ' partially frozen orbitals on iteration: ',iter
@@ -477,8 +482,8 @@ contains
             endif
 
             if (opts_selected(partiallyfreezevirt)) then
-                call MPIBcast (nVirtPartFrozen, proc)
-                call MPIBcast (nelVirtFrozen, proc)
+                call MPIBcast (nVirtPartFrozen, tSource)
+                call MPIBcast (nelVirtFrozen, tSource)
 
                 write(6,*) 'Allowing ', nelVirtFrozen, ' electrons in ', &
                            nVirtPartFrozen, ' partially frozen virtual &
@@ -532,7 +537,7 @@ contains
 
             ! Change the number of equilibration steps
             if (opts_selected(equilsteps)) then
-                call MPIBcast (nEquilSteps, proc)
+                call MPIBcast (nEquilSteps, tSource)
                 root_print 'Changing the number of equilibration steps to ', &
                            nEquilSteps
             endif
@@ -572,7 +577,7 @@ contains
 
             ! Change the initiator cutoff parameter
             if (opts_selected(addtoinit)) then
-                call MPIBCast (InitiatorWalkNo, proc)
+                call MPIBCast (InitiatorWalkNo, tSource)
                 root_print 'Cutoff propulation for determinants to be added &
                            &to the initiator space changed to ', &
                            InitiatorWalkNo
@@ -580,7 +585,7 @@ contains
             
             ! Scale the number of walkers on the HF det
             if (opts_selected(scalehf)) then
-                call MPIBcast (HFScaleFactor, proc)
+                call MPIBcast (HFScaleFactor, tSource)
                 root_print 'Number at Hartree-Fock scaled by factor: ', &
                            hfScaleFactor
 
@@ -625,7 +630,7 @@ contains
 
             ! Enable spin projection, and change application interval
             if (opts_selected(spin_project)) then
-                call MPIBcast (spin_proj_interval, proc)
+                call MPIBcast (spin_proj_interval, tSource)
                 if (spin_proj_interval == 0) then
                     tSpinProject = .false.
                     root_print 'Stochastic spin projection disabled'
@@ -638,42 +643,42 @@ contains
 
             ! Change delta-gamma for spin projection
             if (opts_selected(spin_project_gamma)) then
-                call MPIBcast (spin_proj_gamma, proc)
+                call MPIBcast (spin_proj_gamma, tSource)
                 root_print 'Changed gamma value for spin projection to ', &
                            spin_proj_gamma
             endif
 
             ! Change shift value for spin projection
             if (opts_selected(spin_project_shift)) then
-                call MPIBcast (spin_proj_shift, proc)
+                call MPIBcast (spin_proj_shift, tSource)
                 root_print 'Changed shift value for spin projection to ', &
                            spin_proj_shift
             endif
 
             ! Change walker number cutoff value for spin projection
             if (opts_selected(spin_project_shift)) then
-                call MPIBcast (spin_proj_cutoff, proc)
+                call MPIBcast (spin_proj_cutoff, tSource)
                 root_print 'Changed walker number cutoff value for spin &
                            &projection to ', spin_proj_shift
             endif
 
             ! Change the way spin projection deals with initiators
             if (opts_selected(spin_project_spawn_initiators)) then
-                call MPIBCast (spin_proj_spawn_initiators, proc)
+                call MPIBCast (spin_proj_spawn_initiators, tSource)
                 root_print 'Changed initiator behaviour with spin projection:&
                            & ', spin_project_spawn_initiators
             endif
 
             ! Enable or disable walker death in spin projection
             if (opts_selected(spin_project_no_death)) then
-                call MPIBcast (spin_proj_no_death, proc)
+                call MPIBcast (spin_proj_no_death, tSource)
                 root_print 'Walker death in spin projection enabled: ', &
                            spin_project_no_death
             endif
 
             ! Apply the spin projection operator N times for each application
             if (opts_selected(spin_project_iter_count)) then
-                call MPIBcast (spin_proj_iter_count, proc)
+                call MPIBcast (spin_proj_iter_count, tSource)
                 root_print 'The stochastic spin projection operator will now &
                            &be applied ', spin_proj_iter_count, ' times on &
                            &each occasion.'
@@ -682,7 +687,7 @@ contains
             ! Change the maximum nopen truncation level
             if (opts_selected(trunc_nopen)) then
                 if (tTruncNOpen) then
-                    call MPIBcast (trunc_nop_new, proc)
+                    call MPIBcast (trunc_nop_new, tSource)
                     if (trunc_nop_new < 0 .or. trunc_nop_new > nel) then
                         tTruncNOpen = .false.
                         root_print 'Truncation by number of unpaired &
