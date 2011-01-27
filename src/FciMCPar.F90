@@ -4097,12 +4097,6 @@ MODULE FciMCParMod
         enddo
         WRITE(6,*) "Approximate size of determinant space is: ",NINT(TotDets)
 
-        IF(TStartSinglePart) THEN
-            WRITE(6,"(A,F9.3,A,I9)") " Initial number of particles set to 1, and shift will be held at ",DiagSft," until particle number on root node gets to ",InitWalkers
-        ELSE
-            WRITE(6,*) "Initial number of walkers per processor chosen to be: ", InitWalkers
-        ENDIF
-
     END SUBROUTINE SetupParameters
 
     SUBROUTINE CheckforBrillouins()
@@ -5071,6 +5065,14 @@ MODULE FciMCParMod
                     call InitFCIMC_MP1()
 
                 else !Set up walkers on HF det
+
+                    if(tStartSinglePart) then
+                        WRITE(6,"(A,I15,A,F9.3,A,I15)") " Initial number of particles set to ",InitialPart," and shift will be held at ",DiagSft," until particle number gets to ",InitWalkers*nNodes
+                    else
+                        write(6,"(A,I16)") "Initial number of walkers per processor chosen to be: ", InitWalkers
+                    endif
+
+
                     !Setup initial walker local variables for HF walkers start
                     IF(iProcIndex.eq.iHFProc) THEN
 
@@ -5197,6 +5199,7 @@ MODULE FciMCParMod
         use HPHFRandExcitMod , only : IsAllowedHPHF
         use Determinants, only: GetH0Element3
         use SymExcit3 , only : GenExcitations3
+        use CalcData , only : InitialPart
         real(dp) :: TotMP1Weight,amp,MP2Energy,PartFac,H0tmp,rat,r
         HElement_t :: hel,HDiagtemp
         integer :: iExcits,exflag,Ex(2,2),nJ(NEl),ic,DetIndex,iNode,NoWalkers,iInit
@@ -5257,10 +5260,27 @@ MODULE FciMCParMod
         endif
 
         write(6,"(A,2G25.15)") "MP2 energy calculated: ",MP2Energy,MP2Energy+Hii
-        write(6,*) "Setting initial shift to equal MP2 correlation energy"
-        DiagSft=MP2Energy
 
-        PartFac=(real(InitWalkers,dp)* real(nNodes,dp))/TotMP1Weight
+        if((InitialPart.eq.1).or.(InitialPart.ge.(InitWalkers*nNodes)-50)) then
+            !Here, all the walkers will be assigned to the MP1 wavefunction.
+            !InitialPart = 1 by default
+            write(6,"(A)") "All walkers specified in input will be distributed according to the MP1 wavefunction."
+            write(6,"(A)") "Shift will be allowed to vary from the beginning"
+            write(6,"(A)") "Setting initial shift to equal MP2 correlation energy"
+            DiagSft=MP2Energy
+            !PartFac is the number of walkers that should reside on the HF determinant
+            !in an intermediate normalised MP1 wavefunction. 
+            PartFac=(real(InitWalkers,dp)* real(nNodes,dp))/TotMP1Weight
+        else
+            !Here, not all walkers allowed will be initialised to the MP1 wavefunction.
+            write(6,"(A,I15,A)") "Initialising ",InitialPart, " walkers according to the MP1 distribution."
+            write(6,"(A,I15)") "Shift will remain fixed until the walker population reaches ",InitWalkers*nNodes
+            !PartFac is the number of walkers that should reside on the HF determinant
+            !in an intermediate normalised MP1 wavefunction. 
+            PartFac=real(InitialPart,dp)/TotMP1Weight
+            tSinglePartPhase=.true.
+        endif
+
 
         !Now generate all excitations again, creating the required number of walkers on each one.
         DetIndex=1
