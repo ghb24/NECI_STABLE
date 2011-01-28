@@ -626,7 +626,7 @@ The following options are only available in **FCIMC** calculations:
 
 **STARTCAS** [ElectronsInCAS] [VirtualSpinOrbitalsInCAS] [InitialWalkers]
     Set the initial configuration of walkers to be proportional to the ground-state wavefunction
-    from a CAS diagonalisation. InitialWalkers
+    from an initial specified CAS diagonalisation. InitialWalkers
     is an optional integer argument. If present, then only that number of walkers will be assigned to the
     ground-state distribution initially. The shift will then remain fixed at the value given in the input file, 
     until the number of walkers reaches the desired number. Alternatively, without the argument, all
