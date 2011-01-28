@@ -5201,19 +5201,20 @@ MODULE FciMCParMod
 !Routine to initialise the particle distribution according to a CAS diagonalisation. 
 !This hopefully will help with close-lying excited states of the same sym.
     subroutine InitFCIMC_CAS()
-        use SystemData, only : tSpn
+        use SystemData, only : tSpn,tHPHFInts
         use CalcData, only: InitialPart
         use DeterminantData, only : write_det,write_det_len 
         use DetCalcData, only : NKRY,NBLK,B2L
         use DetCalc , only : nCycle
         use sym_mod , only : Getsym, writesym
+        use HPHFRandExcitMod , only : IsAllowedHPHF
         type(BasisFN) :: CASSym
         integer :: i,j,ierr,nEval,NKRY1,NBLOCK,LSCR,LISCR,DetIndex,iNode,NoWalkers
-        integer :: CASSpinBasisSize,elec,nCASDet,ICMax,GC,LenHamil,iInit
+        integer :: CASSpinBasisSize,elec,nCASDet,ICMax,GC,LenHamil,iInit,nHPHFCAS
         integer , allocatable :: CASBrr(:),CASDet(:),CASFullDets(:,:),nRow(:),Lab(:),ISCR(:),INDEX(:)
         integer , pointer :: CASDetList(:,:) => null()
         integer(n_int) :: iLutnJ(0:NIfTot)
-        logical :: tMC
+        logical :: tMC,TestClosedShellDet
         HElement_t :: HDiagTemp
         real(dp) , allocatable :: CK(:,:),W(:),CKN(:,:),Hamil(:),A(:,:),V(:),BM(:),T(:),WT(:),SCR(:),WH(:),Work2(:),V2(:,:),AM(:)
         integer :: ATag=0,VTag=0,BMTag=0,TTag=0,WTTag=0,SCRTag=0,WHTag=0,Work2Tag=0,V2Tag=0,ISCRTag=0,IndexTag=0,AMTag=0
@@ -5225,7 +5226,6 @@ MODULE FciMCParMod
         if(tReadPops) call stop_all(this_routine,"StartCAS cannot work with with ReadPops")
         if(tStartSinglePart) call stop_all(this_routine,"StartCAS cannot work with StartSinglePart")
         if(tRestartHighPop) call stop_all(this_routine,"StartCAS cannot with with dynamically restarting calculations")
-        if(tHPHF) call stop_all(this_routine,"Cannot use StartCAS with HPHF yet...")
 
         write(6,*) "Initialising walkers proportional to a CAS diagonalisation..."
         write(6,'(A,I2,A,I2,A)') " In CAS notation, (spatial orbitals, electrons), this has been chosen as: (",(OccCASOrbs+VirtCASOrbs)/2,",",OccCASOrbs,")"
@@ -5323,6 +5323,11 @@ MODULE FciMCParMod
         nRow=0
         ICMax=1
         tMC=.false.
+
+        !HACK ALERT!! Need to fill up array in space of determinants, not HPHF functions.
+        !Turn of tHPHFInts and turn back on when hamiltonian constructed.
+        tHPHFInts=.false.
+
         CALL Detham(nCASDet,NEl,CASFullDets,Hamil,Lab,nRow,.true.,ICMax,GC,tMC)
         LenHamil=GC
         write(6,*) "Allocating memory for hamiltonian: ",LenHamil*2
@@ -5336,6 +5341,9 @@ MODULE FciMCParMod
 
         CASRefEnergy=GETHELEMENT(1,1,HAMIL,LAB,NROW,NCASDET)
         write(6,*) "Energy of first CAS det is: ",CASRefEnergy
+
+        !Turn back on HPHF integrals if needed.
+        if(tHPHF) tHPHFInts=.true.
 
         if(abs(CASRefEnergy-Hii).gt.1.D-7) call stop_all(this_routine,"CAS reference energy does not match reference energy of full space")
 
@@ -5385,17 +5393,41 @@ MODULE FciMCParMod
      &  SCR,ISCR,INDEX,NCYCLE,B2L,.false.,.false.,.false.)
 !Multiply all eigenvalues by -1.
         CALL DSCAL(NEVAL,-1.D0,W,1)
+        if(CK(1,1).lt.0.D0) then
+            do i=1,nCASDet
+                CK(i,1)=-CK(i,1)
+            enddo
+        endif
 
-        write(6,*) "Diagonalisation complete. Lowest energy CAS eigenvalues are: "
+        write(6,*) "Diagonalisation complete. Lowest energy CAS eigenvalues/corr E are: "
         do i=1,NEval
-            write(6,*) i,W(i)
+            write(6,*) i,W(i),W(i)-CASRefEnergy
         enddo
 
         TotWeight=0.D0
+        nHPHFCAS=0
         do i=1,nCASDet
-            TotWeight=TotWeight+abs(CK(i,1))
+            if(tHPHF) then
+                !Only allow valid HPHF functions
+                call EncodeBitDet(CASFullDets(:,i),iLutnJ)
+                if(IsAllowedHPHF(iLutnJ)) then
+                    nHPHFCAS=nHPHFCAS+1
+                    if(.not.TestClosedShellDet(iLutnJ)) then
+                        !Open shell. Weight is sqrt(2) of det weight.
+                        TotWeight=TotWeight+(abs(CK(i,1))*sqrt(2.D0))
+                        !Return this new weight to the CK array, so that we do not need to do this a second time.
+                        CK(i,1)=CK(i,1)*sqrt(2.D0)
+                    else
+                        !Closed Shell
+                        TotWeight=TotWeight+abs(CK(i,1))
+                    endif
+                endif
+            else
+                TotWeight=TotWeight+abs(CK(i,1))
+            endif
         enddo
         write(6,*) "Total weight of lowest eigenfunction: ",TotWeight
+        if(tHPHF) write(6,*) "Converting into HPHF space. Total HPHF CAS functions: ",nHPHFCAS
 
         if((InitialPart.eq.1).or.(InitialPart.ge.(InitWalkers*nNodes)-50)) then
             !Here, all the walkers will be assigned to the CAS wavefunction.
@@ -5420,6 +5452,10 @@ MODULE FciMCParMod
         NoatHF(1)=0
         TotParts=0
         do i=1,nCASDet
+            if(tHPHF) then
+                call EncodeBitDet(CASFullDets(:,i),iLutnJ)
+                if(.not.IsAllowedHPHF(iLutnJ)) cycle
+            endif
             iNode=DetermineDetNode(CASFullDets(:,i),0)
             if(iProcIndex.eq.iNode) then
                 !Number parts on this det = PartFac*Amplitude
@@ -5450,7 +5486,11 @@ MODULE FciMCParMod
                         call CalcParentFlag(DetIndex,1,iInit)
                     endif
                     if(.not.tRegenDiagHEls) then
-                        HDiagTemp = get_helement(CASFullDets(:,i),CASFullDets(:,i),0)
+                        if(tHPHF) then
+                            HDiagTemp = hphf_diag_helement(CASFullDets(:,i),iLutnJ)
+                        else
+                            HDiagTemp = get_helement(CASFullDets(:,i),CASFullDets(:,i),0)
+                        endif
                         CurrentH(DetIndex)=real(HDiagTemp,dp)-Hii
                     endif
                     DetIndex=DetIndex+1
