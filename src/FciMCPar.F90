@@ -5259,7 +5259,8 @@ MODULE FciMCParMod
 !        enddo
         elec=1
         do i=NEl-OccCasOrbs+1,NEl
-            CASDet(elec)=HFDet(i)
+            CASDet(elec)=ProjEDet(i)
+            elec=elec+1
         enddo
 
         write(6,*) "CAS Det is: "
