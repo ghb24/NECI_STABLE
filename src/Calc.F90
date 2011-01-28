@@ -52,6 +52,7 @@ contains
           StepsSftImag=0.D0
           TauFactor=0.D0
           tStartMP1=.false.
+          tStartCAS=.false.
           iAnnInterval=1
           tTruncCAS=.false.
           iFullSpaceIter=0
@@ -863,6 +864,18 @@ contains
 !                CALL Stop_All(t_r,"STARTMP1 option depreciated")
                 TStartMP1=.true.
                 TStartSinglePart=.false.
+                if(item.lt.nitems) then
+                    !Allow us to specify a desired number of particles to start with, so that the shift doesn't
+                    !change dramatically to start with.
+                    call geti(InitialPart)
+                endif
+            case("STARTCAS")
+!For FCIMC, this has an initial configuration of walkers which is proportional to the MP1 wavefunction
+!                CALL Stop_All(t_r,"STARTMP1 option depreciated")
+                TStartCAS=.true.
+                TStartSinglePart=.false.
+                call geti(OccCASOrbs)  !Number of electrons in CAS 
+                call geti(VirtCASOrbs)  !Number of virtual spin-orbitals in CAS
                 if(item.lt.nitems) then
                     !Allow us to specify a desired number of particles to start with, so that the shift doesn't
                     !change dramatically to start with.
