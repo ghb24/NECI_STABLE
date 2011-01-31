@@ -15,6 +15,7 @@ module DetCalcData
       REAL*8, pointer :: W(:)  ! (nEval) This will contain the eigenvalues
       INTEGER tagW
       
+      INTEGER NCYCLE !The Max number of Lanczos cycles
       REAL*8 B2L  ! From Calc
       INTEGER NEVAL  !The number of eigenvectors requested
       INTEGER NBLK   !The number of Lanczos Blocks

@@ -5204,8 +5204,7 @@ MODULE FciMCParMod
         use SystemData, only : tSpn,tHPHFInts
         use CalcData, only: InitialPart
         use DeterminantData, only : write_det,write_det_len 
-        use DetCalcData, only : NKRY,NBLK,B2L
-        use DetCalc , only : nCycle
+        use DetCalcData, only : NKRY,NBLK,B2L,nCycle
         use sym_mod , only : Getsym, writesym
         use HPHFRandExcitMod , only : IsAllowedHPHF
         type(BasisFN) :: CASSym

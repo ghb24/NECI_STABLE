@@ -12,9 +12,9 @@ MODULE Calc
     use Determinants, only: iActiveBasis, SpecDet, tSpecDet, nActiveSpace, &
                             tDefineDet
     use DetCalc, only: iObs, jObs, kObs, tCorr, tRhoOfR, tFodM, DETINV, &
-                       icilevel, nCycle, tBlock, tCalcHMat, tEnergy, tRead, &
+                       icilevel, tBlock, tCalcHMat, tEnergy, tRead, &
                        tFindDets
-    use DetCalcData, only: B2L, nKry, nEval, nBlk
+    use DetCalcData, only: B2L, nKry, nEval, nBlk, nCycle
     use IntegralsData, only: tNeedsVirts
     use CCMCData, only: dInitAmplitude, dProbSelNewExcitor, nSpawnings, &
                         tSpawnProp, nClustSelections, tExactEnergy,     &
