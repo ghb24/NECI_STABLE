@@ -14,7 +14,7 @@ MODULE NatOrbsMod
         USE SystemData , only : tRotateOccOnly,tRotateVirtOnly,tFindCINatOrbs,tUseMP2VarDenMat,nBasisMax,ALAT,iSpinSkip
         use bit_reps, only: NIfY, NIfTot
         USE RotateOrbsData , only : SymLabelList2,SymLabelCounts2,SymLabelCounts2Tag,SymLabelListInv,NoOrbs,SpatOrbs,FillOneRDM_time
-        USE RotateOrbsData , only : FillMP2VDM_Time,DiagNatOrbMat_Time,OrderCoeff_Time,FillCoeff_Time,NoFrozenVirt
+        USE RotateOrbsData , only : FillMP2VDM_Time,DiagNatOrbMat_Time,OrderCoeff_Time,FillCoeff_Time,NoFrozenVirt,SymLabelList3
         use sort_mod
         use bit_reps, only: decode_bit_det
         IMPLICIT NONE
@@ -335,6 +335,10 @@ MODULE NatOrbsMod
 
         do i=1,NoOrbs
             SymLabelListInv(SymLabelList2(i))=i
+        enddo
+
+        do i=1,NoOrbs
+            SymLabelList3(i) = SymLabelList2(i)
         enddo
 
         IF(.not.tSeparateOccVirt) THEN
@@ -1009,7 +1013,7 @@ MODULE NatOrbsMod
         do i=1,NoOrbs
             SumDiagTrace=SumDiagTrace+Evalues(i)
         enddo
-        IF((ABS(SumDiagTrace-SumTrace)).gt.1E-10) THEN
+        IF((ABS(SumDiagTrace-SumTrace)).gt.1E-5) THEN
             WRITE(6,*) 'Sum of diagonal NatOrbMat elements : ',SumTrace
             WRITE(6,*) 'Sum of eigenvalues : ',SumDiagTrace
             CALL Stop_All(this_routine,'The trace of the 1RDM matrix before diagonalisation is not equal to that after.')
@@ -1155,6 +1159,14 @@ MODULE NatOrbsMod
   
         FillCoeff_Time%timer_name='FillCoeff'
         CALL set_timer(FillCoeff_Time,30)
+
+        WRITE(6,*) 'NatOrbMat'
+        do i = 1, nBasis
+            do j = 1, nBasis
+                WRITE(6,'(F10.6)',advance='no') NatOrbMat(j,i)
+            enddo
+            WRITE(6,*) ''
+        enddo
 
         IF(tTruncRODump) THEN
 

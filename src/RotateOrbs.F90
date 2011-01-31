@@ -4800,6 +4800,7 @@ MODULE RotateOrbsMod
 
     SUBROUTINE CalcFOCKMatrix()
         USE SystemData , only : nBasis
+        USE Logging , only : tRDMonfly
         INTEGER :: i,j,k,l,a,b,ierr
         REAL*8 :: FOCKDiagSumHF,FOCKDiagSumNew
         CHARACTER(len=*) , PARAMETER :: this_routine='CalcFOCKMatrix'
@@ -4813,7 +4814,7 @@ MODULE RotateOrbsMod
 ! calculating the whole matrix, just the diagonal elements that we actually need.
 
     
-        IF(tUseMP2VarDenMat.or.tFindCINatOrbs.or.tUseHFOrbs) THEN
+        IF(tUseMP2VarDenMat.or.tFindCINatOrbs.or.tUseHFOrbs.or.tRDMonfly) THEN
             ALLOCATE(ArrDiagNew(NoOrbs),stat=ierr)
             CALL LogMemAlloc('ArrDiagNew',NoOrbs,8,this_routine,ArrDiagNewTag,ierr)
             ArrDiagNew(:)=0.D0                     
@@ -4855,35 +4856,34 @@ MODULE RotateOrbsMod
         FOCKDiagSumNew=0.D0
         do j=1,NoRotOrbs
             l=SymLabelList3(j)
-            IF(tUseMP2VarDenMat.or.tFindCINatOrbs.or.tUseHFOrbs) THEN
-                ArrDiagNew(l)=0.D0
+            IF(tUseMP2VarDenMat.or.tFindCINatOrbs.or.tUseHFOrbs.or.tRDMonfly) THEN
                 do a=1,NoOrbs
                     b=SymLabelList2(a)
-                    IF(tStoreSpinOrbs) THEN
+                    IF(tStoreSpinOrbs.or.tTurnStoreSpinOff) THEN
                         ArrDiagNew(l)=ArrDiagNew(l)+(CoeffT1(a,j)*ARR(b,2)*CoeffT1(a,j))
                     ELSE
                         ArrDiagNew(l)=ArrDiagNew(l)+(CoeffT1(a,j)*ARR(2*b,2)*CoeffT1(a,j))
                     ENDIF
                 enddo
-                IF(tStoreSpinOrbs) THEN
+                IF(tStoreSpinOrbs.or.tTurnStoreSpinOff) THEN
                     FOCKDiagSumNew=FOCKDiagSumNew+(ArrDiagNew(l))
                 ELSE
                     FOCKDiagSumNew=FOCKDiagSumNew+(ArrDiagNew(l)*2)
                 ENDIF
             ELSE
                 do i=1,NoRotOrbs
-                    k=SymLabelList3(i)
+                    k=SymLabelList2(i)
                     ArrNew(k,l)=0.D0
                     do a=1,NoOrbs
                         b=SymLabelList2(a)
-                        IF(tStoreSpinOrbs) THEN
+                        IF(tStoreSpinOrbs.or.tTurnStoreSpinOff) THEN
                             ArrNew(k,l)=ArrNew(k,l)+(CoeffT1(a,i)*Arr(b,2)*CoeffT1(a,j))
                         ELSE
                             ArrNew(k,l)=ArrNew(k,l)+(CoeffT1(a,i)*Arr(2*b,2)*CoeffT1(a,j))
                         ENDIF
                     enddo
                 enddo
-                IF(tStoreSpinOrbs) THEN
+                IF(tStoreSpinOrbs.or.tTurnStoreSpinOff) THEN
                     FOCKDiagSumNew=FOCKDiagSumNew+(ArrNew(l,l))
                 ELSE
                     FOCKDiagSumNew=FOCKDiagSumNew+(ArrNew(l,l)*2)
@@ -4904,11 +4904,13 @@ MODULE RotateOrbsMod
 !            WRITE(6,*) ''
 !        enddo
 
-!        WRITE(6,*) 'BRR then ARR before being changed'
+!        WRITE(6,*) 'BRR then ARR before being changed',nBasis
 !        do i=1,nBasis
-!            WRITE(6,*) i,BRR(i),ARR(i,1),ARR(BRR(i),2)
+!            WRITE(6,*) i,BRR(i),ARR(i,1),ARR(BRR(i),2),ArrDiagNew(i)
 !        enddo
        
+!        WRITE(6,*) 'to here',NoDumpTruncs,NoOrbs 
+!        CALL FLUSH(6)
 
 ! Refill ARR(:,1) (ordered in terms of energies), and ARR(:,2) (ordered in terms of orbital number).
 ! ARR(:,2) needs to be ordered in terms of symmetry and then energy (like SymLabelList), so currently this ordering will not be 
@@ -4917,8 +4919,8 @@ MODULE RotateOrbsMod
         IF(NoDumpTruncs.le.1) THEN
 ! If we are only writing out 1 ROFCIDUMP or we are not truncating at all - can refill ARR etc.            
 
-            IF(tUseMP2VarDenMat.or.tFindCINatOrbs.or.tUseHFOrbs) THEN
-                IF(tStoreSpinOrbs) THEN
+            IF(tUseMP2VarDenMat.or.tFindCINatOrbs.or.tUseHFOrbs.or.tRDMonfly) THEN
+                IF(tStoreSpinOrbs.or.tTurnStoreSpinOff) THEN
                     do j=1,NoOrbs
                         ARR(j,2)=ArrDiagNew(j)
                         ARR(j,1)=ArrDiagNew(BRR(j))
@@ -4932,7 +4934,7 @@ MODULE RotateOrbsMod
                     enddo
                 ENDIF
             ELSE
-                IF(tStoreSpinOrbs) THEN
+                IF(tStoreSpinOrbs.or.tTurnStoreSpinOff) THEN
                     do j=1,NoRotOrbs
                         ARR(j,2)=ArrNew(j,j)
                         ARR(j,1)=ArrNew(BRR(j),BRR(j))
@@ -4956,7 +4958,7 @@ MODULE RotateOrbsMod
 !        CALL FLUSH(6)
 !        stop       
 
-        IF((tUseMP2VarDenMat.or.tFindCINatOrbs.or.tUseHFOrbs).and.(NoDumpTruncs.le.1)) THEN
+        IF((tUseMP2VarDenMat.or.tFindCINatOrbs.or.tUseHFOrbs.or.tRDMonfly).and.(NoDumpTruncs.le.1)) THEN
             DEALLOCATE(ArrDiagNew)
             CALL LogMemDealloc(this_routine,ArrDiagNewTag)
         ELSEIF(NoDumpTruncs.le.1) THEN
@@ -4965,7 +4967,8 @@ MODULE RotateOrbsMod
         ENDIF
 
 
-
+        WRITE(6,*) 'end of calcfockmatrix'
+        call flush(6)
 
     ENDSUBROUTINE CalcFOCKMatrix
 
@@ -4999,6 +5002,10 @@ MODULE RotateOrbsMod
 
         RefillUMAT_Time%timer_name='RefillUMATandTMAT'
         CALL set_timer(RefillUMAT_Time,30)
+
+        do i = 1,nBasis
+            WRITE(6,*) SymLabelList2(i),SymLabelList3(i)
+        enddo
 
 
 ! Make the UMAT elements the four index integrals.  These are calculated by transforming the HF orbitals using the
