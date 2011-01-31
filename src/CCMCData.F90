@@ -287,7 +287,7 @@ END SUBROUTINE AddBitExcitor
 
 !Write a Cluster.
    SUBROUTINE WriteCluster(iUnit,C,lTerm)
-      use FCIMCParMod, only: iLutHF
+      use FCIMCData, only: iLutHF
       IMPLICIT NONE
       TYPE(Cluster) C
       INTEGER i
