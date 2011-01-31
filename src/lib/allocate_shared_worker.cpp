@@ -57,8 +57,6 @@ extern "C" bool test_shared_permissions ()
 	static bool avail = true;
 	static bool tested = false;
 
-	return false;
-
 	if (!tested) {
 		int stat = access (shm_dir, F_OK);
 		if (stat) {
