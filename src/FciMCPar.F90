@@ -3384,18 +3384,17 @@ MODULE FciMCParMod
 
 
     SUBROUTINE SetupParameters()
-        use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tNoBrillouin,tROHF,tFindCINatOrbs,nOccBeta,nOccAlpha,tUHF
-        use SystemData, only : tFixLz,LzTot,BasisFN,tBrillouinsDefault
+        use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tROHF,tFindCINatOrbs,nOccBeta,nOccAlpha,tUHF
+        use SystemData, only : tBrillouinsDefault
         USE dSFMT_interface , only : dSFMT_init
-        use CalcData, only: tFCIMC, VirtCASorbs, OccCASorbs, G_VMC_Seed, &
+        use CalcData, only: G_VMC_Seed, &
                             MemoryFacPart, MemoryFacAnnihil, TauFactor, &
-                            StepsSftImag, tCheckHighestPop, tSpatialOnlyHash
+                            StepsSftImag, tCheckHighestPop, tSpatialOnlyHash,tStartCAS
         use Determinants , only : GetH0Element3
-        use SymData , only : nSymLabels,SymLabelList,SymLabelCounts,TwoCycleSymGens
+        use SymData , only : SymLabelList,SymLabelCounts,TwoCycleSymGens
         use Logging , only : tTruncRODump
         use DetCalcData, only : NMRKS,tagNMRKS,FCIDets
         use SymExcit3, only : CountExcitations3 
-        use DetBitOps, only: CountBits
         use constants, only: bits_n_int
         use util_mod, only: get_free_unit
         use HPHFRandExcitMod, only: ReturnAlphaOpenDet
@@ -3616,6 +3615,7 @@ MODULE FciMCParMod
         enddo
         WRITE(6,"(A,I10)") "Symmetry of reference determinant from spin orbital symmetry info is: ",SymHF
         if(SymHF.ne.INT(HFSym%Sym%S,4)) then
+            !When is this allowed to happen?! Comment!!
             call warning(this_routine,"Inconsistency in the symmetry arrays. Beware.")
         endif
 
@@ -4037,7 +4037,7 @@ MODULE FciMCParMod
             TTruncSpace=.true.
             WRITE(6,'(A,I4)') "Truncating the S.D. space at determinants will an excitation level w.r.t. HF of: ",ICILevel
         ENDIF
-        IF(tTruncCAS) THEN
+        IF(tTruncCAS.or.tStartCAS) THEN
 !We are truncating the FCI space by only allowing excitations in a predetermined CAS space.
 !The following line has already been written out if we are doing a CAS calculation.
 !            WRITE(6,'(A,I4,A,I5)') "Truncating the S.D. space as determinants must be within a CAS of ",OccCASOrbs," , ",VirtCASOrbs
@@ -4096,12 +4096,6 @@ MODULE FciMCParMod
             TotDets=TotDets+(Choose(NEl,i)*Choose(nBasis-NEl,i))/SymFactor
         enddo
         WRITE(6,*) "Approximate size of determinant space is: ",NINT(TotDets)
-
-        IF(TStartSinglePart) THEN
-            WRITE(6,"(A,F9.3,A,I9)") " Initial number of particles set to 1, and shift will be held at ",DiagSft," until particle number on root node gets to ",InitWalkers
-        ELSE
-            WRITE(6,*) "Initial number of walkers per processor chosen to be: ", InitWalkers
-        ENDIF
 
     END SUBROUTINE SetupParameters
 
@@ -4910,7 +4904,7 @@ MODULE FciMCParMod
     SUBROUTINE InitFCIMCCalcPar()
         use FciMCLoggingMOD , only : InitHistInitPops
         use SystemData , only : tRotateOrbs
-        use CalcData , only : InitialPart,tstartmp1
+        use CalcData , only : InitialPart,tstartmp1,tStartCAS
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil
         use constants , only : size_n_int
         use DeterminantData , only : write_det
@@ -5070,7 +5064,20 @@ MODULE FciMCParMod
                     !Initialise walkers according to mp1 amplitude.
                     call InitFCIMC_MP1()
 
+                elseif(tStartCAS) then
+                    !Initialise walkers according to a CAS diagonalisation.
+
+                    call InitFCIMC_CAS()
+
                 else !Set up walkers on HF det
+
+                    if(tStartSinglePart) then
+                        WRITE(6,"(A,I15,A,F9.3,A,I15)") " Initial number of particles set to ",InitialPart," and shift will be held at ",DiagSft," until particle number gets to ",InitWalkers*nNodes
+                    else
+                        write(6,"(A,I16)") "Initial number of walkers per processor chosen to be: ", InitWalkers
+                    endif
+
+
                     !Setup initial walker local variables for HF walkers start
                     IF(iProcIndex.eq.iHFProc) THEN
 
@@ -5191,12 +5198,345 @@ MODULE FciMCParMod
 
     end subroutine InitFCIMCCalcPar
 
+!Routine to initialise the particle distribution according to a CAS diagonalisation. 
+!This hopefully will help with close-lying excited states of the same sym.
+    subroutine InitFCIMC_CAS()
+        use SystemData, only : tSpn,tHPHFInts
+        use CalcData, only: InitialPart
+        use DeterminantData, only : write_det,write_det_len 
+        use DetCalcData, only : NKRY,NBLK,B2L,nCycle
+        use sym_mod , only : Getsym, writesym
+        use HPHFRandExcitMod , only : IsAllowedHPHF
+        type(BasisFN) :: CASSym
+        integer :: i,j,ierr,nEval,NKRY1,NBLOCK,LSCR,LISCR,DetIndex,iNode,NoWalkers
+        integer :: CASSpinBasisSize,elec,nCASDet,ICMax,GC,LenHamil,iInit,nHPHFCAS
+        integer , allocatable :: CASBrr(:),CASDet(:),CASFullDets(:,:),nRow(:),Lab(:),ISCR(:),INDEX(:)
+        integer , pointer :: CASDetList(:,:) => null()
+        integer(n_int) :: iLutnJ(0:NIfTot)
+        logical :: tMC,TestClosedShellDet
+        HElement_t :: HDiagTemp
+        real(dp) , allocatable :: CK(:,:),W(:),CKN(:,:),Hamil(:),A(:,:),V(:),BM(:),T(:),WT(:),SCR(:),WH(:),Work2(:),V2(:,:),AM(:)
+        integer :: ATag=0,VTag=0,BMTag=0,TTag=0,WTTag=0,SCRTag=0,WHTag=0,Work2Tag=0,V2Tag=0,ISCRTag=0,IndexTag=0,AMTag=0
+        real(dp) :: CASRefEnergy,TotWeight,PartFac,amp,rat,r,GetHElement
+        integer , dimension(lenof_sign) :: temp_sign
+        character(len=*) , parameter :: this_routine='InitFCIMC_CAS'
+        
+        if(lenof_sign.ne.1) call stop_all(this_routine,"StartCAS currently does not work with complex walkers")
+        if(tReadPops) call stop_all(this_routine,"StartCAS cannot work with with ReadPops")
+        if(tStartSinglePart) call stop_all(this_routine,"StartCAS cannot work with StartSinglePart")
+        if(tRestartHighPop) call stop_all(this_routine,"StartCAS cannot with with dynamically restarting calculations")
+
+        write(6,*) "Initialising walkers proportional to a CAS diagonalisation..."
+        write(6,'(A,I2,A,I2,A)') " In CAS notation, (spatial orbitals, electrons), this has been chosen as: (",(OccCASOrbs+VirtCASOrbs)/2,",",OccCASOrbs,")"
+        DO I=NEl-OccCASorbs+1,NEl
+            WRITE(6,'(6I7)',advance='no') I,BRR(I),G1(BRR(I))%K(1), G1(BRR(I))%K(2),G1(BRR(I))%K(3), G1(BRR(I))%MS
+            CALL WRITESYM(6,G1(BRR(I))%SYM,.FALSE.)
+            WRITE(6,'(I4)',advance='no') G1(BRR(I))%Ml
+            WRITE(6,'(2F19.9)')  ARR(I,1),ARR(BRR(I),2)
+        ENDDO
+        WRITE(6,'(A)') " -------------------------------------------------------------------------------------------------"
+        DO I=NEl+1,NEl+VirtCASOrbs
+            WRITE(6,'(6I7)',advance='no') I,BRR(I),G1(BRR(I))%K(1), G1(BRR(I))%K(2),G1(BRR(I))%K(3), G1(BRR(I))%MS
+            CALL WRITESYM(6,G1(BRR(I))%SYM,.FALSE.)
+            WRITE(6,'(I4)',advance='no') G1(BRR(I))%Ml
+            WRITE(6,'(2F19.9)')  ARR(I,1),ARR(BRR(I),2)
+        ENDDO
+
+        CASSpinBasisSize=OccCASorbs+VirtCASorbs
+        allocate(CASBrr(1:CASSpinBasisSize))
+        allocate(CASDet(1:OccCasOrbs))
+        do i=1,CASSpinBasisSize
+            !Run through the cas space, and create an array which will map these orbtials to the 
+            !orbitals they actually represent.
+            CASBrr(i)=BRR(i+(NEl-OccCasorbs))
+        enddo
+
+        !Calculate symmetry of CAS determinants, and check that this will be the same as the reference determinant
+        !for the rest of the FCIMC calculations.
+!        do i=1,OccCASOrbs
+!            CASDet(i)=CASBrr(i)
+!        enddo
+        elec=1
+        do i=NEl-OccCasOrbs+1,NEl
+            CASDet(elec)=ProjEDet(i)
+            elec=elec+1
+        enddo
+
+        write(6,*) "CAS Det is: "
+        call write_det_len(6,CASDet,OccCASOrbs,.true.)
+        call GetSym(CASDet,OccCASOrbs,G1,nBasisMax,CASSym)
+        write(6,*) "Spatial symmetry of CAS determinants: ",CASSym%Sym%S
+        write(6,*) "Ms of CAS determinants: ",CASSym%Ms
+        if(tFixLz) then
+            write(6,*) "Ml of CAS determinants: ",CASSym%Ml
+        endif
+
+        if(CASSym%Ml.ne.LzTot) call stop_all(this_routine,"Ml of CAS ref det does not match Ml of full reference det")
+        if(CASSym%Ms.ne.0) call stop_all(this_routine,"CAS diagonalisation can only work with closed shell CAS spaces initially")
+        if(CASSym%Sym%S.ne.HFSym%Sym%S) call stop_all(this_routine,"Sym of CAS ref det does not match Sym of fulll reference det")
+
+        !First, we need to generate all the excitations.
+        call gndts(OccCASorbs,CASSpinBasisSize,CASBrr,nBasisMax,CASDetList,.true.,G1,tSpn,LMS,.true.,CASSym,nCASDet,CASDet)
+
+        if(nCASDet.eq.0) call stop_all(this_routine,"No CAS determinants found.")
+        write(6,*) "Number of symmetry allowed CAS determinants found to be: ",nCASDet
+        Allocate(CASDetList(OccCASorbs,nCASDet),stat=ierr)
+        if(ierr.ne.0) call stop_all(this_routine,"Error allocating CASDetList")
+        CASDetList(:,:)=0
+
+        !Now fill up CASDetList...
+        call gndts(OccCASorbs,CASSpinBasisSize,CASBrr,nBasisMax,CASDetList,.false.,G1,tSpn,LMS,.true.,CASSym,nCASDet,CASDet)
+
+        !We have a complication here. If we calculate the hamiltonian from these CAS determinants, then we are not
+        !including the mean-field generated from the other occupied orbitals. We need to either 'freeze' the occupied
+        !orbitals and modify the 1 & two electron integrals, or add the other electrons back into the list. We do the latter.
+        allocate(CASFullDets(NEl,nCASDet),stat=ierr)
+        if(ierr.ne.0) call stop_all(this_routine,"Error allocating CASFullDets")
+        CASFullDets(:,:)=0
+
+        do i=1,nCASDet
+            do j=1,NEl-OccCASorbs
+                CASFullDets(j,i)=ProjEDet(j)
+            enddo
+            do j=NEl-OccCASorbs+1,NEl
+                CASFullDets(j,i)=CASDetList(j-(NEl-OccCASorbs),i)
+            enddo
+        enddo
+        deallocate(CASDetList)
+
+        write(6,*) "First CAS determinant in list is: "
+        call write_det(6,CASFullDets(:,1),.true.)
+
+        nEval=4
+        write(6,"(A,I4,A)") "Calculating lowest ",nEval," eigenstates of CAS Hamiltonian..."
+        Allocate(CkN(nCASDet,nEval), stat=ierr)
+        CkN=0.D0
+        Allocate(Ck(nCASDet,nEval),stat=ierr)
+        Ck=0.D0
+        Allocate(W(nEval),stat=ierr)    !Eigenvalues
+        W=0.D0
+        if(ierr.ne.0) call stop_all(this_routine,"Error allocating")
+        
+        write(6,*) "Calculating hamiltonian..."
+        allocate(nRow(nCASDet),stat=ierr)
+        nRow=0
+        ICMax=1
+        tMC=.false.
+
+        !HACK ALERT!! Need to fill up array in space of determinants, not HPHF functions.
+        !Turn of tHPHFInts and turn back on when hamiltonian constructed.
+        tHPHFInts=.false.
+
+        CALL Detham(nCASDet,NEl,CASFullDets,Hamil,Lab,nRow,.true.,ICMax,GC,tMC)
+        LenHamil=GC
+        write(6,*) "Allocating memory for hamiltonian: ",LenHamil*2
+        Allocate(Hamil(LenHamil),stat=ierr)
+        if(ierr.ne.0) call stop_all(this_routine,"Error allocating Hamil")
+        Hamil=0.D0
+        Allocate(Lab(LenHamil),stat=ierr)
+        if(ierr.ne.0) call stop_all(this_routine,"Error allocating Lab")
+        Lab=0
+        call Detham(nCASDet,NEl,CASFullDets,Hamil,Lab,nRow,.false.,ICMax,GC,tMC)
+
+        CASRefEnergy=GETHELEMENT(1,1,HAMIL,LAB,NROW,NCASDET)
+        write(6,*) "Energy of first CAS det is: ",CASRefEnergy
+
+        !Turn back on HPHF integrals if needed.
+        if(tHPHF) tHPHFInts=.true.
+
+        if(abs(CASRefEnergy-Hii).gt.1.D-7) call stop_all(this_routine,"CAS reference energy does not match reference energy of full space")
+
+        !Lanczos
+        NKRY1=NKRY+1
+        NBLOCK=MIN(NEVAL,NBLK)
+        LSCR=MAX(nCASDet*NEVAL,8*NBLOCK*NKRY)
+        LISCR=6*NBLOCK*NKRY
+        ALLOCATE(A(NEVAL,NEVAL),stat=ierr)
+        CALL LogMemAlloc('A',NEVAL**2,8,this_routine,ATag,ierr)
+        A=0.d0
+        ALLOCATE(V(nCASDet*NBLOCK*NKRY1),stat=ierr)
+        CALL LogMemAlloc('V',nCASDet*NBLOCK*NKRY1,8,this_routine,VTag,ierr)
+        V=0.d0
+        ALLOCATE(AM(NBLOCK*NBLOCK*NKRY1),stat=ierr)
+        CALL LogMemAlloc('AM',NBLOCK*NBLOCK*NKRY1,8,this_routine,AMTag,ierr)
+        AM=0.d0
+        ALLOCATE(BM(NBLOCK*NBLOCK*NKRY),stat=ierr)
+        CALL LogMemAlloc('BM',NBLOCK*NBLOCK*NKRY,8,this_routine,BMTag,ierr)
+        BM=0.d0
+        ALLOCATE(T(3*NBLOCK*NKRY*NBLOCK*NKRY),stat=ierr)
+        CALL LogMemAlloc('T',3*NBLOCK*NKRY*NBLOCK*NKRY,8,this_routine,TTag,ierr)
+        T=0.d0
+        ALLOCATE(WT(NBLOCK*NKRY),stat=ierr)
+        CALL LogMemAlloc('WT',NBLOCK*NKRY,8,this_routine,WTTag,ierr)
+        WT=0.d0
+        ALLOCATE(SCR(LScr),stat=ierr)
+        CALL LogMemAlloc('SCR',LScr,8,this_routine,SCRTag,ierr)
+        SCR=0.d0
+        ALLOCATE(ISCR(LIScr),stat=ierr)
+        CALL LogMemAlloc('IScr',LIScr,4,this_routine,IScrTag,ierr)
+        ISCR(1:LISCR)=0
+        ALLOCATE(INDEX(NEVAL),stat=ierr)
+        CALL LogMemAlloc('INDEX',NEVAL,4,this_routine,INDEXTag,ierr)
+        INDEX(1:NEVAL)=0
+        ALLOCATE(WH(nCASDet),stat=ierr)
+        CALL LogMemAlloc('WH',nCASDet,8,this_routine,WHTag,ierr)
+        WH=0.d0
+        ALLOCATE(WORK2(3*nCASDet),stat=ierr)
+        CALL LogMemAlloc('WORK2',3*nCASDet,8,this_routine,WORK2Tag,ierr)
+        WORK2=0.d0
+        ALLOCATE(V2(nCASDet,NEVAL),stat=ierr)
+        CALL LogMemAlloc('V2',nCASDet*NEVAL,8,this_routine,V2Tag,ierr)
+        V2=0.d0
+!C..Lanczos iterative diagonalising routine
+        CALL NECI_FRSBLKH(nCASDet,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT, &
+     &  SCR,ISCR,INDEX,NCYCLE,B2L,.false.,.false.,.false.)
+!Multiply all eigenvalues by -1.
+        CALL DSCAL(NEVAL,-1.D0,W,1)
+        if(CK(1,1).lt.0.D0) then
+            do i=1,nCASDet
+                CK(i,1)=-CK(i,1)
+            enddo
+        endif
+
+        write(6,*) "Diagonalisation complete. Lowest energy CAS eigenvalues/corr E are: "
+        do i=1,NEval
+            write(6,*) i,W(i),W(i)-CASRefEnergy
+        enddo
+
+        TotWeight=0.D0
+        nHPHFCAS=0
+        do i=1,nCASDet
+            if(tHPHF) then
+                !Only allow valid HPHF functions
+                call EncodeBitDet(CASFullDets(:,i),iLutnJ)
+                if(IsAllowedHPHF(iLutnJ)) then
+                    nHPHFCAS=nHPHFCAS+1
+                    if(.not.TestClosedShellDet(iLutnJ)) then
+                        !Open shell. Weight is sqrt(2) of det weight.
+                        TotWeight=TotWeight+(abs(CK(i,1))*sqrt(2.D0))
+                        !Return this new weight to the CK array, so that we do not need to do this a second time.
+                        CK(i,1)=CK(i,1)*sqrt(2.D0)
+                    else
+                        !Closed Shell
+                        TotWeight=TotWeight+abs(CK(i,1))
+                    endif
+                endif
+            else
+                TotWeight=TotWeight+abs(CK(i,1))
+            endif
+        enddo
+        write(6,*) "Total weight of lowest eigenfunction: ",TotWeight
+        if(tHPHF) write(6,*) "Converting into HPHF space. Total HPHF CAS functions: ",nHPHFCAS
+
+        if((InitialPart.eq.1).or.(InitialPart.ge.(InitWalkers*nNodes)-50)) then
+            !Here, all the walkers will be assigned to the CAS wavefunction.
+            !InitialPart = 1 by default
+            write(6,"(A)") "All walkers specified in input will be distributed according to the CAS wavefunction."
+            write(6,"(A)") "Shift will be allowed to vary from the beginning"
+            write(6,"(A)") "Setting initial shift to equal CAS correlation energy",W(1)-CASRefEnergy
+            DiagSft=W(1)-CASRefEnergy
+            !PartFac is the number of walkers that should reside on the HF determinant
+            PartFac=(real(InitWalkers,dp)* real(nNodes,dp))/TotWeight
+        else
+            !Here, not all walkers allowed will be initialised to the CAS wavefunction.
+            write(6,"(A,I15,A)") "Initialising ",InitialPart, " walkers according to the CAS distribution."
+            write(6,"(A,I15)") "Shift will remain fixed until the walker population reaches ",InitWalkers*nNodes
+            !PartFac is the number of walkers that should reside on the HF determinant
+            PartFac=real(InitialPart,dp)/TotWeight
+            tSinglePartPhase=.true.
+        endif
+
+        !Now generate all excitations again, creating the required number of walkers on each one.
+        DetIndex=1
+        NoatHF(1)=0
+        TotParts=0
+        do i=1,nCASDet
+            if(tHPHF) then
+                call EncodeBitDet(CASFullDets(:,i),iLutnJ)
+                if(.not.IsAllowedHPHF(iLutnJ)) cycle
+            endif
+            iNode=DetermineDetNode(CASFullDets(:,i),0)
+            if(iProcIndex.eq.iNode) then
+                !Number parts on this det = PartFac*Amplitude
+                amp=CK(i,1)*PartFac
+                NoWalkers=int(amp)
+                rat=amp-real(NoWalkers,dp)
+                r=genrand_real2_dSFMT()
+                if(abs(rat).gt.r) then
+                    if(amp.lt.0.D0) then
+                        NoWalkers=NoWalkers-1
+                    else
+                        NoWalkers=NoWalkers+1
+                    endif
+                endif
+
+                if(NoWalkers.ne.0) then
+                    call EncodeBitDet(CASFullDets(:,i),iLutnJ)
+                    if(DetBitEQ(iLutnJ,iLutRef,NIfDBO)) then
+                        !Check if this determinant is reference determinant, so we can count number on hf.
+                        NoatHF(1) = NoWalkers
+                    endif
+                    call encode_det(CurrentDets(:,DetIndex),iLutnJ)
+                    call clear_all_flags(CurrentDets(:,DetIndex))
+                    temp_sign(1)=NoWalkers
+                    call encode_sign(CurrentDets(:,DetIndex),temp_sign)
+                    if(tTruncInitiator) then
+                        !Set initiator flag if needed (always for HF)
+                        call CalcParentFlag(DetIndex,1,iInit)
+                    endif
+                    if(.not.tRegenDiagHEls) then
+                        if(tHPHF) then
+                            HDiagTemp = hphf_diag_helement(CASFullDets(:,i),iLutnJ)
+                        else
+                            HDiagTemp = get_helement(CASFullDets(:,i),CASFullDets(:,i),0)
+                        endif
+                        CurrentH(DetIndex)=real(HDiagTemp,dp)-Hii
+                    endif
+                    DetIndex=DetIndex+1
+                    TotParts(1)=TotParts(1)+abs(NoWalkers)
+                endif
+            endif   !End if desired node
+        enddo
+
+        TotWalkers=DetIndex-1   !This is the number of occupied determinants on each node
+        TotWalkersOld=TotWalkers
+        call sort(CurrentDets(:,1:TotWalkers),CurrentH(1:TotWalkers))
+
+        !Set local&global variables
+        TotPartsOld=TotParts
+        call mpisumall(TotParts,AllTotParts)
+        call mpisumall(NoatHF,AllNoatHF)
+        call mpisumall(TotWalkers,AllTotWalkers)
+        OldAllNoatHF=AllNoatHF
+        AllTotWalkersOld=AllTotWalkers
+        AllTotPartsOld=AllTotParts
+        iter_data_fciqmc%tot_parts_old = AllTotPartsOld
+        AllNoAbortedOld=0.D0
+
+        !Deallocate all the lanczos arrays now.
+        deallocate(CK,W,CKN,Hamil,A,V,BM,T,WT,SCR,WH,Work2,V2,CASBrr,CASDet,CASFullDets,nRow,Lab,iscr,index,AM)
+        call logmemdealloc(this_routine,ATag)
+        call logmemdealloc(this_routine,VTag)
+        call logmemdealloc(this_routine,BMTag)
+        call logmemdealloc(this_routine,TTag)
+        call logmemdealloc(this_routine,WTTag)
+        call logmemdealloc(this_routine,SCRTag)
+        call logmemdealloc(this_routine,WHTag)
+        call logmemdealloc(this_routine,Work2Tag)
+        call logmemdealloc(this_routine,V2Tag)
+        call logmemdealloc(this_routine,iscrTag)
+        call logmemdealloc(this_routine,indexTag)
+        call logmemdealloc(this_routine,AMTag)
+
+    end subroutine InitFCIMC_CAS 
+
 !Routine to initialise the particle distribution according to the MP1 wavefunction.
 !This hopefully will help with close-lying excited states of the same sym.
     subroutine InitFCIMC_MP1()
         use HPHFRandExcitMod , only : IsAllowedHPHF
         use Determinants, only: GetH0Element3
         use SymExcit3 , only : GenExcitations3
+        use CalcData , only : InitialPart
         real(dp) :: TotMP1Weight,amp,MP2Energy,PartFac,H0tmp,rat,r
         HElement_t :: hel,HDiagtemp
         integer :: iExcits,exflag,Ex(2,2),nJ(NEl),ic,DetIndex,iNode,NoWalkers,iInit
@@ -5257,10 +5597,27 @@ MODULE FciMCParMod
         endif
 
         write(6,"(A,2G25.15)") "MP2 energy calculated: ",MP2Energy,MP2Energy+Hii
-        write(6,*) "Setting initial shift to equal MP2 correlation energy"
-        DiagSft=MP2Energy
 
-        PartFac=(real(InitWalkers,dp)* real(nNodes,dp))/TotMP1Weight
+        if((InitialPart.eq.1).or.(InitialPart.ge.(InitWalkers*nNodes)-50)) then
+            !Here, all the walkers will be assigned to the MP1 wavefunction.
+            !InitialPart = 1 by default
+            write(6,"(A)") "All walkers specified in input will be distributed according to the MP1 wavefunction."
+            write(6,"(A)") "Shift will be allowed to vary from the beginning"
+            write(6,"(A)") "Setting initial shift to equal MP2 correlation energy"
+            DiagSft=MP2Energy
+            !PartFac is the number of walkers that should reside on the HF determinant
+            !in an intermediate normalised MP1 wavefunction. 
+            PartFac=(real(InitWalkers,dp)* real(nNodes,dp))/TotMP1Weight
+        else
+            !Here, not all walkers allowed will be initialised to the MP1 wavefunction.
+            write(6,"(A,I15,A)") "Initialising ",InitialPart, " walkers according to the MP1 distribution."
+            write(6,"(A,I15)") "Shift will remain fixed until the walker population reaches ",InitWalkers*nNodes
+            !PartFac is the number of walkers that should reside on the HF determinant
+            !in an intermediate normalised MP1 wavefunction. 
+            PartFac=real(InitialPart,dp)/TotMP1Weight
+            tSinglePartPhase=.true.
+        endif
+
 
         !Now generate all excitations again, creating the required number of walkers on each one.
         DetIndex=1

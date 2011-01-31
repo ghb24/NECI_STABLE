@@ -26,6 +26,8 @@ LOGICAL :: tTruncCAS,tTruncInitiator,tDelayTruncInit,tAddtoInitiator    !Truncat
 LOGICAL :: tInitIncDoubs,tWalkContGrow,tAnnihilatebyRange,tRetestAddtoInit
 logical :: tReadPopsRestart, tReadPopsChangeRef
 
+logical :: tStartCAS    !Start FCIMC dynamic with walkers distributed according to CAS diag.
+
 ! Base hash values only on spatial orbitals
 ! --> All dets with same spatial structure on the same processor.
 logical :: tSpatialOnlyHash

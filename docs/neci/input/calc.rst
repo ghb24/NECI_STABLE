@@ -624,9 +624,28 @@ The following options are only available in **FCIMC** calculations:
 **SCALEWALKERS** [fScaleWalkers]
     Scale the number of walkers by fScaleWalkers, after having read in data from POPSFILE.
 
-**STARTMP1**
-    Set the initial configuration of walkers to be proportional to the MP1 wavefunction. The shift will also
-    now be set to the MP2 correlation energy.  This also works in CCMC Amplitude
+**STARTCAS** [ElectronsInCAS] [VirtualSpinOrbitalsInCAS] [InitialWalkers]
+    Set the initial configuration of walkers to be proportional to the ground-state wavefunction
+    from an initial specified CAS diagonalisation. InitialWalkers
+    is an optional integer argument. If present, then only that number of walkers will be assigned to the
+    ground-state distribution initially. The shift will then remain fixed at the value given in the input file, 
+    until the number of walkers reaches the desired number. Alternatively, without the argument, all
+    walkers in the input will be assigned according to the wavefunction, and the shift will also
+    now be set to the groundstate energy, and allowed to vary from the off as normal. This should
+    help with slow growth of walkers and poor convergence rate due to low lying excited states in 
+    multiconfigurational systems. Perhaps it could even stabilise convergence to excited states?!?
+    This works with HPHF and Lz symmetries too.
+
+**STARTMP1** [InitialWalkers]
+    Set the initial configuration of walkers to be proportional to the MP1 wavefunction. InitialWalkers
+    is an optional integer argument. If present, then only that number of walkers will be assigned to the
+    MP1 distribution initially. The shift will then remain fixed at the value given in the input file, 
+    until the number of walkers reaches the desired number. Alternatively, without the argument, all
+    walkers in the input will be assigned according to the MP1 wavefunction, and the shift will also
+    now be set to the MP2 correlation energy, and allowed to vary from the off as normal. This should
+    help with slow growth of walkers and poor convergence rate due to low lying excited states (assuming that
+    MP2 does a decent job!) This works with HPHF and Lz symmetries too.
+    This also works in CCMC Amplitude.
 
 **GROWMAXFACTOR** [GrowMaxFactor]
     Default 9000.

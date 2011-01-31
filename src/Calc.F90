@@ -12,9 +12,9 @@ MODULE Calc
     use Determinants, only: iActiveBasis, SpecDet, tSpecDet, nActiveSpace, &
                             tDefineDet
     use DetCalc, only: iObs, jObs, kObs, tCorr, tRhoOfR, tFodM, DETINV, &
-                       icilevel, nCycle, tBlock, tCalcHMat, tEnergy, tRead, &
+                       icilevel, tBlock, tCalcHMat, tEnergy, tRead, &
                        tFindDets
-    use DetCalcData, only: B2L, nKry, nEval, nBlk
+    use DetCalcData, only: B2L, nKry, nEval, nBlk, nCycle
     use IntegralsData, only: tNeedsVirts
     use CCMCData, only: dInitAmplitude, dProbSelNewExcitor, nSpawnings, &
                         tSpawnProp, nClustSelections, tExactEnergy,     &
@@ -52,6 +52,7 @@ contains
           StepsSftImag=0.D0
           TauFactor=0.D0
           tStartMP1=.false.
+          tStartCAS=.false.
           iAnnInterval=1
           tTruncCAS=.false.
           iFullSpaceIter=0
@@ -863,6 +864,23 @@ contains
 !                CALL Stop_All(t_r,"STARTMP1 option depreciated")
                 TStartMP1=.true.
                 TStartSinglePart=.false.
+                if(item.lt.nitems) then
+                    !Allow us to specify a desired number of particles to start with, so that the shift doesn't
+                    !change dramatically to start with.
+                    call geti(InitialPart)
+                endif
+            case("STARTCAS")
+!For FCIMC, this has an initial configuration of walkers which is proportional to the MP1 wavefunction
+!                CALL Stop_All(t_r,"STARTMP1 option depreciated")
+                TStartCAS=.true.
+                TStartSinglePart=.false.
+                call geti(OccCASOrbs)  !Number of electrons in CAS 
+                call geti(VirtCASOrbs)  !Number of virtual spin-orbitals in CAS
+                if(item.lt.nitems) then
+                    !Allow us to specify a desired number of particles to start with, so that the shift doesn't
+                    !change dramatically to start with.
+                    call geti(InitialPart)
+                endif
             case("GROWMAXFACTOR")
 !For FCIMC, this is the factor to which the initial number of particles is allowed to go before it is culled
                 call getf(GrowMaxFactor)
