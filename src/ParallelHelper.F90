@@ -89,4 +89,25 @@ contains
       write(6,*) s
 #endif
    end subroutine
+
+    Subroutine MPIBarrier(error,Node)
+        INTEGER :: error
+        type(CommI), intent(in),optional :: Node
+        integer Comm
+#ifdef PARALLEL
+        call GetComm(Comm,Node)
+        CALL MPI_Barrier(Comm,error)
+#endif
+    end subroutine
 end module
+
+subroutine mpibarrier_c (error) bind(c)
+    use ParallelHelper, only: MPIBarrier
+    use, intrinsic :: iso_c_binding
+    implicit none
+    integer(c_int), intent(inout) :: error
+    integer :: ierr
+
+    call MPIBarrier (ierr)
+    error = ierr
+end subroutine

@@ -26,7 +26,7 @@ using std::list;
 using std::ofstream;
 
 extern "C" void stop_all (const char* a, const char* b);
-extern "C" void mpibarrier (int * error);
+extern "C" void mpibarrier_c (int * error);
 
 // This shared memory mapping is the only bit of this file which is c++
 // rather than C, but it is definitely a better way of doing it than 
@@ -132,7 +132,7 @@ void allocate_shared_posix (const char * name, void ** ptr, const size_t size)
 	// shared memory object --> Operating system will clean up correctly if
 	// the processes bail.
 	int ierr;
-	mpibarrier (&ierr);
+	mpibarrier_c (&ierr);
 	shm_unlink (shared_name.c_str());
 }
 
@@ -171,7 +171,7 @@ void allocate_shared_systemV (const char * name, void ** ptr,
 	// shared memory control object --> Operating system will clean up
 	// correctly if the processes bail.
 	int ierr;
-	mpibarrier (&ierr);
+	mpibarrier_c (&ierr);
 	shmctl (shm_id, IPC_RMID, NULL);
 	g_shm_list.push_back(*ptr);
 }

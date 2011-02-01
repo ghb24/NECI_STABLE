@@ -1255,13 +1255,4 @@ Subroutine GetProcElectrons(iProcIndex,iMinElec,iMaxElec)
 #endif
 end subroutine
 
-Subroutine MPIBarrier(error,Node) bind(c)
-    INTEGER :: error
-    type(CommI), intent(in),optional :: Node
-    integer Comm
-#ifdef PARALLEL
-    call GetComm(Comm,Node)
-    CALL MPI_Barrier(Comm,error)
-#endif
-end subroutine
 end supermodule
