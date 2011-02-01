@@ -18,8 +18,6 @@
 #include <string>
 #include <fstream>
 #include <iostream>
-#define OMPI_SKIP_MPICXX 1
-#include <mpi.h>
 using std::map;
 using std::string;
 using std::list;
