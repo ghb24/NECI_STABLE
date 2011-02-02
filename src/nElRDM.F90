@@ -37,6 +37,7 @@ MODULE nElRDMMod
         USE CalcData , only : MemoryFacPart
         USE constants , only : n_int
         USE OneEInts , only : TMAT2D
+        USE FciMCData , only : MaxWalkersPart
         USE Logging , only : RDMExcitLevel, tROFciDUmp, NoDumpTruncs
         USE RotateOrbsData , only : CoeffT1, CoeffT1Tag, tTurnStoreSpinOff, NoFrozenVirt
         USE RotateOrbsData , only : SymLabelCounts2,SymLabelList2,SymLabelListInv,NoOrbs
@@ -50,8 +51,8 @@ MODULE nElRDMMod
         REAL*8 , ALLOCATABLE :: OneElRDM(:,:)
         REAL*8 , ALLOCATABLE :: TwoElRDM(:,:)
         REAL*8 , ALLOCATABLE :: AllTwoElRDM(:,:)
-        REAL*8 :: OneEl_Gap,TwoEl_Gap,AllTotPartstemp
-        type(timer), save :: nElRDM_Time
+        REAL*8 :: OneEl_Gap,TwoEl_Gap,AllTotPartstemp, Normalisation
+        type(timer), save :: nElRDM_Time, FinaliseRDM_time
 
     contains
 
@@ -224,6 +225,7 @@ MODULE nElRDMMod
         IF(tTurnStoreSpinOff) tStoreSpinOrbs=.false.
 
         nElRDM_Time%timer_name='nElRDMTime'
+        FinaliseRDM_Time%timer_name='FinaliseRDMTime'
 
 
     END SUBROUTINE InitRDM
@@ -404,15 +406,14 @@ MODULE nElRDMMod
 
     SUBROUTINE FillRDMthisIter(TotWalkers)
         USE FciMCData , only : CurrentDets,TotParts 
+        USE bit_reps , only : encode_sign, extract_sign
         INTEGER(int64) , INTENT(IN) :: TotWalkers
         INTEGER(kind=n_int) :: iLutnI(0:NIfTot)
         INTEGER(int64) :: MaxTotWalkers,TotWalkIn(2),TotWalkOut(2)
         INTEGER :: i,error
-        REAL*8 :: TempTotParts
+        REAL*8 :: TempTotParts, NormalisationTemp, Sum_Coeffs
         LOGICAL :: blank_det
-
-
-        CALL set_timer(nElRDM_Time,30)
+        INTEGER, DIMENSION(lenof_sign) :: SignI, SignI2
 
 ! Run through the current determinants.
 ! Find the max number of determinants on a processor - all need to run through this number so that the communication can be done at all stages.
@@ -425,6 +426,33 @@ MODULE nElRDMMod
         CALL MPIAllReduce(TempTotParts,MPI_SUM,AllTotPartstemp)
 
         MaxTotWalkers=TotWalkOut(1)
+
+!This little commented routine calculates the normalisation factor for the coefficients at this iteration.
+!It appears this is not necessary, and in reality it is fine to just add in C_i * AllTotPartsCurr / AllTotParts , and then scale 
+!the density matrices at the end so that their traces are correct.
+!This also means the contributions are weighted by the number of walkers in the system at the time.
+!        Normalisation = 0.D0
+!        NormalisationTemp = 0.D0
+!        do i = 1, TotWalkers
+!            call extract_sign (CurrentDets(:,I), SignI)
+!            NormalisationTemp = NormalisationTemp + ( REAL(SignI(1)) * REAL(SignI(1)) )
+!        enddo
+!        WRITE(6,*) 'NormalisationTemp',NormalisationTemp
+
+!        CALL MPIAllReduce(NormalisationTemp,MPI_SUM,Normalisation)
+
+!        Normalisation = SQRT( Normalisation )
+!        WRITE(6,*) 'Normalisation',Normalisation
+!        Sum_Coeffs = SQRT( Normalisation )
+
+!        do I = 1, TotWalkers
+!            SignI2 = 0
+!            call extract_sign (CurrentDets(:,I), SignI)
+!            SignI2(1) = NINT(REAL(SignI(1)) * ( 1.D0 / Sum_Coeffs ))
+!            call encode_sign(CurrentDets(:,I), SignI2)
+!        enddo
+
+        CALL set_timer(nElRDM_Time,30)
 
         do i=1,MaxTotWalkers
 
@@ -505,9 +533,10 @@ MODULE nElRDMMod
         USE bit_reps , only : extract_bit_rep
         INTEGER(kind=n_int) , INTENT(IN) :: iLutnI(0:NIfTot)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
-        INTEGER, dimension(lenof_sign) :: SignDi
+        INTEGER, dimension(lenof_sign) :: SignDi, SignDi2
         INTEGER :: ExcitMat3(2,2),nI(NEl),nJ(NEl),Proc,i,j,FlagsDi,Ind,a,b
         LOGICAL :: tParity,tAllExcitFound
+        REAL*8 :: realSignDi
 
 
         call extract_bit_rep (iLutnI, nI, SignDi, FlagsDi)
@@ -516,11 +545,17 @@ MODULE nElRDMMod
 ! Need to add in the diagonal elements.
 ! Do this now, while it is decoded.
 ! The RDM are always in spin orbitals, so just adding the orbital as is, is fine.
+
+!        realSignDi = real(SignDi(1)) * (1.D0 / Normalisation)
+        realSignDi = real(SignDi(1)) * ( REAL(AllTotPartsTemp) / ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) )
+
+!        WRITE(6,*) realSignDi
+
         IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) THEN
             do i=1,NEl
                 OneElRDM(SymLabelListInv(nI(i)),SymLabelListInv(nI(i))) = &
                             OneElRDM(SymLabelListInv(nI(i)),SymLabelListInv(nI(i))) &
-                             +((REAL(SignDi(1))*REAL(SignDi(1)))/AllTotPartstemp)
+                              + (realSignDi * realSignDi)
             enddo
         ENDIF
 
@@ -531,7 +566,7 @@ MODULE nElRDMMod
                 do j=i+1,NEl
                     Ind=( ( (nI(j)-2) * (nI(j)-1) ) / 2 ) + nI(i)
                     TwoElRDM( Ind , Ind ) = TwoElRDM( Ind , Ind ) &
-                             +( (REAL(SignDi(1))*REAL(SignDi(1)) ) / AllTotPartstemp )
+                              + (realSignDi * realSignDi)
                 enddo
             enddo
         ENDIF
@@ -736,11 +771,11 @@ MODULE nElRDMMod
         USE bit_reps , only : extract_bit_rep
         INTEGER, INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
-        INTEGER, dimension(lenof_sign) :: SignDi,SignDj
+        INTEGER, dimension(lenof_sign) :: SignDi,SignDj, SignDi2,SignDj2
         INTEGER :: i,j,k,NoDets,StartDets,PartInd,Indij,Indab 
         INTEGER :: nI(NEl),nJ(NEl),Ex(2,2),FlagsDi,FlagsDj
         LOGICAL :: tDetFound,tParity
-        REAL*8 :: ParityFactor
+        REAL*8 :: ParityFactor, realSignDi, realSignDj
 
 ! Take each Dj, and binary search the CurrentDets to see if it is occupied.
 
@@ -752,6 +787,9 @@ MODULE nElRDMMod
 
             IF(NoDets.gt.1) THEN
                 call extract_bit_rep (Sing_ExcDjs2(:,StartDets), nI, SignDi, FlagsDi)
+
+!                realSignDi = real(SignDi(1)) * (1.D0 / Normalisation)
+                realSignDi = real(SignDi(1)) * ( REAL(AllTotPartsTemp) / ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) )
 
                 do j=StartDets+1,(NoDets+StartDets-1)
 ! D_i is in the first spot - start from the second.                
@@ -771,6 +809,9 @@ MODULE nElRDMMod
 
                         call extract_bit_rep (CurrentDets(:,PartInd), nJ, SignDj, FlagsDj)
 
+!                        realSignDj = real(SignDj(1)) * (1.D0 / Normalisation)
+                        realSignDj = real(SignDj(1)) * ( REAL(AllTotPartsTemp) / ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) )
+
 ! Ex(1,:) comes out as the orbital(s) excited from, Ex(2,:) comes out as the orbital(s) excited to.                    
                         CALL GetExcitation(nI,nJ,NEl,Ex,tParity)
 
@@ -782,8 +823,7 @@ MODULE nElRDMMod
                         Indab = SymLabelListInv(Ex(2,1)) 
                         
                         OneElRDM( Indij , Indab ) = OneElRDM( Indij , Indab ) + &
-                            ( (ParityFactor * (REAL(SignDj(1)) * REAL(SignDi(1))) ) / AllTotPartstemp )
-
+                                                        (ParityFactor * (realSignDi * realSignDj) )
                             
                         IF(RDMExcitLevel.eq.3) THEN
                             do k = 1, NEl                            
@@ -792,8 +832,10 @@ MODULE nElRDMMod
                                     Indab = ( ( (MAX(nI(k),Ex(2,1))-2) * (MAX(nI(k),Ex(2,1))-1) ) / 2 ) + MIN(nI(k),Ex(2,1))
 
                                     TwoElRDM( Indij , Indab ) = TwoElRDM( Indij , Indab ) + &
-                                        ( (ParityFactor * (REAL(SignDj(1)) * REAL(SignDi(1))) ) / AllTotPartstemp )
+                                                                    (ParityFactor * ( realSignDi * realSignDj))
+
                                 ENDIF
+     
                             enddo
                         ENDIF
 
@@ -818,11 +860,11 @@ MODULE nElRDMMod
         USE bit_reps , only : extract_bit_rep
         INTEGER, INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
-        INTEGER, dimension(lenof_sign) :: SignDi,SignDj
+        INTEGER, dimension(lenof_sign) :: SignDi,SignDj, SignDi2, SignDj2
         INTEGER :: i,j,NoDets,StartDets,PartInd,Indij,Indab 
         INTEGER :: nI(NEl),nJ(NEl),Ex(2,2),FlagsDi,FlagsDj
         LOGICAL :: tDetFound,tParity
-        REAL*8 :: ParityFactor
+        REAL*8 :: ParityFactor,realSignDi,realSignDj
 
 ! Take each Dj, and binary search the CurrentDets to see if it is occupied.
     
@@ -836,6 +878,9 @@ MODULE nElRDMMod
 
             IF(NoDets.gt.1) THEN
                 call extract_bit_rep (Doub_ExcDjs2(:,StartDets), nI, SignDi, FlagsDi)
+
+!                realSignDi = real(SignDi(1)) * (1.D0 / Normalisation)
+                realSignDi = real(SignDi(1)) * ( REAL(AllTotPartsTemp) / ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) )
 
                 do j=StartDets+1,(NoDets+StartDets-1)
 ! D_i is in the first spot - start from the second.                
@@ -856,6 +901,9 @@ MODULE nElRDMMod
                         Ex(1,1)=2
 
                         call extract_bit_rep (CurrentDets(:,PartInd), nJ, SignDj, FlagsDj)
+
+!                        realSignDj = real(SignDj(1)) * (1.D0 / Normalisation)
+                        realSignDj = real(SignDj(1)) * ( REAL(AllTotPartsTemp) / ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) )
 
 ! Ex(1,:) comes out as the orbital(s) excited from, Ex(2,:) comes out as the orbital(s) excited to.                    
                         CALL GetExcitation(nI,nJ,NEl,Ex,tParity)
@@ -881,14 +929,13 @@ MODULE nElRDMMod
                         ENDIF
 
                         TwoElRDM( Indij , Indab ) = TwoElRDM( Indij , Indab ) + &
-                            ( (ParityFactor * (REAL(SignDj(1)) * REAL(SignDi(1))) ) / AllTotPartstemp )
+                                                     (ParityFactor * ( realSignDi * realSignDj ) )
 
                         !2RDM(p,q,r,s)  = < DI | Epq Ers - delta_qr Eps | DJ>
                         !               = < DI | E(p -> q) E(r -> s) - delta_qr E(p -> s) | DJ >
 !                        TwoElRDM( Ex(1,1) , Ex(2,1), Ex(1,2), Ex(2,2) ) = TwoElRDM( Ex(1,1), Ex(2,1), Ex(1,2), Ex(2,2) ) + &
 !                            ( (ParityFactor * (REAL(SignDj(1)) * REAL(SignDi(1))) ) / AllTotPartstemp )
 
-! No normalisation factor just yet - possibly need to revise.                    
                     ENDIF
 
                 enddo
@@ -902,7 +949,6 @@ MODULE nElRDMMod
     SUBROUTINE FinaliseRDM()
 ! This routine finalises the one electron reduced density matrix stuff.
 ! This includes summing each of the individual matrices from each processor.
-! Normalisation of some sort?
 ! Calling the diagonalisation routines if we want to get the occupation numbers.
         USE Logging , only : tDiagRDM,tCalc_RDMEnergy 
         USE SystemData , only : tSeparateOccVirt,tRotateVirtOnly,tRotateOccOnly
@@ -912,6 +958,9 @@ MODULE nElRDMMod
         INTEGER :: error,i,j,ierr
         REAL*8 :: SumDiag
         CHARACTER(len=*), PARAMETER :: this_routine='FinaliseRDM'
+
+
+        CALL set_timer(FinaliseRDM_Time)
 
 !        WRITE(6,*) 'nElRDM'
 !        do i=1,nBasis
@@ -1050,6 +1099,7 @@ MODULE nElRDMMod
 
 ! This is where we would likely call any further calculations of force etc.
 
+        CALL halt_timer(FinaliseRDM_Time)
 
     
     END SUBROUTINE FinaliseRDM
@@ -1982,7 +2032,7 @@ MODULE nElRDMMod
         USE UMatCache, only: GTID
         INTEGER :: i,j,k,l,Ind2,Ind1,i2,j2,k2,l2
         REAL*8 :: RDMEnergy, Trace_1RDM, Trace_2RDM, Coul, Exch 
-        REAL*8 :: Trace_2RDM_New, RDMEnergy1El, RDMEnergy2El
+        REAL*8 :: Trace_2RDM_New, RDMEnergy1El, RDMEnergy2El, ParityFactor
 
 
         IF(tTurnStoreSpinOff) tStoreSpinOrbs=.false.
@@ -1996,23 +2046,20 @@ MODULE nElRDMMod
 !We also know that the trace of the two electron reduced density matrix must be equal to the number of electron pairs 
 !in the system = 1/2 N ( N - 1), so we can do the same for the 2RDM.
 
-        WRITE(6,*) 'inside this routine'
-        CALL FLUSH(6)
-
         Trace_1RDM = 0.D0
         Trace_2RDM = 0.D0
+        Trace_2RDM_New = 0.D0
 
         RDMEnergy = 0.D0
         RDMEnergy1El = 0.D0
         RDMEnergy2El = 0.D0
 
         IF(iProcIndex.eq.0) THEN
-            do i = 1, nBasis
-                Trace_1RDM = Trace_1RDM + NatOrbMat(i,i)
+            do i = 1, ((nBasis*(nBasis-1))/2)
+                IF(i.le.nBasis) Trace_1RDM = Trace_1RDM + NatOrbMat(i,i)
                 Trace_2RDM = Trace_2RDM + AllTwoElRDM(i,i)
             enddo
 
-            WRITE(6,*) 'trace o.k'
             WRITE(6,*) 'Trace_1RDM',Trace_1RDM
             WRITE(6,*) 'Trace_2RDM',Trace_2RDM
 
@@ -2020,15 +2067,6 @@ MODULE nElRDMMod
             WRITE(6,*) 'tTurnStoreSpinOff',tTurnStoreSpinOff
             CALL FLUSH(6)
 
-            do i = 1, nBasis
-                NatOrbMat(SymLabelListInv(i),SymLabelListInv(i)) = &
-                        NatOrbMat(SymLabelListInv(i),SymLabelListInv(i)) * ( REAL(NEl,8) / Trace_1RDM )  
-                do j = 1, nBasis                            
-                    IF(i.ne.j) NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) = &
-                            NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) * ( REAL(NEl,8) / Trace_1RDM )  
- 
-                enddo
-            enddo
 
 !            WRITE(6,*) 'before'
 !            do i = 1, ((nBasis*(nBasis-1))/2)
@@ -2037,16 +2075,14 @@ MODULE nElRDMMod
 !                enddo
 !            enddo
 
-            Trace_2RDM_New = 0.D0
-            do i = 1, ((nBasis*(nBasis-1))/2)
-                AllTwoElRDM(i,i) = AllTwoElRDM(i,i) * ( (0.5 * REAL((NEl * (NEl - 1)) ,8)) / Trace_2RDM )  
-                Trace_2RDM_New = Trace_2RDM_New + AllTwoElRDM(i,i)
-                do j = 1, ((nBasis*(nBasis-1))/2)
-                    IF(i.ne.j) AllTwoElRDM(i,j) = AllTwoElRDM(i,j) * ( (0.5 * REAL((NEl * (NEl - 1)) ,8)) / Trace_2RDM )  
-                enddo
-            enddo
-
-            WRITE(6,*) 'Trace_2RDM_New',Trace_2RDM_New
+!            do i = 1, ((nBasis*(nBasis-1))/2)
+!                AllTwoElRDM(i,i) = AllTwoElRDM(i,i) * ( (0.50 * (REAL(NEl) * (REAL(NEl) - 1.D0))) / Trace_2RDM )  
+!                Trace_2RDM_New = Trace_2RDM_New + AllTwoElRDM(i,i)
+!                do j = 1, ((nBasis*(nBasis-1))/2)
+!                    IF(i.ne.j) AllTwoElRDM(i,j) = AllTwoElRDM(i,j) * ( (0.50 * (REAL(NEl) * (REAL(NEl) - 1.D0))) / Trace_2RDM )  
+!                enddo
+!            enddo
+!            WRITE(6,*) 'Trace_2RDM_New',Trace_2RDM_New
 
 !            WRITE(6,*) 'after'
 !            do i = 1, ((nBasis*(nBasis-1))/2)
@@ -2059,70 +2095,60 @@ MODULE nElRDMMod
             !and then add it's contribution to the energy.
             do i = 1, nBasis 
 
-                i2 = gtID(i)
- 
-                do j = 1, nBasis
-                    !i and j correspond to *orbitals*.
+!                NatOrbMat(SymLabelListInv(i),SymLabelListInv(i)) = &
+!                        NatOrbMat(SymLabelListInv(i),SymLabelListInv(i)) * ( REAL(NEl,8) / Trace_1RDM )  
 
-                    j2 = gtID(j)
+                i2 = gtID(i)
+
+                !TMAT2D always stored in spin orbitals so o.k. 
+                RDMEnergy1El = RDMEnergy1El + ( REAL(TMAT2D(i,i),8)  &
+                                            * NatOrbMat(SymLabelListInv(i),SymLabelListInv(i)) * ( REAL(NEl,8) / Trace_1RDM ) )
+
+                do k = i + 1, nBasis
+
+!                    NatOrbMat(SymLabelListInv(i),SymLabelListInv(k)) = &
+!                            NatOrbMat(SymLabelListInv(i),SymLabelListInv(k)) * ( REAL(NEl,8) / Trace_1RDM )  
+
+                    k2 = gtID(k)
+                    Ind1 = ( ( (k-2) * (k-1) ) / 2 ) + i
+!                            WRITE(6,*) 'Ind1',Ind1,'i',i,'k',k
 
 !SymLabelListInv(j) = x, gives the position of orbital j in NatOrbMat (orbital j is in position x).
 !We want to find orbital j, because we're multiplying it by TMAT2D(i,j) where i and j are the *orbitals* not the position.
-!                    IF(i.ne.j) NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) = &
-!                            NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) * ( REAL(NEl,8) / Trace_1RDM )  
-                    
-!                    WRITE(6,*) 'NatOrbMat(i,j)',NatOrbMat(j,i)
-!                    CALL FLUSH(6)
-
                     !TMAT2D always stored in spin orbitals so o.k. 
-                    RDMEnergy1El = RDMEnergy1El + ( REAL(TMAT2D(i,j),8)  &
-                                                * NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) )
-
-!                    WRITE(6,*) '01 Adding:',( REAL(TMAT2D(i,j),8)  &
-!                                                * NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) )
-
-!                    IF(i.ne.j) THEN
-!                        NatOrbMat(SymLabelList2(i),SymLabelList2(j)) = &
-!                                NatOrbMat(SymLabelList2(i),SymLabelList2(j)) * ( REAL(NEl,8) / Trace_1RDM )  
-!
-!                        RDMEnergy = RDMEnergy + ( REAL(TMAT2D(j,i),8) * &
-!                                                        NatOrbMat(SymLabelList2(i),SymLabelList2(j)) )
-!                    ENDIF
-
-!                    WRITE(6,*) 'RDMEnergy 01',RDMEnergy
+                    RDMEnergy1El = RDMEnergy1El + ( 2.D0 * REAL(TMAT2D(i,k),8)  &
+                                                * NatOrbMat(SymLabelListInv(i),SymLabelListInv(k)) * ( REAL(NEl,8) / Trace_1RDM ) )
 
 
-                    do k = 1, i-1
+                    Coul = REAL(UMAT(UMatInd(i2,k2,i2,k2,0,0)),8)
 
-                        IF(k.eq.i) CYCLE
+                    IF( (G1(i)%Ms .eq. G1(k)%Ms) ) THEN
+                        Exch = REAL(UMAT(UMatInd(i2,k2,k2,i2,0,0)),8)
+                    ELSE
+                        Exch = 0.D0
+                    ENDIF
 
-                        k2 = gtID(k)
+                    RDMEnergy2El = RDMEnergy2El + ( ( Coul - Exch ) &
+                                    * AllTwoElRDM(Ind1,Ind1) * ( (0.50 * (REAL(NEl) * (REAL(NEl) - 1.D0))) / Trace_2RDM ) )
 
-                        Ind1 = ( ( (MAX(i,k)-2) * (MAX(i,k)-1) ) / 2 ) + MIN(i,k)
-!                            WRITE(6,*) 'Ind1',Ind1,'i',i,'k',k
+                    Trace_2RDM_New = Trace_2RDM_New + ( AllTwoElRDM(Ind1,Ind1) * ( (0.50 * (REAL(NEl) * (REAL(NEl) - 1.D0))) / Trace_2RDM ) )
 
-                        do l = 1, j - 1
+                    do j = 1, nBasis
+                        !i and j correspond to *orbitals*.
 
-                            IF(l.eq.j) CYCLE
+                        j2 = gtID(j)
 
-                            l2 = gtID(l)
-
-                            Ind2 = ( ( (MAX(j,l)-2) * (MAX(j,l)-1) ) / 2 ) + MIN(j,l)
-!                                    WRITE(6,*) 'Ind2',Ind2,'j',j,'l',l
-
-!                                    WRITE(6,*) 'Ind1',Ind1,'Ind2',Ind2
-
-!                                    IF(Ind2.ge.Ind1) AllTwoElRDM(Ind1,Ind2) = AllTwoElRDM(Ind1,Ind2) * ( REAL( (0.5 * NEl * (NEl - 1)) ,8) / Trace_2RDM )  
-!                                    WRITE(6,*) 'RDMEnergy 02',RDMEnergy
-!                                    WRITE(6,*) 'i',i,'j',j,'k',k,'l',l
+                        do l = j + 1, nBasis
 
                             ! AllTwoElRDM etc will be in spin orbitals, but UMAT is in spatial, need to correct for this.
+                            l2 = gtID(l)
+
+                            Ind2 = ( ( (l-2) * (l-1) ) / 2 ) + j
+
+                            IF(Ind2.eq.Ind1) CYCLE
+
 
                             !UmatInd uses *physical* notation.
-!                                    RDMEnergy2El = RDMEnergy2El + ( 0.50 * REAL(UMAT(UMatInd(i2,k2,j2,l2,0,0)),8) * AllTwoElRDM(Ind1,Ind2) )
-!                                    RDMEnergy2El = RDMEnergy2El + ( 0.50 * (REAL(UMAT(UMatInd(i2,k2,j2,l2,0,0)),8) &
-!                                                                            - REAL(UMAT(UMatInd(i2,k2,l2,j2,0,0)),8)) * AllTwoElRDM(Ind1,Ind2) )
-
                             IF( (G1(i)%Ms .eq. G1(j)%Ms) .and. &
                                  (G1(k)%Ms .eq. G1(l)%Ms) ) THEN
                                 Coul = REAL(UMAT(UMatInd(i2,k2,j2,l2,0,0)),8)
@@ -2137,35 +2163,11 @@ MODULE nElRDMMod
                                 Exch = 0.D0
                             ENDIF
 
-!                            RDMEnergy2El = RDMEnergy2El + ( (REAL(UMAT(UMatInd(i2,k2,j2,l2,0,0)),8) &
-!                                                                    - REAL(UMAT(UMatInd(i2,k2,l2,j2,0,0)),8)) * AllTwoElRDM(Ind1,Ind2) )
-                            RDMEnergy2El = RDMEnergy2El + ( 0.5 * ( Coul - Exch ) * AllTwoElRDM(Ind1,Ind2) )
- 
-                            ! We are just running from k = 1, i-1 (for example) so we are adding this contribution in twice (simply omit the 
-                            ! factor of 0.5).
-                            ! This is so that we don't accidentally count the 'diagonal' (i.e. Ind1 = Ind2) terms twice.
+                            ParityFactor = 1.D0
+                            IF((i.eq.l).or.(k.eq.j)) ParityFactor = -1.D0
 
-
-!                                    WRITE(6,*) '02 Adding:',( 0.50 * REAL(UMAT(UMatInd(i2,k2,j2,l2,0,0)),8) * AllTwoElRDM(Ind1,Ind2) )
-!                                    IF(( 0.50 * REAL(UMAT(UMatInd(i2,k2,j2,l2,0,0)),8) * AllTwoElRDM(Ind1,Ind2) ).gt.1E100) THEN
-!                                        WRITE(6,*) 'Ind1',Ind1,'Ind2',Ind2
-!                                        WRITE(6,*) 'UMAT',REAL(UMAT(UMatInd(i2,k2,j2,l2,0,0)),8)
-!                                        WRITE(6,*) 'AllTwoElRDM',AllTwoElRDM(Ind1,Ind2)
-!                                    ENDIF
-
-!                                    IF(i2.ne.j2) THEN
-!                                        RDMEnergy = RDMEnergy + ( 0.50 * REAL(UMAT(UMatInd(j2,k2,i2,l2,0,0)),8) * AllTwoElRDM(Ind2,Ind1) )
-!                                    ENDIF
-
-!                                    IF(k2.ne.l2) THEN
-!                                        RDMEnergy = RDMEnergy + ( 0.50 * REAL(UMAT(UMatInd(i2,l2,j2,k2,0,0)),8) * AllTwoElRDM(Ind2,Ind1) )
-!                                    ENDIF
-
-!                                    IF((i2.ne.j2).and.(k2.ne.l2)) THEN
-!                                        RDMEnergy = RDMEnergy + ( 0.50 * REAL(UMAT(UMatInd(j2,l2,i2,k2,0,0)),8) * AllTwoElRDM(Ind2,Ind1) )
-!                                    ENDIF
-
-!                                    WRITE(6,*) 'RDMEnergy 04',RDMEnergy
+                            RDMEnergy2El = RDMEnergy2El + ( ParityFactor * ( Coul - Exch ) &
+                                            * AllTwoElRDM(Ind1,Ind2) * ( (0.50 * (REAL(NEl) * (REAL(NEl) - 1.D0))) / Trace_2RDM ) )  
 
                         enddo
                     enddo
@@ -2173,12 +2175,14 @@ MODULE nElRDMMod
             enddo
             RDMEnergy = RDMEnergy1El + RDMEnergy2El
 
+            WRITE(6,*) 'Trace_2RDM_New',Trace_2RDM_New
             WRITE(6,*) '******'
             WRITE(6,*) 'The ENERGY calculated using the REDUCED DENSITY MATRICES is:',RDMEnergy
             WRITE(6,*) 'The contribution from the 1 el RDM:',RDMEnergy1El
             WRITE(6,*) 'The contribution from the 2 el RDM:',RDMEnergy2El
+            WRITE(6,*) 'THE ENERGY FOR B-AVDZ SHOULD BE : ',-24.5558527791324
 
-            CALL Test_Energy_Calc()
+!            CALL Test_Energy_Calc()
 
         ENDIF
 
@@ -2206,10 +2210,17 @@ MODULE nElRDMMod
         REAL*8 :: Test_Energy, Sum_Coeffs, SignIreal, SignJreal 
         REAL*8 :: Test_Energy_1El, Test_Energy_2El, ParityFactor
         REAL*8 :: Coul, Exch
+        REAL*8 , ALLOCATABLE :: TestRDM(:,:)
         HElement_t :: H_IJ
+        INTEGER :: Ind1,Ind2,TestRDMTag,ierr
 
         WRITE(6,*) '****************'
         WRITE(6,*) 'TESTING ENERGY CALCULATION **** '
+
+        ALLOCATE(TestRDM(((nBasis*(nBasis-1))/2),((nBasis*(nBasis-1))/2)),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All('test_energy_calc','Problem allocating TestRDM array,')
+        CALL LogMemAlloc('TestRDM',(((nBasis*(nBasis-1))/2)**2),8,'test_energy_calc',TestRDMTag,ierr)
+        TestRDM(:,:)=0.D0
 
         IF(tTurnStoreSpinOff) tStoreSpinOrbs=.false.
 
@@ -2218,6 +2229,7 @@ MODULE nElRDMMod
             call extract_sign (CurrentDets(:,I), SignI)
             Sum_Coeffs = Sum_Coeffs + ( REAL(SignI(1)) * REAL(SignI(1)) )
         enddo
+        WRITE(6,*) 'Sum_Coeffs',Sum_Coeffs
         Sum_Coeffs = SQRT( Sum_Coeffs )
 
 ! Just need to run over all occupied determinants, find the matrix element between them, and sum them all up.
@@ -2225,9 +2237,13 @@ MODULE nElRDMMod
         Test_Energy_1El = 0.D0
         Test_Energy_2El = 0.D0
 
+!        WRITE(6,*) 'SignIreal'
+
         do I = 1, TotWalkers
             call extract_bit_rep (CurrentDets(:,I), nI, SignI, FlagsI)
             SignIreal = REAL(SignI(1)) * ( 1.D0 / Sum_Coeffs )
+
+!            WRITE(6,*) SignIreal
 
             do J = 1, TotWalkers
                 call extract_bit_rep (CurrentDets(:,J), nJ, SignJ, FlagsJ)
@@ -2255,8 +2271,7 @@ MODULE nElRDMMod
                         Test_Energy_1El = Test_Energy_1El + ( SignIreal * SignIreal * REAL( TMAT2D(nI(k),nI(k)) ) )
 
                         ! For i,j -> i,j type doubles, UMat(i,j,i,j) = UMat(i,j,j,i) (so <ij||ij> = 0.
-                        do l = 1, NEl
-                            IF(k.eq.l) CYCLE
+                        do l = 1, k - 1 
 
                             l2 = gtID(nI(l))
 
@@ -2266,11 +2281,29 @@ MODULE nElRDMMod
                                 Exch = 0.D0
                             ENDIF
 
-                            Test_Energy_2El = Test_Energy_2El + (0.5 * SignIreal * SignIreal &
+                            Test_Energy_2El = Test_Energy_2El + (SignIreal * SignIreal &
                                                                     * (REAL(UMAT(UMatInd(k2,l2,k2,l2,0,0)),8) - Exch) )
 !!                                                                          * (REAL(UMAT(UMatInd(k2,l2,k2,l2,0,0)),8)) )
+
+                            Ind1 = ( ( (nI(k)-2) * (nI(k)-1) ) / 2 ) + nI(l)
+                            TestRDM(Ind1,Ind1) = (REAL(UMAT(UMatInd(k2,l2,k2,l2,0,0)),8) - Exch)  
+!                            TestRDM(Ind1,Ind1) = (SignIreal * SignIreal)
+
+
+!                            IF((REAL(UMAT(UMatInd(k2,l2,k2,l2,0,0)),8).ne.0).or.(Exch.ne.0)) THEN
+!                                WRITE(6,*) '*'
+!                                WRITE(6,*) nI(k),nI(l),nI(k),nI(l),Ind1,Ind1
+!                                WRITE(6,*) REAL(UMAT(UMatInd(k2,l2,k2,l2,0,0)),8),Exch
+!                            ENDIF
+!                            IF(Ind1.eq.2) THEN
+!                                WRITE(6,*) 'ADDING DIAGONAL'
+!                                WRITE(6,*) nI(k),nI(l),nI(k),nI(l),Ind1,Ind2
+!                                WRITE(6,*) SignIreal * SignIreal
+!                                WRITE(6,*) nI
+!                            ENDIF
                         enddo
                     enddo
+
 
                 ELSEIF(IC.eq.1) THEN
 
@@ -2300,9 +2333,32 @@ MODULE nElRDMMod
                             Test_Energy_2El = Test_Energy_2El + ( ParityFactor * SignIreal * SignJreal &
                                                                     * (REAL(UMAT(UMatInd(k2,Ex(1,1),k2,Ex(2,1),0,0)),8) - Exch)) 
 !                                                                    * (REAL(UMAT(UMatInd(k2,Ex(1,1),k2,Ex(2,1),0,0)),8)) )
-!                            WRITE(6,*) '*'
+!                            WRITE(6,*) '* sing'
+!                            WRITE(6,*) (ParityFactor * SignIreal * SignJreal)
+                            Ind1 = ( ( (MAX(nI(k),Ex(1,1))-2) * (MAX(nI(k),Ex(1,1))-1) ) / 2 ) + MIN(nI(k),Ex(1,1))
+                            Ind2 = ( ( (MAX(nI(k),Ex(2,1))-2) * (MAX(nI(k),Ex(2,1))-1) ) / 2 ) + MIN(nI(k),Ex(2,1))
+!                            WRITE(6,*) AllTwoElRDM(Ind1,Ind2)
+!                            WRITE(6,*) AllTwoElRDM(Ind2,Ind1)
+                            TestRDM(Ind1,Ind2) = ( REAL(UMAT(UMatInd(k2,Ex(1,1),k2,Ex(2,1),0,0)),8) - Exch)
+!                            TestRDM(Ind1,Ind2) = TestRDM(Ind1,Ind2) + ( ParityFactor * SignIreal * SignJreal) 
+
+
+!                            IF((REAL(UMAT(UMatInd(k2,Ex(1,1),k2,Ex(2,1),0,0)),8).ne.0).or.(Exch.ne.0)) THEN
+!                                WRITE(6,*) '*'
+!                                WRITE(6,*) nI(k),Ex(1,1),nI(k),Ex(2,1),Ind1,Ind2
+!                                WRITE(6,*) REAL(UMAT(UMatInd(k2,Ex(1,1),k2,Ex(2,1),0,0)),8),Exch
+!                            ENDIF
+
 !                            WRITE(6,*) k2,Ex(1,1),k2,Ex(2,1),REAL(UMAT(UMatInd(k2,Ex(1,1),k2,Ex(2,1),0,0)),8)
 !                            WRITE(6,*) k2,Ex(1,1),Ex(2,1),k2,REAL(UMAT(UMatInd(k2,Ex(1,1),Ex(2,1),k2,0,0)),8)
+!                            IF((Ind1.eq.4).and.(Ind2.eq.79)) THEN
+!                                WRITE(6,*) 'ADDING SINGLE'
+!                                WRITE(6,*) nI(k),Ex(1,1),nI(k),Ex(2,1),Ind1,Ind2
+!                                WRITE(6,*) REAL(UMAT(UMatInd(k2,Ex(1,1),k2,Ex(2,1),0,0)),8), Exch
+!                                WRITE(6,*) ParityFactor * SignIreal * SignJreal
+!                                WRITE(6,*) nI
+!                                WRITE(6,*) nJ
+!                            ENDIF
                         enddo
                     ENDIF
 
@@ -2339,13 +2395,37 @@ MODULE nElRDMMod
 !                    WRITE(6,*) '*'
 !                    WRITE(6,*) k2,l2,a2,b2,REAL(UMAT(UMatInd(k2,l2,a2,b2,0,0)),8)
 !                    WRITE(6,*) k2,l2,a2,b2,REAL(UMAT(UMatInd(k2,l2,b2,a2,0,0)),8)
+!                    WRITE(6,*) '* doub'
+!                    WRITE(6,*) ParityFactor * SignIreal * SignJreal 
+                    Ind1 = ( ( (Ex(1,2)-2) * (Ex(1,2)-1) ) / 2 ) + Ex(1,1)
+                    Ind2 = ( ( (Ex(2,2)-2) * (Ex(2,2)-1) ) / 2 ) + Ex(2,1)
+!                    WRITE(6,*) AllTwoElRDM(Ind1,Ind2)
+!                    WRITE(6,*) AllTwoElRDM(Ind2,Ind1)
+                    TestRDM(Ind1,Ind2) = ( (Coul - Exch))
+!                    TestRDM(Ind1,Ind2) = TestRDM(Ind1,Ind2) + ParityFactor * SignIreal * SignJreal
 
+!                    IF((Ind1.eq.7).and.(Ind2.eq.48)) THEN
+!                        WRITE(6,*) 'ADDING DOUBLE'
+!                        WRITE(6,*) Ex(1,1),Ex(1,2),Ex(2,1),Ex(2,2),Ind1,Ind2
+!                        WRITE(6,*) Coul, Exch
+!                        WRITE(6,*) ParityFactor * SignIreal * SignJreal
+!                        WRITE(6,*) nI
+!                        WRITE(6,*) nJ
+!                    ENDIF
+
+!                    IF((Coul.ne.0).or.(Exch.ne.0)) THEN
+!                        WRITE(6,*) '*'
+!                        WRITE(6,*) Ex(1,1),Ex(1,2),Ex(2,1),Ex(2,2),Ind1,Ind2
+!                        WRITE(6,*) Coul,Exch
+!                    ENDIF
                 ENDIF
 
                 Test_Energy = Test_Energy + ( SignIreal * SignJreal * REAL(H_IJ) )
 
 !                WRITE(6,*) 'Test_Energy',Test_Energy
 !                CALL FLUSH(6)
+!                WRITE(6,*) '*'
+
 
             enddo
 
@@ -2358,6 +2438,28 @@ MODULE nElRDMMod
         WRITE(6,*) 'The TEST ENERGY calculated from Sum_IJ C_I C_J H_IJ  = ',Test_Energy
         WRITE(6,*) ''
         WRITE(6,*) 'The 2 electron part should be : ',Test_Energy - Test_Energy_1El
+
+!        do i = 1, (nBasis*(nBasis-1))/2
+!            WRITE(6,*) '** diag',TestRDM(i,i),UMATTemp(i,i)
+!            do j = 1, (nBasis*(nBasis-1))/2
+!        do i = 1, nBasis
+!            do j = 1, nBasis
+!                do k = i + 1, nBasis
+!                    Ind1 = ( ( (k-2) * (k-1) ) / 2 ) + i
+!                    WRITE(6,*) '** diag',TestRDM(Ind1,Ind1),UMATTemp(Ind1,Ind1)
+!                    do l = j + 1, nBasis
+!                        Ind2 = ( ( (l-2) * (l-1) ) / 2 ) + j
+!
+!                        IF(Ind1.ne.Ind2) THEN
+!                            IF(AllTwoElRDM(Ind1,Ind2).ne.0) THEN
+!                                IF((TestRDM(Ind1,Ind2).ne.0).or.(UMATTemp(Ind1,Ind2).ne.0)) WRITE(6,*) i,k,j,l,Ind1,Ind2,TestRDM(Ind1,Ind2),UMATTemp(Ind1,Ind2)
+!                                IF(ABS(TestRDM(Ind1,Ind2)-UMATTemp(Ind1,Ind2)).gt.1E-15) WRITE(6,*) 'diff',TestRDM(Ind1,Ind2)-UMATTemp(Ind1,Ind2)
+!                            ENDIF
+!                        ENDIF
+!                    enddo
+!                enddo
+!            enddo
+!        enddo
 
         tTurnStoreSpinOff=.false.
         IF(.not.tStoreSpinOrbs) THEN
