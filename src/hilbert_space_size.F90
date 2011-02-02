@@ -181,7 +181,35 @@ contains
       
       END SUBROUTINE FindSymMCSizeExcitLevel
 
-      
+!This routine calls CreateRandomExcitLevDet, but it returns an *unbiased* determinant from the excitation
+!levels 0 -> iExcitLevTest. It does this by rejecting determinants, so that the resultant excitations are
+!unbiased.
+     SUBROUTINE CreateRandomExcitLevDetUnbias(iExcitLevTest,FDet,FDetiLut,iLut,ExcitLev,Attempts)
+         use util_mod, only: choose
+         use SystemData, only: nEl
+         use constants, only : n_int
+         use bit_rep_data, only: NIfTot
+         use dSFMT_interface
+         INTEGER :: iExcitLevTest,FDet(NEl),ExcitLev,Attempts
+         INTEGER(n_int) :: FDetiLut(0:NIfTot),iLut(0:NIfTot)
+         real(dp) :: pAcc,r
+
+         do while(.true.) 
+
+             call CreateRandomExcitLevDet(iExcitLevTest,FDet,FDetiLut,iLut,ExcitLev,Attempts)
+
+             IF(ExcitLev.eq.iExcitLevTest) then
+                 RETURN   !Prob of accepting = 1
+             else
+                 pAcc=1.D0/(Choose(NEl-ExcitLev,iExcitLevTest-ExcitLev))
+                 r = genrand_real2_dSFMT()
+                 if(r.le.pAcc) exit
+             endif
+
+         enddo
+
+     END SUBROUTINE CreateRandomExcitLevDetUnbias
+
 !Create stochastically a random symmetry-allowed determinant from excitation level iExcitLevTest or less, with respect to i
 !the bit representation determinant iLutFDet, which is passed in.
 !The determinant is returned in bit-form in iLut, and the excitation level of the determinant in ExcitLev.
