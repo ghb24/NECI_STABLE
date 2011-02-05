@@ -535,7 +535,7 @@ MODULE nElRDMMod
         INTEGER(kind=n_int) , INTENT(IN) :: iLutnI(0:NIfTot)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: SignDi, SignDi2
-        INTEGER :: ExcitMat3(2,2),nI(NEl),nJ(NEl),Proc,i,j,FlagsDi,Ind,a,b
+        INTEGER :: ExcitMat3(2,2),nI(NEl),nJ(NEl),Proc,i,j,FlagsDi,Ind,a,b,CountTemp
         LOGICAL :: tParity,tAllExcitFound
         REAL*8 :: realSignDi
 
@@ -572,6 +572,9 @@ MODULE nElRDMMod
             enddo
         ENDIF
 
+!        IF((nI(1).eq.5).and.(nI(2).eq.6)) WRITE(6,*) 'nI',nI
+!        CountTemp = 0
+
         IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) THEN
 
             ExcitMat3(:,:)=0
@@ -580,7 +583,7 @@ MODULE nElRDMMod
 ! This becomes true when all the excitations have been found.        
 
             do while (.not.tAllExcitFound)
-                CALL GenExcitations3(nI,iLutnI,nJ,1,ExcitMat3(:,:),tParity,tAllExcitFound)            
+                CALL GenExcitations3(nI,iLutnI,nJ,1,ExcitMat3(:,:),tParity,tAllExcitFound,.true.)            
 ! Passed out of here is the singly excited determinant, nJ.
 ! Information such as the orbitals involved in the excitation and the parity is also found in this step,
 ! we are not currently storing this, and it is re-calculated later on (after the determinants are passed
@@ -595,6 +598,9 @@ MODULE nElRDMMod
                 Proc = DetermineDetNode(nJ,0)   !This will return a value between 0 -> nProcessors-1
                 Sing_ExcDjs(:,Sing_ExcList(Proc)) = iLutnJ(:)
                 Sing_ExcList(Proc) = Sing_ExcList(Proc)+1
+!                CountTemp = CountTemp + 1
+
+!                IF((nI(1).eq.5).and.(nI(2).eq.6)) WRITE(6,*) CountTemp,': nJ',nJ
 
 ! Want a quick test to see if arrays are getting full.            
                 IF(Sing_ExcList(Proc).gt.NINT(OneEl_Gap*(Proc+1))) THEN
@@ -605,6 +611,8 @@ MODULE nElRDMMod
                 ENDIF
             enddo
         ENDIF
+
+!        IF((nI(1).eq.5).and.(nI(2).eq.6)) WRITE(6,*) 'Ind', (( ( (nI(2)-2) * (nI(2)-1) ) / 2 ) + nI(1))
 
         IF((RDMExcitLevel.eq.2).or.(RDMExcitLevel.eq.3)) THEN
 
@@ -617,7 +625,7 @@ MODULE nElRDMMod
 !            WRITE(6,*) 'bit rep',iLutnI
 
             do while (.not.tAllExcitFound)
-                CALL GenExcitations3(nI,iLutnI,nJ,2,ExcitMat3(:,:),tParity,tAllExcitFound)            
+                CALL GenExcitations3(nI,iLutnI,nJ,2,ExcitMat3(:,:),tParity,tAllExcitFound,.true.)            
 ! Passed out of here is the doubly excited determinant, nJ.
 ! Information such as the orbitals involved in the excitation and the parity is also found in this step,
 ! we are not currently storing this, and it is re-calculated later on (after the determinants are passed
@@ -635,6 +643,9 @@ MODULE nElRDMMod
 
                 Doub_ExcList(Proc) = Doub_ExcList(Proc)+1
 
+!                IF((nI(1).eq.5).and.(nI(2).eq.6)) WRITE(6,*) CountTemp,': nJ',nJ
+!                IF((nI(1).eq.5).and.(nI(2).eq.6)) WRITE(6,*) 'Ind', (( ( (nJ(2)-2) * (nJ(2)-1) ) / 2 ) + nJ(1))
+
 ! Want a quick test to see if arrays are getting full.            
                 IF(Doub_ExcList(Proc).gt.NINT(TwoEl_Gap*(Proc+1))) THEN
                     WRITE(6,*) 'Proc',Proc
@@ -644,6 +655,9 @@ MODULE nElRDMMod
                 ENDIF
             enddo
         ENDIF
+
+
+!        IF((nI(1).eq.5).and.(nI(2).eq.6)) CALL Stop_All('','')
 
 
     END SUBROUTINE GenExcDjs
@@ -806,7 +820,9 @@ MODULE nElRDMMod
                         
                         OneElRDM( Indij , Indab ) = OneElRDM( Indij , Indab ) + &
                                                         (ParityFactor * (realSignDi * realSignDj) )
-                            
+                        OneElRDM( Indab , Indij ) = OneElRDM( Indab , Indij ) + &
+                                                        (ParityFactor * (realSignDi * realSignDj) )
+ 
                         IF(RDMExcitLevel.eq.3) THEN
                             do k = 1, NEl                            
                                 IF(nI(k).ne.Ex(1,1)) THEN
@@ -814,6 +830,8 @@ MODULE nElRDMMod
                                     Indab = ( ( (MAX(nI(k),Ex(2,1))-2) * (MAX(nI(k),Ex(2,1))-1) ) / 2 ) + MIN(nI(k),Ex(2,1))
 
                                     TwoElRDM( Indij , Indab ) = TwoElRDM( Indij , Indab ) + &
+                                                                    (ParityFactor * ( realSignDi * realSignDj))
+                                    TwoElRDM( Indab , Indij ) = TwoElRDM( Indab , Indij ) + &
                                                                     (ParityFactor * ( realSignDi * realSignDj))
 
                                 ENDIF
@@ -911,6 +929,9 @@ MODULE nElRDMMod
                         ENDIF
 
                         TwoElRDM( Indij , Indab ) = TwoElRDM( Indij , Indab ) + &
+                                                     (ParityFactor * ( realSignDi * realSignDj ) )
+
+                        TwoElRDM( Indab , Indij ) = TwoElRDM( Indab , Indij ) + &
                                                      (ParityFactor * ( realSignDi * realSignDj ) )
 
                         !2RDM(p,q,r,s)  = < DI | Epq Ers - delta_qr Eps | DJ>

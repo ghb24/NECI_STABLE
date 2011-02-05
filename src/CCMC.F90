@@ -1099,7 +1099,7 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
 !      WRITE(6,*) tDone,S%dProbSpawn
 !      write(6,*) S%ExcitMat,tParity
 !      Write(6,*) "Getting Excitations"
-      CALL GenExcitations3(S%C%DetCurr,S%C%iLutDetCurr,S%nJ,S%exFlag,S%ExcitMat,tParity,tDone)
+      CALL GenExcitations3(S%C%DetCurr,S%C%iLutDetCurr,S%nJ,S%exFlag,S%ExcitMat,tParity,tDone,.false.)
 !      call WriteDet(6,S%nJ,nEl,.false.)
 !      WRITE(6,*) tDone
       if(S%ExcitMat(1,2).eq.0) then
