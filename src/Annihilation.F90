@@ -75,9 +75,9 @@ MODULE AnnihilationMod
         call MPIBarrier(ierr)
         IF(.not.(ASSOCIATED(SpawnVecLocal))) THEN
 !This is required scratch space of the size of the spawned arrays
-            call shared_allocate_iluts("SpawnVecLocal",SpawnVecLocal,(/NIfTot,MaxSpawnInd/),iNodeIndex)
+            call shared_allocate_iluts("SpawnVecLocal",SpawnVecLocal,(/((2*NIfTot)+1),MaxSpawnInd/),iNodeIndex)
             ierr=0
-            CALL LogMemAlloc('SpawnVecLocal',MaxSpawnInd*(NIfTot+1),size_n_int,this_routine,SpawnVec2Tag,ierr)
+            CALL LogMemAlloc('SpawnVecLocal',MaxSpawnInd*((2*NIfTot)+2),size_n_int,this_routine,SpawnVec2Tag,ierr)
             call MPIBarrier(ierr)
 !            SpawnVecLocal(:,:)=0
 !            ALLOCATE(SpawnSignVec2(0:MaxSpawnInd),stat=ierr)

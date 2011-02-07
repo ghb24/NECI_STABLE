@@ -885,7 +885,7 @@ MODULE FciMCParMod
                                               child, parent_flags, part_type)
 
                         call create_particle (nJ, iLutnJ, child, &
-                                              parent_flags, part_type)
+                                              parent_flags, part_type, CurrentDets(:,j))
                     
                     endif ! (child /= 0). Child created
 
@@ -1017,7 +1017,7 @@ MODULE FciMCParMod
 
     end subroutine
                         
-    subroutine create_particle (nJ, iLutJ, child, parent_flags, part_type)
+    subroutine create_particle (nJ, iLutJ, child, parent_flags, part_type, iLutI)
 
         ! Create a child in the spawned particles arrays. We spawn particles
         ! into a separate array, but non-contiguously. The processor that the
@@ -1026,7 +1026,7 @@ MODULE FciMCParMod
         ! ValidSpawnedList
 
         integer, intent(in) :: nJ(nel)
-        integer(kind=n_int), intent(in) :: iLutJ(0:niftot)
+        integer(kind=n_int), intent(in) :: iLutJ(0:niftot),iLutI(0:niftot)
         integer, dimension(lenof_sign), intent(in) :: child
         integer, intent(in) :: parent_flags
         ! 'type' of the particle - i.e. real/imag
@@ -1041,6 +1041,13 @@ MODULE FciMCParMod
 
         call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ, &
                             child, flags)
+
+        WRITE(6,*) 'iLutJ',ilutj
+        WRITE(6,*) 'iLutI',iluti
+
+        SpawnedParts(niftot+1:((2*niftot)+1), ValidSpawnedList(proc)) = iLutI(0:niftot)                            
+
+        WRITE(6,*) 'SpawnedParts(:,ValidSpawnedList(proc))',SpawnedParts(:,ValidSpawnedList(proc))
 
         IF(lenof_sign.eq.2) THEN
             !With complex walkers, things are a little more tricky.
@@ -4999,11 +5006,11 @@ MODULE FciMCParMod
             
 
             WRITE(6,"(A,I12,A)") " Spawning vectors allowing for a total of ",MaxSpawned," particles to be spawned in any one iteration per core."
-            ALLOCATE(SpawnVec(0:NIftot,MaxSpawned),stat=ierr)
-            CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVecTag,ierr)
+            ALLOCATE(SpawnVec(0:((2*NIftot)+1),MaxSpawned),stat=ierr)
+            CALL LogMemAlloc('SpawnVec',MaxSpawned*((2*NIfTot)+2),size_n_int,this_routine,SpawnVecTag,ierr)
             SpawnVec(:,:)=0
-            ALLOCATE(SpawnVec2(0:NIfTot,MaxSpawned),stat=ierr)
-            CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVec2Tag,ierr)
+            ALLOCATE(SpawnVec2(0:((2*NIfTot)+1),MaxSpawned),stat=ierr)
+            CALL LogMemAlloc('SpawnVec2',MaxSpawned*((2*NIfTot)+1),size_n_int,this_routine,SpawnVec2Tag,ierr)
             SpawnVec2(:,:)=0
 
 !Point at correct spawning arrays
