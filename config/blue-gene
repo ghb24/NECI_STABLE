@@ -1,0 +1,19 @@
+[main]
+fc = mpixlf90_r
+cc = mpixlcxx_r
+ld = mpixlf90_r
+ccd = gcc
+ldflags =
+compiler = IBM Blue Gene compilers
+cpp = cpp -P -C -traditional
+cppflags = -D__Linux -DPOINTER8 -DPARALLEL -D__INT64 -D__SHARED_MEM
+libs = -L /opt/fftw-3.2.2/lib -L /opt/fftw-3.2.2/lib -lfftw3  -L/opt/acml4.4.0/ifort64/lib/ -lacml -lacml_mv -cxxlib -lrt
+module_flag = -qmoddir=
+
+[dbg]
+fflags = -g -I /bgsys/drivers/V1R4M2_200_2010-100508P/ppc/comm/xl/include/
+cflags = -g
+
+[opt]
+fflags = -O5 -I /bgsys/drivers/V1R4M2_200_2010-100508P/ppc/comm/xl/include/
+cflags = -O
