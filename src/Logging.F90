@@ -20,10 +20,10 @@ MODULE Logging
     REAL*8 MaxHistE,OffDiagMax,OffDiagBinRange
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn,tPrintPopsDefault
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tIncrementPops,tROHistogramAll,tROHistER,tROHistSingExc,tRoHistOneElInts
-    LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump,tRDMonFly,tDiagRDM,tCalc_RDMEnergy
+    LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump,tRDMonFly,tDiagRDM,tCalc_RDMEnergy,tStochasticRDM,tAllSpawnAttemptsRDM
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking,tTruncDumpbyVal
     LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit
-    INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps,IterShiftBlock, IterRDMonFly, RDMExcitLevel
+    INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps,IterShiftBlock, IterRDMonFly, RDMExcitLevel, RDMEnergyIter
     INTEGER CCMCDebug  !CCMC Debugging Level 0-6.  Default 0
     INTEGER FCIMCDebug !FciMC Debugging Level 0-6.  Default 0
 
@@ -117,7 +117,10 @@ MODULE Logging
       hist_spin_dist_iter = 1000
       tLogDets=.false.
       tRDMonFly=.false.
+      RDMEnergyIter=100
       tDiagRDM=.false.
+      tStochasticRDM=.false.
+      tAllSpawnAttemptsRDM = .false.
       IterRDMonFly=0
       RDMExcitLevel=1
       tCalc_RDMEnergy = .false.
@@ -437,6 +440,15 @@ MODULE Logging
 !This takes the 1 and 2 electron RDM and calculates the energy using the RDM expression.            
 !For this to be calculated, RDMExcitLevel must be = 3, so there is a check to make sure this is so if the CALCRDMENERGY keyword is present.
             tCalc_RDMEnergy = .true.
+
+        case("STOCHASTICRDM")
+!This samples the RDM stochastically as we select DI and DJ for spawning.  It will require more iterations to converge.            
+            tStochasticRDM = .true.            
+            call readi(RDMEnergyIter)
+
+        case("ALLSPAWNATTEMPTSRDM")
+!Stores all spawn *attempt* (rather than just those where a child is created, and creates the RDM from this.            
+            tAllSpawnAttemptsRDM = .true.
         
         case("AUTOCORR")
 !This is a Parallel FCIMC option - it will calculate the largest weight MP1 determinants and histogramm them

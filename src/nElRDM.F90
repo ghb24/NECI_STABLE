@@ -28,7 +28,7 @@ MODULE nElRDMMod
         
         USE Global_Utilities
         USE Parallel
-        USE bit_reps , only : NIfTot
+        USE bit_reps , only : NIfTot, NIfDBO, decode_bit_det
         USE IntegralsData , only : UMAT
         USE UMatCache , only : UMatInd
         USE SystemData , only : NEl,nBasis,tStoreSpinOrbs, G1, BRR, lNoSymmetry, ARR
@@ -37,10 +37,13 @@ MODULE nElRDMMod
         USE CalcData , only : MemoryFacPart
         USE constants , only : n_int
         USE OneEInts , only : TMAT2D
-        USE FciMCData , only : MaxWalkersPart
-        USE Logging , only : RDMExcitLevel, tROFciDUmp, NoDumpTruncs
+        USE FciMCData , only : MaxWalkersPart, MaxSpawned, Spawned_Parents
+        USE FciMCData , only : Spawned_Parents_Index, Spawned_ParentsTag
+        USE FciMCData , only : Spawned_Parents_IndexTag, Iter
+        USE Logging , only : RDMExcitLevel, tROFciDUmp, NoDumpTruncs, tStochasticRDM
         USE RotateOrbsData , only : CoeffT1, CoeffT1Tag, tTurnStoreSpinOff, NoFrozenVirt
         USE RotateOrbsData , only : SymLabelCounts2,SymLabelList2,SymLabelListInv,NoOrbs
+        USE util_mod , only : get_free_unit
         IMPLICIT NONE
         INTEGER , ALLOCATABLE :: Sing_InitExcSlots(:),Sing_ExcList(:)
         INTEGER , ALLOCATABLE :: Doub_InitExcSlots(:),Doub_ExcList(:)
@@ -48,6 +51,7 @@ MODULE nElRDMMod
         INTEGER(kind=n_int) , ALLOCATABLE :: Doub_ExcDjs(:,:),Doub_ExcDjs2(:,:)
         INTEGER :: Sing_ExcDjsTag,Sing_ExcDjs2Tag,TwoElRDMTag,AllTwoElRDMTag
         INTEGER :: Doub_ExcDjsTag,Doub_ExcDjs2Tag,OneElRDMTag,UMATTempTag
+        INTEGER :: Energies_unit
         REAL*8 , ALLOCATABLE :: OneElRDM(:,:)
         REAL*8 , ALLOCATABLE :: TwoElRDM(:,:)
         REAL*8 , ALLOCATABLE :: AllTwoElRDM(:,:)
@@ -94,27 +98,85 @@ MODULE nElRDMMod
         NoDumpTruncs = 1
         NoFrozenVirt = 0
 
-        IF((RDMExcitLevel.eq.2).or.(RDMExcitLevel.eq.3)) THEN
+        IF(tStochasticRDM) THEN
+
+            ALLOCATE(Spawned_Parents(0:(NIfDBO+1),MaxSpawned),stat=ierr)
+            CALL LogMemAlloc('Spawned_Parents',MaxSpawned*(NIfDBO+2),size_n_int,this_routine,Spawned_ParentsTag,ierr)
+            ALLOCATE(Spawned_Parents_Index(2,MaxSpawned),stat=ierr)
+            CALL LogMemAlloc('Spawned_Parents_Index',MaxSpawned*2,4,this_routine,Spawned_Parents_IndexTag,ierr)
+
+
+        ELSE
+
+            IF((RDMExcitLevel.eq.2).or.(RDMExcitLevel.eq.3)) THEN
 
 ! This array actually contains the excitations in blocks of the processor they will be sent to.        
-            ALLOCATE(Doub_ExcDjs(0:NIfTot,NINT(((NEl*nBasis)**2)*MemoryFacPart)),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Doub_ExcDjs array.')
-            CALL LogMemAlloc('Doub_ExcDjs',NINT(((NEl*nBasis)**2)*MemoryFacPart)*(NIfTot+1),size_n_int,this_routine,Doub_ExcDjsTag,ierr)
+                ALLOCATE(Doub_ExcDjs(0:NIfTot,NINT(((NEl*nBasis)**2)*MemoryFacPart)),stat=ierr)
+                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Doub_ExcDjs array.')
+                CALL LogMemAlloc('Doub_ExcDjs',NINT(((NEl*nBasis)**2)*MemoryFacPart)*(NIfTot+1),size_n_int,this_routine,Doub_ExcDjsTag,ierr)
 
-            ALLOCATE(Doub_ExcDjs2(0:NIfTot,NINT(((NEl*nBasis)**2)*MemoryFacPart)),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Doub_ExcDjs2 array.')
-            CALL LogMemAlloc('Doub_ExcDjs2',NINT(((NEl*nBasis)**2)*MemoryFacPart)*(NIfTot+1),size_n_int,this_routine,Doub_ExcDjs2Tag,ierr)
+                ALLOCATE(Doub_ExcDjs2(0:NIfTot,NINT(((NEl*nBasis)**2)*MemoryFacPart)),stat=ierr)
+                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Doub_ExcDjs2 array.')
+                CALL LogMemAlloc('Doub_ExcDjs2',NINT(((NEl*nBasis)**2)*MemoryFacPart)*(NIfTot+1),size_n_int,this_routine,Doub_ExcDjs2Tag,ierr)
+
+! We need room to potentially generate (N*M)^2 double excitations but these will be spread across each processor.        
+                TwoEl_Gap=(((REAL(NEl)*REAL(nBasis))**2)*MemoryFacPart)/REAL(nProcessors)
+
+                Doub_ExcDjs(:,:)=0
+                Doub_ExcDjs2(:,:)=0
+
+! This array contains the initial positions of the excitations for each processor.
+                ALLOCATE(Doub_InitExcSlots(0:(nProcessors-1)),stat=ierr)
+                do i=0,nProcessors-1
+                    Doub_InitExcSlots(i)=NINT(TwoEl_Gap*i)+1
+                enddo
+
+! This array contains the current position of the excitations as they're added.
+                ALLOCATE(Doub_ExcList(0:(nProcessors-1)),stat=ierr)
+                Doub_ExcList(:)=Doub_InitExcSlots(:)
+
+            ENDIF
+            
+
+            IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) THEN
+
+! This array actually contains the excitations in blocks of the processor they will be sent to.        
+                ALLOCATE(Sing_ExcDjs(0:NIfTot,NINT((NEl*nBasis)*MemoryFacPart)),stat=ierr)
+                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Sing_ExcDjs array.')
+                CALL LogMemAlloc('Sing_ExcDjs',NINT(NEl*nBasis*MemoryFacPart)*(NIfTot+1),size_n_int,this_routine,Sing_ExcDjsTag,ierr)
+
+                ALLOCATE(Sing_ExcDjs2(0:NIfTot,NINT((NEl*nBasis)*MemoryFacPart)),stat=ierr)
+                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Sing_ExcDjs2 array.')
+                CALL LogMemAlloc('Sing_ExcDjs2',NINT(NEl*nBasis*MemoryFacPart)*(NIfTot+1),size_n_int,this_routine,Sing_ExcDjs2Tag,ierr)
+
+                Sing_ExcDjs(:,:)=0
+                Sing_ExcDjs2(:,:)=0
+
+! We need room to potentially generate N*M single excitations but these will be spread across each processor.        
+
+                OneEl_Gap=(REAL(NEl)*REAL(nBasis)*MemoryFacPart)/REAL(nProcessors)
+
+! This array contains the initial positions of the excitations for each processor.
+                ALLOCATE(Sing_InitExcSlots(0:(nProcessors-1)),stat=ierr)
+                do i=0,nProcessors-1
+                    Sing_InitExcSlots(i)=NINT(OneEl_Gap*i)+1
+                enddo
+
+! This array contains the current position of the excitations as they're added.
+                ALLOCATE(Sing_ExcList(0:(nProcessors-1)),stat=ierr)
+                Sing_ExcList(:)=Sing_InitExcSlots(:)
+
+            ENDIF
+                
+        ENDIF
+                
+        IF((RDMExcitLevel.eq.2).or.(RDMExcitLevel.eq.3)) THEN
 
 ! We also need to allocate the actual nElRDM on each processor, and an allnElRDM on only the root.
             ALLOCATE(TwoElRDM(((nBasis*(nBasis-1))/2),((nBasis*(nBasis-1))/2)),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating TwoElRDM array,')
             CALL LogMemAlloc('TwoElRDM',(((nBasis*(nBasis-1))/2)**2),8,this_routine,TwoElRDMTag,ierr)
             TwoElRDM(:,:)=0.D0
-
-!            ALLOCATE(TwoElRDM(nBasis,nBasis,nBasis,nBasis),stat=ierr)
-!            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating TwoElRDM array,')
-!            CALL LogMemAlloc('TwoElRDM',(nBasis**4),8,this_routine,TwoElRDMTag,ierr)
-!            TwoElRDM(:,:,:,:)=0.D0
 
             IF(iProcIndex.eq.0) THEN
                 ALLOCATE(AllTwoElRDM(((nBasis*(nBasis-1))/2),((nBasis*(nBasis-1))/2)),stat=ierr)
@@ -123,43 +185,10 @@ MODULE nElRDMMod
                 AllTwoElRDM(:,:)=0.D0
             ENDIF
 
-
-!            IF(iProcIndex.eq.0) THEN
-!                ALLOCATE(AllTwoElRDM(nBasis,nBasis,nBasis,nBasis),stat=ierr)
-!                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating AllTwoElRDM array,')
-!                CALL LogMemAlloc('AllTwoEleRDM',(nBasis**4),8,this_routine,AllTwoElRDMTag,ierr)
-!                AllTwoElRDM(:,:,:,:)=0.D0
-!            ENDIF
-
-! We need room to potentially generate (N*M)^2 double excitations but these will be spread across each processor.        
-            TwoEl_Gap=(((REAL(NEl)*REAL(nBasis))**2)*MemoryFacPart)/REAL(nProcessors)
-
-            Doub_ExcDjs(:,:)=0
-            Doub_ExcDjs2(:,:)=0
-
-! This array contains the initial positions of the excitations for each processor.
-            ALLOCATE(Doub_InitExcSlots(0:(nProcessors-1)),stat=ierr)
-            do i=0,nProcessors-1
-                Doub_InitExcSlots(i)=NINT(TwoEl_Gap*i)+1
-            enddo
-
-! This array contains the current position of the excitations as they're added.
-            ALLOCATE(Doub_ExcList(0:(nProcessors-1)),stat=ierr)
-            Doub_ExcList(:)=Doub_InitExcSlots(:)
-
         ENDIF            
 
+
         IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) THEN
-
-! This array actually contains the excitations in blocks of the processor they will be sent to.        
-            ALLOCATE(Sing_ExcDjs(0:NIfTot,NINT((NEl*nBasis)*MemoryFacPart)),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Sing_ExcDjs array.')
-            CALL LogMemAlloc('Sing_ExcDjs',NINT(NEl*nBasis*MemoryFacPart)*(NIfTot+1),size_n_int,this_routine,Sing_ExcDjsTag,ierr)
-
-            ALLOCATE(Sing_ExcDjs2(0:NIfTot,NINT((NEl*nBasis)*MemoryFacPart)),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Sing_ExcDjs2 array.')
-            CALL LogMemAlloc('Sing_ExcDjs2',NINT(NEl*nBasis*MemoryFacPart)*(NIfTot+1),size_n_int,this_routine,Sing_ExcDjs2Tag,ierr)
-
 
 ! We also need to allocate the actual nElRDM on each processor, and an allnElRDM on only the root.
             ALLOCATE(OneElRDM(nBasis,nBasis),stat=ierr)
@@ -174,23 +203,6 @@ MODULE nElRDMMod
                 CALL LogMemAlloc('NatOrbMat',nBasis**2,8,this_routine,NatOrbMatTag,ierr)
                 NatOrbMat(:,:)=0.D0
             ENDIF
-
-            Sing_ExcDjs(:,:)=0
-            Sing_ExcDjs2(:,:)=0
-
-! We need room to potentially generate N*M single excitations but these will be spread across each processor.        
-
-            OneEl_Gap=(REAL(NEl)*REAL(nBasis)*MemoryFacPart)/REAL(nProcessors)
-
-! This array contains the initial positions of the excitations for each processor.
-            ALLOCATE(Sing_InitExcSlots(0:(nProcessors-1)),stat=ierr)
-            do i=0,nProcessors-1
-                Sing_InitExcSlots(i)=NINT(OneEl_Gap*i)+1
-            enddo
-
-! This array contains the current position of the excitations as they're added.
-            ALLOCATE(Sing_ExcList(0:(nProcessors-1)),stat=ierr)
-            Sing_ExcList(:)=Sing_InitExcSlots(:)
 
 
             ALLOCATE(SymLabelCounts2(2,32),stat=ierr)
@@ -227,6 +239,16 @@ MODULE nElRDMMod
 
         nElRDM_Time%timer_name='nElRDMTime'
         FinaliseRDM_Time%timer_name='FinaliseRDMTime'
+
+
+        IF(tStochasticRDM) THEN
+
+            Energies_unit = get_free_unit()
+            OPEN(Energies_unit,file='Energies',status='unknown')
+
+            WRITE(Energies_unit, "(A1,3A30)") '#','Iteration','RDM Energy (Stochastic)',"RDM Energy ('Exact')"
+
+        ENDIF
 
 
     END SUBROUTINE InitRDM
@@ -535,44 +557,14 @@ MODULE nElRDMMod
         INTEGER(kind=n_int) , INTENT(IN) :: iLutnI(0:NIfTot)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: SignDi, SignDi2
-        INTEGER :: ExcitMat3(2,2),nI(NEl),nJ(NEl),Proc,i,j,FlagsDi,Ind,a,b,CountTemp
+        INTEGER :: ExcitMat3(2,2),nI(NEl),nJ(NEl),Proc,FlagsDi,a,b,CountTemp
         LOGICAL :: tParity,tAllExcitFound
-        REAL*8 :: realSignDi
-
 
         call extract_bit_rep (iLutnI, nI, SignDi, FlagsDi)
 ! Unfortunately uses the decoded determinant - might want to look at this.        
 
-! Need to add in the diagonal elements.
-! Do this now, while it is decoded.
-! The RDM are always in spin orbitals, so just adding the orbital as is, is fine.
+        call Fill_Diag_RDM(nI,SignDi,.false.)
 
-!        realSignDi = real(SignDi(1)) * (1.D0 / Normalisation)
-        realSignDi = real(SignDi(1)) * ( REAL(AllTotPartsTemp) / ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) )
-
-!        WRITE(6,*) realSignDi
-
-        IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) THEN
-            do i=1,NEl
-                OneElRDM(SymLabelListInv(nI(i)),SymLabelListInv(nI(i))) = &
-                            OneElRDM(SymLabelListInv(nI(i)),SymLabelListInv(nI(i))) &
-                              + (realSignDi * realSignDi)
-            enddo
-        ENDIF
-
-! There is no need to use the SymLabelList arrays for the 2 el RDM because we are not diagonalising 
-! or anything.
-        IF((RDMExcitLevel.eq.2).or.(RDMExcitLevel.eq.3)) THEN
-            do i=1,NEl - 1
-                do j=i+1,NEl
-                    Ind=( ( (nI(j)-2) * (nI(j)-1) ) / 2 ) + nI(i)
-                    TwoElRDM( Ind , Ind ) = TwoElRDM( Ind , Ind ) &
-                              + (realSignDi * realSignDi)
-                enddo
-            enddo
-        ENDIF
-
-!        IF((nI(1).eq.5).and.(nI(2).eq.6)) WRITE(6,*) 'nI',nI
 !        CountTemp = 0
 
         IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) THEN
@@ -662,6 +654,48 @@ MODULE nElRDMMod
 
     END SUBROUTINE GenExcDjs
 
+
+    SUBROUTINE Fill_Diag_RDM(nI,SignDi,tStochastic)
+        integer , intent(in) :: nI(NEl)
+        integer , dimension(lenof_sign) , intent(in) :: SignDi
+        logical , intent(in) :: tStochastic
+        real*8 :: realSignDi
+        integer :: i, j, Ind
+
+! Need to add in the diagonal elements.
+! The RDM are always in spin orbitals, so just adding the orbital as is, is fine.
+
+        if(tStochastic) then
+            realSignDi = real(SignDi(1))   
+        else
+!            realSignDi = real(SignDi(1)) * (1.D0 / Normalisation)
+            realSignDi = real(SignDi(1)) * ( REAL(AllTotPartsTemp) / ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) )
+        endif
+
+!        WRITE(6,*) realSignDi
+
+        IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) THEN
+            do i=1,NEl
+                OneElRDM(SymLabelListInv(nI(i)),SymLabelListInv(nI(i))) = &
+                            OneElRDM(SymLabelListInv(nI(i)),SymLabelListInv(nI(i))) &
+                              + ((realSignDi * realSignDi) * ( REAL(AllTotPartsTemp) / ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 )) )
+            enddo
+        ENDIF
+
+! There is no need to use the SymLabelList arrays for the 2 el RDM because we are not diagonalising 
+! or anything.
+        IF((RDMExcitLevel.eq.2).or.(RDMExcitLevel.eq.3)) THEN
+            do i=1,NEl - 1
+                do j=i+1,NEl
+                    Ind=( ( (nI(j)-2) * (nI(j)-1) ) / 2 ) + nI(i)
+                    TwoElRDM( Ind , Ind ) = TwoElRDM( Ind , Ind ) &
+                              + ((realSignDi * realSignDi) * ( REAL(AllTotPartsTemp) / ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 )) )
+                enddo
+            enddo
+        ENDIF
+
+
+    END SUBROUTINE Fill_Diag_RDM
     
 
     SUBROUTINE SendProcExcDjs()
@@ -768,10 +802,10 @@ MODULE nElRDMMod
         INTEGER, INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: SignDi,SignDj, SignDi2,SignDj2
-        INTEGER :: i,j,k,NoDets,StartDets,PartInd,Indij,Indab 
+        INTEGER :: i,j,NoDets,StartDets,PartInd 
         INTEGER :: nI(NEl),nJ(NEl),Ex(2,2),FlagsDi,FlagsDj
         LOGICAL :: tDetFound,tParity
-        REAL*8 :: ParityFactor, realSignDi, realSignDj
+        REAL*8 :: realSignDi, realSignDj
 
 ! Take each Dj, and binary search the CurrentDets to see if it is occupied.
 
@@ -798,7 +832,6 @@ MODULE nElRDMMod
 ! Determinant occupied; add c_i*c_j to the relevant element of nElRDM.                    
 ! Need to first find the orbitals involved in the excitation from D_i -> D_j and the parity.
 
-                        ParityFactor=1.D0
                         Ex(:,:)=0
 ! Ex(1,1) goes in as the max number of excitations - we know this is an excitation of level RDMExcitLevel.                    
                         Ex(1,1)=1
@@ -813,32 +846,7 @@ MODULE nElRDMMod
 
                         IF(Ex(1,1).le.0) CALL Stop_All('Sing_SearchOccDets','nJ is not the correct excitation of nI.')
 
-                        IF(tParity) ParityFactor=-1.D0
-
-                        Indij = SymLabelListInv(Ex(1,1)) 
-                        Indab = SymLabelListInv(Ex(2,1)) 
-                        
-                        OneElRDM( Indij , Indab ) = OneElRDM( Indij , Indab ) + &
-                                                        (ParityFactor * (realSignDi * realSignDj) )
-                        OneElRDM( Indab , Indij ) = OneElRDM( Indab , Indij ) + &
-                                                        (ParityFactor * (realSignDi * realSignDj) )
- 
-                        IF(RDMExcitLevel.eq.3) THEN
-                            do k = 1, NEl                            
-                                IF(nI(k).ne.Ex(1,1)) THEN
-                                    Indij = ( ( (MAX(nI(k),Ex(1,1))-2) * (MAX(nI(k),Ex(1,1))-1) ) / 2 ) + MIN(nI(k),Ex(1,1))
-                                    Indab = ( ( (MAX(nI(k),Ex(2,1))-2) * (MAX(nI(k),Ex(2,1))-1) ) / 2 ) + MIN(nI(k),Ex(2,1))
-
-                                    TwoElRDM( Indij , Indab ) = TwoElRDM( Indij , Indab ) + &
-                                                                    (ParityFactor * ( realSignDi * realSignDj))
-                                    TwoElRDM( Indab , Indij ) = TwoElRDM( Indab , Indij ) + &
-                                                                    (ParityFactor * ( realSignDi * realSignDj))
-
-                                ENDIF
-     
-                            enddo
-                        ENDIF
-
+                        call Fill_Sings_RDM(nI,Ex,tParity,realSignDi,realSignDj)
 ! No normalisation factor just yet - possibly need to revise.                    
                     ENDIF
 
@@ -848,6 +856,43 @@ MODULE nElRDMMod
         enddo
       
     END SUBROUTINE Sing_SearchOccDets
+
+
+    subroutine Fill_Sings_RDM(nI,Ex,tParity,realSignDi,realSignDj)
+        integer , intent(in) :: nI(NEl), Ex(2,2)
+        logical , intent(in) :: tParity
+        real*8 , intent(in) :: realSignDi, realSignDj
+        integer :: k, Indij, Indab
+        real*8 :: ParityFactor
+
+        ParityFactor=1.D0
+        IF(tParity) ParityFactor=-1.D0
+
+        Indij = SymLabelListInv(Ex(1,1)) 
+        Indab = SymLabelListInv(Ex(2,1)) 
+        
+        OneElRDM( Indij , Indab ) = OneElRDM( Indij , Indab ) + &
+                                        ((ParityFactor * (realSignDi * realSignDj)) * ( REAL(AllTotPartsTemp) / ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) ) )
+!        OneElRDM( Indab , Indij ) = OneElRDM( Indab , Indij ) + &
+!                                        ((ParityFactor * (realSignDi * realSignDj)) * ( REAL(AllTotPartsTemp) / ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) ) )
+
+        IF(RDMExcitLevel.eq.3) THEN
+            do k = 1, NEl                            
+                IF(nI(k).ne.Ex(1,1)) THEN
+                    Indij = ( ( (MAX(nI(k),Ex(1,1))-2) * (MAX(nI(k),Ex(1,1))-1) ) / 2 ) + MIN(nI(k),Ex(1,1))
+                    Indab = ( ( (MAX(nI(k),Ex(2,1))-2) * (MAX(nI(k),Ex(2,1))-1) ) / 2 ) + MIN(nI(k),Ex(2,1))
+
+                    TwoElRDM( Indij , Indab ) = TwoElRDM( Indij , Indab ) + &
+                                                    ((ParityFactor * ( realSignDi * realSignDj)) * ( REAL(AllTotPartsTemp) / ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) ) )
+!                    TwoElRDM( Indab , Indij ) = TwoElRDM( Indab , Indij ) + &
+!                                                    ((ParityFactor * ( realSignDi * realSignDj)) * ( REAL(AllTotPartsTemp) / ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) ) )
+
+                ENDIF
+
+            enddo
+        ENDIF
+
+    end subroutine Fill_Sings_RDM
 
 
     SUBROUTINE Doub_SearchOccDets(recvcounts,recvdisps)
@@ -861,10 +906,10 @@ MODULE nElRDMMod
         INTEGER, INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: SignDi,SignDj, SignDi2, SignDj2
-        INTEGER :: i,j,NoDets,StartDets,PartInd,Indij,Indab 
+        INTEGER :: i,j,NoDets,StartDets,PartInd 
         INTEGER :: nI(NEl),nJ(NEl),Ex(2,2),FlagsDi,FlagsDj
         LOGICAL :: tDetFound,tParity
-        REAL*8 :: ParityFactor,realSignDi,realSignDj
+        REAL*8 :: realSignDi,realSignDj
 
 ! Take each Dj, and binary search the CurrentDets to see if it is occupied.
     
@@ -895,7 +940,6 @@ MODULE nElRDMMod
 ! Determinant occupied; add c_i*c_j to the relevant element of nElRDM.                    
 ! Need to first find the orbitals involved in the excitation from D_i -> D_j and the parity.
 
-                        ParityFactor=1.D0
                         Ex(:,:)=0
 ! Ex(1,1) goes in as the max number of excitations - we know this is an excitation of level RDMExcitLevel.                    
                         Ex(1,1)=2
@@ -910,35 +954,9 @@ MODULE nElRDMMod
 
                         IF(Ex(1,1).le.0) CALL Stop_All('SearchOccDets','nJ is not the correct excitation of nI.')
 
-                        IF(tParity) ParityFactor=-1.D0
-
-!                        WRITE(6,*) 'DetFound'
-!                        WRITE(6,*) 'ilutnJ',iLutnJ
-!                        WRITE(6,*) 'CurrentDets(:,PartInd)',CurrentDets(:,PartInd)
-!                        WRITE(6,*) 'nJ',nJ
-!                        WRITE(6,*) 'From',Ex(1,1),Ex(1,2)
-!                        WRITE(6,*) 'To',Ex(2,1),Ex(2,2)
-!                        WRITE(6,*) 'Adding in ',SignDj(1),'times',SignDi(1)
-
-                        !Find unique index for the pairs of orbitals we are exciting from (ij) and to (ab).
-                        Indij = ( ( (Ex(1,2)-2) * (Ex(1,2)-1) ) / 2 ) + Ex(1,1)
-                        Indab = ( ( (Ex(2,2)-2) * (Ex(2,2)-1) ) / 2 ) + Ex(2,1)
-                        IF((Ex(1,1).gt.Ex(1,2)).or.(Ex(2,1).gt.Ex(2,2))) THEN
-                            WRITE(6,*) 'Ex(1,1)',Ex(1,1),'Ex(1,2)',Ex(1,2),'Ex(2,1)',Ex(2,1),'Ex(2,2)',Ex(2,2)
-                            CALL Stop_All('SearchOccDets','The orbitals involved in excitation are not in the expected order.')
-                        ENDIF
-
-                        TwoElRDM( Indij , Indab ) = TwoElRDM( Indij , Indab ) + &
-                                                     (ParityFactor * ( realSignDi * realSignDj ) )
-
-                        TwoElRDM( Indab , Indij ) = TwoElRDM( Indab , Indij ) + &
-                                                     (ParityFactor * ( realSignDi * realSignDj ) )
-
-                        !2RDM(p,q,r,s)  = < DI | Epq Ers - delta_qr Eps | DJ>
-                        !               = < DI | E(p -> q) E(r -> s) - delta_qr E(p -> s) | DJ >
-!                        TwoElRDM( Ex(1,1) , Ex(2,1), Ex(1,2), Ex(2,2) ) = TwoElRDM( Ex(1,1), Ex(2,1), Ex(1,2), Ex(2,2) ) + &
-!                            ( (ParityFactor * (REAL(SignDj(1)) * REAL(SignDi(1))) ) / AllTotPartstemp )
-
+                        call Fill_Doubs_RDM(Ex,tParity,realSignDi,realSignDj)
+                        
+                        
                     ENDIF
 
                 enddo
@@ -947,6 +965,44 @@ MODULE nElRDMMod
         enddo
       
     END SUBROUTINE Doub_SearchOccDets
+
+
+    subroutine Fill_Doubs_RDM(Ex,tParity,realSignDi,realSignDj)
+        integer , intent(in) :: Ex(2,2)
+        logical , intent(in) :: tParity
+        real*8 , intent(in) :: realSignDi, realSignDj
+        integer :: k, Indij, Indab
+        real*8 :: ParityFactor
+
+        ParityFactor=1.D0
+        IF(tParity) ParityFactor=-1.D0
+
+!        WRITE(6,*) 'DetFound'
+!        WRITE(6,*) 'ilutnJ',iLutnJ
+!        WRITE(6,*) 'CurrentDets(:,PartInd)',CurrentDets(:,PartInd)
+!        WRITE(6,*) 'nJ',nJ
+!        WRITE(6,*) 'From',Ex(1,1),Ex(1,2)
+!        WRITE(6,*) 'To',Ex(2,1),Ex(2,2)
+!        WRITE(6,*) 'Adding in ',SignDj(1),'times',SignDi(1)
+
+        !Find unique index for the pairs of orbitals we are exciting from (ij) and to (ab).
+        Indij = ( ( (Ex(1,2)-2) * (Ex(1,2)-1) ) / 2 ) + Ex(1,1)
+        Indab = ( ( (Ex(2,2)-2) * (Ex(2,2)-1) ) / 2 ) + Ex(2,1)
+        IF((Ex(1,1).gt.Ex(1,2)).or.(Ex(2,1).gt.Ex(2,2))) THEN
+            WRITE(6,*) 'Ex(1,1)',Ex(1,1),'Ex(1,2)',Ex(1,2),'Ex(2,1)',Ex(2,1),'Ex(2,2)',Ex(2,2)
+            CALL Stop_All('SearchOccDets','The orbitals involved in excitation are not in the expected order.')
+        ENDIF
+
+        TwoElRDM( Indij , Indab ) = TwoElRDM( Indij , Indab ) + &
+                                     (( ParityFactor * ( realSignDi * realSignDj ) ) * ( REAL(AllTotPartsTemp) / ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) ) )
+
+!        TwoElRDM( Indab , Indij ) = TwoElRDM( Indab , Indij ) + &
+!                                     (( ParityFactor * ( realSignDi * realSignDj ) ) * ( REAL(AllTotPartsTemp) / ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) ) )
+
+!        WRITE(6,*) 'TwoElRDM',Indij,Indab,TwoElRDM( Indij , Indab )
+
+    end subroutine Fill_Doubs_RDM
+
 
 
     SUBROUTINE FinaliseRDM()
@@ -965,29 +1021,13 @@ MODULE nElRDMMod
 
         CALL set_timer(FinaliseRDM_Time)
 
-!        WRITE(6,*) 'nElRDM'
-!        do i=1,nBasis
-!            do j=1,nBasis
-!                WRITE(6,'(F15.1)',advance='no') nElRDM(j,i)
-!            enddo
-!            WRITE(6,*) ''
-!        enddo
+        IF(tCalc_RDMEnergy) THEN
+            CALL Calc_Energy_from_RDM()
+        ELSE
+            IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) CALL MPIReduce(OneElRDM,MPI_SUM,NatOrbMat)
 
-        IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) CALL MPIReduce(OneElRDM,MPI_SUM,NatOrbMat)
-
-        IF((RDMExcitLevel.eq.2).or.(RDMExcitLevel.eq.3)) CALL MPIReduce(TwoElRDM,MPI_SUM,AllTwoElRDM)
-
-!        IF(iProcIndex.eq.0) THEN
-!            WRITE(6,*) 'NatOrbMat'
-!            do i=1,nBasis
-!                do j=1,nBasis
-!                    WRITE(6,'(F15.1)',advance='no') NatOrbMat(j,i)
-!                enddo
-!                WRITE(6,*) ''
-!            enddo
-!        ENDIF
-
-!        CALL Stop_All('','')
+            IF((RDMExcitLevel.eq.2).or.(RDMExcitLevel.eq.3)) CALL MPIReduce(TwoElRDM,MPI_SUM,AllTwoElRDM)
+        ENDIF
 
 ! Getting back into the rotate routines, which use symlabellist2 etc etc, so we need to tell these routines 
 ! they've been set up as spin orbitals.
@@ -997,8 +1037,6 @@ MODULE nElRDMMod
             tTurnStoreSpinOff=.true.
             tStoreSpinOrbs=.true.
         ENDIF
-
-        IF(tCalc_RDMEnergy) CALL Calc_Energy_from_RDM()
 
         call MPIBarrier(error)
 
@@ -1097,6 +1135,8 @@ MODULE nElRDMMod
             WRITE(6,*) 'WARNING: Request to diagonalise two electron reduced density matrix.'
 
         ENDIF
+
+        CLOSE(Energies_unit) 
 
 ! Print out some stuff about the one electron reduced density matrix.
 
@@ -1937,19 +1977,51 @@ MODULE nElRDMMod
         USE Logging , only : tDiagRDM
         CHARACTER(len=*), PARAMETER :: this_routine='DeallocateRDM'
 
-        IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) THEN
+        IF(tStochasticRDM) THEN
+
+            DEALLOCATE(Spawned_Parents)
+            CALL LogMemDeAlloc(this_routine,Spawned_ParentsTag)
+
+            DEALLOCATE(Spawned_Parents_Index)
+            CALL LogMemDeAlloc(this_routine,Spawned_Parents_IndexTag)
+
+        ELSE
+
+            IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) THEN
 ! This array contains the initial positions of the single excitations for each processor.
-            DEALLOCATE(Sing_InitExcSlots)
- 
+                DEALLOCATE(Sing_InitExcSlots)
+     
 ! This array contains the current position of the single excitations as they're added.
-            DEALLOCATE(Sing_ExcList)
+                DEALLOCATE(Sing_ExcList)
 
 ! This array actually contains the single excitations in blocks of the processor they will be sent to.        
-            DEALLOCATE(Sing_ExcDjs)
-            CALL LogMemDeAlloc(this_routine,Sing_ExcDjsTag)
+                DEALLOCATE(Sing_ExcDjs)
+                CALL LogMemDeAlloc(this_routine,Sing_ExcDjsTag)
 
-            DEALLOCATE(Sing_ExcDjs2)
-            CALL LogMemDeAlloc(this_routine,Sing_ExcDjs2Tag)
+                DEALLOCATE(Sing_ExcDjs2)
+                CALL LogMemDeAlloc(this_routine,Sing_ExcDjs2Tag)
+            ENDIF
+
+
+            IF((RDMExcitLevel.eq.2).or.(RDMExcitLevel.eq.3)) THEN
+! This array contains the initial positions of the single excitations for each processor.
+                DEALLOCATE(Doub_InitExcSlots)
+ 
+! This array contains the current position of the single excitations as they're added.
+                DEALLOCATE(Doub_ExcList)
+
+! This array actually contains the single excitations in blocks of the processor they will be sent to.        
+                DEALLOCATE(Doub_ExcDjs)
+                CALL LogMemDeAlloc(this_routine,Doub_ExcDjsTag)
+     
+                DEALLOCATE(Doub_ExcDjs2)
+                CALL LogMemDeAlloc(this_routine,Doub_ExcDjs2Tag)
+            ENDIF
+
+        ENDIF
+
+
+        IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) THEN
 
 ! We also need to allocate the actual 1RDM on each processor, and an all1RDM on only the root.        
             DEALLOCATE(OneElRDM)
@@ -1982,23 +2054,8 @@ MODULE nElRDMMod
             ENDIF
         ENDIF
 
+
         IF((RDMExcitLevel.eq.2).or.(RDMExcitLevel.eq.3)) THEN
-! This array contains the initial positions of the single excitations for each processor.
-            DEALLOCATE(Doub_InitExcSlots)
- 
-! This array contains the current position of the single excitations as they're added.
-            DEALLOCATE(Doub_ExcList)
-
-! This array actually contains the single excitations in blocks of the processor they will be sent to.        
-            DEALLOCATE(Doub_ExcDjs)
-            CALL LogMemDeAlloc(this_routine,Doub_ExcDjsTag)
- 
-            DEALLOCATE(Doub_ExcDjs2)
-            CALL LogMemDeAlloc(this_routine,Doub_ExcDjs2Tag)
-
-            write(6,*) 'here o.k 05'
-            call flush(6)
-
 ! We also need to allocate the actual 1RDM on each processor, and an all1RDM on only the root.        
             WRITE(6,*) 'Having issues deallocating TwoElRDM (possibly because of array bounds issues)'
             CALL FLUSH(6)
@@ -2043,6 +2100,30 @@ MODULE nElRDMMod
         UMATTemp(:,:)=0.D0
 
         IF(tTurnStoreSpinOff) tStoreSpinOrbs=.false.
+
+!        WRITE(6,*) 'nElRDM'
+!        do i=1,nBasis
+!            do j=1,nBasis
+!                WRITE(6,'(F15.10)',advance='no') OneElRDM(j,i)
+!            enddo
+!            WRITE(6,*) ''
+!        enddo
+
+        IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) CALL MPIReduce(OneElRDM,MPI_SUM,NatOrbMat)
+
+        IF((RDMExcitLevel.eq.2).or.(RDMExcitLevel.eq.3)) CALL MPIReduce(TwoElRDM,MPI_SUM,AllTwoElRDM)
+
+!        IF(iProcIndex.eq.0) THEN
+!            WRITE(6,*) 'NatOrbMat'
+!            do i=1,nBasis
+!                do j=1,nBasis
+!                    WRITE(6,'(F15.3)',advance='no') NatOrbMat(j,i)
+!                enddo
+!                WRITE(6,*) ''
+!            enddo
+!        ENDIF
+
+!        CALL Stop_All('','')
 
 !First of all 'normalise' the reduced density matrices.
 !These are not even close to being normalised at the moment, because of the way they are calculated on the fly.
@@ -2156,16 +2237,14 @@ MODULE nElRDMMod
             WRITE(6,*) 'The contribution from the 1 el RDM:',RDMEnergy1El
             WRITE(6,*) 'The contribution from the 2 el RDM:',RDMEnergy2El
 
+            WRITE(Energies_unit, "(I31,F30.15)",advance='no') Iter,RDMEnergy
+
             CALL Test_Energy_Calc()
 
         ENDIF
 
-        tTurnStoreSpinOff=.false.
-        IF(.not.tStoreSpinOrbs) THEN
-            tTurnStoreSpinOff=.true.
-            tStoreSpinOrbs=.true.
-        ENDIF
-
+        DEALLOCATE(UMATTemp)
+        CALL LogMemDeAlloc('test_energy_calc',UMATTempTag)
 
     END SUBROUTINE Calc_Energy_from_RDM
 
@@ -2372,6 +2451,8 @@ MODULE nElRDMMod
         WRITE(6,*) ''
         WRITE(6,*) 'The 2 electron part should be : ',Test_Energy - Test_Energy_1El
 
+        WRITE(Energies_unit, "(F30.15)") Test_Energy 
+
 
 !        do i = 1, nBasis
 !            i2 = gtID(i)
@@ -2424,13 +2505,75 @@ MODULE nElRDMMod
 !            enddo
 !        enddo
 
-        tTurnStoreSpinOff=.false.
-        IF(.not.tStoreSpinOrbs) THEN
-            tTurnStoreSpinOff=.true.
-            tStoreSpinOrbs=.true.
-        ENDIF
+        DEALLOCATE(TestRDM)
+        CALL LogMemDeAlloc('test_energy_calc',TestRDMTag)
 
     END SUBROUTINE Test_Energy_Calc
+
+    
+    SUBROUTINE DiDj_Found_FillRDM(Spawned_No,iLutJ,SignJ)
+! This routine is called when we have found a Di (or multiple Di's) spawning onto a Dj with sign /= 0 (i.e. occupied).
+! We then want to run through all the Di, Dj pairs and add their coefficients (with appropriate de-biasing factors) into
+! the 1 and 2 electron RDM.
+        USE FciMCData , only : CurrentDets,TotParts 
+        integer , intent(in) :: Spawned_No
+        integer(kind=n_int) , intent(in) :: iLutJ(0:NIfTot)
+        integer , dimension(lenof_sign) , intent(in) :: SignJ
+        integer :: i, nI(NEl), nJ(NEl), Ex(2,2)
+        real*8 :: realSignI, realSignJ, TempTotParts
+        logical :: tParity
+
+!        WRITE(6,*) 'Spawned_No',Spawned_No
+!        WRITE(6,*) 'Spawned_Parents_Index(1,Spawned_No)',Spawned_Parents_Index(1,Spawned_No)
+!        WRITE(6,*) 'Spawned_Parents_Index(2,Spawned_No)',Spawned_Parents_Index(2,Spawned_No)
+
+        TempTotParts=REAL(TotParts(1))
+        CALL MPIAllReduce(TempTotParts,MPI_SUM,AllTotPartstemp)
+
+        ! Run through all Di's.
+        ! The parents are stored in Spawned_Parents, in positions given by Spawned_Parents_Index.
+        do i = Spawned_Parents_Index(1,Spawned_No), &
+                Spawned_Parents_Index(1,Spawned_No) + Spawned_Parents_Index(2,Spawned_No) - 1 
+
+!            WRITE(6,*) 'Spawned_Parents(:,i)',Spawned_Parents(:,i)                
+
+            call decode_bit_det (nI, Spawned_Parents(0:NIfDBO,i))
+            call decode_bit_det (nJ, iLutJ)
+
+            realSignI = ( real( Spawned_Parents(NIfDBO+1,i), dp ) / (10.D0**8.D0) )
+            ! This 'sign' is in fact p_gen(J|I) / (|H_IJ| * tau) = 1 / p_acc
+            ! These factors account for the fact that we are only using Di,Dj pairs from spawns that have 
+            ! been accepted (created children).  Need to unbiase for this.
+
+            realSignJ = real(SignJ(1))
+
+!            WRITE(6,*) 'realSignI',realSignI
+!            WRITE(6,*) 'realSignJ',realSignJ
+
+            Ex(:,:) = 0
+            Ex(1,1) = 2
+            call GetExcitation(nI,nJ,NEl,Ex,tParity)
+! Ex(1,:) comes out as the orbital(s) excited from, Ex(2,:) comes out as the orbital(s) excited to.                    
+
+!            WRITE(6,*) 'Ex(1,:)',Ex(1,:)
+!            WRITE(6,*) 'Ex(2,:)',Ex(2,:)
+
+            if(Ex(1,1).le.0) CALL Stop_All('DiDj_Found_FillRDM','Di and Dj seperated by more than a single or double excitation.')
+
+            if((Ex(1,2).eq.0).and.(Ex(2,2).eq.0)) then
+
+                call Fill_Sings_RDM(nI,Ex,tParity,realSignI,realSignJ)
+
+            else
+
+                call Fill_Doubs_RDM(Ex,tParity,realSignI,realSignJ)
+
+            endif
+
+        enddo
+
+
+    END SUBROUTINE DiDj_Found_FillRDM
 
 
 ! =============================== OLD ROUTINES =============================================================================    

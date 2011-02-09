@@ -58,7 +58,7 @@ MODULE FciMCParMod
                        tPrintPopsDefault, iWriteBlockingEvery, &
                        tBlockEveryIteration, tHistInitPops, HistInitPopsIter,&
                        HistInitPops, tRDMonFly, IterRDMonFly, &
-                       RDMExcitLevel
+                       RDMExcitLevel, tStochasticRDM, RDMEnergyIter
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
                     hist_spin_dist, ilut_spindist, tHistSpinDist, &
                     write_clear_hist_spin_dist, hist_spin_dist_iter, &
@@ -94,7 +94,7 @@ MODULE FciMCParMod
                             iter_data_spin_proj, test_spin_proj, &
                             spin_proj_shift, spin_proj_iter_count
     use symrandexcit3, only: gen_rand_excit3, test_sym_excit3
-    use nElRDMMod, only: FinaliseRDM,FillRDMthisIter
+    use nElRDMMod, only: FinaliseRDM,FillRDMthisIter,calc_energy_from_rdm,fill_diag_rdm
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
 #endif
@@ -312,6 +312,8 @@ MODULE FciMCParMod
             IF(tHistHamil.and.(mod(Iter,iWriteHamilEvery).eq.0)) THEN
                 CALL WriteHamilHistogram()
             ENDIF
+            IF(tFillingRDMonFly.and.tStochasticRDM.and.(Iter .ne. IterRDMonFly).and.&
+                (mod(Iter-IterRDMonFly,RDMEnergyIter).eq.0)) CALL Calc_Energy_from_RDM()  
 
             Iter=Iter+1
 !End of MC cycle
@@ -827,6 +829,10 @@ MODULE FciMCParMod
                 exit
             endif
 
+            if(tFillingRDMonFly.and.tStochasticRDM) then
+                call Fill_Diag_RDM(DetCurr, SignCurr, .true.)
+            endif
+
             ! Sum in any energy contribution from the determinant, including 
             ! other parameters, such as excitlevel info.
             ! This is where the projected energy is calculated.
@@ -873,9 +879,9 @@ MODULE FciMCParMod
                     else
                         child = 0
                     endif
-
+                    
                     ! Children have been chosen to be spawned.
-                    if (any(child /= 0)) then
+                    if ((any(child /= 0)).or.tAllSpawnAttemptsRDM) then
                         ! We know we want to create a particle of this type.
                         ! Encode the bit representation if it isn't already.
                         call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
@@ -885,7 +891,8 @@ MODULE FciMCParMod
                                               child, parent_flags, part_type)
 
                         call create_particle (nJ, iLutnJ, child, &
-                                              parent_flags, part_type, CurrentDets(:,j))
+                                              parent_flags, part_type,& 
+                                              CurrentDets(:,j))
                     
                     endif ! (child /= 0). Child created
 
@@ -912,6 +919,7 @@ MODULE FciMCParMod
         ! walkers should be in a seperate array (SpawnedParts) and the other 
         ! list should be ordered.
         call set_timer (annihil_time, 30)
+
         call DirectAnnihilation (totWalkersNew, iter_data,.false.) !.false. for not single processor
         TotWalkers=TotWalkersNew
         CALL halt_timer(Annihil_Time)
@@ -923,9 +931,12 @@ MODULE FciMCParMod
                                 - iter_data%naborted
         iter_data%update_iters = iter_data%update_iters + 1
 
-        IF(tRDMonFly.and.(Iter.ge.IterRDMonFly)) THEN
-            IF(Iter.eq.IterRDMonFly) WRITE(6,'(A28,I1,A36)') ' Beginning to calculate the ',RDMExcitLevel,' electron density matrix on the fly.'
-            CALL FillRDMthisIter(TotWalkers)
+        IF(tFillingRDMonFly) THEN
+            IF(.not.tStochasticRDM) CALL FillRDMthisIter(TotWalkers)
+        ELSEIF(tRDMonFly.and.(Iter.ge.IterRDMonFly)) THEN
+            tFillingRDMonFly = .true.
+            WRITE(6,'(A28,I1,A36)') ' Beginning to calculate the ',RDMExcitLevel,' electron density matrix on the fly.'
+            IF(.not.tStochasticRDM) CALL FillRDMthisIter(TotWalkers)
         ENDIF
 
     end subroutine
@@ -1026,12 +1037,13 @@ MODULE FciMCParMod
         ! ValidSpawnedList
 
         integer, intent(in) :: nJ(nel)
-        integer(kind=n_int), intent(in) :: iLutJ(0:niftot),iLutI(0:niftot)
+        integer(kind=n_int), intent(in) :: iLutJ(0:niftot)
+        integer(kind=n_int), intent(in), optional :: iLutI(0:niftot)
         integer, dimension(lenof_sign), intent(in) :: child
         integer, intent(in) :: parent_flags
         ! 'type' of the particle - i.e. real/imag
         integer, intent(in) :: part_type
-        integer :: proc, flags, j
+        integer :: proc, flags, j, BiasFac
         logical :: parent_init
 
         proc = DetermineDetNode(nJ,0)    ! 0 -> nNodes-1)
@@ -1042,12 +1054,15 @@ MODULE FciMCParMod
         call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ, &
                             child, flags)
 
-        WRITE(6,*) 'iLutJ',ilutj
-        WRITE(6,*) 'iLutI',iluti
-
-        SpawnedParts(niftot+1:((2*niftot)+1), ValidSpawnedList(proc)) = iLutI(0:niftot)                            
-
-        WRITE(6,*) 'SpawnedParts(:,ValidSpawnedList(proc))',SpawnedParts(:,ValidSpawnedList(proc))
+        IF(tFillingRDMonFly.and.tStochasticRDM) THEN                            
+!            WRITE(6,*) 'iLutI',iluti
+!            WRITE(6,*) 'iLutJ',ilutj
+            SpawnedParts(niftot+1:niftot+nifdbo+1, ValidSpawnedList(proc)) = iLutI(0:nifdbo) 
+!            WRITE(6,*) 'RDMBiasFacI',RDMBiasFacI
+            SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)) = NINT(RDMBiasFacI*(10.D0**5.D0))
+!            WRITE(6,*) 'NINT(RDMBiasFacI*(10.D0**8.D0))',NINT(RDMBiasFacI*(10.D0**5.D0))
+!            WRITE(6,*) 'SpawnedParts(:,ValidSpawnedList(proc))',SpawnedParts(:,ValidSpawnedList(proc))
+        ENDIF
 
         IF(lenof_sign.eq.2) THEN
             !With complex walkers, things are a little more tricky.
@@ -1697,6 +1712,17 @@ MODULE FciMCParMod
 
             ! Avoid compiler warnings
             iUnused = part_type
+
+            if(tFillingRDMonFly.and.tStochasticRDM.and.tAllSpawnAttemptsRDM) then
+
+                RDMBiasFacI = abs( prob / tau ) 
+
+            elseif(tFillingRDMonFly.and.tStochasticRDM.and.(child(1).ne.0)) then
+!                WRITE(6,*) 'prob',prob
+!                WRITE(6,*) 'real(rh,dp)',real(rh , dp)
+!                WRITE(6,*) 'tau',tau
+                RDMBiasFacI = abs( prob / ( real(rh , dp) * tau ) )
+            endif
 
 #endif
         ! Avoid compiler warnings
@@ -3414,7 +3440,6 @@ MODULE FciMCParMod
         use DetBitOps, only: CountBits
         use constants, only: bits_n_int
         use util_mod, only: get_free_unit
-        use nElRDMMod, only: InitRDM
         use HPHFRandExcitMod, only: ReturnAlphaOpenDet
         use sym_mod
         use HElem
@@ -4120,8 +4145,6 @@ MODULE FciMCParMod
             WRITE(6,*) "Initial number of walkers per processor chosen to be: ", InitWalkers
         ENDIF
 
-        IF(tRDMonFly) CALL InitRDM()
-
     END SUBROUTINE SetupParameters
 
     SUBROUTINE CheckforBrillouins()
@@ -4663,7 +4686,7 @@ MODULE FciMCParMod
         exflag=3
 
         do while (.not.tAllExcitFound)
-            CALL GenExcitations3(HFDet,iLutHF,nJ,exflag,ExcitMat3,tParity,tAllExcitFound)
+            CALL GenExcitations3(HFDet,iLutHF,nJ,exflag,ExcitMat3,tParity,tAllExcitFound,.false.)
             IF(tAllExcitFound) EXIT
             DoublesDets(1:NEl,VecSlot)=nJ(:)
             VecSlot=VecSlot+1
@@ -4933,6 +4956,7 @@ MODULE FciMCParMod
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil
         use constants , only : size_n_int
         use DeterminantData , only : write_det
+        use nElRDMMod, only: InitRDM
         INTEGER :: ierr,iunithead
         LOGICAL :: formpops,binpops
         INTEGER :: error,MemoryAlloc,PopsVersion,WalkerListSize,j
@@ -5006,11 +5030,18 @@ MODULE FciMCParMod
             
 
             WRITE(6,"(A,I12,A)") " Spawning vectors allowing for a total of ",MaxSpawned," particles to be spawned in any one iteration per core."
-            ALLOCATE(SpawnVec(0:((2*NIftot)+1),MaxSpawned),stat=ierr)
-            CALL LogMemAlloc('SpawnVec',MaxSpawned*((2*NIfTot)+2),size_n_int,this_routine,SpawnVecTag,ierr)
+            IF(tRDMonFly.and.tStochasticRDM) THEN
+                ALLOCATE(SpawnVec(0:(NIftot+NIfDBO+2),MaxSpawned),stat=ierr)
+                CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+NIfDBO+3),size_n_int,this_routine,SpawnVecTag,ierr)
+                ALLOCATE(SpawnVec2(0:(NIfTot+NIfDBO+2),MaxSpawned),stat=ierr)
+                CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NIfTot+NIfDBO+3),size_n_int,this_routine,SpawnVec2Tag,ierr)
+            ELSE
+                ALLOCATE(SpawnVec(0:NIftot,MaxSpawned),stat=ierr)
+                CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVecTag,ierr)
+                ALLOCATE(SpawnVec2(0:NIfTot,MaxSpawned),stat=ierr)
+                CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVec2Tag,ierr)
+            ENDIF
             SpawnVec(:,:)=0
-            ALLOCATE(SpawnVec2(0:((2*NIfTot)+1),MaxSpawned),stat=ierr)
-            CALL LogMemAlloc('SpawnVec2',MaxSpawned*((2*NIfTot)+1),size_n_int,this_routine,SpawnVec2Tag,ierr)
             SpawnVec2(:,:)=0
 
 !Point at correct spawning arrays
@@ -5209,6 +5240,12 @@ MODULE FciMCParMod
                                                                                     & calculation.  Ordering of orbitals is incorrect.  This may be fixed if needed.")
         
         if(tSpawn_Only_Init .and. (.not.tTruncInitiator)) CALL Stop_All(this_routine,"Cannot use the SPAWNONLYINIT option without the TRUNCINITIATOR option.")
+
+        IF(tRDMonFly) THEN
+            CALL InitRDM()
+            tFillingRDMonFly = .false.      
+            !This becomes true when we have reached the relevant iteration to begin filling the RDM.
+        ENDIF
 
     end subroutine InitFCIMCCalcPar
 

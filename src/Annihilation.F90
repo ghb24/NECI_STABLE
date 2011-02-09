@@ -22,7 +22,9 @@ MODULE AnnihilationMod
                         extract_part_sign, copy_flag
     use csf_data, only: csf_orbital_mask
     use hist_data, only: tHistSpawn, HistMinInd2
+    use Logging , only : tStochasticRDM
     IMPLICIT NONE
+    integer :: Beginning_Parent_Array_Ind, Parent_Array_Ind, No_Spawned_Parents
 
     contains
 
@@ -75,9 +77,9 @@ MODULE AnnihilationMod
         call MPIBarrier(ierr)
         IF(.not.(ASSOCIATED(SpawnVecLocal))) THEN
 !This is required scratch space of the size of the spawned arrays
-            call shared_allocate_iluts("SpawnVecLocal",SpawnVecLocal,(/((2*NIfTot)+1),MaxSpawnInd/),iNodeIndex)
+            call shared_allocate_iluts("SpawnVecLocal",SpawnVecLocal,(/(NIfTot+NIfDBO+2),MaxSpawnInd/),iNodeIndex)
             ierr=0
-            CALL LogMemAlloc('SpawnVecLocal',MaxSpawnInd*((2*NIfTot)+2),size_n_int,this_routine,SpawnVec2Tag,ierr)
+            CALL LogMemAlloc('SpawnVecLocal',MaxSpawnInd*(NIfTot+NIfDBO+3),size_n_int,this_routine,SpawnVec2Tag,ierr)
             call MPIBarrier(ierr)
 !            SpawnVecLocal(:,:)=0
 !            ALLOCATE(SpawnSignVec2(0:MaxSpawnInd),stat=ierr)
@@ -141,7 +143,7 @@ MODULE AnnihilationMod
         INTEGER :: MaxIndex,ierr
         INTEGER(Kind=n_int) , POINTER :: PointTemp(:,:)
         logical, intent(in) :: tSingleProc
-         
+        INTEGER :: i !dmc52
 
 !        WRITE(6,*) "Direct annihilation"
 !        CALL FLUSH(6)
@@ -191,6 +193,7 @@ MODULE AnnihilationMod
 !This routine is used for sending the determinants to the correct processors. 
     SUBROUTINE SendProcNewParts(MaxIndex,tSingleProc)
         use constants, only: MpiDetInt
+        use logging , only : tRDMonFly
         REAL :: Gap
         INTEGER :: i,sendcounts(nProcessors),disps(nProcessors),recvcounts(nProcessors),recvdisps(nProcessors),error
         INTEGER :: MaxSendIndex
@@ -245,12 +248,21 @@ MODULE AnnihilationMod
             recvdisps(i)=recvdisps(i-1)+recvcounts(i-1)
         enddo
         MaxIndex=recvdisps(nProcessors)+recvcounts(nProcessors)
-        do i=1,nProcessors
-            recvdisps(i)=recvdisps(i)*(NIfTot+1)
-            recvcounts(i)=recvcounts(i)*(NIfTot+1)
-            sendcounts(i)=sendcounts(i)*(NIfTot+1)
-            disps(i)=disps(i)*(NIfTot+1)
-        enddo
+        IF(tRDMonFly.and.tStochasticRDM) THEN
+            do i=1,nProcessors
+                recvdisps(i)=recvdisps(i)*(NIfTot+NIfDBO+3)
+                recvcounts(i)=recvcounts(i)*(NIfTot+NIfDBO+3)
+                sendcounts(i)=sendcounts(i)*(NIfTot+NIfDBO+3)
+                disps(i)=disps(i)*(NIfTot+NIfDBO+3)
+            enddo
+        ELSE
+            do i=1,nProcessors
+                recvdisps(i)=recvdisps(i)*(NIfTot+1)
+                recvcounts(i)=recvcounts(i)*(NIfTot+1)
+                sendcounts(i)=sendcounts(i)*(NIfTot+1)
+                disps(i)=disps(i)*(NIfTot+1)
+            enddo
+        ENDIF
 
 !Max index is the largest occupied index in the array of hashes to be ordered in each processor 
         IF(MaxIndex.gt.(0.9*MaxSpawned)) THEN
@@ -315,7 +327,14 @@ MODULE AnnihilationMod
 !They should remain sorted after annihilation between spawned
         if(.not.bNodeRoot) return
 !        call WriteExcitorListP(6,SpawnedParts,0,ValidSpawned,0,"UnOrdered")
+
+!        IF(tFillingRDMonFly) THEN
+!            WRITE(6,*) 'before sort'
+!            call flush(6)
+!        ENDIF
+
         call sort(SpawnedParts(:,1:ValidSpawned), ilut_lt, ilut_gt)
+
         IF(tHistSpawn) HistMinInd2(1:NEl)=FCIDetIndex(1:NEl)
 
 !        call WriteExcitorListP(6,SpawnedParts,0,ValidSpawned,0,"Ordered")
@@ -334,25 +353,48 @@ MODULE AnnihilationMod
         !BeginningBlockDet will indicate the index of the first entry for a given determinant in SpawnedParts
         BeginningBlockDet=1         
         DetsMerged=0
+        Parent_Array_Ind = 1
+
         do while(BeginningBlockDet.le.ValidSpawned)
             !loop in blocks of the same determinant to the end of the list of walkers
 
             FirstInitIndex=0
             CurrentBlockDet=BeginningBlockDet+1
 
+!            IF(tFillingRDMonFly) THEN
+!                WRITE(6,*) 'SpawnedParts(0:NIfTot,BeginningBlockDet)',SpawnedParts(0:NIfTot,BeginningBlockDet)
+!                WRITE(6,*) 'SpawnedParts(0:NIfTot,CurrentBlockDet)',SpawnedParts(0:NIfTot,CurrentBlockDet)
+!            ENDIF
+
             do while(CurrentBlockDet.le.ValidSpawned)
-                if(.not.(DetBitEQ(SpawnedParts(:,BeginningBlockDet),SpawnedParts(:,CurrentBlockDet),NIfDBO))) exit
+                if(.not.(DetBitEQ(SpawnedParts(0:NIfTot,BeginningBlockDet),SpawnedParts(0:NIfTot,CurrentBlockDet),NIfDBO))) exit
                 !loop over walkers on the same determinant in SpawnedParts
                 CurrentBlockDet=CurrentBlockDet+1
             enddo
 
+!            IF(tFillingRDMonFly) WRITE(6,*) 'BeginningBlockDet',BeginningBlockDet
+
             EndBlockDet=CurrentBlockDet-1 !EndBlockDet indicates that we have reached the end of the block of similar dets
 !            WRITE(6,*) "Found Block: ",BeginningBlockDet," -> ",EndBlockDet
+
+!            IF(tFillingRDMonFly) WRITE(6,*) 'EndBlockDet',EndBlockDet
 
             if(EndBlockDet.eq.BeginningBlockDet) then
                 !Optimisation: This block only consists of one entry. Simply copy it across rather than 
                 !               explicitly searching the list.
+!                IF(tFillingRDMonFly) WRITE(6,*) 'SpawnedParts(:,BeginningBlockDet)',SpawnedParts(:,BeginningBlockDet)
                 SpawnedParts2(:,VecInd)=SpawnedParts(:,BeginningBlockDet)   !Transfer all info to the other array
+!                IF(tFillingRDMonFly) WRITE(6,*) 'SpawnedParts2(:,VecInd)',VecInd,SpawnedParts2(:,VecInd)
+
+                IF(tFillingRDMonFly.and.tStochasticRDM) THEN
+                    Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = SpawnedParts(NIfTot+1:NIfTot+NIfDBO+2,BeginningBlockDet)
+                    !The first NIfDBO of this is the parent determinant, NIfDBO + 1 entry is the p_gen.
+!                    IF(tFillingRDMonFly) WRITE(6,*) 'Spawned_Parents',Parent_Array_Ind,Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) !dmc52
+                    Spawned_Parents_Index(1,VecInd) = Parent_Array_Ind
+                    Spawned_Parents_Index(2,VecInd) = 1
+!                    IF(tFillingRDMonFly) WRITE(6,*) 'Spawned_Parents_Index',VecInd,Spawned_Parents_Index(:,VecInd) !dmc52
+                    Parent_Array_Ind = Parent_Array_Ind + 1
+                ENDIF
                 VecInd=VecInd+1
                 BeginningBlockDet=CurrentBlockDet           !Move onto the next block of determinants
                 CYCLE   !Skip the rest of this block
@@ -361,6 +403,9 @@ MODULE AnnihilationMod
             ! Reset the cumulative determinant
             cum_det = 0
             cum_det (0:nifdbo) = SpawnedParts(0:nifdbo, BeginningBlockDet)
+            Beginning_Parent_Array_Ind = Parent_Array_Ind
+            Spawned_Parents_Index(2,VecInd) = 0
+
             do part_type=1,lenof_sign   !Annihilate in this block seperately for real and imag walkers
 
                 ! How many of either real/imaginary spawns are there onto each det
@@ -379,7 +424,7 @@ MODULE AnnihilationMod
                                 call extract_sign (SpawnedParts(:,BeginningBlockDet), temp_sign)
                                 call HistAnnihilEvent(SpawnedParts, SpawnedSign, temp_sign, part_type)
                             endif
-                            call FindResidualParticle (cum_det, SpawnedParts(:,i), cum_count, part_type, iter_data)
+                            call FindResidualParticle (cum_det, SpawnedParts(:,i), cum_count, part_type, iter_data, VecInd)
                         endif
                     enddo
                 endif
@@ -401,7 +446,7 @@ MODULE AnnihilationMod
                             call extract_sign (SpawnedParts(:,BeginningBlockDet), temp_sign)
                             call HistAnnihilEvent (SpawnedParts, SpawnedSign, temp_sign, part_type)
                         endif
-                        call FindResidualParticle (cum_det, SpawnedParts(:,i), cum_count, part_type, iter_data)
+                        call FindResidualParticle (cum_det, SpawnedParts(:,i), cum_count, part_type, iter_data, VecInd)
                     endif
                 enddo
 
@@ -409,38 +454,67 @@ MODULE AnnihilationMod
 
             ! Copy details into the final array
             call extract_sign (cum_det, temp_sign)
+
             if (sum(abs(temp_sign)) > 0) then
                 ! Transfer all ino into the other array.
-                SpawnedParts2(:,VecInd) = cum_det
+                SpawnedParts2(0:NIfTot,VecInd) = cum_det(0:NIfTot)
                 VecInd = VecInd + 1
                 DetsMerged = DetsMerged + EndBlockDet - BeginningBlockDet
             else
                 ! All particles from block have been annihilated.
                 DetsMerged = DetsMerged + EndBlockDet - BeginningBlockDet + 1
+                ! This spawned entry will be removed - don't want to store any parents.
+                ! Reset Parent_Array_Ind so that the parents will be written over.
+                if(tFillingRDMonFly.and.tStochasticRDM) Parent_Array_Ind = Beginning_Parent_Array_Ind
             endif
 
             BeginningBlockDet=CurrentBlockDet           !Move onto the next block of determinants
 
         enddo   
 
+        No_Spawned_Parents = Parent_Array_Ind - 1
         ValidSpawned=ValidSpawned-DetsMerged    !This is the new number of unique spawned determinants on the processor
         IF(ValidSpawned.ne.(VecInd-1)) THEN
             CALL Stop_All(this_routine,"Error in compression of spawned list")
         ENDIF
+
+!        IF(tFillingRDMonFly) THEN
+!            do i = 1, ValidSpawned
+!                WRITE(6,*) SpawnedParts2(:,i)
+!            enddo
+!        ENDIF
 
 !Want the compressed list in spawnedparts at the end of it - swap pointers around.
         PointTemp => SpawnedParts2
         SpawnedParts2 => SpawnedParts
         SpawnedParts => PointTemp
 
+
+!        IF(tFillingRDMonFly) THEN
+!            WRITE(6,*) 'Parents'
+!            do i = 1, No_Spawned_Parents
+!                WRITE(6,*) Spawned_Parents(:,i)
+!            enddo
+!
+!            WRITE(6,*) 'Index'
+!            do i = 1, No_Spawned_Parents
+!                WRITE(6,*) Spawned_Parents_Index(:,i)
+!            enddo
+!        ENDIF
+
+
+        
+
 !        WRITE(6,*) "************************"
 !        call WriteExcitorListP(6,SpawnedParts,0,ValidSpawned,0,"Compressed Spawned")
 
 
-!!        WRITE(6,*) "Compressed List: ",ValidSpawned,DetsMerged
-!!        do i=1,ValidSpawned
-!!            WRITE(6,*) SpawnedParts(0:NIfTot-1,i),SpawnedParts(NIfTot,i)-2
-!!        enddo
+!        IF(tFillingRDMonFly) THEN
+!            WRITE(6,*) "Compressed List: ",ValidSpawned,DetsMerged
+!            do i=1,ValidSpawned
+!                WRITE(6,*) SpawnedParts(0:NIfTot-1,i),SpawnedParts(NIfTot,i)-2
+!            enddo
+!        ENDIF       !dmc52
 !!        WRITE(6,*) "************************"
 !!        WRITE(6,*) "Compressed List: ",ValidSpawned,DetsMerged
 !!        do i=1,ValidSpawned
@@ -490,7 +564,7 @@ MODULE AnnihilationMod
     !This deals with real and imaginary signs seperately, and so the 'signs' are integers.
 
     subroutine FindResidualParticle (cum_det, new_det, cum_count, part_type, &
-                                     iter_data)
+                                     iter_data, Spawned_No)
 
         ! This routine is called whilst compressing the spawned list during
         ! annihilation. It considers the sign and flags from two particles
@@ -501,11 +575,15 @@ MODULE AnnihilationMod
         ! --> Should be called for real/imaginary particles seperately
 
         integer(n_int), intent(inout) :: cum_det(0:nIfTot)
-        integer(n_int), intent(in) :: new_det(0:niftot)
+        integer(n_int), intent(in) :: new_det(0:niftot+nifdbo+2)
         integer, intent(inout) :: cum_count
         integer, intent(in) :: part_type
         type(fcimc_iter_data), intent(inout) :: iter_data
-        integer :: new_sgn, cum_sgn, sgn_prod
+        integer :: new_sgn, cum_sgn, sgn_prod, Spawned_No
+
+!        IF(tFillingRDMonFly) THEN
+!            WRITE(6,*) 'in findresidual'
+!        ENDIF
 
         ! Obtain the signs and sign product. Ignore new particel if zero.
         new_sgn = extract_part_sign (new_det, part_type)
@@ -573,6 +651,23 @@ MODULE AnnihilationMod
         ! Update the cumulative sign count
         call encode_part_sign (cum_det, cum_sgn + new_sgn, part_type)
 
+        if(tFillingRDMonFly.and.tStochasticRDM) then
+!            WRITE(6,*) 'new_det',new_det
+!            WRITE(6,*) 'Parent_Array_Ind',Parent_Array_Ind
+!            WRITE(6,*) 'new_det(NIfTot+1:NIfTot+NIfDBO+2)',new_det(NIfTot+1:NIfTot+NIfDBO+2)
+!            call flush(6)
+!            WRITE(6,*) 'Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind)',Spawned_Parents(:,Parent_Array_Ind)
+!            call flush(6)
+            Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = new_det(NIfTot+1:NIfTot+NIfDBO+2)
+!            WRITE(6,*) 'Parent_Array_Ind',Parent_Array_Ind
+!            WRITE(6,*) 'Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind)',Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind)
+!            call flush(6)
+            if(sgn_prod .eq. 0) Spawned_Parents_Index(1,Spawned_No) = Beginning_Parent_Array_Ind
+            Spawned_Parents_Index(2,Spawned_No) = Spawned_Parents_Index(2,Spawned_No) + 1
+!            WRITE(6,*) 'Spawned_Parents_Index(:,Spawned_No)',Spawned_Parents_Index(:,Spawned_No)
+            Parent_Array_Ind = Parent_Array_Ind + 1
+        endif
+
     end subroutine FindResidualParticle
 
     
@@ -582,6 +677,7 @@ MODULE AnnihilationMod
 !to the whole list of spawned particles at the end of the routine.
 !In the main list, we change the 'sign' element of the array to zero. These will be deleted at the end of the total annihilation step.
     SUBROUTINE AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew, iter_data)
+        use nElRDMMod , only : DiDj_Found_FillRDM
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer, intent(in) :: TotWalkersNew
         integer, intent(inout) :: ValidSpawned 
@@ -621,6 +717,7 @@ MODULE AnnihilationMod
 !                write(6,"(I5)",advance='no') i
 !                call WriteBitDet(6,SpawnedParts(:,i),.true.)
 !             enddo
+
         CALL set_timer(BinSearch_time,45)
 
         do i=1,ValidSpawned
@@ -633,10 +730,11 @@ MODULE AnnihilationMod
 !               write(6,"(I5)",advance='no') j 
 !               call WriteBitDet(6,CurrentDets(:,j),.true.)
 !            enddo
-            CALL BinSearchParts(SpawnedParts(:,i),MinInd,TotWalkersNew,PartInd,tSuccess)
+            CALL BinSearchParts(SpawnedParts(0:NIfDBO,i),MinInd,TotWalkersNew,PartInd,tSuccess)
 !            WRITE(6,"(A,2I6,L)",advance="no") "Binary search complete: ",i,PartInd,tSuccess
 !            call WriteBitDet(6,SpawnedParts(:,i),.true.)
 !            call WriteBitDet(6,CurrentDets(:,PartInd),.true.)
+!            IF(tFillingRDMonFly) WRITE(6,*) 'SpawnedParts(:,i)',SpawnedParts(:,i)
 
             IF(tSuccess) THEN
 !                SearchInd=PartInd   !This can actually be min(1,PartInd-1) once we know that the binary search is working, as we know that PartInd is the same particle.
@@ -645,7 +743,10 @@ MODULE AnnihilationMod
 !                WRITE(6,'(3I20,A,3I20)') SpawnedParts(:,i),' equals ',CurrentDets(:,PartInd)
                 call extract_sign(CurrentDets(:,PartInd),CurrentSign)
                 call extract_sign(SpawnedParts(:,i),SpawnedSign)
+
                 SignProd=CurrentSign*SpawnedSign
+
+                IF(tFillingRDMonFly.and.tStochasticRDM) CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign)
 
                 !Transfer across
                 call encode_sign(CurrentDets(:,PartInd),SpawnedSign+CurrentSign)
@@ -814,6 +915,8 @@ MODULE AnnihilationMod
 !        enddo
 
         CALL halt_timer(AnnMain_time)
+
+!        IF(tFillingRDMonFly) call stop_all('','') !dmc52
 
     END SUBROUTINE AnnihilateSpawnedParts
 
