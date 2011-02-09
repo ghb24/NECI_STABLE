@@ -64,7 +64,7 @@ MODULE FciMCParMod
                     test_add_hist_spin_dist_det, add_hist_energies, &
                     add_hist_spawn, tHistSpawn, AllHistogramEnergy, &
                     AllHistogram, HistogramEnergy, Histogram, AllInstHist, &
-                    InstHist, HistMinInd
+                    InstHist, HistMinInd, project_spins
     USE SymData , only : nSymLabels
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE Parallel
@@ -191,6 +191,8 @@ MODULE FciMCParMod
 !            ENDIF
 
             if (mod(Iter, StepsSft) == 0) then
+
+                call  project_spins ()
 
                 ! Has there been a particle bloom this update cycle?
                 if(iProcIndex.eq.Root) then

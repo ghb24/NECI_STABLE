@@ -1110,7 +1110,7 @@ contains
         integer npos, csf, ncsf, ncsf_next
 
         ! Empty Yamanouchi symbol of nopen == 0.
-        if (nopen == 0) return
+        if (nopen == 0 .or. ncsf_max == 0) return
 
         ! Walk through tree. Start at elec == nopen, and walk back through
         ! tree taking all possible routes (branch at every point where there
@@ -1695,6 +1695,45 @@ contains
         s_final = nopen_min
 
     end function
+
+    subroutine extract_dorder (nI, dorder, nopen)
+
+        ! Return the dorder and the number of unpaired electrons in a
+        ! determinant
+        !
+        ! In:  nI     - integer, ordered representation of det
+        ! Out: dorder - Ordered list of alpha/beta for unpaired electrons.
+        !               alpha == 0, beta == 1
+        !      nopen  - Number of unpaired electrons in nI
+
+        integer, intent(in) :: nI(nel)
+        integer, intent(out) :: dorder(nel), nopen
+
+        integer :: i
+
+        nopen = 0
+        i = 1
+        do while (i <= nel)
+            if (is_beta(nI(i)) .and. i < nel) then
+                if (is_in_pair(nI(i), nI(i+1))) then
+                    i = i + 2
+                    cycle
+                endif
+            endif
+
+            nopen = nopen + 1
+            if (is_alpha(nI(i))) then
+                dorder(nopen) = 0
+            else
+                dorder(nopen) = 1
+            endif
+
+            i = i + 1
+        enddo
+
+    end subroutine
+
+
 
 end module
 

@@ -11,14 +11,15 @@ module hist
                          DetBitEq
     use CalcData, only: tFCIMC
     use DetCalcData, only: FCIDetIndex, det
-    use FciMCData, only: tFlippedSign
+    use FciMCData, only: tFlippedSign, TotWalkers, CurrentDets, iter
     use util_mod, only: choose, get_free_unit, binary_search
     use HPHFRandExcitMod, only: FindExcitBitDetSym
     use constants, only: n_int, bits_n_int, size_n_int, lenof_sign
     use bit_rep_data, only: NIfTot, NIfD
-    use bit_reps, only: extract_sign, encode_sign
+    use bit_reps, only: extract_sign, encode_sign, extract_bit_rep
     use parallel
-    use csf, only: get_num_csfs, csf_coeff, csf_get_yamas, write_yama
+    use csf, only: get_num_csfs, csf_coeff, csf_get_yamas, write_yama, &
+                   extract_dorder
     use hist_data
 
     implicit none
@@ -402,6 +403,69 @@ contains
                          &arrays can cope with. Increase iNoBins or BinRange")
         HistogramEnergy(bin) = HistogramEnergy(bin) + real(sum(abs(sgn)),dp)
 
+    end subroutine
+
+
+    subroutine project_spins ()
+
+        ! Sum the squares of all of the components.
+
+        real(dp) :: spin_cpts (0:nel), norm
+        integer :: j, nup, S, flg, ncsf, nopen
+        integer :: nI(nel), sgn(lenof_sign), dorder(nel)
+
+        ! Initially, have no component on any of the spins
+        spin_cpts = 0
+
+        do j = 1, TotWalkers
+
+            ! Extract the current walker
+            call extract_bit_rep (CurrentDets(:,j), nI, sgn, flg)
+            call extract_dorder (nI, dorder, nopen)
+            nup = (nopen + LMS) / 2
+
+            do S = LMS, nopen
+
+                ! How many csfs are there?
+                ncsf = get_num_csfs (nopen, S)
+                call sum_cpts_S (spin_cpts, dorder(1:nopen), ncsf, nopen, &
+                                 sgn, S)
+            enddo
+
+        enddo
+
+        call MPISum_inplace (spin_cpts)
+
+        if (iProcIndex == Root) then
+            norm = sum(spin_cpts)
+            spin_cpts = sqrt(spin_cpts / norm)
+
+            write(6,'(a,i8,13f15.10)') 'spn: ', iter, spin_cpts
+        endif
+
+
+    end subroutine
+    
+    subroutine sum_cpts_S (spin_cpts, dorder, ncsf, nopen, sgn, S)
+
+        real(dp), intent(inout) :: spin_cpts(0:nel)
+        integer, intent(in) :: ncsf, nopen, S
+        integer, intent(in) :: dorder(1:nopen), sgn(lenof_sign)
+        integer :: yamas(ncsf, nopen), y
+        real(dp) :: coeff
+
+        call csf_get_yamas (nopen, S, yamas, ncsf)
+
+        ! Iterate through the yamas, and collect coeffs.
+        ! TODO: Reorder (yamas(ncsf, nopen) --> yamas(nopen, ncsf)
+        do y = 1, ncsf
+
+            coeff = csf_coeff (yamas(y,:), dorder, nopen)
+            coeff = (coeff * sgn(1)) ** 2
+            spin_cpts (S) = spin_cpts(S) + coeff
+
+        enddo
+    
     end subroutine
 
 end module
