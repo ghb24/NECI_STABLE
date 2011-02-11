@@ -29,8 +29,9 @@ MODULE FciMCData
       INTEGER(KIND=n_int) , ALLOCATABLE :: Spawned_Parents(:,:)
       INTEGER , ALLOCATABLE :: Spawned_Parents_Index(:,:)
       INTEGER :: Spawned_ParentsTag, Spawned_Parents_IndexTag
-      REAL*8 :: RDMBiasFacI
+      INTEGER :: RDMBiasFacI
       LOGICAL :: tFillingRDMonFly
+      integer, dimension(lenof_sign) :: HFSign
 
       ! Be able to store a list of the current initiators
       integer(n_int), allocatable :: CurrentInits(:,:)

@@ -94,7 +94,9 @@ MODULE FciMCParMod
                             iter_data_spin_proj, test_spin_proj, &
                             spin_proj_shift, spin_proj_iter_count
     use symrandexcit3, only: gen_rand_excit3, test_sym_excit3
-    use nElRDMMod, only: FinaliseRDM,FillRDMthisIter,calc_energy_from_rdm,fill_diag_rdm
+    use nElRDMMod, only: FinaliseRDM,FillRDMthisIter,calc_energy_from_rdm,fill_diag_rdm, &
+                         fill_sings_rdm, fill_doubs_rdm
+
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
 #endif
@@ -830,7 +832,29 @@ MODULE FciMCParMod
             endif
 
             if(tFillingRDMonFly.and.tStochasticRDM) then
+
+!                WRITE(6,*) 'DetCurr',DetCurr
+!                WRITE(6,*) 'SignCurr',SignCurr
                 call Fill_Diag_RDM(DetCurr, SignCurr, .true.)
+                
+!                if(walkExcitLevel.eq.1) then
+!                    Ex(:,:) = 0
+!                    Ex(1,1) = 1
+!                    tParity = .false.
+!                    call GetExcitation(HFDet,DetCurr,NEl,Ex,tParity)
+!                    
+!                    call Fill_Sings_RDM(HFDet,Ex,tParity,real(HFSign(1)),real(SignCurr(1)))
+!
+!                elseif(walkExcitLevel.eq.2) then
+!                    Ex(:,:) = 0
+!                    Ex(1,1) = 2
+!                    tParity = .false.
+! 
+!                    call GetExcitation(HFDet,DetCurr,NEl,Ex,tParity)
+!
+!                    call Fill_Doubs_RDM(Ex,tParity,real(HFSign(1)),real(SignCurr(1)))
+!                endif
+
             endif
 
             ! Sum in any energy contribution from the determinant, including 
@@ -865,10 +889,18 @@ MODULE FciMCParMod
                     ! data gets through.
                     ilutnJ = 0
 
+!                    IF(tFillingRDMonFly) THEN
+!                        IF(DetBitEQ(CurrentDets(:,j),iLutHF,NIfDBO)) THEN
+!                            WRITE(6,*) '********'
+!                            WRITE(6,*) 'DetCurr',DetCurr
+!                        ENDIF
+!                    ENDIF
+
                     ! Generate a (random) excitation
                     call generate_excitation (DetCurr, CurrentDets(:,j), nJ, &
                                    ilutnJ, exFlag, IC, ex, tParity, prob, &
                                    HElGen, fcimc_excit_gen_store)
+
 
                     ! If a valid excitation, see if we should spawn children.
                     if (.not. IsNullDet(nJ)) then
@@ -879,11 +911,12 @@ MODULE FciMCParMod
                     else
                         child = 0
                     endif
-                    
+
                     ! Children have been chosen to be spawned.
-                    if ((any(child /= 0)).or.tAllSpawnAttemptsRDM) then
+                    if ((any(child /= 0)).or.(tAllSpawnAttemptsRDM.and.tFillingRDMonFly.and.(.not.IsNullDet(nJ)))) then
                         ! We know we want to create a particle of this type.
                         ! Encode the bit representation if it isn't already.
+
                         call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
 
                         call new_child_stats (iter_data, CurrentDets(:,j), &
@@ -892,8 +925,8 @@ MODULE FciMCParMod
 
                         call create_particle (nJ, iLutnJ, child, &
                                               parent_flags, part_type,& 
-                                              CurrentDets(:,j))
-                    
+                                              CurrentDets(:,j), SignCurr)
+
                     endif ! (child /= 0). Child created
 
                 enddo ! Cycling over mulitple particles on same determinant.
@@ -919,6 +952,11 @@ MODULE FciMCParMod
         ! walkers should be in a seperate array (SpawnedParts) and the other 
         ! list should be ordered.
         call set_timer (annihil_time, 30)
+
+!        WRITE(6,*) 'Spawned before annihilation'
+!        do j = 1, ValidSpawnedList(iProcIndex)-1
+!            WRITE(6,*) SpawnedParts(:,j)
+!        enddo
 
         call DirectAnnihilation (totWalkersNew, iter_data,.false.) !.false. for not single processor
         TotWalkers=TotWalkersNew
@@ -1028,7 +1066,7 @@ MODULE FciMCParMod
 
     end subroutine
                         
-    subroutine create_particle (nJ, iLutJ, child, parent_flags, part_type, iLutI)
+    subroutine create_particle (nJ, iLutJ, child, parent_flags, part_type, iLutI, SignI)
 
         ! Create a child in the spawned particles arrays. We spawn particles
         ! into a separate array, but non-contiguously. The processor that the
@@ -1043,6 +1081,7 @@ MODULE FciMCParMod
         integer, intent(in) :: parent_flags
         ! 'type' of the particle - i.e. real/imag
         integer, intent(in) :: part_type
+        integer, dimension(lenof_sign), intent(in) :: SignI
         integer :: proc, flags, j, BiasFac
         logical :: parent_init
 
@@ -1050,6 +1089,10 @@ MODULE FciMCParMod
         ! We need to include any flags set both from the parent and from the
         ! spawning steps
         flags = ior(parent_flags, extract_flags(ilutJ))
+
+!        WRITE(6,*) 'Encoding',iLutJ
+!        WRITE(6,*) 'To position',ValidSpawnedList(proc)
+!        WRITE(6,*) 'Parent',iLutI
 
         call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ, &
                             child, flags)
@@ -1059,9 +1102,12 @@ MODULE FciMCParMod
 !            WRITE(6,*) 'iLutJ',ilutj
             SpawnedParts(niftot+1:niftot+nifdbo+1, ValidSpawnedList(proc)) = iLutI(0:nifdbo) 
 !            WRITE(6,*) 'RDMBiasFacI',RDMBiasFacI
-            SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)) = NINT(RDMBiasFacI*(10.D0**5.D0))
+            SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)) = RDMBiasFacI
 !            WRITE(6,*) 'NINT(RDMBiasFacI*(10.D0**8.D0))',NINT(RDMBiasFacI*(10.D0**5.D0))
-!            WRITE(6,*) 'SpawnedParts(:,ValidSpawnedList(proc))',SpawnedParts(:,ValidSpawnedList(proc))
+!            IF(DetBitEQ(iLutI,iLutHF,NIfDBO)) THEN
+!                WRITE(6,*) 'ValidSpawnedList(proc)',ValidSpawnedList(proc)
+!                WRITE(6,*) 'SpawnedParts(:,ValidSpawnedList(proc))',SpawnedParts(:,ValidSpawnedList(proc))
+!            ENDIF
         ENDIF
 
         IF(lenof_sign.eq.2) THEN
@@ -1715,13 +1761,28 @@ MODULE FciMCParMod
 
             if(tFillingRDMonFly.and.tStochasticRDM.and.tAllSpawnAttemptsRDM) then
 
-                RDMBiasFacI = abs( prob / tau ) 
+                RDMBiasFacI = NINT( (abs( 1.D0 /  ( prob * 2.D0) )) * (10.D0**3.D0) )
+!                RDMBiasFacI = NINT( (abs( prob / tau )) * (10.D0**6.D0) )
+                IF(RDMBiasFacI.lt.0) CALL Stop_All('attempt_create_normal','Integer overflow with Bias Factor.')
+                IF(wSign(1).lt.0) RDMBiasFacI = RDMBiasFacI * (-1.D0)
+
+!                IF((nJ(1).eq.1).and.(nJ(2).eq.2).and.(nJ(3).eq.11)) THEN
+!                    WRITE(6,*) '* Det of interest'
+!                    WRITE(6,*) 'nI',DetCurr
+!                    WRITE(6,*) 'nJ',nJ
+!                    WRITE(6,*) 'child',child
+!                    WRITE(6,*) 'H element',real(rh, dp)
+!                ENDIF
 
             elseif(tFillingRDMonFly.and.tStochasticRDM.and.(child(1).ne.0)) then
 !                WRITE(6,*) 'prob',prob
 !                WRITE(6,*) 'real(rh,dp)',real(rh , dp)
 !                WRITE(6,*) 'tau',tau
-                RDMBiasFacI = abs( prob / ( real(rh , dp) * tau ) )
+!                WRITE(6,*) 'Original Sign of parent',abs( prob / ( real(rh , dp) * tau ) )
+!                RDMBiasFacI = NINT( ( abs( prob / ( real(rh , dp) * tau ) ) ) * (10.D0**3.D0) )
+                RDMBiasFacI = NINT( ( abs( 1.D0 / ( real(rh , dp) * tau * 2.D0) ) ) * (10.D0**2.D0) )
+                IF(RDMBiasFacI.lt.0) CALL Stop_All('attempt_create_normal','Integer overflow with Bias Factor.')
+                IF(wSign(1).lt.0) RDMBiasFacI = RDMBiasFacI * (-1.D0)
             endif
 
 #endif
@@ -5245,6 +5306,8 @@ MODULE FciMCParMod
             CALL InitRDM()
             tFillingRDMonFly = .false.      
             !This becomes true when we have reached the relevant iteration to begin filling the RDM.
+            HFSign(1) = 1
+            CALL MPIBCast(HFSign,lenof_sign)
         ENDIF
 
     end subroutine InitFCIMCCalcPar

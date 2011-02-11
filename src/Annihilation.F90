@@ -22,7 +22,7 @@ MODULE AnnihilationMod
                         extract_part_sign, copy_flag
     use csf_data, only: csf_orbital_mask
     use hist_data, only: tHistSpawn, HistMinInd2
-    use Logging , only : tStochasticRDM
+    use Logging , only : tStochasticRDM, tAllSpawnAttemptsRDM
     IMPLICIT NONE
     integer :: Beginning_Parent_Array_Ind, Parent_Array_Ind, No_Spawned_Parents
 
@@ -316,7 +316,7 @@ MODULE AnnihilationMod
     SUBROUTINE CompressSpawnedList(ValidSpawned, iter_data)
         type(fcimc_iter_data), intent(inout) :: iter_data
         INTEGER :: VecInd,ValidSpawned,DetsMerged,i,BeginningBlockDet,FirstInitIndex,CurrentBlockDet
-        integer :: EndBlockDet, part_type, StartCycleInit, cum_count
+        integer :: EndBlockDet, part_type, StartCycleInit, cum_count, j
         INTEGER, DIMENSION(lenof_sign) :: SpawnedSign,Temp_Sign
         LOGICAL :: tSuc, tInc
         INTEGER(Kind=n_int) , POINTER :: PointTemp(:,:)
@@ -354,6 +354,14 @@ MODULE AnnihilationMod
         BeginningBlockDet=1         
         DetsMerged=0
         Parent_Array_Ind = 1
+
+!        IF(tFillingRDMonFly) THEN
+!            WRITE(6,*) 'SpawnedParts (with parents still in them)'
+!            do i = 1, ValidSpawned
+!                WRITE(6,*) SpawnedParts(:,i)
+!            enddo
+!            WRITE(6,*) 'ValidSpawned',ValidSpawned
+!        ENDIF
 
         do while(BeginningBlockDet.le.ValidSpawned)
             !loop in blocks of the same determinant to the end of the list of walkers
@@ -455,7 +463,7 @@ MODULE AnnihilationMod
             ! Copy details into the final array
             call extract_sign (cum_det, temp_sign)
 
-            if (sum(abs(temp_sign)) > 0) then
+            if ((sum(abs(temp_sign)) > 0).or.(tAllSpawnAttemptsRDM.and.tFillingRDMonFly)) then
                 ! Transfer all ino into the other array.
                 SpawnedParts2(0:NIfTot,VecInd) = cum_det(0:NIfTot)
                 VecInd = VecInd + 1
@@ -478,6 +486,8 @@ MODULE AnnihilationMod
             CALL Stop_All(this_routine,"Error in compression of spawned list")
         ENDIF
 
+!        IF(tFillingRDMonFly) WRITE(6,*) 'No_Spawned_Parents',No_Spawned_Parents
+
 !        IF(tFillingRDMonFly) THEN
 !            do i = 1, ValidSpawned
 !                WRITE(6,*) SpawnedParts2(:,i)
@@ -488,6 +498,35 @@ MODULE AnnihilationMod
         PointTemp => SpawnedParts2
         SpawnedParts2 => SpawnedParts
         SpawnedParts => PointTemp
+
+!        WRITE(6,*) 'Spawned after compress'
+!        do i = 1, ValidSpawned
+!            WRITE(6,*) SpawnedParts(:,i)
+!        enddo
+!
+!        IF(tFillingRDMonFly) THEN
+!            WRITE(6,*) 'No_Spawned_Parents',No_Spawned_Parents
+!            WRITE(6,*) 'Compressed ValidSpawned',ValidSpawned
+!
+!            do i = 1, ValidSpawned
+!                WRITE(6,*) 'SpawnedParts(:,i)',SpawnedParts(:,i)
+!                WRITE(6,*) 'Spawned_Parents_Index(:,i)', Spawned_Parents_Index(:,i)
+!                do j = Spawned_Parents_Index(1,i), Spawned_Parents_Index(1,i) +Spawned_Parents_Index(2,i)-1
+!                    WRITE(6,*) Spawned_Parents(:,j)
+!                enddo
+!            enddo
+!        ENDIF
+
+!        WRITE(6,*) 'Spawned Parents'
+!        do i = 1, No_Spawned_Parents
+!            WRITE(6,*) Spawned_Parents(:,i)
+!        enddo
+!
+!        WRITE(6,*) 'Spawned Parents Index'
+!        do i = 1, ValidSpawned
+!            WRITE(6,*) Spawned_Parents_Index(:,i)
+!        enddo
+
 
 
 !        IF(tFillingRDMonFly) THEN
@@ -587,7 +626,15 @@ MODULE AnnihilationMod
 
         ! Obtain the signs and sign product. Ignore new particel if zero.
         new_sgn = extract_part_sign (new_det, part_type)
-        if (new_sgn == 0) return
+        if (new_sgn == 0) then
+            if(tFillingRDMonFly.and.tStochasticRDM) then
+                Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = new_det(NIfTot+1:NIfTot+NIfDBO+2)
+                Spawned_Parents_Index(1,Spawned_No) = Beginning_Parent_Array_Ind
+                Spawned_Parents_Index(2,Spawned_No) = Spawned_Parents_Index(2,Spawned_No) + 1
+                Parent_Array_Ind = Parent_Array_Ind + 1
+            endif
+            return
+        endif
         cum_sgn = extract_part_sign (cum_det, part_type)
         sgn_prod = cum_sgn * new_sgn
 
@@ -662,7 +709,7 @@ MODULE AnnihilationMod
 !            WRITE(6,*) 'Parent_Array_Ind',Parent_Array_Ind
 !            WRITE(6,*) 'Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind)',Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind)
 !            call flush(6)
-            if(sgn_prod .eq. 0) Spawned_Parents_Index(1,Spawned_No) = Beginning_Parent_Array_Ind
+            if((sgn_prod .eq. 0).or.(tAllSpawnAttemptsRDM.and.tFillingRDMonFly)) Spawned_Parents_Index(1,Spawned_No) = Beginning_Parent_Array_Ind
             Spawned_Parents_Index(2,Spawned_No) = Spawned_Parents_Index(2,Spawned_No) + 1
 !            WRITE(6,*) 'Spawned_Parents_Index(:,Spawned_No)',Spawned_Parents_Index(:,Spawned_No)
             Parent_Array_Ind = Parent_Array_Ind + 1
@@ -691,6 +738,8 @@ MODULE AnnihilationMod
 
         CALL set_timer(AnnMain_time,30)
 
+!        IF(tFillingRDMonFly) WRITE(6,*) 'TotWalkers',TotWalkers
+
 !MinInd indicates the minimum bound of the main array in which the particle can be found.
 !Since the spawnedparts arrays are ordered in the same fashion as the main array, we can find the particle position in the main array by only searching a subset.
         MinInd=1
@@ -718,6 +767,15 @@ MODULE AnnihilationMod
 !                call WriteBitDet(6,SpawnedParts(:,i),.true.)
 !             enddo
 
+!        IF(tFillingRDMonFly) THEN
+!            WRITE(6,*) 'CurrentDets'
+!            do i = 1, TotWalkersNew
+!                WRITE(6,*) CurrentDets(:,i)
+!            enddo
+!            WRITE(6,*) '*'
+!        ENDIF
+
+
         CALL set_timer(BinSearch_time,45)
 
         do i=1,ValidSpawned
@@ -736,6 +794,16 @@ MODULE AnnihilationMod
 !            call WriteBitDet(6,CurrentDets(:,PartInd),.true.)
 !            IF(tFillingRDMonFly) WRITE(6,*) 'SpawnedParts(:,i)',SpawnedParts(:,i)
 
+!            IF(tFillingRDMonFly) THEN
+!                WRITE(6,*) 'SpawnedParts(:,i)',SpawnedParts(:,i)
+!                WRITE(6,*) 'Parents of this part'
+!                do j = Spawned_Parents_Index(1,i),Spawned_Parents_Index(1,i)+Spawned_Parents_Index(2,i)-1
+!                    WRITE(6,*) Spawned_Parents(:,j)
+!                enddo
+!            ENDIF
+
+!            WRITE(6,*) 'i,SpawnedParts(:,i)',i,SpawnedParts(:,i)
+
             IF(tSuccess) THEN
 !                SearchInd=PartInd   !This can actually be min(1,PartInd-1) once we know that the binary search is working, as we know that PartInd is the same particle.
 !                MinInd=PartInd      !Make sure we only have a smaller list to search next time since the next particle will not be at an index smaller than PartInd
@@ -746,7 +814,21 @@ MODULE AnnihilationMod
 
                 SignProd=CurrentSign*SpawnedSign
 
+!                WRITE(6,*) 'DET FOUND in list'
+!                IF(tFillingRDMonFly.and.tStochasticRDM.and.&
+!                    (.not.DetBitEQ(CurrentDets(:,PartInd),iLutHF,NIfDBO))) CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign)
+!                IF(tFillingRDMonFly) THEN
+!                    WRITE(6,*) 'Det found'
+!                    WRITE(6,*) 'i',i
+!                    WRITE(6,*) 'CurrentDets(:,PartInd)0',CurrentDets(:,PartInd)
+!                ENDIF
                 IF(tFillingRDMonFly.and.tStochasticRDM) CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign)
+
+                IF(SpawnedSign(1).eq.0) THEN
+                    IF(.not.tAllSpawnAttemptsRDM) CALL Stop_All('AnnihilateSpawnedParts','SpawnedParts entry with sign = 0.')
+                    ToRemove = ToRemove + 1
+                    CYCLE
+                ENDIF
 
                 !Transfer across
                 call encode_sign(CurrentDets(:,PartInd),SpawnedSign+CurrentSign)
@@ -961,9 +1043,11 @@ MODULE AnnihilationMod
         norm_psi_squared = 0
         DetsMerged=0
         iHighestPop=0
+        HFSign(:) = 0
         IF(TotWalkersNew.gt.0) THEN
             do i=1,TotWalkersNew
                 call extract_sign(CurrentDets(:,i),CurrentSign)
+                IF(DetBitEQ(CurrentDets(:,i),iLutHF,NIfDBO)) HFSign(:) = CurrentSign(:) 
                 IF(IsUnoccDet(CurrentSign)) THEN
                     DetsMerged=DetsMerged+1
                     IF(tTruncInitiator) THEN
@@ -1083,6 +1167,8 @@ MODULE AnnihilationMod
 
         ENDIF
 !        CALL CheckOrdering(CurrentDets,CurrentSign(1:TotWalkers),TotWalkers,.true.)
+
+        IF(tFillingRDMonFly) CALL MPIBCast(HFSign,lenof_sign)
 
     END SUBROUTINE InsertRemoveParts
 
