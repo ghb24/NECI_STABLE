@@ -39,6 +39,8 @@ Available options for use in the ini file are:
 
 fc [required]
     Set the fortran compiler.
+f77c
+	Set the fortran compiler for f77 files.
 fflags
     Set flags to be passed to the fortran compiler during compilation.
 f77flags
@@ -113,6 +115,10 @@ FC = %(fc)s
 FFLAGS = %(fflags)s
 F77FLAGS = %(f77flags)s
 F90FLAGS = %(f90flags)s
+F77C = %(f77c)s
+ifndef F77C
+F77C = $(FC)
+endif
 
 # c compiler and flags.
 CC = %(cc)s
@@ -524,7 +530,7 @@ $(F90OBJ) $(F90TMPOBJ) $(KF90OBJ) $(KF90TMPOBJ): %%.o: %%.f90
 	perl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) $(INCLUDE_PATH) -c $< -o $@" -provides "$@" -requires "$^"
 
 $(FOBJ) $(KFOBJ): %%.o: %%.f
-	perl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F77FLAGS) %(module_flag)s$(dir $@) $(INCLUDE_PATH) -c $< -o $@" -provides "$@" -requires "$^"
+	perl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(F77C) $(FFLAGS) $(F77FLAGS) %(module_flag)s$(dir $@) $(INCLUDE_PATH) -c $< -o $@" -provides "$@" -requires "$^"
 
 # Compiling C source files...
 # a) gamma-point.
@@ -652,7 +658,7 @@ def parse_config(config_file):
 
     valid_sections_upper = [s.upper() for s in valid_sections]
 
-    valid_options = ['fc', 'fflags', 'f77flags', 'f90flags', 'module_flag', 'compiler', 'cc', 'cflags', 'ccd', 'cpp', 'cppflags', 'ld', 'ldflags', 'libs', 'max_mem']
+    valid_options = ['fc', 'f77c', 'fflags', 'f77flags', 'f90flags', 'module_flag', 'compiler', 'cc', 'cflags', 'ccd', 'cpp', 'cppflags', 'ld', 'ldflags', 'libs', 'max_mem']
 
     minimal_options = ['fc', 'module_flag', 'cc', 'cpp', 'ld', 'libs']
 

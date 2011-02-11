@@ -1,4 +1,4 @@
-subroutine stop_all_c (sub_name, error_msg) bind(c, name='stop_all')
+subroutine stop_all_c (sub_name, error_msg) bind(c)
     use, intrinsic :: iso_c_binding
     implicit none
 

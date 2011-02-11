@@ -23,7 +23,7 @@ using std::string;
 using std::list;
 using std::ofstream;
 
-extern "C" void stop_all (const char* a, const char* b);
+extern "C" void stop_all_c (const char* a, const char* b);
 extern "C" void mpibarrier_c (int * error);
 
 // This shared memory mapping is the only bit of this file which is c++
@@ -102,13 +102,13 @@ void allocate_shared_posix (const char * name, void ** ptr, const size_t size)
 	string shared_name = cwd_name + name;
 	int fd = shm_open (shared_name.c_str(), O_CREAT | O_RDWR, (mode_t)0600);
 	if (fd == -1)
-		stop_all (__FUNCTION__,
+		stop_all_c (__FUNCTION__,
 		          (string("creating shared memory object failed: ") 
 		           + strerror(errno)).c_str());
 
 	// Set the length of the named region to the required length
 	if (ftruncate(fd, size) == -1)
-		stop_all (__FUNCTION__,
+		stop_all_c (__FUNCTION__,
 		          (string("Setting size of shared memory region failed: ") 
 		           + strerror(errno)).c_str());
 
@@ -116,7 +116,7 @@ void allocate_shared_posix (const char * name, void ** ptr, const size_t size)
 	*ptr = mmap (NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, 
 			fd, 0);
 	if (*ptr == MAP_FAILED)
-		stop_all (__FUNCTION__,
+		stop_all_c (__FUNCTION__,
 		          (string("Mapping shared memory failed: ")
 		           + strerror(errno)).c_str());
 
@@ -149,20 +149,20 @@ void allocate_shared_systemV (const char * name, void ** ptr,
 	// Get the shm key associated with the above file, and the character '~'
 	key_t shm_key = ftok (path.c_str(), '~');
 	if (shm_key == -1)
-		stop_all (__FUNCTION__, (string("Error getting System V IPC key: ") 
+		stop_all_c (__FUNCTION__, (string("Error getting System V IPC key: ") 
 		                        + strerror(errno)).c_str());
 
 	// Get the shm object reference.
 	int shm_id = shmget (shm_key, size, 0644 | IPC_CREAT);
 	if (shm_id == -1)
-		stop_all (__FUNCTION__,
+		stop_all_c (__FUNCTION__,
 		          (string("Error obtaining shared memory segment: ")
 		           + strerror(errno)).c_str());
 
 	// Map shm object into memory
 	*ptr = shmat (shm_id, NULL, 0);
 	if (*ptr == (void*)-1)
-		stop_all (__FUNCTION__, (string("Error mapping shared memory: ")
+		stop_all_c (__FUNCTION__, (string("Error mapping shared memory: ")
 		                         + strerror(errno)).c_str());
 
 	// Wait until all threads have reached this point, and then remove the
@@ -203,7 +203,7 @@ extern "C" void dealloc_shared_worker (void * ptr)
 		det = g_shared_mem_map.find(ptr);
 
 		if (det == g_shared_mem_map.end())
-			stop_all (__FUNCTION__,
+			stop_all_c (__FUNCTION__,
 			          "The specified shared memory was not found.");
 
 		munmap (ptr, det->second.size);
@@ -215,7 +215,7 @@ extern "C" void dealloc_shared_worker (void * ptr)
 		list<void*>::iterator item;
 		item = find (g_shm_list.begin(), g_shm_list.end(), ptr);
 		if (item == g_shm_list.end())
-			stop_all (__FUNCTION__,
+			stop_all_c (__FUNCTION__,
 			          "The specified shared memory was not found.");
 
 		shmdt (ptr);
