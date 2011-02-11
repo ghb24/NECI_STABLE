@@ -2667,6 +2667,7 @@ MODULE nElRDMMod
             call decode_bit_det (nI, Spawned_Parents(0:NIfDBO,i))
             call decode_bit_det (nJ, iLutJ)
 
+
             IF(tAllSpawnAttemptsRDM) THEN
 !                realSignI = ( real( Spawned_Parents(NIfDBO+1,i), dp ) / (10.D0**6.D0) )
                 realSignI = ( real( Spawned_Parents(NIfDBO+1,i), dp ) / (10.D0**3.D0) )
@@ -2680,6 +2681,11 @@ MODULE nElRDMMod
 
             realSignJ = real(SignJ(1))
 
+!            WRITE(6,*) 'realSignI',realSignI
+!            WRITE(6,*) 'realSignJ',realSignJ
+
+!            WRITE(6,*) 'From nI',nI
+!            WRITE(6,*) 'To nJ',nJ
 !            WRITE(6,*) 'realSignI',realSignI
 !            WRITE(6,*) 'realSignJ',realSignJ
 

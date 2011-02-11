@@ -817,11 +817,6 @@ MODULE AnnihilationMod
 !                WRITE(6,*) 'DET FOUND in list'
 !                IF(tFillingRDMonFly.and.tStochasticRDM.and.&
 !                    (.not.DetBitEQ(CurrentDets(:,PartInd),iLutHF,NIfDBO))) CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign)
-!                IF(tFillingRDMonFly) THEN
-!                    WRITE(6,*) 'Det found'
-!                    WRITE(6,*) 'i',i
-!                    WRITE(6,*) 'CurrentDets(:,PartInd)0',CurrentDets(:,PartInd)
-!                ENDIF
                 IF(tFillingRDMonFly.and.tStochasticRDM) CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign)
 
                 IF(SpawnedSign(1).eq.0) THEN
