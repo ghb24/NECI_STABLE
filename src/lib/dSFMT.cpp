@@ -732,3 +732,4 @@ void dsfmt_chk_init_by_array(dsfmt_t *dsfmt, uint32_t init_key[],
 #if defined(__INTEL_COMPILER)
 #  pragma warning(default:981)
 #endif
+
