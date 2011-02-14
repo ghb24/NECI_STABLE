@@ -269,40 +269,24 @@ contains
         type(c_ptr) :: tmp
         integer :: error
 
-        ! Print specific warnings to STDOUT if the required permissions
-        ! are unavailable
-        if (test_shared_permissions()) then
+        ! Prepare name of shared memory object to pass to C.
+        call conv_name (nm, name_tmp, node)
+        name_tmp = trim(name_tmp)//c_null_char
 
-            ! Prepare name of shared memory object to pass to C.
-            call conv_name (nm, name_tmp, node)
-            name_tmp = trim(name_tmp)//c_null_char
+        sz = %(sizeof)s * product(int(dims,int64))
 
-            sz = %(sizeof)s * product(int(dims,int64))
+        ! Allocate the shared memory
+        call alloc_shared_worker (name_tmp, tmp, int(sz, kind=c_size_t))
 
-            ! Allocate the shared memory
-            call alloc_shared_worker (name_tmp, tmp, &
-                                      int(sz, kind=c_size_t))
+        ! Assign to a fortran pointer.
+        call c_f_pointer (tmp, ptr, dims)
 
-            ! Assign to a fortran pointer.
-            call c_f_pointer (tmp, ptr, dims)
+        write (6, '("Allocated ", i10, &
+                  &" bytes of shared memory named: ", a)') sz, nm
 
-            write (6, '("Allocated ", i10, &
-                      &" bytes of shared memory named: ", a)') sz, nm
-
-            ! Unlink the name once all nodes have allocated the shared memory
-            ! --> Resource will be freed properly.
-            call MPIBarrier (error)
-            call shm_unlink_shared_worker (tmp)
-        else
-            ! Fall back on using non-shared memory if shared memory is 
-            ! unavailable, and we can get away with it.
-            write (6, '("*** WARNING ***   Shared memory unavailable. &
-                      &Allocating non-shared memory instead.")')
-#endif
-            ! Non-shared memory also used if __SHARED_MEM is not defined
-            allocate(ptr(%(alloc_str)s))
-#ifdef __SHARED_MEM
-        endif
+#else
+        ! Non-shared memory also used if __SHARED_MEM is not defined
+        allocate(ptr(%(alloc_str)s))
 #endif
     end subroutine
 
@@ -328,48 +312,32 @@ contains
         type(c_ptr) :: tmp
         integer :: error
 
-        ! Print specific warnings to STDOUT if the required permissions
-        ! are unavailable
-        if (test_shared_permissions()) then
+        ! Prepare name of shared memory object to pass to C.
+        call conv_name(nm,name_tmp,node)
+        name_tmp = trim(name_tmp)//c_null_char
 
-            ! Prepare name of shared memory object to pass to C.
-            call conv_name(nm,name_tmp,node)
-            name_tmp = trim(name_tmp)//c_null_char
+        ! Obtain size of array to allocate
+        dims_tmp = dims
+        dims_tmp(1) = dims_tmp(1) + 1
+        sz = %(sizeof)s * product(int(dims_tmp,int64))
 
-            ! Obtain size of array to allocate
-            dims_tmp = dims
-            dims_tmp(1) = dims_tmp(1) + 1
-            sz = %(sizeof)s * product(int(dims_tmp,int64))
+        ! Allocate the shared memory
+        call alloc_shared_worker (name_tmp, tmp, int(sz, kind=c_size_t))
 
-            ! Allocate the shared memory
-            call alloc_shared_worker (name_tmp, tmp, &
-                                      int(sz, kind=c_size_t))
+        ! Assign to a fortran pointer.
+        call c_f_pointer (tmp, ptr_tmp, dims_tmp)
 
-            ! Assign to a fortran pointer.
-            call c_f_pointer (tmp, ptr_tmp, dims_tmp)
+        ! Jiggle the pointers, so that the first dimension of the first 
+        ! one goes from 0:dims(1), rather than 1:dims(1)+1
+        call iluts_pointer_jiggle_%(name)s (ptr, ptr_tmp, dims)
+        nullify(ptr_tmp)
 
-            ! Jiggle the pointers, so that the first dimension of the first 
-            ! one goes from 0:dims(1), rather than 1:dims(1)+1
-            call iluts_pointer_jiggle_%(name)s (ptr, ptr_tmp, dims)
-            nullify(ptr_tmp)
+        write (6, '("Allocated ", i10, &
+                  &" bytes of shared memory named: ", a)') sz, nm
 
-            write (6, '("Allocated ", i10, &
-                      &" bytes of shared memory named: ", a)') sz, nm
-
-            ! Unlink the name once all nodes have allocated the shared memory
-            ! --> Resource will be freed properly.
-            call MPIBarrier (error)
-            call shm_unlink_shared_worker (tmp)
-        else
-            ! Fall back on using non-shared memory if shared memory is 
-            ! unavailable, and we can get away with it.
-            write (6, '("*** WARNING ***   Shared memory unavailable. &
-                      &Allocating non-shared memory instead.")')
-#endif
-            ! Non-shared memory also used if __SHARED_MEM is not defined
-            allocate(ptr(0:%(alloc_str)s))
-#ifdef __SHARED_MEM
-        endif
+#else
+        ! Non-shared memory also used if __SHARED_MEM is not defined
+        allocate(ptr(0:%(alloc_str)s))
 #endif
     end subroutine
 

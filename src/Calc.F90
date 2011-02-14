@@ -12,9 +12,9 @@ MODULE Calc
     use Determinants, only: iActiveBasis, SpecDet, tSpecDet, nActiveSpace, &
                             tDefineDet
     use DetCalc, only: iObs, jObs, kObs, tCorr, tRhoOfR, tFodM, DETINV, &
-                       icilevel, nCycle, tBlock, tCalcHMat, tEnergy, tRead, &
+                       icilevel, tBlock, tCalcHMat, tEnergy, tRead, &
                        tFindDets
-    use DetCalcData, only: B2L, nKry, nEval, nBlk
+    use DetCalcData, only: B2L, nKry, nEval, nBlk, nCycle
     use IntegralsData, only: tNeedsVirts
     use CCMCData, only: dInitAmplitude, dProbSelNewExcitor, nSpawnings, &
                         tSpawnProp, nClustSelections, tExactEnergy,     &
@@ -52,6 +52,7 @@ contains
           StepsSftImag=0.D0
           TauFactor=0.D0
           tStartMP1=.false.
+          tStartCAS=.false.
           iAnnInterval=1
           tTruncCAS=.false.
           iFullSpaceIter=0
@@ -862,6 +863,24 @@ contains
 !For FCIMC, this has an initial configuration of walkers which is proportional to the MP1 wavefunction
 !                CALL Stop_All(t_r,"STARTMP1 option depreciated")
                 TStartMP1=.true.
+                TStartSinglePart=.false.
+                if(item.lt.nitems) then
+                    !Allow us to specify a desired number of particles to start with, so that the shift doesn't
+                    !change dramatically to start with.
+                    call geti(InitialPart)
+                endif
+            case("STARTCAS")
+!For FCIMC, this has an initial configuration of walkers which is proportional to the MP1 wavefunction
+!                CALL Stop_All(t_r,"STARTMP1 option depreciated")
+                TStartCAS=.true.
+                TStartSinglePart=.false.
+                call geti(OccCASOrbs)  !Number of electrons in CAS 
+                call geti(VirtCASOrbs)  !Number of virtual spin-orbitals in CAS
+                if(item.lt.nitems) then
+                    !Allow us to specify a desired number of particles to start with, so that the shift doesn't
+                    !change dramatically to start with.
+                    call geti(InitialPart)
+                endif
             case("GROWMAXFACTOR")
 !For FCIMC, this is the factor to which the initial number of particles is allowed to go before it is culled
                 call getf(GrowMaxFactor)
@@ -1313,13 +1332,14 @@ contains
         Subroutine CalcInit()
           use constants, only: dp
           use SystemData, only: G1, Alat, Beta, BRR, ECore, LMS, nBasis, nBasisMax, STot,tCSF,nMsh,nEl
-          use SystemData, only: tUEG,nOccAlpha,nOccBeta,ElecPairs,tExactSizeSpace,tMCSizeSpace,MaxABPairs
+          use SystemData, only: tUEG,nOccAlpha,nOccBeta,ElecPairs,tExactSizeSpace,tMCSizeSpace,MaxABPairs,tMCSizeTruncSpace
           use IntegralsData, only: FCK, CST, nMax, UMat
           use IntegralsData, only: HFEDelta, HFMix, NHFIt, tHFCalc
           Use Determinants, only: FDet, tSpecDet, SpecDet, get_helement
           Use DetCalc, only: DetInv, nDet, tRead
           Use DetCalcData, only:  ICILevel
-          use hilbert_space_size, only: FindSymSizeofSpace, FindSymSizeofTruncSpace, FindSymMCSizeofSpace
+          use hilbert_space_size, only: FindSymSizeofSpace, FindSymSizeofTruncSpace 
+          use hilbert_space_size, only: FindSymMCSizeofSpace, FindSymMCSizeExcitLevel
           use global_utilities
           
           REAL*8 CalcT, CalcT2, GetRhoEps
@@ -1409,9 +1429,13 @@ contains
               ELSE
                   CALL FindSymSizeofTruncSpace(6)
               ENDIF
-          ELSEIF(tMCSizeSpace) THEN
+          endif
+          IF(tMCSizeSpace) THEN
               CALL FindSymMCSizeofSpace(6) 
           ENDIF
+          if(tMCSizeTruncSpace) then
+              CALL FindSymMCSizeExcitLevel(6)
+          endif
 
           IF(TMCDET) THEN
 !C.. Generate the determinant from which we start the MC

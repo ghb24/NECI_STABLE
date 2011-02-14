@@ -1313,8 +1313,8 @@ END SUBROUTINE InitSpawner
 SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dInitAmp,dTotAbsAmpl)
    use CCMCData
    use SystemData, only: nel
-   use FciMCData, only: HFDet
-   use FciMCParMod, only: iLutHF,SumEContrib,BinSearchParts3
+   use FciMCData, only: HFDet,iLutHF
+   use FciMCParMod, only: SumEContrib,BinSearchParts3
    use Determinants, only: GetH0Element3
    use bit_reps, only: decode_bit_det
    use constants, only: dp
@@ -1378,8 +1378,8 @@ END SUBROUTINE
 SUBROUTINE InitRandAmplitude(Amplitude,nExcit,dInitAmp,dTotAbsAmpl)
    use CCMCData
    use SystemData, only: nEl
-   use FciMCData, only: HFDet
-   use FciMCParMod, only: iLutHF,SumEContrib,BinSearchParts3
+   use FciMCData, only: HFDet,iLutHF
+   use FciMCParMod, only: SumEContrib,BinSearchParts3
    use Determinants, only: GetH0Element3
    use constants, only: dp
    use dSFMT_interface , only : genrand_real2_dSFMT
@@ -1400,7 +1400,6 @@ END SUBROUTINE
 
 subroutine AttemptSpawn(S,C,Amplitude,dTol,TL,WalkerScale,iDebug)
    use SystemData, only: nEl
-   use FciMCParMod, only: iLutHF
    use CCMCData, only: Spawner, Cluster,CCTransitionLog
    use FciMCParMod, only: BinSearchParts3
    Use CalcData, only: Tau
@@ -1409,7 +1408,7 @@ subroutine AttemptSpawn(S,C,Amplitude,dTol,TL,WalkerScale,iDebug)
    use DetCalcData, only:FCIDetIndex! (0:nEl+1).  The index of the different excitation levels
    use DetCalcData, only: Det       ! The number of Dets/Excitors in FCIDets
    Use Logging, only: tCCMCLogTransitions
-   use FciMCData, only: Iter
+   use FciMCData, only: Iter,iLutHF
    use CalcData, only: NEquilSteps
    implicit none
    type(Spawner) S
@@ -1477,15 +1476,13 @@ end subroutine AttemptSpawn
 !Take cluster C and make an anti-excitor corresponding to its collapsed version to take into account its death.
 subroutine AttemptDie(C,CurAmpl,OldAmpl,TL,WalkerScale,iDebug)
    use CCMCData, only: Cluster,CCTransitionLog
-   use FciMCData, only: Hii
+   use FciMCData, only: Hii,iLutHF,iter
    Use CalcData, only: Tau,DiagSft
    use DetCalcData, only: FCIDets   ! (0:NIfDBO, Det).  Lists all allowed excitors in compressed form
    use DetCalcData, only:FCIDetIndex! (0:nEl+1).  The index of the different excitation levels
    use DetCalcData, only: Det       ! The number of Dets/Excitors in FCIDets
    use constants, only: dp
-   use FciMCParMod, only: iLutHF
    Use Logging, only: lLogTransitions=>tCCMCLogTransitions
-   use FciMCData, only: Iter
    use CalcData, only: NEquilSteps
    use FciMCParMod, only: BinSearchParts3
    use dSFMT_interface , only : genrand_real2_dSFMT
@@ -1608,7 +1605,7 @@ end subroutine AttemptDie
 
 subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
    use SystemData, only: nEl
-   use FciMCParMod, only: iLutHF
+   use FciMCData, only: iLutHF
    use CCMCData, only: Spawner, Cluster
    use CalcData, only: tTruncInitiator
    Use CalcData, only: Tau
@@ -1679,11 +1676,10 @@ end subroutine AttemptSpawnParticle
 !Take cluster C and make an anti-excitor corresponding to its collapsed version to take into account its death.
 subroutine AttemptDieParticle(C,iDebug,SpawnList,nSpawned)
    use CCMCData, only: Cluster,CCTransitionLog
-   use FciMCData, only: Hii
+   use FciMCData, only: Hii,iLutHF
    Use CalcData, only: Tau,DiagSft
    use CalcData, only: tTruncInitiator
    use constants, only: dp
-   use FciMCParMod, only: iLutHF
    use dSFMT_interface , only : genrand_real2_dSFMT
    use SystemData, only : nEl
    use bit_reps, only: encode_bit_rep,set_flag
@@ -1833,8 +1829,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    use FciMCData, only: Iter
    use FciMCData, only: TotParts,TotWalkers,TotWalkersOld,TotPartsOld,AllTotPartsOld,AllTotWalkersOld,AllTotParts
    use FciMCData, only: tTruncSpace
-   use FciMCData, only: ProjectionE
-   use FciMCParMod, only: iLutHF
+   use FciMCData, only: ProjectionE,iLutHF
    use FciMCParMod, only: CheckAllowedTruncSpawn, SetupParameters,BinSearchParts3
    use FciMCParMod, only: InitHistMin, calculate_new_shift_wrapper
    use FciMCData, only: NoatHF,NoatDoubs
@@ -2148,6 +2143,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
 
 !TotWalkers is used for this and is WalkerScale* total of all amplitudes
       NoAtHF=AL%Amplitude(iRefPos,iCurAmpList)
+
       if(iShiftLeft.le.0)  Call calculate_new_shift_wrapper(iter_data_ccmc, &
                                                             TotParts)
       if(iShiftLeft.le.0)  iShiftLeft=StepsSft
@@ -2189,8 +2185,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use FciMCData, only: TotParts,TotWalkers,TotWalkersOld,TotPartsOld,AllTotPartsOld,AllTotWalkersOld,AllTotParts
    use FciMCData, only: NoatHF,NoatDoubs
    use FciMCData, only: tTruncSpace
-   use FciMCData, only: ProjectionE
-   use FciMCParMod, only: iLutHF
+   use FciMCData, only: ProjectionE,iLutHF
    use FciMCParMod, only: CheckAllowedTruncSpawn, SetupParameters,BinSearchParts3
    use FciMCParMod, only: InitHistMin, calculate_new_shift_wrapper
    use FciMCParMod, only: WriteHistogram,SumEContrib
@@ -2497,7 +2492,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
 !Fix the statistics for multiple threads
       if(iProcIndex==root) then
-         NoAtHF=GetAmpl(AL,iRefPos,iCurAmpList)
+         NoAtHF=dNorm
       else
          TotParts=0
          NoAtHF=0
@@ -2950,7 +2945,7 @@ END MODULE CCMC
 subroutine WriteExcitorListP(iUnit,Dets,offset,nDet,dTol,Title)
    use constants, only:  n_int, lenof_sign
    use bit_rep_data, only: NIfDBO,NIfTot
-   use FciMCParMod, only: iLutHF
+   use FciMCData, only: iLutHF
    use bit_reps, only: extract_sign,extract_flags
    IMPLICIT NONE
    INTEGER iUnit,nDet
@@ -2974,7 +2969,7 @@ end subroutine !WriteExcitorList
 subroutine WriteExcitorListP2(iUnit,Dets,starts,ends,dTol,Title)
    use constants, only:  n_int, lenof_sign
    use bit_rep_data, only: NIfDBO,NIfTot
-   use FciMCParMod, only: iLutHF
+   use FciMCData, only: iLutHF
    use bit_reps, only: extract_sign,extract_flags
    use Parallel
    IMPLICIT NONE

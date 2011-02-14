@@ -4,6 +4,10 @@ use SystemData, only: BasisFn, BasisFNSize
 
 ! Formerly gndwork.inc.
 ! Probably only Alex knows what it's for...
+!
+! You've only to ask!
+! Structure holding working data passed recursively into GenNextDet_.  All rather complicated I'm afraid.
+!  AJWT 20110121
 
 type GNDWork
     integer        NSWORK(4)

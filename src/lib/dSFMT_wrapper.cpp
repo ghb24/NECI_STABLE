@@ -1,22 +1,19 @@
 #include "dSFMT.h"
 #include "dSFMT_wrapper.h"
 
-// Wrap around the required dSFMT functions so that they're accessible from fortran.
-// We use C++'s handy reference function to allow Fortran and C to communicate,
-// despite the different approaches in passing arguments.
+// Wrap around the required dSFMT functions so that they're accessible from 
+// fortran. We use C++'s handy reference function to allow Fortran and C to 
+// communicate, despite the different approaches in passing arguments.
 // We only expose functions as needed.
 //
 // JSS (with a hat-tip to discussions with AJWT)
 
-// To call the functions below from Fortran, omit the trailing underscore and
-// ensure your compiler doesn't append a double underscore to objects which
-// already contain an underscore in their name.  nm objectfile.o and man
-// compiler_of_your_choice are your friends in sorting out such compilation
-// issues!
+// This creates instantiations which may be linked, where before the
+// declarations are inline static, and so don't appear in the object files
 
 extern "C"
 {
-    void init_gen_rand_(uint32_t &seed)
+    void init_gen_rand_fwrapper(uint32_t seed)
     {
         // Initialise random number generator.
         // See also the main dSFMT code for the ability to initialise using an
@@ -24,7 +21,7 @@ extern "C"
         init_gen_rand(seed);
     }
 
-    double genrand_close_open_(void)
+    double genrand_close_open_fwrapper(void)
     {
         // Return a random number in the interval [0,1).
         //
@@ -34,7 +31,7 @@ extern "C"
         return genrand_close_open();
     }
 
-    void fill_array_close_open_(double array[], int &size)
+    void fill_array_close_open_fwrapper(double array[], int size)
     {
         // Fill an array of length size with random numbers in the interval
         // [0,1).

@@ -160,6 +160,7 @@ C..FORWARD TRANSFORM
       N1=N
       N2=N
       N3=N
+#ifndef DISABLE_FFTW
 C      CALL DFFTW_PLAN_DFT_3D(PLAN,N1,N2,N3,DIST,
 C     &  DIST,
 C     &  FFTW_FORWARD,FFTW_ESTIMATE)
@@ -176,6 +177,7 @@ c     &  FFTW_FORWARD,FFTW_ESTIMATE)
 c      call dfftw_print_plan(plan)
       CALL DFFTW_EXECUTE(PLAN)
       CALL DFFTW_DESTROY_PLAN(PLAN)
+#endif
 #endif
 C..Shift origin and normalise 
       DO I=-N/2,N/2-1

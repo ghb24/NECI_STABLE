@@ -312,6 +312,35 @@ MODULE HPHFRandExcitMod
 
     END SUBROUTINE ReturnAlphaOpenDet
         
+!This is a functions to return whether a given determinant (iLutnI) is
+!an "allowed" HPHF function or not (i.e. whether it could be found in the 
+!simulation.
+    LOGICAL FUNCTION IsAllowedHPHF(iLutnI)
+        use SystemData , only : NEl 
+        USE Bit_reps , only : Decode_Bit_Det
+        IMPLICIT NONE
+        INTEGER :: nI(NEl)
+        INTEGER(KIND=n_int) , intent(in) :: iLutnI(0:NIfTot)
+        INTEGER(KIND=n_int) :: iLutSym(0:NIfTot)
+        INTEGER :: nJ(NEl)
+        LOGICAL :: tClosedShell,tSwapped
+        LOGICAL :: TestClosedShellDet
+
+        tClosedShell=TestClosedShellDet(iLutnI)
+        IF(tClosedShell) THEN
+            IsAllowedHPHF=.true.
+            RETURN
+        ENDIF
+        CALL Decode_Bit_Det(nI,iLutnI)
+        CALL ReturnAlphaOpenDet(nI,nJ,iLutnI,iLutSym,.true.,.true.,tSwapped)
+
+        IF(tSwapped) THEN
+            IsAllowedHPHF=.false.
+        ELSE
+            IsAllowedHPHF=.true.
+        ENDIF
+    END FUNCTION IsAllowedHPHF
+
 
 !This create the spin-coupled determinant of nI in nJ in natural ordered form.
     SUBROUTINE FindDetSpinSym(nI,nJ,NEl)

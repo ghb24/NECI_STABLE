@@ -106,7 +106,7 @@ module hphf_integrals
                     ! Open shell -> Closed shell. If one of
                     ! the determinants is connected, then the other is connected 
                     ! with the same IC & matrix element
-                    hel = hel * (sqrt(2.d0))
+                    hel = hel * sqrt(2.d0)
                 endif
             else
                 ! Open shell -> Open shell. Find the spin pair of nJ.
