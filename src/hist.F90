@@ -11,7 +11,8 @@ module hist
                          DetBitEq
     use CalcData, only: tFCIMC
     use DetCalcData, only: FCIDetIndex, det
-    use FciMCData, only: tFlippedSign, TotWalkers, CurrentDets, iter
+    use FciMCData, only: tFlippedSign, TotWalkers, CurrentDets, iter, &
+                         norm_psi_squared
     use util_mod, only: choose, get_free_unit, binary_search
     use HPHFRandExcitMod, only: FindExcitBitDetSym
     use constants, only: n_int, bits_n_int, size_n_int, lenof_sign
@@ -467,5 +468,100 @@ contains
         enddo
     
     end subroutine
+    
+    function calc_s_squared () result (ssq)
+
+        real(dp) :: ssq
+        integer :: i, j, k, l, orb, orb2, pos, pair_sgn, nop_pairs
+        integer :: sgn_carry
+        integer(n_int) :: splus(0:nifd), sminus(0:nifd), detsym(0:nifd)
+        integer(n_int), pointer :: detcurr(:)
+        integer :: nI(nel), flg, sgn(lenof_sign), sgn2(lenof_sign)
+
+
+
+        ! Loop over beta electrons, and consider promoting them to alpha
+        ssq = 0
+        do i = 1, TotWalkers
+
+            call ilut_nifd_pointer_assign(detcurr, CurrentDets(0:NIfD, i))
+            call extract_bit_rep (CurrentDets(0:NifD, i), nI, sgn, flg)
+
+            ! TODO: And not an open shell det.
+!            if (tHPHF) then
+!                !
+!                ! Deal with HPHF
+!                ! TODO: Does this work with both odd and even HPHF?
+!                !
+!                call FindExcitBitDetSym(detcurr, detsym)
+!                call CalcOpenOrbs (detcurr, nop_pairs)
+!                if (mod(OpenOrbs, 2) == 0) then
+!                    pair_sgn = 1
+!                else
+!                    pair_sgn = -1
+!                endif
+!
+!                do j = 1, nel
+!                    orb = nI(j)
+!                    sgn_carry = 1
+!                    if (.not. IsDoub(detcurr, orb)) then
+!                        if (is_beta(orb)) then
+!                            splus = detcurr
+!                            clr_orb(splus, orb)
+!                            set_orb(splus, get_alpha(orb))
+!                        else
+!                            sgn_carry = sgn_carry * pair_sgn
+!                            splus = detsym
+!                            clr_orb(splus, get_alpah(orb))
+!                            set_orb(splus, orb)
+!                        endif
+!                    endif
+!
+!
+!                enddo
+!
+!            else
+                !
+                ! non-HPHF case.
+                !
+                do j = 1, nel
+                    if (is_beta(nI(j)) &
+                        .and. IsNotOcc(detcurr, get_alpha(nI(j)))) then
+                        splus = detcurr
+                        clr_orb(splus, nI(j))
+                        set_orb(splus, get_alpha(nI(j)))
+
+                        do k = 1, nel
+                            orb2 = nI(k)
+                            if (k == j) orb2 = get_alpha(orb2)
+
+                            if (is_alpha(orb2) &
+                                .and. IsNotOcc(splus, get_beta(orb2))) then
+                                sminus = splus
+                                clr_orb(sminus, orb2)
+                                set_orb(sminus, get_beta(orb2))
+
+                                ! --> sminus is an allowed result of applying S-S+
+                                pos = binary_search(CurrentDets(:,1:TotWalkers), &
+                                                sminus, NIfD+1)
+                                if (pos > 0) then
+                                    call extract_sign (CurrentDets(:,pos), sgn2)
+                                    ssq = ssq + (sgn(1) * sgn2(1))
+                                endif
+                            endif
+                        enddo
+                    endif
+                enddo
+            !endif
+        enddo
+
+        ! Include Sz(Sz + 1) term
+        call MPISum_inplace (ssq)
+        ssq = ssq + (norm_psi_squared * real(LMS * (LMS + 2), dp) / 4)
+
+        ! And normalise
+        ssq = ssq / norm_psi_squared
+
+    end function
 
 end module

@@ -64,7 +64,7 @@ MODULE FciMCParMod
                     test_add_hist_spin_dist_det, add_hist_energies, &
                     add_hist_spawn, tHistSpawn, AllHistogramEnergy, &
                     AllHistogram, HistogramEnergy, Histogram, AllInstHist, &
-                    InstHist, HistMinInd, project_spins
+                    InstHist, HistMinInd, project_spins, calc_s_squared
     USE SymData , only : nSymLabels
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE Parallel
@@ -110,7 +110,7 @@ MODULE FciMCParMod
         real*8 :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
         integer, dimension(lenof_sign) :: tmp_sgn
         integer :: tmp_int(lenof_sign), i
-        real(dp) :: grow_rate
+        real(dp) :: grow_rate, tmp_spin
 
         TDebug=.false.  !Set debugging flag
                     
@@ -192,8 +192,6 @@ MODULE FciMCParMod
 
             if (mod(Iter, StepsSft) == 0) then
 
-                call  project_spins ()
-
                 ! Has there been a particle bloom this update cycle?
                 if(iProcIndex.eq.Root) then
                     if(tMaxBloom) then
@@ -232,6 +230,10 @@ MODULE FciMCParMod
                     call calculate_new_shift_wrapper (iter_data_fciqmc, &
                                                       TotParts)
                 endif
+                !>>>!call  project_spins ()
+                tmp_spin = calc_s_squared()
+                root_print 'S2: ', iter, tmp_spin
+
 
                 !! Quick hack for spin projection
                 !if (tSpinProject .and. (mod(iter/stepssft, spin_proj_interval) == 0 .or. &
@@ -2909,7 +2911,8 @@ MODULE FciMCParMod
         call MPISum ((/TotWalkers, norm_psi_squared, TotParts, SumNoatHF, &
                        tot_parts_new/), int64_tmp(1:2+3*lenof_sign))
         AllTotWalkers = int64_tmp(1)
-        norm_psi = sqrt(real(int64_tmp(2), dp))
+        norm_psi_squared = int64_tmp(2)
+        norm_psi = sqrt(real(norm_psi_squared, dp))
         AllTotParts = int64_tmp(3:2+lenof_sign)
         AllSumNoatHF = int64_tmp(3+lenof_sign:2+2*lenof_sign)
         tot_parts_new_all = int64_tmp(3+2*lenof_sign:2+3*lenof_sign)
