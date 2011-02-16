@@ -2621,7 +2621,8 @@ END SUBROUTINE CCMCStandaloneParticle
 subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
       use SystemData, only : nEl
       use AnnihilationMod, only: DetermineDetNode
-      use bit_reps, only: decode_bit_det
+      use bit_reps, only: decode_bit_det, set_flag_general
+      use bit_rep_data, only: flag_parent_initiator
       implicit none
       INTEGER(kind=n_int) :: DetList(:,:)
       integer nAmpl
@@ -2642,6 +2643,9 @@ subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
          p=DetermineDetNode(nI,0)  !NB This doesn't have an offset of 1, because actually we're working out what happens for the same cycle that the create_particle is spawning to.
          if(p/=iNodeIndex) then
             SpawnList(:,ValidSpawnedList(p))=DetList(:,i)
+! Beware - if initiator is on, we need to flag this as an initiator det, otherwise it'll die before reaching the new proc.
+! This may need to change with complex walkers.
+            call set_flag_general(SpawnList(:,ValidSpawnedList(p)),flag_parent_initiator(1),.true.)
             ValidSpawnedList(p)=ValidSpawnedList(p)+1
          else
             iNext=iNext+1
