@@ -5569,7 +5569,11 @@ MODULE FciMCParMod
         TotMP1Weight=1.D0
         iExcits=0
         tAllExcitsFound=.false.
-        exflag=3
+        if(tUEG) then
+            exflag=2
+        else
+            exflag=3
+        endif
         Ex(:,:)=0
         do while(.true.)
             call GenExcitations3(HFDet,iLutHF,nJ,exflag,Ex,tParity,tAllExcitsFound)
@@ -5638,7 +5642,11 @@ MODULE FciMCParMod
         DetIndex=1
         TotParts=0
         tAllExcitsFound=.false.
-        exflag=3
+        if(tUEG) then
+            exflag=2
+        else
+            exflag=3
+        endif
         Ex(:,:)=0
         do while(.true.)
             call GenExcitations3(HFDet,iLutHF,nJ,exflag,Ex,tParity,tAllExcitsFound)
