@@ -983,7 +983,7 @@ MODULE AnnihilationMod
 
     END SUBROUTINE InsertRemoveParts
 
-    pure function DetermineDetNode (nI, iIterOffset) result(node)
+    function DetermineDetNode (nI, iIterOffset) result(node)
 
         ! Depending on the Hash, determine which node determinant nI
         ! belongs to in the DirectAnnihilation scheme. NB FCIMC has each processor as a separate logical node.

@@ -64,7 +64,8 @@ MODULE FciMCParMod
                     test_add_hist_spin_dist_det, add_hist_energies, &
                     add_hist_spawn, tHistSpawn, AllHistogramEnergy, &
                     AllHistogram, HistogramEnergy, Histogram, AllInstHist, &
-                    InstHist, HistMinInd, project_spins, calc_s_squared
+                    InstHist, HistMinInd, project_spins, calc_s_squared, &
+                    project_spin_csfs
     USE SymData , only : nSymLabels
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE Parallel
@@ -231,6 +232,7 @@ MODULE FciMCParMod
                                                       TotParts)
                 endif
                 !>>>!call  project_spins ()
+                call project_spin_csfs()
                 tmp_spin = calc_s_squared()
                 root_print 'S2: ', iter, tmp_spin
 

@@ -6,7 +6,7 @@ module hist
     use MemoryManager
     use SystemData, only: tHistSpinDist, ilut_spindist, nbasis, nel, LMS, &
                           hist_spin_dist_iter, nI_spindist, LMS, tHPHF, &
-                          tOddS_HPHF
+                          tOddS_HPHF, G1
     use DetBitOps, only: count_open_orbs, EncodeBitDet, spatial_bit_det, &
                          DetBitEq
     use CalcData, only: tFCIMC
@@ -406,6 +406,115 @@ contains
 
     end subroutine
 
+    subroutine project_spin_csfs ()
+
+        type nopen_type
+            integer, allocatable :: offsets (:)
+            integer, allocatable :: nyama (:)
+            integer, allocatable :: yamas(:,:)
+            real(dp), allocatable :: coeff (:)
+        end type
+        type(nopen_type), target :: y_storage(LMS:nel)
+
+        integer :: nopen, ntot, S, ncsf, off, flg, j, k, epos
+        integer :: sgn(lenof_sign), dorder(nel), nI(nel)
+        real(dp) :: coeff, S_coeffs(LMS:nel), norm, S2, S22
+
+        ! TODO: This bit could be done just once, couldn't it...
+        !       We could store all the intermediates.
+        do nopen = LMS, nel, 2
+            ! How many possibililities are there?
+            allocate(y_storage(nopen)%offsets(LMS:nopen), &
+                     y_storage(nopen)%nyama(LMS:nopen))
+
+            ! Find how many csfs there are for each spin value, and obtain
+            ! their offsets into the array.
+            ntot = 0
+            do S = LMS, nopen, 2
+                ncsf = get_num_csfs (nopen, S)
+                y_storage(nopen)%offsets(S) = ntot + 1
+                y_storage(nopen)%nyama(S) = ncsf
+                ntot = ntot + ncsf
+            enddo
+
+            ! Allocate storage space for the Yamanouchi Symbols
+            ! TODO: We really need to swap these indices
+            allocate(y_storage(nopen)%yamas(ntot, nopen), &
+                     y_storage(nopen)%coeff(ntot))
+            y_storage(nopen)%yamas = 0
+            y_storage(nopen)%coeff = 0
+
+            ! Populate the Yamanouchi symbol arrays.
+            do S = LMS, nopen, 2
+                ncsf = y_storage(nopen)%nyama(S)
+                off = y_storage(nopen)%offsets(S)
+                if (ncsf > 0 .and. nopen > 0) then
+                    call csf_get_yamas (nopen, S, &
+                                    y_storage(nopen)%yamas(off:off+ncsf-1,:),&
+                                    ncsf)
+                endif
+            enddo
+        enddo
+
+        do j = 1, TotWalkers
+
+            ! Extract the current walker
+            call extract_bit_rep (CurrentDets(:,j), nI, sgn, flg)
+            call extract_dorder (nI, dorder, nopen)
+
+            ! TODO: Be careful when we adjust the order of indices
+            do k = 1, ubound(y_storage(nopen)%yamas, 1)
+                coeff = csf_coeff (y_storage(nopen)%yamas(k,:), dorder, nopen)
+                coeff = coeff * sgn(1)
+                y_storage(nopen)%coeff(k) = y_storage(nopen)%coeff(k) + coeff
+            enddo
+            
+        enddo
+
+        ! Sum all of the S components --> get values.
+        S_coeffs = 0
+        do nopen = LMS, nel, 2
+            j = 1
+            do S = LMS, nopen, 2
+                epos = j + y_storage(nopen)%nyama(S) - 1
+                do while (j <= epos)
+                    S_coeffs(S) = S_coeffs(S) &
+                                + (y_storage(nopen)%coeff(j)**2)
+                    j = j + 1
+                enddo
+            enddo
+        enddo
+
+        call MPISum_inplace (S_coeffs)
+        if (iProcIndex == Root) then
+            norm = sum(S_coeffs)
+            S_coeffs = sqrt(S_coeffs / norm)
+
+            S2 = 0
+            do S = LMS, nel, 2
+                S2 = S2 + real(S * (S + 2) * S_coeffs(S)) / 4
+            enddo
+            
+            write(6,*) 'Scoeffs', iter, S_coeffs
+            write(6,*) 'Scsf2', S2
+            write(6,*) 'norm compare', norm, norm_psi_squared
+        endif
+
+        ! Deallocate stuff
+        do nopen = LMS, nel, 2
+            if (allocated(y_storage(nopen)%offsets)) &
+                deallocate(y_storage(nopen)%offsets)
+            if (allocated(y_storage(nopen)%yamas)) &
+                deallocate(y_storage(nopen)%yamas)
+            if (allocated(y_storage(nopen)%nyama)) &
+                deallocate(y_storage(nopen)%nyama)
+            if (allocated(y_storage(nopen)%coeff)) &
+                deallocate(y_storage(nopen)%coeff)
+        enddo
+
+
+    end subroutine
+
 
     subroutine project_spins ()
 
@@ -468,24 +577,6 @@ contains
         enddo
     
     end subroutine
-    
-    function calc_s_squared () result (ssq)
-
-        real(dp) :: ssq
-        integer :: i, j, k, l, orb, orb2, pos, pair_sgn, nop_pairs
-        integer :: sgn_carry
-        integer(n_int) :: splus(0:nifd), sminus(0:nifd), detsym(0:nifd)
-        integer(n_int), pointer :: detcurr(:)
-        integer :: nI(nel), flg, sgn(lenof_sign), sgn2(lenof_sign)
-
-
-
-        ! Loop over beta electrons, and consider promoting them to alpha
-        ssq = 0
-        do i = 1, TotWalkers
-
-            call ilut_nifd_pointer_assign(detcurr, CurrentDets(0:NIfD, i))
-            call extract_bit_rep (CurrentDets(0:NifD, i), nI, sgn, flg)
 
             ! TODO: And not an open shell det.
 !            if (tHPHF) then
@@ -521,46 +612,65 @@ contains
 !                enddo
 !
 !            else
-                !
-                ! non-HPHF case.
-                !
-                do j = 1, nel
-                    if (is_beta(nI(j)) &
-                        .and. IsNotOcc(detcurr, get_alpha(nI(j)))) then
-                        splus = detcurr
-                        clr_orb(splus, nI(j))
-                        set_orb(splus, get_alpha(nI(j)))
+    
+    function calc_s_squared () result (ssq)
 
-                        do k = 1, nel
-                            orb2 = nI(k)
-                            if (k == j) orb2 = get_alpha(orb2)
+        real(dp) :: ssq
+        integer :: i, j, k, l, orb, orb2, pos, pair_sgn, nop_pairs
+        integer :: sgn_carry
+        integer(n_int) :: splus(0:nifd), sminus(0:nifd), detsym(0:nifd)
+        integer(n_int), pointer :: detcurr(:)
+        integer :: nI(nel), flg, sgn(lenof_sign), sgn2(lenof_sign)
+        integer :: lms_tmp
 
-                            if (is_alpha(orb2) &
-                                .and. IsNotOcc(splus, get_beta(orb2))) then
-                                sminus = splus
-                                clr_orb(sminus, orb2)
-                                set_orb(sminus, get_beta(orb2))
 
-                                ! --> sminus is an allowed result of applying S-S+
-                                pos = binary_search(CurrentDets(:,1:TotWalkers), &
-                                                sminus, NIfD+1)
-                                if (pos > 0) then
-                                    call extract_sign (CurrentDets(:,pos), sgn2)
-                                    ssq = ssq + (sgn(1) * sgn2(1))
-                                endif
+
+        ! Loop over beta electrons, and consider promoting them to alpha
+        ssq = 0
+        do i = 1, TotWalkers
+
+            call ilut_nifd_pointer_assign(detcurr, CurrentDets(0:NIfD, i))
+            call extract_bit_rep (CurrentDets(0:NifD, i), nI, sgn, flg)
+
+            do j = 1, nel
+                if (is_beta(nI(j)) &
+                    .and. IsNotOcc(detcurr, get_alpha(nI(j)))) then
+                    splus = detcurr
+                    clr_orb(splus, nI(j))
+                    set_orb(splus, get_alpha(nI(j)))
+
+                    do k = 1, nel
+                        orb2 = nI(k)
+                        if (k == j) orb2 = get_alpha(orb2)
+
+                        if (is_alpha(orb2) &
+                            .and. IsNotOcc(splus, get_beta(orb2))) then
+                            sminus = splus
+                            clr_orb(sminus, orb2)
+                            set_orb(sminus, get_beta(orb2))
+
+                            ! --> sminus is an allowed result of applying S-S+
+                            pos = binary_search(CurrentDets(:,1:TotWalkers), &
+                                            sminus, NIfD+1)
+                            if (pos > 0) then
+                                call extract_sign (CurrentDets(:,pos), sgn2)
+                                ssq = ssq + (sgn(1) * sgn2(1))
                             endif
-                        enddo
-                    endif
-                enddo
-            !endif
+                        endif
+                    enddo
+                endif
+            enddo
         enddo
 
-        ! Include Sz(Sz + 1) term
+        ! Sum over all processors and normalise
         call MPISum_inplace (ssq)
-        ssq = ssq + (norm_psi_squared * real(LMS * (LMS + 2), dp) / 4)
-
-        ! And normalise
         ssq = ssq / norm_psi_squared
+
+        ! TODO: n.b. This is a hack. LMS appears to contain -2*Ms of the system
+        !            I am somewhat astounded I haven't noticed this before...
+        lms_tmp = -LMS
+        ssq = ssq + real(lms_tmp * (lms_tmp + 2), dp) / 4
+
 
     end function
 
