@@ -161,7 +161,10 @@ block_all: assume all lines contain data apart from comment lines.  The regular 
 
         indices = []
         for file in self.datafiles:
-            f = open(file, 'r')
+            if file=="STDIN":
+               f=sys.stdin
+            else:
+               f = open(file, 'r')
             have_data = False
             for line in f:
                 # have we hit the end of the data?

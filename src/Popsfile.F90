@@ -176,7 +176,7 @@ MODULE PopsfileMod
             if(err.ne.0) call stop_all(this_routine,"MPI scatter error")
             if(bNodeRoot) call MPIScatterV(BatchRead(:,1:MaxSendIndex),sendcounts,disps,Dets(:,CurrWalkers+1:DetsLen),recvcount,err,Roots)
             if(err.ne.0) call stop_all(this_routine,"MPI error")
-            CurrWalkers=CurrWalkers+recvcount/(NIfTot+1)
+            if(bNodeRoot) CurrWalkers=CurrWalkers+recvcount/(NIfTot+1)
             call MPIBCast(tReadAllPops)
 
         enddo
