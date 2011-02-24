@@ -2980,13 +2980,14 @@ MODULE FciMCParMod
                 ENDIF
             endif
 
+!AJWT commented this out as DMC says it's not being used, and it gave a divide by zero
             ! Initiator abort growth rate
-            if (tTruncInitiator) then
-                AllGrowRateAbort = (sum(iter_data%update_growth_tot + &
-                                    iter_data%tot_parts_old) + AllNoAborted) &
-                                    / (sum(iter_data%tot_parts_old) &
-                                       + AllNoAbortedOld)
-            endif
+!            if (tTruncInitiator) then
+!                AllGrowRateAbort = (sum(iter_data%update_growth_tot + &
+!                                    iter_data%tot_parts_old) + AllNoAborted) &
+!                                    / (sum(iter_data%tot_parts_old) &
+!                                       + AllNoAbortedOld)
+!            endif
 
             ! Exit the single particle phase if the number of walkers exceeds
             ! the value in the input file. If particle no has fallen, re-enter
