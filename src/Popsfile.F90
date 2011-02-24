@@ -32,9 +32,9 @@ MODULE PopsfileMod
         integer(int64) , dimension(lenof_sign) , intent(out) :: CurrParts
         integer , dimension(lenof_sign) , intent(out) :: CurrHF
         integer :: CurrWalkers
-        integer :: iunit,i,j,BatchReadTag,ierr,PopsInitialSlots(0:nProcessors-1)
+        integer :: iunit,i,j,BatchReadTag,ierr,PopsInitialSlots(0:nNodes-1)
         real(8) :: BatchSize
-        integer :: PopsSendList(0:nProcessors-1),proc,sendcounts(nProcessors),disps(nProcessors)
+        integer :: PopsSendList(0:nNodes-1),proc,sendcounts(nNodes),disps(nNodes)
         integer :: MaxSendIndex,recvcount,err
         integer(n_int) , allocatable :: BatchRead(:,:)
         integer(n_int) :: WalkerTemp(0:NIfTot)
@@ -89,10 +89,10 @@ MODULE PopsfileMod
             call flush(6)
         ENDIF
 
-        BatchSize=REAL(ReadBatch,dp)/REAL(nProcessors,dp)
+        BatchSize=REAL(ReadBatch,dp)/REAL(nNodes,dp)
         if(iProcIndex.eq.Root) then
             !Create PopsInitialSlots
-            do i=0,nProcessors-1
+            do i=0,nNodes-1
                 PopsInitialSlots(i)=NINT(BatchSize*i)+1
             enddo
             !Allocate array to store particle to distribute
@@ -149,7 +149,7 @@ MODULE PopsfileMod
                     proc = DetermineDetNode (TempnI,0)
                     BatchRead(:,PopsSendList(proc)) = WalkerTemp(:)
                     PopsSendList(proc) = PopsSendList(proc) + 1
-                    if(proc.ne.(nProcessors-1)) then
+                    if(proc.ne.(nNodes-1)) then
                         if(PopsInitialSlots(proc+1)-PopsSendList(proc).lt.2) then
                             exit  !Now distribute the particles
                         endif
@@ -163,18 +163,18 @@ MODULE PopsfileMod
 
                 if(Det.gt.EndPopsList) tReadAllPops=.true.
 
-                do j=0,nProcessors-1
+                do j=0,nNodes-1
                     sendcounts(j+1)=(PopsSendList(j)-(NINT(BatchSize*j)+1))*(NIfTot+1)
                     disps(j+1)=(NINT(BatchSize*j))*(NIfTot+1)
                 enddo
-                MaxSendIndex=(disps(nProcessors)+sendcounts(nProcessors))/(nIfTot+1)
+                MaxSendIndex=(disps(nNodes)+sendcounts(nNodes))/(nIfTot+1)
 
             endif
 
             !Now scatter the particles read in to their correct processors.
-            call MPIScatter(sendcounts,recvcount,err)
+            if(bNodeRoot) call MPIScatter(sendcounts,recvcount,err,Roots)
             if(err.ne.0) call stop_all(this_routine,"MPI scatter error")
-            call MPIScatterV(BatchRead(:,1:MaxSendIndex),sendcounts,disps,Dets(:,CurrWalkers+1:DetsLen),recvcount,err)
+            if(bNodeRoot) call MPIScatterV(BatchRead(:,1:MaxSendIndex),sendcounts,disps,Dets(:,CurrWalkers+1:DetsLen),recvcount,err,Roots)
             if(err.ne.0) call stop_all(this_routine,"MPI error")
             CurrWalkers=CurrWalkers+recvcount/(NIfTot+1)
             call MPIBCast(tReadAllPops)
@@ -277,10 +277,10 @@ MODULE PopsfileMod
             tSinglePartPhase=.true.
             !If continuing to grow, ensure we can allocate enough memory for what we hope to get the walker population to,
             !rather than the average number of determinants in the popsfile.
-            WalkerListSize=max(initwalkers,NINT(real(iPopAllTotWalkers,8)/real(nProcessors,8)))
+            WalkerListSize=max(initwalkers,NINT(real(iPopAllTotWalkers,8)/real(nNodes,8)))
         else
             tSinglePartPhase=.false.
-            WalkerListSize=NINT(real(iPopAllTotWalkers,8)/real(nProcessors,8))
+            WalkerListSize=NINT(real(iPopAllTotWalkers,8)/real(nNodes,8))
         endif
 
         AllSumNoatHF=PopSumNoatHF
