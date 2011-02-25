@@ -745,6 +745,9 @@ MODULE AnnihilationMod
                         ! Are we allowing particles to survive if there is an
                         ! initiator with the same spatial structure?
                         ! TODO: optimise this. Only call it once?
+
+                        ! TODO: Surely this doesn't work? Need to avoid aborting
+                        !       the particle?
                         if (tSpawnSpatialInit) then
                             if (is_spatial_init(SpawnedParts(:,i))) then
                                 call set_flag (SpawnedParts(:,i), &

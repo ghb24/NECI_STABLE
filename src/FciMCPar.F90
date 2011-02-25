@@ -987,7 +987,7 @@ MODULE FciMCParMod
 #endif
             write(6,"(A,2I4,A)",advance='no') &
                                       "Parent flag: ", parent_flags, part_type
-            call writebitdet (6, nJ, .true.)
+            call writebitdet (6, ilutJ, .true.)
             call flush(6)
         endif
        
@@ -2934,11 +2934,11 @@ MODULE FciMCParMod
 
 !        WRITE(6,*) "***",iter_data%update_growth_tot,AllTotParts-AllTotPartsOld
         ASSERTROOT(all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld))
-        
+    
     end subroutine collate_iter_data
 
     subroutine update_shift (iter_data)
-
+     
         type(fcimc_iter_data), intent(in) :: iter_data
         integer(int64) :: tot_walkers
         logical :: tReZeroShift
