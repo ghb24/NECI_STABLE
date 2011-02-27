@@ -1364,13 +1364,13 @@ MODULE FciMCParMod
         if (tAddToInitiator) then
             bloom_warn_string = '("Bloom of more than n_add: &
                                 &A max of ", i8, &
-                                &"particles created from ")'
+                                &" particles created from ")'
         else
             ! Use this variable to store the bloom cutoff level.
             InitiatorWalkNo = 25
             bloom_warn_string = '("Particle blooms of more than 25 in &
                                 &iteration ", i14, ": A max of ", i8, &
-                                &"particles created in one attempt from ")'
+                                &" particles created in one attempt from ")'
         endif
         iMaxBloom=0 !The largest bloom to date.
 
