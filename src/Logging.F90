@@ -22,7 +22,7 @@ MODULE Logging
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tIncrementPops,tROHistogramAll,tROHistER,tROHistSingExc,tRoHistOneElInts
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump,tRDMonFly,tDiagRDM,tCalc_RDMEnergy,tStochasticRDM,tAllSpawnAttemptsRDM
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking,tTruncDumpbyVal
-    LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit
+    LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit, tExplicitHFRDM, tFullRDM, tHF_S_D_Ref, tHF_Ref
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps,IterShiftBlock, IterRDMonFly, RDMExcitLevel, RDMEnergyIter
     INTEGER CCMCDebug  !CCMC Debugging Level 0-6.  Default 0
     INTEGER FCIMCDebug !FciMC Debugging Level 0-6.  Default 0
@@ -124,6 +124,11 @@ MODULE Logging
       IterRDMonFly=0
       RDMExcitLevel=1
       tCalc_RDMEnergy = .false.
+      tExplicitHFRDM = .false.
+      tFullRDM = .false.
+      tHF_S_D_Ref = .false.
+      tHF_Ref = .false.
+
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -449,7 +454,23 @@ MODULE Logging
         case("ALLSPAWNATTEMPTSRDM")
 !Stores all spawn *attempt* (rather than just those where a child is created, and creates the RDM from this.            
             tAllSpawnAttemptsRDM = .true.
+
+        case("EXPLICITHFRDM")
+!Explicitly calculates the elements of the RDM connecting the HF to singles or doubles (rather than stochastically).            
+            tExplicitHFRDM = .true.
+
+        case("FULLRDM")
+!Full space RDM is calculated, with no restriction on the reference etc.            
+            tFullRDM = .true.
+
+        case("HFSDREFRDM")
+!Uses the HF, singles and doubles as a multiconfigurational reference and calculates the RDM to find the energy.            
+            tHF_S_D_Ref = .true.
         
+        case("HFREFRDM")
+!Uses the HF as a reference and calculates the RDM to find the energy - should be same as projected energy.            
+            tHF_Ref = .true.
+ 
         case("AUTOCORR")
 !This is a Parallel FCIMC option - it will calculate the largest weight MP1 determinants and histogramm them
 !HF Determinant is always histogrammed. NoACDets(2) is number of doubles. NoACDets(3) is number of triples and NoACDets(4) is 

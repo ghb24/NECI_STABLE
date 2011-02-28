@@ -29,9 +29,9 @@ MODULE FciMCData
       INTEGER(KIND=n_int) , ALLOCATABLE :: Spawned_Parents(:,:)
       INTEGER , ALLOCATABLE :: Spawned_Parents_Index(:,:)
       INTEGER :: Spawned_ParentsTag, Spawned_Parents_IndexTag
-      INTEGER :: RDMBiasFacI
+      REAL*8 :: RDMBiasFacI
       LOGICAL :: tFillingRDMonFly
-      integer, dimension(lenof_sign) :: HFSign
+      INTEGER, DIMENSION(lenof_sign) :: HFSign, AllHFSign
 
       ! Be able to store a list of the current initiators
       integer(n_int), allocatable :: CurrentInits(:,:)
@@ -65,6 +65,7 @@ MODULE FciMCData
       integer(int64) :: norm_psi_squared
       real(dp) :: norm_psi
       INTEGER :: exFlag=3
+      real*8 :: AccumRDMNorm
 
 !The following variables are calculated as per processor, but at the end of each update cycle, are combined to the root processor
       REAL*8 :: GrowRate,DieRat

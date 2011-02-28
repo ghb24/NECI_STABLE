@@ -22,7 +22,7 @@ MODULE AnnihilationMod
                         extract_part_sign, copy_flag
     use csf_data, only: csf_orbital_mask
     use hist_data, only: tHistSpawn, HistMinInd2
-    use Logging , only : tStochasticRDM, tAllSpawnAttemptsRDM
+    use Logging , only : tStochasticRDM, tAllSpawnAttemptsRDM, tExplicitHFRDM, tHF_Ref, tHF_S_D_Ref
     IMPLICIT NONE
     integer :: Beginning_Parent_Array_Ind, Parent_Array_Ind, No_Spawned_Parents
 
@@ -215,6 +215,7 @@ MODULE AnnihilationMod
               sendcounts(2:nNodes)=0
               disps(2:nNodes)=ValidSpawnedList(1)
            endif
+                                                                       
         else
 !Distribute the gaps on all procs
            do i=0,nProcessors-1
@@ -411,8 +412,10 @@ MODULE AnnihilationMod
             ! Reset the cumulative determinant
             cum_det = 0
             cum_det (0:nifdbo) = SpawnedParts(0:nifdbo, BeginningBlockDet)
-            Beginning_Parent_Array_Ind = Parent_Array_Ind
-            Spawned_Parents_Index(2,VecInd) = 0
+            IF(tFillingRDMonFly.and.tStochasticRDM) THEN
+                Beginning_Parent_Array_Ind = Parent_Array_Ind
+                Spawned_Parents_Index(2,VecInd) = 0
+            ENDIF
 
             do part_type=1,lenof_sign   !Annihilate in this block seperately for real and imag walkers
 
@@ -480,7 +483,7 @@ MODULE AnnihilationMod
 
         enddo   
 
-        No_Spawned_Parents = Parent_Array_Ind - 1
+        IF(tFillingRDMonFly.and.tStochasticRDM) No_Spawned_Parents = Parent_Array_Ind - 1
         ValidSpawned=ValidSpawned-DetsMerged    !This is the new number of unique spawned determinants on the processor
         IF(ValidSpawned.ne.(VecInd-1)) THEN
             CALL Stop_All(this_routine,"Error in compression of spawned list")
@@ -724,13 +727,12 @@ MODULE AnnihilationMod
 !to the whole list of spawned particles at the end of the routine.
 !In the main list, we change the 'sign' element of the array to zero. These will be deleted at the end of the total annihilation step.
     SUBROUTINE AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew, iter_data)
-        use nElRDMMod , only : DiDj_Found_FillRDM
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer, intent(in) :: TotWalkersNew
         integer, intent(inout) :: ValidSpawned 
         INTEGER :: MinInd,PartInd,i,j,ToRemove,DetsMerged,PartIndex
         INTEGER, DIMENSION(lenof_sign) :: SignProd,CurrentSign,SpawnedSign,SignTemp
-        INTEGER :: ExcitLevel
+        INTEGER :: ExcitLevel, walkExcitLevel, dettemp(NEl)
         INTEGER(KIND=n_int) , POINTER :: PointTemp(:,:)
         LOGICAL :: tSuccess,tSuc
 
@@ -815,15 +817,35 @@ MODULE AnnihilationMod
                 SignProd=CurrentSign*SpawnedSign
 
 !                WRITE(6,*) 'DET FOUND in list'
-!                IF(tFillingRDMonFly.and.tStochasticRDM.and.&
-!                    (.not.DetBitEQ(CurrentDets(:,PartInd),iLutHF,NIfDBO))) CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign)
-                IF(tFillingRDMonFly.and.tStochasticRDM) CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign)
+                if(tFillingRDMonFly.and.tStochasticRDM) then
+!                    write(6,*) 'child found currentdets(:,PartInd)',currentdets(:,PartInd)
+!                    call decode_bit_det (dettemp, CurrentDets(:,PartInd))
+!                    write(6,*) 'spawning to ',dettemp
+
+                    if(.not.tHF_Ref) then
+                        if(tExplicitHFRDM) then
+                            if(tHF_S_D_Ref) then
+                                !Excitation level of child.
+                                walkExcitLevel = FindBitExcitLevel (iLutHF, CurrentDets(:,PartInd), 3)
+!                                write(6,*) 'Excitation level of child',walkExcitLevel
+                                if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) & 
+                                    CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign)
+                            elseif(.not.DetBitEQ(CurrentDets(:,PartInd),iLutHF,NIfDBO)) then
+                                CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign)
+                            endif
+                        else
+                            CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign)
+                        endif
+                    endif
+                endif
 
                 IF(SpawnedSign(1).eq.0) THEN
                     IF(.not.tAllSpawnAttemptsRDM) CALL Stop_All('AnnihilateSpawnedParts','SpawnedParts entry with sign = 0.')
                     ToRemove = ToRemove + 1
                     CYCLE
                 ENDIF
+
+!                SpawnedSign(1) = 0      !dmc
 
                 !Transfer across
                 call encode_sign(CurrentDets(:,PartInd),SpawnedSign+CurrentSign)
@@ -1030,6 +1052,8 @@ MODULE AnnihilationMod
         character(*), parameter :: this_routine = 'InsertRemoveParts'
         HElement_t :: HDiagTemp
 
+!        validspawned = 0    !dmc
+
 !It appears that the rest of this routine isn't thread-safe if ValidSpawned is zero.
         if(.not.bNodeRoot) return
 !Annihilated determinants first are removed from the main array (zero sign). 
@@ -1038,11 +1062,9 @@ MODULE AnnihilationMod
         norm_psi_squared = 0
         DetsMerged=0
         iHighestPop=0
-        HFSign(:) = 0
         IF(TotWalkersNew.gt.0) THEN
             do i=1,TotWalkersNew
                 call extract_sign(CurrentDets(:,i),CurrentSign)
-                IF(DetBitEQ(CurrentDets(:,i),iLutHF,NIfDBO)) HFSign(:) = CurrentSign(:) 
                 IF(IsUnoccDet(CurrentSign)) THEN
                     DetsMerged=DetsMerged+1
                     IF(tTruncInitiator) THEN
@@ -1075,9 +1097,19 @@ MODULE AnnihilationMod
                         ENDIF
                     ENDIF
                 ENDIF
+
+                if(detbiteq(CurrentDets(:,i), iluthf,NIfDBO)) HFSign = CurrentSign
+
             enddo
             TotWalkersNew=TotWalkersNew-DetsMerged
+        ELSEIF(iProcIndex.eq.iHFProc) THEN
+            call stop_all(this_routine,'HF has been deleted from list')
         ENDIF
+
+
+        call MPISumAll (HFSign, AllHFSign)
+
+!        if(tfillingrdmonfly) call stop_all('','')
 
 !        do i=1,TotWalkersNew
 !            IF(CurrentSign(i).eq.0) THEN
@@ -1162,8 +1194,6 @@ MODULE AnnihilationMod
 
         ENDIF
 !        CALL CheckOrdering(CurrentDets,CurrentSign(1:TotWalkers),TotWalkers,.true.)
-
-        IF(tFillingRDMonFly) CALL MPIBCast(HFSign,lenof_sign)
 
     END SUBROUTINE InsertRemoveParts
 
