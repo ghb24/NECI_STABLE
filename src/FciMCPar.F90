@@ -703,7 +703,8 @@ MODULE FciMCParMod
                 ! Why do this? Why not just get all procs to do division?
                 IF(iProcIndex.eq.root) THEN
                     Tau=Tau/10.D0
-                    WRITE(6,'(A,F10.5)') 'Beginning truncated initiator calculation and reducing tau by a factor of 10. New tau is : ',Tau
+                    WRITE(6,'(A,F10.5)') 'Beginning truncated initiator calculation and reducing tau by " &
+                        &//"a factor of 10. New tau is : ',Tau
                 ENDIF
                 CALL MPIBCast(Tau)
             ENDIF
@@ -1845,7 +1846,8 @@ MODULE FciMCParMod
 !First histogram off-diagonal matrix elements.
             Bin=INT((real(rh,dp)+OffDiagMax)/OffDiagBinRange)+1
             IF(Bin.le.0.or.Bin.gt.iOffDiagNoBins) THEN
-                CALL Stop_All("AttemptCreatePar","Trying to histogram off-diagonal matrix elements, but outside histogram array bounds.")
+                CALL Stop_All("AttemptCreatePar","Trying to histogram off-diagonal matrix elements, "&
+                & //"but outside histogram array bounds.")
             ENDIF
             IF(IC.eq.1) THEN
                 SinglesAttemptHist(Bin)=SinglesAttemptHist(Bin)+(Tau/Prob)
@@ -1879,7 +1881,8 @@ MODULE FciMCParMod
             ENDIF
             Bin=INT((real(rh,dp)-Hii)/BinRange)+1
             IF(Bin.gt.iNoBins) THEN
-                CALL Stop_All("AttemptCreatePar","Histogramming energies higher than the arrays can cope with. Increase iNoBins or BinRange")
+                CALL Stop_All("AttemptCreatePar","Histogramming energies higher than the arrays can cope with. "&
+                & //"Increase iNoBins or BinRange")
             ENDIF
             IF(AttemptCreatePar.ne.0) THEN
                 SpawnHist(Bin)=SpawnHist(Bin)+real(abs(AttemptCreatePar),dp)
@@ -3207,11 +3210,13 @@ MODULE FciMCParMod
 !Print out initial starting configurations
             WRITE(6,*) ""
             IF(tTruncInitiator.or.tDelayTruncInit) THEN
-                WRITE(initiatorstats_unit,"(A2,A10,10A20)") "# ","1.Step","2.TotWalk","3.Annihil","4.Died","5.Born","6.TotUniqDets",&
+                WRITE(initiatorstats_unit,"(A2,A10,10A20)") "# ","1.Step","2.TotWalk","3.Annihil","4.Died", &
+                & "5.Born","6.TotUniqDets",&
 &               "7.InitDets","8.NonInitDets","9.InitWalks","10.NonInitWalks","11.AbortedWalks"
             ENDIF
             IF(tLogComplexPops) THEN
-                WRITE(complexstats_unit,"(A)") '#   1.Step  2.Shift     3.RealShift     4.ImShift   5.TotParts      6.RealTotParts      7.ImTotParts'
+                WRITE(complexstats_unit,"(A)") '#   1.Step  2.Shift     3.RealShift     4.ImShift   5.TotParts      " &
+                & //"6.RealTotParts      7.ImTotParts'
             ENDIF
 
 #ifdef __CMPLX
@@ -3517,7 +3522,8 @@ MODULE FciMCParMod
             CALL GetLz(HFDet,NEl,HFLz)
             WRITE(6,"(A,I5)") "Ml value of reference determinant is: ",HFLz
             IF(HFLz.ne.LzTot) THEN
-                CALL Stop_All("SetupParameters","Chosen reference determinant does not have the same Lz value as indicated in the input.")
+                CALL Stop_All("SetupParameters","Chosen reference determinant does not have the " &
+                & //"same Lz value as indicated in the input.")
             ENDIF
         ENDIF
 
@@ -3628,7 +3634,8 @@ MODULE FciMCParMod
             ELSE
                 WRITE(6,*) "Truncated CAS space detected. Writing out CAS space..."
             ENDIF
-            WRITE(6,'(A,I2,A,I2,A)') " In CAS notation, (spatial orbitals, electrons), this has been chosen as: (",(OccCASOrbs+VirtCASOrbs)/2,",",OccCASOrbs,")"
+            WRITE(6,'(A,I2,A,I2,A)') " In CAS notation, (spatial orbitals, electrons), this has been chosen as: (", &
+                (OccCASOrbs+VirtCASOrbs)/2,",",OccCASOrbs,")"
             DO I=NEl-OccCASorbs+1,NEl
                 WRITE(6,'(6I7)',advance='no') I,BRR(I),G1(BRR(I))%K(1), G1(BRR(I))%K(2),G1(BRR(I))%K(3), G1(BRR(I))%MS
                 CALL WRITESYM(6,G1(BRR(I))%SYM,.FALSE.)
@@ -3648,7 +3655,8 @@ MODULE FciMCParMod
         ENDIF
 
         if(tSpawn_Only_Init.and.tSpawn_Only_Init_Grow) then
-            write(6,"(A)") "Only allowing initiator determinants to spawn during growth phase, but allowing all to spawn after fixed shift."
+            write(6,"(A)") "Only allowing initiator determinants to spawn during growth phase, but allowing all to "&
+                & //"spawn after fixed shift."
         elseif(tSpawn_Only_Init) then
             write(6,"(A)") "Only allowing initiator determinants to spawn"
         endif
@@ -3788,10 +3796,12 @@ MODULE FciMCParMod
             IF(tNoBrillouin.or.(tHub.and.tReal).or.tRotatedOrbs) THEN
                 WRITE(6,*) "High spin calculation with single excitations also used to calculate energy."
             ELSEIF(tUHF) THEN
-                WRITE(6,*) "High spin calculation - but single excitations will *NOT* be used to calculate energy as this is an unrestricted calculation."
+                WRITE(6,*) "High spin calculation - but single excitations will *NOT* be used to calculate energy as "&
+                & //"this is an unrestricted calculation."
             ELSE
-                CALL Stop_All("SetupParameters","High-spin, restricted calculation detected, but single excitations are not being used to calculate the energy.  &
-                              & Either use the UHF keyword, or turn off brillouins theorem using NOBRILLOUINS, ROHF or ROTATEDORBS.")
+                CALL Stop_All("SetupParameters","High-spin, restricted calculation detected, but single excitations are "&
+                & //"not being used to calculate the energy.  &
+                  & Either use the UHF keyword, or turn off brillouins theorem using NOBRILLOUINS, ROHF or ROTATEDORBS.")
             ENDIF
 !            tRotatedOrbs=.true.
 !        ELSEIF(LMS.ne.0) THEN
@@ -3878,49 +3888,49 @@ MODULE FciMCParMod
             enddo
 
             IF(.not.allocated(FCIDets)) THEN
-                CALL Stop_All(this_routine,"A Full Diagonalization is required in the same calculation before histogramming can occur.")
+                CALL Stop_All(this_routine,"A Full Diagonalization is required before histogramming can occur.")
             ENDIF
 
             IF(tHistHamil) THEN
                 WRITE(6,*) "Histogramming total Hamiltonian, with Dets=", Det
                 ALLOCATE(HistHamil(1:det,1:det),stat=ierr)
-                IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays") 
                 HistHamil(:,:)=0.D0
                 ALLOCATE(AvHistHamil(1:det,1:det),stat=ierr)
-                IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays")
                 AvHistHamil(:,:)=0.D0
                 IF(iProcIndex.eq.0) THEN
                     ALLOCATE(AllHistHamil(1:det,1:det),stat=ierr)
-                    IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                    IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays")
                     AllHistHamil(:,:)=0.D0
                     ALLOCATE(AllAvHistHamil(1:det,1:det),stat=ierr)
-                    IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                    IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays")
                     AllAvHistHamil(:,:)=0.D0
                 ENDIF
             ELSE
                 WRITE(6,*) "Histogramming spawning wavevector, with Dets=", Det
                 ALLOCATE(Histogram(1:lenof_sign,1:det),stat=ierr)
                 IF(ierr.ne.0) THEN
-                    CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                    CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays ")
                 ENDIF
                 Histogram(:,:)=0.D0
                 ALLOCATE(AllHistogram(1:lenof_sign,1:det),stat=ierr)
-                IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays")
             ENDIF
             IF(tHistSpawn) THEN
                 ALLOCATE(InstHist(1:lenof_sign,1:det),stat=ierr)
                 IF(ierr.ne.0) THEN
-                    CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                    CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays")
                 ENDIF
                 InstHist(:,:)=0.D0
                 ALLOCATE(AvAnnihil(1:lenof_sign,1:det),stat=ierr)
                 IF(ierr.ne.0) THEN
-                    CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                    CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays")
                 ENDIF
                 AvAnnihil(:,:)=0.D0
                 ALLOCATE(InstAnnihil(1:lenof_sign,1:det),stat=ierr)
                 IF(ierr.ne.0) THEN
-                    CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                    CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays")
                 ENDIF
                 InstAnnihil(:,:)=0.D0
             ENDIF
@@ -3932,7 +3942,7 @@ MODULE FciMCParMod
                     ALLOCATE(AllAvAnnihil(1:lenof_sign,1:det),stat=ierr)
                 ENDIF
                 IF(ierr.ne.0) THEN
-                    CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                    CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays")
                 ENDIF
             ENDIF
         ELSEIF(tHistEnergies) THEN
@@ -4019,7 +4029,9 @@ MODULE FciMCParMod
         endif
 
         IF(TPopsFile) THEN
-            IF(mod(iWritePopsEvery,StepsSft).ne.0) CALL Warning(this_routine,"POPSFILE writeout should be a multiple of the update cycle length.")
+            IF(mod(iWritePopsEvery,StepsSft).ne.0) then
+                CALL Warning(this_routine,"POPSFILE writeout should be a multiple of the update cycle length.")
+            endif
         ENDIF
 
         if (TReadPops) then
@@ -4063,8 +4075,12 @@ MODULE FciMCParMod
 ! orbitals with energies equal to, or below that of the CASmin orbital must be completely occupied for 
 ! the determinant to be in the active space.
 
-            IF(OccCASOrbs.gt.NEl) CALL Stop_All("SetupParameters","Occupied orbitals in CAS space specified is greater than number of electrons")
-            IF(VirtCASOrbs.gt.(nBasis-NEl)) CALL Stop_All("SetupParameters","Virtual orbitals in CAS space specified is greater than number of unoccupied orbitals")
+            IF(OccCASOrbs.gt.NEl) then
+                CALL Stop_All("SetupParameters","Occupied orbitals in CAS space specified is greater than number of electrons")
+            endif
+            IF(VirtCASOrbs.gt.(nBasis-NEl)) then
+                CALL Stop_All("SetupParameters","Virtuals in CAS space specified greater than number of unoccupied orbitals")
+            endif
 
 !Create the bit masks for the bit calculation of these properties.
             ALLOCATE(CASMask(0:NIfD))
@@ -4085,11 +4101,13 @@ MODULE FciMCParMod
 
         ENDIF
         IF(tPartFreezeCore) THEN
-            WRITE(6,'(A,I4,A,I5)') 'Partially freezing the lowest ',NPartFrozen,' spin orbitals so that no more than ',NHolesFrozen,' holes exist within this core.'
+            WRITE(6,'(A,I4,A,I5)') 'Partially freezing the lowest ',NPartFrozen,' spin orbitals so that no more than ', &
+                NHolesFrozen,' holes exist within this core.'
             CALL CreateSpinInvBRR()
         ENDIF
         IF(tPartFreezeVirt) THEN
-            WRITE(6,'(A,I4,A,I5)') 'Partially freezing the highest ',NVirtPartFrozen,' virtual spin orbitals so that no more than ',NElVirtFrozen,' electrons occupy these orbitals.'
+            WRITE(6,'(A,I4,A,I5)') 'Partially freezing the highest ',NVirtPartFrozen, &
+                ' virtual spin orbitals so that no more than ',NElVirtFrozen,' electrons occupy these orbitals.'
             CALL CreateSpinInvBRR()
         ENDIF
 
@@ -4166,7 +4184,8 @@ MODULE FciMCParMod
 !If restricted HF orbitals are being used, brillouins theorem does not hold.
                 tNoBrillouin=.true.
                 tUseBrillouin=.false.
-                WRITE(6,'(A)') " Using an open shell reference determinant in a basis of restricted HF orbitals; Brillouins theorem is being turned off. "
+                WRITE(6,'(A)') " Using an open shell reference determinant in a basis of restricted HF orbitals; " &
+                & //"Brillouins theorem is being turned off. "
             ENDIF
         ENDIF
 
@@ -4517,14 +4536,17 @@ MODULE FciMCParMod
         ENDIF
         iTotal=nSing + nDoub + ncsf
 
-        WRITE(6,"(I7,A,I7,A)") NDoub, " double excitations, and ",NSing," single excitations found from HF. This will be used to calculate pDoubles."
+        WRITE(6,"(I7,A,I7,A)") NDoub, " double excitations, and ",NSing, &
+            " single excitations found from HF. This will be used to calculate pDoubles."
 
         IF(SinglesBias.ne.1.D0) THEN
-            WRITE(6,*) "Singles Bias detected. Multiplying single excitation connectivity of HF determinant by ",SinglesBias," to determine pDoubles."
+            WRITE(6,*) "Singles Bias detected. Multiplying single excitation connectivity of HF determinant by ", &
+                SinglesBias," to determine pDoubles."
         ENDIF
 
         IF((NSing+nDoub+ncsf).ne.iTotal) THEN
-            CALL Stop_All("CalcApproxpDoubles","Sum of number of singles and number of doubles does not equal total number of excitations")
+            CALL Stop_All("CalcApproxpDoubles","Sum of number of singles and number of doubles does " &
+            & //"not equal total number of excitations")
         ENDIF
         IF((NSing.eq.0).or.(NDoub.eq.0)) THEN
             WRITE(6,*) "Number of singles or doubles found equals zero. pDoubles will be set to 0.95. Is this correct?"
@@ -4560,13 +4582,15 @@ MODULE FciMCParMod
                        &" rather than (without bias): ", f14.6)') &
                        pSingles, real(nSing,dp) / real(iTotal,dp)
 
-            WRITE(6,"(A,F14.6,A,F14.6)") "pDoubles set to: ",pDoubles, " rather than (without bias): ",real(nDoub,dp)/real(iTotal,dp)
+            WRITE(6,"(A,F14.6,A,F14.6)") "pDoubles set to: ",pDoubles, " rather than (without bias): ", &
+                & real(nDoub,dp)/real(iTotal,dp)
         ELSE
             write (6,'(A,F14.6)') " pDoubles set to: ", pDoubles
             write (6,'(A,F14.6)') " pSingles set to: ", pSingles
         ENDIF
 
-        WRITE(6,'(A,F15.10)') " Assuming an average K_ij magnitude of approx 0.01, an appropriate tau is predicted to be around: ",(0.02*(1.D0/(REAL(NSing)+REAL(NDoub))))/0.01
+        WRITE(6,'(A,F15.10)') " Assuming an average K_ij magnitude of approx 0.01, an appropriate tau is " &
+            & //"predicted to be around: ",(0.02*(1.D0/(REAL(NSing)+REAL(NDoub))))/0.01
 !This is a rough guesstimate of what tau might like to be, assuming K_ij is approx 0.01 on average, and we want a probability of spawning to be about 0.02.        
 !These are just stats taken from one system... will investigate further...
 
@@ -4985,11 +5009,13 @@ MODULE FciMCParMod
                 WalkVecH(:)=0.d0
                 MemoryAlloc=MemoryAlloc+8*MaxWalkersPart
             ELSE
-                WRITE(6,"(A,F14.6,A)") " Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*8,dp)/1048576.D0," Mb/Processor"
+                WRITE(6,"(A,F14.6,A)") " Diagonal H-Elements will not be stored. This will *save* ", &
+                    & REAL(MaxWalkersPart*8,dp)/1048576.D0," Mb/Processor"
             ENDIF
             
 
-            WRITE(6,"(A,I12,A)") " Spawning vectors allowing for a total of ",MaxSpawned," particles to be spawned in any one iteration per core."
+            WRITE(6,"(A,I12,A)") " Spawning vectors allowing for a total of ",MaxSpawned, &
+                    " particles to be spawned in any one iteration per core."
             ALLOCATE(SpawnVec(0:NIftot,MaxSpawned),stat=ierr)
             CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVecTag,ierr)
             SpawnVec(:,:)=0
@@ -5081,7 +5107,8 @@ MODULE FciMCParMod
                 else !Set up walkers on HF det
 
                     if(tStartSinglePart) then
-                        WRITE(6,"(A,I15,A,F9.3,A,I15)") " Initial number of particles set to ",InitialPart," and shift will be held at ",DiagSft," until particle number gets to ",InitWalkers*nNodes
+                        WRITE(6,"(A,I15,A,F9.3,A,I15)") " Initial number of particles set to ",InitialPart, &
+                            " and shift will be held at ",DiagSft," until particle number gets to ",InitWalkers*nNodes
                     else
                         write(6,"(A,I16)") "Initial number of walkers per processor chosen to be: ", InitWalkers
                     endif
@@ -5159,7 +5186,8 @@ MODULE FciMCParMod
                 endif   !tStartmp1
             endif  
         
-            WRITE(6,"(A,F14.6,A)") " Initial memory (without excitgens + temp arrays) consists of : ",REAL(MemoryAlloc,dp)/1048576.D0," Mb/Processor"
+            WRITE(6,"(A,F14.6,A)") " Initial memory (without excitgens + temp arrays) consists of : ", &
+                & REAL(MemoryAlloc,dp)/1048576.D0," Mb/Processor"
             WRITE(6,*) "Only one array of memory to store main particle list allocated..."
             WRITE(6,*) "Initial memory allocation sucessful..."
             CALL FLUSH(6)
@@ -5200,10 +5228,14 @@ MODULE FciMCParMod
         ! Initialise excitation generation storage
         call init_excit_gen_store (fcimc_excit_gen_store)
 
-        IF((NMCyc.ne.0).and.(tRotateOrbs.and.(.not.tFindCINatOrbs))) CALL Stop_All(this_routine,"Currently not set up to rotate and then go straight into a spawning &
-                                                                                    & calculation.  Ordering of orbitals is incorrect.  This may be fixed if needed.")
+        IF((NMCyc.ne.0).and.(tRotateOrbs.and.(.not.tFindCINatOrbs))) then 
+            CALL Stop_All(this_routine,"Currently not set up to rotate and then go straight into a spawning &
+            & calculation.  Ordering of orbitals is incorrect.  This may be fixed if needed.")
+        endif
         
-        if(tSpawn_Only_Init .and. (.not.tTruncInitiator)) CALL Stop_All(this_routine,"Cannot use the SPAWNONLYINIT option without the TRUNCINITIATOR option.")
+        if(tSpawn_Only_Init .and. (.not.tTruncInitiator)) then
+            CALL Stop_All(this_routine,"Cannot use the SPAWNONLYINIT option without the TRUNCINITIATOR option.")
+        endif
 
     end subroutine InitFCIMCCalcPar
 
@@ -5236,7 +5268,8 @@ MODULE FciMCParMod
         if(tRestartHighPop) call stop_all(this_routine,"StartCAS cannot with with dynamically restarting calculations")
 
         write(6,*) "Initialising walkers proportional to a CAS diagonalisation..."
-        write(6,'(A,I2,A,I2,A)') " In CAS notation, (spatial orbitals, electrons), this has been chosen as: (",(OccCASOrbs+VirtCASOrbs)/2,",",OccCASOrbs,")"
+        write(6,'(A,I2,A,I2,A)') " In CAS notation, (spatial orbitals, electrons), this has been chosen as: (" &
+            ,(OccCASOrbs+VirtCASOrbs)/2,",",OccCASOrbs,")"
         DO I=NEl-OccCASorbs+1,NEl
             WRITE(6,'(6I7)',advance='no') I,BRR(I),G1(BRR(I))%K(1), G1(BRR(I))%K(2),G1(BRR(I))%K(3), G1(BRR(I))%MS
             CALL WRITESYM(6,G1(BRR(I))%SYM,.FALSE.)
@@ -5282,7 +5315,9 @@ MODULE FciMCParMod
 
         if(CASSym%Ml.ne.LzTot) call stop_all(this_routine,"Ml of CAS ref det does not match Ml of full reference det")
         if(CASSym%Ms.ne.0) call stop_all(this_routine,"CAS diagonalisation can only work with closed shell CAS spaces initially")
-        if(CASSym%Sym%S.ne.HFSym%Sym%S) call stop_all(this_routine,"Sym of CAS ref det does not match Sym of fulll reference det")
+        if(CASSym%Sym%S.ne.HFSym%Sym%S) then
+            call stop_all(this_routine,"Sym of CAS ref det does not match Sym of fulll reference det")
+        endif
 
         !First, we need to generate all the excitations.
         call gndts(OccCASorbs,CASSpinBasisSize,CASBrr,nBasisMax,CASDetList,.true.,G1,tSpn,LMS,.true.,CASSym,nCASDet,CASDet)
@@ -5353,7 +5388,9 @@ MODULE FciMCParMod
         !Turn back on HPHF integrals if needed.
         if(tHPHF) tHPHFInts=.true.
 
-        if(abs(CASRefEnergy-Hii).gt.1.D-7) call stop_all(this_routine,"CAS reference energy does not match reference energy of full space")
+        if(abs(CASRefEnergy-Hii).gt.1.D-7) then
+            call stop_all(this_routine,"CAS reference energy does not match reference energy of full space")
+        endif
 
         !Lanczos
         NKRY1=NKRY+1
@@ -5562,7 +5599,9 @@ MODULE FciMCParMod
         write(6,*) "Initialising walkers proportional to the MP1 amplitudes..."
 
         if(tHPHF) then
-            if(.not.TestClosedShellDet(iLutHF)) call stop_all(this_routine,"Cannot use HPHF with StartMP1 if your reference is open-shell")
+            if(.not.TestClosedShellDet(iLutHF)) then
+                call stop_all(this_routine,"Cannot use HPHF with StartMP1 if your reference is open-shell")
+            endif
         endif
 
         !First, calculate the total weight - TotMP1Weight

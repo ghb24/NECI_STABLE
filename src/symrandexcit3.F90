@@ -460,7 +460,8 @@ contains
     integer, allocatable :: AllSinglesCount(:,:)
 
     INTEGER , ALLOCATABLE :: EXCITGEN(:)
-    INTEGER :: ierr,Ind1,Ind2,Ind3,Ind4,iMaxExcit,nStore(6),nExcitMemLen,j,k,l,DetNum,DetNumS,Lz,excitcount,ForbiddenIter,error, iter_tmp
+    INTEGER :: ierr,Ind1,Ind2,Ind3,Ind4,iMaxExcit,nStore(6),nExcitMemLen,j,k,l,DetNum,DetNumS
+    INTEGER :: Lz,excitcount,ForbiddenIter,error, iter_tmp
     HElement_t :: HElGen
     type(excit_gen_store_type) :: store
     logical :: brillouin_tmp(2)
