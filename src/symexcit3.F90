@@ -115,9 +115,11 @@ MODULE SymExcit3
                                 IF((Spina.eq.Spinb).and.(Syma.eq.Symb).and.(Mla.eq.Mlb)) THEN
                                     ! If the spin and spatial symmetries of a and b are the same
                                     ! there will exist a case where Orba = Orbb, want to remove this.
-                                    nDoubleExcits=nDoubleExcits+(ClassCountUnocc2(ClassCountInd(Spina,Syma,Mla))*(ClassCountUnocc2(ClassCountInd(Spinb,Symb,Mlb))-1))
+                                    nDoubleExcits=nDoubleExcits+(ClassCountUnocc2(ClassCountInd(Spina,Syma,Mla)) &
+                                    *(ClassCountUnocc2(ClassCountInd(Spinb,Symb,Mlb))-1))
                                 ELSE
-                                    nDoubleExcits=nDoubleExcits+(ClassCountUnocc2(ClassCountInd(Spina,Syma,Mla))*ClassCountUnocc2(ClassCountInd(Spinb,Symb,Mlb)))
+                                    nDoubleExcits=nDoubleExcits+(ClassCountUnocc2(ClassCountInd(Spina,Syma,Mla)) &
+                                    *ClassCountUnocc2(ClassCountInd(Spinb,Symb,Mlb)))
                                 ENDIF
                             ENDIF
                         enddo

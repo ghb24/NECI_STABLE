@@ -492,7 +492,7 @@ contains
         integer(n_int), intent(out), optional :: ilut_gen(0:NIfTot)
         !integer, intent(out), optional :: det(nel)
 
-        integer :: nI(nel), i, nfound, orb
+        integer :: nI(nel), i, nfound, orb, clro
         integer(n_int) :: ilut_tmp(0:NIfTot)
 
         ! If we haven't initialised the generator, do that now.
@@ -547,7 +547,8 @@ contains
                         orb = get_beta(store%open_orbs(i))
                     endif
                     set_orb(ilut_gen, orb)
-                    clr_orb(ilut_gen, ab_pair(orb))
+                    clro=ab_pair(orb)
+                    clr_orb(ilut_gen, clro)
                 enddo
             endif
 

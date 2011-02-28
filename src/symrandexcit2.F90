@@ -182,7 +182,8 @@ MODULE GenRandSymExcitNUMod
             IF(.not.tNoSymGenRandExcits) THEN
                 WRITE(6,*) "GenRandSymExcitNU can only be used for molecular systems"
                 WRITE(6,*) "This is because of difficulties with other symmetries setup."
-                WRITE(6,*) "If you want to use these excitation generators, then add NOSYMGEN to the input to ignore symmetry while generating excitations."
+                WRITE(6,*) "If you want to use these excitation generators, then add NOSYMGEN " &
+       &                //"to the input to ignore symmetry while generating excitations."
                 CALL FLUSH(6)
                 CALL Stop_All(this_routine,"GenRandSymExcitNU can only be used for molecular systems using symmetry")
             ENDIF
@@ -273,7 +274,8 @@ MODULE GenRandSymExcitNUMod
 !               SumMl = Sum of the Ml values for the two picked electrons
 !               MlA = Ml of the a orbital chosen
 !               MlB = Required Ml of the b orbital still to be chosen
-        CALL PickAOrb(nI,iSpn,ILUT,ClassCountUnocc2,NExcitA,Elec1Ind,Elec2Ind,SpinOrbA,OrbA,SymA,SymB,SymProduct,SumMl,MlA,MlB,ForbiddenOrbs,tAOrbFail)
+        CALL PickAOrb(nI,iSpn,ILUT,ClassCountUnocc2,NExcitA,Elec1Ind,Elec2Ind,SpinOrbA,OrbA,SymA,SymB, &
+      &             SymProduct,SumMl,MlA,MlB,ForbiddenOrbs,tAOrbFail)
 !        IF(Counter.eq.3) WRITE(6,*) "AORB: ",OrbA,ForbiddenOrbs,SymB
         IF(tAOrbFail) THEN
 !            WRITE(6,*) "A ORB FAIL"
@@ -641,14 +643,16 @@ MODULE GenRandSymExcitNUMod
 !This symmetry has no unoccupied alpha orbitals - does its symmetry conjugate have any unoccupied beta orbitals which are now forbidden?
 !If there are no unoccupied orbitals in this conjugate symmetry, then it won't increase the forbidden orbital number, since it can never be chosen.
 !                        ConjSym=IEOR(SymProduct,i)
-                        ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(2,RandExcitSymLabelProd(SymProduct,SymInvLabel(i)),0)) !No unocc alphas in i, therefore all betas in ConjSym are forbidden
+                        ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(2,   &
+                &           RandExcitSymLabelProd(SymProduct,SymInvLabel(i)),0)) !No unocc alphas in i, therefore all betas in ConjSym are forbidden
 !                        WRITE(6,*) ClassCountUnocc2(2,ConjSym),i,ConjSym
                     ENDIF
                     IF(ClassCountUnocc2(Ind+1).eq.0) THEN
 !This symmetry has no unoccupied beta orbitals - does its symmetry conjugate have any unoccupied alpha orbitals which are now forbidden?
 !If there are no unoccupied orbitals in this conjugate symmetry, then it won't increase the forbidden orbital number, since it can never be chosen.
 !                        ConjSym=IEOR(SymProduct,i)
-                        ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(1,RandExcitSymLabelProd(SymProduct,SymInvLabel(i)),0))
+                        ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(1,   &
+                &           RandExcitSymLabelProd(SymProduct,SymInvLabel(i)),0))
 !                        WRITE(6,*) ClassCountUnocc2(2,ConjSym),i,ConjSym
                     ENDIF
                     Ind=Ind+2
@@ -774,7 +778,8 @@ MODULE GenRandSymExcitNUMod
 !               SumMl = Sum of the Ml values for the two picked electrons
 !               MlA = Ml of the a orbital chosen
 !               MlB = Required Ml of the b orbital still to be chosen
-    SUBROUTINE PickAOrb(nI,iSpn,ILUT,ClassCountUnocc2,NExcit,Elec1Ind,Elec2Ind,SpinOrbA,OrbA,SymA,SymB,SymProduct,SumMl,MlA,MlB,ForbiddenOrbs,tAOrbFail)
+    SUBROUTINE PickAOrb(nI,iSpn,ILUT,ClassCountUnocc2,NExcit,Elec1Ind,Elec2Ind,SpinOrbA,OrbA,SymA,SymB, &
+    &   SymProduct,SumMl,MlA,MlB,ForbiddenOrbs,tAOrbFail)
         INTEGER, INTENT(IN) :: nI(NEl),iSpn,Elec1Ind,Elec2Ind,ForbiddenOrbs,SymProduct,SumMl,ClassCountUnocc2(ScratchSize)
         INTEGER, INTENT(OUT) :: SpinOrbA,SymA,MlA,MlB,NExcit,SymB,OrbA
         INTEGER(KIND=n_int), INTENT(IN) :: ILUT(0:NIfTot)
@@ -1591,7 +1596,8 @@ MODULE GenRandSymExcitNUMod
             IF(.not.tNoSymGenRandExcits) THEN
                 WRITE(6,*) "GenRandSymExcitBiased can only be used for molecular systems"
                 WRITE(6,*) "This is because of difficulties with other symmetries setup."
-                WRITE(6,*) "If you want to use these excitation generators, then add NOSYMGEN to the input to ignore symmetry while generating excitations."
+                WRITE(6,*) "If you want to use these excitation generators, then add NOSYMGEN " &
+                & //"to the input to ignore symmetry while generating excitations."
                 CALL FLUSH(6)
                 CALL Stop_All(this_routine,"GenRandSymExcitBiased can only be used for molecular systems using symmetry")
             ENDIF
@@ -1632,7 +1638,8 @@ MODULE GenRandSymExcitNUMod
             IF(ElecsWNoExcits.eq.NEl) THEN
 !                IF(ExFlag.ne.3) THEN
 !Should not be changing pDoub since it won't affect all doubles generation equally.
-                CALL Stop_All(this_routine,"Found determinant with no singles. Turn symmetry off, or fix code (see non-biased code).")
+                CALL Stop_All(this_routine,"Found determinant with no singles. " &
+                & // "Turn symmetry off, or fix code (see non-biased code).")
 !                ENDIF
 !                pDoubNew=1.D0
 !                IC=2
@@ -2052,7 +2059,9 @@ MODULE GenRandSymExcitNUMod
         ENDDO
 
         Hole1BasisNum=ChosenUnocc
-        IF((Hole1BasisNum.le.0).or.(Hole1BasisNum.gt.nBasis)) CALL Stop_All("CreateDoubExcitLattice","Incorrect basis function generated") 
+        IF((Hole1BasisNum.le.0).or.(Hole1BasisNum.gt.nBasis)) THEN
+            CALL Stop_All("CreateDoubExcitLattice","Incorrect basis function generated") 
+        ENDIF
 
         ! kb is now uniquely defined
         ki=G1(nI(Elec1Ind))%k
@@ -2297,7 +2306,9 @@ MODULE GenRandSymExcitNUMod
                 ! by the previous loop over electrons
                 tDoubleCount=.false.
                 DO j=1,iExcludedKFromElec1
-                    IF((Excludedk(j,1).eq.kTrial(1)).and.(Excludedk(j,2).eq.kTrial(2)).and.Excludedk(j,3).eq.kTrial(3)) tDoubleCount=.true.
+                    IF((Excludedk(j,1).eq.kTrial(1)).and.(Excludedk(j,2).eq.kTrial(2)).and.Excludedk(j,3).eq.kTrial(3)) then
+                        tDoubleCount=.true.
+                    endif
                 ENDDO
                 IF(.not.tDoubleCount) iElecInExcitRange=iElecInExcitRange+1
             ENDDO
@@ -2515,7 +2526,8 @@ MODULE GenRandSymExcitNUMod
         integer, allocatable :: AllSinglesCount(:,:)
 
         INTEGER , ALLOCATABLE :: EXCITGEN(:)
-        INTEGER :: ierr,Ind1,Ind2,Ind3,Ind4,iMaxExcit,nStore(6),nExcitMemLen,j,k,l,DetNum,DetNumS,Lz,excitcount,ForbiddenIter,error, iter_tmp
+        INTEGER :: ierr,Ind1,Ind2,Ind3,Ind4,iMaxExcit,nStore(6),nExcitMemLen,j,k,l,DetNum,DetNumS,Lz
+        INTEGER :: excitcount,ForbiddenIter,error, iter_tmp
         logical :: brillouin_tmp(2)
         type(timer), save :: test_timer
         type(excit_gen_store_type) :: store
@@ -3044,7 +3056,8 @@ SUBROUTINE SpinOrbSymSetup()
         if(i.gt.nBasis) then
             write(6,*) "!! All kpoints are self-inverse, i.e. at the Gamma point or BZ boundary !!"
             write(6,*) "This means that ISK functions cannot be constructed."
-            write(6,*) "However, through correct rotation of orbitals, all orbitals should be made real, and the code run in real mode (with tRotatedOrbsReal set)."
+            write(6,*) "However, through correct rotation of orbitals, all orbitals should be " &
+            & //"made real, and the code run in real mode (with tRotatedOrbsReal set)."
             write(6,*) "Alternatively, run again in complex mode without ISK functions."
             write(6,*) "If ISK functions are desired, the kpoint lattice must be shifted from this position."
 !            call stop_all(this_routine,"All kpoints are self-inverse")
@@ -3112,11 +3125,13 @@ SUBROUTINE SpinOrbSymSetup()
             IF(G1(i)%Ms.eq.1) THEN
 !                WRITE(6,*) "Index: ",ClassCountInd(1,SpinOrbSymLabel(i),G1(i)%Ml)
 !                WRITE(6,*) i,"SpinOrbSymLabel: ",SpinOrbSymLabel(i)
-                OrbClassCount(ClassCountInd(1,SpinOrbSymLabel(i),G1(i)%Ml))=OrbClassCount(ClassCountInd(1,SpinOrbSymLabel(i),G1(i)%Ml))+1
+                OrbClassCount(ClassCountInd(1,SpinOrbSymLabel(i),G1(i)%Ml))= &
+                & OrbClassCount(ClassCountInd(1,SpinOrbSymLabel(i),G1(i)%Ml))+1
             ELSE
 !                WRITE(6,*) "Index: ",ClassCountInd(1,SpinOrbSymLabel(i),G1(i)%Ml)
 !                WRITE(6,*) i,"SpinOrbSymLabel: ",SpinOrbSymLabel(i)
-                OrbClassCount(ClassCountInd(2,SpinOrbSymLabel(i),G1(i)%Ml))=OrbClassCount(ClassCountInd(2,SpinOrbSymLabel(i),G1(i)%Ml))+1
+                OrbClassCount(ClassCountInd(2,SpinOrbSymLabel(i),G1(i)%Ml))= &
+                & OrbClassCount(ClassCountInd(2,SpinOrbSymLabel(i),G1(i)%Ml))+1
             ENDIF
         enddo
     ENDIF

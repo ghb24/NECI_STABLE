@@ -473,7 +473,7 @@ contains
         integer, intent(in) :: CCSglDelta (ScratchSize/2)
         integer, intent(in) :: nSing, nVac
         real*8 :: p
-        integer :: numB, permutations, orbA, symB, MlB, sym_ind, i
+        integer :: numB, permutations, orbA, symB, MlB, sym_ind, i, borb
 
         ! Consider the possibility of generating this either way around
         ! (The alternative was to restrict orbB > orbA, and throw away
@@ -490,7 +490,8 @@ contains
             ! Number of available B orbitals given A
             sym_ind = CCIndS(symB, MlB)
             numB = CCUnS(sym_ind) + CCSglS(sym_ind) + CCSglDelta(sym_ind)
-            if (sym(2) == sym(1) .and. IsOcc (ilut, get_beta(orbA))) then
+            borb=get_beta(orbA)
+            if (sym(2) == sym(1) .and. IsOcc (ilut, borb)) then
                 numB = numB - 1
             endif
 
@@ -1048,7 +1049,8 @@ contains
         enddo
 
         do i=1,IC
-            if (IsOcc(ilut, srcB(i)) .and. IsNotOcc(ilut, srcA(i))) &
+           if (IsOcc(ilut, srcB(i)) &
+           .and. IsNotOcc(ilut, srcA(i))) &
                 lnopen = lnopen - 1
         enddo
 
@@ -1397,7 +1399,9 @@ contains
                 ! Loop through all of the possible A orbitals.
                 do i=1,nbasis-1,2
                     ! If this is doubly occupied, we cannot excite to it.
-                    if (IsDoub(ilut, i)) cycle
+                    if(IsOcc(ilut,i).and. &
+                    IsOcc(ilut,ab_pair(i))) cycle
+!                    if (IsDoub(ilut, i)) cycle
 
                     ! If we are exciting from it, we cannot excite to it.
                     if (is_in_pair(orbs(1), i) .or. is_in_pair(orbs(2), i)) &
@@ -1435,7 +1439,9 @@ contains
                         if (orb2 < orb) cycle
 
                         ! If this is doubly occupied, we cannot excite to it
-                        if (IsDoub(ilut, orb2)) cycle
+                        if(IsOcc(ilut,orb2).and. &
+                         IsOcc(ilut,ab_pair(orb2))) cycle
+!                        if (IsDoub(ilut, orb2)) cycle
 
                         ! If we are exciting from it, we cannot excite to it.
                         if (is_in_pair(orbs(1), orb2) .or. &
@@ -1617,7 +1623,9 @@ contains
                     ! Loop through all the orbitals for orbital A
                     do i=1,nbasis-1,2
                         ! If this is doubly occupied, we cannot excite to it.
-                        if (IsDoub(ilut, i)) cycle
+                        if(IsOcc(ilut,i).and. &
+                         IsOcc(ilut,ab_pair(i))) cycle
+!                        if (IsDoub(ilut, i)) cycle
 
                         ! If we are exciting from it, we cannot excite to it.
                         if (is_in_pair(orbs(1), i).or.is_in_pair(orbs(2), i))&
@@ -1654,7 +1662,9 @@ contains
 
                             ! If this is doubly occupied, we cannot excite to
                             ! it.
-                            if (IsDoub(ilut, orb2)) cycle
+                            if(IsOcc(ilut,orb2).and. &
+                             IsOcc(ilut,ab_pair(orb2))) cycle
+!                            if (IsDoub(ilut, orb2)) cycle
 
                             ! If we are exciting from it, we cannot excite 
                             ! to it.
