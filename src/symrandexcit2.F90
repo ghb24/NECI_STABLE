@@ -1644,7 +1644,6 @@ MODULE GenRandSymExcitNUMod
     END SUBROUTINE GenRandSymExcitBiased
 
     SUBROUTINE CreateSingleExcitBiased(nI,nJ,iLut,ExcitMat,tParity,ElecsWNoExcits,nParts,WSign,Tau,iCreate)
-        Use SystemData, only: FCoul
         INTEGER :: ClassCount2(ScratchSize),i,Attempts,OrbA
         INTEGER :: ClassCountUnocc2(ScratchSize),Ind
         INTEGER :: ElecsWNoExcits,nParts,WSign,iCreate,nI(NEl),nJ(NEl)

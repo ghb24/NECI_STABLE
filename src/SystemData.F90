@@ -47,7 +47,7 @@ integer :: iParity(5), nMaxX, nMaxY, nMaxZ, nMSH, coulDampOrb, elecPairs
 integer :: roIterMax, iRanLuxLev, DiagMaxMinFac, OneElmaxMinFac, iState
 integer :: iTiltX, iTiltY, nOccAlpha, nOccBeta, ShakeIterMax, ShakeStart
 integer :: MaxMinFac, MaxABPairs
-real*8 :: BOX, BOA, COA, fUEGRs, fRc, fCoul, OrbECutoff, UHUB, BHUB
+real*8 :: BOX, BOA, COA, fUEGRs, fRc, OrbECutoff, UHUB, BHUB
 real*8 :: Diagweight, OffDiagWeight, OrbEnMaxAlpha, Alpha, fCoulDampBeta
 real*8 :: fCoulDampMu, TimeStep, ConvergedForce, ShakeConverged, UMATEps
 real*8 :: OneElWeight

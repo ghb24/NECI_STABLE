@@ -5565,6 +5565,11 @@ MODULE FciMCParMod
             if(.not.TestClosedShellDet(iLutHF)) call stop_all(this_routine,"Cannot use HPHF with StartMP1 if your reference is open-shell")
         endif
 
+        if(tUEG) then
+            !Parallel N^2M implementation of MP2 for UEG
+            call CalcUEGMP2()
+        endif
+
         !First, calculate the total weight - TotMP1Weight
         TotMP1Weight=1.D0
         iExcits=0
@@ -5752,6 +5757,164 @@ MODULE FciMCParMod
         AllNoAbortedOld=0.D0
 
     end subroutine InitFCIMC_MP1
+
+    subroutine CalcUEGMP2()
+        use SymExcitDataMod, only: kPointToBasisFn
+        use SystemData, only: ElecPairs,NMAXX,NMAXY,NMAXZ,OrbECutOff
+        use GenRandSymExcitNUMod, only: FindNewDet
+        use Determinants, only: GetH0Element4
+        integer :: Ki(3),Kj(3),Ka(3),LowLoop,HighLoop,X,i,Elec1Ind,Elec2Ind,K,Orbi,Orbj
+        integer :: iSpn,FirstA,nJ(NEl),a,Ex(2,2),kx,ky,kz,OrbB,FirstB
+        logical :: tParity,tMom
+        real*8 :: Ranger,mp2,mp2all,length
+        HElement_t :: hel,H0tmp
+
+        !Divvy up the ij pairs
+        Ranger=real(ElecPairs)/real(nProcessors)
+        LowLoop=int(iProcIndex*Ranger)+1
+        Highloop=int((iProcIndex+1)*Ranger)
+
+        if((iProcIndex+1).eq.nProcessors) Highloop=ElecPairs
+        if(iProcIndex.eq.0) then
+            if(lowLoop.ne.1) write(6,*) "Error here!"
+        endif
+        write(6,*) "Total ij pairs: ",ElecPairs
+        write(6,*) "Considering ij pairs from: ",LowLoop," to ",HighLoop  
+!        write(6,*) "HFDet: ",HFDet(:)
+
+        do i=LowLoop,HighLoop   !Looping over electron pairs on this processor
+
+            X=ElecPairs-i
+            K=INT((SQRT(8.D0*REAL(X,dp)+1.D0)-1.D0)/2.D0)
+            Elec1Ind=NEl-1-K
+            Elec2Ind=NEl-X+((K*(K+1))/2)
+            Orbi=HFDet(Elec1Ind)
+            Orbj=HFDet(Elec2Ind)
+            Ki=G1(Orbi)%k
+            Kj=G1(Orbj)%k
+
+            IF((G1(Orbi)%Ms)*(G1(Orbj)%Ms).eq.-1) THEN
+!We have an alpha beta pair of electrons.
+                iSpn=2
+            ELSE
+                IF(G1(Orbi)%Ms.eq.1) THEN
+!We have an alpha alpha pair of electrons.
+                    iSpn=3
+                ELSE
+!We have a beta beta pair of electrons.
+                    iSpn=1
+                ENDIF
+            ENDIF
+
+!            write(6,*) "ijpair: ",Orbi,Orbj
+
+            if((iSpn.eq.3).or.(iSpn.eq.1)) then
+                if(iSpn.eq.3) then
+                    FirstA=2    !Loop over alpha
+                else
+                    FirstA=1    !Loop over beta
+                endif
+
+                do a=FirstA,nBasis,2
+                    !Loop over all a
+
+                    !Reject if a is occupied
+                    if(IsOcc(iLutHF,a)) cycle
+
+                    Ka=G1(a)%k
+
+                    !Find k labels of b
+                    kx=Ki(1)+Kj(1)-Ka(1)
+                    if(abs(kx).gt.NMAXX) cycle
+                    ky=Ki(2)+Kj(2)-Ka(2)
+                    if(abs(ky).gt.NMAXY) cycle
+                    kz=Ki(3)+Kj(3)-Ka(3)
+                    if(abs(kz).gt.NMAXZ) cycle
+                    length=real((kx**2)+(ky**2)+(kz**2))
+                    if(length.gt.OrbECutoff) cycle
+
+                    !Find the actual k orbital
+                    if(iSpn.eq.3) then
+                        !want alpha
+                        OrbB=kPointToBasisFn(kx,ky,kz,2)
+                    else
+                        !want beta
+                        OrbB=kPointToBasisFn(kx,ky,kz,1)
+                    endif
+
+                    !Reject k orbital if it is occupied or gt a
+                    if(IsOcc(iLutHF,OrbB)) cycle
+                    if(OrbB.ge.a) cycle
+
+                    !Find det
+!                    write(6,*) "OrbB: ",OrbB
+                    call FindNewDet(HFDet,nJ,Elec1Ind,Elec2Ind,a,OrbB,Ex,tParity)
+                    !Sum in mp2 contrib
+                    hel=get_helement_excit(HFDet,nJ,2,Ex,tParity)
+
+                    H0tmp=getH0Element4(nJ,HFDet)
+                    H0tmp=Fii-H0tmp
+                    mp2=mp2+(hel**2)/H0tmp
+!                    write(6,*) (hel**2),H0tmp
+                enddo
+
+            elseif(iSpn.eq.2) then
+                do a=1,nBasis
+                    !Loop over all a
+!                    write(6,*) "a: ",a
+
+                    !Reject if a is occupied
+                    if(IsOcc(iLutHF,a)) cycle
+
+                    Ka=G1(a)%k
+
+                    !Find k labels of b
+                    kx=Ki(1)+Kj(1)-Ka(1)
+                    if(abs(kx).gt.NMAXX) cycle
+                    ky=Ki(2)+Kj(2)-Ka(2)
+                    if(abs(ky).gt.NMAXY) cycle
+                    kz=Ki(3)+Kj(3)-Ka(3)
+                    if(abs(kz).gt.NMAXZ) cycle
+                    length=real((kx**2)+(ky**2)+(kz**2))
+                    if(length.gt.OrbECutoff) cycle
+
+                    !Find the actual k orbital
+                    if(is_beta(a)) then
+                        !want alpha b orbital
+                        OrbB=kPointToBasisFn(kx,ky,kz,2)
+                    else
+                        !want beta
+                        OrbB=kPointToBasisFn(kx,ky,kz,1)
+                    endif
+
+                    !Reject k orbital if it is occupied or gt a
+                    if(IsOcc(iLutHF,OrbB)) cycle
+                    if(OrbB.ge.a) cycle
+
+!                    write(6,*) "OrbB: ",OrbB
+                    !Find det
+                    call FindNewDet(HFDet,nJ,Elec1Ind,Elec2Ind,a,OrbB,Ex,tParity)
+                    !Sum in mp2 contrib
+                    hel=get_helement_excit(HFDet,nJ,2,Ex,tParity)
+                    H0tmp=getH0Element4(nJ,HFDet)
+                    H0tmp=Fii-H0tmp
+                    mp2=mp2+(hel**2)/H0tmp
+!                    write(6,*) (hel**2),H0tmp
+                enddo
+            endif
+
+        enddo
+
+!        write(6,*) "mp2: ",mp2
+        mp2all=0.D0
+        
+        !Sum contributions across nodes.
+        call MPISumAll(mp2,mp2all)
+        write(6,"(A,2G25.15)") "MP2 energy calculated: ",MP2All,MP2All+Hii
+        call flush(6)
+        call stop_all("CalcUEGMP2","Dying after calculation of MP2 energy...")
+
+    end subroutine CalcUEGMP2
             
     !Count excitations using ajwt3's old excitation generators which can handle non-abelian and
     !k-point symmetry

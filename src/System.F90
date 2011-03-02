@@ -84,7 +84,6 @@ MODULE System
       iPeriodicDampingType=0
       fRc=0.D0
       TEXCH=.true.
-      FCOUL=1.D0
       UHUB = 4
       BHUB = -1
       TREAL = .false.
@@ -358,7 +357,8 @@ MODULE System
                   call report("EXCHANGE "//trim(w)//" not valid",.true.)
             end select
         case("COULOMB")
-            call getf(FCOUL)
+            call report("Coulomb feature removed",.true.)
+!            call getf(FCOUL)
         case("COULOMB-DAMPING")
             call report("Coulomb damping feature removed",.true.)
 !            call readu(w)
@@ -1400,7 +1400,7 @@ MODULE System
 
 !// TBR
 !      WRITE(6,*) ' ETRIAL : ',ETRIAL
-      IF(FCOUL.NE.1.D0)  WRITE(6,*) "WARNING: FCOUL is not 1.D0. FCOUL=",FCOUL
+!      IF(FCOUL.NE.1.D0)  WRITE(6,*) "WARNING: FCOUL is not 1.D0. FCOUL=",FCOUL
       IF(FCOULDAMPBETA.GT.0) WRITE(6,*) "FCOUL Damping.  Beta ",FCOULDAMPBETA," Mu ",FCOULDAMPMU
       call halt_timer(proc_timer)
     End Subroutine SysInit
