@@ -79,6 +79,8 @@ real*8 :: k_offset(3)      ! UEG parameter for twist-averaging
 logical :: tUEGSpecifyMomentum ! UEG parameter to allow specification of total momentum
 integer :: k_momentum(3) ! UEG parameter for total momentum
 logical :: tOrbECutoff ! Whether we're using a spherical cutoff in momentum space or not
+logical :: tgCutoff ! Whether we're using a spherical cutoff for the momentum transfer vector
+real*8 :: gCutoff ! Spherical cutoff for the momentum transfer vector
 
 ! For the UEG, we damp the exchange interactions.
 !    0 means none

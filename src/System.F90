@@ -95,6 +95,8 @@ MODULE System
       ISTATE = 1
       OrbECutoff=1e20
       tOrbECutoff=.false.
+      gCutoff=1e20 ! This shouldn't be used
+      tgCutoff=.false.
       tStoreAsExcitations=.false.
       TBIN=.false.
       tAbelianFastExcitGen=.true.
@@ -373,6 +375,9 @@ MODULE System
         case("ENERGY-CUTOFF")
           tOrbECutoff=.true.
           call getf(OrbECutoff)
+        case("G-CUTOFF")
+          tgCutoff=.true.
+          call getf(gCutoff)
         case("STORE-AS-EXCITATIONS")
            tStoreAsExcitations=.true.  
 

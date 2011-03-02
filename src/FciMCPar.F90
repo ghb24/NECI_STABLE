@@ -5760,13 +5760,13 @@ MODULE FciMCParMod
 
     subroutine CalcUEGMP2()
         use SymExcitDataMod, only: kPointToBasisFn
-        use SystemData, only: ElecPairs,NMAXX,NMAXY,NMAXZ,OrbECutOff
+        use SystemData, only: ElecPairs,NMAXX,NMAXY,NMAXZ,OrbECutOff,tGCutoff,GCutoff
         use GenRandSymExcitNUMod, only: FindNewDet
         use Determinants, only: GetH0Element4
         integer :: Ki(3),Kj(3),Ka(3),LowLoop,HighLoop,X,i,Elec1Ind,Elec2Ind,K,Orbi,Orbj
         integer :: iSpn,FirstA,nJ(NEl),a,Ex(2,2),kx,ky,kz,OrbB,FirstB
         logical :: tParity,tMom
-        real*8 :: Ranger,mp2,mp2all,length
+        real*8 :: Ranger,mp2,mp2all,length,length_g
         HElement_t :: hel,H0tmp
 
         !Divvy up the ij pairs
@@ -5830,6 +5830,10 @@ MODULE FciMCParMod
                     if(abs(ky).gt.NMAXY) cycle
                     kz=Ki(3)+Kj(3)-Ka(3)
                     if(abs(kz).gt.NMAXZ) cycle
+                    if(tGCutoff) then
+                        length_g=real((kx-kj(1))**2+(ky-kj(2))**2+(kz-kj(3))**2)
+                        if(length_g.gt.gCutoff) cycle
+                    endif
                     length=real((kx**2)+(ky**2)+(kz**2))
                     if(length.gt.OrbECutoff) cycle
 
@@ -5875,6 +5879,10 @@ MODULE FciMCParMod
                     if(abs(ky).gt.NMAXY) cycle
                     kz=Ki(3)+Kj(3)-Ka(3)
                     if(abs(kz).gt.NMAXZ) cycle
+                    if(tGCutoff) then
+                        length_g=real((kx-kj(1))**2+(ky-kj(2))**2+(kz-kj(3))**2)
+                        if(length_g.gt.gCutoff) cycle
+                    endif
                     length=real((kx**2)+(ky**2)+(kz**2))
                     if(length.gt.OrbECutoff) cycle
 
