@@ -1793,7 +1793,6 @@ C.. weight.
      &   I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,IACC,INWI,I_VMAX,EXCITGEN)
          use constants, only: dp
          USE SystemData , only : BasisFN
-         USE PrecalcData , only : TPREVAR
          use CalcData, only: tMPTheory, tMCDirectSum, pGenEpsilon
          use util_mod, only: isnan
          use CalcData , only : TMPTHEORY,TMCDIRECTSUM,PGenEpsilon
@@ -1911,22 +1910,6 @@ C..                     = p(B) gen(A) / (p(A) gen(B))
             PR=(OPROB/RHX)*ABS((WEIGHT/OWEIGHT))
 !            WRITE(40,"(5G)",advance='no') OPROB,RH,(WEIGHT), (OWEIGHT),PR
             IF(RHX.EQ.0.D0.OR..NOT.abs(OWEIGHT).gt.0.D0) PR=0.D0
-            IF(.not.TPREVAR) THEN
-                IF(isnan(WEIGHT)) THEN
-                    WRITE(60,*) WEIGHT,ETILDE,RHX
-                    CALL WRITEPATH(60,IPATH,I_V,NEL,.FALSE.)
-                    CALL WRITERHOMAT(60,RHOIJ,I_V,.TRUE.)
-                    CALL WRITE_XMATRIX(60,XIJ,I_V)
-                ENDIF
-                R2=RAN2(ISEED)
-                IF(PR.LT.R2) THEN
-                    IACC=0
-                ELSE
-                    IACC=1
-                ENDIF
-            ELSE
-                IACC=1
-            ENDIF
 !            CALL WRITEPATHEX(40,OIPATH,I_OVCUR,NEL,.FALSE.)
 !            WRITE(40,"(A)",advance='no'),"--->"
 !            CALL WRITEPATHEX(40,IPATH,I_V,NEL,.FALSE.)
@@ -2006,7 +1989,6 @@ C.. Unbias the sum
      &   NTAY,RHOEPS,RHOII,RHOIJ,ECORE,ISEED,HIJS,NMEMNI,I_HMAX,
      &   PVERTMEMS2)
          use CalcData , only : G_VMC_PI
-         USE PrecalcData , only : TPREVAR
          use constants, only: dp
          use Determinants, only: get_helement, write_det
          use SystemData, only: BasisFN
@@ -2237,19 +2219,6 @@ C.. give up trying to find something to attach, and go home
                RETURN
             ENDIF
          ENDDO
-         IF(TPREVAR) THEN
-!Save the pointers to the excitation generator if we are doing MC precalc (Save all node generators)
-!The last element in array is junk and never used (should be same as root)
-            do i=0,I_V-1
-                PVERTMEMS2(i)=PVERTMEMS(i)
-            enddo
-         ENDIF
-!Don't deallocate excitation generators if want to use the graphs later for MC precalc, deallocate later with 154 call
-         IF(.NOT.TPREVAR) THEN
-            DO I=1,I_V-1
-                CALL N_FREEM(PVERTMEMS(I))
-            ENDDO
-         ENDIF
 C.. IPATH now contains the path, and RHOII and RHOIJ the appropriate
 C.. matrix elements.
          CALL NECI_ICOPY(NEL,NI,1,IPATH(1,I_V),1)

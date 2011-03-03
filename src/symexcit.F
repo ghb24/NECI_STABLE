@@ -3555,7 +3555,6 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
      &            nBasisMax,Arr,nBasis,pGenGraph,EXCITGEN)
          USE symexcit2
          use constants, only: dp
-         USE PrecalcData , only : PRE_TAY,TPREVAR
          use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER iUnit
@@ -3582,27 +3581,7 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
          INTEGER i,j,ISEED
          ISEED=0
          
-         IF(TPREVAR.AND.((PRE_TAY(1,iV).EQ.-7).OR.                      
-     &                       (PRE_TAY(1,iV).EQ.-19))) THEN
-
-            DO i=0,iV-1
-                IP_NEWEX=EXCITGEN(i)
-                DO j=0,iV-1
-                    IF(i.EQ.j) THEN
-                        !Don't think this is used
-                        XIJ(i,i)=0
-                    ELSE
-                        CALL GenExcitProb(iGraph(1,i),iGraph(1,j),nEl,
-     &                      NEWEX,G1,nBasisMax,Arr,nBasis,pGen)
-                        XIJ(i,j)=pGen
-                    ENDIF
-                ENDDO
-            ENDDO
-            pGenGraph=GETPATHPROB2(XIJ,iV)
-            
-         ELSE
-         
-            DO i=0,iV-1
+        DO i=0,iV-1
 !  First work out which exictor we need to work out the excitation i->?
 C            DO j=0,iV-1
 C!  See if vertex j was excited from vertex i.  If so, then LOCTAB(1,j) is the excitor for vertex i
@@ -3613,31 +3592,30 @@ C               ENDIF
 C            ENDDO
 C            IF(j.EQ.iV-1) THEN
 !We've not found an excitor, so we create one
-                STORE(1)=0
+            STORE(1)=0
 C.. Setup the excit generator for the last vertex
-                CALL GENSYMEXCITIT2(iGraph(1,i),NEL,G1,NBASIS,
+            CALL GENSYMEXCITIT2(iGraph(1,i),NEL,G1,NBASIS,
      &              .TRUE.,NEWEXLEN,INODE2,IC,STORE,3)
-                CALL N_MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
-                NEWEX(1)=0
+            CALL N_MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
+            NEWEX(1)=0
 C.. Count the excitations (and generate a random one which we throw)
-                CALL GENSYMEXCITIT2(iGraph(1,i),NEL,G1,NBASIS,
+            CALL GENSYMEXCITIT2(iGraph(1,i),NEL,G1,NBASIS,
      &              .TRUE.,NEWEX,INODE2,IC,STORE,3)
-                CALL GENRANDSYMEXCITIT2(iGraph(1,i),NEL,
+            CALL GENRANDSYMEXCITIT2(iGraph(1,i),NEL,
      &               NEWEX,INODE2,ISEED,IC,PGEN)
 !
-                DO j=0,iV-1
-                    IF(i.EQ.j) THEN
-                        XIJ(i,i)=IC
-                    ELSE
-                        CALL GenExcitProb(iGraph(1,i),iGraph(1,j),nEl,
+            DO j=0,iV-1
+                IF(i.EQ.j) THEN
+                    XIJ(i,i)=IC
+                ELSE
+                    CALL GenExcitProb(iGraph(1,i),iGraph(1,j),nEl,
      &                      NEWEX,G1,nBasisMax,Arr,nBasis,pGen)
-                        XIJ(i,j)=pGen
-                    ENDIF
-                ENDDO
-                CALL N_FREEM(IP_NEWEX)
+                    XIJ(i,j)=pGen
+                ENDIF
             ENDDO
-            pGenGraph=GETPATHPROB2(XIJ,iV)
-         ENDIF
+            CALL N_FREEM(IP_NEWEX)
+        ENDDO
+        pGenGraph=GETPATHPROB2(XIJ,iV)
          
          IF(iUnit.NE.0) CALL WRITE_XMATRIX(iUnit,XIJ,iV)
 

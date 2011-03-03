@@ -5,7 +5,7 @@ ld = gfortran
 ldflags = -m64
 compiler = GCC-f95-on-LINUX
 cpp = cpp -C -traditional
-cppflags = -D__Linux -DPOINTER8 -D__INT64 -DISABLE_FFTW
+cppflags = -D__Linux -DPOINTER8 -D__INT64 -DDISABLE_FFTW
 libs = -llapack -lblas -lstdc++ -lrt
 module_flag = -J
 

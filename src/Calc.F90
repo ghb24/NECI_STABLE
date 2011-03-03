@@ -1648,7 +1648,8 @@ contains
                       ENDIF
                    ENDIF
                    IF(.NOT.TREAD) THEN
-                   CALL CALCRHO2(NMRKS(1,III),NMRKS(1,III),BETA,I_P,NEL, NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,1,0,ECORE)
+                   CALL CALCRHO2(NMRKS(1,III),NMRKS(1,III),BETA,I_P,NEL, NBASISMAX,G1,NBASIS,BRR,NMSH, &
+                    FCK,NMAX,ALAT,UMAT,RH,1,0,ECORE)
 !C                   WRITE(6,*) RH
                    FLRI=LOG(RH)
                    FLSI=FLSI-I_P*FLRI

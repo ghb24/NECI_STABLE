@@ -15,7 +15,6 @@ MODULE ReadInput
     Subroutine ReadInputMain(cFilename,ios)
         USE input
         use System,     only : SysReadInput,SetSysDefaults
-        USE Precalc,    only : PrecalcReadInput,SetPrecalcDefaults
         use Calc,       only : CalcReadInput,SetCalcDefaults
         use Integrals,  only : IntReadInput,SetIntDefaults
         Use Logging,    only : LogReadInput,SetLogDefaults
@@ -102,7 +101,6 @@ MODULE ReadInput
 
         ! Set up defaults.
         call SetSysDefaults
-        call SetPrecalcDefaults
         call SetCalcDefaults
         call SetIntDefaults
         call SetLogDefaults
@@ -128,8 +126,6 @@ MODULE ReadInput
                 CONTINUE
             case("SYSTEM")
                 call SysReadInput()
-            case("PRECALC")
-                call PrecalcReadInput()
             case("CALC")
                 call CalcReadInput()
             case("INTEGRAL")
@@ -156,8 +152,6 @@ MODULE ReadInput
 
       subroutine checkinput()
       use SystemData , only : NEL,TSTARSTORE,TUseBrillouin, Beta,tFindCINatOrbs
-      USE PrecalcData , only : PREIV_MAX,USEVAR,PRE_TAYLOG,             &
-     &  TGRIDVAR,TLINEVAR,TOTALERROR,TRUECYCLES
       use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                           G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                           TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
@@ -165,7 +159,8 @@ MODULE ReadInput
                           GrowMaxFactor, MemoryFacPart, tTruncInitiator, &
                           tSpawnSpatialInit, tSpatialOnlyHash
       Use Determinants, only : SpecDet,tagSpecDet
-      use IntegralsData , only : NFROZEN,TDISCONODES,TQuadValMax,TQuadVecMax,TCalcExcitStar,TJustQuads,TNoDoubs,TDiagStarStars,TExcitStarsRootChange,TRmRootExcitStarsRootChange,TLinRootChange
+      use IntegralsData , only : NFROZEN,TDISCONODES,TQuadValMax,TQuadVecMax,TCalcExcitStar,TJustQuads,TNoDoubs
+      use IntegralsData, only: TDiagStarStars,TExcitStarsRootChange,TRmRootExcitStarsRootChange,TLinRootChange
       USE Logging , only : ILOGGING,tCalcFCIMCPsi,tHistSpawn,tHistHamil
       use SystemData, only: TNoRenormRandExcits, LMS, STOT, tCSF, tSpn
       use DetCalc, only : tEnergy,tCalcHMat,tFindDets,tCompressDets
@@ -196,7 +191,8 @@ MODULE ReadInput
 
 !If we are using TNoSameExcit, then we have to start with the star - the other random graph algorithm cannot remove same excitation links yet.
       IF(TNoSameExcit.and..not.TInitStar) THEN
-          CALL report("If we are using TNoSameExcit, then we have to start with the star - the other random graph algorithm cannot remove same excitation links yet.",.true.)
+          CALL report("If we are using TNoSameExcit, then we have to start with the star "&
+          & //"the other random graph algorithm cannot remove same excitation links yet.",.true.)
       ENDIF
 
 !The MoveDets and Biasing algorithms cannot both be used in the GraphMorph Algorithm.
@@ -210,7 +206,8 @@ MODULE ReadInput
       ENDIF
 
       IF(TRmRootExcitStarsRootChange.and.TExcitStarsRootChange) THEN
-          CALL report("RmRootExcitStarsRootChange and ExcitStarsRootChange cannot both be used as they are both different options with diagstarstars",.true.)
+          CALL report("RmRootExcitStarsRootChange and ExcitStarsRootChange cannot both be used as they are "&
+          & //"both different options with diagstarstars",.true.)
       ENDIF
       
 !..ExcitStarsRootChange must be used with TDiagStarStars
@@ -284,42 +281,6 @@ MODULE ReadInput
       !Ensure beta is set.
       if (beta.lt.1.d-6.and..not.tMP2Standalone) call report("No beta value provided.",.true.)
       
-      !Make sure there aren't more precalc levels than true vertex levels - problems otherwise
-      IF(preIV_MAX.gt.I_VMAX) THEN
-          CALL report("There cannot be more precalc vertex levels "     &
-     &     //"than vertex levels in the main program",.true.)
-      ENDIF
-      
-      !We make sure that in precalc, a use statement is not specified more than once for any vertex level
-      IF(preIV_MAX.ne.0) THEN
-          do vv=2,I_VMAX
-            check=.false.
-            do kk=2,preIV_MAX
-                do cc=1,8
-                    IF((USEVAR(kk,cc).eq.vv).and.(check)) THEN
-                     CALL report("Can only specify to use precalc "     &
-     &               //"parameters on a given vertex level once",.true.)
-                    ENDIF
-                    IF(USEVAR(kk,cc).eq.vv) check=.true.
-                enddo
-            enddo
-            !If use isn't specified for a vertex level, use the values given in the input file
-!           Done later now
-!            IF(.not.check) THEN
-!                g_VMC_ExcitWeights(:,vv)=g_VMC_ExcitWeights(:,1)
-!                G_VMC_EXCITWEIGHT(vv)=G_VMC_EXCITWEIGHT(1)
-!            ENDIF
-        enddo
-      ENDIF
-      
-      !If not doing precalc, set all weighting parameters to the ones in the input file
-      IF(preIV_MAX.eq.0) THEN
-        do vv=2,I_VMAX
-            g_VMC_ExcitWeights(:,vv)=g_VMC_ExcitWeights(:,1)
-            G_VMC_EXCITWEIGHT(vv)=G_VMC_EXCITWEIGHT(1)
-        enddo
-      ENDIF
-
       !IF THERE IS NO WEIGHTING FUNCTION, ExcitFuncs(10)=.true.
       do vv=1,9
           IF(EXCITFUNCS(vv)) EXCITFUNCS(10)=.false.
@@ -331,40 +292,6 @@ MODULE ReadInput
       ENDIF
 
       !IF FINDD or USED specified without using Excitweighting option
-      do vv=2,preIV_MAX
-!    IF((pre_TAY(1,vv).eq.-20).and.((NWHTAY(1,vv).eq.-7).or.        &
-!&    (NWHTAY(1,vv).eq.-19))) THEN
-!    CALL report("Full precalc cannot be used on a vertex level"
-!&   //" which is only sampled using MC in the main program",.true.)
-!     ENDIF
-          IF((pre_TAYLOG(5,vv).or.pre_TAYLOG(6,vv)).and.                &
-     &         (.not.EXCITFUNCS(1))) THEN
-               CALL report("Logging keyword FINDD and USED"             &
-     &         //" can only be used with EXCITWEIGHTING",.true.)
-          ENDIF
-          IF(TGRIDVAR(vv).and.((.not.EXCITFUNCS(1)).and.(.not.          &
-     &         EXCITFUNCS(4)))) THEN
-               CALL report("GRIDVAR option only available with"         &
-     &          //" excitation functions with two variables",.true.)
-          ENDIF
-          IF(TLINEVAR(vv).and.((.not.pre_TAYLOG(3,vv)).and.             &
-     &              (.not.pre_TAYLOG(2,vv)))) THEN
-              CALL report("LINEVAR option only available with"          &
-     &          //" FINDIMPORT or FINDC",.true.)
-          ENDIF
-      ENDDO
-      IF((preIV_MAX.ne.0).AND.(.NOT.TMCDIRECTSUM)) THEN
-          CALL report("Precalculation can only work with the"           &
-     &          //" MCDIRECTSUM option enabled",.true.)
-      ENDIF
-      IF((TOTALERROR.ne.0.D0).AND.(TRUECYCLES.ne.0)) THEN
-          CALL report("Only TRUECYCLES or TOTALERROR can be"            &
-     &      //" specified in precalc block",.true.)
-      ENDIF
-      IF((TOTALERROR.ne.0.D0).AND.(preIV_MAX.ne.I_VMAX)) THEN
-          CALL report("TOTALERROR can only be used if the precalc"      &
-     &    //" levels are equal to the main block vertex levels",.true.)
-      ENDIF
       IF((I_VMAX.ge.3).and.(TSTARSTORE)) THEN 
           call report("Error - can only use STARSTOREREAD with "        &
      &    //"double excitations of HF",.true.)
