@@ -987,7 +987,7 @@ MODULE FciMCParMod
 #endif
             write(6,"(A,2I4,A)",advance='no') &
                                       "Parent flag: ", parent_flags, part_type
-            call writebitdet (6, nJ, .true.)
+            call writebitdet (6, ilutJ, .true.)
             call flush(6)
         endif
        
@@ -1364,13 +1364,13 @@ MODULE FciMCParMod
         if (tAddToInitiator) then
             bloom_warn_string = '("Bloom of more than n_add: &
                                 &A max of ", i8, &
-                                &"particles created from ")'
+                                &" particles created from ")'
         else
             ! Use this variable to store the bloom cutoff level.
             InitiatorWalkNo = 25
             bloom_warn_string = '("Particle blooms of more than 25 in &
                                 &iteration ", i14, ": A max of ", i8, &
-                                &"particles created in one attempt from ")'
+                                &" particles created in one attempt from ")'
         endif
         iMaxBloom=0 !The largest bloom to date.
 
@@ -2934,11 +2934,11 @@ MODULE FciMCParMod
 
 !        WRITE(6,*) "***",iter_data%update_growth_tot,AllTotParts-AllTotPartsOld
         ASSERTROOT(all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld))
-        
+    
     end subroutine collate_iter_data
 
     subroutine update_shift (iter_data)
-
+     
         type(fcimc_iter_data), intent(in) :: iter_data
         integer(int64) :: tot_walkers
         logical :: tReZeroShift
@@ -2980,13 +2980,14 @@ MODULE FciMCParMod
                 ENDIF
             endif
 
+!AJWT commented this out as DMC says it's not being used, and it gave a divide by zero
             ! Initiator abort growth rate
-            if (tTruncInitiator) then
-                AllGrowRateAbort = (sum(iter_data%update_growth_tot + &
-                                    iter_data%tot_parts_old) + AllNoAborted) &
-                                    / (sum(iter_data%tot_parts_old) &
-                                       + AllNoAbortedOld)
-            endif
+!            if (tTruncInitiator) then
+!                AllGrowRateAbort = (sum(iter_data%update_growth_tot + &
+!                                    iter_data%tot_parts_old) + AllNoAborted) &
+!                                    / (sum(iter_data%tot_parts_old) &
+!                                       + AllNoAbortedOld)
+!            endif
 
             ! Exit the single particle phase if the number of walkers exceeds
             ! the value in the input file. If particle no has fallen, re-enter
@@ -3385,12 +3386,12 @@ MODULE FciMCParMod
 
     SUBROUTINE SetupParameters()
         use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tROHF,tFindCINatOrbs,nOccBeta,nOccAlpha,tUHF
-        use SystemData, only : tBrillouinsDefault
+        use SystemData, only : tBrillouinsDefault,ECore
         USE dSFMT_interface , only : dSFMT_init
         use CalcData, only: G_VMC_Seed, &
                             MemoryFacPart, MemoryFacAnnihil, TauFactor, &
                             StepsSftImag, tCheckHighestPop, tSpatialOnlyHash,tStartCAS
-        use Determinants , only : GetH0Element3
+        use Determinants , only : GetH0Element3,GetH0Element4
         use SymData , only : SymLabelList,SymLabelCounts,TwoCycleSymGens
         use Logging , only : tTruncRODump
         use DetCalcData, only : NMRKS,tagNMRKS,FCIDets
@@ -3745,7 +3746,15 @@ MODULE FciMCParMod
         ENDIF
         Hii=REAL(TempHii,dp)
         WRITE(6,*) "Reference Energy set to: ",Hii
-        TempHii=GetH0Element3(HFDet)
+        if(tUEG) then
+            !We require calculation of the sum of fock eigenvalues,
+            !without knowing them - calculate from the full 1e matrix elements
+            !of full hamiltonian removing two electron terms.
+            TempHii=GetH0Element4(HFDet,HFDet)
+        else
+            !Know fock eigenvalues, so just use these.
+            TempHii=GetH0Element3(HFDet)
+        endif
         Fii=REAL(TempHii,dp)
 
 !Find the highest energy determinant...
@@ -5534,7 +5543,7 @@ MODULE FciMCParMod
 !This hopefully will help with close-lying excited states of the same sym.
     subroutine InitFCIMC_MP1()
         use HPHFRandExcitMod , only : IsAllowedHPHF
-        use Determinants, only: GetH0Element3
+        use Determinants, only: GetH0Element3,GetH0Element4
         use SymExcit3 , only : GenExcitations3
         use CalcData , only : InitialPart
         real(dp) :: TotMP1Weight,amp,MP2Energy,PartFac,H0tmp,rat,r
@@ -5555,7 +5564,7 @@ MODULE FciMCParMod
         if(tHPHF) then
             if(.not.TestClosedShellDet(iLutHF)) call stop_all(this_routine,"Cannot use HPHF with StartMP1 if your reference is open-shell")
         endif
-                
+
         !First, calculate the total weight - TotMP1Weight
         TotMP1Weight=1.D0
         iExcits=0
@@ -5584,7 +5593,13 @@ MODULE FciMCParMod
             else
                 hel=get_helement(HFDet,nJ,ic,Ex,tParity)
             endif
-            H0tmp=getH0Element3(nJ)
+            if(tUEG) then
+                !This will calculate the MP2 energies without having to use the fock eigenvalues.
+                !This is done via the diagonal determinant hamiltonian energies.
+                H0tmp=getH0Element4(nJ,HFDet)
+            else
+                H0tmp=getH0Element3(nJ)
+            endif
             H0tmp=Fii-H0tmp
             amp=hel/H0tmp
             TotMP1Weight=TotMP1Weight+abs(amp)
@@ -5645,7 +5660,13 @@ MODULE FciMCParMod
                 else
                     hel=get_helement(HFDet,nJ,ic,Ex,tParity)
                 endif
-                H0tmp=getH0Element3(nJ)
+                if(tUEG) then
+                    !This will calculate the MP2 energies without having to use the fock eigenvalues.
+                    !This is done via the diagonal determinant hamiltonian energies.
+                    H0tmp=getH0Element4(nJ,HFDet)
+                else
+                    H0tmp=getH0Element3(nJ)
+                endif
                 H0tmp=Fii-H0tmp
                 !No parts on this det = PartFac*Amplitude
                 amp=(hel/H0tmp)*PartFac
@@ -5939,7 +5960,6 @@ END MODULE FciMCParMod
 !projection onto a different determinant.
     SUBROUTINE ChangeRefDet(DetCurr)
         use FciMCParMod
-        use Determinants , only : GetH0Element3
         use SystemData , only : NEl
         IMPLICIT NONE
         INTEGER :: DetCurr(NEl),i

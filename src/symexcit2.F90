@@ -6,6 +6,7 @@ MODULE SymExcit2
       IMPLICIT NONE
 
       TYPE ExcitWeight
+          SEQUENCE
 ! The orbitals excited from
          INTEGER I,J
 ! The orbitals excited to

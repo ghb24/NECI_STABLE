@@ -745,6 +745,9 @@ MODULE AnnihilationMod
                         ! Are we allowing particles to survive if there is an
                         ! initiator with the same spatial structure?
                         ! TODO: optimise this. Only call it once?
+
+                        ! TODO: Surely this doesn't work? Need to avoid aborting
+                        !       the particle?
                         if (tSpawnSpatialInit) then
                             if (is_spatial_init(SpawnedParts(:,i))) then
                                 call set_flag (SpawnedParts(:,i), &
@@ -984,7 +987,7 @@ MODULE AnnihilationMod
     END SUBROUTINE InsertRemoveParts
 
     pure function DetermineDetNode (nI, iIterOffset) result(node)
-
+        use SystemData, only: nBasis
         ! Depending on the Hash, determine which node determinant nI
         ! belongs to in the DirectAnnihilation scheme. NB FCIMC has each processor as a separate logical node.
         !
@@ -998,11 +1001,14 @@ MODULE AnnihilationMod
         
         integer :: i
         integer(int64) :: acc
+        integer offset
 
         acc = 0
+        offset=hash_iter+iIterOffset
         do i = 1, nel
             acc = (1099511628211_int64 * acc) + &
-                    (ishft(RandomHash(iand(nI(i), csf_orbital_mask))+hash_iter+iIterOffset,hash_shift) * i)
+                    (ishft(RandomHash(mod(iand(nI(i), csf_orbital_mask)+offset-1,nBasis)+1),hash_shift) * i)
+!            offset=0
         enddo
         node = abs(mod(acc, int(nNodes, 8)))
 
