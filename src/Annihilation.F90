@@ -426,6 +426,7 @@ MODULE AnnihilationMod
                     
                 if(tTruncInitiator) then
                     !Need to find if there are any initiators in this block
+                    tAnnihil_All = .false.
                     do i=BeginningBlockDet,EndBlockDet  !Loop over the block
                         if (test_flag(SpawnedParts(:,i), flag_parent_initiator(part_type))) then
                             !Found an initiator walker
@@ -466,7 +467,8 @@ MODULE AnnihilationMod
             ! Copy details into the final array
             call extract_sign (cum_det, temp_sign)
 
-            if ((sum(abs(temp_sign)) > 0).or.(tAllSpawnAttemptsRDM.and.tFillingRDMonFly)) then
+!            if ((sum(abs(temp_sign)) > 0).or.(tAllSpawnAttemptsRDM.and.tFillingRDMonFly)) then
+            if ((sum(abs(temp_sign)) > 0).or.(tFillingRDMonFly.and.tStochasticRDM)) then
                 ! Transfer all ino into the other array.
                 SpawnedParts2(0:NIfTot,VecInd) = cum_det(0:NIfTot)
                 VecInd = VecInd + 1
@@ -476,7 +478,7 @@ MODULE AnnihilationMod
                 DetsMerged = DetsMerged + EndBlockDet - BeginningBlockDet + 1
                 ! This spawned entry will be removed - don't want to store any parents.
                 ! Reset Parent_Array_Ind so that the parents will be written over.
-                if(tFillingRDMonFly.and.tStochasticRDM) Parent_Array_Ind = Beginning_Parent_Array_Ind
+!                if(tFillingRDMonFly.and.tStochasticRDM) Parent_Array_Ind = Beginning_Parent_Array_Ind
             endif
 
             BeginningBlockDet=CurrentBlockDet           !Move onto the next block of determinants
@@ -622,6 +624,7 @@ MODULE AnnihilationMod
         integer, intent(in) :: part_type
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer :: new_sgn, cum_sgn, sgn_prod, Spawned_No
+        logical :: tfirst
 
 !        IF(tFillingRDMonFly) THEN
 !            WRITE(6,*) 'in findresidual'
@@ -640,6 +643,11 @@ MODULE AnnihilationMod
         endif
         cum_sgn = extract_part_sign (cum_det, part_type)
         sgn_prod = cum_sgn * new_sgn
+        if((sgn_prod.eq.0).and.(.not.tAnnihil_All)) then
+            tfirst = .true.
+        else
+            tfirst = .false.
+        endif
 
         ! If we are including this det, then increment the count
         cum_count = cum_count + 1
@@ -701,6 +709,12 @@ MODULE AnnihilationMod
         ! Update the cumulative sign count
         call encode_part_sign (cum_det, cum_sgn + new_sgn, part_type)
 
+        if((cum_sgn + new_sgn).eq.0) then
+            tAnnihil_All = .true.
+        else
+            tAnnihil_All = .false.
+        endif
+
         if(tFillingRDMonFly.and.tStochasticRDM) then
 !            WRITE(6,*) 'new_det',new_det
 !            WRITE(6,*) 'Parent_Array_Ind',Parent_Array_Ind
@@ -712,7 +726,8 @@ MODULE AnnihilationMod
 !            WRITE(6,*) 'Parent_Array_Ind',Parent_Array_Ind
 !            WRITE(6,*) 'Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind)',Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind)
 !            call flush(6)
-            if((sgn_prod .eq. 0).or.(tAllSpawnAttemptsRDM.and.tFillingRDMonFly)) Spawned_Parents_Index(1,Spawned_No) = Beginning_Parent_Array_Ind
+!            if((sgn_prod .eq. 0).or.(tAllSpawnAttemptsRDM.and.tFillingRDMonFly)) Spawned_Parents_Index(1,Spawned_No) = Beginning_Parent_Array_Ind
+            if(tfirst.or.(tAllSpawnAttemptsRDM.and.tFillingRDMonFly)) Spawned_Parents_Index(1,Spawned_No) = Beginning_Parent_Array_Ind
             Spawned_Parents_Index(2,Spawned_No) = Spawned_Parents_Index(2,Spawned_No) + 1
 !            WRITE(6,*) 'Spawned_Parents_Index(:,Spawned_No)',Spawned_Parents_Index(:,Spawned_No)
             Parent_Array_Ind = Parent_Array_Ind + 1
@@ -840,7 +855,7 @@ MODULE AnnihilationMod
                 endif
 
                 IF(SpawnedSign(1).eq.0) THEN
-                    IF(.not.tAllSpawnAttemptsRDM) CALL Stop_All('AnnihilateSpawnedParts','SpawnedParts entry with sign = 0.')
+!                    IF(.not.tAllSpawnAttemptsRDM) CALL Stop_All('AnnihilateSpawnedParts','SpawnedParts entry with sign = 0.')
                     ToRemove = ToRemove + 1
                     CYCLE
                 ENDIF

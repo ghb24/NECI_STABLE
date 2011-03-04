@@ -31,7 +31,7 @@ MODULE GenRandSymExcitNUMod
                           tNoSymGenRandExcits, Arr, nMax, tCycleOrbs, &
                           nOccAlpha, nOccBeta, ElecPairs, MaxABPairs, &
                           tKPntSym, lzTot, tNoBrillouin, tUseBrillouin
-    use FciMCData, only: pDoubles, iter, excit_gen_store_type
+    use FciMCData, only: pDoubles, iter, excit_gen_store_type, tFillingRDMonFly, tHF, iluthf
     use Parallel
     use IntegralsData, only: UMat
     use Determinants, only: get_helement, write_det
@@ -42,8 +42,9 @@ MODULE GenRandSymExcitNUMod
     use DetBitOps, only: FindExcitBitDet, EncodeBitDet
     use sltcnd_mod, only: sltcnd_1
     use constants, only: dp, n_int, bits_n_int
-    use bit_reps, only: NIfTot
+    use bit_reps, only: NIfTot, nifdbo
     use sym_mod, only: mompbcsym, GetLz
+    use detbitops , only : detbiteq
     use timing
     use sym_general_mod
     IMPLICIT NONE
@@ -220,6 +221,11 @@ MODULE GenRandSymExcitNUMod
         IF(IC.eq.2) THEN
             CALL CreateDoubExcit(nI,nJ,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
         ELSE
+
+!            IF(nI(3).eq.3) THEN
+!                write(6,*) 'creating single, pdoub',pDoubNew
+!            ENDIF
+ 
             CALL CreateSingleExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
 !            IF(pGen.eq.-1.D0) THEN
 !NOTE: ghb24 5/6/09 Cannot choose to create double instead, since you could have chosen a double first and it would have a different pGen.
@@ -1189,6 +1195,8 @@ MODULE GenRandSymExcitNUMod
         REAL*8 :: r,pGen
         LOGICAL :: tParity
 
+           
+
         CALL CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2,nI)
         IF(ElecsWNoExcits.eq.NEl) THEN
 !There are no single excitations from this determinant - return a null excitation
@@ -1350,6 +1358,7 @@ MODULE GenRandSymExcitNUMod
         ENDIF
 
         nJ(:)=nI(:)
+        ExcitMat(:,:) = 0
 !ExcitMat wants to be the index in nI of the orbital to excite from, but returns the actual orbitals.
         ExcitMat(1,1)=Eleci
         ExcitMat(2,1)=Orb
@@ -1365,6 +1374,17 @@ MODULE GenRandSymExcitNUMod
 !This is: P_single x P(i) x P(a|i) x N/(N-ElecsWNoExcits)
 !        pGen=(1.D0-pDoubNew)*(1.D0/real(NEl,dp))*(1.D0/real(NExcit,dp))*((real(NEl,dp))/(real((NEl-ElecsWNoExcits),dp)))
         pGen=(1.D0-pDoubNew)/(REAL((NExcit*(NEl-ElecsWNoExcits)),dp))
+
+!        if(tfillingrdmonfly.and.thf) then
+        if(tfillingrdmonfly) then
+            IF((Eleci.eq.3).and.(Orb.eq.17)) THEN
+!                if(detbiteq(ilut,iluthf,nifdbo)) then
+                if(ilut(0).eq.7143) then
+                    tHF = .true.
+                endif
+!                WRITE(6,*) 'probability of 3 -> 17 excitation',pGen
+            ENDIF
+        endif
 
 !        WRITE(6,*) "ElecsWNoExcits: ",ElecsWNoExcits
 
