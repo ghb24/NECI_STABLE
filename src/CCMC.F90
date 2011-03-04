@@ -206,7 +206,7 @@ MODULE CCMC
 ! As the number of walkers in the HF reference det is the normalization, we loop
 ! over each walker there and use it a number of times
 ! We take the number of walkers as the number of samples to begin with.
-        CALL BinSearchParts(iLutHF, 1, int(TotWalkers,int32), iHFDet,tSuccess)
+        CALL BinSearchParts(iLutHF, 1, TotWalkers, iHFDet,tSuccess)
         if(.not.tSuccess) then
             WRITE(6,*) "WARNING: Cannot find HF det in particle list"
             HFcount=1
@@ -2235,7 +2235,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    REAL*8 dTolerance             ! The tolerance for when to regard a value as zero
    REAL*8 dAveTotAbsAmp          ! Average of Total absolute amplitude over all post-equil cycles
    REAL*8 dAveNorm               ! Average of Normalization (ampl of Ref) over all post-equil cycles
-   INTEGER(kind=int32) dAmpPrintTol           ! What size amplitudes do we bother printing 
+   INTEGER dAmpPrintTol           ! What size amplitudes do we bother printing 
 
    TYPE(ClustSelector) :: CS   ! A normal ClustSelector based on the current amplitudes
    LOGICAL tMoreClusters                  ! Indicates we've not finished selecting clusters 

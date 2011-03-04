@@ -1,7 +1,7 @@
 [int]
-type1=integer(kind=int32)
+type1=integer
 unity=1
-size=4
+size=8
 
 [double]
 type1=real*8
