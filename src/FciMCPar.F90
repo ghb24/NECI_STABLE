@@ -1203,7 +1203,7 @@ MODULE FciMCParMod
 #endif
             write(6,"(A,2I4,A)",advance='no') &
                                       "Parent flag: ", parent_flags, part_type
-            call writebitdet (6, nJ, .true.)
+            call writebitdet (6, ilutJ, .true.)
             call flush(6)
         endif
        
@@ -1600,13 +1600,13 @@ MODULE FciMCParMod
         if (tAddToInitiator) then
             bloom_warn_string = '("Bloom of more than n_add: &
                                 &A max of ", i8, &
-                                &"particles created from ")'
+                                &" particles created from ")'
         else
             ! Use this variable to store the bloom cutoff level.
             InitiatorWalkNo = 25
             bloom_warn_string = '("Particle blooms of more than 25 in &
                                 &iteration ", i14, ": A max of ", i8, &
-                                &"particles created in one attempt from ")'
+                                &" particles created in one attempt from ")'
         endif
         iMaxBloom=0 !The largest bloom to date.
 
@@ -3269,11 +3269,11 @@ MODULE FciMCParMod
 
 !        WRITE(6,*) "***",iter_data%update_growth_tot,AllTotParts-AllTotPartsOld
         ASSERTROOT(all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld))
-        
+    
     end subroutine collate_iter_data
 
     subroutine update_shift (iter_data)
-
+     
         type(fcimc_iter_data), intent(in) :: iter_data
         integer(int64) :: tot_walkers
         logical :: tReZeroShift
@@ -3315,13 +3315,14 @@ MODULE FciMCParMod
                 ENDIF
             endif
 
+!AJWT commented this out as DMC says it's not being used, and it gave a divide by zero
             ! Initiator abort growth rate
-            if (tTruncInitiator) then
-                AllGrowRateAbort = (sum(iter_data%update_growth_tot + &
-                                    iter_data%tot_parts_old) + AllNoAborted) &
-                                    / (sum(iter_data%tot_parts_old) &
-                                       + AllNoAbortedOld)
-            endif
+!            if (tTruncInitiator) then
+!                AllGrowRateAbort = (sum(iter_data%update_growth_tot + &
+!                                    iter_data%tot_parts_old) + AllNoAborted) &
+!                                    / (sum(iter_data%tot_parts_old) &
+!                                       + AllNoAbortedOld)
+!            endif
 
             ! Exit the single particle phase if the number of walkers exceeds
             ! the value in the input file. If particle no has fallen, re-enter

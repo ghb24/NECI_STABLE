@@ -156,9 +156,11 @@
         use DetBitOps, only: DetBitLT
         USE FciMCParMOD , only : CurrentDets
         use constants, only: n_int
-        IMPLICIT NONE
-        INTEGER(KIND=n_int) :: n,DetCurr(0:NIfTot)!,list(0:NIFTot,n)
-        INTEGER :: nlo,nup,i,ipos,ncurr,CompPart
+        implicit none
+        integer(n_int), intent(in) :: DetCurr(0:NifTot)
+        integer, intent(in) :: n
+        integer, intent(out) :: ipos
+        integer :: nlo, nup, i, ncurr, CompPart
 !        logical :: tbin
 !        if(.not.tbin) goto 200
 !.......................................................................
