@@ -255,7 +255,8 @@ MODULE AnnihilationMod
 !Max index is the largest occupied index in the array of hashes to be ordered in each processor 
         IF(MaxIndex.gt.(0.9*MaxSpawned)) THEN
             write(6,*) MaxIndex,MaxSpawned
-            CALL Warning("SendProcNewParts","Maximum index of newly-spawned array is close to maximum length after annihilation send. Increase MemoryFacSpawn")
+            CALL Warning("SendProcNewParts","Maximum index of newly-spawned array is " &
+            & //"close to maximum length after annihilation send. Increase MemoryFacSpawn")
         ENDIF
 
 !        WRITE(6,*) "sendcounts: ",sendcounts(:)
@@ -700,16 +701,20 @@ MODULE AnnihilationMod
                                 PartIndex=1
                                 tSuc=.true.
                             ELSE
-                                CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartIndex,tSuc)
+                                CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel), &
+                                        FCIDetIndex(ExcitLevel+1)-1,PartIndex,tSuc)
                             ENDIF
                             HistMinInd2(ExcitLevel)=PartIndex
                             IF(tSuc) THEN
-                                AvAnnihil(j,PartIndex)=AvAnnihil(j,PartIndex)+REAL(2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j)))))
-                                InstAnnihil(j,PartIndex)=InstAnnihil(j,PartIndex)+REAL(2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j)))))
+                                AvAnnihil(j,PartIndex)=AvAnnihil(j,PartIndex)+ &
+                                REAL(2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j)))))
+                                InstAnnihil(j,PartIndex)=InstAnnihil(j,PartIndex)+ &
+                                REAL(2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j)))))
                             ELSE
                                 WRITE(6,*) "***",SpawnedParts(0:NIftot,i)
                                 Call WriteBitDet(6,SpawnedParts(0:NIfTot,i),.true.)
-                                CALL Stop_All("AnnihilateSpawnedParts","Cannot find corresponding FCI determinant when histogramming")
+                                CALL Stop_All("AnnihilateSpawnedParts","Cannot find corresponding FCI "&
+                                    & //"determinant when histogramming")
                             ENDIF
                         ENDIF
 

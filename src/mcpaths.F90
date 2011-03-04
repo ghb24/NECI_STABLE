@@ -25,21 +25,18 @@ contains
          Use Determinants, only: get_helement, write_det
          use constants, only: dp
          use SystemData, only: BasisFN
-!         USE PreCalc ,  only: GETVARS
          USE STARDIAGMOD , only: fMCPR3StarNewExcit
          USE GraphMorph , only : MorphGraph
          USE StarDiagTripMod , only : StarDiagTrips
          USE FciMCParMod , only : FciMCPar
-         USE FciMCMod , only : FciMC
          USE ReturnPathMCMod , only : ReturnPathMC
          USE NODEDIAG , only : fMCPR3StarNodes
          use CalcData , only : G_VMC_FAC,CUR_VERT,g_MultiWeight,         &
      &          TMPTHEORY,TMCDIRECTSUM,TDIAGNODES,TGraphMorph,           &
-     &          calcp_logweight,TFCIMC,TReturnPathMC,tFCIMCSerial 
+     &          calcp_logweight,TFCIMC,TReturnPathMC
          use CalcData, only: tCCMC
          use CalcData, only: TStarTrips
          USE Logging , only : G_VMC_LOGCOUNT
-         USE PrecalcData , only : PREIV_MAX,TPREVAR
          USE CCMC, only: CCMCStandalone,CCMCStandaloneParticle
          use CCMCData, only:  tAmplitudes
          use global_utilities
@@ -136,27 +133,6 @@ contains
          NTOTAL=1.D0
          I_V1=0
 
-         !PRECALC block called
-         if(PREIV_MAX.ne.0) then
-             
-           TPREVAR=.TRUE. 
-            
-            IF(.not.TMCDIRECTSUM) THEN
-                WRITE(6,*) "PRECALC only valid if MCDIRECTSUM is being used"
-                CALL FLUSH(6)
-                STOP
-            ENDIF
-            
-            proc_timerPRE%timer_name='PRECALC '
-            call set_timer(proc_timerPRE)
-            CALL GETVARS(NI,BETA,I_P,IPATH,2,                           &
-     &       G1,NMSH,FCK,NMAX,UMAT,                                     &
-     &       NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,DBETA,DLWDB2,    &
-     &       HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,TLOGP,KSYM,NWHTAY,  &
-     &       I_VMAX)
-            call halt_timer(proc_timerPRE)
-         end if
-
 !C.. I_V is the number of vertices in the path
          
          DO I=2,I_VMAX
@@ -171,16 +147,6 @@ contains
             L=0
             LT=0
             BTABLE(0)=-1
-            IF(TPREVAR) THEN
-                DO T=2,I_VMAX
-                    MP2E(T)=0.D0
-                ENDDO
-                NTOTAL=1
-                TOTAL=1.D0
-                DLWDB=HIJS(0)
-                TPREVAR=.FALSE.
-            ENDIF
-
             DLWDB2=0.D0
             I_CHMAX=NWHTAY(1,I)
             CNWHTAY=NWHTAY(2,I)
@@ -244,11 +210,7 @@ contains
                ELSEIF(TFCIMC) THEN
 !A MC simulation involving replicating particles is run
 !                    WRITE(6,*) "Get Here!: ",I_V,F(I_V),DLWDB2
-                  IF(tFCIMCSerial) THEN
-                    CALL FciMC(F(I_V),DLWDB2)
-                  ELSE
                     CALL FciMCPar(F(I_V),DLWDB2)
-                  ENDIF
 !                    WRITE(6,*) "Get Here!: ",I_V,F(I_V),DLWDB2
                ELSEIF(tCCMC) THEN
                   if(tAmplitudes) THEN
@@ -453,13 +415,8 @@ contains
          USE NODEDIAG , only : fMCPR3StarNodes
          USE GraphMorph , only : MorphGraph
          USE StarDiagTripMod , only : StarDiagTrips
-#ifdef PARALLEL
          USE FciMCParMod , only : FciMCPar
-#else         
-         USE FciMCMod , only : FciMC
-#endif
          USE ReturnPathMCMod , only : ReturnPathMC
-         USE PrecalcData , only : TPREVAR
          use CalcData , only : TMPTHEORY,TDIAGNODES,TGraphMorph
          use CalcData, only : calcp_logweight,TFCIMC,TReturnPathMC
          use CalcData, only: TStarTrips
@@ -508,7 +465,6 @@ contains
 ! Init the weight of the 1-v graph
          WLSI=1.D0
 
-         TPREVAR=.FALSE.
 !C.. This is where we will store the MP2 energy
          DO I=2,I_VMAX
             MP2E(I)=0.D0
@@ -668,13 +624,7 @@ contains
                     CALL StarDiagTrips(DLWDB2,F(I_V))
                ELSEIF(TFCIMC) THEN
 !A MC simulation involving replicating particles is run
-#ifdef PARALLEL
-!                    WRITE(6,*) "Get Here?!"
                     CALL FciMCPar(F(I_V),DLWDB2)
-!                    WRITE(6,*) "Get Here??!"
-#else
-                    CALL FciMC(F(I_V),DLWDB2)
-#endif
                ELSEIF(TReturnPathMC) THEN
 !A MC simulation involving replicating particles, constrained to returning paths is run
                     CALL ReturnPathMC(F(I_V),DLWDB2)
@@ -1084,7 +1034,6 @@ contains
          Use Determinants, only: get_helement
          use CalcData , only : TVARCALC,TMPTHEORY
          USE Logging , only : G_VMC_LOGCOUNT
-         USE PrecalcData , only : TPREVAR,PREWEIGHTEPS
          use mcpathsdata, only: EGP
          use sym_mod, only: getsym
          use legacy_data, only: irat
@@ -1246,20 +1195,8 @@ contains
 !C            WRITE(10,*) (LOCTAB(I)%v,I=1,I_V-1)
 !C            WRITE(6,*) "X"
         
-            IF (TVARCALC(I_V).or.TPREVAR) THEN
+            IF (TVARCALC(I_V)) THEN
                 J=0
-                IF(TOTAL.ge.PREWEIGHTEPS) THEN
-
-                   CALL  CalcWriteGraphPGen(J,IPATH,I_V,nEl,G1,           &
-     &                       nBasisMax,NMAX,nBasis,Prob,DUMMY)
-                   SumX  =SumX   + DLWDB2-(EREF*TOTAL)
-                   SumY  =SumY   + TOTAL
-                   SumXsq=SumXsq + (DLWDB2-(EREF*TOTAL))**2/Prob
-                   SumYsq=SumYsq + ((TOTAL)**2)/Prob
-                   SumXY =SumXY  + (DLWDB2-(EREF*TOTAL))*TOTAL/Prob
-                   SumP=SumP+Prob
-     
-                 ENDIF
              ENDIF
             RETURN
         ENDIF
@@ -1551,7 +1488,7 @@ contains
 !         nullify(LOCTAB(I_VIND+1)%p)
          FMCPR3BRES=TOTAL
 
-         If (TVARCALC(I_V).and.(I_VIND.eq.0).and.(.not.TPREVAR)) Then
+         If (TVARCALC(I_V).and.(I_VIND.eq.0)) Then
 
 
             SumYsq=SumYsq+(2*WREF*SumY)+(((WREF)**2)*SumP)
@@ -1573,7 +1510,7 @@ contains
             SumXY=0.D0
         End If
                           
-        IF (TPREVAR.and.I_VIND.eq.0) THEN
+        IF (I_VIND.eq.0) THEN
 
            SumYsq=SumYsq+(2*WREF*SumY)+(((WREF)**2)*SumP)
            SumY=SumY+(WREF*SumP)

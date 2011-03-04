@@ -5,15 +5,15 @@ ld = gfortran
 ldflags = -m64
 compiler = GCC-f95-on-LINUX
 cpp = cpp -C -traditional
-cppflags = -D__Linux -DPOINTER8 -D__INT64
-libs = -L ~/lib/fftw-3.1.2/lib -lfftw3 -llapack -lblas -lstdc++ -lrt
+cppflags = -D__Linux -DPOINTER8 -D__INT64 -DDISABLE_FFTW
+libs = -lacml -lstdc++ -lrt
 module_flag = -J
 
 [dbg]
-fflags = -fcray-pointer -ffree-line-length-none -g -m64 -fbacktrace
+fflags = -fcray-pointer -g -m64 -fbacktrace -fdefault-real-8 -Waggregate-return -Waliasing -Wampersand -Wcharacter-truncation -Wintrinsics-std -Wno-tabs -Wsurprising -Wunderflow
 cflags = -g -m64
 f90flags = -fbounds-check
 
 [opt]
-fflags = -fcray-pointer -ffree-line-length-none -O4 -m64
+fflags = -fcray-pointer -O4 -m64 -fdefault-real-8 -Waggregate-return -Waliasing -Wampersand -Wcharacter-truncation -Wintrinsics-std -Wno-tabs -Wsurprising -Wunderflow -fdefault-integer-8
 cflags = -O -m64

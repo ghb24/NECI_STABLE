@@ -1,7 +1,7 @@
 ! lenrec is the number of auxiliary basis functions
 SUBROUTINE InitDFBasis(nBasisMax,Len)
          use SystemData , only : tStoreSpinOrbs
-         use record_handler
+!         use record_handler
          use constants, only: dp
          use UMatCache
          implicit none
@@ -10,10 +10,12 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          character(3) file_status
          integer info,lenrec,nrec
          integer nBasis
+         character(*), parameter :: this_routine='InitDFBasis'
 
          file_status= 'ADD'
-         call init_record_handler(C_file,file_status,info)
-         call query_record_handler(C_file,info,file_status,lenrec,nrec,.TRUE.)
+         call stop_all(this_routine,"Reading in of SITUS DF files depreciated")
+!         call init_record_handler(C_file,file_status,info)
+!         call query_record_handler(C_file,info,file_status,lenrec,nrec,.TRUE.)
 !.. lenrec is the number of auxiliary basis functions
 !.. nrec is the number of pairs of orbitals.
          nBasisPairs=nrec
@@ -36,8 +38,8 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
 !.. Also will read in one-electron integrals
 !.. Requires various modules from SITUS for the file reading
       SUBROUTINE ReadDF2EIntegrals(nBasis,nOrbUsed)
-         use precision
-         use record_handler
+!         use precision
+!         use record_handler
          use global_utilities
          use UMatCache
          implicit none
@@ -50,12 +52,14 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          integer info,i,j,k
          real*8 r
          integer nBasis,nOrbUsed,ierr
+         character(*), parameter :: this_routine='ReadDF2EIntegrals'
 
+         call stop_all(this_routine,"Reading in of SITUS DF files depreciated")
          WRITE(6,*) "Opening Density fitting matrix files"
          file_status= 'ADD'
 !.. We've already got C_file open
-         call init_record_handler(I_file,file_status,info,printinfo=.TRUE.)
-         call init_record_handler(S_file,file_status,info,printinfo=.TRUE.)
+!         call init_record_handler(I_file,file_status,info,printinfo=.TRUE.)
+!         call init_record_handler(S_file,file_status,info,printinfo=.TRUE.)
 !.. lenrec is the number of auxiliary basis functions
 !.. nrec is the number of pairs of orbitals.
          WRITE(6,*) "Basis Size:", nBasis/2
@@ -69,15 +73,15 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          Allocate(DFFitInts(nAuxBasis,nAuxBasis),STAT=ierr)
          call LogMemAlloc("DFFitInts",nAuxBasis*nAuxBasis,8,t_r,tagDFFitInts,ierr)
          do i=1,nBasisPairs
-            call read_record(C_file,i,nolabel,DFCoeffs(:,i),info)
-            call read_record(I_file,i,nolabel,DFInts(:,i),info)
+!            call read_record(C_file,i,nolabel,DFCoeffs(:,i),info)
+!            call read_record(I_file,i,nolabel,DFInts(:,i),info)
          enddo
          do i=1,nAuxBasis
-            call read_record(S_file,i,nolabel,DFFitInts(:,i),info)
+!            call read_record(S_file,i,nolabel,DFFitInts(:,i),info)
          enddo
-         call leave_record_handler(C_file,info)
-         call leave_record_handler(I_file,info)
-         call leave_record_handler(S_file,info)
+!         call leave_record_handler(C_file,info)
+!         call leave_record_handler(I_file,info)
+!         call leave_record_handler(S_file,info)
 
          select case(iDFMethod)
          case(0)
@@ -148,6 +152,9 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          integer i,j,GetDFIndex
          integer x,y
          real*8 res
+         character(*), parameter :: this_routine='GetDF2EInt'
+         
+         call stop_all(this_routine,"Reading in of SITUS DF files depreciated")
          res=0.D0
          x=GetDFIndex(a,c)
          y=GetDFIndex(b,d)

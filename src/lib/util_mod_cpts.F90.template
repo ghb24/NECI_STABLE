@@ -30,11 +30,6 @@ type = type(SymPairProd)
 [starwalker]
 type = type(star_walker)
 
-[excitgenerator]
-type = type(ExcitGenerator)
-tmp_init = call excitgenerator_init
-tmp_destroy = call excitgenerator_destroy
-
 =========================
 
 module util_mod_cpts
@@ -43,8 +38,6 @@ module util_mod_cpts
     use SystemData, only: Symmetry, assignment(=)
     use symdata, only: SymPairProd, assignment(=)
     use StarDiagData
-    use FciMCData, only: ExcitGenerator, assignment(=), excitgenerator_init, &
-                         excitgenerator_destroy
     implicit none
 
     private

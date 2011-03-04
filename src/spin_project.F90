@@ -33,7 +33,7 @@ contains
         integer(n_int), intent(in) :: ilutI(0:nIfTot)
 
         integer :: dorder_i(nel), dorder_j(nel), open_el(nel)
-        integer :: nopen, i, nup, orb, count_dets, ndet, pos
+        integer :: nopen, i, nup, orb, count_dets, ndet, pos, abo
         integer(n_int) :: iluttmp(0:niftot)
         integer, dimension(lenof_sign) :: sgnI, sgnJ
         real*8 :: tot_cpt, elem
@@ -89,7 +89,8 @@ contains
                         orb = get_beta(open_el(i))
                     endif
                     set_orb(iluttmp, orb)
-                    clr_orb(iluttmp, ab_pair(orb))
+                    abo=ab_pair(orb)
+                    clr_orb(iluttmp, abo)
                 enddo
 
                 pos = binary_search (CurrentDets(:,1:TotWalkers), iLutTmp, &
@@ -377,7 +378,7 @@ contains
         HElement_t, intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
 
-        integer :: nopen, nchoose, i
+        integer :: nopen, nchoose, i, abo
         integer :: nTmp(nel), iUnused
         integer, dimension(lenof_sign) :: sgn_tmp
         character(*), parameter :: this_routine = 'generate_excit_spin_proj'
@@ -434,7 +435,8 @@ contains
         ilutJ = ilutI
         do i = 1, nopen
             set_orb(ilutJ, nJ(i))
-            clr_orb(ilutJ, ab_pair(nJ(i)))
+            abo=ab_pair(nJ(i))
+            clr_orb(ilutJ, abo)
         enddo
 
         ! Mark the end of the unpaired electrons section.

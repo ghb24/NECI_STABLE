@@ -80,8 +80,6 @@ REAL*8 :: RHOEPS ! calculated from RHOEPSILON
 !// set if we include no triple-excitations as the 3rd vertex in 3+ vertex graphs.
 LOGICAL :: lNoTriples
 
-LOGICAL tFCIMCSerial
-
 LOGICAL tUseProcsAsNodes  !Set if we treat each processor as its own node.
 INTEGER iLogicalNodeSize  !An alternative to the above, create logical nodes of at most this size.
                           ! 0 means use physical nodes.
