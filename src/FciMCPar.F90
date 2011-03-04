@@ -3512,8 +3512,6 @@ MODULE FciMCParMod
         hash_iter=0
         hash_shift=0
 
-        HFHash=CreateHash(HFDet)
-
         IF(tKPntSym) THEN
             CALL DecomposeAbelianSym(HFSym%Sym%S,KPnt)
             WRITE(6,"(A,3I5)") "Crystal momentum of reference determinant is: ",KPnt(1),KPnt(2),KPnt(3)
@@ -3863,8 +3861,6 @@ MODULE FciMCParMod
         AllENumCyc=0.D0
         AllHFCyc=0.D0
 !        AllDetsNorm=0.D0
-        CullInfo(1:10,1:3)=0
-        NoCulls=0
         AllNoAborted=0
         AllNoAddedInitiators=0
         AllNoInitDets=0

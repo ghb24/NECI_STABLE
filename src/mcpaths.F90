@@ -29,12 +29,11 @@ contains
          USE GraphMorph , only : MorphGraph
          USE StarDiagTripMod , only : StarDiagTrips
          USE FciMCParMod , only : FciMCPar
-         USE FciMCMod , only : FciMC
          USE ReturnPathMCMod , only : ReturnPathMC
          USE NODEDIAG , only : fMCPR3StarNodes
          use CalcData , only : G_VMC_FAC,CUR_VERT,g_MultiWeight,         &
      &          TMPTHEORY,TMCDIRECTSUM,TDIAGNODES,TGraphMorph,           &
-     &          calcp_logweight,TFCIMC,TReturnPathMC,tFCIMCSerial 
+     &          calcp_logweight,TFCIMC,TReturnPathMC
          use CalcData, only: tCCMC
          use CalcData, only: TStarTrips
          USE Logging , only : G_VMC_LOGCOUNT
@@ -211,11 +210,7 @@ contains
                ELSEIF(TFCIMC) THEN
 !A MC simulation involving replicating particles is run
 !                    WRITE(6,*) "Get Here!: ",I_V,F(I_V),DLWDB2
-                  IF(tFCIMCSerial) THEN
-                    CALL FciMC(F(I_V),DLWDB2)
-                  ELSE
                     CALL FciMCPar(F(I_V),DLWDB2)
-                  ENDIF
 !                    WRITE(6,*) "Get Here!: ",I_V,F(I_V),DLWDB2
                ELSEIF(tCCMC) THEN
                   if(tAmplitudes) THEN
@@ -423,11 +418,7 @@ contains
          USE NODEDIAG , only : fMCPR3StarNodes
          USE GraphMorph , only : MorphGraph
          USE StarDiagTripMod , only : StarDiagTrips
-#ifdef PARALLEL
          USE FciMCParMod , only : FciMCPar
-#else         
-         USE FciMCMod , only : FciMC
-#endif
          USE ReturnPathMCMod , only : ReturnPathMC
          use CalcData , only : TMPTHEORY,TDIAGNODES,TGraphMorph
          use CalcData, only : calcp_logweight,TFCIMC,TReturnPathMC
@@ -636,13 +627,7 @@ contains
                     CALL StarDiagTrips(DLWDB2,F(I_V))
                ELSEIF(TFCIMC) THEN
 !A MC simulation involving replicating particles is run
-#ifdef PARALLEL
-!                    WRITE(6,*) "Get Here?!"
                     CALL FciMCPar(F(I_V),DLWDB2)
-!                    WRITE(6,*) "Get Here??!"
-#else
-                    CALL FciMC(F(I_V),DLWDB2)
-#endif
                ELSEIF(TReturnPathMC) THEN
 !A MC simulation involving replicating particles, constrained to returning paths is run
                     CALL ReturnPathMC(F(I_V),DLWDB2)

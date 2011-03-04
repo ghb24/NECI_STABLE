@@ -212,7 +212,6 @@ contains
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
 
           lNoTriples=.false.
-          tFCIMCSerial=.false.  !If set we force the parallel version to run the serial code.
           tReadPopsChangeRef = .false.
           tReadPopsRestart = .false.
           iLogicalNodeSize = 0 !Meaning use the physical node size
@@ -1732,7 +1731,7 @@ contains
          use UMatCache , only : TSTARSTORE
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
          use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,tCCMC
-         use CalcData , only : TRhoElems,TReturnPathMC, tFCIMCSerial,tUseProcsAsNodes
+         use CalcData , only : TRhoElems,TReturnPathMC, tUseProcsAsNodes
          use CCMCData, only: tExactCluster,tCCMCFCI,tAmplitudes,tExactSpawn,tCCBuffer
          use Logging, only: tCalcFCIMCPsi
          implicit none
@@ -1757,8 +1756,6 @@ contains
                       case("RESUMFCIMC")
 !                          TResumFCIMC=.true.
                           CALL Stop_All("inpgetmethod","MCDIFFUSION option depreciated")
-                      case("SERIAL")
-                          tFCIMCSerial=.true.
                       case default
                           call report("Keyword error with "//trim(w),.true.)
                       endselect

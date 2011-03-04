@@ -249,86 +249,18 @@ MODULE FciMCData
 
       integer :: yama_global (4)
 
-      !*****************  Yucky globals for AJWT iter-dependent hashes ***********
-      integer :: hash_iter       ! An iteration number added to make iteration-dependent hashes
-      integer :: hash_shift      ! -Ln_2 (Cycletime), where CycleTime is the average number of cycles until a det returns to its processor
-      
-      !*****************  Redundant variables ************************
-    
-
-      INTEGER , ALLOCATABLE , TARGET :: WalkVec2Dets(:,:),WalkVec2Sign(:)
-      REAL(KIND=dp) , ALLOCATABLE , TARGET :: WalkVec2H(:)
-      INTEGER , ALLOCATABLE :: IndexTable(:),Index2Table(:)                               !Indexing for the annihilation
-      INTEGER , ALLOCATABLE :: ProcessVec(:),Process2Vec(:)                               !Index for process rank of original walker
-      INTEGER(KIND=int64) , ALLOCATABLE :: HashArray(:),Hash2Array(:)                         !Hashes for the walkers when annihilating
-      INTEGER :: HashArrayTag=0,Hash2ArrayTag=0,IndexTableTag=0,Index2TableTag=0,ProcessVecTag=0,Process2VecTag=0
-      INTEGER :: WalkVe2HTag=0,WalkVec2DetsTag=0,WalkVec2SignTag=0
-      INTEGER , POINTER :: NewDets(:,:)
-      INTEGER , POINTER :: NewSign(:)
-
-      ! Only used in FciMC, but put here to allow access to a data module for
-      ! the sorting routines etc.
-      type excitGenerator
-          integer, pointer :: excitdata(:) ! The excitation generator
-          integer :: nExcitMemLen = 0           ! Length of excitation gen.
-          logical :: excitGenForDet = .false.   ! true if excitation generator
-                                               ! stored corresponds to the
-                                               ! determinant.
-      end type
-
-      type(ExcitGenerator) :: HFExcit         !This is the excitation generator for the HF determinant
-      integer(int64) :: HFHash               !This is the hash for the HF determinant
-!This is information needed by the thermostating, so that the correct change in walker number can be calculated, and hence the correct shift change.
-!NoCulls is the number of culls in a given shift update cycle for each variable
-      INTEGER :: NoCulls=0
-!CullInfo is the number of walkers before and after the cull (elements 1&2), and the third element is the previous number of steps before this cull...
-!Only 10 culls/growth increases are allowed in a given shift cycle
-      INTEGER :: CullInfo(10,3)
-
       ! Used for modifying the ReadPops procedures, so that we can call 
       ! InitFCIMCCalcPar again without reading the popsfile.
       logical :: tPopsAlreadyRead
 
-      ! Excitation generation storage for FCIMC (and others)
+!      ! Excitation generation storage 
       type(excit_gen_store_type) :: fcimc_excit_gen_store
       
-      interface assignment(=)
-          module procedure excitgenerator_assign
-      end interface
 
-contains
-    
-    pure subroutine excitgenerator_init (egen)
-        type(excitGenerator), intent(inout) :: egen
-        nullify(egen%excitdata)
-        egen%nExcitMemLen = 0
-        egen%excitGenForDet = .false.
-    end subroutine
 
-    pure subroutine excitgenerator_destroy (egen)
-        type(excitGenerator), intent(inout) :: egen
-        if (associated(egen%excitdata)) deallocate(egen%excitdata)
-        nullify(egen%excitdata)
-        egen%nExcitMemLen = 0
-        egen%excitGenForDet = .false.
-    end subroutine
-
-    elemental subroutine excitgenerator_assign (lhs, rhs)
-        type(excitGenerator), intent(inout) :: lhs
-        type(excitGenerator), intent(in) :: rhs
-
-        if (associated(lhs%excitData)) deallocate(lhs%excitData)
-
-        ! Do we actually want the excitation generator? Is it for the correct
-        ! determinant?
-        if (rhs%excitGenForDet) then
-            ! Now copy the excitation generator.
-            allocate (lhs%excitData(rhs%nExcitMemLen))
-
-            lhs%excitData = rhs%excitData
-        endif
-        lhs%nExcitMemLen = rhs%nExcitMemLen
-        lhs%excitGenForDet = rhs%excitGenForDet
-    end subroutine
+      !*****************  Yucky globals for AJWT iter-dependent hashes ***********
+      integer :: hash_iter       ! An iteration number added to make iteration-dependent hashes
+      integer :: hash_shift      ! -Ln_2 (Cycletime), where CycleTime is the average number of cycles until a det returns to its processor
+      
 
 END MODULE FciMCData
