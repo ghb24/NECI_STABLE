@@ -5760,7 +5760,8 @@ MODULE FciMCParMod
 
     subroutine CalcUEGMP2()
         use SymExcitDataMod, only: kPointToBasisFn
-        use SystemData, only: ElecPairs,NMAXX,NMAXY,NMAXZ,OrbECutOff,tGCutoff,GCutoff
+        use SystemData, only: ElecPairs,NMAXX,NMAXY,NMAXZ,OrbECutOff,tGCutoff,GCutoff, &
+                                tMP2UEGRestrict,kiRestrict,kiMsRestrict,kjRestrict,kjMsRestrict
         use GenRandSymExcitNUMod, only: FindNewDet
         use Determinants, only: GetH0Element4
         integer :: Ki(3),Kj(3),Ka(3),LowLoop,HighLoop,X,i,Elec1Ind,Elec2Ind,K,Orbi,Orbj
@@ -5792,6 +5793,18 @@ MODULE FciMCParMod
             Orbj=HFDet(Elec2Ind)
             Ki=G1(Orbi)%k
             Kj=G1(Orbj)%k
+            if (tMP2UEGRestrict) then
+                if (.not. ( &
+                ( kiRestrict(1).eq.ki(1).and.kiRestrict(2).eq.ki(2).and.kiRestrict(3).eq.ki(3) .and. & 
+                kjRestrict(1).eq.kj(1).and.kjRestrict(2).eq.kj(2).and.kjRestrict(3).eq.kj(3) .and. & 
+                kjMsRestrict.eq.G1(Orbi)%Ms.and.kiMsRestrict.eq.G1(Orbj)%Ms ) .or. &
+                ! the other way round
+                ( kiRestrict(1).eq.kj(1).and.kiRestrict(2).eq.kj(2).and.kiRestrict(3).eq.kj(3) .and. & 
+                kjRestrict(1).eq.ki(1).and.kjRestrict(2).eq.ki(2).and.kjRestrict(3).eq.ki(3) .and. & 
+                kiMsRestrict.eq.G1(Orbi)%Ms.and.kjMsRestrict.eq.G1(Orbj)%Ms ) ) &
+                ) cycle
+                write(6,*) "Restricting calculation to i,j pair: ",Orbi,Orbj
+            endif
 
             IF((G1(Orbi)%Ms)*(G1(Orbj)%Ms).eq.-1) THEN
 !We have an alpha beta pair of electrons.

@@ -81,6 +81,9 @@ integer :: k_momentum(3) ! UEG parameter for total momentum
 logical :: tOrbECutoff ! Whether we're using a spherical cutoff in momentum space or not
 logical :: tgCutoff ! Whether we're using a spherical cutoff for the momentum transfer vector
 real*8 :: gCutoff ! Spherical cutoff for the momentum transfer vector
+logical :: tMP2UEGRestrict ! Restricts the MP2 sum over a single electron pair, specified by: 
+integer :: kiRestrict(3), kjRestrict(3) ! ki/kj pair
+integer :: kiMsRestrict, kjMsRestrict ! and their spins
 
 ! For the UEG, we damp the exchange interactions.
 !    0 means none
