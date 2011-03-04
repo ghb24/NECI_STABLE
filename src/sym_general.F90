@@ -5,17 +5,19 @@ module sym_general_mod
     use SystemData, only: tFixLz, tNoSymGenRandExcits, iMaxLz, G1
     use SymExcitDataMod
     use Symdata, only: nSymLabels
+    use constants
 
     implicit none
 
     interface ClassCountInd
-        module procedure ClassCountInd_full
+        module procedure ClassCountInd_full_64
+        module procedure ClassCountInd_full_32
         module procedure ClassCountInd_orb
     end interface
 
 contains
 
-    elemental function ClassCountInd_full(Spin, Sym, Mom) result(ind)
+    elemental function ClassCountInd_full_32(Spin, Sym, Mom) result(ind)
 
         ! Return the index into the ClassCount arrays such that variable
         ! symmetries can be easily accomodated.
@@ -26,7 +28,8 @@ contains
         !
         ! INTERFACED as ClassCountInd
 
-        integer, intent(in) :: Spin, Sym, Mom
+        integer, intent(in) :: Spin, Mom
+        integer(kind=int32), intent(in) :: Sym
         integer :: ind
 
         if(tFixLz) then
@@ -45,6 +48,36 @@ contains
 
     end functioN
 
+    elemental function ClassCountInd_full_64(Spin, Sym, Mom) result(ind)
+
+        ! Return the index into the ClassCount arrays such that variable
+        ! symmetries can be easily accomodated.
+        !
+        ! For spin, alpha=1, beta=2; Sym = 0:nSymLabels-1; Mom = -Lmax:LMax
+        ! For molecular systems, the sym is actually the symmetry of the irrep
+        ! For k-points, the sym is the k-point label from SymClasses(state)
+        !
+        ! INTERFACED as ClassCountInd
+
+        integer, intent(in) :: Spin, Mom
+        integer(kind=int64), intent(in) :: Sym
+        integer :: ind
+
+        if(tFixLz) then
+            ind = 2 * nSymLabels * (Mom + iMaxLz) + (2 * Sym + Spin)
+        else
+            ind = 2 * Sym + Spin
+        endif
+
+        if(tNoSymGenRandExcits) then
+            if(Spin == 1) then
+                ind = 1
+            else
+                ind = 2
+            endif
+        endif
+
+    end functioN
 
     elemental function ClassCountInd_orb (orb) result(ind)
 
@@ -66,7 +99,7 @@ contains
         mom = G1(orb)%Ml
 
         ! Calculate index as usual
-        ind = ClassCountInd_full (spin, sym, mom)
+        ind = ClassCountInd (spin, sym, mom)
 
     end function
 
