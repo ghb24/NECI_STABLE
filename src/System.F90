@@ -97,6 +97,7 @@ MODULE System
       tOrbECutoff=.false.
       gCutoff=1e20 ! This shouldn't be used
       tgCutoff=.false.
+      tMP2UEGRestrict=.false.
       tStoreAsExcitations=.false.
       TBIN=.false.
       tAbelianFastExcitGen=.true.
@@ -380,6 +381,16 @@ MODULE System
           call getf(gCutoff)
         case("STORE-AS-EXCITATIONS")
            tStoreAsExcitations=.true.  
+        case("MP2-UEG-RESTRICT")
+           tMP2UEGRestrict=.true.
+           call geti(kiRestrict(1))
+           call geti(kiRestrict(2))
+           call geti(kiRestrict(3))
+           call geti(kiMsRestrict)
+           call geti(kjRestrict(1))
+           call geti(kjRestrict(2))
+           call geti(kjRestrict(3))
+           call geti(kjMsRestrict)
 
         ! Options for model systems (electrons in a box/Hubbard).   
         case("CELL")
