@@ -106,6 +106,9 @@ type2 = integer(kind=int32)
 [doub_doub]
 type2 = real*8
 
+[doub_int64]
+type2 = integer(kind=int64)
+
 [doub_arr_int]
 type2 = integer(kind=int32), dimension(:)
 
@@ -118,6 +121,29 @@ type2 = real*8, dimension(:)
 [sym_arr_int]
 type1 = type(Symmetry)
 type2 = integer(kind=int32), dimension(:)
+
+[sym_arr_int64]
+type1 = type(Symmetry)
+type2 = integer(kind=int64), dimension(:)
+
+[int64_int64]
+type1 = integer(kind=int64)
+type2 = integer(kind=int64)
+
+[int64_doub]
+type2 = real(kind=dp)
+
+[int64_arr_int]
+type2 = integer(kind=int32), dimension(:)
+
+[int64_arr_int64]
+type2 = integer(kind=int64), dimension(:)
+
+[int64_arr_doub]
+type2 = real*8, dimension(:)
+
+[int64_arr_complex]
+type2 = complex*16, dimension(:)
 
 ###############################################
 ########## Sort by integer array ##############
@@ -186,8 +212,17 @@ type3 = real(kind=dp)
 arr3_prefix = 
 extra_arrs = arr2, arr3,
 
+[arr_int_int64_doub]
+type2 = integer(kind=int64)
+
 [arr_int64_int_doub]
 type1 = integer(kind=int64), dimension(:)
+type2 = integer(kind=int32)
+
+[arr_int64_int64_doub]
+type1 = integer(kind=int64), dimension(:)
+type2 = integer(kind=int64)
+type3 = real(kind=dp)
 
 [int_arr_int64_logical]
 type1 = integer(kind=int32)
@@ -196,12 +231,23 @@ type3 = logical
 op_gt = >
 op_lt = <
 
+[int64_arr_int64_logical]
+type1 = integer(kind=int64)
+
 [int_arr_int_doub]
+type1 = integer(kind=int32)
 type2 = integer(kind=int32), dimension(:)
 type3 = real(kind=dp)
 
+[int64_arr_int_doub]
+type1 = integer(kind=int64)
+
 [int_arr_int64_doub]
+type1 = integer(kind=int32)
 type2 = integer(kind=int64), dimension(:)
+
+[int64_arr_int64_doub]
+type1 = integer(kind=int64)
 
 [doub_doub_doub]
 type1 = real(kind=dp)
@@ -211,6 +257,9 @@ type3 = real(kind=dp)
 [doub_arr_doub_int]
 type2 = real(kind=dp), dimension(:)
 type3 = integer(kind=int32)
+
+[doub_arr_doub_int64]
+type3 = integer(kind=int64)
 
 [cmplx_cmplx_cmplx]
 type1 = complex(dp)

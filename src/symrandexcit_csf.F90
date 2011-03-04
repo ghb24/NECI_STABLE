@@ -664,7 +664,7 @@ contains
             ! Obtain the symmetry index and Ms indicator (1=alpha)
             spn = 2
             if (G1(orb)%Ms == 1) spn = 1
-            sym_ind = CCIndS(int(G1(orb)%Sym%S,4), G1(orb)%Ml)
+            sym_ind = CCIndS(G1(orb)%Sym%S, G1(orb)%Ml)
             
             ! Is this electron in a singly or doubly occupied orbital?
             ! Test if there are any allowed excitations
@@ -693,7 +693,7 @@ contains
         endif
 
         ! If we are exciting a singly occupied e-, then flip its spin.
-        symEx = ClassCountInd(spn, int(G1(orb)%Sym%S,4), G1(orb)%Ml)
+        symEx = ClassCountInd(spn,G1(orb)%Sym%S, G1(orb)%Ml)
         if (bSingle) symEx = symEx - 1
 
         ! Choose an (allowed) unoccupied orbital to excite to. Draw orbitals
@@ -795,7 +795,7 @@ contains
                 ! Place e- into ClassCountDoubleOcc, and remove from Unocc.
                 ! ind(beta) = ind(alpha) + 1 --> Can do both in one step.
                 orb = iand (nI(i), csf_orbital_mask)
-                ind = CCIndS (int(G1(orb)%Sym%S,4), G1(orb)%Ml)
+                ind = CCIndS (G1(orb)%Sym%S, G1(orb)%Ml)
                 CCDblS(ind) = CCDblS(ind) + 1
                 CCUnS(ind) = CCUnS(ind) - 1
             enddo
@@ -803,7 +803,7 @@ contains
             ! Now loop over the open shell electrons
             do i = nclosed+1, nel
                 orb = iand (nI(i), csf_orbital_mask)
-                ind = CCIndS (int(G1(orb)%Sym%S,4), G1(orb)%Ml)
+                ind = CCIndS (G1(orb)%Sym%S, G1(orb)%Ml)
                 CCSglS(ind) = CCSglS(ind) + 1
                 CCUnS(ind) = CCUnS(ind) - 1
             enddo
@@ -1362,7 +1362,7 @@ contains
                 ! Obtain the orbital and its Ms/symmetry values
                 orb = iand(nI(i), csf_orbital_mask)
                 spn = (3 - G1(orb)%Ms) / 2 ! alpha=1, beta=2
-                sym_ind = CCIndS (int(G1(orb)%Sym%S,4), G1(orb)%Ml)
+                sym_ind = CCIndS (G1(orb)%Sym%S, G1(orb)%Ml)
 
                 ! Is it doubly or singly occupied
                 orb2 = ieor((orb-1), 1)
@@ -1522,7 +1522,7 @@ contains
                     ! Obtain the orbital/symmetry to excite from
                     orb = iand(nI(i), csf_orbital_mask)
                     spn = (3 - G1(orb)%Ms) / 2 ! alpha=1, beta=2
-                    sym_ind = ClassCountInd(spn, int(G1(orb)%Sym%S,4), &
+                    sym_ind = ClassCountInd(spn, G1(orb)%Sym%S, &
                                             G1(orb)%Ml)
                                             
                     ! Is the source orbital doubly occupied?

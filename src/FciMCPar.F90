@@ -1330,7 +1330,7 @@ MODULE FciMCParMod
         ! How many children should we spawn given an excitation?
         if ((tTruncCas .and. (.not. tTruncInitiator)) .or. tTruncSpace .or. &
             tPartFreezeCore .or. tPartFreezeVirt .or. tFixLz .or. &
-			(tUEG .and. .not. tLatticeGens) .or. tTruncNOpen) then
+            (tUEG .and. .not. tLatticeGens) .or. tTruncNOpen) then
             if (tHPHF .or. tCSF) then
                 call set_attempt_create (attempt_create_trunc_spawn)
             else
@@ -4111,10 +4111,10 @@ MODULE FciMCParMod
             CALL CreateSpinInvBRR()
         ENDIF
 
-		if (tTruncNOpen) then
-			write(6, '("Truncating determinant space at a maximum of ",i3," &
+        if (tTruncNOpen) then
+            write(6, '("Truncating determinant space at a maximum of ",i3," &
 			           &unpaired electrons.")') trunc_nopen_max
-		endif
+        endif
 
         SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.D0)
         TotDets=1.D0
@@ -4279,98 +4279,98 @@ MODULE FciMCParMod
 
         integer, intent(in) :: nJ(nel), WalkExcitLevel, IC
         integer(n_int), intent(in) :: ilutnJ(0:NIfTot)
-		logical :: bAllowed
+        logical :: bAllowed
 
-		integer :: NoInFrozenCore, MinVirt, ExcitLevel, nopen, i
+        integer :: NoInFrozenCore, MinVirt, ExcitLevel, nopen, i
         ! For UEG
         integer :: k(3)
 
         bAllowed = .true.
 
-		! Truncate space by excitation level
-		if (tTruncSpace) then
-			! If parent walker is one below excitation cutoff, could be
-			! disallowed if double. If higher, then all excits could
-			! be disallowed. If HPHF, excit could be single or double,
-			! and IC not returned --> Always test.
-			if (tHPHF .or. WalkExcitLevel >= ICILevel .or. &
-				(WalkExcitLevel == (ICILevel-1) .and. IC == 2)) then
-				ExcitLevel = FindBitExcitLevel (iLutHF, ilutnJ, ICILevel)
-				if (ExcitLevel > ICILevel) &
-					bAllowed = .false.
-			endif
-		endif
+        ! Truncate space by excitation level
+        if (tTruncSpace) then
+! If parent walker is one below excitation cutoff, could be
+! disallowed if double. If higher, then all excits could
+! be disallowed. If HPHF, excit could be single or double,
+! and IC not returned --> Always test.
+            if (tHPHF .or. WalkExcitLevel >= ICILevel .or. &
+                (WalkExcitLevel == (ICILevel-1) .and. IC == 2)) then
+                ExcitLevel = FindBitExcitLevel (iLutHF, ilutnJ, ICILevel)
+                if (ExcitLevel > ICILevel) &
+                    bAllowed = .false.
+            endif
+        endif
 
-		! Is the number of unpaired electrons too high?
-		if (tTruncNOpen .and. bAllowed) then
-			nopen = count_open_orbs (ilutnJ)
-			if (nopen > trunc_nopen_max) &
-				bAllowed = .false.
-		endif
-
-
-		! If the FCI space is restricted by a predetermined CAS space
-		if (tTruncCAS .and. .not. tTruncInitiator .and. bAllowed) then
-			if (.not. TestIfdetinCASBit(ilutnJ(0:NIfD))) &
-				bAllowed = .false.
-		endif
-
-				
-		! Does the spawned determinant have more than the restricted number
-		! of holes in the partially frozen core?
-		!
-		! --> Run through the e- in nJ, count the number in the partially
-		!     frozen core (i.e. with energy, from BRR, less than the frozen
-		!     core limit). If too few, then forbidden.
-		if (tPartFreezeCore .and. bAllowed) then
-			NoInFrozenCore = 0
-			bAllowed = .false.
-			do i = 1, nel
-				if (SpinInvBRR(nJ(i)) <= NPartFrozen) &
-					NoInFrozenCore = NoInFrozenCore + 1
-				if (NoInFrozenCore == (NPartFrozen - NHolesFrozen)) then
-					bAllowed = .true.
-					exit
-				endif
-			enddo
-		endif
+        ! Is the number of unpaired electrons too high?
+        if (tTruncNOpen .and. bAllowed) then
+            nopen = count_open_orbs (ilutnJ)
+            if (nopen > trunc_nopen_max) &
+                bAllowed = .false.
+        endif
 
 
-		! Does the spawned determinant have more than the restricted number
-		! of e- in the partially frozen virtual orbitals?
-		!
-		! --> Run through the e- in nJ, count the number in the partially
-		!     frozen orbitals (i.e. with energy, from BRR, greater than
-		!     minumum unfrozen virtual). If too many, then forbidden
-		if (tPartFreezeVirt .and. bAllowed) then
-			NoInFrozenCore = 0
-			MinVirt = nBasis - NVirtPartFrozen
-			! BRR(i) = j: orbital i is the j-th lowest in energy
-			do i = 1, nel
-				if (SpinInvBRR(nJ(i)) > MinVirt) &
-					NoInFrozenCore = NoInFrozenCore + 1
-				if (NoInFrozenCore > NElVirtFrozen) then
-					! Too many e- in part-frozen orbs
-					bAllowed = .false.
-					exit
-				endif
-			enddo
-		endif
+        ! If the FCI space is restricted by a predetermined CAS space
+        if (tTruncCAS .and. .not. tTruncInitiator .and. bAllowed) then
+            if (.not. TestIfdetinCASBit(ilutnJ(0:NIfD))) &
+                bAllowed = .false.
+        endif
 
 
-		! Check to see if UEG excitation is allowed, by summing kx, ky, kz
-		! over all the electrons
-		if (tUEG .and. .not. tLatticeGens .and. bAllowed) then
-			k = 0
-			do i = 1, nel
-				k = k + G1(nJ(i))%k
-			enddo
-			if (.not. all(k == 0)) &
-				bAllowed = .false.
-		endif
+        ! Does the spawned determinant have more than the restricted number
+        ! of holes in the partially frozen core?
+        !
+        ! --> Run through the e- in nJ, count the number in the partially
+        !     frozen core (i.e. with energy, from BRR, less than the frozen
+        !     core limit). If too few, then forbidden.
+        if (tPartFreezeCore .and. bAllowed) then
+            NoInFrozenCore = 0
+            bAllowed = .false.
+            do i = 1, nel
+                if (SpinInvBRR(nJ(i)) <= NPartFrozen) &
+                    NoInFrozenCore = NoInFrozenCore + 1
+                if (NoInFrozenCore == (NPartFrozen - NHolesFrozen)) then
+                    bAllowed = .true.
+                    exit
+                endif
+            enddo
+        endif
 
 
-	end function CheckAllowedTruncSpawn
+        ! Does the spawned determinant have more than the restricted number
+        ! of e- in the partially frozen virtual orbitals?
+        !
+        ! --> Run through the e- in nJ, count the number in the partially
+        !     frozen orbitals (i.e. with energy, from BRR, greater than
+        !     minumum unfrozen virtual). If too many, then forbidden
+        if (tPartFreezeVirt .and. bAllowed) then
+            NoInFrozenCore = 0
+            MinVirt = nBasis - NVirtPartFrozen
+            ! BRR(i) = j: orbital i is the j-th lowest in energy
+            do i = 1, nel
+                if (SpinInvBRR(nJ(i)) > MinVirt) &
+                    NoInFrozenCore = NoInFrozenCore + 1
+                if (NoInFrozenCore > NElVirtFrozen) then
+                    ! Too many e- in part-frozen orbs
+                    bAllowed = .false.
+                    exit
+                endif
+            enddo
+        endif
+
+
+        ! Check to see if UEG excitation is allowed, by summing kx, ky, kz
+        ! over all the electrons
+        if (tUEG .and. .not. tLatticeGens .and. bAllowed) then
+            k = 0
+            do i = 1, nel
+                k = k + G1(nJ(i))%k
+            enddo
+            if (.not. all(k == 0)) &
+                bAllowed = .false.
+        endif
+
+
+    end function CheckAllowedTruncSpawn
 
 
 

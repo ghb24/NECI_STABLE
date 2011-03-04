@@ -281,6 +281,11 @@ MODULE ReadInput
       !Ensure beta is set.
       if (beta.lt.1.d-6.and..not.tMP2Standalone) call report("No beta value provided.",.true.)
       
+      do vv=2,I_VMAX
+          g_VMC_ExcitWeights(:,vv)=g_VMC_ExcitWeights(:,1)
+          G_VMC_EXCITWEIGHT(vv)=G_VMC_EXCITWEIGHT(1)
+      enddo
+
       !IF THERE IS NO WEIGHTING FUNCTION, ExcitFuncs(10)=.true.
       do vv=1,9
           IF(EXCITFUNCS(vv)) EXCITFUNCS(10)=.false.

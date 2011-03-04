@@ -1910,6 +1910,18 @@ C..                     = p(B) gen(A) / (p(A) gen(B))
             PR=(OPROB/RHX)*ABS((WEIGHT/OWEIGHT))
 !            WRITE(40,"(5G)",advance='no') OPROB,RH,(WEIGHT), (OWEIGHT),PR
             IF(RHX.EQ.0.D0.OR..NOT.abs(OWEIGHT).gt.0.D0) PR=0.D0
+            IF(isnan(WEIGHT)) THEN
+                WRITE(60,*) WEIGHT,ETILDE,RHX
+                CALL WRITEPATH(60,IPATH,I_V,NEL,.FALSE.)
+                CALL WRITERHOMAT(60,RHOIJ,I_V,.TRUE.)
+                CALL WRITE_XMATRIX(60,XIJ,I_V)
+            ENDIF
+            R2=RAN2(ISEED)
+            IF(PR.LT.R2) THEN
+                IACC=0
+            ELSE
+                IACC=1
+            ENDIF
 !            CALL WRITEPATHEX(40,OIPATH,I_OVCUR,NEL,.FALSE.)
 !            WRITE(40,"(A)",advance='no'),"--->"
 !            CALL WRITEPATHEX(40,IPATH,I_V,NEL,.FALSE.)
@@ -2218,6 +2230,9 @@ C.. give up trying to find something to attach, and go home
                RHOII(1)=0.D0
                RETURN
             ENDIF
+         ENDDO
+         DO I=1,I_V-1
+             CALL N_FREEM(PVERTMEMS(I))
          ENDDO
 C.. IPATH now contains the path, and RHOII and RHOIJ the appropriate
 C.. matrix elements.

@@ -230,7 +230,7 @@ MODULE SymExcit3
                                                             ! more possible excitations from this.
 
 ! At this stage, OrbaIndex is the a from the previous excitation.
-            SymInd=ClassCountInd(Spini,INT(G1(Orbi)%Sym%S,4),Mli)
+            SymInd=ClassCountInd(Spini,G1(Orbi)%Sym%S,Mli)
 
             IF(OrbaIndex.eq.(SymLabelCounts2(1,SymInd)+SymLabelCounts2(2,SymInd)-1)) THEN
                 !Orba was the last in the symmetry block. Do not allow OrbaIndex+1
@@ -302,7 +302,7 @@ MODULE SymExcit3
                 Orba=SymLabelList2(OrbaIndex)
             ENDIF
 
-            SymInd=ClassCountInd(Spini,INT(G1(Orbi)%Sym%S,4),Mli)
+            SymInd=ClassCountInd(Spini,G1(Orbi)%Sym%S,Mli)
 
 ! Need to also make sure orbital a is unoccupied, so make sure the orbital is not in nI.
             NoOcc=0
