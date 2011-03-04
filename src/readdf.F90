@@ -154,7 +154,6 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          real*8 res
          character(*), parameter :: this_routine='GetDF2EInt'
          
-         call stop_all(this_routine,"Reading in of SITUS DF files depreciated")
          res=0.D0
          x=GetDFIndex(a,c)
          y=GetDFIndex(b,d)
