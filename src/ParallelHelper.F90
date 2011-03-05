@@ -82,9 +82,9 @@ contains
 #ifdef PARALLEL
       uSE MPI
 #endif
-      INTEGER error,l,e
+      INTEGER :: error,l,e
 #ifdef PARALLEL
-      character(len=MPI_MAX_ERROR_STRING) s
+      character(len=MPI_MAX_ERROR_STRING) :: s
       call MPI_ERROR_STRING(error,s,l,e)
       write(6,*) s
 #endif

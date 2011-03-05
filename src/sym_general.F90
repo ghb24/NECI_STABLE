@@ -15,7 +15,13 @@ module sym_general_mod
         module procedure ClassCountInd_orb
     end interface
 
+    interface CCIndS
+        module procedure CCIndS_32
+        module procedure CCIndS_64
+    end interface
+
 contains
+    
 
     elemental function ClassCountInd_full_32(Spin, Sym, Mom) result(ind)
 
@@ -101,6 +107,24 @@ contains
         ! Calculate index as usual
         ind = ClassCountInd (spin, sym, mom)
 
+    end function
+
+    ! ClassCountIndex for the spatial arrays
+    pure function CCIndS_32 (sym, mom) result(ind)
+        integer(kind=int32), intent(in) :: sym
+        integer, intent(in) :: mom
+        integer :: ind
+
+        ind =  ((ClassCountInd(1,sym,mom)-1)/2) + 1
+    end function
+
+    ! ClassCountIndex for the spatial arrays
+    pure function CCIndS_64 (sym, mom) result(ind)
+        integer(kind=int64), intent(in) :: sym
+        integer, intent(in) :: mom
+        integer :: ind
+
+        ind =  ((ClassCountInd(1,sym,mom)-1)/2) + 1
     end function
 
 

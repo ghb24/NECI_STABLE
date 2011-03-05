@@ -511,8 +511,10 @@ MODULE FciMCLoggingMod
 
 #ifdef PARALLEL
         CALL MPI_Reduce(AcceptStats,AllStats,4,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Gather(MaxHElNotAccept,1,MPI_DOUBLE_PRECISION,AllMaxHElNotAccept(1:nProcessors),1,MPI_DOUBLE_PRECISION,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Gather(MinHElAccept,1,MPI_DOUBLE_PRECISION,AllMinHElAccept(1:nProcessors),1,MPI_DOUBLE_PRECISION,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Gather(MaxHElNotAccept,1,MPI_DOUBLE_PRECISION, &
+            AllMaxHElNotAccept(1:nProcessors),1,MPI_DOUBLE_PRECISION,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Gather(MinHElAccept,1,MPI_DOUBLE_PRECISION,AllMinHElAccept(1:nProcessors), &
+            1,MPI_DOUBLE_PRECISION,Root,MPI_COMM_WORLD,error)
 #else
         AllStats=AcceptStats
         AllMaxHElNotAccept=MaxHElNotAccept
