@@ -31,6 +31,10 @@ integer, parameter :: lenof_sign = 1
 integer, dimension(1), parameter :: null_part(1) = 0
 #endif
 
+!This is the integer type which is used in MPI call arguments
+!This should normally be integer(4)'s.
+integer, parameter :: MPIArg=int32
+
 #ifdef __INT64
 
 ! Kind parameter for 64-bit integers.
