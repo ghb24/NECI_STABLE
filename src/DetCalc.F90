@@ -960,7 +960,7 @@ END MODULE DetCalc
          type(timer), save :: proc_timer
          HElement_t UMat(*)
          real(dp) DLWDB, DLWDB2, DLWDB3, DLWDB4
-         TYPE(BasisFN) g1(:)
+         TYPE(BasisFN) G1(*)
          REAL*8 ALAT(3)
          REAL*8 BETA,RHOEPS
          COMPLEX*16 FCK(*)

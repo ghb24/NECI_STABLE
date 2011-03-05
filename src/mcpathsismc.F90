@@ -40,7 +40,7 @@ module mcpathsismc
          REAL*8 ECORE
          real(dp) FF
          real(dp) WLRI,WLSI
-         TYPE(BasisFN) G1(:),KSYM
+         TYPE(BasisFN) G1(*),KSYM
          INTEGER nBasisMax(5,*),BRR(*)
          INTEGER I_VMAX,NEL,NBASIS
 !CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
@@ -822,7 +822,7 @@ module mcpathsismc
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
          INTEGER nBasisMax(5,*),NBASIS,NMAX
-         Type(BasisFn) G1(:)
+         Type(BasisFn) G1(*)
          INTEGER NTAY(2),NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
          REAL*8 BETA,ALAT(*),UMAT(*),ECORE
          COMPLEX*16 FCK(*)
@@ -982,7 +982,7 @@ module mcpathsismc
          use Determinants, only: get_helement
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
-         TYPE(BasisFN) :: KSYM,G1(:)
+         TYPE(BasisFN) :: KSYM,G1(*)
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
          INTEGER nBasisMax(5,*),NBASIS,BRR(NBASIS),NMAX
          INTEGER NTAY(2),NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
@@ -1506,7 +1506,7 @@ module mcpathsismc
          real(dp) FMCPR4D2
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V,I_VMAX
          INTEGER nBasisMax(5,*),NBASIS,NMAX
-         Type(BasisFn) G1(:)
+         Type(BasisFn) G1(*)
          INTEGER NTAY(2),I_HMAX,ILOGGING,ISEED,NMSH
          REAL*8 BETA,ALAT(*),ECORE
          COMPLEX*16 FCK(*)
@@ -1712,7 +1712,7 @@ module mcpathsismc
          INTEGER NEL,I_V,IPATH(NEL,0:I_V),NI(NEL)
          REAL*8 BETA,ALAT(*),ECORE
          HElement_t Umat(*)
-         TYPE(BasisFN) G1(:)
+         TYPE(BasisFN) G1(*)
          INTEGER I_P,nBasisMax(5,*),NBASIS,NMSH
          INTEGER NMAX,NTAY(2)
          type(egp) PVERTMEMS2(0:I_V)
@@ -1968,8 +1968,8 @@ end module
          INTEGER iV,nEl       ! Vertices and number of electrons
          INTEGER iGraph(nEl,0:iV)  ! The graph
          INTEGER STORE(6)
-         POINTER (IP_NEWEX,NEWEX)
-         INTEGER NEWEX(*),NEWEXLEN
+         INTEGER,pointer :: NEWEX(:)
+         integer NEWEXLEN
          !Array of pointers
          type(EGP) EXCITGEN(0:iV)
 
@@ -1999,7 +1999,7 @@ end module
 !C.. Setup the excit generator for the last vertex
             CALL GENSYMEXCITIT2(iGraph(1,i),NEL,G1,NBASIS,           &
      &              .TRUE.,NEWEXLEN,INODE2,IC,STORE,3)
-            CALL N_MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
+            allocate(NEWEX(NEWEXLEN))
             NEWEX(1)=0
 !C.. Count the excitations (and generate a random one which we throw)
             CALL GENSYMEXCITIT2(iGraph(1,i),NEL,G1,NBASIS,              &
@@ -2016,7 +2016,7 @@ end module
                     XIJ(i,j)=pGen
                 ENDIF
             ENDDO
-            CALL N_FREEM(IP_NEWEX)
+            deallocate(NEWEX)
         ENDDO
         pGenGraph=GETPATHPROB2(XIJ,iV)
          

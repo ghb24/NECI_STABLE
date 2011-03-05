@@ -46,7 +46,7 @@ contains
          use sym_mod, only: getsym
          use util_mod, only: isnan, NECI_ICOPY
          IMPLICIT NONE
-         TYPE(BasisFN) :: G1(:),KSYM
+         TYPE(BasisFN) :: G1(*),KSYM
          INTEGER I_VMAX,NEL,NBASIS
          INTEGER IPATH(NEL,0:I_VMAX)
          INTEGER NI(NEL)
@@ -426,7 +426,7 @@ contains
          use mcpathsismc, only: mcpathsr4
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
-         TYPE(BasisFN) G1(:)
+         TYPE(BasisFN) G1(*)
          INTEGER I_VMAX,NEL,NBASIS
          INTEGER IPATH(NEL,0:I_VMAX)
          INTEGER NI(NEL)
