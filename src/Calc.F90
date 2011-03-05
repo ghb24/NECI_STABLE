@@ -1982,7 +1982,7 @@ contains
          COMPLEX*16 FCK(*)
          INTEGER NPATHS,NI(NEL),I_P,nBasisMax(5,*)
          INTEGER Work(GNDWorkSize+2*NEL)
-         TYPE(BASISFN) G1(*)
+         TYPE(BASISFN) G1(:)
          INTEGER BRR(*),NMSH,NMAX,NTAY(2),ILOGGING
          INTEGER III,NWHTAY(3,I_VMAX),IMAX,ILMAX,LMS
          TYPE(BasisFN) ISYM,SymRestrict

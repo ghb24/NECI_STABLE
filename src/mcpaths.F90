@@ -42,10 +42,11 @@ contains
          use global_utilities
          use mcpathsdata, only: EGP
          use mcpathshdiag, only: fmcpr3b2
+         use mcpathsismc, only: mcpathsr4, fmcpr4b,fmcpr4c
          use sym_mod, only: getsym
          use util_mod, only: isnan, NECI_ICOPY
          IMPLICIT NONE
-         TYPE(BasisFN) :: G1(*),KSYM
+         TYPE(BasisFN) :: G1(:),KSYM
          INTEGER I_VMAX,NEL,NBASIS
          INTEGER IPATH(NEL,0:I_VMAX)
          INTEGER NI(NEL)
@@ -76,7 +77,6 @@ contains
          real(dp) DLWDB,DLWDB2,EREF
          HElement_t  HIJS(0:I_VMAX)
          TYPE(EGP) LOCTAB(I_VMAX)
-         real(dp) FMCPR4B,FMCPR4C
          real(dp) FMCPR3STAR,FMCPR3NVSTAR
          INTEGER I_CHMAX,CNWHTAY
          INTEGER ISEED,ICOUNT
@@ -423,9 +423,10 @@ contains
          use global_utilities
          use mcpathsdata, only: EGP
          use mcpathshdiag, only: fmcpr3b2
+         use mcpathsismc, only: mcpathsr4
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
-         TYPE(BasisFN) G1(*)
+         TYPE(BasisFN) G1(:)
          INTEGER I_VMAX,NEL,NBASIS
          INTEGER IPATH(NEL,0:I_VMAX)
          INTEGER NI(NEL)
@@ -1038,6 +1039,7 @@ contains
          use sym_mod, only: getsym
          use legacy_data, only: irat
          use util_mod, only: NECI_ICOPY
+!         use mcpathsismc, only: calcwritegraphpgen
          IMPLICIT NONE
          TYPE(BasisFN) G1(*),ISYM
          INTEGER I_V,NEL,I_P,nBasisMax(5,*),NBASIS,BRR(*),NMSH,NMAX

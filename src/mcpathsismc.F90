@@ -23,10 +23,11 @@ module mcpathsismc
          use sym_mod, only: getsym
          use global_utilities
          use util_mod, only: NECI_ICOPY
+         use mcpathsdata, only: egp
          IMPLICIT NONE
          TYPE(MCStats) MCSt
          INTEGER IPATH(NEL,0:I_VMAX)
-         INTEGER NI(NEL),I_P,I_HMAX,NMSH,NMAX,NTAY,NWHTAY
+         INTEGER NI(NEL),I_P,I_HMAX,NMSH,NMAX,NTAY(2),NWHTAY
          INTEGER ILOGGING,I,I_VMIN
          type(timer), save :: proc_timer
          type(timer), save :: proc_timer2
@@ -39,7 +40,7 @@ module mcpathsismc
          REAL*8 ECORE
          real(dp) FF
          real(dp) WLRI,WLSI
-         TYPE(BasisFN) G1(*),KSYM
+         TYPE(BasisFN) G1(:),KSYM
          INTEGER nBasisMax(5,*),BRR(*)
          INTEGER I_VMAX,NEL,NBASIS
 !CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
@@ -49,9 +50,7 @@ module mcpathsismc
          INTEGER ICOUNT,ISEED,I_V,L,LT
          REAL*8 DBETA
          INTEGER IEXCITS
-         INTEGER EXCITGEN(0:I_VMAX) 
-         real(dp) FMCPR4B,FMCPR4C,FMCPR4D2
-         real(dp) FMCPR4D3
+         type(egp) EXCITGEN(0:I_VMAX) 
          real(dp) DLWDB,DLWDB2,DLWDB3
          HElement_t HIJS(0:I_VMAX)
          INTEGER INODE2(NEL)
@@ -95,7 +94,7 @@ module mcpathsismc
 !     &      OPEN(122,FILE="MCDIRECTSUM",STATUS="UNKNOWN")
 !C.. Set the first node to I_I
          CALL NECI_ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
-         CALL CALCRHO2(NI,NI,BETA,I_P,NEL,G1,NBASIS,
+         CALL CALCRHO2(NI,NI,BETA,I_P,NEL,G1,NBASIS,              &
      &            NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
          RHOII(0)=RH
          RHOIJ(0,0)=RHOII(0)
@@ -520,7 +519,7 @@ module mcpathsismc
 !            DLWDB=DLWDB+DLWDB3/NWHTAY
 !            STD=SQRT(ABS((FSQ(I_V)-F(I_V)*F(I_V))))
 !            TOTAL=TOTAL+F(I_V)
-c            WRITE(6,*) I_V,F(I_V),TOTAL,get_total_time(proc_timer2),L,LT
+!            WRITE(6,*) I_V,F(I_V),TOTAL,get_total_time(proc_timer2),L,LT
 !            IF(TLOG)
 !     &         WRITE(11,"(I12,2G25.16,G19.7,I12,2G19.7)") I_V,F(I_V),
 !     &            TOTAL,get_total_time(proc_timer2),L,STD,DLWDB3/NWHTAY
@@ -541,7 +540,7 @@ c            WRITE(6,*) I_V,F(I_V),TOTAL,get_total_time(proc_timer2),L,LT
 !C.. save all log files
 !               ITIME=etime(tarr)
 !               CALL FLUSH(11)
-caa            CALL FLUSH(10)
+!caa            CALL FLUSH(10)
 !               CALL LOGNAN(NI,NEL,BETA,ITIME)
 !               WRITE(6,*) "WARNING: nan found at time",ITIME
 !               WRITE(6,"(A)",advance='no') "  nan det=("
@@ -634,7 +633,7 @@ caa            CALL FLUSH(10)
          call halt_timer(proc_timer)
          CALL Delete(MCSt)
          RETURN
-      END
+      END SUBROUTINE mcpathsr4
 
 
 !C.. A function which chooses a random set of I_V connected dets, working out
@@ -653,12 +652,13 @@ caa            CALL FLUSH(10)
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
          INTEGER G1,NBASIS,NMAX
          INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
-         REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
+         REAL*8 BETA,ALAT(*),UMAT(*),ECORE
+         COMPLEX*16 FCK(*)
          REAL*8 RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
          INTEGER I,J,K,INODE(NEL)
          INTEGER IADJ(0:I_V-1,0:I_V-1),ICE,IPATH2(0:I_V-1)
          REAL*8 RH,CALCPATHS
-         INTEGER ICOUNT,IMCPR4N,IGETEXCITLEVEL,ICMPDETS
+         INTEGER ICOUNT,IGETEXCITLEVEL,ICMPDETS
          LOGICAL BR
          LOGICAL TLOG,TLOG2
          REAL*8 RAN2
@@ -719,7 +719,7 @@ caa            CALL FLUSH(10)
          IF(TLOG) WRITE(10,*) FMCPR4,ICOUNT 
          FMCPR4=FMCPR4/ICOUNT
          RETURN
-      END
+      END function fmcpr4
 
       RECURSIVE INTEGER FUNCTION IMCPR4N(IADJ,I_V,IPATH,IND)      &
      &   RESULT (IMCPR4NRES)
@@ -753,7 +753,7 @@ caa            CALL FLUSH(10)
          ENDDO
          IMCPR4NRES=ITOT
          RETURN
-      END
+      END function imcpr4n
 
       SUBROUTINE GENRANDOMEXCIT(NI,NEL,NBASIS,IEXLEVEL,ISEED,NJ)
          use sort_mod
@@ -798,7 +798,7 @@ caa            CALL FLUSH(10)
          call sort (nJ)
 !C         WRITE(41,*) IGETEXCITLEVEL(NI,NJ,NEL),NI(1),NI(2),NJ(1),NJ(2)
          RETURN
-      END
+      END subroutine genrandomexcit
 
 !C.. A function which chooses a random set of I_V connected dets, working out
 !C.. loop contribution for that set, and weighting with the appropriate
@@ -821,15 +821,17 @@ caa            CALL FLUSH(10)
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
-         INTEGER nBasisMax(5,*),G1,NBASIS,NMAX
-         INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
-         REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
+         INTEGER nBasisMax(5,*),NBASIS,NMAX
+         Type(BasisFn) G1(:)
+         INTEGER NTAY(2),NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
+         REAL*8 BETA,ALAT(*),UMAT(*),ECORE
+         COMPLEX*16 FCK(*)
          REAL*8 RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
          INTEGER NLIST
          INTEGER INODE(NEL),I_VNEXT,INODE2(NEL),ICOUNT
          INTEGER I,ICE,IC
          REAL*8 XIJ(0:I_V-1,0:I_V-1)         
-         REAL*8 RH,CALCPATHS_N,GETPATHPROB
+         REAL*8 RH,CALCPATHS_N
          LOGICAL LISINPATH
          INTEGER IGETEXCITLEVEL
          LOGICAL TLOG,TLOG2,TLOG3
@@ -935,7 +937,7 @@ caa            CALL FLUSH(10)
          CALL NECI_ICOPY(NEL,NI,1,IPATH(1,I_V),1)
          IF(TLOG) THEN
             CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
-            IF(BTEST(ILOGGING,3))
+            IF(BTEST(ILOGGING,3))                                    &
      &         CALL WRITERHOMAT(10,RHOIJ,I_V,.TRUE.)
             IF(TLOG3) CALL WRITE_XMATRIX(10,XIJ,I_V)
          ENDIF   
@@ -956,7 +958,7 @@ caa            CALL FLUSH(10)
          ENDIF
 !C         WRITE(35,*)
          RETURN
-      END
+      END function fmcpr4b
 
 !C.. A function which chooses a random set of I_V connected dets, working out
 !C.. loop contribution for that set, and weighting with the appropriate
@@ -980,17 +982,18 @@ caa            CALL FLUSH(10)
          use Determinants, only: get_helement
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
-         TYPE(BasisFN) :: KSYM
+         TYPE(BasisFN) :: KSYM,G1(:)
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
-         INTEGER nBasisMax(5,*),G1,NBASIS,BRR(NBASIS),NMAX
-         INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
-         REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
+         INTEGER nBasisMax(5,*),NBASIS,BRR(NBASIS),NMAX
+         INTEGER NTAY(2),NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
+         REAL*8 BETA,ALAT(*),UMAT(*),ECORE
+         COMPLEX*16 FCK(*)
          REAL*8 RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
          INTEGER LSTE(NEL),NLIST
          INTEGER INODE(NEL),I_VNEXT,INODE2(NEL),ICOUNT,ICURNODE
          INTEGER I,ICE,IC,IONODE
          REAL*8 XIJ(0:I_V-1,0:I_V-1)         
-         REAL*8 RH,CALCPATHS_N,X,GETPATHPROB
+         REAL*8 RH,CALCPATHS_N,X
          INTEGER IGETEXCITLEVEL,IISINPATH
          LOGICAL TLOG,TLOG2,TLOG3
          REAL*8 RP,PP
@@ -1123,7 +1126,7 @@ caa            CALL FLUSH(10)
             FMCPR4C=0.D0
          ENDIF
          RETURN
-      END
+      END function fmcpr4c
 
 
 !C.. Generate a path probability for the modified path generation
@@ -1170,7 +1173,7 @@ caa            CALL FLUSH(10)
             GETPATHPROB2=RET
          ENDIF
          RETURN
-      END
+      END function getpathprob2
    
       REAL*8 FUNCTION GETPATHPROB(XIJ,I_V)
          IMPLICIT NONE
@@ -1198,7 +1201,7 @@ caa            CALL FLUSH(10)
             GETPATHPROB=RET
          ENDIF
          RETURN
-      END
+      END function getpathprob
 
       RECURSIVE SUBROUTINE GETPP2_R(IPATH,XIJ,M,I_VMAX,I_V,RET,TMP,INV)
          use CalcData , only : G_VMC_PI
@@ -1265,7 +1268,7 @@ caa            CALL FLUSH(10)
             ENDIF
          ENDDO
          RETURN
-      END
+      END subroutine getpp2_r
 
       RECURSIVE SUBROUTINE GETPP_R(IPATH,XIJ,M,I_VMAX,I_V,RET,TMP)
          IMPLICIT NONE
@@ -1306,7 +1309,7 @@ caa            CALL FLUSH(10)
             ENDIF
          ENDDO
          RETURN
-      END
+      END subroutine getpp_r
 
       SUBROUTINE GENRANDOMEXCITSYM(NI,NEL,NBASIS,IEXLEVEL,ISEED,        &
      &            NJ)
@@ -1353,7 +1356,7 @@ caa            CALL FLUSH(10)
             BR2=.NOT.BR
          ENDDO
          RETURN
-      END
+      END subroutine genrandomexcitsym
 
 
       SUBROUTINE GENRANDOMSPINEXCIT(NI,NEL,G1,NBASIS,NBASISMAX,NEXCITS,       &
@@ -1439,7 +1442,7 @@ caa            CALL FLUSH(10)
 !C         CALL WRITEDET(57,NJ,NEL,.TRUE.)
 !C         CALL FLUSH(57)
          RETURN
-      END
+      END subroutine genrandomspinexcit
       
       SUBROUTINE FINDELECSPIN(NI,NEL,NSPIN,G1,ISEED,IEX)
          use SystemData, only: BasisFN
@@ -1455,7 +1458,7 @@ caa            CALL FLUSH(10)
          ENDDO
          IEX=IEL
          RETURN
-      END
+      END subroutine findelecspin
       SUBROUTINE FINDNEWELECSPIN(NI,NEL,NSPIN,G1,ISEED,NBASIS,IEX,IEX1)
          use SystemData, only: BasisFN
          IMPLICIT NONE
@@ -1477,7 +1480,7 @@ caa            CALL FLUSH(10)
          ENDDO
          IEX=IEL
          RETURN
-      END
+      END subroutine findnewelecspin 
 
 
 !C.. Like MCPATHSR4C, this selects a n-vertex graph.  it chooses which
@@ -1498,13 +1501,15 @@ caa            CALL FLUSH(10)
          use util_mod, only: isnan
          use CalcData , only : TMPTHEORY,TMCDIRECTSUM,PGenEpsilon
          use util_mod, only: NECI_ICOPY
+         use mcpathsdata, only: egp
          IMPLICIT NONE
          real(dp) FMCPR4D2
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V,I_VMAX
-         INTEGER nBasisMax(5,*),G1,NBASIS,NMAX
-         INTEGER NTAY,I_HMAX,ILOGGING,ISEED,NMSH
+         INTEGER nBasisMax(5,*),NBASIS,NMAX
+         Type(BasisFn) G1(:)
+         INTEGER NTAY(2),I_HMAX,ILOGGING,ISEED,NMSH
          REAL*8 BETA,ALAT(*),ECORE
-         COMPLEX*16 FCK
+         COMPLEX*16 FCK(*)
          HElement_t UMat(*) 
          REAL*8 RHOEPS
          real(dp) RHOII(0:I_V),INWI
@@ -1512,17 +1517,13 @@ caa            CALL FLUSH(10)
          INTEGER I,IC
          REAL*8 XIJ(0:I_V-1,0:I_V-1)         
          real(dp) CALCPATHS_N
-         REAL*8 GETPATHPROB2,RHX
+         REAL*8 RHX
          LOGICAL TLOG,TLOG2,TLOG3
          REAL*8 DBETA
          real(dp) DLWDB
          HElement_t HIJS(0:I_V)
-         INTEGER NMEM(*)
-#if defined(POINTER8)
-         INTEGER*8 EXCITGEN(0:I_V)
-#else
-         INTEGER EXCITGEN(0:I_V)
-#endif
+         INTEGER NMEM(:)
+         type(egp) ExcitGen(0:I_V)
          INTEGER ICLS
          real(dp) ORHOII(0:I_OVCUR)
          HElement_t ORHOIJ(0:I_OVCUR,0:I_OVCUR)
@@ -1683,7 +1684,7 @@ caa            CALL FLUSH(10)
             DLWDB=0.D0
          ENDIF
          CALL GETTREENESS(ICLS,ITREE,FMCPR4D2,I_V)
-      END
+      END function fmcpr4d2
 
 
 
@@ -1706,13 +1707,14 @@ caa            CALL FLUSH(10)
          use Determinants, only: get_helement, write_det
          use SystemData, only: BasisFN
          use util_mod, only: NECI_ICOPY
+         use mcpathsdata, only: egp
          IMPLICIT NONE
          INTEGER NEL,I_V,IPATH(NEL,0:I_V),NI(NEL)
          REAL*8 BETA,ALAT(*),ECORE
          HElement_t Umat(*)
-         TYPE(BasisFN) G1(*)
+         TYPE(BasisFN) G1(:)
          INTEGER I_P,nBasisMax(5,*),NBASIS,NMSH
-         INTEGER NMAX,NTAY
+         INTEGER NMAX,NTAY(2)
          type(egp) PVERTMEMS2(0:I_V)
          COMPLEX*16 FCK(*)
          INTEGER I_HMAX
@@ -1728,7 +1730,7 @@ caa            CALL FLUSH(10)
          type(egp) PVERTMEMS(0:I_V)
          INTEGER I_VNEXT
          INTEGER INODE(NEL),INODE2(NEL)
-         INTEGER, target :: NMEMNI
+         INTEGER, target :: NMEMNI(:)
          INTEGER NEWEXLEN
          INTEGER NEXNODE
          integer, pointer :: curex(:)
@@ -1928,10 +1930,10 @@ caa            CALL FLUSH(10)
          DO I=1,I_V-1
              deallocate(PVERTMEMS(I)%p)
          ENDDO
-C.. IPATH now contains the path, and RHOII and RHOIJ the appropriate
-C.. matrix elements.
+!C.. IPATH now contains the path, and RHOII and RHOIJ the appropriate
+!C.. matrix elements.
          CALL NECI_ICOPY(NEL,NI,1,IPATH(1,I_V),1)
-      END
+      END subroutine fmcpr4d2gengraph
 
 
       SUBROUTINE GETTREENESS(ICLASS,ITREE,WEIGHT,I_V)
@@ -1948,6 +1950,76 @@ C.. matrix elements.
          ENDDO
          IF(N.EQ.I_V-1) ITREE=1
          RETURN
-      END
+      END subroutine gettreeness
 
 end module
+
+!  Calculate the generation probability of a given graph for debugging purposes.
+!  if iUnit<>0, write this to this unit
+      SUBROUTINE CalcWriteGraphPGen(iUnit,iGraph,iV,nEl,G1,       &
+     &            nBasisMax,Arr,nBasis,pGenGraph,EXCITGEN)
+         USE symexcit2
+         use constants, only: dp
+         use SystemData, only: BasisFN
+         use mcpathsdata, only: egp
+         use mcpathsismc, only: getpathprob2
+         IMPLICIT NONE
+         INTEGER iUnit
+         INTEGER iV,nEl       ! Vertices and number of electrons
+         INTEGER iGraph(nEl,0:iV)  ! The graph
+         INTEGER STORE(6)
+         POINTER (IP_NEWEX,NEWEX)
+         INTEGER NEWEX(*),NEWEXLEN
+         !Array of pointers
+         type(EGP) EXCITGEN(0:iV)
+
+         TYPE(BasisFN) G1(nBasis)
+         INTEGER nBasisMax(*)
+         REAL*8 Arr(nBasis,2)
+         INTEGER nBasis,IC,INODE2(NEL)
+         REAL*8 pGen, pGenGraph
+
+
+         REAL*8 XIJ(0:iV-1,0:iV-1)  ! XIJ(I,J) is the pgen of J from I
+         INTEGER i,j,ISEED
+         ISEED=0
+         
+        DO i=0,iV-1
+!  First work out which exictor we need to work out the excitation i->?
+!C            DO j=0,iV-1
+!C!  See if vertex j was excited from vertex i.  If so, then LOCTAB(1,j) is the excitor for vertex i
+!C               IF(LOCTAB(3,j).EQ.i) THEN
+!C                  IP_NEWEX=LOCTAB(1,j)
+!C                  EXIT
+!C               ENDIF
+!C            ENDDO
+!C            IF(j.EQ.iV-1) THEN
+!We've not found an excitor, so we create one
+            STORE(1)=0
+!C.. Setup the excit generator for the last vertex
+            CALL GENSYMEXCITIT2(iGraph(1,i),NEL,G1,NBASIS,           &
+     &              .TRUE.,NEWEXLEN,INODE2,IC,STORE,3)
+            CALL N_MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
+            NEWEX(1)=0
+!C.. Count the excitations (and generate a random one which we throw)
+            CALL GENSYMEXCITIT2(iGraph(1,i),NEL,G1,NBASIS,              &
+     &              .TRUE.,NEWEX,INODE2,IC,STORE,3)
+            CALL GENRANDSYMEXCITIT2(iGraph(1,i),NEL,                    &
+     &               NEWEX,INODE2,ISEED,IC,PGEN)
+!
+            DO j=0,iV-1
+                IF(i.EQ.j) THEN
+                    XIJ(i,i)=IC
+                ELSE
+                    CALL GenExcitProb(iGraph(1,i),iGraph(1,j),nEl,      &
+     &                      NEWEX,G1,nBasisMax,Arr,nBasis,pGen)
+                    XIJ(i,j)=pGen
+                ENDIF
+            ENDDO
+            CALL N_FREEM(IP_NEWEX)
+        ENDDO
+        pGenGraph=GETPATHPROB2(XIJ,iV)
+         
+         IF(iUnit.NE.0) CALL WRITE_XMATRIX(iUnit,XIJ,iV)
+
+      END SUBROUTINE CALCWRITEGRAPHPGEN
