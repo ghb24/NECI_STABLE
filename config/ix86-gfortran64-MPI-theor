@@ -10,7 +10,7 @@ libs = -llapack -lblas -lstdc++ -lrt
 module_flag = -J
 
 [dbg]
-fflags = -fcray-pointer -g -m64 -fbacktrace -fdefault-real-8 -Waggregate-return -Waliasing -Wampersand -Wcharacter-truncation -Wintrinsics-std -Wno-tabs -Wsurprising -Wunderflow -fdefault-integer-8 -I/usr/local/shared/suse-11.1/x86_64/openmpi-1.3.1-gnu/lib
+fflags = -ffree-line-length-none -fcray-pointer -g -m64 -fbacktrace -fdefault-real-8 -Waggregate-return -Waliasing -Wampersand -Wcharacter-truncation -Wintrinsics-std -Wno-tabs -Wsurprising -Wunderflow -fdefault-integer-8 -I/usr/local/shared/suse-11.1/x86_64/openmpi-1.3.1-gnu/lib
 cflags = -g -m64 -Waddress -Wcast-align -Wchar-subscripts -Wcomment -Wformat -Wimplicit -Wimplicit-int -Wimplicit-function-declaration -Wmain -Wmissing-braces -Wmultichar -Wnested-externs -Wparentheses -Wpointer-arith -Wpointer-sign -Wreturn-type -Wsequence-point -Wsign-compare -Wstrict-aliasing -Wstrict-overflow=1 -Wswitch -Wtrigraphs -Wuninitialized -Wunknown-pragmas -Wunused-function -Wunused-label -Wunused-value -Wunused-variable -Wvolatile-register-var -DZLIB
 f90flags = -fbounds-check
 
