@@ -21,6 +21,7 @@ module GenRandSymExcitCSF
     use Parallel
     use constants, only: n_int, bits_n_int
     use bit_reps, only: NIfTot,NIfD
+    use sym_general_mod, only: CCIndS
     implicit none
 
 contains
@@ -760,15 +761,6 @@ contains
         ! Generation probability
         pGen = pSingle / real(nexcit * (nel - elecsWNoExcits) * ncsf) 
     end subroutine
-
-    ! ClassCountIndex for the spatial arrays
-    pure integer function CCIndS (sym, mom)
-        integer, intent(in) :: sym
-        integer, intent(in) :: mom
-
-        CCIndS =  ((ClassCountInd(1,sym,mom)-1)/2) + 1
-        return
-    end function
 
     ! Generate three arrays indicating the number of spatial orbitals of
     ! each possible symmetry which are doubly, singly and un-occupied

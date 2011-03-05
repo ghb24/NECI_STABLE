@@ -206,7 +206,8 @@ MODULE CCMC
 ! As the number of walkers in the HF reference det is the normalization, we loop
 ! over each walker there and use it a number of times
 ! We take the number of walkers as the number of samples to begin with.
-        CALL BinSearchParts(iLutHF, 1, TotWalkers, iHFDet,tSuccess)
+        TotWalkersNew=TotWalkers
+        CALL BinSearchParts(iLutHF, 1, TotWalkersNew, iHFDet,tSuccess)
         if(.not.tSuccess) then
             WRITE(6,*) "WARNING: Cannot find HF det in particle list"
             HFcount=1
