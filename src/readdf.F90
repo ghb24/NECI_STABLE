@@ -8,7 +8,8 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          integer nBasisMax(5,*),Len
          character(*), parameter :: C_file='SAV_D____a'
          character(3) file_status
-         integer info,lenrec,nrec
+         integer*4 info
+         integer lenrec,nrec
          integer nBasis
          character(*), parameter :: this_routine='InitDFBasis'
 
@@ -49,7 +50,8 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          character(*), parameter :: nolabel='        '
          character(3) file_status
          character(*), parameter :: t_r='ReadDF2EIntegrals'
-         integer info,i,j,k
+         integer*4 info
+         integer i,j,k
          real*8 r
          integer nBasis,nOrbUsed,ierr
          character(*), parameter :: this_routine='ReadDF2EIntegrals'
@@ -383,7 +385,8 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          Real*8,Pointer :: M(:,:) !(nAuxBasis,nAuxBasis)
          Real*8 Eigenvalues(nAuxBasis),r,dPower
          Real*8 Work(3*nAuxBasis)
-         integer Workl,info
+         integer Workl
+         integer*4 info
          integer, save :: tagM=0
          type(timer), save :: proc_timer
          character(*), parameter :: t_r='DFCalcInvFitInts'

@@ -18,7 +18,8 @@
          HElement_t  HAMIL(*),CK(NDET,NDET),WORK2,WORK
 !         HElement_t CopyCK(NDET,NDET)
          REAL*8 W(NDET)
-         INTEGER I,J,IND,INDZ,INFO,NBS!,nopen,k,Excit
+         INTEGER I,J,IND,INDZ,NBS!,nopen,k,Excit
+         INTEGER*4 INFO
          INTEGER NBLOCKS,NBLOCKSTARTS(NBLOCKS+1)
          type(timer), save :: proc_timer
          REAL*8 GSEN
@@ -277,7 +278,8 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          INTEGER NDET,NEL,NBLOCKS,NBLOCKSTARTS(NBLOCKS),NMRKS(NEL,NDET)
          INTEGER nBasisMax(5,*),NBASIS
          TYPE(BasisFN) G1(*)
-         INTEGER I_P,BRR(*),INFO
+         INTEGER I_P,BRR(*)
+         INTEGER*4 INFO
          REAL*8  BETA
          LOGICAL TWARN
          REAL*8  DNORM

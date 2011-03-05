@@ -414,7 +414,8 @@
             INTEGER :: QuadExcits,iExcit2,TotExcits,NextVertex,NoExcitsInStar(iExcit)
             INTEGER :: i,j,iExcit,nI(nEl),i_P,nEl,nBasis,nMsh
             type(timer), save :: proc_timer
-            INTEGER :: nMax,nTay(2),iErr,ICMPDETS,iMaxExcit,Info,temp,IGETEXCITLEVEL
+            INTEGER :: nMax,nTay(2),iErr,ICMPDETS,iMaxExcit,temp,IGETEXCITLEVEL
+            INTEGER*4 Info
             INTEGER, ALLOCATABLE :: nExcit2(:)
             REAL*8, ALLOCATABLE :: ExcitStarInfo(:,:),ExcitStarMat(:,:),WORK(:)
             REAL*8, ALLOCATABLE :: ExcitStarVals(:),ExcitStarVecs(:)
@@ -1744,7 +1745,8 @@
         SUBROUTINE GetValsnVecs(Dimen,DiagRhos,OffDiagRhos,Vals,Vecs)
             use global_utilities
             IMPLICIT NONE
-            INTEGER :: Dimen,i,INFO,iErr
+            INTEGER :: Dimen,i,iErr
+            INTEGER*4 INFO
             REAL*8 :: DiagRhos(1:Dimen),Vals(Dimen),Vecs(Dimen)
             HElement_t :: OffDiagRhos(2:Dimen)
             REAL*8, ALLOCATABLE :: StarMat(:,:),WORK(:)
@@ -2202,7 +2204,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          INTEGER, SAVE :: tagRIJMAT=0,tagWLIST=0,tagWORK=0
 
          type(timer), save :: proc_timer
-         INTEGER WORKL,INFO,ProdPositions(2,ProdNum)
+         INTEGER WORKL,ProdPositions(2,ProdNum)
+         INTEGER*4 INFO
          REAL*8 SI,DLWDB,DBETA
          INTEGER I,J,err
          character(*),parameter :: this_routine='STARDIAGREALPROD'
@@ -2306,7 +2309,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          integer, save :: tagAOFFDB,tagAONDB
          INTEGER IND,TOTVERT
          type(timer), save :: proc_timer
-         INTEGER WORKL,INFO,PRODVERT,ierr
+         INTEGER WORKL,PRODVERT,ierr
+         INTEGER*4 INFO
          REAL*8 SI,DLWDB,DBETA
          INTEGER I,J,err
          character(*),parameter :: this_routine='STARDIAGSC'
@@ -2440,7 +2444,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          use helem, only: helement_t_size
          IMPLICIT NONE
          CHARACTER(len=*), PARAMETER :: this_routine='StarDiagMC'
-         INTEGER :: i,j,NList,ILMax,Info,ierr,WorkL,toprint,PreviousNMCyc
+         INTEGER :: i,j,NList,ILMax,ierr,WorkL,toprint,PreviousNMCyc
+         INTEGER*4 Info
          type(timer), save :: proc_timer
          INTEGER :: TotWalkers,Seed,VecSlot,TotWalkersNew,DetCurr,ReadWalkers
          INTEGER :: MaxWalkers,TotWalkersOld,NWalk,k,l,TotWalkersDet
@@ -3251,7 +3256,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          REAL*8,ALLOCATABLE ::  RIJMAT(:),WLIST(:),WORK(:)
          INTEGER, SAVE :: tagRIJMAT=0,tagWLIST=0,tagWORK=0
          type(timer), save :: proc_timer
-         INTEGER WORKL,INFO
+         INTEGER WORKL
+         INTEGER*4 INFO
          REAL*8 SI,DLWDB,DBETA,OD
          INTEGER I,J,err
          character(*),parameter :: this_routine='STARDIAG'
@@ -3610,7 +3616,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !Needed for diagonalizer
          REAL*8 WLIST(5),WORK(3*5)         
          HElement_t NWORK(4*5)
-         INTEGER INFO
+         INTEGER*4 INFO
 
          StarMat=(0.d0)
          iEx(1,1)=2
