@@ -2895,7 +2895,7 @@ MODULE FciMCParMod
             call MPISum ((/NoAborted, NoAddedInitiators, NoInitDets, &
                            NoNonInitDets, NoInitWalk, NoNonInitWalk, &
                            NoExtraInitdoubs, InitRemoved/),&
-                          int64_tmp)
+                          int64_tmp(1:8))
             AllNoAborted = int64_tmp(1)
             AllNoAddedInitiators = int64_tmp(2)
             AllNoInitDets = int64_tmp(3)
