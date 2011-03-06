@@ -824,9 +824,11 @@ module mcpathsismc
          INTEGER nBasisMax(5,*),NBASIS,NMAX
          Type(BasisFn) G1(*)
          INTEGER NTAY(2),NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
-         REAL*8 BETA,ALAT(*),UMAT(*),ECORE
+         REAL*8 BETA,ALAT(*),ECORE
+         HElement_t UMAT(*)
          COMPLEX*16 FCK(*)
-         REAL*8 RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
+         REAL*8 RHOEPS,RHOII(0:I_V)
+         HElement_t RHOIJ(0:I_V,0:I_V)
          INTEGER NLIST
          INTEGER INODE(NEL),I_VNEXT,INODE2(NEL),ICOUNT
          INTEGER I,ICE,IC
@@ -836,7 +838,7 @@ module mcpathsismc
          INTEGER IGETEXCITLEVEL
          LOGICAL TLOG,TLOG2,TLOG3
          REAL*8 RP,DBETA,DLWDB
-         REAL*8 HIJS(0:I_V)
+         HElement_t HIJS(0:I_V)
          LOGICAL ISUHFDET
          INTEGER ICLS
          HElement_t :: hel
@@ -986,9 +988,11 @@ module mcpathsismc
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
          INTEGER nBasisMax(5,*),NBASIS,BRR(NBASIS),NMAX
          INTEGER NTAY(2),NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
-         REAL*8 BETA,ALAT(*),UMAT(*),ECORE
+         REAL*8 BETA,ALAT(*),ECORE
+         HElement_t UMAT(*)
          COMPLEX*16 FCK(*)
-         REAL*8 RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
+         REAL*8 RHOEPS,RHOII(0:I_V)
+         HElement_t RHOIJ(0:I_V,0:I_V)
          INTEGER LSTE(NEL),NLIST
          INTEGER INODE(NEL),I_VNEXT,INODE2(NEL),ICOUNT,ICURNODE
          INTEGER I,ICE,IC,IONODE
@@ -997,7 +1001,8 @@ module mcpathsismc
          INTEGER IGETEXCITLEVEL,IISINPATH
          LOGICAL TLOG,TLOG2,TLOG3
          REAL*8 RP,PP
-         REAL*8 DBETA,DLWDB,HIJS(0:I_V)
+         REAL*8 DBETA,DLWDB
+         HElement_t HIJS(0:I_V)
          INTEGER ICLS
          REAL*8 RAN2
          HElement_t :: hel
