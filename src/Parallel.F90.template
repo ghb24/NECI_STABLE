@@ -303,9 +303,9 @@ subroutine MPIAllReduce_len (v, iLen, iType, Ret, Node)
 #if PARALLEL
     call GetComm(Comm,Node)
 
-    call MPI_ALLREDUCE (v, Ret, iLen, &
+    call MPI_ALLREDUCE (v, Ret, int(iLen,MPIArg), &
     %(mpitype)s, iType, &
-    Comm, ierr)
+    int(Comm,MPIArg), ierr)
     if (ierr /= MPI_SUCCESS) then
         call stop_all ("MPIAllReduce", 'Error in MPI_ALLREDUCE. Terminating.')
     endif
@@ -611,9 +611,9 @@ Subroutine MPIAlltoAllV(SendBuf,SendSizes,SendOffsets,RecvBuf,RecvSizes,RecvOffs
     integer Comm
 #if PARALLEL
     call GetComm(Comm,Node)
-    CALL MPI_AlltoAllV(SendBuf,SendSizes,SendOffsets,&
-    %(mpitype)s,RecvBuf,RecvSizes,RecvOffsets,&
-    %(mpitype)s,Comm,error)
+    CALL MPI_AlltoAllV(SendBuf,int(SendSizes,MPIArg),int(SendOffsets,MPIArg),&
+    %(mpitype)s,RecvBuf,int(RecvSizes,MPIArg),int(RecvOffsets,MPIArg),&
+    %(mpitype)s,int(Comm,MPIArg),error)
     ierr=error
 #else
     RecvBuf=SendBuf
@@ -1155,6 +1155,7 @@ subroutine MPINodes(tUseProcsAsNodes)
    integer Group,i,j,n
    integer(MPIArg) :: GroupDum,GroupRootsDum,CommRootDum
    integer(MPIArg), allocatable :: GroupNodesDum(:),CommNodesDum(:)
+   integer, allocatable :: NodesDum(:)
    integer(c_size_t) length
    character(len=30) nm
    character(len=30) nm2
@@ -1226,10 +1227,24 @@ subroutine MPINodes(tUseProcsAsNodes)
       endif
    endif
    deallocate(NodeLengths)
-   call MPI_BCAST (nNodes, 1, MPI_INTEGER, root, int(CommGlobal,MPIArg), ierr)
-   call MPI_BCAST (Nodes, nProcessors, MPI_INTEGER, root, int(CommGlobal,MPIArg), ierr)
-   call MPI_BCAST (ProcNode, nProcessors, MPI_INTEGER, root, int(CommGlobal,MPIArg), ierr)
-   call MPI_BCAST (NodeRoots, nProcessors, MPI_INTEGER, root, int(CommGlobal,MPIArg), ierr)
+   allocate(NodesDum(0:nProcessors-1))
+   do i=0,nProcessors-1
+   !Due to type checking, it now doesn't like being passed an array of CommI's.
+   !Revert them to integers, and broadcast
+      NodesDum(i)=Nodes(i)%n
+   enddo
+   call MPIBCast(nNodes, 1, root)
+   call MPIBCast(NodesDum,nProcessors,root)
+   do i=0,nProcessors-1
+      Nodes(i)%n=NodesDum(i)
+   enddo
+   deallocate(NodesDum)
+   call MPIBCast(ProcNode,nProcessors,root)
+   call MPIBCast(NodeRoots,nProcessors,root)
+!   call MPI_BCAST (nNodes, 1, MPI_INTEGER, root, CommGlobal, ierr)
+!   call MPI_BCAST (Nodes, nProcessors, MPI_INTEGER, root, int(CommGlobal,MPIArg), ierr)
+!   call MPI_BCAST (ProcNode, nProcessors, MPI_INTEGER, root, int(CommGlobal,MPIArg), ierr)
+!   call MPI_BCAST (NodeRoots, nProcessors, MPI_INTEGER, root, int(CommGlobal,MPIArg), ierr)
    allocate(CommNodes(0:nNodes-1))
    allocate(CommNodesDum(0:nNodes-1))
    allocate(GroupNodes(0:nNodes-1))
@@ -1237,6 +1252,10 @@ subroutine MPINodes(tUseProcsAsNodes)
    allocate(NodeLengths(0:nNodes-1))
    Node=Nodes(iProcIndex)
    iNodeIndex=Node%n  !Used as a plain integer version.
+!   write(6,*) iNodeIndex,iProcIndex,Node%n,size(NodeRoots)
+!   write(6,*) "***************************************"
+!   call flush(6)
+
    if (iProcIndex==NodeRoots(Node%n)) then
       bNodeRoot=.true.
       write(6,*) "I am the node root for node ", Node%n

@@ -1704,11 +1704,7 @@ MODULE NatOrbsMod
 
         AllOrbOccs = 0.D0
 
-#ifdef PARALLEL
-        CALL MPI_Reduce(OrbOccs(1:nBasis),AllOrbOccs(1:nBasis),nBasis,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD,error)
-#else
-        AllOrbOccs(1:nBasis)=OrbOccs(1:nBasis)
-#endif
+        call MPIReduce(OrbOccs,MPI_SUM,AllOrbOccs)
 
 ! Want to normalise the orbital contributions for convenience.        
         tWarning=.false.
