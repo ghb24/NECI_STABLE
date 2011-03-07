@@ -454,12 +454,6 @@ contains
         ex(1,1) = ex(1,1); IC = IC; iUnused = exFlag; tParity = tParity
         HelGen = HelGen
 
-
-        write(6,*) '---------------'
-        write(6,*) 'gen ex', ilutJ
-        call writebitdet(6, ilutj, .true.)
-        write(6,*) 'nJ', nJ
-
     end subroutine generate_excit_spin_proj
 
     function attempt_die_spin_proj (nI, Kii, wSign) result (ndie)
