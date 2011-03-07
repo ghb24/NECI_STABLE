@@ -405,7 +405,7 @@ contains
        !    choice.
        integer, intent(in) :: bytes
        inquire(iolength=record_length) bytes
-       record_length = (bytes/8)*record_length   
+       record_length = (bytes/4)*record_length   
 ! 8 indicates 8-byte words I think
     end function record_length
 
