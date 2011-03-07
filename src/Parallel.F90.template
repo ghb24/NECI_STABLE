@@ -204,7 +204,8 @@ subroutine MPIReduce_len (v, iLen, iType, Ret, Node)
     !               *** ON ROOT ONLY ***
     %(type1)s, intent(in)  :: v()
     %(type1)s, intent(out) :: Ret()
-    integer, intent(in) :: iLen, iType
+    integer, intent(in) :: iLen
+    integer(MPIArg), intent(in) :: iType
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
     integer(MPIArg)  ierr
@@ -228,7 +229,7 @@ subroutine MPIReduce_auto (v, iType, Ret, Node)
 
     %(type1)s, intent(in)  :: v()
     %(type1)s, intent(out) :: Ret()
-    integer, intent(in) :: iType
+    integer(MPIArg), intent(in) :: iType
     integer(MPIArg) ierr
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
@@ -253,7 +254,7 @@ subroutine MPIReduce_inplace (v, iType, Node)
     ! array on the target node.
 
     %(type1)s, intent(inout)  :: v()
-    integer, intent(in) :: iType
+    integer(MPIArg), intent(in) :: iType
     integer(MPIArg) :: ierr
     type(CommI), intent(in), optional :: node
     integer :: comm, rt
@@ -290,7 +291,8 @@ subroutine MPIAllReduce_len (v, iLen, iType, Ret, Node)
 
     %(type1)s, intent(in) :: v()
     %(type1)s, intent(out) :: Ret()
-    integer, intent(in) :: iLen, iType
+    integer, intent(in) :: iLen
+    integer(MPIArg), intent(in) :: iType
     integer(MPIArg) :: ierr
     type(CommI), intent(in),optional :: Node
     integer Comm
@@ -315,7 +317,7 @@ subroutine MPIAllReduce_auto (v, iType, Ret, Node)
 
     %(type1)s, intent(in) :: v()
     %(type1)s, intent(out) :: Ret()
-    integer, intent(in) :: iType
+    integer(MPIArg), intent(in) :: iType
     integer(MPIArg) :: ierr
     type(CommI), intent(in),optional :: Node
     integer Comm
@@ -339,7 +341,7 @@ subroutine MPIAllReduce_inplace (v, iType, Node)
     ! Ret) is determinend automagically
 
     %(type1)s, intent(inout) :: v()
-    integer, intent(in) :: iType
+    integer(MPIArg), intent(in) :: iType
     integer(MPIArg) :: ierr
     type(CommI), intent(in),optional :: Node
     integer Comm
@@ -367,8 +369,10 @@ Subroutine MPIAllReduceDatatype(v, iLen, iType, iDatatype, Ret, Node)
    !=     Ret            data store to get the results.
    %(type1)s, intent(in)  :: v()
    %(type1)s, intent(out) :: Ret()
-   integer, intent(in) :: iLen, iDatatype
-   integer g, itype
+   integer, intent(in) :: iLen
+   integer(MPIArg), intent(in) :: iDatatype
+   integer g
+   integer(MPIArg), intent(in) :: itype
    integer(MPIArg) :: ierr 
    type(CommI), intent(in),optional :: Node
    integer Comm
