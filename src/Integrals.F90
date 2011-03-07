@@ -714,14 +714,16 @@ contains
          NTFROZEN=NTFROZEN+nBasis-NEL
       ENDIF
       IF((NFROZEN+NFROZENIN).gt.NEL) CALL Stop_All("IntFreeze","Overlap between low energy frozen orbitals &
-                                                    & and inner frozen occupied orbitals - to many frozen occupied orbitals &
-                                                    & for the number of electrons.")
+                                & and inner frozen occupied orbitals - to many frozen occupied orbitals &
+                                & for the number of electrons.")
       IF((NTFROZEN+NTFROZENIN).gt.(NBASIS-NEL)) CALL Stop_All("IntFreeze","Overlap between high energy frozen orbitals &
-                                                    & and inner frozen virtual orbitals - to many frozen virtual orbitals &
-                                                    & for the number of unnoccupied orbitals.")
-      IF(((NFROZENIN.GT.0).or.(NTFROZENIN.GT.0)).and.(.not.TwoCycleSymGens)) CALL Stop_All("IntFreeze","TwoCycleSymGens is not true. &
-                                                    & The code is only set up to deal with freezing from the inside for molecular &
-                                                    & systems with only 8 symmetry irreps.")
+                                & and inner frozen virtual orbitals - to many frozen virtual orbitals &
+                                & for the number of unnoccupied orbitals.")
+      IF(((NFROZENIN.GT.0).or.(NTFROZENIN.GT.0)).and.(.not.TwoCycleSymGens)) THEN
+                                CALL Stop_All("IntFreeze","TwoCycleSymGens is not true. &
+                                & The code is only set up to deal with freezing from the inside for molecular &
+                                & systems with only 8 symmetry irreps.")
+      ENDIF
       IF(NFROZEN.GT.0.OR.NTFROZEN.GT.0.OR.NFROZENIN.GT.0.OR.NTFROZENIN.GT.0) THEN
           WRITE(6,'(A)') '-------- FREEZING ORBITALS ----------'
 !!C.. At this point, we transform the UMAT and TMAT into a new UMAT and

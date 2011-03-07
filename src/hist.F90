@@ -63,7 +63,7 @@ contains
         integer :: open_orbs(nel), dorder(nel), ierr, orb, i, S, tmp
         integer :: nfound, nup, ndets, fd
         integer(n_int), pointer :: p_ilut(:)
-        integer :: yamas(ncsf, nopen)
+        integer :: yamas(ncsf, nopen), abo
         character(*), parameter :: this_routine = 'init_hist_spin_dist'
         character(20) :: fmt_str
 
@@ -88,7 +88,8 @@ contains
         ! N.B. This is a ZERO BASED list
         nfound = 0
         do i = 1, nbasis-1, 2
-            if (IsOcc(ilut_spindist, i) .and. IsNotOcc(ilut_spindist, i+1)) then
+            if (IsOcc(ilut_spindist, i) .and. &
+             IsNotOcc(ilut_spindist, i+1)) then
                 nfound = nfound + 1
                 open_orbs(nfound) = i
                 if (nfound == nopen) exit
@@ -146,7 +147,8 @@ contains
                     orb = get_beta(open_orbs(i))
                 endif
                 set_orb(p_ilut, orb)
-                clr_orb(p_ilut, ab_pair(orb))
+                abo=ab_pair(orb)
+                clr_orb(p_ilut, abo)
             enddo
             write(6,'(i5,": ")', advance='no')
             call writebitdet(6, p_ilut, .false.)

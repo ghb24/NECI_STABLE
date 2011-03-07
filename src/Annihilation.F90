@@ -1,6 +1,6 @@
 !This module is to be used for various types of walker MC annihilation in serial and parallel.
 MODULE AnnihilationMod
-    use SystemData , only : NEl, tHPHF
+    use SystemData , only : NEl, tHPHF, nBasis
     use CalcData , only : TRegenExcitgens,tRegenDiagHEls
     USE DetCalcData , only : Det,FCIDetIndex
     USE Parallel
@@ -255,7 +255,8 @@ MODULE AnnihilationMod
 !Max index is the largest occupied index in the array of hashes to be ordered in each processor 
         IF(MaxIndex.gt.(0.9*MaxSpawned)) THEN
             write(6,*) MaxIndex,MaxSpawned
-            CALL Warning("SendProcNewParts","Maximum index of newly-spawned array is close to maximum length after annihilation send. Increase MemoryFacSpawn")
+            CALL Warning("SendProcNewParts","Maximum index of newly-spawned array is " &
+            & //"close to maximum length after annihilation send. Increase MemoryFacSpawn")
         ENDIF
 
 !        WRITE(6,*) "sendcounts: ",sendcounts(:)
@@ -700,16 +701,20 @@ MODULE AnnihilationMod
                                 PartIndex=1
                                 tSuc=.true.
                             ELSE
-                                CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartIndex,tSuc)
+                                CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel), &
+                                        FCIDetIndex(ExcitLevel+1)-1,PartIndex,tSuc)
                             ENDIF
                             HistMinInd2(ExcitLevel)=PartIndex
                             IF(tSuc) THEN
-                                AvAnnihil(j,PartIndex)=AvAnnihil(j,PartIndex)+REAL(2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j)))))
-                                InstAnnihil(j,PartIndex)=InstAnnihil(j,PartIndex)+REAL(2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j)))))
+                                AvAnnihil(j,PartIndex)=AvAnnihil(j,PartIndex)+ &
+                                REAL(2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j)))))
+                                InstAnnihil(j,PartIndex)=InstAnnihil(j,PartIndex)+ &
+                                REAL(2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j)))))
                             ELSE
                                 WRITE(6,*) "***",SpawnedParts(0:NIftot,i)
                                 Call WriteBitDet(6,SpawnedParts(0:NIfTot,i),.true.)
-                                CALL Stop_All("AnnihilateSpawnedParts","Cannot find corresponding FCI determinant when histogramming")
+                                CALL Stop_All("AnnihilateSpawnedParts","Cannot find corresponding FCI "&
+                                    & //"determinant when histogramming")
                             ENDIF
                         ENDIF
 
@@ -745,6 +750,9 @@ MODULE AnnihilationMod
                         ! Are we allowing particles to survive if there is an
                         ! initiator with the same spatial structure?
                         ! TODO: optimise this. Only call it once?
+
+                        ! TODO: Surely this doesn't work? Need to avoid aborting
+                        !       the particle?
                         if (tSpawnSpatialInit) then
                             if (is_spatial_init(SpawnedParts(:,i))) then
                                 call set_flag (SpawnedParts(:,i), &
@@ -983,7 +991,7 @@ MODULE AnnihilationMod
 
     END SUBROUTINE InsertRemoveParts
 
-    function DetermineDetNode (nI, iIterOffset) result(node)
+    pure function DetermineDetNode (nI, iIterOffset) result(node)
 
         ! Depending on the Hash, determine which node determinant nI
         ! belongs to in the DirectAnnihilation scheme. NB FCIMC has each processor as a separate logical node.
@@ -998,11 +1006,14 @@ MODULE AnnihilationMod
         
         integer :: i
         integer(int64) :: acc
+        integer offset
 
         acc = 0
+        offset=hash_iter+iIterOffset
         do i = 1, nel
             acc = (1099511628211_int64 * acc) + &
-                    (ishft(RandomHash(iand(nI(i), csf_orbital_mask))+hash_iter+iIterOffset,hash_shift) * i)
+                    (ishft(RandomHash(mod(iand(nI(i), csf_orbital_mask)+offset-1,nBasis)+1),hash_shift) * i)
+!            offset=0
         enddo
         node = abs(mod(acc, int(nNodes, 8)))
 

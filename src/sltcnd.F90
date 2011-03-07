@@ -1,7 +1,7 @@
 #include "macros.h"
 
 module sltcnd_mod
-    use SystemData, only: nel, nBasisMax, tExch, FCOUL, G1, ALAT
+    use SystemData, only: nel, nBasisMax, tExch, G1, ALAT
     use SystemData, only: nBasis!, iSpinSkip
     ! HACK - We use nBasisMax(2,3) here rather than iSpinSkip, as it appears
     !        to be more reliably set (see for example test H2O_RI)
@@ -167,6 +167,59 @@ contains
 
     end function
 
+    function SumFock (nI,HFDet) result(hel)
+
+        ! This just calculates the sum of the Fock energies
+        ! by considering the one-electron integrals and
+        ! the double-counting contribution
+        ! to the diagonal matrix elements. This is subtracted from 
+        ! the sum of the fock energies to calculate diagonal
+        ! matrix elements, or added to the sum of the 1-electron
+        ! integrals. The HF determinant needs to be supplied.
+
+        integer , intent(in) :: nI(nel),HFDet(nel)
+        HElement_t :: hel,hel_doub,hel_tmp,hel_sing
+        integer :: i,j,idN,idX,id(nel),idHF(NEl)
+        
+        !Obtain the 1e terms
+        hel_sing = sum(GetTMATEl(nI, nI))
+
+        ! Obtain the spatial rather than spin indices if required
+        id = gtID(nI)
+        idHF = gtID(HFDet)
+
+        ! Sum in the two electron contributions. Use max(id...) as we cannot
+        ! guarantee that if j>i then nI(j)>nI(i).
+        hel_doub = (0)
+        hel_tmp = (0)
+        do i=1,nel
+            do j=1,nel
+                idX = id(i)
+                idN = idHF(j)
+                hel_doub = hel_doub + get_umat_el (ptr_getumatel, idX, idN, &
+                                                   idX, idN)
+            enddo
+        enddo
+                
+        ! Exchange contribution only considered if tExch set.
+        ! This is only separated from the above loop to keep "if (tExch)" out
+        ! of the tight loop for efficiency.
+        if (tExch) then
+            do i=1,nel
+                do j=1,nel
+                    ! Exchange contribution is zero if I,J are alpha/beta
+                    if (G1(nI(i))%Ms == G1(HFDet(j))%Ms) then
+                        idX = id(i)
+                        idN = idHF(j)
+                        hel_tmp = hel_tmp - get_umat_el (ptr_getumatel, idX, &
+                                              idN, idN, idX)
+                    endif
+                enddo
+            enddo
+        endif
+        hel = hel_doub + hel_tmp + hel_sing
+
+    end function SumFock
 
     function sltcnd_0 (nI) result(hel)
 
@@ -212,10 +265,8 @@ contains
                 enddo
             enddo
         endif
-        hel_doub = hel_doub + hel_tmp
+        hel = hel_doub + hel_tmp + hel_sing
 
-        ! If we are scaling the coulomb interaction, do so here.
-        hel = hel_sing + (hel_doub * (FCOUL))
     end function sltcnd_0
 
     function sltcnd_1 (nI, ex, tSign) result(hel)
@@ -263,7 +314,7 @@ contains
         ! consider the non-diagonal part of the kinetic energy -
         ! <psi_a|T|psi_a'> where a, a' are the only basis fns that differ in
         ! nI, nJ
-        hel = (hel*(FCOUL)) + GetTMATEl(ex(1), ex(2))
+        hel = hel + GetTMATEl(ex(1), ex(2))
 
         if (tSign) hel = -hel
     end function sltcnd_1

@@ -405,7 +405,8 @@ contains
        !    choice.
        integer, intent(in) :: bytes
        inquire(iolength=record_length) bytes
-       record_length = (bytes/4)*record_length 
+       record_length = (bytes/4)*record_length   
+! 8 indicates 8-byte words I think
     end function record_length
 
     subroutine append_ext(stem, n, s)
@@ -505,3 +506,28 @@ contains
     end function get_free_unit
 
 end module
+
+! Hacks for the IBM compilers on BlueGenes.
+! --> The compiler intrinsics are provided as flush_, etime_, sleep_ etc.
+! --> We need to either change the names used in the code, or provide wrappers
+#ifdef BLUEGENE_HACKS
+
+    subroutine flush (ut)
+        implicit none
+        integer :: ut
+        call flush_(ut)
+    end subroutine
+    function etime (t) result(ret)
+        implicit none
+        real(4) :: t(2), etime_, ret
+        ret = etime_(t)
+    end function
+    function hostnm (nm) result(ret)
+        implicit none
+        integer :: ret, hostnm_
+        character(8) :: nm
+        ret = hostnm_(nm)
+    end function
+
+#endif
+

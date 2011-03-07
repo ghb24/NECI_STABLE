@@ -8,7 +8,7 @@ MODULE Determinants
     use csf, only: det_to_random_csf, iscsf, csf_orbital_mask, &
                    csf_yama_bit, CSFGetHelement
     use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_2, sltcnd_compat, &
-                          sltcnd_knowIC
+    sltcnd_knowIC, sltcnd_0, SumFock 
     use global_utilities
     use sort_mod
     use DetBitOps, only: EncodeBitDet, count_open_orbs, spatial_bit_det
@@ -429,25 +429,42 @@ contains
     end function
 
 
-      HElement_t function GetH0Element3(nI)
-         ! Wrapper for GetH0Element.
-         ! Returns the matrix element of the unperturbed Hamiltonian, which is
-         ! just the sum of the eigenvalues of the occupied orbitals and the core
-         ! energy.
-         !  Note that GetH0Element{1,2} don't exist. The name is to be
-         !  consistent with GetHElement3, i.e. offer the most abstraction possible.
-         ! In: 
-         !    nI(nEl)  list of occupied spin orbitals in the determinant.
-         use constants, only: dp
-         use SystemData, only: nEl,nBasis,Arr,ECore
-         integer nI(nEl)
-         HElement_t hEl
-         call GetH0Element(nI,nEl,Arr(1:nBasis,1:2),nBasis,ECore,hEl)
-         GetH0Element3=hEl
-      end function
+    HElement_t function GetH0Element4(nI,HFDet)
+        ! Returns the matrix element of the unperturbed Hamiltonian,
+        ! which is just the sum of the eigenvalues of the occupied
+        ! orbitals and the core energy.
+        ! HOWEVER, this routine is *SLOWER* than the GetH0Element3
+        ! routine, and should only be used if you require this
+        ! without reference to the fock eigenvalues.
+        ! This is calculated by subtracting the required two electron terms
+        ! from the diagonal matrix elements.
+        integer, intent(in) :: nI(NEl),HFDet(NEl)
+        HElement_t :: hii,hel
 
-      Subroutine DetCleanup()
-      End Subroutine DetCleanup
+        hel = SumFock(nI,HFDet)
+        GetH0Element4 = hel + ECore
+
+    end function GetH0Element4
+
+    HElement_t function GetH0Element3(nI)
+       ! Wrapper for GetH0Element.
+       ! Returns the matrix element of the unperturbed Hamiltonian, which is
+       ! just the sum of the eigenvalues of the occupied orbitals and the core
+       ! energy.
+       !  Note that GetH0Element{1,2} don't exist. The name is to be
+       !  consistent with GetHElement3, i.e. offer the most abstraction possible.
+       ! In: 
+       !    nI(nEl)  list of occupied spin orbitals in the determinant.
+       use constants, only: dp
+       use SystemData, only: nEl,nBasis,Arr,ECore
+       integer nI(nEl)
+       HElement_t hEl
+       call GetH0Element(nI,nEl,Arr(1:nBasis,1:2),nBasis,ECore,hEl)
+       GetH0Element3=hEl
+    end function
+
+    Subroutine DetCleanup()
+    End Subroutine DetCleanup
    
     subroutine write_bit_rep(iUnit, iLut, lTerm)
        use bit_reps
@@ -475,7 +492,7 @@ contains
         integer(n_int), intent(out), optional :: ilut_gen(0:NIfTot)
         !integer, intent(out), optional :: det(nel)
 
-        integer :: nI(nel), i, nfound, orb
+        integer :: nI(nel), i, nfound, orb, clro
         integer(n_int) :: ilut_tmp(0:NIfTot)
 
         ! If we haven't initialised the generator, do that now.
@@ -530,7 +547,8 @@ contains
                         orb = get_beta(store%open_orbs(i))
                     endif
                     set_orb(ilut_gen, orb)
-                    clr_orb(ilut_gen, ab_pair(orb))
+                    clro=ab_pair(orb)
+                    clr_orb(ilut_gen, clro)
                 enddo
             endif
 

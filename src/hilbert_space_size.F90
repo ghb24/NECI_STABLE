@@ -103,7 +103,7 @@ contains
 !Add to correct bin for the excitation level
              ExcitBin(ExcitLev)=ExcitBin(ExcitLev)+1
              
-             IF(mod(i,CalcDetPrint).eq.0) THEN
+             IF(mod(i,int(CalcDetPrint,4)).eq.0) THEN
                  !Write out statistics
 #ifdef PARALLEL
 !                 WRITE(6,*) Accept,AcceptAll

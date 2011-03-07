@@ -238,7 +238,8 @@ MODULE MCStat
 !                ENDIF
                 
 !VMC file - No. graphs, Sequence length, vertex level, Class, 
-               IF(tLog) WRITE(22,"(I20,I15,2I3,8G25.16)") M%nGraphs(0),M%iSeqLen,ioV,M%ioClass,M%woWeight,M%woDelta,ave2,ave1,cc,M%foProb,hh,calc
+               IF(tLog) WRITE(22,"(I20,I15,2I3,8G25.16)") M%nGraphs(0),M%iSeqLen,ioV,M%ioClass,M%woWeight, &
+      &             M%woDelta,ave2,ave1,cc,M%foProb,hh,calc
                M%iSeqLen=1
             ENDIF
             IF(iAcc.GT.0) THEN
@@ -268,7 +269,8 @@ MODULE MCStat
             IF(TBLOCKING) THEN
             
 !               CALL AddToBlockStats(M%BlockDeltaSign,wDelta*wSign,nTimes,M%wSDelta(0),M%nGraphs(0),tNewPower)
-                CALL AddToBlockStatsII(M%BlockSignDeltaSign,M%BlockSign,M%BlockDeltaSign,M%BlockRatio,wDelta*wWeighting,wWeighting,nTimes,M%wWeightedDelta(0),M%wWeighting(0),M%nGraphs(0),M)
+                CALL AddToBlockStatsII(M%BlockSignDeltaSign,M%BlockSign,M%BlockDeltaSign,M%BlockRatio, &
+      &                 wDelta*wWeighting,wWeighting,nTimes,M%wWeightedDelta(0),M%wWeighting(0),M%nGraphs(0),M)
                
                 IF(tNewPower.or.(iV.EQ.0)) THEN
 !.. Write out the blocking file every time we go past another power of 2
@@ -656,7 +658,8 @@ MODULE MCStat
             real(dp) OW,OE,iC
             REAL*8 Time,fAveSeqLen
             iC=(M%nGraphs(0))
-            WRITE(iUnit,"(I12,2G25.16,F19.7,2I12,G25.12)") M%iVMax,M%wWeighting(0)/iC-OW,M%wWeighting(0)/iC,Time,M%nGraphs(0),M%nGraphs(0)-M%nGraphs(1),M%wDelta(0)/iC-OE
+            WRITE(iUnit,"(I12,2G25.16,F19.7,2I12,G25.12)") M%iVMax,M%wWeighting(0)/iC-OW,M%wWeighting(0)/iC, &
+      &             Time,M%nGraphs(0),M%nGraphs(0)-M%nGraphs(1),M%wDelta(0)/iC-OE
             WRITE(STR2,"(A,I5,A)") "(A,",M%iVMax+1,"I)"
             WRITE(iUnit,STR2) "GRAPHS(V)",(M%nGraphs(I),I=0,M%iVMax)
             WRITE(iUnit,STR2) "TREES(V)",(M%nTrees(I),I=0,M%iVMax)
@@ -688,7 +691,8 @@ MODULE MCStat
             REAL*8 Time,fAveSeqLen
             iC=(M%nGraphs(0))
             Call GetStats(M,0,wAvgWeighting,wAvgWeightedValue,wAvgDelta)
-            WRITE(iUnit,"(I12,2G25.16,F19.7,2I12,G25.12)") M%iVMax,wAvgWeighting,wAvgWeighting+OW,Time,M%nGraphs(0),M%nGraphs(0)-M%nGraphs(1),wAvgWeightedValue
+            WRITE(iUnit,"(I12,2G25.16,F19.7,2I12,G25.12)") M%iVMax,wAvgWeighting,wAvgWeighting+OW,Time,M%nGraphs(0), &
+      &         M%nGraphs(0)-M%nGraphs(1),wAvgWeightedValue
             WRITE(STR2,"(A,I5,A)") "(A,",M%iVMax+1,"I10)"
             WRITE(iUnit,STR2) "GRAPHS(V)",(M%nGraphs(I),I=0,M%iVMax)
             WRITE(iUnit,STR2) "TREES(V)",(M%nTrees(I),I=0,M%iVMax)

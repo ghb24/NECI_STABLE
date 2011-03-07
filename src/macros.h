@@ -19,7 +19,7 @@
 #define get_spin(orb) (1+iand(orb,1))
 
 ! Is the specified orbital part of a doubly occupied pair?
-#define IsDoub(ilut,orb) (IsOcc(ilut,orb) .and. IsOcc(ilut,ab_pair(orb)))
+#define IsDoub(ilut,orb) (IsOcc(ilut,orb).and.IsOcc(ilut,ab_pair(orb)))
 
 ! Are the two orbitals specified (may be the same orbital) from the same
 ! spatial orbital?

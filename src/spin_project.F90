@@ -420,6 +420,7 @@ contains
             set_orb(ilutJ, nTmp(i))
             clr_orb(ilutJ, ab_pair(nTmp(i)))
             nJ(open_pos(i)) = nTmp(i)
+        enddo
 
             ! Construct the dorder --> used in spawn_helement
             if (is_alpha(nTmp(i))) then

@@ -161,7 +161,10 @@ block_all: assume all lines contain data apart from comment lines.  The regular 
 
         indices = []
         for file in self.datafiles:
-            f = open(file, 'r')
+            if file=="STDIN":
+               f=sys.stdin
+            else:
+               f = open(file, 'r')
             have_data = False
             for line in f:
                 # have we hit the end of the data?
@@ -343,6 +346,7 @@ def parse_options(args):
     parser.add_option('-f', '--from', dest='start_index', type='int', default=0, help='Set the index from which the data is blocked.  Data with a smaller index is discarded.  Default: %default.')
     parser.add_option('-p', '--plotfile', help='Save a plot of the blocking analysis to PLOTFILE rather than showing the plot on screen (default behaviour).')
     parser.add_option('-o','--operation', help='Set the operation used to combine pairs of data columns.  The mean and standard error of the resultant quantity are found.  Currently only division (\'/\') is implemented.')
+    parser.add_option('-t','--textonly', help='Don\'t attempt to plot a graphic even if PYLAB is found.',action="store_true")
 
     (options, filenames) = parser.parse_args(args)
 
@@ -358,6 +362,8 @@ def parse_options(args):
 
 if __name__ == '__main__':
     (options, filenames) = parse_options(sys.argv[1:])
+    if options.textonly:
+      PYLAB=False
 
     my_data = DataBlocker(filenames, options.start_regex, options.end_regex, options.index_col, options.data_cols, options.start_index, options.all, options.operation)
 

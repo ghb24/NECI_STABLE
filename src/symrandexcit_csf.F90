@@ -21,6 +21,7 @@ module GenRandSymExcitCSF
     use Parallel
     use constants, only: n_int, bits_n_int
     use bit_reps, only: NIfTot,NIfD
+    use sym_general_mod, only: CCIndS
     implicit none
 
 contains
@@ -473,7 +474,7 @@ contains
         integer, intent(in) :: CCSglDelta (ScratchSize/2)
         integer, intent(in) :: nSing, nVac
         real*8 :: p
-        integer :: numB, permutations, orbA, symB, MlB, sym_ind, i
+        integer :: numB, permutations, orbA, symB, MlB, sym_ind, i, borb
 
         ! Consider the possibility of generating this either way around
         ! (The alternative was to restrict orbB > orbA, and throw away
@@ -490,7 +491,8 @@ contains
             ! Number of available B orbitals given A
             sym_ind = CCIndS(symB, MlB)
             numB = CCUnS(sym_ind) + CCSglS(sym_ind) + CCSglDelta(sym_ind)
-            if (sym(2) == sym(1) .and. IsOcc (ilut, get_beta(orbA))) then
+            borb=get_beta(orbA)
+            if (sym(2) == sym(1) .and. IsOcc (ilut, borb)) then
                 numB = numB - 1
             endif
 
@@ -663,7 +665,7 @@ contains
             ! Obtain the symmetry index and Ms indicator (1=alpha)
             spn = 2
             if (G1(orb)%Ms == 1) spn = 1
-            sym_ind = CCIndS(int(G1(orb)%Sym%S,4), G1(orb)%Ml)
+            sym_ind = CCIndS(G1(orb)%Sym%S, G1(orb)%Ml)
             
             ! Is this electron in a singly or doubly occupied orbital?
             ! Test if there are any allowed excitations
@@ -692,7 +694,7 @@ contains
         endif
 
         ! If we are exciting a singly occupied e-, then flip its spin.
-        symEx = ClassCountInd(spn, int(G1(orb)%Sym%S,4), G1(orb)%Ml)
+        symEx = ClassCountInd(spn,G1(orb)%Sym%S, G1(orb)%Ml)
         if (bSingle) symEx = symEx - 1
 
         ! Choose an (allowed) unoccupied orbital to excite to. Draw orbitals
@@ -760,15 +762,6 @@ contains
         pGen = pSingle / real(nexcit * (nel - elecsWNoExcits) * ncsf) 
     end subroutine
 
-    ! ClassCountIndex for the spatial arrays
-    pure integer function CCIndS (sym, mom)
-        integer, intent(in) :: sym
-        integer, intent(in) :: mom
-
-        CCIndS =  ((ClassCountInd(1,sym,mom)-1)/2) + 1
-        return
-    end function
-
     ! Generate three arrays indicating the number of spatial orbitals of
     ! each possible symmetry which are doubly, singly and un-occupied
     ! nb. CCDbl is the number of _pairs_ of spatial orbitals
@@ -794,7 +787,7 @@ contains
                 ! Place e- into ClassCountDoubleOcc, and remove from Unocc.
                 ! ind(beta) = ind(alpha) + 1 --> Can do both in one step.
                 orb = iand (nI(i), csf_orbital_mask)
-                ind = CCIndS (int(G1(orb)%Sym%S,4), G1(orb)%Ml)
+                ind = CCIndS (G1(orb)%Sym%S, G1(orb)%Ml)
                 CCDblS(ind) = CCDblS(ind) + 1
                 CCUnS(ind) = CCUnS(ind) - 1
             enddo
@@ -802,7 +795,7 @@ contains
             ! Now loop over the open shell electrons
             do i = nclosed+1, nel
                 orb = iand (nI(i), csf_orbital_mask)
-                ind = CCIndS (int(G1(orb)%Sym%S,4), G1(orb)%Ml)
+                ind = CCIndS (G1(orb)%Sym%S, G1(orb)%Ml)
                 CCSglS(ind) = CCSglS(ind) + 1
                 CCUnS(ind) = CCUnS(ind) - 1
             enddo
@@ -1048,7 +1041,8 @@ contains
         enddo
 
         do i=1,IC
-            if (IsOcc(ilut, srcB(i)) .and. IsNotOcc(ilut, srcA(i))) &
+           if (IsOcc(ilut, srcB(i)) &
+           .and. IsNotOcc(ilut, srcA(i))) &
                 lnopen = lnopen - 1
         enddo
 
@@ -1360,7 +1354,7 @@ contains
                 ! Obtain the orbital and its Ms/symmetry values
                 orb = iand(nI(i), csf_orbital_mask)
                 spn = (3 - G1(orb)%Ms) / 2 ! alpha=1, beta=2
-                sym_ind = CCIndS (int(G1(orb)%Sym%S,4), G1(orb)%Ml)
+                sym_ind = CCIndS (G1(orb)%Sym%S, G1(orb)%Ml)
 
                 ! Is it doubly or singly occupied
                 orb2 = ieor((orb-1), 1)
@@ -1397,7 +1391,9 @@ contains
                 ! Loop through all of the possible A orbitals.
                 do i=1,nbasis-1,2
                     ! If this is doubly occupied, we cannot excite to it.
-                    if (IsDoub(ilut, i)) cycle
+                    if(IsOcc(ilut,i).and. &
+                    IsOcc(ilut,ab_pair(i))) cycle
+!                    if (IsDoub(ilut, i)) cycle
 
                     ! If we are exciting from it, we cannot excite to it.
                     if (is_in_pair(orbs(1), i) .or. is_in_pair(orbs(2), i)) &
@@ -1435,7 +1431,9 @@ contains
                         if (orb2 < orb) cycle
 
                         ! If this is doubly occupied, we cannot excite to it
-                        if (IsDoub(ilut, orb2)) cycle
+                        if(IsOcc(ilut,orb2).and. &
+                         IsOcc(ilut,ab_pair(orb2))) cycle
+!                        if (IsDoub(ilut, orb2)) cycle
 
                         ! If we are exciting from it, we cannot excite to it.
                         if (is_in_pair(orbs(1), orb2) .or. &
@@ -1516,7 +1514,7 @@ contains
                     ! Obtain the orbital/symmetry to excite from
                     orb = iand(nI(i), csf_orbital_mask)
                     spn = (3 - G1(orb)%Ms) / 2 ! alpha=1, beta=2
-                    sym_ind = ClassCountInd(spn, int(G1(orb)%Sym%S,4), &
+                    sym_ind = ClassCountInd(spn, G1(orb)%Sym%S, &
                                             G1(orb)%Ml)
                                             
                     ! Is the source orbital doubly occupied?
@@ -1617,7 +1615,9 @@ contains
                     ! Loop through all the orbitals for orbital A
                     do i=1,nbasis-1,2
                         ! If this is doubly occupied, we cannot excite to it.
-                        if (IsDoub(ilut, i)) cycle
+                        if(IsOcc(ilut,i).and. &
+                         IsOcc(ilut,ab_pair(i))) cycle
+!                        if (IsDoub(ilut, i)) cycle
 
                         ! If we are exciting from it, we cannot excite to it.
                         if (is_in_pair(orbs(1), i).or.is_in_pair(orbs(2), i))&
@@ -1654,7 +1654,9 @@ contains
 
                             ! If this is doubly occupied, we cannot excite to
                             ! it.
-                            if (IsDoub(ilut, orb2)) cycle
+                            if(IsOcc(ilut,orb2).and. &
+                             IsOcc(ilut,ab_pair(orb2))) cycle
+!                            if (IsDoub(ilut, orb2)) cycle
 
                             ! If we are exciting from it, we cannot excite 
                             ! to it.

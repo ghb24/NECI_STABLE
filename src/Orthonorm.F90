@@ -1,7 +1,8 @@
 SUBROUTINE OrthoNormx(n,m,a)
    implicit none
    REAL*8 :: work(n),tau(n),a(m,n)
-   INTEGER :: i, j, k,n,m,lda,lwork,info
+   INTEGER :: i, j, k,n,m,lda,lwork
+   INTEGER*4 info
    REAL*8 , ALLOCATABLE :: aTa(:,:)
 
 !Input the number of vectors, n, the dimensionality of the space, m, and the matrix of vectors, a(m,n). 
@@ -74,7 +75,8 @@ END SUBROUTINE OrthoNormx
          HElement_t MAT(N,N),R1(N,N),R2(N,N)
          REAL*8 L(N),LL,RWORK(3*N)
          HElement_t WORK(3*N)
-         INTEGER INFO,I,J
+         INTEGER I,J
+         integer*4 info
 !R=MAT
 !S= R1=1.D0 * R * RT + 0.D0*R1
          IF(HElement_t_size.EQ.1) THEN
