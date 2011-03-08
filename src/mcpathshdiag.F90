@@ -64,7 +64,7 @@ module mcpathshdiag
          INTEGER ICLS
          INTEGER,pointer :: NMEM(:)
 
-         INTEGER NMEMLEN
+         INTEGER, target :: NMEMLEN(1)
          INTEGER, pointer :: OGEN(:)
          INTEGER, pointer :: CURGEN(:)
          TYPE(EGP) LOCTAB(:)
@@ -117,7 +117,7 @@ module mcpathshdiag
 !C            DO I=0,NBASIS
 !C               WRITE(10,"(I2)",advance='no'),IFRZ2(I)
 !C            ENDDO
-!C         WRITE(10,*) "V_",I_VIND
+!         WRITE(6,*) "V_",I_VIND
 !C.. LOCTAB(1)%p is the address of the generator used to create node 1 in
 !C.. the path (i.e. J).  LOCTAB(1)%l is the length of the generator (i.e. 
 !C.. the amount of memory used to store it)
@@ -266,7 +266,7 @@ module mcpathshdiag
          STORE(1)=0
          CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,             &
      &         .TRUE.,NMEMLEN,NJ,IC,STORE,EXFLAG)
-         allocate(NMEM(NMEMLEN))
+         allocate(NMEM(NMEMLEN(1)))
          NMEM(1)=0
          CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,             &
      &         .TRUE.,NMEM,NJ,IC,STORE,EXFLAG)
@@ -305,7 +305,7 @@ module mcpathshdiag
 
 !C.. Set these just in case
          CURGEN=>NMEM
-         LOCTAB(I_VIND+1)%l=NMEMLEN
+         LOCTAB(I_VIND+1)%l=NMEMLEN(1)
          LOCTAB(I_VIND+1)%v=IVLEVEL-1
          
          DO WHILE (IVLEVEL.GT.IVLMIN)
@@ -332,7 +332,7 @@ module mcpathshdiag
                LOCTAB2(I_VIND+1)%v=LOCTAB(IVLEVEL)%v
             ELSE
                CURGEN=>NMEM
-               LOCTAB2(I_VIND+1)%l=NMEMLEN
+               LOCTAB2(I_VIND+1)%l=NMEMLEN(1)
                LOCTAB2(I_VIND+1)%v=IVLEVEL-1
             ENDIF
             IEXFROM=LOCTAB2(I_VIND+1)%v
