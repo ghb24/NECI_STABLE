@@ -429,11 +429,7 @@ MODULE FciMCLoggingMod
         write(abstr,'(I12)') Iter
         abstr='InitPops-'//adjustl(abstr)
 
-#ifdef PARALLEL
-        CALL MPI_Reduce(HistInitPops,AllHistInitPops,2*25000,MPI_INTEGER,MPI_SUM,0,MPI_COMM_WORLD,error)
-#else        
-        AllHistInitPops(:,:)=HistInitPops(:,:)
-#endif
+        call MPIReduce(HistInitPops,MPI_SUM,AllHistInitPops)
 
         IF(iProcIndex.eq.0) THEN
             iunit = get_free_unit()
@@ -505,22 +501,9 @@ MODULE FciMCLoggingMod
         AllMaxHElNotAccept(:)=0.D0
         AllMinHElAccept(:)=0.D0
 
-!        WRITE(6,*) 'MinHElAccept',MinHElAccept
-        CALL FLUSH(6)
-!        CALL MPI_Barrier(MPI_COMM_WORLD,error)
-
-#ifdef PARALLEL
-        CALL MPI_Reduce(AcceptStats,AllStats,4,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Gather(MaxHElNotAccept,1,MPI_DOUBLE_PRECISION, &
-            AllMaxHElNotAccept(1:nProcessors),1,MPI_DOUBLE_PRECISION,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Gather(MinHElAccept,1,MPI_DOUBLE_PRECISION,AllMinHElAccept(1:nProcessors), &
-            1,MPI_DOUBLE_PRECISION,Root,MPI_COMM_WORLD,error)
-#else
-        AllStats=AcceptStats
-        AllMaxHElNotAccept=MaxHElNotAccept
-        AllMinHElAccept=MinHElAccept
-#endif        
-
+        call MPIReduce(AcceptStats,MPI_Sum,AllStats)
+        call MPIGather(MaxHElNotAccept,AllMaxHElNotAccept(1:nProcessors),error)
+        call MPIGather(MinHElAccept,AllMinHElAccept(1:nProcessors),error)
 
         IF(iProcIndex.eq.Root) THEN 
 !            WRITE(6,*) 'AllMinHElAccept',AllMinHElAccept

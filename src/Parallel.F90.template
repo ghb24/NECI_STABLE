@@ -109,6 +109,10 @@ ndim=4
 type1=real(dp), dimension(:,:,:,:)
 mpitype=MPI_DOUBLE_PRECISION
 
+[arr4_int64]
+type1=integer(int64), dimension(:,:,:,:)
+mpitype=MPI_INTEGER8
+
 =========================
 
 !For a full header, see the supermodule at the end of the file.
@@ -230,7 +234,7 @@ subroutine MPIReduce_auto (v, iType, Ret, Node)
     %(type1)s, intent(in)  :: v()
     %(type1)s, intent(out) :: Ret()
     integer(MPIArg), intent(in) :: iType
-    integer(MPIArg) ierr
+    integer(MPIArg) :: ierr
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
 #if PARALLEL
@@ -299,9 +303,9 @@ subroutine MPIAllReduce_len (v, iLen, iType, Ret, Node)
 #if PARALLEL
     call GetComm(Comm,Node)
 
-    call MPI_ALLREDUCE (v, Ret, iLen, &
+    call MPI_ALLREDUCE (v, Ret, int(iLen,MPIArg), &
     %(mpitype)s, iType, &
-    Comm, ierr)
+    int(Comm,MPIArg), ierr)
     if (ierr /= MPI_SUCCESS) then
         call stop_all ("MPIAllReduce", 'Error in MPI_ALLREDUCE. Terminating.')
     endif
@@ -607,9 +611,9 @@ Subroutine MPIAlltoAllV(SendBuf,SendSizes,SendOffsets,RecvBuf,RecvSizes,RecvOffs
     integer Comm
 #if PARALLEL
     call GetComm(Comm,Node)
-    CALL MPI_AlltoAllV(SendBuf,SendSizes,SendOffsets,&
-    %(mpitype)s,RecvBuf,RecvSizes,RecvOffsets,&
-    %(mpitype)s,Comm,error)
+    CALL MPI_AlltoAllV(SendBuf,int(SendSizes,MPIArg),int(SendOffsets,MPIArg),&
+    %(mpitype)s,RecvBuf,int(RecvSizes,MPIArg),int(RecvOffsets,MPIArg),&
+    %(mpitype)s,int(Comm,MPIArg),error)
     ierr=error
 #else
     RecvBuf=SendBuf
@@ -1149,11 +1153,14 @@ subroutine MPINodes(tUseProcsAsNodes)
    implicit none
    logical, intent(in) :: tUseProcsAsNodes !Set if we use Procs as Nodes.
    integer Group,i,j,n
+   integer(MPIArg) :: GroupDum,GroupRootsDum,CommRootDum
+   integer(MPIArg), allocatable :: GroupNodesDum(:),CommNodesDum(:)
+   integer, allocatable :: NodesDum(:)
    integer(c_size_t) length
    character(len=30) nm
    character(len=30) nm2
    character(len=30) nms(0:nProcessors-1)
-   integer ierr
+   integer(MPIArg) :: ierr
    integer GroupProc(nProcessors)
    logical, save :: initialised=.false.
    if(initialised) return
@@ -1166,7 +1173,8 @@ subroutine MPINodes(tUseProcsAsNodes)
    NodeLengths=0
    if(iLogicalNodeSize/=0) write(6,*)  "Using Logical Node Size ", iLogicalNodeSize
    if(tUseProcsAsNodes) then
-      call MPI_Comm_Group(CommGlobal,Group,ierr)
+      call MPI_Comm_Group(int(CommGlobal,MPIArg),GroupDum,ierr)
+      Group=GroupDum
       write(6,*) "Allocating each processor as a separate node."
       if(iProcIndex==root) then
          nNodes=0
@@ -1180,7 +1188,8 @@ subroutine MPINodes(tUseProcsAsNodes)
          enddo
       endif
    else 
-      call MPI_Comm_Group(CommGlobal,Group,ierr)
+      call MPI_Comm_Group(int(CommGlobal,MPIArg),GroupDum,ierr)
+      Group=GroupDum
       length=30
       call gethostname(nm,length)
       do i=1,30
@@ -1190,7 +1199,7 @@ subroutine MPINodes(tUseProcsAsNodes)
          endif
       enddo
       nm2=nm
-      call MPI_Gather(nm2,30,MPI_CHARACTER,nms,30,MPI_CHARACTER,root,CommGlobal,ierr)
+      call MPI_Gather(nm2,30,MPI_CHARACTER,nms,30,MPI_CHARACTER,int(root,MPIArg),int(CommGlobal,MPIArg),ierr)
       write(6,*) "Processor      Node hostname"
       if(iProcIndex==root) then
          nNodes=0
@@ -1218,15 +1227,35 @@ subroutine MPINodes(tUseProcsAsNodes)
       endif
    endif
    deallocate(NodeLengths)
-   call MPI_BCAST (nNodes, 1, MPI_INTEGER, root, CommGlobal, ierr)
-   call MPI_BCAST (Nodes, nProcessors, MPI_INTEGER, root, CommGlobal, ierr)
-   call MPI_BCAST (ProcNode, nProcessors, MPI_INTEGER, root, CommGlobal, ierr)
-   call MPI_BCAST (NodeRoots, nProcessors, MPI_INTEGER, root, CommGlobal, ierr)
+   allocate(NodesDum(0:nProcessors-1))
+   do i=0,nProcessors-1
+   !Due to type checking, it now doesn't like being passed an array of CommI's.
+   !Revert them to integers, and broadcast
+      NodesDum(i)=Nodes(i)%n
+   enddo
+   call MPIBCast(nNodes, 1, root)
+   call MPIBCast(NodesDum,nProcessors,root)
+   do i=0,nProcessors-1
+      Nodes(i)%n=NodesDum(i)
+   enddo
+   deallocate(NodesDum)
+   call MPIBCast(ProcNode,nProcessors,root)
+   call MPIBCast(NodeRoots,nProcessors,root)
+!   call MPI_BCAST (nNodes, 1, MPI_INTEGER, root, CommGlobal, ierr)
+!   call MPI_BCAST (Nodes, nProcessors, MPI_INTEGER, root, int(CommGlobal,MPIArg), ierr)
+!   call MPI_BCAST (ProcNode, nProcessors, MPI_INTEGER, root, int(CommGlobal,MPIArg), ierr)
+!   call MPI_BCAST (NodeRoots, nProcessors, MPI_INTEGER, root, int(CommGlobal,MPIArg), ierr)
    allocate(CommNodes(0:nNodes-1))
+   allocate(CommNodesDum(0:nNodes-1))
    allocate(GroupNodes(0:nNodes-1))
+   allocate(GroupNodesDum(0:nNodes-1))
    allocate(NodeLengths(0:nNodes-1))
    Node=Nodes(iProcIndex)
    iNodeIndex=Node%n  !Used as a plain integer version.
+!   write(6,*) iNodeIndex,iProcIndex,Node%n,size(NodeRoots)
+!   write(6,*) "***************************************"
+!   call flush(6)
+
    if (iProcIndex==NodeRoots(Node%n)) then
       bNodeRoot=.true.
       write(6,*) "I am the node root for node ", Node%n
@@ -1243,11 +1272,19 @@ subroutine MPINodes(tUseProcsAsNodes)
          endif
       enddo
       NodeLengths(i)=n
-      call MPI_Group_incl(Group,n,GroupProc,GroupNodes(i),ierr)  !Create a group 
-      call MPI_Comm_Create(CommGlobal,GroupNodes(i),CommNodes(i),ierr) !Create the Communicator
+      GroupNodesDum=GroupNodes
+      call MPI_Group_incl(int(Group,MPIArg),int(n,MPIArg),int(GroupProc,MPIArg),GroupNodesDum(i),ierr)  !Create a group 
+      GroupNodes=GroupNodesDum
+      CommNodesDum=CommNodes
+      call MPI_Comm_Create(int(CommGlobal,MPIArg),int(GroupNodes(i),MPIArg),CommNodesDum(i),ierr) !Create the Communicator
+      CommNodes=CommNodesDum
    enddo
-   call MPI_Group_incl(Group,nNodes,NodeRoots,GroupRoots,ierr)  !Create a group 
-   call MPI_Comm_Create(CommGlobal,GroupRoots,CommRoot,ierr) !Create the Communicator
+   GroupRootsDum=GroupRoots
+   call MPI_Group_incl(int(Group,MPIArg),int(nNodes,MPIArg),int(NodeRoots,MPIArg),GroupRootsDum,ierr)  !Create a group 
+   GroupRoots=GroupRootsDum
+   CommRootDum=CommRoot
+   call MPI_Comm_Create(int(CommGlobal,MPIArg),int(GroupRoots,MPIArg),CommRootDum,ierr) !Create the Communicator
+   CommRoot=CommRootDum
 #else
    nNodes=1
    iIndexInNode=0
