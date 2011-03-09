@@ -26,6 +26,7 @@ MODULE Calc
 contains
 
     subroutine SetCalcDefaults()
+          use FciMCData, only: hash_shift
         
         ! Set defaults for Calc data items.
 
@@ -239,6 +240,7 @@ contains
           tTruncNOpen = .false.
 
           proje_linear_comb = .false.
+          hash_shift=0
       
         end subroutine SetCalcDefaults
 
@@ -256,6 +258,7 @@ contains
           use UMatCache, only: gen2CPMDInts
           use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings,tSpawnProp,nClustSelections
           use CCMCData, only: tExactEnergy,tSharedExcitors
+          use FciMCData, only: hash_shift
           use global_utilities
           use Parallel, only : nProcessors
           use Logging, only: tLogDets
@@ -784,6 +787,8 @@ contains
             case("NSPAWNINGS")
 !For Amplitude CCMC the number of spawnings for each cluster.
                 call geti(nSpawnings)
+            case("HASH_SHIFT")
+                call geti(hash_shift)
             case("NCLUSTSELECTIONS")
 !For Particle CCMC the number of  cluster.
                 call geti(nClustSelections)
