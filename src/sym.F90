@@ -886,7 +886,7 @@ contains
                   ENDDO
                   
 !                  WRITE(6,*) NREPS,"PROD",I,J
-                  CALL N_MEMORY_CHECK
+!                  CALL N_MEMORY_CHECK
 !                  CALL WRITECHARS(6,REPCHARS(1,NREPS),NROT,"ADDPRD")
                   IF(GETIRREPDECOMP(REPCHARS(1,NREPS),IRREPCHARS,NSYM,NROT,IDECOMP,NORM,TAbelian)) THEN
 !   CHARWORK now contains the remainder, which will be a new irrep (or combination or irreps), which we need to add
