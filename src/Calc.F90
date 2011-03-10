@@ -1719,7 +1719,7 @@ contains
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
          use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,tCCMC
          use CalcData , only : TRhoElems,TReturnPathMC, tFCIMCSerial,tUseProcsAsNodes
-         use CCMCData, only: tExactCluster,tCCMCFCI,tAmplitudes,tExactSpawn,tCCBuffer
+         use CCMCData, only: tExactCluster,tCCMCFCI,tAmplitudes,tExactSpawn,tCCBuffer,tCCNoCuml
          use Logging, only: tCalcFCIMCPsi
          implicit none
          integer I_HMAX,NWHTAY,I_V
@@ -1759,6 +1759,7 @@ contains
                   tCCMCFCI=.false.
                   tAmplitudes=.false.
                   tCCBuffer=.false.
+                  tCCNoCuml=.false.
                   do while(item.lt.nitems)
                     call readu(w)
                     select case(w)
@@ -1777,6 +1778,8 @@ contains
                        tCCMCFCI=.true.
                     case("BUFFER")
                         tCCBuffer=.true.
+                    case("NOCUML")
+                       tCCNoCuml=.true.
                     case default
                        call report("Keyword error with "//trim(w),.true.)
                     end select
