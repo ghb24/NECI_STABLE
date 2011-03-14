@@ -92,7 +92,8 @@ MODULE FciMCParMod
                             spin_proj_gamma, get_spawn_helement_spin_proj, &
                             generate_excit_spin_proj, attempt_die_spin_proj, &
                             iter_data_spin_proj, test_spin_proj, &
-                            spin_proj_shift, spin_proj_iter_count
+                            spin_proj_shift, spin_proj_iter_count, &
+                            init_yama_store, clean_yama_store
     use symrandexcit3, only: gen_rand_excit3, test_sym_excit3
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
@@ -5251,6 +5252,8 @@ MODULE FciMCParMod
             CALL Stop_All(this_routine,"Cannot use the SPAWNONLYINIT option without the TRUNCINITIATOR option.")
         endif
 
+        if (tSpinProject) call init_yama_store ()
+
     end subroutine InitFCIMCCalcPar
 
 !Routine to initialise the particle distribution according to a CAS diagonalisation. 
@@ -6155,6 +6158,9 @@ MODULE FciMCParMod
 
         ! Cleanup linear combination projected energy
         call clean_linear_comb ()
+
+        ! Cleanup storage for spin projection
+        call clean_yama_store ()
 
 
 !There seems to be some problems freeing the derived mpi type.

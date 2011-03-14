@@ -26,7 +26,65 @@ module spin_project
     ! Store the data from iterations
     type(fcimc_iter_data), target :: iter_data_spin_proj
 
+    ! For spin projection, pre-calculate and store the Yamanouchi
+    ! symbols --> don't need to re-calculate them all the time.
+    type yama_storage_type
+        integer, allocatable :: yamas(:,:)
+        integer :: nyama
+    end type
+    type(yama_storage_type), allocatable, target :: y_storage(:)
+    
 contains
+
+    subroutine init_yama_store ()
+
+        ! Calculate all of  the allowed Yamanouchi symbols with the given 
+        ! values of S, Ms for all allowed unpaired electrons.
+
+        integer :: nopen, ncsf
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = 'init_yama_store'
+#endif
+
+        ! Just in case...
+        ASSERT(STOT == LMS)
+
+        ! Allocate the storage super-object.
+        ! TODO: This could be a shared memory object with jiggling of bounds.
+        allocate(y_storage(LMS:nel))
+
+        ! Loop over all (allowed) numbers of unpaired electrons
+        do nopen = LMS, nel, 2
+
+            ! Obtain all of the csfs
+            ncsf = get_num_csfs (nopen, STOT)
+            y_storage(nopen)%nyama = ncsf
+            allocate(y_storage(nopen)%yamas(ncsf, nopen))
+
+            if (ncsf > 0 .and. nopen > 0) then
+                call csf_get_yamas (nopen, STOT, y_storage(nopen)%yamas, ncsf)
+            endif
+        enddo
+
+    end subroutine
+
+    subroutine clean_yama_store ()
+
+        integer :: i
+
+        if (allocated(y_storage)) then
+
+            do i = lbound(y_storage,1), ubound(y_storage, 1)
+                if (allocated(y_storage(i)%yamas)) &
+                    deallocate(y_storage(i)%yamas)
+            enddo
+
+            deallocate(y_storage)
+
+        endif
+
+    end subroutine
+
 
     subroutine test_spin_proj (nI, ilutI)
 
@@ -224,13 +282,15 @@ contains
         !     nopen              - The number of unpaired electrons
 
         integer, intent(in) :: nopen, dorder_i(nopen), dorder_j(nopen)
-        integer :: yamas (get_num_csfs(nopen, STOT), nopen)
+        integer, pointer :: yamas(:,:)
         integer :: i, ncsf, ind
         real(dp) :: ret, r
 
         ! Generate the list of CSFs
-        ncsf = ubound(yamas, 1)
-        call csf_get_yamas (nopen, STOT, yamas, ncsf)
+        !ncsf = ubound(yamas, 1)
+        !call csf_get_yamas (nopen, STOT, yamas, ncsf)
+        ncsf = y_storage(nopen)%nyama
+        yamas => y_storage(nopen)%yamas
 
         if (spin_proj_stochastic_yama) then
             r = genrand_real2_dSFMT()
@@ -257,13 +317,15 @@ contains
         ! self element, so the sum is simplied.
 
         integer, intent(in) :: nopen, dorder(nopen)
-        integer :: yamas (get_num_csfs(nopen, STOT), nopen)
+        integer, pointer :: yamas(:,:)
         integer :: i, ncsf, ind
         real(dp) :: ret, tmp, r
 
         ! Generate the list of CSFs
-        ncsf = ubound(yamas, 1)
-        call csf_get_yamas (nopen, STOT, yamas, ncsf)
+        !ncsf = ubound(yamas, 1)
+        !call csf_get_yamas (nopen, STOT, yamas, ncsf)
+        ncsf = y_storage(nopen)%nyama
+        yamas => y_storage(nopen)%yamas
 
         ! We cannot use stochastic yama here - otherwise we may end up with
         ! a 0 on the bottom of the term in get_spawn_helement
