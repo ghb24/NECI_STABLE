@@ -57,7 +57,7 @@ MODULE FciMCParMod
                        HistInitPopsTag, OrbOccs, OrbOccsTag, &
                        tPrintPopsDefault, iWriteBlockingEvery, &
                        tBlockEveryIteration, tHistInitPops, HistInitPopsIter,&
-                       HistInitPops
+                       HistInitPops, tCalcInstantS2
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
                     hist_spin_dist, ilut_spindist, tHistSpinDist, &
                     write_clear_hist_spin_dist, hist_spin_dist_iter, &
@@ -111,7 +111,7 @@ MODULE FciMCParMod
         real*8 :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
         integer, dimension(lenof_sign) :: tmp_sgn
         integer :: tmp_int(lenof_sign), i
-        real(dp) :: grow_rate, tmp_spin
+        real(dp) :: grow_rate
 
         TDebug=.false.  !Set debugging flag
                     
@@ -231,10 +231,7 @@ MODULE FciMCParMod
                     call calculate_new_shift_wrapper (iter_data_fciqmc, &
                                                       TotParts)
                 endif
-                !>>>!call  project_spins ()
-                call project_spin_csfs()
-                tmp_spin = calc_s_squared()
-                root_print 'S2: ', iter, tmp_spin
+                !call project_spin_csfs()
 
 
                 !! Quick hack for spin projection
@@ -3246,7 +3243,8 @@ MODULE FciMCParMod
                    &  20.HFInstShift  21.TotInstShift  &
                    &22.Tot-Proj.E.ThisCyc(Re)  23.HFContribtoE(Re)  &
                    &24.HFContribtoE(Im)   25.NumContribtoE(Re)  &
-                   &26.NumContribtoE(Im)  27.HF weight   28.|Psi|"
+                   &26.NumContribtoE(Im)  27.HF weight   28.|Psi|    &
+                   &29.Inst S^2"
 #else
             write(6,"(A)") "       Step     Shift      WalkerCng    &
                   &GrowRate       TotWalkers    Annihil    NoDied    &
@@ -3264,7 +3262,7 @@ MODULE FciMCParMod
                   &17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime  &
                   &20.ProjE.ThisIter  21.HFInstShift  22.TotInstShift  &
                   &23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE &
-                  &26.HF weight    27.|Psi|"
+                  &26.HF weight    27.|Psi|     28.Inst S^2"
 #endif
             
         ENDIF
@@ -3273,10 +3271,21 @@ MODULE FciMCParMod
 
     subroutine WriteFCIMCStats()
 
+        real(dp) :: curr_S2
+
+        ! What is the current value of S2
+        ! TODO: This should probably be placed somewhere cleaner.
+        if (tCalcInstantS2) then
+            curr_S2 = calc_s_squared ()
+        else
+            curr_S2 = -1
+        endif
+
         if (iProcIndex == root) then
+
 #ifdef __CMPLX
             write(fcimcstats_unit,"(I12,G16.7,2I10,2I12,4G17.9,3I10,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,9G17.9)") &
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,10G17.9)")&
                 Iter + PreviousCycles, &
                 DiagSft, &
                 AllTotParts(1) - AllTotPartsOld(1), &
@@ -3304,7 +3313,8 @@ MODULE FciMCParMod
                 real(AllENumCyc / StepsSft, dp), &
                 aimag(AllENumCyc / StepsSft), &
                 sqrt(float(sum(AllNoatHF**2))) / norm_psi, &
-                norm_psi
+                norm_psi, &
+                curr_S2
 
             write (6, "(I12,G16.7,2I10,2I12,4G17.9,3I10,G13.5,I12,G13.5)") &
                 Iter + PreviousCycles, &
@@ -3325,7 +3335,7 @@ MODULE FciMCParMod
 #else
 
             write(fcimcstats_unit,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9)") &
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,9G17.9)") &
                 Iter + PreviousCycles, &
                 DiagSft, &
                 sum(AllTotParts) - sum(AllTotPartsOld), &
@@ -3352,7 +3362,8 @@ MODULE FciMCParMod
                 AllHFCyc / StepsSft, &
                 AllENumCyc / StepsSft, &
                 real(AllNoatHF, dp) / norm_psi, &
-                norm_psi
+                norm_psi, &
+                curr_S2
 
             write (6, "(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,&
                       &G13.5)") &

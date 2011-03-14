@@ -17,14 +17,13 @@ module hist
     use HPHFRandExcitMod, only: FindExcitBitDetSym
     use constants, only: n_int, bits_n_int, size_n_int, lenof_sign
     use bit_rep_data, only: NIfTot, NIfD
-    use bit_reps, only: extract_sign, encode_sign, extract_bit_rep
+    use bit_reps, only: extract_sign, encode_sign, extract_bit_rep, NOffSgn
     use parallel
     use csf, only: get_num_csfs, csf_coeff, csf_get_yamas, write_yama, &
                    extract_dorder
     use hist_data
 
     implicit none
-
 
 contains
 
@@ -580,42 +579,13 @@ contains
     
     end subroutine
 
-            ! TODO: And not an open shell det.
-!            if (tHPHF) then
-!                !
-!                ! Deal with HPHF
-!                ! TODO: Does this work with both odd and even HPHF?
-!                !
-!                call FindExcitBitDetSym(detcurr, detsym)
-!                call CalcOpenOrbs (detcurr, nop_pairs)
-!                if (mod(OpenOrbs, 2) == 0) then
-!                    pair_sgn = 1
-!                else
-!                    pair_sgn = -1
-!                endif
-!
-!                do j = 1, nel
-!                    orb = nI(j)
-!                    sgn_carry = 1
-!                    if (.not. IsDoub(detcurr, orb)) then
-!                        if (is_beta(orb)) then
-!                            splus = detcurr
-!                            clr_orb(splus, orb)
-!                            set_orb(splus, get_alpha(orb))
-!                        else
-!                            sgn_carry = sgn_carry * pair_sgn
-!                            splus = detsym
-!                            clr_orb(splus, get_alpah(orb))
-!                            set_orb(splus, orb)
-!                        endif
-!                    endif
-!
-!
-!                enddo
-!
-!            else
-    
     function calc_s_squared () result (ssq)
+
+        ! Calculate the instantaneous value of S^2 for the walkers stored
+        ! in CurrentDets
+        !
+        ! --> This could be generalised to an arbitrary list of iluts. We 
+        !     would also then need to calculate the value of psi_squared
 
         real(dp) :: ssq
         integer :: i, j, k, l, orb, orb2, pos, pair_sgn, nop_pairs
@@ -625,7 +595,9 @@ contains
         integer :: nI(nel), flg, sgn(lenof_sign), sgn2(lenof_sign)
         integer :: lms_tmp
 
-
+        ! TODO: Deal with HPHF. Should be fairly easy.
+!        write(6,*) 'totwalkers', totwalkers
+!        write(6,*) 'dets', currentdets(noffsgn, 1:totwalkers)
 
         ! Loop over beta electrons, and consider promoting them to alpha
         ssq = 0

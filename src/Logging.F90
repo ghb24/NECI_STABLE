@@ -43,6 +43,8 @@ MODULE Logging
     LOGICAL tLogComplexPops     ! Write out complex walker information 
     LOGICAL tMCOutput
 
+    logical :: tCalcInstantS2, tCalcInstSCpts
+
     contains
 
     subroutine SetLogDefaults()
@@ -120,6 +122,8 @@ MODULE Logging
       HistInitPopsIter=100000
       hist_spin_dist_iter = 1000
       tLogDets=.false.
+      tCalcInstantS2 = .false.
+      tCalcInstSCpts = .false.
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -626,6 +630,19 @@ MODULE Logging
             tLogDets=.true.
         case("DETERMINANTS")
             tLogDets=.true.
+
+        case ("INSTANT-S2")
+            ! Calculate an instantaneous value for S^2, and output it to the
+            ! relevant column in the FCIMCStats file.
+            tCalcInstantS2 = .true.
+
+        case ("INSTANT-S-CPTS")
+            ! Calculate components of the wavefunction with each value of S.
+            ! n.b. This is NOT quantitatively correct.
+            !      --> Only of QUALITATIVE utility.
+            tCalcInstSCpts = .true.
+
+
         case("ENDLOG")
             exit logging
         case default

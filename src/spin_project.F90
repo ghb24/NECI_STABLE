@@ -265,19 +265,21 @@ contains
         ncsf = ubound(yamas, 1)
         call csf_get_yamas (nopen, STOT, yamas, ncsf)
 
-        if (spin_proj_stochastic_yama) then
-            r = genrand_real2_dSFMT()
-            ind = int(ncsf * r) + 1
-            tmp = csf_coeff (yamas(ind, :), dorder, nopen)
+        ! We cannot use stochastic yama here - otherwise we may end up with
+        ! a 0 on the bottom of the term in get_spawn_helement
+        !if (spin_proj_stochastic_yama) then
+        !    r = genrand_real2_dSFMT()
+        !    ind = int(ncsf * r) + 1
+        !    tmp = csf_coeff (yamas(ind, :), dorder, nopen)
 
-            ret = ncsf * (tmp * tmp)
-        else
+        !    ret = ncsf * (tmp * tmp)
+        !else
             ret = 0
             do i = 1, ncsf
                 tmp = csf_coeff (yamas(i, :), dorder, nopen)
                 ret = ret + (tmp * tmp)
             enddo
-        endif
+        !endif
         
     end function
     
@@ -295,7 +297,7 @@ contains
         integer, intent(in) :: ic, ex(2,2)
         logical, intent(in) :: tParity
         HElement_t, intent(in) :: HElGen
-        HElement_t :: hel
+        HElement_t :: hel, tmp
         
         integer :: iUnused
         integer(n_int) :: iUnused2
@@ -420,7 +422,6 @@ contains
             set_orb(ilutJ, nTmp(i))
             clr_orb(ilutJ, ab_pair(nTmp(i)))
             nJ(open_pos(i)) = nTmp(i)
-        enddo
 
             ! Construct the dorder --> used in spawn_helement
             if (is_alpha(nTmp(i))) then
