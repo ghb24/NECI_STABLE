@@ -34,9 +34,9 @@ C.. If we're just counting, we don't need to keep DSTORE
          IF(TCOUNT) deallocate(dstore)
       END
 
-      subroutine symsetupexcits_wrapper_aarrgh (nI, nel, nBasis, store, 
-     &             SPIin, ETin, NAPin, OPin, tCount, iCount, classes,
-     &             ilut, symProds, iLevel, iMinElec1, iMaxElec1)
+      subroutine symsetupexcits_wrapper_aarrgh (nI, nel, G1, nBasis, 
+     &             store, SPIin, ETin, NAPin, OPin, tCount, iCount,
+     &             classes, ilut, symProds, iLevel, iMinElec1, iMaxElec1)
          use symexcit2, only: symsetupexcits3
          use systemdata, only: basisfn, symmetry
          use symdata, only: symclass
