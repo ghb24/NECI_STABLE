@@ -36,7 +36,7 @@ C.. If we're just counting, we don't need to keep DSTORE
 
       subroutine symsetupexcits_wrapper_aarrgh (nI, nel, G1, nBasis, 
      &             store, SPIin, ETin, NAPin, OPin, tCount, iCount,
-     &             classes, ilut, symProds, iLevel, iMinElec1, iMaxElec1)
+     &             classes, ilut, symProds, iLevel, iMinElec1,iMaxElec1)
          use symexcit2, only: symsetupexcits3
          use systemdata, only: basisfn, symmetry
          use symdata, only: symclass
@@ -55,6 +55,22 @@ C.. If we're just counting, we don't need to keep DSTORE
      &              iLevel, iMinElec1, iMaxElec1)
       end subroutine
 
+
+
+      subroutine gensymexcitit2par_wrapper_aarrgh (nI, nel, g1, nbasis, 
+     &              tSetup, nmem, nJ, ic, store, ilevel, iMinElec1, 
+     &              iMaxElec1)
+         use systemdata, only: basisfn
+         use symexcit2, only: GenSYMEXCITIT2Par
+         implicit none
+         integer :: nel, nI(nel), nbasis, nJ(nel), ic, iLevel
+         integer :: iMinElec1, iMaxElec1, store(6), nmem(*)
+         logical :: tSetup
+         type(basisfn) :: G1(nBasis)
+
+         call GENSYMEXCITIT2Par(nI, nel, G1, nBasis, tSetup, NMEM,
+     &                   nJ, IC, store, iLevel, iMinElec1, iMaxElec1)
+      end subroutine
 
 
 
@@ -1214,7 +1230,7 @@ C.. to actually generate the excitations
          INTEGER NJ(NEL),IC
          LOGICAL TSETUP
          INTEGER ILEVEL
-         CALL GenSymExcitIt2Par(NI,NEL,G1,NBASIS,
+         CALL GenSymExcitIt2Par_wrapper_aarrgh(NI,NEL,G1,NBASIS,
      &         TSETUP,NMEM,NJ,IC,STORE,ILEVEL,1,NEL)
       END
 
@@ -1234,7 +1250,7 @@ C.. to actually generate the excitations
          LOGICAL TSETUP
          INTEGER ILEVEL
 
-         CALL GENSYMEXCITIT2Par(NI,NEL,G1,NBASIS,
+         CALL GENSYMEXCITIT2Par_wrapper_aarrgh(NI,NEL,G1,NBASIS,
      &         TSETUP,NMEM,NJ,IC,STORE,ILEVEL,1,nEl)
       END
 
@@ -1256,236 +1272,10 @@ C.. to actually generate the excitations
          INTEGER ILEVEL
 
          INTEGER iMinElec1, iMaxElec1
-         CALL GENSYMEXCITIT2Par(NI,NEL,G1,NBASIS,
+         CALL GENSYMEXCITIT2Par_wrapper_aarrgh(NI,NEL,G1,NBASIS,
      &         TSETUP,NMEM,NJ,IC,STORE,ILEVEL,iMinElec1,iMaxElec1)
       END
 
-C.. A modified version of GENSYMEXCITIT2.  This has min and max electron 1 specifiers used for parallelization
-      SUBROUTINE GENSYMEXCITIT2Par(NI,NEL,G1,NBASIS,
-     &         TSETUP,NMEM,NJ,IC,STORE,ILEVEL,iMinElec1,iMaxElec1)
-         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
-         use SystemData, only: tAssumeSizeExcitgen
-         use SymData, only: SymClassSize,nSymPairProds,nSymLabels
-         IMPLICIT NONE
-         INTEGER NEL,NI(NEL),NBASIS,ierr
-         type(BASISfn) G1(nBasis)
-         INTEGER , ALLOCATABLE :: SymProdsTemp(:)
-         INTEGER, pointer :: DSTORE(:)
-!  STORE contains lengths of various components of the excitation generator
-         INTEGER STORE(6)
-!  STORE2 will contain the indices of various components of the excitation generator within the memory NMEM, and is passed to SYMSETUPEXCITS2
-         INTEGER STORE2(6)
-         INTEGER ICOUNT
-         INTEGER, target :: NMEM(*)
-         INTEGER NJ(NEL),IC,I
-         LOGICAL TSETUP
-         INTEGER ILEVEL,Pos1,Pos2,Pos3
-         INTEGER iMinElec1, iMaxElec1
-
-         IF(TSETUP) THEN
-C.. This is the first time we've been called for setup.
-!  We pass information back in STORE, but actually hold it in STORE2 during the SYMSETUPEXCITS2
-            IF(STORE(1).EQ.0) THEN
-               IF(tAssumeSizeExcitgen) THEN
-!We are assuming the maximum possible size for the blocks of memory which are required for creation of random
-!unweighted excitations. This means that we only need to store three arrays.
-!EXCITTYPES - Number of excitations which can be created from this 'type' (spin, symmetry, number)
-!NExcitTypes will always be =< nsympairprods*3 for doubles and nSymLabels*2 for singles.
-!Total memory needed for the excittypes array is less than 5*(3*nSymPairProds+2*nSymLabels)
-
-!ORBPAIRS - Storage of all allowed pairs of occupied orbitals. This will always be less than (N*(N-1)/2)*2.
-
-!SYMPRODIND - Indexing system for ORBPAIRS. NPR is the number of symmetry classes, which for abelian
-! symmetry will always be less than or equal to nSymLabels, so we need a total of (nSymLabels+1)*6
-
-!For 'extras', we want space for ILUT (NBASIS/32+1+NIfY) and CLASSES (SymClassSize*NEL) 
-                   STORE(1)=SymClassSize*NEl+(nBasis/32)+1    !ILUT and CLASSES
-                   STORE(2)=5*(3*nSymPairProds+2*nSymLabels)    !EXCITTYPES (Could be compressed)
-                   STORE(3)=0   !Do not need to store nAllowPPS
-                   STORE(4)=NEl*(NEl-1) !Maximum memory for ORBPAIRS
-                   STORE(5)=(nSymLabels+1)*6    !SYMPRODIND
-                   STORE(6)=0   !Will store nExcitTypes, but zero to indicate length
-
-!We also want some memory to store lengths, but do not need iterator information.
-                   NMEM(1)=2+STORE(1)+STORE(2)+STORE(4)+STORE(5)
-
-               ELSE
-
-
-                   STORE2(1:6)=0
-                  allocate(DSTORE(SymClassSize*NEL+(nBasis/32)+1
-     &                     +SymmetrySize*(NEL*NEL+1)))
-                  STORE2(1)=1 ! i.e. the 1st index IP_DSTORE
-C.. Just count.
-                 CALL symsetupexcits_wrapper_aarrgh(NI,NEL,G1,NBASIS,
-     &STORE2,
-     &            STORE2(1),STORE2(1),STORE2(1),STORE2(1),            !These are fakes.
-     &            .TRUE.,ICOUNT,DSTORE(1), DSTORE(SymClassSize*NEL+1),
-     &          DSTORE(SymClassSize*NEL+1+(nBasis/32)+1),
-     &              ILEVEL,iMinElec1,iMaxElec1)
-
-                 deallocate(DSTORE)
-                   DO i=2,6
-                      STORE(i)=STORE2(i)
-                   ENDDO
-                   STORE(1)=SymClassSize*NEL+(nBasis/32)+1+
-     &                SymmetrySize*(NEL*NEL+1)
-                 NMEM(1)=23+STORE(1)+STORE(2)+STORE(3)+STORE(4)+STORE(5)
-C               WRITE(6,"(A6,6I5)"), "SIZE:",NMEM(1),(STORE(I),I=1,5)
-               ENDIF
-
-            ELSE    !Second setup excitgen run - fill memory
-
-               IF(tAssumeSizeExcitgen) THEN
-!If we have an assumed size excitgen, things are a little different. We can only use these assumed sized excitation generators, if we are only
-! using them to create random excitations as we are not storing iterator information to save space.
-
-! 1         NEXCIT
-! 2         NEXCITTYPES
-! 3                                 -    SymClassSize*NEL+NIfTot+3                                 DSTORE
-! SymClassSize*NEL+NIfTot+4      -    SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+2  EXCITTYPES
-! SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+3      -    SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+2  ORBPAIRS
-! SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+3   -   SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+(nSymLabels+1)*6+2  SYMPRODIND
-
-! DSTORE(1)      -   SymClassSize*NEL         CLASSES
-! DSTORE(NEL*SymClassSize+1)                     ILUT
-                   NMEM(1:2)=0
-                   Pos1=SymClassSize*NEL+(nBasis/32)+4    !Beginning of EXCITTYPES
-                   Pos2=SymClassSize*NEL+(nBasis/32)+4+15*nSymPairProds+
-     &                   10*nSymLabels                  !Beginning of ORBPAIRS
-                   Pos3=SymClassSize*NEL+(nBasis/32)+4+15*nSymPairProds+
-     &                   10*nSymLabels+NEL*(NEL-1)      !Beginning of SYMPRODIND
-
-!STORE is now used to hold pointers to the arrays wanted. Fill this.
-                   STORE2(1)=3   !This is the beginning of the DSTORE array
-                   STORE2(2)=Pos1
-                   STORE2(3)=0  !nAllowPPS not stored
-                   STORE2(4)=Pos2
-                   STORE2(5)=Pos3
-
-                  DSTORE=>NMEM(STORE2(1):STORE2(1)+
-     &                SymClassSize*NEL+(nBasis/32)+1
-     &                     +SymmetrySize*(NEL*NEL+1))  !Point to DSTORE
-
-!Since we do not store symprods, we have to allocate more memory to store it temporarily.
-                   ALLOCATE(SymProdsTemp(SymmetrySize*(NEL*NEL+1)),
-     &                   stat=ierr)
-                   IF(ierr.ne.0) THEN
-                       CALL Stop_All("GenSymExcitIt2Par","Cannot 
-     &                       allocate SymProdsTemp Memory")
-                   ENDIF
-
-!Call SymSetupExcits3. Since we are not storing symprods, DStore is shorter than normal, and we just pass through a temporary array to hold it.
-                    CALL symsetupexcits_wrapper_aarrgh(NI,NEL,G1,NBASIS,
-     &STORE2,
-     &                  NMEM(STORE2(5)),NMEM(STORE2(2)),NMEM(1), !nAllowPPS not extant
-     &                  NMEM(STORE2(4)),
-     &                  .FALSE.,ICOUNT,DSTORE(1), 
-     &                  DSTORE(SymClassSize*NEL+1),
-     &                  SymProdsTemp,ILEVEL,iMinElec1,iMaxElec1)
-
-                    DEALLOCATE(SymProdsTemp)
-
-                    NMEM(1)=iCount      !Keep record of number of excitations...
-                    NMEM(2)=STORE2(6)   !...and number of types of excitation.
-
-                ELSE
-C.. The second setup.  Now NMEM is allocated, we store all the info
-C.. NMEM is as follows:
-C..   1           -  5           STORE(1:5)
-C..   6           -  6           STORE(6) = NEXCITTYPES
-C.. Data for the iterators
-C..   7  IEXCIT
-C..   8  ISPN
-C..   9  IFROM
-C..   10 ITO
-C..   11 I
-C..   12 J
-C..   13 K
-C..   14 L
-C..   15 ICC(1:4)
-C..   19 LS(1:2,1:2)  ([1 or 2], [A or B])
-C..   23 NEXCIT      total number of excitations
-C..  (STORE(1)=24)-  STORE(2)-1  DSTORE
-C..   STORE(2)    -  STORE(3)-1  EXCITTYPES
-C..   STORE(3)    -  STORE(4)-1  NALLOWPPS
-C..   STORE(4)    -  STORE(5)-1  ORBPAIRS
-C..   STORE(5)    -  ...         SYMPRODIND
-
-C..   DSTORE(1)   -  DSTORE(NEL*SymClassSize) CLASSES
-C..   DSTORE(NEL*SymClassSize+1) - ,,,        ILUT
-
-
-                   NMEM(1:23)=0
-                   ICOUNT=24  
-C.. Put the indices in store
-                   DO I=1,5
-                      STORE2(I)=ICOUNT
-                      ICOUNT=ICOUNT+STORE(I)
-                   ENDDO
-                   NMEM(6:ICOUNT-1)=0
-                   STORE2(6)=0
-                   NMEM(11)=-1
-                   NMEM(7)=0
-                  DSTORE=>NMEM(STORE2(1):STORE2(1)+
-     &                SymClassSize*NEL+(nBasis/32)+1
-     &                     +SymmetrySize*(NEL*NEL+1))  !Point to DSTORE
-C                   CALL DUMPIMEMORY(6,NMEM,ICOUNT-1)
-!!      SUBROUTINE SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,STORE,
-!!     &   TCOUNT,ICOUNT,CLASSES,ILUT,SYMPRODS,ILEVEL)
-                 CALL symsetupexcits_wrapper_aarrgh(NI,NEL,G1,NBASIS,
-     &STORE2,
-     &                  NMEM(STORE2(5)),NMEM(STORE2(2)),NMEM(STORE2(3)),
-     &                  NMEM(STORE2(4)),
-     &             .FALSE.,ICOUNT,DSTORE(1), DSTORE(SymClassSize*NEL+1),
-     &        DSTORE(SymClassSize*NEL+1+(nBasis/32)+1),ILEVEL,iMinElec1,
-     &              iMaxElec1)
-                   NMEM(6)=STORE2(6)
-                   NMEM(23)=ICOUNT
-                   IC=ICOUNT
-C.. and now instead the indices within NMEM
-                   ICOUNT=24
-                   DO I=1,5
-                      NMEM(I)=ICOUNT
-                      ICOUNT=ICOUNT+STORE(I)
-                   ENDDO
-C.. Second setup finally complete.
-C               CALL DUMPIMEMORY(6,NMEM,ICOUNT-1)
-!               WRITE(6,*) "DST",LOC(NMEM(NMEM(1)))
-                ENDIF
-
-            ENDIF
-         ELSE
-
-             IF(tAssumeSizeExcitGen) THEN
-                 CALL Stop_All("GenSymExcitIt2","Cannot use assumed size
-     &              ExcitGens when enumerating all determinants.")
-             ENDIF
-C.. Actually generate a det
-C            WRITE(6,"(A,Z10,8I4)",advance='no') "GET",LOC(NMEM(1)),
-C     &         (NMEM(I),I=7,14)
-                  DSTORE=>NMEM(NMEM(1):NMEM(1)+
-     &                SymClassSize*NEL+(nBasis/32)+1
-     &                     +SymmetrySize*(NEL*NEL+1))  !Point to DSTORE
-!!      SUBROUTINE SYMGENEXCITIT(NI,NEL,EXCITTYPES,NEXCITTYPES,CLASSES,
-!!     &               SYMPRODIND,ILUT,ORBPAIRS,IEXCIT,ISPN,IFROM,ITO,
-!!     &               I,J,K,L,ICC,LS,
-!!     &               NK,IC)
-            CALL SYMGENEXCITIT2(NI,NEL,NMEM(NMEM(2)),NMEM(6),DSTORE(1),
-     &         NMEM(NMEM(5)),DSTORE(SymClassSize*NEL+1),NMEM(NMEM(4)),
-     &         NMEM(7),NMEM(8),NMEM(9),NMEM(10),NMEM(11),NMEM(12),
-     &         NMEM(13),NMEM(14),NMEM(15),NMEM(19),NJ,IC,iMinElec1,
-     &         iMaxElec1)
-C            CALL WRITEDET(6,NI,NEL,.FALSE.)
-C            WRITE(6,"(A)",advance='no'), "->"
-C            IF(NJ(1).NE.0) THEN
-C               CALL WRITEDET(6,NJ,NEL,.TRUE.)
-C            ELSE 
-C               WRITE(6,*) "(    0,)"
-C            ENDIF
-         ENDIF
-      END
       SUBROUTINE RESETEXIT2(NMEM)
          IMPLICIT NONE
          INTEGER NMEM(*)
