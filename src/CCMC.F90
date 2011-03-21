@@ -2285,7 +2285,6 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    Call SetupParameters()
 !Init hash shifting data
    hash_iter=0
-   hash_shift=0
    ! Reset counters
    iter_data_ccmc%nborn = 0
    iter_data_ccmc%ndied = 0
@@ -2512,6 +2511,10 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       tMoreClusters=.true.
       iMin=min(iNumExcitors,nEl)
       call AccumulateAmplitudeList(AL,nAmpl,iCurAmpList,iRefPos, dTotLocAbsAmpl)
+!      if(dTotLocAbsAmpl<0) then
+!         call WriteExcitorList(6,AL,iCurAmpList,DetList,0,nAmpl,dAmpPrintTol,"Excitor list")
+!         call WriteExcitorListA(6,AL%CumlAmplitude,DetList,0,nAmpl,0,"Cuml Amp List")
+!      endif
       IFDEBUG(iDebug,7) THEN
          call WriteExcitorListA(6,AL%CumlAmplitude,DetList,0,nAmpl,0,"Cuml Amp List")
       ENDIF
