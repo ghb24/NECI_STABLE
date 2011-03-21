@@ -24,7 +24,8 @@ C.. Setup for symmetry routine below.
          allocate(DSTORE(SymClassSize*NEL+(nBasis/32)+1
      &      +SymmetrySize*(NEL*NEL+1)))
          STORE(1)=1 !Meaning the first element of DSTORE
-         CALL SYMSETUPEXCITS3(NI,NEL,G1,NBASIS,STORE,TCOUNT,
+         CALL SYMSETUPEXCITS3(NI,NEL,G1,NBASIS,STORE,
+     &      STORE(1),STORE(1),STORE(1),STORE(1),TCOUNT,  !These STORE(1) are fakes which aren't used
      &      ICOUNT,DSTORE(1),
      &      DSTORE(SymClassSize*NEL+1),
      &      DSTORE(SymClassSize*NEL+1+(nBasis/32)+1),ILEVEL,iMinElec1,
@@ -106,6 +107,9 @@ C.. If we're just counting, we don't need to keep DSTORE
 != Store doubles classes          O(NPR NSYM)               O(NPR^2)
 !=                                  [ NSYM^2 ]               [ NSYM^2 ] 
 
+!*in are target variables for temporaries which might be reused.
+! If the appropriate element of STORE() is nonzero these will be used.
+    
       SUBROUTINE SYMSETUPEXCITS3(NI,NEL,G1,NBASIS,STORE,SPIin,ETin,
      &   NAPin, OPin,
      &   TCOUNT,ICOUNT,CLASSES,ILUT,SYMPRODS,ILEVEL,iMinElec1,iMaxElec1)
@@ -1512,7 +1516,7 @@ C.. to actually generate the excitations
 !  STORE contains lengths of various components of the excitation generator
          INTEGER STORE(6)
 !  STORE will contain the addesses of various components of the excitation generator, and is passed to SYMSETUPEXCITS2
-         INTEGER, target ::  NMEM(*)
+         INTEGER ::  NMEM(*)
          INTEGER NJ(NEL),IC
          LOGICAL TSETUP
          INTEGER ILEVEL
