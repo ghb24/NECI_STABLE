@@ -389,7 +389,7 @@ contains
             DLWDB=DLWDB/TOTAL
          endif
          call halt_timer(proc_timer)
-         CALL N_MEMORY_CHECK()
+!         CALL N_MEMORY_CHECK()
 !         WRITE(6,*) "Get Here 3",WLSI,TOTAL,DLWDB
          RETURN
       END SUBROUTINE
@@ -694,7 +694,7 @@ contains
              ENDIF
          ENDIF
          call halt_timer(proc_timer)
-         CALL N_MEMORY_CHECK()
+!         CALL N_MEMORY_CHECK()
          RETURN
       END SUBROUTINE
 

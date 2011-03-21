@@ -2737,18 +2737,12 @@ MODULE GenRandSymExcitNUMod
 
         !    IF(iProcIndex.eq.0) CLOSE(9)
 
-#ifdef PARALLEL
         call MPIBarrier(error)
         call MPIAllReduce (DoublesHist, MPI_SUM, AllDoublesHist)
         call MPIAllReduce (SinglesHist, MPI_SUM, AllSinglesHist)
         call MPIAllReduce (DoublesCount, MPI_SUM, AllDoublesCount)
         call MPIAllReduce (SinglesCount, MPI_SUM, AllSinglesCount)
-#else
-        AllDoublesHist = DoublesHist
-        AllSinglesHist = SinglesHist
-        AllDoublesCount = DoublesCount
-        AllSinglesCount = SinglesCount
-#endif
+
         write(6,*) 'sum singles count', sum(AllSinglesCount)
         write(6,*) 'sum doubles count', sum(AllDoublesCount)
 

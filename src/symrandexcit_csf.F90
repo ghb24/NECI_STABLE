@@ -1938,13 +1938,9 @@ contains
             ! out on node 0
             if (mod(i,writeInterval) == 0) then
                 avContribAll = 0
-#ifdef PARALLEL
-                call MPI_Reduce (avContrib, avContribAll, 1, &
-                                 MPI_DOUBLE_PRECISION, MPI_SUM, 0, &
-                                 MPI_COMM_WORLD, ierr)
-#else
-                avContriball = avContrib
-#endif
+
+                call MPIReduce(avContrib,MPI_SUM,avContribAll)
+
                 if (iProcIndex == 0) then
                     !print*, i, avcontribAll/real(i*nexcit*nProcessors)
                     write(9,*) i, avContribAll/real(i*nexcit*nProcessors)
@@ -1954,19 +1950,8 @@ contains
         close(9)
         !print*, avcontribAll/real(i*nexcit*nProcessors)
 
-
-#ifdef PARALLEL
-        ! Sum the histograms over all processors
-        call MPI_Reduce (SinglesHist, AllSinglesHist, nBasis**2, &
-                         MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, &
-                         ierr)
-        call MPI_Reduce (DoublesHist, AllDoublesHist, nBasis**4, &
-                         MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, &
-                         ierr)
-#else
-        AllSinglesHist = SinglesHist
-        AllDoublesHist = DoublesHist
-#endif
+        call MPIReduce(SinglesHist,MPI_SUM,AllSinglesHist)
+        call MPIReduce(DoublesHist,MPI_SUM,AllDoublesHist)
 
         ! Normalise the histograms and output in a readable form.
         ! These should tend to 0 or ncsf (an integer) for the excited csf.
