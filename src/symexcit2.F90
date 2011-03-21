@@ -1,5 +1,4 @@
 MODULE SymExcit2
-      
       use CalcData , only : G_VMC_EXCITWEIGHT,G_VMC_EXCITWEIGHTS,CUR_VERT,EXCITFUNCS
       use CalcData , only : TUPOWER
       use IntegralsData, only: ChemPot
@@ -17,6 +16,293 @@ MODULE SymExcit2
       integer, PARAMETER :: ExcitWeightSize=3
       CONTAINS 
 
+!=  ILEVEL is 1 for singles, 2 for just doubles, and 3 for both.
+!=  A a new symmetry excitation generation algorithm.
+!=  Algorithm: First list all the different symmetry classes in NI.
+!=  For each pair of symmetry classes, determine its symmetry product.
+!=  Classify and store each possible pair of orbitals under its symmetry product, [].
+!=  With each of the symmetry products [], calculate []' such that []x[]'
+!=  contains the totally symmetric rep.
+!=  We do this by checking whether any of the []' in the 
+!=  global symprods table multiply by [] to give the symmetric rep.
+
+!= Excitation Generator Scaling   Timing                    Memory
+!=---- 
+!=SSE_CreateClassList(Classes, *ClassCount)
+!=
+!= Create Class List              O(N)                      4 N
+!=   Gives NCL =O(NSYM)
+!=
+!= Create Class Remainder info    O(NCL)                    
+!=----
+!=SSE_CreateClassSymProds(nPr,nPairs,nCl,SymProds,SymProdCount,*ClassCount,Classes)
+!=SSEA_CreateClassSymProds(nPr,nCl,SymProds,SymProdCount,*ClassCount,Classes)  !  Better scaling
+!=
+!= Create Class Sym Product info  O(NCL^2)                  4 NPR 
+!=   Gives NPR ~= NCL^2
+!=    for abelian  NPR<=NSYM
+!=
+!=----
+!=Form SymProdInd from SymProdCount
+!=----
+!=SSE_StoreOccPairs(OrbPairs,nPairs,nPr,SymProdInd,SymProds)
+!= !Abelian - do nothing
+!=
+!= Save list of occ orbital pairs O(N^2) /NPROC             2 O(N^2) /NPROC
+!=   This is sorted according
+!=    to the symmetry product
+!=                                                                   For abelian, this isn't
+!=                                  [ O(NCL^2) ]          [ NSYM ]   needed as we can very easily
+!=                                                                   determine this from a list of 
+!=                                                                   occs sorted by sym.  We should
+!=                                                                   store counts however
+!=
+!=----
+!=SSE_CountVirtProds(nDoub,nExcitTypes,nPr,nSymPairProds,nAllowPPS,iLUT)
+!=SSEA_CountVirtProds(nDoub,nExcitTypes,nPr,nSymPairProds,SymProdCount,nAllowPPS) ! Calculated not enumerated
+!=
+!= Count number of allowed virt
+!=    pairs of each sym prod      O(NPR M^2 / NCL^2)        O(NCL^2)
+!=    Also counts num of doubles
+!=                                                                   For abelian this is simply
+!=                                  [ NSYM ]              [ NSYM ]   the difference between the num
+!=                                                                   of occ pairs of a given sym and
+!=                                                                   the total num of pairs.
+!=
+!=----
+!=SSE_CountSingles(nSing,nCl,nExcitTypes,*ClassCount,Classes)
+!=
+!= Calculate the number of
+!=    single excitations          O(NCL^3)
+!=                                  [ NSYM ]
+!= --- Exit here for init
+!= 
+!=----
+!=SSE_StoreSingles(nExcitTypes,nCl,Classes,ThisClassCount,ExcitTupes)
+!=
+!= Store singles classes          O(NCL^3)                  O(NCL^2)
+!=                                  [ NSYM ]                 [ NSYM ]
+!=----
+!=SSE_StoreDoubles(nPr,nSymPairProds,nAllowPPS,ExcitTypes,nExcitTypes,SymProds,SymProdInd)
+!= Store doubles classes          O(NPR NSYM)               O(NPR^2)
+!=                                  [ NSYM^2 ]               [ NSYM^2 ] 
+
+!*in are target variables for temporaries which might be reused.
+! If the appropriate element of STORE() is nonzero these will be used.
+    
+      SUBROUTINE SYMSETUPEXCITS3(NI,NEL,G1,NBASIS,STORE,SPIin,ETin, &
+        NAPin, OPin, TCOUNT, ICOUNT, CLASSES,ILUT,SYMPRODS,ILEVEL, &
+        iMinElec1,iMaxElec1)
+         use global_utilities
+         use SystemData, only: Symmetry,BasisFN,tAssumeSizeExcitgen
+         use SymData, only: SymClass,nSymPairProds,nSymLabels
+         use SymData, only: tAbelianFastExcitGen
+         use SymData, only: tStoreStateList
+         IMPLICIT NONE
+         INTEGER NEL,NI(NEL),NBASIS
+         TYPE(BasisFN) G1(nBasis)
+         INTEGER,pointer :: DSTORE(:)
+         INTEGER STORE(6)
+         INTEGER ICOUNT
+         LOGICAL TCOUNT
+         INTEGER ILEVEL
+         INTEGER iMinElec1,iMaxElec1
+
+         TYPE(SymClass) CLASSES(*)
+         TYPE(Symmetry) SYMPRODS(0:NEL*NEL)
+         INTEGER CLASSCOUNT(2,NEL)
+         INTEGER THISCLASSCOUNT(2,NEL)
+!  ThisClassCount is used to list only electrons which this processor deals with
+         INTEGER PREVCLASSCOUNT(2,NEL)
+!  PrevClassCount is used to list electrons which lower indexed processors deal with
+         INTEGER SYMPRODCOUNT(3,0:NEL*NEL)
+         INTEGER, target :: SPIin(1:2,1:3,1:*)
+         INTEGER,pointer :: SYMPRODIND(:,:,:)
+         INTEGER ILUT(0:nBasis/32)
+         INTEGER, target :: ETin(1:5,*)
+         INTEGER,pointer :: EXCITTYPES(:,:)
+         INTEGER nPairs, nSing, nDoub, nExcits
+         INTEGER, target :: NAPin(1:3,*)
+         INTEGER,pointer :: NALLOWPPS(:,:)
+         INTEGER, target :: OPin(1:2,*)
+         INTEGER,pointer :: ORBPAIRS(:,:)
+         INTEGER nCl,nExcitTypes,nPr
+
+         LOGICAL ISUHFDET
+ 
+         INTEGER I         
+         type(timer), save :: proc_timer
+         proc_timer%timer_name='SYMSUEXCIT'
+         
+         call set_timer(proc_timer,65)
+         Call SymSetupExcits_CreateClassList(nI,nEl,Classes, iMinElec1, &
+                iMaxElec1, ThisClassCount, PrevClassCount,ClassCount, &
+                G1, nCl)
+         SYMPRODCOUNT(:,:)=0
+         Call SymSetupExcits_CreateClassSymProds(nPr,nPairs,nCl, SymProds, &
+                    ThisClassCount, PrevClassCount, ClassCount,Classes, &
+                    SymProdCount)
+!.. Allocate enough memory to store the index
+         IF(STORE(5).EQ.0) THEN
+            allocate(SYMPRODIND(2,3,1:NPR))
+         ELSE
+            SYMPRODIND=>SPIin(1:2,1:3,1:NPR)
+         ENDIF
+         SYMPRODIND(1:2,1:3,1:NPR)=0
+
+!.. Now shift this such that SYMPRODCOUNT(ISPN,I) is the index of
+!.. the first orbital pair of SYMPROD(I) with spin ISPN in ORBPAIRS
+!.. Store in SYMPRODIND(1,ISPN,I) too
+         DO I=NPR,1,-1
+            SYMPRODCOUNT(3,I)=SYMPRODCOUNT(2,I)
+            SYMPRODCOUNT(2,I)=SYMPRODCOUNT(1,I)
+            SYMPRODCOUNT(1,I)=SYMPRODCOUNT(3,I-1)
+            SYMPRODIND(1,3,I)=SYMPRODCOUNT(3,I)
+            SYMPRODIND(1,2,I)=SYMPRODCOUNT(2,I)
+            SYMPRODIND(1,1,I)=SYMPRODCOUNT(1,I)
+         ENDDO
+!.. We allocate enough memory to store all the pairs.
+!.. Each pair consists of (ORB1,ORB2) where ORB1<ORB2
+         IF(STORE(4).EQ.0) THEN
+            allocate(ORBPAIRS(2,NPAIRS))
+         ELSE
+            ORBPAIRS=>OPin(1:2,1:NPAIRS)
+         ENDIF
+         Call SymSetupExcits_StoreOccPairs(OrbPairs, nPairs, nPr, &
+                iMinElec1, iMaxElec1,G1,SymProdInd(1:2,1:3,1:NPR),SymProds, &
+                nI,nEl)
+!.. Now go through the list of all pairs, finding out how many pairs are to be excluded as they contain some of the
+!.. orbitals in this determinant.
+!.. We first create a quick lookup table to enable us to quickly check whether a given orbital is in this determinant
+!.. in order 1, not order NEL.
+         IF(((.not.tStoreStateList).and.(.not.TCOUNT)).or. &
+                (tStoreStateList)) THEN
+!ILUT is not needed in the setup of the excitation generators for abelian symmetry.
+!tStoreStateList will be false for abelian symmetry, unless specified otherwise.
+            ILUT(:)=0
+            DO I=1,NEL
+                ILUT((NI(I)-1)/32)= &
+                    IBSET(ILUT((NI(I)-1)/32),MOD(NI(I)-1,32))
+!                WRITE(6,*) (NI(I)-1)/32,
+!     &               IBSET(ILUT((NI(I)-1)/32),MOD(NI(I)-1,32)),
+!     &               ILUT(0:NIfTot)
+            ENDDO
+!..            DO I=0,NIfTot
+!..                WRITE(6,*) "ILUT: ",ILUT(i)
+!..                WRITE(6,"(A,Z10)") "LUT: ",ILUT(I)
+!..            ENDDO
+         ENDIF
+!.. Now look through the list of our pairs.  For each pair sym of the complete list which has a 
+!.. symmetric product with any of our pair syms, we work out how many allowed pairs there are in
+!.. the complete list, and store that value in NALLOWPPS
+         IF(STORE(3).EQ.0) THEN
+            allocate(NALLOWPPS(3,NSYMPAIRPRODS))
+!          WRITE(6,*) "Allocating memory for nallowpps"
+         ELSE
+            nAllowPPS=>NAPin(1:3,1:nSymPairProds)
+         ENDIF
+         nExcitTypes=0
+         if(.not.tStoreStateList) then
+!We can calculate the virtual pairs more easily in abelian symmetry.
+            Call SymSetupExcitsAbelian_CountVirtProds(nDoub,nExcitTypes, &
+                 nCl,nPr,SymProds,SymProdInd(1:2,1:3,1:NPR),Classes, &
+                 ClassCount, &
+                 nAllowPPS) ! Calculated not enumerated
+         else
+             Call SymSetupExcits_CountVirtProds(nDoub, nExcitTypes,nPr, &
+         SymProdInd(1:2,1:3,1:NPR),SymProds,nAllowPPS,iLUT)
+         end if
+         IF(.NOT.ISUHFDET(NI,NEL)) THEN
+            if(tAbelianFastExcitGen) then
+!This can be done quicker for abelian symmetry, whether or not the state pairs are stored or not.
+                CALL SymSetupExcitsAbelian_CountSingles(nSing,nCl, &
+                    nExcitTypes,ThisClassCount,Classes)
+            else
+                Call SymSetupExcits_CountSingles(nSing,nCl,nExcitTypes, &
+                    ThisClassCount, ClassCount,Classes)
+            endif
+         ELSE
+          nSing=0
+         ENDIF
+         NEXCITS=0
+         IF(BTEST(ILEVEL,0)) NEXCITS=NEXCITS+NSING
+         IF(BTEST(ILEVEL,1)) NEXCITS=NEXCITS+NDOUB
+         ICOUNT=NEXCITS
+!         WRITE(6,*) "Total number of singles: ",NSING
+!         WRITE(6,*) "Total number of doubles: ",NDOUB
+!         WRITE(6,*) "Total number of excitations: ",NEXCITS
+!         WRITE(6,*) "Total number of excitation types: ",NEXCITTYPES
+
+         IF(TCOUNT) THEN
+!.. If we're just counting, we're done, so we get rid of some pointers.
+!.. However, we do save the length of the memory required.
+!.. EXCITTYPES - Number of excitations which can be created from this 'type' (spin, symmetry, number)
+!NExcitTypes will always be =< nsympairprods*3 for doubles and nSymLabels*2 for singles.
+            STORE(2)=(NEXCITTYPES*5)
+!.. NALLOWPPS
+            STORE(3)=3*NSYMPAIRPRODS
+!.. ORBPAIRS - Storage of all allowed pairs of orbitals. This will always be less than N*(N+1)/2.
+            STORE(4)=2*NPAIRS
+!.. SYMPRODIND - Indexing system for ORBPAIRS. NPR is the number of symmetry classes, which for abelian
+! symmetry will always be less than or equal to nSymLabels.
+            STORE(5)=2*3*(NPR+1)
+!.. indicate that these are lengths
+            STORE(6)=0
+           
+            deallocate(nAllowPPS)
+            deallocate(OrbPairs)
+            deallocate(SymProdInd)
+         ELSE
+!.. Now allocate memory to store all the excitation types if there hasn't been one already allocated.
+!.. This will have to be manually deallocated later.
+!.. We store each excitation type as:
+!.. 1   TYPE (single=1, double=2)
+!.. 2   SPIN (for single, 1=beta, 2=alpha.  For double, 1=beta/beta; 2=alpha/beta; 3=alpha/alpha;)
+!.. 3   FROM (for single, I in CLASSES(I); for double, I in SYMPRODS(I) )
+!.. 4   TO   (for single, J in SymLabels(J); for double, J in SYMPAIRPRODS(J) )
+!.. 5  COUNT (Total number of excitations in this category)
+             IF(STORE(2).EQ.0) THEN
+                allocate(EXCITTYPES(5,NEXCITTYPES*5))
+             ELSE
+                ExcitTypes=>ETin(:5,:nExcitTypes)
+             ENDIF
+
+             nExcitTypes=0
+             IF(.NOT.ISUHFDET(NI,NEL)) THEN
+                IF(BTEST(ILEVEL,0)) THEN
+                    IF(tAbelianFastExcitGen) THEN
+                        Call SymSetupExcitsAbelian_StoreSingles( &
+                                 nExcitTypes,nCl,Classes,ThisClassCount, &
+                                ExcitTypes)
+                    ELSE
+                        Call SymSetupExcits_StoreSingles(nExcitTypes, &
+                         nCl,Classes,ThisClassCount,ExcitTypes)
+                    ENDIF
+                ENDIF
+             ENDIF
+             IF(BTEST(ILEVEL,1)) THEN
+                Call SymSetupExcits_StoreDoubles(nPr,nSymPairProds, &
+         nAllowPPS,ExcitTypes,nExcitTypes,SymProds, SymProdInd(1:2,1:3,1:NPR))
+             ENDIF
+!.. Store all the pointers we need
+!             STORE(2)=IP_EXCITTYPES
+!             STORE(3)=IP_NALLOWPPS
+!             STORE(4)=IP_ORBPAIRS
+!             STORE(5)=IP_SYMPRODIND
+             STORE(6)=NEXCITTYPES
+
+             IF(tAssumeSizeExcitgen) THEN
+!If we have an assumed size excitation generator, we don't store nAllowPPS, so we have to deallocate this now.
+                 deallocate(nAllowPPS)
+             ENDIF
+
+         ENDIF
+!..      ENDIF(.NOT.TCOUNT)
+!         WRITE(6,*) "Total number of excitation types: ",NEXCITTYPES
+         call halt_timer(proc_timer)
+
+      END Subroutine SymSetupExcits3
+      
 !  Enumerate the weights of all possible determinants to excite from in a given excittype.
       SUBROUTINE EnumExcitFromWeights(ExcitType, ews,OrbPairs, SymProdInd,Norm,iCount,Arr,nBasis)
          use constants, only: dp
