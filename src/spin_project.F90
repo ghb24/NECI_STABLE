@@ -19,6 +19,7 @@ module spin_project
 
     logical :: tSpinProject, spin_proj_stochastic_yama
     logical :: spin_proj_spawn_initiators, spin_proj_no_death
+    logical :: disable_spin_proj_varyshift
     integer :: spin_proj_interval, spin_proj_cutoff, spin_proj_iter_count
     real(dp) :: spin_proj_gamma
     real(dp), target :: spin_proj_shift

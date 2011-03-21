@@ -93,7 +93,8 @@ MODULE FciMCParMod
                             generate_excit_spin_proj, attempt_die_spin_proj, &
                             iter_data_spin_proj, test_spin_proj, &
                             spin_proj_shift, spin_proj_iter_count, &
-                            init_yama_store, clean_yama_store
+                            init_yama_store, clean_yama_store, &
+                            disable_spin_proj_varyshift
     use symrandexcit3, only: gen_rand_excit3, test_sym_excit3
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
@@ -167,7 +168,8 @@ MODULE FciMCParMod
 
             ! Are we projecting the spin out between iterations?
             if (tSpinProject .and. (mod(Iter, spin_proj_interval) == 0 .or. &
-                                    spin_proj_interval == -1)) then
+                                    spin_proj_interval == -1) .and. &
+                (tSinglePartPhase .or. .not. disable_spin_proj_varyshift))then
                 do i = 1, max(spin_proj_iter_count, 1)
                     call PerformFciMCycPar (generate_excit_spin_proj, &
                                            attempt_create_normal, &
