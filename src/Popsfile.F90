@@ -436,7 +436,6 @@ MODULE PopsfileMod
 !        CALL FLUSH(6)
 
 !First, make sure we have up-to-date information - again collect AllTotWalkers,AllSumNoatHF and AllSumENum...
-!        CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_Sum,root,MPI_COMM_WORLD,error)    
 !Calculate the energy by summing all on HF and doubles - convert number at HF to a real since no int*8 MPI data type
         CALL MPISum(SumNoatHF,1,AllSumNoatHF)
         CALL MPISum(SumENum,1,AllSumENum)

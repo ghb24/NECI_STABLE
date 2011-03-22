@@ -897,9 +897,14 @@ MODULE FciMCParMod
 
         enddo ! Loop over determinants.
         IFDEBUG(FCIMCDebug,2) write(6,*) 'Finished loop over determinants'
+        
+        ! Since VecSlot holds the next vacant slot in the array, TotWalkers
+        ! should be one less than this. TotWalkersNew is now the number of particles
+        ! in the main array, before annihilation
+        TotWalkersNew = VecSlot - 1
 
         ! Update the statistics for the end of an iteration.
-        call end_iter_stats (TotWalkersNew, VecSlot)
+        call end_iter_stats (TotWalkersNew)
         
         ! Print bloom/memory warnings
         call end_iteration_print_warn (totWalkersNew)
@@ -922,10 +927,9 @@ MODULE FciMCParMod
 
     end subroutine
 
-    subroutine end_iter_stats (TotWalkersNew, VecSlot)
+    subroutine end_iter_stats (TotWalkersNew)
 
-        integer, intent(out) :: TotWalkersNew
-        integer, intent(in) :: VecSlot
+        integer, intent(in) :: TotWalkersNew
         real(dp) :: delta(lenof_sign)
         integer :: proc, pos, sgn(lenof_sign), i
 
@@ -933,15 +937,11 @@ MODULE FciMCParMod
         ! cycle on each process.
         SumWalkersCyc = SumWalkersCyc + int(sum(TotParts), int64)
 
-        ! Since VecSlot holds the next vacant slot in the array, TotWalkers
-        ! should be one less than this.
-        TotWalkersNew = VecSlot - 1
-
         ! Write initiator histograms if on the correct iteration.
         if ((tHistInitPops .and. mod(iter, HistInitPopsIter) == 0) &
             .or. tPrintHighPop) then
             call FindHighPopDet (TotWalkersNew)
-            root_write(6,'(a)') 'Writing out the spreaod of the initiator &
+            root_write(6,'(a)') 'Writing out the spread of the initiator &
                                 &determinant populations.'
             call WriteInitPops (iter + PreviousCycles)
         endif
@@ -964,7 +964,7 @@ MODULE FciMCParMod
             enddo
         endif
 
-    end subroutine
+    end subroutine end_iter_stats
 
     subroutine new_child_stats_normal (iter_data, iLutI, nJ, iLutJ, ic, &
                                        walkExLevel, child, parent_flags, &
@@ -1244,7 +1244,8 @@ MODULE FciMCParMod
         USE constants, only : MpiDetInt
 !Found the highest population on each processor, need to find out which of these has the highest of all.
         INTEGER(KIND=n_int) :: DetPos(0:NIfTot),DetNeg(0:NIfTot)
-        INTEGER :: HighPopInNeg(2),HighPopInPos(2),HighPopoutNeg(2),HighPopoutPos(2),TotWalkersNew
+        INTEGER :: TotWalkersNew,ProcBCastNeg,ProcBCastPos
+        integer(int32) :: HighPopInNeg(2),HighPopInPos(2),HighPopoutNeg(2),HighPopoutPos(2)
         INTEGER, DIMENSION(lenof_sign) :: TempSign
 
 !        WRITE(6,*) 'HighPopPos',HighPopPos
@@ -1255,8 +1256,9 @@ MODULE FciMCParMod
         ELSE
             TempSign(:)=0
         ENDIF
-        HighPopInNeg(1)=TempSign(1)
-        HighPopInNeg(2)=iProcIndex
+        HighPopInNeg(1)=int(TempSign(1),int32)
+        HighPopInNeg(2)=int(iProcIndex,int32)
+
         CALL MPIAllReduceDatatype(HighPopinNeg,1,MPI_MINLOC,MPI_2INTEGER,HighPopoutNeg)
 
         IF(TotWalkersNew.gt.0) THEN
@@ -1264,18 +1266,24 @@ MODULE FciMCParMod
         ELSE
             TempSign(:)=0
         ENDIF
-        HighPopInPos(1)=TempSign(1)
-        HighPopInPos(2)=iProcIndex
+        HighPopInPos(1)=int(TempSign(1),int32)
+        HighPopInPos(2)=int(iProcIndex,int32)
+
         CALL MPIAllReduceDatatype(HighPopinPos,1,MPI_MAXLOC,MPI_2INTEGER,HighPopoutPos)
 
 !Now, on all processors, HighPopoutPos(1) is the highest positive population, and HighPopoutNeg(1) is the highest negative population.
 !HighPopoutPos(2) is the processor the highest population came from.
 
-
         IF(iProcIndex.eq.HighPopOutNeg(2)) DetNeg(:)=CurrentDets(:,HighPopNeg)
         IF(iProcIndex.eq.HighPopOutPos(2)) DetPos(:)=CurrentDets(:,HighPopPos)
-        CALL MPIBcast(DetNeg,HighPopoutNeg(2))
-        CALL MPIBcast(DetPos,HighPopoutPos(2))
+
+        !This is a horrible hack, because the process argument should be of type 'integer' - whatever that is,
+        !but the highpopoutneg is explicitly an int(4), so that it works with MPI_2INTEGER. Because
+        !of the explicit interfaces, we need to do this.
+        ProcBCastNeg=HighPopOutNeg(2)
+        ProcBCastPos=HighPopOutPos(2)
+        CALL MPIBcast(DetNeg,NIfTot+1,ProcBCastNeg)
+        CALL MPIBcast(DetPos,NIfTot+1,ProcBCastPos)
 
         if (iProcIndex == 0) then
             write (6, '(a, i10, a)') 'The most highly populated determinant &
@@ -2718,8 +2726,9 @@ MODULE FciMCParMod
 
     subroutine population_check ()
         use HPHFRandExcitMod, only: ReturnAlphaOpenDet
-        integer :: int_tmp(2), pop_highest, proc_highest, pop_change
+        integer :: pop_highest, proc_highest, pop_change
         integer :: det(nel), i, error
+        integer(int32) :: int_tmp(2)
         logical :: tSwapped, TestClosedShellDet
         HElement_t :: h_tmp
 
@@ -2727,7 +2736,7 @@ MODULE FciMCParMod
 
             ! Obtain the determinant (and its processor) with the highest
             ! population.
-            call MPIAllReduceDatatype ((/iHighestPop, iProcIndex/), 1, &
+            call MPIAllReduceDatatype ((/int(iHighestPop,int32), int(iProcIndex,int32)/), 1, &
                                        MPI_MAXLOC, MPI_2INTEGER, int_tmp)
             pop_highest = int_tmp(1)
             proc_highest = int_tmp(2)

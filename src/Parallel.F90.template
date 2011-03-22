@@ -117,6 +117,14 @@ mpitype=MPI_INTEGER8
 
 !For a full header, see the supermodule at the end of the file.
 !NOTE: Values -> V - ghb24 4/3/11
+!NOTE: For calculating the meaning of MPI_Errors:
+!CALL MPI_Error_string(error,message,length,temp)
+!IF(temp.ne.MPI_SUCCESS) THEN
+!    WRITE(6,*) "REALLY SERIOUS PROBLEMS HERE!",temp
+!    CALL FLUSH(6)
+!ENDIF
+!WRITE(6,*) message(1:length)
+
 
 
    ! mpi USE is in mixed case to avoid it being picked up by the the Configure
@@ -216,8 +224,8 @@ subroutine MPIReduce_len (v, iLen, iType, Ret, Node)
 #if PARALLEL
     call GetComm(Comm,Node,rt)
     call MPI_REDUCE (v, Ret, &
-    iLen, %(mpitype)s, iType, rt, &
-                     Comm, ierr)
+    int(iLen,MPIArg), %(mpitype)s, iType, int(rt,MPIArg), &
+                     int(Comm,MPIArg), ierr)
     if (ierr .ne. MPI_SUCCESS) then
         call Stop_All("MPIReduce", 'Error in MPI_REDUCE. Terminating.')
     end if
@@ -241,8 +249,8 @@ subroutine MPIReduce_auto (v, iType, Ret, Node)
     call GetComm(Comm,Node,rt)
     call MPI_REDUCE (v, Ret, &
 %(mpilen)s, &
-    %(mpitype)s, iType, rt, &
-                     Comm, ierr)
+    %(mpitype)s, iType, int(rt,MPIArg), &
+                     int(Comm,MPIArg), ierr)
     if (ierr .ne. MPI_SUCCESS) then
         call Stop_All("MPIReduce", 'Error in MPI_REDUCE. Terminating.')
     end if
@@ -269,12 +277,12 @@ subroutine MPIReduce_inplace (v, iType, Node)
         call MPI_REDUCE (MPI_IN_PLACE, v, &
 %(mpilen)s, &
         %(mpitype)s, &
-        iType, rt, Comm, ierr)
+        iType, int(rt,MPIArg), int(Comm,MPIArg), ierr)
     else
         call MPI_REDUCE (v, MPI_IN_PLACE, &
 %(mpilen)s, &
         %(mpitype)s, &
-        iType, rt, Comm, ierr)
+        iType, int(rt,MPIArg), int(Comm,MPIArg), ierr)
     endif
     if (ierr /= MPI_SUCCESS) &
         call stop_all('MPIReduce_inplace', 'Error in MPI_REDUCE')
@@ -330,7 +338,7 @@ subroutine MPIAllReduce_auto (v, iType, Ret, Node)
     call MPI_ALLREDUCE (v, Ret, &
 %(mpilen)s,&
     %(mpitype)s, iType, &
-    Comm, ierr)
+    int(Comm,MPIArg), ierr)
     if (ierr /= MPI_SUCCESS) then
         call stop_all ("MPIAllReduce", 'Error in MPI_ALLREDUCE. Terminating.')
     endif
@@ -354,7 +362,7 @@ subroutine MPIAllReduce_inplace (v, iType, Node)
     call MPI_ALLREDUCE (MPI_IN_PLACE, v, &
 %(mpilen)s,&
     %(mpitype)s, iType,&
-    Comm, ierr)
+    int(Comm,MPIArg), ierr)
     if (ierr /= MPI_SUCCESS) then
         call stop_all ("MPIAllReduce", 'Error in MPI_ALLREDUCE. Terminating.')
     endif
@@ -383,7 +391,7 @@ Subroutine MPIAllReduceDatatype(v, iLen, iType, iDatatype, Ret, Node)
 #if PARALLEL
    call GetComm(Comm,Node)
 !   write(6,*) "AllReduceDatatype %(type1)s",iLen,iType
-   call MPI_ALLREDUCE(v,Ret,iLen,iDatatype,iType,Comm,ierr)
+   call MPI_ALLREDUCE(v,Ret,int(iLen,MPIArg),iDatatype,iType,int(Comm,MPIArg),ierr)
    if (ierr .ne. MPI_SUCCESS) then
       call Stop_All("MPIAllReduceDatatype",'Error in MPIAllReduce. Terminating.')
    end if
@@ -495,12 +503,19 @@ subroutine MPIBCast_lenroot (v, iLen, rt)
     use ParallelHelper, only: CommGlobal
     %(type1)s, intent(inout) :: v()
     integer, intent(in) :: iLen,rt
-    integer(MPIArg) :: error
+    integer(MPIArg) :: error,error2,length
 #if PARALLEL
-    call MPI_BCAST (v, iLen, &
-    %(mpitype)s, rt, CommGlobal, error)
+    character(len=MPI_MAX_ERROR_STRING) :: message
+    call MPI_BCAST (v, int(iLen,MPIArg), &
+    %(mpitype)s, int(rt,MPIArg), int(CommGlobal,MPIArg), error)
     if (error /= MPI_SUCCESS) then
-        call stop_all("MPIBCast", 'Error in MPI_BCAST. Terminating.')
+        write(6,*) error,MPI_SUCCESS
+        CALL MPI_Error_string(error,message,length,error2)
+        IF(error2.ne.MPI_SUCCESS) THEN
+            WRITE(6,*) "REALLY SERIOUS PROBLEMS HERE!",error2
+        ENDIF
+        WRITE(6,*) message(1:length)
+        call stop_all("MPIBCast_lenroot", 'Error in MPI_BCAST. Terminating.')
     endif
 #endif
 end subroutine
@@ -520,10 +535,10 @@ subroutine MPIBCast_len (v, iLen, Node)
     integer Comm,rt
 #if PARALLEL
     call GetComm(Comm,Node,rt)
-    call MPI_BCAST (v, iLen, &
-    %(mpitype)s, rt, Comm, error)
+    call MPI_BCAST (v, int(iLen,MPIArg), &
+    %(mpitype)s, int(rt,MPIArg), int(Comm,MPIArg), error)
     if (error /= MPI_SUCCESS) then
-        call stop_all("MPIBCast", 'Error in MPI_BCAST. Terminating.')
+        call stop_all("MPIBCast_len", 'Error in MPI_BCAST. Terminating.')
     endif
 #endif
 end subroutine
@@ -540,16 +555,15 @@ subroutine MPIBCast_auto (v, Node)
     integer(MPIArg) :: error
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
-
 #if PARALLEL
     call GetComm(Comm,Node,rt)
     call MPI_BCAST (v, &
 %(mpilen)s,&
-    %(mpitype)s, rt, Comm, &
+    %(mpitype)s, int(rt,MPIArg), int(Comm,MPIArg), &
     error)
     if (error /= MPI_SUCCESS) then
         call MPIErr(error)
-        call stop_all("MPIBCast", 'Error in MPI_BCAST. Terminating.')
+        call stop_all("MPIBCast_auto", 'Error in MPI_BCAST. Terminating.')
     endif
 #endif
 end subroutine
@@ -569,13 +583,13 @@ subroutine MPIBCast_logic (v, tMe, Node)
     integer Comm,rt,nrt
 #if PARALLEL
     call GetComm(Comm,Node,rt,tMe)
-    call MPI_AllReduce(rt,nrt,1,MPI_INTEGER, MPI_MAX,Comm,error)  !Work out which processor is the root
+    call MPI_AllReduce(int(rt,MPIArg),int(nrt,MPIArg),1,MPI_INTEGER, MPI_MAX,int(Comm,MPIArg),error)  !Work out which processor is the root
     call MPI_BCAST (v, &
 %(mpilen)s,&
-    %(mpitype)s, nrt, Comm, &
+    %(mpitype)s, int(nrt,MPIArg), int(Comm,MPIArg), &
     error)
     if (error /= MPI_SUCCESS) then
-        call stop_all("MPIBCast", 'Error in MPI_BCAST. Terminating.')
+        call stop_all("MPIBCast_logic", 'Error in MPI_BCAST. Terminating.')
     endif
 #endif
 end subroutine
@@ -590,8 +604,8 @@ Subroutine MPIAlltoAll(SendBuf,SendSize,RecvBuf,RecvSize,ierr, Node)
     integer Comm
 #if PARALLEL
     call GetComm(Comm,Node)
-    CALL MPI_AlltoAll(SendBuf,SendSize,%(mpitype)s,&
-    RecvBuf,RecvSize,%(mpitype)s,Comm,error)
+    CALL MPI_AlltoAll(SendBuf,int(SendSize,MPIArg),%(mpitype)s,&
+    RecvBuf,int(RecvSize,MPIArg),%(mpitype)s,int(Comm,MPIArg),error)
     ierr=error
 #else
     RecvBuf=SendBuf
@@ -631,8 +645,8 @@ Subroutine MPIAllGather_len(SendBuf,SendSize,RecvBuf,RecvSize,ierr,Node)
     integer Comm,rt
 #if PARALLEL
     call GetComm(Comm,Node)
-    CALL MPI_AllGather(SendBuf,SendSize,%(mpitype)s,RecvBuf,&
-    RecvSize,%(mpitype)s,Comm,error)
+    CALL MPI_AllGather(SendBuf,int(SendSize,MPIArg),%(mpitype)s,RecvBuf,&
+    int(RecvSize,MPIArg),%(mpitype)s,int(Comm,MPIArg),error)
     ierr=error
 #else
     RecvBuf(1)=SendBuf
@@ -655,7 +669,7 @@ Subroutine MPIAllGather_auto(v,v2,ierr,Node)
 %(mpilen)s,&
       %(mpitype)s,v2,&
 %(mpilen2)s,&
-      %(mpitype)s,Comm,error)
+      %(mpitype)s,int(Comm,MPIArg),error)
       ierr=error
 #else
     v2(1)=v
@@ -673,8 +687,8 @@ Subroutine MPIGather_len(SendBuf,SendSize,RecvBuf,RecvSize,ierr,Node)
     integer Comm,rt
 #if PARALLEL
     call GetComm(Comm,Node,rt)
-    CALL MPI_Gather(SendBuf,SendSize,%(mpitype)s,&
-    RecvBuf,RecvSize,%(mpitype)s,rt,Comm,error)
+    CALL MPI_Gather(SendBuf,int(SendSize,MPIArg),%(mpitype)s,&
+    RecvBuf,int(RecvSize,MPIArg),%(mpitype)s,int(rt,MPIArg),int(Comm,MPIArg),error)
     ierr=error
 #else
     RecvBuf(1)=SendBuf
@@ -697,7 +711,7 @@ Subroutine MPIGather_auto(v,v2,ierr,Node)
 %(mpilen)s,&
       %(mpitype)s,v2, &
 %(mpilen2)s,&
-      %(mpitype)s,rt,COMM,error)
+      %(mpitype)s,int(rt,MPIArg),int(COMM,MPIArg),error)
       ierr=error
 #else
     v2(1)=v
@@ -718,8 +732,8 @@ Subroutine MPIGatherV_len(SendBuf,SendSize,RecvBuf,Lengths,Disps,ierr,Node)
     integer Comm,rt
 #if PARALLEL
     call GetComm(Comm,Node,rt)
-    CALL MPI_GatherV(SendBuf,SendSize,%(mpitype)s,&
-    RecvBuf,Lengths,Disps,%(mpitype)s,rt,COMM,error)
+    CALL MPI_GatherV(SendBuf,int(SendSize,MPIArg),%(mpitype)s,&
+    RecvBuf,int(Lengths,MPIArg),int(Disps,MPIArg),%(mpitype)s,int(rt,MPIArg),int(COMM,MPIArg),error)
     ierr=error
 #else
     RecvBuf(1)=SendBuf()
@@ -738,8 +752,8 @@ Subroutine MPIGatherV_len2(SendBuf,SendSize,RecvBuf,Lengths,Disps,ierr,Node)
     integer Comm,rt
 #if PARALLEL
     call GetComm(Comm,Node,rt)
-    CALL MPI_GatherV(SendBuf,SendSize,%(mpitype)s,&
-    RecvBuf,Lengths,Disps,%(mpitype)s,rt,COMM,error)
+    CALL MPI_GatherV(SendBuf,int(SendSize,MPIArg),%(mpitype)s,&
+    RecvBuf,int(Lengths,MPIArg),int(Disps,MPIArg),%(mpitype)s,int(rt,MPIArg),int(COMM,MPIArg),error)
     ierr=error
 #else
 !    write(6,*) lbound(RecvBuf),ubound(RecvBuf),lbound(SendBuf),ubound(SendBuf)
@@ -763,8 +777,8 @@ Subroutine MPIGatherV_auto(v,v2,Lengths,Disps,ierr,Node)
     call GetComm(Comm,Node,rt)
     CALL MPI_GatherV(v,&
 %(mpilen)s,&
-      %(mpitype)s,v2,Lengths,&
-      Disps,%(mpitype)s,rt,COMM,error)
+      %(mpitype)s,v2,int(Lengths,MPIArg),&
+      int(Disps,MPIArg),%(mpitype)s,int(rt,MPIArg),int(COMM,MPIArg),error)
       ierr=error
 #else
     v2(1)=v
@@ -787,8 +801,8 @@ Subroutine MPIGatherV_auto2(v,v2,Lengths,Disps,ierr,Node)
     call GetComm(Comm,Node,rt)
     CALL MPI_GatherV(v,&
 %(mpilen)s,&
-      %(mpitype)s,v2,Lengths,&
-      Disps,%(mpitype)s,rt,COMM,error)
+      %(mpitype)s,v2,int(Lengths,MPIArg),&
+      int(Disps,MPIArg),%(mpitype)s,int(rt,MPIArg),int(COMM,MPIArg),error)
       ierr=error
 #else
     v2(Disps(1):Disps(1)+Lengths(1))=v(:)
@@ -808,8 +822,8 @@ Subroutine MPIScatterV_len(SendBuf,SendSizes,Disps,RecvBuf,Length,ierr,Node)
 #if PARALLEL
     call GetComm(Comm,Node,rt)
 !    write(6,*) "AllToAll %(type1)s",SendSize,RecvSize
-    CALL MPI_ScatterV(SendBuf,SendSizes,Disps,%(mpitype)s,&
-    RecvBuf,Length,%(mpitype)s,rt,COMM,error)
+    CALL MPI_ScatterV(SendBuf,int(SendSizes,MPIArg),int(Disps,MPIArg),%(mpitype)s,&
+    RecvBuf,int(Length,MPIArg),%(mpitype)s,int(rt,MPIArg),int(COMM,MPIArg),error)
     ierr=error
 #else
     RecvBuf(1)=SendBuf()
@@ -830,8 +844,8 @@ Subroutine MPIScatterV_len2(SendBuf,SendSizes,Disps,RecvBuf,Length,ierr,Node)
 #if PARALLEL
     call GetComm(Comm,Node,rt)
 !    write(6,*) "AllToAll %(type1)s",SendSize,RecvSize
-    CALL MPI_ScatterV(SendBuf,SendSizes,Disps,%(mpitype)s,&
-    RecvBuf,Length,%(mpitype)s,rt,COMM,error)
+    CALL MPI_ScatterV(SendBuf,int(SendSizes,MPIArg),int(Disps,MPIArg),%(mpitype)s,&
+    RecvBuf,int(Length,MPIArg),%(mpitype)s,int(rt,MPIArg),int(COMM,MPIArg),error)
     ierr=error
 #else
 !    write(6,*) lbound(RecvBuf),ubound(RecvBuf),lbound(SendBuf),ubound(SendBuf)
@@ -851,7 +865,8 @@ Subroutine MPIScatter_len(SendBuf,SendSize,RecvBuf,RecvSize,ierr,Node)
     integer Comm,rt
 #if PARALLEL
     call GetComm(Comm,Node,rt)
-    CALL MPI_Scatter(SendBuf,SendSize,%(mpitype)s,RecvBuf,RecvSize,%(mpitype)s,rt,COMM,error)
+    CALL MPI_Scatter(SendBuf,int(SendSize,MPIArg),%(mpitype)s,RecvBuf, &
+       int(RecvSize,MPIArg),%(mpitype)s,int(rt,MPIArg),int(COMM,MPIArg),error)
     ierr=error
 #else
     RecvBuf=SendBuf(1)
@@ -874,7 +889,7 @@ Subroutine MPIScatter_auto(v,v2,ierr,Node)
 %(mpilen2)s,&
     %(mpitype)s,v2,&
 %(mpilen2)s,&
-    %(mpitype)s,rt,COMM,error)
+    %(mpitype)s,int(rt,MPIArg),int(COMM,MPIArg),error)
     ierr=error
 #else
     v2=v(1)
@@ -888,8 +903,8 @@ subroutine MPIRecv(Buffer,BuffSize,Source,Tag,ierr)
     INTEGER(MPIArg) :: error
     %(type1)s, intent(out) :: Buffer(:)
 #ifdef PARALLEL
-    INTEGER :: Stat(MPI_STATUS_SIZE)
-    CALL MPI_Recv(Buffer,BuffSize,%(mpitype)s,Source,Tag,MPI_COMM_WORLD,Stat,error)
+    INTEGER(MPIArg) :: Stat(MPI_STATUS_SIZE)
+    CALL MPI_Recv(Buffer,int(BuffSize,MPIArg),%(mpitype)s,int(Source,MPIArg),int(Tag,MPIArg),MPI_COMM_WORLD,Stat,error)
     ierr=error
 #else
     ierr=0
@@ -903,7 +918,7 @@ subroutine MPISend(Buffer,BuffSize,Dest,Tag,ierr)
     INTEGER(MPIArg) :: error
     %(type1)s, intent(in) :: Buffer(:)
 #ifdef PARALLEL
-    CALL MPI_Send(Buffer,BuffSize,%(mpitype)s,Dest,Tag,MPI_COMM_WORLD,error)
+    CALL MPI_Send(Buffer,int(BuffSize,MPIArg),%(mpitype)s,int(Dest,MPIArg),int(Tag,MPIArg),MPI_COMM_WORLD,error)
     ierr=error
 #else
     ierr=0
