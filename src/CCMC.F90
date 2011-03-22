@@ -2257,7 +2257,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    !ghb24: Changes to allow compatibility with the new packaged walkers.
    INTEGER, DIMENSION(lenof_sign) :: TempSign
    TYPE(timer) :: CCMC_time,SpawnTime,DieTime,CCMCComms1_time,CCMCWait_time,CCMCComms2_time
-   TYPE(timer) :: Etime
+   TYPE(timer) :: Etime,CCMCrehouse
    INTEGER :: iOffsets(nProcessors)  !Used to store spawning data for annihilation
    INTEGER :: iLengths(nProcessors)  !Used to store spawning data for annihilation
    INTEGER :: iOffset(1)
@@ -2276,6 +2276,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    CCMCComms1_time%timer_name='CCMC Comms1'
    CCMCComms2_time%timer_name='CCMC Comms2'
    CCMCWait_time%timer_name='CCMC Wait'
+   CCMCrehouse%timer_name='CCMC Rehouse'
 
 !   Spawntime%timer_name='SpawnTime'
 !   Dietime%timer_name='DieTime'
@@ -2564,9 +2565,11 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       IFDEBUG(iDebug,3) call WriteExcitorListP2(6,SpawnList,InitialSpawnedSlots,ValidSpawnedList, dAmpPrintTol,"Spawned list")
       call MPIBarrier(ierr,Node) !Make sure everyone on our node has finished using the list
       if(nNodes>1) then
+         call set_timer(CCMCrehouse,20)
          call ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
          call MPIBCast(nAmpl,Node)
          IFDEBUG(iDebug,3) call WriteExcitorListP(6,DetList,0,nAmpl,dAmpPrintTol,"Remaining excitor list")
+         call halt_timer(CCMCrehouse)
       endif
 
       call set_timer(CCMCComms2_time,20)
@@ -2631,10 +2634,6 @@ subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
       integer i,p,iNext
       if(.not.bNodeRoot) return
       iNext=0
-      IFDEBUG(iDebug,3) THEN
-         write(6,*) "Before ReHouse",nAmpl
-         write(6,*) ValidSpawnedList
-      ENDIF
       do i=1,nAmpl
          call decode_bit_det(nI,DetList(:,i))
          p=DetermineDetNode(nI,0)  !NB This doesn't have an offset of 1, because actually we're working out what happens for the same cycle that the create_particle is spawning to.
@@ -2650,10 +2649,6 @@ subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
          endif
       enddo 
       nAmpl=iNext
-      IFDEBUG(iDebug,3) THEN
-         write(6,*) "After ReHouse",nAmpl
-         write(6,*) ValidSpawnedList
-      ENDIF
 end subroutine
 
 SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
