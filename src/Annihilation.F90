@@ -1033,7 +1033,7 @@ MODULE AnnihilationMod
         acc = 0
         do i = 1, nel
             acc = (1099511628211_int64 * acc) + &
-                    (RandomHash(mod(iand(nI(i), csf_orbital_mask)+offset-1,nBasis)+1) * i)
+                    (RandomHash(mod(iand(nI(i), csf_orbital_mask)+offset-1,int(nBasis,int64))+1) * i)
         enddo
         node = abs(mod(acc, int(nNodes, 8)))
 
