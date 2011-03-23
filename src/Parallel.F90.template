@@ -4,6 +4,7 @@
 [int]
 type1=integer(int32)
 mpitype=MPI_INTEGER
+mpiprt="None"
 mpilen=1
 mpilen2=1
 ndim=0
@@ -31,6 +32,7 @@ mpitype=MPI_DOUBLE_COMPLEX
 [arr_int]
 type1=integer(int32), dimension(:)
 mpitype=MPI_INTEGER
+mpiprt=ubound(values,1),lbound(values,1)
 mpilen=(ubound(values,1)-lbound(values,1)+1)
 mpilen2=(ubound(values2,1)-lbound(values2,1)+1)
 ndim=1
@@ -57,6 +59,7 @@ mpitype=MPI_LOGICAL
 [arr2_int]
 type1=integer(int32), dimension(:,:)
 mpitype=MPI_INTEGER
+mpiprt=ubound(values,1),lbound(values,1),ubound(values,2),lbound(values,2)
 mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1))
 mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1))
 ndim=2
@@ -83,6 +86,7 @@ mpitype=MPI_LOGICAL
 [arr3_int]
 type1=integer(int32), dimension(:,:,:)
 mpitype=MPI_INTEGER
+mpiprt=ubound(values,1),lbound(values,1),ubound(values,2),lbound(values,2),ubound(values,3),lbound(values,3)
 mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1)*(ubound(values,3)-lbound(values,3)+1))
 mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1)*(ubound(values2,3)-lbound(values2,3)+1))
 ndim=3
@@ -101,6 +105,7 @@ mpitype=MPI_DOUBLE_COMPLEX
 [arr4_int]
 type1=integer(int32), dimension(:,:,:,:)
 mpitype=MPI_INTEGER
+mpiprt=ubound(values,1),lbound(values,1),ubound(values,2),lbound(values,2),ubound(values,3),lbound(values,3),ubound(values,4),lbound(values,4)
 mpilen=((ubound(values,1)-lbound(values,1)+1)*(ubound(values,2)-lbound(values,2)+1)*(ubound(values,3)-lbound(values,3)+1)*(ubound(values,4)-lbound(values,4)+1))
 mpilen2=((ubound(values2,1)-lbound(values2,1)+1)*(ubound(values2,2)-lbound(values2,2)+1)*(ubound(values2,3)-lbound(values2,3)+1)*(ubound(values2,4)-lbound(values2,4)+1))
 ndim=4
@@ -666,8 +671,10 @@ Subroutine MPIGatherV_len(SendBuf,SendSize,RecvBuf,Lengths,Disps,ierr,Node)
     %(type1)s,intent(inout) :: RecvBuf(:)
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
+    stop "MPIGatherV_len is probably broken.  MPIGatherV_auto2 does work.  AJWT."
 #if PARALLEL
     call GetComm(Comm,Node,rt)
+    write(6,*) "Sending len ",SendSize
     CALL MPI_GatherV(SendBuf,SendSize,%(mpitype)s,RecvBuf,Lengths,Disps,%(mpitype)s,rt,COMM,ierr)
 #else
     RecvBuf(1)=SendBuf()
@@ -683,8 +690,10 @@ Subroutine MPIGatherV_len2(SendBuf,SendSize,RecvBuf,Lengths,Disps,ierr,Node)
     %(type1)s,intent(inout) :: RecvBuf(:)
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
+    stop "MPIGatherV_len2 is probably broken.  MPIGatherV_auto2 does work.  AJWT."
 #if PARALLEL
     call GetComm(Comm,Node,rt)
+    write(6,*) "Sending len2 ",SendSize
     CALL MPI_GatherV(SendBuf,SendSize,%(mpitype)s,RecvBuf,Lengths,Disps,%(mpitype)s,rt,COMM,ierr)
 #else
 !    write(6,*) lbound(RecvBuf),ubound(RecvBuf),lbound(SendBuf),ubound(SendBuf)
@@ -702,8 +711,11 @@ Subroutine MPIGatherV_auto(Values,Values2,Lengths,Disps,ierr,Node)
     %(type1)s,intent(inout) :: Values2(:)
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
+    stop "MPIGatherV_auto is probably broken.  MPIGatherV_auto2 does work.  AJWT."
 #if PARALLEL
     call GetComm(Comm,Node,rt)
+!    write(6,*) "Sending auto ",%(mpilen)s
+!   write (6,*) %(mpiprt)s
     CALL MPI_GatherV(Values,%(mpilen)s,&
       %(mpitype)s,Values2,Lengths,&
       Disps,%(mpitype)s,rt,COMM,ierr)
@@ -719,15 +731,25 @@ end subroutine
 Subroutine MPIGatherV_auto2(Values,Values2,Lengths,Disps,ierr,Node)
     INTEGER, intent(out) :: ierr
     INTEGER, intent(in) :: Disps(:),Lengths(:)
+    integer DispsN(ubound(Disps,1)-lbound(Disps,1)+1)  !This will have the displacements multiplied up by the other array dims
+    integer LengthsN(ubound(Lengths,1)-lbound(Lengths,1)+1)  !This will have the displacements multiplied up by the other array dims
     %(type1)s,intent(in) :: Values(:)
     %(type1)s,intent(inout) :: Values2(:)
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
 #if PARALLEL
+    DispsN=Disps*%(mpilen)s
+    LengthsN=Lengths*%(mpilen)s
+!    write(6,*) "Sending auto2 ",%(mpilen)s*&
+!      (ubound(values,%(ndim)s+1)-lbound(values,%(ndim)s+1)+1)
+!    write(6,*) "Lengths", LengthsN
+!    write(6,*) "Disps", DispsN
+!   write (6,*) %(mpiprt)s,ubound(values,%(ndim)s+1),lbound(values,%(ndim)s+1)
     call GetComm(Comm,Node,rt)
-    CALL MPI_GatherV(Values,%(mpilen)s,&
-      %(mpitype)s,Values2,Lengths,&
-      Disps,%(mpitype)s,rt,COMM,ierr)
+    CALL MPI_GatherV(Values,%(mpilen)s*&
+      (ubound(values,%(ndim)s+1)-lbound(values,%(ndim)s+1)+1),&
+      %(mpitype)s,Values2,LengthsN,&
+      DispsN,%(mpitype)s,rt,COMM,ierr)
 #else
     Values2(Disps(1):Disps(1)+Lengths(1))=Values(:)
     ierr=0
