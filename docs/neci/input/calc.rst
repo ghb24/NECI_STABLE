@@ -1163,6 +1163,11 @@ The following option are only available in **MCSTAR** calculations:
 
    For CCMC, this is the number of spawnings attempted from each cluster (unless **EXACTSPAWN** is specified).  Default 1
 
+**HASH_SHIFT** hash_shift
+   The log to base 2 of the number of iterations an excitor spends on a single node.  Larger gives more efficiency in parallelization, but
+   at the cost of potentially higher variance.
+
+   Default 0
 **NCLUSTSELECTIONS** nClustSelections
 
    For CCMC, this is the number of cluster selections attempted.
