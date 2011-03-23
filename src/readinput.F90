@@ -174,7 +174,7 @@ MODULE ReadInput
         use DetCalc, only: tEnergy, tCalcHMat, tFindDets, tCompressDets
         USE input
         use global_utilities
-        use spin_project, only: tSpinProject
+        use spin_project, only: tSpinProject, spin_proj_nopen_max
 
         implicit none
 
@@ -346,6 +346,10 @@ MODULE ReadInput
                 call stop_all (t_r, "SPIN-RESTRICT must be used with SPIN-&
                                     &PROJECT to set the value of S, Ms")
             
+            ! Unless specified, apply spin projection to ALL determinants.
+            if (spin_proj_nopen_max == -1) &
+                spin_proj_nopen_max = nel
+
             ! Set the value of STOT as required
             STOT = LMS
         endif

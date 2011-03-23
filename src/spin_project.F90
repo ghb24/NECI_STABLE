@@ -21,6 +21,7 @@ module spin_project
     logical :: spin_proj_spawn_initiators, spin_proj_no_death
     logical :: disable_spin_proj_varyshift
     integer :: spin_proj_interval, spin_proj_cutoff, spin_proj_iter_count
+    integer :: spin_proj_nopen_max
     real(dp) :: spin_proj_gamma
     real(dp), target :: spin_proj_shift
 
@@ -52,10 +53,10 @@ contains
 
         ! Allocate the storage super-object.
         ! TODO: This could be a shared memory object with jiggling of bounds.
-        allocate(y_storage(LMS:nel))
+        allocate(y_storage(LMS:spin_proj_nopen_max))
 
         ! Loop over all (allowed) numbers of unpaired electrons
-        do nopen = LMS, nel, 2
+        do nopen = LMS, spin_proj_nopen_max, 2
 
             ! Obtain all of the csfs
             ncsf = get_num_csfs (nopen, STOT)
@@ -460,7 +461,7 @@ contains
         fcimc_excit_gen_store%nopen = nopen
 
         ! If we know that there are no possible excitations to be made
-        if (nopen == STOT) then
+        if (nopen == STOT .or. nopen > spin_proj_nopen_max) then
             nJ(1) = 0
             return
         endif
@@ -539,7 +540,8 @@ contains
             return
         endif
 
-        if (fcimc_excit_gen_store%nopen == STOT) then
+        if (fcimc_excit_gen_store%nopen == STOT .or. &
+            fcimc_excit_gen_store%nopen > spin_proj_nopen_max) then
             ndie = 0
             return
         endif

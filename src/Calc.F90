@@ -7,7 +7,8 @@ MODULE Calc
                             spin_proj_gamma, spin_proj_shift, &
                             spin_proj_cutoff, spin_proj_stochastic_yama, &
                             spin_proj_spawn_initiators, spin_proj_no_death, &
-                            spin_proj_iter_count, disable_spin_proj_varyshift
+                            spin_proj_iter_count, spin_proj_nopen_max, &
+                            disable_spin_proj_varyshift
     use default_sets
     use Determinants, only: iActiveBasis, SpecDet, tSpecDet, nActiveSpace, &
                             tDefineDet
@@ -231,6 +232,7 @@ contains
           spin_proj_shift = 0
           spin_proj_cutoff = 0
           spin_proj_iter_count = 1
+          spin_proj_nopen_max = -1
           disable_spin_proj_varyshift = .false.
           tUseProcsAsNodes=.false.
 
@@ -1274,6 +1276,14 @@ contains
                 ! Only project via one Yamanouchi symbol on each iteration, 
                 ! selecting that symbol stochastically.
                 spin_proj_stochastic_yama = .true.
+
+            case("SPIN-PROJECT-NOPEN-LIMIT")
+                ! Determine the largest number of unpaired electrons a
+                ! determinant may have for us to apply spin projectino to it.
+                !
+                ! --> Attempt to reduce the exponential scaling of the
+                !     projection sum.
+                call geti (spin_proj_nopen_max)
 
             case("SPIN-PROJECT-SPAWN-INITIATORS")
                 ! If TRUNCINITIATOR is set, then ensure that all children of
