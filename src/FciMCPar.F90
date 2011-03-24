@@ -5819,7 +5819,7 @@ MODULE FciMCParMod
         integer :: Ki(3),Kj(3),Ka(3),LowLoop,HighLoop,X,i,Elec1Ind,Elec2Ind,K,Orbi,Orbj
         integer :: iSpn,FirstA,nJ(NEl),a,Ex(2,2),kx,ky,kz,OrbB,FirstB
         logical :: tParity,tMom
-        real*8 :: Ranger,mp2,mp2all,length,length_g
+        real*8 :: Ranger,mp2,mp2all,length,length_g,length_g_2
         HElement_t :: hel,H0tmp
 
         !Divvy up the ij pairs
@@ -5897,7 +5897,8 @@ MODULE FciMCParMod
                     if(abs(kz).gt.NMAXZ) cycle
                     if(tGCutoff) then
                         length_g=real((kx-kj(1))**2+(ky-kj(2))**2+(kz-kj(3))**2)
-                        if(length_g.gt.gCutoff) cycle
+                        length_g_2=real((kx-ki(1))**2+(ky-ki(2))**2+(kz-ki(3))**2)
+                        if(length_g.gt.gCutoff.and.length_g_2.gt.gCutoff) cycle
                     endif
                     length=real((kx**2)+(ky**2)+(kz**2))
                     if(length.gt.OrbECutoff) cycle
@@ -5946,7 +5947,8 @@ MODULE FciMCParMod
                     if(abs(kz).gt.NMAXZ) cycle
                     if(tGCutoff) then
                         length_g=real((kx-kj(1))**2+(ky-kj(2))**2+(kz-kj(3))**2)
-                        if(length_g.gt.gCutoff) cycle
+                        length_g_2=real((kx-ki(1))**2+(ky-ki(2))**2+(kz-ki(3))**2)
+                        if(length_g.gt.gCutoff.and.length_g_2.gt.gCutoff) cycle
                     endif
                     length=real((kx**2)+(ky**2)+(kz**2))
                     if(length.gt.OrbECutoff) cycle
