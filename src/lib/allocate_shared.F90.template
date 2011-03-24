@@ -1,6 +1,6 @@
 [int1]
 type = integer(int32)
-sizeof = sizeof_int
+sizeof = sizeof_int32
 dim = :
 elem1 = 
 alloc_str = dims(1)
