@@ -818,16 +818,19 @@ Subroutine MPIGatherV_auto2(v,v2,Lengths,Disps,ierr,Node)
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
 #if PARALLEL
-    DispsN=Disps*%(mpilen)s
-    LengthsN=Lengths*%(mpilen)s
+    DispsN=Disps&
+ *%(mpilen)s
+    LengthsN=Lengths&
+ *%(mpilen)s
 !    write(6,*) "Sending auto2 ",%(mpilen)s*&
 !      (ubound(values,%(ndim)s+1)-lbound(values,%(ndim)s+1)+1)
 !    write(6,*) "Lengths", LengthsN
 !    write(6,*) "Disps", DispsN
 !   write (6,*) %(mpiprt)s,ubound(values,%(ndim)s+1),lbound(values,%(ndim)s+1)
     call GetComm(Comm,Node,rt)
-    CALL MPI_GatherV(V,%(mpilen)s*&
-      (ubound(v,%(ndim)s+1)-lbound(v,%(ndim)s+1)+1),&
+    CALL MPI_GatherV(V,&
+ %(mpilen)s&
+      *(ubound(v,%(ndim)s+1)-lbound(v,%(ndim)s+1)+1),&
       %(mpitype)s,V2,LengthsN,&
       DispsN,%(mpitype)s,rt,COMM,ierr)
 #else
