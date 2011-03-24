@@ -2592,7 +2592,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       call MPIBCast(nAmpl,Node)
       call halt_timer(CCMCComms2_time)
       call MPIBarrier(ierr)
-      IFDEBUG(iDebug,3.and.bNodeRoot.or.tSharedExcitors) THEN
+      IFDEBUG(iDebug,3.and.(bNodeRoot.or.tSharedExcitors)) THEN
          call WriteExcitorListP(6,DetList,0,nAmpl,dAmpPrintTol,"After Annihilation")
       endif
       call MPIBarrier(ierr)
