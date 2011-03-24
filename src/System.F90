@@ -97,6 +97,8 @@ MODULE System
       tOrbECutoff=.false.
       gCutoff=1e20 ! This shouldn't be used
       tgCutoff=.false.
+      tMadelung=.false.
+      Madelung=0.D0
       tMP2UEGRestrict=.false.
       tStoreAsExcitations=.false.
       TBIN=.false.
@@ -379,6 +381,9 @@ MODULE System
         case("G-CUTOFF")
           tgCutoff=.true.
           call getf(gCutoff)
+        case("MADELUNG")
+          tMadelung=.true.
+          call getf(Madelung)
         case("STORE-AS-EXCITATIONS")
            tStoreAsExcitations=.true.  
         case("MP2-UEG-RESTRICT")

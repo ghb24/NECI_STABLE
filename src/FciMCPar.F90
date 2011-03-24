@@ -5761,7 +5761,8 @@ MODULE FciMCParMod
     subroutine CalcUEGMP2()
         use SymExcitDataMod, only: kPointToBasisFn
         use SystemData, only: ElecPairs,NMAXX,NMAXY,NMAXZ,OrbECutOff,tGCutoff,GCutoff, &
-                                tMP2UEGRestrict,kiRestrict,kiMsRestrict,kjRestrict,kjMsRestrict
+                                tMP2UEGRestrict,kiRestrict,kiMsRestrict,kjRestrict,kjMsRestrict, &
+                                Madelung,tMadelung
         use GenRandSymExcitNUMod, only: FindNewDet
         use Determinants, only: GetH0Element4
         integer :: Ki(3),Kj(3),Ka(3),LowLoop,HighLoop,X,i,Elec1Ind,Elec2Ind,K,Orbi,Orbj
@@ -5872,6 +5873,9 @@ MODULE FciMCParMod
 
                     H0tmp=getH0Element4(nJ,HFDet)
                     H0tmp=Fii-H0tmp
+                    if(tMadelung) then
+                        H0tmp=H0tmp+Madelung
+                    endif
                     mp2=mp2+(hel**2)/H0tmp
 !                    write(6,*) (hel**2),H0tmp
                 enddo
@@ -5921,6 +5925,9 @@ MODULE FciMCParMod
                     hel=get_helement_excit(HFDet,nJ,2,Ex,tParity)
                     H0tmp=getH0Element4(nJ,HFDet)
                     H0tmp=Fii-H0tmp
+                    if(tMadelung) then
+                        H0tmp=H0tmp+Madelung
+                    endif
                     mp2=mp2+(hel**2)/H0tmp
 !                    write(6,*) (hel**2),H0tmp
                 enddo
