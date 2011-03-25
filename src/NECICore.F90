@@ -176,7 +176,7 @@ subroutine NECICodeEnd(tCPMD,tVASP)
     call MPIEnd(tCPMD.or.tVASP) ! CPMD and VASP have their own MPI initialisation and termination routines.
 #endif
 
-    CALL N_MEMORY_CHECK
+!    CALL N_MEMORY_CHECK
 
     if (.not.tCPMD) call LeaveMemoryManager()
     call end_timing()

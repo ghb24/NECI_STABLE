@@ -33,7 +33,6 @@ module mcpathshdiag
          Use Determinants, only: get_helement
          use constants, only: dp 
          USE Logging , only : G_VMC_LOGCOUNT
-         USE PrecalcData , only : TPREVAR,PREWEIGHTEPS
          use CalcData , only : TVARCALC,TMPTHEORY,TMODMPTHEORY
          use CalcData , only : lNoTriples,GraphEpsilon
          use SystemData, only: BasisFN
@@ -65,7 +64,7 @@ module mcpathshdiag
          INTEGER ICLS
          INTEGER,pointer :: NMEM(:)
 
-         INTEGER NMEMLEN
+         INTEGER, target :: NMEMLEN(1)
          INTEGER, pointer :: OGEN(:)
          INTEGER, pointer :: CURGEN(:)
          TYPE(EGP) LOCTAB(:)
@@ -118,7 +117,7 @@ module mcpathshdiag
 !C            DO I=0,NBASIS
 !C               WRITE(10,"(I2)",advance='no'),IFRZ2(I)
 !C            ENDDO
-!C         WRITE(10,*) "V_",I_VIND
+!         WRITE(6,*) "V_",I_VIND
 !C.. LOCTAB(1)%p is the address of the generator used to create node 1 in
 !C.. the path (i.e. J).  LOCTAB(1)%l is the length of the generator (i.e. 
 !C.. the amount of memory used to store it)
@@ -191,7 +190,7 @@ module mcpathshdiag
 !            ENDIF
             
             
-            IF (TVARCALC(I_V).or.TPREVAR) THEN             
+            IF (TVARCALC(I_V)) THEN             
               J=0
               IF(tLog5) J=10
               
@@ -208,59 +207,7 @@ module mcpathshdiag
               ELSE
               !Variance given by ((w*E)**2)/P, but DLWDB2 is E*w and want deltas
                 !X are terms in the numerator, Y are the terms in the denominator
-               IF ((abs(TOTAL).ge.GraphEpsilon).and.                           &
-     &                (TOTAL.ge.PREWEIGHTEPS)) THEN!.and.(RHOEPS.le.1.D-08)) THEN
-                     
-                   CALL  CalcWriteGraphPGen(J,IPATH,I_V,nEl,G1,     &
-     &                       nBasisMax,NMAX,nBasis,Prob,DUMMY)
-                  
-                   SumX  =SumX   + DLWDB2-(EREF*TOTAL)
-                   SumY  =SumY   + TOTAL
-                   SumXsq=SumXsq + (DLWDB2-(EREF*TOTAL))**2/Prob
-!                   SumYsq=SumYsq + Prob*(TOTAL/Prob+WREF)**2
-                   SumYsq=SumYsq + ((TOTAL)**2)/Prob
-                   SumXY =SumXY  + (DLWDB2-(EREF*TOTAL))*TOTAL/Prob
-!                   SumXY =SumXY  + (TOTAL/Prob+WREF)
-!     &                                  *(DLWDB2-(EREF*TOTAL))
-                   SumP=SumP+Prob
-          
-!                    WRITE(29,*) EREF, WREF
-!                    CALL FLUSH(29)
-          
-           !FullEnergy Representation - WRONG(with DLWDB2=DLWDB2/TOTAL)
-!           SumX=SumX+DLWDB2*TOTAL
-!           SumY=SumY+TOTAL
-!           SumXsq=SumXsq+(((TOTAL*DLWDB2)**2)/Prob)
-!           SumYsq=SumYsq+(((TOTAL)**2)/Prob)
-!           SumXY=SumXY+((TOTAL**2)*DLWDB2)/Prob
-           
-           
-           
-           
-           !Delta representation, written out in full(with DLWDB2=DLWDB2/TOTAL)
-!           SumX=SumX+(DLWDB2-EREF)*TOTAL
-!           SumY=SumY+TOTAL+(Prob*WREF)
-!           SumY=SumY+TOTAL
-!           SumXsq=SumXsq+(((TOTAL*(DLWDB2-EREF))**2)/Prob)
-!           SumYsq=SumYsq+(((TOTAL)**2)/Prob)+
-!     &                   (2*WREF*TOTAL)+((WREF**2)*Prob)
-!           SumXY=SumXY+(((TOTAL**2)*(DLWDB2-EREF))/Prob)+
-!     &                  (WREF*TOTAL*(DLWDB2-EREF))      
-
-!                   SumX=SumX   + DLWDB2-(EREF*TOTAL)
-!                   SumY  =SumY   + TOTAL+WREF*Prob
-!                   SumXsq=SumXsq + (DLWDB2-(EREF*TOTAL))**2/Prob
-!                   SumYsq=SumYsq + Prob*(TOTAL/Prob+WREF)**2
-!                   SumXY =SumXY  + (TOTAL/Prob+WREF)
-!     &                                  *(DLWDB2-(EREF*TOTAL))
-                  
-!                    IF(.not.TPREVAR) THEN
-!                        SumP=SumP+(Prob)
-!                    ENDIF
-!                ELSE 
-!                  Prob=0.d0        DO NOT WANT TO SHOW NORM PROBS IF NOT INCLUDING THEM ALL             
-                ENDIF   
-               ENDIF
+              ENDIF
               IF(TLOG5) WRITE(10,"(3E25.16, I7)") TOTAL,Prob,DLWDB2,ICLS
             ELSEIF(TLOG5) THEN
 !  Log XIJS (usually for debugging), and the pgen
@@ -319,7 +266,7 @@ module mcpathshdiag
          STORE(1)=0
          CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,             &
      &         .TRUE.,NMEMLEN,NJ,IC,STORE,EXFLAG)
-         allocate(NMEM(NMEMLEN))
+         allocate(NMEM(NMEMLEN(1)))
          NMEM(1)=0
          CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,             &
      &         .TRUE.,NMEM,NJ,IC,STORE,EXFLAG)
@@ -358,7 +305,7 @@ module mcpathshdiag
 
 !C.. Set these just in case
          CURGEN=>NMEM
-         LOCTAB(I_VIND+1)%l=NMEMLEN
+         LOCTAB(I_VIND+1)%l=NMEMLEN(1)
          LOCTAB(I_VIND+1)%v=IVLEVEL-1
          
          DO WHILE (IVLEVEL.GT.IVLMIN)
@@ -385,7 +332,7 @@ module mcpathshdiag
                LOCTAB2(I_VIND+1)%v=LOCTAB(IVLEVEL)%v
             ELSE
                CURGEN=>NMEM
-               LOCTAB2(I_VIND+1)%l=NMEMLEN
+               LOCTAB2(I_VIND+1)%l=NMEMLEN(1)
                LOCTAB2(I_VIND+1)%v=IVLEVEL-1
             ENDIF
             IEXFROM=LOCTAB2(I_VIND+1)%v
@@ -533,7 +480,7 @@ module mcpathshdiag
 !         nullify(LOCTAB(I_VIND+1)%p)
          FMCPR3B2RES=TOTAL
 
-        If (TVARCALC(I_V).and.(I_VIND.eq.0).and.(.not.TPREVAR)) Then
+        If (TVARCALC(I_V).and.(I_VIND.eq.0)) Then
         
         
                  SumYsq=SumYsq+(2*WREF*SumY)+(((WREF)**2)*SumP)
@@ -557,28 +504,6 @@ module mcpathshdiag
           SumXY=0.D0
     
         End If
-        
-        IF (TPREVAR.and.I_VIND.eq.0) THEN
-
-                SumYsq=SumYsq+(2*WREF*SumY)+(((WREF)**2)*SumP)
-                SumY=SumY+(WREF*SumP)
-                SumXY=SumXY+(WREF*SumX)
-                
-!          OPEN(44,FILE="HDIAGVARTERMS",STATUS="UNKNOWN")
-
-!            WRITE(43,*) EREF,WREF
-          VARSUM=((SumX/SumY)**2)*((SumXsq/(SumX**2))+(SumYsq/(SumY**2))-2*SumXY/(SumX*SumY))
-!            WRITE(44,*) g_VMC_ExcitWeights
-!            WRITE(44,("6G25.16")) SumX,SumY,(SumXsq-(SumX**2)),
-!     &               (SumYsq-(SumY**2)),(SumXY-(SumX*SumY)),VARSUM
-            
-            SumP=0.D0
-            SumX=0.D0
-            SumY=0.D0
-            SumXsq=0.D0
-            SumYsq=0.D0
-            SumXY=0.D0
-        ENDIF
         
          RETURN
       END function

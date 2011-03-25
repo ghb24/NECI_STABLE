@@ -105,19 +105,10 @@ contains
              
              IF(mod(i,int(CalcDetPrint,4)).eq.0) THEN
                  !Write out statistics
-#ifdef PARALLEL
-!                 WRITE(6,*) Accept,AcceptAll
-                 CALL MPI_Reduce(Accept,AcceptAll,1,                    &
-                  MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
-                 CALL MPI_Reduce(TotalAttempts,TotalAttemptsAll,1,                    &
-                  MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
-                 CALL MPI_Reduce(ExcitBin(0:iExcitLevTest),ExcitBinAll(0:iExcitLevTest),    &
-                  iExcitLevTest+1,MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
-#else
-                 AcceptAll=Accept
-                 TotalAttemptsAll=TotalAttempts
-                 ExcitBinAll(0:iExcitLevTest)=ExcitBin(0:iExcitLevTest)
-#endif
+                 call MPIReduce(Accept,MPI_SUM,AcceptAll)
+                 call MPIReduce(TotalAttempts,MPI_SUM,TotalAttemptsAll)
+                 call MPIReduce(ExcitBin(0:iExcitLevTest),MPI_SUM,ExcitBinAll(0:iExcitLevTest))
+
                  SymSpace=0.D0
                  Frac=REAL(AcceptAll,dp)/REAL(TotalAttemptsAll,dp)  !Fraction of the 'full' space which is symmetry allowed
                  do j=0,iExcitLevTest
@@ -144,18 +135,10 @@ contains
 
          enddo
 
-#ifdef PARALLEL
-         CALL MPI_Reduce(Accept,AcceptAll,1,                    &
-          MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
-         CALL MPI_Reduce(TotalAttempts,TotalAttemptsAll,1,                    &
-          MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
-         CALL MPI_Reduce(ExcitBin(0:iExcitLevTest),ExcitBinAll(0:iExcitLevTest),    &
-          iExcitLevTest+1,MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
-#else
-         AcceptAll=Accept
-         TotalAttemptsAll=TotalAttempts
-         ExcitBinAll(0:iExcitLevTest)=ExcitBin(0:iExcitLevTest)
-#endif
+         call MPIReduce(Accept,MPI_SUM,AcceptAll)
+         call MPIReduce(TotalAttempts,MPI_SUM,TotalAttemptsAll)
+         call MPIReduce(ExcitBin(0:iExcitLevTest),MPI_SUM,ExcitBinAll(0:iExcitLevTest))
+
          SymSpace=0.D0
          Frac=REAL(AcceptAll,dp)/REAL(TotalAttemptsAll,dp)  !Fraction of the 'full' space which is symmetry allowed
          do j=0,iExcitLevTest
@@ -584,16 +567,9 @@ contains
              
              IF(mod(i,CalcDetPrint).eq.0) THEN
                  !Write out statistics
-#ifdef PARALLEL
-!                 WRITE(6,*) Accept,AcceptAll
-                 CALL MPI_Reduce(Accept,AcceptAll,1,                    &
-                  MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
-                 CALL MPI_Reduce(ExcitBin(0:NEl),ExcitBinAll(0:NEl),    &
-                  NEl+1,MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
-#else
-                 AcceptAll=Accept
-                 ExcitBinAll(0:NEl)=ExcitBin(0:NEl)
-#endif
+                 call MPIReduce(Accept,MPI_SUM,AcceptAll)
+                 call MPIReduce(ExcitBin(0:NEl),MPI_SUM,ExcitBinAll(0:NEl))
+
                  Frac=REAL(AcceptAll,8)/REAL(i*nProcessors,8)
                  do j=0,NEl
                      SizeLevel(j)=(REAL(ExcitBinAll(j),8)/REAL(AcceptAll,8))*Frac*FullSpace
@@ -616,15 +592,9 @@ contains
 
          enddo
 
-#ifdef PARALLEL
-         CALL MPI_Reduce(Accept,AcceptAll,1,                            &
-           MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
-         CALL MPI_Reduce(ExcitBin(0:NEl),ExcitBinAll(0:NEl),            &
-           NEl+1,MPI_INTEGER8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
-#else
-         AcceptAll=Accept
-         ExcitBinAll(0:NEl)=ExcitBin(0:NEl)
-#endif
+         call MPIReduce(Accept,MPI_SUM,AcceptAll)
+         call MPIReduce(ExcitBin(0:NEl),MPI_SUM,ExcitBinAll(0:NEl))
+
          Frac=REAL(AcceptAll,8)/REAL(i*nProcessors,8)
          do j=0,NEl
              SizeLevel(j)=(REAL(ExcitBinAll(j),8)/REAL(AcceptAll,8))*Frac*FullSpace

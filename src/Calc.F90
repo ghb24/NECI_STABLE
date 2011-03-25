@@ -26,6 +26,7 @@ MODULE Calc
 contains
 
     subroutine SetCalcDefaults()
+          use FciMCData, only: hash_shift
         
         ! Set defaults for Calc data items.
 
@@ -212,7 +213,6 @@ contains
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
 
           lNoTriples=.false.
-          tFCIMCSerial=.false.  !If set we force the parallel version to run the serial code.
           tReadPopsChangeRef = .false.
           tReadPopsRestart = .false.
           iLogicalNodeSize = 0 !Meaning use the physical node size
@@ -240,6 +240,7 @@ contains
           tTruncNOpen = .false.
 
           proje_linear_comb = .false.
+          hash_shift=0
       
         end subroutine SetCalcDefaults
 
@@ -257,6 +258,7 @@ contains
           use UMatCache, only: gen2CPMDInts
           use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings,tSpawnProp,nClustSelections
           use CCMCData, only: tExactEnergy,tSharedExcitors
+          use FciMCData, only: hash_shift
           use global_utilities
           use Parallel, only : nProcessors
           use Logging, only: tLogDets
@@ -785,6 +787,8 @@ contains
             case("NSPAWNINGS")
 !For Amplitude CCMC the number of spawnings for each cluster.
                 call geti(nSpawnings)
+            case("HASH_SHIFT")
+                call geti(hash_shift)
             case("NCLUSTSELECTIONS")
 !For Particle CCMC the number of  cluster.
                 call geti(nClustSelections)
@@ -1648,7 +1652,8 @@ contains
                       ENDIF
                    ENDIF
                    IF(.NOT.TREAD) THEN
-                   CALL CALCRHO2(NMRKS(1,III),NMRKS(1,III),BETA,I_P,NEL, NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,1,0,ECORE)
+                   CALL CALCRHO2(NMRKS(1,III),NMRKS(1,III),BETA,I_P,NEL, NBASISMAX,G1,NBASIS,BRR,NMSH, &
+                    FCK,NMAX,ALAT,UMAT,RH,1,0,ECORE)
 !C                   WRITE(6,*) RH
                    FLRI=LOG(RH)
                    FLSI=FLSI-I_P*FLRI
@@ -1731,8 +1736,8 @@ contains
          use UMatCache , only : TSTARSTORE
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
          use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,tCCMC
-         use CalcData , only : TRhoElems,TReturnPathMC, tFCIMCSerial,tUseProcsAsNodes
-         use CCMCData, only: tExactCluster,tCCMCFCI,tAmplitudes,tExactSpawn,tCCBuffer
+         use CalcData , only : TRhoElems,TReturnPathMC, tUseProcsAsNodes
+         use CCMCData, only: tExactCluster,tCCMCFCI,tAmplitudes,tExactSpawn,tCCBuffer,tCCNoCuml
          use Logging, only: tCalcFCIMCPsi
          implicit none
          integer I_HMAX,NWHTAY,I_V
@@ -1756,8 +1761,6 @@ contains
                       case("RESUMFCIMC")
 !                          TResumFCIMC=.true.
                           CALL Stop_All("inpgetmethod","MCDIFFUSION option depreciated")
-                      case("SERIAL")
-                          tFCIMCSerial=.true.
                       case default
                           call report("Keyword error with "//trim(w),.true.)
                       endselect
@@ -1772,6 +1775,7 @@ contains
                   tCCMCFCI=.false.
                   tAmplitudes=.false.
                   tCCBuffer=.false.
+                  tCCNoCuml=.false.
                   do while(item.lt.nitems)
                     call readu(w)
                     select case(w)
@@ -1790,6 +1794,8 @@ contains
                        tCCMCFCI=.true.
                     case("BUFFER")
                         tCCBuffer=.true.
+                    case("NOCUML")
+                       tCCNoCuml=.true.
                     case default
                        call report("Keyword error with "//trim(w),.true.)
                     end select

@@ -371,6 +371,7 @@ C.. calculates B=A**N where B and A are LxL matrices
       END
       SUBROUTINE GENPATHEXCIT(IPATH,I_VMOVE,NEL,NBASIS,NTAY,ISEED,INODE,
      &         IADJ,I_V)
+         use mcpathsismc, only: genrandomexcit
          IMPLICIT NONE
          INTEGER IPATH(NEL,0:I_V),NEL,I_VMOVE,NBASIS,NTAY,ISEED
          INTEGER IADJ(0:I_V-1,0:I_V-1),I_V,INODE(NEL)
@@ -584,6 +585,7 @@ C.. add that node to the path, and recurse
      &         ECORE,ISEED,I_VMOVE,OVALUE,IADJ,ADJ,LCANMOVE,
      &         WFUNC,VFUNC,WEIGHT)
          use util_mod, only: NECI_ICOPY
+         use mcpathsismc, only: genrandomexcit
          IMPLICIT NONE
          INTEGER NEL,I_P,IPATH(NEL,0:I_V),I_V
          INTEGER nBasisMax(5,*),G1,NBASIS,BRR(NBASIS),NMAX

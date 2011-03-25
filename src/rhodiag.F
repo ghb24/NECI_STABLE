@@ -21,7 +21,8 @@
          REAL*8, ALLOCATABLE :: RIJMAT(:),WLIST(:),RJJLIST(:),WORK(:)
          INTEGER, ALLOCATABLE :: LSTE(:,:)
          INTEGER err
-         INTEGER WORKL,INFO
+         INTEGER WORKL
+         INTEGER*4 INFO
          REAL*8 WLRI,WLSI,SI
          INTEGER,SAVE :: tagRIJMAT=0,tagWLIST=0,tagRJJLIST=0,tagWORK=0 
          INTEGER,SAVE :: tagLSTE=0
@@ -167,7 +168,8 @@ C         ENDDO
          INTEGER, SAVE :: tagLSTE,tagLSTP,tagWORK
          type(timer), save :: proc_timer
          INTEGER err
-         INTEGER WORKL,INFO
+         INTEGER WORKL
+         INTEGER*4 INFO
          REAL*8 WLRI,WLSI,SI,SN,SNO,SNC,SNN
          INTEGER IPLEN,NCOUNT
          INTEGER BINOMIAL
@@ -416,7 +418,8 @@ C         CLOSE(36)
          REAL*8 RHOIJ(0:I_V,0:I_V)
          REAL*8 RIJMAT(I_V,I_V)
          REAL*8 WLIST(I_V),WORK(3*I_V)         
-         INTEGER INFO,I,J
+         INTEGER*4 INFO
+         INTEGER I,J
          REAL*8 SI
          REAL*8 RII
          RII=RHOIJ(0,0)
@@ -485,7 +488,8 @@ C.. See 1/7/04
          HElement_t HIJ(I_V+1,I_V+1),RIJMAT(I_V,I_V)
          REAL*8 WLIST(I_V),WORK(3*I_V)         
          HElement_t NWORK(4*I_V)
-         INTEGER INFO,I,J,IMISS,II,IJ
+         INTEGER*4 INFO
+         INTEGER I,J,IMISS,II,IJ
          real(dp) SI,SI2
 C.. do we subtract out lower vertices here or later?
          LOGICAL TSUB
@@ -619,7 +623,8 @@ C.. See 1/7/04
          HElement_t RIJMAT(I_V,I_V),NWORK(4*I_V),S,DLWT,S2
          REAL*8 WORK(3*I_V),R
          REAL*8 WLIST(I_V)         
-         INTEGER INFO,I,J,IMISS,II,IJ
+         INTEGER*4 INFO
+         INTEGER I,J,IMISS,II,IJ
          real(dp) SI,SI2,SS,SS2
 C.. do we subtract out lower vertices here or later?
          LOGICAL TSUB
@@ -804,7 +809,8 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
          HElement_t RIJMAT(I_V,I_V),NWORK(4*I_V),S,DLWT,S2
          REAL*8 WORK(3*I_V),R
          REAL*8 WLIST(I_V)         
-         INTEGER INFO,I,J
+         INTEGER*4 INFO
+         INTEGER I,J
          real(dp) SI,SI2,SS,SS2
 C.. do we subtract out lower vertices here or later?
          real(dp) DLWDB,RII
@@ -913,7 +919,8 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
          HElement_t HIJ(I_V+1,I_V+1),RIJMAT(I_V,I_V)
          REAL*8 WLIST(I_V),WORK(3*I_V)         
          HElement_t NWORK(4*I_V)
-         INTEGER INFO,I,J,II
+         INTEGER*4 INFO
+         INTEGER I,J,II
          real(dp) SI,SI2
 C.. do we subtract out lower vertices here or later?
          REAL*8 BETA

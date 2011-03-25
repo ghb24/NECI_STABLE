@@ -30,7 +30,7 @@ MODULE SymExcit2
          INTEGER iCount
          REAL*8 Arr(nBasis,2)
          TYPE(ExcitWeight) ews(*)
-         INTEGER SymProdInd(2,3,0:*)
+         INTEGER SymProdInd(2,3,1:*)
          INTEGER iSpn,iFrom,iFromIndex
          INTEGER I
 !.. We store each excitation type as:
@@ -66,7 +66,7 @@ MODULE SymExcit2
          INTEGER IFROM,ITO,ISPN
          INTEGER OrbPairs(2,*)
          INTEGER iLUT(0:*)
-         INTEGER SymProdInd(2,3,0:*)
+         INTEGER SymProdInd(2,3,1:*)
          INTEGER ICC1,ICC2,ICC3,ICC4
          INTEGER iCount
          INTEGER iFromIndex
@@ -312,7 +312,8 @@ MODULE SymExcit2
              ELSEIF(EXCITFUNCS(2)) THEN
                  IF((Arr(K,2)+Arr(L,2)).LT.g_VMC_ExcitWeights(2,CUR_VERT)) Weight=Weight
                  IF((Arr(K,2)+Arr(L,2)).GE.g_VMC_ExcitWeights(2,CUR_VERT)) THEN
-                     Weight=Weight*(1.D0/(((Arr(K,2)+Arr(L,2))-g_VMC_ExcitWeights(2,CUR_VERT)+1.D0)**g_VMC_ExcitWeights(3,CUR_VERT)))
+                     Weight=Weight*(1.D0/(((Arr(K,2)+Arr(L,2))-                         &
+                     & g_VMC_ExcitWeights(2,CUR_VERT)+1.D0)**g_VMC_ExcitWeights(3,CUR_VERT)))
                  ENDIF
              ENDIF
          ENDIF
@@ -344,7 +345,7 @@ MODULE SymExcit2
          integer, save :: tagews=0
          INTEGER iLUT(*)
          INTEGER OrbPairs(2,*)
-         INTEGER SymProdInd(2,3,0:*)
+         INTEGER SymProdInd(2,3,1:*)
          INTEGER ExcitTypes(5,*)
          REAL*8 Norm
          INTEGER K,I,iExcitType

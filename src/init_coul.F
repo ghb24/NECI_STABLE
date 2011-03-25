@@ -162,6 +162,8 @@ C..FORWARD TRANSFORM
      &  FFTW_FORWARD,FFTW_ESTIMATE)
       CALL DFFTW_EXECUTE(PLAN)
       CALL DFFTW_DESTROY_PLAN(PLAN)
+#else
+      call stop_all("gen_ck_fft","FFTW disabled")
 #endif
 #endif
 C..Shift origin and normalise 

@@ -115,9 +115,11 @@ MODULE SymExcit3
                                 IF((Spina.eq.Spinb).and.(Syma.eq.Symb).and.(Mla.eq.Mlb)) THEN
                                     ! If the spin and spatial symmetries of a and b are the same
                                     ! there will exist a case where Orba = Orbb, want to remove this.
-                                    nDoubleExcits=nDoubleExcits+(ClassCountUnocc2(ClassCountInd(Spina,Syma,Mla))*(ClassCountUnocc2(ClassCountInd(Spinb,Symb,Mlb))-1))
+                                    nDoubleExcits=nDoubleExcits+(ClassCountUnocc2(ClassCountInd(Spina,Syma,Mla)) &
+                                    *(ClassCountUnocc2(ClassCountInd(Spinb,Symb,Mlb))-1))
                                 ELSE
-                                    nDoubleExcits=nDoubleExcits+(ClassCountUnocc2(ClassCountInd(Spina,Syma,Mla))*ClassCountUnocc2(ClassCountInd(Spinb,Symb,Mlb)))
+                                    nDoubleExcits=nDoubleExcits+(ClassCountUnocc2(ClassCountInd(Spina,Syma,Mla)) &
+                                    *ClassCountUnocc2(ClassCountInd(Spinb,Symb,Mlb)))
                                 ENDIF
                             ENDIF
                         enddo
@@ -228,7 +230,7 @@ MODULE SymExcit3
                                                             ! more possible excitations from this.
 
 ! At this stage, OrbaIndex is the a from the previous excitation.
-            SymInd=ClassCountInd(Spini,INT(G1(Orbi)%Sym%S,4),Mli)
+            SymInd=ClassCountInd(Spini,G1(Orbi)%Sym%S,Mli)
 
             IF(OrbaIndex.eq.(SymLabelCounts2(1,SymInd)+SymLabelCounts2(2,SymInd)-1)) THEN
                 !Orba was the last in the symmetry block. Do not allow OrbaIndex+1
@@ -300,7 +302,7 @@ MODULE SymExcit3
                 Orba=SymLabelList2(OrbaIndex)
             ENDIF
 
-            SymInd=ClassCountInd(Spini,INT(G1(Orbi)%Sym%S,4),Mli)
+            SymInd=ClassCountInd(Spini,G1(Orbi)%Sym%S,Mli)
 
 ! Need to also make sure orbital a is unoccupied, so make sure the orbital is not in nI.
             NoOcc=0

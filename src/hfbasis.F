@@ -626,7 +626,7 @@ C.. Now sum in the alpha and beta block of u matrix
          REAL*8 ECUR,ECORE
          HElement_t WORK(3*NSBASIS),RWORK(3*NSBASIS)
 
-         INTEGER INFO
+         INTEGER*4 INFO
          HElement_t TOT,TOT2
          INTEGER ISPN,I,J,K         
 
