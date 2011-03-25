@@ -683,7 +683,7 @@ C     ARGUMENTS
       INTEGER   LDA,N
       REAL*8    SMAT(LDA,N)
 C     VARIABLES
-      INTEGER   INFO
+      INTEGER*4   INFO
 C     ==--------------------------------------------------------------==
       CALL DPOTRF(UPLO,N,SMAT,LDA,INFO)
       IF(INFO.NE.0) THEN

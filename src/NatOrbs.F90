@@ -491,7 +491,9 @@ MODULE NatOrbsMod
 !                do j=Startj,Endj
                 ! Run through all determinants D_j, with the potential to be connected to i by a single excitation, i.e from one excitation
 !               ! lower to one excitation higher.
-                    IF((i.gt.Det).or.(j.gt.Det)) CALL Stop_All('FillOneRDM','Running through i or j larger than the number of determinants.')
+                    IF((i.gt.Det).or.(j.gt.Det)) THEN
+                        CALL Stop_All('FillOneRDM','Running through i or j larger than the number of determinants.')
+                    ENDIF
 
                     ExcitLevel = FindBitExcitLevel(FCIDets(:,i), &
                                                    FCIDets(:,j),2)
@@ -527,12 +529,14 @@ MODULE NatOrbsMod
 !                        IF(((AllHistogram(i)*AllHistogram(j).ne.0.D0).and.(INT(G1(SymLabelList2(Orbi)*2)%sym%S,4).ne.INT(G1(SymLabelList2(Orbj)*2)%sym%S,4)))&
 !                        &.or.(Ex(1,1).gt.(SpatOrbs*2)).or.(Ex(2,1).gt.(SpatOrbs*2))) THEN
 
-                        IF((AllHistogram(1,i)*AllHistogram(1,j).ne.0.D0).and.(INT(G1(SymLabelList2(Orbi)*Spins)%sym%S,4).ne.INT(G1(SymLabelList2(Orbj)*Spins)%sym%S,4))) THEN
+                        IF((AllHistogram(1,i)*AllHistogram(1,j).ne.0.D0).and. &
+                         (INT(G1(SymLabelList2(Orbi)*Spins)%sym%S,4).ne.INT(G1(SymLabelList2(Orbj)*Spins)%sym%S,4))) THEN
                             WRITE(6,*) 'ERROR in symmetries'
                             WRITE(6,*) 'Ex,',Ex(1,1),Ex(2,1)
                             WRITE(6,*) CEILING(REAL(Ex(1,1)/2.D0)),CEILING(REAL(Ex(2,1)/2.D0))
                             WRITE(6,*) 'Orbi,',Orbi,'Orbj,',Orbj
-                            WRITE(6,*) 'Sym(Orbi)',INT(G1(SymLabelList2(Orbi)*Spins)%sym%S,4),'Sym(Orbj)',INT(G1(SymLabelList2(Orbj)*Spins)%sym%S,4)
+                            WRITE(6,*) 'Sym(Orbi)',INT(G1(SymLabelList2(Orbi)*Spins)%sym%S,4),'Sym(Orbj)', &
+                                INT(G1(SymLabelList2(Orbj)*Spins)%sym%S,4)
                             call decode_bit_det (nI, FCIDets(0:NIfTot,i))
                             WRITE(6,*) 'i',nI
                             call decode_bit_det (nJ, FCIDets(0:NIfTot,j))
@@ -717,12 +721,14 @@ MODULE NatOrbsMod
                                                 HEl02=GETUMATEL(b,c,i,j)
                                                 MP2VDMSum=MP2VDMSum+&
                                                             &(( (REAL(HEl01,8)) * (2.D0*(REAL(HEl02,8))) )/&
-                                                            &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) * (ARR(2*i,2)+ARR(2*j,2)-ARR(2*b,2)-ARR(2*c,2)) ) )
+                                                            &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) &
+                                                            &* (ARR(2*i,2)+ARR(2*j,2)-ARR(2*b,2)-ARR(2*c,2)) ) )
 
                                                 HEl02=GETUMATEL(c,b,i,j)
                                                 MP2VDMSum=MP2VDMSum-&                                            
                                                             &(( (REAL(HEl01,8)) * (REAL(HEl02,8)) )/&
-                                                            &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) * (ARR(2*i,2)+ARR(2*j,2)-ARR(2*c,2)-ARR(2*b,2)) ) )
+                                                            &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) * &
+                                                            &(ARR(2*i,2)+ARR(2*j,2)-ARR(2*c,2)-ARR(2*b,2)) ) )
  
                                             ELSEIF(tStoreSpinOrbs) THEN
                                                 IF((ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2)).eq.0.D0) THEN
@@ -732,19 +738,19 @@ MODULE NatOrbsMod
                                                     ENDIF
                                                 ENDIF
                                                 MP2VDMSum=MP2VDMSum+&
-                                                            &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0)),8)) * (2.D0*(REAL(UMAT(UMatInd(b,c,i,j,0,0)),8))) )/&
-                                                            &( (ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2)) * (ARR(i,2)+ARR(j,2)-ARR(b,2)-ARR(c,2)) ) )
+                                            &(((REAL(UMAT(UMatInd(a,c,i,j,0,0)),8))*(2.D0*(REAL(UMAT(UMatInd(b,c,i,j,0,0)),8))))/&
+                                                &( (ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2)) * (ARR(i,2)+ARR(j,2)-ARR(b,2)-ARR(c,2)) ) )
                                                 MP2VDMSum=MP2VDMSum-&                                            
-                                                            &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0)),8)) * (REAL(UMAT(UMatInd(c,b,i,j,0,0)),8)) )/&
-                                                            &( (ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2)) * (ARR(i,2)+ARR(j,2)-ARR(c,2)-ARR(b,2)) ) )
+                                                &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0)),8)) * (REAL(UMAT(UMatInd(c,b,i,j,0,0)),8)) )/&
+                                                &( (ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2)) * (ARR(i,2)+ARR(j,2)-ARR(c,2)-ARR(b,2)) ) )
                  
                                             ELSE
                                                 MP2VDMSum=MP2VDMSum+&
-                                                            &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0)),8)) * (2.D0*(REAL(UMAT(UMatInd(b,c,i,j,0,0)),8))) )/&
-                                                            &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) * (ARR(2*i,2)+ARR(2*j,2)-ARR(2*b,2)-ARR(2*c,2)) ) )
+                                    &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0)),8)) * (2.D0*(REAL(UMAT(UMatInd(b,c,i,j,0,0)),8))) )/&
+                                    &((ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2))*(ARR(2*i,2)+ARR(2*j,2)-ARR(2*b,2)-ARR(2*c,2))))
                                                 MP2VDMSum=MP2VDMSum-&                                            
-                                                            &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0)),8)) * (REAL(UMAT(UMatInd(c,b,i,j,0,0)),8)) )/&
-                                                            &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) * (ARR(2*i,2)+ARR(2*j,2)-ARR(2*c,2)-ARR(2*b,2)) ) )
+                                    &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0)),8)) * (REAL(UMAT(UMatInd(c,b,i,j,0,0)),8)) )/&
+                                    &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2))*(ARR(2*i,2)+ARR(2*j,2)-ARR(2*c,2)-ARR(2*b,2))))
                                             ENDIF
  
                                         enddo
@@ -847,10 +853,13 @@ MODULE NatOrbsMod
                     IF((INT(G1(SymLabelList2(i))%sym%S,4).ne.INT(G1(SymLabelList2(j))%sym%S,4))) THEN
                         IF(ABS(NatOrbMat(i,j)).ge.1.0E-15) THEN
                             WRITE(6,'(6A8,A20)') 'i','j','Label i','Label j','Sym i','Sym j','Matrix value'
-                            WRITE(6,'(6I3,F40.20)') i,j,SymLabelList2(i),SymLabelList2(j),INT(G1(SymLabelList2(i))%sym%S,4),INT(G1(SymLabelList2(j))%sym%S,4),NatOrbMat(i,j)
+                            WRITE(6,'(6I3,F40.20)') i,j,SymLabelList2(i),SymLabelList2(j),INT(G1(SymLabelList2(i))%sym%S,4), &
+                            & INT(G1(SymLabelList2(j))%sym%S,4),NatOrbMat(i,j)
                             IF(tUseMP2VarDenMat) THEN
-                                WRITE(6,*) '**WARNING** - There is a non-zero NatOrbMat value between orbitals of different symmetry.'
-                                WRITE(6,*) 'These elements will be ignored, and the symmetry maintained in the final transformation matrix.'
+                                WRITE(6,*) '**WARNING** - There is a non-zero NatOrbMat value between " &
+                                 & //"orbitals of different symmetry.'
+                                WRITE(6,*) 'These elements will be ignored, and the symmetry maintained " &
+                                 & //"in the final transformation matrix.'
                             ELSE
                                 CALL Stop_All(this_routine,'Non-zero NatOrbMat value between different symmetries.')
                             ENDIF
@@ -862,10 +871,13 @@ MODULE NatOrbsMod
                     IF((INT(G1(SymLabelList2(i)*2)%sym%S,4).ne.INT(G1(SymLabelList2(j)*2)%sym%S,4))) THEN
                         IF(ABS(NatOrbMat(i,j)).ge.1.0E-15) THEN
                             WRITE(6,'(6A8,A20)') 'i','j','Label i','Label j','Sym i','Sym j','Matrix value'
-                            WRITE(6,'(6I3,F40.20)') i,j,SymLabelList2(i),SymLabelList2(j),INT(G1(SymLabelList2(i)*2)%sym%S,4),INT(G1(SymLabelList2(j)*2)%sym%S,4),NatOrbMat(i,j)
+                            WRITE(6,'(6I3,F40.20)') i,j,SymLabelList2(i),SymLabelList2(j), &
+                             INT(G1(SymLabelList2(i)*2)%sym%S,4),INT(G1(SymLabelList2(j)*2)%sym%S,4),NatOrbMat(i,j)
                             IF(tUseMP2VarDenMat) THEN
-                                WRITE(6,*) '**WARNING** - There is a non-zero NatOrbMat value between orbitals of different symmetry.'
-                                WRITE(6,*) 'These elements will be ignored, and the symmetry maintained in the final transformation matrix.'
+                                WRITE(6,*) '**WARNING** - There is a non-zero NatOrbMat value between orbitals of "&
+                                & //"different symmetry.'
+                                WRITE(6,*) 'These elements will be ignored, and the symmetry maintained in the " &
+                                & //"final transformation matrix.'
                             ELSE
                                 CALL Stop_All(this_routine,'Non-zero NatOrbMat value between different symmetries.')
                             ENDIF
@@ -1386,7 +1398,8 @@ MODULE NatOrbsMod
             IF(tStoreSpinOrbs) THEN
                 WRITE(io1,*) NoOrbs-NoFrozenVirt
                 do i=1,NoOrbs-NoFrozenVirt,2
-                    WRITE(io1,'(I5,ES20.10,I5,A5,I5,ES20.10,I5)') i,EvaluesTrunc(i),SymOrbs(i),'  *  ',i+1,EvaluesTrunc(i+1),SymOrbs(i+1)
+                    WRITE(io1,'(I5,ES20.10,I5,A5,I5,ES20.10,I5)') i,EvaluesTrunc(i),SymOrbs(i),'  *  ',i+1, &
+                        EvaluesTrunc(i+1),SymOrbs(i+1)
                 enddo
             ELSE
                 WRITE(io1,*) NoOrbs-NoFrozenVirt
@@ -1404,10 +1417,12 @@ MODULE NatOrbsMod
                 do i=1,NoOrbs,2
                     k=k+1
                     IF(tTruncRODump) THEN
-                        WRITE(io2,'(2I5,ES20.10,I5,A5,I5,ES20.10,I5)') (NoOrbs-i+1),i,Evalues(k),SymOrbs(i),'  *  ',i+1,Evalues(k+SpatOrbs),SymOrbs(i+1)
+                        WRITE(io2,'(2I5,ES20.10,I5,A5,I5,ES20.10,I5)') (NoOrbs-i+1),i,Evalues(k),SymOrbs(i),'  *  ', &
+                            i+1,Evalues(k+SpatOrbs),SymOrbs(i+1)
                     ELSE
-                        WRITE(io2,'(2I5,ES20.10,I5,A5,I5,ES20.10,I5)') (NoOrbs-i+1),i,Evalues(k),INT(G1(SymLabelList3(k))%Sym%S,4),'  *  ',&
-                                                             &i+1,Evalues(k+SpatOrbs),INT(G1(SymLabelList3(k+SpatOrbs))%Sym%S,4)
+                        WRITE(io2,'(2I5,ES20.10,I5,A5,I5,ES20.10,I5)') (NoOrbs-i+1),i,Evalues(k), &
+                                INT(G1(SymLabelList3(k))%Sym%S,4),'  *  ',&
+                             i+1,Evalues(k+SpatOrbs),INT(G1(SymLabelList3(k+SpatOrbs))%Sym%S,4)
                     ENDIF
                 enddo
             ELSE
@@ -1701,11 +1716,7 @@ MODULE NatOrbsMod
 
         AllOrbOccs = 0.D0
 
-#ifdef PARALLEL
-        CALL MPI_Reduce(OrbOccs(1:nBasis),AllOrbOccs(1:nBasis),nBasis,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD,error)
-#else
-        AllOrbOccs(1:nBasis)=OrbOccs(1:nBasis)
-#endif
+        call MPIReduce(OrbOccs,MPI_SUM,AllOrbOccs)
 
 ! Want to normalise the orbital contributions for convenience.        
         tWarning=.false.

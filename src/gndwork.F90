@@ -20,6 +20,6 @@ type GNDWork
     ! nIndJ is niWork(1+nEl)
 end type
 
-integer, parameter :: GNDWorkSize=5+3*BasisFNSize
+integer, parameter :: GNDWorkSize=6+3*BasisFNSize
 
 end module gnd_work_type

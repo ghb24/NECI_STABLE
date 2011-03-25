@@ -379,7 +379,6 @@ contains
     ! Call this to print out the largest memory allocations.
     ! If debug flag is on, then the full memory log is dumped to file.
 
-    use common_routines, only: getunit
     implicit none
 
     integer :: iunit,iobjloc(1),iobj,i
@@ -441,7 +440,8 @@ contains
 
     if (debug) then
         ! Dump entire memory log to file.
-        call getunit(iunit)
+        iunit=93
+!        call get_free_unit(iunit)  !Avoid circular dependancies - hack.
         open(unit=iunit,file=memoryfile,form='formatted',status='unknown')
         call PrintMemory(.true.,iunit)
         close(iunit)

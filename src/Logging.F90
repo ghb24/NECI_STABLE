@@ -18,12 +18,19 @@ MODULE Logging
     INTEGER HFLOGLEVEL,iWritePopsEvery,StartPrintOrbOcc
     INTEGER PreVarLogging,WavevectorPrint,NoHistBins,HistInitPopsIter
     REAL*8 MaxHistE,OffDiagMax,OffDiagBinRange
-    LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn,tPrintPopsDefault
-    LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tIncrementPops,tROHistogramAll,tROHistER,tROHistSingExc,tRoHistOneElInts
-    LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump,tRDMonFly,tDiagRDM,tCalc_RDMEnergy,tStochasticRDM,tAllSpawnAttemptsRDM
-    LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking,tTruncDumpbyVal
-    LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit, tExplicitHFRDM, tFullRDM, tHF_S_D_Ref, tHF_Ref
-    INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps,IterShiftBlock, IterRDMonFly, RDMExcitLevel, RDMEnergyIter
+<<<<<<< HEAD:src/Logging.F90
+    LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn
+    LOGICAL tPrintPopsDefault
+    LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tIncrementPops,tROHistogramAll,tROHistER,tROHistSingExc
+    LOGICAL tRoHistOneElInts
+    LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump,tRDMonFly,tDiagRDM,tCalc_RDMEnergy
+    LOGICAL tStochasticRDM,tAllSpawnAttemptsRDM
+    LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
+    LOGICAL tTruncDumpbyVal
+    LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit, tExplicitHFRDM 
+    LOGICAL tFullRDM, tHF_S_D_Ref, tHF_Ref
+    INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps,IterShiftBlock 
+    INTEGER IterRDMonFly, RDMExcitLevel, RDMEnergyIter
     INTEGER CCMCDebug  !CCMC Debugging Level 0-6.  Default 0
     INTEGER FCIMCDebug !FciMC Debugging Level 0-6.  Default 0
 
@@ -31,7 +38,8 @@ MODULE Logging
     LOGICAL tCCMCLogUniq !Do we log only unique clusters
     LOGICAL tSaveBlocking !Do not overwrite blocking files
     INTEGER iWriteBlockingEvery !How often to write out blocking files
-    INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs,NoTruncOrbsTag,TruncEvaluesTag,iWriteHamilEvery,OrbOccsTag,HistInitPopsTag,AllHistInitPopsTag
+    INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs,NoTruncOrbsTag,TruncEvaluesTag,iWriteHamilEvery
+    INTEGER OrbOccsTag,HistInitPopsTag,AllHistInitPopsTag
     INTEGER , ALLOCATABLE :: NoTruncOrbs(:),HistInitPops(:,:),AllHistInitPops(:,:)
     REAL*8 , ALLOCATABLE :: TruncEvalues(:),OrbOccs(:)
     LOGICAL :: tBlockEveryIteration

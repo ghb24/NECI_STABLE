@@ -1,6 +1,6 @@
 [int1]
 type = integer(int32)
-sizeof = sizeof_int
+sizeof = sizeof_int32
 dim = :
 elem1 = 
 alloc_str = dims(1)
@@ -267,6 +267,7 @@ contains
 #ifdef __SHARED_MEM
         integer(int64) :: sz
         type(c_ptr) :: tmp
+        %(type)s, dimension(%(dim)s), pointer :: ptr_tmp
         integer :: error
 
         ! Prepare name of shared memory object to pass to C.
@@ -279,7 +280,10 @@ contains
         call alloc_shared_worker (name_tmp, tmp, int(sz, kind=c_size_t))
 
         ! Assign to a fortran pointer.
-        call c_f_pointer (tmp, ptr, dims)
+        ! Use of ptr_tmp to work around a compiler bug in ifort < 11
+        call c_f_pointer (tmp, ptr_tmp, dims)
+        ptr => ptr_tmp
+        nullify(ptr_tmp)
 
         write (6, '("Allocated ", i10, &
                   &" bytes of shared memory named: ", a)') sz, nm

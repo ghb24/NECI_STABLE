@@ -5,12 +5,18 @@ MODULE RotateOrbsMod
     USE IntegralsData , only : UMAT,nFrozen,ChemPot
     USE UMatCache , only : UMatInd
     use constants, only: dp, PI
-    USE SystemData , only : ConvergedForce,TimeStep,tLagrange,tShake,tShakeApprox,ShakeConverged,tROIteration,ROIterMax,tShakeIter,ShakeIterMax,OrbEnMaxAlpha
-    USE SystemData , only : G1,ARR,NEl,nBasis,LMS,ECore,tSeparateOccVirt,Brr,nBasisMax,OrbOrder,lNoSymmetry,tRotatedOrbs,tERLocalization,tRotateOccOnly
-    USE SystemData, only : tOffDiagMin,DiagWeight,OffDiagWeight,tRotateVirtOnly,tOffDiagSqrdMax,tOffDiagSqrdMin,tOffDiagMax,tDoubExcMin,tOneElIntMax,tOnePartOrbEnMax
-    USE SystemData, only : tShakeDelay,ShakeStart,tVirtCoulombMax,tVirtExchangeMin,MaxMinFac,tMaxHLGap,tHijSqrdMin,OneElWeight,DiagMaxMinFac,OneElMaxMinFac
-    USE SystemData, only : tDiagonalizehij,tHFSingDoubExcMax,tSpinOrbs,tReadInCoeff,tUseMP2VarDenMat,tStoreSpinOrbs,tROHF,tFindCINatOrbs,tUseHFOrbs,tUEG,tNoRODump
-    USE Logging , only : tROHistogramAll,tROFciDump,tROHistER,tROHistOffDiag,tROHistDoubExc,tROHistSingExc,tROHistOnePartOrbEn,tROHistOneElInts,tROHistVirtCoulomb
+    USE SystemData , only : ConvergedForce,TimeStep,tLagrange,tShake,tShakeApprox,ShakeConverged
+    use SystemData, only : tROIteration,ROIterMax,tShakeIter,ShakeIterMax,OrbEnMaxAlpha
+    USE SystemData , only : G1,ARR,NEl,nBasis,LMS,ECore,tSeparateOccVirt,Brr,nBasisMax,OrbOrder
+    use SystemData , only : lNoSymmetry,tRotatedOrbs,tERLocalization,tRotateOccOnly
+    USE SystemData, only : tOffDiagMin,DiagWeight,OffDiagWeight,tRotateVirtOnly,tOffDiagSqrdMax
+    use SystemData, only : tOffDiagSqrdMin,tOffDiagMax,tDoubExcMin,tOneElIntMax,tOnePartOrbEnMax
+    USE SystemData, only : tShakeDelay,ShakeStart,tVirtCoulombMax,tVirtExchangeMin,MaxMinFac
+    use SystemData, only : tMaxHLGap,tHijSqrdMin,OneElWeight,DiagMaxMinFac,OneElMaxMinFac
+    USE SystemData, only : tDiagonalizehij,tHFSingDoubExcMax,tSpinOrbs,tReadInCoeff,tUseMP2VarDenMat
+    use SystemData, only : tStoreSpinOrbs,tROHF,tFindCINatOrbs,tUseHFOrbs,tUEG,tNoRODump
+    USE Logging , only : tROHistogramAll,tROFciDump,tROHistER,tROHistOffDiag,tROHistDoubExc
+    use Logging, only : tROHistSingExc,tROHistOnePartOrbEn,tROHistOneElInts,tROHistVirtCoulomb
     USE Logging , only : tPrintInts,tTruncRODump,NoTruncOrbs,NoDumpTruncs,tTruncDumpbyVal,TruncEvalues,tWriteTransMat
     USE OneEInts , only : TMAT2D
     USE SymData , only : TwoCycleSymGens,SymLabelList,SymLabelCounts
@@ -21,33 +27,46 @@ MODULE RotateOrbsMod
     IMPLICIT NONE
     INTEGER , ALLOCATABLE :: Lab(:,:),LabVirtOrbs(:),LabOccOrbs(:),SymLabelList3Inv(:)
     REAL*8 , ALLOCATABLE :: CoeffCorT2(:,:),CoeffUncorT2(:,:)
-    REAL*8 , ALLOCATABLE :: Lambdas(:,:),ArrNew(:,:),ArrDiagNew(:),TMAT2DTemp(:,:),TMAT2DRot(:,:),TMAT2DPartRot01(:,:),TMAT2DPartRot02(:,:)
+    REAL*8 , ALLOCATABLE :: Lambdas(:,:),ArrNew(:,:),ArrDiagNew(:),TMAT2DTemp(:,:),TMAT2DRot(:,:),TMAT2DPartRot01(:,:)
+    REAL*8 , ALLOCATABLE :: TMAT2DPartRot02(:,:)
     REAL*8 , ALLOCATABLE :: DerivCoeff(:,:),UMATTemp01(:,:,:,:),UMATTemp02(:,:,:,:)
     REAL*8 , ALLOCATABLE :: DerivLambda(:,:),ForceCorrect(:,:),Correction(:,:),ShakeLambdaNew(:),ConstraintCor(:)
-    REAL*8 , ALLOCATABLE :: Constraint(:),ShakeLambda(:),DerivConstrT1(:,:,:),DerivConstrT2(:,:,:),DerivConstrT1T2(:,:),DerivConstrT1T2Diag(:),FourIndInts(:,:,:,:)
+    REAL*8 , ALLOCATABLE :: Constraint(:),ShakeLambda(:),DerivConstrT1(:,:,:),DerivConstrT2(:,:,:),DerivConstrT1T2(:,:)
+    REAL*8 , ALLOCATABLE :: DerivConstrT1T2Diag(:),FourIndInts(:,:,:,:)
     REAL*8 , ALLOCATABLE :: TwoIndInts01(:,:,:,:),TwoIndInts02(:,:,:,:),ThreeIndInts01(:,:,:,:),FourIndInts02(:,:,:,:)
     REAL*8 , ALLOCATABLE :: ThreeIndInts02(:,:,:,:),ThreeIndInts03(:,:,:,:),ThreeIndInts04(:,:,:,:)  
     REAL*8 , ALLOCATABLE :: DiagTMAT2Dfull(:),TMAT2DNew(:,:) 
     REAL*8 , ALLOCATABLE :: TwoIndIntsER(:,:,:),ThreeIndInts01ER(:,:),ThreeIndInts02ER(:,:),FourIndIntsER(:)
     INTEGER :: TwoIndIntsERTag,ThreeIndInts01ERTag,ThreeIndInts02ERTag,FourIndIntsERTag
-    INTEGER :: TwoIndInts01Tag,TwoIndInts02Tag,ThreeIndInts01Tag,ThreeIndInts02Tag,ThreeIndInts03Tag,ThreeIndInts04Tag,FourIndInts02Tag
+    INTEGER :: TwoIndInts01Tag,TwoIndInts02Tag,ThreeIndInts01Tag,ThreeIndInts02Tag,ThreeIndInts03Tag,ThreeIndInts04Tag
+    INTEGER :: FourIndInts02Tag
     INTEGER :: LowBound02,HighBound02,TMAT2DTempTag,TMAT2DRotTag,TMAT2DPartRot01Tag,TMAT2DPartRot02Tag
-    INTEGER :: LabTag,ForceCorrectTag,CorrectionTag,FourIndIntsTag,ArrDiagNewTag,ArrNewTag,UMATTemp01Tag,UMATTemp02Tag,ShakeIterInput,NoOcc
-    INTEGER :: CoeffCorT2Tag,CoeffUncorT2Tag,LambdasTag,DerivCoeffTag,DerivLambdaTag,Iteration,TotNoConstraints,ShakeLambdaNewTag
-    INTEGER :: ShakeLambdaTag,ConstraintTag,ConstraintCorTag,DerivConstrT1Tag,DerivConstrT2Tag,DerivConstrT1T2Tag,DerivConstrT1T2DiagTag
+    INTEGER :: LabTag,ForceCorrectTag,CorrectionTag,FourIndIntsTag,ArrDiagNewTag,ArrNewTag,UMATTemp01Tag,UMATTemp02Tag
+    INTEGER :: ShakeIterInput,NoOcc
+    INTEGER :: CoeffCorT2Tag,CoeffUncorT2Tag,LambdasTag,DerivCoeffTag,DerivLambdaTag,Iteration,TotNoConstraints
+    INTEGER :: ShakeLambdaNewTag
+    INTEGER :: ShakeLambdaTag,ConstraintTag,ConstraintCorTag,DerivConstrT1Tag,DerivConstrT2Tag,DerivConstrT1T2Tag
+    INTEGER :: DerivConstrT1T2DiagTag
     INTEGER :: LabVirtOrbsTag,LabOccOrbsTag,MinOccVirt,MaxOccVirt,MinMZ,MaxMZ,error,LowBound,HighBound
     INTEGER :: NoInts01,NoInts02,NoInts03,NoInts04,NoInts05,NoInts06,DiagTMAT2DfullTag,TMAT2DNewTag,SymLabelList3InvTag
     LOGICAL :: tNotConverged,tInitIntValues
-    REAL*8 :: OrthoNorm,ERPotEnergy,HijSqrdPotEnergy,OffDiagPotEnergy,CoulPotEnergy,PotEnergy,Force,TwoEInts,DistCs,OrthoForce,DistLs,LambdaMag,PEInts,PEOrtho
+    REAL*8 :: OrthoNorm,ERPotEnergy,HijSqrdPotEnergy,OffDiagPotEnergy,CoulPotEnergy,PotEnergy,Force,TwoEInts,DistCs
+    REAL*8 :: OrthoForce,DistLs,LambdaMag,PEInts,PEOrtho
     REAL*8 :: ForceInts,TotCorrectedForce
     REAL*8 :: ijOccVirtPotEnergy,EpsilonMin,MaxTerm
     REAL*8 :: DiagOneElPotInit,ERPotInit,ijVirtOneElPotInit,ijVirtCoulPotInit,ijVirtExchPotInit
-    REAL*8 :: singCoulijVirtInit,singExchijVirtInit,singCoulconHFInit,singExchconHFInit,ijklPotInit,ijklantisymPotInit,ijOccVirtOneElPotInit,ijOccVirtCoulPotInit,ijOccVirtExchPotInit
-    REAL*8 :: OrthoFac=1.D0,ROHistSing(2,4002),ROHistOffDiag(2,4002),ROHistDoubExc(2,4002),ROHistER(2,4002),ROHistHijVirt(2,4002),ROHistHijOccVirt(2,4002),ROHistHii(2,4002)
-    REAL*8 :: ROHistOnePartOrbEn(2,4002),ROHistDCijOcklVir(2,4002),ROHistDEijOcklVir(2,4002),ROHistDCijklVir(2,4002),ROHistDEijklVir(2,4002)
-    REAL*8 :: ROHistSCikOcjVir(2,4002),ROHistSEikOcjVir(2,4002),ROHistSCkOcijVir(2,4002),ROHistSEkOcijVir(2,4002),ROHistSCijkVir(2,4002),ROHistSEijkVir(2,4002)
-    REAL*8 :: ROHistSASikOcjVir(2,4002),ROHistSASkOcijVir(2,4002),ROHistSASijkVir(2,4002),ROHistASijklVir(2,4002),ROHistASijOcklVir(2,4002)
-    TYPE(timer), save :: Rotation_Time,FullShake_Time,Shake_Time,Findtheforce_Time,Transform2ElInts_Time,findandusetheforce_time,CalcDerivConstr_Time,TestOrthoConver_Time
+    REAL*8 :: singCoulijVirtInit,singExchijVirtInit,singCoulconHFInit,singExchconHFInit,ijklPotInit,ijklantisymPotInit
+    REAL*8 :: ijOccVirtOneElPotInit,ijOccVirtCoulPotInit,ijOccVirtExchPotInit
+    REAL*8 :: OrthoFac=1.D0,ROHistSing(2,4002),ROHistOffDiag(2,4002),ROHistDoubExc(2,4002),ROHistER(2,4002)
+    REAL*8 :: ROHistHijVirt(2,4002),ROHistHijOccVirt(2,4002),ROHistHii(2,4002)
+    REAL*8 :: ROHistOnePartOrbEn(2,4002),ROHistDCijOcklVir(2,4002),ROHistDEijOcklVir(2,4002),ROHistDCijklVir(2,4002)
+    REAL*8 :: ROHistDEijklVir(2,4002)
+    REAL*8 :: ROHistSCikOcjVir(2,4002),ROHistSEikOcjVir(2,4002),ROHistSCkOcijVir(2,4002),ROHistSEkOcijVir(2,4002)
+    REAL*8 :: ROHistSCijkVir(2,4002),ROHistSEijkVir(2,4002)
+    REAL*8 :: ROHistSASikOcjVir(2,4002),ROHistSASkOcijVir(2,4002),ROHistSASijkVir(2,4002),ROHistASijklVir(2,4002)
+    REAL*8 :: ROHistASijOcklVir(2,4002)
+    TYPE(timer), save :: Rotation_Time,FullShake_Time,Shake_Time,Findtheforce_Time,Transform2ElInts_Time
+    type(timer), save :: findandusetheforce_time,CalcDerivConstr_Time,TestOrthoConver_Time
     TYPE(timer), save :: RefillUMAT_Time,PrintROFCIDUMP_Time
 ! In this routine, alpha (a), beta (b), gamma (g) and delta (d) refer to the unrotated (HF) orbitals where possible such that < a b | g d > is an unrotated four index integral.   
 ! For the rotated orbitals, the letter i,j,k and l are generally used, i.e. < i j | k l > refers to a transformed four index integral.
@@ -155,7 +174,8 @@ MODULE RotateOrbsMod
             ENDIF
         ENDIF
 
-        IF(tROHF.and.tStoreSpinOrbs) CALL Stop_All(this_routine,"Cannot compress open shell systems into spatial orbitals when rotating, turn off ROHF.")
+        IF(tROHF.and.tStoreSpinOrbs) CALL Stop_All(this_routine,"Cannot compress open shell systems into spatial " &
+            & //"orbitals when rotating, turn off ROHF.")
 
         IF(tTruncRODump.and.(.not.tTruncDumpbyVal)) THEN 
             NoFrozenVirt=NoTruncOrbs(1)
@@ -530,7 +550,8 @@ MODULE RotateOrbsMod
             MemAllocRot=MemAllocRot+((nBasis**2)*8)
         ENDIF
 
-        WRITE(6,'(A72,F20.10,A15)') "Rough estimate of the memory required for the orbital transformation = ",REAL(MemAllocRot,8)/1048576.D0," Mb/Processor"
+        WRITE(6,'(A72,F20.10,A15)') "Rough estimate of the memory required for the orbital transformation = " &
+            ,REAL(MemAllocRot,8)/1048576.D0," Mb/Processor"
 
 
     END SUBROUTINE ApproxMemReq
@@ -713,7 +734,8 @@ MODULE RotateOrbsMod
         ENDIF
         IF(tOnePartOrbEnMax.and.(.not.tSeparateOccVirt)) THEN
             CALL FLUSH(6)
-            CALL Stop_All(this_routine,"ERROR. Cannot currently maximise the one particle orbital energies without separating occupied and virtual.") 
+            CALL Stop_All(this_routine, &
+            "ERROR. Cannot currently maximise the one particle orbital energies without separating occupied and virtual.") 
         ENDIF
         WRITE(6,*) "*****"
 
@@ -906,18 +928,24 @@ MODULE RotateOrbsMod
         transform_unit = get_free_unit()
         OPEN(transform_unit,FILE='Transform',STATUS='unknown')
         IF(tLagrange) THEN
-            WRITE(transform_unit,"(A12,11A18)") "# Iteration","2.PotEnergy","3.PEInts","4.PEOrtho","5.Force","6.ForceInts","7.OrthoForce","8.Sum<ij|kl>^2",&
-                                    &"9.OrthoNormCondition","10.DistMovedbyCs","11.DistMovedByLs","12.LambdaMag"
-            WRITE(6,"(A12,11A19)") "Iteration","2.PotEnergy","3.PEInts","4.PEOrtho","5.Force","6.ForceInts","7.OrthoForce","8.Sum<ij|kl>^2",&
-                                    &"9.OrthoNormCondition","10.DistMovedbyCs","11.DistMovedbyLs","12.LambdaMag"
+            WRITE(transform_unit,"(A12,11A18)") "# Iteration","2.PotEnergy","3.PEInts","4.PEOrtho","5.Force","6.ForceInts", &
+            "7.OrthoForce","8.Sum<ij|kl>^2",&
+                        &"9.OrthoNormCondition","10.DistMovedbyCs","11.DistMovedByLs","12.LambdaMag"
+            WRITE(6,"(A12,11A19)") "Iteration","2.PotEnergy","3.PEInts","4.PEOrtho","5.Force","6.ForceInts","7.OrthoForce", &
+                    "8.Sum<ij|kl>^2",&
+                    &"9.OrthoNormCondition","10.DistMovedbyCs","11.DistMovedbyLs","12.LambdaMag"
         ELSEIF(tERLocalization.and.tHijSqrdMin) THEN
-            WRITE(transform_unit,"(A12,7A24)") "# Iteration","2.ERPotEnergy","3.HijSqrdPotEnergy","4.PotEnergy","5.Force","6.Totalcorrforce","7.OrthoNormCondition","8.DistMovedbyCs"
-            WRITE(6,"(A12,7A24)") "# Iteration","2.ERPotEnergy","3.HijSqrdPotEnergy","4.PotEnergy","5.Force","6.Totalcorrforce","7.OrthoNormCondition","8.DistMovedbyCs"
+            WRITE(transform_unit,"(A12,7A24)") "# Iteration","2.ERPotEnergy","3.HijSqrdPotEnergy","4.PotEnergy","5.Force", &
+                "6.Totalcorrforce","7.OrthoNormCondition","8.DistMovedbyCs"
+            WRITE(6,"(A12,7A24)") "# Iteration","2.ERPotEnergy","3.HijSqrdPotEnergy","4.PotEnergy","5.Force",              &
+                "6.Totalcorrforce","7.OrthoNormCondition","8.DistMovedbyCs"
         ELSEIF(tERLocalization) THEN
-            WRITE(transform_unit,"(A12,5A24)") "# Iteration","2.Sum_i<ii|ii>","3.Force","4.TotCorrForce","5.OrthoNormCondition","6.DistMovedbyCs"
+            WRITE(transform_unit,"(A12,5A24)") "# Iteration","2.Sum_i<ii|ii>","3.Force","4.TotCorrForce",   &
+                "5.OrthoNormCondition","6.DistMovedbyCs"
             WRITE(6,"(A12,5A24)") "Iteration","2.Sum_i<ii|ii>","3.Force","4.TotCorrForce","5.OrthoNormCondition","6.DistMovedbyCs"
         ELSE
-            WRITE(transform_unit,"(A12,5A24)") "# Iteration","2.PotEnergy","3.Force","4.Totalcorrforce","5.OrthoNormCondition","6.DistMovedbyCs"
+            WRITE(transform_unit,"(A12,5A24)") "# Iteration","2.PotEnergy","3.Force","4.Totalcorrforce",    &
+                "5.OrthoNormCondition","6.DistMovedbyCs"
             WRITE(6,"(A12,5A24)") "Iteration","2.PotEnergy","3.Force","4.TotCorrForce","5.OrthoNormCondition","6.DistMovedbyCs"
         ENDIF
 
@@ -1037,8 +1065,9 @@ MODULE RotateOrbsMod
 ! Doing this now, rather than using UMatInd in each transform2elint routine proved a lot faster.
         DerivCoeff(:,:)=0.D0
         UMATTemp01(:,:,:,:)=0.D0
-        IF(((.not.tERLocalization).and.(.not.tReadInCoeff).and.(.not.tUseMP2VarDenMat).and.(.not.tFindCINatOrbs).and.(.not.tUseHFOrbs))&
-        &.or.(tERLocalization.and.tStoreSpinOrbs)) UMATTemp02(:,:,:,:)=0.D0
+        IF(((.not.tERLocalization).and.(.not.tReadInCoeff).and.(.not.tUseMP2VarDenMat) &
+            .and.(.not.tFindCINatOrbs).and.(.not.tUseHFOrbs))&
+            &.or.(tERLocalization.and.tStoreSpinOrbs)) UMATTemp02(:,:,:,:)=0.D0
 
         CALL CopyAcrossUMAT()
 
@@ -1181,12 +1210,15 @@ MODULE RotateOrbsMod
     SUBROUTINE WriteStats()
 
         IF(tLagrange) THEN
-            WRITE(6,"(I12,11F18.10)") Iteration,PotEnergy,PEInts,PEOrtho,Force,ForceInts,OrthoForce,TwoEInts,OrthoNorm,DistCs,DistLs,LambdaMag
-            WRITE(transform_unit,"(I12,11F18.10)") Iteration,PotEnergy,PEInts,PEOrtho,Force,ForceInts,OrthoForce,TwoEInts,OrthoNorm,DistCs,DistLs,LambdaMag
+            WRITE(6,"(I12,11F18.10)") Iteration,PotEnergy,PEInts,PEOrtho,Force,ForceInts,OrthoForce,TwoEInts, &
+                OrthoNorm,DistCs,DistLs,LambdaMag
+            WRITE(transform_unit,"(I12,11F18.10)") Iteration,PotEnergy,PEInts,PEOrtho,Force,ForceInts,OrthoForce, &
+                TwoEInts,OrthoNorm,DistCs,DistLs,LambdaMag
         ELSEIF(tERLocalization.and.tHijSqrdMin) THEN
             IF(Mod(Iteration,10).eq.0) THEN
                 WRITE(6,"(I12,7F24.10)") Iteration,ERPotEnergy,HijSqrdPotEnergy,PotEnergy,Force,TotCorrectedForce,OrthoNorm,DistCs
-                WRITE(transform_unit,"(I12,7F24.10)") Iteration,ERPotEnergy,HijSqrdPotEnergy,PotEnergy,Force,TotCorrectedForce,OrthoNorm,DistCs
+                WRITE(transform_unit,"(I12,7F24.10)") Iteration,ERPotEnergy,HijSqrdPotEnergy,PotEnergy,Force, &
+                    TotCorrectedForce,OrthoNorm,DistCs
             ENDIF
         ELSE
             IF(Mod(Iteration,10).eq.0) THEN
@@ -1937,11 +1969,13 @@ MODULE RotateOrbsMod
         do b=1,NoOrbs
             do d=1,b
                 Temp4indints(:,:)=0.D0
-                CALL DGEMM('T','N',NoRotOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,UMatTemp01(:,:,d,b),NoOrbs,0.0,Temp4indints(:,:),NoRotOrbs)
+                CALL DGEMM('T','N',NoRotOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,UMatTemp01(:,:,d,b),NoOrbs, &
+                    0.0,Temp4indints(:,:),NoRotOrbs)
                 ! Temp4indints(i,g) comes out of here, so to transform g to k, we need the transpose of this.
 
                 Temp4indints02(:,:)=0.D0
-                CALL DGEMM('T','T',NoRotOrbs,NoRotOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,Temp4indints(:,:),NoRotOrbs,0.0,Temp4indints02(:,:),NoRotOrbs)
+                CALL DGEMM('T','T',NoRotOrbs,NoRotOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,Temp4indints(:,:),NoRotOrbs, &
+                    0.0,Temp4indints02(:,:),NoRotOrbs)
                 ! Get Temp4indits02(i,k)
 
                 do i=1,NoRotOrbs
@@ -1963,11 +1997,13 @@ MODULE RotateOrbsMod
             do g=1,NoOrbs                
                 do a=1,g
                     Temp4indints(:,:)=0.D0
-                    CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,UMatTemp02(:,:,a,g),NoOrbs,0.0,Temp4indints(:,:),NoOrbs)
+                    CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,UMatTemp02(:,:,a,g),NoOrbs, &
+                        0.0,Temp4indints(:,:),NoOrbs)
                     ! Temp4indints(l,b) comes out of here, so need to use transpose of this to transform the b elements.
 
                     Temp4indints02(:,:)=0.D0
-                    CALL DGEMM('T','T',NoOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,Temp4indints(:,:),NoOrbs,0.0,Temp4indints02(:,:),NoOrbs)
+                    CALL DGEMM('T','T',NoOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,Temp4indints(:,:),NoOrbs, &
+                        0.0,Temp4indints02(:,:),NoOrbs)
                     ! Temp4indints02(l,j) comes out of here
 
                     do l=1,NoOrbs
@@ -1991,7 +2027,8 @@ MODULE RotateOrbsMod
         do i=1,NoRotOrbs
             do k=1,i
                 Temp4indints(:,:)=0.D0
-                CALL DGEMM('T','N',NoRotOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,TwoIndInts01(:,:,k,i),NoOrbs,0.0,Temp4indints(:,:),NoRotOrbs)
+                CALL DGEMM('T','N',NoRotOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,TwoIndInts01(:,:,k,i),NoOrbs, &
+                    0.0,Temp4indints(:,:),NoRotOrbs)
 
                 IF(tNotConverged) THEN
                     do b=1,NoOrbs
@@ -2001,7 +2038,8 @@ MODULE RotateOrbsMod
                         enddo
                     enddo
                     Temp4indints02(:,:)=0.D0
-                    CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,TwoIndInts01(:,:,k,i),NoOrbs,0.0,Temp4indints02(:,:),NoRotOrbs)
+                    CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,TwoIndInts01(:,:,k,i),NoOrbs, &
+                        0.0,Temp4indints02(:,:),NoRotOrbs)
                     do d=1,NoOrbs
                         do j=1,NoOrbs
                             ThreeIndInts04(k,i,j,d)=Temp4indints02(j,d)
@@ -2010,7 +2048,8 @@ MODULE RotateOrbsMod
                     enddo
                 ENDIF
                 Temp4indints02(:,:)=0.D0
-                CALL DGEMM('T','T',NoRotOrbs,NoRotOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,Temp4indints(:,:),NoRotOrbs,0.0,Temp4indints02(:,:),NoRotOrbs)
+                CALL DGEMM('T','T',NoRotOrbs,NoRotOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,Temp4indints(:,:),NoRotOrbs, &
+                    0.0,Temp4indints02(:,:),NoRotOrbs)
                 do l=1,NoRotOrbs
                     do j=1,l
                         FourIndInts(i,j,k,l)=Temp4indints02(j,l)
@@ -2034,7 +2073,8 @@ MODULE RotateOrbsMod
             do l=1,NoOrbs
                 do j=1,l
                     Temp4indints(:,:)=0.D0
-                    CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,TwoIndInts02(:,:,j,l),NoOrbs,0.0,Temp4indints(:,:),NoOrbs)
+                    CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,TwoIndInts02(:,:,j,l),NoOrbs, &
+                        0.0,Temp4indints(:,:),NoOrbs)
                     do a=1,NoOrbs
                         do k=1,NoOrbs
                             ThreeIndInts01(k,j,l,a)=Temp4indints(k,a)
@@ -2042,7 +2082,8 @@ MODULE RotateOrbsMod
                         enddo
                     enddo
                     Temp4indints(:,:)=0.D0
-                    CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,TwoIndInts02(:,:,j,l),NoOrbs,0.0,Temp4indints(:,:),NoOrbs)
+                    CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,TwoIndInts02(:,:,j,l),NoOrbs, &
+                        0.0,Temp4indints(:,:),NoOrbs)
                     do g=1,NoOrbs
                         do i=1,NoOrbs
                             ThreeIndInts03(i,l,j,g)=Temp4indints(i,g)
@@ -2160,10 +2201,12 @@ MODULE RotateOrbsMod
                     enddo
                 enddo
                 Temp4indints(:,:)=0.D0
-                CALL DGEMM('T','N',NoRotOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,FourIndInts(1:NoOrbs,1:NoOrbs,b,d),NoOrbs,0.0,Temp4indints(1:NoRotOrbs,1:NoOrbs),NoRotOrbs)
+                CALL DGEMM('T','N',NoRotOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,FourIndInts(1:NoOrbs,1:NoOrbs,b,d), &
+                    NoOrbs,0.0,Temp4indints(1:NoRotOrbs,1:NoOrbs),NoRotOrbs)
                 ! Temp4indints(i,g) comes out of here, so to transform g to k, we need the transpose of this.
 
-                CALL DGEMM('T','T',NoRotOrbs,NoRotOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,Temp4indints(1:NoRotOrbs,1:NoOrbs),NoRotOrbs,0.0,FourIndInts(1:NoRotOrbs,1:NoRotOrbs,b,d),NoRotOrbs)
+                CALL DGEMM('T','T',NoRotOrbs,NoRotOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,Temp4indints(1:NoRotOrbs,1:NoOrbs), &
+                    NoRotOrbs,0.0,FourIndInts(1:NoRotOrbs,1:NoRotOrbs,b,d),NoRotOrbs)
                 ! Get Temp4indits02(i,k)
 
                 do i=1,NoRotOrbs
@@ -2183,9 +2226,11 @@ MODULE RotateOrbsMod
             do k=1,i
 
                 Temp4indints(:,:)=0.D0
-                CALL DGEMM('T','N',NoRotOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,FourIndInts(i,k,1:NoOrbs,1:NoOrbs),NoOrbs,0.0,Temp4indints(1:NoRotOrbs,1:NoOrbs),NoRotOrbs)
+                CALL DGEMM('T','N',NoRotOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,FourIndInts(i,k,1:NoOrbs,1:NoOrbs), &
+                    NoOrbs,0.0,Temp4indints(1:NoRotOrbs,1:NoOrbs),NoRotOrbs)
 
-                CALL DGEMM('T','T',NoRotOrbs,NoRotOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,Temp4indints(1:NoRotOrbs,1:NoOrbs),NoRotOrbs,0.0,FourIndInts(i,k,1:NoRotOrbs,1:NoRotOrbs),NoRotOrbs)
+                CALL DGEMM('T','T',NoRotOrbs,NoRotOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,Temp4indints(1:NoRotOrbs,1:NoOrbs), &
+                    NoRotOrbs,0.0,FourIndInts(i,k,1:NoRotOrbs,1:NoRotOrbs),NoRotOrbs)
                 do l=1,NoRotOrbs
                     do j=1,l
                         FourIndInts(k,i,j,l)=FourIndInts(i,k,j,l)
@@ -2245,7 +2290,8 @@ MODULE RotateOrbsMod
             do b=1,d
                 Temp4indints(:,:)=0.D0
                 Temp4indints02(:)=0.D0
-                CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,UMATTemp01(:,:,b,d),NoOrbs,0.0,Temp4indints(:,:),NoOrbs)
+                CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,UMATTemp01(:,:,b,d), &
+                    NoOrbs,0.0,Temp4indints(:,:),NoOrbs)
                 ! a -> m. Temp4indints(m,g) comes out of here.
                 ! Want to transform g to m as well.
 
@@ -2282,7 +2328,8 @@ MODULE RotateOrbsMod
             do b=1,NoOrbs
                 Temp4indints(:,:)=0.D0
                 Temp4indints02(:)=0.D0
-                CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,UMATTemp01(:,:,b,d),NoOrbs,0.0,Temp4indints(:,:),NoOrbs)
+                CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,UMATTemp01(:,:,b,d), &
+                    NoOrbs,0.0,Temp4indints(:,:),NoOrbs)
                 ! a -> m. Temp4indints(m,g) comes out of here.
                 ! Want to transform g to m as well.
 
@@ -2631,13 +2678,16 @@ MODULE RotateOrbsMod
                         IF(tStoreSpinOrbs) THEN
                             IF(MOD(m,2).eq.0) THEN      ! m = j
                                 i=m-1
-                                DiagForcemz=DiagForcemz+ThreeIndInts01(m,i,i,z)+ThreeIndInts01(z,i,i,m)+ThreeIndInts01(i,m,z,i)+ThreeIndInts01(i,z,m,i)
+                                DiagForcemz=DiagForcemz+ThreeIndInts01(m,i,i,z)+ThreeIndInts01(z,i,i,m)+ &
+                                    ThreeIndInts01(i,m,z,i)+ThreeIndInts01(i,z,m,i)
                             ELSE
                                 j=m+1
-                                DiagForcemz=DiagForcemz+ThreeIndInts01(m,j,j,z)+ThreeIndInts01(z,j,j,m)+ThreeIndInts01(j,m,z,j)+ThreeIndInts01(j,z,m,j)
+                                DiagForcemz=DiagForcemz+ThreeIndInts01(m,j,j,z)+ThreeIndInts01(z,j,j,m)+ &
+                                    ThreeIndInts01(j,m,z,j)+ThreeIndInts01(j,z,m,j)
                             ENDIF
                         ELSE
-                            DiagForcemz=DiagForcemz+ThreeIndInts01(m,m,m,z)+ThreeIndInts02(m,m,m,z)+ThreeIndInts03(m,m,m,z)+ThreeIndInts04(m,m,m,z)
+                            DiagForcemz=DiagForcemz+ThreeIndInts01(m,m,m,z)+ThreeIndInts02(m,m,m,z)+ &
+                                ThreeIndInts03(m,m,m,z)+ThreeIndInts04(m,m,m,z)
                         ENDIF
                         ! First term when m=i and z=a, second when m=i and z=g.
                     ENDIF
@@ -2700,7 +2750,8 @@ MODULE RotateOrbsMod
                                 ENDIF
                                 IF(i.eq.m) THEN
                                     do j=1,NoOcc
-                                        DerivPot=DerivPot+(2*ThreeIndInts01(m,j,j,z))-ThreeIndInts01(j,j,m,z)+(2*ThreeIndInts03(m,j,j,z))-ThreeIndInts03(m,j,z,j)
+                                        DerivPot=DerivPot+(2*ThreeIndInts01(m,j,j,z))-ThreeIndInts01(j,j,m,z)+ &
+                                            (2*ThreeIndInts03(m,j,j,z))-ThreeIndInts03(m,j,z,j)
                                         ! First part is for when m=i and z=a, the second is for when m=i and z=g
                                     enddo
                                 ENDIF
@@ -2771,18 +2822,22 @@ MODULE RotateOrbsMod
                                     ! Running across i, ThreeIndInts01 only contributes if i.eq.m (which will happen once for each m)
                                     IF((m.le.k-1).and.(m.ne.j).and.((i.ne.k).or.(j.ne.l))) THEN
 !                                    IF((m.le.k-1)) THEN
-                                        IF(tOffDiagSqrdMin.or.tOffDiagSqrdMax) OffDiagForcemz=OffDiagForcemz+2*(FourIndInts02(j,k,l,m)*ThreeIndInts01(k,j,l,z))
+                                        IF(tOffDiagSqrdMin.or.tOffDiagSqrdMax) OffDiagForcemz=OffDiagForcemz+2* &
+                                            (FourIndInts02(j,k,l,m)*ThreeIndInts01(k,j,l,z))
                                         IF(tOffDiagMin.or.tOffDiagMax) OffDiagForcemz=OffDiagForcemz+ThreeIndInts01(k,j,l,z)
-                                        IF(tDoubExcMin) OffDiagForcemz=OffDiagForcemz+ThreeIndInts01(k,j,l,z)-ThreeIndInts01(l,j,k,z)
+                                        IF(tDoubExcMin) OffDiagForcemz=OffDiagForcemz+ThreeIndInts01(k,j,l,z)- &
+                                            ThreeIndInts01(l,j,k,z)
                                     ENDIF
 
                                     IF(jeqm) THEN
                                         do i=1,k-1
                                             IF((i.ne.j).and.((i.ne.k).or.(j.ne.l))) THEN
 !                                        do i=SymLabelCounts2(1,Symi+SymMin),(SymLabelCounts2(1,Symi+SymMin)+SymLabelCounts2(2,Symi+SymMin)-1)
-                                                IF(tOffDiagSqrdMin.or.tOffDiagSqrdMax) OffDiagForcemz=OffDiagForcemz+2*(FourIndInts(i,j,k,l)*ThreeIndInts02(i,k,l,z))
+                                                IF(tOffDiagSqrdMin.or.tOffDiagSqrdMax) OffDiagForcemz=OffDiagForcemz+2* &
+                                                    (FourIndInts(i,j,k,l)*ThreeIndInts02(i,k,l,z))
                                                 IF(tOffDiagMin.or.tOffDiagMax) OffDiagForcemz=OffDiagForcemz+ThreeIndInts02(i,k,l,z)
-                                                IF(tDoubExcMin) OffDiagForcemz=OffDiagForcemz+(ThreeIndInts02(i,k,l,z))-ThreeIndInts02(i,l,k,z)
+                                                IF(tDoubExcMin) OffDiagForcemz=OffDiagForcemz+(ThreeIndInts02(i,k,l,z))- &
+                                                    ThreeIndInts02(i,l,k,z)
                                             ENDIF
                                         enddo
                                     ENDIF
@@ -2791,9 +2846,12 @@ MODULE RotateOrbsMod
 !                                        do i=SymLabelCounts2(1,Symi+SymMin),(SymLabelCounts2(1,Symi+SymMin)+SymLabelCounts2(2,Symi+SymMin)-1)
                                         do i=1,k-1
                                             IF((i.ne.j).and.((i.ne.k).or.(j.ne.l))) THEN
-                                                IF(tOffDiagSqrdMin.or.tOffDiagSqrdMax) OffDiagForcemz=OffDiagForcemz+2*(FourIndInts(i,j,k,l)*ThreeIndInts03(i,j,l,z))
-                                                IF(tOffDiagMin.or.tOffDiagSqrdMax) OffDiagForcemz=OffDiagForcemz+ThreeIndInts03(i,j,l,z)
-                                                IF(tDoubExcMin) OffDiagForcemz=OffDiagForcemz+(ThreeIndInts03(i,j,l,z))-ThreeIndInts03(i,j,z,l)
+                                                IF(tOffDiagSqrdMin.or.tOffDiagSqrdMax) OffDiagForcemz=OffDiagForcemz+2* &
+                                                    (FourIndInts(i,j,k,l)*ThreeIndInts03(i,j,l,z))
+                                                IF(tOffDiagMin.or.tOffDiagSqrdMax) OffDiagForcemz=OffDiagForcemz+ &
+                                                    ThreeIndInts03(i,j,l,z)
+                                                IF(tDoubExcMin) OffDiagForcemz=OffDiagForcemz+(ThreeIndInts03(i,j,l,z))- &
+                                                    ThreeIndInts03(i,j,z,l)
                                             ENDIF
                                         enddo
                                     ENDIF
@@ -2802,9 +2860,11 @@ MODULE RotateOrbsMod
 !                                        do i=SymLabelCounts2(1,Symi+SymMin),(SymLabelCounts2(1,Symi+SymMin)+SymLabelCounts2(2,Symi+SymMin)-1)
                                         do i=1,k-1
                                             IF((i.ne.j).and.((i.ne.k).or.(j.ne.l))) THEN
-                                                IF(tOffDiagSqrdMin.or.tOffDiagSqrdMin) OffDiagForcemz=OffDiagForcemz+2*(FourIndInts(i,j,k,l)*ThreeIndInts04(i,k,j,z))
+                                                IF(tOffDiagSqrdMin.or.tOffDiagSqrdMin) OffDiagForcemz=OffDiagForcemz+2* &
+                                                    (FourIndInts(i,j,k,l)*ThreeIndInts04(i,k,j,z))
                                                 IF(tOffDiagMin.or.tOffDiagMax) OffDiagForcemz=OffDiagForcemz+ThreeIndInts04(i,k,j,z)
-                                                IF(tDoubExcMin) OffDiagForcemz=OffDiagForcemz+(ThreeIndInts04(i,k,j,z))-ThreeIndInts04(i,z,j,k)
+                                                IF(tDoubExcMin) OffDiagForcemz=OffDiagForcemz+(ThreeIndInts04(i,k,j,z))- &
+                                                    ThreeIndInts04(i,z,j,k)
                                             ENDIF
                                         enddo
                                     ENDIF
@@ -2818,7 +2878,8 @@ MODULE RotateOrbsMod
 !                    ELSE
 !                        WRITE(6,*) m,z,DiagForcemz
 !                    ENDIF
-                    DerivCoeff(z,m)=(MaxMinFac*OffDiagWeight*OffDiagForcemz)+(DiagMaxMinFac*DiagWeight*DiagForcemz)+(OneElMaxMinFac*OneElWeight*OneElForcemz)
+                    DerivCoeff(z,m)=(MaxMinFac*OffDiagWeight*OffDiagForcemz)+(DiagMaxMinFac*DiagWeight*DiagForcemz)+ &
+                        (OneElMaxMinFac*OneElWeight*OneElForcemz)
                     Force=Force+ABS(DerivCoeff(z,m))
                 enddo
             enddo
@@ -3015,7 +3076,8 @@ MODULE RotateOrbsMod
         IF(Iteration.eq.1) THEN
             shake_io = get_free_unit()
             OPEN(shake_io,FILE='SHAKEstats',STATUS='unknown')
-            WRITE(shake_io,'(A20,4A35,A20)') 'Shake Iteration','Sum Lambdas','Total of corrected forces','Sum unconstrained constraints',&
+            WRITE(shake_io,'(A20,4A35,A20)') 'Shake Iteration','Sum Lambdas','Total of corrected forces', &
+                & 'Sum unconstrained constraints',&
                                         &'Sum corrected constraints','Converge count'
         ENDIF
         IF(Mod(Iteration,10).eq.0) WRITE(shake_io,*) 'Orbital rotation iteration = ',Iteration
@@ -3153,7 +3215,8 @@ MODULE RotateOrbsMod
             CALL FLUSH(6)
             CALL FLUSH(shake_io)
             IF(Mod(Iteration,10).eq.0) THEN
-                WRITE(shake_io,'(I20,4F35.20,I20)') ShakeIteration,TotLambdas,TotCorrectedForce,TotConstraints,TotCorConstraints,ConvergeCount 
+                WRITE(shake_io,'(I20,4F35.20,I20)') ShakeIteration,TotLambdas,TotCorrectedForce,TotConstraints, &
+                    TotCorConstraints,ConvergeCount 
             ENDIF
 
 ! If the convergence criteria is not met, use either the full matrix inversion method to find a new set of lambdas, or the shake algorithm 
@@ -3869,7 +3932,7 @@ MODULE RotateOrbsMod
             OPEN(iunit,FILE='HistHFSingkOcijVir',STATUS='unknown')
             do j=1,4002
                 IF((ROHistSCkOcijVir(2,j).ne.0).or.(ROHistSEkOcijVir(2,j).ne.0).or.(ROHistSASkOcijVir(2,j).ne.0)) THEN
-                    WRITE(iunit,'(6F20.10)') ROHistSCkOcijVir(1,j),ROHistSCkOcijVir(2,j),ROHistSEkOcijVir(1,j),ROHistSEkOcijVir(2,j),&
+                  WRITE(iunit,'(6F20.10)') ROHistSCkOcijVir(1,j),ROHistSCkOcijVir(2,j),ROHistSEkOcijVir(1,j),ROHistSEkOcijVir(2,j),&
                                                         &ROHistSASkOcijVir(1,j),ROHistSASkOcijVir(2,j)
                 ENDIF
             enddo
@@ -3880,7 +3943,7 @@ MODULE RotateOrbsMod
             OPEN(iunit,FILE='HistRotSingkOcijVir',STATUS='unknown')
             do j=1,4002
                 IF((ROHistSCkOcijVir(2,j).ne.0).or.(ROHistSEkOcijVir(2,j).ne.0).or.(ROHistSASkOcijVir(2,j).ne.0)) THEN
-                    WRITE(iunit,'(6F20.10)') ROHistSCkOcijVir(1,j),ROHistSCkOcijVir(2,j),ROHistSEkOcijVir(1,j),ROHistSEkOcijVir(2,j),&
+                  WRITE(iunit,'(6F20.10)') ROHistSCkOcijVir(1,j),ROHistSCkOcijVir(2,j),ROHistSEkOcijVir(1,j),ROHistSEkOcijVir(2,j),&
                                                         &ROHistSASkOcijVir(1,j),ROHistSASkOcijVir(2,j)
                 ENDIF
             enddo
@@ -3987,7 +4050,7 @@ MODULE RotateOrbsMod
             OPEN(iunit,FILE='HistHFSingikOcjVir',STATUS='unknown')
             do j=1,4002
                 IF((ROHistSCikOcjVir(2,j).ne.0).or.(ROHistSEikOcjVir(2,j).ne.0).or.(ROHistSASikOcjVir(2,j).ne.0)) THEN 
-                    WRITE(iunit,'(6F20.10)') ROHistSCikOcjVir(1,j),ROHistSCikOcjVir(2,j),ROHistSEikOcjVir(1,j),ROHistSEikOcjVir(2,j),&
+                  WRITE(iunit,'(6F20.10)') ROHistSCikOcjVir(1,j),ROHistSCikOcjVir(2,j),ROHistSEikOcjVir(1,j),ROHistSEikOcjVir(2,j),&
                                                         &ROHistSASikOcjVir(1,j),ROHistSASikOcjVir(2,j)
                 ENDIF
             enddo
@@ -3998,7 +4061,7 @@ MODULE RotateOrbsMod
             OPEN(iunit,FILE='HistRotSingikOcjVir',STATUS='unknown')
             do j=1,4002
                 IF((ROHistSCikOcjVir(2,j).ne.0).or.(ROHistSEikOcjVir(2,j).ne.0).or.(ROHistSASikOcjVir(2,j).ne.0)) THEN 
-                    WRITE(iunit,'(6F20.10)') ROHistSCikOcjVir(1,j),ROHistSCikOcjVir(2,j),ROHistSEikOcjVir(1,j),ROHistSEikOcjVir(2,j),&
+                  WRITE(iunit,'(6F20.10)') ROHistSCikOcjVir(1,j),ROHistSCikOcjVir(2,j),ROHistSEikOcjVir(1,j),ROHistSEikOcjVir(2,j),&
                                                         &ROHistSASikOcjVir(1,j),ROHistSASikOcjVir(2,j)
                 ENDIF
             enddo
@@ -4142,8 +4205,10 @@ MODULE RotateOrbsMod
                 do j=1,NoOcc
                     do k=NoOcc+1,NoOrbs
                         do l=NoOcc+1,NoOrbs
-                            IF((FourIndInts(i,j,k,l)-FourIndInts(i,j,l,k)).lt.MinFII) MinFII=(FourIndInts(i,j,k,l)-FourIndInts(i,j,l,k))
-                            IF((FourIndInts(i,j,k,l)-FourIndInts(i,j,l,k)).gt.MaxFII) MaxFII=(FourIndInts(i,j,k,l)-FourIndInts(i,j,l,k))
+                            IF((FourIndInts(i,j,k,l)-FourIndInts(i,j,l,k)).lt.MinFII) MinFII=(FourIndInts(i,j,k,l)- &
+                                FourIndInts(i,j,l,k))
+                            IF((FourIndInts(i,j,k,l)-FourIndInts(i,j,l,k)).gt.MaxFII) MaxFII=(FourIndInts(i,j,k,l)- &
+                                FourIndInts(i,j,l,k))
                         enddo
                     enddo
                 enddo
@@ -4174,7 +4239,8 @@ MODULE RotateOrbsMod
                 OPEN(iunit,FILE='HistHFDoubijOcklVir',STATUS='unknown')
                 do j=1,4002
                     IF((ROHistDCijOcklVir(2,j).ne.0).or.(ROHistASijOcklVir(2,j).ne.0)) THEN
-                        WRITE(iunit,'(4F20.10)') ROHistDCijOcklVir(1,j),ROHistDCijOcklVir(2,j),ROHistASijOcklVir(1,j),ROHistASijOcklVir(2,j)
+                        WRITE(iunit,'(4F20.10)') ROHistDCijOcklVir(1,j),ROHistDCijOcklVir(2,j), &
+                            ROHistASijOcklVir(1,j),ROHistASijOcklVir(2,j)
                     ENDIF
                 enddo
                 CLOSE(iunit)
@@ -4184,7 +4250,8 @@ MODULE RotateOrbsMod
                 OPEN(iunit,FILE='HistRotDoubijOcklVir',STATUS='unknown')
                 do j=1,4002
                     IF((ROHistDCijOcklVir(2,j).ne.0).or.(ROHistASijOcklVir(2,j).ne.0)) THEN
-                        WRITE(iunit,'(4F20.10)') ROHistDCijOcklVir(1,j),ROHistDCijOcklVir(2,j),ROHistASijOcklVir(1,j),ROHistASijOcklVir(2,j)
+                        WRITE(iunit,'(4F20.10)') ROHistDCijOcklVir(1,j),ROHistDCijOcklVir(2,j), &
+                            ROHistASijOcklVir(1,j),ROHistASijOcklVir(2,j)
                     ENDIF
                 enddo
                 CLOSE(iunit)
@@ -4234,8 +4301,10 @@ MODULE RotateOrbsMod
                 do j=NoOcc+1,NoOrbs
                     do k=i+1,NoOrbs
                         do l=j+1,NoOrbs
-                            IF((FourIndInts(i,j,k,l)-FourIndInts(i,j,l,k)).lt.MinFII) MinFII=(FourIndInts(i,j,k,l)-FourIndInts(i,j,l,k))
-                            IF((FourIndInts(i,j,k,l)-FourIndInts(i,j,l,k)).gt.MaxFII) MaxFII=(FourIndInts(i,j,k,l)-FourIndInts(i,j,l,k))
+                            IF((FourIndInts(i,j,k,l)-FourIndInts(i,j,l,k)).lt.MinFII) MinFII=(FourIndInts(i,j,k,l)- &
+                                FourIndInts(i,j,l,k))
+                            IF((FourIndInts(i,j,k,l)-FourIndInts(i,j,l,k)).gt.MaxFII) MaxFII=(FourIndInts(i,j,k,l)- &
+                                FourIndInts(i,j,l,k))
                         enddo
                     enddo
                 enddo
@@ -4266,7 +4335,8 @@ MODULE RotateOrbsMod
                 OPEN(iunit,FILE='HistHFDoubijklVirt',STATUS='unknown')
                 do j=1,4002
                     IF((ROHistDCijklVir(2,j).ne.0).or.(ROHistASijklVir(2,j).ne.0)) THEN
-                        WRITE(iunit,'(4F20.10)') ROHistDCijklVir(1,j),ROHistDCijklVir(2,j),ROHistASijklVir(1,j),ROHistASijklVir(2,j)
+                        WRITE(iunit,'(4F20.10)') ROHistDCijklVir(1,j),ROHistDCijklVir(2,j), &
+                            ROHistASijklVir(1,j),ROHistASijklVir(2,j)
                     ENDIF
                 enddo
                 CLOSE(iunit)
@@ -4276,7 +4346,8 @@ MODULE RotateOrbsMod
                 OPEN(iunit,FILE='HistRotDoubijklVirt',STATUS='unknown')
                 do j=1,4002
                     IF((ROHistDCijklVir(2,j).ne.0).or.(ROHistASijklVir(2,j).ne.0)) THEN
-                        WRITE(iunit,'(4F20.10)') ROHistDCijklVir(1,j),ROHistDCijklVir(2,j),ROHistASijklVir(1,j),ROHistASijklVir(2,j)
+                        WRITE(iunit,'(4F20.10)') ROHistDCijklVir(1,j),ROHistDCijklVir(2,j),ROHistASijklVir(1,j), &
+                            ROHistASijklVir(2,j)
                     ENDIF
                 enddo
                 CLOSE(iunit)
@@ -4636,18 +4707,21 @@ MODULE RotateOrbsMod
         use util_mod, only: get_free_unit
         INTEGER :: i,j,k,l, io1, io2
         REAL*8 :: DiagOneElPot,ERPot,ijVirtOneElPot,ijVirtCoulPot,ijVirtExchPot
-        REAL*8 :: singCoulijVirt,singExchijVirt,singCoulconHF,singExchconHF,ijklPot,ijklantisymPot,ijOccVirtOneElPot,ijOccVirtCoulPot,ijOccVirtExchPot
+        REAL*8 :: singCoulijVirt,singExchijVirt,singCoulconHF,singExchconHF,ijklPot,ijklantisymPot
+        REAL*8 :: ijOccVirtOneElPot,ijOccVirtCoulPot,ijOccVirtExchPot
 
         io1 = 0
         io2 = 0
         IF(tInitIntValues) THEN
             io1 = get_free_unit()
             OPEN(io1,FILE='DiagIntegrals',STATUS='unknown')
-            WRITE(io1,'(A10,6A18)') "Iteration","<i|h|i> ivirt","<ii|ii> ivirt","<ij|ij> iOccjVirt","<ij|ji> iOccjVirt","<ij|ij> ijVirt","<ij|ji> ijVirt"
+            WRITE(io1,'(A10,6A18)') "Iteration","<i|h|i> ivirt","<ii|ii> ivirt","<ij|ij> iOccjVirt","<ij|ji> iOccjVirt", &
+                "<ij|ij> ijVirt","<ij|ji> ijVirt"
 
             io2 = get_free_unit()
             OPEN(io2,FILE='SingExcIntegrals',STATUS='unknown')
-            WRITE(io2,'(A10,6A18)') "Iteration","<i|h|j> iOccjVirt","<i|h|j> ijVirt","<ik|jk> HFcon","<ik|kj> HFcon","<ik|jk> ijVirt","<ik|kj> ijVirt"
+            WRITE(io2,'(A10,6A18)') "Iteration","<i|h|j> iOccjVirt","<i|h|j> ijVirt","<ik|jk> HFcon","<ik|kj> HFcon", &
+                "<ik|jk> ijVirt","<ik|kj> ijVirt"
 
 
             DiagOneElPotInit=0.D0
@@ -4787,7 +4861,8 @@ MODULE RotateOrbsMod
 
 
         WRITE(io1,'(I10,6F18.10)') Iteration,DiagOneElPot,ERPot,ijOccVirtCoulPot,ijOccVirtExchPot,ijVirtCoulPot,ijVirtExchPot
-        WRITE(io2,'(I10,6F18.10)') Iteration,ijOccVirtOneElPot,ijVirtOneElPot,singCoulconHF,singExchconHF,singCoulijVirt,singExchijVirt
+        WRITE(io2,'(I10,6F18.10)') Iteration,ijOccVirtOneElPot,ijVirtOneElPot,singCoulconHF,singExchconHF,singCoulijVirt, &
+            singExchijVirt
 
         IF((.not.tNotConverged).and.(.not.tInitIntValues)) THEN
             CLOSE(io1)

@@ -1,7 +1,7 @@
 #include "macros.h"
 
 module sltcnd_mod
-    use SystemData, only: nel, nBasisMax, tExch, FCOUL, G1, ALAT
+    use SystemData, only: nel, nBasisMax, tExch, G1, ALAT
     use SystemData, only: nBasis!, iSpinSkip
     ! HACK - We use nBasisMax(2,3) here rather than iSpinSkip, as it appears
     !        to be more reliably set (see for example test H2O_RI)
@@ -217,10 +217,7 @@ contains
                 enddo
             enddo
         endif
-        hel_doub = hel_doub + hel_tmp
-
-        ! If we are scaling the coulomb interaction, do so here.
-        hel = hel_sing + (hel_doub * (FCOUL))
+        hel = hel_doub + hel_tmp + hel_sing
 
     end function SumFock
 
@@ -268,10 +265,8 @@ contains
                 enddo
             enddo
         endif
-        hel_doub = hel_doub + hel_tmp
+        hel = hel_doub + hel_tmp + hel_sing
 
-        ! If we are scaling the coulomb interaction, do so here.
-        hel = hel_sing + (hel_doub * (FCOUL))
     end function sltcnd_0
 
     function sltcnd_1 (nI, ex, tSign) result(hel)
@@ -319,7 +314,7 @@ contains
         ! consider the non-diagonal part of the kinetic energy -
         ! <psi_a|T|psi_a'> where a, a' are the only basis fns that differ in
         ! nI, nJ
-        hel = (hel*(FCOUL)) + GetTMATEl(ex(1), ex(2))
+        hel = hel + GetTMATEl(ex(1), ex(2))
 
         if (tSign) hel = -hel
     end function sltcnd_1
