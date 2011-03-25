@@ -28,8 +28,8 @@ MODULE FciMCData
 
       INTEGER(KIND=n_int) , ALLOCATABLE :: Spawned_Parents(:,:)
       INTEGER , ALLOCATABLE :: Spawned_Parents_Index(:,:)
-      INTEGER :: Spawned_ParentsTag, Spawned_Parents_IndexTag,hfcount,excitcount,excitcount2,Probs_unit,SumActSign
-      REAL*8 :: RDMBiasFacI, AllTotPartsTemp,SumStochSign, SumStochSign2, pspawntemp
+      INTEGER :: Spawned_ParentsTag, Spawned_Parents_IndexTag
+      REAL*8 :: RDMBiasFacI, AllTotPartsTemp
       LOGICAL :: tFillingRDMonFly, thf, tAnnihil_All
       INTEGER, DIMENSION(lenof_sign) :: HFSign, AllHFSign
 

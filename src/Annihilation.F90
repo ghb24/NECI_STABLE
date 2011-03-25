@@ -59,7 +59,7 @@ MODULE AnnihilationMod
         INTEGER, INTENT(IN) :: MaxMainInd,MaxSpawnInd
         INTEGER, INTENT(INOUT) :: TotDets
         type(fcimc_iter_data), intent(inout) :: iter_data
-        INTEGER(KIND=n_int), INTENT(INOUT) , TARGET :: MainParts(0:NIfTot,MaxMainInd),SpawnParts(0:NIfTot,MaxSpawnInd)
+        INTEGER(KIND=n_int), INTENT(INOUT) , TARGET :: MainParts(0:NIfTot,MaxMainInd),SpawnParts(0:(NIfTot+NIfDBO+2),MaxSpawnInd)
 !        INTEGER, INTENT(INOUT) , TARGET :: MainSign(MaxMainInd)
         INTEGER, INTENT(INOUT) :: SpawnDets
         INTEGER :: ierr,i
@@ -79,7 +79,7 @@ MODULE AnnihilationMod
 !This is required scratch space of the size of the spawned arrays
             call shared_allocate_iluts("SpawnVecLocal",SpawnVecLocal,(/(NIfTot+NIfDBO+2),MaxSpawnInd/),iNodeIndex)
             ierr=0
-            CALL LogMemAlloc('SpawnVecLocal',MaxSpawnInd*(NIfTot+NIfDBO+3),size_n_int,this_routine,SpawnVec2Tag,ierr)
+            CALL LogMemAlloc('SpawnVecLocal',MaxSpawnInd*(NIfTot+NIfDBO+2),size_n_int,this_routine,SpawnVec2Tag,ierr)
             call MPIBarrier(ierr)
 !            SpawnVecLocal(:,:)=0
 !            ALLOCATE(SpawnSignVec2(0:MaxSpawnInd),stat=ierr)
@@ -329,11 +329,6 @@ MODULE AnnihilationMod
         if(.not.bNodeRoot) return
 !        call WriteExcitorListP(6,SpawnedParts,0,ValidSpawned,0,"UnOrdered")
 
-!        IF(tFillingRDMonFly) THEN
-!            WRITE(6,*) 'before sort'
-!            call flush(6)
-!        ENDIF
-
         call sort(SpawnedParts(:,1:ValidSpawned), ilut_lt, ilut_gt)
 
         IF(tHistSpawn) HistMinInd2(1:NEl)=FCIDetIndex(1:NEl)
@@ -356,24 +351,11 @@ MODULE AnnihilationMod
         DetsMerged=0
         Parent_Array_Ind = 1
 
-!        IF(tFillingRDMonFly) THEN
-!            WRITE(6,*) 'SpawnedParts (with parents still in them)'
-!            do i = 1, ValidSpawned
-!                WRITE(6,*) SpawnedParts(:,i)
-!            enddo
-!            WRITE(6,*) 'ValidSpawned',ValidSpawned
-!        ENDIF
-
         do while(BeginningBlockDet.le.ValidSpawned)
             !loop in blocks of the same determinant to the end of the list of walkers
 
             FirstInitIndex=0
             CurrentBlockDet=BeginningBlockDet+1
-
-!            IF(tFillingRDMonFly) THEN
-!                WRITE(6,*) 'SpawnedParts(0:NIfTot,BeginningBlockDet)',SpawnedParts(0:NIfTot,BeginningBlockDet)
-!                WRITE(6,*) 'SpawnedParts(0:NIfTot,CurrentBlockDet)',SpawnedParts(0:NIfTot,CurrentBlockDet)
-!            ENDIF
 
             do while(CurrentBlockDet.le.ValidSpawned)
                 if(.not.(DetBitEQ(SpawnedParts(0:NIfTot,BeginningBlockDet),SpawnedParts(0:NIfTot,CurrentBlockDet),NIfDBO))) exit
@@ -381,27 +363,19 @@ MODULE AnnihilationMod
                 CurrentBlockDet=CurrentBlockDet+1
             enddo
 
-!            IF(tFillingRDMonFly) WRITE(6,*) 'BeginningBlockDet',BeginningBlockDet
-
             EndBlockDet=CurrentBlockDet-1 !EndBlockDet indicates that we have reached the end of the block of similar dets
 !            WRITE(6,*) "Found Block: ",BeginningBlockDet," -> ",EndBlockDet
-
-!            IF(tFillingRDMonFly) WRITE(6,*) 'EndBlockDet',EndBlockDet
 
             if(EndBlockDet.eq.BeginningBlockDet) then
                 !Optimisation: This block only consists of one entry. Simply copy it across rather than 
                 !               explicitly searching the list.
-!                IF(tFillingRDMonFly) WRITE(6,*) 'SpawnedParts(:,BeginningBlockDet)',SpawnedParts(:,BeginningBlockDet)
                 SpawnedParts2(:,VecInd)=SpawnedParts(:,BeginningBlockDet)   !Transfer all info to the other array
-!                IF(tFillingRDMonFly) WRITE(6,*) 'SpawnedParts2(:,VecInd)',VecInd,SpawnedParts2(:,VecInd)
 
                 IF(tFillingRDMonFly.and.tStochasticRDM) THEN
                     Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = SpawnedParts(NIfTot+1:NIfTot+NIfDBO+2,BeginningBlockDet)
                     !The first NIfDBO of this is the parent determinant, NIfDBO + 1 entry is the p_gen.
-!                    IF(tFillingRDMonFly) WRITE(6,*) 'Spawned_Parents',Parent_Array_Ind,Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) !dmc52
                     Spawned_Parents_Index(1,VecInd) = Parent_Array_Ind
                     Spawned_Parents_Index(2,VecInd) = 1
-!                    IF(tFillingRDMonFly) WRITE(6,*) 'Spawned_Parents_Index',VecInd,Spawned_Parents_Index(:,VecInd) !dmc52
                     Parent_Array_Ind = Parent_Array_Ind + 1
                 ENDIF
                 VecInd=VecInd+1
@@ -412,11 +386,12 @@ MODULE AnnihilationMod
             ! Reset the cumulative determinant
             cum_det = 0
             cum_det (0:nifdbo) = SpawnedParts(0:nifdbo, BeginningBlockDet)
+            tAnnihil_All = .false.
             IF(tFillingRDMonFly.and.tStochasticRDM) THEN
                 Beginning_Parent_Array_Ind = Parent_Array_Ind
                 Spawned_Parents_Index(2,VecInd) = 0
             ENDIF
-
+            
             do part_type=1,lenof_sign   !Annihilate in this block seperately for real and imag walkers
 
                 ! How many of either real/imaginary spawns are there onto each det
@@ -426,7 +401,6 @@ MODULE AnnihilationMod
                     
                 if(tTruncInitiator) then
                     !Need to find if there are any initiators in this block
-                    tAnnihil_All = .false.
                     do i=BeginningBlockDet,EndBlockDet  !Loop over the block
                         if (test_flag(SpawnedParts(:,i), flag_parent_initiator(part_type))) then
                             !Found an initiator walker
@@ -478,26 +452,24 @@ MODULE AnnihilationMod
                 DetsMerged = DetsMerged + EndBlockDet - BeginningBlockDet + 1
                 ! This spawned entry will be removed - don't want to store any parents.
                 ! Reset Parent_Array_Ind so that the parents will be written over.
-!                if(tFillingRDMonFly.and.tStochasticRDM) Parent_Array_Ind = Beginning_Parent_Array_Ind
             endif
 
             BeginningBlockDet=CurrentBlockDet           !Move onto the next block of determinants
 
         enddo   
 
-        IF(tFillingRDMonFly.and.tStochasticRDM) No_Spawned_Parents = Parent_Array_Ind - 1
+        IF(tFillingRDMonFly.and.tStochasticRDM) then
+            No_Spawned_Parents = Parent_Array_Ind - 1
+            if(No_Spawned_Parents.ne.ValidSpawned) then
+                write(6,*) 'ValidSpawned',ValidSpawned
+                write(6,*) 'No_Spawned_Parents',No_Spawned_Parents
+                CALL Stop_All(this_routine,'No_Spawned_Parents /= ValidSpawned')
+            endif
+        ENDIF
         ValidSpawned=ValidSpawned-DetsMerged    !This is the new number of unique spawned determinants on the processor
         IF(ValidSpawned.ne.(VecInd-1)) THEN
             CALL Stop_All(this_routine,"Error in compression of spawned list")
         ENDIF
-
-!        IF(tFillingRDMonFly) WRITE(6,*) 'No_Spawned_Parents',No_Spawned_Parents
-
-!        IF(tFillingRDMonFly) THEN
-!            do i = 1, ValidSpawned
-!                WRITE(6,*) SpawnedParts2(:,i)
-!            enddo
-!        ENDIF
 
 !Want the compressed list in spawnedparts at the end of it - swap pointers around.
         PointTemp => SpawnedParts2
@@ -516,9 +488,15 @@ MODULE AnnihilationMod
 !            do i = 1, ValidSpawned
 !                WRITE(6,*) 'SpawnedParts(:,i)',SpawnedParts(:,i)
 !                WRITE(6,*) 'Spawned_Parents_Index(:,i)', Spawned_Parents_Index(:,i)
-!                do j = Spawned_Parents_Index(1,i), Spawned_Parents_Index(1,i) +Spawned_Parents_Index(2,i)-1
-!                    WRITE(6,*) Spawned_Parents(:,j)
-!                enddo
+!                if(spawnedparts(0,i).eq.777) then
+!                    write(6,*) 'spawned parents after find residual'
+!                    write(6,*) 'parents go from ',Spawned_Parents_Index(1,i)
+!                    write(6,*) 'to',Spawned_Parents_Index(1,i) +Spawned_Parents_Index(2,i)-1
+!                    write(6,*) 'det in position',i
+!                    do j = Spawned_Parents_Index(1,i), Spawned_Parents_Index(1,i) +Spawned_Parents_Index(2,i)-1
+!                        WRITE(6,*) Spawned_Parents(:,j)
+!                    enddo
+!                endif
 !            enddo
 !        ENDIF
 
@@ -532,8 +510,6 @@ MODULE AnnihilationMod
 !            WRITE(6,*) Spawned_Parents_Index(:,i)
 !        enddo
 
-
-
 !        IF(tFillingRDMonFly) THEN
 !            WRITE(6,*) 'Parents'
 !            do i = 1, No_Spawned_Parents
@@ -546,19 +522,9 @@ MODULE AnnihilationMod
 !            enddo
 !        ENDIF
 
-
-        
-
 !        WRITE(6,*) "************************"
 !        call WriteExcitorListP(6,SpawnedParts,0,ValidSpawned,0,"Compressed Spawned")
 
-
-!        IF(tFillingRDMonFly) THEN
-!            WRITE(6,*) "Compressed List: ",ValidSpawned,DetsMerged
-!            do i=1,ValidSpawned
-!                WRITE(6,*) SpawnedParts(0:NIfTot-1,i),SpawnedParts(NIfTot,i)-2
-!            enddo
-!        ENDIF       !dmc52
 !!        WRITE(6,*) "************************"
 !!        WRITE(6,*) "Compressed List: ",ValidSpawned,DetsMerged
 !!        do i=1,ValidSpawned
@@ -632,6 +598,7 @@ MODULE AnnihilationMod
 
         ! Obtain the signs and sign product. Ignore new particel if zero.
         new_sgn = extract_part_sign (new_det, part_type)
+
         if (new_sgn == 0) then
             if(tFillingRDMonFly.and.tStochasticRDM) then
                 Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = new_det(NIfTot+1:NIfTot+NIfDBO+2)
@@ -643,6 +610,7 @@ MODULE AnnihilationMod
         endif
         cum_sgn = extract_part_sign (cum_det, part_type)
         sgn_prod = cum_sgn * new_sgn
+
         if((sgn_prod.eq.0).and.(.not.tAnnihil_All)) then
             tfirst = .true.
         else
@@ -716,20 +684,10 @@ MODULE AnnihilationMod
         endif
 
         if(tFillingRDMonFly.and.tStochasticRDM) then
-!            WRITE(6,*) 'new_det',new_det
-!            WRITE(6,*) 'Parent_Array_Ind',Parent_Array_Ind
-!            WRITE(6,*) 'new_det(NIfTot+1:NIfTot+NIfDBO+2)',new_det(NIfTot+1:NIfTot+NIfDBO+2)
-!            call flush(6)
-!            WRITE(6,*) 'Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind)',Spawned_Parents(:,Parent_Array_Ind)
-!            call flush(6)
+            !This is the first determinant - set the beginning index
             Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = new_det(NIfTot+1:NIfTot+NIfDBO+2)
-!            WRITE(6,*) 'Parent_Array_Ind',Parent_Array_Ind
-!            WRITE(6,*) 'Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind)',Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind)
-!            call flush(6)
-!            if((sgn_prod .eq. 0).or.(tAllSpawnAttemptsRDM.and.tFillingRDMonFly)) Spawned_Parents_Index(1,Spawned_No) = Beginning_Parent_Array_Ind
             if(tfirst.or.(tAllSpawnAttemptsRDM.and.tFillingRDMonFly)) Spawned_Parents_Index(1,Spawned_No) = Beginning_Parent_Array_Ind
             Spawned_Parents_Index(2,Spawned_No) = Spawned_Parents_Index(2,Spawned_No) + 1
-!            WRITE(6,*) 'Spawned_Parents_Index(:,Spawned_No)',Spawned_Parents_Index(:,Spawned_No)
             Parent_Array_Ind = Parent_Array_Ind + 1
         endif
 
@@ -784,15 +742,6 @@ MODULE AnnihilationMod
 !                call WriteBitDet(6,SpawnedParts(:,i),.true.)
 !             enddo
 
-!        IF(tFillingRDMonFly) THEN
-!            WRITE(6,*) 'CurrentDets'
-!            do i = 1, TotWalkersNew
-!                WRITE(6,*) CurrentDets(:,i)
-!            enddo
-!            WRITE(6,*) '*'
-!        ENDIF
-
-
         CALL set_timer(BinSearch_time,45)
 
         do i=1,ValidSpawned
@@ -836,14 +785,13 @@ MODULE AnnihilationMod
 !                    write(6,*) 'child found currentdets(:,PartInd)',currentdets(:,PartInd)
 !                    call decode_bit_det (dettemp, CurrentDets(:,PartInd))
 !                    write(6,*) 'spawning to ',dettemp
-
                     if(.not.tHF_Ref) then
                         if(tExplicitHFRDM) then
                             if(tHF_S_D_Ref) then
                                 !Excitation level of child.
                                 walkExcitLevel = FindBitExcitLevel (iLutHF, CurrentDets(:,PartInd), 3)
 !                                write(6,*) 'Excitation level of child',walkExcitLevel
-                                if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) & 
+                                if((walkExcitLevel.le.4).and.(walkExcitLevel.ne.0)) & 
                                     CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign)
                             elseif(.not.DetBitEQ(CurrentDets(:,PartInd),iLutHF,NIfDBO)) then
                                 CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign)
