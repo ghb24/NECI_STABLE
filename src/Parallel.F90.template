@@ -599,10 +599,11 @@ subroutine MPIBCast_logic (v, tMe, Node)
     logical, intent(in) :: tMe
     integer(MPIArg) :: error
     type(CommI), intent(in),optional :: Node
-    integer Comm,rt,nrt
+    integer Comm,rt
+    integer(MPIArg) :: nrt
 #if PARALLEL
     call GetComm(Comm,Node,rt,tMe)
-    call MPI_AllReduce(int(rt,MPIArg),int(nrt,MPIArg),1,MPI_INTEGER, MPI_MAX,int(Comm,MPIArg),error)  !Work out which processor is the root
+    call MPI_AllReduce(int(rt,MPIArg),nrt,1,MPI_INTEGER, MPI_MAX,int(Comm,MPIArg),error)  !Work out which processor is the root
     call MPI_BCAST (v, &
 %(mpilen)s,&
     %(mpitype)s, int(nrt,MPIArg), int(Comm,MPIArg), &
