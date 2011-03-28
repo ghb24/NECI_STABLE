@@ -843,7 +843,7 @@ MODULE nElRDMMod
                     iLutnJ(:)=Sing_ExcDjs2(:,j)
 ! This binary searches CurrentDets between 1 and TotWalkers for determinant iLutnJ.
 ! If found, tDetFound will be true, and PartInd the index in CurrentDets where the determinant is.
-                    CALL BinSearchParts(iLutnJ,1,int(TotWalkers,int32),PartInd,tDetFound)
+                    CALL BinSearchParts(iLutnJ,1,TotWalkers,PartInd,tDetFound)
                     IF(tDetFound) THEN
 ! Determinant occupied; add c_i*c_j to the relevant element of nElRDM.                    
 ! Need to first find the orbitals involved in the excitation from D_i -> D_j and the parity.
@@ -964,7 +964,7 @@ MODULE nElRDMMod
 
 ! This binary searches CurrentDets between 1 and TotWalkers for determinant iLutnJ.
 ! If found, tDetFound will be true, and PartInd the index in CurrentDets where the determinant is.
-                    CALL BinSearchParts(iLutnJ,1,int(TotWalkers,int32),PartInd,tDetFound)
+                    CALL BinSearchParts(iLutnJ,1,TotWalkers,PartInd,tDetFound)
 
                     IF(tDetFound) THEN
 ! Determinant occupied; add c_i*c_j to the relevant element of nElRDM.                    
@@ -2387,7 +2387,7 @@ MODULE nElRDMMod
         IF(tTurnStoreSpinOff) tStoreSpinOrbs=.false.
 
         AllTotWalkers = 0
-        CALL MPIReduce(INT(TotWalkers,int32),MPI_SUM,AllTotWalkers)
+        CALL MPIReduce(TotWalkers,MPI_SUM,AllTotWalkers)
 
         IF(iProcIndex.eq.0) THEN
 !            ALLOCATE(TestRDM(((nBasis*(nBasis-1))/2),((nBasis*(nBasis-1))/2)),stat=ierr)
@@ -2400,13 +2400,13 @@ MODULE nElRDMMod
         ENDIF
 
         lengthsout(0:nProcessors-1) = 0
-        CALL MPIAllGather(int(TotWalkers,int32)*(NIfTot+1),lengthsout,ierr)
+        CALL MPIAllGather(TotWalkers*(NIfTot+1),lengthsout,ierr)
 
         disp(:) = 0
         do i = 1, nProcessors-1
             disp(i) = disp(i-1) + lengthsout(i-1)
         enddo
-        CALL MPIGatherv(CurrentDets, INT(TotWalkers,int32)*(NIfTot+1), AllCurrentDets, lengthsout(0:nProcessors-1), Disp(0:nProcessors-1), ierr)
+        CALL MPIGatherv(CurrentDets, TotWalkers*(NIfTot+1), AllCurrentDets, lengthsout(0:nProcessors-1), Disp(0:nProcessors-1), ierr)
 
         IF(iProcIndex.eq.0) THEN
 
