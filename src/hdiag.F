@@ -1,17 +1,25 @@
 !Diagonalize a compressed hamiltonian (in HAMIL), returning eigenvalues in W and eigenvectors in CK.
        SUBROUTINE HDIAG(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,
      &                     NBLOCKSTARTS,NBLOCKS)
-         use constants, only: dp
+         use constants, only: dp!,n_int
          use SystemData, only: BasisFN
          use global_utilities
          use HElem, only: HElement_t_size
+!         use DetCalcData, only: NMRKS
+!         use DetBitOps, only: count_open_orbs,EncodeBitDet,DetBitEQ
+!         use DetBitOps, only: FindBitExcitLevel
+!         use Bit_Reps
+!         use HPHFRandExcitMod, only: FindExcitBitDetSym
          IMPLICIT NONE
+!         INTEGER(n_int) :: BitRep(0:NIfTot),BitRepSym(0:NIfTot)
+!         INTEGER(n_int) :: TempBitRep(0:NIfTot),BitRepHF(0:NIfTot)
          INTEGER NDET
          INTEGER NROW(NDET),LAB(*)
          HElement_t  HAMIL(*),CK(NDET,NDET),WORK2,WORK
 !         HElement_t CopyCK(NDET,NDET)
          REAL*8 W(NDET)
-         INTEGER I,J,IND,INDZ,INFO,NBS
+         INTEGER I,J,IND,INDZ,NBS!,nopen,k,Excit
+         INTEGER*4 INFO
          INTEGER NBLOCKS,NBLOCKSTARTS(NBLOCKS+1)
          type(timer), save :: proc_timer
          REAL*8 GSEN
@@ -73,6 +81,29 @@ C.. Diagonalize
                STOP
             ENDIF
             IF(W(NBS).LT.GSEN) GSEN=W(NBS)
+! This is commented out develomental code to label the determinants
+! by their HPHF partner and number of open shells.
+!
+!            do j=1,ndet
+!                call EncodeBitDet(NMRKS(:,j),BitRep) 
+!                if(j.eq.1) then
+!                    BitRepHF=BitRep
+!                endif
+!                nopen = count_open_orbs(BitRep)
+!                Excit = FindBitExcitLevel(BitRepHF,BitRep,NEl)
+!                call FindExcitBitDetSym(BitRep,BitRepSym)
+!                do k=1,ndet
+!                    call EncodeBitDet(NMRKS(:,k),TempBitRep)
+!                    if(DetBitEQ(TempBitRep,BitRepSym,NIfDBO)) then
+!!                        write(6,*) "Found same: ",j,k,BitRep(0:NIfDBO), &
+!!     &                      TempBitRep(0:NIfDBO)
+!                        exit
+!                    endif
+!                enddo
+!                if(k.eq.ndet+1) stop 'Error in finding spin-coup dets'
+!                write(69,"(I4,4G20.10,3I5)") j,CK(j,1:4),Excit,nopen,k
+!            enddo
+!
          ENDDO
 
 !Developmental and research routine
@@ -247,7 +278,8 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          INTEGER NDET,NEL,NBLOCKS,NBLOCKSTARTS(NBLOCKS),NMRKS(NEL,NDET)
          INTEGER nBasisMax(5,*),NBASIS
          TYPE(BasisFN) G1(*)
-         INTEGER I_P,BRR(*),INFO
+         INTEGER I_P,BRR(*)
+         INTEGER*4 INFO
          REAL*8  BETA
          LOGICAL TWARN
          REAL*8  DNORM

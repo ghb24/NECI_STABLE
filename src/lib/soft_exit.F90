@@ -93,8 +93,8 @@ module soft_exit
     use bit_reps, only: NIfTot
     use util_mod, only: binary_search, get_free_unit
     use FciMCData, only: iter, CASMin, CASMax, tTruncSpace, tSinglePartPhase,&
-                         SumENum, SumNoatHF, HFPopCyc, ProjEIterSum, &
-                         Histogram, AvAnnihil, VaryShiftCycles, SumDiagSft, &
+                         SumENum, SumNoatHF, &
+                         AvAnnihil, VaryShiftCycles, SumDiagSft, &
                          VaryShiftIter, CurrentDets, iLutHF, HFDet, &
                          TotWalkers,tPrintHighPop
     use CalcData, only: DiagSft, SftDamp, StepsSft, OccCASOrbs, VirtCASOrbs, &
@@ -102,7 +102,7 @@ module soft_exit
                         InitiatorWalkNo, tCheckHighestPop, tRestartHighPop, &
                         tChangeProjEDet, tCheckHighestPopOnce, FracLargerDet,&
                         SinglesBias_value => SinglesBias, tau_value => tau, &
-                        nmcyc_value => nmcyc
+                        nmcyc_value => nmcyc, tTruncNOpen, trunc_nopen_max
     use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
                              NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt
@@ -119,6 +119,7 @@ module soft_exit
                             spin_proj_interval, spin_proj_shift, &
                             spin_proj_cutoff, spin_proj_spawn_initiators, &
                             spin_proj_no_death, spin_proj_iter_count
+    use hist_data, only: Histogram
     use Parallel
     implicit none
 
@@ -155,9 +156,9 @@ contains
                               spin_project_cutoff = 33, &
                               spin_project_spawn_initiators = 34, &
                               spin_project_no_death = 35, &
-                              spin_project_iter_count = 36
+                              spin_project_iter_count = 36, trunc_nopen = 37
 
-        integer, parameter :: last_item = spin_project_iter_count
+        integer, parameter :: last_item = trunc_nopen
         integer, parameter :: max_item_len = 29
         character(max_item_len), parameter :: option_list(last_item) &
                                = (/"excite                       ", &
@@ -195,19 +196,21 @@ contains
                                    "spin-project-cutoff          ", &
                                    "spin-project-spawn-initiators", &
                                    "spin-project-no-death        ", &
-                                   "spin-project-iter-count      "/)
+                                   "spin-project-iter-count      ", &
+                                   "trunc-nopen                  "/)
 
 
-        logical :: exists, any_exist, eof, deleted, any_deleted
+        logical :: exists, any_exist, eof, deleted, any_deleted, tSource
         logical :: opts_selected(last_item)
         logical, intent(out) :: tSingBiasChange, tSoftExitFound
         logical, intent(out) :: tWritePopsFound
-        integer :: i, proc, nmcyc_new, ios, pos
+        integer :: i, proc, nmcyc_new, ios, pos, trunc_nop_new
         integer, dimension(lenof_sign) :: hfsign
         real(dp) :: hfScaleFactor
         character(len=100) :: w
 
         ! Test if the changevars file exists, and broadcast to all nodes.
+        any_exist=.false.
         inquire (file='CHANGEVARS', exist=exists)
         call MPIAllReduce (exists, 1, MPI_LOR, any_exist)
 
@@ -228,6 +231,7 @@ contains
             ! condition between processors sharing the same disk.
             do proc = 0, nProcessors - 1
                 if (proc == iProcIndex .and. exists) then
+
                     ! Set unit for read_line routine
                     ir = get_free_unit ()
                     open (ir, file='CHANGEVARS', status='old', iostat=ios)
@@ -298,6 +302,8 @@ contains
                             spin_proj_no_death = readt_default (.true.)
                         elseif (i == spin_project_iter_count) then
                             call readi (spin_proj_iter_count)
+                        elseif (i == trunc_nopen) then
+                            call readi (trunc_nop_new)
                         endif
                     enddo
 
@@ -307,12 +313,17 @@ contains
                 endif
 
                 ! Once one node has found and deleted the file, it is gone.
+                any_deleted=.false.
                 call MPIAllReduce (deleted, 1, MPI_LOR, any_deleted)
                 if (any_deleted) exit
             enddo ! Loop to read CHANGEVARS
 
+            ! Relabel 'deleted' as 'tSource' for clarity
+            ! --> If we have had the file, we should be the source node
+            tSource = deleted
+
             ! Broadcast the selected options list to all processors
-            call MPIBCast (opts_selected, last_item, proc)
+            call MPIBCast (opts_selected, tSource)
 
             ! ***********************
             ! Now we need to deal with the specific options.
@@ -328,7 +339,7 @@ contains
                         root_print 'Cannot increase truncation level, since &
                                    &histogramming wavefunction.'
                     else
-                        call MPIBcast (ICILevel, proc)
+                        call MPIBcast (ICILevel, tSource)
 
                         if ((ICILevel < 0) .or. (ICILevel > nel)) then
                             tTruncSpace = .false.
@@ -349,8 +360,8 @@ contains
                                &effect'
                 else
 
-                    call MPIBCast (OccCASORbs, proc)
-                    call MPIBCast (VirtCASOrbs, proc)
+                    call MPIBCast (OccCASORbs, tSource)
+                    call MPIBCast (VirtCASOrbs, tSource)
 
                     if ( ((occCASOrbs>nel) .and. (VirtCASOrbs>nBasis - nel)) &
                         .or. (occCASORbs < 0) .or. (VirtCASORbs < 0) ) then
@@ -376,7 +387,7 @@ contains
             ! Write POPS file
             if (opts_selected(writepops)) then
                 tWritePopsFound = .true.
-                root_print 'Asked to write out a popsfile'
+                write(6,*) 'Asked to write out a popsfile on iteration: ',iter
             endif
 
             ! Enter variable shift mode
@@ -387,13 +398,13 @@ contains
                 else
                     tSinglePartPhase = .false.
                     VaryShiftIter = iter
-                    root_print 'Request to vary the shift detected on a node.'
+                    write(6,*) 'Request to vary the shift detected on a node on iteration: ',iter
                 endif
             endif
 
             ! Change number of MC steps
             if (opts_selected(nmcyc)) then
-                call MPIBCast (nmcyc_new, proc)
+                call MPIBCast (nmcyc_new, tSource)
 
                 if (nmcyc_new < iter) then
                     root_print 'New value of NMCyc is LESS than the current &
@@ -409,44 +420,42 @@ contains
 
             ! Change Tau
             if (opts_selected(tau)) then
-                call MPIBCast (tau_value, proc)
-                root_print 'Tau changed to: ', tau_value
+                call MPIBCast (tau_value, tSource)
+                write(6,*) 'TAU changed to: ', tau_value, 'on iteration: ', iter
             endif
 
             ! Change the shift value
             if (opts_selected(diagshift)) then
-                call MPIBCast (DiagSft, proc)
-                root_print 'DIAGSHIFT change to: ', DiagSft
+                call MPIBCast (DiagSft, tSource)
+                write(6,*) 'DIAGSHIFT changed to: ', DiagSft, 'on iteration: ',iter
             endif
 
             ! Change the shift damping parameter
             if (opts_selected(shiftdamp)) then
-                call MPIBCast (SftDamp, proc)
-                root_print 'SHIFTDAMP changed to: ', SftDamp
+                call MPIBCast (SftDamp, tSource)
+                write(6,*) 'SHIFTDAMP changed to: ', SftDamp, 'on iteration: ',iter
             endif
 
             ! Change the shift update (and output) interval
             if (opts_selected(stepsshift)) then
-                call MPIBCast (StepsSft, proc)
-                root_print 'STEPSSHIFT changed to: ', StepsSft
+                call MPIBCast (StepsSft, tSource)
+                write(6,*) 'STEPSSHIFT changed to: ', StepsSft, 'on iteration: ',iter
             endif
 
             ! Change the singles bias
             if (opts_selected(singlesbias)) then
-                call MPIBcast (SinglesBias_value, proc)
+                call MPIBcast (SinglesBias_value, tSource)
                 tSingBiasChange = .true.
-                root_print 'SINGLESBIAS changed to: ', SinglesBias
+                write(6,*) 'SINGLESBIAS changed to: ', SinglesBias, 'on iteration: ',iter
             endif
 
             ! Zero the average energy estimators
             if (opts_selected(zeroproje)) then
                 SumENum = 0
                 SumNoatHF = 0
-                HFPopCyc = 0
-                ProjEIterSum = 0
                 VaryShiftCycles = 0
                 SumDiagSft = 0
-                root_print 'Zeroing all average energy estimators.'
+                write(6,*) 'Zeroing all average energy estimators on iteration: ',iter
             endif
 
             ! Zero average histograms
@@ -458,35 +467,35 @@ contains
 
             ! Change the number of holes/electrons in the core valence region
             if (opts_selected(partiallyfreeze)) then
-                call MPIBCast (NPartFrozen, proc)
-                call MPIBcast (NHolesFrozen, proc)
+                call MPIBCast (NPartFrozen, tSource)
+                call MPIBcast (NHolesFrozen, tSource)
 
-                root_print 'Allowing ', nHolesFrozen, ' holes in ', &
-                           nPartFrozen, ' partially frozen orbitals.'
+                write(6,*) 'Allowing ', nHolesFrozen, ' holes in ', &
+                           nPartFrozen, ' partially frozen orbitals on iteration: ',iter
 
                 if (nHolesFrozen == nPartFrozen) then
                     ! Allowing as many holes as there are orbitals
                     !  --> equivalent to not freezing at all.
                     tPartFreezeCore = .false.
-                    root_print 'Unfreezing any partially frozen core'
+                    write(6,*) 'Unfreezing any partially frozen core on iteration: ',iter
                 else
                     tPartFreezeCore = .true.
                 endif
             endif
 
             if (opts_selected(partiallyfreezevirt)) then
-                call MPIBcast (nVirtPartFrozen, proc)
-                call MPIBcast (nelVirtFrozen, proc)
+                call MPIBcast (nVirtPartFrozen, tSource)
+                call MPIBcast (nelVirtFrozen, tSource)
 
-                root_print 'Allowing ', nelVirtFrozen, ' electrons in ', &
+                write(6,*) 'Allowing ', nelVirtFrozen, ' electrons in ', &
                            nVirtPartFrozen, ' partially frozen virtual &
-                          &orbitals.'
+                          &orbitals on iteration: ',iter
                 if (nelVirtFrozen == nel) then
                     ! Allowing as many holes as there are orbitals
                     ! --> Equivalent ton not freezing at all
                     tPartFreezeVirt = .false.
-                    root_print 'Unfreezing any partially frozen virtual &
-                               &orbitals'
+                    write(6,*) 'Unfreezing any partially frozen virtual &
+                               &orbitals on iteration: ',iter
                 else
                     tPartFreezeVirt = .true.
                 endif
@@ -510,14 +519,14 @@ contains
 
             ! Restart error blocking
             if (opts_selected(restarterrorblocking)) then
-                root_print 'Restarting the error calculations. All blocking &
-                           &arrays are re-set to zero.'
+                write(6,*) 'Restarting the error calculations. All blocking &
+                           &arrays are re-set to zero on iteration: ',iter
                 if (iProcIndex == 0) call RestartBlocking (iter)
             endif
 
             ! Print shift blocking analysis here
             if (opts_selected(printshiftblocking)) then
-                root_print 'Printing shift error blocking.'
+                write(6,*) 'Printing shift error blocking on iteration: ',iter
                 if (iProcIndex == 0) call PrintShiftBlocking_proc (iter)
             endif
 
@@ -530,7 +539,7 @@ contains
 
             ! Change the number of equilibration steps
             if (opts_selected(equilsteps)) then
-                call MPIBcast (nEquilSteps, proc)
+                call MPIBcast (nEquilSteps, tSource)
                 root_print 'Changing the number of equilibration steps to ', &
                            nEquilSteps
             endif
@@ -570,7 +579,7 @@ contains
 
             ! Change the initiator cutoff parameter
             if (opts_selected(addtoinit)) then
-                call MPIBCast (InitiatorWalkNo, proc)
+                call MPIBCast (InitiatorWalkNo, tSource)
                 root_print 'Cutoff propulation for determinants to be added &
                            &to the initiator space changed to ', &
                            InitiatorWalkNo
@@ -578,7 +587,7 @@ contains
             
             ! Scale the number of walkers on the HF det
             if (opts_selected(scalehf)) then
-                call MPIBcast (HFScaleFactor, proc)
+                call MPIBcast (HFScaleFactor, tSource)
                 root_print 'Number at Hartree-Fock scaled by factor: ', &
                            hfScaleFactor
 
@@ -597,8 +606,8 @@ contains
             ! Print the determinants with the largest +- populations
             if (opts_selected(printhighpopdet)) then
                 tPrintHighPop = .true.
-                root_print 'Request to print the determinants with the &
-                           &largest populations detected.'
+                write(6,*) 'Request to print the determinants with the &
+                           &largest populations detected on iteration: ',iter
             endif
 
             ! Change the reference determinant on the fly
@@ -607,8 +616,8 @@ contains
                 tCheckHighestPop = .true.
                 tChangeProjEDet = .true.
                 FracLargerDet = 1.0
-                root_print 'Changing the reference determinant to the most &
-                           &highly weighted determinants.'
+                write(6,*) 'Changing the reference determinant to the most &
+                           &highly weighted determinant on iteration: ',iter
             endif
 
             ! Restart with new reference determinant
@@ -623,7 +632,7 @@ contains
 
             ! Enable spin projection, and change application interval
             if (opts_selected(spin_project)) then
-                call MPIBcast (spin_proj_interval, proc)
+                call MPIBcast (spin_proj_interval, tSource)
                 if (spin_proj_interval == 0) then
                     tSpinProject = .false.
                     root_print 'Stochastic spin projection disabled'
@@ -636,45 +645,69 @@ contains
 
             ! Change delta-gamma for spin projection
             if (opts_selected(spin_project_gamma)) then
-                call MPIBcast (spin_proj_gamma, proc)
+                call MPIBcast (spin_proj_gamma, tSource)
                 root_print 'Changed gamma value for spin projection to ', &
                            spin_proj_gamma
             endif
 
             ! Change shift value for spin projection
             if (opts_selected(spin_project_shift)) then
-                call MPIBcast (spin_proj_shift, proc)
+                call MPIBcast (spin_proj_shift, tSource)
                 root_print 'Changed shift value for spin projection to ', &
                            spin_proj_shift
             endif
 
             ! Change walker number cutoff value for spin projection
             if (opts_selected(spin_project_shift)) then
-                call MPIBcast (spin_proj_cutoff, proc)
+                call MPIBcast (spin_proj_cutoff, tSource)
                 root_print 'Changed walker number cutoff value for spin &
                            &projection to ', spin_proj_shift
             endif
 
             ! Change the way spin projection deals with initiators
             if (opts_selected(spin_project_spawn_initiators)) then
-                call MPIBCast (spin_proj_spawn_initiators, proc)
+                call MPIBCast (spin_proj_spawn_initiators, tSource)
                 root_print 'Changed initiator behaviour with spin projection:&
                            & ', spin_project_spawn_initiators
             endif
 
             ! Enable or disable walker death in spin projection
             if (opts_selected(spin_project_no_death)) then
-                call MPIBcast (spin_proj_no_death, proc)
+                call MPIBcast (spin_proj_no_death, tSource)
                 root_print 'Walker death in spin projection enabled: ', &
                            spin_project_no_death
             endif
 
             ! Apply the spin projection operator N times for each application
             if (opts_selected(spin_project_iter_count)) then
-                call MPIBcast (spin_proj_iter_count, proc)
+                call MPIBcast (spin_proj_iter_count, tSource)
                 root_print 'The stochastic spin projection operator will now &
                            &be applied ', spin_proj_iter_count, ' times on &
                            &each occasion.'
+            endif
+
+            ! Change the maximum nopen truncation level
+            if (opts_selected(trunc_nopen)) then
+                if (tTruncNOpen) then
+                    call MPIBcast (trunc_nop_new, tSource)
+                    if (trunc_nop_new < 0 .or. trunc_nop_new > nel) then
+                        tTruncNOpen = .false.
+                        root_print 'Truncation by number of unpaired &
+                                   &electrons disabled.'
+                    elseif (trunc_nop_new >= trunc_nopen_max) then
+                        trunc_nopen_max = trunc_nop_new
+                        root_print 'Truncating space to a maximum of ', &
+                                   trunc_nopen_max, ' unpaired electrons per &
+                                   &determinant.'
+                    else
+                        root_print 'Cannot decrease truncation level for &
+                                   &truncation by number of unpaired &
+                                   &electrons during a run.'
+                    endif
+                else
+                    root_print 'WARNING: Cannot enable truncation by number &
+                               &of unpaired electrons during a run.'
+                endif
             endif
 
         endif

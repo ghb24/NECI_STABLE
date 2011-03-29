@@ -193,7 +193,8 @@
         COMPLEX*16 fck(*)
         HElement_t UMat(*),rh,Hel
         INTEGER novirt,ierr,i,j,ijpair(2),node,nI(nEl),nJ(nEl),nK(nEl),i_P
-        INTEGER nBasis,nMsh,nMax,nTay(2),WORKMEM,INFO
+        INTEGER nBasis,nMsh,nMax,nTay(2),WORKMEM
+        INTEGER*4 INFO
         INTEGER ExcitInfoElems,nEl,Orbchange(4),iExcit
         REAL*8 Beta,ALat(3),RhoEps,ECore
         REAL*8, ALLOCATABLE :: NODERHOMAT(:),WLIST(:)

@@ -1,7 +1,7 @@
 module util_mod
     use util_mod_comparisons
     use util_mod_cpts
-    use constants, only: dp, lenof_sign
+    use constants, only: dp, lenof_sign,sizeof_int
     implicit none
 
     ! sds: It would be nice to use a proper private/public interface here,
@@ -320,7 +320,7 @@ contains
         integer(kind=n_int), intent(in) :: arr(:,:)
         integer(kind=n_int), intent(in) :: val(:)
         integer, intent(in), optional :: cf_len
-        integer :: data_lo, data_hi
+        integer :: data_lo, data_hi, val_lo, val_hi
         integer :: pos, len
 
         integer :: hi, lo
@@ -328,25 +328,34 @@ contains
         ! The search range
         lo = lbound(arr,2)
         hi = ubound(arr,2)
+
 !>>>!        write(6,*) 'hi, lo', hi, lo
+        ! Account for poor usage (i.e. array len == 0)
+        if (hi < lo) then
+            pos = -lo
+            return
+        endif
 
         ! Have we specified how much to look at?
         data_lo = lbound(arr, 1)
+        val_lo = lbound(val, 1)
         if (present(cf_len)) then
             data_hi = data_lo + cf_len - 1
+            val_hi = val_lo + cf_len - 1
         else
             data_hi = ubound(arr, 1)
+            val_hi = ubound(val, 1)
         endif
 
         ! Narrow the search range down in steps.
         do while (hi /= lo)
             pos = int(real(hi + lo) / 2)
-!>>>!            write(6,*) 'pos', pos
+!>>>!            write(6,*) 'pos', pos, lo, hi
 !>>>!            call flush(6)
 
-            if (all(arr(data_lo:data_hi,pos) == val)) then
+            if (all(arr(data_lo:data_hi,pos) == val(val_lo:val_hi))) then
                 exit
-            else if (arr_gt(val, arr(data_lo:data_hi,pos))) then
+            else if (arr_gt(val(val_lo:val_hi), arr(data_lo:data_hi,pos))) then
                 ! val is "greater" than arr(:len,pos).
                 ! The lowest position val can take is hence pos + 1 (i.e. if
                 ! val is greater than pos by smaller than pos + 1).
@@ -368,9 +377,9 @@ contains
         ! then return -pos to indicate that the item is not present, but that
         ! this is the location it should be in.
         if (hi == lo) then
-            if (all(arr(data_lo:data_hi,hi) == val)) then
+            if (all(arr(data_lo:data_hi,hi) == val(val_lo:val_hi))) then
                 pos = hi
-            else if (arr_gt(val, arr(data_lo:data_hi,hi))) then
+            else if (arr_gt(val(val_lo:val_hi), arr(data_lo:data_hi,hi))) then
                 pos = -hi - 1
             else
                 pos = -hi
@@ -396,7 +405,9 @@ contains
        !    choice.
        integer, intent(in) :: bytes
        inquire(iolength=record_length) bytes
-       record_length = (bytes/4)*record_length 
+!       record_length = (bytes/4)*record_length   
+       record_length = (bytes/sizeof_int)*record_length   
+! 8 indicates 8-byte words I think
     end function record_length
 
     subroutine append_ext(stem, n, s)
@@ -496,3 +507,28 @@ contains
     end function get_free_unit
 
 end module
+
+! Hacks for the IBM compilers on BlueGenes.
+! --> The compiler intrinsics are provided as flush_, etime_, sleep_ etc.
+! --> We need to either change the names used in the code, or provide wrappers
+#ifdef BLUEGENE_HACKS
+
+    subroutine flush (ut)
+        implicit none
+        integer :: ut
+        call flush_(ut)
+    end subroutine
+    function etime (t) result(ret)
+        implicit none
+        real(4) :: t(2), etime_, ret
+        ret = etime_(t)
+    end function
+    function hostnm (nm) result(ret)
+        implicit none
+        integer :: ret, hostnm_
+        character(8) :: nm
+        ret = hostnm_(nm)
+    end function
+
+#endif
+

@@ -7,7 +7,7 @@ MODULE HPHFRandExcitMod
 ![ P(i->a) + P(i->b) + P(j->a) + P(j->b) ]/2
 !We therefore need to find the excitation matrix between the determinant which wasn't excited and the determinant which was created.
 
-    use SystemData, only: nel, tCSF, Alat, G1, nbasis, nbasismax, nmsh, arr
+    use SystemData, only: nel, tCSF, Alat, G1, nbasis, nbasismax, nmsh, arr, tOddS_HPHF
     use IntegralsData, only: UMat, fck, nMax
     use SymData, only: nSymLabels
     use dSFMT_interface, only : genrand_real2_dSFMT
@@ -89,11 +89,20 @@ MODULE HPHFRandExcitMod
 !Generate matrix element -> HPHF to closed shell det.
                 IF(TestClosedShellDet(iLutnI)) THEN
                     !Closed shell -> Closed Shell
-                    HEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
+                    if(tOddS_HPHF) then
+                        call stop_all("gen_hphf_excit","Should not be at closed shell det with Odd S")
+                    else
+                        HEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
+                    endif
                 ELSE
                     !Open shell -> Closed Shell
-                    MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
-                    HEl=MatEl*SQRT(2.D0)
+                    if(tOddS_HPHF) then
+                        !Odd S States cannot have CS components
+                        HEl=0.D0
+                    else
+                        MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
+                        HEl=MatEl*SQRT(2.D0)
+                    endif
                 ENDIF
             ENDIF
         ELSE
@@ -130,17 +139,20 @@ MODULE HPHFRandExcitMod
                 IF(tGenMatHEl) THEN
 !Generate matrix element to open shell excitation
                     IF(TestClosedShellDet(iLutnI)) THEN    !Closed shell -> Open shell : Want to sum in SQRT(2)* Hij
-                        
-                        IF(tSwapped) THEN
-                            MatEl = sltcnd_excit (nI, IC, Ex2, tSign)
-                        ELSE
-                            MatEl = sltcnd_excit (nI, IC, ExcitMat, &
-                                                  tSignOrig)
-                        ENDIF
-                        HEl=MatEl*SQRT(2.D0)
-
+                        if(tOddS_HPHF) then
+                            !Cannot have CS components
+                            HEl=0.D0
+                        else
+                            IF(tSwapped) THEN
+                                MatEl = sltcnd_excit (nI, IC, Ex2, tSign)
+                            ELSE
+                                MatEl = sltcnd_excit (nI, IC, ExcitMat, &
+                                                      tSignOrig)
+                            ENDIF
+                            HEl=MatEl*SQRT(2.D0)
+                        endif
                     ELSE     !Open shell -> Open shell
-                        
+
 !First find nI -> nJ. If nJ has swapped, then this will be different.
                         IF(tSwapped) THEN
                             MatEl = sltcnd_excit (nI, ExcitLevel, Ex2, &
@@ -173,22 +185,19 @@ MODULE HPHFRandExcitMod
                                                        Ex2, tSign)
                             ENDIF
 
-
-!                            Ex2(1,1)=ExcitLevel
-!                            CALL GetExcitation(nI2,nJ,NEl,Ex2,tSign)
-!                            CALL SltCndExcit2(NEl,nBasisMax,nBasis,nI2,nJ,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl2,Ex2,tSign)
-
-!                            IF((MatEl3-MatEl2).gt.1.D-7) THEN!.and..not.tSwapped.and.((mod(OpenOrbsJ,2).eq.0.and.mod(OpenOrbsI,2).eq.1).or.(mod(OpenOrbsJ,2).eq.1.and.mod(OpenOrbsI,2).eq.0))) THEN
-!                                WRITE(6,*) MatEl3,MatEl2,ExcitLevel,IC,tSwapped,OpenOrbsI,OpenOrbsJ
-!                                WRITE(6,*) "***********, ERROR"
-!                                CALL Stop_All("ikb","Error in getting correct HEl - 2")
-!                            ENDIF
-
-!                            IF(((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.0)).or.((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.1))) THEN
-                            IF(OpenOrbsI.eq.2) THEN     !again, since these can only be at max quads, then they can only have 1/2 open orbs...
-                                MatEl=MatEl+MatEl2
+                            IF(tOddS_HPHF) THEN
+                                IF(OpenOrbsI.eq.2) THEN     !again, since these can only be at max quads, then they can only have 1/2 open orbs...
+                                    MatEl=MatEl-MatEl2
+                                ELSE
+                                    MatEl=MatEl+MatEl2
+                                ENDIF
                             ELSE
-                                MatEl=MatEl-MatEl2
+
+                                IF(OpenOrbsI.eq.2) THEN     !again, since these can only be at max quads, then they can only have 1/2 open orbs...
+                                    MatEl=MatEl+MatEl2
+                                ELSE
+                                    MatEl=MatEl-MatEl2
+                                ENDIF
                             ENDIF
 !                            WRITE(6,*) "MatEl2 NEW: ",MatEl2
                         ENDIF
@@ -207,7 +216,7 @@ MODULE HPHFRandExcitMod
                     HEl=0.D0
                 ENDIF
 
-            ELSE
+            ELSE    !Open-shell to Open-shell, but with no cross-connection.
                 
 !                CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.false.,.true.,tSwapped)
 
@@ -217,13 +226,17 @@ MODULE HPHFRandExcitMod
                         CALL CalcOpenOrbs(iLutnJ,OpenOrbsJ)
 !                        CALL CalcOpenOrbs(iLutnI,OpenOrbsI)
 !                        IF(((mod(OpenOrbsI,2).eq.1).and.(mod(OpenOrbsJ,2).eq.1)).or.((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.1))) THEN
-                        IF(mod(OpenOrbsJ,2).eq.1) THEN
-!                            WRITE(6,*) "Swapped parity"
-                            tSignOrig=.not.tSignOrig
+                        IF(tOddS_HPHF) then
+                            IF(mod(OpenOrbsJ,2).eq.0) THEN
+    !                            WRITE(6,*) "Swapped parity"
+                                tSignOrig=.not.tSignOrig
+                            ENDIF
+                        ELSE
+                            IF(mod(OpenOrbsJ,2).eq.1) THEN
+    !                            WRITE(6,*) "Swapped parity"
+                                tSignOrig=.not.tSignOrig
+                            ENDIF
                         ENDIF
-                    ENDIF
-
-                    IF(tSwapped) THEN
                         MatEl = sltcnd_excit(nI,  IC, ExcitMat, tSignOrig)
                     ELSE
                         MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
@@ -243,6 +256,15 @@ MODULE HPHFRandExcitMod
 !            WRITE(6,*) MatEl2,MatEl
 !            CALL Stop_All("ikb","Error in getting correct HEl - 2")
 !        ENDIF
+!        if(TestClosedShellDet(iLutnJ)) then
+!            write(6,*) "Trying to excite TO closed shell det - why!?"
+!            write(6,*) nI
+!            write(6,*) "***"
+!            write(6,*) iLutnI
+!            write(6,*) "HEl: ",HEl
+!            if(HEl.ne.0.D0) call stop_all("gen_hphf_excit","WHY?!")
+!            call flush(6)
+!        endif
 
     end subroutine
 
@@ -290,6 +312,35 @@ MODULE HPHFRandExcitMod
 
     END SUBROUTINE ReturnAlphaOpenDet
         
+!This is a functions to return whether a given determinant (iLutnI) is
+!an "allowed" HPHF function or not (i.e. whether it could be found in the 
+!simulation.
+    LOGICAL FUNCTION IsAllowedHPHF(iLutnI)
+        use SystemData , only : NEl 
+        USE Bit_reps , only : Decode_Bit_Det
+        IMPLICIT NONE
+        INTEGER :: nI(NEl)
+        INTEGER(KIND=n_int) , intent(in) :: iLutnI(0:NIfTot)
+        INTEGER(KIND=n_int) :: iLutSym(0:NIfTot)
+        INTEGER :: nJ(NEl)
+        LOGICAL :: tClosedShell,tSwapped
+        LOGICAL :: TestClosedShellDet
+
+        tClosedShell=TestClosedShellDet(iLutnI)
+        IF(tClosedShell) THEN
+            IsAllowedHPHF=.true.
+            RETURN
+        ENDIF
+        CALL Decode_Bit_Det(nI,iLutnI)
+        CALL ReturnAlphaOpenDet(nI,nJ,iLutnI,iLutSym,.true.,.true.,tSwapped)
+
+        IF(tSwapped) THEN
+            IsAllowedHPHF=.false.
+        ELSE
+            IsAllowedHPHF=.true.
+        ENDIF
+    END FUNCTION IsAllowedHPHF
+
 
 !This create the spin-coupled determinant of nI in nJ in natural ordered form.
     SUBROUTINE FindDetSpinSym(nI,nJ,NEl)

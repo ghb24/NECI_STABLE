@@ -612,14 +612,14 @@ contains
                LogAlloc(ierr,'ZIA',2*(NMSH+1)*NMAX*NMAX,16,tagZIA)
                WRITE(6,*) NMSH,NMAX
     !!C..
-               CALL N_MEMORY_CHECK()
+!               CALL N_MEMORY_CHECK()
                IF(NMAXZ.EQ.0) THEN
     !!C..  We're doing a 2D simulation
                   CALL INITFOU2D(NMSH,FCK,NMAX,ALAT,TALPHA,ALPHA,OMEGA,ZIA)
                ELSE
                   CALL INITFOU(NMSH,FCK,NMAX,ALAT,TALPHA,ALPHA,OMEGA,ZIA)
                ENDIF
-               CALL N_MEMORY_CHECK()
+!               CALL N_MEMORY_CHECK()
     !!C.. we pre-compute the 2-e integrals
                WRITE(6,*) "Generating 2e integrals"
     !!C.. Generate the 2e integrals (UMAT)
@@ -640,7 +640,7 @@ contains
             !Allocate(UMat(1), stat=ierr)
             LogAlloc(ierr, 'UMat', 1,HElement_t_SizeB, tagUMat)
          ENDIF
-         CALL N_MEMORY_CHECK()
+!         CALL N_MEMORY_CHECK()
     !!C.. we need to generate TMAT - Now setup in individual routines
          !CALL N_MEMORY(IP_TMAT,HElement_t_size*nBasis*nBasis,'TMAT')
          !TMAT=(0.d0)
@@ -714,14 +714,16 @@ contains
          NTFROZEN=NTFROZEN+nBasis-NEL
       ENDIF
       IF((NFROZEN+NFROZENIN).gt.NEL) CALL Stop_All("IntFreeze","Overlap between low energy frozen orbitals &
-                                                    & and inner frozen occupied orbitals - to many frozen occupied orbitals &
-                                                    & for the number of electrons.")
+                                & and inner frozen occupied orbitals - to many frozen occupied orbitals &
+                                & for the number of electrons.")
       IF((NTFROZEN+NTFROZENIN).gt.(NBASIS-NEL)) CALL Stop_All("IntFreeze","Overlap between high energy frozen orbitals &
-                                                    & and inner frozen virtual orbitals - to many frozen virtual orbitals &
-                                                    & for the number of unnoccupied orbitals.")
-      IF(((NFROZENIN.GT.0).or.(NTFROZENIN.GT.0)).and.(.not.TwoCycleSymGens)) CALL Stop_All("IntFreeze","TwoCycleSymGens is not true. &
-                                                    & The code is only set up to deal with freezing from the inside for molecular &
-                                                    & systems with only 8 symmetry irreps.")
+                                & and inner frozen virtual orbitals - to many frozen virtual orbitals &
+                                & for the number of unnoccupied orbitals.")
+      IF(((NFROZENIN.GT.0).or.(NTFROZENIN.GT.0)).and.(.not.TwoCycleSymGens)) THEN
+                                CALL Stop_All("IntFreeze","TwoCycleSymGens is not true. &
+                                & The code is only set up to deal with freezing from the inside for molecular &
+                                & systems with only 8 symmetry irreps.")
+      ENDIF
       IF(NFROZEN.GT.0.OR.NTFROZEN.GT.0.OR.NFROZENIN.GT.0.OR.NTFROZENIN.GT.0) THEN
           WRITE(6,'(A)') '-------- FREEZING ORBITALS ----------'
 !!C.. At this point, we transform the UMAT and TMAT into a new UMAT and
@@ -748,7 +750,7 @@ contains
             !Allocate(UMat2(1), stat=ierr)
             LogAlloc(ierr, 'UMat2', 1,HElement_t_SizeB, tagUMat2)
          ENDIF 
-         CALL N_MEMORY_CHECK()
+!         CALL N_MEMORY_CHECK()
 
          WRITE(6,*) "Freezing ",NFROZEN," core orbitals."
          WRITE(6,*) "Freezing ",NTFROZEN," virtual orbitals."
@@ -758,7 +760,7 @@ contains
 !At the end of IntFREEZEBASIS, NHG is reset to nBasis - the final number of active orbitals.
          CALL IntFREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE, G1,NBASISMAX,ISPINSKIP,BRR,NFROZEN,NTFROZEN,NFROZENIN,NTFROZENIN,NEL)
          CALL FLUSH(6)
-         CALL N_MEMORY_CHECK()
+!         CALL N_MEMORY_CHECK()
          WRITE(6,*) "ECORE now",ECORE
          WRITE(6,*) "Number of orbitals remaining: ",NBASIS
          NEL=NEL-NFROZEN-NFROZENIN
@@ -778,7 +780,7 @@ contains
          nullify(UMat2)
          tagUMat=tagUMat2
          tagUMat2=0
-         CALL N_MEMORY_CHECK()
+!         CALL N_MEMORY_CHECK()
 !         WRITE(6,*) "Active basis functions:",NHG
          CALL WRITEBASIS(6,G1,NHG,ARR,BRR)
       ENDIF
@@ -860,8 +862,8 @@ contains
 !       TYPE(Symmetry) KSYM
        character(*), parameter :: this_routine='IntFreezeBasis'
 
-       IF(tHub) THEN
-           CALL Stop_All("IntFreezeBasis","Freezing does not currently work with the hubbard model.")
+       IF(tHub.or.tUEG) THEN
+           CALL Stop_All("IntFreezeBasis","Freezing does not currently work with the hubbard model/UEG.")
        ENDIF
 
 !!C.. Just check to see if we're not in the middle of a degenerate set with the same sym

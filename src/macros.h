@@ -19,7 +19,7 @@
 #define get_spin(orb) (1+iand(orb,1))
 
 ! Is the specified orbital part of a doubly occupied pair?
-#define IsDoub(ilut,orb) (IsOcc(ilut,orb) .and. IsOcc(ilut,ab_pair(orb)))
+#define IsDoub(ilut,orb) (IsOcc(ilut,orb).and.IsOcc(ilut,ab_pair(orb)))
 
 ! Are the two orbitals specified (may be the same orbital) from the same
 ! spatial orbital?
@@ -35,11 +35,11 @@
 #ifdef __DEBUG
 #define ASSERT(x) \
 if (.not. (x)) then; \
-	call stop_all (this_routine, "Assertation failed: "//"x"); \
+ call stop_all (this_routine, "Assertation failed: "//"x"); \
 endif
 #define ASSERTROOT(x) \
 if ((iProcIndex.eq.Root).and.(.not. (x))) then; \
-	call stop_all (this_routine, "Assertation failed: "//"x"); \
+ call stop_all (this_routine, "Assertation failed: "//"x"); \
 endif
 ! Do some debugging if X>=Y
 #define IFDEBUG(PrintLevel,ThisLevel) if (PrintLevel>=ThisLevel)
@@ -61,3 +61,11 @@ endif
 #define root_write if (iProcIndex == 0) write
 #define root_print root_write (6, *) 
 
+! Make Re / Cplx builds easier
+#ifdef __CMPLX
+#define ARR_RE_OR_CPLX(arr) cmplx(arr(1), arr(2), dp)
+#define ARR_ABS(arr) abs(cmplx(arr(1), arr(2), dp))
+#else
+#define ARR_RE_OR_CPLX(arr) real(arr(1), dp)
+#define ARR_ABS(arr) abs(arr(1))
+#endif

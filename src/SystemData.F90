@@ -1,5 +1,7 @@
 module SystemData
 
+    use constants, only: n_int
+
 implicit none
 
 save
@@ -40,11 +42,12 @@ logical :: tPickVirtUniform ! Use the 3rd generation, random excitation
 
 logical :: tISKFuncs      ! Only for use in systems where the kpoint mesh has inversion symmetry,this ensures all
                           ! integrals are real.
+logical :: tOddS_HPHF     !If this is true, and you are using HPHF, then it will converge onto an Odd S HPHF state.
 integer :: iParity(5), nMaxX, nMaxY, nMaxZ, nMSH, coulDampOrb, elecPairs
 integer :: roIterMax, iRanLuxLev, DiagMaxMinFac, OneElmaxMinFac, iState
 integer :: iTiltX, iTiltY, nOccAlpha, nOccBeta, ShakeIterMax, ShakeStart
 integer :: MaxMinFac, MaxABPairs
-real*8 :: BOX, BOA, COA, fUEGRs, fRc, fCoul, OrbECutoff, UHUB, BHUB
+real*8 :: BOX, BOA, COA, fUEGRs, fRc, OrbECutoff, UHUB, BHUB
 real*8 :: Diagweight, OffDiagWeight, OrbEnMaxAlpha, Alpha, fCoulDampBeta
 real*8 :: fCoulDampMu, TimeStep, ConvergedForce, ShakeConverged, UMATEps
 real*8 :: OneElWeight
@@ -63,7 +66,8 @@ logical :: tTruncateCSF   ! Use determinants not CSFs for nopen >
                           ! csf_trunc_level
 
 ! Calculate size of FCI determinant space using MC
-logical :: tMCSizeSpace 
+logical :: tMCSizeSpace,tMCSizeTruncSpace
+integer :: iMCCalcTruncLev
 integer*8 :: CalcDetPrint, CalcDetCycles   ! parameters
 
 ! Inputs for the UEG
@@ -75,6 +79,11 @@ real*8 :: k_offset(3)      ! UEG parameter for twist-averaging
 logical :: tUEGSpecifyMomentum ! UEG parameter to allow specification of total momentum
 integer :: k_momentum(3) ! UEG parameter for total momentum
 logical :: tOrbECutoff ! Whether we're using a spherical cutoff in momentum space or not
+logical :: tgCutoff ! Whether we're using a spherical cutoff for the momentum transfer vector
+real*8 :: gCutoff ! Spherical cutoff for the momentum transfer vector
+logical :: tMP2UEGRestrict ! Restricts the MP2 sum over a single electron pair, specified by: 
+integer :: kiRestrict(3), kjRestrict(3) ! ki/kj pair
+integer :: kiMsRestrict, kjMsRestrict ! and their spins
 
 ! For the UEG, we damp the exchange interactions.
 !    0 means none
@@ -109,16 +118,15 @@ TYPE BasisFN
    INTEGER :: k(3)
    INTEGER :: Ms
    INTEGER :: Ml            !This is the Ml symmetry of the orbital
-   INTEGER :: spacer    ! The spacer is there to make sure we have a structure which is a multiple of 8-bytes for 64-bit machines.
    TYPE(Symmetry) :: sym
 END TYPE
 
 ! Empty basis function is used in many places.
 ! This is useful so if BasisFn changes, we don't have to go
 ! through the code and change the explicit null statements.
-type(BasisFn) :: NullBasisFn=BasisFn((/0,0,0/),0,0,0,Symmetry(0))
+type(BasisFn) :: NullBasisFn=BasisFn((/0,0,0/),0,0,Symmetry(0))
 
-integer, PARAMETER :: BasisFNSize=SymmetrySize+6
+integer, PARAMETER :: BasisFNSize=SymmetrySize+5
 integer, PARAMETER :: BasisFNSizeB=BasisFNSize*8
 
 
@@ -170,6 +178,13 @@ LOGICAL :: tHFNoOrder
 ! When set, ignore differences in orbital energies between pairs of orbitals (which should be beta/alpha)
 !  and group them under the same symrep
 LOGICAL :: tSymIgnoreEnergies
+
+    ! These should really be in hist.F90, but we get circular dependencies
+    ! These are bad.
+    logical :: tHistSpinDist
+    integer(n_int), allocatable :: ilut_spindist(:)
+    integer :: hist_spin_dist_iter
+    integer, allocatable :: nI_spindist(:)
 
 ! Operators for type(symmetry)
 interface assignment (=)

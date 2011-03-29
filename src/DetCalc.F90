@@ -9,7 +9,6 @@ MODULE DetCalc
      save
 
 !From input
-      INTEGER NCYCLE !The Max number of Lanczos cycles
       INTEGER DETINV !The index in the list of dets of a det to investigate
       INTEGER IOBS,JOBS,KOBS
       LOGICAL TRHOOFR,TCORR,TFODM
@@ -917,7 +916,8 @@ CONTAINS
           IYD=0
           IZD=0
           SPAC=0.D0
-          CALL GEN_XCHOLE(CK,PSIR,IOBS,JOBS,KOBS,G1,SITAB,NMAX,NMSH,nBasis,IXD,IYD,IZD,RHO,.TRUE.,XCHOLE,SPAC,ALAT,OMEGA,NMRKS,NDET,NEVAL,NEL)
+          CALL GEN_XCHOLE(CK,PSIR,IOBS,JOBS,KOBS,G1,SITAB,NMAX,NMSH,nBasis,IXD,IYD,IZD,RHO,.TRUE.,XCHOLE, &
+            SPAC,ALAT,OMEGA,NMRKS,NDET,NEVAL,NEL)
           CALL WRITE_RHO(10,'COMPXCHOLE',XCHOLE,NMSH,NMSH,NMSH,ALAT,.FALSE.,.TRUE.,RS)
 !C..
           CALL XCHOLES(CK,PSIR,IOBS,JOBS,KOBS,G1,SITAB,NMAX,NMSH,nBasis,RHO,XCHOLE,SPAC,RS,ALAT,OMEGA,NMRKS,NDET,NEL,NEVAL)
@@ -960,7 +960,7 @@ END MODULE DetCalc
          type(timer), save :: proc_timer
          HElement_t UMat(*)
          real(dp) DLWDB, DLWDB2, DLWDB3, DLWDB4
-         TYPE(BasisFN) g1(*)
+         TYPE(BasisFN) G1(*)
          REAL*8 ALAT(3)
          REAL*8 BETA,RHOEPS
          COMPLEX*16 FCK(*)

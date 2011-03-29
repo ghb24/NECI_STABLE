@@ -26,6 +26,8 @@ LOGICAL :: tTruncCAS,tTruncInitiator,tDelayTruncInit,tAddtoInitiator    !Truncat
 LOGICAL :: tInitIncDoubs,tWalkContGrow,tAnnihilatebyRange,tRetestAddtoInit
 logical :: tReadPopsRestart, tReadPopsChangeRef
 
+logical :: tStartCAS    !Start FCIMC dynamic with walkers distributed according to CAS diag.
+
 ! Base hash values only on spatial orbitals
 ! --> All dets with same spatial structure on the same processor.
 logical :: tSpatialOnlyHash
@@ -33,6 +35,14 @@ logical :: tSpatialOnlyHash
 ! Do we allow walkers to survive (in the initiator approx.) if a determinant
 ! with the same spatial configuration is an initiator?
 logical :: tSpawnSpatialInit
+
+!These options mean that only initiators can spawn walkers.
+!tSpawn_Only_Init_Grow means that this option is removed once variable shift is entered.
+logical :: tSpawn_Only_Init,tSpawn_Only_Init_Grow
+
+! Do we truncate spawning based on the number of unpaired electrons
+logical :: tTruncNOpen
+integer :: trunc_nopen_max
 
 logical :: tMaxBloom    !If this is on, then we only print out a bloom warning if it is the biggest to date.
 
@@ -69,8 +79,6 @@ REAL*8 :: RHOEPS ! calculated from RHOEPSILON
 
 !// set if we include no triple-excitations as the 3rd vertex in 3+ vertex graphs.
 LOGICAL :: lNoTriples
-
-LOGICAL tFCIMCSerial
 
 LOGICAL tUseProcsAsNodes  !Set if we treat each processor as its own node.
 INTEGER iLogicalNodeSize  !An alternative to the above, create logical nodes of at most this size.

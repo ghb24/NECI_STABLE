@@ -1,17 +1,17 @@
 #include "macros.h"
 MODULE Determinants
-    use constants, only: dp
+    use constants, only: dp, n_int, bits_n_int
     use SystemData, only: BasisFN, tCSF, nel, G1, Brr, ECore, ALat, NMSH, &
                           nBasis, nBasisMax, tStoreAsExcitations, tHPHFInts, &
-                          tCSF, tCPMD, tPickVirtUniform
+                          tCSF, tCPMD, tPickVirtUniform, LMS
     use IntegralsData, only: UMat, FCK, NMAX
     use csf, only: det_to_random_csf, iscsf, csf_orbital_mask, &
                    csf_yama_bit, CSFGetHelement
     use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_2, sltcnd_compat, &
-                          sltcnd_knowIC
+    sltcnd_knowIC, sltcnd_0, SumFock 
     use global_utilities
     use sort_mod
-    use DetBitOps, only: EncodeBitDet
+    use DetBitOps, only: EncodeBitDet, count_open_orbs, spatial_bit_det
     use DeterminantData
     use bit_reps, only: NIfTot
     implicit none
@@ -429,25 +429,42 @@ contains
     end function
 
 
-      HElement_t function GetH0Element3(nI)
-         ! Wrapper for GetH0Element.
-         ! Returns the matrix element of the unperturbed Hamiltonian, which is
-         ! just the sum of the eigenvalues of the occupied orbitals and the core
-         ! energy.
-         !  Note that GetH0Element{1,2} don't exist. The name is to be
-         !  consistent with GetHElement3, i.e. offer the most abstraction possible.
-         ! In: 
-         !    nI(nEl)  list of occupied spin orbitals in the determinant.
-         use constants, only: dp
-         use SystemData, only: nEl,nBasis,Arr,ECore
-         integer nI(nEl)
-         HElement_t hEl
-         call GetH0Element(nI,nEl,Arr(1:nBasis,1:2),nBasis,ECore,hEl)
-         GetH0Element3=hEl
-      end function
+    HElement_t function GetH0Element4(nI,HFDet)
+        ! Returns the matrix element of the unperturbed Hamiltonian,
+        ! which is just the sum of the eigenvalues of the occupied
+        ! orbitals and the core energy.
+        ! HOWEVER, this routine is *SLOWER* than the GetH0Element3
+        ! routine, and should only be used if you require this
+        ! without reference to the fock eigenvalues.
+        ! This is calculated by subtracting the required two electron terms
+        ! from the diagonal matrix elements.
+        integer, intent(in) :: nI(NEl),HFDet(NEl)
+        HElement_t :: hii,hel
 
-      Subroutine DetCleanup()
-      End Subroutine DetCleanup
+        hel = SumFock(nI,HFDet)
+        GetH0Element4 = hel + ECore
+
+    end function GetH0Element4
+
+    HElement_t function GetH0Element3(nI)
+       ! Wrapper for GetH0Element.
+       ! Returns the matrix element of the unperturbed Hamiltonian, which is
+       ! just the sum of the eigenvalues of the occupied orbitals and the core
+       ! energy.
+       !  Note that GetH0Element{1,2} don't exist. The name is to be
+       !  consistent with GetHElement3, i.e. offer the most abstraction possible.
+       ! In: 
+       !    nI(nEl)  list of occupied spin orbitals in the determinant.
+       use constants, only: dp
+       use SystemData, only: nEl,nBasis,Arr,ECore
+       integer nI(nEl)
+       HElement_t hEl
+       call GetH0Element(nI,nEl,Arr(1:nBasis,1:2),nBasis,ECore,hEl)
+       GetH0Element3=hEl
+    end function
+
+    Subroutine DetCleanup()
+    End Subroutine DetCleanup
    
     subroutine write_bit_rep(iUnit, iLut, lTerm)
        use bit_reps
@@ -467,6 +484,79 @@ contains
        write(iUnit,"(A,I5)", advance='no') ") ",flags
        if(lTerm) write(iUnit,*)
     end subroutine write_bit_rep
+
+    subroutine get_lexicographic_dets (ilut_src, store, ilut_gen) !, det)
+
+        integer(n_int), intent(in) :: ilut_src(0:NIfTot)
+        type(lexicographic_store), intent(inout) :: store
+        integer(n_int), intent(out), optional :: ilut_gen(0:NIfTot)
+        !integer, intent(out), optional :: det(nel)
+
+        integer :: nI(nel), i, nfound, orb, clro
+        integer(n_int) :: ilut_tmp(0:NIfTot)
+
+        ! If we haven't initialised the generator, do that now.
+        if (.not. allocated(store%dorder)) then
+
+            ! Allocate dorder storage
+            allocate(store%dorder(nel))
+            store%dorder(1) = -1
+
+            ! How many unpaired electrons are there
+            store%nopen = count_open_orbs (ilut_src)
+            store%nup = (store%nopen + LMS) / 2
+
+            ! Obtain a list of unpaired orbitals
+            nfound = 0
+            !nelec = 0
+            !allocate(store%open_indices(nopen))
+            allocate(store%open_orbs(store%nopen))
+            ilut_tmp = spatial_bit_det(ilut_src)
+            do i = 1, nbasis-1, 2
+                if (IsOcc(ilut_tmp, i)) then
+                    if (IsOcc(ilut_tmp, i+1)) then
+                    !    nelec = nelec + 2
+                    else
+                        nfound = nfound + 1
+                    !    nelec = nelec + 1
+                        store%open_orbs(nfound) = i
+                    !    nhoce%open_indices(nfound) = nelec
+                        if (nfound == store%nopen) exit
+                    endif
+                endif
+            enddo
+        endif
+
+        ! Generate the next term in the sequence
+        call get_lexicographic (store%dorder, store%nopen, store%nup)
+
+        if (store%dorder(1) == -1) then
+            deallocate(store%dorder)
+            !deallocate(store%open_indices)
+            deallocate(store%open_orbs)
+            if (present(ilut_gen)) ilut_gen = 0
+            !if (present(det)) det = 0
+        else
+            ! TODO: Test this with Ms /= 0.
+            if (present(ilut_gen)) then
+                ilut_gen = ilut_src
+                do i = 1,store%nopen
+                    if (store%dorder(i) == 0) then
+                        orb = get_alpha(store%open_orbs(i))
+                    else
+                        orb = get_beta(store%open_orbs(i))
+                    endif
+                    set_orb(ilut_gen, orb)
+                    clro=ab_pair(orb)
+                    clr_orb(ilut_gen, clro)
+                enddo
+            endif
+
+            !if (present(det)) ...
+        endif
+
+    end subroutine
+
 END MODULE Determinants
 
       subroutine GetH0Element(nI,nEl,Arr,nBasis,ECore,hEl)

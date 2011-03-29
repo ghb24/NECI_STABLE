@@ -10,7 +10,7 @@ module spin_project
     use constants, only: dp, bits_n_int, lenof_sign, n_int, end_n_int, int32
     use FciMCData, only: TotWalkers, CurrentDets, fcimc_iter_data, &
                          yama_global, excit_gen_store_type
-    use DeterminantData, only: write_det
+    use DeterminantData, only: write_det, get_lexicographic
     use dSFMT_interface, only: genrand_real2_dSFMT
     use util_mod, only: choose, binary_search
 
@@ -33,7 +33,7 @@ contains
         integer(n_int), intent(in) :: ilutI(0:nIfTot)
 
         integer :: dorder_i(nel), dorder_j(nel), open_el(nel)
-        integer :: nopen, i, nup, orb, count_dets, ndet, pos
+        integer :: nopen, i, nup, orb, count_dets, ndet, pos, abo
         integer(n_int) :: iluttmp(0:niftot)
         integer, dimension(lenof_sign) :: sgnI, sgnJ
         real*8 :: tot_cpt, elem
@@ -89,7 +89,8 @@ contains
                         orb = get_beta(open_el(i))
                     endif
                     set_orb(iluttmp, orb)
-                    clr_orb(iluttmp, ab_pair(orb))
+                    abo=ab_pair(orb)
+                    clr_orb(iluttmp, abo)
                 enddo
 
                 pos = binary_search (CurrentDets(:,1:TotWalkers), iLutTmp, &
@@ -377,7 +378,7 @@ contains
         HElement_t, intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
 
-        integer :: nopen, nchoose, i
+        integer :: nopen, nchoose, i, abo
         integer :: nTmp(nel), iUnused
         integer, dimension(lenof_sign) :: sgn_tmp
         character(*), parameter :: this_routine = 'generate_excit_spin_proj'
@@ -434,7 +435,8 @@ contains
         ilutJ = ilutI
         do i = 1, nopen
             set_orb(ilutJ, nJ(i))
-            clr_orb(ilutJ, ab_pair(nJ(i)))
+            abo=ab_pair(nJ(i))
+            clr_orb(ilutJ, abo)
         enddo
 
         ! Mark the end of the unpaired electrons section.
@@ -535,58 +537,6 @@ contains
 
     end function attempt_die_spin_proj
 
-    subroutine get_lexicographic (dorder, nopen, nup)
-
-        ! Unlike the csf version, this uses 1 == alpha, 0 = beta.
-
-        integer, intent(in) :: nopen, nup
-        integer, intent(inout) :: dorder(nopen)
-        integer :: comb(nup)
-        integer :: i, j
-        logical :: bInc
-
-        ! Initialise
-        if (dorder(1) == -1) then
-            dorder(1:nup) = 0
-            dorder(nup+1:nopen) = 1
-        else
-            ! Get the list of positions of the beta electrons
-            j = 0
-            do i = 1, nopen
-                if (dorder(i) == 0) then
-                    j = j + 1
-                    comb(j) = i
-                    
-                    ! Have we reached the last possibility?
-                    if (j == 1 .and. i == nopen - nup + 1) then
-                        dorder(1) = -1
-                        return
-                    endif
-
-                    if (j == nup) exit
-                endif
-            enddo
-
-            do i = 1, nup
-                bInc = .false.
-                if (i == nup) then
-                    bInc = .true.
-                else if (i < nup) then
-                    if (comb(i+1) /= comb(i) + 1) bInc = .true.
-                endif
-
-                if (bInc) then
-                    comb(i) = comb(i) + 1
-                    exit
-                else
-                    comb(i) = i
-                endif
-            enddo
-
-            dorder = 1
-            dorder(comb) = 0
-        endif
-    end subroutine
 
 
 end module

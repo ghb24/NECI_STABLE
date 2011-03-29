@@ -270,8 +270,10 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          use constants, only: dp
          use HElem, only: HElement_t_size
          use global_utilities
+         use SystemData, only: BasisFN
          IMPLICIT NONE
-         INTEGER NBASIS,G1(*),nBasisMax(5,*)
+         TYPE(BasisFN) G1(nBasis)
+         INTEGER NBASIS,nBasisMax(5,*)
          REAL*8 UMAT(*)
          REAL*8 ECORE
          INTEGER BRR(NBASIS)
@@ -355,11 +357,13 @@ C.. Unrestricted HF SCF code
      &      HFE,HFBASIS,NHFIT,NEL,MS,FMAT,DMAT,ODMAT,WORK,
      &      NSPINS,NSBASIS,HFES,OFMAT,HFMIX,EDELTA,CDELTA,TRHF,R1,R2,
      &      IHFMETHOD,TREADHF,FRAND,HFDET,ILOGGING)
+         use SystemData, only: BasisFn
          use constants, only: dp
          use HElem, only: HElement_t_size
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS
-         INTEGER NBASIS,G1(*)
+         INTEGER NBASIS
+         TYPE(BasisFn) G1(*)
          REAL*8 ECORE
          INTEGER BRR(NBASIS)
          HElement_t HFBASIS(NBASIS,NBASIS)
@@ -622,7 +626,7 @@ C.. Now sum in the alpha and beta block of u matrix
          REAL*8 ECUR,ECORE
          HElement_t WORK(3*NSBASIS),RWORK(3*NSBASIS)
 
-         INTEGER INFO
+         INTEGER*4 INFO
          HElement_t TOT,TOT2
          INTEGER ISPN,I,J,K         
 
@@ -906,11 +910,13 @@ C.. Unrestricted Hartree Fock with a gradient descent method.
      &      UMAT,HFE,HFBASIS,NHFIT,NEL,MS,NSPINS,NSBASIS,HFES,
      &      HFMIX,CMAT,OCMAT,DEDCIJ,DMAT,EDELTA,CDELTA,R1,R2,WORK,TRHF,
      &      IHFMETHOD,TREADHF,FRAND,HFDET,ILOGGING)
+         use SystemData, only: BasisFn
          use Determinants, only: write_det
          use sort_mod
          IMPLICIT NONE
+         TYPE(BasisFn) G1(*)
          INTEGER NSPINS,NSBASIS
-         INTEGER NBASIS,G1(*),nBasisMax(5,*)
+         INTEGER NBASIS,nBasisMax(5,*)
          REAL*8 UMAT(*)
          REAL*8 ECORE
          INTEGER BRR(NBASIS)
@@ -1348,8 +1354,10 @@ C.. Here A and C correspond to J and B corresponds to K
       END
 
       SUBROUTINE READHFFMAT(NBASIS,FMAT,HFES,G1,NSPINS,NSBASIS,TRANSP)
+         use SystemData, only: BasisFn
          IMPLICIT NONE
-         INTEGER NBASIS,G1(*),NQNS(5),NN,NSPINS,NSBASIS
+         TYPE(BasisFn) G1(*)
+         INTEGER NBASIS,NQNS(5),NN,NSPINS,NSBASIS
          REAL*8 FMAT(NSBASIS,NSBASIS,NSPINS),HFES(NSBASIS,NSPINS)
          INTEGER I,L,J,NB,NE,IG
          REAL*8 VAL

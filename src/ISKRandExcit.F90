@@ -506,7 +506,8 @@ MODULE ISKRandExcit
 
         WRITE(6,*) "There are ",iUniqueHPHF," unique ISK wavefunctions from the ISK given."
         
-        WRITE(6,*) "There are ",iUniqueBeta," unique ISK wavefunctions from the inverted determinant, which are not in the alpha version."
+        WRITE(6,*) "There are ",iUniqueBeta," unique ISK wavefunctions from the inverted determinant, " &
+        & //"which are not in the alpha version."
         IF(iUniqueBeta.ne.0) THEN
             WRITE(6,*) "ISK from beta, but not from alpha!"
             CALL FLUSH(6)

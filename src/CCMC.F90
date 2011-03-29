@@ -206,7 +206,8 @@ MODULE CCMC
 ! As the number of walkers in the HF reference det is the normalization, we loop
 ! over each walker there and use it a number of times
 ! We take the number of walkers as the number of samples to begin with.
-        CALL BinSearchParts(iLutHF, 1, int(TotWalkers,int32), iHFDet,tSuccess)
+        TotWalkersNew=TotWalkers
+        CALL BinSearchParts(iLutHF, 1, TotWalkersNew, iHFDet,tSuccess)
         if(.not.tSuccess) then
             WRITE(6,*) "WARNING: Cannot find HF det in particle list"
             HFcount=1
@@ -433,7 +434,8 @@ MODULE CCMC
                      iCompositeSize=iCurrentCompositeSize
                      IFDEBUG(iDebug,6) WRITE(6,*) "EXACT CLUSTER OUT"
                      do k=2,iCompositeSize 
-                        IFDEBUG(iDebug,6) WRITE(6,'(A1,I5,A1,I5,A1)',advance='no') '[',SelectedExcitorIndices(k),',',iLeftHere(k),'] '
+                        IFDEBUG(iDebug,6) WRITE(6,'(A1,I5,A1,I5,A1)',advance='no') &
+                        &   '[',SelectedExcitorIndices(k),',',iLeftHere(k),'] '
                         dProbNorm=dProbNorm*HFCount
                         call extract_sign(CurrentDets(:,SelectedExcitorIndices(k)),TempSign3)
                         dNGenComposite=dNGenComposite*abs(TempSign3(1))  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
@@ -494,7 +496,8 @@ MODULE CCMC
 !Account for possible orderings of selection
                         dProbNorm=dProbNorm*i
                         IFDEBUG(iDebug,6) WRITE(6,*) "TotParts,HFCount:",TotParts(1),HFcount
-                        IFDEBUG(iDebug,6) write(6,*) "Prob ",i,": ",(abs(TempSign3(1))+0.d0)/(TotParts(1)-HFcount)," Cuml:", dClusterProb
+                        IFDEBUG(iDebug,6) write(6,*) "Prob ",i,": ",(abs(TempSign3(1))+0.d0)/(TotParts(1)-HFcount), &
+                            " Cuml:", dClusterProb
                      enddo
                      IFDEBUG(iDebug,6) WRITE(6,*) 'prob out of sel routine.',dProbNumExcit
                      if(i.gt.nMaxSelExcitors) THEN !We've been limited by the max number of excitations
@@ -875,7 +878,8 @@ MODULE CCMC
         IFDEBUG(iDebug,1) WRITE(6,*) "Leaving CCMC Cycle"
         
         ! Update counters
-        iter_data_ccmc%update_growth = iter_data_ccmc%update_growth + iter_data_ccmc%nborn - iter_data_ccmc%ndied - iter_data_ccmc%nannihil
+        iter_data_ccmc%update_growth = iter_data_ccmc%update_growth + iter_data_ccmc%nborn - &
+            iter_data_ccmc%ndied - iter_data_ccmc%nannihil
         iter_data_ccmc%update_iters = iter_data_ccmc%update_iters + 1
         
     END SUBROUTINE PerformCCMCCycParInt
@@ -1313,8 +1317,8 @@ END SUBROUTINE InitSpawner
 SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dInitAmp,dTotAbsAmpl)
    use CCMCData
    use SystemData, only: nel
-   use FciMCData, only: HFDet
-   use FciMCParMod, only: iLutHF,SumEContrib,BinSearchParts3
+   use FciMCData, only: HFDet,iLutHF
+   use FciMCParMod, only: SumEContrib,BinSearchParts3
    use Determinants, only: GetH0Element3
    use bit_reps, only: decode_bit_det
    use constants, only: dp
@@ -1378,8 +1382,8 @@ END SUBROUTINE
 SUBROUTINE InitRandAmplitude(Amplitude,nExcit,dInitAmp,dTotAbsAmpl)
    use CCMCData
    use SystemData, only: nEl
-   use FciMCData, only: HFDet
-   use FciMCParMod, only: iLutHF,SumEContrib,BinSearchParts3
+   use FciMCData, only: HFDet,iLutHF
+   use FciMCParMod, only: SumEContrib,BinSearchParts3
    use Determinants, only: GetH0Element3
    use constants, only: dp
    use dSFMT_interface , only : genrand_real2_dSFMT
@@ -1400,7 +1404,6 @@ END SUBROUTINE
 
 subroutine AttemptSpawn(S,C,Amplitude,dTol,TL,WalkerScale,iDebug)
    use SystemData, only: nEl
-   use FciMCParMod, only: iLutHF
    use CCMCData, only: Spawner, Cluster,CCTransitionLog
    use FciMCParMod, only: BinSearchParts3
    Use CalcData, only: Tau
@@ -1409,7 +1412,7 @@ subroutine AttemptSpawn(S,C,Amplitude,dTol,TL,WalkerScale,iDebug)
    use DetCalcData, only:FCIDetIndex! (0:nEl+1).  The index of the different excitation levels
    use DetCalcData, only: Det       ! The number of Dets/Excitors in FCIDets
    Use Logging, only: tCCMCLogTransitions
-   use FciMCData, only: Iter
+   use FciMCData, only: Iter,iLutHF
    use CalcData, only: NEquilSteps
    implicit none
    type(Spawner) S
@@ -1477,15 +1480,13 @@ end subroutine AttemptSpawn
 !Take cluster C and make an anti-excitor corresponding to its collapsed version to take into account its death.
 subroutine AttemptDie(C,CurAmpl,OldAmpl,TL,WalkerScale,iDebug)
    use CCMCData, only: Cluster,CCTransitionLog
-   use FciMCData, only: Hii
+   use FciMCData, only: Hii,iLutHF,iter
    Use CalcData, only: Tau,DiagSft
    use DetCalcData, only: FCIDets   ! (0:NIfDBO, Det).  Lists all allowed excitors in compressed form
    use DetCalcData, only:FCIDetIndex! (0:nEl+1).  The index of the different excitation levels
    use DetCalcData, only: Det       ! The number of Dets/Excitors in FCIDets
    use constants, only: dp
-   use FciMCParMod, only: iLutHF
    Use Logging, only: lLogTransitions=>tCCMCLogTransitions
-   use FciMCData, only: Iter
    use CalcData, only: NEquilSteps
    use FciMCParMod, only: BinSearchParts3
    use dSFMT_interface , only : genrand_real2_dSFMT
@@ -1608,7 +1609,7 @@ end subroutine AttemptDie
 
 subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
    use SystemData, only: nEl
-   use FciMCParMod, only: iLutHF
+   use FciMCData, only: iLutHF
    use CCMCData, only: Spawner, Cluster
    use CalcData, only: tTruncInitiator
    Use CalcData, only: Tau
@@ -1679,11 +1680,10 @@ end subroutine AttemptSpawnParticle
 !Take cluster C and make an anti-excitor corresponding to its collapsed version to take into account its death.
 subroutine AttemptDieParticle(C,iDebug,SpawnList,nSpawned)
    use CCMCData, only: Cluster,CCTransitionLog
-   use FciMCData, only: Hii
+   use FciMCData, only: Hii,iLutHF
    Use CalcData, only: Tau,DiagSft
    use CalcData, only: tTruncInitiator
    use constants, only: dp
-   use FciMCParMod, only: iLutHF
    use dSFMT_interface , only : genrand_real2_dSFMT
    use SystemData, only : nEl
    use bit_reps, only: encode_bit_rep,set_flag
@@ -1833,8 +1833,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    use FciMCData, only: Iter
    use FciMCData, only: TotParts,TotWalkers,TotWalkersOld,TotPartsOld,AllTotPartsOld,AllTotWalkersOld,AllTotParts
    use FciMCData, only: tTruncSpace
-   use FciMCData, only: ProjectionE
-   use FciMCParMod, only: iLutHF
+   use FciMCData, only: ProjectionE,iLutHF
    use FciMCParMod, only: CheckAllowedTruncSpawn, SetupParameters,BinSearchParts3
    use FciMCParMod, only: InitHistMin, calculate_new_shift_wrapper
    use FciMCData, only: NoatHF,NoatDoubs
@@ -2012,7 +2011,8 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    if(tExactCluster) then
       CALL InitClustSelectorFull(CSMain,iNumExcitors,tTruncInitiator,dInitThresh)
    else
-      CALL InitClustSelectorRandom(CSMain,iNumExcitors,nClustSelections,dClustSelectionRatio,dProbSelNewExcitor,tTruncInitiator,dInitThresh)
+      CALL InitClustSelectorRandom(CSMain,iNumExcitors,nClustSelections,dClustSelectionRatio,dProbSelNewExcitor, &
+        tTruncInitiator,dInitThresh)
    endif
    if(tCCBuffer) then
       CALL InitClustSelectorFull(CSBuff,1,tTruncInitiator, dInitThresh)
@@ -2031,7 +2031,8 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
          call WriteExcitorList(6,AL,iCurAmpList,FciDets,0,nAmpl,dAmpPrintTol,"Excitor list")
       endif
       dNorm=AL%Amplitude(iRefPos,iCurAmpList)
-      call CalcTotals(iNumExcitors,dTotAbsAmpl,dNorm, AL,iCurAmpList,nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iOldTotParts,iDebug)
+      call CalcTotals(iNumExcitors,dTotAbsAmpl,dNorm, AL,iCurAmpList,nAmpl,dTolerance*dInitAmplitude,WalkerScale, &
+        iRefPos,iOldTotParts,iDebug)
       if(tExactEnergy) then
          CALL CalcClusterEnergy(tCCMCFCI,AL,iCurAmpList,nAmpl,FciDets,FCIDetIndex,iRefPos,dNorm, iDebug,dProjE)
       else
@@ -2077,7 +2078,8 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
                CS=>CSBuff
                OldAL=>ALBuffer
                OldALIndex=1
-               IFDEBUG(iDebug,3) call WriteExcitorList(6,ALBuffer,OldALIndex,FciDets,0,nBuffAmpl,dAmpPrintTol,"Cluster expanded wavefunction")
+               IFDEBUG(iDebug,3) call WriteExcitorList(6,ALBuffer,OldALIndex,FciDets,0,nBuffAmpl,dAmpPrintTol, &
+                    "Cluster expanded wavefunction")
                call AccumulateAmplitudeList(OldAL,nCurAmpl,OldALIndex,iRefPos,dLocAbsAmpl)
             endif
          endif
@@ -2148,6 +2150,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
 
 !TotWalkers is used for this and is WalkerScale* total of all amplitudes
       NoAtHF=AL%Amplitude(iRefPos,iCurAmpList)
+
       if(iShiftLeft.le.0)  Call calculate_new_shift_wrapper(iter_data_ccmc, &
                                                             TotParts)
       if(iShiftLeft.le.0)  iShiftLeft=StepsSft
@@ -2189,8 +2192,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use FciMCData, only: TotParts,TotWalkers,TotWalkersOld,TotPartsOld,AllTotPartsOld,AllTotWalkersOld,AllTotParts
    use FciMCData, only: NoatHF,NoatDoubs
    use FciMCData, only: tTruncSpace
-   use FciMCData, only: ProjectionE
-   use FciMCParMod, only: iLutHF
+   use FciMCData, only: ProjectionE,iLutHF
    use FciMCParMod, only: CheckAllowedTruncSpawn, SetupParameters,BinSearchParts3
    use FciMCParMod, only: InitHistMin, calculate_new_shift_wrapper
    use FciMCParMod, only: WriteHistogram,SumEContrib
@@ -2234,7 +2236,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    REAL*8 dTolerance             ! The tolerance for when to regard a value as zero
    REAL*8 dAveTotAbsAmp          ! Average of Total absolute amplitude over all post-equil cycles
    REAL*8 dAveNorm               ! Average of Normalization (ampl of Ref) over all post-equil cycles
-   INTEGER(kind=int32) dAmpPrintTol           ! What size amplitudes do we bother printing 
+   INTEGER dAmpPrintTol           ! What size amplitudes do we bother printing 
 
    TYPE(ClustSelector) :: CS   ! A normal ClustSelector based on the current amplitudes
    LOGICAL tMoreClusters                  ! Indicates we've not finished selecting clusters 
@@ -2262,7 +2264,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    !ghb24: Changes to allow compatibility with the new packaged walkers.
    INTEGER, DIMENSION(lenof_sign) :: TempSign
    TYPE(timer) :: CCMC_time,SpawnTime,DieTime,CCMCComms1_time,CCMCWait_time,CCMCComms2_time
-   TYPE(timer) :: Etime
+   TYPE(timer) :: Etime,CCMCrehouse
    INTEGER :: iOffsets(nProcessors)  !Used to store spawning data for annihilation
    INTEGER :: iLengths(nProcessors)  !Used to store spawning data for annihilation
    INTEGER :: iOffset(1)
@@ -2281,6 +2283,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    CCMCComms1_time%timer_name='CCMC Comms1'
    CCMCComms2_time%timer_name='CCMC Comms2'
    CCMCWait_time%timer_name='CCMC Wait'
+   CCMCrehouse%timer_name='CCMC Rehouse'
 
 !   Spawntime%timer_name='SpawnTime'
 !   Dietime%timer_name='DieTime'
@@ -2290,7 +2293,6 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    Call SetupParameters()
 !Init hash shifting data
    hash_iter=0
-   hash_shift=0
    ! Reset counters
    iter_data_ccmc%nborn = 0
    iter_data_ccmc%ndied = 0
@@ -2364,6 +2366,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       iRefPos=-1
       nAmpl=0
    endif
+   call MPIBCast(nAmpl,Node)
    iNumExcitors=0
    dTotAbsAmpl=GetAmpl(AL,iRefPos,iCurAmpList)
 !   endif
@@ -2430,7 +2433,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
          iRefPos=-1
          call MPIBCast(dNorm,.false.)
       endif
-      call CalcTotals(iNumExcitors,dTotAbsAmpl,dNorm, AL,iCurAmpList,nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos,iOldTotParts,iDebug)
+      call CalcTotals(iNumExcitors,dTotAbsAmpl,dNorm, AL,iCurAmpList,nAmpl,dTolerance*dInitAmplitude, &
+        WalkerScale,iRefPos,iOldTotParts,iDebug)
       iter_data_ccmc%update_growth = 0
       iter_data_ccmc%tot_parts_old=TotParts
       AllTotPartsOld=TotParts
@@ -2443,7 +2447,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    if(tAddToInitiator) dInitThresh=InitiatorWalkNo/WalkerScale
    write(6,*) "Cluster Initiator Threshold: ", dInitThresh
 
-   CALL InitClustSelectorRandom(CS,iNumExcitors,nClustSelections,dClustSelectionRatio,dProbSelNewExcitor,tTruncInitiator, dInitThresh)
+   CALL InitClustSelectorRandom(CS,iNumExcitors,nClustSelections,dClustSelectionRatio,dProbSelNewExcitor, &
+        tTruncInitiator, dInitThresh)
 
    CALL InitSpawner(S,tExactSpawn,ICILevel)
 
@@ -2483,7 +2488,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
          write(6,*) "Cycle ",Iter
          call WriteExcitorList(6,AL,iCurAmpList,DetList,0,nAmpl,dAmpPrintTol,"Excitor list")
       endif
-      call CalcTotals(iNumExcitors,dTotAbsAmpl,dNorm,AL,iCurAmpList,nAmpl,dTolerance*dInitAmplitude,WalkerScale,iRefPos, iOldTotParts,iDebug)
+      call CalcTotals(iNumExcitors,dTotAbsAmpl,dNorm,AL,iCurAmpList,nAmpl,dTolerance*dInitAmplitude, &
+        WalkerScale,iRefPos, iOldTotParts,iDebug)
 
       
       IFDEBUG(iDebug,2) THEN
@@ -2497,7 +2503,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
 !Fix the statistics for multiple threads
       if(iProcIndex==root) then
-         NoAtHF=GetAmpl(AL,iRefPos,iCurAmpList)
+         NoAtHF=dNorm
       else
          TotParts=0
          NoAtHF=0
@@ -2517,8 +2523,17 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       tMoreClusters=.true.
       iMin=min(iNumExcitors,nEl)
       call AccumulateAmplitudeList(AL,nAmpl,iCurAmpList,iRefPos, dTotLocAbsAmpl)
+!      if(dTotLocAbsAmpl<0) then
+!         call WriteExcitorList(6,AL,iCurAmpList,DetList,0,nAmpl,dAmpPrintTol,"Excitor list")
+!         call WriteExcitorListA(6,AL%CumlAmplitude,DetList,0,nAmpl,0,"Cuml Amp List")
+!      endif
+      IFDEBUG(iDebug,7) THEN
+         call WriteExcitorListA(6,AL%CumlAmplitude,DetList,0,nAmpl,0,"Cuml Amp List")
+      ENDIF
+          
       do while (tMoreClusters)
-         tMoreClusters=GetNextCluster(CS,DetList,nAmpl,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,dNorm, iMin,iDebug)
+         tMoreClusters=GetNextCluster(CS,DetList,nAmpl,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl, &
+            dNorm, iMin,iDebug)
          if(.not.tMoreClusters) exit
 !Now form the cluster
 !The final logic tells it whether to convert from an excitor to a det.
@@ -2559,22 +2574,25 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       enddo ! Cluster choices
 
 !Now we move any dets which need a home to the Annihilation list
-      IFDEBUG(iDebug,3) call WriteExcitorListP2(6,SpawnList,InitialSpawnedSlots,ValidSpawnedList, dAmpPrintTol,"Spawned list")
+      IFDEBUG(iDebug,3) call WriteExcitorListP2(6,SpawnList,InitialSpawnedSlots,ValidSpawnedList, dAmpPrintTol, &
+        "Spawned list")
       call MPIBarrier(ierr,Node) !Make sure everyone on our node has finished using the list
       if(nNodes>1) then
+         call set_timer(CCMCrehouse,20)
          call ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
-         call MPIBCast(nAmpl,Node)
          IFDEBUG(iDebug,3) call WriteExcitorListP(6,DetList,0,nAmpl,dAmpPrintTol,"Remaining excitor list")
+         call halt_timer(CCMCrehouse)
       endif
 
       call set_timer(CCMCComms2_time,20)
       IFDEBUG(iDebug,3) write(6,*) "Calling Annihilation with ", nSpawned, " spawned."
-      IFDEBUG(iDebug,3.and.nNodes>1) call WriteExcitorListP2(6,SpawnList,InitialSpawnedSlots,ValidSpawnedList, dAmpPrintTol,"Spawned/ReHoused list")
+      IFDEBUG(iDebug,3.and.nNodes>1) call WriteExcitorListP2(6,SpawnList,InitialSpawnedSlots,ValidSpawnedList, &
+        dAmpPrintTol,"Spawned/ReHoused list")
       call AnnihilationInterface(nAmpl,DetList,nMaxAmpl,nSpawned,SpawnList,nMaxSpawn,iter_data_ccmc)
       call MPIBCast(nAmpl,Node)
       call halt_timer(CCMCComms2_time)
       call MPIBarrier(ierr)
-      IFDEBUG(iDebug,3.and.bNodeRoot.or.tSharedExcitors) THEN
+      IFDEBUG(iDebug,3.and.(bNodeRoot.or.tSharedExcitors)) THEN
          call WriteExcitorListP(6,DetList,0,nAmpl,dAmpPrintTol,"After Annihilation")
       endif
       call MPIBarrier(ierr)
@@ -2616,7 +2634,10 @@ END SUBROUTINE CCMCStandaloneParticle
 subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
       use SystemData, only : nEl
       use AnnihilationMod, only: DetermineDetNode
-      use bit_reps, only: decode_bit_det
+      use bit_reps, only: decode_bit_det, set_flag_general
+      use bit_rep_data, only: flag_parent_initiator
+      use CCMCData, only: tSharedExcitors
+      use CalcData, only: tTruncInitiator
       implicit none
       INTEGER(kind=n_int) :: DetList(:,:)
       integer nAmpl
@@ -2624,30 +2645,98 @@ subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
       integer ValidSpawnedList(0:nNodes-1)
       integer nI(nEl)
       integer iDebug
+      integer Ends(0:NodeLengths(Node%n)-1)  !An index into DetList for each core in the node
+      integer Starts(0:NodeLengths(Node%n))  !An index into DetList for each core in the node
+      integer nCores,mystart,myend
+      integer ierr
 
       integer i,p,iNext
-      if(.not.bNodeRoot) return
-      iNext=0
-      IFDEBUG(iDebug,3) THEN
-         write(6,*) "Before ReHouse",nAmpl
-         write(6,*) ValidSpawnedList
-      ENDIF
-      do i=1,nAmpl
+!Each processor has its own SpawnList and ValidSpawnedList, and can apportion particles into that.
+! However, DetList is identical between cores on the same node.  We split the list into parts for each core on the node, and then put it back together later
+!      call WriteExcitorListP(6,DetList,0,nAmpl,0,"DetListIn")
+!      write(6,*) "In nAmpl:",nAmpl
+      nCores=NodeLengths(Node%n)
+      Starts(0)=1
+      p=nAmpl/nCores
+      do i=1,nCores-1
+         Starts(i)=Starts(i-1)+p
+      enddo
+      Starts(nCores)=nAmpl+1
+!      write(6,*) "Starts: ",starts
+      iNext=Starts(iIndexInNode)-1
+      do i=Starts(iIndexInNode),Starts(iIndexInNode+1)-1
          call decode_bit_det(nI,DetList(:,i))
          p=DetermineDetNode(nI,0)  !NB This doesn't have an offset of 1, because actually we're working out what happens for the same cycle that the create_particle is spawning to.
          if(p/=iNodeIndex) then
             SpawnList(:,ValidSpawnedList(p))=DetList(:,i)
+! Beware - if initiator is on, we need to flag this as an initiator det, otherwise it'll die before reaching the new proc.
+! This may need to change with complex walkers.
+            if(tTruncInitiator) then
+              call set_flag_general(SpawnList(:,ValidSpawnedList(p)),flag_parent_initiator(1),.true.)
+            endif
+!            write(6,*) "Det",i,"=>Node",p
             ValidSpawnedList(p)=ValidSpawnedList(p)+1
          else
             iNext=iNext+1
             if(iNext/=i) DetList(:,iNext)=DetList(:,i)
          endif
       enddo 
-      nAmpl=iNext
-      IFDEBUG(iDebug,3) THEN
-         write(6,*) "After ReHouse",nAmpl
-         write(6,*) ValidSpawnedList
-      ENDIF
+
+      mystart=Starts(iIndexInNode)
+      myend=iNext
+!      write(6,*) "Start,end:",mystart, myend
+      call MPIGather(iNext,Ends,ierr,Node)
+      call MPIBCast(Ends,Node)
+!Ends is now the last det on each proc (which may be < first det)
+!Now comes the tricky bit.  If we've got shared memory, then we can just move things on a single core on the node.
+!Otherwise we need an MPI call.  MPI really won't like the overlapping memory!
+!Move bits manually
+     if(tSharedExcitors) then
+         if(bNodeRoot) then
+            iNext=1
+            do i=0,nCores-1
+               p=(Ends(i)-Starts(i))+1
+               DetList(:,iNext:iNext+p)=DetList(:,Starts(i):Ends(i))  !This is potentially overlapping, but is allowed in Fortran90+
+               iNext=iNext+p
+            enddo
+            nAmpl=iNext-1
+         endif
+      else
+!Use MPI to do the hard work
+!         write(6,*) "Ends: ",Ends
+         Starts(0)=0 !Displacements are 0-based
+         !Ends(0) is correct as the length.
+         do i=1,nCores-1
+            iNext=(Ends(i)-Starts(i))+1  !The length
+            Starts(i)=Starts(i-1)+Ends(i-1)
+            Ends(i)=iNext
+         enddo
+   !Ends now contains the lengths, and Starts the disps
+         nAmpl=Starts(nCores-1)+Ends(nCores-1)  !Total # amplitudes should be the end of the lsit
+   !Note that the root doesn't need to send to iteself
+         iNext=Ends(0)  !Save the length of the root's list in iNext
+         do i=1,nCores-1 !Shift all the offsets by the length of the root list
+            Starts(i)=Starts(i)-Ends(0)
+         enddo
+         if(bNodeRoot) then
+            myend=mystart-1
+            Ends(0)=0 !The root doesn't send anything
+!            DetList(:,iNext+1:nAmpl)=0
+         endif
+!         write(6,*) "Offsets: ",Starts(0:nCores-1)
+!         write(6,*) "Lengths: ",Ends
+!         write(6,*) "Sending ",mystart,":",myend
+!         write(6,*) "Receiving ",iNext+1,":", nAmpl
+!         call WriteExcitorListP(6,DetList(:,mystart:myend),mystart-1,myend-mystart+1,0,"Sending")
+         !We send from all processors to DetList(:,iNext+1:) which is after the root's set of dets.
+         ! Ends contains the lengths, and Starts the offsets (shifted by the root's length)
+         call MPIBarrier(ierr)
+         call MPIGatherV(DetList(:,mystart:myend),DetList(:,iNext+1:nAmpl),Ends,Starts(0:nCores-1),ierr,Node)
+!         call WriteExcitorListP(6,DetList,0,nAmpl,0,"DetListOut")
+   !MPI magic should've placed everything in DetList.  Worth praying I suspect
+      endif
+      call MPIBCast(nAmpl,Node)
+!      write(6,*) "Out nAmpl:",nAmpl
 end subroutine
 
 SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
@@ -2797,9 +2886,11 @@ END SUBROUTINE
                WRITE(iUnit,"(A)",advance='no') "=>"
                Call WriteClusterInd(iUnit,j,.false.,TL)
                if(TL%tNonUniq) THEN
-                  WRITE(iUnit,"(2G25.17)") TL%dProbTransition(1,1,i,j)/TL%dProbClust(2,i),TL%dProbTransition(1,2,i,j)/TL%dProbClust(2,i)
+                  WRITE(iUnit,"(2G25.17)") TL%dProbTransition(1,1,i,j)/TL%dProbClust(2,i), &
+                    TL%dProbTransition(1,2,i,j)/TL%dProbClust(2,i)
                else
-                  WRITE(iUnit,"(2G25.17)") TL%dProbTransition(1,1,i,j)/TL%dProbUniqClust(2,i),TL%dProbTransition(1,2,i,j)/TL%dProbUniqClust(2,i)
+                  WRITE(iUnit,"(2G25.17)") TL%dProbTransition(1,1,i,j)/TL%dProbUniqClust(2,i), &
+                    TL%dProbTransition(1,2,i,j)/TL%dProbUniqClust(2,i)
                endif
             endif
          enddo
@@ -2814,9 +2905,11 @@ END SUBROUTINE
                k=GetClusterIndLevel(i)
                r=Amplitude(1)*(dAveTotAbsAmp/dAveNorm)**k
                if(TL%tNonUniq) THEN
-                  WRITE(iUnit,"(2G25.17)") TL%dProbTransition(2,1,i,j)/(TL%dProbClust(2,i)*r),TL%dProbTransition(2,2,i,j)/(TL%dProbClust(2,i)*r)
+                  WRITE(iUnit,"(2G25.17)") TL%dProbTransition(2,1,i,j)/(TL%dProbClust(2,i)*r), &
+                    TL%dProbTransition(2,2,i,j)/(TL%dProbClust(2,i)*r)
                else
-                  WRITE(iUnit,"(2G25.17)") TL%dProbTransition(2,1,i,j)/(TL%dProbUniqClust(2,i)*r),TL%dProbTransition(2,2,i,j)/(TL%dProbUniqClust(2,i)*r)
+                  WRITE(iUnit,"(2G25.17)") TL%dProbTransition(2,1,i,j)/(TL%dProbUniqClust(2,i)*r), &
+                    TL%dProbTransition(2,2,i,j)/(TL%dProbUniqClust(2,i)*r)
                endif
 !                  WRITE(iUnit,"(2G25.17)") TL%dProbTransition(2,1,i,j)/TL%dProbClust(2,i)
             endif
@@ -2832,9 +2925,11 @@ END SUBROUTINE
                k=GetClusterIndLevel(i)
                r=Amplitude(1)*(dAveTotAbsAmp/dAveNorm)**k
                if(TL%tNonUniq) THEN
-                  WRITE(iUnit,"(2G25.17)") TL%dProbTransition(1,1,i,j)/(TL%dProbClust(2,i)*r),TL%dProbTransition(1,2,i,j)/(TL%dProbClust(2,i))
+                  WRITE(iUnit,"(2G25.17)") TL%dProbTransition(1,1,i,j)/(TL%dProbClust(2,i)*r), &
+                    TL%dProbTransition(1,2,i,j)/(TL%dProbClust(2,i))
                else
-                  WRITE(iUnit,"(2G25.17)") TL%dProbTransition(1,1,i,j)/(TL%dProbUniqClust(2,i)*r),TL%dProbTransition(1,2,i,j)/(TL%dProbUniqClust(2,i))
+                  WRITE(iUnit,"(2G25.17)") TL%dProbTransition(1,1,i,j)/(TL%dProbUniqClust(2,i)*r), &
+                    TL%dProbTransition(1,2,i,j)/(TL%dProbUniqClust(2,i))
                endif
             endif
          enddo
@@ -2846,7 +2941,8 @@ END SUBROUTINE
                Call WriteClusterInd(iUnit,i,.false.,TL)
                WRITE(iUnit,"(A)",advance='no') "=>"
                Call WriteClusterInd(iUnit,j,.false.,TL)
-               WRITE(iUnit,"(2G25.17)") TL%dProbTransition(1,1,i,j)/TL%dProbTransition(1,2,i,j),TL%dProbTransition(2,1,i,j)/TL%dProbTransition(1,2,i,j)
+               WRITE(iUnit,"(2G25.17)") TL%dProbTransition(1,1,i,j)/TL%dProbTransition(1,2,i,j), &
+                    TL%dProbTransition(2,1,i,j)/TL%dProbTransition(1,2,i,j)
             endif
          enddo
       enddo
@@ -2946,7 +3042,7 @@ END MODULE CCMC
 subroutine WriteExcitorListP(iUnit,Dets,offset,nDet,dTol,Title)
    use constants, only:  n_int, lenof_sign
    use bit_rep_data, only: NIfDBO,NIfTot
-   use FciMCParMod, only: iLutHF
+   use FciMCData, only: iLutHF
    use bit_reps, only: extract_sign,extract_flags
    IMPLICIT NONE
    INTEGER iUnit,nDet
@@ -2970,7 +3066,7 @@ end subroutine !WriteExcitorList
 subroutine WriteExcitorListP2(iUnit,Dets,starts,ends,dTol,Title)
    use constants, only:  n_int, lenof_sign
    use bit_rep_data, only: NIfDBO,NIfTot
-   use FciMCParMod, only: iLutHF
+   use FciMCData, only: iLutHF
    use bit_reps, only: extract_sign,extract_flags
    use Parallel
    IMPLICIT NONE
@@ -2981,8 +3077,6 @@ subroutine WriteExcitorListP2(iUnit,Dets,starts,ends,dTol,Title)
    INTEGER j, starts(0:nNodes-1), ends(0:nNodes-1), i
    INTEGER, dimension(lenof_sign) :: Amp
    write(6,*) Title
-   write(6,*) "Starts", starts
-   write(6,*) "Ends", ends
    do i=0,nNodes-1
       do j=starts(i),ends(i)-1
          call extract_sign(Dets(:,j),Amp)

@@ -12,19 +12,21 @@ MODULE Calc
     use Determinants, only: iActiveBasis, SpecDet, tSpecDet, nActiveSpace, &
                             tDefineDet
     use DetCalc, only: iObs, jObs, kObs, tCorr, tRhoOfR, tFodM, DETINV, &
-                       icilevel, nCycle, tBlock, tCalcHMat, tEnergy, tRead, &
+                       icilevel, tBlock, tCalcHMat, tEnergy, tRead, &
                        tFindDets
-    use DetCalcData, only: B2L, nKry, nEval, nBlk
+    use DetCalcData, only: B2L, nKry, nEval, nBlk, nCycle
     use IntegralsData, only: tNeedsVirts
     use CCMCData, only: dInitAmplitude, dProbSelNewExcitor, nSpawnings, &
                         tSpawnProp, nClustSelections, tExactEnergy,     &
                         dClustSelectionRatio,tSharedExcitors
+    use FciMCData, only: proje_linear_comb, proje_ref_det_init
 
     implicit none
 
 contains
 
     subroutine SetCalcDefaults()
+          use FciMCData, only: hash_shift
         
         ! Set defaults for Calc data items.
 
@@ -51,6 +53,7 @@ contains
           StepsSftImag=0.D0
           TauFactor=0.D0
           tStartMP1=.false.
+          tStartCAS=.false.
           iAnnInterval=1
           tTruncCAS=.false.
           iFullSpaceIter=0
@@ -106,7 +109,7 @@ contains
           tExactEnergy=.false.
           tSharedExcitors=.false.
           tSpawnProp=.false.
-          NMCyc=2000
+          NMCyc = -1
           DiagSft=0.D0
           HApp=1
           TMCStar=.false.
@@ -168,7 +171,7 @@ contains
           G_VMC_EXCITWEIGHTS(:,:)=0.D0
           EXCITFUNCS(:)=.false.
           EXCITFUNCS(10)=.true.
-          NPaths=0
+          NPaths = 1
           iActiveBasis=0
           nActiveSpace(:)=0 
           TNPDERIV = .false.
@@ -181,7 +184,7 @@ contains
           DETINV = 0
           TSPECDET = .false.
           TTROT=.true.
-          BETA=0.D0
+          BETA = 1000
           BETAP=1.D-4
           TBETAP=.false.
           RHOEPSILON=1.D-6
@@ -205,11 +208,11 @@ contains
           MaxNoatHF=0
           HFPopThresh=0
           tSpatialOnlyHash = .false.
-
+          tSpawn_Only_Init = .false.
+          tSpawn_Only_Init_Grow = .false.
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
 
           lNoTriples=.false.
-          tFCIMCSerial=.false.  !If set we force the parallel version to run the serial code.
           tReadPopsChangeRef = .false.
           tReadPopsRestart = .false.
           iLogicalNodeSize = 0 !Meaning use the physical node size
@@ -232,6 +235,12 @@ contains
           tUseProcsAsNodes=.false.
 
           tSpawnSpatialInit = .false.
+
+          ! Truncation based on number of unpaired electrons
+          tTruncNOpen = .false.
+
+          proje_linear_comb = .false.
+          hash_shift=0
       
         end subroutine SetCalcDefaults
 
@@ -249,6 +258,7 @@ contains
           use UMatCache, only: gen2CPMDInts
           use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings,tSpawnProp,nClustSelections
           use CCMCData, only: tExactEnergy,tSharedExcitors
+          use FciMCData, only: hash_shift
           use global_utilities
           use Parallel, only : nProcessors
           use Logging, only: tLogDets
@@ -777,6 +787,8 @@ contains
             case("NSPAWNINGS")
 !For Amplitude CCMC the number of spawnings for each cluster.
                 call geti(nSpawnings)
+            case("HASH_SHIFT")
+                call geti(hash_shift)
             case("NCLUSTSELECTIONS")
 !For Particle CCMC the number of  cluster.
                 call geti(nClustSelections)
@@ -855,6 +867,24 @@ contains
 !For FCIMC, this has an initial configuration of walkers which is proportional to the MP1 wavefunction
 !                CALL Stop_All(t_r,"STARTMP1 option depreciated")
                 TStartMP1=.true.
+                TStartSinglePart=.false.
+                if(item.lt.nitems) then
+                    !Allow us to specify a desired number of particles to start with, so that the shift doesn't
+                    !change dramatically to start with.
+                    call geti(InitialPart)
+                endif
+            case("STARTCAS")
+!For FCIMC, this has an initial configuration of walkers which is proportional to the MP1 wavefunction
+!                CALL Stop_All(t_r,"STARTMP1 option depreciated")
+                TStartCAS=.true.
+                TStartSinglePart=.false.
+                call geti(OccCASOrbs)  !Number of electrons in CAS 
+                call geti(VirtCASOrbs)  !Number of virtual spin-orbitals in CAS
+                if(item.lt.nitems) then
+                    !Allow us to specify a desired number of particles to start with, so that the shift doesn't
+                    !change dramatically to start with.
+                    call geti(InitialPart)
+                endif
             case("GROWMAXFACTOR")
 !For FCIMC, this is the factor to which the initial number of particles is allowed to go before it is culled
                 call getf(GrowMaxFactor)
@@ -931,6 +961,21 @@ contains
                 IF(item.lt.nitems) then
                     call Getf(FracLargerDet)
                 ENDIF
+
+            case("PROJE-SPATIAL")
+                ! Calculate the projected energy by projection onto a linear
+                ! combination of determinants, specified by a particular 
+                ! spatial determinant.
+                proje_linear_comb = .true.
+                if (.not. allocated(proje_ref_det_init)) &
+                    allocate(proje_ref_det_init(nel))
+                proje_ref_det_init = 0
+                i = 1
+                do while (item < nitems .and. i <= nel)
+                    call geti(proje_ref_det_init(i))
+                    i = i+1
+                enddo
+
             case("RESTARTLARGEPOP")
                 tCheckHighestPop=.true.
                 tRestartHighPop=.true.
@@ -1044,6 +1089,20 @@ contains
 !The minimum walker population for a determinant to be added to the initiator space is InitiatorWalkNo.
                 tAddtoInitiator=.true.
                 call Geti(InitiatorWalkNo)
+
+            case("SPAWNONLYINIT")
+!This option means only the initiators have the ability to spawn.  The non-initiators can live/die but not spawn walkers of their own.                
+                tSpawn_Only_Init = .true.
+
+            case("SPAWNONLYINITGROWTH")
+                ! Only allow initiators to spawn progeny. Non-initiators can
+                ! live/die but are not allowed to spawn.
+                !
+                ! This option is disabled in variable shift mode. Allows
+                ! rapid but controlled growth of walkers
+                tSpawn_Only_Init = .true.
+                tSpawn_Only_Init_Grow = .true.
+
 
             case("RETESTINITPOP")                
 !This keyword is on by default.  It corresponds to the original initiator algorithm whereby a determinant may be added to the initiator space if its population becomes higher 
@@ -1246,6 +1305,12 @@ contains
                 tSpawnSpatialInit = .true.
                 tSpatialOnlyHash = .true.
 
+            case("TRUNC-NOPEN")
+                ! Truncate determinant spawning at a specified number of
+                ! unpaired electrons.
+                tTruncNOpen = .true.
+                call geti (trunc_nopen_max)
+
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)
@@ -1271,13 +1336,14 @@ contains
         Subroutine CalcInit()
           use constants, only: dp
           use SystemData, only: G1, Alat, Beta, BRR, ECore, LMS, nBasis, nBasisMax, STot,tCSF,nMsh,nEl
-          use SystemData, only: tUEG,nOccAlpha,nOccBeta,ElecPairs,tExactSizeSpace,tMCSizeSpace,MaxABPairs
+          use SystemData, only: tUEG,nOccAlpha,nOccBeta,ElecPairs,tExactSizeSpace,tMCSizeSpace,MaxABPairs,tMCSizeTruncSpace
           use IntegralsData, only: FCK, CST, nMax, UMat
           use IntegralsData, only: HFEDelta, HFMix, NHFIt, tHFCalc
           Use Determinants, only: FDet, tSpecDet, SpecDet, get_helement
           Use DetCalc, only: DetInv, nDet, tRead
           Use DetCalcData, only:  ICILevel
-          use hilbert_space_size, only: FindSymSizeofSpace, FindSymSizeofTruncSpace, FindSymMCSizeofSpace
+          use hilbert_space_size, only: FindSymSizeofSpace, FindSymSizeofTruncSpace 
+          use hilbert_space_size, only: FindSymMCSizeofSpace, FindSymMCSizeExcitLevel
           use global_utilities
           
           REAL*8 CalcT, CalcT2, GetRhoEps
@@ -1367,9 +1433,13 @@ contains
               ELSE
                   CALL FindSymSizeofTruncSpace(6)
               ENDIF
-          ELSEIF(tMCSizeSpace) THEN
+          endif
+          IF(tMCSizeSpace) THEN
               CALL FindSymMCSizeofSpace(6) 
           ENDIF
+          if(tMCSizeTruncSpace) then
+              CALL FindSymMCSizeExcitLevel(6)
+          endif
 
           IF(TMCDET) THEN
 !C.. Generate the determinant from which we start the MC
@@ -1582,7 +1652,8 @@ contains
                       ENDIF
                    ENDIF
                    IF(.NOT.TREAD) THEN
-                   CALL CALCRHO2(NMRKS(1,III),NMRKS(1,III),BETA,I_P,NEL, NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,1,0,ECORE)
+                   CALL CALCRHO2(NMRKS(1,III),NMRKS(1,III),BETA,I_P,NEL, NBASISMAX,G1,NBASIS,BRR,NMSH, &
+                    FCK,NMAX,ALAT,UMAT,RH,1,0,ECORE)
 !C                   WRITE(6,*) RH
                    FLRI=LOG(RH)
                    FLSI=FLSI-I_P*FLRI
@@ -1665,8 +1736,8 @@ contains
          use UMatCache , only : TSTARSTORE
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
          use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,tCCMC
-         use CalcData , only : TRhoElems,TReturnPathMC, tFCIMCSerial,tUseProcsAsNodes
-         use CCMCData, only: tExactCluster,tCCMCFCI,tAmplitudes,tExactSpawn,tCCBuffer
+         use CalcData , only : TRhoElems,TReturnPathMC, tUseProcsAsNodes
+         use CCMCData, only: tExactCluster,tCCMCFCI,tAmplitudes,tExactSpawn,tCCBuffer,tCCNoCuml
          use Logging, only: tCalcFCIMCPsi
          implicit none
          integer I_HMAX,NWHTAY,I_V
@@ -1690,8 +1761,6 @@ contains
                       case("RESUMFCIMC")
 !                          TResumFCIMC=.true.
                           CALL Stop_All("inpgetmethod","MCDIFFUSION option depreciated")
-                      case("SERIAL")
-                          tFCIMCSerial=.true.
                       case default
                           call report("Keyword error with "//trim(w),.true.)
                       endselect
@@ -1706,6 +1775,7 @@ contains
                   tCCMCFCI=.false.
                   tAmplitudes=.false.
                   tCCBuffer=.false.
+                  tCCNoCuml=.false.
                   do while(item.lt.nitems)
                     call readu(w)
                     select case(w)
@@ -1724,6 +1794,8 @@ contains
                        tCCMCFCI=.true.
                     case("BUFFER")
                         tCCBuffer=.true.
+                    case("NOCUML")
+                       tCCNoCuml=.true.
                     case default
                        call report("Keyword error with "//trim(w),.true.)
                     end select

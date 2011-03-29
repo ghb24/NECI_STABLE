@@ -768,7 +768,11 @@ contains
          NREPS(1:NEL)=0
          CALL SETUPSYM(ISYM)
          ISC=ISCSF(NI2,NEL)
-         IF(tFixLz) CALL GetLz(NI2,NEL,ISYM%Ml)
+         IF(tFixLz) THEN
+            CALL GetLz(NI2,NEL,ISYM%Ml)
+         ELSE
+            ISYM%Ml=0
+         ENDIF
          IF(ISC) THEN
             DO I=1,NEL
                CALL GETUNCSFELEC(NI2(I),NI(I),SSYM)
@@ -882,7 +886,7 @@ contains
                   ENDDO
                   
 !                  WRITE(6,*) NREPS,"PROD",I,J
-                  CALL N_MEMORY_CHECK
+!                  CALL N_MEMORY_CHECK
 !                  CALL WRITECHARS(6,REPCHARS(1,NREPS),NROT,"ADDPRD")
                   IF(GETIRREPDECOMP(REPCHARS(1,NREPS),IRREPCHARS,NSYM,NROT,IDECOMP,NORM,TAbelian)) THEN
 !   CHARWORK now contains the remainder, which will be a new irrep (or combination or irreps), which we need to add
@@ -1297,7 +1301,7 @@ contains
 !   SYM.
 !   e.g. if irreps are a1,a2,b1,b2
       LOGICAL FUNCTION LCHKSYM(ISYM,JSYM)
-         use SystemData, only: BasisFN,Symmetry
+         use SystemData, only: BasisFN,Symmetry,tFixLz
          IMPLICIT NONE
          TYPE(BASISFN) ISYM,JSYM
          INTEGER I
@@ -1306,6 +1310,7 @@ contains
             IF(ISYM%K(I).NE.JSYM%K(I)) LCHKSYM=.FALSE.
          ENDDO
          IF(ISYM%Ms.NE.JSYM%Ms) LCHKSYM=.FALSE.
+         IF(ISYM%Ml.NE.JSYM%Ml) LCHKSYM=.FALSE.
 !   if the symmetry product of I and J doesn't contain the totally
 !   symmetric irrep, we set sym to .FALSE.
         LCHKSYM=LCHKSYM.AND.LSYMSYM(SYMPROD(SymConj(ISYM%SYM),JSYM%SYM))
@@ -1372,6 +1377,7 @@ contains
             ENDDO
          ENDIF
          ISYM%MS=ISYM%MS+G1(IELEC)%MS
+         ISYM%Ml=ISYM%Ml+G1(IELEC)%Ml
 !   SSYM keeps track of the total S change on adding this electron
 !   (it is +/-CSF_NSBASIS)
          I=ISYM%MS+0
@@ -1633,9 +1639,13 @@ contains
             LOC=0
          ENDIF
       END SUBROUTINE BINARYSEARCHSYM
+
+!This function when called repeatedly, generates all allowed symmmetries.
+!It appears to not have been modified for Lz symmetry, so will only generate Lz=0
+! AJWT 20110121
       SUBROUTINE GENNEXTSYM(NEL,NBASISMAX,TSPN,LMS,TPARITY,IPARITY,TSETUP,TDONE,IMAX,ISYM)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,NullBasisFn
          use SymData, only: tAbelian
          IMPLICIT NONE
          INTEGER NEL,nBasisMax(5,*)
@@ -1644,6 +1654,8 @@ contains
          LOGICAL TSPN,TPARITY,TSETUP,TMORE,TDONE,KALLOWED,TMORE2
          INTEGER ILEV
          IF(TSETUP) THEN
+            IMAX(1)=NullBasisFn
+            IMAX(2)=NullBasisFn
             DO ILEV=1,3
                IF(TPARITY) THEN
                   IMAX(1)%k(iLev)=IPARITY%k(ILEV)

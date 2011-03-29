@@ -42,7 +42,7 @@ MODULE FciMCData
     integer(int64) :: AllNoExtraInitDoubs, AllInitRemoved
     integer(int64) :: AllNoAbortedOld, AllGrowRateAbort
 
-      LOGICAL :: tHFInitiator,tPrintHighPop
+      LOGICAL :: tHFInitiator,tPrintHighPop, tcurr_initiator
  
       REAL*8 :: AvDiagSftAbort,SumDiagSftAbort,DiagSftAbort     !This is the average diagonal shift value since it started varying, and the sum of the shifts since it started varying, and
                                                                 !the instantaneous shift, including the number of aborted as though they had lived.
@@ -55,12 +55,20 @@ MODULE FciMCData
       INTEGER :: MaxWalkersPart,PreviousNMCyc,Iter,NoComps,MaxWalkersAnnihil
       integer(int64) :: TotWalkers, TotWalkersOld
       integer(int64), dimension(lenof_sign) :: TotParts, TotPartsOld
+      integer(int64) :: norm_psi_squared
+      real(dp) :: norm_psi
       INTEGER :: exFlag=3
 
 !The following variables are calculated as per processor, but at the end of each update cycle, are combined to the root processor
       REAL*8 :: GrowRate,DieRat
       HElement_t :: SumENum
+
+      ! The averaged projected energy - calculated from accumulated values.
       HElement_t :: ProjectionE
+
+      ! The averaged projected energy - calculated over the last update cycle
+      HElement_t :: proje_iter
+
       integer(int64), dimension(lenof_sign) :: SumNoatHF      !This is the sum over all previous cycles of the number of particles at the HF determinant
       REAL*8 :: AvSign           !This is the average sign of the particles on each node
       REAL*8 :: AvSignHFD        !This is the average sign of the particles at HF or Double excitations on each node
@@ -74,12 +82,14 @@ MODULE FciMCData
       INTEGER :: NoBorn,NoDied
       INTEGER :: SpawnFromSing  !These will output the number of particles in the last update cycle which have been spawned by a single excitation.
       INTEGER :: AllSpawnFromSing
-      INTEGER :: HFPopCyc         !This is the number of update cycles which have a HF particle at some point
       INTEGER, DIMENSION(lenof_sign) :: HFCyc            !This is the number of HF*sign particles on a given processor over the course of the update cycle
       HElement_t :: AllHFCyc          !This is the sum of HF*sign particles over all processors over the course of the update cycle
       HElement_t :: ENumCyc           !This is the sum of doubles*sign*Hij on a given processor over the course of the update cycle
       HElement_t :: AllENumCyc        !This is the sum of double*sign*Hij over all processors over the course of the update cycle
-      HElement_t :: ProjEIter,ProjEIterSum    !This is the energy estimator where each update cycle contributes an energy and each is given equal weighting.
+
+      ! The projected energy over the current update cycle.
+      HElement_t :: ProjECyc
+
       integer :: iPartBloom   ! The maximum number of children spawned from a
                               ! single excitation. Used to calculate blooms.
 
@@ -91,6 +101,9 @@ MODULE FciMCData
       INTEGER(KIND=int64) :: AllSumWalkersCyc
       INTEGER :: AllAnnihilated,AllNoatDoubs
       INTEGER, DIMENSION(lenof_sign) :: AllNoatHF
+      real(dp), dimension(lenof_sign) :: sum_proje_denominator, &
+                        cyc_proje_denominator, all_cyc_proje_denominator, &
+                        all_sum_proje_denominator
       REAL*8 :: AllAvSign,AllAvSignHFD
       INTEGER :: AllNoBorn,AllNoDied,MaxSpawned
 
@@ -125,20 +138,24 @@ MODULE FciMCData
       ! The approximate fraction of singles and doubles. This is calculated
       ! using the HF determinant, if using non-uniform random excitations.
       real(dp) :: pDoubles, pSingles
+      integer :: nSingles, nDoubles
       
       ! Bit representation of the HF determinant
       integer(kind=n_int), allocatable :: iLutHF(:)
     
       REAL(4) :: IterTime
     
-      REAL(KIND=dp) , ALLOCATABLE :: Histogram(:,:),AllHistogram(:,:),InstHist(:,:),AllInstHist(:,:),AttemptHist(:),AllAttemptHist(:),SpawnHist(:),AllSpawnHist(:),HistogramEnergy(:),AllHistogramEnergy(:)
+      REAL(KIND=dp) , ALLOCATABLE :: AttemptHist(:),AllAttemptHist(:),SpawnHist(:),AllSpawnHist(:)
       REAL(KIND=dp) , ALLOCATABLE :: AvAnnihil(:,:),AllAvAnnihil(:,:),InstAnnihil(:,:),AllInstAnnihil(:,:)
-      REAL(KIND=dp) , ALLOCATABLE :: SinglesAttemptHist(:),AllSinglesAttemptHist(:),SinglesHist(:),AllSinglesHist(:),DoublesHist(:),AllDoublesHist(:),DoublesAttemptHist(:),AllDoublesAttemptHist(:)
+      REAL(KIND=dp) , ALLOCATABLE :: SinglesAttemptHist(:),AllSinglesAttemptHist(:),SinglesHist(:),AllSinglesHist(:)
+      REAL(KIND=dp) , ALLOCATABLE :: DoublesHist(:),AllDoublesHist(:),DoublesAttemptHist(:),AllDoublesAttemptHist(:)
       REAL(KIND=dp) , ALLOCATABLE :: SinglesHistOccOcc(:),SinglesHistOccVirt(:),SinglesHistVirtOcc(:),SinglesHistVirtVirt(:)
-      REAL(KIND=dp) , ALLOCATABLE :: AllSinglesHistOccOcc(:),AllSinglesHistVirtOcc(:),AllSinglesHistOccVirt(:),AllSinglesHistVirtVirt(:)
+      REAL(KIND=dp) , ALLOCATABLE :: AllSinglesHistOccOcc(:),AllSinglesHistVirtOcc(:),AllSinglesHistOccVirt(:)
+      REAL(KIND=dp) , ALLOCATABLE :: AllSinglesHistVirtVirt(:)
+
+      real(dp), allocatable :: spin_det_hist(:,:)
 
       INTEGER :: MaxDet,iOffDiagNoBins
-      INTEGER , ALLOCATABLE :: HistMinInd(:),HistMinInd2(:)
 
       INTEGER , ALLOCATABLE :: DoublesDets(:,:)
       INTEGER :: DoublesDetsTag,NoDoubs
@@ -172,6 +189,10 @@ MODULE FciMCData
       INTEGER :: iHighestPop
       INTEGER , ALLOCATABLE :: ProjEDet(:)
       INTEGER(KIND=n_int) , ALLOCATABLE :: HighestPopDet(:),iLutRef(:)
+      INTEGER(n_int) , ALLOCATABLE :: iLutRefFlip(:)     !If we are using HPHF and projecting onto an open-shell determinant, then it is useful
+                                                        !to store the spin-coupled determinant, so we can calculate projection onto both.
+      INTEGER , ALLOCATABLE :: RefDetFlip(:)
+      LOGICAL :: tSpinCoupProjE
 
       ! Store data about all processors for calculating load balancing
       integer(int64) :: MaxWalkersProc, MinWalkersProc
@@ -179,6 +200,18 @@ MODULE FciMCData
       TYPE(BasisFN) :: HFSym
       integer :: iMaxBloom !If tMaxBloom is on, this stores the largest bloom to date.
 
+      ! If we are calculating the projected energy based on a linear
+      ! sum of multiple determinants, we need them and their coeffs
+      ! to have been enumerated.
+      logical :: proje_linear_comb
+      integer(n_int), allocatable :: proje_ref_iluts(:,:)
+      integer :: nproje_sum
+      integer, allocatable :: proje_ref_dets(:,:), proje_ref_det_init(:)
+      real(dp), allocatable :: proje_ref_coeffs(:)
+      integer :: tag_ref_iluts = 0, tag_ref_dets = 0, tag_ref_coeffs = 0
+      real(dp) :: proje_denominator_cyc(lenof_sign)
+      real(dp) :: proje_denominator_sum(lenof_sign)
+      
 
       ! ********************** FCIMCPar control variables *****************
       ! Store data from one fcimc iteration
@@ -216,86 +249,18 @@ MODULE FciMCData
 
       integer :: yama_global (4)
 
-      !*****************  Yucky globals for AJWT iter-dependent hashes ***********
-      integer :: hash_iter       ! An iteration number added to make iteration-dependent hashes
-      integer :: hash_shift      ! -Ln_2 (Cycletime), where CycleTime is the average number of cycles until a det returns to its processor
-      
-      !*****************  Redundant variables ************************
-    
-
-      INTEGER , ALLOCATABLE , TARGET :: WalkVec2Dets(:,:),WalkVec2Sign(:)
-      REAL(KIND=dp) , ALLOCATABLE , TARGET :: WalkVec2H(:)
-      INTEGER , ALLOCATABLE :: IndexTable(:),Index2Table(:)                               !Indexing for the annihilation
-      INTEGER , ALLOCATABLE :: ProcessVec(:),Process2Vec(:)                               !Index for process rank of original walker
-      INTEGER(KIND=int64) , ALLOCATABLE :: HashArray(:),Hash2Array(:)                         !Hashes for the walkers when annihilating
-      INTEGER :: HashArrayTag=0,Hash2ArrayTag=0,IndexTableTag=0,Index2TableTag=0,ProcessVecTag=0,Process2VecTag=0
-      INTEGER :: WalkVe2HTag=0,WalkVec2DetsTag=0,WalkVec2SignTag=0
-      INTEGER , POINTER :: NewDets(:,:)
-      INTEGER , POINTER :: NewSign(:)
-
-      ! Only used in FciMC, but put here to allow access to a data module for
-      ! the sorting routines etc.
-      type excitGenerator
-          integer, pointer :: excitdata(:) ! The excitation generator
-          integer :: nExcitMemLen = 0           ! Length of excitation gen.
-          logical :: excitGenForDet = .false.   ! true if excitation generator
-                                               ! stored corresponds to the
-                                               ! determinant.
-      end type
-
-      type(ExcitGenerator) :: HFExcit         !This is the excitation generator for the HF determinant
-      integer(int64) :: HFHash               !This is the hash for the HF determinant
-!This is information needed by the thermostating, so that the correct change in walker number can be calculated, and hence the correct shift change.
-!NoCulls is the number of culls in a given shift update cycle for each variable
-      INTEGER :: NoCulls=0
-!CullInfo is the number of walkers before and after the cull (elements 1&2), and the third element is the previous number of steps before this cull...
-!Only 10 culls/growth increases are allowed in a given shift cycle
-      INTEGER :: CullInfo(10,3)
-
       ! Used for modifying the ReadPops procedures, so that we can call 
       ! InitFCIMCCalcPar again without reading the popsfile.
       logical :: tPopsAlreadyRead
 
-      ! Excitation generation storage for FCIMC (and others)
+!      ! Excitation generation storage 
       type(excit_gen_store_type) :: fcimc_excit_gen_store
       
-      interface assignment(=)
-          module procedure excitgenerator_assign
-      end interface
 
-contains
-    
-    pure subroutine excitgenerator_init (egen)
-        type(excitGenerator), intent(inout) :: egen
-        nullify(egen%excitdata)
-        egen%nExcitMemLen = 0
-        egen%excitGenForDet = .false.
-    end subroutine
 
-    pure subroutine excitgenerator_destroy (egen)
-        type(excitGenerator), intent(inout) :: egen
-        if (associated(egen%excitdata)) deallocate(egen%excitdata)
-        nullify(egen%excitdata)
-        egen%nExcitMemLen = 0
-        egen%excitGenForDet = .false.
-    end subroutine
-
-    elemental subroutine excitgenerator_assign (lhs, rhs)
-        type(excitGenerator), intent(inout) :: lhs
-        type(excitGenerator), intent(in) :: rhs
-
-        if (associated(lhs%excitData)) deallocate(lhs%excitData)
-
-        ! Do we actually want the excitation generator? Is it for the correct
-        ! determinant?
-        if (rhs%excitGenForDet) then
-            ! Now copy the excitation generator.
-            allocate (lhs%excitData(rhs%nExcitMemLen))
-
-            lhs%excitData = rhs%excitData
-        endif
-        lhs%nExcitMemLen = rhs%nExcitMemLen
-        lhs%excitGenForDet = rhs%excitGenForDet
-    end subroutine
+      !*****************  Yucky globals for AJWT iter-dependent hashes ***********
+      integer :: hash_iter       ! An iteration number added to make iteration-dependent hashes
+      integer :: hash_shift      ! -Ln_2 (Cycletime), where CycleTime is the average number of cycles until a det returns to its processor
+      
 
 END MODULE FciMCData

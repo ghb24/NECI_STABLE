@@ -24,6 +24,9 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tMCSizeTruncSpace=.false.
+      iMCCalcTruncLev=0
+      tOddS_HPHF=.false.
       tRotatedOrbsReal=.false.  !This is set if compiled in real, but reading in a complex FCIDUMP.
       tISKFuncs=.false.       !This is for kpoint symmetry with inversion so that determinants can be combined.
       tKPntSym=.false.        !This is for k-point symmetry with the symrandexcit2 excitation generators.
@@ -81,7 +84,6 @@ MODULE System
       iPeriodicDampingType=0
       fRc=0.D0
       TEXCH=.true.
-      FCOUL=1.D0
       UHUB = 4
       BHUB = -1
       TREAL = .false.
@@ -93,6 +95,9 @@ MODULE System
       ISTATE = 1
       OrbECutoff=1e20
       tOrbECutoff=.false.
+      gCutoff=1e20 ! This shouldn't be used
+      tgCutoff=.false.
+      tMP2UEGRestrict=.false.
       tStoreAsExcitations=.false.
       TBIN=.false.
       tAbelianFastExcitGen=.true.
@@ -164,7 +169,7 @@ MODULE System
       IMPLICIT NONE
       LOGICAL eof
       CHARACTER (LEN=100) w
-      INTEGER I
+      INTEGER I,Odd_EvenHPHF
       
       ! The system block is specified with at least one keyword on the same
       ! line, giving the system type being used.
@@ -355,7 +360,8 @@ MODULE System
                   call report("EXCHANGE "//trim(w)//" not valid",.true.)
             end select
         case("COULOMB")
-            call getf(FCOUL)
+            call report("Coulomb feature removed",.true.)
+!            call getf(FCOUL)
         case("COULOMB-DAMPING")
             call report("Coulomb damping feature removed",.true.)
 !            call readu(w)
@@ -370,8 +376,21 @@ MODULE System
         case("ENERGY-CUTOFF")
           tOrbECutoff=.true.
           call getf(OrbECutoff)
+        case("G-CUTOFF")
+          tgCutoff=.true.
+          call getf(gCutoff)
         case("STORE-AS-EXCITATIONS")
            tStoreAsExcitations=.true.  
+        case("MP2-UEG-RESTRICT")
+           tMP2UEGRestrict=.true.
+           call geti(kiRestrict(1))
+           call geti(kiRestrict(2))
+           call geti(kiRestrict(3))
+           call geti(kiMsRestrict)
+           call geti(kjRestrict(1))
+           call geti(kjRestrict(2))
+           call geti(kjRestrict(3))
+           call geti(kjMsRestrict)
 
         ! Options for model systems (electrons in a box/Hubbard).   
         case("CELL")
@@ -468,8 +487,18 @@ MODULE System
             tAssumeSizeExcitgen=.true.
         case("HPHF")
             tHPHF=.true.
-
-
+            if(item.lt.nitems) then
+                call geti(Odd_EvenHPHF)
+                if(Odd_EvenHPHF.eq.1) then
+                    !Want to converge onto an Odd S State
+                    tOddS_HPHF=.true.
+                elseif(Odd_EvenHPHF.eq.0) then
+                    !Want to converge onto an Even S State
+                    !tOddS_HPHF should be false by default.
+                else
+                    call stop_all("SysReadInput","Invalid variable given to HPHF option: 0 = Even S; 1 = Odd S")
+                endif
+            endif
         case("ROTATEORBS")
 ! The ROTATEORBS calculation initiates a routine which takes the HF orbitals
 ! and finds the optimal set of transformation coefficients to fit a particular criteria specified below.
@@ -711,6 +740,15 @@ MODULE System
         case("CALCEXACTSIZESPACE")
 !This option will calculate the exact size of the symmetry allowed space of determinants. Will scale badly.
             tExactSizeSpace=.true.
+
+        case("CALCMCSIZETRUNCSPACE")
+!This option will approximate the exact size of the symmetry allowed truncated space of determinants by MC. 
+!The variance on the value will decrease as 1/N_steps
+            tMCSizeTruncSpace=.true.
+            CALL Geti(iMCCalcTruncLev)
+            CALL GetiLong(CalcDetCycles)
+            CALL GetiLong(CalcDetPrint)
+
         case("CALCMCSIZESPACE")
 !This option will approximate the exact size of the symmetry allowed space of determinants by MC. The variance on the value will decrease as 1/N_steps
             tMCSizeSpace=.true.
@@ -762,8 +800,9 @@ MODULE System
             tROHF=.true.
             tNoBrillouin=.true.
             tBrillouinsDefault=.false.
-            IF(tFindCINatOrbs) CALL Stop_All("ReadSysInp","For orbital rotations of open shell systems, UMAT must be stored in spin &
-                                                           & orbitals - cannot be compressed using ROHF.") 
+            IF(tFindCINatOrbs) CALL Stop_All("ReadSysInp","For orbital rotations of open shell "&
+            &//"systems, UMAT must be stored in spin &
+            & orbitals - cannot be compressed using ROHF.") 
                                              
         case("LZTOT")
             tFixLz=.true.
@@ -797,7 +836,7 @@ MODULE System
         
     Subroutine SysInit
       Use global_utilities
-      use SymData, only: tAbelian,TwoCycleSymGens
+      use SymData, only: tAbelian,TwoCycleSymGens,nSymLabels
       use constants, only: Pi, Pi2, THIRD
       use legacy_data, only: CSF_NBSTART
       use read_fci
@@ -1315,7 +1354,12 @@ MODULE System
       IF(tFixLz) THEN
           WRITE(6,'(A)') "****** USING Lz SYMMETRY *******"
           WRITE(6,'(A,I5)') "Pure spherical harmonics with complex orbitals used to constrain Lz to: ",LzTot
-          WRITE(6,*) "Due to the breaking of the Ml degeneracy, the fock energies are slightly wrong, on order of 1.D-4 - do not use for MP2!"
+          WRITE(6,*) "Due to the breaking of the Ml degeneracy, the fock energies are slightly wrong, "&
+          &//"on order of 1.D-4 - do not use for MP2!"
+          if(nsymlabels.gt.4) then
+              call stop_all(this_routine,"D2h point group detected. Incompatable with Lz symmetry conserving "&
+              &//"orbitals. Have you transformed these orbitals into spherical harmonics correctly?!")
+          endif
       ENDIF
 
 !C..        (.NOT.TREADINT)
@@ -1375,7 +1419,7 @@ MODULE System
 
 !// TBR
 !      WRITE(6,*) ' ETRIAL : ',ETRIAL
-      IF(FCOUL.NE.1.D0)  WRITE(6,*) "WARNING: FCOUL is not 1.D0. FCOUL=",FCOUL
+!      IF(FCOUL.NE.1.D0)  WRITE(6,*) "WARNING: FCOUL is not 1.D0. FCOUL=",FCOUL
       IF(FCOULDAMPBETA.GT.0) WRITE(6,*) "FCOUL Damping.  Beta ",FCOULDAMPBETA," Mu ",FCOULDAMPMU
       call halt_timer(proc_timer)
     End Subroutine SysInit

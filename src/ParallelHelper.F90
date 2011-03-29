@@ -1,4 +1,5 @@
 module ParallelHelper
+   use constants, only : MPIArg 
    Type :: CommI
       Integer n
    End Type
@@ -82,11 +83,37 @@ contains
 #ifdef PARALLEL
       uSE MPI
 #endif
-      INTEGER error,l,e
+      INTEGER(MPIArg) :: error,l,e
 #ifdef PARALLEL
-      character(len=MPI_MAX_ERROR_STRING) s
+      character(len=MPI_MAX_ERROR_STRING) :: s
       call MPI_ERROR_STRING(error,s,l,e)
       write(6,*) s
 #endif
    end subroutine
+
+    Subroutine MPIBarrier(error,Node)
+        INTEGER :: error
+        INTEGER(MPIArg) :: err
+        type(CommI), intent(in),optional :: Node
+        integer Comm
+        integer(MPIArg) :: CommArg
+#ifdef PARALLEL
+        call GetComm(Comm,Node)
+        CommArg=Comm
+        CALL MPI_Barrier(CommArg,err)
+        error=err
+#endif
+    end subroutine
 end module
+
+subroutine mpibarrier_c (error) bind(c)
+    use ParallelHelper, only: MPIBarrier
+    use constants, only: MPIArg
+    use, intrinsic :: iso_c_binding
+    implicit none
+    integer(c_int), intent(inout) :: error
+    integer :: ierr
+
+    call MPIBarrier (ierr)
+    error = ierr
+end subroutine
