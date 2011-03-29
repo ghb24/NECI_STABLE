@@ -718,6 +718,15 @@ MODULE FciMCParMod
             tTruncInitiator=.true.
         ENDIF
 
+        IF(tRDMonFly.and.(Iter.eq.IterRDMonFly)) THEN
+            tFillingRDMonFly = .true.
+            IF(RDMExcitLevel.eq.3) THEN
+                WRITE(6,'(A)') 'Beginning to calculate both the 1 and 2 electron density matrices on the fly.'
+            ELSE
+                WRITE(6,'(A28,I1,A36)') 'Beginning to calculate the ',RDMExcitLevel,' electron density matrix on the fly.'
+            ENDIF
+        ENDIF
+
         MaxInitPopPos=0
         MaxInitPopNeg=0
         HighPopNeg=1
@@ -1016,13 +1025,7 @@ MODULE FciMCParMod
                                 - iter_data%naborted
         iter_data%update_iters = iter_data%update_iters + 1
 
-        IF(tFillingRDMonFly) THEN
-            IF(.not.tStochasticRDM) CALL FillRDMthisIter(TotWalkers)
-        ELSEIF(tRDMonFly.and.(Iter.ge.IterRDMonFly)) THEN
-            tFillingRDMonFly = .true.
-            WRITE(6,'(A28,I1,A36)') ' Beginning to calculate the ',RDMExcitLevel,' electron density matrix on the fly.'
-            IF(.not.tStochasticRDM) CALL FillRDMthisIter(TotWalkers)
-        ENDIF
+        IF(tFillingRDMonFly.and.(.not.tStochasticRDM)) CALL FillRDMthisIter(TotWalkers)
 
     end subroutine
 

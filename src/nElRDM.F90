@@ -77,7 +77,7 @@ MODULE nElRDMMod
         CHARACTER(len=*), PARAMETER :: this_routine='InitRDM'
 
         IF(tCalc_RDMEnergy) THEN
-            WRITE(6,*) 'Calculating the energy from the reduced density matrix, this requires both the 1 and 2 electron RDM.'
+            WRITE(6,'(A)') ' Calculating the energy from the reduced density matrix, this requires both the 1 and 2 electron RDM.'
             RDMExcitLevel = 3
         ENDIF
 
