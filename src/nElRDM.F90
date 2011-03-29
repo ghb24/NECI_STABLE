@@ -2097,14 +2097,14 @@ MODULE nElRDMMod
 
         IF((RDMExcitLevel.eq.2).or.(RDMExcitLevel.eq.3)) THEN
 ! We also need to allocate the actual 1RDM on each processor, and an all1RDM on only the root.        
-            WRITE(6,*) 'Having issues deallocating TwoElRDM (possibly because of array bounds issues)'
-            CALL FLUSH(6)
+!            WRITE(6,*) 'Having issues deallocating TwoElRDM (possibly because of array bounds issues)'
+!            CALL FLUSH(6)
 
             DEALLOCATE(TwoElRDM)
             CALL LogMemDeAlloc(this_routine,TwoElRDMTag)
 
-            WRITE(6,*) 'Nope, deallocation of TwoElRDM is o.k'
-            CALL FLUSH(6)
+!            WRITE(6,*) 'Nope, deallocation of TwoElRDM is o.k'
+!            CALL FLUSH(6)
 
             IF(iProcIndex.eq.0) THEN
                 DEALLOCATE(AllTwoElRDM)
@@ -2406,7 +2406,7 @@ MODULE nElRDMMod
         do i = 1, nProcessors-1
             disp(i) = disp(i-1) + lengthsout(i-1)
         enddo
-        CALL MPIGatherv(CurrentDets, TotWalkers*(NIfTot+1), AllCurrentDets, lengthsout(0:nProcessors-1), Disp(0:nProcessors-1), ierr)
+        CALL MPIGatherv(CurrentDets(0:NIfTot,1:TotWalkers), AllCurrentDets, lengthsout, Disp, ierr)
 
         IF(iProcIndex.eq.0) THEN
 
