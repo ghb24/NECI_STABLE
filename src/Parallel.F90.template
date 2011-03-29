@@ -820,6 +820,7 @@ Subroutine MPIGatherV_auto2(v,v2,Lengths,Disps,ierr,Node)
     integer LengthsN(ubound(Lengths,1)-lbound(Lengths,1)+1)  !This will have the displacements multiplied up by the other array dims
     %(type1)s,intent(in) :: v(:)
     %(type1)s,intent(inout) :: v2(:)
+    integer :: LengthIn
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
 #if PARALLEL
@@ -833,11 +834,11 @@ Subroutine MPIGatherV_auto2(v,v2,Lengths,Disps,ierr,Node)
 !    write(6,*) "Disps", DispsN
 !   write (6,*) %(mpiprt)s,ubound(values,%(ndim)s+1),lbound(values,%(ndim)s+1)
     call GetComm(Comm,Node,rt)
-    CALL MPI_GatherV(V,&
- %(mpilen)s&
-      *(ubound(v,%(ndim)s+1)-lbound(v,%(ndim)s+1)+1),&
-      %(mpitype)s,V2,LengthsN,&
-      DispsN,%(mpitype)s,rt,COMM,ierr)
+    LengthIn = %(mpilen)s*(ubound(v,%(ndim)s+1)-lbound(v,%(ndim)s+1)+1)
+    CALL MPI_GatherV(V,int(LengthIn,MPIArg),&
+      %(mpitype)s,V2,int(LengthsN,MPIArg),&
+      int(DispsN,MPIArg),%(mpitype)s,int(rt,MPIArg),int(COMM,MPIArg),error)
+      ierr = error
 #else
     v2(Disps(1):Disps(1)+Lengths(1))=v(:)
     ierr=0
