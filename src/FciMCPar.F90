@@ -2945,7 +2945,14 @@ MODULE FciMCParMod
         call MPISumAll (SumWalkersCyc, AllSumWalkersCyc)
 
 !        WRITE(6,*) "***",iter_data%update_growth_tot,AllTotParts-AllTotPartsOld
-        ASSERTROOT(all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld))
+#ifdef __DEBUG
+        !Write this 'ASSERTROOT' out explicitly to avoid line lengths problems
+        if((iProcIndex.eq.Root).and.(.not.all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld))) then
+            call stop_all (this_routine, &
+                "Assertation failed: "//"all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld)")
+        endif
+#endif
+!        ASSERTROOT(all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld))
     
     end subroutine collate_iter_data
 
