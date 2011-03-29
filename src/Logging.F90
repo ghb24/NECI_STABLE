@@ -14,7 +14,9 @@ MODULE Logging
     IMPLICIT NONE
     Save
 
-    INTEGER ILOGGING,ILOGGINGDef,iGlobalTimerLevel,nPrintTimer,G_VMC_LOGCOUNT
+    INTEGER ILOGGING,ILOGGINGDef
+    INTEGER :: iGlobalTimerLevel=40
+    INTEGER nPrintTimer,G_VMC_LOGCOUNT
     INTEGER HFLOGLEVEL,iWritePopsEvery,StartPrintOrbOcc,StartPrintDoubsUEG
     INTEGER PreVarLogging,WavevectorPrint,NoHistBins,HistInitPopsIter
     REAL*8 MaxHistE,OffDiagMax,OffDiagBinRange

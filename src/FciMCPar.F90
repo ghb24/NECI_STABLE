@@ -103,10 +103,13 @@ MODULE FciMCParMod
     contains
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
+!        use Timing, only: get_total_time
+!        use SystemData, only: proc_timer
         real(dp) :: Weight, Energyxw
         INTEGER :: error
         LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange,tPrintWarn
-        REAL(4) :: s,etime,tstart(2),tend(2)
+        REAL(4) :: s,etime,tstart(2),tend(2),totaltime
+        real(dp) :: TotalTime8
         INTEGER(int64) :: MaxWalkers,MinWalkers
         real*8 :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
         integer, dimension(lenof_sign) :: tmp_sgn
@@ -148,7 +151,8 @@ MODULE FciMCParMod
 !Main iteration loop...
 !            WRITE(6,*) 'Iter',Iter
 
-            s=etime(tstart)
+            if(iProcIndex.eq.root) s=etime(tstart)
+
             if (tCCMC) then
                 CALL PerformCCMCCycPar()
             else
@@ -178,19 +182,11 @@ MODULE FciMCParMod
                 enddo
             endif
 
-            s=etime(tend)
-            IterTime=IterTime+(tend(1)-tstart(1))
+            if(iProcIndex.eq.root) then
+                s=etime(tend)
+                IterTime=IterTime+(tend(1)-tstart(1))
+            endif
             
-!            IF(tBlockEveryIteration) THEN
-!                Inpair(1)=REAL(HFIter,dp)
-!                Inpair(2)=ENumIter
-!                CALL MPISumAll(Inpair,2,Outpair)
-!                IterEnergy=Outpair(2)/Outpair(1)
-!                IF(tErrorBlocking.and.(iProcIndex.eq.Root)) CALL SumInErrorContrib(Iter,Outpair(2),Outpair(1))
-!                ENumIter=0.D0
-!                HFIter=0
-!            ENDIF
-
             if (mod(Iter, StepsSft) == 0) then
 
                 ! Has there been a particle bloom this update cycle?
@@ -280,6 +276,17 @@ MODULE FciMCParMod
                     TIncrement=.false.
                     EXIT
                 ENDIF
+                IF(tTimeExit) THEN
+                    !Is it time to exit yet?
+                    TotalTime8=real(s,dp)
+                    call MPIBCast(TotalTime8)    !TotalTime is local
+!                    write(6,*) "TOTAL TIME = ",TotalTime8,s,tend(1),tend(2)
+                    if(TotalTime8.ge.MaxTimeExit) then
+                        write(6,"(A,F8.2,A)") "Time limit reached for simulation of: ",MaxTimeExit/60.0," minutes - exiting..."
+                        tIncrement=.false.
+                        EXIT
+                    endif
+                ENDIF
                 IF(tWritePopsFound) THEN
 !We have explicitly asked to write out the POPSFILE from the CHANGEVARS file.
                     CALL WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
@@ -288,7 +295,7 @@ MODULE FciMCParMod
                     CALL CalcApproxpDoubles()
                 ENDIF
             
-            ENDIF
+            ENDIF   !Endif end of update cycle
 
 !            IF(mod(Iter,iWriteBlockingEvery).eq.0) THEN
 !                !Every 100 update cycles, write out a new blocking file.
