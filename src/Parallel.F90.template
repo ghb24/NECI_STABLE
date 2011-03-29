@@ -3,7 +3,7 @@
 #####################
 [int]
 type1=integer(int32)
-mpitype=MPI_INTEGER
+mpitype=MPI_INTEGER4
 mpiprt="None"
 mpilen=1
 mpilen2=1
@@ -19,7 +19,7 @@ mpitype=MPI_DOUBLE_PRECISION
 
 [logical4]
 type1=logical(4)
-mpitype=MPI_INTEGER
+mpitype=MPI_INTEGER4
 
 [logical8]
 type1=logical(8)
@@ -35,7 +35,7 @@ mpitype=MPI_DOUBLE_COMPLEX
 #####################
 [arr_int]
 type1=integer(int32), dimension(:)
-mpitype=MPI_INTEGER
+mpitype=MPI_INTEGER4
 mpiprt=ubound(v,1),lbound(v,1)
 mpilen=(ubound(v,1)-lbound(v,1)+1)
 mpilen2=(ubound(v2,1)-lbound(v2,1)+1)
@@ -65,7 +65,7 @@ mpitype=MPI_INTEGER8
 ######################
 [arr2_int]
 type1=integer(int32), dimension(:,:)
-mpitype=MPI_INTEGER
+mpitype=MPI_INTEGER4
 mpiprt=ubound(v,1),lbound(v,1),ubound(v,2),lbound(v,2)
 mpilen=((ubound(v,1)-lbound(v,1)+1)*(ubound(v,2)-lbound(v,2)+1))
 mpilen2=((ubound(v2,1)-lbound(v2,1)+1)*(ubound(v2,2)-lbound(v2,2)+1))
@@ -95,7 +95,7 @@ mpitype=MPI_INTEGER8
 ######################
 [arr3_int]
 type1=integer(int32), dimension(:,:,:)
-mpitype=MPI_INTEGER
+mpitype=MPI_INTEGER4
 mpiprt=ubound(v,1),lbound(v,1),ubound(v,2),lbound(v,2),ubound(v,3),lbound(v,3)
 mpilen=((ubound(v,1)-lbound(v,1)+1)*(ubound(v,2)-lbound(v,2)+1)*(ubound(v,3)-lbound(v,3)+1))
 mpilen2=((ubound(v2,1)-lbound(v2,1)+1)*(ubound(v2,2)-lbound(v2,2)+1)*(ubound(v2,3)-lbound(v2,3)+1))
@@ -114,7 +114,7 @@ mpitype=MPI_DOUBLE_COMPLEX
 ######################
 [arr4_int]
 type1=integer(int32), dimension(:,:,:,:)
-mpitype=MPI_INTEGER
+mpitype=MPI_INTEGER4
 mpiprt=ubound(v,1),lbound(v,1),ubound(v,2),lbound(v,2),ubound(v,3),lbound(v,3),ubound(v,4),lbound(v,4)
 mpilen=((ubound(v,1)-lbound(v,1)+1)*(ubound(v,2)-lbound(v,2)+1)*(ubound(v,3)-lbound(v,3)+1)*(ubound(v,4)-lbound(v,4)+1))
 mpilen2=((ubound(v2,1)-lbound(v2,1)+1)*(ubound(v2,2)-lbound(v2,2)+1)*(ubound(v2,3)-lbound(v2,3)+1)*(ubound(v2,4)-lbound(v2,4)+1))
@@ -323,14 +323,16 @@ subroutine MPIAllReduce_len (v, iLen, iType, Ret, Node)
     integer(MPIArg) :: ierr
     type(CommI), intent(in),optional :: Node
     integer Comm
+
 #if PARALLEL
     call GetComm(Comm,Node)
 
     call MPI_ALLREDUCE (v, Ret, int(iLen,MPIArg), &
-    %(mpitype)s, iType, &
-    int(Comm,MPIArg), ierr)
+%(mpitype)s, &
+                        iType, int(Comm,MPIArg), ierr)
+
     if (ierr /= MPI_SUCCESS) then
-        call stop_all ("MPIAllReduce", 'Error in MPI_ALLREDUCE. Terminating.')
+        call stop_all ("MPIAllReduce_len", 'Error in MPI_ALLREDUCE. Terminating.')
     endif
 #else
     Ret = v
@@ -355,7 +357,7 @@ subroutine MPIAllReduce_auto (v, iType, Ret, Node)
     %(mpitype)s, iType, &
     int(Comm,MPIArg), ierr)
     if (ierr /= MPI_SUCCESS) then
-        call stop_all ("MPIAllReduce", 'Error in MPI_ALLREDUCE. Terminating.')
+        call stop_all ("MPIAllReduce_auto", 'Error in MPI_ALLREDUCE. Terminating.')
     endif
 #else
     Ret = v
@@ -379,7 +381,9 @@ subroutine MPIAllReduce_inplace (v, iType, Node)
     %(mpitype)s, iType,&
     int(Comm,MPIArg), ierr)
     if (ierr /= MPI_SUCCESS) then
-        call stop_all ("MPIAllReduce", 'Error in MPI_ALLREDUCE. Terminating.')
+        !write(6,*) 'ierr: ', ierr
+        !call flush(6)
+        call stop_all ("MPIAllReduce_inplace", 'Error in MPI_ALLREDUCE. Terminating.')
     endif
 #endif
 end subroutine
@@ -595,10 +599,11 @@ subroutine MPIBCast_logic (v, tMe, Node)
     logical, intent(in) :: tMe
     integer(MPIArg) :: error
     type(CommI), intent(in),optional :: Node
-    integer Comm,rt,nrt
+    integer Comm,rt
+    integer(MPIArg) :: nrt
 #if PARALLEL
     call GetComm(Comm,Node,rt,tMe)
-    call MPI_AllReduce(int(rt,MPIArg),int(nrt,MPIArg),1,MPI_INTEGER, MPI_MAX,int(Comm,MPIArg),error)  !Work out which processor is the root
+    call MPI_AllReduce(int(rt,MPIArg),nrt,1,MPI_INTEGER, MPI_MAX,int(Comm,MPIArg),error)  !Work out which processor is the root
     call MPI_BCAST (v, &
 %(mpilen)s,&
     %(mpitype)s, int(nrt,MPIArg), int(Comm,MPIArg), &
@@ -815,6 +820,7 @@ Subroutine MPIGatherV_auto2(v,v2,Lengths,Disps,ierr,Node)
     integer LengthsN(ubound(Lengths,1)-lbound(Lengths,1)+1)  !This will have the displacements multiplied up by the other array dims
     %(type1)s,intent(in) :: v(:)
     %(type1)s,intent(inout) :: v2(:)
+    integer :: LengthIn
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
 #if PARALLEL
@@ -828,11 +834,11 @@ Subroutine MPIGatherV_auto2(v,v2,Lengths,Disps,ierr,Node)
 !    write(6,*) "Disps", DispsN
 !   write (6,*) %(mpiprt)s,ubound(values,%(ndim)s+1),lbound(values,%(ndim)s+1)
     call GetComm(Comm,Node,rt)
-    CALL MPI_GatherV(V,&
- %(mpilen)s&
-      *(ubound(v,%(ndim)s+1)-lbound(v,%(ndim)s+1)+1),&
-      %(mpitype)s,V2,LengthsN,&
-      DispsN,%(mpitype)s,rt,COMM,ierr)
+    LengthIn = %(mpilen)s*(ubound(v,%(ndim)s+1)-lbound(v,%(ndim)s+1)+1)
+    CALL MPI_GatherV(V,int(LengthIn,MPIArg),&
+      %(mpitype)s,V2,int(LengthsN,MPIArg),&
+      int(DispsN,MPIArg),%(mpitype)s,int(rt,MPIArg),int(COMM,MPIArg),error)
+      ierr = error
 #else
     v2(Disps(1):Disps(1)+Lengths(1))=v(:)
     ierr=0
