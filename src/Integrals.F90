@@ -830,7 +830,7 @@ contains
     SUBROUTINE IntFREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE,           &
    &         G1,NBASISMAX,ISS,BRR,NFROZEN,NTFROZEN,NFROZENIN,NTFROZENIN,NEL)
        use constants, only: dp
-       use SystemData, only: Symmetry,BasisFN,BasisFNSize,arr,tagarr,tHub
+       use SystemData, only: Symmetry,BasisFN,BasisFNSize,arr,tagarr,tHub,tUEG
        use OneEInts
        USE UMatCache, only: FreezeTransfer,UMatCacheData,UMatInd,TUMat2D
        Use UMatCache, only: FreezeUMatCache, CreateInvBrr2,FreezeUMat2D, SetupUMatTransTable

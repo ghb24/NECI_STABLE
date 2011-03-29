@@ -45,14 +45,6 @@ MODULE FciMCParMod
                                     init_excit_gen_store,clean_excit_gen_store
     use GenRandSymExcitCSF, only: gen_csf_excit
     use IntegralsData , only : fck,NMax,UMat,tPartFreezeCore,NPartFrozen,NHolesFrozen,tPartFreezeVirt,NVirtPartFrozen,NElVirtFrozen
-<<<<<<< HEAD:src/FciMCPar.F90
-    USE Logging , only : iWritePopsEvery,TPopsFile,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies,IterShiftBlock,AllHistInitPops
-    USE Logging , only : BinRange,iNoBins,OffDiagBinRange,OffDiagMax,AllHistInitPopsTag,tLogComplexPops
-    USE Logging , only : tPrintFCIMCPsi,tCalcFCIMCPsi,NHistEquilSteps,tPrintOrbOcc,StartPrintOrbOcc,tPrintOrbOccInit,tPrintDoubsUEG,StartPrintDoubsUEG
-    USE Logging , only : tHFPopStartBlock,tIterStartBlock,IterStartBlocking,HFPopStartBlocking,tInitShiftBlocking,tHistHamil,iWriteHamilEvery,HistInitPopsTag
-    USE Logging , only : OrbOccs,DoubsUEG,DoubsUEGLookup,DoubsUEGStore,OrbOccsTag,tPrintPopsDefault,iWriteBlockingEvery,tBlockEveryIteration,tHistInitPops,HistInitPopsIter,HistInitPops
-    USE Logging , only : FCIMCDebug
-=======
     use Logging, only: iWritePopsEvery, TPopsFile, iPopsPartEvery, tBinPops, &
                        iWriteHistEvery, tHistEnergies, FCIMCDebug, &
                        IterShiftBlock, AllHistInitPops, BinRange, iNoBins, &
@@ -65,7 +57,8 @@ MODULE FciMCParMod
                        HistInitPopsTag, OrbOccs, OrbOccsTag, &
                        tPrintPopsDefault, iWriteBlockingEvery, &
                        tBlockEveryIteration, tHistInitPops, HistInitPopsIter,&
-                       HistInitPops
+                       HistInitPops, DoubsUEG, DoubsUEGLookup, DoubsUEGStore, &
+                       tPrintDoubsUEG, StartPrintDoubsUEG
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
                     hist_spin_dist, ilut_spindist, tHistSpinDist, &
                     write_clear_hist_spin_dist, hist_spin_dist_iter, &
@@ -73,7 +66,6 @@ MODULE FciMCParMod
                     add_hist_spawn, tHistSpawn, AllHistogramEnergy, &
                     AllHistogram, HistogramEnergy, Histogram, AllInstHist, &
                     InstHist, HistMinInd
->>>>>>> c21da96a7b4d561a255a1b33279c1262f07c4333:src/FciMCPar.F90
     USE SymData , only : nSymLabels
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE Parallel
@@ -4843,19 +4835,6 @@ MODULE FciMCParMod
 !This routine sums in the energy contribution from a given walker and updates stats such as mean excit level
 !AJWT added optional argument dProbFin which is a probability that whatever gave this contribution was generated.
 !  It defaults to 1, and weights the contribution of this det (only in the projected energy) by dividing its contribution by this number 
-<<<<<<< HEAD:src/FciMCPar.F90
-    SUBROUTINE SumEContrib(DetCurr,ExcitLevel,WSign,iLutCurr,HDiagCurr,dProbFin)
-        use SystemData, only : tNoBrillouin
-        use CalcData, only: tFCIMC
-        INTEGER , intent(in) :: DetCurr(NEl),ExcitLevel
-        INTEGER, DIMENSION(lenof_sign) , INTENT(IN) :: WSign
-        INTEGER(KIND=n_int), intent(in) :: iLutCurr(0:NIfTot)
-        INTEGER :: i,i2,Bin,iUEG1,iUEG2
-        INTEGER :: PartInd,OpenOrbs
-        INTEGER(KIND=n_int) :: iLutSym(0:NIfTot)
-        LOGICAL :: tSuccess
-        REAL*8 , intent(in) :: HDiagCurr,dProbFin
-=======
     subroutine SumEContrib (nI, ExcitLevel, WSign, ilut, HDiagCurr, dProbFin)
 
         integer, intent(in) :: nI(nel), ExcitLevel
@@ -4868,11 +4847,10 @@ MODULE FciMCParMod
         integer(n_int) :: iLutSym(0:NIfTot)
         logical tSuccess
         integer :: iUEG1, iUEG2
->>>>>>> c21da96a7b4d561a255a1b33279c1262f07c4333:src/FciMCPar.F90
         HElement_t :: HOffDiag
         HElement_t :: HDoubDiag
-        INTEGER :: DoubEx(2,2),DoubEx2(2,2),kDoub(3) ! For histogramming UEG doubles
-        LOGICAL :: tDoubParity,tDoubParity2 ! As above
+        integer :: DoubEx(2,2),DoubEx2(2,2),kDoub(3) ! For histogramming UEG doubles
+        logical :: tDoubParity,tDoubParity2 ! As above
 
         ! Are we performing a linear sum over various determinants?
         ! TODO: If we use this, function pointer it.
@@ -4986,7 +4964,7 @@ MODULE FciMCParMod
                         .or. DoubEx2(1,2).ne.DoubEx(1,2) &
                         .or. DoubEx2(2,2).ne.DoubEx(2,2) &
                         .or. DoubEx2(2,1).ne.DoubEx(2,1) &
-                        .or. tDoubParity.ne.tDoubParity2) then
+                        .or. tDoubParity.neqv.tDoubParity2) then
                         call stop_all("SumEContrib","GetBitExcitation doesn't agree with GetExcitation")
                     endif
                     iUEG1=0
