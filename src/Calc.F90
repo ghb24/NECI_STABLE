@@ -19,7 +19,7 @@ MODULE Calc
     use CCMCData, only: dInitAmplitude, dProbSelNewExcitor, nSpawnings, &
                         tSpawnProp, nClustSelections, tExactEnergy,     &
                         dClustSelectionRatio,tSharedExcitors
-    use FciMCData, only: proje_linear_comb, proje_ref_det_init
+    use FciMCData, only: proje_linear_comb, proje_ref_det_init,tTimeExit,MaxTimeExit
 
     implicit none
 
@@ -46,6 +46,8 @@ contains
 
 
 !       Calc defaults 
+          tTimeExit=.false.
+          MaxTimeExit=0.D0
           tMaxBloom=.false.
           iRestartWalkNum=0
           iWeightPopRead=0
@@ -766,6 +768,11 @@ contains
 !This is now input as the total number, rather than the number per processor, and it is changed to the number per processor here.
                 call geti(InitWalkers)
                 InitWalkers=NINT(REAL(InitWalkers)/REAL(nProcessors))
+            case("TIME")
+                !Input the desired runtime (in MINUTES) before exiting out of the MC.
+                call getf(MaxTimeExit)
+                MaxTimeExit=MaxTimeExit*60.D0    !Change straightaway so that MaxTimeExit corresponds to SECONDS!
+                tTimeExit=.true.
             case("MAXNOATHF")
 !If the number of walkers at the HF determinant reaches this number, the shift is allowed to change. (This is the total number across all processors).                
 !If a second integer is present, this determinants the threshhold for the HF population.  If the HF population drops below MaxNoatHF-HFPopThresh, the

@@ -830,7 +830,7 @@ contains
     SUBROUTINE IntFREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE,           &
    &         G1,NBASISMAX,ISS,BRR,NFROZEN,NTFROZEN,NFROZENIN,NTFROZENIN,NEL)
        use constants, only: dp
-       use SystemData, only: Symmetry,BasisFN,BasisFNSize,arr,tagarr,tHub
+       use SystemData, only: Symmetry,BasisFN,BasisFNSize,arr,tagarr,tHub,tUEG
        use OneEInts
        USE UMatCache, only: FreezeTransfer,UMatCacheData,UMatInd,TUMat2D
        Use UMatCache, only: FreezeUMatCache, CreateInvBrr2,FreezeUMat2D, SetupUMatTransTable
@@ -862,8 +862,8 @@ contains
 !       TYPE(Symmetry) KSYM
        character(*), parameter :: this_routine='IntFreezeBasis'
 
-       IF(tHub) THEN
-           CALL Stop_All("IntFreezeBasis","Freezing does not currently work with the hubbard model.")
+       IF(tHub.or.tUEG) THEN
+           CALL Stop_All("IntFreezeBasis","Freezing does not currently work with the hubbard model/UEG.")
        ENDIF
 
 !!C.. Just check to see if we're not in the middle of a degenerate set with the same sym

@@ -14,8 +14,10 @@ MODULE Logging
     IMPLICIT NONE
     Save
 
-    INTEGER ILOGGING,ILOGGINGDef,iGlobalTimerLevel,nPrintTimer,G_VMC_LOGCOUNT
-    INTEGER HFLOGLEVEL,iWritePopsEvery,StartPrintOrbOcc
+    INTEGER ILOGGING,ILOGGINGDef
+    INTEGER :: iGlobalTimerLevel=40
+    INTEGER nPrintTimer,G_VMC_LOGCOUNT
+    INTEGER HFLOGLEVEL,iWritePopsEvery,StartPrintOrbOcc,StartPrintDoubsUEG
     INTEGER PreVarLogging,WavevectorPrint,NoHistBins,HistInitPopsIter
     REAL*8 MaxHistE,OffDiagMax,OffDiagBinRange
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn
@@ -25,7 +27,7 @@ MODULE Logging
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
     LOGICAL tTruncDumpbyVal
-    LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit
+    LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit,tPrintDoubsUEG
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps,IterShiftBlock
     INTEGER CCMCDebug  !CCMC Debugging Level 0-6.  Default 0
     INTEGER FCIMCDebug !FciMC Debugging Level 0-6.  Default 0
@@ -37,7 +39,8 @@ MODULE Logging
     INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs,NoTruncOrbsTag,TruncEvaluesTag,iWriteHamilEvery
     INTEGER OrbOccsTag,HistInitPopsTag,AllHistInitPopsTag
     INTEGER , ALLOCATABLE :: NoTruncOrbs(:),HistInitPops(:,:),AllHistInitPops(:,:)
-    REAL*8 , ALLOCATABLE :: TruncEvalues(:),OrbOccs(:)
+    REAL*8 , ALLOCATABLE :: TruncEvalues(:),OrbOccs(:),DoubsUEG(:,:,:,:),DoubsUEGLookup(:)
+    LOGICAL, ALLOCATABLE :: DoubsUEGStore(:,:,:)
     LOGICAL :: tBlockEveryIteration
     LOGICAL tLogDets       ! Write out the DETS and SymDETS files.
     LOGICAL tLogComplexPops     ! Write out complex walker information 
@@ -100,6 +103,8 @@ MODULE Logging
       tPrintFCIMCPsi=.false.
       tCalcFCIMCPsi=.false.
       NHistEquilSteps=0
+      tPrintDoubsUEG=.false.
+      StartPrintDoubsUEG=0
       tPrintOrbOcc=.false.
       StartPrintOrbOcc=0
       tPrintOrbOccInit=.false.
@@ -468,6 +473,11 @@ MODULE Logging
 !contribution of each orbital to the total wavefunction.  
             tPrintOrbOcc=.true.
             IF(item.lt.nitems) call readi(StartPrintOrbOcc)
+        case("PRINTDOUBSUEG")
+!This option initiates the above histogramming of doubles for the UEG
+!            if (.not.tUEG) call stop_all("Logging","Printdoubs doesn't work with systems other than UEG")
+            tPrintDoubsUEG=.true.
+            IF(item.lt.nitems) call readi(StartPrintDoubsUEG)
         case("PRINTORBOCCSINIT")
 !This option initiates the above histogramming of determinant populations and then at the end of the spawning uses these to find the normalised  
 !contribution of each orbital to the total wavefunction.  

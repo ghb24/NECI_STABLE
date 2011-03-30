@@ -76,7 +76,12 @@ extern "C" bool test_shared_permissions ()
 			avail = false;
 		}
 
+		// Indicate that the above are warnings, not errors.
+		if (!avail)
+			printf ("Falling back on System V Shared memory.\n");
+
 		fflush (stdout);
+		tested = true;
 	}
 
 	return avail;

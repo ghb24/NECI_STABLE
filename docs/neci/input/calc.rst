@@ -1076,6 +1076,10 @@ The following options are only available in **FCIMC** calculations:
     The arguments indicate the active electrons, and then the number of active virtual orbitals.
     These values can be dynamically updated throughout the simulation via use of the CHANGEVARS facility.
 
+**TIME** [Time]
+    This gives the time in minutes before exiting out of the MC run, potentially writing a popsfile, then
+    exiting. This should be more reliable than the watchdog script. This will work for both FCIMC and CCMC.
+
     
 INITIATOR OPTIONS
 -----------------

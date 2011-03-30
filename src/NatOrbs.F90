@@ -1735,6 +1735,67 @@ MODULE NatOrbsMod
 
     END SUBROUTINE PrintOrbOccs
 
+    SUBROUTINE PrintDoubUEGOccs(OrbOccs)
+! Based on PrintOrbOccs (above), but for PrintDoubsUEG
+! Histogram determinant populations for all doubles
+! This hopefully prints it all out
+        use util_mod, only: get_free_unit
+        IMPLICIT NONE
+        REAL*8 :: Norm,OrbOccs(nEl,nEl,nBasis,4),AllOrbOccs(nEl,nEl,nBasis,4)
+        INTEGER :: i,i2,i3,error, iunit
+        LOGICAL :: tWarning
+
+        AllOrbOccs = 0.D0
+
+        call MPISum(OrbOccs,AllOrbOccs)
+!#ifdef PARALLEL
+!        CALL MPI_Reduce(OrbOccs,AllOrbOccs,nEl*nEl*nBasis*4,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD,error)
+!#else
+!        AllOrbOccs=OrbOccs
+!#endif
+
+! Want to normalise the orbital contributions for convenience.        
+        tWarning=.false.
+        IF(iProcIndex.eq.0) THEN
+
+!            Norm=0.D0
+!            do i2=1,nEl
+!                do i3=1,nEl
+!                    do i=1,nBasis
+!                        Norm=Norm+AllOrbOccs(i2,i3,i,1)
+!                        !No need for this test at the moment
+!                        !IF((Norm.lt.0)) THEN
+!                        !    WRITE(6,*) 'WARNING: Integer overflow when calculating the orbital occupations.'
+!                        !    tWarning=.true.
+!                        !ENDIF
+!                    enddo
+!                enddo
+!            enddo
+!            IF(Norm.ne.0.D0) THEN
+!                do i2=1,nEl
+!                    do i3=1,nEl
+!                        do i=1,nBasis
+!                            AllOrbOccs(i2,i3,i,1)=AllOrbOccs(i2,i3,i,1)/Norm
+!                        enddo
+!                    enddo
+!                enddo
+!            ENDIF
+
+            iunit = get_free_unit()
+            OPEN(iunit,FILE='DOUBOCCUPATIONS',STATUS='UNKNOWN')
+!            WRITE(iunit,'(A15,A30)') '# Orbital no.','Normalised occupation'
+            IF(tWarning) WRITE(iunit,*) 'WARNING: INTEGER OVERFLOW OCCURRED WHEN CALCULATING THESE OCCUPATIONS'
+            do i2=1,nEl
+                do i3=1,nEl
+                    do i=1,nBasis
+                        WRITE(iunit,'(I15,I15,I15,F30.10,F30.10,F30.10,F30.10)') i2,i3,i,AllOrbOccs(i2,i3,i,1),AllOrbOccs(i2,i3,i,2),AllOrbOccs(i2,i3,i,3),AllOrbOccs(i2,i3,i,4)
+                    enddo
+                enddo
+            enddo
+            CLOSE(iunit)
+        ENDIF
+
+    END SUBROUTINE PrintDoubUEGOccs
 
 
     SUBROUTINE DeallocateNatOrbs()
