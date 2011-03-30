@@ -99,6 +99,8 @@ MODULE System
       tgCutoff=.false.
       tMadelung=.false.
       Madelung=0.D0
+      tUEGFreeze=.false.
+      FreezeCutoff=1e20 ! This shouldn't be used
       tMP2UEGRestrict=.false.
       tStoreAsExcitations=.false.
       TBIN=.false.
@@ -381,6 +383,9 @@ MODULE System
         case("G-CUTOFF")
           tgCutoff=.true.
           call getf(gCutoff)
+        case("FREEZE-CUTOFF")
+            tUEGFreeze=.true.
+            call getf(FreezeCutoff)
         case("MADELUNG")
           tMadelung=.true.
           call getf(Madelung)

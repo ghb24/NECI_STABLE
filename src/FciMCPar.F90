@@ -5814,11 +5814,12 @@ MODULE FciMCParMod
         use SymExcitDataMod, only: kPointToBasisFn
         use SystemData, only: ElecPairs,NMAXX,NMAXY,NMAXZ,OrbECutOff,tGCutoff,GCutoff, &
                                 tMP2UEGRestrict,kiRestrict,kiMsRestrict,kjRestrict,kjMsRestrict, &
-                                Madelung,tMadelung
+                                Madelung,tMadelung,tUEGFreeze,FreezeCutoff
         use GenRandSymExcitNUMod, only: FindNewDet
         use Determinants, only: GetH0Element4, get_helement_excit
         integer :: Ki(3),Kj(3),Ka(3),LowLoop,HighLoop,X,i,Elec1Ind,Elec2Ind,K,Orbi,Orbj
         integer :: iSpn,FirstA,nJ(NEl),a,Ex(2,2),kx,ky,kz,OrbB,FirstB
+        integer :: ki2,kj2
         logical :: tParity,tMom
         real*8 :: Ranger,mp2,mp2all,length,length_g,length_g_2
         HElement_t :: hel,H0tmp
@@ -5846,6 +5847,11 @@ MODULE FciMCParMod
             Orbj=HFDet(Elec2Ind)
             Ki=G1(Orbi)%k
             Kj=G1(Orbj)%k
+            if (tUEGFreeze) then
+                ki2=ki(1)**2+ki(2)**2+ki(3)**2
+                kj2=kj(1)**2+kj(2)**2+kj(3)**2
+                if (.not.(ki2.gt.FreezeCutoff.and.kj2.gt.FreezeCutoff)) cycle
+            endif
             if (tMP2UEGRestrict) then
                 if (.not. ( &
                 ( kiRestrict(1).eq.ki(1).and.kiRestrict(2).eq.ki(2).and.kiRestrict(3).eq.ki(3) .and. & 

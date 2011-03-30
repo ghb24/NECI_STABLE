@@ -86,6 +86,8 @@ integer :: kiRestrict(3), kjRestrict(3) ! ki/kj pair
 integer :: kiMsRestrict, kjMsRestrict ! and their spins
 logical :: tMadelung ! turning on self-interaction term
 real*8 :: Madelung ! variable storage for self-interaction term
+logical :: tUEGFreeze ! Freeze core electrons for the UEG, a crude hack for this to work-around freezing not working for UEG
+real*8 :: FreezeCutoff
 
 ! For the UEG, we damp the exchange interactions.
 !    0 means none
