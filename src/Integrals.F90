@@ -862,9 +862,9 @@ contains
 !       TYPE(Symmetry) KSYM
        character(*), parameter :: this_routine='IntFreezeBasis'
 
-       IF(tHub.or.tUEG) THEN
-           CALL Stop_All("IntFreezeBasis","Freezing does not currently work with the hubbard model/UEG.")
-       ENDIF
+!       IF(tHub.or.tUEG) THEN
+!           CALL Stop_All("IntFreezeBasis","Freezing does not currently work with the hubbard model/UEG.")
+!       ENDIF
 
 !!C.. Just check to see if we're not in the middle of a degenerate set with the same sym
        IF(NFROZEN.GT.0) THEN
