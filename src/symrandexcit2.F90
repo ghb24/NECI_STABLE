@@ -2095,9 +2095,10 @@ MODULE GenRandSymExcitNUMod
             ! This is the look-up table method of finding the kb orbital
             iSpinIndex=(kb_ms+1)/2+1
             Hole2BasisNum=kPointToBasisFn(kb(1),kb(2),1,iSpinIndex)
+!Hole2BasisNum will be -1 if that orb is frozen
 
             ! Is b occupied?
-            IF(BTEST(iLutnI((Hole2BasisNum-1)/bits_n_int),MOD(Hole2BasisNum-1,bits_n_int))) THEN
+            IF(Hole2BasisNum==-1.or.BTEST(iLutnI((Hole2BasisNum-1)/bits_n_int),MOD(Hole2BasisNum-1,bits_n_int))) THEN
             !Orbital is in nI. Reject.
                 nJ(1)=0
                 RETURN
@@ -2137,7 +2138,7 @@ MODULE GenRandSymExcitNUMod
             iSpinIndex=(kb_ms+1)/2+1
             Hole2BasisNum=kPointToBasisFn(kb(1),kb(2),kb(3),iSpinIndex)
            
-            IF(Hole1BasisNum.eq.Hole2BasisNum) THEN
+            IF(Hole2BasisNum==-1.or.Hole1BasisNum.eq.Hole2BasisNum) THEN
                 nJ(1)=0 
                 RETURN
             ENDIF
@@ -3168,6 +3169,7 @@ SUBROUTINE SpinOrbSymSetup()
             IF(G1(i)%k(2).lt.kminY) kminY=G1(i)%k(2)
         enddo
         ALLOCATE(kPointToBasisFn(kminX:kmaxX,kminY:kmaxY,1,2))
+        kPointToBasisFn=-1 !Init to invalid
         do i=1,nBasis
             iSpinIndex=(G1(i)%Ms+1)/2+1 ! iSpinIndex equals 1 for a beta spin (ms=-1), and 2 for an alpha spin (ms=1)
             kPointToBasisFn(G1(i)%k(1),G1(i)%k(2),1,iSpinIndex)=i
@@ -3191,6 +3193,7 @@ SUBROUTINE SpinOrbSymSetup()
             IF(G1(i)%k(3).lt.kminZ) kminZ=G1(i)%k(3)
         enddo
         ALLOCATE(kPointToBasisFn(kminX:kmaxX,kminY:kmaxY,kminZ:kmaxZ,2))
+        kPointToBasisFn=-1 !Init to invalid
         do i=1,nBasis
             iSpinIndex=(G1(i)%Ms+1)/2+1 ! iSpinIndex equals 1 for a beta spin (ms=-1), and 2 for an alpha spin (ms=1)
             kPointToBasisFn(G1(i)%k(1),G1(i)%k(2),G1(i)%k(3),iSpinIndex)=i

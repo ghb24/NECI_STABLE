@@ -370,6 +370,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,
    use FciMCParMod, only: iLutHF
    use bit_rep_data
    use bit_reps, only: set_flag, clr_flag 
+   use CCMCData, only: tCCNoCuml
    IMPLICIT NONE
    TYPE(ClustSelector) CS
    INTEGER nDet
@@ -386,6 +387,8 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,
    LOGICAL tDone,tNew,tSuccess
    LOGICAL NextCluster
    integer(n_int) :: ilutFlag(0:nIfTot)  !wasteful, but used for flags
+   real*8 dCumlFactor
+   real*8 dCurAmpl
 
 !   TYPE(timer),save :: CCMC_time
 
@@ -470,6 +473,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,
          CS%%C%%dAbsAmplitude=abs(dNorm)
          CS%%C%%dClusterNorm=1
          IFDEBUG(iDebug,5) Write(6,*) "Generating New Cluster.  Max size ",iMaxSize
+         dCumlFactor=1
          do i=1,iMaxSize
    ! Calculate the probability that we've reached this far in the loop
                      !We must have at least one excitor, so we cannot exit here.
@@ -481,55 +485,76 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,
             dProbNumExcit=dProbNumExcit*(1-CS%%dProbSelNewExcitor)
    ! Select a new random walker
             r = genrand_real2_dSFMT()  !On GHB's advice
-            rt=r*dTotLocAbsAmpl
-            dCurTot=0
-            IFDEBUG(iDebug,7) Write(6,*) "Probability Threshold",rt
-            call BinarySearch(rt,AL%%CumlAmplitude,1,nDet,k,tSuccess)
-            if(.not.tSuccess) k=k+1  ! We want to be >=rt.
-            if(k.eq.CS%%iRefPos) then  !Adjust for accidentally finding refpos
-               nk=k
-               if(k>1) THEN
-                  if(AL%%CumlAmplitude(k-1).eq.AL%%CumlAmplitude(k)) then
-                     nk=k-1
-                  endif
+            if(tCCNoCuml) then !Don't use the cumulative list
+               if(CS%%iRefPos>=0) then  !If we've got the ref det we can't select it.
+                  dCumlFactor=1.0/(nDet-1)
+                  k=int(r*(nDet-1))+1
                else
-                  nk=k+1
+                  dCumlFactor=1.0/nDet
+                  k=int(r*nDet)+1
                endif
-               if(k<nDet) then
-                  if(AL%%CumlAmplitude(k+1).eq.AL%%CumlAmplitude(k)) then
+               if(k.eq.CS%%iRefPos) then
+                  k=k+1  !We're not allowed to choose the ref det.
+               endif
+            else
+               rt=r*dTotLocAbsAmpl
+               dCurTot=0
+               IFDEBUG(iDebug,7) Write(6,*) "Probability Threshold",rt
+               call BinarySearch(rt,AL%%CumlAmplitude,1,nDet,k,tSuccess)
+               if(.not.tSuccess) k=k+1  ! We want to be >=rt.
+               if(k.eq.CS%%iRefPos) then  !Adjust for accidentally finding refpos
+                  nk=k
+                  if(k>1) THEN
+                     if(AL%%CumlAmplitude(k-1).eq.AL%%CumlAmplitude(k)) then
+                        nk=k-1
+                     endif
+                  else
                      nk=k+1
                   endif
-               else
-                  nk=k-1
+                  if(k<nDet) then
+                     if(AL%%CumlAmplitude(k+1).eq.AL%%CumlAmplitude(k)) then
+                        nk=k+1
+                     endif
+                  else
+                     nk=k-1
+                  endif
+                  k=nk
                endif
-               k=nk
+               IFDEBUGTHEN(iDebug,6)
+                  IF(iDebug.gt.5) Write(6,*) "Selected excitor",k
+                  IF(iDebug.gt.6.and.k>1) Write(6,*) "CumlP(",k-1,"):",AL%%CumlAmplitude(k-1)
+                  IF(iDebug.gt.6) Write(6,*) "CumlP(",k,"):",AL%%CumlAmplitude(k)
+                  IF(iDebug.gt.6.and.k<nDet) Write(6,*) "CumlP(",k+1,"):",AL%%CumlAmplitude(k+1)
+               ENDIFDEBUG
+               if(k.gt.nDet) THEN
+                  write(6,*) "Position in weight list: ", r
+                  write(6,*) "Current Total: ",dCurTot
+                  write(6,*) "Max Total: ", dTotLocAbsAmpl
+                  CALL Stop_All("GetNextCluster","Invalid Excitor selected")
+               endif
             endif
-            IFDEBUGTHEN(iDebug,6)
-               IF(iDebug.gt.5) Write(6,*) "Selected excitor",k
-               IF(iDebug.gt.6.and.k>1) Write(6,*) "CumlP(",k-1,"):",AL%%CumlAmplitude(k-1)
-               IF(iDebug.gt.6) Write(6,*) "CumlP(",k,"):",AL%%CumlAmplitude(k)
-               IF(iDebug.gt.6.and.k<nDet) Write(6,*) "CumlP(",k+1,"):",AL%%CumlAmplitude(k+1)
-            ENDIFDEBUG
-            if(k.gt.nDet) THEN
-               write(6,*) "Position in weight list: ", r
-               write(6,*) "Current Total: ",dCurTot
-               write(6,*) "Max Total: ", dTotLocAbsAmpl
-               CALL Stop_All("GetNextCluster","Invalid Excitor selected")
-            endif
+            dCurAmpl=GetAmpl(AL,k,iCurAmpList)
             CS%%C%%SelectedExcitorIndices(i)=k
             CS%%C%%SelectedExcitors(:,i)=Dets(:,k)
-            CS%%C%%dAbsAmplitude=CS%%C%%dAbsAmplitude*abs(GetAmpl(AL,k,iCurAmpList))/abs(dNorm)  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
-            if(CS%%tInitiators.and.abs(GetAmpl(AL,CS%%C%%SelectedExcitorIndices(i),iCurAmpList))<CS%%dInitiatorThresh) then
+            CS%%C%%dAbsAmplitude=CS%%C%%dAbsAmplitude*abs(dCurAmpl)/abs(dNorm)  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
+            if(CS%%tInitiators.and.abs(dCurAmpl)<CS%%dInitiatorThresh) then
                !This won't be an initiator
                call clr_flag(ilutFlag,flag_parent_initiator(1))
             endif
-            CS%%C%%dClusterProb=CS%%C%%dClusterProb*i*abs(GetAmpl(AL,k,iCurAmpList))/dTotAbsAmpl  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
+            if(tCCNoCuml) then 
+               CS%%C%%dClusterProb=CS%%C%%dClusterProb*i*dCumlFactor  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
+   !ClusterNorm is used for BIRTH
+               CS%%C%%dClusterNorm=CS%%C%%dClusterNorm*i*dCumlFactor
+!*dCumlFactor
+            else
    !ClusterProb is used for DEATH
-
+               CS%%C%%dClusterProb=CS%%C%%dClusterProb*i*abs(dCurAmpl)/dTotAbsAmpl  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
    ! This is the probability that this cluster was chosen (in any order), given (i.e. irrespective of)
    !  the number of selections and the level choice
    !ClusterNorm is used for BIRTH
-            CS%%C%%dClusterNorm=CS%%C%%dClusterNorm*i*abs(GetAmpl(AL,k,iCurAmpList))/dTotAbsAmpl
+               CS%%C%%dClusterNorm=CS%%C%%dClusterNorm*i*abs(dCurAmpl)/dTotAbsAmpl
+            endif
+
          enddo
          IFDEBUG(iDebug,6) WRITE(6,*) 'prob out of sel routine.',dProbNumExcit
          if(i.gt.iMaxSize) THEN !We've been limited by the max number of excitations
@@ -553,7 +578,6 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,
    !  This includes multiple selections of the same excitor as well as combinations of excitors which produce a 0 sign.
          NextCluster=.true.
          CS%%C%%dSelectionProb=CS%%C%%dProbNorm*CS%%C%%dClusterProb
-
    ! We normalize such that the normalization factor for the zero-excitor cluster is 1
    !  dSelectionNorm = ( Amplitude of this cluster / Amplitude of zero-excitor cluster) * ( probability of generating zero-excitor / probability of generating us)
    !

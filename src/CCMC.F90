@@ -2264,7 +2264,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    !ghb24: Changes to allow compatibility with the new packaged walkers.
    INTEGER, DIMENSION(lenof_sign) :: TempSign
    TYPE(timer) :: CCMC_time,SpawnTime,DieTime,CCMCComms1_time,CCMCWait_time,CCMCComms2_time
-   TYPE(timer) :: Etime
+   TYPE(timer) :: Etime,CCMCrehouse
    INTEGER :: iOffsets(nProcessors)  !Used to store spawning data for annihilation
    INTEGER :: iLengths(nProcessors)  !Used to store spawning data for annihilation
    INTEGER :: iOffset(1)
@@ -2283,6 +2283,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    CCMCComms1_time%timer_name='CCMC Comms1'
    CCMCComms2_time%timer_name='CCMC Comms2'
    CCMCWait_time%timer_name='CCMC Wait'
+   CCMCrehouse%timer_name='CCMC Rehouse'
 
 !   Spawntime%timer_name='SpawnTime'
 !   Dietime%timer_name='DieTime'
@@ -2292,7 +2293,6 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    Call SetupParameters()
 !Init hash shifting data
    hash_iter=0
-   hash_shift=0
    ! Reset counters
    iter_data_ccmc%nborn = 0
    iter_data_ccmc%ndied = 0
@@ -2366,6 +2366,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       iRefPos=-1
       nAmpl=0
    endif
+   call MPIBCast(nAmpl,Node)
    iNumExcitors=0
    dTotAbsAmpl=GetAmpl(AL,iRefPos,iCurAmpList)
 !   endif
@@ -2522,6 +2523,10 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       tMoreClusters=.true.
       iMin=min(iNumExcitors,nEl)
       call AccumulateAmplitudeList(AL,nAmpl,iCurAmpList,iRefPos, dTotLocAbsAmpl)
+!      if(dTotLocAbsAmpl<0) then
+!         call WriteExcitorList(6,AL,iCurAmpList,DetList,0,nAmpl,dAmpPrintTol,"Excitor list")
+!         call WriteExcitorListA(6,AL%CumlAmplitude,DetList,0,nAmpl,0,"Cuml Amp List")
+!      endif
       IFDEBUG(iDebug,7) THEN
          call WriteExcitorListA(6,AL%CumlAmplitude,DetList,0,nAmpl,0,"Cuml Amp List")
       ENDIF
@@ -2573,9 +2578,10 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
         "Spawned list")
       call MPIBarrier(ierr,Node) !Make sure everyone on our node has finished using the list
       if(nNodes>1) then
+         call set_timer(CCMCrehouse,20)
          call ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
-         call MPIBCast(nAmpl,Node)
          IFDEBUG(iDebug,3) call WriteExcitorListP(6,DetList,0,nAmpl,dAmpPrintTol,"Remaining excitor list")
+         call halt_timer(CCMCrehouse)
       endif
 
       call set_timer(CCMCComms2_time,20)
@@ -2586,7 +2592,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       call MPIBCast(nAmpl,Node)
       call halt_timer(CCMCComms2_time)
       call MPIBarrier(ierr)
-      IFDEBUG(iDebug,3.and.bNodeRoot.or.tSharedExcitors) THEN
+      IFDEBUG(iDebug,3.and.(bNodeRoot.or.tSharedExcitors)) THEN
          call WriteExcitorListP(6,DetList,0,nAmpl,dAmpPrintTol,"After Annihilation")
       endif
       call MPIBarrier(ierr)
@@ -2630,6 +2636,8 @@ subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
       use AnnihilationMod, only: DetermineDetNode
       use bit_reps, only: decode_bit_det, set_flag_general
       use bit_rep_data, only: flag_parent_initiator
+      use CCMCData, only: tSharedExcitors
+      use CalcData, only: tTruncInitiator
       implicit none
       INTEGER(kind=n_int) :: DetList(:,:)
       integer nAmpl
@@ -2637,33 +2645,98 @@ subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
       integer ValidSpawnedList(0:nNodes-1)
       integer nI(nEl)
       integer iDebug
+      integer Ends(0:NodeLengths(Node%n)-1)  !An index into DetList for each core in the node
+      integer Starts(0:NodeLengths(Node%n))  !An index into DetList for each core in the node
+      integer nCores,mystart,myend
+      integer ierr
 
       integer i,p,iNext
-      if(.not.bNodeRoot) return
-      iNext=0
-      IFDEBUG(iDebug,3) THEN
-         write(6,*) "Before ReHouse",nAmpl
-         write(6,*) ValidSpawnedList
-      ENDIF
-      do i=1,nAmpl
+!Each processor has its own SpawnList and ValidSpawnedList, and can apportion particles into that.
+! However, DetList is identical between cores on the same node.  We split the list into parts for each core on the node, and then put it back together later
+!      call WriteExcitorListP(6,DetList,0,nAmpl,0,"DetListIn")
+!      write(6,*) "In nAmpl:",nAmpl
+      nCores=NodeLengths(Node%n)
+      Starts(0)=1
+      p=nAmpl/nCores
+      do i=1,nCores-1
+         Starts(i)=Starts(i-1)+p
+      enddo
+      Starts(nCores)=nAmpl+1
+!      write(6,*) "Starts: ",starts
+      iNext=Starts(iIndexInNode)-1
+      do i=Starts(iIndexInNode),Starts(iIndexInNode+1)-1
          call decode_bit_det(nI,DetList(:,i))
          p=DetermineDetNode(nI,0)  !NB This doesn't have an offset of 1, because actually we're working out what happens for the same cycle that the create_particle is spawning to.
          if(p/=iNodeIndex) then
             SpawnList(:,ValidSpawnedList(p))=DetList(:,i)
 ! Beware - if initiator is on, we need to flag this as an initiator det, otherwise it'll die before reaching the new proc.
 ! This may need to change with complex walkers.
-            call set_flag_general(SpawnList(:,ValidSpawnedList(p)),flag_parent_initiator(1),.true.)
+            if(tTruncInitiator) then
+              call set_flag_general(SpawnList(:,ValidSpawnedList(p)),flag_parent_initiator(1),.true.)
+            endif
+!            write(6,*) "Det",i,"=>Node",p
             ValidSpawnedList(p)=ValidSpawnedList(p)+1
          else
             iNext=iNext+1
             if(iNext/=i) DetList(:,iNext)=DetList(:,i)
          endif
       enddo 
-      nAmpl=iNext
-      IFDEBUG(iDebug,3) THEN
-         write(6,*) "After ReHouse",nAmpl
-         write(6,*) ValidSpawnedList
-      ENDIF
+
+      mystart=Starts(iIndexInNode)
+      myend=iNext
+!      write(6,*) "Start,end:",mystart, myend
+      call MPIGather(iNext,Ends,ierr,Node)
+      call MPIBCast(Ends,Node)
+!Ends is now the last det on each proc (which may be < first det)
+!Now comes the tricky bit.  If we've got shared memory, then we can just move things on a single core on the node.
+!Otherwise we need an MPI call.  MPI really won't like the overlapping memory!
+!Move bits manually
+     if(tSharedExcitors) then
+         if(bNodeRoot) then
+            iNext=1
+            do i=0,nCores-1
+               p=(Ends(i)-Starts(i))+1
+               DetList(:,iNext:iNext+p)=DetList(:,Starts(i):Ends(i))  !This is potentially overlapping, but is allowed in Fortran90+
+               iNext=iNext+p
+            enddo
+            nAmpl=iNext-1
+         endif
+      else
+!Use MPI to do the hard work
+!         write(6,*) "Ends: ",Ends
+         Starts(0)=0 !Displacements are 0-based
+         !Ends(0) is correct as the length.
+         do i=1,nCores-1
+            iNext=(Ends(i)-Starts(i))+1  !The length
+            Starts(i)=Starts(i-1)+Ends(i-1)
+            Ends(i)=iNext
+         enddo
+   !Ends now contains the lengths, and Starts the disps
+         nAmpl=Starts(nCores-1)+Ends(nCores-1)  !Total # amplitudes should be the end of the lsit
+   !Note that the root doesn't need to send to iteself
+         iNext=Ends(0)  !Save the length of the root's list in iNext
+         do i=1,nCores-1 !Shift all the offsets by the length of the root list
+            Starts(i)=Starts(i)-Ends(0)
+         enddo
+         if(bNodeRoot) then
+            myend=mystart-1
+            Ends(0)=0 !The root doesn't send anything
+!            DetList(:,iNext+1:nAmpl)=0
+         endif
+!         write(6,*) "Offsets: ",Starts(0:nCores-1)
+!         write(6,*) "Lengths: ",Ends
+!         write(6,*) "Sending ",mystart,":",myend
+!         write(6,*) "Receiving ",iNext+1,":", nAmpl
+!         call WriteExcitorListP(6,DetList(:,mystart:myend),mystart-1,myend-mystart+1,0,"Sending")
+         !We send from all processors to DetList(:,iNext+1:) which is after the root's set of dets.
+         ! Ends contains the lengths, and Starts the offsets (shifted by the root's length)
+         call MPIBarrier(ierr)
+         call MPIGatherV(DetList(:,mystart:myend),DetList(:,iNext+1:nAmpl),Ends,Starts(0:nCores-1),ierr,Node)
+!         call WriteExcitorListP(6,DetList,0,nAmpl,0,"DetListOut")
+   !MPI magic should've placed everything in DetList.  Worth praying I suspect
+      endif
+      call MPIBCast(nAmpl,Node)
+!      write(6,*) "Out nAmpl:",nAmpl
 end subroutine
 
 SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
@@ -3004,8 +3077,6 @@ subroutine WriteExcitorListP2(iUnit,Dets,starts,ends,dTol,Title)
    INTEGER j, starts(0:nNodes-1), ends(0:nNodes-1), i
    INTEGER, dimension(lenof_sign) :: Amp
    write(6,*) Title
-   write(6,*) "Starts", starts
-   write(6,*) "Ends", ends
    do i=0,nNodes-1
       do j=starts(i),ends(i)-1
          call extract_sign(Dets(:,j),Amp)

@@ -64,15 +64,19 @@ MODULE AnnihilationMod
         CHARACTER(len=*) , PARAMETER :: this_routine='AnnihilationInterface'
 !        INTEGER, DIMENSION(lenof_sign) :: TempSign
         TYPE(timer),save :: Annihil_time
+        TYPE(timer),save :: Sync_time
         integer(kind=n_int), pointer,save :: SpawnVecLocal(:,:)
-        Annihil_time%timer_name='Annihilation interface'
-        call set_timer(Annihil_time,20)
+        Sync_time%timer_name='AnnihSync   innterface'
+        call set_timer(Sync_time,20)
 
         IF(.not.(ALLOCATED(ValidSpawnedList))) THEN
 !This needs to be filled correctly before annihilation can take place.
             ALLOCATE(ValidSpawnedList(0:nNodes-1),stat=ierr)
         ENDIF
         call MPIBarrier(ierr)
+        call halt_timer(Sync_time)
+        Annihil_time%timer_name='Annihilation interface'
+        call set_timer(Annihil_time,20)
         IF(.not.(ASSOCIATED(SpawnVecLocal))) THEN
 !This is required scratch space of the size of the spawned arrays
             call shared_allocate_iluts("SpawnVecLocal",SpawnVecLocal,(/NIfTot,MaxSpawnInd/),iNodeIndex)
@@ -141,6 +145,7 @@ MODULE AnnihilationMod
         INTEGER :: MaxIndex,ierr
         INTEGER(Kind=n_int) , POINTER :: PointTemp(:,:)
         logical, intent(in) :: tSingleProc
+        TYPE(timer),save :: Compress_time
          
 
 !        WRITE(6,*) "Direct annihilation"
@@ -165,7 +170,12 @@ MODULE AnnihilationMod
 !MaxIndex will change to reflect the final number of unique determinants in the newly-spawned list, and the particles will end up in the spawnedSign/SpawnedParts lists.
 !        WRITE(6,*) "Transferred",MaxIndex
 
+        Compress_time%timer_name='Compression interface'
+        call set_timer(Compress_time,20)
+
         CALL CompressSpawnedList(MaxIndex, iter_data)  
+!        if(bNodeRoot) call sort(SpawnedParts(:,1:MaxIndex), ilut_lt, ilut_gt)
+        call halt_timer(Compress_time)
 
 !        WRITE(6,*) "List compressed",MaxIndex,TotWalkersNew
 
@@ -314,12 +324,16 @@ MODULE AnnihilationMod
         INTEGER(Kind=n_int) , POINTER :: PointTemp(:,:)
         integer(n_int) :: cum_det (0:niftot)
         CHARACTER(len=*), parameter :: this_routine='CompressSpawnedList'
+        TYPE(timer),save :: Sort_time
 
 !We want to sort the list of newly spawned particles, in order for quicker binary searching later on. (this is not essential, but should proove faster)
 !They should remain sorted after annihilation between spawned
         if(.not.bNodeRoot) return
 !        call WriteExcitorListP(6,SpawnedParts,0,ValidSpawned,0,"UnOrdered")
+        Sort_time%timer_name='Compres Sort interface'
+        call set_timer(Sort_time,20)
         call sort(SpawnedParts(:,1:ValidSpawned), ilut_lt, ilut_gt)
+        CALL halt_timer(Sort_time)
         IF(tHistSpawn) HistMinInd2(1:NEl)=FCIDetIndex(1:NEl)
 
 !        call WriteExcitorListP(6,SpawnedParts,0,ValidSpawned,0,"Ordered")
@@ -1009,14 +1023,29 @@ MODULE AnnihilationMod
         
         integer :: i
         integer(int64) :: acc
-        integer offset
+        integer(int64) :: offset
 
+!sum(nI) ensures that a random number is generated for each different nI, which is then added to the iteration,
+!  and the result shifted.  Consequently, the less significant bits (but not the least, as these have been shifted away)
+!  for each nI will change on average once per 2^hash_shift iterations, but the change spread throughout the different iters.
+        if (hash_iter>0) then  !generate a hash to work out an offset.  Probably very inefficient
+           acc = 0
+           do i = 1, nel
+               acc = (1099511628211_int64 * acc) + &
+                       (RandomHash(mod(iand(nI(i), csf_orbital_mask)-1,nBasis)+1) * i)
+           enddo
+           offset=ishft(abs(ishft(acc+hash_iter+iIterOffset, -hash_shift) ),-4)
+        else
+           offset=0
+        endif
         acc = 0
-        offset=hash_iter+iIterOffset
+!sum(nI) ensures that a random number is generated for each different nI, which is then added to the iteration,
+!  and the result shifted.  Consequently, the less significant bits (but not the least, as these have been shifted away)
+!  for each nI will change on average once per 2^hash_shift iterations, but the change spread throughout the different iters.
+        offset=ishft(sum(nI)*hash_shift+hash_iter+iIterOffset, hash_shift) 
         do i = 1, nel
             acc = (1099511628211_int64 * acc) + &
-                    (ishft(RandomHash(mod(iand(nI(i), csf_orbital_mask)+offset-1,nBasis)+1),hash_shift) * i)
-!            offset=0
+                    (RandomHash(mod(iand(nI(i), csf_orbital_mask)+offset-1,int(nBasis,int64))+1) * i)
         enddo
         node = abs(mod(acc, int(nNodes, 8)))
 

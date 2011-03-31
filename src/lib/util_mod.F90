@@ -1,7 +1,7 @@
 module util_mod
     use util_mod_comparisons
     use util_mod_cpts
-    use constants, only: dp, lenof_sign
+    use constants, only: dp, lenof_sign,sizeof_int
     implicit none
 
     ! sds: It would be nice to use a proper private/public interface here,
@@ -405,7 +405,8 @@ contains
        !    choice.
        integer, intent(in) :: bytes
        inquire(iolength=record_length) bytes
-       record_length = (bytes/4)*record_length   
+!       record_length = (bytes/4)*record_length   
+       record_length = (bytes/sizeof_int)*record_length   
 ! 8 indicates 8-byte words I think
     end function record_length
 

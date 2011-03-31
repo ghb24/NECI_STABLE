@@ -8,6 +8,9 @@ MODULE FciMCData
       implicit none
       save
 
+      real(dp) :: MaxTimeExit   !Max time before exiting out of MC
+      logical :: tTimeExit      !Whether to exit out of MC after an amount of runtime
+
       ! Units used to write to files
       integer :: fcimcstats_unit ! FCIMCStats
       integer :: initiatorstats_unit ! INITIATORStats
