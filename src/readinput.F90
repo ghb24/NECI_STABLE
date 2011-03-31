@@ -365,11 +365,11 @@ MODULE ReadInput
         endif
   
         if (tCalcInstantS2) then
-            if (.not. tSpatialOnlyHash) &
-                call stop_all (t_r, "Calculating the instantaneous value of &
-                                   &S^2 in each iterataion requires spatial-&
-                                   &only hash to be used (SPATIAL-ONLY-HASH)")
-            else
+!            if (.not. tSpatialOnlyHash) &
+!                call stop_all (t_r, "Calculating the instantaneous value of &
+!                                   &S^2 in each iterataion requires spatial-&
+!                                   &only hash to be used (SPATIAL-ONLY-HASH)")
+!            else
                 write(6,*) 'Enabling calculation of instantaneous S^2 each &
                            &iteration.'
         endif

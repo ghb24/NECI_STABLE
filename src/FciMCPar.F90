@@ -66,7 +66,8 @@ MODULE FciMCParMod
                     add_hist_spawn, tHistSpawn, AllHistogramEnergy, &
                     AllHistogram, HistogramEnergy, Histogram, AllInstHist, &
                     InstHist, HistMinInd, project_spins, calc_s_squared, &
-                    project_spin_csfs
+                    project_spin_csfs, calc_s_squared_multi, &
+                    calc_s_squared_star
     USE SymData , only : nSymLabels
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE Parallel
@@ -3303,12 +3304,13 @@ MODULE FciMCParMod
 
     subroutine WriteFCIMCStats()
 
-        real(dp) :: curr_S2
+        real(dp) :: curr_S2, curr_S4
 
         ! What is the current value of S2
         ! TODO: This should probably be placed somewhere cleaner.
         if (tCalcInstantS2) then
-            curr_S2 = calc_s_squared ()
+            curr_S2 = calc_s_squared_multi ()
+            curr_S4 = calc_s_squared_star ()
         else
             curr_S2 = -1
         endif
@@ -3367,7 +3369,7 @@ MODULE FciMCParMod
 #else
 
             write(fcimcstats_unit,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,9G17.9)") &
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,10G17.9)") &
                 Iter + PreviousCycles, &
                 DiagSft, &
                 sum(AllTotParts) - sum(AllTotPartsOld), &
@@ -3395,7 +3397,7 @@ MODULE FciMCParMod
                 AllENumCyc / StepsSft, &
                 real(AllNoatHF, dp) / norm_psi, &
                 norm_psi, &
-                curr_S2
+                curr_S2, curr_S4
 
             write (6, "(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,&
                       &G13.5)") &
