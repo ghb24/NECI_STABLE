@@ -57,8 +57,9 @@ MODULE FciMCParMod
                        HistInitPopsTag, OrbOccs, OrbOccsTag, &
                        tPrintPopsDefault, iWriteBlockingEvery, &
                        tBlockEveryIteration, tHistInitPops, HistInitPopsIter,&
-                       HistInitPops, DoubsUEG, DoubsUEGLookup, DoubsUEGStore, &
-                       tPrintDoubsUEG, StartPrintDoubsUEG, tCalcInstantS2
+                       HistInitPops, DoubsUEG, DoubsUEGLookup, DoubsUEGStore,&
+                       tPrintDoubsUEG, StartPrintDoubsUEG, tCalcInstantS2, &
+                       instant_s2_multiplier
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
                     hist_spin_dist, ilut_spindist, tHistSpinDist, &
                     write_clear_hist_spin_dist, hist_spin_dist_iter, &
@@ -3304,13 +3305,13 @@ MODULE FciMCParMod
 
     subroutine WriteFCIMCStats()
 
-        real(dp) :: curr_S2, curr_S4
-
         ! What is the current value of S2
         ! TODO: This should probably be placed somewhere cleaner.
         if (tCalcInstantS2) then
-            curr_S2 = calc_s_squared_multi ()
-            curr_S4 = calc_s_squared_star ()
+            if (mod(iter / StepsSft, instant_s2_multiplier) == 0) then
+                curr_S2 = calc_s_squared_multi ()
+                curr_S2_2 = calc_s_squared_star ()
+            endif
         else
             curr_S2 = -1
         endif
@@ -3397,7 +3398,7 @@ MODULE FciMCParMod
                 AllENumCyc / StepsSft, &
                 real(AllNoatHF, dp) / norm_psi, &
                 norm_psi, &
-                curr_S2, curr_S4
+                curr_S2, curr_S2_2
 
             write (6, "(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,&
                       &G13.5)") &

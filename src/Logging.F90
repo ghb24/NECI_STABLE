@@ -47,6 +47,7 @@ MODULE Logging
     LOGICAL tMCOutput
 
     logical :: tCalcInstantS2, tCalcInstSCpts
+    integer :: instant_s2_multiplier
 
     contains
 
@@ -129,6 +130,7 @@ MODULE Logging
       tLogDets=.false.
       tCalcInstantS2 = .false.
       tCalcInstSCpts = .false.
+      instant_s2_multiplier = 0
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -644,7 +646,15 @@ MODULE Logging
         case ("INSTANT-S2")
             ! Calculate an instantaneous value for S^2, and output it to the
             ! relevant column in the FCIMCStats file.
+            !
+            ! The second parameter is a multiplier such that we only calculate
+            ! S^2 once for every n update cycles (it must be on an update
+            ! cycle such that norm_psi_squared is correct)
             tCalcInstantS2 = .true.
+            if (item < nitems) then
+                call readi (instant_s2_multiplier)
+            endif
+
 
         case ("INSTANT-S-CPTS")
             ! Calculate components of the wavefunction with each value of S.
