@@ -107,6 +107,8 @@ MODULE UMatCache
       integer :: tagOUMatCacheData=0
       integer :: tagOUMatLabels=0
       integer :: tagUMat2D=0
+      integer :: tagTMat2D=0
+      integer :: tagTMat2D2=0
       integer :: tagTransTable=0
       integer :: tagInvTransTable=0
       integer :: tagDFCoeffs=0
