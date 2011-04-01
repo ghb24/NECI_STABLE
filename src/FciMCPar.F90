@@ -3309,11 +3309,12 @@ MODULE FciMCParMod
         ! TODO: This should probably be placed somewhere cleaner.
         if (tCalcInstantS2) then
             if (mod(iter / StepsSft, instant_s2_multiplier) == 0) then
-                curr_S2 = calc_s_squared_multi ()
-                curr_S2_2 = calc_s_squared_star ()
+                curr_S2 = calc_s_squared_star (.false.)
+                curr_S2_init = calc_s_squared_star(.true.)
             endif
         else
             curr_S2 = -1
+            curr_S2_init = -1
         endif
 
         if (iProcIndex == root) then
@@ -3398,7 +3399,7 @@ MODULE FciMCParMod
                 AllENumCyc / StepsSft, &
                 real(AllNoatHF, dp) / norm_psi, &
                 norm_psi, &
-                curr_S2, curr_S2_2
+                curr_S2, curr_S2_init
 
             write (6, "(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,&
                       &G13.5)") &

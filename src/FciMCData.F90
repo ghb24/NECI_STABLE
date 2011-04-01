@@ -133,7 +133,7 @@ MODULE FciMCData
                            BinSearch_time
       
       ! Store the current value of S^2 between update cycles
-      real(dp) :: curr_S2, curr_S2_2
+      real(dp) :: curr_S2, curr_S2_init
 
 !These are variables needed for the FixCASshift option in which an active space is chosen and the shift fixed only for determinants within this space
 !The SpinInvBRR vector stores the energy ordering for each spatial orbital, which is the inverse of the BRR vector

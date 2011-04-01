@@ -9,7 +9,7 @@ module hist
                           tOddS_HPHF, G1
     use DetBitOps, only: count_open_orbs, EncodeBitDet, spatial_bit_det, &
                          DetBitEq, count_open_orbs
-    use CalcData, only: tFCIMC
+    use CalcData, only: tFCIMC, tTruncInitiator
     use DetCalcData, only: FCIDetIndex, det
     use FciMCData, only: tFlippedSign, TotWalkers, CurrentDets, iter, &
                          norm_psi_squared
@@ -18,7 +18,7 @@ module hist
     use constants, only: n_int, bits_n_int, size_n_int, lenof_sign
     use bit_rep_data, only: NIfTot, NIfD
     use bit_reps, only: extract_sign, encode_sign, extract_bit_rep, NOffSgn, &
-                        decode_bit_det
+                        decode_bit_det, flag_is_initiator, test_flag
     use parallel
     use csf, only: get_num_csfs, csf_coeff, csf_get_yamas, write_yama, &
                    extract_dorder
@@ -766,7 +766,7 @@ contains
     end function
 
 
-    function calc_s_squared_star () result (ssq)
+    function calc_s_squared_star (only_init) result (ssq)
 
         real(dp) :: ssq
         integer, parameter :: max_per_proc = 1000
@@ -774,10 +774,13 @@ contains
         integer :: proc_dets, start_pos, nsend, i, lms_tmp, p
         type(timer), save :: s2_timer
         integer(int64) :: ssq_sum
+        logical, intent(in) :: only_init
 
 
         s2_timer%timer_name = 'S^2 star'
         call set_timer (s2_timer)
+        write(6,*) 'STAR', only_init
+        call flush(6)
 
         ssq_sum = 0
         do p = 0, nProcessors-1
@@ -790,16 +793,41 @@ contains
             start_pos = 1
             do while(start_pos <= proc_dets)
 
-                ! How many dets to send in this batch?
-                if (start_pos + max_per_proc - 1 > proc_dets) then
-                    nsend = proc_dets - start_pos + 1
-                else
-                    nsend = max_per_proc
-                endif
+                if (tTruncInitiator .and. only_init) then
+                    ! Loop over walkers and only add initiators to bcast list
+                    nsend = 0
+                    if (p == iProcIndex) then
+                        do i = start_pos, TotWalkers
+                            ! Break up the list into correctly sized chunks
+                            if (nsend == max_per_proc) then
+                                start_pos = i
+                                exit
+                            endif
 
-                ! Broadcast as required
-                if (p == iProcIndex) recv_dets(:,1:nsend) = &
+                            if (test_flag(CurrentDets(:,i), &
+                                          flag_is_initiator(1)) .or. &
+                                test_flag(CurrentDets(:,i), &
+                                          flag_is_initiator(lenof_sign))) then
+                                nsend = nsend + 1
+                                recv_dets(:,nsend) = CurrentDets(:,i)
+                            endif
+                        enddo
+                    endif
+
+                else
+                    ! How many dets to send in this batch?
+                    if (start_pos + max_per_proc - 1 > proc_dets) then
+                        nsend = proc_dets - start_pos + 1
+                    else
+                        nsend = max_per_proc
+                    endif
+
+                    ! Update list of received dets
+                    if (p == iProcIndex) recv_dets(:,1:nsend) = &
                                     CurrentDets(:,start_pos:start_pos+nsend-1)
+                endif
+                
+                ! Broadcast to all processors
                 call MPIBcast (recv_dets(:,1:nsend), iProcIndex == p)
 
                 ! All processors loop over these dets, and calculate their
@@ -818,6 +846,8 @@ contains
 
         ! Sum all of the s squared terms
         call MPISum_inplace (ssq_sum)
+        write(6,*) 'SSQ', ssq, norm_psi_squared
+        call flush(6)
         ssq = real(ssq_sum,dp) / norm_psi_squared
          
         ! TODO: n.b. This is a hack. LMS appears to contain -2Ms of the system
