@@ -773,7 +773,7 @@ contains
         integer(n_int) :: recv_dets(0:NIfTot,max_per_proc)
         integer :: proc_dets, start_pos, nsend, i, lms_tmp, p
         type(timer), save :: s2_timer
-        integer :: ssq_sum
+        integer(int64) :: ssq_sum
 
 
         s2_timer%timer_name = 'S^2 star'
@@ -842,7 +842,7 @@ contains
         integer(n_int) :: splus(0:NIfD), sminus(0:NIfD)
         integer :: sgn(lenof_sign), sgn2(lenof_sign), flg, nI(nel)
         integer :: j, k, orb2, pos
-        integer :: ssq
+        integer(int64) :: ssq
 
         ! Extract details of determinant
         call extract_bit_rep (ilut, nI, sgn, flg)
