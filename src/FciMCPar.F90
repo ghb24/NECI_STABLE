@@ -844,6 +844,12 @@ MODULE FciMCParMod
 
                 IF(tFullRDM) call Fill_Diag_RDM(DetCurr, SignCurr)
 
+                IF((tHF_S_D_Ref.and.(.not.tExplicitHFRDM)).and. &
+                    (walkExcitLevel.le.2)) THEN
+                    call Fill_Diag_RDM(DetCurr, SignCurr)
+                    AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
+                ENDIF
+
                 if(walkexcitlevel.eq.0) then
                     if(signcurr(1).ne.allhfsign(1)) then
                         write(6,*) 'DetCurr',DetCurr

@@ -1062,7 +1062,7 @@ MODULE nElRDMMod
         IF(tCalc_RDMEnergy) THEN
             tFinalRDMEnergy = .true.
             CALL Calc_Energy_from_RDM()
-            CALL Test_Energy_Calc()
+!            CALL Test_Energy_Calc()
         ELSE
             IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) CALL MPIReduce(OneElRDM,MPI_SUM,NatOrbMat)
 
@@ -2324,9 +2324,11 @@ MODULE nElRDMMod
 
 !            Iter_Accum = Iter_Accum + 1
 !            RDMEnergy_Accum = RDMEnergy_Accum + RDMEnergy
-!            NatOrbMat(:,:) = 0.D0
-!            AllTwoElRDM(:,:) = 0.D0
-!            AllAccumRDMNorm = 0.D0
+            if(tHF_ref) then
+                NatOrbMat(:,:) = 0.D0
+                AllTwoElRDM(:,:) = 0.D0
+                AllAccumRDMNorm = 0.D0
+            endif
 
 !            WRITE(Energies_unit, "(I31,F30.15)",advance='no') Iter,RDMEnergy
 !            IF(tStochasticRDM) WRITE(Energies_unit, "(I31,F30.15)",advance='no') Iter,RDMEnergy
@@ -2340,9 +2342,11 @@ MODULE nElRDMMod
 
         ENDIF
 
-!        OneElRDM(:,:) = 0.D0
-!        TwoElRDM(:,:) = 0.D0
-!        AccumRDMNorm = 0.D0
+        if(tHF_ref) then
+            OneElRDM(:,:) = 0.D0
+            TwoElRDM(:,:) = 0.D0
+            AccumRDMNorm = 0.D0
+        endif
         
 !        do i = 1, nBasis
 !            do k = i+1, nBasis
@@ -2753,7 +2757,6 @@ END MODULE nElRDMMod
                 tFill_SymmCiCj = .true.
             ENDIF
             
-
             call decode_bit_det (nI, Spawned_Parents(0:NIfDBO,i))
             call decode_bit_det (nJ, iLutJ)
 
