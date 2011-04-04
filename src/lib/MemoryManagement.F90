@@ -72,8 +72,11 @@ public :: MemoryLeft, MemoryUsed,MaxMemory,li,LookupPointer,PrintMemory
 public :: CachingMemLog 
 ! Routines that need to be accessible.
 public :: InitMemoryManager,LogMemAlloc,LogMemDealloc,LeaveMemoryManager
+public :: TagIntType
 
 
+
+integer, parameter :: TagIntType = selected_int_kind(18)   !This is for CPMD which needs to know what type of integer to pass as a tag
 ! Configuration.
 integer, parameter :: MaxLen = 5000 ! size of memory log (max number of arrays
                                     ! that can be logged at any one time if 
@@ -209,7 +212,7 @@ contains
     character(len=*),intent(in) :: ObjectName,AllocRoutine
     integer, intent(in) :: ObjectSize
     integer, intent(in) :: ElementSize
-    integer, intent(out) :: tag
+    integer(TagIntType), intent(out) :: tag
     integer, intent(in), optional :: err
     integer, intent(inout), optional :: nCalls
  
@@ -289,7 +292,7 @@ contains
     implicit none
 
     character(len=*), intent(in) :: DeallocRoutine
-    integer, intent(inout) :: tag
+    integer(TagIntType), intent(inout) :: tag
     integer, intent(in), optional :: err
     integer :: i,ismallloc(1)
     character(len=25) :: ObjectName
