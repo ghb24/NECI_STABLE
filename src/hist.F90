@@ -799,10 +799,7 @@ contains
                     if (p == iProcIndex) then
                         do i = start_pos, TotWalkers
                             ! Break up the list into correctly sized chunks
-                            if (nsend == max_per_proc) then
-                                start_pos = i
-                                exit
-                            endif
+                            if (nsend == max_per_proc) exit
 
                             if (test_flag(CurrentDets(:,i), &
                                           flag_is_initiator(1)) .or. &
@@ -812,6 +809,7 @@ contains
                                 recv_dets(:,nsend) = CurrentDets(:,i)
                             endif
                         enddo
+                        start_pos = i
                     endif
 
                 else
