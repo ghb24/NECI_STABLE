@@ -6,7 +6,8 @@ MODULE CCMC
     use ClusterList
     use bit_rep_data, only: NIfDBO,NIfTot
     use bit_reps, only: encode_det
-    use FciMCParMod, only: calculate_new_shift_wrapper, iter_data_ccmc
+    use FciMCData, only: iter_data_ccmc
+    use FciMCParMod, only: calculate_new_shift_wrapper
     use Parallel
    IMPLICIT NONE
    CONTAINS
