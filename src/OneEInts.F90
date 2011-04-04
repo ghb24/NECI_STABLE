@@ -9,7 +9,7 @@ module OneEInts
 ! pre-freezing stage.
 
 use constants, only: dp
-use SystemData, only: TSTARSTORE
+use SystemData, only: TSTARSTORE,tUEG
 
 implicit none
 
@@ -190,7 +190,15 @@ contains
 #endif
             endif
         else
-            ret = TMat2D(i, j)
+            if(tUEG) then
+                if(i.ne.j) then
+                    ret = 0.D0
+                else
+                    ret = TMat2D(i,1)
+                endif
+            else
+                ret = TMat2D(i, j)
+            endif
         endif
     end function GetTMatEl
 
@@ -216,7 +224,15 @@ contains
             GetNewTMatEl=TMATSYM2(TMatInd(I,J))
 #endif
         ELSE
-            GetNEWTMATEl=TMAT2D2(I,J)
+            if(tUEG) then
+                if(I.ne.J) then
+                    GetNEWTMATEl=0.D0
+                else
+                    GetNewTMATEl=TMAT2D2(I,1)
+                endif
+            else
+                GetNEWTMATEl=TMAT2D2(I,J)
+            endif
         ENDIF
       END FUNCTION GetNewTMatEl
 
@@ -323,7 +339,11 @@ contains
               enddo
               iSize=iSize+2     !lower index is -1
           ELSE
-              iSize=nBasis*nBasis
+              if(tUEG) then
+                  iSize=nBasis
+              else
+                  iSize=nBasis*nBasis
+              endif
           ENDIF
 
       END SUBROUTINE CalcTMATSize
@@ -434,12 +454,20 @@ contains
 
         ELSE
 
-            ! Using a square array to hold <i|h|j> (incl. elements which are
-            ! zero by symmetry).
-            iSize=nBasis*nBasis
-            Allocate(TMAT2D(nBasis,nBasis),STAT=ierr)
-            call LogMemAlloc('TMAT2D',nBasis*nBasis,HElement_t_size*8,thisroutine,tagTMat2D)
-            TMAT2D=(0.d0)
+            if(tUEG) then
+                ! In the UEG, the orbitals are eigenfunctions of KE operator, so TMAT is diagonal. 
+                iSize=nBasis
+                Allocate(TMAT2D(nBasis,1),STAT=ierr)
+                call LogMemAlloc('TMAT2D',nBasis,HElement_t_size*8,thisroutine,tagTMat2D)
+                TMAT2D=(0.d0)
+            else
+                ! Using a square array to hold <i|h|j> (incl. elements which are
+                ! zero by symmetry).
+                iSize=nBasis*nBasis
+                Allocate(TMAT2D(nBasis,nBasis),STAT=ierr)
+                call LogMemAlloc('TMAT2D',nBasis*nBasis,HElement_t_size*8,thisroutine,tagTMat2D)
+                TMAT2D=(0.d0)
+            endif
         
         ENDIF
     
@@ -543,12 +571,20 @@ contains
 
         ELSE
 
-            ! Using a square array to hold <i|h|j> (incl. elements which are
-            ! zero by symmetry).
-            iSize=nBasisFRZ*nBasisFRZ
-            Allocate(TMAT2D2(nBasisFRZ,nBasisFRZ),STAT=ierr)
-            call LogMemAlloc('TMAT2D2',nBasisFRZ*nBasisFRZ,HElement_t_size*8,thisroutine,tagTMat2D2)
-            TMAT2D2=(0.d0)
+            if(tUEG) then
+                ! In the UEG, the orbitals are eigenfunctions of KE operator, so TMAT is diagonal. 
+                iSize=nBasisFRZ
+                Allocate(TMAT2D2(nBasisFRZ,1),STAT=ierr)
+                call LogMemAlloc('TMAT2D2',nBasisFRZ,HElement_t_size*8,thisroutine,tagTMat2D2)
+                TMAT2D2=(0.d0)
+            else
+                ! Using a square array to hold <i|h|j> (incl. elements which are
+                ! zero by symmetry).
+                iSize=nBasisFRZ*nBasisFRZ
+                Allocate(TMAT2D2(nBasisFRZ,nBasisFRZ),STAT=ierr)
+                call LogMemAlloc('TMAT2D2',nBasisFRZ*nBasisFRZ,HElement_t_size*8,thisroutine,tagTMat2D2)
+                TMAT2D2=(0.d0)
+            endif
         
         ENDIF
       END SUBROUTINE SetupTMat2

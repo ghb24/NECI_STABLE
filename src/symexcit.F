@@ -24,8 +24,7 @@ C.. Setup for symmetry routine below.
          allocate(DSTORE(SymClassSize*NEL+(nBasis/32)+1
      &      +SymmetrySize*(NEL*NEL+1)))
          STORE(1)=1 !Meaning the first element of DSTORE
-         CALL symsetupexcits_wrapper_aarrgh(NI,NEL,G1,NBASIS,STORE,
-     &      STORE(1),STORE(1),STORE(1),STORE(1),TCOUNT,  !These STORE(1) are fakes which aren't used
+         CALL SYMSETUPEXCITS3(NI,NEL,G1,NBASIS,STORE,TCOUNT,
      &      ICOUNT,DSTORE(1),
      &      DSTORE(SymClassSize*NEL+1),
      &      DSTORE(SymClassSize*NEL+1+(nBasis/32)+1),ILEVEL,iMinElec1,
@@ -34,44 +33,33 @@ C.. If we're just counting, we don't need to keep DSTORE
          IF(TCOUNT) deallocate(dstore)
       END
 
-      subroutine symsetupexcits_wrapper_aarrgh (nI, nel, G1, nBasis, 
-     &             store, SPIin, ETin, NAPin, OPin, tCount, iCount,
-     &             classes, ilut, symProds, iLevel, iMinElec1,iMaxElec1)
-         use symexcit2, only: symsetupexcits3
-         use systemdata, only: basisfn, symmetry
-         use symdata, only: symclass
-         implicit none
-         integer :: nel, nI(nel), nbasis, store(6), icount, ilevel
-         integer :: iMinElec1, iMaxElec1
-         type(basisfn) G1(nBasis)
-         integer, pointer :: DSTORE(:)
-         logical :: tCount
-         type(symclass) classes(*)
-         type(symmetry) symprods(*)
-         integer :: SPIin(*), ETin(*), NAPin(*), OPin(*), ilut(*)
 
-         call SYMSETUPEXCITS3 (nI, nel, g1, nbasis, store, SPIin, ETin,
-     &              NAPin, OPin, tCount, iCount, classes, ilut,symprods,
-     &              iLevel, iMinElec1, iMaxElec1)
+
+      ! A wrapper routine to allow symsetupexcit3_worker to be called
+      ! with incorrect arguments --> Allows Alex's hacking!!
+      SUBROUTINE SYMSETUPEXCITS3(NI,NEL,G1,NBASIS,STORE,SPIin,ETin,
+     &   NAPin, OPin,
+     &   TCOUNT,ICOUNT,CLASSES,ILUT,SYMPRODS,ILEVEL,iMinElec1,iMaxElec1)
+
+          use systemdata, only: Basisfn, Symmetry
+          use SymData, only: SymClass
+          use SymExcit2, only: symsetupexcits3_worker
+
+          integer :: nel, nI(nel), nBasis, store(6), iCount, iLevel
+          integer :: ilut(0:nBasis/32), iMinElec1, iMaxElec1
+          type(basisfn) G1(nBasis)
+          logical :: tCount
+          type(symclass) :: classes(*)
+          type(symmetry) :: symprods(0:nel*nel)
+
+          integer :: SPIin(1:2,1:3,1:*), ETin(1:5,*), NAPin(1:3,*)
+          integer :: OPin(1:2,*)
+
+          call symsetupexcits3_worker (nI, nel, g1, nbasis, store,
+     &             SPIin, ETin, NAPin, OPin, tCount, iCount, classes,
+     &             ilut, symprods, iLevel, iMinElec1, iMaxElec1)
+
       end subroutine
-
-
-
-      subroutine gensymexcitit2par_wrapper_aarrgh (nI, nel, g1, nbasis, 
-     &              tSetup, nmem, nJ, ic, store, ilevel, iMinElec1, 
-     &              iMaxElec1)
-         use systemdata, only: basisfn
-         use symexcit2, only: GenSYMEXCITIT2Par
-         implicit none
-         integer :: nel, nI(nel), nbasis, nJ(nel), ic, iLevel
-         integer :: iMinElec1, iMaxElec1, store(6), nmem(*)
-         logical :: tSetup
-         type(basisfn) :: G1(nBasis)
-
-         call GENSYMEXCITIT2Par(nI, nel, G1, nBasis, tSetup, NMEM,
-     &                   nJ, IC, store, iLevel, iMinElec1, iMaxElec1)
-      end subroutine
-
 
 
 C.. List the symmetry classes in NI.
@@ -1230,7 +1218,7 @@ C.. to actually generate the excitations
          INTEGER NJ(NEL),IC
          LOGICAL TSETUP
          INTEGER ILEVEL
-         CALL GenSymExcitIt2Par_wrapper_aarrgh(NI,NEL,G1,NBASIS,
+         CALL GenSymExcitIt2Par(NI,NEL,G1,NBASIS,
      &         TSETUP,NMEM,NJ,IC,STORE,ILEVEL,1,NEL)
       END
 
@@ -1250,7 +1238,7 @@ C.. to actually generate the excitations
          LOGICAL TSETUP
          INTEGER ILEVEL
 
-         CALL GENSYMEXCITIT2Par_wrapper_aarrgh(NI,NEL,G1,NBASIS,
+         CALL GENSYMEXCITIT2Par(NI,NEL,G1,NBASIS,
      &         TSETUP,NMEM,NJ,IC,STORE,ILEVEL,1,nEl)
       END
 
@@ -1266,15 +1254,34 @@ C.. to actually generate the excitations
 !  STORE contains lengths of various components of the excitation generator
          INTEGER STORE(6)
 !  STORE will contain the addesses of various components of the excitation generator, and is passed to SYMSETUPEXCITS2
-         INTEGER ::  NMEM(*)
+         INTEGER, target ::  NMEM(*)
          INTEGER NJ(NEL),IC
          LOGICAL TSETUP
          INTEGER ILEVEL
 
          INTEGER iMinElec1, iMaxElec1
-         CALL GENSYMEXCITIT2Par_wrapper_aarrgh(NI,NEL,G1,NBASIS,
+         CALL GENSYMEXCITIT2Par(NI,NEL,G1,NBASIS,
      &         TSETUP,NMEM,NJ,IC,STORE,ILEVEL,iMinElec1,iMaxElec1)
       END
+
+C.. A modified version of GENSYMEXCITIT2.  This has min and max electron 1 specifiers used for parallelization
+      SUBROUTINE GENSYMEXCITIT2Par(NI,NEL,G1,NBASIS,
+     &         TSETUP,NMEM,NJ,IC,STORE,ILEVEL,iMinElec1,iMaxElec1)
+
+         use SystemData, only: basisfn
+         use SymExcit2, only: gensymexcitit2par_worker
+
+         integer :: nel, nI(nel), nbasis, nmem(*), nJ(nel), ic, store(6)
+         integer :: ilevel, iMinElec1, iMaxElec1
+         type(basisfn) :: g1(nbasis)
+         logical : :tsetup
+         
+         call gensymexcitit2par_worker (nI, nel, g1, nbasis, tSetup,
+     &                      nmem, nJ, ic, store, ilevel, iminelec1,
+     &                      imaxelec1)
+
+
+      end subroutine
 
       SUBROUTINE RESETEXIT2(NMEM)
          IMPLICIT NONE

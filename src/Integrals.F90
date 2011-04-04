@@ -1103,7 +1103,13 @@ contains
 !                           CALL FLUSH(6)
 !                           CALL Stop_All("","here 01")
                        ENDIF
-                       TMAT2D2(IPB,JPB)=GetTMATEl(IB,JB)
+                       if(tUEG) then
+                           if((IB.eq.JB).and.(IPB.eq.JPB)) then
+                               TMAT2D2(IPB,1)=GetTMATEl(IB,JB)
+                           endif
+                       else
+                           TMAT2D2(IPB,JPB)=GetTMATEl(IB,JB)
+                       endif
                     ENDIF
                     DO A=1,NFROZEN
                        AB=BRR(A)
@@ -1118,7 +1124,17 @@ contains
    &                         GetNEWTMATEl(IPB,JPB)+GETUMATEL(IDA,IDI,IDA,IDJ)
                           ELSE
 !                             IF(IPB.eq.0.or.JPB.eq.0) CALL Stop_All("","here 02")
-                             TMAT2D2(IPB,JPB)=TMAT2D2(IPB,JPB)+GETUMATEL(IDA,IDI,IDA,IDJ)
+                             if(tUEG) then
+                                 if(IPB.eq.JPB) then
+                                     TMAT2D2(IPB,1)=TMAT2D2(IPB,1)+GETUMATEL(IDA,IDI,IDA,IDJ)
+                                 else
+                                     if(abs(GETUMATEL(IDA,IDI,IDA,IDJ)).gt.1.D-8) then
+                                         call stop_all("","Error here in freezing for UEG")
+                                     endif
+                                 endif
+                             else
+                                 TMAT2D2(IPB,JPB)=TMAT2D2(IPB,JPB)+GETUMATEL(IDA,IDI,IDA,IDJ)
+                             endif
                           ENDIF
                        ENDIF
 !C.. If we have spin-independent integrals, ISS.EQ.2.OR
@@ -1128,9 +1144,20 @@ contains
                              TMATSYM2(NEWTMATInd(IPB,JPB))=GetNEWTMATEl(IPB,JPB) &
    &                         -GETUMATEL(IDA,IDI,IDJ,IDA)        
                           ELSE
-!                             IF(IPB.eq.0.or.JPB.eq.0) CALL Stop_All("","here 03")
-                             TMAT2D2(IPB,JPB)=GetNEWTMATEl(IPB,JPB)              &
-   &                         -GETUMATEL(IDA,IDI,IDJ,IDA)
+                              if(tUEG) then
+                                  if(IPB.eq.JPB) then
+                                      TMAT2D2(IPB,1)=GetNEWTMATEl(IPB,JPB)              &
+   &                                  -GETUMATEL(IDA,IDI,IDJ,IDA)
+                                  else
+                                      if(abs(GETUMATEL(IDA,IDI,IDJ,IDA)).gt.1.D-8) then
+                                         call stop_all("","Error here in freezing for UEG")
+                                      endif
+                                  endif
+                              else
+    !                             IF(IPB.eq.0.or.JPB.eq.0) CALL Stop_All("","here 03")
+                                 TMAT2D2(IPB,JPB)=GetNEWTMATEl(IPB,JPB)              &
+   &                             -GETUMATEL(IDA,IDI,IDJ,IDA)
+                              endif
                           ENDIF
                        ENDIF
                     ENDDO
@@ -1146,8 +1173,18 @@ contains
                              TMATSYM2(NEWTMATInd(IPB,JPB))=                  &
    &                         GetNEWTMATEl(IPB,JPB)+GETUMATEL(IDA,IDI,IDA,IDJ)
                           ELSE
-!                             IF(IPB.eq.0.or.JPB.eq.0) CALL Stop_All("","here 04")
-                             TMAT2D2(IPB,JPB)=TMAT2D2(IPB,JPB)+GETUMATEL(IDA,IDI,IDA,IDJ)
+                              if(tUEG) then
+                                  if(IPB.eq.JPB) then
+                                     TMAT2D2(IPB,1)=TMAT2D2(IPB,1)+GETUMATEL(IDA,IDI,IDA,IDJ)
+                                 else
+                                     if(abs(GETUMATEL(IDA,IDI,IDA,IDJ)).gt.1.D-8) then
+                                         call stop_all("","Error here in freezing for UEG")
+                                     endif
+                                 endif
+                              else
+!                                 IF(IPB.eq.0.or.JPB.eq.0) CALL Stop_All("","here 04")
+                                 TMAT2D2(IPB,JPB)=TMAT2D2(IPB,JPB)+GETUMATEL(IDA,IDI,IDA,IDJ)
+                             endif
                           ENDIF
                        ENDIF
 !C.. If we have spin-independent integrals, ISS.EQ.2.OR
@@ -1157,9 +1194,20 @@ contains
                              TMATSYM2(NEWTMATInd(IPB,JPB))=GetNEWTMATEl(IPB,JPB) &
    &                         -GETUMATEL(IDA,IDI,IDJ,IDA)        
                           ELSE
-!                             IF(IPB.eq.0.or.JPB.eq.0) CALL Stop_All("","here 05")
-                             TMAT2D2(IPB,JPB)=GetNEWTMATEl(IPB,JPB)              &
-   &                         -GETUMATEL(IDA,IDI,IDJ,IDA)
+                              if(tUEG) then
+                                  if(IPB.eq.JPB) then
+                                     TMAT2D2(IPB,1)=GetNEWTMATEl(IPB,JPB)              &
+   &                                 -GETUMATEL(IDA,IDI,IDJ,IDA)
+                                  else
+                                      if(abs(GETUMATEL(IDA,IDI,IDJ,IDA)).gt.1.D-8) then
+                                         call stop_all("","Error here in freezing for UEG")
+                                      endif
+                                  endif
+                              else
+!                                 IF(IPB.eq.0.or.JPB.eq.0) CALL Stop_All("","here 05")
+                                 TMAT2D2(IPB,JPB)=GetNEWTMATEl(IPB,JPB)              &
+   &                             -GETUMATEL(IDA,IDI,IDJ,IDA)
+                              endif
                           ENDIF
                        ENDIF
                     ENDDO
@@ -1857,13 +1905,13 @@ SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
   CALL SetupTMAT(NBASIS,2,iSIZE)
   DO I=1,NBASIS
     K_REAL=G1(I)%K+K_OFFSET
-    TMAT2D(I,I)=((ALAT(1)**2)*((K_REAL(1)**2)/(ALAT(1)**2)+        &
+    TMAT2D(I,1)=((ALAT(1)**2)*((K_REAL(1)**2)/(ALAT(1)**2)+        &
 &        (K_REAL(2)**2)/(ALAT(2)**2)+(K_REAL(3)**2)/(ALAT(3)**2)))
-    TMAT2D(I,I)=TMAT2D(I,I)*(CST)
+    TMAT2D(I,1)=TMAT2D(I,1)*(CST)
 !..  The G=0 component is explicitly calculated for the cell interactions as 2 PI Rc**2 .
 !   we *1/2 as we attribute only half the interaction to this cell.
-    IF(TPERIODIC .and. iPeriodicDampingType/=0) TMAT2D(I,I)=TMAT2D(I,I)-(PI*ALAT(4)**2/OMEGA)
-    WRITE(iunit,*) I,I,TMAT2D(I,I)
+    IF(TPERIODIC .and. iPeriodicDampingType/=0) TMAT2D(I,1)=TMAT2D(I,1)-(PI*ALAT(4)**2/OMEGA)
+    WRITE(iunit,*) I,I,TMAT2D(I,1)
   ENDDO
   CLOSE(iunit)
   RETURN
