@@ -9,7 +9,7 @@ module OneEInts
 ! pre-freezing stage.
 
 use constants, only: dp
-use SystemData, only: TSTARSTORE,tUEG
+use SystemData, only: TSTARSTORE
 
 implicit none
 
@@ -35,6 +35,8 @@ HElement_t, dimension(:,:), POINTER :: TMAT2D2
 ! True if using TMatSym in CPMD (currently only if using k-points, which form
 ! an Abelian group).
 logical tCPMDSymTMat
+logical tOneElecDiag    !Indicates that the one-electron integral matrix is diagonal - 
+                        !basis functions are eigenstates of KE operator.
 
 ! Memory book-keeping tags
 integer :: tagTMat2D=0
@@ -190,7 +192,7 @@ contains
 #endif
             endif
         else
-            if(tUEG) then
+            if(tOneElecDiag) then
                 if(i.ne.j) then
                     ret = 0.D0
                 else
@@ -224,7 +226,7 @@ contains
             GetNewTMatEl=TMATSYM2(TMatInd(I,J))
 #endif
         ELSE
-            if(tUEG) then
+            if(tOneElecDiag) then
                 if(I.ne.J) then
                     GetNEWTMATEl=0.D0
                 else
@@ -339,7 +341,7 @@ contains
               enddo
               iSize=iSize+2     !lower index is -1
           ELSE
-              if(tUEG) then
+              if(tOneElecDiag) then
                   iSize=nBasis
               else
                   iSize=nBasis*nBasis
@@ -454,7 +456,7 @@ contains
 
         ELSE
 
-            if(tUEG) then
+            if(tOneElecDiag) then
                 ! In the UEG, the orbitals are eigenfunctions of KE operator, so TMAT is diagonal. 
                 iSize=nBasis
                 Allocate(TMAT2D(nBasis,1),STAT=ierr)
@@ -571,7 +573,7 @@ contains
 
         ELSE
 
-            if(tUEG) then
+            if(tOneElecDiag) then
                 ! In the UEG, the orbitals are eigenfunctions of KE operator, so TMAT is diagonal. 
                 iSize=nBasisFRZ
                 Allocate(TMAT2D2(nBasisFRZ,1),STAT=ierr)
