@@ -1,4 +1,5 @@
 module MemoryManager
+use constants , only : sizeof_int 
 
 ! JSS.  Memory book-keeping routines.  Contains a few elements of the initialisation, 
 ! output and structure of the memory_manager module from CamCASP (formerly SITUS), 
@@ -76,7 +77,7 @@ public :: TagIntType
 
 
 
-integer, parameter :: TagIntType = selected_int_kind(18)   !This is for CPMD which needs to know what type of integer to pass as a tag
+integer, parameter :: TagIntType = sizeof_int   !This is for CPMD which needs to know what type of integer to pass as a tag
 ! Configuration.
 integer, parameter :: MaxLen = 5000 ! size of memory log (max number of arrays
                                     ! that can be logged at any one time if 
