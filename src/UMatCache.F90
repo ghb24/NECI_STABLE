@@ -4,6 +4,7 @@ MODULE UMatCache
     use SystemData , only : TSTARSTORE, tROHF,tStoreSpinOrbs
     use util_mod, only: swap
     use sort_mod
+    use MemoryManager, only: TagIntType
 
       IMPLICIT NONE
 
@@ -102,21 +103,21 @@ MODULE UMatCache
 ! DFCOULOMB        4 - (ij|u|ab)= (ij|u|P)[(P|u|Q)^-1](Q|u|ab)
 
       ! Memory book-keeping tags
-      integer :: tagUMatCacheData=0
-      integer :: tagUMatLabels=0
-      integer :: tagOUMatCacheData=0
-      integer :: tagOUMatLabels=0
-      integer :: tagUMat2D=0
-      integer :: tagTMat2D=0
-      integer :: tagTMat2D2=0
-      integer :: tagTransTable=0
-      integer :: tagInvTransTable=0
-      integer :: tagDFCoeffs=0
-      integer :: tagDFInts=0
-      integer :: tagDFFitInts=0
-      integer :: tagDFInvFitInts=0
-      integer :: tagInvBRR=0
-      integer :: tagInvBRR2=0
+      integer(TagIntType) :: tagUMatCacheData=0
+      integer(TagIntType) :: tagUMatLabels=0
+      integer(TagIntType) :: tagOUMatCacheData=0
+      integer(TagIntType) :: tagOUMatLabels=0
+      integer(TagIntType) :: tagUMat2D=0
+      integer(TagIntType) :: tagTMat2D=0
+      integer(TagIntType) :: tagTMat2D2=0
+      integer(TagIntType) :: tagTransTable=0
+      integer(TagIntType) :: tagInvTransTable=0
+      integer(TagIntType) :: tagDFCoeffs=0
+      integer(TagIntType) :: tagDFInts=0
+      integer(TagIntType) :: tagDFFitInts=0
+      integer(TagIntType) :: tagDFInvFitInts=0
+      integer(TagIntType) :: tagInvBRR=0
+      integer(TagIntType) :: tagInvBRR2=0
 
       Contains
 
@@ -870,7 +871,7 @@ MODULE UMatCache
          IMPLICIT NONE
          INTEGER NewBasis,OldBasis,iSS,ierr,OrbTrans(OldBasis),i,j
          HElement_t,POINTER :: NUMat2D(:,:)
-         integer :: tagNUMat2D=0
+         integer(TagIntType) :: tagNUMat2D=0
          character(len=*),parameter :: thisroutine='FreezeUMat2D'
 
          Allocate(NUMat2D(NewBasis/iSS,NewBasis/iSS),STAT=ierr)
@@ -901,7 +902,7 @@ MODULE UMatCache
          IMPLICIT NONE
          INTEGER nOld,nNew,OrbTrans(nOld)
          HElement_t,Pointer :: NUMat2D(:,:) !(nNew/2,nNew/2)
-         integer :: tagNUMat2D=0
+         integer(TagIntType) :: tagNUMat2D=0
          HElement_t El(0:nTypes-1)
          INTEGER i,j,k,l,m,n
          INTEGER ni,nj,nk,nl,nm,nn,A,B,iType

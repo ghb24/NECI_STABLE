@@ -274,6 +274,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          use Determinants, only: get_helement
          use sym_mod
          use constants, only: dp
+         use MemoryManager, only: TagIntType
          IMPLICIT NONE
          INTEGER NDET,NEL,NBLOCKS,NBLOCKSTARTS(NBLOCKS),NMRKS(NEL,NDET)
          INTEGER nBasisMax(5,*),NBASIS
@@ -288,7 +289,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          INTEGER I,NBLKMAX,NBLK,J,K,NBS,III,IFDET,L
          REAL*8 EXEN,GSEN,FLRI,FLSI,GSEN2
          REAL*8, ALLOCATABLE :: CK(:),W(:),WORK(:)
-         integer, save :: tagCK=0,tagW=0,tagWORK=0
+         integer(TagIntType), save :: tagCK=0,tagW=0,tagWORK=0
          REAL*8 ELOWEST,GOFE(NBASIS),EBIAS
          INTEGER GELOWEST,IDEG
          type(timer), save :: proc_timer

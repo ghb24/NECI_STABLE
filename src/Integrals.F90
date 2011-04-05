@@ -407,12 +407,13 @@ contains
       use SystemData, only: Omega,tAlpha,TBIN,tCPMD,tDFread,THFORDER,tRIIntegrals
       use SystemData, only: thub,tpbc,treadint,ttilt,TUEG,tVASP,tStarStore
       use SystemData, only: uhub, arr,alat,treal,tCacheFCIDUMPInts
+      use MemoryManager, only: TagIntType
       use sym_mod, only: GenSymStatePairs
       use read_fci
       use constants, only: Pi, Pi2, THIRD
       INTEGER iCacheFlag
       COMPLEX*16,ALLOCATABLE :: ZIA(:)
-      INTEGER,SAVE :: tagZIA=0
+      INTEGER(TagIntType),SAVE :: tagZIA=0
       INTEGER i!,j,k,l,idi,idj,idk,idl,Index1
       INTEGER TmatInt,UMatInt
       REAL*8 :: UMatMem
@@ -696,11 +697,12 @@ contains
       use SymData , only : TwoCycleSymGens
       use CalcData , only : tTruncInitiator,tDelayTruncInit
       use FciMCData , only : tDebug
+      use MemoryManager, only: TagIntType
       use global_utilities
       character(25), parameter ::this_routine='IntFreeze'            
 !//Locals
       HElement_t, pointer :: UMAT2(:)
-      INTEGER tagUMat2
+      INTEGER(TagIntType) tagUMat2
       INTEGER nOcc
       integer UMATInt
       integer nHG

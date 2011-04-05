@@ -2,6 +2,7 @@
         use Determinants, only: get_helement
         use sort_mod
         use constants, only: dp
+        use MemoryManager, only: TagIntType
         IMPLICIT NONE
       
 !.. ExcitInfo will contain all the info needed to work out the value of the star
@@ -11,8 +12,8 @@
 !.. ExcitInfo(J,2) = HIJ
          HElement_t, POINTER :: ExcitInfo(:,:)
          HElement_t, ALLOCATABLE, TARGET :: ExcitInfo2(:,:)
-         integer :: tagExcitInfo=0
-         integer :: tagExcitInfo2=0
+         integer(TagIntType) :: tagExcitInfo=0
+         integer(TagIntType) :: tagExcitInfo2=0
          HElement_t, ALLOCATABLE :: temprhos(:,:)
 
 !Offrho is used with TSumProd to store the original star off-diagonal elements when using TSumProd, which changes the values in EXCITINFO
@@ -31,8 +32,8 @@
 !Used with TSumProd, rhiiadd is the value to resum back into the root to account for quadruple excitations
          HElement_t :: rhiiadd
 
-         integer, save :: tagOnDiagProdRho=0,tagOffDiagProdRho=0,tagEXCITSTORE=0,tagOffrho=0,tagtemprhos=0
-         integer, save :: tagProdPositions=0
+         integer(TagIntType), save :: tagOnDiagProdRho=0,tagOffDiagProdRho=0,tagEXCITSTORE=0,tagOffrho=0,tagtemprhos=0
+         integer(TagIntType), save :: tagProdPositions=0
 
          contains
 !  A function to generate all possible excitations of a determinant and link them together in a star
@@ -419,8 +420,8 @@
             INTEGER, ALLOCATABLE :: nExcit2(:)
             REAL*8, ALLOCATABLE :: ExcitStarInfo(:,:),ExcitStarMat(:,:),WORK(:)
             REAL*8, ALLOCATABLE :: ExcitStarVals(:),ExcitStarVecs(:)
-            integer,save :: tagWORK=0,tagExcitStarVals=0,tagExcitStarMat=0
-            integer,save :: tagExcitStarInfo=0
+            integer(TagIntType),save :: tagWORK=0,tagExcitStarVals=0,tagExcitStarMat=0
+            integer(TagIntType),save :: tagExcitStarInfo=0
             LOGICAL :: HFFound
             character(*), parameter :: this_routine='CalcExcitStar'
             
@@ -680,7 +681,7 @@
             REAL*8 :: gap,minimum
             REAL*8, ALLOCATABLE :: Vals(:),Vecs(:),DiagRhos(:)
             HElement_t :: tmp(3)
-            integer, save :: tagDegenPos=0
+            integer(TagIntType), save :: tagDegenPos=0
             character(*), parameter :: this_routine='GraphRootChange'
 
 !            OPEN(47,FILE='Differences',STATUS='UNKNOWN')
@@ -919,7 +920,7 @@
             type(timer), save :: proc_timer
             REAL*8, ALLOCATABLE :: NewDiagRhos(:),Vals(:),Vecs(:)
             HElement_t, ALLOCATABLE :: NewOffDiagRhos(:)
-            integer, save :: tagVals=0,tagVecs=0,tagNewDiagRhos=0,tagNewOffDiagRhos=0
+            integer(TagIntType), save :: tagVals=0,tagVecs=0,tagNewDiagRhos=0,tagNewOffDiagRhos=0
             REAL*8 :: RhoValue,RhoEps,OffRhoValue
             HElement_t :: Rhoia
             LOGICAL :: FoundRoot
@@ -1049,7 +1050,7 @@
             REAL*8 :: MeanVal,Sxx,Sxy,Syy,GradVal,IncptVal,ExpctVal,Rsq,Vector,PreVec,lowrhojj
             LOGICAL :: ReachMax
             REAL*8, ALLOCATABLE :: AllVals(:),AllVecs(:),DiagRhos(:)
-            integer, save :: tagAllVals=0,tagAllVecs=0,tagDiagRhos=0
+            integer(TagIntType), save :: tagAllVals=0,tagAllVecs=0,tagDiagRhos=0
             HElement_t :: tmp(3)
             character(*), parameter :: this_routine='GetLinRootChangeStars'
 
@@ -1332,12 +1333,12 @@
             REAL*8, ALLOCATABLE :: RsqVals(:),RsqVecs(:),ExpctVals(:),ExpctVecs(:),IncptVals(:)
             REAL*8, ALLOCATABLE :: IncptVecs(:),SxyVals(:),SxyVecs(:)
             REAL*8, ALLOCATABLE :: SyyVals(:),SyyVecs(:),MeanVals(:),MeanVecs(:),GradVals(:),GradVecs(:)
-            integer, save :: tagVecsDODMS=0
-            integer, save :: tagValsDODMS=0
-            integer, save :: tagRsqVals=0,tagRsqVecs=0,tagExpctVals=0,tagExpctVecs=0,tagIncptVals=0
-            integer, save :: tagIncptVecs=0,tagSxyVals=0,tagSxyVecs=0
-            integer, save :: tagSyyVecs=0,tagSyyVals=0,tagMeanVals=0,tagMeanVecs=0,tagGradVals=0,tagGradVecs=0
-            integer, save :: tagNewDiagRhos=0
+            integer(TagIntType), save :: tagVecsDODMS=0
+            integer(TagIntType), save :: tagValsDODMS=0
+            integer(TagIntType), save :: tagRsqVals=0,tagRsqVecs=0,tagExpctVals=0,tagExpctVecs=0,tagIncptVals=0
+            integer(TagIntType), save :: tagIncptVecs=0,tagSxyVals=0,tagSxyVecs=0
+            integer(TagIntType), save :: tagSyyVecs=0,tagSyyVals=0,tagMeanVals=0,tagMeanVecs=0,tagGradVals=0,tagGradVecs=0
+            integer(TagIntType), save :: tagNewDiagRhos=0
             character(*), parameter :: this_routine='GetLinStarStars'
 
             proc_timer%timer_name='GetLinStarStars'
@@ -1750,7 +1751,7 @@
             REAL*8 :: DiagRhos(1:Dimen),Vals(Dimen),Vecs(Dimen)
             HElement_t :: OffDiagRhos(2:Dimen)
             REAL*8, ALLOCATABLE :: StarMat(:,:),WORK(:)
-            integer, save :: tagStarMat=0,tagWORK=0
+            integer(TagIntType), save :: tagStarMat=0,tagWORK=0
             character(*), parameter :: this_routine='GetValsnVecs'
 
 !Construct matrix - remember that the first element of OffDiagRhos now is the first offdiagonal element for the excitation, not root.
@@ -2037,6 +2038,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          use legacy_data, only: irat
          use HElem
          use util_mod, only: NECI_ICOPY
+        use MemoryManager, only: TagIntType
          IMPLICIT NONE
          INTEGER NEL,I_P,NBASISMAX(*),G1(*),NBASIS,NMSH,NMAX
          INTEGER NTAY,NWHTAY,LT
@@ -2052,7 +2054,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          INTEGER,ALLOCATABLE :: NLSTE(:,:)
          REAL*8,ALLOCATABLE ::  NLIST(:)
          INTEGER,ALLOCATABLE :: NICE(:)
-         INTEGER,SAVE :: tagNLSTE=0,tagNLIST=0,tagNICE=0
+         INTEGER(TagIntType),SAVE :: tagNLSTE=0,tagNLIST=0,tagNICE=0
          INTEGER :: err
 
 !.. This will contain all the info needed to work out the value of the
@@ -2195,13 +2197,14 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          use constants, only: dp
          use HElem
          use global_utilities
+        use MemoryManager, only: TagIntType
          IMPLICIT NONE
          INTEGER I_P
          INTEGER NLIST,ILMAX,ProdNum,TOTVERT
          REAL*8 OnDiagProdRho(ProdNum),OffDiagProdRho(2,ProdNum)
          REAL*8 LIST(ILMAX,0:2)
          REAL*8,ALLOCATABLE ::  RIJMAT(:),WLIST(:),WORK(:)
-         INTEGER, SAVE :: tagRIJMAT=0,tagWLIST=0,tagWORK=0
+         INTEGER(TagIntType), SAVE :: tagRIJMAT=0,tagWLIST=0,tagWORK=0
 
          type(timer), save :: proc_timer
          INTEGER WORKL,ProdPositions(2,ProdNum)
@@ -2298,15 +2301,16 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          use global_utilities
          use sort_mod
          use helem, only: helement_t_size
+        use MemoryManager, only: TagIntType
          IMPLICIT NONE
          INTEGER I_P
          INTEGER NLIST,ILMAX
          REAL*8 LIST(ILMAX,0:2)
          REAL*8,ALLOCATABLE ::  RIJMAT(:),WLIST(:),WORK(:)
-         INTEGER, SAVE :: tagRIJMAT=0,tagWLIST=0,tagWORK=0
+         INTEGER(TagIntType), SAVE :: tagRIJMAT=0,tagWLIST=0,tagWORK=0
          REAL*8, DIMENSION(:,:), POINTER :: AOFFDB
          REAL*8, DIMENSION(:), POINTER :: AONDB
-         integer, save :: tagAOFFDB,tagAONDB
+         integer(TagIntType), save :: tagAOFFDB,tagAONDB
          INTEGER IND,TOTVERT
          type(timer), save :: proc_timer
          INTEGER WORKL,PRODVERT,ierr
@@ -2442,6 +2446,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          use sort_mod
          use StarDiagData, only: star_walker
          use helem, only: helement_t_size
+        use MemoryManager, only: TagIntType
          IMPLICIT NONE
          CHARACTER(len=*), PARAMETER :: this_routine='StarDiagMC'
          INTEGER :: i,j,NList,ILMax,ierr,WorkL,toprint,PreviousNMCyc
@@ -2449,7 +2454,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          type(timer), save :: proc_timer
          INTEGER :: TotWalkers,Seed,VecSlot,TotWalkersNew,DetCurr,ReadWalkers
          INTEGER :: MaxWalkers,TotWalkersOld,NWalk,k,l,TotWalkersDet
-         INTEGER :: HMatTag=0,WListTag=0,WorkTag=0,WalkVecTag=0,WalkVec2Tag=0
+         INTEGER(TagIntType) :: HMatTag=0,WListTag=0,WorkTag=0,WalkVecTag=0,WalkVec2Tag=0
          INTEGER :: SumNoatHF
          REAL*8 :: List(ILMax,0:2),SI,DLWDB,MaxDiag,Ran2,Norm,GrowRate
          REAL*8 :: rat,SumENum,ProjectionE
@@ -3054,6 +3059,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          USE DetCalcData , only : B2L,nBlk,nKry,NEval
          USE global_utilities
          use HElem
+        use MemoryManager, only: TagIntType
          IMPLICIT NONE
          CHARACTER(len=*), PARAMETER :: this_routine='StarDiagLanc'
          INTEGER :: i_P,NList,ILMax,i,j,LenMat,ICMax
@@ -3061,10 +3067,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          REAL*8 :: List(ILMax,0:2)
          REAL*8 :: SI,DLWDB,DBeta
          LOGICAL :: TSeeded
-         INTEGER :: NCycle,NBlock,NKry1,LScr,LIScr,ierr,Work2Tag=0
-         INTEGER :: V2Tag=0,WTag=0,CKTag=0,CKNTag=0,AMTag=0,BMTag=0
-         INTEGER :: TTag=0,SCRTag=0,ISCRTag=0,IndexTag=0,WHTag=0
-         INTEGER :: LabTag=0,ATag=0,MatTag=0,NRowTag=0,VTag=0,WTTag=0
+         INTEGER :: NCycle,NBlock,NKry1,LScr,LIScr,ierr
+         INTEGER(TagIntType) :: V2Tag=0,WTag=0,CKTag=0,CKNTag=0,AMTag=0,BMTag=0,Work2Tag=0
+         INTEGER(TagIntType) :: TTag=0,SCRTag=0,ISCRTag=0,IndexTag=0,WHTag=0
+         INTEGER(TagIntType) :: LabTag=0,ATag=0,MatTag=0,NRowTag=0,VTag=0,WTTag=0
          REAL*8 , ALLOCATABLE :: Work2(:),WH(:),V2(:,:),W(:),A(:,:),V(:)
          REAL*8 , ALLOCATABLE :: AM(:),BM(:),T(:),WT(:),SCR(:)
          REAL*8 , ALLOCATABLE :: Mat(:),CK(:,:),CKN(:,:)
@@ -3249,12 +3255,13 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          use global_utilities
          use sort_mod
          use helem, only: helement_t_size
+        use MemoryManager, only: TagIntType
          IMPLICIT NONE
          INTEGER I_P
          INTEGER NLIST,ILMAX
          REAL*8 LIST(ILMAX,0:2)
          REAL*8,ALLOCATABLE ::  RIJMAT(:),WLIST(:),WORK(:)
-         INTEGER, SAVE :: tagRIJMAT=0,tagWLIST=0,tagWORK=0
+         INTEGER(TagIntType), SAVE :: tagRIJMAT=0,tagWLIST=0,tagWORK=0
          type(timer), save :: proc_timer
          INTEGER WORKL
          INTEGER*4 INFO

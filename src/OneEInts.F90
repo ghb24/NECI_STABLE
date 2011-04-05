@@ -10,6 +10,7 @@ module OneEInts
 
 use constants, only: dp
 use SystemData, only: TSTARSTORE,tUEG
+use MemoryManager, only: TagIntType
 
 implicit none
 
@@ -37,9 +38,9 @@ HElement_t, dimension(:,:), POINTER :: TMAT2D2
 logical tCPMDSymTMat
 
 ! Memory book-keeping tags
-integer :: tagTMat2D=0
-integer :: tagTMat2D2=0
-integer :: tagTMATSYM=0,tagTMATSYM2=0
+integer(TagIntType) :: tagTMat2D=0
+integer(TagIntType) :: tagTMat2D2=0
+integer(TagIntType) :: tagTMATSYM=0,tagTMATSYM2=0
 
 contains
 

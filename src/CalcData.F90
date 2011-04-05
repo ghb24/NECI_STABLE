@@ -1,6 +1,7 @@
 module CalcData
 
     use constants, only: dp
+    use MemoryManager, only: TagIntType
     implicit none
 
     save
@@ -74,7 +75,7 @@ REAL*8 :: PGenEpsilon
 
 !// additional from NECI.F
 INTEGER, Allocatable :: MCDet(:)
-INTEGER :: tagMCDet=0
+INTEGER(TagIntType) :: tagMCDet=0
 REAL*8 :: RHOEPS ! calculated from RHOEPSILON
 
 !// set if we include no triple-excitations as the 3rd vertex in 3+ vertex graphs.

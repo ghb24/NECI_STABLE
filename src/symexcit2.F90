@@ -330,6 +330,7 @@ MODULE SymExcit2
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: nSymPairProds,SymPairProds
+         use MemoryManager, only: TagIntType
          use sym_mod
          use global_utilities
          IMPLICIT NONE
@@ -342,7 +343,7 @@ MODULE SymExcit2
          TYPE(Symmetry) SymProds(0:*)
          INTEGER nBasisMax(5,*)
          TYPE(ExcitWeight), allocatable :: ews(:)
-         integer, save :: tagews=0
+         integer(TagIntType), save :: tagews=0
          INTEGER iLUT(*)
          INTEGER OrbPairs(2,*)
          INTEGER SymProdInd(2,3,1:*)

@@ -1274,7 +1274,7 @@ C.. A modified version of GENSYMEXCITIT2.  This has min and max electron 1 speci
          integer :: nel, nI(nel), nbasis, nmem(*), nJ(nel), ic, store(6)
          integer :: ilevel, iMinElec1, iMaxElec1
          type(basisfn) :: g1(nbasis)
-         logical : :tsetup
+         logical :: tsetup
          
          call gensymexcitit2par_worker (nI, nel, g1, nbasis, tSetup,
      &                      nmem, nJ, ic, store, ilevel, iminelec1,

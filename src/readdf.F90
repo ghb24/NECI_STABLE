@@ -381,13 +381,14 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          use constants, only: dp
          use UMatCache
          use global_utilities
+         use MemoryManager, only: TagIntType
          implicit none
          Real*8,Pointer :: M(:,:) !(nAuxBasis,nAuxBasis)
          Real*8 Eigenvalues(nAuxBasis),r,dPower
          Real*8 Work(3*nAuxBasis)
          integer Workl
          integer*4 info
-         integer, save :: tagM=0
+         integer(TagIntType), save :: tagM=0
          type(timer), save :: proc_timer
          character(*), parameter :: t_r='DFCalcInvFitInts'
          Integer i,j,ierr,k,iMinEigv
