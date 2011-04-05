@@ -772,15 +772,19 @@ contains
         integer, parameter :: max_per_proc = 1000
         integer(n_int) :: recv_dets(0:NIfTot,max_per_proc)
         integer :: proc_dets, start_pos, nsend, i, lms_tmp, p
-        type(timer), save :: s2_timer
+        integer :: bcast_tmp(2)
+        type(timer), save :: s2_timer, s2_timer_init
         integer(int64) :: ssq_sum
         logical, intent(in) :: only_init
 
 
         s2_timer%timer_name = 'S^2 star'
-        call set_timer (s2_timer)
-        write(6,*) 'STAR', only_init
-        call flush(6)
+        s2_timer_init%timer_name = 'S^2 init'
+        if (only_init) then
+            call set_timer(s2_timer_init)
+        else
+            call set_timer (s2_timer)
+        endif
 
         ssq_sum = 0
         do p = 0, nProcessors-1
@@ -811,6 +815,10 @@ contains
                         enddo
                         start_pos = i
                     endif
+                    bcast_tmp = (/nsend, start_pos/)
+                    call MPIBcast(bcast_tmp, p == iProcIndex)
+                    nsend = bcast_tmp(1)
+                    start_pos = bcast_tmp(2)
 
                 else
                     ! How many dets to send in this batch?
@@ -823,6 +831,10 @@ contains
                     ! Update list of received dets
                     if (p == iProcIndex) recv_dets(:,1:nsend) = &
                                     CurrentDets(:,start_pos:start_pos+nsend-1)
+
+                    ! Increment position
+                    start_pos = start_pos + nsend
+
                 endif
                 
                 ! Broadcast to all processors
@@ -834,9 +846,6 @@ contains
                     ssq_sum = ssq_sum + ssquared_contrib (recv_dets(:,i))
                 enddo
 
-                ! Increment position
-                start_pos = start_pos + nsend
-
             enddo
 
         enddo ! Loop over processors
@@ -844,8 +853,6 @@ contains
 
         ! Sum all of the s squared terms
         call MPISum_inplace (ssq_sum)
-        write(6,*) 'SSQ', ssq, norm_psi_squared
-        call flush(6)
         ssq = real(ssq_sum,dp) / norm_psi_squared
          
         ! TODO: n.b. This is a hack. LMS appears to contain -2Ms of the system
@@ -853,7 +860,11 @@ contains
         lms_tmp = -LMS
         ssq = ssq + real(lms_tmp * (lms_tmp + 2), dp) / 4
 
-        call halt_timer (s2_timer)
+        if (only_init) then
+            call halt_timer(s2_timer_init)
+        else
+            call halt_timer (s2_timer)
+        endif
 
     end function
 

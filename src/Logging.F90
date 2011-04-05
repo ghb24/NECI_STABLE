@@ -130,7 +130,7 @@ MODULE Logging
       tLogDets=.false.
       tCalcInstantS2 = .false.
       tCalcInstSCpts = .false.
-      instant_s2_multiplier = 0
+      instant_s2_multiplier = 1
 
 ! Feb08 defaults
       IF(Feb08) THEN
