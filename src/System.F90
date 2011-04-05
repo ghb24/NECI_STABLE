@@ -16,6 +16,7 @@ MODULE System
       use default_sets
       USE SymData, only: tAbelianFastExcitGen
       USE SymData, only: tStoreStateList
+      use OneEInts, only: tOneElecDiag 
       implicit none
 
       ! Default from SymExcitDataMod
@@ -24,6 +25,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tOneElecDiag=.false.
       tMCSizeTruncSpace=.false.
       iMCCalcTruncLev=0
       tOddS_HPHF=.false.
@@ -170,6 +172,7 @@ MODULE System
       USE input
       USE SymData, only: tAbelianFastExcitGen
       USE SymData, only: tStoreStateList
+      use OneEInts, only: tOneElecDiag 
       IMPLICIT NONE
       LOGICAL eof
       CHARACTER (LEN=100) w
@@ -243,6 +246,7 @@ MODULE System
           tReadInt=.true.
       case("UEG")
           TUEG = .true.
+          tOneElecDiag=.true.   !One electron integrals diagonal
       case("VASP")
           tVASP= .true.
       case("CPMD")
@@ -253,6 +257,7 @@ MODULE System
               THFORDER = .true.
           end select
       case("BOX")
+          tOneElecDiag=.true.   !One electron integrals diagonal
       case default
           call report("System type "//trim(w)//" not valid",.true.)
       end select

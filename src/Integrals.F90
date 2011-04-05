@@ -832,7 +832,7 @@ contains
     SUBROUTINE IntFREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE,           &
    &         G1,NBASISMAX,ISS,BRR,NFROZEN,NTFROZEN,NFROZENIN,NTFROZENIN,NEL)
        use constants, only: dp
-       use SystemData, only: Symmetry,BasisFN,BasisFNSize,arr,tagarr,tHub,tUEG
+       use SystemData, only: Symmetry,BasisFN,BasisFNSize,arr,tagarr,tHub
        use OneEInts
        USE UMatCache, only: FreezeTransfer,UMatCacheData,UMatInd,TUMat2D
        Use UMatCache, only: FreezeUMatCache, CreateInvBrr2,FreezeUMat2D, SetupUMatTransTable
@@ -1105,7 +1105,7 @@ contains
 !                           CALL FLUSH(6)
 !                           CALL Stop_All("","here 01")
                        ENDIF
-                       if(tUEG) then
+                       if(tOneElecDiag) then
                            if((IB.eq.JB).and.(IPB.eq.JPB)) then
                                TMAT2D2(IPB,1)=GetTMATEl(IB,JB)
                            endif
@@ -1126,7 +1126,7 @@ contains
    &                         GetNEWTMATEl(IPB,JPB)+GETUMATEL(IDA,IDI,IDA,IDJ)
                           ELSE
 !                             IF(IPB.eq.0.or.JPB.eq.0) CALL Stop_All("","here 02")
-                             if(tUEG) then
+                             if(tOneElecDiag) then
                                  if(IPB.eq.JPB) then
                                      TMAT2D2(IPB,1)=TMAT2D2(IPB,1)+GETUMATEL(IDA,IDI,IDA,IDJ)
                                  else
@@ -1146,7 +1146,7 @@ contains
                              TMATSYM2(NEWTMATInd(IPB,JPB))=GetNEWTMATEl(IPB,JPB) &
    &                         -GETUMATEL(IDA,IDI,IDJ,IDA)        
                           ELSE
-                              if(tUEG) then
+                              if(tOneElecDiag) then
                                   if(IPB.eq.JPB) then
                                       TMAT2D2(IPB,1)=GetNEWTMATEl(IPB,JPB)              &
    &                                  -GETUMATEL(IDA,IDI,IDJ,IDA)
@@ -1175,7 +1175,7 @@ contains
                              TMATSYM2(NEWTMATInd(IPB,JPB))=                  &
    &                         GetNEWTMATEl(IPB,JPB)+GETUMATEL(IDA,IDI,IDA,IDJ)
                           ELSE
-                              if(tUEG) then
+                              if(tOneElecDiag) then
                                   if(IPB.eq.JPB) then
                                      TMAT2D2(IPB,1)=TMAT2D2(IPB,1)+GETUMATEL(IDA,IDI,IDA,IDJ)
                                  else
@@ -1196,7 +1196,7 @@ contains
                              TMATSYM2(NEWTMATInd(IPB,JPB))=GetNEWTMATEl(IPB,JPB) &
    &                         -GETUMATEL(IDA,IDI,IDJ,IDA)        
                           ELSE
-                              if(tUEG) then
+                              if(tOneElecDiag) then
                                   if(IPB.eq.JPB) then
                                      TMAT2D2(IPB,1)=GetNEWTMATEl(IPB,JPB)              &
    &                                 -GETUMATEL(IDA,IDI,IDJ,IDA)
