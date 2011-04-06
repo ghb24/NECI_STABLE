@@ -1,6 +1,7 @@
 module SystemData
 
     use constants, only: n_int
+    use MemoryManager, only: TagIntType
 
 implicit none
 
@@ -84,6 +85,10 @@ real*8 :: gCutoff ! Spherical cutoff for the momentum transfer vector
 logical :: tMP2UEGRestrict ! Restricts the MP2 sum over a single electron pair, specified by: 
 integer :: kiRestrict(3), kjRestrict(3) ! ki/kj pair
 integer :: kiMsRestrict, kjMsRestrict ! and their spins
+logical :: tMadelung ! turning on self-interaction term
+real*8 :: Madelung ! variable storage for self-interaction term
+logical :: tUEGFreeze ! Freeze core electrons for the UEG, a crude hack for this to work-around freezing not working for UEG
+real*8 :: FreezeCutoff
 
 ! For the UEG, we damp the exchange interactions.
 !    0 means none
@@ -159,14 +164,14 @@ REAL*8 :: Beta
 !     spin-orbital (given the index scheme in use).
 ! Reallocated with the correct (new) size during freezing.
 REAL*8, pointer :: Arr(:,:) 
-INTEGER :: tagArr
+INTEGER(TagIntType) :: tagArr
 
 ! Lists orbitals in energy order. i.e. Brr(1) is the lowest energy orbital
 INTEGER, pointer :: BRR(:) 
-INTEGER :: tagBrr
+INTEGER(TagIntType) :: tagBrr
 
 Type(BasisFN), pointer :: G1(:)  ! Info about the basis functions.
-INTEGER :: tagG1
+INTEGER(TagIntType) :: tagG1
 
 INTEGER :: LMS2
 

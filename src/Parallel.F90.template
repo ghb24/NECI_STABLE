@@ -834,7 +834,8 @@ Subroutine MPIGatherV_auto2(v,v2,Lengths,Disps,ierr,Node)
 !    write(6,*) "Disps", DispsN
 !   write (6,*) %(mpiprt)s,ubound(values,%(ndim)s+1),lbound(values,%(ndim)s+1)
     call GetComm(Comm,Node,rt)
-    LengthIn = %(mpilen)s*(ubound(v,%(ndim)s+1)-lbound(v,%(ndim)s+1)+1)
+LengthIn=%(mpilen)s&
+*(ubound(v,%(ndim)s+1)-lbound(v,%(ndim)s+1)+1)
     CALL MPI_GatherV(V,int(LengthIn,MPIArg),&
       %(mpitype)s,V2,int(LengthsN,MPIArg),&
       int(DispsN,MPIArg),%(mpitype)s,int(rt,MPIArg),int(COMM,MPIArg),error)

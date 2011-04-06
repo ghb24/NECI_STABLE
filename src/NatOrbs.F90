@@ -17,11 +17,13 @@ MODULE NatOrbsMod
         USE RotateOrbsData , only : FillMP2VDM_Time,DiagNatOrbMat_Time,OrderCoeff_Time,FillCoeff_Time,NoFrozenVirt,SymLabelList3
         use sort_mod
         use bit_reps, only: decode_bit_det
+        use MemoryManager, only: TagIntType
         IMPLICIT NONE
-        INTEGER :: NoSpinCyc,SymOrbsTempTag
+        INTEGER(TagIntType) :: NoSpinCyc,SymOrbsTempTag
         REAL*8 , ALLOCATABLE :: NatOrbMat(:,:),Evalues(:)
         INTEGER , ALLOCATABLE :: SymOrbsTemp(:)
-        INTEGER :: NatOrbMatTag,ierr,EvaluesTag
+        INTEGER ierr
+        INTEGER(TagIntType) :: NatOrbMatTag,EvaluesTag
 
     contains
     
@@ -74,11 +76,12 @@ MODULE NatOrbsMod
 
 
     SUBROUTINE SetupNatOrbLabels()
+        use MemoryManager, only: TagIntType
         IMPLICIT NONE
         INTEGER :: x,i,j,ierr,NoOcc,StartFill01,StartFill02,Symi,SymCurr,Prev,EndFill01,EndFill02
         CHARACTER(len=*) , PARAMETER :: this_routine='SetupNatOrbLabels'
         INTEGER , ALLOCATABLE :: LabVirtOrbs(:),LabOccOrbs(:),SymVirtOrbs(:),SymOccOrbs(:)
-        INTEGER :: LabVirtOrbsTag,LabOccOrbsTag,SymVirtOrbsTag,SymOccOrbsTag
+        INTEGER(TagIntType) :: LabVirtOrbsTag,LabOccOrbsTag,SymVirtOrbsTag,SymOccOrbsTag
         integer :: lo, hi
         
 
@@ -790,11 +793,12 @@ MODULE NatOrbsMod
 ! The best way to do this is to order the orbitals so that all the alpha orbitals follow all the beta orbitals, with the 
 ! occupied orbitals first, in terms of symmetry, and the virtual second, also ordered by symmetry.
 ! This gives us flexibility w.r.t rotating only the occupied or only virtual and looking at high spin states.
+        use MemoryManager, only: TagIntType
         IMPLICIT NONE
         REAL*8 :: SumTrace,SumDiagTrace
         REAL*8 , ALLOCATABLE :: WORK2(:),EvaluesSym(:),NOMSym(:,:)
-        INTEGER :: ierr,i,j,x,z,Sym,LWORK2,WORK2Tag,SymStartInd,NoSymBlock,PrevSym,StartOccVirt,EndOccVirt,Prev,NoOcc
-        INTEGER :: EvaluesSymTag,NOMSymTag
+        INTEGER :: ierr,i,j,x,z,Sym,LWORK2,SymStartInd,NoSymBlock,PrevSym,StartOccVirt,EndOccVirt,Prev,NoOcc
+        INTEGER(TagIntType) :: EvaluesSymTag,NOMSymTag,WORK2Tag
         CHARACTER(len=*), PARAMETER :: this_routine='DiagNatOrbMat'
 
  
@@ -1747,6 +1751,67 @@ MODULE NatOrbsMod
 
     END SUBROUTINE PrintOrbOccs
 
+    SUBROUTINE PrintDoubUEGOccs(OrbOccs)
+! Based on PrintOrbOccs (above), but for PrintDoubsUEG
+! Histogram determinant populations for all doubles
+! This hopefully prints it all out
+        use util_mod, only: get_free_unit
+        IMPLICIT NONE
+        REAL*8 :: Norm,OrbOccs(nEl,nEl,nBasis,4),AllOrbOccs(nEl,nEl,nBasis,4)
+        INTEGER :: i,i2,i3,error, iunit
+        LOGICAL :: tWarning
+
+        AllOrbOccs = 0.D0
+
+        call MPISum(OrbOccs,AllOrbOccs)
+!#ifdef PARALLEL
+!        CALL MPI_Reduce(OrbOccs,AllOrbOccs,nEl*nEl*nBasis*4,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD,error)
+!#else
+!        AllOrbOccs=OrbOccs
+!#endif
+
+! Want to normalise the orbital contributions for convenience.        
+        tWarning=.false.
+        IF(iProcIndex.eq.0) THEN
+
+!            Norm=0.D0
+!            do i2=1,nEl
+!                do i3=1,nEl
+!                    do i=1,nBasis
+!                        Norm=Norm+AllOrbOccs(i2,i3,i,1)
+!                        !No need for this test at the moment
+!                        !IF((Norm.lt.0)) THEN
+!                        !    WRITE(6,*) 'WARNING: Integer overflow when calculating the orbital occupations.'
+!                        !    tWarning=.true.
+!                        !ENDIF
+!                    enddo
+!                enddo
+!            enddo
+!            IF(Norm.ne.0.D0) THEN
+!                do i2=1,nEl
+!                    do i3=1,nEl
+!                        do i=1,nBasis
+!                            AllOrbOccs(i2,i3,i,1)=AllOrbOccs(i2,i3,i,1)/Norm
+!                        enddo
+!                    enddo
+!                enddo
+!            ENDIF
+
+            iunit = get_free_unit()
+            OPEN(iunit,FILE='DOUBOCCUPATIONS',STATUS='UNKNOWN')
+!            WRITE(iunit,'(A15,A30)') '# Orbital no.','Normalised occupation'
+            IF(tWarning) WRITE(iunit,*) 'WARNING: INTEGER OVERFLOW OCCURRED WHEN CALCULATING THESE OCCUPATIONS'
+            do i2=1,nEl
+                do i3=1,nEl
+                    do i=1,nBasis
+                        WRITE(iunit,'(I15,I15,I15,F30.10,F30.10,F30.10,F30.10)') i2,i3,i,AllOrbOccs(i2,i3,i,1),AllOrbOccs(i2,i3,i,2),AllOrbOccs(i2,i3,i,3),AllOrbOccs(i2,i3,i,4)
+                    enddo
+                enddo
+            enddo
+            CLOSE(iunit)
+        ENDIF
+
+    END SUBROUTINE PrintDoubUEGOccs
 
 
     SUBROUTINE DeallocateNatOrbs()
@@ -1806,6 +1871,7 @@ MODULE NatOrbsMod
 
 
     SUBROUTINE Diag1RDMOld()
+       use MemoryManager, only: TagIntType
 ! The diagonalisation routine reorders the orbitals in such a way that the corresponding orbital labels are lost.
 ! In order to keep the spin and spatial symmetries, each symmetry must be fed into the diagonalisation routine separately.
 ! The best way to do this is to order the orbitals so that all the alpha orbitals follow all the beta orbitals, with the 
@@ -1813,7 +1879,8 @@ MODULE NatOrbsMod
 ! This gives us flexibility w.r.t rotating only the occupied or only virtual and looking at high spin states.
         IMPLICIT NONE
         REAL*8 , ALLOCATABLE :: NOccNums(:),Work(:)
-        INTEGER :: nOccNumsTag=0,iErr,WorkSize,WorkCheck,WorkTag=0,i
+        INTEGER(TagIntType) :: nOccNumsTag=0,WorkTag=0
+        INTEGER :: iErr,WorkSize,WorkCheck,i
         CHARACTER(len=*), PARAMETER :: this_routine='Diag1RDM'
 
         ALLOCATE(NOccNums(nBasis),stat=ierr)

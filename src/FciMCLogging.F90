@@ -13,6 +13,7 @@ MODULE FciMCLoggingMod
     USE CalcData , only : NMCyc,StepsSft
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel
     use constants, only: dp,n_int
+    use MemoryManager, only: TagIntType
 
     IMPLICIT NONE
     save
@@ -22,8 +23,10 @@ MODULE FciMCLoggingMod
 
     REAL*8 , ALLOCATABLE :: CurrBlockSum(:),BlockSum(:),BlockSqrdSum(:)
     REAL*8 , ALLOCATABLE :: CurrShiftBlockSum(:),ShiftBlockSum(:),ShiftBlockSqrdSum(:)
-    INTEGER :: CurrBlockSumTag,BlockSumTag,BlockSqrdSumTag,TotNoBlockSizes,StartBlockIter
-    INTEGER :: CurrShiftBlockSumTag,ShiftBlockSumTag,ShiftBlockSqrdSumTag,TotNoShiftBlockSizes,StartShiftBlockIter
+    INTEGER(TagIntType) :: CurrBlockSumTag,BlockSumTag,BlockSqrdSumTag
+    INTEGER :: TotNoBlockSizes,StartBlockIter
+    INTEGER(TagIntType) :: CurrShiftBlockSumTag,ShiftBlockSumTag,ShiftBlockSqrdSumTag
+    INTEGER :: TotNoShiftBlockSizes,StartShiftBlockIter
 
 
 

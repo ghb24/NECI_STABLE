@@ -57,8 +57,10 @@ MODULE FciMCParMod
                        HistInitPopsTag, OrbOccs, OrbOccsTag, &
                        tPrintPopsDefault, iWriteBlockingEvery, &
                        tBlockEveryIteration, tHistInitPops, HistInitPopsIter,&
-                       HistInitPops, tRDMonFly, IterRDMonFly, &
+                       tRDMonFly, IterRDMonFly, &
                        RDMExcitLevel, tStochasticRDM, RDMEnergyIter, tFullRDM, tHF_S_D_Ref
+                       HistInitPops, DoubsUEG, DoubsUEGLookup, DoubsUEGStore, &
+                       tPrintDoubsUEG, StartPrintDoubsUEG
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
                     hist_spin_dist, ilut_spindist, tHistSpinDist, &
                     write_clear_hist_spin_dist, hist_spin_dist_iter, &
@@ -87,7 +89,7 @@ MODULE FciMCParMod
                                InitErrorBlocking, InitShiftErrorBlocking, &
                                SumInShiftErrorContrib
     use RotateOrbsMod, only: RotateOrbs
-    use NatOrbsMod, only: PrintOrbOccs
+    use NatOrbsMod, only: PrintOrbOccs,PrintDoubUEGOccs
     use spin_project, only: tSpinProject, spin_proj_interval, &
                             spin_proj_gamma, get_spawn_helement_spin_proj, &
                             generate_excit_spin_proj, attempt_die_spin_proj, &
@@ -106,10 +108,13 @@ MODULE FciMCParMod
     contains
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
+!        use Timing, only: get_total_time
+!        use SystemData, only: proc_timer
         real(dp) :: Weight, Energyxw
         INTEGER :: error
         LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange,tPrintWarn
-        REAL(4) :: s,etime,tstart(2),tend(2)
+        REAL(4) :: s,etime,tstart(2),tend(2),totaltime
+        real(dp) :: TotalTime8
         INTEGER(int64) :: MaxWalkers,MinWalkers
         real*8 :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
         integer, dimension(lenof_sign) :: tmp_sgn
@@ -150,7 +155,8 @@ MODULE FciMCParMod
 !Main iteration loop...
 !            WRITE(6,*) 'Iter',Iter
 
-            s=etime(tstart)
+            if(iProcIndex.eq.root) s=etime(tstart)
+
             if (tCCMC) then
                 CALL PerformCCMCCycPar()
             else
@@ -180,19 +186,11 @@ MODULE FciMCParMod
                 enddo
             endif
 
-            s=etime(tend)
-            IterTime=IterTime+(tend(1)-tstart(1))
+            if(iProcIndex.eq.root) then
+                s=etime(tend)
+                IterTime=IterTime+(tend(1)-tstart(1))
+            endif
             
-!            IF(tBlockEveryIteration) THEN
-!                Inpair(1)=REAL(HFIter,dp)
-!                Inpair(2)=ENumIter
-!                CALL MPISumAll(Inpair,2,Outpair)
-!                IterEnergy=Outpair(2)/Outpair(1)
-!                IF(tErrorBlocking.and.(iProcIndex.eq.Root)) CALL SumInErrorContrib(Iter,Outpair(2),Outpair(1))
-!                ENumIter=0.D0
-!                HFIter=0
-!            ENDIF
-
             if (mod(Iter, StepsSft) == 0) then
 
                 ! Has there been a particle bloom this update cycle?
@@ -282,6 +280,17 @@ MODULE FciMCParMod
                     TIncrement=.false.
                     EXIT
                 ENDIF
+                IF(tTimeExit) THEN
+                    !Is it time to exit yet?
+                    TotalTime8=real(s,dp)
+                    call MPIBCast(TotalTime8)    !TotalTime is local
+!                    write(6,*) "TOTAL TIME = ",TotalTime8,s,tend(1),tend(2)
+                    if(TotalTime8.ge.MaxTimeExit) then
+                        write(6,"(A,F8.2,A)") "Time limit reached for simulation of: ",MaxTimeExit/60.0," minutes - exiting..."
+                        tIncrement=.false.
+                        EXIT
+                    endif
+                ENDIF
                 IF(tWritePopsFound) THEN
 !We have explicitly asked to write out the POPSFILE from the CHANGEVARS file.
                     CALL WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
@@ -290,7 +299,7 @@ MODULE FciMCParMod
                     CALL CalcApproxpDoubles()
                 ENDIF
             
-            endif
+            ENDIF   !Endif end of update cycle
 
 !            IF(mod(Iter,iWriteBlockingEvery).eq.0) THEN
 !                !Every 100 update cycles, write out a new blocking file.
@@ -352,6 +361,10 @@ MODULE FciMCParMod
         ENDIF
 
         IF(tRDMonFly) CALL FinaliseRDM()
+
+        IF(tPrintDoubsUEG) THEN
+            CALL PrintDoubUEGOccs(DoubsUEG)
+        ENDIF
 
 ! Print out some load balancing stats nicely to end.
         CALL MPIReduce(TotWalkers,MPI_MAX,MaxWalkers)
@@ -3100,7 +3113,14 @@ MODULE FciMCParMod
         call MPISumAll (SumWalkersCyc, AllSumWalkersCyc)
 
 !        WRITE(6,*) "***",iter_data%update_growth_tot,AllTotParts-AllTotPartsOld
-        ASSERTROOT(all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld))
+#ifdef __DEBUG
+        !Write this 'ASSERTROOT' out explicitly to avoid line lengths problems
+        if((iProcIndex.eq.Root).and.(.not.all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld))) then
+            call stop_all (this_routine, &
+                "Assertation failed: "//"all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld)")
+        endif
+#endif
+!        ASSERTROOT(all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld))
     
     end subroutine collate_iter_data
 
@@ -4993,7 +5013,11 @@ MODULE FciMCParMod
         integer :: PartInd, OpenOrbs, spatial_ic
         integer(n_int) :: iLutSym(0:NIfTot)
         logical tSuccess
+        integer :: iUEG1, iUEG2
         HElement_t :: HOffDiag
+        HElement_t :: HDoubDiag
+        integer :: DoubEx(2,2),DoubEx2(2,2),kDoub(3) ! For histogramming UEG doubles
+        logical :: tDoubParity,tDoubParity2 ! As above
 
         ! Are we performing a linear sum over various determinants?
         ! TODO: If we use this, function pointer it.
@@ -5093,6 +5117,49 @@ MODULE FciMCParMod
                                           + (real(wSign(1)) * real(wSign(1)))
             endif
         endif
+        
+        if (tPrintDoubsUEG) then
+            if (Iter.ge.StartPrintDoubsUEG) then
+                if (ExcitLevel.eq.2) then
+                    DoubEx2=0
+                    DoubEx2(1,1)=2
+                    call GetExcitation (ProjEDet,nI,NEl,DoubEx2,tDoubParity2)
+                    DoubEx=0
+                    DoubEx(1,1)=2
+                    call GetBitExcitation(iLutRef,ilut,DoubEx,tDoubParity)
+                    if (DoubEx2(1,1).ne.DoubEx(1,1) &
+                        .or. DoubEx2(1,2).ne.DoubEx(1,2) &
+                        .or. DoubEx2(2,2).ne.DoubEx(2,2) &
+                        .or. DoubEx2(2,1).ne.DoubEx(2,1) &
+                        .or. tDoubParity.neqv.tDoubParity2) then
+                        call stop_all("SumEContrib","GetBitExcitation doesn't agree with GetExcitation")
+                    endif
+                    iUEG1=0
+                    iUEG2=0
+                    iUEG1=DoubsUEGLookup(DoubEx(1,1))
+                    iUEG2=DoubsUEGLookup(DoubEx(1,2))
+                    if (iUEG1.eq.0.or.iUEG2.eq.0) call stop_all("SumEContrib","Array bounds issue")
+                    DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),1)=DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),1)+REAL(WSign(1))
+    ! Test against natural orbital generation. For a two electron system, this should just be the same 
+    ! as the nat orbs if WSign is squared
+    !                    DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),1)=DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),1)+(REAL(WSign(1))*REAL(WSign(1)))
+                    if (DoubsUEGStore(iUEG1,iUEG2,DoubEx(2,1))) then
+                        DoubsUEGStore(iUEG1,iUEG2,DoubEx(2,1))=.false.
+                        DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),2)=HOffDiag
+                        if(tHPHF) then
+                            HDoubDiag = hphf_off_diag_helement (nI,nI,ilut,ilut)
+                        else
+                            HDoubDiag = get_helement (nI,nI,0) !, iLutCurr, &
+                                                    ! iLutCurr)
+                        endif
+                        DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),3)=HDoubDiag
+                        kDoub=0
+                        kDoub=G1(DoubEx(2,1))%k
+                        DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),4)=REAL(kDoub(1))**2.D0+REAL(kDoub(2))**2.D0+REAL(kDoub(3))**2.D0
+                    endif
+                endif
+            endif
+        endif
 
     end subroutine SumEContrib
 
@@ -5108,7 +5175,7 @@ MODULE FciMCParMod
         use nElRDMMod, only: InitRDM
         INTEGER :: ierr,iunithead
         LOGICAL :: formpops,binpops
-        INTEGER :: error,MemoryAlloc,PopsVersion,WalkerListSize,j
+        INTEGER :: error,MemoryAlloc,PopsVersion,WalkerListSize,j,iLookup
         INTEGER, DIMENSION(lenof_sign) :: InitialSign
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
         integer :: ReadBatch    !This parameter determines the length of the array to batch read in walkers from a popsfile
@@ -5386,6 +5453,19 @@ MODULE FciMCParMod
             OrbOccs(:)=0.D0
         ENDIF
 
+        IF(tPrintDoubsUEG) THEN
+            ALLOCATE(DoubsUEG(NEl,NEl,nBasis,4),stat=ierr)
+            DoubsUEG(:,:,:,:)=0.D0
+            ALLOCATE(DoubsUEGLookup(nBasis),stat=ierr)
+            DoubsUEGLookup(:)=0
+            ALLOCATE(DoubsUEGStore(NEl,NEl,nBasis),stat=ierr)
+            DoubsUEGStore(:,:,:)=.true.
+!Add LogMemAllocs
+            do iLookup=1,NEl                    
+                DoubsUEGLookup(HFDet(iLookup))=iLookup
+            enddo
+        ENDIF
+
         IF(tHistInitPops) THEN
             CALL InitHistInitPops()
         ENDIF
@@ -5436,7 +5516,7 @@ MODULE FciMCParMod
         logical :: tMC,TestClosedShellDet
         HElement_t :: HDiagTemp
         real(dp) , allocatable :: CK(:,:),W(:),CKN(:,:),Hamil(:),A(:,:),V(:),BM(:),T(:),WT(:),SCR(:),WH(:),Work2(:),V2(:,:),AM(:)
-        integer :: ATag=0,VTag=0,BMTag=0,TTag=0,WTTag=0,SCRTag=0,WHTag=0,Work2Tag=0,V2Tag=0,ISCRTag=0,IndexTag=0,AMTag=0
+        integer(TagIntType) :: ATag=0,VTag=0,BMTag=0,TTag=0,WTTag=0,SCRTag=0,WHTag=0,Work2Tag=0,V2Tag=0,ISCRTag=0,IndexTag=0,AMTag=0
         real(dp) :: CASRefEnergy,TotWeight,PartFac,amp,rat,r,GetHElement
         integer , dimension(lenof_sign) :: temp_sign
         character(len=*) , parameter :: this_routine='InitFCIMC_CAS'
@@ -5987,11 +6067,13 @@ MODULE FciMCParMod
     subroutine CalcUEGMP2()
         use SymExcitDataMod, only: kPointToBasisFn
         use SystemData, only: ElecPairs,NMAXX,NMAXY,NMAXZ,OrbECutOff,tGCutoff,GCutoff, &
-                                tMP2UEGRestrict,kiRestrict,kiMsRestrict,kjRestrict,kjMsRestrict
+                                tMP2UEGRestrict,kiRestrict,kiMsRestrict,kjRestrict,kjMsRestrict, &
+                                Madelung,tMadelung,tUEGFreeze,FreezeCutoff
         use GenRandSymExcitNUMod, only: FindNewDet
         use Determinants, only: GetH0Element4, get_helement_excit
         integer :: Ki(3),Kj(3),Ka(3),LowLoop,HighLoop,X,i,Elec1Ind,Elec2Ind,K,Orbi,Orbj
         integer :: iSpn,FirstA,nJ(NEl),a,Ex(2,2),kx,ky,kz,OrbB,FirstB
+        integer :: ki2,kj2
         logical :: tParity,tMom
         real*8 :: Ranger,mp2,mp2all,length,length_g,length_g_2
         HElement_t :: hel,H0tmp
@@ -6019,6 +6101,11 @@ MODULE FciMCParMod
             Orbj=HFDet(Elec2Ind)
             Ki=G1(Orbi)%k
             Kj=G1(Orbj)%k
+            if (tUEGFreeze) then
+                ki2=ki(1)**2+ki(2)**2+ki(3)**2
+                kj2=kj(1)**2+kj(2)**2+kj(3)**2
+                if (.not.(ki2.gt.FreezeCutoff.and.kj2.gt.FreezeCutoff)) cycle
+            endif
             if (tMP2UEGRestrict) then
                 if (.not. ( &
                 ( kiRestrict(1).eq.ki(1).and.kiRestrict(2).eq.ki(2).and.kiRestrict(3).eq.ki(3) .and. & 
@@ -6098,6 +6185,9 @@ MODULE FciMCParMod
 
                     H0tmp=getH0Element4(nJ,HFDet)
                     H0tmp=Fii-H0tmp
+                    if(tMadelung) then
+                        H0tmp=H0tmp+Madelung
+                    endif
                     mp2=mp2+(hel**2)/H0tmp
 !                    write(6,*) (hel**2),H0tmp
                 enddo
@@ -6147,6 +6237,9 @@ MODULE FciMCParMod
                     hel=get_helement_excit(HFDet,nJ,2,Ex,tParity)
                     H0tmp=getH0Element4(nJ,HFDet)
                     H0tmp=Fii-H0tmp
+                    if(tMadelung) then
+                        H0tmp=H0tmp+Madelung
+                    endif
                     mp2=mp2+(hel**2)/H0tmp
 !                    write(6,*) (hel**2),H0tmp
                 enddo
@@ -6303,6 +6396,10 @@ MODULE FciMCParMod
         IF(tPrintOrbOcc) THEN
             DEALLOCATE(OrbOccs)
             CALL LogMemDeAlloc(this_routine,OrbOccsTag)
+        ENDIF
+        IF(tPrintDoubsUEG) THEN
+            DEALLOCATE(DoubsUEG)
+            DEALLOCATE(DoubsUEGLookup)
         ENDIF
 
         IF(tHistInitPops) THEN

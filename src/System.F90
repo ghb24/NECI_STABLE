@@ -16,6 +16,7 @@ MODULE System
       use default_sets
       USE SymData, only: tAbelianFastExcitGen
       USE SymData, only: tStoreStateList
+      use OneEInts, only: tOneElecDiag 
       implicit none
 
       ! Default from SymExcitDataMod
@@ -24,6 +25,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tOneElecDiag=.false.
       tMCSizeTruncSpace=.false.
       iMCCalcTruncLev=0
       tOddS_HPHF=.false.
@@ -97,6 +99,10 @@ MODULE System
       tOrbECutoff=.false.
       gCutoff=1e20 ! This shouldn't be used
       tgCutoff=.false.
+      tMadelung=.false.
+      Madelung=0.D0
+      tUEGFreeze=.false.
+      FreezeCutoff=1e20 ! This shouldn't be used
       tMP2UEGRestrict=.false.
       tStoreAsExcitations=.false.
       TBIN=.false.
@@ -166,6 +172,7 @@ MODULE System
       USE input
       USE SymData, only: tAbelianFastExcitGen
       USE SymData, only: tStoreStateList
+      use OneEInts, only: tOneElecDiag 
       IMPLICIT NONE
       LOGICAL eof
       CHARACTER (LEN=100) w
@@ -239,6 +246,7 @@ MODULE System
           tReadInt=.true.
       case("UEG")
           TUEG = .true.
+          tOneElecDiag=.true.   !One electron integrals diagonal
       case("VASP")
           tVASP= .true.
       case("CPMD")
@@ -249,6 +257,7 @@ MODULE System
               THFORDER = .true.
           end select
       case("BOX")
+          tOneElecDiag=.true.   !One electron integrals diagonal
       case default
           call report("System type "//trim(w)//" not valid",.true.)
       end select
@@ -379,6 +388,12 @@ MODULE System
         case("G-CUTOFF")
           tgCutoff=.true.
           call getf(gCutoff)
+        case("FREEZE-CUTOFF")
+            tUEGFreeze=.true.
+            call getf(FreezeCutoff)
+        case("MADELUNG")
+          tMadelung=.true.
+          call getf(Madelung)
         case("STORE-AS-EXCITATIONS")
            tStoreAsExcitations=.true.  
         case("MP2-UEG-RESTRICT")
@@ -1483,10 +1498,11 @@ SUBROUTINE WRITEBASIS(NUNIT,G1,NHG,ARR,BRR)
       WRITE(NUNIT,'(I4)',advance='no') G1(BRR(I))%Ml
       WRITE(NUNIT,'(2F19.9)', advance='no')  ARR(I,1),ARR(BRR(I),2)
       if (associated(fdet)) then
-          do while (pos < nel .and. fdet(pos) < i)
+          pos=1
+          do while (pos < nel .and. fdet(pos) < brr(i))
               pos = pos + 1
           enddo
-          if (i == fdet(pos)) write (nunit, '(" #")', advance='no')
+          if (brr(i) == fdet(pos)) write (nunit, '(" #")', advance='no')
       endif
       write (nunit,*)
   ENDDO

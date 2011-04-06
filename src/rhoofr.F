@@ -1,10 +1,11 @@
       SUBROUTINE NECI_RHOOFR(NHG,CK,G1,RHO,NMSH,SITAB,NMAX,NMRKS,
      &                       NEL,NDET,NEVAL,RS,ALAT,OMEGA)
       use global_utilities
+      use MemoryManager, only: TagIntType
       IMPLICIT REAL*8 (A-H,O-Z)
 C..
       real*8, allocatable, save :: CFS(:) ! NDET
-      integer, save :: tagCFS=0
+      integer(TagIntType), save :: tagCFS=0
 C..
       INTEGER G1(*)
       DIMENSION CK(NDET,NEVAL),NMRKS(NEL,*)
