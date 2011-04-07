@@ -2,14 +2,15 @@
      &    NMRKS,G1,CK,NMAXX,NMAXY,NMAXZ,SUMA)
       use SystemData, only: BasisFN
       use global_utilities
+      use MemoryManager, only: TagIntType
       IMPLICIT REAL*8 (A-H,O-Z)
       REAL*8, ALLOCATABLE :: FODM(:,:),Z(:,:),W(:)
 C..Diagonalisation vectors
       REAL*8, ALLOCATABLE :: WORK(:)
       REAL*8, ALLOCATABLE :: IWORK(:),IFAIL(:)
-      integer, save :: tagFODM=0,tagZ=0,tagW=0
-      integer, save :: tagWORK=0
-      integer, save :: tagIWORK=0,tagIFAIL=0
+      integer(TagIntType), save :: tagFODM=0,tagZ=0,tagW=0
+      integer(TagIntType), save :: tagWORK=0
+      integer(TagIntType), save :: tagIWORK=0,tagIFAIL=0
 
       DIMENSION CK(NDET,NEVAL),NMRKS(NEL,*)
       DIMENSION N1E(NHG),N2E(NHG)

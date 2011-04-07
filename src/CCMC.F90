@@ -2219,7 +2219,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandaloneParticle'
    TYPE(AmplitudeList_bitrep),target :: AL
    INTEGER(kind=n_int), pointer :: DetList(:,:)
-   INTEGER  tagDetList
+   INTEGER(TagIntType) ::  tagDetList
 
    INTEGER iNumExcitors          ! The number of non-zero excitors (excluding the ref det)
    REAL*8 dTotAbsAmpl            ! The total of the absolute amplitudes
@@ -2250,7 +2250,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    INTEGER, parameter :: iCurAmpList=1     !Just for futureproofness at the moment - there is only one
    
    INTEGER(kind=n_int), allocatable, target :: SpawnList(:,:)
-   INTEGER tagSpawnList
+   INTEGER(TagIntType) ::  tagSpawnList
    INTEGER nSpawned,nMaxSpawn
 
    LOGICAL tS

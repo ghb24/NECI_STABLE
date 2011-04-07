@@ -10,6 +10,7 @@ module OneEInts
 
 use constants, only: dp
 use SystemData, only: TSTARSTORE
+use MemoryManager, only: TagIntType
 
 implicit none
 
@@ -39,9 +40,9 @@ logical tOneElecDiag    !Indicates that the one-electron integral matrix is diag
                         !basis functions are eigenstates of KE operator.
 
 ! Memory book-keeping tags
-integer :: tagTMat2D=0
-integer :: tagTMat2D2=0
-integer :: tagTMATSYM=0,tagTMATSYM2=0
+integer(TagIntType) :: tagTMat2D=0
+integer(TagIntType) :: tagTMat2D2=0
+integer(TagIntType) :: tagTMATSYM=0,tagTMATSYM2=0
 
 contains
 

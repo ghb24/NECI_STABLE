@@ -3,10 +3,11 @@
      &    NHG,IXD,IYD,IZD,RHO,TCOMPLETE,XCHOLE,SPAC,ALAT,OMEGA,
      &    NMRKS,NDET,NEVAL,NEL)
       use global_utilities
+      use MemoryManager, only: TagIntType
       IMPLICIT REAL*8 (A-H,O-Z)
 C..
       REAL*8,ALLOCATABLE,SAVE :: CFXCS(:)
-      integer, save :: tagCFXCS=0
+      integer(TagIntType), save :: tagCFXCS=0
       DIMENSION CIJKL(NDET,NEVAL),NMRKS(NEL,*)
       DIMENSION RHO(NMSH,NMSH,NMSH),XCHOLE(NMSH,NMSH,NMSH)
       DIMENSION AUXC(NMSH,NMSH,NMSH)

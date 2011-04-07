@@ -6,6 +6,7 @@
          use sym_mod, only: lchksymd
          use SystemData, only: BasisFn
          use util_mod, only: NECI_ICOPY
+         use MemoryManager, only: TagIntType
          IMPLICIT NONE
          REAL*8 BETA,FCK(*),ALAT(3),UMAT(*),ECORE
          INTEGER I_P,BRR(NBASIS),NTAY,NMSH,NMAX
@@ -24,8 +25,8 @@
          INTEGER WORKL
          INTEGER*4 INFO
          REAL*8 WLRI,WLSI,SI
-         INTEGER,SAVE :: tagRIJMAT=0,tagWLIST=0,tagRJJLIST=0,tagWORK=0 
-         INTEGER,SAVE :: tagLSTE=0
+         INTEGER(TagIntType) ,SAVE :: tagRIJMAT=0,tagWLIST=0
+         INTEGER(TagIntType),SAVE :: tagLSTE=0,tagRJJLIST=0,tagWORK=0 
          type(timer), save :: proc_timer
          character(*),parameter :: thisroutine='WIRHODIAG'
          proc_timer%timer_name=thisroutine
@@ -148,6 +149,7 @@ C         ENDDO
          use global_utilities
          use legacy_data, only: irat
          use util_mod, only: NECI_ICOPY
+         use MemoryManager, only: TagIntType
          IMPLICIT NONE
          REAL*8 BETA,FCK(*),ALAT(3),UMAT(*),ECORE
          INTEGER I_P,BRR(NBASIS),NTAY,NMSH,NMAX
@@ -163,9 +165,9 @@ C         ENDDO
          REAL*8, ALLOCATABLE :: RIJMAT(:),WLIST(:),RJJLIST(:)
          REAL*8, ALLOCATABLE :: VARRAY(:)
          INTEGER, ALLOCATABLE :: LSTE(:,:),LSTP(:),WORK(:)
-         INTEGER, SAVE :: tagRIJMAT,tagWLIST,tagRJJLIST
-         INTEGER, SAVE :: tagVARRAY
-         INTEGER, SAVE :: tagLSTE,tagLSTP,tagWORK
+         INTEGER(TagIntType), SAVE :: tagRIJMAT,tagWLIST,tagRJJLIST
+         INTEGER(TagIntType), SAVE :: tagVARRAY
+         INTEGER(TagIntType), SAVE :: tagLSTE,tagLSTP,tagWORK
          type(timer), save :: proc_timer
          INTEGER err
          INTEGER WORKL

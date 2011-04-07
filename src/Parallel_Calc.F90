@@ -40,6 +40,7 @@ subroutine ParMP2(nI)
    use SymData, only: SymLabels
    use CPMDData, only: KPntInd
    use sym_mod
+   use MemoryManager, only: TagIntType
    IMPLICIT NONE
    integer :: nI(nEl)
    integer :: iMinElec, iMaxElec
@@ -57,7 +58,8 @@ subroutine ParMP2(nI)
    type(Symmetry) :: iSym1,iSym2
    type(Symmetry) :: iSym1Conj,iSym2Conj
    logical :: tSign
-   integer :: ierr,tag_Ex
+   integer :: ierr
+   integer(TagIntType) :: tag_Ex
    type(timer), save :: proc_timer
    character(*), parameter :: this_routine='ParMP2'
    logical :: dbg 
