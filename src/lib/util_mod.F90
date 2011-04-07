@@ -532,3 +532,15 @@ end module
 
 #endif
 
+#ifdef CRAY_ETIME
+
+    function etime (tarr) result (tret)
+        implicit none
+        real(4) :: tarr(2), tret, second
+
+        tret = second()
+        tarr = tret
+    end function
+
+#endif
+
