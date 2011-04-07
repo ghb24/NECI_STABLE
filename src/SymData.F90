@@ -7,6 +7,7 @@ module SymData
     use SystemData, only: BasisFn, Symmetry, SymmetrySize, assignment(=), &
                           operator(.eq.), operator(.ne.), operator(.gt.), &
                           operator(.lt.)
+    use MemoryManager, only: TagIntType
 
     implicit none
 
@@ -170,26 +171,26 @@ module SymData
 
 
     ! Memory logging tags.
-    INTEGER :: tagKPntSym 
-    INTEGER :: tagSymConjTab
-    INTEGER :: tagSYMTABLE
-    INTEGER :: tagSYMREPS 
-    INTEGER :: tagSYMLABELS
-    INTEGER :: tagStateSymMap
-    INTEGER :: tagStateSymMap2
-    INTEGER :: tagSymClasses
-    INTEGER :: tagSymClasses2
-    INTEGER :: tagSYMLABELCHARS
-    INTEGER :: tagSYMLABELLIST
-    INTEGER :: tagSYMLABELCOUNTS
-    INTEGER :: tagSYMLABELCOUNTSCUM
-    INTEGER :: tagSYMLABELINTSCUM
-    INTEGER :: tagSYMLABELCOUNTSCUM2
-    INTEGER :: tagSYMLABELINTSCUM2
-    INTEGER :: tagIRREPCHARS
-    INTEGER :: tagSymStatePairs
-    INTEGER :: tagSymPairProds
-    integer :: tagSymIndex=0, tagSymIndex2=0
+    INTEGER(TagIntType) :: tagKPntSym 
+    INTEGER(TagIntType) :: tagSymConjTab
+    INTEGER(TagIntType) :: tagSYMTABLE
+    INTEGER(TagIntType) :: tagSYMREPS 
+    INTEGER(TagIntType) :: tagSYMLABELS
+    INTEGER(TagIntType) :: tagStateSymMap
+    INTEGER(TagIntType) :: tagStateSymMap2
+    INTEGER(TagIntType) :: tagSymClasses
+    INTEGER(TagIntType) :: tagSymClasses2
+    INTEGER(TagIntType) :: tagSYMLABELCHARS
+    INTEGER(TagIntType) :: tagSYMLABELLIST
+    INTEGER(TagIntType) :: tagSYMLABELCOUNTS
+    INTEGER(TagIntType) :: tagSYMLABELCOUNTSCUM
+    INTEGER(TagIntType) :: tagSYMLABELINTSCUM
+    INTEGER(TagIntType) :: tagSYMLABELCOUNTSCUM2
+    INTEGER(TagIntType) :: tagSYMLABELINTSCUM2
+    INTEGER(TagIntType) :: tagIRREPCHARS
+    INTEGER(TagIntType) :: tagSymStatePairs
+    INTEGER(TagIntType) :: tagSymPairProds
+    integer(TagIntType) :: tagSymIndex=0, tagSymIndex2=0
 
 contains
     elemental subroutine SymPairAssign (lhs, rhs)

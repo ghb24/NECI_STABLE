@@ -4,6 +4,7 @@ MODULE DetCalc
         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
         use sort_mod
         use DetCalcData
+        use MemoryManager, only: TagIntType
         
     IMPLICIT NONE
      save
@@ -18,16 +19,16 @@ MODULE DetCalc
       LOGICAL tCompressDets       !Set if once we've found the dets we compress to bit format
    
       TYPE(BasisFN), pointer :: BLOCKSYM(:)  !The Symmetry of each block.  nBlocks elements
-      INTEGER tagBlockSym
+      INTEGER(TagIntType) :: tagBlockSym
       INTEGER,ALLOCATABLE :: NBLOCKSTARTS(:) !Index of the first det of different symmetry blocks in the complete list of dets
-      INTEGER :: tagNBLOCKSTARTS=0
+      INTEGER(TagIntType) :: tagNBLOCKSTARTS=0
       INTEGER NBLOCKS                        !Number of Symmetry blocks
       HElement_t, pointer :: HAMIL(:)    !The Hamiltonian in compressed form.  Contains only non-zero elements.  The total number of elements is in LenHamil
-      INTEGER :: tagHamil=0
+      INTEGER(TagIntType) :: tagHamil=0
       INTEGER LenHamil                       !The Total number of non-zero elements in the compressed Hamiltonian
       INTEGER iFDet                       ! The index of the Fermi det in the list of dets.
       HElement_t, pointer :: CKN(:,:) !  (nDet,nEval)  Temporary storage for the Lanczos routine
-      INTEGER :: tagCKN=0
+      INTEGER(TagIntType) :: tagCKN=0
 
       REAL*8 , ALLOCATABLE :: ExpandedHamil(:,:)    ! (NDet,NDet) This is the hamiltonian in expanded form, so that it can be histogrammed against.
 
@@ -309,13 +310,14 @@ CONTAINS
       use legacy_data, only: irat
       use sym_mod
      use HElem
+        use MemoryManager, only: TagIntType
 
       REAL*8 , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),FCIGS(:)
       HElement_t, ALLOCATABLE :: WORK(:)
       INTEGER , ALLOCATABLE :: LAB(:),NROW(:),INDEX(:),ISCR(:),Temp(:)
 
-      integer :: LabTag=0,NRowTag=0,TKETag=0,ATag=0,VTag=0,AMTag=0,BMTag=0,TTag=0
-      INTEGER :: WTTag=0,SCRTag=0,ISCRTag=0,INDEXTag=0,WHTag=0,Work2Tag=0,V2Tag=0,WorkTag=0
+      integer(TagIntType) :: LabTag=0,NRowTag=0,TKETag=0,ATag=0,VTag=0,AMTag=0,BMTag=0,TTag=0
+      INTEGER(TagIntType) :: WTTag=0,SCRTag=0,ISCRTag=0,INDEXTag=0,WHTag=0,Work2Tag=0,V2Tag=0,WorkTag=0
       integer :: ierr,Lz
       character(25), parameter :: this_routine = 'DoDetCalc'
       REAL*8 EXEN,GSEN
@@ -878,7 +880,7 @@ CONTAINS
         REAL*8 SCRTCH
 
         REAL*8 , ALLOCATABLE :: DLINE(:),PSIR(:),RHO(:,:,:),SITAB(:,:),XCHOLE(:,:,:)!,SCRTCH()
-        INTEGER :: DLINETag=0,PSIRTag=0,RHOTag=0,SITABTag=0,XCHOLETag=0!SCRTCHTag=0
+        INTEGER(TagIntType) :: DLINETag=0,PSIRTag=0,RHOTag=0,SITABTag=0,XCHOLETag=0!SCRTCHTag=0
 
         character(25), parameter :: this_routine = 'CalcRhoOfR'
         INTEGER iXD, iYD, iZD,ierr
@@ -927,7 +929,7 @@ CONTAINS
         Use global_utilities
         use SystemData, only: G1, nBasis, nMaxX, nMaxY, nMaxZ, nEl
         REAL*8 , ALLOCATABLE :: SUMA(:,:,:)
-        INTEGER :: SUMATag=0
+        INTEGER(TagIntType) :: SUMATag=0
         INTEGER ISTATE,ierr
         character(25), parameter :: this_routine = 'CalcFoDM'
         ISTATE=0
@@ -953,6 +955,7 @@ END MODULE DetCalc
          use legacy_data, only: irat
          use Determinants, only: write_det
          use mcpaths, only: mcpathsr3
+        use MemoryManager, only: TagIntType
          implicit none
          character(25), parameter :: this_routine = 'CalcRhoPII2'
          INTEGER NEL,I_P,I_HMAX,I_VMAX,NDET,nBasisMax(5,*),nBasis
@@ -968,7 +971,7 @@ END MODULE DetCalc
          
          INTEGER, ALLOCATABLE :: LSTE(:,:,:),ICE(:,:)
          HElement_t , ALLOCATABLE :: RIJLIST(:,:)
-         INTEGER,SAVE :: RIJLISTTag=0,LSTEtag=0,ICEtag=0
+         INTEGER(TagIntType),SAVE :: RIJLISTTag=0,LSTEtag=0,ICEtag=0
          INTEGER NPATHS,ierr
          INTEGER III,NWHTAY(3,I_VMAX),IMAX,ILMAX
          real(dp) WLRI,WLSI

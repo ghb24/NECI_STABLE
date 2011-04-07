@@ -4,6 +4,7 @@ MODULE FciMCData
       use constants, only: dp, int64, n_int, lenof_sign
       use global_utilities
       use SymExcitDataMod, only: excit_gen_store_type
+      use MemoryManager, only: TagIntType
 
       implicit none
       save
@@ -20,9 +21,9 @@ MODULE FciMCData
       REAL(KIND=dp) , ALLOCATABLE , TARGET :: WalkVecH(:)                    !Diagonal hamiltonian element
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVec(:,:),SpawnVec2(:,:)
     
-      INTEGER :: WalkVecDetsTag=0
-      INTEGER :: WalkVecHTag=0
-      INTEGER :: SpawnVecTag=0,SpawnVec2Tag=0
+      INTEGER(TagIntType) :: WalkVecDetsTag=0
+      INTEGER(TagIntType) :: WalkVecHTag=0
+      INTEGER(TagIntType) :: SpawnVecTag=0,SpawnVec2Tag=0
 
 !Pointers to point at the correct arrays for use
       INTEGER(KIND=n_int) , POINTER :: CurrentDets(:,:)
@@ -31,7 +32,8 @@ MODULE FciMCData
 
       ! Be able to store a list of the current initiators
       integer(n_int), allocatable :: CurrentInits(:,:)
-      integer :: max_inits, CurrentInitTag=0
+      integer :: max_inits
+      integer(TagIntType) :: CurrentInitTag=0
 
       INTEGER :: NoAbortedInCAS,NoAbortedOutCAS,NoInCAS,NoOutCAS,HighPopNeg,HighPopPos,MaxInitPopNeg,MaxInitPopPos
 
@@ -53,7 +55,7 @@ MODULE FciMCData
       REAL*8 :: DiagSftRe,DiagSftIm     !For complex walkers - this is just for info - not used for population control.
     
       INTEGER , ALLOCATABLE :: HFDet(:)       !This will store the HF determinant
-      INTEGER :: HFDetTag=0
+      INTEGER(TagIntType) :: HFDetTag=0
 
       INTEGER :: MaxWalkersPart,PreviousNMCyc,Iter,NoComps,MaxWalkersAnnihil
       integer(int64) :: TotWalkers, TotWalkersOld
@@ -135,7 +137,7 @@ MODULE FciMCData
 !These are variables needed for the FixCASshift option in which an active space is chosen and the shift fixed only for determinants within this space
 !The SpinInvBRR vector stores the energy ordering for each spatial orbital, which is the inverse of the BRR vector
       INTEGER, ALLOCATABLE :: SpinInvBRR(:)
-      INTEGER :: SpinInvBRRTag=0
+      INTEGER(TagIntType) :: SpinInvBRRTag=0
       INTEGER :: CASmin=0,CASmax=0
 
       ! The approximate fraction of singles and doubles. This is calculated
@@ -161,7 +163,8 @@ MODULE FciMCData
       INTEGER :: MaxDet,iOffDiagNoBins
 
       INTEGER , ALLOCATABLE :: DoublesDets(:,:)
-      INTEGER :: DoublesDetsTag,NoDoubs
+      INTEGER(TagIntType) :: DoublesDetsTag
+      INTEGER :: NoDoubs
 
       INTEGER , ALLOCATABLE :: ValidSpawnedList(:) !This is used for the direct annihilation, and ValidSpawnedList(i) indicates the next free slot in the processor iProcIndex ( 0 -> nProcessors-1 )
       INTEGER , ALLOCATABLE :: InitialSpawnedSlots(:) !This is set up as the initial ValidSpawnedList elements, so that it does not need to be reevaluated each time.
@@ -211,7 +214,7 @@ MODULE FciMCData
       integer :: nproje_sum
       integer, allocatable :: proje_ref_dets(:,:), proje_ref_det_init(:)
       real(dp), allocatable :: proje_ref_coeffs(:)
-      integer :: tag_ref_iluts = 0, tag_ref_dets = 0, tag_ref_coeffs = 0
+      integer(TagIntType) :: tag_ref_iluts = 0, tag_ref_dets = 0, tag_ref_coeffs = 0
       real(dp) :: proje_denominator_cyc(lenof_sign)
       real(dp) :: proje_denominator_sum(lenof_sign)
       
