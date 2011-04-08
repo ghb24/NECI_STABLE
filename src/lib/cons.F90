@@ -19,6 +19,10 @@ real(dp), parameter ::  THIRD = 0.3333333333333333333333333333333333333333333333
 integer :: temp=0
 integer, parameter :: sizeof_int = bit_size(temp)/8 !Bytes in a standard unspecified integer
 
+!Unfortuntely bit_size only works on integers.  Let's assume (possibly unportably) that the size
+! of a logical is the same as the integer.
+integer, parameter :: sizeof_log = bit_size(temp)/8 !Bytes in a standard unspecified logical
+
 integer, parameter :: sizeof_int32 = 4
 integer, parameter :: sizeof_int64 = 8
 integer, parameter :: sizeof_dp = 8

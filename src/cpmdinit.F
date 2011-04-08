@@ -215,6 +215,7 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          use global_utilities
          use sort_mod
          use sym_mod
+         use MemoryManager, only: TagIntType
          IMPLICIT NONE
          INTEGER NHG
          HElement_t CPMD1EINT(NSTATES,NSTATES)
@@ -233,7 +234,7 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          complex*16,allocatable,save :: HarInt(:,:)
          INTEGER iCacheFlag
          ! For ZHEEV (eigenvalues of FockMatrix).
-         integer :: tagHarInt=0
+         integer(TagIntType) :: tagHarInt=0
          character(*), parameter :: this_routine='CPMDINIT2INDINT'
          proc_timer%timer_name='CPMDINIT2I'
          call set_timer(proc_timer)

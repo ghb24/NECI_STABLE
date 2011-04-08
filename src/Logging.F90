@@ -3,7 +3,7 @@
 MODULE Logging
 
     use input
-    use MemoryManager, only: LogMemAlloc, LogMemDealloc
+    use MemoryManager, only: LogMemAlloc, LogMemDealloc,TagIntType
     use SystemData, only: nel, LMS, nbasis, tHistSpinDist, nI_spindist, &
                           hist_spin_dist_iter
     use constants, only: n_int, size_n_int, bits_n_int
@@ -36,8 +36,8 @@ MODULE Logging
     LOGICAL tCCMCLogUniq !Do we log only unique clusters
     LOGICAL tSaveBlocking !Do not overwrite blocking files
     INTEGER iWriteBlockingEvery !How often to write out blocking files
-    INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs,NoTruncOrbsTag,TruncEvaluesTag,iWriteHamilEvery
-    INTEGER OrbOccsTag,HistInitPopsTag,AllHistInitPopsTag
+    INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs,iWriteHamilEvery
+    INTEGER(TagIntType)  OrbOccsTag,HistInitPopsTag,AllHistInitPopsTag,NoTruncOrbsTag,TruncEvaluesTag
     INTEGER , ALLOCATABLE :: NoTruncOrbs(:),HistInitPops(:,:),AllHistInitPops(:,:)
     REAL*8 , ALLOCATABLE :: TruncEvalues(:),OrbOccs(:),DoubsUEG(:,:,:,:),DoubsUEGLookup(:)
     LOGICAL, ALLOCATABLE :: DoubsUEGStore(:,:,:)

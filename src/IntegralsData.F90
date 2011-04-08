@@ -2,6 +2,7 @@ module IntegralsData
 
 use, intrinsic :: iso_c_binding
 use constants, only: dp
+use MemoryManager, only: TagIntType
 
 IMPLICIT NONE
 save
@@ -36,9 +37,9 @@ type(c_ptr) :: ptr_getumatel_2
 ! conjugations and storage implementations (eg with UMAT2D/UMatCache/etc) to be
 ! used as appropriate.
 HElement_t, pointer :: UMAT(:)      
-INTEGER :: tagUMat=0
+INTEGER(TagIntType) :: tagUMat=0
 COMPLEX*16,pointer :: FCK(:) => null()
-INTEGER :: tagFCK=0
+INTEGER(TagIntType) :: tagFCK=0
 INTEGER :: NMAX
 REAL*8 :: CST
 

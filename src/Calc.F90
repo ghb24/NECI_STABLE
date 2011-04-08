@@ -2012,13 +2012,14 @@ contains
          use Determinants, only: write_det
          use mcpaths, only: mcpathsr3
          use sym_mod
+         use MemoryManager, only: TagIntType
          IMPLICIT NONE
          INTEGER I_HMAX,NEL,NBASIS,I_VMAX
          INTEGER,ALLOCATABLE :: LSTE(:,:,:) !(NEL,NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)??!!
          INTEGER,ALLOCATABLE :: ICE(:,:)  !(NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)??!!
          HElement_t  UMAT(*)
          HElement_t,allocatable  :: RIJLIST(:,:)
-         integer,save :: tagRIJList=0,tagLSTE=0,tagICE=0
+         integer(TagIntType),save :: tagRIJList=0,tagLSTE=0,tagICE=0
          REAL*8 BETA,ALAT(3),RHOEPS
          COMPLEX*16 FCK(*)
          INTEGER NPATHS,NI(NEL),I_P,nBasisMax(5,*)

@@ -24,7 +24,9 @@ C.. Setup for symmetry routine below.
          allocate(DSTORE(SymClassSize*NEL+(nBasis/32)+1
      &      +SymmetrySize*(NEL*NEL+1)))
          STORE(1)=1 !Meaning the first element of DSTORE
-         CALL SYMSETUPEXCITS3(NI,NEL,G1,NBASIS,STORE,TCOUNT,
+         ! STORE(1) --> 
+         CALL SYMSETUPEXCITS3(NI,NEL,G1,NBASIS,STORE,STORE(1),
+     &      STORE(1),STORE(1),STORE(1),TCOUNT,
      &      ICOUNT,DSTORE(1),
      &      DSTORE(SymClassSize*NEL+1),
      &      DSTORE(SymClassSize*NEL+1+(nBasis/32)+1),ILEVEL,iMinElec1,
@@ -1274,7 +1276,7 @@ C.. A modified version of GENSYMEXCITIT2.  This has min and max electron 1 speci
          integer :: nel, nI(nel), nbasis, nmem(*), nJ(nel), ic, store(6)
          integer :: ilevel, iMinElec1, iMaxElec1
          type(basisfn) :: g1(nbasis)
-         logical : :tsetup
+         logical :: tsetup
          
          call gensymexcitit2par_worker (nI, nel, g1, nbasis, tSetup,
      &                      nmem, nJ, ic, store, ilevel, iminelec1,

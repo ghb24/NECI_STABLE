@@ -1,6 +1,7 @@
 module SystemData
 
     use constants, only: n_int
+    use MemoryManager, only: TagIntType
 
 implicit none
 
@@ -163,14 +164,14 @@ REAL*8 :: Beta
 !     spin-orbital (given the index scheme in use).
 ! Reallocated with the correct (new) size during freezing.
 REAL*8, pointer :: Arr(:,:) 
-INTEGER :: tagArr
+INTEGER(TagIntType) :: tagArr
 
 ! Lists orbitals in energy order. i.e. Brr(1) is the lowest energy orbital
 INTEGER, pointer :: BRR(:) 
-INTEGER :: tagBrr
+INTEGER(TagIntType) :: tagBrr
 
 Type(BasisFN), pointer :: G1(:)  ! Info about the basis functions.
-INTEGER :: tagG1
+INTEGER(TagIntType) :: tagG1
 
 INTEGER :: LMS2
 

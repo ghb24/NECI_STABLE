@@ -19,13 +19,14 @@ module AmpList
    use bit_rep_data, only: NIfDBO,NIfD,NIfTot
    use CCMCData, only: ExcitToDetSign,AddBitExcitor
    use Parallel
+   use MemoryManager, only: TagIntType
    implicit none
 
    type AmplitudeList_%(name)s
       %(type1)s, pointer ::   Amplitude(:,:)
       %(type1)s, pointer ::   CumlAmplitude(:)
-      integer tagAmplitude
-      integer tagCumlAmplitude
+      integer(TagIntType) :: tagAmplitude
+      integer(TagIntType) :: tagCumlAmplitude
       logical bShared
    end type
 
@@ -130,12 +131,13 @@ end module
 supermodule AmpList
 
    use constants, only: n_int
+   use MemoryManager, only: TagIntType
 
    type AmplitudeList_bitrep
       integer(kind=n_int), pointer, dimension(:,:) ::   BitReps
       integer, pointer ::   CumlAmplitude(:)
-      integer tagAmplitude
-      integer tagCumlAmplitude
+      integer(TagIntType) :: tagAmplitude
+      integer(TagIntType) :: tagCumlAmplitude
       logical bShared
    end type
 

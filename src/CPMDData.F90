@@ -2,6 +2,7 @@ module CPMDData
 
 ! Module for data required for the CPMD interface.
 ! Data passed from CPMD.
+      use MemoryManager ,only: TagIntType
 
       implicit none
 
@@ -83,17 +84,17 @@ module CPMDData
       INTEGER, ALLOCATABLE :: KPNTIND(:)        ! shape: (2*nkps*nStates)
 
       ! Memory logging tags.
-      INTEGER :: tagROT_CHAR=0
-      INTEGER :: tagEIGENVALUES=0
-      INTEGER :: tagPIInt=0
-      INTEGER :: tagTRANS_CHAR=0
-      INTEGER :: tagGROUP_CHAR=0
-      INTEGER :: tagTRANS_CHAR_TABLE=0
-      INTEGER :: tagKPNT_CHAR=0
-      INTEGER :: tagIMPROPER_OP=0
-      INTEGER :: tagK_VECTORS=0
-      INTEGER :: tagROT_LABEL=0
-      INTEGER :: tagTRANS_LABEL=0
-      INTEGER :: tagKPNTIND=0
+      INTEGER(TagIntType) :: tagROT_CHAR=0
+      INTEGER(TagIntType) :: tagEIGENVALUES=0
+      INTEGER(TagIntType) :: tagPIInt=0
+      INTEGER(TagIntType) :: tagTRANS_CHAR=0
+      INTEGER(TagIntType) :: tagGROUP_CHAR=0
+      INTEGER(TagIntType) :: tagTRANS_CHAR_TABLE=0
+      INTEGER(TagIntType) :: tagKPNT_CHAR=0
+      INTEGER(TagIntType) :: tagIMPROPER_OP=0
+      INTEGER(TagIntType) :: tagK_VECTORS=0
+      INTEGER(TagIntType) :: tagROT_LABEL=0
+      INTEGER(TagIntType) :: tagTRANS_LABEL=0
+      INTEGER(TagIntType) :: tagKPNTIND=0
 
 end module CPMDData

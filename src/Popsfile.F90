@@ -26,13 +26,15 @@ MODULE PopsfileMod
 !which can be read in in a single batch.
     SUBROUTINE ReadFromPopsfilev3(EndPopsList,ReadBatch,CurrWalkers64,CurrParts,CurrHF,Dets,DetsLen)
         use util_mod , only : get_unique_filename
+        use MemoryManager, only: TagIntType
         integer(8) , intent(in) :: EndPopsList  !Number of entries in the POPSFILE.
         integer , intent(in) :: ReadBatch       !Size of the batch of determinants to read in in one go.
         integer(int64) , intent(out) :: CurrWalkers64    !Number of determinants which end up on a given processor.
         integer(int64) , dimension(lenof_sign) , intent(out) :: CurrParts
         integer , dimension(lenof_sign) , intent(out) :: CurrHF
         integer :: CurrWalkers
-        integer :: iunit,i,j,BatchReadTag,ierr,PopsInitialSlots(0:nNodes-1)
+        integer :: iunit,i,j,ierr,PopsInitialSlots(0:nNodes-1)
+        INTEGER(TagIntType) :: BatchReadTag=0
         real(8) :: BatchSize
         integer :: PopsSendList(0:nNodes-1),proc,sendcounts(nNodes),disps(nNodes)
         integer :: MaxSendIndex,recvcount,err
@@ -418,13 +420,15 @@ MODULE PopsfileMod
         use util_mod, only: get_unique_filename, get_free_unit
         use CalcData, only: iPopsFileNoWrite
         use constants, only: size_n_int,MpiDetInt,n_int
+        use MemoryManager, only: TagIntType
         integer(int64),intent(in) :: nDets !The number of occupied entries in Dets
         integer(kind=n_int),intent(in) :: Dets(0:nIfTot,1:nDets)
         INTEGER :: error
         integer(int64) :: WalkersonNodes(0:nNodes-1)
-        INTEGER :: Tag,Total,i,j,k
+        INTEGER :: Tag
+        INTEGER :: Total,i,j,k
         INTEGER(KIND=n_int), ALLOCATABLE :: Parts(:,:)
-        INTEGER :: PartsTag=0
+        INTEGER(TagIntType) :: PartsTag=0
         INTEGER :: nMaxDets
         integer :: iunit
         CHARACTER(len=*) , PARAMETER :: this_routine='WriteToPopsfileParOneArr'
