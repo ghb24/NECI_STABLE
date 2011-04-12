@@ -2687,10 +2687,9 @@ MODULE FciMCParMod
                mean_walkers = AllTotWalkers / real(nNodes,dp)
                if (walkers_diff > nint(mean_walkers / 10.d0) .and. &
                    sum(AllTotParts) > real(nNodes * 500, dp)) then
-                   root_write (6, '(a, f20.10, 2i12)') &
-                       'Number of determinants assigned to each processor &
-                       &unbalanced: ', (walkers_diff * 10.d0) / &
-                       real(mean_walkers), MinWalkersProc, MaxWalkersProc
+                   root_write (6, '(a, i14,a,i11,a,i11)') &
+                       'Potential load-imbalance on iter ',iter,' Max walkers on core: ', &
+                       MaxWalkersProc,' Min walkers: ',MinWalkersProc
                endif
             endif
 
@@ -3036,8 +3035,8 @@ MODULE FciMCParMod
                 if ( (sum(AllTotParts) > tot_walkers) .or. &
                      (abs_int_sign(AllNoatHF) > MaxNoatHF)) then
 !                     WRITE(6,*) "AllTotParts: ",AllTotParts(1),AllTotParts(2),tot_walkers
-                    write (6, *) 'Exiting the single particle growth phase - &
-                                 &shift can now change'
+                    write (6, '(a,i13,a)') 'Exiting the single particle growth phase on iteration: ',iter, &
+                                 ' - Shift can now change'
                     VaryShiftIter = Iter
                     tSinglePartPhase = .false.
                     if(tSpawn_Only_Init.and.tSpawn_Only_Init_Grow) then
@@ -3047,8 +3046,8 @@ MODULE FciMCParMod
                     endif
                 endif
             elseif (abs_int_sign(AllNoatHF) < (MaxNoatHF - HFPopThresh)) then
-                write (6, *) 'No at HF has fallen too low - reentering the &
-                             &single particle growth phase - particle number &
+                write (6, '(a,i13,a)') 'No at HF has fallen too low - reentering the &
+                             &single particle growth phase on iteration',iter,' - particle number &
                              &may grow again.'
                 tSinglePartPhase = .true.
                 tReZeroShift = .true.
@@ -3072,7 +3071,7 @@ MODULE FciMCParMod
                 ! Update the shift averages
                 if ((iter - VaryShiftIter) >= nShiftEquilSteps) then
                     if ((iter-VaryShiftIter-nShiftEquilSteps) < StepsSft) &
-                        write (6, *) 'Beginning to average shift value.'
+                        write (6, '(a,i14)') 'Beginning to average shift value on iteration: ',iter
                     VaryShiftCycles = VaryShiftCycles + 1
                     SumDiagSft = SumDiagSft + DiagSft
                     AvDiagSft = SumDiagSft / real(VaryShiftCycles, dp)
