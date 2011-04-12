@@ -856,6 +856,7 @@ C.. Get the Hamiltonian Element between two CSFs
          Use Determinants, only: get_helement
          use SystemData, only: BasisFN
          use global_utilities
+         use MemoryManager, only: TagIntType
          IMPLICIT NONE
          INTEGER NEL,NCI(NEL),NCJ(NEL)
          HElement_t TOTSUM,SUM2,HEL
@@ -868,8 +869,8 @@ C.. Get the Hamiltonian Element between two CSFs
          type(timer), save :: proc_timer
          REAL*8 COEFF1,COEFF2
          REAL*8,allocatable :: COEFFLIST2(:)
-         integer,save :: tagLISTD1=0,tagLISTD2=0,tagDOLISTD1=0
-         integer,save :: tagDOLISTD2=0,tagCOEFFLIST2=0
+         integer(TagIntType),save :: tagLISTD1=0,tagLISTD2=0,tagDOLISTD1=0
+         integer(TagIntType),save :: tagDOLISTD2=0,tagCOEFFLIST2=0
          character(*), parameter :: this_routine='CSFGETHELEMENT'
          
          LOGICAL CSFCHKSPINSYM

@@ -1,6 +1,7 @@
 module SystemData
 
     use constants, only: n_int
+    use MemoryManager, only: TagIntType
 
 implicit none
 
@@ -47,7 +48,7 @@ integer :: iParity(5), nMaxX, nMaxY, nMaxZ, nMSH, coulDampOrb, elecPairs
 integer :: roIterMax, iRanLuxLev, DiagMaxMinFac, OneElmaxMinFac, iState
 integer :: iTiltX, iTiltY, nOccAlpha, nOccBeta, ShakeIterMax, ShakeStart
 integer :: MaxMinFac, MaxABPairs
-real*8 :: BOX, BOA, COA, fUEGRs, fRc, fCoul, OrbECutoff, UHUB, BHUB
+real*8 :: BOX, BOA, COA, fUEGRs, fRc, OrbECutoff, UHUB, BHUB
 real*8 :: Diagweight, OffDiagWeight, OrbEnMaxAlpha, Alpha, fCoulDampBeta
 real*8 :: fCoulDampMu, TimeStep, ConvergedForce, ShakeConverged, UMATEps
 real*8 :: OneElWeight
@@ -79,6 +80,15 @@ real*8 :: k_offset(3)      ! UEG parameter for twist-averaging
 logical :: tUEGSpecifyMomentum ! UEG parameter to allow specification of total momentum
 integer :: k_momentum(3) ! UEG parameter for total momentum
 logical :: tOrbECutoff ! Whether we're using a spherical cutoff in momentum space or not
+logical :: tgCutoff ! Whether we're using a spherical cutoff for the momentum transfer vector
+real*8 :: gCutoff ! Spherical cutoff for the momentum transfer vector
+logical :: tMP2UEGRestrict ! Restricts the MP2 sum over a single electron pair, specified by: 
+integer :: kiRestrict(3), kjRestrict(3) ! ki/kj pair
+integer :: kiMsRestrict, kjMsRestrict ! and their spins
+logical :: tMadelung ! turning on self-interaction term
+real*8 :: Madelung ! variable storage for self-interaction term
+logical :: tUEGFreeze ! Freeze core electrons for the UEG, a crude hack for this to work-around freezing not working for UEG
+real*8 :: FreezeCutoff
 
 ! For the UEG, we damp the exchange interactions.
 !    0 means none
@@ -113,16 +123,15 @@ TYPE BasisFN
    INTEGER :: k(3)
    INTEGER :: Ms
    INTEGER :: Ml            !This is the Ml symmetry of the orbital
-   INTEGER :: spacer    ! The spacer is there to make sure we have a structure which is a multiple of 8-bytes for 64-bit machines.
    TYPE(Symmetry) :: sym
 END TYPE
 
 ! Empty basis function is used in many places.
 ! This is useful so if BasisFn changes, we don't have to go
 ! through the code and change the explicit null statements.
-type(BasisFn) :: NullBasisFn=BasisFn((/0,0,0/),0,0,0,Symmetry(0))
+type(BasisFn) :: NullBasisFn=BasisFn((/0,0,0/),0,0,Symmetry(0))
 
-integer, PARAMETER :: BasisFNSize=SymmetrySize+6
+integer, PARAMETER :: BasisFNSize=SymmetrySize+5
 integer, PARAMETER :: BasisFNSizeB=BasisFNSize*8
 
 
@@ -155,14 +164,14 @@ REAL*8 :: Beta
 !     spin-orbital (given the index scheme in use).
 ! Reallocated with the correct (new) size during freezing.
 REAL*8, pointer :: Arr(:,:) 
-INTEGER :: tagArr
+INTEGER(TagIntType) :: tagArr
 
 ! Lists orbitals in energy order. i.e. Brr(1) is the lowest energy orbital
 INTEGER, pointer :: BRR(:) 
-INTEGER :: tagBrr
+INTEGER(TagIntType) :: tagBrr
 
 Type(BasisFN), pointer :: G1(:)  ! Info about the basis functions.
-INTEGER :: tagG1
+INTEGER(TagIntType) :: tagG1
 
 INTEGER :: LMS2
 

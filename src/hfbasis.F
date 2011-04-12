@@ -271,6 +271,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          use HElem, only: HElement_t_size
          use global_utilities
          use SystemData, only: BasisFN
+         use MemoryManager, only: TagIntType
          IMPLICIT NONE
          TYPE(BasisFN) G1(nBasis)
          INTEGER NBASIS,nBasisMax(5,*)
@@ -284,8 +285,9 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          HElement_t,allocatable :: WORK(:)
          REAL*8,allocatable :: HFES(:)
          HElement_t,allocatable :: R1(:),R2(:)
-         integer, save :: tagR1=0,tagR2=0,tagHFES=0,tagFMAT=0,tagOFMat=0
-         integer, save :: tagWork=0,tagDMAT=0,tagODMat=0
+         integer(TagIntType), save :: tagR1=0,tagR2=0,tagHFES=0
+         integer(TagIntType), save :: tagFMAT=0,tagOFMat=0
+         integer(TagIntType), save :: tagWork=0,tagDMAT=0,tagODMat=0
          INTEGER NHFIT,NEL
          REAL*8 HFMIX,EDELTA,CDELTA
          INTEGER MS,IHFMETHOD
@@ -626,7 +628,7 @@ C.. Now sum in the alpha and beta block of u matrix
          REAL*8 ECUR,ECORE
          HElement_t WORK(3*NSBASIS),RWORK(3*NSBASIS)
 
-         INTEGER INFO
+         INTEGER*4 INFO
          HElement_t TOT,TOT2
          INTEGER ISPN,I,J,K         
 

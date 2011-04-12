@@ -4,9 +4,13 @@ MODULE FciMCData
       use constants, only: dp, int64, n_int, lenof_sign
       use global_utilities
       use SymExcitDataMod, only: excit_gen_store_type
+      use MemoryManager, only: TagIntType
 
       implicit none
       save
+
+      real(dp) :: MaxTimeExit   !Max time before exiting out of MC
+      logical :: tTimeExit      !Whether to exit out of MC after an amount of runtime
 
       ! Units used to write to files
       integer :: fcimcstats_unit ! FCIMCStats
@@ -17,9 +21,9 @@ MODULE FciMCData
       REAL(KIND=dp) , ALLOCATABLE , TARGET :: WalkVecH(:)                    !Diagonal hamiltonian element
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVec(:,:),SpawnVec2(:,:)
     
-      INTEGER :: WalkVecDetsTag=0
-      INTEGER :: WalkVecHTag=0
-      INTEGER :: SpawnVecTag=0,SpawnVec2Tag=0
+      INTEGER(TagIntType) :: WalkVecDetsTag=0
+      INTEGER(TagIntType) :: WalkVecHTag=0
+      INTEGER(TagIntType) :: SpawnVecTag=0,SpawnVec2Tag=0
 
 !Pointers to point at the correct arrays for use
       INTEGER(KIND=n_int) , POINTER :: CurrentDets(:,:)
@@ -28,7 +32,8 @@ MODULE FciMCData
 
       ! Be able to store a list of the current initiators
       integer(n_int), allocatable :: CurrentInits(:,:)
-      integer :: max_inits, CurrentInitTag=0
+      integer :: max_inits
+      integer(TagIntType) :: CurrentInitTag=0
 
       INTEGER :: NoAbortedInCAS,NoAbortedOutCAS,NoInCAS,NoOutCAS,HighPopNeg,HighPopPos,MaxInitPopNeg,MaxInitPopPos
 
@@ -50,7 +55,7 @@ MODULE FciMCData
       REAL*8 :: DiagSftRe,DiagSftIm     !For complex walkers - this is just for info - not used for population control.
     
       INTEGER , ALLOCATABLE :: HFDet(:)       !This will store the HF determinant
-      INTEGER :: HFDetTag=0
+      INTEGER(TagIntType) :: HFDetTag=0
 
       INTEGER :: MaxWalkersPart,PreviousNMCyc,Iter,NoComps,MaxWalkersAnnihil
       integer(int64) :: TotWalkers, TotWalkersOld
@@ -132,7 +137,7 @@ MODULE FciMCData
 !These are variables needed for the FixCASshift option in which an active space is chosen and the shift fixed only for determinants within this space
 !The SpinInvBRR vector stores the energy ordering for each spatial orbital, which is the inverse of the BRR vector
       INTEGER, ALLOCATABLE :: SpinInvBRR(:)
-      INTEGER :: SpinInvBRRTag=0
+      INTEGER(TagIntType) :: SpinInvBRRTag=0
       INTEGER :: CASmin=0,CASmax=0
 
       ! The approximate fraction of singles and doubles. This is calculated
@@ -147,16 +152,19 @@ MODULE FciMCData
     
       REAL(KIND=dp) , ALLOCATABLE :: AttemptHist(:),AllAttemptHist(:),SpawnHist(:),AllSpawnHist(:)
       REAL(KIND=dp) , ALLOCATABLE :: AvAnnihil(:,:),AllAvAnnihil(:,:),InstAnnihil(:,:),AllInstAnnihil(:,:)
-      REAL(KIND=dp) , ALLOCATABLE :: SinglesAttemptHist(:),AllSinglesAttemptHist(:),SinglesHist(:),AllSinglesHist(:),DoublesHist(:),AllDoublesHist(:),DoublesAttemptHist(:),AllDoublesAttemptHist(:)
+      REAL(KIND=dp) , ALLOCATABLE :: SinglesAttemptHist(:),AllSinglesAttemptHist(:),SinglesHist(:),AllSinglesHist(:)
+      REAL(KIND=dp) , ALLOCATABLE :: DoublesHist(:),AllDoublesHist(:),DoublesAttemptHist(:),AllDoublesAttemptHist(:)
       REAL(KIND=dp) , ALLOCATABLE :: SinglesHistOccOcc(:),SinglesHistOccVirt(:),SinglesHistVirtOcc(:),SinglesHistVirtVirt(:)
-      REAL(KIND=dp) , ALLOCATABLE :: AllSinglesHistOccOcc(:),AllSinglesHistVirtOcc(:),AllSinglesHistOccVirt(:),AllSinglesHistVirtVirt(:)
+      REAL(KIND=dp) , ALLOCATABLE :: AllSinglesHistOccOcc(:),AllSinglesHistVirtOcc(:),AllSinglesHistOccVirt(:)
+      REAL(KIND=dp) , ALLOCATABLE :: AllSinglesHistVirtVirt(:)
 
       real(dp), allocatable :: spin_det_hist(:,:)
 
       INTEGER :: MaxDet,iOffDiagNoBins
 
       INTEGER , ALLOCATABLE :: DoublesDets(:,:)
-      INTEGER :: DoublesDetsTag,NoDoubs
+      INTEGER(TagIntType) :: DoublesDetsTag
+      INTEGER :: NoDoubs
 
       INTEGER , ALLOCATABLE :: ValidSpawnedList(:) !This is used for the direct annihilation, and ValidSpawnedList(i) indicates the next free slot in the processor iProcIndex ( 0 -> nProcessors-1 )
       INTEGER , ALLOCATABLE :: InitialSpawnedSlots(:) !This is set up as the initial ValidSpawnedList elements, so that it does not need to be reevaluated each time.
@@ -206,7 +214,7 @@ MODULE FciMCData
       integer :: nproje_sum
       integer, allocatable :: proje_ref_dets(:,:), proje_ref_det_init(:)
       real(dp), allocatable :: proje_ref_coeffs(:)
-      integer :: tag_ref_iluts = 0, tag_ref_dets = 0, tag_ref_coeffs = 0
+      integer(TagIntType) :: tag_ref_iluts = 0, tag_ref_dets = 0, tag_ref_coeffs = 0
       real(dp) :: proje_denominator_cyc(lenof_sign)
       real(dp) :: proje_denominator_sum(lenof_sign)
       
@@ -247,86 +255,18 @@ MODULE FciMCData
 
       integer :: yama_global (4)
 
-      !*****************  Yucky globals for AJWT iter-dependent hashes ***********
-      integer :: hash_iter       ! An iteration number added to make iteration-dependent hashes
-      integer :: hash_shift      ! -Ln_2 (Cycletime), where CycleTime is the average number of cycles until a det returns to its processor
-      
-      !*****************  Redundant variables ************************
-    
-
-      INTEGER , ALLOCATABLE , TARGET :: WalkVec2Dets(:,:),WalkVec2Sign(:)
-      REAL(KIND=dp) , ALLOCATABLE , TARGET :: WalkVec2H(:)
-      INTEGER , ALLOCATABLE :: IndexTable(:),Index2Table(:)                               !Indexing for the annihilation
-      INTEGER , ALLOCATABLE :: ProcessVec(:),Process2Vec(:)                               !Index for process rank of original walker
-      INTEGER(KIND=int64) , ALLOCATABLE :: HashArray(:),Hash2Array(:)                         !Hashes for the walkers when annihilating
-      INTEGER :: HashArrayTag=0,Hash2ArrayTag=0,IndexTableTag=0,Index2TableTag=0,ProcessVecTag=0,Process2VecTag=0
-      INTEGER :: WalkVe2HTag=0,WalkVec2DetsTag=0,WalkVec2SignTag=0
-      INTEGER , POINTER :: NewDets(:,:)
-      INTEGER , POINTER :: NewSign(:)
-
-      ! Only used in FciMC, but put here to allow access to a data module for
-      ! the sorting routines etc.
-      type excitGenerator
-          integer, pointer :: excitdata(:) ! The excitation generator
-          integer :: nExcitMemLen = 0           ! Length of excitation gen.
-          logical :: excitGenForDet = .false.   ! true if excitation generator
-                                               ! stored corresponds to the
-                                               ! determinant.
-      end type
-
-      type(ExcitGenerator) :: HFExcit         !This is the excitation generator for the HF determinant
-      integer(int64) :: HFHash               !This is the hash for the HF determinant
-!This is information needed by the thermostating, so that the correct change in walker number can be calculated, and hence the correct shift change.
-!NoCulls is the number of culls in a given shift update cycle for each variable
-      INTEGER :: NoCulls=0
-!CullInfo is the number of walkers before and after the cull (elements 1&2), and the third element is the previous number of steps before this cull...
-!Only 10 culls/growth increases are allowed in a given shift cycle
-      INTEGER :: CullInfo(10,3)
-
       ! Used for modifying the ReadPops procedures, so that we can call 
       ! InitFCIMCCalcPar again without reading the popsfile.
       logical :: tPopsAlreadyRead
 
-      ! Excitation generation storage for FCIMC (and others)
+!      ! Excitation generation storage 
       type(excit_gen_store_type) :: fcimc_excit_gen_store
       
-      interface assignment(=)
-          module procedure excitgenerator_assign
-      end interface
 
-contains
-    
-    pure subroutine excitgenerator_init (egen)
-        type(excitGenerator), intent(inout) :: egen
-        nullify(egen%excitdata)
-        egen%nExcitMemLen = 0
-        egen%excitGenForDet = .false.
-    end subroutine
 
-    pure subroutine excitgenerator_destroy (egen)
-        type(excitGenerator), intent(inout) :: egen
-        if (associated(egen%excitdata)) deallocate(egen%excitdata)
-        nullify(egen%excitdata)
-        egen%nExcitMemLen = 0
-        egen%excitGenForDet = .false.
-    end subroutine
-
-    elemental subroutine excitgenerator_assign (lhs, rhs)
-        type(excitGenerator), intent(inout) :: lhs
-        type(excitGenerator), intent(in) :: rhs
-
-        if (associated(lhs%excitData)) deallocate(lhs%excitData)
-
-        ! Do we actually want the excitation generator? Is it for the correct
-        ! determinant?
-        if (rhs%excitGenForDet) then
-            ! Now copy the excitation generator.
-            allocate (lhs%excitData(rhs%nExcitMemLen))
-
-            lhs%excitData = rhs%excitData
-        endif
-        lhs%nExcitMemLen = rhs%nExcitMemLen
-        lhs%excitGenForDet = rhs%excitGenForDet
-    end subroutine
+      !*****************  Yucky globals for AJWT iter-dependent hashes ***********
+      integer :: hash_iter       ! An iteration number added to make iteration-dependent hashes
+      integer :: hash_shift      ! -Ln_2 (Cycletime), where CycleTime is the average number of cycles until a det returns to its processor
+      
 
 END MODULE FciMCData

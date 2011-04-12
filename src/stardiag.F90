@@ -2,6 +2,7 @@
         use Determinants, only: get_helement
         use sort_mod
         use constants, only: dp
+        use MemoryManager, only: TagIntType
         IMPLICIT NONE
       
 !.. ExcitInfo will contain all the info needed to work out the value of the star
@@ -11,8 +12,8 @@
 !.. ExcitInfo(J,2) = HIJ
          HElement_t, POINTER :: ExcitInfo(:,:)
          HElement_t, ALLOCATABLE, TARGET :: ExcitInfo2(:,:)
-         integer :: tagExcitInfo=0
-         integer :: tagExcitInfo2=0
+         integer(TagIntType) :: tagExcitInfo=0
+         integer(TagIntType) :: tagExcitInfo2=0
          HElement_t, ALLOCATABLE :: temprhos(:,:)
 
 !Offrho is used with TSumProd to store the original star off-diagonal elements when using TSumProd, which changes the values in EXCITINFO
@@ -31,8 +32,8 @@
 !Used with TSumProd, rhiiadd is the value to resum back into the root to account for quadruple excitations
          HElement_t :: rhiiadd
 
-         integer, save :: tagOnDiagProdRho=0,tagOffDiagProdRho=0,tagEXCITSTORE=0,tagOffrho=0,tagtemprhos=0
-         integer, save :: tagProdPositions=0
+         integer(TagIntType), save :: tagOnDiagProdRho=0,tagOffDiagProdRho=0,tagEXCITSTORE=0,tagOffrho=0,tagtemprhos=0
+         integer(TagIntType), save :: tagProdPositions=0
 
          contains
 !  A function to generate all possible excitations of a determinant and link them together in a star
@@ -120,7 +121,8 @@
          !TCountExcits will run through all excitations possible, determine if they are connected, and then only store these.
          !Will be twice as expensive, as needs to run through all excitations twice - however, will only store memory needed.
          IF(tCountExcits) THEN
-            Write(6,"(A,I10,A)") "Counting excitations - Running through all ",iMaxExcit," excitations to determine number connected"
+            Write(6,"(A,I10,A)") "Counting excitations - Running through all ",iMaxExcit, &
+                " excitations to determine number connected"
             excitcount=0
             CALL CalcRho2(nI,nI,Beta,i_P,nEl,G1,nBasis,nMsh,fck,nMax,ALat,UMat,rhii,nTay,0,ECore)
        lp2: do while(.true.)
@@ -251,7 +253,8 @@
 !nMax has Arr hidden in it
                   Call AddMP2E(Hijs,nMax,nBasis,iPath,nEl,BTEST(iLogging,0),MP2E)
                ENDIF
-               IF(tStarSingles) Call StarAddSingles(nI,nJ,ExcitInfo,i,iMaxExcit,rhii,rhoeps,Beta,i_P,nEl,G1,nBasis,nMsh,fck,nMax,ALat,UMat,nTay,ECore)
+               IF(tStarSingles) Call StarAddSingles(nI,nJ,ExcitInfo,i,iMaxExcit,rhii,rhoeps,Beta,i_P,nEl,G1,nBasis, &
+                    nMsh,fck,nMax,ALat,UMat,nTay,ECore)
             endif
          enddo lp
 !Tell MCPATHS how many excitations there were and how many we are keeping
@@ -327,7 +330,8 @@
                         CALL StarDiag(iExcit+1,ExcitInfo,iMaxExcit+1,i_p,fMCPR3StarNewExcit,dBeta,dLWdB)
                     ELSE
                         WRITE(6,*) "Real Product Star Diagonalisation"
-                        CALL StarDiagRealProd(iExcit+1,ExcitInfo,iMaxExcit+1,i_P,fMCPR3StarNewExcit,dBeta,dLWdB,ProdNum,ProdPositions,OnDiagProdRho,OffDiagProdRho)
+                        CALL StarDiagRealProd(iExcit+1,ExcitInfo,iMaxExcit+1,i_P,fMCPR3StarNewExcit,dBeta, &
+                            dLWdB,ProdNum,ProdPositions,OnDiagProdRho,OffDiagProdRho)
                     ENDIF
                 ELSE
                     WRITE(6,*) "Complete Product Star Diagonalisation -  beware - large scaling!"
@@ -411,19 +415,22 @@
             INTEGER :: QuadExcits,iExcit2,TotExcits,NextVertex,NoExcitsInStar(iExcit)
             INTEGER :: i,j,iExcit,nI(nEl),i_P,nEl,nBasis,nMsh
             type(timer), save :: proc_timer
-            INTEGER :: nMax,nTay(2),iErr,ICMPDETS,iMaxExcit,Info,temp,IGETEXCITLEVEL
+            INTEGER :: nMax,nTay(2),iErr,ICMPDETS,iMaxExcit,temp,IGETEXCITLEVEL
+            INTEGER*4 Info
             INTEGER, ALLOCATABLE :: nExcit2(:)
             REAL*8, ALLOCATABLE :: ExcitStarInfo(:,:),ExcitStarMat(:,:),WORK(:)
             REAL*8, ALLOCATABLE :: ExcitStarVals(:),ExcitStarVecs(:)
-            integer,save :: tagWORK=0,tagExcitStarVals=0,tagExcitStarMat=0
-            integer,save :: tagExcitStarInfo=0
+            integer(TagIntType),save :: tagWORK=0,tagExcitStarVals=0,tagExcitStarMat=0
+            integer(TagIntType),save :: tagExcitStarInfo=0
             LOGICAL :: HFFound
             character(*), parameter :: this_routine='CalcExcitStar'
             
-            WRITE(6,*) "Explicitly calculating and prediagonalising all double excitations from the original excitations of the star graph"
+            WRITE(6,*) "Explicitly calculating and prediagonalising all double excitations from the "&
+                & //"original excitations of the star graph"
             
             IF(TJustQuads) THEN
-                WRITE(6,*) "Excited stars are only allowed to contain excitations which are quadruple excitations of the HF determinant"
+                WRITE(6,*) "Excited stars are only allowed to contain excitations which are quadruple "&
+                & //"excitations of the HF determinant"
             ENDIF
             
             proc_timer%timer_name='CalcExcitStar'
@@ -616,7 +623,8 @@
                 CALL LogMemAlloc("ExcitStarVecs",NoExcitsInStar(i)+1,8,this_routine,tagExcitStarVals,iErr)
                 ExcitStarVecs=0.d0
 
-                CALL DSYEV('V','U',NoExcitsInStar(i)+1,ExcitStarMat,NoExcitsInStar(i)+1,ExcitStarVals,WORK,3*(NoExcitsInStar(i)+1),INFO)
+                CALL DSYEV('V','U',NoExcitsInStar(i)+1,ExcitStarMat,NoExcitsInStar(i)+1,ExcitStarVals, &
+                    WORK,3*(NoExcitsInStar(i)+1),INFO)
                 IF(INFO.ne.0) THEN
                     WRITE(6,*) "DSYEV error in CalcExcitStar: ",INFO
                     STOP
@@ -673,7 +681,7 @@
             REAL*8 :: gap,minimum
             REAL*8, ALLOCATABLE :: Vals(:),Vecs(:),DiagRhos(:)
             HElement_t :: tmp(3)
-            integer, save :: tagDegenPos=0
+            integer(TagIntType), save :: tagDegenPos=0
             character(*), parameter :: this_routine='GraphRootChange'
 
 !            OPEN(47,FILE='Differences',STATUS='UNKNOWN')
@@ -912,7 +920,7 @@
             type(timer), save :: proc_timer
             REAL*8, ALLOCATABLE :: NewDiagRhos(:),Vals(:),Vecs(:)
             HElement_t, ALLOCATABLE :: NewOffDiagRhos(:)
-            integer, save :: tagVals=0,tagVecs=0,tagNewDiagRhos=0,tagNewOffDiagRhos=0
+            integer(TagIntType), save :: tagVals=0,tagVecs=0,tagNewDiagRhos=0,tagNewOffDiagRhos=0
             REAL*8 :: RhoValue,RhoEps,OffRhoValue
             HElement_t :: Rhoia
             LOGICAL :: FoundRoot
@@ -971,7 +979,8 @@
                     
 !Remove connection to itself in the excited star.
                     ELSEIF(TRmRootExcitStarsRootChange) THEN
-                        IF((REAL(ExcitInfo(j,0),dp).eq.RhoValue).and.(OffRhoValue.eq.REAL(ExcitInfo(j,1),dp)).and.(.not.FoundRoot)) THEN
+                        IF((REAL(ExcitInfo(j,0),dp).eq.RhoValue).and.(OffRhoValue.eq.REAL(ExcitInfo(j,1),dp)) &
+                            .and.(.not.FoundRoot)) THEN
                             NewDiagRhos(j+1)=0.D0
                             NewOffDiagRhos(j+1)=(0.D0)
                             FoundRoot=.true.
@@ -1041,7 +1050,7 @@
             REAL*8 :: MeanVal,Sxx,Sxy,Syy,GradVal,IncptVal,ExpctVal,Rsq,Vector,PreVec,lowrhojj
             LOGICAL :: ReachMax
             REAL*8, ALLOCATABLE :: AllVals(:),AllVecs(:),DiagRhos(:)
-            integer, save :: tagAllVals=0,tagAllVecs=0,tagDiagRhos=0
+            integer(TagIntType), save :: tagAllVals=0,tagAllVecs=0,tagDiagRhos=0
             HElement_t :: tmp(3)
             character(*), parameter :: this_routine='GetLinRootChangeStars'
 
@@ -1110,7 +1119,8 @@
                 ENDIF
             enddo
 
-            WRITE(6,*) i, "Eigenvectors needed to ensure complete contribution from smallest root excited star, with eigenvector cutoff of 0.1"
+            WRITE(6,*) i, "Eigenvectors needed to ensure complete contribution from smallest " &
+                & //"root excited star, with eigenvector cutoff of 0.1"
             
 !Try fitting not accros whole range of rho_jj values, but just the highest values - closer linear relationship
 !            lowerrhojj=INT(iExcit/50)
@@ -1320,13 +1330,15 @@
             REAL*8, ALLOCATABLE :: NewDiagRhos(:)
 
 !These arrays hold various data for calculating the gradient, and R^2 value for the linear approximation for each eigenvalue & vector.
-            REAL*8, ALLOCATABLE :: RsqVals(:),RsqVecs(:),ExpctVals(:),ExpctVecs(:),IncptVals(:),IncptVecs(:),SxyVals(:),SxyVecs(:)
+            REAL*8, ALLOCATABLE :: RsqVals(:),RsqVecs(:),ExpctVals(:),ExpctVecs(:),IncptVals(:)
+            REAL*8, ALLOCATABLE :: IncptVecs(:),SxyVals(:),SxyVecs(:)
             REAL*8, ALLOCATABLE :: SyyVals(:),SyyVecs(:),MeanVals(:),MeanVecs(:),GradVals(:),GradVecs(:)
-            integer, save :: tagVecsDODMS=0
-            integer, save :: tagValsDODMS=0
-            integer, save :: tagRsqVals=0,tagRsqVecs=0,tagExpctVals=0,tagExpctVecs=0,tagIncptVals=0,tagIncptVecs=0,tagSxyVals=0,tagSxyVecs=0
-            integer, save :: tagSyyVecs=0,tagSyyVals=0,tagMeanVals=0,tagMeanVecs=0,tagGradVals=0,tagGradVecs=0
-            integer, save :: tagNewDiagRhos=0
+            integer(TagIntType), save :: tagVecsDODMS=0
+            integer(TagIntType), save :: tagValsDODMS=0
+            integer(TagIntType), save :: tagRsqVals=0,tagRsqVecs=0,tagExpctVals=0,tagExpctVecs=0,tagIncptVals=0
+            integer(TagIntType), save :: tagIncptVecs=0,tagSxyVals=0,tagSxyVecs=0
+            integer(TagIntType), save :: tagSyyVecs=0,tagSyyVals=0,tagMeanVals=0,tagMeanVecs=0,tagGradVals=0,tagGradVecs=0
+            integer(TagIntType), save :: tagNewDiagRhos=0
             character(*), parameter :: this_routine='GetLinStarStars'
 
             proc_timer%timer_name='GetLinStarStars'
@@ -1542,9 +1554,11 @@
                 RsqVecs(i)=1.D0-ExpctVecs(i)/SyyVecs(i)
 
                 IF((RsqVals(i).lt.0.95).or.(RsqVecs(i).lt.0.95)) THEN
-                    WRITE(6,*) "Problem with linear approximation, R^2 value: ", RsqVals(i)," or, ",RsqVecs(i)," for eigenvalue/vector : ", i
+                    WRITE(6,*) "Problem with linear approximation, R^2 value: ", RsqVals(i)," or, " &
+                        ,RsqVecs(i)," for eigenvalue/vector : ", i
                 ELSEIF((RsqVals(i).gt.1.D0).or.(RsqVecs(i).gt.1.D0)) THEN
-                    WRITE(6,*) "Fatal problem in linear approximation, R^2 > 1 : ", RsqVals(i)," for eigenvalue/vector : ", i
+                    WRITE(6,*) "Fatal problem in linear approximation, R^2 > 1 : ", RsqVals(i), &
+                        " for eigenvalue/vector : ", i
                     STOP
                 ENDIF
 
@@ -1732,11 +1746,12 @@
         SUBROUTINE GetValsnVecs(Dimen,DiagRhos,OffDiagRhos,Vals,Vecs)
             use global_utilities
             IMPLICIT NONE
-            INTEGER :: Dimen,i,INFO,iErr
+            INTEGER :: Dimen,i,iErr
+            INTEGER*4 INFO
             REAL*8 :: DiagRhos(1:Dimen),Vals(Dimen),Vecs(Dimen)
             HElement_t :: OffDiagRhos(2:Dimen)
             REAL*8, ALLOCATABLE :: StarMat(:,:),WORK(:)
-            integer, save :: tagStarMat=0,tagWORK=0
+            integer(TagIntType), save :: tagStarMat=0,tagWORK=0
             character(*), parameter :: this_routine='GetValsnVecs'
 
 !Construct matrix - remember that the first element of OffDiagRhos now is the first offdiagonal element for the excitation, not root.
@@ -1796,7 +1811,8 @@
             use SystemData, only: BasisFN
             use HElem
             IMPLICIT NONE
-            INTEGER :: iExcit,ProdNum,Uniqprod,ProdOrbs(8),i_P,nEl,nBasis,nMsh,nMax,nTay(2),ierr,i,ni(nEl),nj(nEl),nk(nEl),nl(nEl)
+            INTEGER :: iExcit,ProdNum,Uniqprod,ProdOrbs(8),i_P,nEl,nBasis,nMsh,nMax,nTay(2),ierr,i,ni(nEl)
+            INTEGER :: nj(nEl),nk(nEl),nl(nEl)
             COMPLEX*16 fck(*)
             HElement_t UMat(*),rh,rhii
             TYPE(BasisFN) G1(*)
@@ -2022,6 +2038,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          use legacy_data, only: irat
          use HElem
          use util_mod, only: NECI_ICOPY
+        use MemoryManager, only: TagIntType
          IMPLICIT NONE
          INTEGER NEL,I_P,NBASISMAX(*),G1(*),NBASIS,NMSH,NMAX
          INTEGER NTAY,NWHTAY,LT
@@ -2037,7 +2054,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          INTEGER,ALLOCATABLE :: NLSTE(:,:)
          REAL*8,ALLOCATABLE ::  NLIST(:)
          INTEGER,ALLOCATABLE :: NICE(:)
-         INTEGER,SAVE :: tagNLSTE=0,tagNLIST=0,tagNICE=0
+         INTEGER(TagIntType),SAVE :: tagNLSTE=0,tagNLIST=0,tagNICE=0
          INTEGER :: err
 
 !.. This will contain all the info needed to work out the value of the
@@ -2180,16 +2197,18 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          use constants, only: dp
          use HElem
          use global_utilities
+        use MemoryManager, only: TagIntType
          IMPLICIT NONE
          INTEGER I_P
          INTEGER NLIST,ILMAX,ProdNum,TOTVERT
          REAL*8 OnDiagProdRho(ProdNum),OffDiagProdRho(2,ProdNum)
          REAL*8 LIST(ILMAX,0:2)
          REAL*8,ALLOCATABLE ::  RIJMAT(:),WLIST(:),WORK(:)
-         INTEGER, SAVE :: tagRIJMAT=0,tagWLIST=0,tagWORK=0
+         INTEGER(TagIntType), SAVE :: tagRIJMAT=0,tagWLIST=0,tagWORK=0
 
          type(timer), save :: proc_timer
-         INTEGER WORKL,INFO,ProdPositions(2,ProdNum)
+         INTEGER WORKL,ProdPositions(2,ProdNum)
+         INTEGER*4 INFO
          REAL*8 SI,DLWDB,DBETA
          INTEGER I,J,err
          character(*),parameter :: this_routine='STARDIAGREALPROD'
@@ -2282,18 +2301,20 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          use global_utilities
          use sort_mod
          use helem, only: helement_t_size
+        use MemoryManager, only: TagIntType
          IMPLICIT NONE
          INTEGER I_P
          INTEGER NLIST,ILMAX
          REAL*8 LIST(ILMAX,0:2)
          REAL*8,ALLOCATABLE ::  RIJMAT(:),WLIST(:),WORK(:)
-         INTEGER, SAVE :: tagRIJMAT=0,tagWLIST=0,tagWORK=0
+         INTEGER(TagIntType), SAVE :: tagRIJMAT=0,tagWLIST=0,tagWORK=0
          REAL*8, DIMENSION(:,:), POINTER :: AOFFDB
          REAL*8, DIMENSION(:), POINTER :: AONDB
-         integer, save :: tagAOFFDB,tagAONDB
+         integer(TagIntType), save :: tagAOFFDB,tagAONDB
          INTEGER IND,TOTVERT
          type(timer), save :: proc_timer
-         INTEGER WORKL,INFO,PRODVERT,ierr
+         INTEGER WORKL,PRODVERT,ierr
+         INTEGER*4 INFO
          REAL*8 SI,DLWDB,DBETA
          INTEGER I,J,err
          character(*),parameter :: this_routine='STARDIAGSC'
@@ -2425,13 +2446,15 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          use sort_mod
          use StarDiagData, only: star_walker
          use helem, only: helement_t_size
+        use MemoryManager, only: TagIntType
          IMPLICIT NONE
          CHARACTER(len=*), PARAMETER :: this_routine='StarDiagMC'
-         INTEGER :: i,j,NList,ILMax,Info,ierr,WorkL,toprint,PreviousNMCyc
+         INTEGER :: i,j,NList,ILMax,ierr,WorkL,toprint,PreviousNMCyc
+         INTEGER*4 Info
          type(timer), save :: proc_timer
          INTEGER :: TotWalkers,Seed,VecSlot,TotWalkersNew,DetCurr,ReadWalkers
          INTEGER :: MaxWalkers,TotWalkersOld,NWalk,k,l,TotWalkersDet
-         INTEGER :: HMatTag=0,WListTag=0,WorkTag=0,WalkVecTag=0,WalkVec2Tag=0
+         INTEGER(TagIntType) :: HMatTag=0,WListTag=0,WorkTag=0,WalkVecTag=0,WalkVec2Tag=0
          INTEGER :: SumNoatHF
          REAL*8 :: List(ILMax,0:2),SI,DLWDB,MaxDiag,Ran2,Norm,GrowRate
          REAL*8 :: rat,SumENum,ProjectionE
@@ -2975,8 +2998,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 
 !Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers
                  IF(TReadPops) THEN
-                     WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7)") i+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
-                     WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7)") i+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
+                     WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7)") i+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld, &
+                        GrowRate,TotWalkers,ProjectionE
+                     WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7)") i+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld, &
+                        GrowRate,TotWalkers,ProjectionE
                  ELSE
                      WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7)") i,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
                      WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7)") i,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
@@ -3034,6 +3059,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          USE DetCalcData , only : B2L,nBlk,nKry,NEval
          USE global_utilities
          use HElem
+        use MemoryManager, only: TagIntType
          IMPLICIT NONE
          CHARACTER(len=*), PARAMETER :: this_routine='StarDiagLanc'
          INTEGER :: i_P,NList,ILMax,i,j,LenMat,ICMax
@@ -3041,10 +3067,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          REAL*8 :: List(ILMax,0:2)
          REAL*8 :: SI,DLWDB,DBeta
          LOGICAL :: TSeeded
-         INTEGER :: NCycle,NBlock,NKry1,LScr,LIScr,ierr,Work2Tag=0
-         INTEGER :: V2Tag=0,WTag=0,CKTag=0,CKNTag=0,AMTag=0,BMTag=0
-         INTEGER :: TTag=0,SCRTag=0,ISCRTag=0,IndexTag=0,WHTag=0
-         INTEGER :: LabTag=0,ATag=0,MatTag=0,NRowTag=0,VTag=0,WTTag=0
+         INTEGER :: NCycle,NBlock,NKry1,LScr,LIScr,ierr
+         INTEGER(TagIntType) :: V2Tag=0,WTag=0,CKTag=0,CKNTag=0,AMTag=0,BMTag=0,Work2Tag=0
+         INTEGER(TagIntType) :: TTag=0,SCRTag=0,ISCRTag=0,IndexTag=0,WHTag=0
+         INTEGER(TagIntType) :: LabTag=0,ATag=0,MatTag=0,NRowTag=0,VTag=0,WTTag=0
          REAL*8 , ALLOCATABLE :: Work2(:),WH(:),V2(:,:),W(:),A(:,:),V(:)
          REAL*8 , ALLOCATABLE :: AM(:),BM(:),T(:),WT(:),SCR(:)
          REAL*8 , ALLOCATABLE :: Mat(:),CK(:,:),CKN(:,:)
@@ -3158,7 +3184,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 
          TSeeded=.false.
 
-         CALL NECI_FRSBLKH(NList,ICMax,NEval,Mat,Lab,CK,CKN,NKry,NKry1,NBlock,NRow,LScr,LIScr,A,W,V,AM,BM,T,WT,SCR,ISCR,Index,NCycle,B2L,.false.,.true.,TSeeded)
+         CALL NECI_FRSBLKH(NList,ICMax,NEval,Mat,Lab,CK,CKN,NKry,NKry1,NBlock,NRow,LScr,LIScr,A,W,V,AM,BM,T,WT,SCR, &
+            ISCR,Index,NCycle,B2L,.false.,.true.,TSeeded)
          
 !Deallocate memory required by diagonaliser (including original matrix)
          DEALLOCATE(Mat)
@@ -3228,14 +3255,16 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          use global_utilities
          use sort_mod
          use helem, only: helement_t_size
+        use MemoryManager, only: TagIntType
          IMPLICIT NONE
          INTEGER I_P
          INTEGER NLIST,ILMAX
          REAL*8 LIST(ILMAX,0:2)
          REAL*8,ALLOCATABLE ::  RIJMAT(:),WLIST(:),WORK(:)
-         INTEGER, SAVE :: tagRIJMAT=0,tagWLIST=0,tagWORK=0
+         INTEGER(TagIntType), SAVE :: tagRIJMAT=0,tagWLIST=0,tagWORK=0
          type(timer), save :: proc_timer
-         INTEGER WORKL,INFO
+         INTEGER WORKL
+         INTEGER*4 INFO
          REAL*8 SI,DLWDB,DBETA,OD
          INTEGER I,J,err
          character(*),parameter :: this_routine='STARDIAG'
@@ -3465,7 +3494,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
                   RR=(ROOTS(I))-LIST(J,0)
                   IF(.NOT.abs(RR).gt.1d-13) THEN
 !see comment below
-                     WRITE(6,"(A,I6,A,G25.16,A,G25.16,A,I6)") "WARNING: Eigenvalue I=",I,":",ROOTS(I), " dangerously close to rhojj=",abs(LIST(J,0))," J=",J
+                     WRITE(6,"(A,I6,A,G25.16,A,G25.16,A,I6)") "WARNING: Eigenvalue I=",I,":",ROOTS(I), &
+                        " dangerously close to rhojj=",abs(LIST(J,0))," J=",J
                      WRITE(6,"(A,I6,2G25.16)") "POLE,NUMER",J,abs(LIST(J,0)),abs(LIST(J,1))
                      WRITE(6,"(A,I6,2G25.16)") "POLE,NUMER",J-1,abs(LIST(J-1,0)),abs(LIST(J-1,1))
                   ENDIF
@@ -3526,7 +3556,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          IF(NROOTS.eq.(NLIST-1)) THEN
 !We are searching for all roots, therefore sum of squares of projection onto root should be unity
              WRITE(6,*) "Norm of i projection:", NORMCHECK
-             IF(ABS(NORMCHECK-1).gt.0.01) WRITE(6,*)  "WARNING: Norm differs from 1 by more than 0.01.  Convergence may not be reached."
+             IF(ABS(NORMCHECK-1).gt.0.01) WRITE(6,*)  "WARNING: Norm differs from 1 by more than 0.01.  " &
+                & //"Convergence may not be reached."
          ENDIF
          SI=SI-1.D0
          DLWDB=DLWDB-LIST(0,2)
@@ -3561,7 +3592,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 
 !        ADDSINGLES specifies to add the singles which are en-route to each double to that double as spokes, and prediagonalize them.
 !  i.e. if the double is (ij->ab), then singles (i->a),(i->b),(j->a) and (j->b) are created in a star with (ij->ab), the result diagonalized, and the eigenvalues and vectors used to create new spokes.  Only works with NEW
-      SUBROUTINE StarAddSingles(nI,nJ,ExcitInfo,iExcit,iMaxExcit,rhii,rhoeps,Beta,i_P,nEl,G1,nBasis,nMsh,fck,nMax,ALat,UMat,nTay,ECore)
+      SUBROUTINE StarAddSingles(nI,nJ,ExcitInfo,iExcit,iMaxExcit,rhii,rhoeps,Beta,i_P,nEl,G1, &
+        nBasis,nMsh,fck,nMax,ALat,UMat,nTay,ECore)
          use constants, only: dp      
          use SystemData, only: BasisFN
          use sort_mod
@@ -3591,7 +3623,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !Needed for diagonalizer
          REAL*8 WLIST(5),WORK(3*5)         
          HElement_t NWORK(4*5)
-         INTEGER INFO
+         INTEGER*4 INFO
 
          StarMat=(0.d0)
          iEx(1,1)=2

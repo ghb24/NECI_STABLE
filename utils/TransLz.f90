@@ -473,6 +473,8 @@ PROGRAM TransLz
 !    enddo
 
 !Reduce symmetry from D2h to C2h
+!This will contain a redundant C2(z) operation, but we cannot get rid of this without
+!also losing the sigma_h.
     do i=1,NORB
         IF((ORBSYM(i).eq.7).or.(ORBSYM(i).eq.8)) THEN
             ORBSYM(i)=4
@@ -487,6 +489,24 @@ PROGRAM TransLz
         ENDIF
     enddo
 
+!If we only have the C2(z) operation left, remove it, since we are only at a C_2 point group, and
+!we already have all that symmetry in the Lz.
+    lp2: do i=1,NORB
+        do j=1,NORB
+            if((ORBSYM(i).ne.1).and.(ORBSYM(j).ne.1).and.(ORBSYM(j).ne.ORBSYM(i))) then
+                EXIT lp2    !We have four irreps, therefore must be in a C2h subgroup (and be homonuclear diatomic)
+            endif
+        enddo
+    enddo lp2
+
+    if((i.eq.NORB+1).and.(j.eq.NORB+1)) then
+        !We did not exit the loop
+        !We only have two irreps - must be heteronuclear diatomic.
+        !We only have two symmetries, and one of them (C2(z)) is redundant anyway, so just chuck all sym!
+        do i=1,NORB
+            if(ORBSYM(i).ne.1) ORBSYM(i)=1
+        enddo
+    endif
 
     OPEN(8,FILE='PUREHARMINTDUMP',STATUS='UNKNOWN',FORM='FORMATTED')
 

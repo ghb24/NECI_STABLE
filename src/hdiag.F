@@ -1,3 +1,5 @@
+
+
 !Diagonalize a compressed hamiltonian (in HAMIL), returning eigenvalues in W and eigenvectors in CK.
        SUBROUTINE HDIAG(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,
      &                     NBLOCKSTARTS,NBLOCKS)
@@ -18,7 +20,8 @@
          HElement_t  HAMIL(*),CK(NDET,NDET),WORK2,WORK
 !         HElement_t CopyCK(NDET,NDET)
          REAL*8 W(NDET)
-         INTEGER I,J,IND,INDZ,INFO,NBS!,nopen,k,Excit
+         INTEGER I,J,IND,INDZ,NBS!,nopen,k,Excit
+         INTEGER*4 INFO
          INTEGER NBLOCKS,NBLOCKSTARTS(NBLOCKS+1)
          type(timer), save :: proc_timer
          REAL*8 GSEN
@@ -273,11 +276,13 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          use Determinants, only: get_helement
          use sym_mod
          use constants, only: dp
+         use MemoryManager, only: TagIntType
          IMPLICIT NONE
          INTEGER NDET,NEL,NBLOCKS,NBLOCKSTARTS(NBLOCKS),NMRKS(NEL,NDET)
          INTEGER nBasisMax(5,*),NBASIS
          TYPE(BasisFN) G1(*)
-         INTEGER I_P,BRR(*),INFO
+         INTEGER I_P,BRR(*)
+         INTEGER*4 INFO
          REAL*8  BETA
          LOGICAL TWARN
          REAL*8  DNORM
@@ -286,7 +291,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          INTEGER I,NBLKMAX,NBLK,J,K,NBS,III,IFDET,L
          REAL*8 EXEN,GSEN,FLRI,FLSI,GSEN2
          REAL*8, ALLOCATABLE :: CK(:),W(:),WORK(:)
-         integer, save :: tagCK=0,tagW=0,tagWORK=0
+         integer(TagIntType), save :: tagCK=0,tagW=0,tagWORK=0
          REAL*8 ELOWEST,GOFE(NBASIS),EBIAS
          INTEGER GELOWEST,IDEG
          type(timer), save :: proc_timer

@@ -26,13 +26,15 @@ MODULE PopsfileMod
 !which can be read in in a single batch.
     SUBROUTINE ReadFromPopsfilev3(EndPopsList,ReadBatch,CurrWalkers64,CurrParts,CurrHF,Dets,DetsLen)
         use util_mod , only : get_unique_filename
+        use MemoryManager, only: TagIntType
         integer(8) , intent(in) :: EndPopsList  !Number of entries in the POPSFILE.
         integer , intent(in) :: ReadBatch       !Size of the batch of determinants to read in in one go.
         integer(int64) , intent(out) :: CurrWalkers64    !Number of determinants which end up on a given processor.
         integer(int64) , dimension(lenof_sign) , intent(out) :: CurrParts
         integer , dimension(lenof_sign) , intent(out) :: CurrHF
         integer :: CurrWalkers
-        integer :: iunit,i,j,BatchReadTag,ierr,PopsInitialSlots(0:nNodes-1)
+        integer :: iunit,i,j,ierr,PopsInitialSlots(0:nNodes-1)
+        INTEGER(TagIntType) :: BatchReadTag=0
         real(8) :: BatchSize
         integer :: PopsSendList(0:nNodes-1),proc,sendcounts(nNodes),disps(nNodes)
         integer :: MaxSendIndex,recvcount,err
@@ -81,11 +83,14 @@ MODULE PopsfileMod
 
         IF(iProcIndex.eq.Root) THEN
             IF(iWeightPopRead.ne.0) THEN
-                WRITE(6,"(A,I15,A,I4,A)") "Although ",EndPopsList," configurations will be read in, only determinants with a weight of over ",iWeightPopRead," will be stored."
+                WRITE(6,"(A,I15,A,I4,A)") "Although ",EndPopsList, &
+                " configurations will be read in, only determinants with a weight of over ",iWeightPopRead," will be stored."
             else
                 write(6,"(A,I15,A)") "Reading in a total of ",EndPopsList, " configurations from POPSFILE."
             ENDIF
-            if(ScaleWalkers.ne.1) call warning(this_routine,"ScaleWalkers parameter found, but not implemented in POPSFILE v3 - ignoring.")
+            if(ScaleWalkers.ne.1) then
+                call warning(this_routine,"ScaleWalkers parameter found, but not implemented in POPSFILE v3 - ignoring.")
+            endif
             call flush(6)
         ENDIF
 
@@ -174,7 +179,9 @@ MODULE PopsfileMod
             !Now scatter the particles read in to their correct processors.
             if(bNodeRoot) call MPIScatter(sendcounts,recvcount,err,Roots)
             if(err.ne.0) call stop_all(this_routine,"MPI scatter error")
-            if(bNodeRoot) call MPIScatterV(BatchRead(:,1:MaxSendIndex),sendcounts,disps,Dets(:,CurrWalkers+1:DetsLen),recvcount,err,Roots)
+            if(bNodeRoot) then
+                call MPIScatterV(BatchRead(:,1:MaxSendIndex),sendcounts,disps,Dets(:,CurrWalkers+1:DetsLen),recvcount,err,Roots)
+            endif
             if(err.ne.0) call stop_all(this_routine,"MPI error")
             if(bNodeRoot) CurrWalkers=CurrWalkers+recvcount/(NIfTot+1)
             call MPIBCast(tReadAllPops)
@@ -320,7 +327,8 @@ MODULE PopsfileMod
         if(PopsVersion.ne.3) call stop_all("ReadPopsfileHeadv3","Wrong popsfile version for this routine.")
             
         if(iProcIndex.eq.root) then
-            read(iunithead,'(A12,L5,A8,L5,A8,L5,A13,I5,A7,I6)') junk,tPop64Bit,junk2,tPopHPHF,junk3,tPopLz,junk4,iPopLenof_sign,junk5,iPopNEl
+            read(iunithead,'(A12,L5,A8,L5,A8,L5,A13,I5,A7,I6)') junk,tPop64Bit,junk2,tPopHPHF,junk3, &
+                tPopLz,junk4,iPopLenof_sign,junk5,iPopNEl
             read(iunithead,*) iPopAllTotWalkers
             read(iunithead,*) PopDiagSft 
             read(iunithead,*) PopSumNoatHF 
@@ -412,13 +420,15 @@ MODULE PopsfileMod
         use util_mod, only: get_unique_filename, get_free_unit
         use CalcData, only: iPopsFileNoWrite
         use constants, only: size_n_int,MpiDetInt,n_int
+        use MemoryManager, only: TagIntType
         integer(int64),intent(in) :: nDets !The number of occupied entries in Dets
         integer(kind=n_int),intent(in) :: Dets(0:nIfTot,1:nDets)
         INTEGER :: error
         integer(int64) :: WalkersonNodes(0:nNodes-1)
-        INTEGER :: Tag,Total,i,j,k
+        INTEGER :: Tag
+        INTEGER :: Total,i,j,k
         INTEGER(KIND=n_int), ALLOCATABLE :: Parts(:,:)
-        INTEGER :: PartsTag=0
+        INTEGER(TagIntType) :: PartsTag=0
         INTEGER :: nMaxDets
         integer :: iunit
         CHARACTER(len=*) , PARAMETER :: this_routine='WriteToPopsfileParOneArr'
@@ -430,7 +440,6 @@ MODULE PopsfileMod
 !        CALL FLUSH(6)
 
 !First, make sure we have up-to-date information - again collect AllTotWalkers,AllSumNoatHF and AllSumENum...
-!        CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_Sum,root,MPI_COMM_WORLD,error)    
 !Calculate the energy by summing all on HF and doubles - convert number at HF to a real since no int*8 MPI data type
         CALL MPISum(SumNoatHF,1,AllSumNoatHF)
         CALL MPISum(SumENum,1,AllSumENum)
@@ -455,9 +464,11 @@ MODULE PopsfileMod
 #ifdef __INT64
             IF(iPopsPartEvery.ne.1) THEN
                 IF(tBinPops) THEN
-                    WRITE(6,"(A,I12,A)") "Writing a 64-bit binary reduced POPSFILEBIN, printing a total of ",INT(AllTotWalkers,int64), " particles."
+                    WRITE(6,"(A,I12,A)") "Writing a 64-bit binary reduced POPSFILEBIN, printing a total of ", &
+                        INT(AllTotWalkers,int64), " particles."
                 ELSE
-                    WRITE(6,"(A,I12,A)") "Writing a 64-bit reduced POPSFILE, printing a total of ",INT(AllTotWalkers,int64), " particles."
+                    WRITE(6,"(A,I12,A)") "Writing a 64-bit reduced POPSFILE, printing a total of ", &
+                        INT(AllTotWalkers,int64), " particles."
                 ENDIF
             ELSE
                 IF(tBinPops) THEN
@@ -469,7 +480,8 @@ MODULE PopsfileMod
 #else
             IF(iPopsPartEvery.ne.1) THEN
                 IF(tBinPops) THEN
-                    WRITE(6,"(A,I12,A)") "Writing a binary reduced POPSFILEBIN, printing a total of ",INT(AllTotWalkers,int64), " particles."
+                    WRITE(6,"(A,I12,A)") "Writing a binary reduced POPSFILEBIN, printing a total of ", &
+                        INT(AllTotWalkers,int64), " particles."
                 ELSE
                     WRITE(6,"(A,I12,A)") "Writing a reduced POPSFILE, printing a total of ",INT(AllTotWalkers,int64), " particles."
                 ENDIF
@@ -490,9 +502,11 @@ MODULE PopsfileMod
             OPEN(iunit,FILE=popsfile,Status='replace')
             WRITE(iunit,"(A)") "# POPSFILE VERSION 3"
 #ifdef __INT64
-            WRITE(iunit,'(A12,L5,A8,L5,A8,L5,A13,I5,A7,I6)') '64BitDets=',.TRUE.,'HPHF=',tHPHF,'Lz=',tFixLz,'Lenof_sign=',lenof_sign,'NEl=',NEl
+            WRITE(iunit,'(A12,L5,A8,L5,A8,L5,A13,I5,A7,I6)') '64BitDets=',.TRUE.,'HPHF=',tHPHF,'Lz=', &
+                tFixLz,'Lenof_sign=',lenof_sign,'NEl=',NEl
 #else
-            WRITE(iunit,'(A12,L5,A8,L5,A8,L5,A13,I5,A7,I6)') '64BitDets=',.FALSE.,'HPHF=',tHPHF,'Lz=',tFixLz,'Lenof_sign=',lenof_sign,'NEl=',NEl
+            WRITE(iunit,'(A12,L5,A8,L5,A8,L5,A13,I5,A7,I6)') '64BitDets=',.FALSE.,'HPHF=',tHPHF,'Lz=', &
+                tFixLz,'Lenof_sign=',lenof_sign,'NEl=',NEl
 #endif
             WRITE(iunit,*) AllTotWalkers,"   TOTWALKERS (all nodes)"
             WRITE(iunit,*) DiagSft,"   DIAG SHIFT"
@@ -653,7 +667,8 @@ MODULE PopsfileMod
                 call get_unique_filename('POPSFILEBIN',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
                 INQUIRE(FILE=popsfile,EXIST=exists)
                 IF(.not.exists) THEN
-                    CALL Stop_All(this_routine,"POPSFILEHEAD(.x) found, but no POPSFILEBIN(.x) for particle information - this is also needed")
+                    CALL Stop_All(this_routine,"POPSFILEHEAD(.x) found, but no POPSFILEBIN(.x) " &
+                    & //"for particle information - this is also needed")
                 ELSE
                     call get_unique_filename('POPSFILEHEAD',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
                     OPEN(iunit,FILE=popsfile,Status='old')
@@ -678,7 +693,8 @@ MODULE PopsfileMod
         IF(PopsVersion.eq.2) THEN
             READ(iunit,'(A12,L5,A8,L5,A8,L5,A12,L5)') junk,tPop64BitDets,junk2,tPopHPHF,junk3,tPopLz,junk4,tPopInitiator
         ELSE
-            WRITE(6,'(A)') "Reading in from depreciated POPSFILE - assuming that parameters are the same as when POPSFILE was written"
+            WRITE(6,'(A)') "Reading in from depreciated POPSFILE - assuming that parameters " &
+            & //"are the same as when POPSFILE was written"
         ENDIF
         READ(iunit,*) tmp_dp
         AllTotWalkers = tmp_dp
@@ -689,7 +705,8 @@ MODULE PopsfileMod
 
         IF(iProcIndex.eq.Root) THEN
             IF(iWeightPopRead.ne.0) THEN
-                WRITE(6,"(A,I15,A,I4,A)") "Although ",AllTotWalkers," configurations will be read in, only determinants with a weight of over ",iWeightPopRead," will be stored."
+                WRITE(6,"(A,I15,A,I4,A)") "Although ",AllTotWalkers, &
+                 " configurations will be read in, only determinants with a weight of over ",iWeightPopRead," will be stored."
             ENDIF
         ENDIF
 
@@ -808,7 +825,8 @@ MODULE PopsfileMod
         MemoryAlloc=(NIfTot+1)*MaxWalkersPart*size_n_int    !Memory Allocated in bytes
 
 !Just allocating this here, so that the SpawnParts arrays can be used for sorting the determinants when using direct annihilation.
-        WRITE(6,"(A,I12,A)") " Spawning vectors allowing for a total of ",MaxSpawned," particles to be spawned in any one iteration."
+        WRITE(6,"(A,I12,A)") " Spawning vectors allowing for a total of ",MaxSpawned, &
+         &" particles to be spawned in any one iteration."
         ALLOCATE(SpawnVec(0:NIfTot,MaxSpawned),stat=ierr)
         CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVecTag,ierr)
         SpawnVec(:,:)=0
@@ -830,7 +848,8 @@ MODULE PopsfileMod
             WalkVecH(:)=0.d0
             MemoryAlloc=MemoryAlloc+8*MaxWalkersPart
         ELSE
-            WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*8,dp)/1048576.D0," Mb/Processor"
+            WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ", &
+             & REAL(MaxWalkersPart*8,dp)/1048576.D0," Mb/Processor"
         ENDIF
 
         IF(.not.tRegenDiagHEls) THEN
@@ -1155,7 +1174,8 @@ MODULE PopsfileMod
                 call get_unique_filename('POPSFILEBIN',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
                 INQUIRE(FILE=popsfile,EXIST=exists)
                 IF(.not.exists) THEN
-                    CALL Stop_All(this_routine,"POPSFILEHEAD(.x) found, but no POPSFILEBIN(.x) for particle information - this is also needed")
+                    CALL Stop_All(this_routine,"POPSFILEHEAD(.x) found, but no POPSFILEBIN(.x) for " &
+                    & //"particle information - this is also needed")
                 ELSE
                     call get_unique_filename('POPSFILEHEAD',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
                     OPEN(iunit,FILE=popsfile,Status='old')
@@ -1182,7 +1202,7 @@ MODULE PopsfileMod
         IF(PopsVersion.eq.2) THEN
             READ(iunit,'(A12,L5,A8,L5,A8,L5,A12,L5)') junk,tPop64BitDets,junk2,tPopHPHF,junk3,tPopLz,junk4,tPopInitiator
         ELSE
-            WRITE(6,'(A)') "Reading in from depreciated POPSFILE - assuming that parameters are the same as when POPSFILE was written"
+            WRITE(6,'(A)') "Reading in from depreciated POPSFILE - assuming that parameters are same as when POPSFILE was written"
         ENDIF
         READ(iunit,*) AllTotWalkers
         READ(iunit,*) DiagSftTemp
@@ -1192,7 +1212,8 @@ MODULE PopsfileMod
 
         IF(iProcIndex.eq.Root) THEN
             IF(iWeightPopRead.ne.0) THEN
-                WRITE(6,"(A,I15,A,I4,A)") "Although ",AllTotWalkers," configurations will be read in, only determinants with a weight of over ",iWeightPopRead," will be stored."
+                WRITE(6,"(A,I15,A,I4,A)") "Although ",AllTotWalkers,    &
+                " configurations will be read in, only determinants with a weight of over ",iWeightPopRead," will be stored."
             ENDIF
         ENDIF
 

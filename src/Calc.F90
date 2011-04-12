@@ -19,13 +19,14 @@ MODULE Calc
     use CCMCData, only: dInitAmplitude, dProbSelNewExcitor, nSpawnings, &
                         tSpawnProp, nClustSelections, tExactEnergy,     &
                         dClustSelectionRatio,tSharedExcitors
-    use FciMCData, only: proje_linear_comb, proje_ref_det_init
+    use FciMCData, only: proje_linear_comb, proje_ref_det_init,tTimeExit,MaxTimeExit
 
     implicit none
 
 contains
 
     subroutine SetCalcDefaults()
+          use FciMCData, only: hash_shift
         
         ! Set defaults for Calc data items.
 
@@ -45,6 +46,8 @@ contains
 
 
 !       Calc defaults 
+          tTimeExit=.false.
+          MaxTimeExit=0.D0
           tMaxBloom=.false.
           iRestartWalkNum=0
           iWeightPopRead=0
@@ -212,7 +215,6 @@ contains
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
 
           lNoTriples=.false.
-          tFCIMCSerial=.false.  !If set we force the parallel version to run the serial code.
           tReadPopsChangeRef = .false.
           tReadPopsRestart = .false.
           iLogicalNodeSize = 0 !Meaning use the physical node size
@@ -240,6 +242,7 @@ contains
           tTruncNOpen = .false.
 
           proje_linear_comb = .false.
+          hash_shift=0
       
         end subroutine SetCalcDefaults
 
@@ -257,6 +260,7 @@ contains
           use UMatCache, only: gen2CPMDInts
           use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings,tSpawnProp,nClustSelections
           use CCMCData, only: tExactEnergy,tSharedExcitors
+          use FciMCData, only: hash_shift
           use global_utilities
           use Parallel, only : nProcessors
           use Logging, only: tLogDets
@@ -764,6 +768,11 @@ contains
 !This is now input as the total number, rather than the number per processor, and it is changed to the number per processor here.
                 call geti(InitWalkers)
                 InitWalkers=NINT(REAL(InitWalkers)/REAL(nProcessors))
+            case("TIME")
+                !Input the desired runtime (in MINUTES) before exiting out of the MC.
+                call getf(MaxTimeExit)
+                MaxTimeExit=MaxTimeExit*60.D0    !Change straightaway so that MaxTimeExit corresponds to SECONDS!
+                tTimeExit=.true.
             case("MAXNOATHF")
 !If the number of walkers at the HF determinant reaches this number, the shift is allowed to change. (This is the total number across all processors).                
 !If a second integer is present, this determinants the threshhold for the HF population.  If the HF population drops below MaxNoatHF-HFPopThresh, the
@@ -785,6 +794,8 @@ contains
             case("NSPAWNINGS")
 !For Amplitude CCMC the number of spawnings for each cluster.
                 call geti(nSpawnings)
+            case("HASH_SHIFT")
+                call geti(hash_shift)
             case("NCLUSTSELECTIONS")
 !For Particle CCMC the number of  cluster.
                 call geti(nClustSelections)
@@ -1648,7 +1659,8 @@ contains
                       ENDIF
                    ENDIF
                    IF(.NOT.TREAD) THEN
-                   CALL CALCRHO2(NMRKS(1,III),NMRKS(1,III),BETA,I_P,NEL, NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,1,0,ECORE)
+                   CALL CALCRHO2(NMRKS(1,III),NMRKS(1,III),BETA,I_P,NEL, NBASISMAX,G1,NBASIS,BRR,NMSH, &
+                    FCK,NMAX,ALAT,UMAT,RH,1,0,ECORE)
 !C                   WRITE(6,*) RH
                    FLRI=LOG(RH)
                    FLSI=FLSI-I_P*FLRI
@@ -1731,8 +1743,8 @@ contains
          use UMatCache , only : TSTARSTORE
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
          use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,tCCMC
-         use CalcData , only : TRhoElems,TReturnPathMC, tFCIMCSerial,tUseProcsAsNodes
-         use CCMCData, only: tExactCluster,tCCMCFCI,tAmplitudes,tExactSpawn,tCCBuffer
+         use CalcData , only : TRhoElems,TReturnPathMC, tUseProcsAsNodes
+         use CCMCData, only: tExactCluster,tCCMCFCI,tAmplitudes,tExactSpawn,tCCBuffer,tCCNoCuml
          use Logging, only: tCalcFCIMCPsi
          implicit none
          integer I_HMAX,NWHTAY,I_V
@@ -1756,8 +1768,6 @@ contains
                       case("RESUMFCIMC")
 !                          TResumFCIMC=.true.
                           CALL Stop_All("inpgetmethod","MCDIFFUSION option depreciated")
-                      case("SERIAL")
-                          tFCIMCSerial=.true.
                       case default
                           call report("Keyword error with "//trim(w),.true.)
                       endselect
@@ -1772,6 +1782,7 @@ contains
                   tCCMCFCI=.false.
                   tAmplitudes=.false.
                   tCCBuffer=.false.
+                  tCCNoCuml=.false.
                   do while(item.lt.nitems)
                     call readu(w)
                     select case(w)
@@ -1790,6 +1801,8 @@ contains
                        tCCMCFCI=.true.
                     case("BUFFER")
                         tCCBuffer=.true.
+                    case("NOCUML")
+                       tCCNoCuml=.true.
                     case default
                        call report("Keyword error with "//trim(w),.true.)
                     end select
@@ -1973,13 +1986,14 @@ contains
          use Determinants, only: write_det
          use mcpaths, only: mcpathsr3
          use sym_mod
+         use MemoryManager, only: TagIntType
          IMPLICIT NONE
          INTEGER I_HMAX,NEL,NBASIS,I_VMAX
          INTEGER,ALLOCATABLE :: LSTE(:,:,:) !(NEL,NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)??!!
          INTEGER,ALLOCATABLE :: ICE(:,:)  !(NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)??!!
          HElement_t  UMAT(*)
          HElement_t,allocatable  :: RIJLIST(:,:)
-         integer,save :: tagRIJList=0,tagLSTE=0,tagICE=0
+         integer(TagIntType),save :: tagRIJList=0,tagLSTE=0,tagICE=0
          REAL*8 BETA,ALAT(3),RHOEPS
          COMPLEX*16 FCK(*)
          INTEGER NPATHS,NI(NEL),I_P,nBasisMax(5,*)

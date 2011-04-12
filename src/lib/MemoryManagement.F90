@@ -1,4 +1,5 @@
 module MemoryManager
+use constants , only : sizeof_int 
 
 ! JSS.  Memory book-keeping routines.  Contains a few elements of the initialisation, 
 ! output and structure of the memory_manager module from CamCASP (formerly SITUS), 
@@ -72,8 +73,11 @@ public :: MemoryLeft, MemoryUsed,MaxMemory,li,LookupPointer,PrintMemory
 public :: CachingMemLog 
 ! Routines that need to be accessible.
 public :: InitMemoryManager,LogMemAlloc,LogMemDealloc,LeaveMemoryManager
+public :: TagIntType
 
 
+
+integer, parameter :: TagIntType = sizeof_int   !This is for CPMD which needs to know what type of integer to pass as a tag
 ! Configuration.
 integer, parameter :: MaxLen = 5000 ! size of memory log (max number of arrays
                                     ! that can be logged at any one time if 
@@ -209,7 +213,7 @@ contains
     character(len=*),intent(in) :: ObjectName,AllocRoutine
     integer, intent(in) :: ObjectSize
     integer, intent(in) :: ElementSize
-    integer, intent(out) :: tag
+    integer(TagIntType), intent(out) :: tag
     integer, intent(in), optional :: err
     integer, intent(inout), optional :: nCalls
  
@@ -289,7 +293,7 @@ contains
     implicit none
 
     character(len=*), intent(in) :: DeallocRoutine
-    integer, intent(inout) :: tag
+    integer(TagIntType), intent(inout) :: tag
     integer, intent(in), optional :: err
     integer :: i,ismallloc(1)
     character(len=25) :: ObjectName
@@ -379,7 +383,6 @@ contains
     ! Call this to print out the largest memory allocations.
     ! If debug flag is on, then the full memory log is dumped to file.
 
-    use common_routines, only: getunit
     implicit none
 
     integer :: iunit,iobjloc(1),iobj,i
@@ -441,7 +444,8 @@ contains
 
     if (debug) then
         ! Dump entire memory log to file.
-        call getunit(iunit)
+        iunit=93
+!        call get_free_unit(iunit)  !Avoid circular dependancies - hack.
         open(unit=iunit,file=memoryfile,form='formatted',status='unknown')
         call PrintMemory(.true.,iunit)
         close(iunit)

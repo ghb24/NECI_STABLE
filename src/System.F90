@@ -16,6 +16,7 @@ MODULE System
       use default_sets
       USE SymData, only: tAbelianFastExcitGen
       USE SymData, only: tStoreStateList
+      use OneEInts, only: tOneElecDiag 
       implicit none
 
       ! Default from SymExcitDataMod
@@ -24,6 +25,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tOneElecDiag=.false.
       tMCSizeTruncSpace=.false.
       iMCCalcTruncLev=0
       tOddS_HPHF=.false.
@@ -84,7 +86,6 @@ MODULE System
       iPeriodicDampingType=0
       fRc=0.D0
       TEXCH=.true.
-      FCOUL=1.D0
       UHUB = 4
       BHUB = -1
       TREAL = .false.
@@ -96,6 +97,13 @@ MODULE System
       ISTATE = 1
       OrbECutoff=1e20
       tOrbECutoff=.false.
+      gCutoff=1e20 ! This shouldn't be used
+      tgCutoff=.false.
+      tMadelung=.false.
+      Madelung=0.D0
+      tUEGFreeze=.false.
+      FreezeCutoff=1e20 ! This shouldn't be used
+      tMP2UEGRestrict=.false.
       tStoreAsExcitations=.false.
       TBIN=.false.
       tAbelianFastExcitGen=.true.
@@ -164,6 +172,7 @@ MODULE System
       USE input
       USE SymData, only: tAbelianFastExcitGen
       USE SymData, only: tStoreStateList
+      use OneEInts, only: tOneElecDiag 
       IMPLICIT NONE
       LOGICAL eof
       CHARACTER (LEN=100) w
@@ -237,6 +246,7 @@ MODULE System
           tReadInt=.true.
       case("UEG")
           TUEG = .true.
+          tOneElecDiag=.true.   !One electron integrals diagonal
       case("VASP")
           tVASP= .true.
       case("CPMD")
@@ -247,6 +257,7 @@ MODULE System
               THFORDER = .true.
           end select
       case("BOX")
+          tOneElecDiag=.true.   !One electron integrals diagonal
       case default
           call report("System type "//trim(w)//" not valid",.true.)
       end select
@@ -358,7 +369,8 @@ MODULE System
                   call report("EXCHANGE "//trim(w)//" not valid",.true.)
             end select
         case("COULOMB")
-            call getf(FCOUL)
+            call report("Coulomb feature removed",.true.)
+!            call getf(FCOUL)
         case("COULOMB-DAMPING")
             call report("Coulomb damping feature removed",.true.)
 !            call readu(w)
@@ -373,8 +385,27 @@ MODULE System
         case("ENERGY-CUTOFF")
           tOrbECutoff=.true.
           call getf(OrbECutoff)
+        case("G-CUTOFF")
+          tgCutoff=.true.
+          call getf(gCutoff)
+        case("FREEZE-CUTOFF")
+            tUEGFreeze=.true.
+            call getf(FreezeCutoff)
+        case("MADELUNG")
+          tMadelung=.true.
+          call getf(Madelung)
         case("STORE-AS-EXCITATIONS")
            tStoreAsExcitations=.true.  
+        case("MP2-UEG-RESTRICT")
+           tMP2UEGRestrict=.true.
+           call geti(kiRestrict(1))
+           call geti(kiRestrict(2))
+           call geti(kiRestrict(3))
+           call geti(kiMsRestrict)
+           call geti(kjRestrict(1))
+           call geti(kjRestrict(2))
+           call geti(kjRestrict(3))
+           call geti(kjMsRestrict)
 
         ! Options for model systems (electrons in a box/Hubbard).   
         case("CELL")
@@ -784,8 +815,9 @@ MODULE System
             tROHF=.true.
             tNoBrillouin=.true.
             tBrillouinsDefault=.false.
-            IF(tFindCINatOrbs) CALL Stop_All("ReadSysInp","For orbital rotations of open shell systems, UMAT must be stored in spin &
-                                                           & orbitals - cannot be compressed using ROHF.") 
+            IF(tFindCINatOrbs) CALL Stop_All("ReadSysInp","For orbital rotations of open shell "&
+            &//"systems, UMAT must be stored in spin &
+            & orbitals - cannot be compressed using ROHF.") 
                                              
         case("LZTOT")
             tFixLz=.true.
@@ -1337,9 +1369,11 @@ MODULE System
       IF(tFixLz) THEN
           WRITE(6,'(A)') "****** USING Lz SYMMETRY *******"
           WRITE(6,'(A,I5)') "Pure spherical harmonics with complex orbitals used to constrain Lz to: ",LzTot
-          WRITE(6,*) "Due to the breaking of the Ml degeneracy, the fock energies are slightly wrong, on order of 1.D-4 - do not use for MP2!"
+          WRITE(6,*) "Due to the breaking of the Ml degeneracy, the fock energies are slightly wrong, "&
+          &//"on order of 1.D-4 - do not use for MP2!"
           if(nsymlabels.gt.4) then
-              call stop_all(this_routine,"D2h point group detected. Incompatable with Lz symmetry conserving orbitals. Have you transformed these orbitals into spherical harmonics correctly?!")
+              call stop_all(this_routine,"D2h point group detected. Incompatable with Lz symmetry conserving "&
+              &//"orbitals. Have you transformed these orbitals into spherical harmonics correctly?!")
           endif
       ENDIF
 
@@ -1400,7 +1434,7 @@ MODULE System
 
 !// TBR
 !      WRITE(6,*) ' ETRIAL : ',ETRIAL
-      IF(FCOUL.NE.1.D0)  WRITE(6,*) "WARNING: FCOUL is not 1.D0. FCOUL=",FCOUL
+!      IF(FCOUL.NE.1.D0)  WRITE(6,*) "WARNING: FCOUL is not 1.D0. FCOUL=",FCOUL
       IF(FCOULDAMPBETA.GT.0) WRITE(6,*) "FCOUL Damping.  Beta ",FCOULDAMPBETA," Mu ",FCOULDAMPMU
       call halt_timer(proc_timer)
     End Subroutine SysInit
@@ -1464,10 +1498,11 @@ SUBROUTINE WRITEBASIS(NUNIT,G1,NHG,ARR,BRR)
       WRITE(NUNIT,'(I4)',advance='no') G1(BRR(I))%Ml
       WRITE(NUNIT,'(2F19.9)', advance='no')  ARR(I,1),ARR(BRR(I),2)
       if (associated(fdet)) then
-          do while (pos < nel .and. fdet(pos) < i)
+          pos=1
+          do while (pos < nel .and. fdet(pos) < brr(i))
               pos = pos + 1
           enddo
-          if (i == fdet(pos)) write (nunit, '(" #")', advance='no')
+          if (brr(i) == fdet(pos)) write (nunit, '(" #")', advance='no')
       endif
       write (nunit,*)
   ENDDO

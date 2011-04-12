@@ -16,6 +16,7 @@
       use IntegralsData, only: tDiscoNodes
       use Determinants, only: get_helement, get_helement_excit
       use global_utilities
+      use MemoryManager, only: TagIntType
       implicit none
 
 !Stores the excitations by their {a,b} value, according to which {i,j} family they are under.
@@ -36,7 +37,7 @@
       INTEGER :: crosslinks
 
 ! Memory tags
-      integer, save :: tagEXCITINFO=0,tagEXCITSTORE=0,tagABCOUNTER=0,tagijorbs=0
+      integer(TagIntType), save :: tagEXCITINFO=0,tagEXCITSTORE=0,tagABCOUNTER=0,tagijorbs=0
       
       contains
 
@@ -188,18 +189,20 @@
 !From a given {i,j}, and a list of all {a,b}'s which result in possible double excitations from the HF, find all the connections between them, and diagonalise the resulting matrix from this 'node'. 
 !Finally, attach the resultant structures back to the HF in EXCITINFO star matrix.      
       SUBROUTINE CONSTRUCTNODE(novirt,nEl,node,nI,Beta,i_P,G1,nBasis,nMsh,fck,nMax,ALat,UMat,nTay,ECore,RhoEps,ExcitInfoElems)
+        use MemoryManager, only: TagIntType
         IMPLICIT NONE
         Type(BasisFN) G1(*)
         COMPLEX*16 fck(*)
         HElement_t UMat(*),rh,Hel
         INTEGER novirt,ierr,i,j,ijpair(2),node,nI(nEl),nJ(nEl),nK(nEl),i_P
-        INTEGER nBasis,nMsh,nMax,nTay(2),WORKMEM,INFO
+        INTEGER nBasis,nMsh,nMax,nTay(2),WORKMEM
+        INTEGER*4 INFO
         INTEGER ExcitInfoElems,nEl,Orbchange(4),iExcit
         REAL*8 Beta,ALat(3),RhoEps,ECore
         REAL*8, ALLOCATABLE :: NODERHOMAT(:),WLIST(:)
         INTEGER, ALLOCATABLE :: FULLPATHS(:,:)
         REAL*8, ALLOCATABLE :: WORK(:)
-        integer, save :: tagNODERHOMAT=0,tagWLIST=0,tagFULLPATHS=0,tagWORK=0
+        integer(TagIntType), save :: tagNODERHOMAT=0,tagWLIST=0,tagFULLPATHS=0,tagWORK=0
         character(*),parameter :: t_r='CONSTRUCTNODE'
 
 !iExcit should be the order of the excitation - parsed to HElement2

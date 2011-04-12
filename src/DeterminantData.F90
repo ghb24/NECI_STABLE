@@ -3,10 +3,11 @@
 module DeterminantData
     use SystemData, only: nel, tCSF
     use csf_data, only: iscsf, csf_orbital_mask, csf_yama_bit
+    use MemoryManager, only: TagIntType
     implicit none
 
     integer, pointer :: FDet(:)
-    integer :: tagFDet
+    integer(TagIntType) :: tagFDet
 
     type lexicographic_store
         integer, allocatable :: dorder(:)
