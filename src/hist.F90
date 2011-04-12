@@ -14,7 +14,7 @@ module hist
     use FciMCData, only: tFlippedSign, TotWalkers, CurrentDets, iter, &
                          norm_psi_squared
     use util_mod, only: choose, get_free_unit, binary_search
-    use HPHFRandExcitMod, only: FindExcitBitDetSym
+    use HPHFRandExcitMod, only: FindExcitBitDetSym, IsAllowedHPHF
     use constants, only: n_int, bits_n_int, size_n_int, lenof_sign
     use bit_rep_data, only: NIfTot, NIfD
     use bit_reps, only: extract_sign, encode_sign, extract_bit_rep, NOffSgn, &
@@ -880,10 +880,10 @@ contains
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer(n_int) :: splus(0:NIfD), sminus(0:NIfD)
+        integer(n_int) :: ilut_srch(0:NIfD), ilut_sym(0:NIfD)
         integer :: sgn(lenof_sign), sgn2(lenof_sign), flg, nI(nel)
-        integer :: j, k, orb2, pos
+        integer :: j, k, orb2, pos, sgn_hphf
         integer(int64) :: ssq
-
 
         ! Extract details of determinant
         call extract_bit_rep (ilut, nI, sgn, flg)
@@ -906,12 +906,25 @@ contains
                         clr_orb(sminus, orb2)
                         set_orb(sminus, get_beta(orb2))
 
+                        ! Adjust for the sign of the paired det in HPHF.
+                        sgn_hphf = 1
+                        if (tHPHF) then
+                            if (IsAllowedHPHF(sminus, ilut_sym)) then
+                                ilut_srch = sminus
+                            else
+                                ilut_srch = ilut_sym
+                                sgn_hphf = -1
+                            endif
+                        else
+                            ilut_srch = sminus
+                        endif
+
                         ! --> sminus is an allowed result of applying S-S+
                         pos = binary_search (CurrentDets(:,1:TotWalkers), &
-                                             sminus, NIfD+1)
+                                             ilut_srch, NIfD+1)
                         if (pos > 0) then
                             call extract_sign (CurrentDets(:,pos), sgn2)
-                            ssq = ssq + (sgn(1) * sgn2(1))
+                            ssq = ssq + (sgn(1) * sgn2(1) * sgn_hphf) 
                         endif
                     endif
                 enddo

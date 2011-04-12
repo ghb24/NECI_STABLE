@@ -319,9 +319,9 @@ MODULE HPHFRandExcitMod
         ! it be found in the determinant list, or is it the symmetry paired
         ! one?
 
-        integer(n_int), intent(in) :: ilut(0:NIfTot)
-        integer(n_int) :: ilut_tmp(0:NIfTot)
-        integer(n_int), intent(out), optional :: sym_ilut(0:NIftot)
+        integer(n_int), intent(in) :: ilut(0:NIfD)
+        integer(n_int) :: ilut_tmp(0:NIfD)
+        integer(n_int), intent(out), optional :: sym_ilut(0:NIfD)
         logical :: bAllowed
 
         if (TestClosedShellDet(ilut)) then
