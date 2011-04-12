@@ -21,7 +21,7 @@ integer, parameter :: sizeof_int = bit_size(temp)/8 !Bytes in a standard unspeci
 
 !Unfortuntely bit_size only works on integers.  Let's assume (possibly unportably) that the size
 ! of a logical is the same as the integer.
-integer, parameter :: sizeof_log = bit_size(temp)/8 !Bytes in a standard unspecified logical
+integer, parameter :: sizeof_log = sizeof_int !Bytes in a standard unspecified logical
 
 integer, parameter :: sizeof_int32 = 4
 integer, parameter :: sizeof_int64 = 8
