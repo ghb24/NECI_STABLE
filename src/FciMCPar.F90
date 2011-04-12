@@ -2687,10 +2687,9 @@ MODULE FciMCParMod
                mean_walkers = AllTotWalkers / real(nNodes,dp)
                if (walkers_diff > nint(mean_walkers / 10.d0) .and. &
                    sum(AllTotParts) > real(nNodes * 500, dp)) then
-                   root_write (6, '(a, f20.10, 2i12)') &
-                       'Number of determinants assigned to each processor &
-                       &unbalanced: ', (walkers_diff * 10.d0) / &
-                       real(mean_walkers), MinWalkersProc, MaxWalkersProc
+                   root_write (6, '(a, i13,a,2i11)') &
+                       'Potential load-imbalance on iter ',iter,' Min/Max walkers on core: ', &
+                       MinWalkersProc,MaxWalkersProc
                endif
             endif
 
@@ -2755,7 +2754,8 @@ MODULE FciMCParMod
 
             ! How many walkers do we need to switch dets?
             pop_change = int(FracLargerDet * real(abs_int_sign(AllNoAtHF), dp))
-            if (pop_change < pop_highest .and. pop_highest > 250) then
+!            write(6,*) "***",AllNoAtHF,FracLargerDet,pop_change, pop_highest,proc_highest
+            if (pop_change < pop_highest .and. pop_highest > 50) then
 
                 ! Write out info!
                     root_print 'Highest weighted determinant not reference &
@@ -3035,8 +3035,8 @@ MODULE FciMCParMod
                 if ( (sum(AllTotParts) > tot_walkers) .or. &
                      (abs_int_sign(AllNoatHF) > MaxNoatHF)) then
 !                     WRITE(6,*) "AllTotParts: ",AllTotParts(1),AllTotParts(2),tot_walkers
-                    write (6, *) 'Exiting the single particle growth phase - &
-                                 &shift can now change'
+                    write (6, '(a,i13,a)') 'Exiting the single particle growth phase on iteration: ',iter, &
+                                 ' - Shift can now change'
                     VaryShiftIter = Iter
                     tSinglePartPhase = .false.
                     if(tSpawn_Only_Init.and.tSpawn_Only_Init_Grow) then
@@ -3046,8 +3046,8 @@ MODULE FciMCParMod
                     endif
                 endif
             elseif (abs_int_sign(AllNoatHF) < (MaxNoatHF - HFPopThresh)) then
-                write (6, *) 'No at HF has fallen too low - reentering the &
-                             &single particle growth phase - particle number &
+                write (6, '(a,i13,a)') 'No at HF has fallen too low - reentering the &
+                             &single particle growth phase on iteration',iter,' - particle number &
                              &may grow again.'
                 tSinglePartPhase = .true.
                 tReZeroShift = .true.
@@ -3071,7 +3071,7 @@ MODULE FciMCParMod
                 ! Update the shift averages
                 if ((iter - VaryShiftIter) >= nShiftEquilSteps) then
                     if ((iter-VaryShiftIter-nShiftEquilSteps) < StepsSft) &
-                        write (6, *) 'Beginning to average shift value.'
+                        write (6, '(a,i14)') 'Beginning to average shift value on iteration: ',iter
                     VaryShiftCycles = VaryShiftCycles + 1
                     SumDiagSft = SumDiagSft + DiagSft
                     AvDiagSft = SumDiagSft / real(VaryShiftCycles, dp)
@@ -5340,7 +5340,7 @@ MODULE FciMCParMod
         logical :: tMC,TestClosedShellDet
         HElement_t :: HDiagTemp
         real(dp) , allocatable :: CK(:,:),W(:),CKN(:,:),Hamil(:),A(:,:),V(:),BM(:),T(:),WT(:),SCR(:),WH(:),Work2(:),V2(:,:),AM(:)
-        integer :: ATag=0,VTag=0,BMTag=0,TTag=0,WTTag=0,SCRTag=0,WHTag=0,Work2Tag=0,V2Tag=0,ISCRTag=0,IndexTag=0,AMTag=0
+        integer(TagIntType) :: ATag=0,VTag=0,BMTag=0,TTag=0,WTTag=0,SCRTag=0,WHTag=0,Work2Tag=0,V2Tag=0,ISCRTag=0,IndexTag=0,AMTag=0
         real(dp) :: CASRefEnergy,TotWeight,PartFac,amp,rat,r,GetHElement
         integer , dimension(lenof_sign) :: temp_sign
         character(len=*) , parameter :: this_routine='InitFCIMC_CAS'

@@ -14,6 +14,7 @@ MODULE Determinants
     use DetBitOps, only: EncodeBitDet, count_open_orbs, spatial_bit_det
     use DeterminantData
     use bit_reps, only: NIfTot
+    use MemoryManager, only: TagIntType
     implicit none
 
     ! TODO: Add an interface for getting a diagonal helement with an ordered
@@ -28,7 +29,7 @@ MODULE Determinants
 ! Set by Calc on input
       INTEGER nActiveSpace(2)
         INTEGER, DIMENSION(:), POINTER :: SPECDET
-        INTEGER :: tagSPECDET=0
+        INTEGER(TagIntType) :: tagSPECDET=0
         Logical TSPECDET
 
 !nActiveBasis(1) is the lowest non-active orbital
@@ -45,7 +46,7 @@ MODULE Determinants
 
       INTEGER, allocatable :: DefDet(:)
       Logical :: tDefineDet
-      integer :: tagDefDet=0
+      integer(TagIntType) :: tagDefDet=0
 
 contains
 

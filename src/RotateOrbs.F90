@@ -37,18 +37,20 @@ MODULE RotateOrbsMod
     REAL*8 , ALLOCATABLE :: ThreeIndInts02(:,:,:,:),ThreeIndInts03(:,:,:,:),ThreeIndInts04(:,:,:,:)  
     REAL*8 , ALLOCATABLE :: DiagTMAT2Dfull(:),TMAT2DNew(:,:) 
     REAL*8 , ALLOCATABLE :: TwoIndIntsER(:,:,:),ThreeIndInts01ER(:,:),ThreeIndInts02ER(:,:),FourIndIntsER(:)
-    INTEGER :: TwoIndIntsERTag,ThreeIndInts01ERTag,ThreeIndInts02ERTag,FourIndIntsERTag
-    INTEGER :: TwoIndInts01Tag,TwoIndInts02Tag,ThreeIndInts01Tag,ThreeIndInts02Tag,ThreeIndInts03Tag,ThreeIndInts04Tag
-    INTEGER :: FourIndInts02Tag
-    INTEGER :: LowBound02,HighBound02,TMAT2DTempTag,TMAT2DRotTag,TMAT2DPartRot01Tag,TMAT2DPartRot02Tag
-    INTEGER :: LabTag,ForceCorrectTag,CorrectionTag,FourIndIntsTag,ArrDiagNewTag,ArrNewTag,UMATTemp01Tag,UMATTemp02Tag
-    INTEGER :: ShakeIterInput,NoOcc
-    INTEGER :: CoeffCorT2Tag,CoeffUncorT2Tag,LambdasTag,DerivCoeffTag,DerivLambdaTag,Iteration,TotNoConstraints
-    INTEGER :: ShakeLambdaNewTag
-    INTEGER :: ShakeLambdaTag,ConstraintTag,ConstraintCorTag,DerivConstrT1Tag,DerivConstrT2Tag,DerivConstrT1T2Tag
-    INTEGER :: DerivConstrT1T2DiagTag
-    INTEGER :: LabVirtOrbsTag,LabOccOrbsTag,MinOccVirt,MaxOccVirt,MinMZ,MaxMZ,error,LowBound,HighBound
-    INTEGER :: NoInts01,NoInts02,NoInts03,NoInts04,NoInts05,NoInts06,DiagTMAT2DfullTag,TMAT2DNewTag,SymLabelList3InvTag
+    INTEGER(TagIntType) :: TwoIndIntsERTag,ThreeIndInts01ERTag,ThreeIndInts02ERTag,FourIndIntsERTag
+    INTEGER(TagIntType) :: TwoIndInts01Tag,TwoIndInts02Tag,ThreeIndInts01Tag,ThreeIndInts02Tag,ThreeIndInts03Tag,ThreeIndInts04Tag
+    INTEGER(TagIntType) :: FourIndInts02Tag
+    INTEGER(TagIntType) :: TMAT2DTempTag,TMAT2DRotTag,TMAT2DPartRot01Tag,TMAT2DPartRot02Tag
+    INTEGER(TagIntType) :: LabTag,ForceCorrectTag,CorrectionTag,FourIndIntsTag,ArrDiagNewTag,ArrNewTag,UMATTemp01Tag,UMATTemp02Tag
+    INTEGER :: ShakeIterInput,NoOcc,LowBound02,HighBound02,Iteration,TotNoConstraints
+    INTEGER(TagIntType) :: CoeffCorT2Tag,CoeffUncorT2Tag,LambdasTag,DerivCoeffTag,DerivLambdaTag
+    INTEGER(TagIntType) :: ShakeLambdaNewTag
+    INTEGER(TagIntType) :: ShakeLambdaTag,ConstraintTag,ConstraintCorTag,DerivConstrT1Tag,DerivConstrT2Tag,DerivConstrT1T2Tag
+    INTEGER(TagIntType) :: DerivConstrT1T2DiagTag
+    INTEGER(TagIntType) :: LabVirtOrbsTag,LabOccOrbsTag
+    INTEGER :: MinOccVirt,MaxOccVirt,MinMZ,MaxMZ,error,LowBound,HighBound
+    INTEGER :: NoInts01,NoInts02,NoInts03,NoInts04,NoInts05,NoInts06
+    INTEGER(TagIntType) :: DiagTMAT2DfullTag,TMAT2DNewTag,SymLabelList3InvTag
     LOGICAL :: tNotConverged,tInitIntValues
     REAL*8 :: OrthoNorm,ERPotEnergy,HijSqrdPotEnergy,OffDiagPotEnergy,CoulPotEnergy,PotEnergy,Force,TwoEInts,DistCs
     REAL*8 :: OrthoForce,DistLs,LambdaMag,PEInts,PEOrtho
@@ -1514,7 +1516,8 @@ MODULE RotateOrbsMod
 ! groups. 
 ! This means that two iterations of the rotate orbs routine will be performed, the first treats the occupied orbitals and the second
 ! the virtual.
-        INTEGER :: i,j,ierr,SymCurr,Symi,SymVirtOrbsTag,SymOccOrbsTag
+        INTEGER :: i,j,ierr,SymCurr,Symi
+        INTEGER(TagIntType) :: SymVirtOrbsTag,SymOccOrbsTag
         integer :: lo, hi
         INTEGER , ALLOCATABLE :: SymVirtOrbs(:),SymOccOrbs(:)
         CHARACTER(len=*) , PARAMETER :: this_routine='InitOrbitalSeparation'
@@ -1666,7 +1669,8 @@ MODULE RotateOrbsMod
 ! are then the rotation coefficients to be applied to the four index integrals etc.
 ! This eliminates the <i|h|j> elements from the single excitations, and leaves only coulomb and exchange terms.
 ! In order to maintain the same HF energy, only the virtual elements are diagonalised, within symmetry blocks.
-        INTEGER :: i,j,Sym,ierr,NoSymBlock,TMAT2DSymBlockTag,WorkSize,WorkCheck,WorkTag,DiagTMAT2DBlockTag,SymStartInd
+        INTEGER :: i,j,Sym,ierr,NoSymBlock,WorkSize,WorkCheck,SymStartInd
+        INTEGER(TagIntType) WorkTag,DiagTMAT2DBlockTag,TMAT2DSymBlockTag
         REAL , ALLOCATABLE :: TMAT2DSymBlock(:,:),DiagTMAT2DBlock(:),Work(:)
         CHARACTER(len=*) , PARAMETER :: this_routine='Diagonalizehij'
  
@@ -2147,7 +2151,8 @@ MODULE RotateOrbsMod
 !This is an M^5 transform, which transforms all the two-electron integrals into the new basis described by the Coeff matrix.
 !This is v memory inefficient and currently does not use any spatial symmetry information.
     SUBROUTINE Transform2ElIntsMemSave()
-        INTEGER :: i,j,k,l,a,b,g,d,ierr,Temp4indintsTag,a2,b2,g2,d2
+        INTEGER :: i,j,k,l,a,b,g,d,ierr,a2,b2,g2,d2
+        INTEGER(TagIntType) Temp4indintsTag
         REAL*8 , ALLOCATABLE :: Temp4indints(:,:)
 #ifdef __CMPLX
         call stop_all('Transform2ElIntsMemSave', 'Rotating orbitals not implemented for complex orbitals.')
@@ -5030,7 +5035,8 @@ MODULE RotateOrbsMod
 
 
     SUBROUTINE RefillUMATandTMAT2D()
-        INTEGER :: l,k,j,i,a,b,g,d,c,nBasis2,TMAT2DPartTag,ierr
+        INTEGER :: l,k,j,i,a,b,g,d,c,nBasis2,ierr
+        INTEGER(TagIntType) :: TMAT2DPartTag
         REAL*8 :: NewTMAT
         REAL*8 , ALLOCATABLE :: TMAT2DPart(:,:)
 #ifdef __CMPLX

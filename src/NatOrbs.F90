@@ -17,11 +17,13 @@ MODULE NatOrbsMod
         USE RotateOrbsData , only : FillMP2VDM_Time,DiagNatOrbMat_Time,OrderCoeff_Time,FillCoeff_Time,NoFrozenVirt
         use sort_mod
         use bit_reps, only: decode_bit_det
+        use MemoryManager, only: TagIntType
         IMPLICIT NONE
-        INTEGER :: NoSpinCyc,SymOrbsTempTag
+        INTEGER(TagIntType) :: NoSpinCyc,SymOrbsTempTag
         REAL*8 , ALLOCATABLE :: NatOrbMat(:,:),Evalues(:)
         INTEGER , ALLOCATABLE :: SymOrbsTemp(:)
-        INTEGER :: NatOrbMatTag,ierr,EvaluesTag
+        INTEGER ierr
+        INTEGER(TagIntType) :: NatOrbMatTag,EvaluesTag
 
     contains
     
@@ -74,11 +76,12 @@ MODULE NatOrbsMod
 
 
     SUBROUTINE SetupNatOrbLabels()
+        use MemoryManager, only: TagIntType
         IMPLICIT NONE
         INTEGER :: x,i,j,ierr,NoOcc,StartFill01,StartFill02,Symi,SymCurr,Prev,EndFill01,EndFill02
         CHARACTER(len=*) , PARAMETER :: this_routine='SetupNatOrbLabels'
         INTEGER , ALLOCATABLE :: LabVirtOrbs(:),LabOccOrbs(:),SymVirtOrbs(:),SymOccOrbs(:)
-        INTEGER :: LabVirtOrbsTag,LabOccOrbsTag,SymVirtOrbsTag,SymOccOrbsTag
+        INTEGER(TagIntType) :: LabVirtOrbsTag,LabOccOrbsTag,SymVirtOrbsTag,SymOccOrbsTag
         integer :: lo, hi
         
 
@@ -786,11 +789,12 @@ MODULE NatOrbsMod
 ! The best way to do this is to order the orbitals so that all the alpha orbitals follow all the beta orbitals, with the 
 ! occupied orbitals first, in terms of symmetry, and the virtual second, also ordered by symmetry.
 ! This gives us flexibility w.r.t rotating only the occupied or only virtual and looking at high spin states.
+        use MemoryManager, only: TagIntType
         IMPLICIT NONE
         REAL*8 :: SumTrace,SumDiagTrace
         REAL*8 , ALLOCATABLE :: WORK2(:),EvaluesSym(:),NOMSym(:,:)
-        INTEGER :: ierr,i,j,x,z,Sym,LWORK2,WORK2Tag,SymStartInd,NoSymBlock,PrevSym,StartOccVirt,EndOccVirt,Prev,NoOcc
-        INTEGER :: EvaluesSymTag,NOMSymTag
+        INTEGER :: ierr,i,j,x,z,Sym,LWORK2,SymStartInd,NoSymBlock,PrevSym,StartOccVirt,EndOccVirt,Prev,NoOcc
+        INTEGER(TagIntType) :: EvaluesSymTag,NOMSymTag,WORK2Tag
         CHARACTER(len=*), PARAMETER :: this_routine='DiagNatOrbMat'
 
  
@@ -1855,6 +1859,7 @@ MODULE NatOrbsMod
 
 
     SUBROUTINE Diag1RDMOld()
+       use MemoryManager, only: TagIntType
 ! The diagonalisation routine reorders the orbitals in such a way that the corresponding orbital labels are lost.
 ! In order to keep the spin and spatial symmetries, each symmetry must be fed into the diagonalisation routine separately.
 ! The best way to do this is to order the orbitals so that all the alpha orbitals follow all the beta orbitals, with the 
@@ -1862,7 +1867,8 @@ MODULE NatOrbsMod
 ! This gives us flexibility w.r.t rotating only the occupied or only virtual and looking at high spin states.
         IMPLICIT NONE
         REAL*8 , ALLOCATABLE :: NOccNums(:),Work(:)
-        INTEGER :: nOccNumsTag=0,iErr,WorkSize,WorkCheck,WorkTag=0,i
+        INTEGER(TagIntType) :: nOccNumsTag=0,WorkTag=0
+        INTEGER :: iErr,WorkSize,WorkCheck,i
         CHARACTER(len=*), PARAMETER :: this_routine='Diag1RDM'
 
         ALLOCATE(NOccNums(nBasis),stat=ierr)
