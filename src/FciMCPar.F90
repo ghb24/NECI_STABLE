@@ -3538,7 +3538,6 @@ MODULE FciMCParMod
 
 !Init hash shifting data
         hash_iter=0
-        hash_shift=0
 
         IF(tKPntSym) THEN
             CALL DecomposeAbelianSym(HFSym%Sym%S,KPnt)
