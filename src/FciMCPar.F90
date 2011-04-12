@@ -76,7 +76,7 @@ MODULE FciMCParMod
     USE AnnihilationMod
     use PopsfileMod
     use DetBitops, only: EncodeBitDet, DetBitEQ, DetBitLT, FindExcitBitDet, &
-                         FindBitExcitLevel, countbits, &
+                         FindBitExcitLevel, countbits, TestClosedShellDet, &
                          FindSpatialBitExcitLevel
     use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask, get_csf_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
@@ -2749,7 +2749,7 @@ MODULE FciMCParMod
         integer :: pop_highest, proc_highest, pop_change
         integer :: det(nel), i, error
         integer(int32) :: int_tmp(2)
-        logical :: tSwapped, TestClosedShellDet
+        logical :: tSwapped
         HElement_t :: h_tmp
 
         if (tCheckHighestPop) then
@@ -3469,7 +3469,7 @@ MODULE FciMCParMod
         REAL*8 :: TotDets,SymFactor,r,Gap
         CHARACTER(len=*), PARAMETER :: this_routine='SetupParameters'
         CHARACTER(len=12) :: abstr
-        LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped,TestClosedShellDet
+        LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped
         INTEGER :: HFLz,ChosenOrb,KPnt(3), step,SymHF
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
@@ -5367,7 +5367,7 @@ MODULE FciMCParMod
         integer , allocatable :: CASBrr(:),CASDet(:),CASFullDets(:,:),nRow(:),Lab(:),ISCR(:),INDEX(:)
         integer , pointer :: CASDetList(:,:) => null()
         integer(n_int) :: iLutnJ(0:NIfTot)
-        logical :: tMC,TestClosedShellDet
+        logical :: tMC
         HElement_t :: HDiagTemp
         real(dp) , allocatable :: CK(:,:),W(:),CKN(:,:),Hamil(:),A(:,:),V(:),BM(:),T(:),WT(:),SCR(:),WH(:),Work2(:),V2(:,:),AM(:)
         integer(TagIntType) :: ATag=0,VTag=0,BMTag=0,TTag=0,WTTag=0,SCRTag=0,WHTag=0,Work2Tag=0,V2Tag=0,ISCRTag=0,IndexTag=0,AMTag=0
@@ -5701,7 +5701,7 @@ MODULE FciMCParMod
         integer :: iExcits,exflag,Ex(2,2),nJ(NEl),ic,DetIndex,iNode,NoWalkers,iInit
         integer(n_int) :: iLutnJ(0:NIfTot)
         integer, dimension(lenof_sign) :: temp_sign
-        logical :: tAllExcitsFound,tParity,TestClosedShellDet
+        logical :: tAllExcitsFound,tParity
         character(len=*), parameter :: this_routine="InitFCIMC_MP1"
 
         if(lenof_sign.ne.1) call stop_all(this_routine,"StartMP1 currently does not work with complex walkers")

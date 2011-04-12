@@ -476,7 +476,7 @@ module DetBitOps
 
     ! This will return 1 if iLutI is "less" than iLutJ, 0 if the determinants
     ! are identical, or -1 if iLutI is "more" than iLutJ
-    integer function DetBitLT(iLutI,iLutJ,nLast)
+    pure integer function DetBitLT(iLutI,iLutJ,nLast)
         integer, intent(in), optional :: nLast
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer :: i, lnLast
@@ -789,6 +789,26 @@ module DetBitOps
         endif
     end function
 
+    pure function TestClosedShellDet (ilut) result(tClosed)
+
+        ! Is the determinant closed shell?
+
+        integer(n_int), intent(in) :: iLut(0:NIfTot)
+        integer(n_int) :: alpha(0:NIfD), beta(0:NIfD)
+        logical :: tClosed
+
+        ! Separate alphas and betas
+        alpha = iand(ilut, MaskAlpha)
+        beta = iand(ilut, MaskBeta)
+
+        ! Shift and XOR to eliminate paired electrons
+        alpha = ieor(beta, ishft(alpha, -1))
+
+        ! Are there any remaining unpaired electrons?
+        tClosed = all(alpha == 0)
+
+    end function TestClosedShellDet
+
 end module
 
     pure subroutine GetBitExcitation(iLutnI,iLutnJ,Ex,tSign)
@@ -904,35 +924,6 @@ end module
 
 
 
-!This function will return true if the determinant is closed shell, or false if not.
-    PURE FUNCTION TestClosedShellDet(iLut) result(tClosed)
-        use bit_rep_data, only: NIfD
-        use constants, only: n_int
-        use DetBitOps, only: MaskAlpha,MaskBeta
-        IMPLICIT NONE
-        INTEGER(kind=n_int), intent(in) :: iLut(0:NIfD)
-        integer(n_int) :: iLutAlpha(0:NIfD),iLutBeta(0:NIfD)
-        logical :: tClosed
-        INTEGER :: i
-        
-        iLutAlpha(:)=0
-        iLutBeta(:)=0
-        tClosed=.true.
-
-        do i=0,NIfD
-
-            iLutAlpha(i)=IAND(iLut(i),MaskAlpha)    !Seperate the alpha and beta bit strings
-            iLutBeta(i)=IAND(iLut(i),MaskBeta)
-            iLutAlpha(i)=ISHFT(iLutAlpha(i),-1)     !Shift all alpha bits to the left by one.
-            iLutAlpha(i)=IEOR(iLutAlpha(i),iLutBeta(i)) !Do an XOR on the original beta bits and shifted alpha bits - they should cancel exactly.
-            
-            IF(iLutAlpha(i).ne.0) THEN
-                tClosed=.false.  !Det is not closed shell - return
-                RETURN
-            ENDIF
-        enddo
-
-    END FUNCTION TestClosedShellDet
 
 !Routine to count number of open *SPATIAL* orbitals in a bit-string representation of a determinant.
 ! ************************

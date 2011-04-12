@@ -8,7 +8,7 @@ module hist
                           hist_spin_dist_iter, nI_spindist, LMS, tHPHF, &
                           tOddS_HPHF, G1
     use DetBitOps, only: count_open_orbs, EncodeBitDet, spatial_bit_det, &
-                         DetBitEq, count_open_orbs
+                         DetBitEq, count_open_orbs, TestClosedShellDet
     use CalcData, only: tFCIMC, tTruncInitiator
     use DetCalcData, only: FCIDetIndex, det
     use FciMCData, only: tFlippedSign, TotWalkers, CurrentDets, iter, &
@@ -843,7 +843,8 @@ contains
                 ! All processors loop over these dets, and calculate their
                 ! contribution to S^2
                 do i = 1, nsend
-                    ssq_sum = ssq_sum + ssquared_contrib (recv_dets(:,i))
+                    if (.not. TestClosedShellDet (recv_dets(:,i))) &
+                        ssq_sum = ssq_sum + ssquared_contrib (recv_dets(:,i))
                 enddo
 
             enddo
@@ -882,6 +883,7 @@ contains
         integer :: sgn(lenof_sign), sgn2(lenof_sign), flg, nI(nel)
         integer :: j, k, orb2, pos
         integer(int64) :: ssq
+
 
         ! Extract details of determinant
         call extract_bit_rep (ilut, nI, sgn, flg)
