@@ -2755,7 +2755,8 @@ MODULE FciMCParMod
 
             ! How many walkers do we need to switch dets?
             pop_change = int(FracLargerDet * real(abs_int_sign(AllNoAtHF), dp))
-            if (pop_change < pop_highest .and. pop_highest > 250) then
+!            write(6,*) "***",AllNoAtHF,FracLargerDet,pop_change, pop_highest,proc_highest
+            if (pop_change < pop_highest .and. pop_highest > 50) then
 
                 ! Write out info!
                     root_print 'Highest weighted determinant not reference &
