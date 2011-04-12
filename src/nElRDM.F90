@@ -586,6 +586,8 @@ MODULE nElRDMMod
 ! This becomes true when all the excitations have been found.        
 
             do while (.not.tAllExcitFound)
+                write(6,*) 'generating singles'
+                call flush(6)
                 CALL GenExcitations3(nI,iLutnI,nJ,1,ExcitMat3(:,:),tParity,tAllExcitFound,.true.)            
 ! Passed out of here is the singly excited determinant, nJ.
 ! Information such as the orbitals involved in the excitation and the parity is also found in this step,
@@ -1086,6 +1088,17 @@ MODULE nElRDMMod
 ! Call the routines from NatOrbs that diagonalise the one electron reduced density matrix.
 
             IF(iProcIndex.eq.0) THEN
+
+!                NatOrbMat(:,:) = 0.D0
+!                do i = 1, nBasis
+!                    NatOrbMat(i,i) = 1.D0
+!                enddo
+                do i = 1,nBasis
+                    do j = i+1, nBasis
+                        NatOrbMat(i,j) = NatOrbMat(j,i)
+                    enddo
+                enddo
+
         
 !                SumDiag=0.D0
 !                do i=1,nBasis
@@ -1136,6 +1149,9 @@ MODULE nElRDMMod
                     CoeffT1(:,:)=0.D0
 
                     CALL FillCoeffT1_RDM()
+!                    do i = 1, nBasis
+!                        CoeffT1(i,i) = 1.D0
+!                    enddo
 
 !                    WRITE(6,*) 'CoeffT1'
 !                    do i = 1, nBasis
