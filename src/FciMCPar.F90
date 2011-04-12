@@ -2687,9 +2687,9 @@ MODULE FciMCParMod
                mean_walkers = AllTotWalkers / real(nNodes,dp)
                if (walkers_diff > nint(mean_walkers / 10.d0) .and. &
                    sum(AllTotParts) > real(nNodes * 500, dp)) then
-                   root_write (6, '(a, i14,a,i11,a,i11)') &
-                       'Potential load-imbalance on iter ',iter,' Max walkers on core: ', &
-                       MaxWalkersProc,' Min walkers: ',MinWalkersProc
+                   root_write (6, '(a, i13,a,2i11)') &
+                       'Potential load-imbalance on iter ',iter,' Min/Max walkers on core: ', &
+                       MinWalkersProc,MaxWalkersProc
                endif
             endif
 
