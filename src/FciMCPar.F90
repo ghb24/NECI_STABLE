@@ -2688,7 +2688,7 @@ MODULE FciMCParMod
                if (walkers_diff > nint(mean_walkers / 10.d0) .and. &
                    sum(AllTotParts) > real(nNodes * 500, dp)) then
                    root_write (6, '(a, i13,a,2i11)') &
-                       'Potential load-imbalance on iter ',iter,' Min/Max walkers on core: ', &
+                       'Potential load-imbalance on iter ',iter,' Min/Max determinants on node: ', &
                        MinWalkersProc,MaxWalkersProc
                endif
             endif
@@ -3419,7 +3419,7 @@ MODULE FciMCParMod
 
     SUBROUTINE SetupParameters()
         use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tROHF,tFindCINatOrbs,nOccBeta,nOccAlpha,tUHF
-        use SystemData, only : tBrillouinsDefault,ECore
+        use SystemData, only : tBrillouinsDefault,ECore,tNoSingExcits
         USE dSFMT_interface , only : dSFMT_init
         use CalcData, only: G_VMC_Seed, &
                             MemoryFacPart, MemoryFacAnnihil, TauFactor, &
@@ -3687,7 +3687,7 @@ MODULE FciMCParMod
         endif
  
 !Setup excitation generator for the HF determinant. If we are using assumed sized excitgens, this will also be assumed size.
-        IF(tUEG.or.tHub) THEN
+        IF(tUEG.or.tHub.or.tNoSingExcits) THEN
             exflag=2
         ELSE
             exflag=3
@@ -4484,7 +4484,7 @@ MODULE FciMCParMod
     END SUBROUTINE BinSearchParts3
     
     SUBROUTINE CalcApproxpDoubles()
-        use SystemData , only : tAssumeSizeExcitgen,tUseBrillouin
+        use SystemData , only : tAssumeSizeExcitgen,tUseBrillouin,tNoSingExcits
         use CalcData , only : SinglesBias
         use SymData , only : SymClassSize
         use SymExcit3 , only : CountExcitations3
@@ -4506,16 +4506,19 @@ MODULE FciMCParMod
 
         IF(tHub.or.tUEG) THEN
             IF(tReal) THEN
-                WRITE(6,*) "Since we are using a real-space hubbard model, only single excitations are connected."
-                WRITE(6,*) "Setting pDoub to 0.D0"
+                WRITE(6,*) "Since we are using a real-space hubbard model, only single excitations are connected &
+                &   and will be generated."
                 pDoubles=0.D0
                 RETURN
             ELSE
-                WRITE(6,*) "Since we are using a momentum-space hubbard model/UEG, only double excitaitons are connected."
-                WRITE(6,*) "Setting pDoub to 1.D0"
+                WRITE(6,*) "Since we are using a momentum-space hubbard model/UEG, only double excitaitons &
+     &                          are connected and will be generated."
                 pDoubles=1.D0
                 RETURN
             ENDIF
+        elseif(tNoSingExcits) then
+            write(6,*) "Only double excitations will be generated"
+            return
         ENDIF
 
 !NSing=Number singles from HF, nDoub=No Doubles from HF
