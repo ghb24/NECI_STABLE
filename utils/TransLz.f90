@@ -496,7 +496,7 @@ PROGRAM TransLz
         endif
     enddo
 
-    if((iSyms.eq.4).or.tNoSym) then
+    if((iSyms.lt.4).or.tNoSym) then
         !Heteronuclear - Remove all sym - all calculated in Lz and now redundant, and can't keep +/- sym (unless kept in dets)
         if(tNoSym) then
             write(6,'(a)') "Symmetry irreps missing - removing all symmetry"
@@ -504,7 +504,7 @@ PROGRAM TransLz
             write(6,'(a)') "Heteronuclear molecule detected - removing all redundant point group symmetry"
         endif
         ORBSYM(:)=0
-    elseif(iSyms.eq.8) then
+    elseif(iSyms.gt.4) then
         !Keep inversion symmetry. **** In qchem **** (i.e. not molpro), this irreps 1 -> 4 (g) and 5 -> 8 (u)
         write(6,'(a)') "Homonuclear molecule detected - reducing point group of molecule to Ci (keeping only inversion)"
         do i=1,NORB
