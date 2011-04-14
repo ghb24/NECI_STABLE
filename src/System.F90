@@ -813,6 +813,9 @@ MODULE System
         case("NOSINGEXCITS")
 !This will mean that no single excitations are ever attempted to be generated.
             tNoSingExcits=.true.
+        case("DIAGONALTMAT")
+!Implies that the orbital basis are eigenfunctions of the KE operator, so TMAT can be stored as a diagonal matrix to save space.
+          tOneElecDiag=.true.   !One electron integrals diagonal
         case("ROHF")
 !This is an option for open-shell systems to specify that the integrals are *restricted* open-shell integrals.
 !This will save memory (around a factor of 16) for the integral storage, but the FCIDUMP file should be the same as before (ie in UHF form).
