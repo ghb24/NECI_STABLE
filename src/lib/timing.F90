@@ -348,7 +348,8 @@ contains
       if (.not.global_timing_on) deallocate(timers) ! Assume we're done as end_timing has been called.
 
       call date_and_time(VALUES=date_values)
-      write(io,'(1X,"Calculation ended",1X,i2.2,"/",i2.2,"/",i4.4,1X,"at",1X,i2.2,2(":",i2.2))') date_values(3:1:-1),date_values(5:7)
+      write(io,'(1X,"Calculation ended",1X,i2.2,"/",i2.2,"/",i4.4,1X,"at",1X,i2.2,2(":",i2.2))') &
+            date_values(3:1:-1),date_values(5:7)
       write (io,'(a65)') '================================================================'
 
 
