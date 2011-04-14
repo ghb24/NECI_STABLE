@@ -13,7 +13,7 @@ PROGRAM TransLz
     LOGICAL , ALLOCATABLE :: FlipSign(:)
     COMPLEX*16 :: CompZ,alpha1Coeff,alpha2Coeff,beta1Coeff,beta2Coeff,gamma1Coeff,gamma2Coeff,Delta1Coeff,Delta2Coeff
     INTEGER :: alpha1,alpha2,beta1,beta2,gamma1,gamma2,delta1,delta2,SymLTot,Degen
-    LOGICAL :: TestSym(8)
+    LOGICAL :: tNoSym
     INTEGER :: iSyms
     NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ
 
@@ -471,26 +471,42 @@ PROGRAM TransLz
     CLOSE(8)
 
 !First, calculate whether we are a heteronuclear diatomic or homonuclear
-!If heteronuclear - will have 4 irreps - remove all symmetry info
-!If homo - will have 8 irreps - then keep the inversion symmetry - reduce to Ci point group.
-    TestSym(:)=.false.
-    do i=1,NORB
-        TestSym(ORBSYM(i))=.true.
-    enddo
+!If heteronuclear - will have 4 (1 -> 4 in qchem) irreps - remove all symmetry info
+!If homo - will have 8 (1 -> 8 in qchem) irreps - then keep the inversion symmetry - reduce to Ci point group.
+!    TestSym(:)=.false.
+!    do i=1,NORB
+!        TestSym(ORBSYM(i))=.true.
+!    enddo
+!    iSyms=0
+!    do i=1,8
+!        if(TestSym(i)) then
+!            iSyms=iSyms+1
+!        endif
+!    enddo
+!    if((iSyms.ne.4).and.(iSyms.ne.8)) then
+!        STOP 'Neither 4 or 8 irreps - neither D2h or C2v point group detected. Error.'
+!    endif
     iSyms=0
-    do i=1,8
-        if(TestSym(i)) then
-            iSyms=iSyms+1
+    tNoSym=.false.
+    do i=1,NORB
+        if(ORBSYM(i).gt.iSyms) then
+            iSyms=ORBSYM(i)
+        elseif(ORBSYM(i).eq.0) then
+            tNoSym=.true.
         endif
     enddo
-    if((iSyms.ne.4).and.(iSyms.ne.8)) then
-        STOP 'Neither 4 or 8 irreps - neither D2h or C2v point group detected. Error.'
-    endif
-    if(iSyms.eq.4) then
-        !Remove all sym - all calculated in Lz and now redundant, and can't keep +/- sym (unless kept in dets)
+
+    if((iSyms.eq.4).or.tNoSym) then
+        !Heteronuclear - Remove all sym - all calculated in Lz and now redundant, and can't keep +/- sym (unless kept in dets)
+        if(tNoSym) then
+            write(6,'(a)') "Symmetry irreps missing - removing all symmetry"
+        else
+            write(6,'(a)') "Heteronuclear molecule detected - removing all redundant point group symmetry"
+        endif
         ORBSYM(:)=0
-    else
+    elseif(iSyms.eq.8) then
         !Keep inversion symmetry. **** In qchem **** (i.e. not molpro), this irreps 1 -> 4 (g) and 5 -> 8 (u)
+        write(6,'(a)') "Homonuclear molecule detected - reducing point group of molecule to Ci (keeping only inversion)"
         do i=1,NORB
             if(ORBSYM(i).ge.5) then
                 ORBSYM(i) = 2
