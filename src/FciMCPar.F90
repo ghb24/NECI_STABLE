@@ -2641,7 +2641,6 @@ MODULE FciMCParMod
     subroutine iter_diagnostics ()
 
         character(*), parameter :: this_routine = 'iter_diagnostics'
-        integer(int64) :: walkers_diff
         real(dp) :: mean_walkers
 
         ! Update the total imaginary time passed
@@ -2683,9 +2682,9 @@ MODULE FciMCParMod
             if(.not.tCCMC) then
                ! Check how balanced the load on each processor is (even though
                ! we cannot load balance with direct annihilation).
-               walkers_diff = MaxWalkersProc - MinWalkersProc
+               WalkersDiffProc = MaxWalkersProc - MinWalkersProc
                mean_walkers = AllTotWalkers / real(nNodes,dp)
-               if (walkers_diff > nint(mean_walkers / 10.d0) .and. &
+               if (WalkersDiffProc > nint(mean_walkers / 10.d0) .and. &
                    sum(AllTotParts) > real(nNodes * 500, dp)) then
                    root_write (6, '(a, i13,a,2i11)') &
                        'Potential load-imbalance on iter ',iter,' Min/Max determinants on node: ', &
