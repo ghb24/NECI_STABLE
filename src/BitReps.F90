@@ -533,12 +533,12 @@ contains
                     do k = 1, decode_map_arr(0, val)
                         elec = elec + 1
                         nI(elec) = offset + decode_map_arr(k, val)
-                        if (elec == nel) exit
+                        if (elec == nel) return ! exit
                     enddo
-                    if (elec == nel) exit
+!                    if (elec == nel) exit
                     offset = offset + 8
                 enddo
-                if (elec == nel) exit
+!                if (elec == nel) exit
             enddo
 
         endif
