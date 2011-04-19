@@ -294,6 +294,7 @@ contains
       integer :: i,it,id(1)
       real(4) :: t(2)
       real(4) :: sum_times(ntimer),total_cpu,total_system
+      integer :: date_values(8)
 
       ! Add on a small perturbation for the cases where the total time is 
       ! zero to single-precision.  This forces the procedure times to be printed
@@ -345,6 +346,12 @@ contains
       write (io,'(a65)') '================================================================'
 
       if (.not.global_timing_on) deallocate(timers) ! Assume we're done as end_timing has been called.
+
+      call date_and_time(VALUES=date_values)
+      write(io,'(1X,"Calculation ended",1X,i2.2,"/",i2.2,"/",i4.4,1X,"at",1X,i2.2,2(":",i2.2))') &
+            date_values(3:1:-1),date_values(5:7)
+      write (io,'(a65)') '================================================================'
+
 
    end subroutine print_timing_report
 

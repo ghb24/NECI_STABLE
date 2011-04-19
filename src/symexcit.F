@@ -24,7 +24,9 @@ C.. Setup for symmetry routine below.
          allocate(DSTORE(SymClassSize*NEL+(nBasis/32)+1
      &      +SymmetrySize*(NEL*NEL+1)))
          STORE(1)=1 !Meaning the first element of DSTORE
-         CALL SYMSETUPEXCITS3(NI,NEL,G1,NBASIS,STORE,TCOUNT,
+         ! STORE(1) --> 
+         CALL SYMSETUPEXCITS3(NI,NEL,G1,NBASIS,STORE,STORE(1),
+     &      STORE(1),STORE(1),STORE(1),TCOUNT,
      &      ICOUNT,DSTORE(1),
      &      DSTORE(SymClassSize*NEL+1),
      &      DSTORE(SymClassSize*NEL+1+(nBasis/32)+1),ILEVEL,iMinElec1,
