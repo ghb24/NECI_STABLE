@@ -1039,10 +1039,6 @@ MODULE AnnihilationMod
            offset=0
         endif
         acc = 0
-!sum(nI) ensures that a random number is generated for each different nI, which is then added to the iteration,
-!  and the result shifted.  Consequently, the less significant bits (but not the least, as these have been shifted away)
-!  for each nI will change on average once per 2^hash_shift iterations, but the change spread throughout the different iters.
-        offset=ishft(sum(nI)*hash_shift+hash_iter+iIterOffset, hash_shift) 
         do i = 1, nel
             acc = (1099511628211_int64 * acc) + &
                     (RandomHash(mod(iand(nI(i), csf_orbital_mask)+offset-1,int(nBasis,int64))+1) * i)

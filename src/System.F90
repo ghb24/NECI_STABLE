@@ -25,6 +25,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tNoSingExcits=.false.
       tOneElecDiag=.false.
       tMCSizeTruncSpace=.false.
       iMCCalcTruncLev=0
@@ -809,6 +810,12 @@ MODULE System
 !magnitude than the value set for UMatEps will be set to zero.
             call readf(UMatEps)
             tUMatEps=.true.
+        case("NOSINGEXCITS")
+!This will mean that no single excitations are ever attempted to be generated.
+            tNoSingExcits=.true.
+        case("DIAGONALTMAT")
+!Implies that the orbital basis are eigenfunctions of the KE operator, so TMAT can be stored as a diagonal matrix to save space.
+          tOneElecDiag=.true.   !One electron integrals diagonal
         case("ROHF")
 !This is an option for open-shell systems to specify that the integrals are *restricted* open-shell integrals.
 !This will save memory (around a factor of 16) for the integral storage, but the FCIDUMP file should be the same as before (ie in UHF form).

@@ -13,6 +13,8 @@ save
 ! I blame the original authors for setting the precedent... JSS
 ! ;-)
 
+logical :: tNoSingExcits    !True if there are no single excitations in the system
+
 logical :: tStarBin, tReadInt, tHFOrder, tDFRead, tPBC, tUEG, tCPMD, tHUB
 logical :: tHPHF, tHPHFInts, tUHF, tSPN, tParity, tUseBrillouin, tExch, tReal
 logical :: tTilt, tUmatEps, tOneElIntMax, tOnePartOrbEnMax, tROHF, tBrillouinsDefault
