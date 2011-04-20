@@ -13,6 +13,8 @@ PROGRAM TransLz
     LOGICAL , ALLOCATABLE :: FlipSign(:)
     COMPLEX*16 :: CompZ,alpha1Coeff,alpha2Coeff,beta1Coeff,beta2Coeff,gamma1Coeff,gamma2Coeff,Delta1Coeff,Delta2Coeff
     INTEGER :: alpha1,alpha2,beta1,beta2,gamma1,gamma2,delta1,delta2,SymLTot,Degen
+    LOGICAL :: tNoSym
+    INTEGER :: iSyms
     NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ
 
     UHF=.false.
@@ -468,45 +470,53 @@ PROGRAM TransLz
 !Integrals have now been read in - now to transform them to complex integrals.
     CLOSE(8)
 
+!First, calculate whether we are a heteronuclear diatomic or homonuclear
+!If heteronuclear - will have 4 (1 -> 4 in qchem) irreps - remove all symmetry info
+!If homo - will have 8 (1 -> 8 in qchem) irreps - then keep the inversion symmetry - reduce to Ci point group.
+!    TestSym(:)=.false.
 !    do i=1,NORB
-!        WRITE(6,*) TMAT(:,i)
+!        TestSym(ORBSYM(i))=.true.
 !    enddo
-
-!Reduce symmetry from D2h to C2h
-!This will contain a redundant C2(z) operation, but we cannot get rid of this without
-!also losing the sigma_h.
+!    iSyms=0
+!    do i=1,8
+!        if(TestSym(i)) then
+!            iSyms=iSyms+1
+!        endif
+!    enddo
+!    if((iSyms.ne.4).and.(iSyms.ne.8)) then
+!        STOP 'Neither 4 or 8 irreps - neither D2h or C2v point group detected. Error.'
+!    endif
+    iSyms=0
+    tNoSym=.false.
     do i=1,NORB
-        IF((ORBSYM(i).eq.7).or.(ORBSYM(i).eq.8)) THEN
-            ORBSYM(i)=4
-        ELSEIF((ORBSYM(i).eq.3).or.(ORBSYM(i).eq.4)) THEN
-            ORBSYM(i)=3
-        ELSEIF((ORBSYM(i).eq.5).or.(ORBSYM(i).eq.6)) THEN
-            ORBSYM(i)=2
-        ELSEIF(ORBSYM(i).eq.2) THEN
-            ORBSYM(i)=1
-        ELSEIF(ORBSYM(i).eq.0) THEN
-            WRITE(6,*) "WARNING - Not all symmetries found"
-        ENDIF
+        if(ORBSYM(i).gt.iSyms) then
+            iSyms=ORBSYM(i)
+        elseif(ORBSYM(i).eq.0) then
+            tNoSym=.true.
+        endif
     enddo
 
-!If we only have the C2(z) operation left, remove it, since we are only at a C_2 point group, and
-!we already have all that symmetry in the Lz.
-    lp2: do i=1,NORB
-        do j=1,NORB
-            if((ORBSYM(i).ne.1).and.(ORBSYM(j).ne.1).and.(ORBSYM(j).ne.ORBSYM(i))) then
-                EXIT lp2    !We have four irreps, therefore must be in a C2h subgroup (and be homonuclear diatomic)
+    if((iSyms.lt.4).or.tNoSym) then
+        !Heteronuclear - Remove all sym - all calculated in Lz and now redundant, and can't keep +/- sym (unless kept in dets)
+        if(tNoSym) then
+            write(6,'(a)') "Symmetry irreps missing - removing all symmetry"
+        else
+            write(6,'(a)') "Heteronuclear molecule detected - removing all redundant point group symmetry"
+        endif
+        ORBSYM(:)=0
+    elseif(iSyms.gt.4) then
+        !Keep inversion symmetry. **** In qchem **** (i.e. not molpro), this irreps 1 -> 4 (g) and 5 -> 8 (u)
+        write(6,'(a)') "Homonuclear molecule detected - reducing point group of molecule to Ci (keeping only inversion)"
+        do i=1,NORB
+            if(ORBSYM(i).ge.5) then
+                ORBSYM(i) = 2
+            else
+                ORBSYM(i) = 1
             endif
         enddo
-    enddo lp2
-
-    if((i.eq.NORB+1).and.(j.eq.NORB+1)) then
-        !We did not exit the loop
-        !We only have two irreps - must be heteronuclear diatomic.
-        !We only have two symmetries, and one of them (C2(z)) is redundant anyway, so just chuck all sym!
-        do i=1,NORB
-            if(ORBSYM(i).ne.1) ORBSYM(i)=1
-        enddo
     endif
+
+
 
     OPEN(8,FILE='PUREHARMINTDUMP',STATUS='UNKNOWN',FORM='FORMATTED')
 

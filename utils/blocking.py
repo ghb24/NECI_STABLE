@@ -126,9 +126,10 @@ index_col: index (starting from 0) of the column containing the index of the
            initially sort the data;
 data_cols: list of indices (starting from 0) of the columns containing the data;
 start_index: block only data with an index greater than or equal to start_index.
+end_index: if nonzero block only data with an index less than or equal to end_index.
 block_all: assume all lines contain data apart from comment lines.  The regular expressions are ignored if this is true.
 '''
-    def __init__(self, datafiles, start_regex, end_regex, index_col, data_cols, start_index, block_all=False, combination=False):
+    def __init__(self, datafiles, start_regex, end_regex, index_col, data_cols, start_index, end_index, block_all=False, combination=False):
 
         self.datafiles = datafiles
         self.start_regex = re.compile(start_regex)
@@ -136,6 +137,7 @@ block_all: assume all lines contain data apart from comment lines.  The regular 
         self.comment_regex = re.compile('^ *#')
         self.index_col = index_col
         self.start_index = start_index
+        self.end_index = end_index
         self.block_all = block_all
 
         self.data = [Data(data_col) for data_col in data_cols]
@@ -175,9 +177,10 @@ block_all: assume all lines contain data apart from comment lines.  The regular 
                     d = line.split()
                     index = float(d[self.index_col])
                     if index >= self.start_index:
-                        indices.append(index)
-                        for data in self.data:
-                            data.add_to_data(float(d[data.data_col]))
+                        if self.end_index==0 or index <= self.end_index:
+                           indices.append(index)
+                           for data in self.data:
+                               data.add_to_data(float(d[data.data_col]))
                 # are we about to start receiving the data?
                 if re.match(self.start_regex, line):
                     have_data = True
@@ -344,6 +347,7 @@ def parse_options(args):
     parser.add_option('-i', '--index', dest='index_col', type='int', default=0, help='Set the column (starting from 0) containing the index labelling each data item (e.g. number of Monte Carlo cycles). Default: %default.')
     parser.add_option('-d', '--data', dest='data_cols', type='int', default=[], action='append', help='Set the column(s) (starting from 0) containing the data items. If more than one column is given, the covariance between the sets of data is also calculated.  Default: 1.')
     parser.add_option('-f', '--from', dest='start_index', type='int', default=0, help='Set the index from which the data is blocked.  Data with a smaller index is discarded.  Default: %default.')
+    parser.add_option('-T', '--to', dest='end_index', type='int', default=0, help='Set the index from which the data is blocked.  Data with a smaller index is discarded.  Default: %default.')
     parser.add_option('-p', '--plotfile', help='Save a plot of the blocking analysis to PLOTFILE rather than showing the plot on screen (default behaviour).')
     parser.add_option('-o','--operation', help='Set the operation used to combine pairs of data columns.  The mean and standard error of the resultant quantity are found.  Currently only division (\'/\') is implemented.')
     parser.add_option('-t','--textonly', help='Don\'t attempt to plot a graphic even if PYLAB is found.',action="store_true")
@@ -365,7 +369,7 @@ if __name__ == '__main__':
     if options.textonly:
       PYLAB=False
 
-    my_data = DataBlocker(filenames, options.start_regex, options.end_regex, options.index_col, options.data_cols, options.start_index, options.all, options.operation)
+    my_data = DataBlocker(filenames, options.start_regex, options.end_regex, options.index_col, options.data_cols, options.start_index,options.end_index, options.all, options.operation)
 
     my_data.get_data()
     my_data.blocking()

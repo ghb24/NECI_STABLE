@@ -2641,7 +2641,6 @@ MODULE FciMCParMod
     subroutine iter_diagnostics ()
 
         character(*), parameter :: this_routine = 'iter_diagnostics'
-        integer(int64) :: walkers_diff
         real(dp) :: mean_walkers
 
         ! Update the total imaginary time passed
@@ -2683,14 +2682,13 @@ MODULE FciMCParMod
             if(.not.tCCMC) then
                ! Check how balanced the load on each processor is (even though
                ! we cannot load balance with direct annihilation).
-               walkers_diff = MaxWalkersProc - MinWalkersProc
+               WalkersDiffProc = MaxWalkersProc - MinWalkersProc
                mean_walkers = AllTotWalkers / real(nNodes,dp)
-               if (walkers_diff > nint(mean_walkers / 10.d0) .and. &
+               if (WalkersDiffProc > nint(mean_walkers / 10.d0) .and. &
                    sum(AllTotParts) > real(nNodes * 500, dp)) then
-                   root_write (6, '(a, f20.10, 2i12)') &
-                       'Number of determinants assigned to each processor &
-                       &unbalanced: ', (walkers_diff * 10.d0) / &
-                       real(mean_walkers), MinWalkersProc, MaxWalkersProc
+                   root_write (6, '(a, i13,a,2i11)') &
+                       'Potential load-imbalance on iter ',iter,' Min/Max determinants on node: ', &
+                       MinWalkersProc,MaxWalkersProc
                endif
             endif
 
@@ -3036,8 +3034,8 @@ MODULE FciMCParMod
                 if ( (sum(AllTotParts) > tot_walkers) .or. &
                      (abs_int_sign(AllNoatHF) > MaxNoatHF)) then
 !                     WRITE(6,*) "AllTotParts: ",AllTotParts(1),AllTotParts(2),tot_walkers
-                    write (6, *) 'Exiting the single particle growth phase - &
-                                 &shift can now change'
+                    write (6, '(a,i13,a)') 'Exiting the single particle growth phase on iteration: ',iter, &
+                                 ' - Shift can now change'
                     VaryShiftIter = Iter
                     tSinglePartPhase = .false.
                     if(tSpawn_Only_Init.and.tSpawn_Only_Init_Grow) then
@@ -3047,8 +3045,8 @@ MODULE FciMCParMod
                     endif
                 endif
             elseif (abs_int_sign(AllNoatHF) < (MaxNoatHF - HFPopThresh)) then
-                write (6, *) 'No at HF has fallen too low - reentering the &
-                             &single particle growth phase - particle number &
+                write (6, '(a,i13,a)') 'No at HF has fallen too low - reentering the &
+                             &single particle growth phase on iteration',iter,' - particle number &
                              &may grow again.'
                 tSinglePartPhase = .true.
                 tReZeroShift = .true.
@@ -3072,7 +3070,7 @@ MODULE FciMCParMod
                 ! Update the shift averages
                 if ((iter - VaryShiftIter) >= nShiftEquilSteps) then
                     if ((iter-VaryShiftIter-nShiftEquilSteps) < StepsSft) &
-                        write (6, *) 'Beginning to average shift value.'
+                        write (6, '(a,i14)') 'Beginning to average shift value on iteration: ',iter
                     VaryShiftCycles = VaryShiftCycles + 1
                     SumDiagSft = SumDiagSft + DiagSft
                     AvDiagSft = SumDiagSft / real(VaryShiftCycles, dp)
@@ -3420,7 +3418,7 @@ MODULE FciMCParMod
 
     SUBROUTINE SetupParameters()
         use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tROHF,tFindCINatOrbs,nOccBeta,nOccAlpha,tUHF
-        use SystemData, only : tBrillouinsDefault,ECore
+        use SystemData, only : tBrillouinsDefault,ECore,tNoSingExcits
         USE dSFMT_interface , only : dSFMT_init
         use CalcData, only: G_VMC_Seed, &
                             MemoryFacPart, MemoryFacAnnihil, TauFactor, &
@@ -3539,7 +3537,6 @@ MODULE FciMCParMod
 
 !Init hash shifting data
         hash_iter=0
-        hash_shift=0
 
         IF(tKPntSym) THEN
             CALL DecomposeAbelianSym(HFSym%Sym%S,KPnt)
@@ -3689,7 +3686,7 @@ MODULE FciMCParMod
         endif
  
 !Setup excitation generator for the HF determinant. If we are using assumed sized excitgens, this will also be assumed size.
-        IF(tUEG.or.tHub) THEN
+        IF(tUEG.or.tHub.or.tNoSingExcits) THEN
             exflag=2
         ELSE
             exflag=3
@@ -4486,7 +4483,7 @@ MODULE FciMCParMod
     END SUBROUTINE BinSearchParts3
     
     SUBROUTINE CalcApproxpDoubles()
-        use SystemData , only : tAssumeSizeExcitgen,tUseBrillouin
+        use SystemData , only : tAssumeSizeExcitgen,tUseBrillouin,tNoSingExcits
         use CalcData , only : SinglesBias
         use SymData , only : SymClassSize
         use SymExcit3 , only : CountExcitations3
@@ -4508,16 +4505,19 @@ MODULE FciMCParMod
 
         IF(tHub.or.tUEG) THEN
             IF(tReal) THEN
-                WRITE(6,*) "Since we are using a real-space hubbard model, only single excitations are connected."
-                WRITE(6,*) "Setting pDoub to 0.D0"
+                WRITE(6,*) "Since we are using a real-space hubbard model, only single excitations are connected &
+                &   and will be generated."
                 pDoubles=0.D0
                 RETURN
             ELSE
-                WRITE(6,*) "Since we are using a momentum-space hubbard model/UEG, only double excitaitons are connected."
-                WRITE(6,*) "Setting pDoub to 1.D0"
+                WRITE(6,*) "Since we are using a momentum-space hubbard model/UEG, only double excitaitons &
+     &                          are connected and will be generated."
                 pDoubles=1.D0
                 RETURN
             ENDIF
+        elseif(tNoSingExcits) then
+            write(6,*) "Only double excitations will be generated"
+            return
         ENDIF
 
 !NSing=Number singles from HF, nDoub=No Doubles from HF
