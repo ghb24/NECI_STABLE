@@ -26,10 +26,10 @@
 #define is_in_pair(orb1,orb2) (ibclr(orb1-1,0) == ibclr(orb2-1,0))
 
 ! Set or clear orbitals in a bit representation
-#define ilut_int(orb) ((orb - 1) / bits_n_int)
-#define ilut_off(orb) mod(orb-1, bits_n_int)
-#define set_orb(ilut, orb) ilut(ilut_int(orb)) = ibset(ilut(ilut_int(orb)), ilut_off(orb))
-#define clr_orb(ilut, orb) ilut(ilut_int(orb)) = ibclr(ilut(ilut_int(orb)), ilut_off(orb))
+#define ilut_int(orb) ((orb-1)/bits_n_int)
+#define ilut_off(orb) mod(orb-1,bits_n_int)
+#define set_orb(ilut, orb) ilut(ilut_int(orb))=ibset(ilut(ilut_int(orb)),ilut_off(orb))
+#define clr_orb(ilut, orb) ilut(ilut_int(orb))=ibclr(ilut(ilut_int(orb)),ilut_off(orb))
 
 ! Useful for fixing things. Requires this_routine to be defined
 #ifdef __DEBUG

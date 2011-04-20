@@ -94,7 +94,7 @@ contains
         integer(n_int), intent(in) :: ilutI(0:nIfTot)
 
         integer :: dorder_i(nel), dorder_j(nel), open_el(nel)
-        integer :: nopen, i, nup, orb, count_dets, ndet, pos
+        integer :: nopen, i, nup, orb, orb2, count_dets, ndet, pos
         integer(n_int) :: iluttmp(0:niftot)
         integer, dimension(lenof_sign) :: sgnI, sgnJ
         real*8 :: tot_cpt, elem
@@ -149,8 +149,9 @@ contains
                     else
                         orb = get_beta(open_el(i))
                     endif
+                    orb2 = ab_pair(orb)
                     set_orb(iluttmp, orb)
-                    clr_orb(iluttmp, ab_pair(orb))
+                    clr_orb(iluttmp, orb2)
                 enddo
 
                 pos = binary_search (CurrentDets(:,1:TotWalkers), iLutTmp, &
@@ -414,7 +415,7 @@ contains
 
         integer :: nopen, nchoose, i
         integer :: nTmp(nel), iUnused
-        integer :: open_orbs(nel), open_pos(nel)
+        integer :: open_orbs(nel), open_pos(nel), orb2
         integer, dimension(lenof_sign) :: sgn_tmp
         character(*), parameter :: this_routine = 'generate_excit_spin_proj'
 
@@ -483,8 +484,9 @@ contains
         ilutJ = ilutI
         nJ = nI
         do i = 1, nopen
+            orb2 = ab_pair(nTmp(i))
             set_orb(ilutJ, nTmp(i))
-            clr_orb(ilutJ, ab_pair(nTmp(i)))
+            clr_orb(ilutJ, orb2)
             nJ(open_pos(i)) = nTmp(i)
 
             ! Construct the dorder --> used in spawn_helement

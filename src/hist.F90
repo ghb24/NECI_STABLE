@@ -646,7 +646,8 @@ contains
     function calc_s_squared_multi_worker (max_per_proc, max_spawned) &
              result(ssq)
 
-        integer :: i, j, nI(nel), k, orb2, proc, nJ(nel), ierr, lms_tmp, pos
+        integer :: i, j, k, orb2, orbtmp, pos, ierr
+        integer :: nI(nel), nJ(nel), proc, lms_tmp
         integer(n_int), pointer :: detcurr(:)
         integer(n_int) :: splus(0:NIfTot), sminus(0:NIfTot)
         logical :: running, any_running
@@ -683,21 +684,23 @@ contains
                 call decode_bit_det (nI, detcurr)
 
                 do i = 1, nel
+                    orbtmp = get_alpha(nI(i))
                     if (is_beta(nI(i)) &
-                        .and. IsNotOcc(detcurr, get_alpha(nI(i)))) then
+                        .and. IsNotOcc(detcurr, orbtmp)) then
                         splus = detcurr
                         clr_orb(splus, nI(i))
-                        set_orb(splus, get_alpha(nI(i)))
+                        set_orb(splus, orbtmp)
 
                         do k = 1, nel
                             orb2 = nI(k)
                             if (k == i) orb2 = get_alpha(orb2)
 
+                            orbtmp = get_beta(orb2)
                             if (is_alpha(orb2) &
-                                .and. IsNotOcc(splus, get_beta(orb2))) then
+                                .and. IsNotOcc(splus, orbtmp)) then
                                 sminus = splus
                                 clr_orb(sminus, orb2)
-                                set_orb(sminus, get_beta(orb2))
+                                set_orb(sminus, orbtmp)
 
                                 ! Store this det (n.b. contains original sgn)
                                 call decode_bit_det(nJ, sminus)
@@ -882,7 +885,7 @@ contains
         integer(n_int) :: splus(0:NIfD), sminus(0:NIfD)
         integer(n_int) :: ilut_srch(0:NIfD), ilut_sym(0:NIfD)
         integer :: sgn(lenof_sign), sgn2(lenof_sign), flg, nI(nel)
-        integer :: j, k, orb2, pos, sgn_hphf
+        integer :: j, k, orb2, pos, sgn_hphf, orb_tmp
         integer(int64) :: ssq
 
         ! Extract details of determinant
@@ -893,18 +896,20 @@ contains
             if (is_beta(nI(j)) &
                 .and. IsNotOcc(ilut, get_alpha(nI(j)))) then
                 splus = ilut(0:NIfD)
+                orb_tmp = get_alpha(nI(j))
                 clr_orb(splus, nI(j))
-                set_orb(splus, get_alpha(nI(j)))
+                set_orb(splus, orb_tmp)
 
                 do k = 1, nel
                     orb2 = nI(k)
                     if (k == j) orb2 = get_alpha(orb2)
 
+                    orb_tmp = get_beta(orb2)
                     if (is_alpha(orb2) &
-                        .and. IsNotOcc(splus, get_beta(orb2))) then
+                        .and. IsNotOcc(splus, orb_tmp)) then
                         sminus = splus
                         clr_orb(sminus, orb2)
-                        set_orb(sminus, get_beta(orb2))
+                        set_orb(sminus, orb_tmp)
 
                         ! Adjust for the sign of the paired det in HPHF.
                         sgn_hphf = 1
