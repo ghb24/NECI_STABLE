@@ -1488,6 +1488,9 @@ contains
           use SystemData, only: SymRestrict, tCSFOLD, tParity, tSpn, ALat, Beta
           use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,BasisFN,BasisFNSize,BasisFNSizeB,nEl
           Use DetCalcData, only : nDet, nEval, nmrks, w
+          USE FciMCParMod , only : FciMCPar
+          USE CCMC, only: CCMCStandalone,CCMCStandaloneParticle
+          use CCMCData, only: tAmplitudes
           use DetCalc, only: CK, DetInv, tEnergy, tRead
           Use Determinants, only: FDet, nActiveBasis, SpecDet, tSpecDet
           use IntegralsData, only: FCK, NMAX, UMat, FCK
@@ -1500,7 +1503,7 @@ contains
 !Calls
 !          REAL*8 DMonteCarlo2
 !Local Vars
-          REAL*8 EN
+          REAL*8 EN,WeightDum,EnerDum
           integer iSeed,iunit
           iSeed=7 
 
@@ -1524,60 +1527,76 @@ contains
 !     &               NBASISMAX,G1,nBasis,BRR,NMSH,FCK,NMAX,ALAT,UMAT,             &
 !     &               NTAY,RHOEPS,NWHTAY,ECORE)
 !             ENDIF
-             WRITE(6,*) "Calculating ",NPATHS," W_Is..."
-             iunit =get_free_unit()
-             IF(BTEST(ILOGGING,1)) THEN
-                IF(I_HMAX.EQ.-10) THEN
-                   OPEN(iunit,FILE="MCSUMMARY",STATUS="UNKNOWN")
-                   WRITE(iunit,*) "Calculating ",NPATHS," W_Is..."
-                   CLOSE(iunit)
-                ELSE
-                   OPEN(iunit,FILE="MCPATHS",STATUS="UNKNOWN")
-                   WRITE(iunit,*) "Calculating ",NPATHS," W_Is..."
-                   CLOSE(iunit)
-                ENDIF
-             ENDIF
-             IF(NTAY(1).GT.0) THEN
-                WRITE(6,*) "Using list of determinants."
-                WRITE(6,*) "Using approx RHOs generated on the fly,NTAY=",NTAY(1)
-!C.. we haven't calculated the energy, so we're calculating the weights
-!C.. with approx RHOs
-                IF(TENERGY) THEN
-!C.. If we've generated a list of dets
-!C.. Instead of NMAX, we put ARR
-                     CALL CALCRHOPII2(BETA,I_P,I_HMAX,I_VMAX,NEL,NDET,               &
-     &                 NBASISMAX,G1,nBasis,BRR,NMSH,FCK,ARR,ALAT,UMAT,NTAY,          &
-     &                 RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,           &
-     &                 DETINV,TSPECDET,SPECDET)
-!                      WRITE(6,*) "Out Here 2"
-!                      CALL FLUSH(6)
-                ELSE
-                   IF(TCSFOLD) THEN
-                      IF(.NOT.TSPECDET) THEN
-                         WRITE(6,*) "SPECDET not specified. Using Fermi determinant ONLY"
-                         TSPECDET=.TRUE.
-                         CALL NECI_ICOPY(NEL,FDET,1,SPECDET,1)
+
+             if(tFCIMC) then
+                 call FciMCPar(WeightDum,EnerDum)
+
+                 WRITE(6,*) "Summed approx E(Beta)=",EnerDum
+             elseif(tCCMC) then
+                  if(tAmplitudes) THEN
+                     CALL CCMCStandAlone(WeightDum,EnerDum)
+                  else
+                     CALL CCMCStandaloneParticle(WeightDum,EnerDum)
+                  endif
+                  WRITE(6,*) "Summed approx E(Beta)=",EnerDum
+             else
+
+
+                 WRITE(6,*) "Calculating ",NPATHS," W_Is..."
+                 iunit =get_free_unit()
+                 IF(BTEST(ILOGGING,1)) THEN
+                    IF(I_HMAX.EQ.-10) THEN
+                       OPEN(iunit,FILE="MCSUMMARY",STATUS="UNKNOWN")
+                       WRITE(iunit,*) "Calculating ",NPATHS," W_Is..."
+                       CLOSE(iunit)
+                    ELSE
+                       OPEN(iunit,FILE="MCPATHS",STATUS="UNKNOWN")
+                       WRITE(iunit,*) "Calculating ",NPATHS," W_Is..."
+                       CLOSE(iunit)
+                    ENDIF
+                 ENDIF
+                 IF(NTAY(1).GT.0) THEN
+                    WRITE(6,*) "Using list of determinants."
+                    WRITE(6,*) "Using approx RHOs generated on the fly,NTAY=",NTAY(1)
+    !C.. we haven't calculated the energy, so we're calculating the weights
+    !C.. with approx RHOs
+                    IF(TENERGY) THEN
+    !C.. If we've generated a list of dets
+    !C.. Instead of NMAX, we put ARR
+                         CALL CALCRHOPII2(BETA,I_P,I_HMAX,I_VMAX,NEL,NDET,               &
+         &                 NBASISMAX,G1,nBasis,BRR,NMSH,FCK,ARR,ALAT,UMAT,NTAY,          &
+         &                 RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,           &
+         &                 DETINV,TSPECDET,SPECDET)
+    !                      WRITE(6,*) "Out Here 2"
+    !                      CALL FLUSH(6)
+                    ELSE
+                       IF(TCSFOLD) THEN
+                          IF(.NOT.TSPECDET) THEN
+                             WRITE(6,*) "SPECDET not specified. Using Fermi determinant ONLY"
+                             TSPECDET=.TRUE.
+                             CALL NECI_ICOPY(NEL,FDET,1,SPECDET,1)
+                          ENDIF
+                       ENDIF
+    !C.. Instead of NMAX we have ARR
+                      IF(TPARITY) THEN
+                          WRITE(6,*) "Using symmetry restriction:"
+                          CALL WRITEALLSYM(6,SymRestrict,.TRUE.)
                       ENDIF
-                   ENDIF
-!C.. Instead of NMAX we have ARR
-                  IF(TPARITY) THEN
-                      WRITE(6,*) "Using symmetry restriction:"
-                      CALL WRITEALLSYM(6,SymRestrict,.TRUE.)
-                  ENDIF
-                  IF(TSPN) THEN
-                      WRITE(6,*) "Using spin restriction:",LMS
-                  ENDIF
-                  CALL CALCRHOPII3(BETA,I_P,I_HMAX,I_VMAX,NEL,                         &
-     &               NBASISMAX,G1,nBasis,BRR,NMSH,FCK,ARR,ALAT,UMAT,NTAY,              &
-     &               RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,               &
-     &               DETINV,TSPN,LMS2,TPARITY,SymRestrict,TSPECDET,SPECDET,            &
-     &               nActiveBasis)
-                ENDIF
-             ELSE
-                 WRITE(6,*) "Invalid combination of NTAY and TENERGY.  No NPATHS calculated"
-                 WRITE(6,*) "NTAY: ",NTAY(1)," TENERGY: ",TENERGY
-             ENDIF
-          ENDIF
+                      IF(TSPN) THEN
+                          WRITE(6,*) "Using spin restriction:",LMS
+                      ENDIF
+                      CALL CALCRHOPII3(BETA,I_P,I_HMAX,I_VMAX,NEL,                         &
+         &               NBASISMAX,G1,nBasis,BRR,NMSH,FCK,ARR,ALAT,UMAT,NTAY,              &
+         &               RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,               &
+         &               DETINV,TSPN,LMS2,TPARITY,SymRestrict,TSPECDET,SPECDET,            &
+         &               nActiveBasis)
+                    ENDIF
+                 ELSE
+                     WRITE(6,*) "Invalid combination of NTAY and TENERGY.  No NPATHS calculated"
+                     WRITE(6,*) "NTAY: ",NTAY(1)," TENERGY: ",TENERGY
+                 ENDIF
+              ENDIF
+          endif
           IF(TMONTE.and..not.tMP2Standalone) THEN
 !             DBRAT=0.01
 !             DBETA=DBRAT*BETA
