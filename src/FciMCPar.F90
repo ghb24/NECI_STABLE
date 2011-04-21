@@ -3435,6 +3435,45 @@ MODULE FciMCParMod
 
     end subroutine WriteFCIMCStats
 
+    !Ensure that the new FCIMCStats file which is about to be opened does not overwrite any other FCIMCStats
+    !files. If there is already an FCIMCStats file present, then move it to FCIMCStats.x, where x is a largest
+    !free filename.
+    subroutine MoveFCIMCStatsFiles()
+        integer :: extension,stat
+        logical :: exists
+        character(len=22) :: abstr
+        character(len=*), parameter :: t_r='MoveFCIMCStatsFiles'
+
+        inquire(file='FCIMCStats',exist=exists)
+        if(exists) then
+            !We already have an FCIMCStats file - move it to the end of the list of FCIMCStats files.
+
+            extension=0
+            do while(.true.)
+                abstr=''
+                write(abstr,'(I12)') extension
+                abstr='FCIMCStats.'//adjustl(abstr)
+                inquire(file=abstr,exist=exists)
+                if(.not.exists) exit
+                extension=extension+1
+                if(extension.gt.1000) then
+                    call stop_all(t_r,"Error finding free FCIMCStats name")
+                endif
+            enddo
+            
+            !We have got a unique filename
+            !Do not use system call
+!            command = 'mv' // ' FCIMCStats ' // abstr
+!            call system(command)
+
+            call rename('FCIMCStats',abstr)
+            !Doesn't like the stat argument
+!            if(stat.ne.0) then
+!                call stop_all(t_r,"Error with renaming FCIMCStats file")
+!            endif
+        endif
+
+    end subroutine MoveFCIMCStatsFiles
 
     SUBROUTINE SetupParameters()
         use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tROHF,tFindCINatOrbs,nOccBeta,nOccAlpha,tUHF
@@ -3493,6 +3532,7 @@ MODULE FciMCParMod
                 ! Restart calculation.  Append to stats file (if it exists).
                 OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown',position='append')
             else
+                call MoveFCIMCStatsFiles()          !This ensures that FCIMCStats files are not overwritten
                 OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown')
             end if
             IF(tTruncInitiator.or.tDelayTruncInit) THEN
