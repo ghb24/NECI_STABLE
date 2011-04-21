@@ -9,6 +9,8 @@ MODULE FciMCData
       implicit none
       save
 
+      integer :: iPopsTimers    !Number of timed popsfiles written out (initiatlised to 1)
+
       real(dp) :: MaxTimeExit   !Max time before exiting out of MC
       logical :: tTimeExit      !Whether to exit out of MC after an amount of runtime
 

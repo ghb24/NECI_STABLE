@@ -19,7 +19,7 @@ MODULE Logging
     INTEGER nPrintTimer,G_VMC_LOGCOUNT
     INTEGER HFLOGLEVEL,iWritePopsEvery,StartPrintOrbOcc,StartPrintDoubsUEG
     INTEGER PreVarLogging,WavevectorPrint,NoHistBins,HistInitPopsIter
-    REAL*8 MaxHistE,OffDiagMax,OffDiagBinRange
+    REAL*8 MaxHistE,OffDiagMax,OffDiagBinRange,PopsfileTimer
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn
     LOGICAL tPrintPopsDefault
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tIncrementPops,tROHistogramAll,tROHistER,tROHistSingExc
@@ -54,6 +54,7 @@ MODULE Logging
       use default_sets
       implicit none
 
+      PopsfileTimer=0.D0
       tMCOutput=.true.
       tLogComplexPops=.false.
       iWriteBlockingEvery=1000
@@ -504,6 +505,8 @@ MODULE Logging
             TPopsFile=.true.
             call readi(iWritePopsEvery)
             call readi(iPopsPartEvery)
+        case("POPSFILETIMER")
+            call readf(PopsfileTimer)   !Write out a POPSFILE every "PopsfileTimer" hours.
         case("BINARYPOPS")
 !This means that the popsfile (full or reduced) will now be written out in binary format. This should now take up less space, and be written quicker.
             tBinPops=.true.

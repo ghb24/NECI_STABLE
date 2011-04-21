@@ -103,12 +103,11 @@ MODULE FciMCParMod
     contains
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
-!        use Timing, only: get_total_time
-!        use SystemData, only: proc_timer
+        use Logging, only: PopsfileTimer
         real(dp) :: Weight, Energyxw
         INTEGER :: error
         LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange,tPrintWarn
-        REAL(4) :: s,etime,tstart(2),tend(2),totaltime
+        REAL(4) :: s_start,s_end,etime,tstart(2),tend(2),totaltime
         real(dp) :: TotalTime8
         INTEGER(int64) :: MaxWalkers,MinWalkers
         real*8 :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
@@ -151,7 +150,7 @@ MODULE FciMCParMod
 !Main iteration loop...
 !            WRITE(6,*) 'Iter',Iter
 
-            if(iProcIndex.eq.root) s=etime(tstart)
+            if(iProcIndex.eq.root) s_start=etime(tstart)
 
             if (tCCMC) then
                 CALL PerformCCMCCycPar()
@@ -183,8 +182,8 @@ MODULE FciMCParMod
             endif
 
             if(iProcIndex.eq.root) then
-                s=etime(tend)
-                IterTime=IterTime+(tend(1)-tstart(1))
+                s_end=etime(tend)
+                IterTime=IterTime+(s_end-s_start)
             endif
             
             if (mod(Iter, StepsSft) == 0) then
@@ -270,22 +269,20 @@ MODULE FciMCParMod
                     ENDIF
                 ENDIF
 
+                TotalTime8=real(s_end,dp)
+                call MPIBCast(TotalTime8)    !TotalTime is local - broadcast to all procs
+
 !This routine will check for a CHANGEVARS file and change the parameters of the calculation accordingly.
                 CALL ChangeVars(tSingBiasChange,tSoftExitFound,tWritePopsFound)
                 IF(tSoftExitFound) THEN
                     TIncrement=.false.
                     EXIT
                 ENDIF
-                IF(tTimeExit) THEN
+                IF(tTimeExit.and.(TotalTime8.ge.MaxTimeExit)) THEN
                     !Is it time to exit yet?
-                    TotalTime8=real(s,dp)
-                    call MPIBCast(TotalTime8)    !TotalTime is local
-!                    write(6,*) "TOTAL TIME = ",TotalTime8,s,tend(1),tend(2)
-                    if(TotalTime8.ge.MaxTimeExit) then
-                        write(6,"(A,F8.2,A)") "Time limit reached for simulation of: ",MaxTimeExit/60.0," minutes - exiting..."
-                        tIncrement=.false.
-                        EXIT
-                    endif
+                    write(6,"(A,F8.2,A)") "Time limit reached for simulation of: ",MaxTimeExit/60.0," minutes - exiting..."
+                    tIncrement=.false.
+                    EXIT
                 ENDIF
                 IF(tWritePopsFound) THEN
 !We have explicitly asked to write out the POPSFILE from the CHANGEVARS file.
@@ -294,6 +291,19 @@ MODULE FciMCParMod
                 IF(tSingBiasChange) THEN
                     CALL CalcApproxpDoubles()
                 ENDIF
+
+                if((PopsfileTimer.gt.0.D0).and.((iPopsTimers*PopsfileTimer).lt.(TotalTime8/3600.D0))) then
+                    !Write out a POPSFILE every PopsfileTimer hours
+                    if(iProcIndex.eq.Root) then
+                        write(6,"(A,F7.3,A)") "Writing out a popsfile after ",iPopsTimers*PopsfileTimer, " hours..."
+                    endif
+                    call WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
+                    iPopsTimers=iPopsTimers+1
+                    if(iProcIndex.eq.Root) then
+                        s_end=etime(tend)
+                        write(6,"(A,F7.3,A)") "Time taken to write out POPSFILE: ",real(s_end,dp)-TotalTime8," seconds."
+                    endif
+                endif
             
             ENDIF   !Endif end of update cycle
 
@@ -3844,6 +3854,7 @@ MODULE FciMCParMod
 
 !Initialise variables for calculation on each node
         iter=0          !This is set so that calls to CalcParentFlag in the initialisation are ok with the logging.
+        iPopsTimers=1   !Number of timed popsfiles written out
         IterTime=0.0
         ProjectionE=0.D0
         AvSign=0.D0
