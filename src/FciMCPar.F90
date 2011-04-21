@@ -346,7 +346,7 @@ MODULE FciMCParMod
         IF(tHistHamil) CALL WriteHamilHistogram()
 
         Weight=(0.D0)
-        Energyxw=(ProjectionE)
+        Energyxw=(ProjectionE+Hii)
 
         IF(tHistEnergies) CALL WriteHistogramEnergies()
 
