@@ -58,7 +58,7 @@ MODULE FciMCParMod
                        tPrintPopsDefault, iWriteBlockingEvery, &
                        tBlockEveryIteration, tHistInitPops, HistInitPopsIter,&
                        HistInitPops, DoubsUEG, DoubsUEGLookup, DoubsUEGStore, &
-                       tPrintDoubsUEG, StartPrintDoubsUEG
+                       tPrintDoubsUEG, StartPrintDoubsUEG, tMCOutput
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
                     hist_spin_dist, ilut_spindist, tHistSpinDist, &
                     write_clear_hist_spin_dist, hist_spin_dist_iter, &
@@ -3247,11 +3247,13 @@ MODULE FciMCParMod
             ENDIF
 
 #ifdef __CMPLX
-            write(6, '(a)') "       Step     Shift      WalkerCng(Re)  &
-                   &WalkerCng(Im)    TotWalkers(Re)   TotWalkers(Im)    &
-                   &Proj.E(Re)   ProjE(Im)     Proj.E.ThisCyc(Re)  &
-                   &Proj.E.ThisCyc(Im)   NoatHF(Re)   NoatHF(Im)   &
-                   &NoatDoubs      AccRat     UniqueDets     IterTime"
+            if(tMCOutput) then
+                write(6, '(a)') "       Step     Shift      WalkerCng(Re)  &
+                       &WalkerCng(Im)    TotWalkers(Re)   TotWalkers(Im)    &
+                       &Proj.E(Re)   ProjE(Im)     Proj.E.ThisCyc(Re)  &
+                       &Proj.E.ThisCyc(Im)   NoatHF(Re)   NoatHF(Im)   &
+                       &NoatDoubs      AccRat     UniqueDets     IterTime"
+            endif
             write(fcimcstats_unit, "(a,i4,a,l,a,l,a,l)") &
                    "# FCIMCStats VERSION 2 - COMPLEX : NEl=", nel, &
                    " HPHF=", tHPHF, ' Lz=', tFixLz, &
@@ -3268,10 +3270,12 @@ MODULE FciMCParMod
                    &24.HFContribtoE(Im)   25.NumContribtoE(Re)  &
                    &26.NumContribtoE(Im)  27.HF weight   28.|Psi|"
 #else
-            write(6,"(A)") "       Step     Shift      WalkerCng    &
-                  &GrowRate       TotWalkers    Annihil    NoDied    &
-                  &NoBorn    Proj.E          Av.Shift     Proj.E.ThisCyc   &
-                  &NoatHF NoatDoubs      AccRat     UniqueDets     IterTime"
+            if(tMCOutput) then
+                write(6,"(A)") "       Step     Shift      WalkerCng    &
+                      &GrowRate       TotWalkers    Annihil    NoDied    &
+                      &NoBorn    Proj.E          Av.Shift     Proj.E.ThisCyc   &
+                      &NoatHF NoatDoubs      AccRat     UniqueDets     IterTime"
+            endif
             write(fcimcstats_unit, "(a,i4,a,l,a,l,a,l)") &
                   "# FCIMCStats VERSION 2 - REAL : NEl=", nel, &
                   " HPHF=", tHPHF, ' Lz=', tFixLz, &
@@ -3326,22 +3330,24 @@ MODULE FciMCParMod
                 sqrt(float(sum(AllNoatHF**2))) / norm_psi, &
                 norm_psi
 
-            write (6, "(I12,G16.7,2I10,2I12,4G17.9,3I10,G13.5,I12,G13.5)") &
-                Iter + PreviousCycles, &
-                DiagSft, &
-                AllTotParts(1) - AllTotPartsOld(1), &
-                AllTotParts(2) - AllTotPartsOld(2), &
-                AllTotParts(1), AllTotParts(2), &
-                real(ProjectionE, dp), &
-                aimag(ProjectionE), &
-                real(proje_iter, dp), &
-                aimag(proje_iter), &
-                AllNoatHF(1), &
-                AllNoatHF(2), &
-                AllNoatDoubs, &
-                AccRat, &
-                AllTotWalkers, &
-                IterTime
+            if(tMCOutput) then
+                write (6, "(I12,G16.7,2I10,2I12,4G17.9,3I10,G13.5,I12,G13.5)") &
+                    Iter + PreviousCycles, &
+                    DiagSft, &
+                    AllTotParts(1) - AllTotPartsOld(1), &
+                    AllTotParts(2) - AllTotPartsOld(2), &
+                    AllTotParts(1), AllTotParts(2), &
+                    real(ProjectionE, dp), &
+                    aimag(ProjectionE), &
+                    real(proje_iter, dp), &
+                    aimag(proje_iter), &
+                    AllNoatHF(1), &
+                    AllNoatHF(2), &
+                    AllNoatDoubs, &
+                    AccRat, &
+                    AllTotWalkers, &
+                    IterTime
+            endif
 #else
 
             write(fcimcstats_unit,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,&
@@ -3374,24 +3380,26 @@ MODULE FciMCParMod
                 real(AllNoatHF, dp) / norm_psi, &
                 norm_psi
 
-            write (6, "(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,&
-                      &G13.5)") &
-                Iter + PreviousCycles, &
-                DiagSft, &
-                sum(AllTotParts) - sum(AllTotPartsOld), &
-                AllGrowRate, &
-                sum(AllTotParts), &
-                AllAnnihilated, &
-                AllNoDied, &
-                AllNoBorn, &
-                ProjectionE, &
-                AvDiagSft, &
-                proje_iter, &
-                AllNoatHF, &
-                AllNoatDoubs, &
-                AccRat, &
-                AllTotWalkers, &
-                IterTime
+            if(tMCOutput) then
+                write (6, "(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,&
+                          &G13.5)") &
+                    Iter + PreviousCycles, &
+                    DiagSft, &
+                    sum(AllTotParts) - sum(AllTotPartsOld), &
+                    AllGrowRate, &
+                    sum(AllTotParts), &
+                    AllAnnihilated, &
+                    AllNoDied, &
+                    AllNoBorn, &
+                    ProjectionE, &
+                    AvDiagSft, &
+                    proje_iter, &
+                    AllNoatHF, &
+                    AllNoatDoubs, &
+                    AccRat, &
+                    AllTotWalkers, &
+                    IterTime
+            endif
 #endif
 
             if (tTruncInitiator .or. tDelayTruncInit) then
@@ -3408,7 +3416,9 @@ MODULE FciMCParMod
                     sum(AllTotParts), AllTotParts(1), AllTotParts(lenof_sign)
             endif
 
-            call flush(6)
+            if(tMCOutput) then
+                call flush(6)
+            endif
             call flush(fcimcstats_unit)
             
         endif
