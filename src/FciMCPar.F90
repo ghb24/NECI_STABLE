@@ -4202,10 +4202,10 @@ MODULE FciMCParMod
         SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.D0)
         TotDets=1.D0
         do i=1,NEl
-            WRITE(6,*) "Approximate excitation level population: ",i,NINT((Choose(NEl,i)*Choose(nBasis-NEl,i))/SymFactor)
+            WRITE(6,"(A,I5,I20)") "Approximate excitation level population: ",i,NINT((Choose(NEl,i)*Choose(nBasis-NEl,i))/SymFactor)
             TotDets=TotDets+(Choose(NEl,i)*Choose(nBasis-NEl,i))/SymFactor
         enddo
-        WRITE(6,*) "Approximate size of determinant space is: ",NINT(TotDets)
+        WRITE(6,"(A,I20)") "Approximate size of determinant space is: ",NINT(TotDets)
 
     END SUBROUTINE SetupParameters
 
@@ -5094,6 +5094,11 @@ MODULE FciMCParMod
             PopsVersion=FindPopsfileVersion(iunithead)
             if(iProcIndex.eq.root) close(iunithead)
             write(6,*) "POPSFILE VERSION ",PopsVersion," detected."
+        endif
+
+        if(tPopsMapping.and.(PopsVersion.lt.3)) then
+            write(6,*) "Popsfile mapping cannot work with old POPSFILEs"
+            call stop_all("InitFCIMCCalcPar","Popsfile mapping cannot work with old POPSFILEs")
         endif
 
         ! Initialise measurement of norm, to avoid divide by zero

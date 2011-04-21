@@ -9,6 +9,10 @@ MODULE FciMCData
       implicit none
       save
 
+      !Variables for popsfile mapping
+      integer, allocatable :: PopsMapping(:)    !Mapping function between old basis and new basis
+      integer :: MappingNIfD,MappingNIfTot      !Original basis NIfD and NIfTot
+
       integer :: iPopsTimers    !Number of timed popsfiles written out (initiatlised to 1)
 
       real(dp) :: MaxTimeExit   !Max time before exiting out of MC

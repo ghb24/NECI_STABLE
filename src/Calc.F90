@@ -46,6 +46,7 @@ contains
 
 
 !       Calc defaults 
+          tPopsMapping=.false.
           tTimeExit=.false.
           MaxTimeExit=0.D0
           tMaxBloom=.false.
@@ -839,6 +840,10 @@ contains
                     iPopsFileNoWrite = iPopsFileNoRead
                     iPopsFileNoRead = -iPopsFileNoRead-1
                 end if
+            case("POPSFILEMAPPING")
+!This indicates that we will be mapping a popsfile from a smaller basis calculation, into a bigger basis calculation.
+!Requires a "mapping" file.
+                tPopsMapping=.true.
             case("READPOPSTHRESH")
 !When reading in a popsfile, this will only save the determinant, if the number of particles on this determinant is greater than iWeightPopRead.
                 tReadPops=.true.
