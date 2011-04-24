@@ -234,7 +234,7 @@ MODULE PopsfileMod
     subroutine read_popsfile_det(iunit,Det,BinPops,WalkerTemp,nI)
         use DetBitOps , only : EncodeBitDet
         integer , intent(in) :: iunit
-        integer , intent(inout) :: Det
+        integer(int64) , intent(inout) :: Det
         logical , intent(in) :: BinPops
         integer(n_int), intent(out) :: WalkerTemp(0:NIfTot)
         integer , intent(out) :: nI(NEl)
