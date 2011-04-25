@@ -637,6 +637,11 @@ The following options are only available in **FCIMC** calculations:
 **SCALEWALKERS** [fScaleWalkers]
     Scale the number of walkers by fScaleWalkers, after having read in data from POPSFILE.
 
+**POPSFILEMAPPING**
+    This will assume that the POPSFILE which is being read in is from a smaller basis calculation
+    than the current basis. It requires a "mapping" file to give the mapping between the old
+    orbital basis and the new orbital basis to work.
+
 **STARTCAS** [ElectronsInCAS] [VirtualSpinOrbitalsInCAS] [InitialWalkers]
     Set the initial configuration of walkers to be proportional to the ground-state wavefunction
     from an initial specified CAS diagonalisation. InitialWalkers

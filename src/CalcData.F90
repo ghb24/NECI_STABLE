@@ -28,6 +28,7 @@ LOGICAL :: tInitIncDoubs,tWalkContGrow,tAnnihilatebyRange,tRetestAddtoInit
 logical :: tReadPopsRestart, tReadPopsChangeRef
 
 logical :: tStartCAS    !Start FCIMC dynamic with walkers distributed according to CAS diag.
+logical :: tPopsMapping !Map popsfile from smaller basis onto larger basis
 
 ! Base hash values only on spatial orbitals
 ! --> All dets with same spatial structure on the same processor.

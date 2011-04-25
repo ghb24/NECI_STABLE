@@ -1832,7 +1832,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    use CalcData, only: TStartMP1
    use FciMCData, only: Iter
    use FciMCData, only: TotParts,TotWalkers,TotWalkersOld,TotPartsOld,AllTotPartsOld,AllTotWalkersOld,AllTotParts
-   use FciMCData, only: tTruncSpace
+   use FciMCData, only: tTruncSpace,Hii
    use FciMCData, only: ProjectionE,iLutHF
    use FciMCParMod, only: CheckAllowedTruncSpawn, SetupParameters,BinSearchParts3
    use FciMCParMod, only: InitHistMin, calculate_new_shift_wrapper
@@ -2175,7 +2175,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
       call DeAllocateAmplitudeList(ALBuffer)
    endif
    Weight=0.D0
-   Energyxw=ProjectionE
+   Energyxw=ProjectionE+Hii
    call halt_timer(CCMC_time)
 END SUBROUTINE CCMCStandalone
 
@@ -2188,7 +2188,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use CalcData, only: NMCyc    ! The number of MC Cycles
    use CalcData, only: StepsSft ! The number of steps between shift updates
    use CalcData, only: TStartMP1
-   use FciMCData, only: Iter
+   use FciMCData, only: Iter,Hii
    use FciMCData, only: TotParts,TotWalkers,TotWalkersOld,TotPartsOld,AllTotPartsOld,AllTotWalkersOld,AllTotParts
    use FciMCData, only: NoatHF,NoatDoubs
    use FciMCData, only: tTruncSpace
@@ -2627,7 +2627,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       deallocate(DetList)
    endif 
    Weight=0.D0
-   Energyxw=ProjectionE
+   Energyxw=ProjectionE+Hii
    call halt_timer(CCMC_time)
 END SUBROUTINE CCMCStandaloneParticle
 
