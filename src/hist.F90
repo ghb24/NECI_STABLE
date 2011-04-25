@@ -8,13 +8,15 @@ module hist
                           hist_spin_dist_iter, nI_spindist, LMS, tHPHF, &
                           tOddS_HPHF, G1
     use DetBitOps, only: count_open_orbs, EncodeBitDet, spatial_bit_det, &
-                         DetBitEq, count_open_orbs, TestClosedShellDet
+                         DetBitEq, count_open_orbs, TestClosedShellDet, &
+                         CalcOpenOrbs
     use CalcData, only: tFCIMC, tTruncInitiator
     use DetCalcData, only: FCIDetIndex, det
     use FciMCData, only: tFlippedSign, TotWalkers, CurrentDets, iter, &
                          norm_psi_squared
     use util_mod, only: choose, get_free_unit, binary_search
     use HPHFRandExcitMod, only: FindExcitBitDetSym, IsAllowedHPHF
+    use hphf_integrals, only: hphf_sign
     use constants, only: n_int, bits_n_int, size_n_int, lenof_sign
     use bit_rep_data, only: NIfTot, NIfD
     use bit_reps, only: extract_sign, encode_sign, extract_bit_rep, NOffSgn, &
@@ -918,7 +920,7 @@ contains
                                 ilut_srch = sminus
                             else
                                 ilut_srch = ilut_sym
-                                sgn_hphf = -1
+                                sgn_hphf = hphf_sign (ilut_srch)
                             endif
                         else
                             ilut_srch = sminus

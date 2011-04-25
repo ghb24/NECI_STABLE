@@ -15,7 +15,7 @@ MODULE HPHFRandExcitMod
                                     CalcNonUniPGen, ScratchSize 
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet, &
                          FindBitExcitLevel, MaskAlpha, MaskBeta, &
-                         TestClosedShellDet
+                         TestClosedShellDet, CalcOpenOrbs
     use FciMCData, only: pDoubles, excit_gen_store_type
     use constants, only: dp,n_int
     use HElem
