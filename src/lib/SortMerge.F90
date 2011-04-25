@@ -30,7 +30,7 @@
         INTEGER :: nlisto,nlist1,nlist2,i
         INTEGER :: ips
         HElement_t :: HDiagTemp
-        REAL*8 :: HDiag
+        real(dp) :: HDiag
         INTEGER :: nJ(NEl),j
 !.................................................................
 !..starting from the end of the list, expand list1 to accomodate

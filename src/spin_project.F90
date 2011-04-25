@@ -36,7 +36,7 @@ contains
         integer :: nopen, i, nup, orb, count_dets, ndet, pos, abo
         integer(n_int) :: iluttmp(0:niftot)
         integer, dimension(lenof_sign) :: sgnI, sgnJ
-        real*8 :: tot_cpt, elem
+        real(dp) :: tot_cpt, elem
 
         ! Extract the dorder for det nI
         nopen = 0

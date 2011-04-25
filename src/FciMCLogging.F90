@@ -18,11 +18,11 @@ MODULE FciMCLoggingMod
     IMPLICIT NONE
     save
 
-    REAL*8 :: NoNotAccept,NoAccept,TotHElNotAccept,TotHElAccept,MaxHElNotAccept,MinHElAccept
-    REAL*8 :: NoPosSpinCoup,NoNegSpinCoup,SumPosSpinCoup,SumNegSpinCoup,SumHFCon,SumSpinCon,InitBinMin,InitBinIter,InitBinMax
+    real(dp) :: NoNotAccept,NoAccept,TotHElNotAccept,TotHElAccept,MaxHElNotAccept,MinHElAccept
+    real(dp) :: NoPosSpinCoup,NoNegSpinCoup,SumPosSpinCoup,SumNegSpinCoup,SumHFCon,SumSpinCon,InitBinMin,InitBinIter,InitBinMax
 
-    REAL*8 , ALLOCATABLE :: CurrBlockSum(:),BlockSum(:),BlockSqrdSum(:)
-    REAL*8 , ALLOCATABLE :: CurrShiftBlockSum(:),ShiftBlockSum(:),ShiftBlockSqrdSum(:)
+    real(dp) , ALLOCATABLE :: CurrBlockSum(:),BlockSum(:),BlockSqrdSum(:)
+    real(dp) , ALLOCATABLE :: CurrShiftBlockSum(:),ShiftBlockSum(:),ShiftBlockSqrdSum(:)
     INTEGER(TagIntType) :: CurrBlockSumTag,BlockSumTag,BlockSqrdSumTag
     INTEGER :: TotNoBlockSizes,StartBlockIter
     INTEGER(TagIntType) :: CurrShiftBlockSumTag,ShiftBlockSumTag,ShiftBlockSqrdSumTag
@@ -162,7 +162,7 @@ MODULE FciMCLoggingMod
 
     SUBROUTINE SumInErrorContrib(Iter,AllENumCyc,AllHFCyc)
         INTEGER :: i,Iter,NoContrib
-        REAL*8 :: AllENumCyc,AllHFCyc
+        real(dp) :: AllENumCyc,AllHFCyc
 
 ! First we need to find out what number contribution to the blocking this is.
         IF(tBlockEveryIteration) THEN
@@ -197,7 +197,7 @@ MODULE FciMCLoggingMod
 
     SUBROUTINE SumInShiftErrorContrib(Iter,DiagSft)
         INTEGER :: i,Iter,NoContrib
-        REAL*8 :: DiagSft
+        real(dp) :: DiagSft
 
 ! First we need to find out what number contribution to the blocking this is.
         NoContrib=((Iter-StartShiftBlockIter)/StepsSft)+1
@@ -229,7 +229,7 @@ MODULE FciMCLoggingMod
     SUBROUTINE PrintBlocking(Iter)
         use util_mod, only: get_free_unit
         INTEGER :: i,NoBlocks,Iter,NoBlockSizes,NoContrib, iunit
-        REAL*8 :: MeanEn,MeanEnSqrd,StandardDev,Error,ErrorinError
+        real(dp) :: MeanEn,MeanEnSqrd,StandardDev,Error,ErrorinError
         CHARACTER(len=30) :: abstr
 
 !First find out how many blocks would have been formed with the number of iterations actually performed. 
@@ -295,7 +295,7 @@ MODULE FciMCLoggingMod
     SUBROUTINE PrintShiftBlocking(Iter)
         use util_mod, only: get_free_unit
         INTEGER :: i,NoBlocks,Iter,NoBlockSizes,NoContrib,iunit
-        REAL*8 :: MeanShift,MeanShiftSqrd,StandardDev,Error,ErrorinError
+        real(dp) :: MeanShift,MeanShiftSqrd,StandardDev,Error,ErrorinError
 
 !First find out how many blocks would have been formed with the number of iterations actually performed. 
 
@@ -425,7 +425,7 @@ MODULE FciMCLoggingMod
         use util_mod, only: get_free_unit
         CHARACTER(len=21) :: abstr
         INTEGER :: i,Iter,error, iunit
-        REAL*8 :: InitBinCurr
+        real(dp) :: InitBinCurr
 
 !This will open a file called InitPops-"Iter" on unit number 17.
         abstr=''
@@ -492,7 +492,7 @@ MODULE FciMCLoggingMod
 
     SUBROUTINE PrintSpawnAttemptStats(Iteration)
         use util_mod, only: get_free_unit
-        REAL*8 :: AllStats(4),AcceptStats(4),AllMaxHElNotAccept(1:nProcessors),AllMinHElAccept(1:nProcessors)
+        real(dp) :: AllStats(4),AcceptStats(4),AllMaxHElNotAccept(1:nProcessors),AllMinHElAccept(1:nProcessors)
         INTEGER :: i,error,Iteration, iunit
 
         ! Need to distribute the max and min values to all processors, but only if it has changed.        

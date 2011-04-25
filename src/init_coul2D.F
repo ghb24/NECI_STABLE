@@ -4,14 +4,17 @@ C.. Method of evaluating the Coulomb integrals
 C  ========================================================              
       SUBROUTINE INITFOU2D(NMESHX,CK,NMAX,
      &     A,TALPHA,ALPHA,OMEGA,ZIA)
-      IMPLICIT REAL*8(A-H,O-Z)
-      COMPLEX*16 CK(NMESHX,NMESHX,NMESHX)
-      COMPLEX*16 ZIA(-NMESHX/2:NMESHX/2,NMAX,NMAX) 
-      REAL*8 A(3)
-      real*4 t1,t2,t3,t(2),etime
+      use constants, only: dp,sp
+!      IMPLICIT real(dp)(A-H,O-Z)
+      IMPLICIT NONE
+      complex(dp) CK(NMESHX,NMESHX,NMESHX)
+      complex(dp) ZIA(-NMESHX/2:NMESHX/2,NMAX,NMAX) 
+      real(dp) A(3),OMEGA,ALPHA
+      real(sp) t1,t2,t3,t(2),etime
       LOGICAL TALPHA
-      DATA IFIRST/0/
-      SAVE IFIRST 
+      integer :: NMESHX,NMAX
+      INTEGER, SAVE :: IFIRST=0
+!      SAVE IFIRST 
 C..
       IF(IFIRST.EQ.1) RETURN 
       IFIRST=1
@@ -28,7 +31,9 @@ C..
       END
 C =========================================================
       SUBROUTINE GEN_CK_FFT2D(N,DIST,A,TALPHA,ALPHA,OMEGA)
-      IMPLICIT REAL*8(A-H,O-Z)
+!      IMPLICIT real(dp)(A-H,O-Z)
+      use constants, only: dp,pi,int64
+      IMPLICIT NONE
 #if !defined(__alpha) || !defined(__SGI)
       !INTEGER FFTW_R2HC
       !PARAMETER (FFTW_R2HC=0)
@@ -95,13 +100,15 @@ C =========================================================
       !INTEGER FFTW_NO_SIMD
       !PARAMETER (FFTW_NO_SIMD=131072)
 #endif
-      COMPLEX*16 DIST(-N/2:N/2-1,-N/2:N/2-1,-N/2:N/2-1)
-      INTEGER*8 PLAN
-      REAL*8 A(3) 
+      complex(dp) DIST(-N/2:N/2-1,-N/2:N/2-1,-N/2:N/2-1)
+      integer(int64) PLAN
+      real(dp) A(3),x,y,z,aux,r,ALPHA,ALPHA2,OMEGA,OMEGAP
       LOGICAL TALPHA
-      COMPLEX*16 D(-N/2:N/2-1,-N/2:N/2-1)
+      complex(dp) D(-N/2:N/2-1,-N/2:N/2-1)
+      integer :: i,j,k,n,n1,n2,n3,la1,la2
+      real(dp) :: HSTEPX,HSTEPY,HSTEPZ,gx,gy,gz,SUM,G
 C..
-      PI=ACOS(-1.D0)
+!      PI=ACOS(-1.D0)
       ALPHA2=ALPHA*ALPHA
 C..
       HSTEPX=2.D0*A(1)/N
@@ -113,9 +120,9 @@ C..
         DO J=-N/2,N/2-1
 c          DO K=-N/2,N/2-1
             K=0
-            X=DFLOAT(I)*HSTEPX
-            Y=DFLOAT(J)*HSTEPY
-            Z=DFLOAT(K)*HSTEPZ
+            X=real(I,dp)*HSTEPX
+            Y=real(J,dp)*HSTEPY
+            Z=real(K,dp)*HSTEPZ
             AUX=X*X+Y*Y+Z*Z
             IF(AUX.NE.0.D0) THEN
               IF(TALPHA) THEN 

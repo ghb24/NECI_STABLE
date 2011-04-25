@@ -4,14 +4,17 @@ C.. Method of evaluating the Coulomb integrals
 C  ========================================================              
       SUBROUTINE INITFOU(NMESHX,CK,NMAX,
      &     A,TALPHA,ALPHA,OMEGA,ZIA)
-      IMPLICIT REAL*8(A-H,O-Z)
-      COMPLEX*16 CK(NMESHX,NMESHX,NMESHX)
-      COMPLEX*16 ZIA(-NMESHX/2:NMESHX/2,NMAX,NMAX) 
-      REAL*8 A(3)
-      real*4 etime,t(2),t1,t2
+!      IMPLICIT real(dp)(A-H,O-Z)
+      use constants, only: dp,int64,sp
+      IMPLICIT NONE
+      complex(dp) CK(NMESHX,NMESHX,NMESHX)
+      complex(dp) ZIA(-NMESHX/2:NMESHX/2,NMAX,NMAX) 
+      integer :: NMESHX,NMAX
+      real(dp) :: ALPHA,OMEGA
+      real(dp) A(3),t3
+      real(sp) etime,t(2),t1,t2
       LOGICAL TALPHA
-      DATA IFIRST/0/
-      SAVE IFIRST 
+      INTEGER , SAVE :: IFIRST=0
 C..
       IF(IFIRST.EQ.1) RETURN 
       IFIRST=1
@@ -28,7 +31,9 @@ C..
       END
 C =========================================================
       SUBROUTINE GEN_CK_FFT(N,DIST,A,TALPHA,ALPHA,OMEGA)
-      IMPLICIT REAL*8(A-H,O-Z)
+!      IMPLICIT real(dp)(A-H,O-Z)
+      use constants, only: dp,int64,pi
+      IMPLICIT NONE
 #if !defined(__alpha) || !defined(__SGI) 
       !INTEGER FFTW_R2HC
       !PARAMETER (FFTW_R2HC=0)
@@ -95,12 +100,14 @@ C =========================================================
       !INTEGER FFTW_NO_SIMD
       !PARAMETER (FFTW_NO_SIMD=131072)
 #endif
-      COMPLEX*16 DIST(-N/2:N/2-1,-N/2:N/2-1,-N/2:N/2-1)
-      INTEGER*8 PLAN
-      REAL*8 A(3) 
+      complex(dp) DIST(-N/2:N/2-1,-N/2:N/2-1,-N/2:N/2-1)
+      integer(int64) PLAN
+      real(dp) A(3),ALPHA2,ALPHA,HSTEPX,HSTEPY,HSTEPZ
+      real(dp) :: X,Y,Z,AUX,SUM,G2,GX,GY,GZ,OMEGA,OMEGAP,R
       LOGICAL TALPHA
+      integer :: N,I,J,K,N1,N2,N3
 C..
-      PI=ACOS(-1.D0)
+!      PI=ACOS(-1.D0)
       ALPHA2=ALPHA*ALPHA
 C..
       HSTEPX=2.D0*A(1)/N
@@ -110,9 +117,9 @@ C..
       DO I=-N/2,N/2-1
         DO J=-N/2,N/2-1
           DO K=-N/2,N/2-1
-            X=DFLOAT(I)*HSTEPX
-            Y=DFLOAT(J)*HSTEPY
-            Z=DFLOAT(K)*HSTEPZ
+            X=real(I,dp)*HSTEPX
+            Y=real(J,dp)*HSTEPY
+            Z=real(K,dp)*HSTEPZ
             AUX=X*X+Y*Y+Z*Z
             IF(AUX.NE.0.D0) THEN
               IF(TALPHA) THEN 
@@ -226,8 +233,11 @@ c      stop
       END
 C ============================================================
       SUBROUTINE GEN_ZIA(KMAX,NMAX,ZIA)
-      IMPLICIT REAL*8(A-H,O-Z)
-      COMPLEX*16 ZIA(-KMAX/2:KMAX/2,NMAX,NMAX),ZIO
+!      IMPLICIT real(dp)(A-H,O-Z)
+      use constants, only: dp
+      IMPLICIT NONE
+      complex(dp) ZIA(-KMAX/2:KMAX/2,NMAX,NMAX),ZIO
+      integer :: K,N,M,KMAX,NMAX
       DO K=-KMAX/2,KMAX/2
         DO N=1,NMAX
           DO M=1,NMAX
@@ -239,18 +249,21 @@ C ============================================================
       RETURN
       END
       FUNCTION ZIO(K)
-      IMPLICIT REAL*8(A-H,O-Z)
-      COMPLEX*16 ZIO
-      DATA IFIRST/0/ 
-      SAVE PI,IFIRST
-      IF(IFIRST.EQ.0) THEN 
-        PI=ACOS(-1.D0)
-        IFIRST=1
-      ENDIF
+!      IMPLICIT real(dp)(A-H,O-Z)
+      use constants, only : dp,pi
+      IMPLICIT NONE
+      complex(dp) ZIO
+!      INTEGER , DATA , SAVE :: IFIRST/0/ 
+!      real(dp) :: SAVE PI
+      INTEGER :: K
+!      IF(IFIRST.EQ.0) THEN 
+!        PI=ACOS(-1.D0)
+!        IFIRST=1
+!      ENDIF
       IF(K.EQ.0) THEN 
         ZIO=(1.D0,0.D0)
       ELSE
-        ZIO=DCMPLX(0.D0,-((-1.D0)**K-1.D0)/(DFLOAT(K)*PI))
+        ZIO=DCMPLX(0.D0,-((-1.D0)**K-1.D0)/(REAL(K,dp)*PI))
       ENDIF
       RETURN
       END

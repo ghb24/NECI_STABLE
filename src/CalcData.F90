@@ -1,6 +1,6 @@
 module CalcData
 
-    use constants, only: dp
+    use constants, only: dp,int64
     use MemoryManager, only: TagIntType
     implicit none
 
@@ -56,28 +56,28 @@ INTEGER :: InitWalkers,NMCyc,StepsSft,CLMax
 INTEGER :: NEquilSteps,InitialPart
 INTEGER :: OccCASorbs,VirtCASorbs,iAnnInterval
 integer :: iPopsFileNoRead, iPopsFileNoWrite,iWeightPopRead,iRestartWalkNum
-INTEGER *8 :: MaxNoatHF,HFPopThresh
+INTEGER(int64) :: MaxNoatHF,HFPopThresh
 
-REAL*8 :: g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
-REAL*8 :: G_VMC_EXCITWEIGHT(10),G_VMC_EXCITWEIGHTS(6,10)
-REAL*8 :: BETAP,RHOEPSILON,DBETA,STARCONV,GraphBias
-REAL*8 :: GrowGraphsExpo,Tau,SftDamp,ScaleWalkers
-REAL*8 :: GrowMaxFactor,CullFactor,PRet,FracLargerDet
-REAL*8 :: MemoryFacPart,MemoryFacAnnihil
-REAL*8 :: MemoryFacSpawn,SinglesBias,TauFactor,StepsSftImag
+real(dp) :: g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
+real(dp) :: G_VMC_EXCITWEIGHT(10),G_VMC_EXCITWEIGHTS(6,10)
+real(dp) :: BETAP,RHOEPSILON,DBETA,STARCONV,GraphBias
+real(dp) :: GrowGraphsExpo,Tau,SftDamp,ScaleWalkers
+real(dp) :: GrowMaxFactor,CullFactor,PRet,FracLargerDet
+real(dp) :: MemoryFacPart,MemoryFacAnnihil
+real(dp) :: MemoryFacSpawn,SinglesBias,TauFactor,StepsSftImag
 
 real(dp) :: MemoryFacInit
 
 real(dp), target :: DiagSft
 
-REAL*8 :: GraphEpsilon
-REAL*8 :: PGenEpsilon
+real(dp) :: GraphEpsilon
+real(dp) :: PGenEpsilon
 
 
 !// additional from NECI.F
 INTEGER, Allocatable :: MCDet(:)
 INTEGER(TagIntType) :: tagMCDet=0
-REAL*8 :: RHOEPS ! calculated from RHOEPSILON
+real(dp) :: RHOEPS ! calculated from RHOEPSILON
 
 !// set if we include no triple-excitations as the 3rd vertex in 3+ vertex graphs.
 LOGICAL :: lNoTriples

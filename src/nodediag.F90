@@ -33,7 +33,7 @@
 
 !The rho_ii rho matrix element
       HElement_t :: rhii
-      REAL*8 :: totlinks
+      real(dp) :: totlinks
       INTEGER :: crosslinks
 
 ! Memory tags
@@ -50,9 +50,9 @@
       INTEGER Height,TRIIND,INDX,i,ExcitInfoElems,j,exFlag
       INTEGER nStore(6),iExcit,invsbrr(nBasis),orbone,orbtwo,t
       INTEGER, ALLOCATABLE :: nExcit(:)
-      COMPLEX*16 fck(*)
+      complex(dp) fck(*)
       HElement_t UMat(*)
-      REAL*8 Beta,ALat(3),RhoEps,ECore,dBeta
+      real(dp) Beta,ALat(3),RhoEps,ECore,dBeta
       real(dp) dLWdB
       real(dp) fMCPR3StarNodes
       LOGICAL COMPIPATH
@@ -192,16 +192,16 @@
         use MemoryManager, only: TagIntType
         IMPLICIT NONE
         Type(BasisFN) G1(*)
-        COMPLEX*16 fck(*)
+        complex(dp) fck(*)
         HElement_t UMat(*),rh,Hel
         INTEGER novirt,ierr,i,j,ijpair(2),node,nI(nEl),nJ(nEl),nK(nEl),i_P
         INTEGER nBasis,nMsh,nMax,nTay(2),WORKMEM
         INTEGER*4 INFO
         INTEGER ExcitInfoElems,nEl,Orbchange(4),iExcit
-        REAL*8 Beta,ALat(3),RhoEps,ECore
-        REAL*8, ALLOCATABLE :: NODERHOMAT(:),WLIST(:)
+        real(dp) Beta,ALat(3),RhoEps,ECore
+        real(dp), ALLOCATABLE :: NODERHOMAT(:),WLIST(:)
         INTEGER, ALLOCATABLE :: FULLPATHS(:,:)
-        REAL*8, ALLOCATABLE :: WORK(:)
+        real(dp), ALLOCATABLE :: WORK(:)
         integer(TagIntType), save :: tagNODERHOMAT=0,tagWLIST=0,tagFULLPATHS=0,tagWORK=0
         character(*),parameter :: t_r='CONSTRUCTNODE'
 

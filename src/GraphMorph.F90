@@ -55,14 +55,14 @@ MODULE GraphMorph
 !    HElement_t , ALLOCATABLE :: Eigenvector(:)
 !    INTEGER :: EigenvectorTag=0
 !!The largest Eigenvalue of the graph
-!    REAL*8 :: Eigenvalue
+!    real(dp) :: Eigenvalue
 !
 !!This is the vector of propensity to move towards the excited determinants of the graph
 !    HElement_t , ALLOCATABLE :: ExcitsVector(:)
 !    INTEGER :: ExcitsVectorTag=0
 !
 !!This is needed if we are using the MoveDets graph growing algorithm to store a copy of the rho matrix in
-!    REAL*8 , ALLOCATABLE :: CopyRhoMat(:,:)
+!    real(dp) , ALLOCATABLE :: CopyRhoMat(:,:)
 !    INTEGER :: CopyRhoMatTag=0
 !
 !!If TDistrib is on, then this will show the distribution of determinants among the excitations
@@ -79,7 +79,7 @@ MODULE GraphMorph
 !    HElement_t :: rhii,Hii
 !
 !!These are the weight and energy of the current graph respectively
-!    REAL*8 :: SI,DLWDB
+!    real(dp) :: SI,DLWDB
 !
 !!This is the seed for the random numbers needed in the routines
 !    INTEGER :: Seed
@@ -91,7 +91,7 @@ MODULE GraphMorph
 !    LOGICAL :: ReturntoTMoveDets
 !
 !!Various stats for printing
-!    REAL*8 :: PStay,Orig_Graph,SucRat,MeanExcit
+!    real(dp) :: PStay,Orig_Graph,SucRat,MeanExcit
 
     contains
 
@@ -106,7 +106,7 @@ MODULE GraphMorph
         ! Avoid warnings
         weight = weight
         energyxw = energyxw 
-!        REAL*8 :: LowestE,BestSI
+!        real(dp) :: LowestE,BestSI
 !        INTEGER :: ierr,i
 !        CHARACTER(len=*), PARAMETER :: this_routine='MorphGraph'
 
@@ -738,9 +738,9 @@ MODULE GraphMorph
 !        type(timer), save :: proc_timerInit
 !        INTEGER :: iGetExcitLevel,IC,MatFlag
 !        INTEGER , ALLOCATABLE :: iPath(:,:)
-!        REAL*8 , ALLOCATABLE :: Xij(:,:)
+!        real(dp) , ALLOCATABLE :: Xij(:,:)
 !#if defined(POINTER8)
-!        INTEGER*8 :: ExcitGen(0:NDets)
+!        integer(int64) :: ExcitGen(0:NDets)
 !#else
 !        INTEGER :: ExcitGen(0:NDets)
 !#endif
@@ -748,7 +748,7 @@ MODULE GraphMorph
 !        HElement_t , ALLOCATABLE :: Rhoij(:,:),Hijs(:)
 !        HElement_t :: rh
 !        INTEGER , ALLOCATABLE :: nExcit(:)
-!        REAL*8 :: PGen,OldImport
+!        real(dp) :: PGen,OldImport
 !        CHARACTER(len=*), PARAMETER :: this_routine='ConstructInitialGraph'
 !        
 !        proc_timerInit%timer_name='ConsInitGraph'
@@ -1044,7 +1044,7 @@ MODULE GraphMorph
 !        INTEGER :: AttemptDet(NEl),IndexofDetsFrom(NoMoveDets),ierr,Tries,NoVerts
 !        LOGICAL :: Remove,Attach,SameDet
 !        HElement_t :: rh
-!        REAL*8 :: r,Ran2
+!        real(dp) :: r,Ran2
 !        CHARACTER(len=*), PARAMETER :: this_routine='MoveDets'
 !
 !        proc_timerMove%timer_name='MoveDets'
@@ -1360,7 +1360,7 @@ MODULE GraphMorph
 !        INTEGER :: ierr,i,j,k,NoVerts,AttemptDet(NEl),GrowGraphTag,IC,dist,Rej_SameDet
 !        INTEGER :: Success,Failure,OrigDets,ExcitDets,Tries,iGetExcitLevel,IC1,IC2,IndexRemoved
 !        INTEGER , ALLOCATABLE :: GrowGraph(:,:)
-!        REAL*8 :: r,Ran2,Sumdetsprob,RootofNum,NormFactor
+!        real(dp) :: r,Ran2,Sumdetsprob,RootofNum,NormFactor
 !        LOGICAL :: Attach,OriginalPicked,SameDet
 !        HElement_t :: rh
 !        CHARACTER(len=*), PARAMETER :: this_routine='PickNewDets'
@@ -1709,7 +1709,7 @@ MODULE GraphMorph
 !    SUBROUTINE NormaliseVectorSep()
 !        IMPLICIT NONE
 !        HElement_t :: Norm1,Norm2
-!        REAL*8 :: RootofNum
+!        real(dp) :: RootofNum
 !        INTEGER :: i
 !        type(timer), save :: proc_timerNorm 
 !        
@@ -1767,8 +1767,8 @@ MODULE GraphMorph
 !    SUBROUTINE NormaliseVector()
 !        IMPLICIT NONE
 !        INTEGER :: i
-!        REAL*8 :: Stay,Move,RootofNum
-!        REAL*8 :: Norm,Norm1,Norm2
+!        real(dp) :: Stay,Move,RootofNum
+!        real(dp) :: Norm,Norm1,Norm2
 !
 !!The bias towards the determinants already in the graph is given by the largest eigenvector, multiplied by its eigenvalue.
 !!Since we no longer need the largest eigenvector, we can multiply its elements by its eigenvalue
@@ -1917,7 +1917,7 @@ MODULE GraphMorph
 !        USE Determinants , only : GetHElement2
 !        IMPLICIT NONE
 !        HElement_t :: rh
-!        REAL*8 :: Prob
+!        real(dp) :: Prob
 !        type(timer), save :: proc_timerConns
 !        INTEGER :: attempts,NoExcitsCurr,Noatt
 !        INTEGER :: ierr,i,j,DetCurr(NEl),nJ(NEl),nStore(6),iMaxExcit,nExcitMemLen
@@ -2190,15 +2190,15 @@ MODULE GraphMorph
 !        IMPLICIT NONE
 !        CHARACTER(len=*), PARAMETER :: this_routine='DiagGraphLanc'
 !        INTEGER , ALLOCATABLE :: Lab(:),NRow(:),ISCR(:),Index(:)
-!        REAL*8 , ALLOCATABLE :: Mat(:),CK(:,:),CKN(:,:), temp(:)
-!        REAL*8 , ALLOCATABLE :: A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:)
-!        REAL*8 , ALLOCATABLE :: Work2(:),WH(:),V2(:,:),W(:)
+!        real(dp) , ALLOCATABLE :: Mat(:),CK(:,:),CKN(:,:), temp(:)
+!        real(dp) , ALLOCATABLE :: A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:)
+!        real(dp) , ALLOCATABLE :: Work2(:),WH(:),V2(:,:),W(:)
 !        INTEGER :: LabTag,ATag,MatTag,NRowTag,VTag,WTTag
 !        INTEGER :: AMTag,BMTag,TTag,SCRTag,ISCRTag,IndexTag,WHTag
 !        INTEGER :: Work2Tag,V2Tag,WTag,CKTag,CKNTag
 !        INTEGER :: ierr,LenMat,i,j,ICMax,RowElems
 !        type(timer), save :: proc_timerLanc 
-!        REAL*8 :: SumVec,LancVar
+!        real(dp) :: SumVec,LancVar
 !        INTEGER :: NCycle,NBlock,NKry1,LScr,LIScr
 !        LOGICAL :: TSeeded
 !
@@ -2531,9 +2531,9 @@ MODULE GraphMorph
 !    SUBROUTINE CompressMatrix(Mat,Lab,NRow,LenMat,ICMax)
 !        IMPLICIT NONE
 !        INTEGER :: LenMat,i,j
-!        REAL*8 :: Mat(LenMat)
+!        real(dp) :: Mat(LenMat)
 !        INTEGER :: Lab(LenMat),NRow(NDets),LabElem,RowElems,ICMax,SumElems,lenrow
-!!        REAL*8 :: Mat(NDets,ICMax)
+!!        real(dp) :: Mat(NDets,ICMax)
 !!        INTEGER :: Lab(NDets,ICMax),NRow(NDets),LabElem,RowElems,ICMax,SumElems
 !
 !!This compression is how Alex uses the Lanczos diagonaliser - however, it seems to be used in a different way
@@ -2599,7 +2599,7 @@ MODULE GraphMorph
 !        IMPLICIT NONE
 !        type(timer), save :: proc_timerDiag
 !        INTEGER :: Info,ierr,i
-!        REAL*8 , ALLOCATABLE :: Work(:),Eigenvalues(:)
+!        real(dp) , ALLOCATABLE :: Work(:),Eigenvalues(:)
 !        INTEGER :: WorkTag,EigenvaluesTag,j
 !        CHARACTER(len=*), PARAMETER :: this_routine='DiagGraphMorph'
 !
@@ -2722,7 +2722,7 @@ END MODULE GraphMorph
 !LOGICAL FUNCTION ConnectGraph(Matrix,Dimen,NEl)
 !    IMPLICIT NONE
 !    INTEGER :: NotConnected(NEl,Dimen),NEl,Dimen
-!    REAL*8 :: Matrix
+!    real(dp) :: Matrix
 !    LOGICAL :: ConnectGraph
 !
 !    j=0
@@ -2733,9 +2733,10 @@ END MODULE GraphMorph
 !            NotConnected(1,j)=i
 !        ENDIF
 
-REAL*8 FUNCTION RootofNum(Num,Root)
-    REAL*8 :: Root
-    REAL*8 :: Num
+real(dp) FUNCTION RootofNum(Num,Root)
+    use constants, only: dp
+    real(dp) :: Root
+    real(dp) :: Num
     IF(Num.lt.1.D-16) THEN
         RootofNum=0.D0
     ELSE

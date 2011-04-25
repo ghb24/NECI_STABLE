@@ -5,6 +5,7 @@
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SystemData, only: nEl,G1, nBasis,nBasisMax
+         use constants, only: dp
          use SystemData, only: Arr,nMax,tAssumeSizeExcitgen
          use IntegralsData, only: UMat
          use SymData, only: SymClassSize,nSymPairProds,nSymLabels
@@ -17,7 +18,7 @@
          INTEGER,target :: NMEM(*)
          integer NJ(NEL),IC,ICOUNT
          INTEGER ISEED,Pos1,Pos2,Pos3
-         REAL*8 PGEN
+         real(dp) PGEN
 
          IF(tAssumeSizeExcitgen) THEN
 !Excitgen is set up differently...
@@ -89,6 +90,7 @@ C.. This version is based on GenRandSymExcitIt2, but does not need values it ext
          use IntegralsData, only: UMat
          use SymData, only: SymClassSize,nSymPairProds,nSymLabels
          use legacy_data, only: irat
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER NI(NEL)
          INTEGER, pointer :: DSTORE(:)
@@ -97,7 +99,7 @@ C.. This version is based on GenRandSymExcitIt2, but does not need values it ext
          INTEGER,target :: NMEM(*)
          integer  NJ(NEL),IC,ICOUNT
          INTEGER ISEED,Pos1,Pos2,Pos3
-         REAL*8 PGEN
+         real(dp) PGEN
          IF(tAssumeSizeExcitgen) THEN
 !Excitgen is set up differently...
 ! 1         NEXCIT
@@ -165,6 +167,7 @@ C..   use GenRandSymExcitIt3
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,nBasis
          use SymData, only: SymClassSize
          use legacy_data, only: irat
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER NEL,NI(NEL)
          INTEGER,pointer :: DSTORE(:)
@@ -173,7 +176,7 @@ C..   use GenRandSymExcitIt3
          integer NJ(NEL),ICOUNT,IC
          LOGICAL TPARITY
          INTEGER ISEED
-         REAL*8 PGEN
+         real(dp) PGEN
 C.. The second setup.  Now NMEM is allocated, we store all the info
 C.. NMEM is as follows:
 C..   1           -  5           STORE(1:5)
@@ -231,13 +234,13 @@ C.. Actually generate a det
       INTEGER ILUT(0:*),ITOTAL,ISEED
       INTEGER SYMPRODIND(2,3,1:*)
       INTEGER IC,ICOUNT
-      REAL*8 RAN2
+      real(dp) RAN2
       LOGICAL ISVALIDDET
       INTEGER nBasisMax(5,*)
-      REAL*8 RCOUNT
-      REAL*8 PGEN
+      real(dp) RCOUNT
+      real(dp) PGEN
       TYPE(ExcitWeight),pointer :: ews(:)
-      REAL*8 ARR(NBASIS,2)
+      real(dp) ARR(NBASIS,2)
 !.. First generate a random excitation 
       PGEN=1.D0/ITOTAL
       I=ITOTAL*RAN2(ISEED)
@@ -446,12 +449,13 @@ C.. Actually generate a det
          use SymData, only: tAbelianFastExcitgen
          use SymData, only: tStoreStateList
          use SystemData, only: tNoRenormRandExcits
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER nEl,nI(nEl)
          INTEGER I
          INTEGER iSpn,iFrom,iTo
          INTEGER iC
-         REAL*8 pGen
+         real(dp) pGen
          INTEGER ILUT(0:*),ExcitMat(2,2)
          LOGICAL TPARITY
          TYPE(SymClass) CLASSES(*)
@@ -462,7 +466,7 @@ C.. Actually generate a det
          INTEGER SymProdInd(2,3,1:*)
          INTEGER nK(nEl)
          INTEGER iSeed
-         REAL*8 RAN2   
+         real(dp) RAN2   
 !.. irst generate a random excitation 
 
          PGEN=1.D0/ITOTAL
@@ -548,6 +552,7 @@ C.. Actually generate a det
       Subroutine SymGenRandExcitIt2_Single_GetFrom_NoWeight(iSeed,
      &       nEl,iSpn,iFrom,I,nI)
          use SymData, only: SymClass,SymLabelCounts,SymLabelList
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER iSeed
          INTEGER nEl,nI(nEl)
@@ -557,7 +562,7 @@ C.. Actually generate a det
          INTEGER SpinOrb
          INTEGER J,OrbChosen,nOrbs
          LOGICAL InvalidOrb
-         REAL*8 RAN2   
+         real(dp) RAN2   
 
 !Algorithm is to simply keep drawing orbitals of the required symmetry at random, until we
 !pick one which is in NI.
@@ -604,6 +609,7 @@ C.. Actually generate a det
       Subroutine SymGenRandExcitIt2_Single_GetFrom(iSeed,nI,nEl,iSpn,
      &       iFrom,I)
          use SymData, only: SymClass,SymLabelCounts,SymLabelList
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER iSeed
          INTEGER nEl,nI(nEl)
@@ -614,7 +620,7 @@ C.. Actually generate a det
          INTEGER iFromSL
          INTEGER J,K
          LOGICAL L1
-         REAL*8 RAN2   
+         real(dp) RAN2   
          ICOUNT=0
 !  K is a loop variable.  We go through the loop once to count the number of possible excitations
 !  We then pick a random number up to that number, and choose that excitation
@@ -658,6 +664,7 @@ C.. Actually generate a det
       Subroutine SymGenRandExcitIt2_Single_GetTo_NoWeight(iSeed,nI,nEl,
      &              I,iSpn,iTo,nK,ExcitMat,TParity)
       use SymData, only: SymClass,SymLabelCounts,SymLabelList
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER iSeed
          INTEGER nEl,nI(nEl)
@@ -667,7 +674,7 @@ C.. Actually generate a det
          INTEGER J,State
          INTEGER NK(nEl)
          LOGICAL InDi,TParity
-         REAL*8 RAN2   
+         real(dp) RAN2   
 
 !Number of states with allowed symmetry is given by SymLabelCounts(2,Sym)
 !Draw an orbital at random from this number, and find its related orbital, given at index SymLabelCounts(1,Sym)+(DrawnOrb-1)
@@ -729,6 +736,7 @@ C.. Actually generate a det
      &   iTo,nK,ExcitMat,TParity)
       use SymData, only: SymClass,SymLabelCounts,SymLabelList
         use Determinants, only: write_det
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER iSeed
          INTEGER nEl,nI(nEl)
@@ -742,7 +750,7 @@ C.. Actually generate a det
          LOGICAL L2, lTmp
       
          LOGICAL IsValidDet
-         REAL*8 RAN2   
+         real(dp) RAN2   
 ! Now go through the list of possible excitations of it
          ICOUNT=0
 !  J is a loop variable.  We go through the loop once to count the number of possible excitations
@@ -813,6 +821,7 @@ C.. Actually generate a det
      &       iSpn, iFrom,
      &       SymProdInd,I,nI,OrbPairs)
          use SystemData , only: NEl
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER iSeed,nI(NEl)
          INTEGER iSpn
@@ -820,7 +829,7 @@ C.. Actually generate a det
          INTEGER SymProdInd(2,3,1:*)
          INTEGER I,k,j
          LOGICAL found
-         REAL*8 RAN2
+         real(dp) RAN2
 !!.. SYMPRODIND(1,ISPN,I)+1 contains the index of the first element of spin ISPN of sym
 !!.. SYMPRODS(I) in ORBPAIRS
 !!.. SYMPRODIND(2,ISPN,I) contains the number of such elements
@@ -863,6 +872,7 @@ C.. Actually generate a det
          use SystemData, only: G1, nBasis, nBasisMax
          use SystemData, only: Arr
          use IntegralsData, only: UMat
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER iSeed
          INTEGER iSpn
@@ -873,12 +883,12 @@ C.. Actually generate a det
          INTEGER iTotal
          INTEGER SymProdInd(2,3,1:*)
          INTEGER I
-         REAL*8 pGen
+         real(dp) pGen
          
-         REAL*8 rCount
+         real(dp) rCount
          TYPE(ExcitWeight),pointer :: ews(:)
          INTEGER iCount
-         REAL*8 RAN2
+         real(dp) RAN2
 
 !         WRITE(6,*) "IEXCIT: ",IExcit
 !         WRITE(6,*) "ExcitTypes2",ExcitTypes(2,1:4)
@@ -933,6 +943,7 @@ C.. Actually generate a det
          use SystemData, only: nEl
          use SymData, only: tAbelianFastExcitgen
          use SymData, only: SymPairProds,SymStatePairs
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER iSeed
          INTEGER nI(nEl)
@@ -946,7 +957,7 @@ C.. Actually generate a det
          INTEGER NK(nEl),Orb2Alpha,Orb2Beta,OrbAlpha,OrbBeta
          LOGICAL :: NotSelectedPair,Check1,Check2,TParity
          INTEGER J
-         REAL*8 RAN2
+         real(dp) RAN2
 
          iTo=ExcitTypes(4,iExcit)   !This is the symmetry of the virtual pair type
 
@@ -1106,6 +1117,7 @@ C.. Actually generate a det
          use SystemData, only: G1, nBasis, nBasisMax
          use SystemData, only: Arr,nEl
          use IntegralsData, only: UMat
+         use constants, only: dp
          IMPLICIT NONE
          LOGICAL TParity
          INTEGER iSeed
@@ -1117,13 +1129,13 @@ C.. Actually generate a det
          INTEGER iSpn,iFrom
          INTEGER iLUT(0:*)
          INTEGER I
-         REAL*8 pGen
+         real(dp) pGen
          INTEGER NK(nEl) 
          TYPE(ExcitWeight),pointer :: ews(:)
-         REAL*8 rCount
+         real(dp) rCount
          INTEGER iCount
          INTEGER K,J
-         REAL*8 RAN2
+         real(dp) RAN2
 !  Allocate memory to store all weights and excitations in this category
          allocate(ews(EXCITTYPES(5,IEXCIT)/SYMPRODIND(2,ISPN,IFROM)))
 !         WRITE(6,*)EXCITTYPES(5,IEXCIT)/SYMPRODIND(2,ISPN,IFROM),

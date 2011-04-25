@@ -5,6 +5,7 @@
          use SystemData, only: BasisFN,BasisFNSize
          use sym_mod
          use util_mod, only: NECI_ICOPY
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER NEL,NBASIS,BRR(NBASIS),nBasisMax(5,*),NDET
          INTEGER NMRKS(NEL,NDET)
@@ -18,8 +19,8 @@
          INTEGER LMS
          LOGICAL TGENFDET
          INTEGER IFDET,NDETTOT,IDEG
-         REAL*8 DETSC,TDETSC
-         REAL*8 CALCT
+         real(dp) DETSC,TDETSC
+         real(dp) CALCT
          DETSC=1D200
          II=0
          IF(TCOUNT) THEN
@@ -233,13 +234,14 @@ C.. Generate determinants with a given symmetry, given by KI, as GENSYMDETS
          use sym_mod
          use sort_mod
          use util_mod, only: NECI_ICOPY
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER NEL,NI(NEL), NBASIS, NLMAX,NLIST
          INTEGER LSTE(NEL,NLMAX),NJ(NEL),NELEC,NBF
          INTEGER I,BRR(NBASIS),NN(NEL),nBasisMax(5,*)
          INTEGER IGETEXCITLEVEL,ICE
-         REAL*8 RN,RP,RH,PP,RH2,RHOEPS
-         REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
+         real(dp) RN,RP,RH,PP,RH2,RHOEPS
+         real(dp) BETA,FCK(*),ALAT(*),UMAT(*),ECORE
          INTEGER I_P,NMSH,NMAX,NTAY
          TYPE(BASISFN) G1(NBASIS),KI,KJ,KJ2
          DO I=NBF,NBASIS
@@ -318,13 +320,14 @@ C.. the first NLIST are stored.
      &         BETA,I_P,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,ECORE,RN,RP,
      &         PP,RHOEPS)
          use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,BRR(NBASIS)
          INTEGER NLIST,LSTE(NEL,NLIST)
          INTEGER NJ(NEL),nBasisMax(5,*)
          INTEGER NLMAX
-         REAL*8 RN,RP,PP,RHOEPS
-         REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
+         real(dp) RN,RP,PP,RHOEPS
+         real(dp) BETA,FCK(*),ALAT(*),UMAT(*),ECORE
          INTEGER I_P,NMSH,NMAX,NTAY
          TYPE(BASISFN) G1(NBASIS),KI,KJ
          KJ=NullBasisFn

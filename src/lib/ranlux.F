@@ -1,7 +1,8 @@
-      REAL*8 FUNCTION RAN2(ISEED)
+      real(dp) FUNCTION RAN2(ISEED)
          !  Following the same interface as Numerical Recipes' RAN2, but using the RANLUX generator (lux level 3).
          !  If ISEED.NE.0, it is used as a seed, and reset to 0.
-         !  Generates a 32-bit float (REAL*4), and stores this in a real*8
+         !  Generates a 32-bit float (REAL*4), and stores this in a real(dp)
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER ISEED
          IF(ISEED.NE.0) THEN
@@ -61,20 +62,27 @@ C!!!      CALL RLUXUT(ISVEC)    outputs the current values of the 25 ++
 C!!!                 32-bit integer seeds, to be used for restarting ++
 C!!!      ISVEC must be dimensioned 25 in the calling program        ++
 C!!! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-      IMPLICIT REAL*8(A-H,O-Z)
-      DIMENSION RVEC(LENV)
-      DIMENSION SEEDS(24), ISEEDS(24), ISDEXT(25)
-      PARAMETER (MAXLEV=4, LXDFLT=3)
-      DIMENSION NDSKIP(0:MAXLEV)
-      DIMENSION NEXT(24)
-      PARAMETER (TWOP12=4096., IGIGA=1000000000,JSDFLT=314159265)
-      PARAMETER (ITWO24=2**24, ICONS=2147483563)
-      SAVE NOTYET, I24, J24, CARRY, SEEDS, TWOM24, TWOM12, LUXLEV
-      SAVE NSKIP, NDSKIP, IN24, NEXT, KOUNT, MKOUNT, INSEED
-      INTEGER LUXLEV
-      LOGICAL NOTYET
+!      IMPLICIT real(dp)(A-H,O-Z)
+      use constants, only: dp
+      IMPLICIT NONE
+      real(dp) :: RVEC(LENV)
+      real(dp) , save :: SEEDS(24) 
+      integer :: ISEEDS(24), ISDEXT(25)
+      integer , PARAMETER :: MAXLEV=4, LXDFLT=3
+      integer , save :: NDSKIP(0:MAXLEV)
+      integer , save :: NEXT(24)
+      real(dp) , PARAMETER :: TWOP12=4096.D0
+      integer , parameter :: IGIGA=1000000000,JSDFLT=314159265
+      integer , PARAMETER :: ITWO24=2**24, ICONS=2147483563
+      integer , SAVE :: I24, J24, LUXLEV
+      real(dp), SAVE :: CARRY,TWOM24,TWOM12
+      integer , SAVE :: NSKIP, IN24, KOUNT, MKOUNT, INSEED
+      LOGICAL , save :: NOTYET
       DATA NOTYET, LUXLEV, IN24, KOUNT, MKOUNT /.TRUE., LXDFLT, 0,0,0/
       DATA I24,J24,CARRY/24,10,0./
+      integer :: I,K,LP,JSEED,LENV,IZIP2,IZIP,ISK,INNER
+      integer :: IOUTER,INS,ILX,K2,K1,INOUT,LOUT,ISD,LUX,IVEC
+      real(dp) :: UNI
 C                               default
 C  Luxury Level   0     1     2   *3*    4
       DATA NDSKIP/0,   24,   73,  199,  365 /
@@ -323,8 +331,11 @@ C +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       SUBROUTINE  LUXTST
 C         Exercise for the RANLUX Pseudorandom number generator.
 C
-      DIMENSION RVEC(1000)
-      DIMENSION ISDEXT(25)
+      use constants, only: dp
+      IMPLICIT NONE
+      real(dp) :: RVEC(1000)
+      integer :: ISDEXT(25)
+      integer :: LI,I1,I2,I3,I4,L
 C
 C         check that we get the right numbers (machine-indep.)
       WRITE (6,'(/A)')  '  CALL RANLUX(RVEC,100)'

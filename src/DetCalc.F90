@@ -30,7 +30,7 @@ MODULE DetCalc
       HElement_t, pointer :: CKN(:,:) !  (nDet,nEval)  Temporary storage for the Lanczos routine
       INTEGER(TagIntType) :: tagCKN=0
 
-      REAL*8 , ALLOCATABLE :: ExpandedHamil(:,:)    ! (NDet,NDet) This is the hamiltonian in expanded form, so that it can be histogrammed against.
+      real(dp) , ALLOCATABLE :: ExpandedHamil(:,:)    ! (NDet,NDet) This is the hamiltonian in expanded form, so that it can be histogrammed against.
 
       INTEGER iExcitLevel                 ! The excitation level at which determinants are cut off.  This differs from ICILevel for tCCBuffer.
     
@@ -312,7 +312,7 @@ CONTAINS
      use HElem
         use MemoryManager, only: TagIntType
 
-      REAL*8 , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),FCIGS(:)
+      real(dp) , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),FCIGS(:)
       HElement_t, ALLOCATABLE :: WORK(:)
       INTEGER , ALLOCATABLE :: LAB(:),NROW(:),INDEX(:),ISCR(:),Temp(:)
 
@@ -320,7 +320,7 @@ CONTAINS
       INTEGER(TagIntType) :: WTTag=0,SCRTag=0,ISCRTag=0,INDEXTag=0,WHTag=0,Work2Tag=0,V2Tag=0,WorkTag=0
       integer :: ierr,Lz
       character(25), parameter :: this_routine = 'DoDetCalc'
-      REAL*8 EXEN,GSEN
+      real(dp) EXEN,GSEN
         Type(BasisFn) ISym,IHFSYM
 
         INTEGER GC,I,ICMAX
@@ -332,7 +332,7 @@ CONTAINS
         INTEGER J,JR,iGetExcitLevel_2,ExcitLevel, iunit
         INTEGER LSCR,LISCR,MaxIndex
         LOGICAL tMC!,TestClosedShellDet,Found,tSign
-        real*8 GetHElement, calct, calcmcen, calcdlwdb,norm
+        real(dp) GetHElement, calct, calcmcen, calcdlwdb,norm
 ! Doesn't seem to have been inited
 
       IF(tEnergy) THEN
@@ -877,14 +877,14 @@ CONTAINS
         use SystemData, only: Alat, G1, nBasis, Omega, nEl,nMsh
         use IntegralsData, only: nMax
 != This variable used to be an allocatable array of size NMSH*NMSH*NMSH, but seemed to be only used as a real - ghb24 21/09/08
-        REAL*8 SCRTCH
+        real(dp) SCRTCH
 
-        REAL*8 , ALLOCATABLE :: DLINE(:),PSIR(:),RHO(:,:,:),SITAB(:,:),XCHOLE(:,:,:)!,SCRTCH()
+        real(dp) , ALLOCATABLE :: DLINE(:),PSIR(:),RHO(:,:,:),SITAB(:,:),XCHOLE(:,:,:)!,SCRTCH()
         INTEGER(TagIntType) :: DLINETag=0,PSIRTag=0,RHOTag=0,SITABTag=0,XCHOLETag=0!SCRTCHTag=0
 
         character(25), parameter :: this_routine = 'CalcRhoOfR'
         INTEGER iXD, iYD, iZD,ierr
-        REAL*8 SPAC, Rs
+        real(dp) SPAC, Rs
 !C..Generate memory for RHO and SITAB
         ALLOCATE(RHO(NMSH,NMSH,NMSH),stat=ierr)
         CALL LogMemAlloc('RHO',NMSH**3,8,this_routine,RHOTag,ierr)
@@ -928,7 +928,7 @@ CONTAINS
     Subroutine CalcFoDM()
         Use global_utilities
         use SystemData, only: G1, nBasis, nMaxX, nMaxY, nMaxZ, nEl
-        REAL*8 , ALLOCATABLE :: SUMA(:,:,:)
+        real(dp) , ALLOCATABLE :: SUMA(:,:,:)
         INTEGER(TagIntType) :: SUMATag=0
         INTEGER ISTATE,ierr
         character(25), parameter :: this_routine = 'CalcFoDM'
@@ -964,9 +964,9 @@ END MODULE DetCalc
          HElement_t UMat(*)
          real(dp) DLWDB, DLWDB2, DLWDB3, DLWDB4
          TYPE(BasisFN) G1(*)
-         REAL*8 ALAT(3)
-         REAL*8 BETA,RHOEPS
-         COMPLEX*16 FCK(*)
+         real(dp) ALAT(3)
+         real(dp) BETA,RHOEPS
+         complex(dp) FCK(*)
 
          
          INTEGER, ALLOCATABLE :: LSTE(:,:,:),ICE(:,:)
@@ -975,8 +975,8 @@ END MODULE DetCalc
          INTEGER NPATHS,ierr
          INTEGER III,NWHTAY(3,I_VMAX),IMAX,ILMAX
          real(dp) WLRI,WLSI
-         REAL*8 ECORE,DBETA,WLRI1,WLRI2,WLSI1,WLSI2
-         REAL*8 TOT, NORM,WLRI0,WLSI0,WINORM
+         real(dp) ECORE,DBETA,WLRI1,WLRI2,WLSI1,WLSI2
+         real(dp) TOT, NORM,WLRI0,WLSI0,WINORM
          LOGICAL TNPDERIV
          INTEGER DETINV
          INTEGER ISTART,IEND,iunit
@@ -1122,8 +1122,8 @@ END MODULE DetCalc
          IMPLICIT NONE
          INTEGER NDET,NEVAL
          HElement_t CK(NDET,NEVAL)
-         REAL*8 W(NEVAL)
-         REAL*8 RHII,FLRI,FLSI,BETA,RH,R
+         real(dp) W(NEVAL)
+         real(dp) RHII,FLRI,FLSI,BETA,RH,R
          INTEGER I_P,I,IK
          LOGICAL TWARN
          RH=0.D0
@@ -1169,11 +1169,11 @@ END MODULE DetCalc
       END
 
 !  Given an exact calculation of eigen-vectors and -values, calculate the expectation value of E(Beta)
-      REAL*8 FUNCTION CALCMCEN(NEVAL,W,BETA)
+      real(dp) FUNCTION CALCMCEN(NEVAL,W,BETA)
          use constants, only: dp
          IMPLICIT NONE
          INTEGER NEVAL,IK
-         REAL*8  W(NEVAL),BETA,DNORM,EN
+         real(dp)  W(NEVAL),BETA,DNORM,EN
          EN=0.D0
          DNORM=0.D0
          DO IK=1,NEVAL
@@ -1185,12 +1185,12 @@ END MODULE DetCalc
       END
 
 !  Given an exact calculation of eigen-vectors and -values, calculate the expectation value of E~(Beta)_I for det I
-      REAL*8 FUNCTION CALCDLWDB(I,NDET,NEVAL,CK,W,BETA)
+      real(dp) FUNCTION CALCDLWDB(I,NDET,NEVAL,CK,W,BETA)
          use constants, only: dp
          IMPLICIT NONE
          INTEGER NDET,NEVAL,IK,I
          HElement_t CK(NDET,NEVAL)
-         REAL*8  W(NEVAL),BETA,DNORM,EN
+         real(dp)  W(NEVAL),BETA,DNORM,EN
          EN=0.D0
          DNORM=0.D0
          DO IK=1,NEVAL
@@ -1210,9 +1210,9 @@ END MODULE DetCalc
       IMPLICIT NONE
       HElement_t CG(NDET,NEVAL)
       INTEGER NM(NEL,*),NDET,NEL,NEVAL, iunit
-      REAL*8 TKE(NEVAL)
+      real(dp) TKE(NEVAL)
       TYPE(BASISFN) G1(*)
-      REAL*8 PI,S,SUM1
+      real(dp) PI,S,SUM1
       real(dp) AUX
       INTEGER I,J,IN,IEL,L
 !..Calculate the expectation value of the kinetic energy
@@ -1272,14 +1272,14 @@ END MODULE DetCalc
 
 
 !Given exact eigenvalues and vectors, do monte carlo in det space with exact weights and E~
-       REAL*8 FUNCTION DOEXMC(NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,ECORE,IMCSTEPS,G1,NMRKS,NEL,NBASISMAX,NBASIS,BRR,IEQSTEPS)
+       real(dp) FUNCTION DOEXMC(NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,ECORE,IMCSTEPS,G1,NMRKS,NEL,NBASISMAX,NBASIS,BRR,IEQSTEPS)
          use constants, only: dp
          use SystemData, only: BasisFn
          implicit none
          INTEGER NDET,NEVAL,I_P,ILOGGING, NBASISMAX(5,7), NBASIS, NEL, BRR(NBASIS), IMCSTEPS, NMRKS(:,:), IEQSTEPS
          HElement_t CK(NEVAL)
          type(BasisFn) G1(nBasis)
-         REAL*8 W(NEVAL),BETA,ECORE
+         real(dp) W(NEVAL),BETA,ECORE
 
          ! Avoid compiler warnings
          ndet = ndet; neval = neval; ck(1) = ck(1); W(1) = W(1); beta = beta

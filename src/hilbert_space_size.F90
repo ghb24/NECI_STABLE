@@ -2,6 +2,7 @@
 
 module hilbert_space_size
 
+use constants, only: dp,int64,n_int,bits_n_int
 implicit none
 
 contains
@@ -17,7 +18,6 @@ contains
          use dSFMT_interface
          use soft_exit, only : ChangeVars
          use Parallel
-         use constants, only : n_int,bits_n_int
          use DetBitops, only: EncodeBitDet
          use util_mod, only: choose
          use bit_rep_data, only: NIfTot
@@ -26,11 +26,11 @@ contains
          INTEGER :: j,SpatOrbs,FDetMom,Attempts,iExcitLevTest,i,ExcitLev
          INTEGER(KIND=n_int) :: FDetiLut(0:NIfTot),iLut(0:NIfTot)
          INTEGER :: FDetSym,TotalSym,TotalMom,alpha,beta,ierr,Momx,Momy
-         INTEGER*8 :: Accept,AcceptAll,TotalAttempts,TotalAttemptsAll
-         INTEGER*8 :: ExcitBin(0:iMCCalcTruncLev),ExcitBinAll(0:iMCCalcTruncLev)
-         REAL*8 :: ExcitLevBias(0:iMCCalcTruncLev)
-         REAL*8 :: FullSpace,r,Frac,SymSpace
-         REAL*8 :: SizeLevel(0:iMCCalcTruncLev) 
+         integer(int64) :: Accept,AcceptAll,TotalAttempts,TotalAttemptsAll
+         integer(int64) :: ExcitBin(0:iMCCalcTruncLev),ExcitBinAll(0:iMCCalcTruncLev)
+         real(dp) :: ExcitLevBias(0:iMCCalcTruncLev)
+         real(dp) :: FullSpace,r,Frac,SymSpace
+         real(dp) :: SizeLevel(0:iMCCalcTruncLev) 
          LOGICAL :: tDummy,tDummy2,tSoftExitFound
 
          iExcitLevTest=iMCCalcTruncLev
@@ -170,7 +170,6 @@ contains
      SUBROUTINE CreateRandomExcitLevDetUnbias(iExcitLevTest,FDet,FDetiLut,iLut,ExcitLev,Attempts)
          use util_mod, only: choose
          use SystemData, only: nEl
-         use constants, only : n_int
          use bit_rep_data, only: NIfTot
          use dSFMT_interface
          INTEGER :: iExcitLevTest,FDet(NEl),ExcitLev,Attempts
@@ -207,7 +206,6 @@ contains
          use SystemData, only: tUEG,tHPHF,tHub
          use SystemData, only : tFixLz
          use dSFMT_interface
-         use constants, only : n_int,bits_n_int
          use bit_rep_data, only: NIfTot
          integer, intent(in) :: iExcitLevTest,FDet(NEl)
          integer, intent(out) :: ExcitLev,Attempts
@@ -312,7 +310,6 @@ contains
          use dSFMT_interface
          use soft_exit, only : ChangeVars
          use Parallel
-         use constants, only : n_int,bits_n_int
          use DetBitops, only: EncodeBitDet
          use util_mod, only: choose
          use bit_rep_data, only: NIfTot
@@ -321,10 +318,10 @@ contains
          INTEGER(KIND=n_int) :: FDetiLut(0:NIfTot),iLut(0:NIfTot)
          INTEGER :: FDetSym,TotalSym,TotalMom,alpha,beta,ierr,Momx,Momy
          INTEGER :: Momz
-         INTEGER*8 :: Accept,AcceptAll,i
-         INTEGER*8 :: ExcitBin(0:NEl),ExcitBinAll(0:NEl)
-         REAL*8 :: FullSpace,r,Frac
-         REAL*8 :: SizeLevel(0:NEl) 
+         integer(int64) :: Accept,AcceptAll,i
+         integer(int64) :: ExcitBin(0:NEl),ExcitBinAll(0:NEl)
+         real(dp) :: FullSpace,r,Frac
+         real(dp) :: SizeLevel(0:NEl) 
          LOGICAL :: truncate_space,tDummy,tDummy2,tSoftExitFound
          LOGICAL :: tNotAllowed,tAcc
 
@@ -631,7 +628,7 @@ contains
          INTEGER :: Lima(0:7),Limb(0:7),a0,a1,a2,a3,a4,a5,a6,a7,NAlph
          INTEGER :: b0,b1,b2,b3,b4,b5,b6,b7,NBet,i,IUNIT,OverallSym
          INTEGER :: FDetSym
-         REAL*8 :: Space,SpaceGrow
+         real(dp) :: Space,SpaceGrow
          LOGICAL :: Sym(0:7)
 
 !         IF(.not.TwoCycleSymGens) THEN
@@ -825,7 +822,7 @@ contains
          INTEGER :: b0o,b1o,b2o,b3o,b4o,b5o,b6o,b7o,OverallSym
          INTEGER :: b0v,b1v,b2v,b3v,b4v,b5v,b6v,b7v,NBetOcc,i,IUNIT
          INTEGER :: FDetSym,NBetVirt
-         REAL*8 :: Space,SpaceGrow
+         real(dp) :: Space,SpaceGrow
          LOGICAL :: Sym(0:7)
 
          IF(.not.TwoCycleSymGens) THEN

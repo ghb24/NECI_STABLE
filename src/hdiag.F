@@ -19,12 +19,12 @@
          INTEGER NROW(NDET),LAB(*)
          HElement_t  HAMIL(*),CK(NDET,NDET),WORK2,WORK
 !         HElement_t CopyCK(NDET,NDET)
-         REAL*8 W(NDET)
+         real(dp) W(NDET)
          INTEGER I,J,IND,INDZ,NBS!,nopen,k,Excit
          INTEGER*4 INFO
          INTEGER NBLOCKS,NBLOCKSTARTS(NBLOCKS+1)
          type(timer), save :: proc_timer
-         REAL*8 GSEN
+         real(dp) GSEN
          proc_timer%timer_name='HDIAG     '
          call set_timer(proc_timer)
          GSEN=1.D100
@@ -125,10 +125,10 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          IMPLICIT NONE
          INTEGER NDET,i,j,NExcit,bin,nbins
          HElement_t Vecs(NDET,NDET),HMAT(NDET,NDET),KMAT(NDET,NDET)
-         REAL*8 Vals(NDET),S(NDET,NDET+1),SSUM
-         REAL*8 MinS,MaxS,RangeBins
+         real(dp) Vals(NDET),S(NDET,NDET+1),SSUM
+         real(dp) MinS,MaxS,RangeBins
          INTEGER , ALLOCATABLE :: SHist(:,:)
-         REAL*8 , ALLOCATABLE :: RangeHist(:)
+         real(dp) , ALLOCATABLE :: RangeHist(:)
 
 !Vals(1) contains ground state
 !Check that eigenvectors are correct by multiplying matrix by first eigenvector
@@ -283,16 +283,16 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          TYPE(BasisFN) G1(*)
          INTEGER I_P,BRR(*)
          INTEGER*4 INFO
-         REAL*8  BETA
+         real(dp)  BETA
          LOGICAL TWARN
-         REAL*8  DNORM
-         REAL*8  CALCDLWDB,ARR(NBASIS)
+         real(dp)  DNORM
+         real(dp)  CALCDLWDB,ARR(NBASIS)
          
          INTEGER I,NBLKMAX,NBLK,J,K,NBS,III,IFDET,L
-         REAL*8 EXEN,GSEN,FLRI,FLSI,GSEN2
-         REAL*8, ALLOCATABLE :: CK(:),W(:),WORK(:)
+         real(dp) EXEN,GSEN,FLRI,FLSI,GSEN2
+         real(dp), ALLOCATABLE :: CK(:),W(:),WORK(:)
          integer(TagIntType), save :: tagCK=0,tagW=0,tagWORK=0
-         REAL*8 ELOWEST,GOFE(NBASIS),EBIAS
+         real(dp) ELOWEST,GOFE(NBASIS),EBIAS
          INTEGER GELOWEST,IDEG
          type(timer), save :: proc_timer
          TYPE(BasisFN) BLOCKSYM(NBLOCKS)

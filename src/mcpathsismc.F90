@@ -1,4 +1,5 @@
 module mcpathsismc
+    use constants, only: dp,int64
    contains
 !C.. Calculate RHO^(P)_II without having a stored H matrix
 !C.. SAMPLE over distinct nodes, e.g. IJKLI, with paths up to I_HMAX
@@ -13,7 +14,6 @@ module mcpathsismc
       SUBROUTINE  MCPATHSR4(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1, &
      &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,     &
      &               NWHTAY,ILOGGING,ECORE,WLRI,WLSI,DBETA,DLWDB,I_VMIN)
-         use constants, only: dp
          Use Determinants, only: get_helement, write_det
          USE MCStat
          use CalcData , only : G_VMC_PI,G_VMC_FAC,G_VMC_SEED,CUR_VERT,  &
@@ -34,10 +34,10 @@ module mcpathsismc
          CHARACTER*20 STR
          real(dp) TOTAL,RHOII(0:I_VMAX)
          HElement_t RHOIJ(0:I_VMAX,0:I_VMAX),RH
-         REAL*8 ALAT(3),RHOEPS,BETA
+         real(dp) ALAT(3),RHOEPS,BETA
          HElement_t UMAT(*)
-         COMPLEX*16 FCK(*)
-         REAL*8 ECORE
+         complex(dp) FCK(*)
+         real(dp) ECORE
          real(dp) FF
          real(dp) WLRI,WLSI
          TYPE(BasisFN) G1(*),KSYM
@@ -48,7 +48,7 @@ module mcpathsismc
          INTEGER BTABLE(0:I_VMAX)
          LOGICAL TLOG
          INTEGER ICOUNT,ISEED,I_V,L,LT
-         REAL*8 DBETA
+         real(dp) DBETA
          INTEGER IEXCITS
          type(egp) EXCITGEN(0:I_VMAX) 
          real(dp) DLWDB,DLWDB2,DLWDB3
@@ -57,23 +57,23 @@ module mcpathsismc
          INTEGER,pointer :: NMEM(:)
          INTEGER NMEMLEN
          real(dp) ODLWDB,OWEIGHT,DLWDBSQ
-         REAL*8 OPROB,R
+         real(dp) OPROB,R
          INTEGER ITREE
          INTEGER I_VCUR,I_VM1,I_VM2,I_OVCUR,IOCLS,NTR
          INTEGER ICHANGED
-         REAL*8 VWEIGHTS(2,0:I_VMAX)
+         real(dp) VWEIGHTS(2,0:I_VMAX)
          INTEGER TST
-         REAL*8 PFAC
+         real(dp) PFAC
          real(dp) WMIN,SUMDLWDB
-         REAL*8 RAN2
+         real(dp) RAN2
 !C.. do some blocking analysis
          INTEGER STORE(6)
          real(dp) DLWDBCORE,WCORE
          INTEGER IOV,IGV,IACC
          LOGICAL TSEQ,TBLOCKING
-         REAL*8 PREJ,PGR
+         real(dp) PREJ,PGR
          REAL*4 etime,OTIME,NTIME,tarr(2)
-         INTEGER*8 LP
+         integer(int64) LP
          HElement_t :: hel
          OTIME=etime(tarr)
          TST=0
@@ -643,7 +643,7 @@ module mcpathsismc
 !C.. using the appropriate weightings (Z-sums) from CALCPATHS.(03/07/04). 
 !C.. This function assumes that there are enough available excitations to 
 !C.. form a loop of length I_V.  If not it will probably hang.
-      REAL*8 FUNCTION FMCPR4(NI,BETA,I_P,IPATH,I_V,NEL,   &
+      real(dp) FUNCTION FMCPR4(NI,BETA,I_P,IPATH,I_V,NEL,   &
      &   G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,          &
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,       &
      &   ECORE,ISEED)
@@ -652,16 +652,16 @@ module mcpathsismc
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
          INTEGER G1,NBASIS,NMAX
          INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
-         REAL*8 BETA,ALAT(*),UMAT(*),ECORE
-         COMPLEX*16 FCK(*)
-         REAL*8 RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
+         real(dp) BETA,ALAT(*),UMAT(*),ECORE
+         complex(dp) FCK(*)
+         real(dp) RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
          INTEGER I,J,K,INODE(NEL)
          INTEGER IADJ(0:I_V-1,0:I_V-1),ICE,IPATH2(0:I_V-1)
-         REAL*8 RH,CALCPATHS
+         real(dp) RH,CALCPATHS
          INTEGER ICOUNT,IGETEXCITLEVEL,ICMPDETS
          LOGICAL BR
          LOGICAL TLOG,TLOG2
-         REAL*8 RAN2
+         real(dp) RAN2
          TLOG=BTEST(ILOGGING,2)
          TLOG2=BTEST(ILOGGING,3)
 !C.. Pick random elements of the path and generate excitations
@@ -762,7 +762,7 @@ module mcpathsismc
          INTEGER NEL,NI(NEL),NBASIS,IEXLEVEL,ISEED,NJ(NEL)
          INTEGER I,J,K,IEX,IEXL2
          LOGICAL BR
-         REAL*8 RAN2
+         real(dp) RAN2
          IF(IEXLEVEL.GT.2)                                     &
      &    STOP "Cannot handle more than double excitations."
          IF(IEXLEVEL.LT.2) IEXL2=IEXLEVEL
@@ -811,33 +811,32 @@ module mcpathsismc
 !C..
 !C.. All singles and doubles are allowed (even if RHO_IJ=0) so this is
 !C.. not very efficient.
-      REAL*8 FUNCTION FMCPR4B(NI,BETA,I_P,IPATH,I_V,NEL,             &
+      real(dp) FUNCTION FMCPR4B(NI,BETA,I_P,IPATH,I_V,NEL,             &
      &   NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,           &
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,                  &
      &   ECORE,ISEED,DBETA,DLWDB,HIJS)
          use SystemData , only : BasisFN
          use Determinants, only: get_helement
-         use constants, only: dp
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
          INTEGER nBasisMax(5,*),NBASIS,NMAX
          Type(BasisFn) G1(*)
          INTEGER NTAY(2),NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
-         REAL*8 BETA,ALAT(*),ECORE
+         real(dp) BETA,ALAT(*),ECORE
          HElement_t UMAT(*)
-         COMPLEX*16 FCK(*)
-         REAL*8 RHOEPS,RHOII(0:I_V)
+         complex(dp) FCK(*)
+         real(dp) RHOEPS,RHOII(0:I_V)
          HElement_t RHOIJ(0:I_V,0:I_V)
          INTEGER NLIST
          INTEGER INODE(NEL),I_VNEXT,INODE2(NEL),ICOUNT
          INTEGER I,ICE,IC
-         REAL*8 XIJ(0:I_V-1,0:I_V-1)         
-         REAL*8 RH,CALCPATHS_N
+         real(dp) XIJ(0:I_V-1,0:I_V-1)         
+         real(dp) RH,CALCPATHS_N
          LOGICAL LISINPATH
          INTEGER IGETEXCITLEVEL
          LOGICAL TLOG,TLOG2,TLOG3
-         REAL*8 RP,DBETA,DLWDB
+         real(dp) RP,DBETA,DLWDB
          HElement_t HIJS(0:I_V)
          LOGICAL ISUHFDET
          INTEGER ICLS
@@ -975,12 +974,11 @@ module mcpathsismc
 !C.. (26/09/04)
 !C.. If a RHOIJ is non-zero, then its weight XIJ will be non-zero.
 !C.. XIJ is proportional to RHO_JJ**ABS(RP). 
-      REAL*8 FUNCTION FMCPR4C(NI,BETA,I_P,IPATH,I_V,NEL,                   &
+      real(dp) FUNCTION FMCPR4C(NI,BETA,I_P,IPATH,I_V,NEL,                   &
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,             &
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,                        &
      &   ECORE,ISEED,KSYM,DBETA,DLWDB,HIJS)
          use SystemData , only : BasisFN
-         use constants, only: dp
          use Determinants, only: get_helement
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
@@ -988,23 +986,23 @@ module mcpathsismc
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
          INTEGER nBasisMax(5,*),NBASIS,BRR(NBASIS),NMAX
          INTEGER NTAY(2),NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
-         REAL*8 BETA,ALAT(*),ECORE
+         real(dp) BETA,ALAT(*),ECORE
          HElement_t UMAT(*)
-         COMPLEX*16 FCK(*)
-         REAL*8 RHOEPS,RHOII(0:I_V)
+         complex(dp) FCK(*)
+         real(dp) RHOEPS,RHOII(0:I_V)
          HElement_t RHOIJ(0:I_V,0:I_V)
          INTEGER LSTE(NEL),NLIST
          INTEGER INODE(NEL),I_VNEXT,INODE2(NEL),ICOUNT,ICURNODE
          INTEGER I,ICE,IC,IONODE
-         REAL*8 XIJ(0:I_V-1,0:I_V-1)         
-         REAL*8 RH,CALCPATHS_N,X
+         real(dp) XIJ(0:I_V-1,0:I_V-1)         
+         real(dp) RH,CALCPATHS_N,X
          INTEGER IGETEXCITLEVEL,IISINPATH
          LOGICAL TLOG,TLOG2,TLOG3
-         REAL*8 RP,PP
-         REAL*8 DBETA,DLWDB
+         real(dp) RP,PP
+         real(dp) DBETA,DLWDB
          HElement_t HIJS(0:I_V)
          INTEGER ICLS
-         REAL*8 RAN2
+         real(dp) RAN2
          HElement_t :: hel
 !C.. we hard code RP as P/50, although this should be an empirical
 !C.. parameter.
@@ -1137,16 +1135,16 @@ module mcpathsismc
 !C.. Generate a path probability for the modified path generation
 !C.. algorithm in FMCPR4D
 
-      REAL*8 FUNCTION GETPATHPROB2(XIJ,I_V)
+      real(dp) FUNCTION GETPATHPROB2(XIJ,I_V)
          use CalcData , only : G_VMC_PI
          IMPLICIT NONE
          INTEGER I_V
-         REAL*8 XIJ(I_V,I_V)
+         real(dp) XIJ(I_V,I_V)
          INTEGER IPATH(I_V)
-         REAL*8 M(I_V,I_V)
-         REAL*8 RET
-         REAL*8 PI,PJ
-         REAL*8 INV(I_V,I_V)
+         real(dp) M(I_V,I_V)
+         real(dp) RET
+         real(dp) PI,PJ
+         real(dp) INV(I_V,I_V)
          IF(I_V.EQ.2) THEN
             GETPATHPROB2=XIJ(1,2)
          ELSEIF(I_V.EQ.3) THEN
@@ -1180,13 +1178,13 @@ module mcpathsismc
          RETURN
       END function getpathprob2
    
-      REAL*8 FUNCTION GETPATHPROB(XIJ,I_V)
+      real(dp) FUNCTION GETPATHPROB(XIJ,I_V)
          IMPLICIT NONE
          INTEGER I_V
-         REAL*8 XIJ(I_V,I_V)
+         real(dp) XIJ(I_V,I_V)
          INTEGER IPATH(I_V)
-         REAL*8 M(I_V,I_V)
-         REAL*8 RET
+         real(dp) M(I_V,I_V)
+         real(dp) RET
          IF(I_V.EQ.2) THEN
             GETPATHPROB=XIJ(1,2)
          ELSEIF(I_V.EQ.3) THEN
@@ -1212,11 +1210,11 @@ module mcpathsismc
          use CalcData , only : G_VMC_PI
          IMPLICIT NONE
          INTEGER I_VMAX,I_V,IPATH(I_VMAX)
-         REAL*8 XIJ(I_VMAX,I_VMAX),M(I_VMAX,I_VMAX)
-         REAL*8 INV(I_VMAX,I_VMAX)
-         REAL*8 WORK(I_VMAX,I_VMAX),RET,TMP
+         real(dp) XIJ(I_VMAX,I_VMAX),M(I_VMAX,I_VMAX)
+         real(dp) INV(I_VMAX,I_VMAX)
+         real(dp) WORK(I_VMAX,I_VMAX),RET,TMP
          INTEGER I,J,K,IPIVOT(I_VMAX),INFO,L
-         REAL*8 P(I_VMAX)
+         real(dp) P(I_VMAX)
          LOGICAL T
 !C.. M contains the I-X matrix being constructed
 !C.. Add this node
@@ -1278,9 +1276,9 @@ module mcpathsismc
       RECURSIVE SUBROUTINE GETPP_R(IPATH,XIJ,M,I_VMAX,I_V,RET,TMP)
          IMPLICIT NONE
          INTEGER I_VMAX,I_V,IPATH(I_VMAX)
-         REAL*8 XIJ(I_VMAX,I_VMAX),M(I_VMAX,I_VMAX)
-         REAL*8 INV(I_VMAX,I_VMAX)
-         REAL*8 WORK(I_VMAX,I_VMAX),RET,TMP
+         real(dp) XIJ(I_VMAX,I_VMAX),M(I_VMAX,I_VMAX)
+         real(dp) INV(I_VMAX,I_VMAX)
+         real(dp) WORK(I_VMAX,I_VMAX),RET,TMP
          INTEGER I,J,K,IPIVOT(I_VMAX),INFO
          LOGICAL T
 !C.. M contains the I-X matrix being constructed
@@ -1326,7 +1324,7 @@ module mcpathsismc
          INTEGER NEL,NI(NEL),NBASIS,IEXLEVEL,ISEED,NJ(NEL)
          INTEGER I,J,K,IEX,IEXL2
          LOGICAL BR,BR2
-         REAL*8 RAN2
+         real(dp) RAN2
          IF(IEXLEVEL.GT.2)                                              &
      &    STOP "Cannot handle more than double excitations."
          IF(IEXLEVEL.LT.2) THEN
@@ -1378,9 +1376,9 @@ module mcpathsismc
          INTEGER NEX1A,NEX1B,NEX2A,NEX2B
          type(BasisFN) G1(*)
          INTEGER NEXAB
-         REAL*8 R,IEX
+         real(dp) R,IEX
          LOGICAL ISUHFDET
-         REAL*8 RAN2
+         real(dp) RAN2
          TYPE(BasisFN) KSym
 !C         CALL WRITEDET(56,NI,NEL,.TRUE.)
 !C         CALL FLUSH(56)
@@ -1455,7 +1453,7 @@ module mcpathsismc
          INTEGER NI(NEL),NEL,NSPIN,IEX,ISEED,IEL
          TYPE(BasisFN) G1(*)
          LOGICAL BR
-         REAL*8 RAN2
+         real(dp) RAN2
          BR=.TRUE.
          DO WHILE(BR)
             IEL=RAN2(ISEED)*NEL+1
@@ -1471,7 +1469,7 @@ module mcpathsismc
          TYPE(BasisFN) G1(*)
          LOGICAL BR
          INTEGER I
-         REAL*8 RAN2
+         real(dp) RAN2
          BR=.TRUE.
          DO WHILE(BR)
             IEL=RAN2(ISEED)*NBASIS+1
@@ -1500,7 +1498,6 @@ module mcpathsismc
      &   RHOEPS,RHOII,RHOIJ,I_HMAX,ILOGGING,                            &
      &   ECORE,ISEED,DBETA,DLWDB,HIJS,NMEM,OETILDE,OPROB,               &
      &   I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,IACC,INWI,I_VMAX,EXCITGEN)
-         use constants, only: dp
          USE SystemData , only : BasisFN
          use CalcData, only: tMPTheory, tMCDirectSum, pGenEpsilon
          use util_mod, only: isnan
@@ -1513,18 +1510,18 @@ module mcpathsismc
          INTEGER nBasisMax(5,*),NBASIS,NMAX
          Type(BasisFn) G1(*)
          INTEGER NTAY(2),I_HMAX,ILOGGING,ISEED,NMSH
-         REAL*8 BETA,ALAT(*),ECORE
-         COMPLEX*16 FCK(*)
+         real(dp) BETA,ALAT(*),ECORE
+         complex(dp) FCK(*)
          HElement_t UMat(*) 
-         REAL*8 RHOEPS
+         real(dp) RHOEPS
          real(dp) RHOII(0:I_V),INWI
          HElement_t RHOIJ(0:I_V,0:I_V)
          INTEGER I,IC
-         REAL*8 XIJ(0:I_V-1,0:I_V-1)         
+         real(dp) XIJ(0:I_V-1,0:I_V-1)         
          real(dp) CALCPATHS_N
-         REAL*8 RHX
+         real(dp) RHX
          LOGICAL TLOG,TLOG2,TLOG3
-         REAL*8 DBETA
+         real(dp) DBETA
          real(dp) DLWDB
          HElement_t HIJS(0:I_V)
          INTEGER NMEM(:)
@@ -1534,12 +1531,12 @@ module mcpathsismc
          HElement_t ORHOIJ(0:I_OVCUR,0:I_OVCUR)
          INTEGER OIPATH(NEL,0:I_OVCUR)
          HElement_t OHIJS(0:I_OVCUR)
-         REAL*8 OXIJ(0:I_OVCUR-1,0:I_OVCUR-1),OPROB,PR,R2
+         real(dp) OXIJ(0:I_OVCUR-1,0:I_OVCUR-1),OPROB,PR,R2
          real(dp) OETILDE,WEIGHT,OWEIGHT,ETILDE
          INTEGER I_OVCUR,IOCLS,ITREE
          INTEGER IACC
-         REAL*8 PFAC
-         REAL*8 RAN2
+         real(dp) PFAC
+         real(dp) RAN2
          real(dp) MPEs(2:i_VMax)
          
 !C.. Take a copy of the old path and rho matrix etc.
@@ -1708,30 +1705,29 @@ module mcpathsismc
      &   NTAY,RHOEPS,RHOII,RHOIJ,ECORE,ISEED,HIJS,NMEMNI,I_HMAX,        &
      &   PVERTMEMS2)
          use CalcData , only : G_VMC_PI
-         use constants, only: dp
          use Determinants, only: get_helement, write_det
          use SystemData, only: BasisFN
          use util_mod, only: NECI_ICOPY
          use mcpathsdata, only: egp
          IMPLICIT NONE
          INTEGER NEL,I_V,IPATH(NEL,0:I_V),NI(NEL)
-         REAL*8 BETA,ALAT(*),ECORE
+         real(dp) BETA,ALAT(*),ECORE
          HElement_t Umat(*)
          TYPE(BasisFN) G1(*)
          INTEGER I_P,nBasisMax(5,*),NBASIS,NMSH
          INTEGER NMAX,NTAY(2)
          type(egp) PVERTMEMS2(0:I_V)
-         COMPLEX*16 FCK(*)
+         complex(dp) FCK(*)
          INTEGER I_HMAX
 
-         REAL*8 RHOEPS
+         real(dp) RHOEPS
          real(dp) RHOII(0:I_V)
          HElement_t RHOIJ(0:I_V,0:I_V)
-         REAL*8 XIJ(0:I_V-1,0:I_V-1)         
+         real(dp) XIJ(0:I_V-1,0:I_V-1)         
          HElement_t HIJS(0:I_V)
          INTEGER ISEED
 
-         REAL*8 PEXCIT(I_V)
+         real(dp) PEXCIT(I_V)
          type(egp) PVERTMEMS(0:I_V)
          INTEGER I_VNEXT
          INTEGER INODE(NEL),INODE2(NEL)
@@ -1741,15 +1737,15 @@ module mcpathsismc
          integer, pointer :: curex(:)
          integer, pointer :: newex(:)
          INTEGER STORE(6)
-         REAL*8 R
+         real(dp) R
          HElement_t RH
          INTEGER ICE,I,ICOUNT,IC
 
          INTEGER IGETEXCITLEVEL
          LOGICAL LISINPATH
          LOGICAL ISVALIDDET
-         REAL*8 RAN2
-         REAL*8 pGen,pGen2
+         real(dp) RAN2
+         real(dp) pGen,pGen2
          HElement_t :: hel
 
          !Deallocate Excitation Generators after precalc
@@ -1944,7 +1940,7 @@ module mcpathsismc
       SUBROUTINE GETTREENESS(ICLASS,ITREE,WEIGHT,I_V)
          IMPLICIT NONE
          INTEGER ICLASS,ITREE,I_V,N,ICL
-         REAL*8 WEIGHT
+         real(dp) WEIGHT
          ITREE=0
          IF(WEIGHT.EQ.0.D0) RETURN
          N=0
@@ -1980,12 +1976,12 @@ end module
 
          TYPE(BasisFN) G1(nBasis)
          INTEGER nBasisMax(*)
-         REAL*8 Arr(nBasis,2)
+         real(dp) Arr(nBasis,2)
          INTEGER nBasis,IC,INODE2(NEL)
-         REAL*8 pGen, pGenGraph
+         real(dp) pGen, pGenGraph
 
 
-         REAL*8 XIJ(0:iV-1,0:iV-1)  ! XIJ(I,J) is the pgen of J from I
+         real(dp) XIJ(0:iV-1,0:iV-1)  ! XIJ(I,J) is the pgen of J from I
          INTEGER i,j,ISEED
          ISEED=0
          

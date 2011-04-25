@@ -742,11 +742,11 @@ MODULE PopsfileMod
         use constants, only: size_n_int,bits_n_int
         LOGICAL :: exists,tBinRead
         INTEGER :: AvWalkers,WalkerstoReceive(nProcessors)
-        INTEGER*8 :: NodeSumNoatHF(nProcessors)
+        integer(int64) :: NodeSumNoatHF(nProcessors)
         integer(int64) :: TempTotParts(lenof_sign),TempCurrWalkers
         INTEGER :: TempInitWalkers,error,i,j,l,total,ierr,MemoryAlloc,Tag,Proc,CurrWalkers,ii
         INTEGER , DIMENSION(lenof_sign) :: TempSign
-        INTEGER*8 :: iLutTemp64(0:nBasis/64+1)
+        integer(int64) :: iLutTemp64(0:nBasis/64+1)
         INTEGER :: iLutTemp32(0:nBasis/32+1)
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
         INTEGER :: AvSumNoatHF,IntegerPart,TempnI(NEl),ExcitLevel
@@ -1253,12 +1253,12 @@ MODULE PopsfileMod
         integer(int64) :: TempTotParts(lenof_sign),TempCurrWalkers
         INTEGER :: TempInitWalkers,error,i,j,l,total,ierr,MemoryAlloc,Tag,Proc,CurrWalkers,ii
         INTEGER , DIMENSION(lenof_sign) :: TempSign
-        INTEGER*8 :: iLutTemp64(0:nBasis/64+1)
+        integer(int64) :: iLutTemp64(0:nBasis/64+1)
         INTEGER :: iLutTemp32(0:nBasis/32+1)
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
         INTEGER :: AvSumNoatHF,IntegerPart,TempnI(NEl),ExcitLevel
         INTEGER :: NIfWriteOut,pos,orb,PopsVersion, iunit
-        REAL*8 :: r,FracPart,Gap,DiagSftTemp
+        real(dp) :: r,FracPart,Gap,DiagSftTemp
         HElement_t :: HElemTemp
         CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsfilePar'
         character(255) :: popsfile,FirstLine

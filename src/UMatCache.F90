@@ -90,10 +90,10 @@ MODULE UMatCache
 ! Density fitting cache information: for generating integrals on the fly from density fitting.
       integer nAuxBasis,nBasisPairs
       logical tDFInts      
-      Real*8,Pointer :: DFCoeffs(:,:) !(nAuxBasis,nBasisPairs)
-      Real*8,Pointer :: DFInts(:,:) !(nAuxBasis,nBasisPairs)
-      Real*8,Pointer :: DFFitInts(:,:) !(nAuxBasis,nAuxBasis)
-      Real*8,Pointer :: DFInvFitInts(:,:) !(nAuxBasis,nAuxBasis)
+      real(dp),Pointer :: DFCoeffs(:,:) !(nAuxBasis,nBasisPairs)
+      real(dp),Pointer :: DFInts(:,:) !(nAuxBasis,nBasisPairs)
+      real(dp),Pointer :: DFFitInts(:,:) !(nAuxBasis,nAuxBasis)
+      real(dp),Pointer :: DFInvFitInts(:,:) !(nAuxBasis,nAuxBasis)
       INTEGER iDFMethod
 !Some possible DFMethods sums over P, Q implied.  All precontracted to run in order(X) except DFOVERLAP2NDORD
 ! 0 - no DF
@@ -446,7 +446,7 @@ MODULE UMatCache
          use HElem, only: HElement_t_size
          IMPLICIT NONE
          INTEGER NSTATE
-         REAL*8 Memory
+         real(dp) Memory
          LOGICAL TSMALL
          INTEGER ierr
          character(len=*),parameter :: thisroutine='SETUPUMATCACHE'
@@ -514,7 +514,7 @@ MODULE UMatCache
          IMPLICIT NONE
          TYPE(BasisFN) G1(*)
          INTEGER ierr
-         complex*16 HarInt(nStates,nStates)
+         complex(dp) HarInt(nStates,nStates)
          character(len=*),parameter :: thisroutine='SETUPUMAT2D'
          IF((NSLOTSINIT.LT.0).AND.(.not.TSTARSTORE)) THEN
             TUMAT2D=.FALSE.

@@ -488,7 +488,7 @@ subroutine Get2vWeightEnergy(dE1,dE2,dU,dBeta,dw,dEt)
    implicit none
    real(dp) dE1,dE2
    HElement_t dU,dEt,dw
-   real*8 dBeta
+   real(dp) dBeta
    HElement_t dEp,dEm,dD,dEx,dD2,dTmp
    if(abs(dU).eq.0.d0) then
       ! Determinants are not connected.

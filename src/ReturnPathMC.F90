@@ -30,10 +30,10 @@ MODULE ReturnPathMCMod
 !        INTEGER , ALLOCATABLE :: Det(:)     !This is the current determinant of the particle - (NEl)
 !        INTEGER :: ChainLength  !This is the current length of the chain back to HF (If at HF, ChainLength = 0)
 !        INTEGER , ALLOCATABLE :: IC0(:)   !This is the excitation level of the particle w.r.t. HF determinant for now (IC0(ChainLength)) and all its histories - (CLMax)
-!        REAL*8 , ALLOCATABLE :: Kii(:)    !This is the diagonal K-matrix element: Hii-H00 for now (Kii(CLMax)) and all its histories - (CLMax)
+!        real(dp) , ALLOCATABLE :: Kii(:)    !This is the diagonal K-matrix element: Hii-H00 for now (Kii(CLMax)) and all its histories - (CLMax)
 !        INTEGER , ALLOCATABLE :: HistExcit(:)             !HistExcit(i) is the number of excitations between the determinant at History(:,i) and History(:,i-1) - size(CLMax)
 !!The number of excitations between the current determinant the one it was spawned from is given in HistExcit(ChainLength)
-!        REAL*8 :: Hi0           !This is the off-diagonal hamiltonian matrix element between the determinant and HF
+!        real(dp) :: Hi0           !This is the off-diagonal hamiltonian matrix element between the determinant and HF
 !!IC0(1) contains information about the double excitation
 !        LOGICAL :: WSign        !This is the sign of the particle
 !        INTEGER , ALLOCATABLE :: History(:,:)         !This is the history of the particle. HF is not included in the history - this is the start for all particles
@@ -69,13 +69,13 @@ MODULE ReturnPathMCMod
 !    !Only 15 culls/growth increases are allowed in a given shift cycle
 !    INTEGER :: CullInfo(15,3)
 !
-!    REAL*8 :: GrowRate
-!    REAL*8 :: ProjectionE,SumENum
-!    INTEGER*8 :: SumNoatHF
+!    real(dp) :: GrowRate
+!    real(dp) :: ProjectionE,SumENum
+!    integer(int64) :: SumNoatHF
 !    INTEGER :: MinExit,MaxExit,SumWalkersCyc
-!    REAL*8 :: MeanExit
+!    real(dp) :: MeanExit
 !
-!    REAL*8 :: Hii,rhii
+!    real(dp) :: Hii,rhii
 !    HElement_t :: HFDiag
 
     contains
@@ -168,7 +168,7 @@ MODULE ReturnPathMCMod
 
 !!This subroutine will perform the actual MC Cycles
 !    SUBROUTINE DoNMCyc()
-!        REAL*8 :: Preturn,Ran2,Hij,hHi0,DiagElem,rat
+!        real(dp) :: Preturn,Ran2,Hij,hHi0,DiagElem,rat
 !        INTEGER :: VecSlot,j,k,ToSpawn,IC,ExcitLevel,nJ(NEl),iDie
 !        INTEGER :: iGetExcitLevel
 !
@@ -373,7 +373,7 @@ MODULE ReturnPathMCMod
 !        IMPLICIT NONE
 !        LOGICAL :: HighLow
 !        INTEGER :: VecSlot,i,j,ToCull,Culled,OrigWalkers,Chosen
-!        REAL*8 :: Ran2
+!        real(dp) :: Ran2
 !
 !        IF(HighLow) THEN
 !!The population is too large - cull TotWalkers/CullFactor randomly selected particles
@@ -443,7 +443,7 @@ MODULE ReturnPathMCMod
 !    SUBROUTINE CreateParticle(Particle,NewChainLength,WSign,VecSlot,nJ,DiagElem,ExcitLevel,IC,hHi0)
 !        TYPE(Part) :: Particle
 !        INTEGER :: NewChainLength,VecSlot,nJ(NEl),ExcitLevel,IC
-!        REAL*8 :: DiagElem,hHi0
+!        real(dp) :: DiagElem,hHi0
 !        HElement_t :: ConntoHF
 !        LOGICAL :: WSign
 !
@@ -627,7 +627,7 @@ MODULE ReturnPathMCMod
 !!Zero indicates keep particle. One is destroy particle. -1 is create extra particle. >1 is destroy particle, and create anti-particles
 !    INTEGER FUNCTION AttemptDestruct(Particle)
 !        TYPE(Part) :: Particle
-!        REAL*8 :: rat,Ran2
+!        real(dp) :: rat,Ran2
 !
 !        IF(TRhoElems) THEN
 !            IF(Particle%ChainLength.eq.0) THEN
@@ -665,11 +665,11 @@ MODULE ReturnPathMCMod
 !    END FUNCTION AttemptDestruct
 !
 !!This is redone since we want to change the diagonal elements due to the shift + we want tau to be as defined in the module
-!    REAL*8 FUNCTION GetSpawnRhoEl(nI,nJ,LSame,Conn)
+!    real(dp) FUNCTION GetSpawnRhoEl(nI,nJ,LSame,Conn)
 !        INTEGER :: nI(NEl),nJ(NEl),iGetExcitLevel
 !        LOGICAL :: LSame
-!        REAL*8 :: Conn      !For off-diagonal, this = Hij. For Diagonal, this equals Ei-E0
-!        REAL*8 :: UExp
+!        real(dp) :: Conn      !For off-diagonal, this = Hij. For Diagonal, this equals Ei-E0
+!        real(dp) :: UExp
 !        HElement_t :: EDiag,RH,EDiag2
 !
 !        IF(LSame) THEN
@@ -705,7 +705,7 @@ MODULE ReturnPathMCMod
 !!Will return the number and sign of the particles spawned there (nJ). IC is the no. of excitations between particle and nJ.
 !    INTEGER FUNCTION SpawnForward(Particle,Preturn,nJ,IC,Hij)
 !        TYPE(Part) :: Particle
-!        REAL*8 :: Preturn,Hij,rat,Ran2,rhoel
+!        real(dp) :: Preturn,Hij,rat,Ran2,rhoel
 !        INTEGER :: nJ(:),IC
 !
 !        IF(Preturn.eq.1.D0) CALL Stop_All("SpawnForward","Preturn=1, but trying to spawn forward")
@@ -747,7 +747,7 @@ MODULE ReturnPathMCMod
 !!SpawnReturn will then tell us if the attempt is successful by indicating the number of particles spawned and sign of the resultant particle(s)
 !    INTEGER FUNCTION SpawnReturn(Particle,Preturn)
 !        TYPE(Part) :: Particle
-!        REAL*8 :: Hij,Ran2,Preturn,rat,rhoel
+!        real(dp) :: Hij,Ran2,Preturn,rat,rhoel
 !        INTEGER :: nJ(NEl)
 !
 !!First, need to find return determinant, and calculate connection to it
@@ -810,7 +810,7 @@ MODULE ReturnPathMCMod
 !!This function simply gets the connection between two determinants - i.e. the Hij element
 !!For diagonal elements (IC.eq.0) then the Hii element is found and the EHF subtracted from it, to give the Kii element
 !!However, if TRhoElems is on, then it returns Ei-E0 for diagonal elements.
-!    REAL*8 FUNCTION GetConnection(nI,nJ,IC)
+!    real(dp) FUNCTION GetConnection(nI,nJ,IC)
 !        INTEGER :: nI(NEl),nJ(NEl),IC
 !        HElement_t :: rhiiHEl,HiiHEl
 !
@@ -847,7 +847,7 @@ MODULE ReturnPathMCMod
 !    END FUNCTION GetConnection
 !
 !!This function finds the probability of returning the way it came
-!    REAL*8 FUNCTION FindPRet(Particle)
+!    real(dp) FUNCTION FindPRet(Particle)
 !        TYPE(Part) :: Particle
 !
 !        IF(Particle%ChainLength.eq.0) THEN
