@@ -1,5 +1,5 @@
 subroutine InitRIBasis(nBasisMax,Len)
-   use constants, only: dp
+   use constants, only: dp,int64
    Use SymData , only : tAbelian
 ! lenrec is the number of auxiliary basis functions
    use UMatCache
@@ -7,7 +7,7 @@ subroutine InitRIBasis(nBasisMax,Len)
    implicit none
    integer nBasisMax(5,*),Len
    integer nBasis
-   integer*8 nAb,nB
+   integer(int64) nAb,nB
    tAbelian=.true.
    OPEN(29,file='RIINTDUMP',status='old',FORM='UNFORMATTED',access='DIRECT',recl=record_length(8))
 !.. The first element is the number of aux basis fns.
@@ -38,7 +38,7 @@ SUBROUTINE GetRI2EInt(a,b,c,d,res)
    integer a,b,c,d
    integer i,GetDFIndex
    integer x,y
-   real*8 res
+   real(dp) res
    res=0.D0
    x=GetDFIndex(a,c)
    y=GetDFIndex(b,d)
@@ -67,12 +67,13 @@ SUBROUTINE ReadRIIntegrals(nBasis,nOrbUsed)
    use UMatCache
    use global_utilities
    use util_mod, only: record_length
+   use constants, only: dp,int64
    IMPLICIT NONE
    character(*), parameter :: t_r='ReadRIIntegrals'
    INTEGER nBasis,nOrbUsed
    integer i,j,onints,nints,ierr,Q
-   real*8 val
-   integer*8 nA,nB
+   real(dp) val
+   integer(int64) nA,nB
    integer GetDFIndex
    WRITE(6,*) "Reading QChem C Matrices"
    OPEN(29,file='RIINTDUMP',status='old',FORM='UNFORMATTED',access='DIRECT',recl=record_length(8))

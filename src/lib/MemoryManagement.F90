@@ -1,5 +1,5 @@
 module MemoryManager
-use constants , only : sizeof_int 
+use constants , only : sizeof_int,dp 
 
 ! JSS.  Memory book-keeping routines.  Contains a few elements of the initialisation, 
 ! output and structure of the memory_manager module from CamCASP (formerly SITUS), 
@@ -164,7 +164,7 @@ contains
         if (MaxMemBytes.le.0) then
             if (err_output) then
                 write (6,*) 'Illegal maximum memory value passed to memorymanager.'
-                write (6,*) 'MaxMemgbytes = ',dfloat(MaxMemBytes)/(1024**2)
+                write (6,*) 'MaxMemgbytes = ',real(MaxMemBytes,dp)/(1024**2)
                 write (6,*) 'Setting maximum memory available to 1GB.'
             end if
             MaxMemBytes=1024**3
@@ -184,7 +184,7 @@ contains
 !       Deal with debug options at a later date.
 !       debug = gmemdebug
 
-        write (6,'(a33,f8.1,a3)') ' Memory Manager initialised with ',dfloat(MaxMemBytes)/(1024**2),' MB'
+        write (6,'(a33,f8.1,a3)') ' Memory Manager initialised with ',real(MaxMemBytes,dp)/(1024**2),' MB'
     end if
 
     return
@@ -542,10 +542,10 @@ contains
     if (MemUnitsBytes) then
         if (MemSize.gt.1024**2) then
             ! output in MB.
-            write (iunit,fmt1) dfloat(MemSize)/1024**2,'MB'
+            write (iunit,fmt1) real(MemSize,dp)/1024**2,'MB'
         else if (MemSize.gt.1024) then
             ! output in KB.
-            write (iunit,fmt1) dfloat(MemSize)/1024,'KB'
+            write (iunit,fmt1) real(MemSize,dp)/1024,'KB'
         else
             ! output in bytes.
             write (iunit,fmt2) MemSize,'B'

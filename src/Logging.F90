@@ -1,7 +1,8 @@
 #include "macros.h"
 
 MODULE Logging
-
+            
+    use constants, only: dp,int64
     use input
     use MemoryManager, only: LogMemAlloc, LogMemDealloc,TagIntType
     use SystemData, only: nel, LMS, nbasis, tHistSpinDist, nI_spindist, &
@@ -19,7 +20,7 @@ MODULE Logging
     INTEGER nPrintTimer,G_VMC_LOGCOUNT
     INTEGER HFLOGLEVEL,iWritePopsEvery,StartPrintOrbOcc,StartPrintDoubsUEG
     INTEGER PreVarLogging,WavevectorPrint,NoHistBins,HistInitPopsIter
-    REAL*8 MaxHistE,OffDiagMax,OffDiagBinRange
+    real(dp) MaxHistE,OffDiagMax,OffDiagBinRange,PopsfileTimer
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn
     LOGICAL tPrintPopsDefault
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tIncrementPops,tROHistogramAll,tROHistER,tROHistSingExc
@@ -39,7 +40,7 @@ MODULE Logging
     INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs,iWriteHamilEvery
     INTEGER(TagIntType)  OrbOccsTag,HistInitPopsTag,AllHistInitPopsTag,NoTruncOrbsTag,TruncEvaluesTag
     INTEGER , ALLOCATABLE :: NoTruncOrbs(:),HistInitPops(:,:),AllHistInitPops(:,:)
-    REAL*8 , ALLOCATABLE :: TruncEvalues(:),OrbOccs(:),DoubsUEG(:,:,:,:),DoubsUEGLookup(:)
+    real(dp) , ALLOCATABLE :: TruncEvalues(:),OrbOccs(:),DoubsUEG(:,:,:,:),DoubsUEGLookup(:)
     LOGICAL, ALLOCATABLE :: DoubsUEGStore(:,:,:)
     LOGICAL :: tBlockEveryIteration
     LOGICAL tLogDets       ! Write out the DETS and SymDETS files.
@@ -54,6 +55,7 @@ MODULE Logging
       use default_sets
       implicit none
 
+      PopsfileTimer=0.D0
       tMCOutput=.true.
       tLogComplexPops=.false.
       iWriteBlockingEvery=1000
@@ -202,7 +204,8 @@ MODULE Logging
             call readi(IterStartBlocking)
 
         case("SHIFTBLOCKINGSTARTITER")
-!This keyword can be used if we want to start the blocking error analysis of the shift at a particular iteration after the shift begins to change.            
+!This keyword can be used if we want to start the blocking error analysis of the shift at a particular 
+!iteration after the shift begins to change.            
             call readi(IterShiftBlock)
 
         case("BLOCKINGSTARTHFPOP")            
@@ -237,7 +240,8 @@ MODULE Logging
             enddo
 
         case("MULTTRUNCROFCIDUMP")
-!This option allows us to specify multiple truncations, so that one calculation will print out multiple ROFCIDUMP files with different
+!This option allows us to specify multiple truncations, so that one calculation will print out multiple 
+!ROFCIDUMP files with different
 !levels of truncation - prevents us from having to do multiple identical CISD calculations to get the different truncations.
             tTruncRODump=.true.
             call readi(NoDumpTruncs)
@@ -249,7 +253,8 @@ MODULE Logging
             enddo
 
         case("MULTTRUNCVALROFCIDUMP")     
-!This option allows us to specify particular cutoffs values for the eigenvalues - and print out multiply ROFCIDUMP files with orbitals
+!This option allows us to specify particular cutoffs values for the eigenvalues - and print out multiply 
+!ROFCIDUMP files with orbitals
 !with eigenvalues below these removed.
             tTruncRODump=.true.
             tTruncDumpbyVal=.true.
@@ -262,9 +267,12 @@ MODULE Logging
             enddo
 
         case("WRITETRANSFORMMAT")
-!This option writes out the transformation matrix used to convert the HF orbitals into the natural orbitals.  This can then be read into
-!QChem to produce the natural orbital cube files and then visualise them using VMD.  Note : Currently, because of Fortran 90's weird dealings
-!with writing and reading binary - this option is only compatible with QChem if the code is compiled using PGI - this will be fixed at 
+!This option writes out the transformation matrix used to convert the HF orbitals into the natural orbitals.  
+!This can then be read into
+!QChem to produce the natural orbital cube files and then visualise them using VMD.  Note : Currently, 
+!because of Fortran 90's weird dealings
+!with writing and reading binary - this option is only compatible with QChem if the code is compiled using 
+!PGI - this will be fixed at 
 !some stage.  Also - QChem INTDUMP files must be used to be compatible.  
             tWriteTransMat=.true.
 
@@ -392,7 +400,8 @@ MODULE Logging
 
         case("PRINTTRICONNECTIONS")
 !This option takes each generated pair of determinant and excitation and finds 3rd determinant to make up a triangular connection.
-!The product of the three connecting elements are then histogrammed in two separate files. In one, the triangular connections that combine 
+!The product of the three connecting elements are then histogrammed in two separate files. 
+!In one, the triangular connections that combine 
 !to be sign coherent are recorded, and in the other, those which are sign incoherent.
             CALL Stop_All(t_r,"PRINTTRICONNECTIONS option depreciated")
 !            call readf(TriConMax)
@@ -400,7 +409,8 @@ MODULE Logging
 !            tPrintTriConnections=.true.
 
         case("HISTTRICONNELEMENTS")
-!This keyword takes the above triangles of connected determinants and histograms each connecting element that contributes to the triangle.
+!This keyword takes the above triangles of connected determinants and histograms each connecting 
+!element that contributes to the triangle.
 !It then prints these according to whether they are single or double connecting elements.
 !It also prints a histogram and the average size of the Hjk elements (regardless of whether or not they are zero).
             CALL Stop_All(t_r,"HISTTRICONNELEMENTS option depreciated")
@@ -410,17 +420,19 @@ MODULE Logging
 !            tHistTriConHEls=.true.
 
         case("PRINTHELACCEPTSTATS")
-!This keyword prints out an extra file that keeps track of the H elements involved in spawning attempts that are accepted or not accepted.
+!This keyword prints out an extra file that keeps track of the H elements involved in spawning attempts 
+!that are accepted or not accepted.
 !It prints out the average H elements where spawning is accepted and the average where it is not accepted.
             CALL Stop_All(t_r,"PRINTHELACCEPTSTATS option depreciated")
 !            tPrintHElAccept=.true.
 
         case("PRINTSPINCOUPHELS")
-!This option prints out the number of positive and negative (and their sums) H elements connecting two spin coupled determinants.            
+!This option prints out the number of positive and negative (and their sums) H elements connecting two spin coupled determinants.
             tPrintSpinCoupHEl=.true.
 
         case("HISTINITIATORPOPS")
-!This option prints out a file (at every HistInitPopsIter iteration) containing the natural log of the populations of the initiator determinants 
+!This option prints out a file (at every HistInitPopsIter iteration) containing the 
+!natural log of the populations of the initiator determinants 
 !and the number with this population. The range of populations histogrammed goes from ln(N_add) -> ln(1,000,000) with 50,000 bins.
             tHistInitPops=.true.
             call readi(HistInitPopsIter)
@@ -450,17 +462,21 @@ MODULE Logging
                 OffDiagMax=-OffDiagMax
             ENDIF
         case("HISTSPAWN")
-!This option will histogram the spawned wavevector, averaged over all previous iterations. It scales horrifically and can only be done for small systems
-!which can be diagonalized. It requires a diagonalization initially to work. It can write out the average wavevector every iWriteHistEvery.
+!This option will histogram the spawned wavevector, averaged over all previous iterations. 
+!It scales horrifically and can only be done for small systems
+!which can be diagonalized. It requires a diagonalization initially to work. 
+!It can write out the average wavevector every iWriteHistEvery.
             tHistSpawn=.true.
             IF(item.lt.nitems) call readi(iWriteHistEvery)
         case("HISTHAMIL")
-!This option will histogram the spawned hamiltonian, averaged over all previous iterations. It scales horrifically and can only be done for small systems
+!This option will histogram the spawned hamiltonian, averaged over all previous iterations. It scales horrifically 
+!and can only be done for small systems
 !which can be diagonalized. It will write out the hamiltonian every iWriteHamilEvery.
             tHistHamil=.true.
             IF(item.lt.nitems) call readi(iWriteHamilEvery)
         case("BLOCKEVERYITER")
-!This will block the projected energy every iteration with the aim of achieving accurate error estimates. However, this does require a small amount of additional communication.
+!This will block the projected energy every iteration with the aim of achieving accurate error estimates. 
+!However, this does require a small amount of additional communication.
             tBlockEveryIteration=.true.
         case("PRINTFCIMCPSI")
             tPrintFCIMCPsi=.true.
@@ -469,7 +485,8 @@ MODULE Logging
 !This option sets the histogramming to only be done after the specified number of iterations.            
             call readi(NHistEquilSteps)
         case("PRINTORBOCCS")
-!This option initiates the above histogramming of determinant populations and then at the end of the spawning uses these to find the normalised  
+!This option initiates the above histogramming of determinant populations and then at the end of the 
+!spawning uses these to find the normalised  
 !contribution of each orbital to the total wavefunction.  
             tPrintOrbOcc=.true.
             IF(item.lt.nitems) call readi(StartPrintOrbOcc)
@@ -504,8 +521,11 @@ MODULE Logging
             TPopsFile=.true.
             call readi(iWritePopsEvery)
             call readi(iPopsPartEvery)
+        case("POPSFILETIMER")
+            call readf(PopsfileTimer)   !Write out a POPSFILE every "PopsfileTimer" hours.
         case("BINARYPOPS")
-!This means that the popsfile (full or reduced) will now be written out in binary format. This should now take up less space, and be written quicker.
+!This means that the popsfile (full or reduced) will now be written out in binary format. 
+!This should now take up less space, and be written quicker.
             tBinPops=.true.
         case("INCREMENTPOPS")
 ! Don't overwrite existing POPSFILES.

@@ -48,7 +48,7 @@ contains
         integer(kind=n_int), intent(in)    :: iLut(0:NIfTot)
         integer, intent(out)   :: nJ(nel), IC, ExcitMat(2,2)
         logical, intent(out)   :: tParity
-        real*8,  intent(out)   :: pGen
+        real(dp),  intent(out)   :: pGen
         type(excit_gen_store_type), intent(inout), target :: store
 
         ! Unused:
@@ -63,7 +63,7 @@ contains
 
         character(*), parameter   :: this_routine = 'GenRandSymExcitCSF'
         integer :: nopen, ncsf, exTmp
-        real*8 :: r
+        real(dp) :: r
 
         ! Point to the correct bits
         CCDblS => store%ClassCountOcc
@@ -200,8 +200,8 @@ contains
         integer, intent(in)  :: CCDblS (ScratchSize/2) ! ClassCountDoubleOcc2
         integer, intent(in)  :: CCUnS (ScratchSize/2)  ! ClassCountUnocc2
         integer :: CCSglDelta (ScratchSize/2)
-        real*8,  intent(in)  :: pDouble
-        real*8, intent(out) :: pGen
+        real(dp),  intent(in)  :: pDouble
+        real(dp), intent(out) :: pGen
         character(*), parameter :: this_routine = 'CSFCreateDoubleExcit'
         integer :: elecs(2), orbs(2,2), symProd, sumMl, sym(2), Ml(2)
         integer :: lnopen
@@ -324,7 +324,7 @@ contains
         integer, intent(out) :: orbA, sym(2), Ml(2)
         integer, intent(inout) :: nopen
         character(*), parameter :: this_routine = 'CSFPickAOrb'
-        real*8 :: r
+        real(dp) :: r
         logical :: bSingle
         integer :: orb, ind, i, locDelta, lnopen
 
@@ -404,7 +404,7 @@ contains
         integer, intent(out) :: orbB
         integer, intent(inout) :: nopen
         character(*), parameter :: this_routine = 'CSFPickBOrb'
-        real*8 :: r
+        real(dp) :: r
         integer :: norbs, ind, orb, i, sym_ind, full_ind, lnopen
         logical :: bSingle
 
@@ -465,7 +465,7 @@ contains
         nopen = lnopen
     end subroutine
 
-    real*8 function CSFPickOrbsProb (iLut, CCSglS, CCUnS, CCSglDelta, &
+    real(dp) function CSFPickOrbsProb (iLut, CCSglS, CCUnS, CCSglDelta, &
                                      orbsWNoPair, nSing, nVac, orbs, sym, Ml)
         integer(kind=n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: orbs(2), sym(2), Ml(2), orbsWNoPair
@@ -473,7 +473,7 @@ contains
         integer, intent(in) :: CCUnS (ScratchSize/2)
         integer, intent(in) :: CCSglDelta (ScratchSize/2)
         integer, intent(in) :: nSing, nVac
-        real*8 :: p
+        real(dp) :: p
         integer :: numB, permutations, orbA, symB, MlB, sym_ind, i, borb
 
         ! Consider the possibility of generating this either way around
@@ -516,10 +516,10 @@ contains
         integer, intent(in) :: nSing, nDoub
         integer, intent(out) :: CCSglDelta (ScratchSize/2)
         integer, intent(inout) :: nopen
-        real*8, intent(inout) :: pGen
+        real(dp), intent(inout) :: pGen
         character(*), parameter :: this_routine = 'CSFPickElecPair'
         integer ::i, elec, orb, orb2, ind, found
-        real*8 :: r, pElec
+        real(dp) :: r, pElec
         logical :: bSingle
 
         ! Pick two electrons randomly.
@@ -611,12 +611,12 @@ contains
         integer, intent(inout) :: ExcitMat(2,2)
         integer, intent(in)  :: CCUnS(ScratchSize/2), CCDblS(ScratchSize/2)
         integer, intent(in)  :: CCSglS(ScratchSize/2)
-        real*8,  intent(in)  :: pSingle
-        real*8,  intent(out) :: pGen
+        real(dp),  intent(in)  :: pSingle
+        real(dp),  intent(out) :: pGen
         character(*), parameter :: this_routine = 'CSFCreateSingleExcit'
         integer :: elecsWNoExcits, elec, orb, orb2, spn, ind, norbs, symEx
         integer :: lnopen, ncsf, i, sym_ind, nexcit
-        real*8 :: r
+        real(dp) :: r
         logical :: bSingle
 
         ! TODO: Check that this condition is not necessary!!
@@ -1803,19 +1803,19 @@ contains
     subroutine TestGenRandSymCSFExcit (nI, iterations, pSingle, pDouble, &
                                        exFlag, writeInterval)
         integer, intent(in) :: nI(nel), iterations, exFlag, writeInterval
-        real*8,  intent(in) :: pSingle, pDouble
+        real(dp),  intent(in) :: pSingle, pDouble
         character(*), parameter :: this_routine = 'TestGenRandSymCSFExcit'
         integer(kind=n_int) :: iLut(0:NIfTot)
         integer :: nJ(nel), ExcitMat(2,2), IC, nopen
         integer :: i, j, k, l, ierr, nexcit, ind(4)
         logical :: bTestList, tParity
-        real*8  :: pGen, avContrib, avContribAll
+        real(dp)  :: pGen, avContrib, avContribAll
         ! Store the generated excitations and if they have been generated.
         integer, allocatable, dimension(:,:) :: nK
         logical, allocatable, dimension(:)   :: ex_list(:)
         ! Histogram the generation probabilities.
-        real*8,  allocatable, dimension(:,:) :: SinglesHist, AllSinglesHist
-        real*8,  allocatable, dimension(:,:,:,:) :: DoublesHist,AllDoublesHist
+        real(dp),  allocatable, dimension(:,:) :: SinglesHist, AllSinglesHist
+        real(dp),  allocatable, dimension(:,:,:,:) :: DoublesHist,AllDoublesHist
         ! Unused
         integer(kind=n_int) :: iLutnJ(0:niftot)
         type(excit_gen_store_type), target :: store

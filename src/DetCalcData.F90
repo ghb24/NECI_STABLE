@@ -14,11 +14,11 @@ module DetCalcData
       INTEGER, pointer :: NMRKS(:,:)=>null() !(NEL-NFROZEN,nDet)  A list of all determinants which have been enumerated.  
       HElement_t, pointer :: CK(:,:)  !  (nDet,nEval) This will store the eventual eigenvectors
       INTEGER(TagIntType) :: tagCK=0
-      REAL*8, pointer :: W(:)  ! (nEval) This will contain the eigenvalues
+      real(dp), pointer :: W(:)  ! (nEval) This will contain the eigenvalues
       INTEGER(TagIntType) tagW
       
       INTEGER NCYCLE !The Max number of Lanczos cycles
-      REAL*8 B2L  ! From Calc
+      real(dp) B2L  ! From Calc
       INTEGER NEVAL  !The number of eigenvectors requested
       INTEGER NBLK   !The number of Lanczos Blocks
       INTEGER NKRY   !The number of Lanczos Krylov vectors

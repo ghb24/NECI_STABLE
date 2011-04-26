@@ -1,13 +1,13 @@
 C.. Perform the contour integration to calculate the Z-sum
       SUBROUTINE ZSUM(XIS,I_H,I_P,I_POINTS,R,SUM,SUMI)
-         COMPLEX*16 Z,ZI,ZRET,ZS,DZ
+         use constants, only: dp,pi
+         complex(dp) Z,ZI,ZRET,ZS,DZ
          INTEGER I_H,I_P
-         REAL*8 THETA,R,SUM,SUMI,DTHETA,PI,P
+         real(dp) THETA,R,SUM,SUMI,DTHETA,P
 C.. Simpson's Rule: Integral(f(x)) = (1/3)h(f0+4(f1+f3+...+f(2n-1))
 C..                                  +2(f2+f4+...+f(2n-2)+f2n
 C.. We use I_POINTS+1, but have both THETA=0 and 2PI, so we divide the 
 C.. unit circle into I_POINTS 
-         PI=3.14159265358979323846264338327950288419716939937510D0
          ZI=(0,1)
          P=I_P
          DTHETA=2*PI/I_POINTS
@@ -47,11 +47,12 @@ C.. Now do the last point, f2n
 C.. Calculate a primitive element in the contour integration
 C.. NB P is no longer integer, but is REAL
       SUBROUTINE ZPRIMITIVE(XIS,I_H,P,Z,R,THETA,ZRET)
+         use constants, only: dp
          INTEGER I_H,I
-         REAL*8 P
-         COMPLEX*16 Z,ZI,ZREIT,ZRET
-         REAL*8 XIS(1:I_H)
-         REAL*8 R,THETA
+         real(dp) P
+         complex(dp) Z,ZI,ZREIT,ZRET
+         real(dp) XIS(1:I_H)
+         real(dp) R,THETA
          ZI=(0,1)
          ZREIT=R*EXP(ZI*THETA)
          ZRET=R*ZI*EXP(ZI*THETA)*(((ZREIT)**P)-1.D0)
@@ -65,10 +66,11 @@ C.. Calculate a primitive element in the contour integration - handle
 C.. the XIS
 C.. NB P is no longer integer, but is REAL
       SUBROUTINE ZPRIM1(XIS,I_H,Z,ZRET)
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER I_H,I
-         COMPLEX*16 Z,ZRET
-         REAL*8 XIS(1:I_H)
+         complex(dp) Z,ZRET
+         real(dp) XIS(1:I_H)
          ZRET=(1,0)
          DO I=1,I_H
             ZRET=ZRET/(Z-XIS(I))
@@ -79,9 +81,10 @@ C.. Calculate a primitive element in the contour integration - handle
 C.. the Z^P section
 C.. NB P is no longer integer, but is REAL
       SUBROUTINE ZPRIM2(P,Z,ZMZ0,ZRET)
+         use constants, only: dp
          IMPLICIT NONE
-         REAL*8 P
-         COMPLEX*16 Z,ZI,ZMZ0,ZRET,ZR
+         real(dp) P
+         complex(dp) Z,ZI,ZMZ0,ZRET,ZR
          LOGICAL LSAME2
          ZI=(0,1)
          IF(LSAME2(Z,1.D0)) THEN
@@ -98,16 +101,16 @@ C.. ZSFUN(ZSD1,ZSD2,I_H,P,Z,R,THETA,ZRET) is a user-defined function
 C.. ZSD1 and ZSD2 are user defined data
 C.. Perform the contour integration to calculate the Z-sum
       SUBROUTINE ZSUM2(ZSD1,ZSD2,ZSFUN,Z0,I_P,I_POINTS,R,SUM,SUMI)
+         use constants, only: dp,pi
          IMPLICIT NONE
-         REAL*8 ZSD1(*),ZSD2(*)
-         COMPLEX*16 Z,ZI,ZRET,ZS,DZ,Z0,Z2
+         real(dp) ZSD1(*),ZSD2(*)
+         complex(dp) Z,ZI,ZRET,ZS,DZ,Z0,Z2
          INTEGER I_P,I_POINTS,I
-         REAL*8 THETA,R,SUM,SUMI,DTHETA,PI,P
+         real(dp) THETA,R,SUM,SUMI,DTHETA,P
 C.. Simpson's Rule: Integral(f(x)) = (1/3)h(f0+4(f1+f3+...+f(2n-1))
 C..                                  +2(f2+f4+...+f(2n-2)+f2n
 C.. We use I_POINTS+1, but have both THETA=0 and 2PI, so we divide the 
 C.. unit circle into I_POINTS 
-         PI=3.14159265358979323846264338327950288419716939937510D0
          ZI=(0,1)
          P=I_P
          DTHETA=2*PI/I_POINTS
@@ -155,17 +158,18 @@ C.. The radius of the contour is |ZPOLES(I)-ZPOLES(ICLOSEST)|/P
      &            ZPOLES,TAUXPOLY,SUM,SUMI)
 C.. Go through the list of ZPOLES.  For each pole, find the closest
 C.. neighbour distance (removing poles which are within a distance EPS)
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER I_P,IPOLES,I_POINTS
-         REAL*8 ZSD1,ZSD2(0:IPOLES+1),ZSFUN
-         COMPLEX*16 ZPOLES(IPOLES)
+         real(dp) ZSD1,ZSD2(0:IPOLES+1),ZSFUN
+         complex(dp) ZPOLES(IPOLES)
          LOGICAL LPOLES(IPOLES),TAUXPOLY
-         REAL*8 SUM,SUMI,S,SI
-         COMPLEX*16 ZAUXPOLY(0:IPOLES+1)
+         real(dp) SUM,SUMI,S,SI
+         complex(dp) ZAUXPOLY(0:IPOLES+1)
       
          INTEGER I,J,ICOUNT
-         REAL*8 DIST,DISTMIN,EPS,DISTMAX,DM
-         COMPLEX*16 ZD,Z0
+         real(dp) DIST,DISTMIN,EPS,DISTMAX,DM
+         complex(dp) ZD,Z0
       
          SUM=0.D0
          SUMI=0.D0

@@ -203,6 +203,10 @@ FCIMC options
     overwriting them.  Note that this can quickly fill up hard drives if used
     with **POPSFILE** iWritePopsEvery: use with care!
 
+**POPSFILETIMER** [PopsfileTime]
+    Write out a POPSFILE every 'PopsfileTime' hours of the calculation. Can be used with
+    **INCREMENTPOPS** to save previous files.
+
 **ZEROPROJE**
     This is for FCIMC when reading in from a POPSFILE. If this is on, then the energy 
     estimator will be restarted.

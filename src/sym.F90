@@ -1,5 +1,6 @@
 module sym_mod
 
+use constants, only: dp,int64
 implicit none
 
 contains
@@ -110,7 +111,7 @@ contains
              i=1
              DO WHILE(s%s.NE.0)
 !LSHIFT(,)
-                ! 1_8 is 1 in integer*8: we need to have consistent
+                ! 1_8 is 1 in integer(int64): we need to have consistent
                 ! kinds for bit-wise operations.
                 IF(BTEST(s%s,0)) SymConj%s=IOR(SymConj%s,ISHFT(1_8,SymConjTab(I)-1))
 !RSHIFT(,1)
@@ -333,7 +334,7 @@ contains
          INTEGER I,J
 !         TYPE(BasisFN) G1(NBASIS)
 !         INTEGER NBASIS,BRR(NBASIS)
-!         REAL*8 ARR(NBASIS)
+!         real(dp) ARR(NBASIS)
          character(*), parameter :: this_routine='GENMOLPSYMREPS'
          LOGICAL tNew
 
@@ -842,9 +843,9 @@ contains
          LOGICAL LDO,LDO2
          TYPE(Symmetry) iDecomp
          INTEGER NEXTSYMLAB
-         COMPLEX*16 REPCHARS(NROT,NSYMLABELS*10)
+         complex(dp) REPCHARS(NROT,NSYMLABELS*10)
          INTEGER NREPS,NROTOP
-         REAL*8 NORM
+         real(dp) NORM
          LOGICAL TKP,INV,IMPROPER_OP(NROTOP)
          NREPS=0
 !   Initialize the table with the totally symmetric rep.
@@ -984,7 +985,7 @@ contains
       SUBROUTINE WRITEIRREPTAB(IUNIT,CHARS,NROT,NSYM)
          IMPLICIT NONE
          INTEGER IUNIT,NROT,NSYM
-         COMPLEX*16 CHARS(NROT,NSYM)
+         complex(dp) CHARS(NROT,NSYM)
          CHARACTER*6 STR
          INTEGER I,J
          LOGICAL LCOMP,LREAL
@@ -1007,7 +1008,7 @@ contains
       SUBROUTINE WRITECHARS(IUNIT,CHARS,NROT,STR)
          IMPLICIT NONE
          INTEGER IUNIT,NROT
-         COMPLEX*16 CHARS(NROT)
+         complex(dp) CHARS(NROT)
          INTEGER J
          CHARACTER*6 STR
          LOGICAL LCOMP,LREAL
@@ -1024,7 +1025,7 @@ contains
       SUBROUTINE WRITECHARSF(IUNIT,CHARS,NROT,STR,LCOMP,LREAL)
          IMPLICIT NONE
          INTEGER IUNIT,NROT
-         COMPLEX*16 CHARS(NROT)
+         complex(dp) CHARS(NROT)
          INTEGER J
          CHARACTER*6 STR
          LOGICAL LCOMP,LREAL
@@ -1073,10 +1074,10 @@ contains
          use SymData, only: nRot,nSym,tAbelian,IRREPCHARS
          IMPLICIT NONE
          TYPE(Symmetry) IDECOMP
-         COMPLEX*16 CHARS(NROT),CHARSIN(NROT),TOT
-         REAL*8 CNORM
+         complex(dp) CHARS(NROT),CHARSIN(NROT),TOT
+         real(dp) CNORM
          INTEGER I,J
-         REAL*8 NORM,DIFF
+         real(dp) NORM,DIFF
          if (TAbelian) then
              ! We shouldn't be here!  Using symmetry "quantum" numbers
              ! rather than irreps.
@@ -1142,9 +1143,9 @@ contains
          IMPLICIT NONE
          INTEGER NIRREPS, NROT
          TYPE(Symmetry) IDECOMP
-         COMPLEX*16 IRREPCHARS(NROT,NIRREPS),CHARS(NROT)
-         REAL*8 CNORM, NORM,DIFF
-         COMPLEX*16 TOT
+         complex(dp) IRREPCHARS(NROT,NIRREPS),CHARS(NROT)
+         real(dp) CNORM, NORM,DIFF
+         complex(dp) TOT
          INTEGER I,J
          logical TAbelian
          if (TAbelian) then
@@ -1206,9 +1207,9 @@ contains
          use global_utilities
          IMPLICIT NONE
          INTEGER I,J,K
-         COMPLEX*16 CHARS(NROT)
+         complex(dp) CHARS(NROT)
          TYPE(Symmetry) IDECOMP
-         REAL*8 CNORM
+         real(dp) CNORM
          character(*), parameter :: this_routine='GENSYMTABLE'
          allocate(SymTable(nSym,nSym))
          call LogMemAlloc('SymTable',nSym**2,SymmetrySize,this_routine,tagSymTable)
@@ -1263,8 +1264,8 @@ contains
          INTEGER I,J
          TYPE(BasisFN) G1(nBasis)
          INTEGER NBASIS
-         REAL*8 ARR(NBASIS,2)
-         REAL*8 DEGENTOL
+         real(dp) ARR(NBASIS,2)
+         real(dp) DEGENTOL
          logical lTmp
          character(*), parameter :: this_routine='GenSymReps'
 
@@ -1468,7 +1469,7 @@ contains
          IMPLICIT NONE
          INTEGER K1(3),nBasisMax(5,*)
          INTEGER J,LDIM,AX,AY,LENX,LENY,KK2,T1,T2
-         REAL*8 R1,R2,NORM
+         real(dp) R1,R2,NORM
 !   (AX,AY) is the tilt of the lattice, and corresponds to the lattice vector of the cell.  The other lattice vector is (-AY,AX).  These are expressed in terms of the primitive Hubbard lattice vectors
          AX=NBASISMAX(1,4)
          AY=NBASISMAX(2,4)
@@ -1925,7 +1926,7 @@ contains
       END SUBROUTINE GenKPtIrreps
 
       subroutine  DecomposeAbelianSym(ISym,AbelSym)
-      ! Store the symmetry index as integer*8.  For Abelian symmetry
+      ! Store the symmetry index as integer(int64).  For Abelian symmetry
       ! we need to have 3 numbers stored in this index.  We store
       ! according to isym=\sum_i AbelSym(i)*32768**(i-1).
       ! This allows point groups with more than 64 irreps to be used in
@@ -1933,7 +1934,7 @@ contains
       ! symmetries are).
       ! Decompose the symmetry label back into the appropriate "quantum"
       ! numbers.
-      ! Store the symmetry index as integer*8.  For Abelian symmetry
+      ! Store the symmetry index as integer(int64).  For Abelian symmetry
       ! we need to have 3 numbers stored in this index.  We store
       ! according to isym=1+\sum_i AbelSym(i)*32768**(i-1).
       ! Note that many symmetry parameters for CPMD-NECI jobs are set in
@@ -1944,7 +1945,7 @@ contains
       use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
       use SymData, only: PropBitLen
       implicit none
-      integer*8 Isym
+      integer(int64) Isym
       integer  AbelSym(3)
 !RShift
       AbelSym(3)=IShft(Isym,-(PropBitLen*2))
@@ -1954,13 +1955,13 @@ contains
       return
       end subroutine DecomposeAbelianSym
 
-      integer*8 function ComposeAbelianSym(AbelSym)
+      integer(int64) function ComposeAbelianSym(AbelSym)
           use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
           use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
           use SymData, only: PropBitLen
           implicit none
           integer  AbelSym(3)
-          integer*8 TempVar
+          integer(int64) TempVar
           TempVar=AbelSym(3)
 !LShift
           ComposeAbelianSym=IShft(Tempvar,PropBitLen*2)    &
@@ -1987,7 +1988,7 @@ contains
       end function TotSymRep
 
       ! nBasisMax might well be needed in the future in these functions.
-      integer*8 function MinSymRep()
+      integer(int64) function MinSymRep()
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: tAbelian
@@ -1998,7 +1999,7 @@ contains
             MinSymRep=0
          endif
       end function MinSymRep
-      integer*8 function MaxSymRep()
+      integer(int64) function MaxSymRep()
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: tAbelian,nProp
@@ -2043,7 +2044,7 @@ contains
         use global_utilities
         implicit none
         integer Nirrep,nBasis,iSS,nBi,i,basirrep,t
-        integer*8 iSize
+        integer(int64) iSize
         character(*), parameter :: this_routine='GetSymTMATSize'
         nBi=nBasis/iSS
         iSize=0

@@ -4,7 +4,7 @@ unity=1
 size=8
 
 [double]
-type1=real*8
+type1=real(dp)
 unity=1.d0
 size=8
 

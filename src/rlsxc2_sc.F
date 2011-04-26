@@ -1,12 +1,19 @@
       SUBROUTINE RLSXC2_SC(NEL,NMSH,NMAX,SITAB,IOBS,JOBS,KOBS,
      &  NDET1,NDET2,G1,NHG,AUXC)
-      IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION NDET1(NEL),NDET2(NEL),AUXC(NMSH,NMSH,NMSH)
+!      IMPLICIT real(dp) (A-H,O-Z)
+      use constants, only: dp
+      IMPLICIT NONE
+      integer :: NDET1(NEL),NDET2(NEL)
+      real(dp) :: AUXC(NMSH,NMSH,NMSH)
 C..Cube array
-      DIMENSION SITAB(NMSH,NMAX)
+      real(dp) :: SITAB(NMSH,NMAX)
       INTEGER G1(*),ND1(2),ND2(2)
-      INTEGER IDS(4)
+      INTEGER IDS(4),NMSH,NMAX,NEL
       EXTERNAL U1
+      INTEGER :: IQ,I,J,K,IOBS,JOBS,KOBS,NHG,IX,IY,IZ
+      real(dp) :: U2ND22R2,U2ND21R2,U2ND12R2,U2ND11R2
+      real(dp) :: U1ND22R1,U1ND21R1,U1ND12R1,U1ND11R1,U1
+
 C..Zero ND1 and ND2
       AUXC=0.d0
       ND1(1:2)=0
@@ -84,8 +91,9 @@ C..
       END
 C ==--------------------------------------------------------==
       SUBROUTINE GENKRON2(G,NHG,ND1,ND2,IDS)
-      IMPLICIT REAL*8 (A-H,O-Z)
-      INTEGER G(4,NHG)
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
+      INTEGER G(4,NHG),NHG
       INTEGER ND1(2),ND2(2),IDS(4)
 C..
       CALL CHK(G(4,ND1(2)),G(4,ND2(2)),IDS(1))

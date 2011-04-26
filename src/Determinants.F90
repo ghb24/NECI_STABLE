@@ -42,7 +42,7 @@ MODULE Determinants
       TYPE(BasisFN) ISym
 !Used to be from uhfdet.inc
       INTEGER nUHFDet(5000)
-      REAL*8  E0HFDet
+      real(dp)  E0HFDet
 
       INTEGER, allocatable :: DefDet(:)
       Logical :: tDefineDet
@@ -96,16 +96,16 @@ contains
     
     Subroutine DetInit()
         Use global_utilities
-        use constants, only: dp
+        use constants, only: dp,int64
         use SystemData, only: nel, Alat, Boa, Coa, BOX, BRR, ECore
         use SystemData, only: G1, LMS, nBasis, STot, tCSFOLD, Arr,tHub,tUEG
         use SymData , only : nSymLabels,SymLabelList,SymLabelCounts,TwoCycleSymGens
         use IntegralsData, only: nfrozen
         use sym_mod
       
-      real*8 DNDET
+      real(dp) DNDET
       integer i,j
-      integer*8 nDet
+      integer(int64) nDet
       integer :: alpha,beta,symalpha,symbeta,endsymstate
       LOGICAL :: tSuccess,tFoundOrbs(nBasis)
       integer :: ncsf
@@ -157,7 +157,7 @@ contains
          DNDET=1.D0
          DO I=0,NEL-1
             NDET=(NDET*(nBasis-I))/(I+1)
-            DNDET=(DNDET*DFLOAT(nBasis-I))/DFLOAT(I+1)
+            DNDET=(DNDET*real(nBasis-I,dp))/real(I+1,dp)
          ENDDO
         IF(NDET.ne.DNDET) THEN
 !         WRITE(6,*) ' NUMBER OF DETERMINANTS : ' , DNDET
@@ -577,7 +577,7 @@ END MODULE Determinants
          implicit none
          integer nI(nEl),nEl,nBasis
          HElement_t hEl
-         real*8 Arr(nBasis,2),ECore
+         real(dp) Arr(nBasis,2),ECore
          integer i
          if(tStoreAsExcitations.and.nI(1).eq.-1) then
 !The excitation storage starts with -1.  The next number is the excitation level,L .  
@@ -692,8 +692,9 @@ END MODULE Determinants
 
       SUBROUTINE GenActiveBasis(ARR,nBasis,nEl,nActiveBasis, nDown,nUp)
          use SystemData, only: BasisFN
+         use constants, only: dp
          IMPLICIT NONE
-         REAL*8 ARR(nBasis)
+         real(dp) ARR(nBasis)
          INTEGER nEl,nActiveBasis(2),nBasis
          INTEGER I,nDown,nUp,nLeft
          I=nEl+1
@@ -735,11 +736,12 @@ END MODULE Determinants
 
       SUBROUTINE GENRANDOMDET(NEL,NBASIS,MCDET)
          use sort_mod
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER NEL,NBASIS,MCDET(NEL)
          INTEGER I,J,EL,SEED
          LOGICAL BR
-         REAL*8 RAN2
+         real(dp) RAN2
          SEED=-7
          DO I=1,NEL
             BR=.TRUE.
@@ -847,13 +849,14 @@ END MODULE Determinants
 
 
 ! Calculate the one-electron part of the energy of a det
-      REAL*8 FUNCTION CALCT(NI,NEL)
+      FUNCTION CALCT(NI,NEL)
          use constants, only: dp
          USE SystemData, only : BasisFN
          USE OneEInts, only : GetTMatEl
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I
          LOGICAL ISCSF
+         real(dp) :: CALCT
          CALCT=0.D0
          IF(ISCSF(NI,NEL)) RETURN
          DO I=1,NEL

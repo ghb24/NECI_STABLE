@@ -6,7 +6,7 @@ SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
    INTEGER iV,nEl,nBasis,iMaxOrder
    HElement_t Hij(0:iV,0:iV)
    HElement_t V(1:iV,1:iV)
-   REAL*8 Arr(nBasis,2)
+   real(dp) Arr(nBasis,2)
    INTEGER iPath(nEl,0:iV)
    LOGICAL tLog,tLogged
    INTEGER i,j
@@ -111,11 +111,11 @@ END
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          HElement_t HIJS(0:2)
-         REAL*8 ARR(NBASIS,2)
+         real(dp) ARR(NBASIS,2)
          INTEGER IPATH(NEL,0:2),NEL,NBASIS
          INTEGER NI(NEL),NJ(NEL)
-         REAL*8 MP2E
-         REAL*8 DENOM,CONTR
+         real(dp) MP2E
+         real(dp) DENOM,CONTR
          INTEGER I,J,S
          LOGICAL TLOG
          LOGICAL ISCSF

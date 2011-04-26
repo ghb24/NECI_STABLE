@@ -58,7 +58,7 @@ MODULE FciMCParMod
                        tPrintPopsDefault, iWriteBlockingEvery, &
                        tBlockEveryIteration, tHistInitPops, HistInitPopsIter,&
                        HistInitPops, DoubsUEG, DoubsUEGLookup, DoubsUEGStore, &
-                       tPrintDoubsUEG, StartPrintDoubsUEG
+                       tPrintDoubsUEG, StartPrintDoubsUEG, tMCOutput
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
                     hist_spin_dist, ilut_spindist, tHistSpinDist, &
                     write_clear_hist_spin_dist, hist_spin_dist_iter, &
@@ -103,15 +103,14 @@ MODULE FciMCParMod
     contains
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
-!        use Timing, only: get_total_time
-!        use SystemData, only: proc_timer
+        use Logging, only: PopsfileTimer
         real(dp) :: Weight, Energyxw
         INTEGER :: error
         LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange,tPrintWarn
-        REAL(4) :: s,etime,tstart(2),tend(2),totaltime
+        REAL(4) :: s_start,s_end,etime,tstart(2),tend(2),totaltime
         real(dp) :: TotalTime8
         INTEGER(int64) :: MaxWalkers,MinWalkers
-        real*8 :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
+        real(dp) :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
         integer, dimension(lenof_sign) :: tmp_sgn
         integer :: tmp_int(lenof_sign), i
         real(dp) :: grow_rate
@@ -151,7 +150,7 @@ MODULE FciMCParMod
 !Main iteration loop...
 !            WRITE(6,*) 'Iter',Iter
 
-            if(iProcIndex.eq.root) s=etime(tstart)
+            if(iProcIndex.eq.root) s_start=etime(tstart)
 
             if (tCCMC) then
                 CALL PerformCCMCCycPar()
@@ -183,8 +182,8 @@ MODULE FciMCParMod
             endif
 
             if(iProcIndex.eq.root) then
-                s=etime(tend)
-                IterTime=IterTime+(tend(1)-tstart(1))
+                s_end=etime(tend)
+                IterTime=IterTime+(s_end-s_start)
             endif
             
             if (mod(Iter, StepsSft) == 0) then
@@ -270,22 +269,20 @@ MODULE FciMCParMod
                     ENDIF
                 ENDIF
 
+                TotalTime8=real(s_end,dp)
+                call MPIBCast(TotalTime8)    !TotalTime is local - broadcast to all procs
+
 !This routine will check for a CHANGEVARS file and change the parameters of the calculation accordingly.
                 CALL ChangeVars(tSingBiasChange,tSoftExitFound,tWritePopsFound)
                 IF(tSoftExitFound) THEN
                     TIncrement=.false.
                     EXIT
                 ENDIF
-                IF(tTimeExit) THEN
+                IF(tTimeExit.and.(TotalTime8.ge.MaxTimeExit)) THEN
                     !Is it time to exit yet?
-                    TotalTime8=real(s,dp)
-                    call MPIBCast(TotalTime8)    !TotalTime is local
-!                    write(6,*) "TOTAL TIME = ",TotalTime8,s,tend(1),tend(2)
-                    if(TotalTime8.ge.MaxTimeExit) then
-                        write(6,"(A,F8.2,A)") "Time limit reached for simulation of: ",MaxTimeExit/60.0," minutes - exiting..."
-                        tIncrement=.false.
-                        EXIT
-                    endif
+                    write(6,"(A,F8.2,A)") "Time limit reached for simulation of: ",MaxTimeExit/60.0," minutes - exiting..."
+                    tIncrement=.false.
+                    EXIT
                 ENDIF
                 IF(tWritePopsFound) THEN
 !We have explicitly asked to write out the POPSFILE from the CHANGEVARS file.
@@ -294,6 +291,19 @@ MODULE FciMCParMod
                 IF(tSingBiasChange) THEN
                     CALL CalcApproxpDoubles()
                 ENDIF
+
+                if((PopsfileTimer.gt.0.D0).and.((iPopsTimers*PopsfileTimer).lt.(TotalTime8/3600.D0))) then
+                    !Write out a POPSFILE every PopsfileTimer hours
+                    if(iProcIndex.eq.Root) then
+                        write(6,"(A,F7.3,A)") "Writing out a popsfile after ",iPopsTimers*PopsfileTimer, " hours..."
+                    endif
+                    call WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
+                    iPopsTimers=iPopsTimers+1
+                    if(iProcIndex.eq.Root) then
+                        s_end=etime(tend)
+                        write(6,"(A,F7.3,A)") "Time taken to write out POPSFILE: ",real(s_end,dp)-TotalTime8," seconds."
+                    endif
+                endif
             
             ENDIF   !Endif end of update cycle
 
@@ -346,7 +356,7 @@ MODULE FciMCParMod
         IF(tHistHamil) CALL WriteHamilHistogram()
 
         Weight=(0.D0)
-        Energyxw=(ProjectionE)
+        Energyxw=(ProjectionE+Hii)
 
         IF(tHistEnergies) CALL WriteHistogramEnergies()
 
@@ -415,7 +425,7 @@ MODULE FciMCParMod
                 integer, intent(out) :: nJ(nel) 
                 integer(kind=n_int), intent(out) :: iLutJ(0:niftot)
                 integer, intent(out) :: ic, ex(2,2)
-                real*8, intent(out) :: pGen
+                real(dp), intent(out) :: pGen
                 logical, intent(out) :: tParity
                 HElement_t, intent(out) :: HEl
                 type(excit_gen_store_type), intent(inout), target :: store
@@ -1717,7 +1727,7 @@ MODULE FciMCParMod
         INTEGER :: DetCurr(NEl),nJ(NEl),IC,ExtraCreate,Ex(2,2),Bin
         INTEGER(KIND=n_int) :: iLutCurr(0:NIfTot),iLutnJ(0:NIfTot)
         LOGICAL :: tParity
-        REAL*8 :: Prob,r,rat
+        real(dp) :: Prob,r,rat
         integer, dimension(lenof_sign), intent(in) :: wSign
         HElement_t :: rh
 
@@ -2088,7 +2098,7 @@ MODULE FciMCParMod
     SUBROUTINE SortCompressListswH(Length,PartList,SignList,HList)
         INTEGER :: Length,SignList(Length)
         INTEGER(KIND=n_int) :: PartList(0:NIfTot,Length)
-        REAL*8 :: HList(Length)
+        real(dp) :: HList(Length)
         INTEGER :: i,DetsMerged,VecInd
 
         call sort (PartList, SignList, HList)
@@ -2128,7 +2138,7 @@ MODULE FciMCParMod
     SUBROUTINE WriteHistogramEnergies()
         use util_mod, only: get_free_unit
         INTEGER :: i, io(8)
-        REAL*8 :: Norm,EnergyBin
+        real(dp) :: Norm,EnergyBin
 
         IF(iProcIndex.eq.Root) THEN
             AllHistogramEnergy(:)=0.D0
@@ -2308,7 +2318,7 @@ MODULE FciMCParMod
         use DetCalcData , only : FCIDets
         use util_mod, only: get_free_unit
         INTEGER :: i,nI(NEl),ExcitLevel,j, iunit
-        REAL*8 :: norm,norm1
+        real(dp) :: norm,norm1
 
         CALL MPISumAll(Histogram,AllHistogram)
         norm1=0.D0
@@ -2371,7 +2381,7 @@ MODULE FciMCParMod
         use SystemData , only : BasisFN
         use util_mod, only: get_free_unit
         INTEGER :: i,IterRead, io1, io2, io3
-        REAL*8 :: norm,norm1,norm2,norm3,ShiftRead,AllERead,NumParts
+        real(dp) :: norm,norm1,norm2,norm3,ShiftRead,AllERead,NumParts
         CHARACTER(len=22) :: abstr,abstr2
         LOGICAL :: exists
 
@@ -3247,11 +3257,13 @@ MODULE FciMCParMod
             ENDIF
 
 #ifdef __CMPLX
-            write(6, '(a)') "       Step     Shift      WalkerCng(Re)  &
-                   &WalkerCng(Im)    TotWalkers(Re)   TotWalkers(Im)    &
-                   &Proj.E(Re)   ProjE(Im)     Proj.E.ThisCyc(Re)  &
-                   &Proj.E.ThisCyc(Im)   NoatHF(Re)   NoatHF(Im)   &
-                   &NoatDoubs      AccRat     UniqueDets     IterTime"
+            if(tMCOutput) then
+                write(6, '(a)') "       Step     Shift      WalkerCng(Re)  &
+                       &WalkerCng(Im)    TotWalkers(Re)   TotWalkers(Im)    &
+                       &Proj.E(Re)   ProjE(Im)     Proj.E.ThisCyc(Re)  &
+                       &Proj.E.ThisCyc(Im)   NoatHF(Re)   NoatHF(Im)   &
+                       &NoatDoubs      AccRat     UniqueDets     IterTime"
+            endif
             write(fcimcstats_unit, "(a,i4,a,l,a,l,a,l)") &
                    "# FCIMCStats VERSION 2 - COMPLEX : NEl=", nel, &
                    " HPHF=", tHPHF, ' Lz=', tFixLz, &
@@ -3268,10 +3280,12 @@ MODULE FciMCParMod
                    &24.HFContribtoE(Im)   25.NumContribtoE(Re)  &
                    &26.NumContribtoE(Im)  27.HF weight   28.|Psi|"
 #else
-            write(6,"(A)") "       Step     Shift      WalkerCng    &
-                  &GrowRate       TotWalkers    Annihil    NoDied    &
-                  &NoBorn    Proj.E          Av.Shift     Proj.E.ThisCyc   &
-                  &NoatHF NoatDoubs      AccRat     UniqueDets     IterTime"
+            if(tMCOutput) then
+                write(6,"(A)") "       Step     Shift      WalkerCng    &
+                      &GrowRate       TotWalkers    Annihil    NoDied    &
+                      &NoBorn    Proj.E          Av.Shift     Proj.E.ThisCyc   &
+                      &NoatHF NoatDoubs      AccRat     UniqueDets     IterTime"
+            endif
             write(fcimcstats_unit, "(a,i4,a,l,a,l,a,l)") &
                   "# FCIMCStats VERSION 2 - REAL : NEl=", nel, &
                   " HPHF=", tHPHF, ' Lz=', tFixLz, &
@@ -3326,22 +3340,24 @@ MODULE FciMCParMod
                 sqrt(float(sum(AllNoatHF**2))) / norm_psi, &
                 norm_psi
 
-            write (6, "(I12,G16.7,2I10,2I12,4G17.9,3I10,G13.5,I12,G13.5)") &
-                Iter + PreviousCycles, &
-                DiagSft, &
-                AllTotParts(1) - AllTotPartsOld(1), &
-                AllTotParts(2) - AllTotPartsOld(2), &
-                AllTotParts(1), AllTotParts(2), &
-                real(ProjectionE, dp), &
-                aimag(ProjectionE), &
-                real(proje_iter, dp), &
-                aimag(proje_iter), &
-                AllNoatHF(1), &
-                AllNoatHF(2), &
-                AllNoatDoubs, &
-                AccRat, &
-                AllTotWalkers, &
-                IterTime
+            if(tMCOutput) then
+                write (6, "(I12,G16.7,2I10,2I12,4G17.9,3I10,G13.5,I12,G13.5)") &
+                    Iter + PreviousCycles, &
+                    DiagSft, &
+                    AllTotParts(1) - AllTotPartsOld(1), &
+                    AllTotParts(2) - AllTotPartsOld(2), &
+                    AllTotParts(1), AllTotParts(2), &
+                    real(ProjectionE, dp), &
+                    aimag(ProjectionE), &
+                    real(proje_iter, dp), &
+                    aimag(proje_iter), &
+                    AllNoatHF(1), &
+                    AllNoatHF(2), &
+                    AllNoatDoubs, &
+                    AccRat, &
+                    AllTotWalkers, &
+                    IterTime
+            endif
 #else
 
             write(fcimcstats_unit,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,&
@@ -3374,24 +3390,26 @@ MODULE FciMCParMod
                 real(AllNoatHF, dp) / norm_psi, &
                 norm_psi
 
-            write (6, "(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,&
-                      &G13.5)") &
-                Iter + PreviousCycles, &
-                DiagSft, &
-                sum(AllTotParts) - sum(AllTotPartsOld), &
-                AllGrowRate, &
-                sum(AllTotParts), &
-                AllAnnihilated, &
-                AllNoDied, &
-                AllNoBorn, &
-                ProjectionE, &
-                AvDiagSft, &
-                proje_iter, &
-                AllNoatHF, &
-                AllNoatDoubs, &
-                AccRat, &
-                AllTotWalkers, &
-                IterTime
+            if(tMCOutput) then
+                write (6, "(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,&
+                          &G13.5)") &
+                    Iter + PreviousCycles, &
+                    DiagSft, &
+                    sum(AllTotParts) - sum(AllTotPartsOld), &
+                    AllGrowRate, &
+                    sum(AllTotParts), &
+                    AllAnnihilated, &
+                    AllNoDied, &
+                    AllNoBorn, &
+                    ProjectionE, &
+                    AvDiagSft, &
+                    proje_iter, &
+                    AllNoatHF, &
+                    AllNoatDoubs, &
+                    AccRat, &
+                    AllTotWalkers, &
+                    IterTime
+            endif
 #endif
 
             if (tTruncInitiator .or. tDelayTruncInit) then
@@ -3408,13 +3426,54 @@ MODULE FciMCParMod
                     sum(AllTotParts), AllTotParts(1), AllTotParts(lenof_sign)
             endif
 
-            call flush(6)
+            if(tMCOutput) then
+                call flush(6)
+            endif
             call flush(fcimcstats_unit)
             
         endif
 
     end subroutine WriteFCIMCStats
 
+    !Ensure that the new FCIMCStats file which is about to be opened does not overwrite any other FCIMCStats
+    !files. If there is already an FCIMCStats file present, then move it to FCIMCStats.x, where x is a largest
+    !free filename.
+    subroutine MoveFCIMCStatsFiles()
+        integer :: extension,stat
+        logical :: exists
+        character(len=22) :: abstr
+        character(len=*), parameter :: t_r='MoveFCIMCStatsFiles'
+
+        inquire(file='FCIMCStats',exist=exists)
+        if(exists) then
+            !We already have an FCIMCStats file - move it to the end of the list of FCIMCStats files.
+
+            extension=0
+            do while(.true.)
+                abstr=''
+                write(abstr,'(I12)') extension
+                abstr='FCIMCStats.'//adjustl(abstr)
+                inquire(file=abstr,exist=exists)
+                if(.not.exists) exit
+                extension=extension+1
+                if(extension.gt.1000) then
+                    call stop_all(t_r,"Error finding free FCIMCStats name")
+                endif
+            enddo
+            
+            !We have got a unique filename
+            !Do not use system call
+!            command = 'mv' // ' FCIMCStats ' // abstr
+!            call system(command)
+
+            call rename('FCIMCStats',abstr)
+            !Doesn't like the stat argument
+!            if(stat.ne.0) then
+!                call stop_all(t_r,"Error with renaming FCIMCStats file")
+!            endif
+        endif
+
+    end subroutine MoveFCIMCStatsFiles
 
     SUBROUTINE SetupParameters()
         use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tROHF,tFindCINatOrbs,nOccBeta,nOccAlpha,tUHF
@@ -3438,7 +3497,7 @@ MODULE FciMCParMod
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
         HElement_t :: TempHii
         TYPE(BasisFn) HFSym
-        REAL*8 :: TotDets,SymFactor,r,Gap
+        real(dp) :: TotDets,SymFactor,r,Gap
         CHARACTER(len=*), PARAMETER :: this_routine='SetupParameters'
         CHARACTER(len=12) :: abstr
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped,TestClosedShellDet
@@ -3473,6 +3532,7 @@ MODULE FciMCParMod
                 ! Restart calculation.  Append to stats file (if it exists).
                 OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown',position='append')
             else
+                call MoveFCIMCStatsFiles()          !This ensures that FCIMCStats files are not overwritten
                 OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown')
             end if
             IF(tTruncInitiator.or.tDelayTruncInit) THEN
@@ -3834,6 +3894,7 @@ MODULE FciMCParMod
 
 !Initialise variables for calculation on each node
         iter=0          !This is set so that calls to CalcParentFlag in the initialisation are ok with the logging.
+        iPopsTimers=1   !Number of timed popsfiles written out
         IterTime=0.0
         ProjectionE=0.D0
         AvSign=0.D0
@@ -4141,10 +4202,10 @@ MODULE FciMCParMod
         SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.D0)
         TotDets=1.D0
         do i=1,NEl
-            WRITE(6,*) "Approximate excitation level population: ",i,NINT((Choose(NEl,i)*Choose(nBasis-NEl,i))/SymFactor)
+            WRITE(6,"(A,I5,I20)") "Approximate excitation level population: ",i,NINT((Choose(NEl,i)*Choose(nBasis-NEl,i))/SymFactor)
             TotDets=TotDets+(Choose(NEl,i)*Choose(nBasis-NEl,i))/SymFactor
         enddo
-        WRITE(6,*) "Approximate size of determinant space is: ",NINT(TotDets)
+        WRITE(6,"(A,I20)") "Approximate size of determinant space is: ",NINT(TotDets)
 
     END SUBROUTINE SetupParameters
 
@@ -5035,6 +5096,11 @@ MODULE FciMCParMod
             write(6,*) "POPSFILE VERSION ",PopsVersion," detected."
         endif
 
+        if(tPopsMapping.and.(PopsVersion.lt.3)) then
+            write(6,*) "Popsfile mapping cannot work with old POPSFILEs"
+            call stop_all("InitFCIMCCalcPar","Popsfile mapping cannot work with old POPSFILEs")
+        endif
+
         ! Initialise measurement of norm, to avoid divide by zero
         norm_psi = 1
 
@@ -5901,7 +5967,7 @@ MODULE FciMCParMod
         integer :: iSpn,FirstA,nJ(NEl),a,Ex(2,2),kx,ky,kz,OrbB,FirstB
         integer :: ki2,kj2
         logical :: tParity,tMom
-        real*8 :: Ranger,mp2,mp2all,length,length_g,length_g_2
+        real(dp) :: Ranger,mp2,mp2all,length,length_g,length_g_2
         HElement_t :: hel,H0tmp
 
         !Divvy up the ij pairs
@@ -6270,7 +6336,7 @@ MODULE FciMCParMod
       implicit none
       integer, intent(in) :: WalkerListSize
       integer ierr,i,j
-      real*8 Gap
+      real(dp) Gap
       MaxSpawned=NINT(MemoryFacSpawn*WalkerListSize)
 !            WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for spawning of: ",MaxSpawned
             

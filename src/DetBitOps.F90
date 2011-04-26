@@ -924,7 +924,8 @@ end module
             iLutAlpha(i)=IAND(iLut(i),MaskAlpha)    !Seperate the alpha and beta bit strings
             iLutBeta(i)=IAND(iLut(i),MaskBeta)
             iLutAlpha(i)=ISHFT(iLutAlpha(i),-1)     !Shift all alpha bits to the left by one.
-            iLutAlpha(i)=IEOR(iLutAlpha(i),iLutBeta(i)) !Do an XOR on the original beta bits and shifted alpha bits - they should cancel exactly.
+            iLutAlpha(i)=IEOR(iLutAlpha(i),iLutBeta(i)) !Do an XOR on the original beta bits and shifted alpha bits 
+                                                        !- they should cancel exactly.
             
             IF(iLutAlpha(i).ne.0) THEN
                 tClosed=.false.  !Det is not closed shell - return
@@ -958,7 +959,8 @@ end module
 !            iLutAlpha(i)=IAND(iLut(i),MaskAlpha)    !Seperate the alpha and beta bit strings
 !            iLutBeta(i)=IAND(iLut(i),MaskBeta)
 !            iLutAlpha(i)=ISHFT(iLutAlpha(i),-1)     !Shift all alpha bits to the left by one.
-!            iLutAlpha(i)=IEOR(iLutAlpha(i),iLutBeta(i)) !Do an XOR on the original beta bits and shifted alpha bits - only open shell occupied orbitals will remain.
+!            iLutAlpha(i)=IEOR(iLutAlpha(i),iLutBeta(i)) !Do an XOR on the original beta bits and shifted alpha bits 
+                                                         !- only open shell occupied orbitals will remain.
 !            
 !        enddo
 !

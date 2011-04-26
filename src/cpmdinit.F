@@ -11,7 +11,7 @@
          IMPLICIT NONE
          INTEGER nBasisMax(5,*), BRR(LEN),LEN
          TYPE(BASISFN) G1(LEN)
-         REAL*8 ARR(LEN,2)
+         real(dp) ARR(LEN,2)
          INTEGER I,J
          TYPE(Symmetry) iDecomp
          LOGICAL ALL1D
@@ -122,7 +122,7 @@ C.. group
          IMPLICIT NONE
          INTEGER NBASIS
          type(BasisFn) G1(*)
-         REAL*8 ARR(NBASIS,2)
+         real(dp) ARR(NBASIS,2)
          CALL GENSYMREPS(G1,NBASIS,ARR,DEGENTOL)
       END
 
@@ -224,14 +224,14 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          HElement_t TOT
 
          TYPE(BASISFN) G1(NHG)
-         REAL*8 ECORE
+         real(dp) ECORE
          INTEGER NEL
-         REAL*8 DIAGTMAT(NSTATES)
+         real(dp) DIAGTMAT(NSTATES)
          INTEGER STATEORDER(NSTATES)
          LOGICAL TORDER
          INTEGER BRR(NSTATES*2),NLOCK
-         REAL*8 ARR(NSTATES*2,2)
-         complex*16,allocatable,save :: HarInt(:,:)
+         real(dp) ARR(NSTATES*2,2)
+         complex(dp),allocatable,save :: HarInt(:,:)
          INTEGER iCacheFlag
          ! For ZHEEV (eigenvalues of FockMatrix).
          integer(TagIntType) :: tagHarInt=0
