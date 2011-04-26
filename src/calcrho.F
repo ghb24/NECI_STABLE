@@ -194,10 +194,10 @@ C               IC=IC+1
 
 C.. GETHELEMENT
 C.. Get matrix element of the hamiltonian
-      real(dp) FUNCTION GETHELEMENT(II,IJ,HAMIL,LAB,NROW,NDET)
+      FUNCTION GETHELEMENT(II,IJ,HAMIL,LAB,NROW,NDET)
       use constants, only: dp
       IMPLICIT NONE
-      real(dp) HAMIL(*)
+      real(dp) HAMIL(*),GETHELEMENT
       INTEGER LAB(*)
       INTEGER NROW(NDET),IJ,II,I,J,INDXROW,IMAX,NDET,K
 C.. We only have half of H, so if J<I, return the symmetrical (J,I) element

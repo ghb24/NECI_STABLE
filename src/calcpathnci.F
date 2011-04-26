@@ -1,10 +1,11 @@
 
 C.. Generate a real that is (P H) (the binomial coefficient)
 C.. Best for small H
-      real(dp) FUNCTION FNCR(I_P,I_H)
+      FUNCTION FNCR(I_P,I_H)
          use constants, only: dp
          implicit none
          integer :: i,i_h,i_p
+         real(dp) :: FNCR
          FNCR=1.D0
          DO I=0,I_H-1
             FNCR=FNCR*(I_P-I)/(I+1)
@@ -27,11 +28,11 @@ C         IF(LSAME2) WRITE(10,*) "LSAME2",A,B,LSAME2
 
 C.. GETRHOELEMENT
 C.. Get matrix element of rho
-      real(dp) FUNCTION GETRHOELEMENT(II,IJ,RHOIJ,RHOIJLAB,             &
+      FUNCTION GETRHOELEMENT(II,IJ,RHOIJ,RHOIJLAB,                      &
      &              RHOIJROWS,NDET)
       use constants, only: dp
       implicit none
-      real(dp) RHOIJ(*)
+      real(dp) RHOIJ(*),GETRHOELEMENT
       INTEGER RHOIJLAB(*)
       INTEGER RHOIJROWS(NDET),IJ,II,I,J,INDXROW,IMAX,K,NDET
 C.. We only have half of RHO, so if J<I, return the symmetrical (J,I) element

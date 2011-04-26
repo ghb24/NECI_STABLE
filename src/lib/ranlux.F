@@ -1,10 +1,11 @@
-      real(dp) FUNCTION RAN2(ISEED)
+      FUNCTION RAN2(ISEED)
          !  Following the same interface as Numerical Recipes' RAN2, but using the RANLUX generator (lux level 3).
          !  If ISEED.NE.0, it is used as a seed, and reset to 0.
          !  Generates a 32-bit float (REAL*4), and stores this in a real(dp)
          use constants, only: dp
          IMPLICIT NONE
          INTEGER ISEED
+         real(dp) :: RAN2
          IF(ISEED.NE.0) THEN
             !  Init RANLUX
             IF(ISEED.LT.0) ISEED=-ISEED

@@ -2733,10 +2733,10 @@ END MODULE GraphMorph
 !            NotConnected(1,j)=i
 !        ENDIF
 
-real(dp) FUNCTION RootofNum(Num,Root)
+FUNCTION RootofNum(Num,Root)
     use constants, only: dp
     real(dp) :: Root
-    real(dp) :: Num
+    real(dp) :: Num,RootofNum
     IF(Num.lt.1.D-16) THEN
         RootofNum=0.D0
     ELSE

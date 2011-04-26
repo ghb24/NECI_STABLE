@@ -4,7 +4,7 @@ C.. IC is the number of basis fns that differ in NI and NJ (or -1 if not
 Cknown)
 C.. ECORE is the uniform background energy.  It has been renamed from
 C.. ETRIAL, but ETRIAL not longer has a function
-      real(dp) FUNCTION GETHELEMENT2T(NI,NJ,NEL,NBASISMAX,
+      FUNCTION GETHELEMENT2T(NI,NJ,NEL,NBASISMAX,
      &   NBASIS,ECORE,IC2,BTRANS,NSBASIS,NSPINS)
          use constants, only: dp
          IMPLICIT NONE      
@@ -12,7 +12,7 @@ C.. ETRIAL, but ETRIAL not longer has a function
          INTEGER NEL,NI(NEL),NJ(NEL),IC,nBasisMax(5,*),IC2
          real(dp) TOTSUM,ECORE
          INTEGER IGETEXCITLEVEL
-         real(dp) BTRANS(*)
+         real(dp) BTRANS(*),GETHELEMENT2T
          IC=IC2
          GETHELEMENT2T=0.D0
          IF(IC.LT.0) IC=IGETEXCITLEVEL(NI,NJ,NEL)

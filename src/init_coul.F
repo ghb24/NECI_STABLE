@@ -102,7 +102,7 @@ C =========================================================
 #endif
       complex(dp) DIST(-N/2:N/2-1,-N/2:N/2-1,-N/2:N/2-1)
       integer(int64) PLAN
-      real(dp) A(3),ALPHA2,ALPHA,HSTEPX,HSTEPY,HSTEPZ
+      real(dp) A(3),ALPHA2,ALPHA,HSTEPX,HSTEPY,HSTEPZ,derf
       real(dp) :: X,Y,Z,AUX,SUM,G2,GX,GY,GZ,OMEGA,OMEGAP,R
       LOGICAL TALPHA
       integer :: N,I,J,K,N1,N2,N3

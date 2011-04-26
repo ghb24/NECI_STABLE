@@ -106,7 +106,7 @@ C =========================================================
       LOGICAL TALPHA
       complex(dp) D(-N/2:N/2-1,-N/2:N/2-1)
       integer :: i,j,k,n,n1,n2,n3,la1,la2
-      real(dp) :: HSTEPX,HSTEPY,HSTEPZ,gx,gy,gz,SUM,G
+      real(dp) :: HSTEPX,HSTEPY,HSTEPZ,gx,gy,gz,SUM,G,derf
 C..
 !      PI=ACOS(-1.D0)
       ALPHA2=ALPHA*ALPHA

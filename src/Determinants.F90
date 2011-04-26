@@ -849,13 +849,14 @@ END MODULE Determinants
 
 
 ! Calculate the one-electron part of the energy of a det
-      real(dp) FUNCTION CALCT(NI,NEL)
+      FUNCTION CALCT(NI,NEL)
          use constants, only: dp
          USE SystemData, only : BasisFN
          USE OneEInts, only : GetTMatEl
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I
          LOGICAL ISCSF
+         real(dp) :: CALCT
          CALCT=0.D0
          IF(ISCSF(NI,NEL)) RETURN
          DO I=1,NEL

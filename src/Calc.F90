@@ -2172,7 +2172,7 @@ contains
 
 
 ! Given an input RHOEPSILON, create Fermi det D out of lowest orbitals and get RHOEPS (which is rhoepsilon * exp(-(beta/P)<D|H|D>
-      real(dp) FUNCTION GETRHOEPS(RHOEPSILON,BETA,NEL,BRR,I_P)
+      FUNCTION GETRHOEPS(RHOEPSILON,BETA,NEL,BRR,I_P)
          Use Determinants, only: get_helement, write_det
          use constants, only: dp
          use SystemData, only: BasisFN
@@ -2180,7 +2180,7 @@ contains
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I,I_P
          INTEGER BRR(*)
-         real(dp) RHOEPSILON,BETA
+         real(dp) RHOEPSILON,BETA,GETRHOEPS
          HElement_t BP, tmp
          DO I=1,NEL
             NI(I)=BRR(I)
@@ -2195,13 +2195,13 @@ contains
 
 
 ! Calculate the kinetic energy of the UEG (this differs from CALCT by including the constant CST
-      real(dp) FUNCTION CALCT2(NI,NEL,G1,ALAT,CST)
+      FUNCTION CALCT2(NI,NEL,G1,ALAT,CST)
          use constants, only: dp
          use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I,J
          TYPE(BasisFN) G1(*)
-         real(dp) ALAT(4),CST,TMAT
+         real(dp) ALAT(4),CST,TMAT,CALCT2
          LOGICAL ISCSF
          CALCT2=0.D0
          IF(ISCSF(NI,NEL)) RETURN

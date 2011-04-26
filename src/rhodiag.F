@@ -414,14 +414,14 @@ C         CLOSE(36)
          RETURN
       END
 
-      real(dp) FUNCTION RHODIAG_CP(RHOIJ,I_P,I_V)
+      FUNCTION RHODIAG_CP(RHOIJ,I_P,I_V)
          use global_utilities
          use constants, only: dp
          IMPLICIT NONE
          INTEGER I_P,I_V
          type(timer), save :: proc_timer
          real(dp) RHOIJ(0:I_V,0:I_V)
-         real(dp) RIJMAT(I_V,I_V)
+         real(dp) RIJMAT(I_V,I_V),RHODIAG_CP
          real(dp) WLIST(I_V),WORK(3*I_V)         
          INTEGER*4 INFO
          INTEGER I,J

@@ -1169,11 +1169,11 @@ END MODULE DetCalc
       END
 
 !  Given an exact calculation of eigen-vectors and -values, calculate the expectation value of E(Beta)
-      real(dp) FUNCTION CALCMCEN(NEVAL,W,BETA)
+      FUNCTION CALCMCEN(NEVAL,W,BETA)
          use constants, only: dp
          IMPLICIT NONE
          INTEGER NEVAL,IK
-         real(dp)  W(NEVAL),BETA,DNORM,EN
+         real(dp)  W(NEVAL),BETA,DNORM,EN,CALCMCEN
          EN=0.D0
          DNORM=0.D0
          DO IK=1,NEVAL
@@ -1185,12 +1185,12 @@ END MODULE DetCalc
       END
 
 !  Given an exact calculation of eigen-vectors and -values, calculate the expectation value of E~(Beta)_I for det I
-      real(dp) FUNCTION CALCDLWDB(I,NDET,NEVAL,CK,W,BETA)
+      FUNCTION CALCDLWDB(I,NDET,NEVAL,CK,W,BETA)
          use constants, only: dp
          IMPLICIT NONE
          INTEGER NDET,NEVAL,IK,I
          HElement_t CK(NDET,NEVAL)
-         real(dp)  W(NEVAL),BETA,DNORM,EN
+         real(dp)  W(NEVAL),BETA,DNORM,EN,CALCDLWDB
          EN=0.D0
          DNORM=0.D0
          DO IK=1,NEVAL
@@ -1272,14 +1272,14 @@ END MODULE DetCalc
 
 
 !Given exact eigenvalues and vectors, do monte carlo in det space with exact weights and E~
-       real(dp) FUNCTION DOEXMC(NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,ECORE,IMCSTEPS,G1,NMRKS,NEL,NBASISMAX,NBASIS,BRR,IEQSTEPS)
+       FUNCTION DOEXMC(NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,ECORE,IMCSTEPS,G1,NMRKS,NEL,NBASISMAX,NBASIS,BRR,IEQSTEPS)
          use constants, only: dp
          use SystemData, only: BasisFn
          implicit none
          INTEGER NDET,NEVAL,I_P,ILOGGING, NBASISMAX(5,7), NBASIS, NEL, BRR(NBASIS), IMCSTEPS, NMRKS(:,:), IEQSTEPS
          HElement_t CK(NEVAL)
          type(BasisFn) G1(nBasis)
-         real(dp) W(NEVAL),BETA,ECORE
+         real(dp) W(NEVAL),BETA,ECORE,DOEXMC
 
          ! Avoid compiler warnings
          ndet = ndet; neval = neval; ck(1) = ck(1); W(1) = W(1); beta = beta
