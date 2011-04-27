@@ -71,12 +71,14 @@ Module MomInv
 
                         do j=i+2,nBasis,2
                             !Loop over remaining orbitals of correct spin
+!                            write(6,*) i,j,tOrbTaken(j),G1(i)%Ml,-G1(j)%Ml
                             if((G1(i)%Ml.eq.-G1(j)%Ml).and.(.not.tOrbTaken(j))) then
                                 !Found pair
                                 MomInvSymOrb(i)=j
                                 MomInvSymOrb(j)=i
                                 tOrbTaken(i)=.true.
                                 tOrbTaken(j)=.true.
+                                exit
                             endif
                         enddo
                         
@@ -119,6 +121,10 @@ Module MomInv
         call MPIBCast(MomInvSymOrb)
 
         write(6,*) "Sucessfully paired orbitals by momentum."
+        write(6,*) "Orbital     Lz_Paired Orbital"
+        do i=1,nBasis
+            write(6,"(2I10)") i,MomInvSymOrb(i)
+        enddo
                 
     end subroutine SetupMomInv
 

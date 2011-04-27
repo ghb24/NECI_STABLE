@@ -331,7 +331,7 @@ CONTAINS
       INTEGER LSCR,LISCR,MaxIndex
       LOGICAL tMC!,TestClosedShellDet,Found,tSign
       real(dp) GetHElement, calct, calcmcen, calcdlwdb,norm
-      integer:: ic,TempnI(NEl),MomSymDet(NEl),ICSym,ICConnect
+      integer:: ic,TempnI(NEl),MomSymDet(NEl),ICSym,ICConnect,PairedUnit,SelfInvUnit
       integer(n_int) :: iLutMomSym(0:NIfTot)
       logical :: tSuccess
 
@@ -687,10 +687,18 @@ CONTAINS
             enddo
 
             if(tMomInv) then
+                PairedUnit = get_free_unit()
+                open(PairedUnit,file='LzPairedDets',status='unknown')
+                SelfInvUnit = get_free_unit()
+                open(SelfInvUnit,file='SelfInvDet',status='unknown')
                 do i=1,Det
+                    if(abs(FCIGS(i)).lt.1.D-8) cycle
                     !Ignore if self-inverse
-                    if(IsBitMomSelfInv(FCIDets(:,i))) cycle
-                    if(FCIGS(i).lt.1.D-7) cycle
+                    if(IsBitMomSelfInv(FCIDets(:,i))) then
+                        call decode_bit_det(TempnI,FCIDets(:,i))
+                        write(SelfInvUnit,"(I13,8I4,G19.7)") FCIDets(0:NIfD,i),TempnI(:),FCIGS(i)
+                        cycle
+                    endif
                     
                     IC = FindBitExcitLevel(iLut,FCIDets(:,i),nel)
                     !Decode
@@ -717,8 +725,10 @@ CONTAINS
                         call stop_all(this_routine,"Sym partner not found")
                     endif
                     ICConnect = FindBitExcitLevel(FCIDets(:,i),iLutMomSym,nel)
-                    write(72,*) FCIDets(0:NIfD,i),iLutMomSym(0:NIfD),TempnI(:),MomSymDet(:),IC,ICSym,ICConnect,FCIGS(i),FCIGS(Ind)
+                    write(PairedUnit,"(2I13,19I4,2G19.7)") FCIDets(0:NIfD,i),iLutMomSym(0:NIfD),TempnI(:),MomSymDet(:),IC,ICSym,ICConnect,FCIGS(i),FCIGS(Ind)
                 enddo
+                close(PairedUnit)
+                close(SelfInvUnit)
             endif
 
 !This will sort the determinants into ascending order, for quick binary searching later on.

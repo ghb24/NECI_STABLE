@@ -26,6 +26,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tMomInv=.false.
       tNoSingExcits=.false.
       tOneElecDiag=.false.
       tMCSizeTruncSpace=.false.
@@ -830,6 +831,8 @@ MODULE System
         case("LZTOT")
             tFixLz=.true.
             call readi(LzTot)
+        case("MOMINVSYM")
+            tMomInv=.true.
         case("KPOINTS")
             tKPntSym=.true.
         case("ENDSYS") 
