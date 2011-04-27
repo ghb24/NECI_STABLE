@@ -1358,7 +1358,7 @@ contains
           use hilbert_space_size, only: FindSymMCSizeofSpace, FindSymMCSizeExcitLevel
           use global_utilities
           
-          REAL*8 CalcT, CalcT2, GetRhoEps
+          real(dp) CalcT, CalcT2, GetRhoEps
           
           
           INTEGER I, IC,J
@@ -1506,9 +1506,9 @@ contains
           use sym_mod
 
 !Calls
-!          REAL*8 DMonteCarlo2
+!          real(dp) DMonteCarlo2
 !Local Vars
-          REAL*8 EN,WeightDum,EnerDum
+          real(dp) EN,WeightDum,EnerDum
           integer iSeed,iunit
           iSeed=7 
 
@@ -1649,14 +1649,14 @@ contains
           Use util_mod, only: get_free_unit
           Use DetCalc, only: tFindDets
           use sym_mod
-          real*8 flri, flsi
-          REAL*8 En, ExEn, GSEn
-          REAL*8 RH
+          real(dp) flri, flsi
+          real(dp) En, ExEn, GSEn
+          real(dp) RH
           INTEGER iDeg, III, iunit
           Type(BasisFN) iSym
           LOGICAL tWarn
           
-          REAL*8 CalcMCEn, CalcDLWDB, DoExMC
+          real(dp) CalcMCEn, CalcDLWDB, DoExMC
             
           IF(TENERGY.and.(.not.tFindDets)) THEN
              RHOEPS=RHOEPSILON*EXP(-BETA*(W(1))/I_P)
@@ -2018,8 +2018,8 @@ contains
          HElement_t  UMAT(*)
          HElement_t,allocatable  :: RIJLIST(:,:)
          integer(TagIntType),save :: tagRIJList=0,tagLSTE=0,tagICE=0
-         REAL*8 BETA,ALAT(3),RHOEPS
-         COMPLEX*16 FCK(*)
+         real(dp) BETA,ALAT(3),RHOEPS
+         complex(dp) FCK(*)
          INTEGER NPATHS,NI(NEL),I_P,nBasisMax(5,*)
          INTEGER Work(GNDWorkSize+2*NEL)
          TYPE(BASISFN) G1(*)
@@ -2027,7 +2027,7 @@ contains
          INTEGER III,NWHTAY(3,I_VMAX),IMAX,ILMAX,LMS
          TYPE(BasisFN) ISYM,SymRestrict
          LOGICAL TSPN,TPARITY,TSYM
-         REAL*8 DBETA,ECORE
+         real(dp) DBETA,ECORE
          real(dp) WLRI,WLSI,WLRI1,WLRI2,WLSI1,WLSI2,DLWDB
          real(dp) TOT,WLRI0,WLSI0,WINORM,HElP,NORM
          LOGICAL TNPDERIV,TDONE,TFIRST
@@ -2172,7 +2172,7 @@ contains
 
 
 ! Given an input RHOEPSILON, create Fermi det D out of lowest orbitals and get RHOEPS (which is rhoepsilon * exp(-(beta/P)<D|H|D>
-      REAL*8 FUNCTION GETRHOEPS(RHOEPSILON,BETA,NEL,BRR,I_P)
+      FUNCTION GETRHOEPS(RHOEPSILON,BETA,NEL,BRR,I_P)
          Use Determinants, only: get_helement, write_det
          use constants, only: dp
          use SystemData, only: BasisFN
@@ -2180,7 +2180,7 @@ contains
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I,I_P
          INTEGER BRR(*)
-         REAL*8 RHOEPSILON,BETA
+         real(dp) RHOEPSILON,BETA,GETRHOEPS
          HElement_t BP, tmp
          DO I=1,NEL
             NI(I)=BRR(I)
@@ -2195,13 +2195,13 @@ contains
 
 
 ! Calculate the kinetic energy of the UEG (this differs from CALCT by including the constant CST
-      REAL*8 FUNCTION CALCT2(NI,NEL,G1,ALAT,CST)
+      FUNCTION CALCT2(NI,NEL,G1,ALAT,CST)
          use constants, only: dp
          use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I,J
          TYPE(BasisFN) G1(*)
-         REAL*8 ALAT(4),CST,TMAT
+         real(dp) ALAT(4),CST,TMAT,CALCT2
          LOGICAL ISCSF
          CALCT2=0.D0
          IF(ISCSF(NI,NEL)) RETURN

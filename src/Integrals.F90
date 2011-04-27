@@ -412,11 +412,11 @@ contains
       use read_fci
       use constants, only: Pi, Pi2, THIRD
       INTEGER iCacheFlag
-      COMPLEX*16,ALLOCATABLE :: ZIA(:)
+      complex(dp),ALLOCATABLE :: ZIA(:)
       INTEGER(TagIntType),SAVE :: tagZIA=0
       INTEGER i!,j,k,l,idi,idj,idk,idl,Index1
       INTEGER TmatInt,UMatInt
-      REAL*8 :: UMatMem
+      real(dp) :: UMatMem
       integer iErr
       character(25), parameter :: this_routine='IntInit'
       LOGICAL :: tReadFreezeInts
@@ -847,9 +847,9 @@ contains
        HElement_t UMAT(*)
 !!C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
        HElement_t UMAT2(*)
-       REAL*8 ECORE
+       real(dp) ECORE
 !!C.. was (NBASIS/ISS,NBASIS/ISS,NBASIS/ISS,NBASIS/ISS)
-       REAL*8 ARR2(NBASIS,2)
+       real(dp) ARR2(NBASIS,2)
        INTEGER NFROZEN,BRR(NHG),BRR2(NBASIS),GG(NHG)
        TYPE(BASISFN) G2(NHG)
        INTEGER NTFROZEN,NFROZENIN,NTFROZENIN
@@ -1894,12 +1894,12 @@ SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
   IMPLICIT NONE
   INTEGER NBASIS
   TYPE(BASISFN) G1(NBASIS)
-  REAL*8 ALAT(4),CST,K_REAL(3)
+  real(dp) ALAT(4),CST,K_REAL(3)
   INTEGER I
   INTEGER iSIZE, iunit
-  REAL*8 OMEGA
+  real(dp) OMEGA
   LOGICAL TPERIODIC
-  REAL*8, PARAMETER :: PI=3.1415926535897932384626433832795029D0
+  real(dp), PARAMETER :: PI=3.1415926535897932384626433832795029D0
   IF(TPERIODIC) WRITE(6,*) "Periodic UEG"
   iunit = get_free_unit()
   OPEN(iunit,FILE='TMAT',STATUS='UNKNOWN')

@@ -1,8 +1,8 @@
 
-!! NB SYMSETUPEXCITS uses a store which has INTEGER*8 to cope with 64-bit machines, and passes this directly to SYMSETUPEXCITS2
-!!  Iterators which use GENSYMEXCITIT2 use an INTEGER STORE, and create an INTEGER*8 STORE2 internally, and pass this to SYMSETUPEXCITS2
+!! NB SYMSETUPEXCITS uses a store which has integer(int64) to cope with 64-bit machines, and passes this directly to SYMSETUPEXCITS2
+!!  Iterators which use GENSYMEXCITIT2 use an INTEGER STORE, and create an integer(int64) STORE2 internally, and pass this to SYMSETUPEXCITS2
 
-!! SYMSETUPEXCITS takes an INTEGER*8 STORE(6) which stores the pointers used by SYMSETUPEXCITS2
+!! SYMSETUPEXCITS takes an integer(int64) STORE(6) which stores the pointers used by SYMSETUPEXCITS2
 !!   This STORE can then be passed to SYMGENEXCITS.
 C.. Setup for symmetry routine below.
       SUBROUTINE SYMSETUPEXCITS(NI,NEL,NBASIS,STORE,TCOUNT,
@@ -867,7 +867,7 @@ C.. And the doubles
       End Subroutine
 
 
-!  Must be called after SYMSETUPEXCITS.  Needs INTEGER*8 STORE and frees memory therein
+!  Must be called after SYMSETUPEXCITS.  Needs integer(int64) STORE and frees memory therein
       SUBROUTINE SYMGENEXCITS(NI,NEL,STORE,LSTE,DSTORE,ExcitTypes,
      &   nAllowPPS,OrbPairs,SymProdInd,
      &   ICLIST,ICOUNT)
@@ -2418,8 +2418,8 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
          INTEGER, target :: nIExcitor(*)
          TYPE(BasisFN) G1(nBasis) 
          INTEGER, pointer :: DStore(:)
-         REAL*8 pGen
-         REAL*8 Arr(nBasis,2)
+         real(dp) pGen
+         real(dp) Arr(nBasis,2)
          DSTORE=>nIExcitor(nIExcitor(1):2)
          CALL GenExcitProb2(nI,nJ,nEl,G1,nBasisMax,Arr,nBasis,
      &      nIExcitor(nIExcitor(4)),nIExcitor(nIExcitor(5)),
@@ -2460,8 +2460,8 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
          INTEGER OrbPairs(2,*)
          INTEGER SymProdInd(2,3,1:*)
          TYPE(Symmetry) SymProds(0:*)
-         REAL*8 pGen
-         REAL*8 Arr(nBasis,2)
+         real(dp) pGen
+         real(dp) Arr(nBasis,2)
          CALL GenExcitProbInternal(nI,nJ,nEl,G1,nBasisMax,Arr,
      &  nBasis,OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,
      &   iTotal,pGen)
@@ -2475,7 +2475,7 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
 !         INTEGER ILEN,IPOST,LEN,ILEAD
 !         INTEGER ADDR,LEAD,POST,LINES
 !#ifdef POINTER8
-!         INTEGER*8 LOC
+!         integer(int64) LOC
 !#else
 !         INTEGER LOC
 !#endif

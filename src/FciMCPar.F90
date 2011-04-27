@@ -110,7 +110,7 @@ MODULE FciMCParMod
         REAL(4) :: s_start,s_end,etime,tstart(2),tend(2),totaltime
         real(dp) :: TotalTime8
         INTEGER(int64) :: MaxWalkers,MinWalkers
-        real*8 :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
+        real(dp) :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
         integer, dimension(lenof_sign) :: tmp_sgn
         integer :: tmp_int(lenof_sign), i
         real(dp) :: grow_rate
@@ -425,7 +425,7 @@ MODULE FciMCParMod
                 integer, intent(out) :: nJ(nel) 
                 integer(kind=n_int), intent(out) :: iLutJ(0:niftot)
                 integer, intent(out) :: ic, ex(2,2)
-                real*8, intent(out) :: pGen
+                real(dp), intent(out) :: pGen
                 logical, intent(out) :: tParity
                 HElement_t, intent(out) :: HEl
                 type(excit_gen_store_type), intent(inout), target :: store
@@ -1727,7 +1727,7 @@ MODULE FciMCParMod
         INTEGER :: DetCurr(NEl),nJ(NEl),IC,ExtraCreate,Ex(2,2),Bin
         INTEGER(KIND=n_int) :: iLutCurr(0:NIfTot),iLutnJ(0:NIfTot)
         LOGICAL :: tParity
-        REAL*8 :: Prob,r,rat
+        real(dp) :: Prob,r,rat
         integer, dimension(lenof_sign), intent(in) :: wSign
         HElement_t :: rh
 
@@ -2098,7 +2098,7 @@ MODULE FciMCParMod
     SUBROUTINE SortCompressListswH(Length,PartList,SignList,HList)
         INTEGER :: Length,SignList(Length)
         INTEGER(KIND=n_int) :: PartList(0:NIfTot,Length)
-        REAL*8 :: HList(Length)
+        real(dp) :: HList(Length)
         INTEGER :: i,DetsMerged,VecInd
 
         call sort (PartList, SignList, HList)
@@ -2138,7 +2138,7 @@ MODULE FciMCParMod
     SUBROUTINE WriteHistogramEnergies()
         use util_mod, only: get_free_unit
         INTEGER :: i, io(8)
-        REAL*8 :: Norm,EnergyBin
+        real(dp) :: Norm,EnergyBin
 
         IF(iProcIndex.eq.Root) THEN
             AllHistogramEnergy(:)=0.D0
@@ -2318,7 +2318,7 @@ MODULE FciMCParMod
         use DetCalcData , only : FCIDets
         use util_mod, only: get_free_unit
         INTEGER :: i,nI(NEl),ExcitLevel,j, iunit
-        REAL*8 :: norm,norm1
+        real(dp) :: norm,norm1
 
         CALL MPISumAll(Histogram,AllHistogram)
         norm1=0.D0
@@ -2381,7 +2381,7 @@ MODULE FciMCParMod
         use SystemData , only : BasisFN
         use util_mod, only: get_free_unit
         INTEGER :: i,IterRead, io1, io2, io3
-        REAL*8 :: norm,norm1,norm2,norm3,ShiftRead,AllERead,NumParts
+        real(dp) :: norm,norm1,norm2,norm3,ShiftRead,AllERead,NumParts
         CHARACTER(len=22) :: abstr,abstr2
         LOGICAL :: exists
 
@@ -3497,7 +3497,7 @@ MODULE FciMCParMod
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
         HElement_t :: TempHii
         TYPE(BasisFn) HFSym
-        REAL*8 :: TotDets,SymFactor,r,Gap
+        real(dp) :: TotDets,SymFactor,r,Gap
         CHARACTER(len=*), PARAMETER :: this_routine='SetupParameters'
         CHARACTER(len=12) :: abstr
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped,TestClosedShellDet
@@ -5967,7 +5967,7 @@ MODULE FciMCParMod
         integer :: iSpn,FirstA,nJ(NEl),a,Ex(2,2),kx,ky,kz,OrbB,FirstB
         integer :: ki2,kj2
         logical :: tParity,tMom
-        real*8 :: Ranger,mp2,mp2all,length,length_g,length_g_2
+        real(dp) :: Ranger,mp2,mp2all,length,length_g,length_g_2
         HElement_t :: hel,H0tmp
 
         !Divvy up the ij pairs
@@ -6336,7 +6336,7 @@ MODULE FciMCParMod
       implicit none
       integer, intent(in) :: WalkerListSize
       integer ierr,i,j
-      real*8 Gap
+      real(dp) Gap
       MaxSpawned=NINT(MemoryFacSpawn*WalkerListSize)
 !            WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for spawning of: ",MaxSpawned
             

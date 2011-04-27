@@ -1,10 +1,11 @@
 C ===================================================================
       SUBROUTINE CALCUMATHUBREAL(NBASIS,UHUB, UMAT)
          use UMatCache , only : UMatInd
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER NBASIS
-         REAL*8 UMAT(*)
-         REAL*8 UHUB
+         real(dp) UMAT(*)
+         real(dp) UHUB
          INTEGER I,IC
          OPEN(10,FILE='UMAT',STATUS='UNKNOWN')
          IC=1
@@ -27,11 +28,13 @@ C returns the non-interacting energy of state with
 C..quatum numbers (i,j,k) for Hubbard model of 
 C..lengths (LX,LY,LZ) PBC.
 C..Returned in sum
-      use constants, only: Pi, Pi2, THIRD
-      IMPLICIT REAL*8 (A-H,O-Z)
+      use constants, only: Pi, Pi2, THIRD,dp
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
       INTEGER nBasisMax(5,*),AX,AY
-      INTEGER LX,LY,LZ
+      INTEGER LX,LY,LZ,K,J,I
       LOGICAL TTILT,TREAL
+      real(dp) :: TOTSUM,BHUB
       LX=NBASISMAX(1,2)-NBASISMAX(1,1)+1
       LY=NBASISMAX(2,2)-NBASISMAX(2,1)+1
       LZ=NBASISMAX(3,2)-NBASISMAX(3,1)+1
@@ -60,11 +63,14 @@ C returns the non-interacting energy of state with
 C..quatum numbers (i,j,k) for Hubbard model of 
 C..lengths (LX,LY,LZ).  NON-PBC
 C..Returned in sum
+      use constants, only: dp
       use constants, only: Pi, Pi2, THIRD
-      IMPLICIT REAL*8 (A-H,O-Z)
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
       INTEGER nBasisMax(5,*),AX,AY
       LOGICAL TTILT,TREAL
-      INTEGER II,JJ,KK
+      INTEGER II,JJ,KK,K,J,I,LZ,LX,LY
+      real(dp) :: BHUB,TOTSUM
       LX=NBASISMAX(1,2)-NBASISMAX(1,1)+1
       LY=NBASISMAX(2,2)-NBASISMAX(2,1)+1
       LZ=NBASISMAX(3,2)-NBASISMAX(3,1)+1
@@ -98,12 +104,12 @@ C         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
          IMPLICIT NONE
          INTEGER NBASIS,nBasisMax(5,*)
          TYPE(BasisFN) G1(nBasis)
-         REAL*8 BHUB
+         real(dp) BHUB
          INTEGER iSize
          INTEGER I,J
          INTEGER DX,DY,DZ,LX,LY,LZ
          LOGICAL TTILT,TREAL,TPBC
-         REAL*8 TOTSUM
+         real(dp) TOTSUM
          IF(iProcIndex.eq.0) OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
          IF(TSTARSTORE) STOP 'Using TSTARSTORE with HUB??!'
          CALL SetupTMAT(NBASIS,2,iSize)
@@ -381,13 +387,14 @@ C.. Setup the symmetry product table
 !  not just one of the subcomponents
       SUBROUTINE GENHUBSYMREPS(NBASIS,ARR,BRR)
          use global_utilities
+         use constants, only: dp
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: SymReps,tagSymReps
          IMPLICIT NONE
          INTEGER I,J
          INTEGER NBASIS,BRR(NBASIS)
-         REAL*8 ARR(NBASIS)
+         real(dp) ARR(NBASIS)
          character(*), parameter :: this_routine='GenHubSymReps'
          
 C.. now work out which reps are degenerate and label them

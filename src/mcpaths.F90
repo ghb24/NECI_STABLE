@@ -50,21 +50,21 @@ contains
          INTEGER I_VMAX,NEL,NBASIS
          INTEGER IPATH(NEL,0:I_VMAX)
          INTEGER NI(NEL)
-         COMPLEX*16 FCK(*)
+         complex(dp) FCK(*)
          INTEGER I_P,I_HMAX,BRR(*),NMSH,NMAX
          INTEGER NTAY(2),NWHTAY(3,I_VMAX),ILOGGING,I,I_V
          INTEGER L,LT,J
          real*4 otime,itime,etime,tarr(2)
-         REAL*8 BETA,ECORE
+         real(dp) BETA,ECORE
          real(dp) WLRI,WLSI
          HElement_t UMat(*),RH
-         REAL*8 NTOTAL
+         real(dp) NTOTAL
 
          real(dp) F(2:I_VMAX)
          CHARACTER*40 STR
          real(dp) TOTAL,RHOII(0:I_VMAX)
          HElement_t RHOIJ(0:I_VMAX,0:I_VMAX)
-         REAL*8 ALAT(3),RHOEPS
+         real(dp) ALAT(3),RHOEPS
          INTEGER  nBasisMax(5,*)
          INTEGER LSTE(*),ILMAX
 !CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
@@ -73,7 +73,7 @@ contains
 !C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER NLIST(0:I_VMAX-1),LSTP(0:I_VMAX-1),BTABLE(0:I_VMAX)
          LOGICAL TLOG,TSYM
-         REAL*8 DBETA
+         real(dp) DBETA
          real(dp) DLWDB,DLWDB2,EREF
          HElement_t  HIJS(0:I_VMAX)
          TYPE(EGP) LOCTAB(I_VMAX)
@@ -81,10 +81,10 @@ contains
          INTEGER I_CHMAX,CNWHTAY
          INTEGER ISEED,ICOUNT
          real(dp) FF,DLWDB3,TEMPTOT
-         REAL*8 FSQ(2:I_VMAX),STD
-         REAL*8 NTIME,VARSUM
+         real(dp) FSQ(2:I_VMAX),STD
+         real(dp) NTIME,VARSUM
          INTEGER IFRZ(0:NBASIS,I_VMAX),I_V1,I_V2,T
-         REAL*8 OSI
+         real(dp) OSI
          real(dp) MP2E(2:I_VMAX)
          LOGICAL TLOGP
          type(timer), save :: proc_timer
@@ -430,20 +430,20 @@ contains
          INTEGER I_VMAX,NEL,NBASIS
          INTEGER IPATH(NEL,0:I_VMAX)
          INTEGER NI(NEL)
-         COMPLEX*16 FCK(*)
+         complex(dp) FCK(*)
          HElement_t UMat(*), RH
          INTEGER I_P,I_HMAX,BRR(*),NMSH,NMAX
          INTEGER NTAY(2),NWHTAY(3,I_VMAX),ILOGGING,I,I_V
          type(timer), save :: proc_timer,proc_timer2
          INTEGER L,LT,ITIME
-         REAL*8 BETA,ECORE
+         real(dp) BETA,ECORE
          real*4 etime,tarr(2)
          real(dp) WLRI,WLSI
          real(dp) F(2:I_VMAX)
          CHARACTER*40 STR
          HElement_t RHOIJ(0:I_VMAX,0:I_VMAX)
          real(dp) RHOII(0:I_VMAX),TOTAL
-         REAL*8 ALAT(3),RHOEPS
+         real(dp) ALAT(3),RHOEPS
          INTEGER nBasisMax(5,*)
          INTEGER, allocatable :: LSTE(:,:,:)
          INTEGER ILMAX
@@ -453,14 +453,14 @@ contains
 !C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER NLIST(0:I_VMAX-1),LSTP(0:I_VMAX-1),BTABLE(0:I_VMAX)
          LOGICAL TLOG,TSYM
-         REAL*8 DBETA
+         real(dp) DBETA
          HElement_t HIJS(0:I_VMAX)
          type(EGP), target ::  LOCTAB(I_VMAX)
          real(dp) DLWDB,DLWDB2,EREF
-         REAL*8 NTIME,OTIME,VARSUM
+         real(dp) NTIME,OTIME,VARSUM
          INTEGER IFRZ(0:NBASIS,I_VMAX)
          real(dp) MP2E(2:I_VMAX),H00,FF
-         REAL*8 NTOTAL
+         real(dp) NTOTAL
          real(dp) FMCPR3STAR
          write(6,*) "MCPATHSR3:  I_HMAX=",I_HMAX
 ! Init the weight of the 1-v graph
@@ -719,8 +719,8 @@ contains
          INTEGER I_V,NEL,I_P,nBasisMax(5,*),NBASIS,BRR(*),NMSH,NMAX
          INTEGER NTAY(2),I_VIND,NWHTAY,L,LT,ILOGGING
          INTEGER I,IVLMAX,II
-         REAL*8 ALAT(*),ECORE
-         COMPLEX*16 FCK(*)
+         real(dp) ALAT(*),ECORE
+         complex(dp) FCK(*)
          real(dp) CALCPATHS_N
          HElement_t UMat(*),R
          INTEGER IPATH(NEL,0:I_V)
@@ -737,7 +737,7 @@ contains
          INTEGER ICE(0:ILMAX,0:I_V-1)
          HElement_t RIJLIST(0:ILMAX,0:I_V-1)
          INTEGER IVLEVEL,I_HMAX,BTABLE(0:I_V)
-         REAL*8 BETA,RHOEPS,DBETA
+         real(dp) BETA,RHOEPS,DBETA
          LOGICAL TSYM
          LOGICAL TLOG,TLOG2,TLOG3,TLOG4,TLOG5
          real(dp) DLWDB,DLWDB2
@@ -1044,9 +1044,9 @@ contains
          TYPE(BasisFN) G1(*),ISYM
          INTEGER I_V,NEL,I_P,nBasisMax(5,*),NBASIS,BRR(*),NMSH,NMAX
          INTEGER NTAY(2),I_VIND,NWHTAY,ILOGGING,J,II
-         COMPLEX*16 FCK(*)
+         complex(dp) FCK(*)
          HElement_t UMAT(*)
-         REAL*8 ALAT(*),ECORE,PR
+         real(dp) ALAT(*),ECORE,PR
          real(dp) TOTAL,FMCPR3BRES,WREF,EREF,PROB
          real(dp) CALCPATHS_N
          INTEGER IPATH(NEL,0:I_V)
@@ -1055,10 +1055,10 @@ contains
          INTEGER INODE(NEL)
          INTEGER NI(NEL),NJ(NEL)
          INTEGER I_HMAX
-         REAL*8 BETA,RHOEPS
+         real(dp) BETA,RHOEPS
          LOGICAL TSYM
          LOGICAL TLOG,TLOG2,TLOG3,TLOG4,TLOG5,TLOG6
-         REAL*8 DBETA
+         real(dp) DBETA
          INTEGER ICLS
          INTEGER,pointer :: NMEM(:)
          INTEGER NMEMLEN
@@ -1077,11 +1077,11 @@ contains
          INTEGER IFRZ(0:NBASIS,I_V),IFRZ2(0:NBASIS)
          INTEGER EX(2,2),ICIL,ICILMAX
          INTEGER STORE(6)
-         REAL*8 FSCALE,FSC2
+         real(dp) FSCALE,FSC2
          real(dp) MP2E(:),NTOTAL
          INTEGER EXFLAG
          LOGICAL ISCONNECTEDDET
-         REAL*8 VARSUM,SumX,SumY,SumXY,SumXsq,SumYsq,SumP
+         real(dp) VARSUM,SumX,SumY,SumXY,SumXsq,SumYsq,SumP
          DATA SumP/0.D0/
          SAVE SumX,SumY,SumXY,SumXsq,SumYsq,SumP
 !         write(6, *) "FMCPR3B I_VIND:",I_VIND
@@ -1667,7 +1667,7 @@ end module mcpaths
          IMPLICIT NONE
          INTEGER iV,i1,i2,i3
          CHARACTER*1 c
-         REAL*8 r1,r2,r3,r4
+         real(dp) r1,r2,r3,r4
          real(dp) wWeight,wETilde
          
          OPEN(43,FILE="MCPATHS",STATUS="OLD")
@@ -1686,9 +1686,9 @@ end module mcpaths
       FUNCTION ORBENERGY(ARR,orbnum)
           use constants, only: dp
           IMPLICIT NONE
-          REAL*8 ARR(*)
+          real(dp) ARR(*)
           INTEGER orbnum
-          REAL*8 ORBENERGY
+          real(dp) ORBENERGY
           ORBENERGY=ARR(orbnum)
           RETURN
       END FUNCTION ORBENERGY

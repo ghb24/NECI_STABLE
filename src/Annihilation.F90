@@ -870,7 +870,7 @@ MODULE AnnihilationMod
         INTEGER :: TotWalkersNew,ValidSpawned
         INTEGER :: i,DetsMerged,nJ(NEl),part_type
         INTEGER, DIMENSION(lenof_sign) :: CurrentSign,SpawnedSign
-        REAL*8 :: HDiag
+        real(dp) :: HDiag
         LOGICAL :: TestClosedShellDet
         character(*), parameter :: this_routine = 'InsertRemoveParts'
         HElement_t :: HDiagTemp

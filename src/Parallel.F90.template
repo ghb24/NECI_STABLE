@@ -1398,7 +1398,7 @@ Subroutine GetProcElectrons(iProcIndex,iMinElec,iMaxElec)
    use SystemData, only: nEl
    implicit none
    integer iProcIndex,iMinElec,iMaxElec
-   real*8 nCur
+   real(dp) nCur
 #ifdef PARALLEL
 !Invert X=n(n-1)/2
    nCur=((nProcessors+1-iProcIndex)*nEl*(nEl-1.d0)/nProcessors)

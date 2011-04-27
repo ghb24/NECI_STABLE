@@ -1,10 +1,13 @@
       SUBROUTINE MY_HPSI(NDET,NEVAL,NROW,LAB,HAMIL,CK,CKN,
      &                      TLargest)
       use global_utilities
-      IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION HAMIL(*),CKN(NDET,NEVAL)
+      use constants, only : dp
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
+      real(dp) :: HAMIL(*),CKN(NDET,NEVAL)
       INTEGER LAB(*),NROW(NDET)
-      DIMENSION CK(NDET,NEVAL)
+      real(dp) :: CK(NDET,NEVAL),AUX
+      integer :: NEVAL,NDET,I,J,K,L,IBEG
       LOGICAL :: TLargest
       type(timer), save :: proc_timer
 C ==-----------------------------------------------------------------==
@@ -50,8 +53,11 @@ C ==-----------------------------------------------------------------==
       END
 C ==-----------------------------------------------------------------==
       SUBROUTINE TST_MATMUL(NDET,NEVAL,HTEMP,CK,CKN)
-      IMPLICIT REAL*8 (A-H,O-Z)
-      REAL*8 HTEMP(NDET,NDET),CK(NDET,NEVAL),CKN(NDET,NEVAL)
+!      IMPLICIT real(dp) (A-H,O-Z)
+      use constants, only : dp
+      IMPLICIT NONE
+      integer :: NDET,NEVAL
+      real(dp) HTEMP(NDET,NDET),CK(NDET,NEVAL),CKN(NDET,NEVAL)
 C..
       CALL DGEMM('N','N',NDET,NEVAL,NDET,1.D0,HTEMP,NDET,
      &    CK,NDET,1.D0,CKN,NDET)

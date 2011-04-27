@@ -867,8 +867,8 @@ C.. Get the Hamiltonian Element between two CSFs
          INTEGER SO1(NEL),SO2(NEL)
          INTEGER I,J
          type(timer), save :: proc_timer
-         REAL*8 COEFF1,COEFF2
-         REAL*8,allocatable :: COEFFLIST2(:)
+         real(dp) COEFF1,COEFF2
+         real(dp),allocatable :: COEFFLIST2(:)
          integer(TagIntType),save :: tagLISTD1=0,tagLISTD2=0,tagDOLISTD1=0
          integer(TagIntType),save :: tagDOLISTD2=0,tagCOEFFLIST2=0
          character(*), parameter :: this_routine='CSFGETHELEMENT'
@@ -962,11 +962,12 @@ C.. This is a product of Clebsch-Gordon coefficients
 C.. (and is independent of which spatial orbitals SORDER and DORDER
 C..  refer to as long as they are always ordered)
       SUBROUTINE CSFGETDETCOEFF(SORDER,DORDER,NOPEN,COEFF)
+         use constants, only: dp
          IMPLICIT NONE
-         REAL*8 COEFF,CG
+         real(dp) COEFF,CG
          INTEGER NOPEN,SORDER(NOPEN),DORDER(NOPEN)
          INTEGER I,SCUR,MCUR
-         REAL*8 S,M
+         real(dp) S,M
          COEFF=1.D0
          S=0.D0
          M=0.D0
@@ -990,11 +991,12 @@ C.. projected spin change MN_=(+/-)1/2
 C.. For SN_=+1/2 set SN=1, and for SN_=-1/2 set SN=0
 C.. For MN_=+1/2 set MN=1, and for MN_=-1/2 set MN=0
       SUBROUTINE GETCLEBSCHGORDON(S,M,SN,MN,COEFF)
+         use constants, only: dp
          IMPLICIT NONE
-         REAL*8 S,M,COEFF
+         real(dp) S,M,COEFF
          INTEGER SN,MN
 
-         REAL*8 MN_
+         real(dp) MN_
          MN_=MN-0.5D0
          IF(SN.EQ.0) THEN
             COEFF=-2.D0*MN_*SQRT((S+1-2*MN_*M)/(2*S+2))

@@ -50,13 +50,13 @@ MODULE HPHFRandExcitMod
         integer(kind=n_int), intent(out) :: iLutnJ(0:niftot)
         integer, intent(out) :: IC, ExcitMat(2,2)
         logical, intent(out) :: tParity ! Not used
-        real*8, intent(out) :: pGen
+        real(dp), intent(out) :: pGen
         HElement_t, intent(out) :: HEl
         type(excit_gen_store_type), intent(inout), target :: store
 
         integer(kind=n_int) :: iLutnJ2(0:niftot)
         integer :: openOrbsI, openOrbsJ, nJ2(nel), ex2(2,2), excitLevel 
-        real*8 :: pGen2
+        real(dp) :: pGen2
         HElement_t :: MatEl, MatEl2
         logical :: TestClosedShellDet, tSign, tSignOrig
         logical :: tSwapped
@@ -460,12 +460,12 @@ MODULE HPHFRandExcitMod
 !        INTEGER :: ClassCount2(ScratchSize),nIX(NEl)
 !        INTEGER :: ClassCountUnocc2(ScratchSize)
 !        INTEGER :: i,Iterations,nI(NEl),nJ(NEl),DetConn,nI2(NEl),nJ2(NEl),DetConn2,iUniqueHPHF,iUniqueBeta,PartInd,ierr,iExcit
-!        REAL*8 :: pDoub,pGen
+!        real(dp) :: pDoub,pGen
 !        LOGICAL :: Unique,TestClosedShellDet,Die,tGenClassCountnI,tSwapped
 !        INTEGER(KIND=n_int) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot),iLutnI2(0:NIfTot),iLutSym(0:NIfTot)
 !        INTEGER(KIND=n_int), ALLOCATABLE :: ConnsAlpha(:,:),ConnsBeta(:,:),UniqueHPHFList(:,:)
 !        INTEGER , ALLOCATABLE :: ExcitGen(:)
-!        REAL*8 , ALLOCATABLE :: Weights(:)
+!        real(dp) , ALLOCATABLE :: Weights(:)
 !        INTEGER :: iMaxExcit,nStore(6),nExcitMemLen,j,k,l, iunit
 !        integer :: icunused, exunused(2,2), scratch3(scratchsize)
 !        logical :: tParityunused, tTmp

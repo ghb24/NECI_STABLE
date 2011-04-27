@@ -1,5 +1,5 @@
 MODULE MCStat
-      use constants, only: dp
+      use constants, only: dp,int64
       IMPLICIT NONE
       TYPE BlockStats
          real(dp), POINTER :: wCurBlock(:)  !(0:)
@@ -9,9 +9,9 @@ MODULE MCStat
          INTEGER                       iBMax
          !Histogram average value of block:
          Integer                     bucketCount
-         Integer*8, Pointer       :: buckets(:,:)  !(0:,0:)
-         Real*8, Pointer          :: bucketMin(:)  !(0:)
-         Real*8, Pointer          :: bucketMax(:)  !(0:)
+         integer(int64), Pointer       :: buckets(:,:)  !(0:,0:)
+         real(dp), Pointer          :: bucketMin(:)  !(0:)
+         real(dp), Pointer          :: bucketMax(:)  !(0:)
       END TYPE
       TYPE BlockStatsCov
          real(dp), POINTER :: wBlockSum(:)  !(0:)
@@ -24,8 +24,8 @@ MODULE MCStat
          TYPE(BlockStats)           BlockRatio
          TYPE(BlockStatsCov)        BlockSignDeltaSign
          !  Magically, F90 will know the relevant numbers of rows and columns in this once it has been created.
-         INTEGER*8, POINTER         :: nGen(:,:)  !(0:,0:)
-         INTEGER*8, POINTER         :: nAcc(:,:)  !(0:,0:)
+         integer(int64), POINTER         :: nGen(:,:)  !(0:,0:)
+         integer(int64), POINTER         :: nAcc(:,:)  !(0:,0:)
          real(dp), POINTER :: wWeighting(:)  !(0:)
          real(dp), POINTER :: wWeightingSq(:)  !(0:)
          real(dp), POINTER :: wGraphWeight(:)  !(0:)
@@ -37,21 +37,21 @@ MODULE MCStat
          real(dp), POINTER :: wTrees(:)  !(0:)
          real(dp), POINTER :: wNonTreesPos(:)  !(0:)
          real(dp), POINTER :: wNonTreesNeg(:)  !(0:)
-         INTEGER*8, POINTER         :: nGraphs(:)  !(0:)
-         INTEGER*8, POINTER         :: nNonTreesNeg(:)  !(0:)
-         INTEGER*8, POINTER         :: nNonTreesPos(:)  !(0:)
-         INTEGER*8, POINTER         :: nTrees(:)  !(0:)
-         INTEGER*8                     iAccTot
+         integer(int64), POINTER         :: nGraphs(:)  !(0:)
+         integer(int64), POINTER         :: nNonTreesNeg(:)  !(0:)
+         integer(int64), POINTER         :: nNonTreesPos(:)  !(0:)
+         integer(int64), POINTER         :: nTrees(:)  !(0:)
+         integer(int64)                     iAccTot
          INTEGER                       iVMax
-         INTEGER*8                     iSeqLen
+         integer(int64)                     iSeqLen
          INTEGER                       nSeqs
-         REAL*8                        fSeqLenSq
+         real(dp)                        fSeqLenSq
          real(dp)               woWeight
          real(dp)               woDelta
          INTEGER                       ioClass
          real(dp)               wRefValue
          real(dp)               wRefWeight
-         REAL*8                        foProb
+         real(dp)                        foProb
       END TYPE
       CONTAINS
          SUBROUTINE GetStats(MCS,iV,wAvgWeighting,wAvgWeightedValue,wAvgDelta)
@@ -66,8 +66,8 @@ MODULE MCStat
          SUBROUTINE CreateBlockStats(BS,iBlocks)
             TYPE(BlockStats) BS
             INTEGER iBlocks
-            Real*8 bucketWidth
-            Real*8 bucketCentre
+            real(dp) bucketWidth
+            real(dp) bucketCentre
             Integer i
             ALLOCATE(BS%wCurBlock(0:iBlocks))
             ALLOCATE(BS%wBlockSum(0:iBlocks))
@@ -191,11 +191,11 @@ MODULE MCStat
          SUBROUTINE AddGraph(M,nTimes, iV, wWeighting,wValue,wGraphWeight,iClass,iTree,iAcc,ioV,igV,tLog,fProb,TBLOCKING)
             IMPLICIT NONE
             TYPE(MCStats) M
-            INTEGER*8 nTimes
-            REAL*8 fProb
+            integer(int64) nTimes
+            real(dp) fProb
             INTEGER iV,iTree,iAcc,ioV,igV,iClass
             real(dp) wWeighting,wValue,wWeightedValue,wGraphWeight,wDelta
-            REAL*8 cc,ave1,ave2,hh,top,bot,calc
+            real(dp) cc,ave1,ave2,hh,top,bot,calc
             LOGICAL tLog,tNewSeq,tNewPower,TBLOCKING
             wWeightedValue=wWeighting*wValue
             IF(M%nGraphs(0).EQ.0.OR.iAcc.EQ.0.OR.(iV.EQ.ioV.AND.iV.EQ.1)) THEN
@@ -307,8 +307,8 @@ MODULE MCStat
       SUBROUTINE WriteBlockStats(iUnit,M,nGraphs)
          TYPE(BlockStats) M
          INTEGER iUnit, i
-         INTEGER*8 nBlocks,nGraphs
-         REAL*8 blockVar, blockAvg, blockError, blockErrorError
+         integer(int64) nBlocks,nGraphs
+         real(dp) blockVar, blockAvg, blockError, blockErrorError
 !         WRITE(iUnit,*) "it is WriteBlockStats which is printed" 
          WRITE(iUnit,*) "#MCBLOCKS for ",nGraphs," steps."
          DO i=0,M%iBMax
@@ -324,7 +324,7 @@ MODULE MCStat
 
       Subroutine CalcStDev(MCStat, estimatedError)
          TYPE(MCStats) MCStat
-         Real*8 estimatedError
+         real(dp) estimatedError
          Call EstimateError(MCStat, estimatedError, 0)
       End subroutine
 
@@ -333,9 +333,9 @@ MODULE MCStat
          TYPE(BlockStats) BlockWeightDelta, BlockWeight
          TYPE(BlockStatscov) BlockProduct
          INTEGER blockIndex
-         INTEGER*8 nBlocks
-         Real*8 weightAvg, weightDeltaAvg
-         Real*8 weightVar, weightDeltaVar, coVar, estimatedVar, estimatedError, jj, kk
+         integer(int64) nBlocks
+         real(dp) weightAvg, weightDeltaAvg
+         real(dp) weightVar, weightDeltaVar, coVar, estimatedVar, estimatedError, jj, kk
 
          BlockProduct = MCStat%BlockSignDeltaSign
          BlockWeightDelta = MCStat%BlockDeltaSign
@@ -360,8 +360,8 @@ MODULE MCStat
          TYPE(MCStats) MCStat
          TYPE(BlockStats) BlockRatio
          INTEGER iUnit, i
-         INTEGER*8 nBlocks
-         Real*8 ratioAvg, ratioVar, estimatedError, ratioError
+         integer(int64) nBlocks
+         real(dp) ratioAvg, ratioVar, estimatedError, ratioError
          BlockRatio = MCStat%BlockRatio
          
 !         WRITE(iUnit,*) "It is writeblockstatsII which is printed"
@@ -473,7 +473,7 @@ MODULE MCStat
          TYPE(BlockStats) BS, BDS, BlockRatio
          TYPE(BlockStatsCov) BSDS
          real(dp) wDS,wS,wValTotDS,wValTotS
-         INTEGER*8 no,nc,nt,iBlockSize,nGraphs,nTimes
+         integer(int64) no,nc,nt,iBlockSize,nGraphs,nTimes
          real(dp) bbS,bbDS
          INTEGER i,iobmax
 
@@ -540,7 +540,7 @@ MODULE MCStat
          Type(BlockStats) BS
          real(dp) newBlock
          Integer blockSizeIndex, bucketIndex, blockCount
-         Real*8 bucketWidth, newBlockV
+         real(dp) bucketWidth, newBlockV
 
          newBlockV = newBlock         
 
@@ -562,7 +562,7 @@ MODULE MCStat
     Subroutine WriteHistogram(fileNumber, BS)
          Type(BlockStats) BS
          Integer fileNumber, iBuckets, iBlockSize
-         Real*8 bucketWidth         
+         real(dp) bucketWidth         
          
          Do iBuckets=1, BS%bucketCount
              Do iBlockSize=0, BS%iBMax
@@ -577,7 +577,7 @@ MODULE MCStat
       SUBROUTINE WriteStats(M,iUnit)
          TYPE(MCStats) M
          INTEGER iUnit
-         REAL*8 rStDev
+         real(dp) rStDev
          real(dp) iC
          iC=M%nGraphs(0)+0.D0
          CALL CalcStDev(M,rStDev)
@@ -614,8 +614,8 @@ MODULE MCStat
 !         c(UV) = {$nind=$n*(0.5**$corrt);}
          SUBROUTINE CalcStDevOLD(M,rStDev)
             TYPE(MCStats) M
-            REAL*8 rStDev
-            REAL*8 x,sxbx2,sx,uv,suv2,u,su2,v,sv2,n,nind
+            real(dp) rStDev
+            real(dp) x,sxbx2,sx,uv,suv2,u,su2,v,sv2,n,nind
             n=M%nGraphs(0)
             nind=M%nseqs
 !            WRITE(6,*) "N,NIND:",N,NIND
@@ -656,7 +656,7 @@ MODULE MCStat
             CHARACTER*20 STR2
             INTEGER I,J
             real(dp) OW,OE,iC
-            REAL*8 Time,fAveSeqLen
+            real(dp) Time,fAveSeqLen
             iC=(M%nGraphs(0))
             WRITE(iUnit,"(I12,2G25.16,F19.7,2I12,G25.12)") M%iVMax,M%wWeighting(0)/iC-OW,M%wWeighting(0)/iC, &
       &             Time,M%nGraphs(0),M%nGraphs(0)-M%nGraphs(1),M%wDelta(0)/iC-OE
@@ -688,7 +688,7 @@ MODULE MCStat
             CHARACTER*20 STR2
             INTEGER I,J
             real(dp) OW,iC,wAvgWeighting,wAvgWeightedValue,wAvgDelta
-            REAL*8 Time,fAveSeqLen
+            real(dp) Time,fAveSeqLen
             iC=(M%nGraphs(0))
             Call GetStats(M,0,wAvgWeighting,wAvgWeightedValue,wAvgDelta)
             WRITE(iUnit,"(I12,2G25.16,F19.7,2I12,G25.12)") M%iVMax,wAvgWeighting,wAvgWeighting+OW,Time,M%nGraphs(0), &
@@ -717,7 +717,7 @@ MODULE MCStat
             real(dp) :: w(0:iV),wSq(0:iV)
             real(dp) wV,t
             INTEGER iV
-            INTEGER*8 nTimes
+            integer(int64) nTimes
             t=nTimes+0.D0
             t=t*wV
             w(0)=w(0)+t
@@ -730,14 +730,14 @@ MODULE MCStat
             real(dp) :: w(0:iV)
             real(dp) wV,t
             INTEGER iV
-            INTEGER*8 nTimes
+            integer(int64) nTimes
             t=nTimes+0.D0
             t=t*wV
             w(0)=w(0)+t
             w(iV)=w(iV)+t
          END subroutine
          SUBROUTINE AddN(n,iV,nV)
-            INTEGER*8 :: n(0:iV),nV
+            integer(int64) :: n(0:iV),nV
             INTEGER iV
             n(0)=n(0)+nV
             n(iV)=n(iV)+nV

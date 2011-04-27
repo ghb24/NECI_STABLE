@@ -1,10 +1,16 @@
       SUBROUTINE RLSXC_SC(NEL,NMSH,NMAX,SITAB,IOBS,JOBS,KOBS,
      &    NDET1,G1,NHG,AUXC)
       use SystemData, only: BasisFN
-      IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION NDET1(NEL),AUXC(NMSH,NMSH,NMSH)
-      DIMENSION SITAB(NMSH,NMAX)
+      use constants, only: dp
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
+      integer :: NDET1(NEL)
+      real(dp) :: AUXC(NMSH,NMSH,NMSH)
+      real(dp) :: SITAB(NMSH,NMAX)
       TYPE(BasisFN) G1(NHG)
+      integer :: NHG,NMAX,NMSH,NEL,KI,KJ,IX,IY,IZ,IDS
+      real(dp) :: U1KIR1,U2KJR2,U1KJR1,U2KIR2,U1
+      integer :: IOBS,JOBS,KOBS
 C..
       AUXC=0.d0
       DO KI=1,NEL-1
@@ -29,8 +35,8 @@ C..
         AUXC(IX,IY,IZ)=AUXC(IX,IY,IZ)+
      &      U1KIR1*U1KIR1*U2KJR2*U2KJR2+
      &      U1KJR1*U1KJR1*U2KIR2*U2KIR2-
-     &       U1KIR1*U1KJR1*U2KJR2*U2KIR2*DFLOAT(IDS)-
-     &      U1KJR1*U1KIR1*U2KIR2*U2KJR2*DFLOAT(IDS)
+     &       U1KIR1*U1KJR1*U2KJR2*U2KIR2*real(IDS,dp)-
+     &      U1KJR1*U1KIR1*U2KIR2*U2KJR2*real(IDS,dp)
           ENDDO
             ENDDO
           ENDDO
@@ -42,8 +48,11 @@ C..
 C ==-----------------------------------------------------------------==
       FUNCTION U1(ND,NX,NMSH,NHG,G1,SITAB,I,J,K)
       use SystemData, only: BasisFN
-      IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION SITAB(NMSH,NX)
+!      IMPLICIT real(dp) (A-H,O-Z)
+      use constants, only: dp
+      IMPLICIT NONE
+      real(dp) :: SITAB(NMSH,NX),U1
+      integer :: NMSH,NX,NHG,I,J,K,ND
       TYPE(BasisFN) G1(NHG)
 C..
       U1=
@@ -53,7 +62,9 @@ C..
 C =====================================
 C We want to get rid of this really ... it is a bit opaque
       SUBROUTINE CHK(N,L,IDS)
-      IMPLICIT REAL*8 (A-H,O-Z)
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
+      integer :: N,L,IDS,DS
       DS=N*L
       IF(IDS.LT.0) IDS=0
       RETURN

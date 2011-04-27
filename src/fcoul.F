@@ -6,10 +6,14 @@ C.. Returns the Couloumb integral between the Slater
 C.. determinants of Sin function basis, using the Fourier 
 C.. method. 
 C=========================================================
-      IMPLICIT REAL*8(A-H,O-Z)
-      INTEGER G1(3),G2(3),G1P(3),G2P(3)
-      COMPLEX*16 ZIA(-N/2:N/2,NMAX,NMAX) 
-      COMPLEX*16 CK(-N/2:N/2-1,-N/2:N/2-1,-N/2:N/2-1)
+!      IMPLICIT real(dp)(A-H,O-Z)
+      use constants, only: dp
+      IMPLICIT NONE
+      INTEGER :: N
+      INTEGER G1(3),G2(3),G1P(3),G2P(3),NMAX
+      complex(dp) ZIA(-N/2:N/2,NMAX,NMAX) 
+      complex(dp) CK(-N/2:N/2-1,-N/2:N/2-1,-N/2:N/2-1)
+      real(dp) :: SUM1,OUT
 
       SUM1=0.D0
       CALL VCOULFOU(N,G1,G2,G1P,G2P,SUM1,CK,NMAX,ZIA)
@@ -22,12 +26,15 @@ C =============================================================
 C Returns the Coulomb integral between states (g1g2) & (g1pg2p)
 C using the Fourier method 
 C =============================================================
-      IMPLICIT REAL*8(A-H,O-Z)
+!      IMPLICIT real(dp)(A-H,O-Z)
+      use constants, only: dp
+      IMPLICIT NONE
       INTEGER N
-      COMPLEX*16 ZIA(-N/2:N/2,NMAX,NMAX) 
-      INTEGER G1(3),G2(3),G1P(3),G2P(3)
-      COMPLEX*16 CK(-N/2:N/2-1,-N/2:N/2-1,-N/2:N/2-1)
-      COMPLEX*16 CAUX,CAUX1,CAUX2,CAUX3,ZZERO
+      complex(dp) ZIA(-N/2:N/2,NMAX,NMAX) 
+      INTEGER G1(3),G2(3),G1P(3),G2P(3),NMAX,I,K,J
+      complex(dp) CK(-N/2:N/2-1,-N/2:N/2-1,-N/2:N/2-1)
+      complex(dp) CAUX,CAUX1,CAUX2,CAUX3,ZZERO
+      real(dp) :: SUM
 C..Sum over k
       SUM=0.D0
       ZZERO=(0.D0,0.D0)

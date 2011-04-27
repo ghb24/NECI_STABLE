@@ -5,6 +5,7 @@ MODULE System
     use CalcData, only: tRotoAnnihil
     use sort_mod
     use SymExcitDataMod, only: tBuildOccVirtList
+    use constants, only: dp,int64
 
     IMPLICIT NONE
 
@@ -872,18 +873,18 @@ MODULE System
       TYPE(BasisFN) G
         
 !  For the UEG
-      REAL*8 FKF,Rs
+      real(dp) FKF,Rs
         
 ! General variables
       INTEGER i,j,k,l,iG
       INTEGER len
       type(timer), save :: proc_timer
-      REAL*8 SUM
+      real(dp) SUM
 ! Called functions
       TYPE(BasisFN) FrzSym
       logical kallowed
       integer dUnscaledE
-      real*8, allocatable :: arr_tmp(:,:)
+      real(dp), allocatable :: arr_tmp(:,:)
       integer, allocatable :: brr_tmp(:)
 
 !      write (6,*)
@@ -1487,11 +1488,12 @@ SUBROUTINE WRITEBASIS(NUNIT,G1,NHG,ARR,BRR)
   use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, nel
   use DeterminantData, only: fdet
   use sym_mod, only: writesym
+  use constants, only: dp
   IMPLICIT NONE
   INTEGER NUNIT,NHG,BRR(NHG),I
   integer :: pos
   TYPE(BASISFN) G1(NHG)
-  REAL*8 ARR(NHG,2)
+  real(dp) ARR(NHG,2)
 
   ! nb. Cannot use EncodeBitDet as would be easy, as nifd, niftot etc are not
   !     filled in yet. --> track pos.
@@ -1522,13 +1524,14 @@ SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
   use SystemData, only: BasisFN
   use sort_mod
   use util_mod, only: NECI_ICOPY
+  use constants, only: dp
   implicit none
   INTEGER NBASIS,BRR(NBASIS),ORBORDER(8,2),nBasisMax(5,*)
   INTEGER BRR2(NBASIS)
   TYPE(BASISFN) G1(NBASIS)
-  REAL*8 ARR(NBASIS,2),ARR2(NBASIS,2)
+  real(dp) ARR(NBASIS,2),ARR2(NBASIS,2)
   INTEGER IDONE,I,J,IBFN,ITOT,ITYPE,ISPIN
-  REAL*8 OEN
+  real(dp) OEN
   IDONE=0
   ITOT=0
 !.. copy the default ordered energies.
@@ -1614,10 +1617,11 @@ END subroutine ORDERBASIS
 LOGICAL FUNCTION KALLOWED(G,NBASISMAX)
   ! See if a given G vector is within a (possibly tilted) unit cell.
   ! Used to generate the basis functions for the hubbard model (or perhaps electrons in boxes)
+  use constants, only: dp
   IMPLICIT NONE
   INTEGER G(5),nBasisMax(5,*),NMAXX,I,J,AX,AY
   INTEGER KX,KY
-  REAL*8 MX,MY,XX,YY
+  real(dp) MX,MY,XX,YY
   LOGICAL TALLOW
   TALLOW=.TRUE.
   IF(NBASISMAX(3,3).EQ.1) THEN
@@ -1684,9 +1688,10 @@ END FUNCTION KALLOWED
 !dUnscaledEnergy gives the energy without reference to box size and without any offset.
 SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,Energy,dUnscaledEnergy)
    use constants, only: Pi, Pi2, THIRD
+   use constants, only: dp
    IMPLICIT NONE
    INTEGER I,J,K
-   REAL*8 ALat(3),k_offset(3),Energy,E
+   real(dp) ALat(3),k_offset(3),Energy,E
    LOGICAL tUEGOffset, tUEGTrueEnergies
    INTEGER dUnscaledEnergy
    IF(tUEGTrueEnergies) then
