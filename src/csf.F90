@@ -172,7 +172,7 @@ contains
 
         ! Working arrays. Sizes calculated in calling function.
         integer :: yama1(nopen(1)), yama2(nopen(2))
-        real*8 :: coeffs1(ndets(1)), coeffs2(ndets(2))
+        real(dp) :: coeffs1(ndets(1)), coeffs2(ndets(2))
         integer :: dets1(nel, ndets(1)), dets2(nel, ndets(2))
         integer(kind=n_int) :: ilut1(0:NIfTot,ndets(1)), ilut2(0:NIfTot,ndets(2))
         integer :: det_sum(ndets(1))
@@ -300,7 +300,7 @@ contains
 
         ! Working arrays. Sizes calculated in calling function.
         integer :: yama(nopen(1))
-        real*8 :: coeffs(ndets(1))
+        real(dp) :: coeffs(ndets(1))
         integer :: dets(nel, ndets(1))
         integer(kind=n_int) :: ilut(0:NIfTot,ndets(1))
 
@@ -351,7 +351,7 @@ contains
 
         integer, intent(in) :: nI(nel)
         integer, intent(in) :: nopen, nclosed, nup, ndets
-        real*8, intent(in) :: coeffs1(ndets), coeffs2(ndets)
+        real(dp), intent(in) :: coeffs1(ndets), coeffs2(ndets)
         integer, intent(in) :: dets1(nel,ndets)
         integer, intent(in) :: det_sum(ndets)
         logical, intent(in) :: bEqual
@@ -359,7 +359,7 @@ contains
 
         integer :: nK(nel), id(nel), ex(2,2), elecs(2)
         integer :: ndown, idX, idN, ids, det, indj, i, j
-        real*8 :: diag_coeff
+        real(dp) :: diag_coeff
         HElement_t :: hel, hel2
 
         ! TODO: bEqual
@@ -512,7 +512,7 @@ contains
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(in) :: nup(2), ndets(2)
         integer, intent(in) :: yama1(nopen(1)), yama2(nopen(2))
-        real*8, intent(out) :: coeffs1(ndets(1)), coeffs2(ndets(2))
+        real(dp), intent(out) :: coeffs1(ndets(1)), coeffs2(ndets(2))
         integer, intent(inout) :: dets1(nel, ndets(1)), dets2(nel, ndets(2))
         HElement_t :: hel_ret, hel, sum1, umatel(2)
 
@@ -1336,7 +1336,7 @@ contains
 
         integer :: nopen, nup, nchoose, pos, i
         integer :: choice(ubound(spins,1)), perm(ubound(spins,1))
-        real*8 :: r
+        real(dp) :: r
 
         ! How many alpha elecs do we have. If fewer than half, permute betas.
         nopen = ubound(spins, 1)
@@ -1467,7 +1467,7 @@ contains
         logical, intent(in) :: tForceChange
 
         integer :: yamas (0:get_num_csfs(nopen, S), nopen), num
-        real*8 :: r
+        real(dp) :: r
 
         if (nopen == 0) then
             ncsf = 0
@@ -1564,7 +1564,7 @@ contains
         num_S = (nopen+2)/2
     end function
 
-    real*8 pure function csf_coeff (csf, dorder, nopen)
+    real(dp) pure function csf_coeff (csf, dorder, nopen)
 
         ! Calculate the coefficients for each determinant contained in the
         ! CSF. These are calculated as the product of Clebsch-Gordon coeffs.
@@ -1582,7 +1582,7 @@ contains
         integer, intent(in), dimension(:) :: csf, dorder
         integer, intent(in) :: nopen
 
-        real*8 :: S, M, scur, mcur, clb
+        real(dp) :: S, M, scur, mcur, clb
         integer :: i
 
         S=0
@@ -1603,8 +1603,8 @@ contains
     ! The Clebsch-Gordon coefficient with total spin S, projected
     ! component of spin M, with state with spin change 
     ! spin=(+/-)0.5 and projected spin change sig=(+/-)0.5
-    real*8 pure function clbgrdn(S,M,spin,sig)
-        real*8, intent(in) :: S, M, spin, sig
+    real(dp) pure function clbgrdn(S,M,spin,sig)
+        real(dp), intent(in) :: S, M, spin, sig
         !if (abs(spin).ne.0.5) then
         !    call stop_all ("clbgrdn","Spin incorrect")
         !endif

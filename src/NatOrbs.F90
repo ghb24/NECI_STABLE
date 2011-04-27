@@ -20,7 +20,7 @@ MODULE NatOrbsMod
         use MemoryManager, only: TagIntType
         IMPLICIT NONE
         INTEGER(TagIntType) :: NoSpinCyc,SymOrbsTempTag
-        REAL*8 , ALLOCATABLE :: NatOrbMat(:,:),Evalues(:)
+        real(dp) , ALLOCATABLE :: NatOrbMat(:,:),Evalues(:)
         INTEGER , ALLOCATABLE :: SymOrbsTemp(:)
         INTEGER ierr
         INTEGER(TagIntType) :: NatOrbMatTag,EvaluesTag
@@ -394,7 +394,7 @@ MODULE NatOrbsMod
         INTEGER :: excit,i,j,Starti,Endi,Startj,Endj,ExcitLevel,Ex(2,1),Orbi,Orbj,nJ(NEl),Orbk,k,nI(NEl),MaxExcit
         INTEGER :: Spins
         LOGICAL :: tSign
-        REAL*8 :: SignDet
+        real(dp) :: SignDet
 
 ! Density matrix    = D_pq = < Psi | a_q+ a_p | Psi > 
 !                   = sum_ij [ c_i* c_j < D_i | a_q+ a_p | D_j > ]
@@ -595,7 +595,7 @@ MODULE NatOrbsMod
         use constants, only: dp
         INTEGER :: a,b,c,i,j,a2,b2,c2,i2,j2,x,y,z,w
         INTEGER :: Startab,Endab,NoOcc,NoOccC,Startc,Endc,Starti,Endi,Startj,Endj
-        REAL*8 :: MP2VDMSum
+        real(dp) :: MP2VDMSum
         CHARACTER(len=*), PARAMETER :: this_routine='FillMP2VDM'
         HElement_t :: HEl01,HEl02
 
@@ -791,8 +791,8 @@ MODULE NatOrbsMod
 ! This gives us flexibility w.r.t rotating only the occupied or only virtual and looking at high spin states.
         use MemoryManager, only: TagIntType
         IMPLICIT NONE
-        REAL*8 :: SumTrace,SumDiagTrace
-        REAL*8 , ALLOCATABLE :: WORK2(:),EvaluesSym(:),NOMSym(:,:)
+        real(dp) :: SumTrace,SumDiagTrace
+        real(dp) , ALLOCATABLE :: WORK2(:),EvaluesSym(:),NOMSym(:,:)
         INTEGER :: ierr,i,j,x,z,Sym,LWORK2,SymStartInd,NoSymBlock,PrevSym,StartOccVirt,EndOccVirt,Prev,NoOcc
         INTEGER(TagIntType) :: EvaluesSymTag,NOMSymTag,WORK2Tag
         CHARACTER(len=*), PARAMETER :: this_routine='DiagNatOrbMat'
@@ -1167,7 +1167,7 @@ MODULE NatOrbsMod
         CHARACTER(len=*), PARAMETER :: this_routine='FillCoeffT1'
         CHARACTER(len=5) :: Label
         CHARACTER(len=20) :: LabelFull
-        REAL*8 :: OccEnergies(1:NoRotOrbs)
+        real(dp) :: OccEnergies(1:NoRotOrbs)
   
         FillCoeff_Time%timer_name='FillCoeff'
         CALL set_timer(FillCoeff_Time,30)
@@ -1454,8 +1454,8 @@ MODULE NatOrbsMod
         use util_mod, only: get_free_unit
         IMPLICIT NONE
         INTEGER :: i,k,a,b,NoOcc,io1, io2
-        REAL*8 :: EvalueEnergies(1:NoOrbs),OrbEnergies(1:NoOrbs)
-        REAL*8 :: SumEvalues
+        real(dp) :: EvalueEnergies(1:NoOrbs),OrbEnergies(1:NoOrbs)
+        real(dp) :: SumEvalues
         
         io1 = get_free_unit()
 
@@ -1600,7 +1600,7 @@ MODULE NatOrbsMod
 
     SUBROUTINE CalcOccEnergies(OccEnergies)
         USE RotateOrbsData , only : CoeffT1,NoRotOrbs
-        REAL*8 :: OccEnergies(1:NoRotOrbs)
+        real(dp) :: OccEnergies(1:NoRotOrbs)
         INTEGER :: i,a,b,NoOcc,x,Prev,k
 
         OccEnergies(:)=0.D0
@@ -1702,7 +1702,7 @@ MODULE NatOrbsMod
 !        USE Logging , only : OrbOccs
         use util_mod, only: get_free_unit
         IMPLICIT NONE
-        REAL*8 :: Norm,OrbOccs(nBasis),AllOrbOccs(nBasis)
+        real(dp) :: Norm,OrbOccs(nBasis),AllOrbOccs(nBasis)
         INTEGER :: i,error, iunit
         LOGICAL :: tWarning
 
@@ -1745,7 +1745,7 @@ MODULE NatOrbsMod
 ! This hopefully prints it all out
         use util_mod, only: get_free_unit
         IMPLICIT NONE
-        REAL*8 :: Norm,OrbOccs(nEl,nEl,nBasis,4),AllOrbOccs(nEl,nEl,nBasis,4)
+        real(dp) :: Norm,OrbOccs(nEl,nEl,nBasis,4),AllOrbOccs(nEl,nEl,nBasis,4)
         INTEGER :: i,i2,i3,error, iunit
         LOGICAL :: tWarning
 
@@ -1866,7 +1866,7 @@ MODULE NatOrbsMod
 ! occupied orbitals first, in terms of symmetry, and the virtual second, also ordered by symmetry.
 ! This gives us flexibility w.r.t rotating only the occupied or only virtual and looking at high spin states.
         IMPLICIT NONE
-        REAL*8 , ALLOCATABLE :: NOccNums(:),Work(:)
+        real(dp) , ALLOCATABLE :: NOccNums(:),Work(:)
         INTEGER(TagIntType) :: nOccNumsTag=0,WorkTag=0
         INTEGER :: iErr,WorkSize,WorkCheck,i
         CHARACTER(len=*), PARAMETER :: this_routine='Diag1RDM'

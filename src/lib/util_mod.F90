@@ -27,7 +27,7 @@ contains
         endif
     end function abs_int_sign
 
-!routine to calculation the absolute magnitude of a complex integer*8 variable (to nearest integer)
+!routine to calculation the absolute magnitude of a complex integer(int64) variable (to nearest integer)
     pure integer(kind=int64) function abs_int8_sign(wsign)
         integer(kind=int64), dimension(lenof_sign), intent(in) :: wsign
 
@@ -95,7 +95,7 @@ contains
         endif
     end function
 
-    elemental real*8 function factrl (n)
+    elemental real(dp) function factrl (n)
 
         ! Return the factorial on n, i.e. n!
         ! This is not done in the most efficient way possible (i.e. use with
@@ -112,7 +112,7 @@ contains
         enddo
     end function factrl
 
-    elemental real*8 function choose (n, r)
+    elemental real(dp) function choose (n, r)
         
         ! Return the binomail coefficient nCr
 

@@ -443,7 +443,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
     use sym_mod, only: mompbcsym, GetLz
     IMPLICIT NONE
     INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),kx,ky,kz,ktrial(3)
-    REAL*8 :: pDoub,pGen,AverageContrib,AllAverageContrib
+    real(dp) :: pDoub,pGen,AverageContrib,AllAverageContrib
     INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot),iLut(0:NIfTot)
     INTEGER :: iExcit
     LOGICAL :: tParity,IsMomAllowedDet,test

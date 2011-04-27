@@ -17,13 +17,13 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
       HElement_t UMat(*),RH
       INTEGER I_P,NTAY(2),NEL,NBASIS
       INTEGER NI(NEL),NJ(NEL),NMAX,IC,IC2
-      REAL*8 BETA,ECORE
+      real(dp) BETA,ECORE
       LOGICAL LSAME      
       INTEGER NMSH,IGETEXCITLEVEL
       type(timer), save :: proc_timer
       TYPE(BasisFN) G1(*)
-      COMPLEX*16 FCK(*)
-      REAL*8 ALAT(3)  
+      complex(dp) FCK(*)
+      real(dp) ALAT(3)  
       HElement_t hE,UExp,B,EDIAG
       IF(NTAY(1).LT.0) THEN
 !.. We've actually hidden a matrix of rhos in the coeffs for calcing RHOa
@@ -222,7 +222,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
          integer nHFDet(nEl),nJ(nEl),nEl,nBasis
          type(BasisFN) G1(*)
          HElement_t hEl
-         real*8 Arr(nBasis,2),ECore
+         real(dp) Arr(nBasis,2),ECore
          integer i,j
          integer IDHF(nEl),IDJ(nEl)
          hEl=(ECore)

@@ -3,6 +3,7 @@ MODULE SymExcit2
       use CalcData , only : G_VMC_EXCITWEIGHT,G_VMC_EXCITWEIGHTS,CUR_VERT,EXCITFUNCS
       use CalcData , only : TUPOWER
       use IntegralsData, only: ChemPot
+      use constants, only: dp
       IMPLICIT NONE
 
       TYPE ExcitWeight
@@ -11,7 +12,7 @@ MODULE SymExcit2
          INTEGER I,J
 ! The orbitals excited to
          INTEGER A,B
-         REAL*8 WEIGHT
+         real(dp) WEIGHT
       END TYPE ExcitWeight
 ! Size in terms of reals.
       integer, PARAMETER :: ExcitWeightSize=3
@@ -19,16 +20,15 @@ MODULE SymExcit2
 
 !  Enumerate the weights of all possible determinants to excite from in a given excittype.
       SUBROUTINE EnumExcitFromWeights(ExcitType, ews,OrbPairs, SymProdInd,Norm,iCount,Arr,nBasis)
-         use constants, only: dp
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INTEGER ExcitType(5)
          INTEGER nBasis
          INTEGER OrbPairs(2,*)
-         REAL*8 Norm
+         real(dp) Norm
          INTEGER iCount
-         REAL*8 Arr(nBasis,2)
+         real(dp) Arr(nBasis,2)
          TYPE(ExcitWeight) ews(*)
          INTEGER SymProdInd(2,3,1:*)
          INTEGER iSpn,iFrom,iFromIndex
@@ -59,7 +59,6 @@ MODULE SymExcit2
       SUBROUTINE EnumExcitWeights(ExcitType,iFromIndex,iLUT,ews,OrbPairs,SymProdInd,Norm,iCount,NBASISMAX,Arr,NBASIS)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
-         use constants, only: dp
          use SymData, only: SymPairProds,SymStatePairs
          INTEGER ExcitType(5)
          INTEGER NBASIS
@@ -72,10 +71,10 @@ MODULE SymExcit2
          INTEGER iFromIndex
          LOGICAL L1B,L1A,L2B,L2A
          INTEGER nBasisMax(5,*)
-         REAL*8 Norm
+         real(dp) Norm
          TYPE(ExcitWeight) ews(*)
          INTEGER K
-         REAL*8 Arr(nBasis,2)
+         real(dp) Arr(nBasis,2)
          INTEGER iLooped,iTo1,iTo2
          LOGICAL tDebugPrint
          tDebugPrint=.false.
@@ -148,14 +147,13 @@ MODULE SymExcit2
 ! Add the weight of the excitation to the list in ExWeights
 ! I,J are from, K,L are to
       SUBROUTINE AddExcitWeight(I,J,A,B,ExWeights,Norm,iCount,NBASISMAX,Arr,NBASIS)
-         use constants, only: dp
          use SystemData, only: BasisFN
          INTEGER I,J,A,B
-         REAL*8 R,Norm
+         real(dp) R,Norm
          INTEGER nBasisMax(5,*),NBASIS
          TYPE(ExcitWeight) ExWeights(iCount+1)
          INTEGER iCount
-         REAL*8 Arr(nBasis,2)
+         real(dp) Arr(nBasis,2)
          CALL ExcitWeighting(I,J,A,B,R,NBASISMAX,Arr,NBASIS)
          iCount=iCount+1
          ExWeights(iCount)%I=I
@@ -169,14 +167,13 @@ MODULE SymExcit2
 ! Add the weight of the 'from' excitation to the list in ExWeights
 ! I,J are from
       SUBROUTINE AddExcitFromWeight(I,J,ExWeights,Norm,iCount,Arr,nBasis)
-         use constants, only: dp
          use SystemData, only: BasisFN
          INTEGER I,J
-         REAL*8 R,Norm
+         real(dp) R,Norm
          INTEGER nBasis
          TYPE(ExcitWeight) ExWeights(iCount+1)
          INTEGER iCount
-         REAL*8 Arr(nBasis,2)
+         real(dp) Arr(nBasis,2)
          CALL ExcitFromWeighting(I,J,R,Arr,nBasis)
          iCount=iCount+1
          ExWeights(iCount)%I=I
@@ -188,14 +185,13 @@ MODULE SymExcit2
 !        A sub called to generate an unnormalised weight for an ij->?? excitation
 !          We return a function of the energies of the orbitals, exp(-(ei+ej)/a)
       SUBROUTINE ExcitFromWeighting(I,J,Weight,Arr,nBasis)
-         use constants, only: dp
          use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER nBasis
 !  We fake ISS
          INTEGER I,J
-         REAL*8 WEIGHT
-         REAL*8 Arr(nBasis,2)
+         real(dp) WEIGHT
+         real(dp) Arr(nBasis,2)
          !No weighting
          IF(EXCITFUNCS(10)) THEN
             Weight=1.D0
@@ -243,7 +239,6 @@ MODULE SymExcit2
 !        A sub called to generate an unnormalised weight for a given ij->kl excitation
 !          We return a function of the U matrix element (|<ij|u|kl>|^2)^G_VMC_EXCITWEIGHT
       SUBROUTINE EXCITWEIGHTING(I,J,K,L,WEIGHT,NBASISMAX,Arr,NBASIS)
-         use constants, only: dp
          USE UMatCache , only : GTID
          use Integrals, only : GetUMatEl
          use SystemData, only: BasisFN
@@ -255,9 +250,9 @@ MODULE SymExcit2
          INTEGER IDI,IDJ,IDK,IDL
          INTEGER I,J,K,L
          !type(timer), save :: proc_timer
-         REAL*8 WEIGHT,W2
+         real(dp) WEIGHT,W2
          HElement_t W
-         REAL*8 Arr(nBasis,2)
+         real(dp) Arr(nBasis,2)
          IF(G_VMC_EXCITWEIGHT(CUR_VERT).EQ.0.D0) THEN
             WEIGHT=1.D0
          ELSE
@@ -326,7 +321,6 @@ MODULE SymExcit2
 
 !  WARNING - this currently only works for abelian symmetry groups
       SUBROUTINE GenExcitProbInternal(nI,nJ,nEl,G1,nBasisMax,Arr,nBasis,OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,iTotal,pGen)
-         use constants, only: dp
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: nSymPairProds,SymPairProds
@@ -348,11 +342,11 @@ MODULE SymExcit2
          INTEGER OrbPairs(2,*)
          INTEGER SymProdInd(2,3,1:*)
          INTEGER ExcitTypes(5,*)
-         REAL*8 Norm
+         real(dp) Norm
          INTEGER K,I,iExcitType
          INTEGER iSpn,iCount,nToPairs,iTotal,nFromPairs
-         REAL*8 pGen
-         REAL*8 Arr(nBasis,2)
+         real(dp) pGen
+         real(dp) Arr(nBasis,2)
          LOGICAL IsUHFDet
          character(*), parameter :: thisroutine='GenExcitProbInternal'
          iExcit(1,1)=2
@@ -449,7 +443,6 @@ MODULE SymExcit2
 !We wish to calculate whether NJ is an excitation of NI.
 !WARNING - this currently only works for abelian symmetry groups
       SUBROUTINE IsConnectedDetInternal(nI,nJ,tIsConnectedDet)
-         use constants, only: dp
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB, nel
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE

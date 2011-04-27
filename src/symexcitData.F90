@@ -1,8 +1,9 @@
 MODULE SymExcitDataMod
+    use constants, only: dp
     IMPLICIT NONE
     SAVE
 
-    REAL*8 :: pDoubNew
+    real(dp) :: pDoubNew
     INTEGER , ALLOCATABLE :: SymLabelList2(:),SymLabelCounts2(:,:)
 
     ! What are the upper bounds for the scratch arrays neede for excitation

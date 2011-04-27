@@ -44,9 +44,9 @@ module mcpathshdiag
          INTEGER I_V,NEL,I_P,nBasisMax(5,*),NBASIS,BRR(*),NMSH,NMAX
          INTEGER NTAY(2),I_VIND,NWHTAY,ILOGGING,J,I_VMAX,II
          INTEGER I
-         COMPLEX*16 FCK(*)
+         complex(dp) FCK(*)
          HElement_t UMAT(*)
-         REAL*8 ALAT(*),ECORE
+         real(dp) ALAT(*),ECORE
          real(dp) TOTAL,FMCPR3B2RES,Prob
          real(dp) CALCPATHS_N
          INTEGER IPATH(NEL,0:I_V)
@@ -56,10 +56,10 @@ module mcpathshdiag
          INTEGER INODE(NEL)
          INTEGER NI(NEL),NJ(NEL)
          INTEGER I_HMAX
-         REAL*8 BETA,RHOEPS
+         real(dp) BETA,RHOEPS
          LOGICAL TSYM
          LOGICAL TLOG,TLOG2,TLOG3,TLOG4,TLOG5,TLOG6
-         REAL*8 DBETA
+         real(dp) DBETA
          HElement_t HIJS(0:I_V)
          INTEGER ICLS
          INTEGER,pointer :: NMEM(:)
@@ -77,12 +77,12 @@ module mcpathshdiag
          INTEGER IFRZ(0:NBASIS,I_V),IFRZ2(0:NBASIS)
          INTEGER EX(2,2),ICIL,ICILMAX
          INTEGER STORE(6)
-         REAL*8 FSCALE,FSC2
+         real(dp) FSCALE,FSC2
          real(dp) MP2E(2:i_VMax),MPEs(2:i_VMax),NTOTAL,MPEn
          INTEGER EXFLAG
 
          LOGICAL ISCONNECTEDDET
-         REAL*8 VARSUM,SumX,SumY,SumXY,SumXsq,SumYsq,SumP
+         real(dp) VARSUM,SumX,SumY,SumXY,SumXsq,SumYsq,SumP
          DATA SumP/0.D0/
          SAVE SumX,SumY,SumXY,SumXsq,SumYsq,SumP
 
@@ -513,9 +513,9 @@ end module
       Subroutine WriteGraphEnergies(IPATH, I_V, nEl,nBasis,Arr,Weight)
          use constants, only: dp
          Integer I_V, nEl, nBasis, IPATH(nEl,0:I_V), EX(2,2), T
-         Real*8 Arr(nBasis, 2),Energyfromnew
-         REAL*8 Energyfromold
-         REAL*8 totWeight,avWeight
+         real(dp) Arr(nBasis, 2),Energyfromnew
+         real(dp) Energyfromold
+         real(dp) totWeight,avWeight
          real(dp) Weight
          INTEGER g
          DATA g/0/
@@ -552,27 +552,27 @@ end module
          
          End
          Subroutine GetGraphstats(IPATH, I_V, nEl,nBasis,Arr,Weight,NBASISMAX,DLWDB2)
-         use constants, only: dp
+         use constants, only: dp,int64
          USE UMatCache , only : GTID
          use Integrals, only : GetUMatEl
          use SystemData, only: BasisFN
          IMPLICIT NONE
          Integer I_V,nEl,nBasis,IPATH(nEl,0:I_V),EX(2,2),T
-         REAL*8 ARR(nBasis,2),EnergyTo,EnergyFrom
+         real(dp) ARR(nBasis,2),EnergyTo,EnergyFrom
          INTEGER I,J,K,L,ISS,IDI,IDJ,IDL,IDK,nBasisMax(5,*)
          INTEGER EXCITLEV
          real(dp) Weight,DLWDB2
          HElement_t ME
          LOGICAL AREDETSEXCITS,CONNECT23
          integer c
-         INTEGER*8 SINGLE,DOUBLE,histogram(-20:3)
+         integer(int64) SINGLE,DOUBLE,histogram(-20:3)
          SAVE c,SINGLE,DOUBLE,histogram
          DATA histogram/24*0/
          DATA c/0/
          DATA SINGLE/0/
          DATA DOUBLE/0/
          
-         write (6,*) 'Warning: c has been changed from integer*8 to *4'
+         write (6,*) 'Warning: c has been changed from integer(int64) to *4'
          IF(I_V.eq.2) THEN
             EX(1,1)=2
             OPEN(56,FILE="GRAPHSTATS",STATUS="UNKNOWN")

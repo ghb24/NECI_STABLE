@@ -1,4 +1,5 @@
 module legacy_data
+    use constants, only: dp,int64
 
 ! Module to store legacy data that was once upon a time in evil include files.
 
@@ -10,7 +11,7 @@ integer, parameter :: irat = 64/bit_size(irat_test)
 ! Data originally in calcp.inc.
 ! Probably only Alex knows what there are.
 INTEGER CALCP_N(0:1023),CALCP_NT(0:1023,15,2)
-REAL*8 CALCP_SUM(0:1023,3),CALCP_HSUM(0:1023)
+real(dp) CALCP_SUM(0:1023,3),CALCP_HSUM(0:1023)
 
 
 ! Data originally in csf.inc.

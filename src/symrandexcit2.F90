@@ -73,7 +73,7 @@ MODULE GenRandSymExcitNUMod
         integer(n_int), intent(out) :: ilutnJ(0:niftot)
         HElement_t, intent(out) :: HElGen
 
-        real*8 :: r
+        real(dp) :: r
         character(*), parameter :: this_routine = 'gen_rand_excit'
 
         ! Just in case
@@ -154,7 +154,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: ClassCountUnocc2(ScratchSize)
         INTEGER(KIND=n_int) :: ILUT(0:NIfTot)
         LOGICAL :: tParity
-        REAL*8 :: pDoub,pGen,r
+        real(dp) :: pDoub,pGen,r
         CHARACTER(*), PARAMETER :: this_routine='GenRandSymExcitNU'
 
 !        WRITE(6,*) "nSymlabels:", nSymLabels
@@ -324,7 +324,7 @@ MODULE GenRandSymExcitNUMod
 !This routine finds the probability of creating the excitation. See the header of the file for more information on how this works.
     SUBROUTINE FindDoubleProb(ForbiddenOrbs,NExcitA,NExcitB,NExcitOtherWay,pGen)
         INTEGER, INTENT(IN) :: ForbiddenOrbs,NExcitA,NExcitB,NExcitOtherWay
-        REAL*8 , INTENT(OUT) :: pGen!,PabGivenij
+        real(dp) , INTENT(OUT) :: pGen!,PabGivenij
 
 !        PabGivenij=(1.D0/real((NExcitA-ForbiddenOrbs),dp))*((1.D0/real(NExcitB,dp))+(1.D0/real(NExcitOtherWay,dp)))
 !        pGen=pDoubNew*(1.D0/real(ElecPairs,dp))*PabGivenij
@@ -339,7 +339,7 @@ MODULE GenRandSymExcitNUMod
         integer, intent(out) :: nExcitOtherWay, nExcit, OrbB
         integer(n_int), intent(in) :: iLut(0:NIfTot)
         integer :: norbs, i, z, ind, ChosenUnocc, attempts, SpinOrbB
-        REAL*8 :: r
+        real(dp) :: r
 
 !We want to calculate the number of possible B's given the symmetry and spin it has to be since we have already picked A.
 !We have calculated in NExcit the number of orbitals available for B given A, but we also need to know the number of orbitals to choose from for A IF
@@ -786,7 +786,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER(KIND=n_int), INTENT(IN) :: ILUT(0:NIfTot)
         LOGICAL, INTENT(OUT) :: tAOrbFail
         INTEGER :: AttemptsOverall,ChosenUnocc,z,i,Attempts
-        REAL*8 :: r
+        real(dp) :: r
 
 !        WRITE(6,*) "FORBIDDEN ORBS: ",ForbiddenOrbs,Counter
 
@@ -1068,7 +1068,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER , INTENT(IN) :: nI(NEl),IndInp
         INTEGER , INTENT(OUT) :: Elec1Ind,Elec2Ind,SymProduct,iSpn,SumMl
         INTEGER :: Ind,X,K,Orb1,Orb2
-        REAL*8 :: r
+        real(dp) :: r
 !Triangular indexing system.
 !This is used for picking two distinct electrons out of all N(N-1)/2 pairs.
 !
@@ -1192,7 +1192,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: ClassCount2(ScratchSize)
         INTEGER :: ClassCountUnocc2(ScratchSize),ElecK,SymIndex
         INTEGER(KIND=n_int) :: ILUT(0:NIfTot)
-        REAL*8 :: r,pGen
+        real(dp) :: r,pGen
         LOGICAL :: tParity
 
         CALL CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2,nI)
@@ -1419,7 +1419,7 @@ MODULE GenRandSymExcitNUMod
 !Therefore, make sure that they are at most double excitations of each other.
 !nI is the determinant from which the excitation comes from.
     SUBROUTINE CalcNonUniPGen(nI,Ex,IC,ClassCount2,ClassCountUnocc2,pDoub,pGen)
-        REAL*8 :: pDoub,pGen
+        real(dp) :: pDoub,pGen
         INTEGER :: ClassCount2(ScratchSize),ForbiddenOrbs,SymA,SymB,SumMl,MlA,MlB,Elec1Ml
         INTEGER :: ClassCountUnocc2(ScratchSize),ElecsWNoExcits,NExcitOtherWay
         INTEGER :: OrbI,OrbJ,iSpn,NExcitA,NExcitB,IC,ElecSym,OrbA,OrbB,Ex(2,2),nI(NEl)
@@ -1586,7 +1586,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),exFlag,iCreate,nParts,WSign,ElecsWNoExcits
         INTEGER(KIND=n_int) :: ILUT(0:NIfTot)
         LOGICAL :: tParity
-        REAL*8 :: pDoub,r,tau
+        real(dp) :: pDoub,r,tau
         CHARACTER(*), PARAMETER :: this_routine='GenRandSymExcitBiased'
 
         IF(.not.TwoCycleSymGens) THEN
@@ -1657,7 +1657,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: ElecsWNoExcits,nParts,WSign,iCreate,nI(NEl),nJ(NEl)
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
         INTEGER :: ExcitMat(2,2),SpawnOrb(nBasis),Eleci,ElecSym,NExcit,VecInd,ispn,EndSymState,j
-        REAL*8 :: Tau,SpawnProb(nBasis),NormProb,r,rat
+        real(dp) :: Tau,SpawnProb(nBasis),NormProb,r,rat
         LOGICAL :: tParity
         HElement_t :: rh
 
@@ -1838,7 +1838,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: Elec1Ind,Elec2Ind,nParts,WSign,SumMl
         HElement_t :: rh
         LOGICAL :: tParity
-        REAL*8 :: Tau
+        real(dp) :: Tau
 
 !First, we need to pick an unbiased distinct electron pair.
 !These have symmetry product SymProduct, and spin pair iSpn = 1=beta/beta; 2=alpha/beta; 3=alpha/alpha
@@ -1878,7 +1878,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: nI(NEl),Elec1Ind,Elec2Ind,SymProduct,iSpn,OrbA,OrbB,iCreate
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
         INTEGER :: SpatOrbi,SpatOrbj,Spini,Spinj,i,aspn,bspn,SymA,SymB,SpatOrba,EndSymState,VecInd
-        REAL*8 :: Tau,SpawnProb(MaxABPairs),NormProb,rat,r
+        real(dp) :: Tau,SpawnProb(MaxABPairs),NormProb,rat,r
         INTEGER :: SpawnOrbs(2,MaxABPairs),j,nParts,SpinIndex,Ind
         HElement_t :: HEl
 
@@ -2037,7 +2037,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER(KIND=n_int) :: iLutnI(0:NIfTot)
         INTEGER :: ChosenUnocc,Hole1BasisNum,Hole2BasisNum,ki(3),kj(3),ka(3),kb(3),ExcitMat(2,2),iSpinIndex,TestEnergyB
         LOGICAL :: tAllowedExcit,tParity
-        REAL*8 :: r,pGen,pAIJ
+        real(dp) :: r,pGen,pAIJ
        
         ! This chooses an a of the correct spin, excluding occupied orbitals
         ! This currently allows b orbitals to be created that are disallowed
@@ -2212,7 +2212,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: ki(3),kj(3),kTrial(3),iElecInExcitRange,iExcludedKFromElec1,iAllowedExcites
         INTEGER :: KaXLowerLimit,KaXUpperLimit,KaXRange,KaYLowerLimit,KaYUpperLimit,KaYRange,KaZLowerLimit,KaZUpperLimit,KaZRange
         LOGICAL :: tParity,tDoubleCount,tExtraPoint
-        REAL*8 :: r(2),pGen,pAIJ
+        real(dp) :: r(2),pGen,pAIJ
         INTEGER, ALLOCATABLE :: Excludedk(:,:)
 
 !        CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,SumMl,-1)
@@ -2365,7 +2365,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ExcitMat(2,2),rejections
         INTEGER(KIND=n_int) :: iLutnI(0:NIfTot)
         LOGICAL :: tParity
-        REAL*8 :: r(4),pGen
+        real(dp) :: r(4),pGen
         
 
         rejections=-1
@@ -2432,7 +2432,7 @@ MODULE GenRandSymExcitNUMod
     SUBROUTINE CalcPGenLattice(Ex,pGen)
         
         INTEGER :: Ex(2,2),iSpin,jSpin
-        REAL*8 :: pGen,pAIJ
+        real(dp) :: pGen,pAIJ
 
         IF(tNoFailAb) CALL Stop_All("CalcPGenLattice","Cannot use this calculation of pgen with this excitation generator")
         
@@ -2510,7 +2510,7 @@ MODULE GenRandSymExcitNUMod
     SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag)
         IMPLICIT NONE
         INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),kx,ky,kz,ktrial(3)
-        REAL*8 :: pDoub,pGen,AverageContrib,AllAverageContrib
+        real(dp) :: pDoub,pGen,AverageContrib,AllAverageContrib
         INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot),iLut(0:NIfTot)
         INTEGER :: iExcit
         LOGICAL :: tParity,IsMomAllowedDet,test

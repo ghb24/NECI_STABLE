@@ -4,14 +4,15 @@ C.. IC is the number of basis fns that differ in NI and NJ (or -1 if not
 Cknown)
 C.. ECORE is the uniform background energy.  It has been renamed from
 C.. ETRIAL, but ETRIAL not longer has a function
-      REAL*8 FUNCTION GETHELEMENT2T(NI,NJ,NEL,NBASISMAX,
+      FUNCTION GETHELEMENT2T(NI,NJ,NEL,NBASISMAX,
      &   NBASIS,ECORE,IC2,BTRANS,NSBASIS,NSPINS)
+         use constants, only: dp
          IMPLICIT NONE      
          INTEGER NBASIS,NSBASIS,NSPINS
          INTEGER NEL,NI(NEL),NJ(NEL),IC,nBasisMax(5,*),IC2
-         REAL*8 TOTSUM,ECORE
+         real(dp) TOTSUM,ECORE
          INTEGER IGETEXCITLEVEL
-         REAL*8 BTRANS(*)
+         real(dp) BTRANS(*),GETHELEMENT2T
          IC=IC2
          GETHELEMENT2T=0.D0
          IF(IC.LT.0) IC=IGETEXCITLEVEL(NI,NJ,NEL)
@@ -31,6 +32,7 @@ C.. The Slater Condon Rules for a transformed basis
       SUBROUTINE SLTCNDT(NEL,NBASISMAX,
      &   NHG,NDET1,NDET2,IC,
      &   BTRANS,NSBASIS,NSPINS,TOTSUM)
+         use constants, only: dp
       IMPLICIT NONE
 C..
 C.. 
@@ -38,7 +40,7 @@ C..
       INTEGER NDET1(NEL),NDET2(NEL)
       INTEGER N1E(NHG),N2E(NHG)
       INTEGER nBasisMax(5,*),IFLAG,IPTOT
-      REAL*8 COULCOUPLE,BTRANS(*),TOTSUM
+      real(dp) COULCOUPLE,BTRANS(*),TOTSUM
       INTEGER ISPINSKIP,NSBASIS,NSPINS
       ISPINSKIP=NBASISMAX(2,3)
 C..
@@ -84,17 +86,18 @@ C.. TMAT has sometimes been hidden in ZIA
       SUBROUTINE SCR0T(NEL,NDET1,
      &   COULCOUPLE,BTRANS,
      &   NSBASIS,NSPINS,TOTSUM)
+         use constants, only: dp
          IMPLICIT NONE
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
          INTEGER NDET1(NEL)
-         REAL*8 TRUMAT,TRTMAT
+         real(dp) TRUMAT,TRTMAT
          INTEGER NEL,NSBASIS,NSPINS
-         REAL*8 COULCOUPLE,TOTSUM
+         real(dp) COULCOUPLE,TOTSUM
          INTEGER I,J
-         REAL*8 SUM1,SUM2,PI
+         real(dp) SUM1,SUM2,PI
 
 C.. Basis transformation matrix.  
-         REAL*8 BTRANS(NSBASIS,NSBASIS,NSPINS)
+         real(dp) BTRANS(NSBASIS,NSBASIS,NSPINS)
          PI=ACOS(-1.D0)
 C..This is the Slater-Condon rule when the two determinants are the
 C*SAME*
@@ -131,15 +134,16 @@ C..
       SUBROUTINE SCR1T(NEL,NDET1,NDET2,
      &   COULCOUPLE,BTRANS,
      &   NSBASIS,NSPINS,TOTSUM)
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER NDET1(NEL),NDET2(NEL)
          INTEGER ID(NEL-1)
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
-         REAL*8 TRTMAT,TRUMAT
+         real(dp) TRTMAT,TRUMAT
          INTEGER NEL
-         REAL*8 COULCOUPLE,TOTSUM,SUM2
+         real(dp) COULCOUPLE,TOTSUM,SUM2
          INTEGER ND1,ND2,IQ,I,J,K
-         REAL*8 BTRANS(NSBASIS,NSBASIS,NSPINS)
+         real(dp) BTRANS(NSBASIS,NSBASIS,NSPINS)
          INTEGER NSBASIS,NSPINS
 C.. NB in HF we need to include TMAT element
 
@@ -228,6 +232,7 @@ C..  NDET1 and NDET2
       SUBROUTINE SCR2T(NEL,NDET1,NDET2,
      &     COULCOUPLE,BTRANS,
      &   NSBASIS,NSPINS,TOTSUM)
+         use constants, only: dp
 C..This routine is the EASIEST of the Slater-Condon rules.
 C..The determinants differ by two spin orbitals.
 C..The arrays ND1 and ND2 contain the integers from determinant 1 and 2
@@ -238,8 +243,8 @@ C..that are NOT common to both.
          INTEGER ND1(2),ND2(2)
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
          INTEGER NEL
-         REAL*8 COULCOUPLE,TOTSUM,SUM2,TRUMAT
-         REAL*8 BTRANS(NSBASIS,NSBASIS,NSPINS)
+         real(dp) COULCOUPLE,TOTSUM,SUM2,TRUMAT
+         real(dp) BTRANS(NSBASIS,NSBASIS,NSPINS)
          INTEGER NSBASIS,NSPINS
          INTEGER I,J,K,IQ
          TOTSUM=0.D0
@@ -316,7 +321,7 @@ C.. Calculate <phi_a phi_b | U | phi_c phi_d> from <u_i u_j|U|u_k u_l>
          INTEGER A,B,C,D
          INTEGER I,J,K,L
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
-         REAL*8 BTRANS(NSBASIS,NSBASIS,NSPINS)
+         real(dp) BTRANS(NSBASIS,NSBASIS,NSPINS)
          INTEGER NSPINS,NSBASIS
          HElement_t TOTSUM,SUM1,SUM2,SUM3
          INTEGER ASPN,BSPN,CSPN,DSPN,AE,BE,CE,DE
@@ -370,9 +375,9 @@ C.. Calculate <phi_a | T | phi_c > from <u_i |T|u_k>
          IMPLICIT NONE
          INTEGER A,C
          INTEGER I,K
-         REAL*8 BTRANS(NSBASIS,NSBASIS,NSPINS)
+         real(dp) BTRANS(NSBASIS,NSBASIS,NSPINS)
          INTEGER NSPINS,NSBASIS
-         REAL*8 TOTSUM,SUM2
+         real(dp) TOTSUM,SUM2
          INTEGER ASPN,CSPN,AE,CE
          INTEGER IDI,IDK
          ASPN=MOD(A-1,NSPINS)+1

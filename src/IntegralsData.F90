@@ -18,10 +18,10 @@ INTEGER :: NRSTEPSMAX,IHFMETHOD
 INTEGER :: NPartFrozen,NHolesFrozen,NVirtPartFrozen,NElVirtFrozen
 
 
-REAL*8 :: NRCONV,RFCONV,OrbOrder2(8)
-REAL*8 :: HFMix,HFEDelta,HFCDelta
-REAL*8 :: HFRand
-REAL*8 :: DMatEpsilon !  The cutoff for density matrix elements
+real(dp) :: NRCONV,RFCONV,OrbOrder2(8)
+real(dp) :: HFMix,HFEDelta,HFCDelta
+real(dp) :: HFRand
+real(dp) :: DMatEpsilon !  The cutoff for density matrix elements
 Logical :: tPostFreezeHF ! Do we do HF after freezing
 
 ! Function pointers to control the behaviour of get_umat_el
@@ -38,13 +38,13 @@ type(c_ptr) :: ptr_getumatel_2
 ! used as appropriate.
 HElement_t, pointer :: UMAT(:)      
 INTEGER(TagIntType) :: tagUMat=0
-COMPLEX*16,pointer :: FCK(:) => null()
+COMPLEX(dp) ,pointer :: FCK(:) => null()
 INTEGER(TagIntType) :: tagFCK=0
 INTEGER :: NMAX
-REAL*8 :: CST
+real(dp) :: CST
 
 ! from Calc      
-real*8 :: ChemPot
+real(dp) :: ChemPot
 Logical :: tNeedsVirts  ! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
 
 end module IntegralsData

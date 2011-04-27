@@ -4,7 +4,7 @@ unity=1
 size=8
 
 [double]
-type1=real*8
+type1=real(dp)
 unity=1.d0
 size=8
 
@@ -33,7 +33,7 @@ Contains
       Type(AmplitudeList_%(name)s) AL
       integer iCurAmpl,iRefPos
       %(type1)s :: accum
-      real*8 dTotLocAbsAmpl
+      real(dp) dTotLocAbsAmpl
       integer i,nAmpl
       accum=0
       do i=1,nAmpl
@@ -164,14 +164,14 @@ SUBROUTINE CalcClusterEnergy (tFCI,AL,iAmpList,nExcit,ExcitList,ExcitLevelIndex,
    INTEGER nExcit
    INTEGER(kind=n_int) ExcitList(0:nIfTot,nExcit)
    INTEGER ExcitLevelIndex(0:nEl+1)
-   REAL*8 dNorm
-   REAL*8 ProjE
+   real(dp) dNorm
+   real(dp) ProjE
    INTEGER iDebug
    integer iRefPos
    integer, dimension(lenof_sign) :: temp_sign
 
    INTEGER iC,i,j,l,iSgn
-   REAL*8 dT1Sq,dAmp,dTmp
+   real(dp) dT1Sq,dAmp,dTmp
    INTEGER DetCurr(nEl)
    HElement_t HTmp
    INTEGER(kind=n_int) iLutnI(0:nIfTot)
@@ -260,13 +260,13 @@ SUBROUTINE CalcClusterEnergyUnsrt (tFCI,AL,iAmpList,nExcit,ExcitList,iRefPos,dNo
    integer iAmpList
    INTEGER nExcit
    INTEGER(kind=n_int) ExcitList(0:nIfTot,nExcit)
-   REAL*8 dNorm
-   REAL*8 ProjE
+   real(dp) dNorm
+   real(dp) ProjE
    INTEGER iRefPos
    INTEGER, DIMENSION(lenof_sign) :: temp_sign
 
    INTEGER iC,i,j,l,iSgn,iC2
-   REAL*8 dT1Sq,dAmp,dTmp
+   real(dp) dT1Sq,dAmp,dTmp
    INTEGER DetCurr(nEl)
    HElement_t HTmp
    INTEGER(kind=n_int) iLutnI(0:nIfTot)
@@ -377,18 +377,18 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,
    TYPE(AmplitudeList_%(name)s), intent(in) :: AL
    %(type1)s rt
    INTEGER(KIND=n_int), intent(in) :: Dets(0:nIfTot,nDet)
-   REAL*8 dNorm
-   REAL*8 dTotAbsAmpl, dTotLocAbsAmpl
+   real(dp) dNorm
+   real(dp) dTotAbsAmpl, dTotLocAbsAmpl
    INTEGER iDebug,iMaxSizeIn,iCurAmpList
 
    INTEGER iMaxSize
-   REAL*8 dProbNumExcit,dCurTot,r
+   real(dp) dProbNumExcit,dCurTot,r
    INTEGER i,k,nk
    LOGICAL tDone,tNew,tSuccess
    LOGICAL NextCluster
    integer(n_int) :: ilutFlag(0:nIfTot)  !wasteful, but used for flags
-   real*8 dCumlFactor
-   real*8 dCurAmpl
+   real(dp) dCumlFactor
+   real(dp) dCurAmpl
 
 !   TYPE(timer),save :: CCMC_time
 
@@ -672,18 +672,18 @@ subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,dNorm,AL,iAmpList,nAmpl,dTol,Wal
    use timing
    implicit none
    integer iNumExcitors,nAmpl
-   real*8 dTotAbsAmpl,dTol
-   real*8 dNorm
+   real(dp) dTotAbsAmpl,dTol
+   real(dp) dNorm
    type(AmplitudeList_%(name)s), intent(in) :: AL
    integer iAmpList
    integer iDebug
-   real*8 WalkerScale
+   real(dp) WalkerScale
    integer iRefPos
    integer iOldTotParts
 
    integer i,j,ierr
-   real*8 dPsiTotAbsAmpl,dTmp
-   real*8 dTotExcitors
+   real(dp) dPsiTotAbsAmpl,dTmp
+   real(dp) dTotExcitors
 
    ! Avoid compile warnings outside debug mode
    iDebug = iDebug

@@ -47,6 +47,7 @@ contains
 
 
 !       Calc defaults 
+          tPopsMapping=.false.
           tTimeExit=.false.
           MaxTimeExit=0.D0
           tMaxBloom=.false.
@@ -842,6 +843,10 @@ contains
                     iPopsFileNoWrite = iPopsFileNoRead
                     iPopsFileNoRead = -iPopsFileNoRead-1
                 end if
+            case("POPSFILEMAPPING")
+!This indicates that we will be mapping a popsfile from a smaller basis calculation, into a bigger basis calculation.
+!Requires a "mapping" file.
+                tPopsMapping=.true.
             case("READPOPSTHRESH")
 !When reading in a popsfile, this will only save the determinant, if the number of particles on this determinant is greater than iWeightPopRead.
                 tReadPops=.true.
@@ -1379,7 +1384,7 @@ contains
           use hilbert_space_size, only: FindSymMCSizeofSpace, FindSymMCSizeExcitLevel
           use global_utilities
           
-          REAL*8 CalcT, CalcT2, GetRhoEps
+          real(dp) CalcT, CalcT2, GetRhoEps
           
           
           INTEGER I, IC,J
@@ -1514,6 +1519,9 @@ contains
           use SystemData, only: SymRestrict, tCSFOLD, tParity, tSpn, ALat, Beta
           use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,BasisFN,BasisFNSize,BasisFNSizeB,nEl
           Use DetCalcData, only : nDet, nEval, nmrks, w
+          USE FciMCParMod , only : FciMCPar
+          USE CCMC, only: CCMCStandalone,CCMCStandaloneParticle
+          use CCMCData, only: tAmplitudes
           use DetCalc, only: CK, DetInv, tEnergy, tRead
           Use Determinants, only: FDet, nActiveBasis, SpecDet, tSpecDet
           use IntegralsData, only: FCK, NMAX, UMat, FCK
@@ -1524,9 +1532,9 @@ contains
           use sym_mod
 
 !Calls
-!          REAL*8 DMonteCarlo2
+!          real(dp) DMonteCarlo2
 !Local Vars
-          REAL*8 EN
+          real(dp) EN,WeightDum,EnerDum
           integer iSeed,iunit
           iSeed=7 
 
@@ -1550,60 +1558,76 @@ contains
 !     &               NBASISMAX,G1,nBasis,BRR,NMSH,FCK,NMAX,ALAT,UMAT,             &
 !     &               NTAY,RHOEPS,NWHTAY,ECORE)
 !             ENDIF
-             WRITE(6,*) "Calculating ",NPATHS," W_Is..."
-             iunit =get_free_unit()
-             IF(BTEST(ILOGGING,1)) THEN
-                IF(I_HMAX.EQ.-10) THEN
-                   OPEN(iunit,FILE="MCSUMMARY",STATUS="UNKNOWN")
-                   WRITE(iunit,*) "Calculating ",NPATHS," W_Is..."
-                   CLOSE(iunit)
-                ELSE
-                   OPEN(iunit,FILE="MCPATHS",STATUS="UNKNOWN")
-                   WRITE(iunit,*) "Calculating ",NPATHS," W_Is..."
-                   CLOSE(iunit)
-                ENDIF
-             ENDIF
-             IF(NTAY(1).GT.0) THEN
-                WRITE(6,*) "Using list of determinants."
-                WRITE(6,*) "Using approx RHOs generated on the fly,NTAY=",NTAY(1)
-!C.. we haven't calculated the energy, so we're calculating the weights
-!C.. with approx RHOs
-                IF(TENERGY) THEN
-!C.. If we've generated a list of dets
-!C.. Instead of NMAX, we put ARR
-                     CALL CALCRHOPII2(BETA,I_P,I_HMAX,I_VMAX,NEL,NDET,               &
-     &                 NBASISMAX,G1,nBasis,BRR,NMSH,FCK,ARR,ALAT,UMAT,NTAY,          &
-     &                 RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,           &
-     &                 DETINV,TSPECDET,SPECDET)
-!                      WRITE(6,*) "Out Here 2"
-!                      CALL FLUSH(6)
-                ELSE
-                   IF(TCSFOLD) THEN
-                      IF(.NOT.TSPECDET) THEN
-                         WRITE(6,*) "SPECDET not specified. Using Fermi determinant ONLY"
-                         TSPECDET=.TRUE.
-                         CALL NECI_ICOPY(NEL,FDET,1,SPECDET,1)
+
+             if(tFCIMC) then
+                 call FciMCPar(WeightDum,EnerDum)
+
+                 WRITE(6,*) "Summed approx E(Beta)=",EnerDum
+             elseif(tCCMC) then
+                  if(tAmplitudes) THEN
+                     CALL CCMCStandAlone(WeightDum,EnerDum)
+                  else
+                     CALL CCMCStandaloneParticle(WeightDum,EnerDum)
+                  endif
+                  WRITE(6,*) "Summed approx E(Beta)=",EnerDum
+             else
+
+
+                 WRITE(6,*) "Calculating ",NPATHS," W_Is..."
+                 iunit =get_free_unit()
+                 IF(BTEST(ILOGGING,1)) THEN
+                    IF(I_HMAX.EQ.-10) THEN
+                       OPEN(iunit,FILE="MCSUMMARY",STATUS="UNKNOWN")
+                       WRITE(iunit,*) "Calculating ",NPATHS," W_Is..."
+                       CLOSE(iunit)
+                    ELSE
+                       OPEN(iunit,FILE="MCPATHS",STATUS="UNKNOWN")
+                       WRITE(iunit,*) "Calculating ",NPATHS," W_Is..."
+                       CLOSE(iunit)
+                    ENDIF
+                 ENDIF
+                 IF(NTAY(1).GT.0) THEN
+                    WRITE(6,*) "Using list of determinants."
+                    WRITE(6,*) "Using approx RHOs generated on the fly,NTAY=",NTAY(1)
+    !C.. we haven't calculated the energy, so we're calculating the weights
+    !C.. with approx RHOs
+                    IF(TENERGY) THEN
+    !C.. If we've generated a list of dets
+    !C.. Instead of NMAX, we put ARR
+                         CALL CALCRHOPII2(BETA,I_P,I_HMAX,I_VMAX,NEL,NDET,               &
+         &                 NBASISMAX,G1,nBasis,BRR,NMSH,FCK,ARR,ALAT,UMAT,NTAY,          &
+         &                 RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,           &
+         &                 DETINV,TSPECDET,SPECDET)
+    !                      WRITE(6,*) "Out Here 2"
+    !                      CALL FLUSH(6)
+                    ELSE
+                       IF(TCSFOLD) THEN
+                          IF(.NOT.TSPECDET) THEN
+                             WRITE(6,*) "SPECDET not specified. Using Fermi determinant ONLY"
+                             TSPECDET=.TRUE.
+                             CALL NECI_ICOPY(NEL,FDET,1,SPECDET,1)
+                          ENDIF
+                       ENDIF
+    !C.. Instead of NMAX we have ARR
+                      IF(TPARITY) THEN
+                          WRITE(6,*) "Using symmetry restriction:"
+                          CALL WRITEALLSYM(6,SymRestrict,.TRUE.)
                       ENDIF
-                   ENDIF
-!C.. Instead of NMAX we have ARR
-                  IF(TPARITY) THEN
-                      WRITE(6,*) "Using symmetry restriction:"
-                      CALL WRITEALLSYM(6,SymRestrict,.TRUE.)
-                  ENDIF
-                  IF(TSPN) THEN
-                      WRITE(6,*) "Using spin restriction:",LMS
-                  ENDIF
-                  CALL CALCRHOPII3(BETA,I_P,I_HMAX,I_VMAX,NEL,                         &
-     &               NBASISMAX,G1,nBasis,BRR,NMSH,FCK,ARR,ALAT,UMAT,NTAY,              &
-     &               RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,               &
-     &               DETINV,TSPN,LMS2,TPARITY,SymRestrict,TSPECDET,SPECDET,            &
-     &               nActiveBasis)
-                ENDIF
-             ELSE
-                 WRITE(6,*) "Invalid combination of NTAY and TENERGY.  No NPATHS calculated"
-                 WRITE(6,*) "NTAY: ",NTAY(1)," TENERGY: ",TENERGY
-             ENDIF
-          ENDIF
+                      IF(TSPN) THEN
+                          WRITE(6,*) "Using spin restriction:",LMS
+                      ENDIF
+                      CALL CALCRHOPII3(BETA,I_P,I_HMAX,I_VMAX,NEL,                         &
+         &               NBASISMAX,G1,nBasis,BRR,NMSH,FCK,ARR,ALAT,UMAT,NTAY,              &
+         &               RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,               &
+         &               DETINV,TSPN,LMS2,TPARITY,SymRestrict,TSPECDET,SPECDET,            &
+         &               nActiveBasis)
+                    ENDIF
+                 ELSE
+                     WRITE(6,*) "Invalid combination of NTAY and TENERGY.  No NPATHS calculated"
+                     WRITE(6,*) "NTAY: ",NTAY(1)," TENERGY: ",TENERGY
+                 ENDIF
+              ENDIF
+          endif
           IF(TMONTE.and..not.tMP2Standalone) THEN
 !             DBRAT=0.01
 !             DBETA=DBRAT*BETA
@@ -1651,14 +1675,14 @@ contains
           Use util_mod, only: get_free_unit
           Use DetCalc, only: tFindDets
           use sym_mod
-          real*8 flri, flsi
-          REAL*8 En, ExEn, GSEn
-          REAL*8 RH
+          real(dp) flri, flsi
+          real(dp) En, ExEn, GSEn
+          real(dp) RH
           INTEGER iDeg, III, iunit
           Type(BasisFN) iSym
           LOGICAL tWarn
           
-          REAL*8 CalcMCEn, CalcDLWDB, DoExMC
+          real(dp) CalcMCEn, CalcDLWDB, DoExMC
             
           IF(TENERGY.and.(.not.tFindDets)) THEN
              RHOEPS=RHOEPSILON*EXP(-BETA*(W(1))/I_P)
@@ -2020,8 +2044,8 @@ contains
          HElement_t  UMAT(*)
          HElement_t,allocatable  :: RIJLIST(:,:)
          integer(TagIntType),save :: tagRIJList=0,tagLSTE=0,tagICE=0
-         REAL*8 BETA,ALAT(3),RHOEPS
-         COMPLEX*16 FCK(*)
+         real(dp) BETA,ALAT(3),RHOEPS
+         complex(dp) FCK(*)
          INTEGER NPATHS,NI(NEL),I_P,nBasisMax(5,*)
          INTEGER Work(GNDWorkSize+2*NEL)
          TYPE(BASISFN) G1(*)
@@ -2029,7 +2053,7 @@ contains
          INTEGER III,NWHTAY(3,I_VMAX),IMAX,ILMAX,LMS
          TYPE(BasisFN) ISYM,SymRestrict
          LOGICAL TSPN,TPARITY,TSYM
-         REAL*8 DBETA,ECORE
+         real(dp) DBETA,ECORE
          real(dp) WLRI,WLSI,WLRI1,WLRI2,WLSI1,WLSI2,DLWDB
          real(dp) TOT,WLRI0,WLSI0,WINORM,HElP,NORM
          LOGICAL TNPDERIV,TDONE,TFIRST
@@ -2174,7 +2198,7 @@ contains
 
 
 ! Given an input RHOEPSILON, create Fermi det D out of lowest orbitals and get RHOEPS (which is rhoepsilon * exp(-(beta/P)<D|H|D>
-      REAL*8 FUNCTION GETRHOEPS(RHOEPSILON,BETA,NEL,BRR,I_P)
+      FUNCTION GETRHOEPS(RHOEPSILON,BETA,NEL,BRR,I_P)
          Use Determinants, only: get_helement, write_det
          use constants, only: dp
          use SystemData, only: BasisFN
@@ -2182,7 +2206,7 @@ contains
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I,I_P
          INTEGER BRR(*)
-         REAL*8 RHOEPSILON,BETA
+         real(dp) RHOEPSILON,BETA,GETRHOEPS
          HElement_t BP, tmp
          DO I=1,NEL
             NI(I)=BRR(I)
@@ -2197,13 +2221,13 @@ contains
 
 
 ! Calculate the kinetic energy of the UEG (this differs from CALCT by including the constant CST
-      REAL*8 FUNCTION CALCT2(NI,NEL,G1,ALAT,CST)
+      FUNCTION CALCT2(NI,NEL,G1,ALAT,CST)
          use constants, only: dp
          use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I,J
          TYPE(BasisFN) G1(*)
-         REAL*8 ALAT(4),CST,TMAT
+         real(dp) ALAT(4),CST,TMAT,CALCT2
          LOGICAL ISCSF
          CALCT2=0.D0
          IF(ISCSF(NI,NEL)) RETURN

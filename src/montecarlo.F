@@ -1,7 +1,8 @@
       INTEGER FUNCTION IFINDBASISFN(NQNS,G1,NBASIS)
          use SystemData, only: BasisFN
-         IMPLICIT REAL*8 (A-H,O-Z)
-         INTEGER NBASIS
+!         IMPLICIT real(dp) (A-H,O-Z)
+         IMPLICIT NONE
+         INTEGER NBASIS,I,J
          TYPE(BasisFN) G1(NBASIS),NQNS
          LOGICAL L
          DO I=1,NBASIS
@@ -24,6 +25,7 @@
          use SystemData, only: BasisFN
          use sort_mod
          use util_mod, only: NECI_ICOPY
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER nBasisMax(5,*),NI(NEL),NJ(NEL),NQN(5)
          TYPE(BasisFN) G1(NBASIS)
@@ -31,7 +33,7 @@
          LOGICAL L
          INTEGER IEL,IQN,ISGN,I,IT
          INTEGER IFINDBASISFN
-         REAL*8 RAN2
+         real(dp) RAN2
          IF(NBASISMAX(3,3).EQ.1) THEN
 C.. Generic spatial basis
             CALL GENNEWDET3(NI,NJ,NEL,NBASIS,G1,ISEED,NCH,BRR)
@@ -149,15 +151,16 @@ C.. We do this by exciting an electron into a spinorbital of close energy.
 C.. This does not take into account any symmetries.
       SUBROUTINE GENNEWDET3(NI,NJ,NEL,NBASIS,G1,ISEED,NCH,BRR)
         use sort_mod
+        use constants, only: dp
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NI(NEL),NJ(NEL),G1(*)
          INTEGER NCH,ND,BRR(NBASIS),NBASIS,NEL,ISEED
          LOGICAL L
-         REAL*8 RN
+         real(dp) RN
          INTEGER IGETENEIGHBOUR,IGETSNEIGHBOUR
          INTEGER IEL,ISGN,IT,I,IDIST
-         REAL*8 RAN2
+         real(dp) RAN2
 C.. Copy NI to NJ
          CALL NECI_ICOPY(NEL,NI,1,NJ,1)
          L=.TRUE.

@@ -8,6 +8,7 @@ module SymData
                           operator(.eq.), operator(.ne.), operator(.gt.), &
                           operator(.lt.)
     use MemoryManager, only: TagIntType
+    use constants, only: dp
 
     implicit none
 
@@ -50,11 +51,15 @@ module SymData
         module procedure SymPairLt
     end interface
 
-    !Used for  SymSetupExcits* to hold internal data.  Each symclass corresponds to a single symmetry of an orbital which is present in the determinant being excited from
+    !Used for  SymSetupExcits* to hold internal data.  Each symclass corresponds to a single 
+    !symmetry of an orbital which is present in the determinant being excited from
     TYPE SymClass 
-        TYPE(Symmetry) SymRem    ! The symmetry remaining from the determinant we excite from when one orbital from this symmetry is removed
-        INTEGER        SymLab    ! The symmetry label (i.e. from SymClasses) corresponding to the symmetry of the orbital being removed.
-        INTEGER        spacer    ! The spacer is there to make sure we have a structure which is a multiple of 8-bytes for 64-bit machines.
+        TYPE(Symmetry) SymRem    ! The symmetry remaining from the determinant we excite from when one orbital 
+                                 !from this symmetry is removed
+        INTEGER        SymLab    ! The symmetry label (i.e. from SymClasses) corresponding to the symmetry of 
+                                 !the orbital being removed.
+        INTEGER        spacer    ! The spacer is there to make sure we have a structure which is a multiple 
+                                 !of 8-bytes for 64-bit machines.
     ENDTYPE
     INTEGER, PARAMETER :: SymClassSize=2+SymmetrySize
 
@@ -118,7 +123,7 @@ module SymData
     INTEGER, POINTER ::  SymClasses2(:)
     ! The characters of this class are stored in 
     ! SYMLABELCHARS(1:NROT, SymClasses(ISTATE)).
-    COMPLEX*16, ALLOCATABLE ::  SYMLABELCHARS(:,:) ! size=NROT,NSYMLABELS
+    complex(dp), ALLOCATABLE ::  SYMLABELCHARS(:,:) ! size=NROT,NSYMLABELS
 
     !.. SYMLABELLIST holds a list of states grouped under symmlabel
     INTEGER, ALLOCATABLE ::  SYMLABELLIST(:)
@@ -146,7 +151,7 @@ module SymData
     INTEGER :: NROT
     ! All symmetries are decomposable into component irreps.
     ! The characters corresponding to each irrep are in IRREPCHARS
-    COMPLEX*16, ALLOCATABLE ::  IRREPCHARS(:,:) ! size=NROT,NSYM
+    complex(dp), ALLOCATABLE ::  IRREPCHARS(:,:) ! size=NROT,NSYM
 
     ! SYMPAIRPRODS(1:NSYMPAIRPRODS) contains the list of all SYMPRODs
     ! available, the number of pairs of states (listed in SymStatePairs), and

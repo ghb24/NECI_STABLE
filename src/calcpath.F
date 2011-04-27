@@ -84,8 +84,8 @@ C.. RHOII2 is constructed to contain the RHOII for each point in the path
 !         real(dp) RHOII2(0:i_hmax)
          real(dp) CALCPATHS
          HElement_t HIJS(1:I_V),RHOIJ(0:I_V,0:I_V)
-         REAL*8 WEIGHT
-         REAL*8 DBETA
+         real(dp) WEIGHT
+         real(dp) DBETA
          real(dp) DLWDB
          type(timer), save :: proc_timer
          real(dp) RhoDiag_CPP, CalcPaths_2, CalcPaths_3,
@@ -163,7 +163,7 @@ C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
          use legacy_data, only: CALCP_N, CALCP_NT, CALCP_SUM, CALCP_HSUM
          IMPLICIT NONE
          HElement_t RHOIJ(0:I_V,0:I_V)
-         REAL*8 RHOC,HC,WEIGHT
+         real(dp) RHOC,HC,WEIGHT
          INTEGER I_V,ILG,ISGN,ICLASS
          INTEGER INCR
 C.. allow for subtractions
@@ -199,8 +199,9 @@ C            WRITE(32,*) I_V,ICLASS,RHOC
             CALCP_HSUM(ICLASS)=CALCP_HSUM(ICLASS)+HC
       END
       SUBROUTINE CLASSPATH(RHOIJ,N,ICLASS)
+        use constants, only: dp,int64
          INTEGER I,J,N,ICLASS
-         REAL*8 RHOIJ(0:N,0:N)
+         real(dp) RHOIJ(0:N,0:N)
          ICLASS=0
          DO I=0,N-1
             DO J=I+1,N-1
