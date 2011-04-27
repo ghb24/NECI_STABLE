@@ -4,7 +4,8 @@
 !      IMPLICIT real(dp) (A-H,O-Z)
       use constants, only: dp
       IMPLICIT NONE
-      real(dp) :: NDET1(NEL),NDET2(NEL),AUXC(NMSH,NMSH,NMSH)
+      real(dp) :: AUXC(NMSH,NMSH,NMSH)
+      integer :: NDET1(NEL),NDET2(NEL)
 C..Cube array
       real(dp) :: SITAB(NMSH,NMAX) 
       integer :: NEL,NHG,NMSH,NMAX
