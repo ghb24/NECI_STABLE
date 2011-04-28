@@ -6,7 +6,6 @@ module hphf_integrals
     use HPHFRandExcitMod, only: FindDetSpinSym, FindExcitBitDetSym
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel
     use sltcnd_mod, only: sltcnd, sltcnd_excit
-    use IntegralsData, only: UMat,FCK,NMAX
     use bit_reps, only: NIfD, NIfTot, NIfDBO
     implicit none
 

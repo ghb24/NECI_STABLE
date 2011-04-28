@@ -1,6 +1,6 @@
 Module MomInvData
 
-    use constants, only: dp,int64
+!    use constants, only: dp,int64
     implicit none
 
     save

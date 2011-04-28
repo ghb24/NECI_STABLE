@@ -2,8 +2,8 @@
 
 Module MomInv
     use constants, only: dp,n_int,end_n_int
-    use bit_reps, only: NIfD, NIfTot, NIfDBO
-    use DetBitOps, only: DetBitEQ
+    use bit_reps, only: NIfD, NIfTot, NIfDBO, decode_bit_det
+    use DetBitOps, only: DetBitEQ,DetBitLT
     use SystemData, only: NEl,G1,nBasis,Brr,Arr,tFixLz,LzTot,G1
     use Parallel
     use sort_mod
@@ -128,6 +128,7 @@ Module MomInv
                 
     end subroutine SetupMomInv
 
+    !Create momentum paired nI
     subroutine InvertMomDet(nI,MomSymDet)
         implicit none
         integer , intent(in) :: nI(NEl)
@@ -140,6 +141,48 @@ Module MomInv
         call sort(MomSymDet)
 
     end subroutine InvertMomDet
+
+    !Create momentum paired iLut
+    subroutine InvertMomBitDet(iLut,MomSymiLut)
+        implicit none
+        integer(n_int) , intent(in) :: iLut(0:NIfTot)
+        integer(n_int) , intent(out) :: MomSymiLut(0:NIfTot)
+        integer :: i,nI(nel)
+
+        MomSymiLut(:)=0
+        call decode_bit_det(nI,iLut)
+        !No need to sort, since we are encoding straight away
+        do i=1,nel
+            set_orb(MomSymiLut,MomInvSymOrb(nI(i)))
+        enddo
+
+    end subroutine InvertMomBitDet
+
+    subroutine ReturnMomAllowedDet(nI,nISym,iLut,iLutSym,tSwapped)
+        implicit none
+        integer(n_int), intent(inout) :: iLut(0:NIfTot),iLutSym(0:NIfTot)
+        integer(n_int) :: iLutTemp(0:NIfTot)
+        integer, intent(inout) :: nI(nEl),nISym(nEl)
+        integer :: nTemp(NEl),i
+        logical, intent(out) :: tSwapped
+
+        i=DetBitLT(iLut,iLutSym,NIfD)
+        if(i.eq.1) then
+            !swap
+            iLutTemp(:)=iLut(:)
+            iLut(:)=iLutSym(:)
+            iLutSym(:)=iLutTemp(:)
+            nTemp(:)=nI(:)
+            nI(:)=nISym(:)
+            nISym(:)=nTemp(:)
+            tSwapped=.true.
+        elseif(i.eq.0) then
+            call stop_all("ReturnMomAllowedDet","Shouldn't have self-inverse in here")
+        else
+            tswapped=.false.
+        endif
+
+    end subroutine ReturnMomAllowedDet
 
     pure logical function IsBitMomSelfInv(iLut)
         implicit none
