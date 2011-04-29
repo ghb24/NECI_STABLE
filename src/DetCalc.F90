@@ -697,7 +697,7 @@ CONTAINS
                     !Ignore if self-inverse
                     if(IsBitMomSelfInv(FCIDets(:,i))) then
                         call decode_bit_det(TempnI,FCIDets(:,i))
-                        write(SelfInvUnit,"(I16,8I4,G19.8)") FCIDets(0:NIfD,i),TempnI(:),FCIGS(i)
+                        write(SelfInvUnit,"(I16,6I4,G19.8)") FCIDets(0:NIfD,i),TempnI(:),FCIGS(i)
                         cycle
                     endif
                     
@@ -726,7 +726,7 @@ CONTAINS
                         call stop_all(this_routine,"Sym partner not found")
                     endif
                     ICConnect = FindBitExcitLevel(FCIDets(:,i),iLutMomSym,nel)
-                    write(PairedUnit,"(2I16,19I4,2G19.8)") FCIDets(0:NIfD,i),iLutMomSym(0:NIfD),TempnI(:),MomSymDet(:),IC,ICSym,ICConnect,FCIGS(i),FCIGS(Ind)
+                    write(PairedUnit,"(2I16,15I4,2G19.8)") FCIDets(0:NIfD,i),iLutMomSym(0:NIfD),TempnI(:),MomSymDet(:),IC,ICSym,ICConnect,FCIGS(i),FCIGS(Ind)
                 enddo
                 close(PairedUnit)
                 close(SelfInvUnit)

@@ -158,6 +158,42 @@ Module MomInv
 
     end subroutine InvertMomBitDet
 
+    !Return the allowed Momentum Inverse determinant, with optional calculation of either/both
+    !of the symmetry determinants.
+    subroutine CalcMomAllowedBitDet(nI,nISym,iLut,iLutSym,tCalcnISym,tCalciLutSym,tSwapped)
+        implicit none
+        logical, intent(in) :: tCalcnISym,tCalciLutSym
+        logical, intent(out) :: tSwapped
+        integer, intent(in) :: nI(NEl)
+        integer, intent(inout) :: nISym(NEl)
+        integer(n_int), intent(in) :: iLut(0:NIfTot)
+        integer(n_int), intent(inout) :: iLutSym(0:NIfTot)
+
+        if(tCalcnIS
+
+    end subroutine CalcMomAllowedBitDet
+
+    pure subroutine ReturnMomAllowedBitDet(iLut,iLutSym,tSwapped)
+        implicit none
+        integer(n_int), intent(inout) :: iLut(0:NIfTot),iLutSym(0:NIfTot)
+        logical, intent(out) :: tSwapped
+        integer :: i
+        
+        i=DetBitLT(iLut,iLutSym,NIfD)
+        if(i.eq.1) then
+            !swap
+            iLutTemp(:)=iLut(:)
+            iLut(:)=iLutSym(:)
+            iLutSym(:)=iLutTemp(:)
+            tSwapped=.true.
+        elseif(i.eq.0) then
+            call stop_all("ReturnMomAllowedBitDet","Shouldn't have self-inverse in here")
+        else
+            tswapped=.false.
+        endif
+
+    end subroutine ReturnMomAllowedBitDet
+
     subroutine ReturnMomAllowedDet(nI,nISym,iLut,iLutSym,tSwapped)
         implicit none
         integer(n_int), intent(inout) :: iLut(0:NIfTot),iLutSym(0:NIfTot)
@@ -183,6 +219,25 @@ Module MomInv
         endif
 
     end subroutine ReturnMomAllowedDet
+
+    !Routine to return whether a determinant is a momentum self inverse or not,
+    !using both bit and natural ordered representations.
+    !Faster than IsBitMomSelfInv
+    pure logical function IsMomSelfInv(nI,iLutnI)
+        implicit none
+        integer, intent(in) :: nI(NEl)
+        integer(n_int), intent(in) :: iLutnI(0:NIfTot)
+
+        do i=1,NEl
+            if(IsNotOcc(iLutnI,MomInvSymOrb(nI(i)))) then
+                IsMomSelfInv=.false.
+                return
+            endif
+        enddo
+
+        IsMomSelfInv=.true.
+
+    end function IsMomSelfInv
 
     pure logical function IsBitMomSelfInv(iLut)
         implicit none
