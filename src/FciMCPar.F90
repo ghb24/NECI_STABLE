@@ -952,7 +952,7 @@ MODULE FciMCParMod
     subroutine end_iter_stats (TotWalkersNew)
 
         integer, intent(in) :: TotWalkersNew
-        real(dp) :: delta(lenof_sign)
+        HElement_t :: delta
         integer :: proc, pos, sgn(lenof_sign), i
 
         ! SumWalkersCyc calculates the total number of walkers over an update
@@ -978,7 +978,7 @@ MODULE FciMCParMod
                                          proje_ref_iluts(:,i), NIfD+1)
                     if (pos > 0) then
                         call extract_sign (CurrentDets(:,pos), sgn)
-                        delta = sgn * proje_ref_coeffs(i)
+                        delta = ARR_RE_OR_CPLX(sgn) * proje_ref_coeffs(i)
                         cyc_proje_denominator = cyc_proje_denominator + delta
                         sum_proje_denominator = sum_proje_denominator + delta
                     endif
@@ -2896,7 +2896,7 @@ MODULE FciMCParMod
     subroutine collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all)
         integer :: int_tmp(5+2*lenof_sign), proc, sgn(lenof_sign), pos, i
         HElement_t :: helem_tmp(2)
-        real(dp) :: real_tmp(2*lenof_sign)
+        HElement_t :: real_tmp(2)!*lenof_sign)
         integer(int64) :: int64_tmp(9)
         type(fcimc_iter_data) :: iter_data
         integer(int64), dimension(lenof_sign), intent(in) :: tot_parts_new
@@ -2953,8 +2953,8 @@ MODULE FciMCParMod
 
         ! real(dp) values
         call MPISum((/cyc_proje_denominator, sum_proje_denominator/),real_tmp)
-        all_cyc_proje_denominator = real_tmp(1:lenof_sign)
-        all_sum_proje_denominator = real_tmp(lenof_sign+1:2*lenof_sign)
+        all_cyc_proje_denominator = real_tmp(1)!(1:lenof_sign)
+        all_sum_proje_denominator = real_tmp(2)!(lenof_sign+1:2*lenof_sign)
 
         ! Max/Min values (check load balancing)
         call MPIReduce (TotWalkers, MPI_MAX, MaxWalkersProc)
@@ -3111,17 +3111,18 @@ MODULE FciMCParMod
             ! When using a linear combination, the denominator is summed
             ! directly.
             if (.not. (proje_linear_comb .and. nproje_sum > 1)) then
-                all_sum_proje_denominator = AllSumNoatHF
+                all_sum_proje_denominator = ARR_RE_OR_CPLX(AllSumNoatHF)
                 all_cyc_proje_denominator = AllHFCyc
             endif
 
+!            write(6,*) AllHFCyc, all_cyc_proje_denominator
             ! Calculate the projected energy.
             if (any(AllSumNoatHF /= 0) .or. &
                 (proje_linear_comb .and. nproje_sum > 1)) then
-                ProjectionE = AllSumENum / &
-                              ARR_RE_OR_CPLX(all_sum_proje_denominator)
-                proje_iter = AllENumCyc / &
-                              ARR_RE_OR_CPLX(all_cyc_proje_denominator)
+                ProjectionE = AllSumENum / all_sum_proje_denominator 
+!                              ARR_RE_OR_CPLX(all_sum_proje_denominator)
+                proje_iter = AllENumCyc / all_sum_proje_denominator 
+!                              ARR_RE_OR_CPLX(all_cyc_proje_denominator)
             endif
 
             ! If we are re-zeroing the shift
@@ -3276,9 +3277,9 @@ MODULE FciMCParMod
                    &13.NoatDoubs  14.AccRat  15.UniqueDets  16.IterTime &
                    &17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime &
                    &  20.HFInstShift  21.TotInstShift  &
-                   &22.Tot-Proj.E.ThisCyc(Re)  23.HFContribtoE(Re)  &
-                   &24.HFContribtoE(Im)   25.NumContribtoE(Re)  &
-                   &26.NumContribtoE(Im)  27.HF weight   28.|Psi|"
+                   &22.HFContribtoE(Both)  &
+                   &23.NumContribtoE(Re)  &
+                   &24.NumContribtoE(Im)  25.HF weight   26.|Psi|"
 #else
             if(tMCOutput) then
                 write(6,"(A)") "       Step     Shift      WalkerCng    &
@@ -3310,33 +3311,31 @@ MODULE FciMCParMod
         if (iProcIndex == root) then
 #ifdef __CMPLX
             write(fcimcstats_unit,"(I12,G16.7,2I10,2I12,4G17.9,3I10,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,9G17.9)") &
-                Iter + PreviousCycles, &
-                DiagSft, &
-                AllTotParts(1) - AllTotPartsOld(1), &
-                AllTotParts(2) - AllTotPartsOld(2), &
-                AllTotParts(1), &
-                AllTotParts(2), &
-                real(ProjectionE, dp), &
-                aimag(projectionE), &
-                real(proje_iter, dp), &
-                aimag(proje_iter), &
-                AllNoatHF(1), &
-                AllNoatHF(2), &
-                AllNoatDoubs, &
-                AccRat, &
-                AllTotWalkers, &
-                IterTime, &
-                real(AllSpawnFromSing, dp) / real(AllNoBorn), &
-                WalkersDiffProc, &
-                TotImagTime, &
-                HFShift, &
-                InstShift, &
-                real(AllENumCyc / AllHFCyc, dp), &
-                real(AllHFCyc / StepsSft, dp), &
-                aimag(AllHFCyc / StepsSft), &
-                real(AllENumCyc / StepsSft, dp), &
-                aimag(AllENumCyc / StepsSft), &
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,7G17.9)") &
+                Iter + PreviousCycles, &                !1.
+                DiagSft, &                              !2.
+                AllTotParts(1) - AllTotPartsOld(1), &   !3.
+                AllTotParts(2) - AllTotPartsOld(2), &   !4.
+                AllTotParts(1), &                       !5.
+                AllTotParts(2), &                       !6.
+                real(ProjectionE, dp), &                !7.     real \sum[ nj H0j / n0 ]
+                aimag(projectionE), &                   !8.     Im   \sum[ nj H0j / n0 ]
+                real(proje_iter, dp), &                 !9.     
+                aimag(proje_iter), &                    !10.
+                AllNoatHF(1), &                         !11.
+                AllNoatHF(2), &                         !12.
+                AllNoatDoubs, &                         !13.
+                AccRat, &                               !14.
+                AllTotWalkers, &                        !15.
+                IterTime, &                             !16.
+                real(AllSpawnFromSing, dp) / real(AllNoBorn), &     !17.
+                WalkersDiffProc, &                           !18.
+                TotImagTime, &                               !19.
+                HFShift, &                                   !20.
+                InstShift, &                                 !21.
+                real((AllHFCyc * conjg(AllHFCyc)),dp), &     !24     |n0|^2  This is the denominator for both calcs
+                real((AllENumCyc * conjg(AllHFCyc)),dp), &   !22.    Re[\sum njH0j] x Re[n0] + Im[\sum njH0j] x Im[n0]   No div by StepsSft
+                aimag(AllENumCyc * conjg(AllHFCyc)), &       !23.    Im[\sum njH0j] x Re[n0] - Re[\sum njH0j] x Im[n0]   since no physicality
                 sqrt(float(sum(AllNoatHF**2))) / norm_psi, &
                 norm_psi
 
