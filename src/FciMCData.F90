@@ -112,7 +112,7 @@ MODULE FciMCData
       INTEGER(KIND=int64) :: AllSumWalkersCyc
       INTEGER :: AllAnnihilated,AllNoatDoubs
       INTEGER, DIMENSION(lenof_sign) :: AllNoatHF
-      real(dp), dimension(lenof_sign) :: sum_proje_denominator, &
+      HElement_t :: sum_proje_denominator, &
                         cyc_proje_denominator, all_cyc_proje_denominator, &
                         all_sum_proje_denominator
       real(dp) :: AllAvSign,AllAvSignHFD
