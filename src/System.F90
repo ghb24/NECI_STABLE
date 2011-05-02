@@ -26,6 +26,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tAntisym_MI=.false.
       tMomInv=.false.
       tNoSingExcits=.false.
       tOneElecDiag=.false.
@@ -503,6 +504,8 @@ MODULE System
 !use these assumed size excitation generators to generate the whole list of excitations, will result 
 !in bad, bad times.
             tAssumeSizeExcitgen=.true.
+        case("MOMINVSYM")
+            tMomInv=.true.
         case("HPHF")
             tHPHF=.true.
             if(item.lt.nitems) then
@@ -831,8 +834,6 @@ MODULE System
         case("LZTOT")
             tFixLz=.true.
             call readi(LzTot)
-        case("MOMINVSYM")
-            tMomInv=.true.
         case("KPOINTS")
             tKPntSym=.true.
         case("ENDSYS") 

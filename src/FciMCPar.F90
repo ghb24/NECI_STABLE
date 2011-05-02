@@ -14,7 +14,8 @@ MODULE FciMCParMod
     use SystemData, only: nel, Brr, nBasis, nBasisMax, LMS, tHPHF, tHub, &
                           tReal, tRotatedOrbs, tFindCINatOrbs, tFixLz, &
                           LzTot, tUEG, tLatticeGens, tCSF, G1, Arr, &
-                          tNoBrillouin, tKPntSym, tPickVirtUniform, tOddS_HPHF
+                          tNoBrillouin, tKPntSym, tPickVirtUniform, tOddS_HPHF &
+                          tMomInv
     use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY, decode_bit_det, &
                         encode_bit_rep, encode_det, extract_bit_rep, &
                         test_flag, set_flag, extract_flags, &
@@ -828,6 +829,8 @@ MODULE FciMCParMod
                 else
                     if (tHPHF) then
                         HDiagtemp = hphf_diag_helement (DetCurr,CurrentDets(:,j))
+                    elseif(tMomInv) then
+                        HDiagtemp = MI_diag_helement(DetCurr,CurrentDets(:,j))
                     else
                         HDiagTemp = get_helement (DetCurr, DetCurr, 0)
                     endif
@@ -1342,6 +1345,8 @@ MODULE FciMCParMod
             call set_excit_generator (gen_csf_excit)
         elseif (tPickVirtUniform) then
             call set_excit_generator (gen_rand_excit3)
+        elseif (tMomInv) then
+            call set_excit_generator (gen_MI_excit)
         else
             call set_excit_generator (gen_rand_excit)
         endif
@@ -1361,7 +1366,7 @@ MODULE FciMCParMod
         if ((tTruncCas .and. (.not. tTruncInitiator)) .or. tTruncSpace .or. &
             tPartFreezeCore .or. tPartFreezeVirt .or. tFixLz .or. &
             (tUEG .and. .not. tLatticeGens) .or. tTruncNOpen) then
-            if (tHPHF .or. tCSF) then
+            if (tHPHF .or. tCSF .or. tMomInv) then
                 call set_attempt_create (attempt_create_trunc_spawn)
             else
                 call set_attempt_create (attempt_create_trunc_spawn_encode)
@@ -1380,12 +1385,18 @@ MODULE FciMCParMod
             else
                 call set_get_spawn_helement (hphf_off_diag_helement_spawn)
             endif
+        elseif (tMomInv) then
+            if (tGenMatHEl) then
+                call set_get_spawn_helement (MI_spawn_sign)
+            else
+                call stop_all(this_routine,"tGenMatHEl must be set with MI functions")
+            endif
         else
             call set_get_spawn_helement (get_helement_det_only)
         endif
 
         ! Once we have generated the children, do we need to encode them?
-        if (.not. (tCSF .or. tHPHF)) then
+        if (.not. (tCSF .or. tHPHF .or. tMomInv)) then
             call set_encode_child (FindExcitBitDet)
         else
             call set_encode_child (null_encode_child)
@@ -1719,209 +1730,210 @@ MODULE FciMCParMod
 
     end function
 
-!This function tells us whether we should create a child particle on nJ, from a parent particle on DetCurr with sign WSign, created with probability Prob
-!It returns zero if we are not going to create a child, or -1/+1 if we are to create a child, giving the sign of the new particle
-    INTEGER FUNCTION AttemptCreatePar(DetCurr,iLutCurr,WSign,nJ,iLutnJ,Prob,IC,Ex,tParity)
-        use GenRandSymExcitNUMod , only : GenRandSymExcitBiased
-        use Logging, only : CCMCDebug
-        INTEGER :: DetCurr(NEl),nJ(NEl),IC,ExtraCreate,Ex(2,2),Bin
-        INTEGER(KIND=n_int) :: iLutCurr(0:NIfTot),iLutnJ(0:NIfTot)
-        LOGICAL :: tParity
-        real(dp) :: Prob,r,rat
-        integer, dimension(lenof_sign), intent(in) :: wSign
-        HElement_t :: rh
-
-        IF(tMCExcits) THEN
-!If we are generating multiple excitations, then the probability of spawning on them must be reduced by the number of excitations generated.
-!This is equivalent to saying that the excitation is likely to arise a factor of NoMCExcits more often.
-            Prob=Prob*REAL(NoMCExcits,dp)
-        ENDIF
-            
-
-!Calculate off diagonal hamiltonian matrix element between determinants
-!        rh=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
-        IF(tHPHF) THEN
-            IF(tGenMatHEl) THEN
-!The prob is actually prob/HEl, since the matrix element was generated at the same time as the excitation
-
-                rat=Tau/abs(Prob)
-
-                rh=Prob ! to get the signs right for later on.
-!                WRITE(6,*) Prob, DetCurr(:),"***",nJ(:)
-!                WRITE(6,*) "******"
-!                CALL HPHFGetOffDiagHElement(DetCurr,nJ,iLutCurr,iLutnJ,rh)
-
-            ELSE
-!The IC given doesn't really matter. It just needs to know whether it is a diagonal or off-diagonal matrix element.
-!However, the excitation generator can generate the same HPHF again. If this is done, the routine will send the matrix element back as zero.
-                rh = hphf_off_diag_helement (DetCurr, nJ, iLutCurr, iLutnJ)
-!Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
-                rat=Tau*abs(rh)/Prob
-!                WRITE(6,*) Prob/rh, DetCurr(:),"***",nJ(:)
-!                WRITE(6,*) "******"
-
-            ENDIF
-        ELSE
-!Normal determinant spawn
-
-            rh = get_helement (DetCurr, nJ, IC, Ex, tParity)
-            !WRITE(6,*) rh
-
-!Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
-            rat=Tau*abs(rh)/Prob
-        ENDIF
-        IF(CCMCDebug.gt.5) WRITE(6,*) "Connection H-element to spawnee:",rh
-!        CALL IsSymAllowedExcit(DetCurr,nJ,IC,Ex,SymAllowed) 
-!        IF((.not.SymAllowed).and.(abs(rh).gt.0.D0)) THEN
-!            WRITE(17,*) rh
+!!Depreciated function
+!!This function tells us whether we should create a child particle on nJ, from a parent particle on DetCurr with sign WSign, created with probability Prob
+!!It returns zero if we are not going to create a child, or -1/+1 if we are to create a child, giving the sign of the new particle
+!    INTEGER FUNCTION AttemptCreatePar(DetCurr,iLutCurr,WSign,nJ,iLutnJ,Prob,IC,Ex,tParity)
+!        use GenRandSymExcitNUMod , only : GenRandSymExcitBiased
+!        use Logging, only : CCMCDebug
+!        INTEGER :: DetCurr(NEl),nJ(NEl),IC,ExtraCreate,Ex(2,2),Bin
+!        INTEGER(KIND=n_int) :: iLutCurr(0:NIfTot),iLutnJ(0:NIfTot)
+!        LOGICAL :: tParity
+!        real(dp) :: Prob,r,rat
+!        integer, dimension(lenof_sign), intent(in) :: wSign
+!        HElement_t :: rh
+!
+!        IF(tMCExcits) THEN
+!!If we are generating multiple excitations, then the probability of spawning on them must be reduced by the number of excitations generated.
+!!This is equivalent to saying that the excitation is likely to arise a factor of NoMCExcits more often.
+!            Prob=Prob*REAL(NoMCExcits,dp)
 !        ENDIF
-
-!        rhcheck=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
-!        IF(rh.ne.rhcheck) THEN
-!            WRITE(6,*) "DetCurr: ",DetCurr(:)
-!            WRITE(6,*) "nJ: ",nJ(:)
-!            WRITE(6,*) "EX: ",Ex(1,:),Ex(2,:)
-!            WRITE(6,*) "tParity: ",tParity
-!            STOP
+!            
+!
+!!Calculate off diagonal hamiltonian matrix element between determinants
+!!        rh=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
+!        IF(tHPHF) THEN
+!            IF(tGenMatHEl) THEN
+!!The prob is actually prob/HEl, since the matrix element was generated at the same time as the excitation
+!
+!                rat=Tau/abs(Prob)
+!
+!                rh=Prob ! to get the signs right for later on.
+!!                WRITE(6,*) Prob, DetCurr(:),"***",nJ(:)
+!!                WRITE(6,*) "******"
+!!                CALL HPHFGetOffDiagHElement(DetCurr,nJ,iLutCurr,iLutnJ,rh)
+!
+!            ELSE
+!!The IC given doesn't really matter. It just needs to know whether it is a diagonal or off-diagonal matrix element.
+!!However, the excitation generator can generate the same HPHF again. If this is done, the routine will send the matrix element back as zero.
+!                rh = hphf_off_diag_helement (DetCurr, nJ, iLutCurr, iLutnJ)
+!!Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
+!                rat=Tau*abs(rh)/Prob
+!!                WRITE(6,*) Prob/rh, DetCurr(:),"***",nJ(:)
+!!                WRITE(6,*) "******"
+!
+!            ENDIF
+!        ELSE
+!!Normal determinant spawn
+!
+!            rh = get_helement (DetCurr, nJ, IC, Ex, tParity)
+!            !WRITE(6,*) rh
+!
+!!Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
+!            rat=Tau*abs(rh)/Prob
 !        ENDIF
-
-!        IF(abs(rh).le.HEpsilon) THEN
+!        IF(CCMCDebug.gt.5) WRITE(6,*) "Connection H-element to spawnee:",rh
+!!        CALL IsSymAllowedExcit(DetCurr,nJ,IC,Ex,SymAllowed) 
+!!        IF((.not.SymAllowed).and.(abs(rh).gt.0.D0)) THEN
+!!            WRITE(17,*) rh
+!!        ENDIF
+!
+!!        rhcheck=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
+!!        IF(rh.ne.rhcheck) THEN
+!!            WRITE(6,*) "DetCurr: ",DetCurr(:)
+!!            WRITE(6,*) "nJ: ",nJ(:)
+!!            WRITE(6,*) "EX: ",Ex(1,:),Ex(2,:)
+!!            WRITE(6,*) "tParity: ",tParity
+!!            STOP
+!!        ENDIF
+!
+!!        IF(abs(rh).le.HEpsilon) THEN
+!!            AttemptCreatePar=0
+!!            RETURN
+!!        ENDIF
+!
+!
+!!If probability is > 1, then we can just create multiple children at the chosen determinant
+!        ExtraCreate=INT(rat)
+!        rat=rat-REAL(ExtraCreate)
+!
+!!Stochastically choose whether to create or not according to ranlux 
+!        r = genrand_real2_dSFMT() 
+!        IF(rat.gt.r) THEN
+!!            IF(Iter.eq.18925) THEN
+!!                WRITE(6,*) "Created",rh,rat
+!!            ENDIF
+!
+!!Child is created - what sign is it?
+!            IF(WSign(1).gt.0) THEN
+!!Parent particle is positive
+!                IF(real(rh).gt.0.D0) THEN
+!                    AttemptCreatePar=-1     !-ve walker created
+!                ELSE
+!                    AttemptCreatePar=1      !+ve walker created
+!                ENDIF
+!
+!            ELSE
+!!Parent particle is negative
+!                IF(real(rh).gt.0.D0) THEN
+!                    AttemptCreatePar=1      !+ve walker created
+!                ELSE
+!                    AttemptCreatePar=-1     !-ve walker created
+!                ENDIF
+!            ENDIF
+!
+!        ELSE
+!!No child particle created
+!!            IF(Iter.eq.18925) THEN
+!!                WRITE(6,*) "Not Created",rh,rat
+!!            ENDIF
 !            AttemptCreatePar=0
-!            RETURN
 !        ENDIF
-
-
-!If probability is > 1, then we can just create multiple children at the chosen determinant
-        ExtraCreate=INT(rat)
-        rat=rat-REAL(ExtraCreate)
-
-!Stochastically choose whether to create or not according to ranlux 
-        r = genrand_real2_dSFMT() 
-        IF(rat.gt.r) THEN
-!            IF(Iter.eq.18925) THEN
-!                WRITE(6,*) "Created",rh,rat
+!
+!        IF(ExtraCreate.ne.0) THEN
+!!Need to include the definitely create additional particles from a initial probability > 1
+!
+!            IF(AttemptCreatePar.lt.0) THEN
+!!In this case particles are negative
+!                AttemptCreatePar=AttemptCreatePar-ExtraCreate
+!            ELSEIF(AttemptCreatePar.gt.0) THEN
+!!Include extra positive particles
+!                AttemptCreatePar=AttemptCreatePar+ExtraCreate
+!            ELSEIF(AttemptCreatePar.eq.0) THEN
+!!No particles were stochastically created, but some particles are still definatly created - we need to determinant their sign...
+!                IF(WSign(1).gt.0) THEN
+!                    IF(real(rh).gt.0.D0) THEN
+!                        AttemptCreatePar=-ExtraCreate    !Additional particles are negative
+!                    ELSE
+!                        AttemptCreatePar=ExtraCreate       !Additional particles are positive
+!                    ENDIF
+!                ELSE
+!                    IF(real(rh).gt.0.D0) THEN
+!                        AttemptCreatePar=ExtraCreate
+!                    ELSE
+!                        AttemptCreatePar=-ExtraCreate
+!                    ENDIF
+!                ENDIF
 !            ENDIF
-
-!Child is created - what sign is it?
-            IF(WSign(1).gt.0) THEN
-!Parent particle is positive
-                IF(real(rh).gt.0.D0) THEN
-                    AttemptCreatePar=-1     !-ve walker created
-                ELSE
-                    AttemptCreatePar=1      !+ve walker created
-                ENDIF
-
-            ELSE
-!Parent particle is negative
-                IF(real(rh).gt.0.D0) THEN
-                    AttemptCreatePar=1      !+ve walker created
-                ELSE
-                    AttemptCreatePar=-1     !-ve walker created
-                ENDIF
-            ENDIF
-
-        ELSE
-!No child particle created
-!            IF(Iter.eq.18925) THEN
-!                WRITE(6,*) "Not Created",rh,rat
-!            ENDIF
-            AttemptCreatePar=0
-        ENDIF
-
-        IF(ExtraCreate.ne.0) THEN
-!Need to include the definitely create additional particles from a initial probability > 1
-
-            IF(AttemptCreatePar.lt.0) THEN
-!In this case particles are negative
-                AttemptCreatePar=AttemptCreatePar-ExtraCreate
-            ELSEIF(AttemptCreatePar.gt.0) THEN
-!Include extra positive particles
-                AttemptCreatePar=AttemptCreatePar+ExtraCreate
-            ELSEIF(AttemptCreatePar.eq.0) THEN
-!No particles were stochastically created, but some particles are still definatly created - we need to determinant their sign...
-                IF(WSign(1).gt.0) THEN
-                    IF(real(rh).gt.0.D0) THEN
-                        AttemptCreatePar=-ExtraCreate    !Additional particles are negative
-                    ELSE
-                        AttemptCreatePar=ExtraCreate       !Additional particles are positive
-                    ENDIF
-                ELSE
-                    IF(real(rh).gt.0.D0) THEN
-                        AttemptCreatePar=ExtraCreate
-                    ELSE
-                        AttemptCreatePar=-ExtraCreate
-                    ENDIF
-                ENDIF
-            ENDIF
-        ENDIF
-
-        
-!We know we want to create a particle. Return the bit-representation of this particle (if we have not already got it)
-        IF(.not.tHPHF.and.AttemptCreatePar.ne.0) THEN
-            if (tCSF) then
-                ! This makes sure that the Yamanouchi symbol is correct. It
-                ! also makes it work if we have tTruncateCSF on, and ex would
-                ! therefore leave all singles as beta, when we switch to dets.
-                call EncodeBitDet (nJ, iLutnJ)
-            else
-                call FindExcitBitDet(iLutCurr,iLutnJ,IC,Ex)
-            endif
-        ENDIF
-
-!        IF(AttemptCreatePar.ne.0) THEN
-!            WRITE(6,"(A,F15.5,I5,G25.15,I8,G25.15)") "Outwards ", rat,ExtraCreate,real(rh),Prob
 !        ENDIF
-
-        IF(tHistEnergies) THEN
-!First histogram off-diagonal matrix elements.
-            Bin=INT((real(rh,dp)+OffDiagMax)/OffDiagBinRange)+1
-            IF(Bin.le.0.or.Bin.gt.iOffDiagNoBins) THEN
-                CALL Stop_All("AttemptCreatePar","Trying to histogram off-diagonal matrix elements, "&
-                & //"but outside histogram array bounds.")
-            ENDIF
-            IF(IC.eq.1) THEN
-                SinglesAttemptHist(Bin)=SinglesAttemptHist(Bin)+(Tau/Prob)
-                IF(AttemptCreatePar.ne.0) THEN
-                    SinglesHist(Bin)=SinglesHist(Bin)+real(abs(AttemptCreatePar),dp)
-                    IF(BRR(Ex(1,1)).le.NEl) THEN
-                        IF(BRR(Ex(2,1)).le.NEl) THEN
-                            SinglesHistOccOcc(Bin)=SinglesHistOccOcc(Bin)+real(abs(AttemptCreatePar),dp)
-                        ELSE
-                            SinglesHistOccVirt(Bin)=SinglesHistOccVirt(Bin)+real(abs(AttemptCreatePar),dp)
-                        ENDIF
-                    ELSE
-                        IF(BRR(Ex(2,1)).le.NEl) THEN
-                            SinglesHistVirtOcc(Bin)=SinglesHistVirtOcc(Bin)+real(abs(AttemptCreatePar),dp)
-                        ELSE
-                            SinglesHistVirtVirt(Bin)=SinglesHistVirtVirt(Bin)+real(abs(AttemptCreatePar),dp)
-                        ENDIF
-                    ENDIF
-                ENDIF
-            ELSEIF(IC.eq.2) THEN
-                DoublesAttemptHist(Bin)=DoublesAttemptHist(Bin)+(Tau/Prob)
-                IF(AttemptCreatePar.ne.0) THEN
-                    DoublesHist(Bin)=DoublesHist(Bin)+real(abs(AttemptCreatePar),dp)
-                ENDIF
-            ENDIF
-
-            IF(tHPHF) THEN
-                rh = hphf_diag_helement (nJ, iLutnJ)
-            ELSE
-                rh = get_helement (nJ, nJ, 0)
-            ENDIF
-            Bin=INT((real(rh,dp)-Hii)/BinRange)+1
-            IF(Bin.gt.iNoBins) THEN
-                CALL Stop_All("AttemptCreatePar","Histogramming energies higher than the arrays can cope with. "&
-                & //"Increase iNoBins or BinRange")
-            ENDIF
-            IF(AttemptCreatePar.ne.0) THEN
-                SpawnHist(Bin)=SpawnHist(Bin)+real(abs(AttemptCreatePar),dp)
-!                WRITE(6,*) "Get Here!", real(abs(AttemptCreatePar),dp),Bin
-            ENDIF
-            AttemptHist(Bin)=AttemptHist(Bin)+(Tau/Prob)
-        ENDIF
-
-    END FUNCTION AttemptCreatePar
+!
+!        
+!!We know we want to create a particle. Return the bit-representation of this particle (if we have not already got it)
+!        IF(.not.tHPHF.and.AttemptCreatePar.ne.0) THEN
+!            if (tCSF) then
+!                ! This makes sure that the Yamanouchi symbol is correct. It
+!                ! also makes it work if we have tTruncateCSF on, and ex would
+!                ! therefore leave all singles as beta, when we switch to dets.
+!                call EncodeBitDet (nJ, iLutnJ)
+!            else
+!                call FindExcitBitDet(iLutCurr,iLutnJ,IC,Ex)
+!            endif
+!        ENDIF
+!
+!!        IF(AttemptCreatePar.ne.0) THEN
+!!            WRITE(6,"(A,F15.5,I5,G25.15,I8,G25.15)") "Outwards ", rat,ExtraCreate,real(rh),Prob
+!!        ENDIF
+!
+!        IF(tHistEnergies) THEN
+!!First histogram off-diagonal matrix elements.
+!            Bin=INT((real(rh,dp)+OffDiagMax)/OffDiagBinRange)+1
+!            IF(Bin.le.0.or.Bin.gt.iOffDiagNoBins) THEN
+!                CALL Stop_All("AttemptCreatePar","Trying to histogram off-diagonal matrix elements, "&
+!                & //"but outside histogram array bounds.")
+!            ENDIF
+!            IF(IC.eq.1) THEN
+!                SinglesAttemptHist(Bin)=SinglesAttemptHist(Bin)+(Tau/Prob)
+!                IF(AttemptCreatePar.ne.0) THEN
+!                    SinglesHist(Bin)=SinglesHist(Bin)+real(abs(AttemptCreatePar),dp)
+!                    IF(BRR(Ex(1,1)).le.NEl) THEN
+!                        IF(BRR(Ex(2,1)).le.NEl) THEN
+!                            SinglesHistOccOcc(Bin)=SinglesHistOccOcc(Bin)+real(abs(AttemptCreatePar),dp)
+!                        ELSE
+!                            SinglesHistOccVirt(Bin)=SinglesHistOccVirt(Bin)+real(abs(AttemptCreatePar),dp)
+!                        ENDIF
+!                    ELSE
+!                        IF(BRR(Ex(2,1)).le.NEl) THEN
+!                            SinglesHistVirtOcc(Bin)=SinglesHistVirtOcc(Bin)+real(abs(AttemptCreatePar),dp)
+!                        ELSE
+!                            SinglesHistVirtVirt(Bin)=SinglesHistVirtVirt(Bin)+real(abs(AttemptCreatePar),dp)
+!                        ENDIF
+!                    ENDIF
+!                ENDIF
+!            ELSEIF(IC.eq.2) THEN
+!                DoublesAttemptHist(Bin)=DoublesAttemptHist(Bin)+(Tau/Prob)
+!                IF(AttemptCreatePar.ne.0) THEN
+!                    DoublesHist(Bin)=DoublesHist(Bin)+real(abs(AttemptCreatePar),dp)
+!                ENDIF
+!            ENDIF
+!
+!            IF(tHPHF) THEN
+!                rh = hphf_diag_helement (nJ, iLutnJ)
+!            ELSE
+!                rh = get_helement (nJ, nJ, 0)
+!            ENDIF
+!            Bin=INT((real(rh,dp)-Hii)/BinRange)+1
+!            IF(Bin.gt.iNoBins) THEN
+!                CALL Stop_All("AttemptCreatePar","Histogramming energies higher than the arrays can cope with. "&
+!                & //"Increase iNoBins or BinRange")
+!            ENDIF
+!            IF(AttemptCreatePar.ne.0) THEN
+!                SpawnHist(Bin)=SpawnHist(Bin)+real(abs(AttemptCreatePar),dp)
+!!                WRITE(6,*) "Get Here!", real(abs(AttemptCreatePar),dp),Bin
+!            ENDIF
+!            AttemptHist(Bin)=AttemptHist(Bin)+(Tau/Prob)
+!        ENDIF
+!
+!    END FUNCTION AttemptCreatePar
 
     subroutine walker_death (attempt_die, iter_data, DetCurr, iLutCurr, Kii, &
                              wSign, VecSlot)
@@ -3590,6 +3602,15 @@ MODULE FciMCParMod
             else
                 tSpinCoupProjE=.false.
             endif
+            if(tMomInv) then
+                call stop_all(this_routine,"Cannot currently have MomInv and HPHF functions. If this is important, bug ghb")
+            endif
+        elseif(tMomInv) then
+            write(6,*) "Using hilbert space of momentum coupled determinants..."
+            if(.not.IsMomSelfInv(ProjEDet,iLutRef)) then
+                call stop_all(this_routine,"Reference determinant must be a self momentum inverse for MI")
+            endif
+            tSpinCoupProjE=.false.
         else
             tSpinCoupProjE=.false.
         endif
@@ -3829,9 +3850,20 @@ MODULE FciMCParMod
             tHPHFInts=.true.
         ENDIF
 
+        if(tMomInv) then
+            if(.not.tFixLz) then
+                call stop_all("SetupParameters","Cannot use MI functions without Lz conservation")
+            endif
+            if(LzTot.ne.0) then
+                call stop_all("SetupParameters","Cannot use MI functions if Lz is not zero")
+            endif
+        endif
+
 !Calculate Hii
         IF(tHPHF) THEN
             TempHii = hphf_diag_helement (HFDet, iLutHF)
+        elseif(tMomInv) then
+            TempHii = MI_diag_helement(HFDet,iLutHF)
         ELSE
             TempHii = get_helement (HFDet, HFDet, 0)
         ENDIF
@@ -3856,6 +3888,9 @@ MODULE FciMCParMod
             IF(tHPHF) THEN
                 call EncodeBitDet (HighEDet, iLutTemp)
                 TempHii = hphf_diag_helement (HighEDet, iLutTemp)
+            elseif(tMomInv) then
+                call EncodeBitDet (HighEDet, iLutTemp)
+                TempHii = MI_diag_helement (HighEDet, iLutTemp)
             ELSE
                 TempHii = get_helement (HighEDet, HighEDet, 0)
             ENDIF
@@ -4975,7 +5010,7 @@ MODULE FciMCParMod
                 
                 if (ExcitLevel == 2) NoatDoubs = NoatDoubs + sum(abs(wSign))
 
-                ! Obtain diagonal element
+                ! Obtain off-diagonal element
                 if (tHPHF) then
                     HOffDiag = hphf_off_diag_helement (ProjEDet, nI, iLutRef,&
                                                        ilut)

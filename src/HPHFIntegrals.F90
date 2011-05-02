@@ -165,7 +165,7 @@ module hphf_integrals
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot)
         HElement_t :: hel
 
-        integer :: nI2(nel)
+!        integer :: nI2(nel)
         integer(kind=n_int) :: iLutnI2(0:NIfTot)
         integer :: ExcitLevel, OpenOrbs
         HElement_t :: MatEl2
@@ -183,7 +183,7 @@ module hphf_integrals
             ExcitLevel = FindBitExcitLevel(iLutnI, iLutnI2, 2)
             if (ExcitLevel.le.2) then
                 call CalcOpenOrbs (iLutnI, OpenOrbs)
-                call FindDetSpinSym (nI, nI2, nel)
+!                call FindDetSpinSym (nI, nI2, nel)
                 MatEl2 = sltcnd (nI,  iLutnI, iLutnI2)
 
                 if (tOddS_HPHF) then

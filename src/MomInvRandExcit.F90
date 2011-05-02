@@ -1,11 +1,15 @@
+#include "macros.h"
 module MomInvRandExcit
     use constants, only: dp,n_int
-    use SystemData, only: NEl, G1, nBasis
+    use SystemData, only: NEl, G1, nBasis, tAntisym_MI
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel
     use sltcnd_mod, only: sltcnd, sltcnd_excit
     use bit_reps, only: NIfD, NIfTot, NIfDBO, decode_bit_det
-    use MomInvData
     use MomInv, only: IsBitMomSelfInv, InvertMomDet, ReturnMomAllowedDet, InvertMomBitDet 
+    use MomInv, only: IsMomSelfInv, CalcMomAllowedBitDet
+    use SymExcitDataMod, only:  excit_gen_store_type
+    use FciMCData, only: tGenMatHEl,pDoubles
+    use GenRandSymExcitNUMod, only: gen_rand_excit, CalcNonUniPGen
     implicit none
 
     contains
@@ -13,8 +17,6 @@ module MomInvRandExcit
     
     subroutine gen_MI_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
                                tParity, pGen, HEl, store)
-
-        use FciMCData, only: tGenMatHEl
 
         ! Generate an MI excitation using only one of the determinants in 
         ! the source MI function.
@@ -44,6 +46,7 @@ module MomInvRandExcit
         HElement_t :: MatEl, MatEl2
         logical :: TestClosedShellDet, tSign, tSignOrig
         logical :: tSwapped
+        character(len=*) , parameter :: t_r='gen_MI_excit'
 
         ! Avoid warnings
         tParity = .false.
@@ -62,10 +65,10 @@ module MomInvRandExcit
             IF(tGenMatHEl) THEN
 !Generate matrix element -> MI function to closed shell det.
                 IF(IsMomSelfInv(nI,iLutnI)) THEN
-                    !Closed shell -> Closed Shell
+                    !Self-inv -> Self-inv
                     HEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
                 ELSE
-                    !Open shell -> Closed Shell
+                    !Mom coupled -> Self-inv
                     if(tAntisym_MI) then
                         HEl=0.D0
                     else
@@ -73,28 +76,13 @@ module MomInvRandExcit
                         HEl=MatEl*SQRT(2.D0)
                     endif
                 ENDIF
-            ELSE
-                call stop_all(t_r,"Must have tGenMatEl on with MI functions")
             ENDIF
-
-
-
-
-
-
-
-
-
-
-
-
         ELSE
-!Open shell excitation - could we have generated the spin-coupled determinant instead?
+!Momentum paired excitation - could we have generated the momentum inverted determinant instead?
 
-!Find the open shell version. (Don't bother getting nJ2)
-            CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.true.,.true.,tSwapped)
+!Find the momentum inverted version. 
+            CALL CalcMomAllowedBitDet(nJ,nJ2,iLutnJ,iLutnJ2,.true.,.true.,tSwapped)
 
-!            CALL FindExcitBitDetSym(iLutnJ,iLutnJ2)
 !Try and find if spin-coupled determinant from excitation is attached.
             IF(tSwapped) THEN
                 ExcitLevel = FindBitExcitLevel(iLutnI, iLutnJ, 2)
@@ -102,30 +90,32 @@ module MomInvRandExcit
                 ExcitLevel = FindBitExcitLevel(iLutnI, iLutnJ2, 2)
             ENDIF
 
-            IF((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) THEN     !This is if we have all determinants in the two HPHFs connected...
+            IF((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) THEN     
+                !Momentum inverted determinant is connected to root det.
+                !This is the connection to the determinant we didn't generate...
 
                 Ex2(1,1)=ExcitLevel
-!                CALL DecodeBitDet(nJ2,iLutnJ2)     !This could be done better !***!
 
                 IF(tSwapped) THEN
-!                    CALL GetExcitation(nI,nJ,NEl,Ex2,tSign) !This could be done more efficiently... !***!
                     CALL GetBitExcitation(iLutnI,iLutnJ,Ex2,tSign)
                 ELSE
-!                    CALL GetExcitation(nI,nJ2,NEl,Ex2,tSign)
                     CALL GetBitExcitation(iLutnI,iLutnJ2,Ex2,tSign)
                 ENDIF
+                !Calc probability of generating it
                 CALL CalcNonUniPGen(nI, Ex2, ExcitLevel, store%ClassCountOcc,&
                                     store%ClassCountUnocc, pDoubles, pGen2)
 !!We cannot guarentee that the pGens are going to be the same - in fact, generally, they wont be.
                 pGen=pGen+pGen2
 
                 IF(tGenMatHEl) THEN
-!Generate matrix element to open shell excitation
-                    IF(TestClosedShellDet(iLutnI)) THEN    !Closed shell -> Open shell : Want to sum in SQRT(2)* Hij
-                        if(tOddS_HPHF) then
-                            !Cannot have CS components
+!Generate matrix element to MI excitation
+                    IF(IsMomSelfInv(nI,iLutnI)) THEN    
+                        !Self-inv det -> Momentum paired func : Want to sum in SQRT(2)* Hij
+                        if(tAntisym_MI) then
+                            !Must be zero matrix element
                             HEl=0.D0
                         else
+                            !Could actually use either of these - they should be the same?!
                             IF(tSwapped) THEN
                                 MatEl = sltcnd_excit (nI, IC, Ex2, tSign)
                             ELSE
@@ -134,7 +124,7 @@ module MomInvRandExcit
                             ENDIF
                             HEl=MatEl*SQRT(2.D0)
                         endif
-                    ELSE     !Open shell -> Open shell
+                    ELSE     !MI function -> MI function
 
 !First find nI -> nJ. If nJ has swapped, then this will be different.
                         IF(tSwapped) THEN
@@ -145,81 +135,48 @@ module MomInvRandExcit
                                                   tSignOrig)
                         ENDIF
 
-                        !now nI2 -> nJ (modelled as nI -> nJ2 with appropriate sign modifications)
-
-!                        CALL FindDetSpinSym(nI,nI2,NEl)
-!                        CALL FindExcitBitDetSym(iLutnI,iLutnI2)
-!                        ExcitLevel2 = FindBitExcitLevel(iLutnI2, iLutnJ, 2)
-
+                        !now nI2 -> nJ - cross term present
                         IF((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) THEN
                             
-                            CALL CalcOpenOrbs(iLutnJ,OpenOrbsJ)
-                            CALL CalcOpenOrbs(iLutnI,OpenOrbsI)
+!                            CALL CalcOpenOrbs(iLutnJ,OpenOrbsJ)
+!                            CALL CalcOpenOrbs(iLutnI,OpenOrbsI)
 
                             IF(tSwapped) THEN
-                                IF((OpenOrbsJ+OpenOrbsI).eq.3) tSignOrig=.not.tSignOrig  !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
-
+!                                IF((OpenOrbsJ+OpenOrbsI).eq.3) tSignOrig=.not.tSignOrig  !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
                                 MatEl2 = sltcnd_excit (nI, IC, ExcitMat, &
                                                        tSignOrig)
                             ELSE
-                                IF((OpenOrbsJ+OpenOrbsI).eq.3) tSign=.not.tSign     !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
-
+!                                IF((OpenOrbsJ+OpenOrbsI).eq.3) tSign=.not.tSign     !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
                                 MatEl2 = sltcnd_excit (nI,  ExcitLevel, &
                                                        Ex2, tSign)
                             ENDIF
 
-                            IF(tOddS_HPHF) THEN
-                                IF(OpenOrbsI.eq.2) THEN     !again, since these can only be at max quads, then they can only have 1/2 open orbs...
-                                    MatEl=MatEl-MatEl2
-                                ELSE
-                                    MatEl=MatEl+MatEl2
-                                ENDIF
-                            ELSE
+                            if(tAntisym_MI) then
+                                MatEl=MatEl-MatEl2
+                            else
+                                MatEl=MatEl+MatEl2
+                            endif
 
-                                IF(OpenOrbsI.eq.2) THEN     !again, since these can only be at max quads, then they can only have 1/2 open orbs...
-                                    MatEl=MatEl+MatEl2
-                                ELSE
-                                    MatEl=MatEl-MatEl2
-                                ENDIF
-                            ENDIF
-!                            WRITE(6,*) "MatEl2 NEW: ",MatEl2
                         ENDIF
                         HEl=MatEl
                     
-                    ENDIF   !Endif from open/closed shell det
+                    ENDIF   !Endif from MomInv/not det
 
                 ENDIF   !Endif want to generate matrix element
 
-!                CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.false.,.false.,tSwapped)  !Here, we actually know nJ, so don't need to regenerate it...
-
             ELSEIF(ExcitLevel.eq.0) THEN
-!We have generated the same HPHF. MatEl wants to be zero.
+!We have generated the same MI function. MatEl wants to be zero.
                 nJ(1)=0
                 IF(tGenMatHEl) THEN
                     HEl=0.D0
                 ENDIF
 
-            ELSE    !Open-shell to Open-shell, but with no cross-connection.
+            ELSE    !MI func to MI func, but with no cross-connection.
                 
-!                CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.false.,.true.,tSwapped)
-
                 IF(tGenMatHEl) THEN
-!iLutnI MUST be open-shell here, since otherwise it would have been connected to iLutnJ2. Also, we know the cross connection (i.e. MatEl2 = 0)
+!iLutnI MUST be an MI func here, since otherwise it would have been connected to iLutnJ2. Also, we know the cross connection (i.e. MatEl2 = 0)
                     IF(tSwapped) THEN
-                        CALL CalcOpenOrbs(iLutnJ,OpenOrbsJ)
-!                        CALL CalcOpenOrbs(iLutnI,OpenOrbsI)
-!                        IF(((mod(OpenOrbsI,2).eq.1).and.(mod(OpenOrbsJ,2).eq.1)).or.((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.1))) THEN
-                        IF(tOddS_HPHF) then
-                            IF(mod(OpenOrbsJ,2).eq.0) THEN
-    !                            WRITE(6,*) "Swapped parity"
-                                tSignOrig=.not.tSignOrig
-                            ENDIF
-                        ELSE
-                            IF(mod(OpenOrbsJ,2).eq.1) THEN
-    !                            WRITE(6,*) "Swapped parity"
-                                tSignOrig=.not.tSignOrig
-                            ENDIF
-                        ENDIF
+                        if(tAntisym_MI) tSignOrig=.not.tSignOrig
                         MatEl = sltcnd_excit(nI,  IC, ExcitMat, tSignOrig)
                     ELSE
                         MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
@@ -235,6 +192,7 @@ module MomInvRandExcit
         ENDIF
 
     end subroutine gen_MI_excit
+
 
     !This routine checks the properties of the MI functions, so that we know we can use the more efficient
     !HPHF-type excitation generation and integral evaluation routines.

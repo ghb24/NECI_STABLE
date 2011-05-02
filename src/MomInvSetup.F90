@@ -7,7 +7,7 @@ Module MomInv
     use SystemData, only: NEl,G1,nBasis,Brr,Arr,tFixLz,LzTot,G1
     use Parallel
     use sort_mod
-    use MomInvData
+    use SymExcitDataMod, only: MomInvSymOrb  
 
     implicit none
 
@@ -143,18 +143,26 @@ Module MomInv
     end subroutine InvertMomDet
 
     !Create momentum paired iLut
-    subroutine InvertMomBitDet(iLut,MomSymiLut)
+    subroutine InvertMomBitDet(iLut,MomSymiLut, nI)
         implicit none
         integer(n_int) , intent(in) :: iLut(0:NIfTot)
         integer(n_int) , intent(out) :: MomSymiLut(0:NIfTot)
-        integer :: i,nI(nel)
-
+        integer :: i,nITmp(nel)
+        integer, intent(in), optional :: nI(NEl)
+        
         MomSymiLut(:)=0
-        call decode_bit_det(nI,iLut)
-        !No need to sort, since we are encoding straight away
-        do i=1,nel
-            set_orb(MomSymiLut,MomInvSymOrb(nI(i)))
-        enddo
+        if(present(nI)) then
+            do i=1,nel
+                set_orb(MomSymiLut,MomInvSymOrb(nI(i)))
+            enddo
+        else
+            call decode_bit_det(nITmp,iLut)
+            !No need to sort, since we are encoding straight away
+            do i=1,nel
+                set_orb(MomSymiLut,MomInvSymOrb(nITmp(i)))
+            enddo
+        endif
+
 
     end subroutine InvertMomBitDet
 
@@ -164,19 +172,56 @@ Module MomInv
         implicit none
         logical, intent(in) :: tCalcnISym,tCalciLutSym
         logical, intent(out) :: tSwapped
-        integer, intent(in) :: nI(NEl)
+        integer, intent(inout) :: nI(NEl)
         integer, intent(inout) :: nISym(NEl)
-        integer(n_int), intent(in) :: iLut(0:NIfTot)
+        integer(n_int), intent(inout) :: iLut(0:NIfTot)
         integer(n_int), intent(inout) :: iLutSym(0:NIfTot)
+        integer :: i,nITemp(NEl)
+        integer(n_int) :: iLutTemp(0:NIfTot)
 
-        if(tCalcnIS
+        if(tCalcnISym.and.tCalciLutSym) then
+            !Calculate both representations
+            iLutSym(:)=0
+            do i=1,nel
+                nISym(i)=MomInvSymOrb(nI(i))
+                set_orb(iLutSym,nISym(i))
+            enddo
+            call sort(nISym)
+        elseif(tCalcnISym) then
+            !Calculate nI representation
+            call decode_bit_det(nISym,iLutSym)
+        elseif(tCalciLutSym) then
+            !Calculation iLut representation
+            iLutSym(:)=0
+            do i=1,nel
+                set_orb(iLutSym,nISym(i))
+            enddo
+        endif
+            
+        !Use ilut representation to return correct determinant
+        i=DetBitLT(iLut,iLutSym,NIfD)
+        if(i.eq.1) then
+            !swap
+            iLutTemp(:)=iLut(:)
+            iLut(:)=iLutSym(:)
+            iLutSym(:)=iLutTemp(:)
+            nITemp(:)=nI(:)
+            nI(:)=nISym(:)
+            nISym(:)=nITemp(:)
+            tSwapped=.true.
+        elseif(i.eq.0) then
+            call stop_all("CalcMomAllowedBitDet","Shouldn't have self-inverse in here")
+        else
+            tswapped=.false.
+        endif
 
     end subroutine CalcMomAllowedBitDet
 
-    pure subroutine ReturnMomAllowedBitDet(iLut,iLutSym,tSwapped)
+    subroutine ReturnMomAllowedBitDet(iLut,iLutSym,tSwapped)
         implicit none
         integer(n_int), intent(inout) :: iLut(0:NIfTot),iLutSym(0:NIfTot)
         logical, intent(out) :: tSwapped
+        integer(n_int) :: iLutTemp(0:NIfTot)
         integer :: i
         
         i=DetBitLT(iLut,iLutSym,NIfD)
@@ -227,6 +272,7 @@ Module MomInv
         implicit none
         integer, intent(in) :: nI(NEl)
         integer(n_int), intent(in) :: iLutnI(0:NIfTot)
+        integer :: i
 
         do i=1,NEl
             if(IsNotOcc(iLutnI,MomInvSymOrb(nI(i)))) then
