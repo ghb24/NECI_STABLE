@@ -91,7 +91,7 @@ contains
                  WRITE(6,*) "** WARNING **"
                  WRITE(6,*) "** Unconverged symmetry of orbitals **"
                  WRITE(6,*) "** Turning symmetry off for rest of run **"
-                 tNoSymGenRandExcits=.true.
+!                 tNoSymGenRandExcits=.true. !What if there is Lz/mom sym?!
                  lNoSymmetry=.true.
                  EXIT
              ENDIF
