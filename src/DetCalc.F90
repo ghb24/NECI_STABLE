@@ -687,54 +687,54 @@ CONTAINS
                 ENDIF
             enddo
 
-            if(tMomInv.and..false.) then    
-                !These are some tests for the MomInv functions. Off by default
-                PairedUnit = get_free_unit()
-                open(PairedUnit,file='LzPairedDets',status='unknown')
-                SelfInvUnit = get_free_unit()
-                open(SelfInvUnit,file='SelfInvDet',status='unknown')
-                do i=1,Det
-                    if(abs(FCIGS(i)).lt.1.D-8) cycle
-                    !Ignore if self-inverse
-                    if(IsBitMomSelfInv(FCIDets(:,i))) then
-                        call decode_bit_det(TempnI,FCIDets(:,i))
-                        write(SelfInvUnit,"(I16,6I4,G19.8)") FCIDets(0:NIfD,i),TempnI(:),FCIGS(i)
-                        cycle
-                    endif
-                    
-                    IC = FindBitExcitLevel(iLut,FCIDets(:,i),nel)
-                    !Decode
-                    call decode_bit_det(TempnI,FCIDets(:,i))
-
-                    !Find inverse det
-                    call InvertMomDet(TempnI,MomSymDet)
-
-                    !Encode
-                    call EncodeBitDet(MomSymDet,iLutMomSym)
-
-                    !Find excit level of mom sym det
-                    ICSym = FindBitExcitLevel(iLut,iLutMomSym,nel)
-
-                    !Search for it...
-                    if(ICSym.eq.nel) then
-                        call BinSearchParts2(iLutMomSym,FCIDetIndex(ICSym),Det,Ind,tSuccess)
-                    elseif(ICSym.eq.0) then
-                        call stop_all(this_routine,"HF det is not self-inverse?!")
-                    else
-                        call BinSearchParts2(iLutMomSym,FCIDetIndex(ICSym),FCIDetIndex(ICSym+1)-1,Ind,tSuccess)
-                    endif
-                    if(.not.tSuccess) then
-                        call stop_all(this_routine,"Sym partner not found")
-                    endif
-                    ICConnect = FindBitExcitLevel(FCIDets(:,i),iLutMomSym,nel)
-                    write(PairedUnit,"(2I16,15I4,2G19.8)") FCIDets(0:NIfD,i),iLutMomSym(0:NIfD),TempnI(:),MomSymDet(:),IC,ICSym,ICConnect,FCIGS(i),FCIGS(Ind)
-                enddo
-                close(PairedUnit)
-                close(SelfInvUnit)
-
-                call TestMomInvInts() 
-
-            endif
+!            if(tMomInv.and..false.) then    
+!                !These are some tests for the MomInv functions. Off and commented out by default
+!                PairedUnit = get_free_unit()
+!                open(PairedUnit,file='LzPairedDets',status='unknown')
+!                SelfInvUnit = get_free_unit()
+!                open(SelfInvUnit,file='SelfInvDet',status='unknown')
+!                do i=1,Det
+!                    if(abs(FCIGS(i)).lt.1.D-8) cycle
+!                    !Ignore if self-inverse
+!                    if(IsBitMomSelfInv(FCIDets(:,i))) then
+!                        call decode_bit_det(TempnI,FCIDets(:,i))
+!                        write(SelfInvUnit,"(I16,6I4,G19.8)") FCIDets(0:NIfD,i),TempnI(:),FCIGS(i)
+!                        cycle
+!                    endif
+!                    
+!                    IC = FindBitExcitLevel(iLut,FCIDets(:,i),nel)
+!                    !Decode
+!                    call decode_bit_det(TempnI,FCIDets(:,i))
+!
+!                    !Find inverse det
+!                    call InvertMomDet(TempnI,MomSymDet)
+!
+!                    !Encode
+!                    call EncodeBitDet(MomSymDet,iLutMomSym)
+!
+!                    !Find excit level of mom sym det
+!                    ICSym = FindBitExcitLevel(iLut,iLutMomSym,nel)
+!
+!                    !Search for it...
+!                    if(ICSym.eq.nel) then
+!                        call BinSearchParts2(iLutMomSym,FCIDetIndex(ICSym),Det,Ind,tSuccess)
+!                    elseif(ICSym.eq.0) then
+!                        call stop_all(this_routine,"HF det is not self-inverse?!")
+!                    else
+!                        call BinSearchParts2(iLutMomSym,FCIDetIndex(ICSym),FCIDetIndex(ICSym+1)-1,Ind,tSuccess)
+!                    endif
+!                    if(.not.tSuccess) then
+!                        call stop_all(this_routine,"Sym partner not found")
+!                    endif
+!                    ICConnect = FindBitExcitLevel(FCIDets(:,i),iLutMomSym,nel)
+!                    write(PairedUnit,"(2I16,15I4,2G19.8)") FCIDets(0:NIfD,i),iLutMomSym(0:NIfD),TempnI(:),MomSymDet(:),IC,ICSym,ICConnect,FCIGS(i),FCIGS(Ind)
+!                enddo
+!                close(PairedUnit)
+!                close(SelfInvUnit)
+!
+!                call TestMomInvInts() 
+!
+!            endif
 
 !This will sort the determinants into ascending order, for quick binary searching later on.
 !            IF(.not.tFindDets) THEN
