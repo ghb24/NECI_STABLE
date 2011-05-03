@@ -312,7 +312,6 @@ CONTAINS
       use HElem
       use MemoryManager, only: TagIntType
       use MomInv, only : IsBitMomSelfInv,InvertMomDet  
-      use MomInvRandExcit, only: TestMomInvInts
 
       real(dp) , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),FCIGS(:)
       HElement_t, ALLOCATABLE :: WORK(:)
