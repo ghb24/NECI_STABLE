@@ -2802,38 +2802,42 @@ MODULE FciMCParMod
                           &energy reference determinant for the next update cycle to: '
                     call write_det (6, ProjEDet, .true.)
 
-                    if(tHPHF.and.(.not.TestClosedShellDet(iLutRef))) then
-                        !Complications. We are now effectively projecting onto a LC of two dets.
-                        !Ensure this is done correctly.
-                        if(.not.Allocated(RefDetFlip)) then
-                            allocate(RefDetFlip(NEl))
-                            allocate(iLutRefFlip(0:NIfTot))
-                            RefDetFlip = 0
-                            iLutRefFlip = 0
+                    if(tHPHF) then
+                        if(.not.TestClosedShellDet(iLutRef)) then
+                            !Complications. We are now effectively projecting onto a LC of two dets.
+                            !Ensure this is done correctly.
+                            if(.not.Allocated(RefDetFlip)) then
+                                allocate(RefDetFlip(NEl))
+                                allocate(iLutRefFlip(0:NIfTot))
+                                RefDetFlip = 0
+                                iLutRefFlip = 0
+                            endif
+                            call ReturnAlphaOpenDet(ProjEDet,RefDetFlip,iLutRef,iLutRefFlip,.true.,.true.,tSwapped)
+                            if(tSwapped) then
+                                !The iLutRef should already be the correct one, since it was obtained by the normal calculation!
+                                call stop_all("population_check","Error in changing reference determinant to open shell HPHF")
+                            endif
+                            write(6,"(A)") "Now projecting onto open-shell HPHF as a linear combo of two determinants..."
+                            tSpinCoupProjE=.true.
                         endif
-                        call ReturnAlphaOpenDet(ProjEDet,RefDetFlip,iLutRef,iLutRefFlip,.true.,.true.,tSwapped)
-                        if(tSwapped) then
-                            !The iLutRef should already be the correct one, since it was obtained by the normal calculation!
-                            call stop_all("population_check","Error in changing reference determinant to open shell HPHF")
+                    elseif(tMomInv) then
+                        if(.not.IsMomSelfInv(ProjEDet,iLutRef)) then
+                            !Complications. We are now effectively projecting onto a LC of two dets.
+                            !Ensure this is done correctly.
+                            if(.not.Allocated(RefDetFlip)) then
+                                allocate(RefDetFlip(NEl))
+                                allocate(iLutRefFlip(0:NIfTot))
+                                RefDetFlip = 0
+                                iLutRefFlip = 0
+                            endif
+                            call CalcMomAllowedBitDet(ProjEDet,RefDetFlip,iLutRef,iLutRefFlip,.true.,.true.,tSwapped)
+                            if(tSwapped) then
+                                !The iLutRef should already be the correct one, since it was obtained by the normal calculation!
+                                call stop_all("population_check","Error in changing reference determinant to momentum-coupled function")
+                            endif
+                            write(6,"(A)") "Now projecting onto a momentum-coupled function as a linear combo of two determinants..."
+                            tSpinCoupProjE=.true.
                         endif
-                        write(6,*) "Now projecting onto open-shell HPHF as a linear combo of two determinants..."
-                        tSpinCoupProjE=.true.
-                    elseif(tMomInv.and.(.not.IsMomSelfInv(ProjEDet,iLutRef))) then
-                        !Complications. We are now effectively projecting onto a LC of two dets.
-                        !Ensure this is done correctly.
-                        if(.not.Allocated(RefDetFlip)) then
-                            allocate(RefDetFlip(NEl))
-                            allocate(iLutRefFlip(0:NIfTot))
-                            RefDetFlip = 0
-                            iLutRefFlip = 0
-                        endif
-                        call CalcMomAllowedBitDet(ProjEDet,RefDetFlip,iLutRef,iLutRefFlip,.true.,.true.,tSwapped)
-                        if(tSwapped) then
-                            !The iLutRef should already be the correct one, since it was obtained by the normal calculation!
-                            call stop_all("population_check","Error in changing reference determinant to momentum-coupled function")
-                        endif
-                        write(6,*) "Now projecting onto a momentum-coupled function as a linear combo of two determinants..."
-                        tSpinCoupProjE=.true.
                     else
                         tSpinCoupProjE=.false.  !In case it was already on, and is now projecting onto a CS HPHF.
                     endif
