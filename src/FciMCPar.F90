@@ -3115,13 +3115,12 @@ MODULE FciMCParMod
                 all_cyc_proje_denominator = AllHFCyc
             endif
 
-!            write(6,*) AllHFCyc, all_cyc_proje_denominator
             ! Calculate the projected energy.
             if (any(AllSumNoatHF /= 0) .or. &
                 (proje_linear_comb .and. nproje_sum > 1)) then
                 ProjectionE = AllSumENum / all_sum_proje_denominator 
 !                              ARR_RE_OR_CPLX(all_sum_proje_denominator)
-                proje_iter = AllENumCyc / all_sum_proje_denominator 
+                proje_iter = AllENumCyc / all_cyc_proje_denominator 
 !                              ARR_RE_OR_CPLX(all_cyc_proje_denominator)
             endif
 
