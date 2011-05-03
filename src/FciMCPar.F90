@@ -5877,6 +5877,10 @@ MODULE FciMCParMod
                 !Working in HPHF Space. Check whether determinant generated is an 'HPHF'
                 call EncodeBitDet(nJ,iLutnJ)
                 if(.not.IsAllowedHPHF(iLutnJ)) cycle
+            elseif(tMomInv) then
+                !Working in MI space, Check whether determinant generated is allowed
+                call EncodeBitDet(nJ,iLutnJ)
+                if(.not.IsAllowedMI(nJ,iLutnJ)) cycle
             endif
             iExcits=iExcits+1
             if(Ex(1,2).eq.0) then
@@ -5889,6 +5893,8 @@ MODULE FciMCParMod
                 !beta orbitals of the same spatial orbital have the same
                 !fock energies, so can consider either.
                 hel=hphf_off_diag_helement(HFDet,nJ,iLutHF,iLutnJ)
+            elseif(tMomInv) then
+                hel=MI_off_diag_helement(HFDet,nJ,iLutHF,iLutnJ)
             else
                 hel=get_helement(HFDet,nJ,ic,Ex,tParity)
             endif
@@ -5905,7 +5911,7 @@ MODULE FciMCParMod
             MP2Energy=MP2Energy+(hel**2)/H0tmp
         enddo
 
-        if((.not.tHPHF).and.(iExcits.ne.(nDoubles+nSingles))) then
+        if((.not.tHPHF).and.(.not.tMomInv).and.(iExcits.ne.(nDoubles+nSingles))) then
             write(6,*) nDoubles,nSingles,iExcits
             call stop_all(this_routine,"Not all excitations accounted for in StartMP1")
         endif
@@ -5949,6 +5955,9 @@ MODULE FciMCParMod
             if(tHPHF) then
                 call EncodeBitDet(nJ,iLutnJ)
                 if(.not.IsAllowedHPHF(iLutnJ)) cycle
+            elseif(tMomInv) then
+                call EncodeBitDet(nJ,iLutnJ)
+                if(.not.IsAllowedMI(nJ,iLutnJ)) cycle
             endif
 
             iNode=DetermineDetNode(nJ,0)
@@ -5960,6 +5969,8 @@ MODULE FciMCParMod
                 endif
                 if(tHPHF) then
                     hel=hphf_off_diag_helement(HFDet,nJ,iLutHF,iLutnJ)
+                elseif(tMomInv) then
+                    hel=MI_off_diag_helement(HFDet,nJ,iLutHF,iLutnJ)
                 else
                     hel=get_helement(HFDet,nJ,ic,Ex,tParity)
                 endif
@@ -5998,6 +6009,8 @@ MODULE FciMCParMod
                     if(.not.tRegenDiagHEls) then
                         if(tHPHF) then
                             HDiagTemp = hphf_diag_helement(nJ,iLutnJ) 
+                        elseif(tMomInv) then
+                            HDiagTemp = MI_diag_helement(nJ,iLutnJ)
                         else
                             HDiagTemp = get_helement(nJ,nJ,0)
                         endif
