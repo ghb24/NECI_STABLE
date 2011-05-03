@@ -6,6 +6,127 @@ module MI_integrals
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel
     use sltcnd_mod, only: sltcnd, sltcnd_excit
     use bit_reps, only: NIfD, NIfTot, NIfDBO, decode_bit_det
+    
+    
+    interface MI_off_diag_helement
+        module procedure MI_off_diag_helement_norm
+        module procedure MI_off_diag_helement_spawn
+    end interface
+
+    contains
+
+    function MI_spawn_sign (nI, nJ, iLutI, iLutJ, ic, ex, &
+                                  tParity, HElGen) result (hel)
+        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
+        integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        logical, intent(in) :: tParity
+        integer :: iUnused
+        logical :: lUnused
+        HElement_t :: hel
+        HElement_t, intent(in) :: HElGen
+
+        hel=HElGen
+
+        ! Avoid warnings
+        iUnused = IC; iUnused = ex(1,1); iUnused = nI(1); iUnused = nJ(1)
+        iUnused = iLutI(0); iUnused = iLutJ(0); lUnused = tParity
+
+    end function MI_spawn_sign
+
+    function MI_off_diag_helement_spawn (nI, nJ, iLutI, iLutJ, ic, ex, &
+                                           tParity, HElGen) result (hel)
+        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
+        integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        logical, intent(in) :: tParity
+        integer :: iUnused
+        logical :: lUnused
+        HElement_t :: hel
+        HElement_t , intent(in) :: HElGen
+
+        hel = MI_off_diag_helement_norm (nI, nJ, iLutI, iLutJ)
+
+        ! Avoid warnings
+        iUnused = IC; iUnused = ex(1,1); lUnused = tParity
+
+    end function MI_off_diag_helement_spawn
+
+    function MI_off_diag_helement_norm (nI, nJ, iLutnI, iLutnJ) result(hel)
+
+        ! Find the  between two momentum coupled            
+        ! determinants (different ones). NI and nJ have to be uniquely 
+        ! chosen, so that their spin-coupled determinant will not arise.
+        !
+        ! In:  nI, nJ         - Determinants to consider
+        !      iLutnI, iLutnJ - Bit representations of I,J
+        ! Ret: hel          - The calculated matrix element
+
+        integer, intent(in) :: nI(nel), nJ(nel)
+        integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot), iLutnJ(0:NIfTot)
+        HElement_t :: hel
+
+        integer :: nI2(nel)
+        integer(kind=n_int) :: iLutnI2(0:NIfTot)
+        integer :: ExcitLevel, Ex(2,2)
+        HElement_t :: MatEl2
+        logical :: tSign
+
+        if (DetBitEQ(iLutnI, iLutnJ, NIfDBO)) then
+            ! Do not allow a 'diagonal' matrix element. The problem is 
+            ! that the HPHF excitation generator can generate the same HPHF 
+            ! function. We do not want to allow spawns here.
+            hel = (0.D0)
+            return
+        endif
+        
+        hel = sltcnd (nI, iLutnI, iLutnJ)
+        if (IsMomSelfInv(nI,iLutnI)) then
+            if(tAntisym_MI) then
+                !Self-inverse MI functions should have no couplings if dets antisymmetric
+                hel = 0.D0
+            elseif (.not. IsMomSelfInv(nJ,iLutnJ)) then
+                ! SelfInv MI --> Mom-paired MI, <X|H|Y> = 1/sqrt(2) [Hia + Hib]
+                ! OTHERWISE Closed shell -> closed shell. Both the alpha and 
+                ! beta of the same orbital have been moved to the same new 
+                ! orbital. The matrix element is the same as before.
+                hel = hel * (sqrt(2.d0))
+            endif
+        else
+            if (IsMomSelfInv(nJ,iLutnJ)) then
+                if(tAntisym_MI) then
+                    !Self-inverse MI functions should have no couplings if dets antisymmetric
+                    hel = 0.D0
+                else
+                    ! Mom-paired MI -> SelfInv MI. If one of
+                    ! the determinants is connected, then the other is connected 
+                    ! with the same IC & matrix element
+                    hel = hel * sqrt(2.d0)
+                endif
+            else
+                ! Mom-paired MI -> Mom-paired MI. Find the momentum coupled det of nJ.
+                call InvertMomBitDet(iLutnI, iLutnI2, nI)
+!                call FindExcitBitDetSym(iLutnI, iLutnI2)
+                ExcitLevel = FindBitExcitLevel(iLutnI2, ilutnJ, 2)
+
+                !Cross-term present
+                if (ExcitLevel.le.2) then
+                    
+                    !Calculate cross-term matrix element
+                    Ex(1,1)=ExcitLevel
+                    call GetBitExcitation(iLutnI2,iLutnJ,Ex,tSign)
+                    call decode_bit_det(nI2,iLutnI2)
+
+                    MatEl2 = sltcnd_excit (nI2, ExcitLevel, Ex, tSign)
+
+                    if(tAntisym_MI) then
+                        hel = hel - MatEl2
+                    else
+                        hel = hel + MatEl2
+                    endif
+                endif
+            endif
+        endif
+    end function MI_off_diag_helement_norm
+
 
     function MI_diag_helement(nI,iLutnI) result(hel)
 

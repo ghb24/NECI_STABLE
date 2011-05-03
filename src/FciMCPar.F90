@@ -14,7 +14,7 @@ MODULE FciMCParMod
     use SystemData, only: nel, Brr, nBasis, nBasisMax, LMS, tHPHF, tHub, &
                           tReal, tRotatedOrbs, tFindCINatOrbs, tFixLz, &
                           LzTot, tUEG, tLatticeGens, tCSF, G1, Arr, &
-                          tNoBrillouin, tKPntSym, tPickVirtUniform, tOddS_HPHF &
+                          tNoBrillouin, tKPntSym, tPickVirtUniform &
                           tMomInv
     use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY, decode_bit_det, &
                         encode_bit_rep, encode_det, extract_bit_rep, &
@@ -36,6 +36,7 @@ MODULE FciMCParMod
                         MemoryFacInit, tMaxBloom, tTruncNOpen, tFCIMC, &
                         trunc_nopen_max, tSpawn_Only_Init, tSpawn_Only_Init_Grow
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
+    use MomInvRandExcit, only: gen_MI_excit
     use Determinants, only: FDet, get_helement, write_det, &
                             get_helement_det_only, lexicographic_store, &
                             get_lexicographic_dets, DefDet
@@ -79,6 +80,7 @@ MODULE FciMCParMod
     use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask, get_csf_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
+    use MI_integrals
     use util_mod, only: choose, abs_int_sign, abs_int8_sign, binary_search
     use constants, only: dp, int64, n_int, lenof_sign
     use soft_exit, only: ChangeVars 
@@ -814,8 +816,8 @@ MODULE FciMCParMod
             ! TODO: The next couple of bits could be done automatically
 
             ! We only need to find out if determinant is connected to the
-            ! reference (so no ex. level above 2 required, except for HPHF
-            ! or truncated etc.)
+            ! reference (so no ex. level above 2 required, 
+            ! truncated etc.)
             walkExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,j), &
                                                 max_calc_ex_level)
 
@@ -1389,7 +1391,7 @@ MODULE FciMCParMod
             if (tGenMatHEl) then
                 call set_get_spawn_helement (MI_spawn_sign)
             else
-                call stop_all(this_routine,"tGenMatHEl must be set with MI functions")
+                call set_get_spawn_helement (MI_off_diag_helement_spawn)
             endif
         else
             call set_get_spawn_helement (get_helement_det_only)
@@ -2809,6 +2811,22 @@ MODULE FciMCParMod
                         endif
                         write(6,*) "Now projecting onto open-shell HPHF as a linear combo of two determinants..."
                         tSpinCoupProjE=.true.
+                    elseif(tMomInv.and.(.not.IsMomSelfInv(ProjEDet,iLutRef))) then
+                        !Complications. We are now effectively projecting onto a LC of two dets.
+                        !Ensure this is done correctly.
+                        if(.not.Allocated(RefDetFlip)) then
+                            allocate(RefDetFlip(NEl))
+                            allocate(iLutRefFlip(0:NIfTot))
+                            RefDetFlip = 0
+                            iLutRefFlip = 0
+                        endif
+                        call CalcMomAllowedBitDet(ProjEDet,RefDetFlip,iLutRef,iLutRefFlip,.true.,.true.,tSwapped)
+                        if(tSwapped) then
+                            !The iLutRef should already be the correct one, since it was obtained by the normal calculation!
+                            call stop_all("population_check","Error in changing reference determinant to momentum-coupled function")
+                        endif
+                        write(6,*) "Now projecting onto a momentum-coupled function as a linear combo of two determinants..."
+                        tSpinCoupProjE=.true.
                     else
                         tSpinCoupProjE=.false.  !In case it was already on, and is now projecting onto a CS HPHF.
                     endif
@@ -2822,6 +2840,8 @@ MODULE FciMCParMod
                     ! Update the reference energy
                     if (tHPHF) then
                         h_tmp = hphf_diag_helement (ProjEDet, iLutRef)
+                    elseif(tMomInv) then
+                        h_tmp = MI_diag_helement(ProjEDet,iLutRef)
                     else
                         h_tmp = get_helement (ProjEDet, ProjEDet, 0)
                     endif
@@ -2846,6 +2866,8 @@ MODULE FciMCParMod
                         call decode_bit_det (det, CurrentDets(:,i))
                         if (tHPHF) then
                             h_tmp = hphf_diag_helement (det, CurrentDets(:,i))
+                        elseif(tMomInv) then
+                            h_tmp = MI_diag_helement(det,CurrentDets(:,i))
                         else
                             h_tmp = get_helement (det, det, 0)
                         endif
@@ -2883,6 +2905,8 @@ MODULE FciMCParMod
                     ! Update the reference energy
                     if (tHPHF) then
                         h_tmp = hphf_diag_helement (ProjEDet, iLutRef)
+                    elseif(tMomInv) then
+                        h_tmp = MI_diag_helement(ProjEDet,iLutRef)
                     else
                         h_tmp = get_helement (ProjEDet, ProjEDet, 0)
                     endif
@@ -3606,9 +3630,25 @@ MODULE FciMCParMod
                 call stop_all(this_routine,"Cannot currently have MomInv and HPHF functions. If this is important, bug ghb")
             endif
         elseif(tMomInv) then
-            write(6,*) "Using hilbert space of momentum coupled determinants..."
+            if(tAntisym_MI) then
+                write(6,*) "Using hilbert space of antisymmetric momentum-coupled determinants..."
+            else
+                write(6,*) "Using hilbert space of symmetric momentum-coupled determinants..."
+            endif
             if(.not.IsMomSelfInv(ProjEDet,iLutRef)) then
-                call stop_all(this_routine,"Reference determinant must be a self momentum inverse for MI")
+                !We test here whether the reference determinant actually corresponds to a momentum-coupled function.
+                !If so, we need to ensure that we are specifying the correct determinant of the pair, and also
+                !indicate that the projected energy needs to be calculated as a projection onto both of these determinants.
+                ALLOCATE(RefDetFlip(NEl))
+                ALLOCATE(iLutRefFlip(0:NIfTot))
+                !We need to ensure that the correct pair of the reference det is used to project onto/start from.
+                call CalcMomAllowedBitDet(ProjEDet,RefDetFlip,iLutRef,iLutRefFlip,.true.,.true.,tSwapped)
+                if(tSwapped) then
+                    write(6,*) "Momentum-coupled function used, and reference determinant momentum-flipped for consistency."
+                endif
+                write(6,*) "Two *different* determinants contained in initial reference function"
+                write(6,*) "Projected energy will be calculated as projection onto both of these"
+                tSpinCoupProjE=.true.
             endif
             tSpinCoupProjE=.false.
         else
@@ -3857,6 +3897,7 @@ MODULE FciMCParMod
             if(LzTot.ne.0) then
                 call stop_all("SetupParameters","Cannot use MI functions if Lz is not zero")
             endif
+            tMomInvInts=.true.
         endif
 
 !Calculate Hii
@@ -4389,7 +4430,7 @@ MODULE FciMCParMod
         !
         ! In:  WalkExcitLevel - Current excitation level relative to HF
         !      nJ             - Natural integer representation of det
-        !                       (not Needed for HPHF or tTruncNOpen)
+        !                       (not Needed for HPHF/tTruncNOpen/MomInv)
         !      ilutnJ         - Bit representation of det
         !      IC             - Excitation level relative to parent
         ! Ret: bAllowed       - .true. if excitation is allowed
@@ -4410,7 +4451,7 @@ MODULE FciMCParMod
 ! disallowed if double. If higher, then all excits could
 ! be disallowed. If HPHF, excit could be single or double,
 ! and IC not returned --> Always test.
-            if (tHPHF .or. WalkExcitLevel >= ICILevel .or. &
+            if (tMomInv .or. tHPHF .or. WalkExcitLevel >= ICILevel .or. &
                 (WalkExcitLevel == (ICILevel-1) .and. IC == 2)) then
                 ExcitLevel = FindBitExcitLevel (iLutHF, ilutnJ, ICILevel)
                 if (ExcitLevel > ICILevel) &
@@ -4973,7 +5014,7 @@ MODULE FciMCParMod
 
         else
             ! ExcitLevel indicates the excitation level between the det and
-            ! *one* of the determinants in an HPHF function. If needed,
+            ! *one* of the determinants in an HPHF/MomInv function. If needed,
             ! calculate the connection between it and the other one. If either
             ! is connected, then it has to be counted. Since the excitation
             ! level is the same to either det, we don't need to consider the
@@ -5014,6 +5055,8 @@ MODULE FciMCParMod
                 if (tHPHF) then
                     HOffDiag = hphf_off_diag_helement (ProjEDet, nI, iLutRef,&
                                                        ilut)
+                elseif(tMomInv) then
+                    HOffDiag = MI_off_diag_helement (ProjEDet, nI, iLutRef, ilut)
                 else
                     HOffDiag = get_helement (ProjEDet, nI, ExcitLevel, &
                                              ilutRef, ilut)
@@ -5083,7 +5126,9 @@ MODULE FciMCParMod
                         DoubsUEGStore(iUEG1,iUEG2,DoubEx(2,1))=.false.
                         DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),2)=HOffDiag
                         if(tHPHF) then
-                            HDoubDiag = hphf_off_diag_helement (nI,nI,ilut,ilut)
+                            HDoubDiag = hphf_diag_helement (nI,ilut)
+                        elseif(tMomInv) then
+                            HDoubDiag = MI_diag_helement(nI,ilut)
                         else
                             HDoubDiag = get_helement (nI,nI,0) !, iLutCurr, &
                                                     ! iLutCurr)
@@ -5652,11 +5697,27 @@ MODULE FciMCParMod
                         TotWeight=TotWeight+abs(CK(i,1))
                     endif
                 endif
+            elseif(tMomInv) then
+                !Only allow valid HPHF functions
+                call EncodeBitDet(CASFullDets(:,i),iLutnJ)
+                if(IsAllowedMI(CASFullDets(:,i),iLutnJ)) then
+                    nHPHFCAS=nHPHFCAS+1
+                    if(.not.IsAllowedMI(CASFullDets(:,i),iLutnJ)) then
+                        !Momentum-coupled. Weight is sqrt(2) of det weight.
+                        TotWeight=TotWeight+(abs(CK(i,1))*sqrt(2.D0))
+                        !Return this new weight to the CK array, so that we do not need to do this a second time.
+                        CK(i,1)=CK(i,1)*sqrt(2.D0)
+                    else
+                        !Closed Shell
+                        TotWeight=TotWeight+abs(CK(i,1))
+                    endif
+                endif
             else
                 TotWeight=TotWeight+abs(CK(i,1))
             endif
         enddo
         write(6,*) "Total weight of lowest eigenfunction: ",TotWeight
+        if(tMomInv) write(6,*) "Converting into momentum-coupled space. Total MI functions: ",nHPHFCAS
         if(tHPHF) write(6,*) "Converting into HPHF space. Total HPHF CAS functions: ",nHPHFCAS
 
         if((InitialPart.eq.1).or.(InitialPart.ge.(InitWalkers*nNodes)-50)) then
@@ -5685,6 +5746,9 @@ MODULE FciMCParMod
             if(tHPHF) then
                 call EncodeBitDet(CASFullDets(:,i),iLutnJ)
                 if(.not.IsAllowedHPHF(iLutnJ)) cycle
+            elseif(tMomInv) then
+                call EncodeBitDet(CASFullDets(:,i),iLutnJ)
+                if(.not.IsAllowedMI(CASFullDets(:,i),iLutnJ)) cycle
             endif
             iNode=DetermineDetNode(CASFullDets(:,i),0)
             if(iProcIndex.eq.iNode) then
@@ -5718,6 +5782,8 @@ MODULE FciMCParMod
                     if(.not.tRegenDiagHEls) then
                         if(tHPHF) then
                             HDiagTemp = hphf_diag_helement(CASFullDets(:,i),iLutnJ)
+                        elseif(tMomInv) then
+                            HDiagTemp = MI_diag_helement(CASFullDets(:,i),iLutnJ)
                         else
                             HDiagTemp = get_helement(CASFullDets(:,i),CASFullDets(:,i),0)
                         endif

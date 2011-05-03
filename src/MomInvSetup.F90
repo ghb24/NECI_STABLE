@@ -120,6 +120,11 @@ Module MomInv
 
         call MPIBCast(MomInvSymOrb)
 
+        if(tAntisym_MI) then
+            write(6,*) "Hilbert space will be constructed from antisymmetric momentum-coupled determinants"
+        else
+            write(6,*) "Hilbert space will be constructed from symmetric momentum-coupled determinants"
+        endif
         write(6,*) "Sucessfully paired orbitals by momentum."
         write(6,*) "Orbital     Lz_Paired Orbital"
         do i=1,nBasis
@@ -166,6 +171,24 @@ Module MomInv
 
     end subroutine InvertMomBitDet
 
+    !Return the inverse determinant in both representations
+    subroutine InvertMomDetBoth(nI,nISym,iLut,iLutSym)
+        implicit none
+        integer, intent(in) :: nI(NEl)
+        integer, intent(out) :: nISym(NEl)
+        integer(n_int), intent(in) :: iLut(0:NIfTot)
+        integer(n_int), intent(out) :: iLutSym(0:NIfTot)
+        integer :: i
+            
+        iLutSym(:)=0
+        do i=1,nel
+            nISym(i)=MomInvSymOrb(nI(i))
+            set_orb(iLutSym,nISym(i))
+        enddo
+        call sort(nISym)
+
+    end subroutine InvertMomDetBoth
+
     !Return the allowed Momentum Inverse determinant, with optional calculation of either/both
     !of the symmetry determinants.
     subroutine CalcMomAllowedBitDet(nI,nISym,iLut,iLutSym,tCalcnISym,tCalciLutSym,tSwapped)
@@ -181,12 +204,7 @@ Module MomInv
 
         if(tCalcnISym.and.tCalciLutSym) then
             !Calculate both representations
-            iLutSym(:)=0
-            do i=1,nel
-                nISym(i)=MomInvSymOrb(nI(i))
-                set_orb(iLutSym,nISym(i))
-            enddo
-            call sort(nISym)
+            call InvertMomDetBoth(nI,nISym,iLut,iLutSym)
         elseif(tCalcnISym) then
             !Calculate nI representation
             call decode_bit_det(nISym,iLutSym)
@@ -264,6 +282,32 @@ Module MomInv
         endif
 
     end subroutine ReturnMomAllowedDet
+
+    !Returns true if the function is an 'allowed' MI function
+    !(i.e. the determinant which would be stored in an FCIMC run) 
+    logical function IsAllowedMI(nI,iLutnI)
+        implicit none
+        integer, intent(in) :: nI(NEl)
+        integer(n_int), intent(in) :: iLutnI(0:NIfTot)
+        integer(n_int) :: MomSymiLut(0:NIfTot),iLutTmp(0:NIfTot)
+        logical :: tSwapped
+
+        if(IsMomSelfInv(nI,iLutnI)) then
+            IsAllowedMI=.true.
+            return
+        else
+            call InvertMomBitDet(iLutnI,MomSymiLut, nI)
+            iLutTmp(:)=iLutnI
+            call ReturnMomAllowedBitDet(iLutTmp,MomSymiLut,tSwapped)
+            if(tSwapped) then
+                IsAllowedMI=.false.
+            else
+                IsAllowedMI=.true.
+            endif
+        endif
+
+    end function IsAllowedMI
+
 
     !Routine to return whether a determinant is a momentum self inverse or not,
     !using both bit and natural ordered representations.
