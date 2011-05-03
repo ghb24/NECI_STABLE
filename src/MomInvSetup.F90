@@ -4,7 +4,7 @@ Module MomInv
     use constants, only: dp,n_int,end_n_int
     use bit_reps, only: NIfD, NIfTot, NIfDBO, decode_bit_det
     use DetBitOps, only: DetBitEQ,DetBitLT
-    use SystemData, only: NEl,G1,nBasis,Brr,Arr,tFixLz,LzTot,G1
+    use SystemData, only: NEl,G1,nBasis,Brr,Arr,tFixLz,LzTot,G1,tAntisym_MI
     use Parallel
     use sort_mod
     use SymExcitDataMod, only: MomInvSymOrb  

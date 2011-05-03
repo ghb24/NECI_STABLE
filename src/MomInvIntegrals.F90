@@ -142,7 +142,7 @@ module MI_integrals
         HElement_t :: MatEl2
 
         hel = sltcnd_excit (nI,0)
-        if(.not.IsMomSelfInv(nI,iLutnI) then
+        if(.not.IsMomSelfInv(nI,iLutnI)) then
             !Two determinants in function.
             ! See if there is a cross-term
             call InvertMomBitDet(iLutnI,iLutnI2,nI)

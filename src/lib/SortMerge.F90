@@ -17,11 +17,12 @@
 ! a linear search would be quicker.
     SUBROUTINE MergeListswH(nlist1,nlist2,list2)
         USE FciMCParMOD , only : Hii,CurrentDets,CurrentH
-        use SystemData, only: nel, tHPHF
+        use SystemData, only: nel, tHPHF,tMomInv
         use bit_reps, only: NIfTot, NIfDBO, decode_bit_det
         USE Determinants , only : get_helement
         use DetBitOps, only: DetBitEQ
-        use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
+        use hphf_integrals, only: hphf_diag_helement
+        use MI_integrals, only: MI_diag_helement
         USE CalcData , only : tTruncInitiator
         USE HElem
         use constants, only: dp,n_int
@@ -66,6 +67,8 @@
            call decode_bit_det (nJ, list2(:,i))
            if (tHPHF) then
                HDiagTemp = hphf_diag_helement (nJ, list2(:,i))
+           elseif(tMomInv) then
+               HDiagTemp = MI_diag_helement(nJ,list2(:,i))
            else
                HDiagTemp = get_helement (nJ, nJ, 0)
            endif
