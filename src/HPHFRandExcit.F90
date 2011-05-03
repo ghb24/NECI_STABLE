@@ -388,7 +388,7 @@ MODULE HPHFRandExcitMod
         integer(n_int) :: ilut_tmp(0:NIfD)
 
         ilut_tmp = ishft(iand(ilutI, MaskAlpha), -1)
-        ilutJ = ishft(iand(ilutJ, MaskBeta), +1)
+        ilutJ = ishft(iand(ilutI, MaskBeta), +1)
         ilutJ = ior(ilutJ, ilut_tmp)
 
     end subroutine

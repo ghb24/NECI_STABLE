@@ -218,16 +218,11 @@ module hphf_integrals
 
         call CalcOpenOrbs(ilut, open_orbs)
 
-        if (mod(OpenOrbs, 2) == 1) then
-            sgn = -1
+        if ((mod(open_orbs, 2) == 0) .neqv. tOddS_HPHF) then
+            sgn = 1
         else
-            sgn = +1
+            sgn = -1
         endif
-        !if ((mod(open_orbs, 2) == 0) .neqv. tOddS_HPHF) then
-        !    sgn = 1
-        !else
-        !    sgn = -1
-        !endif
 
     end function
 
