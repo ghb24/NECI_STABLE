@@ -687,7 +687,8 @@ CONTAINS
                 ENDIF
             enddo
 
-            if(tMomInv) then
+            if(tMomInv.and..false.) then    
+                !These are some tests for the MomInv functions. Off by default
                 PairedUnit = get_free_unit()
                 open(PairedUnit,file='LzPairedDets',status='unknown')
                 SelfInvUnit = get_free_unit()
