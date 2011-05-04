@@ -87,12 +87,14 @@ contains
 
 
          DO i=1,NORB
-             IF(ORBSYM(i).eq.0.and.TwoCycleSymGens.and.(.not.(tFixLz.or.tKPntSym.or.tUEG.or.tHub))) THEN
+             IF(ORBSYM(i).eq.0.and.TwoCycleSymGens) THEN
                  WRITE(6,*) "** WARNING **"
                  WRITE(6,*) "** Unconverged symmetry of orbitals **"
-                 WRITE(6,*) "** Turning symmetry off for rest of run **"
-                 WRITE(6,*) "** No symmetry will be used in excitation generators **"
-                 tNoSymGenRandExcits=.true. 
+                 WRITE(6,*) "** Turning point group symmetry off for rest of run **"
+                 if(.not.(tFixLz.or.tKPntSym.or.tUEG.or.tHub)) then
+                     WRITE(6,*) "** No symmetry at all will be used in excitation generators **"
+                     tNoSymGenRandExcits=.true. 
+                 endif
                  lNoSymmetry=.true.
                  EXIT
              ENDIF
