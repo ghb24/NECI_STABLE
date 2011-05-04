@@ -1,12 +1,13 @@
 MODULE PopsfileMod
 
-    use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin
+    use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin,tMomInv
     use CalcData, only: tTruncInitiator,DiagSft,tWalkContGrow,nEquilSteps,ScaleWalkers, &
                         tReadPopsRestart, tRegenDiagHEls,InitWalkers, tReadPopsChangeRef, &
                         nShiftEquilSteps,iWeightPopRead,iPopsFileNoRead,tPopsMapping
     use DetBitOps, only: DetBitLT,FindBitExcitLevel,DetBitEQ
     use Determinants, only : get_helement,write_det
     use hphf_integrals, only: hphf_diag_helement
+    use MI_integrals, only: MI_diag_helement
     USE dSFMT_interface , only : genrand_real2_dSFMT
     use FciMCData
     use bit_reps
@@ -208,6 +209,8 @@ MODULE PopsfileMod
                     call decode_bit_det (TempnI, currentDets(:,i))
                     if (tHPHF) then
                         HElemTemp = hphf_diag_helement (TempnI,Dets(:,i))
+                    elseif(tMomInv) then
+                        HElemTemp = MI_diag_helement(TempnI,Dets(:,i))
                     else
                         HElemTemp = get_helement (TempnI, TempnI, 0)
                     endif
@@ -1176,6 +1179,8 @@ MODULE PopsfileMod
                 ! Recalculate the reference E
                 if (tHPHF) then
                     HElemTemp = hphf_diag_helement (ProjEDet, iLutRef)
+                elseif(tMomInv) then
+                    HElemTemp = MI_diag_helement(ProjEDet,iLutRef)
                 else
                     HElemTemp = get_helement (ProjEDet, ProjEDet, 0)
                 endif
@@ -1206,6 +1211,8 @@ MODULE PopsfileMod
                     if (tHPHF) then
                         HElemTemp = hphf_diag_helement (TempnI, &
                                                         CurrentDets(:,j))
+                    elseif(tMomInv) then
+                        HElemTemp = MI_diag_helement(TempnI,CurrentDets(:,j))
                     else
                         HElemTemp = get_helement (TempnI, TempnI, 0)
                     endif

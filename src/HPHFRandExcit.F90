@@ -11,17 +11,18 @@ MODULE HPHFRandExcitMod
     use IntegralsData, only: UMat, fck, nMax
     use SymData, only: nSymLabels
     use dSFMT_interface, only : genrand_real2_dSFMT
-    use GenRandSymExcitNUMod, only: gen_rand_excit, construct_class_counts, &
+    use GenRandSymExcitNUMod, only: gen_rand_excit, &
                                     CalcNonUniPGen, ScratchSize 
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet, &
                          FindBitExcitLevel, MaskAlpha, MaskBeta, &
                          TestClosedShellDet, CalcOpenOrbs
     use FciMCData, only: pDoubles, excit_gen_store_type
     use constants, only: dp,n_int
-    use HElem
     use sltcnd_mod, only: sltcnd_excit
     use bit_reps, only: NIfD, NIfDBO, NIfTot
+    use SymExcitDataMod, only: excit_gen_store_type
     use sort_mod
+    use HElem
     IMPLICIT NONE
 !    SAVE
 !    INTEGER :: Count=0
