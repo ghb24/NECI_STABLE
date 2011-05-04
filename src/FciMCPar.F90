@@ -2833,9 +2833,9 @@ MODULE FciMCParMod
                             call CalcMomAllowedBitDet(ProjEDet,RefDetFlip,iLutRef,iLutRefFlip,.true.,.true.,tSwapped)
                             if(tSwapped) then
                                 !The iLutRef should already be the correct one, since it was obtained by the normal calculation!
-                                call stop_all("population_check","Error in changing reference determinant to momentum-coupled function")
+                                call stop_all("population_check","Error in changing reference det to momentum-coupled function")
                             endif
-                            write(6,"(A)") "Now projecting onto a momentum-coupled function as a linear combo of two determinants..."
+                            write(6,"(A)") "Now projecting onto a momentum-coupled function as a linear combo of two dets..."
                             tSpinCoupProjE=.true.
                         endif
                     else

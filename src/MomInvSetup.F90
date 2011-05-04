@@ -152,19 +152,21 @@ Module MomInv
         implicit none
         integer(n_int) , intent(in) :: iLut(0:NIfTot)
         integer(n_int) , intent(out) :: MomSymiLut(0:NIfTot)
-        integer :: i,nITmp(nel)
+        integer :: i,j,nITmp(nel)
         integer, intent(in), optional :: nI(NEl)
         
         MomSymiLut(:)=0
         if(present(nI)) then
             do i=1,nel
-                set_orb(MomSymiLut,MomInvSymOrb(nI(i)))
+                j=MomInvSymOrb(nI(i))
+                set_orb(MomSymiLut,j)
             enddo
         else
             call decode_bit_det(nITmp,iLut)
             !No need to sort, since we are encoding straight away
             do i=1,nel
-                set_orb(MomSymiLut,MomInvSymOrb(nITmp(i)))
+                j=MomInvSymOrb(nITmp(i))
+                set_orb(MomSymiLut,j)
             enddo
         endif
 
