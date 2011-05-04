@@ -777,7 +777,7 @@ contains
         integer, parameter :: max_per_proc = 1000
         integer(n_int) :: recv_dets(0:NIfTot,max_per_proc)
         integer :: proc_dets, start_pos, nsend, i, lms_tmp, p
-        integer :: bcast_tmp(2), nopen, nopen_cutoff
+        integer :: bcast_tmp(2)
         type(timer), save :: s2_timer, s2_timer_init
         integer(int64) :: ssq_sum
         logical, intent(in) :: only_init
@@ -789,16 +789,6 @@ contains
             call set_timer(s2_timer_init)
         else
             call set_timer (s2_timer)
-        endif
-
-        ! Limits for inclusion of determinants. If using HPHF, and we have 2
-        ! unpaired electrons, then the determinants connected by S+S_ are the
-        ! HPHF paired det, and only the HPHF det. If nopen > 2 this is never
-        ! the case.
-        if (tHPHF) then
-            nopen_cutoff = 2
-        else
-            nopen_cutoff = 0
         endif
 
         ssq_sum = 0
@@ -858,8 +848,9 @@ contains
                 ! All processors loop over these dets, and calculate their
                 ! contribution to S^2
                 do i = 1, nsend
-                    nopen = count_open_orbs(recv_dets(:,i))
-                    if (nopen > nopen_cutoff) then
+                    if (.not. TestClosedShellDet(recv_dets(:,i))) then
+                        ! If nopen == 2, and tHPHF, then this can be
+                        ! optimised further
                         ssq_sum = ssq_sum + ssquared_contrib (recv_dets(:,i))
                     endif
                 enddo
