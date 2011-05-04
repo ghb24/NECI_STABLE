@@ -26,6 +26,8 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tAntisym_MI=.false.
+      tMomInv=.false.
       tNoSingExcits=.false.
       tOneElecDiag=.false.
       tMCSizeTruncSpace=.false.
@@ -178,7 +180,7 @@ MODULE System
       IMPLICIT NONE
       LOGICAL eof
       CHARACTER (LEN=100) w
-      INTEGER I,Odd_EvenHPHF
+      INTEGER I,Odd_EvenHPHF,Odd_EvenMI
       
       ! The system block is specified with at least one keyword on the same
       ! line, giving the system type being used.
@@ -502,6 +504,21 @@ MODULE System
 !use these assumed size excitation generators to generate the whole list of excitations, will result 
 !in bad, bad times.
             tAssumeSizeExcitgen=.true.
+        case("MOMINVSYM")
+            tMomInv=.true.
+            tAntisym_MI=.false.
+            if(item.lt.nitems) then
+                call geti(Odd_EvenMI)
+                if(Odd_EvenMI.eq.1) then
+                    !Converging on the antisymmetric state (- symmetry)
+                    tAntisym_MI=.true.
+                elseif(Odd_EvenMI.eq.0) then
+                    !Converging on the symmetric state (+ symmetry)
+                    !This is done by default
+                else
+                    call stop_all("SysReadInput","Invalid variable given to MOMINVSYM option: 0 = + sym; 1 = - sym")
+                endif
+            endif
         case("HPHF")
             tHPHF=.true.
             if(item.lt.nitems) then

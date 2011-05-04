@@ -11,16 +11,17 @@ MODULE HPHFRandExcitMod
     use IntegralsData, only: UMat, fck, nMax
     use SymData, only: nSymLabels
     use dSFMT_interface, only : genrand_real2_dSFMT
-    use GenRandSymExcitNUMod, only: gen_rand_excit, construct_class_counts, &
+    use GenRandSymExcitNUMod, only: gen_rand_excit, &
                                     CalcNonUniPGen, ScratchSize 
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet, &
                          FindBitExcitLevel,MaskAlpha,MaskBeta
-    use FciMCData, only: pDoubles, excit_gen_store_type
+    use FciMCData, only: pDoubles
     use constants, only: dp,n_int
-    use HElem
     use sltcnd_mod, only: sltcnd_excit
     use bit_reps, only: NIfD, NIfDBO, NIfTot
+    use SymExcitDataMod, only: excit_gen_store_type
     use sort_mod
+    use HElem
     IMPLICIT NONE
 !    SAVE
 !    INTEGER :: Count=0
@@ -344,7 +345,9 @@ MODULE HPHFRandExcitMod
 
 !This create the spin-coupled determinant of nI in nJ in natural ordered form.
     SUBROUTINE FindDetSpinSym(nI,nJ,NEl)
-        INTEGER :: nI(NEl),nJ(NEl),NEl,i
+        INTEGER, intent(in) :: nI(NEl),NEl
+        integer, intent(out) :: nJ(NEl)
+        integer :: i
 
         do i=1,NEl
             IF(mod(nI(i),2).eq.0) THEN

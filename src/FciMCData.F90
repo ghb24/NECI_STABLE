@@ -112,7 +112,7 @@ MODULE FciMCData
       INTEGER(KIND=int64) :: AllSumWalkersCyc
       INTEGER :: AllAnnihilated,AllNoatDoubs
       INTEGER, DIMENSION(lenof_sign) :: AllNoatHF
-      real(dp), dimension(lenof_sign) :: sum_proje_denominator, &
+      HElement_t :: sum_proje_denominator, &
                         cyc_proje_denominator, all_cyc_proje_denominator, &
                         all_sum_proje_denominator
       real(dp) :: AllAvSign,AllAvSignHFD
@@ -177,7 +177,8 @@ MODULE FciMCData
 
       INTEGER :: WalkersDiffProc
 
-      LOGICAL , PARAMETER :: tGenMatHEl=.true.      !This is whether to generate matrix elements as generating excitations for the HPHF or ISK options
+      !This is whether to generate matrix elements as generating excitations for the HPHF/MI/ISK options
+      LOGICAL , PARAMETER :: tGenMatHEl=.true.      
 
       INTEGER :: VaryShiftCycles                    !This is the number of update cycles that the shift has allowed to vary for.
       INTEGER :: VaryShiftIter                     !This is the iteration that the shift can vary.

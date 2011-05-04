@@ -3,8 +3,8 @@ module read_fci
 contains
 
     SUBROUTINE INITFROMFCID(NEL,NBASISMAX,LEN,LMS,TBIN)
-         use SystemData , only : tNoSymGenRandExcits,lNoSymmetry,tROHF
-         use SystemData , only : tStoreSpinOrbs,tKPntSym,tRotatedOrbsReal
+         use SystemData , only : tNoSymGenRandExcits,lNoSymmetry,tROHF,tHub,tUEG
+         use SystemData , only : tStoreSpinOrbs,tKPntSym,tRotatedOrbsReal,tFixLz
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
          use Parallel
          use util_mod, only: get_free_unit
@@ -90,8 +90,11 @@ contains
              IF(ORBSYM(i).eq.0.and.TwoCycleSymGens) THEN
                  WRITE(6,*) "** WARNING **"
                  WRITE(6,*) "** Unconverged symmetry of orbitals **"
-                 WRITE(6,*) "** Turning symmetry off for rest of run **"
-                 tNoSymGenRandExcits=.true.
+                 WRITE(6,*) "** Turning point group symmetry off for rest of run **"
+                 if(.not.(tFixLz.or.tKPntSym.or.tUEG.or.tHub)) then
+                     WRITE(6,*) "** No symmetry at all will be used in excitation generators **"
+                     tNoSymGenRandExcits=.true. 
+                 endif
                  lNoSymmetry=.true.
                  EXIT
              ENDIF
