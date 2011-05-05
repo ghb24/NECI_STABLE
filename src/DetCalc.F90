@@ -299,41 +299,41 @@ CONTAINS
       use util_mod, only: get_free_unit
       use Determinants , only : get_helement,FDet
       use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
-      use SystemData, only : nBasis, nBasisMax,nEl,nMsh,LzTot
-      use SystemData, only : nBasis, nBasisMax,nEl,nMsh
+      use SystemData, only : nBasis, nBasisMax,nEl,nMsh,LzTot,tMomInv
       use IntegralsData, only: FCK,NMAX, UMat
       Use Logging, only: iLogging,tHistSpawn,tHistHamil,tLogDets
       use SystemData, only  : tCSFOLD
       use Parallel, only : iProcIndex
-      use DetBitops, only: DetBitEQ,EncodeBitDet
-      use bit_rep_data, only: NIfDBO,NIfTot
+      use DetBitops, only: DetBitEQ,EncodeBitDet,FindBitExcitLevel
+      use bit_rep_data, only: NIfDBO,NIfTot,NIfD
       use legacy_data, only: irat
+      use bit_reps, only: decode_bit_det
       use sym_mod
-     use HElem
-        use MemoryManager, only: TagIntType
+      use HElem
+      use MemoryManager, only: TagIntType
+      use MomInv, only : IsBitMomSelfInv,InvertMomDet  
 
       real(dp) , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),FCIGS(:)
       HElement_t, ALLOCATABLE :: WORK(:)
       INTEGER , ALLOCATABLE :: LAB(:),NROW(:),INDEX(:),ISCR(:),Temp(:)
-
       integer(TagIntType) :: LabTag=0,NRowTag=0,TKETag=0,ATag=0,VTag=0,AMTag=0,BMTag=0,TTag=0
       INTEGER(TagIntType) :: WTTag=0,SCRTag=0,ISCRTag=0,INDEXTag=0,WHTag=0,Work2Tag=0,V2Tag=0,WorkTag=0
       integer :: ierr,Lz
       character(25), parameter :: this_routine = 'DoDetCalc'
       real(dp) EXEN,GSEN
-        Type(BasisFn) ISym,IHFSYM
-
-        INTEGER GC,I,ICMAX
-        INTEGER IN,IND,INDZ
-        INTEGER NBLOCK!,OpenOrbs,OpenOrbsSym,Ex(2,NEl)
-        INTEGER nKry1
-        INTEGER(KIND=n_int) :: ilut(0:NIfTot)
-        
-        INTEGER J,JR,iGetExcitLevel_2,ExcitLevel, iunit
-        INTEGER LSCR,LISCR,MaxIndex
-        LOGICAL tMC!,TestClosedShellDet,Found,tSign
-        real(dp) GetHElement, calct, calcmcen, calcdlwdb,norm
-! Doesn't seem to have been inited
+      Type(BasisFn) ISym,IHFSYM
+      INTEGER GC,I,ICMAX
+      INTEGER IN,IND,INDZ
+      INTEGER NBLOCK!,OpenOrbs,OpenOrbsSym,Ex(2,NEl)
+      INTEGER nKry1
+      INTEGER(KIND=n_int) :: ilut(0:NIfTot)
+      INTEGER J,JR,iGetExcitLevel_2,ExcitLevel, iunit
+      INTEGER LSCR,LISCR,MaxIndex
+      LOGICAL tMC!,TestClosedShellDet,Found,tSign
+      real(dp) GetHElement, calct, calcmcen, calcdlwdb,norm
+      integer:: ic,TempnI(NEl),MomSymDet(NEl),ICSym,ICConnect,PairedUnit,SelfInvUnit
+      integer(n_int) :: iLutMomSym(0:NIfTot)
+      logical :: tSuccess
 
       IF(tEnergy) THEN
           WRITE(6,'(1X,A,E19.3)') ' B2LIMIT : ' , B2L
@@ -686,6 +686,54 @@ CONTAINS
                 ENDIF
             enddo
 
+!            if(tMomInv.and..false.) then    
+!                !These are some tests for the MomInv functions. Off and commented out by default
+!                PairedUnit = get_free_unit()
+!                open(PairedUnit,file='LzPairedDets',status='unknown')
+!                SelfInvUnit = get_free_unit()
+!                open(SelfInvUnit,file='SelfInvDet',status='unknown')
+!                do i=1,Det
+!                    if(abs(FCIGS(i)).lt.1.D-8) cycle
+!                    !Ignore if self-inverse
+!                    if(IsBitMomSelfInv(FCIDets(:,i))) then
+!                        call decode_bit_det(TempnI,FCIDets(:,i))
+!                        write(SelfInvUnit,"(I16,6I4,G19.8)") FCIDets(0:NIfD,i),TempnI(:),FCIGS(i)
+!                        cycle
+!                    endif
+!                    
+!                    IC = FindBitExcitLevel(iLut,FCIDets(:,i),nel)
+!                    !Decode
+!                    call decode_bit_det(TempnI,FCIDets(:,i))
+!
+!                    !Find inverse det
+!                    call InvertMomDet(TempnI,MomSymDet)
+!
+!                    !Encode
+!                    call EncodeBitDet(MomSymDet,iLutMomSym)
+!
+!                    !Find excit level of mom sym det
+!                    ICSym = FindBitExcitLevel(iLut,iLutMomSym,nel)
+!
+!                    !Search for it...
+!                    if(ICSym.eq.nel) then
+!                        call BinSearchParts2(iLutMomSym,FCIDetIndex(ICSym),Det,Ind,tSuccess)
+!                    elseif(ICSym.eq.0) then
+!                        call stop_all(this_routine,"HF det is not self-inverse?!")
+!                    else
+!                        call BinSearchParts2(iLutMomSym,FCIDetIndex(ICSym),FCIDetIndex(ICSym+1)-1,Ind,tSuccess)
+!                    endif
+!                    if(.not.tSuccess) then
+!                        call stop_all(this_routine,"Sym partner not found")
+!                    endif
+!                    ICConnect = FindBitExcitLevel(FCIDets(:,i),iLutMomSym,nel)
+!                    write(PairedUnit,"(2I16,15I4,2G19.8)") FCIDets(0:NIfD,i),iLutMomSym(0:NIfD),TempnI(:),MomSymDet(:),IC,ICSym,ICConnect,FCIGS(i),FCIGS(Ind)
+!                enddo
+!                close(PairedUnit)
+!                close(SelfInvUnit)
+!
+!                call TestMomInvInts() 
+!
+!            endif
 
 !This will sort the determinants into ascending order, for quick binary searching later on.
 !            IF(.not.tFindDets) THEN

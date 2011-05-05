@@ -26,6 +26,8 @@ MODULE SymExcitDataMod
     INTEGER , ALLOCATABLE :: SymTableLabels(:,:)    !Symmetry table for symexcit labels (not syms themselves)
     INTEGER , ALLOCATABLE :: KPntInvSymOrb(:)       !Lookup table to find the inverse-k point equivalent spin orbital
 
+    integer, allocatable :: MomInvSymOrb(:) !This is for when using MI functions, and gives the momentum mapping between orbs.
+
       ! Excitation generator stored information
       ! --> Due to the allocatables, we can add as many things to here as
       !     we like without causing any problems :-).
