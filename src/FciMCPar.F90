@@ -3370,7 +3370,7 @@ MODULE FciMCParMod
         if (tCalcInstantS2) then
             if (mod(iter / StepsSft, instant_s2_multiplier) == 0) then
                 curr_S2 = calc_s_squared_star (.false.)
-                curr_S2_init = calc_s_squared_star(.true.)
+            !    curr_S2_init = calc_s_squared_star(.true.)
             endif
         else
             curr_S2 = -1

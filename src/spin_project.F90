@@ -1,6 +1,6 @@
 #include "macros.h"
 module spin_project
-    use SystemData, only: LMS, STOT, nel, nbasis
+    use SystemData, only: LMS, STOT, nel, nbasis, tHPHF
     use CalcData, only: tau, tTruncInitiator
     use SymExcitDataMod, only: scratchsize
     use bit_reps, only: NIfD, NIfTot, extract_sign, flag_is_initiator, &
@@ -14,6 +14,7 @@ module spin_project
     use DeterminantData, only: write_det, get_lexicographic
     use dSFMT_interface, only: genrand_real2_dSFMT
     use util_mod, only: choose, binary_search
+    use HPHFRandExcitMod, only: IsAllowedHPHF
 
     implicit none
 
@@ -385,6 +386,11 @@ contains
                 csf_spin_project_elem_self (fcimc_excit_gen_store%dorder_i, &
                                             fcimc_excit_gen_store%nopen)
 
+        if (tHPHF) then
+            ASSERT(count_open_orbs(ilutI) /= 0)
+            hel = 2 * hel
+        endif
+
         ! Avoid warnings
         lUnused = tParity; iUnused = IC; iUnused = ex(1,1)
         iUnused2 = iLutI(0); iUnused2 = iLutJ(0)
@@ -462,7 +468,8 @@ contains
         fcimc_excit_gen_store%nopen = nopen
 
         ! If we know that there are no possible excitations to be made
-        if (nopen == STOT .or. nopen > spin_proj_nopen_max) then
+        if (nopen == STOT .or. nopen > spin_proj_nopen_max .or. &
+            (tHPHF .and. nopen == 2)) then
             nJ(1) = 0
             return
         endif
@@ -475,6 +482,12 @@ contains
             if (nchoose == -1) &
                 call stop_all (this_routine, "All possible cases here should &
                                              &have been excluded above")
+
+            ! In HPHF, a determinant is allowed if its last e- is alpha
+            ! TODO: Is this definition general with > 64 orbitals?
+            if (tHPHF) then
+                if (is_beta(nTmp(nopen))) cycle
+            endif
 
             ! If we have found our target, exit the loop
             if (.not.all(open_orbs(1:nopen) == nTmp(1:nopen))) exit
@@ -516,7 +529,11 @@ contains
         ! Generation probability, -1 as we exclude the starting det above.
         ! Invert sign so that a positive overlap element spawns walkers with
         ! the same sign
-        pGen = 1_dp / real(nchoose - 1, dp)
+        if (tHPHF) then
+            pGen = 2_dp / real(nchoose - 2, dp)
+        else
+            pGen = 1_dp / real(nchoose - 1, dp)
+        endif
 
         ! Protect against compiler warnings
         ex(1,1) = ex(1,1); IC = IC; iUnused = exFlag; tParity = tParity
@@ -553,6 +570,7 @@ contains
         ! probability.
         elem = csf_spin_project_elem_self (fcimc_excit_gen_store%dorder_i, &
                                            fcimc_excit_gen_store%nopen)
+        if (tHPHF) elem = 2 * elem
         elem = elem - 1 + spin_proj_shift
         elem = - elem * spin_proj_gamma
 
