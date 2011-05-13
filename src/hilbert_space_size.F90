@@ -2,6 +2,7 @@
 
 module hilbert_space_size
 
+use constants, only: dp,int64,n_int,bits_n_int
 implicit none
 
 contains
@@ -17,7 +18,6 @@ contains
          use dSFMT_interface
          use soft_exit, only : ChangeVars
          use Parallel
-         use constants, only : n_int,bits_n_int
          use DetBitops, only: EncodeBitDet
          use util_mod, only: choose
          use bit_rep_data, only: NIfTot
@@ -26,11 +26,11 @@ contains
          INTEGER :: j,SpatOrbs,FDetMom,Attempts,iExcitLevTest,i,ExcitLev
          INTEGER(KIND=n_int) :: FDetiLut(0:NIfTot),iLut(0:NIfTot)
          INTEGER :: FDetSym,TotalSym,TotalMom,alpha,beta,ierr,Momx,Momy
-         INTEGER*8 :: Accept,AcceptAll,TotalAttempts,TotalAttemptsAll
-         INTEGER*8 :: ExcitBin(0:iMCCalcTruncLev),ExcitBinAll(0:iMCCalcTruncLev)
-         REAL*8 :: ExcitLevBias(0:iMCCalcTruncLev)
-         REAL*8 :: FullSpace,r,Frac,SymSpace
-         REAL*8 :: SizeLevel(0:iMCCalcTruncLev) 
+         integer(int64) :: Accept,AcceptAll,TotalAttempts,TotalAttemptsAll
+         integer(int64) :: ExcitBin(0:iMCCalcTruncLev),ExcitBinAll(0:iMCCalcTruncLev)
+         real(dp) :: ExcitLevBias(0:iMCCalcTruncLev)
+         real(dp) :: FullSpace,r,Frac,SymSpace
+         real(dp) :: SizeLevel(0:iMCCalcTruncLev) 
          LOGICAL :: tDummy,tDummy2,tSoftExitFound
 
          iExcitLevTest=iMCCalcTruncLev
@@ -170,7 +170,6 @@ contains
      SUBROUTINE CreateRandomExcitLevDetUnbias(iExcitLevTest,FDet,FDetiLut,iLut,ExcitLev,Attempts)
          use util_mod, only: choose
          use SystemData, only: nEl
-         use constants, only : n_int
          use bit_rep_data, only: NIfTot
          use dSFMT_interface
          INTEGER :: iExcitLevTest,FDet(NEl),ExcitLev,Attempts
@@ -207,7 +206,6 @@ contains
          use SystemData, only: tUEG,tHPHF,tHub
          use SystemData, only : tFixLz
          use dSFMT_interface
-         use constants, only : n_int,bits_n_int
          use bit_rep_data, only: NIfTot
          integer, intent(in) :: iExcitLevTest,FDet(NEl)
          integer, intent(out) :: ExcitLev,Attempts
@@ -305,28 +303,29 @@ contains
          use HPHFRandExcitMod , only : IsAllowedHPHF
          use SymData, only : TwoCycleSymGens
          use SystemData, only: nEl,G1,nBasis,nOccAlpha,nOccBeta
-         use SystemData, only: tUEG,tHPHF,tHub
+         use SystemData, only: tUEG,tHPHF,tHub,tKPntSym,Symmetry
          use SystemData, only : CalcDetCycles, CalcDetPrint,tFixLz
          use DeterminantData, only : FDet
          use DetCalcData, only : ICILevel
          use dSFMT_interface
          use soft_exit, only : ChangeVars
          use Parallel
-         use constants, only : n_int,bits_n_int
          use DetBitops, only: EncodeBitDet
          use util_mod, only: choose
          use bit_rep_data, only: NIfTot
+         use sym_mod, only: SymProd
          IMPLICIT NONE
          INTEGER :: IUNIT,j,SpatOrbs,FDetMom,ExcitLev
          INTEGER(KIND=n_int) :: FDetiLut(0:NIfTot),iLut(0:NIfTot)
          INTEGER :: FDetSym,TotalSym,TotalMom,alpha,beta,ierr,Momx,Momy
          INTEGER :: Momz
-         INTEGER*8 :: Accept,AcceptAll,i
-         INTEGER*8 :: ExcitBin(0:NEl),ExcitBinAll(0:NEl)
-         REAL*8 :: FullSpace,r,Frac
-         REAL*8 :: SizeLevel(0:NEl) 
+         integer(int64) :: Accept,AcceptAll,i
+         integer(int64) :: ExcitBin(0:NEl),ExcitBinAll(0:NEl)
+         real(dp) :: FullSpace,r,Frac
+         real(dp) :: SizeLevel(0:NEl) 
          LOGICAL :: truncate_space,tDummy,tDummy2,tSoftExitFound
          LOGICAL :: tNotAllowed,tAcc
+         type(Symmetry) :: FDetKPntMom,KPntMom
 
 !         IF((.not.TwoCycleSymGens).and.(.not.tUEG).and.(.not.tHub)) THEN
 !             WRITE(IUNIT,*) "Only for molecular abelian symmetry "      &
@@ -344,11 +343,27 @@ contains
          FDetMom=0
          ExcitBin(:)=0
          ExcitBinAll(:)=0
+         Momx=0
+         Momy=0
+         Momz=0
+         FDetKPntMom%S=0
 
          do i=1,NEl
-            FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,4))
             IF(tFixLz) FDetMom=FDetMom+G1(FDet(i))%Ml
+            if(tKPntSym) FDetKPntMom=Symprod(FDetKPntMom,G1(FDet(i))%Sym)
+            IF(tUEG.or.tHub) THEN
+                Momx=Momx+G1(i)%k(1)
+                Momy=Momy+G1(i)%k(2)
+                Momz=Momz+G1(i)%k(3)
+            else
+                FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,4))
+            ENDIF
          enddo
+
+         IF(.not.((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0))) THEN
+             write(6,*) "Momx: ",Momx,"Momy: ",Momy, "Momz: ",Momz
+             call stop_all("FindSymMCSizeofSpace","Cannot calculate MC size of space with non-zero momentum")
+         endif
 
          IF(ICILevel.gt.0) THEN
              truncate_space=.true.
@@ -363,6 +378,10 @@ contains
              WRITE(IUNIT,*) "Imposing momentum sym on size calculation"
              WRITE(IUNIT,*) "Momentum of HF determinant is: ",FDetMom
          ENDIF
+         if(tKPntSym) then
+             write(iunit,*) "Using k-point symmetry."
+             write(iunit,*) "K-point sym of HF determinant is: ",FDetKPntMom%S
+         endif
          IF(tHPHF) THEN
             WRITE(6,*) "Imposing time-reversal symmetry (HPHF) on "     &
                  //"size of space calculation"
@@ -391,6 +410,7 @@ contains
 
          do i=1,CalcDetCycles
 
+             KPntMom%S=0
              TotalSym=0
              TotalMom=0
              ExcitLev=0
@@ -416,7 +436,6 @@ contains
                      ENDIF
                  enddo
 
-                 TotalSym=IEOR(TotalSym,INT((G1(alpha)%Sym%S),4))
                  IF(tFixLz) THEN
                      TotalMom=TotalMom+G1(alpha)%Ml
                  ENDIF
@@ -424,6 +443,10 @@ contains
                      Momx=Momx+G1(alpha)%k(1)
                      Momy=Momy+G1(alpha)%k(2)
                      Momz=Momz+G1(alpha)%k(3)
+                 elseif(tKPntSym) then
+                     KPntMom=Symprod(KPntMom,G1(alpha)%Sym)
+                 else
+                     TotalSym=IEOR(TotalSym,INT((G1(alpha)%Sym%S),4))
                  ENDIF
                  IF(.not.BTEST(FDetiLut((alpha-1)/bits_n_int),mod((alpha-1),bits_n_int))) THEN
                      !orbital chosen is *not* in the reference determinant
@@ -453,7 +476,6 @@ contains
                      ENDIF
                  enddo
 
-                 TotalSym=IEOR(TotalSym,INT((G1(beta)%Sym%S),4))
                  IF(tFixLz) THEN
                      TotalMom=TotalMom+G1(beta)%Ml
                  ENDIF
@@ -461,11 +483,16 @@ contains
                      Momx=Momx+G1(beta)%k(1)
                      Momy=Momy+G1(beta)%k(2)
                      Momz=Momz+G1(beta)%k(3)
+                 elseif(tKPntSym) then
+                     KPntMom=Symprod(KPntMom,G1(beta)%Sym)
+                 ELSE
+                     TotalSym=IEOR(TotalSym,INT((G1(beta)%Sym%S),4))
                  ENDIF
             IF(.not.BTEST(FDetiLut((beta-1)/bits_n_int),mod((beta-1),bits_n_int))) THEN
                      !orbital chosen is *not* in the reference determinant
                      ExcitLev=ExcitLev+1
                  ENDIF
+
                  
                  !Test
 !                 IF((beta.lt.1).or.(beta.gt.(nBasis-1))) THEN
@@ -501,8 +528,15 @@ contains
                                             tAcc=.true.
                                          ENDIF
                                      ELSE
-                                         Accept=Accept+1
-                                         tAcc=.true.
+                                         if(tKPntSym) then
+                                             if(KPntMom%S.eq.FDetKPntMom%S) then
+                                                 Accept=Accept+1
+                                                 tAcc=.true.
+                                             endif
+                                         else
+                                             Accept=Accept+1
+                                             tAcc=.true.
+                                         endif
                                      ENDIF
                                  ENDIF
                              ELSE
@@ -512,8 +546,15 @@ contains
                                         tAcc=.true.
                                      ENDIF
                                  ELSE
-                                     Accept=Accept+1
-                                     tAcc=.true.
+                                     if(tKPntSym) then
+                                         if(KPntMom%S.eq.FDetKPntMom%S) then
+                                             Accept=Accept+1
+                                             tAcc=.true.
+                                         endif
+                                     else
+                                         Accept=Accept+1
+                                         tAcc=.true.
+                                     endif
                                  ENDIF
                              ENDIF
                          ENDIF
@@ -540,8 +581,15 @@ contains
                                         tAcc=.true.
                                      ENDIF
                                  ELSE
-                                     Accept=Accept+1
-                                     tAcc=.true.
+                                     if(tKPntSym) then
+                                         if(KPntMom%S.eq.FDetKPntMom%S) then
+                                             Accept=Accept+1
+                                             tAcc=.true.
+                                         endif
+                                     else
+                                         Accept=Accept+1
+                                         tAcc=.true.
+                                     endif
                                  ENDIF
                              ENDIF
                          ELSE
@@ -551,8 +599,15 @@ contains
                                     tAcc=.true.
                                  ENDIF
                              ELSE
-                                 Accept=Accept+1
-                                 tAcc=.true.
+                                 if(tKPntSym) then
+                                     if(KPntMom%S.eq.FDetKPntMom%S) then
+                                         Accept=Accept+1
+                                         tAcc=.true.
+                                     endif
+                                 else
+                                     Accept=Accept+1
+                                     tAcc=.true.
+                                 endif
                              ENDIF
                          ENDIF
                      ENDIF
@@ -631,7 +686,7 @@ contains
          INTEGER :: Lima(0:7),Limb(0:7),a0,a1,a2,a3,a4,a5,a6,a7,NAlph
          INTEGER :: b0,b1,b2,b3,b4,b5,b6,b7,NBet,i,IUNIT,OverallSym
          INTEGER :: FDetSym
-         REAL*8 :: Space,SpaceGrow
+         real(dp) :: Space,SpaceGrow
          LOGICAL :: Sym(0:7)
 
 !         IF(.not.TwoCycleSymGens) THEN
@@ -825,7 +880,7 @@ contains
          INTEGER :: b0o,b1o,b2o,b3o,b4o,b5o,b6o,b7o,OverallSym
          INTEGER :: b0v,b1v,b2v,b3v,b4v,b5v,b6v,b7v,NBetOcc,i,IUNIT
          INTEGER :: FDetSym,NBetVirt
-         REAL*8 :: Space,SpaceGrow
+         real(dp) :: Space,SpaceGrow
          LOGICAL :: Sym(0:7)
 
          IF(.not.TwoCycleSymGens) THEN

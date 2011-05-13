@@ -35,8 +35,8 @@ MODULE CCMC
         IMPLICIT NONE
         INTEGER :: iKill
 !        HElement_t :: rh,rhij
-        REAL*8 :: r,rat,Kii
-        REAL*8 dProb
+        real(dp) :: r,rat,Kii
+        real(dp) dProb
         integer, dimension(lenof_sign), intent(in) :: wSign
 
 !If there are multiple particles, decide how many to kill in total...
@@ -87,7 +87,7 @@ MODULE CCMC
         INTEGER :: nJ(NEl),IC,DetCurr(NEl)
         INTEGER, DIMENSION(lenof_sign) :: Child
         INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot)
-        REAL*8 :: Prob,rat,HDiagCurr,r
+        real(dp) :: Prob,rat,HDiagCurr,r
         INTEGER :: iDie,WalkExcitLevel,Proc
         INTEGER :: TotWalkersNew,Ex(2,2)
         LOGICAL :: tParity
@@ -105,9 +105,9 @@ MODULE CCMC
 
 
 ! The prob that we choose the number of Excitors we have done
-        REAL*8 dProbNumExcit
+        real(dp) dProbNumExcit
 ! The probl that this (composite) excitor decomposed into the birth/death excitor
-        REAL*8 dProbDecompose
+        real(dp) dProbDecompose
 ! The index of the excitor we've decomposed into.
         INTEGER iPartDie
 
@@ -129,7 +129,7 @@ MODULE CCMC
         INTEGER iDebug
 
         INTEGER TotRealWalkers
-        REAL*8 dProbNorm,dClusterProb,dProb
+        real(dp) dProbNorm,dClusterProb,dProb
         INTEGER iExcitor
         INTEGER iMaxEx,iMaxExTemp
 !iMaxExcitorSelections is the number of times we decide to loop for each particle.
@@ -137,17 +137,17 @@ MODULE CCMC
         INTEGER iMaxExcitorSelections
         LOGICAL tSuccess
 
-        REAL*8 dNGenComposite  ! The number of ways the composite could've been generated.
+        real(dp) dNGenComposite  ! The number of ways the composite could've been generated.
 
-        REAL*8 dT1Sq
-!        REAL*8 AJWTProjE
+        real(dp) dT1Sq
+!        real(dp) AJWTProjE
         INTEGER iCumlExcits,iLeftHere(nEl)
         INTEGER iCurrentCompositeSize
         INTEGER,save :: nClusterBirths
         INTEGER,save :: nClusterDeaths   
         INTEGER,save :: nClusterChildren
         INTEGER nClusters
-        REAL*8 dClusterProbs
+        real(dp) dClusterProbs
 
         !Changes to allow compatibility with the new packaged walkers.
         INTEGER, DIMENSION(lenof_sign) :: TempSign,TempSign2,TempSign3
@@ -1180,7 +1180,7 @@ SUBROUTINE InitClustSelectorFull(CS,iMaxSize,tTruncInit,dInitThresh)
    IMPLICIT NONE
    TYPE(ClustSelector) CS
    INTEGER iMaxSize
-   REAL*8 dInitThresh
+   real(dp) dInitThresh
    LOGICAL tTruncInit
    CS%tFull=.true.
    CS%iMaxSize=iMaxSize
@@ -1196,8 +1196,8 @@ SUBROUTINE InitClustSelectorRandom(CS,iMaxSize,nSelects,dRatio,dProbSelNewEx,tTr
    IMPLICIT NONE
    TYPE(ClustSelector) CS
    INTEGER iMaxSize,nSelects
-   REAL*8 dProbSelNewEx,dRatio
-   REAL*8 dInitThresh
+   real(dp) dProbSelNewEx,dRatio
+   real(dp) dInitThresh
    LOGICAL tTruncInit
    if(nSelects<0) then
       CS%tDynamic=.true.
@@ -1324,13 +1324,13 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
    use constants, only: dp
    IMPLICIT NONE
    LOGICAL tFCI
-   REAL*8 Amplitude(nExcit)
+   real(dp) Amplitude(nExcit)
    INTEGER nExcit
    INTEGER(KIND=n_int) ExcitList(0:nIfTot,nExcit)
    INTEGER ExcitLevelIndex(0:nEl+1)
-   REAL*8 dInitAmp,dTotAbsAmpl
+   real(dp) dInitAmp,dTotAbsAmpl
    INTEGER iC,j,l,iSgn
-   REAL*8 dAmp
+   real(dp) dAmp
    INTEGER DetCurr(nEl)
    HElement_t HTmp,H0Tmp,H0HF
    INTEGER(KIND=n_int) iLutnI(0:nIfTot)
@@ -1388,9 +1388,9 @@ SUBROUTINE InitRandAmplitude(Amplitude,nExcit,dInitAmp,dTotAbsAmpl)
    use constants, only: dp
    use dSFMT_interface , only : genrand_real2_dSFMT
    IMPLICIT NONE
-   REAL*8 Amplitude(nExcit)
+   real(dp) Amplitude(nExcit)
    INTEGER nExcit
-   REAL*8 dInitAmp,dTotAbsAmpl
+   real(dp) dInitAmp,dTotAbsAmpl
 
    INTEGER j
    Amplitude(:)=0
@@ -1417,13 +1417,13 @@ subroutine AttemptSpawn(S,C,Amplitude,dTol,TL,WalkerScale,iDebug)
    implicit none
    type(Spawner) S
    type(Cluster) C
-   real*8 Amplitude(:)
-   real*8 dTol
+   real(dp) Amplitude(:)
+   real(dp) dTol
    TYPE(CCTransitionLog) TL               ! Store data on transitions
-   real*8 WalkerScale 
+   real(dp) WalkerScale 
    integer iDebug
 
-   real*8 rat
+   real(dp) rat
    integer i,j
    integer IC
    logical tSuc
@@ -1493,14 +1493,14 @@ subroutine AttemptDie(C,CurAmpl,OldAmpl,TL,WalkerScale,iDebug)
    
    implicit none
    Type(Cluster) C
-   real*8 CurAmpl(:),OldAmpl(:)
+   real(dp) CurAmpl(:),OldAmpl(:)
    integer iDebug
    TYPE(CCTransitionLog) TL               ! Store data on transitions
-   real*8 WalkerScale 
+   real(dp) WalkerScale 
 
    INTEGER iC,iPartDie
    LOGICAL tSuc
-   real*8 r,rat,HDiagCurr
+   real(dp) r,rat,HDiagCurr
    HElement_t Htmp
    integer i
 
@@ -1627,7 +1627,7 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
    integer, dimension(lenof_sign) :: iSpawnAmp
    integer iDebug
 
-   real*8 rat,r
+   real(dp) rat,r
    integer i
    integer IC
    IFDEBUG(iDebug,5) THEN
@@ -1697,7 +1697,7 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,nSpawned)
    integer iDebug
 
    INTEGER iC
-   real*8 r,rat,HDiagCurr
+   real(dp) r,rat,HDiagCurr
    HElement_t Htmp
    integer i
    integer, dimension(lenof_sign) :: iSpawnAmp
@@ -1832,7 +1832,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    use CalcData, only: TStartMP1
    use FciMCData, only: Iter
    use FciMCData, only: TotParts,TotWalkers,TotWalkersOld,TotPartsOld,AllTotPartsOld,AllTotWalkersOld,AllTotParts
-   use FciMCData, only: tTruncSpace
+   use FciMCData, only: tTruncSpace,Hii
    use FciMCData, only: ProjectionE,iLutHF
    use FciMCParMod, only: CheckAllowedTruncSpawn, SetupParameters,BinSearchParts3
    use FciMCParMod, only: InitHistMin, calculate_new_shift_wrapper
@@ -1853,7 +1853,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    TYPE(AmplitudeList_double),target :: AL
 
    INTEGER iNumExcitors          ! The number of non-zero excitors (excluding the ref det)
-   REAL*8 dTotAbsAmpl            ! The total of the absolute amplitudes
+   real(dp) dTotAbsAmpl            ! The total of the absolute amplitudes
 
    INTEGER iCurAmpList,iOldAmpList  !the index of current and previous amplitude lists
    INTEGER iDebug
@@ -1864,13 +1864,13 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
 
    INTEGER iOldTotParts        ! Info user for update to calculate shift
    INTEGER iShiftLeft            ! Number of steps left until we recalculate shift
-   REAL*8 dNorm
-   REAL*8 WalkerScale            ! Scale factor for turning floating point amplitudes into integer walkers.
-   REAL*8 dProjE                 ! Stores the Projected Energy
-   REAL*8 dTolerance             ! The tolerance for when to regard a value as zero
-   REAL*8 dAveTotAbsAmp          ! Average of Total absolute amplitude over all post-equil cycles
-   REAL*8 dAveNorm               ! Average of Normalization (ampl of Ref) over all post-equil cycles
-   REAL*8 dAmpPrintTol           ! What size amplitudes do we bother printing 
+   real(dp) dNorm
+   real(dp) WalkerScale            ! Scale factor for turning floating point amplitudes into integer walkers.
+   real(dp) dProjE                 ! Stores the Projected Energy
+   real(dp) dTolerance             ! The tolerance for when to regard a value as zero
+   real(dp) dAveTotAbsAmp          ! Average of Total absolute amplitude over all post-equil cycles
+   real(dp) dAveNorm               ! Average of Normalization (ampl of Ref) over all post-equil cycles
+   real(dp) dAmpPrintTol           ! What size amplitudes do we bother printing 
    LOGICAL lLogTransitions       ! Do we log transitions
 
    TYPE(ClustSelector),target :: CSMain   ! A normal ClustSelector based on the current amplitudes
@@ -1895,9 +1895,9 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    INTEGER, DIMENSION(lenof_sign) :: TempSign   !ghb24: For compatibility with new walker arrays & routines
    TYPE(timer) :: CCMC_time
 
-   REAL*8 dInitThresh
+   real(dp) dInitThresh
 
-   REAL*8 dLocAbsAmpl         !Not used as parallel not implemented here
+   real(dp) dLocAbsAmpl         !Not used as parallel not implemented here
 
    WRITE(6,*) "Entering CCMC Standalone..."
    CCMC_time%timer_name='CCMC Standalone'
@@ -2175,7 +2175,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
       call DeAllocateAmplitudeList(ALBuffer)
    endif
    Weight=0.D0
-   Energyxw=ProjectionE
+   Energyxw=ProjectionE+Hii
    call halt_timer(CCMC_time)
 END SUBROUTINE CCMCStandalone
 
@@ -2188,7 +2188,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use CalcData, only: NMCyc    ! The number of MC Cycles
    use CalcData, only: StepsSft ! The number of steps between shift updates
    use CalcData, only: TStartMP1
-   use FciMCData, only: Iter
+   use FciMCData, only: Iter,Hii
    use FciMCData, only: TotParts,TotWalkers,TotWalkersOld,TotPartsOld,AllTotPartsOld,AllTotWalkersOld,AllTotParts
    use FciMCData, only: NoatHF,NoatDoubs
    use FciMCData, only: tTruncSpace
@@ -2222,9 +2222,9 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    INTEGER(TagIntType) ::  tagDetList
 
    INTEGER iNumExcitors          ! The number of non-zero excitors (excluding the ref det)
-   REAL*8 dTotAbsAmpl            ! The total of the absolute amplitudes
-   REAL*8 dTotLocAbsAmpl         ! The total of the absolute amplitudes on this node alone
-   REAL*8 dNorm                  ! The amplitude at the HF det
+   real(dp) dTotAbsAmpl            ! The total of the absolute amplitudes
+   real(dp) dTotLocAbsAmpl         ! The total of the absolute amplitudes on this node alone
+   real(dp) dNorm                  ! The amplitude at the HF det
 
    INTEGER iDebug
    INTEGER i,j,iMin
@@ -2232,10 +2232,10 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
    INTEGER iOldTotParts        ! Info user for update to calculate shift
    INTEGER iShiftLeft            ! Number of steps left until we recalculate shift
-   REAL*8 WalkerScale            ! Scale factor for turning floating point amplitudes into integer walkers.
-   REAL*8 dTolerance             ! The tolerance for when to regard a value as zero
-   REAL*8 dAveTotAbsAmp          ! Average of Total absolute amplitude over all post-equil cycles
-   REAL*8 dAveNorm               ! Average of Normalization (ampl of Ref) over all post-equil cycles
+   real(dp) WalkerScale            ! Scale factor for turning floating point amplitudes into integer walkers.
+   real(dp) dTolerance             ! The tolerance for when to regard a value as zero
+   real(dp) dAveTotAbsAmp          ! Average of Total absolute amplitude over all post-equil cycles
+   real(dp) dAveNorm               ! Average of Normalization (ampl of Ref) over all post-equil cycles
    INTEGER dAmpPrintTol           ! What size amplitudes do we bother printing 
 
    TYPE(ClustSelector) :: CS   ! A normal ClustSelector based on the current amplitudes
@@ -2271,7 +2271,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
    INTEGER ierr
 
-   REAL*8 dInitThresh
+   real(dp) dInitThresh
 
    LOGICAL tSingBiasChange, tSoftExitFound, tWritePopsFound !For ChangeVars
    INTEGER(int64) i64
@@ -2627,7 +2627,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       deallocate(DetList)
    endif 
    Weight=0.D0
-   Energyxw=ProjectionE
+   Energyxw=ProjectionE+Hii
    call halt_timer(CCMC_time)
 END SUBROUTINE CCMCStandaloneParticle
 
@@ -2741,7 +2741,7 @@ end subroutine
 
 SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
       use PopsfileMod
-      real*8 ::  dNorm
+      real(dp) ::  dNorm
       INTEGER :: ierr,iunithead
       LOGICAL :: formpops,binpops
       INTEGER :: PopsVersion,WalkerListSize
@@ -2825,13 +2825,13 @@ END SUBROUTINE
       IMPLICIT NONE
       TYPE(CCTransitionLog) TL
       INTEGER iUnit
-      REAL*8 Amplitude(:)
+      real(dp) Amplitude(:)
       INTEGER nCycles
-      REAL*8 dTotAbsAmp,dTotNorm
-      REAL*8 dAveTotAbsAmp,dAveNorm
+      real(dp) dTotAbsAmp,dTotNorm
+      real(dp) dAveTotAbsAmp,dAveNorm
       INTEGER i,j,k
-      REAL*8 r
-      REAL*8 flin,flout,flint,floutt
+      real(dp) r
+      real(dp) flin,flout,flint,floutt
       dAveTotAbsAmp=dTotAbsAmp/nCycles
       dAveNorm=dTotNorm/nCycles
       WRITE(6,*) "Transition Log for last ",nCycles," cycles."
@@ -2961,7 +2961,7 @@ END SUBROUTINE
       INTEGER C1size
       INTEGER C1(C1size),C2
       INTEGER i1,i2
-      REAL*8 value,dProbNorm 
+      real(dp) value,dProbNorm 
       i1=GetClusterIndex(C1,C1size,TL)
       i2=C2-1
    ! We create a transition matrix where each element correpsonds to a cluster.  We encode cluster X=(a_{X_i}) = (x,y,z)  as an 'bit' string in base Det sum_{i=1}^{|X|} (X_i)*(Det)**(i-1)

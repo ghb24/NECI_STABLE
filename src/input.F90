@@ -20,7 +20,7 @@ MODULE input
 !  Fifth Floor, Boston, MA 02110-1301, USA, or see
 !  http://www.gnu.org/copyleft/gpl.html
 
-
+use constants, only: sp,dp,int64
 #ifdef NAGF95
 USe f90_unix_env, ONLY: getarg
 #endif
@@ -45,7 +45,7 @@ CHARACTER(LEN=255) :: file(10)=""
 
 INTEGER, SAVE :: lc=3
 
-INTEGER, PARAMETER :: sp=kind(1.0_4),dp=kind(1.0_8)!, qp=selected_real_kind(30)
+!INTEGER, PARAMETER :: sp=kind(1.0_4),dp=kind(1.0_8)!, qp=selected_real_kind(30)
 
 INTERFACE readf
   MODULE    PROCEDURE read_single, read_double!, read_quad
@@ -87,7 +87,7 @@ PUBLIC :: item, nitems, read_line, stream, reada, readu, readl,        &
 !  Read an item of type x from the buffer into variable V:
 !     CALL READF   single or double precision, depending on the type of V
 !     CALL READI   integer
-!     CALL READILONG integer*8
+!     CALL READILONG integer(int64)
 !     CALL READA   character string
 !     CALL READU   character string, uppercased
 !     CALL READL   character string, lowercased
@@ -790,7 +790,7 @@ END SUBROUTINE readi
 SUBROUTINE readiLong(I)
 !  Read a long integer from the current record
 
-INTEGER*8, INTENT(INOUT) :: i
+integer(int64), INTENT(INOUT) :: i
 
 CHARACTER(LEN=50) :: string
 
@@ -892,7 +892,7 @@ END SUBROUTINE geti
 
 SUBROUTINE getiLong(I)
 !  Get an integer, reading new data records if necessary.
-INTEGER*8, INTENT(INOUT) :: i
+integer(int64), INTENT(INOUT) :: i
 LOGICAL :: eof
 
 do

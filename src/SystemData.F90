@@ -1,6 +1,6 @@
 module SystemData
 
-    use constants, only: n_int
+    use constants, only: n_int,int64,dp
     use MemoryManager, only: TagIntType
 
 implicit none
@@ -13,10 +13,12 @@ save
 ! I blame the original authors for setting the precedent... JSS
 ! ;-)
 
+logical :: tNoSingExcits    !True if there are no single excitations in the system
+
 logical :: tStarBin, tReadInt, tHFOrder, tDFRead, tPBC, tUEG, tCPMD, tHUB
 logical :: tHPHF, tHPHFInts, tUHF, tSPN, tParity, tUseBrillouin, tExch, tReal
 logical :: tTilt, tUmatEps, tOneElIntMax, tOnePartOrbEnMax, tROHF, tBrillouinsDefault
-logical :: tNoBrillouin, tVirtCoulombMax, tVirtExchangeMin, tHijSqrdMin
+logical :: tNoBrillouin, tVirtCoulombMax, tVirtExchangeMin, tHijSqrdMin, tMomInv
 logical :: tDiagonalizehij, tHFSingDoubExcMax, tSpinOrbs, tReadInCoeff
 logical :: tUseMP2VarDenMat, tAlpha, tStoreAsExcitations, tBin, tStarStore
 logical :: tVASP, tOffDiagSqrdMin, tOffDiagSqrdMax, tOffDiagmax, tShakeDelay
@@ -44,14 +46,15 @@ logical :: tPickVirtUniform ! Use the 3rd generation, random excitation
 logical :: tISKFuncs      ! Only for use in systems where the kpoint mesh has inversion symmetry,this ensures all
                           ! integrals are real.
 logical :: tOddS_HPHF     !If this is true, and you are using HPHF, then it will converge onto an Odd S HPHF state.
+logical :: tAntisym_MI    !Antisymmetric MI functions.
 integer :: iParity(5), nMaxX, nMaxY, nMaxZ, nMSH, coulDampOrb, elecPairs
 integer :: roIterMax, iRanLuxLev, DiagMaxMinFac, OneElmaxMinFac, iState
 integer :: iTiltX, iTiltY, nOccAlpha, nOccBeta, ShakeIterMax, ShakeStart
 integer :: MaxMinFac, MaxABPairs
-real*8 :: BOX, BOA, COA, fUEGRs, fRc, OrbECutoff, UHUB, BHUB
-real*8 :: Diagweight, OffDiagWeight, OrbEnMaxAlpha, Alpha, fCoulDampBeta
-real*8 :: fCoulDampMu, TimeStep, ConvergedForce, ShakeConverged, UMATEps
-real*8 :: OneElWeight
+real(dp) :: BOX, BOA, COA, fUEGRs, fRc, OrbECutoff, UHUB, BHUB
+real(dp) :: Diagweight, OffDiagWeight, OrbEnMaxAlpha, Alpha, fCoulDampBeta
+real(dp) :: fCoulDampMu, TimeStep, ConvergedForce, ShakeConverged, UMATEps
+real(dp) :: OneElWeight
 
 
 integer :: nEl             ! Number of (non-frozen) electrons in the system
@@ -69,26 +72,26 @@ logical :: tTruncateCSF   ! Use determinants not CSFs for nopen >
 ! Calculate size of FCI determinant space using MC
 logical :: tMCSizeSpace,tMCSizeTruncSpace
 integer :: iMCCalcTruncLev
-integer*8 :: CalcDetPrint, CalcDetCycles   ! parameters
+integer(int64) :: CalcDetPrint, CalcDetCycles   ! parameters
 
 ! Inputs for the UEG
 logical :: tUEGTrueEnergies ! This is the logical for use of unscaled energies in the UEG calculation; will normally break spawning
 logical :: tLatticeGens   ! Use new UEG excitation generators
 logical :: tNoFailAb
 logical :: tUEGOffset     ! Use twisted boundary conditions
-real*8 :: k_offset(3)      ! UEG parameter for twist-averaging
+real(dp) :: k_offset(3)      ! UEG parameter for twist-averaging
 logical :: tUEGSpecifyMomentum ! UEG parameter to allow specification of total momentum
 integer :: k_momentum(3) ! UEG parameter for total momentum
 logical :: tOrbECutoff ! Whether we're using a spherical cutoff in momentum space or not
 logical :: tgCutoff ! Whether we're using a spherical cutoff for the momentum transfer vector
-real*8 :: gCutoff ! Spherical cutoff for the momentum transfer vector
+real(dp) :: gCutoff ! Spherical cutoff for the momentum transfer vector
 logical :: tMP2UEGRestrict ! Restricts the MP2 sum over a single electron pair, specified by: 
 integer :: kiRestrict(3), kjRestrict(3) ! ki/kj pair
 integer :: kiMsRestrict, kjMsRestrict ! and their spins
 logical :: tMadelung ! turning on self-interaction term
-real*8 :: Madelung ! variable storage for self-interaction term
+real(dp) :: Madelung ! variable storage for self-interaction term
 logical :: tUEGFreeze ! Freeze core electrons for the UEG, a crude hack for this to work-around freezing not working for UEG
-real*8 :: FreezeCutoff
+real(dp) :: FreezeCutoff
 
 ! For the UEG, we damp the exchange interactions.
 !    0 means none
@@ -113,7 +116,7 @@ integer :: lmsBasis
 
 TYPE Symmetry
    SEQUENCE
-   INTEGER*8 :: S
+   integer(int64) :: S
 END TYPE
 
 integer, PARAMETER :: SymmetrySize=2
@@ -137,18 +140,18 @@ integer, PARAMETER :: BasisFNSizeB=BasisFNSize*8
 
 TYPE(BASISFN) :: SymRestrict
 INTEGER :: nBasisMax(5,7)
-REAL*8 :: ALAT(5)
-REAL*8 :: ECore
+real(dp) :: ALAT(5)
+real(dp) :: ECore
 INTEGER :: nBasis
 integer :: nMax
 integer :: nnr
 integer :: nocc
-REAL*8 :: OMEGA
+real(dp) :: OMEGA
 logical :: tSpinPolar
 INTEGER :: iSpinSkip ! Often referred to as ISS.
 
 !From Calc  
-REAL*8 :: Beta
+real(dp) :: Beta
         
 !Renewed for compile
 
@@ -163,7 +166,7 @@ REAL*8 :: Beta
 !     ordered by spin-orbital index.  Arr(10,2) is the energy of the 10th
 !     spin-orbital (given the index scheme in use).
 ! Reallocated with the correct (new) size during freezing.
-REAL*8, pointer :: Arr(:,:) 
+real(dp), pointer :: Arr(:,:) 
 INTEGER(TagIntType) :: tagArr
 
 ! Lists orbitals in energy order. i.e. Brr(1) is the lowest energy orbital

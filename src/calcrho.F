@@ -21,6 +21,7 @@
       END
 
       INTEGER FUNCTION IGETEXCITLEVEL(NI,NJ,NEL)
+         IMPLICIT NONE
          INTEGER I,J,NEL,NI(NEL),NJ(NEL),IC
          LOGICAL ISCSF
          IF(ISCSF(NI,NEL).OR.ISCSF(NJ,NEL)) THEN
@@ -89,6 +90,7 @@ C.. Very unnecessarily complex, but would be faster for large numbers of
 C.. electrons.
 
       INTEGER FUNCTION IGETEXCITLEVEL_(NI,NJ,NEL)
+         IMPLICIT NONE
          INTEGER I,J,NEL,NI(NEL),NJ(NEL),IC
          IC=0
          I=1
@@ -122,7 +124,8 @@ C               IC=IC+1
       INTEGER FUNCTION iGetExcitLevelwrtHF(nI,NEl)
         USE IntegralsData , only : ChemPot
         USE SystemData , only : Arr
-        INTEGER i,NEl,nI(NEl)
+        IMPLICIT NONE
+        INTEGER i,NEl,nI(NEl),IC
         
         IC=NEl
         do i=1,NEl
@@ -137,7 +140,9 @@ C               IC=IC+1
       SUBROUTINE  CALCRHOIIMAX(BETA,I_P,NEL,
      &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,NTAY,
      &           RHOMAX,ECORE)
-         INTEGER IDET(NEL)
+         use constants, only: dp
+         INTEGER IDET(NEL),I_P,NEL
+         real(dp) :: Beta
          CALL CALCRHOIIMAXR(BETA,I_P,NEL,
      &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,NTAY,
      &           RHOMAX,IDET,1,0,ECORE)
@@ -148,8 +153,9 @@ C               IC=IC+1
       RECURSIVE SUBROUTINE CALCRHOIIMAXR(BETA,I_P,NEL,
      &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,NTAY,
      &           RHOMAX,IDET,NTHISEL,ILASTBASIS,ECORE)
+         use constants, only : dp
          INTEGER IDET(NEL),NTHISEL,I,ILASTBASIS
-         REAL*8 RH,RHOMAX
+         real(dp) RH,RHOMAX
          DO I=ILASTBASIS+1,NBASIS
             IDET(NTHISEL)=I
             IF(NTHISEL.EQ.NEL) THEN
@@ -168,8 +174,9 @@ C               IC=IC+1
       SUBROUTINE  CALCRHOIIMAX2(BETA,I_P,NEL,
      &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,NTAY,
      &           ISTEPS,ECORE,RHOMAX)
+         use constants, only : dp
          INTEGER NI(NEL)
-         REAL*8 RHOMAX
+         real(dp) RHOMAX
          INTEGER BRR(NBASIS)
          RHOMAX=0.D0
          DO I=1,NEL
@@ -187,10 +194,12 @@ C               IC=IC+1
 
 C.. GETHELEMENT
 C.. Get matrix element of the hamiltonian
-      REAL*8 FUNCTION GETHELEMENT(II,IJ,HAMIL,LAB,NROW,NDET)
-      REAL*8 HAMIL(*)
+      FUNCTION GETHELEMENT(II,IJ,HAMIL,LAB,NROW,NDET)
+      use constants, only: dp
+      IMPLICIT NONE
+      real(dp) HAMIL(*),GETHELEMENT
       INTEGER LAB(*)
-      INTEGER NROW(NDET)
+      INTEGER NROW(NDET),IJ,II,I,J,INDXROW,IMAX,NDET,K
 C.. We only have half of H, so if J<I, return the symmetrical (J,I) element
 C.. Or if we have the whole H, it's quicker to look closer to its beginning
       IF(IJ.LT.II) THEN
@@ -220,7 +229,8 @@ C.. Find the Ith row
 C.. GETHROW
 C.. Get the index within HAMIL of a row II of the H matrix
       INTEGER FUNCTION IGETHROW(II,NROW,NDET)
-      INTEGER NROW(NDET)
+      IMPLICIT NONE
+      INTEGER NROW(NDET),K,II,NDET
       IGETHROW=1
 C.. Find the Ith row
       DO K=1,II-1

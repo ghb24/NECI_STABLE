@@ -1,10 +1,14 @@
       SUBROUTINE READ_PSI(BOX,BOA,COA,NDET,NEVAL,
      &        NBASISMAX,NEL,CK,W)
-      IMPLICIT REAL*8 (A-H,O-Z)
+!      IMPLICIT real(dp) (A-H,O-Z)
+      use constants, only: dp
+      IMPLICIT NONE
       INTEGER nBasisMax(5,*)
-C..
-      DIMENSION CK(NDET,NEVAL)
-      DIMENSION W(NEVAL)
+      real(dp) :: CK(NDET,NEVAL)
+      real(dp) :: W(NEVAL)
+      integer :: NEVAL,NDET,I,J,NEL,NDETCK,NEVALCK,NELCK
+      integer :: NMAXCK,NMAYCK,NMAZCK
+      real(dp) :: BOX,BOA,COA,C,BOXCK,BOACK,COACK
 C..
       OPEN(10,FILE='PSI_LONG',STATUS='OLD',ERR=10)
       READ(10,*) NMAXCK,NMAYCK,NMAZCK,NELCK,NEVALCK,NDETCK
@@ -64,9 +68,8 @@ C ==----------------------------------------------------------------==
       use constants, only: dp
       IMPLICIT NONE
       INTEGER nBasisMax(5,*)
-C..
       HElement_t CK(NDET,NEVAL)
-      REAL*8 W(NEVAL),BOA,BOX,COA
+      real(dp) W(NEVAL),BOA,BOX,COA
       INTEGER I,NEVAL,NDET,NEL,J
 C..
       OPEN(10,FILE='PSI_LONG',STATUS='UNKNOWN')
@@ -91,9 +94,8 @@ C..
       use constants, only: dp
       IMPLICIT NONE
       INTEGER nBasisMax(5,*)
-C..
       HElement_t CK(NDET,NEVAL)
-      REAL*8 W(NEVAL),BOA,BOX,COA
+      real(dp) W(NEVAL),BOA,BOX,COA
       INTEGER I,NEVAL,NDET,NEL,J
 C..
       OPEN(10,FILE='PSI_COMP',STATUS='UNKNOWN')

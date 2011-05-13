@@ -9,6 +9,12 @@ MODULE FciMCData
       implicit none
       save
 
+      !Variables for popsfile mapping
+      integer, allocatable :: PopsMapping(:)    !Mapping function between old basis and new basis
+      integer :: MappingNIfD,MappingNIfTot      !Original basis NIfD and NIfTot
+
+      integer :: iPopsTimers    !Number of timed popsfiles written out (initiatlised to 1)
+
       real(dp) :: MaxTimeExit   !Max time before exiting out of MC
       logical :: tTimeExit      !Whether to exit out of MC after an amount of runtime
 
@@ -27,7 +33,7 @@ MODULE FciMCData
 
 !Pointers to point at the correct arrays for use
       INTEGER(KIND=n_int) , POINTER :: CurrentDets(:,:)
-      REAL*8 , POINTER :: CurrentH(:)
+      real(dp) , POINTER :: CurrentH(:)
       INTEGER(KIND=n_int) , POINTER :: SpawnedParts(:,:),SpawnedParts2(:,:)
 
       INTEGER(KIND=n_int) , ALLOCATABLE :: Spawned_Parents(:,:)
@@ -56,10 +62,10 @@ MODULE FciMCData
 
       LOGICAL :: tHFInitiator,tPrintHighPop, tcurr_initiator
  
-      REAL*8 :: AvDiagSftAbort,SumDiagSftAbort,DiagSftAbort     !This is the average diagonal shift value since it started varying, and the sum of the shifts since it started varying, and
+      real(dp) :: AvDiagSftAbort,SumDiagSftAbort,DiagSftAbort     !This is the average diagonal shift value since it started varying, and the sum of the shifts since it started varying, and
                                                                 !the instantaneous shift, including the number of aborted as though they had lived.
 
-      REAL*8 :: DiagSftRe,DiagSftIm     !For complex walkers - this is just for info - not used for population control.
+      real(dp) :: DiagSftRe,DiagSftIm     !For complex walkers - this is just for info - not used for population control.
     
       INTEGER , ALLOCATABLE :: HFDet(:)       !This will store the HF determinant
       INTEGER(TagIntType) :: HFDetTag=0
@@ -73,7 +79,7 @@ MODULE FciMCData
       real*8 :: AccumRDMNorm
 
 !The following variables are calculated as per processor, but at the end of each update cycle, are combined to the root processor
-      REAL*8 :: GrowRate,DieRat
+      real(dp) :: GrowRate,DieRat
       HElement_t :: SumENum
 
       ! The averaged projected energy - calculated from accumulated values.
@@ -83,14 +89,14 @@ MODULE FciMCData
       HElement_t :: proje_iter
 
       integer(int64), dimension(lenof_sign) :: SumNoatHF      !This is the sum over all previous cycles of the number of particles at the HF determinant
-      REAL*8 :: AvSign           !This is the average sign of the particles on each node
-      REAL*8 :: AvSignHFD        !This is the average sign of the particles at HF or Double excitations on each node
+      real(dp) :: AvSign           !This is the average sign of the particles on each node
+      real(dp) :: AvSignHFD        !This is the average sign of the particles at HF or Double excitations on each node
       INTEGER(KIND=int64) :: SumWalkersCyc    !This is the sum of all walkers over an update cycle on each processor
       INTEGER :: Annihilated      !This is the number annihilated on one processor
       INTEGER, DIMENSION(lenof_sign) :: NoatHF           !This is the instantaneous number of particles at the HF determinant
       INTEGER :: NoatDoubs
       INTEGER :: Acceptances      !This is the number of accepted spawns - this is only calculated per node.
-      REAL*8 :: AccRat            !Acceptance ratio for each node over the update cycle
+      real(dp) :: AccRat            !Acceptance ratio for each node over the update cycle
       INTEGER :: PreviousCycles   !This is just for the head node, so that it can store the number of previous cycles when reading from POPSFILE
       INTEGER :: NoBorn,NoDied
       INTEGER :: SpawnFromSing  !These will output the number of particles in the last update cycle which have been spawned by a single excitation.
@@ -107,23 +113,23 @@ MODULE FciMCData
                               ! single excitation. Used to calculate blooms.
 
 !These are the global variables, calculated on the root processor, from the values above
-      REAL*8 :: AllGrowRate
+      real(dp) :: AllGrowRate
       integer(int64) :: AllTotWalkers, AllTotWalkersOld
       integer(int64), dimension(lenof_sign) :: AllTotParts, AllTotPartsOld
       integer(int64), dimension(lenof_sign) :: AllSumNoatHF
       INTEGER(KIND=int64) :: AllSumWalkersCyc
       INTEGER :: AllAnnihilated,AllNoatDoubs
       INTEGER, DIMENSION(lenof_sign) :: AllNoatHF
-      real(dp), dimension(lenof_sign) :: sum_proje_denominator, &
+      HElement_t :: sum_proje_denominator, &
                         cyc_proje_denominator, all_cyc_proje_denominator, &
                         all_sum_proje_denominator
-      REAL*8 :: AllAvSign,AllAvSignHFD
+      real(dp) :: AllAvSign,AllAvSignHFD
       INTEGER :: AllNoBorn,AllNoDied,MaxSpawned
 
       HElement_t :: AllSumENum
   
       HElement_t :: rhii
-      REAL*8 :: Hii,Fii
+      real(dp) :: Hii,Fii
 
       LOGICAL :: TSinglePartPhase                 !This is true if TStartSinglePart is true, and we are still in the phase where the shift is fixed and particle numbers are growing
 
@@ -179,22 +185,23 @@ MODULE FciMCData
 
       INTEGER :: WalkersDiffProc
 
-      LOGICAL , PARAMETER :: tGenMatHEl=.true.      !This is whether to generate matrix elements as generating excitations for the HPHF or ISK options
+      !This is whether to generate matrix elements as generating excitations for the HPHF/MI/ISK options
+      LOGICAL , PARAMETER :: tGenMatHEl=.true.      
 
       INTEGER :: VaryShiftCycles                    !This is the number of update cycles that the shift has allowed to vary for.
       INTEGER :: VaryShiftIter                     !This is the iteration that the shift can vary.
-      REAL*8 :: AvDiagSft,SumDiagSft                !This is the average diagonal shift value since it started varying, and the sum of the shifts since it started varying.
+      real(dp) :: AvDiagSft,SumDiagSft                !This is the average diagonal shift value since it started varying, and the sum of the shifts since it started varying.
 
-      REAL*8 , ALLOCATABLE :: HistHamil(:,:),AllHistHamil(:,:),AvHistHamil(:,:),AllAvHistHamil(:,:) !These arrays are for histogramming the hamiltonian when tHistHamil is set.
-      REAL*8 :: TotImagTime
+      real(dp) , ALLOCATABLE :: HistHamil(:,:),AllHistHamil(:,:),AvHistHamil(:,:),AllAvHistHamil(:,:) !These arrays are for histogramming the hamiltonian when tHistHamil is set.
+      real(dp) :: TotImagTime
             
       INTEGER(KIND=n_int) , ALLOCATABLE :: CASMask(:)        !These are masking arrays for the core and external orbitals in the cas space
       INTEGER(KIND=n_int) , ALLOCATABLE :: CoreMask(:)       !These are masking arrays for the Core orbitals in the cas space
 
       INTEGER , ALLOCATABLE :: RandomHash(:)    !This is a random indexing scheme by which the orbital indices are randomised to attempt to provide a better hashing performance
 
-      REAL*8 :: HFShift     !A 'shift'-like value for the total energy which is taken from the growth of walkers on the HF determinant.
-      REAL*8 :: InstShift   !An instantaneous value for the shift from the growth of walkers.
+      real(dp) :: HFShift     !A 'shift'-like value for the total energy which is taken from the growth of walkers on the HF determinant.
+      real(dp) :: InstShift   !An instantaneous value for the shift from the growth of walkers.
       INTEGER, DIMENSION(lenof_sign) :: OldAllNoatHF
 
       INTEGER :: iHFProc    !Processor index for HF determinant

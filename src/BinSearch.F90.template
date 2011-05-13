@@ -7,7 +7,7 @@ op_lt= <
 type1=integer(kind=int64)
 
 [double]
-type1=real*8
+type1=real(dp)
 
 [int_arr]
 type1=integer(kind=int32), dimension(:)

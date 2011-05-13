@@ -1,7 +1,9 @@
       SUBROUTINE NECI_FRSBLKH(M,ICMAX,N,H,LAB,V0,VS,NKRY,NKRY1,
      &    NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT,SCR,ISCR,INDEX,
      &    NCYCLE,B2LIMIT,PRINTOUT,TLargest,TSeeded)
-      IMPLICIT REAL*8 (A-H,O-Z) 
+!      IMPLICIT real(dp) (A-H,O-Z) 
+      use constants, only: dp
+      IMPLICIT NONE
 C ==----------------------------------------------------------------==
 C ==    M is NDET : the number of rows in Hamil                     ==
 C ==    ICMAX : the MAX. number of columns in Hamil                 ==
@@ -12,16 +14,18 @@ C ==    and shouldn't be reset.
 C ==----------------------------------------------------------------==
       
       LOGICAL :: PRINTOUT,TLargest,TSeeded
-      DIMENSION V0(M,N),VS(M,N),A(N,N),W(N) 
-      DIMENSION V(M*NBLOCK*NKRY1)
-      DIMENSION AM(NBLOCK*NBLOCK*NKRY1),BM(NBLOCK*NBLOCK*NKRY)
-      DIMENSION T(3*NBLOCK*NKRY*NBLOCK*NKRY),WT(NBLOCK*NKRY)
-      DIMENSION SCR(LSCR),ISCR(LISCR)
-      DIMENSION INDEX(N)
+      REAL(dp) :: V0(M,N),VS(M,N),A(N,N),W(N) 
+      REAL(dp) :: V(M*NBLOCK*NKRY1)
+      REAL(dp) :: AM(NBLOCK*NBLOCK*NKRY1),BM(NBLOCK*NBLOCK*NKRY)
+      REAL(dp) :: T(3*NBLOCK*NKRY*NBLOCK*NKRY),WT(NBLOCK*NKRY)
+      real(dp) :: SCR(LSCR),B2LIMIT
+      integer :: ISCR(LISCR),LISCR,LSCR,NBLOCK,NKRY1,NKRY,N,ICMAX,M
+      integer :: NCYCLE,NDIAG
+      integer :: INDEX(N)
 C..temp
-      DIMENSION H(M,ICMAX)
+      real(dp) :: H(M,ICMAX)
 C..temp
-      DIMENSION LAB(M,ICMAX),NROW(M)
+      integer :: LAB(M,ICMAX),NROW(M)
 C ==----------------------------------------------------------------==
 C..Initialise V0 
       CALL NECI_SETUP_MATRIX(M,N,V0,.FALSE.,TSeeded)
@@ -65,19 +69,24 @@ C ====================================================================
       SUBROUTINE NECI_FRSBLK(M,N,NKRY,NBLOCK,V0,VS,A,V,AM,BM,T,W,WT,
      &     INDEX,SCR,LSCR,ISCR,LISCR,NDIAG,B2LIMIT,H,ICMAX,LAB,NROW,
      &     NCYCLE,PRINTOUT,TLargest)
+      use constants, only: dp,sp
       use global_utilities
-      IMPLICIT REAL*8 (A-H,O-Z)
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
       LOGICAL :: PRINTOUT,TLargest
-      DIMENSION V0(M,N),VS(M,N),A(N,N),W(N) 
-      DIMENSION V(M*NBLOCK*(NKRY+1))
-      DIMENSION AM(NBLOCK*NBLOCK*(NKRY+1)),BM(NBLOCK*NBLOCK*NKRY)
-      DIMENSION T(3*NBLOCK*NKRY*NBLOCK*NKRY),WT(NBLOCK*NKRY)
-      DIMENSION SCR(LSCR),ISCR(LISCR)
-      DIMENSION INDEX(N),NROW(M),LAB(M,ICMAX) 
+      real(dp) :: V0(M,N),VS(M,N),A(N,N),W(N) 
+      real(dp) :: V(M*NBLOCK*(NKRY+1))
+      real(dp) :: AM(NBLOCK*NBLOCK*(NKRY+1)),BM(NBLOCK*NBLOCK*NKRY)
+      real(dp) :: T(3*NBLOCK*NKRY*NBLOCK*NKRY),WT(NBLOCK*NKRY)
+      real(dp) :: SCR(LSCR),AUX,B2LIMIT,B2,DDOT,B2MIN,B2MAX
+      integer :: ISCR(LISCR),I,J,NK,LL,NHPSI,N,NBLK,M,NBLEFF,NBL,LSCR
+      integer :: NKRY,NBLOCK,ICMAX,LISCR,NLEFT,NDIAG,NCURR,NCYCLE,ICYCLE
+      integer :: NCONV
+      integer :: INDEX(N),NROW(M),LAB(M,ICMAX),INFO 
       type(timer), save :: proc_timer
-      real*4 t1,t2,t3,etime,tarr(2)
+      real(sp) t1,t2,t3,etime,tarr(2)
 C..temp
-      DIMENSION H(*)
+      real(dp) ::  H(*)
 C..temp
 C ==-----------------------------------------------------------------==
       proc_timer%timer_name='    FRSBLK'
@@ -220,8 +229,11 @@ C ======================================================================
       SUBROUTINE NECI_MGS(M,N,A,LDA,R,LDR)
 C     ==--------------------------------------------------------------==
       use global_utilities
-      IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION A(LDA,*),R(LDR,*)
+      use constants, only : dp
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
+      real(dp) :: A(LDA,*),R(LDR,*)
+      integer :: LDA,LDR,N,M,INFO
       type(timer), save :: proc_timer
 C     ==================================================================
       proc_timer%timer_name='NECI_MGS'
@@ -233,10 +245,13 @@ C     ==================================================================
       END 
 C =======================================================================
       SUBROUTINE NECI_SETUP_MATRIX(M,N,A,TSYM,TSeeded)
-      IMPLICIT REAL*8 (A-H,O-Z)
+!      IMPLICIT real(dp) (A-H,O-Z)
+      use constants, only : dp
+      IMPLICIT NONE
 C..M = NDET
 C..N = NEVAL
-      DIMENSION A(M,N)
+      real(dp) :: A(M,N),RAN2
+      integer :: M,N,I,J
       LOGICAL TSYM,TSeeded 
       integer iseed
       IF(TSeeded) THEN
@@ -269,9 +284,12 @@ C            ENDIF
       END
 C =======================================================================
       SUBROUTINE NECI_WRITE_MATRIX(CHAR,M,N,A)
-      IMPLICIT REAL*8 (A-H,O-Z)
+!      IMPLICIT real(dp) (A-H,O-Z)
+      use constants, only: dp
+      IMPLICIT NONE
       CHARACTER(*) CHAR
-      DIMENSION A(M,N)
+      real(dp) :: A(M,N)
+      INTEGER :: N,M,I,J
       WRITE(6,*) CHAR
       DO I=1,M
         WRITE(6,1000) (A(I,J),J=1,N)
@@ -281,9 +299,12 @@ C =======================================================================
       END
 C ======================================================================
       SUBROUTINE NECI_PUTTMAT(CHAR,T,M,N,A,MA,NA,IBEG,JBEG)
-      IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION T(M,N),A(MA,NA)
-      CHARACTER*1 CHAR
+!      IMPLICIT real(dp) (A-H,O-Z)
+      use constants, only: dp
+      IMPLICIT NONE
+      real(dp) :: T(M,N),A(MA,NA)
+      integer :: N,M,MA,NA,IBEG,JBEG,I,J
+      CHARACTER(1) CHAR
       IF(MA*IBEG.GT.M) STOP ' MA+IBEG.GT.M'
       IF(NA*JBEG.GT.N) STOP ' MA+IBEG.GT.M'
       IF(CHAR.EQ.'N') THEN 
@@ -305,9 +326,12 @@ C ======================================================================
       END
 C ======================================================================
       SUBROUTINE NECI_GETMAT(CHAR,T,M,N,A,MA,NA,IBEG,JBEG)
-      IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION T(M,N),A(MA,NA)
-      CHARACTER*1 CHAR
+      use constants, only: dp
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
+      real(dp) :: T(M,N),A(MA,NA)
+      integer :: N,M,MA,NA,IBEG,JBEG,I,J
+      CHARACTER(1) :: CHAR
       IF(MA*IBEG.GT.M) STOP ' MA+IBEG.GT.M'
       IF(NA*JBEG.GT.N) STOP ' MA+IBEG.GT.M'
       IF(CHAR.EQ.'N') THEN 
@@ -329,8 +353,12 @@ C ======================================================================
       END
 C ======================================================================
       SUBROUTINE NECI_REORDER(M,N,W,A)
-      IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION W(N),A(M,N)
+      use constants, only: dp
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
+      real(dp) :: W(N),A(M,N)
+      integer :: N,M,J
+      real(dp) :: AUX
       DO J=1,N/2
         CALL DSWAP(M,A(1,J),1,A(1,N-J+1),1)
         AUX=W(N-J+1)
@@ -344,10 +372,13 @@ C ======================================================================
      &       LDWT,H,SCR,LSCR,ISCR,LISCR,NHPSI,LAB,NROW,TLargest)
 C     ==================================================================
       use global_utilities
-      IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION V0(M,*),V(M,N,NKRY+1),AM(N,N,NKRY+1),BM(N,N,NKRY)
-      DIMENSION T(LDT),WT(LDWT),H(*),SCR(LSCR),ISCR(LISCR)
-      DIMENSION LAB(M,*),NROW(M)
+      use constants, only: dp
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
+      real(dp) :: V0(M,*),V(M,N,NKRY+1),AM(N,N,NKRY+1),BM(N,N,NKRY)
+      real(dp) :: T(LDT),WT(LDWT),H(*),SCR(LSCR)
+      integer :: LAB(M,*),NROW(M),ISCR(LISCR),LSCR,LDWT,LDT,NKRY,N,M
+      integer :: LISCR,J,NCONV,NHPSI,I
       LOGICAL :: TLargest
       type(timer), save :: proc_timer
 C     ==================================================================
@@ -419,11 +450,13 @@ C ==------------------------------------------------------------------==
 C == Returns A_1,A_2,B_2 and V in a form suitable for krylov          ==
 C == refinement                                                       ==
 C ==------------------------------------------------------------------==
+      use constants, only: dp
       use global_utilities
-      IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION VCONV(M,*),V0(M,N),VS(M,N),V(M,N,NKRY+1),
-     &     AM(N,N,NKRY+1),BM(N,N,NKRY),SCR(LSCR),W(N),H(*)
-      DIMENSION LAB(M,*),NROW(M)
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
+      real(dp) :: VCONV(M,*),V0(M,N),VS(M,N),V(M,N,NKRY+1)
+      real(dp) :: AM(N,N,NKRY+1),BM(N,N,NKRY),W(N),H(*),SCR(LSCR)
+      integer :: LAB(M,*),NROW(M),LSCR,M,N,I,NHPSI,NKRY,NCONV
       LOGICAL :: TLargest
       type(timer), save :: proc_timer
 C ==------------------------------------------------------------------==
@@ -462,11 +495,13 @@ C     ==================================================================
       SUBROUTINE NECI_MY_GSORTHO(M,C0,N0,CP,NP,SMAT)
 C     ==--------------------------------------------------------------==
       use global_utilities
-      IMPLICIT REAL*8 (A-H,O-Z)
+      use constants, only: dp
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
 C     Arguments
-      INTEGER    N0,NP
-      REAL*8     C0(M,*),CP(M,*)
-      REAL*8     SMAT(NP,*)             !MAX(N0,NP)
+      INTEGER    N0,NP,M
+      real(dp)     C0(M,*),CP(M,*)
+      real(dp)     SMAT(NP,*)             !MAX(N0,NP)
 C     Variables
       type(timer), save :: proc_timer
 C     ==--------------------------------------------------------------==
@@ -487,8 +522,11 @@ C     ==--------------------------------------------------------------==
       END
 C =======================================================================
       SUBROUTINE NECI_PUTTAB(N,KD,A,SCR,LSCR)
-      IMPLICIT REAL*8(A-H,O-Z)
-      DIMENSION A(N,N),SCR(LSCR)
+!      IMPLICIT real(dp)(A-H,O-Z)
+      use constants, only: dp
+      IMPLICIT NONE
+      real(dp) :: A(N,N),SCR(LSCR)
+      integer :: N,LSCR,KD,I,IBEG,J
 C..
       IF(LSCR.LT.N) THEN 
         WRITE(6,*) ' LSCR:',LSCR
@@ -509,8 +547,11 @@ C..
 C =======================================================================
       SUBROUTINE NECI_HPSI(M,N,H,V0,VS)
       use global_utilities
-      IMPLICIT REAL*8(A-H,O-Z)
-      DIMENSION H(M,M),V0(M,N),VS(M,N)
+      use constants, only: dp
+!      IMPLICIT real(dp)(A-H,O-Z)
+      IMPLICIT NONE
+      real(dp) :: H(M,M),V0(M,N),VS(M,N)
+      integer :: N,M
       type(timer), save :: proc_timer
       proc_timer%timer_name='      NECI_HSPI'
       call set_timer(proc_timer)
@@ -521,8 +562,11 @@ C =======================================================================
 C =======================================================================
       SUBROUTINE NECI_OVLAP(M,N,A,V0,VS)
       use global_utilities
-      IMPLICIT REAL*8(A-H,O-Z)
-      DIMENSION A(N,N),V0(M,N),VS(M,N)
+      use constants, only: dp
+!      IMPLICIT real(dp)(A-H,O-Z)
+      IMPLICIT NONE
+      real(dp) :: A(N,N),V0(M,N),VS(M,N)
+      integer :: N,M
       type(timer), save :: proc_timer
       proc_timer%timer_name='NECI_OVLAP'
       call set_timer(proc_timer)
@@ -533,9 +577,12 @@ C =======================================================================
 C =======================================================================
       SUBROUTINE NECI_RSDBLK(CHAR,M,N,V1,A,V2)
       use global_utilities
-      IMPLICIT REAL*8(A-H,O-Z)
-      CHARACTER*1 CHAR 
-      DIMENSION A(N,N),V1(M,N),V2(M,N)
+      use constants, only: dp
+!      IMPLICIT real(dp)(A-H,O-Z)
+      IMPLICIT NONE
+      CHARACTER(1) CHAR 
+      real(dp) :: A(N,N),V1(M,N),V2(M,N)
+      integer :: N,M
       type(timer), save :: proc_timer
 C..V_I = V_I - V_(I-1) A_(I-1)
       proc_timer%timer_name='    NECI_RSDBLK'
@@ -553,8 +600,11 @@ C..V_I = V_I - V_(I-1) A_(I-1)
 C =======================================================================
       SUBROUTINE NECI_ROTATE(M,N,V0,A,SCR,LSCR)
       use global_utilities
-      IMPLICIT REAL*8(A-H,O-Z)
-      DIMENSION A(N,N),V0(M,N),SCR(LSCR)
+      use constants, only: dp
+!      IMPLICIT real(dp)(A-H,O-Z)
+      IMPLICIT NONE
+      REAL(dp) :: A(N,N),V0(M,N),SCR(LSCR)
+      integer :: N,M,LSCR
       type(timer), save :: proc_timer
       proc_timer%timer_name='    NECI_ROTATE'
       call set_timer(proc_timer)
@@ -565,19 +615,16 @@ C =======================================================================
       END 
 
 
-
-
-
-
-
-
       SUBROUTINE NECI_JACOBI(M,N,T,WT,SCR,LSCR,ISCR,LISCR,IFAIL)
 C ==------------------------------------------------------------------==
 C Returns the n largest eigenvalues of MxM symtric matrix T           ==
 C ==------------------------------------------------------------------==
       use global_utilities
-      IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION T(M,M,*),WT(*),SCR(LSCR),ISCR(LISCR),IFAIL(*)
+      use constants, only: dp
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
+      REAL(dp) :: T(M,M,*),WT(*),SCR(LSCR)
+      INTEGER :: ISCR(LISCR),IFAIL(*),INFO,M,N,LISCR,LSCR,MEVAL
       type(timer), save :: proc_timer
       proc_timer%timer_name='    JACOBI'
       call set_timer(proc_timer)
@@ -601,9 +648,12 @@ C ==------------------------------------------------------------------==
 C Returns the n largest eigenvalues of MxM symtric banded matrix T    ==
 C ==------------------------------------------------------------------==
       use global_utilities
-      IMPLICIT REAL*8 (A-H,O-Z)
+      use constants, only: dp
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
       type(timer), save :: proc_timer
-      DIMENSION T(IN,IN,*),WT(IN),SCR(LSCR),ISCR(LISCR),IFAIL(*)
+      REAL(dp) :: T(IN,IN,*),WT(IN),SCR(LSCR)
+      INTEGER :: ISCR(LISCR),IFAIL(*),IN,LSCR,LISCR,N,MEVAL,INFO
 C     ==================================================================
       proc_timer%timer_name='     BANDM'
       call set_timer(proc_timer)
@@ -633,8 +683,11 @@ C        CALL DSBEV('V','U',IN,N,T,IN,WT,T(1,2),IN,SCR,INFO)
 C =====================================================================
       SUBROUTINE NECI_PRJCNV(M,NP,N0,V0,V,SMAT)
       use global_utilities
-      IMPLICIT REAL*8(A-H,O-Z)
-      DIMENSION V(M,NP),V0(M,*),SMAT(N0,*)
+      use constants, only: dp
+!      IMPLICIT real(dp)(A-H,O-Z)
+      IMPLICIT NONE
+      REAL(dp) :: V(M,NP),V0(M,*),SMAT(N0,*)
+      INTEGER :: M,N,N0,NP
       type(timer), save :: proc_timer
       IF(N0.EQ.0) RETURN
       proc_timer%timer_name='    PRJCNV'
@@ -655,11 +708,13 @@ C     ==--------------------------------------------------------------==
 C     ==  GRAM-SCHMIDT ORTHOGONALIZATION                              ==
 C     ==--------------------------------------------------------------==
       use global_utilities
-      IMPLICIT REAL*8 (A-H,O-Z)
+      use constants, only: dp
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
 C     Arguments
-      INTEGER    N
-      REAL*8     SMAT(N,N)
-      REAL*8     CP(LDCP,N)
+      INTEGER    N,M,LDCP
+      real(dp)     SMAT(N,N)
+      real(dp)     CP(LDCP,N)
 C     VARIABLES
       type(timer), save :: proc_timer
 C     ==--------------------------------------------------------------==
@@ -677,13 +732,14 @@ C     ==--------------------------------------------------------------==
 C     ==================================================================
       SUBROUTINE NECI_UINV(UPLO,SMAT,LDA,N)
 C     ==--------------------------------------------------------------==
+      use constants, only: dp,sp
       IMPLICIT NONE
 C     ARGUMENTS
-      CHARACTER UPLO*1
+      CHARACTER(1) UPLO
       INTEGER   LDA,N
-      REAL*8    SMAT(LDA,N)
+      real(dp)    SMAT(LDA,N)
 C     VARIABLES
-      INTEGER*4   INFO
+      INTEGER(sp)   INFO
 C     ==--------------------------------------------------------------==
       CALL DPOTRF(UPLO,N,SMAT,LDA,INFO)
       IF(INFO.NE.0) THEN

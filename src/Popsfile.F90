@@ -1,12 +1,13 @@
 MODULE PopsfileMod
 
-    use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin
+    use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin,tMomInv
     use CalcData, only: tTruncInitiator,DiagSft,tWalkContGrow,nEquilSteps,ScaleWalkers, &
                         tReadPopsRestart, tRegenDiagHEls,InitWalkers, tReadPopsChangeRef, &
-                        nShiftEquilSteps,iWeightPopRead,iPopsFileNoRead
+                        nShiftEquilSteps,iWeightPopRead,iPopsFileNoRead,tPopsMapping
     use DetBitOps, only: DetBitLT,FindBitExcitLevel,DetBitEQ
     use Determinants, only : get_helement,write_det
     use hphf_integrals, only: hphf_diag_helement
+    use MI_integrals, only: MI_diag_helement
     USE dSFMT_interface , only : genrand_real2_dSFMT
     use FciMCData
     use bit_reps
@@ -94,6 +95,11 @@ MODULE PopsfileMod
             call flush(6)
         ENDIF
 
+        if(tPopsMapping) then
+            write(6,"(A)") "Reading in popsfile of smaller basis, and distributing on larger basis determinants"
+            call init_popsfile_mapping()
+        endif
+
         BatchSize=REAL(ReadBatch,dp)/REAL(nNodes,dp)
         if(iProcIndex.eq.Root) then
             !Create PopsInitialSlots
@@ -103,7 +109,7 @@ MODULE PopsfileMod
             !Allocate array to store particle to distribute
             allocate(BatchRead(0:NIfTot,1:ReadBatch),stat=ierr)
             CALL LogMemAlloc('BatchRead',ReadBatch*(NIfTot+1),size_n_int,this_routine,BatchReadTag,ierr)
-            write(6,*) "Reading in a maximum of ",ReadBatch," determinants at a time from POPSFILE."
+            write(6,"(A,I12,A)") "Reading in a maximum of ",ReadBatch," determinants at a time from POPSFILE."
             call flush(6)
         else
             allocate(BatchRead(0:NIfTot,1:MaxSendIndex),stat=ierr)
@@ -126,31 +132,9 @@ MODULE PopsfileMod
                 PopsSendList(:)=PopsInitialSlots(:)
                 do while(Det.le.EndPopsList)
 
-                    tStoreDet=.false.
-                    do while(.not.tStoreDet)
-!                        write(6,*) "reading entry: ",Det
-                        if(BinPops) then
-                            read(iunit) WalkerTemp(:)
-                        else
-                            read(iunit,*) WalkerTemp(:)
-                        endif
-                        Det=Det+1
+                    !Read the next entry, and store the walker in WalkerTemp and TempnI
+                    call read_popsfile_det(iunit,Det,BinPops,WalkerTemp,TempnI)
 
-                        if(iWeightPopRead.ne.0) then
-                            call extract_sign(WalkerTemp(:),SignTemp)
-                            do i=1,lenof_sign
-                                if(SignTemp(i).ge.iWeightPopRead) then
-                                    tStoreDet=.true.
-                                    exit
-                                endif
-                            enddo
-                        else
-                            tStoreDet=.true.
-
-                        endif
-                    enddo
-
-                    call decode_bit_det (TempnI, WalkerTemp)
                     proc = DetermineDetNode (TempnI,0)
                     BatchRead(:,PopsSendList(proc)) = WalkerTemp(:)
                     PopsSendList(proc) = PopsSendList(proc) + 1
@@ -199,8 +183,8 @@ MODULE PopsfileMod
             endif
         endif
 
-            deallocate(BatchRead)
-            CALL LogMemDealloc(this_routine,BatchReadTag)
+        deallocate(BatchRead)
+        CALL LogMemDealloc(this_routine,BatchReadTag)
 
         write(6,"(A,I8)") "Number of batches required to distribute all determinants in POPSFILE: ",nBatches
         write(6,*) "Number of configurations read in to this core: ",CurrWalkers 
@@ -225,6 +209,8 @@ MODULE PopsfileMod
                     call decode_bit_det (TempnI, currentDets(:,i))
                     if (tHPHF) then
                         HElemTemp = hphf_diag_helement (TempnI,Dets(:,i))
+                    elseif(tMomInv) then
+                        HElemTemp = MI_diag_helement(TempnI,Dets(:,i))
                     else
                         HElemTemp = get_helement (TempnI, TempnI, 0)
                     endif
@@ -236,8 +222,141 @@ MODULE PopsfileMod
         CurrWalkers64=int(CurrWalkers,int64)    !Since this variable is eventually going to be
         call mpibarrier(err)
                                                 !Totwalkers, it wants to be a 64 bit int.
+
+        if(allocated(PopsMapping)) deallocate(PopsMapping)
     
     end subroutine ReadFromPopsfilev3
+
+    !This routine reads the next determinant entry from a popsfile and stores it in WalkerTemp,
+    !ready to be distributed.
+    !This should only be called from root node.
+    !iunit = unit
+    !Det = Current determinant entry in popsfile list
+    !BinPops = Binary popsfile or formatted
+    !WalkerTemp = Determinant entry returned (in new basis if using mapping)
+    subroutine read_popsfile_det(iunit,Det,BinPops,WalkerTemp,nI)
+        use DetBitOps , only : EncodeBitDet
+        integer , intent(in) :: iunit
+        integer(int64) , intent(inout) :: Det
+        logical , intent(in) :: BinPops
+        integer(n_int), intent(out) :: WalkerTemp(0:NIfTot)
+        integer , intent(out) :: nI(NEl)
+        integer(n_int) :: WalkerToMap(0:MappingNIfD),WalkerTemp2(0:NIfTot)
+        integer :: elec,i,j
+        logical :: tStoreDet
+        integer , dimension(lenof_sign) :: SignTemp
+
+        tStoreDet=.false.
+        do while(.not.tStoreDet)
+!           write(6,*) "reading entry: ",Det
+            if(.not.tPopsMapping) then
+                !Read in determinant - all basis parameters match
+                if(BinPops) then
+                    read(iunit) WalkerTemp(:)
+                else
+                    read(iunit,*) WalkerTemp(:)
+                endif
+            else
+                !We are mapping from a smaller basis to a larger basis.
+
+                if(BinPops) then
+                    read(iunit) WalkerToMap(0:MappingNIfD),WalkerTemp(NOffSgn:NIfTot)
+                else
+                    read(iunit,*) WalkerToMap(0:MappingNIfD),WalkerTemp(NOffSgn:NIfTot)
+                endif
+
+                !Decode to natural ordered integers, the re-encode in new basis.
+                elec=0
+                do i=0,MappingNIfD
+                    do j=0,end_n_int
+                        if(btest(WalkerToMap(i),j)) then
+                            elec=elec+1
+                            nI(elec)=PopsMapping((i*bits_n_int)+(j+1))
+                            if(elec.eq.NEl) exit
+                        endif
+                    enddo
+                    if(elec.eq.NEl) exit
+                enddo
+                !We now have the determinant in the new basis. Encode to bit rep.
+                call EncodeBitDet(nI,WalkerTemp2)
+                WalkerTemp(0:NIfD)=WalkerTemp2(0:NIfD)
+
+            endif
+            Det=Det+1
+
+            !Do we actually want to store these walkers - is the weight large enough?
+            if(iWeightPopRead.ne.0) then
+                call extract_sign(WalkerTemp(:),SignTemp)
+                do i=1,lenof_sign
+                    if(SignTemp(i).ge.iWeightPopRead) then
+                        tStoreDet=.true.
+                        exit
+                    endif
+                enddo
+            else
+                tStoreDet=.true.
+            endif
+        enddo
+        if(.not.tPopsMapping) then
+            call decode_bit_det (nI, WalkerTemp)
+        endif
+
+    end subroutine read_popsfile_det
+
+    
+    !Read in mapping file, and store the mapping between orbitals in the old and new bases.
+    subroutine init_popsfile_mapping()
+        use util_mod, only: get_free_unit
+        integer :: OldBasisSize,NewBasisSize,iunit,NewBasis,kkx,kky,kkz,dumint,OldBasis,i
+        real(dp) :: dumEn
+        logical :: exists
+        character(len=*), parameter :: t_r='init_popsfile_mapping'
+
+        if(iProcIndex.eq.Root) then
+            inquire(file='mapping',exist=exists)
+            if(.not.exists) then
+                call stop_all(t_r,"No mapping file found")
+            endif
+
+            iunit=get_free_unit()
+            open(iunit,file='mapping',status='old',action='read',form='formatted')
+
+            OldBasisSize=0
+            NewBasisSize=0
+            do i=1,nBasis
+                read(iunit,*) NewBasis,kkx,kky,kkz,dumint,dumEn,OldBasis
+                if(NewBasis.gt.NewBasisSize) NewBasisSize=NewBasis
+                if(OldBasis.gt.OldBasisSize) OldBasisSize=OldBasis
+            enddo
+            if(NewBasisSize.ne.nBasis) then
+                call stop_all(t_r,"Size of new bases not consistent in mapping")
+            endif
+            if(int(OldBasisSize/bits_n_int).ne.MappingNIfD) then
+                call stop_all(t_r,"Size of old basis not consistent with its POPSFILEHEAD NIfD")
+            endif
+
+            allocate(PopsMapping(OldBasisSize))   !Mapping from old basis to new basis
+            PopsMapping=0
+            rewind(iunit)
+            do i=1,nBasis 
+                read(iunit,*) NewBasis,kkx,kky,kkz,dumint,dumEn,OldBasis
+                if(OldBasis.ne.0) then
+                    PopsMapping(OldBasis)=NewBasis
+                endif
+            enddo
+            
+            do i=1,OldBasis
+                if(PopsMapping(i).eq.0) call stop_all(t_r,"Not all orbital mappings accounted for")
+            enddo
+
+            close(iunit)
+
+            write(6,"(A,I4,A,I4)") "Original NIfTot: ",MappingNIfTot, " New NIfTot: ",NIfTot
+
+        endif
+
+    end subroutine init_popsfile_mapping
+                
 
     subroutine CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                     iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
@@ -262,11 +381,19 @@ MODULE PopsfileMod
         if(tPopLz.neqv.tFixLz) call stop_all(this_routine,"Popsfile Lz and input Lz not same")
         if(iPopLenof_sign.ne.lenof_sign) call stop_all(this_routine,"Popsfile lenof_sign and input lenof_sign not same")
         if(iPopNEl.ne.NEl) call stop_all(this_routine,"Popsfile NEl and input NEl not same")
-        if(PopNIfD.ne.NIfD) call stop_all(this_routine,"Popsfile NIfD and calculated NIfD not same")
+        if(.not.tPopsMapping) then
+            if(PopNIfD.ne.NIfD) call stop_all(this_routine,"Popsfile NIfD and calculated NIfD not same")
+        else
+            MappingNIfD=PopNIfD
+        endif
         if(PopNIfY.ne.NIfY) call stop_all(this_routine,"Popsfile NIfY and calculated NIfY not same")
         if(PopNIfSgn.ne.NIfSgn) call stop_all(this_routine,"Popsfile NIfSgn and calculated NIfSgn not same")
         if(PopNIfFlag.ne.NIfFlag) call stop_all(this_routine,"Popsfile NIfFlag and calculated NIfFlag not same")
-        if(PopNIfTot.ne.NIfTot) call stop_all(this_routine,"Popsfile NIfTot and calculated NIfTot not same")
+        if(.not.tPopsMapping) then
+            if(PopNIfTot.ne.NIfTot) call stop_all(this_routine,"Popsfile NIfTot and calculated NIfTot not same")
+        else
+            MappingNIfTot=PopNIfTot
+        endif
 
 
         IF(.not.tWalkContGrow) THEN
@@ -618,11 +745,11 @@ MODULE PopsfileMod
         use constants, only: size_n_int,bits_n_int
         LOGICAL :: exists,tBinRead
         INTEGER :: AvWalkers,WalkerstoReceive(nProcessors)
-        INTEGER*8 :: NodeSumNoatHF(nProcessors)
+        integer(int64) :: NodeSumNoatHF(nProcessors)
         integer(int64) :: TempTotParts(lenof_sign),TempCurrWalkers
         INTEGER :: TempInitWalkers,error,i,j,l,total,ierr,MemoryAlloc,Tag,Proc,CurrWalkers,ii
         INTEGER , DIMENSION(lenof_sign) :: TempSign
-        INTEGER*8 :: iLutTemp64(0:nBasis/64+1)
+        integer(int64) :: iLutTemp64(0:nBasis/64+1)
         INTEGER :: iLutTemp32(0:nBasis/32+1)
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
         INTEGER :: AvSumNoatHF,IntegerPart,TempnI(NEl),ExcitLevel
@@ -1052,6 +1179,8 @@ MODULE PopsfileMod
                 ! Recalculate the reference E
                 if (tHPHF) then
                     HElemTemp = hphf_diag_helement (ProjEDet, iLutRef)
+                elseif(tMomInv) then
+                    HElemTemp = MI_diag_helement(ProjEDet,iLutRef)
                 else
                     HElemTemp = get_helement (ProjEDet, ProjEDet, 0)
                 endif
@@ -1082,6 +1211,8 @@ MODULE PopsfileMod
                     if (tHPHF) then
                         HElemTemp = hphf_diag_helement (TempnI, &
                                                         CurrentDets(:,j))
+                    elseif(tMomInv) then
+                        HElemTemp = MI_diag_helement(TempnI,CurrentDets(:,j))
                     else
                         HElemTemp = get_helement (TempnI, TempnI, 0)
                     endif
@@ -1129,12 +1260,12 @@ MODULE PopsfileMod
         integer(int64) :: TempTotParts(lenof_sign),TempCurrWalkers
         INTEGER :: TempInitWalkers,error,i,j,l,total,ierr,MemoryAlloc,Tag,Proc,CurrWalkers,ii
         INTEGER , DIMENSION(lenof_sign) :: TempSign
-        INTEGER*8 :: iLutTemp64(0:nBasis/64+1)
+        integer(int64) :: iLutTemp64(0:nBasis/64+1)
         INTEGER :: iLutTemp32(0:nBasis/32+1)
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
         INTEGER :: AvSumNoatHF,IntegerPart,TempnI(NEl),ExcitLevel
         INTEGER :: NIfWriteOut,pos,orb,PopsVersion, iunit
-        REAL*8 :: r,FracPart,Gap,DiagSftTemp
+        real(dp) :: r,FracPart,Gap,DiagSftTemp
         HElement_t :: HElemTemp
         CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsfilePar'
         character(255) :: popsfile,FirstLine

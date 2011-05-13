@@ -346,12 +346,12 @@ MODULE ISKRandExcit
         INTEGER :: nIX(NEl)
         INTEGER :: i,Iterations,nI(NEl),nJ(NEl),DetConn,nI2(NEl),nJ2(NEl),DetConn2
         INTEGER :: iUniqueHPHF,iUniqueBeta,PartInd,ierr,iExcit
-        REAL*8 :: pDoub,pGen
+        real(dp) :: pDoub,pGen
         LOGICAL :: Unique,TestClosedShellDet,Die,tSwapped
         INTEGER(KIND=n_int) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot),iLutnI2(0:NIfTot),iLutSym(0:NIfTot)
         INTEGER(KIND=n_int), ALLOCATABLE :: ConnsAlpha(:,:),ConnsBeta(:,:),UniqueHPHFList(:,:)
         INTEGER , ALLOCATABLE :: ExcitGen(:)
-        REAL*8 , ALLOCATABLE :: Weights(:),AllWeights(:)
+        real(dp) , ALLOCATABLE :: Weights(:),AllWeights(:)
         INTEGER :: iMaxExcit,nStore(6),nExcitMemLen,j,k,l, iunit
         integer :: icunused, exunused(2,2)
         logical :: tParityunused, tTmp

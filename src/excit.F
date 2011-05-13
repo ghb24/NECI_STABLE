@@ -345,6 +345,7 @@ C.. determinants within double excitations, which will end up fairly inefficient
          use CalcData , only : TNEWEXCITATIONS
          use SystemData, only: BasisFN
          use sym_mod, only: getsym
+         use constants, only: int64
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NORDER,NBASIS,LIST(NEL,*),ICLIST(*)
          INTEGER NEXCIT(NEL),NLIST,nBasisMax(5,*)
@@ -354,8 +355,7 @@ C.. determinants within double excitations, which will end up fairly inefficient
          INTEGER NMIN
          type(BasisFN) G1(*)
          INTEGER nBRR(1)
-
-         INTEGER*8 STORE(6)
+         integer(int64) STORE(6)
          INTEGER ICOUNT,ILEVEL
 
 

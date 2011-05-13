@@ -12,10 +12,11 @@ module legacy_memory_data
 !     == ZFIRST   VALUE OF XM(0) TO CHECK MEMORY                      ==
 !     == ZLAST    VALUE OF XM(N+1)                                    ==
 !     ==--------------------------------------------------------------==
+      use constants, only: dp
       INTEGER   MEM_LEN,MBM
       PARAMETER (MEM_LEN=65536)
       PARAMETER (MBM=10)
-      REAL*8    ZFIRST,ZLAST
+      real(dp)    ZFIRST,ZLAST
 !     PARAMETER (ZFIRST=Z'EFFFFFFFFFFFFFFF')
 !     PARAMETER (ZLAST=Z'0FFFFFFFFFFFFFFF')
       PARAMETER (ZFIRST=1234567890.1234567D0)
@@ -33,9 +34,9 @@ module legacy_memory_data
 !     == MEMPEAK PEAK ALLOCATED MEMORY   = MAX(MEMTOT)                ==
 !     ==--------------------------------------------------------------==
       INTEGER      I_LEN,I_LENB,I_BLOCK,IB_MIN,LB_MIN,NUMPEAK
-      INTEGER*8    MEMTOT,MEMPEAK
+      integer(int64)    MEMTOT,MEMPEAK
 #ifdef POINTER8
-      INTEGER*8 I_AD1,I_AD2
+      integer(int64) I_AD1,I_AD2
 #else
       INTEGER  I_AD1,I_AD2
 #endif

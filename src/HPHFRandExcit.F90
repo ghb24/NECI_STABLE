@@ -11,16 +11,17 @@ MODULE HPHFRandExcitMod
     use IntegralsData, only: UMat, fck, nMax
     use SymData, only: nSymLabels
     use dSFMT_interface, only : genrand_real2_dSFMT
-    use GenRandSymExcitNUMod, only: gen_rand_excit, construct_class_counts, &
+    use GenRandSymExcitNUMod, only: gen_rand_excit, &
                                     CalcNonUniPGen, ScratchSize 
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet, &
                          FindBitExcitLevel,MaskAlpha,MaskBeta
-    use FciMCData, only: pDoubles, excit_gen_store_type
+    use FciMCData, only: pDoubles
     use constants, only: dp,n_int
-    use HElem
     use sltcnd_mod, only: sltcnd_excit
     use bit_reps, only: NIfD, NIfDBO, NIfTot
+    use SymExcitDataMod, only: excit_gen_store_type
     use sort_mod
+    use HElem
     IMPLICIT NONE
 !    SAVE
 !    INTEGER :: Count=0
@@ -50,13 +51,13 @@ MODULE HPHFRandExcitMod
         integer(kind=n_int), intent(out) :: iLutnJ(0:niftot)
         integer, intent(out) :: IC, ExcitMat(2,2)
         logical, intent(out) :: tParity ! Not used
-        real*8, intent(out) :: pGen
+        real(dp), intent(out) :: pGen
         HElement_t, intent(out) :: HEl
         type(excit_gen_store_type), intent(inout), target :: store
 
         integer(kind=n_int) :: iLutnJ2(0:niftot)
         integer :: openOrbsI, openOrbsJ, nJ2(nel), ex2(2,2), excitLevel 
-        real*8 :: pGen2
+        real(dp) :: pGen2
         HElement_t :: MatEl, MatEl2
         logical :: TestClosedShellDet, tSign, tSignOrig
         logical :: tSwapped
@@ -344,7 +345,9 @@ MODULE HPHFRandExcitMod
 
 !This create the spin-coupled determinant of nI in nJ in natural ordered form.
     SUBROUTINE FindDetSpinSym(nI,nJ,NEl)
-        INTEGER :: nI(NEl),nJ(NEl),NEl,i
+        INTEGER, intent(in) :: nI(NEl),NEl
+        integer, intent(out) :: nJ(NEl)
+        integer :: i
 
         do i=1,NEl
             IF(mod(nI(i),2).eq.0) THEN
@@ -460,12 +463,12 @@ MODULE HPHFRandExcitMod
 !        INTEGER :: ClassCount2(ScratchSize),nIX(NEl)
 !        INTEGER :: ClassCountUnocc2(ScratchSize)
 !        INTEGER :: i,Iterations,nI(NEl),nJ(NEl),DetConn,nI2(NEl),nJ2(NEl),DetConn2,iUniqueHPHF,iUniqueBeta,PartInd,ierr,iExcit
-!        REAL*8 :: pDoub,pGen
+!        real(dp) :: pDoub,pGen
 !        LOGICAL :: Unique,TestClosedShellDet,Die,tGenClassCountnI,tSwapped
 !        INTEGER(KIND=n_int) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot),iLutnI2(0:NIfTot),iLutSym(0:NIfTot)
 !        INTEGER(KIND=n_int), ALLOCATABLE :: ConnsAlpha(:,:),ConnsBeta(:,:),UniqueHPHFList(:,:)
 !        INTEGER , ALLOCATABLE :: ExcitGen(:)
-!        REAL*8 , ALLOCATABLE :: Weights(:)
+!        real(dp) , ALLOCATABLE :: Weights(:)
 !        INTEGER :: iMaxExcit,nStore(6),nExcitMemLen,j,k,l, iunit
 !        integer :: icunused, exunused(2,2), scratch3(scratchsize)
 !        logical :: tParityunused, tTmp

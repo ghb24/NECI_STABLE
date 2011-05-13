@@ -5,8 +5,8 @@
          IMPLICIT NONE
          INTEGER N,I,J
          HElement_t A(0:N),B(0:N)
-         real*8 HIGHZ,DELTA,Z
-         REAL*8 STAR,STARPROD,PROD,PROD2,STARPROD2
+         real(dp) HIGHZ,DELTA,Z
+         real(dp) STAR,STARPROD,PROD,PROD2,STARPROD2
 
          !Calculate the poles of the new product formulation
 
@@ -73,8 +73,8 @@ C.. A and B are sorted in ascending order of A
          IMPLICIT NONE
          INTEGER N,I,J,NROOTS,NMIN,K
          HElement_t A(0:N),B(0:N)
-         real*8 ROOTS(0:NROOTS),INITHIGH,INITLOW,DELTA
-         REAL*8 XHIGH,XLOW,X,VAL,DERIV,OX,VALLOW,VALHIGH
+         real(dp) ROOTS(0:NROOTS),INITHIGH,INITLOW,DELTA
+         real(dp) XHIGH,XLOW,X,VAL,DERIV,OX,VALLOW,VALHIGH
          LOGICAL LOWPOLE,HIGHPOLE
          NMIN=N-NROOTS
 !         write(76,*) n,nRoots
@@ -343,7 +343,7 @@ C               WRITE(6,*),I,A(I),B(I)
          IMPLICIT NONE
          INTEGER N
          HElement_t A(0:N),B(0:N)
-         REAL*8 X,VAL
+         real(dp) X,VAL
          INTEGER I
          VAL=(A(0))-X
          DO I=1,N
@@ -356,7 +356,7 @@ C               WRITE(6,*),I,A(I),B(I)
          IMPLICIT NONE
          INTEGER N
          HElement_t A(0:N),B(0:N)
-         REAL*8 X,VAL
+         real(dp) X,VAL
          INTEGER I
          VAL=-1.D0
          DO I=1,N
@@ -367,12 +367,13 @@ C               WRITE(6,*),I,A(I),B(I)
 !  This is used by the READSTARDIAG called from FMCPR3NVSTAR routine.  It allows contributions multiple times from some spokes.
 !  It probably doesn't work (AJWT 6/6/07)
       SUBROUTINE FINDROOTSTAR2(N,A,B,NR,ROOTS,IRMIN)
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER N,I,J
-         REAL*8 A(0:N),B(0:N),ROOTS(0:N)
+         real(dp) A(0:N),B(0:N),ROOTS(0:N)
          INTEGER NR(0:N)
-         REAL*8 XHIGH,XLOW,X,VAL,DERIV,XVLOW,XVHIGH,SMIN,OH,OX
-         REAL*8 OXLOW,OXHIGH
+         real(dp) XHIGH,XLOW,X,VAL,DERIV,XVLOW,XVHIGH,SMIN,OH,OX
+         real(dp) OXLOW,OXHIGH
          INTEGER IMODE,IROOT,IRMIN
 C.. We find the first root by starting very slightly above the highest
 C.. pole
@@ -510,9 +511,10 @@ C               WRITE(6,*),I,A(I),B(I)
          
 
       SUBROUTINE CALCSTARPOLYVALUE2(N,A,B,X,NR,VAL,TABOVE)
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER N
-         REAL*8 A(0:N),B(0:N),X,VAL,OV,X2,DX
+         real(dp) A(0:N),B(0:N),X,VAL,OV,X2,DX
          INTEGER NR(0:N)
          INTEGER I
          LOGICAL TABOVE
@@ -545,9 +547,10 @@ C            IF(.NOT.TABOVE) VAL=-VAL
          RETURN
       END
       SUBROUTINE CALCSTARPOLYDERIV2(N,A,B,X,NR,VAL)
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER N
-         REAL*8 A(0:N),B(0:N),X,VAL
+         real(dp) A(0:N),B(0:N),X,VAL
          INTEGER NR(0:N)
          INTEGER I
          VAL=-1.D0
@@ -557,9 +560,10 @@ C            IF(.NOT.TABOVE) VAL=-VAL
          RETURN
       END
       SUBROUTINE CALCSTARPOLYDERIV3(N,A,B,X,NR,VAL)
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER N
-         REAL*8 A(0:N),B(0:N),X,VAL
+         real(dp) A(0:N),B(0:N),X,VAL
          INTEGER NR(0:N)
          INTEGER I
          VAL=0.D0
@@ -569,12 +573,13 @@ C            IF(.NOT.TABOVE) VAL=-VAL
          RETURN
       END
       SUBROUTINE FINDSTARPOLYMIN(N,A,B,XH,XL,NR,ROOT)
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER N,J
-         REAL*8 A(0:N),B(0:N)
+         real(dp) A(0:N),B(0:N)
          INTEGER NR(0:N)
-         REAL*8 XHIGH,XLOW,X,VAL,DERIV,XVLOW,XVHIGH,ROOT,OX
-         REAL*8 XH,XL
+         real(dp) XHIGH,XLOW,X,VAL,DERIV,XVLOW,XVHIGH,ROOT,OX
+         real(dp) XH,XL
          XHIGH=XH
          XLOW=XL
          CALL CALCSTARPOLYDERIV2(N,A,B,XHIGH*0.99999999D0,NR,XVHIGH)

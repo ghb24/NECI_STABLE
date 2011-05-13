@@ -3,8 +3,8 @@ module read_fci
 contains
 
     SUBROUTINE INITFROMFCID(NEL,NBASISMAX,LEN,LMS,TBIN)
-         use SystemData , only : tNoSymGenRandExcits,lNoSymmetry,tROHF
-         use SystemData , only : tStoreSpinOrbs,tKPntSym,tRotatedOrbsReal
+         use SystemData , only : tNoSymGenRandExcits,lNoSymmetry,tROHF,tHub,tUEG
+         use SystemData , only : tStoreSpinOrbs,tKPntSym,tRotatedOrbsReal,tFixLz
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
          use Parallel
          use util_mod, only: get_free_unit
@@ -13,7 +13,7 @@ contains
          integer, intent(out) :: nBasisMax(5,*),LEN,LMS
          integer, intent(in) :: NEL
          integer SYMLZ(1000)
-         INTEGER*8 :: ORBSYM(1000)
+         integer(int64) :: ORBSYM(1000)
          INTEGER NORB,NELEC,MS2,ISYM,i,SYML(1000), iunit
          LOGICAL exists,UHF
          CHARACTER*3 :: fmat
@@ -90,8 +90,11 @@ contains
              IF(ORBSYM(i).eq.0.and.TwoCycleSymGens) THEN
                  WRITE(6,*) "** WARNING **"
                  WRITE(6,*) "** Unconverged symmetry of orbitals **"
-                 WRITE(6,*) "** Turning symmetry off for rest of run **"
-                 tNoSymGenRandExcits=.true.
+                 WRITE(6,*) "** Turning point group symmetry off for rest of run **"
+                 if(.not.(tFixLz.or.tKPntSym.or.tUEG.or.tHub)) then
+                     WRITE(6,*) "** No symmetry at all will be used in excitation generators **"
+                     tNoSymGenRandExcits=.true. 
+                 endif
                  lNoSymmetry=.true.
                  EXIT
              ENDIF
@@ -150,15 +153,15 @@ contains
          integer, intent(in) :: LEN
          integer, intent(inout) :: nBasisMax(5,*)
          integer, intent(out) :: BRR(LEN)
-         REAL*8, intent(out) :: ARR(LEN,2)
+         real(dp), intent(out) :: ARR(LEN,2)
          type(BasisFN), intent(out) :: G1(LEN)
          HElement_t Z
          COMPLEX(dp) :: CompInt
-         INTEGER*8 IND,MASK
+         integer(int64) IND,MASK
          INTEGER I,J,K,L,I1, iunit
          INTEGER ISYMNUM,ISNMAX,SYMMAX,SYMLZ(1000)
          INTEGER NORB,NELEC,MS2,ISYM,ISPINS,ISPN,SYML(1000)
-         INTEGER*8 ORBSYM(1000)
+         integer(int64) ORBSYM(1000)
          INTEGER nPairs,iErr,MaxnSlot,MaxIndex
          INTEGER , ALLOCATABLE :: MaxSlots(:)
          LOGICAL TBIN,UHF
@@ -252,7 +255,7 @@ contains
                 IF(UHF.or.tROHF) STOP 'UHF Bin read not functional'
                 MASK=(2**16)-1
                 
-                !IND contains all the indices in an integer*8 - use mask of 16bit to extract them
+                !IND contains all the indices in an integer(int64) - use mask of 16bit to extract them
 2               READ(iunit,END=99) Z,IND
                 L=iand(IND,MASK)
                 IND=Ishft(IND,-16)
@@ -480,14 +483,14 @@ contains
          IMPLICIT NONE
          integer, intent(in) :: NBASIS
          logical, intent(in) :: tReadFreezeInts
-         REAL*8, intent(out) :: ECORE
+         real(dp), intent(out) :: ECORE
          HElement_t, intent(out) :: UMAT(:)
          HElement_t Z
          COMPLEX(dp) :: CompInt
          INTEGER ZeroedInt,NonZeroInt
          INTEGER I,J,K,L,X,Y,iunit
          INTEGER NORB,NELEC,MS2,ISYM,SYML(1000)
-         INTEGER*8 ORBSYM(1000)
+         integer(int64) ORBSYM(1000)
          LOGICAL LWRITE,UHF
          INTEGER ISPINS,ISPN,ierr,SYMLZ(1000)!,IDI,IDJ,IDK,IDL
          INTEGER UMatSize,TMatSize
@@ -699,7 +702,7 @@ contains
          ENDIF
          IF((.not.tRIIntegrals).and.(.not.tCacheFCIDUMPInts)) THEN
              CALL GetUMATSize(nBasis,NEl,UMatSize)
-             CALL MPIBCast(UMAT,UMatSize)    !This is not an , as it is actually passed in as a real*8, even though it is HElem in IntegralsData
+             CALL MPIBCast(UMAT,UMatSize)    !This is not an , as it is actually passed in as a real(dp), even though it is HElem in IntegralsData
          ENDIF
          IF(tCacheFCIDUMPInts) THEN
 !Need to broadcast the cache...
@@ -737,17 +740,17 @@ contains
 
       !This is a copy of the routine above, but now for reading in binary files of integrals
       SUBROUTINE READFCIINTBIN(UMAT,ECORE)
-         use constants, only: dp
+         use constants, only: dp,int64
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          USE UMatCache , only : UMatInd,UMAT2D,TUMAT2D
          use OneEInts, only: TMatind,TMat2D,TMATSYM,TSTARSTORE
          use util_mod, only: get_free_unit
          IMPLICIT NONE
-         REAL*8, intent(out) :: ECORE
+         real(dp), intent(out) :: ECORE
          HElement_t, intent(out) :: UMAT(*)
          HElement_t Z
-         INTEGER*8 MASK,IND
+         integer(int64) MASK,IND
          INTEGER I,J,K,L,X,Y, iunit
          LOGICAL LWRITE
          !NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF
@@ -761,7 +764,7 @@ contains
 
 
          MASK=(2**16)-1
-         !IND contains all the indices in an integer*8 - use mask of 16bit to extract them
+         !IND contains all the indices in an integer(int64) - use mask of 16bit to extract them
 101      READ(iunit,END=199) Z,IND
          L=iand(IND,MASK)
          IND=Ishft(IND,-16)

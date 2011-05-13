@@ -26,17 +26,17 @@ MODULE RotateOrbsMod
     use sort_mod
     IMPLICIT NONE
     INTEGER , ALLOCATABLE :: Lab(:,:),LabVirtOrbs(:),LabOccOrbs(:),SymLabelList3Inv(:)
-    REAL*8 , ALLOCATABLE :: CoeffCorT2(:,:),CoeffUncorT2(:,:)
-    REAL*8 , ALLOCATABLE :: Lambdas(:,:),ArrNew(:,:),ArrDiagNew(:),TMAT2DTemp(:,:),TMAT2DRot(:,:),TMAT2DPartRot01(:,:)
-    REAL*8 , ALLOCATABLE :: TMAT2DPartRot02(:,:)
-    REAL*8 , ALLOCATABLE :: DerivCoeff(:,:),UMATTemp01(:,:,:,:),UMATTemp02(:,:,:,:)
-    REAL*8 , ALLOCATABLE :: DerivLambda(:,:),ForceCorrect(:,:),Correction(:,:),ShakeLambdaNew(:),ConstraintCor(:)
-    REAL*8 , ALLOCATABLE :: Constraint(:),ShakeLambda(:),DerivConstrT1(:,:,:),DerivConstrT2(:,:,:),DerivConstrT1T2(:,:)
-    REAL*8 , ALLOCATABLE :: DerivConstrT1T2Diag(:),FourIndInts(:,:,:,:)
-    REAL*8 , ALLOCATABLE :: TwoIndInts01(:,:,:,:),TwoIndInts02(:,:,:,:),ThreeIndInts01(:,:,:,:),FourIndInts02(:,:,:,:)
-    REAL*8 , ALLOCATABLE :: ThreeIndInts02(:,:,:,:),ThreeIndInts03(:,:,:,:),ThreeIndInts04(:,:,:,:)  
-    REAL*8 , ALLOCATABLE :: DiagTMAT2Dfull(:),TMAT2DNew(:,:) 
-    REAL*8 , ALLOCATABLE :: TwoIndIntsER(:,:,:),ThreeIndInts01ER(:,:),ThreeIndInts02ER(:,:),FourIndIntsER(:)
+    real(dp) , ALLOCATABLE :: CoeffCorT2(:,:),CoeffUncorT2(:,:)
+    real(dp) , ALLOCATABLE :: Lambdas(:,:),ArrNew(:,:),ArrDiagNew(:),TMAT2DTemp(:,:),TMAT2DRot(:,:),TMAT2DPartRot01(:,:)
+    real(dp) , ALLOCATABLE :: TMAT2DPartRot02(:,:)
+    real(dp) , ALLOCATABLE :: DerivCoeff(:,:),UMATTemp01(:,:,:,:),UMATTemp02(:,:,:,:)
+    real(dp) , ALLOCATABLE :: DerivLambda(:,:),ForceCorrect(:,:),Correction(:,:),ShakeLambdaNew(:),ConstraintCor(:)
+    real(dp) , ALLOCATABLE :: Constraint(:),ShakeLambda(:),DerivConstrT1(:,:,:),DerivConstrT2(:,:,:),DerivConstrT1T2(:,:)
+    real(dp) , ALLOCATABLE :: DerivConstrT1T2Diag(:),FourIndInts(:,:,:,:)
+    real(dp) , ALLOCATABLE :: TwoIndInts01(:,:,:,:),TwoIndInts02(:,:,:,:),ThreeIndInts01(:,:,:,:),FourIndInts02(:,:,:,:)
+    real(dp) , ALLOCATABLE :: ThreeIndInts02(:,:,:,:),ThreeIndInts03(:,:,:,:),ThreeIndInts04(:,:,:,:)  
+    real(dp) , ALLOCATABLE :: DiagTMAT2Dfull(:),TMAT2DNew(:,:) 
+    real(dp) , ALLOCATABLE :: TwoIndIntsER(:,:,:),ThreeIndInts01ER(:,:),ThreeIndInts02ER(:,:),FourIndIntsER(:)
     INTEGER(TagIntType) :: TwoIndIntsERTag,ThreeIndInts01ERTag,ThreeIndInts02ERTag,FourIndIntsERTag
     INTEGER(TagIntType) :: TwoIndInts01Tag,TwoIndInts02Tag,ThreeIndInts01Tag,ThreeIndInts02Tag,ThreeIndInts03Tag,ThreeIndInts04Tag
     INTEGER(TagIntType) :: FourIndInts02Tag
@@ -52,21 +52,21 @@ MODULE RotateOrbsMod
     INTEGER :: NoInts01,NoInts02,NoInts03,NoInts04,NoInts05,NoInts06
     INTEGER(TagIntType) :: DiagTMAT2DfullTag,TMAT2DNewTag,SymLabelList3InvTag
     LOGICAL :: tNotConverged,tInitIntValues
-    REAL*8 :: OrthoNorm,ERPotEnergy,HijSqrdPotEnergy,OffDiagPotEnergy,CoulPotEnergy,PotEnergy,Force,TwoEInts,DistCs
-    REAL*8 :: OrthoForce,DistLs,LambdaMag,PEInts,PEOrtho
-    REAL*8 :: ForceInts,TotCorrectedForce
-    REAL*8 :: ijOccVirtPotEnergy,EpsilonMin,MaxTerm
-    REAL*8 :: DiagOneElPotInit,ERPotInit,ijVirtOneElPotInit,ijVirtCoulPotInit,ijVirtExchPotInit
-    REAL*8 :: singCoulijVirtInit,singExchijVirtInit,singCoulconHFInit,singExchconHFInit,ijklPotInit,ijklantisymPotInit
-    REAL*8 :: ijOccVirtOneElPotInit,ijOccVirtCoulPotInit,ijOccVirtExchPotInit
-    REAL*8 :: OrthoFac=1.D0,ROHistSing(2,4002),ROHistOffDiag(2,4002),ROHistDoubExc(2,4002),ROHistER(2,4002)
-    REAL*8 :: ROHistHijVirt(2,4002),ROHistHijOccVirt(2,4002),ROHistHii(2,4002)
-    REAL*8 :: ROHistOnePartOrbEn(2,4002),ROHistDCijOcklVir(2,4002),ROHistDEijOcklVir(2,4002),ROHistDCijklVir(2,4002)
-    REAL*8 :: ROHistDEijklVir(2,4002)
-    REAL*8 :: ROHistSCikOcjVir(2,4002),ROHistSEikOcjVir(2,4002),ROHistSCkOcijVir(2,4002),ROHistSEkOcijVir(2,4002)
-    REAL*8 :: ROHistSCijkVir(2,4002),ROHistSEijkVir(2,4002)
-    REAL*8 :: ROHistSASikOcjVir(2,4002),ROHistSASkOcijVir(2,4002),ROHistSASijkVir(2,4002),ROHistASijklVir(2,4002)
-    REAL*8 :: ROHistASijOcklVir(2,4002)
+    real(dp) :: OrthoNorm,ERPotEnergy,HijSqrdPotEnergy,OffDiagPotEnergy,CoulPotEnergy,PotEnergy,Force,TwoEInts,DistCs
+    real(dp) :: OrthoForce,DistLs,LambdaMag,PEInts,PEOrtho
+    real(dp) :: ForceInts,TotCorrectedForce
+    real(dp) :: ijOccVirtPotEnergy,EpsilonMin,MaxTerm
+    real(dp) :: DiagOneElPotInit,ERPotInit,ijVirtOneElPotInit,ijVirtCoulPotInit,ijVirtExchPotInit
+    real(dp) :: singCoulijVirtInit,singExchijVirtInit,singCoulconHFInit,singExchconHFInit,ijklPotInit,ijklantisymPotInit
+    real(dp) :: ijOccVirtOneElPotInit,ijOccVirtCoulPotInit,ijOccVirtExchPotInit
+    real(dp) :: OrthoFac=1.D0,ROHistSing(2,4002),ROHistOffDiag(2,4002),ROHistDoubExc(2,4002),ROHistER(2,4002)
+    real(dp) :: ROHistHijVirt(2,4002),ROHistHijOccVirt(2,4002),ROHistHii(2,4002)
+    real(dp) :: ROHistOnePartOrbEn(2,4002),ROHistDCijOcklVir(2,4002),ROHistDEijOcklVir(2,4002),ROHistDCijklVir(2,4002)
+    real(dp) :: ROHistDEijklVir(2,4002)
+    real(dp) :: ROHistSCikOcjVir(2,4002),ROHistSEikOcjVir(2,4002),ROHistSCkOcijVir(2,4002),ROHistSEkOcijVir(2,4002)
+    real(dp) :: ROHistSCijkVir(2,4002),ROHistSEijkVir(2,4002)
+    real(dp) :: ROHistSASikOcjVir(2,4002),ROHistSASkOcijVir(2,4002),ROHistSASijkVir(2,4002),ROHistASijklVir(2,4002)
+    real(dp) :: ROHistASijOcklVir(2,4002)
     TYPE(timer), save :: Rotation_Time,FullShake_Time,Shake_Time,Findtheforce_Time,Transform2ElInts_Time
     type(timer), save :: findandusetheforce_time,CalcDerivConstr_Time,TestOrthoConver_Time
     TYPE(timer), save :: RefillUMAT_Time,PrintROFCIDUMP_Time
@@ -958,7 +958,7 @@ MODULE RotateOrbsMod
     SUBROUTINE InitRotCalc()
 ! Sets up the initial arrays to be used in the orbital rotation.    
         CHARACTER(len=*) , PARAMETER :: this_routine='InitRotCalc'
-        REAL*8 :: RAN2
+        real(dp) :: RAN2
         INTEGER :: i,j,Const,iseed=-8,MinRot,MaxRot
 
 
@@ -1142,7 +1142,7 @@ MODULE RotateOrbsMod
 
     SUBROUTINE CopyAcrossUMAT()
         INTEGER :: a,b,g,d,i,j,k,l
-        REAL*8 :: s,t
+        real(dp) :: s,t
 
         IF(((.not.tERLocalization).and.(.not.tReadInCoeff).and.(.not.tUseMP2VarDenMat).and.(.not.tFindCINatOrbs))&
         &.or.(tERLocalization.and.tStoreSpinOrbs)) TMAT2DTemp(:,:)=0.D0
@@ -1346,7 +1346,7 @@ MODULE RotateOrbsMod
 
     SUBROUTINE EquateDiagFock()
         INTEGER :: irr,NumInSym,Orbi,Orbj,w,i,j,k,ConjInd,OrbjConj
-        REAL*8 :: Angle,AngleConj,Check,Norm
+        real(dp) :: Angle,AngleConj,Check,Norm
 
         CoeffT1(:,:)=0.D0
 !        MaxOccVirt=1
@@ -1829,7 +1829,7 @@ MODULE RotateOrbsMod
     SUBROUTINE ZeroOccVirtElements(Coeff)
 ! This routine sets all the elements of the coefficient matrix that connect occupied and virtual orbitals to 0.
 ! This ensures that only occupied mix with occupied and virtual mix with virtual.
-        REAL*8 :: Coeff(NoOrbs,NoOrbs)
+        real(dp) :: Coeff(NoOrbs,NoOrbs)
         INTEGER :: i,j
 
         do i=1,NoOcc
@@ -1890,8 +1890,8 @@ MODULE RotateOrbsMod
 !This is v memory inefficient and currently does not use any spatial symmetry information.
     SUBROUTINE Transform2ElInts()
         INTEGER :: i,j,k,l,a,b,g,d
-        REAL*8 :: t,Temp4indints(NoRotOrbs,NoOrbs)
-        REAL*8 :: Temp4indints02(NoRotOrbs,NoRotOrbs)  
+        real(dp) :: t,Temp4indints(NoRotOrbs,NoOrbs)
+        real(dp) :: Temp4indints02(NoRotOrbs,NoRotOrbs)  
 
         
         CALL set_timer(Transform2ElInts_time,30)
@@ -2153,7 +2153,7 @@ MODULE RotateOrbsMod
     SUBROUTINE Transform2ElIntsMemSave()
         INTEGER :: i,j,k,l,a,b,g,d,ierr,a2,b2,g2,d2
         INTEGER(TagIntType) Temp4indintsTag
-        REAL*8 , ALLOCATABLE :: Temp4indints(:,:)
+        real(dp) , ALLOCATABLE :: Temp4indints(:,:)
 #ifdef __CMPLX
         call stop_all('Transform2ElIntsMemSave', 'Rotating orbitals not implemented for complex orbitals.')
 #endif
@@ -2262,8 +2262,8 @@ MODULE RotateOrbsMod
 ! therefore the process may be much simpler.
     SUBROUTINE Transform2ElIntsERlocal()
         INTEGER :: i,j,a,b,g,d,m
-        REAL*8 :: t,Temp4indints(NoOrbs,NoOrbs)
-        REAL*8 :: Temp4indints02(NoOrbs)  
+        real(dp) :: t,Temp4indints(NoOrbs,NoOrbs)
+        real(dp) :: Temp4indints02(NoOrbs)  
  
 
         CALL set_timer(Transform2ElInts_time,30)
@@ -2414,7 +2414,7 @@ MODULE RotateOrbsMod
     SUBROUTINE CalcPotentials()
     ! only temporarily like this, can tidy it up majorly
         INTEGER :: i,j,k,l,Starti,Finishi
-        REAL*8 :: MaxTerm
+        real(dp) :: MaxTerm
 
         l = 0
         IF(tERLocalization.and.(.not.tStoreSpinOrbs)) THEN
@@ -2608,8 +2608,8 @@ MODULE RotateOrbsMod
 
     SUBROUTINE FindTheForce()
         INTEGER :: m,z,i,j,k,l,a,Symm,w,x,y,SymMin
-        REAL*8 :: OffDiagForcemz,DiagForcemz,OneElForcemz,LambdaTerm1,LambdaTerm2
-        REAL*8 :: NonDerivTerm,DerivPot
+        real(dp) :: OffDiagForcemz,DiagForcemz,OneElForcemz,LambdaTerm1,LambdaTerm2
+        real(dp) :: NonDerivTerm,DerivPot
         LOGICAL :: leqm,jeqm,keqm
       
 ! Running over m and z, covers all matrix elements of the force matrix (derivative 
@@ -2950,7 +2950,7 @@ MODULE RotateOrbsMod
 ! This routine takes the old translation coefficients and Lambdas and moves them by a timestep in the direction 
 ! of the calculated force.
         INTEGER :: m,w,z,i,j,Symm,SymMin
-        REAL*8 :: NewCoeff,NewLambda
+        real(dp) :: NewCoeff,NewLambda
 
         DistCs=0.D0 
     
@@ -3026,7 +3026,7 @@ MODULE RotateOrbsMod
    
     SUBROUTINE TestOrthonormality()
         INTEGER :: i,j
-        REAL*8 :: OrthoNormDP
+        real(dp) :: OrthoNormDP
 
         OrthoNorm=0.D0
         do i=1,NoOrbs
@@ -3071,8 +3071,8 @@ MODULE RotateOrbsMod
 ! DerivCoeff(k,a) is the unconstrained force on the original coefficients (CoeffT1(a,k)). 
         use util_mod, only: get_free_unit
         INTEGER :: w,l,a,m,ShakeIteration,ConvergeCount,SymM,SymMin
-        REAL*8 :: TotCorConstraints,TotConstraints,TotLambdas
-        REAL*8 :: TotUncorForce,TotDiffUncorCoeffs,TotDiffCorCoeffs
+        real(dp) :: TotCorConstraints,TotConstraints,TotLambdas
+        real(dp) :: TotUncorForce,TotDiffUncorCoeffs,TotDiffCorCoeffs
         LOGICAL :: tShakeNotConverged
         integer, save :: shake_io
 
@@ -3250,8 +3250,8 @@ MODULE RotateOrbsMod
 ! to each set of coefficients cm.
 
         INTEGER :: l,i,j,a
-        REAL*8 :: CurrCoeff(NoOrbs,NoOrbs)
-        REAL*8 :: DerivConstr(NoOrbs,NoOrbs,TotNoConstraints)
+        real(dp) :: CurrCoeff(NoOrbs,NoOrbs)
+        real(dp) :: DerivConstr(NoOrbs,NoOrbs,TotNoConstraints)
 
         call set_timer(CalcDerivConstr_Time,30)
 
@@ -3299,7 +3299,7 @@ MODULE RotateOrbsMod
 ! for each cm, with an orthonormalisation correction.
 ! This is then used to rotate the coefficients by a defined timestep.
         INTEGER :: a,m,Symm,w,SymMin,TempMaxOccVirt
-        REAL*8 :: TotForce,TotDiffCoeffs,CoeffT2(NoOrbs,NoOrbs)
+        real(dp) :: TotForce,TotDiffCoeffs,CoeffT2(NoOrbs,NoOrbs)
 
 !        WRITE(6,*) 'DerivCoeff'
 !        do m=1,SpatOrbs
@@ -3403,7 +3403,7 @@ MODULE RotateOrbsMod
 ! This calculates the value of each orthonomalisation constraint, using the shifted coefficients.
 ! Each of these should tend to 0 when the coefficients become orthonomal.
         INTEGER :: l,i,j
-        REAL*8 :: CurrCoeff(NoOrbs,NoOrbs),TotConstraints,Constraint(TotNoConstraints) 
+        real(dp) :: CurrCoeff(NoOrbs,NoOrbs),TotConstraints,Constraint(TotNoConstraints) 
 
 
             TotConstraints=0.D0
@@ -3549,7 +3549,7 @@ MODULE RotateOrbsMod
 ! CovergeCount counts the number of constraints that individually have values below the specified
 ! convergence criteria.  If this = 0, the shake is converged, else keep iterating.
         INTEGER :: l,i,j,m,a,ConvergeCount
-        REAL*8 :: TotCorConstraints
+        real(dp) :: TotCorConstraints
         INTEGER :: ShakeIteration
         LOGICAL :: tShakeNotConverged
 
@@ -3611,7 +3611,7 @@ MODULE RotateOrbsMod
         use sym_mod, only: GenSymStatePairs
         use util_mod, only: get_free_unit
         INTEGER :: i,a,j
-        REAL*8 :: TotGSConstraints,GSConstraint(TotNoConstraints),CoeffTemp(SpatOrbs,SpatOrbs)
+        real(dp) :: TotGSConstraints,GSConstraint(TotNoConstraints),CoeffTemp(SpatOrbs,SpatOrbs)
         
 !        WRITE(6,*) 'The final transformation coefficients before gram schmidt orthonormalisation'
 !        do i=1,SpatOrbs
@@ -3715,7 +3715,7 @@ MODULE RotateOrbsMod
     SUBROUTINE WriteSingHisttofile()
         use util_mod, only: get_free_unit
         INTEGER :: i,j,k,BinNo,a,b,iunit
-        REAL*8 :: MaxFII,MinFII,BinIter,BinVal,SingExcit(NoOrbs,NoOrbs)
+        real(dp) :: MaxFII,MinFII,BinIter,BinVal,SingExcit(NoOrbs,NoOrbs)
 
 
 !<ik|jk> terms where all i,j and k are virtual
@@ -4147,7 +4147,7 @@ MODULE RotateOrbsMod
     SUBROUTINE WriteDoubHisttofile()
         use util_mod, only: get_free_unit
         INTEGER :: i,j,k,l,BinNo, iunit
-        REAL*8 :: MaxFII,MinFII,BinIter,OnePartOrbEnValue,BinVal
+        real(dp) :: MaxFII,MinFII,BinIter,OnePartOrbEnValue,BinVal
 
 
 !        OPEN(34,FILE='FourIndInts',STATUS='unknown')
@@ -4711,9 +4711,9 @@ MODULE RotateOrbsMod
     SUBROUTINE PrintIntegrals()
         use util_mod, only: get_free_unit
         INTEGER :: i,j,k,l, io1, io2
-        REAL*8 :: DiagOneElPot,ERPot,ijVirtOneElPot,ijVirtCoulPot,ijVirtExchPot
-        REAL*8 :: singCoulijVirt,singExchijVirt,singCoulconHF,singExchconHF,ijklPot,ijklantisymPot
-        REAL*8 :: ijOccVirtOneElPot,ijOccVirtCoulPot,ijOccVirtExchPot
+        real(dp) :: DiagOneElPot,ERPot,ijVirtOneElPot,ijVirtCoulPot,ijVirtExchPot
+        real(dp) :: singCoulijVirt,singExchijVirt,singCoulconHF,singExchconHF,ijklPot,ijklantisymPot
+        real(dp) :: ijOccVirtOneElPot,ijOccVirtCoulPot,ijOccVirtExchPot
 
         io1 = 0
         io2 = 0
@@ -4882,7 +4882,7 @@ MODULE RotateOrbsMod
         USE SystemData , only : nBasis
         USE Logging , only : tRDMonfly
         INTEGER :: i,j,k,l,a,b,ierr
-        REAL*8 :: FOCKDiagSumHF,FOCKDiagSumNew
+        real(dp) :: FOCKDiagSumHF,FOCKDiagSumNew
         CHARACTER(len=*) , PARAMETER :: this_routine='CalcFOCKMatrix'
         !NEED TO FIX THIS!
 
@@ -5056,8 +5056,8 @@ MODULE RotateOrbsMod
     SUBROUTINE RefillUMATandTMAT2D()
         INTEGER :: l,k,j,i,a,b,g,d,c,nBasis2,ierr
         INTEGER(TagIntType) :: TMAT2DPartTag
-        REAL*8 :: NewTMAT
-        REAL*8 , ALLOCATABLE :: TMAT2DPart(:,:)
+        real(dp) :: NewTMAT
+        real(dp) , ALLOCATABLE :: TMAT2DPart(:,:)
 #ifdef __CMPLX
         call stop_all('RefillUMATandTMAT2D', 'Rotating orbitals not implemented for complex orbitals.')
 #endif
@@ -5677,7 +5677,7 @@ MODULE RotateOrbsMod
     SUBROUTINE WriteShakeOUTstats02(ShakeIteration,TotLambdas,ConvergeCount)
 ! Debugging option    
         INTEGER :: m,a,l,ConvergeCount,ShakeIteration
-        REAL*8 :: TotLambdas 
+        real(dp) :: TotLambdas 
     
             WRITE(6,*) 'Iteration number ,', ShakeIteration
 
