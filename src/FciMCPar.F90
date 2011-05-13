@@ -229,6 +229,7 @@ MODULE FciMCParMod
                     call calculate_new_shift_wrapper (iter_data_fciqmc, &
                                                       TotParts)
                 endif
+                if(tRestart) cycle
 
                 !! Quick hack for spin projection
                 !if (tSpinProject .and. (mod(iter/stepssft, spin_proj_interval) == 0 .or. &
@@ -2701,12 +2702,33 @@ MODULE FciMCParMod
         if (iProcIndex == Root) then
             ! Have all of the particles died?
             if (AllTotwalkers == 0) then
-                write(6,*) AllTotWalkers, TotWalkers
-                call stop_all (this_routine, 'All particles have died. &
-                              &Consider choosing new seed, or raising shift &
-                              &value.')
+!                write(6,*) AllTotWalkers, TotWalkers
+!                call stop_all (this_routine, 'All particles have died. &
+!                              &Consider choosing new seed, or raising shift &
+!                              &value.')
+                write(6,"(A)") "All particles have died. Restarting."
+                tRestart=.true.
+            else
+                tRestart=.false.
             endif
+        endif
+        call MPIBCast(tRestart)
+        if(tRestart) then
+!Initialise variables for calculation on each node
+            Iter=1
+            CALL DeallocFCIMCMemPar()
+            IF(iProcIndex.eq.Root) THEN
+                CLOSE(fcimcstats_unit)
+                IF(tTruncInitiator.or.tDelayTruncInit) CLOSE(initiatorstats_unit)
+                IF(tLogComplexPops) CLOSE(complexstats_unit)
+            ENDIF
+            IF(TDebug) CLOSE(11)
+            CALL SetupParameters()
+            CALL InitFCIMCCalcPar()
+            return
+        endif
 
+        if(iProcIndex.eq.Root) then
 ! AJWT dislikes doing this type of if based on a (seeminly unrelated) input option, but can't see another easy way.
 !  TODO:  Something to make it better
 
@@ -3264,6 +3286,7 @@ MODULE FciMCParMod
 
         call collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all)
         call iter_diagnostics ()
+        if(tRestart) return
         call population_check ()
         call update_shift (iter_data)
         call WriteFCIMCStats ()
@@ -3832,10 +3855,12 @@ MODULE FciMCParMod
         HFConn=nSingles+nDoubles
 
 !Initialise random number seed - since the seeds need to be different on different processors, subract processor rank from random number
-        Seed=abs(G_VMC_Seed-iProcIndex)
-        WRITE(6,*) "Value for seed is: ",Seed
-!Initialise...
-        CALL dSFMT_init(Seed)
+        if(.not.tRestart) then
+            Seed=abs(G_VMC_Seed-iProcIndex)
+            WRITE(6,*) "Value for seed is: ",Seed
+            !Initialise...
+            CALL dSFMT_init(Seed)
+        endif
         
         ! Option tRandomiseHashOrbs has now been removed.
         ! Its behaviour is now considered default
