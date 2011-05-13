@@ -207,7 +207,7 @@ module hphf_integrals
         hel = hel + (ECore)
     end function hphf_diag_helement
 
-    pure function hphf_sign (ilut) result(sgn)
+    function hphf_sign (ilut) result(sgn)
 
         ! Is this HPHF  1/sqrt(2)*[X + X'], or 1/sqrt(2)*[X - X']
         ! Returns +-1 respectively

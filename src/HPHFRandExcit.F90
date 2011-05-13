@@ -344,7 +344,7 @@ MODULE HPHFRandExcitMod
 
 
 !This create the spin-coupled determinant of nI in nJ in natural ordered form.
-    SUBROUTINE FindDetSpinSym(nI,nJ,NEl)
+    PURE SUBROUTINE FindDetSpinSym(nI,nJ,NEl)
         INTEGER, intent(in) :: nI(NEl),NEl
         integer, intent(out) :: nJ(NEl)
         integer :: i
@@ -386,34 +386,16 @@ MODULE HPHFRandExcitMod
 !when the alpha and beta electrons are swapped (for S=0, see Helgakker for more details). It will sometimes be necessary to find this other
 !determinant when spawning. This routine will find the bit-representation of an excitation by constructing the symmetric iLut from the its
 !symmetric partner, also in bit form.
-    SUBROUTINE FindExcitBitDetSym(iLut,iLutSym)
+    PURE SUBROUTINE FindExcitBitDetSym(iLut,iLutSym)
         IMPLICIT NONE
-        INTEGER(KIND=n_int) :: iLut(0:NIfTot),iLutSym(0:NIfTot),iLutAlpha(0:NIfTot),iLutBeta(0:NIfTot)
+        INTEGER(KIND=n_int) , intent(in) :: iLut(0:NIfTot)
+        INTEGER(KIND=n_int) , intent(out) :: iLutSym(0:NIfTot)
+        INTEGER(KIND=n_int) :: iLutAlpha(0:NIfTot),iLutBeta(0:NIfTot)
         INTEGER :: i
 
-!        WRITE(6,*) "******"
         iLutSym(:)=0
         iLutAlpha(:)=0
         iLutBeta(:)=0
-
-!        WRITE(6,*) "MaskAlpha: "
-!        do i=0,31
-!            IF(BTEST(MaskAlpha,i)) THEN
-!                WRITE(6,"(I3)",advance='no') 1
-!            ELSE
-!                WRITE(6,"(I3)",advance='no') 0
-!            ENDIF
-!        enddo
-!        WRITE(6,*) ""
-!        WRITE(6,*) "MaskBeta: "
-!        do i=0,31
-!            IF(BTEST(MaskBeta,i)) THEN
-!                WRITE(6,"(I3)",advance='no') 1
-!            ELSE
-!                WRITE(6,"(I3)",advance='no') 0
-!            ENDIF
-!        enddo
-!        WRITE(6,*) ""
 
         do i=0,NIfD
 
