@@ -15,7 +15,7 @@ MODULE HPHFRandExcitMod
                                     CalcNonUniPGen, ScratchSize 
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet, &
                          FindBitExcitLevel, MaskAlpha, MaskBeta, &
-                         TestClosedShellDet, CalcOpenOrbs
+                         TestClosedShellDet, CalcOpenOrbs, IsAllowedHPHF
     use FciMCData, only: pDoubles, excit_gen_store_type
     use constants, only: dp,n_int
     use sltcnd_mod, only: sltcnd_excit
@@ -314,33 +314,6 @@ MODULE HPHFRandExcitMod
 
     END SUBROUTINE ReturnAlphaOpenDet
 
-    function IsAllowedHPHF (ilut, sym_ilut) result (bAllowed)
-
-        ! Is the specified determinant an 'allowed' HPHF function (i.e. can
-        ! it be found in the determinant list, or is it the symmetry paired
-        ! one?
-
-        integer(n_int), intent(in) :: ilut(0:NIfD)
-        integer(n_int) :: ilut_tmp(0:NIfD)
-        integer(n_int), intent(out), optional :: sym_ilut(0:NIfD)
-        logical :: bAllowed
-
-        if (TestClosedShellDet(ilut)) then
-            bAllowed = .true.
-        else
-            call spin_sym_ilut (ilut, ilut_tmp)
-            if (DetBitLt(ilut, ilut_tmp, NIfD) > 0) then
-                bAllowed = .false.
-            else
-                bAllowed = .true.
-            endif
-
-            if (present(sym_ilut)) sym_ilut = ilut_tmp
-        endif
-
-
-    end function
-
         
 !This create the spin-coupled determinant of nI in nJ in natural ordered form.
     SUBROUTINE FindDetSpinSym(nI,nJ,NEl)
@@ -378,21 +351,6 @@ MODULE HPHFRandExcitMod
 !        enddo
 
     END SUBROUTINE FindDetSpinSym
-
-    pure subroutine spin_sym_ilut (ilutI, ilutJ)
-
-        ! Generate the spin-coupled determinant of ilutI in ilutJ. Performs
-        ! the same operation as FindDetSpinSym rather more concisely.
-
-        integer(n_int), intent(in) :: ilutI(0:NIfD)
-        integer(n_int), intent(out) :: ilutJ(0:NIfD)
-        integer(n_int) :: ilut_tmp(0:NIfD)
-
-        ilut_tmp = ishft(iand(ilutI, MaskAlpha), -1)
-        ilutJ = ishft(iand(ilutI, MaskBeta), +1)
-        ilutJ = ior(ilutJ, ilut_tmp)
-
-    end subroutine
 
 !In closed-shell systems with equal number of alpha and beta strings, the amplitude of a determinant in the final CI wavefunction is the same
 !when the alpha and beta electrons are swapped (for S=0, see Helgakker for more details). It will sometimes be necessary to find this other

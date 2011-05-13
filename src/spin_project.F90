@@ -14,7 +14,7 @@ module spin_project
     use DeterminantData, only: write_det, get_lexicographic
     use dSFMT_interface, only: genrand_real2_dSFMT
     use util_mod, only: choose, binary_search
-    use HPHFRandExcitMod, only: IsAllowedHPHF
+    use DetBitOps, only: IsAllowedHPHF
 
     implicit none
 

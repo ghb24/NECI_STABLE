@@ -9,13 +9,13 @@ module hist
                           tOddS_HPHF, G1
     use DetBitOps, only: count_open_orbs, EncodeBitDet, spatial_bit_det, &
                          DetBitEq, count_open_orbs, TestClosedShellDet, &
-                         CalcOpenOrbs
+                         CalcOpenOrbs, IsAllowedHPHF
     use CalcData, only: tFCIMC, tTruncInitiator
     use DetCalcData, only: FCIDetIndex, det
     use FciMCData, only: tFlippedSign, TotWalkers, CurrentDets, iter, &
                          norm_psi_squared
     use util_mod, only: choose, get_free_unit, binary_search
-    use HPHFRandExcitMod, only: FindExcitBitDetSym, IsAllowedHPHF
+    use HPHFRandExcitMod, only: FindExcitBitDetSym
     use hphf_integrals, only: hphf_sign
     use constants, only: n_int, bits_n_int, size_n_int, lenof_sign
     use bit_rep_data, only: NIfTot, NIfD
