@@ -72,6 +72,7 @@ real(dp), target :: DiagSft
 
 real(dp) :: GraphEpsilon
 real(dp) :: PGenEpsilon
+real(dp) :: TargetGrowRate
 
 
 !// additional from NECI.F

@@ -1085,6 +1085,15 @@ The following options are only available in **FCIMC** calculations:
     This gives the time in minutes before exiting out of the MC run, potentially writing a popsfile, then
     exiting. This should be more reliable than the watchdog script. This will work for both FCIMC and CCMC.
 
+**TARGETGROWRATE** [TargetGrowRate]
+    Default = 0
+
+    This gives the target growth rate for the FCIQMC algorithm once we have entered variable shift.
+    Default is 0, so that there is no net growth of walkers. Since this only affects once in variable
+    shift, it has the potential to quite quickly run out of memory. The best idea is to start with a large
+    number of specified walkers, and use CHANGEVARS facility to move into variable shift from the beginning.
+
+
     
 INITIATOR OPTIONS
 -----------------

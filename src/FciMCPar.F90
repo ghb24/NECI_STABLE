@@ -34,7 +34,8 @@ MODULE FciMCParMod
                         iRestartWalkNum, tRestartHighPop, FracLargerDet, &
                         tChangeProjEDet, tCheckHighestPop, tSpawnSpatialInit,&
                         MemoryFacInit, tMaxBloom, tTruncNOpen, tFCIMC, &
-                        trunc_nopen_max, tSpawn_Only_Init, tSpawn_Only_Init_Grow
+                        trunc_nopen_max, tSpawn_Only_Init, tSpawn_Only_Init_Grow, &
+                        TargetGrowRate
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
     use Determinants, only: FDet, get_helement, write_det, &
@@ -2668,8 +2669,6 @@ MODULE FciMCParMod
 
 
     ! TODO: COMMENTING
-
-
     subroutine iter_diagnostics ()
 
         character(*), parameter :: this_routine = 'iter_diagnostics'
@@ -2725,6 +2724,13 @@ MODULE FciMCParMod
             IF(TDebug) CLOSE(11)
             CALL SetupParameters()
             CALL InitFCIMCCalcPar()
+            call WriteFciMCStatsHeader()
+            ! Prepend a # to the initial status line so analysis doesn't pick up
+            ! repetitions in the FCIMCStats or INITIATORStats files from restarts.
+    !        write (6,'("#")', advance='no')
+            write (fcimcstats_unit,'("#")', advance='no')
+            write (initiatorstats_unit,'("#")', advance='no')
+            call WriteFCIMCStats()
             return
         endif
 
@@ -3134,15 +3140,16 @@ MODULE FciMCParMod
             ! How should the shift change for the entire ensemble of walkers 
             ! over all processors.
             if (.not. tSinglePartPhase) then
-                
+
+                !In case we want to continue growing, TargetGrowRate > 0.D0
                 ! New shift value
-                DiagSft = DiagSft - (log(AllGrowRate) * SftDamp) / &
+                DiagSft = DiagSft - (log(AllGrowRate-TargetGrowRate) * SftDamp) / &
                                     (Tau * StepsSft)
 
                 if (lenof_sign == 2) then
-                    DiagSftRe = DiagSftRe - (log(AllGrowRateRe) * SftDamp) / &
+                    DiagSftRe = DiagSftRe - (log(AllGrowRateRe-TargetGrowRate) * SftDamp) / &
                                             (Tau * StepsSft)
-                    DiagSftIm = DiagSftIm - (log(AllGrowRateIm) * SftDamp) / &
+                    DiagSftIm = DiagSftIm - (log(AllGrowRateIm-TargetGrowRate) * SftDamp) / &
                                             (Tau * StepsSft)
                 endif
 
@@ -3158,7 +3165,7 @@ MODULE FciMCParMod
                 ! Update DiagSftAbort for initiator algorithm
                 if (tTruncInitiator) then
                     DiagSftAbort = DiagSftAbort - &
-                              (log(real(AllGrowRateAbort, dp)) * SftDamp) / &
+                              (log(real(AllGrowRateAbort-TargetGrowRate, dp)) * SftDamp) / &
                               (Tau * StepsSft)
 
                     if (iter - VaryShiftIter >= nShiftEquilSteps) then

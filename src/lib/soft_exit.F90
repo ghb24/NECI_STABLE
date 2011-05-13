@@ -40,6 +40,7 @@
 !   VARYSHIFT            Exit fixed shift phase
 !   NMCYC XXX            Change the number of monte carlo cycles to perform
 !   TAU XXX              Change the value of tau for the simulation
+!   TARGETGROWRATE XXX   Change the target growthrate for the simulation
 !   DIAGSHIFT XXX        Change the shift
 !   SHIFTDAMP XXX        Change the shift damping parameter
 !   STEPSSHIFT XXX       Change the length of the update cycle
@@ -102,7 +103,8 @@ module soft_exit
                         InitiatorWalkNo, tCheckHighestPop, tRestartHighPop, &
                         tChangeProjEDet, tCheckHighestPopOnce, FracLargerDet,&
                         SinglesBias_value => SinglesBias, tau_value => tau, &
-                        nmcyc_value => nmcyc, tTruncNOpen, trunc_nopen_max
+                        nmcyc_value => nmcyc, tTruncNOpen, trunc_nopen_max, &
+                        target_grow_rate => TargetGrowRate
     use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
                              NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt
@@ -156,10 +158,11 @@ contains
                               spin_project_cutoff = 33, &
                               spin_project_spawn_initiators = 34, &
                               spin_project_no_death = 35, &
-                              spin_project_iter_count = 36, trunc_nopen = 37
+                              spin_project_iter_count = 36, trunc_nopen = 37, &
+                              targetgrowrate = 38
 
-        integer, parameter :: last_item = trunc_nopen
-        integer, parameter :: max_item_len = 29
+        integer, parameter :: last_item = targetgrowrate
+        integer, parameter :: max_item_len = 30
         character(max_item_len), parameter :: option_list(last_item) &
                                = (/"excite                       ", &
                                    "truncatecas                  ", &
@@ -197,7 +200,8 @@ contains
                                    "spin-project-spawn-initiators", &
                                    "spin-project-no-death        ", &
                                    "spin-project-iter-count      ", &
-                                   "trunc-nopen                  "/)
+                                   "trunc-nopen                  ", &
+                                   "targetgrowrate               "/)
 
 
         logical :: exists, any_exist, eof, deleted, any_deleted, tSource
@@ -259,6 +263,8 @@ contains
                         ! Do we have any other items to read in?
                         if (i == tau) then
                             call readf (tau_value)
+                        elseif (i == TargetGrowRate) then
+                            call readf (target_grow_rate)
                         elseif (i == diagshift) then
                             call readf (DiagSft)
                         elseif (i == shiftdamp) then
@@ -422,6 +428,11 @@ contains
             if (opts_selected(tau)) then
                 call MPIBCast (tau_value, tSource)
                 write(6,*) 'TAU changed to: ', tau_value, 'on iteration: ', iter
+            endif
+
+            if(opts_selected(targetgrowrate)) then
+                call MPIBCast(target_grow_rate, tSource)
+                write(6,*) "TARGETGROWRATE changed to: ",target_grow_rate, "on iteration: ",iter
             endif
 
             ! Change the shift value
