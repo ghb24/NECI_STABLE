@@ -206,4 +206,23 @@ module hphf_integrals
 
         hel = hel + (ECore)
     end function hphf_diag_helement
+
+    pure function hphf_sign (ilut) result(sgn)
+
+        ! Is this HPHF  1/sqrt(2)*[X + X'], or 1/sqrt(2)*[X - X']
+        ! Returns +-1 respectively
+
+        integer :: sgn, open_orbs
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+
+        call CalcOpenOrbs(ilut, open_orbs)
+
+        if ((mod(open_orbs, 2) == 0) .neqv. tOddS_HPHF) then
+            sgn = 1
+        else
+            sgn = -1
+        endif
+
+    end function
+
 end module
