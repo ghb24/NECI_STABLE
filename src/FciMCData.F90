@@ -232,6 +232,7 @@ MODULE FciMCData
       integer(TagIntType) :: tag_ref_iluts = 0, tag_ref_dets = 0, tag_ref_coeffs = 0
       real(dp) :: proje_denominator_cyc(lenof_sign)
       real(dp) :: proje_denominator_sum(lenof_sign)
+      logical :: tRestart   !Whether to restart a calculation
       
 
       ! ********************** FCIMCPar control variables *****************

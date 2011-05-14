@@ -1833,7 +1833,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    use FciMCData, only: Iter
    use FciMCData, only: TotParts,TotWalkers,TotWalkersOld,TotPartsOld,AllTotPartsOld,AllTotWalkersOld,AllTotParts
    use FciMCData, only: tTruncSpace,Hii
-   use FciMCData, only: ProjectionE,iLutHF
+   use FciMCData, only: ProjectionE,iLutHF,tRestart
    use FciMCParMod, only: CheckAllowedTruncSpawn, SetupParameters,BinSearchParts3
    use FciMCParMod, only: InitHistMin, calculate_new_shift_wrapper
    use FciMCData, only: NoatHF,NoatDoubs
@@ -1849,6 +1849,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    use CalcData, only: DiagSft
    use CalcData, only: tAddToInitiator,InitiatorWalkNo,tTruncInitiator
    IMPLICIT NONE
+   character(len=*), parameter :: this_routine="CCMCStandalone"
    real(dp) Weight,EnergyxW
    TYPE(AmplitudeList_double),target :: AL
 
@@ -2151,8 +2152,13 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
 !TotWalkers is used for this and is WalkerScale* total of all amplitudes
       NoAtHF=AL%Amplitude(iRefPos,iCurAmpList)
 
-      if(iShiftLeft.le.0)  Call calculate_new_shift_wrapper(iter_data_ccmc, &
-                                                            TotParts)
+      if(iShiftLeft.le.0)  then
+          Call calculate_new_shift_wrapper(iter_data_ccmc, &
+                                    TotParts)
+          if(tRestart) then
+              call stop_all(this_routine,"All particles died.")
+          endif
+      endif
       if(iShiftLeft.le.0)  iShiftLeft=StepsSft
       Iter=Iter+1
 !Reset number at HF and doubles
@@ -2192,7 +2198,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use FciMCData, only: TotParts,TotWalkers,TotWalkersOld,TotPartsOld,AllTotPartsOld,AllTotWalkersOld,AllTotParts
    use FciMCData, only: NoatHF,NoatDoubs
    use FciMCData, only: tTruncSpace
-   use FciMCData, only: ProjectionE,iLutHF
+   use FciMCData, only: ProjectionE,iLutHF,tRestart
    use FciMCParMod, only: CheckAllowedTruncSpawn, SetupParameters,BinSearchParts3
    use FciMCParMod, only: InitHistMin, calculate_new_shift_wrapper
    use FciMCParMod, only: WriteHistogram,SumEContrib
@@ -2510,8 +2516,11 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       endif
       
 !TotParts is used for this and is WalkerScale* total of all amplitudes
-      if(iShiftLeft.le.0)  Call calculate_new_shift_wrapper(iter_data_ccmc, &
-                                                            TotParts)
+      if(iShiftLeft.le.0)  then
+          Call calculate_new_shift_wrapper(iter_data_ccmc, &
+                                                TotParts)
+          if(tRestart) call stop_all(this_routine,"All particles died.")
+      endif
       if(iShiftLeft.le.0)  iShiftLeft=StepsSft
 !Reset number at HF and doubles
       NoatHF=0
