@@ -35,7 +35,7 @@ MODULE nElRDMMod
         USE SystemData , only : tUseMP2VarDenMat, Ecore, LMS 
         USE NatOrbsMod , only : NatOrbMat,NatOrbMatTag,Evalues,EvaluesTag
         USE CalcData , only : MemoryFacPart
-        USE constants , only : n_int
+        USE constants , only : n_int, dp
         USE OneEInts , only : TMAT2D
         USE FciMCData , only : MaxWalkersPart, MaxSpawned, Spawned_Parents, PreviousCycles
         USE FciMCData , only : Spawned_Parents_Index, Spawned_ParentsTag
@@ -54,12 +54,12 @@ MODULE nElRDMMod
         INTEGER :: Doub_ExcDjsTag,Doub_ExcDjs2Tag,OneElRDMTag,UMATTempTag
         INTEGER :: Energies_unit, Iter_Accum,ActualStochSign_unit
         INTEGER :: OneRDM_unit, TwoRDM_unit
-        REAL*8 , ALLOCATABLE :: OneElRDM(:,:)
-        REAL*8 , ALLOCATABLE :: TwoElRDM(:,:)
-        REAL*8 , ALLOCATABLE :: AllTwoElRDM(:,:)
-        REAL*8 , ALLOCATABLE :: UMATTemp(:,:)
-        REAL*8 :: OneEl_Gap,TwoEl_Gap, Normalisation, Trace_2RDM, Trace_1RDM
-        REAL*8 :: RDMEnergy_Accum
+        REAL(dp) , ALLOCATABLE :: OneElRDM(:,:)
+        REAL(dp) , ALLOCATABLE :: TwoElRDM(:,:)
+        REAL(dp) , ALLOCATABLE :: AllTwoElRDM(:,:)
+        REAL(dp) , ALLOCATABLE :: UMATTemp(:,:)
+        REAL(dp) :: OneEl_Gap,TwoEl_Gap, Normalisation, Trace_2RDM, Trace_1RDM
+        REAL(dp) :: RDMEnergy_Accum
         LOGICAL :: tFinalRDMEnergy
         type(timer), save :: nElRDM_Time, FinaliseRDM_time
 
@@ -251,7 +251,8 @@ MODULE nElRDMMod
                 Energies_unit = get_free_unit()
                 OPEN(Energies_unit,file='Energies',status='unknown')
 
-                WRITE(Energies_unit, "(A1,4A30)") '#','Iteration','RDM Energy (Stochastic)',"Inst RDM ('Exact')", "Av RDM ('Exact')"
+!                WRITE(Energies_unit, "(A1,4A30)") '#','Iteration','RDM Energy (Stochastic)',"Inst RDM ('Exact')", "Av RDM ('Exact')"
+                WRITE(Energies_unit, "(A1,2A30)") '#','Iteration','RDM Energy (Stochastic)'
             ENDIF
 
         ENDIF
@@ -445,7 +446,7 @@ MODULE nElRDMMod
         INTEGER(kind=n_int) :: iLutnI(0:NIfTot)
         INTEGER(int64) :: MaxTotWalkers,TotWalkIn(2),TotWalkOut(2)
         INTEGER :: i,error
-        REAL*8 :: TempTotParts, NormalisationTemp, Sum_Coeffs
+        REAL(dp) :: TempTotParts, NormalisationTemp, Sum_Coeffs
         LOGICAL :: blank_det
         INTEGER, DIMENSION(lenof_sign) :: SignI, SignI2
 
@@ -671,8 +672,8 @@ MODULE nElRDMMod
     SUBROUTINE Fill_Diag_RDM(nI,SignDi,probsign)
         integer , intent(in) :: nI(NEl)
         integer , dimension(lenof_sign), intent(in) :: SignDi
-        real*8 , intent(in) , optional :: probsign
-        real*8 :: realSignDi, realSignDi_prob
+        real(dp) , intent(in) , optional :: probsign
+        real(dp) :: realSignDi, realSignDi_prob
         integer :: i, j, Ind
 
 ! Need to add in the diagonal elements.
@@ -824,7 +825,7 @@ MODULE nElRDMMod
         INTEGER :: i,j,NoDets,StartDets,PartInd 
         INTEGER :: nI(NEl),nJ(NEl),Ex(2,2),FlagsDi,FlagsDj
         LOGICAL :: tDetFound,tParity
-        REAL*8 :: realSignDi, realSignDj
+        REAL(dp) :: realSignDi, realSignDj
 
 ! Take each Dj, and binary search the CurrentDets to see if it is occupied.
 
@@ -879,9 +880,9 @@ MODULE nElRDMMod
     subroutine Fill_Sings_RDM(nI,Ex,tParity,realSignDi,realSignDj,tfill_symm)
         integer , intent(in) :: nI(NEl), Ex(2,2)
         logical , intent(in) :: tParity, tfill_symm
-        real*8 , intent(in) :: realSignDi, realSignDj
+        real(dp) , intent(in) :: realSignDi, realSignDj
         integer :: k, Indij, Indab
-        real*8 :: ParityFactor, realSignDi_scaled, realSignDj_scaled
+        real(dp) :: ParityFactor, realSignDi_scaled, realSignDj_scaled
 
 !        WRITE(6,*) '* In singles'
 !        WRITE(6,*) 'Ex(1,:)',Ex(1,:)
@@ -942,7 +943,7 @@ MODULE nElRDMMod
         INTEGER :: i,j,NoDets,StartDets,PartInd 
         INTEGER :: nI(NEl),nJ(NEl),Ex(2,2),FlagsDi,FlagsDj
         LOGICAL :: tDetFound,tParity
-        REAL*8 :: realSignDi,realSignDj
+        REAL(dp) :: realSignDi,realSignDj
 
 ! Take each Dj, and binary search the CurrentDets to see if it is occupied.
     
@@ -1002,9 +1003,9 @@ MODULE nElRDMMod
     subroutine Fill_Doubs_RDM(Ex,tParity,realSignDi,realSignDj,tfill_symm)
         integer , intent(in) :: Ex(2,2)
         logical , intent(in) :: tParity, tfill_symm
-        real*8 , intent(in) :: realSignDi, realSignDj
+        real(dp) , intent(in) :: realSignDi, realSignDj
         integer :: k, Indij, Indab
-        real*8 :: realSignDi_scaled, realSignDj_scaled, ParityFactor
+        real(dp) :: realSignDi_scaled, realSignDj_scaled, ParityFactor
 
         ParityFactor=1.D0
         IF(tParity) ParityFactor=-1.D0
@@ -1043,7 +1044,129 @@ MODULE nElRDMMod
 
     end subroutine Fill_Doubs_RDM
 
+    subroutine Fill_Spin_Coupled_RDM(iLutnI,iLutnJ,nI,nJ,ExcLevel,realSignI,realSignJ,tFill_SymmCiCj)
+!If the two HPHF determinants we're considering consist of I + I' and J + J', 
+!where X' is the spin coupled (all spins flipped) version of X,
+!then we have already considered the I -> J excitation.
+!And if I and J are connected by a double excitation, tDoubleConnection is true and we have also considered I' -> J'.
+!But we need to also account for I -> J' and I' -> J.
+        use HPHFRandExcitMod, only: FindExcitBitDetSym
+        USE DetBitOps , only : FindBitExcitLevel
+        integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot)
+        integer , intent(in) :: nI(NEl), nJ(NEl), ExcLevel
+        real(dp) , intent(in) :: realSignI, realSignJ
+        logical, intent(in) :: tFill_SymmCiCj
+        integer(kind=n_int) :: iLutnI2(0:NIfTot),iLutnJ2(0:NIfTot)
+        integer :: Ex(2,2), SpinCoupI_J_ExcLevel, nI2(NEl), nJ2(NEl)
+        logical :: tParity, TestClosedShellDet
 
+!First we flip the spin of both determinants, and store I' and J'.
+!Actually if I and J are related by a double excitation, we don't need J'.        
+
+!First we flip the spin of I', and find out the excitation level between I' and J.
+!If this is a double excitation, we don't actually need to find J' - we can just invert the excitation matrix of 
+!the I' -> J transition.
+!If this is anything above a double, we likewise don't need to find J', because I -> J' will also have a 0 matrix element.
+
+        ! First need to check that I actually has a unique spin coupled determinant I'.
+        if (.not. TestClosedShellDet(iLutnI)) then
+
+            !Find I'.
+            call FindExcitBitDetSym(iLutnI, iLutnI2)
+            call decode_bit_det (nI2, iLutnI2)
+
+            !Find excitation level between I' and J - not necessarily the same as 
+            !that between I and J.
+            SpinCoupI_J_ExcLevel = FindBitExcitLevel (iLutnI2, iLutnJ, 2)
+
+            if (SpinCoupI_J_ExcLevel.le.2) then
+
+                ! I' -> J.
+                call Add_RDM_From_IJ_Pair(nI2,nJ,realSignI,realSignJ,tFill_SymmCiCj)
+
+            elseif( .not.(ExcLevel.le.2) ) then
+                
+                call Stop_All('Fill_Spin_Coupled_RDM','No spin combination are connected.')
+
+            endif
+
+            !Now see if we want to add in I' -> J', and I -> J'.
+            if ( .not. TestClosedShellDet(iLutnJ) ) then
+
+                !Find J'.
+                call FindExcitBitDetSym(iLutnJ, iLutnJ2)
+                call decode_bit_det (nJ2, iLutnJ2)
+
+                ! I' -> J'.
+                if (ExcLevel.le.2) call Add_RDM_From_IJ_Pair(nI2,nJ2,realSignI,realSignJ,tFill_SymmCiCj)
+
+                ! The excitation level of I -> J' is equal to I' -> J found above.
+                ! I -> J'.
+                if (SpinCoupI_J_ExcLevel.le.2) call Add_RDM_From_IJ_Pair(nI, nJ2,realSignI,realSignJ,tFill_SymmCiCj)
+
+            endif
+
+        elseif( .not. TestClosedShellDet(iLutnJ) ) then
+            ! This is the case where I is closed shell, but we still need I -> J' as well. 
+
+            ! First need to find J'.
+            call FindExcitBitDetSym(iLutnJ, iLutnJ2)
+
+            !Find excitation level between I and J'.
+            SpinCoupI_J_ExcLevel = FindBitExcitLevel (iLutnI, iLutnJ2, 2)
+
+            if (SpinCoupI_J_ExcLevel.le.2) then
+                call decode_bit_det (nJ2, iLutnJ2)
+                
+                ! I -> J'.
+                call Add_RDM_From_IJ_Pair(nI,nJ2,realSignI,realSignJ,tFill_SymmCiCj)
+
+           endif
+
+        endif
+
+    end subroutine Fill_Spin_Coupled_RDM
+
+    subroutine Add_RDM_From_IJ_Pair(nI,nJ,realSignI,realSignJ,tFill_SymmCiCj)
+        integer , intent(in) :: nI(NEl), nJ(NEl)
+        real(dp) , intent(in) :: realSignI, realSignJ
+        logical , intent(in) :: tFill_SymmCiCj
+        integer :: Ex(2,2)
+        logical :: tParity
+
+        Ex(:,:) = 0
+        Ex(1,1) = 2
+        tParity = .false.
+
+        call GetExcitation(nI,nJ,NEl,Ex,tParity)
+! Ex(1,:) comes out as the orbital(s) excited from, Ex(2,:) comes out as the orbital(s) excited to.                    
+
+        IF(Ex(1,1).le.0) THEN
+            write(6,*) '*'
+            WRITE(6,*) 'nI',nI
+            WRITE(6,*) 'nJ',nJ
+            WRITE(6,*) 'Ex(:,:)',Ex(1,1),Ex(1,2),Ex(2,1),Ex(2,2)
+            WRITE(6,*) 'tParity',tParity
+            WRITE(6,*) 'realSignI',realSignI
+            WRITE(6,*) 'realSignJ',realSignJ
+            write(6,*) '*'
+            call flush(6)
+            CALL Stop_All('Add_RDM_From_IJ_Pair',&
+                        'Excitation level between pair not 1 or 2 as it should be.')
+        ENDIF
+
+        !Add in contribution from I -> J.
+        if((Ex(1,2).eq.0).and.(Ex(2,2).eq.0)) then
+
+            call Fill_Sings_RDM(nI,Ex,tParity,realSignI,realSignJ,tFill_SymmCiCj)
+
+        else
+
+            call Fill_Doubs_RDM(Ex,tParity,realSignI,realSignJ,tFill_SymmCiCj)
+
+        endif
+
+    end subroutine Add_RDM_From_IJ_Pair
 
     SUBROUTINE FinaliseRDM()
 ! This routine finalises the one electron reduced density matrix stuff.
@@ -1055,7 +1178,7 @@ MODULE nElRDMMod
         USE RotateOrbsMod , only : FourIndInts, FourIndIntsTag
         USE RotateOrbsData , only : NoOrbs
         INTEGER :: error,i,j,ierr
-        REAL*8 :: SumDiag
+        REAL(dp) :: SumDiag
         CHARACTER(len=*), PARAMETER :: this_routine='FinaliseRDM'
 
 
@@ -1211,8 +1334,8 @@ MODULE nElRDMMod
 ! occupied orbitals first, in terms of symmetry, and the virtual second, also ordered by symmetry.
 ! This gives us flexibility w.r.t rotating only the occupied or only virtual and looking at high spin states.
         IMPLICIT NONE
-        REAL*8 :: SumTrace,SumDiagTrace
-        REAL*8 , ALLOCATABLE :: WORK2(:),EvaluesSym(:),NOMSym(:,:)
+        REAL(dp) :: SumTrace,SumDiagTrace
+        REAL(dp) , ALLOCATABLE :: WORK2(:),EvaluesSym(:),NOMSym(:,:)
         INTEGER :: ierr,i,j,spin,Sym,LWORK2,WORK2Tag,SymStartInd,NoSymBlock,PrevSym
         INTEGER :: EvaluesSymTag,NOMSymTag
         CHARACTER(len=*), PARAMETER :: this_routine='DiagRDM'
@@ -1489,7 +1612,7 @@ MODULE nElRDMMod
         CHARACTER(len=*), PARAMETER :: this_routine='FillCoeffT1_RDM'
         CHARACTER(len=5) :: Label
         CHARACTER(len=20) :: LabelFull
-        REAL*8 :: OccEnergies(1:NoRotOrbs)
+        REAL(dp) :: OccEnergies(1:NoRotOrbs)
         INTEGER , ALLOCATABLE :: SymLabelListInvNew(:)
         INTEGER :: ierr, Orb, New_Pos
   
@@ -1577,7 +1700,7 @@ MODULE nElRDMMod
     SUBROUTINE Transform2ElIntsMemSave_RDM()
         USE RotateOrbsMod , only : FourIndInts
         INTEGER :: i,j,k,l,a,b,g,d,ierr,Temp4indintsTag,a2,b2,g2,d2
-        REAL*8 , ALLOCATABLE :: Temp4indints(:,:)
+        REAL(dp) , ALLOCATABLE :: Temp4indints(:,:)
 #ifdef __CMPLX
         call stop_all('Transform2ElIntsMemSave_RDM', 'Rotating orbitals not implemented for complex orbitals.')
 #endif
@@ -1689,9 +1812,9 @@ MODULE nElRDMMod
         USE SystemData , only : nBasis
         USE Logging , only : tRDMonfly
         INTEGER :: i,j,k,l,a,b,ierr,ArrDiagNewTag
-        REAL*8 :: FOCKDiagSumHF,FOCKDiagSumNew
+        REAL(dp) :: FOCKDiagSumHF,FOCKDiagSumNew
         CHARACTER(len=*) , PARAMETER :: this_routine='CalcFOCKMatrix_RDM'
-        REAL*8 , ALLOCATABLE :: ArrDiagNew(:)
+        REAL(dp) , ALLOCATABLE :: ArrDiagNew(:)
         !NEED TO FIX THIS!
 
 ! This subroutine calculates and writes out the fock matrix for the transformed orbitals.
@@ -1798,8 +1921,8 @@ MODULE nElRDMMod
     SUBROUTINE RefillUMATandTMAT2D_RDM()
         USE RotateOrbsMod , only : FourIndInts, PrintROFCIDUMP, PrintRepeatROFCIDUMP
         INTEGER :: l,k,j,i,a,b,g,d,c,nBasis2,TMAT2DPartTag,ierr
-        REAL*8 :: NewTMAT
-        REAL*8 , ALLOCATABLE :: TMAT2DPart(:,:)
+        REAL(dp) :: NewTMAT
+        REAL(dp) , ALLOCATABLE :: TMAT2DPart(:,:)
 #ifdef __CMPLX
         call stop_all('RefillUMATandTMAT2D_RDM', 'Rotating orbitals not implemented for complex orbitals.')
 #endif
@@ -2147,9 +2270,9 @@ MODULE nElRDMMod
         USE RotateOrbsMod , only : SymLabelList2
         USE UMatCache, only: GTID
         INTEGER :: i,j,k,l,Ind2,Ind1,i2,j2,k2,l2,ierr
-        REAL*8 :: RDMEnergy, Coul, Exch, Norm_1RDM, Norm_2RDM, AllAccumRDMNorm, stochastic_factor 
-        REAL*8 :: Trace_2RDM_New, RDMEnergy1El, RDMEnergy2El, ParityFactor, Trace_1RDM_New
-        REAL*8 , ALLOCATABLE :: TestRDM(:,:)
+        REAL(dp) :: RDMEnergy, Coul, Exch, Norm_1RDM, Norm_2RDM, AllAccumRDMNorm, stochastic_factor 
+        REAL(dp) :: Trace_2RDM_New, RDMEnergy1El, RDMEnergy2El, ParityFactor, Trace_1RDM_New
+        REAL(dp) , ALLOCATABLE :: TestRDM(:,:)
         INTEGER :: TestRDMTag
 
 !        ALLOCATE(UMATTemp(((nBasis*(nBasis-1))/2),((nBasis*(nBasis-1))/2)),stat=ierr)
@@ -2392,10 +2515,10 @@ MODULE nElRDMMod
         INTEGER :: AllTotWalkers
         LOGICAL :: tParity
         INTEGER, DIMENSION(lenof_sign) :: SignI, SignJ
-        REAL*8 :: Test_Energy, Sum_Coeffs, SignIreal, SignJreal 
-        REAL*8 :: Test_Energy_1El, Test_Energy_2El, ParityFactor
-        REAL*8 :: Coul, Exch 
-        REAL*8 , ALLOCATABLE :: TestRDM(:,:)
+        REAL(dp) :: Test_Energy, Sum_Coeffs, SignIreal, SignJreal 
+        REAL(dp) :: Test_Energy_1El, Test_Energy_2El, ParityFactor
+        REAL(dp) :: Coul, Exch 
+        REAL(dp) , ALLOCATABLE :: TestRDM(:,:)
         INTEGER(n_int) , ALLOCATABLE :: AllCurrentDets(:,:)
         HElement_t :: H_IJ
         INTEGER :: Ind1,Ind2,TestRDMTag,ierr,comm
@@ -2675,8 +2798,8 @@ MODULE nElRDMMod
         USE NatOrbsMod , only : FindNatOrbsOld
         IMPLICIT NONE
         INTEGER :: i,j,error,ierr
-        REAL*8 :: TempSumNoatHF
-        REAL*8 , ALLOCATABLE :: TempRDM(:,:)
+        REAL(dp) :: TempSumNoatHF
+        REAL(dp) , ALLOCATABLE :: TempRDM(:,:)
 
         INTEGER :: SumNoatHF,AllSumNoatHF,RDM(100,100),HFDet(10)
 
@@ -2732,10 +2855,11 @@ END MODULE nElRDMMod
         USE FciMCData , only : CurrentDets,TotParts, iLutHF, AllTotPartsTemp, Iter 
         USE FciMCData , only : Spawned_Parents, Spawned_Parents_Index
         USE bit_reps , only : NIfTot, NIfDBO, decode_bit_det
-        USE nElRDMMod , only : Fill_Sings_RDM, Fill_Doubs_RDM, Fill_Diag_RDM
+        USE nElRDMMod , only : Fill_Sings_RDM, Fill_Doubs_RDM, Fill_Diag_RDM, &
+                               Add_RDM_From_IJ_Pair, Fill_Spin_Coupled_RDM
         USE Logging , only : tAllSpawnAttemptsRDM
         USE Logging , only : tFullRDM, tHF_S_D_Ref, tHF_Ref, tExplicitHFRDM
-        USE SystemData , only : NEl
+        USE SystemData , only : NEl,tHPHF
         USE Parallel
         USE constants , only : n_int, dp, lenof_sign
         USE DetBitOps , only : DetBitEQ, FindBitExcitLevel
@@ -2744,7 +2868,8 @@ END MODULE nElRDMMod
         integer(kind=n_int) , intent(in) :: iLutJ(0:NIfTot)
         integer , dimension(lenof_sign) , intent(in) :: SignJ
         integer :: i, nI(NEl), nJ(NEl), Ex(2,2), walkExcitLevel, SignI
-        real*8 :: realSignI, realSignJ, TempTotParts, realdiagSignI
+        integer :: ExcLevel
+        real(dp) :: realSignI, realSignJ, TempTotParts, realdiagSignI
         logical :: tParity, tFill_SymmCiCj
 
 
@@ -2761,6 +2886,8 @@ END MODULE nElRDMMod
             IF(tExplicitHFRDM.and.DetBitEQ(Spawned_Parents(0:NIfDBO,i),iLutHF,NIfDBO)) CYCLE
 
             IF(tHF_S_D_Ref) THEN
+                !PUT A STOP IN HERE IF USING HPHF AND AN OPEN SHELL HF.
+                !Spin coupled determinants not necessarily the same excitation level from HF.
                 walkExcitLevel = FindBitExcitLevel (iLutHF, Spawned_Parents(0:NIfDBO,i), NEl)
                 IF(walkExcitLevel.gt.2) CYCLE
                 walkExcitLevel = FindBitExcitLevel (iLutHF, iLutJ, NEl)
@@ -2790,42 +2917,18 @@ END MODULE nElRDMMod
 
             realSignJ = real(SignJ(1),dp)
 
-            Ex(:,:) = 0
-            Ex(1,1) = 2
-            tParity = .false.
-            call GetExcitation(nI,nJ,NEl,Ex,tParity)
-! Ex(1,:) comes out as the orbital(s) excited from, Ex(2,:) comes out as the orbital(s) excited to.                    
+            IF(tHPHF) THEN
+                ExcLevel = FindBitExcitLevel (Spawned_Parents(0:NIfDBO,i), iLutJ, 2)
+                IF(ExcLevel.le.2) call Add_RDM_From_IJ_Pair(nI,nJ,realSignI,realSignJ,tFill_SymmCiCj)
 
-            if(Ex(1,1).le.0) THEN
-                WRITE(6,*) 'nI',nI
-                WRITE(6,*) 'nJ',nJ
-                WRITE(6,*) 'iLutI',Spawned_Parents(:,i)
-                WRITE(6,*) 'iLutJ',iLutJ
-                CALL Stop_All('DiDj_Found_FillRDM','Di and Dj seperated by more than a single or double excitation.')
+                if(tHPHF) call Fill_Spin_Coupled_RDM(Spawned_Parents(0:NIfDBO,i),iLutJ,nI,nJ,ExcLevel,realSignI,realSignJ,tFill_SymmCiCj)
+            ELSE
+                call Add_RDM_From_IJ_Pair(nI,nJ,realSignI,realSignJ,tFill_SymmCiCj)
             ENDIF
-
-            if((Ex(1,2).eq.0).and.(Ex(2,2).eq.0)) then
-
-                !Here we are adding in *only* i -> a, not a -> i. why? still not sure... 
-!                write(6,*) 'adding to single stochastic'
-!                write(6,*) 'Ex(1,:)',Ex(1,:)
-!                write(6,*) 'Ex(2,:)',Ex(2,:)
-
-                call Fill_Sings_RDM(nI,Ex,tParity,realSignI,realSignJ,tFill_SymmCiCj)
-
-            else
-
-!                write(6,*) 'adding to double stochastic'
-!                write(6,*) 'Ex(1,:)',Ex(1,:)
-!                write(6,*) 'Ex(2,:)',Ex(2,:)
-                call Fill_Doubs_RDM(Ex,tParity,realSignI,realSignJ,tFill_SymmCiCj)
-
-            endif
 
         enddo
 
 
     END SUBROUTINE DiDj_Found_FillRDM
-
 
 

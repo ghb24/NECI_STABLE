@@ -720,9 +720,11 @@ MODULE FciMCParMod
         integer :: DetCurr(nel), nJ(nel), FlagsCurr, parent_flags
         integer, dimension(lenof_sign) :: SignCurr, child
         integer(kind=n_int) :: iLutnJ(0:niftot)
+        integer(kind=n_int) :: SpinCoupDet(0:niftot)
+        integer :: nSpinCoup(NEl)
         integer :: IC, walkExcitLevel, ex(2,2), TotWalkersNew, part_type
         integer(int64) :: tot_parts_tmp(lenof_sign)
-        logical :: tParity
+        logical :: tParity, TestClosedShellDet
         real(dp) :: prob, HDiagCurr, TempTotParts
         HElement_t :: HDiagTemp,HElGen
 #ifdef __DEBUG
@@ -870,7 +872,14 @@ MODULE FciMCParMod
 
             if(tFillingRDMonFly.and.tStochasticRDM) then
 
-                IF(tFullRDM) call Fill_Diag_RDM(DetCurr, SignCurr)
+                if(tFullRDM) then
+                    call Fill_Diag_RDM(DetCurr, SignCurr)
+                    if(tHPHF.and.(.not.TestClosedShellDet(CurrentDets(:,j)))) then
+                        call FindExcitBitDetSym(CurrentDets(:,j), SpinCoupDet)
+                        call decode_bit_det (nSpinCoup, SpinCoupDet)
+                        call Fill_Diag_RDM(nSpinCoup, SignCurr)
+                    endif
+                endif
 
                 IF((tHF_S_D_Ref.and.(.not.tExplicitHFRDM)).and. &
                     (walkExcitLevel.le.2)) THEN
