@@ -789,6 +789,7 @@ module DetBitOps
         endif
     end function
 
+
 end module
 
     pure subroutine GetBitExcitation(iLutnI,iLutnJ,Ex,tSign)
@@ -902,39 +903,6 @@ end module
 
     end subroutine GetBitExcitation
 
-
-
-!This function will return true if the determinant is closed shell, or false if not.
-    PURE FUNCTION TestClosedShellDet(iLut) result(tClosed)
-        use bit_rep_data, only: NIfD
-        use constants, only: n_int
-        use DetBitOps, only: MaskAlpha,MaskBeta
-        IMPLICIT NONE
-        INTEGER(kind=n_int), intent(in) :: iLut(0:NIfD)
-        integer(n_int) :: iLutAlpha(0:NIfD),iLutBeta(0:NIfD)
-        logical :: tClosed
-        INTEGER :: i
-        
-        iLutAlpha(:)=0
-        iLutBeta(:)=0
-        tClosed=.true.
-
-        do i=0,NIfD
-
-            iLutAlpha(i)=IAND(iLut(i),MaskAlpha)    !Seperate the alpha and beta bit strings
-            iLutBeta(i)=IAND(iLut(i),MaskBeta)
-            iLutAlpha(i)=ISHFT(iLutAlpha(i),-1)     !Shift all alpha bits to the left by one.
-            iLutAlpha(i)=IEOR(iLutAlpha(i),iLutBeta(i)) !Do an XOR on the original beta bits and shifted alpha bits 
-                                                        !- they should cancel exactly.
-            
-            IF(iLutAlpha(i).ne.0) THEN
-                tClosed=.false.  !Det is not closed shell - return
-                RETURN
-            ENDIF
-        enddo
-
-    END FUNCTION TestClosedShellDet
-
 !Routine to count number of open *SPATIAL* orbitals in a bit-string representation of a determinant.
 ! ************************
 ! BROKEN
@@ -942,14 +910,16 @@ end module
 !       It counts the number of unpaired Beta electrons (ignores Alpha)
 !       --> Returns nopen/2 <==> Ms=0
 ! ************************
-    SUBROUTINE CalcOpenOrbs(iLut,OpenOrbs)
+    PURE SUBROUTINE CalcOpenOrbs(iLut,OpenOrbs)
         use bit_rep_data, only: NIfD
         use systemdata, only: nel
         use constants, only: n_int
         use DetBitOps, only: CountBits,MaskAlpha,MaskBeta
         IMPLICIT NONE
-        INTEGER(kind=n_int) :: iLut(0:NIfD),iLutAlpha(0:NIfD),iLutBeta(0:NIfD)
-        INTEGER :: i,OpenOrbs
+        INTEGER(kind=n_int), intent(in) :: iLut(0:NIfD)
+        INTEGER(kind=n_int) :: iLutAlpha(0:NIfD),iLutBeta(0:NIfD)
+        INTEGER :: i
+        INTEGER, intent(out) :: OpenOrbs
         
         iLutAlpha(:)=0
         iLutBeta(:)=0
@@ -982,6 +952,39 @@ end module
 
         OpenOrbs = CountBits(iLutAlpha,NIfD,NEl)
     END SUBROUTINE CalcOpenOrbs
+
+
+
+!This function will return true if the determinant is closed shell, or false if not.
+    PURE FUNCTION TestClosedShellDet(iLut) result(tClosed)
+        use bit_rep_data, only: NIfD
+        use constants, only: n_int
+        use DetBitOps, only: MaskAlpha,MaskBeta
+        IMPLICIT NONE
+        INTEGER(kind=n_int), intent(in) :: iLut(0:NIfD)
+        integer(n_int) :: iLutAlpha(0:NIfD),iLutBeta(0:NIfD)
+        logical :: tClosed
+        INTEGER :: i
+        
+        iLutAlpha(:)=0
+        iLutBeta(:)=0
+        tClosed=.true.
+
+        do i=0,NIfD
+
+            iLutAlpha(i)=IAND(iLut(i),MaskAlpha)    !Seperate the alpha and beta bit strings
+            iLutBeta(i)=IAND(iLut(i),MaskBeta)
+            iLutAlpha(i)=ISHFT(iLutAlpha(i),-1)     !Shift all alpha bits to the left by one.
+            iLutAlpha(i)=IEOR(iLutAlpha(i),iLutBeta(i)) !Do an XOR on the original beta bits and shifted alpha bits 
+                                                        !- they should cancel exactly.
+            
+            IF(iLutAlpha(i).ne.0) THEN
+                tClosed=.false.  !Det is not closed shell - return
+                RETURN
+            ENDIF
+        enddo
+
+    END FUNCTION TestClosedShellDet
 
 !This routine will find the largest bit set in a bit-string (i.e. the highest value orbital)
     SUBROUTINE LargestBitSet(iLut,NIfD,LargestOrb)
