@@ -1088,10 +1088,9 @@ The following options are only available in **FCIMC** calculations:
 **TARGETGROWRATE** [TargetGrowRate]
     Default = 0
 
-    This gives the target growth rate for the FCIQMC algorithm once we have entered variable shift.
-    Default is 0, so that there is no net growth of walkers. Since this only affects once in variable
-    shift, it has the potential to quite quickly run out of memory. The best idea is to start with a large
-    number of specified walkers, and use CHANGEVARS facility to move into variable shift from the beginning.
+    This gives the target growth rate for the FCIQMC algorithm while we are in fixed shift mode.
+    Once the target number of walkers has been reached, the target growth rate will automatically switch back
+    to zero.
 
 
     
