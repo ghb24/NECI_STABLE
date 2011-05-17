@@ -82,7 +82,8 @@ MODULE FciMCParMod
                          FindSpatialBitExcitLevel
     use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask, get_csf_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
-                              hphf_spawn_sign, hphf_off_diag_helement_spawn
+                              hphf_spawn_sign, hphf_off_diag_helement_spawn, &
+                              hphf_sign
     use MI_integrals
     use util_mod, only: choose, abs_int_sign, abs_int8_sign, binary_search
     use constants, only: dp, int64, n_int, lenof_sign
@@ -723,7 +724,7 @@ MODULE FciMCParMod
         integer, dimension(lenof_sign) :: SignCurr, child
         integer(kind=n_int) :: iLutnJ(0:niftot)
         integer(kind=n_int) :: SpinCoupDet(0:niftot)
-        integer :: nSpinCoup(NEl)
+        integer :: nSpinCoup(NEl), SignFac
         integer :: IC, walkExcitLevel, ex(2,2), TotWalkersNew, part_type
         integer(int64) :: tot_parts_tmp(lenof_sign)
         logical :: tParity, TestClosedShellDet
@@ -875,17 +876,20 @@ MODULE FciMCParMod
             if(tFillingRDMonFly.and.tStochasticRDM) then
 
                 if(tFullRDM) then
-                    call Fill_Diag_RDM(DetCurr, SignCurr)
                     if(tHPHF.and.(.not.TestClosedShellDet(CurrentDets(:,j)))) then
+                        call Fill_Diag_RDM(DetCurr, (real(SignCurr(1),dp)/SQRT(2.D0)))
                         call FindExcitBitDetSym(CurrentDets(:,j), SpinCoupDet)
                         call decode_bit_det (nSpinCoup, SpinCoupDet)
-                        call Fill_Diag_RDM(nSpinCoup, SignCurr)
+                        SignFac = hphf_sign(CurrentDets(:,j))
+                        call Fill_Diag_RDM(nSpinCoup, real(SignFac*SignCurr(1),dp)/SQRT(2.D0))
+                    else
+                        call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
                     endif
                 endif
 
                 IF((tHF_S_D_Ref.and.(.not.tExplicitHFRDM)).and. &
                     (walkExcitLevel.le.2)) THEN
-                    call Fill_Diag_RDM(DetCurr, SignCurr)
+                    call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
                     AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
                 ENDIF
 
@@ -902,7 +906,7 @@ MODULE FciMCParMod
                     if(walkExcitLevel.eq.1) then
 
                         if(tHF_S_D_Ref) then
-                            call Fill_Diag_RDM(DetCurr, SignCurr)
+                            call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
                             AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
                         endif
 
@@ -926,7 +930,7 @@ MODULE FciMCParMod
                     elseif(walkExcitLevel.eq.2) then
 
                         if(tHF_S_D_Ref) then
-                            call Fill_Diag_RDM(DetCurr, SignCurr)
+                            call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
                             AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
                         endif
 
@@ -945,7 +949,7 @@ MODULE FciMCParMod
 
                     elseif((walkExcitLevel.eq.0).and.(.not.tFullRDM)) then
 
-                        call Fill_Diag_RDM(DetCurr, SignCurr)
+                        call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
 
                         AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
 
@@ -1001,7 +1005,7 @@ MODULE FciMCParMod
                         child = 0
                     endif
 
-                    if(p.ne.1) RDMBiasFacI = 0.D0
+!                    if(p.ne.1) RDMBiasFacI = 0.D0
 
                     ! Children have been chosen to be spawned.
                     if ((any(child /= 0)).or.(tAllSpawnAttemptsRDM.and.tFillingRDMonFly.and.(.not.IsNullDet(nJ)))) then
@@ -1883,8 +1887,8 @@ MODULE FciMCParMod
             elseif(tFillingRDMonFly.and.tStochasticRDM.and.(child(1).ne.0)) then
                 if(n_int.eq.4) CALL Stop_All('attempt_create_normal','the bias factor currently does not work with 32 bit integers.')
 
-!                RDMBiasFacI = abs( p_spawn_rdmfac / ( real(rh , dp) * tau * 2.D0) ) 
-                RDMBiasFacI = abs( ( p_spawn_rdmfac * real(wSign(1),dp) ) / ( real(rh , dp) * tau * 2.D0 ) ) 
+                RDMBiasFacI = abs( p_spawn_rdmfac / ( real(rh , dp) * tau * 2.D0) ) 
+!                RDMBiasFacI = abs( ( p_spawn_rdmfac * real(wSign(1),dp) ) / ( real(rh , dp) * tau * 2.D0 ) ) 
 
                 if(wSign(1).lt.0) RDMBiasFacI = RDMBiasFacI * (-1.D0)
             endif
