@@ -881,7 +881,6 @@ module DetBitOps
 
     end subroutine
 
-
 end module
 
     pure subroutine GetBitExcitation(iLutnI,iLutnJ,Ex,tSign)
@@ -994,7 +993,6 @@ end module
         end if
 
     end subroutine GetBitExcitation
-
 
 !This routine will find the largest bit set in a bit-string (i.e. the highest value orbital)
     SUBROUTINE LargestBitSet(iLut,NIfD,LargestOrb)

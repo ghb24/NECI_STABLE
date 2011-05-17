@@ -34,7 +34,8 @@ MODULE FciMCParMod
                         iRestartWalkNum, tRestartHighPop, FracLargerDet, &
                         tChangeProjEDet, tCheckHighestPop, tSpawnSpatialInit,&
                         MemoryFacInit, tMaxBloom, tTruncNOpen, tFCIMC, &
-                        trunc_nopen_max, tSpawn_Only_Init, tSpawn_Only_Init_Grow
+                        trunc_nopen_max, tSpawn_Only_Init, tSpawn_Only_Init_Grow, &
+                        TargetGrowRate
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
     use Determinants, only: FDet, get_helement, write_det, &
@@ -237,6 +238,7 @@ MODULE FciMCParMod
                 endif
                 !call project_spin_csfs()
 
+                if(tRestart) cycle
 
                 !! Quick hack for spin projection
                 !if (tSpinProject .and. (mod(iter/stepssft, spin_proj_interval) == 0 .or. &
@@ -2675,8 +2677,6 @@ MODULE FciMCParMod
 
 
     ! TODO: COMMENTING
-
-
     subroutine iter_diagnostics ()
 
         character(*), parameter :: this_routine = 'iter_diagnostics'
@@ -2709,12 +2709,40 @@ MODULE FciMCParMod
         if (iProcIndex == Root) then
             ! Have all of the particles died?
             if (AllTotwalkers == 0) then
-                write(6,*) AllTotWalkers, TotWalkers
-                call stop_all (this_routine, 'All particles have died. &
-                              &Consider choosing new seed, or raising shift &
-                              &value.')
+!                write(6,*) AllTotWalkers, TotWalkers
+!                call stop_all (this_routine, 'All particles have died. &
+!                              &Consider choosing new seed, or raising shift &
+!                              &value.')
+                write(6,"(A)") "All particles have died. Restarting."
+                tRestart=.true.
+            else
+                tRestart=.false.
             endif
+        endif
+        call MPIBCast(tRestart)
+        if(tRestart) then
+!Initialise variables for calculation on each node
+            Iter=1
+            CALL DeallocFCIMCMemPar()
+            IF(iProcIndex.eq.Root) THEN
+                CLOSE(fcimcstats_unit)
+                IF(tTruncInitiator.or.tDelayTruncInit) CLOSE(initiatorstats_unit)
+                IF(tLogComplexPops) CLOSE(complexstats_unit)
+            ENDIF
+            IF(TDebug) CLOSE(11)
+            CALL SetupParameters()
+            CALL InitFCIMCCalcPar()
+            call WriteFciMCStatsHeader()
+            ! Prepend a # to the initial status line so analysis doesn't pick up
+            ! repetitions in the FCIMCStats or INITIATORStats files from restarts.
+    !        write (6,'("#")', advance='no')
+            write (fcimcstats_unit,'("#")', advance='no')
+            write (initiatorstats_unit,'("#")', advance='no')
+            call WriteFCIMCStats()
+            return
+        endif
 
+        if(iProcIndex.eq.Root) then
 ! AJWT dislikes doing this type of if based on a (seeminly unrelated) input option, but can't see another easy way.
 !  TODO:  Something to make it better
 
@@ -3105,6 +3133,9 @@ MODULE FciMCParMod
                                  ' - Shift can now change'
                     VaryShiftIter = Iter
                     tSinglePartPhase = .false.
+                    if(TargetGrowRate.ne.0.D0) then
+                        write(6,"(A)") "Setting target growth rate to 1."
+                    endif
                     if(tSpawn_Only_Init.and.tSpawn_Only_Init_Grow) then
                         !Remove the restriction that only initiators can spawn.
                         write(6,*) "All determinants now with the ability to spawn new walkers."
@@ -3121,16 +3152,17 @@ MODULE FciMCParMod
 
             ! How should the shift change for the entire ensemble of walkers 
             ! over all processors.
-            if (.not. tSinglePartPhase) then
-                
+            if ((.not. tSinglePartPhase).or.(TargetGrowRate.ne.0.D0)) then
+
+                !In case we want to continue growing, TargetGrowRate > 0.D0
                 ! New shift value
-                DiagSft = DiagSft - (log(AllGrowRate) * SftDamp) / &
+                DiagSft = DiagSft - (log(AllGrowRate-TargetGrowRate) * SftDamp) / &
                                     (Tau * StepsSft)
 
                 if (lenof_sign == 2) then
-                    DiagSftRe = DiagSftRe - (log(AllGrowRateRe) * SftDamp) / &
+                    DiagSftRe = DiagSftRe - (log(AllGrowRateRe-TargetGrowRate) * SftDamp) / &
                                             (Tau * StepsSft)
-                    DiagSftIm = DiagSftIm - (log(AllGrowRateIm) * SftDamp) / &
+                    DiagSftIm = DiagSftIm - (log(AllGrowRateIm-TargetGrowRate) * SftDamp) / &
                                             (Tau * StepsSft)
                 endif
 
@@ -3146,7 +3178,7 @@ MODULE FciMCParMod
                 ! Update DiagSftAbort for initiator algorithm
                 if (tTruncInitiator) then
                     DiagSftAbort = DiagSftAbort - &
-                              (log(real(AllGrowRateAbort, dp)) * SftDamp) / &
+                              (log(real(AllGrowRateAbort-TargetGrowRate, dp)) * SftDamp) / &
                               (Tau * StepsSft)
 
                     if (iter - VaryShiftIter >= nShiftEquilSteps) then
@@ -3200,6 +3232,7 @@ MODULE FciMCParMod
         call MPIBcast (tSinglePartPhase)
         call MPIBcast (VaryShiftIter)
         call MPIBcast (DiagSft)
+        if(.not.tSinglePartPhase) TargetGrowRate=0.D0
 
     end subroutine
 
@@ -3274,6 +3307,7 @@ MODULE FciMCParMod
 
         call collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all)
         call iter_diagnostics ()
+        if(tRestart) return
         call population_check ()
         call update_shift (iter_data)
         call WriteFCIMCStats ()
@@ -3858,10 +3892,12 @@ MODULE FciMCParMod
         HFConn=nSingles+nDoubles
 
 !Initialise random number seed - since the seeds need to be different on different processors, subract processor rank from random number
-        Seed=abs(G_VMC_Seed-iProcIndex)
-        WRITE(6,*) "Value for seed is: ",Seed
-!Initialise...
-        CALL dSFMT_init(Seed)
+        if(.not.tRestart) then
+            Seed=abs(G_VMC_Seed-iProcIndex)
+            WRITE(6,*) "Value for seed is: ",Seed
+            !Initialise...
+            CALL dSFMT_init(Seed)
+        endif
         
         ! Option tRandomiseHashOrbs has now been removed.
         ! Its behaviour is now considered default

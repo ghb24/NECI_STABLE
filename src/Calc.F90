@@ -34,6 +34,7 @@ contains
         ! Values for old parameters.
         ! These have no input options to change the defaults, but are used in
         ! the code.
+          TargetGrowRate=0.D0
           InitialPart=1
           TRHOOFR = .false.
           TCORR = .false.
@@ -834,6 +835,9 @@ contains
             case("STEPSSHIFT")
 !For FCIMC, this is the number of steps taken before the Diag shift is updated
                 call geti(StepsSft)
+            case("TARGETGROWRATE")
+!For FCIMC, this is the target growth rate once in vary shift mode.
+                call getf(TargetGrowRate)
             case("READPOPS")
 !For FCIMC, this indicates that the initial walker configuration will be read in from the file POPSFILE, which must be present.
 !DiagSft and InitWalkers will be overwritten with the values in that file.
