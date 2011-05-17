@@ -3123,6 +3123,9 @@ MODULE FciMCParMod
                                  ' - Shift can now change'
                     VaryShiftIter = Iter
                     tSinglePartPhase = .false.
+                    if(TargetGrowRate.ne.0.D0) then
+                        write(6,"(A)") "Setting target growth rate to 1."
+                    endif
                     if(tSpawn_Only_Init.and.tSpawn_Only_Init_Grow) then
                         !Remove the restriction that only initiators can spawn.
                         write(6,*) "All determinants now with the ability to spawn new walkers."
@@ -3139,7 +3142,7 @@ MODULE FciMCParMod
 
             ! How should the shift change for the entire ensemble of walkers 
             ! over all processors.
-            if (.not. tSinglePartPhase) then
+            if ((.not. tSinglePartPhase).or.(TargetGrowRate.ne.0.D0)) then
 
                 !In case we want to continue growing, TargetGrowRate > 0.D0
                 ! New shift value
@@ -3219,6 +3222,7 @@ MODULE FciMCParMod
         call MPIBcast (tSinglePartPhase)
         call MPIBcast (VaryShiftIter)
         call MPIBcast (DiagSft)
+        if(.not.tSinglePartPhase) TargetGrowRate=0.D0
 
     end subroutine
 
