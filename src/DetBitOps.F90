@@ -798,8 +798,8 @@ module DetBitOps
         logical :: tClosed
 
         ! Separate alphas and betas
-        alpha = iand(ilut, MaskAlpha)
-        beta = iand(ilut, MaskBeta)
+        alpha = iand(ilut(0:NIfD), MaskAlpha)
+        beta = iand(ilut(0:NIfD), MaskBeta)
 
         ! Shift and XOR to eliminate paired electrons
         alpha = ieor(beta, ishft(alpha, -1))
