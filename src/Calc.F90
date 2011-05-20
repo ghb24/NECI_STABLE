@@ -7,7 +7,8 @@ MODULE Calc
                             spin_proj_gamma, spin_proj_shift, &
                             spin_proj_cutoff, spin_proj_stochastic_yama, &
                             spin_proj_spawn_initiators, spin_proj_no_death, &
-                            spin_proj_iter_count
+                            spin_proj_iter_count, spin_proj_nopen_max, &
+                            disable_spin_proj_varyshift
     use default_sets
     use Determinants, only: iActiveBasis, SpecDet, tSpecDet, nActiveSpace, &
                             tDefineDet
@@ -236,6 +237,8 @@ contains
           spin_proj_shift = 0
           spin_proj_cutoff = 0
           spin_proj_iter_count = 1
+          spin_proj_nopen_max = -1
+          disable_spin_proj_varyshift = .false.
           tUseProcsAsNodes=.false.
 
           tSpawnSpatialInit = .false.
@@ -1295,6 +1298,14 @@ contains
                 ! selecting that symbol stochastically.
                 spin_proj_stochastic_yama = .true.
 
+            case("SPIN-PROJECT-NOPEN-LIMIT")
+                ! Determine the largest number of unpaired electrons a
+                ! determinant may have for us to apply spin projectino to it.
+                !
+                ! --> Attempt to reduce the exponential scaling of the
+                !     projection sum.
+                call geti (spin_proj_nopen_max)
+
             case("SPIN-PROJECT-SPAWN-INITIATORS")
                 ! If TRUNCINITIATOR is set, then ensure that all children of
                 ! initiators created by spin projection are made into
@@ -1314,6 +1325,21 @@ contains
                 ! How many times should the spin projection step be applied 
                 ! on each occasion it gets called? (default 1)
                 call geti (spin_proj_iter_count)
+
+            case("SPIN-PROJECT-VARYSHIFT-OFF")
+                ! When VARYSHIFT is enabled, turn spin projection off.
+                ! TODO: Should this be made default?
+                if (item < nitems) then
+                    call readu(w)
+                    select case(w)
+                    case("OFF")
+                        disable_spin_proj_varyshift = .false.
+                    case default
+                        disable_spin_proj_varyshift = .true.
+                    end select
+                else
+                    disable_spin_proj_varyshift = .true.
+                endif
 
             case("ALLOW-SPATIAL-INIT-SPAWNS")
                 ! If a determinant is an initiator, all spawns to other dets

@@ -14,7 +14,7 @@ MODULE ISKRandExcit
     use GenRandSymExcitNUMod, only: gen_rand_excit, CalcNonUniPGen, &
                                     ScratchSize 
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet, &
-                         FindBitExcitLevel
+                         FindBitExcitLevel, TestClosedShellDet
     use FciMCData, only: pDoubles, excit_gen_store_type
     use constants, only: dp,n_int,bits_n_int
     use HElem
@@ -346,8 +346,8 @@ MODULE ISKRandExcit
         INTEGER :: nIX(NEl)
         INTEGER :: i,Iterations,nI(NEl),nJ(NEl),DetConn,nI2(NEl),nJ2(NEl),DetConn2
         INTEGER :: iUniqueHPHF,iUniqueBeta,PartInd,ierr,iExcit
-        real(dp) :: pDoub,pGen
-        LOGICAL :: Unique,TestClosedShellDet,Die,tSwapped
+        real(dp) :: pDoub, pGen
+        logical :: Unique, Die, tSwapped
         INTEGER(KIND=n_int) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot),iLutnI2(0:NIfTot),iLutSym(0:NIfTot)
         INTEGER(KIND=n_int), ALLOCATABLE :: ConnsAlpha(:,:),ConnsBeta(:,:),UniqueHPHFList(:,:)
         INTEGER , ALLOCATABLE :: ExcitGen(:)

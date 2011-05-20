@@ -43,6 +43,9 @@ MODULE SymExcitDataMod
         integer, allocatable :: occ_list(:,:)
         integer, allocatable :: virt_list(:,:)
         logical :: tFilled
+        integer, allocatable :: dorder_i (:)
+        integer, allocatable :: dorder_j (:)
+        integer :: nopen
     end type
 
 END MODULE SymExcitDataMod

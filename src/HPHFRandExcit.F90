@@ -14,8 +14,9 @@ MODULE HPHFRandExcitMod
     use GenRandSymExcitNUMod, only: gen_rand_excit, &
                                     CalcNonUniPGen, ScratchSize 
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet, &
-                         FindBitExcitLevel,MaskAlpha,MaskBeta
-    use FciMCData, only: pDoubles
+                         FindBitExcitLevel, MaskAlpha, MaskBeta, &
+                         TestClosedShellDet, CalcOpenOrbs, IsAllowedHPHF
+    use FciMCData, only: pDoubles, excit_gen_store_type
     use constants, only: dp,n_int
     use sltcnd_mod, only: sltcnd_excit
     use bit_reps, only: NIfD, NIfDBO, NIfTot
@@ -59,7 +60,7 @@ MODULE HPHFRandExcitMod
         integer :: openOrbsI, openOrbsJ, nJ2(nel), ex2(2,2), excitLevel 
         real(dp) :: pGen2
         HElement_t :: MatEl, MatEl2
-        logical :: TestClosedShellDet, tSign, tSignOrig
+        logical :: tSign, tSignOrig
         logical :: tSwapped
 
         ! Avoid warnings
@@ -312,63 +313,32 @@ MODULE HPHFRandExcitMod
         ENDIF
 
     END SUBROUTINE ReturnAlphaOpenDet
+
         
-!This is a functions to return whether a given determinant (iLutnI) is
-!an "allowed" HPHF function or not (i.e. whether it could be found in the 
-!simulation.
-    LOGICAL FUNCTION IsAllowedHPHF(iLutnI)
-        use SystemData , only : NEl 
-        USE Bit_reps , only : Decode_Bit_Det
-        IMPLICIT NONE
-        INTEGER :: nI(NEl)
-        INTEGER(KIND=n_int) , intent(in) :: iLutnI(0:NIfTot)
-        INTEGER(KIND=n_int) :: iLutSym(0:NIfTot)
-        INTEGER :: nJ(NEl)
-        LOGICAL :: tClosedShell,tSwapped
-        LOGICAL :: TestClosedShellDet
-
-        tClosedShell=TestClosedShellDet(iLutnI)
-        IF(tClosedShell) THEN
-            IsAllowedHPHF=.true.
-            RETURN
-        ENDIF
-        CALL Decode_Bit_Det(nI,iLutnI)
-        CALL ReturnAlphaOpenDet(nI,nJ,iLutnI,iLutSym,.true.,.true.,tSwapped)
-
-        IF(tSwapped) THEN
-            IsAllowedHPHF=.false.
-        ELSE
-            IsAllowedHPHF=.true.
-        ENDIF
-    END FUNCTION IsAllowedHPHF
-
-
 !This create the spin-coupled determinant of nI in nJ in natural ordered form.
     PURE SUBROUTINE FindDetSpinSym(nI,nJ,NEl)
         INTEGER, intent(in) :: nI(NEl),NEl
         integer, intent(out) :: nJ(NEl)
         integer :: i
 
-        do i=1,NEl
-            IF(mod(nI(i),2).eq.0) THEN
-!electron is an alpha - change it to a beta (remove one)
-!However, we only want to do this if the electron before it is not the beta in the same spatial orbital
-                IF(i.eq.1) THEN
-                    nJ(i)=nI(i)-1
-                ELSEIF((nI(i)-1).ne.nI(i-1)) THEN
-                    nJ(i)=nI(i)-1
-                ELSE
-                    nJ(i)=nI(i)
-                ENDIF
-            ELSE
-                IF(i.eq.NEl) THEN
-                    nJ(i)=nI(i)+1
-                ELSEIF((nI(i)+1).ne.nI(i+1)) THEN
-                    nJ(i)=nI(i)+1
-                ELSE
-                    nJ(i)=nI(i)
-                ENDIF
-            ENDIF
+        do i = 1, nel
+
+            ! If electron is an alpha electron, change it to a beta (unless
+            ! it is part of a closed pair of electrons).
+            if (is_alpha(nI(i))) then
+                if (i == 1 .or. (get_beta(nI(i)) /= nI(i-1))) then
+                    nJ(i) = nI(i) - 1
+                else
+                    nJ(i) = nI(i)
+                endif
+            ! vice-versa for beta.
+            else
+                if (i == nel .or. (get_alpha(nI(i)) /= nI(i+1))) then
+                    nJ(i) = nI(i) + 1
+                else
+                    nJ(i) = nI(i)
+                endif
+            endif
         enddo
 
 !        nTemp(:)=nJ(:)
@@ -380,7 +350,6 @@ MODULE HPHFRandExcitMod
 !        enddo
 
     END SUBROUTINE FindDetSpinSym
-
 
 !In closed-shell systems with equal number of alpha and beta strings, the amplitude of a determinant in the final CI wavefunction is the same
 !when the alpha and beta electrons are swapped (for S=0, see Helgakker for more details). It will sometimes be necessary to find this other

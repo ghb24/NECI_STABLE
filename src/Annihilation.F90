@@ -1,6 +1,6 @@
 !This module is to be used for various types of walker MC annihilation in serial and parallel.
 MODULE AnnihilationMod
-    use SystemData , only : NEl, tHPHF
+    use SystemData , only : NEl, tHPHF, nBasis
     use CalcData , only : TRegenExcitgens,tRegenDiagHEls
     USE DetCalcData , only : Det,FCIDetIndex
     USE Parallel
@@ -1009,7 +1009,7 @@ MODULE AnnihilationMod
     END SUBROUTINE InsertRemoveParts
 
     pure function DetermineDetNode (nI, iIterOffset) result(node)
-        use SystemData, only: nBasis
+
         ! Depending on the Hash, determine which node determinant nI
         ! belongs to in the DirectAnnihilation scheme. NB FCIMC has each processor as a separate logical node.
         !

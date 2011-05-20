@@ -60,15 +60,18 @@ MODULE FciMCParMod
                        HistInitPopsTag, OrbOccs, OrbOccsTag, &
                        tPrintPopsDefault, iWriteBlockingEvery, &
                        tBlockEveryIteration, tHistInitPops, HistInitPopsIter,&
-                       HistInitPops, DoubsUEG, DoubsUEGLookup, DoubsUEGStore, &
-                       tPrintDoubsUEG, StartPrintDoubsUEG, tMCOutput
+                       HistInitPops, DoubsUEG, DoubsUEGLookup, DoubsUEGStore,&
+                       tPrintDoubsUEG, StartPrintDoubsUEG, tCalcInstantS2, &
+                       instant_s2_multiplier, tMCOutput
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
                     hist_spin_dist, ilut_spindist, tHistSpinDist, &
                     write_clear_hist_spin_dist, hist_spin_dist_iter, &
                     test_add_hist_spin_dist_det, add_hist_energies, &
                     add_hist_spawn, tHistSpawn, AllHistogramEnergy, &
                     AllHistogram, HistogramEnergy, Histogram, AllInstHist, &
-                    InstHist, HistMinInd
+                    InstHist, HistMinInd, project_spins, calc_s_squared, &
+                    project_spin_csfs, calc_s_squared_multi, &
+                    calc_s_squared_star
     USE SymData , only : nSymLabels
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE Parallel
@@ -76,8 +79,8 @@ MODULE FciMCParMod
     USE AnnihilationMod
     use PopsfileMod
     use DetBitops, only: EncodeBitDet, DetBitEQ, DetBitLT, FindExcitBitDet, &
-                         FindBitExcitLevel, countbits, &
-                         FindSpatialBitExcitLevel
+                         FindBitExcitLevel, countbits, TestClosedShellDet, &
+                         FindSpatialBitExcitLevel, IsAllowedHPHF
     use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask, get_csf_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
@@ -96,7 +99,9 @@ MODULE FciMCParMod
                             spin_proj_gamma, get_spawn_helement_spin_proj, &
                             generate_excit_spin_proj, attempt_die_spin_proj, &
                             iter_data_spin_proj, test_spin_proj, &
-                            spin_proj_shift, spin_proj_iter_count
+                            spin_proj_shift, spin_proj_iter_count, &
+                            init_yama_store, clean_yama_store, &
+                            disable_spin_proj_varyshift
     use symrandexcit3, only: gen_rand_excit3, test_sym_excit3
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
@@ -173,7 +178,8 @@ MODULE FciMCParMod
 
             ! Are we projecting the spin out between iterations?
             if (tSpinProject .and. (mod(Iter, spin_proj_interval) == 0 .or. &
-                                    spin_proj_interval == -1)) then
+                                    spin_proj_interval == -1) .and. &
+                (tSinglePartPhase .or. .not. disable_spin_proj_varyshift))then
                 do i = 1, max(spin_proj_iter_count, 1)
                     call PerformFciMCycPar (generate_excit_spin_proj, &
                                            attempt_create_normal, &
@@ -230,6 +236,8 @@ MODULE FciMCParMod
                     call calculate_new_shift_wrapper (iter_data_fciqmc, &
                                                       TotParts)
                 endif
+                !call project_spin_csfs()
+
                 if(tRestart) cycle
 
                 !! Quick hack for spin projection
@@ -2798,7 +2806,7 @@ MODULE FciMCParMod
         integer :: pop_highest, proc_highest, pop_change
         integer :: det(nel), i, error
         integer(int32) :: int_tmp(2)
-        logical :: tSwapped, TestClosedShellDet
+        logical :: tSwapped
         HElement_t :: h_tmp
 
         if (tCheckHighestPop) then
@@ -3015,7 +3023,8 @@ MODULE FciMCParMod
         call MPISum ((/TotWalkers, norm_psi_squared, TotParts, SumNoatHF, &
                        tot_parts_new/), int64_tmp(1:2+3*lenof_sign))
         AllTotWalkers = int64_tmp(1)
-        norm_psi = sqrt(real(int64_tmp(2), dp))
+        norm_psi_squared = int64_tmp(2)
+        norm_psi = sqrt(real(norm_psi_squared, dp))
         AllTotParts = int64_tmp(3:2+lenof_sign)
         AllSumNoatHF = int64_tmp(3+lenof_sign:2+2*lenof_sign)
         tot_parts_new_all = int64_tmp(3+2*lenof_sign:2+3*lenof_sign)
@@ -3041,14 +3050,15 @@ MODULE FciMCParMod
         call MPISumAll (SumWalkersCyc, AllSumWalkersCyc)
 
 !        WRITE(6,*) "***",iter_data%update_growth_tot,AllTotParts-AllTotPartsOld
+        
 #ifdef __DEBUG
         !Write this 'ASSERTROOT' out explicitly to avoid line lengths problems
-        if((iProcIndex.eq.Root).and.(.not.all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld))) then
+        if ((iProcIndex == root) .and. .not. tSpinProject .and. &
+         (.not.all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld))) then
             call stop_all (this_routine, &
-                "Assertation failed: "//"all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld)")
+                "Assertation failed: all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld)")
         endif
 #endif
-!        ASSERTROOT(all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld))
     
     end subroutine collate_iter_data
 
@@ -3359,7 +3369,8 @@ MODULE FciMCParMod
                    &  20.HFInstShift  21.TotInstShift  &
                    &22.HFContribtoE(Both)  &
                    &23.NumContribtoE(Re)  &
-                   &24.NumContribtoE(Im)  25.HF weight   26.|Psi|"
+                   &24.NumContribtoE(Im)  25.HF weight   26.|Psi|    &
+                   &28.Inst S^2"
 #else
             if(tMCOutput) then
                 write(6,"(A)") "       Step     Shift      WalkerCng    &
@@ -3379,7 +3390,7 @@ MODULE FciMCParMod
                   &17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime  &
                   &20.ProjE.ThisIter  21.HFInstShift  22.TotInstShift  &
                   &23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE &
-                  &26.HF weight    27.|Psi|"
+                  &26.HF weight    27.|Psi|     28.Inst S^2"
 #endif
             
         ENDIF
@@ -3388,10 +3399,23 @@ MODULE FciMCParMod
 
     subroutine WriteFCIMCStats()
 
+        ! What is the current value of S2
+        ! TODO: This should probably be placed somewhere cleaner.
+        if (tCalcInstantS2) then
+            if (mod(iter / StepsSft, instant_s2_multiplier) == 0) then
+                curr_S2 = calc_s_squared_star (.false.)
+            !    curr_S2_init = calc_s_squared_star(.true.)
+            endif
+        else
+            curr_S2 = -1
+            curr_S2_init = -1
+        endif
+
         if (iProcIndex == root) then
+
 #ifdef __CMPLX
             write(fcimcstats_unit,"(I12,G16.7,2I10,2I12,4G17.9,3I10,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,7G17.9)") &
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9)") &
                 Iter + PreviousCycles, &                !1.
                 DiagSft, &                              !2.
                 AllTotParts(1) - AllTotPartsOld(1), &   !3.
@@ -3417,7 +3441,8 @@ MODULE FciMCParMod
                 real((AllENumCyc * conjg(AllHFCyc)),dp), &   !22.    Re[\sum njH0j] x Re[n0] + Im[\sum njH0j] x Im[n0]   No div by StepsSft
                 aimag(AllENumCyc * conjg(AllHFCyc)), &       !23.    Im[\sum njH0j] x Re[n0] - Re[\sum njH0j] x Im[n0]   since no physicality
                 sqrt(float(sum(AllNoatHF**2))) / norm_psi, &
-                norm_psi
+                norm_psi, &
+                curr_S2
 
             if(tMCOutput) then
                 write (6, "(I12,G16.7,2I10,2I12,4G17.9,3I10,G13.5,I12,G13.5)") &
@@ -3440,7 +3465,7 @@ MODULE FciMCParMod
 #else
 
             write(fcimcstats_unit,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9)") &
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,10G17.9)") &
                 Iter + PreviousCycles, &
                 DiagSft, &
                 sum(AllTotParts) - sum(AllTotPartsOld), &
@@ -3467,7 +3492,8 @@ MODULE FciMCParMod
                 AllHFCyc / StepsSft, &
                 AllENumCyc / StepsSft, &
                 real(AllNoatHF, dp) / norm_psi, &
-                norm_psi
+                norm_psi, &
+                curr_S2, curr_S2_init
 
             if(tMCOutput) then
                 write (6, "(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,&
@@ -3579,7 +3605,7 @@ MODULE FciMCParMod
         real(dp) :: TotDets,SymFactor,r,Gap
         CHARACTER(len=*), PARAMETER :: this_routine='SetupParameters'
         CHARACTER(len=12) :: abstr
-        LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped,TestClosedShellDet
+        LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped
         INTEGER :: HFLz,ChosenOrb,KPnt(3), step,SymHF
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
@@ -5512,6 +5538,8 @@ MODULE FciMCParMod
             CALL Stop_All(this_routine,"Cannot use the SPAWNONLYINIT option without the TRUNCINITIATOR option.")
         endif
 
+        if (tSpinProject) call init_yama_store ()
+
     end subroutine InitFCIMCCalcPar
 
 !Routine to initialise the particle distribution according to a CAS diagonalisation. 
@@ -5522,7 +5550,6 @@ MODULE FciMCParMod
         use DeterminantData, only : write_det,write_det_len 
         use DetCalcData, only : NKRY,NBLK,B2L,nCycle
         use sym_mod , only : Getsym, writesym
-        use HPHFRandExcitMod , only : IsAllowedHPHF
         use MomInv, only: IsAllowedMI 
         type(BasisFN) :: CASSym
         integer :: i,j,ierr,nEval,NKRY1,NBLOCK,LSCR,LISCR,DetIndex,iNode,NoWalkers
@@ -5530,7 +5557,7 @@ MODULE FciMCParMod
         integer , allocatable :: CASBrr(:),CASDet(:),CASFullDets(:,:),nRow(:),Lab(:),ISCR(:),INDEX(:)
         integer , pointer :: CASDetList(:,:) => null()
         integer(n_int) :: iLutnJ(0:NIfTot)
-        logical :: tMC,TestClosedShellDet
+        logical :: tMC
         HElement_t :: HDiagTemp
         real(dp) , allocatable :: CK(:,:),W(:),CKN(:,:),Hamil(:),A(:,:),V(:),BM(:),T(:),WT(:),SCR(:),WH(:),Work2(:),V2(:,:),AM(:)
         integer(TagIntType) :: ATag=0,VTag=0,BMTag=0,TTag=0,WTTag=0,SCRTag=0,WHTag=0,Work2Tag=0,V2Tag=0,ISCRTag=0,IndexTag=0,AMTag=0
@@ -5876,7 +5903,6 @@ MODULE FciMCParMod
 !Routine to initialise the particle distribution according to the MP1 wavefunction.
 !This hopefully will help with close-lying excited states of the same sym.
     subroutine InitFCIMC_MP1()
-        use HPHFRandExcitMod , only : IsAllowedHPHF
         use MomInv, only: IsAllowedMI
         use Determinants, only: GetH0Element3,GetH0Element4
         use SymExcit3 , only : GenExcitations3
@@ -5886,7 +5912,7 @@ MODULE FciMCParMod
         integer :: iExcits,exflag,Ex(2,2),nJ(NEl),ic,DetIndex,iNode,NoWalkers,iInit
         integer(n_int) :: iLutnJ(0:NIfTot)
         integer, dimension(lenof_sign) :: temp_sign
-        logical :: tAllExcitsFound,tParity,TestClosedShellDet
+        logical :: tAllExcitsFound,tParity
         character(len=*), parameter :: this_routine="InitFCIMC_MP1"
 
         if(lenof_sign.ne.1) call stop_all(this_routine,"StartMP1 currently does not work with complex walkers")
@@ -6471,6 +6497,9 @@ MODULE FciMCParMod
 
         ! Cleanup linear combination projected energy
         call clean_linear_comb ()
+
+        ! Cleanup storage for spin projection
+        call clean_yama_store ()
 
 
 !There seems to be some problems freeing the derived mpi type.
