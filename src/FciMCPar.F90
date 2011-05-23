@@ -338,7 +338,8 @@ MODULE FciMCParMod
             IF(tHistHamil.and.(mod(Iter,iWriteHamilEvery).eq.0)) THEN
                 CALL WriteHamilHistogram()
             ENDIF
-            IF(tFillingRDMonFly.and.tStochasticRDM.and.(Iter .ne. IterRDMonFly).and.&
+!            IF(tFillingRDMonFly.and.tStochasticRDM.and.(Iter .ne. IterRDMonFly).and.&
+            IF(tFillingRDMonFly.and.(Iter .ne. IterRDMonFly).and.&
                 (mod(Iter-IterRDMonFly,RDMEnergyIter).eq.0)) CALL Calc_Energy_from_RDM()  
 
             Iter=Iter+1
@@ -1731,7 +1732,7 @@ MODULE FciMCParMod
             end function
         end interface
         
-        real(dp) :: rat, r, p_spawn_rdmfac
+        real(dp) :: rat, r, p_spawn_rdmfac, p_notspawn_rdmfac
         integer :: extracreate, iUnused
         logical :: tpspawn_gt1
         HElement_t :: rh
@@ -1854,9 +1855,12 @@ MODULE FciMCParMod
             if(tFillingRDMonFly.and.tStochasticRDM) then
                 if(rat.gt.1.D0) then
                     p_spawn_rdmfac = rat
+!                    p_spawn_rdmfac = 1.D0
                 else
                     p_spawn_rdmfac = 1.D0
+!                    p_spawn_rdmfac = tau * abs( real(rh,dp) / prob )
                 endif
+                p_notspawn_rdmfac = ( 1.D0 - prob ) + ( prob * (1.D0 - p_spawn_rdmfac) )
             endif
 
             ! If probability > 1, then we just create multiple children at the
@@ -1888,6 +1892,9 @@ MODULE FciMCParMod
                 if(n_int.eq.4) CALL Stop_All('attempt_create_normal','the bias factor currently does not work with 32 bit integers.')
 
                 RDMBiasFacI = abs( p_spawn_rdmfac / ( real(rh , dp) * tau * 2.D0) ) 
+!                RDMBiasFacI = abs( real(wSign(1),dp) ) / ( 1.D0 - ( p_notspawn_rdmfac ** (abs(real(wSign(1),dp)))) )
+
+
 !                RDMBiasFacI = abs( ( p_spawn_rdmfac * real(wSign(1),dp) ) / ( real(rh , dp) * tau * 2.D0 ) ) 
 
                 if(wSign(1).lt.0) RDMBiasFacI = RDMBiasFacI * (-1.D0)

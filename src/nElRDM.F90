@@ -245,7 +245,7 @@ MODULE nElRDMMod
         FinaliseRDM_Time%timer_name='FinaliseRDMTime'
 
 
-        IF(tStochasticRDM) THEN
+!        IF(tStochasticRDM) THEN
 
             IF(iProcIndex.eq.0) THEN
                 Energies_unit = get_free_unit()
@@ -255,7 +255,7 @@ MODULE nElRDMMod
                 WRITE(Energies_unit, "(A1,2A30)") '#','Iteration','RDM Energy (Stochastic)'
             ENDIF
 
-        ENDIF
+!        ENDIF
 
         AccumRDMNorm = 0.D0
         RDMEnergy_Accum = 0.D0
@@ -587,7 +587,7 @@ MODULE nElRDMMod
 ! This becomes true when all the excitations have been found.        
 
             do while (.not.tAllExcitFound)
-                write(6,*) 'generating singles'
+!                write(6,*) 'generating singles'
                 call flush(6)
                 CALL GenExcitations3(nI,iLutnI,nJ,1,ExcitMat3(:,:),tParity,tAllExcitFound,.true.)            
 ! Passed out of here is the singly excited determinant, nJ.
@@ -688,8 +688,9 @@ MODULE nElRDMMod
         else
 !            realSignDi = real(SignDi(1)) * (1.D0 / Normalisation)
 !            realSignDi = real(SignDi(1)) * ( REAL(AllTotPartsTemp) / ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) )
+            realSignDi_prob = realSignDi
             SignDiFac =  REAL(AllTotPartsTemp) / ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) 
-            CALL Stop_All('Fill_Diag_RDM','This doesnt seem right.')
+!            CALL Stop_All('Fill_Diag_RDM','This doesnt seem right.')
         endif
 
 !        WRITE(6,*) realSignDi
@@ -2519,7 +2520,8 @@ MODULE nElRDMMod
 !            WRITE(Energies_unit, "(I31,F30.15)",advance='no') Iter,RDMEnergy
 !            IF(tStochasticRDM) WRITE(Energies_unit, "(I31,F30.15)",advance='no') Iter,RDMEnergy
 !            WRITE(Energies_unit, "(I31,2F30.15)") Iter+PreviousCycles,RDMEnergy,RDMEnergy_Accum/real(Iter_Accum,dp)
-            IF(tStochasticRDM) WRITE(Energies_unit, "(I31,F30.15)") Iter+PreviousCycles,RDMEnergy
+!            IF(tStochasticRDM) WRITE(Energies_unit, "(I31,F30.15)") Iter+PreviousCycles,RDMEnergy
+            WRITE(Energies_unit, "(I31,F30.15)") Iter+PreviousCycles,RDMEnergy
 
             if(tFinalRDMEnergy) then
                 close(OneRDM_unit)
@@ -2915,9 +2917,9 @@ END MODULE nElRDMMod
         integer(kind=n_int) , intent(in) :: iLutJ(0:NIfTot)
         integer , dimension(lenof_sign) , intent(in) :: SignJ
         integer :: i, nI(NEl), nJ(NEl), Ex(2,2), walkExcitLevel, SignI
-        integer :: ExcLevel
+        integer :: ExcLevel, j
         real(dp) :: realSignI, realSignJ, TempTotParts, realdiagSignI
-        logical :: tParity, tFill_SymmCiCj
+        logical :: tParity, tFill_SymmCiCj, tDetAdded
 
 
 !        TempTotParts=REAL(TotParts(1),dp)
@@ -2929,6 +2931,17 @@ END MODULE nElRDMMod
         ! The parents are stored in Spawned_Parents, in positions given by Spawned_Parents_Index.
         do i = Spawned_Parents_Index(1,Spawned_No), &
                 Spawned_Parents_Index(1,Spawned_No) + Spawned_Parents_Index(2,Spawned_No) - 1 
+                
+!            tDetAdded = .false.
+!            do j = Spawned_Parents_Index(1,Spawned_No), i-1
+!                IF(DetBitEQ(Spawned_Parents(0:NIfDBO,i),Spawned_Parents(0:NIfDBO,j),NIfDBO)) THEN
+!                    tDetAdded = .true.
+!                    if(Spawned_Parents(NIfDBO+1,i).ne.Spawned_Parents(NIfDBO+1,j)) &
+!                        CALL Stop_All('DiDj_Found_FillRDM','Bias factors of same pairs not equal.')
+!                ENDIF
+!            enddo
+!            if(tDetAdded) CYCLE
+ 
 
             IF(tExplicitHFRDM.and.DetBitEQ(Spawned_Parents(0:NIfDBO,i),iLutHF,NIfDBO)) CYCLE
 
@@ -2945,6 +2958,7 @@ END MODULE nElRDMMod
                 ENDIF
             ELSE
                 tFill_SymmCiCj = .true.
+!                tFill_SymmCiCj = .false.
             ENDIF
             
             call decode_bit_det (nI, Spawned_Parents(0:NIfDBO,i))

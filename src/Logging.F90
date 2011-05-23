@@ -459,6 +459,7 @@ MODULE Logging
             tRDMonFly=.true.
             call readi(RDMExcitLevel)
             call readi(IterRDMonFly)
+            call readi(RDMEnergyIter)
 
         case("DIAGFLYONERDM")
 !This sets the calculation to diagonalise the *1* electron reduced density matrix.  Obviously this doesn't work if RDMExcitLevel = 2.            
