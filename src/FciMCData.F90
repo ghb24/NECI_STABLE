@@ -27,6 +27,9 @@ MODULE FciMCData
       REAL(KIND=dp) , ALLOCATABLE , TARGET :: WalkVecH(:)                    !Diagonal hamiltonian element
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVec(:,:),SpawnVec2(:,:)
     
+      INTEGER(KIND=n_int) , ALLOCATABLE :: DiedArray(:)
+      INTEGER :: DiedArrayTag
+
       INTEGER(TagIntType) :: WalkVecDetsTag=0
       INTEGER(TagIntType) :: WalkVecHTag=0
       INTEGER(TagIntType) :: SpawnVecTag=0,SpawnVec2Tag=0
@@ -39,7 +42,7 @@ MODULE FciMCData
       INTEGER(KIND=n_int) , ALLOCATABLE :: Spawned_Parents(:,:)
       INTEGER , ALLOCATABLE :: Spawned_Parents_Index(:,:)
       INTEGER :: Spawned_ParentsTag, Spawned_Parents_IndexTag
-      REAL*8 :: RDMBiasFacI, AllTotPartsTemp
+      REAL*8 :: RDMBiasFacI, AllTotPartsTemp, SumSigns, SumSpawns
       LOGICAL :: tFillingRDMonFly, thf, tAnnihil_All
       INTEGER, DIMENSION(lenof_sign) :: HFSign, AllHFSign
 

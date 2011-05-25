@@ -810,12 +810,12 @@ MODULE AnnihilationMod
                                 walkExcitLevel = FindBitExcitLevel (iLutHF, CurrentDets(:,PartInd), 3)
 !                                write(6,*) 'Excitation level of child',walkExcitLevel
                                 if((walkExcitLevel.le.4).and.(walkExcitLevel.ne.0)) & 
-                                    CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign)
+                                    CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),(CurrentSign(1)+(DiedArray(PartInd) * sign(1, CurrentSign))))
                             elseif(.not.DetBitEQ(CurrentDets(:,PartInd),iLutHF,NIfDBO)) then
-                                CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign)
+                                CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),(CurrentSign(1)+(DiedArray(PartInd) * sign(1, CurrentSign))))
                             endif
                         else
-                            CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign)
+                            CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),(CurrentSign(1)+(DiedArray(PartInd) * sign(1, CurrentSign))))
                         endif
                     endif
                 endif

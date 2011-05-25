@@ -155,6 +155,10 @@ MODULE FciMCParMod
 !Start MC simulation...
         TIncrement=.true.   !If TIncrement is true, it means that when it comes out of the loop, it wants to subtract 1 from the Iteration count to get the true number of iterations
         Iter=1
+
+        SumSigns = 0.D0
+        SumSpawns = 0.D0
+
         do while (Iter <= NMCyc .or. NMCyc == -1)
 !Main iteration loop...
 !            WRITE(6,*) 'Iter',Iter
@@ -726,7 +730,7 @@ MODULE FciMCParMod
         integer(kind=n_int) :: iLutnJ(0:niftot)
         integer(kind=n_int) :: SpinCoupDet(0:niftot)
         integer :: nSpinCoup(NEl), SignFac
-        integer :: IC, walkExcitLevel, ex(2,2), TotWalkersNew, part_type
+        integer :: IC, walkExcitLevel, ex(2,2), TotWalkersNew, part_type, k
         integer(int64) :: tot_parts_tmp(lenof_sign)
         logical :: tParity, TestClosedShellDet
         real(dp) :: prob, HDiagCurr, TempTotParts
@@ -874,7 +878,23 @@ MODULE FciMCParMod
                 exit
             endif
 
+
             if(tFillingRDMonFly.and.tStochasticRDM) then
+
+!                if((DetCurr(1).eq.2).or.(DetCurr(2).eq.2).or.(DetCurr(3).eq.2).or.(DetCurr(4).eq.2)) then
+!                    if((DetCurr(1).eq.3).or.(DetCurr(2).eq.3).or.(DetCurr(3).eq.3).or.(DetCurr(4).eq.3)) then
+!                        write(6,'(A10)',advance='no') 'DetCurr'
+!                        do k = 1, 4
+!                            write(6,'(I5)',advance='no') DetCurr(k)
+!                        enddo
+!                        write(6,*) 'SignCurr',SignCurr
+!                        if((DetCurr(1).eq.1).and.(DetCurr(2).eq.2).and.(DetCurr(3).eq.3).and.(DetCurr(4).eq.4)) then
+!                            SumSigns = SumSigns + abs(real(SignCurr(1),dp))
+!                            write(6,*) 'SumSigns',SumSigns
+!                        endif
+!
+!                    endif
+!                endif
 
                 if(tFullRDM) then
                     if(tHPHF.and.(.not.TestClosedShellDet(CurrentDets(:,j)))) then
@@ -1733,7 +1753,7 @@ MODULE FciMCParMod
         end interface
         
         real(dp) :: rat, r, p_spawn_rdmfac, p_notspawn_rdmfac
-        integer :: extracreate, iUnused
+        integer :: extracreate, iUnused,j
         logical :: tpspawn_gt1
         HElement_t :: rh
 #ifdef __CMPLX
@@ -1854,11 +1874,11 @@ MODULE FciMCParMod
 
             if(tFillingRDMonFly.and.tStochasticRDM) then
                 if(rat.gt.1.D0) then
-                    p_spawn_rdmfac = rat
-!                    p_spawn_rdmfac = 1.D0
-                else
+!                    p_spawn_rdmfac = rat
                     p_spawn_rdmfac = 1.D0
-!                    p_spawn_rdmfac = tau * abs( real(rh,dp) / prob )
+                else
+!                    p_spawn_rdmfac = 1.D0
+                    p_spawn_rdmfac = tau * abs( real(rh,dp) / prob )
                 endif
                 p_notspawn_rdmfac = ( 1.D0 - prob ) + ( prob * (1.D0 - p_spawn_rdmfac) )
             endif
@@ -1891,13 +1911,38 @@ MODULE FciMCParMod
             elseif(tFillingRDMonFly.and.tStochasticRDM.and.(child(1).ne.0)) then
                 if(n_int.eq.4) CALL Stop_All('attempt_create_normal','the bias factor currently does not work with 32 bit integers.')
 
-                RDMBiasFacI = abs( p_spawn_rdmfac / ( real(rh , dp) * tau * 2.D0) ) 
-!                RDMBiasFacI = abs( real(wSign(1),dp) ) / ( 1.D0 - ( p_notspawn_rdmfac ** (abs(real(wSign(1),dp)))) )
-
-
+!                RDMBiasFacI = abs( p_spawn_rdmfac / ( real(rh , dp) * tau * 2.D0) ) 
+                RDMBiasFacI = abs( real(wSign(1),dp) ) / ( 1.D0 - ( p_notspawn_rdmfac ** (abs(real(wSign(1),dp)))) )
+                    
 !                RDMBiasFacI = abs( ( p_spawn_rdmfac * real(wSign(1),dp) ) / ( real(rh , dp) * tau * 2.D0 ) ) 
 
                 if(wSign(1).lt.0) RDMBiasFacI = RDMBiasFacI * (-1.D0)
+
+!                if(((ex(1,1).eq.2).and.(ex(1,2).eq.3)).or.((ex(1,1).eq.3).and.(ex(1,2).eq.2))) then
+!                    if(((ex(2,1).eq.5).and.(ex(2,2).eq.6)).or.((ex(2,1).eq.6).and.(ex(2,2).eq.5))) then
+!                        write(6,*) 'Calculating bias'
+!                        write(6,'(A10)',advance='no') 'DetCurr'
+!                        do j = 1, 4
+!                            write(6,'(I5)',advance='no') DetCurr(j)
+!                        enddo
+!                        write(6,*) ''
+!                        write(6,'(A10)',advance='no') 'nJ'
+!                        do j = 1, 4
+!                            write(6,'(I5)',advance='no') nJ(j)
+!                        enddo
+!                        write(6,*) ''
+!                        write(6,*) 'iLutCurr',iLutCurr
+!                        write(6,*) 'iLutnJ',iLutnJ
+!                        write(6,*) 'Det Curr Sign',wSign(1)
+!                        write(6,*) 'prob gen',prob
+!                        write(6,*) 'prob spawn',p_spawn_rdmfac
+!                        write(6,*) 'prob not spawn ^ sign', p_notspawn_rdmfac ** (abs(real(wSign(1),dp)))
+!                        write(6,*) 'RDMBiasFacI',RDMBiasFacI
+!                        SumSpawns = SumSpawns + 1.D0
+!                        write(6,*) 'SumSpawns',SumSpawns
+!                    endif
+!                endif
+
             endif
 
 #endif
@@ -2185,6 +2230,7 @@ MODULE FciMCParMod
                 !Normally we will go in this block
                 call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
                 if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
+                DiedArray(VecSlot) = abs(iDie(1))
                 VecSlot = VecSlot + 1
             ENDIF
         elseif(tTruncInitiator) then
@@ -2200,6 +2246,7 @@ MODULE FciMCParMod
         IF((CopySign(1).ne.0).or.(CopySign(2).ne.0)) THEN
             call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
             if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
+            DiedArray(VecSlot) = abs(iDie(1))
             VecSlot=VecSlot+1
         ENDIF
 #endif            
@@ -5442,6 +5489,11 @@ MODULE FciMCParMod
             WalkVecDets(0:NIfTot,1:MaxWalkersPart)=0
             MemoryAlloc=(NIfTot+1)*MaxWalkersPart*size_n_int    !Memory Allocated in bytes
 
+            ALLOCATE(DiedArray(MaxWalkersPart),stat=ierr)
+            CALL LogMemAlloc('DiedArray',MaxWalkersPart,size_n_int,this_routine,DiedArrayTag,ierr)
+            DiedArray(:)=0
+            MemoryAlloc=MemoryAlloc+size_n_int*MaxWalkersPart
+
             IF(.not.tRegenDiagHEls) THEN
                 ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
                 CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
@@ -6615,6 +6667,8 @@ MODULE FciMCParMod
             DEALLOCATE(WalkVecH)
             CALL LogMemDealloc(this_routine,WalkVecHTag)
         ENDIF
+        DEALLOCATE(DiedArray)
+        CALL LogMemDealloc(this_routine,DiedArrayTag)
         DEALLOCATE(SpawnVec)
         CALL LogMemDealloc(this_routine,SpawnVecTag)
         DEALLOCATE(SpawnVec2)

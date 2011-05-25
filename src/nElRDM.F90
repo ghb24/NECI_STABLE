@@ -1179,7 +1179,7 @@ MODULE nElRDMMod
         integer , intent(in) :: nI(NEl), nJ(NEl)
         real(dp) , intent(in) :: realSignI, realSignJ
         logical , intent(in) :: tFill_SymmCiCj
-        integer :: Ex(2,2)
+        integer :: Ex(2,2),j
         logical :: tParity
 
         Ex(:,:) = 0
@@ -1209,6 +1209,25 @@ MODULE nElRDMMod
             call Fill_Sings_RDM(nI,Ex,tParity,realSignI,realSignJ,tFill_SymmCiCj)
 
         else
+
+!            if(((ex(1,1).eq.2).and.(ex(1,2).eq.3)).or.((ex(1,1).eq.3).and.(ex(1,2).eq.2))) then
+!                if(((ex(2,1).eq.5).and.(ex(2,2).eq.6)).or.((ex(2,1).eq.6).and.(ex(2,2).eq.5))) then
+!                    write(6,*) 'adding to double'
+!                    write(6,'(A10)',advance='no') 'nI'
+!                    do j = 1, 4
+!                        write(6,'(I5)',advance='no') nI(j)
+!                    enddo
+!                    write(6,*) ''
+!                    write(6,'(A10)',advance='no') 'nJ'
+!                    do j = 1, 4
+!                        write(6,'(I5)',advance='no') nJ(j)
+!                    enddo
+!                    write(6,*) ''
+!                    write(6,*) 'tParity',tParity
+!                    write(6,*) 'realSignI',realSignI
+!                    write(6,*) 'realSignJ',realSignJ
+!                endif
+!            endif
 
             call Fill_Doubs_RDM(Ex,tParity,realSignI,realSignJ,tFill_SymmCiCj)
 
@@ -2915,7 +2934,8 @@ END MODULE nElRDMMod
         IMPLICIT NONE
         integer , intent(in) :: Spawned_No
         integer(kind=n_int) , intent(in) :: iLutJ(0:NIfTot)
-        integer , dimension(lenof_sign) , intent(in) :: SignJ
+!        integer , dimension(lenof_sign) , intent(in) :: SignJ
+        integer , intent(in) :: SignJ
         integer :: i, nI(NEl), nJ(NEl), Ex(2,2), walkExcitLevel, SignI
         integer :: ExcLevel, j
         real(dp) :: realSignI, realSignJ, TempTotParts, realdiagSignI
@@ -2932,17 +2952,16 @@ END MODULE nElRDMMod
         do i = Spawned_Parents_Index(1,Spawned_No), &
                 Spawned_Parents_Index(1,Spawned_No) + Spawned_Parents_Index(2,Spawned_No) - 1 
                 
-!            tDetAdded = .false.
-!            do j = Spawned_Parents_Index(1,Spawned_No), i-1
-!                IF(DetBitEQ(Spawned_Parents(0:NIfDBO,i),Spawned_Parents(0:NIfDBO,j),NIfDBO)) THEN
-!                    tDetAdded = .true.
-!                    if(Spawned_Parents(NIfDBO+1,i).ne.Spawned_Parents(NIfDBO+1,j)) &
-!                        CALL Stop_All('DiDj_Found_FillRDM','Bias factors of same pairs not equal.')
-!                ENDIF
-!            enddo
-!            if(tDetAdded) CYCLE
+            tDetAdded = .false.
+            do j = Spawned_Parents_Index(1,Spawned_No), i-1
+                IF(DetBitEQ(Spawned_Parents(0:NIfDBO,i),Spawned_Parents(0:NIfDBO,j),NIfDBO)) THEN
+                    tDetAdded = .true.
+                    if(Spawned_Parents(NIfDBO+1,i).ne.Spawned_Parents(NIfDBO+1,j)) &
+                        CALL Stop_All('DiDj_Found_FillRDM','Bias factors of same pairs not equal.')
+                ENDIF
+            enddo
+            if(tDetAdded) CYCLE
  
-
             IF(tExplicitHFRDM.and.DetBitEQ(Spawned_Parents(0:NIfDBO,i),iLutHF,NIfDBO)) CYCLE
 
             IF(tHF_S_D_Ref) THEN
@@ -2957,8 +2976,8 @@ END MODULE nElRDMMod
                     tFill_SymmCiCj = .false.
                 ENDIF
             ELSE
-                tFill_SymmCiCj = .true.
-!                tFill_SymmCiCj = .false.
+!                tFill_SymmCiCj = .true.
+                tFill_SymmCiCj = .false.
             ENDIF
             
             call decode_bit_det (nI, Spawned_Parents(0:NIfDBO,i))
@@ -2976,7 +2995,8 @@ END MODULE nElRDMMod
             ! These factors account for the fact that we are only using Di,Dj pairs from spawns that have 
             ! been accepted (created children).  Need to unbiase for this.
 
-            realSignJ = real(SignJ(1),dp)
+!            realSignJ = real(SignJ(1),dp)
+            realSignJ = real(SignJ,dp)
 
             IF(tHPHF) THEN
 !                ExcLevel = FindBitExcitLevel (Spawned_Parents(0:NIfDBO,i), iLutJ, 2)
