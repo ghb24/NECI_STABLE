@@ -2526,26 +2526,34 @@ MODULE nElRDMMod
 
                 write(6,*) 'Writing out 1 and 2 electron density matrices to file'
 
+                write(6,*) 'nbasis',nbasis
+
                 do i = 1, nBasis
 
                     do k = 1, nBasis
 
-                        IF(NatOrbMat(SymLabelListInv(i),SymLabelListInv(k)).gt.1.D-9) & 
-                                            write(OneRDM_unit,"(2I6,G25.17)") SymLabelListInv(i),SymLabelListInv(k), & 
+                        IF(NatOrbMat(SymLabelListInv(i),SymLabelListInv(k)).ne.0.D0) & 
+                                            write(OneRDM_unit,"(2I6,G25.17)") i,k, & 
                                                     ( NatOrbMat(SymLabelListInv(i),SymLabelListInv(k)) * Norm_1RDM )
 
                     enddo
                     
                     do j = 1, nBasis
 
+                        if(i.eq.j) CYCLE
                         Ind1 = ( ( (max(i,j)-2) * (max(i,j)-1) ) / 2 ) + min(i,j)
 
                         do k = 1, nBasis
                             do l = 1, nBasis
 
+                                if(k.eq.l) CYCLE
+
                                 Ind2 = ( ( (max(k,l)-2) * (max(k,l)-1) ) / 2 ) + min(k,l)
 
-                                if(AllTwoElRDM(Ind1,Ind1).gt.1.D-9) write(TwoRDM_unit,"(4I6,G25.17)") i,j,k,l,( AllTwoElRDM(Ind1,Ind2) * Norm_2RDM )
+                                ParityFactor = 1.D0
+                                IF((i.eq.l).or.(j.eq.k)) ParityFactor = -1.D0
+
+                                if(AllTwoElRDM(Ind1,Ind2).ne.0.D0) write(TwoRDM_unit,"(4I6,G25.17)") i,j,k,l,( AllTwoElRDM(Ind1,Ind2) * Norm_2RDM * ParityFactor)
 
                             enddo
                         enddo
