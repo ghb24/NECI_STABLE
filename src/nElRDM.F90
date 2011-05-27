@@ -2424,11 +2424,8 @@ MODULE nElRDMMod
 
                 Trace_1RDM_New = Trace_1RDM_New + ( NatOrbMat(SymLabelListInv(i),SymLabelListInv(i)) * Norm_1RDM )
 
-                if(tFinalRDMEnergy.and.(NatOrbMat(SymLabelListInv(i),SymLabelListInv(i)).ne.0.D0)) & 
-                                            write(OneRDM_unit,'(2I10,F30.20)') SymLabelListInv(i),SymLabelListInv(i), & 
-                                                    ( NatOrbMat(SymLabelListInv(i),SymLabelListInv(i)) * Norm_1RDM )
-
                 do k = i+1, nBasis
+
 
 !SymLabelListInv(j) = x, gives the position of orbital j in NatOrbMat (orbital j is in position x).
 !We want to find orbital j, because we're multiplying it by TMAT2D(i,j) where i and j are the *orbitals* not the position.
@@ -2441,9 +2438,9 @@ MODULE nElRDMMod
                                                 * NatOrbMat(SymLabelListInv(i),SymLabelListInv(k)) * Norm_1RDM )
 
 
-                    if(tFinalRDMEnergy.and.(NatOrbMat(SymLabelListInv(i),SymLabelListInv(k)).ne.0.D0)) & 
-                                                write(OneRDM_unit,'(2I10,F30.20)') SymLabelListInv(i),SymLabelListInv(k), & 
-                                                        ( NatOrbMat(SymLabelListInv(i),SymLabelListInv(k)) * Norm_1RDM )
+!                    if(tFinalRDMEnergy.and.(NatOrbMat(SymLabelListInv(i),SymLabelListInv(k)).ne.0.D0)) & 
+!                                                write(OneRDM_unit,'(2I10,F30.20)') SymLabelListInv(i),SymLabelListInv(k), & 
+!                                                        ( NatOrbMat(SymLabelListInv(i),SymLabelListInv(k)) * Norm_1RDM )
 
 !                    TestRDM(i,k) = (REAL(TMAT2D(i,k),8) * NatOrbMat(SymLabelListInv(i),SymLabelListInv(k)) * Norm_1RDM ) - &
 !                                    (REAL(TMAT2D(k,i),8) * NatOrbMat(SymLabelListInv(k),SymLabelListInv(i)) * Norm_1RDM )
@@ -2463,7 +2460,7 @@ MODULE nElRDMMod
 
                     Trace_2RDM_New = Trace_2RDM_New + ( AllTwoElRDM(Ind1,Ind1) * Norm_2RDM )
 
-                    if(tFinalRDMEnergy.and.(AllTwoElRDM(Ind1,Ind1).ne.0.D0)) write(TwoRDM_unit,'(6I10,F30.20)') i,k,i,k,Ind1,Ind1,( AllTwoElRDM(Ind1,Ind1) * Norm_2RDM )
+!                    if(tFinalRDMEnergy.and.(AllTwoElRDM(Ind1,Ind1).ne.0.D0)) write(TwoRDM_unit,'(6I10,F30.20)') i,k,i,k,Ind1,Ind1,( AllTwoElRDM(Ind1,Ind1) * Norm_2RDM )
 
 !                    UMATTemp(Ind1,Ind1) = ( Coul - Exch )
 
@@ -2500,8 +2497,8 @@ MODULE nElRDMMod
 
                             RDMEnergy2El = RDMEnergy2El + (ParityFactor * ( Coul - Exch ) * AllTwoElRDM(Ind1,Ind2) * Norm_2RDM )  
 
-                            if(tFinalRDMEnergy.and.(AllTwoElRDM(Ind1,Ind2).ne.0.D0)) write(TwoRDM_unit,'(6I10,F30.20)') i,k,j,l,Ind1,Ind2, &
-                                                                                                            ( AllTwoElRDM(Ind1,Ind2) * Norm_2RDM )
+!                            if(tFinalRDMEnergy.and.(AllTwoElRDM(Ind1,Ind2).ne.0.D0)) write(TwoRDM_unit,'(6I10,F30.20)') i,k,j,l,Ind1,Ind2, &
+!                                                                                                            ( AllTwoElRDM(Ind1,Ind2) * Norm_2RDM )
 
 !                            UMATTemp(Ind1,Ind2) = ParityFactor * ( Coul - Exch )
 
@@ -2526,6 +2523,36 @@ MODULE nElRDMMod
                 WRITE(6,*) '       ********        '
 !                WRITE(6,*) 'Ecore',Ecore
                 call flush(6)
+
+                write(6,*) 'Writing out 1 and 2 electron density matrices to file'
+
+                do i = 1, nBasis
+
+                    do k = 1, nBasis
+
+                        IF(NatOrbMat(SymLabelListInv(i),SymLabelListInv(k)).gt.1.D-9) & 
+                                            write(OneRDM_unit,"(2I6,G25.17)") SymLabelListInv(i),SymLabelListInv(k), & 
+                                                    ( NatOrbMat(SymLabelListInv(i),SymLabelListInv(k)) * Norm_1RDM )
+
+                    enddo
+                    
+                    do j = 1, nBasis
+
+                        Ind1 = ( ( (max(i,j)-2) * (max(i,j)-1) ) / 2 ) + min(i,j)
+
+                        do k = 1, nBasis
+                            do l = 1, nBasis
+
+                                Ind2 = ( ( (max(k,l)-2) * (max(k,l)-1) ) / 2 ) + min(k,l)
+
+                                if(AllTwoElRDM(Ind1,Ind1).gt.1.D-9) write(TwoRDM_unit,"(4I6,G25.17)") i,j,k,l,( AllTwoElRDM(Ind1,Ind2) * Norm_2RDM )
+
+                            enddo
+                        enddo
+                    enddo
+
+                enddo
+
             endif
 
 !            Iter_Accum = Iter_Accum + 1
