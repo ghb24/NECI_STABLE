@@ -3556,7 +3556,7 @@ MODULE FciMCParMod
                 call flush(6)
             endif
             call flush(fcimcstats_unit)
-!            call flush(unit_splitprojEHist)
+            call flush(unit_splitprojEHist)
             
         endif
 
