@@ -6763,11 +6763,14 @@ integer function FindSplitProjEBin(Ex)
     kj=G1(Ex(1,2))%k
     kb=G1(Ex(2,2))%k
     
-    if (tSplitProjEHistG) then
-        FindSplitProjEBin=(ki(1)-ka(1))**2+(ki(2)-ka(2))**2+(ki(3)-ka(3))**2
+    if (tSplitProjEHistG) then ! <k1 k2 || k3 k4 > is included if the min
+                               ! out of k1-k3 or k1-k4 are within g-cutoff
+        FindSplitProjEBin=min((ki(1)-ka(1))**2+(ki(2)-ka(2))**2+(ki(3)-ka(3))**2, &
+                                (ki(1)-kb(1))**2+(ki(2)-kb(2))**2+(ki(3)-kb(3))**2)
     endif
-    if (tSplitProjEHistK3) then
-        FindSplitProjEBin=ka(1)**2+ka(2)**2+ka(3)**2
+    if (tSplitProjEHistK3) then ! <k1 k2 || k3 k4> is included only if
+                                ! both k3 and k4 are within the e-cutoff
+        FindSplitProjEBin=max(ka(1)**2+ka(2)**2+ka(3)**2,kb(1)**2+kb(2)**2+kb(3)**2)
     endif
 
 end function FindSplitProjEBin
