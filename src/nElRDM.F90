@@ -2551,7 +2551,10 @@ MODULE nElRDMMod
                                 Ind2 = ( ( (max(k,l)-2) * (max(k,l)-1) ) / 2 ) + min(k,l)
 
                                 ParityFactor = 1.D0
-                                IF((i.eq.l).or.(j.eq.k)) ParityFactor = -1.D0
+                                IF((i.gt.j).or.(k.gt.l)) ParityFactor = -1.D0
+                                IF((i.gt.j).and.(k.gt.l)) ParityFactor = 1.D0
+
+!                                IF((i.eq.l).or.(j.eq.k)) ParityFactor = -1.D0
 
                                 if(AllTwoElRDM(Ind1,Ind2).ne.0.D0) write(TwoRDM_unit,"(4I6,G25.17)") i,j,k,l,( AllTwoElRDM(Ind1,Ind2) * Norm_2RDM * ParityFactor)
 
