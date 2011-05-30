@@ -41,7 +41,8 @@ MODULE nElRDMMod
         USE FciMCData , only : Spawned_Parents_Index, Spawned_ParentsTag
         USE FciMCData , only : Spawned_Parents_IndexTag, Iter, AccumRDMNorm, AlltotPartsTemp
         USE Logging , only : RDMExcitLevel, tROFciDUmp, NoDumpTruncs, tStochasticRDM, &
-                             tAllSpawnAttemptsRDM, tExplicitHFRDM, tHF_S_D_Ref, tHF_Ref, tFullRDM
+                             tAllSpawnAttemptsRDM, tExplicitHFRDM, tHF_S_D_Ref, tHF_Ref, &
+                             tFullRDM
         USE RotateOrbsData , only : CoeffT1, CoeffT1Tag, tTurnStoreSpinOff, NoFrozenVirt
         USE RotateOrbsData , only : SymLabelCounts2,SymLabelList2,SymLabelListInv,NoOrbs
         USE util_mod , only : get_free_unit
@@ -912,7 +913,7 @@ MODULE nElRDMMod
         
         OneElRDM( Indij , Indab ) = OneElRDM( Indij , Indab ) + &
                                         (ParityFactor * (realSignDi_scaled * realSignDj_scaled))
-        IF(tfill_symm) OneElRDM( Indab , Indij ) = OneElRDM( Indab , Indij ) + &
+        if(tfill_symm) OneElRDM( Indab , Indij ) = OneElRDM( Indab , Indij ) + &
                                         (ParityFactor * (realSignDi_scaled * realSignDj_scaled))
 
         IF(RDMExcitLevel.eq.3) THEN
@@ -1046,9 +1047,9 @@ MODULE nElRDMMod
         TwoElRDM( Indij , Indab ) = TwoElRDM( Indij , Indab ) + &
                                      ( ParityFactor * ( realSignDi_scaled * realSignDj_scaled ) ) 
 
-        IF(tfill_symm) TwoElRDM( Indab , Indij ) = TwoElRDM( Indab , Indij ) + &
+        if(tfill_symm) TwoElRDM( Indab , Indij ) = TwoElRDM( Indab , Indij ) + &
                                      ( ParityFactor * ( realSignDi_scaled * realSignDj_scaled ) ) 
-                                                 
+
 !        WRITE(6,*) 'TwoElRDM',Indij,Indab,TwoElRDM( Indij , Indab )
 
     end subroutine Fill_Doubs_RDM
@@ -1080,17 +1081,38 @@ MODULE nElRDMMod
 !the I' -> J transition.
 !If this is anything above a double, we likewise don't need to find J', because I -> J' will also have a 0 matrix element.
 
+!        write(6,*) '***'
+!        write(6,'(A5)',advance='no') 'nI'
+!        do i = 1,4
+!            write(6,'(I5)',advance='no') nI(i)
+!        enddo
+!        write(6,*) ''
+!        write(6,'(A5)',advance='no') 'nJ'
+!        do i = 1,4
+!            write(6,'(I5)',advance='no') nJ(i)
+!        enddo
+!        write(6,*) ''
+!        write(6,*) 'realSignI',realSignI
+!        write(6,*) 'realSignJ',realSignJ
+
         I_J_ExcLevel = FindBitExcitLevel (iLutnI, iLutnJ, 2)
 
         if (.not. TestClosedShellDet(iLutnI)) then
 
             ! I is open shell, and so a spin coupled determinant I' exists.
+!            write(6,*) 'I open shell'
 
             !Find I'.
             call FindExcitBitDetSym(iLutnI, iLutnI2)
             call decode_bit_det (nI2, iLutnI2)
             SignFacI = hphf_sign(iLutnI)
             realSignFacI = real(SignFacI,dp) / SQRT(2.0)
+
+!            write(6,*) 'spin coupled nI'
+!            do i = 1,4
+!                write(6,'(I5)',advance='no') nI2(i)
+!            enddo
+!            write(6,*) ''
 
             !Find excitation level between I' and J - not necessarily the same as 
             !that between I and J.
@@ -1114,6 +1136,7 @@ MODULE nElRDMMod
                     ! I -> J.
                     call Add_RDM_From_IJ_Pair(nI,nJ,(realSignI/SQRT(2.D0)),&
                                                     (realSignJ/SQRT(2.D0)),tFill_SymmCiCj)
+ 
                     ! I' -> J'.
                     call Add_RDM_From_IJ_Pair(nI2,nJ2,(realSignFacI*realSignI),&
                                                       (realSignFacJ*realSignJ),tFill_SymmCiCj)
@@ -3022,7 +3045,6 @@ END MODULE nElRDMMod
                 ENDIF
             ELSE
                 tFill_SymmCiCj = .true.
-!                tFill_SymmCiCj = .false.
             ENDIF
             
             call decode_bit_det (nI, Spawned_Parents(0:NIfDBO,i))

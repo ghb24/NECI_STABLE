@@ -143,7 +143,6 @@ MODULE Logging
       tHF_S_D_Ref = .false.
       tHF_Ref = .false.
 
-
 ! Feb08 defaults
       IF(Feb08) THEN
           !Mcpaths set
@@ -495,7 +494,7 @@ MODULE Logging
         case("HFREFRDM")
 !Uses the HF as a reference and calculates the RDM to find the energy - should be same as projected energy.            
             tHF_Ref = .true.
- 
+
         case("AUTOCORR")
 !This is a Parallel FCIMC option - it will calculate the largest weight MP1 determinants and histogramm them
 !HF Determinant is always histogrammed. NoACDets(2) is number of doubles. NoACDets(3) is number of triples and NoACDets(4) is 

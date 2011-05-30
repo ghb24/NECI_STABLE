@@ -1752,7 +1752,7 @@ MODULE FciMCParMod
             end function
         end interface
         
-        real(dp) :: rat, r, p_spawn_rdmfac, p_notspawn_rdmfac
+        real(dp) :: rat, r, p_spawn_rdmfac, p_notlist_rdmfac
         integer :: extracreate, iUnused,j
         logical :: tpspawn_gt1
         HElement_t :: rh
@@ -1874,13 +1874,11 @@ MODULE FciMCParMod
 
             if(tFillingRDMonFly.and.tStochasticRDM) then
                 if(rat.gt.1.D0) then
-!                    p_spawn_rdmfac = rat
                     p_spawn_rdmfac = 1.D0
                 else
-!                    p_spawn_rdmfac = 1.D0
                     p_spawn_rdmfac = tau * abs( real(rh,dp) / prob )
                 endif
-                p_notspawn_rdmfac = ( 1.D0 - prob ) + ( prob * (1.D0 - p_spawn_rdmfac) )
+                p_notlist_rdmfac = ( 1.D0 - prob ) + ( prob * (1.D0 - p_spawn_rdmfac) )
             endif
 
             ! If probability > 1, then we just create multiple children at the
@@ -1911,37 +1909,9 @@ MODULE FciMCParMod
             elseif(tFillingRDMonFly.and.tStochasticRDM.and.(child(1).ne.0)) then
                 if(n_int.eq.4) CALL Stop_All('attempt_create_normal','the bias factor currently does not work with 32 bit integers.')
 
-!                RDMBiasFacI = abs( p_spawn_rdmfac / ( real(rh , dp) * tau * 2.D0) ) 
-                RDMBiasFacI = abs( real(wSign(1),dp) ) / ( ( 1.D0 - ( p_notspawn_rdmfac ** (abs(real(wSign(1),dp)))) ) * 2.D0 )
+                RDMBiasFacI = abs( real(wSign(1),dp) ) / ( ( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) ) * 2.D0 )
                     
-!                RDMBiasFacI = abs( ( p_spawn_rdmfac * real(wSign(1),dp) ) / ( real(rh , dp) * tau * 2.D0 ) ) 
-
                 if(wSign(1).lt.0) RDMBiasFacI = RDMBiasFacI * (-1.D0)
-
-!                if(((ex(1,1).eq.2).and.(ex(1,2).eq.3)).or.((ex(1,1).eq.3).and.(ex(1,2).eq.2))) then
-!                    if(((ex(2,1).eq.5).and.(ex(2,2).eq.6)).or.((ex(2,1).eq.6).and.(ex(2,2).eq.5))) then
-!                        write(6,*) 'Calculating bias'
-!                        write(6,'(A10)',advance='no') 'DetCurr'
-!                        do j = 1, 4
-!                            write(6,'(I5)',advance='no') DetCurr(j)
-!                        enddo
-!                        write(6,*) ''
-!                        write(6,'(A10)',advance='no') 'nJ'
-!                        do j = 1, 4
-!                            write(6,'(I5)',advance='no') nJ(j)
-!                        enddo
-!                        write(6,*) ''
-!                        write(6,*) 'iLutCurr',iLutCurr
-!                        write(6,*) 'iLutnJ',iLutnJ
-!                        write(6,*) 'Det Curr Sign',wSign(1)
-!                        write(6,*) 'prob gen',prob
-!                        write(6,*) 'prob spawn',p_spawn_rdmfac
-!                        write(6,*) 'prob not spawn ^ sign', p_notspawn_rdmfac ** (abs(real(wSign(1),dp)))
-!                        write(6,*) 'RDMBiasFacI',RDMBiasFacI
-!                        SumSpawns = SumSpawns + 1.D0
-!                        write(6,*) 'SumSpawns',SumSpawns
-!                    endif
-!                endif
 
             endif
 
