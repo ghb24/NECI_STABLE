@@ -308,19 +308,19 @@ MODULE nElRDMMod
                 ENDIF
             enddo
 
-            WRITE(6,*) 'before sort'
-            do i=1,nBasis/2
-                WRITE(6,*) LabOrbs(i),SymOrbs(i)
-            enddo
+!            WRITE(6,*) 'before sort'
+!            do i=1,nBasis/2
+!                WRITE(6,*) LabOrbs(i),SymOrbs(i)
+!            enddo
 
             call sort (SymOrbs, LabOrbs)
             ! Sorts LabOrbs according to the order of SymOrbs (i.e. in terms of symmetry). 
 
-            WRITE(6,*) 'after sort'
-            do i=1,nBasis/2
-                WRITE(6,*) LabOrbs(i),SymOrbs(i)
-            enddo
-            CALL FLUSH(6)
+!            WRITE(6,*) 'after sort'
+!            do i=1,nBasis/2
+!                WRITE(6,*) LabOrbs(i),SymOrbs(i)
+!            enddo
+!            CALL FLUSH(6)
 !            stop
 
  
@@ -367,29 +367,16 @@ MODULE nElRDMMod
                 ENDIF
                 SymCurr=0
                 SymLabelCounts2(1,StartFill)=1+Prev
-                write(6,*) 'filling position ',startfill
-                write(6,*) 'with ',1+Prev
                 do i=1,nBasis/2
                     Symi=INT(G1(SymLabelList2(i+Prev))%sym%S,4)
                     SymLabelCounts2(2,(Symi+StartFill))=SymLabelCounts2(2,(Symi+StartFill))+1
                     IF(Symi.ne.SymCurr) THEN
                         SymLabelCounts2(1,(Symi+StartFill))=i+Prev
-                        write(6,*) 'filling wrong',Symi+StartFill
-                        write(6,*) 'with wrong',i+Prev
                         SymCurr=Symi
                     ENDIF
                 enddo
             ENDIF
 
-            WRITE(6,*) 'Sym Label Counts half way'
-            do i=1,16
-                WRITE(6,*) i,SymLabelCounts2(1,i),SymLabelCounts2(2,i)
-            enddo
-            WRITE(6,*) 'Sym label list (i.e the orbitals in symm order), and their symmetries according to G1'
-            do i=1,nBasis
-                WRITE(6,*) i,SymLabelList2(i),INT(G1(SymLabelList2(i))%sym%S,4)
-            enddo
-     
             ! Go through each symmetry group, making sure the orbital pairs are ordered lowest to highest.
             IF(spin.eq.1) THEN
                 do i=1,8
@@ -424,27 +411,27 @@ MODULE nElRDMMod
         CALL LogMemDealloc(this_routine,LabOrbsTag)
 
 
-        WRITE(6,*) 'Sym Label Counts'
-        do i=1,16
-            WRITE(6,*) i,SymLabelCounts2(1,i),SymLabelCounts2(2,i)
-        enddo
-        WRITE(6,*) 'Sym label list (i.e the orbitals in symm order), and their symmetries according to G1'
-        do i=1,nBasis
-            WRITE(6,*) i,SymLabelList2(i),INT(G1(SymLabelList2(i))%sym%S,4)
-        enddo
-        WRITE(6,*) 'i','ARR(SymLabelList2(i),1)','ARR(SymLabelList2(i),2)','Sym'
-        do i=1,NoOrbs
-            IF(tStoreSpinOrbs) THEN
-                WRITE(6,*) i,ARR(SymLabelList2(i),1),ARR(SymLabelList2(i),2),INT(G1(SymLabelList2(i))%sym%S,4)
-            ENDIF
-        enddo
+!        WRITE(6,*) 'Sym Label Counts'
+!        do i=1,16
+!            WRITE(6,*) i,SymLabelCounts2(1,i),SymLabelCounts2(2,i)
+!        enddo
+!        WRITE(6,*) 'Sym label list (i.e the orbitals in symm order), and their symmetries according to G1'
+!        do i=1,nBasis
+!            WRITE(6,*) i,SymLabelList2(i),INT(G1(SymLabelList2(i))%sym%S,4)
+!        enddo
+!        WRITE(6,*) 'i','ARR(SymLabelList2(i),1)','ARR(SymLabelList2(i),2)','Sym'
+!        do i=1,NoOrbs
+!            IF(tStoreSpinOrbs) THEN
+!                WRITE(6,*) i,ARR(SymLabelList2(i),1),ARR(SymLabelList2(i),2),INT(G1(SymLabelList2(i))%sym%S,4)
+!            ENDIF
+!        enddo
 
-        WRITE(6,*) 'Sym label list (i.e the orbitals in symm order), and its inverse'
-        do i=1,NoOrbs
-            WRITE(6,*) SymLabelList2(i),SymLabelListInv(i)
-        enddo
-        CALL FLUSH(6)
-        CALL Stop_All('SetUpSymLabels_RDM','Checking orbital labelling.')
+!        WRITE(6,*) 'Sym label list (i.e the orbitals in symm order), and its inverse'
+!        do i=1,NoOrbs
+!            WRITE(6,*) SymLabelList2(i),SymLabelListInv(i)
+!        enddo
+!        CALL FLUSH(6)
+!        CALL Stop_All('SetUpSymLabels_RDM','Checking orbital labelling.')
 
 
     END SUBROUTINE SetUpSymLabels_RDM
@@ -1491,8 +1478,6 @@ MODULE nElRDMMod
             Sym=0
             LWORK2=-1
             do while (Sym.le.7)
-                write(6,*) 'sym',sym
-                write(6,*) 'prevsym',prevsym
 
                 NoSymBlock=SymLabelCounts2(2,Sym+PrevSym)
 
