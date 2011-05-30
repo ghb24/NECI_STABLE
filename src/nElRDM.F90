@@ -40,8 +40,8 @@ MODULE nElRDMMod
         USE FciMCData , only : MaxWalkersPart, MaxSpawned, Spawned_Parents, PreviousCycles
         USE FciMCData , only : Spawned_Parents_Index, Spawned_ParentsTag
         USE FciMCData , only : Spawned_Parents_IndexTag, Iter, AccumRDMNorm, AlltotPartsTemp
-        USE Logging , only : RDMExcitLevel, tROFciDUmp, NoDumpTruncs, tStochasticRDM, &
-                             tExplicitHFRDM, tHF_S_D_Ref, tHF_Ref, tFullRDM
+        USE Logging , only : RDMExcitLevel, tROFciDUmp, NoDumpTruncs, tExplicitAllRDM, &
+                             tExplicitHFRDM, tHF_S_D_Ref, tHF_Ref 
         USE RotateOrbsData , only : CoeffT1, CoeffT1Tag, tTurnStoreSpinOff, NoFrozenVirt
         USE RotateOrbsData , only : SymLabelCounts2,SymLabelList2,SymLabelListInv,NoOrbs
         USE util_mod , only : get_free_unit
@@ -60,7 +60,7 @@ MODULE nElRDMMod
         REAL(dp) , ALLOCATABLE :: UMATTemp(:,:)
         REAL(dp) :: OneEl_Gap,TwoEl_Gap, Normalisation, Trace_2RDM, Trace_1RDM
         REAL(dp) :: RDMEnergy_Accum
-        LOGICAL :: tFinalRDMEnergy
+        LOGICAL :: tFinalRDMEnergy, tCalc_RDMEnergy
         type(timer), save :: nElRDM_Time, FinaliseRDM_time
 
     contains
@@ -72,11 +72,14 @@ MODULE nElRDMMod
         USE RotateOrbsMod , only : SymLabelCounts2Tag,SpatOrbs,NoRotOrbs
         USE RotateOrbsMod , only : SymLabelList2Tag,SymLabelListInvTag
         USE RotateOrbsData , only : SymLabelList3, SymLabelList3Tag
-        USE Logging , only : tCalc_RDMEnergy, tDiagRDM
+        USE Logging , only : tDo_Not_Calc_RDMEnergy, tDiagRDM
         INTEGER :: ierr,i
         CHARACTER(len=*), PARAMETER :: this_routine='InitRDM'
 
-        IF(tCalc_RDMEnergy) THEN
+        IF(tDo_Not_Calc_RDMEnergy) THEN
+            tCalc_RDMEnergy = .false.
+        ELSE
+            tCalc_RDMEnergy = .true.
             WRITE(6,'(A)') ' Calculating the energy from the reduced density matrix, this requires both the 1 and 2 electron RDM.'
             RDMExcitLevel = 3
         ENDIF
@@ -102,15 +105,7 @@ MODULE nElRDMMod
         NoDumpTruncs = 1
         NoFrozenVirt = 0
 
-        IF(tStochasticRDM) THEN
-
-            ALLOCATE(Spawned_Parents(0:(NIfDBO+1),MaxSpawned),stat=ierr)
-            CALL LogMemAlloc('Spawned_Parents',MaxSpawned*(NIfDBO+2),size_n_int,this_routine,Spawned_ParentsTag,ierr)
-            ALLOCATE(Spawned_Parents_Index(2,MaxSpawned),stat=ierr)
-            CALL LogMemAlloc('Spawned_Parents_Index',MaxSpawned*2,4,this_routine,Spawned_Parents_IndexTag,ierr)
-
-
-        ELSE
+        IF(tExplicitAllRDM) THEN            
 
             IF((RDMExcitLevel.eq.2).or.(RDMExcitLevel.eq.3)) THEN
 
@@ -172,7 +167,15 @@ MODULE nElRDMMod
 
             ENDIF
                 
+        ELSE
+
+            ALLOCATE(Spawned_Parents(0:(NIfDBO+1),MaxSpawned),stat=ierr)
+            CALL LogMemAlloc('Spawned_Parents',MaxSpawned*(NIfDBO+2),size_n_int,this_routine,Spawned_ParentsTag,ierr)
+            ALLOCATE(Spawned_Parents_Index(2,MaxSpawned),stat=ierr)
+            CALL LogMemAlloc('Spawned_Parents_Index',MaxSpawned*2,4,this_routine,Spawned_Parents_IndexTag,ierr)
+
         ENDIF
+
                 
         IF((RDMExcitLevel.eq.2).or.(RDMExcitLevel.eq.3)) THEN
 
@@ -244,18 +247,13 @@ MODULE nElRDMMod
         nElRDM_Time%timer_name='nElRDMTime'
         FinaliseRDM_Time%timer_name='FinaliseRDMTime'
 
+        IF(iProcIndex.eq.0) THEN
+            Energies_unit = get_free_unit()
+            OPEN(Energies_unit,file='Energies',status='unknown')
 
-!        IF(tStochasticRDM) THEN
-
-            IF(iProcIndex.eq.0) THEN
-                Energies_unit = get_free_unit()
-                OPEN(Energies_unit,file='Energies',status='unknown')
-
-!                WRITE(Energies_unit, "(A1,4A30)") '#','Iteration','RDM Energy (Stochastic)',"Inst RDM ('Exact')", "Av RDM ('Exact')"
-                WRITE(Energies_unit, "(A1,2A30)") '#','Iteration','RDM Energy (Stochastic)'
-            ENDIF
-
-!        ENDIF
+!            WRITE(Energies_unit, "(A1,4A30)") '#','Iteration','RDM Energy (Stochastic)',"Inst RDM ('Exact')", "Av RDM ('Exact')"
+            WRITE(Energies_unit, "(A1,2A30)") '#','Iteration','RDM Energy (Stochastic)'
+        ENDIF
 
         AccumRDMNorm = 0.D0
         RDMEnergy_Accum = 0.D0
@@ -310,19 +308,19 @@ MODULE nElRDMMod
                 ENDIF
             enddo
 
-!            WRITE(6,*) 'before sort'
-!            do i=1,nBasis/2
-!                WRITE(6,*) LabOrbs(i),SymOrbs(i)
-!            enddo
+            WRITE(6,*) 'before sort'
+            do i=1,nBasis/2
+                WRITE(6,*) LabOrbs(i),SymOrbs(i)
+            enddo
 
             call sort (SymOrbs, LabOrbs)
             ! Sorts LabOrbs according to the order of SymOrbs (i.e. in terms of symmetry). 
 
-!            WRITE(6,*) 'after sort'
-!            do i=1,nBasis/2
-!                WRITE(6,*) LabOrbs(i),SymOrbs(i)
-!            enddo
-!            CALL FLUSH(6)
+            WRITE(6,*) 'after sort'
+            do i=1,nBasis/2
+                WRITE(6,*) LabOrbs(i),SymOrbs(i)
+            enddo
+            CALL FLUSH(6)
 !            stop
 
  
@@ -353,7 +351,7 @@ MODULE nElRDMMod
                     SymLabelCounts2(1,1)=1
                     SymLabelCounts2(2,1)=nBasis/2
                 ELSEIF(spin.eq.2) THEN
-                    SymLabelCounts2(1,9)=1
+                    SymLabelCounts2(1,9)=( nBasis/2 ) + 1
                     SymLabelCounts2(2,9)=nBasis/2
                 ENDIF
                 
@@ -369,15 +367,28 @@ MODULE nElRDMMod
                 ENDIF
                 SymCurr=0
                 SymLabelCounts2(1,StartFill)=1+Prev
+                write(6,*) 'filling position ',startfill
+                write(6,*) 'with ',1+Prev
                 do i=1,nBasis/2
                     Symi=INT(G1(SymLabelList2(i+Prev))%sym%S,4)
                     SymLabelCounts2(2,(Symi+StartFill))=SymLabelCounts2(2,(Symi+StartFill))+1
                     IF(Symi.ne.SymCurr) THEN
                         SymLabelCounts2(1,(Symi+StartFill))=i+Prev
+                        write(6,*) 'filling wrong',Symi+StartFill
+                        write(6,*) 'with wrong',i+Prev
                         SymCurr=Symi
                     ENDIF
                 enddo
             ENDIF
+
+            WRITE(6,*) 'Sym Label Counts half way'
+            do i=1,16
+                WRITE(6,*) i,SymLabelCounts2(1,i),SymLabelCounts2(2,i)
+            enddo
+            WRITE(6,*) 'Sym label list (i.e the orbitals in symm order), and their symmetries according to G1'
+            do i=1,nBasis
+                WRITE(6,*) i,SymLabelList2(i),INT(G1(SymLabelList2(i))%sym%S,4)
+            enddo
      
             ! Go through each symmetry group, making sure the orbital pairs are ordered lowest to highest.
             IF(spin.eq.1) THEN
@@ -413,27 +424,27 @@ MODULE nElRDMMod
         CALL LogMemDealloc(this_routine,LabOrbsTag)
 
 
-!        WRITE(6,*) 'Sym Label Counts'
-!        do i=1,16
-!            WRITE(6,*) i,SymLabelCounts2(1,i),SymLabelCounts2(2,i)
-!        enddo
-!        WRITE(6,*) 'Sym label list (i.e the orbitals in symm order), and their symmetries according to G1'
-!        do i=1,nBasis
-!            WRITE(6,*) i,SymLabelList2(i),INT(G1(SymLabelList2(i))%sym%S,4)
-!        enddo
-!        WRITE(6,*) 'i','ARR(SymLabelList2(i),1)','ARR(SymLabelList2(i),2)','Sym'
-!        do i=1,NoOrbs
-!            IF(tStoreSpinOrbs) THEN
-!                WRITE(6,*) i,ARR(SymLabelList2(i),1),ARR(SymLabelList2(i),2),INT(G1(SymLabelList2(i))%sym%S,4)
-!1            ENDIF
-!        enddo
-!
-!        WRITE(6,*) 'Sym label list (i.e the orbitals in symm order), and its inverse'
-!        do i=1,NoOrbs
-!            WRITE(6,*) SymLabelList2(i),SymLabelListInv(i)
-!        enddo
-!        CALL FLUSH(6)
-!        CALL Stop_All('SetUpSymLabels_RDM','Checking orbital labelling.')
+        WRITE(6,*) 'Sym Label Counts'
+        do i=1,16
+            WRITE(6,*) i,SymLabelCounts2(1,i),SymLabelCounts2(2,i)
+        enddo
+        WRITE(6,*) 'Sym label list (i.e the orbitals in symm order), and their symmetries according to G1'
+        do i=1,nBasis
+            WRITE(6,*) i,SymLabelList2(i),INT(G1(SymLabelList2(i))%sym%S,4)
+        enddo
+        WRITE(6,*) 'i','ARR(SymLabelList2(i),1)','ARR(SymLabelList2(i),2)','Sym'
+        do i=1,NoOrbs
+            IF(tStoreSpinOrbs) THEN
+                WRITE(6,*) i,ARR(SymLabelList2(i),1),ARR(SymLabelList2(i),2),INT(G1(SymLabelList2(i))%sym%S,4)
+            ENDIF
+        enddo
+
+        WRITE(6,*) 'Sym label list (i.e the orbitals in symm order), and its inverse'
+        do i=1,NoOrbs
+            WRITE(6,*) SymLabelList2(i),SymLabelListInv(i)
+        enddo
+        CALL FLUSH(6)
+        CALL Stop_All('SetUpSymLabels_RDM','Checking orbital labelling.')
 
 
     END SUBROUTINE SetUpSymLabels_RDM
@@ -678,19 +689,14 @@ MODULE nElRDMMod
 
 ! Need to add in the diagonal elements.
 ! The RDM are always in spin orbitals, so just adding the orbital as is, is fine.
-
-        if(tStochasticRDM) then
-!            realSignDi = real(SignDi(1),dp)   
-            realSignDi_prob = realSignDi
-!            realSignDi_prob = probsign
-!            realSignDi = real(SignDi(1),dp) / AllTotPartsTemp   
-            SignDiFac = 1.D0
-        else
-!            realSignDi = real(SignDi(1)) * (1.D0 / Normalisation)
-!            realSignDi = real(SignDi(1)) * ( REAL(AllTotPartsTemp) / ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) )
+        
+        if(tExplicitAllRDM) then
             realSignDi_prob = realSignDi
             SignDiFac =  REAL(AllTotPartsTemp) / ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) 
-!            CALL Stop_All('Fill_Diag_RDM','This doesnt seem right.')
+        else
+            realSignDi_prob = realSignDi
+!            realSignDi = real(SignDi(1),dp) / AllTotPartsTemp   
+            SignDiFac = 1.D0
         endif
 
 !        WRITE(6,*) realSignDi
@@ -700,7 +706,6 @@ MODULE nElRDMMod
                 OneElRDM(SymLabelListInv(nI(i)),SymLabelListInv(nI(i))) = &
                             OneElRDM(SymLabelListInv(nI(i)),SymLabelListInv(nI(i))) &
                               + ((SignDiFac*realSignDi) * (SignDiFac*realSignDi_prob)) 
-!                              + (realSignDi * realSignDi) 
             enddo
         ENDIF
 
@@ -712,7 +717,6 @@ MODULE nElRDMMod
                     Ind=( ( (nI(j)-2) * (nI(j)-1) ) / 2 ) + nI(i)
                     TwoElRDM( Ind , Ind ) = TwoElRDM( Ind , Ind ) &
                                                   + ((SignDiFac*realSignDi) * (SignDiFac*realSignDi_prob))
-!                                                  + (realSignDi * realSignDi)
                 enddo
             enddo
         ENDIF
@@ -895,14 +899,14 @@ MODULE nElRDMMod
 !        WRITE(6,*) 'tParity',tParity
 !        WRITE(6,*) 'nI',nI
 !        WRITE(6,*) 'Adding realSignDi, realSignDj',realSignDi,realSignDj
-        if(tStochasticRDM) then
+        if(tExplicitAllRDM) then
+            realSignDi_scaled = realSignDi * ( REAL(AllTotPartsTemp) / ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) )
+            realSignDj_scaled = realSignDj * ( REAL(AllTotPartsTemp) / ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) )
+        else
 !            realSignDi_scaled = realSignDi / AllTotPartsTemp
 !            realSignDj_scaled = realSignDj / AllTotPartsTemp
             realSignDi_scaled = realSignDi 
             realSignDj_scaled = realSignDj 
-        else
-            realSignDi_scaled = realSignDi * ( REAL(AllTotPartsTemp) / ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) )
-            realSignDj_scaled = realSignDj * ( REAL(AllTotPartsTemp) / ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) )
         endif
 
         ParityFactor=1.D0
@@ -1028,14 +1032,14 @@ MODULE nElRDMMod
 !        WRITE(6,*) 'tParity',tParity
 !        WRITE(6,*) 'Adding realSignDi, realSignDj',realSignDi,realSignDj
 
-        if(tStochasticRDM) then
+        if(tExplicitAllRDM) then
+            realSignDi_scaled = realSignDi * ( REAL(AllTotPartsTemp) / ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) )
+            realSignDj_scaled = realSignDj * ( REAL(AllTotPartsTemp) / ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) )
+        else
 !            realSignDi_scaled = realSignDi / AllTotPartsTemp 
 !            realSignDj_scaled = realSignDj / AllTotPartsTemp 
             realSignDi_scaled = realSignDi 
             realSignDj_scaled = realSignDj 
-        else
-            realSignDi_scaled = realSignDi * ( REAL(AllTotPartsTemp) / ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) )
-            realSignDj_scaled = realSignDj * ( REAL(AllTotPartsTemp) / ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) )
         endif
 
         !Find unique index for the pairs of orbitals we are exciting from (ij) and to (ab).
@@ -1269,7 +1273,7 @@ MODULE nElRDMMod
 ! This routine finalises the one electron reduced density matrix stuff.
 ! This includes summing each of the individual matrices from each processor.
 ! Calling the diagonalisation routines if we want to get the occupation numbers.
-        USE Logging , only : tDiagRDM,tCalc_RDMEnergy 
+        USE Logging , only : tDiagRDM 
         USE SystemData , only : tSeparateOccVirt,tRotateVirtOnly,tRotateOccOnly
         USE SystemData , only : tNoRODump, ARR, BRR, G1
         USE RotateOrbsMod , only : FourIndInts, FourIndIntsTag
@@ -1284,7 +1288,7 @@ MODULE nElRDMMod
         IF(tCalc_RDMEnergy) THEN
             tFinalRDMEnergy = .true.
             CALL Calc_Energy_from_RDM()
-            CALL Test_Energy_Calc()
+!            CALL Test_Energy_Calc()
         ELSE
             IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) CALL MPIReduce(OneElRDM,MPI_SUM,NatOrbMat)
 
@@ -1309,15 +1313,15 @@ MODULE nElRDMMod
 
             IF(iProcIndex.eq.0) THEN
 
-!                NatOrbMat(:,:) = 0.D0
-!                do i = 1, nBasis
-!                    NatOrbMat(i,i) = 1.D0
-!                enddo
-                do i = 1,nBasis
-                    do j = i+1, nBasis
-                        NatOrbMat(i,j) = NatOrbMat(j,i)
-                    enddo
+                NatOrbMat(:,:) = 0.D0
+                do i = 1, nBasis
+                    NatOrbMat(i,i) = 1.D0
                 enddo
+!                do i = 1,nBasis
+!                    do j = i+1, nBasis
+!                        NatOrbMat(i,j) = NatOrbMat(j,i)
+!                    enddo
+!                enddo
 
         
 !                SumDiag=0.D0
@@ -1487,6 +1491,8 @@ MODULE nElRDMMod
             Sym=0
             LWORK2=-1
             do while (Sym.le.7)
+                write(6,*) 'sym',sym
+                write(6,*) 'prevsym',prevsym
 
                 NoSymBlock=SymLabelCounts2(2,Sym+PrevSym)
 
@@ -1586,7 +1592,9 @@ MODULE nElRDMMod
         CALL FLUSH(6)
 
         SumDiagTrace=0.D0
+        write(6,*) 'Evalues'
         do i=1,nBasis
+            write(6,*) Evalues(i)
             SumDiagTrace=SumDiagTrace+Evalues(i)
         enddo
         IF((ABS(SumDiagTrace-SumTrace)).gt.1E-5) THEN
@@ -2253,15 +2261,7 @@ MODULE nElRDMMod
         USE Logging , only : tDiagRDM
         CHARACTER(len=*), PARAMETER :: this_routine='DeallocateRDM'
 
-        IF(tStochasticRDM) THEN
-
-            DEALLOCATE(Spawned_Parents)
-            CALL LogMemDeAlloc(this_routine,Spawned_ParentsTag)
-
-            DEALLOCATE(Spawned_Parents_Index)
-            CALL LogMemDeAlloc(this_routine,Spawned_Parents_IndexTag)
-
-        ELSE
+        IF(tExplicitAllRDM) THEN
 
             IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) THEN
 ! This array contains the initial positions of the single excitations for each processor.
@@ -2294,7 +2294,16 @@ MODULE nElRDMMod
                 CALL LogMemDeAlloc(this_routine,Doub_ExcDjs2Tag)
             ENDIF
 
+        ELSE
+
+            DEALLOCATE(Spawned_Parents)
+            CALL LogMemDeAlloc(this_routine,Spawned_ParentsTag)
+
+            DEALLOCATE(Spawned_Parents_Index)
+            CALL LogMemDeAlloc(this_routine,Spawned_Parents_IndexTag)
+
         ENDIF
+
 
 
         IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) THEN
@@ -2536,10 +2545,10 @@ MODULE nElRDMMod
             RDMEnergy = RDMEnergy1El + RDMEnergy2El + Ecore 
 
             if(tFinalRDMEnergy) then
-                if(tStochasticRDM) then
-                    write(6,*) '**** Energy calculated using the stochastic RDM **** '
+                if(tExplicitAllRDM) then
+                    write(6,*) '**** Energy calculated using the explicitly accumulated RDM **** '
                 else
-                    write(6,*) '**** Energy calculated using the accumulated RDM **** '
+                    write(6,*) '**** Energy calculated using the stochastic RDM **** '
                 endif
                 WRITE(6,*) 'Trace of 1-el-RDM after normalisation : ',Trace_1RDM_New
                 WRITE(6,*) 'Trace of 2-el-RDM after normalisation : ',Trace_2RDM_New
@@ -2602,10 +2611,7 @@ MODULE nElRDMMod
                 AllAccumRDMNorm = 0.D0
             endif
 
-!            WRITE(Energies_unit, "(I31,F30.15)",advance='no') Iter,RDMEnergy
-!            IF(tStochasticRDM) WRITE(Energies_unit, "(I31,F30.15)",advance='no') Iter,RDMEnergy
 !            WRITE(Energies_unit, "(I31,2F30.15)") Iter+PreviousCycles,RDMEnergy,RDMEnergy_Accum/real(Iter_Accum,dp)
-!            IF(tStochasticRDM) WRITE(Energies_unit, "(I31,F30.15)") Iter+PreviousCycles,RDMEnergy
             WRITE(Energies_unit, "(I31,F30.15)") Iter+PreviousCycles,RDMEnergy
 
             if(tFinalRDMEnergy) then
@@ -2991,7 +2997,7 @@ END MODULE nElRDMMod
         USE bit_reps , only : NIfTot, NIfDBO, decode_bit_det
         USE nElRDMMod , only : Fill_Sings_RDM, Fill_Doubs_RDM, Fill_Diag_RDM, &
                                Add_RDM_From_IJ_Pair, Fill_Spin_Coupled_RDM
-        USE Logging , only : tFullRDM, tHF_S_D_Ref, tHF_Ref, tExplicitHFRDM
+        USE Logging , only : tHF_S_D_Ref, tHF_Ref, tExplicitHFRDM
         USE SystemData , only : NEl,tHPHF
         USE Parallel
         USE constants , only : n_int, dp, lenof_sign

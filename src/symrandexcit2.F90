@@ -31,7 +31,7 @@ MODULE GenRandSymExcitNUMod
                           tNoSymGenRandExcits, Arr, nMax, tCycleOrbs, &
                           nOccAlpha, nOccBeta, ElecPairs, MaxABPairs, &
                           tKPntSym, lzTot, tNoBrillouin, tUseBrillouin
-    use FciMCData, only: pDoubles, iter, excit_gen_store_type, tFillingRDMonFly, tHF, iluthf
+    use FciMCData, only: pDoubles, iter, excit_gen_store_type, tHF, iluthf
     use Parallel
     use IntegralsData, only: UMat
     use Determinants, only: get_helement, write_det
@@ -1379,17 +1379,6 @@ MODULE GenRandSymExcitNUMod
 !This is: P_single x P(i) x P(a|i) x N/(N-ElecsWNoExcits)
 !        pGen=(1.D0-pDoubNew)*(1.D0/real(NEl,dp))*(1.D0/real(NExcit,dp))*((real(NEl,dp))/(real((NEl-ElecsWNoExcits),dp)))
         pGen=(1.D0-pDoubNew)/(REAL((NExcit*(NEl-ElecsWNoExcits)),dp))
-
-!        if(tfillingrdmonfly.and.thf) then
-        if(tfillingrdmonfly) then
-            IF((Eleci.eq.3).and.(Orb.eq.17)) THEN
-!                if(detbiteq(ilut,iluthf,nifdbo)) then
-                if(ilut(0).eq.7143) then
-                    tHF = .true.
-                endif
-!                WRITE(6,*) 'probability of 3 -> 17 excitation',pGen
-            ENDIF
-        endif
 
 !        WRITE(6,*) "ElecsWNoExcits: ",ElecsWNoExcits
 

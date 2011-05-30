@@ -25,12 +25,11 @@ MODULE Logging
     LOGICAL tPrintPopsDefault
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tIncrementPops,tROHistogramAll,tROHistER,tROHistSingExc
     LOGICAL tRoHistOneElInts
-    LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump,tRDMonFly,tDiagRDM,tCalc_RDMEnergy
-    LOGICAL tStochasticRDM
+    LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump,tRDMonFly,tDiagRDM,tDo_Not_Calc_RDMEnergy
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
     LOGICAL tTruncDumpbyVal
     LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit,tPrintDoubsUEG
-    LOGICAL tExplicitHFRDM, tFullRDM, tHF_S_D_Ref, tHF_Ref
+    LOGICAL tExplicitHFRDM, tHF_S_D_Ref, tHF_Ref, tExplicitAllRDM
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps,IterShiftBlock
     INTEGER IterRDMonFly, RDMExcitLevel, RDMEnergyIter
     INTEGER CCMCDebug  !CCMC Debugging Level 0-6.  Default 0
@@ -133,12 +132,11 @@ MODULE Logging
       tRDMonFly=.false.
       RDMEnergyIter=100
       tDiagRDM=.false.
-      tStochasticRDM=.false.
       IterRDMonFly=0
       RDMExcitLevel=1
-      tCalc_RDMEnergy = .false.
+      tDo_Not_Calc_RDMEnergy = .false.
       tExplicitHFRDM = .false.
-      tFullRDM = .false.
+      tExplicitAllRDM = .false.
       tHF_S_D_Ref = .false.
       tHF_Ref = .false.
 
@@ -467,20 +465,23 @@ MODULE Logging
         case("CALCRDMENERGY")
 !This takes the 1 and 2 electron RDM and calculates the energy using the RDM expression.            
 !For this to be calculated, RDMExcitLevel must be = 3, so there is a check to make sure this is so if the CALCRDMENERGY keyword is present.
-            tCalc_RDMEnergy = .true.
-
-        case("STOCHASTICRDM")
-!This samples the RDM stochastically as we select DI and DJ for spawning.  It will require more iterations to converge.            
-            tStochasticRDM = .true.            
-            call readi(RDMEnergyIter)
+            IF(item.lt.nitems) THEN
+                call readu(w)
+                select case(w)
+                    case("OFF")
+                        tDo_Not_Calc_RDMEnergy=.true.
+                end select
+            ELSE
+                tDo_Not_Calc_RDMEnergy=.false.
+            ENDIF
 
         case("EXPLICITHFRDM")
 !Explicitly calculates the elements of the RDM connecting the HF to singles or doubles (rather than stochastically).            
             tExplicitHFRDM = .true.
 
-        case("FULLRDM")
-!Full space RDM is calculated, with no restriction on the reference etc.            
-            tFullRDM = .true.
+        case("EXPLICITALLRDM")
+!Explicitly calculates all the elements of the RDM.            
+            tExplicitAllRDM = .true.
 
         case("HFSDREFRDM")
 !Uses the HF, singles and doubles as a multiconfigurational reference and calculates the RDM to find the energy.            

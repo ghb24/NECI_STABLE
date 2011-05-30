@@ -43,7 +43,7 @@ MODULE FciMCData
       INTEGER , ALLOCATABLE :: Spawned_Parents_Index(:,:)
       INTEGER :: Spawned_ParentsTag, Spawned_Parents_IndexTag
       REAL*8 :: RDMBiasFacI, AllTotPartsTemp, SumSigns, SumSpawns
-      LOGICAL :: tFillingRDMonFly, thf, tAnnihil_All
+      LOGICAL :: tFillingStochRDMonFly, tFillingExplicRDMonFly, thf, tAnnihil_All
       INTEGER, DIMENSION(lenof_sign) :: HFSign, AllHFSign
 
       ! Be able to store a list of the current initiators

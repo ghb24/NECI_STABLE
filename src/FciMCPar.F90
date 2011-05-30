@@ -61,7 +61,7 @@ MODULE FciMCParMod
                        tPrintPopsDefault, iWriteBlockingEvery, &
                        tBlockEveryIteration, tHistInitPops, HistInitPopsIter,&
                        tRDMonFly, IterRDMonFly, tHF_S_D_Ref, &
-                       RDMExcitLevel, tStochasticRDM, RDMEnergyIter, tFullRDM, &
+                       RDMExcitLevel, RDMEnergyIter, &
                        HistInitPops, DoubsUEG, DoubsUEGLookup, DoubsUEGStore, &
                        tPrintDoubsUEG, StartPrintDoubsUEG, tMCOutput
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
@@ -101,8 +101,9 @@ MODULE FciMCParMod
                             iter_data_spin_proj, test_spin_proj, &
                             spin_proj_shift, spin_proj_iter_count
     use symrandexcit3, only: gen_rand_excit3, test_sym_excit3
-    use nElRDMMod, only: FinaliseRDM,FillRDMthisIter,calc_energy_from_rdm,fill_diag_rdm, &
-                         fill_sings_rdm, fill_doubs_rdm
+    use nElRDMMod, only: FinaliseRDM,FillRDMthisIter,calc_energy_from_rdm, &
+                         fill_diag_rdm, fill_sings_rdm, fill_doubs_rdm, &
+                         Add_RDM_From_IJ_Pair, tCalc_RDMEnergy
 
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
@@ -342,9 +343,10 @@ MODULE FciMCParMod
             IF(tHistHamil.and.(mod(Iter,iWriteHamilEvery).eq.0)) THEN
                 CALL WriteHamilHistogram()
             ENDIF
-!            IF(tFillingRDMonFly.and.tStochasticRDM.and.(Iter .ne. IterRDMonFly).and.&
-            IF(tFillingRDMonFly.and.(Iter .ne. IterRDMonFly).and.&
-                (mod(Iter-IterRDMonFly,RDMEnergyIter).eq.0)) CALL Calc_Energy_from_RDM()  
+            IF(tRDMonFly.and.tCalc_RDMEnergy) THEN
+                IF((Iter.gt.IterRDMonFly).and.(mod(Iter-IterRDMonFly,RDMEnergyIter).eq.0)) &
+                                CALL Calc_Energy_from_RDM()  
+            ENDIF
 
             Iter=Iter+1
 !End of MC cycle
@@ -732,7 +734,7 @@ MODULE FciMCParMod
         integer :: nSpinCoup(NEl), SignFac
         integer :: IC, walkExcitLevel, ex(2,2), TotWalkersNew, part_type, k
         integer(int64) :: tot_parts_tmp(lenof_sign)
-        logical :: tParity, TestClosedShellDet
+        logical :: tParity, TestClosedShellDet, tFill_RDM_Symm
         real(dp) :: prob, HDiagCurr, TempTotParts
         HElement_t :: HDiagTemp,HElGen
 #ifdef __DEBUG
@@ -755,7 +757,11 @@ MODULE FciMCParMod
         ENDIF
 
         IF(tRDMonFly.and.(Iter.eq.IterRDMonFly)) THEN
-            tFillingRDMonFly = .true.
+            if(tExplicitAllRDM) then
+                tFillingExplicRDMonFly = .true.
+            else
+                tFillingStochRDMonFly = .true.
+            endif
             IF(RDMExcitLevel.eq.3) THEN
                 WRITE(6,'(A)') 'Beginning to calculate both the 1 and 2 electron density matrices on the fly.'
             ELSE
@@ -879,9 +885,33 @@ MODULE FciMCParMod
             endif
 
 
-            if(tFillingRDMonFly.and.tStochasticRDM) then
+            ! Add in any reduced density matrix info we want while running 
+            ! over CurrentDets - i.e. diagonal elements and connections to HF.
+            if(tFillingStochRDMonFly) then
 
-                if(tFullRDM) then
+                ! this is just a test to make sure the AllHFSign mpi is working.
+                ! can probably get rid of it soon.
+                if((walkexcitlevel.eq.0).and.(signcurr(1).ne.allhfsign(1))) then
+                    write(6,*) 'DetCurr',DetCurr
+                    write(6,*) 'SignCurr',SignCurr
+                    write(6,*) 'AllHFSign',AllHFSign
+                    call stop_all('performfcimcyc','HF population is incorrect.')
+                endif
+
+                ! Add diagonal elements to reduced density matrices.
+                if(tHF_S_D_Ref.and.(walkExcitLevel.le.2)) then
+
+                    call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
+                    AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
+
+                elseif(tHF_Ref.and.(walkExcitLevel.eq.0)) then
+
+                    call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
+                    AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
+
+                elseif((.not.tHF_S_D_Ref).and.(.not.tHF_Ref)) then
+                    ! Normal loop - just add in the diagonal contribution for each 
+                    ! occupied determinant.
                     if(tHPHF.and.(.not.TestClosedShellDet(CurrentDets(:,j)))) then
                         call Fill_Diag_RDM(DetCurr, (real(SignCurr(1),dp)/SQRT(2.D0)))
                         call FindExcitBitDetSym(CurrentDets(:,j), SpinCoupDet)
@@ -893,73 +923,12 @@ MODULE FciMCParMod
                     endif
                 endif
 
-                IF((tHF_S_D_Ref.and.(.not.tExplicitHFRDM)).and. &
-                    (walkExcitLevel.le.2)) THEN
-                    call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
-                    AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
-                ENDIF
+                IF(tExplicitHFRDM.and.((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2))) THEN
+                    tFill_RDM_Symm = .true.
+                    if(tHF_Ref) tFill_RDM_Symm = .false.
 
-                if(walkexcitlevel.eq.0) then
-                    if(signcurr(1).ne.allhfsign(1)) then
-                        write(6,*) 'DetCurr',DetCurr
-                        write(6,*) 'SignCurr',SignCurr
-                        write(6,*) 'AllHFSign',AllHFSign
-                        call stop_all('performfcimcyc','HF population is incorrect.')
-                    endif
-                endif
+                    call Add_RDM_From_IJ_Pair(HFDet,DetCurr,real(AllHFSign(1),dp),real(SignCurr(1),dp),tFill_RDM_Symm)
 
-                IF(tExplicitHFRDM) THEN
-                    if(walkExcitLevel.eq.1) then
-
-                        if(tHF_S_D_Ref) then
-                            call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
-                            AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
-                        endif
-
-                        Ex(:,:) = 0
-                        Ex(1,1) = 1
-                        tParity = .false.
-                        
-                        call GetExcitation(HFDet,DetCurr,NEl,Ex,tParity)
-                        IF(Ex(1,1).le.0) CALL Stop_All('PerformFCIMCyc','DetCurr is not a single excitation of HFDet.')
-                       
-                        IF(tHF_Ref) THEN
-                            ! The last .false. means only the HF -> Sings/Doubs entry will be added in.
-!                            WRITE(6,*) 'hf ref'
-                            call Fill_Sings_RDM(HFDet,Ex,tParity,real(AllHFSign(1),dp),real(SignCurr(1),dp),.false.)
-                        ELSE
-
-                            ! The last .true. means we add the contribution to the i -> a *and* a -> i entry.
-                            call Fill_Sings_RDM(HFDet,Ex,tParity,real(AllHFSign(1),dp),real(SignCurr(1),dp),.true.)
-                        ENDIF
-
-                    elseif(walkExcitLevel.eq.2) then
-
-                        if(tHF_S_D_Ref) then
-                            call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
-                            AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
-                        endif
-
-                        Ex(:,:) = 0
-                        Ex(1,1) = 2
-                        tParity = .false.
-     
-                        call GetExcitation(HFDet,DetCurr,NEl,Ex,tParity)
-                        IF(Ex(1,1).le.0) CALL Stop_All('PerformFCIMCyc','DetCurr is not a double excitation of HFDet.')
-
-                        IF(tHF_Ref) THEN
-                            call Fill_Doubs_RDM(Ex,tParity,real(AllHFSign(1),dp),real(SignCurr(1),dp),.false.)
-                        ELSE
-                            call Fill_Doubs_RDM(Ex,tParity,real(AllHFSign(1),dp),real(SignCurr(1),dp),.true.)
-                        ENDIF
-
-                    elseif((walkExcitLevel.eq.0).and.(.not.tFullRDM)) then
-
-                        call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
-
-                        AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
-
-                    endif
                 endif
 
             endif
@@ -1047,11 +1016,6 @@ MODULE FciMCParMod
         ! in the main array, before annihilation
         TotWalkersNew = VecSlot - 1
 
-!        if(tfillingrdmonfly) then
-!            write(6,*) 'validspawnedlist from this proc to each'
-!            write(6,*) validspawnedlist
-!        endif
-
         ! Update the statistics for the end of an iteration.
         call end_iter_stats (TotWalkersNew)
         
@@ -1080,7 +1044,7 @@ MODULE FciMCParMod
                                 - iter_data%naborted
         iter_data%update_iters = iter_data%update_iters + 1
 
-        IF(tFillingRDMonFly.and.(.not.tStochasticRDM)) CALL FillRDMthisIter(TotWalkers)
+        IF(tFillingExplicRDMonFly) CALL FillRDMthisIter(TotWalkers)
 
     end subroutine
 
@@ -1197,7 +1161,7 @@ MODULE FciMCParMod
         call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ, &
                             child, flags)
 
-        IF(tFillingRDMonFly.and.tStochasticRDM) THEN                            
+        IF(tFillingStochRDMonFly) THEN                            
 
             SpawnedParts(niftot+1:niftot+nifdbo+1, ValidSpawnedList(proc)) = iLutI(0:nifdbo) 
 
@@ -1857,7 +1821,7 @@ MODULE FciMCParMod
 
             rat = tau * abs(rh / prob)
 
-            if(tFillingRDMonFly.and.tStochasticRDM) then
+            if(tFillingStochRDMonFly) then
                 if(rat.gt.1.D0) then
                     p_spawn_rdmfac = 1.D0
                 else
@@ -1885,7 +1849,7 @@ MODULE FciMCParMod
             ! Avoid compiler warnings
             iUnused = part_type
 
-            if(tFillingRDMonFly.and.tStochasticRDM.and.(child(1).ne.0)) then
+            if(tFillingStochRDMonFly.and.(child(1).ne.0)) then
                 if(n_int.eq.4) CALL Stop_All('attempt_create_normal','the bias factor currently does not work with 32 bit integers.')
 
                 RDMBiasFacI = abs( real(wSign(1),dp) ) / ( ( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) ) * 2.D0 )
@@ -5456,7 +5420,7 @@ MODULE FciMCParMod
 
             WRITE(6,"(A,I12,A)") " Spawning vectors allowing for a total of ",MaxSpawned, &
                     " particles to be spawned in any one iteration per core."
-            IF(tRDMonFly.and.tStochasticRDM) THEN
+            IF(tRDMonFly.and.(.not.tExplicitAllRDM)) then
                 ALLOCATE(SpawnVec(0:(NIftot+NIfDBO+2),MaxSpawned),stat=ierr)
                 CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+NIfDBO+3),size_n_int,this_routine,SpawnVecTag,ierr)
                 ALLOCATE(SpawnVec2(0:(NIfTot+NIfDBO+2),MaxSpawned),stat=ierr)
@@ -5700,9 +5664,10 @@ MODULE FciMCParMod
 
         IF(tRDMonFly) THEN
             CALL InitRDM()
-            tFillingRDMonFly = .false.      
-            !This becomes true when we have reached the relevant iteration to begin filling the RDM.
         ENDIF
+        tFillingStochRDMonFly = .false.      
+        tFillingExplicRDMonFly = .false.      
+        !One of these becomes true when we have reached the relevant iteration to begin filling the RDM.
 
     end subroutine InitFCIMCCalcPar
 

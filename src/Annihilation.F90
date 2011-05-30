@@ -22,7 +22,7 @@ MODULE AnnihilationMod
                         extract_part_sign, copy_flag
     use csf_data, only: csf_orbital_mask
     use hist_data, only: tHistSpawn, HistMinInd2
-    use Logging , only : tStochasticRDM, tExplicitHFRDM, tHF_Ref, tHF_S_D_Ref
+    use Logging , only : tExplicitAllRDM, tExplicitHFRDM, tHF_Ref, tHF_S_D_Ref
     IMPLICIT NONE
     integer :: Beginning_Parent_Array_Ind, Parent_Array_Ind, No_Spawned_Parents
 
@@ -257,7 +257,7 @@ MODULE AnnihilationMod
             recvdisps(i)=recvdisps(i-1)+recvcounts(i-1)
         enddo
         MaxIndex=recvdisps(nProcessors)+recvcounts(nProcessors)
-        IF(tRDMonFly.and.tStochasticRDM) THEN
+        IF(tRDMonFly.and.(.not.tExplicitAllRDM)) THEN
             do i=1,nProcessors
                 recvdisps(i)=recvdisps(i)*(NIfTot+NIfDBO+3)
                 recvcounts(i)=recvcounts(i)*(NIfTot+NIfDBO+3)
@@ -389,7 +389,7 @@ MODULE AnnihilationMod
                 !               explicitly searching the list.
                 SpawnedParts2(:,VecInd)=SpawnedParts(:,BeginningBlockDet)   !Transfer all info to the other array
 
-                IF(tFillingRDMonFly.and.tStochasticRDM) THEN
+                IF(tFillingStochRDMonFly) THEN
                     Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = SpawnedParts(NIfTot+1:NIfTot+NIfDBO+2,BeginningBlockDet)
                     !The first NIfDBO of this is the parent determinant, NIfDBO + 1 entry is the p_gen.
                     Spawned_Parents_Index(1,VecInd) = Parent_Array_Ind
@@ -405,7 +405,7 @@ MODULE AnnihilationMod
             cum_det = 0
             cum_det (0:nifdbo) = SpawnedParts(0:nifdbo, BeginningBlockDet)
             tAnnihil_All = .false.
-            IF(tFillingRDMonFly.and.tStochasticRDM) THEN
+            IF(tFillingStochRDMonFly) THEN
                 Beginning_Parent_Array_Ind = Parent_Array_Ind
                 Spawned_Parents_Index(2,VecInd) = 0
             ENDIF
@@ -459,7 +459,7 @@ MODULE AnnihilationMod
             ! Copy details into the final array
             call extract_sign (cum_det, temp_sign)
 
-            if ((sum(abs(temp_sign)) > 0).or.(tFillingRDMonFly.and.tStochasticRDM)) then
+            if ((sum(abs(temp_sign)) > 0).or.tFillingStochRDMonFly) then
                 ! Transfer all ino into the other array.
                 SpawnedParts2(0:NIfTot,VecInd) = cum_det(0:NIfTot)
                 VecInd = VecInd + 1
@@ -475,7 +475,7 @@ MODULE AnnihilationMod
 
         enddo   
 
-        IF(tFillingRDMonFly.and.tStochasticRDM) then
+        IF(tFillingStochRDMonFly) then
             No_Spawned_Parents = Parent_Array_Ind - 1
             if(No_Spawned_Parents.ne.ValidSpawned) then
                 write(6,*) 'ValidSpawned',ValidSpawned
@@ -617,7 +617,7 @@ MODULE AnnihilationMod
         new_sgn = extract_part_sign (new_det, part_type)
 
         if (new_sgn == 0) then
-            if(tFillingRDMonFly.and.tStochasticRDM) then
+            if(tFillingStochRDMonFly) then
                 Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = new_det(NIfTot+1:NIfTot+NIfDBO+2)
                 Spawned_Parents_Index(1,Spawned_No) = Beginning_Parent_Array_Ind
                 Spawned_Parents_Index(2,Spawned_No) = Spawned_Parents_Index(2,Spawned_No) + 1
@@ -700,7 +700,7 @@ MODULE AnnihilationMod
             tAnnihil_All = .false.
         endif
 
-        if(tFillingRDMonFly.and.tStochasticRDM) then
+        if(tFillingStochRDMonFly) then
             !This is the first determinant - set the beginning index
             Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = new_det(NIfTot+1:NIfTot+NIfDBO+2)
             if(tfirst) Spawned_Parents_Index(1,Spawned_No) = Beginning_Parent_Array_Ind
@@ -798,7 +798,7 @@ MODULE AnnihilationMod
                 SignProd=CurrentSign*SpawnedSign
 
 !                WRITE(6,*) 'DET FOUND in list'
-                if(tFillingRDMonFly.and.tStochasticRDM) then
+                if(tFillingStochRDMonFly) then
 !                    write(6,*) 'child found currentdets(:,PartInd)',currentdets(:,PartInd)
 !                    call decode_bit_det (dettemp, CurrentDets(:,PartInd))
 !                    write(6,*) 'spawning to ',dettemp
@@ -820,7 +820,7 @@ MODULE AnnihilationMod
                 endif
 
                 IF(SpawnedSign(1).eq.0) THEN
-                    CALL Stop_All('AnnihilateSpawnedParts','SpawnedParts entry with sign = 0.')
+!                    CALL Stop_All('AnnihilateSpawnedParts','SpawnedParts entry with sign = 0.')
                     ToRemove = ToRemove + 1
                     CYCLE
                 ENDIF
