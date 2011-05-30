@@ -22,7 +22,7 @@ MODULE AnnihilationMod
                         extract_part_sign, copy_flag
     use csf_data, only: csf_orbital_mask
     use hist_data, only: tHistSpawn, HistMinInd2
-    use Logging , only : tStochasticRDM, tAllSpawnAttemptsRDM, tExplicitHFRDM, tHF_Ref, tHF_S_D_Ref
+    use Logging , only : tStochasticRDM, tExplicitHFRDM, tHF_Ref, tHF_S_D_Ref
     IMPLICIT NONE
     integer :: Beginning_Parent_Array_Ind, Parent_Array_Ind, No_Spawned_Parents
 
@@ -459,7 +459,6 @@ MODULE AnnihilationMod
             ! Copy details into the final array
             call extract_sign (cum_det, temp_sign)
 
-!            if ((sum(abs(temp_sign)) > 0).or.(tAllSpawnAttemptsRDM.and.tFillingRDMonFly)) then
             if ((sum(abs(temp_sign)) > 0).or.(tFillingRDMonFly.and.tStochasticRDM)) then
                 ! Transfer all ino into the other array.
                 SpawnedParts2(0:NIfTot,VecInd) = cum_det(0:NIfTot)
@@ -704,7 +703,7 @@ MODULE AnnihilationMod
         if(tFillingRDMonFly.and.tStochasticRDM) then
             !This is the first determinant - set the beginning index
             Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = new_det(NIfTot+1:NIfTot+NIfDBO+2)
-            if(tfirst.or.(tAllSpawnAttemptsRDM.and.tFillingRDMonFly)) Spawned_Parents_Index(1,Spawned_No) = Beginning_Parent_Array_Ind
+            if(tfirst) Spawned_Parents_Index(1,Spawned_No) = Beginning_Parent_Array_Ind
             Spawned_Parents_Index(2,Spawned_No) = Spawned_Parents_Index(2,Spawned_No) + 1
             Parent_Array_Ind = Parent_Array_Ind + 1
         endif
@@ -821,7 +820,7 @@ MODULE AnnihilationMod
                 endif
 
                 IF(SpawnedSign(1).eq.0) THEN
-!                    IF(.not.tAllSpawnAttemptsRDM) CALL Stop_All('AnnihilateSpawnedParts','SpawnedParts entry with sign = 0.')
+                    CALL Stop_All('AnnihilateSpawnedParts','SpawnedParts entry with sign = 0.')
                     ToRemove = ToRemove + 1
                     CYCLE
                 ENDIF

@@ -26,7 +26,7 @@ MODULE Logging
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tIncrementPops,tROHistogramAll,tROHistER,tROHistSingExc
     LOGICAL tRoHistOneElInts
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump,tRDMonFly,tDiagRDM,tCalc_RDMEnergy
-    LOGICAL tStochasticRDM,tAllSpawnAttemptsRDM
+    LOGICAL tStochasticRDM
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
     LOGICAL tTruncDumpbyVal
     LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit,tPrintDoubsUEG
@@ -134,7 +134,6 @@ MODULE Logging
       RDMEnergyIter=100
       tDiagRDM=.false.
       tStochasticRDM=.false.
-      tAllSpawnAttemptsRDM = .false.
       IterRDMonFly=0
       RDMExcitLevel=1
       tCalc_RDMEnergy = .false.
@@ -474,10 +473,6 @@ MODULE Logging
 !This samples the RDM stochastically as we select DI and DJ for spawning.  It will require more iterations to converge.            
             tStochasticRDM = .true.            
             call readi(RDMEnergyIter)
-
-        case("ALLSPAWNATTEMPTSRDM")
-!Stores all spawn *attempt* (rather than just those where a child is created, and creates the RDM from this.            
-            tAllSpawnAttemptsRDM = .true.
 
         case("EXPLICITHFRDM")
 !Explicitly calculates the elements of the RDM connecting the HF to singles or doubles (rather than stochastically).            

@@ -41,8 +41,7 @@ MODULE nElRDMMod
         USE FciMCData , only : Spawned_Parents_Index, Spawned_ParentsTag
         USE FciMCData , only : Spawned_Parents_IndexTag, Iter, AccumRDMNorm, AlltotPartsTemp
         USE Logging , only : RDMExcitLevel, tROFciDUmp, NoDumpTruncs, tStochasticRDM, &
-                             tAllSpawnAttemptsRDM, tExplicitHFRDM, tHF_S_D_Ref, tHF_Ref, &
-                             tFullRDM
+                             tExplicitHFRDM, tHF_S_D_Ref, tHF_Ref, tFullRDM
         USE RotateOrbsData , only : CoeffT1, CoeffT1Tag, tTurnStoreSpinOff, NoFrozenVirt
         USE RotateOrbsData , only : SymLabelCounts2,SymLabelList2,SymLabelListInv,NoOrbs
         USE util_mod , only : get_free_unit
@@ -2992,7 +2991,6 @@ END MODULE nElRDMMod
         USE bit_reps , only : NIfTot, NIfDBO, decode_bit_det
         USE nElRDMMod , only : Fill_Sings_RDM, Fill_Doubs_RDM, Fill_Diag_RDM, &
                                Add_RDM_From_IJ_Pair, Fill_Spin_Coupled_RDM
-        USE Logging , only : tAllSpawnAttemptsRDM
         USE Logging , only : tFullRDM, tHF_S_D_Ref, tHF_Ref, tExplicitHFRDM
         USE SystemData , only : NEl,tHPHF
         USE Parallel

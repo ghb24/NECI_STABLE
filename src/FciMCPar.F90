@@ -1014,7 +1014,7 @@ MODULE FciMCParMod
 !                    if(p.ne.1) RDMBiasFacI = 0.D0
 
                     ! Children have been chosen to be spawned.
-                    if ((any(child /= 0)).or.(tAllSpawnAttemptsRDM.and.tFillingRDMonFly.and.(.not.IsNullDet(nJ)))) then
+                    if (any(child /= 0)) then
                         ! We know we want to create a particle of this type.
                         ! Encode the bit representation if it isn't already.
 
@@ -1885,13 +1885,7 @@ MODULE FciMCParMod
             ! Avoid compiler warnings
             iUnused = part_type
 
-            if(tFillingRDMonFly.and.tStochasticRDM.and.tAllSpawnAttemptsRDM) then
-
-                RDMBiasFacI = abs( 1.D0 /  ( prob ) )
-                IF(RDMBiasFacI.lt.0.D0) CALL Stop_All('attempt_create_normal','Integer overflow with Bias Factor.')
-                IF(wSign(1).lt.0) RDMBiasFacI = RDMBiasFacI * (-1.D0)
-
-            elseif(tFillingRDMonFly.and.tStochasticRDM.and.(child(1).ne.0)) then
+            if(tFillingRDMonFly.and.tStochasticRDM.and.(child(1).ne.0)) then
                 if(n_int.eq.4) CALL Stop_All('attempt_create_normal','the bias factor currently does not work with 32 bit integers.')
 
                 RDMBiasFacI = abs( real(wSign(1),dp) ) / ( ( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) ) * 2.D0 )
