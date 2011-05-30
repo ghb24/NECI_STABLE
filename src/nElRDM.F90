@@ -918,8 +918,13 @@ MODULE nElRDMMod
         IF(RDMExcitLevel.eq.3) THEN
             do k = 1, NEl                            
                 IF(nI(k).ne.Ex(1,1)) THEN
+
                     Indij = ( ( (MAX(nI(k),Ex(1,1))-2) * (MAX(nI(k),Ex(1,1))-1) ) / 2 ) + MIN(nI(k),Ex(1,1))
                     Indab = ( ( (MAX(nI(k),Ex(2,1))-2) * (MAX(nI(k),Ex(2,1))-1) ) / 2 ) + MIN(nI(k),Ex(2,1))
+
+                    !Adding these as nI(k),Ex(1,1) -> nI(k), Ex(2,1)
+                    !So if Ex(1,1) < nI(k), or Ex(2,1) < nI(k) then we need to switch the parity.
+                    IF((Ex(1,1).lt.nI(k)).and.(Ex(2,1).gt.nI(k))) ParityFactor = ParityFactor * (-1.D0)
 
                     TwoElRDM( Indij , Indab ) = TwoElRDM( Indij , Indab ) + &
                                                     (ParityFactor * ( realSignDi_scaled * realSignDj_scaled)) 
@@ -2492,10 +2497,11 @@ MODULE nElRDMMod
                                 Exch = 0.D0
                             ENDIF
 
-                            ParityFactor = 1.D0
-                            IF((i.eq.l).or.(k.eq.j)) ParityFactor = -1.D0
+!                            ParityFactor = 1.D0
+!                            IF((i.eq.l).or.(k.eq.j)) ParityFactor = -1.D0
 
-                            RDMEnergy2El = RDMEnergy2El + (ParityFactor * ( Coul - Exch ) * AllTwoElRDM(Ind1,Ind2) * Norm_2RDM )  
+!                            RDMEnergy2El = RDMEnergy2El + (ParityFactor * ( Coul - Exch ) * AllTwoElRDM(Ind1,Ind2) * Norm_2RDM )  
+                            RDMEnergy2El = RDMEnergy2El + ( ( Coul - Exch ) * AllTwoElRDM(Ind1,Ind2) * Norm_2RDM )  
 
 !                            if(tFinalRDMEnergy.and.(AllTwoElRDM(Ind1,Ind2).ne.0.D0)) write(TwoRDM_unit,'(6I10,F30.20)') i,k,j,l,Ind1,Ind2, &
 !                                                                                                            ( AllTwoElRDM(Ind1,Ind2) * Norm_2RDM )
@@ -2556,7 +2562,8 @@ MODULE nElRDMMod
 
 !                                IF((i.eq.l).or.(j.eq.k)) ParityFactor = -1.D0
 
-                                if(AllTwoElRDM(Ind1,Ind2).ne.0.D0) write(TwoRDM_unit,"(4I6,G25.17)") i,j,k,l,( AllTwoElRDM(Ind1,Ind2) * Norm_2RDM * ParityFactor)
+!                                if(AllTwoElRDM(Ind1,Ind2).ne.0.D0) write(TwoRDM_unit,"(4I6,G25.17)") i,j,k,l,( AllTwoElRDM(Ind1,Ind2) * Norm_2RDM * ParityFactor)
+                                write(TwoRDM_unit,"(4I6,G25.17)") i,j,k,l,( AllTwoElRDM(Ind1,Ind2) * Norm_2RDM * ParityFactor)
 
                             enddo
                         enddo
@@ -3014,8 +3021,8 @@ END MODULE nElRDMMod
                     tFill_SymmCiCj = .false.
                 ENDIF
             ELSE
-!                tFill_SymmCiCj = .true.
-                tFill_SymmCiCj = .false.
+                tFill_SymmCiCj = .true.
+!                tFill_SymmCiCj = .false.
             ENDIF
             
             call decode_bit_det (nI, Spawned_Parents(0:NIfDBO,i))

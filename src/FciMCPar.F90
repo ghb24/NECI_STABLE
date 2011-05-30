@@ -1912,7 +1912,7 @@ MODULE FciMCParMod
                 if(n_int.eq.4) CALL Stop_All('attempt_create_normal','the bias factor currently does not work with 32 bit integers.')
 
 !                RDMBiasFacI = abs( p_spawn_rdmfac / ( real(rh , dp) * tau * 2.D0) ) 
-                RDMBiasFacI = abs( real(wSign(1),dp) ) / ( 1.D0 - ( p_notspawn_rdmfac ** (abs(real(wSign(1),dp)))) )
+                RDMBiasFacI = abs( real(wSign(1),dp) ) / ( ( 1.D0 - ( p_notspawn_rdmfac ** (abs(real(wSign(1),dp)))) ) * 2.D0 )
                     
 !                RDMBiasFacI = abs( ( p_spawn_rdmfac * real(wSign(1),dp) ) / ( real(rh , dp) * tau * 2.D0 ) ) 
 
