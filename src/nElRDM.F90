@@ -888,6 +888,7 @@ MODULE nElRDMMod
         real(dp) , intent(in) :: realSignDi, realSignDj
         integer :: k, Indij, Indab
         real(dp) :: ParityFactor, realSignDi_scaled, realSignDj_scaled
+        real(dp) :: ParityFactor2
 
 !        WRITE(6,*) '* In singles'
 !        WRITE(6,*) 'Ex(1,:)',Ex(1,:)
@@ -925,12 +926,14 @@ MODULE nElRDMMod
 
                     !Adding these as nI(k),Ex(1,1) -> nI(k), Ex(2,1)
                     !So if Ex(1,1) < nI(k), or Ex(2,1) < nI(k) then we need to switch the parity.
-                    IF((Ex(1,1).lt.nI(k)).and.(Ex(2,1).gt.nI(k))) ParityFactor = ParityFactor * (-1.D0)
+                    ParityFactor2 = ParityFactor
+                    IF((Ex(1,1).lt.nI(k)).and.(Ex(2,1).gt.nI(k))) ParityFactor2 = ParityFactor * (-1.D0)
+                    IF((Ex(1,1).gt.nI(k)).and.(Ex(2,1).lt.nI(k))) ParityFactor2 = ParityFactor * (-1.D0)
 
                     TwoElRDM( Indij , Indab ) = TwoElRDM( Indij , Indab ) + &
-                                                    (ParityFactor * ( realSignDi_scaled * realSignDj_scaled)) 
+                                                    (ParityFactor2 * ( realSignDi_scaled * realSignDj_scaled)) 
                     IF(tfill_symm) TwoElRDM( Indab , Indij ) = TwoElRDM( Indab , Indij ) + &
-                                                    (ParityFactor * ( realSignDi_scaled * realSignDj_scaled))
+                                                    (ParityFactor2 * ( realSignDi_scaled * realSignDj_scaled))
                 ENDIF
 
             enddo
@@ -2366,7 +2369,7 @@ MODULE nElRDMMod
         USE UMatCache, only: GTID
         INTEGER :: i,j,k,l,Ind2,Ind1,i2,j2,k2,l2,ierr
         REAL(dp) :: RDMEnergy, Coul, Exch, Norm_1RDM, Norm_2RDM, AllAccumRDMNorm, stochastic_factor 
-        REAL(dp) :: Trace_2RDM_New, RDMEnergy1El, RDMEnergy2El, ParityFactor, Trace_1RDM_New
+        REAL(dp) :: Trace_2RDM_New, RDMEnergy1El, RDMEnergy2El, Trace_1RDM_New, ParityFactor
         REAL(dp) , ALLOCATABLE :: TestRDM(:,:)
         INTEGER :: TestRDMTag
 
@@ -2520,10 +2523,6 @@ MODULE nElRDMMod
                                 Exch = 0.D0
                             ENDIF
 
-!                            ParityFactor = 1.D0
-!                            IF((i.eq.l).or.(k.eq.j)) ParityFactor = -1.D0
-
-!                            RDMEnergy2El = RDMEnergy2El + (ParityFactor * ( Coul - Exch ) * AllTwoElRDM(Ind1,Ind2) * Norm_2RDM )  
                             RDMEnergy2El = RDMEnergy2El + ( ( Coul - Exch ) * AllTwoElRDM(Ind1,Ind2) * Norm_2RDM )  
 
 !                            if(tFinalRDMEnergy.and.(AllTwoElRDM(Ind1,Ind2).ne.0.D0)) write(TwoRDM_unit,'(6I10,F30.20)') i,k,j,l,Ind1,Ind2, &
@@ -3020,6 +3019,8 @@ END MODULE nElRDMMod
         do i = Spawned_Parents_Index(1,Spawned_No), &
                 Spawned_Parents_Index(1,Spawned_No) + Spawned_Parents_Index(2,Spawned_No) - 1 
                 
+            IF(tExplicitHFRDM.and.DetBitEQ(Spawned_Parents(0:NIfDBO,i),iLutHF,NIfDBO)) CYCLE
+
             tDetAdded = .false.
             do j = Spawned_Parents_Index(1,Spawned_No), i-1
                 IF(DetBitEQ(Spawned_Parents(0:NIfDBO,i),Spawned_Parents(0:NIfDBO,j),NIfDBO)) THEN
@@ -3029,8 +3030,6 @@ END MODULE nElRDMMod
                 ENDIF
             enddo
             if(tDetAdded) CYCLE
- 
-            IF(tExplicitHFRDM.and.DetBitEQ(Spawned_Parents(0:NIfDBO,i),iLutHF,NIfDBO)) CYCLE
 
             IF(tHF_S_D_Ref) THEN
                 !PUT A STOP IN HERE IF USING HPHF AND AN OPEN SHELL HF.
@@ -3066,9 +3065,6 @@ END MODULE nElRDMMod
             realSignJ = real(SignJ,dp)
 
             IF(tHPHF) THEN
-!                ExcLevel = FindBitExcitLevel (Spawned_Parents(0:NIfDBO,i), iLutJ, 2)
-!                IF(ExcLevel.le.2) call Add_RDM_From_IJ_Pair(nI,nJ,realSignI,realSignJ,tFill_SymmCiCj)
-
                 call Fill_Spin_Coupled_RDM(Spawned_Parents(0:NIfDBO,i),iLutJ,nI,nJ,realSignI,realSignJ,tFill_SymmCiCj)
             ELSE
                 call Add_RDM_From_IJ_Pair(nI,nJ,realSignI,realSignJ,tFill_SymmCiCj)

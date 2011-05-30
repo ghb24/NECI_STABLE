@@ -881,21 +881,6 @@ MODULE FciMCParMod
 
             if(tFillingRDMonFly.and.tStochasticRDM) then
 
-!                if((DetCurr(1).eq.2).or.(DetCurr(2).eq.2).or.(DetCurr(3).eq.2).or.(DetCurr(4).eq.2)) then
-!                    if((DetCurr(1).eq.3).or.(DetCurr(2).eq.3).or.(DetCurr(3).eq.3).or.(DetCurr(4).eq.3)) then
-!                        write(6,'(A10)',advance='no') 'DetCurr'
-!                        do k = 1, 4
-!                            write(6,'(I5)',advance='no') DetCurr(k)
-!                        enddo
-!                        write(6,*) 'SignCurr',SignCurr
-!                        if((DetCurr(1).eq.1).and.(DetCurr(2).eq.2).and.(DetCurr(3).eq.3).and.(DetCurr(4).eq.4)) then
-!                            SumSigns = SumSigns + abs(real(SignCurr(1),dp))
-!                            write(6,*) 'SumSigns',SumSigns
-!                        endif
-!
-!                    endif
-!                endif
-
                 if(tFullRDM) then
                     if(tHPHF.and.(.not.TestClosedShellDet(CurrentDets(:,j)))) then
                         call Fill_Diag_RDM(DetCurr, (real(SignCurr(1),dp)/SQRT(2.D0)))
