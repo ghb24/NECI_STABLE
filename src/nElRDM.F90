@@ -32,7 +32,7 @@ MODULE nElRDMMod
         USE IntegralsData , only : UMAT
         USE UMatCache , only : UMatInd
         USE SystemData , only : NEl,nBasis,tStoreSpinOrbs, G1, BRR, lNoSymmetry, ARR
-        USE SystemData , only : tUseMP2VarDenMat, Ecore, LMS 
+        USE SystemData , only : tUseMP2VarDenMat, Ecore, LMS, tHPHF
         USE NatOrbsMod , only : NatOrbMat,NatOrbMatTag,Evalues,EvaluesTag
         USE CalcData , only : MemoryFacPart
         USE constants , only : n_int, dp
@@ -260,6 +260,8 @@ MODULE nElRDMMod
         Iter_Accum = 0
 
         tFinalRDMEnergy = .false.
+
+        if(tExplicitAllRDM.and.tHPHF) CALL Stop_All('InitRDM','HPHF not set up with the explicit calculation of the RDM.')
 
     END SUBROUTINE InitRDM
 
