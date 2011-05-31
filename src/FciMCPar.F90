@@ -726,7 +726,7 @@ MODULE FciMCParMod
         type(fcimc_iter_data), intent(inout) :: iter_data
 
         ! Now the local, iteration specific, variables
-        integer :: VecSlot, j, p, error
+        integer :: VecSlot, j, p, error, HPHFExcitLevel
         integer :: DetCurr(nel), nJ(nel), FlagsCurr, parent_flags
         integer, dimension(lenof_sign) :: SignCurr, child
         integer(kind=n_int) :: iLutnJ(0:niftot)
@@ -918,6 +918,10 @@ MODULE FciMCParMod
                         call decode_bit_det (nSpinCoup, SpinCoupDet)
                         SignFac = hphf_sign(CurrentDets(:,j))
                         call Fill_Diag_RDM(nSpinCoup, real(SignFac*SignCurr(1),dp)/SQRT(2.D0))
+                        HPHFExcitLevel = FindBitExcitLevel (CurrentDets(:,j), SpinCoupDet, 2)
+                        if(HPHFExcitLevel.le.2) & 
+                            call Add_RDM_From_IJ_Pair(DetCurr,nSpinCoup,real(SignCurr(1),dp)/SQRT(2.D0), &
+                                                                real(SignFac*SignCurr(1),dp)/SQRT(2.D0),.true.)
                     else
                         call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
                     endif

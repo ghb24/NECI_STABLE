@@ -2547,8 +2547,6 @@ MODULE nElRDMMod
 
                 write(6,*) 'Writing out 1 and 2 electron density matrices to file'
 
-                write(6,*) 'nbasis',nbasis
-
                 do i = 1, nBasis
 
                     do k = 1, nBasis
