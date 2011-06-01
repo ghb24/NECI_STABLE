@@ -1302,10 +1302,10 @@ MODULE nElRDMMod
 
             IF(iProcIndex.eq.0) THEN
 
-                NatOrbMat(:,:) = 0.D0
-                do i = 1, nBasis
-                    NatOrbMat(i,i) = 1.D0
-                enddo
+!                NatOrbMat(:,:) = 0.D0
+!                do i = 1, nBasis
+!                    NatOrbMat(i,i) = 1.D0
+!                enddo
 !                do i = 1,nBasis
 !                    do j = i+1, nBasis
 !                        NatOrbMat(i,j) = NatOrbMat(j,i)
@@ -1313,15 +1313,15 @@ MODULE nElRDMMod
 !                enddo
 
         
-!                SumDiag=0.D0
-!                do i=1,nBasis
-!                    SumDiag=SumDiag+ABS(NatOrbMat(i,i))
-!                enddo
-!                do i=1,nBasis
-!                    do j=1,nBasis
-!                        NatOrbMat(j,i)=NatOrbMat(j,i)/SumDiag
-!                    enddo
-!                enddo
+                SumDiag=0.D0
+                do i=1,nBasis
+                    SumDiag=SumDiag+ABS(NatOrbMat(i,i))
+                enddo
+                do i=1,nBasis
+                    do j=1,nBasis
+                        NatOrbMat(j,i)=NatOrbMat(j,i)/SumDiag
+                    enddo
+                enddo
 
                 CALL DiagRDM()
 
