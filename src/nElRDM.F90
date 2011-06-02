@@ -2348,6 +2348,121 @@ MODULE nElRDMMod
     END SUBROUTINE DeallocateRDM
 
 
+    SUBROUTINE Average_Spins() 
+! This will only be called by the root.
+! It takes the NatOrbMat and the AllTwoElRDM, and averages each of the elements that should be equal by spin.
+! If HPHF is on, these things should already be true.
+
+! Elements that should be equal;
+! < a a | a a > = < b b | b b > 
+! < a b | a b > = < b a | b a >
+! < a b | b a > = < b a | a b >
+        real(dp) :: Entry_bb, Entry_aa, Sign_aa, Sign_bb
+        real(dp) :: Entry_abab, Entry_baba, Sign_abab, Sign_baba
+        real(dp) :: Entry_abba, Entry_baab, Sign_abba, Sign_baab
+        real(dp) :: Entry_aaaa, Entry_bbbb, Sign_aaaa, Sign_bbbb
+        integer :: i, j, a, b
+        integer :: Indij_ab, Indij_aa, Indij_bb, Indij_ba
+        integer :: Indab_ab, Indab_aa, Indab_bb, Indab_ba
+
+        if(.not.tHPHF) then
+
+            do i = 1, nBasis - 1, 2
+
+                Entry_bb = NatOrbMat(SymLabelListInv(i),SymLabelListInv(i))
+                Entry_aa = NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(i+1))
+
+                Sign_bb = sign(1.D0, Entry_bb)
+                Sign_aa = sign(1.D0, Entry_aa)
+
+                NatOrbMat(SymLabelListInv(i),SymLabelListInv(i)) = &
+                    Sign_bb * ( ( abs(Entry_bb) + abs(Entry_aa) ) / 2.D0 )
+
+                NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(i+1)) = &
+                    Sign_aa * ( ( abs(Entry_bb) + abs(Entry_aa) ) / 2.D0 )
+
+                do a = 1, nBasis - 1, 2
+
+                    Entry_bb = NatOrbMat(SymLabelListInv(i),SymLabelListInv(a))
+                    Entry_aa = NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(a+1))
+
+                    Sign_bb = sign(1.D0, Entry_bb)
+                    Sign_aa = sign(1.D0, Entry_aa)
+
+                    NatOrbMat(SymLabelListInv(i),SymLabelListInv(a)) = &
+                        Sign_bb * ( ( abs(Entry_bb) + abs(Entry_aa) ) / 2.D0 )
+
+                    NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(a+1)) = &
+                        Sign_aa * ( ( abs(Entry_bb) + abs(Entry_aa) ) / 2.D0 )
+
+                    do j = i+2, nBasis - 1, 2
+
+                        do b = a+2, nBasis - 1, 2
+
+                            Indij_bb = ( ( (j-2) * (j-1) ) / 2 ) + i
+                            Indab_bb = ( ( (b-2) * (b-1) ) / 2 ) + a
+                            Entry_bbbb = AllTwoElRDM(Indij_bb,Indab_bb)
+
+                            Indij_aa = ( ( ((j+1)-2) * ((j+1)-1) ) / 2 ) + (i+1)
+                            Indab_aa = ( ( ((b+1)-2) * ((b+1)-1) ) / 2 ) + (a+1)
+                            Entry_aaaa = AllTwoElRDM(Indij_aa,Indab_aa)
+
+                            Sign_bbbb = sign(1.D0, Entry_bbbb)
+                            Sign_aaaa = sign(1.D0, Entry_aaaa)
+                            
+                            AllTwoElRDM(Indij_bb,Indab_bb) = &
+                                Sign_bbbb * ( ( abs(Entry_bbbb) + abs(Entry_aaaa) ) / 2.D0 )
+
+                            AllTwoElRDM(Indij_aa,Indab_aa) = &
+                                Sign_aaaa * ( ( abs(Entry_bbbb) + abs(Entry_aaaa) ) / 2.D0 )
+
+
+                            Indij_ba = ( ( ((j+1)-2) * ((j+1)-1) ) / 2 ) + i
+                            Indab_ba = ( ( ((b+1)-2) * ((b+1)-1) ) / 2 ) + a
+                            Entry_baba = AllTwoElRDM(Indij_ba, Indab_ba)
+
+                            Indij_ab = ( ( (j-2) * (j-1) ) / 2 ) + (i+1)
+                            Indab_ab = ( ( (b-2) * (b-1) ) / 2 ) + (a+1)
+                            Entry_abab = AllTwoElRDM(Indij_ab,Indab_ab)
+
+                            Sign_baba = sign(1.D0, Entry_baba)
+                            Sign_abab = sign(1.D0, Entry_abab)
+                            
+                            AllTwoElRDM(Indij_ba, Indab_ba) = &
+                                Sign_baba * ( ( abs(Entry_baba) + abs(Entry_abab) ) / 2.D0 )
+
+                            AllTwoElRDM(Indij_ab,Indab_ab) = &
+                                Sign_abab * ( ( abs(Entry_baba) + abs(Entry_abab) ) / 2.D0 )
+
+
+                            Indij_ba = ( ( ((j+1)-2) * ((j+1)-1) ) / 2 ) + i
+                            Indab_ab = ( ( (b-2) * (b-1) ) / 2 ) + (a+1)
+                            Entry_baab = AllTwoElRDM(Indij_ba,Indab_ab)
+
+                            Indij_ab = ( ( (j-2) * (j-1) ) / 2 ) + (i+1)
+                            Indab_ba = ( ( ((b+1)-2) * ((b+1)-1) ) / 2 ) + a
+                            Entry_abba = AllTwoElRDM(Indij_ab,Indab_ba)
+
+                            Sign_baab = sign(1.D0, Entry_baab)
+                            Sign_abba = sign(1.D0, Entry_abba)
+                            
+                            AllTwoElRDM(Indij_ba,Indab_ab) = &
+                                Sign_baab * ( ( abs(Entry_baab) + abs(Entry_abba) ) / 2.D0 )
+
+                            AllTwoElRDM(Indij_ab,Indab_ba) = &
+                                Sign_abba * ( ( abs(Entry_baab) + abs(Entry_abba) ) / 2.D0 )
+
+                        enddo
+                    enddo
+                enddo
+            enddo
+
+        endif
+    
+    
+    END SUBROUTINE Average_Spins 
+
+
     SUBROUTINE Calc_Energy_from_RDM()
 !This routine takes the 1 electron and 2 electron reduced density matrices and calculated the energy they give.    
 !The equation for the energy is as follows:
@@ -2361,7 +2476,8 @@ MODULE nElRDMMod
         USE UMatCache , only : UMatInd
         USE OneEInts , only : TMAT2D
         USE RotateOrbsMod , only : SymLabelList2
-        USE UMatCache, only: GTID
+        USE UMatCache , only : GTID
+        USE Logging , only : tRDMSpinAveraging
         INTEGER :: i,j,k,l,Ind2,Ind1,i2,j2,k2,l2,ierr
         REAL(dp) :: RDMEnergy, Coul, Exch, Norm_1RDM, Norm_2RDM, AllAccumRDMNorm, stochastic_factor 
         REAL(dp) :: Trace_2RDM_New, RDMEnergy1El, RDMEnergy2El, Trace_1RDM_New, ParityFactor
@@ -2412,8 +2528,13 @@ MODULE nElRDMMod
 
                 TwoRDM_unit = get_free_unit()
                 OPEN(TwoRDM_unit,file='2El_RDM_Matrix',status='unknown')
+
             ENDIF
 
+            IF(tRDMSpinAveraging) CALL Average_Spins() 
+
+            ! Find the current, unnormalised trace of each matrix.
+            ! TODO: This can be merged into the spin averaging when everything is working.
             do i = 1, ((nBasis*(nBasis-1))/2)
                 IF(i.le.nBasis) Trace_1RDM = Trace_1RDM + NatOrbMat(i,i)
                 Trace_2RDM = Trace_2RDM + AllTwoElRDM(i,i)
@@ -2428,7 +2549,10 @@ MODULE nElRDMMod
                 Norm_1RDM = 1.D0 / AllAccumRDMNorm
                 Norm_2RDM = 1.D0 / AllAccumRDMNorm
             ELSE
+                ! Sum of diagonal elements of 1 electron RDM must equal NEl, number of electrons.
                 Norm_1RDM = ( REAL(NEl,8) / Trace_1RDM )
+                ! Sum of diagonal elements of 2 electron RDM must equal number of pairs of electrons,
+                ! = NEl ( NEl - 1 ) / 2
                 Norm_2RDM = ( (0.50 * (REAL(NEl) * (REAL(NEl) - 1.D0))) / Trace_2RDM )
             ENDIF
 

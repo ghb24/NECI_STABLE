@@ -29,7 +29,7 @@ MODULE Logging
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
     LOGICAL tTruncDumpbyVal
     LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit,tPrintDoubsUEG
-    LOGICAL tExplicitHFRDM, tHF_S_D_Ref, tHF_Ref, tExplicitAllRDM
+    LOGICAL tExplicitHFRDM, tHF_S_D_Ref, tHF_Ref, tExplicitAllRDM, tRDMSpinAveraging
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps,IterShiftBlock
     INTEGER IterRDMonFly, RDMExcitLevel, RDMEnergyIter
     INTEGER CCMCDebug  !CCMC Debugging Level 0-6.  Default 0
@@ -139,6 +139,7 @@ MODULE Logging
       tExplicitAllRDM = .false.
       tHF_S_D_Ref = .false.
       tHF_Ref = .false.
+      tRDMSpinAveraging = .false.
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -490,6 +491,18 @@ MODULE Logging
         case("HFREFRDM")
 !Uses the HF as a reference and calculates the RDM to find the energy - should be same as projected energy.            
             tHF_Ref = .true.
+
+        case("RDMSPINAVERAGING")
+!Ensures that all the spin flipped elements of the RDM are the same.            
+            IF(item.lt.nitems) THEN
+                call readu(w)
+                select case(w)
+                    case("OFF")
+                        tRDMSpinAveraging=.false.
+                end select
+            ELSE
+                tRDMSpinAveraging=.true.
+            ENDIF
 
         case("AUTOCORR")
 !This is a Parallel FCIMC option - it will calculate the largest weight MP1 determinants and histogramm them
