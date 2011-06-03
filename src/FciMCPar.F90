@@ -2065,7 +2065,11 @@ MODULE FciMCParMod
         fac = tau * (Kii-DiagSft)
 
         if(fac.gt.1.D0) then
-            write(6,"(A,F20.10)") "** WARNING ** Death probability > 1: Creating Antiparticles. Timestep errors possible: ",fac
+            if(fac.gt.2.D0) then
+                call stop_all("attempt_die_normal","Death probability > 2: Algorithm unstable. Reduce timestep.")
+            else
+                write(6,"(A,F20.10)") "** WARNING ** Death probability > 1: Creating Antiparticles. Timestep errors possible: ",fac
+            endif
         endif
 
         do i=1,lenof_sign
