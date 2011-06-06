@@ -73,6 +73,7 @@ real(dp), target :: DiagSft
 real(dp) :: GraphEpsilon
 real(dp) :: PGenEpsilon
 real(dp) :: TargetGrowRate
+integer(int64) :: TargetGrowRateWalk    !Number of walkers before targetgrowrate kicks in
 
 
 !// additional from NECI.F
