@@ -113,6 +113,7 @@ MODULE FciMCParMod
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
         use Logging, only: PopsfileTimer
+        use util_mod, only: get_free_unit
         real(dp) :: Weight, Energyxw
         INTEGER :: error
         LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange,tPrintWarn
@@ -138,6 +139,11 @@ MODULE FciMCParMod
         call SetupParameters()
         call InitFCIMCCalcPar()
         call init_fcimc_fn_pointers () 
+
+        if(tHistSpawn) then 
+            Tot_Unique_Dets_Unit = get_free_unit()
+            OPEN(Tot_Unique_Dets_Unit,FILE='TOTUNIQUEDETS',STATUS='UNKNOWN')
+        endif
 
         ! Initial output
         call WriteFciMCStatsHeader()
@@ -402,6 +408,10 @@ MODULE FciMCParMod
             IF(tLogComplexPops) CLOSE(complexstats_unit)
         ENDIF
         IF(TDebug) CLOSE(11)
+
+        if(tHistSpawn) then 
+            close(Tot_Unique_Dets_Unit)
+        endif
 
         RETURN
 
@@ -2415,7 +2425,7 @@ MODULE FciMCParMod
     SUBROUTINE WriteHistogram()
         use SystemData , only : BasisFN
         use util_mod, only: get_free_unit
-        INTEGER :: i,IterRead, io1, io2, io3
+        INTEGER :: i,IterRead, io1, io2, io3, Tot_No_Unique_Dets
         real(dp) :: norm,norm1,norm2,norm3,ShiftRead,AllERead,NumParts
         CHARACTER(len=22) :: abstr,abstr2
         LOGICAL :: exists
@@ -2534,6 +2544,7 @@ MODULE FciMCParMod
 
             norm=0.D0
             norm1=0.D0
+            Tot_No_Unique_Dets = 0
             do i=1,Det
                 IF(lenof_sign.eq.1) THEN
                     norm=norm+AllHistogram(1,i)**2
@@ -2547,7 +2558,10 @@ MODULE FciMCParMod
                 ELSE
                     WRITE(io1,"(I13,6G25.16)") i,AllHistogram(1,i),norm,AllInstHist(1,i),AllInstAnnihil(1,i),AllAvAnnihil(1,i),norm1
                 ENDIF
+                IF(AllHistogram(1,i).ne.0.D0) Tot_No_Unique_Dets = Tot_No_Unique_Dets + 1
             enddo
+            write(Tot_Unique_Dets_Unit,"(2A20)") Iter, Tot_No_Unique_Dets
+
 
 !            do i=1,Maxdet
 !                bits=0
