@@ -971,7 +971,7 @@ MODULE AnnihilationMod
 !Now we have to remove the annihilated particles from the spawned list. They will be removed from the main list at the end of the annihilation process.
 !It may actually be easier to just move the annihilated particles to the end of the list and resort the list?
 !Or, the removed indices could be found on the fly? This may have little benefit though if the memory isn't needed.
-        IF(ToRemove.gt.0) THEN
+        IF((ToRemove+Spawned_Parts_Zero).gt.0) THEN
 
 !Since reading and writing from the same array is slow, copy the information accross to the other spawned array, and just swap the pointers around after.
             DetsMerged=0
