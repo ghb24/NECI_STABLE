@@ -252,7 +252,7 @@ MODULE nElRDMMod
             OPEN(Energies_unit,file='Energies',status='unknown')
 
 !            WRITE(Energies_unit, "(A1,4A30)") '#','Iteration','RDM Energy (Stochastic)',"Inst RDM ('Exact')", "Av RDM ('Exact')"
-            WRITE(Energies_unit, "(A1,2A30)") '#','Iteration','RDM Energy (Stochastic)'
+            WRITE(Energies_unit, "(A1,3A30)") '#','Iteration','RDM Energy (Stochastic)','Tot Spin Projection'
         ENDIF
 
         AccumRDMNorm = 0.D0
@@ -1268,7 +1268,7 @@ MODULE nElRDMMod
         USE RotateOrbsMod , only : FourIndInts, FourIndIntsTag
         USE RotateOrbsData , only : NoOrbs
         INTEGER :: error,i,j,ierr
-        REAL(dp) :: SumDiag
+        REAL(dp) :: SumDiag, Corr_Entropy
         CHARACTER(len=*), PARAMETER :: this_routine='FinaliseRDM'
 
 
@@ -1328,13 +1328,13 @@ MODULE nElRDMMod
                 tRotateVirtOnly=.true.
                 tRotateOccOnly=.false.
                 tSeparateOccVirt=.false.
-                WRITE(6,*) 'NatOrbMat'
-                do i = 1, nBasis
-                    do j = 1, nBasis
-                        WRITE(6,'(F20.10)',advance='no') NatOrbMat(j,i)
-                    enddo
-                    WRITE(6,*) ''
-                enddo
+!                WRITE(6,*) 'NatOrbMat'
+!                do i = 1, nBasis
+!                    do j = 1, nBasis
+!                        WRITE(6,'(F20.10)',advance='no') NatOrbMat(j,i)
+!                    enddo
+!                    WRITE(6,*) ''
+!                enddo
 
                 CALL OrderRDM()
 
@@ -1348,10 +1348,18 @@ MODULE nElRDMMod
                 do i=1,nBasis
                     Evalues(i)=Evalues(i)/(SumDiag/REAL(NEl))
                 enddo
-                WRITE(6,*) 'Normalised Evalues:'
+
+                WRITE(6,*) ''
+                WRITE(6,*) 'NORMALISED EVALUES:'
+                Corr_Entropy = 0.D0
                 do i=1,nBasis
-                    WRITE(6,*) Evalues(i)
+                    WRITE(6,'(F30.20)') Evalues(i)
+                    Corr_Entropy = Corr_Entropy - ( (1.D0 / NEl) * Evalues(i) * LOG(Evalues(i)) )
                 enddo
+                WRITE(6,*) ''
+                WRITE(6,'(A20,F30.20)') ' CORRELATION ENTROPY', Corr_Entropy
+                WRITE(6,*) ''
+
 
                 IF(.not.tNoRODump) THEN
 
@@ -1507,27 +1515,26 @@ MODULE nElRDMMod
                         enddo
                     enddo
 
-
-                    WRITE(6,*) '*****'
-                    WRITE(6,*) 'Symmetry ',Sym, 'with spin ',spin,' has ',NoSymBlock,' orbitals.'
-                    WRITE(6,*) 'The NatOrbMat for this symmetry block is '
-                    do i=1,NoSymBlock
-                        do j=1,NoSymBlock
-                            WRITE(6,'(F20.10)',advance='no') NOMSym(j,i)
-                        enddo
-                        WRITE(6,*) ''
-                    enddo
+!                    WRITE(6,*) '*****'
+!                    WRITE(6,*) 'Symmetry ',Sym, 'with spin ',spin,' has ',NoSymBlock,' orbitals.'
+!                    WRITE(6,*) 'The NatOrbMat for this symmetry block is '
+!                    do i=1,NoSymBlock
+!                        do j=1,NoSymBlock
+!                            WRITE(6,'(F20.10)',advance='no') NOMSym(j,i)
+!                        enddo
+!                        WRITE(6,*) ''
+!                    enddo
 
                     CALL DSYEV('V','L',NoSymBlock,NOMSym,NoSymBlock,EvaluesSym,WORK2,LWORK2,ierr)
                     ! NOMSym goes in as the original NOMSym, comes out as the eigenvectors (Coefficients).
                     ! EvaluesSym comes out as the eigenvalues in ascending order.
 
-                    WRITE(6,*) 'After diagonalization, the e-vectors (diagonal elements) of this matrix are ,'
-                    do i=1,NoSymBlock
-                        WRITE(6,'(F20.10)',advance='no') EvaluesSym(i)
-                    enddo
-                    WRITE(6,*) ''
-                    WRITE(6,*) 'These go from orbital ,',SymStartInd+1,' to ',SymStartInd+NoSymBlock
+!                    WRITE(6,*) 'After diagonalization, the e-vectors (diagonal elements) of this matrix are ,'
+!                    do i=1,NoSymBlock
+!                        WRITE(6,'(F20.10)',advance='no') EvaluesSym(i)
+!                    enddo
+!                    WRITE(6,*) ''
+!                    WRITE(6,*) 'These go from orbital ,',SymStartInd+1,' to ',SymStartInd+NoSymBlock
 
                     do i=1,NoSymBlock
                         Evalues(SymStartInd+i)=EvaluesSym(i)
@@ -1537,13 +1544,13 @@ MODULE nElRDMMod
                     ! may be better to just take coefficients and transform TMAT2DRot in transform2elints.
                     ! a check that comes out as diagonal is a check of this routine anyway.
 
-                    WRITE(6,*) 'The eigenvectors (coefficients) for symmetry block ',Sym
-                    do i=1,NoSymBlock
-                        do j=1,NoSymBlock
-                            WRITE(6,'(F20.10)',advance='no') NOMSym(j,i)
-                        enddo
-                        WRITE(6,*) ''
-                    enddo
+!                    WRITE(6,*) 'The eigenvectors (coefficients) for symmetry block ',Sym
+!                    do i=1,NoSymBlock
+!                        do j=1,NoSymBlock
+!                            WRITE(6,'(F20.10)',advance='no') NOMSym(j,i)
+!                        enddo
+!                        WRITE(6,*) ''
+!                    enddo
              
                     do j=1,NoSymBlock
                         do i=1,NoSymBlock
@@ -1566,9 +1573,9 @@ MODULE nElRDMMod
 
                     Evalues(SymStartInd+1)=NatOrbMat(SymStartInd+1,SymStartInd+1)
                     NatOrbMat(SymStartInd+1,SymStartInd+1)=1.D0
-                    WRITE(6,*) '*****'
-                    WRITE(6,*) 'Symmetry ',Sym,' has only one orbital.'
-                    WRITE(6,*) 'Copying diagonal element ,',SymStartInd+1,'to NatOrbMat'
+!                    WRITE(6,*) '*****'
+!                    WRITE(6,*) 'Symmetry ',Sym,' has only one orbital.'
+!                    WRITE(6,*) 'Copying diagonal element ,',SymStartInd+1,'to NatOrbMat'
                 ENDIF
 
                 Sym=Sym+1
@@ -1579,9 +1586,9 @@ MODULE nElRDMMod
         CALL FLUSH(6)
 
         SumDiagTrace=0.D0
-        write(6,*) 'Evalues'
+!        write(6,*) 'Evalues'
         do i=1,nBasis
-            write(6,*) Evalues(i)
+!            write(6,*) Evalues(i)
             SumDiagTrace=SumDiagTrace+Evalues(i)
         enddo
         IF((ABS(SumDiagTrace-SumTrace)).gt.1E-5) THEN
@@ -1687,10 +1694,10 @@ MODULE nElRDMMod
 !            WRITE(6,*) ''
 !        enddo
 
-        WRITE(6,*) 'Eigen-values: '
-        do i=1,nBasis
-            WRITE(6,*) Evalues(i)
-        enddo
+!        WRITE(6,*) 'Eigen-values: '
+!        do i=1,nBasis
+!            WRITE(6,*) Evalues(i)
+!        enddo
 
     END SUBROUTINE OrderRDM
 
@@ -2299,44 +2306,41 @@ MODULE nElRDMMod
             DEALLOCATE(OneElRDM)
             CALL LogMemDeAlloc(this_routine,OneElRDMTag)
 
+
             IF(iProcIndex.eq.0) THEN
                 DEALLOCATE(Evalues)
                 CALL LogMemDeAlloc(this_routine,EvaluesTag)
 
                 DEALLOCATE(NatOrbMat)
                 CALL LogMemDeAlloc(this_routine,NatOrbMatTag)
+
             ENDIF
 
             DEALLOCATE(SymLabelCounts2)
             CALL LogMemDeAlloc(this_routine,SymLabelCounts2Tag)
- 
+
             DEALLOCATE(SymLabelList2)
             CALL LogMemDeAlloc(this_routine,SymLabelList2Tag)
- 
+
             DEALLOCATE(SymLabelListInv)
             CALL LogMemDeAlloc(this_routine,SymLabelListInvTag)
- 
+
             IF(tDiagRDM.and.(.not.tNoRODump)) THEN
                 DEALLOCATE(CoeffT1)
                 CALL LogMemDeAlloc(this_routine,CoeffT1Tag)
-     
+
                 DEALLOCATE(FourIndInts)
                 CALL LogMemDeAlloc(this_routine,FourIndIntsTag)
-     
+
             ENDIF
         ENDIF
 
 
         IF((RDMExcitLevel.eq.2).or.(RDMExcitLevel.eq.3)) THEN
 ! We also need to allocate the actual 1RDM on each processor, and an all1RDM on only the root.        
-!            WRITE(6,*) 'Having issues deallocating TwoElRDM (possibly because of array bounds issues)'
-!            CALL FLUSH(6)
 
             DEALLOCATE(TwoElRDM)
             CALL LogMemDeAlloc(this_routine,TwoElRDMTag)
-
-!            WRITE(6,*) 'Nope, deallocation of TwoElRDM is o.k'
-!            CALL FLUSH(6)
 
             IF(iProcIndex.eq.0) THEN
                 DEALLOCATE(AllTwoElRDM)
@@ -2481,6 +2485,8 @@ MODULE nElRDMMod
         INTEGER :: i,j,k,l,Ind2,Ind1,i2,j2,k2,l2,ierr
         REAL(dp) :: RDMEnergy, Coul, Exch, Norm_1RDM, Norm_2RDM, AllAccumRDMNorm, stochastic_factor 
         REAL(dp) :: Trace_2RDM_New, RDMEnergy1El, RDMEnergy2El, Trace_1RDM_New, ParityFactor
+        REAL(dp) :: Tot_Spin_Projection, Lin_Ineq, Lin_Ineq_TwoEl, Lin_Ineq_OneEl
+        REAL(dp) :: Ind1_LI, Ind2_LI, ParityFactor_LI
         REAL(dp) , ALLOCATABLE :: TestRDM(:,:)
         INTEGER :: TestRDMTag
 
@@ -2497,7 +2503,8 @@ MODULE nElRDMMod
         IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) CALL MPIReduce(OneElRDM,MPI_SUM,NatOrbMat)
         IF((RDMExcitLevel.eq.2).or.(RDMExcitLevel.eq.3)) CALL MPIReduce(TwoElRDM,MPI_SUM,AllTwoElRDM)
 
-        CALL MPIReduce(AccumRDMNorm,MPI_SUM,AllAccumRDMNorm)
+        IF(tHF_Ref.or.tHF_S_D_Ref) &
+            CALL MPIReduce(AccumRDMNorm,MPI_SUM,AllAccumRDMNorm)
 
 !First of all 'normalise' the reduced density matrices.
 !These are not even close to being normalised at the moment, because of the way they are calculated on the fly.
@@ -2540,10 +2547,10 @@ MODULE nElRDMMod
                 Trace_2RDM = Trace_2RDM + AllTwoElRDM(i,i)
             enddo
 
-            if(tFinalRDMEnergy) then
-                WRITE(6,*) 'Trace_1RDM',Trace_1RDM
-                WRITE(6,*) 'Trace_2RDM',Trace_2RDM
-            endif
+!            if(tFinalRDMEnergy) then
+!                WRITE(6,*) 'Trace_1RDM',Trace_1RDM
+!                WRITE(6,*) 'Trace_2RDM',Trace_2RDM
+!            endif
 
             IF(tHF_Ref.or.tHF_S_D_Ref) THEN
                 Norm_1RDM = 1.D0 / AllAccumRDMNorm
@@ -2556,14 +2563,17 @@ MODULE nElRDMMod
                 Norm_2RDM = ( (0.50 * (REAL(NEl) * (REAL(NEl) - 1.D0))) / Trace_2RDM )
             ENDIF
 
-            if(tFinalRDMEnergy) then
-                WRITE(6,*) 'AllAccumRDMNorm',AllAccumRDMNorm
-                WRITE(6,*) 'Norm_1RDM',Norm_1RDM
-                WRITE(6,*) 'Norm_2RDM',Norm_2RDM
-            endif
+!            if(tFinalRDMEnergy) then
+!                WRITE(6,*) 'AllAccumRDMNorm',AllAccumRDMNorm
+!                WRITE(6,*) 'Norm_1RDM',Norm_1RDM
+!                WRITE(6,*) 'Norm_2RDM',Norm_2RDM
+!            endif
 
             !Need to multiply each element of the 1 electron reduced density matrices by NEl / Trace_1RDM,
             !and then add it's contribution to the energy.
+
+            Tot_Spin_Projection = 0.D0
+
             do i = 1, nBasis 
 
                 i2 = gtID(i)
@@ -2574,8 +2584,11 @@ MODULE nElRDMMod
 
                 Trace_1RDM_New = Trace_1RDM_New + ( NatOrbMat(SymLabelListInv(i),SymLabelListInv(i)) * Norm_1RDM )
 
-                do k = i+1, nBasis
+                if(mod(i,2).eq.0) &
+                    Tot_Spin_Projection = Tot_Spin_Projection + &
+                        ( 0.50 * ( ( NatOrbMat(i-1,i-1) * Norm_1RDM ) - ( NatOrbMat(i,i) * Norm_1RDM ) ) )
 
+                do k = i+1, nBasis
 
 !SymLabelListInv(j) = x, gives the position of orbital j in NatOrbMat (orbital j is in position x).
 !We want to find orbital j, because we're multiplying it by TMAT2D(i,j) where i and j are the *orbitals* not the position.
@@ -2586,7 +2599,6 @@ MODULE nElRDMMod
 
                     RDMEnergy1El = RDMEnergy1El + (REAL(TMAT2D(i,k),8)  &
                                                 * NatOrbMat(SymLabelListInv(i),SymLabelListInv(k)) * Norm_1RDM )
-
 
 !                    if(tFinalRDMEnergy.and.(NatOrbMat(SymLabelListInv(i),SymLabelListInv(k)).ne.0.D0)) & 
 !                                                write(OneRDM_unit,'(2I10,F30.20)') SymLabelListInv(i),SymLabelListInv(k), & 
@@ -2656,61 +2668,98 @@ MODULE nElRDMMod
             RDMEnergy = RDMEnergy1El + RDMEnergy2El + Ecore 
 
             if(tFinalRDMEnergy) then
+                write(6,*) ''
                 if(tExplicitAllRDM) then
-                    write(6,*) '**** Energy calculated using the explicitly accumulated RDM **** '
+                    write(6,*) '**** ENERGY CALCULATED USING THE EXPLICITLY ACCUMULATED RDM **** '
                 else
-                    write(6,*) '**** Energy calculated using the stochastic RDM **** '
+                    write(6,*) '**** ENERGY CALCULATED USING THE STOCHASTIC RDM **** '
                 endif
-                WRITE(6,*) 'Trace of 1-el-RDM after normalisation : ',Trace_1RDM_New
-                WRITE(6,*) 'Trace of 2-el-RDM after normalisation : ',Trace_2RDM_New
-                WRITE(6,*) 'Contribution to the energy from the 1-el-RDM:',RDMEnergy1El
-                WRITE(6,*) 'Contribution to the energy from the 2-el-RDM:',RDMEnergy2El
-                WRITE(6,*) '       ********        '
-                WRITE(6,*) 'TOTAL ENERGY calculated using the REDUCED DENSITY MATRICES:',RDMEnergy
-                WRITE(6,*) '       ********        '
-!                WRITE(6,*) 'Ecore',Ecore
-                call flush(6)
+                write(6,*) ''
+                write(6,*) 'Trace of 1-el-RDM before normalisation : ',Trace_1RDM
+                write(6,*) 'Trace of 2-el-RDM before normalisation : ',Trace_2RDM
+                write(6,*) 'Trace of 1-el-RDM after normalisation : ',Trace_1RDM_New
+                write(6,*) 'Trace of 2-el-RDM after normalisation : ',Trace_2RDM_New
+                write(6,*) 'Contribution to the energy from the 1-el-RDM:',RDMEnergy1El
+                write(6,*) 'Contribution to the energy from the 2-el-RDM:',RDMEnergy2El
+                write(6,*) ''
+                write(6,'(A60,F30.20)') ' *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*:',RDMEnergy
+                write(6,*) ''
+!                write(6,*) 'Ecore',Ecore
 
                 write(6,*) 'Writing out 1 and 2 electron density matrices to file'
+                call flush(6)
 
+                Tot_Spin_Projection = 0.D0
+                Lin_Ineq = 0.D0
+                Lin_Ineq_OneEl = 0.D0
+                Lin_Ineq_TwoEl = 0.D0
                 do i = 1, nBasis
 
-                    do k = 1, nBasis
+                    if(mod(i,2).eq.0) &
+                        Tot_Spin_Projection = Tot_Spin_Projection + &
+                            ( 0.50 * ( ( NatOrbMat(SymLabelListInv(i-1),SymLabelListInv(i-1)) * Norm_1RDM ) &
+                                - ( NatOrbMat(SymLabelListInv(i),SymLabelListInv(i)) * Norm_1RDM ) ) )
 
-                        IF(NatOrbMat(SymLabelListInv(i),SymLabelListInv(k)).ne.0.D0) & 
-                                            write(OneRDM_unit,"(2I6,G25.17)") i,k, & 
-                                                    ( NatOrbMat(SymLabelListInv(i),SymLabelListInv(k)) * Norm_1RDM )
-
-                    enddo
-                    
                     do j = 1, nBasis
 
-                        if(i.eq.j) CYCLE
+                        IF(NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)).ne.0.D0) & 
+                                            write(OneRDM_unit,"(2I6,G25.17)") i,j, & 
+                                                    ( NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) * Norm_1RDM )
+                        
+                        Lin_Ineq_OneEl = real(NEl - 1, dp) *  ( NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) * Norm_1RDM )                                                    
+                        Lin_Ineq_TwoEl = 0.D0
+
                         Ind1 = ( ( (max(i,j)-2) * (max(i,j)-1) ) / 2 ) + min(i,j)
 
                         do k = 1, nBasis
-                            do l = 1, nBasis
 
-                                if(k.eq.l) CYCLE
+                            if((i.ne.k).and.(j.ne.k)) then
+                                Ind1_LI = ( ( (max(i,k)-2) * (max(i,k)-1) ) / 2 ) + min(i,k)
+                                Ind2_LI = ( ( (max(j,k)-2) * (max(j,k)-1) ) / 2 ) + min(j,k)
 
-                                Ind2 = ( ( (max(k,l)-2) * (max(k,l)-1) ) / 2 ) + min(k,l)
+                                ParityFactor_LI = 1.D0
+                                IF((i.gt.k).or.(j.gt.k)) ParityFactor_LI = -1.D0
+                                IF((i.gt.k).and.(j.gt.k)) ParityFactor_LI = 1.D0
 
-                                ParityFactor = 1.D0
-                                IF((i.gt.j).or.(k.gt.l)) ParityFactor = -1.D0
-                                IF((i.gt.j).and.(k.gt.l)) ParityFactor = 1.D0
+                                Lin_Ineq_TwoEl = Lin_Ineq_TwoEl + ( AllTwoElRDM(Ind1_LI,Ind2_LI) * Norm_2RDM * ParityFactor_LI)
+                            endif
 
-!                                IF((i.eq.l).or.(j.eq.k)) ParityFactor = -1.D0
+                            if(i.ne.j) then
+                                do l = 1, nBasis
 
-                                if(AllTwoElRDM(Ind1,Ind2).ne.0.D0) &
-                                    write(TwoRDM_unit,"(4I6,G25.17)") i,j,k,l,( AllTwoElRDM(Ind1,Ind2) * Norm_2RDM * ParityFactor)
+                                    if(k.eq.l) CYCLE
 
-                            enddo
+                                    Ind2 = ( ( (max(k,l)-2) * (max(k,l)-1) ) / 2 ) + min(k,l)
+
+                                    ParityFactor = 1.D0
+                                    IF((i.gt.j).or.(k.gt.l)) ParityFactor = -1.D0
+                                    IF((i.gt.j).and.(k.gt.l)) ParityFactor = 1.D0
+
+!                                    IF((i.eq.l).or.(j.eq.k)) ParityFactor = -1.D0
+
+                                    if(AllTwoElRDM(Ind1,Ind2).ne.0.D0) &
+                                        write(TwoRDM_unit,"(4I6,G25.17)") i,j,k,l,( AllTwoElRDM(Ind1,Ind2) * Norm_2RDM * ParityFactor)
+
+                                enddo
+                            endif
                         enddo
+
+                        Lin_Ineq = Lin_Ineq + ( Lin_Ineq_TwoEl - Lin_Ineq_OneEl )
+
                     enddo
 
                 enddo
 
+                write(6,*) ''
+                write(6,'(A22,F30.20)') ' TOTAL SPIN PROJECTION', Tot_Spin_Projection 
+                write(6,*) ''
+                write(6,'(A18,F30.20)') ' LINEAR INEQUALITY', Lin_Ineq
+                write(6,*) ''
+
             endif
+
+!            WRITE(Energies_unit, "(I31,2F30.15)") Iter+PreviousCycles,RDMEnergy,RDMEnergy_Accum/real(Iter_Accum,dp)
+            WRITE(Energies_unit, "(I31,2F30.15)") Iter+PreviousCycles, RDMEnergy, Tot_Spin_Projection
 
 !            Iter_Accum = Iter_Accum + 1
 !            RDMEnergy_Accum = RDMEnergy_Accum + RDMEnergy
@@ -2719,9 +2768,6 @@ MODULE nElRDMMod
                 AllTwoElRDM(:,:) = 0.D0
                 AllAccumRDMNorm = 0.D0
             endif
-
-!            WRITE(Energies_unit, "(I31,2F30.15)") Iter+PreviousCycles,RDMEnergy,RDMEnergy_Accum/real(Iter_Accum,dp)
-            WRITE(Energies_unit, "(I31,F30.15)") Iter+PreviousCycles,RDMEnergy
 
             if(tFinalRDMEnergy) then
                 close(OneRDM_unit)
@@ -2741,8 +2787,6 @@ MODULE nElRDMMod
 !                if(abs(testrdm(i,k)).gt.0.D0) write(6,*) 'i,k,testrdm',i,k,testrdm(i,k)
 !            enddo
 !        enddo
-
-!        CALL Test_Energy_Calc()
 
 !        deallocate(testrdm)
 !        deallocate(UMATTemp)
