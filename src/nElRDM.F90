@@ -2701,8 +2701,8 @@ MODULE nElRDMMod
 
 !                                IF((i.eq.l).or.(j.eq.k)) ParityFactor = -1.D0
 
-!                                if(AllTwoElRDM(Ind1,Ind2).ne.0.D0) write(TwoRDM_unit,"(4I6,G25.17)") i,j,k,l,( AllTwoElRDM(Ind1,Ind2) * Norm_2RDM * ParityFactor)
-                                write(TwoRDM_unit,"(4I6,G25.17)") i,j,k,l,( AllTwoElRDM(Ind1,Ind2) * Norm_2RDM * ParityFactor)
+                                if(AllTwoElRDM(Ind1,Ind2).ne.0.D0) &
+                                    write(TwoRDM_unit,"(4I6,G25.17)") i,j,k,l,( AllTwoElRDM(Ind1,Ind2) * Norm_2RDM * ParityFactor)
 
                             enddo
                         enddo
