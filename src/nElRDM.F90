@@ -2682,7 +2682,7 @@ MODULE nElRDMMod
                 write(6,*) 'Contribution to the energy from the 1-el-RDM:',RDMEnergy1El
                 write(6,*) 'Contribution to the energy from the 2-el-RDM:',RDMEnergy2El
                 write(6,*) ''
-                write(6,'(A60,F30.20)') ' *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*:',RDMEnergy
+                write(6,'(A64,F30.20)') ' *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*:',RDMEnergy
                 write(6,*) ''
 !                write(6,*) 'Ecore',Ecore
 
@@ -2752,7 +2752,6 @@ MODULE nElRDMMod
 
                 write(6,*) ''
                 write(6,'(A22,F30.20)') ' TOTAL SPIN PROJECTION', Tot_Spin_Projection 
-                write(6,*) ''
                 write(6,'(A18,F30.20)') ' LINEAR INEQUALITY', Lin_Ineq
                 write(6,*) ''
 
