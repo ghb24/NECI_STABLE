@@ -24,7 +24,7 @@ MODULE AnnihilationMod
     use hist_data, only: tHistSpawn, HistMinInd2
     use Logging , only : tExplicitAllRDM, tExplicitHFRDM, tHF_Ref, tHF_S_D_Ref
     IMPLICIT NONE
-    integer :: Beginning_Parent_Array_Ind, Parent_Array_Ind, No_Spawned_Parents
+    integer :: Beginning_Parent_Array_Ind, Parent_Array_Ind, No_Spawned_Parents, Spawned_Parts_Zero
 
     contains
 
@@ -368,6 +368,7 @@ MODULE AnnihilationMod
         BeginningBlockDet=1         
         DetsMerged=0
         Parent_Array_Ind = 1
+        Spawned_Parts_Zero = 0
 
         do while(BeginningBlockDet.le.ValidSpawned)
             !loop in blocks of the same determinant to the end of the list of walkers
@@ -464,6 +465,7 @@ MODULE AnnihilationMod
                 SpawnedParts2(0:NIfTot,VecInd) = cum_det(0:NIfTot)
                 VecInd = VecInd + 1
                 DetsMerged = DetsMerged + EndBlockDet - BeginningBlockDet
+                if(temp_sign(1).eq.0) Spawned_Parts_Zero = Spawned_Parts_Zero + 1
             else
                 ! All particles from block have been annihilated.
                 DetsMerged = DetsMerged + EndBlockDet - BeginningBlockDet + 1
@@ -821,7 +823,7 @@ MODULE AnnihilationMod
 
                 IF(SpawnedSign(1).eq.0) THEN
 !                    CALL Stop_All('AnnihilateSpawnedParts','SpawnedParts entry with sign = 0.')
-                    ToRemove = ToRemove + 1
+                    IF(.not.tFillingStochRDMonFly) ToRemove = ToRemove + 1
                     CYCLE
                 ENDIF
 
@@ -983,8 +985,8 @@ MODULE AnnihilationMod
                 ENDIF
             enddo
             ValidSpawned=ValidSpawned-DetsMerged
-            IF(DetsMerged.ne.ToRemove) THEN
-                WRITE(6,*) "***", Iter, DetsMerged, ToRemove
+            IF(DetsMerged.ne.(ToRemove+Spawned_Parts_Zero)) THEN
+                WRITE(6,*) "***", Iter, DetsMerged, ToRemove+Spawned_Parts_Zero
                 CALL Stop_All("AnnihilateSpawnedParts","Incorrect number of particles removed from spawned list")
             ENDIF
 !We always want to annihilate from the SpawedParts and SpawnedSign arrays, so swap them around.
