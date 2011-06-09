@@ -945,13 +945,14 @@ MODULE AnnihilationMod
                         ! Walkers came from outside initiator space.
                         NoAborted = NoAborted + abs(SignTemp(j))
                         iter_data%naborted(j) = iter_data%naborted(j) + abs(SignTemp(j))
+                        if(tFillingStochRDMonFly.and.(SignTemp(j).ne.0)) ToRemove = ToRemove + 1
                         SignTemp(j) = 0
                         call encode_part_sign (SpawnedParts(:,i), 0, j)
                     endif
                 enddo
                 if (IsUnoccDet(SignTemp)) then
                     ! All particle 'types' have been aborted
-                    ToRemove = ToRemove + 1
+                    IF(.not.tFillingStochRDMonFly) ToRemove = ToRemove + 1
                 endif
             endif
 
@@ -986,7 +987,7 @@ MODULE AnnihilationMod
             enddo
             ValidSpawned=ValidSpawned-DetsMerged
             IF(DetsMerged.ne.(ToRemove+Spawned_Parts_Zero)) THEN
-                WRITE(6,*) "***", Iter, DetsMerged, ToRemove+Spawned_Parts_Zero
+                WRITE(6,*) "***", Iter, DetsMerged, ToRemove+Spawned_Parts_Zero, ToRemove
                 CALL Stop_All("AnnihilateSpawnedParts","Incorrect number of particles removed from spawned list")
             ENDIF
 !We always want to annihilate from the SpawedParts and SpawnedSign arrays, so swap them around.
