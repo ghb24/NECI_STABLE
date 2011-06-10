@@ -907,7 +907,7 @@ MODULE AnnihilationMod
                         ENDIF
                     ENDIF
                     TotParts=TotParts+abs(CurrentSign)
-                    norm_psi_squared = norm_psi_squared + sum(CurrentSign**2)
+                    norm_psi_squared = norm_psi_squared + sum(int(CurrentSign,i8)**2)
                     IF(tCheckHighestPop) THEN
 !If this option is on, then we want to compare the weight on each determinant to the weight at the HF determinant.
 !Record the highest weighted determinant on each processor.
@@ -934,12 +934,12 @@ MODULE AnnihilationMod
         IF(ValidSpawned.gt.0) THEN
             call extract_sign(SpawnedParts(:,1),SpawnedSign)
             TotParts=TotParts+abs(SpawnedSign)
-            norm_psi_squared = norm_psi_squared + sum(SpawnedSign**2)
+            norm_psi_squared = norm_psi_squared + sum(int(SpawnedSign,i8)**2)
         ENDIF
         do i=2,ValidSpawned
             call extract_sign(SpawnedParts(:,i),SpawnedSign)
             TotParts=TotParts+abs(SpawnedSign)
-            norm_psi_squared = norm_psi_squared + sum(SpawnedSign**2)
+            norm_psi_squared = norm_psi_squared + sum(int(SpawnedSign,i8)**2)
         enddo
 
 !        CALL CheckOrdering(SpawnedParts,SpawnedSign(1:ValidSpawned),ValidSpawned,.true.)
