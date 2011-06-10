@@ -20,7 +20,8 @@ MODULE Calc
     use CCMCData, only: dInitAmplitude, dProbSelNewExcitor, nSpawnings, &
                         tSpawnProp, nClustSelections, tExactEnergy,     &
                         dClustSelectionRatio,tSharedExcitors
-    use FciMCData, only: proje_linear_comb, proje_ref_det_init,tTimeExit,MaxTimeExit
+    use FciMCData, only: proje_linear_comb, proje_ref_det_init,tTimeExit,MaxTimeExit, &
+                         InputDiagSft
 
     implicit none
 
@@ -34,6 +35,7 @@ contains
         ! Values for old parameters.
         ! These have no input options to change the defaults, but are used in
         ! the code.
+          TargetGrowRateWalk=500000
           TargetGrowRate=0.D0
           InitialPart=1
           TRHOOFR = .false.
@@ -48,6 +50,7 @@ contains
 
 
 !       Calc defaults 
+          InputDiagSft=0.D0
           tPopsMapping=.false.
           tTimeExit=.false.
           MaxTimeExit=0.D0
@@ -820,6 +823,7 @@ contains
             case("DIAGSHIFT")
 !For FCIMC, this is the amount extra the diagonal elements will be shifted. This is proportional to the deathrate of walkers on the determinant
                 call getf(DiagSft)
+                InputDiagSft = DiagSft
             case("TAUFACTOR")
 !For FCIMC, this is the factor by which 1/(HF connectivity) will be multiplied by to give the timestep for the calculation.
                 call getf(TauFactor)
@@ -838,6 +842,7 @@ contains
             case("TARGETGROWRATE")
 !For FCIMC, this is the target growth rate once in vary shift mode.
                 call getf(TargetGrowRate)
+                call getiLong(TargetGrowRateWalk)
             case("READPOPS")
 !For FCIMC, this indicates that the initial walker configuration will be read in from the file POPSFILE, which must be present.
 !DiagSft and InitWalkers will be overwritten with the values in that file.
