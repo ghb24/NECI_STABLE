@@ -669,6 +669,98 @@ MODULE nElRDMMod
     END SUBROUTINE GenExcDjs
 
 
+    subroutine Add_StochRDM_Diag(iLutCurr,DetCurr,SignCurr,walkExcitLevel,AllHFSign)
+! This is called when we run over all TotWalkers in CurrentDets.    
+! It is called for each CurrentDet.
+        use FciMCData , only : HFDet
+        use hphf_integrals , only : hphf_sign
+        use HPHFRandExcitMod , only : FindExcitBitDetSym
+        use DetBitOps , only : FindBitExcitLevel
+        integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
+        integer , intent(in) :: DetCurr(NEl)
+        integer, dimension(lenof_sign), intent(in) :: SignCurr, AllHFSign
+        integer , intent(in) :: walkExcitLevel
+        integer(kind=n_int) :: SpinCoupDet(0:niftot)
+        integer :: nSpinCoup(NEl), SignFac, HPHFExcitLevel
+        logical :: TestClosedShellDet, tFill_RDM_Symm
+
+! this is just a test to make sure the AllHFSign mpi is working.
+! can probably get rid of it soon.
+        if((walkexcitlevel.eq.0).and.(signcurr(1).ne.allhfsign(1))) then
+            write(6,*) 'DetCurr',DetCurr
+            write(6,*) 'SignCurr',SignCurr
+            write(6,*) 'AllHFSign',AllHFSign
+            call stop_all('performfcimcyc','HF population is incorrect.')
+        endif
+
+! Add diagonal elements to reduced density matrices.
+
+! If HF_S_D_Ref, we are only considering determinants connected to the HF, doubles and singles
+! (so theoretically up to quadruples).
+! But for the diagonal elements - only consider doubles and singles (and HF).
+        if(tHF_S_D_Ref.and.(walkExcitLevel.le.2)) then
+            call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
+            AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
+
+! HF_Ref - only diagonal element is the HF.            
+        elseif(tHF_Ref.and.(walkExcitLevel.eq.0)) then
+
+            call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
+            AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
+
+! Otherwise (and by default) we are considering the full RDM.            
+! Add every determinant to the diagonal elements.
+        elseif((.not.tHF_S_D_Ref).and.(.not.tHF_Ref)) then
+
+! If HPHF is on, we need to consider I' as well as I.
+! i.e. only one of the spin coupled determinants will be in the list, need to flip the spins of all 
+! determinants to generate the other, and add in the C_I to this I' too.
+! Only need to do this if I is open shell.
+            if(tHPHF.and.(.not.TestClosedShellDet(iLutCurr))) then
+
+! C_X D_X = C_X / SQRT(2) [ D_I +/- D_I'] - for open shell dets, divide stored C_X by SQRT(2). 
+! Add in I.
+                call Fill_Diag_RDM(DetCurr, (real(SignCurr(1),dp)/SQRT(2.D0)))
+
+! Generating I'.                
+                call FindExcitBitDetSym(iLutCurr, SpinCoupDet)
+                call decode_bit_det (nSpinCoup, SpinCoupDet)
+! Find out if it's + or - in the above expression.                
+                SignFac = hphf_sign(iLutCurr)
+! Add in I'.                
+                call Fill_Diag_RDM(nSpinCoup, real(SignFac*SignCurr(1),dp)/SQRT(2.D0))
+
+! For HPHF we're considering < D_I + D_I' | a_a+ a_b+ a_j a_i | D_I + D_I' >
+! Not only do we have diagonal < D_I | a_a+ a_b+ a_j a_i | D_I > terms, but also cross terms
+! < D_I | a_a+ a_b+ a_j a_i | D_I' > if D_I and D_I' can be connected by a single or double excitation.
+! Find excitation level between D_I and D_I' and add in the contribution if connected.
+                HPHFExcitLevel = FindBitExcitLevel (iLutCurr, SpinCoupDet, 2)
+                if(HPHFExcitLevel.le.2) & 
+                    call Add_RDM_From_IJ_Pair(DetCurr,nSpinCoup,real(SignCurr(1),dp)/SQRT(2.D0), &
+                                                        real(SignFac*SignCurr(1),dp)/SQRT(2.D0),.true.)
+            else
+
+! If no HPHF - just add in diagonal contribution from D_I.                
+                call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
+            endif
+        endif
+
+! If we are doing an EXPLICITHFRDM calculation, we explicitly add in every contribution from connections
+! between the HF and singles and doubles - symmetrically.
+        IF(tExplicitHFRDM.and.((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2))) THEN
+            tFill_RDM_Symm = .true.
+
+            if(tHF_Ref) tFill_RDM_Symm = .false.
+            ! If we're using a HF ref we're looking at <D_HF | a_a+ a_b+ a_j a_i | D_I >, so add to matrix
+            ! asymmetrically.
+
+            call Add_RDM_From_IJ_Pair(HFDet,DetCurr,real(AllHFSign(1),dp),real(SignCurr(1),dp),tFill_RDM_Symm)
+
+        endif
+
+    end subroutine Add_StochRDM_Diag
+
+
     SUBROUTINE Fill_Diag_RDM(nI,realSignDi,probsign)
         integer , intent(in) :: nI(NEl)
         real(dp) , intent(in) :: realSignDi

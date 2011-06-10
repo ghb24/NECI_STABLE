@@ -82,8 +82,7 @@ MODULE FciMCParMod
                          FindSpatialBitExcitLevel
     use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask, get_csf_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
-                              hphf_spawn_sign, hphf_off_diag_helement_spawn, &
-                              hphf_sign
+                              hphf_spawn_sign, hphf_off_diag_helement_spawn
     use MI_integrals
     use util_mod, only: choose, abs_int_sign, abs_int8_sign, binary_search
     use constants, only: dp, int64, n_int, lenof_sign
@@ -103,7 +102,7 @@ MODULE FciMCParMod
     use symrandexcit3, only: gen_rand_excit3, test_sym_excit3
     use nElRDMMod, only: FinaliseRDM,FillRDMthisIter,calc_energy_from_rdm, &
                          fill_diag_rdm, fill_sings_rdm, fill_doubs_rdm, &
-                         Add_RDM_From_IJ_Pair, tCalc_RDMEnergy
+                         Add_RDM_From_IJ_Pair, tCalc_RDMEnergy, Add_StochRDM_Diag
 
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
@@ -726,15 +725,13 @@ MODULE FciMCParMod
         type(fcimc_iter_data), intent(inout) :: iter_data
 
         ! Now the local, iteration specific, variables
-        integer :: VecSlot, j, p, error, HPHFExcitLevel
+        integer :: VecSlot, j, p, error
         integer :: DetCurr(nel), nJ(nel), FlagsCurr, parent_flags
         integer, dimension(lenof_sign) :: SignCurr, child
         integer(kind=n_int) :: iLutnJ(0:niftot)
-        integer(kind=n_int) :: SpinCoupDet(0:niftot)
-        integer :: nSpinCoup(NEl), SignFac
         integer :: IC, walkExcitLevel, ex(2,2), TotWalkersNew, part_type, k
         integer(int64) :: tot_parts_tmp(lenof_sign)
-        logical :: tParity, TestClosedShellDet, tFill_RDM_Symm
+        logical :: tParity
         real(dp) :: prob, HDiagCurr, TempTotParts
         HElement_t :: HDiagTemp,HElGen
 #ifdef __DEBUG
@@ -884,58 +881,10 @@ MODULE FciMCParMod
                 exit
             endif
 
-
             ! Add in any reduced density matrix info we want while running 
             ! over CurrentDets - i.e. diagonal elements and connections to HF.
-            if(tFillingStochRDMonFly) then
-
-                ! this is just a test to make sure the AllHFSign mpi is working.
-                ! can probably get rid of it soon.
-                if((walkexcitlevel.eq.0).and.(signcurr(1).ne.allhfsign(1))) then
-                    write(6,*) 'DetCurr',DetCurr
-                    write(6,*) 'SignCurr',SignCurr
-                    write(6,*) 'AllHFSign',AllHFSign
-                    call stop_all('performfcimcyc','HF population is incorrect.')
-                endif
-
-                ! Add diagonal elements to reduced density matrices.
-                if(tHF_S_D_Ref.and.(walkExcitLevel.le.2)) then
-
-                    call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
-                    AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
-
-                elseif(tHF_Ref.and.(walkExcitLevel.eq.0)) then
-
-                    call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
-                    AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
-
-                elseif((.not.tHF_S_D_Ref).and.(.not.tHF_Ref)) then
-                    ! Normal loop - just add in the diagonal contribution for each 
-                    ! occupied determinant.
-                    if(tHPHF.and.(.not.TestClosedShellDet(CurrentDets(:,j)))) then
-                        call Fill_Diag_RDM(DetCurr, (real(SignCurr(1),dp)/SQRT(2.D0)))
-                        call FindExcitBitDetSym(CurrentDets(:,j), SpinCoupDet)
-                        call decode_bit_det (nSpinCoup, SpinCoupDet)
-                        SignFac = hphf_sign(CurrentDets(:,j))
-                        call Fill_Diag_RDM(nSpinCoup, real(SignFac*SignCurr(1),dp)/SQRT(2.D0))
-                        HPHFExcitLevel = FindBitExcitLevel (CurrentDets(:,j), SpinCoupDet, 2)
-                        if(HPHFExcitLevel.le.2) & 
-                            call Add_RDM_From_IJ_Pair(DetCurr,nSpinCoup,real(SignCurr(1),dp)/SQRT(2.D0), &
-                                                                real(SignFac*SignCurr(1),dp)/SQRT(2.D0),.true.)
-                    else
-                        call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
-                    endif
-                endif
-
-                IF(tExplicitHFRDM.and.((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2))) THEN
-                    tFill_RDM_Symm = .true.
-                    if(tHF_Ref) tFill_RDM_Symm = .false.
-
-                    call Add_RDM_From_IJ_Pair(HFDet,DetCurr,real(AllHFSign(1),dp),real(SignCurr(1),dp),tFill_RDM_Symm)
-
-                endif
-
-            endif
+            if(tFillingStochRDMonFly) &
+                call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,SignCurr,walkExcitLevel,AllHFSign)
 
             ! Sum in any energy contribution from the determinant, including 
             ! other parameters, such as excitlevel info.
