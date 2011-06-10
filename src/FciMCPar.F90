@@ -1115,16 +1115,18 @@ MODULE FciMCParMod
                             child, flags)
 
         IF(tFillingStochRDMonFly) THEN                            
-
+            !We are spawning from iLutI to SpawnedParts(:,ValidSpawnedList(proc)).
+            !We want to store the parent (D_i) with the spawned child (D_j) so that we can
+            !add in Di.Dj to the RDM later on.
+            !The parent is NIfDBO integers long, and stored in the second part of the SpawnedParts array 
+            !from NIfTot+1 -> NIfTot+1 + NIfDBO.
             SpawnedParts(niftot+1:niftot+nifdbo+1, ValidSpawnedList(proc)) = iLutI(0:nifdbo) 
 
-            !This turns the real RDMBiasFacI ( = 1/(tau * Hij) ) into an integer to pass around to the relevant processors.
+            !We also need to carry with the child (and the parent), the sign of the parent.
+            !In actual fact this is the sign of the parent divided by the probability of generating that pair Di and Dj, to account for the 
+            !fact that Di and Dj are not always added to the RDM, but only when Di spawns on Dj.
+            !This turns the real RDMBiasFacI into an integer to pass around to the relevant processors.
             SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)) = transfer(RDMBiasFacI,SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)))
-
-!            IF(DetBitEQ(iLutI,iLutHF,NIfDBO)) THEN
-!                WRITE(6,*) 'ValidSpawnedList(proc)',ValidSpawnedList(proc)
-!                WRITE(6,*) 'SpawnedParts(:,ValidSpawnedList(proc))',SpawnedParts(:,ValidSpawnedList(proc))
-!            ENDIF
         ENDIF
 
         IF(lenof_sign.eq.2) THEN
