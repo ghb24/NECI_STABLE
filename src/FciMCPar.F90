@@ -754,11 +754,15 @@ MODULE FciMCParMod
         ENDIF
 
         IF(tRDMonFly.and.(Iter.eq.IterRDMonFly)) THEN
+            !We have reached the iteration where we want to start filling the RDM.
             if(tExplicitAllRDM) then
                 tFillingExplicRDMonFly = .true.
             else
+                !By default - we will do a stochastic calculation of the RDM.
                 tFillingStochRDMonFly = .true.
             endif
+            !RDMExcitLevel of 3 means we calculate both the 1 and 2 RDM's - otherwise we 
+            !calculated only the RDMExcitLevel-RDM.
             IF(RDMExcitLevel.eq.3) THEN
                 WRITE(6,'(A)') 'Beginning to calculate both the 1 and 2 electron density matrices on the fly.'
             ELSE
@@ -997,6 +1001,9 @@ MODULE FciMCParMod
                                 - iter_data%naborted
         iter_data%update_iters = iter_data%update_iters + 1
 
+        ! This routine will take the CurrentDets and search the array to find all single and double 
+        ! connections - adding them into the RDM's. 
+        ! This explicit way of doing this is very expensive, but o.k for very small systems.
         IF(tFillingExplicRDMonFly) CALL FillRDMthisIter(TotWalkers)
 
     end subroutine
@@ -1776,15 +1783,6 @@ MODULE FciMCParMod
 
             rat = tau * abs(rh / prob)
 
-            if(tFillingStochRDMonFly) then
-                if(rat.gt.1.D0) then
-                    p_spawn_rdmfac = 1.D0
-                else
-                    p_spawn_rdmfac = tau * abs( real(rh,dp) / prob )
-                endif
-                p_notlist_rdmfac = ( 1.D0 - prob ) + ( prob * (1.D0 - p_spawn_rdmfac) )
-            endif
-
             ! If probability > 1, then we just create multiple children at the
             ! chosen determinant.
             extraCreate = int(rat)
@@ -1805,12 +1803,39 @@ MODULE FciMCParMod
             iUnused = part_type
 
             if(tFillingStochRDMonFly.and.(child(1).ne.0)) then
-                if(n_int.eq.4) CALL Stop_All('attempt_create_normal','the bias factor currently does not work with 32 bit integers.')
 
-                RDMBiasFacI = abs( real(wSign(1),dp) ) / ( ( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) ) * 2.D0 )
+                ! We eventually turn this real bias factor into an integer to be passed around 
+                ! with the spawned children and their parents - this only works with 64 bit at the mo.
+                if(n_int.eq.4) CALL Stop_All('attempt_create_normal', &
+                                'the bias factor currently does not work with 32 bit integers.')
+
+                ! Otherwise calculate the 'sign' of Di we are eventually going to add in as Di.Dj.                                
+                ! Because we only add in Di.Dj when we successfully spawn from Di.Dj, we need to unbias (scale up) 
+                ! Di by the probability of this happening.
+                ! We need the probability that the determinant i, with population n_i, will spawn on j.
+                ! We only consider one instance of a pair Di,Dj, so just want the probability of any of the n_i 
+                ! walkers spawning on j.
+                ! P_successful_spawn(j | i)[n_i] =  1 - P_not_spawn(j | i)[n_i]
+                ! P_not_spawn(j | i )[n_i] is the probability of none of the n_i walkers spawning on j from i.
+                ! This requires either not generating j, or generating j and not succesfully spawning, n_i times.
+                ! P_not_spawn(j | i )[n_i] = [(1 - P_gen(j | i)) + ( P_gen( j | i ) * (1 - P_spawn(j | i))]^n_i
+
+                if(extraCreate.ne.0) then
+                    ! This is the special case whereby if P_spawn(j | i) > 1, then we will definitely spawn from i -> j.
+                    ! I.e. the pair Di,Dj will definitely be in the SpawnedParts list.
+                    ! We don't care about multiple spawns - if it's in the list, it gets added in regardless of 
+                    ! the number spawned - so if P_spawn(j | i) > 1, we treat it as = 1.
+                    p_spawn_rdmfac = 1.D0
+                else
+                    p_spawn_rdmfac = tau * abs( real(rh,dp) / prob )
+                endif
+                p_notlist_rdmfac = ( 1.D0 - prob ) + ( prob * (1.D0 - p_spawn_rdmfac) )
+
+                ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i]
+                ! However when we add in Di -> Dj, we also add in Dj -> Di, so the probability of generating this pair 
+                ! is twice that of just generating Di -> Dj.
+                RDMBiasFacI = real(wSign(1),dp) / abs( ( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) ) * 2.D0 )
                     
-                if(wSign(1).lt.0) RDMBiasFacI = RDMBiasFacI * (-1.D0)
-
             endif
 
 #endif
@@ -5617,7 +5642,10 @@ MODULE FciMCParMod
             CALL Stop_All(this_routine,"Cannot use the SPAWNONLYINIT option without the TRUNCINITIATOR option.")
         endif
 
+        !This keyword (tRDMonFly) is on from the beginning if we eventually plan to calculate the RDM's.
+        !But the tFilling keywords don't become true until we actually start calculating them.
         IF(tRDMonFly) THEN
+            !Initialises RDM stuff for both explicit and stochastic calculations of RDM.
             CALL InitRDM()
         ENDIF
         tFillingStochRDMonFly = .false.      
