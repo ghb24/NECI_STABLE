@@ -229,6 +229,7 @@ MODULE FciMCData
       real(dp) :: proje_denominator_cyc(lenof_sign)
       real(dp) :: proje_denominator_sum(lenof_sign)
       logical :: tRestart   !Whether to restart a calculation
+      real(dp) :: InputDiagSft  !Diag shift from the input file if needed to be reset after a restart
       
 
       ! ********************** FCIMCPar control variables *****************

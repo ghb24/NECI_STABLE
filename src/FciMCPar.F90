@@ -35,7 +35,7 @@ MODULE FciMCParMod
                         tChangeProjEDet, tCheckHighestPop, tSpawnSpatialInit,&
                         MemoryFacInit, tMaxBloom, tTruncNOpen, tFCIMC, &
                         trunc_nopen_max, tSpawn_Only_Init, tSpawn_Only_Init_Grow, &
-                        TargetGrowRate
+                        TargetGrowRate, TargetGrowRateWalk
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
     use Determinants, only: FDet, get_helement, write_det, &
@@ -3122,6 +3122,7 @@ MODULE FciMCParMod
                                          iter_data%tot_parts_old(lenof_sign)
                 ENDIF
             endif
+!            write(6,*) "All GrowRate: ",AllGrowRate,TargetGrowRate
 
 !AJWT commented this out as DMC says it's not being used, and it gave a divide by zero
             ! Initiator abort growth rate
@@ -3153,6 +3154,7 @@ MODULE FciMCParMod
                     tSinglePartPhase = .false.
                     if(TargetGrowRate.ne.0.D0) then
                         write(6,"(A)") "Setting target growth rate to 1."
+                        TargetGrowRate=0.D0
                     endif
                     if(tSpawn_Only_Init.and.tSpawn_Only_Init_Grow) then
                         !Remove the restriction that only initiators can spawn.
@@ -3174,8 +3176,16 @@ MODULE FciMCParMod
 
                 !In case we want to continue growing, TargetGrowRate > 0.D0
                 ! New shift value
-                DiagSft = DiagSft - (log(AllGrowRate-TargetGrowRate) * SftDamp) / &
-                                    (Tau * StepsSft)
+                if(TargetGrowRate.ne.0.D0) then
+                    if(sum(AllTotParts).gt.TargetGrowRateWalk) then
+                        !Only allow targetgrowrate to kick in once we have > TargetGrowRateWalk walkers.
+                        DiagSft = DiagSft - (log(AllGrowRate-TargetGrowRate) * SftDamp) / &
+                                            (Tau * StepsSft)
+                    endif
+                else
+                    DiagSft = DiagSft - (log(AllGrowRate) * SftDamp) / &
+                                        (Tau * StepsSft)
+                endif
 
                 if (lenof_sign == 2) then
                     DiagSftRe = DiagSftRe - (log(AllGrowRateRe-TargetGrowRate) * SftDamp) / &
@@ -3915,6 +3925,9 @@ MODULE FciMCParMod
             WRITE(6,*) "Value for seed is: ",Seed
             !Initialise...
             CALL dSFMT_init(Seed)
+        else
+            !Reset the DiagSft to its original value
+            DiagSft = InputDiagSft
         endif
         
         ! Option tRandomiseHashOrbs has now been removed.
