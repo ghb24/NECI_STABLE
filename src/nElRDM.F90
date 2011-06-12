@@ -78,14 +78,15 @@ MODULE nElRDMMod
 
         IF(tDo_Not_Calc_RDMEnergy) THEN
             tCalc_RDMEnergy = .false.
-        ELSE
+        ELSEIF(RDMExcitLevel.eq.3) THEN
             tCalc_RDMEnergy = .true.
             WRITE(6,'(A)') ' Calculating the energy from the reduced density matrix, this requires both the 1 and 2 electron RDM.'
-            RDMExcitLevel = 3
         ENDIF
 
         IF(tDiagRDM.and.(RDMExcitLevel.eq.2)) THEN
-            WRITE(6,*) 'WARNING : Requesting to diagonalise 1-RDM, but only the 2-RDM is being calculated.'
+            WRITE(6,*) '************'
+            WRITE(6,*) 'WARNING :      Requesting to diagonalise 1-RDM, but only the 2-RDM is being calculated.'
+            WRITE(6,*) '************'
         ENDIF
 
 ! The stuff below here is so that we can set up the symmetry arrays according to the NatOrbs routines.
@@ -247,11 +248,10 @@ MODULE nElRDMMod
         nElRDM_Time%timer_name='nElRDMTime'
         FinaliseRDM_Time%timer_name='FinaliseRDMTime'
 
-        IF(iProcIndex.eq.0) THEN
+        IF((iProcIndex.eq.0).and.tCalc_RDMEnergy) THEN
             Energies_unit = get_free_unit()
             OPEN(Energies_unit,file='Energies',status='unknown')
 
-!            WRITE(Energies_unit, "(A1,4A30)") '#','Iteration','RDM Energy (Stochastic)',"Inst RDM ('Exact')", "Av RDM ('Exact')"
             WRITE(Energies_unit, "(A1,3A30)") '#','Iteration','RDM Energy (Stochastic)','Tot Spin Projection'
         ENDIF
 
@@ -1319,11 +1319,11 @@ MODULE nElRDMMod
         ENDIF
 
         !Add in contribution from I -> J.
-        if((Ex(1,2).eq.0).and.(Ex(2,2).eq.0)) then
+        if((RDMExcitLevel.ne.2).and.(Ex(1,2).eq.0).and.(Ex(2,2).eq.0)) then
 
             call Fill_Sings_RDM(nI,Ex,tParity,realSignI,realSignJ,tFill_SymmCiCj)
 
-        else
+        elseif(RDMExcitLevel.ne.1) then
 
 !            if(((ex(1,1).eq.2).and.(ex(1,2).eq.3)).or.((ex(1,1).eq.3).and.(ex(1,2).eq.2))) then
 !                if(((ex(2,1).eq.5).and.(ex(2,2).eq.6)).or.((ex(2,1).eq.6).and.(ex(2,2).eq.5))) then
@@ -2746,7 +2746,8 @@ MODULE nElRDMMod
                                 Exch = 0.D0
                             ENDIF
 
-                            RDMEnergy2El = RDMEnergy2El + ( ( Coul - Exch ) * AllTwoElRDM(Ind1,Ind2) * Norm_2RDM )  
+                            RDMEnergy2El = RDMEnergy2El + (0.50 * ( ( Coul - Exch ) * AllTwoElRDM(Ind1,Ind2) * Norm_2RDM ) )  
+                            RDMEnergy2El = RDMEnergy2El + (0.50 * ( ( Coul - Exch ) * AllTwoElRDM(Ind2,Ind1) * Norm_2RDM ) )  
 
 !                            if(tFinalRDMEnergy.and.(AllTwoElRDM(Ind1,Ind2).ne.0.D0)) write(TwoRDM_unit,'(6I10,F30.20)') i,k,j,l,Ind1,Ind2, &
 !                                                                                                            ( AllTwoElRDM(Ind1,Ind2) * Norm_2RDM )
@@ -2849,7 +2850,6 @@ MODULE nElRDMMod
 
             endif
 
-!            WRITE(Energies_unit, "(I31,2F30.15)") Iter+PreviousCycles,RDMEnergy,RDMEnergy_Accum/real(Iter_Accum,dp)
             WRITE(Energies_unit, "(I31,2F30.15)") Iter+PreviousCycles, RDMEnergy, Tot_Spin_Projection
 
 !            Iter_Accum = Iter_Accum + 1
@@ -3291,7 +3291,8 @@ END MODULE nElRDMMod
                     tFill_SymmCiCj = .false.
                 ENDIF
             ELSE
-                tFill_SymmCiCj = .true.
+!                tFill_SymmCiCj = .true.
+                tFill_SymmCiCj = .false.
             ENDIF
             
             call decode_bit_det (nI, Spawned_Parents(0:NIfDBO,i))
