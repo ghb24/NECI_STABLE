@@ -3505,8 +3505,7 @@ END MODULE nElRDMMod
                     tFill_SymmCiCj = .false.
                 ENDIF
             ELSE
-!                tFill_SymmCiCj = .true.
-                tFill_SymmCiCj = .false.
+                tFill_SymmCiCj = .true.
             ENDIF
             
             call decode_bit_det (nI, Spawned_Parents(0:NIfDBO,i))
