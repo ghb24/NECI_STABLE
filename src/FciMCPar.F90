@@ -5283,7 +5283,7 @@ MODULE FciMCParMod
         endif
 
         ! Initialise measurement of norm, to avoid divide by zero
-        norm_psi = 1
+        norm_psi = 1.0_dp
 
         if (tReadPops .and. (PopsVersion.lt.3) .and..not.tPopsAlreadyRead) then
 !Read in particles from multiple POPSFILES for each processor
