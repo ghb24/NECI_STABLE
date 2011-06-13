@@ -168,12 +168,14 @@ MODULE nElRDMMod
 
 ! This array contains the initial positions of the excitations for each processor.
                 ALLOCATE(Doub_InitExcSlots(0:(nProcessors-1)),stat=ierr)
+                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Doub_InitExcSlots array,')
                 do i=0,nProcessors-1
                     Doub_InitExcSlots(i)=NINT(TwoEl_Gap*i)+1
                 enddo
 
 ! This array contains the current position of the excitations as they're added.
                 ALLOCATE(Doub_ExcList(0:(nProcessors-1)),stat=ierr)
+                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Doub_ExcList array,')
                 Doub_ExcList(:)=Doub_InitExcSlots(:)
 
             ENDIF
@@ -201,12 +203,14 @@ MODULE nElRDMMod
 
 ! This array contains the initial positions of the excitations for each processor.
                 ALLOCATE(Sing_InitExcSlots(0:(nProcessors-1)),stat=ierr)
+                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Sing_InitExcSlots array,')
                 do i=0,nProcessors-1
                     Sing_InitExcSlots(i)=NINT(OneEl_Gap*i)+1
                 enddo
 
 ! This array contains the current position of the excitations as they're added.
                 ALLOCATE(Sing_ExcList(0:(nProcessors-1)),stat=ierr)
+                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Sing_ExcList array,')
                 Sing_ExcList(:)=Sing_InitExcSlots(:)
             ENDIF
 
@@ -214,9 +218,11 @@ MODULE nElRDMMod
 
 ! We need to hold onto the parents of the spawned particles.            
             ALLOCATE(Spawned_Parents(0:(NIfDBO+1),MaxSpawned),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Spawned_Parents array,')
             CALL LogMemAlloc('Spawned_Parents',MaxSpawned*(NIfDBO+2),size_n_int,&
                                                 this_routine,Spawned_ParentsTag,ierr)
             ALLOCATE(Spawned_Parents_Index(2,MaxSpawned),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Spawned_Parents_Index array,')
             CALL LogMemAlloc('Spawned_Parents_Index',MaxSpawned*2,4,this_routine,&
                                                         Spawned_Parents_IndexTag,ierr)
 
@@ -233,22 +239,27 @@ MODULE nElRDMMod
             ! The 2-RDM does not need to be reordered as it's never diagonalised. 
 
             ALLOCATE(SymLabelCounts2(2,32),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating SymLabelCounts2 array,')
             CALL LogMemAlloc('SymLabelCounts2',2*32,4,this_routine,SymLabelCounts2Tag,ierr)
             SymLabelCounts2(:,:)=0
 
             ALLOCATE(SymLabelList2(NoOrbs),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating SymLabelList2 array,')
             CALL LogMemAlloc('SymLabelList2',NoOrbs,4,this_routine,SymLabelList2Tag,ierr)
             SymLabelList2(:)=0                     
             ALLOCATE(SymLabelList3(NoOrbs),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating SymLabelList3 array,')
             CALL LogMemAlloc('SymLabelList3',NoOrbs,4,this_routine,SymLabelList3Tag,ierr)
             SymLabelList3(:)=0                     
      
             ALLOCATE(SymLabelListInv(NoOrbs),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating SymLabelListInv array,')
             CALL LogMemAlloc('SymLabelListInv',NoOrbs,4,this_routine,SymLabelListInvTag,ierr)
             SymLabelListInv(:)=0   
 
             IF(iProcIndex.eq.0) THEN
                 ALLOCATE(Evalues(NoOrbs),stat=ierr)
+                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Evalues array,')
                 CALL LogMemAlloc('Evalues',NoOrbs,8,this_routine,EvaluesTag,ierr)
                 IF(ierr.ne.0) CALL Stop_All(this_routine,"Mem allocation for Evalues failed.")
                 Evalues(:)=0.D0
@@ -1508,9 +1519,12 @@ MODULE nElRDMMod
                     ALLOCATE(CoeffT1(NoOrbs,NoOrbs),stat=ierr)
                     CALL LogMemAlloc(this_routine,NoOrbs*NoOrbs,8,this_routine,&
                                                                     CoeffT1Tag,ierr)
+                    IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating CoeffT1 array,')
+
                     CoeffT1(:,:)=0.D0
 
                     CALL FillCoeffT1_RDM()
+
 !                    do i = 1, nBasis
 !                        CoeffT1(i,i) = 1.D0
 !                    enddo
@@ -1530,6 +1544,7 @@ MODULE nElRDMMod
                     ALLOCATE(FourIndInts(nBasis,nBasis,nBasis,nBasis),stat=ierr)
                     CALL LogMemAlloc('FourIndInts',(nBasis**4),8,this_routine,&
                                                             FourIndIntsTag,ierr)
+                    IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating FourIndInts array,')
 
 ! Then, transform2ElInts
                     WRITE(6,*) 'Transforming the four index integrals'
@@ -1811,6 +1826,7 @@ MODULE nElRDMMod
             ! If we are truncating, the orbitals stay in this order, 
             ! so we want to take their symmetries with them.
             ALLOCATE(SymOrbsTemp(nBasis),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating SymOrbsTemp array,')
             CALL LogMemAlloc('SymOrbsTemp',nBasis,4,this_routine,SymOrbsTempTag,ierr)
             SymOrbsTemp(:)=0
 
@@ -1906,6 +1922,7 @@ MODULE nElRDMMod
 ! the new position of this orbital is given by SymLabelList2Inv2.
 
         ALLOCATE(SymLabelListInvNew(nBasis),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating SymLabelListInvNew array,')
         CALL LogMemAlloc('SymLabelListInvNew',nBasis,4,this_routine,&
                                                 SymLabelListInvNewTag,ierr)
         SymLabelListInvNew(:)=0   
@@ -1982,6 +1999,7 @@ MODULE nElRDMMod
         USE RotateOrbsMod , only : FourIndInts
         INTEGER :: i,j,k,l,a,b,g,d,ierr,Temp4indintsTag,a2,b2,g2,d2
         REAL(dp) , ALLOCATABLE :: Temp4indints(:,:)
+        CHARACTER(len=*), PARAMETER :: this_routine='Transform2ElIntsMemSave_RDM'
 #ifdef __CMPLX
         call stop_all('Transform2ElIntsMemSave_RDM', &
                     'Rotating orbitals not implemented for complex orbitals.')
@@ -2123,6 +2141,7 @@ MODULE nElRDMMod
 ! that we actually need.
 
         ALLOCATE(ArrDiagNew(nBasis),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating ArrDiagNew array,')
         CALL LogMemAlloc('ArrDiagNew',nBasis,8,this_routine,ArrDiagNewTag,ierr)
         ArrDiagNew(:)=0.D0                     
 
@@ -2227,6 +2246,7 @@ MODULE nElRDMMod
         INTEGER :: l,k,j,i,a,b,g,d,c,nBasis2,TMAT2DPartTag,ierr
         REAL(dp) :: NewTMAT
         REAL(dp) , ALLOCATABLE :: TMAT2DPart(:,:)
+        CHARACTER(len=*), PARAMETER :: this_routine='RefillUMATandTMAT2D_RDM'
 #ifdef __CMPLX
         call stop_all('RefillUMATandTMAT2D_RDM', &
                     'Rotating orbitals not implemented for complex orbitals.')
@@ -2234,10 +2254,12 @@ MODULE nElRDMMod
 
         IF(tStoreSpinOrbs) THEN
             ALLOCATE(TMAT2DPart(nBasis,nBasis),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating TMAT2DPart array,')
             CALL LogMemAlloc('TMAT2DPart',nBasis*nBasis,8,&
                                         'RefillUMAT_RDM',TMAT2DPartTag,ierr)
         ELSE
             ALLOCATE(TMAT2DPart(nBasis,nBasis),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating TMAT2DPart array,')
             CALL LogMemAlloc('TMAT2DPart',nBasis*nBasis,8,&
                                         'RefillUMAT_RDM',TMAT2DPartTag,ierr)
         ENDIF
@@ -2540,6 +2562,14 @@ MODULE nElRDMMod
                 DEALLOCATE(NatOrbMat)
                 CALL LogMemDeAlloc(this_routine,NatOrbMatTag)
 
+                IF(tDiagRDM.and.(.not.tNoRODump)) THEN
+                    DEALLOCATE(CoeffT1)
+                    CALL LogMemDeAlloc(this_routine,CoeffT1Tag)
+
+                    DEALLOCATE(FourIndInts)
+                    CALL LogMemDeAlloc(this_routine,FourIndIntsTag)
+                ENDIF
+
             ENDIF
 
             DEALLOCATE(SymLabelCounts2)
@@ -2551,14 +2581,6 @@ MODULE nElRDMMod
             DEALLOCATE(SymLabelListInv)
             CALL LogMemDeAlloc(this_routine,SymLabelListInvTag)
 
-            IF(tDiagRDM.and.(.not.tNoRODump)) THEN
-                DEALLOCATE(CoeffT1)
-                CALL LogMemDeAlloc(this_routine,CoeffT1Tag)
-
-                DEALLOCATE(FourIndInts)
-                CALL LogMemDeAlloc(this_routine,FourIndIntsTag)
-
-            ENDIF
         ENDIF
 
 
@@ -3080,6 +3102,7 @@ MODULE nElRDMMod
         HElement_t :: H_IJ
         INTEGER :: Ind1,Ind2,TestRDMTag,ierr,comm
         INTEGER :: lengthsout(0:nProcessors-1), disp(0:nProcessors-1)
+        CHARACTER(len=*), PARAMETER :: this_routine='Test_Energy_Calc'
 
         WRITE(6,*) '****************'
         WRITE(6,*) '**** TESTING ENERGY CALCULATION **** '
@@ -3095,6 +3118,7 @@ MODULE nElRDMMod
 !            TestRDM(:,:)=0.D0
 
             ALLOCATE(AllCurrentDets(0:NIfTot,AllTotWalkers),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating AllCurrentDets array,')
             CALL LogMemAlloc('AllCurrentDets',AllTotWalkers*(NIfTot+1),size_n_int,&
                                 'Test_Energy_Calc',AllCurrentDetsTag,ierr)
             AllCurrentDets(0:NIfTot,1:AllTotWalkers)=0
@@ -3393,17 +3417,15 @@ MODULE nElRDMMod
         INTEGER :: i,j,error,ierr
         REAL(dp) :: TempSumNoatHF
         REAL(dp) , ALLOCATABLE :: TempRDM(:,:)
-
         INTEGER :: SumNoatHF,AllSumNoatHF,RDM(100,100),HFDet(10)
+        CHARACTER(len=*), PARAMETER :: this_routine='NormandDiagRDM'
 
         TempSumNoatHF=real(SumNoatHF)
 !Sum TempSumNoatHF over all processors and then send to all processes
         CALL MPI_AllReduce(TempSumNoatHF,AllSumNoatHF,1,MPI_DOUBLE_PRECISION,&
                                                     MPI_SUM,MPI_COMM_WORLD,error)
         ALLOCATE(TempRDM(nBasis,nBasis),stat=ierr)
-        IF(ierr.ne.0) THEN
-            CALL Stop_All("NormandDiagRDM","Could not allocate TempRDM")
-        ENDIF
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating TempRDM array,')
 
         CALL MPI_AllReduce(RDM(:,:),TempRDM(:,:),nBasis*nBasis,MPI_DOUBLE_PRECISION,&
                                                         MPI_SUM,MPI_COMM_WORLD,error)
