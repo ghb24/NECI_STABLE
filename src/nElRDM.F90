@@ -1459,45 +1459,17 @@ MODULE nElRDMMod
 
 !        CALL Stop_all('','')
 
-        IF(tDiagRDM.and.((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3))) THEN
+        IF(tDiagRDM.and.(RDMExcitLevel.ne.2)) THEN
 ! Call the routines from NatOrbs that diagonalise the one electron reduced 
 ! density matrix.
 
             IF(iProcIndex.eq.0) THEN
-
-!                NatOrbMat(:,:) = 0.D0
-!                do i = 1, nBasis
-!                    NatOrbMat(i,i) = 1.D0
-!                enddo
-!                do i = 1,nBasis
-!                    do j = i+1, nBasis
-!                        NatOrbMat(i,j) = NatOrbMat(j,i)
-!                    enddo
-!                enddo
-
-        
-                SumDiag=0.D0
-                do i=1,nBasis
-                    SumDiag=SumDiag+ABS(NatOrbMat(i,i))
-                enddo
-                do i=1,nBasis
-                    do j=1,nBasis
-                        NatOrbMat(j,i)=NatOrbMat(j,i)/SumDiag
-                    enddo
-                enddo
 
                 CALL DiagRDM()
 
                 tRotateVirtOnly=.true.
                 tRotateOccOnly=.false.
                 tSeparateOccVirt=.false.
-!                WRITE(6,*) 'NatOrbMat'
-!                do i = 1, nBasis
-!                    do j = 1, nBasis
-!                        WRITE(6,'(F20.10)',advance='no') NatOrbMat(j,i)
-!                    enddo
-!                    WRITE(6,*) ''
-!                enddo
 
                 CALL OrderRDM()
 
@@ -1524,10 +1496,7 @@ MODULE nElRDMMod
                 WRITE(6,'(A20,F30.20)') ' CORRELATION ENTROPY', Corr_Entropy
                 WRITE(6,*) ''
 
-
                 IF(.not.tNoRODump) THEN
-
- !                   WRITE(6,*) 'NoOrbs',NoOrbs
 
                     ALLOCATE(CoeffT1(NoOrbs,NoOrbs),stat=ierr)
                     CALL LogMemAlloc(this_routine,NoOrbs*NoOrbs,8,this_routine,&
@@ -1618,6 +1587,8 @@ MODULE nElRDMMod
 !        CALL set_timer(DiagNatOrbMat_Time,30)
 
 ! Test that we're not breaking symmetry.
+! And calculate the trace at the same time.
+        SumTrace=0.D0
         do i=1,nBasis
             do j=1,nBasis
 !                WRITE(6,*) INT(G1(SymLabelList2(i))%sym%S,4),&
@@ -1643,10 +1614,6 @@ MODULE nElRDMMod
                     NatOrbMat(i,j)=0.D0
                 ENDIF
             enddo
-        enddo
-
-        SumTrace=0.D0
-        do i=1,nBasis
             SumTrace=SumTrace+NatOrbMat(i,i)
         enddo
 
