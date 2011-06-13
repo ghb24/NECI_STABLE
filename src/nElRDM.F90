@@ -97,7 +97,7 @@ MODULE nElRDMMod
 ! calculating the 2-RDM.
         IF(tDiagRDM.and.(RDMExcitLevel.eq.2)) THEN
             WRITE(6,*) '************'
-            WRITE(6,*) 'WARNING :      Requesting to diagonalise 1-RDM, &
+            WRITE(6,'(A)') ' WARNING :      Requesting to diagonalise 1-RDM, &
             &but only the 2-RDM is being calculated.'
             WRITE(6,*) '************'
         ENDIF
@@ -1196,7 +1196,7 @@ MODULE nElRDMMod
         IF((Ex(1,1).gt.Ex(1,2)).or.(Ex(2,1).gt.Ex(2,2))) THEN
             WRITE(6,*) 'Ex(1,1)',Ex(1,1),'Ex(1,2)',Ex(1,2),'Ex(2,1)',&
                                                     Ex(2,1),'Ex(2,2)',Ex(2,2)
-            CALL Stop_All('SearchOccDets',&
+            CALL Stop_All('Fill_Doubs_RDM',&
                 'The orbitals involved in excitation are not in the expected order.')
         ENDIF
 
@@ -1393,10 +1393,10 @@ MODULE nElRDMMod
         ENDIF
 
         !Add in contribution from I -> J.
-        if((RDMExcitLevel.ne.2).and.(Ex(1,2).eq.0).and.(Ex(2,2).eq.0)) then
+        if((Ex(1,2).eq.0).and.(Ex(2,2).eq.0)) then
 
-            call Fill_Sings_RDM(nI,Ex,tParity,realSignI,realSignJ,tFill_SymmCiCj)
-
+            if(RDMExcitLevel.ne.2) call Fill_Sings_RDM(nI,Ex,tParity,realSignI,realSignJ,tFill_SymmCiCj)
+    
         elseif(RDMExcitLevel.ne.1) then
 
             call Fill_Doubs_RDM(Ex,tParity,realSignI,realSignJ,tFill_SymmCiCj)
@@ -1415,7 +1415,8 @@ MODULE nElRDMMod
         USE RotateOrbsMod , only : FourIndInts, FourIndIntsTag
         USE RotateOrbsData , only : NoOrbs
         INTEGER :: error,i,j,ierr
-        REAL(dp) :: SumDiag, Corr_Entropy
+        REAL(dp) :: SumDiag, Corr_Entropy, Lin_Ineq, Tot_Spin_Projection
+        real(dp) :: Norm_1RDM, Norm_2RDM, Trace_1RDM, Trace_2RDM, AllAccumRDMNorm
         CHARACTER(len=*), PARAMETER :: this_routine='FinaliseRDM'
 
 
@@ -1426,11 +1427,23 @@ MODULE nElRDMMod
             CALL Calc_Energy_from_RDM()
 !            CALL Test_Energy_Calc()
         ELSE
-            IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) &
-                            CALL MPIReduce(OneElRDM,MPI_SUM,NatOrbMat)
+            IF(RDMExcitLevel.ne.2) CALL MPIReduce(OneElRDM,MPI_SUM,NatOrbMat)
+            IF(RDMExcitLevel.ne.1) CALL MPIReduce(TwoElRDM,MPI_SUM,AllTwoElRDM)
 
-            IF((RDMExcitLevel.eq.2).or.(RDMExcitLevel.eq.3)) &
-                            CALL MPIReduce(TwoElRDM,MPI_SUM,AllTwoElRDM)
+            AllAccumRDMNorm = 0.D0
+            Tot_Spin_Projection = 0.D0
+
+            if(iProcIndex.eq.0) then
+                call Init_Write_and_Calc_Norms(AllAccumRDMNorm, Trace_1RDM, Trace_2RDM, Norm_1RDM, Norm_2RDM)
+
+                call Write_out_1and_2RDM(Norm_1RDM, Norm_2RDM, Lin_Ineq, Tot_Spin_Projection)
+
+                write(6,*) ''
+                if(RDMExcitLevel.ne.2) write(6,'(A22,F30.20)') ' TOTAL SPIN PROJECTION', Tot_Spin_Projection 
+                if(RDMExcitLevel.eq.3) write(6,'(A18,F30.20)') ' LINEAR INEQUALITY', Lin_Ineq
+                write(6,*) ''
+            endif
+
         ENDIF
 
 ! Getting back into the rotate routines, which use symlabellist2 etc etc, 
@@ -1566,7 +1579,7 @@ MODULE nElRDMMod
 
         ELSEIF(tDiagRDM) THEN
         
-            WRITE(6,*) 'WARNING: Request to diagonalise two electron reduced &
+            WRITE(6,'(A)') 'WARNING: Request to diagonalise two electron reduced &
                                                                 &density matrix.'
 
         ENDIF
@@ -2742,10 +2755,9 @@ MODULE nElRDMMod
         USE Logging , only : tRDMSpinAveraging
         INTEGER :: i,j,k,l,Ind2,Ind1,i2,j2,k2,l2,ierr
         REAL(dp) :: RDMEnergy, Coul, Exch, Norm_1RDM, Norm_2RDM 
-        REAL(dp) :: AllAccumRDMNorm, stochastic_factor, ParityFactor 
+        REAL(dp) :: AllAccumRDMNorm, stochastic_factor  
         REAL(dp) :: Trace_2RDM_New, RDMEnergy1El, RDMEnergy2El, Trace_1RDM_New
-        REAL(dp) :: Tot_Spin_Projection, Lin_Ineq, Lin_Ineq_TwoEl, Lin_Ineq_OneEl
-        INTEGER :: Ind1_LI, Ind2_LI, ParityFactor_LI
+        REAL(dp) :: Tot_Spin_Projection, Lin_Ineq
         REAL(dp) , ALLOCATABLE :: TestRDM(:,:)
         INTEGER :: TestRDMTag
 
@@ -2780,13 +2792,8 @@ MODULE nElRDMMod
 ! We also know that the trace of the two electron reduced density matrix must be equal to the 
 ! number of electron pairs in the system = 1/2 N ( N - 1), so we can do the same for the 2RDM.
 
-        Trace_1RDM = 0.D0
-        Trace_2RDM = 0.D0
         Trace_2RDM_New = 0.D0
         Trace_1RDM_New = 0.D0
-
-        Norm_1RDM = 0.D0
-        Norm_2RDM = 0.D0
 
         RDMEnergy = 0.D0
         RDMEnergy1El = 0.D0
@@ -2794,50 +2801,9 @@ MODULE nElRDMMod
 
         IF(iProcIndex.eq.0) THEN
 
-            IF(tFinalRDMEnergy) THEN
-                OneRDM_unit = get_free_unit()
-                OPEN(OneRDM_unit,file='1El_RDM_Matrix',status='unknown')
-
-                TwoRDM_unit = get_free_unit()
-                OPEN(TwoRDM_unit,file='2El_RDM_Matrix',status='unknown')
-
-            ENDIF
-
             IF(tRDMSpinAveraging) CALL Average_Spins() 
 
-            ! Find the current, unnormalised trace of each matrix.
-            ! TODO: This can be merged into the spin averaging when everything is working.
-            do i = 1, ((nBasis*(nBasis-1))/2)
-                IF(i.le.nBasis) Trace_1RDM = Trace_1RDM + NatOrbMat(i,i)
-                Trace_2RDM = Trace_2RDM + AllTwoElRDM(i,i)
-            enddo
-
-!            if(tFinalRDMEnergy) then
-!                WRITE(6,*) 'Trace_1RDM',Trace_1RDM
-!                WRITE(6,*) 'Trace_2RDM',Trace_2RDM
-!            endif
-
-            IF(tHF_Ref.or.tHF_S_D_Ref) THEN
-                Norm_1RDM = 1.D0 / AllAccumRDMNorm
-                Norm_2RDM = 1.D0 / AllAccumRDMNorm
-            ELSE
-                ! Sum of diagonal elements of 1 electron RDM must equal NEl, 
-                ! number of electrons.
-                Norm_1RDM = ( REAL(NEl,8) / Trace_1RDM )
-                ! Sum of diagonal elements of 2 electron RDM must equal number of 
-                ! pairs of electrons, = NEl ( NEl - 1 ) / 2
-                Norm_2RDM = ( (0.50 * (REAL(NEl) * (REAL(NEl) - 1.D0))) / Trace_2RDM )
-            ENDIF
-
-!            if(tFinalRDMEnergy) then
-!                WRITE(6,*) 'AllAccumRDMNorm',AllAccumRDMNorm
-!                WRITE(6,*) 'Norm_1RDM',Norm_1RDM
-!                WRITE(6,*) 'Norm_2RDM',Norm_2RDM
-!            endif
-
-            !Need to multiply each element of the 1 electron reduced density matrices 
-            !by NEl / Trace_1RDM,
-            !and then add it's contribution to the energy.
+            call Init_Write_and_Calc_Norms(AllAccumRDMNorm, Trace_1RDM, Trace_2RDM, Norm_1RDM, Norm_2RDM)
 
             Tot_Spin_Projection = 0.D0
 
@@ -2854,8 +2820,8 @@ MODULE nElRDMMod
 
                 if(mod(i,2).eq.0) &
                     Tot_Spin_Projection = Tot_Spin_Projection + &
-                        ( 0.50 * ( ( NatOrbMat(i-1,i-1) * Norm_1RDM ) - &
-                                                ( NatOrbMat(i,i) * Norm_1RDM ) ) )
+                        ( 0.50 * ( ( NatOrbMat(SymLabelListInv(i-1),SymLabelListInv(i-1)) * Norm_1RDM ) - &
+                                            ( NatOrbMat(SymLabelListInv(i),SymLabelListInv(i)) * Norm_1RDM ) ) )
 
                 do k = i+1, nBasis
 
@@ -2970,74 +2936,7 @@ MODULE nElRDMMod
                 write(6,*) ''
 !                write(6,*) 'Ecore',Ecore
 
-                write(6,*) 'Writing out 1 and 2 electron density matrices to file'
-                call flush(6)
-
-                Tot_Spin_Projection = 0.D0
-                Lin_Ineq = 0.D0
-                Lin_Ineq_OneEl = 0.D0
-                Lin_Ineq_TwoEl = 0.D0
-                do i = 1, nBasis
-
-                    if(mod(i,2).eq.0) &
-                        Tot_Spin_Projection = Tot_Spin_Projection + &
-                            ( 0.50 * ( ( NatOrbMat(SymLabelListInv(i-1),SymLabelListInv(i-1)) &
-                            * Norm_1RDM ) - ( NatOrbMat(SymLabelListInv(i),SymLabelListInv(i)) &
-                            * Norm_1RDM ) ) )
-
-                    do j = 1, nBasis
-
-                        IF(NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)).ne.0.D0) & 
-                                    write(OneRDM_unit,"(2I6,G25.17)") i,j, & 
-                                    NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) * Norm_1RDM 
-                        
-                        Lin_Ineq_OneEl = real(NEl - 1, dp) *  &
-                            ( NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) * Norm_1RDM )  
-
-                        Lin_Ineq_TwoEl = 0.D0
-
-                        Ind1 = ( ( (max(i,j)-2) * (max(i,j)-1) ) / 2 ) + min(i,j)
-
-                        do k = 1, nBasis
-
-                            if((i.ne.k).and.(j.ne.k)) then
-                                Ind1_LI = ( ( (max(i,k)-2) * (max(i,k)-1) ) / 2 ) + min(i,k)
-                                Ind2_LI = ( ( (max(j,k)-2) * (max(j,k)-1) ) / 2 ) + min(j,k)
-
-                                ParityFactor_LI = 1.D0
-                                IF((i.gt.k).or.(j.gt.k)) ParityFactor_LI = -1.D0
-                                IF((i.gt.k).and.(j.gt.k)) ParityFactor_LI = 1.D0
-
-                                Lin_Ineq_TwoEl = Lin_Ineq_TwoEl + ( AllTwoElRDM(Ind1_LI,Ind2_LI) &
-                                                                    * Norm_2RDM * ParityFactor_LI)
-                            endif
-
-                            if(i.ne.j) then
-                                do l = 1, nBasis
-
-                                    if(k.eq.l) CYCLE
-
-                                    Ind2 = ( ( (max(k,l)-2) * (max(k,l)-1) ) / 2 ) + min(k,l)
-
-                                    ParityFactor = 1.D0
-                                    IF((i.gt.j).or.(k.gt.l)) ParityFactor = -1.D0
-                                    IF((i.gt.j).and.(k.gt.l)) ParityFactor = 1.D0
-
-!                                    IF((i.eq.l).or.(j.eq.k)) ParityFactor = -1.D0
-
-                                    if(AllTwoElRDM(Ind1,Ind2).ne.0.D0) &
-                                        write(TwoRDM_unit,"(4I6,G25.17)") i,j,k,l, &
-                                            AllTwoElRDM(Ind1,Ind2) * Norm_2RDM * ParityFactor
-
-                                enddo
-                            endif
-                        enddo
-
-                        Lin_Ineq = Lin_Ineq + ( Lin_Ineq_TwoEl - Lin_Ineq_OneEl )
-
-                    enddo
-
-                enddo
+                call Write_out_1and_2RDM(Norm_1RDM, Norm_2RDM, Lin_Ineq, Tot_Spin_Projection)
 
                 write(6,*) ''
                 write(6,'(A22,F30.20)') ' TOTAL SPIN PROJECTION', Tot_Spin_Projection 
@@ -3052,11 +2951,6 @@ MODULE nElRDMMod
                 NatOrbMat(:,:) = 0.D0
                 AllTwoElRDM(:,:) = 0.D0
                 AllAccumRDMNorm = 0.D0
-            endif
-
-            if(tFinalRDMEnergy) then
-                close(OneRDM_unit)
-                close(TwoRDM_unit)
             endif
 
         ENDIF
@@ -3078,6 +2972,162 @@ MODULE nElRDMMod
 
 
     END SUBROUTINE Calc_Energy_from_RDM
+
+    subroutine Init_Write_and_Calc_Norms(AllAccumRDMNorm, Trace_1RDM, Trace_2RDM, Norm_1RDM, Norm_2RDM)
+        real(dp) , intent(in) :: AllAccumRDMNorm
+        real(dp) , intent(out) :: Norm_1RDM, Norm_2RDM
+        real(dp) , intent(out) :: Trace_1RDM, Trace_2RDM
+        integer :: i
+
+        ! Find the current, unnormalised trace of each matrix.
+        ! TODO: This can be merged into the spin averaging when everything is working.
+
+        Norm_1RDM = 0.D0
+        Norm_2RDM = 0.D0
+        Trace_1RDM = 0.D0
+        Trace_2RDM = 0.D0
+
+        IF(tFinalRDMEnergy.or.(.not.tCalc_RDMEnergy)) THEN
+            if(RDMExcitLevel.ne.2) then
+                OneRDM_unit = get_free_unit()
+                OPEN(OneRDM_unit,file='1El_RDM_Matrix',status='unknown')
+            endif
+
+            if(RDMExcitLevel.ne.1) then
+                TwoRDM_unit = get_free_unit()
+                OPEN(TwoRDM_unit,file='2El_RDM_Matrix',status='unknown')
+            endif
+        ENDIF
+
+        if(RDMExcitLevel.eq.1) then
+            do i = 1, nBasis
+                Trace_1RDM = Trace_1RDM + NatOrbMat(i,i)
+            enddo
+        else
+            do i = 1, ((nBasis*(nBasis-1))/2)
+                if((RDMExcitLevel.ne.2).and.(i.le.nBasis)) & 
+                    Trace_1RDM = Trace_1RDM + NatOrbMat(i,i)
+                Trace_2RDM = Trace_2RDM + AllTwoElRDM(i,i)
+            enddo
+        endif
+
+!        if(tFinalRDMEnergy) then
+!            WRITE(6,*) 'Trace_1RDM',Trace_1RDM
+!            WRITE(6,*) 'Trace_2RDM',Trace_2RDM
+!        endif
+
+        IF(tHF_Ref.or.tHF_S_D_Ref) THEN
+            if(RDMExcitLevel.ne.2) Norm_1RDM = 1.D0 / AllAccumRDMNorm
+            if(RDMExcitLevel.ne.1) Norm_2RDM = 1.D0 / AllAccumRDMNorm
+        ELSE
+            ! Sum of diagonal elements of 1 electron RDM must equal NEl, 
+            ! number of electrons.
+            if(RDMExcitLevel.ne.2) Norm_1RDM = ( REAL(NEl,8) / Trace_1RDM )
+            ! Sum of diagonal elements of 2 electron RDM must equal number of 
+            ! pairs of electrons, = NEl ( NEl - 1 ) / 2
+            if(RDMExcitLevel.ne.1) Norm_2RDM = ( (0.50 * (REAL(NEl) * (REAL(NEl) - 1.D0))) / Trace_2RDM )
+        ENDIF
+
+!        if(tFinalRDMEnergy) then
+!            WRITE(6,*) 'AllAccumRDMNorm',AllAccumRDMNorm
+!            WRITE(6,*) 'Norm_1RDM',Norm_1RDM
+!            WRITE(6,*) 'Norm_2RDM',Norm_2RDM
+!        endif
+
+        !Need to multiply each element of the 1 electron reduced density matrices 
+        !by NEl / Trace_1RDM,
+        !and then add it's contribution to the energy.
+
+
+    end subroutine Init_Write_and_Calc_Norms
+
+    subroutine Write_out_1and_2RDM(Norm_1RDM, Norm_2RDM, Lin_Ineq, Tot_Spin_Projection)
+        real(dp) , intent(in) :: Norm_1RDM, Norm_2RDM
+        real(dp) , intent(out) :: Lin_Ineq
+        real(dp) , intent(inout) :: Tot_Spin_Projection
+        real(dp) :: Lin_Ineq_TwoEl, Lin_Ineq_OneEl, ParityFactor
+        integer :: Ind1_LI, Ind2_LI, ParityFactor_LI
+        integer :: i, j, k, l, Ind1, Ind2
+ 
+        write(6,*) 'Writing out density matrices to file'
+        call flush(6)
+
+        Lin_Ineq = 0.D0
+        Lin_Ineq_OneEl = 0.D0
+        Lin_Ineq_TwoEl = 0.D0
+        Tot_Spin_Projection = 0.D0
+        do i = 1, nBasis
+
+            if((RDMExcitLevel.ne.2).and.(mod(i,2).eq.0)) &
+                Tot_Spin_Projection = Tot_Spin_Projection + &
+                            ( 0.50 * ( ( NatOrbMat(SymLabelListInv(i-1),SymLabelListInv(i-1)) &
+                            * Norm_1RDM ) - ( NatOrbMat(SymLabelListInv(i),SymLabelListInv(i)) * Norm_1RDM ) ) )
+
+            do j = 1, nBasis
+
+                if(RDMExcitLevel.ne.2) then
+                    if(NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)).ne.0.D0) & 
+                            write(OneRDM_unit,"(2I6,G25.17)") i,j, & 
+                            NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) * Norm_1RDM 
+
+                    if(RDMExcitLevel.eq.1) cycle  
+                
+                    Lin_Ineq_OneEl = real(NEl - 1, dp) *  &
+                        ( NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) * Norm_1RDM )  
+
+                    Lin_Ineq_TwoEl = 0.D0
+                endif
+
+                Ind1 = ( ( (max(i,j)-2) * (max(i,j)-1) ) / 2 ) + min(i,j)
+
+                do k = 1, nBasis
+
+                    if(RDMExcitLevel.eq.3) then
+                        if((i.ne.k).and.(j.ne.k)) then
+                            Ind1_LI = ( ( (max(i,k)-2) * (max(i,k)-1) ) / 2 ) + min(i,k)
+                            Ind2_LI = ( ( (max(j,k)-2) * (max(j,k)-1) ) / 2 ) + min(j,k)
+
+                            ParityFactor_LI = 1.D0
+                            IF((i.gt.k).or.(j.gt.k)) ParityFactor_LI = -1.D0
+                            IF((i.gt.k).and.(j.gt.k)) ParityFactor_LI = 1.D0
+
+
+                            Lin_Ineq_TwoEl = Lin_Ineq_TwoEl + ( AllTwoElRDM(Ind1_LI,Ind2_LI) &
+                                                                * Norm_2RDM * ParityFactor_LI)
+                        endif
+                    endif
+
+                    if(i.ne.j) then
+                        do l = 1, nBasis
+
+                            if(k.eq.l) CYCLE
+
+                            Ind2 = ( ( (max(k,l)-2) * (max(k,l)-1) ) / 2 ) + min(k,l)
+
+                            ParityFactor = 1.D0
+                            IF((i.gt.j).or.(k.gt.l)) ParityFactor = -1.D0
+                            IF((i.gt.j).and.(k.gt.l)) ParityFactor = 1.D0
+
+!                                    IF((i.eq.l).or.(j.eq.k)) ParityFactor = -1.D0
+
+                            if(AllTwoElRDM(Ind1,Ind2).ne.0.D0) &
+                                write(TwoRDM_unit,"(4I6,G25.17)") i,j,k,l, &
+                                    AllTwoElRDM(Ind1,Ind2) * Norm_2RDM * ParityFactor
+
+                        enddo
+                    endif
+                enddo
+
+                if(RDMExcitLevel.eq.3) Lin_Ineq = Lin_Ineq + ( Lin_Ineq_TwoEl - Lin_Ineq_OneEl )
+
+            enddo
+
+        enddo
+
+        if(RDMExcitLevel.ne.2) close(OneRDM_unit)
+        if(RDMExcitLevel.ne.1) close(TwoRDM_unit)
+
+    end subroutine Write_out_1and_2RDM
 
 
     SUBROUTINE Test_Energy_Calc()
