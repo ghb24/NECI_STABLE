@@ -100,7 +100,7 @@ MODULE FciMCParMod
                             iter_data_spin_proj, test_spin_proj, &
                             spin_proj_shift, spin_proj_iter_count
     use symrandexcit3, only: gen_rand_excit3, test_sym_excit3
-    use nElRDMMod, only: FinaliseRDM,FillRDMthisIter,calc_energy_from_rdm, &
+    use nElRDMMod, only: FinaliseRDM,Fill_ExplicitRDM_this_Iter,calc_energy_from_rdm, &
                          fill_diag_rdm, fill_sings_rdm, fill_doubs_rdm, &
                          Add_RDM_From_IJ_Pair, tCalc_RDMEnergy, Add_StochRDM_Diag
 
@@ -1004,7 +1004,7 @@ MODULE FciMCParMod
         ! This routine will take the CurrentDets and search the array to find all single and double 
         ! connections - adding them into the RDM's. 
         ! This explicit way of doing this is very expensive, but o.k for very small systems.
-        IF(tFillingExplicRDMonFly) CALL FillRDMthisIter(TotWalkers)
+        IF(tFillingExplicRDMonFly) CALL Fill_ExplicitRDM_this_Iter(TotWalkers)
 
     end subroutine
 

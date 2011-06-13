@@ -60,7 +60,6 @@ MODULE nElRDMMod
         INTEGER :: Sing_ExcDjsTag,Sing_ExcDjs2Tag,TwoElRDMTag,AllTwoElRDMTag
         INTEGER :: Doub_ExcDjsTag,Doub_ExcDjs2Tag,OneElRDMTag,UMATTempTag
         INTEGER :: Energies_unit, ActualStochSign_unit
-        INTEGER :: OneRDM_unit, TwoRDM_unit
         REAL(dp) , ALLOCATABLE :: OneElRDM(:,:)
         REAL(dp) , ALLOCATABLE :: TwoElRDM(:,:)
         REAL(dp) , ALLOCATABLE :: AllTwoElRDM(:,:)
@@ -129,15 +128,13 @@ MODULE nElRDMMod
         IF((RDMExcitLevel.eq.2).or.(RDMExcitLevel.eq.3)) THEN
             ALLOCATE(TwoElRDM(((nBasis*(nBasis-1))/2),((nBasis*(nBasis-1))/2)),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating TwoElRDM array,')
-            CALL LogMemAlloc('TwoElRDM',(((nBasis*(nBasis-1))/2)**2),8,this_routine,&
-                                                                        TwoElRDMTag,ierr)
+            CALL LogMemAlloc('TwoElRDM',(((nBasis*(nBasis-1))/2)**2),8,this_routine,TwoElRDMTag,ierr)
             TwoElRDM(:,:)=0.D0
 
             IF(iProcIndex.eq.0) THEN
                 ALLOCATE(AllTwoElRDM(((nBasis*(nBasis-1))/2),((nBasis*(nBasis-1))/2)),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating AllTwoElRDM array,')
-                CALL LogMemAlloc('AllTwoEleRDM',(((nBasis*(nBasis-1))/2)**2),8,this_routine,&
-                                                                            AllTwoElRDMTag,ierr)
+                CALL LogMemAlloc('AllTwoEleRDM',(((nBasis*(nBasis-1))/2)**2),8,this_routine,AllTwoElRDMTag,ierr)
                 AllTwoElRDM(:,:)=0.D0
             ENDIF
         ENDIF            
@@ -462,7 +459,7 @@ MODULE nElRDMMod
     END SUBROUTINE SetUpSymLabels_RDM
 
 
-    SUBROUTINE FillRDMthisIter(TotWalkers)
+    SUBROUTINE Fill_ExplicitRDM_this_Iter(TotWalkers)
         USE FciMCData , only : CurrentDets,TotParts 
         USE bit_reps , only : encode_sign, extract_sign
         INTEGER(int64) , INTENT(IN) :: TotWalkers
@@ -528,15 +525,15 @@ MODULE nElRDMMod
                 blank_det=.false.
             ENDIF
 
-            CALL AddRDMContrib(iLutnI,blank_det)
+            CALL Add_ExplicitRDM_Contrib(iLutnI,blank_det)
 
         enddo
         CALL halt_timer(nElRDM_Time)
 
-    END SUBROUTINE FillRDMthisIter
+    END SUBROUTINE Fill_ExplicitRDM_this_Iter
 
 
-    SUBROUTINE AddRDMContrib(iLutnI,blank_det)
+    SUBROUTINE Add_ExplicitRDM_Contrib(iLutnI,blank_det)
 ! This is the general routine for taking a particular determinant in the spawned list, 
 ! D_i and adding it's contribution to the reduced density matrix.
         INTEGER(kind=n_int), INTENT(IN) :: iLutnI(0:NIfTot)
@@ -581,7 +578,7 @@ MODULE nElRDMMod
 ! If found, we re-find the orbitals and parity involved in the excitation, and add the 
 ! c_i*c_j contributions to the corresponding matrix element.
 
-    END SUBROUTINE AddRDMContrib
+    END SUBROUTINE Add_ExplicitRDM_Contrib
 
 
 
@@ -760,12 +757,11 @@ MODULE nElRDMMod
 ! Add in I.
                 call Fill_Diag_RDM(DetCurr, (real(SignCurr(1),dp)/SQRT(2.D0)))
 
-! Generating I'.                
                 call FindExcitBitDetSym(iLutCurr, SpinCoupDet)
                 call decode_bit_det (nSpinCoup, SpinCoupDet)
-! Find out if it's + or - in the above expression.                
+                ! Find out if it's + or - in the above expression.                
                 SignFac = hphf_sign(iLutCurr)
-! Add in I'.                
+
                 call Fill_Diag_RDM(nSpinCoup, real(SignFac*SignCurr(1),dp)/SQRT(2.D0))
 
 ! For HPHF we're considering < D_I + D_I' | a_a+ a_b+ a_j a_i | D_I + D_I' >
@@ -780,7 +776,7 @@ MODULE nElRDMMod
                                                 real(SignFac*SignCurr(1),dp)/SQRT(2.D0),.true.)
             else
 
-! If no HPHF - just add in diagonal contribution from D_I.                
+                ! If no HPHF - just add in diagonal contribution from D_I.                
                 call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
             endif
         endif
@@ -800,53 +796,6 @@ MODULE nElRDMMod
 
     end subroutine Add_StochRDM_Diag
 
-
-    SUBROUTINE Fill_Diag_RDM(nI,realSignDi,probsign)
-        integer , intent(in) :: nI(NEl)
-        real(dp) , intent(in) :: realSignDi
-        real(dp) , intent(in) , optional :: probsign
-        real(dp) :: realSignDi_prob, SignDiFac
-        integer :: i, j, Ind
-
-! Need to add in the diagonal elements.
-! The RDM are always in spin orbitals, so just adding the orbital as is, is fine.
-        
-        if(tExplicitAllRDM) then
-            realSignDi_prob = realSignDi
-            SignDiFac =  REAL(AllTotPartsTemp) / &
-                            ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) 
-        else
-            realSignDi_prob = realSignDi
-!            realSignDi = real(SignDi(1),dp) / AllTotPartsTemp   
-            SignDiFac = 1.D0
-        endif
-
-!        WRITE(6,*) realSignDi
-
-        IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) THEN
-            do i=1,NEl
-                OneElRDM(SymLabelListInv(nI(i)),SymLabelListInv(nI(i))) = &
-                            OneElRDM(SymLabelListInv(nI(i)),SymLabelListInv(nI(i))) &
-                              + ((SignDiFac*realSignDi) * (SignDiFac*realSignDi_prob)) 
-            enddo
-        ENDIF
-
-! There is no need to use the SymLabelList arrays for the 2 el RDM because we are 
-! not diagonalising or anything.
-        IF((RDMExcitLevel.eq.2).or.(RDMExcitLevel.eq.3)) THEN
-            do i=1,NEl - 1
-                do j=i+1,NEl
-                    Ind=( ( (nI(j)-2) * (nI(j)-1) ) / 2 ) + nI(i)
-                    TwoElRDM( Ind , Ind ) = TwoElRDM( Ind , Ind ) &
-                              + ((SignDiFac*realSignDi) * (SignDiFac*realSignDi_prob))
-                enddo
-            enddo
-        ENDIF
-
-!        write(6,*) 'adding to diagonal',signDi
-
-    END SUBROUTINE Fill_Diag_RDM
-    
 
     SUBROUTINE SendProcExcDjs()
 ! In this routine the excitations are sent to the relevant processors.
@@ -1019,72 +968,6 @@ MODULE nElRDMMod
     END SUBROUTINE Sing_SearchOccDets
 
 
-    subroutine Fill_Sings_RDM(nI,Ex,tParity,realSignDi,realSignDj,tfill_symm)
-        integer , intent(in) :: nI(NEl), Ex(2,2)
-        logical , intent(in) :: tParity, tfill_symm
-        real(dp) , intent(in) :: realSignDi, realSignDj
-        integer :: k, Indij, Indab
-        real(dp) :: ParityFactor, realSignDi_scaled, realSignDj_scaled
-        real(dp) :: ParityFactor2
-
-!        WRITE(6,*) '* In singles'
-!        WRITE(6,*) 'Ex(1,:)',Ex(1,:)
-!        WRITE(6,*) 'Ex(2,:)',Ex(2,:)
-!        WRITE(6,*) 'tParity',tParity
-!        WRITE(6,*) 'nI',nI
-!        WRITE(6,*) 'Adding realSignDi, realSignDj',realSignDi,realSignDj
-        if(tExplicitAllRDM) then
-            realSignDi_scaled = realSignDi * ( REAL(AllTotPartsTemp) / &
-                        ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) )
-            realSignDj_scaled = realSignDj * ( REAL(AllTotPartsTemp) / &
-                        ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) )
-        else
-!            realSignDi_scaled = realSignDi / AllTotPartsTemp
-!            realSignDj_scaled = realSignDj / AllTotPartsTemp
-            realSignDi_scaled = realSignDi 
-            realSignDj_scaled = realSignDj 
-        endif
-
-        ParityFactor=1.D0
-        IF(tParity) ParityFactor=-1.D0
-
-        Indij = SymLabelListInv(Ex(1,1)) 
-        Indab = SymLabelListInv(Ex(2,1)) 
-        
-        OneElRDM( Indij , Indab ) = OneElRDM( Indij , Indab ) + &
-                            (ParityFactor * (realSignDi_scaled * realSignDj_scaled))
-        if(tfill_symm) OneElRDM( Indab , Indij ) = OneElRDM( Indab , Indij ) + &
-                            (ParityFactor * (realSignDi_scaled * realSignDj_scaled))
-
-        IF(RDMExcitLevel.eq.3) THEN
-            do k = 1, NEl                            
-                IF(nI(k).ne.Ex(1,1)) THEN
-
-                    Indij = ( ( (MAX(nI(k),Ex(1,1))-2) * &
-                                (MAX(nI(k),Ex(1,1))-1) ) / 2 ) + MIN(nI(k),Ex(1,1))
-                    Indab = ( ( (MAX(nI(k),Ex(2,1))-2) * &
-                                (MAX(nI(k),Ex(2,1))-1) ) / 2 ) + MIN(nI(k),Ex(2,1))
-
-                    ! Adding these as nI(k),Ex(1,1) -> nI(k), Ex(2,1)
-                    ! So if Ex(1,1) < nI(k), or Ex(2,1) < nI(k) then we need 
-                    ! to switch the parity.
-                    ParityFactor2 = ParityFactor
-                    IF((Ex(1,1).lt.nI(k)).and.(Ex(2,1).gt.nI(k))) &
-                                            ParityFactor2 = ParityFactor * (-1.D0)
-                    IF((Ex(1,1).gt.nI(k)).and.(Ex(2,1).lt.nI(k))) &
-                                            ParityFactor2 = ParityFactor * (-1.D0)
-
-                    TwoElRDM( Indij , Indab ) = TwoElRDM( Indij , Indab ) + &
-                            (ParityFactor2 * ( realSignDi_scaled * realSignDj_scaled)) 
-                    IF(tfill_symm) TwoElRDM( Indab , Indij ) = TwoElRDM( Indab , Indij ) + &
-                            (ParityFactor2 * ( realSignDi_scaled * realSignDj_scaled))
-                ENDIF
-            enddo
-        ENDIF
-
-    end subroutine Fill_Sings_RDM
-
-
     SUBROUTINE Doub_SearchOccDets(recvcounts,recvdisps)
 ! We now have arrays SingExcDjs2 which contain all the single excitations 
 ! from each processor.
@@ -1161,12 +1044,125 @@ MODULE nElRDMMod
     END SUBROUTINE Doub_SearchOccDets
 
 
+    subroutine Fill_Diag_RDM(nI,realSignDi,probsign)
+! Fill diagonal elements of 1- and 2-RDM.
+! These are < Di | a_i+ a_i | Di > and < Di | a_i+ a_j+ a_j a_i | Di >.
+        integer , intent(in) :: nI(NEl)
+        real(dp) , intent(in) :: realSignDi
+        real(dp) , intent(in) , optional :: probsign
+        real(dp) :: SignDiFac
+        integer :: i, j, Ind
+
+! Need to add in the diagonal elements.
+! The RDM are always in spin orbitals, so just adding the orbital as is, is fine.
+        
+        if(tExplicitAllRDM) then
+            SignDiFac =  REAL(AllTotPartsTemp) / &
+                            ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) 
+            ! This is just scaling the contribution down slightly so we don't get 
+            ! integer overflow - probably way unnecessary.
+        else
+            SignDiFac = 1.D0
+        endif
+
+!        WRITE(6,*) realSignDi
+
+        IF(RDMExcitLevel.ne.2) THEN
+            do i=1,NEl
+                OneElRDM(SymLabelListInv(nI(i)),SymLabelListInv(nI(i))) = &
+                            OneElRDM(SymLabelListInv(nI(i)),SymLabelListInv(nI(i))) &
+                              + ((SignDiFac*realSignDi) * (SignDiFac*realSignDi)) 
+            enddo
+        ENDIF
+
+! There is no need to use the SymLabelList arrays for the 2 el RDM because we are 
+! not diagonalising or anything.
+        IF(RDMExcitLevel.ne.1) THEN
+            do i=1,NEl - 1
+                do j=i+1,NEl
+                    Ind=( ( (nI(j)-2) * (nI(j)-1) ) / 2 ) + nI(i)
+                    TwoElRDM( Ind , Ind ) = TwoElRDM( Ind , Ind ) &
+                              + ((SignDiFac*realSignDi) * (SignDiFac*realSignDi))
+                enddo
+            enddo
+        ENDIF
+
+!        write(6,*) 'adding to diagonal',signDi
+
+    end subroutine Fill_Diag_RDM
+    
+
+    subroutine Fill_Sings_RDM(nI,Ex,tParity,realSignDi,realSignDj,tfill_symm)
+! This routine adds in the contribution to the 1- and 2-RDM from determinants connected
+! by a single excitation.
+        integer , intent(in) :: nI(NEl), Ex(2,2)
+        logical , intent(in) :: tParity, tfill_symm
+        real(dp) , intent(in) :: realSignDi, realSignDj
+        integer :: k, Indij, Indab
+        real(dp) :: ParityFactor, ParityFactor2, SignFac
+
+!        WRITE(6,*) '* In singles'
+!        WRITE(6,*) 'Ex(1,:)',Ex(1,:)
+!        WRITE(6,*) 'Ex(2,:)',Ex(2,:)
+!        WRITE(6,*) 'tParity',tParity
+!        WRITE(6,*) 'nI',nI
+!        WRITE(6,*) 'Adding realSignDi, realSignDj',realSignDi,realSignDj
+        if(tExplicitAllRDM) then
+            SignFac = REAL(AllTotPartsTemp) / &
+                        ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) 
+        else
+            SignFac = 1.D0 
+        endif
+
+        ParityFactor=1.D0
+        IF(tParity) ParityFactor=-1.D0
+
+        Indij = SymLabelListInv(Ex(1,1)) 
+        Indab = SymLabelListInv(Ex(2,1)) 
+        
+        OneElRDM( Indij , Indab ) = OneElRDM( Indij , Indab ) + (ParityFactor * &
+                            ( realSignDi * SignFac ) * ( realSignDj * SignFac ))
+
+        if(tfill_symm) OneElRDM( Indab , Indij ) = OneElRDM( Indab , Indij ) + (ParityFactor * &
+                            ( realSignDi * SignFac ) * ( realSignDj * SignFac ))
+
+        IF(RDMExcitLevel.eq.3) THEN
+            do k = 1, NEl                            
+                IF(nI(k).ne.Ex(1,1)) THEN
+
+                    Indij = ( ( (MAX(nI(k),Ex(1,1))-2) * &
+                                (MAX(nI(k),Ex(1,1))-1) ) / 2 ) + MIN(nI(k),Ex(1,1))
+                    Indab = ( ( (MAX(nI(k),Ex(2,1))-2) * &
+                                (MAX(nI(k),Ex(2,1))-1) ) / 2 ) + MIN(nI(k),Ex(2,1))
+
+                    ! Adding these as nI(k),Ex(1,1) -> nI(k), Ex(2,1)
+                    ! So if Ex(1,1) < nI(k), or Ex(2,1) < nI(k) then we need 
+                    ! to switch the parity.
+                    ParityFactor2 = ParityFactor
+                    IF((Ex(1,1).lt.nI(k)).and.(Ex(2,1).gt.nI(k))) &
+                                            ParityFactor2 = ParityFactor * (-1.D0)
+                    IF((Ex(1,1).gt.nI(k)).and.(Ex(2,1).lt.nI(k))) &
+                                            ParityFactor2 = ParityFactor * (-1.D0)
+
+                    TwoElRDM( Indij , Indab ) = TwoElRDM( Indij , Indab ) + (ParityFactor2 * &
+                                            ( realSignDi * SignFac ) * ( realSignDj * SignFac ))
+                    IF(tfill_symm) TwoElRDM( Indab , Indij ) = TwoElRDM( Indab , Indij ) + (ParityFactor2 * &
+                                            ( realSignDi * SignFac ) * ( realSignDj * SignFac ))
+                ENDIF
+            enddo
+        ENDIF
+
+    end subroutine Fill_Sings_RDM
+
+
     subroutine Fill_Doubs_RDM(Ex,tParity,realSignDi,realSignDj,tfill_symm)
+! This routine adds in the contribution to the 2-RDM from determinants connected
+! by a double excitation.
         integer , intent(in) :: Ex(2,2)
         logical , intent(in) :: tParity, tfill_symm
         real(dp) , intent(in) :: realSignDi, realSignDj
         integer :: k, Indij, Indab
-        real(dp) :: realSignDi_scaled, realSignDj_scaled, ParityFactor
+        real(dp) :: ParityFactor, SignFac
 
         ParityFactor=1.D0
         IF(tParity) ParityFactor=-1.D0
@@ -1178,15 +1174,10 @@ MODULE nElRDMMod
 !        WRITE(6,*) 'Adding realSignDi, realSignDj',realSignDi,realSignDj
 
         if(tExplicitAllRDM) then
-            realSignDi_scaled = realSignDi * ( REAL(AllTotPartsTemp) / &
-                            ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) )
-            realSignDj_scaled = realSignDj * ( REAL(AllTotPartsTemp) / &
-                            ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) )
+            SignFac = REAL(AllTotPartsTemp) / &
+                        ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) 
         else
-!            realSignDi_scaled = realSignDi / AllTotPartsTemp 
-!            realSignDj_scaled = realSignDj / AllTotPartsTemp 
-            realSignDi_scaled = realSignDi 
-            realSignDj_scaled = realSignDj 
+            SignFac = 1.D0
         endif
 
         !Find unique index for the pairs of orbitals we are exciting from 
@@ -1200,15 +1191,16 @@ MODULE nElRDMMod
                 'The orbitals involved in excitation are not in the expected order.')
         ENDIF
 
-        TwoElRDM( Indij , Indab ) = TwoElRDM( Indij , Indab ) + &
-                         ( ParityFactor * ( realSignDi_scaled * realSignDj_scaled ) ) 
+        TwoElRDM( Indij , Indab ) = TwoElRDM( Indij , Indab ) + ( ParityFactor * &
+                            ( realSignDi * SignFac ) * ( realSignDj * SignFac ) ) 
 
-        if(tfill_symm) TwoElRDM( Indab , Indij ) = TwoElRDM( Indab , Indij ) + &
-                             ( ParityFactor * ( realSignDi_scaled * realSignDj_scaled ) ) 
+        if(tfill_symm) TwoElRDM( Indab , Indij ) = TwoElRDM( Indab , Indij ) + ( ParityFactor * &
+                            ( realSignDi * SignFac ) * ( realSignDj * SignFac ) ) 
 
 !        WRITE(6,*) 'TwoElRDM',Indij,Indab,TwoElRDM( Indij , Indab )
 
     end subroutine Fill_Doubs_RDM
+
 
     subroutine Fill_Spin_Coupled_RDM(iLutnI,iLutnJ,nI,nJ,realSignI,realSignJ,tFill_SymmCiCj)
 !If the two HPHF determinants we're considering consist of I + I' and J + J', 
@@ -1360,10 +1352,12 @@ MODULE nElRDMMod
 
        endif
 
-
     end subroutine Fill_Spin_Coupled_RDM
 
+
     subroutine Add_RDM_From_IJ_Pair(nI,nJ,realSignI,realSignJ,tFill_SymmCiCj)
+! This routine takes a pair of different determinants Di and Dj, and figures out which type 
+! of elements need to be added in to the RDM.
         integer , intent(in) :: nI(NEl), nJ(NEl)
         real(dp) , intent(in) :: realSignI, realSignJ
         logical , intent(in) :: tFill_SymmCiCj
@@ -1405,46 +1399,56 @@ MODULE nElRDMMod
 
     end subroutine Add_RDM_From_IJ_Pair
 
-    SUBROUTINE FinaliseRDM()
-! This routine finalises the one electron reduced density matrix stuff.
-! This includes summing each of the individual matrices from each processor.
-! Calling the diagonalisation routines if we want to get the occupation numbers.
-        USE Logging , only : tDiagRDM 
+
+    subroutine FinaliseRDM()
+! This routine finalises the one electron reduced density matrix stuff at the point of a softexit.
+! This includes summing each of the individual matrices from each processor,
+! and calling the diagonalisation routines if we want to get the occupation numbers.
+        USE Logging , only : tDiagRDM, tRDMSpinAveraging
         USE SystemData , only : tSeparateOccVirt,tRotateVirtOnly,tRotateOccOnly
         USE SystemData , only : tNoRODump, ARR, BRR, G1
         USE RotateOrbsMod , only : FourIndInts, FourIndIntsTag
         USE RotateOrbsData , only : NoOrbs
         INTEGER :: error,i,j,ierr
-        REAL(dp) :: SumDiag, Corr_Entropy, Lin_Ineq, Tot_Spin_Projection
+        REAL(dp) :: SumDiag, Corr_Entropy
         real(dp) :: Norm_1RDM, Norm_2RDM, Trace_1RDM, Trace_2RDM, AllAccumRDMNorm
         CHARACTER(len=*), PARAMETER :: this_routine='FinaliseRDM'
 
 
         CALL set_timer(FinaliseRDM_Time)
 
-        IF(tCalc_RDMEnergy) THEN
+        ! If we're calculating the energy, do this here.
+        if(tCalc_RDMEnergy) then
+
             tFinalRDMEnergy = .true.
+
+            ! Calculate the energy one last time - and write out everything we need.
             CALL Calc_Energy_from_RDM()
+
 !            CALL Test_Energy_Calc()
-        ELSE
+
+        else
+
+            ! Combine the 1- and 2-RDM from all processors.
             IF(RDMExcitLevel.ne.2) CALL MPIReduce(OneElRDM,MPI_SUM,NatOrbMat)
             IF(RDMExcitLevel.ne.1) CALL MPIReduce(TwoElRDM,MPI_SUM,AllTwoElRDM)
 
             AllAccumRDMNorm = 0.D0
-            Tot_Spin_Projection = 0.D0
+            IF(tHF_Ref.or.tHF_S_D_Ref) &
+                CALL MPIReduce(AccumRDMNorm,MPI_SUM,AllAccumRDMNorm)
 
             if(iProcIndex.eq.0) then
-                call Init_Write_and_Calc_Norms(AllAccumRDMNorm, Trace_1RDM, Trace_2RDM, Norm_1RDM, Norm_2RDM)
+                ! If we're not using HPHF - average the matrix elements that by spin we know to be equal.
+                IF(tRDMSpinAveraging) CALL Average_Spins() 
 
-                call Write_out_1and_2RDM(Norm_1RDM, Norm_2RDM, Lin_Ineq, Tot_Spin_Projection)
-
-                write(6,*) ''
-                if(RDMExcitLevel.ne.2) write(6,'(A22,F30.20)') ' TOTAL SPIN PROJECTION', Tot_Spin_Projection 
-                if(RDMExcitLevel.eq.3) write(6,'(A18,F30.20)') ' LINEAR INEQUALITY', Lin_Ineq
-                write(6,*) ''
+                ! Normalise the 1- and 2-RDM so the traces are equal to NEl and NEl(NEl - 1)/2 respectively.
+                call Calc_Norms(AllAccumRDMNorm, Trace_1RDM, Trace_2RDM, Norm_1RDM, Norm_2RDM)
             endif
 
-        ENDIF
+            ! Now actually write out the 1- and/or 2-RDM to file.
+            if(iProcIndex.eq.0) &
+                call Write_out_1and_2RDM(Norm_1RDM, Norm_2RDM)
+        endif
 
 ! Getting back into the rotate routines, which use symlabellist2 etc etc, 
 ! so we need to tell these routines they've been set up as spin orbitals.
@@ -1562,7 +1566,7 @@ MODULE nElRDMMod
         CALL halt_timer(FinaliseRDM_Time)
 
     
-    END SUBROUTINE FinaliseRDM
+    end subroutine FinaliseRDM
 
 
     SUBROUTINE DiagRDM()
@@ -2720,11 +2724,13 @@ MODULE nElRDMMod
         USE RotateOrbsMod , only : SymLabelList2
         USE UMatCache , only : GTID
         USE Logging , only : tRDMSpinAveraging
+        real(dp) :: Norm_1RDM, Norm_2RDM
         INTEGER :: i,j,k,l,Ind2,Ind1,i2,j2,k2,l2,ierr
-        REAL(dp) :: RDMEnergy, Coul, Exch, Norm_1RDM, Norm_2RDM 
+        REAL(dp) :: RDMEnergy, Coul, Exch 
         REAL(dp) :: AllAccumRDMNorm, stochastic_factor  
-        REAL(dp) :: Trace_2RDM_New, RDMEnergy1El, RDMEnergy2El, Trace_1RDM_New
-        REAL(dp) :: Tot_Spin_Projection, Lin_Ineq
+        REAL(dp) :: RDMEnergy1El, RDMEnergy2El, Trace_1RDM_New, Trace_2RDM_New
+        REAL(dp) :: Trace_1RDM, Trace_2RDM
+        REAL(dp) :: Tot_Spin_Projection 
         REAL(dp) , ALLOCATABLE :: TestRDM(:,:)
         INTEGER :: TestRDMTag
 
@@ -2738,27 +2744,6 @@ MODULE nElRDMMod
 !        IF(ierr.ne.0) CALL Stop_All('test_energy_calc','Problem allocating TestRDM array,')
 !        TestRDM(:,:)=0.D0
 
-        IF(tTurnStoreSpinOff) tStoreSpinOrbs=.false.
-
-        IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) &
-                            CALL MPIReduce(OneElRDM,MPI_SUM,NatOrbMat)
-        IF((RDMExcitLevel.eq.2).or.(RDMExcitLevel.eq.3)) &
-                            CALL MPIReduce(TwoElRDM,MPI_SUM,AllTwoElRDM)
-
-        IF(tHF_Ref.or.tHF_S_D_Ref) &
-            CALL MPIReduce(AccumRDMNorm,MPI_SUM,AllAccumRDMNorm)
-
-! First of all 'normalise' the reduced density matrices.
-! These are not even close to being normalised at the moment, because of the way they are 
-! calculated on the fly.
-! They should be calculated from a normalised wavefunction.
-! But we know that the trace of the one electron reduced density matrix must be equal to 
-! the number of the electrons.
-! We can use this to find the factor we must divide the 1RDM through by.
-
-! We also know that the trace of the two electron reduced density matrix must be equal to the 
-! number of electron pairs in the system = 1/2 N ( N - 1), so we can do the same for the 2RDM.
-
         Trace_2RDM_New = 0.D0
         Trace_1RDM_New = 0.D0
 
@@ -2766,13 +2751,22 @@ MODULE nElRDMMod
         RDMEnergy1El = 0.D0
         RDMEnergy2El = 0.D0
 
-        IF(iProcIndex.eq.0) THEN
+        Tot_Spin_Projection = 0.D0
 
+        ! Combine the 1- and 2-RDM from all processors.
+        IF(RDMExcitLevel.ne.2) CALL MPIReduce(OneElRDM,MPI_SUM,NatOrbMat)
+        IF(RDMExcitLevel.ne.1) CALL MPIReduce(TwoElRDM,MPI_SUM,AllTwoElRDM)
+
+        AllAccumRDMNorm = 0.D0
+        IF(tHF_Ref.or.tHF_S_D_Ref) &
+            CALL MPIReduce(AccumRDMNorm,MPI_SUM,AllAccumRDMNorm)
+
+        if(iProcIndex.eq.0) then
+
+            ! If we're not using HPHF - average the matrix elements that by spin we know to be equal.
             IF(tRDMSpinAveraging) CALL Average_Spins() 
 
-            call Init_Write_and_Calc_Norms(AllAccumRDMNorm, Trace_1RDM, Trace_2RDM, Norm_1RDM, Norm_2RDM)
-
-            Tot_Spin_Projection = 0.D0
+            call Calc_Norms(AllAccumRDMNorm, Trace_1RDM, Trace_2RDM, Norm_1RDM, Norm_2RDM)
 
             do i = 1, nBasis 
 
@@ -2901,15 +2895,9 @@ MODULE nElRDMMod
                 write(6,'(A64,F30.20)') ' *TOTAL ENERGY* CALCULATED USING THE *REDUCED &
                                             &DENSITY MATRICES*:',RDMEnergy
                 write(6,*) ''
-!                write(6,*) 'Ecore',Ecore
 
-                call Write_out_1and_2RDM(Norm_1RDM, Norm_2RDM, Lin_Ineq, Tot_Spin_Projection)
-
-                write(6,*) ''
-                write(6,'(A22,F30.20)') ' TOTAL SPIN PROJECTION', Tot_Spin_Projection 
-                write(6,'(A18,F30.20)') ' LINEAR INEQUALITY', Lin_Ineq
-                write(6,*) ''
-
+                call Write_out_1and_2RDM(Norm_1RDM, Norm_2RDM)
+ 
             endif
 
             WRITE(Energies_unit, "(I31,2F30.15)") Iter+PreviousCycles, RDMEnergy, Tot_Spin_Projection
@@ -2920,14 +2908,14 @@ MODULE nElRDMMod
                 AllAccumRDMNorm = 0.D0
             endif
 
-        ENDIF
+        endif
 
         if(tHF_ref) then
             OneElRDM(:,:) = 0.D0
             TwoElRDM(:,:) = 0.D0
             AccumRDMNorm = 0.D0
         endif
-        
+
 !        do i = 1, nBasis
 !            do k = i+1, nBasis
 !                if(abs(testrdm(i,k)).gt.0.D0) write(6,*) 'i,k,testrdm',i,k,testrdm(i,k)
@@ -2940,7 +2928,19 @@ MODULE nElRDMMod
 
     END SUBROUTINE Calc_Energy_from_RDM
 
-    subroutine Init_Write_and_Calc_Norms(AllAccumRDMNorm, Trace_1RDM, Trace_2RDM, Norm_1RDM, Norm_2RDM)
+    subroutine Calc_Norms(AllAccumRDMNorm, Trace_1RDM, Trace_2RDM, Norm_1RDM, Norm_2RDM)
+! We want to 'normalise' the reduced density matrices.
+! These are not even close to being normalised at the moment, because of the way they are 
+! calculated on the fly.
+! They should be calculated from a normalised wavefunction.
+! But we know that the trace of the one electron reduced density matrix must be equal to 
+! the number of the electrons.
+! We can use this to find the factor we must divide the 1RDM through by.
+
+! We also know that the trace of the two electron reduced density matrix must be equal to the 
+! number of electron pairs in the system = 1/2 N ( N - 1), so we can do the same for the 2RDM.
+
+! This routine also initiates the stuff needed to write out the density matrices to files.
         real(dp) , intent(in) :: AllAccumRDMNorm
         real(dp) , intent(out) :: Norm_1RDM, Norm_2RDM
         real(dp) , intent(out) :: Trace_1RDM, Trace_2RDM
@@ -2953,18 +2953,6 @@ MODULE nElRDMMod
         Norm_2RDM = 0.D0
         Trace_1RDM = 0.D0
         Trace_2RDM = 0.D0
-
-        IF(tFinalRDMEnergy.or.(.not.tCalc_RDMEnergy)) THEN
-            if(RDMExcitLevel.ne.2) then
-                OneRDM_unit = get_free_unit()
-                OPEN(OneRDM_unit,file='1El_RDM_Matrix',status='unknown')
-            endif
-
-            if(RDMExcitLevel.ne.1) then
-                TwoRDM_unit = get_free_unit()
-                OPEN(TwoRDM_unit,file='2El_RDM_Matrix',status='unknown')
-            endif
-        ENDIF
 
         if(RDMExcitLevel.eq.1) then
             do i = 1, nBasis
@@ -2999,6 +2987,8 @@ MODULE nElRDMMod
 !            WRITE(6,*) 'AllAccumRDMNorm',AllAccumRDMNorm
 !            WRITE(6,*) 'Norm_1RDM',Norm_1RDM
 !            WRITE(6,*) 'Norm_2RDM',Norm_2RDM
+!            WRITE(6,*) 'Trace_1RDM',Trace_1RDM
+!            WRITE(6,*) 'Trace_2RDM',Trace_2RDM
 !        endif
 
         !Need to multiply each element of the 1 electron reduced density matrices 
@@ -3006,18 +2996,30 @@ MODULE nElRDMMod
         !and then add it's contribution to the energy.
 
 
-    end subroutine Init_Write_and_Calc_Norms
+    end subroutine Calc_Norms
 
-    subroutine Write_out_1and_2RDM(Norm_1RDM, Norm_2RDM, Lin_Ineq, Tot_Spin_Projection)
+    subroutine Write_out_1and_2RDM(Norm_1RDM, Norm_2RDM)
         real(dp) , intent(in) :: Norm_1RDM, Norm_2RDM
-        real(dp) , intent(out) :: Lin_Ineq
-        real(dp) , intent(inout) :: Tot_Spin_Projection
-        real(dp) :: Lin_Ineq_TwoEl, Lin_Ineq_OneEl, ParityFactor
-        integer :: Ind1_LI, Ind2_LI, ParityFactor_LI
+        real(dp) :: Tot_Spin_Projection, ParityFactor_LI
+        real(dp) :: Lin_Ineq, Lin_Ineq_TwoEl, Lin_Ineq_OneEl, ParityFactor
+        integer :: Ind1_LI, Ind2_LI
         integer :: i, j, k, l, Ind1, Ind2
+        integer :: OneRDM_unit, TwoRDM_unit
  
         write(6,*) 'Writing out density matrices to file'
         call flush(6)
+
+        IF(tFinalRDMEnergy.or.(.not.tCalc_RDMEnergy)) THEN
+            if(RDMExcitLevel.ne.2) then
+                OneRDM_unit = get_free_unit()
+                OPEN(OneRDM_unit,file='1El_RDM_Matrix',status='unknown')
+            endif
+
+            if(RDMExcitLevel.ne.1) then
+                TwoRDM_unit = get_free_unit()
+                OPEN(TwoRDM_unit,file='2El_RDM_Matrix',status='unknown')
+            endif
+        ENDIF
 
         Lin_Ineq = 0.D0
         Lin_Ineq_OneEl = 0.D0
@@ -3094,6 +3096,12 @@ MODULE nElRDMMod
         if(RDMExcitLevel.ne.2) close(OneRDM_unit)
         if(RDMExcitLevel.ne.1) close(TwoRDM_unit)
 
+        write(6,*) ''
+        if(RDMExcitLevel.ne.2) write(6,'(A22,F30.20)') ' TOTAL SPIN PROJECTION', Tot_Spin_Projection 
+        if(RDMExcitLevel.eq.3) write(6,'(A18,F30.20)') ' LINEAR INEQUALITY', Lin_Ineq
+        write(6,*) ''
+
+
     end subroutine Write_out_1and_2RDM
 
 
@@ -3123,8 +3131,6 @@ MODULE nElRDMMod
 
         WRITE(6,*) '****************'
         WRITE(6,*) '**** TESTING ENERGY CALCULATION **** '
-
-        IF(tTurnStoreSpinOff) tStoreSpinOrbs=.false.
 
         AllTotWalkers = 0
         CALL MPIReduce(TotWalkers,MPI_SUM,AllTotWalkers)
