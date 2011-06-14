@@ -725,14 +725,14 @@ MODULE FciMCParMod
         type(fcimc_iter_data), intent(inout) :: iter_data
 
         ! Now the local, iteration specific, variables
-        integer :: VecSlot, j, p, error
+        integer :: VecSlot, j, p, error, proc_temp, i
         integer :: DetCurr(nel), nJ(nel), FlagsCurr, parent_flags
         integer, dimension(lenof_sign) :: SignCurr, child
         integer(kind=n_int) :: iLutnJ(0:niftot)
         integer :: IC, walkExcitLevel, ex(2,2), TotWalkersNew, part_type, k
         integer(int64) :: tot_parts_tmp(lenof_sign)
         logical :: tParity
-        real(dp) :: prob, HDiagCurr, TempTotParts
+        real(dp) :: prob, HDiagCurr, TempTotParts, Di_Sign_Temp
         HElement_t :: HDiagTemp,HElGen
 #ifdef __DEBUG
         character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
@@ -885,16 +885,13 @@ MODULE FciMCParMod
                 exit
             endif
 
-            ! Add in any reduced density matrix info we want while running 
-            ! over CurrentDets - i.e. diagonal elements and connections to HF.
-            if(tFillingStochRDMonFly) &
-                call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,SignCurr,walkExcitLevel,AllHFSign)
-
             ! Sum in any energy contribution from the determinant, including 
             ! other parameters, such as excitlevel info.
             ! This is where the projected energy is calculated.
             call SumEContrib (DetCurr, WalkExcitLevel, SignCurr, &
                               CurrentDets(:,j), HDiagCurr, 1.d0)
+
+            NoSpawned_DetCurr(:) = 0
 
             ! Loop over the 'type' of particle. 
             ! lenof_sign == 1 --> Only real particles
@@ -937,8 +934,6 @@ MODULE FciMCParMod
                         child = 0
                     endif
 
-!                    if(p.ne.1) RDMBiasFacI = 0.D0
-
                     ! Children have been chosen to be spawned.
                     if (any(child /= 0)) then
                         ! We know we want to create a particle of this type.
@@ -964,6 +959,20 @@ MODULE FciMCParMod
             ! if (VecSlot > j) call stop_all (this_routine, 'vecslot > j')
             call walker_death (attempt_die, iter_data, DetCurr, &
                                CurrentDets(:,j), HDiagCurr, SignCurr, VecSlot)
+
+            ! Add in any reduced density matrix info we want while running 
+            ! over CurrentDets - i.e. diagonal elements and connections to HF.
+            if(tFillingStochRDMonFly) &
+                call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,SignCurr,walkExcitLevel,AllHFSign)
+
+            do proc_temp = 0, nNodes - 1
+                do i = ValidSpawnedList(proc_temp) - NoSpawned_DetCurr(proc_temp), &
+                        ValidSpawnedList(proc_temp) - 1
+                    Di_Sign_Temp = transfer(SpawnedParts(niftot+nifdbo+2, i),Di_Sign_Temp)
+                    Di_Sign_Temp = Di_Sign_Temp * real(SignCurr(1),dp)
+                    SpawnedParts(niftot+nifdbo+2, i) = transfer(Di_Sign_Temp,SpawnedParts(niftot+nifdbo+2, i))
+                enddo
+            enddo
 
         enddo ! Loop over determinants.
         IFDEBUG(FCIMCDebug,2) write(6,*) 'Finished loop over determinants'
@@ -1134,6 +1143,8 @@ MODULE FciMCParMod
             !fact that Di and Dj are not always added to the RDM, but only when Di spawns on Dj.
             !This turns the real RDMBiasFacI into an integer to pass around to the relevant processors.
             SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)) = transfer(RDMBiasFacI,SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)))
+            NoSpawned_DetCurr(proc) = NoSpawned_DetCurr(proc) + 1
+
         ENDIF
 
         IF(lenof_sign.eq.2) THEN
@@ -1834,7 +1845,8 @@ MODULE FciMCParMod
                 ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i]
                 ! However when we add in Di -> Dj, we also add in Dj -> Di, so the probability of generating this pair 
                 ! is twice that of just generating Di -> Dj.
-                RDMBiasFacI = real(wSign(1),dp) / abs( ( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) ) * 2.D0 )
+                RDMBiasFacI = 1.D0 / abs( ( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) ) * 2.D0 )
+!                RDMBiasFacI = real(wSign(1),dp) / abs( ( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) ) * 2.D0 )
 !                RDMBiasFacI = real(wSign(1),dp) / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) )
                     
             endif
@@ -2072,7 +2084,7 @@ MODULE FciMCParMod
         end interface
 
         integer, intent(in) :: DetCurr(nel) 
-        integer, dimension(lenof_sign), intent(in) :: wSign
+        integer, dimension(lenof_sign), intent(inout) :: wSign
         integer(kind=n_int), intent(in) :: iLutCurr(0:niftot)
         integer, intent(inout) :: VecSlot
         real(dp), intent(in) :: Kii
@@ -2124,8 +2136,9 @@ MODULE FciMCParMod
                 !Normally we will go in this block
                 call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
                 if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
-                DiedArray(VecSlot) = abs(iDie(1))
+!                DiedArray(VecSlot) = abs(iDie(1))
                 VecSlot = VecSlot + 1
+                wSign(1) = CopySign(1)
             ENDIF
         elseif(tTruncInitiator) then
             ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
@@ -2140,7 +2153,7 @@ MODULE FciMCParMod
         IF((CopySign(1).ne.0).or.(CopySign(2).ne.0)) THEN
             call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
             if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
-            DiedArray(VecSlot) = abs(iDie(1))
+!            DiedArray(VecSlot) = abs(iDie(1))
             VecSlot=VecSlot+1
         ENDIF
 #endif            
@@ -6659,6 +6672,8 @@ MODULE FciMCParMod
       enddo
 !ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
       ValidSpawnedList(:)=InitialSpawnedSlots(:)
+
+      ALLOCATE(NoSpawned_DetCurr(0:nNodes-1),stat=ierr)
    end subroutine
 
 END MODULE FciMCParMod

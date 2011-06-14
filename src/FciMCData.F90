@@ -185,6 +185,7 @@ MODULE FciMCData
 
       INTEGER , ALLOCATABLE :: ValidSpawnedList(:) !This is used for the direct annihilation, and ValidSpawnedList(i) indicates the next free slot in the processor iProcIndex ( 0 -> nProcessors-1 )
       INTEGER , ALLOCATABLE :: InitialSpawnedSlots(:) !This is set up as the initial ValidSpawnedList elements, so that it does not need to be reevaluated each time.
+      INTEGER , ALLOCATABLE :: NoSpawned_DetCurr(:) 
 
       INTEGER :: WalkersDiffProc
 

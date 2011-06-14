@@ -721,12 +721,12 @@ MODULE nElRDMMod
 
 ! this is just a test to make sure the AllHFSign mpi is working.
 ! can probably get rid of it soon.
-        if((walkexcitlevel.eq.0).and.(signcurr(1).ne.allhfsign(1))) then
-            write(6,*) 'DetCurr',DetCurr
-            write(6,*) 'SignCurr',SignCurr
-            write(6,*) 'AllHFSign',AllHFSign
-            call stop_all('performfcimcyc','HF population is incorrect.')
-        endif
+!        if((walkexcitlevel.eq.0).and.(signcurr(1).ne.allhfsign(1))) then
+!            write(6,*) 'DetCurr',DetCurr
+!            write(6,*) 'SignCurr',SignCurr
+!            write(6,*) 'AllHFSign',AllHFSign
+!            call stop_all('performfcimcyc','HF population is incorrect.')
+!        endif
 
 ! Add diagonal elements to reduced density matrices.
 
