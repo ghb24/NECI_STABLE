@@ -366,7 +366,7 @@ MODULE SymExcit3
 
         enddo
 
-        IF(ExcitMat3(1,2).eq.0) CALL FindNewSingDet(nI,nJ,OrbiIndex,OrbA,ExcitMat3,tParity)
+        IF((ExcitMat3(1,2).eq.0).and.(.not.tAllExcitFound)) CALL FindNewSingDet(nI,nJ,OrbiIndex,OrbA,ExcitMat3,tParity)
             
     ENDSUBROUTINE GenSingleExcit
 
@@ -631,7 +631,7 @@ MODULE SymExcit3
 
         enddo lp
 
-        if(tDoubleExcitFound) then
+        if(tDoubleExcitFound.and.(.not.tAllExcitFound)) then
             CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,Orba,Orbb,ExcitMat3,tParity)
 !        else
 !            write(6,*) "Exiting loop with all excitations found: ",tAllExcitFound
