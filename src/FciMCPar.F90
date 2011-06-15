@@ -57,6 +57,9 @@ MODULE FciMCParMod
                        tPrintOrbOccInit, tHFPopStartBlock, tIterStartBlock, &
                        IterStartBlocking, HFPopStartBlocking, &
                        tInitShiftBlocking, tHistHamil, iWriteHamilEvery, &
+                       HistInitPopsTag, OrbOccs, OrbOccsTag, &
+                       tPrintPopsDefault, iWriteBlockingEvery, &
+                       tBlockEveryIteration, tHistInitPops, HistInitPopsIter,&
                        HistInitPops, DoubsUEG, DoubsUEGLookup, DoubsUEGStore,&
                        tPrintDoubsUEG, StartPrintDoubsUEG, tCalcInstantS2, &
                        instant_s2_multiplier, tMCOutput, &
