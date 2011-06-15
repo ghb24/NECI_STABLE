@@ -104,6 +104,14 @@ MODULE nElRDMMod
         if(tExplicitAllRDM.and.tHPHF) CALL Stop_All('InitRDM',&
                 'HPHF not set up with the explicit calculation of the RDM.')
 
+! The problem with the explicitHFRDM routine is that all processors need to know the 
+! current population on the HF from the beginning of the run.
+! This was o.k when we were using the population before death, as we could get it when we run 
+! over CurrentDets at the end of the previous iterations annihilation.
+! Now, it is more difficult. 
+        if(tExplicitHFRDM) CALL Stop_All('InitRDM','The EXPLICITHFRDM option is &
+                &not currently working since the walker death was changed around.')
+
 ! Here we're allocating arrays for the actual calculation of the RDM.
 
 ! First for the storage of the actual 1- or 2-RMD.
@@ -706,7 +714,8 @@ MODULE nElRDMMod
     END SUBROUTINE GenExcDjs
 
 
-    subroutine Add_StochRDM_Diag(iLutCurr,DetCurr,SignCurr,walkExcitLevel,AllHFSign)
+    subroutine Add_StochRDM_Diag(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
+!    subroutine Add_StochRDM_Diag(iLutCurr,DetCurr,SignCurr,walkExcitLevel,AllHFSign)
 ! This is called when we run over all TotWalkers in CurrentDets.    
 ! It is called for each CurrentDet.
         use FciMCData , only : HFDet
@@ -787,6 +796,7 @@ MODULE nElRDMMod
 ! If we are doing an EXPLICITHFRDM calculation, we explicitly add in every 
 ! contribution from connections between the HF and singles and doubles - symmetrically.
         IF(tExplicitHFRDM.and.((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2))) THEN
+            CALL Stop_All('Add_StochRDM_Diag','Should not be in this loop - ExplicitHFRDM is broken.')
             tFill_RDM_Symm = .true.
 
             if(tHF_Ref) tFill_RDM_Symm = .false.
@@ -3528,7 +3538,7 @@ END MODULE nElRDMMod
         do i = Spawned_Parents_Index(1,Spawned_No), &
                 Spawned_Parents_Index(1,Spawned_No) + Spawned_Parents_Index(2,Spawned_No) - 1 
                 
-            IF(tExplicitHFRDM.and.DetBitEQ(Spawned_Parents(0:NIfDBO,i),iLutHF,NIfDBO)) CYCLE
+!            IF(tExplicitHFRDM.and.DetBitEQ(Spawned_Parents(0:NIfDBO,i),iLutHF,NIfDBO)) CYCLE
 
             tDetAdded = .false.
             do j = Spawned_Parents_Index(1,Spawned_No), i-1

@@ -478,8 +478,8 @@ MODULE FciMCParMod
         implicit none
         interface
             function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
-                                     nJ, iLutJ, prob, HElGen, ic, ex, tPar, exLevel, part_type)&
-                                     result(child)
+                                     nJ, iLutJ, prob, HElGen, ic, ex, tPar, exLevel, &
+                                     part_type, wSignDied) result(child)
                 use SystemData, only: nel
                 use bit_reps, only: niftot
                 use constants, only: n_int, dp, lenof_sign
@@ -489,6 +489,7 @@ MODULE FciMCParMod
                 integer(kind=n_int), intent(inout) :: iLutJ(0:nIfTot)
                 integer, intent(in) :: ic, ex(2,2), exLevel
                 integer, dimension(lenof_sign), intent(in) :: wSign
+                integer, dimension(lenof_sign), intent(in), optional :: wSignDied
                 logical, intent(in) :: tPar
                 real(dp), intent(inout) :: prob
                 integer , dimension(lenof_sign) :: child      
@@ -658,8 +659,8 @@ MODULE FciMCParMod
                 type(excit_gen_store_type), intent(inout), target :: store
             end subroutine
             function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
-                                     nJ, iLutJ, prob, HElGen, ic, ex, tPar, exLevel, part_type)&
-                                     result(child)
+                                     nJ, iLutJ, prob, HElGen, ic, ex, tPar, exLevel, &
+                                     part_type, wSignDied) result(child)
                 use systemdata, only: nel
                 use bit_reps, only: niftot
                 use constants, only: dp, n_int, lenof_sign
@@ -669,6 +670,7 @@ MODULE FciMCParMod
                 integer(kind=n_int), intent(inout) :: iLutJ(0:nIfTot)
                 integer, intent(in) :: ic, ex(2,2), exLevel
                 integer, dimension(lenof_sign), intent(in) :: wSign
+                integer, dimension(lenof_sign), intent(in), optional :: wSignDied
                 logical, intent(in) :: tPar
                 real(dp), intent(inout) :: prob
                 integer, dimension(lenof_sign) :: child
@@ -745,7 +747,7 @@ MODULE FciMCParMod
         ! Now the local, iteration specific, variables
         integer :: VecSlot, j, p, error, proc_temp, i
         integer :: DetCurr(nel), nJ(nel), FlagsCurr, parent_flags
-        integer, dimension(lenof_sign) :: SignCurr, child
+        integer, dimension(lenof_sign) :: SignCurr, child, DiedSignCurr
         integer(kind=n_int) :: iLutnJ(0:niftot)
         integer :: IC, walkExcitLevel, ex(2,2), TotWalkersNew, part_type, k
         integer(int64) :: tot_parts_tmp(lenof_sign)
@@ -909,7 +911,14 @@ MODULE FciMCParMod
             call SumEContrib (DetCurr, WalkExcitLevel, SignCurr, &
                               CurrentDets(:,j), HDiagCurr, 1.d0)
 
-            NoSpawned_DetCurr(:) = 0
+            call calc_walker_death (attempt_die, iter_data, DetCurr, &
+                                        HDiagCurr, SignCurr, DiedSignCurr)
+
+            ! Add in any reduced density matrix info we want while running 
+            ! over CurrentDets - i.e. diagonal elements and connections to HF.
+            if(tFillingStochRDMonFly) &
+                call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,DiedSignCurr,walkExcitLevel)
+!                call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,DiedSignCurr,walkExcitLevel,AllHFSign)
 
             ! Loop over the 'type' of particle. 
             ! lenof_sign == 1 --> Only real particles
@@ -947,7 +956,8 @@ MODULE FciMCParMod
                         child = attempt_create (get_spawn_helement, DetCurr, &
                                             CurrentDets(:,j), SignCurr, &
                                             nJ,iLutnJ, Prob, HElGen, IC, ex, &
-                                            tParity, walkExcitLevel,part_type)
+                                            tParity, walkExcitLevel,part_type, &
+                                            DiedSignCurr)
                     else
                         child = 0
                     endif
@@ -975,23 +985,8 @@ MODULE FciMCParMod
 
             ! DEBUG
             ! if (VecSlot > j) call stop_all (this_routine, 'vecslot > j')
-            call walker_death (attempt_die, iter_data, DetCurr, &
-                               CurrentDets(:,j), HDiagCurr, SignCurr, VecSlot)
-
-            ! Add in any reduced density matrix info we want while running 
-            ! over CurrentDets - i.e. diagonal elements and connections to HF.
-            if(tFillingStochRDMonFly) then
-                call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,SignCurr,walkExcitLevel,AllHFSign)
-
-                do proc_temp = 0, nNodes - 1
-                    do i = ValidSpawnedList(proc_temp) - NoSpawned_DetCurr(proc_temp), &
-                            ValidSpawnedList(proc_temp) - 1
-                        Di_Sign_Temp = transfer(SpawnedParts(niftot+nifdbo+2, i),Di_Sign_Temp)
-                        Di_Sign_Temp = Di_Sign_Temp * real(SignCurr(1),dp)
-                        SpawnedParts(niftot+nifdbo+2, i) = transfer(Di_Sign_Temp,SpawnedParts(niftot+nifdbo+2, i))
-                    enddo
-                enddo
-            endif
+            call walker_death (iter_data, CurrentDets(:,j), HDiagCurr, &
+                                SignCurr, DiedSignCurr, VecSlot)
 
         enddo ! Loop over determinants.
         IFDEBUG(FCIMCDebug,2) write(6,*) 'Finished loop over determinants'
@@ -1162,7 +1157,6 @@ MODULE FciMCParMod
             !fact that Di and Dj are not always added to the RDM, but only when Di spawns on Dj.
             !This turns the real RDMBiasFacI into an integer to pass around to the relevant processors.
             SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)) = transfer(RDMBiasFacI,SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)))
-            NoSpawned_DetCurr(proc) = NoSpawned_DetCurr(proc) + 1
 
         ENDIF
 
@@ -1584,13 +1578,14 @@ MODULE FciMCParMod
         
     function attempt_create_trunc_spawn (get_spawn_helement, DetCurr,&
                                          iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, &
-                                         ic, ex, tparity, walkExcitLevel, part_type) &
-                                         result(child)
+                                         ic, ex, tparity, walkExcitLevel, part_type, &
+                                         wSignDied) result(child)
         integer, intent(in) :: DetCurr(nel), nJ(nel), part_type 
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
         integer, intent(in) :: ic, ex(2,2), walkExcitLevel
         integer, dimension(lenof_sign), intent(in) :: wSign
+        integer, dimension(lenof_sign), intent(in), optional :: wSignDied
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
         integer, dimension(lenof_sign) :: child
@@ -1615,7 +1610,7 @@ MODULE FciMCParMod
         if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
             child = attempt_create_normal (get_spawn_helement, DetCurr, &
                                iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
-                               tParity, walkExcitLevel, part_type)
+                               tParity, walkExcitLevel, part_type, wSignDied)
         else
             child = 0
         endif
@@ -1623,14 +1618,15 @@ MODULE FciMCParMod
 
     function attempt_create_trunc_spawn_encode (get_spawn_helement, DetCurr,&
                                          iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, &
-                                         ic, ex, tparity, walkExcitLevel, part_type) &
-                                         result(child)
+                                         ic, ex, tparity, walkExcitLevel, part_type, &
+                                         wSignDied) result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel), part_type 
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
         integer, intent(in) :: ic, ex(2,2), walkExcitLevel
         integer, dimension(lenof_sign), intent(in) :: wSign
+        integer, dimension(lenof_sign), intent(in), optional :: wSignDied
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
         integer, dimension(lenof_sign) :: child
@@ -1656,7 +1652,7 @@ MODULE FciMCParMod
         if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
             child = attempt_create_normal (get_spawn_helement, DetCurr, &
                                iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
-                               tParity, walkExcitLevel, part_type)
+                               tParity, walkExcitLevel, part_type, wSignDied)
         else
             child = 0
         endif
@@ -1664,7 +1660,7 @@ MODULE FciMCParMod
 
     function attempt_create_normal (get_spawn_helement, DetCurr, iLutCurr, &
                                     wSign, nJ, iLutnJ, prob, HElGen, ic, ex, tparity,&
-                                    walkExcitLevel, part_type) result(child)
+                                    walkExcitLevel, part_type, wSignDied) result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel)
         integer, intent(in) :: part_type    ! 1 = Real parent particle, 2 = Imag parent particle
@@ -1672,6 +1668,7 @@ MODULE FciMCParMod
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
         integer, intent(in) :: ic, ex(2,2), walkExcitLevel
         integer, dimension(lenof_sign), intent(in) :: wSign
+        integer, dimension(lenof_sign), intent(in), optional :: wSignDied
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
         integer, dimension(lenof_sign) :: child
@@ -1857,15 +1854,15 @@ MODULE FciMCParMod
                     ! the number spawned - so if P_spawn(j | i) > 1, we treat it as = 1.
                     p_spawn_rdmfac = 1.D0
                 else
-                    p_spawn_rdmfac = tau * abs( real(rh,dp) / prob )
+!                    p_spawn_rdmfac = tau * abs( real(rh,dp) / prob )
+                    p_spawn_rdmfac = rat
                 endif
                 p_notlist_rdmfac = ( 1.D0 - prob ) + ( prob * (1.D0 - p_spawn_rdmfac) )
 
                 ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i]
                 ! However when we add in Di -> Dj, we also add in Dj -> Di, so the probability of generating this pair 
                 ! is twice that of just generating Di -> Dj.
-                RDMBiasFacI = 1.D0 / abs( ( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) ) * 2.D0 )
-!                RDMBiasFacI = real(wSign(1),dp) / abs( ( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) ) * 2.D0 )
+                RDMBiasFacI = real(wSignDied(1),dp) / abs( ( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) ) * 2.D0 )
 !                RDMBiasFacI = real(wSign(1),dp) / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) )
                     
             endif
@@ -2088,8 +2085,14 @@ MODULE FciMCParMod
 
     END FUNCTION AttemptCreatePar
 
-    subroutine walker_death (attempt_die, iter_data, DetCurr, iLutCurr, Kii, &
-                             wSign, VecSlot)
+    subroutine calc_walker_death (attempt_die, iter_data, DetCurr, Kii, &
+                                        wSign, CopySign)
+! This routine calculates the number of walkers that will die in this iteration, 
+! and the consequent new sign for this current determinant, but does not actually 
+! change the current sign.
+! The new sign is CopySign, and becomes DiedSignCurr in the main routine.
+! This is kept separate until the end of the loop over n_i (wSign), at which point 
+! walker_death is called to encode the new sign (after death).
         interface
             function attempt_die (nI, Kii, wSign) result(ndie)
                 use SystemData, only: nel
@@ -2104,12 +2107,10 @@ MODULE FciMCParMod
 
         integer, intent(in) :: DetCurr(nel) 
         integer, dimension(lenof_sign), intent(inout) :: wSign
-        integer(kind=n_int), intent(in) :: iLutCurr(0:niftot)
-        integer, intent(inout) :: VecSlot
         real(dp), intent(in) :: Kii
         type(fcimc_iter_data), intent(inout) :: iter_data
+        integer, dimension(lenof_sign), intent(out) :: CopySign
         integer, dimension(lenof_sign) :: iDie
-        integer, dimension(lenof_sign) :: CopySign
 
         ! Do particles on determinant die? iDie can be both +ve (deaths), or
         ! -ve (births, if shift > 0)
@@ -2134,6 +2135,19 @@ MODULE FciMCParMod
         ! Calculate new number of signed particles on the det.
         CopySign = wSign - (iDie * sign(1, wSign))
 
+    end subroutine
+
+    subroutine walker_death (iter_data, iLutCurr, Kii, wSign, CopySign, VecSlot)
+! This is the routine when the walkers are actually killed off, i.e. when the new sign 
+! (after walker death) is encoded into the CurrentDets array, and determinants with no 
+! walkers left after death are removed from the list.
+        integer, dimension(lenof_sign), intent(in) :: wSign, CopySign
+        integer(kind=n_int), intent(in) :: iLutCurr(0:niftot)
+        integer, intent(inout) :: VecSlot
+        real(dp), intent(in) :: Kii
+        type(fcimc_iter_data), intent(inout) :: iter_data
+        integer, dimension(lenof_sign) :: iDie
+
         ! Normally slot particles back into main array at position vecslot.
         ! This will normally increment with j, except when a particle dies
         ! completely (so VecSlot <= j, and we can't overwrite a walker we
@@ -2155,9 +2169,7 @@ MODULE FciMCParMod
                 !Normally we will go in this block
                 call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
                 if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
-!                DiedArray(VecSlot) = abs(iDie(1))
                 VecSlot = VecSlot + 1
-                wSign(1) = CopySign(1)
             ENDIF
         elseif(tTruncInitiator) then
             ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
@@ -2172,7 +2184,6 @@ MODULE FciMCParMod
         IF((CopySign(1).ne.0).or.(CopySign(2).ne.0)) THEN
             call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
             if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
-!            DiedArray(VecSlot) = abs(iDie(1))
             VecSlot=VecSlot+1
         ENDIF
 #endif            
@@ -5458,11 +5469,6 @@ MODULE FciMCParMod
             WalkVecDets(0:NIfTot,1:MaxWalkersPart)=0
             MemoryAlloc=(NIfTot+1)*MaxWalkersPart*size_n_int    !Memory Allocated in bytes
 
-            ALLOCATE(DiedArray(MaxWalkersPart),stat=ierr)
-            CALL LogMemAlloc('DiedArray',MaxWalkersPart,size_n_int,this_routine,DiedArrayTag,ierr)
-            DiedArray(:)=0
-            MemoryAlloc=MemoryAlloc+size_n_int*MaxWalkersPart
-
             IF(.not.tRegenDiagHEls) THEN
                 ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
                 CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
@@ -6640,8 +6646,6 @@ MODULE FciMCParMod
             DEALLOCATE(WalkVecH)
             CALL LogMemDealloc(this_routine,WalkVecHTag)
         ENDIF
-        DEALLOCATE(DiedArray)
-        CALL LogMemDealloc(this_routine,DiedArrayTag)
         DEALLOCATE(SpawnVec)
         CALL LogMemDealloc(this_routine,SpawnVecTag)
         DEALLOCATE(SpawnVec2)
@@ -6738,7 +6742,6 @@ MODULE FciMCParMod
 !ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
       ValidSpawnedList(:)=InitialSpawnedSlots(:)
 
-      ALLOCATE(NoSpawned_DetCurr(0:nNodes-1),stat=ierr)
    end subroutine
 
 END MODULE FciMCParMod
