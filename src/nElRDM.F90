@@ -286,6 +286,37 @@ MODULE nElRDMMod
     END SUBROUTINE InitRDM
 
 
+    subroutine DeAlloc_Alloc_SpawnedParts()
+        USE FciMCData , only : SpawnVec, SpawnVec2, SpawnVecTag, SpawnVec2Tag, &
+                               SpawnedParts, SpawnedParts2
+        INTEGER :: ierr                               
+        CHARACTER(len=*), PARAMETER :: this_routine='DeAlloc_Alloc_SpawnedParts'
+
+        DEALLOCATE(SpawnVec)
+        CALL LogMemDealloc(this_routine,SpawnVecTag)
+        DEALLOCATE(SpawnVec2)
+        CALL LogMemDealloc(this_routine,SpawnVec2Tag)
+ 
+        ALLOCATE(SpawnVec(0:(NIftot+NIfDBO+2),MaxSpawned),stat=ierr)
+        CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+NIfDBO+3),size_n_int,this_routine,SpawnVecTag,ierr)
+        ALLOCATE(SpawnVec2(0:(NIfTot+NIfDBO+2),MaxSpawned),stat=ierr)
+        CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NIfTot+NIfDBO+3),size_n_int,this_routine,SpawnVec2Tag,ierr)
+
+!        SpawnVec(:,:)=0
+!        SpawnVec2(:,:)=0
+
+!Point at correct spawning arrays
+        SpawnedParts=>SpawnVec
+        SpawnedParts2=>SpawnVec2
+
+        WRITE(6,'(A53,F10.4,A4,F10.4,A13)') 'Memory requirement for spawned arrays increased from ',&
+                                        REAL(((NIfTot+1)*MaxSpawned*2*size_n_int),dp)/1048576.D0,' to ',&
+                                        REAL(((NIfTot+NIfDBO+3)*MaxSpawned*2*size_n_int),dp)/1048576.D0, ' Mb/Processor'
+
+    end subroutine DeAlloc_Alloc_SpawnedParts
+
+
+
     SUBROUTINE SetUpSymLabels_RDM() 
 !We always want the RDM's to be stored in spin orbitals (for now), 
 !so this routine just sets up the symmetry labels so that
@@ -707,7 +738,6 @@ MODULE nElRDMMod
 
 
     subroutine Add_StochRDM_Diag(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
-!    subroutine Add_StochRDM_Diag(iLutCurr,DetCurr,SignCurr,walkExcitLevel,AllHFSign)
 ! This is called when we run over all TotWalkers in CurrentDets.    
 ! It is called for each CurrentDet.
         use FciMCData , only : HFDet
@@ -716,21 +746,11 @@ MODULE nElRDMMod
         use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer , intent(in) :: DetCurr(NEl)
-        integer, dimension(lenof_sign), intent(in) :: SignCurr, AllHFSign
+        integer, dimension(lenof_sign), intent(in) :: SignCurr
         integer , intent(in) :: walkExcitLevel
         integer(kind=n_int) :: SpinCoupDet(0:niftot)
         integer :: nSpinCoup(NEl), SignFac, HPHFExcitLevel
         logical :: tFill_RDM_Symm
-!        logical :: TestClosedShellDet, tFill_RDM_Symm
-
-! this is just a test to make sure the AllHFSign mpi is working.
-! can probably get rid of it soon.
-!        if((walkexcitlevel.eq.0).and.(signcurr(1).ne.allhfsign(1))) then
-!            write(6,*) 'DetCurr',DetCurr
-!            write(6,*) 'SignCurr',SignCurr
-!            write(6,*) 'AllHFSign',AllHFSign
-!            call stop_all('performfcimcyc','HF population is incorrect.')
-!        endif
 
 ! Add diagonal elements to reduced density matrices.
 

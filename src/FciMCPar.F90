@@ -107,7 +107,9 @@ MODULE FciMCParMod
     use symrandexcit3, only: gen_rand_excit3, test_sym_excit3
     use nElRDMMod, only: FinaliseRDM,Fill_ExplicitRDM_this_Iter,calc_energy_from_rdm, &
                          fill_diag_rdm, fill_sings_rdm, fill_doubs_rdm, &
-                         Add_RDM_From_IJ_Pair, tCalc_RDMEnergy, Add_StochRDM_Diag
+                         Add_RDM_From_IJ_Pair, tCalc_RDMEnergy, Add_StochRDM_Diag, &
+                         DeAlloc_Alloc_SpawnedParts
+
 
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
@@ -788,6 +790,7 @@ MODULE FciMCParMod
             ELSE
                 WRITE(6,'(A28,I1,A36)') 'Beginning to calculate the ',RDMExcitLevel,' electron density matrix on the fly.'
             ENDIF
+            call DeAlloc_Alloc_SpawnedParts()
         ENDIF
 
         MaxInitPopPos=0
@@ -918,7 +921,6 @@ MODULE FciMCParMod
             ! over CurrentDets - i.e. diagonal elements and connections to HF.
             if(tFillingStochRDMonFly) &
                 call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,DiedSignCurr,walkExcitLevel)
-!                call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,DiedSignCurr,walkExcitLevel,AllHFSign)
 
             ! Loop over the 'type' of particle. 
             ! lenof_sign == 1 --> Only real particles
@@ -5479,20 +5481,12 @@ MODULE FciMCParMod
                     & REAL(MaxWalkersPart*8,dp)/1048576.D0," Mb/Processor"
             ENDIF
             
-
             WRITE(6,"(A,I12,A)") " Spawning vectors allowing for a total of ",MaxSpawned, &
                     " particles to be spawned in any one iteration per core."
-            IF(tRDMonFly.and.(.not.tExplicitAllRDM)) then
-                ALLOCATE(SpawnVec(0:(NIftot+NIfDBO+2),MaxSpawned),stat=ierr)
-                CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+NIfDBO+3),size_n_int,this_routine,SpawnVecTag,ierr)
-                ALLOCATE(SpawnVec2(0:(NIfTot+NIfDBO+2),MaxSpawned),stat=ierr)
-                CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NIfTot+NIfDBO+3),size_n_int,this_routine,SpawnVec2Tag,ierr)
-            ELSE
-                ALLOCATE(SpawnVec(0:NIftot,MaxSpawned),stat=ierr)
-                CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVecTag,ierr)
-                ALLOCATE(SpawnVec2(0:NIfTot,MaxSpawned),stat=ierr)
-                CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVec2Tag,ierr)
-            ENDIF
+            ALLOCATE(SpawnVec(0:NIftot,MaxSpawned),stat=ierr)
+            CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVecTag,ierr)
+            ALLOCATE(SpawnVec2(0:NIfTot,MaxSpawned),stat=ierr)
+            CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVec2Tag,ierr)
 
             SpawnVec(:,:)=0
             SpawnVec2(:,:)=0

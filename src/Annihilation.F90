@@ -201,7 +201,6 @@ MODULE AnnihilationMod
 !This routine is used for sending the determinants to the correct processors. 
     SUBROUTINE SendProcNewParts(MaxIndex,tSingleProc)
         use constants, only: MpiDetInt
-        use logging , only : tRDMonFly
         REAL :: Gap
         INTEGER :: i,sendcounts(nProcessors),disps(nProcessors),recvcounts(nProcessors),recvdisps(nProcessors),error
         INTEGER :: MaxSendIndex
@@ -257,7 +256,12 @@ MODULE AnnihilationMod
             recvdisps(i)=recvdisps(i-1)+recvcounts(i-1)
         enddo
         MaxIndex=recvdisps(nProcessors)+recvcounts(nProcessors)
-        IF(tRDMonFly.and.(.not.tExplicitAllRDM)) THEN
+        IF(tFillingStochRDMonFly) THEN            
+            ! When we are filling the RDM, the SpawnedParts array contains 
+            ! | Dj (0:NIfTot) | Di (0:NIfDBO) | Ci (1) | 
+            ! All this needs to be passed around to the processor where Dj will be stored if 
+            ! already occupied.  We then need to search the CurrentDets of that processor 
+            ! to find Cj - while remembering the Di (and Cj) it goes with.
             do i=1,nProcessors
                 recvdisps(i)=recvdisps(i)*(NIfTot+NIfDBO+3)
                 recvcounts(i)=recvcounts(i)*(NIfTot+NIfDBO+3)
@@ -777,7 +781,6 @@ MODULE AnnihilationMod
 !            WRITE(6,"(A,2I6,L)",advance="no") "Binary search complete: ",i,PartInd,tSuccess
 !            call WriteBitDet(6,SpawnedParts(:,i),.true.)
 !            call WriteBitDet(6,CurrentDets(:,PartInd),.true.)
-!            IF(tFillingRDMonFly) WRITE(6,*) 'SpawnedParts(:,i)',SpawnedParts(:,i)
 
 !            IF(tFillingRDMonFly) THEN
 !                WRITE(6,*) 'SpawnedParts(:,i)',SpawnedParts(:,i)
@@ -801,6 +804,10 @@ MODULE AnnihilationMod
 
 !                WRITE(6,*) 'DET FOUND in list'
 
+                ! The spawned parts contain the Dj's spawned by the Di's in CurrentDets.
+                ! If the SpawnedPart is found in the CurrentDets list, it means that the Dj has a non-zero 
+                ! cj - and therefore the Di.Dj pair will have a non-zero ci.cj to contribute to the RDM.
+                ! The index i tells us where to look in the parent array, for the Di's to go with this Dj.
                 if(tFillingStochRDMonFly.and.(.not.tHF_Ref)) &
                     CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign(1))
 
@@ -1070,17 +1077,12 @@ MODULE AnnihilationMod
                         ENDIF
                     ENDIF
                 ENDIF
-
-                if(detbiteq(CurrentDets(:,i), iluthf,NIfDBO)) HFSign = CurrentSign
-
             enddo
             TotWalkersNew=TotWalkersNew-DetsMerged
         ELSEIF(iProcIndex.eq.iHFProc) THEN
             call stop_all(this_routine,'HF has been deleted from list')
         ENDIF
 
-
-!        call MPISumAll (HFSign, AllHFSign)
 
 !        if(tfillingrdmonfly) call stop_all('','')
 
