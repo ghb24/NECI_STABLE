@@ -57,13 +57,11 @@ MODULE FciMCParMod
                        tPrintOrbOccInit, tHFPopStartBlock, tIterStartBlock, &
                        IterStartBlocking, HFPopStartBlocking, &
                        tInitShiftBlocking, tHistHamil, iWriteHamilEvery, &
-                       HistInitPopsTag, OrbOccs, OrbOccsTag, &
-                       tPrintPopsDefault, iWriteBlockingEvery, &
-                       tBlockEveryIteration, tHistInitPops, HistInitPopsIter,&
-                       tRDMonFly, IterRDMonFly, tHF_S_D_Ref, &
-                       RDMExcitLevel, RDMEnergyIter, &
+                       HistInitPops, DoubsUEG, DoubsUEGLookup, DoubsUEGStore,&
                        tPrintDoubsUEG, StartPrintDoubsUEG, tCalcInstantS2, &
-                       instant_s2_multiplier, tMCOutput
+                       instant_s2_multiplier, tMCOutput, &
+                       tRDMonFly, IterRDMonFly, tHF_S_D_Ref, &
+                       RDMExcitLevel, RDMEnergyIter
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
                     hist_spin_dist, ilut_spindist, tHistSpinDist, &
                     write_clear_hist_spin_dist, hist_spin_dist_iter, &
