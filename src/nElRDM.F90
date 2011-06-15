@@ -48,7 +48,7 @@ MODULE nElRDMMod
         USE FciMCData , only : Spawned_Parents_Index, Spawned_ParentsTag
         USE FciMCData , only : Spawned_Parents_IndexTag, Iter, AccumRDMNorm, AlltotPartsTemp
         USE Logging , only : RDMExcitLevel, tROFciDUmp, NoDumpTruncs, tExplicitAllRDM, &
-                             tExplicitHFRDM, tHF_S_D_Ref, tHF_Ref 
+                             tHF_S_D_Ref, tHF_Ref 
         USE RotateOrbsData , only : CoeffT1, CoeffT1Tag, tTurnStoreSpinOff, NoFrozenVirt
         USE RotateOrbsData , only : SymLabelCounts2,SymLabelList2,SymLabelListInv,NoOrbs
         USE util_mod , only : get_free_unit
@@ -103,14 +103,6 @@ MODULE nElRDMMod
 
         if(tExplicitAllRDM.and.tHPHF) CALL Stop_All('InitRDM',&
                 'HPHF not set up with the explicit calculation of the RDM.')
-
-! The problem with the explicitHFRDM routine is that all processors need to know the 
-! current population on the HF from the beginning of the run.
-! This was o.k when we were using the population before death, as we could get it when we run 
-! over CurrentDets at the end of the previous iterations annihilation.
-! Now, it is more difficult. 
-        if(tExplicitHFRDM) CALL Stop_All('InitRDM','The EXPLICITHFRDM option is &
-                &not currently working since the walker death was changed around.')
 
 ! Here we're allocating arrays for the actual calculation of the RDM.
 
@@ -791,20 +783,6 @@ MODULE nElRDMMod
                 ! If no HPHF - just add in diagonal contribution from D_I.                
                 call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
             endif
-        endif
-
-! If we are doing an EXPLICITHFRDM calculation, we explicitly add in every 
-! contribution from connections between the HF and singles and doubles - symmetrically.
-        IF(tExplicitHFRDM.and.((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2))) THEN
-            CALL Stop_All('Add_StochRDM_Diag','Should not be in this loop - ExplicitHFRDM is broken.')
-            tFill_RDM_Symm = .true.
-
-            if(tHF_Ref) tFill_RDM_Symm = .false.
-            ! If we're using a HF ref we're looking at <D_HF | a_a+ a_b+ a_j a_i | D_I >, 
-            ! so add to matrix asymmetrically.
-
-            call Add_RDM_From_IJ_Pair(HFDet,DetCurr,real(AllHFSign(1),dp),&
-                                                real(SignCurr(1),dp),tFill_RDM_Symm)
         endif
 
     end subroutine Add_StochRDM_Diag
@@ -3512,7 +3490,7 @@ END MODULE nElRDMMod
         USE bit_reps , only : NIfTot, NIfDBO, decode_bit_det
         USE nElRDMMod , only : Fill_Sings_RDM, Fill_Doubs_RDM, Fill_Diag_RDM, &
                                Add_RDM_From_IJ_Pair, Fill_Spin_Coupled_RDM
-        USE Logging , only : tHF_S_D_Ref, tHF_Ref, tExplicitHFRDM
+        USE Logging , only : tHF_S_D_Ref, tHF_Ref
         USE SystemData , only : NEl,tHPHF
         USE Parallel
         USE constants , only : n_int, dp, lenof_sign
@@ -3538,8 +3516,6 @@ END MODULE nElRDMMod
         do i = Spawned_Parents_Index(1,Spawned_No), &
                 Spawned_Parents_Index(1,Spawned_No) + Spawned_Parents_Index(2,Spawned_No) - 1 
                 
-!            IF(tExplicitHFRDM.and.DetBitEQ(Spawned_Parents(0:NIfDBO,i),iLutHF,NIfDBO)) CYCLE
-
             tDetAdded = .false.
             do j = Spawned_Parents_Index(1,Spawned_No), i-1
                 IF(DetBitEQ(Spawned_Parents(0:NIfDBO,i),Spawned_Parents(0:NIfDBO,j),NIfDBO)) THEN

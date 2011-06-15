@@ -22,7 +22,7 @@ MODULE AnnihilationMod
                         extract_part_sign, copy_flag
     use csf_data, only: csf_orbital_mask
     use hist_data, only: tHistSpawn, HistMinInd2
-    use Logging , only : tExplicitAllRDM, tExplicitHFRDM, tHF_Ref, tHF_S_D_Ref
+    use Logging , only : tExplicitAllRDM, tHF_Ref, tHF_S_D_Ref
     IMPLICIT NONE
     integer :: Beginning_Parent_Array_Ind, Parent_Array_Ind, No_Spawned_Parents, Spawned_Parts_Zero
 
@@ -800,26 +800,9 @@ MODULE AnnihilationMod
                 SignProd=CurrentSign*SpawnedSign
 
 !                WRITE(6,*) 'DET FOUND in list'
-                if(tFillingStochRDMonFly) then
-!                    write(6,*) 'child found currentdets(:,PartInd)',currentdets(:,PartInd)
-!                    call decode_bit_det (dettemp, CurrentDets(:,PartInd))
-!                    write(6,*) 'spawning to ',dettemp
-                    if(.not.tHF_Ref) then
-                        if(tExplicitHFRDM) then
-                            if(tHF_S_D_Ref) then
-                                !Excitation level of child.
-                                walkExcitLevel = FindBitExcitLevel (iLutHF, CurrentDets(:,PartInd), 3)
-!                                write(6,*) 'Excitation level of child',walkExcitLevel
-                                if((walkExcitLevel.le.4).and.(walkExcitLevel.ne.0)) & 
-                                    CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign(1))
-                            elseif(.not.DetBitEQ(CurrentDets(:,PartInd),iLutHF,NIfDBO)) then
-                                CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign(1))
-                            endif
-                        else
-                            CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign(1))
-                        endif
-                    endif
-                endif
+
+                if(tFillingStochRDMonFly.and.(.not.tHF_Ref)) &
+                    CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign(1))
 
                 IF(SpawnedSign(1).eq.0) THEN
 !                    CALL Stop_All('AnnihilateSpawnedParts','SpawnedParts entry with sign = 0.')

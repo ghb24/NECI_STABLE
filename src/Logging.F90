@@ -29,7 +29,7 @@ MODULE Logging
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
     LOGICAL tTruncDumpbyVal
     LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit,tPrintDoubsUEG
-    LOGICAL tExplicitHFRDM, tHF_S_D_Ref, tHF_Ref, tExplicitAllRDM, tRDMSpinAveraging
+    LOGICAL tHF_S_D_Ref, tHF_Ref, tExplicitAllRDM, tRDMSpinAveraging
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps,IterShiftBlock
     INTEGER IterRDMonFly, RDMExcitLevel, RDMEnergyIter
     INTEGER CCMCDebug  !CCMC Debugging Level 0-6.  Default 0
@@ -141,7 +141,6 @@ MODULE Logging
       IterRDMonFly=0
       RDMExcitLevel=1
       tDo_Not_Calc_RDMEnergy = .false.
-      tExplicitHFRDM = .false.
       tExplicitAllRDM = .false.
       tHF_S_D_Ref = .false.
       tHF_Ref = .false.
@@ -481,10 +480,6 @@ MODULE Logging
             ELSE
                 tDo_Not_Calc_RDMEnergy=.false.
             ENDIF
-
-        case("EXPLICITHFRDM")
-!Explicitly calculates the elements of the RDM connecting the HF to singles or doubles (rather than stochastically).            
-            tExplicitHFRDM = .true.
 
         case("EXPLICITALLRDM")
 !Explicitly calculates all the elements of the RDM.            
