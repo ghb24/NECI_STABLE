@@ -4,7 +4,8 @@ module hphf_integrals
                           ALat, NMSH, tOddS_HPHF
     use IntegralsData, only: UMat,FCK,NMAX
     use HPHFRandExcitMod, only: FindDetSpinSym, FindExcitBitDetSym
-    use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel
+    use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel, &
+                         TestClosedShellDet, CalcOpenOrbs
     use sltcnd_mod, only: sltcnd, sltcnd_excit
     use bit_reps, only: NIfD, NIfTot, NIfDBO
     implicit none
@@ -70,7 +71,7 @@ module hphf_integrals
         integer(kind=n_int) :: iLutnI2(0:NIfTot)
         integer :: ExcitLevel, OpenOrbsI, OpenOrbsJ, Ex(2,2)
         HElement_t :: MatEl2
-        logical :: TestClosedShellDet, tSign
+        logical :: tSign
 
         ! Avoid warnings
         iUnused = nJ(1)
@@ -169,7 +170,6 @@ module hphf_integrals
         integer(kind=n_int) :: iLutnI2(0:NIfTot)
         integer :: ExcitLevel, OpenOrbs
         HElement_t :: MatEl2
-        logical :: TestClosedShellDet
 
         hel = sltcnd_excit (nI, 0)
         if (.not. TestClosedShellDet(iLutnI)) then
@@ -207,7 +207,7 @@ module hphf_integrals
         hel = hel + (ECore)
     end function hphf_diag_helement
 
-    function hphf_sign (ilut) result(sgn)
+    pure function hphf_sign (ilut) result(sgn)
 
         ! Is this HPHF  1/sqrt(2)*[X + X'], or 1/sqrt(2)*[X - X']
         ! Returns +-1 respectively

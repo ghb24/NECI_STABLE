@@ -201,12 +201,12 @@ contains
 !The bias towards a given determinant is given by:
 !(NEl-ExcitLev) Choose (iExcitLevTest-ExcitLev)
      SUBROUTINE CreateRandomExcitLevDet(iExcitLevTest,FDet,FDetiLut,iLut,ExcitLev,Attempts)
-         use HPHFRandExcitMod , only : IsAllowedHPHF
          use SystemData, only: nEl,G1,nBasis
          use SystemData, only: tUEG,tHPHF,tHub
          use SystemData, only : tFixLz
          use dSFMT_interface
          use bit_rep_data, only: NIfTot
+         use DetBitOps, only: IsAllowedHPHF
          integer, intent(in) :: iExcitLevTest,FDet(NEl)
          integer, intent(out) :: ExcitLev,Attempts
          integer(n_int) , intent(out) :: iLut(0:NIfTot)
@@ -300,7 +300,6 @@ contains
 !This routine *stochastically* finds the size of the determinant space. For certain symmetries, its hard to find the
 !allowed size of the determinant space. However, it can be simply found using a MC technique.
       SUBROUTINE FindSymMCSizeofSpace(IUNIT)
-         use HPHFRandExcitMod , only : IsAllowedHPHF
          use SymData, only : TwoCycleSymGens
          use SystemData, only: nEl,G1,nBasis,nOccAlpha,nOccBeta
          use SystemData, only: tUEG,tHPHF,tHub,tKPntSym,Symmetry
@@ -310,7 +309,7 @@ contains
          use dSFMT_interface
          use soft_exit, only : ChangeVars
          use Parallel
-         use DetBitops, only: EncodeBitDet
+         use DetBitops, only: EncodeBitDet, IsAllowedHPHF
          use util_mod, only: choose
          use bit_rep_data, only: NIfTot
          use sym_mod, only: SymProd

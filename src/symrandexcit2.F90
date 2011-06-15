@@ -47,6 +47,7 @@ MODULE GenRandSymExcitNUMod
     use detbitops , only : detbiteq
     use timing
     use sym_general_mod
+    use spin_project, only: tSpinProject
     IMPLICIT NONE
 !    INTEGER , SAVE :: Counter=0
 
@@ -2844,6 +2845,13 @@ MODULE GenRandSymExcitNUMod
             allocate(store%virt_list(maxval(OrbClassCount), Scratchsize1))
         endif
 
+        if (tSpinProject) then
+            allocate(store%dorder_i(nel))
+            allocate(store%dorder_j(nel))
+        endif
+
+
+
     end subroutine
 
     subroutine clean_excit_gen_store (store)
@@ -2860,6 +2868,10 @@ MODULE GenRandSymExcitNUMod
             deallocate(store%occ_list)
         if (allocated(store%virt_list)) &
             deallocate(store%virt_list)
+        if (allocated(store%dorder_i)) &
+            deallocate(store%dorder_i)
+        if (allocated(store%dorder_j)) &
+            deallocate(store%dorder_j)
 
     end subroutine
 

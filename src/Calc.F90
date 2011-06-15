@@ -7,7 +7,8 @@ MODULE Calc
                             spin_proj_gamma, spin_proj_shift, &
                             spin_proj_cutoff, spin_proj_stochastic_yama, &
                             spin_proj_spawn_initiators, spin_proj_no_death, &
-                            spin_proj_iter_count
+                            spin_proj_iter_count, spin_proj_nopen_max, &
+                            disable_spin_proj_varyshift
     use default_sets
     use Determinants, only: iActiveBasis, SpecDet, tSpecDet, nActiveSpace, &
                             tDefineDet
@@ -19,7 +20,8 @@ MODULE Calc
     use CCMCData, only: dInitAmplitude, dProbSelNewExcitor, nSpawnings, &
                         tSpawnProp, nClustSelections, tExactEnergy,     &
                         dClustSelectionRatio,tSharedExcitors
-    use FciMCData, only: proje_linear_comb, proje_ref_det_init,tTimeExit,MaxTimeExit
+    use FciMCData, only: proje_linear_comb, proje_ref_det_init,tTimeExit,MaxTimeExit, &
+                         InputDiagSft
 
     implicit none
 
@@ -33,6 +35,7 @@ contains
         ! Values for old parameters.
         ! These have no input options to change the defaults, but are used in
         ! the code.
+          TargetGrowRateWalk=500000
           TargetGrowRate=0.D0
           InitialPart=1
           TRHOOFR = .false.
@@ -47,6 +50,7 @@ contains
 
 
 !       Calc defaults 
+          InputDiagSft=0.D0
           tPopsMapping=.false.
           tTimeExit=.false.
           MaxTimeExit=0.D0
@@ -236,6 +240,8 @@ contains
           spin_proj_shift = 0
           spin_proj_cutoff = 0
           spin_proj_iter_count = 1
+          spin_proj_nopen_max = -1
+          disable_spin_proj_varyshift = .false.
           tUseProcsAsNodes=.false.
 
           tSpawnSpatialInit = .false.
@@ -817,6 +823,7 @@ contains
             case("DIAGSHIFT")
 !For FCIMC, this is the amount extra the diagonal elements will be shifted. This is proportional to the deathrate of walkers on the determinant
                 call getf(DiagSft)
+                InputDiagSft = DiagSft
             case("TAUFACTOR")
 !For FCIMC, this is the factor by which 1/(HF connectivity) will be multiplied by to give the timestep for the calculation.
                 call getf(TauFactor)
@@ -835,6 +842,7 @@ contains
             case("TARGETGROWRATE")
 !For FCIMC, this is the target growth rate once in vary shift mode.
                 call getf(TargetGrowRate)
+                call getiLong(TargetGrowRateWalk)
             case("READPOPS")
 !For FCIMC, this indicates that the initial walker configuration will be read in from the file POPSFILE, which must be present.
 !DiagSft and InitWalkers will be overwritten with the values in that file.
@@ -1295,6 +1303,14 @@ contains
                 ! selecting that symbol stochastically.
                 spin_proj_stochastic_yama = .true.
 
+            case("SPIN-PROJECT-NOPEN-LIMIT")
+                ! Determine the largest number of unpaired electrons a
+                ! determinant may have for us to apply spin projectino to it.
+                !
+                ! --> Attempt to reduce the exponential scaling of the
+                !     projection sum.
+                call geti (spin_proj_nopen_max)
+
             case("SPIN-PROJECT-SPAWN-INITIATORS")
                 ! If TRUNCINITIATOR is set, then ensure that all children of
                 ! initiators created by spin projection are made into
@@ -1314,6 +1330,21 @@ contains
                 ! How many times should the spin projection step be applied 
                 ! on each occasion it gets called? (default 1)
                 call geti (spin_proj_iter_count)
+
+            case("SPIN-PROJECT-VARYSHIFT-OFF")
+                ! When VARYSHIFT is enabled, turn spin projection off.
+                ! TODO: Should this be made default?
+                if (item < nitems) then
+                    call readu(w)
+                    select case(w)
+                    case("OFF")
+                        disable_spin_proj_varyshift = .false.
+                    case default
+                        disable_spin_proj_varyshift = .true.
+                    end select
+                else
+                    disable_spin_proj_varyshift = .true.
+                endif
 
             case("ALLOW-SPATIAL-INIT-SPAWNS")
                 ! If a determinant is an initiator, all spawns to other dets

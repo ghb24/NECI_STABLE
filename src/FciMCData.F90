@@ -22,6 +22,7 @@ MODULE FciMCData
       integer :: fcimcstats_unit ! FCIMCStats
       integer :: initiatorstats_unit ! INITIATORStats
       integer :: ComplexStats_unit ! COMPLEXStats
+      integer :: Tot_Unique_Dets_Unit 
 
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: WalkVecDets(:,:)                !Contains determinant list
       REAL(KIND=dp) , ALLOCATABLE , TARGET :: WalkVecH(:)                    !Diagonal hamiltonian element
@@ -150,6 +151,9 @@ MODULE FciMCData
       type(timer) :: Walker_Time, Annihil_Time,ACF_Time, Sort_Time, &
                            Comms_Time, AnnSpawned_time, AnnMain_time, &
                            BinSearch_time
+      
+      ! Store the current value of S^2 between update cycles
+      real(dp) :: curr_S2, curr_S2_init
 
 !These are variables needed for the FixCASshift option in which an active space is chosen and the shift fixed only for determinants within this space
 !The SpinInvBRR vector stores the energy ordering for each spatial orbital, which is the inverse of the BRR vector
@@ -237,6 +241,7 @@ MODULE FciMCData
       real(dp) :: proje_denominator_cyc(lenof_sign)
       real(dp) :: proje_denominator_sum(lenof_sign)
       logical :: tRestart   !Whether to restart a calculation
+      real(dp) :: InputDiagSft  !Diag shift from the input file if needed to be reset after a restart
       
 
       ! ********************** FCIMCPar control variables *****************

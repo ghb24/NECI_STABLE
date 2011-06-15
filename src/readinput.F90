@@ -150,184 +150,233 @@ MODULE ReadInput
 
 
 
-      subroutine checkinput()
-      use SystemData , only : NEL,TSTARSTORE,TUseBrillouin, Beta,tFindCINatOrbs
-      use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
-                          G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
-                          TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
-                          TNoSameExcit, TInitStar, tMP2Standalone, &
-                          GrowMaxFactor, MemoryFacPart, tTruncInitiator, &
-                          tSpawnSpatialInit, tSpatialOnlyHash
-      Use Determinants, only : SpecDet,tagSpecDet
-      use IntegralsData , only : NFROZEN,TDISCONODES,TQuadValMax,TQuadVecMax,TCalcExcitStar,TJustQuads,TNoDoubs
-      use IntegralsData, only: TDiagStarStars,TExcitStarsRootChange,TRmRootExcitStarsRootChange,TLinRootChange
-      USE Logging , only : ILOGGING,tCalcFCIMCPsi,tHistSpawn,tHistHamil
-      use SystemData, only: TNoRenormRandExcits, LMS, STOT, tCSF, tSpn
-      use DetCalc, only : tEnergy,tCalcHMat,tFindDets,tCompressDets
-      USE input
-      use global_utilities
-      use spin_project, only: tSpinProject
-      IMPLICIT NONE
-      INTEGER :: vv,kk,cc,ierr
-      LOGICAL :: CHECK
-      character(*), parameter :: t_r='checkinput'
+    subroutine checkinput()
 
-      IF(tFindCINatOrbs) tCalcFCIMCPsi=.true.   !turn on histogramming of fcimc wavefunction in order to find density matrix, or the orbital occupations.
+        ! Check that the specified runtime options are consistent and valid
 
-      IF (tCalcFCIMCPsi.or.tHistSpawn) THEN  !Used in the FCIMc.  We find dets and compress them for later use
-         tFindDets=.true.
-         tCompressDets=.true.
-      ENDIF
-      IF(tHistHamil) THEN
-          tCalcHMat=.true.
-          tCompressDets=.true.
-      ENDIF
-      if (tCalcHMat) tFindDets=.true.   !We need to have found the dets before calculating the H mat.
+        use SystemData, only: nel, tStarStore, tUseBrillouin, beta, &
+                              tFindCINatOrbs, tNoRenormRandExcits, LMS, STOT,&
+                              tCSF, tSpn
+        use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
+                            G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
+                            TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
+                            TNoSameExcit, TInitStar, tMP2Standalone, &
+                            GrowMaxFactor, MemoryFacPart, tTruncInitiator, &
+                            tSpawnSpatialInit, tSpatialOnlyHash
+        Use Determinants, only: SpecDet, tagSpecDet
+        use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
+                                 tQuadVecMax, tCalcExcitStar, tJustQuads, &
+                                 tNoDoubs
+        use IntegralsData, only: tDiagStarStars, tExcitStarsRootChange, &
+                                 tRmRootExcitStarsRootChange, tLinRootChange
+        use Logging, only: iLogging, tCalcFCIMCPsi, tHistSpawn, tHistHamil, &
+                           tCalcInstantS2
+        use DetCalc, only: tEnergy, tCalcHMat, tFindDets, tCompressDets
+        USE input
+        use global_utilities
+        use spin_project, only: tSpinProject, spin_proj_nopen_max
 
+        implicit none
 
-!      IF(GrowMaxFactor.gt.MemoryFacPart) THEN
-!          CALL report("GrowMaxFactor is larger than MemoryFacPart - there will not be enough memory allocated if the walker number grows large. Think about increasing MemoryFacPart or reducing GrowMaxFactor.",.true.)
-!      ENDIF
+        integer :: vv, kk, cc, ierr
+        logical :: check
+        character(*), parameter :: t_r='checkinput'
 
-!If we are using TNoSameExcit, then we have to start with the star - the other random graph algorithm cannot remove same excitation links yet.
-      IF(TNoSameExcit.and..not.TInitStar) THEN
-          CALL report("If we are using TNoSameExcit, then we have to start with the star "&
-          & //"the other random graph algorithm cannot remove same excitation links yet.",.true.)
-      ENDIF
+        ! Turn on histogramming of fcimc wavefunction in order to find density
+        ! matrix, or the orbital occupations
+        if (tFindCINatOrbs) tCalcFCIMCPsi = .true.
 
-!The MoveDets and Biasing algorithms cannot both be used in the GraphMorph Algorithm.
-      IF(TBiasing.and.TMoveDets) THEN
-          CALL report("Biasing algorithm and MoveDets algorithm cannot both be used",.true.)
-      ENDIF
+        ! Used in the FCIMC. We find dets and compress them for later use
+        if (tCalcFCIMCPsi .or. tHistSpawn) then
+           tFindDets = .true.
+           tCompressDets = .true.
+        endif
+        if (tHistHamil) then
+            tCalcHMat = .true.
+            tCompressDets = .true.
+        endif
 
-!..RmRootExcitStarsRootChange must be used with DiagStarStars, and not with ExcitStarsRootChange
-      IF(TRmRootExcitStarsRootChange.and..not.TDiagStarStars) THEN
-          CALL report("RmRootExcitStarsRootChange can only with used with DiagStarStars currently",.true.)
-      ENDIF
+        ! We need to have found the dets before calculating the H mat.
+        if (tCalcHMat) tFindDets = .true.
 
-      IF(TRmRootExcitStarsRootChange.and.TExcitStarsRootChange) THEN
-          CALL report("RmRootExcitStarsRootChange and ExcitStarsRootChange cannot both be used as they are "&
-          & //"both different options with diagstarstars",.true.)
-      ENDIF
+        ! If we are using TNoSameExcit, then we have to start with the star -
+        ! the other random graph algorithm cannot remove same excitation 
+        ! links yet.
+        if (tNoSameExcit .and. .not. tInitStar) then
+            call report ("If we are using TNoSameExcit, then we have to start&
+                         & with the star. The other random graph algorithm &
+                         &cannot remove same excitation links yet.", .true.)
+        endif
+
+        ! The MoveDets and Biasing algorithms cannot both be used in the 
+        ! GraphMorph Algorithm.
+        if (tBiasing .and. tMoveDets) then
+            call report("Biasing algorithm and MoveDets algorithm cannot both&
+                        & be used",.true.)
+        endif
+
+        ! ..RmRootExcitStarsRootChange must be used with DiagStarStars, and not
+        ! with ExcitStarsRootChange
+        if (tRmRootExcitStarsRootChange .and. .not. tDiagStarStars) then
+            call report("RmRootExcitStarsRootChange can only with used with &
+                        &DiagStarStars currently",.true.)
+        endif
+
+        if (TRmRootExcitStarsRootChange .and. TExcitStarsRootChange) then
+            call report("RmRootExcitStarsRootChange and ExcitStarsRootChange &
+                        &cannot both be used as they are both different &
+                        &options with diagstarstars", .true.)
+        endif
       
-!..ExcitStarsRootChange must be used with TDiagStarStars
-      IF(TExcitStarsRootChange.and..not.TDiagStarStars) THEN
-          CALL report("ExcitStarsRootChange can only with used with DiagStarStars currently",.true.)
-      ENDIF
-      
-!..TDiagStarStars must be used with TStarStars, and cannot be used with TCalcExcitStar
-      IF(TDiagStarStars.and..not.TStarStars) THEN
-          CALL report("DiagStarStars must be used with StarStars",.true.)
-      ENDIF
-      IF(TDiagStarStars.and.TCalcExcitStar) THEN
-          CALL report("DiagStarStars is incompatable with CalcExcitStar",.true.)
-      ENDIF
-      IF(TDiagStarStars.and.(TNoDoubs.or.TJustQuads)) THEN
-          CALL report("NoDoubs/JustQuads cannot be used with DiagStarStars - try CalcExcitStar")
-      ENDIF
+        !..ExcitStarsRootChange must be used with TDiagStarStars
+        if (tExcitStarsRootChange .and. .not. tDiagStarStars) then
+            call report("ExcitStarsRootChange can only with used with &
+                        &DiagStarStars currently", .true.)
+        endif
+        
+        ! ..TDiagStarStars must be used with TStarStars, and cannot be used 
+        ! with TCalcExcitStar
+        if (tDiagStarStars .and. .not. tStarStars) then
+            call report("DiagStarStars must be used with StarStars", .true.)
+        endif
+        if (tDiagStarStars .and. tCalcExcitStar) then
+            call report("DiagStarStars is incompatable with CalcExcitStar", &
+                        .true.)
+        endif
+        if(tDiagStarStars .and. (tNoDoubs .or. tJustQuads)) then
+            call report("NoDoubs/JustQuads cannot be used with DiagStarStars &
+                        &- try CalcExcitStar")
+        endif
+  
+        ! ..TNoDoubs is only an option which applied to TCalcExcitStar, and 
+        ! cannot occurs with TJustQuads.
+        if (tNoDoubs .and. .not. tCalcExcitStar) then
+            call report("STARNODOUBS is only an option which applied to &
+                        &TCalcExcitStar", .true.)
+        endif
+  
+        if (tNoDoubs .and. tJustQuads) then
+            call report("STARNODOUBS and STARQUADEXCITS cannot be applied &
+                        &together!", .true.)
+        endif
+        
+        ! .. TJustQuads is only an option which applies to TCalcExcitStar
+        if (tJustQuads.and..not.tCalcExcitStar) then
+            call report("STARQUADEXCITS is only an option which applies to &
+                        &tCalcExcitStar",.true.)
+        endif
+        
+        !.. tCalcExcitStar can only be used with tStarStars
+        if (tCalcExcitStar.and..not.tStarStars) then
+            call report("CalcExcitStar can only be used with StarStars set", &
+                        .true.)
+        endif
+  
+        !.. Brillouin Theorem must be applied when using TStarStars
+        if (tStarStars.and..not.tUseBrillouin) then
+            call report("Brillouin Theorem must be used when using &
+                        &CalcExcitStar", .true.)
+        endif
+  
+        !.. TQuadValMax and TQuadVecMax can only be used if TLINESTARSTARS set
+        if ((tQuadValMax .or. tQuadVecMax) .and. .not. tStarStars) then
+            call report("TQuadValMax or TQuadVecMax can only be specified if &
+                        &STARSTARS specified in method line", .true.)
+        endif
+  
+        !.. TQuadValMax and TQuadVecMax cannot both be set
+        if (tQuadValMax.and.tQuadVecMax) then
+            call report("TQuadValMax and TQuadVecMax cannot both be set", &
+                        .true.)
+        endif
+        
+        !.. TDISCONODES can only be set if NODAL is set in the star methods 
+        ! section
+        if (tDiscoNodes .and. .not. tDiagNodes) then
+            call report("DISCONNECTED NODES ONLY POSSIBLE IF NODAL SET IN &
+                        &METHOD",.true.)
+        endif
+        
+        !.. We still need a specdet space even if we don't have a specdet.
+        if (.not. associated(SPECDET)) then
+            allocate(SPECDET(nel - nFrozen), stat=ierr)
+            call LogMemAlloc('SPECDET', nel-nFrozen, 4, t_r, tagSPECDET, ierr)
+        endif
+  
+        !..   Testing ILOGGING
+        !     ILOGGING = 0771
+        if (I_VMAX == 0 .and. nPaths /= 0) then
+            call report ('NPATHS!=0 and I_VMAX=0.  VERTEX SUM max level not &
+                         &set', .true.)
+        endif
+  
+        !Ensure beta is set.
+        if (beta < 1.d-6 .and. .not. tMP2Standalone) then
+            call report("No beta value provided.", .true.)
+        endif
+        
+        do vv=2,I_VMAX
+            g_VMC_ExcitWeights(:,vv)=g_VMC_ExcitWeights(:,1)
+            G_VMC_EXCITWEIGHT(vv)=G_VMC_EXCITWEIGHT(1)
+        enddo
+  
+        !IF THERE IS NO WEIGHTING FUNCTION, ExcitFuncs(10)=.true.
+        do vv=1,9
+            IF(EXCITFUNCS(vv)) EXCITFUNCS(10)=.false.
+        enddo
+  
+        if (tNoRenormRandExcits .and. (.not.ExcitFuncs(10))) then
+            write(6,*) "Random excitations WILL have to be renormalised, &
+                       &since an excitation weighting has been detected."
+        ENDIF
+  
+        !IF FINDD or USED specified without using Excitweighting option
+        if ((I_VMAX >= 3) .and. (tStarStore)) then 
+            call report("Error - can only use STARSTOREREAD with double &
+                        &excitations of HF",.true.)
+        endif
+  
+        ! Check details for spin projection
+        if (tSpinProject) then
+            if (tCSF) &
+                call stop_all (t_r, "Spin projection must not be used with &
+                                    &CSFs")
+        
+            if (.not. tSpn) &
+                call stop_all (t_r, "SPIN-RESTRICT must be used with SPIN-&
+                                    &PROJECT to set the value of S, Ms")
+            
+            ! Unless specified, apply spin projection to ALL determinants.
+            if (spin_proj_nopen_max == -1) &
+                spin_proj_nopen_max = nel
 
-!.. TNoDoubs is only an option which applied to TCalcExcitStar, and cannot occurs with TJustQuads.
-      IF(TNoDoubs.and..not.TCalcExcitStar) THEN
-          CALL report("STARNODOUBS is only an option which applied to TCalcExcitStar",.true.)
-      ENDIF
+            ! Set the value of STOT as required
+            STOT = LMS
+        endif
+  
+        if (tSpawnSpatialInit) then
+            if (.not. tTruncInitiator) &
+                call stop_all (t_r, "The spatial initiator survival critereon&
+                                    & requires TRUNCINITIATOR to be set")
+            if (.not. tSpatialOnlyHash) &
+                call stop_all (t_r, "The spatial initiator survival criteron &
+                                    &requires a spatial-only hash to be used.&
+                                    & (SPATIAL-ONLY-HASH)")
+        endif
+  
+        if (tCalcInstantS2) then
+!            if (.not. tSpatialOnlyHash) &
+!                call stop_all (t_r, "Calculating the instantaneous value of &
+!                                   &S^2 in each iterataion requires spatial-&
+!                                   &only hash to be used (SPATIAL-ONLY-HASH)")
+!            else
+                write(6,*) 'Enabling calculation of instantaneous S^2 each &
+                           &iteration.'
+        endif
 
-      IF(TNoDoubs.and.TJustQuads) THEN
-          CALL report("STARNODOUBS and STARQUADEXCITS cannot be applied together!",.true.)
-      ENDIF
-      
-!.. TJustQuads is only an option which applies to TCalcExcitStar
-      IF(TJustQuads.and..not.TCalcExcitStar) THEN
-          CALL report("STARQUADEXCITS is only an option which applies to TCalcExcitStar",.true.)
-      ENDIF
-      
-!.. TCalcExcitStar can only be used with TSTARSTARS
-      IF(TCalcExcitStar.and..not.TSTARSTARS) THEN
-          CALL report("CalcExcitStar can only be used with StarStars set",.true.)
-      ENDIF
+    end subroutine checkinput
 
-!.. Brillouin Theorem must be applied when using TStarStars
-      IF(TStarStars.and..not.TUseBrillouin) THEN
-          CALL report("Brillouin Theorem must be used when using CalcExcitStar",.true.)
-      ENDIF
-
-!.. TQuadValMax and TQuadVecMax can only be used if TLINESTARSTARS set
-      IF((TQuadValMax.or.TQuadVecMax).and..not.TSTARSTARS) THEN
-          CALL report("TQuadValMax or TQuadVecMax can only be specified if STARSTARS specified in method line",.true.)
-      ENDIF
-
-!.. TQuadValMax and TQuadVecMax cannot both be set
-      IF(TQuadValMax.and.TQuadVecMax) THEN
-          CALL report("TQuadValMax and TQuadVecMax cannot both be set",.true.)
-      ENDIF
-      
-!.. TDISCONODES can only be set if NODAL is set in the star methods section
-      IF(TDISCONODES.AND..NOT.TDIAGNODES) THEN
-          CALL report("DISCONNECTED NODES ONLY POSSIBLE IF NODAL SET IN METHOD",.true.)
-      ENDIF
-      
-!.. We still need a specdet space even if we don't have a specdet.
-      IF(.NOT.ASSOCIATED(SPECDET)) THEN
-          ALLOCATE(SPECDET(NEL-NFROZEN),STAT=ierr)
-          CALL LogMemAlloc('SPECDET',NEL-NFROZEN,4,t_r,tagSPECDET,ierr)
-      ENDIF
-!      IF(IP_SPECDET.EQ.0) call MEMORY(IP_SPECDET,NEL-NFROZEN,'SPECDET')
-
-!..   Testing ILOGGING
-!     ILOGGING = 0771
-      IF(I_VMAX.EQ.0.AND.NPATHS.NE.0)                                   &
-     &   STOP 'NPATHS!=0 and I_VMAX=0.  VERTEX SUM max level not set'
-!      WRITE (6,"(A,Z4)") 'ILOGGING after input routine', ILOGGING
-
-      !Ensure beta is set.
-      if (beta.lt.1.d-6.and..not.tMP2Standalone) call report("No beta value provided.",.true.)
-      
-      do vv=2,I_VMAX
-          g_VMC_ExcitWeights(:,vv)=g_VMC_ExcitWeights(:,1)
-          G_VMC_EXCITWEIGHT(vv)=G_VMC_EXCITWEIGHT(1)
-      enddo
-
-      !IF THERE IS NO WEIGHTING FUNCTION, ExcitFuncs(10)=.true.
-      do vv=1,9
-          IF(EXCITFUNCS(vv)) EXCITFUNCS(10)=.false.
-      enddo
-
-      IF(TNoRenormRandExcits.and.(.not.ExcitFuncs(10))) THEN
-          WRITE(6,*) "Random excitations WILL have to be renormalised, "&
-     &      //"since an excitation weighting has been detected."
-      ENDIF
-
-      !IF FINDD or USED specified without using Excitweighting option
-      IF((I_VMAX.ge.3).and.(TSTARSTORE)) THEN 
-          call report("Error - can only use STARSTOREREAD with "        &
-     &    //"double excitations of HF",.true.)
-      ENDIF
-
-      ! Check details for spin projection
-      if (tSpinProject) then
-          if (tCSF) &
-              call stop_all (t_r, "Spin projection must not be used with &
-                                  &CSFs")
-      
-          if (.not. tSpn) &
-              call stop_all (t_r, "SPIN-RESTRICT must be used with SPIN-&
-                                  &PROJECT to set the value of S, Ms")
-          
-          ! Set the value of STOT as required
-          STOT = LMS
-      endif
-
-      if (tSpawnSpatialInit) then
-          if (.not. tTruncInitiator) &
-              call stop_all (t_r, "The spatial initiator survival critereon &
-                                  &requires TRUNCINITIATOR to be set")
-          if (.not. tSpatialOnlyHash) &
-              call stop_all (t_r, "The spatial initiator survival criteron &
-                                  &requires a spatial-only hash to be used. &
-                                  &(SPATIAL-ONLY-HASH)")
-      endif
-
-      end subroutine checkinput
-End Module ReadInput
+end Module ReadInput
 
         
 

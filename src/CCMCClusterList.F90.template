@@ -668,8 +668,7 @@ END SUBROUTINE !CollapseCluster
 subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,dNorm,AL,iAmpList,nAmpl,dTol,WalkerScale,iRefPos,iOldTotParts,iDebug)
    use Parallel, only: iProcIndex
    use CCMCData, only: tCCMCFCI
-   use FciMCData, only: TotParts,TotWalkers,NoatHF,NoatDoubs
-   use FciMCParMod, only: iter_data_ccmc
+   use FciMCData, only: TotParts,TotWalkers,NoatHF,NoatDoubs, iter_data_ccmc
    use timing
    implicit none
    integer iNumExcitors,nAmpl

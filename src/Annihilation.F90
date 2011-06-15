@@ -1,6 +1,6 @@
 !This module is to be used for various types of walker MC annihilation in serial and parallel.
 MODULE AnnihilationMod
-    use SystemData , only : NEl, tHPHF
+    use SystemData , only : NEl, tHPHF, nBasis
     use CalcData , only : TRegenExcitgens,tRegenDiagHEls
     USE DetCalcData , only : Det,FCIDetIndex
     USE Parallel
@@ -1076,7 +1076,7 @@ MODULE AnnihilationMod
                         ENDIF
                     ENDIF
                     TotParts=TotParts+abs(CurrentSign)
-                    norm_psi_squared = norm_psi_squared + sum(CurrentSign**2)
+                    norm_psi_squared = norm_psi_squared + sum(int(CurrentSign,int64)**2)
                     IF(tCheckHighestPop) THEN
 !If this option is on, then we want to compare the weight on each determinant to the weight at the HF determinant.
 !Record the highest weighted determinant on each processor.
@@ -1113,12 +1113,12 @@ MODULE AnnihilationMod
         IF(ValidSpawned.gt.0) THEN
             call extract_sign(SpawnedParts(:,1),SpawnedSign)
             TotParts=TotParts+abs(SpawnedSign)
-            norm_psi_squared = norm_psi_squared + sum(SpawnedSign**2)
+            norm_psi_squared = norm_psi_squared + sum(int(SpawnedSign,int64)**2)
         ENDIF
         do i=2,ValidSpawned
             call extract_sign(SpawnedParts(:,i),SpawnedSign)
             TotParts=TotParts+abs(SpawnedSign)
-            norm_psi_squared = norm_psi_squared + sum(SpawnedSign**2)
+            norm_psi_squared = norm_psi_squared + sum(int(SpawnedSign,int64)**2)
         enddo
 
 !        CALL CheckOrdering(SpawnedParts,SpawnedSign(1:ValidSpawned),ValidSpawned,.true.)
@@ -1188,7 +1188,7 @@ MODULE AnnihilationMod
     END SUBROUTINE InsertRemoveParts
 
     pure function DetermineDetNode (nI, iIterOffset) result(node)
-        use SystemData, only: nBasis
+
         ! Depending on the Hash, determine which node determinant nI
         ! belongs to in the DirectAnnihilation scheme. NB FCIMC has each processor as a separate logical node.
         !
