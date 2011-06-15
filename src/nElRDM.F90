@@ -712,14 +712,15 @@ MODULE nElRDMMod
         use FciMCData , only : HFDet
         use hphf_integrals , only : hphf_sign
         use HPHFRandExcitMod , only : FindExcitBitDetSym
-        use DetBitOps , only : FindBitExcitLevel
+        use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer , intent(in) :: DetCurr(NEl)
         integer, dimension(lenof_sign), intent(in) :: SignCurr, AllHFSign
         integer , intent(in) :: walkExcitLevel
         integer(kind=n_int) :: SpinCoupDet(0:niftot)
         integer :: nSpinCoup(NEl), SignFac, HPHFExcitLevel
-        logical :: TestClosedShellDet, tFill_RDM_Symm
+        logical :: tFill_RDM_Symm
+!        logical :: TestClosedShellDet, tFill_RDM_Symm
 
 ! this is just a test to make sure the AllHFSign mpi is working.
 ! can probably get rid of it soon.
@@ -1212,7 +1213,7 @@ MODULE nElRDMMod
 !But we need to also account for I -> J' and I' -> J.
         use HPHFRandExcitMod, only: FindExcitBitDetSym
         use HPHF_Integrals , only : hphf_sign
-        USE DetBitOps , only : FindBitExcitLevel
+        USE DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot)
         integer , intent(in) :: nI(NEl), nJ(NEl)
         real(dp) , intent(in) :: realSignI, realSignJ
@@ -1220,7 +1221,7 @@ MODULE nElRDMMod
         integer(kind=n_int) :: iLutnI2(0:NIfTot),iLutnJ2(0:NIfTot)
         integer :: Ex(2,2), SpinCoupI_J_ExcLevel, nI2(NEl), nJ2(NEl)
         integer :: SignFacI, SignFacJ, I_J_ExcLevel
-        logical :: tParity, TestClosedShellDet
+        logical :: tParity
         real(dp) :: realSignFacI, realSignFacJ
 
 !First we flip the spin of both determinants, and store I' and J'.
