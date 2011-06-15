@@ -613,7 +613,7 @@ MODULE nElRDMMod
 
             do while (.not.tAllExcitFound)
 !                write(6,*) 'generating singles'
-                call flush(6)
+!                call flush(6)
                 CALL GenExcitations3(nI,iLutnI,nJ,1,ExcitMat3(:,:),tParity,&
                                                             tAllExcitFound,.true.)            
 ! Passed out of here is the singly excited determinant, nJ.
@@ -662,6 +662,8 @@ MODULE nElRDMMod
 !            WRITE(6,*) 'bit rep',iLutnI
 
             do while (.not.tAllExcitFound)
+!                write(6,*) 'generating doubles'
+!                call flush(6)
                 CALL GenExcitations3(nI,iLutnI,nJ,2,ExcitMat3(:,:),tParity,&
                                                             tAllExcitFound,.true.)            
 ! Passed out of here is the doubly excited determinant, nJ.
@@ -1044,12 +1046,11 @@ MODULE nElRDMMod
     END SUBROUTINE Doub_SearchOccDets
 
 
-    subroutine Fill_Diag_RDM(nI,realSignDi,probsign)
+    subroutine Fill_Diag_RDM(nI,realSignDi)
 ! Fill diagonal elements of 1- and 2-RDM.
 ! These are < Di | a_i+ a_i | Di > and < Di | a_i+ a_j+ a_j a_i | Di >.
         integer , intent(in) :: nI(NEl)
         real(dp) , intent(in) :: realSignDi
-        real(dp) , intent(in) , optional :: probsign
         real(dp) :: SignDiFac
         integer :: i, j, Ind
 
