@@ -980,17 +980,18 @@ MODULE FciMCParMod
 
             ! Add in any reduced density matrix info we want while running 
             ! over CurrentDets - i.e. diagonal elements and connections to HF.
-            if(tFillingStochRDMonFly) &
+            if(tFillingStochRDMonFly) then
                 call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,SignCurr,walkExcitLevel,AllHFSign)
 
-            do proc_temp = 0, nNodes - 1
-                do i = ValidSpawnedList(proc_temp) - NoSpawned_DetCurr(proc_temp), &
-                        ValidSpawnedList(proc_temp) - 1
-                    Di_Sign_Temp = transfer(SpawnedParts(niftot+nifdbo+2, i),Di_Sign_Temp)
-                    Di_Sign_Temp = Di_Sign_Temp * real(SignCurr(1),dp)
-                    SpawnedParts(niftot+nifdbo+2, i) = transfer(Di_Sign_Temp,SpawnedParts(niftot+nifdbo+2, i))
+                do proc_temp = 0, nNodes - 1
+                    do i = ValidSpawnedList(proc_temp) - NoSpawned_DetCurr(proc_temp), &
+                            ValidSpawnedList(proc_temp) - 1
+                        Di_Sign_Temp = transfer(SpawnedParts(niftot+nifdbo+2, i),Di_Sign_Temp)
+                        Di_Sign_Temp = Di_Sign_Temp * real(SignCurr(1),dp)
+                        SpawnedParts(niftot+nifdbo+2, i) = transfer(Di_Sign_Temp,SpawnedParts(niftot+nifdbo+2, i))
+                    enddo
                 enddo
-            enddo
+            endif
 
         enddo ! Loop over determinants.
         IFDEBUG(FCIMCDebug,2) write(6,*) 'Finished loop over determinants'
