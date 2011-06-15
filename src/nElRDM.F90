@@ -225,9 +225,9 @@ MODULE nElRDMMod
 
         ENDIF
 
-!        tSeparateOccVirt=.false.
+        tSeparateOccVirt=.false.
         NoOrbs=nBasis
-!        SpatOrbs=nBasis/2
+        SpatOrbs=nBasis/2
         NoRotOrbs=NoOrbs
         NoDumpTruncs = 1
         NoFrozenVirt = 0
@@ -439,7 +439,7 @@ MODULE nElRDMMod
 !            WRITE(6,*) i,SymLabelCounts2(1,i),SymLabelCounts2(2,i)
 !        enddo
 !        WRITE(6,*) 'Sym label list (i.e the orbitals in symm order), &
-!                               and their symmetries according to G1'
+!                               & and their symmetries according to G1'
 !        do i=1,nBasis
 !            WRITE(6,*) i,SymLabelList2(i),INT(G1(SymLabelList2(i))%sym%S,4)
 !        enddo
