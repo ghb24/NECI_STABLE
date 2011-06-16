@@ -2118,8 +2118,6 @@ MODULE FciMCParMod
         ! -ve (births, if shift > 0)
         iDie = attempt_die (DetCurr, Kii, wSign)
 
-!        iDie(1) = 0     !dmc
-
 !        IF(iDie.ne.0) WRITE(6,*) "Death: ",iDie
         
         IFDEBUG(FCIMCDebug,3) then 

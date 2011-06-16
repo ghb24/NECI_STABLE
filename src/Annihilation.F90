@@ -147,7 +147,6 @@ MODULE AnnihilationMod
         INTEGER :: MaxIndex,ierr
         INTEGER(Kind=n_int) , POINTER :: PointTemp(:,:)
         logical, intent(in) :: tSingleProc
-        INTEGER :: i !dmc52
         TYPE(timer),save :: Compress_time
          
 !        WRITE(6,*) "Direct annihilation"
@@ -802,18 +801,15 @@ MODULE AnnihilationMod
                 if(tFillingStochRDMonFly.and.(.not.tHF_Ref)) &
                     CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign(1))
 
-                IF(SpawnedSign(1).eq.0) THEN
-!                    CALL Stop_All('AnnihilateSpawnedParts','SpawnedParts entry with sign = 0.')
-                    IF(.not.tFillingStochRDMonFly) ToRemove = ToRemove + 1
-                    CYCLE
-                ENDIF
-
-!                SpawnedSign(1) = 0      !dmc
-
                 !Transfer across
                 call encode_sign(CurrentDets(:,PartInd),SpawnedSign+CurrentSign)
                 call encode_sign(SpawnedParts(:,i),null_part)
-                ToRemove=ToRemove+1
+
+                ! The only way SpawnedSign can be zero is if we are calculating the RDM.
+                ! If this is the case, we would have already added the SpawnedDet to Spawned_Parts_Zero
+                ! when it was compressed and all walkers were annihilated.
+                ! This only counts the walkers where the SpawnedSign has newly become zero, by merging with CurrentDets.
+                if(sum(abs(SpawnedSign)) .ne. 0) ToRemove=ToRemove+1
 
                 do j=1,lenof_sign   !Run over real (& imag ) components
 
@@ -925,15 +921,14 @@ MODULE AnnihilationMod
                         ! Walkers came from outside initiator space.
                         NoAborted = NoAborted + abs(SignTemp(j))
                         iter_data%naborted(j) = iter_data%naborted(j) + abs(SignTemp(j))
-                        if(tFillingStochRDMonFly.and.(SignTemp(j).ne.0)) ToRemove = ToRemove + 1
+                        ! We've already counted the walkers where SpawnedSign become zero in the compress,
+                        ! and in the merge, all that's left is those which get aborted which are counted here
+                        ! only if the sign was not already zero (when it already would have been counted).
+                        if(SignTemp(j).ne.0) ToRemove = ToRemove + 1
                         SignTemp(j) = 0
                         call encode_part_sign (SpawnedParts(:,i), 0, j)
                     endif
                 enddo
-                if (IsUnoccDet(SignTemp)) then
-                    ! All particle 'types' have been aborted
-                    IF(.not.tFillingStochRDMonFly) ToRemove = ToRemove + 1
-                endif
             endif
 
             ! Even if a corresponding particle wasn't found, we can still
@@ -966,6 +961,10 @@ MODULE AnnihilationMod
                 ENDIF
             enddo
             ValidSpawned=ValidSpawned-DetsMerged
+
+            ! Spawned_Parts_Zero are the SpawnedDets that became zero in the compress, and 
+            ! would have been removed then if we weren't calculating the RDM.
+            ! ToRemove are the SpawnedDets that are either merged with CurrentDets, or aborted.
             IF(DetsMerged.ne.(ToRemove+Spawned_Parts_Zero)) THEN
                 WRITE(6,*) "***", Iter, DetsMerged, ToRemove+Spawned_Parts_Zero, ToRemove
                 CALL Stop_All("AnnihilateSpawnedParts","Incorrect number of particles removed from spawned list")
@@ -984,8 +983,6 @@ MODULE AnnihilationMod
 !        enddo
 
         CALL halt_timer(AnnMain_time)
-
-!        IF(tFillingRDMonFly) call stop_all('','') !dmc52
 
     END SUBROUTINE AnnihilateSpawnedParts
 
@@ -1021,8 +1018,6 @@ MODULE AnnihilationMod
         LOGICAL :: TestClosedShellDet
         character(*), parameter :: this_routine = 'InsertRemoveParts'
         HElement_t :: HDiagTemp
-
-!        validspawned = 0    !dmc
 
 !It appears that the rest of this routine isn't thread-safe if ValidSpawned is zero.
         if(.not.bNodeRoot) return
