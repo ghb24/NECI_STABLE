@@ -782,6 +782,7 @@ MODULE FciMCParMod
             else
                 !By default - we will do a stochastic calculation of the RDM.
                 tFillingStochRDMonFly = .true.
+                call DeAlloc_Alloc_SpawnedParts()
             endif
             !RDMExcitLevel of 3 means we calculate both the 1 and 2 RDM's - otherwise we 
             !calculated only the RDMExcitLevel-RDM.
@@ -790,7 +791,6 @@ MODULE FciMCParMod
             ELSE
                 WRITE(6,'(A28,I1,A36)') 'Beginning to calculate the ',RDMExcitLevel,' electron density matrix on the fly.'
             ENDIF
-            call DeAlloc_Alloc_SpawnedParts()
         ENDIF
 
         MaxInitPopPos=0
