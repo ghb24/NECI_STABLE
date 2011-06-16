@@ -46,6 +46,8 @@ MODULE Logging
     LOGICAL tLogDets       ! Write out the DETS and SymDETS files.
     LOGICAL tLogComplexPops     ! Write out complex walker information 
     LOGICAL tMCOutput
+    logical :: tSplitProjEHist,tSplitProjEHistG,tSplitProjEHistK3
+    integer :: iProjEBins
 
     logical :: tCalcInstantS2, tCalcInstSCpts
     integer :: instant_s2_multiplier
@@ -58,6 +60,9 @@ MODULE Logging
       use default_sets
       implicit none
 
+      tSplitProjEHist = .false.
+      tSplitProjEHistG = .false.
+      tSplitProjEHistK3 = .false.
       PopsfileTimer=0.D0
       tMCOutput=.true.
       tLogComplexPops=.false.
@@ -163,6 +168,15 @@ MODULE Logging
         call readu(w)
         select case(w)
 
+        case("SPLITPROJE")
+            !Partition contribution from doubles, and write them out
+            tSplitProjEHist=.true.
+        case("SPLITPROJE-G")
+            !Partition contribution from doubles, and write them out; bin according to g
+            tSplitProjEHistG=.true.
+        case("SPLITPROJE-K3")
+            !Partition contribution from doubles, and write them out; bin according to k3
+            tSplitProjEHistK3=.true.
         case("NOMCOUTPUT")
             !No output to stdout from the fcimc or ccmc iterations
             tMCOutput=.false.
