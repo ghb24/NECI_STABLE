@@ -326,14 +326,18 @@ MODULE HPHFRandExcitMod
             ! If electron is an alpha electron, change it to a beta (unless
             ! it is part of a closed pair of electrons).
             if (is_alpha(nI(i))) then
-                if (i == 1 .or. (get_beta(nI(i)) /= nI(i-1))) then
+                if (i == 1) then
+                    nJ(i) = nI(i) - 1
+                elseif(get_beta(nI(i)) /= nI(i-1)) then
                     nJ(i) = nI(i) - 1
                 else
                     nJ(i) = nI(i)
                 endif
             ! vice-versa for beta.
             else
-                if (i == nel .or. (get_alpha(nI(i)) /= nI(i+1))) then
+                if (i == nel) then
+                    nJ(i) = nI(i) + 1
+                elseif(get_alpha(nI(i)) /= nI(i+1)) then
                     nJ(i) = nI(i) + 1
                 else
                     nJ(i) = nI(i)
