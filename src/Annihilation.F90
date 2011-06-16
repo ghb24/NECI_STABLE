@@ -419,12 +419,12 @@ MODULE AnnihilationMod
             ! Reset the cumulative determinant
             cum_det = 0
             cum_det (0:nifdbo) = SpawnedParts(0:nifdbo, BeginningBlockDet)
-            tAnnihil_All = .false.
             IF(tFillingStochRDMonFly) THEN
                 ! In this case, multiple Dj's must be compressed, and therefore the Di's dealt with as 
                 ! described above. We first just initialise the position in the Spawned_Parents array to enter the Di's.
                 Beginning_Parent_Array_Ind = Parent_Array_Ind
                 Spawned_Parents_Index(2,VecInd) = 0
+                tFirst = .true.
             ENDIF
             
             do part_type=1,lenof_sign   !Annihilate in this block seperately for real and imag walkers
@@ -615,7 +615,6 @@ MODULE AnnihilationMod
         integer, intent(in) :: part_type
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer :: new_sgn, cum_sgn, sgn_prod, Spawned_No
-        logical :: tfirst
 
 !        IF(tFillingRDMonFly) THEN
 !            WRITE(6,*) 'in findresidual'
@@ -635,12 +634,6 @@ MODULE AnnihilationMod
         endif
         cum_sgn = extract_part_sign (cum_det, part_type)
         sgn_prod = cum_sgn * new_sgn
-
-        if((sgn_prod.eq.0).and.(.not.tAnnihil_All)) then
-            tfirst = .true.
-        else
-            tfirst = .false.
-        endif
 
         ! If we are including this det, then increment the count
         cum_count = cum_count + 1
@@ -702,18 +695,16 @@ MODULE AnnihilationMod
         ! Update the cumulative sign count
         call encode_part_sign (cum_det, cum_sgn + new_sgn, part_type)
 
-        if((cum_sgn + new_sgn).eq.0) then
-            tAnnihil_All = .true.
-        else
-            tAnnihil_All = .false.
-        endif
-
         if(tFillingStochRDMonFly) then
             !This is the first determinant - set the beginning index
+            if(tFirst) Spawned_Parents_Index(1,Spawned_No) = Beginning_Parent_Array_Ind
+            tFirst = .false.
+
+            ! No matter what the final sign is, always want to add the Di currently stored in 
+            ! SpawnedParts to the parent array.
             Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = new_det(NIfTot+1:NIfTot+NIfDBO+2)
-            if(tfirst) Spawned_Parents_Index(1,Spawned_No) = Beginning_Parent_Array_Ind
-            Spawned_Parents_Index(2,Spawned_No) = Spawned_Parents_Index(2,Spawned_No) + 1
             Parent_Array_Ind = Parent_Array_Ind + 1
+            Spawned_Parents_Index(2,Spawned_No) = Spawned_Parents_Index(2,Spawned_No) + 1
         endif
 
     end subroutine FindResidualParticle
@@ -737,8 +728,6 @@ MODULE AnnihilationMod
         if(.not.bNodeRoot) return  !Only node roots to do this.
 
         CALL set_timer(AnnMain_time,30)
-
-!        IF(tFillingRDMonFly) WRITE(6,*) 'TotWalkers',TotWalkers
 
 !MinInd indicates the minimum bound of the main array in which the particle can be found.
 !Since the spawnedparts arrays are ordered in the same fashion as the main array, we can find the particle position in the main array by only searching a subset.
@@ -932,7 +921,6 @@ MODULE AnnihilationMod
                                                flag_parent_initiator(j))
                             endif
                         endif
-
 
                         ! Walkers came from outside initiator space.
                         NoAborted = NoAborted + abs(SignTemp(j))
