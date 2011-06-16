@@ -1121,7 +1121,11 @@ MODULE nElRDMMod
 !        WRITE(6,*) 'tParity',tParity
 !        WRITE(6,*) 'nI',nI
 !        WRITE(6,*) 'Adding realSignDi, realSignDj',realSignDi,realSignDj
+
         if(tExplicitAllRDM) then
+            ! This is a bit ridiculous I think - I wanted to scale the signs being added 
+            ! down - but keep the bias favouring contributions when there are more walkers.
+            ! May be unnecessary.
             SignFac = REAL(AllTotPartsTemp) / &
                         ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) 
         else
@@ -1131,23 +1135,41 @@ MODULE nElRDMMod
         ParityFactor=1.D0
         IF(tParity) ParityFactor=-1.D0
 
-        Indij = SymLabelListInv(Ex(1,1)) 
-        Indab = SymLabelListInv(Ex(2,1)) 
+        ! Slightly annoyingly, our OneElRDM is ordered by the symmetry of the orbitals (for the 
+        ! diagonalisation later) - so we must find out what position to put this orbital in. 
+        ! SymLabelList2(i), gives the orbital in position i
+        ! SymLabelListInv(i), gives the position orbital i should go in.
+        Indij = SymLabelListInv(Ex(1,1))    ! Position of i 
+        Indab = SymLabelListInv(Ex(2,1))    ! Position of a.
         
-        OneElRDM( Indij , Indab ) = OneElRDM( Indij , Indab ) + (ParityFactor * &
-                            ( realSignDi * SignFac ) * ( realSignDj * SignFac ))
+        if(RDMExcitLevel.ne.2) then
+            ! Adding to 1-RDM(i,a), ci.cj effectively.
+            OneElRDM( Indij , Indab ) = OneElRDM( Indij , Indab ) + (ParityFactor * &
+                                ( realSignDi * SignFac ) * ( realSignDj * SignFac ))
 
-        if(tfill_symm) OneElRDM( Indab , Indij ) = OneElRDM( Indab , Indij ) + (ParityFactor * &
-                            ( realSignDi * SignFac ) * ( realSignDj * SignFac ))
+            ! Adding to 1-RDM(a,i), ci.cj.
+            if(tfill_symm) OneElRDM( Indab , Indij ) = OneElRDM( Indab , Indij ) + (ParityFactor * &
+                                ( realSignDi * SignFac ) * ( realSignDj * SignFac ))
+        endif
 
-        IF(RDMExcitLevel.eq.3) THEN
+        if(RDMExcitLevel.ne.1) then
+            ! Adding to 2-RDM(k,i,k,a).
+            ! The two determinants Di and Dj will have the same occupations except for the i and a.
+            ! Any of the N-1 other electrons can be annihilated and created in the same orbital.
+            ! So we run over all k = all N-1 other occupied orbitals.
             do k = 1, NEl                            
                 IF(nI(k).ne.Ex(1,1)) THEN
 
+                    ! Find index for i,k pair
                     Indij = ( ( (MAX(nI(k),Ex(1,1))-2) * &
                                 (MAX(nI(k),Ex(1,1))-1) ) / 2 ) + MIN(nI(k),Ex(1,1))
+                    ! Find index for a,k pair
                     Indab = ( ( (MAX(nI(k),Ex(2,1))-2) * &
                                 (MAX(nI(k),Ex(2,1))-1) ) / 2 ) + MIN(nI(k),Ex(2,1))
+
+                    ! 2-RDM(i,j,a,b) is defined to have i < j and a < b, as that is how the unique 
+                    ! indices are defined for i,j and a,b.
+                    ! But the parity is defined so that the i -> a excitation is aligned.
 
                     ! Adding these as nI(k),Ex(1,1) -> nI(k), Ex(2,1)
                     ! So if Ex(1,1) < nI(k), or Ex(2,1) < nI(k) then we need 
@@ -1164,7 +1186,7 @@ MODULE nElRDMMod
                                             ( realSignDi * SignFac ) * ( realSignDj * SignFac ))
                 ENDIF
             enddo
-        ENDIF
+        enddo
 
     end subroutine Fill_Sings_RDM
 
@@ -1194,10 +1216,8 @@ MODULE nElRDMMod
             SignFac = 1.D0
         endif
 
-        !Find unique index for the pairs of orbitals we are exciting from 
-        !(ij) and to (ab).
-        Indij = ( ( (Ex(1,2)-2) * (Ex(1,2)-1) ) / 2 ) + Ex(1,1)
-        Indab = ( ( (Ex(2,2)-2) * (Ex(2,2)-1) ) / 2 ) + Ex(2,1)
+        ! Ex matrix is calculated so that Ex(1,1) (i) < Ex(1,2) (j), and 
+        ! Ex(2,1) (a) < Ex(2,2) (b) - if this isn't true, it'll screw things up.
         IF((Ex(1,1).gt.Ex(1,2)).or.(Ex(2,1).gt.Ex(2,2))) THEN
             WRITE(6,*) 'Ex(1,1)',Ex(1,1),'Ex(1,2)',Ex(1,2),'Ex(2,1)',&
                                                     Ex(2,1),'Ex(2,2)',Ex(2,2)
@@ -1205,9 +1225,16 @@ MODULE nElRDMMod
                 'The orbitals involved in excitation are not in the expected order.')
         ENDIF
 
+        ! Find unique index for the pairs of orbitals we are exciting from 
+        ! (ij) and to (ab), from i<j and a<b.
+        Indij = ( ( (Ex(1,2)-2) * (Ex(1,2)-1) ) / 2 ) + Ex(1,1)
+        Indab = ( ( (Ex(2,2)-2) * (Ex(2,2)-1) ) / 2 ) + Ex(2,1)
+
+        ! Adding 2-RDM(i,j,a,b).
         TwoElRDM( Indij , Indab ) = TwoElRDM( Indij , Indab ) + ( ParityFactor * &
                             ( realSignDi * SignFac ) * ( realSignDj * SignFac ) ) 
 
+        ! Adding 2-RDM(a,b,i,j).
         if(tfill_symm) TwoElRDM( Indab , Indij ) = TwoElRDM( Indab , Indij ) + ( ParityFactor * &
                             ( realSignDi * SignFac ) * ( realSignDj * SignFac ) ) 
 
@@ -1379,12 +1406,13 @@ MODULE nElRDMMod
         logical :: tParity
 
         Ex(:,:) = 0
-        Ex(1,1) = 2
+        Ex(1,1) = 2         ! Maximum excitation level - we know they are connected by 
+                            ! a double or single.
         tParity = .false.
 
         call GetExcitation(nI,nJ,NEl,Ex,tParity)
-! Ex(1,:) comes out as the orbital(s) excited from, 
-! Ex(2,:) comes out as the orbital(s) excited to.                    
+! Ex(1,:) comes out as the orbital(s) excited from, i.e. i,j 
+! Ex(2,:) comes out as the orbital(s) excited to, i.e. a,b.         
 
         IF(Ex(1,1).le.0) THEN
             write(6,*) '*'
@@ -1400,13 +1428,16 @@ MODULE nElRDMMod
                     'Excitation level between pair not 1 or 2 as it should be.')
         ENDIF
 
-        !Add in contribution from I -> J.
         if((Ex(1,2).eq.0).and.(Ex(2,2).eq.0)) then
 
-            if(RDMExcitLevel.ne.2) call Fill_Sings_RDM(nI,Ex,tParity,realSignI,realSignJ,tFill_SymmCiCj)
+            ! Di and Dj are separated by a single excitation.
+            ! Add in the contribution from this pair into the 1- and 2-RDM.
+            call Fill_Sings_RDM(nI,Ex,tParity,realSignI,realSignJ,tFill_SymmCiCj)
     
         elseif(RDMExcitLevel.ne.1) then
 
+            ! Otherwise Di and Dj are connected by a double excitation.
+            ! Add in this contribution to the 2-RDM (as long as we're calculating this obv).
             call Fill_Doubs_RDM(Ex,tParity,realSignI,realSignJ,tFill_SymmCiCj)
 
         endif
@@ -3526,24 +3557,30 @@ END MODULE nElRDMMod
         integer , intent(in) :: SignJ
         integer :: i, nI(NEl), nJ(NEl), Ex(2,2), walkExcitLevel, SignI
         integer :: ExcLevel, j
-        real(dp) :: realSignI, realSignJ, TempTotParts, realdiagSignI
+        real(dp) :: realSignI, realSignJ, realdiagSignI
         logical :: tParity, tFill_SymmCiCj, tDetAdded
 
+! Spawning from multiple parents, to iLutJ, which has SignJ.        
 
-!        TempTotParts=REAL(TotParts(1),dp)
-!        CALL MPIAllReduce(TempTotParts,MPI_SUM,AllTotPartstemp)
-
-! Spawning from multiple parents, to iLutJ.        
+! We are at position Spawned_No in the SpawnedParts array.
+! Spawned_Parents_Index(1,Spawned_No) is therefore the start position of the list of parents (Di's) 
+! which spawned on the Dj in SpawnedParts(Spawned_No)
+! There are Spawned_Parents_Index(2,Spawned_No) of these parent Di's.
+! Spawned_Parents(0:NIfDBO,x) is the determinant Di, Spawned_Parents(NIfDBO+1,x) is the un-biased ci.
 
         ! Run through all Di's.
-        ! The parents are stored in Spawned_Parents, in positions given by Spawned_Parents_Index.
         do i = Spawned_Parents_Index(1,Spawned_No), &
                 Spawned_Parents_Index(1,Spawned_No) + Spawned_Parents_Index(2,Spawned_No) - 1 
                 
+            ! The bias is calculated for the chance that Di will spawn any number of times on Dj, 
+            ! so we only want to add in a particular Di,Dj pair once.
+            ! Here we check if we've already added in this Di.
             tDetAdded = .false.
             do j = Spawned_Parents_Index(1,Spawned_No), i-1
                 IF(DetBitEQ(Spawned_Parents(0:NIfDBO,i),Spawned_Parents(0:NIfDBO,j),NIfDBO)) THEN
                     tDetAdded = .true.
+                    ! For a particular Di,Dj pair, the bias depends on Hij mainly, p_gen and ci, which should 
+                    ! always be the same.
                     if(Spawned_Parents(NIfDBO+1,i).ne.Spawned_Parents(NIfDBO+1,j)) &
                         CALL Stop_All('DiDj_Found_FillRDM','Bias factors of same pairs not equal.')
                 ENDIF
@@ -3562,6 +3599,7 @@ END MODULE nElRDMMod
                     tFill_SymmCiCj = .false.
                 ENDIF
             ELSE
+                ! This says that we want to add to both Di -> Dj elements, and Dj -> Di.
                 tFill_SymmCiCj = .true.
             ENDIF
             
@@ -3572,17 +3610,12 @@ END MODULE nElRDMMod
 !            write(6,*) 'nJ',nJ
 !            write(6,*) 'nI walkexcitlevel',walkexcitlevel
 
+            ! Ci and Cj.
             realSignI = transfer( Spawned_Parents(NIfDBO+1,i), realSignI )
-!            realdiagSignI = transfer( Spawned_Parents(NIfDBO+3,i), realdiagSignI )
-!            SignI = Spawned_Parents(NIfDBO+2,i)
-
-            ! This 'sign' is in fact p_gen(J|I) / (|H_IJ| * tau) = 1 / p_acc
-            ! These factors account for the fact that we are only using Di,Dj pairs from 
-            ! spawns that have been accepted (created children).  Need to unbiase for this.
-
-!            realSignJ = real(SignJ(1),dp)
             realSignJ = real(SignJ,dp)
 
+            ! Given the Di,Dj and Ci,Cj - find the orbitals involved in the excitation, 
+            ! and therefore the RDM elements we want to add the Ci.Cj to.
             IF(tHPHF) THEN
                 call Fill_Spin_Coupled_RDM(Spawned_Parents(0:NIfDBO,i),iLutJ,nI,nJ,&
                                                     realSignI,realSignJ,tFill_SymmCiCj)
@@ -3594,5 +3627,3 @@ END MODULE nElRDMMod
 
 
     END SUBROUTINE DiDj_Found_FillRDM
-
-

@@ -782,6 +782,8 @@ MODULE FciMCParMod
             else
                 !By default - we will do a stochastic calculation of the RDM.
                 tFillingStochRDMonFly = .true.
+                !The SpawnedParts array now needs to carry both the spawned parts Dj, and also it's 
+                !parent Di (and it's sign, Ci). - We deallocate it and reallocate it with the larger size.
                 call DeAlloc_Alloc_SpawnedParts()
             endif
             !RDMExcitLevel of 3 means we calculate both the 1 and 2 RDM's - otherwise we 
@@ -918,7 +920,9 @@ MODULE FciMCParMod
                                         HDiagCurr, SignCurr, DiedSignCurr)
 
             ! Add in any reduced density matrix info we want while running 
-            ! over CurrentDets - i.e. diagonal elements and connections to HF.
+            ! over CurrentDets - i.e. diagonal elements.
+            ! This uses the new current sign (after walker death), because later when we search 
+            ! CurrentDets for Cj, it has to be the sign after death, and we want to keep it consistent.
             if(tFillingStochRDMonFly) &
                 call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,DiedSignCurr,walkExcitLevel)
 
@@ -1157,7 +1161,7 @@ MODULE FciMCParMod
             !We also need to carry with the child (and the parent), the sign of the parent.
             !In actual fact this is the sign of the parent divided by the probability of generating that pair Di and Dj, to account for the 
             !fact that Di and Dj are not always added to the RDM, but only when Di spawns on Dj.
-            !This turns the real RDMBiasFacI into an integer to pass around to the relevant processors.
+            !This RDMBiasFacI factor is turned into an integer to pass around to the relevant processors.
             SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)) = transfer(RDMBiasFacI,SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)))
 
         ENDIF
@@ -1843,7 +1847,7 @@ MODULE FciMCParMod
                 ! Di by the probability of this happening.
                 ! We need the probability that the determinant i, with population n_i, will spawn on j.
                 ! We only consider one instance of a pair Di,Dj, so just want the probability of any of the n_i 
-                ! walkers spawning on j.
+                ! walkers spawning at least once on Dj.
                 ! P_successful_spawn(j | i)[n_i] =  1 - P_not_spawn(j | i)[n_i]
                 ! P_not_spawn(j | i )[n_i] is the probability of none of the n_i walkers spawning on j from i.
                 ! This requires either not generating j, or generating j and not succesfully spawning, n_i times.
@@ -1863,7 +1867,9 @@ MODULE FciMCParMod
 
                 ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i]
                 ! However when we add in Di -> Dj, we also add in Dj -> Di, so the probability of generating this pair 
-                ! is twice that of just generating Di -> Dj.
+                ! is twice that of just generating Dio -> Dj.
+                ! The spawning probability is dependent on the current sign - wSign, but the actual sign we add in is that 
+                ! after the walkers on Di have died (wSignDied).
                 RDMBiasFacI = real(wSignDied(1),dp) / abs( ( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) ) * 2.D0 )
 !                RDMBiasFacI = real(wSign(1),dp) / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) )
                     
