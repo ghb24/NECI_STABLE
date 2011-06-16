@@ -395,10 +395,20 @@ MODULE AnnihilationMod
                 SpawnedParts2(:,VecInd)=SpawnedParts(:,BeginningBlockDet)   !Transfer all info to the other array
 
                 IF(tFillingStochRDMonFly) THEN
+                    ! SpawnedParts contains the determinants spawned on (Dj), and it's parent (Di) plus it's sign (Cj).
+                    ! As in | Dj | Di | Ci |
+                    ! We then compress multiple occurances of Dj, but these may have come from different parents, and 
+                    ! we want to keep track of all Di's.
+                    ! As we compress SpawnedParts, we therefore move all the parents (Di's) into Spawned_Parents.
+                    ! If the compressed Dj is at position VecInd in SpawnedParts, then Spawned_Parents_Index(1,VecInd) 
+                    ! is the starting point of it's parents (Di) in Spawned_Parents, and there are 
+                    ! Spawned_Parents_Index(2,VecInd) entries corresponding to this Dj.
                     Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = SpawnedParts(NIfTot+1:NIfTot+NIfDBO+2,BeginningBlockDet)
-                    !The first NIfDBO of this is the parent determinant, NIfDBO + 1 entry is the biased Ci.
+                    ! The first NIfDBO of the Spawned_Parents entry is the parent determinant, the NIfDBO + 1 entry is the biased Ci.
+                    ! Parent_Array_Ind keeps track of the position in Spawned_Parents.
                     Spawned_Parents_Index(1,VecInd) = Parent_Array_Ind
                     Spawned_Parents_Index(2,VecInd) = 1
+                    ! In this case there is only one instance of Dj - so therefore only 1 parent Di.
                     Parent_Array_Ind = Parent_Array_Ind + 1
                 ENDIF
                 VecInd=VecInd+1
@@ -411,6 +421,8 @@ MODULE AnnihilationMod
             cum_det (0:nifdbo) = SpawnedParts(0:nifdbo, BeginningBlockDet)
             tAnnihil_All = .false.
             IF(tFillingStochRDMonFly) THEN
+                ! In this case, multiple Dj's must be compressed, and therefore the Di's dealt with as 
+                ! described above. We first just initialise the position in the Spawned_Parents array to enter the Di's.
                 Beginning_Parent_Array_Ind = Parent_Array_Ind
                 Spawned_Parents_Index(2,VecInd) = 0
             ENDIF
@@ -465,10 +477,18 @@ MODULE AnnihilationMod
             call extract_sign (cum_det, temp_sign)
 
             if ((sum(abs(temp_sign)) > 0).or.tFillingStochRDMonFly) then
-                ! Transfer all ino into the other array.
+                ! Transfer all info into the other array.
+                ! Usually this is only done if the final sign on the compressed Dj is not equal to zero.
+                ! But in the case of the stochastic RDM, we are concerned with the sign of Dj in the CurrentDets 
+                ! array - not the newly spawned sign.  We still want to check if Dj has a non-zero Cj in Current Dets - 
+                ! so we need to carry this Dj through to the stage of checking CurrentDets regardless of the sign here. 
+                ! Also getting rid of them here would make the biased sign of Ci slightly wrong.
                 SpawnedParts2(0:NIfTot,VecInd) = cum_det(0:NIfTot)
                 VecInd = VecInd + 1
                 DetsMerged = DetsMerged + EndBlockDet - BeginningBlockDet
+
+                ! Spawned_Parts_Zero is the number of spawned parts that are zero - and should have been 
+                ! removed from SpawnedParts if we weren't calculating the RDM. - need this for a check later.
                 if(temp_sign(1).eq.0) Spawned_Parts_Zero = Spawned_Parts_Zero + 1
             else
                 ! All particles from block have been annihilated.
@@ -484,6 +504,7 @@ MODULE AnnihilationMod
         IF(tFillingStochRDMonFly) then
             No_Spawned_Parents = Parent_Array_Ind - 1
             if(No_Spawned_Parents.ne.ValidSpawned) then
+                ! There should be one parent for every entry in the old validspawned (before compression).
                 write(6,*) 'ValidSpawned',ValidSpawned
                 write(6,*) 'No_Spawned_Parents',No_Spawned_Parents
                 CALL Stop_All(this_routine,'No_Spawned_Parents /= ValidSpawned')
@@ -504,25 +525,6 @@ MODULE AnnihilationMod
 !            WRITE(6,*) SpawnedParts(:,i)
 !        enddo
 !
-!        IF(tFillingRDMonFly) THEN
-!            WRITE(6,*) 'No_Spawned_Parents',No_Spawned_Parents
-!            WRITE(6,*) 'Compressed ValidSpawned',ValidSpawned
-!
-!            do i = 1, ValidSpawned
-!                WRITE(6,*) 'SpawnedParts(:,i)',SpawnedParts(:,i)
-!                WRITE(6,*) 'Spawned_Parents_Index(:,i)', Spawned_Parents_Index(:,i)
-!                if(spawnedparts(0,i).eq.777) then
-!                    write(6,*) 'spawned parents after find residual'
-!                    write(6,*) 'parents go from ',Spawned_Parents_Index(1,i)
-!                    write(6,*) 'to',Spawned_Parents_Index(1,i) +Spawned_Parents_Index(2,i)-1
-!                    write(6,*) 'det in position',i
-!                    do j = Spawned_Parents_Index(1,i), Spawned_Parents_Index(1,i) +Spawned_Parents_Index(2,i)-1
-!                        WRITE(6,*) Spawned_Parents(:,j)
-!                    enddo
-!                endif
-!            enddo
-!        ENDIF
-
 !        WRITE(6,*) 'Spawned Parents'
 !        do i = 1, No_Spawned_Parents
 !            WRITE(6,*) Spawned_Parents(:,i)
@@ -623,12 +625,12 @@ MODULE AnnihilationMod
         new_sgn = extract_part_sign (new_det, part_type)
 
         if (new_sgn == 0) then
-            if(tFillingStochRDMonFly) then
-                Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = new_det(NIfTot+1:NIfTot+NIfDBO+2)
-                Spawned_Parents_Index(1,Spawned_No) = Beginning_Parent_Array_Ind
-                Spawned_Parents_Index(2,Spawned_No) = Spawned_Parents_Index(2,Spawned_No) + 1
-                Parent_Array_Ind = Parent_Array_Ind + 1
-            endif
+            if(tFillingStochRDMonFly) &
+                CALL Stop_All('FindResidualParticle','I thought SpawnedParts could never &
+                            &be zero in the real case - apparently not.')
+                ! New sign is just an entry from SpawnedParts - this should only ever be zero
+                ! in the complex case (where either the real or complex part will be non-zero).
+                ! But this will cause issues if not true for some reason so I'm just checking.
             return
         endif
         cum_sgn = extract_part_sign (cum_det, part_type)
