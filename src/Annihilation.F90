@@ -797,8 +797,26 @@ MODULE AnnihilationMod
                 ! If the SpawnedPart is found in the CurrentDets list, it means that the Dj has a non-zero 
                 ! cj - and therefore the Di.Dj pair will have a non-zero ci.cj to contribute to the RDM.
                 ! The index i tells us where to look in the parent array, for the Di's to go with this Dj.
-                if(tFillingStochRDMonFly.and.(.not.tHF_Ref)) &
-                    CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign(1))
+!                if(tFillingStochRDMonFly.and.(.not.tHF_Ref)) &
+                if(tFillingStochRDMonFly) then
+                    if(tHF_Ref) then 
+                        ! In the case of the HF Ref - Di is only ever the HF, and Dj is 
+                        ! anything connected - i.e. singles and doubles.
+                        ! This is the excitation level of Dj.
+                        ExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,PartInd), 2)
+                        if(ExcitLevel.le.2) &
+                            CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign(1))
+                    elseif(tHF_S_D_Ref) then
+                        ! In the case of the HF and singles and doubles Ref 
+                        ! - Di is only ever the HF, and Dj is 
+                        ! anything connected - i.e. up to quadruples.
+                        ExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,PartInd), 4)
+                        if(ExcitLevel.le.4) &
+                            CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign(1))
+                    else
+                        CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign(1))
+                    endif
+                endif
 
                 !Transfer across
                 call encode_sign(CurrentDets(:,PartInd),SpawnedSign+CurrentSign)

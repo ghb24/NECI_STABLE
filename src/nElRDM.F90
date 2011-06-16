@@ -108,6 +108,10 @@ MODULE nElRDMMod
         if(tExplicitAllRDM.and.tHPHF) CALL Stop_All('InitRDM',&
                 'HPHF not set up with the explicit calculation of the RDM.')
 
+        if(tHPHF.and.(tHF_Ref.or.tHF_S_D_Ref)) CALL Stop_All('InitRDM',&
+                'HPHF not set up when using a HF or HF, S, D reference.')
+
+
 ! Here we're allocating arrays for the actual calculation of the RDM.
 
 ! First for the storage of the actual 1- or 2-RMD.
@@ -2947,19 +2951,19 @@ MODULE nElRDMMod
 
             WRITE(Energies_unit, "(I31,2F30.15)") Iter+PreviousCycles, RDMEnergy, Tot_Spin_Projection
 
-            if(tHF_ref) then
-                NatOrbMat(:,:) = 0.D0
-                AllTwoElRDM(:,:) = 0.D0
-                AllAccumRDMNorm = 0.D0
-            endif
+!            if(tHF_ref) then
+!                NatOrbMat(:,:) = 0.D0
+!                AllTwoElRDM(:,:) = 0.D0
+!                AllAccumRDMNorm = 0.D0
+!            endif
 
         endif
 
-        if(tHF_ref) then
-            OneElRDM(:,:) = 0.D0
-            TwoElRDM(:,:) = 0.D0
-            AccumRDMNorm = 0.D0
-        endif
+!        if(tHF_ref) then
+!            OneElRDM(:,:) = 0.D0
+!            TwoElRDM(:,:) = 0.D0
+!            AccumRDMNorm = 0.D0
+!        endif
 
 !        do i = 1, nBasis
 !            do k = i+1, nBasis
@@ -3588,16 +3592,24 @@ END MODULE nElRDMMod
             if(tDetAdded) CYCLE
 
             IF(tHF_S_D_Ref) THEN
-                !PUT A STOP IN HERE IF USING HPHF AND AN OPEN SHELL HF.
-                !Spin coupled determinants not necessarily the same excitation level from HF.
+                ! We'll only be in this loop if the Dj is le 4.
+                ! Calc excitation level of Di - this needs to be 0, 1 or 2.
                 walkExcitLevel = FindBitExcitLevel (iLutHF, Spawned_Parents(0:NIfDBO,i), NEl)
                 IF(walkExcitLevel.gt.2) CYCLE
+                ! Then unfortunately need to re calculate the Dj excitation level
+                ! (can pass this through if we're using this option a lot).
+                ! If it's two or less, we want to add symmetrically, otherwise not.
                 walkExcitLevel = FindBitExcitLevel (iLutHF, iLutJ, NEl)
                 IF(walkExcitLevel.le.2) THEN
                     tFill_SymmCiCj = .true.
                 ELSE
                     tFill_SymmCiCj = .false.
                 ENDIF
+            ELSEIF(tHF_Ref) then
+                ! We'll only be in this loop if the Dj is le 2. 
+                ! We need the Di to be the HF.
+                IF(.not.DetBitEQ(iLutHF,Spawned_Parents(0:NIfDBO,i),NIfDBO)) CYCLE
+                tFill_SymmCiCj = .false.
             ELSE
                 ! This says that we want to add to both Di -> Dj elements, and Dj -> Di.
                 tFill_SymmCiCj = .true.
@@ -3612,6 +3624,8 @@ END MODULE nElRDMMod
 
             ! Ci and Cj.
             realSignI = transfer( Spawned_Parents(NIfDBO+1,i), realSignI )
+            if(.not.tFill_SymmCiCj) realSignI = realSignI * 2.D0
+
             realSignJ = real(SignJ,dp)
 
             ! Given the Di,Dj and Ci,Cj - find the orbitals involved in the excitation, 
