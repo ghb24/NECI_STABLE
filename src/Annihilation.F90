@@ -261,7 +261,7 @@ MODULE AnnihilationMod
             ! | Dj (0:NIfTot) | Di (0:NIfDBO) | Ci (1) | 
             ! All this needs to be passed around to the processor where Dj will be stored if 
             ! already occupied.  We then need to search the CurrentDets of that processor 
-            ! to find Cj - while remembering the Di (and Cj) it goes with.
+            ! to find Cj - while remembering the Di (and Ci) it goes with.
             do i=1,nProcessors
                 recvdisps(i)=recvdisps(i)*(NIfTot+NIfDBO+3)
                 recvcounts(i)=recvcounts(i)*(NIfTot+NIfDBO+3)
@@ -396,7 +396,7 @@ MODULE AnnihilationMod
 
                 IF(tFillingStochRDMonFly) THEN
                     Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = SpawnedParts(NIfTot+1:NIfTot+NIfDBO+2,BeginningBlockDet)
-                    !The first NIfDBO of this is the parent determinant, NIfDBO + 1 entry is the p_gen.
+                    !The first NIfDBO of this is the parent determinant, NIfDBO + 1 entry is the biased Ci.
                     Spawned_Parents_Index(1,VecInd) = Parent_Array_Ind
                     Spawned_Parents_Index(2,VecInd) = 1
                     Parent_Array_Ind = Parent_Array_Ind + 1

@@ -81,6 +81,10 @@ MODULE nElRDMMod
         USE Logging , only : tDo_Not_Calc_RDMEnergy, tDiagRDM
         INTEGER :: ierr,i
         CHARACTER(len=*), PARAMETER :: this_routine='InitRDM'
+#ifdef __CMPLX
+        CAll Stop_All(this_routine,'Filling of reduced density matrices not working with &
+                                    &complex walkers yet.')
+#endif
 
 ! If the RDMExcitLevel is 3 - and we're calculating both the 1- and 2-RDM, 
 ! then we automatically calculate the energy unless we specifically say not to.
