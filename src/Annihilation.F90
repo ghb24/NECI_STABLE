@@ -24,7 +24,6 @@ MODULE AnnihilationMod
     use hist_data, only: tHistSpawn, HistMinInd2
     use Logging , only : tExplicitAllRDM, tHF_Ref, tHF_S_D_Ref
     IMPLICIT NONE
-    integer :: Beginning_Parent_Array_Ind, Parent_Array_Ind, No_Spawned_Parents, Spawned_Parts_Zero
 
     contains
 
@@ -334,7 +333,8 @@ MODULE AnnihilationMod
     SUBROUTINE CompressSpawnedList(ValidSpawned, iter_data)
         type(fcimc_iter_data), intent(inout) :: iter_data
         INTEGER :: VecInd,ValidSpawned,DetsMerged,i,BeginningBlockDet,FirstInitIndex,CurrentBlockDet
-        integer :: EndBlockDet, part_type, StartCycleInit, cum_count, j
+        integer :: EndBlockDet, part_type, StartCycleInit, cum_count, j, Parent_Array_Ind
+        integer :: No_Spawned_Parents
         INTEGER, DIMENSION(lenof_sign) :: SpawnedSign,Temp_Sign
         LOGICAL :: tSuc, tInc
         INTEGER(Kind=n_int) , POINTER :: PointTemp(:,:)
@@ -421,7 +421,6 @@ MODULE AnnihilationMod
             IF(tFillingStochRDMonFly) THEN
                 ! In this case, multiple Dj's must be compressed, and therefore the Di's dealt with as 
                 ! described above. We first just initialise the position in the Spawned_Parents array to enter the Di's.
-                Beginning_Parent_Array_Ind = Parent_Array_Ind
                 Spawned_Parents_Index(2,VecInd) = 0
                 tFirst = .true.
             ENDIF
@@ -444,7 +443,8 @@ MODULE AnnihilationMod
                                 call extract_sign (SpawnedParts(:,BeginningBlockDet), temp_sign)
                                 call HistAnnihilEvent(SpawnedParts, SpawnedSign, temp_sign, part_type)
                             endif
-                            call FindResidualParticle (cum_det, SpawnedParts(:,i), cum_count, part_type, iter_data, VecInd)
+                            call FindResidualParticle (cum_det, SpawnedParts(:,i), cum_count, part_type, iter_data, &
+                                                            VecInd, Parent_Array_Ind)
                         endif
                     enddo
                 endif
@@ -466,7 +466,8 @@ MODULE AnnihilationMod
                             call extract_sign (SpawnedParts(:,BeginningBlockDet), temp_sign)
                             call HistAnnihilEvent (SpawnedParts, SpawnedSign, temp_sign, part_type)
                         endif
-                        call FindResidualParticle (cum_det, SpawnedParts(:,i), cum_count, part_type, iter_data, VecInd)
+                        call FindResidualParticle (cum_det, SpawnedParts(:,i), cum_count, part_type, iter_data, &
+                                                        VecInd, Parent_Array_Ind)
                     endif
                 enddo
 
@@ -598,7 +599,7 @@ MODULE AnnihilationMod
     !This deals with real and imaginary signs seperately, and so the 'signs' are integers.
 
     subroutine FindResidualParticle (cum_det, new_det, cum_count, part_type, &
-                                     iter_data, Spawned_No)
+                                     iter_data, Spawned_No, Parent_Array_Ind)
 
         ! This routine is called whilst compressing the spawned list during
         ! annihilation. It considers the sign and flags from two particles
@@ -611,13 +612,10 @@ MODULE AnnihilationMod
         integer(n_int), intent(inout) :: cum_det(0:nIfTot)
         integer(n_int), intent(in) :: new_det(0:niftot+nifdbo+2)
         integer, intent(inout) :: cum_count
-        integer, intent(in) :: part_type
+        integer, intent(in) :: part_type, Spawned_No 
+        integer, intent(inout) :: Parent_Array_Ind
         type(fcimc_iter_data), intent(inout) :: iter_data
-        integer :: new_sgn, cum_sgn, sgn_prod, Spawned_No
-
-!        IF(tFillingRDMonFly) THEN
-!            WRITE(6,*) 'in findresidual'
-!        ENDIF
+        integer :: new_sgn, cum_sgn, sgn_prod
 
         ! Obtain the signs and sign product. Ignore new particel if zero.
         new_sgn = extract_part_sign (new_det, part_type)
@@ -695,8 +693,9 @@ MODULE AnnihilationMod
         call encode_part_sign (cum_det, cum_sgn + new_sgn, part_type)
 
         if(tFillingStochRDMonFly) then
-            !This is the first determinant - set the beginning index
-            if(tFirst) Spawned_Parents_Index(1,Spawned_No) = Beginning_Parent_Array_Ind
+            ! This is the first Dj determinant - set the index for the beginning of where 
+            ! the parents for this Dj can be found in Spawned_Parents.
+            if(tFirst) Spawned_Parents_Index(1,Spawned_No) = Parent_Array_Ind
             tFirst = .false.
 
             ! No matter what the final sign is, always want to add the Di currently stored in 
@@ -1067,9 +1066,6 @@ MODULE AnnihilationMod
         ELSEIF(iProcIndex.eq.iHFProc) THEN
             call stop_all(this_routine,'HF has been deleted from list')
         ENDIF
-
-
-!        if(tfillingrdmonfly) call stop_all('','')
 
 !        do i=1,TotWalkersNew
 !            IF(CurrentSign(i).eq.0) THEN
