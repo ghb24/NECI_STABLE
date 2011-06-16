@@ -64,7 +64,7 @@ MODULE FciMCParMod
                        tPrintDoubsUEG, StartPrintDoubsUEG, tCalcInstantS2, &
                        instant_s2_multiplier, tMCOutput, &
                        tRDMonFly, IterRDMonFly, tHF_S_D_Ref, &
-                       RDMExcitLevel, RDMEnergyIter
+                       RDMExcitLevel, RDMEnergyIter, tChangeVarsRDM
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
                     hist_spin_dist, ilut_spindist, tHistSpinDist, &
                     write_clear_hist_spin_dist, hist_spin_dist_iter, &
@@ -122,6 +122,7 @@ MODULE FciMCParMod
     SUBROUTINE FciMCPar(Weight,Energyxw)
         use Logging, only: PopsfileTimer
         use util_mod, only: get_free_unit
+        use nElRDMMod, only: InitRDM 
         real(dp) :: Weight, Energyxw
         INTEGER :: error
         LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange,tPrintWarn
@@ -359,9 +360,14 @@ MODULE FciMCParMod
                 CALL WriteHamilHistogram()
             ENDIF
             IF(tRDMonFly.and.tCalc_RDMEnergy) THEN
-                IF((Iter.gt.IterRDMonFly).and.(mod(Iter-IterRDMonFly,RDMEnergyIter).eq.0)) &
+                IF((Iter.ge.IterRDMonFly).and.(mod(Iter-IterRDMonFly,RDMEnergyIter).eq.0)) &
                                 CALL Calc_Energy_from_RDM()  
             ENDIF
+            if(tChangeVarsRDM) then
+                call InitRDM() 
+                tRDMonFly = .true.
+                tChangeVarsRDM = .false.
+            endif
 
             Iter=Iter+1
 !End of MC cycle

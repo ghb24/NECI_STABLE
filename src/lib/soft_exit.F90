@@ -86,11 +86,24 @@
 !   SPIN-PROJECT-GAMMA   Change the delta-gamma value used for stochastic
 !                        spin projection
 !   SPIN-PROJECT-SHIFT   Change the spin projection shift value.
+!   CALCRDMONFLY XXX XXX XXX  
+!                        Stochastically calculate the reduced density 
+!                        matrices.  The first integer specifies the 
+!                        XXX-electron RDM (3 for both 1 and 2).  The second 
+!                        is the iteration to start filling the RDM, and the 
+!                        third is the frequency the energy is calculated 
+!                        and printed.
+!   CALCEXPLICITRDM XXX XXX XXX
+!                        Same as above, but the RDM is filled using the 
+!                        explicit algorithm.
+!   FILLRDMITER XXX      Change the iteration number the reduced density 
+!                        matrices are filled from
+!   DIAGFLYONERDM        Requests to diagonalise the 1-RDM at the end.
 ! **********************************************************
 
 module soft_exit
 
-    use SystemData, only: nel, nBasis
+    use SystemData, only: nel, nBasis, tHPHF
     use bit_reps, only: NIfTot
     use util_mod, only: binary_search, get_free_unit
     use FciMCData, only: iter, CASMin, CASMax, tTruncSpace, tSinglePartPhase,&
@@ -110,7 +123,10 @@ module soft_exit
                              NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt
     use Input
     use Logging, only: tHistSpawn, tCalcFCIMCPsi, tIterStartBlock, &
-                       IterStartBlocking, tHFPopStartBlock, NHistEquilSteps
+                       IterStartBlocking, tHFPopStartBlock, NHistEquilSteps, &
+                       IterRDMonFly_value => IterRDMonFly, RDMExcitLevel, &
+                       tExplicitAllRDM, tRDMonFly, tChangeVarsRDM, &
+                       RDMEnergyIter, tDiagRDM
     use FCIMCLoggingMOD, only: PrintBlocking, RestartBlocking, &
                                PrintShiftBlocking_proc => PrintShiftBlocking,&
                                RestartShiftBlocking_proc=>RestartShiftBlocking
@@ -159,9 +175,11 @@ contains
                               spin_project_spawn_initiators = 34, &
                               spin_project_no_death = 35, &
                               spin_project_iter_count = 36, trunc_nopen = 37, &
-                              targetgrowrate = 38
+                              targetgrowrate = 38, calc_rdm = 39, &
+                              calc_explic_rdm = 40, fill_rdm_iter = 41, &
+                              diag_one_rdm = 42
 
-        integer, parameter :: last_item = targetgrowrate
+        integer, parameter :: last_item = diag_one_rdm
         integer, parameter :: max_item_len = 30
         character(max_item_len), parameter :: option_list(last_item) &
                                = (/"excite                       ", &
@@ -201,14 +219,18 @@ contains
                                    "spin-project-no-death        ", &
                                    "spin-project-iter-count      ", &
                                    "trunc-nopen                  ", &
-                                   "targetgrowrate               "/)
+                                   "targetgrowrate               ", &
+                                   "calcrdmonfly                 ", &
+                                   "calcexplicitrdm              ", &
+                                   "fillrdmiter                  ", &
+                                   "diagflyonerdm                "/)
 
 
         logical :: exists, any_exist, eof, deleted, any_deleted, tSource
         logical :: opts_selected(last_item)
         logical, intent(out) :: tSingBiasChange, tSoftExitFound
         logical, intent(out) :: tWritePopsFound
-        integer :: i, proc, nmcyc_new, ios, pos, trunc_nop_new
+        integer :: i, proc, nmcyc_new, ios, pos, trunc_nop_new, IterRDMonFly_new
         integer, dimension(lenof_sign) :: hfsign
         real(dp) :: hfScaleFactor
         character(len=100) :: w
@@ -310,6 +332,16 @@ contains
                             call readi (spin_proj_iter_count)
                         elseif (i == trunc_nopen) then
                             call readi (trunc_nop_new)
+                        elseif (i == calc_rdm) then
+                            call readi (RDMExcitLevel)
+                            call readi (IterRDMonFly_new)
+                            call readi (RDMEnergyIter)
+                        elseif (i == calc_explic_rdm) then
+                            call readi (RDMExcitLevel)
+                            call readi (IterRDMonFly_new)
+                            call readi (RDMEnergyIter)
+                        elseif (i == fill_rdm_iter) then
+                            call readi (IterRDMonFly_new)
                         endif
                     enddo
 
@@ -721,6 +753,107 @@ contains
                 endif
             endif
 
+            ! Initialise calculation of the stochastic RDM.
+            if (opts_selected(calc_rdm)) then
+                tChangeVarsRDM = .true. 
+                call MPIBCast (tChangeVarsRDM, tSource)
+                call MPIBCast (RDMExcitLevel, tSource)
+                call MPIBCast (IterRDMonFly_new, tSource)
+                call MPIBCast (RDMEnergyIter, tSource)
+
+                if (IterRDMonFly_new .le. Iter) then
+                    root_print 'Request to initialise the STOCHASTIC &
+                               &calculation of the density matrices.'
+                    root_print 'However the iteration specified to start &
+                               &filling has already been.'
+                    root_print 'Beginning to fill RDMs in the next iteration.'                               
+                    IterRDMonFly_value = Iter + 1
+
+                else
+                    root_print 'Initialising the STOCHASTIC calculation of &
+                               &the reduced density matrices'
+                    IterRDMonFly_value = IterRDMonFly_new
+                endif
+            endif
+
+            ! Initialise calculation of the explicit RDM.
+            if (opts_selected(calc_explic_rdm)) then
+                if(tHPHF) then
+                    root_print 'Trying to set up calculation of the &
+                               &EXPLICIT RDM.'
+                    root_print 'But the EXPLICIT method does not work with &
+                               &HPHF.'
+                    root_print 'Ignoring request.'
+                else
+                    tChangeVarsRDM = .true. 
+                    tExplicitAllRDM = .true.
+                    call MPIBCast (tChangeVarsRDM, tSource)
+                    call MPIBCast (tExplicitAllRDM, tSource)
+                    call MPIBCast (RDMExcitLevel, tSource)
+                    call MPIBCast (IterRDMonFly_new, tSource)
+                    call MPIBCast (RDMEnergyIter, tSource)
+
+                    if (IterRDMonFly_new .le. Iter) then
+                        root_print 'Request to initialise the EXPLICIT &
+                                   &calculation of the density matrices.'
+                        root_print 'However the iteration specified to start &
+                                   &filling has already been.'
+                        root_print 'Beginning to fill RDMs in the next iteration.'                               
+                        IterRDMonFly_value = Iter + 1
+
+                    else
+                        root_print 'Initialising the EXPLICIT calculation of &
+                                   &the reduced density matrices'
+                        IterRDMonFly_value = IterRDMonFly_new
+                    endif
+                endif
+            endif
+
+            ! Change the starting iteration for filling the rdm.
+            if (opts_selected(fill_rdm_iter)) then
+                call MPIBCast (IterRDMonFly_new, tSource)
+
+                if (IterRDMonFly_new .le. Iter) then
+                    root_print 'New value of IterRDMonFly is LESS than or EQUAL TO &
+                               &the current iteration number.'
+                    root_print 'Therefore, the number of iterations to start filling & 
+                               &the RDM has been left at ', IterRDMonFly_value
+                elseif(tRDMonFly) then
+                    IterRDMonFly_value = IterRDMonFly_new
+                    if(tExplicitAllRDM) then
+                        if(RDMExcitLevel.eq.3) then
+                            root_print 'The 1 and 2 electron reduced density matrices &
+                                      &will be EXPLICITLY filled ' 
+                            root_print 'from iteration number ', IterRDMonFly_value
+                        else
+                            root_print 'The ',RDMExcitLevel,' electron reduced density & 
+                                      &matrices will be EXPLICITLY filled '
+                            root_print 'from iteration number ', IterRDMonFly_value
+                        endif
+                    else
+                        if(RDMExcitLevel.eq.3) then
+                            root_print 'The 1 and 2 electron reduced density matrices &
+                                      &will be STOCHASTICALLY filled ' 
+                            root_print 'from iteration number ', IterRDMonFly_value
+                        else
+                            root_print 'The ',RDMExcitLevel,' electron reduced density & 
+                                      &matrices will be STOCHASTICALLY filled ' 
+                            root_print 'from iteration number ', IterRDMonFly_value
+                        endif
+                    endif
+                else
+                    root_print 'Attempt to start filling the reduced density matrices.'
+                    root_print 'This cannot be done, because the arrays have not &
+                               &been set up.'
+                    root_print 'Try CALC(EXPLICIT)RDM RDMExcitLevel RDMIter EnergyIter'
+                endif
+            endif
+
+            if (opts_selected(diag_one_rdm)) then
+                tDiagRDM = .true.
+                root_print 'Requesting to diagonalise the 1-RDM at the end of the &
+                           &calculation.'
+            endif
         endif
 
     end subroutine ChangeVars

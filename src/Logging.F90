@@ -27,7 +27,7 @@ MODULE Logging
     LOGICAL tRoHistOneElInts
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump,tRDMonFly,tDiagRDM,tDo_Not_Calc_RDMEnergy
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
-    LOGICAL tTruncDumpbyVal
+    LOGICAL tTruncDumpbyVal, tChangeVarsRDM
     LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit,tPrintDoubsUEG
     LOGICAL tHF_S_D_Ref, tHF_Ref, tExplicitAllRDM, tRDMSpinAveraging
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps,IterShiftBlock
@@ -136,6 +136,7 @@ MODULE Logging
       tCalcInstSCpts = .false.
       instant_s2_multiplier = 1
       tRDMonFly=.false.
+      tChangeVarsRDM = .false.
       RDMEnergyIter=100
       tDiagRDM=.false.
       IterRDMonFly=0

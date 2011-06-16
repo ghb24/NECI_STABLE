@@ -313,7 +313,7 @@ MODULE nElRDMMod
         SpawnedParts=>SpawnVec
         SpawnedParts2=>SpawnVec2
 
-        WRITE(6,'(A53,F10.4,A4,F10.4,A13)') 'Memory requirement for spawned arrays increased from ',&
+        WRITE(6,'(A54,F10.4,A4,F10.4,A13)') ' Memory requirement for spawned arrays increased from ',&
                                         REAL(((NIfTot+1)*MaxSpawned*2*size_n_int),dp)/1048576.D0,' to ',&
                                         REAL(((NIfTot+NIfDBO+3)*MaxSpawned*2*size_n_int),dp)/1048576.D0, ' Mb/Processor'
 
@@ -1186,7 +1186,7 @@ MODULE nElRDMMod
                                             ( realSignDi * SignFac ) * ( realSignDj * SignFac ))
                 ENDIF
             enddo
-        enddo
+        endif
 
     end subroutine Fill_Sings_RDM
 
