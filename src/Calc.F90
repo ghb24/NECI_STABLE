@@ -771,11 +771,11 @@ contains
                 call geti(iMaxExcitLevel)
             case("INITWALKERS")
 !For FCIMC, this is the number of walkers to start with
-                call geti(InitWalkers)
+                call getiLong(InitWalkers)
             case("TOTALWALKERS")
 !This is now input as the total number, rather than the number per processor, and it is changed to the number per processor here.
-                call geti(InitWalkers)
-                InitWalkers=NINT(REAL(InitWalkers)/REAL(nProcessors))
+                call getiLong(InitWalkers)
+                InitWalkers=NINT(REAL(InitWalkers)/REAL(nProcessors),int64)
             case("TIME")
                 !Input the desired runtime (in MINUTES) before exiting out of the MC.
                 call getf(MaxTimeExit)

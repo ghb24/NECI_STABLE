@@ -411,7 +411,7 @@ MODULE PopsfileMod
             tSinglePartPhase=.true.
             !If continuing to grow, ensure we can allocate enough memory for what we hope to get the walker population to,
             !rather than the average number of determinants in the popsfile.
-            WalkerListSize=max(initwalkers,NINT(real(iPopAllTotWalkers,8)/real(nNodes,8)))
+            WalkerListSize=max(initwalkers,NINT(real(iPopAllTotWalkers,8)/real(nNodes,8),int64))
         else
             tSinglePartPhase=.false.
             WalkerListSize=NINT(real(iPopAllTotWalkers,8)/real(nNodes,8))
