@@ -3132,9 +3132,9 @@ MODULE FciMCParMod
 ! AJWT dislikes doing this type of if based on a (seeminly unrelated) input option, but can't see another easy way.
 !  TODO:  Something to make it better
                 if(.not.tCCMC) then
-                    tot_walkers = int(InitWalkers, int64) * int(nNodes,int64)
+                    tot_walkers = InitWalkers * int(nNodes,int64)
                 else
-                    tot_walkers = int(InitWalkers, int64)
+                    tot_walkers = InitWalkers
                 endif
                 if ( (sum(AllTotParts) > tot_walkers) .or. &
                      (abs_int_sign(AllNoatHF) > MaxNoatHF)) then
@@ -6602,7 +6602,7 @@ MODULE FciMCParMod
    subroutine SetupValidSpawned(WalkerListSize)
       use CalcData, only: MemoryFacSpawn
       implicit none
-      integer, intent(in) :: WalkerListSize
+      integer(int64), intent(in) :: WalkerListSize
       integer ierr,i,j
       real(dp) Gap
       MaxSpawned=NINT(MemoryFacSpawn*WalkerListSize)
