@@ -43,6 +43,7 @@ MODULE FciMCData
       REAL*8 :: RDMBiasFacI, AllTotPartsTemp, SumSigns, SumSpawns
       LOGICAL :: tFillingStochRDMonFly, tFillingExplicRDMonFly, thf, tFirst 
       integer :: Spawned_Parts_Zero
+      integer(int64), dimension(lenof_sign) :: HFSign, AllHFSign
 
       ! Be able to store a list of the current initiators
       integer(n_int), allocatable :: CurrentInits(:,:)

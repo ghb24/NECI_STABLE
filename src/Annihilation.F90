@@ -22,7 +22,7 @@ MODULE AnnihilationMod
                         extract_part_sign, copy_flag
     use csf_data, only: csf_orbital_mask
     use hist_data, only: tHistSpawn, HistMinInd2
-    use Logging , only : tExplicitAllRDM, tHF_Ref, tHF_S_D_Ref
+    use Logging , only : tHF_Ref, tHF_S_D_Ref, tHF_Ref_Explicit, IterRDMonFly
     IMPLICIT NONE
 
     contains
@@ -1044,9 +1044,14 @@ MODULE AnnihilationMod
         norm_psi_squared = 0
         DetsMerged=0
         iHighestPop=0
+        HFSign(:) = 0
         IF(TotWalkersNew.gt.0) THEN
             do i=1,TotWalkersNew
                 call extract_sign(CurrentDets(:,i),CurrentSign)
+
+                if(tHF_Ref_Explicit.and.(Iter.ge.(IterRDMonFly - 1)).and.&
+                    DetBitEQ(iLutHF,CurrentDets(:,i),NIfDBO)) HFSign(1) = CurrentSign(1)
+
                 IF(IsUnoccDet(CurrentSign)) THEN
                     DetsMerged=DetsMerged+1
                     IF(tTruncInitiator) THEN
@@ -1084,6 +1089,9 @@ MODULE AnnihilationMod
         ELSEIF(iProcIndex.eq.iHFProc) THEN
             call stop_all(this_routine,'HF has been deleted from list')
         ENDIF
+
+        if(tHF_Ref_Explicit.and.(Iter.ge.(IterRDMonFly - 1))) &
+            call MPIAllReduce (HFSign, MPI_SUM, AllHFSign)
 
 !        do i=1,TotWalkersNew
 !            IF(CurrentSign(i).eq.0) THEN

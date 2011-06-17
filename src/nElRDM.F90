@@ -48,7 +48,7 @@ MODULE nElRDMMod
         USE FciMCData , only : Spawned_Parents_Index, Spawned_ParentsTag
         USE FciMCData , only : Spawned_Parents_IndexTag, Iter, AccumRDMNorm, AlltotPartsTemp
         USE Logging , only : RDMExcitLevel, tROFciDUmp, NoDumpTruncs, tExplicitAllRDM, &
-                             tHF_S_D_Ref, tHF_Ref 
+                             tHF_S_D_Ref, tHF_Ref, tHF_Ref_Explicit 
         USE RotateOrbsData , only : CoeffT1, CoeffT1Tag, tTurnStoreSpinOff, NoFrozenVirt
         USE RotateOrbsData , only : SymLabelCounts2,SymLabelList2,SymLabelListInv,NoOrbs
         USE util_mod , only : get_free_unit
@@ -108,9 +108,15 @@ MODULE nElRDMMod
         if(tExplicitAllRDM.and.tHPHF) CALL Stop_All('InitRDM',&
                 'HPHF not set up with the explicit calculation of the RDM.')
 
-        if(tHPHF.and.(tHF_Ref.or.tHF_S_D_Ref)) CALL Stop_All('InitRDM',&
+        if(tHPHF.and.(tHF_Ref.or.tHF_S_D_Ref.or.tHF_Ref_Explicit)) CALL Stop_All('InitRDM',&
                 'HPHF not set up when using a HF or HF, S, D reference.')
 
+        if(tDiagRDM.and.(tHF_Ref.or.tHF_S_D_Ref.or.tHF_Ref_Explicit)) then
+                CALL Stop_All('InitRDM',&
+                'Ignoring request to diagonalise the 1-RDM calculated using the HF or HF, S, D &
+                &as a reference - this is not an appropriate matrix for natural orbitals.')
+                tDiagRDM = .false.
+        endif
 
 ! Here we're allocating arrays for the actual calculation of the RDM.
 
@@ -219,7 +225,7 @@ MODULE nElRDMMod
                 Sing_ExcList(:)=Sing_InitExcSlots(:)
             ENDIF
 
-        ELSE
+        ELSEIF(.not.tHF_Ref_Explicit) THEN
 
 ! We need to hold onto the parents of the spawned particles.            
             ALLOCATE(Spawned_Parents(0:(NIfDBO+1),MaxSpawned),stat=ierr)
@@ -770,14 +776,14 @@ MODULE nElRDMMod
             AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
 
 ! HF_Ref - only diagonal element is the HF.            
-        elseif(tHF_Ref.and.(walkExcitLevel.eq.0)) then
+        elseif((tHF_Ref.or.tHF_Ref_Explicit).and.(walkExcitLevel.eq.0)) then
 
             call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
             AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
 
 ! Otherwise (and by default) we are considering the full RDM.            
 ! Add every determinant to the diagonal elements.
-        elseif((.not.tHF_S_D_Ref).and.(.not.tHF_Ref)) then
+        elseif((.not.tHF_S_D_Ref).and.(.not.tHF_Ref).and.(.not.tHF_Ref_Explicit)) then
 
 ! If HPHF is on, we need to consider I' as well as I.
 ! i.e. only one of the spin coupled determinants will be in the list, need to flip 
@@ -1483,7 +1489,7 @@ MODULE nElRDMMod
             IF(RDMExcitLevel.ne.1) CALL MPIReduce(TwoElRDM,MPI_SUM,AllTwoElRDM)
 
             AllAccumRDMNorm = 0.D0
-            IF(tHF_Ref.or.tHF_S_D_Ref) &
+            IF(tHF_Ref.or.tHF_S_D_Ref.or.tHF_Ref_Explicit) &
                 CALL MPIReduce(AccumRDMNorm,MPI_SUM,AllAccumRDMNorm)
 
             if(iProcIndex.eq.0) then
@@ -2568,7 +2574,7 @@ MODULE nElRDMMod
                 CALL LogMemDeAlloc(this_routine,Doub_ExcDjs2Tag)
             ENDIF
 
-        ELSE
+        ELSEIF(.not.tHF_Ref_Explicit) THEN
 
             DEALLOCATE(Spawned_Parents)
             CALL LogMemDeAlloc(this_routine,Spawned_ParentsTag)
@@ -2807,7 +2813,7 @@ MODULE nElRDMMod
         IF(RDMExcitLevel.ne.1) CALL MPIReduce(TwoElRDM,MPI_SUM,AllTwoElRDM)
 
         AllAccumRDMNorm = 0.D0
-        IF(tHF_Ref.or.tHF_S_D_Ref) &
+        IF(tHF_Ref.or.tHF_S_D_Ref.or.tHF_Ref_Explicit) &
             CALL MPIReduce(AccumRDMNorm,MPI_SUM,AllAccumRDMNorm)
 
         if(iProcIndex.eq.0) then
@@ -2930,6 +2936,9 @@ MODULE nElRDMMod
                 if(tExplicitAllRDM) then
                     write(6,*) '**** ENERGY CALCULATED USING THE EXPLICITLY &
                                                                 &ACCUMULATED RDM **** '
+                elseif(tHF_Ref_Explicit) then
+                    write(6,'(A)') ' **** ENERGY CALCULATED USING THE EXPLICITLY &
+                                ACCUMULATED RDM WITH THE HF AS A REFERENCE**** '
                 else
                     write(6,*) '**** ENERGY CALCULATED USING THE STOCHASTIC RDM **** '
                 endif
@@ -2951,19 +2960,19 @@ MODULE nElRDMMod
 
             WRITE(Energies_unit, "(I31,2F30.15)") Iter+PreviousCycles, RDMEnergy, Tot_Spin_Projection
 
-!            if(tHF_ref) then
-!                NatOrbMat(:,:) = 0.D0
-!                AllTwoElRDM(:,:) = 0.D0
-!                AllAccumRDMNorm = 0.D0
-!            endif
+            if(tHF_Ref_Explicit) then
+                NatOrbMat(:,:) = 0.D0
+                AllTwoElRDM(:,:) = 0.D0
+                AllAccumRDMNorm = 0.D0
+            endif
 
         endif
 
-!        if(tHF_ref) then
-!            OneElRDM(:,:) = 0.D0
-!            TwoElRDM(:,:) = 0.D0
-!            AccumRDMNorm = 0.D0
-!        endif
+        if(tHF_Ref_Explicit) then
+            OneElRDM(:,:) = 0.D0
+            TwoElRDM(:,:) = 0.D0
+            AccumRDMNorm = 0.D0
+        endif
 
 !        do i = 1, nBasis
 !            do k = i+1, nBasis
@@ -3020,7 +3029,7 @@ MODULE nElRDMMod
 !            WRITE(6,*) 'Trace_2RDM',Trace_2RDM
 !        endif
 
-        IF(tHF_Ref.or.tHF_S_D_Ref) THEN
+        IF(tHF_Ref.or.tHF_S_D_Ref.or.tHF_Ref_Explicit) THEN
             if(RDMExcitLevel.ne.2) Norm_1RDM = 1.D0 / AllAccumRDMNorm
             if(RDMExcitLevel.ne.1) Norm_2RDM = 1.D0 / AllAccumRDMNorm
         ELSE
