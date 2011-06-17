@@ -1505,7 +1505,7 @@ MODULE nElRDMMod
             IF(RDMExcitLevel.ne.1) CALL MPIReduce(TwoElRDM,MPI_SUM,AllTwoElRDM)
 
             AllAccumRDMNorm = 0.D0
-            IF(tHF_Ref.or.tHF_S_D_Ref.or.tHF_Ref_Explicit) &
+            IF(tHF_Ref.or.tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) &
                 CALL MPIReduce(AccumRDMNorm,MPI_SUM,AllAccumRDMNorm)
 
             if(iProcIndex.eq.0) then
@@ -2827,7 +2827,7 @@ MODULE nElRDMMod
         IF(RDMExcitLevel.ne.1) CALL MPIReduce(TwoElRDM,MPI_SUM,AllTwoElRDM)
 
         AllAccumRDMNorm = 0.D0
-        IF(tHF_Ref.or.tHF_S_D_Ref.or.tHF_Ref_Explicit) &
+        IF(tHF_Ref.or.tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) &
             CALL MPIReduce(AccumRDMNorm,MPI_SUM,AllAccumRDMNorm)
 
         if(iProcIndex.eq.0) then
@@ -3164,14 +3164,16 @@ MODULE nElRDMMod
         else
             SpinPlus = (-1.D0 + sqrt(1.D0 + 4.D0*Tot_Spin_Projection))/2.D0
             SpinMinus = (-1.D0 + sqrt(1.D0 + 4.D0*Tot_Spin_Projection))/2.D0
+!            write(6,*) 'SpinPlus',SpinPlus
+!            write(6,*) 'SpinMinus',SpinMinus
         endif
 
         if(RDMExcitLevel.ne.2) close(OneRDM_unit)
         if(RDMExcitLevel.ne.1) close(TwoRDM_unit)
 
         write(6,*) ''
-        if(RDMExcitLevel.ne.2) write(6,'(A22,F30.20)') ' TOTAL SPIN PROJECTION', Max(SpinPlus,SpinMinus) 
-        if(RDMExcitLevel.eq.3) write(6,'(A18,F30.20)') ' LINEAR INEQUALITY', Lin_Ineq
+        if(RDMExcitLevel.ne.2) write(6,'(A22,F20.10)') ' TOTAL SPIN PROJECTION', Max(SpinPlus,SpinMinus) 
+        if(RDMExcitLevel.eq.3) write(6,'(A18,F20.10)') ' LINEAR INEQUALITY', Lin_Ineq
         write(6,*) ''
 
 
@@ -3180,7 +3182,8 @@ MODULE nElRDMMod
 
     subroutine sum_in_spin_proj(i,j,Ind1,Norm_2RDM,Tot_Spin_Projection)
         integer , intent(in) :: i, j, Ind1
-        real(dp) , intent(in) :: Norm_2RDM, Tot_Spin_Projection
+        real(dp) , intent(in) :: Norm_2RDM
+        real(dp) , intent(inout) :: Tot_Spin_Projection
         integer :: Ind2
         real(dp) :: ParityFactor
 

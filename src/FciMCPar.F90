@@ -63,7 +63,7 @@ MODULE FciMCParMod
                        HistInitPops, DoubsUEG, DoubsUEGLookup, DoubsUEGStore,&
                        tPrintDoubsUEG, StartPrintDoubsUEG, tCalcInstantS2, &
                        instant_s2_multiplier, tMCOutput, &
-                       tRDMonFly, IterRDMonFly, tHF_S_D_Ref, &
+                       tRDMonFly, IterRDMonFly, &
                        RDMExcitLevel, RDMEnergyIter, tChangeVarsRDM, tExplicitAllRDM
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
                     hist_spin_dist, ilut_spindist, tHistSpinDist, &
