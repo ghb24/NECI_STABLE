@@ -2974,19 +2974,19 @@ MODULE nElRDMMod
 
             WRITE(Energies_unit, "(I31,2F30.15)") Iter+PreviousCycles, RDMEnergy, Tot_Spin_Projection
 
-            if(tHF_Ref_Explicit) then
-                NatOrbMat(:,:) = 0.D0
-                AllTwoElRDM(:,:) = 0.D0
-                AllAccumRDMNorm = 0.D0
-            endif
+!            if(tHF_Ref_Explicit) then
+!                NatOrbMat(:,:) = 0.D0
+!                AllTwoElRDM(:,:) = 0.D0
+!                AllAccumRDMNorm = 0.D0
+!            endif
 
         endif
 
-        if(tHF_Ref_Explicit) then
-            OneElRDM(:,:) = 0.D0
-            TwoElRDM(:,:) = 0.D0
-            AccumRDMNorm = 0.D0
-        endif
+!        if(tHF_Ref_Explicit) then
+!            OneElRDM(:,:) = 0.D0
+!            TwoElRDM(:,:) = 0.D0
+!            AccumRDMNorm = 0.D0
+!        endif
 
 !        do i = 1, nBasis
 !            do k = i+1, nBasis
