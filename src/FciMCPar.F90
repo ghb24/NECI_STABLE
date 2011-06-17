@@ -928,19 +928,11 @@ MODULE FciMCParMod
             ! over CurrentDets - i.e. diagonal elements.
             ! This uses the new current sign (after walker death), because later when we search 
             ! CurrentDets for Cj, it has to be the sign after death, and we want to keep it consistent.
-            if(tFillingStochRDMonFly) then 
+            ! Also add the connections to the HF if using HF_Ref_Explicit.
+            if(tFillingStochRDMonFly) then
                 call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,DiedSignCurr,walkExcitLevel)
-            elseif(tFillingExplicRDMonFly.and.tHF_Ref_Explicit.and.(walkExcitLevel.le.2)) then 
-                if(walkExcitLevel.eq.0) then
-                    call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,SignCurr,walkExcitLevel)
-                    if(SignCurr(1).ne.AllHFSign(1)) then
-                        write(6,*) 'CurrentSign',SignCurr(1)
-                        write(6,*) 'HF Sign',AllHFSign(1)
-                        call stop_all(this_routine,'HF population is incorrect.')
-                    endif
-                else
-                    call Add_RDM_From_IJ_Pair(HFDet,DetCurr,real(AllHFSign(1),dp),real(SignCurr(1),dp),.false.)
-                endif
+            elseif(tFillingExplicRDMonFly.and.tHF_Ref_Explicit) then
+                call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,SignCurr,walkExcitLevel)
             endif
 
             ! Loop over the 'type' of particle. 

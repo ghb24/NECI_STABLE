@@ -112,10 +112,9 @@ MODULE nElRDMMod
                 'HPHF not set up when using a HF or HF, S, D reference.')
 
         if(tDiagRDM.and.(tHF_Ref.or.tHF_S_D_Ref.or.tHF_Ref_Explicit)) then
-                CALL Stop_All('InitRDM',&
-                'Ignoring request to diagonalise the 1-RDM calculated using the HF or HF, S, D &
-                &as a reference - this is not an appropriate matrix for natural orbitals.')
-                tDiagRDM = .false.
+            write(6,*) 'Ignoring request to diagonalise the 1-RDM calculated using the HF or HF, S, D &
+                &as a reference - this is not an appropriate matrix for natural orbitals.'
+            tDiagRDM = .false.
         endif
 
 ! Here we're allocating arrays for the actual calculation of the RDM.
@@ -754,7 +753,7 @@ MODULE nElRDMMod
     subroutine Add_StochRDM_Diag(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
 ! This is called when we run over all TotWalkers in CurrentDets.    
 ! It is called for each CurrentDet.
-        use FciMCData , only : HFDet
+        use FciMCData , only : HFDet, AllHFSign
         use hphf_integrals , only : hphf_sign
         use HPHFRandExcitMod , only : FindExcitBitDetSym
         use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
@@ -776,10 +775,25 @@ MODULE nElRDMMod
             AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
 
 ! HF_Ref - only diagonal element is the HF.            
-        elseif((tHF_Ref.or.tHF_Ref_Explicit).and.(walkExcitLevel.eq.0)) then
+        elseif((tHF_Ref.or.tHF_Ref_Explicit).and.(walkExcitLevel.le.2)) then
 
-            call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
-            AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
+            if(walkExcitLevel.eq.0) then
+
+                call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
+                AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
+
+                if(tHF_Ref_Explicit.and.(SignCurr(1).ne.AllHFSign(1))) then
+                    write(6,*) 'CurrentSign',SignCurr(1)
+                    write(6,*) 'HF Sign',AllHFSign(1)
+                    call stop_all('Add_StochRDM_Diag','HF population is incorrect.')
+                endif
+ 
+            elseif(tHF_Ref_Explicit) then
+
+                call Add_RDM_From_IJ_Pair(HFDet, DetCurr, real(AllHFSign(1),dp), &
+                                                    real(SignCurr(1),dp), .false.)
+
+            endif
 
 ! Otherwise (and by default) we are considering the full RDM.            
 ! Add every determinant to the diagonal elements.
@@ -2938,7 +2952,7 @@ MODULE nElRDMMod
                                                                 &ACCUMULATED RDM **** '
                 elseif(tHF_Ref_Explicit) then
                     write(6,'(A)') ' **** ENERGY CALCULATED USING THE EXPLICITLY &
-                                ACCUMULATED RDM WITH THE HF AS A REFERENCE**** '
+                                &ACCUMULATED RDM WITH THE HF AS A REFERENCE**** '
                 else
                     write(6,*) '**** ENERGY CALCULATED USING THE STOCHASTIC RDM **** '
                 endif
