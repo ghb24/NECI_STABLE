@@ -283,8 +283,7 @@ MODULE nElRDMMod
             Energies_unit = get_free_unit()
             OPEN(Energies_unit,file='Energies',status='unknown')
 
-            WRITE(Energies_unit, "(A1,3A30)") '#','Iteration','RDM Energy (Stochastic)',&
-                                                'Tot Spin Projection'
+            WRITE(Energies_unit, "(A1,2A30)") '#','Iteration','RDM Energy (Stochastic)'
         ENDIF
 
 ! This is the normalisation for the case where we're using a limited reference to calculate
@@ -2823,8 +2822,6 @@ MODULE nElRDMMod
         RDMEnergy1El = 0.D0
         RDMEnergy2El = 0.D0
 
-        Tot_Spin_Projection = 0.D0
-
         ! Combine the 1- and 2-RDM from all processors.
         IF(RDMExcitLevel.ne.2) CALL MPIReduce(OneElRDM,MPI_SUM,NatOrbMat)
         IF(RDMExcitLevel.ne.1) CALL MPIReduce(TwoElRDM,MPI_SUM,AllTwoElRDM)
@@ -2850,11 +2847,6 @@ MODULE nElRDMMod
 
                 Trace_1RDM_New = Trace_1RDM_New + &
                     ( NatOrbMat(SymLabelListInv(i),SymLabelListInv(i)) * Norm_1RDM )
-
-                if(mod(i,2).eq.0) &
-                    Tot_Spin_Projection = Tot_Spin_Projection + &
-                        ( 0.50 * ( ( NatOrbMat(SymLabelListInv(i-1),SymLabelListInv(i-1)) * Norm_1RDM ) - &
-                                            ( NatOrbMat(SymLabelListInv(i),SymLabelListInv(i)) * Norm_1RDM ) ) )
 
                 do k = i+1, nBasis
 
@@ -2975,7 +2967,7 @@ MODULE nElRDMMod
  
             endif
 
-            WRITE(Energies_unit, "(I31,2F30.15)") Iter+PreviousCycles, RDMEnergy, Tot_Spin_Projection
+            WRITE(Energies_unit, "(I31,2F30.15)") Iter+PreviousCycles, RDMEnergy
 
 !            if(tHF_Ref_Explicit) then
 !                NatOrbMat(:,:) = 0.D0
@@ -3075,7 +3067,7 @@ MODULE nElRDMMod
 
     subroutine Write_out_1and_2RDM(Norm_1RDM, Norm_2RDM)
         real(dp) , intent(in) :: Norm_1RDM, Norm_2RDM
-        real(dp) :: Tot_Spin_Projection, ParityFactor_LI
+        real(dp) :: Tot_Spin_Projection, ParityFactor_LI, SpinPlus, SpinMinus
         real(dp) :: Lin_Ineq, Lin_Ineq_TwoEl, Lin_Ineq_OneEl, ParityFactor
         integer :: Ind1_LI, Ind2_LI
         integer :: i, j, k, l, Ind1, Ind2
@@ -3102,11 +3094,6 @@ MODULE nElRDMMod
         Tot_Spin_Projection = 0.D0
         do i = 1, nBasis
 
-            if((RDMExcitLevel.ne.2).and.(mod(i,2).eq.0)) &
-                Tot_Spin_Projection = Tot_Spin_Projection + &
-                            ( 0.50 * ( ( NatOrbMat(SymLabelListInv(i-1),SymLabelListInv(i-1)) &
-                            * Norm_1RDM ) - ( NatOrbMat(SymLabelListInv(i),SymLabelListInv(i)) * Norm_1RDM ) ) )
-
             do j = 1, nBasis
 
                 if(RDMExcitLevel.ne.2) then
@@ -3123,6 +3110,8 @@ MODULE nElRDMMod
                 endif
 
                 Ind1 = ( ( (max(i,j)-2) * (max(i,j)-1) ) / 2 ) + min(i,j)
+
+                call sum_in_spin_proj(i,j,Ind1,Norm_2RDM,Tot_Spin_Projection)
 
                 do k = 1, nBasis
 
@@ -3162,22 +3151,79 @@ MODULE nElRDMMod
                     endif
                 enddo
 
-                if(RDMExcitLevel.eq.3) Lin_Ineq = Lin_Ineq + ( Lin_Ineq_TwoEl - Lin_Ineq_OneEl )
+                if(RDMExcitLevel.eq.3) Lin_Ineq = Lin_Ineq + abs( Lin_Ineq_TwoEl - Lin_Ineq_OneEl )
 
             enddo
 
         enddo
+        Tot_Spin_Projection = Tot_Spin_Projection + (3.D0 * real(NEl,dp))
+! Tot_Spin_Projection is now equal to 4S(S+1) - find S. 
+        Tot_Spin_Projection = Tot_Spin_Projection/4.D0
+        if((1.D0 + 4.D0*Tot_Spin_Projection).le.0) then
+            call warning('Write_out_1and_2RDM',"Complex spin calculated from density matrices!")
+        else
+            SpinPlus = (-1.D0 + sqrt(1.D0 + 4.D0*Tot_Spin_Projection))/2.D0
+            SpinMinus = (-1.D0 + sqrt(1.D0 + 4.D0*Tot_Spin_Projection))/2.D0
+        endif
 
         if(RDMExcitLevel.ne.2) close(OneRDM_unit)
         if(RDMExcitLevel.ne.1) close(TwoRDM_unit)
 
         write(6,*) ''
-        if(RDMExcitLevel.ne.2) write(6,'(A22,F30.20)') ' TOTAL SPIN PROJECTION', Tot_Spin_Projection 
+        if(RDMExcitLevel.ne.2) write(6,'(A22,F30.20)') ' TOTAL SPIN PROJECTION', Max(SpinPlus,SpinMinus) 
         if(RDMExcitLevel.eq.3) write(6,'(A18,F30.20)') ' LINEAR INEQUALITY', Lin_Ineq
         write(6,*) ''
 
 
     end subroutine Write_out_1and_2RDM
+
+
+    subroutine sum_in_spin_proj(i,j,Ind1,Norm_2RDM,Tot_Spin_Projection)
+        integer , intent(in) :: i, j, Ind1
+        real(dp) , intent(in) :: Norm_2RDM, Tot_Spin_Projection
+        integer :: Ind2
+        real(dp) :: ParityFactor
+
+        ! Total Spin Projection: 
+        ! Sum_i_j [ 2RDM(ia,ja;ia,ja) + 2RDM(ib,jb;ib,jb) 
+        !           - 2 * 2RDM(ia,jb;ia,jb) - 4 * 2RDM(ia,jb,ja,ib) ] + (3 * NEl) = 4S(S+1)
+        if(i.ne.j) then
+            ! i and j both alpha (even i and j).
+            if((mod(i,2).eq.0).and.(mod(j,2).eq.0)) then
+                ! calculate index for beta equivalents (odd i and j).
+                Ind2 = ( ( (max(i-1,j-1)-2) * (max(i-1,j-1)-1) ) / 2 ) + min(i-1,j-1)
+                Tot_Spin_Projection = Tot_Spin_Projection & 
+                                        + ( AllTwoElRDM(Ind1, Ind1) * Norm_2RDM ) & 
+                                        + ( AllTwoElRDM(Ind2, Ind2) * Norm_2RDM )  
+            ! i alpha (even), j beta (odd).                                                              
+            elseif((mod(i,2).eq.0).and.(mod(j,2).ne.0)) then
+                ! adding in ialpha jbeta ialpha jbeta
+
+                Tot_Spin_Projection = Tot_Spin_Projection &
+                                        - (2.D0 *  AllTwoElRDM(Ind1, Ind1) * Norm_2RDM)  
+
+                ParityFactor = 1.D0
+                ! we find the index based on i < j, in reality this will not always be the case.
+                ! if i > j, times the parity by -1.
+                if(max(i,j).eq.i) ParityFactor = ParityFactor * (-1.D0)
+
+                ! adding in ialpha jbeta jalpha ibeta                                            
+                ! Ind2 is for jalpha ibeta
+                ! i currently alpha (2), j currently beta (1)
+                ! want i beta (1), j alpha (2)
+                ! but the parity will be wrong
+
+                Ind2 = ( ( (max(i-1,j+1)-2) * (max(i-1,j+1)-1) ) / 2 ) + min(i-1,j+1)
+
+                ! Expect now that j+1 < i-1, check if this is actually true.
+                if(max(i-1,j+1).eq.(j+1)) ParityFactor = ParityFactor * (-1.D0)
+
+                Tot_Spin_Projection = Tot_Spin_Projection &
+                                        - (4.D0 * AllTwoElRDM(Ind1, Ind2) * Norm_2RDM * ParityFactor)
+            endif
+        endif
+
+    end subroutine
 
 
     SUBROUTINE Test_Energy_Calc()
