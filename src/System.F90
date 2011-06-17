@@ -148,7 +148,6 @@ MODULE System
       tUseMP2VarDenMat=.false.
       tUseHFOrbs=.false.
       tFindCINatOrbs=.false.
-      tNoRODump=.false.
       DiagWeight=1.D0
       OffDiagWeight=1.D0
       OneElWeight=1.D0
@@ -759,13 +758,6 @@ MODULE System
             tUseHFOrbs=.true.
             tShake=.false.
             tSeparateOccVirt=.true.
-
-        case("NORODUMP")
-            tNoRODump=.true.
-! This is to do with the calculation of the MP2 or CI natural orbitals.  This should be used if we want the transformation matrix of the              
-! natural orbitals to be found, but no ROFCIDUMP file to be printed (i.e. the integrals don't need to be transformed).  This is so that at the end 
-! of a calculation, we may get the one body reduced density matrix from the wavefunction we've found, and then use the MOTRANSFORM file printed to 
-! visualise the natural orbitals with large occupation numbers.
 
         case("RANLUXLEV")
 !This is the level of quality for the random number generator. Values go from 1 -> 4. 3 is default.

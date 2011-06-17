@@ -27,7 +27,7 @@ MODULE Logging
     LOGICAL tRoHistOneElInts
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump,tRDMonFly,tDiagRDM,tDo_Not_Calc_RDMEnergy
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
-    LOGICAL tTruncDumpbyVal, tChangeVarsRDM
+    LOGICAL tTruncDumpbyVal, tChangeVarsRDM, tNoRODump
     LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit,tPrintDoubsUEG
     LOGICAL tHF_S_D_Ref, tHF_S_D, tHF_Ref, tHF_Ref_Explicit, tExplicitAllRDM, tRDMSpinAveraging
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps,IterShiftBlock
@@ -144,6 +144,7 @@ MODULE Logging
       tChangeVarsRDM = .false.
       RDMEnergyIter=100
       tDiagRDM=.false.
+      tNoRODump=.false.
       IterRDMonFly=0
       RDMExcitLevel=1
       tDo_Not_Calc_RDMEnergy = .false.
@@ -484,6 +485,13 @@ MODULE Logging
 !This sets the calculation to diagonalise the *1* electron reduced density matrix.  Obviously this doesn't work if RDMExcitLevel = 2.            
 !The eigenvalues give the occupation numbers of the natural orbitals (eigenfunctions).
             tDiagRDM=.true.
+
+        case("NORODUMP")
+            tNoRODump=.true.
+! This is to do with the calculation of the MP2 or CI natural orbitals.  This should be used if we want the transformation matrix of the              
+! natural orbitals to be found, but no ROFCIDUMP file to be printed (i.e. the integrals don't need to be transformed).  This is so that at the end 
+! of a calculation, we may get the one body reduced density matrix from the wavefunction we've found, and then use the MOTRANSFORM file printed to 
+! visualise the natural orbitals with large occupation numbers.
 
         case("CALCRDMENERGY")
 !This takes the 1 and 2 electron RDM and calculates the energy using the RDM expression.            

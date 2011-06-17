@@ -1475,9 +1475,9 @@ MODULE nElRDMMod
 ! This routine finalises the one electron reduced density matrix stuff at the point of a softexit.
 ! This includes summing each of the individual matrices from each processor,
 ! and calling the diagonalisation routines if we want to get the occupation numbers.
-        USE Logging , only : tDiagRDM, tRDMSpinAveraging
+        USE Logging , only : tDiagRDM, tRDMSpinAveraging, tNoRODump
         USE SystemData , only : tSeparateOccVirt,tRotateVirtOnly,tRotateOccOnly
-        USE SystemData , only : tNoRODump, ARR, BRR, G1
+        USE SystemData , only : ARR, BRR, G1
         USE RotateOrbsMod , only : FourIndInts, FourIndIntsTag
         USE RotateOrbsData , only : NoOrbs
         INTEGER :: error,i,j,ierr
@@ -2547,8 +2547,7 @@ MODULE nElRDMMod
                                    FourIndInts, FourIndIntsTag, &
                                    SymLabelCounts2, SymLabelCounts2Tag
         USE RotateOrbsMod , only : SymLabelList3, SymLabelList3Tag
-        USE SystemData , only : tNoRODump
-        USE Logging , only : tDiagRDM
+        USE Logging , only : tDiagRDM, tNoRODump
         CHARACTER(len=*), PARAMETER :: this_routine='DeallocateRDM'
 
         IF(tExplicitAllRDM) THEN
