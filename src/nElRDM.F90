@@ -48,7 +48,7 @@ MODULE nElRDMMod
         USE FciMCData , only : Spawned_Parents_Index, Spawned_ParentsTag
         USE FciMCData , only : Spawned_Parents_IndexTag, Iter, AccumRDMNorm, AlltotPartsTemp
         USE Logging , only : RDMExcitLevel, tROFciDUmp, NoDumpTruncs, tExplicitAllRDM, &
-                             tHF_S_D_Ref, tHF_Ref, tHF_Ref_Explicit 
+                             tHF_S_D_Ref, tHF_Ref, tHF_Ref_Explicit, tHF_S_D 
         USE RotateOrbsData , only : CoeffT1, CoeffT1Tag, tTurnStoreSpinOff, NoFrozenVirt
         USE RotateOrbsData , only : SymLabelCounts2,SymLabelList2,SymLabelListInv,NoOrbs
         USE util_mod , only : get_free_unit
@@ -108,7 +108,7 @@ MODULE nElRDMMod
         if(tExplicitAllRDM.and.tHPHF) CALL Stop_All('InitRDM',&
                 'HPHF not set up with the explicit calculation of the RDM.')
 
-        if(tHPHF.and.(tHF_Ref.or.tHF_S_D_Ref.or.tHF_Ref_Explicit)) CALL Stop_All('InitRDM',&
+        if(tHPHF.and.(tHF_Ref.or.tHF_S_D_Ref.or.tHF_S_D.or.tHF_Ref_Explicit)) CALL Stop_All('InitRDM',&
                 'HPHF not set up when using a HF or HF, S, D reference.')
 
         if(tDiagRDM.and.(tHF_Ref.or.tHF_S_D_Ref.or.tHF_Ref_Explicit)) then
@@ -770,15 +770,10 @@ MODULE nElRDMMod
 ! If HF_S_D_Ref, we are only considering determinants connected to the HF, 
 ! doubles and singles (so theoretically up to quadruples).
 ! But for the diagonal elements - only consider doubles and singles (and HF).
-        if(tHF_S_D_Ref.and.(walkExcitLevel.le.2)) then
-            call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
-            AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
-
-! HF_Ref - only diagonal element is the HF.            
-        elseif((tHF_Ref.or.tHF_Ref_Explicit).and.(walkExcitLevel.le.2)) then
-
+        if(tHF_Ref.or.tHF_Ref_Explicit.or.tHF_S_D.or.tHF_S_D_Ref) then
+            
+            ! In all of these cases the HF is a diagonal element.
             if(walkExcitLevel.eq.0) then
-
                 call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
                 AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
 
@@ -787,17 +782,25 @@ MODULE nElRDMMod
                     write(6,*) 'HF Sign',AllHFSign(1)
                     call stop_all('Add_StochRDM_Diag','HF population is incorrect.')
                 endif
- 
-            elseif(tHF_Ref_Explicit) then
+            elseif(walkExcitLevel.le.2) then
 
-                call Add_RDM_From_IJ_Pair(HFDet, DetCurr, real(AllHFSign(1),dp), &
+                ! For the HF,S,D symmetric case, and the HF,S,D reference, the S and D
+                ! are diagonal terms too.
+                if(tHF_S_D.or.tHF_S_D_Ref) then
+                    call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
+                    AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
+                endif
+
+                ! The singles and doubles are connected and explicitly calculated.
+                if(tHF_Ref_Explicit) &
+                    call Add_RDM_From_IJ_Pair(HFDet, DetCurr, real(AllHFSign(1),dp), &
                                                     real(SignCurr(1),dp), .false.)
-
             endif
+
 
 ! Otherwise (and by default) we are considering the full RDM.            
 ! Add every determinant to the diagonal elements.
-        elseif((.not.tHF_S_D_Ref).and.(.not.tHF_Ref).and.(.not.tHF_Ref_Explicit)) then
+        else
 
 ! If HPHF is on, we need to consider I' as well as I.
 ! i.e. only one of the spin coupled determinants will be in the list, need to flip 
@@ -3572,7 +3575,7 @@ END MODULE nElRDMMod
         USE bit_reps , only : NIfTot, NIfDBO, decode_bit_det
         USE nElRDMMod , only : Fill_Sings_RDM, Fill_Doubs_RDM, Fill_Diag_RDM, &
                                Add_RDM_From_IJ_Pair, Fill_Spin_Coupled_RDM
-        USE Logging , only : tHF_S_D_Ref, tHF_Ref
+        USE Logging , only : tHF_S_D_Ref, tHF_Ref, tHF_S_D
         USE SystemData , only : NEl,tHPHF
         USE Parallel
         USE constants , only : n_int, dp, lenof_sign
@@ -3628,6 +3631,12 @@ END MODULE nElRDMMod
                 ELSE
                     tFill_SymmCiCj = .false.
                 ENDIF
+            ELSEIF(tHF_S_D) THEN
+                ! We'll only be in this loop if the Dj is le 2. 
+                ! Need Di to be le 2 as well.
+                walkExcitLevel = FindBitExcitLevel (iLutHF, Spawned_Parents(0:NIfDBO,i), NEl)
+                IF(walkExcitLevel.gt.2) CYCLE
+                tFill_SymmCiCj = .true.
             ELSEIF(tHF_Ref) then
                 ! We'll only be in this loop if the Dj is le 2. 
                 ! We need the Di to be the HF.

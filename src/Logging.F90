@@ -29,7 +29,7 @@ MODULE Logging
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
     LOGICAL tTruncDumpbyVal, tChangeVarsRDM
     LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit,tPrintDoubsUEG
-    LOGICAL tHF_S_D_Ref, tHF_Ref, tHF_Ref_Explicit, tExplicitAllRDM, tRDMSpinAveraging
+    LOGICAL tHF_S_D_Ref, tHF_S_D, tHF_Ref, tHF_Ref_Explicit, tExplicitAllRDM, tRDMSpinAveraging
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps,IterShiftBlock
     INTEGER IterRDMonFly, RDMExcitLevel, RDMEnergyIter
     INTEGER CCMCDebug  !CCMC Debugging Level 0-6.  Default 0
@@ -144,6 +144,7 @@ MODULE Logging
       tDo_Not_Calc_RDMEnergy = .false.
       tExplicitAllRDM = .false.
       tHF_S_D_Ref = .false.
+      tHF_S_D = .false.
       tHF_Ref = .false.
       tHF_Ref_Explicit = .false.
       tRDMSpinAveraging = .false.
@@ -487,10 +488,6 @@ MODULE Logging
 !Explicitly calculates all the elements of the RDM.            
             tExplicitAllRDM = .true.
 
-        case("HFSDREFRDM")
-!Uses the HF, singles and doubles as a multiconfigurational reference and calculates the RDM to find the energy.            
-            tHF_S_D_Ref = .true.
-        
         case("HFREFRDM")
 !Uses the HF as a reference and stochastically calculates the RDM to find the energy - should be same as the averaged projected energy.            
             tHF_Ref = .true.
@@ -499,6 +496,14 @@ MODULE Logging
 !Uses the HF as a reference and explicitly calculates the RDM to find the energy - should be same as projected energy.            
             tHF_Ref_Explicit = .true.
 
+        case("HFSDRDM")
+!Calculate the RDM for the HF, singles and doubles only - symmetrically.            
+            tHF_S_D = .true.
+
+        case("HFSDREFRDM")
+!Uses the HF, singles and doubles as a multiconfigurational reference and calculates the RDM to find the energy.            
+            tHF_S_D_Ref = .true.
+        
         case("RDMSPINAVERAGING")
 !Ensures that all the spin flipped elements of the RDM are the same.            
             IF(item.lt.nitems) THEN

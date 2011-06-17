@@ -22,7 +22,8 @@ MODULE AnnihilationMod
                         extract_part_sign, copy_flag
     use csf_data, only: csf_orbital_mask
     use hist_data, only: tHistSpawn, HistMinInd2
-    use Logging , only : tHF_Ref, tHF_S_D_Ref, tHF_Ref_Explicit, IterRDMonFly
+    use Logging , only : tHF_Ref, tHF_S_D_Ref, tHF_Ref_Explicit, &
+                         IterRDMonFly, tHF_S_D
     IMPLICIT NONE
 
     contains
@@ -799,9 +800,11 @@ MODULE AnnihilationMod
                 ! The index i tells us where to look in the parent array, for the Di's to go with this Dj.
 !                if(tFillingStochRDMonFly.and.(.not.tHF_Ref)) &
                 if(tFillingStochRDMonFly) then
-                    if(tHF_Ref) then 
+                    if(tHF_Ref.or.tHF_S_D) then 
                         ! In the case of the HF Ref - Di is only ever the HF, and Dj is 
                         ! anything connected - i.e. singles and doubles.
+                        ! In the case of the HF S D matrix (symmetric), Di and Dj are both HF,
+                        ! S and D.
                         ! This is the excitation level of Dj.
                         ExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,PartInd), 2)
                         if(ExcitLevel.le.2) &
