@@ -3132,9 +3132,9 @@ MODULE FciMCParMod
 ! AJWT dislikes doing this type of if based on a (seeminly unrelated) input option, but can't see another easy way.
 !  TODO:  Something to make it better
                 if(.not.tCCMC) then
-                    tot_walkers = int(InitWalkers, int64) * int(nNodes,int64)
+                    tot_walkers = InitWalkers * int(nNodes,int64)
                 else
-                    tot_walkers = int(InitWalkers, int64)
+                    tot_walkers = InitWalkers
                 endif
                 if ( (sum(AllTotParts) > tot_walkers) .or. &
                      (abs_int_sign(AllNoatHF) > MaxNoatHF)) then
@@ -5305,7 +5305,7 @@ MODULE FciMCParMod
         use DeterminantData , only : write_det
         INTEGER :: ierr,iunithead
         LOGICAL :: formpops,binpops
-        INTEGER :: error,MemoryAlloc,PopsVersion,WalkerListSize,j,iLookup
+        INTEGER :: error,MemoryAlloc,PopsVersion,j,iLookup,WalkerListSize
         INTEGER, DIMENSION(lenof_sign) :: InitialSign
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
         integer :: ReadBatch    !This parameter determines the length of the array to batch read in walkers from a popsfile
@@ -5360,7 +5360,7 @@ MODULE FciMCParMod
 
             MaxWalkersPart=NINT(MemoryFacPart*WalkerListSize)
             WRITE(6,"(A,I14)") " Memory allocated for a maximum particle number per node of: ",MaxWalkersPart
-            Call SetupValidSpawned(WalkerListSize)
+            Call SetupValidSpawned(int(WalkerListSize,int64))
 
 !Put a barrier here so all processes synchronise
             CALL MPIBarrier(error)
@@ -6602,7 +6602,7 @@ MODULE FciMCParMod
    subroutine SetupValidSpawned(WalkerListSize)
       use CalcData, only: MemoryFacSpawn
       implicit none
-      integer, intent(in) :: WalkerListSize
+      integer(int64), intent(in) :: WalkerListSize
       integer ierr,i,j
       real(dp) Gap
       MaxSpawned=NINT(MemoryFacSpawn*WalkerListSize)
