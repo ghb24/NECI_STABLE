@@ -90,14 +90,15 @@
 !                        Stochastically calculate the reduced density 
 !                        matrices.  The first integer specifies the 
 !                        XXX-electron RDM (3 for both 1 and 2).  The second 
-!                        is the iteration to start filling the RDM, and the 
+!                        is the number of iterations after the shift starts 
+!                        changing, to start filling the RDM, and the 
 !                        third is the frequency the energy is calculated 
 !                        and printed.
 !   CALCEXPLICITRDM XXX XXX XXX
 !                        Same as above, but the RDM is filled using the 
 !                        explicit algorithm.
-!   FILLRDMITER XXX      Change the iteration number the reduced density 
-!                        matrices are filled from
+!   FILLRDMITER XXX      Change the number of iterations after the shift has 
+!                        changed that the RDM are filled from.
 !   DIAGFLYONERDM        Requests to diagonalise the 1-RDM at the end.
 ! **********************************************************
 
@@ -816,29 +817,33 @@ contains
                 if (IterRDMonFly_new .le. (Iter - VaryShiftIter)) then
                     root_print 'New value of IterRDMonFly is LESS than or EQUAL TO &
                                &the current iteration number'
-                    root_print 'The number of iterations to start filling & 
-                               &the RDM has been left at ', IterRDMonFly_value
+                    root_print 'The number of iterations after the shift change & 
+                               &to start filling the RDM has been left at ', IterRDMonFly_value
                 elseif(tRDMonFly) then
                     IterRDMonFly_value = IterRDMonFly_new
                     if(tExplicitAllRDM) then
                         if(RDMExcitLevel.eq.3) then
                             root_print 'The 1 and 2 electron reduced density matrices &
                                       &will be EXPLICITLY filled ' 
-                            root_print 'from iteration number ', IterRDMonFly_value
+                            root_print 'from the following number of iterations after the &
+                                      &shift changes ', IterRDMonFly_value
                         else
                             root_print 'The ',RDMExcitLevel,' electron reduced density & 
                                       &matrices will be EXPLICITLY filled '
-                            root_print 'from iteration number ', IterRDMonFly_value
+                            root_print 'from the following number of iterations after the &
+                                      &shift changes ', IterRDMonFly_value
                         endif
                     else
                         if(RDMExcitLevel.eq.3) then
                             root_print 'The 1 and 2 electron reduced density matrices &
                                       &will be STOCHASTICALLY filled ' 
-                            root_print 'from iteration number ', IterRDMonFly_value
+                            root_print 'from the following number of iterations after the &
+                                      &shift changes ', IterRDMonFly_value
                         else
                             root_print 'The ',RDMExcitLevel,' electron reduced density & 
                                       &matrices will be STOCHASTICALLY filled ' 
-                            root_print 'from iteration number ', IterRDMonFly_value
+                            root_print 'from the following number of iterations after the &
+                                      &shift changes ', IterRDMonFly_value
                         endif
                     endif
                 else
