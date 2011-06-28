@@ -361,7 +361,8 @@ MODULE FciMCParMod
                 CALL WriteHamilHistogram()
             ENDIF
             IF(tRDMonFly.and.tCalc_RDMEnergy) THEN
-                IF((Iter.ge.IterRDMonFly).and.(mod(Iter-IterRDMonFly,RDMEnergyIter).eq.0)) &
+                IF(((Iter+PreviousCycles).ge.IterRDMonFly).and.&
+                    (mod((Iter+PreviousCycles)-IterRDMonFly,RDMEnergyIter).eq.0)) &
                                 CALL Calc_Energy_from_RDM()  
             ENDIF
             if(tChangeVarsRDM) then
@@ -782,7 +783,7 @@ MODULE FciMCParMod
             tTruncInitiator=.true.
         ENDIF
 
-        IF(tRDMonFly.and.(Iter.eq.IterRDMonFly)) THEN
+        IF(tRDMonFly.and.((Iter+PreviousCycles).eq.IterRDMonFly)) THEN
             !We have reached the iteration where we want to start filling the RDM.
             if(tExplicitAllRDM.or.tHF_Ref_Explicit) then
                 tFillingExplicRDMonFly = .true.
@@ -5804,6 +5805,13 @@ MODULE FciMCParMod
         tFillingStochRDMonFly = .false.      
         tFillingExplicRDMonFly = .false.      
         !One of these becomes true when we have reached the relevant iteration to begin filling the RDM.
+
+        !If the iteration specified to start filling the RDM has already been, want to 
+        !start filling as soon as possible.
+        IF(tRDMonFly.and.(IterRDMonFly.lt.(PreviousCycles+1))) THEN
+            if(iProcIndex.eq.0) WRITE(6,*) "Filling from the beginning of the calculation." 
+            IterRDMonFly = PreviousCycles+1
+        ENDIF
 
     end subroutine InitFCIMCCalcPar
 
