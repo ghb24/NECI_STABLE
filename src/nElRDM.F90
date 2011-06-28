@@ -79,7 +79,7 @@ MODULE nElRDMMod
         USE RotateOrbsMod , only : SymLabelList2Tag,SymLabelListInvTag
         USE RotateOrbsData , only : SymLabelList3, SymLabelList3Tag
         USE Logging , only : tDo_Not_Calc_RDMEnergy, tDiagRDM
-        INTEGER :: ierr,i
+        INTEGER :: ierr,i, MemoryAlloc, MemoryAlloc_Root
         CHARACTER(len=*), PARAMETER :: this_routine='InitRDM'
 #ifdef __CMPLX
         CAll Stop_All(this_routine,'Filling of reduced density matrices not working with &
@@ -119,6 +119,9 @@ MODULE nElRDMMod
 
 ! Here we're allocating arrays for the actual calculation of the RDM.
 
+        MemoryAlloc = 0
+        MemoryAlloc_Root = 0            ! Memory allocated in bytes.
+
 ! First for the storage of the actual 1- or 2-RMD.
         IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) THEN
 ! We also need to allocate the actual nElRDM on each processor, 
@@ -128,6 +131,9 @@ MODULE nElRDMMod
             CALL LogMemAlloc('nElRDM',nBasis**2,8,this_routine,OneElRDMTag,ierr)
             OneElRDM(:,:)=0.D0
 
+            MemoryAlloc = MemoryAlloc + ( nBasis * nBasis * 8 ) 
+            MemoryAlloc_Root = MemoryAlloc_Root + ( nBasis * nBasis * 8 ) 
+
             IF(iProcIndex.eq.0) THEN
 ! This is the AllnElRDM, called NatOrbMat simply because we use the natural 
 ! orbital routines to diagonalise etc - am gonna change this so it's passed around).        
@@ -135,6 +141,8 @@ MODULE nElRDMMod
                 IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating NatOrbMat array,')
                 CALL LogMemAlloc('NatOrbMat',nBasis**2,8,this_routine,NatOrbMatTag,ierr)
                 NatOrbMat(:,:)=0.D0
+
+                MemoryAlloc_Root = MemoryAlloc_Root + ( nBasis * nBasis * 8 ) 
             ENDIF
         ENDIF
 
@@ -144,11 +152,16 @@ MODULE nElRDMMod
             CALL LogMemAlloc('TwoElRDM',(((nBasis*(nBasis-1))/2)**2),8,this_routine,TwoElRDMTag,ierr)
             TwoElRDM(:,:)=0.D0
 
+            MemoryAlloc = MemoryAlloc + ( ( ( (nBasis*(nBasis-1))/2 ) ** 2 ) * 8 ) 
+            MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (nBasis*(nBasis-1))/2 ) ** 2 ) * 8 ) 
+
             IF(iProcIndex.eq.0) THEN
                 ALLOCATE(AllTwoElRDM(((nBasis*(nBasis-1))/2),((nBasis*(nBasis-1))/2)),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating AllTwoElRDM array,')
                 CALL LogMemAlloc('AllTwoEleRDM',(((nBasis*(nBasis-1))/2)**2),8,this_routine,AllTwoElRDMTag,ierr)
                 AllTwoElRDM(:,:)=0.D0
+
+                MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (nBasis*(nBasis-1))/2 ) ** 2 ) * 8 ) 
             ENDIF
         ENDIF            
 
@@ -168,6 +181,9 @@ MODULE nElRDMMod
                 IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Doub_ExcDjs2 array.')
                 CALL LogMemAlloc('Doub_ExcDjs2',NINT(((NEl*nBasis)**2)*MemoryFacPart)&
                                 *(NIfTot+1),size_n_int,this_routine,Doub_ExcDjs2Tag,ierr)
+
+                MemoryAlloc = MemoryAlloc + ( (NIfTot + 1) * NINT(((NEl*nBasis)**2)*MemoryFacPart) * size_n_int * 2 ) 
+                MemoryAlloc_Root = MemoryAlloc_Root + ( (NIfTot + 1) * NINT(((NEl*nBasis)**2)*MemoryFacPart) * size_n_int * 2 ) 
 
 ! We need room to potentially generate (N*M)^2 double excitations but these 
 ! will be spread across each processor.        
@@ -206,6 +222,9 @@ MODULE nElRDMMod
                 Sing_ExcDjs(:,:)=0
                 Sing_ExcDjs2(:,:)=0
 
+                MemoryAlloc = MemoryAlloc + ( (NIfTot + 1) * NINT((NEl*nBasis)*MemoryFacPart) * size_n_int * 2 ) 
+                MemoryAlloc_Root = MemoryAlloc_Root + ( (NIfTot + 1) * NINT((NEl*nBasis)*MemoryFacPart) * size_n_int * 2 ) 
+
 ! We need room to potentially generate N*M single excitations but these will be 
 ! spread across each processor.        
 
@@ -236,7 +255,20 @@ MODULE nElRDMMod
             CALL LogMemAlloc('Spawned_Parents_Index',MaxSpawned*2,4,this_routine,&
                                                         Spawned_Parents_IndexTag,ierr)
 
+            MemoryAlloc = MemoryAlloc + ( (NIfTot + 2) * MaxSpawned * size_n_int ) 
+            MemoryAlloc_Root = MemoryAlloc_Root + ( (NIfTot + 2) * MaxSpawned * size_n_int ) 
+
+            MemoryAlloc = MemoryAlloc + ( 2 * MaxSpawned * 4 ) 
+            MemoryAlloc_Root = MemoryAlloc_Root + ( 2 * MaxSpawned * 4 ) 
+
         ENDIF
+
+        if(iProcIndex.eq.0) then
+            write(6,"(A,F14.6,A)") " Main RDM memory arrays consists of : ", &
+                    & REAL(MemoryAlloc_Root,dp)/1048576.D0," Mb/Processor on the root, "
+            write(6,"(A,F14.6,A)") " and ", &
+                    & REAL(MemoryAlloc,dp)/1048576.D0," Mb/Processor on other processors."
+        endif
 
         tSeparateOccVirt=.false.
         NoOrbs=nBasis
