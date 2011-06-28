@@ -1052,7 +1052,8 @@ MODULE AnnihilationMod
             do i=1,TotWalkersNew
                 call extract_sign(CurrentDets(:,i),CurrentSign)
 
-                if(tHF_Ref_Explicit.and.(Iter.ge.(IterRDMonFly - 1)).and.&
+                if(tHF_Ref_Explicit.and.(.not.tSinglePartPhase).and. &
+                    ((Iter - VaryShiftIter).ge.(IterRDMonFly - 1)).and.&
                     DetBitEQ(iLutHF,CurrentDets(:,i),NIfDBO)) HFSign(1) = CurrentSign(1)
 
                 IF(IsUnoccDet(CurrentSign)) THEN
@@ -1093,7 +1094,8 @@ MODULE AnnihilationMod
             call stop_all(this_routine,'HF has been deleted from list')
         ENDIF
 
-        if(tHF_Ref_Explicit.and.(Iter.ge.(IterRDMonFly - 1))) &
+        if(tHF_Ref_Explicit.and.(.not.tSinglePartPhase).and.&
+                ((Iter - VaryShiftIter).ge.(IterRDMonFly - 1))) &
             call MPIAllReduce (HFSign, MPI_SUM, AllHFSign)
 
 !        do i=1,TotWalkersNew
