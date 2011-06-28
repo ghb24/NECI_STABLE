@@ -1520,8 +1520,10 @@ MODULE nElRDMMod
 
         CALL set_timer(FinaliseRDM_Time)
 
-        ! If we're calculating the energy, do this here.
-        if(tCalc_RDMEnergy) then
+        ! We always want to calculate one final RDM energy, whether or not we're 
+        ! calculating the energy throughout the calculation.
+        ! Unless of course, only the 1 or 2 RDM's are being calculated.
+        if(RDMExcitLevel.eq.3) then
 
             tFinalRDMEnergy = .true.
 
@@ -2998,7 +3000,7 @@ MODULE nElRDMMod
  
             endif
 
-            WRITE(Energies_unit, "(I31,2F30.15)") Iter+PreviousCycles, RDMEnergy
+            if(tCalc_RDMEnergy) WRITE(Energies_unit, "(I31,2F30.15)") Iter+PreviousCycles, RDMEnergy
 
 !            if(tHF_Ref_Explicit) then
 !                NatOrbMat(:,:) = 0.D0
@@ -3107,17 +3109,15 @@ MODULE nElRDMMod
         write(6,*) 'Writing out density matrices to file'
         call flush(6)
 
-        IF(tFinalRDMEnergy.or.(.not.tCalc_RDMEnergy)) THEN
-            if(RDMExcitLevel.ne.2) then
-                OneRDM_unit = get_free_unit()
-                OPEN(OneRDM_unit,file='1El_RDM_Matrix',status='unknown')
-            endif
+        if(RDMExcitLevel.ne.2) then
+            OneRDM_unit = get_free_unit()
+            OPEN(OneRDM_unit,file='1El_RDM_Matrix',status='unknown')
+        endif
 
-            if(RDMExcitLevel.ne.1) then
-                TwoRDM_unit = get_free_unit()
-                OPEN(TwoRDM_unit,file='2El_RDM_Matrix',status='unknown')
-            endif
-        ENDIF
+        if(RDMExcitLevel.ne.1) then
+            TwoRDM_unit = get_free_unit()
+            OPEN(TwoRDM_unit,file='2El_RDM_Matrix',status='unknown')
+        endif
 
         Lin_Ineq = 0.D0
         Lin_Ineq_OneEl = 0.D0
