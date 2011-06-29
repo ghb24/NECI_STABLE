@@ -78,7 +78,7 @@ MODULE FciMCData
       integer(int64) :: norm_psi_squared
       real(dp) :: norm_psi
       INTEGER :: exFlag=3
-      real*8 :: AccumRDMNorm
+      real*8 :: AccumRDMNorm, AccumRDMNorm_Inst
 
 !The following variables are calculated as per processor, but at the end of each update cycle, are combined to the root processor
       real(dp) :: GrowRate,DieRat
