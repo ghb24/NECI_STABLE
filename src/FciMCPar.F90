@@ -5482,7 +5482,7 @@ MODULE FciMCParMod
         use nElRDMMod, only: InitRDM
         INTEGER :: ierr,iunithead
         LOGICAL :: formpops,binpops
-        INTEGER :: error,MemoryAlloc,PopsVersion,WalkerListSize,j,iLookup
+        INTEGER :: error,MemoryAlloc,PopsVersion,j,iLookup,WalkerListSize
         INTEGER, DIMENSION(lenof_sign) :: InitialSign
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
         integer :: ReadBatch    !This parameter determines the length of the array to batch read in walkers from a popsfile
@@ -5537,7 +5537,7 @@ MODULE FciMCParMod
 
             MaxWalkersPart=NINT(MemoryFacPart*WalkerListSize)
             WRITE(6,"(A,I14)") " Memory allocated for a maximum particle number per node of: ",MaxWalkersPart
-            Call SetupValidSpawned(WalkerListSize)
+            Call SetupValidSpawned(int(WalkerListSize,int64))
 
 !Put a barrier here so all processes synchronise
             CALL MPIBarrier(error)
