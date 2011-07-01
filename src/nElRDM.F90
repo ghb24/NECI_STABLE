@@ -66,7 +66,7 @@ MODULE nElRDMMod
         REAL(dp) , ALLOCATABLE :: UMATTemp(:,:)
         REAL(dp) :: OneEl_Gap,TwoEl_Gap, Normalisation, Trace_2RDM, Trace_1RDM
         LOGICAL :: tFinalRDMEnergy, tCalc_RDMEnergy
-        type(timer), save :: nElRDM_Time, FinaliseRDM_time
+        type(timer), save :: nElRDM_Time, FinaliseRDM_time, RDMEnergy_time
 
     contains
 
@@ -327,6 +327,7 @@ MODULE nElRDMMod
 
         nElRDM_Time%timer_name='nElRDMTime'
         FinaliseRDM_Time%timer_name='FinaliseRDMTime'
+        RDMEnergy_Time%timer_name='RDMEnergyTime'
 
     END SUBROUTINE InitRDM
 
@@ -1520,7 +1521,6 @@ MODULE nElRDMMod
         real(dp) :: Norm_1RDM_Inst, Norm_2RDM_Inst, Trace_1RDM_Inst, Trace_2RDM_Inst, AllAccumRDMNorm_Inst
         real(dp) :: Norm_1RDM, Norm_2RDM, Trace_1RDM, Trace_2RDM, AllAccumRDMNorm
         CHARACTER(len=*), PARAMETER :: this_routine='FinaliseRDM'
-
 
         CALL set_timer(FinaliseRDM_Time)
 
@@ -2844,6 +2844,8 @@ MODULE nElRDMMod
         REAL(dp) , ALLOCATABLE :: TestRDM(:,:)
         INTEGER :: TestRDMTag
 
+        CALL set_timer(RDMEnergy_Time,30)
+
         !temp
 
 !        ALLOCATE(UMATTemp(((nBasis*(nBasis-1))/2),((nBasis*(nBasis-1))/2)),stat=ierr)
@@ -3079,6 +3081,7 @@ MODULE nElRDMMod
 !        deallocate(testrdm)
 !        deallocate(UMATTemp)
 
+        CALL halt_timer(RDMEnergy_Time)
 
     END SUBROUTINE Calc_Energy_from_RDM
 
