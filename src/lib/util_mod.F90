@@ -21,9 +21,9 @@ contains
         integer, dimension(lenof_sign), intent(in) :: wsign
 
         if(lenof_sign.eq.1) then
-            abs_int_sign=wsign(1)
+            abs_int_sign=abs(wsign(1))
         else
-            abs_int_sign=nint(sqrt(real(wsign(1),dp)**2+real(wsign(2),dp)**2),int32)
+            abs_int_sign=nint(sqrt(real(wsign(1),dp)**2+real(wsign(2),dp)**2),sizeof_int)
         endif
     end function abs_int_sign
 
@@ -32,7 +32,7 @@ contains
         integer(kind=int64), dimension(lenof_sign), intent(in) :: wsign
 
         if(lenof_sign.eq.1) then
-            abs_int8_sign=wsign(1)
+            abs_int8_sign=abs(wsign(1))
         else
             abs_int8_sign=nint(sqrt(real(wsign(1),dp)**2+real(wsign(2),dp)**2),int64)
         endif

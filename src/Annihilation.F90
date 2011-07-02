@@ -864,6 +864,7 @@ MODULE AnnihilationMod
 !The key feature which makes this work, is that it is impossible for the same determinant to be specified in both the spawned and main list at the end of
 !the annihilation process. Therefore we will not multiply specify determinants when we merge the lists.
     SUBROUTINE InsertRemoveParts(ValidSpawned,TotWalkersNew)
+        use util_mod, only: abs_int_sign
         use SystemData, only: tHPHF
         use bit_reps, only: NIfD
         use CalcData , only : tCheckHighestPop
@@ -911,9 +912,8 @@ MODULE AnnihilationMod
                     IF(tCheckHighestPop) THEN
 !If this option is on, then we want to compare the weight on each determinant to the weight at the HF determinant.
 !Record the highest weighted determinant on each processor.
-!TODO: NOTE: THIS STILL ONLY WORKS EXPLICITLY FOR REAL WALKERS ONLY
-                        IF((abs(CurrentSign(1))).gt.iHighestPop) THEN
-                            iHighestPop=abs(CurrentSign(1))
+                        IF(abs_int_sign(CurrentSign).gt.iHighestPop) THEN
+                            iHighestPop=abs_int_sign(CurrentSign)
                             HighestPopDet(:)=CurrentDets(:,i)
                         ENDIF
                     ENDIF
