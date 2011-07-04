@@ -3282,7 +3282,7 @@ MODULE nElRDMMod
         if(RDMExcitLevel.ne.1) close(TwoRDM_unit)
 
         write(6,*) ''
-        if(RDMExcitLevel.ne.2) write(6,'(A22,F20.10)') ' TOTAL SPIN PROJECTION', Max(SpinPlus,SpinMinus) 
+        if(RDMExcitLevel.eq.2) write(6,'(A22,F20.10)') ' TOTAL SPIN PROJECTION', Max(SpinPlus,SpinMinus) 
         if(RDMExcitLevel.eq.3) write(6,'(A18,F20.10)') ' LINEAR INEQUALITY', Lin_Ineq
         write(6,*) ''
 
