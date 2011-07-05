@@ -1608,11 +1608,13 @@ MODULE FciMCParMod
         real(dp) :: MatEl
 #endif
 
-        ! If we are generating multiple excitotions, then the probability of
+        ! If we are generating multiple excitations, then the probability of
         ! spawning on them must be reduced by the number of excitations
         ! generated (i.e. the excitation is likely to arise a factor of
         ! NoMCExcits more often)
-        prob = prob * real(NoMCExcits, dp)
+        if(NoMCExcits.ne.1) then
+            prob = prob * real(NoMCExcits, dp)
+        endif
 
         ! In the case of using HPHF, and when tGenMatHEl is on, the matrix
         ! element is calculated at the time of the excitation generation, 
@@ -1632,84 +1634,93 @@ MODULE FciMCParMod
             IF(part_type.eq.1) THEN
                 !Real parent particle
 
-                do i=1,lenof_sign
-                    !Run over spawnings from both the real and imaginary part of the matrix element
+                !First spawn from real part of matrix element
+                !Attempt spawning
+                rat = tau * abs(real(rh,dp) / prob)
 
-                    IF(i.eq.1) THEN
-                        !We want to use the real part of the matrix element to create real walkers
-                        MatEl=REAL(rh,dp)
-                    ELSE
-                        !We want to use the imaginary part of the matrix element to create imaginary walkers
-                        MatEl=AIMAG(rh)
-                    ENDIF
+                ! If probability > 1, then we just create multiple children at the
+                ! chosen determinant.
+                extraCreate = int(rat)
+                rat = rat - real(extraCreate, dp)
 
-                    !Attempt spawning
-                    rat = tau * abs(MatEl / prob)
+                ! Stochastically choose whether to create or not.
+                r = genrand_real2_dSFMT ()
+                if (rat > r) then
+                    !Create child
+                    child(1) = -nint(sign(1.0_dp, wsign(1)*real(rh,dp)))  !Will return +- one depending on the desired sign of the stochastically created child.
+                    child(1) = child(1) + sign(extraCreate, child(1))
+                else
+                    !Just return if any extra particles created
+                    child(1) = -extraCreate*nint(sign(1.0_dp, wsign(1)*real(rh,dp)))
+                endif
 
-                    ! If probability > 1, then we just create multiple children at the
-                    ! chosen determinant.
-                    extraCreate = int(rat)
-                    rat = rat - real(extraCreate, dp)
+                !Now attempt spawning from im part of matrix element
+                !Attempt spawning
+                rat = tau * abs(aimag(rh) / prob)
 
-                    ! Stochastically choose whether to create or not.
-                    r = genrand_real2_dSFMT ()
-                    if (rat > r) then
-                        !Create child
-                        child(i) = -nint(sign(1.0_dp, wsign(part_type)*MatEl))  !Will return +- one depending on the desired sign of the stochastically created child.
-                        child(i) = child(i) + sign(extraCreate, child(i))
-                    else
-                        !Just return if any extra particles created
-                        child(i) = -extraCreate*nint(sign(1.0_dp, wsign(part_type)*MatEl))
-                    endif
-                enddo
+                ! If probability > 1, then we just create multiple children at the
+                ! chosen determinant.
+                extraCreate = int(rat)
+                rat = rat - real(extraCreate, dp)
+
+                ! Stochastically choose whether to create or not.
+                r = genrand_real2_dSFMT ()
+                if (rat > r) then
+                    !Create child
+                    child(2) = -nint(sign(1.0_dp, wsign(1)*aimag(rh)))  !Will return +- one depending on the desired sign of the stochastically created child.
+                    child(2) = child(2) + sign(extraCreate, child(2))
+                else
+                    !Just return if any extra particles created
+                    child(2) = -extraCreate*nint(sign(1.0_dp, wsign(1)*aimag(rh)))
+                endif
 
             ELSE
                 !Imaginary parent particle - rules are slightly different...
                 !Attempt to spawn REAL walkers with prob +AIMAG(Hij)/P
                 !Attempt to spawn IMAG walkers with prob -REAL(Hij)/P
-                do i=1,lenof_sign
-                    !Run over spawnings from both the real and imaginary part of the matrix element
+                !We want to use the imaginary part of the matrix element to create real walkers
+                !We want to use the real part of the matrix element to create imaginary walkers
+                rat = tau * abs(aimag(rh) / prob)
 
-                    IF(i.eq.1) THEN
-                        !We want to use the imaginary part of the matrix element to create real walkers
-                        MatEl=AIMAG(rh)
-                    ELSE
-                        !We want to use the real part of the matrix element to create imaginary walkers
-                        MatEl=REAL(rh,dp)
-                    ENDIF
+                ! If probability > 1, then we just create multiple children at the
+                ! chosen determinant.
+                extraCreate = int(rat)
+                rat = rat - real(extraCreate, dp)
 
-                    !Attempt spawning
-                    rat = tau * abs(MatEl / prob)
+                ! Stochastically choose whether to create or not.
+                r = genrand_real2_dSFMT ()
+                !Prob = +AIMAG(Hij)/P to create real children
+                if (rat > r) then
+                    !Create child
+                    child(1) = nint(sign(1.0_dp, wsign(2)*aimag(rh)))  !Will return +- one depending on the desired sign of the stochastically created child.
+                    child(1) = child(1) + sign(extraCreate, child(1))
+                else
+                    !Just return if any extra particles created
+                    child(1) = extraCreate*nint(sign(1.0_dp, wsign(2)*aimag(rh)))
+                endif
+                
+                !Now spawning from real part of matrix element
+                !We want to use the real part of the matrix element to create imaginary walkers
 
-                    ! If probability > 1, then we just create multiple children at the
-                    ! chosen determinant.
-                    extraCreate = int(rat)
-                    rat = rat - real(extraCreate, dp)
+                !Attempt spawning
+                rat = tau * abs(real(rh,dp) / prob)
 
-                    ! Stochastically choose whether to create or not.
-                    r = genrand_real2_dSFMT ()
-                    IF(i.eq.1) THEN
-                        !Prob = +AIMAG(Hij)/P to create real children
-                        if (rat > r) then
-                            !Create child
-                            child(i) = nint(sign(1.0_dp, wsign(part_type)*MatEl))  !Will return +- one depending on the desired sign of the stochastically created child.
-                            child(i) = child(i) + sign(extraCreate, child(i))
-                        else
-                            !Just return if any extra particles created
-                            child(i) = extraCreate*nint(sign(1.0_dp, wsign(part_type)*MatEl))
-                        endif
-                    ELSE
-                        !Prob = -REAL(Hij)/P to create imaginary children
-                        if (rat > r) then
-                            !Create child
-                            child(i) = -nint(sign(1.0_dp, wsign(part_type)*MatEl))  !Will return +- one depending on the desired sign of the stochastically created child.
-                            child(i) = child(i) + sign(extraCreate, child(i))
-                        else
-                            !Just return if any extra particles created
-                            child(i) = -extraCreate*nint(sign(1.0_dp, wsign(part_type)*MatEl))
-                        endif
-                    ENDIF
-                enddo
+                ! If probability > 1, then we just create multiple children at the
+                ! chosen determinant.
+                extraCreate = int(rat)
+                rat = rat - real(extraCreate, dp)
+
+                ! Stochastically choose whether to create or not.
+                r = genrand_real2_dSFMT ()
+                !Prob = -REAL(Hij)/P to create imaginary children
+                if (rat > r) then
+                    !Create child
+                    child(2) = -nint(sign(1.0_dp, wsign(2)*real(rh,dp)))  !Will return +- one depending on the desired sign of the stochastically created child.
+                    child(2) = child(2) + sign(extraCreate, child(2))
+                else
+                    !Just return if any extra particles created
+                    child(2) = -extraCreate*nint(sign(1.0_dp, wsign(2)*real(rh,dp)))
+                endif
 
             ENDIF   ! Type of parent
 
