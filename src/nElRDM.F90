@@ -2706,10 +2706,10 @@ MODULE nElRDMMod
 ! < a a | a a > = < b b | b b > 
 ! < a b | a b > = < b a | b a >
 ! < a b | b a > = < b a | a b >
-        real(dp) :: Entry_bb, Entry_aa, Sign_aa, Sign_bb
+        real(dp) :: Entry_bb, Entry_aa
         real(dp) :: Entry_abab, Entry_baba, Sign_abab, Sign_baba
         real(dp) :: Entry_abba, Entry_baab, Sign_abba, Sign_baab
-        real(dp) :: Entry_aaaa, Entry_bbbb, Sign_aaaa, Sign_bbbb
+        real(dp) :: Entry_aaaa, Entry_bbbb
         integer :: i, j, a, b
         integer :: Indij_ab, Indij_aa, Indij_bb, Indij_ba
         integer :: Indab_ab, Indab_aa, Indab_bb, Indab_ba
@@ -2718,95 +2718,110 @@ MODULE nElRDMMod
 
             do i = 1, nBasis - 1, 2
 
+                ! ialpha -> ialpha = ibeta -> ibeta
                 Entry_bb = NatOrbMat(SymLabelListInv(i),SymLabelListInv(i))
                 Entry_aa = NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(i+1))
 
-                Sign_bb = sign(1.D0, Entry_bb)
-                Sign_aa = sign(1.D0, Entry_aa)
-
                 NatOrbMat(SymLabelListInv(i),SymLabelListInv(i)) = &
-                    Sign_bb * ( ( abs(Entry_bb) + abs(Entry_aa) ) / 2.D0 )
+                                            ( Entry_bb + Entry_aa ) / 2.D0 
 
                 NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(i+1)) = &
-                    Sign_aa * ( ( abs(Entry_bb) + abs(Entry_aa) ) / 2.D0 )
+                                            ( Entry_bb + Entry_aa ) / 2.D0 
 
                 do a = 1, nBasis - 1, 2
 
+                    ! ialpha -> jalpha = ibeta -> jbeta
                     Entry_bb = NatOrbMat(SymLabelListInv(i),SymLabelListInv(a))
                     Entry_aa = NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(a+1))
 
-                    Sign_bb = sign(1.D0, Entry_bb)
-                    Sign_aa = sign(1.D0, Entry_aa)
-
                     NatOrbMat(SymLabelListInv(i),SymLabelListInv(a)) = &
-                        Sign_bb * ( ( abs(Entry_bb) + abs(Entry_aa) ) / 2.D0 )
+                                            ( Entry_bb + Entry_aa ) / 2.D0 
 
                     NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(a+1)) = &
-                        Sign_aa * ( ( abs(Entry_bb) + abs(Entry_aa) ) / 2.D0 )
+                                            ( Entry_bb + Entry_aa ) / 2.D0 
 
-                    do j = i+2, nBasis - 1, 2
+                    do j = i, nBasis - 1, 2
 
-                        do b = a+2, nBasis - 1, 2
+                        do b = a, nBasis - 1, 2
 
-                            Indij_bb = ( ( (j-2) * (j-1) ) / 2 ) + i
-                            Indab_bb = ( ( (b-2) * (b-1) ) / 2 ) + a
-                            Entry_bbbb = AllTwoElRDM(Indij_bb,Indab_bb)
+                            ! ialpha ialpha -> jalpha jalpha
+                            ! = ibeta ibeta -> jbeta jbeta
+                            if((i.ne.j).and.(a.ne.b)) then
+                                Indij_bb = ( ( (j-2) * (j-1) ) / 2 ) + i
+                                Indab_bb = ( ( (b-2) * (b-1) ) / 2 ) + a
+                                Entry_bbbb = AllTwoElRDM(Indij_bb,Indab_bb)
 
-                            Indij_aa = ( ( ((j+1)-2) * ((j+1)-1) ) / 2 ) + (i+1)
-                            Indab_aa = ( ( ((b+1)-2) * ((b+1)-1) ) / 2 ) + (a+1)
-                            Entry_aaaa = AllTwoElRDM(Indij_aa,Indab_aa)
+                                Indij_aa = ( ( ((j+1)-2) * ((j+1)-1) ) / 2 ) + (i+1)
+                                Indab_aa = ( ( ((b+1)-2) * ((b+1)-1) ) / 2 ) + (a+1)
+                                Entry_aaaa = AllTwoElRDM(Indij_aa,Indab_aa)
 
-                            Sign_bbbb = sign(1.D0, Entry_bbbb)
-                            Sign_aaaa = sign(1.D0, Entry_aaaa)
-                            
-                            AllTwoElRDM(Indij_bb,Indab_bb) = &
-                                Sign_bbbb * ( ( abs(Entry_bbbb) + &
-                                                    abs(Entry_aaaa) ) / 2.D0 )
+                                AllTwoElRDM(Indij_bb,Indab_bb) = &
+                                            ( Entry_bbbb + Entry_aaaa ) / 2.D0 
 
-                            AllTwoElRDM(Indij_aa,Indab_aa) = &
-                                Sign_aaaa * ( ( abs(Entry_bbbb) + &
-                                                    abs(Entry_aaaa) ) / 2.D0 )
+                                AllTwoElRDM(Indij_aa,Indab_aa) = &
+                                            ( Entry_bbbb + Entry_aaaa ) / 2.D0 
+                            endif
 
-
-                            Indij_ba = ( ( ((j+1)-2) * ((j+1)-1) ) / 2 ) + i
-                            Indab_ba = ( ( ((b+1)-2) * ((b+1)-1) ) / 2 ) + a
+                            ! alpha beta -> alpha beta
+                            ! = beta alpha -> beta alpha
+                            Indij_ba = ( ( (max(i,j+1)-2) * (max(i,j+1)-1) ) / 2 ) + min(i,j+1)
+                            Indab_ba = ( ( (max(a,b+1)-2) * (max(a,b+1)-1) ) / 2 ) + min(a,b+1)
                             Entry_baba = AllTwoElRDM(Indij_ba, Indab_ba)
 
-                            Indij_ab = ( ( (j-2) * (j-1) ) / 2 ) + (i+1)
-                            Indab_ab = ( ( (b-2) * (b-1) ) / 2 ) + (a+1)
+                            ! assume i < j+1 and a < b+1 - actually this must be true.
+                            ! keep this in for now anyway.
+                            Sign_baba = 1.D0
+                            if( ((max(i,j+1).eq.i).and.(max(a,b+1).ne.a)) .or. & 
+                                ((max(i,j+1).eq.(j+1)).and.(max(a,b+1).ne.(b+1))) ) Sign_baba = -1.D0
+
+                            Indij_ab = ( ( (max(i+1,j)-2) * (max(i+1,j)-1) ) / 2 ) + min(i+1,j)
+                            Indab_ab = ( ( (max(a+1,b)-2) * (max(a+1,b)-1) ) / 2 ) + min(a+1,b)
                             Entry_abab = AllTwoElRDM(Indij_ab,Indab_ab)
 
-                            Sign_baba = sign(1.D0, Entry_baba)
-                            Sign_abab = sign(1.D0, Entry_abab)
+                            ! assume i+1 < j and a+1 < b - not always true if i and j are from 
+                            ! the same spatial orbital.
+                            Sign_abab = 1.D0
+                            if( ((max(i+1,j).ne.j).and.(max(a+1,b).eq.b)) .or. &
+                                ((max(i+1,j).ne.(i+1)).and.(max(a+1,b).eq.(a+1))) ) Sign_abab = -1.D0
+
                             
                             AllTwoElRDM(Indij_ba, Indab_ba) = &
-                                Sign_baba * ( ( abs(Entry_baba) + &
-                                                    abs(Entry_abab) ) / 2.D0 )
+                                Sign_baba * ( ( ( Entry_baba * Sign_baba ) + &
+                                                ( Entry_abab * Sign_abab) ) / 2.D0 )
+
 
                             AllTwoElRDM(Indij_ab,Indab_ab) = &
-                                Sign_abab * ( ( abs(Entry_baba) + &
-                                                    abs(Entry_abab) ) / 2.D0 )
+                                Sign_abab * ( ( ( Entry_baba * Sign_baba ) + &
+                                                    ( Entry_abab * Sign_abab ) )  / 2.D0 )
 
 
-                            Indij_ba = ( ( ((j+1)-2) * ((j+1)-1) ) / 2 ) + i
-                            Indab_ab = ( ( (b-2) * (b-1) ) / 2 ) + (a+1)
+                            ! beta alpha -> alpha beta
+                            ! = alpha beta -> beta alpha
+                            Indij_ba = ( ( (max(i,j+1)-2) * (max(i,j+1)-1) ) / 2 ) + min(i,j+1)
+                            Indab_ab = ( ( (max(a+1,b)-2) * (max(a+1,b)-1) ) / 2 ) + min(a+1,b)
                             Entry_baab = AllTwoElRDM(Indij_ba,Indab_ab)
 
-                            Indij_ab = ( ( (j-2) * (j-1) ) / 2 ) + (i+1)
-                            Indab_ba = ( ( ((b+1)-2) * ((b+1)-1) ) / 2 ) + a
+                            Sign_baab = 1.D0
+                            if( ((max(i,j+1).eq.i).and.(max(a+1,b).eq.b)) .or. &
+                                ((max(i,j+1).eq.(j+1)).and.(max(a+1,b).eq.(a+1))) ) Sign_baab = -1.D0
+
+                            Indij_ab = ( ( (max(i+1,j)-2) * (max(i+1,j)-1) ) / 2 ) + min(i+1,j)
+                            Indab_ba = ( ( (max(a,b+1)-2) * (max(a,b+1)-1) ) / 2 ) + min(a,b+1)
                             Entry_abba = AllTwoElRDM(Indij_ab,Indab_ba)
 
-                            Sign_baab = sign(1.D0, Entry_baab)
-                            Sign_abba = sign(1.D0, Entry_abba)
+                            Sign_abba = 1.D0
+                            if( ((max(i+1,j).eq.(i+1)).and.(max(a,b+1).eq.(b+1))) .or. &
+                                ((max(i+1,j).eq.j).and.(max(a,b+1).eq.a)) ) Sign_abba = -1.D0
+
                             
                             AllTwoElRDM(Indij_ba,Indab_ab) = &
-                                Sign_baab * ( ( abs(Entry_baab) + &
-                                                    abs(Entry_abba) ) / 2.D0 )
+                                Sign_baab * ( ( (Entry_baab * Sign_baab) + &
+                                                    (Entry_abba * Sign_abba) ) / 2.D0 )
 
-                            AllTwoElRDM(Indij_ab,Indab_ba) = &
-                                Sign_abba * ( ( abs(Entry_baab) + &
-                                                    abs(Entry_abba) ) / 2.D0 )
 
+                            AllTwoElRDM(Indij_ab,Indab_ba) = & 
+                                Sign_abba * ( ( (Entry_baab * Sign_baab) + &
+                                                    (Entry_abba * Sign_abba) ) / 2.D0 )
                         enddo
                     enddo
                 enddo
