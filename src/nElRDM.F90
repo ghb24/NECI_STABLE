@@ -1604,7 +1604,8 @@ MODULE nElRDMMod
                 Corr_Entropy = 0.D0
                 do i=1,nBasis
                     WRITE(6,'(F30.20)') Evalues(i)
-                    Corr_Entropy = Corr_Entropy - ( (1.D0 / NEl) * abs(Evalues(i)) &
+                    if(Evalues(i).gt.0.D0) &
+                        Corr_Entropy = Corr_Entropy - ( (1.D0 / NEl) * abs(Evalues(i)) &
                                                                 * LOG(abs(Evalues(i))) )
                 enddo
                 WRITE(6,*) ''
