@@ -2,10 +2,11 @@ module MI_integrals
     use constants, only: dp,n_int
     use MomInv, only: IsBitMomSelfInv, InvertMomDet, ReturnMomAllowedDet, InvertMomBitDet 
     use MomInv, only: IsMomSelfInv, CalcMomAllowedBitDet
-    use SystemData, only: NEl, G1, nBasis, tAntisym_MI
+    use SystemData, only: NEl, G1, nBasis, tAntisym_MI, Ecore
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel
     use sltcnd_mod, only: sltcnd, sltcnd_excit
     use bit_reps, only: NIfD, NIfTot, NIfDBO, decode_bit_det
+    implicit none
     
     
     interface MI_off_diag_helement
