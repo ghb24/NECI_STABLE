@@ -1029,10 +1029,11 @@ MODULE NatOrbsMod
         do i=1,NoOrbs
             SumDiagTrace=SumDiagTrace+Evalues(i)
         enddo
-        IF((ABS(SumDiagTrace-SumTrace)).gt.1) THEN
+        IF((ABS(SumDiagTrace-SumTrace)).gt.10.D0) THEN
             WRITE(6,*) 'Sum of diagonal NatOrbMat elements : ',SumTrace
             WRITE(6,*) 'Sum of eigenvalues : ',SumDiagTrace
-            CALL Stop_All(this_routine,'The trace of the 1RDM matrix before diagonalisation is not equal to that after.')
+!            CALL Stop_All(this_routine,'The trace of the 1RDM matrix before diagonalisation is not equal to that after.')
+            WRITE(6,*) 'WARNING, The trace of the 1RDM matrix before diagonalisation is not equal to that after.'
         ENDIF
 
         CALL halt_timer(DiagNatOrbMat_Time)
