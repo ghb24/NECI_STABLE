@@ -21,7 +21,7 @@ MODULE Calc
                         tSpawnProp, nClustSelections, tExactEnergy,     &
                         dClustSelectionRatio,tSharedExcitors
     use FciMCData, only: proje_linear_comb, proje_ref_det_init,tTimeExit,MaxTimeExit, &
-                         InputDiagSft
+                         InputDiagSft,tSearchTau
 
     implicit none
 
@@ -50,6 +50,8 @@ contains
 
 
 !       Calc defaults 
+          MaxWalkerBloom=-1
+          tSearchTau=.true.
           InputDiagSft=0.D0
           tPopsMapping=.false.
           tTimeExit=.false.
@@ -826,10 +828,15 @@ contains
                 InputDiagSft = DiagSft
             case("TAUFACTOR")
 !For FCIMC, this is the factor by which 1/(HF connectivity) will be multiplied by to give the timestep for the calculation.
+                tSearchTau=.false.  !Tau is set, so don't search for it.
                 call getf(TauFactor)
             case("TAU")
 !For FCIMC, this can be considered the timestep of the simulation. It is a constant which will increase/decrease the rate of spawning/death for a given iteration.
+                tSearchTau=.false.  !Tau is set, so don't search for it.
                 call getf(Tau)
+            case("MAXWALKERBLOOM")
+                !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.
+                call geti(MaxWalkerBloom)
             case("SHIFTDAMP")
 !For FCIMC, this is the damping parameter with respect to the update in the DiagSft value for a given number of MC cycles.
                 call getf(SftDamp)
