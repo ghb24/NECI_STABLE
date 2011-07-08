@@ -4351,7 +4351,9 @@ MODULE FciMCParMod
                 MaxAllowedSpawnProb = real(MaxWalkerBloom,dp) !Won't allow more than MaxWalkerBloom particles to spawn in one event. 
             endif
 
-            write(6,"(A,f10.5)") "Will search for optimal tau without restarting, to limit spawning probability to: ",MaxAllowedSpawnProb
+            write(6,"(A,f10.5)") "Will search for optimal tau without &
+                       &restarting, to limit spawning probability to: ", &
+                       MaxAllowedSpawnProb
         endif
 
         IF(StepsSftImag.ne.0.D0) THEN
