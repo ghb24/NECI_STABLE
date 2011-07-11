@@ -273,8 +273,10 @@ MODULE FciMCData
 
 !      ! Excitation generation storage 
       type(excit_gen_store_type) :: fcimc_excit_gen_store
-      
 
+      !Tau searching variables
+      logical :: tSearchTau
+      real(dp) :: MaxSpawnProb,AllMaxSpawnProb,MaxAllowedSpawnProb
 
       !*****************  Yucky globals for AJWT iter-dependent hashes ***********
       integer :: hash_iter       ! An iteration number added to make iteration-dependent hashes

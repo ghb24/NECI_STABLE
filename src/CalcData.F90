@@ -56,6 +56,7 @@ INTEGER :: NMCyc,StepsSft,CLMax
 INTEGER :: NEquilSteps,InitialPart
 INTEGER :: OccCASorbs,VirtCASorbs,iAnnInterval
 integer :: iPopsFileNoRead, iPopsFileNoWrite,iWeightPopRead,iRestartWalkNum
+integer :: MaxWalkerBloom   !Max number of walkers allowed in one bloom before reducing tau
 INTEGER(int64) :: MaxNoatHF,HFPopThresh,InitWalkers
 
 real(dp) :: g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
