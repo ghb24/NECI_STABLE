@@ -243,36 +243,8 @@ MODULE FciMCParMod
                     call calculate_new_shift_wrapper (iter_data_fciqmc, &
                                                       TotParts)
                 endif
-                !call project_spin_csfs()
 
                 if(tRestart) cycle
-
-                !! Quick hack for spin projection
-                !if (tSpinProject .and. (mod(iter/stepssft, spin_proj_interval) == 0 .or. &
-                !    spin_proj_interval == 0)) then
-
-
-                !    call MPIReduce(iter_data_spin_proj%update_growth, &
-                !                   MPI_SUM, tmp_int)
-                !    if (iProcIndex == Root) then
-                !        grow_rate = (sum(tmp_int + &
-                !                     iter_data_spin_proj%tot_parts_old)) &
-                !                    / real(sum(iter_data_spin_proj%tot_parts_old), dp)
-                !        iter_data_spin_proj%tot_parts_old = AllTotPartsOld
-
-                !        if (.not. tSinglePartPhase) then
-                !            spin_proj_shift = spin_proj_shift - ((log(grow_rate) * SftDamp) / &
-                !                              (spin_proj_gamma * iter_data_spin_proj%update_iters))
-                !        endif
-
-                !    endif
-
-                !    call MPIBCast (spin_proj_shift)
-
-                !    iter_data_spin_proj%update_growth = 0
-                !    iter_data_spin_proj%update_iters = 0
-                !endif
-
 
                 IF((tTruncCAS.or.tTruncSpace.or.tTruncInitiator).and.(Iter.gt.iFullSpaceIter).and.(iFullSpaceIter.ne.0)) THEN
 !Test if we want to expand to the full space if an EXPANDSPACE variable has been set
@@ -1618,11 +1590,15 @@ MODULE FciMCParMod
         real(dp) :: MatEl
 #endif
 
-        ! If we are generating multiple excitotions, then the probability of
+        child(:) = 0
+
+        ! If we are generating multiple excitations, then the probability of
         ! spawning on them must be reduced by the number of excitations
         ! generated (i.e. the excitation is likely to arise a factor of
         ! NoMCExcits more often)
-        prob = prob * real(NoMCExcits, dp)
+        if(NoMCExcits.ne.1) then
+            prob = prob * real(NoMCExcits, dp)
+        endif
 
         ! In the case of using HPHF, and when tGenMatHEl is on, the matrix
         ! element is calculated at the time of the excitation generation, 
@@ -1642,84 +1618,105 @@ MODULE FciMCParMod
             IF(part_type.eq.1) THEN
                 !Real parent particle
 
-                do i=1,lenof_sign
-                    !Run over spawnings from both the real and imaginary part of the matrix element
+                !First spawn from real part of matrix element
+                !Attempt spawning
+                rat = tau * abs(real(rh,dp) / prob)
+                if(tSearchTau) then
+                    if(MaxSpawnProb.lt.rat) MaxSpawnProb = rat
+                endif
 
-                    IF(i.eq.1) THEN
-                        !We want to use the real part of the matrix element to create real walkers
-                        MatEl=REAL(rh,dp)
-                    ELSE
-                        !We want to use the imaginary part of the matrix element to create imaginary walkers
-                        MatEl=AIMAG(rh)
-                    ENDIF
+                ! If probability > 1, then we just create multiple children at the
+                ! chosen determinant.
+                extraCreate = int(rat)
+                rat = rat - real(extraCreate, dp)
 
-                    !Attempt spawning
-                    rat = tau * abs(MatEl / prob)
+                ! Stochastically choose whether to create or not.
+                r = genrand_real2_dSFMT ()
+                if (rat > r) then
+                    !Create child
+                    child(1) = -nint(sign(1.0_dp, wsign(1)*real(rh,dp)))  !Will return +- one depending on the desired sign of the stochastically created child.
+                    child(1) = child(1) + sign(extraCreate, child(1))
+                elseif(extraCreate.ne.0) then
+                    !Just return if any extra particles created
+                    child(1) = -extraCreate*nint(sign(1.0_dp, wsign(1)*real(rh,dp)))
+                endif
 
-                    ! If probability > 1, then we just create multiple children at the
-                    ! chosen determinant.
-                    extraCreate = int(rat)
-                    rat = rat - real(extraCreate, dp)
+                !Now attempt spawning from im part of matrix element
+                !Attempt spawning
+                rat = tau * abs(aimag(rh) / prob)
+                if(tSearchTau) then
+                    if(MaxSpawnProb.lt.rat) MaxSpawnProb = rat
+                endif
 
-                    ! Stochastically choose whether to create or not.
-                    r = genrand_real2_dSFMT ()
-                    if (rat > r) then
-                        !Create child
-                        child(i) = -nint(sign(1.0_dp, wsign(part_type)*MatEl))  !Will return +- one depending on the desired sign of the stochastically created child.
-                        child(i) = child(i) + sign(extraCreate, child(i))
-                    else
-                        !Just return if any extra particles created
-                        child(i) = -extraCreate*nint(sign(1.0_dp, wsign(part_type)*MatEl))
-                    endif
-                enddo
+                ! If probability > 1, then we just create multiple children at the
+                ! chosen determinant.
+                extraCreate = int(rat)
+                rat = rat - real(extraCreate, dp)
+
+                ! Stochastically choose whether to create or not.
+                r = genrand_real2_dSFMT ()
+                if (rat > r) then
+                    !Create child
+                    child(2) = -nint(sign(1.0_dp, wsign(1)*aimag(rh)))  !Will return +- one depending on the desired sign of the stochastically created child.
+                    child(2) = child(2) + sign(extraCreate, child(2))
+                elseif(extraCreate.ne.0) then
+                    !Just return if any extra particles created
+                    child(2) = -extraCreate*nint(sign(1.0_dp, wsign(1)*aimag(rh)))
+                endif
 
             ELSE
                 !Imaginary parent particle - rules are slightly different...
                 !Attempt to spawn REAL walkers with prob +AIMAG(Hij)/P
                 !Attempt to spawn IMAG walkers with prob -REAL(Hij)/P
-                do i=1,lenof_sign
-                    !Run over spawnings from both the real and imaginary part of the matrix element
+                !We want to use the imaginary part of the matrix element to create real walkers
+                !We want to use the real part of the matrix element to create imaginary walkers
+                rat = tau * abs(aimag(rh) / prob)
+                if(tSearchTau) then
+                    if(MaxSpawnProb.lt.rat) MaxSpawnProb = rat
+                endif
 
-                    IF(i.eq.1) THEN
-                        !We want to use the imaginary part of the matrix element to create real walkers
-                        MatEl=AIMAG(rh)
-                    ELSE
-                        !We want to use the real part of the matrix element to create imaginary walkers
-                        MatEl=REAL(rh,dp)
-                    ENDIF
+                ! If probability > 1, then we just create multiple children at the
+                ! chosen determinant.
+                extraCreate = int(rat)
+                rat = rat - real(extraCreate, dp)
 
-                    !Attempt spawning
-                    rat = tau * abs(MatEl / prob)
+                ! Stochastically choose whether to create or not.
+                r = genrand_real2_dSFMT ()
+                !Prob = +AIMAG(Hij)/P to create real children
+                if (rat > r) then
+                    !Create child
+                    child(1) = nint(sign(1.0_dp, wsign(2)*aimag(rh)))  !Will return +- one depending on the desired sign of the stochastically created child.
+                    child(1) = child(1) + sign(extraCreate, child(1))
+                elseif(extraCreate.ne.0) then
+                    !Just return if any extra particles created
+                    child(1) = extraCreate*nint(sign(1.0_dp, wsign(2)*aimag(rh)))
+                endif
+                
+                !Now spawning from real part of matrix element
+                !We want to use the real part of the matrix element to create imaginary walkers
 
-                    ! If probability > 1, then we just create multiple children at the
-                    ! chosen determinant.
-                    extraCreate = int(rat)
-                    rat = rat - real(extraCreate, dp)
+                !Attempt spawning
+                rat = tau * abs(real(rh,dp) / prob)
+                if(tSearchTau) then
+                    if(MaxSpawnProb.lt.rat) MaxSpawnProb = rat
+                endif
 
-                    ! Stochastically choose whether to create or not.
-                    r = genrand_real2_dSFMT ()
-                    IF(i.eq.1) THEN
-                        !Prob = +AIMAG(Hij)/P to create real children
-                        if (rat > r) then
-                            !Create child
-                            child(i) = nint(sign(1.0_dp, wsign(part_type)*MatEl))  !Will return +- one depending on the desired sign of the stochastically created child.
-                            child(i) = child(i) + sign(extraCreate, child(i))
-                        else
-                            !Just return if any extra particles created
-                            child(i) = extraCreate*nint(sign(1.0_dp, wsign(part_type)*MatEl))
-                        endif
-                    ELSE
-                        !Prob = -REAL(Hij)/P to create imaginary children
-                        if (rat > r) then
-                            !Create child
-                            child(i) = -nint(sign(1.0_dp, wsign(part_type)*MatEl))  !Will return +- one depending on the desired sign of the stochastically created child.
-                            child(i) = child(i) + sign(extraCreate, child(i))
-                        else
-                            !Just return if any extra particles created
-                            child(i) = -extraCreate*nint(sign(1.0_dp, wsign(part_type)*MatEl))
-                        endif
-                    ENDIF
-                enddo
+                ! If probability > 1, then we just create multiple children at the
+                ! chosen determinant.
+                extraCreate = int(rat)
+                rat = rat - real(extraCreate, dp)
+
+                ! Stochastically choose whether to create or not.
+                r = genrand_real2_dSFMT ()
+                !Prob = -REAL(Hij)/P to create imaginary children
+                if (rat > r) then
+                    !Create child
+                    child(2) = -nint(sign(1.0_dp, wsign(2)*real(rh,dp)))  !Will return +- one depending on the desired sign of the stochastically created child.
+                    child(2) = child(2) + sign(extraCreate, child(2))
+                elseif(extraCreate.ne.0) then
+                    !Just return if any extra particles created
+                    child(2) = -extraCreate*nint(sign(1.0_dp, wsign(2)*real(rh,dp)))
+                endif
 
             ENDIF   ! Type of parent
 
@@ -1727,6 +1724,9 @@ MODULE FciMCParMod
             !We are dealing with real particles always here.
 
             rat = tau * abs(rh / prob)
+            if(tSearchTau) then
+                if(MaxSpawnProb.lt.rat) MaxSpawnProb = rat
+            endif
 
             ! If probability > 1, then we just create multiple children at the
             ! chosen determinant.
@@ -1739,7 +1739,7 @@ MODULE FciMCParMod
                 !Create child
                 child(1) = -nint(sign(1.0_dp, wsign(1)*real(rh,dp)))
                 child(1) = child(1) + sign(extraCreate, child(1))
-            else
+            elseif(extraCreate.ne.0) then
                 !Just return if any extra particles created
                 child(1) = -extraCreate*nint(sign(1.0_dp, wsign(1)*real(rh,dp)))
             endif
@@ -3073,6 +3073,21 @@ MODULE FciMCParMod
         call MPISumAll (SumWalkersCyc, AllSumWalkersCyc)
 
 !        WRITE(6,*) "***",iter_data%update_growth_tot,AllTotParts-AllTotPartsOld
+
+        if(tSearchTau) then
+            call MPISumAll(MaxSpawnProb,AllMaxSpawnProb)
+            if((AllMaxSpawnProb-MaxAllowedSpawnProb).gt.1.D-5) then
+                !Reduce tau, so that the maximum spawning probability is reduced.
+                tau = tau * (MaxAllowedSpawnProb/AllMaxSpawnProb)
+                if(iProcIndex.eq.root) then
+                    write(6,"(A,f15.10)") "Spawning probability found of: ",AllMaxSpawnProb
+                    write(6,"(A,f10.5)") "Reducing tau to limit spawning probability to: ",MaxAllowedSpawnProb
+                    write(6,"(A,f20.15)") "New tau: ",tau
+                endif
+                MaxSpawnProb=0.0_dp
+            endif
+        endif
+
         
 #ifdef __DEBUG
         !Write this 'ASSERTROOT' out explicitly to avoid line lengths problems
@@ -3097,6 +3112,7 @@ MODULE FciMCParMod
 
 !        call flush(6)
         CALL MPIBarrier(error)
+
         ! collate_iter_data --> The values used are only valid on Root
         if (iProcIndex == Root) then
             ! Calculate the growth rate
@@ -3265,7 +3281,11 @@ MODULE FciMCParMod
         call MPIBcast (tSinglePartPhase)
         call MPIBcast (VaryShiftIter)
         call MPIBcast (DiagSft)
-        if(.not.tSinglePartPhase) TargetGrowRate=0.D0
+        if(.not.tSinglePartPhase) then
+            TargetGrowRate=0.D0
+            tSearchTau=.false.
+        endif
+
 
     end subroutine
 
@@ -3636,7 +3656,8 @@ MODULE FciMCParMod
         USE dSFMT_interface , only : dSFMT_init
         use CalcData, only: G_VMC_Seed, &
                             MemoryFacPart, MemoryFacAnnihil, TauFactor, &
-                            StepsSftImag, tCheckHighestPop, tSpatialOnlyHash,tStartCAS
+                            StepsSftImag, tCheckHighestPop, tSpatialOnlyHash,tStartCAS, &
+                            MaxWalkerBloom
         use Determinants , only : GetH0Element3,GetH0Element4
         use SymData , only : SymLabelList,SymLabelCounts,TwoCycleSymGens
         use Logging , only : tTruncRODump
@@ -3652,11 +3673,12 @@ MODULE FciMCParMod
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
         HElement_t :: TempHii
         TYPE(BasisFn) HFSym
-        real(dp) :: TotDets,SymFactor,r,Gap
+        real(dp) :: TotDets,SymFactor,r,Gap,UpperTau
         CHARACTER(len=*), PARAMETER :: this_routine='SetupParameters'
         CHARACTER(len=12) :: abstr
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped
         INTEGER :: HFLz,ChosenOrb,KPnt(3), step,SymHF,FindProjEBins
+        integer(int64) :: ExcitLevPop
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
         WRITE(6,*) ""
@@ -3782,10 +3804,6 @@ MODULE FciMCParMod
 !Init hash shifting data
         hash_iter=0
 
-        IF(tKPntSym) THEN
-            CALL DecomposeAbelianSym(HFSym%Sym%S,KPnt)
-            WRITE(6,"(A,3I5)") "Crystal momentum of reference determinant is: ",KPnt(1),KPnt(2),KPnt(3)
-        ENDIF
         IF(tFixLz) THEN
             CALL GetLz(HFDet,NEl,HFLz)
             WRITE(6,"(A,I5)") "Ml value of reference determinant is: ",HFLz
@@ -3893,6 +3911,10 @@ MODULE FciMCParMod
             !When is this allowed to happen?! Comment!!
             call warning(this_routine,"Inconsistency in the symmetry arrays. Beware.")
         endif
+        IF(tKPntSym) THEN
+            CALL DecomposeAbelianSym(HFSym%Sym%S,KPnt)
+            WRITE(6,"(A,3I5)") "Crystal momentum of reference determinant is: ",KPnt(1),KPnt(2),KPnt(3)
+        ENDIF
 
 !If using a CAS space truncation, write out this CAS space
         IF(tTruncCAS) THEN
@@ -4050,7 +4072,7 @@ MODULE FciMCParMod
         Fii=REAL(TempHii,dp)
 
 !Find the highest energy determinant...
-        IF(.not.tSpn) THEN
+        IF(LMS.eq.0) THEN
             do i=1,NEl
                 HighEDet(i)=Brr(nBasis-(i-1))
             enddo
@@ -4063,9 +4085,12 @@ MODULE FciMCParMod
             ELSE
                 TempHii = get_helement (HighEDet, HighEDet, 0)
             ENDIF
+            UpperTau = 1.D0/REAL(TempHii-Hii,dp)
             WRITE(6,"(A,G25.15)") "Highest energy determinant is (approximately): ",REAL(TempHii,dp)
-            WRITE(6,"(A,F25.15)") "This means tau should be no more than about ",-2.D0/REAL(TempHii,dp)
+            WRITE(6,"(A,F25.15)") "This means tau should be no more than about ",UpperTau
 !            WRITE(6,*) "Highest energy determinant is: ", HighEDet(:)
+        else
+            UpperTau=0.0_dp
         ENDIF
 
         IF(tHub) THEN
@@ -4149,6 +4174,7 @@ MODULE FciMCParMod
         DiagSftIm=0.D0
         sum_proje_denominator = 0
         cyc_proje_denominator = 0
+        MaxSpawnProb = 0.0_dp
 
 !Also reinitialise the global variables - should not necessarily need to do this...
         AllSumENum=0.D0
@@ -4176,6 +4202,7 @@ MODULE FciMCParMod
         AllNoNonInitWalk=0
         AllNoExtraInitDoubs=0
         AllInitRemoved=0
+        AllMaxSpawnProb=0.0_dp
 
         ! Initialise the fciqmc counters
         iter_data_fciqmc%update_growth = 0
@@ -4308,6 +4335,41 @@ MODULE FciMCParMod
             Tau=TauFactor/REAL(HFConn,dp)
             WRITE(6,*) "Tau set to: ",Tau
         ENDIF
+
+        if(tSearchTau) then
+
+            if(.not.tRestart) then
+                !Set initial tau value.
+                if(UpperTau.le.0.0_dp) then
+                    Tau = 0.1_dp    !Initialise tau to 0.1 - can we do better than this for an upper bound?
+                else
+                    Tau=UpperTau    !Initialise tau to be approximately maximum possible without timestep errors.
+                endif
+
+                !Assume a p_spawn of 1, and an Hij = 0.01 - what would tau be?
+                Tau=min(Tau,1.0_dp/(0.01*real(HFConn,dp)))
+            endif
+
+            write(6,"(A,f17.12)") "Initial tau value set to: ",Tau
+
+            if(MaxWalkerBloom.eq.-1) then
+                !No MaxWalkerBloom specified
+                !Therefore, assume that we do not want blooms larger than n_add if initiator,
+                !or 5 if non-initiator calculation.
+                if(tTruncInitiator) then
+                    MaxAllowedSpawnProb = real(InitiatorWalkNo,dp)
+                else
+                    MaxAllowedSpawnProb = 5.0_dp    !Won't allow more than 5 particles at a time
+                endif
+            else
+                MaxAllowedSpawnProb = real(MaxWalkerBloom,dp) !Won't allow more than MaxWalkerBloom particles to spawn in one event. 
+            endif
+
+            write(6,"(A,f10.5)") "Will search for optimal tau without &
+                       &restarting, to limit spawning probability to: ", &
+                       MaxAllowedSpawnProb
+        endif
+
         IF(StepsSftImag.ne.0.D0) THEN
             WRITE(6,*) "StepsShiftImag detected. Resetting StepsShift."
             StepsSft=NINT(StepsSftImag/Tau)
@@ -4421,10 +4483,14 @@ MODULE FciMCParMod
         SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.D0)
         TotDets=1.D0
         do i=1,NEl
-            WRITE(6,"(A,I5,I20)") "Approximate excitation level population: ",i,NINT((Choose(NEl,i)*Choose(nBasis-NEl,i))/SymFactor)
+            ExcitLevPop=int((Choose(NEl,i)*Choose(nBasis-NEl,i))/SymFactor,int64)
+            if(ExcitLevPop.lt.0) cycle  !int overflow
+            WRITE(6,"(A,I5,I20)") "Approximate excitation level population: ",i,ExcitLevPop
             TotDets=TotDets+(Choose(NEl,i)*Choose(nBasis-NEl,i))/SymFactor
         enddo
-        WRITE(6,"(A,I20)") "Approximate size of determinant space is: ",NINT(TotDets)
+        if(TotDets.gt.0) then
+            WRITE(6,"(A,I20)") "Approximate size of determinant space is: ",NINT(TotDets)
+        endif
 
     END SUBROUTINE SetupParameters
 
@@ -4893,11 +4959,6 @@ MODULE FciMCParMod
             write (6,'(A,F14.6)') " pDoubles set to: ", pDoubles
             write (6,'(A,F14.6)') " pSingles set to: ", pSingles
         ENDIF
-
-        WRITE(6,'(A,F15.10)') " Assuming an average K_ij magnitude of approx 0.01, an appropriate tau is " &
-            & //"predicted to be around: ",(0.02*(1.D0/(REAL(NSing)+REAL(NDoub))))/0.01
-!This is a rough guesstimate of what tau might like to be, assuming K_ij is approx 0.01 on average, and we want a probability of spawning to be about 0.02.        
-!These are just stats taken from one system... will investigate further...
 
     END SUBROUTINE CalcApproxpDoubles
 
