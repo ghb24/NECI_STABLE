@@ -3799,14 +3799,11 @@ END MODULE nElRDMMod
 ! with sign /= 0 (i.e. occupied).
 ! We then want to run through all the Di, Dj pairs and add their coefficients 
 ! (with appropriate de-biasing factors) into the 1 and 2 electron RDM.
-        USE FciMCData , only : CurrentDets,TotParts, iLutHF, AllTotPartsTemp, Iter 
-        USE FciMCData , only : Spawned_Parents, Spawned_Parents_Index
+        USE FciMCData , only : Spawned_Parents, Spawned_Parents_Index, iLutHF
         USE bit_reps , only : NIfTot, NIfDBO, decode_bit_det
-        USE nElRDMMod , only : Fill_Sings_RDM, Fill_Doubs_RDM, Fill_Diag_RDM, &
-                               Add_RDM_From_IJ_Pair, Fill_Spin_Coupled_RDM
+        USE nElRDMMod , only : Add_RDM_From_IJ_Pair, Fill_Spin_Coupled_RDM
         USE Logging , only : tHF_S_D_Ref, tHF_Ref, tHF_S_D
         USE SystemData , only : NEl,tHPHF
-        USE Parallel
         USE constants , only : n_int, dp, lenof_sign
         USE DetBitOps , only : DetBitEQ, FindBitExcitLevel
         IMPLICIT NONE
@@ -3814,9 +3811,8 @@ END MODULE nElRDMMod
         integer(kind=n_int) , intent(in) :: iLutJ(0:NIfTot)
 !        integer , dimension(lenof_sign) , intent(in) :: SignJ
         integer , intent(in) :: SignJ
-        integer :: i, nI(NEl), nJ(NEl), Ex(2,2), walkExcitLevel, SignI
-        integer :: ExcLevel, j
-        real(dp) :: realSignI, realSignJ, realdiagSignI
+        integer :: i, j, nI(NEl), nJ(NEl), walkExcitLevel
+        real(dp) :: realSignI, realSignJ
         logical :: tParity, tFill_SymmCiCj, tDetAdded
 
 ! Spawning from multiple parents, to iLutJ, which has SignJ.        
