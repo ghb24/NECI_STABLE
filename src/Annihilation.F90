@@ -1096,7 +1096,7 @@ MODULE AnnihilationMod
 !(or close enough!)
     SUBROUTINE BinSearchParts(iLut,MinInd,MaxInd,PartInd,tSuccess)
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
-        INTEGER :: MinInd,MaxInd,PartInd
+        INTEGER(int64) :: MinInd,MaxInd,PartInd
         INTEGER :: i,j,N,Comp
         LOGICAL :: tSuccess
 
