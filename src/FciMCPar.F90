@@ -108,8 +108,10 @@ MODULE FciMCParMod
     use symrandexcit3, only: gen_rand_excit3, test_sym_excit3
     use nElRDMMod, only: FinaliseRDM,Fill_ExplicitRDM_this_Iter,calc_energy_from_rdm, &
                          fill_diag_rdm, fill_sings_rdm, fill_doubs_rdm, &
-                         Add_RDM_From_IJ_Pair, tCalc_RDMEnergy, Add_StochRDM_Diag, &
-                         DeAlloc_Alloc_SpawnedParts
+                         Add_RDM_From_IJ_Pair, tCalc_RDMEnergy, &
+                         DeAlloc_Alloc_SpawnedParts, Add_StochRDM_Diag_Null, &
+                         Add_StochRDM_Diag_HPHF, Add_StochRDM_Diag_HF_S_D, &
+                         Add_StochRDM_Diag_Norm
 
 
 #ifdef __DEBUG                            
@@ -184,14 +186,15 @@ MODULE FciMCParMod
                 CALL PerformCCMCCycPar()
             else
                 if (.not. (tSpinProject .and. spin_proj_interval == -1)) then
-                    call sub_dispatcher_7 (PerformFciMCycPar, &
+                    call sub_dispatcher_8 (PerformFciMCycPar, &
                                            ptr_excit_generator, &
                                            ptr_attempt_create, &
                                            ptr_get_spawn_helement, &
                                            ptr_encode_child, &
                                            ptr_new_child_stats, &
                                            ptr_attempt_die, &
-                                           ptr_iter_data)
+                                           ptr_iter_data, &
+                                           ptr_add_stochrdm_diag)
                 endif
             endif
 
@@ -206,7 +209,7 @@ MODULE FciMCParMod
                                            null_encode_child, &
                                            new_child_stats_normal, &
                                            attempt_die_spin_proj, &
-                                           iter_data_spin_proj)
+                                           iter_data_spin_proj, add_stochrdm_diag_null)
                 enddo
             endif
 
@@ -631,6 +634,32 @@ MODULE FciMCParMod
 
         call assign_proc (ptr_iter_data, data_struct)
     end subroutine
+
+    subroutine set_add_stochrdm_diag(add_stochrdm_diag)
+        use, intrinsic :: iso_c_binding
+        implicit none
+        interface
+            subroutine Add_StochRDM_Diag(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
+                use FciMCData , only : HFDet, AllHFSign
+                use hphf_integrals , only : hphf_sign
+                use HPHFRandExcitMod , only : FindExcitBitDetSym
+                use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
+                use constants , only : n_int, lenof_sign
+                use SystemData , only : NEl
+                use bit_reps , only : NIfTot
+                implicit none 
+
+                integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
+                integer , intent(in) :: DetCurr(NEl)
+                integer, dimension(lenof_sign), intent(in) :: SignCurr
+                integer , intent(in) :: walkExcitLevel
+            end subroutine
+        end interface
+
+        call assign_proc (ptr_add_stochrdm_diag, add_stochrdm_diag)
+    end subroutine
+
+
     ! This is the heart of FCIMC, where the MC Cycles are performed.
     !
     ! Note: This should only be called indirectly:
@@ -638,7 +667,7 @@ MODULE FciMCParMod
     subroutine PerformFCIMCycPar(generate_excitation, attempt_create, &
                                  get_spawn_helement, encode_child, &
                                  new_child_stats, attempt_die, &
-                                 iter_data)
+                                 iter_data, add_stochrdm_diag)
 
         ! **********************************************************
         ! ************************* NOTE ***************************
@@ -749,6 +778,21 @@ MODULE FciMCParMod
                 real(dp), intent(in) :: Kii
                 integer, dimension(lenof_sign) :: ndie
             end function
+            subroutine Add_StochRDM_Diag(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
+                use FciMCData , only : HFDet, AllHFSign
+                use hphf_integrals , only : hphf_sign
+                use HPHFRandExcitMod , only : FindExcitBitDetSym
+                use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
+                use constants , only : n_int, lenof_sign
+                use SystemData , only : NEl
+                use bit_reps , only : NIfTot
+                implicit none 
+
+                integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
+                integer , intent(in) :: DetCurr(NEl)
+                integer, dimension(lenof_sign), intent(in) :: SignCurr
+                integer , intent(in) :: walkExcitLevel
+            end subroutine
         end interface
 
         ! Iteration specific data
@@ -793,6 +837,13 @@ MODULE FciMCParMod
                 !The SpawnedParts array now needs to carry both the spawned parts Dj, and also it's 
                 !parent Di (and it's sign, Ci). - We deallocate it and reallocate it with the larger size.
                 call DeAlloc_Alloc_SpawnedParts()
+                if(tHPHF) then
+                    call set_add_stochrdm_diag(add_stochrdm_diag_hphf)
+                elseif(tHF_Ref.or.tHF_Ref_Explicit.or.tHF_S_D.or.tHF_S_D_Ref) then
+                    call set_add_stochrdm_diag(add_stochrdm_diag_hf_s_d)
+                else
+                    call set_add_stochrdm_diag(add_stochrdm_diag_norm)
+                endif
             endif
             !RDMExcitLevel of 3 means we calculate both the 1 and 2 RDM's - otherwise we 
             !calculated only the RDMExcitLevel-RDM.
@@ -931,10 +982,12 @@ MODULE FciMCParMod
             ! This uses the new current sign (after walker death), because later when we search 
             ! CurrentDets for Cj, it has to be the sign after death, and we want to keep it consistent.
             ! Also add the connections to the HF if using HF_Ref_Explicit.
-            if(tFillingStochRDMonFly) then
-                call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,DiedSignCurr,walkExcitLevel)
-            elseif(tFillingExplicRDMonFly.and.tHF_Ref_Explicit) then
+            ! If tFillingStochRDMonFly is true, this will add in the appropriate diag element to the 
+            ! RDM, otherwise this routine does nothing.
+            if(tHF_Ref_Explicit) then
                 call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,SignCurr,walkExcitLevel)
+            else
+                call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,DiedSignCurr,walkExcitLevel)
             endif
 
             ! Loop over the 'type' of particle. 
@@ -1544,6 +1597,8 @@ MODULE FciMCParMod
         call set_attempt_die (attempt_die_normal)
 
         call set_fcimc_iter_data (iter_data_fciqmc)
+
+        call set_add_stochrdm_diag(add_stochrdm_diag_null)
 
     end subroutine
 

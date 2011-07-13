@@ -274,6 +274,7 @@ MODULE FciMCData
       type(c_ptr) :: ptr_encode_child
       type(c_ptr) :: ptr_attempt_die
       type(c_ptr) :: ptr_iter_data
+      type(c_ptr) :: ptr_add_stochrdm_diag
 
       integer :: yama_global (4)
 
