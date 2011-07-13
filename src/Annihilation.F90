@@ -348,7 +348,7 @@ MODULE AnnihilationMod
         if(.not.bNodeRoot) return
 !        call WriteExcitorListP(6,SpawnedParts,0,ValidSpawned,0,"UnOrdered")
 
-        Sort_time%timer_name='Compres Sort interface'
+        Sort_time%timer_name='Compress Sort interface'
         call set_timer(Sort_time,20)
         call sort(SpawnedParts(:,1:ValidSpawned), ilut_lt, ilut_gt)
         CALL halt_timer(Sort_time)
