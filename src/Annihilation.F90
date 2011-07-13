@@ -55,7 +55,7 @@ MODULE AnnihilationMod
 !                           entry in the SpawnParts array.
 
         INTEGER, INTENT(IN) :: MaxMainInd,MaxSpawnInd
-        INTEGER, INTENT(INOUT) :: TotDets
+        INTEGER(int64), INTENT(INOUT) :: TotDets
         type(fcimc_iter_data), intent(inout) :: iter_data
         INTEGER(KIND=n_int), INTENT(INOUT) , TARGET :: MainParts(0:NIfTot,MaxMainInd),SpawnParts(0:NIfTot,MaxSpawnInd)
 !        INTEGER, INTENT(INOUT) , TARGET :: MainSign(MaxMainInd)
@@ -140,7 +140,7 @@ MODULE AnnihilationMod
 !done on a predetermined processor, and not rotated around all of them.
     SUBROUTINE DirectAnnihilation(TotWalkersNew, iter_data, tSingleProc)
         use bit_reps, only: test_flag
-        integer, intent(inout) :: TotWalkersNew
+        integer(int64), intent(inout) :: TotWalkersNew
         type(fcimc_iter_data), intent(inout) :: iter_data
         INTEGER :: MaxIndex,ierr
         INTEGER(Kind=n_int) , POINTER :: PointTemp(:,:)
@@ -601,9 +601,10 @@ MODULE AnnihilationMod
 !In the main list, we change the 'sign' element of the array to zero. These will be deleted at the end of the total annihilation step.
     SUBROUTINE AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew, iter_data)
         type(fcimc_iter_data), intent(inout) :: iter_data
-        integer, intent(in) :: TotWalkersNew
+        integer(int64), intent(in) :: TotWalkersNew
         integer, intent(inout) :: ValidSpawned 
-        INTEGER :: MinInd,PartInd,i,j,ToRemove,DetsMerged,PartIndex
+        integer(int64) :: MinInd, PartInd
+        INTEGER :: i,j,ToRemove,DetsMerged,PartIndex
         INTEGER, DIMENSION(lenof_sign) :: SignProd,CurrentSign,SpawnedSign,SignTemp
         INTEGER :: ExcitLevel
         INTEGER(KIND=n_int) , POINTER :: PointTemp(:,:)
@@ -868,8 +869,8 @@ MODULE AnnihilationMod
         use SystemData, only: tHPHF
         use bit_reps, only: NIfD
         use CalcData , only : tCheckHighestPop
-        INTEGER :: TotWalkersNew,ValidSpawned
-        INTEGER :: i,DetsMerged,nJ(NEl),part_type
+        INTEGER(int64) :: TotWalkersNew
+        INTEGER :: i,DetsMerged,nJ(NEl),part_type, ValidSpawned
         INTEGER, DIMENSION(lenof_sign) :: CurrentSign,SpawnedSign
         real(dp) :: HDiag
         LOGICAL :: TestClosedShellDet

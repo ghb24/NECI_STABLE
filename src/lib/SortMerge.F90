@@ -25,10 +25,11 @@
         use MI_integrals, only: MI_diag_helement
         USE CalcData , only : tTruncInitiator
         USE HElem
-        use constants, only: dp,n_int
+        use constants, only: dp,n_int, int64
         IMPLICIT NONE
         INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
-        INTEGER :: nlisto,nlist1,nlist2,i
+        INTEGER(int64) :: nlist1
+        INTEGER :: nlisto,nlist2,i
         INTEGER :: ips
         HElement_t :: HDiagTemp
         real(dp) :: HDiag
@@ -93,10 +94,11 @@
         use bit_reps, only: NIfTot
         USE CalcData , only : tTruncInitiator
         USE HElem
-        use constants, only : n_int
+        use constants, only : n_int, int64
         IMPLICIT NONE
         INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
-        INTEGER :: nlisto,nlist1,nlist2,i
+        INTEGER(int64) :: nlist1
+        INTEGER :: nlisto,nlist2,i
         INTEGER :: ips
         INTEGER :: j
 !        LOGICAL :: tbin
