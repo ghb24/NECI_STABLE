@@ -57,7 +57,7 @@ MODULE AnnihilationMod
 !                           entry in the SpawnParts array.
 
         INTEGER, INTENT(IN) :: MaxMainInd,MaxSpawnInd
-        INTEGER, INTENT(INOUT) :: TotDets
+        INTEGER(int64), INTENT(INOUT) :: TotDets
         type(fcimc_iter_data), intent(inout) :: iter_data
         INTEGER(KIND=n_int), INTENT(INOUT) , TARGET :: MainParts(0:NIfTot,MaxMainInd),SpawnParts(0:(NIfTot+NIfDBO+2),MaxSpawnInd)
 !        INTEGER, INTENT(INOUT) , TARGET :: MainSign(MaxMainInd)
@@ -142,7 +142,7 @@ MODULE AnnihilationMod
 !done on a predetermined processor, and not rotated around all of them.
     SUBROUTINE DirectAnnihilation(TotWalkersNew, iter_data, tSingleProc)
         use bit_reps, only: test_flag
-        integer, intent(inout) :: TotWalkersNew
+        integer(int64), intent(inout) :: TotWalkersNew
         type(fcimc_iter_data), intent(inout) :: iter_data
         INTEGER :: MaxIndex,ierr
         INTEGER(Kind=n_int) , POINTER :: PointTemp(:,:)
@@ -716,9 +716,10 @@ MODULE AnnihilationMod
 !In the main list, we change the 'sign' element of the array to zero. These will be deleted at the end of the total annihilation step.
     SUBROUTINE AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew, iter_data)
         type(fcimc_iter_data), intent(inout) :: iter_data
-        integer, intent(in) :: TotWalkersNew
+        integer(int64), intent(in) :: TotWalkersNew
         integer, intent(inout) :: ValidSpawned 
-        INTEGER :: MinInd,PartInd,i,j,ToRemove,DetsMerged,PartIndex
+        integer(int64) :: MinInd, PartInd
+        INTEGER :: i,j,ToRemove,DetsMerged,PartIndex
         INTEGER, DIMENSION(lenof_sign) :: SignProd,CurrentSign,SpawnedSign,SignTemp
         INTEGER :: ExcitLevel, walkExcitLevel, dettemp(NEl)
         INTEGER(KIND=n_int) , POINTER :: PointTemp(:,:)
@@ -1028,11 +1029,12 @@ MODULE AnnihilationMod
 !The key feature which makes this work, is that it is impossible for the same determinant to be specified in both the spawned and main list at the end of
 !the annihilation process. Therefore we will not multiply specify determinants when we merge the lists.
     SUBROUTINE InsertRemoveParts(ValidSpawned,TotWalkersNew)
+        use util_mod, only: abs_int_sign
         use SystemData, only: tHPHF
         use bit_reps, only: NIfD
         use CalcData , only : tCheckHighestPop
-        INTEGER :: TotWalkersNew,ValidSpawned
-        INTEGER :: i,DetsMerged,nJ(NEl),part_type
+        INTEGER(int64) :: TotWalkersNew
+        INTEGER :: i,DetsMerged,nJ(NEl),part_type, ValidSpawned
         INTEGER, DIMENSION(lenof_sign) :: CurrentSign,SpawnedSign
         real(dp) :: HDiag
         LOGICAL :: TestClosedShellDet
@@ -1081,9 +1083,8 @@ MODULE AnnihilationMod
                     IF(tCheckHighestPop) THEN
 !If this option is on, then we want to compare the weight on each determinant to the weight at the HF determinant.
 !Record the highest weighted determinant on each processor.
-!TODO: NOTE: THIS STILL ONLY WORKS EXPLICITLY FOR REAL WALKERS ONLY
-                        IF((abs(CurrentSign(1))).gt.iHighestPop) THEN
-                            iHighestPop=abs(CurrentSign(1))
+                        IF(abs_int_sign(CurrentSign).gt.iHighestPop) THEN
+                            iHighestPop=abs_int_sign(CurrentSign)
                             HighestPopDet(:)=CurrentDets(:,i)
                         ENDIF
                     ENDIF
@@ -1272,7 +1273,7 @@ MODULE AnnihilationMod
 !(or close enough!)
     SUBROUTINE BinSearchParts(iLut,MinInd,MaxInd,PartInd,tSuccess)
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
-        INTEGER :: MinInd,MaxInd,PartInd
+        INTEGER(int64) :: MinInd,MaxInd,PartInd
         INTEGER :: i,j,N,Comp
         LOGICAL :: tSuccess
 

@@ -89,8 +89,8 @@ MODULE CCMC
         INTEGER, DIMENSION(lenof_sign) :: Child
         INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot)
         real(dp) :: Prob,rat,HDiagCurr,r
-        INTEGER :: iDie,WalkExcitLevel,Proc
-        INTEGER :: TotWalkersNew,Ex(2,2)
+        INTEGER :: iDie,WalkExcitLevel,Proc,Ex(2,2)
+        INTEGER(int64) :: TotWalkersNew
         LOGICAL :: tParity
         
 ! We select up to nEl excitors at a time and store them here
@@ -116,7 +116,7 @@ MODULE CCMC
         INTEGER nMaxSelExcitors
 
 ! The index of the reference det
-        INTEGER iHFDet
+        INTEGER(int64) iHFDet
 !and the number at it
         INTEGER HFCount
 
@@ -2251,6 +2251,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    TYPE(Spawner) S                        ! A spawner used to generate spanees from a cluster
 
    INTEGER nAmpl                          ! Number of excitors on the Amplitude array
+   INTEGER(int64) nAmpl64
    INTEGER iExcitLevelCluster             ! The maximum excitation level a cluster can be at
    INTEGER iMaxAmpLevel                   ! The maximum excitation level of a stored amplitude
 
@@ -2598,7 +2599,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       IFDEBUG(iDebug,3) write(6,*) "Calling Annihilation with ", nSpawned, " spawned."
       IFDEBUG(iDebug,3.and.nNodes>1) call WriteExcitorListP2(6,SpawnList,InitialSpawnedSlots,ValidSpawnedList, &
         dAmpPrintTol,"Spawned/ReHoused list")
-      call AnnihilationInterface(nAmpl,DetList,nMaxAmpl,nSpawned,SpawnList,nMaxSpawn,iter_data_ccmc)
+      nAmpl64 = INT(nAmpl,int64)
+      call AnnihilationInterface(nAmpl64,DetList,nMaxAmpl,nSpawned,SpawnList,nMaxSpawn,iter_data_ccmc)
       call MPIBCast(nAmpl,Node)
       call halt_timer(CCMCComms2_time)
       call MPIBarrier(ierr)
