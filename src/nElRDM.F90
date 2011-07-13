@@ -1040,7 +1040,8 @@ MODULE nElRDMMod
         INTEGER, INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: SignDi,SignDj, SignDi2,SignDj2
-        INTEGER :: i,j,NoDets,StartDets,PartInd 
+        INTEGER(int64) :: PartInd
+        INTEGER :: i,j,NoDets,StartDets
         INTEGER :: nI(NEl),nJ(NEl),Ex(2,2),FlagsDi,FlagsDj
         LOGICAL :: tDetFound,tParity
         REAL(dp) :: realSignDi, realSignDj
@@ -1111,7 +1112,8 @@ MODULE nElRDMMod
         INTEGER, INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: SignDi,SignDj, SignDi2, SignDj2
-        INTEGER :: i,j,NoDets,StartDets,PartInd 
+        INTEGER(int64) :: PartInd
+        INTEGER :: i,j,NoDets,StartDets
         INTEGER :: nI(NEl),nJ(NEl),Ex(2,2),FlagsDi,FlagsDj
         LOGICAL :: tDetFound,tParity
         REAL(dp) :: realSignDi,realSignDj
@@ -3420,7 +3422,7 @@ MODULE nElRDMMod
         USE UMatCache, only: GTID
         INTEGER :: I, J, nI(NEl), nJ(NEl), FlagsI, FlagsJ, IC, Ex(2,2)
         INTEGER :: k,l,k2,l2,a2,b2,i2,j2, AllCurrentDetsTag
-        INTEGER :: AllTotWalkers
+        INTEGER(int64) :: AllTotWalkers
         LOGICAL :: tParity
         INTEGER, DIMENSION(lenof_sign) :: SignI, SignJ
         REAL(dp) :: Test_Energy, Sum_Coeffs, SignIreal, SignJreal 
@@ -3430,7 +3432,7 @@ MODULE nElRDMMod
         INTEGER(n_int) , ALLOCATABLE :: AllCurrentDets(:,:)
         HElement_t :: H_IJ
         INTEGER :: Ind1,Ind2,TestRDMTag,ierr,comm
-        INTEGER :: lengthsout(0:nProcessors-1), disp(0:nProcessors-1)
+        INTEGER(int64) :: lengthsout(0:nProcessors-1), disp(0:nProcessors-1)
         CHARACTER(len=*), PARAMETER :: this_routine='Test_Energy_Calc'
 
         WRITE(6,*) '****************'
@@ -3459,7 +3461,7 @@ MODULE nElRDMMod
             disp(i) = disp(i-1) + lengthsout(i-1)
         enddo
         CALL MPIGatherv(CurrentDets(0:NIfTot,1:TotWalkers), AllCurrentDets, &
-                                                            lengthsout, Disp, ierr)
+                                                int(lengthsout,int32), int(Disp,int32), ierr)
 
         IF(iProcIndex.eq.0) THEN
 
