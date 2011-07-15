@@ -2437,7 +2437,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !Use a MC sampling technique to find the eigenvector correesponding to the smallest eigenvalue.
 !List now contains diagonal hamiltonian matrix elements-Hii in the ExcitInfo(i,0), rather than rho elements.
       SUBROUTINE StarDiagMC(NList,List,ILMax,SI,DLWDB,MaxDiag)
-         use constants, only: dp, int64
+         use constants, only: dp
          use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
          use CalcData , only : TReadPops,ScaleWalkers,TBinCancel, iPopsFileNoRead, iPopsFileNoWrite
          USE Logging , only : TPopsFile,TCalcWavevector,WavevectorPrint, tIncrementPops
@@ -2452,8 +2452,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          INTEGER :: i,j,NList,ILMax,ierr,WorkL,toprint,PreviousNMCyc
          INTEGER*4 Info
          type(timer), save :: proc_timer
-         INTEGER(int64) :: TotWalkers, TotWalkersNew
-         INTEGER :: Seed,VecSlot,DetCurr,ReadWalkers
+         INTEGER :: TotWalkers,Seed,VecSlot,TotWalkersNew,DetCurr,ReadWalkers
          INTEGER :: MaxWalkers,TotWalkersOld,NWalk,k,l,TotWalkersDet
          INTEGER(TagIntType) :: HMatTag=0,WListTag=0,WorkTag=0,WalkVecTag=0,WalkVec2Tag=0
          INTEGER :: SumNoatHF

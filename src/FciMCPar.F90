@@ -775,8 +775,8 @@ MODULE FciMCParMod
         integer :: DetCurr(nel), nJ(nel), FlagsCurr, parent_flags
         integer, dimension(lenof_sign) :: SignCurr, child, DiedSignCurr
         integer(kind=n_int) :: iLutnJ(0:niftot)
-        integer :: IC, walkExcitLevel, ex(2,2), part_type, k
-        integer(int64) :: tot_parts_tmp(lenof_sign), TotWalkersNew
+        integer :: IC, walkExcitLevel, ex(2,2), TotWalkersNew, part_type
+        integer(int64) :: tot_parts_tmp(lenof_sign)
         logical :: tParity
         real(dp) :: prob, HDiagCurr, TempTotParts, Di_Sign_Temp
         HElement_t :: HDiagTemp,HElGen
@@ -1075,7 +1075,7 @@ MODULE FciMCParMod
 
     subroutine end_iter_stats (TotWalkersNew)
 
-        integer(int64), intent(in) :: TotWalkersNew
+        integer, intent(in) :: TotWalkersNew
         HElement_t :: delta
         integer :: proc, pos, sgn(lenof_sign), i
 
@@ -1230,7 +1230,7 @@ MODULE FciMCParMod
         
         ! Worker function for PerformFciMCycPar. Prints warnings about 
         ! particle blooms and memory usage.
-        integer(int64), intent(in) :: totWalkersNew
+        integer, intent(in) :: totWalkersNew
         integer :: i
         real(dp) :: rat
 
@@ -1412,8 +1412,7 @@ MODULE FciMCParMod
         USE constants, only : MpiDetInt
 !Found the highest population on each processor, need to find out which of these has the highest of all.
         INTEGER(KIND=n_int) :: DetPos(0:NIfTot),DetNeg(0:NIfTot)
-        INTEGER(int64) :: TotWalkersNew
-        INTEGER :: ProcBCastNeg,ProcBCastPos
+        INTEGER :: TotWalkersNew,ProcBCastNeg,ProcBCastPos
         integer(int32) :: HighPopInNeg(2),HighPopInPos(2),HighPopoutNeg(2),HighPopoutPos(2)
         INTEGER, DIMENSION(lenof_sign) :: TempSign
 
