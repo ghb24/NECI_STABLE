@@ -3422,7 +3422,7 @@ MODULE nElRDMMod
         USE UMatCache, only: GTID
         INTEGER :: I, J, nI(NEl), nJ(NEl), FlagsI, FlagsJ, IC, Ex(2,2)
         INTEGER :: k,l,k2,l2,a2,b2,i2,j2, AllCurrentDetsTag
-        INTEGER :: AllTotWalkers
+        INTEGER(int32) :: AllTotWalkers
         LOGICAL :: tParity
         INTEGER, DIMENSION(lenof_sign) :: SignI, SignJ
         REAL(dp) :: Test_Energy, Sum_Coeffs, SignIreal, SignJreal 
