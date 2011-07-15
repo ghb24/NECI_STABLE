@@ -1040,7 +1040,7 @@ MODULE nElRDMMod
         INTEGER, INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: SignDi,SignDj, SignDi2,SignDj2
-        INTEGER(int64) :: PartInd
+        INTEGER :: PartInd
         INTEGER :: i,j,NoDets,StartDets
         INTEGER :: nI(NEl),nJ(NEl),Ex(2,2),FlagsDi,FlagsDj
         LOGICAL :: tDetFound,tParity
@@ -1067,7 +1067,7 @@ MODULE nElRDMMod
 ! This binary searches CurrentDets between 1 and TotWalkers for determinant iLutnJ.
 ! If found, tDetFound will be true, and PartInd the index in CurrentDets where the 
 ! determinant is.
-                    CALL BinSearchParts(iLutnJ,1,TotWalkers,PartInd,tDetFound)
+                    CALL BinSearchParts(iLutnJ,1,int(TotWalkers,int32),PartInd,tDetFound)
                     IF(tDetFound) THEN
 ! Determinant occupied; add c_i*c_j to the relevant element of nElRDM.                    
 ! Need to first find the orbitals involved in the excitation from D_i -> D_j and the parity.
@@ -1112,7 +1112,7 @@ MODULE nElRDMMod
         INTEGER, INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: SignDi,SignDj, SignDi2, SignDj2
-        INTEGER(int64) :: PartInd
+        INTEGER :: PartInd
         INTEGER :: i,j,NoDets,StartDets
         INTEGER :: nI(NEl),nJ(NEl),Ex(2,2),FlagsDi,FlagsDj
         LOGICAL :: tDetFound,tParity
@@ -1142,7 +1142,7 @@ MODULE nElRDMMod
 ! This binary searches CurrentDets between 1 and TotWalkers for determinant iLutnJ.
 ! If found, tDetFound will be true, and PartInd the index in CurrentDets where the 
 ! determinant is.
-                    CALL BinSearchParts(iLutnJ,1,TotWalkers,PartInd,tDetFound)
+                    CALL BinSearchParts(iLutnJ,1,int(TotWalkers,int32),PartInd,tDetFound)
 
                     IF(tDetFound) THEN
 ! Determinant occupied; add c_i*c_j to the relevant element of nElRDM.                    
@@ -3422,7 +3422,7 @@ MODULE nElRDMMod
         USE UMatCache, only: GTID
         INTEGER :: I, J, nI(NEl), nJ(NEl), FlagsI, FlagsJ, IC, Ex(2,2)
         INTEGER :: k,l,k2,l2,a2,b2,i2,j2, AllCurrentDetsTag
-        INTEGER(int64) :: AllTotWalkers
+        INTEGER :: AllTotWalkers
         LOGICAL :: tParity
         INTEGER, DIMENSION(lenof_sign) :: SignI, SignJ
         REAL(dp) :: Test_Energy, Sum_Coeffs, SignIreal, SignJreal 
@@ -3432,14 +3432,14 @@ MODULE nElRDMMod
         INTEGER(n_int) , ALLOCATABLE :: AllCurrentDets(:,:)
         HElement_t :: H_IJ
         INTEGER :: Ind1,Ind2,TestRDMTag,ierr,comm
-        INTEGER(int64) :: lengthsout(0:nProcessors-1), disp(0:nProcessors-1)
+        INTEGER :: lengthsout(0:nProcessors-1), disp(0:nProcessors-1)
         CHARACTER(len=*), PARAMETER :: this_routine='Test_Energy_Calc'
 
         WRITE(6,*) '****************'
         WRITE(6,*) '**** TESTING ENERGY CALCULATION **** '
 
         AllTotWalkers = 0
-        CALL MPIReduce(TotWalkers,MPI_SUM,AllTotWalkers)
+        CALL MPIReduce(int(TotWalkers,int32),MPI_SUM,AllTotWalkers)
 
         IF(iProcIndex.eq.0) THEN
 !            ALLOCATE(TestRDM(((nBasis*(nBasis-1))/2),((nBasis*(nBasis-1))/2)),stat=ierr)
@@ -3454,14 +3454,14 @@ MODULE nElRDMMod
         ENDIF
 
         lengthsout(0:nProcessors-1) = 0
-        CALL MPIAllGather(TotWalkers*(NIfTot+1),lengthsout,ierr)
+        CALL MPIAllGather(int(TotWalkers,int32)*(NIfTot+1),lengthsout,ierr)
 
         disp(:) = 0
         do i = 1, nProcessors-1
             disp(i) = disp(i-1) + lengthsout(i-1)
         enddo
         CALL MPIGatherv(CurrentDets(0:NIfTot,1:TotWalkers), AllCurrentDets, &
-                                                int(lengthsout,int32), int(Disp,int32), ierr)
+                                                lengthsout, Disp, ierr)
 
         IF(iProcIndex.eq.0) THEN
 
