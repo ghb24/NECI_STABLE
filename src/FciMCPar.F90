@@ -347,6 +347,9 @@ MODULE FciMCParMod
             endif
 
             Iter=Iter+1
+
+            if(tRDMonFly) call check_start_rdm()
+
 !End of MC cycle
         enddo
 
@@ -416,6 +419,38 @@ MODULE FciMCParMod
         RETURN
 
     END SUBROUTINE FciMCPar
+
+    subroutine check_start_rdm()
+        implicit none
+
+        IF((.not.tSinglePartPhase).and.((Iter - VaryShiftIter).eq.IterRDMonFly)) THEN
+            !We have reached the iteration where we want to start filling the RDM.
+            if(tExplicitAllRDM.or.tHF_Ref_Explicit) then
+                tFillingExplicRDMonFly = .true.
+            else
+                !By default - we will do a stochastic calculation of the RDM.
+                tFillingStochRDMonFly = .true.
+                !The SpawnedParts array now needs to carry both the spawned parts Dj, and also it's 
+                !parent Di (and it's sign, Ci). - We deallocate it and reallocate it with the larger size.
+                call DeAlloc_Alloc_SpawnedParts()
+                if(tHPHF) then
+                    call set_add_stochrdm_diag(add_stochrdm_diag_hphf)
+                elseif(tHF_Ref.or.tHF_Ref_Explicit.or.tHF_S_D.or.tHF_S_D_Ref) then
+                    call set_add_stochrdm_diag(add_stochrdm_diag_hf_s_d)
+                else
+                    call set_add_stochrdm_diag(add_stochrdm_diag_norm)
+                endif
+            endif
+            !RDMExcitLevel of 3 means we calculate both the 1 and 2 RDM's - otherwise we 
+            !calculated only the RDMExcitLevel-RDM.
+            IF(RDMExcitLevel.eq.3) THEN
+                WRITE(6,'(A)') 'Beginning to calculate both the 1 and 2 electron density matrices on the fly.'
+            ELSE
+                WRITE(6,'(A28,I1,A36)') 'Beginning to calculate the ',RDMExcitLevel,' electron density matrix on the fly.'
+            ENDIF
+        ENDIF
+
+    end subroutine check_start_rdm
 
     ! **********************************************************
     ! ************************* NOTE ***************************
@@ -797,33 +832,6 @@ MODULE FciMCParMod
                 CALL MPIBCast(Tau)
             ENDIF
             tTruncInitiator=.true.
-        ENDIF
-
-        IF(tRDMonFly.and.(.not.tSinglePartPhase).and.((Iter - VaryShiftIter).eq.IterRDMonFly)) THEN
-            !We have reached the iteration where we want to start filling the RDM.
-            if(tExplicitAllRDM.or.tHF_Ref_Explicit) then
-                tFillingExplicRDMonFly = .true.
-            else
-                !By default - we will do a stochastic calculation of the RDM.
-                tFillingStochRDMonFly = .true.
-                !The SpawnedParts array now needs to carry both the spawned parts Dj, and also it's 
-                !parent Di (and it's sign, Ci). - We deallocate it and reallocate it with the larger size.
-                call DeAlloc_Alloc_SpawnedParts()
-                if(tHPHF) then
-                    call set_add_stochrdm_diag(add_stochrdm_diag_hphf)
-                elseif(tHF_Ref.or.tHF_Ref_Explicit.or.tHF_S_D.or.tHF_S_D_Ref) then
-                    call set_add_stochrdm_diag(add_stochrdm_diag_hf_s_d)
-                else
-                    call set_add_stochrdm_diag(add_stochrdm_diag_norm)
-                endif
-            endif
-            !RDMExcitLevel of 3 means we calculate both the 1 and 2 RDM's - otherwise we 
-            !calculated only the RDMExcitLevel-RDM.
-            IF(RDMExcitLevel.eq.3) THEN
-                WRITE(6,'(A)') 'Beginning to calculate both the 1 and 2 electron density matrices on the fly.'
-            ELSE
-                WRITE(6,'(A28,I1,A36)') 'Beginning to calculate the ',RDMExcitLevel,' electron density matrix on the fly.'
-            ENDIF
         ENDIF
 
         MaxInitPopPos=0
