@@ -3422,7 +3422,7 @@ MODULE nElRDMMod
         USE UMatCache, only: GTID
         INTEGER :: I, J, nI(NEl), nJ(NEl), FlagsI, FlagsJ, IC, Ex(2,2)
         INTEGER :: k,l,k2,l2,a2,b2,i2,j2, AllCurrentDetsTag
-        INTEGER :: AllTotWalkers
+        INTEGER(int64) :: AllTotWalkers_local
         LOGICAL :: tParity
         INTEGER, DIMENSION(lenof_sign) :: SignI, SignJ
         REAL(dp) :: Test_Energy, Sum_Coeffs, SignIreal, SignJreal 
@@ -3438,19 +3438,19 @@ MODULE nElRDMMod
         WRITE(6,*) '****************'
         WRITE(6,*) '**** TESTING ENERGY CALCULATION **** '
 
-        AllTotWalkers = 0
-        CALL MPIReduce(int(TotWalkers,int32),MPI_SUM,AllTotWalkers)
+        AllTotWalkers_local = 0
+        CALL MPIReduce(TotWalkers,MPI_SUM,AllTotWalkers_local)
 
         IF(iProcIndex.eq.0) THEN
 !            ALLOCATE(TestRDM(((nBasis*(nBasis-1))/2),((nBasis*(nBasis-1))/2)),stat=ierr)
 !            IF(ierr.ne.0) CALL Stop_All('test_energy_calc','Problem allocating TestRDM array,')
 !            TestRDM(:,:)=0.D0
 
-            ALLOCATE(AllCurrentDets(0:NIfTot,AllTotWalkers),stat=ierr)
+            ALLOCATE(AllCurrentDets(0:NIfTot,AllTotWalkers_local),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating AllCurrentDets array,')
-            CALL LogMemAlloc('AllCurrentDets',AllTotWalkers*(NIfTot+1),size_n_int,&
+            CALL LogMemAlloc('AllCurrentDets',AllTotWalkers_local*(NIfTot+1),size_n_int,&
                                 'Test_Energy_Calc',AllCurrentDetsTag,ierr)
-            AllCurrentDets(0:NIfTot,1:AllTotWalkers)=0
+            AllCurrentDets(0:NIfTot,1:AllTotWalkers_local)=0
         ENDIF
 
         lengthsout(0:nProcessors-1) = 0
@@ -3466,7 +3466,7 @@ MODULE nElRDMMod
         IF(iProcIndex.eq.0) THEN
 
             Sum_Coeffs = 0.D0
-            do i = 1, AllTotWalkers
+            do i = 1, AllTotWalkers_local
                 call extract_sign (AllCurrentDets(:,I), SignI)
                 Sum_Coeffs = Sum_Coeffs + ( REAL(SignI(1)) * REAL(SignI(1)) )
             enddo
@@ -3481,13 +3481,13 @@ MODULE nElRDMMod
 
 !            WRITE(6,*) 'SignIreal'
 
-            do I = 1, AllTotWalkers
+            do I = 1, AllTotWalkers_local
                 call extract_bit_rep (AllCurrentDets(:,I), nI, SignI, FlagsI)
                 SignIreal = REAL(SignI(1)) * ( 1.D0 / Sum_Coeffs )
 
 !                WRITE(6,*) SignIreal
 
-                do J = 1, AllTotWalkers
+                do J = 1, AllTotWalkers_local
                     call extract_bit_rep (AllCurrentDets(:,J), nJ, SignJ, FlagsJ)
 
                     SignJreal = REAL(SignJ(1)) * ( 1.D0 / Sum_Coeffs )
