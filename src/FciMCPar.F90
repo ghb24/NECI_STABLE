@@ -1509,6 +1509,20 @@ MODULE FciMCParMod
         endif
     end function
 
+!Decide whether to spawn a particle at nJ from DetCurr. (bit strings iLutnJ and iLutCurr respectively).  
+!  ic and ex specify the excitation of nJ from DetCurr, along with the sign change tParity.
+!  part_type:           Is the parent real (1) or imaginary (2)
+!  wSign:               wSign gives the sign of the particle we are trying to spawn from
+!                          if part_type is 1, then it will only use wsign(1)
+!                                          2,                       wsign(2)
+!                       Only the sign, not magnitude is used.
+!  prob:                prob is the generation probability of the excitation in order to unbias.
+!                       The probability of spawning is divided by prob to do this.
+!  HElGen:              If the matrix element has already been calculated, it is sent in here.
+!  get_spawn_helement:  A function pointer for looking up or calculating the relevant matrix element.
+!  walkExcitLevel:      Is Unused
+! 
+!  child:      A lenof_sign array containing the particles spawned.
     function attempt_create_trunc_spawn_encode (get_spawn_helement, DetCurr,&
                                          iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, &
                                          ic, ex, tparity, walkExcitLevel, part_type) &
@@ -1549,6 +1563,7 @@ MODULE FciMCParMod
             child = 0
         endif
     end function
+
 
     function attempt_create_normal (get_spawn_helement, DetCurr, iLutCurr, &
                                     wSign, nJ, iLutnJ, prob, HElGen, ic, ex, tparity,&
