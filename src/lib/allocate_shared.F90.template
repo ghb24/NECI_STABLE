@@ -183,6 +183,23 @@ dim = :,:,:,:,:,:,:
 elem1 = ,1,1,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
 
+[log1]
+type = logical
+sizeof = sizeof_log
+dim = :
+elem1 = 
+alloc_str = dims(1)
+
+[log2]
+dim = :,:
+elem1 = ,1
+alloc_str = dims(1), dims(2)
+
+[log3]
+dim = :,:,:
+elem1 = ,1,1
+alloc_str = dims(1), dims(2), dims(3)
+
 =========================
 
 

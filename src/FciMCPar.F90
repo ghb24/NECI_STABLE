@@ -3108,6 +3108,9 @@ MODULE FciMCParMod
         !Write this 'ASSERTROOT' out explicitly to avoid line lengths problems
         if ((iProcIndex == root) .and. .not. tSpinProject .and. &
          (.not.all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld))) then
+            write(6,*) "update_growth: ",iter_data%update_growth_tot
+            write(6,*) "AllTotParts: ",AllTotParts
+            write(6,*) "AllTotPartsOld: ", AllTotPartsOld
             call stop_all (this_routine, &
                 "Assertation failed: all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld)")
         endif

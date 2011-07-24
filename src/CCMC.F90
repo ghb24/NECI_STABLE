@@ -1906,7 +1906,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    INTEGER PartIndex,IC          ! Used in buffering
    LOGICAL tSuc                  ! Also used in buffering
 
-   INTEGER iOldTotParts        ! Info user for update to calculate shift
+   INTEGER, dimension(lenof_sign) :: iOldTotParts        ! Info user for update to calculate shift
    INTEGER iShiftLeft            ! Number of steps left until we recalculate shift
    real(dp) dNorm
    real(dp) WalkerScale            ! Scale factor for turning floating point amplitudes into integer walkers.
@@ -2282,7 +2282,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    INTEGER i,j,iMin
 ! Temporary Storage
 
-   INTEGER iOldTotParts        ! Info user for update to calculate shift
+   INTEGER, dimension(lenof_sign) ::  iOldTotParts        ! Info user for update to calculate shift
    INTEGER iShiftLeft            ! Number of steps left until we recalculate shift
    real(dp) WalkerScale            ! Scale factor for turning floating point amplitudes into integer walkers.
    real(dp) dTolerance             ! The tolerance for when to regard a value as zero
@@ -2435,15 +2435,17 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !WalkerScale*dTotAbsAmpl
    TotWalkersOld=0
 !WalkerScale*dTotAbsAmpl
-   TotPartsOld(1)=0
+   TotPartsOld=0
 !WalkerScale*dTotAbsAmpl
    AllTotWalkersOld=1
 !WalkerScale*dTotAbsAmpl
    AllTotParts(1)=WalkerScale*dTotAbsAmpl
    AllTotPartsOld(1)=WalkerScale*dTotAbsAmpl
    if(iProcIndex==root) then
-      iOldTotParts=WalkerScale*dTotAbsAmpl
-      iter_data_ccmc%tot_parts_old = WalkerScale * dTotAbsAmpl
+      iOldTotParts=0
+      iOldTotParts(1)=WalkerScale*dTotAbsAmpl
+      iter_data_ccmc%tot_parts_old = 0
+      iter_data_ccmc%tot_parts_old(1) = WalkerScale * dTotAbsAmpl
    else
       iOldTotParts=0
       iter_data_ccmc%tot_parts_old = 0
@@ -2568,6 +2570,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       
 !TotParts is used for this and is WalkerScale* total of all amplitudes
       if(iShiftLeft.le.0)  then
+          write(6,*) "ID ",iter_data_ccmc%update_growth
           Call calculate_new_shift_wrapper(iter_data_ccmc, &
                                                 TotParts)
           if(tRestart) call stop_all(this_routine,"All particles died.")

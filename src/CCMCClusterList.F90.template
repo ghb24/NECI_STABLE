@@ -766,11 +766,13 @@ subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,dNorm,AL,iAmpList,nAmpl,dTol,Wal
    integer iDebug
    real(dp) WalkerScale
    integer iRefPos
-   integer iOldTotParts
+   integer, dimension(lenof_sign) :: iOldTotParts
 
    integer i,j,ierr
    real(dp) dPsiTotAbsAmpl,dTmp
    real(dp) dTotExcitors
+
+   %(type1)s, dimension(lenof_sign) :: nparts
 
    ! Avoid compile warnings outside debug mode
    iDebug = iDebug
@@ -780,9 +782,12 @@ subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,dNorm,AL,iAmpList,nAmpl,dTol,Wal
 !   CCMC_time%%timer_name="CalcTotalsr"
 !   call set_timer(CCMC_time,20)
 
+   nparts=0
+
    iNumExcitors=0
    dTotAbsAmpl=0
    do j=1,nAmpl
+      nparts=nparts+abs(GetAmpl(AL,j,iAmpList))
       if(j==iRefPos) cycle
       if(sum(abs(GetAmpl(AL,j,iAmpList))).gt.dTol) then
          iNumExcitors=iNumExcitors+1
@@ -822,9 +827,12 @@ subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,dNorm,AL,iAmpList,nAmpl,dTol,Wal
    endif
    IFDEBUG(iDebug,3) WRITE(6,"(A,I5,A,I5)") "Finished calculating total cluster amplitude at level ",i-1,"/",iNumExcitors
    IFDEBUG(iDebug,2) WRITE(6,*) "|exp(T)|: ",dPsiTotAbsAmpl
-   TotParts=0
-   TotParts(1)=dTotExcitors*WalkerScale !TotParts indicates the total number of excitors
-   
+
+
+!   TotParts=0
+!   TotParts(1)=dTotExcitors*WalkerScale !TotParts indicates the total number of excitors
+ 
+    TotParts=nparts*WalkerScale  
    if(iProcIndex.eq.root) then 
       TotWalkers=iNumExcitors+1  !TotWalkers indicates the total number of unique excitors with a population
    else
@@ -832,7 +840,7 @@ subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,dNorm,AL,iAmpList,nAmpl,dTol,Wal
    endif
    if(iProcIndex==root) then
       iter_data_ccmc%%update_growth=iter_data_ccmc%%update_growth+TotParts-iOldTotParts
-      iOldTotParts=TotParts(1)
+      iOldTotParts=TotParts
    else
       iter_data_ccmc%%update_growth=0
       iOldTotParts=0
