@@ -1940,11 +1940,9 @@ MODULE FciMCParMod
                 p_notlist_rdmfac = ( 1.D0 - prob ) + ( prob * (1.D0 - p_spawn_rdmfac) )
 
                 ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i]
-                ! However when we add in Di -> Dj, we also add in Dj -> Di, so the probability of generating this pair 
-                ! is twice that of just generating Dio -> Dj.
                 ! The spawning probability is dependent on the current sign - wSign, but the actual sign we add in is that 
                 ! after the walkers on Di have died (wSignDied).
-                RDMBiasFacI = real(wSignDied(1),dp) / abs( ( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) ) * 2.D0 )
+                RDMBiasFacI = real(wSignDied(1),dp) / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) ) 
 !                RDMBiasFacI = real(wSign(1),dp) / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) )
                     
             endif
