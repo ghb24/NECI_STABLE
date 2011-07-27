@@ -1923,8 +1923,8 @@ MODULE nElRDMMod
 !            'The trace of the 1RDM matrix before diagonalisation is &
 !            &not equal to that after.')
             WRITE(6,*) 'WARNING : &
-            &The trace of the 1RDM matrix before diagonalisation is &
-            &not equal to that after.'
+            &The trace of the 1RDM matrix before diagonalisation is '
+            write(6,*) 'not equal to that after.'
         ENDIF
 
 !        CALL halt_timer(DiagNatOrbMat_Time)
@@ -3161,8 +3161,8 @@ MODULE nElRDMMod
 
                 call Write_out_1and_2RDM(Norm_1RDM, Norm_2RDM)
 
-                write(6,'(A29,F20.10)') ' MAX ABS ERROR IN HERMITICITY', Max_Error_Hermiticity
-                write(6,'(A29,F20.10)') ' SUM ABS ERROR IN HERMITICITY', Sum_Error_Hermiticity
+                write(6,'(A29,F30.20)') ' MAX ABS ERROR IN HERMITICITY', Max_Error_Hermiticity
+                write(6,'(A29,F30.20)') ' SUM ABS ERROR IN HERMITICITY', Sum_Error_Hermiticity
                 write(6,*) ''
  
             endif
@@ -3402,10 +3402,10 @@ MODULE nElRDMMod
 
         if(RDMExcitLevel.eq.3) then
             write(6,*) ''
-            write(6,'(A22,F20.10)') ' TOTAL SPIN PROJECTION', Max(SpinPlus,SpinMinus) 
+            write(6,'(A22,F30.20)') ' TOTAL SPIN PROJECTION', Max(SpinPlus,SpinMinus) 
             write(6,*) ''
-            write(6,'(A28,F20.10)') ' SUM ABS LINEAR INEQUALITIES', Lin_Ineq
-            write(6,'(A26,F20.10)') ' MAX ABS LINEAR INEQUALITY', Max_Lin_Ineq
+            write(6,'(A28,F30.20)') ' SUM ABS LINEAR INEQUALITIES', Lin_Ineq
+            write(6,'(A26,F30.20)') ' MAX ABS LINEAR INEQUALITY', Max_Lin_Ineq
             write(6,*) ''
         endif
 
