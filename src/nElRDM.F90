@@ -854,7 +854,7 @@ MODULE nElRDMMod
             ! The singles and doubles are connected and explicitly calculated.
             if(tHF_Ref_Explicit) &
                 call Add_RDM_From_IJ_Pair(HFDet, DetCurr, real(AllHFSign(1),dp), &
-                                                real(SignCurr(1),dp), .false.)
+                                                real(SignCurr(1),dp))
         endif
 
     end subroutine Add_StochRDM_Diag_HF_S_D
@@ -906,7 +906,11 @@ MODULE nElRDMMod
             if(HPHFExcitLevel.le.2) & 
                 call Add_RDM_From_IJ_Pair(DetCurr,nSpinCoup,&
                                             real(SignCurr(1),dp)/SQRT(2.D0), &
-                                            real(SignFac*SignCurr(1),dp)/SQRT(2.D0),.true.)
+                                            real(SignFac*SignCurr(1),dp)/SQRT(2.D0))
+
+                call Add_RDM_From_IJ_Pair(nSpinCoup,DetCurr,&
+                                            real(SignFac*SignCurr(1),dp)/SQRT(2.D0),&
+                                            real(SignCurr(1),dp)/SQRT(2.D0))
         else
 
             ! If no HPHF - just add in diagonal contribution from D_I.                
@@ -1089,7 +1093,7 @@ MODULE nElRDMMod
                         IF(Ex(1,1).le.0) CALL Stop_All('Sing_SearchOccDets',&
                                             'nJ is not the correct excitation of nI.')
 
-                        call Fill_Sings_RDM(nI,Ex,tParity,realSignDi,realSignDj,.true.)
+                        call Fill_Sings_RDM(nI,Ex,tParity,realSignDi,realSignDj)
 ! No normalisation factor just yet - possibly need to revise.                    
                     ENDIF
 
@@ -1166,7 +1170,7 @@ MODULE nElRDMMod
                         IF(Ex(1,1).le.0) CALL Stop_All('SearchOccDets',&
                                             'nJ is not the correct excitation of nI.')
 
-                        call Fill_Doubs_RDM(Ex,tParity,realSignDi,realSignDj,.true.)
+                        call Fill_Doubs_RDM(Ex,tParity,realSignDi,realSignDj)
                         
                         
                     ENDIF
@@ -2969,6 +2973,25 @@ MODULE nElRDMMod
                             Trace_2RDM, Trace_2RDM_Inst, Norm_1RDM_Inst, Norm_1RDM, &
                             Norm_2RDM_Inst, Norm_2RDM)
 
+
+            if(tFinalRDMEnergy) then
+                do i = 1, ((nBasis*(nBasis-1))/2)
+                    do j = 1, ((nBasis*(nBasis-1))/2)
+                        if(RDMExcitLevel.ne.1) then
+                            Temp = (AllTwoElRDM(i,j) + AllTwoElRDM(j,i))/2.D0
+                            AllTwoElRDM(i,j) = Temp
+                            AllTwoElRDM(j,i) = Temp
+                        endif
+
+                        if((RDMExcitLevel.ne.2).and.(i.le.nBasis).and.(j.le.nBasis)) then
+                            Temp = (NatOrbMat(i,j) + NatOrbMat(j,i))/2.D0
+                            NatOrbMat(i,j) = Temp
+                            NatOrbMat(j,i) = Temp
+                        endif
+                    enddo
+                enddo
+            endif
+
             do i = 1, nBasis 
 
                 i2 = gtID(i)
@@ -3240,7 +3263,7 @@ MODULE nElRDMMod
     subroutine Write_out_1and_2RDM(Norm_1RDM, Norm_2RDM)
         real(dp) , intent(in) :: Norm_1RDM, Norm_2RDM
         real(dp) :: Tot_Spin_Projection, ParityFactor_LI, SpinPlus, SpinMinus
-        real(dp) :: Lin_Ineq, Lin_Ineq_TwoEl, Lin_Ineq_OneEl, ParityFactor
+        real(dp) :: Lin_Ineq, Lin_Ineq_TwoEl, Lin_Ineq_OneEl, ParityFactor, Temp
         integer :: Ind1_LI, Ind2_LI
         integer :: i, j, k, l, Ind1, Ind2
         integer :: OneRDM_unit, TwoRDM_unit
@@ -3264,19 +3287,12 @@ MODULE nElRDMMod
         Tot_Spin_Projection = 0.D0
         do i = 1, nBasis
 
-            if(RDMExcitLevel.ne.2) then
-                if(NatOrbMat(SymLabelListInv(i),SymLabelListInv(i)).ne.0.D0) & 
-                        write(OneRDM_unit,"(2I6,G25.17)") i,i, & 
-                        NatOrbMat(SymLabelListInv(i),SymLabelListInv(i)) * Norm_1RDM 
-
-            do j = i+1, nBasis
+            do j = 1, nBasis
 
                 if(RDMExcitLevel.ne.2) then
-                    if((NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)).ne.0.D0).or. & 
-                        (NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)).ne.0.D0)) & 
+                    if(NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)).ne.0.D0) & 
                             write(OneRDM_unit,"(2I6,G25.17)") i,j, & 
-                            ((NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) + & 
-                              NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)))/2.D0) * Norm_1RDM 
+                            NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) * Norm_1RDM 
 
                     if(RDMExcitLevel.eq.1) cycle  
                 
@@ -3307,23 +3323,23 @@ MODULE nElRDMMod
                         endif
                     endif
 
-                    do l = k+1, nBasis
+                    if(i.ne.j) then
+                        do l = 1, nBasis
 
-                        Ind2 = ( ( (max(k,l)-2) * (max(k,l)-1) ) / 2 ) + min(k,l)
+                            if(k.eq.l) CYCLE
 
-                        ParityFactor = 1.D0
-                        IF((i.gt.j).or.(k.gt.l)) ParityFactor = -1.D0
-                        IF((i.gt.j).and.(k.gt.l)) ParityFactor = 1.D0
+                            Ind2 = ( ( (max(k,l)-2) * (max(k,l)-1) ) / 2 ) + min(k,l)
 
-                        if(Ind2.ge.Ind1) then
-                            if( (AllTwoElRDM(Ind1,Ind2).ne.0.D0).or. &
-                                (AllTwoElRDM(Ind2,Ind1).ne.0.D0) ) &
+                            ParityFactor = 1.D0
+                            IF((i.gt.j).or.(k.gt.l)) ParityFactor = -1.D0
+                            IF((i.gt.j).and.(k.gt.l)) ParityFactor = 1.D0
+
+                            if( AllTwoElRDM(Ind1,Ind2).ne.0.D0) &
                                 write(TwoRDM_unit,"(4I6,G25.17)") i,j,k,l, &
-                                    ( (AllTwoElRDM(Ind1,Ind2) + AllTwoElRDM(Ind2,Ind1))/2.D0) &
-                                    * Norm_2RDM * ParityFactor
-                        endif
+                                    AllTwoElRDM(Ind1,Ind2) * Norm_2RDM * ParityFactor
 
-                    enddo
+                        enddo
+                    endif
                 enddo
 
                 if(RDMExcitLevel.eq.3) Lin_Ineq = Lin_Ineq + abs( Lin_Ineq_TwoEl - Lin_Ineq_OneEl )
