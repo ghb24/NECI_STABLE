@@ -173,6 +173,8 @@ MODULE FciMCParMod
         TIncrement=.true.   !If TIncrement is true, it means that when it comes out of the loop, it wants to subtract 1 from the Iteration count to get the true number of iterations
         Iter=1
 
+        if(tRDMonFly.and.(.not.tSinglePartPhase)) call check_start_rdm()
+
         SumSigns = 0.D0
         SumSpawns = 0.D0
 
@@ -422,6 +424,12 @@ MODULE FciMCParMod
 
     subroutine check_start_rdm()
         implicit none
+
+        write(6,*) 'tsinglepartphase',tsinglepartphase
+        write(6,*) 'iter',iter
+        write(6,*) 'VaryShiftIter',VaryShiftIter
+        write(6,*) 'Iter - VaryShiftIter',Iter - VaryShiftIter
+        write(6,*) 'IterRDMonFly',IterRDMonFly
 
         IF((.not.tSinglePartPhase).and.((Iter - VaryShiftIter).eq.IterRDMonFly)) THEN
             !We have reached the iteration where we want to start filling the RDM.
@@ -5932,7 +5940,7 @@ MODULE FciMCParMod
         !start filling as soon as possible.
         if(tRDMonFly.and.(.not.tSinglePartPhase)) then
             VaryShiftIter = 0
-            if(IterRDMonFly.eq.0) IterRDMonFly = 1
+            if(IterRDMonFly.eq.0) IterRDMonFly = 1 
         endif
 
     end subroutine InitFCIMCCalcPar
