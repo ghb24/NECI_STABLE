@@ -1268,6 +1268,13 @@ MODULE nElRDMMod
             ! Adding to 1-RDM(i,a), ci.cj effectively.
             OneElRDM( Indij , Indab ) = OneElRDM( Indij , Indab ) + (ParityFactor * &
                                 ( realSignDi * SignFac ) * ( realSignDj * SignFac ))
+
+            if(tExplicitAllRDM) then                                
+                OneElRDM( Indab , Indij ) = OneElRDM( Indab , Indij ) + (ParityFactor * &
+                                ( realSignDi * SignFac ) * ( realSignDj * SignFac ))
+
+            endif
+
         endif
 
         if(RDMExcitLevel.ne.1) then
@@ -1300,6 +1307,12 @@ MODULE nElRDMMod
 
                     TwoElRDM( Indij , Indab ) = TwoElRDM( Indij , Indab ) + (ParityFactor2 * &
                                             ( realSignDi * SignFac ) * ( realSignDj * SignFac ))
+
+                    if(tExplicitAllRDM) then                                            
+                        TwoElRDM( Indab , Indij ) = TwoElRDM( Indab , Indij ) + (ParityFactor2 * &
+                                            ( realSignDi * SignFac ) * ( realSignDj * SignFac ))
+                    endif
+
                 ENDIF
             enddo
         endif
@@ -1349,6 +1362,12 @@ MODULE nElRDMMod
         ! Adding 2-RDM(i,j,a,b).
         TwoElRDM( Indij , Indab ) = TwoElRDM( Indij , Indab ) + ( ParityFactor * &
                             ( realSignDi * SignFac ) * ( realSignDj * SignFac ) ) 
+
+        if(tExplicitAllRDM) then                            
+            TwoElRDM( Indab , Indij ) = TwoElRDM( Indab , Indij ) + ( ParityFactor * &
+                            ( realSignDi * SignFac ) * ( realSignDj * SignFac ) ) 
+        endif
+
 
 !        WRITE(6,*) 'TwoElRDM',Indij,Indab,TwoElRDM( Indij , Indab )
 
