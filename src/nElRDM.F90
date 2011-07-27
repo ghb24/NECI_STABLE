@@ -3315,7 +3315,15 @@ MODULE nElRDMMod
         Tot_Spin_Projection = 0.D0
         do i = 1, nBasis
 
-            do j = i, nBasis
+            do j = max(i-1,1), nBasis
+
+                if(i.ne.j) then
+                    Ind1 = ( ( (max(i,j)-2) * (max(i,j)-1) ) / 2 ) + min(i,j)
+
+                    call sum_in_spin_proj(i,j,Ind1,Norm_2RDM,Tot_Spin_Projection)
+                endif
+
+                if(j.eq.(i - 1)) cycle
 
                 if(RDMExcitLevel.ne.2) then
                     if(NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)).ne.0.D0) & 
@@ -3330,12 +3338,6 @@ MODULE nElRDMMod
 
                         Lin_Ineq_TwoEl = 0.D0
                     endif
-                endif
-
-                if(i.ne.j) then
-                    Ind1 = ( ( (max(i,j)-2) * (max(i,j)-1) ) / 2 ) + min(i,j)
-
-                    call sum_in_spin_proj(i,j,Ind1,Norm_2RDM,Tot_Spin_Projection)
                 endif
 
                 do k = 1, nBasis
@@ -3359,7 +3361,7 @@ MODULE nElRDMMod
 
                             Ind2 = ( ( (max(k,l)-2) * (max(k,l)-1) ) / 2 ) + min(k,l)
 
-                            if(Ind2.gt.Ind1) then
+                            if(Ind2.ge.Ind1) then
 
                                 ParityFactor = 1.D0
                                 IF((i.gt.j).or.(k.gt.l)) ParityFactor = -1.D0
@@ -3416,7 +3418,7 @@ MODULE nElRDMMod
         real(dp) , intent(in) :: Norm_2RDM
         real(dp) , intent(inout) :: Tot_Spin_Projection
         integer :: Ind2
-        real(dp) :: ParityFactor
+        real(dp) :: ParityFactor, Mult_Fac1, Mult_Fac2
 
         ! Total Spin Projection: 
         ! Sum_i_j [ 2RDM(ia,ja;ia,ja) + 2RDM(ib,jb;ib,jb) 
@@ -3424,17 +3426,29 @@ MODULE nElRDMMod
 
         ! i and j both alpha (even i and j).
         if((mod(i,2).eq.0).and.(mod(j,2).eq.0)) then
-            ! calculate index for beta equivalents (odd i and j).
-            Ind2 = ( ( (max(i-1,j-1)-2) * (max(i-1,j-1)-1) ) / 2 ) + min(i-1,j-1)
             Tot_Spin_Projection = Tot_Spin_Projection & 
-                                    + ( AllTwoElRDM(Ind1, Ind1) * Norm_2RDM ) & 
-                                    + ( AllTwoElRDM(Ind2, Ind2) * Norm_2RDM )  
+                                + (2.D0 * AllTwoElRDM(Ind1, Ind1) * Norm_2RDM )  
+
+        ! i and j both beta (odd i and j).
+        elseif((mod(i,2).ne.0).and.(mod(j,2).ne.0)) then
+            Tot_Spin_Projection = Tot_Spin_Projection & 
+                                + (2.D0 * AllTwoElRDM(Ind1, Ind1) * Norm_2RDM )  
+
         ! i alpha (even), j beta (odd).                                                              
         elseif((mod(i,2).eq.0).and.(mod(j,2).ne.0)) then
-            ! adding in ialpha jbeta ialpha jbeta
 
+            if(j.eq.(i-1)) then
+                ! this is the case where spat i = spat j
+                Mult_Fac1 = 2.D0
+                Mult_Fac2 = 4.D0
+            else
+                Mult_Fac1 = 4.D0
+                Mult_Fac2 = 8.D0
+            endif
+
+            ! adding in ialpha jbeta ialpha jbeta
             Tot_Spin_Projection = Tot_Spin_Projection &
-                                    - (2.D0 *  AllTwoElRDM(Ind1, Ind1) * Norm_2RDM)  
+                                    - (Mult_Fac1 *  AllTwoElRDM(Ind1, Ind1) * Norm_2RDM)  
 
             ParityFactor = 1.D0
             ! we find the index based on i < j, in reality this will not always be the case.
@@ -3443,6 +3457,10 @@ MODULE nElRDMMod
 
             ! adding in ialpha jbeta jalpha ibeta                                            
             ! Ind2 is for jalpha ibeta
+
+            ! i is even (alpha) - want same orbital but beta = i-1                                    
+            ! j is odd (beta) - want same orbital but alpha = j+1                                    
+ 
             ! i currently alpha (2), j currently beta (1)
             ! want i beta (1), j alpha (2)
             ! but the parity will be wrong
@@ -3453,7 +3471,7 @@ MODULE nElRDMMod
             if(max(i-1,j+1).eq.(j+1)) ParityFactor = ParityFactor * (-1.D0)
 
             Tot_Spin_Projection = Tot_Spin_Projection &
-                                    - (4.D0 * AllTwoElRDM(Ind1, Ind2) * Norm_2RDM * ParityFactor)
+                                    - (Mult_Fac2 * AllTwoElRDM(Ind1, Ind2) * Norm_2RDM * ParityFactor)
         endif
 
     end subroutine
