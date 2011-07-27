@@ -425,12 +425,6 @@ MODULE FciMCParMod
     subroutine check_start_rdm()
         implicit none
 
-        write(6,*) 'tsinglepartphase',tsinglepartphase
-        write(6,*) 'iter',iter
-        write(6,*) 'VaryShiftIter',VaryShiftIter
-        write(6,*) 'Iter - VaryShiftIter',Iter - VaryShiftIter
-        write(6,*) 'IterRDMonFly',IterRDMonFly
-
         IF((.not.tSinglePartPhase).and.((Iter - VaryShiftIter).eq.IterRDMonFly)) THEN
             !We have reached the iteration where we want to start filling the RDM.
             if(tExplicitAllRDM.or.tHF_Ref_Explicit) then
