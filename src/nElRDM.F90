@@ -3881,7 +3881,7 @@ END MODULE nElRDMMod
         ! Run through all Di's.
         do i = Spawned_Parents_Index(1,Spawned_No), &
                 Spawned_Parents_Index(1,Spawned_No) + Spawned_Parents_Index(2,Spawned_No) - 1 
-                
+
             ! The bias is calculated for the chance that Di will spawn any number of times on Dj, 
             ! so we only want to add in a particular Di,Dj pair once.
             ! Here we check if we've already added in this Di.
@@ -3911,6 +3911,8 @@ END MODULE nElRDMMod
                 ! We'll only be in this loop if the Dj is le 2. 
                 ! We need the Di to be the HF.
                 IF(.not.DetBitEQ(iLutHF,Spawned_Parents(0:NIfDBO,i),NIfDBO)) CYCLE
+            ELSEIF(DetBitEQ(iLutHF,Spawned_Parents(0:NIfDBO,i),NIfDBO)) then
+                CYCLE
             ENDIF
             
             call decode_bit_det (nI, Spawned_Parents(0:NIfDBO,i))

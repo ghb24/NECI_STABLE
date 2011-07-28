@@ -111,8 +111,7 @@ MODULE FciMCParMod
                          Add_RDM_From_IJ_Pair, tCalc_RDMEnergy, &
                          DeAlloc_Alloc_SpawnedParts, Add_StochRDM_Diag_Null, &
                          Add_StochRDM_Diag_HPHF, Add_StochRDM_Diag_HF_S_D, &
-                         Add_StochRDM_Diag_Norm
-
+                         Add_StochRDM_Diag_Norm, Fill_Spin_Coupled_RDM
 
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
@@ -970,6 +969,18 @@ MODULE FciMCParMod
                 call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,SignCurr,walkExcitLevel)
             else
                 call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,DiedSignCurr,walkExcitLevel)
+            endif
+
+            if(tFillingStochRDMonFly.and.((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2))) then
+                if(tHPHF) then
+                    call Fill_Spin_Coupled_RDM(iLutRef,CurrentDets(:,j),HFDet,DetCurr,&
+                                                    real(AllInstNoatHF(1),dp),real(SignCurr(1),dp))
+                    call Fill_Spin_Coupled_RDM(CurrentDets(:,j),iLutRef,DetCurr,HFDet,&
+                                                    real(SignCurr(1),dp),real(AllInstNoatHF(1),dp))
+                else
+                    call Add_RDM_From_IJ_Pair(HFDet,DetCurr,real(AllInstNoatHF(1),dp),real(SignCurr(1),dp))
+                    call Add_RDM_From_IJ_Pair(DetCurr,HFDet,real(SignCurr(1),dp),real(AllInstNoatHF(1),dp))
+                endif
             endif
 
             ! Loop over the 'type' of particle. 

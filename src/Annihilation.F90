@@ -816,7 +816,7 @@ MODULE AnnihilationMod
                         ExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,PartInd), 4)
                         if(ExcitLevel.le.4) &
                             CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign(1))
-                    else
+                    elseif(.not.DetBitEQ(iLutRef,CurrentDets(:,PartInd),NIfDBO)) then
                         CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign(1))
                     endif
                 endif
