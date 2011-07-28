@@ -1048,14 +1048,12 @@ MODULE AnnihilationMod
         norm_psi_squared = 0
         DetsMerged=0
         iHighestPop=0
-        HFSign(:) = 0
+        InstNoatHF(:) = 0
         IF(TotWalkersNew.gt.0) THEN
             do i=1,TotWalkersNew
                 call extract_sign(CurrentDets(:,i),CurrentSign)
 
-                if(tHF_Ref_Explicit.and.(.not.tSinglePartPhase).and. &
-                    ((Iter - VaryShiftIter).ge.(IterRDMonFly - 1)).and.&
-                    DetBitEQ(iLutHF,CurrentDets(:,i),NIfDBO)) HFSign(1) = CurrentSign(1)
+                if(DetBitEQ(iLutHF,CurrentDets(:,i),NIfDBO)) InstNoatHF(1) = CurrentSign(1)
 
                 IF(IsUnoccDet(CurrentSign)) THEN
                     DetsMerged=DetsMerged+1
@@ -1093,10 +1091,6 @@ MODULE AnnihilationMod
         ELSEIF(iProcIndex.eq.iHFProc) THEN
             call stop_all(this_routine,'HF has been deleted from list')
         ENDIF
-
-        if(tHF_Ref_Explicit.and.(.not.tSinglePartPhase).and.&
-                ((Iter - VaryShiftIter).ge.(IterRDMonFly - 1))) &
-            call MPIAllReduce (HFSign, MPI_SUM, AllHFSign)
 
 !        do i=1,TotWalkersNew
 !            IF(CurrentSign(i).eq.0) THEN

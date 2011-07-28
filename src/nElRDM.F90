@@ -784,7 +784,7 @@ MODULE nElRDMMod
     subroutine Add_StochRDM_Diag_Norm(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
 ! This is called when we run over all TotWalkers in CurrentDets.    
 ! It is called for each CurrentDet.
-        use FciMCData , only : HFDet, AllHFSign
+        use FciMCData , only : HFDet, AllInstNoatHF
         use hphf_integrals , only : hphf_sign
         use HPHFRandExcitMod , only : FindExcitBitDetSym
         use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
@@ -807,7 +807,7 @@ MODULE nElRDMMod
     subroutine Add_StochRDM_Diag_HF_S_D(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
 ! This is called when we run over all TotWalkers in CurrentDets.    
 ! It is called for each CurrentDet.
-        use FciMCData , only : HFDet, AllHFSign
+        use FciMCData , only : HFDet, AllInstNoatHF
         use hphf_integrals , only : hphf_sign
         use HPHFRandExcitMod , only : FindExcitBitDetSym
         use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
@@ -830,9 +830,9 @@ MODULE nElRDMMod
             AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
             AccumRDMNorm_Inst = AccumRDMNorm_Inst + (real(SignCurr(1)) * real(SignCurr(1)))
 
-            if(tHF_Ref_Explicit.and.(SignCurr(1).ne.AllHFSign(1))) then
+            if(tHF_Ref_Explicit.and.(SignCurr(1).ne.AllInstNoatHF(1))) then
                 write(6,*) 'CurrentSign',SignCurr(1)
-                write(6,*) 'HF Sign',AllHFSign(1)
+                write(6,*) 'HF Sign',AllInstNoatHF(1)
                 call stop_all('Add_StochRDM_Diag','HF population is incorrect.')
             endif
         elseif(walkExcitLevel.le.2) then
@@ -847,7 +847,7 @@ MODULE nElRDMMod
 
             ! The singles and doubles are connected and explicitly calculated.
             if(tHF_Ref_Explicit) &
-                call Add_RDM_From_IJ_Pair(HFDet, DetCurr, real(AllHFSign(1),dp), &
+                call Add_RDM_From_IJ_Pair(HFDet, DetCurr, real(AllInstNoatHF(1),dp), &
                                                 real(SignCurr(1),dp))
         endif
 
@@ -857,7 +857,7 @@ MODULE nElRDMMod
     subroutine Add_StochRDM_Diag_HPHF(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
 ! This is called when we run over all TotWalkers in CurrentDets.    
 ! It is called for each CurrentDet.
-        use FciMCData , only : HFDet, AllHFSign
+        use FciMCData , only : HFDet, AllInstNoatHF
         use hphf_integrals , only : hphf_sign
         use HPHFRandExcitMod , only : FindExcitBitDetSym
         use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet

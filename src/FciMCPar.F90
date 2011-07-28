@@ -649,7 +649,7 @@ MODULE FciMCParMod
         implicit none
         interface
             subroutine Add_StochRDM_Diag(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
-                use FciMCData , only : HFDet, AllHFSign
+                use FciMCData , only : HFDet, AllInstNoatHF
                 use hphf_integrals , only : hphf_sign
                 use HPHFRandExcitMod , only : FindExcitBitDetSym
                 use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
@@ -788,7 +788,7 @@ MODULE FciMCParMod
                 integer, dimension(lenof_sign) :: ndie
             end function
             subroutine Add_StochRDM_Diag(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
-                use FciMCData , only : HFDet, AllHFSign
+                use FciMCData , only : HFDet, AllInstNoatHF
                 use hphf_integrals , only : hphf_sign
                 use HPHFRandExcitMod , only : FindExcitBitDetSym
                 use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
@@ -3529,6 +3529,9 @@ MODULE FciMCParMod
         iter_data%nannihil = 0
         iter_data%naborted = 0
 
+        IF(tFillingStochRDMonFly.or.(tFillingExplicRDMonFly.and.tHF_Ref_Explicit)) &
+            call MPISumAll (InstNoatHF, AllInstNoatHF)
+
     end subroutine
 
 
@@ -4366,6 +4369,7 @@ MODULE FciMCParMod
         SumENum=0.D0
         SumNoatHF=0
         NoatHF=0
+        InstNoatHF=0
         NoatDoubs=0
         Annihilated=0
         Acceptances=0
@@ -4401,6 +4405,7 @@ MODULE FciMCParMod
 !Also reinitialise the global variables - should not necessarily need to do this...
         AllSumENum=0.D0
         AllNoatHF=0
+        AllInstNoatHF=0
         AllNoatDoubs=0
         AllSumNoatHF = 0
         AllGrowRate=0.D0
@@ -5709,6 +5714,7 @@ MODULE FciMCParMod
             TotParts(:)=0
             TotPartsOld(:)=0
             NoatHF=0
+            InstNoatHF=0
 
             if (tSpawnSpatialInit) then
                 max_inits = int(MemoryFacInit * INitWalkers)
@@ -5738,6 +5744,7 @@ MODULE FciMCParMod
                 call MPISumAll(TotParts,AllTotParts)
                 AllTotPartsOld=AllTotParts
                 call MPISumAll(NoatHF,AllNoatHF)
+                if(tRDMonFly) call MPISumAll(InstNoatHF,AllInstNoatHF)
                 OldAllNoatHF=AllNoatHF
                 AllNoAbortedOld=0.D0
                 iter_data_fciqmc%tot_parts_old = AllTotParts
