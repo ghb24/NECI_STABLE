@@ -46,7 +46,7 @@ MODULE nElRDMMod
         USE OneEInts , only : TMAT2D
         USE FciMCData , only : MaxWalkersPart, MaxSpawned, Spawned_Parents, PreviousCycles
         USE FciMCData , only : Spawned_Parents_Index, Spawned_ParentsTag, AccumRDMNorm_Inst
-        USE FciMCData , only : Spawned_Parents_IndexTag, Iter, AccumRDMNorm, AlltotPartsTemp
+        USE FciMCData , only : Spawned_Parents_IndexTag, Iter, AccumRDMNorm
         USE Logging , only : RDMExcitLevel, tROFciDUmp, NoDumpTruncs, tExplicitAllRDM, &
                              tHF_S_D_Ref, tHF_Ref, tHF_Ref_Explicit, tHF_S_D 
         USE RotateOrbsData , only : CoeffT1, CoeffT1Tag, tTurnStoreSpinOff, NoFrozenVirt
@@ -553,10 +553,8 @@ MODULE nElRDMMod
 
         TotWalkIn(1)=TotWalkers
         TotWalkIn(2)=iProcIndex
-        TempTotParts=REAL(TotParts(1))
 
         CALL MPIAllReduceDatatype(TotWalkIn,1,MPI_MAXLOC,MPI_2INTEGER,TotWalkOut)
-        CALL MPIAllReduce(TempTotParts,MPI_SUM,AllTotPartstemp)
 
         MaxTotWalkers=TotWalkOut(1)
 
@@ -794,9 +792,6 @@ MODULE nElRDMMod
         integer , intent(in) :: DetCurr(NEl)
         integer, dimension(lenof_sign), intent(in) :: SignCurr
         integer , intent(in) :: walkExcitLevel
-        integer(kind=n_int) :: SpinCoupDet(0:niftot)
-        integer :: nSpinCoup(NEl), SignFac, HPHFExcitLevel
-        logical :: tFill_RDM_Symm
 
 ! Add diagonal elements to reduced density matrices.
 
@@ -821,8 +816,7 @@ MODULE nElRDMMod
         integer, dimension(lenof_sign), intent(in) :: SignCurr
         integer , intent(in) :: walkExcitLevel
         integer(kind=n_int) :: SpinCoupDet(0:niftot)
-        integer :: nSpinCoup(NEl), SignFac, HPHFExcitLevel
-        logical :: tFill_RDM_Symm
+        integer :: nSpinCoup(NEl), HPHFExcitLevel
 
 ! Add diagonal elements to reduced density matrices.
 
@@ -1192,22 +1186,13 @@ MODULE nElRDMMod
 ! Need to add in the diagonal elements.
 ! The RDM are always in spin orbitals, so just adding the orbital as is, is fine.
         
-!        if(tExplicitAllRDM) then
-!            SignDiFac =  REAL(AllTotPartsTemp) / &
-!                            ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) 
-!            ! This is just scaling the contribution down slightly so we don't get 
-!            ! integer overflow - probably way unnecessary.
-!        else
-            SignDiFac = 1.D0
-!        endif
-
 !        WRITE(6,*) realSignDi
 
         IF(RDMExcitLevel.ne.2) THEN
             do i=1,NEl
                 OneElRDM(SymLabelListInv(nI(i)),SymLabelListInv(nI(i))) = &
                             OneElRDM(SymLabelListInv(nI(i)),SymLabelListInv(nI(i))) &
-                              + ((SignDiFac*realSignDi) * (SignDiFac*realSignDi)) 
+                              + (realSignDi * realSignDi) 
             enddo
         ENDIF
 
@@ -1218,7 +1203,7 @@ MODULE nElRDMMod
                 do j=i+1,NEl
                     Ind=( ( (nI(j)-2) * (nI(j)-1) ) / 2 ) + nI(i)
                     TwoElRDM( Ind , Ind ) = TwoElRDM( Ind , Ind ) &
-                              + ((SignDiFac*realSignDi) * (SignDiFac*realSignDi))
+                              + (realSignDi * realSignDi)
                 enddo
             enddo
         ENDIF
@@ -1235,7 +1220,7 @@ MODULE nElRDMMod
         logical , intent(in) :: tParity
         real(dp) , intent(in) :: realSignDi, realSignDj
         integer :: k, Indij, Indab
-        real(dp) :: ParityFactor, ParityFactor2, SignFac
+        real(dp) :: ParityFactor, ParityFactor2
 
 !        WRITE(6,*) '* In singles'
 !        WRITE(6,*) 'Ex(1,:)',Ex(1,:)
@@ -1243,16 +1228,6 @@ MODULE nElRDMMod
 !        WRITE(6,*) 'tParity',tParity
 !        WRITE(6,*) 'nI',nI
 !        WRITE(6,*) 'Adding realSignDi, realSignDj',realSignDi,realSignDj
-
-!        if(tExplicitAllRDM) then
-!            ! This is a bit ridiculous I think - I wanted to scale the signs being added 
-!            ! down - but keep the bias favouring contributions when there are more walkers.
-!            ! May be unnecessary.
-!            SignFac = REAL(AllTotPartsTemp) / &
-!                        ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) 
-!        else
-            SignFac = 1.D0 
-!        endif
 
         ParityFactor=1.D0
         IF(tParity) ParityFactor=-1.D0
@@ -1267,11 +1242,11 @@ MODULE nElRDMMod
         if(RDMExcitLevel.ne.2) then
             ! Adding to 1-RDM(i,a), ci.cj effectively.
             OneElRDM( Indij , Indab ) = OneElRDM( Indij , Indab ) + (ParityFactor * &
-                                ( realSignDi * SignFac ) * ( realSignDj * SignFac ))
+                                realSignDi * realSignDj )
 
             if(tExplicitAllRDM) then                                
                 OneElRDM( Indab , Indij ) = OneElRDM( Indab , Indij ) + (ParityFactor * &
-                                ( realSignDi * SignFac ) * ( realSignDj * SignFac ))
+                                realSignDi * realSignDj )
 
             endif
 
@@ -1306,11 +1281,11 @@ MODULE nElRDMMod
                                             ParityFactor2 = ParityFactor * (-1.D0)
 
                     TwoElRDM( Indij , Indab ) = TwoElRDM( Indij , Indab ) + (ParityFactor2 * &
-                                            ( realSignDi * SignFac ) * ( realSignDj * SignFac ))
+                                            realSignDi * realSignDj )
 
                     if(tExplicitAllRDM) then                                            
                         TwoElRDM( Indab , Indij ) = TwoElRDM( Indab , Indij ) + (ParityFactor2 * &
-                                            ( realSignDi * SignFac ) * ( realSignDj * SignFac ))
+                                            realSignDi * realSignDj )
                     endif
 
                 ENDIF
@@ -1327,7 +1302,7 @@ MODULE nElRDMMod
         logical , intent(in) :: tParity
         real(dp) , intent(in) :: realSignDi, realSignDj
         integer :: k, Indij, Indab
-        real(dp) :: ParityFactor, SignFac
+        real(dp) :: ParityFactor
 
         ParityFactor=1.D0
         IF(tParity) ParityFactor=-1.D0
@@ -1337,13 +1312,6 @@ MODULE nElRDMMod
 !        WRITE(6,*) 'Ex(2,:)',Ex(2,:)
 !        WRITE(6,*) 'tParity',tParity
 !        WRITE(6,*) 'Adding realSignDi, realSignDj',realSignDi,realSignDj
-
-!        if(tExplicitAllRDM) then
-!            SignFac = REAL(AllTotPartsTemp) / &
-!                        ( REAL(MaxWalkersPart) * REAL(nProcessors) * 1000.D0 ) 
-!        else
-            SignFac = 1.D0
-!        endif
 
         ! Ex matrix is calculated so that Ex(1,1) (i) < Ex(1,2) (j), and 
         ! Ex(2,1) (a) < Ex(2,2) (b) - if this isn't true, it'll screw things up.
@@ -1361,11 +1329,11 @@ MODULE nElRDMMod
 
         ! Adding 2-RDM(i,j,a,b).
         TwoElRDM( Indij , Indab ) = TwoElRDM( Indij , Indab ) + ( ParityFactor * &
-                            ( realSignDi * SignFac ) * ( realSignDj * SignFac ) ) 
+                            realSignDi * realSignDj ) 
 
         if(tExplicitAllRDM) then                            
             TwoElRDM( Indab , Indij ) = TwoElRDM( Indab , Indij ) + ( ParityFactor * &
-                            ( realSignDi * SignFac ) * ( realSignDj * SignFac ) ) 
+                            realSignDi * realSignDj ) 
         endif
 
 

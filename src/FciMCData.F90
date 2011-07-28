@@ -40,7 +40,7 @@ MODULE FciMCData
       INTEGER(KIND=n_int) , ALLOCATABLE :: Spawned_Parents(:,:)
       INTEGER , ALLOCATABLE :: Spawned_Parents_Index(:,:)
       INTEGER :: Spawned_ParentsTag, Spawned_Parents_IndexTag
-      REAL*8 :: RDMBiasFacI, AllTotPartsTemp, SumSigns, SumSpawns
+      REAL*8 :: RDMBiasFacI, SumSigns, SumSpawns
       LOGICAL :: tFillingStochRDMonFly, tFillingExplicRDMonFly, thf, tFirst 
       integer :: Spawned_Parts_Zero
       integer(int64), dimension(lenof_sign) :: HFSign, AllHFSign

@@ -3529,9 +3529,6 @@ MODULE FciMCParMod
         iter_data%nannihil = 0
         iter_data%naborted = 0
 
-        TempTotParts=REAL(TotParts(1),dp)
-        CALL MPIAllReduce(TempTotParts,MPI_SUM,AllTotPartstemp)
-
     end subroutine
 
 
