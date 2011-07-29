@@ -820,10 +820,8 @@ MODULE nElRDMMod
         call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
 
 ! If we have a single or double, add in the connection to the HF, symmetrically.        
-        if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) then
-            call Add_RDM_From_IJ_Pair(HFDet,DetCurr,real(AllInstNoatHF(1),dp),real(SignCurr(1),dp))
-            call Add_RDM_From_IJ_Pair(DetCurr,HFDet,real(SignCurr(1),dp),real(AllInstNoatHF(1),dp))
-        endif
+        if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) &
+            call Add_RDM_From_IJ_Pair(HFDet,DetCurr,real(AllInstNoatHF(1),dp),real(SignCurr(1),dp),.true.)
 
     end subroutine Add_StochRDM_Diag_Norm
 
@@ -854,12 +852,6 @@ MODULE nElRDMMod
         ! In all of these cases the HF is a diagonal element.
         if(walkExcitLevel.eq.0) then
 
-            if(SignCurr(1).ne.AllInstNoatHF(1)) then
-                write(6,*) 'SignCurr',SignCurr
-                write(6,*) 'AllInstNoatHF',AllInstNoatHF
-                CALL Stop_All('PerformFCIMCycPar','Incorrect instantaneous HF population.')
-            endif
-
             call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
             AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
             AccumRDMNorm_Inst = AccumRDMNorm_Inst + (real(SignCurr(1)) * real(SignCurr(1)))
@@ -878,8 +870,7 @@ MODULE nElRDMMod
                 AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
                 AccumRDMNorm_Inst = AccumRDMNorm_Inst + (real(SignCurr(1)) * real(SignCurr(1)))
 
-                call Add_RDM_From_IJ_Pair(HFDet,DetCurr,real(AllInstNoatHF(1),dp),real(SignCurr(1),dp))
-                call Add_RDM_From_IJ_Pair(DetCurr,HFDet,real(SignCurr(1),dp),real(AllInstNoatHF(1),dp))
+                call Add_RDM_From_IJ_Pair(HFDet,DetCurr,real(AllInstNoatHF(1),dp),real(SignCurr(1),dp),.true.)
 
             endif
 
@@ -887,7 +878,7 @@ MODULE nElRDMMod
             ! - but not symmetrically.
             if(tHF_Ref_Explicit) &
                 call Add_RDM_From_IJ_Pair(HFDet, DetCurr, real(AllInstNoatHF(1),dp), &
-                                                real(SignCurr(1),dp))
+                                                real(SignCurr(1),dp),.false.)
         endif
 
     end subroutine Add_StochRDM_Diag_HF_S_D
@@ -910,11 +901,11 @@ MODULE nElRDMMod
 
 ! For the HF, singles and doubles, the SignCurr is used - these are done explicitly.
 ! Otherwise, we're filling the RDM stochastically and DiedSignCurr should be used.
-!        if(walkExcitLevel.le.2) then
-!            SignCurr = TempSignCurr
-!        else
+        if(walkExcitLevel.le.2) then
+            SignCurr = TempSignCurr
+        else
             SignCurr = DiedSignCurr
-!        endif
+        endif
 
         if(walkExcitLevel.eq.0) then
             if(SignCurr(1).ne.AllInstNoatHF(1)) then
@@ -955,28 +946,18 @@ MODULE nElRDMMod
             if(HPHFExcitLevel.le.2) & 
                 call Add_RDM_From_IJ_Pair(DetCurr,nSpinCoup,&
                                             real(SignCurr(1),dp)/SQRT(2.D0), &
-                                            real(SignFac*SignCurr(1),dp)/SQRT(2.D0))
-
-                call Add_RDM_From_IJ_Pair(nSpinCoup,DetCurr,&
-                                            real(SignFac*SignCurr(1),dp)/SQRT(2.D0),&
-                                            real(SignCurr(1),dp)/SQRT(2.D0))
+                                            real(SignFac*SignCurr(1),dp)/SQRT(2.D0),.true.)
         else
 
             ! If no HPHF - just add in diagonal contribution from D_I.                
             call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
         endif
 
-
-        SignCurr = TempSignCurr
-
 ! Now if the determinant is connected to the HF (i.e. single or double), add in the diagonal elements
 ! of this connection as well - symmetrically because no probabilities are involved.
-        if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) then
+        if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) &
             call Fill_Spin_Coupled_RDM(iLutRef,iLutCurr,HFDet,DetCurr,&
-                                            real(AllInstNoatHF(1),dp),real(SignCurr(1),dp))
-            call Fill_Spin_Coupled_RDM(iLutCurr,iLutRef,DetCurr,HFDet,&
-                                            real(SignCurr(1),dp),real(AllInstNoatHF(1),dp))
-        endif
+                                            real(AllInstNoatHF(1),dp),real(SignCurr(1),dp),.true.)
 
     end subroutine Add_StochRDM_Diag_HPHF
 
@@ -1154,7 +1135,7 @@ MODULE nElRDMMod
                         IF(Ex(1,1).le.0) CALL Stop_All('Sing_SearchOccDets',&
                                             'nJ is not the correct excitation of nI.')
 
-                        call Fill_Sings_RDM(nI,Ex,tParity,realSignDi,realSignDj)
+                        call Fill_Sings_RDM(nI,Ex,tParity,realSignDi,realSignDj,.true.)
 ! No normalisation factor just yet - possibly need to revise.                    
                     ENDIF
 
@@ -1231,7 +1212,7 @@ MODULE nElRDMMod
                         IF(Ex(1,1).le.0) CALL Stop_All('SearchOccDets',&
                                             'nJ is not the correct excitation of nI.')
 
-                        call Fill_Doubs_RDM(Ex,tParity,realSignDi,realSignDj)
+                        call Fill_Doubs_RDM(Ex,tParity,realSignDi,realSignDj,.true.)
                         
                         
                     ENDIF
@@ -1280,12 +1261,13 @@ MODULE nElRDMMod
     end subroutine Fill_Diag_RDM
     
 
-    subroutine Fill_Sings_RDM(nI,Ex,tParity,realSignDi,realSignDj)
+    subroutine Fill_Sings_RDM(nI,Ex,tParity,realSignDi,realSignDj,tFill_CiCj_Symm)
 ! This routine adds in the contribution to the 1- and 2-RDM from determinants connected
 ! by a single excitation.
         integer , intent(in) :: nI(NEl), Ex(2,2)
         logical , intent(in) :: tParity
         real(dp) , intent(in) :: realSignDi, realSignDj
+        logical , intent(in) :: tFill_CiCj_Symm
         integer :: k, Indij, Indab
         real(dp) :: ParityFactor, ParityFactor2
 
@@ -1311,7 +1293,7 @@ MODULE nElRDMMod
             OneElRDM( Indij , Indab ) = OneElRDM( Indij , Indab ) + (ParityFactor * &
                                 realSignDi * realSignDj )
 
-            if(tExplicitAllRDM) then                                
+            if(tFill_CiCj_Symm) then                                
                 OneElRDM( Indab , Indij ) = OneElRDM( Indab , Indij ) + (ParityFactor * &
                                 realSignDi * realSignDj )
 
@@ -1350,7 +1332,7 @@ MODULE nElRDMMod
                     TwoElRDM( Indij , Indab ) = TwoElRDM( Indij , Indab ) + (ParityFactor2 * &
                                             realSignDi * realSignDj )
 
-                    if(tExplicitAllRDM) then                                            
+                    if(tFill_CiCj_Symm) then                                            
                         TwoElRDM( Indab , Indij ) = TwoElRDM( Indab , Indij ) + (ParityFactor2 * &
                                             realSignDi * realSignDj )
                     endif
@@ -1362,12 +1344,13 @@ MODULE nElRDMMod
     end subroutine Fill_Sings_RDM
 
 
-    subroutine Fill_Doubs_RDM(Ex,tParity,realSignDi,realSignDj)
+    subroutine Fill_Doubs_RDM(Ex,tParity,realSignDi,realSignDj,tFill_CiCj_Symm)
 ! This routine adds in the contribution to the 2-RDM from determinants connected
 ! by a double excitation.
         integer , intent(in) :: Ex(2,2)
         logical , intent(in) :: tParity
         real(dp) , intent(in) :: realSignDi, realSignDj
+        logical , intent(in) :: tFill_CiCj_Symm
         integer :: k, Indij, Indab
         real(dp) :: ParityFactor
 
@@ -1398,7 +1381,7 @@ MODULE nElRDMMod
         TwoElRDM( Indij , Indab ) = TwoElRDM( Indij , Indab ) + ( ParityFactor * &
                             realSignDi * realSignDj ) 
 
-        if(tExplicitAllRDM) then                            
+        if(tFill_CiCj_Symm) then                            
             TwoElRDM( Indab , Indij ) = TwoElRDM( Indab , Indij ) + ( ParityFactor * &
                             realSignDi * realSignDj ) 
         endif
@@ -1409,7 +1392,7 @@ MODULE nElRDMMod
     end subroutine Fill_Doubs_RDM
 
 
-    subroutine Fill_Spin_Coupled_RDM(iLutnI,iLutnJ,nI,nJ,realSignI,realSignJ)
+    subroutine Fill_Spin_Coupled_RDM(iLutnI,iLutnJ,nI,nJ,realSignI,realSignJ,tFill_CiCj_Symm)
 !If the two HPHF determinants we're considering consist of I + I' and J + J', 
 !where X' is the spin coupled (all spins flipped) version of X,
 !then we have already considered the I -> J excitation.
@@ -1422,6 +1405,7 @@ MODULE nElRDMMod
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot)
         integer , intent(in) :: nI(NEl), nJ(NEl)
         real(dp) , intent(in) :: realSignI, realSignJ
+        logical , intent(in) :: tFill_CiCj_Symm
         integer(kind=n_int) :: iLutnI2(0:NIfTot),iLutnJ2(0:NIfTot)
         integer :: Ex(2,2), SpinCoupI_J_ExcLevel, nI2(NEl), nJ2(NEl)
         integer :: SignFacI, SignFacJ, I_J_ExcLevel
@@ -1491,11 +1475,11 @@ MODULE nElRDMMod
 
                     ! I -> J.
                     call Add_RDM_From_IJ_Pair(nI,nJ,(realSignI/SQRT(2.D0)),&
-                                                (realSignJ/SQRT(2.D0)))
+                                                (realSignJ/SQRT(2.D0)),tFill_CiCj_Symm)
  
                     ! I' -> J'.
                     call Add_RDM_From_IJ_Pair(nI2,nJ2,(realSignFacI*realSignI),&
-                                              (realSignFacJ*realSignJ))
+                                              (realSignFacJ*realSignJ),tFill_CiCj_Symm)
 
                 endif
 
@@ -1503,10 +1487,10 @@ MODULE nElRDMMod
 
                     ! I' -> J.
                     call Add_RDM_From_IJ_Pair(nI2,nJ,(realSignFacI*realSignI),&
-                                                (realSignJ/SQRT(2.D0)))
+                                                (realSignJ/SQRT(2.D0)),tFill_CiCj_Symm)
                     ! I -> J'.
                     call Add_RDM_From_IJ_Pair(nI, nJ2,(realSignI/SQRT(2.D0)),&
-                                                 (realSignFacJ*realSignJ))
+                                                 (realSignFacJ*realSignJ),tFill_CiCj_Symm)
 
                 endif
 
@@ -1517,10 +1501,10 @@ MODULE nElRDMMod
 
                 ! I -> J.
                 call Add_RDM_From_IJ_Pair(nI,nJ,(realSignI/SQRT(2.D0)),&
-                                                        realSignJ)
+                                                        realSignJ,tFill_CiCj_Symm)
                 ! I' -> J.
                 call Add_RDM_From_IJ_Pair(nI2,nJ,(realSignFacI*realSignI),&
-                                                        realSignJ)
+                                                        realSignJ,tFill_CiCj_Symm)
 
             endif
 
@@ -1530,7 +1514,7 @@ MODULE nElRDMMod
 
             ! I -> J.
             if (I_J_ExcLevel.le.2) call Add_RDM_From_IJ_Pair(nI,nJ,realSignI,&
-                                               (realSignJ/SQRT(2.D0)))
+                                               (realSignJ/SQRT(2.D0)),tFill_CiCj_Symm)
 
             ! Find J'.
             call FindExcitBitDetSym(iLutnJ, iLutnJ2)
@@ -1545,7 +1529,7 @@ MODULE nElRDMMod
                 
                 ! I -> J'.
                 call Add_RDM_From_IJ_Pair(nI,nJ2,realSignI,&
-                                            (realSignFacJ*realSignJ))
+                                            (realSignFacJ*realSignJ),tFill_CiCj_Symm)
 
            endif
 
@@ -1554,20 +1538,22 @@ MODULE nElRDMMod
             ! I and J are both closed shell.
 
             ! Just I -> J.
-            call Add_RDM_From_IJ_Pair(nI,nJ,realSignI,realSignJ)
+            call Add_RDM_From_IJ_Pair(nI,nJ,realSignI,realSignJ,tFill_CiCj_Symm)
 
        endif
 
     end subroutine Fill_Spin_Coupled_RDM
 
 
-    subroutine Add_RDM_From_IJ_Pair(nI,nJ,realSignI,realSignJ)
+    subroutine Add_RDM_From_IJ_Pair(nI,nJ,realSignI,realSignJ,tFill_CiCj_Symm)
 ! This routine takes a pair of different determinants Di and Dj, and figures out which type 
 ! of elements need to be added in to the RDM.
         integer , intent(in) :: nI(NEl), nJ(NEl)
         real(dp) , intent(in) :: realSignI, realSignJ
+        logical , intent(in) :: tFill_CiCj_Symm
         integer :: Ex(2,2),j
         logical :: tParity
+
 
         Ex(:,:) = 0
         Ex(1,1) = 2         ! Maximum excitation level - we know they are connected by 
@@ -1596,13 +1582,13 @@ MODULE nElRDMMod
 
             ! Di and Dj are separated by a single excitation.
             ! Add in the contribution from this pair into the 1- and 2-RDM.
-            call Fill_Sings_RDM(nI,Ex,tParity,realSignI,realSignJ)
+            call Fill_Sings_RDM(nI,Ex,tParity,realSignI,realSignJ,tFill_CiCj_Symm)
     
         elseif(RDMExcitLevel.ne.1) then
 
             ! Otherwise Di and Dj are connected by a double excitation.
             ! Add in this contribution to the 2-RDM (as long as we're calculating this obv).
-            call Fill_Doubs_RDM(Ex,tParity,realSignI,realSignJ)
+            call Fill_Doubs_RDM(Ex,tParity,realSignI,realSignJ,tFill_CiCj_Symm)
 
         endif
 
@@ -3998,9 +3984,9 @@ END MODULE nElRDMMod
             ! and therefore the RDM elements we want to add the Ci.Cj to.
             IF(tHPHF) THEN
                 call Fill_Spin_Coupled_RDM(Spawned_Parents(0:NIfDBO,i),iLutJ,nI,nJ,&
-                                                    realSignI,realSignJ)
+                                                    realSignI,realSignJ,.false.)
             ELSE
-                call Add_RDM_From_IJ_Pair(nI,nJ,realSignI,realSignJ)
+                call Add_RDM_From_IJ_Pair(nI,nJ,realSignI,realSignJ,.false.)
             ENDIF
 
         enddo
