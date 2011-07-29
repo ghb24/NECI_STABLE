@@ -981,6 +981,12 @@ MODULE FciMCParMod
                     call Add_RDM_From_IJ_Pair(HFDet,DetCurr,real(AllInstNoatHF(1),dp),real(SignCurr(1),dp))
                     call Add_RDM_From_IJ_Pair(DetCurr,HFDet,real(SignCurr(1),dp),real(AllInstNoatHF(1),dp))
                 endif
+            elseif(walkExcitLevel.eq.0) then
+                if(SignCurr(1).ne.AllInstNoatHF(1)) then
+                    write(6,*) 'SignCurr',SignCurr
+                    write(6,*) 'AllInstNoatHF',AllInstNoatHF
+                    CALL Stop_All('PerformFCIMCycPar','Incorrect instantaneous HF population.')
+                endif
             endif
 
             ! Loop over the 'type' of particle. 
@@ -5755,6 +5761,7 @@ MODULE FciMCParMod
                 call MPISumAll(TotParts,AllTotParts)
                 AllTotPartsOld=AllTotParts
                 call MPISumAll(NoatHF,AllNoatHF)
+                InstNoatHF = NoatHF
                 if(tRDMonFly) call MPISumAll(InstNoatHF,AllInstNoatHF)
                 OldAllNoatHF=AllNoatHF
                 AllNoAbortedOld=0.D0
