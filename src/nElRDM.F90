@@ -46,7 +46,7 @@ MODULE nElRDMMod
         USE OneEInts , only : TMAT2D
         USE FciMCData , only : MaxWalkersPart, MaxSpawned, Spawned_Parents, PreviousCycles,&
                                Spawned_Parents_Index, Spawned_ParentsTag, AccumRDMNorm_Inst,&
-                               Spawned_Parents_IndexTag, Iter, AccumRDMNorm, AllInstNoatHF,&
+                               Spawned_Parents_IndexTag, Iter, AccumRDMNorm, HFDiedSign,&
                                iLutRef
         USE Logging , only : RDMExcitLevel, tROFciDUmp, NoDumpTruncs, tExplicitAllRDM, &
                              tHF_S_D_Ref, tHF_Ref, tHF_Ref_Explicit, tHF_S_D 
@@ -782,31 +782,22 @@ MODULE nElRDMMod
     END SUBROUTINE GenExcDjs
 
 
-    subroutine Add_StochRDM_Diag_Norm(iLutCurr,DetCurr,TempSignCurr,DiedSignCurr,walkExcitLevel)
+    subroutine Add_StochRDM_Diag_Norm(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
 ! This is called when we run over all TotWalkers in CurrentDets.    
 ! It is called for each CurrentDet.
-        use FciMCData , only : HFDet, AllInstNoatHF
+        use FciMCData , only : HFDet
         use hphf_integrals , only : hphf_sign
         use HPHFRandExcitMod , only : FindExcitBitDetSym
         use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer , intent(in) :: DetCurr(NEl)
-        integer, dimension(lenof_sign), intent(in) :: TempSignCurr, DiedSignCurr
+        integer, dimension(lenof_sign), intent(in) :: SignCurr
         integer , intent(in) :: walkExcitLevel
-        integer, dimension(lenof_sign) :: SignCurr
-
-! For the HF, singles and doubles, the SignCurr is used - these are done explicitly.
-! Otherwise, we're filling the RDM stochastically and DiedSignCurr should be used.
-        if(walkExcitLevel.le.2) then
-            SignCurr = TempSignCurr
-        else
-            SignCurr = DiedSignCurr
-        endif
 
         if(walkExcitLevel.eq.0) then
-            if(SignCurr(1).ne.AllInstNoatHF(1)) then
-                write(6,*) 'SignCurr',SignCurr
-                write(6,*) 'AllInstNoatHF',AllInstNoatHF
+            if(SignCurr(1).ne.HFDiedSign(1)) then
+                write(6,*) 'DiedSignCurr',SignCurr
+                write(6,*) 'HFDiedSign',HFDiedSign
                 CALL Stop_All('PerformFCIMCycPar','Incorrect instantaneous HF population.')
             endif
         endif
@@ -821,24 +812,24 @@ MODULE nElRDMMod
 
 ! If we have a single or double, add in the connection to the HF, symmetrically.        
         if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) &
-            call Add_RDM_From_IJ_Pair(HFDet,DetCurr,real(AllInstNoatHF(1),dp),real(SignCurr(1),dp),.true.)
+            call Add_RDM_From_IJ_Pair(HFDet,DetCurr,real(HFDiedSign(1),dp),real(SignCurr(1),dp),.true.)
 
     end subroutine Add_StochRDM_Diag_Norm
 
 
-    subroutine Add_StochRDM_Diag_HF_S_D(iLutCurr,DetCurr,SignCurr,DiedSignCurr,walkExcitLevel)
+    subroutine Add_StochRDM_Diag_HF_S_D(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
 ! This is called when we run over all TotWalkers in CurrentDets.    
 ! It is called for each CurrentDet.
 
 ! In these cases, the diagonal terms never go above excitation level 2, so 
 ! the current sign (rather than died sign) is always used.
-        use FciMCData , only : HFDet, AllInstNoatHF
+        use FciMCData , only : HFDet
         use hphf_integrals , only : hphf_sign
         use HPHFRandExcitMod , only : FindExcitBitDetSym
         use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer , intent(in) :: DetCurr(NEl)
-        integer, dimension(lenof_sign), intent(in) :: SignCurr, DiedSignCurr
+        integer, dimension(lenof_sign), intent(in) :: SignCurr
         integer , intent(in) :: walkExcitLevel
         integer(kind=n_int) :: SpinCoupDet(0:niftot)
         integer :: nSpinCoup(NEl), HPHFExcitLevel
@@ -856,9 +847,9 @@ MODULE nElRDMMod
             AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
             AccumRDMNorm_Inst = AccumRDMNorm_Inst + (real(SignCurr(1)) * real(SignCurr(1)))
 
-            if(tHF_Ref_Explicit.and.(SignCurr(1).ne.AllInstNoatHF(1))) then
+            if(tHF_Ref_Explicit.and.(SignCurr(1).ne.HFDiedSign(1))) then
                 write(6,*) 'CurrentSign',SignCurr(1)
-                write(6,*) 'HF Sign',AllInstNoatHF(1)
+                write(6,*) 'HF Sign',HFDiedSign(1)
                 call stop_all('Add_StochRDM_Diag','HF population is incorrect.')
             endif
         elseif(walkExcitLevel.le.2) then
@@ -870,47 +861,38 @@ MODULE nElRDMMod
                 AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
                 AccumRDMNorm_Inst = AccumRDMNorm_Inst + (real(SignCurr(1)) * real(SignCurr(1)))
 
-                call Add_RDM_From_IJ_Pair(HFDet,DetCurr,real(AllInstNoatHF(1),dp),real(SignCurr(1),dp),.true.)
+                call Add_RDM_From_IJ_Pair(HFDet,DetCurr,real(HFDiedSign(1),dp),real(SignCurr(1),dp),.true.)
 
             endif
 
             ! The singles and doubles are connected and explicitly calculated 
             ! - but not symmetrically.
             if(tHF_Ref_Explicit) &
-                call Add_RDM_From_IJ_Pair(HFDet, DetCurr, real(AllInstNoatHF(1),dp), &
+                call Add_RDM_From_IJ_Pair(HFDet, DetCurr, real(HFDiedSign(1),dp), &
                                                 real(SignCurr(1),dp),.false.)
         endif
 
     end subroutine Add_StochRDM_Diag_HF_S_D
 
 
-    subroutine Add_StochRDM_Diag_HPHF(iLutCurr,DetCurr,TempSignCurr,DiedSignCurr,walkExcitLevel)
+    subroutine Add_StochRDM_Diag_HPHF(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
 ! This is called when we run over all TotWalkers in CurrentDets.    
 ! It is called for each CurrentDet.
-        use FciMCData , only : HFDet, AllInstNoatHF
+        use FciMCData , only : HFDet
         use hphf_integrals , only : hphf_sign
         use HPHFRandExcitMod , only : FindExcitBitDetSym
         use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer , intent(in) :: DetCurr(NEl)
-        integer, dimension(lenof_sign), intent(in) :: TempSignCurr, DiedSignCurr
+        integer, dimension(lenof_sign), intent(in) :: SignCurr
         integer , intent(in) :: walkExcitLevel
-        integer, dimension(lenof_sign) :: SignCurr
         integer(kind=n_int) :: SpinCoupDet(0:niftot)
         integer :: nSpinCoup(NEl), SignFac, HPHFExcitLevel
 
-! For the HF, singles and doubles, the SignCurr is used - these are done explicitly.
-! Otherwise, we're filling the RDM stochastically and DiedSignCurr should be used.
-        if(walkExcitLevel.le.2) then
-            SignCurr = TempSignCurr
-        else
-            SignCurr = DiedSignCurr
-        endif
-
         if(walkExcitLevel.eq.0) then
-            if(SignCurr(1).ne.AllInstNoatHF(1)) then
+            if(SignCurr(1).ne.HFDiedSign(1)) then
                 write(6,*) 'SignCurr',SignCurr
-                write(6,*) 'AllInstNoatHF',AllInstNoatHF
+                write(6,*) 'HFDiedSign',HFDiedSign
                 CALL Stop_All('PerformFCIMCycPar','Incorrect instantaneous HF population.')
             endif
         endif
@@ -957,17 +939,17 @@ MODULE nElRDMMod
 ! of this connection as well - symmetrically because no probabilities are involved.
         if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) &
             call Fill_Spin_Coupled_RDM(iLutRef,iLutCurr,HFDet,DetCurr,&
-                                            real(AllInstNoatHF(1),dp),real(SignCurr(1),dp),.true.)
+                                            real(HFDiedSign(1),dp),real(SignCurr(1),dp),.true.)
 
     end subroutine Add_StochRDM_Diag_HPHF
 
-    subroutine Add_StochRDM_Diag_null(iLutCurr,DetCurr,SignCurr,DiedSignCurr,walkExcitLevel)
+    subroutine Add_StochRDM_Diag_null(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
 ! This is called when we run over all TotWalkers in CurrentDets.    
 ! It is called for each CurrentDet.
 ! This is called when we are not filling the density matrices.
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer , intent(in) :: DetCurr(NEl)
-        integer, dimension(lenof_sign), intent(in) :: SignCurr, DiedSignCurr
+        integer, dimension(lenof_sign), intent(in) :: SignCurr
         integer , intent(in) :: walkExcitLevel
 
 

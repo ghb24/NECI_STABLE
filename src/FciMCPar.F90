@@ -647,8 +647,8 @@ MODULE FciMCParMod
         use, intrinsic :: iso_c_binding
         implicit none
         interface
-            subroutine Add_StochRDM_Diag(iLutCurr,DetCurr,SignCurr,DiedSignCurr,walkExcitLevel)
-                use FciMCData , only : HFDet, AllInstNoatHF
+            subroutine Add_StochRDM_Diag(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
+                use FciMCData , only : HFDet
                 use hphf_integrals , only : hphf_sign
                 use HPHFRandExcitMod , only : FindExcitBitDetSym
                 use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
@@ -659,7 +659,7 @@ MODULE FciMCParMod
 
                 integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
                 integer , intent(in) :: DetCurr(NEl)
-                integer, dimension(lenof_sign), intent(in) :: SignCurr, DiedSignCurr
+                integer, dimension(lenof_sign), intent(in) :: SignCurr
                 integer , intent(in) :: walkExcitLevel
             end subroutine
         end interface
@@ -786,8 +786,8 @@ MODULE FciMCParMod
                 real(dp), intent(in) :: Kii
                 integer, dimension(lenof_sign) :: ndie
             end function
-            subroutine Add_StochRDM_Diag(iLutCurr,DetCurr,SignCurr,DiedSignCurr,walkExcitLevel)
-                use FciMCData , only : HFDet, AllInstNoatHF
+            subroutine Add_StochRDM_Diag(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
+                use FciMCData , only : HFDet
                 use hphf_integrals , only : hphf_sign
                 use HPHFRandExcitMod , only : FindExcitBitDetSym
                 use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
@@ -798,7 +798,7 @@ MODULE FciMCParMod
 
                 integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
                 integer , intent(in) :: DetCurr(NEl)
-                integer, dimension(lenof_sign), intent(in) :: SignCurr,DiedSignCurr
+                integer, dimension(lenof_sign), intent(in) :: SignCurr
                 integer , intent(in) :: walkExcitLevel
             end subroutine
         end interface
@@ -807,13 +807,13 @@ MODULE FciMCParMod
         type(fcimc_iter_data), intent(inout) :: iter_data
 
         ! Now the local, iteration specific, variables
-        integer :: VecSlot, j, p, error, proc_temp, i
+        integer :: VecSlot, j, p, error, proc_temp, i, HFPartInd
         integer :: DetCurr(nel), nJ(nel), FlagsCurr, parent_flags
         integer, dimension(lenof_sign) :: SignCurr, child, DiedSignCurr
         integer(kind=n_int) :: iLutnJ(0:niftot)
         integer :: IC, walkExcitLevel, ex(2,2), TotWalkersNew, part_type
         integer(int64) :: tot_parts_tmp(lenof_sign)
-        logical :: tParity
+        logical :: tParity, tSuccess
         real(dp) :: prob, HDiagCurr, TempTotParts, Di_Sign_Temp
         HElement_t :: HDiagTemp,HElGen
 #ifdef __DEBUG
@@ -846,6 +846,7 @@ MODULE FciMCParMod
         ! Reset iteration variables
         VecSlot = 1    ! Next position to write into CurrentDets
         NoatHF = 0     ! Number at HF and doubles for stats
+        HFDiedSign = 0
         NoatDoubs = 0
         ! Next free position in newly spawned list.
         ValidSpawnedList = InitialSpawnedSlots
@@ -858,6 +859,25 @@ MODULE FciMCParMod
 
         ! Initialise histograms if necessary
         call InitHistMin()
+
+        if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) then 
+            if(iProcIndex.eq.iHFProc) then
+
+                ! Binary search for HF determinant.
+                call BinSearchParts(iLutHF,1,TotWalkers,HFPartInd,tSuccess)
+                if(.not.tSuccess) call Stop_All('PerformFCIMCycPar',&
+                    'HF determinant not in CurrentDets list.')
+
+                ! Find its instantaneous sign.                
+                call extract_sign (CurrentDets(:,HFPartInd), InstNoatHF)
+
+                ! Calculate the number that will die.
+                call calc_walker_death (attempt_die, iter_data, HFDet, &
+                                    CurrentH(HFPartInd), InstNoatHF, HFDiedSign)
+            endif
+            ! Communicate the number at the HF after death.
+            call MPISumAll_inplace(HFDiedSign)
+        endif
 
         ! This is a bit of a hack based on the fact that we mean something 
         ! different by exFlag for CSFs than in normal determinential code.
@@ -955,8 +975,13 @@ MODULE FciMCParMod
             call SumEContrib (DetCurr, WalkExcitLevel, SignCurr, &
                               CurrentDets(:,j), HDiagCurr, 1.d0)
 
-            call calc_walker_death (attempt_die, iter_data, DetCurr, &
+            if((walkExcitLevel.eq.0).and.   &
+                (tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit))) then                              
+                DiedSignCurr = HFDiedSign
+            else
+                call calc_walker_death (attempt_die, iter_data, DetCurr, &
                                         HDiagCurr, SignCurr, DiedSignCurr)
+            endif
 
             ! Add in any reduced density matrix info we want while running 
             ! over CurrentDets - i.e. diagonal elements.
@@ -967,7 +992,11 @@ MODULE FciMCParMod
             ! RDM, otherwise this routine does nothing.
 
             ! This calculates both the diagonal elements and explicitly connected singles and doubles.
-            call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,SignCurr,DiedSignCurr,walkExcitLevel)
+            if(tHF_Ref_Explicit) then
+                call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,SignCurr,walkExcitLevel)
+            else
+                call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,DiedSignCurr,walkExcitLevel)
+            endif
 
             ! Loop over the 'type' of particle. 
             ! lenof_sign == 1 --> Only real particles
@@ -3526,9 +3555,6 @@ MODULE FciMCParMod
         iter_data%nannihil = 0
         iter_data%naborted = 0
 
-        IF(tFillingStochRDMonFly.or.(tFillingExplicRDMonFly.and.tHF_Ref_Explicit)) &
-            call MPISumAll (InstNoatHF, AllInstNoatHF)
-
     end subroutine
 
 
@@ -4402,7 +4428,6 @@ MODULE FciMCParMod
 !Also reinitialise the global variables - should not necessarily need to do this...
         AllSumENum=0.D0
         AllNoatHF=0
-        AllInstNoatHF=0
         AllNoatDoubs=0
         AllSumNoatHF = 0
         AllGrowRate=0.D0
@@ -5741,8 +5766,6 @@ MODULE FciMCParMod
                 call MPISumAll(TotParts,AllTotParts)
                 AllTotPartsOld=AllTotParts
                 call MPISumAll(NoatHF,AllNoatHF)
-                InstNoatHF = NoatHF
-                if(tRDMonFly) call MPISumAll(InstNoatHF,AllInstNoatHF)
                 OldAllNoatHF=AllNoatHF
                 AllNoAbortedOld=0.D0
                 iter_data_fciqmc%tot_parts_old = AllTotParts

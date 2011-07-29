@@ -1048,12 +1048,9 @@ MODULE AnnihilationMod
         norm_psi_squared = 0
         DetsMerged=0
         iHighestPop=0
-        InstNoatHF(:) = 0
         IF(TotWalkersNew.gt.0) THEN
             do i=1,TotWalkersNew
                 call extract_sign(CurrentDets(:,i),CurrentSign)
-
-                if(DetBitEQ(iLutHF,CurrentDets(:,i),NIfDBO)) InstNoatHF(1) = CurrentSign(1)
 
                 IF(IsUnoccDet(CurrentSign)) THEN
                     DetsMerged=DetsMerged+1
