@@ -647,7 +647,7 @@ MODULE FciMCParMod
         use, intrinsic :: iso_c_binding
         implicit none
         interface
-            subroutine Add_StochRDM_Diag(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
+            subroutine Add_StochRDM_Diag(iLutCurr,DetCurr,SignCurr,DiedSignCurr,walkExcitLevel)
                 use FciMCData , only : HFDet, AllInstNoatHF
                 use hphf_integrals , only : hphf_sign
                 use HPHFRandExcitMod , only : FindExcitBitDetSym
@@ -659,7 +659,7 @@ MODULE FciMCParMod
 
                 integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
                 integer , intent(in) :: DetCurr(NEl)
-                integer, dimension(lenof_sign), intent(in) :: SignCurr
+                integer, dimension(lenof_sign), intent(in) :: SignCurr, DiedSignCurr
                 integer , intent(in) :: walkExcitLevel
             end subroutine
         end interface
@@ -786,7 +786,7 @@ MODULE FciMCParMod
                 real(dp), intent(in) :: Kii
                 integer, dimension(lenof_sign) :: ndie
             end function
-            subroutine Add_StochRDM_Diag(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
+            subroutine Add_StochRDM_Diag(iLutCurr,DetCurr,SignCurr,DiedSignCurr,walkExcitLevel)
                 use FciMCData , only : HFDet, AllInstNoatHF
                 use hphf_integrals , only : hphf_sign
                 use HPHFRandExcitMod , only : FindExcitBitDetSym
@@ -798,7 +798,7 @@ MODULE FciMCParMod
 
                 integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
                 integer , intent(in) :: DetCurr(NEl)
-                integer, dimension(lenof_sign), intent(in) :: SignCurr
+                integer, dimension(lenof_sign), intent(in) :: SignCurr,DiedSignCurr
                 integer , intent(in) :: walkExcitLevel
             end subroutine
         end interface
@@ -965,29 +965,9 @@ MODULE FciMCParMod
             ! Also add the connections to the HF if using HF_Ref_Explicit.
             ! If tFillingStochRDMonFly is true, this will add in the appropriate diag element to the 
             ! RDM, otherwise this routine does nothing.
-            if(tHF_Ref_Explicit) then
-                call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,SignCurr,walkExcitLevel)
-            else
-                call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,DiedSignCurr,walkExcitLevel)
-            endif
 
-            if(tFillingStochRDMonFly.and.((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2))) then
-                if(tHPHF) then
-                    call Fill_Spin_Coupled_RDM(iLutRef,CurrentDets(:,j),HFDet,DetCurr,&
-                                                    real(AllInstNoatHF(1),dp),real(SignCurr(1),dp))
-                    call Fill_Spin_Coupled_RDM(CurrentDets(:,j),iLutRef,DetCurr,HFDet,&
-                                                    real(SignCurr(1),dp),real(AllInstNoatHF(1),dp))
-                else
-                    call Add_RDM_From_IJ_Pair(HFDet,DetCurr,real(AllInstNoatHF(1),dp),real(SignCurr(1),dp))
-                    call Add_RDM_From_IJ_Pair(DetCurr,HFDet,real(SignCurr(1),dp),real(AllInstNoatHF(1),dp))
-                endif
-            elseif(walkExcitLevel.eq.0) then
-                if(SignCurr(1).ne.AllInstNoatHF(1)) then
-                    write(6,*) 'SignCurr',SignCurr
-                    write(6,*) 'AllInstNoatHF',AllInstNoatHF
-                    CALL Stop_All('PerformFCIMCycPar','Incorrect instantaneous HF population.')
-                endif
-            endif
+            ! This calculates both the diagonal elements and explicitly connected singles and doubles.
+            call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,SignCurr,DiedSignCurr,walkExcitLevel)
 
             ! Loop over the 'type' of particle. 
             ! lenof_sign == 1 --> Only real particles
