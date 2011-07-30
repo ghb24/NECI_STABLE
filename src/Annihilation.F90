@@ -817,7 +817,12 @@ MODULE AnnihilationMod
                         if(ExcitLevel.le.4) &
                             CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign(1))
                     elseif(.not.DetBitEQ(iLutRef,CurrentDets(:,PartInd),NIfDBO)) then
-                        CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign(1))
+                        if(CurrentNotDied(PartInd).ne.CurrentSign(1)) then
+                            write(6,*) 'CurrentNotDied(PartInd)',CurrentNotDied(PartInd)
+                            write(6,*) 'CurrentSign',CurrentSign
+                            call stop_all('','')
+                        endif
+                        CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentNotDied(PartInd))
                     endif
                 endif
 

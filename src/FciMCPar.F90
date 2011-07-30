@@ -847,6 +847,7 @@ MODULE FciMCParMod
         VecSlot = 1    ! Next position to write into CurrentDets
         NoatHF = 0     ! Number at HF and doubles for stats
         HFDiedSign = 0
+        HFDiedSignTemp = 0
         NoatDoubs = 0
         ! Next free position in newly spawned list.
         ValidSpawnedList = InitialSpawnedSlots
@@ -875,6 +876,8 @@ MODULE FciMCParMod
                 call calc_walker_death (attempt_die, iter_data, HFDet, &
                                     CurrentH(HFPartInd), InstNoatHF, HFDiedSign)
             endif
+            HFDiedSignTemp = HFDiedSign
+!            HFDiedSign = InstNoatHF        ! here dmc
             ! Communicate the number at the HF after death.
             call MPISumAll_inplace(HFDiedSign)
         endif
@@ -977,7 +980,7 @@ MODULE FciMCParMod
 
             if((walkExcitLevel.eq.0).and.   &
                 (tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit))) then                              
-                DiedSignCurr = HFDiedSign
+                DiedSignCurr = HFDiedSignTemp
             else
                 call calc_walker_death (attempt_die, iter_data, DetCurr, &
                                         HDiagCurr, SignCurr, DiedSignCurr)
@@ -996,6 +999,7 @@ MODULE FciMCParMod
                 call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,SignCurr,walkExcitLevel)
             else
                 call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,DiedSignCurr,walkExcitLevel)
+!                call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,SignCurr,walkExcitLevel)   ! here dmc
             endif
 
             ! Loop over the 'type' of particle. 
@@ -1060,6 +1064,9 @@ MODULE FciMCParMod
                 enddo ! Cycling over mulitple particles on same determinant.
 
             enddo   ! Cycling over 'type' of particle on a given determinant.
+
+!            CurrentNotDied(VecSlot) = SignCurr(1)
+            CurrentNotDied(VecSlot) = DiedSignCurr(1)   ! here dmc
 
             ! DEBUG
             ! if (VecSlot > j) call stop_all (this_routine, 'vecslot > j')
@@ -1971,7 +1978,7 @@ MODULE FciMCParMod
                 ! The spawning probability is dependent on the current sign - wSign, but the actual sign we add in is that 
                 ! after the walkers on Di have died (wSignDied).
                 RDMBiasFacI = real(wSignDied(1),dp) / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) ) 
-!                RDMBiasFacI = real(wSign(1),dp) / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) )
+!                RDMBiasFacI = real(wSign(1),dp) / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) )    ! here dmc
                     
             endif
 
@@ -2214,7 +2221,7 @@ MODULE FciMCParMod
         end interface
 
         integer, intent(in) :: DetCurr(nel) 
-        integer, dimension(lenof_sign), intent(inout) :: wSign
+        integer, dimension(lenof_sign), intent(in) :: wSign
         real(dp), intent(in) :: Kii
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer, dimension(lenof_sign), intent(out) :: CopySign
@@ -5726,6 +5733,10 @@ MODULE FciMCParMod
             IF(.not.tRegenDiagHEls) THEN
                 CurrentH=>WalkVecH
             ENDIF
+
+            ALLOCATE(CurrentNotDied(MaxWalkersPart),stat=ierr)
+            CALL LogMemAlloc('CurrentNotDied',MaxWalkersPart,4,this_routine,CurrentNotDiedTag,ierr)
+            CurrentNotDied(:)=0
         
             ! Get the (0-based) processor index for the HF det.
             iHFProc = DetermineDetNode(HFDet,0)
@@ -6872,6 +6883,8 @@ MODULE FciMCParMod
             DEALLOCATE(WalkVecH)
             CALL LogMemDealloc(this_routine,WalkVecHTag)
         ENDIF
+        DEALLOCATE(CurrentNotDied)
+        CALL LogMemDealloc(this_routine,CurrentNotDiedTag)
         DEALLOCATE(SpawnVec)
         CALL LogMemDealloc(this_routine,SpawnVecTag)
         DEALLOCATE(SpawnVec2)
