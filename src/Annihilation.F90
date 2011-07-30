@@ -622,13 +622,13 @@ MODULE AnnihilationMod
         new_sgn = extract_part_sign (new_det, part_type)
 
         if (new_sgn == 0) then
-            if(tFillingStochRDMonFly) &
-                CALL Stop_All('FindResidualParticle','I thought SpawnedParts could never &
-                            &be zero in the real case - apparently not.')
+!            if(tFillingStochRDMonFly) &
+!                CALL Stop_All('FindResidualParticle','I thought SpawnedParts could never &
+!                            &be zero in the real case - apparently not.')
                 ! New sign is just an entry from SpawnedParts - this should only ever be zero
                 ! in the complex case (where either the real or complex part will be non-zero).
                 ! But this will cause issues if not true for some reason so I'm just checking.
-            return
+            if(.not.tFillingStochRDMonFly) return
         endif
         cum_sgn = extract_part_sign (cum_det, part_type)
         sgn_prod = cum_sgn * new_sgn
@@ -817,11 +817,11 @@ MODULE AnnihilationMod
                         if(ExcitLevel.le.4) &
                             CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign(1))
                     elseif(.not.DetBitEQ(iLutRef,CurrentDets(:,PartInd),NIfDBO)) then
-                        if(CurrentNotDied(PartInd).ne.CurrentSign(1)) then
-                            write(6,*) 'CurrentNotDied(PartInd)',CurrentNotDied(PartInd)
-                            write(6,*) 'CurrentSign',CurrentSign
-                            call stop_all('','')
-                        endif
+!                        if(CurrentNotDied(PartInd).ne.CurrentSign(1)) then
+!                            write(6,*) 'CurrentNotDied(PartInd)',CurrentNotDied(PartInd)
+!                            write(6,*) 'CurrentSign',CurrentSign
+!                            call stop_all('','')
+!                        endif          ! here dmc
                         CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentNotDied(PartInd))
                     endif
                 endif

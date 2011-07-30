@@ -338,8 +338,8 @@ MODULE FciMCParMod
             ENDIF
             IF(tRDMonFly.and.tCalc_RDMEnergy.and.(.not.tSinglePartPhase)) THEN
                 IF( ((Iter - VaryShiftIter).ge.IterRDMonFly) .and. &
-                    (mod((Iter - VaryShiftIter)-IterRDMonFly,RDMEnergyIter).eq.0) ) &
-                                CALL Calc_Energy_from_RDM()  
+                    (mod((Iter - VaryShiftIter)-IterRDMonFly,RDMEnergyIter).eq.0) ) & 
+                        CALL Calc_Energy_from_RDM()  
             ENDIF
             if(tChangeVarsRDM) then
                 call InitRDM() 
@@ -877,7 +877,7 @@ MODULE FciMCParMod
                                     CurrentH(HFPartInd), InstNoatHF, HFDiedSign)
             endif
             HFDiedSignTemp = HFDiedSign
-!            HFDiedSign = InstNoatHF        ! here dmc
+            HFDiedSign = InstNoatHF        ! here dmc
             ! Communicate the number at the HF after death.
             call MPISumAll_inplace(HFDiedSign)
         endif
@@ -998,8 +998,8 @@ MODULE FciMCParMod
             if(tHF_Ref_Explicit) then
                 call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,SignCurr,walkExcitLevel)
             else
-                call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,DiedSignCurr,walkExcitLevel)
-!                call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,SignCurr,walkExcitLevel)   ! here dmc
+!                call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,DiedSignCurr,walkExcitLevel)
+                call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,SignCurr,walkExcitLevel)   ! here dmc
             endif
 
             ! Loop over the 'type' of particle. 
@@ -1045,7 +1045,7 @@ MODULE FciMCParMod
                     endif
 
                     ! Children have been chosen to be spawned.
-                    if (any(child /= 0)) then
+                    if ((any(child /= 0)).or.tGhostChild) then
                         ! We know we want to create a particle of this type.
                         ! Encode the bit representation if it isn't already.
 
@@ -1065,8 +1065,8 @@ MODULE FciMCParMod
 
             enddo   ! Cycling over 'type' of particle on a given determinant.
 
-!            CurrentNotDied(VecSlot) = SignCurr(1)
-            CurrentNotDied(VecSlot) = DiedSignCurr(1)   ! here dmc
+            CurrentNotDied(VecSlot) = SignCurr(1)
+!            CurrentNotDied(VecSlot) = DiedSignCurr(1)   ! here dmc
 
             ! DEBUG
             ! if (VecSlot > j) call stop_all (this_routine, 'vecslot > j')
@@ -1944,7 +1944,9 @@ MODULE FciMCParMod
             ! Avoid compiler warnings
             iUnused = part_type
 
-            if(tFillingStochRDMonFly.and.(child(1).ne.0)) then
+            tGhostChild = .false.
+!            if(tFillingStochRDMonFly.and.(child(1).ne.0)) then
+            if(tFillingStochRDMonFly) then
 
                 ! We eventually turn this real bias factor into an integer to be passed around 
                 ! with the spawned children and their parents - this only works with 64 bit at the mo.
@@ -1968,6 +1970,13 @@ MODULE FciMCParMod
                     ! We don't care about multiple spawns - if it's in the list, it gets added in regardless of 
                     ! the number spawned - so if P_spawn(j | i) > 1, we treat it as = 1.
                     p_spawn_rdmfac = 1.D0
+                elseif(rat.lt.1E-5) then
+                    p_spawn_rdmfac = rat*100.D0
+                    if ((child(1).eq.0).and.((rat*100.D0) .gt. r)) then
+                        tGhostChild = .true.
+                    else
+                        tGhostChild = .false.
+                    endif
                 else
 !                    p_spawn_rdmfac = tau * abs( real(rh,dp) / prob )
                     p_spawn_rdmfac = rat
@@ -1977,9 +1986,9 @@ MODULE FciMCParMod
                 ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i]
                 ! The spawning probability is dependent on the current sign - wSign, but the actual sign we add in is that 
                 ! after the walkers on Di have died (wSignDied).
-                RDMBiasFacI = real(wSignDied(1),dp) / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) ) 
-!                RDMBiasFacI = real(wSign(1),dp) / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) )    ! here dmc
-                    
+!                RDMBiasFacI = real(wSignDied(1),dp) / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) ) 
+!                RDMBiasFacI = 1.D0 / abs( 1.D0 - p_notlist_rdmfac ) 
+                RDMBiasFacI = real(wSign(1),dp) / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) )    ! here dmc
             endif
 
 #endif

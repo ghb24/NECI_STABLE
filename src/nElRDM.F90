@@ -3930,7 +3930,7 @@ END MODULE nElRDMMod
                         CALL Stop_All('DiDj_Found_FillRDM','Bias factors of same pairs not equal.')
                 ENDIF
             enddo
-            if(tDetAdded) CYCLE
+            if(tDetAdded) CYCLE            ! here dmc
 
             IF(tHF_S_D_Ref) THEN
                 ! We'll only be in this loop if the Dj is le 4.

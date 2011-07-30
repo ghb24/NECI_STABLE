@@ -47,6 +47,7 @@ MODULE FciMCData
       LOGICAL :: tFillingStochRDMonFly, tFillingExplicRDMonFly, thf, tFirst 
       integer :: Spawned_Parts_Zero
       integer(int64), dimension(lenof_sign) :: InstNoatHf, HFDiedSign, HFDiedSignTemp
+      logical :: tGhostChild
 
       ! Be able to store a list of the current initiators
       integer(n_int), allocatable :: CurrentInits(:,:)
