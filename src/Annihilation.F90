@@ -410,6 +410,8 @@ MODULE AnnihilationMod
                     Spawned_Parents_Index(2,VecInd) = 1
                     ! In this case there is only one instance of Dj - so therefore only 1 parent Di.
                     Parent_Array_Ind = Parent_Array_Ind + 1
+                    call extract_sign (SpawnedParts(:,BeginningBlockDet), temp_sign)
+                    if(temp_sign(1).eq.0) Spawned_Parts_Zero = Spawned_Parts_Zero + 1
                 ENDIF
                 VecInd=VecInd+1
                 BeginningBlockDet=CurrentBlockDet           !Move onto the next block of determinants

@@ -1971,8 +1971,8 @@ MODULE FciMCParMod
                     ! the number spawned - so if P_spawn(j | i) > 1, we treat it as = 1.
                     p_spawn_rdmfac = 1.D0
                 elseif(rat.lt.1E-5) then
-                    p_spawn_rdmfac = rat*100.D0
-                    if ((child(1).eq.0).and.((rat*100.D0) .gt. r)) then
+                    p_spawn_rdmfac = rat*1000.D0
+                    if ((child(1).eq.0).and.((rat*1000.D0) .gt. r)) then
                         tGhostChild = .true.
                     else
                         tGhostChild = .false.
