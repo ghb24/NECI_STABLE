@@ -624,12 +624,10 @@ MODULE AnnihilationMod
         new_sgn = extract_part_sign (new_det, part_type)
 
         if (new_sgn == 0) then
-!            if(tFillingStochRDMonFly) &
-!                CALL Stop_All('FindResidualParticle','I thought SpawnedParts could never &
-!                            &be zero in the real case - apparently not.')
-                ! New sign is just an entry from SpawnedParts - this should only ever be zero
-                ! in the complex case (where either the real or complex part will be non-zero).
-                ! But this will cause issues if not true for some reason so I'm just checking.
+            ! New sign is just an entry from SpawnedParts - this should only ever be zero
+            ! in the complex case, or if we're spawning ghost children.
+            ! If it is 0 and we're not filling the RDM (and therefore filling up the 
+            ! Spawned_Parents array), can just ignore the zero entry.
             if(.not.tFillingStochRDMonFly) return
         endif
         cum_sgn = extract_part_sign (cum_det, part_type)

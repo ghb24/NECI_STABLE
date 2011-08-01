@@ -64,8 +64,9 @@ MODULE FciMCParMod
                        tPrintDoubsUEG, StartPrintDoubsUEG, tCalcInstantS2, &
                        instant_s2_multiplier, tMCOutput, tSplitProjEHist, &
                        tSplitProjEHistG, tSplitProjEHistK3, iProjEBins, &
-                       tRDMonFly, IterRDMonFly, &
-                       RDMExcitLevel, RDMEnergyIter, tChangeVarsRDM, tExplicitAllRDM
+                       tRDMonFly, IterRDMonFly, tSpawnGhostChild, &
+                       GhostFac, GhostThresh,RDMExcitLevel, RDMEnergyIter, &
+                       tChangeVarsRDM, tExplicitAllRDM
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
                     hist_spin_dist, ilut_spindist, tHistSpinDist, &
                     write_clear_hist_spin_dist, hist_spin_dist_iter, &
@@ -1899,10 +1900,7 @@ MODULE FciMCParMod
             ! Avoid compiler warnings
             iUnused = part_type
 
-            tGhostChild = .false.
-!            if(tFillingStochRDMonFly) then
-            if(tFillingStochRDMonFly.and.(child(1).ne.0)) then
-
+            if(tFillingStochRDMonFly) then
                 ! We eventually turn this real bias factor into an integer to be passed around 
                 ! with the spawned children and their parents - this only works with 64 bit at the mo.
                 if(n_int.eq.4) CALL Stop_All('attempt_create_normal', &
@@ -1919,19 +1917,22 @@ MODULE FciMCParMod
                 ! This requires either not generating j, or generating j and not succesfully spawning, n_i times.
                 ! P_not_spawn(j | i )[n_i] = [(1 - P_gen(j | i)) + ( P_gen( j | i ) * (1 - P_spawn(j | i))]^n_i
 
+                tGhostChild = .false.
                 if(extraCreate.ne.0) then
                     ! This is the special case whereby if P_spawn(j | i) > 1, then we will definitely spawn from i -> j.
                     ! I.e. the pair Di,Dj will definitely be in the SpawnedParts list.
                     ! We don't care about multiple spawns - if it's in the list, it gets added in regardless of 
                     ! the number spawned - so if P_spawn(j | i) > 1, we treat it as = 1.
                     p_spawn_rdmfac = 1.D0
-!                elseif(rat.lt.1E-5) then
-!                    p_spawn_rdmfac = rat*1000.D0
-!                    if ((child(1).eq.0).and.((rat*1000.D0) .gt. r)) then
-!                        tGhostChild = .true.
-!                    else
-!                        tGhostChild = .false.
-!                    endif
+                elseif(tSpawnGhostChild.and.(rat.lt.GhostThresh)) then
+                    ! If we're spawning 'ghost' children, we give DiDj pairs with small H elements a chance 
+                    ! to contribute to the RDM, while still not spawning children.
+                    p_spawn_rdmfac = rat*GhostFac
+                    if ((child(1).eq.0).and.((rat*GhostFac) .gt. r)) then
+                        tGhostChild = .true.
+                    else
+                        tGhostChild = .false.
+                    endif
                 else
 !                    p_spawn_rdmfac = tau * abs( real(rh,dp) / prob )
                     p_spawn_rdmfac = rat
@@ -5917,6 +5918,8 @@ MODULE FciMCParMod
         tFillingStochRDMonFly = .false.      
         tFillingExplicRDMonFly = .false.      
         !One of these becomes true when we have reached the relevant iteration to begin filling the RDM.
+
+        tGhostChild = .false.
 
         !If the iteration specified to start filling the RDM has already been, want to 
         !start filling as soon as possible.
