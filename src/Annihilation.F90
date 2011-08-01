@@ -1077,6 +1077,7 @@ MODULE AnnihilationMod
                         CurrentDets(0:NIfTot,i-DetsMerged)=CurrentDets(0:NIfTot,i)
                         IF(.not.tRegenDiagHEls) THEN
                             CurrentH(i-DetsMerged)=CurrentH(i)
+                            CurrentNotDied(i-DetsMerged)=CurrentNotDied(i)
                         ENDIF
                     ENDIF
                     TotParts=TotParts+abs(CurrentSign)
@@ -1172,6 +1173,7 @@ MODULE AnnihilationMod
                         HDiag=(REAL(HDiagTemp,8))-Hii
                     endif
                     CurrentH(i)=HDiag
+                    CurrentNotDied(i) = 0
                 enddo
             ELSE
                 CALL MergeListswH(TotWalkersNew,ValidSpawned,SpawnedParts(0:NIfTot,1:ValidSpawned))

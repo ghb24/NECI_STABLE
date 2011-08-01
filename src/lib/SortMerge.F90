@@ -16,7 +16,7 @@
 ! The list1 will be binary searched to find insertion points. Generally, if list2 > list1/2,
 ! a linear search would be quicker.
     SUBROUTINE MergeListswH(nlist1,nlist2,list2)
-        USE FciMCParMOD , only : Hii,CurrentDets,CurrentH
+        USE FciMCParMOD , only : Hii,CurrentDets,CurrentH,CurrentNotDied
         use SystemData, only: nel, tHPHF,tMomInv
         use bit_reps, only: NIfTot, NIfDBO, decode_bit_det
         USE Determinants , only : get_helement
@@ -56,6 +56,7 @@
            do j=nlisto,ips,-1
               CurrentDets(:,j+i)=CurrentDets(:,j)
               CurrentH(j+i)=CurrentH(j)
+              CurrentNotDied(j+i)=CurrentNotDied(j)
            enddo
            IF(tTruncInitiator) CALL FlagifDetisInitiator(list2(:,i))
 ! Insert DetCurr into its position in the completely merged list (i-1 elements
@@ -74,6 +75,7 @@
            endif
            HDiag=(REAL(HDiagTemp,8))-Hii
            CurrentH(ips+i-1)=HDiag
+           CurrentNotDied(ips+i-1)=0
 ! Next element to be inserted must be smaller than DetCurr, so must be inserted
 ! at (at most) at ips-1.
 ! If nlisto=0 then all remaining elements in list2 must be inserted directly

@@ -809,7 +809,7 @@ MODULE FciMCParMod
         ! Now the local, iteration specific, variables
         integer :: VecSlot, j, p, error, proc_temp, i, HFPartInd
         integer :: DetCurr(nel), nJ(nel), FlagsCurr, parent_flags
-        integer, dimension(lenof_sign) :: SignCurr, child, DiedSignCurr
+        integer, dimension(lenof_sign) :: SignCurr, child, DiedSignCurr, AvSignCurr
         integer(kind=n_int) :: iLutnJ(0:niftot)
         integer :: IC, walkExcitLevel, ex(2,2), TotWalkersNew, part_type
         integer(int64) :: tot_parts_tmp(lenof_sign)
@@ -875,11 +875,14 @@ MODULE FciMCParMod
                 ! Calculate the number that will die.
                 call calc_walker_death (attempt_die, iter_data, HFDet, &
                                     CurrentH(HFPartInd), InstNoatHF, HFDiedSign)
+                HFDiedSignTemp = HFDiedSign
+                HFDiedSign(1) = NINT( real((real((CurrentNotDied(HFPartInd)*(Iter-1)),dp) &
+                                    + real(InstNoatHF(1),dp)),dp) / real(Iter,dp) )
             endif
-            HFDiedSignTemp = HFDiedSign
-            HFDiedSign = InstNoatHF        ! here dmc
+!            HFDiedSign = InstNoatHF        ! here dmc
             ! Communicate the number at the HF after death.
             call MPISumAll_inplace(HFDiedSign)
+
         endif
 
         ! This is a bit of a hack based on the fact that we mean something 
@@ -981,9 +984,11 @@ MODULE FciMCParMod
             if((walkExcitLevel.eq.0).and.   &
                 (tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit))) then                              
                 DiedSignCurr = HFDiedSignTemp
+                AvSignCurr(1) = HFDiedSign(1)
             else
                 call calc_walker_death (attempt_die, iter_data, DetCurr, &
                                         HDiagCurr, SignCurr, DiedSignCurr)
+                AvSignCurr(1) = NINT( real((real((CurrentNotDied(j)*(Iter-1)),dp) + real(SignCurr(1),dp)),dp) / real(Iter,dp) )
             endif
 
             ! Add in any reduced density matrix info we want while running 
@@ -999,7 +1004,8 @@ MODULE FciMCParMod
                 call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,SignCurr,walkExcitLevel)
             else
 !                call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,DiedSignCurr,walkExcitLevel)
-                call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,SignCurr,walkExcitLevel)   ! here dmc
+!                call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,SignCurr,walkExcitLevel)   ! here dmc
+                call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,AvSignCurr,walkExcitLevel)   ! here dmc
             endif
 
             ! Loop over the 'type' of particle. 
@@ -1039,7 +1045,7 @@ MODULE FciMCParMod
                                             CurrentDets(:,j), SignCurr, &
                                             nJ,iLutnJ, Prob, HElGen, IC, ex, &
                                             tParity, walkExcitLevel,part_type, &
-                                            DiedSignCurr)
+                                            AvSignCurr)     ! here dmc
                     else
                         child = 0
                     endif
@@ -1065,7 +1071,8 @@ MODULE FciMCParMod
 
             enddo   ! Cycling over 'type' of particle on a given determinant.
 
-            CurrentNotDied(VecSlot) = SignCurr(1)
+            CurrentNotDied(VecSlot) = AvSignCurr(1)
+!            CurrentNotDied(VecSlot) = SignCurr(1)
 !            CurrentNotDied(VecSlot) = DiedSignCurr(1)   ! here dmc
 
             ! DEBUG
@@ -1075,7 +1082,7 @@ MODULE FciMCParMod
 
         enddo ! Loop over determinants.
         IFDEBUG(FCIMCDebug,2) write(6,*) 'Finished loop over determinants'
-        
+
         ! Since VecSlot holds the next vacant slot in the array, TotWalkers
         ! should be one less than this. TotWalkersNew is now the number of particles
         ! in the main array, before annihilation
@@ -1970,13 +1977,13 @@ MODULE FciMCParMod
                     ! We don't care about multiple spawns - if it's in the list, it gets added in regardless of 
                     ! the number spawned - so if P_spawn(j | i) > 1, we treat it as = 1.
                     p_spawn_rdmfac = 1.D0
-                elseif(rat.lt.1E-5) then
-                    p_spawn_rdmfac = rat*1000.D0
-                    if ((child(1).eq.0).and.((rat*1000.D0) .gt. r)) then
-                        tGhostChild = .true.
-                    else
-                        tGhostChild = .false.
-                    endif
+!                elseif(rat.lt.1E-5) then
+!                    p_spawn_rdmfac = rat*1000.D0
+!                    if ((child(1).eq.0).and.((rat*1000.D0) .gt. r)) then
+!                        tGhostChild = .true.
+!                    else
+!                        tGhostChild = .false.
+!                    endif
                 else
 !                    p_spawn_rdmfac = tau * abs( real(rh,dp) / prob )
                     p_spawn_rdmfac = rat
@@ -1988,7 +1995,13 @@ MODULE FciMCParMod
                 ! after the walkers on Di have died (wSignDied).
 !                RDMBiasFacI = real(wSignDied(1),dp) / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) ) 
 !                RDMBiasFacI = 1.D0 / abs( 1.D0 - p_notlist_rdmfac ) 
-                RDMBiasFacI = real(wSign(1),dp) / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) )    ! here dmc
+!                RDMBiasFacI = real(wSign(1),dp) / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) )    ! here dmc
+!                RDMBiasFacI = real(wSignDied(1),dp) / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) )    ! here dmc
+                if(wSignDied(1).ne.0) then
+                    RDMBiasFacI = real(wSignDied(1),dp) / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSignDied(1),dp)))) )    ! here dmc
+                else
+                    RDMBiasFacI = 0.D0
+                endif
             endif
 
 #endif
