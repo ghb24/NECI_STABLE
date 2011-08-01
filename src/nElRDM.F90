@@ -3932,23 +3932,25 @@ END MODULE nElRDMMod
                         CALL Stop_All('DiDj_Found_FillRDM','Bias factors of same pairs not equal.')
                 ENDIF
             enddo
-            if(tDetAdded) CYCLE            ! here dmc
+            if(tDetAdded) CYCLE           
 
             IF(tHF_S_D_Ref) THEN
                 ! We'll only be in this loop if the Dj is le 4.
                 ! Calc excitation level of Di - this needs to be 0, 1 or 2.
-                walkExcitLevel = FindBitExcitLevel (iLutHF, Spawned_Parents(0:NIfDBO,i), NEl)
+                walkExcitLevel = FindBitExcitLevel (iLutHF, Spawned_Parents(0:NIfDBO,i), 2)
                 IF(walkExcitLevel.gt.2) CYCLE
             ELSEIF(tHF_S_D) THEN
                 ! We'll only be in this loop if the Dj is le 2. 
                 ! Need Di to be le 2 as well.
-                walkExcitLevel = FindBitExcitLevel (iLutHF, Spawned_Parents(0:NIfDBO,i), NEl)
+                walkExcitLevel = FindBitExcitLevel (iLutHF, Spawned_Parents(0:NIfDBO,i), 2)
                 IF(walkExcitLevel.gt.2) CYCLE
             ELSEIF(tHF_Ref) then
                 ! We'll only be in this loop if the Dj is le 2. 
                 ! We need the Di to be the HF.
                 IF(.not.DetBitEQ(iLutHF,Spawned_Parents(0:NIfDBO,i),NIfDBO)) CYCLE
             ELSEIF(DetBitEQ(iLutHF,Spawned_Parents(0:NIfDBO,i),NIfDBO)) then
+                ! We've already added HF - S, and HF - D symmetrically.
+                ! Any connection with the HF has therefore already been added.
                 CYCLE
             ENDIF
             
@@ -3974,6 +3976,5 @@ END MODULE nElRDMMod
             ENDIF
 
         enddo
-
 
     END SUBROUTINE DiDj_Found_FillRDM
