@@ -807,7 +807,7 @@ MODULE FciMCParMod
         ! Now the local, iteration specific, variables
         integer :: VecSlot, j, p, error, proc_temp, i, HFPartInd
         integer :: DetCurr(nel), nJ(nel), FlagsCurr, parent_flags
-        integer, dimension(lenof_sign) :: SignCurr, child, DiedSignCurr, AvSignCurr
+        integer, dimension(lenof_sign) :: SignCurr, child
         integer(kind=n_int) :: iLutnJ(0:niftot)
         integer :: IC, walkExcitLevel, ex(2,2), TotWalkersNew, part_type
         integer(int64) :: tot_parts_tmp(lenof_sign)
@@ -953,9 +953,6 @@ MODULE FciMCParMod
             call SumEContrib (DetCurr, WalkExcitLevel, SignCurr, &
                               CurrentDets(:,j), HDiagCurr, 1.d0)
 
-            call calc_walker_death (attempt_die, iter_data, DetCurr, &
-                                    HDiagCurr, SignCurr, DiedSignCurr)
-
             ! Add in any reduced density matrix info we want while running 
             ! over CurrentDets - i.e. diagonal elements.
             ! This uses the new current sign (after walker death), because later when we search 
@@ -1031,8 +1028,8 @@ MODULE FciMCParMod
 
             ! DEBUG
             ! if (VecSlot > j) call stop_all (this_routine, 'vecslot > j')
-            call walker_death (iter_data, CurrentDets(:,j), HDiagCurr, &
-                                SignCurr, DiedSignCurr, VecSlot)
+            call walker_death (attempt_die, iter_data, DetCurr, &
+                               CurrentDets(:,j), HDiagCurr, SignCurr, VecSlot)
 
         enddo ! Loop over determinants.
         IFDEBUG(FCIMCDebug,2) write(6,*) 'Finished loop over determinants'
@@ -2163,14 +2160,8 @@ MODULE FciMCParMod
 
     END FUNCTION AttemptCreatePar
 
-    subroutine calc_walker_death (attempt_die, iter_data, DetCurr, Kii, &
-                                        wSign, CopySign)
-! This routine calculates the number of walkers that will die in this iteration, 
-! and the consequent new sign for this current determinant, but does not actually 
-! change the current sign.
-! The new sign is CopySign, and becomes DiedSignCurr in the main routine.
-! This is kept separate until the end of the loop over n_i (wSign), at which point 
-! walker_death is called to encode the new sign (after death).
+    subroutine walker_death (attempt_die, iter_data, DetCurr, iLutCurr, Kii, &
+                             wSign, VecSlot)
         interface
             function attempt_die (nI, Kii, wSign) result(ndie)
                 use SystemData, only: nel
@@ -2185,10 +2176,12 @@ MODULE FciMCParMod
 
         integer, intent(in) :: DetCurr(nel) 
         integer, dimension(lenof_sign), intent(in) :: wSign
+        integer(kind=n_int), intent(in) :: iLutCurr(0:niftot)
+        integer, intent(inout) :: VecSlot
         real(dp), intent(in) :: Kii
         type(fcimc_iter_data), intent(inout) :: iter_data
-        integer, dimension(lenof_sign), intent(out) :: CopySign
         integer, dimension(lenof_sign) :: iDie
+        integer, dimension(lenof_sign) :: CopySign
 
         ! Do particles on determinant die? iDie can be both +ve (deaths), or
         ! -ve (births, if shift > 0)
@@ -2211,19 +2204,6 @@ MODULE FciMCParMod
         ! Calculate new number of signed particles on the det.
         CopySign = wSign - (iDie * sign(1, wSign))
 
-    end subroutine
-
-    subroutine walker_death (iter_data, iLutCurr, Kii, wSign, CopySign, VecSlot)
-! This is the routine when the walkers are actually killed off, i.e. when the new sign 
-! (after walker death) is encoded into the CurrentDets array, and determinants with no 
-! walkers left after death are removed from the list.
-        integer, dimension(lenof_sign), intent(in) :: wSign, CopySign
-        integer(kind=n_int), intent(in) :: iLutCurr(0:niftot)
-        integer, intent(inout) :: VecSlot
-        real(dp), intent(in) :: Kii
-        type(fcimc_iter_data), intent(inout) :: iter_data
-        integer, dimension(lenof_sign) :: iDie
-
         ! Normally slot particles back into main array at position vecslot.
         ! This will normally increment with j, except when a particle dies
         ! completely (so VecSlot <= j, and we can't overwrite a walker we
@@ -2245,7 +2225,7 @@ MODULE FciMCParMod
                 !Normally we will go in this block
                 call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
                 if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
-                if (tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) CurrentSignRDM(VecSlot) = wSign(1)
+                if (tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) CurrentSignRDM = wSign(1)
                 VecSlot = VecSlot + 1
             ENDIF
         elseif(tTruncInitiator) then
