@@ -46,7 +46,7 @@ MODULE nElRDMMod
         USE OneEInts , only : TMAT2D
         USE FciMCData , only : MaxWalkersPart, MaxSpawned, Spawned_Parents, PreviousCycles,&
                                Spawned_Parents_Index, Spawned_ParentsTag, AccumRDMNorm_Inst,&
-                               Spawned_Parents_IndexTag, Iter, AccumRDMNorm, HFDiedSign,&
+                               Spawned_Parents_IndexTag, Iter, AccumRDMNorm, InstNoatHF,&
                                iLutRef
         USE Logging , only : RDMExcitLevel, tROFciDUmp, NoDumpTruncs, tExplicitAllRDM, &
                              tHF_S_D_Ref, tHF_Ref, tHF_Ref_Explicit, tHF_S_D 
@@ -80,12 +80,17 @@ MODULE nElRDMMod
         USE RotateOrbsMod , only : SymLabelList2Tag,SymLabelListInvTag
         USE RotateOrbsData , only : SymLabelList3, SymLabelList3Tag
         USE Logging , only : tDo_Not_Calc_RDMEnergy, tDiagRDM
+        USE CalcData , only : tRegenDiagHEls
         INTEGER :: ierr,i, MemoryAlloc, MemoryAlloc_Root
         CHARACTER(len=*), PARAMETER :: this_routine='InitRDM'
 #ifdef __CMPLX
         CAll Stop_All(this_routine,'Filling of reduced density matrices not working with &
                                     &complex walkers yet.')
 #endif
+
+        if(tRegenDiagHEls) &
+            call stop_all(this_routine,'RDMs not currently set up for regenerating the &
+                                    &diagonal H elements.  This should not be difficult though.')
 
 ! If the RDMExcitLevel is 3 - and we're calculating both the 1- and 2-RDM, 
 ! then we automatically calculate the energy unless we specifically say not to.
@@ -795,9 +800,9 @@ MODULE nElRDMMod
         integer , intent(in) :: walkExcitLevel
 
         if(walkExcitLevel.eq.0) then
-            if(SignCurr(1).ne.HFDiedSign(1)) then
-                write(6,*) 'DiedSignCurr',SignCurr
-                write(6,*) 'HFDiedSign',HFDiedSign
+            if(SignCurr(1).ne.InstNoatHF(1)) then
+                write(6,*) 'SignCurr',SignCurr
+                write(6,*) 'InstNoatHF',InstNoatHF
                 CALL Stop_All('PerformFCIMCycPar','Incorrect instantaneous HF population.')
             endif
         endif
@@ -812,7 +817,7 @@ MODULE nElRDMMod
 
 ! If we have a single or double, add in the connection to the HF, symmetrically.        
         if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) &
-            call Add_RDM_From_IJ_Pair(HFDet,DetCurr,real(HFDiedSign(1),dp),real(SignCurr(1),dp),.true.)
+            call Add_RDM_From_IJ_Pair(HFDet,DetCurr,real(InstNoatHF(1),dp),real(SignCurr(1),dp),.true.)
 
     end subroutine Add_StochRDM_Diag_Norm
 
@@ -820,9 +825,6 @@ MODULE nElRDMMod
     subroutine Add_StochRDM_Diag_HF_S_D(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
 ! This is called when we run over all TotWalkers in CurrentDets.    
 ! It is called for each CurrentDet.
-
-! In these cases, the diagonal terms never go above excitation level 2, so 
-! the current sign (rather than died sign) is always used.
         use FciMCData , only : HFDet
         use hphf_integrals , only : hphf_sign
         use HPHFRandExcitMod , only : FindExcitBitDetSym
@@ -847,9 +849,9 @@ MODULE nElRDMMod
             AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
             AccumRDMNorm_Inst = AccumRDMNorm_Inst + (real(SignCurr(1)) * real(SignCurr(1)))
 
-            if(tHF_Ref_Explicit.and.(SignCurr(1).ne.HFDiedSign(1))) then
+            if(tHF_Ref_Explicit.and.(SignCurr(1).ne.InstNoatHF(1))) then
                 write(6,*) 'CurrentSign',SignCurr(1)
-                write(6,*) 'HF Sign',HFDiedSign(1)
+                write(6,*) 'HF Sign',InstNoatHF(1)
                 call stop_all('Add_StochRDM_Diag','HF population is incorrect.')
             endif
         elseif(walkExcitLevel.le.2) then
@@ -861,14 +863,14 @@ MODULE nElRDMMod
                 AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
                 AccumRDMNorm_Inst = AccumRDMNorm_Inst + (real(SignCurr(1)) * real(SignCurr(1)))
 
-                call Add_RDM_From_IJ_Pair(HFDet,DetCurr,real(HFDiedSign(1),dp),real(SignCurr(1),dp),.true.)
+                call Add_RDM_From_IJ_Pair(HFDet,DetCurr,real(InstNoatHF(1),dp),real(SignCurr(1),dp),.true.)
 
             endif
 
             ! The singles and doubles are connected and explicitly calculated 
             ! - but not symmetrically.
             if(tHF_Ref_Explicit) &
-                call Add_RDM_From_IJ_Pair(HFDet, DetCurr, real(HFDiedSign(1),dp), &
+                call Add_RDM_From_IJ_Pair(HFDet, DetCurr, real(InstNoatHF(1),dp), &
                                                 real(SignCurr(1),dp),.false.)
         endif
 
@@ -890,9 +892,9 @@ MODULE nElRDMMod
         integer :: nSpinCoup(NEl), SignFac, HPHFExcitLevel
 
         if(walkExcitLevel.eq.0) then
-            if(SignCurr(1).ne.HFDiedSign(1)) then
+            if(SignCurr(1).ne.InstNoatHF(1)) then
                 write(6,*) 'SignCurr',SignCurr
-                write(6,*) 'HFDiedSign',HFDiedSign
+                write(6,*) 'InstNoatHF',InstNoatHF
                 CALL Stop_All('PerformFCIMCycPar','Incorrect instantaneous HF population.')
             endif
         endif
@@ -939,7 +941,7 @@ MODULE nElRDMMod
 ! of this connection as well - symmetrically because no probabilities are involved.
         if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) &
             call Fill_Spin_Coupled_RDM(iLutRef,iLutCurr,HFDet,DetCurr,&
-                                            real(HFDiedSign(1),dp),real(SignCurr(1),dp),.true.)
+                                            real(InstNoatHF(1),dp),real(SignCurr(1),dp),.true.)
 
     end subroutine Add_StochRDM_Diag_HPHF
 

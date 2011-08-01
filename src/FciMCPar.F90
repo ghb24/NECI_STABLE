@@ -500,7 +500,7 @@ MODULE FciMCParMod
         interface
             function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
                                      nJ, iLutJ, prob, HElGen, ic, ex, tPar, exLevel, &
-                                     part_type, wSignDied) result(child)
+                                     part_type) result(child)
                 use SystemData, only: nel
                 use bit_reps, only: niftot
                 use constants, only: n_int, dp, lenof_sign
@@ -510,7 +510,6 @@ MODULE FciMCParMod
                 integer(kind=n_int), intent(inout) :: iLutJ(0:nIfTot)
                 integer, intent(in) :: ic, ex(2,2), exLevel
                 integer, dimension(lenof_sign), intent(in) :: wSign
-                integer, dimension(lenof_sign), intent(in), optional :: wSignDied
                 logical, intent(in) :: tPar
                 real(dp), intent(inout) :: prob
                 integer , dimension(lenof_sign) :: child      
@@ -707,7 +706,7 @@ MODULE FciMCParMod
             end subroutine
             function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
                                      nJ, iLutJ, prob, HElGen, ic, ex, tPar, exLevel, &
-                                     part_type, wSignDied) result(child)
+                                     part_type) result(child)
                 use systemdata, only: nel
                 use bit_reps, only: niftot
                 use constants, only: dp, n_int, lenof_sign
@@ -717,7 +716,6 @@ MODULE FciMCParMod
                 integer(kind=n_int), intent(inout) :: iLutJ(0:nIfTot)
                 integer, intent(in) :: ic, ex(2,2), exLevel
                 integer, dimension(lenof_sign), intent(in) :: wSign
-                integer, dimension(lenof_sign), intent(in), optional :: wSignDied
                 logical, intent(in) :: tPar
                 real(dp), intent(inout) :: prob
                 integer, dimension(lenof_sign) :: child
@@ -846,8 +844,6 @@ MODULE FciMCParMod
         ! Reset iteration variables
         VecSlot = 1    ! Next position to write into CurrentDets
         NoatHF = 0     ! Number at HF and doubles for stats
-        HFDiedSign = 0
-        HFDiedSignTemp = 0
         NoatDoubs = 0
         ! Next free position in newly spawned list.
         ValidSpawnedList = InitialSpawnedSlots
@@ -860,30 +856,6 @@ MODULE FciMCParMod
 
         ! Initialise histograms if necessary
         call InitHistMin()
-
-        if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) then 
-            if(iProcIndex.eq.iHFProc) then
-
-                ! Binary search for HF determinant.
-                call BinSearchParts(iLutHF,1,TotWalkers,HFPartInd,tSuccess)
-                if(.not.tSuccess) call Stop_All('PerformFCIMCycPar',&
-                    'HF determinant not in CurrentDets list.')
-
-                ! Find its instantaneous sign.                
-                call extract_sign (CurrentDets(:,HFPartInd), InstNoatHF)
-
-                ! Calculate the number that will die.
-                call calc_walker_death (attempt_die, iter_data, HFDet, &
-                                    CurrentH(HFPartInd), InstNoatHF, HFDiedSign)
-                HFDiedSignTemp = HFDiedSign
-                HFDiedSign(1) = NINT( real((real((CurrentNotDied(HFPartInd)*(Iter-1)),dp) &
-                                    + real(InstNoatHF(1),dp)),dp) / real(Iter,dp) )
-            endif
-!            HFDiedSign = InstNoatHF        ! here dmc
-            ! Communicate the number at the HF after death.
-            call MPISumAll_inplace(HFDiedSign)
-
-        endif
 
         ! This is a bit of a hack based on the fact that we mean something 
         ! different by exFlag for CSFs than in normal determinential code.
@@ -981,15 +953,8 @@ MODULE FciMCParMod
             call SumEContrib (DetCurr, WalkExcitLevel, SignCurr, &
                               CurrentDets(:,j), HDiagCurr, 1.d0)
 
-            if((walkExcitLevel.eq.0).and.   &
-                (tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit))) then                              
-                DiedSignCurr = HFDiedSignTemp
-                AvSignCurr(1) = HFDiedSign(1)
-            else
-                call calc_walker_death (attempt_die, iter_data, DetCurr, &
-                                        HDiagCurr, SignCurr, DiedSignCurr)
-                AvSignCurr(1) = NINT( real((real((CurrentNotDied(j)*(Iter-1)),dp) + real(SignCurr(1),dp)),dp) / real(Iter,dp) )
-            endif
+            call calc_walker_death (attempt_die, iter_data, DetCurr, &
+                                    HDiagCurr, SignCurr, DiedSignCurr)
 
             ! Add in any reduced density matrix info we want while running 
             ! over CurrentDets - i.e. diagonal elements.
@@ -1000,13 +965,7 @@ MODULE FciMCParMod
             ! RDM, otherwise this routine does nothing.
 
             ! This calculates both the diagonal elements and explicitly connected singles and doubles.
-            if(tHF_Ref_Explicit) then
-                call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,SignCurr,walkExcitLevel)
-            else
-!                call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,DiedSignCurr,walkExcitLevel)
-!                call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,SignCurr,walkExcitLevel)   ! here dmc
-                call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,AvSignCurr,walkExcitLevel)   ! here dmc
-            endif
+            call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,SignCurr,walkExcitLevel)   
 
             ! Loop over the 'type' of particle. 
             ! lenof_sign == 1 --> Only real particles
@@ -1044,8 +1003,7 @@ MODULE FciMCParMod
                         child = attempt_create (get_spawn_helement, DetCurr, &
                                             CurrentDets(:,j), SignCurr, &
                                             nJ,iLutnJ, Prob, HElGen, IC, ex, &
-                                            tParity, walkExcitLevel,part_type, &
-                                            AvSignCurr)     ! here dmc
+                                            tParity, walkExcitLevel,part_type)     
                     else
                         child = 0
                     endif
@@ -1070,10 +1028,6 @@ MODULE FciMCParMod
                 enddo ! Cycling over mulitple particles on same determinant.
 
             enddo   ! Cycling over 'type' of particle on a given determinant.
-
-            CurrentNotDied(VecSlot) = AvSignCurr(1)
-!            CurrentNotDied(VecSlot) = SignCurr(1)
-!            CurrentNotDied(VecSlot) = DiedSignCurr(1)   ! here dmc
 
             ! DEBUG
             ! if (VecSlot > j) call stop_all (this_routine, 'vecslot > j')
@@ -1672,14 +1626,13 @@ MODULE FciMCParMod
         
     function attempt_create_trunc_spawn (get_spawn_helement, DetCurr,&
                                          iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, &
-                                         ic, ex, tparity, walkExcitLevel, part_type, &
-                                         wSignDied) result(child)
+                                         ic, ex, tparity, walkExcitLevel, part_type) &
+                                         result(child)
         integer, intent(in) :: DetCurr(nel), nJ(nel), part_type 
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
         integer, intent(in) :: ic, ex(2,2), walkExcitLevel
         integer, dimension(lenof_sign), intent(in) :: wSign
-        integer, dimension(lenof_sign), intent(in), optional :: wSignDied
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
         integer, dimension(lenof_sign) :: child
@@ -1704,7 +1657,7 @@ MODULE FciMCParMod
         if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
             child = attempt_create_normal (get_spawn_helement, DetCurr, &
                                iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
-                               tParity, walkExcitLevel, part_type, wSignDied)
+                               tParity, walkExcitLevel, part_type)
         else
             child = 0
         endif
@@ -1712,15 +1665,14 @@ MODULE FciMCParMod
 
     function attempt_create_trunc_spawn_encode (get_spawn_helement, DetCurr,&
                                          iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, &
-                                         ic, ex, tparity, walkExcitLevel, part_type, &
-                                         wSignDied) result(child)
+                                         ic, ex, tparity, walkExcitLevel, part_type) &
+                                         result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel), part_type 
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
         integer, intent(in) :: ic, ex(2,2), walkExcitLevel
         integer, dimension(lenof_sign), intent(in) :: wSign
-        integer, dimension(lenof_sign), intent(in), optional :: wSignDied
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
         integer, dimension(lenof_sign) :: child
@@ -1746,7 +1698,7 @@ MODULE FciMCParMod
         if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
             child = attempt_create_normal (get_spawn_helement, DetCurr, &
                                iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
-                               tParity, walkExcitLevel, part_type, wSignDied)
+                               tParity, walkExcitLevel, part_type)
         else
             child = 0
         endif
@@ -1754,7 +1706,7 @@ MODULE FciMCParMod
 
     function attempt_create_normal (get_spawn_helement, DetCurr, iLutCurr, &
                                     wSign, nJ, iLutnJ, prob, HElGen, ic, ex, tparity,&
-                                    walkExcitLevel, part_type, wSignDied) result(child)
+                                    walkExcitLevel, part_type) result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel)
         integer, intent(in) :: part_type    ! 1 = Real parent particle, 2 = Imag parent particle
@@ -1762,7 +1714,6 @@ MODULE FciMCParMod
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
         integer, intent(in) :: ic, ex(2,2), walkExcitLevel
         integer, dimension(lenof_sign), intent(in) :: wSign
-        integer, dimension(lenof_sign), intent(in), optional :: wSignDied
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
         integer, dimension(lenof_sign) :: child
@@ -1952,8 +1903,8 @@ MODULE FciMCParMod
             iUnused = part_type
 
             tGhostChild = .false.
-!            if(tFillingStochRDMonFly.and.(child(1).ne.0)) then
-            if(tFillingStochRDMonFly) then
+!            if(tFillingStochRDMonFly) then
+            if(tFillingStochRDMonFly.and.(child(1).ne.0)) then
 
                 ! We eventually turn this real bias factor into an integer to be passed around 
                 ! with the spawned children and their parents - this only works with 64 bit at the mo.
@@ -1991,17 +1942,7 @@ MODULE FciMCParMod
                 p_notlist_rdmfac = ( 1.D0 - prob ) + ( prob * (1.D0 - p_spawn_rdmfac) )
 
                 ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i]
-                ! The spawning probability is dependent on the current sign - wSign, but the actual sign we add in is that 
-                ! after the walkers on Di have died (wSignDied).
-!                RDMBiasFacI = real(wSignDied(1),dp) / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) ) 
-!                RDMBiasFacI = 1.D0 / abs( 1.D0 - p_notlist_rdmfac ) 
-!                RDMBiasFacI = real(wSign(1),dp) / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) )    ! here dmc
-!                RDMBiasFacI = real(wSignDied(1),dp) / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) )    ! here dmc
-                if(wSignDied(1).ne.0) then
-                    RDMBiasFacI = real(wSignDied(1),dp) / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSignDied(1),dp)))) )    ! here dmc
-                else
-                    RDMBiasFacI = 0.D0
-                endif
+                RDMBiasFacI = real(wSign(1),dp) / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) )   
             endif
 
 #endif
@@ -2304,6 +2245,7 @@ MODULE FciMCParMod
                 !Normally we will go in this block
                 call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
                 if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
+                if (tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) CurrentSignRDM(VecSlot) = wSign(1)
                 VecSlot = VecSlot + 1
             ENDIF
         elseif(tTruncInitiator) then
@@ -3583,6 +3525,9 @@ MODULE FciMCParMod
         iter_data%ndied = 0
         iter_data%nannihil = 0
         iter_data%naborted = 0
+
+        if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) &
+            call MPISumAll_inplace (InstNoatHF)
 
     end subroutine
 
@@ -5756,9 +5701,14 @@ MODULE FciMCParMod
                 CurrentH=>WalkVecH
             ENDIF
 
-            ALLOCATE(CurrentNotDied(MaxWalkersPart),stat=ierr)
-            CALL LogMemAlloc('CurrentNotDied',MaxWalkersPart,4,this_routine,CurrentNotDiedTag,ierr)
-            CurrentNotDied(:)=0
+            if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
+                ALLOCATE(CurrentSignRDM(MaxWalkersPart),stat=ierr)
+                CALL LogMemAlloc('CurrentSignRDM',MaxWalkersPart,4,this_routine,CurrentSignRDMTag,ierr)
+                CurrentSignRDM(:)=0
+                MemoryAlloc=MemoryAlloc+4*MaxWalkersPart
+                WRITE(6,"(A)") " The current signs before death will be store for use in the RDMs."
+                WRITE(6,"(A,F14.6,A)") " This requires ", REAL(MaxWalkersPart*4,dp)/1048576.D0," Mb/Processor"
+            endif
         
             ! Get the (0-based) processor index for the HF det.
             iHFProc = DetermineDetNode(HFDet,0)
@@ -6905,8 +6855,10 @@ MODULE FciMCParMod
             DEALLOCATE(WalkVecH)
             CALL LogMemDealloc(this_routine,WalkVecHTag)
         ENDIF
-        DEALLOCATE(CurrentNotDied)
-        CALL LogMemDealloc(this_routine,CurrentNotDiedTag)
+        if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
+            DEALLOCATE(CurrentSignRDM)
+            CALL LogMemDealloc(this_routine,CurrentSignRDMTag)
+        endif
         DEALLOCATE(SpawnVec)
         CALL LogMemDealloc(this_routine,SpawnVecTag)
         DEALLOCATE(SpawnVec2)

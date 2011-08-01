@@ -28,8 +28,8 @@ MODULE FciMCData
       REAL(KIND=dp) , ALLOCATABLE , TARGET :: WalkVecH(:)                    !Diagonal hamiltonian element
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVec(:,:),SpawnVec2(:,:)
 
-      INTEGER , ALLOCATABLE :: CurrentNotDied(:)
-      INTEGER :: CurrentNotDiedTag
+      INTEGER , ALLOCATABLE :: CurrentSignRDM(:)
+      INTEGER :: CurrentSignRDMTag
     
       INTEGER(TagIntType) :: WalkVecDetsTag=0
       INTEGER(TagIntType) :: WalkVecHTag=0
@@ -46,7 +46,7 @@ MODULE FciMCData
       REAL*8 :: RDMBiasFacI, SumSigns, SumSpawns
       LOGICAL :: tFillingStochRDMonFly, tFillingExplicRDMonFly, thf, tFirst 
       integer :: Spawned_Parts_Zero
-      integer(int64), dimension(lenof_sign) :: InstNoatHf, HFDiedSign, HFDiedSignTemp
+      integer(int64), dimension(lenof_sign) :: InstNoatHf
       logical :: tGhostChild
 
       ! Be able to store a list of the current initiators

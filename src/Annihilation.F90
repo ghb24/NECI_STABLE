@@ -810,21 +810,16 @@ MODULE AnnihilationMod
                         ! This is the excitation level of Dj.
                         ExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,PartInd), 2)
                         if(ExcitLevel.le.2) &
-                            CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign(1))
+                            CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSignRDM(PartInd))
                     elseif(tHF_S_D_Ref) then
                         ! In the case of the HF and singles and doubles Ref 
                         ! - Di is only ever the HF, and Dj is 
                         ! anything connected - i.e. up to quadruples.
                         ExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,PartInd), 4)
                         if(ExcitLevel.le.4) &
-                            CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSign(1))
+                            CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSignRDM(PartInd))
                     elseif(.not.DetBitEQ(iLutRef,CurrentDets(:,PartInd),NIfDBO)) then
-!                        if(CurrentNotDied(PartInd).ne.CurrentSign(1)) then
-!                            write(6,*) 'CurrentNotDied(PartInd)',CurrentNotDied(PartInd)
-!                            write(6,*) 'CurrentSign',CurrentSign
-!                            call stop_all('','')
-!                        endif          ! here dmc
-                        CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentNotDied(PartInd))
+                        CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSignRDM(PartInd))
                     endif
                 endif
 
@@ -1039,6 +1034,7 @@ MODULE AnnihilationMod
         use SystemData, only: tHPHF
         use bit_reps, only: NIfD
         use CalcData , only : tCheckHighestPop
+        use Logging , only : tRDMonFly, tExplicitAllRDM
         INTEGER :: TotWalkersNew,ValidSpawned
         INTEGER :: i,DetsMerged,nJ(NEl),part_type
         INTEGER, DIMENSION(lenof_sign) :: CurrentSign,SpawnedSign
@@ -1055,9 +1051,15 @@ MODULE AnnihilationMod
         norm_psi_squared = 0
         DetsMerged=0
         iHighestPop=0
+        InstNoatHF = 0
         IF(TotWalkersNew.gt.0) THEN
             do i=1,TotWalkersNew
                 call extract_sign(CurrentDets(:,i),CurrentSign)
+
+                if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
+                    if(DetBitEQ(iLutRef,CurrentDets(:,i),NIfDBO)) &
+                        InstNoatHF = CurrentSign
+                endif
 
                 IF(IsUnoccDet(CurrentSign)) THEN
                     DetsMerged=DetsMerged+1
@@ -1075,10 +1077,10 @@ MODULE AnnihilationMod
 !We want to move all the elements above this point down to 'fill in' the annihilated determinant.
                     IF(DetsMerged.ne.0) THEN
                         CurrentDets(0:NIfTot,i-DetsMerged)=CurrentDets(0:NIfTot,i)
-                        IF(.not.tRegenDiagHEls) THEN
+                        IF(.not.tRegenDiagHEls) &
                             CurrentH(i-DetsMerged)=CurrentH(i)
-                            CurrentNotDied(i-DetsMerged)=CurrentNotDied(i)
-                        ENDIF
+                        if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) &
+                            CurrentSignRDM(i-DetsMerged) = CurrentSignRDM(i)
                     ENDIF
                     TotParts=TotParts+abs(CurrentSign)
                     norm_psi_squared = norm_psi_squared + sum(int(CurrentSign,int64)**2)
@@ -1094,7 +1096,7 @@ MODULE AnnihilationMod
             enddo
             TotWalkersNew=TotWalkersNew-DetsMerged
         ELSEIF(iProcIndex.eq.iHFProc) THEN
-            call stop_all(this_routine,'HF has been deleted from list')
+            call stop_all(this_routine,'HF has been deleted from CurrentDets list.')
         ENDIF
 
 !        do i=1,TotWalkersNew
@@ -1173,8 +1175,10 @@ MODULE AnnihilationMod
                         HDiag=(REAL(HDiagTemp,8))-Hii
                     endif
                     CurrentH(i)=HDiag
-                    CurrentNotDied(i) = 0
+                    CurrentSignRDM(i) = 0
                 enddo
+            ELSEIF(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) THEN
+                CALL MergeListswHwSignRDM(TotWalkersNew,ValidSpawned,SpawnedParts(0:NIfTot,1:ValidSpawned))
             ELSE
                 CALL MergeListswH(TotWalkersNew,ValidSpawned,SpawnedParts(0:NIfTot,1:ValidSpawned))
             ENDIF
