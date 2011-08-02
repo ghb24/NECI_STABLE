@@ -1174,7 +1174,7 @@ MODULE AnnihilationMod
                         HDiag=(REAL(HDiagTemp,8))-Hii
                     endif
                     CurrentH(i)=HDiag
-                    CurrentSignRDM(i) = 0
+                    if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) CurrentSignRDM(i) = 0
                 enddo
             ELSEIF(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) THEN
                 CALL MergeListswHwSignRDM(TotWalkersNew,ValidSpawned,SpawnedParts(0:NIfTot,1:ValidSpawned))
