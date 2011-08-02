@@ -1034,7 +1034,7 @@ MODULE AnnihilationMod
                acc = (1099511628211_int64 * acc) + &
                        (RandomHash(mod(iand(nI(i), csf_orbital_mask)-1,nBasis)+1) * i)
            enddo
-           offset=ishft(abs(ishft(acc+hash_iter+iIterOffset, -hash_shift) ),-4)
+           offset=abs(ishft(acc+hash_iter+iIterOffset, -hash_shift) )
         else
            offset=0
         endif
