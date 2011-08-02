@@ -202,7 +202,7 @@ MODULE PopsfileMod
                     call stop_all(this_routine,"HF already found, but shouldn't have")
                 endif
                 CurrHF=CurrHF+SignTemp 
-                IF(.not.tRegenDiagHEls) CurrentH(i)=0.D0
+                IF(.not.tRegenDiagHEls) CurrentH(1,i)=0.D0
             else
                 if(.not.tRegenDiagHEls) THEN
                 !Calculate diagonal matrix element
@@ -214,7 +214,7 @@ MODULE PopsfileMod
                     else
                         HElemTemp = get_helement (TempnI, TempnI, 0)
                     endif
-                    CurrentH(i)=REAL(HElemTemp,dp)-Hii
+                    CurrentH(1,i)=REAL(HElemTemp,dp)-Hii
                 endif
             endif
         enddo
@@ -741,7 +741,7 @@ MODULE PopsfileMod
     SUBROUTINE ReadFromPopsfilePar()
         use util_mod, only: get_unique_filename, get_free_unit
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn,iWeightPopRead
-        use Logging, only: tZeroProjE
+        use Logging, only: tZeroProjE, tRDMonFly, tExplicitAllRDM, tHF_Ref_Explicit 
         use constants, only: size_n_int,bits_n_int
         LOGICAL :: exists,tBinRead
         INTEGER :: AvWalkers,WalkerstoReceive(nProcessors)
@@ -970,13 +970,22 @@ MODULE PopsfileMod
 
 !Need to now allocate other arrays
         IF(.not.tRegenDiagHEls) THEN
-            ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
-            CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
-            WalkVecH(:)=0.d0
-            MemoryAlloc=MemoryAlloc+8*MaxWalkersPart
+            if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
+                ALLOCATE(WalkVecH(2,MaxWalkersPart),stat=ierr)
+                CALL LogMemAlloc('WalkVecH',2*MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
+                WalkVecH(:,:)=0.d0
+                MemoryAlloc=MemoryAlloc+8*MaxWalkersPart*2
+                WRITE(6,"(A)") " The current signs before death will be store for use in the RDMs."
+                WRITE(6,"(A,F14.6,A)") " This requires ", REAL(MaxWalkersPart*8,dp)/1048576.D0," Mb/Processor"
+            else
+                ALLOCATE(WalkVecH(1,MaxWalkersPart),stat=ierr)
+                CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
+                WalkVecH(:,:)=0.d0
+                MemoryAlloc=MemoryAlloc+8*MaxWalkersPart
+            endif
         ELSE
-            WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ", &
-             & REAL(MaxWalkersPart*8,dp)/1048576.D0," Mb/Processor"
+            WRITE(6,"(A,F14.6,A)") " Diagonal H-Elements will not be stored. This will *save* ", &
+                & REAL(MaxWalkersPart*8,dp)/1048576.D0," Mb/Processor"
         ENDIF
 
         IF(.not.tRegenDiagHEls) THEN
@@ -1205,7 +1214,7 @@ MODULE PopsfileMod
             call decode_bit_det (TempnI, currentDets(:,j))
             Excitlevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j), 2)
             IF(Excitlevel.eq.0) THEN
-                IF(.not.tRegenDiagHEls) CurrentH(j)=0.D0
+                IF(.not.tRegenDiagHEls) CurrentH(1,j)=0.D0
             ELSE
                 IF(.not.tRegenDiagHEls) THEN
                     if (tHPHF) then
@@ -1216,7 +1225,7 @@ MODULE PopsfileMod
                     else
                         HElemTemp = get_helement (TempnI, TempnI, 0)
                     endif
-                    CurrentH(j)=REAL(HElemTemp,dp)-Hii
+                    CurrentH(1,j)=REAL(HElemTemp,dp)-Hii
                 ENDIF
 
             ENDIF

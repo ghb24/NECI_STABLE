@@ -316,7 +316,7 @@ MODULE CCMC
                   iCompositeSize=0
                   call decode_bit_det (DetCurr, iLutnI)
 !Also take into account the contributions from the dets in the list
-                  HDiagCurr=CurrentH(j)
+                  HDiagCurr=CurrentH(1,j)
                   if(tHistSpawn) then
                      WalkExcitLevel = FindBitExcitLevel(iLutHF, iLutnI, nel)
                   else
@@ -681,7 +681,7 @@ MODULE CCMC
                ELSE
                   dProbDecompose=1
                   iPartDie=j
-                  HDiagCurr=CurrentH(j)
+                  HDiagCurr=CurrentH(1,j)
                ENDIF 
                dProb=dClusterProb*dProbDecompose
 
@@ -698,7 +698,7 @@ MODULE CCMC
 !               CALL SumEContrib(DetCurr,WalkExcitLevel,iSgn,iLutnI,HDiagCurr,(dProb*dProbNorm))
 !HDiags are stored.
 !               if(iExcitor.eq.1) THEN
-!                  HDiagCurr=CurrentH(j)
+!                  HDiagCurr=CurrentH(1,j)
 
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
 !                  CALL SumEContrib(DetCurr,WalkExcitLevel,CurrentSign(j),CurrentDets(:,j),HDiagCurr,1.D0)
@@ -799,7 +799,7 @@ MODULE CCMC
             ENDIF
 
             ! HDiags are stored.
-            HDiagCurr=CurrentH(j)
+            HDiagCurr=CurrentH(1,j)
             call decode_bit_det (DetCurr, CurrentDets(:,j))
 
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
@@ -815,7 +815,7 @@ MODULE CCMC
                 call encode_sign(CurrentDets(:,VecSlot),TempSign3)
                 ! CurrentDets(:,VecSlot)=CurrentDets(:,j)
                 ! CurrentSign(VecSlot)=CopySign
-                CurrentH(VecSlot)=CurrentH(j)
+                CurrentH(1,VecSlot)=CurrentH(1,j)
                 VecSlot=VecSlot+1
             ENDIF   !To kill if
         enddo

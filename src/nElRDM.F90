@@ -3964,7 +3964,7 @@ MODULE nElRDMMod
 END MODULE nElRDMMod
 
 
-    SUBROUTINE DiDj_Found_FillRDM(Spawned_No,iLutJ,SignJ)
+    SUBROUTINE DiDj_Found_FillRDM(Spawned_No,iLutJ,realSignJ)
 ! This routine is called when we have found a Di (or multiple Di's) spawning onto a Dj 
 ! with sign /= 0 (i.e. occupied).
 ! We then want to run through all the Di, Dj pairs and add their coefficients 
@@ -3979,10 +3979,9 @@ END MODULE nElRDMMod
         IMPLICIT NONE
         integer , intent(in) :: Spawned_No
         integer(kind=n_int) , intent(in) :: iLutJ(0:NIfTot)
-!        integer , dimension(lenof_sign) , intent(in) :: SignJ
-        integer , intent(in) :: SignJ
+        real(dp) , intent(in) :: realSignJ
         integer :: i, j, nI(NEl), nJ(NEl), walkExcitLevel
-        real(dp) :: realSignI, realSignJ
+        real(dp) :: realSignI
         logical :: tParity, tDetAdded
 
 ! Spawning from multiple parents, to iLutJ, which has SignJ.        
@@ -4042,7 +4041,7 @@ END MODULE nElRDMMod
             ! Ci and Cj.
             realSignI = transfer( Spawned_Parents(NIfDBO+1,i), realSignI )
 
-            realSignJ = real(SignJ,dp)
+            !SignJ passed in as real (realSignJ)
 
             ! Given the Di,Dj and Ci,Cj - find the orbitals involved in the excitation, 
             ! and therefore the RDM elements we want to add the Ci.Cj to.

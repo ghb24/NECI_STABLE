@@ -937,7 +937,7 @@ MODULE FciMCParMod
                 endif
             else
                 ! HDiags are stored.
-                HDiagCurr = CurrentH(j)
+                HDiagCurr = CurrentH(1,j)
             endif
 
             ! Test if we have found a determinant which is lower in E than
@@ -2258,8 +2258,8 @@ MODULE FciMCParMod
             ELSE
                 !Normally we will go in this block
                 call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
-                if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
-                if (tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) CurrentSignRDM(VecSlot) = wSign(1)
+                if (.not.tRegenDiagHEls) CurrentH(1,VecSlot) = Kii
+                if (tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) CurrentH(2,VecSlot) = wSign(1)
                 VecSlot = VecSlot + 1
             ENDIF
         elseif(tTruncInitiator) then
@@ -2274,7 +2274,7 @@ MODULE FciMCParMod
         !In complex case, fill slot if either real or imaginary particle still there.
         IF((CopySign(1).ne.0).or.(CopySign(2).ne.0)) THEN
             call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
-            if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
+            if (.not.tRegenDiagHEls) CurrentH(1,VecSlot) = Kii
             VecSlot=VecSlot+1
         ENDIF
 #endif            
@@ -3169,7 +3169,7 @@ MODULE FciMCParMod
                         else
                             h_tmp = get_helement (det, det, 0)
                         endif
-                        CurrentH(i) = real(h_tmp, dp) - Hii
+                        CurrentH(1,i) = real(h_tmp, dp) - Hii
                     enddo
 
                     ! Reset values introduced in soft_exit (CHANGEVARS)
@@ -5684,10 +5684,19 @@ MODULE FciMCParMod
             MemoryAlloc=(NIfTot+1)*MaxWalkersPart*size_n_int    !Memory Allocated in bytes
 
             IF(.not.tRegenDiagHEls) THEN
-                ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
-                CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
-                WalkVecH(:)=0.d0
-                MemoryAlloc=MemoryAlloc+8*MaxWalkersPart
+                if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
+                    ALLOCATE(WalkVecH(2,MaxWalkersPart),stat=ierr)
+                    CALL LogMemAlloc('WalkVecH',2*MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
+                    WalkVecH(:,:)=0.d0
+                    MemoryAlloc=MemoryAlloc+8*MaxWalkersPart*2
+                    WRITE(6,"(A)") " The current signs before death will be store for use in the RDMs."
+                    WRITE(6,"(A,F14.6,A)") " This requires ", REAL(MaxWalkersPart*8,dp)/1048576.D0," Mb/Processor"
+                else
+                    ALLOCATE(WalkVecH(1,MaxWalkersPart),stat=ierr)
+                    CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
+                    WalkVecH(:,:)=0.d0
+                    MemoryAlloc=MemoryAlloc+8*MaxWalkersPart
+                endif
             ELSE
                 WRITE(6,"(A,F14.6,A)") " Diagonal H-Elements will not be stored. This will *save* ", &
                     & REAL(MaxWalkersPart*8,dp)/1048576.D0," Mb/Processor"
@@ -5715,15 +5724,6 @@ MODULE FciMCParMod
                 CurrentH=>WalkVecH
             ENDIF
 
-            if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
-                ALLOCATE(CurrentSignRDM(MaxWalkersPart),stat=ierr)
-                CALL LogMemAlloc('CurrentSignRDM',MaxWalkersPart,4,this_routine,CurrentSignRDMTag,ierr)
-                CurrentSignRDM(:)=0
-                MemoryAlloc=MemoryAlloc+4*MaxWalkersPart
-                WRITE(6,"(A)") " The current signs before death will be store for use in the RDMs."
-                WRITE(6,"(A,F14.6,A)") " This requires ", REAL(MaxWalkersPart*4,dp)/1048576.D0," Mb/Processor"
-            endif
-        
             ! Get the (0-based) processor index for the HF det.
             iHFProc = DetermineDetNode(HFDet,0)
             WRITE(6,*) "Reference processor is: ",iHFProc
@@ -5823,7 +5823,7 @@ MODULE FciMCParMod
                         endif
 
                         ! HF energy is equal to 0 (by definition)
-                        if (.not. tRegenDiagHEls) CurrentH(1) = 0
+                        if (.not. tRegenDiagHEls) CurrentH(1,1) = 0
 
                         ! Obtain the initial sign
                         InitialSign = 0
@@ -6281,7 +6281,7 @@ MODULE FciMCParMod
                         else
                             HDiagTemp = get_helement(CASFullDets(:,i),CASFullDets(:,i),0)
                         endif
-                        CurrentH(DetIndex)=real(HDiagTemp,dp)-Hii
+                        CurrentH(1,DetIndex)=real(HDiagTemp,dp)-Hii
                     endif
                     DetIndex=DetIndex+1
                     TotParts(1)=TotParts(1)+abs(NoWalkers)
@@ -6291,7 +6291,7 @@ MODULE FciMCParMod
 
         TotWalkers=DetIndex-1   !This is the number of occupied determinants on each node
         TotWalkersOld=TotWalkers
-        call sort(CurrentDets(:,1:TotWalkers),CurrentH(1:TotWalkers))
+        call sort(CurrentDets(:,1:TotWalkers),CurrentH(:,1:TotWalkers))
 
         !Set local&global variables
         TotPartsOld=TotParts
@@ -6508,7 +6508,7 @@ MODULE FciMCParMod
                         else
                             HDiagTemp = get_helement(nJ,nJ,0)
                         endif
-                        CurrentH(DetIndex)=real(HDiagTemp,dp)-Hii
+                        CurrentH(1,DetIndex)=real(HDiagTemp,dp)-Hii
                     endif
                     DetIndex=DetIndex+1
                     TotParts(1)=TotParts(1)+abs(NoWalkers)
@@ -6535,7 +6535,7 @@ MODULE FciMCParMod
                     call set_flag(CurrentDets(:,DetIndex),flag_is_initiator(1))
                     call set_flag(CurrentDets(:,DetIndex),flag_is_initiator(2))
                 endif
-                if(.not.tRegenDiagHEls) CurrentH(DetIndex)=0.D0
+                if(.not.tRegenDiagHEls) CurrentH(1,DetIndex)=0.D0
                 DetIndex=DetIndex+1
                 TotParts(1)=TotParts(1)+abs(NoWalkers)
                 NoatHF(1) = NoWalkers
@@ -6548,7 +6548,7 @@ MODULE FciMCParMod
             
         TotWalkers=DetIndex-1   !This is the number of occupied determinants on each node
         TotWalkersOld=TotWalkers
-        call sort(CurrentDets(:,1:TotWalkers),CurrentH(1:TotWalkers))
+        call sort(CurrentDets(:,1:TotWalkers),CurrentH(:,1:TotWalkers))
 
         !Set local&global variables
         TotPartsOld=TotParts
@@ -6871,10 +6871,6 @@ MODULE FciMCParMod
             DEALLOCATE(WalkVecH)
             CALL LogMemDealloc(this_routine,WalkVecHTag)
         ENDIF
-        if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
-            DEALLOCATE(CurrentSignRDM)
-            CALL LogMemDealloc(this_routine,CurrentSignRDMTag)
-        endif
         DEALLOCATE(SpawnVec)
         CALL LogMemDealloc(this_routine,SpawnVecTag)
         DEALLOCATE(SpawnVec2)

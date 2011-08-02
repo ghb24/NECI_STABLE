@@ -55,7 +55,7 @@
 ! inserted...
            do j=nlisto,ips,-1
               CurrentDets(:,j+i)=CurrentDets(:,j)
-              CurrentH(j+i)=CurrentH(j)
+              CurrentH(:,j+i)=CurrentH(:,j)
            enddo
            IF(tTruncInitiator) CALL FlagifDetisInitiator(list2(:,i))
 ! Insert DetCurr into its position in the completely merged list (i-1 elements
@@ -73,7 +73,7 @@
                HDiagTemp = get_helement (nJ, nJ, 0)
            endif
            HDiag=(REAL(HDiagTemp,8))-Hii
-           CurrentH(ips+i-1)=HDiag
+           CurrentH(1,ips+i-1)=HDiag
 ! Next element to be inserted must be smaller than DetCurr, so must be inserted
 ! at (at most) at ips-1.
 ! If nlisto=0 then all remaining elements in list2 must be inserted directly
@@ -83,80 +83,6 @@
         nlist1=nlist1+nlist2
         return
     END SUBROUTINE MergeListswH
-
-! This routine is exactly the same as above, but as well as carrying the CurrentH 
-! array with it in the merge, it also carries the CurrentSignRDM.
-! This is called when we are filling the reduced density matrices.
-    SUBROUTINE MergeListswHwSignRDM(nlist1,nlist2,list2)
-        USE FciMCParMOD , only : Hii,CurrentDets,CurrentH,CurrentSignRDM
-        use SystemData, only: nel, tHPHF,tMomInv
-        use bit_reps, only: NIfTot, NIfDBO, decode_bit_det
-        USE Determinants , only : get_helement
-        use DetBitOps, only: DetBitEQ
-        use hphf_integrals, only: hphf_diag_helement
-        use MI_integrals, only: MI_diag_helement
-        USE CalcData , only : tTruncInitiator
-        USE HElem
-        use constants, only: dp,n_int
-        IMPLICIT NONE
-        INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
-        INTEGER :: nlisto,nlist1,nlist2,i
-        INTEGER :: ips
-        HElement_t :: HDiagTemp
-        real(dp) :: HDiag
-        INTEGER :: nJ(NEl),j
-!.................................................................
-!..starting from the end of the list, expand list1 to accomodate
-!.. elements of list2
-       nlisto=nlist1
-       do i=nlist2,1,-1
-!.. find the positions in list1 which the list2 would be inserted
-           DetCurr(:)=list2(:,i)
-!..ips1 is the position in list1 which num is to be inserted
-! nlisto is the last element in list1 which might have to be moved to
-! accommodate an element from list2.
-           if (nlisto == 0) then
-! No more elements in list1 to be moved.  All remaining elements in list2 need
-! to be inserted with the same positions into list1.
-               ips = 1
-           else
-               call search(nlisto,DetCurr,ips)
-           end if
-! Move all elements that between DetCurr and nlisto to their position in the
-! completely merged list.  We know that there must be i elements still to be
-! inserted...
-           do j=nlisto,ips,-1
-              CurrentDets(:,j+i)=CurrentDets(:,j)
-              CurrentH(j+i)=CurrentH(j)
-              CurrentSignRDM(j+i)=CurrentSignRDM(j)
-           enddo
-           IF(tTruncInitiator) CALL FlagifDetisInitiator(list2(:,i))
-! Insert DetCurr into its position in the completely merged list (i-1 elements
-! below it still to be inserted).
-           CurrentDets(:,ips+i-1)=list2(:,i)
-           
-           ! We want to calculate the diagonal hamiltonian matrix element for
-           ! the new particle to be merged.
-           call decode_bit_det (nJ, list2(:,i))
-           if (tHPHF) then
-               HDiagTemp = hphf_diag_helement (nJ, list2(:,i))
-           elseif(tMomInv) then
-               HDiagTemp = MI_diag_helement(nJ,list2(:,i))
-           else
-               HDiagTemp = get_helement (nJ, nJ, 0)
-           endif
-           HDiag=(REAL(HDiagTemp,8))-Hii
-           CurrentH(ips+i-1)=HDiag
-           CurrentSignRDM(ips+i-1) = 0
-! Next element to be inserted must be smaller than DetCurr, so must be inserted
-! at (at most) at ips-1.
-! If nlisto=0 then all remaining elements in list2 must be inserted directly
-! into list1---there are no more elements in list1 to be moved.
-           nlisto=ips-1
-        enddo
-        nlist1=nlist1+nlist2
-        return
-    END SUBROUTINE MergeListswHwSignRDM
 
 !This routine is the same as MergeListswH, but will not generate the diagonal 
 !hamiltonian matrix elements to go with the inserted determinants

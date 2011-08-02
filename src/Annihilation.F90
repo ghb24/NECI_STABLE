@@ -808,16 +808,16 @@ MODULE AnnihilationMod
                         ! This is the excitation level of Dj.
                         ExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,PartInd), 2)
                         if(ExcitLevel.le.2) &
-                            CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSignRDM(PartInd))
+                            CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
                     elseif(tHF_S_D_Ref) then
                         ! In the case of the HF and singles and doubles Ref 
                         ! - Di is only ever the HF, and Dj is 
                         ! anything connected - i.e. up to quadruples.
                         ExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,PartInd), 4)
                         if(ExcitLevel.le.4) &
-                            CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSignRDM(PartInd))
+                            CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
                     elseif(.not.DetBitEQ(iLutRef,CurrentDets(:,PartInd),NIfDBO)) then
-                        CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentSignRDM(PartInd))
+                        CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
                     endif
                 endif
 
@@ -1076,9 +1076,7 @@ MODULE AnnihilationMod
                     IF(DetsMerged.ne.0) THEN
                         CurrentDets(0:NIfTot,i-DetsMerged)=CurrentDets(0:NIfTot,i)
                         IF(.not.tRegenDiagHEls) &
-                            CurrentH(i-DetsMerged)=CurrentH(i)
-                        if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) &
-                            CurrentSignRDM(i-DetsMerged) = CurrentSignRDM(i)
+                            CurrentH(:,i-DetsMerged)=CurrentH(:,i)
                     ENDIF
                     TotParts=TotParts+abs(CurrentSign)
                     norm_psi_squared = norm_psi_squared + sum(int(CurrentSign,int64)**2)
@@ -1173,11 +1171,8 @@ MODULE AnnihilationMod
                         endif
                         HDiag=(REAL(HDiagTemp,8))-Hii
                     endif
-                    CurrentH(i)=HDiag
-                    if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) CurrentSignRDM(i) = 0
+                    CurrentH(1,i)=HDiag
                 enddo
-            ELSEIF(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) THEN
-                CALL MergeListswHwSignRDM(TotWalkersNew,ValidSpawned,SpawnedParts(0:NIfTot,1:ValidSpawned))
             ELSE
                 CALL MergeListswH(TotWalkersNew,ValidSpawned,SpawnedParts(0:NIfTot,1:ValidSpawned))
             ENDIF
