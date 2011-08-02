@@ -1900,7 +1900,8 @@ MODULE FciMCParMod
             ! Avoid compiler warnings
             iUnused = part_type
 
-            if((tFillingStochRDMonFly.and.(child(1).ne.0)).or.tSpawnGhostChild) then
+            if(tSpawnGhostChild) then
+
                 ! We eventually turn this real bias factor into an integer to be passed around 
                 ! with the spawned children and their parents - this only works with 64 bit at the mo.
                 if(n_int.eq.4) CALL Stop_All('attempt_create_normal', &
@@ -1924,7 +1925,7 @@ MODULE FciMCParMod
                     ! We don't care about multiple spawns - if it's in the list, it gets added in regardless of 
                     ! the number spawned - so if P_spawn(j | i) > 1, we treat it as = 1.
                     p_spawn_rdmfac = 1.D0
-                elseif(tSpawnGhostChild.and.(rat.lt.GhostThresh)) then
+                elseif(rat.lt.GhostThresh) then
                     ! If we're spawning 'ghost' children, we give DiDj pairs with small H elements a chance 
                     ! to contribute to the RDM, while still not spawning children.
                     p_spawn_rdmfac = rat*GhostFac
@@ -1934,7 +1935,39 @@ MODULE FciMCParMod
                         tGhostChild = .false.
                     endif
                 else
-!                    p_spawn_rdmfac = tau * abs( real(rh,dp) / prob )
+                    p_spawn_rdmfac = rat
+                endif
+                p_notlist_rdmfac = ( 1.D0 - prob ) + ( prob * (1.D0 - p_spawn_rdmfac) )
+
+                ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i]
+                RDMBiasFacI = real(wSign(1),dp) / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) )   
+
+            elseif(tFillingStochRDMonFly.and.(child(1).ne.0)) then
+
+                ! We eventually turn this real bias factor into an integer to be passed around 
+                ! with the spawned children and their parents - this only works with 64 bit at the mo.
+                if(n_int.eq.4) CALL Stop_All('attempt_create_normal', &
+                                'the bias factor currently does not work with 32 bit integers.')
+
+                ! Otherwise calculate the 'sign' of Di we are eventually going to add in as Di.Dj.                                
+                ! Because we only add in Di.Dj when we successfully spawn from Di.Dj, we need to unbias (scale up) 
+                ! Di by the probability of this happening.
+                ! We need the probability that the determinant i, with population n_i, will spawn on j.
+                ! We only consider one instance of a pair Di,Dj, so just want the probability of any of the n_i 
+                ! walkers spawning at least once on Dj.
+                ! P_successful_spawn(j | i)[n_i] =  1 - P_not_spawn(j | i)[n_i]
+                ! P_not_spawn(j | i )[n_i] is the probability of none of the n_i walkers spawning on j from i.
+                ! This requires either not generating j, or generating j and not succesfully spawning, n_i times.
+                ! P_not_spawn(j | i )[n_i] = [(1 - P_gen(j | i)) + ( P_gen( j | i ) * (1 - P_spawn(j | i))]^n_i
+
+                tGhostChild = .false.
+                if(extraCreate.ne.0) then
+                    ! This is the special case whereby if P_spawn(j | i) > 1, then we will definitely spawn from i -> j.
+                    ! I.e. the pair Di,Dj will definitely be in the SpawnedParts list.
+                    ! We don't care about multiple spawns - if it's in the list, it gets added in regardless of 
+                    ! the number spawned - so if P_spawn(j | i) > 1, we treat it as = 1.
+                    p_spawn_rdmfac = 1.D0
+                else
                     p_spawn_rdmfac = rat
                 endif
                 p_notlist_rdmfac = ( 1.D0 - prob ) + ( prob * (1.D0 - p_spawn_rdmfac) )

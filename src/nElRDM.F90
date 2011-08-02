@@ -1714,12 +1714,16 @@ MODULE nElRDMMod
 
             if(iProcIndex.eq.0) then
                 ! If we're not using HPHF - average the matrix elements that by spin we know to be equal.
-                IF(tRDMSpinAveraging) CALL Average_Spins() 
-
-                ! Normalise the 1- and 2-RDM so the traces are equal to NEl and NEl(NEl - 1)/2 respectively.
-                call Calc_Norms(AllAccumRDMNorm_Inst, AllAccumRDMNorm, Trace_1RDM_Inst, Trace_1RDM, &
-                            Trace_2RDM, Trace_2RDM_Inst, Norm_1RDM_Inst, Norm_1RDM, &
-                            Norm_2RDM_Inst, Norm_2RDM)
+                if(tRDMSpinAveraging.and.(.not.tHPHF)) then
+                    call Average_Spins_and_Sum_Norms(Trace_1RDM_Inst, Trace_1RDM, Trace_2RDM, Trace_2RDM_Inst)
+                else
+                    ! Normalise the 1- and 2-RDM so the traces are equal to NEl and NEl(NEl - 1)/2 respectively.
+                    call sum_norms(Trace_1RDM_Inst, Trace_1RDM, Trace_2RDM, Trace_2RDM_Inst) 
+                endif
+ 
+                call calc_norms(AllAccumRDMNorm_Inst, AllAccumRDMNorm, Norm_1RDM_Inst, &
+                                Trace_1RDM_Inst, Trace_1RDM, Trace_2RDM_Inst, Trace_2RDM,&
+                                            Norm_1RDM, Norm_2RDM_Inst, Norm_2RDM)
             endif
 
             ! Now actually write out the 1- and/or 2-RDM to file.
@@ -2865,7 +2869,7 @@ MODULE nElRDMMod
     END SUBROUTINE DeallocateRDM
 
 
-    SUBROUTINE Average_Spins() 
+    SUBROUTINE Average_Spins_and_Sum_Norms(Trace_1RDM_Inst, Trace_1RDM, Trace_2RDM, Trace_2RDM_Inst)
 ! This will only be called by the root.
 ! It takes the NatOrbMat and the AllTwoElRDM, and averages each of the elements 
 ! that should be equal by spin.
@@ -2875,6 +2879,7 @@ MODULE nElRDMMod
 ! < a a | a a > = < b b | b b > 
 ! < a b | a b > = < b a | b a >
 ! < a b | b a > = < b a | a b >
+        real(dp) , intent(out) :: Trace_1RDM_Inst, Trace_1RDM, Trace_2RDM_Inst, Trace_2RDM
         real(dp) :: Entry_bb, Entry_aa
         real(dp) :: Entry_abab, Entry_baba, Sign_abab, Sign_baba
         real(dp) :: Entry_abba, Entry_baab, Sign_abba, Sign_baab
@@ -2883,10 +2888,15 @@ MODULE nElRDMMod
         integer :: Indij_ab, Indij_aa, Indij_bb, Indij_ba
         integer :: Indab_ab, Indab_aa, Indab_bb, Indab_ba
 
-        if(.not.tHPHF) then
 
-            do i = 1, nBasis - 1, 2
+        Trace_1RDM_Inst = 0.D0
+        Trace_1RDM = 0.D0
+        Trace_2RDM_Inst = 0.D0
+        Trace_2RDM = 0.D0
 
+        do i = 1, nBasis - 1, 2
+
+            if(RDMExcitLevel.ne.2) then
                 ! ialpha -> ialpha = ibeta -> ibeta
                 Entry_bb = NatOrbMat(SymLabelListInv(i),SymLabelListInv(i))
                 Entry_aa = NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(i+1))
@@ -2897,8 +2907,15 @@ MODULE nElRDMMod
                 NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(i+1)) = &
                                             ( Entry_bb + Entry_aa ) / 2.D0 
 
-                do a = 1, nBasis - 1, 2
+                Trace_1RDM_Inst = Trace_1RDM_Inst + OneElRDM(i,i) &
+                                                  + OneElRDM(i+1,i+1)
+                Trace_1RDM = Trace_1RDM + NatOrbMat(SymLabelListInv(i),SymLabelListInv(i)) &
+                                        + NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(i+1))
+            endif
 
+            do a = 1, nBasis - 1, 2
+
+                if(RDMExcitLevel.ne.2) then
                     ! ialpha -> jalpha = ibeta -> jbeta
                     Entry_bb = NatOrbMat(SymLabelListInv(i),SymLabelListInv(a))
                     Entry_aa = NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(a+1))
@@ -2908,6 +2925,9 @@ MODULE nElRDMMod
 
                     NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(a+1)) = &
                                             ( Entry_bb + Entry_aa ) / 2.D0 
+                endif
+
+                if(RDMExcitLevel.ne.1) then
 
                     do j = i, nBasis - 1, 2
 
@@ -2929,6 +2949,13 @@ MODULE nElRDMMod
 
                                 AllTwoElRDM(Indij_aa,Indab_aa) = &
                                             ( Entry_bbbb + Entry_aaaa ) / 2.D0 
+
+                                if(Indij_aa.eq.Indab_aa) then
+                                    Trace_2RDM_Inst = Trace_2RDM_Inst + TwoElRDM(Indij_aa,Indab_aa) & 
+                                                                      + TwoElRDM(Indij_bb,Indab_bb)
+                                    Trace_2RDM = Trace_2RDM + AllTwoElRDM(Indij_aa,Indab_aa) & 
+                                                            + AllTwoElRDM(Indij_bb,Indab_bb)
+                                endif
                             endif
 
                             ! alpha beta -> alpha beta
@@ -2991,15 +3018,17 @@ MODULE nElRDMMod
                             AllTwoElRDM(Indij_ab,Indab_ba) = & 
                                 Sign_abba * ( ( (Entry_baab * Sign_baab) + &
                                                     (Entry_abba * Sign_abba) ) / 2.D0 )
+
+
+    
                         enddo
                     enddo
-                enddo
+                endif
             enddo
+        enddo
 
-        endif
     
-    
-    END SUBROUTINE Average_Spins 
+    END SUBROUTINE Average_Spins_and_Sum_Norms
 
 
     SUBROUTINE Calc_Energy_from_RDM()
@@ -3026,20 +3055,8 @@ MODULE nElRDMMod
         REAL(dp) :: RDMEnergy1El, RDMEnergy2El, Trace_1RDM_New, Trace_2RDM_New
         REAL(dp) :: Trace_1RDM, Trace_2RDM, Trace_1RDM_Inst, Trace_2RDM_Inst 
         REAL(dp) :: Tot_Spin_Projection, Max_Error_Hermiticity, Sum_Error_Hermiticity 
-        REAL(dp) , ALLOCATABLE :: TestRDM(:,:)
-        INTEGER :: TestRDMTag
 
         CALL set_timer(RDMEnergy_Time,30)
-
-        !temp
-
-!        ALLOCATE(UMATTemp(((nBasis*(nBasis-1))/2),((nBasis*(nBasis-1))/2)),stat=ierr)
-!        IF(ierr.ne.0) CALL Stop_All('test_energy_calc','Problem allocating UMATTemp array,')
-!        UMATTemp(:,:)=0.D0
-
-!        ALLOCATE(TestRDM(((nBasis*(nBasis-1))/2),((nBasis*(nBasis-1))/2)),stat=ierr)
-!        IF(ierr.ne.0) CALL Stop_All('test_energy_calc','Problem allocating TestRDM array,')
-!        TestRDM(:,:)=0.D0
 
         Trace_2RDM_New = 0.D0
         Trace_1RDM_New = 0.D0
@@ -3049,10 +3066,6 @@ MODULE nElRDMMod
         RDMEnergy1El = 0.D0
         RDMEnergy2El = 0.D0
 
-        ! Combine the 1- and 2-RDM from all processors.
-!        IF(RDMExcitLevel.ne.2) CALL MPIReduce(OneElRDM,MPI_SUM,NatOrbMat)
-!        IF(RDMExcitLevel.ne.1) CALL MPIReduce(TwoElRDM,MPI_SUM,AllTwoElRDM)
-
         ! All the arrays are summed into the one on processor 0.
         IF(RDMExcitLevel.ne.2) CALL MPISum_inplace(OneElRDM(:,:))          
         IF(RDMExcitLevel.ne.1) CALL MPISum_inplace(TwoElRDM(:,:))
@@ -3061,31 +3074,10 @@ MODULE nElRDMMod
         ! the energy update cycle).
         ! Whereas the NatOrbMat and AllTwoElRDM are accumulated over the entire run.
         if(iProcIndex.eq.0) then
-            if(RDMExcitLevel.eq.1) then
-                do i = 1, nBasis
-                    NatOrbMat(i,i) = NatOrbMat(i,i) + OneElRDM(i,i)
-                    do j = i+1, nBasis
-                        NatOrbMat(i,j) = NatOrbMat(i,j) + OneElRDM(i,j)
-                        NatOrbMat(j,i) = NatOrbMat(j,i) + OneElRDM(j,i)
-                    enddo
-                enddo
-            else
-                do i = 1, ((nBasis*(nBasis-1))/2)
-                    if((RDMExcitLevel.ne.2).and.(i.le.nBasis)) & 
-                        NatOrbMat(i,i) = NatOrbMat(i,i) + OneElRDM(i,i)
-
-                    AllTwoElRDM(i,i) = AllTwoElRDM(i,i) + TwoElRDM(i,i)
-
-                    do j = i+1, ((nBasis*(nBasis-1))/2)
-                        if((RDMExcitLevel.ne.2).and.(i.le.nBasis).and.(j.le.nBasis)) then 
-                            NatOrbMat(i,j) = NatOrbMat(i,j) + OneElRDM(i,j)
-                            NatOrbMat(j,i) = NatOrbMat(j,i) + OneElRDM(j,i)
-                        endif
-                        AllTwoElRDM(i,j) = AllTwoElRDM(i,j) + TwoElRDM(i,j)
-                        AllTwoElRDM(j,i) = AllTwoElRDM(j,i) + TwoElRDM(j,i)
-                    enddo
-                enddo
-            endif
+            if(RDMExcitLevel.ne.2)                                  &
+                NatOrbMat(:,:) = NatOrbMat(:,:) + OneElRDM(:,:)
+            if(RDMExcitLevel.ne.1)                                  &                
+                AllTwoElRDM(:,:) = AllTwoElRDM(:,:) + TwoElRDM(:,:)
         endif
 
         AllAccumRDMNorm = 0.D0
@@ -3098,11 +3090,15 @@ MODULE nElRDMMod
         if(iProcIndex.eq.0) then
 
             ! If we're not using HPHF - average the matrix elements that by spin we know to be equal.
-            IF(tRDMSpinAveraging) CALL Average_Spins() 
+            if(tRDMSpinAveraging.and.(.not.tHPHF)) then 
+                call Average_Spins_and_Sum_Norms(Trace_1RDM_Inst, Trace_1RDM, Trace_2RDM, Trace_2RDM_Inst)
+            else
+                call sum_norms(Trace_1RDM_Inst, Trace_1RDM, Trace_2RDM, Trace_2RDM_Inst)
+            endif
 
-            call Calc_Norms(AllAccumRDMNorm_Inst, AllAccumRDMNorm, Trace_1RDM_Inst, Trace_1RDM, &
-                            Trace_2RDM, Trace_2RDM_Inst, Norm_1RDM_Inst, Norm_1RDM, &
-                            Norm_2RDM_Inst, Norm_2RDM)
+            call calc_norms(AllAccumRDMNorm_Inst, AllAccumRDMNorm, Norm_1RDM_Inst, &
+                                Trace_1RDM_Inst, Trace_1RDM, Trace_2RDM_Inst, Trace_2RDM,&
+                                        Norm_1RDM, Norm_2RDM_Inst, Norm_2RDM)
 
             if(tFinalRDMEnergy) then
                 Max_Error_Hermiticity = 0.D0
@@ -3171,11 +3167,6 @@ MODULE nElRDMMod
 !                            SymLabelListInv(i),SymLabelListInv(k), & 
 !                            NatOrbMat(SymLabelListInv(i),SymLabelListInv(k)) * Norm_1RDM 
 
-!                    TestRDM(i,k) = (REAL(TMAT2D(i,k),8) * NatOrbMat(SymLabelListInv(i),&
-!                                    SymLabelListInv(k)) * Norm_1RDM ) - &
-!                                    (REAL(TMAT2D(k,i),8) * NatOrbMat(SymLabelListInv(k),&
-!                                    SymLabelListInv(i)) * Norm_1RDM )
-
                     k2 = gtID(k)
                     Ind1 = ( ( (k-2) * (k-1) ) / 2 ) + i
 
@@ -3198,8 +3189,6 @@ MODULE nElRDMMod
 !                    if(tFinalRDMEnergy.and.(AllTwoElRDM(Ind1,Ind1).ne.0.D0)) &
 !                            write(TwoRDM_unit,'(6I10,F30.20)') i,k,i,k,Ind1,Ind1, &
 !                                       AllTwoElRDM(Ind1,Ind1) * Norm_2RDM
-
-!                    UMATTemp(Ind1,Ind1) = ( Coul - Exch )
 
                     do j = 1, nBasis
                         !i and j correspond to *orbitals*.
@@ -3245,8 +3234,6 @@ MODULE nElRDMMod
 !                                write(TwoRDM_unit,'(6I10,F30.20)') i,k,j,l,Ind1,Ind2, &
 !                                              ( AllTwoElRDM(Ind1,Ind2) * Norm_2RDM )
 
-!                            UMATTemp(Ind1,Ind2) = ParityFactor * ( Coul - Exch )
-
                         enddo
                     enddo
                 enddo
@@ -3283,9 +3270,9 @@ MODULE nElRDMMod
                 write(6,'(A29,F30.20)') ' SUM ABS ERROR IN HERMITICITY', Sum_Error_Hermiticity
                 write(6,*) ''
  
+            else
+                WRITE(Energies_unit, "(I31,2F30.15)") Iter+PreviousCycles, RDMEnergy_Inst, RDMEnergy
             endif
-
-            if(tCalc_RDMEnergy) WRITE(Energies_unit, "(I31,2F30.15)") Iter+PreviousCycles, RDMEnergy_Inst, RDMEnergy
 
 !            if(tHF_Ref_Explicit) then
 !                NatOrbMat(:,:) = 0.D0
@@ -3299,22 +3286,11 @@ MODULE nElRDMMod
         TwoElRDM(:,:) = 0.D0
         AccumRDMNorm_Inst = 0.D0
 
-!        do i = 1, nBasis
-!            do k = i+1, nBasis
-!                if(abs(testrdm(i,k)).gt.0.D0) write(6,*) 'i,k,testrdm',i,k,testrdm(i,k)
-!            enddo
-!        enddo
-
-!        deallocate(testrdm)
-!        deallocate(UMATTemp)
-
         CALL halt_timer(RDMEnergy_Time)
 
     END SUBROUTINE Calc_Energy_from_RDM
 
-    subroutine Calc_Norms(AllAccumRDMNorm_Inst, AllAccumRDMNorm, Trace_1RDM_Inst, Trace_1RDM, &
-                            Trace_2RDM, Trace_2RDM_Inst, Norm_1RDM_Inst, Norm_1RDM, &
-                            Norm_2RDM_Inst, Norm_2RDM)
+    subroutine sum_norms(Trace_1RDM_Inst, Trace_1RDM, Trace_2RDM, Trace_2RDM_Inst)
 ! We want to 'normalise' the reduced density matrices.
 ! These are not even close to being normalised at the moment, because of the way they are 
 ! calculated on the fly.
@@ -3327,18 +3303,12 @@ MODULE nElRDMMod
 ! number of electron pairs in the system = 1/2 N ( N - 1), so we can do the same for the 2RDM.
 
 ! This routine also initiates the stuff needed to write out the density matrices to files.
-        real(dp) , intent(in) :: AllAccumRDMNorm_Inst, AllAccumRDMNorm
-        real(dp) , intent(out) :: Norm_1RDM_Inst, Norm_1RDM, Norm_2RDM_Inst, Norm_2RDM
         real(dp) , intent(out) :: Trace_1RDM_Inst, Trace_1RDM, Trace_2RDM_Inst, Trace_2RDM
         integer :: i
 
         ! Find the current, unnormalised trace of each matrix.
         ! TODO: This can be merged into the spin averaging when everything is working.
 
-        Norm_1RDM_Inst = 0.D0
-        Norm_1RDM = 0.D0
-        Norm_2RDM_Inst = 0.D0
-        Norm_2RDM = 0.D0
         Trace_1RDM_Inst = 0.D0
         Trace_1RDM = 0.D0
         Trace_2RDM_Inst = 0.D0
@@ -3364,6 +3334,20 @@ MODULE nElRDMMod
 !            WRITE(6,*) 'Trace_1RDM',Trace_1RDM
 !            WRITE(6,*) 'Trace_2RDM',Trace_2RDM
 !        endif
+
+    end subroutine sum_norms        
+
+    subroutine calc_norms(AllAccumRDMNorm_Inst, AllAccumRDMNorm, Norm_1RDM_Inst, &
+                            Trace_1RDM_Inst, Trace_1RDM, Trace_2RDM_Inst, Trace_2RDM,&
+                            Norm_1RDM, Norm_2RDM_Inst, Norm_2RDM)
+        real(dp) , intent(in) :: AllAccumRDMNorm_Inst, AllAccumRDMNorm
+        real(dp) , intent(in) :: Trace_1RDM_Inst, Trace_1RDM, Trace_2RDM_Inst, Trace_2RDM
+        real(dp) , intent(out) :: Norm_1RDM_Inst, Norm_1RDM, Norm_2RDM_Inst, Norm_2RDM
+
+        Norm_1RDM_Inst = 0.D0
+        Norm_1RDM = 0.D0
+        Norm_2RDM_Inst = 0.D0
+        Norm_2RDM = 0.D0
 
         IF(tHF_Ref.or.tHF_S_D_Ref.or.tHF_Ref_Explicit) THEN
             if(RDMExcitLevel.ne.2) then
@@ -3402,7 +3386,7 @@ MODULE nElRDMMod
         !and then add it's contribution to the energy.
 
 
-    end subroutine Calc_Norms
+    end subroutine calc_norms
 
     subroutine Write_out_1and_2RDM(Norm_1RDM, Norm_2RDM)
         real(dp) , intent(in) :: Norm_1RDM, Norm_2RDM
