@@ -1900,7 +1900,7 @@ MODULE FciMCParMod
             ! Avoid compiler warnings
             iUnused = part_type
 
-            if(tFillingStochRDMonFly) then
+            if((tFillingStochRDMonFly.and.(child(1).ne.0)).or.tSpawnGhostChild) then
                 ! We eventually turn this real bias factor into an integer to be passed around 
                 ! with the spawned children and their parents - this only works with 64 bit at the mo.
                 if(n_int.eq.4) CALL Stop_All('attempt_create_normal', &
@@ -2226,7 +2226,7 @@ MODULE FciMCParMod
                 !Normally we will go in this block
                 call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
                 if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
-                if (tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) CurrentSignRDM = wSign(1)
+                if (tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) CurrentSignRDM(VecSlot) = wSign(1)
                 VecSlot = VecSlot + 1
             ENDIF
         elseif(tTruncInitiator) then

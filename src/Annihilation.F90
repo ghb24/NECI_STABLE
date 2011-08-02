@@ -1094,7 +1094,8 @@ MODULE AnnihilationMod
             enddo
             TotWalkersNew=TotWalkersNew-DetsMerged
         ELSEIF(iProcIndex.eq.iHFProc) THEN
-            call stop_all(this_routine,'HF has been deleted from CurrentDets list.')
+!            call stop_all(this_routine,'HF has been deleted from CurrentDets list.')
+            InstNoatHF(1) = 0
         ENDIF
 
 !        do i=1,TotWalkersNew
