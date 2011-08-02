@@ -5923,8 +5923,8 @@ MODULE FciMCParMod
 
         !If the iteration specified to start filling the RDM has already been, want to 
         !start filling as soon as possible.
-        if(tRDMonFly.and.(.not.tSinglePartPhase)) then
-            VaryShiftIter = 0
+        if(tRDMonFly) then
+            if(.not.tSinglePartPhase) VaryShiftIter = 0
             if(IterRDMonFly.eq.0) IterRDMonFly = 1 
         endif
 
