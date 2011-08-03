@@ -41,10 +41,12 @@ MODULE FciMCData
       INTEGER , ALLOCATABLE :: Spawned_Parents_Index(:,:)
       INTEGER :: Spawned_ParentsTag, Spawned_Parents_IndexTag
       REAL*8 :: RDMBiasFacI, SumSigns, SumSpawns
-      LOGICAL :: tFillingStochRDMonFly, tFillingExplicRDMonFly, thf, tFirst 
+      LOGICAL :: tFillingStochRDMonFly, tFillingExplicRDMonFly, tGhostChild
       integer :: Spawned_Parts_Zero, HFInd
       integer(int64), dimension(lenof_sign) :: InstNoatHf
-      logical :: tGhostChild
+
+      INTEGER(KIND=n_int) , ALLOCATABLE :: TempSpawnedParts(:,:)
+      INTEGER :: TempSpawnedPartsTag, TempSpawnedPartsInd
 
       ! Be able to store a list of the current initiators
       integer(n_int), allocatable :: CurrentInits(:,:)

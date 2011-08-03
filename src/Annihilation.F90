@@ -7,7 +7,7 @@ MODULE AnnihilationMod
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE FciMCData
     use DetBitOps, only: DetBitEQ, DetBitLT, FindBitExcitLevel, ilut_lt, &
-                         ilut_gt
+                         ilut_gt, DetBitZero
     use spatial_initiator, only: add_initiator_list, rm_initiator_list, &
                                  is_spatial_init
     use CalcData , only : tTruncInitiator, tSpawnSpatialInit
@@ -422,10 +422,13 @@ MODULE AnnihilationMod
             cum_det = 0
             cum_det (0:nifdbo) = SpawnedParts(0:nifdbo, BeginningBlockDet)
             IF(tFillingStochRDMonFly) THEN
+                ! This is the first Dj determinant - set the index for the beginning of where 
+                ! the parents for this Dj can be found in Spawned_Parents.
+                Spawned_Parents_Index(1,VecInd) = Parent_Array_Ind
+ 
                 ! In this case, multiple Dj's must be compressed, and therefore the Di's dealt with as 
                 ! described above. We first just initialise the position in the Spawned_Parents array to enter the Di's.
                 Spawned_Parents_Index(2,VecInd) = 0
-                tFirst = .true.
             ENDIF
             
             do part_type=1,lenof_sign   !Annihilate in this block seperately for real and imag walkers
@@ -504,15 +507,7 @@ MODULE AnnihilationMod
 
         enddo   
 
-        IF(tFillingStochRDMonFly) then
-            No_Spawned_Parents = Parent_Array_Ind - 1
-            if(No_Spawned_Parents.ne.ValidSpawned) then
-                ! There should be one parent for every entry in the old validspawned (before compression).
-                write(6,*) 'ValidSpawned',ValidSpawned
-                write(6,*) 'No_Spawned_Parents',No_Spawned_Parents
-                CALL Stop_All(this_routine,'No_Spawned_Parents /= ValidSpawned')
-            endif
-        ENDIF
+        IF(tFillingStochRDMonFly) No_Spawned_Parents = Parent_Array_Ind - 1
         ValidSpawned=ValidSpawned-DetsMerged    !This is the new number of unique spawned determinants on the processor
         IF(ValidSpawned.ne.(VecInd-1)) THEN
             CALL Stop_All(this_routine,"Error in compression of spawned list")
@@ -693,13 +688,11 @@ MODULE AnnihilationMod
         ! Update the cumulative sign count
         call encode_part_sign (cum_det, cum_sgn + new_sgn, part_type)
 
-        if(tFillingStochRDMonFly) then
-            ! This is the first Dj determinant - set the index for the beginning of where 
-            ! the parents for this Dj can be found in Spawned_Parents.
-            if(tFirst) Spawned_Parents_Index(1,Spawned_No) = Parent_Array_Ind
-            tFirst = .false.
-
-            ! No matter what the final sign is, always want to add the Di currently stored in 
+        ! Obviously only add the parent determinant into the parent array if it is 
+        ! actually being stored - and is therefore not zero.
+        if(tFillingStochRDMonFly.and.&
+            (.not.DetBitZero(new_det(NIfTot+1:NIfTot+NIfDBO+1),NIfDBO))) then
+            ! No matter what the final sign is, always want to add any Di stored in 
             ! SpawnedParts to the parent array.
             Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = new_det(NIfTot+1:NIfTot+NIfDBO+2)
             Parent_Array_Ind = Parent_Array_Ind + 1

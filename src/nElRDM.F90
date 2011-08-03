@@ -4009,17 +4009,17 @@ END MODULE nElRDMMod
             ! The bias is calculated for the chance that Di will spawn any number of times on Dj, 
             ! so we only want to add in a particular Di,Dj pair once.
             ! Here we check if we've already added in this Di.
-            tDetAdded = .false.
-            do j = Spawned_Parents_Index(1,Spawned_No), i-1
-                IF(DetBitEQ(Spawned_Parents(0:NIfDBO,i),Spawned_Parents(0:NIfDBO,j),NIfDBO)) THEN
-                    tDetAdded = .true.
-                    ! For a particular Di,Dj pair, the bias depends on Hij mainly, p_gen and ci, which should 
-                    ! always be the same.
-                    if(Spawned_Parents(NIfDBO+1,i).ne.Spawned_Parents(NIfDBO+1,j)) &
-                        CALL Stop_All('DiDj_Found_FillRDM','Bias factors of same pairs not equal.')
-                ENDIF
-            enddo
-            if(tDetAdded) CYCLE           
+!            tDetAdded = .false.
+!            do j = Spawned_Parents_Index(1,Spawned_No), i-1
+!                IF(DetBitEQ(Spawned_Parents(0:NIfDBO,i),Spawned_Parents(0:NIfDBO,j),NIfDBO)) THEN
+!                    tDetAdded = .true.
+!                    ! For a particular Di,Dj pair, the bias depends on Hij mainly, p_gen and ci, which should 
+!                    ! always be the same.
+!                    if(Spawned_Parents(NIfDBO+1,i).ne.Spawned_Parents(NIfDBO+1,j)) &
+!                        CALL Stop_All('DiDj_Found_FillRDM','Bias factors of same pairs not equal.')
+!                ENDIF
+!            enddo
+!            if(tDetAdded) CYCLE           
 
             IF(tHF_S_D_Ref) THEN
                 ! We'll only be in this loop if the Dj is le 4.

@@ -988,6 +988,17 @@ MODULE PopsfileMod
                 & REAL(MaxWalkersPart*8,dp)/1048576.D0," Mb/Processor"
         ENDIF
 
+        if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
+!Allocate memory to hold walkers spawned from one determinant at a time.
+!Walkers are temporarily stored here, so we can check if we're spawning onto the same Dj multiple times.
+            ALLOCATE(TempSpawnedParts(0:NIfDBO,20000),stat=ierr)
+            CALL LogMemAlloc('TempSpawnedParts',20000*(NIfDBO+1),size_n_int,this_routine,TempSpawnedPartsTag,ierr)
+            TempSpawnedParts(0:NIfDBO,1:20000)=0
+            MemoryAlloc=MemoryAlloc + (NIfDBO+1)*20000*size_n_int    !Memory Allocated in bytes
+            WRITE(6,"(A)") " Allocating temporary array for walkers spawned from a particular Di."
+            WRITE(6,"(A,F14.6,A)") " This requires ", REAL(((NIfDBO+1)*20000*size_n_int),dp)/1048576.D0," Mb/Processor"
+        endif
+
         IF(.not.tRegenDiagHEls) THEN
             CurrentH=>WalkVecH
         ENDIF

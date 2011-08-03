@@ -31,7 +31,7 @@ MODULE GenRandSymExcitNUMod
                           tNoSymGenRandExcits, Arr, nMax, tCycleOrbs, &
                           nOccAlpha, nOccBeta, ElecPairs, MaxABPairs, &
                           tKPntSym, lzTot, tNoBrillouin, tUseBrillouin
-    use FciMCData, only: pDoubles, iter, excit_gen_store_type, tHF, iluthf
+    use FciMCData, only: pDoubles, iter, excit_gen_store_type, iluthf
     use Parallel
     use IntegralsData, only: UMat
     use Determinants, only: get_helement, write_det

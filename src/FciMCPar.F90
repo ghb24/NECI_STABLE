@@ -966,6 +966,7 @@ MODULE FciMCParMod
 
             ! This calculates both the diagonal elements and explicitly connected singles and doubles.
             call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,SignCurr,walkExcitLevel)   
+            TempSpawnedPartsInd = 0
 
             ! Loop over the 'type' of particle. 
             ! lenof_sign == 1 --> Only real particles
@@ -1021,7 +1022,7 @@ MODULE FciMCParMod
 
                         call create_particle (nJ, iLutnJ, child, &
                                               parent_flags, part_type,& 
-                                              CurrentDets(:,j),SignCurr)
+                                              CurrentDets(:,j),SignCurr,p)
 
                     endif ! (child /= 0). Child created
 
@@ -1159,7 +1160,7 @@ MODULE FciMCParMod
 
     end subroutine
                         
-    subroutine create_particle (nJ, iLutJ, child, parent_flags, part_type, iLutI, SignI)
+    subroutine create_particle (nJ, iLutJ, child, parent_flags, part_type, iLutI, SignI, WalkerNumber)
 
         ! Create a child in the spawned particles arrays. We spawn particles
         ! into a separate array, but non-contiguously. The processor that the
@@ -1173,10 +1174,11 @@ MODULE FciMCParMod
         integer, dimension(lenof_sign), intent(in), optional :: SignI
         integer, dimension(lenof_sign), intent(in) :: child
         integer, intent(in) :: parent_flags
+        integer, intent(in), optional :: WalkerNumber
         ! 'type' of the particle - i.e. real/imag
         integer, intent(in) :: part_type
         integer :: proc, flags, j, BiasFac
-        logical :: parent_init
+        logical :: parent_init, tRDMStoreParent
 
         proc = DetermineDetNode(nJ,0)    ! 0 -> nNodes-1)
         ! We need to include any flags set both from the parent and from the
@@ -1190,20 +1192,52 @@ MODULE FciMCParMod
         call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ, &
                             child, flags)
 
-        IF(tFillingStochRDMonFly) THEN                            
+        IF(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) THEN                            
             !We are spawning from iLutI to SpawnedParts(:,ValidSpawnedList(proc)).
             !We want to store the parent (D_i) with the spawned child (D_j) so that we can
             !add in Di.Dj to the RDM later on.
             !The parent is NIfDBO integers long, and stored in the second part of the SpawnedParts array 
             !from NIfTot+1 -> NIfTot+1 + NIfDBO.
-            SpawnedParts(niftot+1:niftot+nifdbo+1, ValidSpawnedList(proc)) = iLutI(0:nifdbo) 
 
-            !We also need to carry with the child (and the parent), the sign of the parent.
-            !In actual fact this is the sign of the parent divided by the probability of generating that pair Di and Dj, to account for the 
-            !fact that Di and Dj are not always added to the RDM, but only when Di spawns on Dj.
-            !This RDMBiasFacI factor is turned into an integer to pass around to the relevant processors.
-            SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)) = transfer(RDMBiasFacI,SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)))
+            ! But first we want to check if this Di.Dj pair has already been accounted for.
+            ! This means searching the Dj's that have already been spawned from this Di, to make sure 
+            ! the new Di being spawned on here is not the same.
 
+            ! Store parent, unless we find this Dj has already been spawned on.
+            tRDMStoreParent = .true.
+
+            ! Run through the walkers that have already been spawned from this particular Di.
+            ! If this is the first to be spawned from Di, TempSpawnedPartsInd will be zero, so we 
+            ! just wont run over anything.
+            do j = 1,TempSpawnedPartsInd
+                if(DetBitEQ(iLutJ(0:NIfDBO),TempSpawnedParts(0:NIfDBO,j),NIfDBO)) then
+                    ! If this Dj is found, we do not want to store the parent with this spawned walker.
+                    tRDMStoreParent = .false.
+                    EXIT
+                endif
+            enddo
+
+            if(tRDMStoreParent) then
+                ! This is a new Dj that has been spawned from this Di.
+                ! We want to store it in the temporary list of spawned parts which have come from this Di.
+                if(WalkerNumber.ne.abs(SignI(1))) then
+                    ! Don't bother storing these if we're on the last walker, or if we only have one 
+                    ! walker on Di.
+                    TempSpawnedPartsInd = TempSpawnedPartsInd + 1
+                    TempSpawnedParts(0:NIfDBO,TempSpawnedPartsInd) = iLutJ(0:NIfDBO)
+                endif
+
+                ! We also want to make sure the parent Di is stored with this Dj.
+                SpawnedParts(niftot+1:niftot+nifdbo+1, ValidSpawnedList(proc)) = iLutI(0:nifdbo) 
+
+                !We also need to carry with the child (and the parent), the sign of the parent.
+                !In actual fact this is the sign of the parent divided by the probability of generating that pair Di and Dj, to account for the 
+                !fact that Di and Dj are not always added to the RDM, but only when Di spawns on Dj.
+                !This RDMBiasFacI factor is turned into an integer to pass around to the relevant processors.
+                SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)) = transfer(RDMBiasFacI,SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)))
+            else
+                SpawnedParts(niftot+1:niftot+nifdbo+2, ValidSpawnedList(proc)) = 0
+            endif
         ENDIF
 
         IF(lenof_sign.eq.2) THEN
@@ -5704,6 +5738,17 @@ MODULE FciMCParMod
                 WRITE(6,"(A,F14.6,A)") " Diagonal H-Elements will not be stored. This will *save* ", &
                     & REAL(MaxWalkersPart*8,dp)/1048576.D0," Mb/Processor"
             ENDIF
+
+            if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
+!Allocate memory to hold walkers spawned from one determinant at a time.
+!Walkers are temporarily stored here, so we can check if we're spawning onto the same Dj multiple times.
+                ALLOCATE(TempSpawnedParts(0:NIfDBO,20000),stat=ierr)
+                CALL LogMemAlloc('TempSpawnedParts',20000*(NIfDBO+1),size_n_int,this_routine,TempSpawnedPartsTag,ierr)
+                TempSpawnedParts(0:NIfDBO,1:20000)=0
+                MemoryAlloc=MemoryAlloc + (NIfDBO+1)*20000*size_n_int    !Memory Allocated in bytes
+                WRITE(6,"(A)") " Allocating temporary array for walkers spawned from a particular Di."
+                WRITE(6,"(A,F14.6,A)") " This requires ", REAL(((NIfDBO+1)*20000*size_n_int),dp)/1048576.D0," Mb/Processor"
+            endif
             
             WRITE(6,"(A,I12,A)") " Spawning vectors allowing for a total of ",MaxSpawned, &
                     " particles to be spawned in any one iteration per core."
@@ -6881,7 +6926,10 @@ MODULE FciMCParMod
         CALL LogMemDealloc(this_routine,SpawnVecTag)
         DEALLOCATE(SpawnVec2)
         CALL LogMemDealloc(this_routine,SpawnVec2Tag)
-        
+        if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
+            DEALLOCATE(TempSpawnedParts)
+            CALL LogMemDealloc(this_routine,TempSpawnedPartsTag)
+        endif
         DEALLOCATE(HFDet)
         CALL LogMemDealloc(this_routine,HFDetTag)
         DEALLOCATE(iLutHF)
