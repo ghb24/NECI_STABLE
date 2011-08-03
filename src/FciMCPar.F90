@@ -446,10 +446,11 @@ MODULE FciMCParMod
             !RDMExcitLevel of 3 means we calculate both the 1 and 2 RDM's - otherwise we 
             !calculated only the RDMExcitLevel-RDM.
             IF(RDMExcitLevel.eq.3) THEN
-                WRITE(6,'(A)') 'Beginning to calculate both the 1 and 2 electron density matrices on the fly.'
+                WRITE(6,'(A)') ' Beginning to calculate both the 1 and 2 electron density matrices on the fly.'
             ELSE
-                WRITE(6,'(A28,I1,A36)') 'Beginning to calculate the ',RDMExcitLevel,' electron density matrix on the fly.'
+                WRITE(6,'(A28,I1,A36)') ' Beginning to calculate the ',RDMExcitLevel,' electron density matrix on the fly.'
             ENDIF
+            WRITE(6,'(A,I10)') ' Start fililng the RDM(s) at iteration',Iter
         ENDIF
 
     end subroutine check_start_rdm

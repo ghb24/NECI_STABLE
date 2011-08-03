@@ -2951,11 +2951,14 @@ MODULE nElRDMMod
                                             ( Entry_bbbb + Entry_aaaa ) / 2.D0 
 
                                 if(Indij_aa.eq.Indab_aa) then
-                                    Trace_2RDM_Inst = Trace_2RDM_Inst + TwoElRDM(Indij_aa,Indab_aa) & 
-                                                                      + TwoElRDM(Indij_bb,Indab_bb)
-                                    Trace_2RDM = Trace_2RDM + AllTwoElRDM(Indij_aa,Indab_aa) & 
-                                                            + AllTwoElRDM(Indij_bb,Indab_bb)
+                                    Trace_2RDM_Inst = Trace_2RDM_Inst + TwoElRDM(Indij_aa,Indab_aa)  
+                                    Trace_2RDM = Trace_2RDM + AllTwoElRDM(Indij_aa,Indab_aa)  
                                 endif
+                                if(Indij_bb.eq.Indab_bb) then
+                                    Trace_2RDM_Inst = Trace_2RDM_Inst + TwoElRDM(Indij_bb,Indab_bb)  
+                                    Trace_2RDM = Trace_2RDM + AllTwoElRDM(Indij_bb,Indab_bb)  
+                                endif
+ 
                             endif
 
                             ! alpha beta -> alpha beta
@@ -2990,6 +2993,16 @@ MODULE nElRDMMod
                                 Sign_abab * ( ( ( Entry_baba * Sign_baba ) + &
                                                     ( Entry_abab * Sign_abab ) )  / 2.D0 )
 
+                            if(Indij_ba.eq.Indab_ba) then
+                                Trace_2RDM_Inst = Trace_2RDM_Inst + TwoElRDM(Indij_ba,Indab_ba)  
+                                Trace_2RDM = Trace_2RDM + AllTwoElRDM(Indij_ba,Indab_ba)  
+                            endif
+                            if(Indij_ab.eq.Indab_ab) then
+                                if(i.ne.j) then
+                                    Trace_2RDM_Inst = Trace_2RDM_Inst + TwoElRDM(Indij_ab,Indab_ab)  
+                                    Trace_2RDM = Trace_2RDM + AllTwoElRDM(Indij_ab,Indab_ab)  
+                                endif
+                            endif
 
                             ! beta alpha -> alpha beta
                             ! = alpha beta -> beta alpha
@@ -3014,13 +3027,10 @@ MODULE nElRDMMod
                                 Sign_baab * ( ( (Entry_baab * Sign_baab) + &
                                                     (Entry_abba * Sign_abba) ) / 2.D0 )
 
-
                             AllTwoElRDM(Indij_ab,Indab_ba) = & 
                                 Sign_abba * ( ( (Entry_baab * Sign_baab) + &
                                                     (Entry_abba * Sign_abba) ) / 2.D0 )
-
-
-    
+   
                         enddo
                     enddo
                 endif
