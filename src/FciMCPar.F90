@@ -4671,8 +4671,7 @@ MODULE FciMCParMod
 
         ! Is the number of unpaired electrons too high?
         if (tTruncNOpen .and. bAllowed) then
-            nopen = count_open_orbs (ilutnJ)
-            if (nopen > trunc_nopen_max) &
+            if (count_open_orbs(ilutnJ) > trunc_nopen_max) &
                 bAllowed = .false.
         endif
 
