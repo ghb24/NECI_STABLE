@@ -369,7 +369,7 @@ module DetBitOps
 
     ! This will return true if iLutI is identical to iLutJ and will return 
     ! false otherwise.
-    logical function DetBitEQ(iLutI,iLutJ,nLast)
+    pure logical function DetBitEQ(iLutI,iLutJ,nLast)
         integer, intent(in), optional :: nLast
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer :: i, lnLast

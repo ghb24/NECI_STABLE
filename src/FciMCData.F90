@@ -42,7 +42,7 @@ MODULE FciMCData
       INTEGER :: Spawned_ParentsTag, Spawned_Parents_IndexTag
       REAL*8 :: RDMBiasFacI, SumSigns, SumSpawns
       LOGICAL :: tFillingStochRDMonFly, tFillingExplicRDMonFly, thf, tFirst 
-      integer :: Spawned_Parts_Zero
+      integer :: Spawned_Parts_Zero, HFInd
       integer(int64), dimension(lenof_sign) :: InstNoatHf
       logical :: tGhostChild
 

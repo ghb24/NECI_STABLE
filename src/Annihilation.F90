@@ -1054,10 +1054,7 @@ MODULE AnnihilationMod
             do i=1,TotWalkersNew
                 call extract_sign(CurrentDets(:,i),CurrentSign)
 
-                if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
-                    if(DetBitEQ(iLutRef,CurrentDets(:,i),NIfDBO)) &
-                        InstNoatHF = CurrentSign
-                endif
+                if(i.eq.HFInd) InstNoatHF = CurrentSign
 
                 IF(IsUnoccDet(CurrentSign)) THEN
                     DetsMerged=DetsMerged+1
@@ -1091,10 +1088,11 @@ MODULE AnnihilationMod
                 ENDIF
             enddo
             TotWalkersNew=TotWalkersNew-DetsMerged
-        ELSEIF(iProcIndex.eq.iHFProc) THEN
-!            call stop_all(this_routine,'HF has been deleted from CurrentDets list.')
-            InstNoatHF(1) = 0
         ENDIF
+
+        IF((iProcIndex.eq.iHFProc).and.tFillingStochRDMonFly.and.(InstNoatHF(1).eq.0)) &
+            call stop_all(this_routine,'HF has been deleted from CurrentDets list. &
+                                        & This will cause problems for the RDMs.')
 
 !        do i=1,TotWalkersNew
 !            IF(CurrentSign(i).eq.0) THEN

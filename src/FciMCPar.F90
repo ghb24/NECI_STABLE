@@ -918,6 +918,7 @@ MODULE FciMCParMod
             ! truncated etc.)
             walkExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,j), &
                                                 max_calc_ex_level)
+            if(walkExcitLevel.eq.0) HFInd = j                                                
 
             ! Should be able to make this function pointer-able
             if (tRegenDiagHEls) then
@@ -3541,8 +3542,9 @@ MODULE FciMCParMod
         iter_data%nannihil = 0
         iter_data%naborted = 0
 
-        if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) &
+        if(tFillingStochRDMonFly) &
             call MPISumAll_inplace (InstNoatHF)
+        HFInd = 0            
 
     end subroutine
 
@@ -5764,6 +5766,7 @@ MODULE FciMCParMod
                 call MPISumAll(TotParts,AllTotParts)
                 AllTotPartsOld=AllTotParts
                 call MPISumAll(NoatHF,AllNoatHF)
+                InstNoatHF = AllNoatHF
                 OldAllNoatHF=AllNoatHF
                 AllNoAbortedOld=0.D0
                 iter_data_fciqmc%tot_parts_old = AllTotParts
@@ -5825,6 +5828,7 @@ MODULE FciMCParMod
 
                         ! HF energy is equal to 0 (by definition)
                         if (.not. tRegenDiagHEls) CurrentH(1,1) = 0
+                        HFInd = 1
 
                         ! Obtain the initial sign
                         InitialSign = 0
@@ -5855,6 +5859,7 @@ MODULE FciMCParMod
                         IF(iProcIndex.eq.root) THEN
                             OldAllNoatHF(1)=InitialPart
                             AllNoatHF(1)=InitialPart
+                            InstNoatHF(1) = InitialPart
                             AllTotWalkers = 1
                             AllTotWalkersOld = 1
                             iter_data_fciqmc%tot_parts_old(1) = InitialPart
