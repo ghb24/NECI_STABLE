@@ -235,6 +235,7 @@ contains
 
         ! Obtain the spatial rather than spin indices if required
         id = gtID(nI)
+        write(6,'(A,4I4)') "****",id(:)
 
         ! Sum in the two electron contributions. Use max(id...) as we cannot
         ! guarantee that if j>i then nI(j)>nI(i).
@@ -246,6 +247,7 @@ contains
                 idN = min(id(i), id(j))
                 hel_doub = hel_doub + get_umat_el (ptr_getumatel, idN, idX, &
                                                    idN, idX)
+                write(6,'(4I4,G20.10)') idN,idX,idN,idX,get_umat_el (ptr_getumatel,idN,idX,idN,idX)
             enddo
         enddo
                 
@@ -261,6 +263,7 @@ contains
                         idN = min(id(i), id(j))
                         hel_tmp = hel_tmp - get_umat_el (ptr_getumatel, idN, &
                                               idX, idX, idN)
+                write(6,'(4I4,G20.10)') idN,idX,idX,idN,get_umat_el (ptr_getumatel,idN,idX,idX,idN)
                     endif
                 enddo
             enddo
