@@ -918,6 +918,9 @@ MODULE FciMCParMod
             ! truncated etc.)
             walkExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,j), &
                                                 max_calc_ex_level)
+
+            if(walkExcitLevel.eq.0) HFInd = VecSlot                                                
+
             ! Should be able to make this function pointer-able
             if (tRegenDiagHEls) then
                 ! We are not storing the diagonal hamiltonian elements for 
@@ -1032,8 +1035,6 @@ MODULE FciMCParMod
             ! if (VecSlot > j) call stop_all (this_routine, 'vecslot > j')
             call walker_death (attempt_die, iter_data, DetCurr, &
                                CurrentDets(:,j), HDiagCurr, SignCurr, VecSlot)
-
-            if(walkExcitLevel.eq.0) HFInd = VecSlot                                                
 
         enddo ! Loop over determinants.
         IFDEBUG(FCIMCDebug,2) write(6,*) 'Finished loop over determinants'
