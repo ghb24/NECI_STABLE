@@ -56,14 +56,14 @@ MODULE FciMCData
       INTEGER :: NoAbortedInCAS,NoAbortedOutCAS,NoInCAS,NoOutCAS,HighPopNeg,HighPopPos,MaxInitPopNeg,MaxInitPopPos
 
     integer(int64) :: NoAborted, NoAddedInitiators, NoInitDets, NoNonInitDets
-    integer(int64) :: NoInitWalk, NoNonInitWalk
+    integer(int64) :: NoInitWalk, NoNonInitWalk, GhostSpawns
     integer(int64) :: NoExtraInitDoubs, InitRemoved
     integer :: no_spatial_init_dets
 
     integer(int64) :: AllNoAborted, AllNoAddedInitiators, AllNoInitDets
     integer(int64) :: AllNoNonInitDets, AllNoInitWalk, AllNoNonInitWalk
     integer(int64) :: AllNoExtraInitDoubs, AllInitRemoved
-    integer(int64) :: AllNoAbortedOld, AllGrowRateAbort
+    integer(int64) :: AllNoAbortedOld, AllGrowRateAbort, AllGhostSpawns
 
       LOGICAL :: tHFInitiator,tPrintHighPop, tcurr_initiator
  

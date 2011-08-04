@@ -411,7 +411,10 @@ MODULE AnnihilationMod
                     ! In this case there is only one instance of Dj - so therefore only 1 parent Di.
                     Parent_Array_Ind = Parent_Array_Ind + 1
                     call extract_sign (SpawnedParts(:,BeginningBlockDet), temp_sign)
-                    if(temp_sign(1).eq.0) Spawned_Parts_Zero = Spawned_Parts_Zero + 1
+                    if(temp_sign(1).eq.0) then
+                        Spawned_Parts_Zero = Spawned_Parts_Zero + 1
+                        GhostSpawns = GhostSpawns + 1
+                    endif
                 ENDIF
                 VecInd=VecInd+1
                 BeginningBlockDet=CurrentBlockDet           !Move onto the next block of determinants
@@ -493,7 +496,8 @@ MODULE AnnihilationMod
                 VecInd = VecInd + 1
                 DetsMerged = DetsMerged + EndBlockDet - BeginningBlockDet
 
-                ! Spawned_Parts_Zero is the number of spawned parts that are zero - and should have been 
+                ! Spawned_Parts_Zero is the number of spawned parts that are zero after compression 
+                ! of the spawned_parts list - and should have been 
                 ! removed from SpawnedParts if we weren't calculating the RDM. - need this for a check later.
                 if(temp_sign(1).eq.0) Spawned_Parts_Zero = Spawned_Parts_Zero + 1
             else
@@ -623,6 +627,7 @@ MODULE AnnihilationMod
             ! in the complex case, or if we're spawning ghost children.
             ! If it is 0 and we're not filling the RDM (and therefore filling up the 
             ! Spawned_Parents array), can just ignore the zero entry.
+            GhostSpawns = GhostSpawns + 1
             if(.not.tFillingStochRDMonFly) return
         endif
         cum_sgn = extract_part_sign (cum_det, part_type)

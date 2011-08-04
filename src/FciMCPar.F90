@@ -450,7 +450,7 @@ MODULE FciMCParMod
             ELSE
                 WRITE(6,'(A28,I1,A36)') ' Beginning to calculate the ',RDMExcitLevel,' electron density matrix on the fly.'
             ENDIF
-            WRITE(6,'(A,I10)') ' Start fililng the RDM(s) at iteration',Iter
+            WRITE(6,'(A,I10)') ' Filling the RDM(s) from iteration',Iter
         ENDIF
 
     end subroutine check_start_rdm
@@ -1937,7 +1937,7 @@ MODULE FciMCParMod
             ! Avoid compiler warnings
             iUnused = part_type
 
-            if(tSpawnGhostChild) then
+            if(tSpawnGhostChild.and.tFillingStochRDMonFly) then
 
                 ! We eventually turn this real bias factor into an integer to be passed around 
                 ! with the spawned children and their parents - this only works with 64 bit at the mo.
@@ -3295,8 +3295,8 @@ MODULE FciMCParMod
         if (tTruncInitiator) then
             call MPISum ((/NoAborted, NoAddedInitiators, NoInitDets, &
                            NoNonInitDets, NoInitWalk, NoNonInitWalk, &
-                           NoExtraInitdoubs, InitRemoved/),&
-                          int64_tmp(1:8))
+                           NoExtraInitdoubs, InitRemoved, GhostSpawns/),&
+                          int64_tmp(1:9))
             AllNoAborted = int64_tmp(1)
             AllNoAddedInitiators = int64_tmp(2)
             AllNoInitDets = int64_tmp(3)
@@ -3305,6 +3305,7 @@ MODULE FciMCParMod
             AllNoNonInitWalk = int64_tmp(6)
             AllNoExtraInitDoubs = int64_tmp(7)
             AllInitRemoved = int64_tmp(8)
+            AllGhostSpawns = int64_tmp(9)
         endif
 
         ! 64bit integers
@@ -3571,6 +3572,7 @@ MODULE FciMCParMod
         InitRemoved = 0
 
         NoAborted = 0
+        GhostSpawns = 0
 
         iter_data%nborn = 0
         iter_data%ndied = 0
@@ -3668,9 +3670,9 @@ MODULE FciMCParMod
 !Print out initial starting configurations
             WRITE(6,*) ""
             IF(tTruncInitiator.or.tDelayTruncInit) THEN
-                WRITE(initiatorstats_unit,"(A2,A10,10A20)") "# ","1.Step","2.TotWalk","3.Annihil","4.Died", &
+                WRITE(initiatorstats_unit,"(A2,A10,11A20)") "# ","1.Step","2.TotWalk","3.Annihil","4.Died", &
                 & "5.Born","6.TotUniqDets",&
-&               "7.InitDets","8.NonInitDets","9.InitWalks","10.NonInitWalks","11.AbortedWalks"
+&               "7.InitDets","8.NonInitDets","9.InitWalks","10.NonInitWalks","11.AbortedWalks","12.GhostSpawns"
             ENDIF
             IF(tLogComplexPops) THEN
                 WRITE(complexstats_unit,"(A)") '#   1.Step  2.Shift     3.RealShift     4.ImShift   5.TotParts      " &
@@ -3861,11 +3863,11 @@ MODULE FciMCParMod
 #endif
 
             if (tTruncInitiator .or. tDelayTruncInit) then
-               write(initiatorstats_unit,"(I12,10I20)")&
+               write(initiatorstats_unit,"(I12,11I20)")&
                    Iter + PreviousCycles, sum(AllTotParts), &
                    AllAnnihilated, AllNoDied, AllNoBorn, AllTotWalkers,&
                    AllNoInitDets, AllNoNonInitDets, AllNoInitWalk, &
-                   AllNoNonInitWalk,AllNoAborted
+                   AllNoNonInitWalk,AllNoAborted,AllGhostSpawns
             endif
 
             if (tLogComplexPops) then
@@ -4437,6 +4439,7 @@ MODULE FciMCParMod
         SumDiagSftAbort=0.D0
         AvDiagSftAbort=0.D0
         NoAborted=0
+        GhostSpawns = 0
         NoAddedInitiators=0
         NoInitDets=0
         NoNonInitDets=0
@@ -4470,6 +4473,7 @@ MODULE FciMCParMod
         AllHFCyc=0.D0
 !        AllDetsNorm=0.D0
         AllNoAborted=0
+        AllGhostSpawns = 0
         AllNoAddedInitiators=0
         AllNoInitDets=0
         AllNoNonInitDets=0
