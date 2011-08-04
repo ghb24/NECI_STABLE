@@ -66,7 +66,8 @@ MODULE FciMCParMod
                        tSplitProjEHistG, tSplitProjEHistK3, iProjEBins, &
                        tRDMonFly, IterRDMonFly, tSpawnGhostChild, &
                        GhostFac, GhostThresh,RDMExcitLevel, RDMEnergyIter, &
-                       tChangeVarsRDM, tExplicitAllRDM
+                       tChangeVarsRDM, tExplicitAllRDM, tHF_Ref_Explicit, &
+                       tHF_S_D_Ref, tHF_S_D
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
                     hist_spin_dist, ilut_spindist, tHistSpinDist, &
                     write_clear_hist_spin_dist, hist_spin_dist_iter, &
@@ -427,20 +428,24 @@ MODULE FciMCParMod
 
         IF((.not.tSinglePartPhase).and.((Iter - VaryShiftIter).eq.IterRDMonFly)) THEN
             !We have reached the iteration where we want to start filling the RDM.
-            if(tExplicitAllRDM.or.tHF_Ref_Explicit) then
+            if(tExplicitAllRDM) then
                 tFillingExplicRDMonFly = .true.
             else
-                !By default - we will do a stochastic calculation of the RDM.
-                tFillingStochRDMonFly = .true.
-                !The SpawnedParts array now needs to carry both the spawned parts Dj, and also it's 
-                !parent Di (and it's sign, Ci). - We deallocate it and reallocate it with the larger size.
-                call DeAlloc_Alloc_SpawnedParts()
-                if(tHPHF) then
-                    call set_add_stochrdm_diag(add_stochrdm_diag_hphf)
-                elseif(tHF_Ref.or.tHF_Ref_Explicit.or.tHF_S_D.or.tHF_S_D_Ref) then
+                if(tHF_S_D.or.tHF_S_D_Ref.or.tHF_Ref_Explicit) then
                     call set_add_stochrdm_diag(add_stochrdm_diag_hf_s_d)
+                elseif(tHPHF) then
+                    call set_add_stochrdm_diag(add_stochrdm_diag_hphf)
                 else
                     call set_add_stochrdm_diag(add_stochrdm_diag_norm)
+                endif
+                if(.not.tHF_Ref_Explicit) then
+                    !By default - we will do a stochastic calculation of the RDM.
+                    tFillingStochRDMonFly = .true.
+                    !The SpawnedParts array now needs to carry both the spawned parts Dj, and also it's 
+                    !parent Di (and it's sign, Ci). - We deallocate it and reallocate it with the larger size.
+                    call DeAlloc_Alloc_SpawnedParts()
+                    !Don't need any of this if we're just doing HF_Ref_Explicit calculation.
+                    !This is all done in the add_stochrdm routine.
                 endif
             endif
             !RDMExcitLevel of 3 means we calculate both the 1 and 2 RDM's - otherwise we 
@@ -1193,7 +1198,7 @@ MODULE FciMCParMod
         call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ, &
                             child, flags)
 
-        IF(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) THEN                            
+        IF(tFillingStochRDMonFly) THEN                            
             !We are spawning from iLutI to SpawnedParts(:,ValidSpawnedList(proc)).
             !We want to store the parent (D_i) with the spawned child (D_j) so that we can
             !add in Di.Dj to the RDM later on.
@@ -2296,7 +2301,7 @@ MODULE FciMCParMod
                 !Normally we will go in this block
                 call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
                 if (.not.tRegenDiagHEls) CurrentH(1,VecSlot) = Kii
-                if (tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) CurrentH(2,VecSlot) = wSign(1)
+                if (tFillingStochRDMonFly) CurrentH(2,VecSlot) = wSign(1)
                 VecSlot = VecSlot + 1
             ENDIF
         elseif(tTruncInitiator) then
@@ -3579,7 +3584,7 @@ MODULE FciMCParMod
         iter_data%nannihil = 0
         iter_data%naborted = 0
 
-        if(tFillingStochRDMonFly) &
+        if(tFillingStochRDMonFly.or.(tHF_Ref_Explicit)) &
             call MPISumAll_inplace (InstNoatHF)
         HFInd = 0            
 

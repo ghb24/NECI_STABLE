@@ -49,7 +49,7 @@ MODULE nElRDMMod
                                Spawned_Parents_IndexTag, Iter, AccumRDMNorm, InstNoatHF,&
                                iLutRef
         USE Logging , only : RDMExcitLevel, tROFciDUmp, NoDumpTruncs, tExplicitAllRDM, &
-                             tHF_S_D_Ref, tHF_Ref, tHF_Ref_Explicit, tHF_S_D 
+                             tHF_S_D_Ref, tHF_Ref_Explicit, tHF_S_D 
         USE RotateOrbsData , only : CoeffT1, CoeffT1Tag, tTurnStoreSpinOff, NoFrozenVirt
         USE RotateOrbsData , only : SymLabelCounts2,SymLabelList2,SymLabelListInv,NoOrbs
         USE util_mod , only : get_free_unit
@@ -114,14 +114,18 @@ MODULE nElRDMMod
         if(tExplicitAllRDM.and.tHPHF) CALL Stop_All('InitRDM',&
                 'HPHF not set up with the explicit calculation of the RDM.')
 
-        if(tHPHF.and.(tHF_Ref.or.tHF_S_D_Ref.or.tHF_S_D.or.tHF_Ref_Explicit)) CALL Stop_All('InitRDM',&
-                'HPHF not set up when using a HF or HF, S, D reference.')
+        if(tHPHF.and.(tHF_S_D_Ref.or.tHF_S_D)) CALL Stop_All('InitRDM',&
+                'HPHF not set up when doing a HF, S, D calculation.')
 
-        if(tDiagRDM.and.(tHF_Ref.or.tHF_S_D_Ref.or.tHF_Ref_Explicit)) then
+        if(tDiagRDM.and.(tHF_S_D_Ref.or.tHF_Ref_Explicit)) then
             write(6,*) 'Ignoring request to diagonalise the 1-RDM calculated using the HF or HF, S, D &
                 &as a reference - this is not an appropriate matrix for natural orbitals.'
             tDiagRDM = .false.
         endif
+
+        if(tRDMSpinAveraging.and.(tHF_Ref_Explicit.or.tHF_S_D.or.tHF_S_D_Ref)) &
+            call stop_all('InitRDM','Sorry! HF, S, and D ref type calculations &
+                            &are not set up with spin averaging yet.')
 
 ! Here we're allocating arrays for the actual calculation of the RDM.
 
@@ -849,16 +853,40 @@ MODULE nElRDMMod
             AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
             AccumRDMNorm_Inst = AccumRDMNorm_Inst + (real(SignCurr(1)) * real(SignCurr(1)))
 
-            if(tHF_Ref_Explicit.and.(SignCurr(1).ne.InstNoatHF(1))) then
+            if(SignCurr(1).ne.InstNoatHF(1)) then
                 write(6,*) 'CurrentSign',SignCurr(1)
                 write(6,*) 'HF Sign',InstNoatHF(1)
                 call stop_all('Add_StochRDM_Diag','HF population is incorrect.')
             endif
+
+            ! The HF is always closed shell (at the moment), 
+            ! so don't need to account for HPHF here.
+
         elseif(walkExcitLevel.le.2) then
 
-            ! For the HF,S,D symmetric case, and the HF,S,D reference, the S and D
-            ! are diagonal terms too.
-            if(tHF_S_D.or.tHF_S_D_Ref) then
+            if(tHF_Ref_Explicit) then
+                
+                if(tHPHF) then
+
+                    ! Now if the determinant is connected to the HF (i.e. single or double), 
+                    ! add in the elements of this connection as well - symmetrically 
+                    ! because no probabilities are involved.
+                    call Fill_Spin_Coupled_RDM_v2(iLutRef,iLutCurr,HFDet,DetCurr,&
+                                real(InstNoatHF(1),dp),real(SignCurr(1),dp),.false.)
+
+                else
+
+                    ! The singles and doubles are connected and explicitly calculated 
+                    ! - but not symmetrically.
+                    call Add_RDM_From_IJ_Pair(HFDet, DetCurr, real(InstNoatHF(1),dp), &
+                                                real(SignCurr(1),dp),.false.)
+
+                endif
+
+            else
+                ! For the HF,S,D symmetric case, and the HF,S,D reference, the S and D
+                ! are diagonal terms too.
+                ! These options are not set up for HPHF.
                 call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
                 AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
                 AccumRDMNorm_Inst = AccumRDMNorm_Inst + (real(SignCurr(1)) * real(SignCurr(1)))
@@ -867,11 +895,6 @@ MODULE nElRDMMod
 
             endif
 
-            ! The singles and doubles are connected and explicitly calculated 
-            ! - but not symmetrically.
-            if(tHF_Ref_Explicit) &
-                call Add_RDM_From_IJ_Pair(HFDet, DetCurr, real(InstNoatHF(1),dp), &
-                                                real(SignCurr(1),dp),.false.)
         endif
 
     end subroutine Add_StochRDM_Diag_HF_S_D
@@ -931,10 +954,12 @@ MODULE nElRDMMod
                 call Add_RDM_From_IJ_Pair(DetCurr,nSpinCoup,&
                                             real(SignCurr(1),dp)/SQRT(2.D0), &
                                             real(SignFac*SignCurr(1),dp)/SQRT(2.D0),.true.)
+
         else
 
             ! If no HPHF - just add in diagonal contribution from D_I.                
             call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
+
         endif
 
 ! Now if the determinant is connected to the HF (i.e. single or double), add in the diagonal elements
@@ -1709,7 +1734,7 @@ MODULE nElRDMMod
             IF(RDMExcitLevel.ne.1) CALL MPIReduce(TwoElRDM,MPI_SUM,AllTwoElRDM)
 
             AllAccumRDMNorm = 0.D0
-            IF(tHF_Ref.or.tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) &
+            IF(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) &
                 CALL MPIReduce(AccumRDMNorm,MPI_SUM,AllAccumRDMNorm)
 
             if(iProcIndex.eq.0) then
@@ -3092,7 +3117,7 @@ MODULE nElRDMMod
 
         AllAccumRDMNorm = 0.D0
         AllAccumRDMNorm_Inst = 0.D0
-        if(tHF_Ref.or.tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) then
+        if(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) then
             CALL MPIReduce(AccumRDMNorm,MPI_SUM,AllAccumRDMNorm)
             CALL MPIReduce(AccumRDMNorm_Inst,MPI_SUM,AllAccumRDMNorm_Inst)
         endif
@@ -3110,7 +3135,8 @@ MODULE nElRDMMod
                                 Trace_1RDM_Inst, Trace_1RDM, Trace_2RDM_Inst, Trace_2RDM,&
                                         Norm_1RDM, Norm_2RDM_Inst, Norm_2RDM)
 
-            if(tFinalRDMEnergy) then
+            if(tFinalRDMEnergy.and.&
+                .not.(tHF_Ref_Explicit.or.tHF_S_D.or.tHF_S_D_Ref)) then
                 Max_Error_Hermiticity = 0.D0
                 Sum_Error_Hermiticity = 0.D0
                 do i = 1, ((nBasis*(nBasis-1))/2)
@@ -3276,9 +3302,11 @@ MODULE nElRDMMod
 
                 call Write_out_1and_2RDM(Norm_1RDM, Norm_2RDM)
 
-                write(6,'(A29,F30.20)') ' MAX ABS ERROR IN HERMITICITY', Max_Error_Hermiticity
-                write(6,'(A29,F30.20)') ' SUM ABS ERROR IN HERMITICITY', Sum_Error_Hermiticity
-                write(6,*) ''
+                if(.not.(tHF_Ref_Explicit.or.tHF_S_D.or.tHF_S_D_Ref)) then
+                    write(6,'(A29,F30.20)') ' MAX ABS ERROR IN HERMITICITY', Max_Error_Hermiticity
+                    write(6,'(A29,F30.20)') ' SUM ABS ERROR IN HERMITICITY', Sum_Error_Hermiticity
+                    write(6,*) ''
+                endif
  
             else
                 WRITE(Energies_unit, "(I31,2F30.15)") Iter+PreviousCycles, RDMEnergy_Inst, RDMEnergy
@@ -3359,7 +3387,7 @@ MODULE nElRDMMod
         Norm_2RDM_Inst = 0.D0
         Norm_2RDM = 0.D0
 
-        IF(tHF_Ref.or.tHF_S_D_Ref.or.tHF_Ref_Explicit) THEN
+        IF(tHF_S_D_Ref.or.tHF_Ref_Explicit) THEN
             if(RDMExcitLevel.ne.2) then
                 Norm_1RDM_Inst = 1.D0 / AllAccumRDMNorm_Inst
                 Norm_1RDM = 1.D0 / AllAccumRDMNorm
@@ -3982,7 +4010,7 @@ END MODULE nElRDMMod
         USE FciMCData , only : Spawned_Parents, Spawned_Parents_Index, iLutHF
         USE bit_reps , only : NIfTot, NIfDBO, decode_bit_det
         USE nElRDMMod , only : Add_RDM_From_IJ_Pair, Fill_Spin_Coupled_RDM, Fill_Spin_Coupled_RDM_v2
-        USE Logging , only : tHF_S_D_Ref, tHF_Ref, tHF_S_D
+        USE Logging , only : tHF_S_D_Ref, tHF_S_D
         USE SystemData , only : NEl,tHPHF
         USE constants , only : n_int, dp, lenof_sign
         USE DetBitOps , only : DetBitEQ, FindBitExcitLevel
@@ -4031,10 +4059,6 @@ END MODULE nElRDMMod
                 ! Need Di to be le 2 as well.
                 walkExcitLevel = FindBitExcitLevel (iLutHF, Spawned_Parents(0:NIfDBO,i), 2)
                 IF(walkExcitLevel.gt.2) CYCLE
-            ELSEIF(tHF_Ref) then
-                ! We'll only be in this loop if the Dj is le 2. 
-                ! We need the Di to be the HF.
-                IF(.not.DetBitEQ(iLutHF,Spawned_Parents(0:NIfDBO,i),NIfDBO)) CYCLE
             ELSEIF(DetBitEQ(iLutHF,Spawned_Parents(0:NIfDBO,i),NIfDBO)) then
                 ! We've already added HF - S, and HF - D symmetrically.
                 ! Any connection with the HF has therefore already been added.

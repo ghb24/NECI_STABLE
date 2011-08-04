@@ -29,7 +29,7 @@ MODULE Logging
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
     LOGICAL tTruncDumpbyVal, tChangeVarsRDM, tNoRODump, tSpawnGhostChild
     LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit,tPrintDoubsUEG
-    LOGICAL tHF_S_D_Ref, tHF_S_D, tHF_Ref, tHF_Ref_Explicit, tExplicitAllRDM, tRDMSpinAveraging
+    LOGICAL tHF_S_D_Ref, tHF_S_D, tHF_Ref_Explicit, tExplicitAllRDM, tRDMSpinAveraging
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps,IterShiftBlock
     INTEGER IterRDMonFly, RDMExcitLevel, RDMEnergyIter
     real(dp) GhostThresh, GhostFac
@@ -152,7 +152,6 @@ MODULE Logging
       tExplicitAllRDM = .false.
       tHF_S_D_Ref = .false.
       tHF_S_D = .false.
-      tHF_Ref = .false.
       tHF_Ref_Explicit = .false.
       tRDMSpinAveraging = .false.
       tSpawnGhostChild = .false.
@@ -514,12 +513,8 @@ MODULE Logging
 !Explicitly calculates all the elements of the RDM.            
             tExplicitAllRDM = .true.
 
-        case("HFREFRDM")
-!Uses the HF as a reference and stochastically calculates the RDM to find the energy - should be same as the averaged projected energy.            
-            tHF_Ref = .true.
-
         case("HFREFRDMEXPLICIT")
-!Uses the HF as a reference and explicitly calculates the RDM to find the energy - should be same as projected energy.            
+!Uses the HF as a reference and explicitly calculates the RDM to find the energy - should be same as projected energy. 
             tHF_Ref_Explicit = .true.
 
         case("HFSDRDM")
