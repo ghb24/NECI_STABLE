@@ -79,7 +79,8 @@ MODULE nElRDMMod
         USE RotateOrbsMod , only : SymLabelCounts2Tag,SpatOrbs,NoRotOrbs
         USE RotateOrbsMod , only : SymLabelList2Tag,SymLabelListInvTag
         USE RotateOrbsData , only : SymLabelList3, SymLabelList3Tag
-        USE Logging , only : tDo_Not_Calc_RDMEnergy, tDiagRDM
+        USE Logging , only : tDo_Not_Calc_RDMEnergy, tDiagRDM, &
+                             tRDMSpinAveraging
         USE CalcData , only : tRegenDiagHEls
         INTEGER :: ierr,i, MemoryAlloc, MemoryAlloc_Root
         CHARACTER(len=*), PARAMETER :: this_routine='InitRDM'
@@ -123,9 +124,9 @@ MODULE nElRDMMod
             tDiagRDM = .false.
         endif
 
-        if(tRDMSpinAveraging.and.(tHF_Ref_Explicit.or.tHF_S_D.or.tHF_S_D_Ref)) &
-            call stop_all('InitRDM','Sorry! HF, S, and D ref type calculations &
-                            &are not set up with spin averaging yet.')
+        if(tRDMSpinAveraging.and.(tHF_Ref_Explicit.or.tHF_S_D_Ref)) &
+            call stop_all('InitRDM','Sorry! HF or HF, S, and D ref type & 
+                            &calculations are not set up with spin averaging yet.')
 
 ! Here we're allocating arrays for the actual calculation of the RDM.
 
@@ -3136,7 +3137,7 @@ MODULE nElRDMMod
                                         Norm_1RDM, Norm_2RDM_Inst, Norm_2RDM)
 
             if(tFinalRDMEnergy.and.&
-                .not.(tHF_Ref_Explicit.or.tHF_S_D.or.tHF_S_D_Ref)) then
+                .not.(tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
                 Max_Error_Hermiticity = 0.D0
                 Sum_Error_Hermiticity = 0.D0
                 do i = 1, ((nBasis*(nBasis-1))/2)
@@ -3302,7 +3303,7 @@ MODULE nElRDMMod
 
                 call Write_out_1and_2RDM(Norm_1RDM, Norm_2RDM)
 
-                if(.not.(tHF_Ref_Explicit.or.tHF_S_D.or.tHF_S_D_Ref)) then
+                if(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
                     write(6,'(A29,F30.20)') ' MAX ABS ERROR IN HERMITICITY', Max_Error_Hermiticity
                     write(6,'(A29,F30.20)') ' SUM ABS ERROR IN HERMITICITY', Sum_Error_Hermiticity
                     write(6,*) ''
@@ -4034,31 +4035,15 @@ END MODULE nElRDMMod
         do i = Spawned_Parents_Index(1,Spawned_No), &
                 Spawned_Parents_Index(1,Spawned_No) + Spawned_Parents_Index(2,Spawned_No) - 1 
 
-            ! The bias is calculated for the chance that Di will spawn any number of times on Dj, 
-            ! so we only want to add in a particular Di,Dj pair once.
-            ! Here we check if we've already added in this Di.
-!            tDetAdded = .false.
-!            do j = Spawned_Parents_Index(1,Spawned_No), i-1
-!                IF(DetBitEQ(Spawned_Parents(0:NIfDBO,i),Spawned_Parents(0:NIfDBO,j),NIfDBO)) THEN
-!                    tDetAdded = .true.
-!                    ! For a particular Di,Dj pair, the bias depends on Hij mainly, p_gen and ci, which should 
-!                    ! always be the same.
-!                    if(Spawned_Parents(NIfDBO+1,i).ne.Spawned_Parents(NIfDBO+1,j)) &
-!                        CALL Stop_All('DiDj_Found_FillRDM','Bias factors of same pairs not equal.')
-!                ENDIF
-!            enddo
-!            if(tDetAdded) CYCLE           
-
-            IF(tHF_S_D_Ref) THEN
-                ! We'll only be in this loop if the Dj is le 4.
-                ! Calc excitation level of Di - this needs to be 0, 1 or 2.
+            IF(tHF_S_D_Ref.or.tHF_S_D) THEN
+                ! In the case of the HF_S_D_Ref option, we'll only be in 
+                ! this loop if the Dj is le 4.
+                ! And for HF_S_D if Dj has excitation level le 2.
+                ! Calc excitation level of Di - this needs to be 1 or 2 in 
+                ! both cases (connections to the HF have already been included).
                 walkExcitLevel = FindBitExcitLevel (iLutHF, Spawned_Parents(0:NIfDBO,i), 2)
                 IF(walkExcitLevel.gt.2) CYCLE
-            ELSEIF(tHF_S_D) THEN
-                ! We'll only be in this loop if the Dj is le 2. 
-                ! Need Di to be le 2 as well.
-                walkExcitLevel = FindBitExcitLevel (iLutHF, Spawned_Parents(0:NIfDBO,i), 2)
-                IF(walkExcitLevel.gt.2) CYCLE
+                IF(walkExcitLevel.eq.0) CYCLE
             ELSEIF(DetBitEQ(iLutHF,Spawned_Parents(0:NIfDBO,i),NIfDBO)) then
                 ! We've already added HF - S, and HF - D symmetrically.
                 ! Any connection with the HF has therefore already been added.

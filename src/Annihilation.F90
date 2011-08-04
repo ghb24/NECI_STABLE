@@ -796,21 +796,22 @@ MODULE AnnihilationMod
                 ! cj - and therefore the Di.Dj pair will have a non-zero ci.cj to contribute to the RDM.
                 ! The index i tells us where to look in the parent array, for the Di's to go with this Dj.
                 if(tFillingStochRDMonFly) then
+                    ! In all cases, we've already symmetrically added in 
+                    ! connections to the HF, so we don't want to re add any pair 
+                    ! containing the HF.
                     if(tHF_S_D) then 
-                        ! In the case of the HF Ref - Di is only ever the HF, and Dj is 
-                        ! anything connected - i.e. singles and doubles.
-                        ! In the case of the HF S D matrix (symmetric), Di and Dj are both HF,
-                        ! S and D.
+                        ! In the case of the HF S D matrix (symmetric), Di and Dj can both 
+                        ! be the HF, singles or doubles.
                         ! This is the excitation level of Dj.
                         ExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,PartInd), 2)
-                        if(ExcitLevel.le.2) &
+                        if((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) &
                             CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
                     elseif(tHF_S_D_Ref) then
-                        ! In the case of the HF and singles and doubles Ref 
-                        ! - Di is only ever the HF, and Dj is 
+                        ! In the case of the HF and singles and doubles Ref, 
+                        ! Di is only ever the HF, and Dj is 
                         ! anything connected - i.e. up to quadruples.
                         ExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,PartInd), 4)
-                        if(ExcitLevel.le.4) &
+                        if((ExcitLevel.le.4).and.(ExcitLevel.ne.0)) &
                             CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
                     elseif(.not.DetBitEQ(iLutRef,CurrentDets(:,PartInd),NIfDBO)) then
                         CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
