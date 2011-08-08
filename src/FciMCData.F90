@@ -279,6 +279,9 @@ MODULE FciMCData
       logical :: tSearchTau
       real(dp) :: MaxSpawnProb,AllMaxSpawnProb,MaxAllowedSpawnProb
 
+      !Variables for diagonalisation of the walker subspace
+      integer :: unitWalkerDiag
+
       !*****************  Yucky globals for AJWT iter-dependent hashes ***********
       integer :: hash_iter       ! An iteration number added to make iteration-dependent hashes
       integer :: hash_shift      ! -Ln_2 (Cycletime), where CycleTime is the average number of cycles until a det returns to its processor
