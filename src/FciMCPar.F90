@@ -1080,7 +1080,7 @@ MODULE FciMCParMod
         ! This routine will take the CurrentDets and search the array to find all single and double 
         ! connections - adding them into the RDM's. 
         ! This explicit way of doing this is very expensive, but o.k for very small systems.
-        IF(tFillingExplicRDMonFly.and.tExplicitAllRDM) CALL Fill_ExplicitRDM_this_Iter(TotWalkers)
+        IF(tFillingExplicRDMonFly) CALL Fill_ExplicitRDM_this_Iter(TotWalkers)
 
     end subroutine
 

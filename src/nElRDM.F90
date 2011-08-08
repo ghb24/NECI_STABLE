@@ -82,6 +82,7 @@ MODULE nElRDMMod
         USE Logging , only : tDo_Not_Calc_RDMEnergy, tDiagRDM, &
                              tRDMSpinAveraging
         USE CalcData , only : tRegenDiagHEls
+        implicit none
         INTEGER :: ierr,i, MemoryAlloc, MemoryAlloc_Root
         CHARACTER(len=*), PARAMETER :: this_routine='InitRDM'
 #ifdef __CMPLX
@@ -346,6 +347,7 @@ MODULE nElRDMMod
     subroutine DeAlloc_Alloc_SpawnedParts()
         USE FciMCData , only : SpawnVec, SpawnVec2, SpawnVecTag, SpawnVec2Tag, &
                                SpawnedParts, SpawnedParts2
+        implicit none                               
         INTEGER :: ierr                               
         CHARACTER(len=*), PARAMETER :: this_routine='DeAlloc_Alloc_SpawnedParts'
 
@@ -550,6 +552,7 @@ MODULE nElRDMMod
     SUBROUTINE Fill_ExplicitRDM_this_Iter(TotWalkers)
         USE FciMCData , only : CurrentDets,TotParts 
         USE bit_reps , only : encode_sign, extract_sign
+        implicit none
         INTEGER(int64) , INTENT(IN) :: TotWalkers
         INTEGER(kind=n_int) :: iLutnI(0:NIfTot)
         INTEGER(int64) :: MaxTotWalkers,TotWalkIn(2),TotWalkOut(2)
@@ -622,6 +625,7 @@ MODULE nElRDMMod
     SUBROUTINE Add_ExplicitRDM_Contrib(iLutnI,blank_det)
 ! This is the general routine for taking a particular determinant in the spawned list, 
 ! D_i and adding it's contribution to the reduced density matrix.
+        implicit none
         INTEGER(kind=n_int), INTENT(IN) :: iLutnI(0:NIfTot)
         LOGICAL, INTENT(IN) :: blank_det
         INTEGER :: i
@@ -677,6 +681,7 @@ MODULE nElRDMMod
         USE SymExcit3 , only : GenExcitations3
         USE RotateOrbsData , only : SymLabelListInv
         USE bit_reps , only : extract_bit_rep
+        implicit none
         INTEGER(kind=n_int) , INTENT(IN) :: iLutnI(0:NIfTot)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: SignDi, SignDi2
@@ -799,6 +804,7 @@ MODULE nElRDMMod
         use hphf_integrals , only : hphf_sign
         use HPHFRandExcitMod , only : FindExcitBitDetSym
         use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
+        implicit none
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer , intent(in) :: DetCurr(NEl)
         integer, dimension(lenof_sign), intent(in) :: SignCurr
@@ -834,6 +840,7 @@ MODULE nElRDMMod
         use hphf_integrals , only : hphf_sign
         use HPHFRandExcitMod , only : FindExcitBitDetSym
         use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
+        implicit none
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer , intent(in) :: DetCurr(NEl)
         integer, dimension(lenof_sign), intent(in) :: SignCurr
@@ -908,6 +915,7 @@ MODULE nElRDMMod
         use hphf_integrals , only : hphf_sign
         use HPHFRandExcitMod , only : FindExcitBitDetSym
         use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
+        implicit none
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer , intent(in) :: DetCurr(NEl)
         integer, dimension(lenof_sign), intent(in) :: SignCurr
@@ -975,6 +983,7 @@ MODULE nElRDMMod
 ! This is called when we run over all TotWalkers in CurrentDets.    
 ! It is called for each CurrentDet.
 ! This is called when we are not filling the density matrices.
+        implicit none
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer , intent(in) :: DetCurr(NEl)
         integer, dimension(lenof_sign), intent(in) :: SignCurr
@@ -990,6 +999,7 @@ MODULE nElRDMMod
 ! Each processor will receive nProcessor number of lists with different Di determinants.
 ! The original Di's will (I think) still be in the original InitSingExcSlots positions.
 ! This follows the directannihilation algorithm closely.
+        implicit none
         INTEGER :: i,j,sendcounts(nProcessors),disps(nProcessors)
         INTEGER :: sing_recvcounts(nProcessors)
         INTEGER :: sing_recvdisps(nProcessors),error,MaxSendIndex,MaxIndex
@@ -1093,6 +1103,7 @@ MODULE nElRDMMod
         USE FciMCData , only : TotWalkers,CurrentDets
         USE RotateOrbsData , only : SymLabelListInv
         USE bit_reps , only : extract_bit_rep
+        implicit none
         INTEGER, INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: SignDi,SignDj, SignDi2,SignDj2
@@ -1165,6 +1176,7 @@ MODULE nElRDMMod
         USE FciMCData , only : TotWalkers,CurrentDets
         USE RotateOrbsData , only : SymLabelListInv
         USE bit_reps , only : extract_bit_rep
+        implicit none
         INTEGER, INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: SignDi,SignDj, SignDi2, SignDj2
@@ -1236,6 +1248,7 @@ MODULE nElRDMMod
     subroutine Fill_Diag_RDM(nI,realSignDi)
 ! Fill diagonal elements of 1- and 2-RDM.
 ! These are < Di | a_i+ a_i | Di > and < Di | a_i+ a_j+ a_j a_i | Di >.
+        implicit none
         integer , intent(in) :: nI(NEl)
         real(dp) , intent(in) :: realSignDi
         real(dp) :: SignDiFac
@@ -1274,6 +1287,7 @@ MODULE nElRDMMod
     subroutine Fill_Sings_RDM(nI,Ex,tParity,realSignDi,realSignDj,tFill_CiCj_Symm)
 ! This routine adds in the contribution to the 1- and 2-RDM from determinants connected
 ! by a single excitation.
+        implicit none
         integer , intent(in) :: nI(NEl), Ex(2,2)
         logical , intent(in) :: tParity
         real(dp) , intent(in) :: realSignDi, realSignDj
@@ -1357,6 +1371,7 @@ MODULE nElRDMMod
     subroutine Fill_Doubs_RDM(Ex,tParity,realSignDi,realSignDj,tFill_CiCj_Symm)
 ! This routine adds in the contribution to the 2-RDM from determinants connected
 ! by a double excitation.
+        implicit none
         integer , intent(in) :: Ex(2,2)
         logical , intent(in) :: tParity
         real(dp) , intent(in) :: realSignDi, realSignDj
@@ -1490,6 +1505,7 @@ MODULE nElRDMMod
         use HPHFRandExcitMod, only: FindExcitBitDetSym
         use HPHF_Integrals , only : hphf_sign
         USE DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
+        implicit none
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot)
         integer , intent(in) :: nI(NEl), nJ(NEl)
         real(dp) , intent(in) :: realSignI, realSignJ
@@ -1652,6 +1668,7 @@ MODULE nElRDMMod
     subroutine Add_RDM_From_IJ_Pair(nI,nJ,realSignI,realSignJ,tFill_CiCj_Symm)
 ! This routine takes a pair of different determinants Di and Dj, and figures out which type 
 ! of elements need to be added in to the RDM.
+        implicit none
         integer , intent(in) :: nI(NEl), nJ(NEl)
         real(dp) , intent(in) :: realSignI, realSignJ
         logical , intent(in) :: tFill_CiCj_Symm
@@ -1708,6 +1725,7 @@ MODULE nElRDMMod
         USE SystemData , only : ARR, BRR, G1
         USE RotateOrbsMod , only : FourIndInts, FourIndIntsTag
         USE RotateOrbsData , only : NoOrbs
+        implicit none
         INTEGER :: error,i,j,ierr
         REAL(dp) :: SumDiag, Corr_Entropy
         real(dp) :: Norm_1RDM_Inst, Norm_2RDM_Inst, Trace_1RDM_Inst, Trace_2RDM_Inst, AllAccumRDMNorm_Inst
@@ -2292,6 +2310,7 @@ MODULE nElRDMMod
 ! symmetry information.
     SUBROUTINE Transform2ElIntsMemSave_RDM()
         USE RotateOrbsMod , only : FourIndInts
+        implicit none
         INTEGER :: i,j,k,l,a,b,g,d,ierr,Temp4indintsTag,a2,b2,g2,d2
         REAL(dp) , ALLOCATABLE :: Temp4indints(:,:)
         CHARACTER(len=*), PARAMETER :: this_routine='Transform2ElIntsMemSave_RDM'
@@ -2421,6 +2440,7 @@ MODULE nElRDMMod
     SUBROUTINE CalcFOCKMatrix_RDM()
         USE SystemData , only : nBasis
         USE Logging , only : tRDMonfly
+        implicit none
         INTEGER :: i,j,k,l,a,b,ierr,ArrDiagNewTag
         REAL(dp) :: FOCKDiagSumHF,FOCKDiagSumNew
         CHARACTER(len=*) , PARAMETER :: this_routine='CalcFOCKMatrix_RDM'
@@ -2538,6 +2558,7 @@ MODULE nElRDMMod
 
     SUBROUTINE RefillUMATandTMAT2D_RDM()
         USE RotateOrbsMod , only : FourIndInts, PrintROFCIDUMP, PrintRepeatROFCIDUMP
+        implicit none
         INTEGER :: l,k,j,i,a,b,g,d,c,nBasis2,TMAT2DPartTag,ierr
         REAL(dp) :: NewTMAT
         REAL(dp) , ALLOCATABLE :: TMAT2DPart(:,:)
@@ -2681,6 +2702,7 @@ MODULE nElRDMMod
     SUBROUTINE PrintROFCIDUMP_RDM()
 !This prints out a new FCIDUMP file in the same format as the old one.
         use util_mod, only: get_free_unit
+        implicit none
         INTEGER :: i,j,k,l,iunit
         CHARACTER(len=5) :: Label
         CHARACTER(len=20) :: LabelFull
@@ -2788,6 +2810,7 @@ MODULE nElRDMMod
                                    SymLabelCounts2, SymLabelCounts2Tag
         USE RotateOrbsMod , only : SymLabelList3, SymLabelList3Tag
         USE Logging , only : tDiagRDM, tNoRODump
+        implicit none
         CHARACTER(len=*), PARAMETER :: this_routine='DeallocateRDM'
 
         IF(tExplicitAllRDM) THEN
@@ -2905,6 +2928,7 @@ MODULE nElRDMMod
 ! < a a | a a > = < b b | b b > 
 ! < a b | a b > = < b a | b a >
 ! < a b | b a > = < b a | a b >
+        implicit none
         real(dp) , intent(out) :: Trace_1RDM_Inst, Trace_1RDM, Trace_2RDM_Inst, Trace_2RDM
         real(dp) :: Entry_bb, Entry_aa
         real(dp) :: Entry_abab, Entry_baba, Sign_abab, Sign_baba
@@ -2933,8 +2957,8 @@ MODULE nElRDMMod
                 NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(i+1)) = &
                                             ( Entry_bb + Entry_aa ) / 2.D0 
 
-                Trace_1RDM_Inst = Trace_1RDM_Inst + OneElRDM(i,i) &
-                                                  + OneElRDM(i+1,i+1)
+                Trace_1RDM_Inst = Trace_1RDM_Inst + OneElRDM(SymLabelListInv(i),SymLabelListInv(i)) &
+                                                  + OneElRDM(SymLabelListInv(i+1),SymLabelListInv(i+1))
                 Trace_1RDM = Trace_1RDM + NatOrbMat(SymLabelListInv(i),SymLabelListInv(i)) &
                                         + NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(i+1))
             endif
@@ -3084,6 +3108,7 @@ MODULE nElRDMMod
         USE RotateOrbsMod , only : SymLabelList2
         USE UMatCache , only : GTID
         USE Logging , only : tRDMSpinAveraging
+        implicit none
         real(dp) :: Norm_1RDM, Norm_2RDM, Norm_1RDM_Inst, Norm_2RDM_Inst
         INTEGER :: i,j,k,l,Ind2,Ind1,i2,j2,k2,l2,ierr
         REAL(dp) :: RDMEnergy_Inst, RDMEnergy, Coul, Exch 
@@ -3137,33 +3162,8 @@ MODULE nElRDMMod
                                         Norm_1RDM, Norm_2RDM_Inst, Norm_2RDM)
 
             if(tFinalRDMEnergy.and.&
-                .not.(tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
-                Max_Error_Hermiticity = 0.D0
-                Sum_Error_Hermiticity = 0.D0
-                do i = 1, ((nBasis*(nBasis-1))/2)
-                    do j = i+1, ((nBasis*(nBasis-1))/2)
-                        if(RDMExcitLevel.ne.1) then
-                            IF((abs((AllTwoElRDM(i,j)*Norm_2RDM)-(AllTwoElRDM(j,i)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
-                                Max_Error_Hermiticity = abs((AllTwoElRDM(i,j)*Norm_2RDM)-(AllTwoElRDM(j,i)*Norm_2RDM))
-                            Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
-                                                    abs((AllTwoElRDM(i,j)*Norm_2RDM)-(AllTwoElRDM(j,i)*Norm_2RDM))
-                            Temp = (AllTwoElRDM(i,j) + AllTwoElRDM(j,i))/2.D0
-                            AllTwoElRDM(i,j) = Temp
-                            AllTwoElRDM(j,i) = Temp
-                        endif
-
-                        if((RDMExcitLevel.ne.2).and.(i.le.nBasis).and.(j.le.nBasis)) then
-                            IF((abs((NatOrbMat(i,j)*Norm_1RDM)-(NatOrbMat(j,i)*Norm_1RDM))).gt.Max_Error_Hermiticity) &
-                                Max_Error_Hermiticity = abs((NatOrbMat(i,j)*Norm_1RDM)-(NatOrbMat(j,i)*Norm_1RDM))
-                            Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
-                                                    abs((NatOrbMat(i,j)*Norm_1RDM)-(NatOrbMat(j,i)*Norm_1RDM))
-                            Temp = (NatOrbMat(i,j) + NatOrbMat(j,i))/2.D0
-                            NatOrbMat(i,j) = Temp
-                            NatOrbMat(j,i) = Temp
-                        endif
-                    enddo
-                enddo
-            endif
+                .not.(tHF_Ref_Explicit.or.tHF_S_D_Ref)) &
+                call make_rdm_hermitian(Norm_1RDM, Norm_2RDM, Max_Error_Hermiticity, Sum_Error_Hermiticity)
 
             do i = 1, nBasis 
 
@@ -3301,7 +3301,7 @@ MODULE nElRDMMod
                                             &DENSITY MATRICES*:',RDMEnergy
                 write(6,*) ''
 
-                call Write_out_1and_2RDM(Norm_1RDM, Norm_2RDM)
+                if(tFinalRDMEnergy) call Write_out_1and_2RDM(Norm_1RDM, Norm_2RDM)
 
                 if(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
                     write(6,'(A29,F30.20)') ' MAX ABS ERROR IN HERMITICITY', Max_Error_Hermiticity
@@ -3342,6 +3342,7 @@ MODULE nElRDMMod
 ! number of electron pairs in the system = 1/2 N ( N - 1), so we can do the same for the 2RDM.
 
 ! This routine also initiates the stuff needed to write out the density matrices to files.
+        implicit none
         real(dp) , intent(out) :: Trace_1RDM_Inst, Trace_1RDM, Trace_2RDM_Inst, Trace_2RDM
         integer :: i
 
@@ -3379,6 +3380,7 @@ MODULE nElRDMMod
     subroutine calc_norms(AllAccumRDMNorm_Inst, AllAccumRDMNorm, Norm_1RDM_Inst, &
                             Trace_1RDM_Inst, Trace_1RDM, Trace_2RDM_Inst, Trace_2RDM,&
                             Norm_1RDM, Norm_2RDM_Inst, Norm_2RDM)
+        implicit none                            
         real(dp) , intent(in) :: AllAccumRDMNorm_Inst, AllAccumRDMNorm
         real(dp) , intent(in) :: Trace_1RDM_Inst, Trace_1RDM, Trace_2RDM_Inst, Trace_2RDM
         real(dp) , intent(out) :: Norm_1RDM_Inst, Norm_1RDM, Norm_2RDM_Inst, Norm_2RDM
@@ -3427,11 +3429,52 @@ MODULE nElRDMMod
 
     end subroutine calc_norms
 
+    subroutine make_rdm_hermitian(Norm_1RDM, Norm_2RDM, Max_Error_Hermiticity, Sum_Error_Hermiticity)
+        implicit none 
+        real(dp) , intent(in) :: Norm_1RDM, Norm_2RDM
+        real(dp) , intent(out) :: Max_Error_Hermiticity, Sum_Error_Hermiticity 
+        integer :: i, j
+        real(dp) :: Temp
+
+        Max_Error_Hermiticity = 0.D0
+        Sum_Error_Hermiticity = 0.D0
+        do i = 1, ((nBasis*(nBasis-1))/2)
+            do j = i+1, ((nBasis*(nBasis-1))/2)
+                if(RDMExcitLevel.ne.1) then
+                    IF((abs((AllTwoElRDM(i,j)*Norm_2RDM)-(AllTwoElRDM(j,i)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
+                        Max_Error_Hermiticity = abs((AllTwoElRDM(i,j)*Norm_2RDM)-(AllTwoElRDM(j,i)*Norm_2RDM))
+                    Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
+                                            abs((AllTwoElRDM(i,j)*Norm_2RDM)-(AllTwoElRDM(j,i)*Norm_2RDM))
+                    Temp = (AllTwoElRDM(i,j) + AllTwoElRDM(j,i))/2.D0
+                    AllTwoElRDM(i,j) = Temp
+                    AllTwoElRDM(j,i) = Temp
+                endif
+
+                if((RDMExcitLevel.ne.2).and.(i.le.nBasis).and.(j.le.nBasis)) then
+                    IF((abs((NatOrbMat(SymLabelListInv(i),SymLabelListInv(j))*Norm_1RDM) - &
+                            (NatOrbMat(SymLabelListInv(j),SymLabelListInv(i))*Norm_1RDM))).gt.Max_Error_Hermiticity) &
+                        Max_Error_Hermiticity = abs((NatOrbMat(SymLabelListInv(i),SymLabelListInv(j))*Norm_1RDM) - &
+                                                    (NatOrbMat(SymLabelListInv(j),SymLabelListInv(i))*Norm_1RDM))
+                    Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
+                                            abs((NatOrbMat(SymLabelListInv(i),SymLabelListInv(j))*Norm_1RDM) - &
+                                                (NatOrbMat(SymLabelListInv(j),SymLabelListInv(i))*Norm_1RDM))
+                    Temp = (NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) + &
+                            NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)))/2.D0
+                    NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) = Temp
+                    NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) = Temp
+                endif
+            enddo
+        enddo
+
+    end subroutine make_rdm_hermitian
+
+
     subroutine Write_out_1and_2RDM(Norm_1RDM, Norm_2RDM)
+        implicit none
         real(dp) , intent(in) :: Norm_1RDM, Norm_2RDM
         real(dp) :: Tot_Spin_Projection, ParityFactor_LI, SpinPlus, SpinMinus
         real(dp) :: Lin_Ineq, Lin_Ineq_TwoEl, Lin_Ineq_OneEl, ParityFactor 
-        real(dp) :: Max_Lin_Ineq, Temp
+        real(dp) :: Max_Lin_Ineq
         integer :: Ind1_LI, Ind2_LI
         integer :: i, j, k, l, Ind1, Ind2
         integer :: OneRDM_unit, TwoRDM_unit
@@ -3555,6 +3598,7 @@ MODULE nElRDMMod
 
 
     subroutine sum_in_spin_proj(i,j,Ind1,Norm_2RDM,Tot_Spin_Projection)
+        implicit none
         integer , intent(in) :: i, j, Ind1
         real(dp) , intent(in) :: Norm_2RDM
         real(dp) , intent(inout) :: Tot_Spin_Projection
@@ -3627,6 +3671,7 @@ MODULE nElRDMMod
         USE bit_reps , only : extract_bit_rep, extract_sign,nifdbo
         USE DetBitOps, only : detbiteq
         USE UMatCache, only: GTID
+        implicit none
         INTEGER :: I, J, nI(NEl), nJ(NEl), FlagsI, FlagsJ, IC, Ex(2,2)
         INTEGER :: k,l,k2,l2,a2,b2,i2,j2, AllCurrentDetsTag
         INTEGER(int64) :: AllTotWalkers_local
