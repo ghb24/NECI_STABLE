@@ -6819,8 +6819,8 @@ MODULE FciMCParMod
         integer :: nEval,nBlocks,nBlockStarts(2)
         character(*), parameter :: t_r='LanczosFindGroundE'
         
-        if(DetLen.gt.1000) then
-            nEval = 4
+        if(DetLen.gt.1300) then
+            nEval = 3
         else
             nEval = DetLen
         endif
@@ -6859,7 +6859,7 @@ MODULE FciMCParMod
 !C..Now we store HAMIL and LAB 
         CALL DETHAM(DetLen,NEL,Dets,HAMIL,LAB,NROW,.FALSE.,ICMAX,GC,TMC)
 
-        if(DetLen.gt.1000) then
+        if(DetLen.gt.1300) then
             !Lanczos diag
 
             Allocate(CkN(DetLen,nEval), stat=ierr)
@@ -6921,7 +6921,7 @@ MODULE FciMCParMod
             V2=0.d0
     !C..Lanczos iterative diagonalising routine
             CALL NECI_FRSBLKH(DetLen,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT, &
-             &  SCR,ISCR,INDEX,NCYCLE,B2L,.true.,.false.,.false.)
+             &  SCR,ISCR,INDEX,NCYCLE,B2L,.true.,.false.,.false.,.false.)
 
             !Eigenvalues may come out wrong sign - multiply by -1
             if(W(1).gt.0.D0) then
