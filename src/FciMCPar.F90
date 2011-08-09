@@ -6723,7 +6723,7 @@ MODULE FciMCParMod
         integer, dimension(lenof_sign) :: CurrentSign
         integer, allocatable :: ExpandedWalkerDets(:,:)
         integer(TagIntType) :: ExpandedWalkTag=0
-        real(dp) :: GroundEFull,GroundEInit
+        real(dp) :: GroundEFull,GroundEInit,CreateNan
         character(*), parameter :: t_r='DiagWalkerSubspace'
 
         if(nProcessors.gt.1) call stop_all(t_r,"Walker subspace diagonalisation only works in serial")
@@ -6763,7 +6763,8 @@ MODULE FciMCParMod
                 call LanczosFindGroundE(ExpandedWalkerDets,iSubspaceSize,GroundEInit)
                 write(6,'(A,G25.10)') 'Ground state energy of initiator walker subspace = ',GroundEInit
             else
-                write(6,'(A,G25.10)') 'Ground state energy of initiator walker subspace = ',sqrt(-1.D0)
+                CreateNan=-1.D0
+                write(6,'(A,G25.10)') 'Ground state energy of initiator walker subspace = ',sqrt(CreateNan)
             endif
 
 
