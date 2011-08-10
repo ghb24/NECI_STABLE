@@ -6825,7 +6825,7 @@ MODULE FciMCParMod
         else
             nEval = DetLen
         endif
-        DetLen = DetLen2
+        DetLen2 = DetLen
 
 
         write(6,'(A,I10)') 'DetLen2 = ',DetLen2
