@@ -6962,11 +6962,12 @@ MODULE FciMCParMod
 
         !Calculate proje.
         nDoubles = 0
+        Num = 0.D0
         do i=1,DetLen2
             ExcitLev = iGetExcitLevel(HFDet,Dets(:,i),NEl)
             if((ExcitLev.eq.1).or.(ExcitLev.eq.2)) then
                 HDiagTemp = get_helement(HFDet,Dets(:,i),ExcitLev)
-                Num = HDiagTemp * CK(i,1)
+                Num = Num + (HDiagTemp * CK(i,1))
                 nDoubles = nDoubles + 1
             elseif(ExcitLev.eq.0) then
                 Denom = CK(i,1)
