@@ -16,7 +16,7 @@ C ==    to diagonalise
 C ==----------------------------------------------------------------==
       
       LOGICAL :: PRINTOUT,TLargest,TSeeded,tDie2,tFail
-      LOGICAL , intent(in) , OPTIONAL :: tDie
+      LOGICAL :: tDie
       REAL(dp) :: V0(M,N),VS(M,N),A(N,N),W(N) 
       REAL(dp) :: V(M*NBLOCK*NKRY1)
       REAL(dp) :: AM(NBLOCK*NBLOCK*NKRY1),BM(NBLOCK*NBLOCK*NKRY)
@@ -30,17 +30,20 @@ C..temp
 C..temp
       integer :: LAB(M,ICMAX),NROW(M)
 C ==----------------------------------------------------------------==
-      if(present(tDie)) then
-          tDie2 = tDie
-      else
-          tDie2 = .true.
-      endif
+      tDie2 = tDie
       ReturnNan=-1.D0
       tFail=.false.
 
+      write(6,*) "Get Here 1"
+      call flush(6)
+
 C..Initialise V0 
       CALL NECI_SETUP_MATRIX(M,N,V0,.FALSE.,TSeeded)
+      write(6,*) "Get Here 2"
+      call flush(6)
       CALL NECI_MGS(M,N,V0,M,A,N,tDie2,tFail)
+      write(6,*) "Get Here 3"
+      call flush(6)
       if(tFail) then
           W(1) = sqrt(ReturnNan)
           return

@@ -5909,7 +5909,7 @@ MODULE FciMCParMod
         V2=0.d0
 !C..Lanczos iterative diagonalising routine
         CALL NECI_FRSBLKH(nCASDet,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT, &
-     &  SCR,ISCR,INDEX,NCYCLE,B2L,.false.,.false.,.false.)
+     &  SCR,ISCR,INDEX,NCYCLE,B2L,.false.,.false.,.false.,.true.)
 !Multiply all eigenvalues by -1.
         CALL DSCAL(NEVAL,-1.D0,W,1)
         if(CK(1,1).lt.0.D0) then

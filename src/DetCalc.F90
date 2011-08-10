@@ -518,8 +518,10 @@ CONTAINS
             CALL LogMemAlloc('V2',NDET*NEVAL,8,this_routine,V2Tag,ierr)
             V2=0.d0
 !C..Lanczos iterative diagonalising routine
+            write(6,*) "Going into frsblk"
+            call flush(6)
             CALL NECI_FRSBLKH(NDET,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT, &
-     &  SCR,ISCR,INDEX,NCYCLE,B2L,.true.,.false.,.false.)
+     &  SCR,ISCR,INDEX,NCYCLE,B2L,.true.,.false.,.false.,.true.)
 
 !Multiply all eigenvalues by -1.
             CALL DSCAL(NEVAL,-1.D0,W,1)
