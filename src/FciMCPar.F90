@@ -6719,7 +6719,7 @@ MODULE FciMCParMod
 !Currently, this only works in serial.
     subroutine DiagWalkerSubspace()
         implicit none
-        integer :: i,iSubspaceSize,ierr
+        integer :: i,iSubspaceSize,ierr,iSubspaceSizeFull
         integer, dimension(lenof_sign) :: CurrentSign
         integer, allocatable :: ExpandedWalkerDets(:,:)
         integer(TagIntType) :: ExpandedWalkTag=0
@@ -6773,25 +6773,27 @@ MODULE FciMCParMod
 
         endif
 
+        iSubspaceSizeFull = int(TotWalkers,sizeof_int)
+
         !Allocate memory for walker list.
         write(6,'(A)') "Allocating memory for diagonalisation of full walker subspace"
-        write(6,'(A,I12,A)') "Size = ",TotWalkers," walkers."
+        write(6,'(A,I12,A)') "Size = ",iSubspaceSizeFull," walkers."
 
-        allocate(ExpandedWalkerDets(NEl,TotWalkers),stat=ierr)
-        call LogMemAlloc('ExpandedWalkerDets',NEl*int(TotWalkers,sizeof_int),4,t_r,ExpandedWalkTag,ierr)
-        do i=1,TotWalkers
+        allocate(ExpandedWalkerDets(NEl,iSubspaceSizeFull),stat=ierr)
+        call LogMemAlloc('ExpandedWalkerDets',NEl*iSubspaceSizeFull,4,t_r,ExpandedWalkTag,ierr)
+        do i=1,iSubspaceSizeFull
             call decode_bit_det(ExpandedWalkerDets(:,i),CurrentDets(:,i))
         enddo
 
 !Routine to diagonalise a set of determinants, and return the ground state energy
-        call LanczosFindGroundE(ExpandedWalkerDets,TotWalkers,GroundEFull,ProjGroundEFull)
+        call LanczosFindGroundE(ExpandedWalkerDets,iSubspaceSizeFull,GroundEFull,ProjGroundEFull)
 
         write(6,'(A,G25.10)') 'Ground state energy of full walker subspace = ',GroundEFull
 
         if(tTruncInitiator) then
-            write(unitWalkerDiag,'(3I14,4G25.15)') Iter,iSubspaceSize,TotWalkers,GroundEInit-Hii,GroundEFull-Hii,ProjGroundEInit-Hii,ProjGroundEFull-Hii
+            write(unitWalkerDiag,'(3I14,4G25.15)') Iter,iSubspaceSize,iSubspaceSizeFull,GroundEInit-Hii,GroundEFull-Hii,ProjGroundEInit-Hii,ProjGroundEFull-Hii
         else
-            write(unitWalkerDiag,'(2I14,2G25.15)') Iter,TotWalkers,GroundEFull-Hii,ProjGroundEFull-Hii
+            write(unitWalkerDiag,'(2I14,2G25.15)') Iter,iSubspaceSizeFull,GroundEFull-Hii,ProjGroundEFull-Hii
         endif
         
         deallocate(ExpandedWalkerDets)
@@ -6804,9 +6806,9 @@ MODULE FciMCParMod
         use DetCalcData, only : NKRY,NBLK,B2L,nCycle
         implicit none
         real(dp) , intent(out) :: GroundE,ProjGroundE
-        integer(int64), intent(in) :: DetLen
+        integer, intent(in) :: DetLen
         integer, intent(in) :: Dets(NEl,DetLen)
-        integer :: gc,ierr,icmax,lenhamil,nKry1,nBlock,LScr,LIScr,DetLen2
+        integer :: gc,ierr,icmax,lenhamil,nKry1,nBlock,LScr,LIScr
         logical :: tmc
         real(dp) , allocatable :: A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),W(:)
         HElement_t, allocatable :: Work(:)
@@ -6825,13 +6827,11 @@ MODULE FciMCParMod
         else
             nEval = DetLen
         endif
-        DetLen2 = DetLen
 
-
-        write(6,'(A,I10)') 'DetLen2 = ',DetLen2
+        write(6,'(A,I10)') 'DetLen = ',DetLen
 !C..
-        Allocate(Ck(DetLen2,nEval), stat=ierr)
-        call LogMemAlloc('CK',DetLen2*nEval, 8,t_r, tagCK,ierr)
+        Allocate(Ck(DetLen,nEval), stat=ierr)
+        call LogMemAlloc('CK',DetLen*nEval, 8,t_r, tagCK,ierr)
         CK=(0.d0)
 !C..
         allocate(W(nEval), stat=ierr)
@@ -6839,12 +6839,12 @@ MODULE FciMCParMod
         W=0.d0
 !        write(6,*) "Calculating H matrix"
 !C..We need to measure HAMIL and LAB first 
-        allocate(NROW(DetLen2),stat=ierr)
-        call LogMemAlloc('NROW',DetLen2,4,t_r,NROWTag,ierr)
+        allocate(NROW(DetLen),stat=ierr)
+        call LogMemAlloc('NROW',DetLen,4,t_r,NROWTag,ierr)
         NROW(:)=0
         ICMAX=1
         TMC=.FALSE.
-        call DETHAM(DetLen2,NEL,Dets,HAMIL,LAB,NROW,.TRUE.,ICMAX,GC,TMC)
+        call DETHAM(DetLen,NEL,Dets,HAMIL,LAB,NROW,.TRUE.,ICMAX,GC,TMC)
 !        WRITE(6,*) ' FINISHED COUNTING '
         WRITE(6,*) "Allocating memory for hamiltonian: ",GC*2
         CALL FLUSH(6)
@@ -6859,18 +6859,18 @@ MODULE FciMCParMod
 
         LAB(1:LENHAMIL)=0
 !C..Now we store HAMIL and LAB 
-        CALL DETHAM(DetLen2,NEL,Dets,HAMIL,LAB,NROW,.FALSE.,ICMAX,GC,TMC)
+        CALL DETHAM(DetLen,NEL,Dets,HAMIL,LAB,NROW,.FALSE.,ICMAX,GC,TMC)
 
-        if(DetLen2.gt.1300) then
+        if(DetLen.gt.1300) then
             !Lanczos diag
 
-            Allocate(CkN(DetLen2,nEval), stat=ierr)
-            call LogMemAlloc('CKN',DetLen2*nEval, 8,t_r, tagCKN,ierr)
+            Allocate(CkN(DetLen,nEval), stat=ierr)
+            call LogMemAlloc('CKN',DetLen*nEval, 8,t_r, tagCKN,ierr)
             CKN=(0.d0)
 
             NKRY1=NKRY+1
             NBLOCK=MIN(NEVAL,NBLK)
-            LSCR=MAX(DetLen2*NEVAL,8*NBLOCK*NKRY)
+            LSCR=MAX(DetLen*NEVAL,8*NBLOCK*NKRY)
             LISCR=6*NBLOCK*NKRY
     !C..
     !       write (6,'(7X," *",19X,A,18X,"*")') ' LANCZOS DIAGONALISATION '
@@ -6882,8 +6882,8 @@ MODULE FciMCParMod
     !C..
     !C,, W is now allocated with CK
     !C..
-            ALLOCATE(V(DetLen2*NBLOCK*NKRY1),stat=ierr)
-            CALL LogMemAlloc('V',DetLen2*NBLOCK*NKRY1,8,t_r,VTag,ierr)
+            ALLOCATE(V(DetLen*NBLOCK*NKRY1),stat=ierr)
+            CALL LogMemAlloc('V',DetLen*NBLOCK*NKRY1,8,t_r,VTag,ierr)
             V=0.d0
     !C..   
             ALLOCATE(AM(NBLOCK*NBLOCK*NKRY1),stat=ierr)
@@ -6912,17 +6912,17 @@ MODULE FciMCParMod
             CALL LogMemAlloc('INDEX',NEVAL,4,t_r,INDEXTag,ierr)
             INDEX(1:NEVAL)=0
     !C..
-            ALLOCATE(WH(DetLen2),stat=ierr)
-            CALL LogMemAlloc('WH',DetLen2,8,t_r,WHTag,ierr)
+            ALLOCATE(WH(DetLen),stat=ierr)
+            CALL LogMemAlloc('WH',DetLen,8,t_r,WHTag,ierr)
             WH=0.d0
-            ALLOCATE(WORK2(3*DetLen2),stat=ierr)
-            CALL LogMemAlloc('WORK2',3*DetLen2,8,t_r,WORK2Tag,ierr)
+            ALLOCATE(WORK2(3*DetLen),stat=ierr)
+            CALL LogMemAlloc('WORK2',3*DetLen,8,t_r,WORK2Tag,ierr)
             WORK2=0.d0
-            ALLOCATE(V2(DetLen2,NEVAL),stat=ierr)
-            CALL LogMemAlloc('V2',DetLen2*NEVAL,8,t_r,V2Tag,ierr)
+            ALLOCATE(V2(DetLen,NEVAL),stat=ierr)
+            CALL LogMemAlloc('V2',DetLen*NEVAL,8,t_r,V2Tag,ierr)
             V2=0.d0
     !C..Lanczos iterative diagonalising routine
-            CALL NECI_FRSBLKH(DetLen2,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT, &
+            CALL NECI_FRSBLKH(DetLen,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT, &
              &  SCR,ISCR,INDEX,NCYCLE,B2L,.true.,.false.,.false.,.false.)
 
             !Eigenvalues may come out wrong sign - multiply by -1
@@ -6947,14 +6947,14 @@ MODULE FciMCParMod
             call LogMemDealloc(t_r,V2Tag)
         else
             !Full diag
-            allocate(Work(4*DetLen2),stat=ierr)
-            call LogMemAlloc('Work',4*DetLen2,8,t_r,WorkTag,ierr)
-            allocate(Work2(3*DetLen2),stat=ierr)
-            call logMemAlloc('Work2',3*DetLen2,8,t_r,Work2Tag,ierr)
+            allocate(Work(4*DetLen),stat=ierr)
+            call LogMemAlloc('Work',4*DetLen,8,t_r,WorkTag,ierr)
+            allocate(Work2(3*DetLen),stat=ierr)
+            call logMemAlloc('Work2',3*DetLen,8,t_r,Work2Tag,ierr)
             nBlockStarts(1) = 1
-            nBlockStarts(2) = DetLen2+1
+            nBlockStarts(2) = DetLen+1
             nBlocks = 1
-            call HDIAG(DetLen2,Hamil,Lab,nRow,CK,W,Work2,Work,nBlockStarts,nBlocks)
+            call HDIAG(DetLen,Hamil,Lab,nRow,CK,W,Work2,Work,nBlockStarts,nBlocks)
             GroundE = W(1)
             deallocate(Work)
             call LogMemDealloc(t_r,WorkTag)
@@ -6963,7 +6963,7 @@ MODULE FciMCParMod
         !Calculate proje.
         nDoubles = 0
         Num = 0.D0
-        do i=1,DetLen2
+        do i=1,DetLen
             ExcitLev = iGetExcitLevel(HFDet,Dets(:,i),NEl)
             if((ExcitLev.eq.1).or.(ExcitLev.eq.2)) then
                 HDiagTemp = get_helement(HFDet,Dets(:,i),ExcitLev)
