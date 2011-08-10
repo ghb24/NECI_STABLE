@@ -3631,7 +3631,7 @@ MODULE FciMCParMod
         if(exists) then
             !We already have an FCIMCStats file - move it to the end of the list of FCIMCStats files.
 
-            extension=0
+            extension=1
             do while(.true.)
                 abstr=''
                 write(abstr,'(I12)') extension
@@ -3639,7 +3639,7 @@ MODULE FciMCParMod
                 inquire(file=abstr,exist=exists)
                 if(.not.exists) exit
                 extension=extension+1
-                if(extension.gt.1000) then
+                if(extension.gt.10000) then
                     call stop_all(t_r,"Error finding free FCIMCStats name")
                 endif
             enddo
