@@ -2916,6 +2916,9 @@ SUBROUTINE SpinOrbSymSetup()
 
 !    WRITE(6,*) "SCRATCHSIZE: ",ScratchSize,tNoSymGenRandExcits,tUEG
 
+!    write(6,*) "SymClasses:"
+!    write(6,*) SymClasses(:)
+
     !Create SpinOrbSymLabel array.
     !This array will return a number between 0 and nSymLabels-1.
     !For molecular systems, this IS the character of the irrep
@@ -3215,9 +3218,9 @@ SUBROUTINE SpinOrbSymSetup()
             kTotal(1)=ktrial(1)
             kTotal(2)=ktrial(2)
         endif
+        write(6,*) "Total momentum is", kTotal
     ENDIF
 
-    write(6,*) "Total momentum is", kTotal
 
 END SUBROUTINE SpinOrbSymSetup
 

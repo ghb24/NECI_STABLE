@@ -758,7 +758,7 @@ contains
       SUBROUTINE GETSYM(NI2,NEL,G1,NBASISMAX,ISYM)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,tFixLz
-         use SymData, only: SymReps
+         use SymData, only: SymReps,tAbelian
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),nBasisMax(5,*)
          TYPE(BasisFn) G1(*),ISym
@@ -782,41 +782,49 @@ contains
 !            CALL NECI_ICOPY(NEL,NI2,1,NI,1)
             NI(1:NEL)=NI2(1:NEL)
          ENDIF
-         DO I=1,NEL
-!   Count all electrons in each rep
-!   NREPS(J) is the rep, and NELECS(J) is the number of electrons in that rep
-
-            J=1
-            DO WHILE(J.LT.NEL)
-               IF(NREPS(J).EQ.0) exit
-               IF(NREPS(J).EQ.SYMREPS(1,NI(I))) THEN
-!   We've found the slot for the rep.  increment it and leave.
-                  NELECS(J)=NELECS(J)+1
-                  J = NEL
-               ENDIF
-               J=J+1
-            ENDDO
-            IF(J.LE.NEL) THEN
-!   need to put the new rep in a new space
-               NREPS(J)=SYMREPS(1,NI(I))
-               NELECS(J)=1
-            ENDIF
-         END DO
-!   now go through and see which are closed and which open
-         DO I=1,NEL
-            J=1
-            DO WHILE(NREPS(J).NE.SYMREPS(1,NI(I)))
-               J=J+1
-            ENDDO
-!   electron NI(I) is in rep NREPS(J)
-            IF(NELECS(J).NE.SYMREPS(2,NREPS(J))) THEN
-!   we don't have a closed shell
-!   add the sym product
+         IF(tAbelian) THEN !For Abelian symmetry we don't need the symreps malarky.
+            DO I=1,NEL 
                ISYM%Sym=SYMPROD(ISYM%Sym,G1(NI(I))%Sym)
-            ENDIF
 !   add the momentum
-            CALL ADDELECSYM(NI(I),G1,NBASISMAX,ISYM)
-         ENDDO
+               CALL ADDELECSYM(NI(I),G1,NBASISMAX,ISYM)
+            ENDDO
+         ELSE
+               DO I=1,NEL
+      !   Count all electrons in each rep
+      !   NREPS(J) is the rep, and NELECS(J) is the number of electrons in that rep
+
+                  J=1
+                  DO WHILE(J.LT.NEL)
+                     IF(NREPS(J).EQ.0) exit
+                     IF(NREPS(J).EQ.SYMREPS(1,NI(I))) THEN
+      !   We've found the slot for the rep.  increment it and leave.
+                        NELECS(J)=NELECS(J)+1
+                        J = NEL
+                     ENDIF
+                     J=J+1
+                  ENDDO
+                  IF(J.LE.NEL) THEN
+      !   need to put the new rep in a new space
+                     NREPS(J)=SYMREPS(1,NI(I))
+                     NELECS(J)=1
+                  ENDIF
+               END DO
+      !   now go through and see which are closed and which open
+               DO I=1,NEL
+                  J=1
+                  DO WHILE(NREPS(J).NE.SYMREPS(1,NI(I)))
+                     J=J+1
+                  ENDDO
+      !   electron NI(I) is in rep NREPS(J)
+                  IF(NELECS(J).NE.SYMREPS(2,NREPS(J))) THEN
+      !   we don't have a closed shell
+      !   add the sym product
+                     ISYM%Sym=SYMPROD(ISYM%Sym,G1(NI(I))%Sym)
+                  ENDIF
+      !   add the momentum
+                  CALL ADDELECSYM(NI(I),G1,NBASISMAX,ISYM)
+               ENDDO
+         ENDIF
 !   round the momentum
          CALL ROUNDSYM(ISYM,NBASISMAX)
          IF(ISC) CALL CSFGETSPIN(NI2,NEL,ISYM%Ms) 
