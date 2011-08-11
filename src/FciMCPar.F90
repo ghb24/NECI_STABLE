@@ -4329,9 +4329,11 @@ MODULE FciMCParMod
             unitWalkerDiag = get_free_unit()
             open(unitWalkerDiag,file='WalkerSubspaceDiag',status='unknown')
             if(tTruncInitiator) then
-                write(unitWalkerDiag,'(A)') "# Iter    NoInitDets   NoOccDets  InitiatorSubspaceEnergy     FullSubspaceEnergy   ProjInitEnergy   ProjFullEnergy"
+                write(unitWalkerDiag,'(A)') "# Iter    NoInitDets   NoOccDets  InitiatorSubspaceEnergy   &
+                        & FullSubspaceEnergy   ProjInitEnergy   ProjFullEnergy"
             else
-                write(unitWalkerDiag,'(A)') "# Iter    NoOccDets    InitiatorSubspaceEnergy     FullSubspaceEnergy    ProjFullEnergy"
+                write(unitWalkerDiag,'(A)') "# Iter    NoOccDets    InitiatorSubspaceEnergy         &
+                        & FullSubspaceEnergy    ProjFullEnergy"
             endif
         endif
 
@@ -6791,7 +6793,8 @@ MODULE FciMCParMod
         write(6,'(A,G25.10)') 'Ground state energy of full walker subspace = ',GroundEFull
 
         if(tTruncInitiator) then
-            write(unitWalkerDiag,'(3I14,4G25.15)') Iter,iSubspaceSize,iSubspaceSizeFull,GroundEInit-Hii,GroundEFull-Hii,ProjGroundEInit-Hii,ProjGroundEFull-Hii
+            write(unitWalkerDiag,'(3I14,4G25.15)') Iter,iSubspaceSize,iSubspaceSizeFull,GroundEInit-Hii,    &
+                    GroundEFull-Hii,ProjGroundEInit-Hii,ProjGroundEFull-Hii
         else
             write(unitWalkerDiag,'(2I14,2G25.15)') Iter,iSubspaceSizeFull,GroundEFull-Hii,ProjGroundEFull-Hii
         endif
