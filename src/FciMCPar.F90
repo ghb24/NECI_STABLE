@@ -159,7 +159,6 @@ MODULE FciMCParMod
         ! Put a barrier here so all processes synchronise before we begin.
         call MPIBarrier(error)
 
-
 !Start MC simulation...
         TIncrement=.true.   !If TIncrement is true, it means that when it comes out of the loop, it wants to subtract 1 from the Iteration count to get the true number of iterations
         Iter=1
