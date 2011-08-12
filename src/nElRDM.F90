@@ -824,7 +824,7 @@ MODULE nElRDMMod
 ! Add every determinant to the diagonal elements.
 
 ! If no HPHF - just add in diagonal contribution from D_I.                
-        call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
+!        call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
 
 ! If we have a single or double, add in the connection to the HF, symmetrically.        
         if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) &
@@ -1282,7 +1282,7 @@ MODULE nElRDMMod
 !        write(6,*) 'adding to diagonal',signDi
 
     end subroutine Fill_Diag_RDM
-    
+
 
     subroutine Fill_Sings_RDM(nI,Ex,tParity,realSignDi,realSignDj,tFill_CiCj_Symm)
 ! This routine adds in the contribution to the 1- and 2-RDM from determinants connected
@@ -4119,3 +4119,43 @@ END MODULE nElRDMMod
         enddo
 
     END SUBROUTINE DiDj_Found_FillRDM
+
+    subroutine Fill_Diag_RDM_FromOrbs(i, nI_Prev, Prev, SignDi)
+! Given an occupied orbital, and the sign of the determinant it is occupied in,
+! add in the contribution to the 1 and 2-electron RDMs.
+        USE SystemData , only : NEl
+        USE constants , only : dp, lenof_sign
+        USE nElRDMMod , only : OneElRDM, TwoElRDM
+        USE Logging , only : RDMExcitLevel
+        USE RotateOrbsData , only : SymLabelListInv
+        implicit none
+        integer , intent(in) :: i, nI_Prev(NEl), Prev
+        integer, dimension(lenof_sign), intent(in) :: SignDi
+        integer :: j, Ind
+
+! Need to add in the diagonal elements.
+! The RDM are always in spin orbitals, so just adding the orbital as is, is fine.
+        
+!        WRITE(6,*) realSignDi
+
+        IF(RDMExcitLevel.ne.2) THEN
+            OneElRDM(SymLabelListInv(i),SymLabelListInv(i)) = &
+                        OneElRDM(SymLabelListInv(i),SymLabelListInv(i)) &
+                          + (real(SignDi(1),dp) * real(SignDi(1),dp)) 
+        ENDIF
+
+! There is no need to use the SymLabelList arrays for the 2 el RDM because we are 
+! not diagonalising or anything.
+        IF(RDMExcitLevel.ne.1) THEN
+            do j=1,Prev
+                Ind=( ( (i-2) * (i-1) ) / 2 ) + nI_Prev(j)
+                TwoElRDM( Ind , Ind ) = TwoElRDM( Ind , Ind ) &
+                                      + (real(SignDi(1),dp) * real(SignDi(1),dp))
+            enddo
+        ENDIF
+
+!        write(6,*) 'adding to diagonal',signDi
+
+    end subroutine Fill_Diag_RDM_FromOrbs
+ 
+

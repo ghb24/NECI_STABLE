@@ -896,8 +896,12 @@ MODULE FciMCParMod
                     call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
                                       FlagsCurr, fcimc_excit_gen_store)
             else                                      
-                call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
+                if(tFillingStochRDMonFly) then
+                    call extract_bit_rep_rdm (CurrentDets(:,j), DetCurr, SignCurr, FlagsCurr)
+                else
+                    call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
                                   FlagsCurr, fcimc_excit_gen_store)
+                endif
 
                 if (tTruncInitiator) call CalcParentFlag (j, VecSlot, &
                                                           parent_flags)
