@@ -97,7 +97,7 @@ module soft_exit
                          SumENum, SumNoatHF, &
                          AvAnnihil, VaryShiftCycles, SumDiagSft, &
                          VaryShiftIter, CurrentDets, iLutHF, HFDet, &
-                         TotWalkers,tPrintHighPop
+                         TotWalkers,tPrintHighPop, tSearchTau
     use CalcData, only: DiagSft, SftDamp, StepsSft, OccCASOrbs, VirtCASOrbs, &
                         tTruncCAS,  NEquilSteps, tTruncInitiator, &
                         InitiatorWalkNo, tCheckHighestPop, tRestartHighPop, &
@@ -428,6 +428,10 @@ contains
             if (opts_selected(tau)) then
                 call MPIBCast (tau_value, tSource)
                 write(6,*) 'TAU changed to: ', tau_value, 'on iteration: ', iter
+                if (tSearchTau) then
+                    write(6,*) "Ceasing the searching for tau."
+                    tSearchTau = .false.
+                endif
             endif
 
             if(opts_selected(targetgrowrate)) then

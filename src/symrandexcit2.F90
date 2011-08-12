@@ -466,10 +466,14 @@ MODULE GenRandSymExcitNUMod
                     EXIT
                 ENDIF
                 
-                IF(Attempts.gt.250) THEN
-                    WRITE(6,*) "Cannot find double excitation unoccupied orbital after 250 attempts..."
+                IF(Attempts.gt.1000) THEN
+                    WRITE(6,*) "Cannot find double excitation unoccupied orbital after 1000 attempts..."
                     WRITE(6,*) "This is a problem, since there should definitly be an allowed beta orbital once alpha is chosen..."
+                    write(6,*) "nI: "
                     call write_det (6, nI, .TRUE.)
+                    write(6,*) "iSpn: ",iSpn
+                    write(6,*) "ClassCountUnocc2: ",ClassCountUnocc2(:)
+                    write(6,*) "NExcit", NExcit
                     CALL Stop_All("PickBOrb","Cannot find double excitation unoccupied orbital after 250 attempts...")
                 ENDIF
                 Attempts=Attempts+1
@@ -2916,6 +2920,9 @@ SUBROUTINE SpinOrbSymSetup()
 
 !    WRITE(6,*) "SCRATCHSIZE: ",ScratchSize,tNoSymGenRandExcits,tUEG
 
+!    write(6,*) "SymClasses:"
+!    write(6,*) SymClasses(:)
+
     !Create SpinOrbSymLabel array.
     !This array will return a number between 0 and nSymLabels-1.
     !For molecular systems, this IS the character of the irrep
@@ -3215,9 +3222,9 @@ SUBROUTINE SpinOrbSymSetup()
             kTotal(1)=ktrial(1)
             kTotal(2)=ktrial(2)
         endif
+        write(6,*) "Total momentum is", kTotal
     ENDIF
 
-    write(6,*) "Total momentum is", kTotal
 
 END SUBROUTINE SpinOrbSymSetup
 

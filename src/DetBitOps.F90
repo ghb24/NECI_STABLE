@@ -164,7 +164,7 @@ module DetBitOps
 
     end function count_set_bits
 
-    integer function count_open_orbs (iLut)
+    pure integer function count_open_orbs (iLut)
         
         ! Returns the number of unpaired electrons in the determinant.
         !

@@ -1,6 +1,6 @@
       SUBROUTINE NECI_FRSBLKH(M,ICMAX,N,H,LAB,V0,VS,NKRY,NKRY1,
      &    NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT,SCR,ISCR,INDEX,
-     &    NCYCLE,B2LIMIT,PRINTOUT,TLargest,TSeeded)
+     &    NCYCLE,B2LIMIT,PRINTOUT,TLargest,TSeeded,tDie)
 !      IMPLICIT real(dp) (A-H,O-Z) 
       use constants, only: dp
       IMPLICIT NONE
@@ -11,9 +11,12 @@ C ==    N is NEVAL : the number of columns in the wavevector        ==
 C ==    PRINTOUT is a logical testing whether to print results      ==
 C ==    TSeeded if true, means that a seed for RAN2 has been set,   ==
 C ==    and shouldn't be reset.
+C ==    tDie indicates whether STOP should be called if it fails
+C ==    to diagonalise
 C ==----------------------------------------------------------------==
       
-      LOGICAL :: PRINTOUT,TLargest,TSeeded
+      LOGICAL :: PRINTOUT,TLargest,TSeeded,tDie2,tFail
+      LOGICAL :: tDie
       REAL(dp) :: V0(M,N),VS(M,N),A(N,N),W(N) 
       REAL(dp) :: V(M*NBLOCK*NKRY1)
       REAL(dp) :: AM(NBLOCK*NBLOCK*NKRY1),BM(NBLOCK*NBLOCK*NKRY)
@@ -23,13 +26,29 @@ C ==----------------------------------------------------------------==
       integer :: NCYCLE,NDIAG
       integer :: INDEX(N)
 C..temp
-      real(dp) :: H(M,ICMAX)
+      real(dp) :: H(M,ICMAX),ReturnNan
 C..temp
       integer :: LAB(M,ICMAX),NROW(M)
 C ==----------------------------------------------------------------==
+      tDie2 = tDie
+      ReturnNan=-1.D0
+      tFail=.false.
+
+      write(6,*) "Get Here 1"
+      call flush(6)
+
 C..Initialise V0 
       CALL NECI_SETUP_MATRIX(M,N,V0,.FALSE.,TSeeded)
-      CALL NECI_MGS(M,N,V0,M,A,N)
+      write(6,*) "Get Here 2"
+      call flush(6)
+      CALL NECI_MGS(M,N,V0,M,A,N,tDie2,tFail)
+      write(6,*) "Get Here 3"
+      call flush(6)
+      if(tFail) then
+          W(1) = sqrt(ReturnNan)
+          return
+      endif
+
 C..Calculate top 80% of N 
       NDIAG=N-INT(N*0.2) 
 C..
@@ -41,7 +60,11 @@ C..
 C ==----------------------------------------------------------------==
       CALL NECI_FRSBLK(M,N,NKRY,NBLOCK,V0,VS,A,V,AM,BM,T,W,WT,INDEX,
      &     SCR,LSCR,ISCR,LISCR,NDIAG,B2LIMIT,H,ICMAX,LAB,NROW,NCYCLE,
-     &     PRINTOUT,TLargest)
+     &     PRINTOUT,TLargest,tDie2,tFail)
+      if(tFail) then
+          W(1) = sqrt(ReturnNan)
+          return
+      endif
 C ==----------------------------------------------------------------==
 C..Uncomment to test to see if routine is working
 C..Exact eigenstates
@@ -68,12 +91,12 @@ C ==----------------------------------------------------------------==
 C ====================================================================
       SUBROUTINE NECI_FRSBLK(M,N,NKRY,NBLOCK,V0,VS,A,V,AM,BM,T,W,WT,
      &     INDEX,SCR,LSCR,ISCR,LISCR,NDIAG,B2LIMIT,H,ICMAX,LAB,NROW,
-     &     NCYCLE,PRINTOUT,TLargest)
+     &     NCYCLE,PRINTOUT,TLargest,tDie2,tFail)
       use constants, only: dp,sp
       use global_utilities
 !      IMPLICIT real(dp) (A-H,O-Z)
       IMPLICIT NONE
-      LOGICAL :: PRINTOUT,TLargest
+      LOGICAL :: PRINTOUT,TLargest,tDie2,tFail
       real(dp) :: V0(M,N),VS(M,N),A(N,N),W(N) 
       real(dp) :: V(M*NBLOCK*(NKRY+1))
       real(dp) :: AM(NBLOCK*NBLOCK*(NKRY+1)),BM(NBLOCK*NBLOCK*NKRY)
@@ -177,13 +200,17 @@ C ==------------------------------------------------------------------==
 C Preparation for refinement
 C ==------------------------------------------------------------------==
           CALL NECI_PRPKRV(M,NBLEFF,NKRY,NCONV,V0(1,1),V0(1,I),VS(1,I),
-     &         V,AM,BM,H,W(I),SCR,LSCR,NHPSI,LAB,NROW,TLargest)
+     &         V,AM,BM,H,W(I),SCR,LSCR,NHPSI,LAB,NROW,TLargest,tDie2,
+     &          tFail)
+          if(tFail) return
 
 C Refinement Loop
 C ==------------------------------------------------------------------==
           NBLK=NBLEFF*NKRY
           CALL NECI_KRYREF(M,NBLEFF,NKRY,NCONV,V0,V,AM,BM,T,NBLK*NBLK,
-     &      WT,NBLK,H,SCR,LSCR,ISCR,LISCR,NHPSI,LAB,NROW,TLargest)
+     &      WT,NBLK,H,SCR,LSCR,ISCR,LISCR,NHPSI,LAB,NROW,TLargest,tDie2,
+     &      tFail)
+          if(tFail) return
 C ==------------------------------------------------------------------==
 C..V=[V_1 V_2.. V_L] Y' 
           CALL DGEMM('N','N',M,NBLEFF,NBLK,1.D0,V,M,T,NBLK,0.D0,
@@ -193,7 +220,9 @@ C==  End of refinement over states                                    ==
 C==-------------------------------------------------------------------==
         ENDDO
 C..GS orthogonalisation on refined states
-        CALL NECI_MY_GSORTHO(M,V0,NCURR-1,V0(1,NCURR),NLEFT,A)
+        CALL NECI_MY_GSORTHO(M,V0,NCURR-1,V0(1,NCURR),NLEFT,A,tDie2,
+     &          tFail)
+        if(tFail) return
 C..HPSI: H V0. Enter only refined states 
         CALL MY_HPSI(M,NLEFT,NROW,LAB,H,
      &        V0(1,NCURR),VS(1,NCURR),TLargest)
@@ -226,7 +255,7 @@ C     ================================================================
       RETURN
       END 
 C ======================================================================
-      SUBROUTINE NECI_MGS(M,N,A,LDA,R,LDR)
+      SUBROUTINE NECI_MGS(M,N,A,LDA,R,LDR,tDie2,tFail)
 C     ==--------------------------------------------------------------==
       use global_utilities
       use constants, only : dp
@@ -234,11 +263,13 @@ C     ==--------------------------------------------------------------==
       IMPLICIT NONE
       real(dp) :: A(LDA,*),R(LDR,*)
       integer :: LDA,LDR,N,M,INFO
+      LOGICAL :: tDie2,tfail
       type(timer), save :: proc_timer
 C     ==================================================================
       proc_timer%timer_name='NECI_MGS'
       call set_timer(proc_timer)
-      CALL NECI_RGS(M,N,A,M,R)
+      CALL NECI_RGS(M,N,A,M,R,tDie2,tFail)
+      if(tFail) return
       CALL DTRTRI('U','N',N,R,N,INFO)
       call halt_timer(proc_timer)
       RETURN 
@@ -369,7 +400,8 @@ C ======================================================================
       END
 C ======================================================================
       SUBROUTINE NECI_KRYREF(M,N,NKRY,NCONV,V0,V,AM,BM,T,LDT,WT,
-     &       LDWT,H,SCR,LSCR,ISCR,LISCR,NHPSI,LAB,NROW,TLargest)
+     &       LDWT,H,SCR,LSCR,ISCR,LISCR,NHPSI,LAB,NROW,TLargest,tDie2
+     &       ,tFail)
 C     ==================================================================
       use global_utilities
       use constants, only: dp
@@ -379,7 +411,7 @@ C     ==================================================================
       real(dp) :: T(LDT),WT(LDWT),H(*),SCR(LSCR)
       integer :: LAB(M,*),NROW(M),ISCR(LISCR),LSCR,LDWT,LDT,NKRY,N,M
       integer :: LISCR,J,NCONV,NHPSI,I
-      LOGICAL :: TLargest
+      LOGICAL :: TLargest,tDie2,tFail
       type(timer), save :: proc_timer
 C     ==================================================================
       proc_timer%timer_name='    KRYREF'
@@ -388,7 +420,8 @@ C     ==================================================================
 C..V_I = V_I - V_(I-1) A_(I-1) 
         CALL NECI_RSDBLK('N',M,N,V(1,1,I-1),AM(1,1,I-1),V(1,1,I))
 C..V_I B_I = V_I
-        CALL NECI_MGS(M,N,V(1,1,I),M,BM(1,1,I),N)
+        CALL NECI_MGS(M,N,V(1,1,I),M,BM(1,1,I),N,tDie2,tFail)
+        if(tFail) return
 C..HPSI:  H V_I
         CALL MY_HPSI(M,N,NROW,LAB,H,V(1,1,I),V(1,1,I+1),TLargest)
 C        CALL NECI_HSPI(M,N,H,V(1,1,I),V(1,1,I+1))
@@ -445,7 +478,7 @@ C ===================================================================
       END
 C ==================================================================
       SUBROUTINE NECI_PRPKRV(M,N,NKRY,NCONV,VCONV,V0,VS,V,AM,BM,H,W,
-     &     SCR,LSCR,NHPSI,LAB,NROW,TLargest)
+     &     SCR,LSCR,NHPSI,LAB,NROW,TLargest,tDie2,tFail)
 C ==------------------------------------------------------------------==
 C == Returns A_1,A_2,B_2 and V in a form suitable for krylov          ==
 C == refinement                                                       ==
@@ -457,7 +490,7 @@ C ==------------------------------------------------------------------==
       real(dp) :: VCONV(M,*),V0(M,N),VS(M,N),V(M,N,NKRY+1)
       real(dp) :: AM(N,N,NKRY+1),BM(N,N,NKRY),W(N),H(*),SCR(LSCR)
       integer :: LAB(M,*),NROW(M),LSCR,M,N,I,NHPSI,NKRY,NCONV
-      LOGICAL :: TLargest
+      LOGICAL :: TLargest,tDie2,tFail
       type(timer), save :: proc_timer
 C ==------------------------------------------------------------------==
       proc_timer%timer_name='NECI_PRPKRV'
@@ -471,7 +504,8 @@ C..Compute residual
       ENDDO
 C..V2 B2=R  
       BM=0.d0
-      CALL NECI_MGS(M,N,V(1,1,2),M,BM(1,1,2),N)
+      CALL NECI_MGS(M,N,V(1,1,2),M,BM(1,1,2),N,tDie2,tFail)
+      if(tFail) return
 C..   Setup A_1=diag(w)
       AM(:,:,1)=0.d0
       DO I=1,N 
@@ -492,13 +526,14 @@ C ==------------------------------------------------------------------==
       RETURN
       END
 C     ==================================================================
-      SUBROUTINE NECI_MY_GSORTHO(M,C0,N0,CP,NP,SMAT)
+      SUBROUTINE NECI_MY_GSORTHO(M,C0,N0,CP,NP,SMAT,tDie2,tFail)
 C     ==--------------------------------------------------------------==
       use global_utilities
       use constants, only: dp
 !      IMPLICIT real(dp) (A-H,O-Z)
       IMPLICIT NONE
 C     Arguments
+      LOGICAL :: tDie2,tFail
       INTEGER    N0,NP,M
       real(dp)     C0(M,*),CP(M,*)
       real(dp)     SMAT(NP,*)             !MAX(N0,NP)
@@ -515,7 +550,7 @@ C..CP -> CP-C0*SMAT
         CALL DGEMM('N','T',M,NP,N0,-1.D0,C0,M,SMAT,NP,
      *             1.D0,CP,M)
       ENDIF
-      CALL NECI_MGS(M,NP,CP,M,SMAT,NP)
+      CALL NECI_MGS(M,NP,CP,M,SMAT,NP,tDie2,tFail)
       call halt_timer(proc_timer)
 C     ==--------------------------------------------------------------==
       RETURN
@@ -703,7 +738,7 @@ C..   V -> V-V0*SMAT
       RETURN 
       END 
 C     =================================================================
-      SUBROUTINE NECI_RGS(M,N,CP,LDCP,SMAT)
+      SUBROUTINE NECI_RGS(M,N,CP,LDCP,SMAT,tDie2,tFail)
 C     ==--------------------------------------------------------------==
 C     ==  GRAM-SCHMIDT ORTHOGONALIZATION                              ==
 C     ==--------------------------------------------------------------==
@@ -715,6 +750,7 @@ C     Arguments
       INTEGER    N,M,LDCP
       real(dp)     SMAT(N,N)
       real(dp)     CP(LDCP,N)
+      logical :: tDie2,tFail
 C     VARIABLES
       type(timer), save :: proc_timer
 C     ==--------------------------------------------------------------==
@@ -723,14 +759,15 @@ C     ==--------------------------------------------------------------==
       call set_timer(proc_timer)
       SMAT=0
       CALL DSYRK('U','T',N,M,1.D0,CP,M,0.D0,SMAT,N)
-      CALL NECI_UINV('U',SMAT,N,N)
+      CALL NECI_UINV('U',SMAT,N,N,tDie2,tFail)
+      if(tFail) return
       CALL DTRMM('R','U','N','N',M,N,1.D0,SMAT,N,CP,M)
       call halt_timer(proc_timer)
 C     ==--------------------------------------------------------------==
       RETURN
       END
 C     ==================================================================
-      SUBROUTINE NECI_UINV(UPLO,SMAT,LDA,N)
+      SUBROUTINE NECI_UINV(UPLO,SMAT,LDA,N,tDie2,tFail)
 C     ==--------------------------------------------------------------==
       use constants, only: dp,sp
       IMPLICIT NONE
@@ -740,14 +777,30 @@ C     ARGUMENTS
       real(dp)    SMAT(LDA,N)
 C     VARIABLES
       INTEGER(sp)   INFO
+      LOGICAL :: tDie2,tFail
 C     ==--------------------------------------------------------------==
       CALL DPOTRF(UPLO,N,SMAT,LDA,INFO)
       IF(INFO.NE.0) THEN
           WRITE(6,*) "INFO is : ", INFO
       ENDIF
-      IF(INFO.NE.0) CALL Stop_All('UINV','ILLEGAL RESULTS DGETRF')
+      IF(INFO.NE.0) THEN
+          if(tDie2) then
+              CALL Stop_All('UINV','ILLEGAL RESULTS DGETRF')
+          else
+              CALL Warning('UINV','ILLEGAL RESULTS DGETRF')
+              tFail=.true.
+              return
+          endif
+      endif
       CALL DTRTRI(UPLO,'N',N,SMAT,LDA,INFO)
-      IF(INFO.NE.0) CALL Stop_All('UINV','ILLEGAL RESULTS DTRTRI')
+      IF(INFO.NE.0) then
+          if(tDie2) then
+              CALL Stop_All('UINV','ILLEGAL RESULTS DTRTRI')
+          else
+              CALL Warning('UINV','ILLEGAL RESULTS DTRTRI')
+              tFail = .true.
+          endif
+      endif
 C     ==--------------------------------------------------------------==
       RETURN
       END
