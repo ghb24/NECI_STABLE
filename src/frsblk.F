@@ -787,7 +787,7 @@ C     ==--------------------------------------------------------------==
           if(tDie2) then
               CALL Stop_All('UINV','ILLEGAL RESULTS DGETRF')
           else
-              CALL Warning('UINV','ILLEGAL RESULTS DGETRF')
+              CALL Warning_neci('UINV','ILLEGAL RESULTS DGETRF')
               tFail=.true.
               return
           endif
@@ -797,7 +797,7 @@ C     ==--------------------------------------------------------------==
           if(tDie2) then
               CALL Stop_All('UINV','ILLEGAL RESULTS DTRTRI')
           else
-              CALL Warning('UINV','ILLEGAL RESULTS DTRTRI')
+              CALL Warning_neci('UINV','ILLEGAL RESULTS DTRTRI')
               tFail = .true.
           endif
       endif

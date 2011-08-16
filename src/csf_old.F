@@ -869,7 +869,8 @@ C.. Get the Hamiltonian Element between two CSFs
          type(timer), save :: proc_timer
          real(dp) COEFF1,COEFF2
          real(dp),allocatable :: COEFFLIST2(:)
-         integer(TagIntType),save :: tagLISTD1=0,tagLISTD2=0,tagDOLISTD1=0
+         integer(TagIntType),save :: tagLISTD1=0,tagLISTD2=0
+         integer(TagIntType),save :: tagDOLISTD1=0
          integer(TagIntType),save :: tagDOLISTD2=0,tagCOEFFLIST2=0
          character(*), parameter :: this_routine='CSFGETHELEMENT'
          

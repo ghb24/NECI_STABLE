@@ -3916,7 +3916,7 @@ MODULE FciMCParMod
         WRITE(6,"(A,I10)") "Symmetry of reference determinant from spin orbital symmetry info is: ",SymHF
         if(SymHF.ne.INT(HFSym%Sym%S,4)) then
             !When is this allowed to happen?! Comment!!
-            call warning(this_routine,"Inconsistency in the symmetry arrays. Beware.")
+            call warning_neci(this_routine,"Inconsistency in the symmetry arrays. Beware.")
         endif
         IF(tKPntSym) THEN
             CALL DecomposeAbelianSym(HFSym%Sym%S,KPnt)
@@ -4413,13 +4413,13 @@ MODULE FciMCParMod
 
         IF(TPopsFile) THEN
             IF(mod(iWritePopsEvery,StepsSft).ne.0) then
-                CALL Warning(this_routine,"POPSFILE writeout should be a multiple of the update cycle length.")
+                CALL Warning_neci(this_routine,"POPSFILE writeout should be a multiple of the update cycle length.")
             endif
         ENDIF
 
         if (TReadPops) then
             if (tStartSinglePart .and. .not. tReadPopsRestart) then
-                call warning(this_routine, &
+                call warning_neci(this_routine, &
                                "ReadPOPS cannot work with StartSinglePart: ignoring StartSinglePart")
                 tStartSinglePart = .false.
             end if
@@ -4496,7 +4496,7 @@ MODULE FciMCParMod
 
         if (tTruncNOpen) then
             write(6, '("Truncating determinant space at a maximum of ",i3," &
-			           &unpaired electrons.")') trunc_nopen_max
+                    &unpaired electrons.")') trunc_nopen_max
         endif
 
         SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.D0)
@@ -6956,7 +6956,7 @@ MODULE FciMCParMod
             nBlockStarts(1) = 1
             nBlockStarts(2) = DetLen+1
             nBlocks = 1
-            call HDIAG(DetLen,Hamil,Lab,nRow,CK,W,Work2,Work,nBlockStarts,nBlocks)
+            call HDIAG_neci(DetLen,Hamil,Lab,nRow,CK,W,Work2,Work,nBlockStarts,nBlocks)
             GroundE = W(1)
             deallocate(Work)
             call LogMemDealloc(t_r,WorkTag)

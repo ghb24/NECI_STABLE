@@ -7,8 +7,8 @@
       CALL NECI_ICOPY(N,LST1,1,LIST1,1)
       CALL NECI_ICOPY(N,LST2,1,LIST2,1)
 C..
-      CALL SCATTER(N,NBASIS,LIST1,L1E)
-      CALL SCATTER(N,NBASIS,LIST2,L2E)
+      CALL SCATTER_neci(N,NBASIS,LIST1,L1E)
+      CALL SCATTER_neci(N,NBASIS,LIST2,L2E)
       IC=0
       DO I=1,NBASIS
          LD(I)=L1E(I)-L2E(I)
@@ -100,7 +100,7 @@ C       WRITE(6,*) ' TOTAL SIGN CHANGE:',IPTOT
       RETURN
       END
 C==============================================================
-      SUBROUTINE SCATTER(N,NBASIS,LIST,LE)
+      SUBROUTINE SCATTER_neci(N,NBASIS,LIST,LE)
       DIMENSION LIST(N),LE(NBASIS)
       LE(1:NBASIS)=0
       DO I=1,N
