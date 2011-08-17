@@ -2572,7 +2572,7 @@ MODULE GenRandSymExcitNUMod
                 IF (IsMomentumAllowed(nJ)) THEN
                     excitcount=excitcount+1
                     CALL EncodeBitDet(nJ,iLutnJ)
-                    IF(iProcIndex.eq.0) WRITE(25,*) excitcount,iExcit,iLutnJ(0)
+!                    IF(iProcIndex.eq.0) WRITE(25,*) excitcount,iExcit,iLutnJ(0)
                 ENDIF
             ELSEIF(tFixLz) THEN
 
@@ -2580,18 +2580,18 @@ MODULE GenRandSymExcitNUMod
                 IF(Lz.eq.LzTot) THEN
                     excitcount=excitcount+1
                     CALL EncodeBitDet(nJ,iLutnJ)
-                    IF(iProcIndex.eq.0) WRITE(25,*) excitcount,iExcit,iLutnJ(0)
+!                    IF(iProcIndex.eq.0) WRITE(25,*) excitcount,iExcit,iLutnJ(0)
                 ENDIF
             ELSEIF(tKPntSym) THEN
                 IF(IsMomAllowedDet(nJ)) THEN
                     excitcount=excitcount+1
                     CALL EncodeBitDet(nJ,iLutnJ)
-                    IF(iProcIndex.eq.0) WRITE(25,*) excitcount,iExcit,nJ(:)
+!                    IF(iProcIndex.eq.0) WRITE(25,*) excitcount,iExcit,nJ(:)
                 ENDIF
             ELSE
                 excitcount=excitcount+1
                 CALL EncodeBitDet(nJ,iLutnJ)
-                IF(iProcIndex.eq.0) WRITE(25,*) excitcount,iExcit,iLutnJ(0)
+!                IF(iProcIndex.eq.0) WRITE(25,*) excitcount,iExcit,iLutnJ(0)
             ENDIF
         enddo lp2
         tNoBrillouin = brillouin_tmp(1)

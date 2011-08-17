@@ -537,7 +537,7 @@ CONTAINS
                CALL LogMemAlloc('WORK',4*NDET,8*HElement_t_size,this_routine,WorkTag,ierr)
                ALLOCATE(WORK2(3*NDET),stat=ierr)
                CALL LogMemAlloc('WORK2',3*NDET,8,this_routine,WORK2Tag,ierr)
-               CALL HDIAG(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,NBLOCKSTARTS,NBLOCKS)
+               CALL HDIAG_neci(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,NBLOCKSTARTS,NBLOCKS)
             ELSE
 !I_P we've replaced by 0
                CALL HDIAG_NH(NDET,NBLOCKSTARTS,NBLOCKS,NEL,NMRKS,NBASISMAX,NBASIS,G1,BRR, &

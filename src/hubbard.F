@@ -111,7 +111,7 @@ C         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
          LOGICAL TTILT,TREAL,TPBC
          real(dp) TOTSUM
          IF(iProcIndex.eq.0) OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
-         IF(TSTARSTORE) STOP 'Using TSTARSTORE with HUB??!'
+         IF(TSTARSTORE) STOP 'Using TSTARSTORE with HUB?!'
          CALL SetupTMAT(NBASIS,2,iSize)
          TOTSUM=0.D0
          LX=NBASISMAX(1,2)-NBASISMAX(1,1)

@@ -1,7 +1,7 @@
 
 
 !Diagonalize a compressed hamiltonian (in HAMIL), returning eigenvalues in W and eigenvectors in CK.
-       SUBROUTINE HDIAG(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,
+       SUBROUTINE HDIAG_neci(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,
      &                     NBLOCKSTARTS,NBLOCKS)
          use constants, only: dp!,n_int
          use SystemData, only: BasisFN
