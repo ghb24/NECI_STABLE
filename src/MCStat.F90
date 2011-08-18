@@ -653,7 +653,7 @@ MODULE MCStat
          SUBROUTINE WriteLongStats(M,iUnit,OW,OE,Time)
             INTEGER iUnit
             TYPE(MCStats) M
-            CHARACTER*20 STR2
+            CHARACTER(len=20) STR2
             INTEGER I,J
             real(dp) OW,OE,iC
             real(dp) Time,fAveSeqLen
@@ -685,7 +685,7 @@ MODULE MCStat
          SUBROUTINE WriteLongStats2(M,iUnit,OW,Time)
             INTEGER iUnit
             TYPE(MCStats) M
-            CHARACTER*20 STR2
+            CHARACTER(len=20) STR2
             INTEGER I,J
             real(dp) OW,iC,wAvgWeighting,wAvgWeightedValue,wAvgDelta
             real(dp) Time,fAveSeqLen
@@ -714,9 +714,9 @@ MODULE MCStat
             WRITE(iUnit,*) "Seq Len: ",fAveSeqLen,"+-",SQRT((M%fSeqLenSq/M%nSeqs)-fAveSeqLen**2)
          END subroutine
          SUBROUTINE AddWS(w,wSq,iV,nTimes,wV)
+            INTEGER iV
             real(dp) :: w(0:iV),wSq(0:iV)
             real(dp) wV,t
-            INTEGER iV
             integer(int64) nTimes
             t=nTimes+0.D0
             t=t*wV
@@ -727,9 +727,9 @@ MODULE MCStat
             wSq(iV)=wSq(iV)+t
          END subroutine
          SUBROUTINE AddW(w,iV,nTimes,wV)
+            INTEGER iV
             real(dp) :: w(0:iV)
             real(dp) wV,t
-            INTEGER iV
             integer(int64) nTimes
             t=nTimes+0.D0
             t=t*wV
@@ -737,8 +737,8 @@ MODULE MCStat
             w(iV)=w(iV)+t
          END subroutine
          SUBROUTINE AddN(n,iV,nV)
-            integer(int64) :: n(0:iV),nV
             INTEGER iV
+            integer(int64) :: n(0:iV),nV
             n(0)=n(0)+nV
             n(iV)=n(iV)+nV
          END subroutine

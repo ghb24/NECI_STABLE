@@ -97,7 +97,7 @@ implicit none
 character(*), intent(in), optional :: msg
 
 if (present(msg)) then
-    write (6,'(X,a)') adjustl(msg)
+    write (6,'(1X,a)') adjustl(msg)
     CALL FLUSH(6)
 end if
 
