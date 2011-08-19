@@ -1819,11 +1819,12 @@ MODULE nElRDMMod
                 do i=1,nBasis
                     WRITE(6,'(F30.20)') Evalues(i)
                     if(Evalues(i).gt.0.D0) &
-                        Corr_Entropy = Corr_Entropy - ( (1.D0 / NEl) * abs(Evalues(i)) &
-                                                                * LOG(abs(Evalues(i))) )
+                        Corr_Entropy = Corr_Entropy - ( abs(Evalues(i)) &
+                                                        * LOG(abs(Evalues(i))) )
                 enddo
                 WRITE(6,*) ''
                 WRITE(6,'(A20,F30.20)') ' CORRELATION ENTROPY', Corr_Entropy
+                WRITE(6,'(A20,F30.20)') ' CORRELATION ENTROPY PER ELECTRON', Corr_Entropy / real(NEl,dp) 
                 WRITE(6,*) ''
 
                 IF(.not.tNoRODump) THEN
