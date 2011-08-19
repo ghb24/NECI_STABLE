@@ -42,7 +42,7 @@ MODULE nElRDMMod
         USE SystemData , only : tUseMP2VarDenMat, Ecore, LMS, tHPHF
         USE NatOrbsMod , only : NatOrbMat,NatOrbMatTag,Evalues,EvaluesTag
         USE CalcData , only : MemoryFacPart
-        USE constants , only : n_int, dp, Root2
+        USE constants , only : n_int, dp, Root2, sizeof_int
         USE OneEInts , only : TMAT2D
         USE FciMCData , only : MaxWalkersPart, MaxSpawned, Spawned_Parents, PreviousCycles,&
                                Spawned_Parents_Index, Spawned_ParentsTag, AccumRDMNorm_Inst,&
@@ -3700,7 +3700,7 @@ MODULE nElRDMMod
 
             ALLOCATE(AllCurrentDets(0:NIfTot,AllTotWalkers_local),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating AllCurrentDets array,')
-            CALL LogMemAlloc('AllCurrentDets',AllTotWalkers_local*(NIfTot+1),size_n_int,&
+            CALL LogMemAlloc('AllCurrentDets',int(AllTotWalkers_local*(NIfTot+1),sizeof_int),size_n_int,&
                                 'Test_Energy_Calc',AllCurrentDetsTag,ierr)
             AllCurrentDets(0:NIfTot,1:AllTotWalkers_local)=0
         ENDIF
