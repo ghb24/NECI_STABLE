@@ -366,7 +366,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,
    use BinSearch, only: BinarySearch
    use dSFMT_interface , only : genrand_real2_dSFMT
    use timing
-   use Parallel, only : nProcessors
+   use Parallel, only : nProcessors,nNodes
    use FciMCParMod, only: iLutHF
    use bit_rep_data
    use bit_reps, only: set_flag, clr_flag 
@@ -548,11 +548,11 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,
 !*dCumlFactor
             else
    !ClusterProb is used for DEATH
-               CS%%C%%dClusterProb=CS%%C%%dClusterProb*i*abs(dCurAmpl)/dTotAbsAmpl  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
+               CS%%C%%dClusterProb=(CS%%C%%dClusterProb/nNodes)*i*abs(dCurAmpl)/dTotLocAbsAmpl  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
    ! This is the probability that this cluster was chosen (in any order), given (i.e. irrespective of)
    !  the number of selections and the level choice
    !ClusterNorm is used for BIRTH
-               CS%%C%%dClusterNorm=CS%%C%%dClusterNorm*i*abs(dCurAmpl)/dTotAbsAmpl
+               CS%%C%%dClusterNorm=(CS%%C%%dClusterNorm/nNodes)*i*abs(dCurAmpl)/dTotLocAbsAmpl
             endif
 
          enddo

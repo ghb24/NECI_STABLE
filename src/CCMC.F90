@@ -2035,6 +2035,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
       dNorm=AL%Amplitude(iRefPos,iCurAmpList)
       call CalcTotals(iNumExcitors,dTotAbsAmpl,dNorm, AL,iCurAmpList,nAmpl,dTolerance*dInitAmplitude,WalkerScale, &
         iRefPos,iOldTotParts,iDebug)
+!iNumExcitors is the number of excitors on this node
       if(tExactEnergy) then
          CALL CalcClusterEnergy(tCCMCFCI,AL,iCurAmpList,nAmpl,FciDets,FCIDetIndex,iRefPos,dNorm, iDebug,dProjE)
       else
@@ -2044,7 +2045,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
 
 
       IFDEBUG(iDebug,2) THEN
-         WRITE(6,*) "Total non-zero excitors: ",iNumExcitors
+         WRITE(6,*) "Total non-zero excitors on Node: ",iNumExcitors
          WRITE(6,"(A,G30.22)") "Total abs Amplitudes: ",dTotAbsAmpl
          WRITE(6,*) "Projected Energy: ",dProjE
       endif 
