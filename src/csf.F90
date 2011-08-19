@@ -1153,7 +1153,8 @@ contains
         if (det .eq. 1) then
             csf_alpha_beta = ior(csf_alpha_beta, 1)
         else
-            csf_alpha_beta = iand(csf_alpha_beta,Z'fffffffe')
+!            csf_alpha_beta = iand(csf_alpha_beta,Z'fffffffe')
+            csf_alpha_beta = iand(csf_alpha_beta,-2)
         endif
         csf_alpha_beta = csf_alpha_beta + 1
     end function
