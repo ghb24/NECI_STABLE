@@ -2,7 +2,7 @@
 
 module hilbert_space_size
 
-use constants, only: dp,int64,n_int,bits_n_int
+use constants, only: dp,int64,n_int,bits_n_int,sizeof_int
 implicit none
 
 contains
@@ -46,7 +46,7 @@ contains
          ExcitBinAll(:)=0
 
          do i=1,NEl
-            FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,4))
+            FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,sizeof_int))
             IF(tFixLz) FDetMom=FDetMom+G1(FDet(i))%Ml
          enddo
          CALL EncodeBitDet(FDet,FDetiLut)
@@ -103,7 +103,7 @@ contains
 !Add to correct bin for the excitation level
              ExcitBin(ExcitLev)=ExcitBin(ExcitLev)+1
              
-             IF(mod(i,int(CalcDetPrint,4)).eq.0) THEN
+             IF(mod(i,int(CalcDetPrint,sizeof_int)).eq.0) THEN
                  !Write out statistics
                  call MPIReduce(Accept,MPI_SUM,AcceptAll)
                  call MPIReduce(TotalAttempts,MPI_SUM,TotalAttemptsAll)
@@ -245,7 +245,7 @@ contains
                         clr_orb(iLut,Orb)   !Clear orbital to indicate it is gone. 
                         tNotAllowed=.false.
                         !Deal with totting up the symmetry for the now unocc orbital
-                        TotalSym=IEOR(TotalSym,INT((G1(Orb)%Sym%S),4))
+                        TotalSym=IEOR(TotalSym,INT((G1(Orb)%Sym%S),sizeof_int))
                         TotalMom=TotalMom+G1(Orb)%Ml
                         TotalMs=TotalMs+G1(Orb)%Ms
                         IF(tUEG.or.tHub) THEN
@@ -270,7 +270,7 @@ contains
                          tNotAllowed=.false.
                          if(IsNotOcc(FDetiLut,Hole)) ExcitLev=ExcitLev+1    !Increase excitation level
                          !Deal with totting up the symmetry for the now occ orbital
-                         TotalSym=IEOR(TotalSym,INT((G1(Hole)%Sym%S),4))
+                         TotalSym=IEOR(TotalSym,INT((G1(Hole)%Sym%S),sizeof_int))
                          TotalMom=TotalMom-G1(Hole)%Ml
                          TotalMs=TotalMs-G1(Hole)%Ms
                          if(tUEG.or.tHub) then
@@ -355,7 +355,7 @@ contains
                 Momy=Momy+G1(i)%k(2)
                 Momz=Momz+G1(i)%k(3)
             else
-                FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,4))
+                FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,sizeof_int))
             ENDIF
          enddo
 
@@ -445,7 +445,7 @@ contains
                  elseif(tKPntSym) then
                      KPntMom=Symprod(KPntMom,G1(alpha)%Sym)
                  else
-                     TotalSym=IEOR(TotalSym,INT((G1(alpha)%Sym%S),4))
+                     TotalSym=IEOR(TotalSym,INT((G1(alpha)%Sym%S),sizeof_int))
                  ENDIF
                  IF(.not.BTEST(FDetiLut((alpha-1)/bits_n_int),mod((alpha-1),bits_n_int))) THEN
                      !orbital chosen is *not* in the reference determinant
@@ -485,7 +485,7 @@ contains
                  elseif(tKPntSym) then
                      KPntMom=Symprod(KPntMom,G1(beta)%Sym)
                  ELSE
-                     TotalSym=IEOR(TotalSym,INT((G1(beta)%Sym%S),4))
+                     TotalSym=IEOR(TotalSym,INT((G1(beta)%Sym%S),sizeof_int))
                  ENDIF
             IF(.not.BTEST(FDetiLut((beta-1)/bits_n_int),mod((beta-1),bits_n_int))) THEN
                      !orbital chosen is *not* in the reference determinant
@@ -699,7 +699,7 @@ contains
          WRITE(IUNIT,*) "Calculating exact size of symmetry-allowed determinant space..."
          FDetSym=0
          do i=1,NEl
-            FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,4))
+            FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,sizeof_int))
          enddo
          WRITE(6,*) "Symmetry of HF determinant is: ",FDetSym
          CALL FLUSH(IUNIT)
@@ -707,12 +707,12 @@ contains
 !First, we need to find the number of spatial orbitals in each symmetry irrep.
          do i=1,nBasis,1
              IF(G1(i)%Ms.eq.1) THEN
-                 ClassCounts(1,INT(G1(i)%Sym%S,4))=                     &
-                    ClassCounts(1,INT(G1(i)%Sym%S,4))+1
+                 ClassCounts(1,INT(G1(i)%Sym%S,sizeof_int))=                     &
+                    ClassCounts(1,INT(G1(i)%Sym%S,sizeof_int))+1
              ELSE
 
-                 ClassCounts(2,INT(G1(i)%Sym%S,4))=                     &
-                    ClassCounts(2,INT(G1(i)%Sym%S,4))+1
+                 ClassCounts(2,INT(G1(i)%Sym%S,sizeof_int))=                     &
+                    ClassCounts(2,INT(G1(i)%Sym%S,sizeof_int))+1
              ENDIF
          enddo
          do i=0,7
@@ -894,7 +894,7 @@ contains
              //"determinant space..."
          FDetSym=0
          do i=1,NEl
-            FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,4))
+            FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,sizeof_int))
          enddo
          WRITE(6,*) "Symmetry of HF determinant is: ",FDetSym
          CALL FLUSH(IUNIT)
@@ -903,13 +903,13 @@ contains
 !First, we need to find the number of spatial orbitals in each symmetry irrep.
 !We need to separate this into occupied and virtual. 
          do i=1,NEl,1
-             ClassCountsOcc(INT(G1(BRR(i))%Sym%S,4))=                   &
-                 ClassCountsOcc(INT(G1(BRR(i))%Sym%S,4))+1
+             ClassCountsOcc(INT(G1(BRR(i))%Sym%S,sizeof_int))=                   &
+                 ClassCountsOcc(INT(G1(BRR(i))%Sym%S,sizeof_int))+1
          enddo
  
          do i=NEL+1,nBasis,1
-             ClassCountsVirt(INT(G1(BRR(i))%Sym%S,4))=                  &
-                 ClassCountsVirt(INT(G1(BRR(i))%Sym%S,4))+1
+             ClassCountsVirt(INT(G1(BRR(i))%Sym%S,sizeof_int))=                  &
+                 ClassCountsVirt(INT(G1(BRR(i))%Sym%S,sizeof_int))+1
          enddo
 
 !These are still in spin orbitals, so check there are multiple of 2 values in 

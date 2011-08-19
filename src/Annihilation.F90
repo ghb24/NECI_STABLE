@@ -1065,8 +1065,8 @@ MODULE AnnihilationMod
     END FUNCTION CreateHash
 
     SUBROUTINE LinSearchParts(DetArray,iLut,MinInd,MaxInd,PartInd,tSuccess)
-        INTEGER(KIND=n_int) :: iLut(0:NIfTot),DetArray(0:NIfTot,1:MaxInd)
         INTEGER :: MinInd,MaxInd,PartInd
+        INTEGER(KIND=n_int) :: iLut(0:NIfTot),DetArray(0:NIfTot,1:MaxInd)
         INTEGER :: N,Comp
         LOGICAL :: tSuccess
 

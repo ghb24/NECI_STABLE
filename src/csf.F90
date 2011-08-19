@@ -914,8 +914,8 @@ contains
     ! TODO: comment
 
         use constants, only: bits_n_int
-        integer, intent(in) :: det(nopen), perm(2)
         integer, intent(in) :: ndets, nopen, deti
+        integer, intent(in) :: det(nopen), perm(2)
         integer, intent(in) :: det_sum(ndets)
         integer :: pos
 

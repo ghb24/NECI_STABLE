@@ -141,7 +141,8 @@ MODULE UMatCache
       ! orbital corresponds to the i-th orbital in the original basis.
         use global_utilities
         IMPLICIT NONE
-        INTEGER BRR2(NBASIS),NBASIS,ierr,I,t
+        INTEGER NBASIS
+        INTEGER BRR2(NBASIS),ierr,I,t
         character(*), parameter :: t_r='CreateInvBRR2'
 
 !        WRITE(6,*) "================================"
@@ -174,7 +175,8 @@ MODULE UMatCache
       ! orbital corresponds to the i-th orbital in the original basis.
         use global_utilities
         IMPLICIT NONE
-        INTEGER BRR(NBASIS),NBASIS,ierr,I,t
+        INTEGER NBASIS
+        INTEGER BRR(NBASIS),ierr,I,t
         character(*), parameter :: t_r='CreateInvBRR'
 
         IF(ASSOCIATED(INVBRR)) THEN
@@ -1070,7 +1072,7 @@ MODULE UMatCache
           use SystemData, only : UMatEps,tROHF
           use constants, only: dp
           IMPLICIT NONE
-          INTEGER :: I,J,K,L,MaxSlots(1:nPairs2),A,B,C,D,X,Y,nPairs2
+          INTEGER :: I,J,K,L,nPairs2,MaxSlots(1:nPairs2),A,B,C,D,X,Y
           HElement_t :: Z
           
 !The (ii|jj) and (ij|ij) integrals are not stored in the cache (they are stored in UMAT2D, so 
