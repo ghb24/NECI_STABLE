@@ -88,7 +88,7 @@ MODULE FciMCParMod
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
     use MI_integrals
     use util_mod, only: choose, abs_int_sign, abs_int8_sign, binary_search
-    use constants, only: dp, int64, n_int, lenof_sign
+    use constants, only: dp, int64, n_int, lenof_sign, sizeof_int
     use soft_exit, only: ChangeVars 
     use FciMCLoggingMod, only: FinaliseBlocking, FinaliseShiftBlocking, &
                                PrintShiftBlocking, PrintBlocking, &
