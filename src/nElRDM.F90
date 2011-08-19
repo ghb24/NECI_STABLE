@@ -3984,67 +3984,6 @@ MODULE nElRDMMod
 
     END SUBROUTINE Test_Energy_Calc
 
-    
-! =============================== OLD ROUTINES =============================================    
-
-    SUBROUTINE NormandDiagRDM()
-!This routine takes the OneRDM with non-normalised off-diagonal elements, adds the diagonal 
-!elements from the HF determinant and normalises it according to the number of walkers on 
-!the HF determinant.
-!It then diagonalises the 1-RDM to find linear combinations of the HF orbitals that are closer 
-!to the natural orbitals, and the occupation numbers of these new orbitals (e-values).
-        USE NatOrbsMod , only : FindNatOrbsOld
-        IMPLICIT NONE
-        INTEGER :: i,j,error,ierr
-        REAL(dp) :: TempSumNoatHF
-        REAL(dp) , ALLOCATABLE :: TempRDM(:,:)
-        INTEGER :: SumNoatHF,AllSumNoatHF,RDM(100,100),HFDet(10)
-        CHARACTER(len=*), PARAMETER :: this_routine='NormandDiagRDM'
-
-        TempSumNoatHF=real(SumNoatHF)
-!Sum TempSumNoatHF over all processors and then send to all processes
-        CALL MPI_AllReduce(TempSumNoatHF,AllSumNoatHF,1,MPI_DOUBLE_PRECISION,&
-                                                    MPI_SUM,MPI_COMM_WORLD,error)
-        ALLOCATE(TempRDM(nBasis,nBasis),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating TempRDM array,')
-
-        CALL MPI_AllReduce(RDM(:,:),TempRDM(:,:),nBasis*nBasis,MPI_DOUBLE_PRECISION,&
-                                                        MPI_SUM,MPI_COMM_WORLD,error)
-        RDM(:,:)=TempRDM(:,:)
-        DEALLOCATE(TempRDM)
-        
-!Normalise the off-diag OneRDM elements using the number of walkers on the HF determinant
-        do i=1,nBasis
-            do j=i+1,nBasis
-                RDM(i,j)=RDM(i,j)/AllSumNoatHF
-                RDM(j,i)=RDM(i,j)
-            enddo
-        enddo
-!Using the decoded version of the HF determinant, place values of 1.D0 in the 
-!diagonal elements of the 1-RDM corresponding to the occupied orbitals.
-        do i=1,NEl
-            RDM(HFDet(i),HFDet(i))=1.D0
-        enddo
-    
-        CALL FindNatOrbsOld()           !Diagonalise the 1-RDM
-
-    END SUBROUTINE NormandDiagRDM
-
-!          IF(tConstructNOs) THEN
-
-!!Fill the 1-RDM to find natural orbital on-the-fly.
-!!Find the orbitals that are involved in the excitation (those that differ in occupation 
-!!to the ref orbital).
-!                CALL FindSingleOrbs(iLutHF,iLutCurr,NIfD,Orbs)
-!!Add 1.D0 (or -1.D0) to the off-diagonal element connecting the relevent orbitals.
-!                IF(Iter.gt.NEquilSteps) THEN
-!                    OneRDM(Orbs(1),Orbs(2))=OneRDM(Orbs(1),Orbs(2))+REAL(WSign,dp)
-!                    OneRDM(Orbs(2),Orbs(1))=OneRDM(Orbs(1),Orbs(2))
-!                ENDIF
-!!At the end of all iterations, this OneRDM will contain only the unnormalised 
-!!off-diagonal elements.
-!          ENDIF
- 
 END MODULE nElRDMMod
 
 
