@@ -23,7 +23,7 @@ contains
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,       &
      &               WLRI,WLSI,DBETA,DLWDB)
          Use Determinants, only: get_helement, write_det
-         use constants, only: dp
+         use constants, only: dp,sp
          use SystemData, only: BasisFN
          USE STARDIAGMOD , only: fMCPR3StarNewExcit
          USE GraphMorph , only : MorphGraph
@@ -54,14 +54,14 @@ contains
          INTEGER I_P,I_HMAX,BRR(*),NMSH,NMAX
          INTEGER NTAY(2),NWHTAY(3,I_VMAX),ILOGGING,I,I_V
          INTEGER L,LT,J
-         real*4 otime,itime,etime,tarr(2)
+         real(sp) otime,itime,etime,tarr(2)
          real(dp) BETA,ECORE
          real(dp) WLRI,WLSI
          HElement_t UMat(*),RH
          real(dp) NTOTAL
 
          real(dp) F(2:I_VMAX)
-         CHARACTER*40 STR
+         CHARACTER(40) STR
          real(dp) TOTAL,RHOII(0:I_VMAX)
          HElement_t RHOIJ(0:I_VMAX,0:I_VMAX)
          real(dp) ALAT(3),RHOEPS
@@ -408,7 +408,7 @@ contains
      &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,           &
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,            &
      &               WLRI,WLSI,DBETA,DLWDB)
-         use constants, only: dp
+         use constants, only: dp,sp
          use SystemData, only: BasisFN
          Use Determinants, only: get_helement, write_det
          USE STARDIAGMOD , only : fMCPR3StarNewExcit
@@ -437,10 +437,10 @@ contains
          type(timer), save :: proc_timer,proc_timer2
          INTEGER L,LT,ITIME
          real(dp) BETA,ECORE
-         real*4 etime,tarr(2)
+         real(sp) etime,tarr(2)
          real(dp) WLRI,WLSI
          real(dp) F(2:I_VMAX)
-         CHARACTER*40 STR
+         CHARACTER(40) STR
          HElement_t RHOIJ(0:I_VMAX,0:I_VMAX)
          real(dp) RHOII(0:I_VMAX),TOTAL
          real(dp) ALAT(3),RHOEPS
@@ -1540,7 +1540,7 @@ end module mcpaths
       SUBROUTINE WRITEPATH(NUNIT,IPATH,I_V,NEL,LTERM)
          use Determinants, only: write_det
          IMPLICIT NONE
-         INTEGER NUNIT,IPATH(NEL,0:I_V),I_V,NEL
+         INTEGER NUNIT,I_V,NEL,IPATH(NEL,0:I_V)
          LOGICAL LTERM
          INTEGER J
          
@@ -1556,7 +1556,8 @@ end module mcpaths
 
       SUBROUTINE WRITEPATHEX(NUNIT,IPATH,I_V,NEL,LTERM)
          IMPLICIT NONE
-         INTEGER NUNIT,IPATH(NEL,0:I_V),I_V,NEL
+         INTEGER I_V,NEL
+         INTEGER NUNIT,IPATH(NEL,0:I_V)
          LOGICAL LTERM,T
          INTEGER J,K,EX(2,2)
 !C.. First determine the excitation
@@ -1605,10 +1606,10 @@ end module mcpaths
          RETURN
       END
       SUBROUTINE ELIMDUPS(LSTE,I_V,NEL,NLIST,NLISTMAX,NI)
+         INTEGER I_V,I,J,IND,NMAX,IC,NMAX2,K
          INTEGER NEL,NLISTMAX
          INTEGER LSTE(1:NEL,0:NLISTMAX,0:I_V)
          INTEGER NLIST(0:I_V),NI(1:NEL)
-         INTEGER I_V,I,J,IND,NMAX,IC,NMAX2,K
 !C.. First we check none of our list are NI
          NMAX=NLIST(I_V)
          J=1
@@ -1666,7 +1667,7 @@ end module mcpaths
          use constants, only: dp
          IMPLICIT NONE
          INTEGER iV,i1,i2,i3
-         CHARACTER*1 c
+         CHARACTER(1) c
          real(dp) r1,r2,r3,r4
          real(dp) wWeight,wETilde
          

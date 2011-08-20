@@ -3,7 +3,7 @@
 !Diagonalize a compressed hamiltonian (in HAMIL), returning eigenvalues in W and eigenvectors in CK.
        SUBROUTINE HDIAG_neci(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,
      &                     NBLOCKSTARTS,NBLOCKS)
-         use constants, only: dp!,n_int
+         use constants, only: dp,int32!,n_int
          use SystemData, only: BasisFN
          use global_utilities
          use HElem, only: HElement_t_size
@@ -21,7 +21,7 @@
 !         HElement_t CopyCK(NDET,NDET)
          real(dp) W(NDET)
          INTEGER I,J,IND,INDZ,NBS!,nopen,k,Excit
-         INTEGER*4 INFO
+         INTEGER(int32) INFO
          INTEGER NBLOCKS,NBLOCKSTARTS(NBLOCKS+1)
          type(timer), save :: proc_timer
          real(dp) GSEN
@@ -275,14 +275,14 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          use global_utilities
          use Determinants, only: get_helement
          use sym_mod
-         use constants, only: dp
+         use constants, only: dp,int32
          use MemoryManager, only: TagIntType
          IMPLICIT NONE
          INTEGER NDET,NEL,NBLOCKS,NBLOCKSTARTS(NBLOCKS),NMRKS(NEL,NDET)
          INTEGER nBasisMax(5,*),NBASIS
          TYPE(BasisFN) G1(*)
          INTEGER I_P,BRR(*)
-         INTEGER*4 INFO
+         INTEGER(int32) INFO
          real(dp)  BETA
          LOGICAL TWARN
          real(dp)  DNORM

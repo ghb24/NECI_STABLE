@@ -88,7 +88,7 @@ MODULE FciMCParMod
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
     use MI_integrals
     use util_mod, only: choose, abs_int_sign, abs_int8_sign, binary_search
-    use constants, only: dp, int64, n_int, lenof_sign
+    use constants, only: dp, int64, n_int, lenof_sign, sizeof_int
     use soft_exit, only: ChangeVars 
     use FciMCLoggingMod, only: FinaliseBlocking, FinaliseShiftBlocking, &
                                PrintShiftBlocking, PrintBlocking, &
@@ -3418,7 +3418,7 @@ MODULE FciMCParMod
                        &Proj.E.ThisCyc(Im)   NoatHF(Re)   NoatHF(Im)   &
                        &NoatDoubs      AccRat     UniqueDets     IterTime"
             endif
-            write(fcimcstats_unit, "(a,i4,a,l,a,l,a,l)") &
+            write(fcimcstats_unit, "(a,i4,a,l1,a,l1,a,l1)") &
                    "# FCIMCStats VERSION 2 - COMPLEX : NEl=", nel, &
                    " HPHF=", tHPHF, ' Lz=', tFixLz, &
                    ' Initiator=', tTruncInitiator
@@ -3441,7 +3441,7 @@ MODULE FciMCParMod
                       &NoBorn    Proj.E          Av.Shift     Proj.E.ThisCyc   &
                       &NoatHF NoatDoubs      AccRat     UniqueDets     IterTime"
             endif
-            write(fcimcstats_unit, "(a,i4,a,l,a,l,a,l)") &
+            write(fcimcstats_unit, "(a,i4,a,l1,a,l1,a,l1)") &
                   "# FCIMCStats VERSION 2 - REAL : NEl=", nel, &
                   " HPHF=", tHPHF, ' Lz=', tFixLz, &
                   ' Initiator=', tTruncInitiator
@@ -3863,8 +3863,8 @@ MODULE FciMCParMod
 
                     Beta=(2*SymLabelList(j))-1
                     Alpha=(2*SymLabelList(j))
-                    SymAlpha=INT((G1(Alpha)%Sym%S),4)
-                    SymBeta=INT((G1(Beta)%Sym%S),4)
+                    SymAlpha=INT((G1(Alpha)%Sym%S),sizeof_int)
+                    SymBeta=INT((G1(Beta)%Sym%S),sizeof_int)
 !                    WRITE(6,*) "***",Alpha,Beta
 
                     IF(.not.tFoundOrbs(Beta)) THEN
@@ -3908,13 +3908,13 @@ MODULE FciMCParMod
 
         CALL GetSym(HFDet,NEl,G1,NBasisMax,HFSym)
         
-        WRITE(6,"(A,I10)") "Symmetry of reference determinant is: ",INT(HFSym%Sym%S,4)
+        WRITE(6,"(A,I10)") "Symmetry of reference determinant is: ",INT(HFSym%Sym%S,sizeof_int)
         SymHF=0
         do i=1,NEl
-            SymHF=IEOR(SymHF,INT(G1(HFDet(i))%Sym%S,4))
+            SymHF=IEOR(SymHF,INT(G1(HFDet(i))%Sym%S,sizeof_int))
         enddo
         WRITE(6,"(A,I10)") "Symmetry of reference determinant from spin orbital symmetry info is: ",SymHF
-        if(SymHF.ne.INT(HFSym%Sym%S,4)) then
+        if(SymHF.ne.INT(HFSym%Sym%S,sizeof_int)) then
             !When is this allowed to happen?! Comment!!
             call warning_neci(this_routine,"Inconsistency in the symmetry arrays. Beware.")
         endif
