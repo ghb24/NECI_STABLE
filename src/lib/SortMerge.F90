@@ -27,8 +27,8 @@
         USE HElem
         use constants, only: dp,n_int
         IMPLICIT NONE
-        INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
         INTEGER :: nlisto,nlist1,nlist2,i
+        INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
         INTEGER :: ips
         HElement_t :: HDiagTemp
         real(dp) :: HDiag
@@ -94,8 +94,8 @@
         USE HElem
         use constants, only : n_int
         IMPLICIT NONE
-        INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
         INTEGER :: nlisto,nlist1,nlist2,i
+        INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
         INTEGER :: ips
         INTEGER :: j
 !        LOGICAL :: tbin
@@ -251,8 +251,8 @@
         use DetBitOps, only: DetBitLT
         use constants, only: n_int
         IMPLICIT NONE
-        INTEGER(KIND=n_int) :: DetCurr(0:NIfTot),list(0:NIfTot,n)
         INTEGER :: nlo,nup,i,ipos,ncurr,CompPart,n
+        INTEGER(KIND=n_int) :: DetCurr(0:NIfTot),list(0:NIfTot,n)
 !        logical :: tbin
 !        if(.not.tbin) goto 200
 !.......................................................................

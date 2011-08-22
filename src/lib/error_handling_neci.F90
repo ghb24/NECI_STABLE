@@ -64,7 +64,7 @@ end subroutine stop_all
 
 
 
-subroutine warning(sub_name,error_msg)
+subroutine warning_neci(sub_name,error_msg)
 != Print a warning message in a (helpfully consistent) format.
 != I was bored of typing the same formatting in different places. ;-)
 !=
@@ -79,7 +79,7 @@ write (6,'(/a)') 'WARNING.  Error in '//adjustl(sub_name)
 write (6,'(a/)') adjustl(error_msg)
 
 return
-end subroutine warning
+end subroutine warning_neci
 
 
 
@@ -97,7 +97,7 @@ implicit none
 character(*), intent(in), optional :: msg
 
 if (present(msg)) then
-    write (6,'(X,a)') adjustl(msg)
+    write (6,'(1X,a)') adjustl(msg)
     CALL FLUSH(6)
 end if
 

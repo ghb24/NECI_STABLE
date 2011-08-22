@@ -1325,8 +1325,8 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
    use constants, only: dp
    IMPLICIT NONE
    LOGICAL tFCI
-   real(dp) Amplitude(nExcit)
    INTEGER nExcit
+   real(dp) Amplitude(nExcit)
    INTEGER(KIND=n_int) ExcitList(0:nIfTot,nExcit)
    INTEGER ExcitLevelIndex(0:nEl+1)
    real(dp) dInitAmp,dTotAbsAmpl
@@ -1389,8 +1389,8 @@ SUBROUTINE InitRandAmplitude(Amplitude,nExcit,dInitAmp,dTotAbsAmpl)
    use constants, only: dp
    use dSFMT_interface , only : genrand_real2_dSFMT
    IMPLICIT NONE
-   real(dp) Amplitude(nExcit)
    INTEGER nExcit
+   real(dp) Amplitude(nExcit)
    real(dp) dInitAmp,dTotAbsAmpl
 
    INTEGER j

@@ -15,6 +15,8 @@ MODULE Logging
     IMPLICIT NONE
     Save
 
+    INTEGER :: iDiagSubspaceIter
+    LOGICAL :: tDiagWalkerSubspace
     INTEGER ILOGGING,ILOGGINGDef
     INTEGER :: iGlobalTimerLevel=40
     INTEGER nPrintTimer,G_VMC_LOGCOUNT
@@ -63,6 +65,8 @@ MODULE Logging
       use default_sets
       implicit none
 
+      tDiagWalkerSubspace = .false.
+      iDiagSubspaceIter = 1
       tSplitProjEHist = .false.
       tSplitProjEHistG = .false.
       tSplitProjEHistK3 = .false.
@@ -187,6 +191,10 @@ MODULE Logging
         call readu(w)
         select case(w)
 
+        case("DIAGWALKERSUBSPACE")
+            !Diagonalise walker subspaces every iDiagSubspaceIter iterations
+            tDiagWalkerSubspace = .true.
+            call readi(iDiagSubspaceIter)
         case("SPLITPROJE")
             !Partition contribution from doubles, and write them out
             tSplitProjEHist=.true.

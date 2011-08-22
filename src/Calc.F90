@@ -2055,8 +2055,8 @@ contains
          use MemoryManager, only: TagIntType
          IMPLICIT NONE
          INTEGER I_HMAX,NEL,NBASIS,I_VMAX
-         INTEGER,ALLOCATABLE :: LSTE(:,:,:) !(NEL,NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)??!!
-         INTEGER,ALLOCATABLE :: ICE(:,:)  !(NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)??!!
+         INTEGER,ALLOCATABLE :: LSTE(:,:,:) !(NEL,NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)?
+         INTEGER,ALLOCATABLE :: ICE(:,:)  !(NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)?
          HElement_t  UMAT(*)
          HElement_t,allocatable  :: RIJLIST(:,:)
          integer(TagIntType),save :: tagRIJList=0,tagLSTE=0,tagICE=0

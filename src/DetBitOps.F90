@@ -16,7 +16,8 @@ module DetBitOps
 
 #ifdef __INT64
     ! 10101010 and 01010101 in binary respectively.
-    integer(n_int), parameter :: MaskBeta=Z'5555555555555555'
+!    integer(n_int), parameter :: MaskBeta=Z'5555555555555555'
+    integer(n_int), parameter :: MaskBeta=6148914691236517205
     integer(n_int), parameter :: MaskAlpha=IShft(MaskBeta,1)
 #else
     integer(n_int), parameter :: MaskBeta=1431655765
@@ -139,10 +140,10 @@ module DetBitOps
         integer(n_int) :: tmp
 
 #ifdef __INT64
-        integer(n_int), parameter :: m1 = Z'5555555555555555'
-        integer(n_int), parameter :: m2 = Z'3333333333333333'
-        integer(n_int), parameter :: m3 = Z'0f0f0f0f0f0f0f0f'
-        integer(n_int), parameter :: m4 = Z'0101010101010101'
+        integer(n_int), parameter :: m1 = 6148914691236517205  !Z'5555555555555555'
+        integer(n_int), parameter :: m2 = 3689348814741910323  !Z'3333333333333333'
+        integer(n_int), parameter :: m3 = 1085102592571150095  !Z'0f0f0f0f0f0f0f0f'
+        integer(n_int), parameter :: m4 = 72340172838076673    !Z'0101010101010101'
 
         ! For 64 bit integers:
         tmp = a - iand(ishft(a,-1), m1)
@@ -150,10 +151,10 @@ module DetBitOps
         tmp = iand(tmp, m3) + iand(ishft(tmp,-4), m3)
         nbits = ishft(tmp*m4, -56)
 #else
-        integer(n_int), parameter :: m1 = Z'55555555'
-        integer(n_int), parameter :: m2 = Z'33333333'
-        integer(n_int), parameter :: m3 = Z'0F0F0F0F'
-        integer(n_int), parameter :: m4 = Z'01010101'
+        integer(n_int), parameter :: m1 = 1431655765    !Z'55555555'
+        integer(n_int), parameter :: m2 = 858993459     !Z'33333333'
+        integer(n_int), parameter :: m3 = 252645135     !Z'0F0F0F0F'
+        integer(n_int), parameter :: m4 = 16843009      !Z'01010101'
 
         ! For 32 bit integers:
         tmp = a - iand(ishft(a,-1), m1)
@@ -164,7 +165,7 @@ module DetBitOps
 
     end function count_set_bits
 
-    integer function count_open_orbs (iLut)
+    pure integer function count_open_orbs (iLut)
         
         ! Returns the number of unpaired electrons in the determinant.
         !
@@ -1055,8 +1056,8 @@ end module
     SUBROUTINE FindSingleOrbs(iLutnI,iLutnJ,NIfD,Orbs)
         use constants, only: n_int,bits_n_int
         IMPLICIT NONE
-        INTEGER(KIND=n_int) :: iLutnI(0:NIfD),iLutnJ(0:NIfD)
         INTEGER :: NIfD,Orbs(2)
+        INTEGER(KIND=n_int) :: iLutnI(0:NIfD),iLutnJ(0:NIfD)
         INTEGER(kind=n_int) :: iLutExcited(0:NIfD)
 
         iLutExcited(:)=IEOR(iLutnI(:),iLutnJ(:))

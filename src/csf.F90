@@ -914,8 +914,8 @@ contains
     ! TODO: comment
 
         use constants, only: bits_n_int
-        integer, intent(in) :: det(nopen), perm(2)
         integer, intent(in) :: ndets, nopen, deti
+        integer, intent(in) :: det(nopen), perm(2)
         integer, intent(in) :: det_sum(ndets)
         integer :: pos
 
@@ -1153,7 +1153,8 @@ contains
         if (det .eq. 1) then
             csf_alpha_beta = ior(csf_alpha_beta, 1)
         else
-            csf_alpha_beta = iand(csf_alpha_beta,Z'fffffffe')
+!            csf_alpha_beta = iand(csf_alpha_beta,Z'fffffffe')
+            csf_alpha_beta = iand(csf_alpha_beta,-2)
         endif
         csf_alpha_beta = csf_alpha_beta + 1
     end function

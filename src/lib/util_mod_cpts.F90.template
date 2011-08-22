@@ -16,10 +16,10 @@ type = real(kind=dp)
 type = logical
 
 [cplx]
-type = complex*8
+type = complex(kind=sp)
 
 [cplx_doub]
-type = complex*16
+type = complex(kind=dp)
 
 [sym]
 type = type(Symmetry)

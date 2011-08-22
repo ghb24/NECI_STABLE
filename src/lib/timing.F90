@@ -117,7 +117,7 @@ contains
           global_time_system=t(2)-global_time_system
           global_timing_on=.false.
       else
-          call warning('end_timing','Global timing never initialised via call to init_timing.')
+          call warning_neci('end_timing','Global timing never initialised via call to init_timing.')
       end if
 
    end subroutine end_timing
@@ -166,7 +166,7 @@ contains
               ! Have a new object.
               itimer=itimer+1
               if (itimer.gt.ntimer) then
-                  call warning('set_timer','ntimer parameter too small for the number of objects to be timed.')
+                  call warning_neci('set_timer','ntimer parameter too small for the number of objects to be timed.')
                   proc_timer%time=.false.
                   timer_error=.true.
                   return
@@ -212,7 +212,7 @@ contains
           ! Not timing this object: its level is below that of the
           ! iGLobalTimerLevel given via the logging option TIMING.
       else if (.not.associated(proc_timer%store)) then
-          call warning('halt_timer','proc_timer not intialised: '//proc_timer%timer_name)
+          call warning_neci('halt_timer','proc_timer not intialised: '//proc_timer%timer_name)
           timer_error=.true.
       else
           call cpu_time(t(1))
@@ -256,7 +256,7 @@ contains
       real(4) :: t(2)
 
       if (.not.associated(proc_timer%store)) then
-          call warning('get_total_time.','proc_timer not intialised: '//adjustl(proc_timer%timer_name))
+          call warning_neci('get_total_time.','proc_timer not intialised: '//adjustl(proc_timer%timer_name))
           get_total_time=-1000.0 ! Helpfully return insane value, so it is obvious something went wrong. ;-)
       else
           get_total_time=proc_timer%store%sum_time_cpu+proc_timer%store%sum_time_system

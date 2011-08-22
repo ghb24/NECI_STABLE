@@ -90,7 +90,7 @@ MODULE PopsfileMod
                 write(6,"(A,I15,A)") "Reading in a total of ",EndPopsList, " configurations from POPSFILE."
             ENDIF
             if(ScaleWalkers.ne.1) then
-                call warning(this_routine,"ScaleWalkers parameter found, but not implemented in POPSFILE v3 - ignoring.")
+                call warning_neci(this_routine,"ScaleWalkers parameter found, but not implemented in POPSFILE v3 - ignoring.")
             endif
             call flush(6)
         ENDIF
