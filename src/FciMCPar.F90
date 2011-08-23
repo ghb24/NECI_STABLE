@@ -64,7 +64,7 @@ MODULE FciMCParMod
                        tPrintDoubsUEG, StartPrintDoubsUEG, tCalcInstantS2, &
                        instant_s2_multiplier, tMCOutput, tSplitProjEHist, &
                        tSplitProjEHistG, tSplitProjEHistK3, iProjEBins, &
-                       tDiagWalkerSubspace,iDiagSubspaceIter
+                       tDiagWalkerSubspace,iDiagSubspaceIter, &
                        tRDMonFly, IterRDMonFly, tSpawnGhostChild, &
                        GhostFac, GhostThresh,RDMExcitLevel, RDMEnergyIter, &
                        tChangeVarsRDM, tExplicitAllRDM, tHF_Ref_Explicit, &
@@ -112,9 +112,10 @@ MODULE FciMCParMod
     use nElRDMMod, only: FinaliseRDM,Fill_ExplicitRDM_this_Iter,calc_energy_from_rdm, &
                          fill_diag_rdm, fill_sings_rdm, fill_doubs_rdm, &
                          Add_RDM_From_IJ_Pair, tCalc_RDMEnergy, &
-                         DeAlloc_Alloc_SpawnedParts, Add_StochRDM_Diag_Null, &
-                         Add_StochRDM_Diag_HPHF, Add_StochRDM_Diag_HF_S_D, &
-                         Add_StochRDM_Diag_Norm, Fill_Spin_Coupled_RDM
+                         extract_bit_rep_rdm_diag_norm, extract_bit_rep_rdm_diag_hphf, &
+                         DeAlloc_Alloc_SpawnedParts, Add_RDM_HFConnections_Null, &
+                         Add_RDM_HFConnections_HPHF, Add_RDM_HFConnections_HF_S_D, &
+                         Add_RDM_HFConnections_Norm, Fill_Spin_Coupled_RDM
 
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
@@ -190,7 +191,7 @@ MODULE FciMCParMod
                 CALL PerformCCMCCycPar()
             else
                 if (.not. (tSpinProject .and. spin_proj_interval == -1)) then
-                    call sub_dispatcher_8 (PerformFciMCycPar, &
+                    call sub_dispatcher_9 (PerformFciMCycPar, &
                                            ptr_excit_generator, &
                                            ptr_attempt_create, &
                                            ptr_get_spawn_helement, &
@@ -198,7 +199,8 @@ MODULE FciMCParMod
                                            ptr_new_child_stats, &
                                            ptr_attempt_die, &
                                            ptr_iter_data, &
-                                           ptr_add_stochrdm_diag)
+                                           ptr_extract_bit_rep_rdm_diag, &
+                                           ptr_add_rdm_hfconnections)
                 endif
             endif
 
@@ -213,7 +215,9 @@ MODULE FciMCParMod
                                            null_encode_child, &
                                            new_child_stats_normal, &
                                            attempt_die_spin_proj, &
-                                           iter_data_spin_proj, add_stochrdm_diag_null)
+                                           iter_data_spin_proj, &
+                                           extract_bit_rep, &
+                                           add_rdm_hfconnections_null)
                 enddo
             endif
 
@@ -439,11 +443,13 @@ MODULE FciMCParMod
                 tFillingExplicRDMonFly = .true.
             else
                 if(tHF_S_D.or.tHF_S_D_Ref.or.tHF_Ref_Explicit) then
-                    call set_add_stochrdm_diag(add_stochrdm_diag_hf_s_d)
+                    call set_add_rdm_hfconnections(add_rdm_hfconnections_hf_s_d)
                 elseif(tHPHF) then
-                    call set_add_stochrdm_diag(add_stochrdm_diag_hphf)
+                    call set_extract_bit_rep_rdm_diag(extract_bit_rep_rdm_diag_hphf)
+                    call set_add_rdm_hfconnections(add_rdm_hfconnections_hphf)
                 else
-                    call set_add_stochrdm_diag(add_stochrdm_diag_norm)
+                    call set_extract_bit_rep_rdm_diag(extract_bit_rep_rdm_diag_norm)
+                    call set_add_rdm_hfconnections(add_rdm_hfconnections_norm)
                 endif
                 if(.not.tHF_Ref_Explicit) then
                     !By default - we will do a stochastic calculation of the RDM.
@@ -452,7 +458,7 @@ MODULE FciMCParMod
                     !parent Di (and it's sign, Ci). - We deallocate it and reallocate it with the larger size.
                     call DeAlloc_Alloc_SpawnedParts()
                     !Don't need any of this if we're just doing HF_Ref_Explicit calculation.
-                    !This is all done in the add_stochrdm routine.
+                    !This is all done in the add_rdm_hfconnections routine.
                 endif
             endif
             !RDMExcitLevel of 3 means we calculate both the 1 and 2 RDM's - otherwise we 
@@ -656,11 +662,33 @@ MODULE FciMCParMod
         call assign_proc (ptr_iter_data, data_struct)
     end subroutine
 
-    subroutine set_add_stochrdm_diag(add_stochrdm_diag)
+    subroutine set_extract_bit_rep_rdm_diag(extract_bit_rep_rdm_diag)
         use, intrinsic :: iso_c_binding
         implicit none
         interface
-            subroutine Add_StochRDM_Diag(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
+            subroutine extract_bit_rep_rdm_diag(iLutnI, nI, SignI, FlagsI, Store)
+                use constants , only : n_int, lenof_sign
+                use SystemData , only : NEl
+                use bit_reps , only : NIfTot
+                use DetBitOps , only : TestClosedShellDet
+                use FciMCData , only : excit_gen_store_type
+                use bit_reps , only : extract_bit_rep_rdm
+                implicit none 
+                integer(n_int), intent(in) :: iLutnI(0:nIfTot)
+                integer, intent(out) :: nI(nel), FlagsI
+                integer, dimension(lenof_sign), intent(out) :: SignI
+                type(excit_gen_store_type), intent(inout), optional :: Store
+            end subroutine
+        end interface
+
+        call assign_proc (ptr_extract_bit_rep_rdm_diag, extract_bit_rep_rdm_diag)
+    end subroutine
+
+    subroutine set_add_rdm_hfconnections(add_rdm_hfconnections)
+        use, intrinsic :: iso_c_binding
+        implicit none
+        interface
+            subroutine Add_RDM_HFConnections(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
                 use FciMCData , only : HFDet
                 use hphf_integrals , only : hphf_sign
                 use HPHFRandExcitMod , only : FindExcitBitDetSym
@@ -677,9 +705,8 @@ MODULE FciMCParMod
             end subroutine
         end interface
 
-        call assign_proc (ptr_add_stochrdm_diag, add_stochrdm_diag)
+        call assign_proc (ptr_add_rdm_hfconnections, add_rdm_hfconnections)
     end subroutine
-
 
     ! This is the heart of FCIMC, where the MC Cycles are performed.
     !
@@ -688,7 +715,8 @@ MODULE FciMCParMod
     subroutine PerformFCIMCycPar(generate_excitation, attempt_create, &
                                  get_spawn_helement, encode_child, &
                                  new_child_stats, attempt_die, &
-                                 iter_data, add_stochrdm_diag)
+                                 iter_data, extract_bit_rep_rdm_diag, &
+                                 add_rdm_hfconnections)
 
         ! **********************************************************
         ! ************************* NOTE ***************************
@@ -798,7 +826,20 @@ MODULE FciMCParMod
                 real(dp), intent(in) :: Kii
                 integer, dimension(lenof_sign) :: ndie
             end function
-            subroutine Add_StochRDM_Diag(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
+            subroutine extract_bit_rep_rdm_diag(iLutnI, nI, SignI, FlagsI, Store)
+                use constants , only : n_int, lenof_sign
+                use SystemData , only : NEl
+                use bit_reps , only : NIfTot
+                use DetBitOps , only : TestClosedShellDet
+                use FciMCData , only : excit_gen_store_type
+                use bit_reps , only : extract_bit_rep_rdm
+                implicit none 
+                integer(n_int), intent(in) :: iLutnI(0:nIfTot)
+                integer, intent(out) :: nI(nel), FlagsI
+                integer, dimension(lenof_sign), intent(out) :: SignI
+                type(excit_gen_store_type), intent(inout), optional :: Store
+            end subroutine
+            subroutine Add_RDM_HFConnections(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
                 use FciMCData , only : HFDet
                 use hphf_integrals , only : hphf_sign
                 use HPHFRandExcitMod , only : FindExcitBitDetSym
@@ -903,13 +944,13 @@ MODULE FciMCParMod
                     call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
                                       FlagsCurr, fcimc_excit_gen_store)
             else                                      
-                if(tFillingStochRDMonFly) then
-                    call extract_bit_rep_rdm (CurrentDets(:,j), DetCurr, SignCurr, FlagsCurr)
-                else
-                    call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
-                                  FlagsCurr, fcimc_excit_gen_store)
-                endif
-
+                ! If we're not calculating the RDM (or we're calculating some HFSD combination of the 
+                ! RDM) this just extracts info from the bit representation like normal.
+                ! Otherwise, it extracts the info, and at the same time, adds in the RDM 
+                ! contribution to the diagonal terms.
+                call extract_bit_rep_rdm_diag (CurrentDets(:,j), DetCurr, SignCurr, &
+                                                  FlagsCurr, fcimc_excit_gen_store)
+ 
                 if (tTruncInitiator) call CalcParentFlag (j, VecSlot, &
                                                           parent_flags)
             endif                                                          
@@ -973,16 +1014,10 @@ MODULE FciMCParMod
             call SumEContrib (DetCurr, WalkExcitLevel, SignCurr, &
                               CurrentDets(:,j), HDiagCurr, 1.d0)
 
-            ! Add in any reduced density matrix info we want while running 
-            ! over CurrentDets - i.e. diagonal elements.
-            ! This uses the new current sign (after walker death), because later when we search 
-            ! CurrentDets for Cj, it has to be the sign after death, and we want to keep it consistent.
-            ! Also add the connections to the HF if using HF_Ref_Explicit.
-            ! If tFillingStochRDMonFly is true, this will add in the appropriate diag element to the 
-            ! RDM, otherwise this routine does nothing.
-
-            ! This calculates both the diagonal elements and explicitly connected singles and doubles.
-            call Add_StochRDM_Diag(CurrentDets(:,j),DetCurr,SignCurr,walkExcitLevel)   
+            ! If we're filling the RDM, this calculates the explicitly connected singles and doubles.
+            ! Or in the case of HFSD (or some combination of this), it calculates the 
+            ! diagonal elements too - as we need the walkExcitlevel for the diagonal elements as well.
+            call Add_RDM_HFConnections(CurrentDets(:,j),DetCurr,SignCurr,walkExcitLevel)   
             TempSpawnedPartsInd = 0
 
             ! Loop over the 'type' of particle. 
@@ -1625,7 +1660,9 @@ MODULE FciMCParMod
 
         call set_fcimc_iter_data (iter_data_fciqmc)
 
-        call set_add_stochrdm_diag(add_stochrdm_diag_null)
+        call set_extract_bit_rep_rdm_diag(extract_bit_rep)
+
+        call set_add_rdm_hfconnections(add_rdm_hfconnections_null)
 
     end subroutine
 

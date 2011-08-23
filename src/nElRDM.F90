@@ -797,9 +797,10 @@ MODULE nElRDMMod
     END SUBROUTINE GenExcDjs
 
 
-    subroutine Add_StochRDM_Diag_Norm(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
+    subroutine Add_RDM_HFConnections_Norm(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
 ! This is called when we run over all TotWalkers in CurrentDets.    
-! It is called for each CurrentDet.
+! It is called for each CurrentDet which is a single or double of the HF.
+! It explicitly adds in the HF - S/D connection.
         use FciMCData , only : HFDet
         use hphf_integrals , only : hphf_sign
         use HPHFRandExcitMod , only : FindExcitBitDetSym
@@ -818,22 +819,14 @@ MODULE nElRDMMod
             endif
         endif
 
-! Add diagonal elements to reduced density matrices.
-
-! By default we are considering the full RDM.            
-! Add every determinant to the diagonal elements.
-
-! If no HPHF - just add in diagonal contribution from D_I.                
-!        call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
-
 ! If we have a single or double, add in the connection to the HF, symmetrically.        
         if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) &
             call Add_RDM_From_IJ_Pair(HFDet,DetCurr,real(InstNoatHF(1),dp),real(SignCurr(1),dp),.true.)
 
-    end subroutine Add_StochRDM_Diag_Norm
+    end subroutine Add_RDM_HFConnections_Norm
 
 
-    subroutine Add_StochRDM_Diag_HF_S_D(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
+    subroutine Add_RDM_HFConnections_HF_S_D(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
 ! This is called when we run over all TotWalkers in CurrentDets.    
 ! It is called for each CurrentDet.
         use FciMCData , only : HFDet
@@ -864,7 +857,7 @@ MODULE nElRDMMod
             if(SignCurr(1).ne.InstNoatHF(1)) then
                 write(6,*) 'CurrentSign',SignCurr(1)
                 write(6,*) 'HF Sign',InstNoatHF(1)
-                call stop_all('Add_StochRDM_Diag','HF population is incorrect.')
+                call stop_all('Add_RDM_HFConnections_HF_S_D','HF population is incorrect.')
             endif
 
             ! The HF is always closed shell (at the moment), 
@@ -905,71 +898,19 @@ MODULE nElRDMMod
 
         endif
 
-    end subroutine Add_StochRDM_Diag_HF_S_D
+    end subroutine Add_RDM_HFConnections_HF_S_D
 
 
-    subroutine Add_StochRDM_Diag_HPHF(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
+    subroutine Add_RDM_HFConnections_HPHF(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
 ! This is called when we run over all TotWalkers in CurrentDets.    
-! It is called for each CurrentDet.
+! It is called for each CurrentDet which is a single or double of the HF.
+! It adds in the HF - S/D connection.
         use FciMCData , only : HFDet
-        use hphf_integrals , only : hphf_sign
-        use HPHFRandExcitMod , only : FindExcitBitDetSym
-        use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
         implicit none
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer , intent(in) :: DetCurr(NEl)
         integer, dimension(lenof_sign), intent(in) :: SignCurr
         integer , intent(in) :: walkExcitLevel
-        integer(kind=n_int) :: SpinCoupDet(0:niftot)
-        integer :: nSpinCoup(NEl), SignFac, HPHFExcitLevel
-
-        if(walkExcitLevel.eq.0) then
-            if(SignCurr(1).ne.InstNoatHF(1)) then
-                write(6,*) 'SignCurr',SignCurr
-                write(6,*) 'InstNoatHF',InstNoatHF
-                CALL Stop_All('PerformFCIMCycPar','Incorrect instantaneous HF population.')
-            endif
-        endif
-
-! Add diagonal elements to reduced density matrices.
-
-! By default we are considering the full RDM.            
-! Add every determinant to the diagonal elements.
-
-! If HPHF is on, we need to consider I' as well as I.
-! i.e. only one of the spin coupled determinants will be in the list, need to flip 
-! the spins of all determinants to generate the other, and add in the C_I to this I' too.
-! Only need to do this if I is open shell.
-        if(.not.TestClosedShellDet(iLutCurr)) then
-
-! C_X D_X = C_X / SQRT(2) [ D_I +/- D_I'] - for open shell dets, divide stored C_X by SQRT(2). 
-! Add in I.
-            call Fill_Diag_RDM(DetCurr, (real(SignCurr(1),dp)/SQRT(2.D0)))
-
-            call FindExcitBitDetSym(iLutCurr, SpinCoupDet)
-            call decode_bit_det (nSpinCoup, SpinCoupDet)
-            ! Find out if it's + or - in the above expression.                
-            SignFac = hphf_sign(iLutCurr)
-
-            call Fill_Diag_RDM(nSpinCoup, real(SignFac*SignCurr(1),dp)/SQRT(2.D0))
-
-! For HPHF we're considering < D_I + D_I' | a_a+ a_b+ a_j a_i | D_I + D_I' >
-! Not only do we have diagonal < D_I | a_a+ a_b+ a_j a_i | D_I > terms, but also cross terms
-! < D_I | a_a+ a_b+ a_j a_i | D_I' > if D_I and D_I' can be connected by a single or double 
-! excitation.
-! Find excitation level between D_I and D_I' and add in the contribution if connected.
-            HPHFExcitLevel = FindBitExcitLevel (iLutCurr, SpinCoupDet, 2)
-            if(HPHFExcitLevel.le.2) & 
-                call Add_RDM_From_IJ_Pair(DetCurr,nSpinCoup,&
-                                            real(SignCurr(1),dp)/SQRT(2.D0), &
-                                            real(SignFac*SignCurr(1),dp)/SQRT(2.D0),.true.)
-
-        else
-
-            ! If no HPHF - just add in diagonal contribution from D_I.                
-            call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
-
-        endif
 
 ! Now if the determinant is connected to the HF (i.e. single or double), add in the diagonal elements
 ! of this connection as well - symmetrically because no probabilities are involved.
@@ -977,9 +918,9 @@ MODULE nElRDMMod
             call Fill_Spin_Coupled_RDM_v2(iLutRef,iLutCurr,HFDet,DetCurr,&
                                             real(InstNoatHF(1),dp),real(SignCurr(1),dp),.true.)
 
-    end subroutine Add_StochRDM_Diag_HPHF
+    end subroutine Add_RDM_HFConnections_HPHF
 
-    subroutine Add_StochRDM_Diag_null(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
+    subroutine Add_RDM_HFConnections_null(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
 ! This is called when we run over all TotWalkers in CurrentDets.    
 ! It is called for each CurrentDet.
 ! This is called when we are not filling the density matrices.
@@ -990,7 +931,89 @@ MODULE nElRDMMod
         integer , intent(in) :: walkExcitLevel
 
 
-    end subroutine Add_StochRDM_Diag_null
+    end subroutine Add_RDM_HFConnections_null
+
+
+    subroutine extract_bit_rep_rdm_diag_norm(iLutnI, nI, SignI, FlagsI, Store)
+        use FciMCData , only : excit_gen_store_type
+        use bit_reps , only : extract_bit_rep_rdm
+        implicit none
+        integer(n_int), intent(in) :: iLutnI(0:nIfTot)
+        integer, intent(out) :: nI(nel), FlagsI
+        integer, dimension(lenof_sign), intent(out) :: SignI
+        type(excit_gen_store_type), intent(inout), optional :: Store
+
+        call extract_bit_rep_rdm (iLutnI, nI, SignI, FlagsI, 1.0_dp)
+
+    end subroutine extract_bit_rep_rdm_diag_norm
+
+
+    subroutine extract_bit_rep_rdm_diag_hphf(iLutnI, nI, SignI, FlagsI, Store)
+        use FciMCData , only : excit_gen_store_type
+        use DetBitOps , only : TestClosedShellDet
+        use bit_reps , only : extract_bit_rep_rdm
+        implicit none
+        integer(n_int), intent(in) :: iLutnI(0:nIfTot)
+        integer, intent(out) :: nI(nel), FlagsI
+        integer, dimension(lenof_sign), intent(out) :: SignI
+        type(excit_gen_store_type), intent(inout), optional :: Store
+
+        if(.not.TestClosedShellDet(iLutnI)) then
+            call extract_bit_rep_rdm (iLutnI, nI, SignI, FlagsI, 0.5_dp)
+            call Add_StochRDM_Diag_HPHF(iLutnI, nI, SignI)
+        else
+            call extract_bit_rep_rdm (iLutnI, nI, SignI, FlagsI, 1.0_dp)
+        endif
+
+    end subroutine extract_bit_rep_rdm_diag_hphf
+
+    subroutine Add_StochRDM_Diag_HPHF(iLutCurr,DetCurr,SignCurr)
+! This is called when we run over all TotWalkers in CurrentDets.    
+! It is only called if HF is being used and we've encountered an open shell det.
+! The decoding routine would have added in the diagonal elements of the original HF pair,
+! need to take care of the spin coupled one, and any connection between them.
+        use FciMCData , only : HFDet
+        use hphf_integrals , only : hphf_sign
+        use HPHFRandExcitMod , only : FindExcitBitDetSym
+        use DetBitOps , only : FindBitExcitLevel
+        implicit none
+        integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
+        integer , intent(in) :: DetCurr(NEl)
+        integer, dimension(lenof_sign), intent(in) :: SignCurr
+        integer(kind=n_int) :: SpinCoupDet(0:niftot)
+        integer :: nSpinCoup(NEl), SignFac, HPHFExcitLevel
+
+! Add diagonal elements to reduced density matrices.
+
+! By default we are considering the full RDM.            
+! Add every determinant to the diagonal elements.
+
+! If HPHF is on, we need to consider I' as well as I.
+! i.e. only one of the spin coupled determinants will be in the list, need to flip 
+! the spins of all determinants to generate the other, and add in the C_I to this I' too.
+! Only need to do this if I is open shell.
+
+! C_X D_X = C_X / SQRT(2) [ D_I +/- D_I'] - for open shell dets, divide stored C_X by SQRT(2). 
+! Add in I.
+        call FindExcitBitDetSym(iLutCurr, SpinCoupDet)
+        call decode_bit_det (nSpinCoup, SpinCoupDet)
+        ! Find out if it's + or - in the above expression.                
+        SignFac = hphf_sign(iLutCurr)
+
+        call Fill_Diag_RDM(nSpinCoup, real(SignFac*SignCurr(1),dp)/SQRT(2.D0))
+
+! For HPHF we're considering < D_I + D_I' | a_a+ a_b+ a_j a_i | D_I + D_I' >
+! Not only do we have diagonal < D_I | a_a+ a_b+ a_j a_i | D_I > terms, but also cross terms
+! < D_I | a_a+ a_b+ a_j a_i | D_I' > if D_I and D_I' can be connected by a single or double 
+! excitation.
+! Find excitation level between D_I and D_I' and add in the contribution if connected.
+        HPHFExcitLevel = FindBitExcitLevel (iLutCurr, SpinCoupDet, 2)
+        if(HPHFExcitLevel.le.2) & 
+            call Add_RDM_From_IJ_Pair(DetCurr,nSpinCoup,&
+                                        real(SignCurr(1),dp)/SQRT(2.D0), &
+                                        real(SignFac*SignCurr(1),dp)/SQRT(2.D0),.true.)
+
+    end subroutine Add_StochRDM_Diag_HPHF
 
 
     SUBROUTINE SendProcExcDjs()
@@ -1134,7 +1157,7 @@ MODULE nElRDMMod
 ! This binary searches CurrentDets between 1 and TotWalkers for determinant iLutnJ.
 ! If found, tDetFound will be true, and PartInd the index in CurrentDets where the 
 ! determinant is.
-                    CALL BinSearchParts(iLutnJ,1,int(TotWalkers,int32),PartInd,tDetFound)
+                    CALL BinSearchParts(iLutnJ,1,int(TotWalkers,sizeof_int),PartInd,tDetFound)
                     IF(tDetFound) THEN
 ! Determinant occupied; add c_i*c_j to the relevant element of nElRDM.                    
 ! Need to first find the orbitals involved in the excitation from D_i -> D_j and the parity.
@@ -1210,7 +1233,7 @@ MODULE nElRDMMod
 ! This binary searches CurrentDets between 1 and TotWalkers for determinant iLutnJ.
 ! If found, tDetFound will be true, and PartInd the index in CurrentDets where the 
 ! determinant is.
-                    CALL BinSearchParts(iLutnJ,1,int(TotWalkers,int32),PartInd,tDetFound)
+                    CALL BinSearchParts(iLutnJ,1,int(TotWalkers,sizeof_int),PartInd,tDetFound)
 
                     IF(tDetFound) THEN
 ! Determinant occupied; add c_i*c_j to the relevant element of nElRDM.                    
@@ -1824,7 +1847,7 @@ MODULE nElRDMMod
                 enddo
                 WRITE(6,*) ''
                 WRITE(6,'(A20,F30.20)') ' CORRELATION ENTROPY', Corr_Entropy
-                WRITE(6,'(A20,F30.20)') ' CORRELATION ENTROPY PER ELECTRON', Corr_Entropy / real(NEl,dp) 
+                WRITE(6,'(A33,F30.20)') ' CORRELATION ENTROPY PER ELECTRON', Corr_Entropy / real(NEl,dp) 
                 WRITE(6,*) ''
 
                 IF(.not.tNoRODump) THEN
@@ -3574,7 +3597,7 @@ MODULE nElRDMMod
 ! Tot_Spin_Projection is now equal to 4S(S+1) - find S. 
         Tot_Spin_Projection = Tot_Spin_Projection/4.D0
         if((1.D0 + 4.D0*Tot_Spin_Projection).le.0) then
-            call warning('Write_out_1and_2RDM',"Complex spin calculated from density matrices!")
+            call Warning_neci('Write_out_1and_2RDM',"Complex spin calculated from density matrices!")
         else
             SpinPlus = (-1.D0 + sqrt(1.D0 + 4.D0*Tot_Spin_Projection))/2.D0
             SpinMinus = (-1.D0 + sqrt(1.D0 + 4.D0*Tot_Spin_Projection))/2.D0
@@ -4060,7 +4083,7 @@ END MODULE nElRDMMod
 
     END SUBROUTINE DiDj_Found_FillRDM
 
-    subroutine Fill_Diag_RDM_FromOrbs(i, nI_Prev, Prev, SignDi)
+    subroutine Fill_Diag_RDM_FromOrbs(i, nI_Prev, Prev, SignDi, SignFac)
 ! Given an occupied orbital, and the sign of the determinant it is occupied in,
 ! add in the contribution to the 1 and 2-electron RDMs.
         USE SystemData , only : NEl
@@ -4071,6 +4094,7 @@ END MODULE nElRDMMod
         implicit none
         integer , intent(in) :: i, nI_Prev(NEl), Prev
         integer, dimension(lenof_sign), intent(in) :: SignDi
+        real(dp) , intent(in) :: SignFac
         integer :: j, Ind
 
 ! Need to add in the diagonal elements.
@@ -4081,7 +4105,7 @@ END MODULE nElRDMMod
         IF(RDMExcitLevel.ne.2) THEN
             OneElRDM(SymLabelListInv(i),SymLabelListInv(i)) = &
                         OneElRDM(SymLabelListInv(i),SymLabelListInv(i)) &
-                          + (real(SignDi(1),dp) * real(SignDi(1),dp)) 
+                          + (real(SignDi(1),dp) * real(SignDi(1),dp) * SignFac) 
         ENDIF
 
 ! There is no need to use the SymLabelList arrays for the 2 el RDM because we are 
@@ -4090,7 +4114,7 @@ END MODULE nElRDMMod
             do j=1,Prev
                 Ind=( ( (i-2) * (i-1) ) / 2 ) + nI_Prev(j)
                 TwoElRDM( Ind , Ind ) = TwoElRDM( Ind , Ind ) &
-                                      + (real(SignDi(1),dp) * real(SignDi(1),dp))
+                                      + (real(SignDi(1),dp) * real(SignDi(1),dp) * SignFac)
             enddo
         ENDIF
 

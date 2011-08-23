@@ -277,7 +277,8 @@ MODULE FciMCData
       type(c_ptr) :: ptr_encode_child
       type(c_ptr) :: ptr_attempt_die
       type(c_ptr) :: ptr_iter_data
-      type(c_ptr) :: ptr_add_stochrdm_diag
+      type(c_ptr) :: ptr_extract_bit_rep_rdm_diag
+      type(c_ptr) :: ptr_add_rdm_hfconnections
 
       integer :: yama_global (4)
 
