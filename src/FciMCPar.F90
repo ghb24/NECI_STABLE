@@ -2524,7 +2524,7 @@ MODULE FciMCParMod
             write(abstr2,'(I12)') Iter
             abstr2='Energies-'//adjustl(abstr2)
             io2 = get_free_unit()
-            OPEN(io2,FILE=abstr2,STATUS='NEW')
+            OPEN(io2,FILE=abstr2,STATUS='UNKNOWN')
 
             INQUIRE(FILE=abstr,EXIST=exists)
             IF(exists) THEN
@@ -6761,7 +6761,7 @@ MODULE FciMCParMod
 
             if(iSubspaceSize.gt.0) then
 !Routine to diagonalise a set of determinants, and return the ground state energy
-                call LanczosFindGroundE(ExpandedWalkerDets,iSubspaceSize,GroundEInit,ProjGroundEInit)
+                call LanczosFindGroundE(ExpandedWalkerDets,iSubspaceSize,GroundEInit,ProjGroundEInit,.true.)
                 write(6,'(A,G25.10)') 'Ground state energy of initiator walker subspace = ',GroundEInit
             else
                 CreateNan=-1.D0
@@ -6787,7 +6787,7 @@ MODULE FciMCParMod
         enddo
 
 !Routine to diagonalise a set of determinants, and return the ground state energy
-        call LanczosFindGroundE(ExpandedWalkerDets,iSubspaceSizeFull,GroundEFull,ProjGroundEFull)
+        call LanczosFindGroundE(ExpandedWalkerDets,iSubspaceSizeFull,GroundEFull,ProjGroundEFull,.false.)
 
         write(6,'(A,G25.10)') 'Ground state energy of full walker subspace = ',GroundEFull
 
@@ -6804,17 +6804,20 @@ MODULE FciMCParMod
     end subroutine DiagWalkerSubspace
 
 !Routine which takes a set of determinants and returns the ground state energy
-    subroutine LanczosFindGroundE(Dets,DetLen,GroundE,ProjGroundE)
+    subroutine LanczosFindGroundE(Dets,DetLen,GroundE,ProjGroundE,tInit)
         use DetCalcData, only : NKRY,NBLK,B2L,nCycle
+        use util_mod, only: get_free_unit
         implicit none
         real(dp) , intent(out) :: GroundE,ProjGroundE
+        logical , intent(in) :: tInit
         integer, intent(in) :: DetLen
         integer, intent(in) :: Dets(NEl,DetLen)
         integer :: gc,ierr,icmax,lenhamil,nKry1,nBlock,LScr,LIScr
-        logical :: tmc
+        integer(n_int) :: ilut(0:NIfTot)
+        logical :: tmc,tSuccess
         real(dp) , allocatable :: A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),W(:)
         HElement_t, allocatable :: Work(:)
-        HElement_t, allocatable :: CkN(:,:),Hamil(:)
+        HElement_t, allocatable :: CkN(:,:),Hamil(:),TruncWavefunc(:)
         HElement_t, allocatable :: Ck(:,:)  !This holds eigenvectors in the end
         HElement_t :: Num,Denom,HDiagTemp
         integer , allocatable :: LAB(:),NROW(:),INDEX(:),ISCR(:)
@@ -6823,6 +6826,9 @@ MODULE FciMCParMod
         integer(TagIntType) :: tagHamil=0,WorkTag=0
         integer :: nEval,nBlocks,nBlockStarts(2),ExcitLev,iGetExcitLevel,i,nDoubles
         character(*), parameter :: t_r='LanczosFindGroundE'
+        real(dp) :: norm
+        integer :: PartInd,ioTrunc
+        character(24) :: abstr
         
         if(DetLen.gt.1300) then
             nEval = 3
@@ -6977,6 +6983,59 @@ MODULE FciMCParMod
         enddo
         ProjGroundE = (Num / Denom) + Hii
 !        write(6,*) "***", nDoubles
+
+        if(tHistSpawn.and..not.tInit) then
+            !Write out the ground state wavefunction for this truncated calculation.
+            !This needs to be sorted, into the order given in the original FCI in DetCalc.
+            allocate(TruncWavefunc(Det),stat=ierr)
+            if(ierr.ne.0) call stop_all(t_r,"Alloc error")
+            TruncWavefunc(:) = 0.0_dp
+
+            Norm = 0.0_dp
+            do i=1,DetLen
+            !Loop over iluts in instantaneous list.
+
+                call EncodeBitDet(Dets(:,i),iLut)
+                !Calculate excitation level (even if hf isn't in list)
+                ExcitLev = FindBitExcitLevel(iLutHF,iLut,NEl)
+
+                if(ExcitLev.eq.nel) then
+                    call BinSearchParts2(iLut,FCIDetIndex(ExcitLev),Det,PartInd,tSuccess)
+                elseif(ExcitLev.eq.0) then
+                    PartInd = 1
+                    tSuccess = .true.
+                else
+                    call BinSearchParts2(iLut,FCIDetIndex(ExcitLev),FCIDetIndex(ExcitLev+1)-1,PartInd,tSuccess)
+                endif
+                if(.not.tSuccess) then
+                    call stop_all(t_r,"Error here as cannot find corresponding determinant in FCI expansion")
+                endif
+                TruncWavefunc(PartInd) = CK(i,1)
+
+                !Check normalisation
+                Norm = Norm + CK(i,1)**2.0_dp
+            enddo
+            Norm = sqrt(Norm)
+            if(abs(Norm-1.0_dp).gt.1.D-7) then
+                write(6,*) "***",norm
+                call warning_neci(t_r,"Normalisation not correct for diagonalised wavefunction!")
+            endif
+
+            !Now write out...
+            abstr=''
+            write(abstr,'(I12)') Iter
+            abstr='TruncWavefunc-'//adjustl(abstr)
+            ioTrunc = get_free_unit()
+            open(ioTrunc,file=abstr,status='unknown')
+            do i=1,Det
+                write(ioTrunc,"(I13,F25.16)") i,TruncWavefunc(i)/norm
+            enddo
+            close(ioTrunc)
+
+            deallocate(TruncWavefunc)
+
+        endif
+
 
         deallocate(Work2,W,Hamil,Lab,nRow,CK)
         call LogMemDealloc(t_r,Work2Tag)
