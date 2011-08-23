@@ -1231,7 +1231,7 @@ END SUBROUTINE ResetClustSelector
 !Afterwards, if tDone is set then it has run out of tuples.
 SUBROUTINE IncrementOrderedTuple(Tuple,iSize,iMin,iMax,tDone)
    IMPLICIT NONE
-   INTEGER Tuple(iSize),iSize,iMax,iMin
+   INTEGER iSize,Tuple(iSize),iMax,iMin
    LOGICAL tDone
    INTEGER i
    if(iSize.eq.0) then

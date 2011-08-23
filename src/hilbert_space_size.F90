@@ -304,12 +304,13 @@ contains
          use SystemData, only: nEl,G1,nBasis,nOccAlpha,nOccBeta
          use SystemData, only: tUEG,tHPHF,tHub,tKPntSym,Symmetry
          use SystemData, only : CalcDetCycles, CalcDetPrint,tFixLz
+         use CalcData, only : tTruncNOpen, trunc_nopen_max
          use DeterminantData, only : FDet
          use DetCalcData, only : ICILevel
          use dSFMT_interface
          use soft_exit, only : ChangeVars
          use Parallel
-         use DetBitops, only: EncodeBitDet, IsAllowedHPHF
+         use DetBitops, only: EncodeBitDet, IsAllowedHPHF, count_open_orbs
          use util_mod, only: choose
          use bit_rep_data, only: NIfTot
          use sym_mod, only: SymProd
@@ -317,7 +318,7 @@ contains
          INTEGER :: IUNIT,j,SpatOrbs,FDetMom,ExcitLev
          INTEGER(KIND=n_int) :: FDetiLut(0:NIfTot),iLut(0:NIfTot)
          INTEGER :: FDetSym,TotalSym,TotalMom,alpha,beta,ierr,Momx,Momy
-         INTEGER :: Momz
+         INTEGER :: Momz,nopenorbs
          integer(int64) :: Accept,AcceptAll,i
          integer(int64) :: ExcitBin(0:NEl),ExcitBinAll(0:NEl)
          real(dp) :: FullSpace,r,Frac
@@ -501,117 +502,163 @@ contains
 
              enddo
 
-             tAcc=.false.
-             IF(TotalSym.eq.FDetSym) THEN
-             !Allow/disallow the determinant
-                 IF(tHPHF) THEN
-                     IF(IsAllowedHPHF(iLut)) THEN
-                         IF(tFixLz) THEN
-                             IF(TotalMom.eq.FDetMom) THEN
-                                 IF(truncate_space) THEN
-                                     IF(ExcitLev.le.ICILevel) THEN
-                                         Accept=Accept+1
-                                         tAcc=.true.
-                                     ENDIF
-                                 ELSE
-                                     Accept=Accept+1
-                                     tAcc=.true.
-                                 ENDIF
-                             ENDIF
-                         ELSE
-                             IF(truncate_space) THEN
-                                 IF(ExcitLev.le.ICILevel) THEN
-                                     IF(tUEG.or.tHub) THEN
-                                         IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN 
-                                            Accept=Accept+1
-                                            tAcc=.true.
-                                         ENDIF
-                                     ELSE
-                                         if(tKPntSym) then
-                                             if(KPntMom%S.eq.FDetKPntMom%S) then
-                                                 Accept=Accept+1
-                                                 tAcc=.true.
-                                             endif
-                                         else
-                                             Accept=Accept+1
-                                             tAcc=.true.
-                                         endif
-                                     ENDIF
-                                 ENDIF
-                             ELSE
-                                 IF(tUEG.or.tHub) THEN
-                                     IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN
-                                        Accept=Accept+1
-                                        tAcc=.true.
-                                     ENDIF
-                                 ELSE
-                                     if(tKPntSym) then
-                                         if(KPntMom%S.eq.FDetKPntMom%S) then
-                                             Accept=Accept+1
-                                             tAcc=.true.
-                                         endif
-                                     else
-                                         Accept=Accept+1
-                                         tAcc=.true.
-                                     endif
-                                 ENDIF
-                             ENDIF
-                         ENDIF
-                     ENDIF
-                 ELSE
-                     IF(tFixLz) THEN
-                         IF(TotalMom.eq.FDetMom) THEN
-                             IF(truncate_space) THEN
-                                 IF(ExcitLev.le.ICILevel) THEN
-                                     Accept=Accept+1
-                                     tAcc=.true.
-                                 ENDIF
-                             ELSE
-                                 Accept=Accept+1
-                                 tAcc=.true.
-                             ENDIF
-                         ENDIF
-                     ELSE
-                         IF(truncate_space) THEN
-                             IF(ExcitLev.le.ICILevel) THEN
-                                 IF(tUEG.or.tHub) THEN
-                                     IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN
-                                        Accept=Accept+1
-                                        tAcc=.true.
-                                     ENDIF
-                                 ELSE
-                                     if(tKPntSym) then
-                                         if(KPntMom%S.eq.FDetKPntMom%S) then
-                                             Accept=Accept+1
-                                             tAcc=.true.
-                                         endif
-                                     else
-                                         Accept=Accept+1
-                                         tAcc=.true.
-                                     endif
-                                 ENDIF
-                             ENDIF
-                         ELSE
-                             IF(tUEG.or.tHub) THEN
-                                 IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN
-                                    Accept=Accept+1
-                                    tAcc=.true.
-                                 ENDIF
-                             ELSE
-                                 if(tKPntSym) then
-                                     if(KPntMom%S.eq.FDetKPntMom%S) then
-                                         Accept=Accept+1
-                                         tAcc=.true.
-                                     endif
-                                 else
-                                     Accept=Accept+1
-                                     tAcc=.true.
-                                 endif
-                             ENDIF
-                         ENDIF
-                     ENDIF
-                 ENDIF
-             ENDIF
+             if(tTruncNOpen) nOpenOrbs = count_open_orbs(iLut)
+
+             tAcc=.true.
+             if(TotalSym.ne.FDetSym) then
+                 tAcc=.false.
+             endif
+
+             if(tAcc.and.tHPHF) then
+                 if(.not.IsAllowedHPHF(iLut)) then
+                     tAcc=.false.
+                 endif
+             endif
+
+             if(tAcc.and.tFixLz) then
+                 if(TotalMom.ne.FDetMom) then
+                     tAcc=.false.
+                 endif
+             endif
+
+             if(tAcc.and.truncate_space) then
+                 if(ExcitLev.gt.ICILevel) then
+                     tAcc=.false.
+                 endif
+             endif
+
+             if(tAcc.and.(tUEG.or.tHub)) then
+                 if((Momx.ne.0).or.(Momy.ne.0).or.(Momz.ne.0)) then
+                     tAcc=.false.
+                 endif
+             endif
+
+             if(tAcc.and.(tKPntSym)) then
+                 if(KPntMom%S.ne.FDetKPntMom%S) then
+                     tAcc=.false.
+                 endif
+             endif
+
+             if(tAcc.and.tTruncNOpen) then
+                 if(nOpenOrbs.gt.trunc_nopen_max) then
+                     tAcc=.false.
+                 endif
+             endif
+
+             if(tAcc) Accept = Accept + 1
+
+
+!             tAcc=.false.
+!             IF(TotalSym.eq.FDetSym) THEN
+!             !Allow/disallow the determinant
+!                 IF(tHPHF) THEN
+!                     IF(IsAllowedHPHF(iLut)) THEN
+!                         IF(tFixLz) THEN
+!                             IF(TotalMom.eq.FDetMom) THEN
+!                                 IF(truncate_space) THEN
+!                                     IF(ExcitLev.le.ICILevel) THEN
+!                                         Accept=Accept+1
+!                                         tAcc=.true.
+!                                     ENDIF
+!                                 ELSE
+!                                     Accept=Accept+1
+!                                     tAcc=.true.
+!                                 ENDIF
+!                             ENDIF
+!                         ELSE
+!                             IF(truncate_space) THEN
+!                                 IF(ExcitLev.le.ICILevel) THEN
+!                                     IF(tUEG.or.tHub) THEN
+!                                         IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN 
+!                                            Accept=Accept+1
+!                                            tAcc=.true.
+!                                         ENDIF
+!                                     ELSE
+!                                         if(tKPntSym) then
+!                                             if(KPntMom%S.eq.FDetKPntMom%S) then
+!                                                 Accept=Accept+1
+!                                                 tAcc=.true.
+!                                             endif
+!                                         else
+!                                             Accept=Accept+1
+!                                             tAcc=.true.
+!                                         endif
+!                                     ENDIF
+!                                 ENDIF
+!                             ELSE
+!                                 IF(tUEG.or.tHub) THEN
+!                                     IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN
+!                                        Accept=Accept+1
+!                                        tAcc=.true.
+!                                     ENDIF
+!                                 ELSE
+!                                     if(tKPntSym) then
+!                                         if(KPntMom%S.eq.FDetKPntMom%S) then
+!                                             Accept=Accept+1
+!                                             tAcc=.true.
+!                                         endif
+!                                     else
+!                                         Accept=Accept+1
+!                                         tAcc=.true.
+!                                     endif
+!                                 ENDIF
+!                             ENDIF
+!                         ENDIF
+!                     ENDIF
+!                 ELSE
+!                     IF(tFixLz) THEN
+!                         IF(TotalMom.eq.FDetMom) THEN
+!                             IF(truncate_space) THEN
+!                                 IF(ExcitLev.le.ICILevel) THEN
+!                                     Accept=Accept+1
+!                                     tAcc=.true.
+!                                 ENDIF
+!                             ELSE
+!                                 Accept=Accept+1
+!                                 tAcc=.true.
+!                             ENDIF
+!                         ENDIF
+!                     ELSE
+!                         IF(truncate_space) THEN
+!                             IF(ExcitLev.le.ICILevel) THEN
+!                                 IF(tUEG.or.tHub) THEN
+!                                     IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN
+!                                        Accept=Accept+1
+!                                        tAcc=.true.
+!                                     ENDIF
+!                                 ELSE
+!                                     if(tKPntSym) then
+!                                         if(KPntMom%S.eq.FDetKPntMom%S) then
+!                                             Accept=Accept+1
+!                                             tAcc=.true.
+!                                         endif
+!                                     else
+!                                         Accept=Accept+1
+!                                         tAcc=.true.
+!                                     endif
+!                                 ENDIF
+!                             ENDIF
+!                         ELSE
+!                             IF(tUEG.or.tHub) THEN
+!                                 IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN
+!                                    Accept=Accept+1
+!                                    tAcc=.true.
+!                                 ENDIF
+!                             ELSE
+!                                 if(tKPntSym) then
+!                                     if(KPntMom%S.eq.FDetKPntMom%S) then
+!                                         Accept=Accept+1
+!                                         tAcc=.true.
+!                                     endif
+!                                 else
+!                                     Accept=Accept+1
+!                                     tAcc=.true.
+!                                 endif
+!                             ENDIF
+!                         ENDIF
+!                     ENDIF
+!                 ENDIF
+!             ENDIF
 
              IF(tAcc) THEN
 !Add to correct bin for the excitation level
