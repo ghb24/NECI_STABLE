@@ -5880,7 +5880,6 @@ MODULE FciMCParMod
                 call MPISumAll(TotParts,AllTotParts)
                 AllTotPartsOld=AllTotParts
                 call MPISumAll(NoatHF,AllNoatHF)
-                InstNoatHF = AllNoatHF
                 OldAllNoatHF=AllNoatHF
                 AllNoAbortedOld=0.D0
                 iter_data_fciqmc%tot_parts_old = AllTotParts
@@ -5895,6 +5894,7 @@ MODULE FciMCParMod
                     !energy contributions on the root node.
                     SumNoatHF=AllSumNoatHF
                     SumENum=AllSumENum
+                    InstNoatHF = NoatHF
 
                     if((AllNoatHF(1).ne.NoatHF(1)).or.(AllNoatHF(lenof_sign).ne.NoatHF(lenof_sign))) then
                         call stop_all(this_routine,"HF particles spread across different processors.")

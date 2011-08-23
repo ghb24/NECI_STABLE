@@ -3175,7 +3175,7 @@ MODULE nElRDMMod
         if(iProcIndex.eq.0) then
 
             ! If we're not using HPHF - average the matrix elements that by spin we know to be equal.
-            if(tRDMSpinAveraging.and.(.not.tHPHF)) then 
+            if(tRDMSpinAveraging.and.(.not.tHPHF).and.tFinalRDMEnergy) then 
                 call Average_Spins_and_Sum_Norms(Trace_1RDM_Inst, Trace_1RDM, Trace_2RDM, Trace_2RDM_Inst)
             else
                 call sum_norms(Trace_1RDM_Inst, Trace_1RDM, Trace_2RDM, Trace_2RDM_Inst)
@@ -3730,7 +3730,7 @@ MODULE nElRDMMod
         ENDIF
 
         lengthsout(0:nProcessors-1) = 0
-        CALL MPIAllGather(int(TotWalkers,int32)*(NIfTot+1),lengthsout,ierr)
+        CALL MPIAllGather(int(TotWalkers,sizeof_int)*(NIfTot+1),lengthsout,ierr)
 
         disp(:) = 0
         do i = 1, nProcessors-1
