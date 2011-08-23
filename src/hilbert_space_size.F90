@@ -2,7 +2,7 @@
 
 module hilbert_space_size
 
-use constants, only: dp,int64,n_int,bits_n_int
+use constants, only: dp,int64,n_int,bits_n_int,sizeof_int
 implicit none
 
 contains
@@ -46,7 +46,7 @@ contains
          ExcitBinAll(:)=0
 
          do i=1,NEl
-            FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,4))
+            FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,sizeof_int))
             IF(tFixLz) FDetMom=FDetMom+G1(FDet(i))%Ml
          enddo
          CALL EncodeBitDet(FDet,FDetiLut)
@@ -103,7 +103,7 @@ contains
 !Add to correct bin for the excitation level
              ExcitBin(ExcitLev)=ExcitBin(ExcitLev)+1
              
-             IF(mod(i,int(CalcDetPrint,4)).eq.0) THEN
+             IF(mod(i,int(CalcDetPrint,sizeof_int)).eq.0) THEN
                  !Write out statistics
                  call MPIReduce(Accept,MPI_SUM,AcceptAll)
                  call MPIReduce(TotalAttempts,MPI_SUM,TotalAttemptsAll)
@@ -245,7 +245,7 @@ contains
                         clr_orb(iLut,Orb)   !Clear orbital to indicate it is gone. 
                         tNotAllowed=.false.
                         !Deal with totting up the symmetry for the now unocc orbital
-                        TotalSym=IEOR(TotalSym,INT((G1(Orb)%Sym%S),4))
+                        TotalSym=IEOR(TotalSym,INT((G1(Orb)%Sym%S),sizeof_int))
                         TotalMom=TotalMom+G1(Orb)%Ml
                         TotalMs=TotalMs+G1(Orb)%Ms
                         IF(tUEG.or.tHub) THEN
@@ -270,7 +270,7 @@ contains
                          tNotAllowed=.false.
                          if(IsNotOcc(FDetiLut,Hole)) ExcitLev=ExcitLev+1    !Increase excitation level
                          !Deal with totting up the symmetry for the now occ orbital
-                         TotalSym=IEOR(TotalSym,INT((G1(Hole)%Sym%S),4))
+                         TotalSym=IEOR(TotalSym,INT((G1(Hole)%Sym%S),sizeof_int))
                          TotalMom=TotalMom-G1(Hole)%Ml
                          TotalMs=TotalMs-G1(Hole)%Ms
                          if(tUEG.or.tHub) then
@@ -304,12 +304,13 @@ contains
          use SystemData, only: nEl,G1,nBasis,nOccAlpha,nOccBeta
          use SystemData, only: tUEG,tHPHF,tHub,tKPntSym,Symmetry
          use SystemData, only : CalcDetCycles, CalcDetPrint,tFixLz
+         use CalcData, only : tTruncNOpen, trunc_nopen_max
          use DeterminantData, only : FDet
          use DetCalcData, only : ICILevel
          use dSFMT_interface
          use soft_exit, only : ChangeVars
          use Parallel
-         use DetBitops, only: EncodeBitDet, IsAllowedHPHF
+         use DetBitops, only: EncodeBitDet, IsAllowedHPHF, count_open_orbs
          use util_mod, only: choose
          use bit_rep_data, only: NIfTot
          use sym_mod, only: SymProd
@@ -317,7 +318,7 @@ contains
          INTEGER :: IUNIT,j,SpatOrbs,FDetMom,ExcitLev
          INTEGER(KIND=n_int) :: FDetiLut(0:NIfTot),iLut(0:NIfTot)
          INTEGER :: FDetSym,TotalSym,TotalMom,alpha,beta,ierr,Momx,Momy
-         INTEGER :: Momz
+         INTEGER :: Momz,nopenorbs
          integer(int64) :: Accept,AcceptAll,i
          integer(int64) :: ExcitBin(0:NEl),ExcitBinAll(0:NEl)
          real(dp) :: FullSpace,r,Frac
@@ -355,7 +356,7 @@ contains
                 Momy=Momy+G1(i)%k(2)
                 Momz=Momz+G1(i)%k(3)
             else
-                FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,4))
+                FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,sizeof_int))
             ENDIF
          enddo
 
@@ -445,7 +446,7 @@ contains
                  elseif(tKPntSym) then
                      KPntMom=Symprod(KPntMom,G1(alpha)%Sym)
                  else
-                     TotalSym=IEOR(TotalSym,INT((G1(alpha)%Sym%S),4))
+                     TotalSym=IEOR(TotalSym,INT((G1(alpha)%Sym%S),sizeof_int))
                  ENDIF
                  IF(.not.BTEST(FDetiLut((alpha-1)/bits_n_int),mod((alpha-1),bits_n_int))) THEN
                      !orbital chosen is *not* in the reference determinant
@@ -485,7 +486,7 @@ contains
                  elseif(tKPntSym) then
                      KPntMom=Symprod(KPntMom,G1(beta)%Sym)
                  ELSE
-                     TotalSym=IEOR(TotalSym,INT((G1(beta)%Sym%S),4))
+                     TotalSym=IEOR(TotalSym,INT((G1(beta)%Sym%S),sizeof_int))
                  ENDIF
             IF(.not.BTEST(FDetiLut((beta-1)/bits_n_int),mod((beta-1),bits_n_int))) THEN
                      !orbital chosen is *not* in the reference determinant
@@ -501,117 +502,163 @@ contains
 
              enddo
 
-             tAcc=.false.
-             IF(TotalSym.eq.FDetSym) THEN
-             !Allow/disallow the determinant
-                 IF(tHPHF) THEN
-                     IF(IsAllowedHPHF(iLut)) THEN
-                         IF(tFixLz) THEN
-                             IF(TotalMom.eq.FDetMom) THEN
-                                 IF(truncate_space) THEN
-                                     IF(ExcitLev.le.ICILevel) THEN
-                                         Accept=Accept+1
-                                         tAcc=.true.
-                                     ENDIF
-                                 ELSE
-                                     Accept=Accept+1
-                                     tAcc=.true.
-                                 ENDIF
-                             ENDIF
-                         ELSE
-                             IF(truncate_space) THEN
-                                 IF(ExcitLev.le.ICILevel) THEN
-                                     IF(tUEG.or.tHub) THEN
-                                         IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN 
-                                            Accept=Accept+1
-                                            tAcc=.true.
-                                         ENDIF
-                                     ELSE
-                                         if(tKPntSym) then
-                                             if(KPntMom%S.eq.FDetKPntMom%S) then
-                                                 Accept=Accept+1
-                                                 tAcc=.true.
-                                             endif
-                                         else
-                                             Accept=Accept+1
-                                             tAcc=.true.
-                                         endif
-                                     ENDIF
-                                 ENDIF
-                             ELSE
-                                 IF(tUEG.or.tHub) THEN
-                                     IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN
-                                        Accept=Accept+1
-                                        tAcc=.true.
-                                     ENDIF
-                                 ELSE
-                                     if(tKPntSym) then
-                                         if(KPntMom%S.eq.FDetKPntMom%S) then
-                                             Accept=Accept+1
-                                             tAcc=.true.
-                                         endif
-                                     else
-                                         Accept=Accept+1
-                                         tAcc=.true.
-                                     endif
-                                 ENDIF
-                             ENDIF
-                         ENDIF
-                     ENDIF
-                 ELSE
-                     IF(tFixLz) THEN
-                         IF(TotalMom.eq.FDetMom) THEN
-                             IF(truncate_space) THEN
-                                 IF(ExcitLev.le.ICILevel) THEN
-                                     Accept=Accept+1
-                                     tAcc=.true.
-                                 ENDIF
-                             ELSE
-                                 Accept=Accept+1
-                                 tAcc=.true.
-                             ENDIF
-                         ENDIF
-                     ELSE
-                         IF(truncate_space) THEN
-                             IF(ExcitLev.le.ICILevel) THEN
-                                 IF(tUEG.or.tHub) THEN
-                                     IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN
-                                        Accept=Accept+1
-                                        tAcc=.true.
-                                     ENDIF
-                                 ELSE
-                                     if(tKPntSym) then
-                                         if(KPntMom%S.eq.FDetKPntMom%S) then
-                                             Accept=Accept+1
-                                             tAcc=.true.
-                                         endif
-                                     else
-                                         Accept=Accept+1
-                                         tAcc=.true.
-                                     endif
-                                 ENDIF
-                             ENDIF
-                         ELSE
-                             IF(tUEG.or.tHub) THEN
-                                 IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN
-                                    Accept=Accept+1
-                                    tAcc=.true.
-                                 ENDIF
-                             ELSE
-                                 if(tKPntSym) then
-                                     if(KPntMom%S.eq.FDetKPntMom%S) then
-                                         Accept=Accept+1
-                                         tAcc=.true.
-                                     endif
-                                 else
-                                     Accept=Accept+1
-                                     tAcc=.true.
-                                 endif
-                             ENDIF
-                         ENDIF
-                     ENDIF
-                 ENDIF
-             ENDIF
+             if(tTruncNOpen) nOpenOrbs = count_open_orbs(iLut)
+
+             tAcc=.true.
+             if(TotalSym.ne.FDetSym) then
+                 tAcc=.false.
+             endif
+
+             if(tAcc.and.tHPHF) then
+                 if(.not.IsAllowedHPHF(iLut)) then
+                     tAcc=.false.
+                 endif
+             endif
+
+             if(tAcc.and.tFixLz) then
+                 if(TotalMom.ne.FDetMom) then
+                     tAcc=.false.
+                 endif
+             endif
+
+             if(tAcc.and.truncate_space) then
+                 if(ExcitLev.gt.ICILevel) then
+                     tAcc=.false.
+                 endif
+             endif
+
+             if(tAcc.and.(tUEG.or.tHub)) then
+                 if((Momx.ne.0).or.(Momy.ne.0).or.(Momz.ne.0)) then
+                     tAcc=.false.
+                 endif
+             endif
+
+             if(tAcc.and.(tKPntSym)) then
+                 if(KPntMom%S.ne.FDetKPntMom%S) then
+                     tAcc=.false.
+                 endif
+             endif
+
+             if(tAcc.and.tTruncNOpen) then
+                 if(nOpenOrbs.gt.trunc_nopen_max) then
+                     tAcc=.false.
+                 endif
+             endif
+
+             if(tAcc) Accept = Accept + 1
+
+
+!             tAcc=.false.
+!             IF(TotalSym.eq.FDetSym) THEN
+!             !Allow/disallow the determinant
+!                 IF(tHPHF) THEN
+!                     IF(IsAllowedHPHF(iLut)) THEN
+!                         IF(tFixLz) THEN
+!                             IF(TotalMom.eq.FDetMom) THEN
+!                                 IF(truncate_space) THEN
+!                                     IF(ExcitLev.le.ICILevel) THEN
+!                                         Accept=Accept+1
+!                                         tAcc=.true.
+!                                     ENDIF
+!                                 ELSE
+!                                     Accept=Accept+1
+!                                     tAcc=.true.
+!                                 ENDIF
+!                             ENDIF
+!                         ELSE
+!                             IF(truncate_space) THEN
+!                                 IF(ExcitLev.le.ICILevel) THEN
+!                                     IF(tUEG.or.tHub) THEN
+!                                         IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN 
+!                                            Accept=Accept+1
+!                                            tAcc=.true.
+!                                         ENDIF
+!                                     ELSE
+!                                         if(tKPntSym) then
+!                                             if(KPntMom%S.eq.FDetKPntMom%S) then
+!                                                 Accept=Accept+1
+!                                                 tAcc=.true.
+!                                             endif
+!                                         else
+!                                             Accept=Accept+1
+!                                             tAcc=.true.
+!                                         endif
+!                                     ENDIF
+!                                 ENDIF
+!                             ELSE
+!                                 IF(tUEG.or.tHub) THEN
+!                                     IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN
+!                                        Accept=Accept+1
+!                                        tAcc=.true.
+!                                     ENDIF
+!                                 ELSE
+!                                     if(tKPntSym) then
+!                                         if(KPntMom%S.eq.FDetKPntMom%S) then
+!                                             Accept=Accept+1
+!                                             tAcc=.true.
+!                                         endif
+!                                     else
+!                                         Accept=Accept+1
+!                                         tAcc=.true.
+!                                     endif
+!                                 ENDIF
+!                             ENDIF
+!                         ENDIF
+!                     ENDIF
+!                 ELSE
+!                     IF(tFixLz) THEN
+!                         IF(TotalMom.eq.FDetMom) THEN
+!                             IF(truncate_space) THEN
+!                                 IF(ExcitLev.le.ICILevel) THEN
+!                                     Accept=Accept+1
+!                                     tAcc=.true.
+!                                 ENDIF
+!                             ELSE
+!                                 Accept=Accept+1
+!                                 tAcc=.true.
+!                             ENDIF
+!                         ENDIF
+!                     ELSE
+!                         IF(truncate_space) THEN
+!                             IF(ExcitLev.le.ICILevel) THEN
+!                                 IF(tUEG.or.tHub) THEN
+!                                     IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN
+!                                        Accept=Accept+1
+!                                        tAcc=.true.
+!                                     ENDIF
+!                                 ELSE
+!                                     if(tKPntSym) then
+!                                         if(KPntMom%S.eq.FDetKPntMom%S) then
+!                                             Accept=Accept+1
+!                                             tAcc=.true.
+!                                         endif
+!                                     else
+!                                         Accept=Accept+1
+!                                         tAcc=.true.
+!                                     endif
+!                                 ENDIF
+!                             ENDIF
+!                         ELSE
+!                             IF(tUEG.or.tHub) THEN
+!                                 IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN
+!                                    Accept=Accept+1
+!                                    tAcc=.true.
+!                                 ENDIF
+!                             ELSE
+!                                 if(tKPntSym) then
+!                                     if(KPntMom%S.eq.FDetKPntMom%S) then
+!                                         Accept=Accept+1
+!                                         tAcc=.true.
+!                                     endif
+!                                 else
+!                                     Accept=Accept+1
+!                                     tAcc=.true.
+!                                 endif
+!                             ENDIF
+!                         ENDIF
+!                     ENDIF
+!                 ENDIF
+!             ENDIF
 
              IF(tAcc) THEN
 !Add to correct bin for the excitation level
@@ -699,7 +746,7 @@ contains
          WRITE(IUNIT,*) "Calculating exact size of symmetry-allowed determinant space..."
          FDetSym=0
          do i=1,NEl
-            FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,4))
+            FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,sizeof_int))
          enddo
          WRITE(6,*) "Symmetry of HF determinant is: ",FDetSym
          CALL FLUSH(IUNIT)
@@ -707,12 +754,12 @@ contains
 !First, we need to find the number of spatial orbitals in each symmetry irrep.
          do i=1,nBasis,1
              IF(G1(i)%Ms.eq.1) THEN
-                 ClassCounts(1,INT(G1(i)%Sym%S,4))=                     &
-                    ClassCounts(1,INT(G1(i)%Sym%S,4))+1
+                 ClassCounts(1,INT(G1(i)%Sym%S,sizeof_int))=                     &
+                    ClassCounts(1,INT(G1(i)%Sym%S,sizeof_int))+1
              ELSE
 
-                 ClassCounts(2,INT(G1(i)%Sym%S,4))=                     &
-                    ClassCounts(2,INT(G1(i)%Sym%S,4))+1
+                 ClassCounts(2,INT(G1(i)%Sym%S,sizeof_int))=                     &
+                    ClassCounts(2,INT(G1(i)%Sym%S,sizeof_int))+1
              ENDIF
          enddo
          do i=0,7
@@ -894,7 +941,7 @@ contains
              //"determinant space..."
          FDetSym=0
          do i=1,NEl
-            FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,4))
+            FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,sizeof_int))
          enddo
          WRITE(6,*) "Symmetry of HF determinant is: ",FDetSym
          CALL FLUSH(IUNIT)
@@ -903,13 +950,13 @@ contains
 !First, we need to find the number of spatial orbitals in each symmetry irrep.
 !We need to separate this into occupied and virtual. 
          do i=1,NEl,1
-             ClassCountsOcc(INT(G1(BRR(i))%Sym%S,4))=                   &
-                 ClassCountsOcc(INT(G1(BRR(i))%Sym%S,4))+1
+             ClassCountsOcc(INT(G1(BRR(i))%Sym%S,sizeof_int))=                   &
+                 ClassCountsOcc(INT(G1(BRR(i))%Sym%S,sizeof_int))+1
          enddo
  
          do i=NEL+1,nBasis,1
-             ClassCountsVirt(INT(G1(BRR(i))%Sym%S,4))=                  &
-                 ClassCountsVirt(INT(G1(BRR(i))%Sym%S,4))+1
+             ClassCountsVirt(INT(G1(BRR(i))%Sym%S,sizeof_int))=                  &
+                 ClassCountsVirt(INT(G1(BRR(i))%Sym%S,sizeof_int))+1
          enddo
 
 !These are still in spin orbitals, so check there are multiple of 2 values in 

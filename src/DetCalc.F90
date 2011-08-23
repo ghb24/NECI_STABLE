@@ -465,11 +465,11 @@ CONTAINS
             LSCR=MAX(NDET*NEVAL,8*NBLOCK*NKRY)
             LISCR=6*NBLOCK*NKRY
 !C..
-            write (6,'(/,/,8X,64(1H*))')
+!            write (6,'(/,/,8X,64(1H*))')
             write (6,'(7X," *",62X,"*")')
           write (6,'(7X," *",19X,A,18X,"*")') ' LANCZOS DIAGONALISATION '
             write (6,'(7X," *",62X,"*")')
-            write (6,'(7X,1X,64(1H*))')
+!            write (6,'(7X,1X,64(1H*))')
 !C..Set up memory for FRSBLKH
 
             ALLOCATE(A(NEVAL,NEVAL),stat=ierr)
@@ -537,7 +537,7 @@ CONTAINS
                CALL LogMemAlloc('WORK',4*NDET,8*HElement_t_size,this_routine,WorkTag,ierr)
                ALLOCATE(WORK2(3*NDET),stat=ierr)
                CALL LogMemAlloc('WORK2',3*NDET,8,this_routine,WORK2Tag,ierr)
-               CALL HDIAG(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,NBLOCKSTARTS,NBLOCKS)
+               CALL HDIAG_neci(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,NBLOCKSTARTS,NBLOCKS)
             ELSE
 !I_P we've replaced by 0
                CALL HDIAG_NH(NDET,NBLOCKSTARTS,NBLOCKS,NEL,NMRKS,NBASISMAX,NBASIS,G1,BRR, &
@@ -1258,8 +1258,8 @@ END MODULE DetCalc
       use SystemData, only: BasisFN
       use HElem
       IMPLICIT NONE
+      INTEGER NEL,NM(NEL,*),NDET,NEVAL, iunit
       HElement_t CG(NDET,NEVAL)
-      INTEGER NM(NEL,*),NDET,NEL,NEVAL, iunit
       real(dp) TKE(NEVAL)
       TYPE(BASISFN) G1(*)
       real(dp) PI,S,SUM1

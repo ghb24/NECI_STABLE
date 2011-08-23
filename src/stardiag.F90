@@ -1,7 +1,7 @@
     MODULE STARDIAGMOD
         use Determinants, only: get_helement
         use sort_mod
-        use constants, only: dp
+        use constants, only: dp,int32
         use MemoryManager, only: TagIntType
         IMPLICIT NONE
       
@@ -49,7 +49,7 @@
          use HElem
          IMPLICIT NONE
          Type(BasisFN) G1(*)
-         INTEGER nI(nEl),nEl,i_P,nBasisMax(5,*),nBasis,nMsh
+         INTEGER nEl,nI(nEl),i_P,nBasisMax(5,*),nBasis,nMsh
          INTEGER nMax,nTay(2),L,LT,nWHTay,iLogging
          complex(dp) fck(*)
          HElement_t UMat(*)
@@ -411,12 +411,13 @@
             HElement_t :: rhii,UMat(*),rh,rhij,Hij
             complex(dp) :: fck(*)
             real(dp) :: Beta,ALat(3),ECore,RhoEps
+            INTEGER :: nEl
+            INTEGER :: i,j,iExcit,nI(nEl),i_P,nBasis,nMsh
             INTEGER :: DoublePath(nEl),nStore2(6),exFlag2,iMaxExcit2,nJ(nEl),nExcitMemLen2
             INTEGER :: QuadExcits,iExcit2,TotExcits,NextVertex,NoExcitsInStar(iExcit)
-            INTEGER :: i,j,iExcit,nI(nEl),i_P,nEl,nBasis,nMsh
             type(timer), save :: proc_timer
             INTEGER :: nMax,nTay(2),iErr,ICMPDETS,iMaxExcit,temp,IGETEXCITLEVEL
-            INTEGER*4 Info
+            INTEGER(int32) Info
             INTEGER, ALLOCATABLE :: nExcit2(:)
             real(dp), ALLOCATABLE :: ExcitStarInfo(:,:),ExcitStarMat(:,:),WORK(:)
             real(dp), ALLOCATABLE :: ExcitStarVals(:),ExcitStarVecs(:)
@@ -1745,9 +1746,10 @@
 !This subroutine simply forms a star matrix, diagonalises it, and returns the eigenvalues and first elements of the eigenvectors.
         SUBROUTINE GetValsnVecs(Dimen,DiagRhos,OffDiagRhos,Vals,Vecs)
             use global_utilities
+            use constants, only: int32
             IMPLICIT NONE
             INTEGER :: Dimen,i,iErr
-            INTEGER*4 INFO
+            INTEGER(int32) INFO
             real(dp) :: DiagRhos(1:Dimen),Vals(Dimen),Vecs(Dimen)
             HElement_t :: OffDiagRhos(2:Dimen)
             real(dp), ALLOCATABLE :: StarMat(:,:),WORK(:)
@@ -2194,7 +2196,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 
       SUBROUTINE STARDIAGREALPROD(NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB,ProdNum,ProdPositions,OnDiagProdRho,OffDiagProdRho)
          !NLIST is now no. original excitations (+ root) - ILMAX is max possible excitations +1
-         use constants, only: dp
+         use constants, only: dp, int32
          use HElem
          use global_utilities
         use MemoryManager, only: TagIntType
@@ -2208,7 +2210,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 
          type(timer), save :: proc_timer
          INTEGER WORKL,ProdPositions(2,ProdNum)
-         INTEGER*4 INFO
+         INTEGER(int32) INFO
          real(dp) SI,DLWDB,DBETA
          INTEGER I,J,err
          character(*),parameter :: this_routine='STARDIAGREALPROD'
@@ -2297,7 +2299,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          
          
       SUBROUTINE STARDIAGSC(NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB)
-         use constants, only: dp
+         use constants, only: dp,int32
          use global_utilities
          use sort_mod
          use helem, only: helement_t_size
@@ -2314,7 +2316,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          INTEGER IND,TOTVERT
          type(timer), save :: proc_timer
          INTEGER WORKL,PRODVERT,ierr
-         INTEGER*4 INFO
+         INTEGER(int32) INFO
          real(dp) SI,DLWDB,DBETA
          INTEGER I,J,err
          character(*),parameter :: this_routine='STARDIAGSC'
@@ -2437,7 +2439,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !Use a MC sampling technique to find the eigenvector correesponding to the smallest eigenvalue.
 !List now contains diagonal hamiltonian matrix elements-Hii in the ExcitInfo(i,0), rather than rho elements.
       SUBROUTINE StarDiagMC(NList,List,ILMax,SI,DLWDB,MaxDiag)
-         use constants, only: dp
+         use constants, only: dp,int32
          use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
          use CalcData , only : TReadPops,ScaleWalkers,TBinCancel, iPopsFileNoRead, iPopsFileNoWrite
          USE Logging , only : TPopsFile,TCalcWavevector,WavevectorPrint, tIncrementPops
@@ -2450,7 +2452,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          IMPLICIT NONE
          CHARACTER(len=*), PARAMETER :: this_routine='StarDiagMC'
          INTEGER :: i,j,NList,ILMax,ierr,WorkL,toprint,PreviousNMCyc
-         INTEGER*4 Info
+         INTEGER(int32) Info
          type(timer), save :: proc_timer
          INTEGER :: TotWalkers,Seed,VecSlot,TotWalkersNew,DetCurr,ReadWalkers
          INTEGER :: MaxWalkers,TotWalkersOld,NWalk,k,l,TotWalkersDet
@@ -3250,7 +3252,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
         
       
       SUBROUTINE STARDIAG(NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB)
-         use constants, only: dp
+         use constants, only: dp,int32
          use IntegralsData , only : TCalcRealProd
          use global_utilities
          use sort_mod
@@ -3264,7 +3266,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          INTEGER(TagIntType), SAVE :: tagRIJMAT=0,tagWLIST=0,tagWORK=0
          type(timer), save :: proc_timer
          INTEGER WORKL
-         INTEGER*4 INFO
+         INTEGER(int32) INFO
          real(dp) SI,DLWDB,DBETA,OD
          INTEGER I,J,err
          character(*),parameter :: this_routine='STARDIAG'
@@ -3594,15 +3596,15 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !  i.e. if the double is (ij->ab), then singles (i->a),(i->b),(j->a) and (j->b) are created in a star with (ij->ab), the result diagonalized, and the eigenvalues and vectors used to create new spokes.  Only works with NEW
       SUBROUTINE StarAddSingles(nI,nJ,ExcitInfo,iExcit,iMaxExcit,rhii,rhoeps,Beta,i_P,nEl,G1, &
         nBasis,nMsh,fck,nMax,ALat,UMat,nTay,ECore)
-         use constants, only: dp      
+         use constants, only: dp,int32      
          use SystemData, only: BasisFN
          use sort_mod
          use helem, only: helement_t_size
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          Type(BasisFN) G1(*)
-         INTEGER nI(nEl),nEl,i_P,nBasis,nMsh
-         INTEGER nMax,nTay(2)
+         INTEGER nEl,nI(nEl),i_P,nBasis,nMsh
+         INTEGER nMax,nTay(2),iMaxExcit
          complex(dp) fck(*)
          HElement_t UMat(*)
          real(dp) Beta, ALat(3),RhoEps,ECore
@@ -3615,15 +3617,15 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !.. LIST(J,1) = RHOIJ
 !.. LIST(J,2) = HIJ
 
-         INTEGER nJ(nEl),iExcit,iEx(2,2),nK(nEl)
+         INTEGER nJ(nEl),iEx(2,2),nK(nEl)
          LOGICAL tDummy
          HElement_t StarMat(5,5),rh,rhii
-         integer i,iExc,iMaxExcit
+         integer i,iExcit,iExc
 
 !Needed for diagonalizer
          real(dp) WLIST(5),WORK(3*5)         
          HElement_t NWORK(4*5)
-         INTEGER*4 INFO
+         INTEGER(int32) INFO
 
          StarMat=(0.d0)
          iEx(1,1)=2
@@ -3750,7 +3752,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
       SUBROUTINE GETFULLPATH(nI,nEl,noexcits,Orbchange,nJ)
         use sort_mod
         IMPLICIT NONE
-        INTEGER :: nI(nEl),nJ(nEl),nEl,noexcits,Orbchange(noexcits*noexcits)
+        INTEGER :: nEl,nI(nEl),nJ(nEl),noexcits,Orbchange(noexcits*noexcits)
         INTEGER :: I,J
         
         DO I=1,nEl
@@ -3771,7 +3773,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
      !This information is put into Orbchange(4), with the first two values being the excited from orbitals (ij), and the second two being the excited to orbitals (ab).
      SUBROUTINE GETEXCITSCHANGE(nI,nJ,nEl,Orbchange)
         IMPLICIT NONE
-        INTEGER :: nI(nEl),nJ(nEl),nEl,Orbchange(4),q,I,J
+        INTEGER :: nEl,nI(nEl),nJ(nEl),Orbchange(4),q,I,J
         LOGICAL :: FOUND
         LOGICAL :: ROOT(nEl),EXCIT(nEl)
         ROOT(:)=.TRUE.

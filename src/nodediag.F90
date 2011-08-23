@@ -11,7 +11,7 @@
 !This would reduce the scaling to M^6 - same as CID
 
     MODULE NODEDIAG
-      use constants, only: dp
+      use constants, only: dp,int32
       use SystemData, only: BasisFN
       use IntegralsData, only: tDiscoNodes
       use Determinants, only: get_helement, get_helement_excit
@@ -44,7 +44,7 @@
       FUNCTION fMCPR3StarNodes(nI,Beta,i_P,nEl,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,RhoEps,ECore,dBeta,dLWdb)
       use HElem
       TYPE(BasisFN) G1(*)
-      INTEGER nI(nEl),nEl,i_P,Brr(nBasis),nBasis,nMsh
+      INTEGER nEl,nI(nEl),nBasis,i_P,Brr(nBasis),nMsh
       INTEGER nMax,nTay(2),iMaxExcit,nExcitMemLen
       INTEGER noij,noab,ierr,totexcits,nJ(nEl),Orbchange(4),noexcits
       INTEGER Height,TRIIND,INDX,i,ExcitInfoElems,j,exFlag
@@ -194,10 +194,10 @@
         Type(BasisFN) G1(*)
         complex(dp) fck(*)
         HElement_t UMat(*),rh,Hel
-        INTEGER novirt,ierr,i,j,ijpair(2),node,nI(nEl),nJ(nEl),nK(nEl),i_P
+        INTEGER novirt,nEl,ierr,i,j,ijpair(2),node,nI(nEl),nJ(nEl),nK(nEl),i_P
         INTEGER nBasis,nMsh,nMax,nTay(2),WORKMEM
-        INTEGER*4 INFO
-        INTEGER ExcitInfoElems,nEl,Orbchange(4),iExcit
+        INTEGER(int32) INFO
+        INTEGER ExcitInfoElems,Orbchange(4),iExcit
         real(dp) Beta,ALat(3),RhoEps,ECore
         real(dp), ALLOCATABLE :: NODERHOMAT(:),WLIST(:)
         INTEGER, ALLOCATABLE :: FULLPATHS(:,:)

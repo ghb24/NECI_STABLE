@@ -731,8 +731,8 @@ contains
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: SymPairProd
          implicit none
-         TYPE(SymPairProd) SymPairProds(nSymPairProds)
          INTEGER nSymPairProds,iProd
+         TYPE(SymPairProd) SymPairProds(nSymPairProds)
          TYPE(Symmetry) Prod
          DO iProd=1,nSymPairProds
             IF(SYMEQ(SymPairProds(iProd)%Sym,Prod)) EXIT
@@ -833,7 +833,8 @@ contains
 
       SUBROUTINE GetLz(nI,NElec,Lz)
         use SystemData , only : G1
-        INTEGER :: nI(NElec),NElec,Lz,i
+        INTEGER :: NElec
+        INTEGER :: nI(NElec),Lz,i
         Lz=0
         do i=1,NElec
             Lz=Lz+G1(nI(i))%Ml
@@ -994,7 +995,7 @@ contains
          IMPLICIT NONE
          INTEGER IUNIT,NROT,NSYM
          complex(dp) CHARS(NROT,NSYM)
-         CHARACTER*6 STR
+         CHARACTER(6) STR
          INTEGER I,J
          LOGICAL LCOMP,LREAL
          LCOMP=.FALSE.
@@ -1018,7 +1019,7 @@ contains
          INTEGER IUNIT,NROT
          complex(dp) CHARS(NROT)
          INTEGER J
-         CHARACTER*6 STR
+         CHARACTER(6) STR
          LOGICAL LCOMP,LREAL
 !   First do a check for the format
             LCOMP=.FALSE.
@@ -1035,7 +1036,7 @@ contains
          INTEGER IUNIT,NROT
          complex(dp) CHARS(NROT)
          INTEGER J
-         CHARACTER*6 STR
+         CHARACTER(6) STR
          LOGICAL LCOMP,LREAL
             WRITE(IUNIT,"(A6,A)",advance='no') STR,":   "
             DO J=1,NROT
@@ -1270,8 +1271,8 @@ contains
          use global_utilities
          IMPLICIT NONE
          INTEGER I,J
-         TYPE(BasisFN) G1(nBasis)
          INTEGER NBASIS
+         TYPE(BasisFN) G1(nBasis)
          real(dp) ARR(NBASIS,2)
          real(dp) DEGENTOL
          logical lTmp
@@ -1890,8 +1891,8 @@ contains
       use SymData, only: tagSymClasses
       use global_utilities
       IMPLICIT NONE
-      INTEGER nTranslat,nKps,KpntInd(nStates)
       INTEGER I,nStates
+      INTEGER nTranslat,nKps,KpntInd(nStates)
       character(*), parameter :: this_routine='GenKPtIrreps'
       nSymLabels=nKps
       nRot=nTranslat
