@@ -404,9 +404,10 @@ contains
        !    record_length: size of record in units of the compiler's
        !    choice.
        integer, intent(in) :: bytes
-       inquire(iolength=record_length) bytes
+       integer(int32) :: record_length_loc
+       inquire(iolength=record_length_loc) bytes
 !       record_length = (bytes/4)*record_length   
-       record_length = (bytes/sizeof_int)*record_length   
+       record_length = (bytes/sizeof_int)*int(record_length_loc,sizeof_int)
 ! 8 indicates 8-byte words I think
     end function record_length
 

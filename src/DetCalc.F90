@@ -518,8 +518,6 @@ CONTAINS
             CALL LogMemAlloc('V2',NDET*NEVAL,8,this_routine,V2Tag,ierr)
             V2=0.d0
 !C..Lanczos iterative diagonalising routine
-            write(6,*) "Going into frsblk"
-            call flush(6)
             CALL NECI_FRSBLKH(NDET,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT, &
      &  SCR,ISCR,INDEX,NCYCLE,B2L,.true.,.false.,.false.,.true.)
 
@@ -1044,9 +1042,9 @@ END MODULE DetCalc
          IF((I_HMAX.GE.-10.AND.I_HMAX.LE.-7)      .OR.I_HMAX.LE.-12) ILMAX=1
 !         ILMAX=(NBASIS-NEL)**2*NEL*NEL/4
          ALLOCATE(LSTE(NEL,0:ILMAX,0:IMAX),stat=ierr)
-         call LogMemAlloc('LSTE',size(LSTE),4,this_routine,LSTEtag,ierr)
+         call LogMemAlloc('LSTE', int(size(LSTE)),4,this_routine,LSTEtag,ierr)
          ALLOCATE(ICE(0:ILMAX,0:IMAX),stat=ierr)
-         call LogMemAlloc('ICE',size(ICE),4,this_routine,ICEtag,ierr)
+         call LogMemAlloc('ICE',int(size(ICE)),4,this_routine,ICEtag,ierr)
          ALLOCATE(RIJLIST(0:ILMAX,0:IMAX*2),stat=ierr)
          CALL LogMemAlloc('RIJLIST',(1+ILMAX)*IMAX*2,8,this_routine,RIJLISTTag,ierr)
          IF(I_VMAX.NE.0) THEN

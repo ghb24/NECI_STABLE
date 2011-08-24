@@ -17,11 +17,11 @@ module DetBitOps
 #ifdef __INT64
     ! 10101010 and 01010101 in binary respectively.
 !    integer(n_int), parameter :: MaskBeta=Z'5555555555555555'
-    integer(n_int), parameter :: MaskBeta=6148914691236517205
+    integer(n_int), parameter :: MaskBeta=6148914691236517205_n_int
     integer(n_int), parameter :: MaskAlpha=IShft(MaskBeta,1)
 #else
-    integer(n_int), parameter :: MaskBeta=1431655765
-    integer(n_int), parameter :: MaskAlpha=-1431655766
+    integer(n_int), parameter :: MaskBeta=1431655765_n_int
+    integer(n_int), parameter :: MaskAlpha=-1431655766_n_int
 #endif
 
     ! Which count-bits procedure do we use?
@@ -140,10 +140,10 @@ module DetBitOps
         integer(n_int) :: tmp
 
 #ifdef __INT64
-        integer(n_int), parameter :: m1 = 6148914691236517205  !Z'5555555555555555'
-        integer(n_int), parameter :: m2 = 3689348814741910323  !Z'3333333333333333'
-        integer(n_int), parameter :: m3 = 1085102592571150095  !Z'0f0f0f0f0f0f0f0f'
-        integer(n_int), parameter :: m4 = 72340172838076673    !Z'0101010101010101'
+        integer(n_int), parameter :: m1 = 6148914691236517205_n_int  !Z'5555555555555555'
+        integer(n_int), parameter :: m2 = 3689348814741910323_n_int  !Z'3333333333333333'
+        integer(n_int), parameter :: m3 = 1085102592571150095_n_int  !Z'0f0f0f0f0f0f0f0f'
+        integer(n_int), parameter :: m4 = 72340172838076673_n_int    !Z'0101010101010101'
 
         ! For 64 bit integers:
         tmp = a - iand(ishft(a,-1), m1)
@@ -151,10 +151,10 @@ module DetBitOps
         tmp = iand(tmp, m3) + iand(ishft(tmp,-4), m3)
         nbits = ishft(tmp*m4, -56)
 #else
-        integer(n_int), parameter :: m1 = 1431655765    !Z'55555555'
-        integer(n_int), parameter :: m2 = 858993459     !Z'33333333'
-        integer(n_int), parameter :: m3 = 252645135     !Z'0F0F0F0F'
-        integer(n_int), parameter :: m4 = 16843009      !Z'01010101'
+        integer(n_int), parameter :: m1 = 1431655765_n_int    !Z'55555555'
+        integer(n_int), parameter :: m2 = 858993459_n_int     !Z'33333333'
+        integer(n_int), parameter :: m3 = 252645135_n_int     !Z'0F0F0F0F'
+        integer(n_int), parameter :: m4 = 16843009_n_int      !Z'01010101'
 
         ! For 32 bit integers:
         tmp = a - iand(ishft(a,-1), m1)
