@@ -13,7 +13,7 @@ type = real(kind=dp)
 [sym]
 type = type(Symmetry)
 
-[sympairprod]
+[spp]
 type = type(SymPairProd)
 
 =========================
