@@ -34,16 +34,9 @@ C ==----------------------------------------------------------------==
       ReturnNan=-1.D0
       tFail=.false.
 
-      write(6,*) "Get Here 1"
-      call flush(6)
-
 C..Initialise V0 
       CALL NECI_SETUP_MATRIX(M,N,V0,.FALSE.,TSeeded)
-      write(6,*) "Get Here 2"
-      call flush(6)
       CALL NECI_MGS(M,N,V0,M,A,N,tDie2,tFail)
-      write(6,*) "Get Here 3"
-      call flush(6)
       if(tFail) then
           W(1) = sqrt(ReturnNan)
           return
