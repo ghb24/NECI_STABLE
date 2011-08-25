@@ -1429,10 +1429,17 @@ subroutine AttemptSpawn(S,C,Amplitude,dTol,TL,WalkerScale,iDebug)
    integer IC
    logical tSuc
    integer PartIndex
+   logical IsImag
    IFDEBUG(iDebug,5) THEN
       WRITE(6,*) "  HIJ: ",S%HIJ
    ENDIF
-   rat=-C%iSgn*Tau*S%HIJ*C%dAbsAmplitude/(S%dProbSpawn*C%dProbNorm*C%dClusterNorm)  
+   IsImag=.false.
+#ifdef __CMPLX
+   call stop_all("CCMC::AttemptSpawn","Amplitude CCMC not fully complex.") 
+   rat=-C%iSgn(1)*Tau*S%HIJ*C%dAbsAmplitude/(S%dProbSpawn*C%dProbNorm*C%dClusterNorm)  
+#else
+   rat=-C%iSgn(1)*Tau*S%HIJ*C%dAbsAmplitude/(S%dProbSpawn*C%dProbNorm*C%dClusterNorm)  
+#endif
 
 ! C%dAbsAmplitude is there so that the change in the amp depends on the current amp.
 
@@ -1556,7 +1563,12 @@ subroutine AttemptDie(C,CurAmpl,OldAmpl,TL,WalkerScale,iDebug)
 
 !dProb = 1
    rat=Tau*(HDiagCurr-DiagSft)/(C%dProbNorm*C%dClusterProb) !(dProb*dProbNorm)  !The old version
-   rat=rat*(C%dAbsAmplitude*C%iSgn)
+#ifdef __CMPLX
+   call stop_all("CCMC::AttemptDie","Amplitude CCMC not fully complex.") 
+   rat=rat*(C%dAbsAmplitude*C%iSgn(1))
+#else
+   rat=rat*(C%dAbsAmplitude*C%iSgn(1))
+#endif
 
 !   Here we convert from a det back to an excitor.
    rat=rat*ExcitToDetSign(iLutHF,FCIDets(:,iPartDie),IC)
@@ -1618,7 +1630,8 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
    USE dSFMT_interface , only : genrand_real2_dSFMT
    use bit_reps, only: encode_bit_rep,extract_flags,set_flag,clr_flag
    use bit_rep_data
-   use FciMCParMod, only: create_particle
+   use FciMCParMod, only: create_particle, attempt_create_normal
+   use hphf_integrals, only: hphf_spawn_sign
    implicit none
    type(Spawner) S
    type(Cluster) C
@@ -1628,14 +1641,14 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
    integer, dimension(lenof_sign) :: iSpawnAmp
    integer iDebug
 
-   real(dp) rat,r
+   real(dp) rat,r,prob
    integer i
    integer IC
+   integer part_type
    IFDEBUG(iDebug,5) THEN
       WRITE(6,*) "  HIJ: ",S%HIJ
    ENDIF
-   rat=-C%iSgn*Tau*S%HIJ*C%dAbsAmplitude/(S%dProbSpawn*C%dProbNorm*C%dClusterNorm)  
-
+   rat=-sum(C%iSgn)*Tau*S%HIJ*C%dAbsAmplitude/(S%dProbSpawn*C%dProbNorm*C%dClusterNorm)  
 ! C%dAbsAmplitude is there so that the change in the amp depends on the current amp.
 
    IFDEBUG(iDebug,4) THEN
@@ -1653,22 +1666,34 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
       endif
       write(6,*)
    endif
-!   Here we convert from a det back to an excitor.
-   IC = FindBitExcitLevel(iLutHF, S%iLutnJ(:), nEl)
-   rat=rat*ExcitToDetSign(iLutHF,S%iLutnJ,IC)
-   r=abs(rat)
-   iSpawnAmp=0
-   iSpawnAmp(1)=floor(r)
-   if ((r-iSpawnAmp(1))>genrand_real2_dSFMT()) iSpawnAmp(1)=iSpawnAmp(1)+1
-   if(iSpawnAmp(1)>0) then
 
+   if(C%iSgn(1).ne.0) then
+      part_type=1  !real
+   else
+      part_type=2   !imag
+   endif
+
+! In attempt_create_normal
+!   rat=HEl*tau/prob  
+
+! What we used to use
+!   rat=-C%iSgn*Tau*S%HIJ*C%dAbsAmplitude/(S%dProbSpawn*C%dProbNorm*C%dClusterNorm)  
+! so prob is
+   prob=(S%dProbSpawn*C%dProbNorm*C%dClusterNorm)/C%dAbsAmplitude
+ 
+   iSpawnAmp=attempt_create_normal(hphf_spawn_sign,  & !this version of the get_spawn_helement just uses the passed-in version
+                              C%DetCurr,C%iLutDetCurr, &
+                              C%iSgn,S%nJ,S%iLutnJ,prob,S%HIJ, &
+                              S%iExcitLevel,S%ExcitMat,.false., & !.false. indicates we've dealt with parit
+                              S%iExcitLevel,part_type) 
+!   Here we convert nJ from a det back to an excitor.
+   IC = FindBitExcitLevel(iLutHF, S%iLutnJ(:), nEl)
+   iSpawnAmp=iSpawnAmp*ExcitToDetSign(iLutHF,S%iLutnJ,IC)
+   if(any(iSpawnAmp/=0)) then
       nSpawned=nSpawned+1 !The index into the spawning list
       iter_data_ccmc%nborn=iter_data_ccmc%nborn+1
 !      if(nSpawned>nMaxSpawn) call Stop_All("AttemptSpawnParticle","Not enough space in spawning list.")
-      if(rat<0) iSpawnAmp(1)=-iSpawnAmp(1)
       call create_particle(S%nJ,S%iLutnJ,iSpawnAmp,C%initFlag,1)
-!      call encode_bit_rep(SpawnList(:,nSpawned),S%iLutnJ(:),iSpawnAmp,0)
-!      if(tTruncInitiator.and.C%initFlag==0) call set_flag(SpawnList(:,nSpawned),flag_parent_initiator(1)) !meaning is initiator
       IFDEBUG(iDebug,4) THEN
    !We've not printed this out before
          WRITE(6,*) "  Spawned ",iSpawnAmp
@@ -1703,6 +1728,7 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,nSpawned)
    integer i
    integer, dimension(lenof_sign) :: iSpawnAmp
    integer initFlag
+   logical IsImag
 
 ! We have to decompose our composite excitor into one of its parts.  
    IF(C%iSize.GT.1) THEN
@@ -1755,7 +1781,17 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,nSpawned)
 
 !dProb = 1
    rat=Tau*(HDiagCurr-DiagSft)/(C%dProbNorm*C%dClusterProb) !(dProb*dProbNorm)  !The old version
-   rat=rat*(C%dAbsAmplitude*C%iSgn)
+   IsImag=.false.
+#ifdef __CMPLX
+   if(C%iSgn(1).eq.0) then
+      IsImag=.true.
+      rat=rat*(C%dAbsAmplitude*C%iSgn(2))
+   else
+      rat=rat*(C%dAbsAmplitude*C%iSgn(1))
+   endif
+#else
+   rat=rat*(C%dAbsAmplitude*C%iSgn(1))
+#endif
 
 !   Here we convert from a det back to an excitor.
    rat=rat*ExcitToDetSign(iLutHF,C%iLutDetCurr,IC)
@@ -1799,6 +1835,12 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,nSpawned)
       if(C%iSize>1) initFlag=C%initFlag  !Death is always a certainty despite parentage (except if you're composite)
    !   call encode_bit_rep(SpawnList(:,nSpawned),C%iLutDetCurr(:),iSpawnAmp,0)  
   !    if(tTruncInitiator.and.initFlag==0) call set_flag(SpawnList(:,nSpawned),flag_parent_initiator(1)) !meaning is initiator
+#ifdef __CMPLX
+      if(IsImag) then
+         iSpawnAmp(2)=iSpawnAmp(1)
+         iSpawnAmp(1)=0
+      endif
+#endif
       call create_particle(C%DetCurr,C%iLutDetCurr,iSpawnAmp,initFlag,1)
 
       IFDEBUG(iDebug,4) then
@@ -1864,7 +1906,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    INTEGER PartIndex,IC          ! Used in buffering
    LOGICAL tSuc                  ! Also used in buffering
 
-   INTEGER iOldTotParts        ! Info user for update to calculate shift
+   INTEGER, dimension(lenof_sign) :: iOldTotParts        ! Info user for update to calculate shift
    INTEGER iShiftLeft            ! Number of steps left until we recalculate shift
    real(dp) dNorm
    real(dp) WalkerScale            ! Scale factor for turning floating point amplitudes into integer walkers.
@@ -2094,7 +2136,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
 
 !The final logic tells it whether to convert from an excitor to a det.
          CALL CollapseCluster(CS%C,iLutHF,OldAL,OldALIndex,nCurAmpl,iDebug,.not.(tCCBuffer.and.tPostBuffering))
-         IF(CS%C%iSgn/=0.and.iDebug.gt.4) then
+         IF(all(CS%C%iSgn/=0).and.iDebug.gt.4) then
             WRITE(6,*) "Chosen det/excitor is:"
             WRITE(6,"(A)",advance="no") "  "
             call WriteBitDet(6,CS%C%iLutDetCurr,.true.)
@@ -2104,7 +2146,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
 
          if(lLogTransitions.and.Iter.gt.NEquilSteps) call LogCluster(TL,CS%C)
          IFDEBUG(iDebug,6) call WriteCluster(6,CS%C,.true.)
-         if(CS%C%iSgn.eq.0) then
+         if(all(CS%C%iSgn.eq.0)) then
             IFDEBUG(iDebug,4) write(6,*) "Sign Zero so moving to next cluster"
             cycle  !No point in doing anything
          endif
@@ -2117,14 +2159,17 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
                call write_det (6, CS%C%DetCurr, .true.)
                Call Stop_All("CCMCStandalone","Failed to find det.")
             endif
-            ALBuffer%Amplitude(PartIndex,1)=ALBuffer%Amplitude(PartIndex,1)+CS%C%dAbsAmplitude*CS%C%iSgn
+#ifdef __CMPLX
+            call Stop_all("CCMCStandalone","Cannot use complex yet.")
+#endif
+            ALBuffer%Amplitude(PartIndex,1)=ALBuffer%Amplitude(PartIndex,1)+CS%C%dAbsAmplitude*CS%C%iSgn(1) !fudge to compile
             cycle
          endif
 
-         IFDEBUG(iDebug,4) WRITE(6,*) "Cluster Amplitude: ",CS%C%iSgn*CS%C%dAbsAmplitude 
+         IFDEBUG(iDebug,4) WRITE(6,*) "Cluster Amplitude: ",CS%C%iSgn(1)*CS%C%dAbsAmplitude  !Again complex fudge
 !         IFDEBUG(iDebug,4) WRITE(6,*) " Cluster Prob: ",CS%C%dSelectionProb
          if(.not.tExactEnergy.and.CS%C%iExcitLevel.le.2) then
-            TempSign(1)=CS%C%iSgn
+            TempSign=CS%C%iSgn
             CALL SumEContrib(CS%C%DetCurr,CS%C%iExcitLevel,TempSign,CS%C%iLutDetCurr,0.d0,1/CS%C%dSelectionNorm)
          endif
 !Now consider a number of possible spawning events
@@ -2238,7 +2283,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    INTEGER i,j,iMin
 ! Temporary Storage
 
-   INTEGER iOldTotParts        ! Info user for update to calculate shift
+   INTEGER, dimension(lenof_sign) ::  iOldTotParts        ! Info user for update to calculate shift
    INTEGER iShiftLeft            ! Number of steps left until we recalculate shift
    real(dp) WalkerScale            ! Scale factor for turning floating point amplitudes into integer walkers.
    real(dp) dTolerance             ! The tolerance for when to regard a value as zero
@@ -2367,8 +2412,10 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    endif
    if(iProcIndex==Root) then
       iRefPos=1
-      DetList(:,iRefPos)=iLutHF 
-      call SetAmpl(AL,iRefPos,iCurAmpList,i)
+      DetList(:,iRefPos)=iLutHF
+      TempSign=0
+      TempSign(1)=i
+      call SetAmpl(AL,iRefPos,iCurAmpList,TempSign)
       nAmpl=1
    else
       iRefPos=-1
@@ -2376,7 +2423,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    endif
    call MPIBCast(nAmpl,Node)
    iNumExcitors=0
-   dTotAbsAmpl=GetAmpl(AL,iRefPos,iCurAmpList)
+   TempSign=GetAmpl(AL,iRefPos,iCurAmpList)
+   dTotAbsAmpl=sum(TempSign)
 !   endif
    dAmpPrintTol=(dTolerance*dInitAmplitude)
    IFDEBUG(iDebug,4) dAmpPrintTol=0
@@ -2388,15 +2436,17 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !WalkerScale*dTotAbsAmpl
    TotWalkersOld=0
 !WalkerScale*dTotAbsAmpl
-   TotPartsOld(1)=0
+   TotPartsOld=0
 !WalkerScale*dTotAbsAmpl
    AllTotWalkersOld=1
 !WalkerScale*dTotAbsAmpl
    AllTotParts(1)=WalkerScale*dTotAbsAmpl
    AllTotPartsOld(1)=WalkerScale*dTotAbsAmpl
    if(iProcIndex==root) then
-      iOldTotParts=WalkerScale*dTotAbsAmpl
-      iter_data_ccmc%tot_parts_old = WalkerScale * dTotAbsAmpl
+      iOldTotParts=0
+      iOldTotParts(1)=WalkerScale*dTotAbsAmpl
+      iter_data_ccmc%tot_parts_old = 0
+      iter_data_ccmc%tot_parts_old(1) = WalkerScale * dTotAbsAmpl
    else
       iOldTotParts=0
       iter_data_ccmc%tot_parts_old = 0
@@ -2434,7 +2484,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !Find the HF det
       CALL BinSearchParts3(iLutHF,DetList,nAmpl,1,nAmpl,iRefPos,tS)
       if(tS) then
-         dNorm=GetAmpl(AL,iRefPos,iCurAmpList)
+         TempSign=GetAmpl(AL,iRefPos,iCurAmpList)
+         dNorm=sum(abs(TempSign))
          call MPIBCast(dNorm,bNodeRoot)  !Broadcast from Here (if we're the root of that node)
          IFDEBUG(iDebug,2) write(6,*) "Ref Det on this processor, pos ", iRefPos
       else
@@ -2480,7 +2531,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !Find the HF det
       CALL BinSearchParts3(iLutHF,DetList,nAmpl,1,nAmpl,iRefPos,tS)
       if(tS) then
-         dNorm=GetAmpl(AL,iRefPos,iCurAmpList)
+         TempSign=GetAmpl(AL,iRefPos,iCurAmpList)
+         dNorm=sum(abs(TempSign))
          call MPIBCast(dNorm,bNodeRoot)  !Broadcast from Here (if we're the root of that node)
          IFDEBUG(iDebug,2) write(6,*) "Ref Det on this processor, pos ", iRefPos
       else
@@ -2519,6 +2571,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       
 !TotParts is used for this and is WalkerScale* total of all amplitudes
       if(iShiftLeft.le.0)  then
+          write(6,*) "ID ",iter_data_ccmc%update_growth
           Call calculate_new_shift_wrapper(iter_data_ccmc, &
                                                 TotParts)
           if(tRestart) call stop_all(this_routine,"All particles died.")
@@ -2550,7 +2603,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !The final logic tells it whether to convert from an excitor to a det.
          CALL CollapseCluster(CS%C,iLutHF,AL,iCurAmpList,nAmpl,iDebug,.true.)
          IFDEBUG(iDebug,5) THEN
-            IF(CS%C%iSgn/=0.and.iDebug.gt.4) then
+            IF(all(CS%C%iSgn/=0).and.iDebug.gt.4) then
                WRITE(6,*) " Chosen det/excitor is:"
                WRITE(6,"(A)",advance="no") "  "
                call WriteBitDet(6,CS%C%iLutDetCurr,.true.)
@@ -2563,13 +2616,13 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
             write(6, "(A)", advance='no') "  "
             call WriteCluster(6,CS%C,.true.)
          ENDIFDEBUG
-         if(CS%C%iSgn.eq.0) then
+         if(all(CS%C%iSgn.eq.0)) then
             IFDEBUG(iDebug,4) write(6,*) "Sign Zero so moving to next cluster"
             cycle  !No point in doing anything
          endif
 
          IFDEBUG(iDebug,4) WRITE(6,*) " Cluster Amplitude: ",CS%C%iSgn*CS%C%dAbsAmplitude 
-         TempSign(1)=CS%C%iSgn
+         TempSign=CS%C%iSgn
          CALL SumEContrib(CS%C%DetCurr,CS%C%iExcitLevel,TempSign,CS%C%iLutDetCurr,0.d0,1/CS%C%dSelectionNorm)
 !Now consider a number of possible spawning events
          CALL ResetSpawner(S,CS%C,nSpawnings)
@@ -2614,7 +2667,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       ENDIF
       if(Iter.gt.NEquilSteps) then
          dAveTotAbsAmp=dAveTotAbsAmp+dTotAbsAmpl
-         dAveNorm=dAveNorm+GetAmpl(AL,iRefPos,iCurAmpList)
+         dAveNorm=dAveNorm+sum(abs(GetAmpl(AL,iRefPos,iCurAmpList)))
       endif
       call ChangeVars(tSingBiasChange, tSoftExitFound, tWritePopsFound)
       Iter=Iter+1
