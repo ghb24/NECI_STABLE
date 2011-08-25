@@ -13,6 +13,8 @@ save
 ! I blame the original authors for setting the precedent... JSS
 ! ;-)
 
+logical :: tMolpro  !True if the code has been called from Molpro
+
 logical :: tNoSingExcits    !True if there are no single excitations in the system
 
 logical :: tStarBin, tReadInt, tHFOrder, tDFRead, tPBC, tUEG, tCPMD, tHUB

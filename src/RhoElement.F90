@@ -219,7 +219,8 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
          use UMatCache
          use SystemData, only: BasisFN
          implicit none
-         integer nHFDet(nEl),nJ(nEl),nEl,nBasis
+         integer nEl,nBasis
+         integer nHFDet(nEl),nJ(nEl)
          type(BasisFN) G1(*)
          HElement_t hEl
          real(dp) Arr(nBasis,2),ECore

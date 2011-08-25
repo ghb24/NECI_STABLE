@@ -2055,8 +2055,8 @@ contains
          use MemoryManager, only: TagIntType
          IMPLICIT NONE
          INTEGER I_HMAX,NEL,NBASIS,I_VMAX
-         INTEGER,ALLOCATABLE :: LSTE(:,:,:) !(NEL,NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)??!!
-         INTEGER,ALLOCATABLE :: ICE(:,:)  !(NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)??!!
+         INTEGER,ALLOCATABLE :: LSTE(:,:,:) !(NEL,NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)?
+         INTEGER,ALLOCATABLE :: ICE(:,:)  !(NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)?
          HElement_t  UMAT(*)
          HElement_t,allocatable  :: RIJLIST(:,:)
          integer(TagIntType),save :: tagRIJList=0,tagLSTE=0,tagICE=0
@@ -2097,9 +2097,9 @@ contains
          ILMAX=(NBASIS-NEL)**2*NEL*NEL/4
          IF((I_HMAX.GE.-10.AND.I_HMAX.LE.-7).OR.I_HMAX.LE.-12) ILMAX=1
          allocate(LSTE(NEL,0:ILMAX,0:IMAX))
-         call LogMemAlloc('LSTE',size(LSTE),4/IRAT,thisroutine,tagLSTE)
+         call LogMemAlloc('LSTE',int(size(LSTE)),4/IRAT,thisroutine,tagLSTE)
          allocate(ICE(0:ILMAX,0:IMAX))
-         call LogMemAlloc('ICE',size(ICE),4/IRAT,thisroutine,tagICE)
+         call LogMemAlloc('ICE',int(size(ICE)),4/IRAT,thisroutine,tagICE)
          allocate(RIJList(0:ILMAX,0:IMAX*2))
          call LogMemAlloc('RIJList',(1+ILMAX)*IMAX*2,8,thisroutine, tagRIJList)
 !:         CALL PRINT_MEMORY()

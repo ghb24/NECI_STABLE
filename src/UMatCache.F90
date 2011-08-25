@@ -141,7 +141,8 @@ MODULE UMatCache
       ! orbital corresponds to the i-th orbital in the original basis.
         use global_utilities
         IMPLICIT NONE
-        INTEGER BRR2(NBASIS),NBASIS,ierr,I,t
+        INTEGER NBASIS
+        INTEGER BRR2(NBASIS),ierr,I,t
         character(*), parameter :: t_r='CreateInvBRR2'
 
 !        WRITE(6,*) "================================"
@@ -174,7 +175,8 @@ MODULE UMatCache
       ! orbital corresponds to the i-th orbital in the original basis.
         use global_utilities
         IMPLICIT NONE
-        INTEGER BRR(NBASIS),NBASIS,ierr,I,t
+        INTEGER NBASIS
+        INTEGER BRR(NBASIS),ierr,I,t
         character(*), parameter :: t_r='CreateInvBRR'
 
         IF(ASSOCIATED(INVBRR)) THEN
@@ -1070,7 +1072,7 @@ MODULE UMatCache
           use SystemData, only : UMatEps,tROHF
           use constants, only: dp
           IMPLICIT NONE
-          INTEGER :: I,J,K,L,MaxSlots(1:nPairs2),A,B,C,D,X,Y,nPairs2
+          INTEGER :: I,J,K,L,nPairs2,MaxSlots(1:nPairs2),A,B,C,D,X,Y
           HElement_t :: Z
           
 !The (ii|jj) and (ij|ij) integrals are not stored in the cache (they are stored in UMAT2D, so 
@@ -1560,3 +1562,33 @@ END MODULE UMatCache
 
 
 
+! See Integrals.F90 for an interface for this function.
+function get_umat_el (fn, i, j, k, l) result(hel)
+    ! Obtains the Coulomb integral <ij|kl> from the UMat array.
+    ! In:
+    !    fn: pointer to the system-specific get_umat_el_* function.
+    !      fn should always be the variable ptr_getumatel.
+    !    i,j,k,l: orbital indices. These refer to spin orbitals in
+    !      unrestricted calculations and spatial orbitals in restricted
+    !      calculations.
+    use, intrinsic :: iso_c_binding
+    use constants, only: dp
+    use IntegralsData, only: ptr_getumatel_2
+    implicit none
+
+    interface
+        function fn (i, j, k, l, fn2) result(hel)
+            use constants, only: dp
+            use, intrinsic :: iso_c_binding
+            implicit none
+            integer, intent(in) :: i, j, k, l
+            type(c_ptr), intent(in), value :: fn2
+            HElement_t :: hel
+        end function
+    end interface
+
+    integer, intent(in) :: i, j, k, l
+    HElement_t :: hel
+
+    hel = fn (i, j, k, l, ptr_getumatel_2)
+end function

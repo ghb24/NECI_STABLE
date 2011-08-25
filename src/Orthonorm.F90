@@ -1,8 +1,8 @@
 SUBROUTINE OrthoNormx(n,m,a)
   use constants, only: dp,sp
    implicit none
-   real(dp) :: work(n),tau(n),a(m,n)
    INTEGER :: i, j, k,n,m,lda,lwork
+   real(dp) :: work(n),tau(n),a(m,n)
    INTEGER(sp) info
    real(dp) , ALLOCATABLE :: aTa(:,:)
 

@@ -50,7 +50,7 @@ Contains
 !Afterwards, if tDone is set then it has run out of tuples.
 SUBROUTINE IncrementOrderedTupleCheck (Tuple,iSize,iMin,iMax,tDone,Param,Param2)
    IMPLICIT NONE
-   INTEGER Tuple(iSize),iSize,iMax,iMin
+   INTEGER iSize,Tuple(iSize),iMax,iMin
    LOGICAL tDone
    INTEGER i
    type(AmplitudeList_%(name)s) Param

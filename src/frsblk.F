@@ -34,16 +34,9 @@ C ==----------------------------------------------------------------==
       ReturnNan=-1.D0
       tFail=.false.
 
-      write(6,*) "Get Here 1"
-      call flush(6)
-
 C..Initialise V0 
       CALL NECI_SETUP_MATRIX(M,N,V0,.FALSE.,TSeeded)
-      write(6,*) "Get Here 2"
-      call flush(6)
       CALL NECI_MGS(M,N,V0,M,A,N,tDie2,tFail)
-      write(6,*) "Get Here 3"
-      call flush(6)
       if(tFail) then
           W(1) = sqrt(ReturnNan)
           return
@@ -787,7 +780,7 @@ C     ==--------------------------------------------------------------==
           if(tDie2) then
               CALL Stop_All('UINV','ILLEGAL RESULTS DGETRF')
           else
-              CALL Warning('UINV','ILLEGAL RESULTS DGETRF')
+              CALL Warning_neci('UINV','ILLEGAL RESULTS DGETRF')
               tFail=.true.
               return
           endif
@@ -797,7 +790,7 @@ C     ==--------------------------------------------------------------==
           if(tDie2) then
               CALL Stop_All('UINV','ILLEGAL RESULTS DTRTRI')
           else
-              CALL Warning('UINV','ILLEGAL RESULTS DTRTRI')
+              CALL Warning_neci('UINV','ILLEGAL RESULTS DTRTRI')
               tFail = .true.
           endif
       endif

@@ -2748,7 +2748,7 @@ END FUNCTION RootofNum
 !Tests determinants are the same - requires the same ordering of orbitals in them
 LOGICAL FUNCTION SameDet(nI,nJ,NEl)
     IMPLICIT NONE
-    INTEGER :: nI(NEl),nJ(NEl),NEl,i
+    INTEGER :: NEl,nI(NEl),nJ(NEl),i
     SameDet=.true.
     do i=1,NEl
         IF(nI(i).ne.nJ(i)) THEN

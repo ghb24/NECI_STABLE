@@ -30,11 +30,6 @@ dim = :,:,:,:,:,:
 elem1 = ,1,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
 
-[int7]
-dim = :,:,:,:,:,:,:
-elem1 = ,1,1,1,1,1,1
-alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
-
 [int64_1]
 type = integer(int64)
 sizeof = sizeof_int64
@@ -66,11 +61,6 @@ alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5)
 dim = :,:,:,:,:,:
 elem1 = ,1,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
-
-[int64_7]
-dim = :,:,:,:,:,:,:
-elem1 = ,1,1,1,1,1,1
-alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
 
 [doub1]
 type = real(dp)
@@ -104,11 +94,6 @@ dim = :,:,:,:,:,:
 elem1 = ,1,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
 
-[doub7]
-dim = :,:,:,:,:,:,:
-elem1 = ,1,1,1,1,1,1
-alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
-
 [real1]
 type = real(sp)
 sizeof = sizeof_sp
@@ -141,11 +126,6 @@ dim = :,:,:,:,:,:
 elem1 = ,1,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
 
-[real7]
-dim = :,:,:,:,:,:,:
-elem1 = ,1,1,1,1,1,1
-alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
-
 [complex1]
 type = complex(dp)
 sizeof = sizeof_complexdp
@@ -177,11 +157,6 @@ alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5)
 dim = :,:,:,:,:,:
 elem1 = ,1,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
-
-[complex7]
-dim = :,:,:,:,:,:,:
-elem1 = ,1,1,1,1,1,1
-alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
 
 =========================
 
@@ -226,7 +201,7 @@ module shared_alloc
         function test_shared_permissions () result(bAvail) bind(c)
             use, intrinsic :: iso_c_binding
             implicit none
-#ifdef __PGI__
+#if defined __PGI__ || defined __G95__
             logical :: bAvail
 #else
             logical(c_bool) :: bAvail

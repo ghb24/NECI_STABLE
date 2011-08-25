@@ -52,21 +52,21 @@ type1 = complex(dp)
 ##############################################
 ############### Sort arrays ##################
 ##############################################
-[arr_int]
+[a_i]
 type1 = integer(kind=int32), dimension(:)
 op_gt = .arrgt.
 op_lt = .arrlt.
 
-[arr_int64]
+[a_i64]
 type1 = integer(kind=int64), dimension(:)
 
-[arr_int64_custom]
+[a_i64_custom]
 custom_comparisons = custom_lt, custom_gt,
 custom_compare_prefix = 
 op_gt = .localgt.
 op_lt = .locallt.
 
-[arr_doub]
+[a_d]
 type1 = real(dp), dimension(:)
 custom_comparisons =
 custom_compare_prefix = !
@@ -76,7 +76,7 @@ op_lt = .arrlt.
 ##############################################
 ############ Sort by scalars #################
 ##############################################
-[int_int]
+[i_i]
 type1 = integer(kind=int32)
 type2 = integer(kind=int32)
 arr2_prefix = 
@@ -84,89 +84,89 @@ extra_arrs = arr2,
 op_gt = >
 op_lt = <
 
-[int_doub]
+[i_d]
 type2 = real(dp)
 
-[int_arr_int]
+[i_a_i]
 type2 = integer(kind=int32), dimension(:)
 
-[int_arr_int64]
+[i_a_i64]
 type2 = integer(kind=int64), dimension(:)
 
-[int_arr_doub]
+[i_a_d]
 type2 = real(dp), dimension(:)
 
-[int_arr_complex]
+[i_a_c]
 type2 = complex(dp), dimension(:)
 
-[doub_int]
+[d_i]
 type1 = real(dp)
 type2 = integer(kind=int32)
 
-[doub_doub]
+[d_d]
 type2 = real(dp)
 
-[doub_int64]
+[d_i64]
 type2 = integer(kind=int64)
 
-[doub_arr_int]
+[d_a_i]
 type2 = integer(kind=int32), dimension(:)
 
-[doub_arr_int64]
+[d_a_i64]
 type2 = integer(kind=int64), dimension(:)
 
-[doub_arr_doub]
+[d_a_d]
 type2 = real(dp), dimension(:)
 
-[sym_arr_int]
+[sym_a_i]
 type1 = type(Symmetry)
 type2 = integer(kind=int32), dimension(:)
 
-[sym_arr_int64]
+[sym_a_i64]
 type1 = type(Symmetry)
 type2 = integer(kind=int64), dimension(:)
 
-[int64_int64]
+[i64_i64]
 type1 = integer(kind=int64)
 type2 = integer(kind=int64)
 
-[int64_doub]
+[i64_d]
 type2 = real(kind=dp)
 
-[int64_arr_int]
+[i64_a_i]
 type2 = integer(kind=int32), dimension(:)
 
 [int64_arr_int64]
 type2 = integer(kind=int64), dimension(:)
 
-[int64_arr_doub]
+[i64_a_d]
 type2 = real(dp), dimension(:)
 
-[int64_arr_complex]
+[i64_a_c]
 type2 = complex(dp), dimension(:)
 
 ###############################################
 ########## Sort by integer array ##############
 ###############################################
-[arr_int_arr_int]
+[a_i_a_i]
 type1 = integer(kind=int32), dimension(:)
 type2 = integer(kind=int32), dimension(:)
 op_gt = .arrgt.
 op_lt = .arrlt.
 
-[arr_int_arr_doub]
+[a_i_a_d]
 type2 = real(dp), dimension(:)
 
-[arr_int_int]
+[a_i_i]
 type2 = integer(kind=int32)
 
-[arr_int_doub]
+[a_i_d]
 type2 = real(dp)
 
 ###############################################
 ############# 64-bit integers #################
 ###############################################
-[arr_int64_arr_int64]
+[a_i64_a_i64]
 type1 = integer(kind=int64), dimension(:)
 type2 = integer(kind=int64), dimension(:)
 op_gt = .arrgt.
@@ -175,98 +175,98 @@ op_lt = .arrlt.
 [arr_int64_arr_doub]
 type2 = real(dp), dimension(:)
 
-[arr_int64_int]
+[a_i64_i]
 type2 = integer(kind=int32)
 
-[arr_int64_inti64]
+[a_i64_i64]
 type2 = integer(kind=int64)
 
-[arr_int64_doub]
+[a_i64_d]
 type2 = real(dp)
 
 
 #################################################
 ############# Sort by double array ##############
 #################################################
-[arr_doub_doub]
+[a_d_d]
 type1 = real(dp), dimension(:)
 
-[arr_doub_int]
+[a_d_i]
 type2 = integer(kind=int32)
 
-[arr_doub_arr_doub]
+[a_d_a_d]
 type2 = real(dp), dimension(:)
 
-[arr_doub_arr_int]
+[a_d_a_i]
 type2 = integer(kind=int32), dimension(:)
 
-[arr_doub_arr_int64]
+[a_d_a_i64]
 type2 = integer(kind=int64), dimension(:)
 ################################################
 ############ More specific sorts ###############
 ################################################
-[arr_int_int_doub]
+[a_i_i_d]
 type1 = integer(kind=int32), dimension(:)
 type2 = integer(kind=int32)
 type3 = real(kind=dp)
 arr3_prefix = 
 extra_arrs = arr2, arr3,
 
-[arr_int_int64_doub]
+[a_i_i64_d]
 type2 = integer(kind=int64)
 
-[arr_int64_int_doub]
+[a_i64_i_d]
 type1 = integer(kind=int64), dimension(:)
 type2 = integer(kind=int32)
 
-[arr_int64_int64_doub]
+[a_i64_i64_d]
 type1 = integer(kind=int64), dimension(:)
 type2 = integer(kind=int64)
 type3 = real(kind=dp)
 
-[int_arr_int64_logical]
+[i_a_i64_l]
 type1 = integer(kind=int32)
 type2 = integer(kind=int64), dimension(:)
 type3 = logical
 op_gt = >
 op_lt = <
 
-[int64_arr_int64_logical]
+[i64_a_i64_l]
 type1 = integer(kind=int64)
 
-[int_arr_int_doub]
+[i_a_i_d]
 type1 = integer(kind=int32)
 type2 = integer(kind=int32), dimension(:)
 type3 = real(kind=dp)
 
-[int64_arr_int_doub]
+[i64_a_i_d]
 type1 = integer(kind=int64)
 
-[int_arr_int64_doub]
+[i_a_i64_d]
 type1 = integer(kind=int32)
 type2 = integer(kind=int64), dimension(:)
 
-[int64_arr_int64_doub]
+[i64_a_i64_d]
 type1 = integer(kind=int64)
 
-[doub_doub_doub]
+[d_d_d]
 type1 = real(kind=dp)
 type2 = real(kind=dp)
 type3 = real(kind=dp)
 
-[doub_arr_doub_int]
+[d_a_d_i]
 type2 = real(kind=dp), dimension(:)
 type3 = integer(kind=int32)
 
-[doub_arr_doub_int64]
+[d_a_d_i64]
 type3 = integer(kind=int64)
 
-[cmplx_cmplx_cmplx]
+[c_c_c]
 type1 = complex(dp)
 type2 = complex(dp)
 type3 = complex(dp)
 
-[int_int_int64_int]
+[i_i_i64_i]
 type1 = integer(kind=int32)
 type2 = integer(kind=int32)
 type3 = integer(kind=int64)
@@ -274,25 +274,25 @@ type4 = integer(kind=int32)
 arr4_prefix = 
 extra_arrs = arr2, arr3, arr4,
 
-[doub_doub_doub_int]
+[d_d_d_i]
 type1 = real(kind=dp)
 type2 = real(kind=dp)
 type3 = real(kind=dp)
 type4 = integer(kind=int32)
 
-[doub_doub_doub_inti64]
+[d_d_d_i64]
 type1 = real(kind=dp)
 type2 = real(kind=dp)
 type3 = real(kind=dp)
 type4 = integer(kind=int64)
 
-[int64_int_int_int]
+[i64_i_i_i]
 type1 = integer(kind=int64)
 type2 = integer(kind=int32)
 type3 = integer(kind=int32)
 type4 = integer(kind=int32)
 
-[int64_int64_int_int_int]
+[i64_i64_i_i_i]
 type1 = integer(kind=int64)
 type2 = integer(kind=int64)
 type3 = integer(kind=int32)

@@ -94,8 +94,9 @@ subroutine VASPBasisInit(ARR,BRR,G1,LEN)
    use constants, only: dp
    use sym_mod
    implicit none
+   integer :: LEN
    real(dp) :: ARR(LEN,2)
-   integer :: BRR(LEN),LEN
+   integer :: BRR(LEN)
    type(BasisFN) :: G1(LEN)
    integer :: i
    type(Symmetry) :: iDecomp

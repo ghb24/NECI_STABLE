@@ -529,7 +529,8 @@ contains
             offset = 0
             do i = 0, NIfD
                 do j = 0, bits_n_int - 1, 8
-                    val = iand(ishft(ilut(i), -j), Z'FF')
+!                    val = iand(ishft(ilut(i), -j), Z'FF')
+                    val = iand(ishft(ilut(i), -j), int(255,n_int))
                     do k = 1, decode_map_arr(0, val)
                         elec = elec + 1
                         nI(elec) = offset + decode_map_arr(k, val)

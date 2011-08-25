@@ -578,7 +578,7 @@ END MODULE Determinants
          use SystemData , only : TSTOREASEXCITATIONS
          use constants, only: dp
          implicit none
-         integer nI(nEl),nEl,nBasis
+         integer nEl,nI(nEl),nBasis
          HElement_t hEl
          real(dp) Arr(nBasis,2),ECore
          integer i
@@ -697,8 +697,8 @@ END MODULE Determinants
          use SystemData, only: BasisFN
          use constants, only: dp
          IMPLICIT NONE
-         real(dp) ARR(nBasis)
          INTEGER nEl,nActiveBasis(2),nBasis
+         real(dp) ARR(nBasis)
          INTEGER I,nDown,nUp,nLeft
          I=nEl+1
          nLeft=1+nUp
