@@ -549,7 +549,7 @@ contains
 !nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF/ROHF
          CALL GetUMatSize(nBasis,nEl,UMATINT)
          WRITE(6,*) "UMatSize: ",UMATINT
-         UMatMem=REAL(UMatInt,8)*REAL(HElement_t_sizeB,8)*(9.536743164D-7)
+         UMatMem=REAL(UMatInt,dp)*REAL(HElement_t_sizeB,dp)*(9.536743164D-7)
          WRITE(6,"(A,G20.10,A)") " UMatMemory: ",UMatMem, " Mb/Processor"
          call shared_allocate ("umat", umat, (/UMatInt/))
          !Allocate(UMat(UMatInt), stat=ierr)

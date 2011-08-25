@@ -995,7 +995,7 @@ MODULE AnnihilationMod
                         else
                             HDiagTemp = get_helement (nJ, nJ, 0)
                         endif
-                        HDiag=(REAL(HDiagTemp,8))-Hii
+                        HDiag=(REAL(HDiagTemp,dp))-Hii
                     endif
                     CurrentH(i)=HDiag
                 enddo
@@ -1043,7 +1043,7 @@ MODULE AnnihilationMod
             acc = (1099511628211_int64 * acc) + &
                     (RandomHash(mod(iand(nI(i), csf_orbital_mask)+offset-1,int(nBasis,int64))+1) * i)
         enddo
-        node = abs(mod(acc, int(nNodes, 8)))
+        node = abs(mod(acc, int(nNodes, int64)))
 
     end function
     
@@ -1054,7 +1054,7 @@ MODULE AnnihilationMod
         CreateHash=0
         do i=1,NEl
 !            CreateHash=13*CreateHash+i*DetCurr(i)
-            CreateHash=(1099511628211_8*CreateHash)+i*DetCurr(i)
+            CreateHash=(1099511628211_int64*CreateHash)+i*DetCurr(i)
             
 !            CreateHash=mod(1099511628211*CreateHash,2**64)
 !            CreateHash=XOR(CreateHash,DetCurr(i))

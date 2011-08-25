@@ -24,7 +24,7 @@ C               CALL FINDROOTFD(C,WORDER,XROOT)
 C               ZROOT=DCMPLX(XROOT,0.D0)
 C            ENDIF
             IROOTS=IROOTS+1
-            IF(DIMAG(ZROOT).EQ.0.D0) THEN
+            IF(AIMAG(ZROOT).EQ.0.D0) THEN
 C.. a real root
                ZROOTS(IROOTS)=ZROOT
                POLY(0)=-DBLE(ZROOT)
@@ -34,9 +34,9 @@ C.. a real root
 C.. we have a complex root, so we use its conjugate as well
                ZROOTS(IROOTS)=ZROOT
                IROOTS=IROOTS+1
-               ZROOTS(IROOTS)=DCMPLX(DBLE(ZROOT),-DIMAG(ZROOT))
+               ZROOTS(IROOTS)=DCMPLX(DBLE(ZROOT),-AIMAG(ZROOT))
 C.. we divide out the product of ZROOT and ZROOT*
-               POLY(0)=DBLE(ZROOT)*DBLE(ZROOT)+DIMAG(ZROOT)*DIMAG(ZROOT)
+               POLY(0)=DBLE(ZROOT)*DBLE(ZROOT)+AIMAG(ZROOT)*AIMAG(ZROOT)
                POLY(1)=-2.D0*DBLE(ZROOT)
                POLY(2)=1.D0
                CALL POLYDIV(C,WORDER,POLY,2,REM)
@@ -106,7 +106,7 @@ C.. the NR method.  we start quite far away.
          REPS=1.D-14
          ICOUNT=0
          CALL POLYVALUE(WCOEFFS,WORDER,ZROOT,ZEPS)
-         MAG=SQRT(DBLE(ZEPS)*DBLE(ZEPS)+DIMAG(ZEPS)*DIMAG(ZEPS))
+         MAG=SQRT(DBLE(ZEPS)*DBLE(ZEPS)+AIMAG(ZEPS)*AIMAG(ZEPS))
          Z2=(0.1D0,0.D0)
 C         WRITE(6,*) "POLY=",(WCOEFFS(I),I=0,WORDER)
          DO WHILE (MAG.GT.REPS)
@@ -132,12 +132,12 @@ C.. save the deriv for next time
 C            WRITE(6,*) "VALUE=",ZEPS
                ZEPS=ZEPS/Z1
                Z4=ZEPS/Z1            
-            IF (SQRT(DBLE(ZEPS)**2+DIMAG(ZEPS)**2).GT.1.D2) THEN
+            IF (SQRT(DBLE(ZEPS)**2+AIMAG(ZEPS)**2).GT.1.D2) THEN
 C.. the deriv is too close to zero.  use bisection
                ZEPS=ZROOT-ZOR
                TBIS=.TRUE.
             ENDIF
-C            IF (SQRT(DBLE(Z1)**2+DIMAG(Z1)**2).LT.1.D-2
+C            IF (SQRT(DBLE(Z1)**2+AIMAG(Z1)**2).LT.1.D-2
 C     &            .AND.ICOUNT.GE.60) Z3=Z3*Z1 
 C            WRITE(6,*) ICOUNT,ZROOT,ZEPS
             ZOR=ZROOT
@@ -149,8 +149,8 @@ C.. so we aid convergence by only going by ZEPS/2
             IF(TBIS) ZROOT=ZROOT+ZEPS/2.D0
             CALL POLYVALUE(WCOEFFS,WORDER,ZROOT,ZEPS)
             Z3=ZEPS
-            IF(DIMAG(Z3).NE.0.D0) THEN
-               MAG=SQRT(DBLE(Z3)*DBLE(Z3)+DIMAG(Z3)*DIMAG(Z3))
+            IF(AIMAG(Z3).NE.0.D0) THEN
+               MAG=SQRT(DBLE(Z3)*DBLE(Z3)+AIMAG(Z3)*AIMAG(Z3))
             ELSE
                MAG=ABS(DBLE(Z3))
             ENDIF
@@ -161,7 +161,7 @@ C.. Check to see if just the real version is better than the complex
          CALL POLYVALUE(WCOEFFS,WORDER,Z3,Z1)
          CALL POLYVALUE(WCOEFFS,WORDER,ZROOT,Z2)
          MAG=ABS(DBLE(Z1))
-         MAG2=SQRT(DBLE(Z2)*DBLE(Z2)+DIMAG(Z2)*DIMAG(Z2))
+         MAG2=SQRT(DBLE(Z2)*DBLE(Z2)+AIMAG(Z2)*AIMAG(Z2))
 C         WRITE(6,*) MAG,MAG2
          IF(MAG.LT.MAG2) ZROOT=Z3         
 C         WRITE(6,*) "ROOT=",ZROOT,"ICOUNT=",ICOUNT,MAG,MAG2         

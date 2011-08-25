@@ -1061,7 +1061,7 @@ contains
          real(dp) DBETA
          INTEGER ICLS
          INTEGER,pointer :: NMEM(:)
-         INTEGER NMEMLEN
+         INTEGER NMEMLEN(1)
          INTEGER, pointer :: OGEN(:)
          INTEGER, pointer :: CURGEN(:)
 !C.. LOCTAB(1)%p is the address of the generator used to create node 1 in
@@ -1235,7 +1235,7 @@ contains
      &         .TRUE.,NMEMLEN,NJ,IC,STORE,EXFLAG)
 !C         CALL GENSYMEXCITIT(INODE,NEL,G1,NBASIS,NBASISMAX,.TRUE.,ISYM,
 !C     &         .TRUE.,NMEMLEN,NJ,IC,IFRZ(0,I_VIND+1))
-         allocate(NMEM(NMEMLEN))
+         allocate(NMEM(NMEMLEN(1)))
 !C         WRITE(6,"(A,I)") "NMEM",NMEMLEN
 !         write(6,*) "alloc NMEM", loc(NMEM)
          NMEM(1)=0
@@ -1288,7 +1288,7 @@ contains
 
 !C.. Set these just in case
          CURGEN=>NMEM
-         LOCTAB(I_VIND+1)%l=NMEMLEN
+         LOCTAB(I_VIND+1)%l=NMEMLEN(1)
          LOCTAB(I_VIND+1)%v=IVLEVEL-1
          
          DO WHILE (IVLEVEL.GT.IVLMIN)
@@ -1317,7 +1317,7 @@ contains
                LOCTAB2(I_VIND+1)%v=LOCTAB(IVLEVEL)%v
             ELSE
                CURGEN=>NMEM
-               LOCTAB2(I_VIND+1)%l=NMEMLEN
+               LOCTAB2(I_VIND+1)%l=NMEMLEN(1)
                LOCTAB2(I_VIND+1)%v=IVLEVEL-1
             ENDIF
             IEXFROM=LOCTAB2(I_VIND+1)%v

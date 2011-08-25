@@ -553,7 +553,7 @@ MODULE RotateOrbsMod
         ENDIF
 
         WRITE(6,'(A72,F20.10,A15)') "Rough estimate of the memory required for the orbital transformation = " &
-            ,REAL(MemAllocRot,8)/1048576.D0," Mb/Processor"
+            ,REAL(MemAllocRot,dp)/1048576.D0," Mb/Processor"
 
 
     END SUBROUTINE ApproxMemReq
@@ -1156,11 +1156,11 @@ MODULE RotateOrbsMod
                 IF(((.not.tERLocalization).and.(.not.tReadInCoeff).and.(.not.tUseMP2VarDenMat).and.(.not.tFindCINatOrbs))&
                 &.or.(tERLocalization.and.tStoreSpinOrbs)) THEN
                     IF(tStoreSpinOrbs) THEN
-                        s=REAL(TMAT2D(i,j),8)
+                        s=REAL(TMAT2D(i,j),dp)
                         TMAT2DTemp(a,g)=s
                         TMAT2DTemp(g,a)=s
                     ELSE
-                        s=REAL(TMAT2D(2*i,2*j),8)
+                        s=REAL(TMAT2D(2*i,2*j),dp)
                         TMAT2DTemp(a,g)=s
                         TMAT2DTemp(g,a)=s
                     ENDIF
@@ -1171,7 +1171,7 @@ MODULE RotateOrbsMod
                     k=SymLabelList2(b)
                     do d=1,b
                         l=SymLabelList2(d)
-                        t=REAL(UMAT(UMatInd(i,k,j,l,0,0)),8)
+                        t=REAL(UMAT(UMatInd(i,k,j,l,0,0)),dp)
                         UMATTemp01(a,g,b,d)=t                   !a,g,d,b chosen to make 'transform2elint' steps more efficient
                         UMATTemp01(g,a,b,d)=t
                         UMATTemp01(a,g,d,b)=t
@@ -1382,7 +1382,7 @@ MODULE RotateOrbsMod
 
                         do i=1,NumInSym
                             Orbi=SymLabelList2(SymLabelCounts2(1,(w-1)*8+irr)-1+i)
-                            CoeffT1(Orbi,Orbj)=1/SQRT(REAL(NumInSym,8))
+                            CoeffT1(Orbi,Orbj)=1/SQRT(REAL(NumInSym,dp))
                         enddo
 
                     ELSEIF((mod(NumInSym,2).eq.0).and.(j.eq.(NumInSym/2))) THEN
@@ -1390,9 +1390,9 @@ MODULE RotateOrbsMod
                         do i=1,NumInSym
                             Orbi=SymLabelList2(SymLabelCounts2(1,(w-1)*8+irr)-1+i)
                             IF(mod(i,2).eq.1) THEN
-                                CoeffT1(Orbi,Orbj)=-1/SQRT(REAL(NumInSym,8))
+                                CoeffT1(Orbi,Orbj)=-1/SQRT(REAL(NumInSym,dp))
                             ELSE
-                                CoeffT1(Orbi,Orbj)=1/SQRT(REAL(NumInSym,8))
+                                CoeffT1(Orbi,Orbj)=1/SQRT(REAL(NumInSym,dp))
                             ENDIF
                         enddo
 
@@ -1405,11 +1405,11 @@ MODULE RotateOrbsMod
                             
                             Orbi=SymLabelList2(SymLabelCounts2(1,(w-1)*8+irr)-1+i)
 
-                            Angle=REAL(i*j*2,8)*PI/REAL(NumInSym,8)
-                            AngleConj=REAL(i*ConjInd*2,8)*PI/REAL(NumInSym,8)
+                            Angle=REAL(i*j*2,dp)*PI/REAL(NumInSym,dp)
+                            AngleConj=REAL(i*ConjInd*2,dp)*PI/REAL(NumInSym,dp)
 
-                            CoeffT1(Orbi,Orbj)=(1/SQRT(REAL(2*NumInSym,8)))*(COS(Angle)+COS(AngleConj))
-                            CoeffT1(Orbi,OrbjConj)=(1/SQRT(REAL(2*NumInSym,8)))*(SIN(Angle)-SIN(AngleConj))
+                            CoeffT1(Orbi,Orbj)=(1/SQRT(REAL(2*NumInSym,dp)))*(COS(Angle)+COS(AngleConj))
+                            CoeffT1(Orbi,OrbjConj)=(1/SQRT(REAL(2*NumInSym,dp)))*(SIN(Angle)-SIN(AngleConj))
 
                         enddo
 
@@ -2183,10 +2183,10 @@ MODULE RotateOrbsMod
                     a2=SymLabelList2(a)
                     do g=1,a
                         g2=SymLabelList2(g)
-                        FourIndInts(a,g,b,d)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0)),8)
-                        FourIndInts(g,a,b,d)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0)),8)
-                        FourIndInts(a,g,d,b)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0)),8)
-                        FourIndInts(g,a,d,b)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0)),8)
+                        FourIndInts(a,g,b,d)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0)),dp)
+                        FourIndInts(g,a,b,d)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0)),dp)
+                        FourIndInts(a,g,d,b)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0)),dp)
+                        FourIndInts(g,a,d,b)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0)),dp)
                     enddo
                 enddo
                 Temp4indints(:,:)=0.D0
@@ -2876,7 +2876,7 @@ MODULE RotateOrbsMod
 !        CALL MPIDSumArr(DerivCoeffTemp(:,:),NoOrbs**2,DerivCoeff(:,:))
 !        CALL MPIDSum(ForceTemp,1,Force)
 
-        Force=Force/REAL(NoOrbs**2,8)
+        Force=Force/REAL(NoOrbs**2,dp)
 
 
 ! Calculate the derivatives of orthogonalisation condition.
@@ -2907,7 +2907,7 @@ MODULE RotateOrbsMod
             enddo
  
 !If doing a lagrange calc we also need to find the force on the lambdas to ensure orthonormality...
-            OrthoForce=OrthoForce/REAL(NoOrbs**2,8)
+            OrthoForce=OrthoForce/REAL(NoOrbs**2,dp)
             DerivLambda(:,:)=0.D0
             do i=1,NoOrbs
                 do j=1,i
@@ -2980,7 +2980,7 @@ MODULE RotateOrbsMod
 !        CALL MPIDSum(DistCsTemp,1,DistCs)
 
 
-        DistCs=DistCs/(REAL(NoOrbs**2,8))
+        DistCs=DistCs/(REAL(NoOrbs**2,dp))
 
 
         IF(tLagrange) THEN
@@ -2996,8 +2996,8 @@ MODULE RotateOrbsMod
                     LambdaMag=LambdaMag+abs(NewLambda)
                 enddo
             enddo
-            DistLs=DistLs/(REAL(NoOrbs**2,8))
-            LambdaMag=LambdaMag/(REAL(NoOrbs**2,8))
+            DistLs=DistLs/(REAL(NoOrbs**2,dp))
+            LambdaMag=LambdaMag/(REAL(NoOrbs**2,dp))
 
 !        ELSE
 !            CALL OrthoNormx(NoOrbs,NoOrbs,CoeffT1) !Explicitly orthonormalize the coefficient vectors.
@@ -3020,8 +3020,8 @@ MODULE RotateOrbsMod
                 OrthoNorm=OrthoNorm+ABS(OrthoNormDP)
             enddo
         enddo
-        OrthoNorm=OrthoNorm-real(NoOrbs,8)
-        OrthoNorm=(OrthoNorm*2.D0)/REAL((NoOrbs*(NoOrbs+1.D0)),8)
+        OrthoNorm=OrthoNorm-real(NoOrbs,dp)
+        OrthoNorm=(OrthoNorm*2.D0)/REAL((NoOrbs*(NoOrbs+1.D0)),dp)
 
     END SUBROUTINE TestOrthonormality
 
@@ -3365,7 +3365,7 @@ MODULE RotateOrbsMod
         enddo
 
 
-        TotForce=TotForce/(REAL(NoOrbs**2,8))
+        TotForce=TotForce/(REAL(NoOrbs**2,dp))
 
 
 !        WRITE(6,*) 'ForceCorrect'
@@ -4070,7 +4070,7 @@ MODULE RotateOrbsMod
                 do k=1,NoOcc+1
 !                    IF(k.eq.j) CYCLE
 !                    IF(k.eq.i) CYCLE
-                    SingExcit(i,j)=SingExcit(i,j)+REAL(TMAT2D(2*a,2*b),8)+((2*FourIndInts(i,k,j,k))-FourIndInts(i,k,k,j))
+                    SingExcit(i,j)=SingExcit(i,j)+REAL(TMAT2D(2*a,2*b),dp)+((2*FourIndInts(i,k,j,k))-FourIndInts(i,k,k,j))
                 enddo
                 IF(SingExcit(i,j).gt.MaxFII) MaxFII=SingExcit(i,j)
                 IF(SingExcit(i,j).lt.MinFII) MinFII=SingExcit(i,j)
@@ -5146,9 +5146,9 @@ MODULE RotateOrbsMod
                 do b=1,NoOrbs
                     d=SymLabelList2(b)
                     IF(tStoreSpinOrbs) THEN
-                        NewTMAT=NewTMAT+(CoeffT1(b,k)*REAL(TMAT2D(d,a),8))
+                        NewTMAT=NewTMAT+(CoeffT1(b,k)*REAL(TMAT2D(d,a),dp))
                     ELSE
-                        NewTMAT=NewTMAT+(CoeffT1(b,k)*REAL(TMAT2D(2*d,a),8))
+                        NewTMAT=NewTMAT+(CoeffT1(b,k)*REAL(TMAT2D(2*d,a),dp))
                     ENDIF
                 enddo
                 IF(tStoreSpinOrbs) THEN
@@ -5279,8 +5279,8 @@ MODULE RotateOrbsMod
                     do l=1,j
 !                        Syml=INT(G1(l*2)%sym%S,4)
 !                        IF((Syml.eq.Sym).and.((REAL(UMat(UMatInd(i,j,k,l,0,0)),8)).ne.0.D0)) &
-                        IF((ABS(REAL(UMat(UMatInd(i,j,k,l,0,0)),8))).ne.0.D0) &
-                                        &WRITE(iunit,'(F21.12,4I3)') REAL(UMat(UMatInd(i,j,k,l,0,0)),8),i,k,j,l 
+                        IF((ABS(REAL(UMat(UMatInd(i,j,k,l,0,0)),dp))).ne.0.D0) &
+                                        &WRITE(iunit,'(F21.12,4I3)') REAL(UMat(UMatInd(i,j,k,l,0,0)),dp),i,k,j,l 
                     enddo
                 enddo
            enddo
@@ -5307,9 +5307,9 @@ MODULE RotateOrbsMod
             ! Symmetry?
             do i=k,(NoOrbs-(NoFrozenVirt))
                 IF(tStoreSpinOrbs) THEN
-                    IF((REAL(TMAT2D(i,k),8)).ne.0.D0) WRITE(iunit,'(F21.12,4I3)') REAL(TMAT2D(i,k),8),i,k,0,0
+                    IF((REAL(TMAT2D(i,k),dp)).ne.0.D0) WRITE(iunit,'(F21.12,4I3)') REAL(TMAT2D(i,k),dp),i,k,0,0
                 ELSE
-                    IF((REAL(TMAT2D(2*i,2*k),8)).ne.0.D0) WRITE(iunit,'(F21.12,4I3)') REAL(TMAT2D(2*i,2*k),8),i,k,0,0
+                    IF((REAL(TMAT2D(2*i,2*k),dp)).ne.0.D0) WRITE(iunit,'(F21.12,4I3)') REAL(TMAT2D(2*i,2*k),dp),i,k,0,0
                 ENDIF
             enddo
         enddo

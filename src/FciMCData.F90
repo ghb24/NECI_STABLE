@@ -1,7 +1,7 @@
 MODULE FciMCData
       use, intrinsic :: iso_c_binding
       use SystemData, only: BasisFN
-      use constants, only: dp, int64, n_int, lenof_sign
+      use constants, only: dp, int64, n_int, lenof_sign, sp
       use global_utilities
       use SymExcitDataMod, only: excit_gen_store_type
       use MemoryManager, only: TagIntType
@@ -158,7 +158,7 @@ MODULE FciMCData
       ! Bit representation of the HF determinant
       integer(kind=n_int), allocatable :: iLutHF(:)
     
-      REAL(4) :: IterTime
+      REAL(KIND=sp) :: IterTime
     
       REAL(KIND=dp) , ALLOCATABLE :: AttemptHist(:),AllAttemptHist(:),SpawnHist(:),AllSpawnHist(:)
       REAL(KIND=dp) , ALLOCATABLE :: AvAnnihil(:,:),AllAvAnnihil(:,:),InstAnnihil(:,:),AllInstAnnihil(:,:)

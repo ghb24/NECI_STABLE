@@ -1351,7 +1351,7 @@ contains
         ! Select nchoose positions at random, and place them at the end.
         do i = 1, nchoose
             r = genrand_real2_dSFMT()
-            pos = int(real(nopen-i+1,8)*r) + 1
+            pos = int(real(nopen-i+1,dp)*r) + 1
 
             if (pos /= nopen-i+1) then
                 call swap(choice(nopen-i+1), choice(pos))

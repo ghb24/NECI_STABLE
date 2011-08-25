@@ -667,7 +667,7 @@ C.. maxNDET is the maximum number of CSFs that can be stored in NMRKS
      &            TSPN,SFORCE,SZFORCE,TCHKEX,ICLIST,IC,NDCH,maxNDET)
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
-         INTEGER NI(NEL),NEL,NOPEN,NCLOSED
+         INTEGER NEL,NI(NEL),NOPEN,NCLOSED
          INTEGER NMRKS(NEL,*),NDET
          LOGICAL TCOUNT,TSPN
          INTEGER SFORCE,SZFORCE
@@ -1159,7 +1159,7 @@ C..   method of creating this CSF - 1 is a + and 0 is a -.
          use legacy_data, only: CSF_NBSTART
          use Determinants, only: write_det
          IMPLICIT NONE
-         INTEGER NCI(NEL),NEL,ICLOSED(NEL),NCLOSED
+         INTEGER NEL,NCI(NEL),ICLOSED(NEL),NCLOSED
          INTEGER IOPEN(NEL),NOPEN,SZ,S,SORDER(NEL)
          
          INTEGER I,J,K

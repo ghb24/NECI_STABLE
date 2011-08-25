@@ -119,7 +119,7 @@ MODULE FciMCParMod
         real(dp) :: Weight, Energyxw
         INTEGER :: error
         LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange,tPrintWarn
-        REAL(4) :: s_start,s_end,etime,tstart(2),tend(2),totaltime
+        REAL(sp) :: s_start,s_end,etime,tstart(2),tend(2),totaltime
         real(dp) :: TotalTime8
         INTEGER(int64) :: MaxWalkers,MinWalkers
         real(dp) :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
@@ -583,7 +583,7 @@ MODULE FciMCParMod
         implicit none
         type(fcimc_iter_data), target :: data_struct
 
-        call assign_proc (ptr_iter_data, data_struct)
+!        call assign_proc (ptr_iter_data, data_struct)
     end subroutine
     ! This is the heart of FCIMC, where the MC Cycles are performed.
     !
@@ -3684,8 +3684,8 @@ MODULE FciMCParMod
         CHARACTER(len=*), PARAMETER :: this_routine='SetupParameters'
         CHARACTER(len=12) :: abstr
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped
-        INTEGER :: HFLz,ChosenOrb,KPnt(3), step,SymHF,FindProjEBins
-        integer(int64) :: ExcitLevPop
+        INTEGER :: HFLz,ChosenOrb,KPnt(3), step,FindProjEBins
+        integer(int64) :: ExcitLevPop,SymHF
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
         WRITE(6,*) ""
@@ -3911,10 +3911,10 @@ MODULE FciMCParMod
         WRITE(6,"(A,I10)") "Symmetry of reference determinant is: ",INT(HFSym%Sym%S,sizeof_int)
         SymHF=0
         do i=1,NEl
-            SymHF=IEOR(SymHF,INT(G1(HFDet(i))%Sym%S,sizeof_int))
+            SymHF=IEOR(SymHF,G1(HFDet(i))%Sym%S)
         enddo
         WRITE(6,"(A,I10)") "Symmetry of reference determinant from spin orbital symmetry info is: ",SymHF
-        if(SymHF.ne.INT(HFSym%Sym%S,sizeof_int)) then
+        if(SymHF.ne.HFSym%Sym%S) then
             !When is this allowed to happen?! Comment!!
             call warning_neci(this_routine,"Inconsistency in the symmetry arrays. Beware.")
         endif
@@ -4853,7 +4853,7 @@ MODULE FciMCParMod
         use SymExcit3 , only : CountExcitations3
         INTEGER :: iTotal
         integer :: nSing, nDoub, ncsf, excitcount, ierr, iExcit
-        integer :: nStore(6), iMaxExcit, nExcitMemLen, nJ(nel)
+        integer :: nStore(6), iMaxExcit, nExcitMemLen(1), nJ(nel)
         integer, allocatable :: EXCITGEN(:)
         character(*), parameter :: this_routine = 'CalcApproxpDoubles'
         logical :: TempUseBrill
@@ -4901,7 +4901,7 @@ MODULE FciMCParMod
             iMaxExcit=0
             nStore(1:6)=0
             CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
-            ALLOCATE(EXCITGEN(nExcitMemLen),stat=ierr)
+            ALLOCATE(EXCITGEN(nExcitMemLen(1)),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All(this_routine,"Problem allocating excitation generator")
             EXCITGEN(:)=0
             CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,.TRUE.,EXCITGEN,nJ,iMaxExcit,nStore,exFlag)
@@ -5402,13 +5402,13 @@ MODULE FciMCParMod
         INTEGER, DIMENSION(lenof_sign) :: InitialSign
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
         integer :: ReadBatch    !This parameter determines the length of the array to batch read in walkers from a popsfile
-        real(8) :: Gap
+        real(dp) :: Gap
         !Variables from popsfile header...
         logical :: tPop64Bit,tPopHPHF,tPopLz
         integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
-        integer(8) :: iPopAllTotWalkers
-        real(8) :: PopDiagSft
-        integer(8) , dimension(lenof_sign) :: PopSumNoatHF
+        integer(int64) :: iPopAllTotWalkers
+        real(dp) :: PopDiagSft
+        integer(int64) , dimension(lenof_sign) :: PopSumNoatHF
         HElement_t :: PopAllSumENum
 
         if(tReadPops.and..not.tPopsAlreadyRead) then
@@ -6515,7 +6515,7 @@ MODULE FciMCParMod
         INTEGER , INTENT(IN) :: HFDet(NEl),exflag
         INTEGER , INTENT(OUT) :: nSing,nDoub
         LOGICAL :: TempUseBrill
-        INTEGER :: nExcitMemLen,nJ(NEl),iMaxExcit,nStore(6),ierr,excitcount,iExcit
+        INTEGER :: nExcitMemLen(1),nJ(NEl),iMaxExcit,nStore(6),ierr,excitcount,iExcit
         INTEGER , ALLOCATABLE :: EXCITGEN(:)
         character(len=*) , parameter :: this_routine='CountExcitsOld'
 
@@ -6534,7 +6534,7 @@ MODULE FciMCParMod
         nStore(1:6)=0
         nJ(:)=0
         CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
-        ALLOCATE(EXCITGEN(nExcitMemLen),stat=ierr)
+        ALLOCATE(EXCITGEN(nExcitMemLen(1)),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,"Problem allocating excitation generator")
         EXCITGEN(:)=0
         nJ(:)=0

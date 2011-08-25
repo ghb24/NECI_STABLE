@@ -14,9 +14,9 @@ C..Diagonalisation vectors
       integer(TagIntType), save :: tagWORK=0
       integer(TagIntType), save :: tagIWORK=0,tagIFAIL=0
       integer :: NEl,NHG,NDET,NEVAL,ISTATE,NMAXX,NMAXY,NMAXZ
-      REAL(dp) :: CK(NDET,NEVAL),NMRKS(NEL,*),SUM
+      REAL(dp) :: CK(NDET,NEVAL),SUM
       INTEGER :: N1E(NHG),N2E(NHG),IG,JG,IN,ID,ID1,ID2,I,J,K,INFO
-      INTEGER :: M,IPTOT,IFLAG,ND2,ND1,IQ
+      INTEGER :: M,IPTOT,IFLAG,ND2,ND1,IQ,NMRKS(NEL,*)
       REAL(dp) :: SUMA(NMAXX,NMAXY,NMAXZ),EPS,D,SUMC,ABSTOL,VL,VU
       TYPE(BASISFN) G1(NHG)
       character(*),parameter :: this_routine='FODMAT'

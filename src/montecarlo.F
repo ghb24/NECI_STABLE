@@ -27,16 +27,17 @@
          use util_mod, only: NECI_ICOPY
          use constants, only: dp
          IMPLICIT NONE
-         INTEGER nBasisMax(5,*),NI(NEL),NJ(NEL),NQN(5)
+         INTEGER NEL,NBASIS,nBasisMax(5,*),NI(NEL),NJ(NEL),NQN(5)
          TYPE(BasisFN) G1(NBASIS)
-         INTEGER NCH,ND,NEL,BRR(NBASIS),NBASIS,ISEED
+         INTEGER NCH,ND,BRR(NBASIS),ISEED
          LOGICAL L
-         INTEGER IEL,IQN,ISGN,I,IT
-         INTEGER IFINDBASISFN
+         INTEGER IEL,IQN,ISGN,I,IT,IFINDBASISFN
          real(dp) RAN2
          IF(NBASISMAX(3,3).EQ.1) THEN
 C.. Generic spatial basis
-            CALL GENNEWDET3(NI,NJ,NEL,NBASIS,G1,ISEED,NCH,BRR)
+         call stop_all('GENNEWDET2',
+     &         'G1 variable needs to be made into a BasisFN.')
+!            CALL GENNEWDET3(NI,NJ,NEL,NBASIS,G1,ISEED,NCH,BRR)
             RETURN
          ENDIF
 C.. Copy NI to NJ
@@ -61,7 +62,7 @@ C.. change the spin
                NQN(IQN)=NQN(IQN)+ISGN
             ENDIF
             CALL HUB_PBC(NQN,NBASISMAX)
-            IT=IFINDBASISFN(NQN,G1,NBASIS)
+!            IT=IFINDBASISFN(NQN,G1,NBASIS)
             IF(IT.EQ.0) THEN 
                L=.TRUE.
             ELSE
@@ -154,8 +155,8 @@ C.. This does not take into account any symmetries.
         use constants, only: dp
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
-         INTEGER NI(NEL),NJ(NEL),G1(*)
-         INTEGER NCH,ND,BRR(NBASIS),NBASIS,NEL,ISEED
+         INTEGER NEL,NBASIS,NI(NEL),NJ(NEL),G1(*)
+         INTEGER NCH,ND,BRR(NBASIS),ISEED
          LOGICAL L
          real(dp) RN
          INTEGER IGETENEIGHBOUR,IGETSNEIGHBOUR
@@ -167,13 +168,15 @@ C.. Copy NI to NJ
          ND=NCH
 C.. we need to keep on doing this until we make a valid choice
 C.. We keep spin fixed here.
+        call stop_all('GENNEWDET3',
+     &         'G1 variable needs to be made into a BasisFN.')
          DO WHILE(L)
             L=.FALSE.
             IEL=INT(RAN2(ISEED)*NEL)+1
             ISGN=INT(RAN2(ISEED)+0.5)*2-1
             IF(RAN2(ISEED).LT.0.25) THEN
 C.. 1/4 prob of changing the spin
-               IT=IGETSNEIGHBOUR(NI(IEL),NBASIS,BRR,ISGN,G1)
+!               IT=IGETSNEIGHBOUR(NI(IEL),NBASIS,BRR,ISGN,G1)
             ELSE
 C.. change the energy level.  Have an exponential distribution of
 C.. distance
@@ -186,7 +189,7 @@ C.. distance
                   RN=RN*2
                   IDIST=IDIST+1
                ENDDO
-               IT=IGETENEIGHBOUR(NI(IEL),NBASIS,BRR,ISGN,G1,IDIST)
+!               IT=IGETENEIGHBOUR(NI(IEL),NBASIS,BRR,ISGN,G1,IDIST)
             ENDIF
 C.. make sure the new basis fn isn't already in the det.  if so, go round again
             DO I=1,NEL

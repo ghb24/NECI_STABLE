@@ -23,7 +23,7 @@ contains
         if(lenof_sign.eq.1) then
             abs_int_sign=abs(wsign(1))
         else
-            abs_int_sign=nint(sqrt(real(wsign(1),dp)**2+real(wsign(2),dp)**2),sizeof_int)
+            abs_int_sign=nint(sqrt(real(wsign(1),dp)**2+real(wsign(lenof_sign),dp)**2),sizeof_int)
         endif
     end function abs_int_sign
 
@@ -34,7 +34,7 @@ contains
         if(lenof_sign.eq.1) then
             abs_int8_sign=abs(wsign(1))
         else
-            abs_int8_sign=nint(sqrt(real(wsign(1),dp)**2+real(wsign(2),dp)**2),int64)
+            abs_int8_sign=nint(sqrt(real(wsign(1),dp)**2+real(wsign(lenof_sign),dp)**2),int64)
         endif
     end function abs_int8_sign
 

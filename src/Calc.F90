@@ -1632,11 +1632,11 @@ contains
                       IF(TSPN) THEN
                           WRITE(6,*) "Using spin restriction:",LMS
                       ENDIF
-                      CALL CALCRHOPII3(BETA,I_P,I_HMAX,I_VMAX,NEL,                         &
-         &               NBASISMAX,G1,nBasis,BRR,NMSH,FCK,ARR,ALAT,UMAT,NTAY,              &
-         &               RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,               &
-         &               DETINV,TSPN,LMS2,TPARITY,SymRestrict,TSPECDET,SPECDET,            &
-         &               nActiveBasis)
+!                      CALL CALCRHOPII3(BETA,I_P,I_HMAX,I_VMAX,NEL,                         &
+!         &               NBASISMAX,G1,nBasis,BRR,NMSH,FCK,ARR,ALAT,UMAT,NTAY,              &
+!         &               RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,               &
+!         &               DETINV,TSPN,LMS2,TPARITY,SymRestrict,TSPECDET,SPECDET,            &
+!         &               nActiveBasis)
                     ENDIF
                  ELSE
                      WRITE(6,*) "Invalid combination of NTAY and TENERGY.  No NPATHS calculated"
@@ -1781,10 +1781,10 @@ contains
 !C..          UMAT=NDET
 !C..          ALAT=NMRKS
 !C..          NMAX=ARR
-              CALL CALCRHOPII2(BETA,I_P,I_HMAX,I_VMAX,NEL,NDET,                        &
-     &               NBASISMAX,G1,nBasis,BRR,NEVAL,W,CK,ARR,NMRKS,NDET,NTAY,           &
-     &                RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,           &
-     &                DETINV,TSPECDET,SPECDET)
+!              CALL CALCRHOPII2(BETA,I_P,I_HMAX,I_VMAX,NEL,NDET,                        &
+!     &               NBASISMAX,G1,nBasis,BRR,NEVAL,W,CK,ARR,NMRKS,NDET,NTAY,           &
+!     &                RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,           &
+!     &                DETINV,TSPECDET,SPECDET)
 
           endif
             

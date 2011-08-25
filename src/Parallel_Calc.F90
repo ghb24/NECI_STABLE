@@ -47,7 +47,7 @@ subroutine ParMP2(nI)
    integer :: i,j
    integer :: IA,JA,AA,BA,JJ
    integer :: store(6),Excit(2,2)
-   integer :: ic,exlen,iC0,ExLevel
+   integer :: ic,exlen(1),iC0,ExLevel
    integer, pointer :: Ex(:)
    integer :: nJ(nEl),weight
    HElement_t dU(2)
@@ -111,8 +111,8 @@ subroutine ParMP2(nI)
    STORE(1)=0
 !  IC is the excitation level (relative to the reverence det).
    CALL GENSYMEXCITIT3Par(NI,.TRUE.,EXLEN,nJ,IC,STORE,ExLevel,iMinElec,iMaxElec)
-   Allocate(Ex(exLen),stat=ierr)
-   call LogMemAlloc('Ex',Exlen,4,this_routine,tag_Ex,ierr)
+   Allocate(Ex(exLen(1)),stat=ierr)
+   call LogMemAlloc('Ex',Exlen(1),4,this_routine,tag_Ex,ierr)
    EX(1)=0
    CALL GENSYMEXCITIT3Par(NI, .TRUE.,EX,nJ,IC,STORE,ExLevel,iMinElec,iMaxElec)
 
@@ -383,7 +383,7 @@ Subroutine Par2vSum(nI)
    integer iMinElec, iMaxElec
    integer i
    integer store(6)
-   integer ic,exlen,iC0
+   integer ic,exlen(1),iC0
    integer, pointer :: Ex(:)
    integer nJ(nEl)
    HElement_t dU
@@ -412,7 +412,7 @@ Subroutine Par2vSum(nI)
    STORE(1)=0
 !  IC is the excitation level (relative to the reverence det).
    CALL GENSYMEXCITIT3Par(NI,.TRUE.,EXLEN,nJ,IC,STORE,3,iMinElec,iMaxElec)
-   Allocate(Ex(exLen))
+   Allocate(Ex(exLen(1)))
    EX(1)=0
    CALL GENSYMEXCITIT3Par(NI, .TRUE.,EX,nJ,IC,STORE,3,iMinElec,iMaxElec)
 

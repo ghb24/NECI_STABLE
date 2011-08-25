@@ -7,9 +7,9 @@ C  ========================================================
 !      IMPLICIT real(dp)(A-H,O-Z)
       use constants, only: dp,int64,sp
       IMPLICIT NONE
+      integer :: NMESHX,NMAX
       complex(dp) CK(NMESHX,NMESHX,NMESHX)
       complex(dp) ZIA(-NMESHX/2:NMESHX/2,NMAX,NMAX) 
-      integer :: NMESHX,NMAX
       real(dp) :: ALPHA,OMEGA
       real(dp) A(3),t3
       real(sp) etime,t(2),t1,t2
@@ -100,12 +100,12 @@ C =========================================================
       !INTEGER FFTW_NO_SIMD
       !PARAMETER (FFTW_NO_SIMD=131072)
 #endif
+      integer :: N,I,J,K,N1,N2,N3
       complex(dp) DIST(-N/2:N/2-1,-N/2:N/2-1,-N/2:N/2-1)
       integer(int64) PLAN
       real(dp) A(3),ALPHA2,ALPHA,HSTEPX,HSTEPY,HSTEPZ,derf
       real(dp) :: X,Y,Z,AUX,SUM,G2,GX,GY,GZ,OMEGA,OMEGAP,R
       LOGICAL TALPHA
-      integer :: N,I,J,K,N1,N2,N3
 C..
 !      PI=ACOS(-1.D0)
       ALPHA2=ALPHA*ALPHA
@@ -132,10 +132,10 @@ C..
               IF(TALPHA) THEN 
                 AUX=2.D0/SQRT(PI)/ALPHA
               ELSE
-                AUX=DFLOAT(N/2)*(-1)**(I+J+K)
+                AUX=real(N/2,dp)*(-1)**(I+J+K)
               ENDIF
             ENDIF
-            DIST(I,J,K)=DCMPLX(AUX,0.D0)
+            DIST(I,J,K)=CMPLX(AUX,0.D0,dp)
 c            write(16,'(3i3,2e19.8)') i,j,k,dist(i,j,k)
           ENDDO
         ENDDO
@@ -177,7 +177,7 @@ C..Shift origin and normalise
       DO I=-N/2,N/2-1
         DO J=-N/2,N/2-1
           DO K=-N/2,N/2-1
-            DIST(I,J,K)=DIST(I,J,K)*(-1)**(i+j+k)/dfloat(n1*n2*n3)
+            DIST(I,J,K)=DIST(I,J,K)*(-1)**(i+j+k)/real(n1*n2*n3,dp)
           enddo
         enddo
       enddo      
@@ -197,7 +197,7 @@ C..the short-range correction for alpha
               ELSE
                 SUM=PI*ALPHA2/OMEGAP 
               ENDIF
-              DIST(I,J,K)=DIST(I,J,K)+DCMPLX(SUM,0.D0)
+              DIST(I,J,K)=DIST(I,J,K)+CMPLX(SUM,0.D0,dp)
             ENDDO
           ENDDO
         ENDDO
@@ -236,8 +236,8 @@ C ============================================================
 !      IMPLICIT real(dp)(A-H,O-Z)
       use constants, only: dp
       IMPLICIT NONE
-      complex(dp) ZIA(-KMAX/2:KMAX/2,NMAX,NMAX),ZIO
       integer :: K,N,M,KMAX,NMAX
+      complex(dp) ZIA(-KMAX/2:KMAX/2,NMAX,NMAX),ZIO
       DO K=-KMAX/2,KMAX/2
         DO N=1,NMAX
           DO M=1,NMAX
@@ -263,7 +263,7 @@ C ============================================================
       IF(K.EQ.0) THEN 
         ZIO=(1.D0,0.D0)
       ELSE
-        ZIO=DCMPLX(0.D0,-((-1.D0)**K-1.D0)/(REAL(K,dp)*PI))
+        ZIO=CMPLX(0.D0,-((-1.D0)**K-1.D0)/(REAL(K,dp)*PI),dp)
       ENDIF
       RETURN
       END

@@ -17,12 +17,12 @@ C ==----------------------------------------------------------------==
       
       LOGICAL :: PRINTOUT,TLargest,TSeeded,tDie2,tFail
       LOGICAL :: tDie
+      integer :: LISCR,ISCR(LISCR),LSCR,NBLOCK,NKRY1,NKRY,N,ICMAX,M
       REAL(dp) :: V0(M,N),VS(M,N),A(N,N),W(N) 
       REAL(dp) :: V(M*NBLOCK*NKRY1)
       REAL(dp) :: AM(NBLOCK*NBLOCK*NKRY1),BM(NBLOCK*NBLOCK*NKRY)
       REAL(dp) :: T(3*NBLOCK*NKRY*NBLOCK*NKRY),WT(NBLOCK*NKRY)
       real(dp) :: SCR(LSCR),B2LIMIT
-      integer :: ISCR(LISCR),LISCR,LSCR,NBLOCK,NKRY1,NKRY,N,ICMAX,M
       integer :: NCYCLE,NDIAG
       integer :: INDEX(N)
 C..temp
@@ -90,13 +90,13 @@ C ====================================================================
 !      IMPLICIT real(dp) (A-H,O-Z)
       IMPLICIT NONE
       LOGICAL :: PRINTOUT,TLargest,tDie2,tFail
+      integer :: LISCR,ISCR(LISCR),I,J,NK,LL,NHPSI,N,NBLK,M,NBLEFF,NBL
+      integer :: NKRY,NBLOCK,ICMAX,LSCR,NLEFT,NDIAG,NCURR,NCYCLE,ICYCLE
       real(dp) :: V0(M,N),VS(M,N),A(N,N),W(N) 
       real(dp) :: V(M*NBLOCK*(NKRY+1))
       real(dp) :: AM(NBLOCK*NBLOCK*(NKRY+1)),BM(NBLOCK*NBLOCK*NKRY)
       real(dp) :: T(3*NBLOCK*NKRY*NBLOCK*NKRY),WT(NBLOCK*NKRY)
       real(dp) :: SCR(LSCR),AUX,B2LIMIT,B2,DDOT,B2MIN,B2MAX
-      integer :: ISCR(LISCR),I,J,NK,LL,NHPSI,N,NBLK,M,NBLEFF,NBL,LSCR
-      integer :: NKRY,NBLOCK,ICMAX,LISCR,NLEFT,NDIAG,NCURR,NCYCLE,ICYCLE
       integer :: NCONV
       integer :: INDEX(N),NROW(M),LAB(M,ICMAX),INFO 
       type(timer), save :: proc_timer
@@ -168,7 +168,7 @@ C..Residual: H(VY) - (VY)E and test for convergence
 C..
         IF(PRINTOUT) THEN
             WRITE(6,'(5X,I4,2X,I4,2X,2(E8.3,3X),F6.2)') 
-     &       ICYCLE,NCONV,B2MAX,B2MIN,DFLOAT(NHPSI)/DFLOAT(N)
+     &       ICYCLE,NCONV,B2MAX,B2MIN,real(NHPSI,dp)/real(N,dp)
         ENDIF
 C..Order states         
         DO I=NCURR,N
@@ -251,11 +251,12 @@ C ======================================================================
       SUBROUTINE NECI_MGS(M,N,A,LDA,R,LDR,tDie2,tFail)
 C     ==--------------------------------------------------------------==
       use global_utilities
-      use constants, only : dp
+      use constants, only : dp,sp
 !      IMPLICIT real(dp) (A-H,O-Z)
       IMPLICIT NONE
+      integer :: LDA,LDR,N,M
+      integer(sp) :: INFO
       real(dp) :: A(LDA,*),R(LDR,*)
-      integer :: LDA,LDR,N,M,INFO
       LOGICAL :: tDie2,tfail
       type(timer), save :: proc_timer
 C     ==================================================================
@@ -274,8 +275,8 @@ C =======================================================================
       IMPLICIT NONE
 C..M = NDET
 C..N = NEVAL
-      real(dp) :: A(M,N),RAN2
       integer :: M,N,I,J
+      real(dp) :: A(M,N),RAN2
       LOGICAL TSYM,TSeeded 
       integer iseed
       IF(TSeeded) THEN
@@ -312,8 +313,8 @@ C =======================================================================
       use constants, only: dp
       IMPLICIT NONE
       CHARACTER(*) CHAR
-      real(dp) :: A(M,N)
       INTEGER :: N,M,I,J
+      real(dp) :: A(M,N)
       WRITE(6,*) CHAR
       DO I=1,M
         WRITE(6,1000) (A(I,J),J=1,N)
@@ -326,8 +327,8 @@ C ======================================================================
 !      IMPLICIT real(dp) (A-H,O-Z)
       use constants, only: dp
       IMPLICIT NONE
-      real(dp) :: T(M,N),A(MA,NA)
       integer :: N,M,MA,NA,IBEG,JBEG,I,J
+      real(dp) :: T(M,N),A(MA,NA)
       CHARACTER(1) CHAR
       IF(MA*IBEG.GT.M) STOP ' MA+IBEG.GT.M'
       IF(NA*JBEG.GT.N) STOP ' MA+IBEG.GT.M'
@@ -353,8 +354,8 @@ C ======================================================================
       use constants, only: dp
 !      IMPLICIT real(dp) (A-H,O-Z)
       IMPLICIT NONE
-      real(dp) :: T(M,N),A(MA,NA)
       integer :: N,M,MA,NA,IBEG,JBEG,I,J
+      real(dp) :: T(M,N),A(MA,NA)
       CHARACTER(1) :: CHAR
       IF(MA*IBEG.GT.M) STOP ' MA+IBEG.GT.M'
       IF(NA*JBEG.GT.N) STOP ' MA+IBEG.GT.M'
@@ -380,8 +381,8 @@ C ======================================================================
       use constants, only: dp
 !      IMPLICIT real(dp) (A-H,O-Z)
       IMPLICIT NONE
-      real(dp) :: W(N),A(M,N)
       integer :: N,M,J
+      real(dp) :: W(N),A(M,N)
       real(dp) :: AUX
       DO J=1,N/2
         CALL DSWAP(M,A(1,J),1,A(1,N-J+1),1)
@@ -400,10 +401,10 @@ C     ==================================================================
       use constants, only: dp
 !      IMPLICIT real(dp) (A-H,O-Z)
       IMPLICIT NONE
+      integer :: N,M,LAB(M,*),NROW(M),LSCR,LDWT,LDT,NKRY
+      integer :: LISCR,J,NCONV,NHPSI,I,ISCR(LISCR)
       real(dp) :: V0(M,*),V(M,N,NKRY+1),AM(N,N,NKRY+1),BM(N,N,NKRY)
       real(dp) :: T(LDT),WT(LDWT),H(*),SCR(LSCR)
-      integer :: LAB(M,*),NROW(M),ISCR(LISCR),LSCR,LDWT,LDT,NKRY,N,M
-      integer :: LISCR,J,NCONV,NHPSI,I
       LOGICAL :: TLargest,tDie2,tFail
       type(timer), save :: proc_timer
 C     ==================================================================
@@ -480,9 +481,9 @@ C ==------------------------------------------------------------------==
       use global_utilities
 !      IMPLICIT real(dp) (A-H,O-Z)
       IMPLICIT NONE
+      integer :: M,N,LAB(M,*),NROW(M),LSCR,I,NHPSI,NKRY,NCONV
       real(dp) :: VCONV(M,*),V0(M,N),VS(M,N),V(M,N,NKRY+1)
       real(dp) :: AM(N,N,NKRY+1),BM(N,N,NKRY),W(N),H(*),SCR(LSCR)
-      integer :: LAB(M,*),NROW(M),LSCR,M,N,I,NHPSI,NKRY,NCONV
       LOGICAL :: TLargest,tDie2,tFail
       type(timer), save :: proc_timer
 C ==------------------------------------------------------------------==
@@ -553,8 +554,8 @@ C =======================================================================
 !      IMPLICIT real(dp)(A-H,O-Z)
       use constants, only: dp
       IMPLICIT NONE
-      real(dp) :: A(N,N),SCR(LSCR)
       integer :: N,LSCR,KD,I,IBEG,J
+      real(dp) :: A(N,N),SCR(LSCR)
 C..
       IF(LSCR.LT.N) THEN 
         WRITE(6,*) ' LSCR:',LSCR
@@ -578,8 +579,8 @@ C =======================================================================
       use constants, only: dp
 !      IMPLICIT real(dp)(A-H,O-Z)
       IMPLICIT NONE
-      real(dp) :: H(M,M),V0(M,N),VS(M,N)
       integer :: N,M
+      real(dp) :: H(M,M),V0(M,N),VS(M,N)
       type(timer), save :: proc_timer
       proc_timer%timer_name='      NECI_HSPI'
       call set_timer(proc_timer)
@@ -593,8 +594,8 @@ C =======================================================================
       use constants, only: dp
 !      IMPLICIT real(dp)(A-H,O-Z)
       IMPLICIT NONE
-      real(dp) :: A(N,N),V0(M,N),VS(M,N)
       integer :: N,M
+      real(dp) :: A(N,N),V0(M,N),VS(M,N)
       type(timer), save :: proc_timer
       proc_timer%timer_name='NECI_OVLAP'
       call set_timer(proc_timer)
@@ -609,8 +610,8 @@ C =======================================================================
 !      IMPLICIT real(dp)(A-H,O-Z)
       IMPLICIT NONE
       CHARACTER(1) CHAR 
-      real(dp) :: A(N,N),V1(M,N),V2(M,N)
       integer :: N,M
+      real(dp) :: A(N,N),V1(M,N),V2(M,N)
       type(timer), save :: proc_timer
 C..V_I = V_I - V_(I-1) A_(I-1)
       proc_timer%timer_name='    NECI_RSDBLK'
@@ -631,8 +632,8 @@ C =======================================================================
       use constants, only: dp
 !      IMPLICIT real(dp)(A-H,O-Z)
       IMPLICIT NONE
-      REAL(dp) :: A(N,N),V0(M,N),SCR(LSCR)
       integer :: N,M,LSCR
+      REAL(dp) :: A(N,N),V0(M,N),SCR(LSCR)
       type(timer), save :: proc_timer
       proc_timer%timer_name='    NECI_ROTATE'
       call set_timer(proc_timer)
@@ -651,8 +652,8 @@ C ==------------------------------------------------------------------==
       use constants, only: dp
 !      IMPLICIT real(dp) (A-H,O-Z)
       IMPLICIT NONE
+      INTEGER :: IFAIL(*),INFO,M,N,LISCR,LSCR,MEVAL,ISCR(LISCR)
       REAL(dp) :: T(M,M,*),WT(*),SCR(LSCR)
-      INTEGER :: ISCR(LISCR),IFAIL(*),INFO,M,N,LISCR,LSCR,MEVAL
       type(timer), save :: proc_timer
       proc_timer%timer_name='    JACOBI'
       call set_timer(proc_timer)
@@ -680,8 +681,8 @@ C ==------------------------------------------------------------------==
 !      IMPLICIT real(dp) (A-H,O-Z)
       IMPLICIT NONE
       type(timer), save :: proc_timer
+      INTEGER :: IFAIL(*),IN,LSCR,LISCR,N,MEVAL,INFO,ISCR(LISCR)
       REAL(dp) :: T(IN,IN,*),WT(IN),SCR(LSCR)
-      INTEGER :: ISCR(LISCR),IFAIL(*),IN,LSCR,LISCR,N,MEVAL,INFO
 C     ==================================================================
       proc_timer%timer_name='     BANDM'
       call set_timer(proc_timer)
@@ -714,8 +715,8 @@ C =====================================================================
       use constants, only: dp
 !      IMPLICIT real(dp)(A-H,O-Z)
       IMPLICIT NONE
-      REAL(dp) :: V(M,NP),V0(M,*),SMAT(N0,*)
       INTEGER :: M,N,N0,NP
+      REAL(dp) :: V(M,NP),V0(M,*),SMAT(N0,*)
       type(timer), save :: proc_timer
       IF(N0.EQ.0) RETURN
       proc_timer%timer_name='    PRJCNV'

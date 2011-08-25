@@ -2758,9 +2758,9 @@ SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
       INTEGER(kind=n_int), pointer :: DetList(:,:)
       logical :: tPop64Bit,tPopHPHF,tPopLz
       integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
-      integer(8) :: iPopAllTotWalkers
-      real(8) :: PopDiagSft
-      integer(8) , dimension(lenof_sign) :: PopSumNoatHF
+      integer(int64) :: iPopAllTotWalkers
+      real(dp) :: PopDiagSft
+      integer(int64) , dimension(lenof_sign) :: PopSumNoatHF
       integer nMaxAmpl,nAmpl
       integer(int64) , dimension(lenof_sign) :: CurrParts
       integer :: ReadBatch    !This parameter determines the length of the array to batch read in walkers from a popsfile

@@ -447,7 +447,7 @@ MODULE SymExcit2
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INTEGER iExcit(2,2)
-         INTEGER L
+         LOGICAL L
          INTEGER nI(nEl),nJ(nEl)
          LOGICAL tIsConnectedDet
          LOGICAL IsUHFDet
@@ -820,7 +820,7 @@ MODULE SymExcit2
                  CALL SYMSETUPEXCITS3(NI,NEL,G1,NBASIS,STORE2,&
                  STORE2(1),STORE2(1),STORE2(1),STORE2(1),&
                  .TRUE.,ICOUNT,DSTORE(1), DSTORE(SymClassSize*NEL+1),&
-               DSTORE(SymClassSize*NEL+1+(nBasis/32)+1),&
+               DSTORE(SymClassSize*NEL+1+(nBasis/32)+1:SymClassSize*NEL+1+(nBasis/32)+1),&
                    ILEVEL,iMinElec1,iMaxElec1)
 
                  deallocate(DSTORE)
@@ -935,7 +935,7 @@ MODULE SymExcit2
                        NMEM(STORE2(5)),NMEM(STORE2(2)),NMEM(STORE2(3)),&
                        NMEM(STORE2(4)),&
                   .FALSE.,ICOUNT,DSTORE(1), DSTORE(SymClassSize*NEL+1),&
-             DSTORE(SymClassSize*NEL+1+(nBasis/32)+1),ILEVEL,iMinElec1,&
+             DSTORE(SymClassSize*NEL+1+(nBasis/32)+1:SymClassSize*NEL+1+(nBasis/32)+1),ILEVEL,iMinElec1,&
                    iMaxElec1)
                    NMEM(6)=STORE2(6)
                    NMEM(23)=ICOUNT
