@@ -3,6 +3,6 @@ Program NECI
 
     implicit none
     write(6,*) "STARTING NECI"
-    call NECICore(0,.False.,.False.) !Indicate not called by CPMD/VASP
+    call NECICore(0,.False.,.False.,.false.) !Indicate not called by CPMD/VASP/Molpro
 
 End Program NECI

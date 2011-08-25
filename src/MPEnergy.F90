@@ -90,10 +90,10 @@ END
 SUBROUTINE CalcVij(Hij,Vij,Fi,E1,iV)
    use constants, only: dp
    IMPLICIT NONE
+   INTEGER iV,i,j
    HElement_t Hij(1:iV+1,1:iV+1)
    HElement_t Vij(1:iV,1:iV)
    HElement_t Fi(1:iV),E1
-   INTEGER iV,i,j
    DO i=1,iV
       DO j=1,iV
          Vij(i,j)=Hij(i,j)
@@ -110,9 +110,10 @@ END
          use CalcData , only : TLADDER
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
+         INTEGER NEL,NBASIS
          HElement_t HIJS(0:2)
          real(dp) ARR(NBASIS,2)
-         INTEGER IPATH(NEL,0:2),NEL,NBASIS
+         INTEGER IPATH(NEL,0:2)
          INTEGER NI(NEL),NJ(NEL)
          real(dp) MP2E
          real(dp) DENOM,CONTR

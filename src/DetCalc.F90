@@ -465,11 +465,11 @@ CONTAINS
             LSCR=MAX(NDET*NEVAL,8*NBLOCK*NKRY)
             LISCR=6*NBLOCK*NKRY
 !C..
-            write (6,'(/,/,8X,64(1H*))')
+!            write (6,'(/,/,8X,64(1H*))')
             write (6,'(7X," *",62X,"*")')
           write (6,'(7X," *",19X,A,18X,"*")') ' LANCZOS DIAGONALISATION '
             write (6,'(7X," *",62X,"*")')
-            write (6,'(7X,1X,64(1H*))')
+!            write (6,'(7X,1X,64(1H*))')
 !C..Set up memory for FRSBLKH
 
             ALLOCATE(A(NEVAL,NEVAL),stat=ierr)
@@ -519,7 +519,7 @@ CONTAINS
             V2=0.d0
 !C..Lanczos iterative diagonalising routine
             CALL NECI_FRSBLKH(NDET,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT, &
-     &  SCR,ISCR,INDEX,NCYCLE,B2L,.true.,.false.,.false.)
+     &  SCR,ISCR,INDEX,NCYCLE,B2L,.true.,.false.,.false.,.true.)
 
 !Multiply all eigenvalues by -1.
             CALL DSCAL(NEVAL,-1.D0,W,1)
@@ -535,7 +535,7 @@ CONTAINS
                CALL LogMemAlloc('WORK',4*NDET,8*HElement_t_size,this_routine,WorkTag,ierr)
                ALLOCATE(WORK2(3*NDET),stat=ierr)
                CALL LogMemAlloc('WORK2',3*NDET,8,this_routine,WORK2Tag,ierr)
-               CALL HDIAG(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,NBLOCKSTARTS,NBLOCKS)
+               CALL HDIAG_neci(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,NBLOCKSTARTS,NBLOCKS)
             ELSE
 !I_P we've replaced by 0
                CALL HDIAG_NH(NDET,NBLOCKSTARTS,NBLOCKS,NEL,NMRKS,NBASISMAX,NBASIS,G1,BRR, &
@@ -1042,9 +1042,9 @@ END MODULE DetCalc
          IF((I_HMAX.GE.-10.AND.I_HMAX.LE.-7)      .OR.I_HMAX.LE.-12) ILMAX=1
 !         ILMAX=(NBASIS-NEL)**2*NEL*NEL/4
          ALLOCATE(LSTE(NEL,0:ILMAX,0:IMAX),stat=ierr)
-         call LogMemAlloc('LSTE',size(LSTE),4,this_routine,LSTEtag,ierr)
+         call LogMemAlloc('LSTE', int(size(LSTE)),4,this_routine,LSTEtag,ierr)
          ALLOCATE(ICE(0:ILMAX,0:IMAX),stat=ierr)
-         call LogMemAlloc('ICE',size(ICE),4,this_routine,ICEtag,ierr)
+         call LogMemAlloc('ICE',int(size(ICE)),4,this_routine,ICEtag,ierr)
          ALLOCATE(RIJLIST(0:ILMAX,0:IMAX*2),stat=ierr)
          CALL LogMemAlloc('RIJLIST',(1+ILMAX)*IMAX*2,8,this_routine,RIJLISTTag,ierr)
          IF(I_VMAX.NE.0) THEN
@@ -1256,8 +1256,8 @@ END MODULE DetCalc
       use SystemData, only: BasisFN
       use HElem
       IMPLICIT NONE
+      INTEGER NEL,NM(NEL,*),NDET,NEVAL, iunit
       HElement_t CG(NDET,NEVAL)
-      INTEGER NM(NEL,*),NDET,NEL,NEVAL, iunit
       real(dp) TKE(NEVAL)
       TYPE(BASISFN) G1(*)
       real(dp) PI,S,SUM1

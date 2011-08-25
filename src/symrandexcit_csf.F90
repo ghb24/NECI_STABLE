@@ -810,10 +810,10 @@ contains
     ! returns the new value of nopen.
     subroutine csf_find_excit_det_general (ExcitMat, nJ, iLut, nopen, IC, &
                                            ncsf, nopen2, yamas)
+        integer, intent(inout) :: ncsf
         integer, intent(in) :: nopen, IC
         integer(kind=n_int), intent(in) :: iLut(0:NIfTot)
         integer, intent(inout) :: nJ(ncsf,nel), ExcitMat(2,1:IC)
-        integer, intent(inout) :: ncsf
         integer, intent(inout) :: nopen2
         integer, intent(in), optional :: yamas(ncsf, nopen2)
         character(*), parameter :: this_routine = 'csf_find_excit_det_general'
@@ -1090,9 +1090,10 @@ contains
     subroutine csf_find_excit_det (ExcitMat, nJ, iLut, nopen, nopen_new,&
                                    ncsf, bApplyYama, yama)
         integer, intent(in) :: nopen, nopen_new 
+        integer, intent(inout) :: ncsf
         integer(kind=n_int), intent(in) :: iLut(0:nIfTot)
         integer, intent(in), optional :: yama(ncsf, nopen_new)
-        integer, intent(inout) :: ncsf, nJ(ncsf,nel), ExcitMat(2)
+        integer, intent(inout) :: nJ(ncsf,nel), ExcitMat(2)
         integer :: i, pos, exbeta, exalpha, sralpha, srbeta
         integer :: ins(4), nclosed, src
         logical, intent(in) :: bApplyYama

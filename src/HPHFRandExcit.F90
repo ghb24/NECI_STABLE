@@ -317,7 +317,7 @@ MODULE HPHFRandExcitMod
         
 !This create the spin-coupled determinant of nI in nJ in natural ordered form.
     PURE SUBROUTINE FindDetSpinSym(nI,nJ,NEl)
-        INTEGER, intent(in) :: nI(NEl),NEl
+        INTEGER, intent(in) :: NEl,nI(NEl)
         integer, intent(out) :: nJ(NEl)
         integer :: i
 
@@ -674,8 +674,8 @@ MODULE HPHFRandExcitMod
 !    END SUBROUTINE TestGenRandHPHFExcit
 
     SUBROUTINE BinSearchListHPHF(iLut,List,Length,MinInd,MaxInd,PartInd,tSuccess)
-        INTEGER(KIND=n_int) :: iLut(0:NIfTot),List(0:NIfTot,Length)
         INTEGER :: Length,MinInd,MaxInd,PartInd
+        INTEGER(KIND=n_int) :: iLut(0:NIfTot),List(0:NIfTot,Length)
         INTEGER :: i,j,N,Comp
         LOGICAL :: tSuccess
 

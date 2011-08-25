@@ -2387,9 +2387,9 @@ MODULE GraphMorph
 !!Lanczos iterative diagonalisation routine
 !        IF(THDiag) THEN
 !!If using Hamiltonian matrix in the diagonliser, we want the smallest eigenvalues, not the largest
-!            CALL NECI_FRSBLKH(NDets,ICMax,NEval,Mat,Lab,CK,CKN,NKry,NKry1,NBlock,NRow,LScr,LIScr,A,W,V,AM,BM,T,WT,SCR,ISCR,Index,WH,Work2,V2,NCycle,B2L,.false.,.false.,TSeeded)
+!            CALL NECI_FRSBLKH(NDets,ICMax,NEval,Mat,Lab,CK,CKN,NKry,NKry1,NBlock,NRow,LScr,LIScr,A,W,V,AM,BM,T,WT,SCR,ISCR,Index,WH,Work2,V2,NCycle,B2L,.false.,.false.,TSeeded,.true.)
 !        ELSE
-!            CALL NECI_FRSBLKH(NDets,ICMax,NEval,Mat,Lab,CK,CKN,NKry,NKry1,NBlock,NRow,LScr,LIScr,A,W,V,AM,BM,T,WT,SCR,ISCR,Index,WH,Work2,V2,NCycle,B2L,.false.,.true.,TSeeded)
+!            CALL NECI_FRSBLKH(NDets,ICMax,NEval,Mat,Lab,CK,CKN,NKry,NKry1,NBlock,NRow,LScr,LIScr,A,W,V,AM,BM,T,WT,SCR,ISCR,Index,WH,Work2,V2,NCycle,B2L,.false.,.true.,TSeeded,.true.)
 !        ENDIF
 !!Mulitply eigenvalues through by -1 to ensure they are positive - no longer needed
 !!        CALL DSCAL(NEval,-1.D0,W,1)
@@ -2748,7 +2748,7 @@ END FUNCTION RootofNum
 !Tests determinants are the same - requires the same ordering of orbitals in them
 LOGICAL FUNCTION SameDet(nI,nJ,NEl)
     IMPLICIT NONE
-    INTEGER :: nI(NEl),nJ(NEl),NEl,i
+    INTEGER :: NEl,nI(NEl),nJ(NEl),i
     SameDet=.true.
     do i=1,NEl
         IF(nI(i).ne.nJ(i)) THEN

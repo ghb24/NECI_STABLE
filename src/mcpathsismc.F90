@@ -1,5 +1,5 @@
 module mcpathsismc
-    use constants, only: dp,int64
+    use constants, only: dp,int64,sp
    contains
 !C.. Calculate RHO^(P)_II without having a stored H matrix
 !C.. SAMPLE over distinct nodes, e.g. IJKLI, with paths up to I_HMAX
@@ -25,13 +25,14 @@ module mcpathsismc
          use util_mod, only: NECI_ICOPY
          use mcpathsdata, only: egp
          IMPLICIT NONE
+         INTEGER I_VMAX,NEL,NBASIS
          TYPE(MCStats) MCSt
          INTEGER IPATH(NEL,0:I_VMAX)
          INTEGER NI(NEL),I_P,I_HMAX,NMSH,NMAX,NTAY(2),NWHTAY
          INTEGER ILOGGING,I,I_VMIN
          type(timer), save :: proc_timer
          type(timer), save :: proc_timer2
-         CHARACTER*20 STR
+         CHARACTER(20) STR
          real(dp) TOTAL,RHOII(0:I_VMAX)
          HElement_t RHOIJ(0:I_VMAX,0:I_VMAX),RH
          real(dp) ALAT(3),RHOEPS,BETA
@@ -42,7 +43,6 @@ module mcpathsismc
          real(dp) WLRI,WLSI
          TYPE(BasisFN) G1(*),KSYM
          INTEGER nBasisMax(5,*),BRR(*)
-         INTEGER I_VMAX,NEL,NBASIS
 !CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
 !C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER BTABLE(0:I_VMAX)
@@ -72,7 +72,7 @@ module mcpathsismc
          INTEGER IOV,IGV,IACC
          LOGICAL TSEQ,TBLOCKING
          real(dp) PREJ,PGR
-         REAL*4 etime,OTIME,NTIME,tarr(2)
+         REAL(sp) etime,OTIME,NTIME,tarr(2)
          integer(int64) LP
          HElement_t :: hel
          OTIME=etime(tarr)
@@ -649,7 +649,7 @@ module mcpathsismc
      &   ECORE,ISEED)
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
-         INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
+         INTEGER NEL,I_V,NI(NEL),I_P,IPATH(NEL,0:I_V)
          INTEGER G1,NBASIS,NMAX
          INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
          real(dp) BETA,ALAT(*),UMAT(*),ECORE
@@ -725,7 +725,7 @@ module mcpathsismc
      &   RESULT (IMCPR4NRES)
          use sort_mod
          IMPLICIT NONE
-         INTEGER IADJ(0:I_V-1,0:I_V-1),I_V,IPATH(0:I_V-1),IND
+         INTEGER I_V,IADJ(0:I_V-1,0:I_V-1),IPATH(0:I_V-1),IND
          INTEGER I,J,INODE,ITOT
 !C.. Go through all the nodes currently in the path, and through each
 !C.. possible attachment for each node
@@ -819,7 +819,7 @@ module mcpathsismc
          use Determinants, only: get_helement
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
-         INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
+         INTEGER NEL,NI(NEL),I_V,I_P,IPATH(NEL,0:I_V)
          INTEGER nBasisMax(5,*),NBASIS,NMAX
          Type(BasisFn) G1(*)
          INTEGER NTAY(2),NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
@@ -983,7 +983,7 @@ module mcpathsismc
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          TYPE(BasisFN) :: KSYM,G1(*)
-         INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
+         INTEGER NEL,I_V,NI(NEL),I_P,IPATH(NEL,0:I_V)
          INTEGER nBasisMax(5,*),NBASIS,BRR(NBASIS),NMAX
          INTEGER NTAY(2),NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
          real(dp) BETA,ALAT(*),ECORE
@@ -1450,7 +1450,7 @@ module mcpathsismc
       SUBROUTINE FINDELECSPIN(NI,NEL,NSPIN,G1,ISEED,IEX)
          use SystemData, only: BasisFN
          IMPLICIT NONE
-         INTEGER NI(NEL),NEL,NSPIN,IEX,ISEED,IEL
+         INTEGER NEL,NI(NEL),NSPIN,IEX,ISEED,IEL
          TYPE(BasisFN) G1(*)
          LOGICAL BR
          real(dp) RAN2
@@ -1465,7 +1465,7 @@ module mcpathsismc
       SUBROUTINE FINDNEWELECSPIN(NI,NEL,NSPIN,G1,ISEED,NBASIS,IEX,IEX1)
          use SystemData, only: BasisFN
          IMPLICIT NONE
-         INTEGER NI(NEL),NEL,NSPIN,IEX,ISEED,IEL,IEX1,NBASIS
+         INTEGER NEL,NI(NEL),NSPIN,IEX,ISEED,IEL,IEX1,NBASIS
          TYPE(BasisFN) G1(*)
          LOGICAL BR
          INTEGER I
@@ -1506,12 +1506,13 @@ module mcpathsismc
          use mcpathsdata, only: egp
          IMPLICIT NONE
          real(dp) FMCPR4D2
-         INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V,I_VMAX
+         INTEGER NEL,NI(NEL),I_V,I_P,IPATH(NEL,0:I_V),I_VMAX
          INTEGER nBasisMax(5,*),NBASIS,NMAX
          Type(BasisFn) G1(*)
          INTEGER NTAY(2),I_HMAX,ILOGGING,ISEED,NMSH
          real(dp) BETA,ALAT(*),ECORE
          complex(dp) FCK(*)
+         INTEGER I_OVCUR,IOCLS,ITREE
          HElement_t UMat(*) 
          real(dp) RHOEPS
          real(dp) RHOII(0:I_V),INWI
@@ -1533,7 +1534,6 @@ module mcpathsismc
          HElement_t OHIJS(0:I_OVCUR)
          real(dp) OXIJ(0:I_OVCUR-1,0:I_OVCUR-1),OPROB,PR,R2
          real(dp) OETILDE,WEIGHT,OWEIGHT,ETILDE
-         INTEGER I_OVCUR,IOCLS,ITREE
          INTEGER IACC
          real(dp) PFAC
          real(dp) RAN2
@@ -1969,6 +1969,7 @@ end module
          INTEGER iV,nEl       ! Vertices and number of electrons
          INTEGER iGraph(nEl,0:iV)  ! The graph
          INTEGER STORE(6)
+         INTEGER nBasis,IC,INODE2(NEL)
          INTEGER,pointer :: NEWEX(:)
          integer NEWEXLEN
          !Array of pointers
@@ -1977,7 +1978,6 @@ end module
          TYPE(BasisFN) G1(nBasis)
          INTEGER nBasisMax(*)
          real(dp) Arr(nBasis,2)
-         INTEGER nBasis,IC,INODE2(NEL)
          real(dp) pGen, pGenGraph
 
 

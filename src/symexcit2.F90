@@ -151,8 +151,8 @@ MODULE SymExcit2
          INTEGER I,J,A,B
          real(dp) R,Norm
          INTEGER nBasisMax(5,*),NBASIS
-         TYPE(ExcitWeight) ExWeights(iCount+1)
          INTEGER iCount
+         TYPE(ExcitWeight) ExWeights(iCount+1)
          real(dp) Arr(nBasis,2)
          CALL ExcitWeighting(I,J,A,B,R,NBASISMAX,Arr,NBASIS)
          iCount=iCount+1
@@ -171,8 +171,8 @@ MODULE SymExcit2
          INTEGER I,J
          real(dp) R,Norm
          INTEGER nBasis
-         TYPE(ExcitWeight) ExWeights(iCount+1)
          INTEGER iCount
+         TYPE(ExcitWeight) ExWeights(iCount+1)
          real(dp) Arr(nBasis,2)
          CALL ExcitFromWeighting(I,J,R,Arr,nBasis)
          iCount=iCount+1
@@ -330,7 +330,7 @@ MODULE SymExcit2
          IMPLICIT NONE
          INTEGER iExcit(2,2)
          LOGICAL L
-         INTEGER nI(nEl),nJ(nEl),nEl,nBasis
+         INTEGER nEl,nI(nEl),nJ(nEl),nBasis
          INTEGER iFrom,iFromIndex,iTo
          TYPE(BasisFn) G1(nBasis)
          TYPE(Symmetry) Sym

@@ -2137,9 +2137,9 @@ C.. If both virtuals aren't the same and neither are in NI, then allow
                iLabel2Index=-1
                iLooped=-1 !indicate we've reset from nothing
             else
-               iLabelPairIndexOff=IShft(IAND(K,'7F000000'X),-24)
-               iLabel1Index=IShft(IAND(K,'FFF000'X),-12)
-               iLabel2Index=IAND(K,'FFF'X)
+               iLabelPairIndexOff = ishft(iand(K, 2130706432), -24)
+               iLabel1Index = ishft(iand(K, 16773120), -12)
+               iLabel2Index = iand(K, 4095)
             endif
             iLabelPairBase=SymPairProds(iTo)%nIndex
             iLabel1=SymStatePairs(1,iLabelPairBase+iLabelPairIndexOff)

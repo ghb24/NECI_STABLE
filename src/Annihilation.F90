@@ -263,7 +263,7 @@ MODULE AnnihilationMod
 !Max index is the largest occupied index in the array of hashes to be ordered in each processor 
         IF(MaxIndex.gt.(0.9*MaxSpawned)) THEN
             write(6,*) MaxIndex,MaxSpawned
-            CALL Warning("SendProcNewParts","Maximum index of newly-spawned array is " &
+            CALL Warning_neci("SendProcNewParts","Maximum index of newly-spawned array is " &
             & //"close to maximum length after annihilation send. Increase MemoryFacSpawn")
         ENDIF
 
@@ -1065,8 +1065,8 @@ MODULE AnnihilationMod
     END FUNCTION CreateHash
 
     SUBROUTINE LinSearchParts(DetArray,iLut,MinInd,MaxInd,PartInd,tSuccess)
-        INTEGER(KIND=n_int) :: iLut(0:NIfTot),DetArray(0:NIfTot,1:MaxInd)
         INTEGER :: MinInd,MaxInd,PartInd
+        INTEGER(KIND=n_int) :: iLut(0:NIfTot),DetArray(0:NIfTot,1:MaxInd)
         INTEGER :: N,Comp
         LOGICAL :: tSuccess
 

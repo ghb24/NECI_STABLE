@@ -63,7 +63,8 @@ MODULE FciMCParMod
                        HistInitPops, DoubsUEG, DoubsUEGLookup, DoubsUEGStore,&
                        tPrintDoubsUEG, StartPrintDoubsUEG, tCalcInstantS2, &
                        instant_s2_multiplier, tMCOutput, tSplitProjEHist, &
-                       tSplitProjEHistG, tSplitProjEHistK3, iProjEBins
+                       tSplitProjEHistG, tSplitProjEHistK3, iProjEBins, &
+                       tDiagWalkerSubspace,iDiagSubspaceIter
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
                     hist_spin_dist, ilut_spindist, tHistSpinDist, &
                     write_clear_hist_spin_dist, hist_spin_dist_iter, &
@@ -87,7 +88,7 @@ MODULE FciMCParMod
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
     use MI_integrals
     use util_mod, only: choose, abs_int_sign, abs_int8_sign, binary_search
-    use constants, only: dp, int64, n_int, lenof_sign
+    use constants, only: dp, int64, n_int, lenof_sign, sizeof_int
     use soft_exit, only: ChangeVars 
     use FciMCLoggingMod, only: FinaliseBlocking, FinaliseShiftBlocking, &
                                PrintShiftBlocking, PrintBlocking, &
@@ -157,7 +158,6 @@ MODULE FciMCParMod
 
         ! Put a barrier here so all processes synchronise before we begin.
         call MPIBarrier(error)
-
 
 !Start MC simulation...
         TIncrement=.true.   !If TIncrement is true, it means that when it comes out of the loop, it wants to subtract 1 from the Iteration count to get the true number of iterations
@@ -321,6 +321,11 @@ MODULE FciMCParMod
                 CALL WriteHamilHistogram()
             ENDIF
 
+            if(tDiagWalkerSubspace.and.(mod(Iter,iDiagSubspaceIter).eq.0)) then
+                !Diagonalise a subspace consisting of the occupied determinants
+                call DiagWalkerSubspace()
+            endif
+
             Iter=Iter+1
 !End of MC cycle
         enddo
@@ -385,10 +390,12 @@ MODULE FciMCParMod
         if(tHistSpawn) then 
             close(Tot_Unique_Dets_Unit)
         endif
-
-        RETURN
+        if(tDiagWalkerSubspace) then
+            close(unitWalkerDiag)
+        endif
 
     END SUBROUTINE FciMCPar
+
 
     ! **********************************************************
     ! ************************* NOTE ***************************
@@ -2517,7 +2524,7 @@ MODULE FciMCParMod
             write(abstr2,'(I12)') Iter
             abstr2='Energies-'//adjustl(abstr2)
             io2 = get_free_unit()
-            OPEN(io2,FILE=abstr2,STATUS='NEW')
+            OPEN(io2,FILE=abstr2,STATUS='UNKNOWN')
 
             INQUIRE(FILE=abstr,EXIST=exists)
             IF(exists) THEN
@@ -3411,7 +3418,7 @@ MODULE FciMCParMod
                        &Proj.E.ThisCyc(Im)   NoatHF(Re)   NoatHF(Im)   &
                        &NoatDoubs      AccRat     UniqueDets     IterTime"
             endif
-            write(fcimcstats_unit, "(a,i4,a,l,a,l,a,l)") &
+            write(fcimcstats_unit, "(a,i4,a,l1,a,l1,a,l1)") &
                    "# FCIMCStats VERSION 2 - COMPLEX : NEl=", nel, &
                    " HPHF=", tHPHF, ' Lz=', tFixLz, &
                    ' Initiator=', tTruncInitiator
@@ -3434,7 +3441,7 @@ MODULE FciMCParMod
                       &NoBorn    Proj.E          Av.Shift     Proj.E.ThisCyc   &
                       &NoatHF NoatDoubs      AccRat     UniqueDets     IterTime"
             endif
-            write(fcimcstats_unit, "(a,i4,a,l,a,l,a,l)") &
+            write(fcimcstats_unit, "(a,i4,a,l1,a,l1,a,l1)") &
                   "# FCIMCStats VERSION 2 - REAL : NEl=", nel, &
                   " HPHF=", tHPHF, ' Lz=', tFixLz, &
                   ' Initiator=', tTruncInitiator
@@ -3623,7 +3630,7 @@ MODULE FciMCParMod
         if(exists) then
             !We already have an FCIMCStats file - move it to the end of the list of FCIMCStats files.
 
-            extension=0
+            extension=1
             do while(.true.)
                 abstr=''
                 write(abstr,'(I12)') extension
@@ -3631,7 +3638,7 @@ MODULE FciMCParMod
                 inquire(file=abstr,exist=exists)
                 if(.not.exists) exit
                 extension=extension+1
-                if(extension.gt.1000) then
+                if(extension.gt.10000) then
                     call stop_all(t_r,"Error finding free FCIMCStats name")
                 endif
             enddo
@@ -3856,8 +3863,8 @@ MODULE FciMCParMod
 
                     Beta=(2*SymLabelList(j))-1
                     Alpha=(2*SymLabelList(j))
-                    SymAlpha=INT((G1(Alpha)%Sym%S),4)
-                    SymBeta=INT((G1(Beta)%Sym%S),4)
+                    SymAlpha=INT((G1(Alpha)%Sym%S),sizeof_int)
+                    SymBeta=INT((G1(Beta)%Sym%S),sizeof_int)
 !                    WRITE(6,*) "***",Alpha,Beta
 
                     IF(.not.tFoundOrbs(Beta)) THEN
@@ -3901,15 +3908,15 @@ MODULE FciMCParMod
 
         CALL GetSym(HFDet,NEl,G1,NBasisMax,HFSym)
         
-        WRITE(6,"(A,I10)") "Symmetry of reference determinant is: ",INT(HFSym%Sym%S,4)
+        WRITE(6,"(A,I10)") "Symmetry of reference determinant is: ",INT(HFSym%Sym%S,sizeof_int)
         SymHF=0
         do i=1,NEl
-            SymHF=IEOR(SymHF,INT(G1(HFDet(i))%Sym%S,4))
+            SymHF=IEOR(SymHF,INT(G1(HFDet(i))%Sym%S,sizeof_int))
         enddo
         WRITE(6,"(A,I10)") "Symmetry of reference determinant from spin orbital symmetry info is: ",SymHF
-        if(SymHF.ne.INT(HFSym%Sym%S,4)) then
+        if(SymHF.ne.INT(HFSym%Sym%S,sizeof_int)) then
             !When is this allowed to happen?! Comment!!
-            call warning(this_routine,"Inconsistency in the symmetry arrays. Beware.")
+            call warning_neci(this_routine,"Inconsistency in the symmetry arrays. Beware.")
         endif
         IF(tKPntSym) THEN
             CALL DecomposeAbelianSym(HFSym%Sym%S,KPnt)
@@ -4316,6 +4323,18 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
+        if(tDiagWalkerSubspace) then
+            write(6,'(A,I9,A)') "Diagonalising walker subspace every ",iDiagSubspaceIter," iterations"
+            unitWalkerDiag = get_free_unit()
+            open(unitWalkerDiag,file='WalkerSubspaceDiag',status='unknown')
+            if(tTruncInitiator) then
+                write(unitWalkerDiag,'(A)') "# Iter    NoInitDets   NoOccDets  InitiatorSubspaceEnergy   &
+                        & FullSubspaceEnergy   ProjInitEnergy   ProjFullEnergy"
+            else
+                write(unitWalkerDiag,'(A)') "# Iter    NoOccDets    InitiatorSubspaceEnergy         &
+                        & FullSubspaceEnergy    ProjFullEnergy"
+            endif
+        endif
 
         ! Initialise the spin distribution histogramming
         if (tHistSpinDist) then
@@ -4394,13 +4413,13 @@ MODULE FciMCParMod
 
         IF(TPopsFile) THEN
             IF(mod(iWritePopsEvery,StepsSft).ne.0) then
-                CALL Warning(this_routine,"POPSFILE writeout should be a multiple of the update cycle length.")
+                CALL Warning_neci(this_routine,"POPSFILE writeout should be a multiple of the update cycle length.")
             endif
         ENDIF
 
         if (TReadPops) then
             if (tStartSinglePart .and. .not. tReadPopsRestart) then
-                call warning(this_routine, &
+                call warning_neci(this_routine, &
                                "ReadPOPS cannot work with StartSinglePart: ignoring StartSinglePart")
                 tStartSinglePart = .false.
             end if
@@ -4477,7 +4496,7 @@ MODULE FciMCParMod
 
         if (tTruncNOpen) then
             write(6, '("Truncating determinant space at a maximum of ",i3," &
-			           &unpaired electrons.")') trunc_nopen_max
+                    &unpaired electrons.")') trunc_nopen_max
         endif
 
         SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.D0)
@@ -4671,8 +4690,7 @@ MODULE FciMCParMod
 
         ! Is the number of unpaired electrons too high?
         if (tTruncNOpen .and. bAllowed) then
-            nopen = count_open_orbs (ilutnJ)
-            if (nopen > trunc_nopen_max) &
+            if (count_open_orbs(ilutnJ) > trunc_nopen_max) &
                 bAllowed = .false.
         endif
 
@@ -5892,7 +5910,7 @@ MODULE FciMCParMod
         V2=0.d0
 !C..Lanczos iterative diagonalising routine
         CALL NECI_FRSBLKH(nCASDet,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT, &
-     &  SCR,ISCR,INDEX,NCYCLE,B2L,.false.,.false.,.false.)
+     &  SCR,ISCR,INDEX,NCYCLE,B2L,.false.,.false.,.false.,.true.)
 !Multiply all eigenvalues by -1.
         CALL DSCAL(NEVAL,-1.D0,W,1)
         if(CK(1,1).lt.0.D0) then
@@ -6697,6 +6715,337 @@ MODULE FciMCParMod
 !ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
       ValidSpawnedList(:)=InitialSpawnedSlots(:)
    end subroutine
+
+!This routine takes the walkers from all subspaces, constructs the hamiltonian, and diagonalises it.
+!Currently, this only works in serial.
+    subroutine DiagWalkerSubspace()
+        implicit none
+        integer :: i,iSubspaceSize,ierr,iSubspaceSizeFull
+        integer, dimension(lenof_sign) :: CurrentSign
+        integer, allocatable :: ExpandedWalkerDets(:,:)
+        integer(TagIntType) :: ExpandedWalkTag=0
+        real(dp) :: GroundEFull,GroundEInit,CreateNan,ProjGroundEFull,ProjGroundEInit
+        character(*), parameter :: t_r='DiagWalkerSubspace'
+
+        if(nProcessors.gt.1) call stop_all(t_r,"Walker subspace diagonalisation only works in serial")
+        if(lenof_sign.ne.1) call stop_all(t_r,'Cannot do Lanczos on complex orbitals.')
+
+        if(tTruncInitiator) then
+            !First, diagonalise initiator subspace
+            write(6,'(A)') 'Diagonalising initator subspace...'
+
+            iSubspaceSize = 0
+            do i=1,TotWalkers
+                call extract_sign(CurrentDets(:,i),CurrentSign)
+                if((abs(CurrentSign(1)) > InitiatorWalkNo) .or. &
+                        (DetBitEQ(CurrentDets(:,i),iLutHF,NIfDBO))) then
+                    !Is allowed initiator. Add to subspace.
+                    iSubspaceSize = iSubspaceSize + 1
+                endif
+            enddo
+
+            write(6,'(A,I12)') "Number of initiators found to diagonalise: ",iSubspaceSize
+            allocate(ExpandedWalkerDets(NEl,iSubspaceSize),stat=ierr)
+            call LogMemAlloc('ExpandedWalkerDets',NEl*iSubspaceSize,4,t_r,ExpandedWalkTag,ierr)
+
+            iSubspaceSize = 0
+            do i=1,TotWalkers
+                call extract_sign(CurrentDets(:,i),CurrentSign)
+                if((abs(CurrentSign(1)) > InitiatorWalkNo) .or. &
+                        (DetBitEQ(CurrentDets(:,i),iLutHF,NIfDBO))) then
+                    !Is allowed initiator. Add to subspace.
+                    iSubspaceSize = iSubspaceSize + 1
+                    call decode_bit_det(ExpandedWalkerDets(:,iSubspaceSize),CurrentDets(:,i))
+                endif
+            enddo
+
+            if(iSubspaceSize.gt.0) then
+!Routine to diagonalise a set of determinants, and return the ground state energy
+                call LanczosFindGroundE(ExpandedWalkerDets,iSubspaceSize,GroundEInit,ProjGroundEInit,.true.)
+                write(6,'(A,G25.10)') 'Ground state energy of initiator walker subspace = ',GroundEInit
+            else
+                CreateNan=-1.D0
+                write(6,'(A,G25.10)') 'Ground state energy of initiator walker subspace = ',sqrt(CreateNan)
+            endif
+
+
+            deallocate(ExpandedWalkerDets)
+            call LogMemDealloc(t_r,ExpandedWalkTag)
+
+        endif
+
+        iSubspaceSizeFull = int(TotWalkers,sizeof_int)
+
+        !Allocate memory for walker list.
+        write(6,'(A)') "Allocating memory for diagonalisation of full walker subspace"
+        write(6,'(A,I12,A)') "Size = ",iSubspaceSizeFull," walkers."
+
+        allocate(ExpandedWalkerDets(NEl,iSubspaceSizeFull),stat=ierr)
+        call LogMemAlloc('ExpandedWalkerDets',NEl*iSubspaceSizeFull,4,t_r,ExpandedWalkTag,ierr)
+        do i=1,iSubspaceSizeFull
+            call decode_bit_det(ExpandedWalkerDets(:,i),CurrentDets(:,i))
+        enddo
+
+!Routine to diagonalise a set of determinants, and return the ground state energy
+        call LanczosFindGroundE(ExpandedWalkerDets,iSubspaceSizeFull,GroundEFull,ProjGroundEFull,.false.)
+
+        write(6,'(A,G25.10)') 'Ground state energy of full walker subspace = ',GroundEFull
+
+        if(tTruncInitiator) then
+            write(unitWalkerDiag,'(3I14,4G25.15)') Iter,iSubspaceSize,iSubspaceSizeFull,GroundEInit-Hii,    &
+                    GroundEFull-Hii,ProjGroundEInit-Hii,ProjGroundEFull-Hii
+        else
+            write(unitWalkerDiag,'(2I14,2G25.15)') Iter,iSubspaceSizeFull,GroundEFull-Hii,ProjGroundEFull-Hii
+        endif
+        
+        deallocate(ExpandedWalkerDets)
+        call LogMemDealloc(t_r,ExpandedWalkTag)
+
+    end subroutine DiagWalkerSubspace
+
+!Routine which takes a set of determinants and returns the ground state energy
+    subroutine LanczosFindGroundE(Dets,DetLen,GroundE,ProjGroundE,tInit)
+        use DetCalcData, only : NKRY,NBLK,B2L,nCycle
+        use util_mod, only: get_free_unit
+        implicit none
+        real(dp) , intent(out) :: GroundE,ProjGroundE
+        logical , intent(in) :: tInit
+        integer, intent(in) :: DetLen
+        integer, intent(in) :: Dets(NEl,DetLen)
+        integer :: gc,ierr,icmax,lenhamil,nKry1,nBlock,LScr,LIScr
+        integer(n_int) :: ilut(0:NIfTot)
+        logical :: tmc,tSuccess
+        real(dp) , allocatable :: A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),W(:)
+        HElement_t, allocatable :: Work(:)
+        HElement_t, allocatable :: CkN(:,:),Hamil(:),TruncWavefunc(:)
+        HElement_t, allocatable :: Ck(:,:)  !This holds eigenvectors in the end
+        HElement_t :: Num,Denom,HDiagTemp
+        integer , allocatable :: LAB(:),NROW(:),INDEX(:),ISCR(:)
+        integer(TagIntType) :: LabTag=0,NRowTag=0,ATag=0,VTag=0,AMTag=0,BMTag=0,TTag=0,tagCKN=0,tagCK=0
+        integer(TagIntType) :: WTTag=0,SCRTag=0,ISCRTag=0,INDEXTag=0,WHTag=0,Work2Tag=0,V2Tag=0,tagW=0
+        integer(TagIntType) :: tagHamil=0,WorkTag=0
+        integer :: nEval,nBlocks,nBlockStarts(2),ExcitLev,iGetExcitLevel,i,nDoubles
+        character(*), parameter :: t_r='LanczosFindGroundE'
+        real(dp) :: norm
+        integer :: PartInd,ioTrunc
+        character(24) :: abstr
+        
+        if(DetLen.gt.1300) then
+            nEval = 3
+        else
+            nEval = DetLen
+        endif
+
+        write(6,'(A,I10)') 'DetLen = ',DetLen
+!C..
+        Allocate(Ck(DetLen,nEval), stat=ierr)
+        call LogMemAlloc('CK',DetLen*nEval, 8,t_r, tagCK,ierr)
+        CK=(0.d0)
+!C..
+        allocate(W(nEval), stat=ierr)
+        call LogMemAlloc('W', nEval,8,t_r,tagW,ierr)
+        W=0.d0
+!        write(6,*) "Calculating H matrix"
+!C..We need to measure HAMIL and LAB first 
+        allocate(NROW(DetLen),stat=ierr)
+        call LogMemAlloc('NROW',DetLen,4,t_r,NROWTag,ierr)
+        NROW(:)=0
+        ICMAX=1
+        TMC=.FALSE.
+        call DETHAM(DetLen,NEL,Dets,HAMIL,LAB,NROW,.TRUE.,ICMAX,GC,TMC)
+!        WRITE(6,*) ' FINISHED COUNTING '
+        WRITE(6,*) "Allocating memory for hamiltonian: ",GC*2
+        CALL FLUSH(6)
+!C..Now we know size, allocate memory to HAMIL and LAB
+        LENHAMIL=GC
+        Allocate(Hamil(LenHamil), stat=ierr)
+        call LogMemAlloc('HAMIL', LenHamil, 8, t_r,tagHamil,ierr)
+        HAMIL=(0.d0)
+!C..
+        ALLOCATE(LAB(LENHAMIL),stat=ierr)
+        CALL LogMemAlloc('LAB',LenHamil,4,t_r,LabTag,ierr)
+
+        LAB(1:LENHAMIL)=0
+!C..Now we store HAMIL and LAB 
+        CALL DETHAM(DetLen,NEL,Dets,HAMIL,LAB,NROW,.FALSE.,ICMAX,GC,TMC)
+
+        if(DetLen.gt.1300) then
+            !Lanczos diag
+
+            Allocate(CkN(DetLen,nEval), stat=ierr)
+            call LogMemAlloc('CKN',DetLen*nEval, 8,t_r, tagCKN,ierr)
+            CKN=(0.d0)
+
+            NKRY1=NKRY+1
+            NBLOCK=MIN(NEVAL,NBLK)
+            LSCR=MAX(DetLen*NEVAL,8*NBLOCK*NKRY)
+            LISCR=6*NBLOCK*NKRY
+    !C..
+    !       write (6,'(7X," *",19X,A,18X,"*")') ' LANCZOS DIAGONALISATION '
+    !C..Set up memory for FRSBLKH
+
+            ALLOCATE(A(NEVAL,NEVAL),stat=ierr)
+            CALL LogMemAlloc('A',NEVAL**2,8,t_r,ATag,ierr)
+            A=0.d0
+    !C..
+    !C,, W is now allocated with CK
+    !C..
+            ALLOCATE(V(DetLen*NBLOCK*NKRY1),stat=ierr)
+            CALL LogMemAlloc('V',DetLen*NBLOCK*NKRY1,8,t_r,VTag,ierr)
+            V=0.d0
+    !C..   
+            ALLOCATE(AM(NBLOCK*NBLOCK*NKRY1),stat=ierr)
+            CALL LogMemAlloc('AM',NBLOCK*NBLOCK*NKRY1,8,t_r,AMTag,ierr)
+            AM=0.d0
+    !C..
+            ALLOCATE(BM(NBLOCK*NBLOCK*NKRY),stat=ierr)
+            CALL LogMemAlloc('BM',NBLOCK*NBLOCK*NKRY,8,t_r,BMTag,ierr)
+            BM=0.d0
+    !C..
+            ALLOCATE(T(3*NBLOCK*NKRY*NBLOCK*NKRY),stat=ierr)
+            CALL LogMemAlloc('T',3*NBLOCK*NKRY*NBLOCK*NKRY,8,t_r,TTag,ierr)
+            T=0.d0
+    !C..
+            ALLOCATE(WT(NBLOCK*NKRY),stat=ierr)
+            CALL LogMemAlloc('WT',NBLOCK*NKRY,8,t_r,WTTag,ierr)
+            WT=0.d0
+    !C..
+            ALLOCATE(SCR(LScr),stat=ierr)
+            CALL LogMemAlloc('SCR',LScr,8,t_r,SCRTag,ierr)
+            SCR=0.d0
+            ALLOCATE(ISCR(LIScr),stat=ierr)
+            CALL LogMemAlloc('IScr',LIScr,4,t_r,IScrTag,ierr)
+            ISCR(1:LISCR)=0
+            ALLOCATE(INDEX(NEVAL),stat=ierr)
+            CALL LogMemAlloc('INDEX',NEVAL,4,t_r,INDEXTag,ierr)
+            INDEX(1:NEVAL)=0
+    !C..
+            ALLOCATE(WH(DetLen),stat=ierr)
+            CALL LogMemAlloc('WH',DetLen,8,t_r,WHTag,ierr)
+            WH=0.d0
+            ALLOCATE(WORK2(3*DetLen),stat=ierr)
+            CALL LogMemAlloc('WORK2',3*DetLen,8,t_r,WORK2Tag,ierr)
+            WORK2=0.d0
+            ALLOCATE(V2(DetLen,NEVAL),stat=ierr)
+            CALL LogMemAlloc('V2',DetLen*NEVAL,8,t_r,V2Tag,ierr)
+            V2=0.d0
+    !C..Lanczos iterative diagonalising routine
+            CALL NECI_FRSBLKH(DetLen,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT, &
+             &  SCR,ISCR,INDEX,NCYCLE,B2L,.true.,.false.,.false.,.false.)
+
+            !Eigenvalues may come out wrong sign - multiply by -1
+            if(W(1).gt.0.D0) then
+                GroundE = -W(1)
+            else
+                GroundE = W(1)
+            endif
+
+            deallocate(A,V,AM,BM,T,WT,SCR,WH,V2,CkN,Index,IScr)
+            call LogMemDealloc(t_r,ATag)
+            call LogMemDealloc(t_r,VTag)
+            call LogMemDealloc(t_r,AMTag)
+            call LogMemDealloc(t_r,BMTag)
+            call LogMemDealloc(t_r,TTag)
+            call LogMemDealloc(t_r,tagCKN)
+            call LogMemDealloc(t_r,WTTag)
+            call LogMemDealloc(t_r,SCRTag)
+            call LogMemDealloc(t_r,ISCRTag)
+            call LogMemDealloc(t_r,IndexTag)
+            call LogMemDealloc(t_r,WHTag)
+            call LogMemDealloc(t_r,V2Tag)
+        else
+            !Full diag
+            allocate(Work(4*DetLen),stat=ierr)
+            call LogMemAlloc('Work',4*DetLen,8,t_r,WorkTag,ierr)
+            allocate(Work2(3*DetLen),stat=ierr)
+            call logMemAlloc('Work2',3*DetLen,8,t_r,Work2Tag,ierr)
+            nBlockStarts(1) = 1
+            nBlockStarts(2) = DetLen+1
+            nBlocks = 1
+            call HDIAG_neci(DetLen,Hamil,Lab,nRow,CK,W,Work2,Work,nBlockStarts,nBlocks)
+            GroundE = W(1)
+            deallocate(Work)
+            call LogMemDealloc(t_r,WorkTag)
+        endif
+
+        !Calculate proje.
+        nDoubles = 0
+        Num = 0.D0
+        do i=1,DetLen
+            ExcitLev = iGetExcitLevel(HFDet,Dets(:,i),NEl)
+            if((ExcitLev.eq.1).or.(ExcitLev.eq.2)) then
+                HDiagTemp = get_helement(HFDet,Dets(:,i),ExcitLev)
+                Num = Num + (HDiagTemp * CK(i,1))
+                nDoubles = nDoubles + 1
+            elseif(ExcitLev.eq.0) then
+                Denom = CK(i,1)
+            endif
+        enddo
+        ProjGroundE = (Num / Denom) + Hii
+!        write(6,*) "***", nDoubles
+
+        if(tHistSpawn.and..not.tInit) then
+            !Write out the ground state wavefunction for this truncated calculation.
+            !This needs to be sorted, into the order given in the original FCI in DetCalc.
+            allocate(TruncWavefunc(Det),stat=ierr)
+            if(ierr.ne.0) call stop_all(t_r,"Alloc error")
+            TruncWavefunc(:) = 0.0_dp
+
+            Norm = 0.0_dp
+            do i=1,DetLen
+            !Loop over iluts in instantaneous list.
+
+                call EncodeBitDet(Dets(:,i),iLut)
+                !Calculate excitation level (even if hf isn't in list)
+                ExcitLev = FindBitExcitLevel(iLutHF,iLut,NEl)
+
+                if(ExcitLev.eq.nel) then
+                    call BinSearchParts2(iLut,FCIDetIndex(ExcitLev),Det,PartInd,tSuccess)
+                elseif(ExcitLev.eq.0) then
+                    PartInd = 1
+                    tSuccess = .true.
+                else
+                    call BinSearchParts2(iLut,FCIDetIndex(ExcitLev),FCIDetIndex(ExcitLev+1)-1,PartInd,tSuccess)
+                endif
+                if(.not.tSuccess) then
+                    call stop_all(t_r,"Error here as cannot find corresponding determinant in FCI expansion")
+                endif
+                TruncWavefunc(PartInd) = CK(i,1)
+
+                !Check normalisation
+                Norm = Norm + CK(i,1)**2.0_dp
+            enddo
+            Norm = sqrt(Norm)
+            if(abs(Norm-1.0_dp).gt.1.D-7) then
+                write(6,*) "***",norm
+                call warning_neci(t_r,"Normalisation not correct for diagonalised wavefunction!")
+            endif
+
+            !Now write out...
+            abstr=''
+            write(abstr,'(I12)') Iter
+            abstr='TruncWavefunc-'//adjustl(abstr)
+            ioTrunc = get_free_unit()
+            open(ioTrunc,file=abstr,status='unknown')
+            do i=1,Det
+                write(ioTrunc,"(I13,F25.16)") i,TruncWavefunc(i)/norm
+            enddo
+            close(ioTrunc)
+
+            deallocate(TruncWavefunc)
+
+        endif
+
+
+        deallocate(Work2,W,Hamil,Lab,nRow,CK)
+        call LogMemDealloc(t_r,Work2Tag)
+        call LogMemDealloc(t_r,tagW)
+        call LogMemDealloc(t_r,tagHamil)
+        call LogMemDealloc(t_r,LabTag)
+        call LogMemDealloc(t_r,NRowTag)
+        call LogMemDealloc(t_r,tagCK)
+    
+    end subroutine LanczosFindGroundE
 
 END MODULE FciMCParMod
 
