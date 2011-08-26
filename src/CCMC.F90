@@ -2571,7 +2571,6 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       
 !TotParts is used for this and is WalkerScale* total of all amplitudes
       if(iShiftLeft.le.0)  then
-          write(6,*) "ID ",iter_data_ccmc%update_growth
           Call calculate_new_shift_wrapper(iter_data_ccmc, &
                                                 TotParts)
           if(tRestart) call stop_all(this_routine,"All particles died.")
