@@ -267,7 +267,7 @@ extern "C" void cleanup_shared_alloc ()
 
 
 // Wrapper to make NAG happy
-size_t strlen_wrap (const char * str )
+extern "C" size_t strlen_wrap (const char * str )
 {
 	return strlen (str);
 }
