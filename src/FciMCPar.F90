@@ -583,7 +583,7 @@ MODULE FciMCParMod
         implicit none
         type(fcimc_iter_data), target :: data_struct
 
-        call assign_proc (ptr_iter_data, data_struct)
+        call assign_data (ptr_iter_data, data_struct)
     end subroutine
     ! This is the heart of FCIMC, where the MC Cycles are performed.
     !
