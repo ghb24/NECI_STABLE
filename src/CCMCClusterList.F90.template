@@ -203,10 +203,11 @@ SUBROUTINE CalcClusterEnergy (tFCI,AL,iAmpList,nExcit,ExcitList,ExcitLevelIndex,
          i=i*ExcitToDetSign(iLutHF,ExcitList(:,j),iC)
          if (iProcIndex.eq.root) then
             temp_sign=0
+            ASSERT(.not.(lenof_sign == 1 .and. amp(1) /= 0))
             if(amp(1).ne.0) then
                temp_sign(1)=i
             else
-               temp_sign(2)=i
+               temp_sign(lenof_sign)=i
             endif
              call SumEContrib(DetCurr,iC,temp_sign,ExcitList(:,j),dTmp,1/dAmp)
          endif
@@ -321,10 +322,11 @@ SUBROUTINE CalcClusterEnergyUnsrt (tFCI,AL,iAmpList,nExcit,ExcitList,iRefPos,dNo
       if(dAmp.ne.0.d0) then
          if (iProcIndex.eq.root) then
             temp_sign=0
+            ASSERT(.not.(lenof_sign == 1 .and. amp(1) /= 0))
             if(amp(1).ne.0) then
                temp_sign(1)=i
             else
-               temp_sign(2)=i
+               temp_sign(lenof_sign)=i
             endif
             call SumEContrib(DetCurr,iC,temp_sign,ExcitList(:,j),dTmp,1/dAmp)
          endif
@@ -734,7 +736,9 @@ SUBROUTINE CollapseCluster (C,iLutHF,AL,iAmpList,nDet,iDebug,tExToDet)
 #endif
    enddo
    if(IsImag) then !Transfer to the imag part
+#ifdef __CMPLX
       C%%iSgn(2)=C%%iSgn(1)
+#endif
       C%%iSgn(1)=0
    endif
    IFDEBUG(iDebug,4) Write(6,*) " Final sign including amplitudes ",C%%iSgn

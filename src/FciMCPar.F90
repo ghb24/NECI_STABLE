@@ -585,6 +585,7 @@ MODULE FciMCParMod
 
         call assign_data (ptr_iter_data, data_struct)
     end subroutine
+
     ! This is the heart of FCIMC, where the MC Cycles are performed.
     !
     ! Note: This should only be called indirectly:
