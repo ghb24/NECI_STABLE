@@ -25,6 +25,10 @@ module AmpList
    type AmplitudeList_%(name)s
       %(type1)s, pointer ::   Amplitude(:,:)
       %(type1)s, pointer ::   CumlAmplitude(:)
+#ifdef __CMPLX
+      logical, pointer   ::   IsImag(:,:)
+      integer(TagIntType) :: tagIsImag
+#endif
       integer(TagIntType) :: tagAmplitude
       integer(TagIntType) :: tagCumlAmplitude
       logical bShared
@@ -49,11 +53,19 @@ contains
          LogAlloc(ierr,'AL%%Amplitude',nAmpl*nLists,%(size)s,AL%%tagAmplitude)
          call shared_allocate("CumlAmps",AL%%CumlAmplitude,arrdim1, iNodeIndex)
          LogAlloc(ierr,'AL%%CumlAmplitude',nAmpl,%(size)s,AL%%tagCumlAmplitude)
+#ifdef __CMPLX
+         call shared_allocate("CCMCIsImag",AL%%IsImag,arrdim, iNodeIndex)
+         LogAlloc(ierr,'AL%%IsImag',nAmpl*nLists,%(size)s,AL%%tagIsImag)
+#endif
       else
          Allocate(AL%%Amplitude(nAmpl,nLists))
          LogAlloc(ierr,'AL%%Amplitude',nAmpl*nLists,%(size)s,AL%%tagAmplitude)
          Allocate(AL%%CumlAmplitude(nAmpl))
          LogAlloc(ierr,'AL%%CumlAmplitude',nAmpl,%(size)s,AL%%tagCumlAmplitude)
+#ifdef __CMPLX
+         Allocate(AL%%IsImag(nAmpl,nLists))
+         LogAlloc(ierr,'AL%%IsImag',nAmpl*nLists,%(size)s,AL%%tagIsImag)
+#endif
       endif
    end subroutine ! AllocateAmplitudeList 
 
@@ -65,9 +77,18 @@ contains
       if(AL%%bShared) then
          call shared_deallocate(AL%%Amplitude)
          call shared_deallocate(AL%%CumlAmplitude)
+#ifdef __CMPLX
+         call shared_deallocate(AL%%IsImag)
+#endif
       else
          LogDealloc(AL%%tagCumlAmplitude)
          Deallocate(AL%%CumlAmplitude)
+         LogDealloc(AL%%tagAmplitude)
+         Deallocate(AL%%Amplitude)
+#ifdef __CMPLX
+         LogDealloc(AL%%tagIsImag)
+         Deallocate(AL%%IsImag)
+#endif
       endif
    end subroutine !DeallocateAmplitudeList 
 
@@ -86,7 +107,11 @@ subroutine WriteExcitorList (iUnit,AL,iAmpList,Dets,offset,nDet,dTol,Title)
    write(6,*) Title
    do j=1,nDet
       if(abs(AL%%Amplitude(j,iAmpList)).ge.dTol) THEN
+#ifdef __CMPLX
+         write(iUnit,'(I7,G17.9," ",L3," ")',advance='no') j+offset,AL%%Amplitude(j,iAmpList),AL%%IsImag(j,iAmpList)
+#else
          write(iUnit,'(I7,G17.9," ")',advance='no') j+offset,AL%%Amplitude(j,iAmpList)
+#endif
          call WriteBitEx(iUnit,iLutHF,Dets(:,j),.true.)
       ENDIF
    enddo
@@ -113,16 +138,35 @@ end subroutine !WriteExcitorList
 pure function GetAmpl(AL,iIndex,iAmpList) result(r)
    type(AmplitudeList_%(name)s), intent(in) :: AL
    INTEGER, intent(in) ::  iAmpList,iIndex
-   %(type1)s r
-   r=AL%%Amplitude(iIndex,iAmpList)
+   %(type1)s, dimension(lenof_sign) :: r
+#ifdef __CMPLX
+   r=0
+   if(AL%%IsImag(iIndex,iAmpList)) then
+      r(1)=AL%%Amplitude(iIndex,iAmpList)
+   else
+      r(2)=AL%%Amplitude(iIndex,iAmpList)
+   endif
+#else
+   r(1)=AL%%Amplitude(iIndex,iAmpList)
+#endif
    return 
 end function !GetAmpl
 
 subroutine SetAmpl(AL,iIndex,iAmpList,r)
    type(AmplitudeList_%(name)s), intent(inout) :: AL
    INTEGER, intent(in) ::  iAmpList,iIndex
-   %(type1)s r
-   AL%%Amplitude(iIndex,iAmpList)=r
+   %(type1)s, dimension(lenof_sign) ::  r
+#ifdef __CMPLX
+   if(r(1)/=0) then
+      AL%%Amplitude(iIndex,iAmpList)=r(1)
+      AL%%IsImag(iIndex,iAmpList)=.false.
+   else
+      AL%%Amplitude(iIndex,iAmpList)=r(2)
+      AL%%IsImag(iIndex,iAmpList)=.true.
+   endif
+#else
+   AL%%Amplitude(iIndex,iAmpList)=r(1)
+#endif
    return 
 end subroutine !SetAmpl
 
@@ -216,33 +260,32 @@ subroutine WriteExcitorList_bitrep(iUnit,AL,iAmpList,Dets,offset,nDet,dTol,Title
    do j=1,nDet
       call extract_sign(AL%BitReps(:,j),Amp)
       if(abs(Amp(1)).ge.dTol) THEN
+#ifdef __CMPLX
+         write(iUnit,'(I7,2G17.9," ")',advance='no') j+offset,Amp(1),Amp(2)
+#else
          write(iUnit,'(I7,G17.9," ")',advance='no') j+offset,Amp(1)
+#endif
          call WriteBitEx(iUnit,iLutHF,AL%BitReps(:,j),.false.)
          write(iUnit,'(I7)') extract_flags(AL%BitReps(:,j))
       ENDIF
    enddo
 end subroutine !WriteExcitorList
 
-pure function GetAmpl_bitrep(AL,iIndex,iAmpList) result(r1)
+pure function GetAmpl_bitrep(AL,iIndex,iAmpList) result(r)
    use bit_reps, only: extract_sign
    use constants, only: lenof_sign
    type(AmplitudeList_bitrep), intent(in) :: AL
    INTEGER, intent(in) ::  iAmpList,iIndex
    integer,dimension(lenof_sign) :: r
-   integer r1
    call extract_sign(AL%BitReps(:,iIndex),r)
-   r1=r(1)
    return 
 end function !GetAmpl
 
-subroutine SetAmpl_bitrep(AL,iIndex,iAmpList,r1)
+subroutine SetAmpl_bitrep(AL,iIndex,iAmpList,r)
    use bit_reps, only: encode_sign
    type(AmplitudeList_bitrep), intent(inout) :: AL
    INTEGER, intent(in) ::  iAmpList,iIndex
    integer,dimension(lenof_sign) :: r
-   integer r1
-   r=0
-   r(1)=r1
    call encode_sign(AL%BitReps(:,iIndex),r)
    return 
 end subroutine !SetAmpl
