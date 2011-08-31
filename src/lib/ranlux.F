@@ -5,14 +5,15 @@
          use constants, only: dp
          IMPLICIT NONE
          INTEGER ISEED
-         real(dp) :: RAN2(1)
+         real(dp) :: RAN2_loc(1),RAN2
          IF(ISEED.NE.0) THEN
             !  Init RANLUX
             IF(ISEED.LT.0) ISEED=-ISEED
             CALL RLUXGO(3,ISEED,0,0)
             ISEED=0
          ENDIF
-         CALL RANLUX(RAN2(1),1)
+         CALL RANLUX(RAN2_loc(1),1)
+         RAN2=RAN2_loc(1)
       END FUNCTION RAN2
 
       SUBROUTINE RANLUX(RVEC,LENV)
