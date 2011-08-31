@@ -182,6 +182,7 @@ SUBROUTINE CalcClusterEnergy (tFCI,AL,iAmpList,nExcit,ExcitList,ExcitLevelIndex,
    Type(Cluster) C
   
    %(type1)s, dimension(lenof_sign) :: amp 
+   character(*), parameter :: this_routine = 'CalcClusterEnergy_%(name)s'
    logical IsImag
 
     ! Avoid compile warnings when not in debug mode
@@ -306,6 +307,7 @@ SUBROUTINE CalcClusterEnergyUnsrt (tFCI,AL,iAmpList,nExcit,ExcitList,iRefPos,dNo
    INTEGER(kind=n_int) iLutnI(0:nIfTot)
 
    %(type1)s, dimension(lenof_sign) :: amp
+   character(*), parameter :: this_routine = 'CalcClusterEnergyUnsrt_%(name)s'
 
    logical IsImag
 
