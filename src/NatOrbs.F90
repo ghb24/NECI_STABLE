@@ -740,9 +740,8 @@ MODULE NatOrbsMod
                                             &(((REAL(UMAT(UMatInd(a,c,i,j,0,0)),dp))*(2.D0*(REAL(UMAT(UMatInd(b,c,i,j,0,0)),dp))))/&
                                                 &( (ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2)) * (ARR(i,2)+ARR(j,2)-ARR(b,2)-ARR(c,2)) ) )
                                                 MP2VDMSum=MP2VDMSum-&                                            
-                                                &(((REAL(UMAT(UMatInd(a,c,i,j,0,0)),dp))*(REAL(UMAT(UMatInd(c,b,i,j,0,0)),dp)))/&
-                                                &((ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2))*(ARR(i,2)+ARR(j,2)-ARR(c,2)-ARR(b,2))))
-                 
+                                              &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0)),dp)) * (REAL(UMAT(UMatInd(c,b,i,j,0,0)),dp)) )/ &
+                                                &( (ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2)) * (ARR(i,2)+ARR(j,2)-ARR(c,2)-ARR(b,2)) ) )
                                             ELSE
                                                 MP2VDMSum=MP2VDMSum+&
                                     &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0)),dp)) * (2.D0*(REAL(UMAT(UMatInd(b,c,i,j,0,0)),dp))) )/&
