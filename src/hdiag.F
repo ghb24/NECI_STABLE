@@ -17,7 +17,7 @@
 !         INTEGER(n_int) :: TempBitRep(0:NIfTot),BitRepHF(0:NIfTot)
          INTEGER NDET
          INTEGER NROW(NDET),LAB(*)
-         HElement_t  HAMIL(*),CK(NDET,NDET),WORK2(4*NDET),WORK
+         HElement_t HAMIL(*),CK(NDET,NDET),WORK2(3*NDET),WORK
 !         HElement_t CopyCK(NDET,NDET)
          real(dp) W(NDET)
          INTEGER I,J,IND,INDZ,NBS!,nopen,k,Excit
@@ -73,7 +73,7 @@ C.. Diagonalize
             NBS=NBLOCKSTARTS(I)
             IF(HElement_t_size.EQ.1) THEN
                CALL DSYEV('V','U',NBLOCKSTARTS(I+1)-NBS,CK(NBS,NBS),
-     &            NDET,W(NBS),WORK2,4*NDET,INFO)
+     &            NDET,W(NBS),WORK2,3*NDET,INFO)
             ELSE
                  CALL ZHEEV('V','U',NBLOCKSTARTS(I+1)-NBS,CK(NBS,NBS),
      &            NDET,W(NBS),WORK,4*NDET,WORK2,INFO)

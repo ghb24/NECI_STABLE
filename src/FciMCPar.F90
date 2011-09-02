@@ -5743,7 +5743,7 @@ MODULE FciMCParMod
         use sym_mod , only : Getsym, writesym
         use MomInv, only: IsAllowedMI 
         type(BasisFN) :: CASSym
-        integer :: i,j,ierr,nEval,NKRY1,NBLOCK,LSCR,LISCR,DetIndex,iNode,NoWalkers
+        integer :: i,j,ierr,nEval,NKRY1,NBLOCK,LSCR,LISCR,DetIndex,iNode,NoWalkers,nBlocks,nBlockStarts(2)
         integer :: CASSpinBasisSize,elec,nCASDet,ICMax,GC,LenHamil,iInit,nHPHFCAS
         integer , allocatable :: CASBrr(:),CASDet(:),CASFullDets(:,:),nRow(:),Lab(:),ISCR(:),INDEX(:)
         integer , pointer :: CASDetList(:,:) => null()
@@ -5751,7 +5751,9 @@ MODULE FciMCParMod
         logical :: tMC
         HElement_t :: HDiagTemp
         real(dp) , allocatable :: CK(:,:),W(:),CKN(:,:),Hamil(:),A(:,:),V(:),BM(:),T(:),WT(:),SCR(:),WH(:),Work2(:),V2(:,:),AM(:)
+        real(dp) , allocatable :: Work(:)
         integer(TagIntType) :: ATag=0,VTag=0,BMTag=0,TTag=0,WTTag=0,SCRTag=0,WHTag=0,Work2Tag=0,V2Tag=0,ISCRTag=0,IndexTag=0,AMTag=0
+        integer(TagIntType) :: WorkTag=0
         real(dp) :: CASRefEnergy,TotWeight,PartFac,amp,rat,r,GetHElement
         integer , dimension(lenof_sign) :: temp_sign
         character(len=*) , parameter :: this_routine='InitFCIMC_CAS'
@@ -5845,10 +5847,13 @@ MODULE FciMCParMod
         write(6,*) "First CAS determinant in list is: "
         call write_det(6,CASFullDets(:,1),.true.)
 
-        nEval=4
+        if(nCASDet.gt.1300) then
+            !Do lanczos
+            nEval=4
+        else
+            nEval = nCASDet
+        endif
         write(6,"(A,I4,A)") "Calculating lowest ",nEval," eigenstates of CAS Hamiltonian..."
-        Allocate(CkN(nCASDet,nEval), stat=ierr)
-        CkN=0.D0
         Allocate(Ck(nCASDet,nEval),stat=ierr)
         Ck=0.D0
         Allocate(W(nEval),stat=ierr)    !Eigenvalues
@@ -5886,60 +5891,93 @@ MODULE FciMCParMod
             call stop_all(this_routine,"CAS reference energy does not match reference energy of full space")
         endif
 
-        !Lanczos
-        NKRY1=NKRY+1
-        NBLOCK=MIN(NEVAL,NBLK)
-        LSCR=MAX(nCASDet*NEVAL,8*NBLOCK*NKRY)
-        LISCR=6*NBLOCK*NKRY
-        ALLOCATE(A(NEVAL,NEVAL),stat=ierr)
-        CALL LogMemAlloc('A',NEVAL**2,8,this_routine,ATag,ierr)
-        A=0.d0
-        ALLOCATE(V(nCASDet*NBLOCK*NKRY1),stat=ierr)
-        CALL LogMemAlloc('V',nCASDet*NBLOCK*NKRY1,8,this_routine,VTag,ierr)
-        V=0.d0
-        ALLOCATE(AM(NBLOCK*NBLOCK*NKRY1),stat=ierr)
-        CALL LogMemAlloc('AM',NBLOCK*NBLOCK*NKRY1,8,this_routine,AMTag,ierr)
-        AM=0.d0
-        ALLOCATE(BM(NBLOCK*NBLOCK*NKRY),stat=ierr)
-        CALL LogMemAlloc('BM',NBLOCK*NBLOCK*NKRY,8,this_routine,BMTag,ierr)
-        BM=0.d0
-        ALLOCATE(T(3*NBLOCK*NKRY*NBLOCK*NKRY),stat=ierr)
-        CALL LogMemAlloc('T',3*NBLOCK*NKRY*NBLOCK*NKRY,8,this_routine,TTag,ierr)
-        T=0.d0
-        ALLOCATE(WT(NBLOCK*NKRY),stat=ierr)
-        CALL LogMemAlloc('WT',NBLOCK*NKRY,8,this_routine,WTTag,ierr)
-        WT=0.d0
-        ALLOCATE(SCR(LScr),stat=ierr)
-        CALL LogMemAlloc('SCR',LScr,8,this_routine,SCRTag,ierr)
-        SCR=0.d0
-        ALLOCATE(ISCR(LIScr),stat=ierr)
-        CALL LogMemAlloc('IScr',LIScr,4,this_routine,IScrTag,ierr)
-        ISCR(1:LISCR)=0
-        ALLOCATE(INDEX(NEVAL),stat=ierr)
-        CALL LogMemAlloc('INDEX',NEVAL,4,this_routine,INDEXTag,ierr)
-        INDEX(1:NEVAL)=0
-        ALLOCATE(WH(nCASDet),stat=ierr)
-        CALL LogMemAlloc('WH',nCASDet,8,this_routine,WHTag,ierr)
-        WH=0.d0
-        ALLOCATE(WORK2(3*nCASDet),stat=ierr)
-        CALL LogMemAlloc('WORK2',3*nCASDet,8,this_routine,WORK2Tag,ierr)
-        WORK2=0.d0
-        ALLOCATE(V2(nCASDet,NEVAL),stat=ierr)
-        CALL LogMemAlloc('V2',nCASDet*NEVAL,8,this_routine,V2Tag,ierr)
-        V2=0.d0
-!C..Lanczos iterative diagonalising routine
-        CALL NECI_FRSBLKH(nCASDet,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT, &
-     &  SCR,ISCR,INDEX,NCYCLE,B2L,.false.,.false.,.false.,.true.)
-!Multiply all eigenvalues by -1.
-        CALL DSCAL(NEVAL,-1.D0,W,1)
-        if(CK(1,1).lt.0.D0) then
-            do i=1,nCASDet
-                CK(i,1)=-CK(i,1)
-            enddo
+        if(nCASDet.gt.1300) then
+            !Lanczos
+            NKRY1=NKRY+1
+            NBLOCK=MIN(NEVAL,NBLK)
+            LSCR=MAX(nCASDet*NEVAL,8*NBLOCK*NKRY)
+            LISCR=6*NBLOCK*NKRY
+            ALLOCATE(A(NEVAL,NEVAL),stat=ierr)
+            CALL LogMemAlloc('A',NEVAL**2,8,this_routine,ATag,ierr)
+            A=0.d0
+            ALLOCATE(V(nCASDet*NBLOCK*NKRY1),stat=ierr)
+            CALL LogMemAlloc('V',nCASDet*NBLOCK*NKRY1,8,this_routine,VTag,ierr)
+            V=0.d0
+            ALLOCATE(AM(NBLOCK*NBLOCK*NKRY1),stat=ierr)
+            CALL LogMemAlloc('AM',NBLOCK*NBLOCK*NKRY1,8,this_routine,AMTag,ierr)
+            AM=0.d0
+            ALLOCATE(BM(NBLOCK*NBLOCK*NKRY),stat=ierr)
+            CALL LogMemAlloc('BM',NBLOCK*NBLOCK*NKRY,8,this_routine,BMTag,ierr)
+            BM=0.d0
+            ALLOCATE(T(3*NBLOCK*NKRY*NBLOCK*NKRY),stat=ierr)
+            CALL LogMemAlloc('T',3*NBLOCK*NKRY*NBLOCK*NKRY,8,this_routine,TTag,ierr)
+            T=0.d0
+            ALLOCATE(WT(NBLOCK*NKRY),stat=ierr)
+            CALL LogMemAlloc('WT',NBLOCK*NKRY,8,this_routine,WTTag,ierr)
+            WT=0.d0
+            ALLOCATE(SCR(LScr),stat=ierr)
+            CALL LogMemAlloc('SCR',LScr,8,this_routine,SCRTag,ierr)
+            SCR=0.d0
+            ALLOCATE(ISCR(LIScr),stat=ierr)
+            CALL LogMemAlloc('IScr',LIScr,4,this_routine,IScrTag,ierr)
+            ISCR(1:LISCR)=0
+            ALLOCATE(INDEX(NEVAL),stat=ierr)
+            CALL LogMemAlloc('INDEX',NEVAL,4,this_routine,INDEXTag,ierr)
+            INDEX(1:NEVAL)=0
+            ALLOCATE(WH(nCASDet),stat=ierr)
+            CALL LogMemAlloc('WH',nCASDet,8,this_routine,WHTag,ierr)
+            WH=0.d0
+            ALLOCATE(WORK2(3*nCASDet),stat=ierr)
+            CALL LogMemAlloc('WORK2',3*nCASDet,8,this_routine,WORK2Tag,ierr)
+            WORK2=0.d0
+            ALLOCATE(V2(nCASDet,NEVAL),stat=ierr)
+            CALL LogMemAlloc('V2',nCASDet*NEVAL,8,this_routine,V2Tag,ierr)
+            V2=0.d0
+            Allocate(CkN(nCASDet,nEval), stat=ierr)
+            CkN=0.D0
+    !C..Lanczos iterative diagonalising routine
+            CALL NECI_FRSBLKH(nCASDet,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT, &
+         &  SCR,ISCR,INDEX,NCYCLE,B2L,.false.,.false.,.false.,.true.)
+    !Multiply all eigenvalues by -1.
+            CALL DSCAL(NEVAL,-1.D0,W,1)
+            if(CK(1,1).lt.0.D0) then
+                do i=1,nCASDet
+                    CK(i,1)=-CK(i,1)
+                enddo
+            endif
+
+            deallocate(CKN,A,V,BM,T,WT,SCR,WH,V2,iscr,index,AM)
+            call logmemdealloc(this_routine,ATag)
+            call logmemdealloc(this_routine,VTag)
+            call logmemdealloc(this_routine,BMTag)
+            call logmemdealloc(this_routine,TTag)
+            call logmemdealloc(this_routine,WTTag)
+            call logmemdealloc(this_routine,SCRTag)
+            call logmemdealloc(this_routine,WHTag)
+            call logmemdealloc(this_routine,V2Tag)
+            call logmemdealloc(this_routine,iscrTag)
+            call logmemdealloc(this_routine,indexTag)
+            call logmemdealloc(this_routine,AMTag)
+        else
+            !complete diagonalisation
+            allocate(Work(4*nCASDet),stat=ierr)
+            call LogMemAlloc('Work',4*nCASDet,8,this_routine,WorkTag,ierr)
+            allocate(Work2(3*nCASDet),stat=ierr)
+            call logMemAlloc('Work2',3*nCASDet,8,this_routine,Work2Tag,ierr)
+            nBlockStarts(1) = 1
+            nBlockStarts(2) = nCASDet+1
+            nBlocks = 1
+            call HDIAG_neci(nCASDet,Hamil,Lab,nRow,CK,W,Work2,Work,nBlockStarts,nBlocks)
+            deallocate(Work)
+            call LogMemDealloc(this_routine,WorkTag)
         endif
+        !Deallocate all the lanczos arrays now.
+        deallocate(nrow,lab,work2)
+        call logmemdealloc(this_routine,Work2Tag)
+
 
         write(6,*) "Diagonalisation complete. Lowest energy CAS eigenvalues/corr E are: "
-        do i=1,NEval
+        do i=1,min(NEval,10)
             write(6,*) i,W(i),W(i)-CASRefEnergy
         enddo
 
@@ -5989,7 +6027,7 @@ MODULE FciMCParMod
             !InitialPart = 1 by default
             write(6,"(A)") "All walkers specified in input will be distributed according to the CAS wavefunction."
             write(6,"(A)") "Shift will be allowed to vary from the beginning"
-            write(6,"(A)") "Setting initial shift to equal CAS correlation energy",W(1)-CASRefEnergy
+            write(6,"(A,F20.9)") "Setting initial shift to equal CAS correlation energy",W(1)-CASRefEnergy
             DiagSft=W(1)-CASRefEnergy
             !PartFac is the number of walkers that should reside on the HF determinant
             PartFac=(real(InitWalkers,dp)* real(nNodes,dp))/TotWeight
@@ -6074,20 +6112,7 @@ MODULE FciMCParMod
         iter_data_fciqmc%tot_parts_old = AllTotPartsOld
         AllNoAbortedOld=0.D0
 
-        !Deallocate all the lanczos arrays now.
-        deallocate(CK,W,CKN,Hamil,A,V,BM,T,WT,SCR,WH,Work2,V2,CASBrr,CASDet,CASFullDets,nRow,Lab,iscr,index,AM)
-        call logmemdealloc(this_routine,ATag)
-        call logmemdealloc(this_routine,VTag)
-        call logmemdealloc(this_routine,BMTag)
-        call logmemdealloc(this_routine,TTag)
-        call logmemdealloc(this_routine,WTTag)
-        call logmemdealloc(this_routine,SCRTag)
-        call logmemdealloc(this_routine,WHTag)
-        call logmemdealloc(this_routine,Work2Tag)
-        call logmemdealloc(this_routine,V2Tag)
-        call logmemdealloc(this_routine,iscrTag)
-        call logmemdealloc(this_routine,indexTag)
-        call logmemdealloc(this_routine,AMTag)
+        deallocate(CK,W,Hamil,CASBrr,CASDet,CASFullDets)
 
     end subroutine InitFCIMC_CAS 
 
