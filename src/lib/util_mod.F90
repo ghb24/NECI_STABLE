@@ -404,7 +404,7 @@ contains
        !    record_length: size of record in units of the compiler's
        !    choice.
        integer, intent(in) :: bytes
-       integer(int32) :: record_length_loc
+       integer :: record_length_loc
        inquire(iolength=record_length_loc) bytes
 !       record_length = (bytes/4)*record_length   
        record_length = (bytes/sizeof_int)*int(record_length_loc,sizeof_int)

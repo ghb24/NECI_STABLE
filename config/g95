@@ -10,10 +10,10 @@ libs = -lacml -L /usr/lib/gcc/x86_64-linux-gnu/4.4/ -lstdc++ -lrt
 module_flag = -fmod=
 
 [dbg]
-fflags = -g -m64 -cpp -d8 
+fflags = -g -i8 -fno-second-underscore -r8 -fsloppy-char -m64 -cpp
 cflags = -g -m64 
 f90flags = -fbounds-check
 
 [opt]
-fflags = -O4 -m64 -cpp -d8
+fflags = -i8 -fno-second-underscore -r8 -fsloppy-char -O3 -m64 -cpp
 cflags = -O -m64 
