@@ -180,12 +180,15 @@ C               IC=IC+1
          INTEGER NI(NEL)
          real(dp) RHOMAX
          INTEGER BRR(NBASIS)
+         character(*), parameter :: t_r="CALCRHOIIMAX2"
          RHOMAX=0.D0
          DO I=1,NEL
             NI(I)=BRR(I)
          ENDDO
          DO I=1,ISTEPS
-            CALL GENNEWDET2(NI,NI,NEL,NBASIS,NBASISMAX,G1,ISEED)
+             call stop_all(t_r,"Call to GenNewDet2 removed due to       &
+     &          incorrect number of arguments")
+!            CALL GENNEWDET2(NI,NI,NEL,NBASIS,NBASISMAX,G1,ISEED)
             CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,
      &            G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,RH,NTAY,0,ECORE)
             IF(RH.GT.RHOMAX) RHOMAX=RH
