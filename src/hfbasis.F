@@ -429,13 +429,15 @@ C         EDELTA=1.D-8
       ENDIF
       DO WHILE(BR)
          IF(IRHFB.GT.0) THEN
-            CALL DCOPY(NSBASIS*NSBASIS*HElement_t_size,FMAT(1,1,IRHFB),
-     &         1,FMAT(1,1,3-IRHFB),1)
-            CALL DCOPY(NSBASIS*NSBASIS*HElement_t_size,DMAT(1,1,IRHFB),
-     &         1,DMAT(1,1,3-IRHFB),1)
+            CALL DCOPY(NSBASIS*NSBASIS*HElement_t_size,
+     &           FMAT(1,1,IRHFB),1,FMAT(1,1,3-IRHFB),1)
+            CALL DCOPY(NSBASIS*NSBASIS*HElement_t_size,
+     &           DMAT(1,1,IRHFB),1,DMAT(1,1,3-IRHFB),1)
          ENDIF 
-       CALL DCOPY(NSBASIS*NSBASIS*NSPINS*HElement_t_size,DMAT,1,ODMAT,1)
-       CALL DCOPY(NSBASIS*NSBASIS*NSPINS*HElement_t_size,FMAT,1,OFMAT,1)
+       CALL DCOPY(NSBASIS*NSBASIS*NSPINS*HElement_t_size,
+     &          DMAT,1,ODMAT,1)
+       CALL DCOPY(NSBASIS*NSBASIS*NSPINS*HElement_t_size,
+     &          FMAT,1,OFMAT,1)
 C.. Construct the Density Matrix
          CALL GENDMAT(NSPINS,NSBASIS,NELS,FMAT,DMAT,.FALSE.)
 C.. See how much our density matrix has changed from last time

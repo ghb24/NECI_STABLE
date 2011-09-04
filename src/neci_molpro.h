@@ -7,6 +7,7 @@
 #define POINTER8
 #define HAVE_SSE2
 #define __INT64
+#define DISABLE_FFTW 
 
 #ifndef HElement_t
 #define HElement_t real(dp)
