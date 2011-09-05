@@ -96,6 +96,7 @@ MODULE FciMCData
       INTEGER :: AllSpawnFromSing
       INTEGER, DIMENSION(lenof_sign) :: HFCyc            !This is the number of HF*sign particles on a given processor over the course of the update cycle
       HElement_t :: AllHFCyc          !This is the sum of HF*sign particles over all processors over the course of the update cycle
+      HElement_t :: OldAllHFCyc       !This is the old sum of HF*sign over all procs over previous update cycle
       HElement_t :: ENumCyc           !This is the sum of doubles*sign*Hij on a given processor over the course of the update cycle
       HElement_t :: AllENumCyc        !This is the sum of double*sign*Hij over all processors over the course of the update cycle
 

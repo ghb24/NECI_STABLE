@@ -3036,7 +3036,6 @@ MODULE FciMCParMod
         AllNoAtDoubs = int_tmp(2)
         AllNoBorn = int_tmp(3)
         AllNoDied = int_tmp(4)
-        !AllHFCyc = ARR_RE_OR_CPLX(int_tmp(5:4+lenof_sign))
         AllSpawnFromSing = int_tmp(5+lenof_sign)
         iter_data%update_growth_tot = int_tmp(6+lenof_sign:5+2*lenof_sign)
         if (lenof_sign == 1) then
@@ -3232,12 +3231,7 @@ MODULE FciMCParMod
                     if(tShiftonHFPop) then
                         !Calculate the shift required to keep the HF population constant
 
-                        if(lenof_sign.eq.1) then
-                            AllHFGrowRate=real(AllNoatHF(1), dp)/real(OldAllNoatHF(1),dp)
-                        else
-                            AllHFGrowRate=sqrt(real(AllNoatHF(1),dp)**2+real(AllNoatHF(lenof_sign),dp)**2) / &
-                                sqrt(real(OldAllNoatHF(1),dp)**2+real(OldAllNoatHF(lenof_sign),dp)**2)
-                        endif
+                        AllHFGrowRate = abs(AllHFCyc) / abs(OldAllHFCyc)
 
                         DiagSft = DiagSft - (log(AllHFGrowRate) * SftDamp) / &
                                             (Tau * StepsSft)
@@ -3375,11 +3369,13 @@ MODULE FciMCParMod
 
         ! Save the number at HF to use in the HFShift
         OldAllNoatHF = AllNoatHF
+        OldAllHFCyc = AllHFCyc
 
         ! Also the cumulative global variables
         AllTotWalkersOld = AllTotWalkers
         AllTotPartsOld = AllTotParts
         AllNoAbortedOld = AllNoAborted
+
 
         ! Reset the counters
         iter_data%update_growth = 0
@@ -5569,6 +5565,12 @@ MODULE FciMCParMod
                 AllTotPartsOld=AllTotParts
                 call MPISumAll(NoatHF,AllNoatHF)
                 OldAllNoatHF=AllNoatHF
+                if(lenof_sign.eq.1) then
+                    OldAllHFCyc = real(AllNoatHF(1),dp)*StepsSft
+                else
+                    OldAllHFCyc = cmplx(real(AllNoatHF(1)*StepsSft,dp),real(AllNoatHF(lenof_sign)*StepsSft,dp))
+                endif
+
                 AllNoAbortedOld=0.D0
                 iter_data_fciqmc%tot_parts_old = AllTotParts
 
@@ -5658,6 +5660,11 @@ MODULE FciMCParMod
         !Initialise global variables for calculation on the root node
                         IF(iProcIndex.eq.root) THEN
                             OldAllNoatHF(1)=InitialPart
+                            if(lenof_sign.eq.1) then
+                                OldAllHFCyc = real(InitialPart,dp)*StepsSft
+                            else
+                                OldAllHFCyc = cmplx(real(InitialPart*StepsSft,dp),0.0_dp)
+                            endif
                             AllNoatHF(1)=InitialPart
                             AllTotWalkers = 1
                             AllTotWalkersOld = 1
@@ -6123,6 +6130,7 @@ MODULE FciMCParMod
         call mpisumall(NoatHF,AllNoatHF)
         call mpisumall(TotWalkers,AllTotWalkers)
         OldAllNoatHF=AllNoatHF
+        OldAllHFCyc = real(AllNoatHF(1),dp)*StepsSft
         AllTotWalkersOld=AllTotWalkers
         AllTotPartsOld=AllTotParts
         iter_data_fciqmc%tot_parts_old = AllTotPartsOld
@@ -6367,6 +6375,7 @@ MODULE FciMCParMod
         call mpisumall(NoatHF,AllNoatHF)
         call mpisumall(TotWalkers,AllTotWalkers)
         OldAllNoatHF=AllNoatHF
+        OldAllHFCyc = real(AllNoatHF(1),dp)*StepsSft
         AllTotWalkersOld=AllTotWalkers
         AllTotPartsOld=AllTotParts
         iter_data_fciqmc%tot_parts_old = AllTotPartsOld
