@@ -35,7 +35,7 @@ MODULE FciMCParMod
                         tChangeProjEDet, tCheckHighestPop, tSpawnSpatialInit,&
                         MemoryFacInit, tMaxBloom, tTruncNOpen, tFCIMC, &
                         trunc_nopen_max, tSpawn_Only_Init, tSpawn_Only_Init_Grow, &
-                        TargetGrowRate, TargetGrowRateWalk
+                        TargetGrowRate, TargetGrowRateWalk, tShiftonHFPop
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
     use Determinants, only: FDet, get_helement, write_det, &
@@ -3131,9 +3131,8 @@ MODULE FciMCParMod
         type(fcimc_iter_data), intent(in) :: iter_data
         integer(int64) :: tot_walkers
         logical :: tReZeroShift
-        real(dp) :: AllGrowRateRe, AllGrowRateIm
+        real(dp) :: AllGrowRateRe, AllGrowRateIm, AllHFGrowRate
         real(dp), dimension(lenof_sign) :: denominator, all_denominator
-
         integer :: error, i, proc, sgn(lenof_sign), pos
 
 !        call flush(6)
@@ -3230,8 +3229,22 @@ MODULE FciMCParMod
                                             (Tau * StepsSft)
                     endif
                 else
-                    DiagSft = DiagSft - (log(AllGrowRate) * SftDamp) / &
-                                        (Tau * StepsSft)
+                    if(tShiftonHFPop) then
+                        !Calculate the shift required to keep the HF population constant
+
+                        if(lenof_sign.eq.1) then
+                            AllHFGrowRate=real(AllNoatHF(1), dp)/real(OldAllNoatHF(1),dp)
+                        else
+                            AllHFGrowRate=sqrt(real(AllNoatHF(1),dp)**2+real(AllNoatHF(lenof_sign),dp)**2) / &
+                                sqrt(real(OldAllNoatHF(1),dp)**2+real(OldAllNoatHF(lenof_sign),dp)**2)
+                        endif
+
+                        DiagSft = DiagSft - (log(AllHFGrowRate) * SftDamp) / &
+                                            (Tau * StepsSft)
+                    else
+                        DiagSft = DiagSft - (log(AllGrowRate) * SftDamp) / &
+                                            (Tau * StepsSft)
+                    endif
                 endif
 
                 if (lenof_sign == 2) then
@@ -4447,7 +4460,10 @@ MODULE FciMCParMod
         IF(.not.TReadPops) THEN
             WRITE(6,*) "Initial Diagonal Shift (Ecorr guess) is: ", DiagSft
         ENDIF
-        WRITE(6,*) "Damping parameter for Diag Shift set to: ", SftDamp
+!        WRITE(6,*) "Damping parameter for Diag Shift set to: ", SftDamp
+        if(tShiftonHFPop) then
+            write(6,*) "Shift will be varied in order to keep the population on the reference determinant fixed"
+        endif
         WRITE(6,*) "Maximum connectivity of HF determinant is: ",HFConn
         IF(TStartSinglePart) THEN
             TSinglePartPhase=.true.

@@ -50,6 +50,7 @@ contains
 
 
 !       Calc defaults 
+          tShiftonHFPop=.false.
           MaxWalkerBloom=-1
           tSearchTau=.true.
           InputDiagSft=0.D0
@@ -894,6 +895,9 @@ contains
             case("BINCANCEL")
 !This is a seperate method to cancel down to find the residual walkers from a list, involving binning the walkers into their determinants. This has to refer to the whole space, and so is much slower.
                 TBinCancel=.true.
+            case("REFSHIFT")
+!With this, the shift is changed in order to keep the population on the reference determinant fixed, rather than the total population.
+                tShiftonHFPop=.true.
             case("STARTMP1")
 !For FCIMC, this has an initial configuration of walkers which is proportional to the MP1 wavefunction
 !                CALL Stop_All(t_r,"STARTMP1 option depreciated")
