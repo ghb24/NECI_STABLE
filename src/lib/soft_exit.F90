@@ -86,6 +86,7 @@
 !   SPIN-PROJECT-GAMMA   Change the delta-gamma value used for stochastic
 !                        spin projection
 !   SPIN-PROJECT-SHIFT   Change the spin projection shift value.
+!   REFSHIFT             Change the default use of the shift to now keep HF populations constant.
 ! **********************************************************
 
 module soft_exit
@@ -104,7 +105,7 @@ module soft_exit
                         tChangeProjEDet, tCheckHighestPopOnce, FracLargerDet,&
                         SinglesBias_value => SinglesBias, tau_value => tau, &
                         nmcyc_value => nmcyc, tTruncNOpen, trunc_nopen_max, &
-                        target_grow_rate => TargetGrowRate
+                        target_grow_rate => TargetGrowRate, tShiftonHFPop
     use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
                              NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt
@@ -159,9 +160,9 @@ contains
                               spin_project_spawn_initiators = 34, &
                               spin_project_no_death = 35, &
                               spin_project_iter_count = 36, trunc_nopen = 37, &
-                              targetgrowrate = 38
+                              targetgrowrate = 38, refshift = 39 
 
-        integer, parameter :: last_item = targetgrowrate
+        integer, parameter :: last_item = refshift
         integer, parameter :: max_item_len = 30
         character(max_item_len), parameter :: option_list(last_item) &
                                = (/"excite                       ", &
@@ -201,7 +202,8 @@ contains
                                    "spin-project-no-death        ", &
                                    "spin-project-iter-count      ", &
                                    "trunc-nopen                  ", &
-                                   "targetgrowrate               "/)
+                                   "targetgrowrate               ", &
+                                   "refshift                     "/)
 
 
         logical :: exists, any_exist, eof, deleted, any_deleted, tSource
@@ -725,6 +727,12 @@ contains
                 endif
             endif
 
+            ! varyshift according to reference population 
+            if (opts_selected(refshift)) then
+                tShiftonHFPop = .true.
+                write(6,*) 'Request to change default shift action to REFSHIFT &
+                &detected on a node on iteration: ',iter
+            endif
         endif
 
     end subroutine ChangeVars
