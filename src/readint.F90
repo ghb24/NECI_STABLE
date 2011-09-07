@@ -16,7 +16,7 @@ contains
          integer(int64) :: ORBSYM(1000)
          INTEGER NORB,NELEC,MS2,ISYM,i,SYML(1000), iunit
          LOGICAL exists,UHF
-         CHARACTER*3 :: fmat
+         CHARACTER(len=3) :: fmat
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          UHF=.FALSE.
          fmat='NO'
