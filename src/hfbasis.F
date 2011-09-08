@@ -4,7 +4,7 @@ C..   =Sum_a(|c_ia|^2 <u_a|(p^2)/2|u_a>)
         use constants, only: dp
         USE OneEInts, only : GetTMATEl,TMAT2D,TMAT2D2,TSTARSTORE
          IMPLICIT NONE
-         INTEGER NBASIS
+         INTEGER :: NBASIS
          real(dp) HFBASIS(NBASIS,NBASIS)
          INTEGER I,J,A,B,NORBUSED
          real(dp) SUM1
