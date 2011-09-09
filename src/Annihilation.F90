@@ -818,99 +818,102 @@ MODULE AnnihilationMod
                     endif
                 endif
 
-                !Transfer across
-                call encode_sign(CurrentDets(:,PartInd),SpawnedSign+CurrentSign)
-                call encode_sign(SpawnedParts(:,i),null_part)
+                if(sum(abs(CurrentSign)) .ne. 0) then
+                    !Transfer across
+                    call encode_sign(CurrentDets(:,PartInd),SpawnedSign+CurrentSign)
+                    call encode_sign(SpawnedParts(:,i),null_part)
 
-                ! The only way SpawnedSign can be zero is if we are calculating the RDM.
-                ! If this is the case, we would have already added the SpawnedDet to Spawned_Parts_Zero
-                ! when it was compressed and all walkers were annihilated.
-                ! This only counts the walkers where the SpawnedSign has newly become zero, by merging with CurrentDets.
-                if(sum(abs(SpawnedSign)) .ne. 0) ToRemove=ToRemove+1
+                    ! The only way SpawnedSign can be zero is if we are calculating the RDM.
+                    ! If this is the case, we would have already added the SpawnedDet to Spawned_Parts_Zero
+                    ! when it was compressed and all walkers were annihilated.
+                    ! This only counts the walkers where the SpawnedSign has newly become zero, by merging with CurrentDets.
+                    if(sum(abs(SpawnedSign)) .ne. 0) ToRemove=ToRemove+1
 
-                do j=1,lenof_sign   !Run over real (& imag ) components
+                    do j=1,lenof_sign   !Run over real (& imag ) components
 
-                    if (SignProd(j) < 0) then
-                        ! This indicates that the particle has found the same particle of 
-                        ! opposite sign to annihilate with
-                        Annihilated=Annihilated+2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
-                        iter_data%nannihil(j) = iter_data%nannihil(j) + &
-                                           2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j))))
+                        if (SignProd(j) < 0) then
+                            ! This indicates that the particle has found the same particle of 
+                            ! opposite sign to annihilate with
+                            Annihilated=Annihilated+2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
+                            iter_data%nannihil(j) = iter_data%nannihil(j) + &
+                                               2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j))))
 
-                        IF(tTruncInitiator) THEN
-                            ! If we are doing an initiator calculation - then if the walkers that
-                            ! are left after annihilation came from the SpawnedParts array, and 
-                            ! had spawned from determinants outside the active space, then it is 
-                            ! like these have been spawned on an unoccupied determinant and they 
-                            ! are killed.
-                            ! 
-                            ! If flag_make_initiator is set, it is allowed to survive anyway, and 
-                            ! is actually made into an initiator.
-                            if (abs(SpawnedSign(j)) > abs(CurrentSign(j))) then
-                                if (test_flag (SpawnedParts(:,i), flag_make_initiator(j))) then
+                            IF(tTruncInitiator) THEN
+                                ! If we are doing an initiator calculation - then if the walkers that
+                                ! are left after annihilation came from the SpawnedParts array, and 
+                                ! had spawned from determinants outside the active space, then it is 
+                                ! like these have been spawned on an unoccupied determinant and they 
+                                ! are killed.
+                                ! 
+                                ! If flag_make_initiator is set, it is allowed to survive anyway, and 
+                                ! is actually made into an initiator.
+                                if (abs(SpawnedSign(j)) > abs(CurrentSign(j))) then
+                                    if (test_flag (SpawnedParts(:,i), flag_make_initiator(j))) then
+                                        call set_flag (CurrentDets(:,PartInd), flag_is_initiator(j))
+                                        call set_flag (CurrentDets(:,PartInd), flag_make_initiator(j))
+                                        NoAddedInitiators = NoAddedInitiators + 1
+                                        if (tSpawnSpatialInit) &
+                                            call add_initiator_list (CurrentDets(:,PartInd))
+                                    else
+                                        ! If the residual particles were spawned from non-initiator 
+                                        ! particles, abort them. Encode only the correct 'type'
+                                        ! of sign.
+                                        if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(j))) then
+                                            NoAborted = NoAborted + abs(SpawnedSign(j)) - abs(CurrentSign(j))
+                                            iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j)) - abs(CurrentSign(j))
+                                            call encode_part_sign (CurrentDets(:,PartInd), 0, j)
+                                        endif
+                                    endif
+                                endif
+                            ENDIF
+                            
+                            IF(tHistSpawn) THEN
+    !We want to histogram where the particle annihilations are taking place.
+                                ExcitLevel = FindBitExcitLevel(SpawnedParts(:,i),&
+                                                               iLutHF, nel)
+                                IF(ExcitLevel.eq.NEl) THEN
+                                    CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel),Det,PartIndex,tSuc)
+                                ELSEIF(ExcitLevel.eq.0) THEN
+                                    PartIndex=1
+                                    tSuc=.true.
+                                ELSE
+                                    CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel), &
+                                            FCIDetIndex(ExcitLevel+1)-1,PartIndex,tSuc)
+                                ENDIF
+                                HistMinInd2(ExcitLevel)=PartIndex
+                                IF(tSuc) THEN
+                                    AvAnnihil(j,PartIndex)=AvAnnihil(j,PartIndex)+ &
+                                    REAL(2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j)))))
+                                    InstAnnihil(j,PartIndex)=InstAnnihil(j,PartIndex)+ &
+                                    REAL(2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j)))))
+                                ELSE
+                                    WRITE(6,*) "***",SpawnedParts(0:NIftot,i)
+                                    Call WriteBitDet(6,SpawnedParts(0:NIfTot,i),.true.)
+                                    CALL Stop_All("AnnihilateSpawnedParts","Cannot find corresponding FCI "&
+                                        & //"determinant when histogramming")
+                                ENDIF
+                            ENDIF
+
+                        else
+                            ! Spawning onto an existing determinant with the same sign
+                            if (tTruncInitiator) then
+                                if (test_flag(SpawnedParts(:,i), flag_make_initiator(j)) .and. &
+                                    .not. test_flag(CurrentDets(:,PartInd), flag_is_initiator(j))) then
                                     call set_flag (CurrentDets(:,PartInd), flag_is_initiator(j))
                                     call set_flag (CurrentDets(:,PartInd), flag_make_initiator(j))
                                     NoAddedInitiators = NoAddedInitiators + 1
                                     if (tSpawnSpatialInit) &
                                         call add_initiator_list (CurrentDets(:,PartInd))
-                                else
-                                    ! If the residual particles were spawned from non-initiator 
-                                    ! particles, abort them. Encode only the correct 'type'
-                                    ! of sign.
-                                    if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(j))) then
-                                        NoAborted = NoAborted + abs(SpawnedSign(j)) - abs(CurrentSign(j))
-                                        iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j)) - abs(CurrentSign(j))
-                                        call encode_part_sign (CurrentDets(:,PartInd), 0, j)
-                                    endif
                                 endif
                             endif
-                        ENDIF
-                        
-                        IF(tHistSpawn) THEN
-!We want to histogram where the particle annihilations are taking place.
-                            ExcitLevel = FindBitExcitLevel(SpawnedParts(:,i),&
-                                                           iLutHF, nel)
-                            IF(ExcitLevel.eq.NEl) THEN
-                                CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel),Det,PartIndex,tSuc)
-                            ELSEIF(ExcitLevel.eq.0) THEN
-                                PartIndex=1
-                                tSuc=.true.
-                            ELSE
-                                CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel), &
-                                        FCIDetIndex(ExcitLevel+1)-1,PartIndex,tSuc)
-                            ENDIF
-                            HistMinInd2(ExcitLevel)=PartIndex
-                            IF(tSuc) THEN
-                                AvAnnihil(j,PartIndex)=AvAnnihil(j,PartIndex)+ &
-                                REAL(2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j)))))
-                                InstAnnihil(j,PartIndex)=InstAnnihil(j,PartIndex)+ &
-                                REAL(2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j)))))
-                            ELSE
-                                WRITE(6,*) "***",SpawnedParts(0:NIftot,i)
-                                Call WriteBitDet(6,SpawnedParts(0:NIfTot,i),.true.)
-                                CALL Stop_All("AnnihilateSpawnedParts","Cannot find corresponding FCI "&
-                                    & //"determinant when histogramming")
-                            ENDIF
-                        ENDIF
 
-                    else
-                        ! Spawning onto an existing determinant with the same sign
-                        if (tTruncInitiator) then
-                            if (test_flag(SpawnedParts(:,i), flag_make_initiator(j)) .and. &
-                                .not. test_flag(CurrentDets(:,PartInd), flag_is_initiator(j))) then
-                                call set_flag (CurrentDets(:,PartInd), flag_is_initiator(j))
-                                call set_flag (CurrentDets(:,PartInd), flag_make_initiator(j))
-                                NoAddedInitiators = NoAddedInitiators + 1
-                                if (tSpawnSpatialInit) &
-                                    call add_initiator_list (CurrentDets(:,PartInd))
-                            endif
                         endif
 
-                    endif
-
-                enddo   !Finish running over components of signs
-            
-            elseif (tTruncInitiator) then
+                    enddo   !Finish running over components of signs
+                endif
+            endif
+                
+            if (tTruncInitiator.and.((.not.tSuccess).or.(sum(abs(CurrentSign)) .eq. 0))) then
                 ! Determinant in newly spawned list is not found in currentdets - usually this 
                 ! would mean the walkers just stay in this list and get merged later - but in 
                 ! this case we want to check where the walkers came from - because if the newly 

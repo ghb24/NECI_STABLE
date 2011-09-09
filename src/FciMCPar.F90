@@ -2349,15 +2349,26 @@ MODULE FciMCParMod
                 !Normally we will go in this block
                 call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
                 if (.not.tRegenDiagHEls) CurrentH(1,VecSlot) = Kii
-                if (tFillingStochRDMonFly) CurrentH(2,VecSlot) = wSign(1)
+                if (tFillingStochRDMonFly) CurrentH(2,VecSlot) = real(wSign(1),dp)
                 VecSlot = VecSlot + 1
             ENDIF
-        elseif(tTruncInitiator) then
-            ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
-            if(test_flag(iLutCurr,flag_is_initiator(1))) then
-                NoAddedInitiators=NoAddedInitiators-1.D0
-                if (tSpawnSpatialInit) &
-                    call rm_initiator_list (ilutCurr)
+        else
+            if(tFillingStochRDMonFly) then
+                ! If we're stochastically filling the RDMs, we want to keep determinants even if 
+                ! their walkers have all died.
+                ! This is because we're using the sign of each determinant before death.
+                call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
+                if (.not.tRegenDiagHEls) CurrentH(1,VecSlot) = Kii
+                CurrentH(2,VecSlot) = real(wSign(1),dp)
+                VecSlot = VecSlot + 1
+            endif
+            if(tTruncInitiator) then
+                ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
+                if(test_flag(iLutCurr,flag_is_initiator(1))) then
+                    NoAddedInitiators=NoAddedInitiators-1.D0
+                    if (tSpawnSpatialInit) &
+                        call rm_initiator_list (ilutCurr)
+                endif
             endif
         endif
 #else
