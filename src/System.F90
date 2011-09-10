@@ -885,7 +885,8 @@ MODULE System
       character(*), parameter :: this_routine='SysInit'
       integer ierr
 
-      CHARACTER CPAR(3)*1,CPARITY*3
+      CHARACTER(len=1) CPAR(3)
+      CHARACTER(len=3) CPARITY
 ! For init of mom
       TYPE(BasisFN) G
         

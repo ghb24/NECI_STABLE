@@ -1,5 +1,5 @@
 /** 
- * @file dSFMT.c 
+ * @file dSFMT.cpp
  * @brief double precision SIMD-oriented Fast Mersenne Twister (dSFMT)
  * based on IEEE 754 format.
  *

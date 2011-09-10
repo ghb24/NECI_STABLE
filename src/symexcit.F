@@ -13,7 +13,7 @@
           type(basisfn) G1(nBasis)
           logical :: tCount
           type(symclass) :: classes(*)
-          type(symmetry) :: symprods(0:nel*nel)
+          type(symmetry) :: symprods(0:nel*nel)  !This nel*nel is the maximum it could possibly be
 
           integer :: SPIin(1:2,1:3,1:*), ETin(1:5,*), NAPin(1:3,*)
           integer :: OPin(1:2,*)

@@ -1065,7 +1065,7 @@ Subroutine MPIInit(tExternal)
    integer(MPIArg) :: ierr
    integer a,g
    integer(MPIArg) :: iProcInd,nProcess
-   character*20 NodeFile
+   character(len=20) NodeFile
    logical, save :: initialised=.false.
 #if PARALLEL
    nNodes=0  !Indicate we haven't setup nodes yet
@@ -1346,7 +1346,7 @@ subroutine MPINodes(tUseProcsAsNodes)
    allocate(CommNodes(0:nNodes-1))
    allocate(GroupNodes(0:nNodes-1))
    NodeLengths(0)=1
-#endif //def PARALLEL
+#endif /* def PARALLEL */
    Roots%n=-1  !A communicator index between roots
 end subroutine
 

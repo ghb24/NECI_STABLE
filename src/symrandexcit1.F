@@ -56,7 +56,7 @@
             I=I-EXCITTYPES(5,IEXCIT)
             IEXCIT=IEXCIT+1
          ENDDO
-!         WRITE(6,*) "Excit:",iExcit
+!         WRITE(6,*) "Excit:",iExcit,EXCITTYPES(1,IEXCIT)
 !..   iExcit is the Excitation Type
          IF(EXCITTYPES(1,IEXCIT).EQ.1) THEN
 !.. It's a single
