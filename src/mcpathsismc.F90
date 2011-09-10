@@ -75,6 +75,8 @@ module mcpathsismc
          REAL(sp) etime,OTIME,NTIME,tarr(2)
          integer(int64) LP
          HElement_t :: hel
+
+         ISEED=0  !Init the seed
          OTIME=etime(tarr)
          TST=0
          proc_timer%timer_name='MCPATHSR4 '
@@ -1735,7 +1737,7 @@ module mcpathsismc
          INTEGER, target :: NEWEXLEN(1)
          INTEGER NEXNODE
          integer, pointer :: curex(:)
-         integer, allocatable, target :: newex(:)
+         integer, pointer :: newex(:) => null()
          INTEGER STORE(6)
          real(dp) R
          HElement_t RH
@@ -1834,6 +1836,7 @@ module mcpathsismc
                CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,           &
      &            .TRUE.,NEWEXLEN(1),INODE2,IC,STORE,3)
                !allocate memory
+               nullify(newex)
                allocate(NewEx(NewExLen(1)))
                NEWEX(1)=0
                PVERTMEMS(I_VNEXT)%p=>NEWEX

@@ -51,7 +51,7 @@ C.. If we're just counting, we don't need to keep DSTORE
          INTEGER, pointer :: DStore(:)
          real(dp) pGen
          real(dp) Arr(nBasis,2)
-         DSTORE=>nIExcitor(nIExcitor(1):2)
+         DSTORE=>nIExcitor(nIExcitor(1):niExcitor(2)-1)
          CALL GenExcitProb2(nI,nJ,nEl,G1,nBasisMax,Arr,nBasis,
      &      nIExcitor(nIExcitor(4)),nIExcitor(nIExcitor(5)),
      &      DStore(SymClassSize*nEl+1),
