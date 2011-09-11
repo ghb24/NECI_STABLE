@@ -88,7 +88,8 @@ C..   Stores the number of non-zero elements in each row
       ENDDO
 C..No. of columns
       IF(TCOUNT) THEN
-        IMAX=IDAMAX(NDET,DFLOAT(NROW),1)
+!        IMAX=MAXLOC(NROW)
+        IMAX=IDAMAX(NDET,real(NROW,dp),1)
         ICMAX=NROW(IMAX)
         WRITE(6,*) ' MAXIMUM WIDTH OF HAMIL : ' , ICMAX
         WRITE(6,*) ' TOTAL NUMBER OF NON-ZERO ELEMENTS : ' , GC

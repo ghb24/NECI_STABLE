@@ -23,7 +23,7 @@ contains
         if(lenof_sign.eq.1) then
             abs_int_sign=abs(wsign(1))
         else
-            abs_int_sign=nint(sqrt(real(wsign(1),dp)**2+real(wsign(2),dp)**2),sizeof_int)
+            abs_int_sign=nint(sqrt(real(wsign(1),dp)**2+real(wsign(lenof_sign),dp)**2),sizeof_int)
         endif
     end function abs_int_sign
 
@@ -34,7 +34,7 @@ contains
         if(lenof_sign.eq.1) then
             abs_int8_sign=abs(wsign(1))
         else
-            abs_int8_sign=nint(sqrt(real(wsign(1),dp)**2+real(wsign(2),dp)**2),int64)
+            abs_int8_sign=nint(sqrt(real(wsign(1),dp)**2+real(wsign(lenof_sign),dp)**2),int64)
         endif
     end function abs_int8_sign
 
@@ -404,7 +404,7 @@ contains
        !    record_length: size of record in units of the compiler's
        !    choice.
        integer, intent(in) :: bytes
-       integer(int32) :: record_length_loc
+       integer :: record_length_loc
        inquire(iolength=record_length_loc) bytes
 !       record_length = (bytes/4)*record_length   
        record_length = (bytes/sizeof_int)*int(record_length_loc,sizeof_int)

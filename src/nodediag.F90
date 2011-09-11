@@ -45,7 +45,7 @@
       use HElem
       TYPE(BasisFN) G1(*)
       INTEGER nEl,nI(nEl),nBasis,i_P,Brr(nBasis),nMsh
-      INTEGER nMax,nTay(2),iMaxExcit,nExcitMemLen
+      INTEGER nMax,nTay(2),iMaxExcit,nExcitMemLen(1)
       INTEGER noij,noab,ierr,totexcits,nJ(nEl),Orbchange(4),noexcits
       INTEGER Height,TRIIND,INDX,i,ExcitInfoElems,j,exFlag
       INTEGER nStore(6),iExcit,invsbrr(nBasis),orbone,orbtwo,t
@@ -102,7 +102,7 @@
 !      nExcitMemLen=0
       nStore(1)=0
       CALL GenSymExcitIt2(nI,nEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
-      Allocate(nExcit(nExcitMemLen))
+      Allocate(nExcit(nExcitMemLen(1)))
 
 !Second call to calculate theoretical max number of excitations (iMaxExcit)
       nExcit(1)=0

@@ -352,7 +352,7 @@ MODULE ISKRandExcit
         INTEGER(KIND=n_int), ALLOCATABLE :: ConnsAlpha(:,:),ConnsBeta(:,:),UniqueHPHFList(:,:)
         INTEGER , ALLOCATABLE :: ExcitGen(:)
         real(dp) , ALLOCATABLE :: Weights(:),AllWeights(:)
-        INTEGER :: iMaxExcit,nStore(6),nExcitMemLen,j,k,l, iunit
+        INTEGER :: iMaxExcit,nStore(6),nExcitMemLen(1),j,k,l, iunit
         integer :: icunused, exunused(2,2)
         logical :: tParityunused, tTmp
         type(excit_gen_store_type) :: store
@@ -402,7 +402,7 @@ MODULE ISKRandExcit
         iMaxExcit=0
         nStore(1:6)=0
         CALL GenSymExcitIt2(nI,NEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,3)
-        ALLOCATE(EXCITGEN(nExcitMemLen),stat=ierr)
+        ALLOCATE(EXCITGEN(nExcitMemLen(1)),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
         EXCITGEN(:)=0
         CALL GenSymExcitIt2(nI,NEl,G1,nBasis,.TRUE.,EXCITGEN,nJ,iMaxExcit,nStore,3)
@@ -433,7 +433,7 @@ MODULE ISKRandExcit
         DEALLOCATE(EXCITGEN)
         
         CALL GenSymExcitIt2(nI2,NEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,3)
-        ALLOCATE(EXCITGEN(nExcitMemLen),stat=ierr)
+        ALLOCATE(EXCITGEN(nExcitMemLen(1)),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
         EXCITGEN(:)=0
         CALL GenSymExcitIt2(nI2,NEl,G1,nBasis,.TRUE.,EXCITGEN,nJ,iMaxExcit,nStore,3)
@@ -616,7 +616,7 @@ MODULE ISKRandExcit
     !normalise excitation probabilities
             Die=.false.
             do i=1,iUniqueHPHF
-                AllWeights(i)=AllWeights(i)/(real(Iterations,8)*real(nNodes,8))
+                AllWeights(i)=AllWeights(i)/(real(Iterations,dp)*real(nNodes,dp))
                 IF(abs(AllWeights(i)-1.D0).gt.0.1) THEN
                     WRITE(6,*) "Error here!",i
                     Die=.true.

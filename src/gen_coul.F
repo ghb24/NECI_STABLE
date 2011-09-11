@@ -6,6 +6,7 @@
       use constants, only: dp
 !      IMPLICIT real(dp) (A-H,O-Z)
       IMPLICIT NONE
+      INTEGER :: NMSH,NMAX,NHG,I,J,K,L,ID1,ID2,ID3,ID4,ISPINSKIP,II
       TYPE(BASISFN) G1(NHG)
       INTEGER nBasisMax(5,*)
       type(timer), save :: proc_timer
@@ -13,7 +14,6 @@
 C..Cube arrays
       complex(dp) FCK(NMSH,NMSH,NMSH)
       complex(dp) ZIA(-NMSH/2:NMSH/2,NMAX,NMAX)
-      INTEGER :: NMSH,NMAX,NHG,I,J,K,L,ID1,ID2,ID3,ID4,ISPINSKIP,II
       real(dp) :: SUM
 C..This routine generates *ALL* possible combinations of Coulomb integrals
 C..stored in the form (u1 u2 | U | u1' u2') = UMAT(n1 n2 n3 n4)

@@ -144,7 +144,11 @@ contains
     integer(li), intent(in), optional :: MemSize
     logical, intent(in), optional :: print_err
     integer(li) :: MaxMemBytes
+#ifdef MOLPRO
+    integer(li), parameter :: MaxMemLimit=8192   !It would be nice to get this straight from molpro.
+#else
     integer(li), parameter :: MaxMemLimit=MAXMEM ! Obtained via CPP in the makefile. MAXMEM in MB.
+#endif
 
 
     if (present(MemSize)) then

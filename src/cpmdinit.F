@@ -9,7 +9,7 @@
          use CPMDData, only: nStates,NKPTrans,nKPS,nRotOp
          use sym_mod
          IMPLICIT NONE
-         INTEGER nBasisMax(5,*), BRR(LEN),LEN
+         INTEGER LEN,nBasisMax(5,*), BRR(LEN)
          TYPE(BASISFN) G1(LEN)
          real(dp) ARR(LEN,2)
          INTEGER I,J

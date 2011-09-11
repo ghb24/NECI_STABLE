@@ -4,6 +4,7 @@ C.. Perform the contour integration to calculate the Z-sum
          complex(dp) Z,ZI,ZRET,ZS,DZ
          INTEGER I_H,I_P
          real(dp) THETA,R,SUM,SUMI,DTHETA,P
+         real(dp) XIS(1:I_H)
 C.. Simpson's Rule: Integral(f(x)) = (1/3)h(f0+4(f1+f3+...+f(2n-1))
 C..                                  +2(f2+f4+...+f(2n-2)+f2n
 C.. We use I_POINTS+1, but have both THETA=0 and 2PI, so we divide the 
@@ -41,7 +42,7 @@ C.. Now do the last point, f2n
          ZS=ZS*DTHETA/3.D0
          ZS=ZS/(2.D0*PI*ZI)
          SUM=DBLE(ZS)
-         SUMI=DIMAG(ZS)
+         SUMI=AIMAG(ZS)
       END
 
 C.. Calculate a primitive element in the contour integration
@@ -103,10 +104,11 @@ C.. Perform the contour integration to calculate the Z-sum
       SUBROUTINE ZSUM2(ZSD1,ZSD2,ZSFUN,Z0,I_P,I_POINTS,R,SUM,SUMI)
          use constants, only: dp,pi
          IMPLICIT NONE
-         real(dp) ZSD1(*),ZSD2(*)
+         real(dp) ZSD1(*),ZSD2(*),ZSFUN
          complex(dp) Z,ZI,ZRET,ZS,DZ,Z0,Z2
          INTEGER I_P,I_POINTS,I
          real(dp) THETA,R,SUM,SUMI,DTHETA,P
+         character(*), parameter :: t_r="ZSUM2"
 C.. Simpson's Rule: Integral(f(x)) = (1/3)h(f0+4(f1+f3+...+f(2n-1))
 C..                                  +2(f2+f4+...+f(2n-2)+f2n
 C.. We use I_POINTS+1, but have both THETA=0 and 2PI, so we divide the 
@@ -124,7 +126,8 @@ C         WRITE(6,*),DTHETA,DZ
          DO I=1,I_POINTS/2
 C.. Calculate an even point
 C            WRITE(6,*),Z
-            CALL ZSFUN(ZSD1,ZSD2,P,Z2,R,THETA,Z,ZRET)
+             call stop_all(t_r,"ZSFUN should be a function!")
+!            CALL ZSFUN(ZSD1,ZSD2,P,Z2,R,THETA,Z,ZRET)
             ZS=ZS+2*ZRET
             IF(I.EQ.1) ZS=ZS-ZRET
 C.. Move round DTHETA in the complex plane
@@ -133,7 +136,7 @@ C.. Move round DTHETA in the complex plane
             Z2=Z0+Z
 C            WRITE(6,*),Z
 C.. Calculate an odd point
-            CALL ZSFUN(ZSD1,ZSD2,P,Z2,R,THETA,Z,ZRET)
+!            CALL ZSFUN(ZSD1,ZSD2,P,Z2,R,THETA,Z,ZRET)
             ZS=ZS+4*ZRET
 C.. Move round DTHETA in the complex plane
             THETA=THETA+DTHETA
@@ -142,12 +145,12 @@ C.. Move round DTHETA in the complex plane
          ENDDO
 C         WRITE(6,*),Z
 C.. Now do the last point, f2n
-         CALL ZSFUN(ZSD1,ZSD2,P,Z2,R,THETA,Z,ZRET)
+!         CALL ZSFUN(ZSD1,ZSD2,P,Z2,R,THETA,Z,ZRET)
          ZS=ZS+ZRET
          ZS=ZS*DTHETA/3.D0
          ZS=ZS/(2.D0*PI*ZI)
          SUM=DBLE(ZS)
-         SUMI=DIMAG(ZS)
+         SUMI=AIMAG(ZS)
 C         WRITE(6,*) SUM,SUMI
       END
 
@@ -161,7 +164,7 @@ C.. neighbour distance (removing poles which are within a distance EPS)
          use constants, only: dp
          IMPLICIT NONE
          INTEGER I_P,IPOLES,I_POINTS
-         real(dp) ZSD1,ZSD2(0:IPOLES+1),ZSFUN
+         real(dp) ZSD1(*),ZSD2(0:IPOLES+1),ZSFUN
          complex(dp) ZPOLES(IPOLES)
          LOGICAL LPOLES(IPOLES),TAUXPOLY
          real(dp) SUM,SUMI,S,SI
@@ -170,6 +173,7 @@ C.. neighbour distance (removing poles which are within a distance EPS)
          INTEGER I,J,ICOUNT
          real(dp) DIST,DISTMIN,EPS,DISTMAX,DM
          complex(dp) ZD,Z0
+         character(*), parameter :: t_r="ZSUM3"
       
          SUM=0.D0
          SUMI=0.D0
@@ -195,7 +199,7 @@ C.. mark all the poles as to be processed
                DO J=1,IPOLES
                   IF(I.NE.J) THEN
                      ZD=ZPOLES(J)-ZPOLES(I)
-                     DIST=SQRT(DBLE(ZD)*DBLE(ZD)+DIMAG(ZD)*DIMAG(ZD))
+                     DIST=SQRT(DBLE(ZD)*DBLE(ZD)+AIMAG(ZD)*AIMAG(ZD))
                      IF(DIST.LE.EPS) THEN
                         LPOLES(J)=.FALSE.
                         IF(DIST.GT.DISTMAX) DISTMAX=DIST
@@ -224,8 +228,9 @@ C.. do the contour integral
 C                  WRITE(30,"(8G25.16e3)",advance='no') (ZAUXPOLY(J),J=5,1,-1)
 C                  WRITE(30,*)
                    ZAUXPOLY(0)=ZSD2(0)
-                  CALL ZSUM2(ZSD1,ZAUXPOLY,ZSFUN,ZPOLES(I),I_P,I_POINTS,
-     &               DM,S,SI)
+                   call stop_all(t_r,"ZAUXPOLY inconsistent data type")
+!                  CALL ZSUM2(ZSD1,ZAUXPOLY,ZSFUN,ZPOLES(I),I_P,I_POINTS,
+!     &               DM,S,SI)
                ELSE
                   CALL ZSUM2(ZSD1,ZSD2,ZSFUN,ZPOLES(I),I_P,I_POINTS,
      &               DM,S,SI)

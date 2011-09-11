@@ -18,11 +18,11 @@ type1=real(dp)
 mpitype=MPI_DOUBLE_PRECISION
 
 [logical4]
-type1=logical(4)
+type1=logical(kind=int32)
 mpitype=MPI_INTEGER4
 
 [logical8]
-type1=logical(8)
+type1=logical(kind=int64)
 mpitype=MPI_INTEGER8
 
 [complex]
@@ -54,11 +54,11 @@ type1=complex(dp), dimension(:)
 mpitype=MPI_DOUBLE_COMPLEX
 
 [arr_logical4]
-type1=logical(4), dimension(:)
+type1=logical(kind=int32), dimension(:)
 mpitype=MPI_INTEGER4
 
 [arr_logical8]
-type1=logical(8), dimension(:)
+type1=logical(kind=int64), dimension(:)
 mpitype=MPI_INTEGER8
 ######################
 # 2-D Arrays
@@ -84,11 +84,11 @@ type1=complex(dp), dimension(:,:)
 mpitype=MPI_DOUBLE_COMPLEX
 
 [arr2_logical4]
-type1=logical(4), dimension(:,:)
+type1=logical(kind=int32), dimension(:,:)
 mpitype=MPI_INTEGER4
 
 [arr2_logical8]
-type1=logical(8), dimension(:,:)
+type1=logical(kind=int64), dimension(:,:)
 mpitype=MPI_INTEGER8
 ######################
 # 3-D Arrays
@@ -1065,7 +1065,7 @@ Subroutine MPIInit(tExternal)
    integer(MPIArg) :: ierr
    integer a,g
    integer(MPIArg) :: iProcInd,nProcess
-   character*20 NodeFile
+   character(len=20) NodeFile
    logical, save :: initialised=.false.
 #if PARALLEL
    nNodes=0  !Indicate we haven't setup nodes yet
@@ -1346,7 +1346,7 @@ subroutine MPINodes(tUseProcsAsNodes)
    allocate(CommNodes(0:nNodes-1))
    allocate(GroupNodes(0:nNodes-1))
    NodeLengths(0)=1
-#endif //def PARALLEL
+#endif /* def PARALLEL */
    Roots%n=-1  !A communicator index between roots
 end subroutine
 

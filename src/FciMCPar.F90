@@ -35,7 +35,7 @@ MODULE FciMCParMod
                         tChangeProjEDet, tCheckHighestPop, tSpawnSpatialInit,&
                         MemoryFacInit, tMaxBloom, tTruncNOpen, tFCIMC, &
                         trunc_nopen_max, tSpawn_Only_Init, tSpawn_Only_Init_Grow, &
-                        TargetGrowRate, TargetGrowRateWalk
+                        TargetGrowRate, TargetGrowRateWalk, tShiftonHFPop
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
     use Determinants, only: FDet, get_helement, write_det, &
@@ -119,7 +119,7 @@ MODULE FciMCParMod
         real(dp) :: Weight, Energyxw
         INTEGER :: error
         LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange,tPrintWarn
-        REAL(4) :: s_start,s_end,etime,tstart(2),tend(2),totaltime
+        REAL(sp) :: s_start,s_end,etime,tstart(2),tend(2),totaltime
         real(dp) :: TotalTime8
         INTEGER(int64) :: MaxWalkers,MinWalkers
         real(dp) :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
@@ -585,6 +585,7 @@ MODULE FciMCParMod
 
         call assign_data (ptr_iter_data, data_struct)
     end subroutine
+
     ! This is the heart of FCIMC, where the MC Cycles are performed.
     !
     ! Note: This should only be called indirectly:
@@ -3035,7 +3036,6 @@ MODULE FciMCParMod
         AllNoAtDoubs = int_tmp(2)
         AllNoBorn = int_tmp(3)
         AllNoDied = int_tmp(4)
-        !AllHFCyc = ARR_RE_OR_CPLX(int_tmp(5:4+lenof_sign))
         AllSpawnFromSing = int_tmp(5+lenof_sign)
         iter_data%update_growth_tot = int_tmp(6+lenof_sign:5+2*lenof_sign)
         if (lenof_sign == 1) then
@@ -3130,9 +3130,8 @@ MODULE FciMCParMod
         type(fcimc_iter_data), intent(in) :: iter_data
         integer(int64) :: tot_walkers
         logical :: tReZeroShift
-        real(dp) :: AllGrowRateRe, AllGrowRateIm
+        real(dp) :: AllGrowRateRe, AllGrowRateIm, AllHFGrowRate
         real(dp), dimension(lenof_sign) :: denominator, all_denominator
-
         integer :: error, i, proc, sgn(lenof_sign), pos
 
 !        call flush(6)
@@ -3229,8 +3228,17 @@ MODULE FciMCParMod
                                             (Tau * StepsSft)
                     endif
                 else
-                    DiagSft = DiagSft - (log(AllGrowRate) * SftDamp) / &
-                                        (Tau * StepsSft)
+                    if(tShiftonHFPop) then
+                        !Calculate the shift required to keep the HF population constant
+
+                        AllHFGrowRate = abs(AllHFCyc/real(StepsSft,dp)) / abs(OldAllHFCyc)
+
+                        DiagSft = DiagSft - (log(AllHFGrowRate) * SftDamp) / &
+                                            (Tau * StepsSft)
+                    else
+                        DiagSft = DiagSft - (log(AllGrowRate) * SftDamp) / &
+                                            (Tau * StepsSft)
+                    endif
                 endif
 
                 if (lenof_sign == 2) then
@@ -3361,11 +3369,14 @@ MODULE FciMCParMod
 
         ! Save the number at HF to use in the HFShift
         OldAllNoatHF = AllNoatHF
+        !OldAllHFCyc is the average HF value for this update cycle
+        OldAllHFCyc = AllHFCyc/real(StepsSft,dp)
 
         ! Also the cumulative global variables
         AllTotWalkersOld = AllTotWalkers
         AllTotPartsOld = AllTotParts
         AllNoAbortedOld = AllNoAborted
+
 
         ! Reset the counters
         iter_data%update_growth = 0
@@ -3702,8 +3713,8 @@ MODULE FciMCParMod
         CHARACTER(len=*), PARAMETER :: this_routine='SetupParameters'
         CHARACTER(len=12) :: abstr
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped
-        INTEGER :: HFLz,ChosenOrb,KPnt(3), step,SymHF,FindProjEBins
-        integer(int64) :: ExcitLevPop
+        INTEGER :: HFLz,ChosenOrb,KPnt(3), step,FindProjEBins
+        integer(int64) :: ExcitLevPop,SymHF
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
         WRITE(6,*) ""
@@ -3929,10 +3940,10 @@ MODULE FciMCParMod
         WRITE(6,"(A,I10)") "Symmetry of reference determinant is: ",INT(HFSym%Sym%S,sizeof_int)
         SymHF=0
         do i=1,NEl
-            SymHF=IEOR(SymHF,INT(G1(HFDet(i))%Sym%S,sizeof_int))
+            SymHF=IEOR(SymHF,G1(HFDet(i))%Sym%S)
         enddo
         WRITE(6,"(A,I10)") "Symmetry of reference determinant from spin orbital symmetry info is: ",SymHF
-        if(SymHF.ne.INT(HFSym%Sym%S,sizeof_int)) then
+        if(SymHF.ne.HFSym%Sym%S) then
             !When is this allowed to happen?! Comment!!
             call warning_neci(this_routine,"Inconsistency in the symmetry arrays. Beware.")
         endif
@@ -4446,7 +4457,10 @@ MODULE FciMCParMod
         IF(.not.TReadPops) THEN
             WRITE(6,*) "Initial Diagonal Shift (Ecorr guess) is: ", DiagSft
         ENDIF
-        WRITE(6,*) "Damping parameter for Diag Shift set to: ", SftDamp
+!        WRITE(6,*) "Damping parameter for Diag Shift set to: ", SftDamp
+        if(tShiftonHFPop) then
+            write(6,*) "Shift will be varied in order to keep the population on the reference determinant fixed"
+        endif
         WRITE(6,*) "Maximum connectivity of HF determinant is: ",HFConn
         IF(TStartSinglePart) THEN
             TSinglePartPhase=.true.
@@ -4871,7 +4885,7 @@ MODULE FciMCParMod
         use SymExcit3 , only : CountExcitations3
         INTEGER :: iTotal
         integer :: nSing, nDoub, ncsf, excitcount, ierr, iExcit
-        integer :: nStore(6), iMaxExcit, nExcitMemLen, nJ(nel)
+        integer :: nStore(6), iMaxExcit, nExcitMemLen(1), nJ(nel)
         integer, allocatable :: EXCITGEN(:)
         character(*), parameter :: this_routine = 'CalcApproxpDoubles'
         logical :: TempUseBrill
@@ -4919,7 +4933,7 @@ MODULE FciMCParMod
             iMaxExcit=0
             nStore(1:6)=0
             CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
-            ALLOCATE(EXCITGEN(nExcitMemLen),stat=ierr)
+            ALLOCATE(EXCITGEN(nExcitMemLen(1)),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All(this_routine,"Problem allocating excitation generator")
             EXCITGEN(:)=0
             CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,.TRUE.,EXCITGEN,nJ,iMaxExcit,nStore,exFlag)
@@ -5420,13 +5434,13 @@ MODULE FciMCParMod
         INTEGER, DIMENSION(lenof_sign) :: InitialSign
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
         integer :: ReadBatch    !This parameter determines the length of the array to batch read in walkers from a popsfile
-        real(8) :: Gap
+        real(dp) :: Gap
         !Variables from popsfile header...
         logical :: tPop64Bit,tPopHPHF,tPopLz
         integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
-        integer(8) :: iPopAllTotWalkers
-        real(8) :: PopDiagSft
-        integer(8) , dimension(lenof_sign) :: PopSumNoatHF
+        integer(int64) :: iPopAllTotWalkers
+        real(dp) :: PopDiagSft
+        integer(int64) , dimension(lenof_sign) :: PopSumNoatHF
         HElement_t :: PopAllSumENum
 
         if(tReadPops.and..not.tPopsAlreadyRead) then
@@ -5552,6 +5566,12 @@ MODULE FciMCParMod
                 AllTotPartsOld=AllTotParts
                 call MPISumAll(NoatHF,AllNoatHF)
                 OldAllNoatHF=AllNoatHF
+                if(lenof_sign.eq.1) then
+                    OldAllHFCyc = real(AllNoatHF(1),dp)
+                else
+                    OldAllHFCyc = cmplx(real(AllNoatHF(1),dp),real(AllNoatHF(lenof_sign),dp))
+                endif
+
                 AllNoAbortedOld=0.D0
                 iter_data_fciqmc%tot_parts_old = AllTotParts
 
@@ -5641,6 +5661,11 @@ MODULE FciMCParMod
         !Initialise global variables for calculation on the root node
                         IF(iProcIndex.eq.root) THEN
                             OldAllNoatHF(1)=InitialPart
+                            if(lenof_sign.eq.1) then
+                                OldAllHFCyc = real(InitialPart,dp)
+                            else
+                                OldAllHFCyc = cmplx(real(InitialPart,dp),0.0_dp)
+                            endif
                             AllNoatHF(1)=InitialPart
                             AllTotWalkers = 1
                             AllTotWalkersOld = 1
@@ -5742,7 +5767,7 @@ MODULE FciMCParMod
         use sym_mod , only : Getsym, writesym
         use MomInv, only: IsAllowedMI 
         type(BasisFN) :: CASSym
-        integer :: i,j,ierr,nEval,NKRY1,NBLOCK,LSCR,LISCR,DetIndex,iNode,NoWalkers
+        integer :: i,j,ierr,nEval,NKRY1,NBLOCK,LSCR,LISCR,DetIndex,iNode,NoWalkers,nBlocks,nBlockStarts(2)
         integer :: CASSpinBasisSize,elec,nCASDet,ICMax,GC,LenHamil,iInit,nHPHFCAS
         integer , allocatable :: CASBrr(:),CASDet(:),CASFullDets(:,:),nRow(:),Lab(:),ISCR(:),INDEX(:)
         integer , pointer :: CASDetList(:,:) => null()
@@ -5750,7 +5775,9 @@ MODULE FciMCParMod
         logical :: tMC
         HElement_t :: HDiagTemp
         real(dp) , allocatable :: CK(:,:),W(:),CKN(:,:),Hamil(:),A(:,:),V(:),BM(:),T(:),WT(:),SCR(:),WH(:),Work2(:),V2(:,:),AM(:)
+        real(dp) , allocatable :: Work(:)
         integer(TagIntType) :: ATag=0,VTag=0,BMTag=0,TTag=0,WTTag=0,SCRTag=0,WHTag=0,Work2Tag=0,V2Tag=0,ISCRTag=0,IndexTag=0,AMTag=0
+        integer(TagIntType) :: WorkTag=0
         real(dp) :: CASRefEnergy,TotWeight,PartFac,amp,rat,r,GetHElement
         integer , dimension(lenof_sign) :: temp_sign
         character(len=*) , parameter :: this_routine='InitFCIMC_CAS'
@@ -5844,10 +5871,13 @@ MODULE FciMCParMod
         write(6,*) "First CAS determinant in list is: "
         call write_det(6,CASFullDets(:,1),.true.)
 
-        nEval=4
+        if(nCASDet.gt.1300) then
+            !Do lanczos
+            nEval=4
+        else
+            nEval = nCASDet
+        endif
         write(6,"(A,I4,A)") "Calculating lowest ",nEval," eigenstates of CAS Hamiltonian..."
-        Allocate(CkN(nCASDet,nEval), stat=ierr)
-        CkN=0.D0
         Allocate(Ck(nCASDet,nEval),stat=ierr)
         Ck=0.D0
         Allocate(W(nEval),stat=ierr)    !Eigenvalues
@@ -5885,60 +5915,93 @@ MODULE FciMCParMod
             call stop_all(this_routine,"CAS reference energy does not match reference energy of full space")
         endif
 
-        !Lanczos
-        NKRY1=NKRY+1
-        NBLOCK=MIN(NEVAL,NBLK)
-        LSCR=MAX(nCASDet*NEVAL,8*NBLOCK*NKRY)
-        LISCR=6*NBLOCK*NKRY
-        ALLOCATE(A(NEVAL,NEVAL),stat=ierr)
-        CALL LogMemAlloc('A',NEVAL**2,8,this_routine,ATag,ierr)
-        A=0.d0
-        ALLOCATE(V(nCASDet*NBLOCK*NKRY1),stat=ierr)
-        CALL LogMemAlloc('V',nCASDet*NBLOCK*NKRY1,8,this_routine,VTag,ierr)
-        V=0.d0
-        ALLOCATE(AM(NBLOCK*NBLOCK*NKRY1),stat=ierr)
-        CALL LogMemAlloc('AM',NBLOCK*NBLOCK*NKRY1,8,this_routine,AMTag,ierr)
-        AM=0.d0
-        ALLOCATE(BM(NBLOCK*NBLOCK*NKRY),stat=ierr)
-        CALL LogMemAlloc('BM',NBLOCK*NBLOCK*NKRY,8,this_routine,BMTag,ierr)
-        BM=0.d0
-        ALLOCATE(T(3*NBLOCK*NKRY*NBLOCK*NKRY),stat=ierr)
-        CALL LogMemAlloc('T',3*NBLOCK*NKRY*NBLOCK*NKRY,8,this_routine,TTag,ierr)
-        T=0.d0
-        ALLOCATE(WT(NBLOCK*NKRY),stat=ierr)
-        CALL LogMemAlloc('WT',NBLOCK*NKRY,8,this_routine,WTTag,ierr)
-        WT=0.d0
-        ALLOCATE(SCR(LScr),stat=ierr)
-        CALL LogMemAlloc('SCR',LScr,8,this_routine,SCRTag,ierr)
-        SCR=0.d0
-        ALLOCATE(ISCR(LIScr),stat=ierr)
-        CALL LogMemAlloc('IScr',LIScr,4,this_routine,IScrTag,ierr)
-        ISCR(1:LISCR)=0
-        ALLOCATE(INDEX(NEVAL),stat=ierr)
-        CALL LogMemAlloc('INDEX',NEVAL,4,this_routine,INDEXTag,ierr)
-        INDEX(1:NEVAL)=0
-        ALLOCATE(WH(nCASDet),stat=ierr)
-        CALL LogMemAlloc('WH',nCASDet,8,this_routine,WHTag,ierr)
-        WH=0.d0
-        ALLOCATE(WORK2(3*nCASDet),stat=ierr)
-        CALL LogMemAlloc('WORK2',3*nCASDet,8,this_routine,WORK2Tag,ierr)
-        WORK2=0.d0
-        ALLOCATE(V2(nCASDet,NEVAL),stat=ierr)
-        CALL LogMemAlloc('V2',nCASDet*NEVAL,8,this_routine,V2Tag,ierr)
-        V2=0.d0
-!C..Lanczos iterative diagonalising routine
-        CALL NECI_FRSBLKH(nCASDet,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT, &
-     &  SCR,ISCR,INDEX,NCYCLE,B2L,.false.,.false.,.false.,.true.)
-!Multiply all eigenvalues by -1.
-        CALL DSCAL(NEVAL,-1.D0,W,1)
-        if(CK(1,1).lt.0.D0) then
-            do i=1,nCASDet
-                CK(i,1)=-CK(i,1)
-            enddo
+        if(nCASDet.gt.1300) then
+            !Lanczos
+            NKRY1=NKRY+1
+            NBLOCK=MIN(NEVAL,NBLK)
+            LSCR=MAX(nCASDet*NEVAL,8*NBLOCK*NKRY)
+            LISCR=6*NBLOCK*NKRY
+            ALLOCATE(A(NEVAL,NEVAL),stat=ierr)
+            CALL LogMemAlloc('A',NEVAL**2,8,this_routine,ATag,ierr)
+            A=0.d0
+            ALLOCATE(V(nCASDet*NBLOCK*NKRY1),stat=ierr)
+            CALL LogMemAlloc('V',nCASDet*NBLOCK*NKRY1,8,this_routine,VTag,ierr)
+            V=0.d0
+            ALLOCATE(AM(NBLOCK*NBLOCK*NKRY1),stat=ierr)
+            CALL LogMemAlloc('AM',NBLOCK*NBLOCK*NKRY1,8,this_routine,AMTag,ierr)
+            AM=0.d0
+            ALLOCATE(BM(NBLOCK*NBLOCK*NKRY),stat=ierr)
+            CALL LogMemAlloc('BM',NBLOCK*NBLOCK*NKRY,8,this_routine,BMTag,ierr)
+            BM=0.d0
+            ALLOCATE(T(3*NBLOCK*NKRY*NBLOCK*NKRY),stat=ierr)
+            CALL LogMemAlloc('T',3*NBLOCK*NKRY*NBLOCK*NKRY,8,this_routine,TTag,ierr)
+            T=0.d0
+            ALLOCATE(WT(NBLOCK*NKRY),stat=ierr)
+            CALL LogMemAlloc('WT',NBLOCK*NKRY,8,this_routine,WTTag,ierr)
+            WT=0.d0
+            ALLOCATE(SCR(LScr),stat=ierr)
+            CALL LogMemAlloc('SCR',LScr,8,this_routine,SCRTag,ierr)
+            SCR=0.d0
+            ALLOCATE(ISCR(LIScr),stat=ierr)
+            CALL LogMemAlloc('IScr',LIScr,4,this_routine,IScrTag,ierr)
+            ISCR(1:LISCR)=0
+            ALLOCATE(INDEX(NEVAL),stat=ierr)
+            CALL LogMemAlloc('INDEX',NEVAL,4,this_routine,INDEXTag,ierr)
+            INDEX(1:NEVAL)=0
+            ALLOCATE(WH(nCASDet),stat=ierr)
+            CALL LogMemAlloc('WH',nCASDet,8,this_routine,WHTag,ierr)
+            WH=0.d0
+            ALLOCATE(WORK2(3*nCASDet),stat=ierr)
+            CALL LogMemAlloc('WORK2',3*nCASDet,8,this_routine,WORK2Tag,ierr)
+            WORK2=0.d0
+            ALLOCATE(V2(nCASDet,NEVAL),stat=ierr)
+            CALL LogMemAlloc('V2',nCASDet*NEVAL,8,this_routine,V2Tag,ierr)
+            V2=0.d0
+            Allocate(CkN(nCASDet,nEval), stat=ierr)
+            CkN=0.D0
+    !C..Lanczos iterative diagonalising routine
+            CALL NECI_FRSBLKH(nCASDet,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT, &
+         &  SCR,ISCR,INDEX,NCYCLE,B2L,.false.,.false.,.false.,.true.)
+    !Multiply all eigenvalues by -1.
+            CALL DSCAL(NEVAL,-1.D0,W,1)
+            if(CK(1,1).lt.0.D0) then
+                do i=1,nCASDet
+                    CK(i,1)=-CK(i,1)
+                enddo
+            endif
+
+            deallocate(CKN,A,V,BM,T,WT,SCR,WH,V2,iscr,index,AM)
+            call logmemdealloc(this_routine,ATag)
+            call logmemdealloc(this_routine,VTag)
+            call logmemdealloc(this_routine,BMTag)
+            call logmemdealloc(this_routine,TTag)
+            call logmemdealloc(this_routine,WTTag)
+            call logmemdealloc(this_routine,SCRTag)
+            call logmemdealloc(this_routine,WHTag)
+            call logmemdealloc(this_routine,V2Tag)
+            call logmemdealloc(this_routine,iscrTag)
+            call logmemdealloc(this_routine,indexTag)
+            call logmemdealloc(this_routine,AMTag)
+        else
+            !complete diagonalisation
+            allocate(Work(4*nCASDet),stat=ierr)
+            call LogMemAlloc('Work',4*nCASDet,8,this_routine,WorkTag,ierr)
+            allocate(Work2(3*nCASDet),stat=ierr)
+            call logMemAlloc('Work2',3*nCASDet,8,this_routine,Work2Tag,ierr)
+            nBlockStarts(1) = 1
+            nBlockStarts(2) = nCASDet+1
+            nBlocks = 1
+            call HDIAG_neci(nCASDet,Hamil,Lab,nRow,CK,W,Work2,Work,nBlockStarts,nBlocks)
+            deallocate(Work)
+            call LogMemDealloc(this_routine,WorkTag)
         endif
+        !Deallocate all the lanczos arrays now.
+        deallocate(nrow,lab,work2)
+        call logmemdealloc(this_routine,Work2Tag)
+
 
         write(6,*) "Diagonalisation complete. Lowest energy CAS eigenvalues/corr E are: "
-        do i=1,NEval
+        do i=1,min(NEval,10)
             write(6,*) i,W(i),W(i)-CASRefEnergy
         enddo
 
@@ -5988,7 +6051,7 @@ MODULE FciMCParMod
             !InitialPart = 1 by default
             write(6,"(A)") "All walkers specified in input will be distributed according to the CAS wavefunction."
             write(6,"(A)") "Shift will be allowed to vary from the beginning"
-            write(6,"(A)") "Setting initial shift to equal CAS correlation energy",W(1)-CASRefEnergy
+            write(6,"(A,F20.9)") "Setting initial shift to equal CAS correlation energy",W(1)-CASRefEnergy
             DiagSft=W(1)-CASRefEnergy
             !PartFac is the number of walkers that should reside on the HF determinant
             PartFac=(real(InitWalkers,dp)* real(nNodes,dp))/TotWeight
@@ -6068,25 +6131,13 @@ MODULE FciMCParMod
         call mpisumall(NoatHF,AllNoatHF)
         call mpisumall(TotWalkers,AllTotWalkers)
         OldAllNoatHF=AllNoatHF
+        OldAllHFCyc = real(AllNoatHF(1),dp)
         AllTotWalkersOld=AllTotWalkers
         AllTotPartsOld=AllTotParts
         iter_data_fciqmc%tot_parts_old = AllTotPartsOld
         AllNoAbortedOld=0.D0
 
-        !Deallocate all the lanczos arrays now.
-        deallocate(CK,W,CKN,Hamil,A,V,BM,T,WT,SCR,WH,Work2,V2,CASBrr,CASDet,CASFullDets,nRow,Lab,iscr,index,AM)
-        call logmemdealloc(this_routine,ATag)
-        call logmemdealloc(this_routine,VTag)
-        call logmemdealloc(this_routine,BMTag)
-        call logmemdealloc(this_routine,TTag)
-        call logmemdealloc(this_routine,WTTag)
-        call logmemdealloc(this_routine,SCRTag)
-        call logmemdealloc(this_routine,WHTag)
-        call logmemdealloc(this_routine,Work2Tag)
-        call logmemdealloc(this_routine,V2Tag)
-        call logmemdealloc(this_routine,iscrTag)
-        call logmemdealloc(this_routine,indexTag)
-        call logmemdealloc(this_routine,AMTag)
+        deallocate(CK,W,Hamil,CASBrr,CASDet,CASFullDets)
 
     end subroutine InitFCIMC_CAS 
 
@@ -6325,6 +6376,7 @@ MODULE FciMCParMod
         call mpisumall(NoatHF,AllNoatHF)
         call mpisumall(TotWalkers,AllTotWalkers)
         OldAllNoatHF=AllNoatHF
+        OldAllHFCyc = real(AllNoatHF(1),dp)
         AllTotWalkersOld=AllTotWalkers
         AllTotPartsOld=AllTotParts
         iter_data_fciqmc%tot_parts_old = AllTotPartsOld
@@ -6533,7 +6585,7 @@ MODULE FciMCParMod
         INTEGER , INTENT(IN) :: HFDet(NEl),exflag
         INTEGER , INTENT(OUT) :: nSing,nDoub
         LOGICAL :: TempUseBrill
-        INTEGER :: nExcitMemLen,nJ(NEl),iMaxExcit,nStore(6),ierr,excitcount,iExcit
+        INTEGER :: nExcitMemLen(1),nJ(NEl),iMaxExcit,nStore(6),ierr,excitcount,iExcit
         INTEGER , ALLOCATABLE :: EXCITGEN(:)
         character(len=*) , parameter :: this_routine='CountExcitsOld'
 
@@ -6552,7 +6604,7 @@ MODULE FciMCParMod
         nStore(1:6)=0
         nJ(:)=0
         CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
-        ALLOCATE(EXCITGEN(nExcitMemLen),stat=ierr)
+        ALLOCATE(EXCITGEN(nExcitMemLen(1)),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,"Problem allocating excitation generator")
         EXCITGEN(:)=0
         nJ(:)=0

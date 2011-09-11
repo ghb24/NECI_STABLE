@@ -118,7 +118,7 @@ CONTAINS
             ENDIF 
             IF(TCSFOLD) WRITE(6,*) "Determining CSFs."
 !C.. if we're doing a truncated CI expansion
-            CALL GENEXCIT(FDET,iExcitLevel,NBASIS,NEL,0,0,NDET,1,G1,.TRUE.,NBASISMAX,.TRUE.)
+            CALL GENEXCIT(FDET,iExcitLevel,NBASIS,NEL,0,(/0.0_dp/),NDET,1,G1,.TRUE.,NBASISMAX,.TRUE.)
             WRITE(6,*) "NDET out of GENEXCIT ",NDET
 !C.. We need to add in the FDET
             NDET=NDET+1
@@ -205,7 +205,7 @@ CONTAINS
             IFDET=1
          ELSEIF(TBLOCK) THEN 
             CALL GNDTS_BLK(NEL,nBasis,BRR,NBASISMAX,NMRKS, .FALSE.,NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,LMS2,TPARITY, &
-     &           SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM,TCSFOLD)
+     &           SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM)
          ELSEIF(TCSFOLD) THEN
             NDET=0  !This will be reset by GNCSFS
             CALL GNCSFS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.FALSE.,G1,TSPN,LMS2,TPARITY, &
@@ -397,8 +397,8 @@ CONTAINS
              DO I=1,NDet
                 INDZ=INDZ+NROW(I)
                 DO WHILE (IND.LT.INDZ)
-                   ExpandedHamil(I,LAB(IND))=REAL(HAMIL(IND),8)
-                   ExpandedHamil(LAB(IND),I)=REAL(HAMIL(IND),8)
+                   ExpandedHamil(I,LAB(IND))=REAL(HAMIL(IND),dp)
+                   ExpandedHamil(LAB(IND),I)=REAL(HAMIL(IND),dp)
                    IND=IND+1
                 ENDDO
              ENDDO
@@ -595,7 +595,7 @@ CONTAINS
                 CALL GETSYM(NMRKS(:,i),NEL,G1,NBASISMAX,ISYM)
                 IF(ISym%Sym%S.eq.IHFSYM%Sym%S) THEN
                     Det=Det+1
-                    IF(tEnergy) norm=norm+(REAL(CK(i,1),8))**2
+                    IF(tEnergy) norm=norm+(REAL(CK(i,1),dp))**2
                 ENDIF
             enddo
             WRITE(6,"(I25,A,I4,A)") Det," determinants of symmetry ",IHFSym%Sym%S," found."
@@ -629,7 +629,7 @@ CONTAINS
                     Temp(Det)=ExcitLevel    !Temp will now temporarily hold the excitation level of the determinant.
                     CALL EncodeBitDet(NMRKS(:,i),FCIDets(0:NIfTot,Det))
                     IF(tEnergy) THEN
-                        FCIGS(Det)=REAL(CK(i,1),8)/norm
+                        FCIGS(Det)=REAL(CK(i,1),dp)/norm
                     ENDIF
                 ENDIF
             enddo

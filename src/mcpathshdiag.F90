@@ -512,11 +512,12 @@ end module
 
       Subroutine WriteGraphEnergies(IPATH, I_V, nEl,nBasis,Arr,Weight)
          use constants, only: dp
-         Integer I_V, nEl, nBasis, IPATH(nEl,0:I_V), EX(2,2), T
+         Integer I_V, nEl, nBasis, IPATH(nEl,0:I_V), EX(2,2)
          real(dp) Arr(nBasis, 2),Energyfromnew
          real(dp) Energyfromold
          real(dp) totWeight,avWeight
          real(dp) Weight
+         LOGICAL T
          INTEGER g
          DATA g/0/
          DATA totWeight/0.D0/
@@ -557,13 +558,13 @@ end module
          use Integrals, only : GetUMatEl
          use SystemData, only: BasisFN
          IMPLICIT NONE
-         Integer I_V,nEl,nBasis,IPATH(nEl,0:I_V),EX(2,2),T
+         Integer I_V,nEl,nBasis,IPATH(nEl,0:I_V),EX(2,2)
          real(dp) ARR(nBasis,2),EnergyTo,EnergyFrom
          INTEGER I,J,K,L,ISS,IDI,IDJ,IDL,IDK,nBasisMax(5,*)
          INTEGER EXCITLEV
          real(dp) Weight,DLWDB2
          HElement_t ME
-         LOGICAL AREDETSEXCITS,CONNECT23
+         LOGICAL AREDETSEXCITS,CONNECT23, T
          integer c
          integer(int64) SINGLE,DOUBLE,histogram(-20:3)
          SAVE c,SINGLE,DOUBLE,histogram

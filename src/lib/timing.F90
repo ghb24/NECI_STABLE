@@ -39,6 +39,7 @@ module timing
 != See the individual routines for more information.
 ! ========================================================================
 
+use constants, only: sp 
 implicit none
 save
 
@@ -54,18 +55,18 @@ end type
 type timer_object
     character(25) :: timer_name
     integer :: ncalls=0
-    real(4) :: time_cpu=0.0     ! For timing of the current
-    real(4) :: time_system=0.0  ! call to the procedure.
-    real(4) :: sum_time_cpu=0.0    ! Sum of time spent in the 
-    real(4) :: sum_time_system=0.0 ! procedure.
+    real(sp) :: time_cpu=0.0     ! For timing of the current
+    real(sp) :: time_system=0.0  ! call to the procedure.
+    real(sp) :: sum_time_cpu=0.0    ! Sum of time spent in the 
+    real(sp) :: sum_time_system=0.0 ! procedure.
     logical :: timing_on=.false.   ! true whilst the timer is active.
 end type timer_object
 
 type(timer_object),allocatable,target :: timers(:)
 
 ! For total calculation time.
-real(4) :: global_time_cpu=0.d0
-real(4) :: global_time_system=0.d0
+real(sp) :: global_time_cpu=0.d0
+real(sp) :: global_time_system=0.d0
 ! If global_timing_on is true, then handle the total time differently in the timing output,
 ! as then have requested timing output without halting the global timer.
 logical :: global_timing_on=.false. 
@@ -107,7 +108,7 @@ contains
       != Stop global timer for timing the total calculation time.
 
       implicit none
-      real(4) :: t(2)
+      real(sp) :: t(2)
 
       if (global_timing_on) then
           call cpu_time(t(1))
@@ -143,7 +144,7 @@ contains
       implicit none
       type(timer) :: proc_timer
       integer, optional, intent(in) :: obj_level
-      real(4) :: t(2)
+      real(sp) :: t(2)
       integer :: timer_level
 
       if (.not.global_timing_on) then
@@ -205,8 +206,8 @@ contains
       implicit none
       type(timer), intent(inout) :: proc_timer
       integer :: i
-      real(4) :: t(2)
-      real(4) :: time_cpu,time_system
+      real(sp) :: t(2)
+      real(sp) :: time_cpu,time_system
 
       if (.not.proc_timer%time) then
           ! Not timing this object: its level is below that of the
@@ -237,7 +238,7 @@ contains
 
 
 
-   real(4) function get_total_time(proc_timer,t_elapsed)
+   real(sp) function get_total_time(proc_timer,t_elapsed)
       != Return the (current) total time for a given timed procedure.
       != By default this does not include the elapsed time of the current
       != run of proc_timer's routine, so if proc_timer is active then
@@ -253,7 +254,7 @@ contains
       implicit none
       type(timer) :: proc_timer
       logical,optional :: t_elapsed
-      real(4) :: t(2)
+      real(sp) :: t(2)
 
       if (.not.associated(proc_timer%store)) then
           call warning_neci('get_total_time.','proc_timer not intialised: '//adjustl(proc_timer%timer_name))
@@ -292,8 +293,8 @@ contains
       integer :: io=6
       integer :: nobjs
       integer :: i,it,id(1)
-      real(4) :: t(2)
-      real(4) :: sum_times(ntimer),total_cpu,total_system
+      real(sp) :: t(2)
+      real(sp) :: sum_times(ntimer),total_cpu,total_system
       integer :: date_values(8)
 
       ! Add on a small perturbation for the cases where the total time is 

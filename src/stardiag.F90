@@ -70,7 +70,7 @@
 
          INTEGER exFlag
          INTEGER, allocatable :: nExcit(:)
-         INTEGER nExcitMemLen,nStore(6)
+         INTEGER nExcitMemLen(1),nStore(6)
          INTEGER nJ(nEl),iExcit,iMaxExcit,excitcount,Prodnum
          INTEGER iErr
          INTEGER nRoots,i
@@ -112,7 +112,7 @@
 
          nStore(1)=0
          CALL GenSymExcitIt2(nI,nEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
-         Allocate(nExcit(nExcitMemLen))
+         Allocate(nExcit(nExcitMemLen(1)))
 !Second call calculates size of arrays needed to store all symmetry allowed excitations - further calls will generate excitation on-the-fly(shown by the false in arg(6)
          nExcit(1)=0
          CALL GenSymExcitIt2(nI,nEl,G1,nBasis,.TRUE.,nExcit,nJ,iMaxExcit,nStore,exFlag)
@@ -138,9 +138,9 @@
             Deallocate(nExcit)
             nStore(1)=0
             CALL GenSymExcitIt2(nI,nEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
-            Allocate(nExcit(nExcitMemLen))
+            Allocate(nExcit(nExcitMemLen(1)))
             nExcit(1)=0
-            CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,nStore,exFlag)
+            CALL GenSymExcitIt2(nI,nEl,G1,nBasis,.TRUE.,nExcit,nJ,iMaxExcit,nStore,exFlag)
 
             !set number of excitations to exact number there are
             iMaxExcit=excitcount
@@ -413,7 +413,7 @@
             real(dp) :: Beta,ALat(3),ECore,RhoEps
             INTEGER :: nEl
             INTEGER :: i,j,iExcit,nI(nEl),i_P,nBasis,nMsh
-            INTEGER :: DoublePath(nEl),nStore2(6),exFlag2,iMaxExcit2,nJ(nEl),nExcitMemLen2
+            INTEGER :: DoublePath(nEl),nStore2(6),exFlag2,iMaxExcit2,nJ(nEl),nExcitMemLen2(1)
             INTEGER :: QuadExcits,iExcit2,TotExcits,NextVertex,NoExcitsInStar(iExcit)
             type(timer), save :: proc_timer
             INTEGER :: nMax,nTay(2),iErr,ICMPDETS,iMaxExcit,temp,IGETEXCITLEVEL
@@ -453,8 +453,8 @@
                 nExcitMemLen2=0
                 nStore2(1:6)=0
                 CALL GenSymExcitIt2(DoublePath,nEl,g1,nBasis,.TRUE.,nExcitMemLen2,nJ,iMaxExcit2,nStore2,exFlag2)
-                ALLOCATE(nExcit2(nExcitMemLen2))
-                nExcit2(1:nExcitMemLen2)=0
+                ALLOCATE(nExcit2(nExcitMemLen2(1)))
+                nExcit2(1:nExcitMemLen2(1))=0
                 CALL GenSymExcitIt2(DoublePath,nEl,G1,nBasis,.TRUE.,nExcit2,nJ,iMaxExcit2,nStore2,exFlag2)
 
                 lpcount: do while(.true.)
@@ -541,8 +541,8 @@
                 nExcitMemLen2=0
                 nStore2(1:6)=0
                 CALL GenSymExcitIt2(DoublePath,nEl,G1,nBasis,.TRUE.,nExcitMemLen2,nJ,iMaxExcit2,nStore2,exFlag2)
-                ALLOCATE(nExcit2(nExcitMemLen2))
-                nExcit2(1:nExcitMemLen2)=0
+                ALLOCATE(nExcit2(nExcitMemLen2(1)))
+                nExcit2(1:nExcitMemLen2(1))=0
                 CALL GenSymExcitIt2(DoublePath,nEl,G1,nBasis,.TRUE.,nExcit2,nJ,iMaxExcit2,nStore2,exFlag2)
                 CALL CalcRho2(DoublePath,DoublePath,Beta,i_P,nEl,G1,nBasis,nMsh,fck,nMax,ALat,UMat,rh,nTay,0,ECore)
                 
@@ -723,7 +723,7 @@
             do while(i.lt.iExcit)
                 i=i+1
                 degen=.true.
-                do while((REAL(ExcitInfo(i,0),8).eq.REAL(ExcitInfo(i+1,0),8)).and.(i.lt.iExcit))
+                do while((REAL(ExcitInfo(i,0),dp).eq.REAL(ExcitInfo(i+1,0),dp)).and.(i.lt.iExcit))
                     i=i+1
                 enddo
                 NoDegens=NoDegens+1
@@ -744,7 +744,7 @@
             j=0
             do while(i.lt.iExcit)
                 i=i+1
-                do while((REAL(ExcitInfo(i,0),8).eq.REAL(ExcitInfo(i+1,0),8)).and.(i.lt.iExcit))
+                do while((REAL(ExcitInfo(i,0),dp).eq.REAL(ExcitInfo(i+1,0),dp)).and.(i.lt.iExcit))
                     i=i+1
                 enddo
                 j=j+1
@@ -768,7 +768,7 @@
             DiagRhos=0.d0
 
             calcs=100
-            minimum=1.D0-((1.D0-REAL(ExcitInfo(iExcit,0),8))*2)
+            minimum=1.D0-((1.D0-REAL(ExcitInfo(iExcit,0),dp))*2)
             WRITE(6,*) "Minimum root value to search for is: ", minimum
             CALL FLUSH(6)
             gap=(1.D0-minimum)/(calcs-1)
@@ -2036,16 +2036,19 @@
 FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
                      RHOEPS,LSTE,ICE,L,LT,NWHTAY,TSYM,ECORE,ILMAX,DBETA,DLWDB)
          use constants, only: dp      
+         use SystemData, only: BasisFN
          use global_utilities
          use legacy_data, only: irat
          use HElem
          use util_mod, only: NECI_ICOPY
         use MemoryManager, only: TagIntType
          IMPLICIT NONE
-         INTEGER NEL,I_P,NBASISMAX(*),G1(*),NBASIS,NMSH,NMAX
-         INTEGER NTAY,NWHTAY,LT
-         real(dp) FCK(*), ALAT(*),UMAT(*),ECORE
+         INTEGER NEL,I_P,NBASISMAX(*),NBASIS,NMSH,NMAX
+         INTEGER NTAY(2),NWHTAY,LT
+         real(dp) ALAT(*),UMAT(*),ECORE
+         complex(dp) FCK(*)
          INTEGER NI(NEL),ILMAX
+         type(BasisFN) G1(*)
 !.. These are old and no longer used
 !.. LSTE is a list of excitations (which we will generate)
 !.. ICE is the IC of each excitation (i.e. how much it differs from us (INODE)
@@ -2130,7 +2133,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          real(dp) FMCPR3Star2
          TYPE(BasisFN) G1(*)
          INTEGER NEL,I_P,NBASIS,NMSH,NMAX
-         INTEGER NTAY,NWHTAY,LT
+         INTEGER NTAY(2),NWHTAY,LT
          real(dp) ALAT(*),ECORE
          HElement_t UMat(*)
          complex(dp) FCK(*)

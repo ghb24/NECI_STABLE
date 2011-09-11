@@ -1,7 +1,7 @@
 MODULE FciMCData
       use, intrinsic :: iso_c_binding
       use SystemData, only: BasisFN
-      use constants, only: dp, int64, n_int, lenof_sign
+      use constants, only: dp, int64, n_int, lenof_sign, sp
       use global_utilities
       use SymExcitDataMod, only: excit_gen_store_type
       use MemoryManager, only: TagIntType
@@ -96,6 +96,7 @@ MODULE FciMCData
       INTEGER :: AllSpawnFromSing
       INTEGER, DIMENSION(lenof_sign) :: HFCyc            !This is the number of HF*sign particles on a given processor over the course of the update cycle
       HElement_t :: AllHFCyc          !This is the sum of HF*sign particles over all processors over the course of the update cycle
+      HElement_t :: OldAllHFCyc       !This is the old *average* (not sum) of HF*sign over all procs over previous update cycle
       HElement_t :: ENumCyc           !This is the sum of doubles*sign*Hij on a given processor over the course of the update cycle
       HElement_t :: AllENumCyc        !This is the sum of double*sign*Hij over all processors over the course of the update cycle
 
@@ -158,7 +159,7 @@ MODULE FciMCData
       ! Bit representation of the HF determinant
       integer(kind=n_int), allocatable :: iLutHF(:)
     
-      REAL(4) :: IterTime
+      REAL(KIND=sp) :: IterTime
     
       REAL(KIND=dp) , ALLOCATABLE :: AttemptHist(:),AllAttemptHist(:),SpawnHist(:),AllSpawnHist(:)
       REAL(KIND=dp) , ALLOCATABLE :: AvAnnihil(:,:),AllAvAnnihil(:,:),InstAnnihil(:,:),AllInstAnnihil(:,:)

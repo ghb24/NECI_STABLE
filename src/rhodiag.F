@@ -10,9 +10,8 @@
          use MemoryManager, only: TagIntType
          IMPLICIT NONE
          real(dp) BETA,FCK(*),ALAT(3),UMAT(*),ECORE
-         INTEGER I_P,BRR(NBASIS),NTAY,NMSH,NMAX
-
          INTEGER NEL,NBASIS,nBasisMax(5,*)
+         INTEGER I_P,BRR(NBASIS),NTAY,NMSH,NMAX
          type(BasisFn) G1(*)
          INTEGER NI(NEL),K
          LOGICAL LACC
@@ -151,13 +150,14 @@ C         ENDDO
          use legacy_data, only: irat
          use util_mod, only: NECI_ICOPY
          use MemoryManager, only: TagIntType
+         use SystemData, only: BasisFN
          use constants, only: dp
          IMPLICIT NONE
          real(dp) BETA,FCK(*),ALAT(3),UMAT(*),ECORE
+         INTEGER NEL,NBASIS,nBasisMax(5,*)
          INTEGER I_P,BRR(NBASIS),NTAY,NMSH,NMAX
-
          INTEGER K,ID,IDI,IDJ
-         INTEGER NEL,NBASIS,nBasisMax(5,*),G1(*)
+         TYPE(BasisFN) G1(*)
          INTEGER NI(NEL)
          LOGICAL LACC
          INTEGER NLIST,NLMAX
@@ -166,7 +166,8 @@ C         ENDDO
          INTEGER ILFREE,I,J
          real(dp), ALLOCATABLE :: RIJMAT(:),WLIST(:),RJJLIST(:)
          real(dp), ALLOCATABLE :: VARRAY(:)
-         INTEGER, ALLOCATABLE :: LSTE(:,:),LSTP(:),WORK(:)
+         INTEGER, ALLOCATABLE :: LSTE(:,:),LSTP(:)
+         real(dp), allocatable :: WORK(:)
          INTEGER(TagIntType), SAVE :: tagRIJMAT,tagWLIST,tagRJJLIST
          INTEGER(TagIntType), SAVE :: tagVARRAY
          INTEGER(TagIntType), SAVE :: tagLSTE,tagLSTP,tagWORK
@@ -383,7 +384,7 @@ C         CLOSE(36)
       RECURSIVE SUBROUTINE GETNEXTPERM(LSTP,NL,IPLEN,LACC,IPOS,IMAX)
          IMPLICIT NONE
          LOGICAL LACC
-         INTEGER LSTP(IPLEN),NL,IPOS,IMAX,IPLEN
+         INTEGER NL,IPOS,IMAX,IPLEN,LSTP(IPLEN)
          IF(IPOS.LT.1.OR.IPLEN.LT.1) THEN
             LACC=.FALSE.
             RETURN

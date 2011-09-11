@@ -4,7 +4,7 @@ C..   =Sum_a(|c_ia|^2 <u_a|(p^2)/2|u_a>)
         use constants, only: dp
         USE OneEInts, only : GetTMATEl,TMAT2D,TMAT2D2,TSTARSTORE
          IMPLICIT NONE
-         INTEGER NBASIS
+         INTEGER :: NBASIS
          real(dp) HFBASIS(NBASIS,NBASIS)
          INTEGER I,J,A,B,NORBUSED
          real(dp) SUM1
@@ -277,8 +277,9 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          use SystemData, only: BasisFN
          use MemoryManager, only: TagIntType
          IMPLICIT NONE
-         TYPE(BasisFN) G1(nBasis)
+         INTEGER NSPINS,NSBASIS
          INTEGER NBASIS,nBasisMax(5,*)
+         TYPE(BasisFN) G1(nBasis)
          real(dp) UMAT(*)
          real(dp) ECORE
          INTEGER BRR(NBASIS)
@@ -295,7 +296,6 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          INTEGER NHFIT,NEL
          real(dp) HFMIX,EDELTA,CDELTA
          INTEGER MS,IHFMETHOD
-         INTEGER NSPINS,NSBASIS
          LOGICAL TRHF,TREADHF
          real(dp) FRAND
          INTEGER HFDET(NEL)
@@ -429,13 +429,15 @@ C         EDELTA=1.D-8
       ENDIF
       DO WHILE(BR)
          IF(IRHFB.GT.0) THEN
-            CALL DCOPY(NSBASIS*NSBASIS*HElement_t_size,FMAT(1,1,IRHFB),
-     &         1,FMAT(1,1,3-IRHFB),1)
-            CALL DCOPY(NSBASIS*NSBASIS*HElement_t_size,DMAT(1,1,IRHFB),
-     &         1,DMAT(1,1,3-IRHFB),1)
+            CALL DCOPY(NSBASIS*NSBASIS*HElement_t_size,
+     &           FMAT(1,1,IRHFB),1,FMAT(1,1,3-IRHFB),1)
+            CALL DCOPY(NSBASIS*NSBASIS*HElement_t_size,
+     &           DMAT(1,1,IRHFB),1,DMAT(1,1,3-IRHFB),1)
          ENDIF 
-       CALL DCOPY(NSBASIS*NSBASIS*NSPINS*HElement_t_size,DMAT,1,ODMAT,1)
-       CALL DCOPY(NSBASIS*NSBASIS*NSPINS*HElement_t_size,FMAT,1,OFMAT,1)
+       CALL DCOPY(NSBASIS*NSBASIS*NSPINS*HElement_t_size,
+     &          DMAT,1,ODMAT,1)
+       CALL DCOPY(NSBASIS*NSBASIS*NSPINS*HElement_t_size,
+     &          FMAT,1,OFMAT,1)
 C.. Construct the Density Matrix
          CALL GENDMAT(NSPINS,NSBASIS,NELS,FMAT,DMAT,.FALSE.)
 C.. See how much our density matrix has changed from last time
@@ -1225,10 +1227,10 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
      &         ECORE, NBASIS,NBASISMAX,NELS,NEL,ECUR)            
          use constants, only: dp
          IMPLICIT NONE
+         INTEGER NSBASIS,NSPINS,NBASIS,NEL
          real(dp) CMAT(NSBASIS,NSBASIS,NSPINS)
          real(dp) DEDCIJ(NSBASIS,NSBASIS,NSPINS)
-         INTEGER NSBASIS,NSPINS,NBASIS
-         INTEGER NDET1(0:NEL+1),NDET2(NEL),NELS(NSPINS),NEL
+         INTEGER NDET1(0:NEL+1),NDET2(NEL),NELS(NSPINS)
          real(dp) ECORE
          INTEGER NBASISMAX(*)
 
@@ -1294,10 +1296,10 @@ C.. TOT now contains dE/dcij, so we store this
          use OneEInts, only: GetTMatEl
          use constants, only: dp
          IMPLICIT NONE
+         INTEGER NSBASIS,NSPINS,NEL
          real(dp) CMAT(NSBASIS,NSBASIS,NSPINS)
          real(dp) DEDCIJ(NSBASIS,NSBASIS,NSPINS)
-         INTEGER NSBASIS,NSPINS
-         INTEGER NDET1(0:NEL+1),NELS(NSPINS),NEL
+         INTEGER NDET1(0:NEL+1),NELS(NSPINS)
          real(dp) UMAT(*)
          INTEGER I,J,K,A,B,C,F,JSPN,KSPN,JJ
          INTEGER IDA,IDB,IDC,IDF
@@ -1471,8 +1473,8 @@ C               G1(3,BRR(I))=J
       use HElem, only: HElement_t_size
       IMPLICIT NONE
       CHARACTER(*) CHAR
-      HElement_t A(M,N)
       Integer I,M,N,J
+      HElement_t A(M,N)
       WRITE(6,*) CHAR
       DO I=1,M
          IF(HElement_t_size.EQ.1) THEN

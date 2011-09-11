@@ -3,13 +3,14 @@
 !      IMPLICIT real(dp) (A-H,O-Z)
       use constants, only: dp
       IMPLICIT NONE
+      INTEGER :: NEL,NMSH,NMAX,NEVAL,NDET,NHG
       real(dp) :: EVEC(NDET,NEVAL),PSIR(-NMSH:NMSH)
       real(dp) :: RHO(NMSH,NMSH,NMSH),XCHOLE(NMSH,NMSH,NMSH)
       real(dp) :: SITAB(NMSH,NMAX),ALAT(3),RS,OMEGA,SPAC
-      integer :: NMRKS(NEL,*),NEL,NMSH,NMAX,NEVAL,NDET,NHG
+      integer :: NMRKS(NEL,*)
       INTEGER G1(5,NHG),LEN
       CHARACTER(50) :: FILENM
-      CHARACTER(20) :: CHART
+      CHARACTER(50) :: CHART
       integer :: NC,II,IY,IZ,IX
 C..
       WRITE(6,*) 
@@ -95,8 +96,8 @@ C ==---------------------------------------------------------------------==
 !      IMPLICIT real(dp)(A-H,O-Z)
       use constants, only: dp
       IMPLICIT NONE
-      real(dp) :: FUNC(IBEG:IEND),SPAC,RS,RS3
       integer :: IBEG,IEND,IX,IY,IZ,NC,I
+      real(dp) :: FUNC(IBEG:IEND),SPAC,RS,RS3
       CHARACTER FILENM*50
 C..
       RS3=RS*RS*RS
@@ -119,9 +120,9 @@ C ==---------------------------------------------------------------------==
 !      IMPLICIT real(dp) (A-H,O-Z)
       use constants, only: dp
       IMPLICIT NONE
+      integer :: NMESHX,I,J,K,IX,IY,IZ
       real(dp) :: RHO(NMESHX,NMESHX,NMESHX)
       real(dp) :: DLINE(NMESHX),ALAT(3)
-      integer :: NMESHX,I,J,K,IX,IY,IZ
       real(dp) :: spac,SUM
 C..
       DLINE=0.d0
@@ -134,7 +135,7 @@ C..
                   SUM=SUM+RHO(IX,IY,IZ)
                ENDDO
             ENDDO
-            DLINE(IZ)=SUM/DFLOAT(NMESHX*NMESHX)
+            DLINE(IZ)=SUM/real(NMESHX*NMESHX,dp)
          ENDDO
       ELSEIF(I.EQ.1.AND.J.EQ.0.AND.K.EQ.0) THEN
          SPAC=ALAT(1)/NMESHX
@@ -145,7 +146,7 @@ C..
                   SUM=SUM+RHO(IX,IY,IZ)
                ENDDO
             ENDDO
-            DLINE(IX)=SUM/DFLOAT(NMESHX*NMESHX)
+            DLINE(IX)=SUM/real(NMESHX*NMESHX,dp)
          ENDDO
       ELSEIF(I.EQ.0.AND.J.EQ.1.AND.K.EQ.0) THEN
          SPAC=ALAT(1)/NMESHX
@@ -156,7 +157,7 @@ C..
                   SUM=SUM+RHO(IX,IY,IZ)
                ENDDO
             ENDDO
-            DLINE(IY)=SUM/DFLOAT(NMESHX*NMESHX)
+            DLINE(IY)=SUM/real(NMESHX*NMESHX,dp)
          ENDDO
       ELSE
          WRITE(6,*) ' AVERAGING DIRECTION NOT PROGRAMMED!!'

@@ -28,7 +28,7 @@ MODULE PopsfileMod
     SUBROUTINE ReadFromPopsfilev3(EndPopsList,ReadBatch,CurrWalkers64,CurrParts,CurrHF,Dets,DetsLen)
         use util_mod , only : get_unique_filename
         use MemoryManager, only: TagIntType
-        integer(8) , intent(in) :: EndPopsList  !Number of entries in the POPSFILE.
+        integer(int64) , intent(in) :: EndPopsList  !Number of entries in the POPSFILE.
         integer , intent(in) :: ReadBatch       !Size of the batch of determinants to read in in one go.
         integer(int64) , intent(out) :: CurrWalkers64    !Number of determinants which end up on a given processor.
         integer(int64) , dimension(lenof_sign) , intent(out) :: CurrParts
@@ -36,12 +36,12 @@ MODULE PopsfileMod
         integer :: CurrWalkers
         integer :: iunit,i,j,ierr,PopsInitialSlots(0:nNodes-1)
         INTEGER(TagIntType) :: BatchReadTag=0
-        real(8) :: BatchSize
+        real(dp) :: BatchSize
         integer :: PopsSendList(0:nNodes-1),proc,sendcounts(nNodes),disps(nNodes)
         integer :: MaxSendIndex,recvcount,err
         integer(n_int) , allocatable :: BatchRead(:,:)
         integer(n_int) :: WalkerTemp(0:NIfTot)
-        integer(8) :: Det,AllCurrWalkers,TempCurrWalkers
+        integer(int64) :: Det,AllCurrWalkers,TempCurrWalkers
         logical :: FormPops,BinPops,tReadAllPops,tStoreDet
         integer , dimension(lenof_sign) :: SignTemp
         integer :: TempNI(NEl),nBatches
@@ -51,9 +51,9 @@ MODULE PopsfileMod
         !variables from header file
         logical :: tPop64Bit,tPopHPHF,tPopLz
         integer :: iPopLenof_sign,iPopNEl,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
-        integer(8) :: iPopAllTotWalkers
-        real(8) :: PopDiagSft
-        integer(8) , dimension(lenof_sign) :: PopSumNoatHF
+        integer(int64) :: iPopAllTotWalkers
+        real(dp) :: PopDiagSft
+        integer(int64) , dimension(lenof_sign) :: PopSumNoatHF
         integer, intent(in) :: DetsLen
         INTEGER(kind=n_int), intent(out) :: Dets(0:nIfTot,DetsLen)
         HElement_t :: PopAllSumENum
@@ -175,7 +175,7 @@ MODULE PopsfileMod
         if(iProcIndex.eq.Root) close(iunit)
 
         !Test we have still got all determinants
-        TempCurrWalkers=int(CurrWalkers,8)
+        TempCurrWalkers=int(CurrWalkers,int64)
         call MPISum(TempCurrWalkers,1,AllCurrWalkers)
         if(iProcIndex.eq.Root) then
             if((iWeightPopRead.eq.0).and.(AllCurrWalkers.ne.EndPopsList)) then
@@ -364,9 +364,9 @@ MODULE PopsfileMod
         use Logging , only : tZeroProjE
         logical , intent(in) :: tPop64Bit,tPopHPHF,tPopLz
         integer , intent(in) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
-        integer(8) , intent(in) :: iPopAllTotWalkers
-        real(8) , intent(in) :: PopDiagSft
-        integer(8) , dimension(lenof_sign) , intent(in) :: PopSumNoatHF
+        integer(int64) , intent(in) :: iPopAllTotWalkers
+        real(dp) , intent(in) :: PopDiagSft
+        integer(int64) , dimension(lenof_sign) , intent(in) :: PopSumNoatHF
         HElement_t , intent(in) :: PopAllSumENum
         integer , intent(out) :: WalkerListSize
         character(len=*) , parameter :: this_routine='CheckPopsParams'
@@ -411,10 +411,10 @@ MODULE PopsfileMod
             tSinglePartPhase=.true.
             !If continuing to grow, ensure we can allocate enough memory for what we hope to get the walker population to,
             !rather than the average number of determinants in the popsfile.
-            WalkerListSize=max(initwalkers,NINT(real(iPopAllTotWalkers,8)/real(nNodes,8),int64))
+            WalkerListSize=max(initwalkers,NINT(real(iPopAllTotWalkers,dp)/real(nNodes,dp),int64))
         else
             tSinglePartPhase=.false.
-            WalkerListSize=NINT(real(iPopAllTotWalkers,8)/real(nNodes,8))
+            WalkerListSize=NINT(real(iPopAllTotWalkers,dp)/real(nNodes,dp))
         endif
 
         AllSumNoatHF=PopSumNoatHF
@@ -442,9 +442,9 @@ MODULE PopsfileMod
         integer , intent(in) :: iunithead
         logical , intent(out) :: tPop64Bit,tPopHPHF,tPopLz
         integer , intent(out) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
-        integer(8) , intent(out) :: iPopAllTotWalkers
-        real(8) , intent(out) :: PopDiagSft
-        integer(8) , dimension(lenof_sign) , intent(out) :: PopSumNoatHF
+        integer(int64) , intent(out) :: iPopAllTotWalkers
+        real(dp) , intent(out) :: PopDiagSft
+        integer(int64) , dimension(lenof_sign) , intent(out) :: PopSumNoatHF
         HElement_t , intent(out) :: PopAllSumENum
         character(len=24) :: junk,junk2,junk3,junk4,junk5
         character(255) :: FirstLine

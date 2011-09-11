@@ -54,8 +54,8 @@ module mcpathsismc
          real(dp) DLWDB,DLWDB2,DLWDB3
          HElement_t HIJS(0:I_VMAX)
          INTEGER INODE2(NEL)
-         INTEGER,pointer :: NMEM(:)
-         INTEGER NMEMLEN
+         INTEGER, allocatable, target :: NMEM(:)
+         INTEGER, target :: NMEMLEN(1)
          real(dp) ODLWDB,OWEIGHT,DLWDBSQ
          real(dp) OPROB,R
          INTEGER ITREE
@@ -75,6 +75,8 @@ module mcpathsismc
          REAL(sp) etime,OTIME,NTIME,tarr(2)
          integer(int64) LP
          HElement_t :: hel
+
+         ISEED=0  !Init the seed
          OTIME=etime(tarr)
          TST=0
          proc_timer%timer_name='MCPATHSR4 '
@@ -162,7 +164,7 @@ module mcpathsismc
             STORE(1)=0
             CALL GENSYMEXCITIT2(NI,NEL,G1,NBASIS,            &
      &         .TRUE.,NMEMLEN,INODE2,I,STORE,3)
-            allocate(NMEM(NMEMLEN))
+            allocate(NMEM(NMEMLEN(1)))
             NMEM(1)=0
             CALL GENSYMEXCITIT2(NI,NEL,G1,NBASIS,            &
      &         .TRUE.,NMEM,INODE2,I,STORE,3)
@@ -648,10 +650,12 @@ module mcpathsismc
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,       &
      &   ECORE,ISEED)
          use util_mod, only: NECI_ICOPY
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER NEL,I_V,NI(NEL),I_P,IPATH(NEL,0:I_V)
-         INTEGER G1,NBASIS,NMAX
-         INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
+         Type(BasisFN) G1(*)
+         INTEGER NBASIS,NMAX
+         INTEGER NTAY(2),NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
          real(dp) BETA,ALAT(*),UMAT(*),ECORE
          complex(dp) FCK(*)
          real(dp) RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
@@ -671,7 +675,7 @@ module mcpathsismc
             DO WHILE(BR)
                BR=.FALSE.
                CALL GENRANDOMEXCIT(IPATH(1,K),NEL,NBASIS,      &
-     &            ABS(NTAY*2),ISEED,INODE)
+     &            ABS(NTAY(1)*2),ISEED,INODE)
                DO J=0,I-1
                   IF(ICMPDETS(INODE,IPATH(1,J),NEL).EQ.0) BR=.TRUE.
                ENDDO
@@ -1013,7 +1017,7 @@ module mcpathsismc
          IC=0
 !C.. Count the number of adjacent nodes to us in IC.  If RP==0, it
 !C.. doesn't bother calculating the RHO_JJ.
-         CALL GENSYMDETSSDN(NI,KSYM,NEL,G1,BRR,NBASIS,0,             &
+         CALL GENSYMDETSSDN(NI,KSYM,NEL,G1,BRR,NBASIS,(/0/),             &
      &         IC,NBASISMAX,BETA,I_P,NMSH,FCK,NMAX,ALAT,             &
      &         UMAT,NTAY,ECORE,X,RP,0.D0,RHOEPS)
 !C.. Diagonal X elements contain the normalization of that node
@@ -1706,7 +1710,7 @@ module mcpathsismc
      &   PVERTMEMS2)
          use CalcData , only : G_VMC_PI
          use Determinants, only: get_helement, write_det
-         use SystemData, only: BasisFN
+         use SystemData, only: BasisFN,Arr
          use util_mod, only: NECI_ICOPY
          use mcpathsdata, only: egp
          IMPLICIT NONE
@@ -1719,28 +1723,25 @@ module mcpathsismc
          type(egp) PVERTMEMS2(0:I_V)
          complex(dp) FCK(*)
          INTEGER I_HMAX
-
          real(dp) RHOEPS
          real(dp) RHOII(0:I_V)
          HElement_t RHOIJ(0:I_V,0:I_V)
          real(dp) XIJ(0:I_V-1,0:I_V-1)         
          HElement_t HIJS(0:I_V)
          INTEGER ISEED
-
          real(dp) PEXCIT(I_V)
          type(egp) PVERTMEMS(0:I_V)
          INTEGER I_VNEXT
          INTEGER INODE(NEL),INODE2(NEL)
          INTEGER, target :: NMEMNI(:)
-         INTEGER NEWEXLEN
+         INTEGER, target :: NEWEXLEN(1)
          INTEGER NEXNODE
          integer, pointer :: curex(:)
-         integer, pointer :: newex(:)
+         integer, pointer :: newex(:) => null()
          INTEGER STORE(6)
          real(dp) R
          HElement_t RH
          INTEGER ICE,I,ICOUNT,IC
-
          INTEGER IGETEXCITLEVEL
          LOGICAL LISINPATH
          LOGICAL ISVALIDDET
@@ -1833,9 +1834,10 @@ module mcpathsismc
                STORE(1)=0
                !determine how much memory needed
                CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,           &
-     &            .TRUE.,NEWEXLEN,INODE2,IC,STORE,3)
+     &            .TRUE.,NEWEXLEN(1),INODE2,IC,STORE,3)
                !allocate memory
-               allocate(NewEx(NewExLen))
+               nullify(newex)
+               allocate(NewEx(NewExLen(1)))
                NEWEX(1)=0
                PVERTMEMS(I_VNEXT)%p=>NEWEX
                !Generate Excitation generator
@@ -1872,13 +1874,13 @@ module mcpathsismc
                         CUREX=>PVERTMEMS(I)%p
 !  NMAX is really Arr
                         CALL GenExcitProb(IPATH(1,I),INODE,nEl,      &
-     &                   CUREX,G1,nBasisMax,NMAX,nBasis,pGen2)
+     &                   CUREX,G1,nBasisMax,Arr,nBasis,pGen2)
                      ENDIF
                      XIJ(I,I_VNEXT)=pGen2
 !  Now work out the reverse prob of generation.
 !  NMAX is really Arr
                      CALL GenExcitProb(INODE,IPATH(1,I),nEl,      &
-     &                NEWEX,G1,nBasisMax,NMAX,nBasis,pGen2)
+     &                NEWEX,G1,nBasisMax,Arr,nBasis,pGen2)
                      XIJ(I_VNEXT,I)=pGen2
       
 ! We supercede the old unbiased random choice with a new one.
@@ -1970,8 +1972,8 @@ end module
          INTEGER iGraph(nEl,0:iV)  ! The graph
          INTEGER STORE(6)
          INTEGER nBasis,IC,INODE2(NEL)
-         INTEGER,pointer :: NEWEX(:)
-         integer NEWEXLEN
+         INTEGER, allocatable, target :: NEWEX(:)
+         integer, target :: NEWEXLEN(1)
          !Array of pointers
          type(EGP) EXCITGEN(0:iV)
 
@@ -2000,7 +2002,7 @@ end module
 !C.. Setup the excit generator for the last vertex
             CALL GENSYMEXCITIT2(iGraph(1,i),NEL,G1,NBASIS,           &
      &              .TRUE.,NEWEXLEN,INODE2,IC,STORE,3)
-            allocate(NEWEX(NEWEXLEN))
+            allocate(NEWEX(NEWEXLEN(1)))
             NEWEX(1)=0
 !C.. Count the excitations (and generate a random one which we throw)
             CALL GENSYMEXCITIT2(iGraph(1,i),NEL,G1,NBASIS,              &

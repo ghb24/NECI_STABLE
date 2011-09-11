@@ -460,7 +460,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
     integer, allocatable :: AllSinglesCount(:,:)
 
     INTEGER , ALLOCATABLE :: EXCITGEN(:)
-    INTEGER :: ierr,Ind1,Ind2,Ind3,Ind4,iMaxExcit,nStore(6),nExcitMemLen,j,k,l,DetNum,DetNumS
+    INTEGER :: ierr,Ind1,Ind2,Ind3,Ind4,iMaxExcit,nStore(6),nExcitMemLen(1),j,k,l,DetNum,DetNumS
     INTEGER :: Lz,excitcount,ForbiddenIter,error, iter_tmp
     HElement_t :: HElGen
     type(excit_gen_store_type) :: store
@@ -484,7 +484,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
     iMaxExcit=0
     nStore(1:6)=0
     CALL GenSymExcitIt2(nI,NEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
-    ALLOCATE(EXCITGEN(nExcitMemLen),stat=ierr)
+    ALLOCATE(EXCITGEN(nExcitMemLen(1)),stat=ierr)
     IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
     EXCITGEN(:)=0
     CALL GenSymExcitIt2(nI,NEl,G1,nBasis,.TRUE.,EXCITGEN,nJ,iMaxExcit,nStore,exFlag)
@@ -702,7 +702,7 @@ lp2: do while(.true.)
                             ExcitMat(2,2)=l
                             CALL FindExcitBitDet(iLut,iLutnJ,2,ExcitMat)
                             write(8,"(i12,f20.12,2i5,'->',2i5,2i15)") DetNum,&
-                                AllDoublesHist(i,j,k,l) / (real(Iterations,8)&
+                                AllDoublesHist(i,j,k,l) / (real(Iterations,dp)&
                                                         * nProcessors), &
                                 i, j, k, l, iLutnJ(0),AllDoublesCount(i,j,k,l)
 !                            WRITE(6,*) DetNum,DoublesHist(i,j,k,l),i,j,"->",k,l
@@ -729,7 +729,7 @@ lp2: do while(.true.)
                     ExcitMat(2,1)=j
                     CALL FindExcitBitDet(iLut,iLutnJ,1,ExcitMat)
                     write(9,*) DetNumS, AllSinglesHist(i,j) / &
-                                        (real(Iterations,8) * nProcessors), &
+                                        (real(Iterations,dp) * nProcessors), &
                                i, "->", j, ALlSinglesCount(i, j)
 !                    WRITE(6,*) DetNumS,AllSinglesHist(i,j),i,"->",j
                 ENDIF

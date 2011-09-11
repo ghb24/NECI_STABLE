@@ -33,8 +33,8 @@ C.. Get matrix element of rho
       use constants, only: dp
       implicit none
       real(dp) RHOIJ(*),GETRHOELEMENT
-      INTEGER RHOIJLAB(*)
-      INTEGER RHOIJROWS(NDET),IJ,II,I,J,INDXROW,IMAX,K,NDET
+      INTEGER RHOIJLAB(*),NDET
+      INTEGER RHOIJROWS(NDET),IJ,II,I,J,INDXROW,IMAX,K
 C.. We only have half of RHO, so if J<I, return the symmetrical (J,I) element
 C.. Or if we have the whole RHO, it's quicker to look closer to its beginning
       IF(IJ<II) THEN

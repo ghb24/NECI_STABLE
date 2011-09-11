@@ -72,7 +72,7 @@
            else
                HDiagTemp = get_helement (nJ, nJ, 0)
            endif
-           HDiag=(REAL(HDiagTemp,8))-Hii
+           HDiag=(REAL(HDiagTemp,dp))-Hii
            CurrentH(ips+i-1)=HDiag
 ! Next element to be inserted must be smaller than DetCurr, so must be inserted
 ! at (at most) at ips-1.
