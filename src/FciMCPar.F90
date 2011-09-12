@@ -110,6 +110,7 @@ MODULE FciMCParMod
                             disable_spin_proj_varyshift
     use symrandexcit3, only: gen_rand_excit3, test_sym_excit3
     use nElRDMMod, only: FinaliseRDM,Fill_ExplicitRDM_this_Iter,calc_energy_from_rdm, &
+                         fill_hist_explicitrdm_this_iter, &
                          fill_diag_rdm, fill_sings_rdm, fill_doubs_rdm, &
                          Add_RDM_From_IJ_Pair, tCalc_RDMEnergy, &
                          extract_bit_rep_rdm_diag_norm, extract_bit_rep_rdm_diag_hphf, &
@@ -337,7 +338,7 @@ MODULE FciMCParMod
             ENDIF
 !            IF(TAutoCorr) CALL WriteHistogrammedDets()
 
-            IF(tHistSpawn.and.(mod(Iter,iWriteHistEvery).eq.0)) THEN
+            IF(tHistSpawn.and.(mod(Iter,iWriteHistEvery).eq.0).and.(.not.tRDMonFly)) THEN
                 CALL WriteHistogram()
             ENDIF
             IF(tHistHamil.and.(mod(Iter,iWriteHamilEvery).eq.0)) THEN
@@ -441,6 +442,7 @@ MODULE FciMCParMod
             !We have reached the iteration where we want to start filling the RDM.
             if(tExplicitAllRDM) then
                 tFillingExplicRDMonFly = .true.
+                if(tHistSpawn) NHistEquilSteps = Iter
             else
                 if(tHF_S_D.or.tHF_S_D_Ref.or.tHF_Ref_Explicit) then
                     call set_add_rdm_hfconnections(add_rdm_hfconnections_hf_s_d)
@@ -1126,7 +1128,13 @@ MODULE FciMCParMod
         ! This routine will take the CurrentDets and search the array to find all single and double 
         ! connections - adding them into the RDM's. 
         ! This explicit way of doing this is very expensive, but o.k for very small systems.
-        IF(tFillingExplicRDMonFly) CALL Fill_ExplicitRDM_this_Iter(TotWalkers)
+        IF(tFillingExplicRDMonFly) THEN
+            IF(tHistSpawn) THEN
+                CALL Fill_Hist_ExplicitRDM_this_Iter(TotWalkers)
+            ELSE
+                CALL Fill_ExplicitRDM_this_Iter(TotWalkers)
+            ENDIF
+        ENDIF
 
     end subroutine
 

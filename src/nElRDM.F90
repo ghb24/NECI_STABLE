@@ -622,6 +622,87 @@ MODULE nElRDMMod
     END SUBROUTINE Fill_ExplicitRDM_this_Iter
 
 
+    SUBROUTINE Fill_Hist_ExplicitRDM_this_Iter(TotWalkers)
+        USE FciMCData , only : CurrentDets,TotParts 
+        USE bit_reps , only : encode_sign, extract_sign
+        USE DetCalcData , only : Det
+        use hist_data, only: AllHistogram, Histogram
+        use DetCalcData , only : FCIDets
+        implicit none
+        INTEGER(int64) , INTENT(IN) :: TotWalkers
+        INTEGER(kind=n_int) :: iLutnI(0:NIfTot)
+        INTEGER :: i,error
+        REAL(dp) :: TempTotParts, NormalisationTemp, Sum_Coeffs
+        LOGICAL :: blank_det
+        INTEGER, DIMENSION(lenof_sign) :: TempSign
+
+! Run through the current determinants.
+! Find the max number of determinants on a processor - all need to run through this 
+! number so that the communication can be done at all stages.
+
+!        TotWalkIn(1)=TotWalkers
+!        TotWalkIn(2)=iProcIndex
+!
+!        CALL MPIAllReduceDatatype(TotWalkIn,1,MPI_MAXLOC,MPI_2INTEGER,TotWalkOut)
+!
+!        MaxTotWalkers=TotWalkOut(1)
+
+! This little commented routine calculates the normalisation factor for the coefficients 
+! at this iteration.
+! It appears this is not necessary, and in reality it is fine to just add in 
+! C_i * AllTotPartsCurr / AllTotParts , and then scale the density matrices at the end so 
+! that their traces are correct.
+! This also means the contributions are weighted by the number of walkers in the system 
+! at the time.
+!        Normalisation = 0.D0
+!        NormalisationTemp = 0.D0
+!        do i = 1, TotWalkers
+!            call extract_sign (CurrentDets(:,I), SignI)
+!            NormalisationTemp = NormalisationTemp + ( REAL(SignI(1)) * REAL(SignI(1)) )
+!        enddo
+!        WRITE(6,*) 'NormalisationTemp',NormalisationTemp
+
+!        CALL MPIAllReduce(NormalisationTemp,MPI_SUM,Normalisation)
+
+!        Normalisation = SQRT( Normalisation )
+!        WRITE(6,*) 'Normalisation',Normalisation
+!        Sum_Coeffs = SQRT( Normalisation )
+
+!        do I = 1, TotWalkers
+!            SignI2 = 0
+!            call extract_sign (CurrentDets(:,I), SignI)
+!            SignI2(1) = NINT(REAL(SignI(1)) * ( 1.D0 / Sum_Coeffs ))
+!            call encode_sign(CurrentDets(:,I), SignI2)
+!        enddo
+
+        CALL set_timer(nElRDM_Time,30)
+
+        CALL MPISumAll(Histogram,AllHistogram)
+
+        do i=1,Det
+
+! But if the actual number of determinants on this processor is less than the number 
+! we're running through, feed in 0 determinants and 0 sign.
+!            IF(AllHistogram(1,i).eq.0.0_dp) THEN
+            IF(Histogram(1,i).eq.0.0_dp) THEN
+                iLutnI(:)=0
+                blank_det=.true.
+            ELSE
+                iLutnI(:)=FCIDets(:,i)
+                blank_det=.false.
+            ENDIF
+
+            TempSign(1) = i
+            call encode_sign(iLutnI,TempSign)
+
+            CALL Add_Hist_ExplicitRDM_Contrib(iLutnI,blank_det)
+
+        enddo
+        CALL halt_timer(nElRDM_Time)
+
+    END SUBROUTINE Fill_Hist_ExplicitRDM_this_Iter
+
+
     SUBROUTINE Add_ExplicitRDM_Contrib(iLutnI,blank_det)
 ! This is the general routine for taking a particular determinant in the spawned list, 
 ! D_i and adding it's contribution to the reduced density matrix.
@@ -670,6 +751,53 @@ MODULE nElRDMMod
 
     END SUBROUTINE Add_ExplicitRDM_Contrib
 
+    SUBROUTINE Add_Hist_ExplicitRDM_Contrib(iLutnI,blank_det)
+! This is the general routine for taking a particular determinant in the spawned list, 
+! D_i and adding it's contribution to the reduced density matrix.
+        implicit none
+        INTEGER(kind=n_int), INTENT(IN) :: iLutnI(0:NIfTot)
+        LOGICAL, INTENT(IN) :: blank_det
+        INTEGER :: i
+        
+! Set up excitation arrays.
+! These are blocked according to the processor the excitation would be on if occupied.
+! In each block, the first entry is the sign of determinant D_i and the second the bit 
+! string of the determinant (these need to be sent along with the excitations).
+! Each processor will have a different Di.
+
+        IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) THEN
+            Sing_ExcDjs(:,:)=0
+            Sing_ExcList(:)=0
+            Sing_ExcList(:) = Sing_InitExcSlots(:)
+
+            do i=0,nProcessors-1
+                Sing_ExcDjs(:,Sing_ExcList(i)) = iLutnI(:)
+                Sing_ExcList(i) = Sing_ExcList(i)+1
+            enddo
+        ENDIF
+        IF((RDMExcitLevel.eq.2).or.(RDMExcitLevel.eq.3)) THEN
+            Doub_ExcDjs(:,:) = 0
+            Doub_ExcList(:) = 0
+            Doub_ExcList(:) = Doub_InitExcSlots(:)
+
+            do i=0,nProcessors-1
+                Doub_ExcDjs(:,Doub_ExcList(i)) = iLutnI(:)
+                Doub_ExcList(i) = Doub_ExcList(i)+1
+            enddo
+        ENDIF
+
+        IF(.not.blank_det) CALL Gen_Hist_ExcDjs(iLutnI)
+! Out of here we will get a filled ExcDjs array with all the single or double excitations 
+! from Dj, this will be done for each proc. 
+
+! We then need to send the excitations to the relevant processors.
+        CALL Send_Hist_ProcExcDjs()
+! This routine then calls SearchOccDets which takes each excitation and and binary 
+! searches the occupied determinants for this.
+! If found, we re-find the orbitals and parity involved in the excitation, and add the 
+! c_i*c_j contributions to the corresponding matrix element.
+
+    END SUBROUTINE Add_Hist_ExplicitRDM_Contrib
 
 
     SUBROUTINE GenExcDjs(iLutnI)
@@ -795,6 +923,135 @@ MODULE nElRDMMod
 !        IF((nI(1).eq.5).and.(nI(2).eq.6)) CALL Stop_All('','')
 
     END SUBROUTINE GenExcDjs
+
+
+    SUBROUTINE Gen_Hist_ExcDjs(iLutnI)
+! This uses GenExcitations3 in symexcit3.F90 to generate all the possible either 
+! single or double excitations from D_i, finds the processor they would be on if occupied, 
+! and puts them in the SingExcDjs array according to that processor.
+        USE DetBitOps , only : EncodeBitDet
+        USE AnnihilationMod , only : DetermineDetNode
+        USE SymExcit3 , only : GenExcitations3
+        USE RotateOrbsData , only : SymLabelListInv
+        USE bit_reps , only : extract_bit_rep
+        use hist_data, only: AllHistogram
+        implicit none
+        INTEGER(kind=n_int) , INTENT(IN) :: iLutnI(0:NIfTot)
+        INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
+        INTEGER, dimension(lenof_sign) :: HistPos
+        INTEGER :: ExcitMat3(2,2),nI(NEl),nJ(NEl),Proc,FlagsDi,a,b,CountTemp
+        LOGICAL :: tParity,tAllExcitFound
+        real(dp) :: realSignDi
+
+        call extract_bit_rep (iLutnI, nI, HistPos, FlagsDi)
+! Unfortunately uses the decoded determinant - might want to look at this.        
+
+        realSignDi = AllHistogram(1,HistPos(1))
+        
+        call Fill_Diag_RDM(nI,realSignDi)
+
+!        CountTemp = 0
+
+        IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) THEN
+
+            ExcitMat3(:,:)=0
+! Zeros in ExcitMat3 starts off at the first single excitation.        
+            tAllExcitFound=.false.
+! This becomes true when all the excitations have been found.        
+
+            do while (.not.tAllExcitFound)
+!                write(6,*) 'generating singles'
+!                call flush(6)
+                CALL GenExcitations3(nI,iLutnI,nJ,1,ExcitMat3(:,:),tParity,&
+                                                            tAllExcitFound,.true.)            
+! Passed out of here is the singly excited determinant, nJ.
+! Information such as the orbitals involved in the excitation and the parity is also found 
+! in this step, we are not currently storing this, and it is re-calculated later on 
+! (after the determinants are passed to the relevant processor) - but the speed of sending 
+! this information vs recalculating it will be tested.
+! RDMExcitLevel is passed through, if this is 1, only singles are generated, 
+! if it is 2 only doubles are found.
+
+                IF(tAllExcitFound) EXIT
+
+                iLutnJ(:)=0
+                CALL EncodeBitDet(nJ,iLutnJ)
+
+                Proc = DetermineDetNode(nJ,0)   
+                !This will return a value between 0 -> nProcessors-1
+                Sing_ExcDjs(:,Sing_ExcList(Proc)) = iLutnJ(:)
+                Sing_ExcList(Proc) = Sing_ExcList(Proc)+1
+!                CountTemp = CountTemp + 1
+
+!                IF((nI(1).eq.5).and.(nI(2).eq.6)) WRITE(6,*) CountTemp,': nJ',nJ
+
+! Want a quick test to see if arrays are getting full.            
+                IF(Sing_ExcList(Proc).gt.NINT(OneEl_Gap*(Proc+1))) THEN
+                    WRITE(6,*) 'Proc',Proc
+                    WRITE(6,*) 'Sing_ExcList',Sing_ExcList
+                    WRITE(6,*) 'No. spaces for each proc',NINT(OneEl_Gap)
+                    CALL Stop_All('GenExcDjs',&
+                                'Too many excitations for space available.')
+                ENDIF
+            enddo
+        ENDIF
+
+!        IF((nI(1).eq.5).and.(nI(2).eq.6)) WRITE(6,*) 'Ind',&
+!                                    ((nI(2)-2) * (nI(2)-1) ) / 2 ) + nI(1)
+
+        IF((RDMExcitLevel.eq.2).or.(RDMExcitLevel.eq.3)) THEN
+
+            ExcitMat3(:,:)=0
+! Zeros in ExcitMat3 starts off at the first single excitation.        
+            tAllExcitFound=.false.
+! This becomes true when all the excitations have been found.        
+
+!            WRITE(6,*) 'Generating from nI',nI
+!            WRITE(6,*) 'bit rep',iLutnI
+
+            do while (.not.tAllExcitFound)
+!                write(6,*) 'generating doubles'
+!                call flush(6)
+                CALL GenExcitations3(nI,iLutnI,nJ,2,ExcitMat3(:,:),tParity,&
+                                                            tAllExcitFound,.true.)            
+! Passed out of here is the doubly excited determinant, nJ.
+! Information such as the orbitals involved in the excitation and the parity is 
+! also found in this step, we are not currently storing this, and it is re-calculated 
+! later on (after the determinants are passed to the relevant processor) - but the speed 
+! of sending this information vs recalculating it will be tested.
+! RDMExcitLevel is passed through, if this is 1, only singles are generated, 
+! if it is 2 only doubles are found.
+
+                IF(tAllExcitFound) EXIT
+
+                iLutnJ(:)=0
+                CALL EncodeBitDet(nJ,iLutnJ)
+
+                Proc = DetermineDetNode(nJ,0)   
+                !This will return a value between 0 -> nProcessors-1
+                Doub_ExcDjs(:,Doub_ExcList(Proc)) = iLutnJ(:)
+                ! All the double excitations from this particular nI are being 
+                ! stored in Doub_ExcDjs.
+
+                Doub_ExcList(Proc) = Doub_ExcList(Proc)+1
+
+!                IF((nI(1).eq.5).and.(nI(2).eq.6)) WRITE(6,*) CountTemp,': nJ',nJ
+!                IF((nI(1).eq.5).and.(nI(2).eq.6)) WRITE(6,*) 'Ind', &
+!                                                (( (nJ(2)-2) * (nJ(2)-1) ) / 2 ) + nJ(1)
+
+! Want a quick test to see if arrays are getting full.            
+                IF(Doub_ExcList(Proc).gt.NINT(TwoEl_Gap*(Proc+1))) THEN
+                    WRITE(6,*) 'Proc',Proc
+                    WRITE(6,*) 'Doub_ExcList',Doub_ExcList
+                    WRITE(6,*) 'No. spaces for each proc',NINT(TwoEl_Gap)
+                    CALL Stop_All('GenExcDjs','Too many excitations for space available.')
+                ENDIF
+            enddo
+        ENDIF
+
+!        IF((nI(1).eq.5).and.(nI(2).eq.6)) CALL Stop_All('','')
+
+    END SUBROUTINE Gen_Hist_ExcDjs
 
 
     subroutine Add_RDM_HFConnections_Norm(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
@@ -1116,6 +1373,106 @@ MODULE nElRDMMod
         
     END SUBROUTINE SendProcExcDjs
 
+    SUBROUTINE Send_Hist_ProcExcDjs()
+! In this routine the excitations are sent to the relevant processors.
+! Sent with them will be the Di they were excited from and its sign.
+! Each processor will receive nProcessor number of lists with different Di determinants.
+! The original Di's will (I think) still be in the original InitSingExcSlots positions.
+! This follows the directannihilation algorithm closely.
+        implicit none
+        INTEGER :: i,j,sendcounts(nProcessors),disps(nProcessors)
+        INTEGER :: sing_recvcounts(nProcessors)
+        INTEGER :: sing_recvdisps(nProcessors),error,MaxSendIndex,MaxIndex
+        INTEGER :: doub_recvcounts(nProcessors),doub_recvdisps(nProcessors)
+
+        IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) THEN
+            do i=0,nProcessors-1
+                sendcounts(i+1)=Sing_ExcList(i)-(NINT(OneEl_Gap*i)+1)
+! Sendcounts is the number of singly excited determinants we want to send for 
+! each processor (but goes from 1, not 0).            
+                disps(i+1)=NINT(OneEl_Gap*i)
+! and I think disps is the first slot for each processor - 1.            
+            enddo
+
+            MaxSendIndex=Sing_ExcList(nProcessors-1)-1
+
+! We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
+            sing_recvcounts(1:nProcessors)=0
+            CALL MPIAlltoAll(sendcounts,1,sing_recvcounts,1,error)
+! I think recvcounts(i) is the number of determinants sent from processor i.        
+
+! We can now get recvdisps from recvcounts, since we want the data to be 
+! contiguous after the move.
+            sing_recvdisps(1)=0
+            do i=2,nProcessors
+                sing_recvdisps(i)=sing_recvdisps(i-1)+sing_recvcounts(i-1)
+            enddo
+
+            MaxIndex=sing_recvdisps(nProcessors)+sing_recvcounts(nProcessors)
+! But the actual number of integers we need to send is the calculated values * NIfTot+1.
+            do i=1,nProcessors
+                sendcounts(i)=sendcounts(i)*(NIfTot+1)
+                disps(i)=disps(i)*(NIfTot+1)
+                sing_recvcounts(i)=sing_recvcounts(i)*(NIfTot+1)
+                sing_recvdisps(i)=sing_recvdisps(i)*(NIfTot+1)
+            enddo
+#ifdef PARALLEL
+            CALL MPIAlltoAllv(Sing_ExcDjs(:,1:MaxSendIndex),sendcounts,disps,&
+                                Sing_ExcDjs2,sing_recvcounts,sing_recvdisps,error)
+#else
+            Sing_ExcDjs2(0:NIfTot,1:MaxIndex)=Sing_ExcDjs(0:NIfTot,1:MaxSendIndex)
+#endif
+
+            CALL Sing_Hist_SearchOccDets(sing_recvcounts,sing_recvdisps)
+        ENDIF
+
+
+        IF((RDMExcitLevel.eq.2).or.(RDMExcitLevel.eq.3)) THEN
+            do i=0,nProcessors-1
+                sendcounts(i+1)=Doub_ExcList(i)-(NINT(TwoEl_Gap*i)+1)
+! Sendcounts is the number of singly excited determinants we want to send for 
+! each processor (but goes from 1, not 0).            
+                disps(i+1)=NINT(TwoEl_Gap*i)
+! and I think disps is the first slot for each processor - 1.            
+            enddo
+
+            MaxSendIndex = Doub_ExcList(nProcessors-1)-1
+
+! We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
+            doub_recvcounts(1:nProcessors)=0
+            CALL MPIAlltoAll(sendcounts,1,doub_recvcounts,1,error)
+! I think recvcounts(i) is the number of determinants sent from processor i.        
+
+! We can now get recvdisps from recvcounts, since we want the data to be contiguous 
+! after the move.
+            doub_recvdisps(1)=0
+            do i=2,nProcessors
+                doub_recvdisps(i)=doub_recvdisps(i-1)+doub_recvcounts(i-1)
+            enddo
+
+            MaxIndex=doub_recvdisps(nProcessors)+doub_recvcounts(nProcessors)
+! But the actual number of integers we need to send is the calculated values * NIfTot+1.
+            do i=1,nProcessors
+                sendcounts(i)=sendcounts(i)*(NIfTot+1)
+                disps(i)=disps(i)*(NIfTot+1)
+                doub_recvcounts(i)=doub_recvcounts(i)*(NIfTot+1)
+                doub_recvdisps(i)=doub_recvdisps(i)*(NIfTot+1)
+            enddo
+
+! This is the main send of all the single excitations to the corresponding processors.        
+#ifdef PARALLEL
+            CALL MPIAlltoAllv(Doub_ExcDjs(:,1:MaxSendIndex),sendcounts,disps,&
+                                    Doub_ExcDjs2,doub_recvcounts,doub_recvdisps,error)
+#else
+            Doub_ExcDjs2(0:NIfTot,1:MaxIndex)=Doub_ExcDjs(0:NIfTot,1:MaxSendIndex)
+#endif
+            CALL Doub_Hist_SearchOccDets(doub_recvcounts,doub_recvdisps)
+
+        ENDIF
+
+        
+    END SUBROUTINE Send_Hist_ProcExcDjs
+
 
     SUBROUTINE Sing_SearchOccDets(recvcounts,recvdisps)
 ! We now have arrays SingExcDjs2 which contain all the single excitations from 
@@ -1267,6 +1624,176 @@ MODULE nElRDMMod
       
     END SUBROUTINE Doub_SearchOccDets
 
+
+    SUBROUTINE Sing_Hist_SearchOccDets(recvcounts,recvdisps)
+! We now have arrays SingExcDjs2 which contain all the single excitations from 
+! each processor.
+! These number sent from processor i is recvcounts(i), and the first 2 have information 
+! about the determinant Di from which the Dj's are single excitations (and it's sign).
+        USE AnnihilationMod , only : BinSearchParts
+        USE FciMCData , only : TotWalkers,CurrentDets
+        USE RotateOrbsData , only : SymLabelListInv
+        USE bit_reps , only : extract_bit_rep
+        USE FciMCData , only : iluthf
+        use DetBitOps , only : FindBitExcitLevel
+        use hist_data, only: AllHistogram
+        use hist , only : find_hist_coeff_explicit
+        implicit none
+        INTEGER, INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
+        INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
+        INTEGER, dimension(lenof_sign) :: HistPos
+        INTEGER :: PartInd, ExcitLevel
+        INTEGER :: i,j,NoDets,StartDets
+        INTEGER :: nI(NEl),nJ(NEl),Ex(2,2),FlagsDi,FlagsDj
+        LOGICAL :: tDetFound,tParity
+        REAL(dp) :: realSignDi, realSignDj
+
+! Take each Dj, and binary search the CurrentDets to see if it is occupied.
+
+        do i=1,nProcessors
+! Doing determinants from each processor separately because each has a different 
+! D_i it was excited from.
+
+            NoDets=recvcounts(i)/(NIfTot+1)
+            StartDets=(recvdisps(i)/(NIfTot+1))+1
+
+            IF(NoDets.gt.1) THEN
+                call extract_bit_rep (Sing_ExcDjs2(:,StartDets), nI, HistPos, FlagsDi)
+
+                realSignDi = AllHistogram(1,HistPos(1))
+
+                do j=StartDets+1,(NoDets+StartDets-1)
+! D_i is in the first spot - start from the second.                
+                
+                    iLutnJ(:)=Sing_ExcDjs2(:,j)
+! This binary searches CurrentDets between 1 and TotWalkers for determinant iLutnJ.
+! If found, tDetFound will be true, and PartInd the index in CurrentDets where the 
+! determinant is.
+!                    CALL BinSearchParts(iLutnJ,1,int(TotWalkers,sizeof_int),PartInd,tDetFound)
+
+                    ExcitLevel = FindBitExcitLevel (iLutHF, iLutnJ, NEl)
+                    call find_hist_coeff_explicit (iLutnJ, ExcitLevel,PartInd,tDetFound)
+
+                    IF(tDetFound) THEN
+! Determinant occupied; add c_i*c_j to the relevant element of nElRDM.                    
+! Need to first find the orbitals involved in the excitation from D_i -> D_j and the parity.
+
+                        Ex(:,:)=0
+! Ex(1,1) goes in as the max number of excitations - we know this is an excitation of 
+! level RDMExcitLevel. 
+                        Ex(1,1)=1
+                        tParity = .false.
+
+!                        call extract_bit_rep (CurrentDets(:,PartInd), nJ, SignDj, FlagsDj)
+!                        realSignDj = real(SignDj(1))
+
+                        call decode_bit_det(nJ,iLutnJ)
+
+                        realSignDj = AllHistogram(1,PartInd)
+
+! Ex(1,:) comes out as the orbital(s) excited from, Ex(2,:) comes out as the orbital(s) 
+! excited to.    
+                        CALL GetExcitation(nI,nJ,NEl,Ex,tParity)
+
+                        IF(Ex(1,1).le.0) CALL Stop_All('Sing_SearchOccDets',&
+                                            'nJ is not the correct excitation of nI.')
+
+                        call Fill_Sings_RDM(nI,Ex,tParity,realSignDi,realSignDj,.true.)
+! No normalisation factor just yet - possibly need to revise.                    
+                    ENDIF
+
+                enddo
+            ENDIF
+        enddo
+      
+    END SUBROUTINE Sing_Hist_SearchOccDets
+
+
+    SUBROUTINE Doub_Hist_SearchOccDets(recvcounts,recvdisps)
+! We now have arrays SingExcDjs2 which contain all the single excitations 
+! from each processor.
+! These number sent from processor i is recvcounts(i), and the first 2 have information 
+! about the determinant Di from which the Dj's are single excitations (and it's sign).
+        USE AnnihilationMod , only : BinSearchParts
+        USE FciMCData , only : TotWalkers,CurrentDets
+        USE RotateOrbsData , only : SymLabelListInv
+        USE bit_reps , only : extract_bit_rep
+        USE FciMCData , only : iluthf
+        use DetBitOps , only : FindBitExcitLevel
+        use hist_data, only: AllHistogram
+        use hist , only : find_hist_coeff_explicit
+        implicit none
+        INTEGER, INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
+        INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
+        INTEGER, dimension(lenof_sign) :: HistPos
+        INTEGER :: PartInd, ExcitLevel
+        INTEGER :: i,j,NoDets,StartDets
+        INTEGER :: nI(NEl),nJ(NEl),Ex(2,2),FlagsDi,FlagsDj
+        LOGICAL :: tDetFound,tParity
+        REAL(dp) :: realSignDi,realSignDj
+
+! Take each Dj, and binary search the CurrentDets to see if it is occupied.
+    
+!        WRITE(6,*) 'Searching for generated nJs in occupied list'
+
+        do i=1,nProcessors
+! Doing determinants from each processor separately because each has a different D_i 
+! it was excited from.
+
+            NoDets=recvcounts(i)/(NIfTot+1)
+            StartDets=(recvdisps(i)/(NIfTot+1))+1
+
+            IF(NoDets.gt.1) THEN
+                call extract_bit_rep (Doub_ExcDjs2(:,StartDets), nI, HistPos, FlagsDi)
+
+                realSignDi = AllHistogram(1,HistPos(1))
+
+                do j=StartDets+1,(NoDets+StartDets-1)
+! D_i is in the first spot - start from the second.                
+                
+                    iLutnJ(:)=Doub_ExcDjs2(:,j)
+
+! This binary searches CurrentDets between 1 and TotWalkers for determinant iLutnJ.
+! If found, tDetFound will be true, and PartInd the index in CurrentDets where the 
+! determinant is.
+!                    CALL BinSearchParts(iLutnJ,1,int(TotWalkers,sizeof_int),PartInd,tDetFound)
+
+                    ExcitLevel = FindBitExcitLevel (iLutHF, iLutnJ, NEl)
+                    call find_hist_coeff_explicit (iLutnJ, ExcitLevel, PartInd, tDetFound)
+
+                    IF(tDetFound) THEN
+! Determinant occupied; add c_i*c_j to the relevant element of nElRDM.                    
+! Need to first find the orbitals involved in the excitation from D_i -> D_j and 
+! the parity.
+
+                        Ex(:,:)=0
+! Ex(1,1) goes in as the max number of excitations - we know this is an excitation of 
+! level RDMExcitLevel. 
+                        Ex(1,1)=2
+                        tParity = .false.
+
+!                        call extract_bit_rep (CurrentDets(:,PartInd), nJ, SignDj, FlagsDj)
+!                        realSignDj = real(SignDj(1))
+
+                        call decode_bit_det(nJ,iLutnJ)
+                        realSignDj = AllHistogram(1,PartInd)
+
+! Ex(1,:) comes out as the orbital(s) excited from, Ex(2,:) comes out as the orbital(s) 
+! excited to. 
+                        CALL GetExcitation(nI,nJ,NEl,Ex,tParity)
+
+                        IF(Ex(1,1).le.0) CALL Stop_All('SearchOccDets',&
+                                            'nJ is not the correct excitation of nI.')
+
+                        call Fill_Doubs_RDM(Ex,tParity,realSignDi,realSignDj,.true.)
+                        
+                        
+                    ENDIF
+                enddo
+            ENDIF
+        enddo
+      
+    END SUBROUTINE Doub_Hist_SearchOccDets
 
     subroutine Fill_Diag_RDM(nI,realSignDi)
 ! Fill diagonal elements of 1- and 2-RDM.

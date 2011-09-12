@@ -394,6 +394,34 @@ contains
 
     end subroutine
 
+    subroutine find_hist_coeff_explicit (ilut, ExcitLevel, PartInd, tSuccess)
+
+        implicit none
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer, intent(in) :: ExcitLevel
+        integer, intent(out) :: PartInd
+        logical , intent(out) :: tSuccess
+
+        integer :: open_orbs
+        integer(n_int) :: ilut_sym(0:NIfTot)
+        real(dp) :: delta(lenof_sign)
+        character(*), parameter :: t_r = 'add_hist_spawn'
+
+        tSuccess = .false.
+        if (ExcitLevel == nel) then
+            call BinSearchParts2 (ilut,  FCIDetIndex(ExcitLevel), det, PartInd,&
+                                  tSuccess)
+        elseif (ExcitLevel == 0) then
+            PartInd = 1
+            tSuccess = .true.
+        else
+            call BinSearchParts2 (ilut, FCIDetIndex(ExcitLevel), &
+                                  FCIDetIndex(ExcitLevel+1)-1, PartInd, &
+                                  tSuccess)
+        endif
+
+    end subroutine
+
     subroutine add_hist_energies (ilut, sgn, HDiag)
 
         ! This will histogram the energies of the particles, rather than the
