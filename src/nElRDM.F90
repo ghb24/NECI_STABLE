@@ -1286,14 +1286,14 @@ MODULE nElRDMMod
 
         if(.not.TestClosedShellDet(iLutnI)) then
             call extract_bit_rep_rdm (iLutnI, IterRDMStartI, CurrH_I(2), 0.5_dp, nI, SignI, FlagsI, AvSignI)
-            call Add_StochRDM_Diag_HPHF(iLutnI, nI, SignI)
+            call Add_StochRDM_Diag_HPHF(iLutnI, nI, AvSignI)
         else
             call extract_bit_rep_rdm (iLutnI, IterRDMStartI, CurrH_I(2), 1.0_dp, nI, SignI, FlagsI, AvSignI)
         endif
 
     end subroutine extract_bit_rep_rdm_diag_hphf
 
-    subroutine Add_StochRDM_Diag_HPHF(iLutCurr,DetCurr,SignCurr)
+    subroutine Add_StochRDM_Diag_HPHF(iLutCurr,DetCurr,AvSignCurr)
 ! This is called when we run over all TotWalkers in CurrentDets.    
 ! It is only called if HF is being used and we've encountered an open shell det.
 ! The decoding routine would have added in the diagonal elements of the original HF pair,
@@ -1305,7 +1305,7 @@ MODULE nElRDMMod
         implicit none
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer , intent(in) :: DetCurr(NEl)
-        integer, dimension(lenof_sign), intent(in) :: SignCurr
+        real(dp) , intent(in) :: AvSignCurr
         integer(kind=n_int) :: SpinCoupDet(0:niftot)
         integer :: nSpinCoup(NEl), SignFac, HPHFExcitLevel
 
@@ -1326,7 +1326,7 @@ MODULE nElRDMMod
         ! Find out if it's + or - in the above expression.                
         SignFac = hphf_sign(iLutCurr)
 
-        call Fill_Diag_RDM(nSpinCoup, real(SignFac*SignCurr(1),dp)/SQRT(2.D0))
+        call Fill_Diag_RDM(nSpinCoup, (real(SignFac,dp)*AvSignCurr)/SQRT(2.D0))
 
 ! For HPHF we're considering < D_I + D_I' | a_a+ a_b+ a_j a_i | D_I + D_I' >
 ! Not only do we have diagonal < D_I | a_a+ a_b+ a_j a_i | D_I > terms, but also cross terms
@@ -1336,8 +1336,8 @@ MODULE nElRDMMod
         HPHFExcitLevel = FindBitExcitLevel (iLutCurr, SpinCoupDet, 2)
         if(HPHFExcitLevel.le.2) & 
             call Add_RDM_From_IJ_Pair(DetCurr,nSpinCoup,&
-                                        real(SignCurr(1),dp)/SQRT(2.D0), &
-                                        real(SignFac*SignCurr(1),dp)/SQRT(2.D0),.true.)
+                                        AvSignCurr/SQRT(2.D0), &
+                                        (real(SignFac,dp)*AvSignCurr)/SQRT(2.D0),.true.)
 
     end subroutine Add_StochRDM_Diag_HPHF
 
@@ -1919,7 +1919,6 @@ MODULE nElRDMMod
 !        WRITE(6,*) 'Ex(2,:)',Ex(2,:)
 !        WRITE(6,*) 'tParity',tParity
 !        WRITE(6,*) 'nI',nI
-!        WRITE(6,*) 'Adding realSignDi, realSignDj',realSignDi,realSignDj
 
         ParityFactor=1.D0
         IF(tParity) ParityFactor=-1.D0
@@ -4713,7 +4712,7 @@ END MODULE nElRDMMod
             enddo
         ENDIF
 
-!        write(6,*) 'adding to diagonal',signDi
+!        write(6,*) 'adding to diagonal',AvSignDi * AvSignDi * SignFac
 
     end subroutine Fill_Diag_RDM_FromOrbs
  

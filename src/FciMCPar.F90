@@ -961,10 +961,11 @@ MODULE FciMCParMod
                 ! RDM) this just extracts info from the bit representation like normal.
                 ! Otherwise, it extracts the Curr info, and at the same time, adds in the RDM 
                 ! contribution to the diagonal terms.
+
                 call extract_bit_rep_rdm_diag (CurrentDets(:,j), CurrentH(1:NCurrH,j), &
                                             DetCurr, SignCurr, FlagsCurr, IterRDMStartCurr, &
                                             AvSignCurr, fcimc_excit_gen_store)
- 
+
                 if (tTruncInitiator) call CalcParentFlag (j, VecSlot, parent_flags)
 
             endif                                                          
@@ -2055,7 +2056,7 @@ MODULE FciMCParMod
                 p_notlist_rdmfac = ( 1.D0 - prob ) + ( prob * (1.D0 - p_spawn_rdmfac) )
 
                 ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i]
-                RDMBiasFacI = AvSignCurr / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(AvSignCurr)) ) )   
+                RDMBiasFacI = AvSignCurr / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp))) ) )   
 
             elseif(tFillingStochRDMonFly.and.(child(1).ne.0)) then
 
@@ -2088,7 +2089,7 @@ MODULE FciMCParMod
                 p_notlist_rdmfac = ( 1.D0 - prob ) + ( prob * (1.D0 - p_spawn_rdmfac) )
 
                 ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i]
-                RDMBiasFacI = AvSignCurr / abs( 1.D0 - ( p_notlist_rdmfac ** (abs( AvSignCurr)) ) )   
+                RDMBiasFacI = AvSignCurr / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp))) ) )   
             endif
 
 #endif

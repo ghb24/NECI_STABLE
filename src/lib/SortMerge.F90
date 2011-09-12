@@ -74,6 +74,7 @@
            endif
            HDiag=(REAL(HDiagTemp,8))-Hii
            CurrentH(1,ips+i-1)=HDiag
+           CurrentH(2:3,ips+i-1) = 0.D0
 ! Next element to be inserted must be smaller than DetCurr, so must be inserted
 ! at (at most) at ips-1.
 ! If nlisto=0 then all remaining elements in list2 must be inserted directly
