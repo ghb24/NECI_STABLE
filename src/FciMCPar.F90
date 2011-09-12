@@ -114,6 +114,7 @@ MODULE FciMCParMod
                          fill_diag_rdm, fill_sings_rdm, fill_doubs_rdm, &
                          Add_RDM_From_IJ_Pair, tCalc_RDMEnergy, &
                          extract_bit_rep_rdm_diag_norm, extract_bit_rep_rdm_diag_hphf, &
+                         extract_bit_rep_rdm_diag_no_rdm, &
                          DeAlloc_Alloc_SpawnedParts, Add_RDM_HFConnections_Null, &
                          Add_RDM_HFConnections_HPHF, Add_RDM_HFConnections_HF_S_D, &
                          Add_RDM_HFConnections_Norm, Fill_Spin_Coupled_RDM
@@ -217,7 +218,7 @@ MODULE FciMCParMod
                                            new_child_stats_normal, &
                                            attempt_die_spin_proj, &
                                            iter_data_spin_proj, &
-                                           extract_bit_rep, &
+                                           extract_bit_rep_rdm_diag_no_rdm, &
                                            add_rdm_hfconnections_null)
                 enddo
             endif
@@ -440,6 +441,7 @@ MODULE FciMCParMod
 
         IF((.not.tSinglePartPhase).and.((Iter - VaryShiftIter).eq.IterRDMonFly)) THEN
             !We have reached the iteration where we want to start filling the RDM.
+            IterRDMStart = Iter
             if(tExplicitAllRDM) then
                 tFillingExplicRDMonFly = .true.
                 if(tHistSpawn) NHistEquilSteps = Iter
@@ -522,7 +524,7 @@ MODULE FciMCParMod
         interface
             function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
                                      nJ, iLutJ, prob, HElGen, ic, ex, tPar, exLevel, &
-                                     part_type) result(child)
+                                     part_type, AvSignCurr) result(child)
                 use SystemData, only: nel
                 use bit_reps, only: niftot
                 use constants, only: n_int, dp, lenof_sign
@@ -534,6 +536,7 @@ MODULE FciMCParMod
                 integer, dimension(lenof_sign), intent(in) :: wSign
                 logical, intent(in) :: tPar
                 real(dp), intent(inout) :: prob
+                real(dp) , intent(in) :: AvSignCurr
                 integer , dimension(lenof_sign) :: child      
                 HElement_t , intent(in) :: HElGen
 
@@ -668,17 +671,19 @@ MODULE FciMCParMod
         use, intrinsic :: iso_c_binding
         implicit none
         interface
-            subroutine extract_bit_rep_rdm_diag(iLutnI, nI, SignI, FlagsI, Store)
-                use constants , only : n_int, lenof_sign
+            subroutine extract_bit_rep_rdm_diag(iLutnI, CurrH_I, nI, SignI, &
+                                                FlagsI, IterRDMStartI, AvSignI, Store)
+                use constants , only : dp, n_int, lenof_sign
                 use SystemData , only : NEl
-                use bit_reps , only : NIfTot
+                use bit_reps , only : NIfTot, extract_bit_rep, extract_bit_rep_rdm
+                use FciMCData , only : excit_gen_store_type, NCurrH
                 use DetBitOps , only : TestClosedShellDet
-                use FciMCData , only : excit_gen_store_type
-                use bit_reps , only : extract_bit_rep_rdm
-                implicit none 
+                implicit none
                 integer(n_int), intent(in) :: iLutnI(0:nIfTot)
+                real(dp) , intent(in) :: CurrH_I(NCurrH)
                 integer, intent(out) :: nI(nel), FlagsI
                 integer, dimension(lenof_sign), intent(out) :: SignI
+                real(dp) , intent(out) :: IterRDMStartI, AvSignI
                 type(excit_gen_store_type), intent(inout), optional :: Store
             end subroutine
         end interface
@@ -690,20 +695,21 @@ MODULE FciMCParMod
         use, intrinsic :: iso_c_binding
         implicit none
         interface
-            subroutine Add_RDM_HFConnections(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
+            subroutine Add_RDM_HFConnections(iLutJ,nJ,AvSignJ,walkExcitLevel)
+                use constants , only : n_int, lenof_sign, dp
+                use SystemData , only : NEl
+                use bit_reps , only : NIfTot
                 use FciMCData , only : HFDet
                 use hphf_integrals , only : hphf_sign
                 use HPHFRandExcitMod , only : FindExcitBitDetSym
                 use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
-                use constants , only : n_int, lenof_sign
-                use SystemData , only : NEl
-                use bit_reps , only : NIfTot
-                implicit none 
-
-                integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
-                integer , intent(in) :: DetCurr(NEl)
-                integer, dimension(lenof_sign), intent(in) :: SignCurr
+                implicit none
+                integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
+                integer , intent(in) :: nJ(NEl)
+                real(dp) , intent(in) :: AvSignJ
                 integer , intent(in) :: walkExcitLevel
+                integer(kind=n_int) :: SpinCoupDet(0:niftot)
+                integer :: nSpinCoup(NEl), HPHFExcitLevel
             end subroutine
         end interface
 
@@ -750,7 +756,7 @@ MODULE FciMCParMod
             end subroutine
             function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
                                      nJ, iLutJ, prob, HElGen, ic, ex, tPar, exLevel, &
-                                     part_type) result(child)
+                                     part_type, AvSignCurr) result(child)
                 use systemdata, only: nel
                 use bit_reps, only: niftot
                 use constants, only: dp, n_int, lenof_sign
@@ -762,6 +768,7 @@ MODULE FciMCParMod
                 integer, dimension(lenof_sign), intent(in) :: wSign
                 logical, intent(in) :: tPar
                 real(dp), intent(inout) :: prob
+                real(dp) , intent(in) :: AvSignCurr
                 integer, dimension(lenof_sign) :: child
                 HElement_t , intent(in) :: HElGen
 
@@ -828,33 +835,36 @@ MODULE FciMCParMod
                 real(dp), intent(in) :: Kii
                 integer, dimension(lenof_sign) :: ndie
             end function
-            subroutine extract_bit_rep_rdm_diag(iLutnI, nI, SignI, FlagsI, Store)
-                use constants , only : n_int, lenof_sign
+            subroutine extract_bit_rep_rdm_diag(iLutnI, CurrH_I, nI, SignI, &
+                                                    FlagsI, IterRDMStartI, AvSignI, Store)
+                use constants , only : dp, n_int, lenof_sign
                 use SystemData , only : NEl
-                use bit_reps , only : NIfTot
+                use bit_reps , only : NIfTot, extract_bit_rep, extract_bit_rep_rdm
+                use FciMCData , only : excit_gen_store_type, NCurrH
                 use DetBitOps , only : TestClosedShellDet
-                use FciMCData , only : excit_gen_store_type
-                use bit_reps , only : extract_bit_rep_rdm
-                implicit none 
+                implicit none
                 integer(n_int), intent(in) :: iLutnI(0:nIfTot)
+                real(dp) , intent(in) :: CurrH_I(NCurrH)
                 integer, intent(out) :: nI(nel), FlagsI
                 integer, dimension(lenof_sign), intent(out) :: SignI
+                real(dp) , intent(out) :: IterRDMStartI, AvSignI
                 type(excit_gen_store_type), intent(inout), optional :: Store
             end subroutine
-            subroutine Add_RDM_HFConnections(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
+            subroutine Add_RDM_HFConnections(iLutJ,nJ,AvSignJ,walkExcitLevel)
+                use constants , only : n_int, lenof_sign, dp
+                use SystemData , only : NEl
+                use bit_reps , only : NIfTot
                 use FciMCData , only : HFDet
                 use hphf_integrals , only : hphf_sign
                 use HPHFRandExcitMod , only : FindExcitBitDetSym
                 use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
-                use constants , only : n_int, lenof_sign
-                use SystemData , only : NEl
-                use bit_reps , only : NIfTot
-                implicit none 
-
-                integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
-                integer , intent(in) :: DetCurr(NEl)
-                integer, dimension(lenof_sign), intent(in) :: SignCurr
+                implicit none
+                integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
+                integer , intent(in) :: nJ(NEl)
+                real(dp) , intent(in) :: AvSignJ
                 integer , intent(in) :: walkExcitLevel
+                integer(kind=n_int) :: SpinCoupDet(0:niftot)
+                integer :: nSpinCoup(NEl), HPHFExcitLevel
             end subroutine
         end interface
 
@@ -870,6 +880,7 @@ MODULE FciMCParMod
         integer(int64) :: tot_parts_tmp(lenof_sign)
         logical :: tParity, tSuccess
         real(dp) :: prob, HDiagCurr, TempTotParts, Di_Sign_Temp
+        real(dp) :: AvSignCurr, IterRDMStartCurr
         HElement_t :: HDiagTemp,HElGen
 #ifdef __DEBUG
         character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
@@ -940,21 +951,22 @@ MODULE FciMCParMod
                 ! if CurrentDet is a non-initiator otherwise it is necessary either way.
 
                 if (tcurr_initiator)                                         & 
-                    ! tcurr_initiator is a global variable which indicates that at least one of the 'types' of
-                    ! walker on this determinant is an initiator.
+                    ! tcurr_initiator is a global variable which indicates that at least one of the 
+                    ! 'types' of walker on this determinant is an initiator.
                     ! Decode determinant from (stored) bit-representation.
                     call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
                                       FlagsCurr, fcimc_excit_gen_store)
             else                                      
                 ! If we're not calculating the RDM (or we're calculating some HFSD combination of the 
                 ! RDM) this just extracts info from the bit representation like normal.
-                ! Otherwise, it extracts the info, and at the same time, adds in the RDM 
+                ! Otherwise, it extracts the Curr info, and at the same time, adds in the RDM 
                 ! contribution to the diagonal terms.
-                call extract_bit_rep_rdm_diag (CurrentDets(:,j), DetCurr, SignCurr, &
-                                                  FlagsCurr, fcimc_excit_gen_store)
+                call extract_bit_rep_rdm_diag (CurrentDets(:,j), CurrentH(1:NCurrH,j), &
+                                            DetCurr, SignCurr, FlagsCurr, IterRDMStartCurr, &
+                                            AvSignCurr, fcimc_excit_gen_store)
  
-                if (tTruncInitiator) call CalcParentFlag (j, VecSlot, &
-                                                          parent_flags)
+                if (tTruncInitiator) call CalcParentFlag (j, VecSlot, parent_flags)
+
             endif                                                          
 
             !Debug output.
@@ -1019,7 +1031,7 @@ MODULE FciMCParMod
             ! If we're filling the RDM, this calculates the explicitly connected singles and doubles.
             ! Or in the case of HFSD (or some combination of this), it calculates the 
             ! diagonal elements too - as we need the walkExcitlevel for the diagonal elements as well.
-            call Add_RDM_HFConnections(CurrentDets(:,j),DetCurr,SignCurr,walkExcitLevel)   
+            call Add_RDM_HFConnections(CurrentDets(:,j),DetCurr,AvSignCurr,walkExcitLevel)   
             TempSpawnedPartsInd = 0
 
             ! Loop over the 'type' of particle. 
@@ -1058,7 +1070,8 @@ MODULE FciMCParMod
                         child = attempt_create (get_spawn_helement, DetCurr, &
                                             CurrentDets(:,j), SignCurr, &
                                             nJ,iLutnJ, Prob, HElGen, IC, ex, &
-                                            tParity, walkExcitLevel,part_type)     
+                                            tParity, walkExcitLevel,part_type, &
+                                            AvSignCurr)     
                     else
                         child = 0
                     endif
@@ -1087,7 +1100,8 @@ MODULE FciMCParMod
             ! DEBUG
             ! if (VecSlot > j) call stop_all (this_routine, 'vecslot > j')
             call walker_death (attempt_die, iter_data, DetCurr, &
-                               CurrentDets(:,j), HDiagCurr, SignCurr, VecSlot)
+                               CurrentDets(:,j), HDiagCurr, SignCurr, &
+                               AvSignCurr, IterRDMStartCurr, VecSlot)
 
         enddo ! Loop over determinants.
         IFDEBUG(FCIMCDebug,2) write(6,*) 'Finished loop over determinants'
@@ -1668,7 +1682,7 @@ MODULE FciMCParMod
 
         call set_fcimc_iter_data (iter_data_fciqmc)
 
-        call set_extract_bit_rep_rdm_diag(extract_bit_rep)
+        call set_extract_bit_rep_rdm_diag(extract_bit_rep_rdm_diag_no_rdm)
 
         call set_add_rdm_hfconnections(add_rdm_hfconnections_null)
 
@@ -1722,8 +1736,8 @@ MODULE FciMCParMod
         
     function attempt_create_trunc_spawn (get_spawn_helement, DetCurr,&
                                          iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, &
-                                         ic, ex, tparity, walkExcitLevel, part_type) &
-                                         result(child)
+                                         ic, ex, tparity, walkExcitLevel, part_type, &
+                                         AvSignCurr) result(child)
         integer, intent(in) :: DetCurr(nel), nJ(nel), part_type 
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
@@ -1731,6 +1745,7 @@ MODULE FciMCParMod
         integer, dimension(lenof_sign), intent(in) :: wSign
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
+        real(dp) , intent(in) :: AvSignCurr
         integer, dimension(lenof_sign) :: child
         HElement_t, intent(in) :: HElGen
 
@@ -1753,7 +1768,7 @@ MODULE FciMCParMod
         if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
             child = attempt_create_normal (get_spawn_helement, DetCurr, &
                                iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
-                               tParity, walkExcitLevel, part_type)
+                               tParity, walkExcitLevel, part_type, AvSignCurr)
         else
             child = 0
         endif
@@ -1761,8 +1776,8 @@ MODULE FciMCParMod
 
     function attempt_create_trunc_spawn_encode (get_spawn_helement, DetCurr,&
                                          iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, &
-                                         ic, ex, tparity, walkExcitLevel, part_type) &
-                                         result(child)
+                                         ic, ex, tparity, walkExcitLevel, part_type, &
+                                         AvSignCurr) result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel), part_type 
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
@@ -1771,6 +1786,7 @@ MODULE FciMCParMod
         integer, dimension(lenof_sign), intent(in) :: wSign
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
+        real(dp) , intent(in) :: AvSignCurr
         integer, dimension(lenof_sign) :: child
         HElement_t , intent(in) :: HElGen
 
@@ -1794,7 +1810,7 @@ MODULE FciMCParMod
         if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
             child = attempt_create_normal (get_spawn_helement, DetCurr, &
                                iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
-                               tParity, walkExcitLevel, part_type)
+                               tParity, walkExcitLevel, part_type, AvSignCurr)
         else
             child = 0
         endif
@@ -1802,7 +1818,7 @@ MODULE FciMCParMod
 
     function attempt_create_normal (get_spawn_helement, DetCurr, iLutCurr, &
                                     wSign, nJ, iLutnJ, prob, HElGen, ic, ex, tparity,&
-                                    walkExcitLevel, part_type) result(child)
+                                    walkExcitLevel, part_type, AvSignCurr) result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel)
         integer, intent(in) :: part_type    ! 1 = Real parent particle, 2 = Imag parent particle
@@ -1812,6 +1828,7 @@ MODULE FciMCParMod
         integer, dimension(lenof_sign), intent(in) :: wSign
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
+        real(dp) , intent(in) :: AvSignCurr
         integer, dimension(lenof_sign) :: child
         HElement_t , intent(in) :: HElGen
 
@@ -2038,7 +2055,7 @@ MODULE FciMCParMod
                 p_notlist_rdmfac = ( 1.D0 - prob ) + ( prob * (1.D0 - p_spawn_rdmfac) )
 
                 ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i]
-                RDMBiasFacI = real(wSign(1),dp) / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) )   
+                RDMBiasFacI = AvSignCurr / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(AvSignCurr)) ) )   
 
             elseif(tFillingStochRDMonFly.and.(child(1).ne.0)) then
 
@@ -2071,7 +2088,7 @@ MODULE FciMCParMod
                 p_notlist_rdmfac = ( 1.D0 - prob ) + ( prob * (1.D0 - p_spawn_rdmfac) )
 
                 ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i]
-                RDMBiasFacI = real(wSign(1),dp) / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp)))) )   
+                RDMBiasFacI = AvSignCurr / abs( 1.D0 - ( p_notlist_rdmfac ** (abs( AvSignCurr)) ) )   
             endif
 
 #endif
@@ -2293,7 +2310,7 @@ MODULE FciMCParMod
     END FUNCTION AttemptCreatePar
 
     subroutine walker_death (attempt_die, iter_data, DetCurr, iLutCurr, Kii, &
-                             wSign, VecSlot)
+                             wSign, wAvSign, IterRDMStartCurr, VecSlot)
         interface
             function attempt_die (nI, Kii, wSign) result(ndie)
                 use SystemData, only: nel
@@ -2310,7 +2327,7 @@ MODULE FciMCParMod
         integer, dimension(lenof_sign), intent(in) :: wSign
         integer(kind=n_int), intent(in) :: iLutCurr(0:niftot)
         integer, intent(inout) :: VecSlot
-        real(dp), intent(in) :: Kii
+        real(dp), intent(in) :: Kii, wAvSign, IterRDMStartCurr
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer, dimension(lenof_sign) :: iDie
         integer, dimension(lenof_sign) :: CopySign
@@ -2357,7 +2374,10 @@ MODULE FciMCParMod
                 !Normally we will go in this block
                 call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
                 if (.not.tRegenDiagHEls) CurrentH(1,VecSlot) = Kii
-                if (tFillingStochRDMonFly) CurrentH(2,VecSlot) = real(wSign(1),dp)
+                if (tFillingStochRDMonFly) then
+                    CurrentH(2,VecSlot) = wAvSign
+                    CurrentH(3,VecSlot) = IterRDMStartCurr
+                endif
                 VecSlot = VecSlot + 1
             ENDIF
         else
@@ -2367,7 +2387,8 @@ MODULE FciMCParMod
                 ! This is because we're using the sign of each determinant before death.
                 call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
                 if (.not.tRegenDiagHEls) CurrentH(1,VecSlot) = Kii
-                CurrentH(2,VecSlot) = real(wSign(1),dp)
+                CurrentH(2,VecSlot) = wAvSign
+                CurrentH(3,VecSlot) = IterRDMStartCurr
                 VecSlot = VecSlot + 1
             endif
             if(tTruncInitiator) then
@@ -3636,6 +3657,7 @@ MODULE FciMCParMod
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         real*8 :: TempTotParts
+        real(dp) :: Prev_AvNoatHF
 
         NoInitDets = 0
         NoNonInitDets = 0
@@ -3651,8 +3673,12 @@ MODULE FciMCParMod
         iter_data%nannihil = 0
         iter_data%naborted = 0
 
-        if(tFillingStochRDMonFly.or.(tHF_Ref_Explicit)) &
+        if(tFillingStochRDMonFly.or.(tHF_Ref_Explicit)) then
             call MPISumAll_inplace (InstNoatHF)
+            Prev_AvNoatHF = AvNoatHF
+            AvNoatHF = ( (real((Iter - IterRDMStart),dp) * Prev_AvNoatHF) &
+                        + real(InstNoatHF(1),dp) ) / real((Iter - IterRDMStart) + 1,dp)
+        endif
         HFInd = 0            
 
     end subroutine
@@ -4493,6 +4519,7 @@ MODULE FciMCParMod
         SumNoatHF=0
         NoatHF=0
         InstNoatHF=0
+        AvNoatHF = 0.0_dp
         NoatDoubs=0
         Annihilated=0
         Acceptances=0
@@ -5810,17 +5837,19 @@ MODULE FciMCParMod
 
             IF(.not.tRegenDiagHEls) THEN
                 if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
-                    ALLOCATE(WalkVecH(2,MaxWalkersPart),stat=ierr)
-                    CALL LogMemAlloc('WalkVecH',2*MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
+                    ALLOCATE(WalkVecH(3,MaxWalkersPart),stat=ierr)
+                    CALL LogMemAlloc('WalkVecH',3*MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
                     WalkVecH(:,:)=0.d0
-                    MemoryAlloc=MemoryAlloc+8*MaxWalkersPart*2
+                    MemoryAlloc=MemoryAlloc+8*MaxWalkersPart*3
                     WRITE(6,"(A)") " The current signs before death will be store for use in the RDMs."
-                    WRITE(6,"(A,F14.6,A)") " This requires ", REAL(MaxWalkersPart*8,dp)/1048576.D0," Mb/Processor"
+                    WRITE(6,"(A,F14.6,A)") " This requires ", REAL(MaxWalkersPart*8*2,dp)/1048576.D0," Mb/Processor"
+                    NCurrH = 3
                 else
                     ALLOCATE(WalkVecH(1,MaxWalkersPart),stat=ierr)
                     CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
                     WalkVecH(:,:)=0.d0
                     MemoryAlloc=MemoryAlloc+8*MaxWalkersPart
+                    NCurrH = 1
                 endif
             ELSE
                 WRITE(6,"(A,F14.6,A)") " Diagonal H-Elements will not be stored. This will *save* ", &
@@ -5870,6 +5899,7 @@ MODULE FciMCParMod
             TotPartsOld(:)=0
             NoatHF=0
             InstNoatHF=0
+            AvNoatHF = 0.0_dp
 
             if (tSpawnSpatialInit) then
                 max_inits = int(MemoryFacInit * INitWalkers)

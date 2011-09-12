@@ -212,14 +212,15 @@ contains
 
     end subroutine extract_bit_rep
 
-    subroutine extract_bit_rep_rdm (ilut, nI, sgn, flags, sgnfac)
+    subroutine extract_bit_rep_rdm (ilut, IterRDMStartI, PrevAvSignI, sgnfac, nI, sgn, flags, AvSignI)
         
         ! Extract useful terms out of the bit-representation of a walker
-
+        use FciMCData , only : Iter
         integer(n_int), intent(in) :: ilut(0:nIfTot)
         integer, intent(out) :: nI(nel), flags
         integer, dimension(lenof_sign), intent(out) :: sgn
-        real(dp) , intent(in) :: sgnfac
+        real(dp) , intent(in) :: sgnfac, IterRDMStartI, PrevAvSignI
+        real(dp) , intent(out) :: AvSignI
 
         sgn = iLut(NOffSgn:NOffSgn+lenof_sign-1)
         IF(NifFlag.eq.1) THEN
@@ -228,8 +229,11 @@ contains
             flags = 0
         ENDIF
 
+        AvSignI = ( ((real(Iter,dp) - IterRDMStartI) * PrevAvSignI) &
+                        + real(sgn(1),dp) ) / ( real(Iter,dp) - IterRDMStartI + 1.0_dp )
+
         ! This routine also adds in the diagonal elements of the rdm.
-        call decode_bit_det_rdm (nI, ilut, sgn, sgnfac)
+        call decode_bit_det_rdm (nI, ilut, AvSignI, sgnfac)
 
     end subroutine extract_bit_rep_rdm
 
@@ -567,7 +571,7 @@ contains
 
     end subroutine
 
-    subroutine decode_bit_det_rdm (nI, ilut, sgn, sgnfac)
+    subroutine decode_bit_det_rdm (nI, ilut, avsgn, sgnfac)
 
         ! This is a routine to take a determinant in bit form and construct
         ! the natural ordered Nel integer form of the det.
@@ -576,8 +580,7 @@ contains
 
         integer, intent(out) :: nI(nel)
         integer(n_int), intent(in) :: ilut(0:NIftot)
-        integer, dimension(lenof_sign), intent(in) :: sgn
-        real(dp), intent(in) :: sgnfac
+        real(dp), intent(in) :: avsgn, sgnfac
         integer :: nopen, i, j, k, val, elec, offset, pos
         integer :: nI_prev(nel), prev
 
@@ -590,7 +593,7 @@ contains
                 do k = 1, decode_map_arr(0, val)
                     elec = elec + 1
                     nI(elec) = offset + decode_map_arr(k, val)
-                    call Fill_Diag_RDM_FromOrbs(nI(elec), nI_Prev(:), prev, sgn, sgnfac)
+                    call Fill_Diag_RDM_FromOrbs(nI(elec), nI_Prev(:), prev, avsgn, sgnfac)
                     if (elec == nel) return ! exit
                     prev = prev + 1
                     nI_prev(prev) = nI(elec)

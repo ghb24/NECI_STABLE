@@ -46,7 +46,7 @@ MODULE nElRDMMod
         USE OneEInts , only : TMAT2D
         USE FciMCData , only : MaxWalkersPart, MaxSpawned, Spawned_Parents, PreviousCycles,&
                                Spawned_Parents_Index, Spawned_ParentsTag, AccumRDMNorm_Inst,&
-                               Spawned_Parents_IndexTag, Iter, AccumRDMNorm, InstNoatHF,&
+                               Spawned_Parents_IndexTag, Iter, AccumRDMNorm, AvNoatHF,&
                                iLutRef
         USE Logging , only : RDMExcitLevel, tROFciDUmp, NoDumpTruncs, tExplicitAllRDM, &
                              tHF_S_D_Ref, tHF_Ref_Explicit, tHF_S_D 
@@ -1054,46 +1054,55 @@ MODULE nElRDMMod
     END SUBROUTINE Gen_Hist_ExcDjs
 
 
-    subroutine Add_RDM_HFConnections_Norm(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
+    subroutine Add_RDM_HFConnections_Norm(iLutJ,nJ,AvSignJ,walkExcitLevel)
 ! This is called when we run over all TotWalkers in CurrentDets.    
 ! It is called for each CurrentDet which is a single or double of the HF.
-! It explicitly adds in the HF - S/D connection.
-        use FciMCData , only : HFDet
+! It explicitly adds in the HF - S/D connection, as if the HF were D_i and 
+! the single or double D_j.
+        use constants , only : n_int, lenof_sign, dp
+        use SystemData , only : NEl
+        use bit_reps , only : NIfTot
+        use FciMCData , only : HFDet, AvNoatHF
         use hphf_integrals , only : hphf_sign
         use HPHFRandExcitMod , only : FindExcitBitDetSym
         use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
         implicit none
-        integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
-        integer , intent(in) :: DetCurr(NEl)
-        integer, dimension(lenof_sign), intent(in) :: SignCurr
+        integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
+        integer , intent(in) :: nJ(NEl)
+        real(dp) , intent(in) :: AvSignJ
         integer , intent(in) :: walkExcitLevel
+        integer(kind=n_int) :: SpinCoupDet(0:niftot)
+        integer :: nSpinCoup(NEl), HPHFExcitLevel
 
         if(walkExcitLevel.eq.0) then
-            if(SignCurr(1).ne.InstNoatHF(1)) then
-                write(6,*) 'SignCurr',SignCurr
-                write(6,*) 'InstNoatHF',InstNoatHF
+            if(AvSignJ.ne.AvNoatHF) then
+                write(6,*) 'AvSignJ',AvSignJ
+                write(6,*) 'AvNoatHF',AvNoatHF
                 CALL Stop_All('PerformFCIMCycPar','Incorrect instantaneous HF population.')
             endif
         endif
 
 ! If we have a single or double, add in the connection to the HF, symmetrically.        
         if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) &
-            call Add_RDM_From_IJ_Pair(HFDet,DetCurr,real(InstNoatHF(1),dp),real(SignCurr(1),dp),.true.)
+            call Add_RDM_From_IJ_Pair(HFDet,nJ,AvNoatHF,AvSignJ,.true.)
 
     end subroutine Add_RDM_HFConnections_Norm
 
 
-    subroutine Add_RDM_HFConnections_HF_S_D(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
+    subroutine Add_RDM_HFConnections_HF_S_D(iLutJ,nJ,AvSignJ,walkExcitLevel)
 ! This is called when we run over all TotWalkers in CurrentDets.    
 ! It is called for each CurrentDet.
-        use FciMCData , only : HFDet
+        use constants , only : n_int, lenof_sign, dp
+        use SystemData , only : NEl
+        use bit_reps , only : NIfTot
+        use FciMCData , only : HFDet, AvNoatHF
         use hphf_integrals , only : hphf_sign
         use HPHFRandExcitMod , only : FindExcitBitDetSym
         use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
         implicit none
-        integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
-        integer , intent(in) :: DetCurr(NEl)
-        integer, dimension(lenof_sign), intent(in) :: SignCurr
+        integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
+        integer , intent(in) :: nJ(NEl)
+        real(dp) , intent(in) :: AvSignJ
         integer , intent(in) :: walkExcitLevel
         integer(kind=n_int) :: SpinCoupDet(0:niftot)
         integer :: nSpinCoup(NEl), HPHFExcitLevel
@@ -1107,13 +1116,13 @@ MODULE nElRDMMod
         ! In all of these cases the HF is a diagonal element.
         if(walkExcitLevel.eq.0) then
 
-            call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
-            AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
-            AccumRDMNorm_Inst = AccumRDMNorm_Inst + (real(SignCurr(1)) * real(SignCurr(1)))
+            call Fill_Diag_RDM(nJ, AvSignJ)
+            AccumRDMNorm = AccumRDMNorm + (AvSignJ * AvSignJ)
+            AccumRDMNorm_Inst = AccumRDMNorm_Inst + (AvSignJ * AvSignJ)
 
-            if(SignCurr(1).ne.InstNoatHF(1)) then
-                write(6,*) 'CurrentSign',SignCurr(1)
-                write(6,*) 'HF Sign',InstNoatHF(1)
+            if(AvSignJ.ne.AvNoatHF) then
+                write(6,*) 'AvSignJ',AvSignJ
+                write(6,*) 'HF Sign',AvNoatHF
                 call stop_all('Add_RDM_HFConnections_HF_S_D','HF population is incorrect.')
             endif
 
@@ -1129,15 +1138,15 @@ MODULE nElRDMMod
                     ! Now if the determinant is connected to the HF (i.e. single or double), 
                     ! add in the elements of this connection as well - symmetrically 
                     ! because no probabilities are involved.
-                    call Fill_Spin_Coupled_RDM_v2(iLutRef,iLutCurr,HFDet,DetCurr,&
-                                real(InstNoatHF(1),dp),real(SignCurr(1),dp),.false.)
+                    call Fill_Spin_Coupled_RDM_v2(iLutRef,iLutJ,HFDet,nJ,&
+                                AvNoatHF,AvSignJ,.false.)
 
                 else
 
                     ! The singles and doubles are connected and explicitly calculated 
                     ! - but not symmetrically.
-                    call Add_RDM_From_IJ_Pair(HFDet, DetCurr, real(InstNoatHF(1),dp), &
-                                                real(SignCurr(1),dp),.false.)
+                    call Add_RDM_From_IJ_Pair(HFDet, nJ, AvNoatHF, &
+                                                AvSignJ,.false.)
 
                 endif
 
@@ -1145,11 +1154,11 @@ MODULE nElRDMMod
                 ! For the HF,S,D symmetric case, and the HF,S,D reference, the S and D
                 ! are diagonal terms too.
                 ! These options are not set up for HPHF.
-                call Fill_Diag_RDM(DetCurr, real(SignCurr(1),dp))
-                AccumRDMNorm = AccumRDMNorm + (real(SignCurr(1)) * real(SignCurr(1)))
-                AccumRDMNorm_Inst = AccumRDMNorm_Inst + (real(SignCurr(1)) * real(SignCurr(1)))
+                call Fill_Diag_RDM(nJ, AvSignJ)
+                AccumRDMNorm = AccumRDMNorm + (AvSignJ * AvSignJ)
+                AccumRDMNorm_Inst = AccumRDMNorm_Inst + (AvSignJ * AvSignJ)
 
-                call Add_RDM_From_IJ_Pair(HFDet,DetCurr,real(InstNoatHF(1),dp),real(SignCurr(1),dp),.true.)
+                call Add_RDM_From_IJ_Pair(HFDet,nJ,AvNoatHF,AvSignJ,.true.)
 
             endif
 
@@ -1158,68 +1167,128 @@ MODULE nElRDMMod
     end subroutine Add_RDM_HFConnections_HF_S_D
 
 
-    subroutine Add_RDM_HFConnections_HPHF(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
+    subroutine Add_RDM_HFConnections_HPHF(iLutJ,nJ,AvSignJ,walkExcitLevel)
 ! This is called when we run over all TotWalkers in CurrentDets.    
 ! It is called for each CurrentDet which is a single or double of the HF.
 ! It adds in the HF - S/D connection.
-        use FciMCData , only : HFDet
+        use constants , only : n_int, lenof_sign, dp
+        use SystemData , only : NEl
+        use bit_reps , only : NIfTot
+        use FciMCData , only : HFDet, AvNoatHF
+        use hphf_integrals , only : hphf_sign
+        use HPHFRandExcitMod , only : FindExcitBitDetSym
+        use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
         implicit none
-        integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
-        integer , intent(in) :: DetCurr(NEl)
-        integer, dimension(lenof_sign), intent(in) :: SignCurr
+        integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
+        integer , intent(in) :: nJ(NEl)
+        real(dp) , intent(in) :: AvSignJ
         integer , intent(in) :: walkExcitLevel
+        integer(kind=n_int) :: SpinCoupDet(0:niftot)
+        integer :: nSpinCoup(NEl), HPHFExcitLevel
+
+
+        if(walkExcitLevel.eq.0) then
+            if(AvSignJ.ne.AvNoatHF) then
+                write(6,*) 'AvSignJ',AvSignJ
+                write(6,*) 'AvNoatHF',AvNoatHF
+                CALL Stop_All('PerformFCIMCycPar','Incorrect instantaneous HF population.')
+            endif
+        endif
 
 ! Now if the determinant is connected to the HF (i.e. single or double), add in the diagonal elements
 ! of this connection as well - symmetrically because no probabilities are involved.
         if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) &
-            call Fill_Spin_Coupled_RDM_v2(iLutRef,iLutCurr,HFDet,DetCurr,&
-                                            real(InstNoatHF(1),dp),real(SignCurr(1),dp),.true.)
+            call Fill_Spin_Coupled_RDM_v2(iLutRef,iLutJ,HFDet,nJ,&
+                                            AvNoatHF,AvSignJ,.true.)
 
     end subroutine Add_RDM_HFConnections_HPHF
 
-    subroutine Add_RDM_HFConnections_null(iLutCurr,DetCurr,SignCurr,walkExcitLevel)
+    subroutine Add_RDM_HFConnections_null(iLutJ,nJ,AvSignJ,walkExcitLevel)
 ! This is called when we run over all TotWalkers in CurrentDets.    
 ! It is called for each CurrentDet.
 ! This is called when we are not filling the density matrices.
+        use constants , only : n_int, lenof_sign, dp
+        use SystemData , only : NEl
+        use bit_reps , only : NIfTot
+        use FciMCData , only : HFDet, AvNoatHF
+        use hphf_integrals , only : hphf_sign
+        use HPHFRandExcitMod , only : FindExcitBitDetSym
+        use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
         implicit none
-        integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
-        integer , intent(in) :: DetCurr(NEl)
-        integer, dimension(lenof_sign), intent(in) :: SignCurr
+        integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
+        integer , intent(in) :: nJ(NEl)
+        real(dp) , intent(in) :: AvSignJ
         integer , intent(in) :: walkExcitLevel
-
+        integer(kind=n_int) :: SpinCoupDet(0:niftot)
+        integer :: nSpinCoup(NEl), HPHFExcitLevel
 
     end subroutine Add_RDM_HFConnections_null
 
-
-    subroutine extract_bit_rep_rdm_diag_norm(iLutnI, nI, SignI, FlagsI, Store)
-        use FciMCData , only : excit_gen_store_type
-        use bit_reps , only : extract_bit_rep_rdm
+    subroutine extract_bit_rep_rdm_diag_no_rdm(iLutnI, CurrH_I, nI, SignI, FlagsI, IterRDMStartI, AvSignI, Store)
+        use constants , only : dp, n_int, lenof_sign
+        use SystemData , only : NEl
+        use bit_reps , only : NIfTot, extract_bit_rep, extract_bit_rep_rdm
+        use FciMCData , only : excit_gen_store_type, NCurrH
+        use DetBitOps , only : TestClosedShellDet
         implicit none
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
+        real(dp) , intent(in) :: CurrH_I(NCurrH)
         integer, intent(out) :: nI(nel), FlagsI
         integer, dimension(lenof_sign), intent(out) :: SignI
+        real(dp) , intent(out) :: IterRDMStartI, AvSignI
         type(excit_gen_store_type), intent(inout), optional :: Store
 
-        call extract_bit_rep_rdm (iLutnI, nI, SignI, FlagsI, 1.0_dp)
+        call extract_bit_rep (iLutnI, nI, SignI, FlagsI, Store)
+
+        IterRDMStartI = 0.0_dp
+        AvSignI = 0.0_dp
+
+    end subroutine extract_bit_rep_rdm_diag_no_rdm
+
+    subroutine extract_bit_rep_rdm_diag_norm(iLutnI, CurrH_I, nI, SignI, FlagsI, IterRDMStartI, AvSignI, Store)
+        use constants , only : dp, n_int, lenof_sign
+        use SystemData , only : NEl
+        use bit_reps , only : NIfTot, extract_bit_rep, extract_bit_rep_rdm
+        use FciMCData , only : excit_gen_store_type, NCurrH
+        use DetBitOps , only : TestClosedShellDet
+        implicit none
+        integer(n_int), intent(in) :: iLutnI(0:nIfTot)
+        real(dp) , intent(in) :: CurrH_I(NCurrH)
+        integer, intent(out) :: nI(nel), FlagsI
+        integer, dimension(lenof_sign), intent(out) :: SignI
+        real(dp) , intent(out) :: IterRDMStartI, AvSignI
+        type(excit_gen_store_type), intent(inout), optional :: Store
+
+        IterRDMStartI = CurrH_I(3)
+        IF(IterRDMStartI.eq.0.0_dp) IterRDMStartI = real(Iter, dp)
+ 
+        call extract_bit_rep_rdm (iLutnI, IterRDMStartI, CurrH_I(2), 1.0_dp, nI, SignI, FlagsI, AvSignI)
 
     end subroutine extract_bit_rep_rdm_diag_norm
 
 
-    subroutine extract_bit_rep_rdm_diag_hphf(iLutnI, nI, SignI, FlagsI, Store)
-        use FciMCData , only : excit_gen_store_type
+    subroutine extract_bit_rep_rdm_diag_hphf(iLutnI, CurrH_I, nI, SignI, FlagsI, IterRDMStartI, AvSignI, Store)
+        use constants , only : dp, n_int, lenof_sign
+        use SystemData , only : NEl
+        use bit_reps , only : NIfTot, extract_bit_rep, extract_bit_rep_rdm
+        use FciMCData , only : excit_gen_store_type, NCurrH
         use DetBitOps , only : TestClosedShellDet
-        use bit_reps , only : extract_bit_rep_rdm
         implicit none
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
+        real(dp) , intent(in) :: CurrH_I(NCurrH)
         integer, intent(out) :: nI(nel), FlagsI
         integer, dimension(lenof_sign), intent(out) :: SignI
+        real(dp) , intent(out) :: IterRDMStartI, AvSignI
         type(excit_gen_store_type), intent(inout), optional :: Store
 
+        IterRDMStartI = CurrH_I(3)
+        IF(IterRDMStartI.eq.0.0_dp) IterRDMStartI = real(Iter, dp)
+
         if(.not.TestClosedShellDet(iLutnI)) then
-            call extract_bit_rep_rdm (iLutnI, nI, SignI, FlagsI, 0.5_dp)
+            call extract_bit_rep_rdm (iLutnI, IterRDMStartI, CurrH_I(2), 0.5_dp, nI, SignI, FlagsI, AvSignI)
             call Add_StochRDM_Diag_HPHF(iLutnI, nI, SignI)
         else
-            call extract_bit_rep_rdm (iLutnI, nI, SignI, FlagsI, 1.0_dp)
+            call extract_bit_rep_rdm (iLutnI, IterRDMStartI, CurrH_I(2), 1.0_dp, nI, SignI, FlagsI, AvSignI)
         endif
 
     end subroutine extract_bit_rep_rdm_diag_hphf
@@ -4610,7 +4679,7 @@ END MODULE nElRDMMod
 
     END SUBROUTINE DiDj_Found_FillRDM
 
-    subroutine Fill_Diag_RDM_FromOrbs(i, nI_Prev, Prev, SignDi, SignFac)
+    subroutine Fill_Diag_RDM_FromOrbs(i, nI_Prev, Prev, AvSignDi, SignFac)
 ! Given an occupied orbital, and the sign of the determinant it is occupied in,
 ! add in the contribution to the 1 and 2-electron RDMs.
         USE SystemData , only : NEl
@@ -4620,8 +4689,7 @@ END MODULE nElRDMMod
         USE RotateOrbsData , only : SymLabelListInv
         implicit none
         integer , intent(in) :: i, nI_Prev(NEl), Prev
-        integer, dimension(lenof_sign), intent(in) :: SignDi
-        real(dp) , intent(in) :: SignFac
+        real(dp) , intent(in) :: AvSignDi, SignFac
         integer :: j, Ind
 
 ! Need to add in the diagonal elements.
@@ -4632,7 +4700,7 @@ END MODULE nElRDMMod
         IF(RDMExcitLevel.ne.2) THEN
             OneElRDM(SymLabelListInv(i),SymLabelListInv(i)) = &
                         OneElRDM(SymLabelListInv(i),SymLabelListInv(i)) &
-                          + (real(SignDi(1),dp) * real(SignDi(1),dp) * SignFac) 
+                          + (AvSignDi * AvSignDi * SignFac) 
         ENDIF
 
 ! There is no need to use the SymLabelList arrays for the 2 el RDM because we are 
@@ -4641,7 +4709,7 @@ END MODULE nElRDMMod
             do j=1,Prev
                 Ind=( ( (i-2) * (i-1) ) / 2 ) + nI_Prev(j)
                 TwoElRDM( Ind , Ind ) = TwoElRDM( Ind , Ind ) &
-                                      + (real(SignDi(1),dp) * real(SignDi(1),dp) * SignFac)
+                                        + (AvSignDi * AvSignDi * SignFac) 
             enddo
         ENDIF
 
