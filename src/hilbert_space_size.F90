@@ -352,9 +352,9 @@ contains
             IF(tFixLz) FDetMom=FDetMom+G1(FDet(i))%Ml
             if(tKPntSym) FDetKPntMom=Symprod(FDetKPntMom,G1(FDet(i))%Sym)
             IF(tUEG.or.tHub) THEN
-                Momx=Momx+G1(i)%k(1)
-                Momy=Momy+G1(i)%k(2)
-                Momz=Momz+G1(i)%k(3)
+                Momx=Momx+G1(FDet(i))%k(1)
+                Momy=Momy+G1(FDet(i))%k(2)
+                Momz=Momz+G1(FDet(i))%k(3)
             else
                 FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,sizeof_int))
             ENDIF
