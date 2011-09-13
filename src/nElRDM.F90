@@ -65,7 +65,7 @@ MODULE nElRDMMod
         REAL(dp) , ALLOCATABLE :: TwoElRDM(:,:)
         REAL(dp) , ALLOCATABLE :: AllTwoElRDM(:,:)
         REAL(dp) , ALLOCATABLE :: UMATTemp(:,:)
-        REAL(dp) :: OneEl_Gap,TwoEl_Gap, Normalisation, Trace_2RDM, Trace_1RDM
+        REAL(dp) :: OneEl_Gap,TwoEl_Gap, Normalisation, Trace_2RDM, Trace_1RDM, norm
         LOGICAL :: tFinalRDMEnergy, tCalc_RDMEnergy
         type(timer), save :: nElRDM_Time, FinaliseRDM_time, RDMEnergy_time
 
@@ -679,6 +679,16 @@ MODULE nElRDMMod
 
         CALL MPISumAll(Histogram,AllHistogram)
 
+        norm=0.D0
+        if(iProcIndex.eq.0) then
+            do i=1,Det
+                norm=norm+AllHistogram(1,i)**2
+            enddo
+            norm=SQRT(norm)
+        endif
+
+        CALL MPISumAll_inplace(norm)
+ 
         do i=1,Det
 
 ! But if the actual number of determinants on this processor is less than the number 
@@ -946,7 +956,7 @@ MODULE nElRDMMod
         call extract_bit_rep (iLutnI, nI, HistPos, FlagsDi)
 ! Unfortunately uses the decoded determinant - might want to look at this.        
 
-        realSignDi = AllHistogram(1,HistPos(1))
+        realSignDi = AllHistogram(1,HistPos(1))/norm
         
         call Fill_Diag_RDM(nI,realSignDi)
 
@@ -1729,7 +1739,7 @@ MODULE nElRDMMod
             IF(NoDets.gt.1) THEN
                 call extract_bit_rep (Sing_ExcDjs2(:,StartDets), nI, HistPos, FlagsDi)
 
-                realSignDi = AllHistogram(1,HistPos(1))
+                realSignDi = AllHistogram(1,HistPos(1))/norm
 
                 do j=StartDets+1,(NoDets+StartDets-1)
 ! D_i is in the first spot - start from the second.                
@@ -1758,7 +1768,7 @@ MODULE nElRDMMod
 
                         call decode_bit_det(nJ,iLutnJ)
 
-                        realSignDj = AllHistogram(1,PartInd)
+                        realSignDj = AllHistogram(1,PartInd)/norm
 
 ! Ex(1,:) comes out as the orbital(s) excited from, Ex(2,:) comes out as the orbital(s) 
 ! excited to.    
@@ -1815,7 +1825,7 @@ MODULE nElRDMMod
             IF(NoDets.gt.1) THEN
                 call extract_bit_rep (Doub_ExcDjs2(:,StartDets), nI, HistPos, FlagsDi)
 
-                realSignDi = AllHistogram(1,HistPos(1))
+                realSignDi = AllHistogram(1,HistPos(1))/norm
 
                 do j=StartDets+1,(NoDets+StartDets-1)
 ! D_i is in the first spot - start from the second.                
@@ -1845,7 +1855,7 @@ MODULE nElRDMMod
 !                        realSignDj = real(SignDj(1))
 
                         call decode_bit_det(nJ,iLutnJ)
-                        realSignDj = AllHistogram(1,PartInd)
+                        realSignDj = AllHistogram(1,PartInd)/norm
 
 ! Ex(1,:) comes out as the orbital(s) excited from, Ex(2,:) comes out as the orbital(s) 
 ! excited to. 
