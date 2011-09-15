@@ -436,47 +436,6 @@ MODULE FciMCParMod
 
     END SUBROUTINE FciMCPar
 
-    subroutine check_start_rdm()
-        implicit none
-
-        IF((.not.tSinglePartPhase).and.((Iter - VaryShiftIter).eq.IterRDMonFly)) THEN
-            !We have reached the iteration where we want to start filling the RDM.
-            IterRDMStart = Iter
-            if(tExplicitAllRDM) then
-                tFillingExplicRDMonFly = .true.
-                if(tHistSpawn) NHistEquilSteps = Iter
-            else
-                if(tHF_S_D.or.tHF_S_D_Ref.or.tHF_Ref_Explicit) then
-                    call set_add_rdm_hfconnections(add_rdm_hfconnections_hf_s_d)
-                elseif(tHPHF) then
-                    call set_extract_bit_rep_rdm_diag(extract_bit_rep_rdm_diag_hphf)
-                    call set_add_rdm_hfconnections(add_rdm_hfconnections_hphf)
-                else
-                    call set_extract_bit_rep_rdm_diag(extract_bit_rep_rdm_diag_norm)
-                    call set_add_rdm_hfconnections(add_rdm_hfconnections_norm)
-                endif
-                if(.not.tHF_Ref_Explicit) then
-                    !By default - we will do a stochastic calculation of the RDM.
-                    tFillingStochRDMonFly = .true.
-                    !The SpawnedParts array now needs to carry both the spawned parts Dj, and also it's 
-                    !parent Di (and it's sign, Ci). - We deallocate it and reallocate it with the larger size.
-                    call DeAlloc_Alloc_SpawnedParts()
-                    !Don't need any of this if we're just doing HF_Ref_Explicit calculation.
-                    !This is all done in the add_rdm_hfconnections routine.
-                endif
-            endif
-            !RDMExcitLevel of 3 means we calculate both the 1 and 2 RDM's - otherwise we 
-            !calculated only the RDMExcitLevel-RDM.
-            IF(RDMExcitLevel.eq.3) THEN
-                WRITE(6,'(A)') ' Beginning to calculate both the 1 and 2 electron density matrices on the fly.'
-            ELSE
-                WRITE(6,'(A28,I1,A36)') ' Beginning to calculate the ',RDMExcitLevel,' electron density matrix on the fly.'
-            ENDIF
-            WRITE(6,'(A,I10)') ' Filling the RDM(s) from iteration',Iter
-        ENDIF
-
-    end subroutine check_start_rdm
-
     ! **********************************************************
     ! ************************* NOTE ***************************
     ! ANY changes to the following interfaces MUST be replicated in the
@@ -1388,6 +1347,46 @@ MODULE FciMCParMod
 
     end subroutine
 
+    subroutine check_start_rdm()
+        implicit none
+
+        IF((.not.tSinglePartPhase).and.((Iter - VaryShiftIter).eq.IterRDMonFly)) THEN
+            !We have reached the iteration where we want to start filling the RDM.
+            IterRDMStart = Iter
+            if(tExplicitAllRDM) then
+                tFillingExplicRDMonFly = .true.
+                if(tHistSpawn) NHistEquilSteps = Iter
+            else
+                if(tHF_S_D.or.tHF_S_D_Ref.or.tHF_Ref_Explicit) then
+                    call set_add_rdm_hfconnections(add_rdm_hfconnections_hf_s_d)
+                elseif(tHPHF) then
+                    call set_extract_bit_rep_rdm_diag(extract_bit_rep_rdm_diag_hphf)
+                    call set_add_rdm_hfconnections(add_rdm_hfconnections_hphf)
+                else
+                    call set_extract_bit_rep_rdm_diag(extract_bit_rep_rdm_diag_norm)
+                    call set_add_rdm_hfconnections(add_rdm_hfconnections_norm)
+                endif
+                if(.not.tHF_Ref_Explicit) then
+                    !By default - we will do a stochastic calculation of the RDM.
+                    tFillingStochRDMonFly = .true.
+                    !The SpawnedParts array now needs to carry both the spawned parts Dj, and also it's 
+                    !parent Di (and it's sign, Ci). - We deallocate it and reallocate it with the larger size.
+                    call DeAlloc_Alloc_SpawnedParts()
+                    !Don't need any of this if we're just doing HF_Ref_Explicit calculation.
+                    !This is all done in the add_rdm_hfconnections routine.
+                endif
+            endif
+            !RDMExcitLevel of 3 means we calculate both the 1 and 2 RDM's - otherwise we 
+            !calculated only the RDMExcitLevel-RDM.
+            IF(RDMExcitLevel.eq.3) THEN
+                WRITE(6,'(A)') ' Beginning to calculate both the 1 and 2 electron density matrices on the fly.'
+            ELSE
+                WRITE(6,'(A28,I1,A36)') ' Beginning to calculate the ',RDMExcitLevel,' electron density matrix on the fly.'
+            ENDIF
+            WRITE(6,'(A,I10)') ' Filling the RDM(s) from iteration',Iter
+        ENDIF
+
+    end subroutine check_start_rdm
 
     subroutine CalcParentFlag(j, VecSlot, parent_flags)
 !In the CurrentDets array, the flag at NIfTot refers to whether that determinant *itself* is an initiator or not.    
