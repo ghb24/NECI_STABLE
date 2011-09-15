@@ -104,15 +104,6 @@ MODULE nElRDMMod
             &density matrix, this requires both the 1 and 2 electron RDM.'
         ENDIF
 
-! Diagonalising the RDM requires the 1-RDM - if RDMExcitLevel = 2, we're only         
-! calculating the 2-RDM.
-        IF(tDiagRDM.and.(RDMExcitLevel.eq.2)) THEN
-            WRITE(6,*) '************'
-            WRITE(6,'(A)') ' WARNING :      Requesting to diagonalise 1-RDM, &
-            &but only the 2-RDM is being calculated.'
-            WRITE(6,*) '************'
-        ENDIF
-
         if(tExplicitAllRDM.and.tHPHF) CALL Stop_All('InitRDM',&
                 'HPHF not set up with the explicit calculation of the RDM.')
 
@@ -170,6 +161,15 @@ MODULE nElRDMMod
                 IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating AllTwoElRDM array,')
                 CALL LogMemAlloc('AllTwoEleRDM',(((nBasis*(nBasis-1))/2)**2),8,this_routine,AllTwoElRDMTag,ierr)
                 AllTwoElRDM(:,:)=0.D0
+
+                if(tDiagRDM) then
+                    ALLOCATE(NatOrbMat(nBasis,nBasis),stat=ierr)
+                    IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating NatOrbMat array,')
+                    CALL LogMemAlloc('NatOrbMat',nBasis**2,8,this_routine,NatOrbMatTag,ierr)
+                    NatOrbMat(:,:)=0.D0
+
+                    MemoryAlloc_Root = MemoryAlloc_Root + ( nBasis * nBasis * 8 ) 
+                endif
 
                 MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (nBasis*(nBasis-1))/2 ) ** 2 ) * 8 ) 
             ENDIF
@@ -2394,13 +2394,8 @@ MODULE nElRDMMod
 
 ! Call the routines from NatOrbs that diagonalise the one electron reduced 
 ! density matrix.
-        IF(tDiagRDM.and.(RDMExcitLevel.ne.2)) THEN
+        IF(tDiagRDM) &
             call find_nat_orb_occ_numbers()
-
-        ELSEIF(tDiagRDM) THEN
-            WRITE(6,'(A)') 'WARNING: Request to diagonalise two electron reduced &
-                                                                &density matrix.'
-        ENDIF
 
 ! This is where we would likely call any further calculations of force etc.
 
@@ -2422,6 +2417,12 @@ MODULE nElRDMMod
         CHARACTER(len=*), PARAMETER :: this_routine='find_nat_orb_occ_numbers'
         
         IF(iProcIndex.eq.0) THEN
+            
+            if(RDMExcitLevel.ne.1) then
+                ! Only the 2RDM will have been calculated, need to construct the 
+                ! 1RDM from this.
+                call create_1RDM_from_2RDM()
+            endif
 
             CALL DiagRDM()
 
@@ -2446,8 +2447,7 @@ MODULE nElRDMMod
             Evalues_unit = get_free_unit()
             OPEN(Evalues_unit,file='NO_OCC_NUMBERS',status='unknown')
 
-            WRITE(6,*) ''
-            WRITE(6,*) 'NORMALISED EVALUES:'
+            WRITE(Evalues_unit,'(A)') 'NORMALISED 1RDM EVALUES (NATURAL ORBITAL OCCUPATION NUMBERS:'
             Corr_Entropy = 0.D0
             do i=1,nBasis
                 WRITE(Evalues_unit,'(F30.20)') Evalues(i)
@@ -2459,7 +2459,6 @@ MODULE nElRDMMod
             WRITE(6,*) ''
             WRITE(6,'(A20,F30.20)') ' CORRELATION ENTROPY', Corr_Entropy
             WRITE(6,'(A33,F30.20)') ' CORRELATION ENTROPY PER ELECTRON', Corr_Entropy / real(NEl,dp) 
-            WRITE(6,*) ''
 
             IF(.not.tNoRODump) THEN
 
@@ -2513,6 +2512,43 @@ MODULE nElRDMMod
 
 
     end subroutine find_nat_orb_occ_numbers
+
+
+    subroutine create_1RDM_from_2RDM()
+        implicit none
+        integer :: i, a, j, Ind1, Ind2
+        real(dp) :: Parity_Factor
+
+        do i = 1, nBasis
+            do a = i, nBasis
+                do j = 1, nBasis
+
+                    if((i.ne.j).and.(a.ne.j)) then
+
+                        Ind1 = ( ( (max(i,j)-2) * (max(i,j)-1) ) / 2 ) + min(i,j)
+                        Ind2 = ( ( (max(a,j)-2) * (max(a,j)-1) ) / 2 ) + min(a,j)
+
+                        if(((j.lt.i).and.(j.gt.a)).or.((j.gt.i).and.(j.lt.a))) then
+                            Parity_Factor = -1.D0
+                        else
+                            Parity_Factor = 1.D0
+                        endif
+
+                        NatOrbMat(SymLabelListInv(i),SymLabelListInv(a)) = &
+                            NatOrbMat(SymLabelListInv(i),SymLabelListInv(a)) + &
+                            ( AllTwoElRDM(Ind1,Ind2) * Parity_Factor * ( 1.0_dp / real(NEl - 1,dp)) ) 
+
+                        if(i.ne.a) &                            
+                            NatOrbMat(SymLabelListInv(a),SymLabelListInv(i)) = &
+                                NatOrbMat(SymLabelListInv(a),SymLabelListInv(i)) + &
+                                ( AllTwoElRDM(Ind2,Ind1) * Parity_Factor * ( 1.0_dp / real(NEl - 1,dp)) ) 
+
+                    endif
+                enddo
+            enddo
+        enddo
+
+    end subroutine create_1RDM_from_2RDM
 
 
     SUBROUTINE DiagRDM()
@@ -3522,6 +3558,11 @@ MODULE nElRDMMod
             IF(iProcIndex.eq.0) THEN
                 DEALLOCATE(AllTwoElRDM)
                 CALL LogMemDeAlloc(this_routine,AllTwoElRDMTag)
+                
+                if(tDiagRDM) then
+                    DEALLOCATE(NatOrbMat)
+                    CALL LogMemDeAlloc(this_routine,NatOrbMatTag)
+                endif
             ENDIF
 
         ENDIF
@@ -3866,11 +3907,10 @@ MODULE nElRDMMod
             WRITE(Energies_unit, "(I31,2F30.15)") Iter+PreviousCycles, RDMEnergy_Inst, RDMEnergy
 
             if(tFinalRDMEnergy) then
-                write(6,*) ''
                 write(6,*) 'Trace of 2-el-RDM after normalisation : ',Trace_2RDM_New
                 write(6,*) ''
-                write(6,*) 'Energy contribution from the 1-RDM: ',RDMEnergy1El
-                write(6,*) 'Energy contribution from the 2-RDM: ',RDMEnergy2El
+!                write(6,*) 'Energy contribution from the 1-RDM: ',RDMEnergy1El
+!                write(6,*) 'Energy contribution from the 2-RDM: ',RDMEnergy2El
                 write(6,'(A64,F30.20)') ' *TOTAL ENERGY* CALCULATED USING THE *REDUCED &
                                             &DENSITY MATRICES*:',RDMEnergy
                 write(6,*) ''
