@@ -5,14 +5,15 @@
          use constants, only: dp
          IMPLICIT NONE
          INTEGER ISEED
-         real(dp) :: RAN2
+         real(dp) :: RAN2_loc(1),RAN2
          IF(ISEED.NE.0) THEN
             !  Init RANLUX
             IF(ISEED.LT.0) ISEED=-ISEED
             CALL RLUXGO(3,ISEED,0,0)
             ISEED=0
          ENDIF
-         CALL RANLUX(RAN2,1)
+         CALL RANLUX(RAN2_loc(1),1)
+         RAN2=RAN2_loc(1)
       END FUNCTION RAN2
 
       SUBROUTINE RANLUX(RVEC,LENV)
@@ -66,6 +67,7 @@ C!!! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !      IMPLICIT real(dp)(A-H,O-Z)
       use constants, only: dp
       IMPLICIT NONE
+      integer :: I,K,LP,JSEED,LENV,IZIP2,IZIP,ISK,INNER
       real(dp) :: RVEC(LENV)
       real(dp) , save :: SEEDS(24) 
       integer :: ISEEDS(24), ISDEXT(25)
@@ -81,7 +83,6 @@ C!!! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       LOGICAL , save :: NOTYET
       DATA NOTYET, LUXLEV, IN24, KOUNT, MKOUNT /.TRUE., LXDFLT, 0,0,0/
       DATA I24,J24,CARRY/24,10,0./
-      integer :: I,K,LP,JSEED,LENV,IZIP2,IZIP,ISK,INNER
       integer :: IOUTER,INS,ILX,K2,K1,INOUT,LOUT,ISD,LUX,IVEC
       real(dp) :: UNI
 C                               default

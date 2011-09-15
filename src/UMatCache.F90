@@ -486,7 +486,7 @@ MODULE UMatCache
             call LogMemAlloc('UMatCache',nTypes*nSlots*nPairs,8*HElement_t_size,thisroutine,tagUMatCacheData)
             Allocate(UMatLabels(nSlots,nPairs), STAT=ierr)
             CALL LogMemAlloc('UMATLABELS',nSlots*nPairs,4,thisroutine,tagUMatLabels)
-            Memory=(REAL(nTypes*nSlots,8)*nPairs*8.D0*HElement_t_size+nSlots*nPairs*4.D0)*9.536743316D-7
+            Memory=(REAL(nTypes*nSlots,dp)*nPairs*8.0_dp*HElement_t_size+nSlots*nPairs*4.0_dp)*9.536743316e-7_dp
             WRITE(6,"(A,G20.10,A)") "Total memory allocated for storage of integrals in cache is: ",Memory,"Mb/Processor"
 
             UMatCacheData=(0.d0)
@@ -983,7 +983,7 @@ MODULE UMatCache
                    ! GetCachedUMatEl called for cache indices: El(O) is 
                    ! a dummy argument.
                    Tlog=GetCachedUmatEl(ni,nj,nk,nl,El(0),nm,nn,A,B,iType)
-                   CALL CacheUMatEl(B,OUMatCacheData(0,n,m),nm,nn,iType)
+                   CALL CacheUMatEl(B,OUMatCacheData(0,n:n+nTypes,m:m+nTypes),nm,nn,iType)
                 ENDIF
                ENDIF
               ENDIF
@@ -1042,7 +1042,7 @@ MODULE UMatCache
           
 !Store the integral in a contiguous fashion. A is the index for the i,k pair
           IF(UMATLABELS(CacheInd(A),A).ne.0) THEN
-              IF((abs(REAL(UMatCacheData(nTypes-1,CacheInd(A),A),8)-Z)).gt.1.D-7) THEN
+              IF((abs(REAL(UMatCacheData(nTypes-1,CacheInd(A),A),dp)-Z)).gt.1.D-7) THEN
                   WRITE(6,*) i,j,k,l,z,UMatCacheData(nTypes-1,CacheInd(A),A)
                   CALL Stop_All("CacheFCIDUMP","Same integral cached in same place with different value")
               ENDIF
@@ -1562,3 +1562,33 @@ END MODULE UMatCache
 
 
 
+! See Integrals.F90 for an interface for this function.
+function get_umat_el (fn, i, j, k, l) result(hel)
+    ! Obtains the Coulomb integral <ij|kl> from the UMat array.
+    ! In:
+    !    fn: pointer to the system-specific get_umat_el_* function.
+    !      fn should always be the variable ptr_getumatel.
+    !    i,j,k,l: orbital indices. These refer to spin orbitals in
+    !      unrestricted calculations and spatial orbitals in restricted
+    !      calculations.
+    use, intrinsic :: iso_c_binding
+    use constants, only: dp
+    use IntegralsData, only: ptr_getumatel_2
+    implicit none
+
+    interface
+        function fn (i, j, k, l, fn2) result(hel)
+            use constants, only: dp
+            use, intrinsic :: iso_c_binding
+            implicit none
+            integer, intent(in) :: i, j, k, l
+            type(c_ptr), intent(in), value :: fn2
+            HElement_t :: hel
+        end function
+    end interface
+
+    integer, intent(in) :: i, j, k, l
+    HElement_t :: hel
+
+    hel = fn (i, j, k, l, ptr_getumatel_2)
+end function

@@ -213,18 +213,18 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
 !  Get a matrix element of the double-counting corrected unperturbed Hamiltonian.
 !  This is just the sum of the Hartree-Fock eigenvalues 
 !   with the double counting subtracted, Sum_i eps_i - 1/2 Sum_i,j <ij|ij>-<ij|ji>.  (i in HF det, j in excited det)
-      subroutine GetH0ElementDCCorr(nHFDet,nJ,nEl,G1,nBasis,Arr,ECore,hEl)
+      subroutine GetH0ElementDCCorr(nHFDet,nJ,nEl,G1,nBasis,NMAX,ECore,hEl)
          use constants, only: dp
          use Integrals, only: GetUMatEl
          use UMatCache
-         use SystemData, only: BasisFN
+         use SystemData, only: BasisFN,Arr
          implicit none
          integer nEl,nBasis
          integer nHFDet(nEl),nJ(nEl)
          type(BasisFN) G1(*)
          HElement_t hEl
-         real(dp) Arr(nBasis,2),ECore
-         integer i,j
+         real(dp) ECore
+         integer i,j,NMAX
          integer IDHF(nEl),IDJ(nEl)
          hEl=(ECore)
          do i=1,nEl

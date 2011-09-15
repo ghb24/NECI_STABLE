@@ -143,7 +143,7 @@ contains
          Frac=REAL(AcceptAll,dp)/REAL(TotalAttemptsAll,dp)  !Fraction of the 'full' space which is symmetry allowed
          do j=0,iExcitLevTest
 !             write(6,*) REAL(ExcitBinAll(j),dp),REAL(AcceptAll,dp),Frac,FullSpace,ExcitLevBias(j)
-             SizeLevel(j)=((REAL(ExcitBinAll(j),8)/REAL(AcceptAll,8))*Frac*FullSpace)/ExcitLevBias(j)
+             SizeLevel(j)=((REAL(ExcitBinAll(j),dp)/REAL(AcceptAll,dp))*Frac*FullSpace)/ExcitLevBias(j)
              SymSpace=SymSpace+SizeLevel(j)
          enddo
          IF(iProcIndex.eq.0) THEN
@@ -352,9 +352,9 @@ contains
             IF(tFixLz) FDetMom=FDetMom+G1(FDet(i))%Ml
             if(tKPntSym) FDetKPntMom=Symprod(FDetKPntMom,G1(FDet(i))%Sym)
             IF(tUEG.or.tHub) THEN
-                Momx=Momx+G1(i)%k(1)
-                Momy=Momy+G1(i)%k(2)
-                Momz=Momz+G1(i)%k(3)
+                Momx=Momx+G1(FDet(i))%k(1)
+                Momy=Momy+G1(FDet(i))%k(2)
+                Momz=Momz+G1(FDet(i))%k(3)
             else
                 FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,sizeof_int))
             ENDIF
@@ -671,9 +671,9 @@ contains
                  call MPIReduce(Accept,MPI_SUM,AcceptAll)
                  call MPIReduce(ExcitBin(0:NEl),MPI_SUM,ExcitBinAll(0:NEl))
 
-                 Frac=REAL(AcceptAll,8)/REAL(i*nProcessors,8)
+                 Frac=REAL(AcceptAll,dp)/REAL(i*nProcessors,dp)
                  do j=0,NEl
-                     SizeLevel(j)=(REAL(ExcitBinAll(j),8)/REAL(AcceptAll,8))*Frac*FullSpace
+                     SizeLevel(j)=(REAL(ExcitBinAll(j),dp)/REAL(AcceptAll,dp))*Frac*FullSpace
                  enddo
                  IF(iProcIndex.eq.0) THEN
                      WRITE(14,"(2I16,2G35.15)",advance='no') i,AcceptAll,Frac,Frac*FullSpace
@@ -696,9 +696,9 @@ contains
          call MPIReduce(Accept,MPI_SUM,AcceptAll)
          call MPIReduce(ExcitBin(0:NEl),MPI_SUM,ExcitBinAll(0:NEl))
 
-         Frac=REAL(AcceptAll,8)/REAL(i*nProcessors,8)
+         Frac=REAL(AcceptAll,dp)/REAL(i*nProcessors,dp)
          do j=0,NEl
-             SizeLevel(j)=(REAL(ExcitBinAll(j),8)/REAL(AcceptAll,8))*Frac*FullSpace
+             SizeLevel(j)=(REAL(ExcitBinAll(j),dp)/REAL(AcceptAll,dp))*Frac*FullSpace
          enddo
 
          IF(iProcIndex.eq.0) THEN

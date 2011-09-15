@@ -1,6 +1,6 @@
 module sym_mod
 
-use constants, only: dp,int64
+use constants, only: dp,int64,sizeof_int
 implicit none
 
 contains
@@ -113,7 +113,7 @@ contains
 !LSHIFT(,)
                 ! 1_8 is 1 in integer(int64): we need to have consistent
                 ! kinds for bit-wise operations.
-                IF(BTEST(s%s,0)) SymConj%s=IOR(SymConj%s,ISHFT(1_8,SymConjTab(I)-1))
+                IF(BTEST(s%s,0)) SymConj%s=IOR(SymConj%s,ISHFT(1_int64,int(SymConjTab(I)-1,int64)))
 !RSHIFT(,1)
                 s%s=ISHFT(s%s,-1)
                 i=i+1
@@ -892,7 +892,7 @@ contains
                   NREPS=NREPS+1
                   IF(NREPS.GT.NSYMLABELS*10) STOP 'TOO MANY REPS'
                   DO K=1,NROT
-                     REPCHARS(K,NREPS)=DCONJG(IRREPCHARS(K,I))*IRREPCHARS(K,J)
+                     REPCHARS(K,NREPS)=CONJG(IRREPCHARS(K,I))*IRREPCHARS(K,J)
                   ENDDO
                   
 !                  WRITE(6,*) NREPS,"PROD",I,J
@@ -1002,9 +1002,9 @@ contains
          LREAL=.FALSE.
          DO I=1,NSYM
             DO J=1,NROT
-               IF(ABS(REAL(CHARS(J,I))).GT.1.D-2.AND.ABS(DIMAG(CHARS(J,I))).GT.1.D-2) LCOMP=.TRUE.
+               IF(ABS(REAL(CHARS(J,I))).GT.1.D-2.AND.ABS(AIMAG(CHARS(J,I))).GT.1.D-2) LCOMP=.TRUE.
                IF(ABS(REAL(CHARS(J,I))-NINT(REAL(CHARS(J,I)))).GT.1.D-2) LREAL=.TRUE.
-               IF(ABS(DIMAG(CHARS(J,I))-NINT(DIMAG(CHARS(J,I)))).GT.1.D-2) LREAL=.TRUE.
+               IF(ABS(AIMAG(CHARS(J,I))-NINT(AIMAG(CHARS(J,I)))).GT.1.D-2) LREAL=.TRUE.
             ENDDO
          ENDDO
          DO I=1,NSYM
@@ -1025,9 +1025,9 @@ contains
             LCOMP=.FALSE.
             LREAL=.FALSE.
             DO J=1,NROT
-               IF(ABS(REAL(CHARS(J))).GT.1.D-2.AND.ABS(DIMAG(CHARS(J))).GT.1.D-2) LCOMP=.TRUE.
+               IF(ABS(REAL(CHARS(J))).GT.1.D-2.AND.ABS(AIMAG(CHARS(J))).GT.1.D-2) LCOMP=.TRUE.
                IF(ABS(REAL(CHARS(J))-NINT(REAL(CHARS(J)))).GT.1.D-2) LREAL=.TRUE.
-              IF(ABS(DIMAG(CHARS(J))-NINT(DIMAG(CHARS(J)))).GT.1.D-2) LREAL=.TRUE.
+              IF(ABS(AIMAG(CHARS(J))-NINT(AIMAG(CHARS(J)))).GT.1.D-2) LREAL=.TRUE.
             ENDDO
             CALL WRITECHARSF(IUNIT,CHARS,NROT,STR,LCOMP,LREAL)
       END SUBROUTINE WRITECHARS
@@ -1044,23 +1044,23 @@ contains
                   IF(LREAL) THEN
                      WRITE(IUNIT,"(A,2G16.9,A)",advance='no') "(",  &
                        NINT(REAL(CHARS(J))*1000)/1000.D0,           &
-                       NINT(DIMAG(CHARS(J))*1000)/1000.D0           &
+                       NINT(AIMAG(CHARS(J))*1000)/1000.D0           &
                        ,")"
                   ELSE
                      WRITE(IUNIT,"(A,2F6.3,A)",advance='no') "(",CHARS(J),")"
                   ENDIF
                ELSE
-                  IF(ABS(DIMAG(CHARS(J))).GT.1.D-2) THEN
+                  IF(ABS(AIMAG(CHARS(J))).GT.1.D-2) THEN
 !   write in terms of I.
                      IF(LREAL) THEN
                         WRITE(IUNIT,"(G14.9,A)",advance='no') CHARS(J)," "
                      ELSE                        
-                        IF(ABS(DIMAG(CHARS(J))+1.D0).LT.1.D-2) THEN
+                        IF(ABS(AIMAG(CHARS(J))+1.D0).LT.1.D-2) THEN
                            WRITE(IUNIT,"(A)",advance='no') " -I "
-                        ELSEIF(ABS(DIMAG(CHARS(J))-1.D0).LT.1.D-2) THEN
+                        ELSEIF(ABS(AIMAG(CHARS(J))-1.D0).LT.1.D-2) THEN
                            WRITE(IUNIT,"(A)",advance='no') "  I "
                         ELSE 
-                         WRITE(IUNIT,"(I2,A)",advance='no') NINT(DIMAG(CHARS(J))), "I "
+                         WRITE(IUNIT,"(I2,A)",advance='no') NINT(AIMAG(CHARS(J))), "I "
                         ENDIF
                      ENDIF
                   ELSE
@@ -1106,14 +1106,14 @@ contains
 !            CALL WRITECHARS(6,IRREPCHARS(1,I),NROT,"IR")
 !            CALL WRITECHARS(6,CHARS(1),NROT,"CH")
             DO J=1,NROT
-               TOT=TOT+DCONJG(IRREPCHARS(J,I))*CHARS(J)
+               TOT=TOT+CONJG(IRREPCHARS(J,I))*CHARS(J)
             ENDDO
 !            WRITE(6,*) I,TOT
             IF(TOT.NE.0) THEN
 !   Calculate the normalization of the state I which matches (if it's an irrep, this will be 1)
                NORM=0
                DO J=1,NROT
-                  NORM=NORM+DCONJG(IRREPCHARS(J,I))*IRREPCHARS(J,I)
+                  NORM=NORM+CONJG(IRREPCHARS(J,I))*IRREPCHARS(J,I)
                ENDDO
 !               WRITE(6,*) "IRREP ",I,(TOT+0.D0)/NORM
                DIFF=ABS(TOT-NINT(ABS(TOT/NORM))*NORM)
@@ -1132,7 +1132,7 @@ contains
 !                  WRITE(6,*) I,DIFF,TOT,TOT/NORM
                   DO J=1,NROT
                      CHARS(J)=CHARS(J)-(IRREPCHARS(J,I)*TOT)/NORM
-                     CNORM=CNORM+DCONJG(CHARS(J))*CHARS(J)
+                     CNORM=CNORM+CONJG(CHARS(J))*CHARS(J)
                   ENDDO
 !                  CALL WRITECHARS(6,IRREPCHARS(1,I),NROT,"DIRREP")
 !                  CALL WRITECHARS(6,CHARS,NROT,"DCHARS")
@@ -1166,18 +1166,18 @@ contains
 !,. First check norm of this state
          CNORM=0
          DO J=1,NROT
-            CNORM=CNORM+DCONJG(CHARS(J))*CHARS(J)
+            CNORM=CNORM+CONJG(CHARS(J))*CHARS(J)
          ENDDO
          DO I=1,NIRREPS
             TOT=0
             DO J=1,NROT
-               TOT=TOT+DCONJG(IRREPCHARS(J,I))*CHARS(J)
+               TOT=TOT+CONJG(IRREPCHARS(J,I))*CHARS(J)
             ENDDO
             IF(ABS(TOT).GE.1.D-2) THEN
 !   Calculate the normalization of the state I which matches (if it's an irrep, this will be 1)
                NORM=0
                DO J=1,NROT
-                  NORM=NORM+DCONJG(IRREPCHARS(J,I))*IRREPCHARS(J,I)
+                  NORM=NORM+CONJG(IRREPCHARS(J,I))*IRREPCHARS(J,I)
                ENDDO
 !               WRITE(6,*) "IRREP ",I,(TOT+0.D0)/NORM
 !                CALL WRITECHARS(6,CHARS,NROT,"REP   ")
@@ -1196,7 +1196,7 @@ contains
                   CNORM=0
                   DO J=1,NROT
                      CHARS(J)=CHARS(J)-(IRREPCHARS(J,I)*TOT)/NORM
-                     CNORM=CNORM+DCONJG(CHARS(J))*CHARS(J)
+                     CNORM=CNORM+CONJG(CHARS(J))*CHARS(J)
                   ENDDO
                ENDIF
             ENDIF
@@ -1226,7 +1226,7 @@ contains
          call LogMemAlloc('SymConjTab',nSym,4,this_routine,tagSymConjTab)
          DO I=1,NSYM
             DO K=1,NROT
-               CHARS(K)=DCONJG(IRREPCHARS(K,I))
+               CHARS(K)=CONJG(IRREPCHARS(K,I))
             ENDDO
             IF(GETIRREPDECOMP(CHARS,IRREPCHARS,NSYM,NROT,IDECOMP,CNORM,TAbelian)) THEN
                WRITE(6,*) "Conjugate of SYM ",I," not reducible,"
@@ -1959,8 +1959,8 @@ contains
 !RShift
       AbelSym(3)=IShft(Isym,-(PropBitLen*2))
 !RShift
-      AbelSym(2)=Iand(IShft(ISym,-PropBitLen),2_8**PropBitLen-1)
-      AbelSym(1)=Iand(Isym,2_8**PropBitLen-1)
+      AbelSym(2)=Iand(IShft(ISym,-PropBitLen),2_int64**PropBitLen-1)
+      AbelSym(1)=Iand(Isym,2_int64**PropBitLen-1)
       return
       end subroutine DecomposeAbelianSym
 

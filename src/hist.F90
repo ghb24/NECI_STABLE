@@ -122,7 +122,7 @@ contains
             nfound = nfound + tmp
         enddo
         if (nfound /= ncsf) &
-            call stop_all ("Incorrect number of CSFs found")
+            call stop_all (this_routine,"Incorrect number of CSFs found")
 
         ! Allocate list of csf coefficients
         if (allocated(hist_csf_coeffs)) deallocate(hist_csf_coeffs)

@@ -723,39 +723,38 @@ MODULE NatOrbsMod
                                                 HEl01=GETUMATEL(a,c,i,j)
                                                 HEl02=GETUMATEL(b,c,i,j)
                                                 MP2VDMSum=MP2VDMSum+&
-                                                            &(( (REAL(HEl01,8)) * (2.D0*(REAL(HEl02,8))) )/&
+                                                            &(( (REAL(HEl01,dp)) * (2.D0*(REAL(HEl02,dp))) )/&
                                                             &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) &
                                                             &* (ARR(2*i,2)+ARR(2*j,2)-ARR(2*b,2)-ARR(2*c,2)) ) )
 
                                                 HEl02=GETUMATEL(c,b,i,j)
-                                                MP2VDMSum=MP2VDMSum-&                                            
-                                                            &(( (REAL(HEl01,8)) * (REAL(HEl02,8)) )/&
+                                                MP2VDMSum=MP2VDMSum-&
+                                                            &(( (REAL(HEl01,dp)) * (REAL(HEl02,dp)) )/&
                                                             &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) * &
                                                             &(ARR(2*i,2)+ARR(2*j,2)-ARR(2*c,2)-ARR(2*b,2)) ) )
- 
+
                                             ELSEIF(tStoreSpinOrbs) THEN
                                                 IF((ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2)).eq.0.D0) THEN
-                                                    IF((REAL(UMAT(UMatInd(a,c,i,j,0,0)),8)).ne.0.D0) THEN
-                                                        WRITE(6,*) i,j,a,c,REAL(UMAT(UMatInd(a,c,i,j,0,0)),8)
+                                                    IF((REAL(UMAT(UMatInd(a,c,i,j,0,0)),dp)).ne.0.D0) THEN
+                                                        WRITE(6,*) i,j,a,c,REAL(UMAT(UMatInd(a,c,i,j,0,0)),dp)
                                                         CALL Stop_All(this_routine,"Dividing a non-zero by zero.")
                                                     ENDIF
                                                 ENDIF
                                                 MP2VDMSum=MP2VDMSum+&
-                                            &(((REAL(UMAT(UMatInd(a,c,i,j,0,0)),8))*(2.D0*(REAL(UMAT(UMatInd(b,c,i,j,0,0)),8))))/&
-                                                &( (ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2)) * (ARR(i,2)+ARR(j,2)-ARR(b,2)-ARR(c,2)) ) )
-                                                MP2VDMSum=MP2VDMSum-&                                            
-                                                &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0)),8)) * (REAL(UMAT(UMatInd(c,b,i,j,0,0)),8)) )/&
-                                                &( (ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2)) * (ARR(i,2)+ARR(j,2)-ARR(c,2)-ARR(b,2)) ) )
-                 
+                                           &(((REAL(UMAT(UMatInd(a,c,i,j,0,0)),dp))*(2.D0*(REAL(UMAT(UMatInd(b,c,i,j,0,0)),dp))))/&
+                                               &( (ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2)) * (ARR(i,2)+ARR(j,2)-ARR(b,2)-ARR(c,2)) ) )
+                                                MP2VDMSum=MP2VDMSum-&
+                                             &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0)),dp)) * (REAL(UMAT(UMatInd(c,b,i,j,0,0)),dp)) )/ &
+                                               &( (ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2)) * (ARR(i,2)+ARR(j,2)-ARR(c,2)-ARR(b,2)) ) )
                                             ELSE
                                                 MP2VDMSum=MP2VDMSum+&
-                                    &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0)),8)) * (2.D0*(REAL(UMAT(UMatInd(b,c,i,j,0,0)),8))) )/&
-                                    &((ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2))*(ARR(2*i,2)+ARR(2*j,2)-ARR(2*b,2)-ARR(2*c,2))))
-                                                MP2VDMSum=MP2VDMSum-&                                            
-                                    &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0)),8)) * (REAL(UMAT(UMatInd(c,b,i,j,0,0)),8)) )/&
-                                    &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2))*(ARR(2*i,2)+ARR(2*j,2)-ARR(2*c,2)-ARR(2*b,2))))
+                                   &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0)),dp)) * (2.D0*(REAL(UMAT(UMatInd(b,c,i,j,0,0)),dp))) )/&
+                                   &((ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2))*(ARR(2*i,2)+ARR(2*j,2)-ARR(2*b,2)-ARR(2*c,2))))
+                                                MP2VDMSum=MP2VDMSum-&
+                                   &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0)),dp)) * (REAL(UMAT(UMatInd(c,b,i,j,0,0)),dp)) )/&
+                                   &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2))*(ARR(2*i,2)+ARR(2*j,2)-ARR(2*c,2)-ARR(2*b,2))))
                                             ENDIF
- 
+
                                         enddo
                                     enddo
                                 enddo

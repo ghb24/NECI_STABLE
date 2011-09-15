@@ -4,11 +4,11 @@
 !      IMPLICIT real(dp) (A-H,O-Z)
       use constants, only: dp
       IMPLICIT NONE
+      integer :: NEL,NHG,NMSH,NMAX
       real(dp) :: AUXC(NMSH,NMSH,NMSH)
       integer :: NDET1(NEL),NDET2(NEL)
 C..Cube array
       real(dp) :: SITAB(NMSH,NMAX) 
-      integer :: NEL,NHG,NMSH,NMAX
       TYPE(BasisFN) G1(NHG)
       INTEGER TMP1(NEL),TMP2(NEL)
       INTEGER IDS1(NEL-1),IDS2(NEL-1)

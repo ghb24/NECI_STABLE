@@ -8,10 +8,12 @@
 !      IMPLICIT real(dp) (A-H,O-Z)
       IMPLICIT NONE
 C..
+      integer :: IOBS,JOBS,KOBS,KI,KJ,ICC,IC,IL,IX,IY,IZ,NEL,I,J
+      INTEGER :: NDET,NEVAL,NMSH,NHG,NMAX
       real(dp),ALLOCATABLE,SAVE :: CFXCS(:)
       integer(TagIntType), save :: tagCFXCS=0
       real(dp) :: CIJKL(NDET,NEVAL)
-      integer :: NMRKS(NEL,*),NDET,NEVAL,NMSH,NHG,NMAX
+      integer :: NMRKS(NEL,*)
       real(dp) :: RHO(NMSH,NMSH,NMSH),XCHOLE(NMSH,NMSH,NMSH)
       real(dp) :: AUXC(NMSH,NMSH,NMSH)
       INTEGER G1(5,NHG)
@@ -19,7 +21,6 @@ C..Cube arrays
       real(dp) :: PSIR(-NMSH:NMSH),OMEGA,CST,CF
       real(dp) :: SITAB(NMSH,NMAX),ALAT(3)
       LOGICAL TCOMPLETE
-      integer :: IOBS,JOBS,KOBS,KI,KJ,ICC,IC,IL,IX,IY,IZ,NEL,I,J
       real(dp) :: eps,zspacing,yspacing,xspacing,spac,SUM,CHKRHO
       integer :: IXD,IYD,IZD
 C..
@@ -93,10 +94,10 @@ C..Integral of exchange-correlation hole
         ENDDO
           ENDDO
         ENDDO
-        SUM=SUM*OMEGA/DFLOAT(NMSH*NMSH*NMSH)
-        CHKRHO=CHKRHO*OMEGA/DFLOAT(NMSH*NMSH*NMSH)
+        SUM=SUM*OMEGA/real(NMSH*NMSH*NMSH,dp)
+        CHKRHO=CHKRHO*OMEGA/real(NMSH*NMSH*NMSH,dp)
         WRITE(6,'(A,F19.6)') ' RHO AT OBS. POINT : '
-     &     ,DFLOAT(NEL-1)*RHO(IOBS,JOBS,KOBS)
+     &     ,real(NEL-1,dp)*RHO(IOBS,JOBS,KOBS)
         WRITE(6,'(A,F19.6)')  
      &      ' INTEGRAL OVER 2ND ORDER DENSITY MATRIX : ' 
      &       ,CHKRHO 
@@ -129,9 +130,9 @@ C ==-------------------------------------------------------------------==
       use constants, only: dp
 !     IMPLICIT real(dp) (A-H,O-Z)
       IMPLICIT NONE
+      INTEGER NHG,G1(5,NHG),NEL,NMSH,NMAX
       INTEGER :: NDET1(NEL),NDET2(NEL)
       real(dp) :: AUXC(NMSH,NMSH,NMSH)
-      INTEGER G1(5,NHG),NHG,NEL,NMSH,NMAX
       INTEGER N1E(NHG),N2E(NHG)
 C..Cube arrays
       real(dp) :: SITAB(NMSH,NMAX)

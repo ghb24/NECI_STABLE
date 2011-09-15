@@ -549,7 +549,7 @@ contains
 !nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF/ROHF
          CALL GetUMatSize(nBasis,nEl,UMATINT)
          WRITE(6,*) "UMatSize: ",UMATINT
-         UMatMem=REAL(UMatInt,8)*REAL(HElement_t_sizeB,8)*(9.536743164D-7)
+         UMatMem=REAL(UMatInt,dp)*REAL(HElement_t_sizeB,dp)*(9.536743164D-7)
          WRITE(6,"(A,G20.10,A)") " UMatMemory: ",UMatMem, " Mb/Processor"
          call shared_allocate ("umat", umat, (/UMatInt/))
          !Allocate(UMat(UMatInt), stat=ierr)
@@ -1919,33 +1919,3 @@ SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
   RETURN
 END SUBROUTINE CALCTMATUEG
 
-! See Integrals.F90 for an interface for this function.
-function get_umat_el (fn, i, j, k, l) result(hel)
-    ! Obtains the Coulomb integral <ij|kl> from the UMat array.
-    ! In:
-    !    fn: pointer to the system-specific get_umat_el_* function.
-    !      fn should always be the variable ptr_getumatel.
-    !    i,j,k,l: orbital indices. These refer to spin orbitals in
-    !      unrestricted calculations and spatial orbitals in restricted
-    !      calculations.
-    use, intrinsic :: iso_c_binding
-    use constants, only: dp
-    use IntegralsData, only: ptr_getumatel_2
-    implicit none
-
-    interface
-        function fn (i, j, k, l, fn2) result(hel)
-            use constants, only: dp
-            use, intrinsic :: iso_c_binding
-            implicit none
-            integer, intent(in) :: i, j, k, l
-            type(c_ptr), intent(in), value :: fn2
-            HElement_t :: hel
-        end function
-    end interface
-
-    integer, intent(in) :: i, j, k, l
-    HElement_t :: hel
-
-    hel = fn (i, j, k, l, ptr_getumatel_2)
-end function

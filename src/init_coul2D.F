@@ -7,12 +7,12 @@ C  ========================================================
       use constants, only: dp,sp
 !      IMPLICIT real(dp)(A-H,O-Z)
       IMPLICIT NONE
+      integer :: NMESHX,NMAX
       complex(dp) CK(NMESHX,NMESHX,NMESHX)
       complex(dp) ZIA(-NMESHX/2:NMESHX/2,NMAX,NMAX) 
       real(dp) A(3),OMEGA,ALPHA
       real(sp) t1,t2,t3,t(2),etime
       LOGICAL TALPHA
-      integer :: NMESHX,NMAX
       INTEGER, SAVE :: IFIRST=0
 !      SAVE IFIRST 
 C..
@@ -100,12 +100,12 @@ C =========================================================
       !INTEGER FFTW_NO_SIMD
       !PARAMETER (FFTW_NO_SIMD=131072)
 #endif
+      integer :: i,j,k,n,n1,n2,n3,la1,la2
       complex(dp) DIST(-N/2:N/2-1,-N/2:N/2-1,-N/2:N/2-1)
       integer(int64) PLAN
       real(dp) A(3),x,y,z,aux,r,ALPHA,ALPHA2,OMEGA,OMEGAP
       LOGICAL TALPHA
       complex(dp) D(-N/2:N/2-1,-N/2:N/2-1)
-      integer :: i,j,k,n,n1,n2,n3,la1,la2
       real(dp) :: HSTEPX,HSTEPY,HSTEPZ,gx,gy,gz,SUM,G,derf
 C..
 !      PI=ACOS(-1.D0)
@@ -135,10 +135,10 @@ c          DO K=-N/2,N/2-1
               IF(TALPHA) THEN 
                 AUX=(2.D0/SQRT(PI)/ALPHA)*(-1)**(I+J)
               ELSE
-                AUX=DFLOAT(N/2)*(-1)**(I+J)
+                AUX=real(N/2,dp)*(-1)**(I+J)
               ENDIF
             ENDIF
-            D(I,J)=DCMPLX(AUX,0.D0)
+            D(I,J)=CMPLX(AUX,0.D0,dp)
 c            write(16,'(3i3,2e19.8)') i,j,k,d(i,j)
 
 c          ENDDO
@@ -193,7 +193,7 @@ C..Shift origin and normalise
         DO J=-N/2,N/2-1
 C          DO K=-N/2,N/2-1
             K=0
-            DIST(I,J,0)=DIST(I,J,0)*(-1)**(i+j+k)/dfloat(n1*n2)
+            DIST(I,J,0)=DIST(I,J,0)*(-1)**(i+j+k)/real(n1*n2,dp)
 C/dfloat(n1*n2)
 C          enddo
         enddo
@@ -220,7 +220,7 @@ C                SUM=4.D0*PI*(1.D0-AUX)/OMEGAP/G2
                  SUM=ALPHA/(SQRT(PI)*OMEGAP)
 C                SUM=PI*ALPHA2/OMEGAP 
               ENDIF
-              DIST(I,J,K)=DIST(I,J,K)+DCMPLX(SUM,0.D0)
+              DIST(I,J,K)=DIST(I,J,K)+CMPLX(SUM,0.D0,dp)
 C            ENDDO
           ENDDO
         ENDDO

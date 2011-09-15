@@ -4,10 +4,10 @@
       use constants, only : dp
 !      IMPLICIT real(dp) (A-H,O-Z)
       IMPLICIT NONE
+      integer :: NEVAL,NDET,I,J,K,L,IBEG
       real(dp) :: HAMIL(*),CKN(NDET,NEVAL)
       INTEGER LAB(*),NROW(NDET)
       real(dp) :: CK(NDET,NEVAL),AUX
-      integer :: NEVAL,NDET,I,J,K,L,IBEG
       LOGICAL :: TLargest
       type(timer), save :: proc_timer
 C ==-----------------------------------------------------------------==

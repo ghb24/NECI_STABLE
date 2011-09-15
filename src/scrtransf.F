@@ -77,7 +77,7 @@ C         ENDIF
         TOTSUM=0.D0
         RETURN
       ENDIF
-      TOTSUM=TOTSUM*DFLOAT(IPTOT)
+      TOTSUM=TOTSUM*real(IPTOT,dp)
       RETURN
       END
 
@@ -89,9 +89,9 @@ C.. TMAT has sometimes been hidden in ZIA
          use constants, only: dp
          IMPLICIT NONE
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
+         INTEGER NEL,NSBASIS,NSPINS
          INTEGER NDET1(NEL)
          real(dp) TRUMAT,TRTMAT
-         INTEGER NEL,NSBASIS,NSPINS
          real(dp) COULCOUPLE,TOTSUM
          INTEGER I,J
          real(dp) SUM1,SUM2,PI
@@ -136,15 +136,15 @@ C..
      &   NSBASIS,NSPINS,TOTSUM)
          use constants, only: dp
          IMPLICIT NONE
+         INTEGER NEL
+         INTEGER NSBASIS,NSPINS
          INTEGER NDET1(NEL),NDET2(NEL)
          INTEGER ID(NEL-1)
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
          real(dp) TRTMAT,TRUMAT
-         INTEGER NEL
          real(dp) COULCOUPLE,TOTSUM,SUM2
          INTEGER ND1,ND2,IQ,I,J,K
          real(dp) BTRANS(NSBASIS,NSBASIS,NSPINS)
-         INTEGER NSBASIS,NSPINS
 C.. NB in HF we need to include TMAT element
 
 C..In this routine the determinants differ by only 1 spin orbital
@@ -238,14 +238,14 @@ C..The determinants differ by two spin orbitals.
 C..The arrays ND1 and ND2 contain the integers from determinant 1 and 2
 C..that are NOT common to both.  
          IMPLICIT NONE
+         INTEGER NEL
+         INTEGER NSBASIS,NSPINS
          INTEGER NDET1(NEL)
          INTEGER NDET2(NEL)
          INTEGER ND1(2),ND2(2)
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
-         INTEGER NEL
          real(dp) COULCOUPLE,TOTSUM,SUM2,TRUMAT
          real(dp) BTRANS(NSBASIS,NSBASIS,NSPINS)
-         INTEGER NSBASIS,NSPINS
          INTEGER I,J,K,IQ
          TOTSUM=0.D0
 C..Here we zero ND1 and ND2
@@ -321,8 +321,8 @@ C.. Calculate <phi_a phi_b | U | phi_c phi_d> from <u_i u_j|U|u_k u_l>
          INTEGER A,B,C,D
          INTEGER I,J,K,L
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
-         real(dp) BTRANS(NSBASIS,NSBASIS,NSPINS)
          INTEGER NSPINS,NSBASIS
+         real(dp) BTRANS(NSBASIS,NSBASIS,NSPINS)
          HElement_t TOTSUM,SUM1,SUM2,SUM3
          INTEGER ASPN,BSPN,CSPN,DSPN,AE,BE,CE,DE
          INTEGER IDI,IDJ,IDK,IDL
@@ -375,8 +375,8 @@ C.. Calculate <phi_a | T | phi_c > from <u_i |T|u_k>
          IMPLICIT NONE
          INTEGER A,C
          INTEGER I,K
-         real(dp) BTRANS(NSBASIS,NSBASIS,NSPINS)
          INTEGER NSPINS,NSBASIS
+         real(dp) BTRANS(NSBASIS,NSBASIS,NSPINS)
          real(dp) TOTSUM,SUM2
          INTEGER ASPN,CSPN,AE,CE
          INTEGER IDI,IDK

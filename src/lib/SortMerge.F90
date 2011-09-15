@@ -73,7 +73,7 @@
            else
                HDiagTemp = get_helement (nJ, nJ, 0)
            endif
-           HDiag=(REAL(HDiagTemp,8))-Hii
+           HDiag=(REAL(HDiagTemp,dp))-Hii
            CurrentH(1,ips+i-1)=HDiag
            if(tFillingStochRDMonFly) CurrentH(2:3,ips+i-1) = 0.D0
 ! Next element to be inserted must be smaller than DetCurr, so must be inserted

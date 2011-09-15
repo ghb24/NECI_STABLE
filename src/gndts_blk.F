@@ -10,11 +10,11 @@
          INTEGER NEL,NBASIS,BRR(NBASIS),nBasisMax(5,*),NDET
          INTEGER NMRKS(NEL,NDET)
          INTEGER II,NLMAX
+         INTEGER NBLOCKS,NBLOCKSTARTS(NBLOCKS+1),OII
          TYPE(BASISFN) G1(NBASIS),ISYM,KJ,BLOCKSYM(NBLOCKS),IMAX(2)
          TYPE(BasisFN) SymRestrict
          LOGICAL TCOUNT
          INTEGER I,NI(NEL),NJ(NEL)
-         INTEGER NBLOCKS,NBLOCKSTARTS(NBLOCKS+1),OII
          LOGICAL TSPN,TPARITY,TDONE
          INTEGER LMS
          LOGICAL TGENFDET
@@ -351,8 +351,8 @@ C.. KI is the sym, NJ contains the working
          use sym_mod
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
-         TYPE(BasisFN) G1(nBasis),kI,kJ2
          INTEGER NEL, NBASIS
+         TYPE(BasisFN) G1(nBasis),kI,kJ2
          INTEGER NJ(NEL),NELEC,INDJ(NEL),NLAST
          INTEGER I,BRR(NBASIS),NN(NEL),nBasisMax(5,*)
          LOGICAL LCONT,TDONE

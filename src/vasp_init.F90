@@ -53,12 +53,12 @@ subroutine VASPInitIntegrals(nOrbUsed,ECore,tOrder)
 
    call SetupUMatCache(nStatesUsed,NSTATESUSED.NE.NSTATES)
 
-   HarXCSum=dcmplx(0.d0,0.d0)
+   HarXCSum=cmplx(0.d0,0.d0,dp)
    write (6,*) "Calculating TMAT"
    open(10,file='TMAT',status='unknown')
    do I=1,nStatesUsed
       ! Subtract out the double counting. Assume closed-shell.
-      HarXC=dcmplx(0.d0,0.d0)
+      HarXC=cmplx(0.d0,0.d0,dp)
       do J=1,nEl/2
          if (I.ne.J) then
             A=min(I,J)

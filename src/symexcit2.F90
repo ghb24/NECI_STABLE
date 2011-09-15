@@ -447,7 +447,7 @@ MODULE SymExcit2
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INTEGER iExcit(2,2)
-         INTEGER L
+         LOGICAL L
          INTEGER nI(nEl),nJ(nEl)
          LOGICAL tIsConnectedDet
          LOGICAL IsUHFDet
@@ -565,7 +565,7 @@ MODULE SymExcit2
          INTEGER iMinElec1,iMaxElec1
 
          TYPE(SymClass) CLASSES(*)
-         TYPE(Symmetry) SYMPRODS(0:NEL*NEL)
+         TYPE(Symmetry) SYMPRODS(0:NEL*NEL) !nel*nel is the max it could be
          INTEGER CLASSCOUNT(2,NEL)
          INTEGER THISCLASSCOUNT(2,NEL)
 !  ThisClassCount is used to list only electrons which this processor deals with
@@ -598,6 +598,7 @@ MODULE SymExcit2
          Call SymSetupExcits_CreateClassSymProds(nPr,nPairs,nCl, &
         SymProds, ThisClassCount, PrevClassCount, ClassCount,Classes, &
         SymProdCount)
+!nPr now contains the number of items in SymProds
 !.. Allocate enough memory to store the index
          IF(STORE(5).EQ.0) THEN
             allocate(SYMPRODIND(2,3,1:NPR))
@@ -780,7 +781,7 @@ MODULE SymExcit2
          LOGICAL TSETUP
          INTEGER ILEVEL,Pos1,Pos2,Pos3
          INTEGER iMinElec1, iMaxElec1
-
+         
          IF(TSETUP) THEN
 !.. This is the first time we've been called for setup.
 !  We pass information back in STORE, but actually hold it in STORE2 during the SYMSETUPEXCITS2
@@ -820,7 +821,7 @@ MODULE SymExcit2
                  CALL SYMSETUPEXCITS3(NI,NEL,G1,NBASIS,STORE2,&
                  STORE2(1),STORE2(1),STORE2(1),STORE2(1),&
                  .TRUE.,ICOUNT,DSTORE(1), DSTORE(SymClassSize*NEL+1),&
-               DSTORE(SymClassSize*NEL+1+(nBasis/32)+1),&
+               DSTORE(SymClassSize*NEL+1+(nBasis/32)+1:),&
                    ILEVEL,iMinElec1,iMaxElec1)
 
                  deallocate(DSTORE)
@@ -910,9 +911,13 @@ MODULE SymExcit2
 !..   STORE(4)    -  STORE(5)-1  ORBPAIRS
 !..   STORE(5)    -  ...         SYMPRODIND
 
-!..   DSTORE(1)   -  DSTORE(NEL*SymClassSize) CLASSES
-!..   DSTORE(NEL*SymClassSize+1) - ,,,        ILUT
+!..   DSTORE(1)   -  DSTORE(NEL*SymClassSize)      CLASSES
+!..   DSTORE(NEL*SymClassSize+1)                   ILUT
+!..                            - DSTORE(NEL*SymClassSize+1 +nBasis/32+1)
 
+!..   DSTORE(NEL*SymClassSize+1 +nBasis/32+2)      SymProds
+!..                            - DSTORE(NEL*SymClassSize+1 +nBasis/32+2+ SymmetrySize*(1+nPr)
+!..                              This last is the end of DSTORE i.e. MEM(STORE(2)-1)
 
                    NMEM(1:23)=0
                    ICOUNT=24  
@@ -925,9 +930,10 @@ MODULE SymExcit2
                    STORE2(6)=0
                    NMEM(11)=-1
                    NMEM(7)=0
-                  DSTORE=>NMEM(STORE2(1):STORE2(1)+&
-                     SymClassSize*NEL+(nBasis/32)+1&
-                          +SymmetrySize*(NEL*NEL+1))  !Point to DSTORE
+!                  DSTORE=>NMEM(STORE2(1):STORE2(1)+&
+!                     SymClassSize*NEL+(nBasis/32)+1&
+!                          +SymmetrySize*(NEL*NEL+1))  !Point to DSTORE
+                  DSTORE=>NMEM(STORE2(1):STORE2(2)-1) !point to DSTORE
 !                   CALL DUMPIMEMORY(6,NMEM,ICOUNT-1)
 !!      SUBROUTINE SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,STORE,
 !!     &   TCOUNT,ICOUNT,CLASSES,ILUT,SYMPRODS,ILEVEL)
@@ -935,7 +941,8 @@ MODULE SymExcit2
                        NMEM(STORE2(5)),NMEM(STORE2(2)),NMEM(STORE2(3)),&
                        NMEM(STORE2(4)),&
                   .FALSE.,ICOUNT,DSTORE(1), DSTORE(SymClassSize*NEL+1),&
-             DSTORE(SymClassSize*NEL+1+(nBasis/32)+1),ILEVEL,iMinElec1,&
+             DSTORE(SymClassSize*NEL+1+(nBasis/32)+1:),&
+     &       ILEVEL,iMinElec1,&
                    iMaxElec1)
                    NMEM(6)=STORE2(6)
                    NMEM(23)=ICOUNT
@@ -961,9 +968,10 @@ MODULE SymExcit2
 !.. Actually generate a det
 !            WRITE(6,"(A,Z10,8I4)",advance='no') "GET",LOC(NMEM(1)),
 !     &         (NMEM(I),I=7,14)
-                  DSTORE=>NMEM(NMEM(1):NMEM(1)+&
-                     SymClassSize*NEL+(nBasis/32)+1&
-                          +SymmetrySize*(NEL*NEL+1))  !Point to DSTORE
+!                  DSTORE=>NMEM(NMEM(1):NMEM(1)+&
+!                     SymClassSize*NEL+(nBasis/32)+1&
+!                          +SymmetrySize*(NEL*NEL+1))  !Point to DSTORE
+                  DSTORE=>NMEM(NMEM(1):NMEM(2)-1) !Point to DStore
 !!      SUBROUTINE SYMGENEXCITIT(NI,NEL,EXCITTYPES,NEXCITTYPES,CLASSES,
 !!     &               SYMPRODIND,ILUT,ORBPAIRS,IEXCIT,ISPN,IFROM,ITO,
 !!     &               I,J,K,L,ICC,LS,

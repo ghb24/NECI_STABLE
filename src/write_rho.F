@@ -3,9 +3,9 @@
 !      IMPLICIT real(dp) (A-H,O-Z)
       use constants, only: dp
       IMPLICIT NONE
+      integer :: NMESHX,NMESHY,NMESHZ,I,J,K,NC
       real(dp) :: RHO(NMESHX,NMESHY,NMESHZ),ALAT(3),SUM
       real(dp) :: rs,rs3
-      integer :: NMESHX,NMESHY,NMESHZ,I,J,K,NC
       LOGICAL TMOVIE,TGOPENMOL
       CHARACTER FILENM*10,FILENM2*16,FILENM3*14
       OPEN(10,FILE=FILENM,STATUS='UNKNOWN')
