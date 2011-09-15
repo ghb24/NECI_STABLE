@@ -3126,6 +3126,7 @@ MODULE FciMCParMod
     end subroutine collate_iter_data
 
     subroutine update_shift (iter_data)
+        use CalcData, only : tInstGrowthRate
      
         type(fcimc_iter_data), intent(in) :: iter_data
         integer(int64) :: tot_walkers
@@ -3150,14 +3151,18 @@ MODULE FciMCParMod
 !            WRITE(6,*) "iter_data%update_iters: ",iter_data%update_iters
 !            CALL FLUSH(6)
 
-!The code below is to calculate the growth rate simply using the two points at the beginning and the
-!end of the update cycle. Now, we instead attempt to calculate the average growth over every iteration
+            if(tInstGrowthRate) then
+!Calculate the growth rate simply using the two points at the beginning and the
+!end of the update cycle. 
+                AllGrowRate = (sum(iter_data%update_growth_tot &
+                           + iter_data%tot_parts_old)) &
+                          / real(sum(iter_data%tot_parts_old), dp)
+            else
+!Instead attempt to calculate the average growth over every iteration
 !over the update cycle
-!            AllGrowRate = (sum(iter_data%update_growth_tot &
-!                           + iter_data%tot_parts_old)) &
-!                          / real(sum(iter_data%tot_parts_old), dp)
-
-            AllGrowRate = (real(AllSumWalkersCyc,dp)/real(StepsSft,dp))/OldAllAvWalkersCyc
+                AllGrowRate = (real(AllSumWalkersCyc,dp)/real(StepsSft,dp)) &
+                                /OldAllAvWalkersCyc
+            endif
 
             ! For complex case, obtain both Re and Im parts
             if (lenof_sign == 2) then
