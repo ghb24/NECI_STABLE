@@ -3126,6 +3126,7 @@ MODULE FciMCParMod
     end subroutine collate_iter_data
 
     subroutine update_shift (iter_data)
+        use CalcData, only : tInstGrowthRate
      
         type(fcimc_iter_data), intent(in) :: iter_data
         integer(int64) :: tot_walkers
@@ -3150,9 +3151,18 @@ MODULE FciMCParMod
 !            WRITE(6,*) "iter_data%update_iters: ",iter_data%update_iters
 !            CALL FLUSH(6)
 
-            AllGrowRate = (sum(iter_data%update_growth_tot &
+            if(tInstGrowthRate) then
+!Calculate the growth rate simply using the two points at the beginning and the
+!end of the update cycle. 
+                AllGrowRate = (sum(iter_data%update_growth_tot &
                            + iter_data%tot_parts_old)) &
                           / real(sum(iter_data%tot_parts_old), dp)
+            else
+!Instead attempt to calculate the average growth over every iteration
+!over the update cycle
+                AllGrowRate = (real(AllSumWalkersCyc,dp)/real(StepsSft,dp)) &
+                                /OldAllAvWalkersCyc
+            endif
 
             ! For complex case, obtain both Re and Im parts
             if (lenof_sign == 2) then
@@ -3371,6 +3381,8 @@ MODULE FciMCParMod
         OldAllNoatHF = AllNoatHF
         !OldAllHFCyc is the average HF value for this update cycle
         OldAllHFCyc = AllHFCyc/real(StepsSft,dp)
+        !OldAllAvWalkersCyc gives the average number of walkers per iteration in the last update cycle
+        OldAllAvWalkersCyc = real(AllSumWalkersCyc,dp)/real(StepsSft,dp)
 
         ! Also the cumulative global variables
         AllTotWalkersOld = AllTotWalkers
@@ -5566,6 +5578,7 @@ MODULE FciMCParMod
                 AllTotPartsOld=AllTotParts
                 call MPISumAll(NoatHF,AllNoatHF)
                 OldAllNoatHF=AllNoatHF
+                OldAllAvWalkersCyc=real(sum(AllTotParts),dp)
                 if(lenof_sign.eq.1) then
                     OldAllHFCyc = real(AllNoatHF(1),dp)
                 else
@@ -5666,6 +5679,7 @@ MODULE FciMCParMod
                             else
                                 OldAllHFCyc = cmplx(real(InitialPart,dp),0.0_dp)
                             endif
+                            OldAllAvWalkersCyc = real(InitialPart,dp)
                             AllNoatHF(1)=InitialPart
                             AllTotWalkers = 1
                             AllTotWalkersOld = 1
@@ -6134,6 +6148,7 @@ MODULE FciMCParMod
         OldAllHFCyc = real(AllNoatHF(1),dp)
         AllTotWalkersOld=AllTotWalkers
         AllTotPartsOld=AllTotParts
+        OldAllAvWalkersCyc=real(sum(AllTotParts),dp)
         iter_data_fciqmc%tot_parts_old = AllTotPartsOld
         AllNoAbortedOld=0.D0
 
@@ -6379,6 +6394,7 @@ MODULE FciMCParMod
         OldAllHFCyc = real(AllNoatHF(1),dp)
         AllTotWalkersOld=AllTotWalkers
         AllTotPartsOld=AllTotParts
+        OldAllAvWalkersCyc=real(sum(AllTotParts),dp)
         iter_data_fciqmc%tot_parts_old = AllTotPartsOld
         AllNoAbortedOld=0.D0
 
