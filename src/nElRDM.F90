@@ -65,7 +65,7 @@ MODULE nElRDMMod
         REAL(dp) , ALLOCATABLE :: aaaa_RDM(:,:), abab_RDM(:,:)
         REAL(dp) , ALLOCATABLE :: All_aaaa_RDM(:,:),All_abab_RDM(:,:)
         REAL(dp) , ALLOCATABLE :: UMATTemp(:,:)
-        REAL(dp) :: OneEl_Gap,TwoEl_Gap, Normalisation,Trace_2RDM_Inst, Trace_2RDM, Trace_1RDM, norm
+        REAL(dp) :: OneEl_Gap,TwoEl_Gap, Normalisation,Trace_2RDM_Inst, Trace_2RDM, AllTrace_2RDM, Trace_1RDM, norm
         LOGICAL :: tFinalRDMEnergy, tCalc_RDMEnergy
         type(timer), save :: nElRDM_Time, FinaliseRDM_time, RDMEnergy_time
 
@@ -4039,7 +4039,7 @@ MODULE nElRDMMod
             WRITE(Energies_unit, "(I31,2F30.15)") Iter+PreviousCycles, RDMEnergy_Inst, RDMEnergy
 
             if(tFinalRDMEnergy) then
-                write(6,*) 'Trace of 2-el-RDM before normalisation : ',Trace_2RDM
+                write(6,*) 'Trace of 2-el-RDM before normalisation : ',AllTrace_2RDM
                 write(6,*) 'Trace of 2-el-RDM after normalisation : ',Trace_2RDM_New
                 write(6,*) ''
                 write(6,*) 'Energy contribution from the 1-RDM: ',RDMEnergy1
@@ -4103,6 +4103,7 @@ MODULE nElRDMMod
         real(dp) , intent(out) :: Norm_2RDM_Inst, Norm_2RDM
         real(dp) :: AllAccumRDMNorm_Inst, AllAccumRDMNorm
         real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity
+        integer :: i,j
 
         ! All the arrays are summed into the one on processor 0.
         CALL MPISum_inplace(aaaa_RDM(:,:))
@@ -4123,6 +4124,24 @@ MODULE nElRDMMod
             CALL MPIReduce(AccumRDMNorm_Inst,MPI_SUM,AllAccumRDMNorm_Inst)
         endif
 
+        call MPISumAll_inplace(Trace_2RDM_Inst)
+        call MPISumAll(Trace_2RDM,AllTrace_2RDM)
+
+        if(tFinalRDMEnergy) then
+            write(6,*) 'AAAA'
+            do i = 1, (SpatOrbs * (SpatOrbs - 1) ) / 2
+                do j = 1, (SpatOrbs * (SpatOrbs - 1) ) / 2
+                    if(aaaa_RDM(i,j).ne.0.0_dp) write(6,*) aaaa_RDM(i,j)
+                enddo
+            enddo
+!            write(6,*) 'ABAB'
+!            do i = 1, (SpatOrbs * (SpatOrbs + 1) ) / 2
+!                do j = 1, (SpatOrbs * (SpatOrbs + 1) ) / 2
+!                    write(6,*) abab_RDM(i,j)
+!                enddo
+!            enddo
+        endif
+
         if(iProcIndex.eq.0) then
 
             ! If we're not using HPHF - average the matrix elements that by spin we know to be equal.
@@ -4136,7 +4155,7 @@ MODULE nElRDMMod
 
             if(tFinalRDMEnergy.or.(RDMExcitLevel.eq.2)) then
                 if(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref)) &
-                    call make_2e_rdm_hermitian(Norm_2RDM, Max_Error_Hermiticity, Sum_Error_Hermiticity)
+!                    call make_2e_rdm_hermitian(Norm_2RDM, Max_Error_Hermiticity, Sum_Error_Hermiticity)
 
                 call Write_out_2RDM(Norm_2RDM)
 
@@ -4278,7 +4297,7 @@ MODULE nElRDMMod
             ! Sum of diagonal elements of 2 electron RDM must equal number of 
             ! pairs of electrons, = NEl ( NEl - 1 ) / 2
             Norm_2RDM_Inst = ( (0.50 * (REAL(NEl) * (REAL(NEl) - 1.D0))) / Trace_2RDM_Inst )
-            Norm_2RDM = ( (0.50 * (REAL(NEl) * (REAL(NEl) - 1.D0))) / Trace_2RDM )
+            Norm_2RDM = ( (0.50 * (REAL(NEl) * (REAL(NEl) - 1.D0))) / AllTrace_2RDM )
         ENDIF
 
 !        if(tFinalRDMEnergy) then
@@ -4431,14 +4450,14 @@ MODULE nElRDMMod
                         Ind2_aa = ( ( (b-2) * (b-1) ) / 2 ) + a
                         Ind2_ab = ( ( (b-1) * b ) / 2 ) + a
 
-                        if((Ind1_aa.lt.Ind2_aa).and.(i.ne.j).and.(a.ne.b)) then
+                        if((Ind1_aa.le.Ind2_aa).and.(i.ne.j).and.(a.ne.b)) then
 
                             if( All_aaaa_RDM(Ind1_aa,Ind2_aa).ne.0.D0) &
                                 write(aaaa_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
                                     All_aaaa_RDM(Ind1_aa,Ind2_aa) * Norm_2RDM 
                         endif
 
-                        if(Ind1_ab.lt.Ind2_ab) then
+                        if(Ind1_ab.le.Ind2_ab) then
 
                             if( All_abab_RDM(Ind1_ab,Ind2_ab).ne.0.D0) &
                                 write(abab_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
