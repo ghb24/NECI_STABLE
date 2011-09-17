@@ -6522,7 +6522,7 @@ MODULE FciMCParMod
                     H0tmp=getH0Element4(nJ,HFDet)
                     H0tmp=Fii-H0tmp
                     if(tMadelung) then
-                        H0tmp=H0tmp+Madelung
+                        H0tmp=H0tmp+2.0_dp*Madelung
                     endif
                     mp2=mp2+(hel**2)/H0tmp
 !                    write(6,*) (hel**2),H0tmp
@@ -6574,7 +6574,7 @@ MODULE FciMCParMod
                     H0tmp=getH0Element4(nJ,HFDet)
                     H0tmp=Fii-H0tmp
                     if(tMadelung) then
-                        H0tmp=H0tmp+Madelung
+                        H0tmp=H0tmp+2.0_dp*Madelung
                     endif
                     mp2=mp2+(hel**2)/H0tmp
 !                    write(6,*) (hel**2),H0tmp
