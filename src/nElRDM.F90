@@ -4018,16 +4018,28 @@ MODULE nElRDMMod
                                                             * Norm_2RDM * ( Coul - Exch ) ) 
                             endif
 
+                            ! For abab cases, coul element will be non-zero, exchange zero.
                             RDMEnergy_Inst = RDMEnergy_Inst + ( 0.5_dp * abab_RDM(Ind1_ab,Ind2_ab) &
-                                                                    * Norm_2RDM_Inst * ( Coul - Exch ) )
+                                                                    * Norm_2RDM_Inst * Coul )
                             RDMEnergy_Inst = RDMEnergy_Inst + ( 0.5_dp * abab_RDM(Ind2_ab,Ind1_ab) &
-                                                                    * Norm_2RDM_Inst * ( Coul - Exch ) )
+                                                                    * Norm_2RDM_Inst * Coul )
  
                             RDMEnergy2 = RDMEnergy2 + ( 0.5_dp * All_abab_RDM(Ind1_ab,Ind2_ab) &
-                                                        * Norm_2RDM * ( Coul - Exch ) ) 
+                                                        * Norm_2RDM * Coul ) 
                             RDMEnergy2 = RDMEnergy2 + ( 0.5_dp * All_abab_RDM(Ind2_ab,Ind1_ab) &
-                                                        * Norm_2RDM * ( Coul - Exch ) ) 
-     
+                                                        * Norm_2RDM * Coul ) 
+
+                            if(tFinalRDMEnergy) then
+                                if((i.eq.1).and.(j.eq.2).and.(a.eq.5).and.(b.eq.5)) then
+                                    write(6,*) '*'
+                                    write(6,*) 'spat orbs',i,j,a,b
+                                    write(6,*) 'AllTwoElRDM',All_abab_RDM(Ind1_ab,Ind2_ab)
+                                    write(6,*) 'Coul',Coul
+                                    write(6,*) 'Exch',Exch
+                                    write(6,*) 'Coul * AllTwoElRDM',Coul *All_abab_RDM(Ind1_ab,Ind2_ab)
+                                endif
+                            endif
+
                        enddo
 
                     enddo
@@ -4155,7 +4167,7 @@ MODULE nElRDMMod
 
             if(tFinalRDMEnergy.or.(RDMExcitLevel.eq.2)) then
                 if(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref)) &
-!                    call make_2e_rdm_hermitian(Norm_2RDM, Max_Error_Hermiticity, Sum_Error_Hermiticity)
+                    call make_2e_rdm_hermitian(Norm_2RDM, Max_Error_Hermiticity, Sum_Error_Hermiticity)
 
                 call Write_out_2RDM(Norm_2RDM)
 
