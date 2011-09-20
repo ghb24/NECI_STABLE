@@ -1955,6 +1955,10 @@ MODULE nElRDMMod
                                               + (realSignDi * realSignDi)
 
                     endif
+
+                    Trace_2RDM = Trace_2RDM + (realSignDi * realSignDi)
+                    Trace_2RDM_Inst = Trace_2RDM_Inst + (realSignDi * realSignDi)
+
                 enddo
             enddo
         endif
