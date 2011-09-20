@@ -2559,12 +2559,6 @@ MODULE nElRDMMod
         
         IF(iProcIndex.eq.0) THEN
             
-!            if(RDMExcitLevel.ne.1) then
-!                ! Only the 2RDM will have been calculated, need to construct the 
-!                ! 1RDM from this.
-!                call create_1RDM_from_2RDM()
-!            endif
-
             CALL DiagRDM()
 
             tRotateVirtOnly=.true.
@@ -2655,43 +2649,6 @@ MODULE nElRDMMod
     end subroutine find_nat_orb_occ_numbers
 
 
-!    subroutine create_1RDM_from_2RDM()
-!        implicit none
-!        integer :: i, a, j, Ind1, Ind2
-!        real(dp) :: Parity_Factor
-!
-!        do i = 1, nBasis
-!            do a = i, nBasis
-!                do j = 1, nBasis
-!
-!                    if((i.ne.j).and.(a.ne.j)) then
-!
-!                        Ind1 = ( ( (max(i,j)-2) * (max(i,j)-1) ) / 2 ) + min(i,j)
-!                        Ind2 = ( ( (max(a,j)-2) * (max(a,j)-1) ) / 2 ) + min(a,j)
-!
-!                        if(((j.lt.i).and.(j.gt.a)).or.((j.gt.i).and.(j.lt.a))) then
-!                            Parity_Factor = -1.D0
-!                        else
-!                            Parity_Factor = 1.D0
-!                        endif
-!
-!                        NatOrbMat(SymLabelListInv(i),SymLabelListInv(a)) = &
-!                            NatOrbMat(SymLabelListInv(i),SymLabelListInv(a)) + &
-!                            ( AllTwoElRDM(Ind1,Ind2) * Parity_Factor * ( 1.0_dp / real(NEl - 1,dp)) ) 
-!
-!                        if(i.ne.a) &                            
-!                            NatOrbMat(SymLabelListInv(a),SymLabelListInv(i)) = &
-!                                NatOrbMat(SymLabelListInv(a),SymLabelListInv(i)) + &
-!                                ( AllTwoElRDM(Ind2,Ind1) * Parity_Factor * ( 1.0_dp / real(NEl - 1,dp)) ) 
-!
-!                    endif
-!                enddo
-!            enddo
-!        enddo
-!
-!    end subroutine create_1RDM_from_2RDM
-
-
     SUBROUTINE DiagRDM()
 ! The diagonalisation routine reorders the orbitals in such a way that the 
 ! corresponding orbital labels are lost.
@@ -2706,7 +2663,7 @@ MODULE nElRDMMod
         REAL(dp) :: SumTrace,SumDiagTrace
         REAL(dp) , ALLOCATABLE :: WORK2(:),EvaluesSym(:),NOMSym(:,:)
         INTEGER :: ierr,i,j,spin,Sym,LWORK2,WORK2Tag,SymStartInd,NoSymBlock,PrevSym
-        INTEGER :: EvaluesSymTag,NOMSymTag
+        INTEGER :: EvaluesSymTag,NOMSymTag,k
         CHARACTER(len=*), PARAMETER :: this_routine='DiagRDM'
 
  
@@ -2734,6 +2691,11 @@ MODULE nElRDMMod
                             WRITE(6,*) 'These elements will be ignored, and the symmetry &
                             &maintained in the final transformation matrix.'
                         ELSE
+                            write(6,*) 'k,SymLabelList2(k),SymLabelListInv(k)'
+                            do k = 1,nBasis
+                                write(6,*) k,SymLabelList2(k),SymLabelListInv(k)
+                            enddo
+                            call flush(6)
                             CALL Stop_All(this_routine,'Non-zero NatOrbMat value between &
                             &different symmetries.')
                         ENDIF
@@ -4034,6 +3996,7 @@ MODULE nElRDMMod
         ! want to calculate:    gamma(i,j) * h_ij
         ! h_ij => TMAT2D(iSpin,jSpin)
         USE OneEInts , only : TMAT2D
+        USE Logging , only : tDiagRDM
         implicit none
         integer , intent(in) :: i,j,a,iSpin,jSpin
         real(dp) , intent(in) :: Norm_2RDM, Norm_2RDM_Inst
@@ -4057,6 +4020,16 @@ MODULE nElRDMMod
                                                 * REAL(TMAT2D(iSpin,jSpin),8) &
                                                 * (1.0_dp / real(NEl - 1,dp)) )
 
+            if(tDiagRDM.and.tFinalRDMEnergy) then                                                
+                NatOrbMat(SymLabelListInv(2*i),SymLabelListInv(2*j)) = NatOrbMat(SymLabelListInv(2*i),SymLabelListInv(2*j)) &
+                                                            + ( ( All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
+                                                                    * (1.0_dp / real(NEl - 1,dp)) ) / 2.0_dp )
+                NatOrbMat(SymLabelListInv((2*i)-1),SymLabelListInv((2*j)-1)) = &
+                                                            NatOrbMat(SymLabelListInv((2*i)-1),SymLabelListInv((2*j)-1)) &
+                                                            + ( ( All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
+                                                                    * (1.0_dp / real(NEl - 1,dp)) ) / 2.0_dp )
+            endif
+
             ! For Gamma elements corresponding to 1-RDMs ( Gamma(i,a,j,a) ), we're only considering 
             ! i =< j and therefore we need to sum in the opposite contribution too.
             if(Ind1_1e_ab.ne.Ind2_1e_ab) then                                                                
@@ -4066,17 +4039,39 @@ MODULE nElRDMMod
                 RDMEnergy1 = RDMEnergy1 + ( (All_abab_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM) &
                                                     * REAL(TMAT2D(jSpin,iSpin),8) &
                                                     * (1.0_dp / real(NEl - 1,dp)) )
+
+                if(tDiagRDM.and.tFinalRDMEnergy) then                                                
+                    NatOrbMat(SymLabelListInv(2*j),SymLabelListInv(2*i)) = NatOrbMat(SymLabelListInv(2*j),SymLabelListInv(2*i)) &
+                                                                + ( ( All_abab_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM &
+                                                                        * (1.0_dp / real(NEl - 1,dp)) ) / 2.0_dp )
+                    NatOrbMat(SymLabelListInv((2*j)-1),SymLabelListInv((2*i)-1)) = &
+                                                                NatOrbMat(SymLabelListInv((2*j)-1),SymLabelListInv((2*i)-1)) &
+                                                                + ( ( All_abab_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM &
+                                                                        * (1.0_dp / real(NEl - 1,dp)) ) / 2.0_dp )
+                endif
+
             endif
 
             ! But since we're running over all a, i a and a i will both be counted, but i i only once 
             ! (whereas it should be counted twice).
             if((i.eq.j).and.(i.eq.a)) then                                                                
-                RDMEnergy_Inst = RDMEnergy_Inst + ( (abab_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM_Inst) &
-                                            * REAL(TMAT2D(jSpin,iSpin),8) &
+                RDMEnergy_Inst = RDMEnergy_Inst + ( (abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM_Inst) &
+                                            * REAL(TMAT2D(iSpin,jSpin),8) &
                                             * (1.0_dp / real(NEl - 1,dp)) )
-                RDMEnergy1 = RDMEnergy1 + ( (All_abab_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM) &
-                                            * REAL(TMAT2D(jSpin,iSpin),8) &
+                RDMEnergy1 = RDMEnergy1 + ( (All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM) &
+                                            * REAL(TMAT2D(iSpin,jSpin),8) &
                                             * (1.0_dp / real(NEl - 1,dp)) )
+
+                if(tDiagRDM.and.tFinalRDMEnergy) then                                                
+                    NatOrbMat(SymLabelListInv(2*j),SymLabelListInv(2*i)) = NatOrbMat(SymLabelListInv(2*j),SymLabelListInv(2*i)) &
+                                                                + ( ( All_abab_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM &
+                                                                        * (1.0_dp / real(NEl - 1,dp)) ) / 2.0_dp )
+                    NatOrbMat(SymLabelListInv((2*j)-1),SymLabelListInv((2*i)-1)) = &
+                                                                NatOrbMat(SymLabelListInv((2*j)-1),SymLabelListInv((2*i)-1)) &
+                                                                + ( ( All_abab_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM &
+                                                                        * (1.0_dp / real(NEl - 1,dp)) ) / 2.0_dp )
+                endif
+
             endif
 
         endif
@@ -4089,6 +4084,16 @@ MODULE nElRDMMod
                                                 * REAL(TMAT2D(iSpin,jSpin),8) &
                                                 * (1.0_dp / real(NEl - 1,dp)) )
 
+            if(tDiagRDM.and.tFinalRDMEnergy) then                                                
+                NatOrbMat(SymLabelListInv(2*i),SymLabelListInv(2*j)) = NatOrbMat(SymLabelListInv(2*i),SymLabelListInv(2*j)) &
+                                                            - ( ( All_abba_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
+                                                                    * (1.0_dp / real(NEl - 1,dp)) ) / 2.0_dp )
+                NatOrbMat(SymLabelListInv((2*i)-1),SymLabelListInv((2*j)-1)) = &
+                                                            NatOrbMat(SymLabelListInv((2*i)-1),SymLabelListInv((2*j)-1)) &
+                                                            - ( ( All_abba_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
+                                                                    * (1.0_dp / real(NEl - 1,dp)) ) / 2.0_dp )
+            endif
+
             if(Ind1_1e_ab.ne.Ind2_1e_ab) then
                 RDMEnergy_Inst = RDMEnergy_Inst - ( (abba_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM_Inst) &
                                                     * REAL(TMAT2D(iSpin,jSpin),8) &
@@ -4096,6 +4101,16 @@ MODULE nElRDMMod
                 RDMEnergy1 = RDMEnergy1 - ( (All_abba_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM) &
                                                     * REAL(TMAT2D(iSpin,jSpin),8) &
                                                     * (1.0_dp / real(NEl - 1,dp)) )
+
+                if(tDiagRDM.and.tFinalRDMEnergy) then                                                
+                    NatOrbMat(SymLabelListInv(2*j),SymLabelListInv(2*i)) = NatOrbMat(SymLabelListInv(2*j),SymLabelListInv(2*i)) &
+                                                                - ( ( All_abba_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM &
+                                                                        * (1.0_dp / real(NEl - 1,dp)) ) / 2.0_dp )
+                    NatOrbMat(SymLabelListInv((2*j)-1),SymLabelListInv((2*i)-1)) = &
+                                                                NatOrbMat(SymLabelListInv((2*j)-1),SymLabelListInv((2*i)-1)) &
+                                                                - ( ( All_abba_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM &
+                                                                        * (1.0_dp / real(NEl - 1,dp)) ) / 2.0_dp )
+                endif
             endif
         endif
 
@@ -4109,6 +4124,17 @@ MODULE nElRDMMod
             RDMEnergy1 = RDMEnergy1 + ( (All_aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM) &
                                                 * REAL(TMAT2D(iSpin,jSpin),8) &
                                                 * (1.0_dp / real(NEl - 1,dp)) )
+
+            if(tDiagRDM.and.tFinalRDMEnergy) then                                                
+                NatOrbMat(SymLabelListInv(2*i),SymLabelListInv(2*j)) = NatOrbMat(SymLabelListInv(2*i),SymLabelListInv(2*j)) &
+                                                            + ( ( All_aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
+                                                                    * (1.0_dp / real(NEl - 1,dp)) ) / 2.0_dp )
+                NatOrbMat(SymLabelListInv((2*i)-1),SymLabelListInv((2*j)-1)) = &
+                                                            NatOrbMat(SymLabelListInv((2*i)-1),SymLabelListInv((2*j)-1)) &
+                                                            + ( ( All_aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
+                                                                    * (1.0_dp / real(NEl - 1,dp)) ) / 2.0_dp )
+            endif
+
             if(Ind1_1e_aa.ne.Ind2_1e_aa) then
                 RDMEnergy_Inst = RDMEnergy_Inst + ( (aaaa_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM_Inst) &
                                                 * REAL(TMAT2D(jSpin,iSpin),8) &
@@ -4116,6 +4142,16 @@ MODULE nElRDMMod
                 RDMEnergy1 = RDMEnergy1 + ( (All_aaaa_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM) &
                                                 * REAL(TMAT2D(jSpin,iSpin),8) &
                                                 * (1.0_dp / real(NEl - 1,dp)) )
+
+                if(tDiagRDM.and.tFinalRDMEnergy) then                                                
+                    NatOrbMat(SymLabelListInv(2*j),SymLabelListInv(2*i)) = NatOrbMat(SymLabelListInv(2*j),SymLabelListInv(2*i)) &
+                                                                + ( ( All_aaaa_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
+                                                                        * (1.0_dp / real(NEl - 1,dp)) ) / 2.0_dp )
+                    NatOrbMat(SymLabelListInv((2*j)-1),SymLabelListInv((2*i)-1)) = &
+                                                                NatOrbMat(SymLabelListInv((2*j)-1),SymLabelListInv((2*i)-1)) &
+                                                                + ( ( All_aaaa_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
+                                                                        * (1.0_dp / real(NEl - 1,dp)) ) / 2.0_dp )
+                endif
             endif
         endif
 
