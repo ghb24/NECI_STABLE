@@ -31,7 +31,7 @@ MODULE Logging
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
     LOGICAL tTruncDumpbyVal, tChangeVarsRDM, tNoRODump, tSpawnGhostChild
     LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit,tPrintDoubsUEG
-    LOGICAL tHF_S_D_Ref, tHF_S_D, tHF_Ref_Explicit, tExplicitAllRDM, tRDMSpinAveraging
+    LOGICAL tHF_S_D_Ref, tHF_S_D, tHF_Ref_Explicit, tExplicitAllRDM
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps,IterShiftBlock
     INTEGER IterRDMonFly, RDMExcitLevel, RDMEnergyIter
     real(dp) GhostThresh, GhostFac
@@ -157,7 +157,6 @@ MODULE Logging
       tHF_S_D_Ref = .false.
       tHF_S_D = .false.
       tHF_Ref_Explicit = .false.
-      tRDMSpinAveraging = .false.
       tSpawnGhostChild = .false.
       GhostThresh = 1.0E-5
       GhostFac = 1.0
@@ -533,18 +532,6 @@ MODULE Logging
 !Uses the HF, singles and doubles as a multiconfigurational reference and calculates the RDM to find the energy.            
             tHF_S_D_Ref = .true.
         
-        case("RDMSPINAVERAGING")
-!Ensures that all the spin flipped elements of the RDM are the same.            
-            IF(item.lt.nitems) THEN
-                call readu(w)
-                select case(w)
-                    case("OFF")
-                        tRDMSpinAveraging=.false.
-                end select
-            ELSE
-                tRDMSpinAveraging=.true.
-            ENDIF
-
         case("RDMGHOSTCHILD")
 ! In this case, if the probability of spawning on a given Dj, generated from Di, is less than GhostThresh (a real), 
 ! the probability is increased to the probability of spawning multiplied by GhostFac (also a real), and if the spawning 

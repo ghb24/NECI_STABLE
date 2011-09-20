@@ -80,8 +80,7 @@ MODULE nElRDMMod
         USE RotateOrbsMod , only : SymLabelCounts2Tag,NoRotOrbs
         USE RotateOrbsMod , only : SymLabelList2Tag,SymLabelListInvTag
         USE RotateOrbsData , only : SymLabelList3, SymLabelList3Tag
-        USE Logging , only : tDo_Not_Calc_RDMEnergy, tDiagRDM, &
-                             tRDMSpinAveraging
+        USE Logging , only : tDo_Not_Calc_RDMEnergy, tDiagRDM
         USE CalcData , only : tRegenDiagHEls
         implicit none
         INTEGER :: ierr,i, MemoryAlloc, MemoryAlloc_Root
@@ -116,10 +115,6 @@ MODULE nElRDMMod
                 &as a reference - this is not an appropriate matrix for natural orbitals.'
             tDiagRDM = .false.
         endif
-
-        if(tRDMSpinAveraging.and.(tHF_Ref_Explicit.or.tHF_S_D_Ref)) &
-            call stop_all('InitRDM','Sorry! HF or HF, S, and D ref type & 
-                            &calculations are not set up with spin averaging yet.')
 
 ! Here we're allocating arrays for the actual calculation of the RDM.
 
@@ -3925,7 +3920,6 @@ MODULE nElRDMMod
         USE UMatCache , only : UMatInd
         USE RotateOrbsMod , only : SymLabelList2
         USE UMatCache , only : GTID
-        USE Logging , only : tRDMSpinAveraging
         implicit none
         real(dp) :: Norm_2RDM, Norm_2RDM_Inst
         INTEGER :: i,j,a,b,Ind1_aa,Ind1_ab,Ind2_aa,Ind2_ab,ierr
@@ -4131,7 +4125,6 @@ MODULE nElRDMMod
 
 
     subroutine Finalise_1e_RDM() 
-        USE Logging , only : tRDMSpinAveraging
         implicit none
         real(dp) :: AllAccumRDMNorm_Inst, AllAccumRDMNorm
         real(dp) :: Norm_1RDM_Inst, Norm_1RDM
@@ -4144,11 +4137,11 @@ MODULE nElRDMMod
         CALL MPIReduce(OneElRDM,MPI_SUM,NatOrbMat)
         
         if(iProcIndex.eq.0) then 
-            if(tRDMSpinAveraging.and.(.not.tHPHF)) then
-                call Average_Spins_and_Sum_1e_Norms(Trace_1RDM_Inst, Trace_1RDM)
-            else
+            if(tHPHF) then
                 ! Normalise the 1- and 2-RDM so the traces are equal to NEl and NEl(NEl - 1)/2 respectively.
                 call sum_1e_norms(Trace_1RDM_Inst, Trace_1RDM) 
+            else
+                call Average_Spins_and_Sum_1e_Norms(Trace_1RDM_Inst, Trace_1RDM)
             endif
 
             call calc_1e_norms(AllAccumRDMNorm_Inst, AllAccumRDMNorm, Norm_1RDM_Inst, &
@@ -4165,7 +4158,6 @@ MODULE nElRDMMod
 
 
     subroutine Finalise_2e_RDM(Norm_2RDM_Inst, Norm_2RDM) 
-        USE Logging , only : tRDMSpinAveraging
         implicit none
         real(dp) , intent(out) :: Norm_2RDM_Inst, Norm_2RDM
         real(dp) :: AllAccumRDMNorm_Inst, AllAccumRDMNorm
@@ -4202,7 +4194,7 @@ MODULE nElRDMMod
             ! This is commented out now, because when using spatial orbitals the spins are effectively 
             ! already averaged - and the normalisation is being calculated on the fly. 
 
-!            if((tFinalRDMEnergy.or.(RDMExcitLevel.eq.2)).and.tRDMSpinAveraging.and.(.not.tHPHF)) then 
+!            if((tFinalRDMEnergy.or.(RDMExcitLevel.eq.2)).and.(.not.tHPHF)) then 
 !                call Average_Spins_and_Sum_2e_Norms(Trace_2RDM_Inst, Trace_2RDM)
 !            else
 !                call sum_2e_norms(Trace_2RDM_Inst, Trace_2RDM)
