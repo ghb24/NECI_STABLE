@@ -90,6 +90,14 @@ MODULE nElRDMMod
         CAll Stop_All(this_routine,'Filling of reduced density matrices not working with &
                                     &complex walkers yet.')
 #endif
+    
+        if(tExplicitAllRDM) then
+            write(6,'(A)') " Explicitly calculating the reduced density matrices from the &
+                                                        &FCIQMC wavefunction."
+        else
+            write(6,'(A)') " Stochastically calculating the reduced density matrices from the &
+                    &FCIQMC wavefunction (incl. explicit connections to the reference determinant)."
+        endif
 
         if(tRegenDiagHEls) &
             call stop_all(this_routine,'RDMs not currently set up for regenerating the &
@@ -106,7 +114,7 @@ MODULE nElRDMMod
             ELSE
                 tCalc_RDMEnergy = .true.
                 WRITE(6,'(A)') ' Calculating the energy from the reduced &
-                &density matrix, this requires both the 1 and 2 electron RDM.'
+                &density matrix, this requires the 2 electron RDM from which the 1-RDM can also be constructed.'
             ENDIF
         ENDIF
 
@@ -317,9 +325,8 @@ MODULE nElRDMMod
         ENDIF
 
         if(iProcIndex.eq.0) then
-            write(6,"(A,F14.6,A)") " Main RDM memory arrays consists of : ", &
-                    & REAL(MemoryAlloc_Root,dp)/1048576.D0," Mb/Processor on the root, "
-            write(6,"(A,F14.6,A)") " and ", &
+            write(6,"(A,F14.6,A,F14.6,A)") " Main RDM memory arrays consists of : ", &
+                    & REAL(MemoryAlloc_Root,dp)/1048576.D0," Mb/Processor on the root, and ", &
                     & REAL(MemoryAlloc,dp)/1048576.D0," Mb/Processor on other processors."
         endif
 
@@ -369,6 +376,8 @@ MODULE nElRDMMod
 
         ENDIF            
 
+        if(iProcIndex.eq.0) write(6,'(A)') " RDM memory allocation successful... "                    
+
         ! Open file to keep track of RDM Energies (if they're being calculated). 
         IF((iProcIndex.eq.0).and.tCalc_RDMEnergy) THEN
             Energies_unit = get_free_unit()
@@ -407,13 +416,13 @@ MODULE nElRDMMod
         use Logging , only : IterRDMonFly
         implicit none
         logical :: exists_aaaa,exists_abab,exists_abba
-        integer :: aaaa_unit, abab_unit, abba_unit
+        integer :: RDM_unit
         integer :: i,j,a,b,Ind1,Ind2
         real(dp) :: Temp_RDM_Element
 
         if(iProcIndex.eq.0) then 
 
-            write(6,'(A)') 'Reading in the RDMs'
+            write(6,'(A)') ' Reading in the RDMs'
 
             if(RDMExcitLevel.eq.1) then
 
@@ -426,46 +435,42 @@ MODULE nElRDMMod
                 INQUIRE(FILE='TwoRDM_aaaa_TOREAD',EXIST=exists_aaaa)
                 INQUIRE(FILE='TwoRDM_abab_TOREAD',EXIST=exists_abab)
                 INQUIRE(FILE='TwoRDM_abba_TOREAD',EXIST=exists_abba)
-                aaaa_unit = get_free_unit()
-                abab_unit = get_free_unit()
-                abba_unit = get_free_unit()
-                if(exists_aaaa.and.exists_abab.and.exists_abab) THEN
+                if(exists_aaaa.and.exists_abab.and.exists_abba) THEN
                     ! All TOREAD RDM files are present - read in.
-                    open(aaaa_unit,FILE='TwoRDM_aaaa_TOREAD',status='old')
+                    RDM_unit = get_free_unit()
+                    open(RDM_unit,FILE='TwoRDM_aaaa_TOREAD',status='old',form='unformatted')
                     do while (.true.)
-                        read(aaaa_unit) i,j,a,b,Temp_RDM_Element 
+                        read(RDM_unit,end=500) i,j,a,b,Temp_RDM_Element 
                         Ind1 = ( ( (j-2) * (j-1) ) / 2 ) + i
                         Ind2 = ( ( (b-2) * (b-1) ) / 2 ) + a
                         All_aaaa_RDM(Ind1,Ind2) = Temp_RDM_Element
-                        All_aaaa_RDM(Ind2,Ind1) = Temp_RDM_Element
-
                         if(Ind1.eq.Ind2) Trace_2RDM = Trace_2RDM + &
                                                         Temp_RDM_Element
                     enddo
-                    close(aaaa_unit)
+500                 continue                    
+                    close(RDM_unit)
 
-                    open(abab_unit,FILE='TwoRDM_abab_TOREAD',status='old')
+                    open(RDM_unit,FILE='TwoRDM_abab_TOREAD',status='old',form='unformatted')
                     do while (.true.)
-                        read(abab_unit) i,j,a,b,Temp_RDM_Element 
+                        read(RDM_unit,end=501) i,j,a,b,Temp_RDM_Element 
                         Ind1 = ( ( (j-1) * j ) / 2 ) + i
                         Ind2 = ( ( (b-1) * b ) / 2 ) + a
                         All_abab_RDM(Ind1,Ind2) = Temp_RDM_Element
-                        All_abab_RDM(Ind2,Ind1) = Temp_RDM_Element
-                        
                         if(Ind1.eq.Ind2) Trace_2RDM = Trace_2RDM + &
                                                         Temp_RDM_Element
                     enddo
-                    close(abab_unit)
+501                 continue                    
+                    close(RDM_unit)
 
-                    open(abba_unit,FILE='TwoRDM_abba_TOREAD',status='old')
+                    open(RDM_unit,FILE='TwoRDM_abba_TOREAD',status='old',form='unformatted')
                     do while (.true.)
-                        read(abba_unit) i,j,a,b,Temp_RDM_Element 
+                        read(RDM_unit,end=502) i,j,a,b,Temp_RDM_Element 
                         Ind1 = ( ( (j-1) * j ) / 2 ) + i
                         Ind2 = ( ( (b-1) * b ) / 2 ) + a
                         All_abba_RDM(Ind1,Ind2) = Temp_RDM_Element
-                        All_abba_RDM(Ind2,Ind1) = Temp_RDM_Element
                     enddo
-                    close(abba_unit)
+502                 continue                    
+                    close(RDM_unit)
 
                 else
                     write(6,*) 'exists_aaaa',exists_aaaa
@@ -476,16 +481,16 @@ MODULE nElRDMMod
                                     &but at least one of the TwoRDM_a***_TOREAD files are missing.")
                 endif
 
-                write(6,'(A)') 'Calculating the previous RDM energy.'
-                if(tCalc_RDMEnergy) call Calc_Energy_from_RDM()
-
             endif
+        endif
+
+        if(tCalc_RDMEnergy) then
+            call Calc_Energy_from_RDM()
         endif
 
 ! Continue calculating the RDMs from the first iteration when the POPSFILES (and RDMs) are read in.
 ! This overwrites the iteration number put in the input.
         IterRDMonFly = 1
-        if(iProcIndex.eq.0) write(6,'(A)') 'Continuing to calculate the RDMs from the first iteration'
 
     end subroutine Read_In_RDMs
 
@@ -2626,7 +2631,7 @@ MODULE nElRDMMod
         elseif(tHF_Ref_Explicit) then
             write(6,'(A)') ' **** RDMs CALCULATED EXPLICITLY USING THE HF AS A REFERENCE**** '
         else
-            write(6,*) '**** RDMs CALCULATED STOCHASTICLY **** '
+            write(6,*) '**** RDMs CALCULATED STOCHASTICALLY **** '
         endif
 
         ! Combine the 1- or 2-RDM from all processors etc.
@@ -3091,7 +3096,6 @@ MODULE nElRDMMod
         USE RotateOrbsData , only : CoeffT1,SymLabelList3,SymOrbs,SymOrbsTag,&
                                     TruncEval,NoRotOrbs,EvaluesTrunc,EvaluesTruncTag
         USE Logging , only : tTruncRODump,tTruncDumpbyVal
-        use util_mod, only: get_free_unit
         IMPLICIT NONE
         INTEGER :: l,k,i,j,NoRotAlphBet, io1, io2, SymLabelListInvNewTag
         CHARACTER(len=*), PARAMETER :: this_routine='FillCoeffT1_RDM'
@@ -3584,7 +3588,6 @@ MODULE nElRDMMod
 
     SUBROUTINE PrintROFCIDUMP_RDM()
 !This prints out a new FCIDUMP file in the same format as the old one.
-        use util_mod, only: get_free_unit
         implicit none
         INTEGER :: i,j,k,l,iunit
         CHARACTER(len=5) :: Label
@@ -4187,11 +4190,11 @@ MODULE nElRDMMod
 
                 if(tDiagRDM.and.tFinalRDMEnergy) then                                                
                     NatOrbMat(SymLabelListInv(2*j),SymLabelListInv(2*i)) = NatOrbMat(SymLabelListInv(2*j),SymLabelListInv(2*i)) &
-                                                                + ( ( All_abab_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM &
+                                                                + ( ( All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
                                                                         * (1.0_dp / real(NEl - 1,dp)) ) / 2.0_dp )
                     NatOrbMat(SymLabelListInv((2*j)-1),SymLabelListInv((2*i)-1)) = &
                                                                 NatOrbMat(SymLabelListInv((2*j)-1),SymLabelListInv((2*i)-1)) &
-                                                                + ( ( All_abab_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM &
+                                                                + ( ( All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
                                                                         * (1.0_dp / real(NEl - 1,dp)) ) / 2.0_dp )
                 endif
 
@@ -4218,10 +4221,10 @@ MODULE nElRDMMod
             endif
 
             if(Ind1_1e_ab.ne.Ind2_1e_ab) then
-                RDMEnergy_Inst = RDMEnergy_Inst - ( (abba_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM_Inst) &
+                RDMEnergy_Inst = RDMEnergy_Inst - ( (abba_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM_Inst) &
                                                     * REAL(TMAT2D(iSpin,jSpin),8) &
                                                     * (1.0_dp / real(NEl - 1,dp)) )
-                RDMEnergy1 = RDMEnergy1 - ( (All_abba_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM) &
+                RDMEnergy1 = RDMEnergy1 - ( (All_abba_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM) &
                                                     * REAL(TMAT2D(iSpin,jSpin),8) &
                                                     * (1.0_dp / real(NEl - 1,dp)) )
 
@@ -4646,23 +4649,26 @@ MODULE nElRDMMod
         integer :: i, j, a, b, Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab
         integer :: aaaa_RDM_unit, abab_RDM_unit, abba_RDM_unit
 
-        aaaa_RDM_unit = get_free_unit()
-        abab_RDM_unit = get_free_unit()
-        abba_RDM_unit = get_free_unit()
         if(tNormalise) then
             write(6,*) 'Writing out the *normalised* 2 electron density matrix to file'
             call flush(6)
+            aaaa_RDM_unit = get_free_unit()
             OPEN(aaaa_RDM_unit,file='TwoRDM_aaaa',status='unknown')
+            abab_RDM_unit = get_free_unit()
             OPEN(abab_RDM_unit,file='TwoRDM_abab',status='unknown')
+            abba_RDM_unit = get_free_unit()
             OPEN(abba_RDM_unit,file='TwoRDM_abba',status='unknown')
         else
             write(6,*) 'Writing out the *unnormalised* 2 electron density matrix to file for reading in'
             call flush(6)
+            aaaa_RDM_unit = get_free_unit()
             OPEN(aaaa_RDM_unit,file='TwoRDM_aaaa_TOREAD',status='unknown',form='unformatted')
+            abab_RDM_unit = get_free_unit()
             OPEN(abab_RDM_unit,file='TwoRDM_abab_TOREAD',status='unknown',form='unformatted')
+            abba_RDM_unit = get_free_unit()
             OPEN(abba_RDM_unit,file='TwoRDM_abba_TOREAD',status='unknown',form='unformatted')
         endif
- 
+        
         Tot_Spin_Projection = 0.D0
         do i = 1, SpatOrbs
 
@@ -4679,42 +4685,48 @@ MODULE nElRDMMod
 
                         Ind2_aa = ( ( (b-2) * (b-1) ) / 2 ) + a
                         Ind2_ab = ( ( (b-1) * b ) / 2 ) + a
+                        
+!                        if((Ind1_aa.le.Ind2_aa).and.(i.ne.j).and.(a.ne.b)) then
+                        if((i.ne.j).and.(a.ne.b)) then
 
-                        if((Ind1_aa.le.Ind2_aa).and.(i.ne.j).and.(a.ne.b)) then
-
-                            if( All_aaaa_RDM(Ind1_aa,Ind2_aa).ne.0.D0) then
-                                if(tNormalise) then
+                            ! It will cause problems when reading in if there is absolutely 
+                            ! nothing in this file.
+                            ! So we make sure we print out at lease one element, even if it's zero.
+                            if( All_aaaa_RDM(Ind1_aa,Ind2_aa).ne.0.0_dp) then
+                                ! If we're normalising (and have made the matrix hermitian) we only 
+                                ! need to write out Ind1 < Ind2.
+                                ! Otherwise we print out Ind1, Ind2 and Ind2, Ind1 so we can 
+                                ! find the hermiticity error in the final matrix (after all runs).
+                                if(tNormalise.and.(Ind1_aa.le.Ind2_aa)) then
                                     write(aaaa_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
                                             All_aaaa_RDM(Ind1_aa,Ind2_aa) * Norm_2RDM 
-                                else
+                                elseif(.not.tNormalise) then
                                     write(aaaa_RDM_unit) i,j,a,b, &
                                             All_aaaa_RDM(Ind1_aa,Ind2_aa) 
                                 endif
                             endif
                         endif
 
-                        if(Ind1_ab.le.Ind2_ab) then
-
-                            if( All_abab_RDM(Ind1_ab,Ind2_ab).ne.0.D0) then
-                                if(tNormalise) then
-                                    write(abab_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
-                                        All_abab_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM 
-                                else
-                                    write(abab_RDM_unit) i,j,a,b, &
-                                        All_abab_RDM(Ind1_ab,Ind2_ab) 
-                                endif
-                            endif
-
-                            if( All_abba_RDM(Ind1_ab,Ind2_ab).ne.0.D0) then
-                                if(tNormalise) then
-                                    write(abba_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
-                                        All_abba_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM 
-                                else
-                                    write(abba_RDM_unit) i,j,a,b, &
-                                        All_abba_RDM(Ind1_ab,Ind2_ab) 
-                                endif
+                        if( All_abab_RDM(Ind1_ab,Ind2_ab).ne.0.0_dp) then
+                            if(tNormalise.and.(Ind1_ab.le.Ind2_ab)) then
+                                write(abab_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
+                                    All_abab_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM 
+                            elseif(.not.tNormalise) then
+                                write(abab_RDM_unit) i,j,a,b, &
+                                    All_abab_RDM(Ind1_ab,Ind2_ab) 
                             endif
                         endif
+
+                        if( All_abba_RDM(Ind1_ab,Ind2_ab).ne.0.0_dp) then
+                            if(tNormalise.and.(Ind1_ab.le.Ind2_ab)) then
+                                write(abba_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
+                                    All_abba_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM 
+                            elseif(.not.tNormalise) then
+                                write(abba_RDM_unit) i,j,a,b, &
+                                    All_abba_RDM(Ind1_ab,Ind2_ab) 
+                            endif
+                        endif
+
                     enddo
                 enddo
 
