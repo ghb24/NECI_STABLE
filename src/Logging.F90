@@ -29,7 +29,7 @@ MODULE Logging
     LOGICAL tRoHistOneElInts
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump,tRDMonFly,tDiagRDM,tDo_Not_Calc_RDMEnergy
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
-    LOGICAL tTruncDumpbyVal, tChangeVarsRDM, tNoRODump, tSpawnGhostChild, tno_RDMs_to_read
+    LOGICAL tTruncDumpbyVal, tChangeVarsRDM, tNoRODump, tSpawnGhostChild, tno_RDMs_to_read, tReadRDMs
     LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit,tPrintDoubsUEG
     LOGICAL tHF_S_D_Ref, tHF_S_D, tHF_Ref_Explicit, tExplicitAllRDM, twrite_normalised_RDMs, twrite_RDMs_to_read 
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps,IterShiftBlock
@@ -163,6 +163,7 @@ MODULE Logging
       twrite_normalised_RDMs = .true. 
       twrite_RDMs_to_read = .false.
       tno_RDMs_to_read = .false.
+      tReadRDMs = .false.
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -558,6 +559,10 @@ MODULE Logging
 ! Does not print out the normalised (final) RDMs - to be used if you know the calculation will not be converged, and don't  
 ! want to take up disk space.
             twrite_normalised_RDMs = .false.
+
+        case("READRDMS")
+! Read in the RDMs from a previous calculation, and continue accumulating the RDMs from the very beginning of this restart.            
+            tReadRDMs = .true.
 
         case("AUTOCORR")
 !This is a Parallel FCIMC option - it will calculate the largest weight MP1 determinants and histogramm them

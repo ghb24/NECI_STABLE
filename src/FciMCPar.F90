@@ -5799,6 +5799,7 @@ MODULE FciMCParMod
         use constants , only : size_n_int
         use DeterminantData , only : write_det
         use nElRDMMod, only: InitRDM
+        use Logging , only : tReadRDMs
         INTEGER :: ierr,iunithead
         LOGICAL :: formpops,binpops
         INTEGER :: error,MemoryAlloc,PopsVersion,j,iLookup,WalkerListSize
@@ -6153,16 +6154,13 @@ MODULE FciMCParMod
 
         if (tSpinProject) call init_yama_store ()
 
+        IF(tRDMonFly) CALL InitRDM()
         !This keyword (tRDMonFly) is on from the beginning if we eventually plan to calculate the RDM's.
-        !But the tFilling keywords don't become true until we actually start calculating them.
-        IF(tRDMonFly) THEN
-            !Initialises RDM stuff for both explicit and stochastic calculations of RDM.
-            CALL InitRDM()
-        ENDIF
+        !Initialises RDM stuff for both explicit and stochastic calculations of RDM.
+
         tFillingStochRDMonFly = .false.      
         tFillingExplicRDMonFly = .false.      
         !One of these becomes true when we have reached the relevant iteration to begin filling the RDM.
-
         tGhostChild = .false.
 
         !If the iteration specified to start filling the RDM has already been, want to 

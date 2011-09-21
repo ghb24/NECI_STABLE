@@ -80,7 +80,7 @@ MODULE nElRDMMod
         USE RotateOrbsMod , only : SymLabelCounts2Tag,NoRotOrbs
         USE RotateOrbsMod , only : SymLabelList2Tag,SymLabelListInvTag
         USE RotateOrbsData , only : SymLabelList3, SymLabelList3Tag
-        USE Logging , only : tDo_Not_Calc_RDMEnergy, tDiagRDM, &
+        USE Logging , only : tDo_Not_Calc_RDMEnergy, tDiagRDM, tReadRDMs, &
                             TPopsFile, tno_RDMs_to_read, twrite_RDMs_to_read
         USE CalcData , only : tRegenDiagHEls
         implicit none
@@ -95,17 +95,22 @@ MODULE nElRDMMod
             call stop_all(this_routine,'RDMs not currently set up for regenerating the &
                                     &diagonal H elements.  This should not be difficult though.')
 
-! If the RDMExcitLevel is 3 - and we're calculating both the 1- and 2-RDM, 
+        IF(RDMExcitLevel.eq.1) THEN
+            tCalc_RDMEnergy = .false.
+
+        ELSE
+! If the RDMExcitLevel is 2 or 3 - and we're calculating the 2-RDM, 
 ! then we automatically calculate the energy unless we specifically say not to.
-        IF(tDo_Not_Calc_RDMEnergy) THEN
-            tCalc_RDMEnergy = .false.            
-        ELSEIF(RDMExcitLevel.eq.3) THEN
-            tCalc_RDMEnergy = .true.
-            WRITE(6,'(A)') ' Calculating the energy from the reduced &
-            &density matrix, this requires both the 1 and 2 electron RDM.'
+            IF(tDo_Not_Calc_RDMEnergy) THEN
+                tCalc_RDMEnergy = .false.            
+            ELSE
+                tCalc_RDMEnergy = .true.
+                WRITE(6,'(A)') ' Calculating the energy from the reduced &
+                &density matrix, this requires both the 1 and 2 electron RDM.'
+            ENDIF
         ENDIF
 
-        if(tExplicitAllRDM.and.tHPHF) CALL Stop_All('InitRDM',&
+        if(tHPHF.and.tExplicitAllRDM) CALL Stop_All('InitRDM',&
                 'HPHF not set up with the explicit calculation of the RDM.')
 
         if(tHPHF.and.(tHF_S_D_Ref.or.tHF_S_D)) CALL Stop_All('InitRDM',&
@@ -117,8 +122,6 @@ MODULE nElRDMMod
             tDiagRDM = .false.
         endif
 
-        if(TPopsFile.and.(.not.tno_RDMs_to_read)) twrite_RDMs_to_read = .true.
-
 ! Here we're allocating arrays for the actual calculation of the RDM.
 
         MemoryAlloc = 0
@@ -126,9 +129,12 @@ MODULE nElRDMMod
         SpatOrbs=nBasis/2
 
 ! First for the storage of the actual 1- or 2-RMD.
+
         IF(RDMExcitLevel.eq.1) THEN
-! We also need to allocate the actual nElRDM on each processor, 
-! and an allnElRDM on only the root.
+            ! The 1-RDM is stil stored in spin orbitals.
+            ! It needs to be stored if we're not calculating the 2-RDM.
+            ! (which shall be changed very soon).
+            ! TODO : 1-RDM in spat orbs.
             ALLOCATE(OneElRDM(nBasis,nBasis),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating OneElRDM array,')
             CALL LogMemAlloc('nElRDM',nBasis**2,8,this_routine,OneElRDMTag,ierr)
@@ -139,7 +145,7 @@ MODULE nElRDMMod
 
             IF(iProcIndex.eq.0) THEN
 ! This is the AllnElRDM, called NatOrbMat simply because we use the natural 
-! orbital routines to diagonalise etc - am gonna change this so it's passed around).        
+! orbital routines to diagonalise etc.        
                 ALLOCATE(NatOrbMat(nBasis,nBasis),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating NatOrbMat array,')
                 CALL LogMemAlloc('NatOrbMat',nBasis**2,8,this_routine,NatOrbMatTag,ierr)
@@ -148,16 +154,22 @@ MODULE nElRDMMod
                 MemoryAlloc_Root = MemoryAlloc_Root + ( nBasis * nBasis * 8 ) 
             ENDIF
         ELSE
+            ! If we're calculating the 2-RDM, the 1-RDM does not need to be calculated as well 
+            ! because all its info is in the 2-RDM anyway.
+
             ! The 2-RDM of the type alpha alpha alpha alpha ( = beta beta beta beta).
-            ! These do not include any 2-RDM(i,j,a,b) terms where i=j or a=b (if they're the same 
+            ! These *do not* include any 2-RDM(i,j,a,b) terms where i=j or a=b (if they're the same 
             ! spin this can't happen).
             ALLOCATE(aaaa_RDM(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating aaaa_RDM array,')
             CALL LogMemAlloc('aaaa_RDM',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,aaaa_RDMTag,ierr)
             aaaa_RDM(:,:)=0.D0
 
+            MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 8 ) 
+            MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 8 ) 
+
             ! The 2-RDM of the type alpha beta alpha beta ( = beta alpha beta alpha).
-            ! These do include 2-RDM(i,j,a,b) terms where i=j or a=b, if they're different spin this 
+            ! These *do* include 2-RDM(i,j,a,b) terms where i=j or a=b, if they're different spin this 
             ! is possible.
             ALLOCATE(abab_RDM(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating abab_RDM array,')
@@ -165,17 +177,19 @@ MODULE nElRDMMod
             abab_RDM(:,:)=0.D0
 
             ! The 2-RDM of the type alpha beta beta alpha ( = beta alpha alpha beta).
+            ! These *do* also include 2-RDM(i,j,a,b) terms where i=j or a=b.
             ALLOCATE(abba_RDM(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating abba_RDM array,')
             CALL LogMemAlloc('abba_RDM',(((SpatOrbs*(SpatOrbs+1))/2)**2),8,this_routine,abba_RDMTag,ierr)
             abba_RDM(:,:)=0.D0
 
-            MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 8 ) 
             MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 ) * 2 * 8 ) 
-            MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 8 ) 
             MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 ) * 2 * 8 ) 
 
             IF(iProcIndex.eq.0) THEN
+                ! Each of these currently need to be stored on the root as well as each node.
+                ! This allows us to separately calculate the instantaneous energy.
+                ! TODO : Option to only calculate the accumulated RDMs - cut storage on the root in half.
                 ALLOCATE(All_aaaa_RDM(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating All_aaaa_RDM array,')
                 CALL LogMemAlloc('All_aaaa_RDM',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,All_aaaa_RDMTag,ierr)
@@ -196,6 +210,7 @@ MODULE nElRDMMod
 
                 if(tDiagRDM) then
                     ! Still need to allocate 1-RDM to get nat orb occupation numbers.
+                    ! TODO : Spat Orbs.
                     ALLOCATE(NatOrbMat(nBasis,nBasis),stat=ierr)
                     IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating NatOrbMat array,')
                     CALL LogMemAlloc('NatOrbMat',nBasis**2,8,this_routine,NatOrbMatTag,ierr)
@@ -206,11 +221,46 @@ MODULE nElRDMMod
             ENDIF
         ENDIF            
 
-! Then we need to allocate arrays for the excitations - depending on the 
-! type of RDM calculations we're doing.
+! We then need to allocate the arrays for excitations etc when doing the explicit all calculation.        
         IF(tExplicitAllRDM) THEN            
 
-            IF((RDMExcitLevel.eq.2).or.(RDMExcitLevel.eq.3)) THEN
+            IF(RDMExcitLevel.eq.1) THEN
+! This array actually contains the excitations in blocks of the processor they will be sent to.        
+! Only needed if the 1-RDM is the only thing being calculated.
+                ALLOCATE(Sing_ExcDjs(0:NIfTot,NINT((NEl*nBasis)*MemoryFacPart)),stat=ierr)
+                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Sing_ExcDjs array.')
+                CALL LogMemAlloc('Sing_ExcDjs',NINT(NEl*nBasis*MemoryFacPart)*(NIfTot+1),&
+                                                size_n_int,this_routine,Sing_ExcDjsTag,ierr)
+
+                ALLOCATE(Sing_ExcDjs2(0:NIfTot,NINT((NEl*nBasis)*MemoryFacPart)),stat=ierr)
+                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Sing_ExcDjs2 array.')
+                CALL LogMemAlloc('Sing_ExcDjs2',NINT(NEl*nBasis*MemoryFacPart)*(NIfTot+1),&
+                                                size_n_int,this_routine,Sing_ExcDjs2Tag,ierr)
+
+                Sing_ExcDjs(:,:)=0
+                Sing_ExcDjs2(:,:)=0
+
+                MemoryAlloc = MemoryAlloc + ( (NIfTot + 1) * NINT((NEl*nBasis)*MemoryFacPart) * size_n_int * 2 ) 
+                MemoryAlloc_Root = MemoryAlloc_Root + ( (NIfTot + 1) * NINT((NEl*nBasis)*MemoryFacPart) * size_n_int * 2 ) 
+
+! We need room to potentially generate N*M single excitations but these will be 
+! spread across each processor.        
+
+                OneEl_Gap=(REAL(NEl)*REAL(nBasis)*MemoryFacPart)/REAL(nProcessors)
+
+! This array contains the initial positions of the excitations for each processor.
+                ALLOCATE(Sing_InitExcSlots(0:(nProcessors-1)),stat=ierr)
+                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Sing_InitExcSlots array,')
+                do i=0,nProcessors-1
+                    Sing_InitExcSlots(i)=NINT(OneEl_Gap*i)+1
+                enddo
+
+! This array contains the current position of the excitations as they're added.
+                ALLOCATE(Sing_ExcList(0:(nProcessors-1)),stat=ierr)
+                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Sing_ExcList array,')
+                Sing_ExcList(:)=Sing_InitExcSlots(:)
+
+            ELSE
 ! This array actually contains the excitations in blocks of the processor 
 ! they will be sent to.        
                 ALLOCATE(Doub_ExcDjs(0:NIfTot,NINT(((NEl*nBasis)**2)*MemoryFacPart)),stat=ierr)
@@ -244,49 +294,11 @@ MODULE nElRDMMod
                 ALLOCATE(Doub_ExcList(0:(nProcessors-1)),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Doub_ExcList array,')
                 Doub_ExcList(:)=Doub_InitExcSlots(:)
-
-            ENDIF
-            
-
-            IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) THEN
-! This array actually contains the excitations in blocks of the processor they will be sent to.        
-                ALLOCATE(Sing_ExcDjs(0:NIfTot,NINT((NEl*nBasis)*MemoryFacPart)),stat=ierr)
-                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Sing_ExcDjs array.')
-                CALL LogMemAlloc('Sing_ExcDjs',NINT(NEl*nBasis*MemoryFacPart)*(NIfTot+1),&
-                                                size_n_int,this_routine,Sing_ExcDjsTag,ierr)
-
-                ALLOCATE(Sing_ExcDjs2(0:NIfTot,NINT((NEl*nBasis)*MemoryFacPart)),stat=ierr)
-                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Sing_ExcDjs2 array.')
-                CALL LogMemAlloc('Sing_ExcDjs2',NINT(NEl*nBasis*MemoryFacPart)*(NIfTot+1),&
-                                                size_n_int,this_routine,Sing_ExcDjs2Tag,ierr)
-
-                Sing_ExcDjs(:,:)=0
-                Sing_ExcDjs2(:,:)=0
-
-                MemoryAlloc = MemoryAlloc + ( (NIfTot + 1) * NINT((NEl*nBasis)*MemoryFacPart) * size_n_int * 2 ) 
-                MemoryAlloc_Root = MemoryAlloc_Root + ( (NIfTot + 1) * NINT((NEl*nBasis)*MemoryFacPart) * size_n_int * 2 ) 
-
-! We need room to potentially generate N*M single excitations but these will be 
-! spread across each processor.        
-
-                OneEl_Gap=(REAL(NEl)*REAL(nBasis)*MemoryFacPart)/REAL(nProcessors)
-
-! This array contains the initial positions of the excitations for each processor.
-                ALLOCATE(Sing_InitExcSlots(0:(nProcessors-1)),stat=ierr)
-                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Sing_InitExcSlots array,')
-                do i=0,nProcessors-1
-                    Sing_InitExcSlots(i)=NINT(OneEl_Gap*i)+1
-                enddo
-
-! This array contains the current position of the excitations as they're added.
-                ALLOCATE(Sing_ExcList(0:(nProcessors-1)),stat=ierr)
-                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Sing_ExcList array,')
-                Sing_ExcList(:)=Sing_InitExcSlots(:)
             ENDIF
 
         ELSEIF(.not.tHF_Ref_Explicit) THEN
 
-! We need to hold onto the parents of the spawned particles.            
+! Finally, we need to hold onto the parents of the spawned particles.            
             ALLOCATE(Spawned_Parents(0:(NIfDBO+1),MaxSpawned),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Spawned_Parents array,')
             CALL LogMemAlloc('Spawned_Parents',MaxSpawned*(NIfDBO+2),size_n_int,&
@@ -318,6 +330,10 @@ MODULE nElRDMMod
         NoFrozenVirt = 0
 
         IF((RDMExcitLevel.eq.1).or.tDiagRDM) THEN
+            ! These arrays contain indexing systems to order the 1-RDM orbitals in terms of 
+            ! symmetry.
+            ! This allows the diagonalisation of the RDMs to be done in symmetry blocks (a lot 
+            ! quicker/easier).
             ! The 2-RDM does not need to be reordered as it's never diagonalised. 
 
             ALLOCATE(SymLabelCounts2(2,32),stat=ierr)
@@ -347,25 +363,36 @@ MODULE nElRDMMod
                 Evalues(:)=0.D0
             ENDIF
 
+            ! This routine actually sets up the symmetry labels for the 1-RDM.
+            ! TODO : Sort out these routines with the RotateOrbs file.
             CALL SetUpSymLabels_RDM() 
 
         ENDIF            
 
+        ! Open file to keep track of RDM Energies (if they're being calculated). 
         IF((iProcIndex.eq.0).and.tCalc_RDMEnergy) THEN
             Energies_unit = get_free_unit()
             OPEN(Energies_unit,file='RDMEnergies',status='unknown')
 
             WRITE(Energies_unit, "(A1,3A30)") '#','Iteration','RDM Energy - Inst','RDM Energy - Accum'
         ENDIF
+        tFinalRDMEnergy = .false.
 
-! This is the normalisation for the case where we're using a limited reference to calculate
-! the RDM.
-        AccumRDMNorm = 0.0_dp
-        AccumRDMNorm_Inst = 0.0_dp
         Trace_2RDM = 0.0_dp
         Trace_2RDM_Inst = 0.0_dp
+        AccumRDMNorm = 0.0_dp
+        AccumRDMNorm_Inst = 0.0_dp
+        ! AccumRDMNorm is the normalisation for the case where we're using a limited reference to calculate
+        ! the RDM.
 
-        tFinalRDMEnergy = .false.
+        ! Reads in the RDMs from a previous calculation, sets the accumulating normalisations, 
+        ! writes out the starting energy.
+        if(tReadRDMs) call Read_In_RDMs()
+
+        ! By default, if we're writing out a popsfile (and doing an RDM calculation), we also 
+        ! write out the unnormalised RDMs that can be read in when restarting a calculation.
+        ! If the NORDMSTOREAD option is on, these wont be printed.  
+        if(TPopsFile.and.(.not.tno_RDMs_to_read)) twrite_RDMs_to_read = .true.
 
         nElRDM_Time%timer_name='nElRDMTime'
         FinaliseRDM_Time%timer_name='FinaliseRDMTime'
@@ -373,38 +400,94 @@ MODULE nElRDMMod
 
     END SUBROUTINE InitRDM
 
+    subroutine Read_In_RDMs()
+! Reads in the arrays to restart the RDM calculation (and continue accumulating).
+! These arrays are not normalised, so the trace is also calculated.
+! The energy is then calculated (if required) from the RDMs read in only.
+        use Logging , only : IterRDMonFly
+        implicit none
+        logical :: exists_aaaa,exists_abab,exists_abba
+        integer :: aaaa_unit, abab_unit, abba_unit
+        integer :: i,j,a,b,Ind1,Ind2
+        real(dp) :: Temp_RDM_Element
 
-    subroutine DeAlloc_Alloc_SpawnedParts()
-        USE FciMCData , only : SpawnVec, SpawnVec2, SpawnVecTag, SpawnVec2Tag, &
-                               SpawnedParts, SpawnedParts2
-        implicit none                               
-        INTEGER :: ierr                               
-        CHARACTER(len=*), PARAMETER :: this_routine='DeAlloc_Alloc_SpawnedParts'
+        if(iProcIndex.eq.0) then 
 
-        DEALLOCATE(SpawnVec)
-        CALL LogMemDealloc(this_routine,SpawnVecTag)
-        DEALLOCATE(SpawnVec2)
-        CALL LogMemDealloc(this_routine,SpawnVec2Tag)
- 
-        ALLOCATE(SpawnVec(0:(NIftot+NIfDBO+2),MaxSpawned),stat=ierr)
-        CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+NIfDBO+3),size_n_int,this_routine,SpawnVecTag,ierr)
-        ALLOCATE(SpawnVec2(0:(NIfTot+NIfDBO+2),MaxSpawned),stat=ierr)
-        CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NIfTot+NIfDBO+3),size_n_int,this_routine,SpawnVec2Tag,ierr)
+            write(6,'(A)') 'Reading in the RDMs'
 
-!        SpawnVec(:,:)=0
-!        SpawnVec2(:,:)=0
+            if(RDMExcitLevel.eq.1) then
 
-!Point at correct spawning arrays
-        SpawnedParts=>SpawnVec
-        SpawnedParts2=>SpawnVec2
+                ! TODO: This.
+                call stop_all('Read_In_RDMs','Not set up for 1-RDM yet')
 
-        WRITE(6,'(A54,F10.4,A4,F10.4,A13)') ' Memory requirement for spawned arrays increased from ',&
-                                        REAL(((NIfTot+1)*MaxSpawned*2*size_n_int),dp)/1048576.D0,' to ',&
-                                        REAL(((NIfTot+NIfDBO+3)*MaxSpawned*2*size_n_int),dp)/1048576.D0, ' Mb/Processor'
+            else
 
-    end subroutine DeAlloc_Alloc_SpawnedParts
+                ! Only read in the 2-RDMs (the 1-RDM becomes redundant).
+                INQUIRE(FILE='TwoRDM_aaaa_TOREAD',EXIST=exists_aaaa)
+                INQUIRE(FILE='TwoRDM_abab_TOREAD',EXIST=exists_abab)
+                INQUIRE(FILE='TwoRDM_abba_TOREAD',EXIST=exists_abba)
+                aaaa_unit = get_free_unit()
+                abab_unit = get_free_unit()
+                abba_unit = get_free_unit()
+                if(exists_aaaa.and.exists_abab.and.exists_abab) THEN
+                    ! All TOREAD RDM files are present - read in.
+                    open(aaaa_unit,FILE='TwoRDM_aaaa_TOREAD',status='old')
+                    do while (.true.)
+                        read(aaaa_unit) i,j,a,b,Temp_RDM_Element 
+                        Ind1 = ( ( (j-2) * (j-1) ) / 2 ) + i
+                        Ind2 = ( ( (b-2) * (b-1) ) / 2 ) + a
+                        All_aaaa_RDM(Ind1,Ind2) = Temp_RDM_Element
+                        All_aaaa_RDM(Ind2,Ind1) = Temp_RDM_Element
 
+                        if(Ind1.eq.Ind2) Trace_2RDM = Trace_2RDM + &
+                                                        Temp_RDM_Element
+                    enddo
+                    close(aaaa_unit)
 
+                    open(abab_unit,FILE='TwoRDM_abab_TOREAD',status='old')
+                    do while (.true.)
+                        read(abab_unit) i,j,a,b,Temp_RDM_Element 
+                        Ind1 = ( ( (j-1) * j ) / 2 ) + i
+                        Ind2 = ( ( (b-1) * b ) / 2 ) + a
+                        All_abab_RDM(Ind1,Ind2) = Temp_RDM_Element
+                        All_abab_RDM(Ind2,Ind1) = Temp_RDM_Element
+                        
+                        if(Ind1.eq.Ind2) Trace_2RDM = Trace_2RDM + &
+                                                        Temp_RDM_Element
+                    enddo
+                    close(abab_unit)
+
+                    open(abba_unit,FILE='TwoRDM_abba_TOREAD',status='old')
+                    do while (.true.)
+                        read(abba_unit) i,j,a,b,Temp_RDM_Element 
+                        Ind1 = ( ( (j-1) * j ) / 2 ) + i
+                        Ind2 = ( ( (b-1) * b ) / 2 ) + a
+                        All_abba_RDM(Ind1,Ind2) = Temp_RDM_Element
+                        All_abba_RDM(Ind2,Ind1) = Temp_RDM_Element
+                    enddo
+                    close(abba_unit)
+
+                else
+                    write(6,*) 'exists_aaaa',exists_aaaa
+                    write(6,*) 'exists_abab',exists_abab
+                    write(6,*) 'exists_abba',exists_abba
+                    call flush(6)
+                    CALL Stop_All('Read_in_RDMs',"Attempting to read in the RDMs, &
+                                    &but at least one of the TwoRDM_a***_TOREAD files are missing.")
+                endif
+
+                write(6,'(A)') 'Calculating the previous RDM energy.'
+                if(tCalc_RDMEnergy) call Calc_Energy_from_RDM()
+
+            endif
+        endif
+
+! Continue calculating the RDMs from the first iteration when the POPSFILES (and RDMs) are read in.
+! This overwrites the iteration number put in the input.
+        IterRDMonFly = 1
+        if(iProcIndex.eq.0) write(6,'(A)') 'Continuing to calculate the RDMs from the first iteration'
+
+    end subroutine Read_In_RDMs
 
     SUBROUTINE SetUpSymLabels_RDM() 
 !We always want the RDM's to be stored in spin orbitals (for now), 
@@ -579,6 +662,642 @@ MODULE nElRDMMod
     END SUBROUTINE SetUpSymLabels_RDM
 
 
+    subroutine DeAlloc_Alloc_SpawnedParts()
+! When calculating the RDMs, we need to store the parent from which a child is spawned along with the 
+! children in the spawned array.
+! This means a slightly larger array is communicated between processors, which there is no point in doing 
+! for the first part of the calculation.
+! When we start calculating the RDMs this routine is called and the SpawnedParts array is made larger to 
+! accommodate the parents.
+        USE FciMCData , only : SpawnVec, SpawnVec2, SpawnVecTag, SpawnVec2Tag, &
+                               SpawnedParts, SpawnedParts2
+        implicit none                               
+        INTEGER :: ierr                               
+        CHARACTER(len=*), PARAMETER :: this_routine='DeAlloc_Alloc_SpawnedParts'
+
+        DEALLOCATE(SpawnVec)
+        CALL LogMemDealloc(this_routine,SpawnVecTag)
+        DEALLOCATE(SpawnVec2)
+        CALL LogMemDealloc(this_routine,SpawnVec2Tag)
+ 
+        ALLOCATE(SpawnVec(0:(NIftot+NIfDBO+2),MaxSpawned),stat=ierr)
+        CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+NIfDBO+3),size_n_int,this_routine,SpawnVecTag,ierr)
+        ALLOCATE(SpawnVec2(0:(NIfTot+NIfDBO+2),MaxSpawned),stat=ierr)
+        CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NIfTot+NIfDBO+3),size_n_int,this_routine,SpawnVec2Tag,ierr)
+
+!        SpawnVec(:,:)=0
+!        SpawnVec2(:,:)=0
+
+!Point at correct spawning arrays
+        SpawnedParts=>SpawnVec
+        SpawnedParts2=>SpawnVec2
+
+        WRITE(6,'(A54,F10.4,A4,F10.4,A13)') ' Memory requirement for spawned arrays increased from ',&
+                                        REAL(((NIfTot+1)*MaxSpawned*2*size_n_int),dp)/1048576.D0,' to ',&
+                                        REAL(((NIfTot+NIfDBO+3)*MaxSpawned*2*size_n_int),dp)/1048576.D0, ' Mb/Processor'
+
+    end subroutine DeAlloc_Alloc_SpawnedParts
+
+    subroutine extract_bit_rep_rdm_diag_no_rdm(iLutnI, CurrH_I, nI, SignI, FlagsI, IterRDMStartI, AvSignI, Store)
+! This is just the standard extract_bit_rep routine for when we're not calculating the RDMs.    
+        use constants , only : dp, n_int, lenof_sign
+        use SystemData , only : NEl
+        use bit_reps , only : NIfTot, extract_bit_rep, extract_bit_rep_rdm
+        use FciMCData , only : excit_gen_store_type, NCurrH
+        use DetBitOps , only : TestClosedShellDet
+        implicit none
+        integer(n_int), intent(in) :: iLutnI(0:nIfTot)
+        real(dp) , intent(in) :: CurrH_I(NCurrH)
+        integer, intent(out) :: nI(nel), FlagsI
+        integer, dimension(lenof_sign), intent(out) :: SignI
+        real(dp) , intent(out) :: IterRDMStartI, AvSignI
+        type(excit_gen_store_type), intent(inout), optional :: Store
+
+        call extract_bit_rep (iLutnI, nI, SignI, FlagsI, Store)
+
+        IterRDMStartI = 0.0_dp
+        AvSignI = 0.0_dp
+
+    end subroutine extract_bit_rep_rdm_diag_no_rdm
+
+    subroutine extract_bit_rep_rdm_diag_norm(iLutnI, CurrH_I, nI, SignI, FlagsI, IterRDMStartI, AvSignI, Store)
+! While extracting the orbitals from the bit representation of the determinant, we 
+! simulaneously add in the contribution of each orbital to the diagonal elements of the RDMs.
+        use constants , only : dp, n_int, lenof_sign
+        use SystemData , only : NEl
+        use bit_reps , only : NIfTot, extract_bit_rep, extract_bit_rep_rdm
+        use FciMCData , only : excit_gen_store_type, NCurrH
+        use DetBitOps , only : TestClosedShellDet
+        implicit none
+        integer(n_int), intent(in) :: iLutnI(0:nIfTot)
+        real(dp) , intent(in) :: CurrH_I(NCurrH)
+        integer, intent(out) :: nI(nel), FlagsI
+        integer, dimension(lenof_sign), intent(out) :: SignI
+        real(dp) , intent(out) :: IterRDMStartI, AvSignI
+        type(excit_gen_store_type), intent(inout), optional :: Store
+
+        IterRDMStartI = CurrH_I(3)
+        IF(IterRDMStartI.eq.0.0_dp) IterRDMStartI = real(Iter, dp)
+ 
+        call extract_bit_rep_rdm (iLutnI, IterRDMStartI, CurrH_I(2), 1.0_dp, nI, SignI, FlagsI, AvSignI)
+
+    end subroutine extract_bit_rep_rdm_diag_norm
+
+    subroutine extract_bit_rep_rdm_diag_hphf(iLutnI, CurrH_I, nI, SignI, FlagsI, IterRDMStartI, AvSignI, Store)
+! While extracting the orbitals from the bit representation of the determinant, we 
+! simulaneously add in the contribution of each orbital to the diagonal elements of the RDMs.
+! But we also need to add in the contribution from it's spin coupled partner if using HPHF, and possibly 
+! connections between the two.
+! This is not done in the best way at the moment, but is fine for now.
+        use constants , only : dp, n_int, lenof_sign
+        use SystemData , only : NEl
+        use bit_reps , only : NIfTot, extract_bit_rep, extract_bit_rep_rdm
+        use FciMCData , only : excit_gen_store_type, NCurrH
+        use DetBitOps , only : TestClosedShellDet
+        implicit none
+        integer(n_int), intent(in) :: iLutnI(0:nIfTot)
+        real(dp) , intent(in) :: CurrH_I(NCurrH)
+        integer, intent(out) :: nI(nel), FlagsI
+        integer, dimension(lenof_sign), intent(out) :: SignI
+        real(dp) , intent(out) :: IterRDMStartI, AvSignI
+        type(excit_gen_store_type), intent(inout), optional :: Store
+
+        IterRDMStartI = CurrH_I(3)
+        IF(IterRDMStartI.eq.0.0_dp) IterRDMStartI = real(Iter, dp)
+
+        if(.not.TestClosedShellDet(iLutnI)) then
+            ! The 0.5 factor is because each coefficient needs to be divided by SQRT(2) (when it has 
+            ! a spin coupled buddy that is not the same), but 
+            ! we then square the coefficients - multiply the squared value by 0.5.
+            call extract_bit_rep_rdm (iLutnI, IterRDMStartI, CurrH_I(2), 0.5_dp, nI, SignI, FlagsI, AvSignI)
+
+            ! If HPHF is on, we need to consider I' as well as I.
+            ! i.e. only one of the spin coupled determinants will be in the list, need to flip 
+            ! the spins of all determinants to generate the other, and add in the C_I to this I' too.
+            ! Only need to do this if I is open shell.
+            ! TODO : Make this better
+            call Add_StochRDM_Diag_HPHF(iLutnI, nI, AvSignI)
+        else
+            call extract_bit_rep_rdm (iLutnI, IterRDMStartI, CurrH_I(2), 1.0_dp, nI, SignI, FlagsI, AvSignI)
+        endif
+
+    end subroutine extract_bit_rep_rdm_diag_hphf
+
+
+    subroutine Add_StochRDM_Diag_HPHF(iLutCurr,DetCurr,AvSignCurr)
+! This is called when we run over all TotWalkers in CurrentDets.    
+! It is only called if HF is being used and we've encountered an open shell det.
+! The decoding routine would have added in the diagonal elements of the original HF pair,
+! need to take care of the spin coupled one, and any connection between them.
+        use FciMCData , only : HFDet
+        use hphf_integrals , only : hphf_sign
+        use HPHFRandExcitMod , only : FindExcitBitDetSym
+        use DetBitOps , only : FindBitExcitLevel
+        implicit none
+        integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
+        integer , intent(in) :: DetCurr(NEl)
+        real(dp) , intent(in) :: AvSignCurr
+        integer(kind=n_int) :: SpinCoupDet(0:niftot)
+        integer :: nSpinCoup(NEl), SignFac, HPHFExcitLevel
+
+! Add diagonal elements to reduced density matrices.
+
+! By default we are considering the full RDM.            
+! Add every determinant to the diagonal elements.
+
+! C_X D_X = C_X / SQRT(2) [ D_I +/- D_I'] - for open shell dets, divide stored C_X by SQRT(2). 
+! Add in I.
+        call FindExcitBitDetSym(iLutCurr, SpinCoupDet)
+        call decode_bit_det (nSpinCoup, SpinCoupDet)
+        ! Find out if it's + or - in the above expression.                
+        SignFac = hphf_sign(iLutCurr)
+
+        call Fill_Diag_RDM(nSpinCoup, (real(SignFac,dp)*AvSignCurr)/SQRT(2.D0))
+
+! For HPHF we're considering < D_I + D_I' | a_a+ a_b+ a_j a_i | D_I + D_I' >
+! Not only do we have diagonal < D_I | a_a+ a_b+ a_j a_i | D_I > terms, but also cross terms
+! < D_I | a_a+ a_b+ a_j a_i | D_I' > if D_I and D_I' can be connected by a single or double 
+! excitation.
+! Find excitation level between D_I and D_I' and add in the contribution if connected.
+        HPHFExcitLevel = FindBitExcitLevel (iLutCurr, SpinCoupDet, 2)
+        if(HPHFExcitLevel.le.2) & 
+            call Add_RDM_From_IJ_Pair(DetCurr,nSpinCoup,&
+                                        AvSignCurr/SQRT(2.D0), &
+                                        (real(SignFac,dp)*AvSignCurr)/SQRT(2.D0),.true.)
+
+    end subroutine Add_StochRDM_Diag_HPHF
+
+
+    subroutine Add_RDM_HFConnections_Norm(iLutJ,nJ,AvSignJ,walkExcitLevel)
+! This is called when we run over all TotWalkers in CurrentDets.    
+! It is called for each CurrentDet which is a single or double of the HF.
+! It explicitly adds in the HF - S/D connection, as if the HF were D_i and 
+! the single or double D_j.
+        use constants , only : n_int, lenof_sign, dp
+        use SystemData , only : NEl
+        use bit_reps , only : NIfTot
+        use FciMCData , only : HFDet, AvNoatHF
+        use hphf_integrals , only : hphf_sign
+        use HPHFRandExcitMod , only : FindExcitBitDetSym
+        use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
+        implicit none
+        integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
+        integer , intent(in) :: nJ(NEl)
+        real(dp) , intent(in) :: AvSignJ
+        integer , intent(in) :: walkExcitLevel
+        integer(kind=n_int) :: SpinCoupDet(0:niftot)
+        integer :: nSpinCoup(NEl), HPHFExcitLevel
+
+        if(walkExcitLevel.eq.0) then
+            if(AvSignJ.ne.AvNoatHF) then
+                write(6,*) 'AvSignJ',AvSignJ
+                write(6,*) 'AvNoatHF',AvNoatHF
+                CALL Stop_All('PerformFCIMCycPar','Incorrect instantaneous HF population.')
+            endif
+        endif
+
+! If we have a single or double, add in the connection to the HF, symmetrically.        
+        if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) &
+            call Add_RDM_From_IJ_Pair(HFDet,nJ,AvNoatHF,AvSignJ,.true.)
+
+    end subroutine Add_RDM_HFConnections_Norm
+
+
+    subroutine Add_RDM_HFConnections_HF_S_D(iLutJ,nJ,AvSignJ,walkExcitLevel)
+! This is called when we run over all TotWalkers in CurrentDets.    
+! It is called for each CurrentDet.
+        use constants , only : n_int, lenof_sign, dp
+        use SystemData , only : NEl
+        use bit_reps , only : NIfTot
+        use FciMCData , only : HFDet, AvNoatHF
+        use hphf_integrals , only : hphf_sign
+        use HPHFRandExcitMod , only : FindExcitBitDetSym
+        use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
+        implicit none
+        integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
+        integer , intent(in) :: nJ(NEl)
+        real(dp) , intent(in) :: AvSignJ
+        integer , intent(in) :: walkExcitLevel
+        integer(kind=n_int) :: SpinCoupDet(0:niftot)
+        integer :: nSpinCoup(NEl), HPHFExcitLevel
+
+! Add diagonal elements to reduced density matrices.
+
+! If HF_S_D_Ref, we are only considering determinants connected to the HF, 
+! doubles and singles (so theoretically up to quadruples).
+! But for the diagonal elements - only consider doubles and singles (and HF).
+            
+        ! In all of these cases the HF is a diagonal element.
+        if(walkExcitLevel.eq.0) then
+
+            call Fill_Diag_RDM(nJ, AvSignJ)
+            AccumRDMNorm = AccumRDMNorm + (AvSignJ * AvSignJ)
+            AccumRDMNorm_Inst = AccumRDMNorm_Inst + (AvSignJ * AvSignJ)
+
+            if(AvSignJ.ne.AvNoatHF) then
+                write(6,*) 'AvSignJ',AvSignJ
+                write(6,*) 'HF Sign',AvNoatHF
+                call stop_all('Add_RDM_HFConnections_HF_S_D','HF population is incorrect.')
+            endif
+
+            ! The HF is always closed shell (at the moment), 
+            ! so don't need to account for HPHF here.
+
+        elseif(walkExcitLevel.le.2) then
+
+            if(tHF_Ref_Explicit) then
+                
+                if(tHPHF) then
+
+                    ! Now if the determinant is connected to the HF (i.e. single or double), 
+                    ! add in the elements of this connection as well - symmetrically 
+                    ! because no probabilities are involved.
+                    call Fill_Spin_Coupled_RDM_v2(iLutRef,iLutJ,HFDet,nJ,&
+                                AvNoatHF,AvSignJ,.false.)
+
+                else
+
+                    ! The singles and doubles are connected and explicitly calculated 
+                    ! - but not symmetrically.
+                    call Add_RDM_From_IJ_Pair(HFDet, nJ, AvNoatHF, &
+                                                AvSignJ,.false.)
+
+                endif
+
+            else
+                ! For the HF,S,D symmetric case, and the HF,S,D reference, the S and D
+                ! are diagonal terms too.
+                ! These options are not set up for HPHF.
+                call Fill_Diag_RDM(nJ, AvSignJ)
+                AccumRDMNorm = AccumRDMNorm + (AvSignJ * AvSignJ)
+                AccumRDMNorm_Inst = AccumRDMNorm_Inst + (AvSignJ * AvSignJ)
+
+                call Add_RDM_From_IJ_Pair(HFDet,nJ,AvNoatHF,AvSignJ,.true.)
+
+            endif
+
+        endif
+
+    end subroutine Add_RDM_HFConnections_HF_S_D
+
+
+    subroutine Add_RDM_HFConnections_HPHF(iLutJ,nJ,AvSignJ,walkExcitLevel)
+! This is called when we run over all TotWalkers in CurrentDets.    
+! It is called for each CurrentDet which is a single or double of the HF.
+! It adds in the HF - S/D connection.
+        use constants , only : n_int, lenof_sign, dp
+        use SystemData , only : NEl
+        use bit_reps , only : NIfTot
+        use FciMCData , only : HFDet, AvNoatHF
+        use hphf_integrals , only : hphf_sign
+        use HPHFRandExcitMod , only : FindExcitBitDetSym
+        use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
+        implicit none
+        integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
+        integer , intent(in) :: nJ(NEl)
+        real(dp) , intent(in) :: AvSignJ
+        integer , intent(in) :: walkExcitLevel
+        integer(kind=n_int) :: SpinCoupDet(0:niftot)
+        integer :: nSpinCoup(NEl), HPHFExcitLevel
+
+
+        if(walkExcitLevel.eq.0) then
+            if(AvSignJ.ne.AvNoatHF) then
+                write(6,*) 'AvSignJ',AvSignJ
+                write(6,*) 'AvNoatHF',AvNoatHF
+                CALL Stop_All('PerformFCIMCycPar','Incorrect instantaneous HF population.')
+            endif
+        endif
+
+! Now if the determinant is connected to the HF (i.e. single or double), add in the diagonal elements
+! of this connection as well - symmetrically because no probabilities are involved.
+        if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) &
+            call Fill_Spin_Coupled_RDM_v2(iLutRef,iLutJ,HFDet,nJ,&
+                                            AvNoatHF,AvSignJ,.true.)
+
+    end subroutine Add_RDM_HFConnections_HPHF
+
+    subroutine Add_RDM_HFConnections_null(iLutJ,nJ,AvSignJ,walkExcitLevel)
+! This is called when we run over all TotWalkers in CurrentDets.    
+! It is called for each CurrentDet.
+! This is called when we are not filling the density matrices.
+        use constants , only : n_int, lenof_sign, dp
+        use SystemData , only : NEl
+        use bit_reps , only : NIfTot
+        use FciMCData , only : HFDet, AvNoatHF
+        use hphf_integrals , only : hphf_sign
+        use HPHFRandExcitMod , only : FindExcitBitDetSym
+        use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
+        implicit none
+        integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
+        integer , intent(in) :: nJ(NEl)
+        real(dp) , intent(in) :: AvSignJ
+        integer , intent(in) :: walkExcitLevel
+        integer(kind=n_int) :: SpinCoupDet(0:niftot)
+        integer :: nSpinCoup(NEl), HPHFExcitLevel
+
+    end subroutine Add_RDM_HFConnections_null
+
+    !This routine does the same as Fill_Spin_Coupled_RDM, but hopefully more efficiently!
+    !It takes to HPHF functions, and calculate what needs to be summed into the RDMs
+    subroutine Fill_Spin_Coupled_RDM_v2(iLutnI,iLutnJ,nI,nJ,realSignI,realSignJ,tFill_CiCj_Symm)
+        use systemData, only: tOddS_hphf
+        use HPHFRandExcitMod, only: FindExcitBitDetSym,FindDetSpinSym
+        use HPHF_Integrals , only : hphf_sign
+        USE DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
+        implicit none
+        integer(n_int), intent(in) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot)
+        real(dp) , intent(in) :: realSignI, realSignJ
+        integer, intent(in) :: nI(NEl),nJ(NEl)
+        logical, intent(in) :: tFill_CiCj_Symm
+        integer(n_int) :: iLutnI2(0:NIfTot)
+        integer :: nI2(NEl),nJ2(NEl)
+        real(dp) :: NewSignJ,NewSignI,PermSignJ,PermSignI
+        integer :: I_J_ExcLevel,ICoup_J_ExcLevel
+        character(*), parameter :: t_r='Fill_Spin_Coupled_RDM_v2'
+
+        if(TestClosedShellDet(iLutnI)) then
+            if(tOddS_HPHF) then
+                call stop_all(t_r,"Should not be any closed shell determinants in high S states")
+            endif
+
+            if(TestClosedShellDet(iLutnJ)) then
+                !Closed shell -> Closed shell - just as in determinant case
+!                write(6,*) "CS -> CS "
+                call Add_RDM_From_IJ_Pair(nI,nJ,realSignI,realSignJ,tFill_CiCj_Symm)
+!                write(6,"(A,4I4,2F12.6)") "I -> J : ",nI(:),nJ(:),realSignI,realSignJ
+            else
+                !Closed shell -> open shell.
+!                write(6,*) "CS -> OS "
+                call FindDetSpinSym(nJ,nJ2,NEl)
+                NewSignJ = realSignJ/Root2
+                call Add_RDM_From_IJ_Pair(nI,nJ,realSignI,NewSignJ,tFill_CiCj_Symm)
+!                write(6,"(A,4I4,2F12.6)") "I -> J : ",nI(:),nJ(:),realSignI,NewSignJ
+                !What is the permutation between Di and Dj'
+                NewSignJ = NewSignJ * hphf_sign(iLutnJ)
+                call Add_RDM_From_IJ_Pair(nI,nJ2,realSignI,NewSignJ,tFill_CiCj_Symm)
+!                write(6,"(A,4I4,2F12.6)") "I -> J' : ",nI(:),nJ2(:),realSignI,NewSignJ
+            endif
+        elseif(TestClosedShellDet(iLutnJ)) then
+            !Open shell -> closed shell
+!            write(6,*) "OS -> CS "
+            call FindDetSpinSym(nI,nI2,NEl)
+            NewSignI = realSignI/Root2
+            call Add_RDM_From_IJ_Pair(nI,nJ,NewSignI,realSignJ,tFill_CiCj_Symm)
+!            write(6,"(A,4I4,2F12.6)") "I -> J : ",nI(:),nJ(:),NewSignI,realSignJ
+            !What is the permutation between Di' and Dj 
+            NewSignI = NewSignI * hphf_sign(iLutnI)
+            call Add_RDM_From_IJ_Pair(nI2,nJ,NewSignI,realSignJ,tFill_CiCj_Symm)
+!            write(6,"(A,4I4,2F12.6)") "I' -> J : ",nI2(:),nJ(:),NewSignI,realSignJ
+        else
+!            write(6,*) "OS -> OS "
+            !Open shell -> open shell
+            NewSignI = realSignI/Root2
+            NewSignJ = realSignJ/Root2
+            PermSignJ = NewSignJ * real(hphf_sign(iLutnJ),dp)
+            PermSignI = NewSignI * real(hphf_sign(iLutnI),dp)
+            call FindExcitBitDetSym(iLutnI, iLutnI2)
+            call FindDetSpinSym(nI,nI2,NEl)
+            call FindDetSpinSym(nJ,nJ2,NEl)
+            I_J_ExcLevel = FindBitExcitLevel(iLutnI, iLutnJ,2)
+            ICoup_J_ExcLevel = FindBitExcitLevel(iLutnI2,iLutnJ,2)
+            if(I_J_ExcLevel.le.2) then
+                call Add_RDM_From_IJ_Pair(nI,nJ,NewSignI,NewSignJ,tFill_CiCj_Symm)      !Di -> Dj
+!                write(6,"(A,4I4,2F12.6)") "I -> J : ",nI(:),nJ(:),NewSignI,NewSignJ
+                call Add_RDM_From_IJ_Pair(nI2,nJ2,PermSignI,PermSignJ,tFill_CiCj_Symm)   !Di' -> Dj'  (both permuted sign)
+!                write(6,"(A,4I4,2F12.6)") "I' -> J' : ",nI2(:),nJ2(:),PermSignI,PermSignJ
+            endif
+            if(ICoup_J_ExcLevel.le.2) then
+                call Add_RDM_From_IJ_Pair(nI2,nJ,PermSignI,NewSignJ,tFill_CiCj_Symm)    !Di' -> Dj  (i permuted sign)
+!                write(6,"(A,4I4,2F12.6)") "I' -> J : ",nI2(:),nJ(:),PermSignI,NewSignJ
+                call Add_RDM_From_IJ_Pair(nI,nJ2,NewSignI,PermSignJ,tFill_CiCj_Symm)     !Di  -> Dj'  (j permuted sign)
+!                write(6,"(A,4I4,2F12.6)") "I -> J' : ",nI(:),nJ2(:),NewSignI,PermSignJ
+            endif
+        endif
+
+    end subroutine Fill_Spin_Coupled_RDM_v2
+
+    subroutine Fill_Spin_Coupled_RDM(iLutnI,iLutnJ,nI,nJ,realSignI,realSignJ,tFill_CiCj_Symm)
+!If the two HPHF determinants we're considering consist of I + I' and J + J', 
+!where X' is the spin coupled (all spins flipped) version of X,
+!then we have already considered the I -> J excitation.
+!And if I and J are connected by a double excitation, tDoubleConnection is true and we have 
+!also considered I' -> J'.
+!But we need to also account for I -> J' and I' -> J.
+        use HPHFRandExcitMod, only: FindExcitBitDetSym
+        use HPHF_Integrals , only : hphf_sign
+        USE DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
+        implicit none
+        integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot)
+        integer , intent(in) :: nI(NEl), nJ(NEl)
+        real(dp) , intent(in) :: realSignI, realSignJ
+        logical , intent(in) :: tFill_CiCj_Symm
+        integer(kind=n_int) :: iLutnI2(0:NIfTot),iLutnJ2(0:NIfTot)
+        integer :: Ex(2,2), SpinCoupI_J_ExcLevel, nI2(NEl), nJ2(NEl)
+        integer :: SignFacI, SignFacJ, I_J_ExcLevel
+        logical :: tParity
+        real(dp) :: realSignFacI, realSignFacJ
+
+!First we flip the spin of both determinants, and store I' and J'.
+!Actually if I and J are related by a double excitation, we don't need J'.        
+
+!First we flip the spin of I', and find out the excitation level between I' and J.
+!If this is a double excitation, we don't actually need to find J' - we can just invert 
+!the excitation matrix of the I' -> J transition.
+!If this is anything above a double, we likewise don't need to find J', because I -> J' 
+!will also have a 0 matrix element.
+
+!        write(6,*) '***'
+!        write(6,'(A5)',advance='no') 'nI'
+!        do i = 1,4
+!            write(6,'(I5)',advance='no') nI(i)
+!        enddo
+!        write(6,*) ''
+!        write(6,'(A5)',advance='no') 'nJ'
+!        do i = 1,4
+!            write(6,'(I5)',advance='no') nJ(i)
+!        enddo
+!        write(6,*) ''
+!        write(6,*) 'realSignI',realSignI
+!        write(6,*) 'realSignJ',realSignJ
+
+        I_J_ExcLevel = FindBitExcitLevel (iLutnI, iLutnJ, 2)
+
+        if (.not. TestClosedShellDet(iLutnI)) then
+
+            ! I is open shell, and so a spin coupled determinant I' exists.
+!            write(6,*) 'I open shell'
+
+            !Find I'.
+            call FindExcitBitDetSym(iLutnI, iLutnI2)
+            call decode_bit_det (nI2, iLutnI2)
+            SignFacI = hphf_sign(iLutnI)
+            realSignFacI = real(SignFacI,dp) / SQRT(2.0)
+
+!            write(6,*) 'spin coupled nI'
+!            do i = 1,4
+!                write(6,'(I5)',advance='no') nI2(i)
+!            enddo
+!            write(6,*) ''
+
+            !Find excitation level between I' and J - not necessarily the same as 
+            !that between I and J.
+            SpinCoupI_J_ExcLevel = FindBitExcitLevel (iLutnI2, iLutnJ, 2)
+
+            IF( (.not.(I_J_ExcLevel.le.2)) .and. (.not.(SpinCoupI_J_ExcLevel.le.2)) ) &
+                call Stop_All('Fill_Spin_Coupled_RDM','No spin combination are connected.')
+                
+            if ( .not. TestClosedShellDet(iLutnJ) ) then
+                
+                ! Both I and J are open shell, need all 4 combinations.
+
+                !Find J'.
+                call FindExcitBitDetSym(iLutnJ, iLutnJ2)
+                call decode_bit_det (nJ2, iLutnJ2)
+                SignFacJ = hphf_sign(iLutnJ)
+                realSignFacJ = real(SignFacJ,dp) / SQRT(2.D0)
+
+!                write(6,*) "OS -> OS "
+
+                if (I_J_ExcLevel.le.2) then
+
+                    ! I -> J.
+                    call Add_RDM_From_IJ_Pair(nI,nJ,(realSignI/SQRT(2.D0)),&
+                                                (realSignJ/SQRT(2.D0)),tFill_CiCj_Symm)
+!                    write(6,"(A,4I4,2F12.6)") "I -> J : ",nI(:),nJ(:),realSignI/SQRT(2.D0),realSignJ/SQRT(2.D0)
+ 
+                    ! I' -> J'.
+                    call Add_RDM_From_IJ_Pair(nI2,nJ2,(realSignFacI*realSignI),&
+                                              (realSignFacJ*realSignJ),tFill_CiCj_Symm)
+!                    write(6,"(A,4I4,2F12.6)") "I' -> J' : ",nI2(:),nJ2(:),(realSignFacI*realSignI),(realSignFacJ*realSignJ)
+
+                endif
+
+                if (SpinCoupI_J_ExcLevel.le.2) then
+
+                    ! I' -> J.
+                    call Add_RDM_From_IJ_Pair(nI2,nJ,(realSignFacI*realSignI),&
+                                                (realSignJ/SQRT(2.D0)),tFill_CiCj_Symm)
+
+!                    write(6,"(A,4I4,2F12.6)") "I' -> J : ",nI2(:),nJ(:),realSignFacI*realSignI,realSignJ/SQRT(2.D0)
+                    ! I -> J'.
+                    call Add_RDM_From_IJ_Pair(nI, nJ2,(realSignI/SQRT(2.D0)),&
+                                                 (realSignFacJ*realSignJ),tFill_CiCj_Symm)
+
+!                    write(6,"(A,4I4,2F12.6)") "I -> J' : ",nI(:),nJ2(:),realSignI/SQRT(2.D0),realSignFacJ*realSignJ
+
+                endif
+
+            else
+                
+                ! I is open shell, but J is not.
+                ! Need I -> J and I' -> J.
+
+!                write(6,*) "OS -> CS "
+                ! I -> J.
+                call Add_RDM_From_IJ_Pair(nI,nJ,(realSignI/SQRT(2.D0)),&
+                                                        realSignJ,tFill_CiCj_Symm)
+!                write(6,"(A,4I4,2F12.6)") "I -> J : ",nI(:),nJ(:),realSignI/SQRT(2.D0),realSignJ
+                ! I' -> J.
+                call Add_RDM_From_IJ_Pair(nI2,nJ,(realSignFacI*realSignI),&
+                                                        realSignJ,tFill_CiCj_Symm)
+!                write(6,"(A,4I4,2F12.6)") "I' -> J : ",nI2(:),nJ(:),realSignFacI*realSignI,realSignJ
+
+            endif
+
+        elseif( .not. TestClosedShellDet(iLutnJ) ) then
+            ! This is the case where I is closed shell, but J is not.
+            ! Need I -> J and I -> J'. 
+
+!            write(6,*) "CS -> OS "
+            ! I -> J.
+            if (I_J_ExcLevel.le.2) call Add_RDM_From_IJ_Pair(nI,nJ,realSignI,&
+                                               (realSignJ/SQRT(2.D0)),tFill_CiCj_Symm)
+!            write(6,"(A,4I4,2F12.6)") "I -> J : ",nI(:),nJ(:),realSignI,realSignJ/SQRT(2.D0)
+
+            ! Find J'.
+            call FindExcitBitDetSym(iLutnJ, iLutnJ2)
+            SignFacJ = hphf_sign(iLutnJ)
+            realSignFacJ = real(SignFacJ,dp) / SQRT(2.D0)
+
+            !Find excitation level between I and J'.
+            SpinCoupI_J_ExcLevel = FindBitExcitLevel (iLutnI, iLutnJ2, 2)
+
+            if (SpinCoupI_J_ExcLevel.le.2) then
+                call decode_bit_det (nJ2, iLutnJ2)
+                
+                ! I -> J'.
+                call Add_RDM_From_IJ_Pair(nI,nJ2,realSignI,&
+                                            (realSignFacJ*realSignJ),tFill_CiCj_Symm)
+!                write(6,"(A,4I4,2F12.6)") "I -> J' : ",nI(:),nJ2(:),realSignI,realSignFacJ*realSignJ
+
+           endif
+
+       elseif(I_J_ExcLevel.le.2) then
+
+            ! I and J are both closed shell.
+
+            ! Just I -> J.
+            call Add_RDM_From_IJ_Pair(nI,nJ,realSignI,realSignJ,tFill_CiCj_Symm)
+!            write(6,*) "CS -> CS "
+!            write(6,"(A,4I4,2F12.6)") "I -> J : ",nI(:),nJ(:),realSignI,realSignJ
+
+       endif
+
+    end subroutine Fill_Spin_Coupled_RDM
+
+    subroutine Add_RDM_From_IJ_Pair(nI,nJ,realSignI,realSignJ,tFill_CiCj_Symm)
+! This routine takes a pair of different determinants Di and Dj, and figures out which type 
+! of elements need to be added in to the RDM.
+        implicit none
+        integer , intent(in) :: nI(NEl), nJ(NEl)
+        real(dp) , intent(in) :: realSignI, realSignJ
+        logical , intent(in) :: tFill_CiCj_Symm
+        integer :: Ex(2,2),j
+        logical :: tParity
+
+
+        Ex(:,:) = 0
+        Ex(1,1) = 2         ! Maximum excitation level - we know they are connected by 
+                            ! a double or single.
+        tParity = .false.
+
+        call GetExcitation(nI,nJ,NEl,Ex,tParity)
+! Ex(1,:) comes out as the orbital(s) excited from, i.e. i,j 
+! Ex(2,:) comes out as the orbital(s) excited to, i.e. a,b.         
+
+        IF(Ex(1,1).le.0) THEN
+            write(6,*) '*'
+            WRITE(6,*) 'nI',nI
+            WRITE(6,*) 'nJ',nJ
+            WRITE(6,*) 'Ex(:,:)',Ex(1,1),Ex(1,2),Ex(2,1),Ex(2,2)
+            WRITE(6,*) 'tParity',tParity
+            WRITE(6,*) 'realSignI',realSignI
+            WRITE(6,*) 'realSignJ',realSignJ
+            write(6,*) '*'
+            call flush(6)
+            CALL Stop_All('Add_RDM_From_IJ_Pair',&
+                    'Excitation level between pair not 1 or 2 as it should be.')
+        ENDIF
+
+        if((Ex(1,2).eq.0).and.(Ex(2,2).eq.0)) then
+
+            ! Di and Dj are separated by a single excitation.
+            ! Add in the contribution from this pair into the 1- and 2-RDM.
+            call Fill_Sings_RDM(nI,Ex,tParity,realSignI,realSignJ,tFill_CiCj_Symm)
+    
+        elseif(RDMExcitLevel.ne.1) then
+
+            ! Otherwise Di and Dj are connected by a double excitation.
+            ! Add in this contribution to the 2-RDM (as long as we're calculating this obv).
+            call Fill_Doubs_RDM(Ex,tParity,realSignI,realSignJ,tFill_CiCj_Symm)
+
+        endif
+
+    end subroutine Add_RDM_From_IJ_Pair
+
+
+! EXPLICIT ROUTINES    
     SUBROUTINE Fill_ExplicitRDM_this_Iter(TotWalkers)
         USE FciMCData , only : CurrentDets,TotParts 
         USE bit_reps , only : encode_sign, extract_sign
@@ -757,7 +1476,7 @@ MODULE nElRDMMod
 ! string of the determinant (these need to be sent along with the excitations).
 ! Each processor will have a different Di.
 
-        IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) THEN
+        IF(RDMExcitLevel.eq.1) THEN
             Sing_ExcDjs(:,:)=0
             Sing_ExcList(:)=0
             Sing_ExcList(:) = Sing_InitExcSlots(:)
@@ -766,8 +1485,7 @@ MODULE nElRDMMod
                 Sing_ExcDjs(:,Sing_ExcList(i)) = iLutnI(:)
                 Sing_ExcList(i) = Sing_ExcList(i)+1
             enddo
-        ENDIF
-        IF((RDMExcitLevel.eq.2).or.(RDMExcitLevel.eq.3)) THEN
+        ELSE
             Doub_ExcDjs(:,:) = 0
             Doub_ExcList(:) = 0
             Doub_ExcList(:) = Doub_InitExcSlots(:)
@@ -805,7 +1523,7 @@ MODULE nElRDMMod
 ! string of the determinant (these need to be sent along with the excitations).
 ! Each processor will have a different Di.
 
-        IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) THEN
+        IF(RDMExcitLevel.eq.1) THEN
             Sing_ExcDjs(:,:)=0
             Sing_ExcList(:)=0
             Sing_ExcList(:) = Sing_InitExcSlots(:)
@@ -814,8 +1532,7 @@ MODULE nElRDMMod
                 Sing_ExcDjs(:,Sing_ExcList(i)) = iLutnI(:)
                 Sing_ExcList(i) = Sing_ExcList(i)+1
             enddo
-        ENDIF
-        IF((RDMExcitLevel.eq.2).or.(RDMExcitLevel.eq.3)) THEN
+        ELSE
             Doub_ExcDjs(:,:) = 0
             Doub_ExcList(:) = 0
             Doub_ExcList(:) = Doub_InitExcSlots(:)
@@ -863,7 +1580,7 @@ MODULE nElRDMMod
 
 !        CountTemp = 0
 
-        IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) THEN
+        IF(RDMExcitLevel.eq.1) THEN
 
             ExcitMat3(:,:)=0
 ! Zeros in ExcitMat3 starts off at the first single excitation.        
@@ -905,12 +1622,11 @@ MODULE nElRDMMod
                                 'Too many excitations for space available.')
                 ENDIF
             enddo
-        ENDIF
 
 !        IF((nI(1).eq.5).and.(nI(2).eq.6)) WRITE(6,*) 'Ind',&
 !                                    ((nI(2)-2) * (nI(2)-1) ) / 2 ) + nI(1)
 
-        IF((RDMExcitLevel.eq.2).or.(RDMExcitLevel.eq.3)) THEN
+        ELSE
 
             ExcitMat3(:,:)=0
 ! Zeros in ExcitMat3 starts off at the first single excitation.        
@@ -992,7 +1708,7 @@ MODULE nElRDMMod
 
 !        CountTemp = 0
 
-        IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) THEN
+        IF(RDMExcitLevel.eq.1) THEN
 
             ExcitMat3(:,:)=0
 ! Zeros in ExcitMat3 starts off at the first single excitation.        
@@ -1034,12 +1750,11 @@ MODULE nElRDMMod
                                 'Too many excitations for space available.')
                 ENDIF
             enddo
-        ENDIF
 
 !        IF((nI(1).eq.5).and.(nI(2).eq.6)) WRITE(6,*) 'Ind',&
 !                                    ((nI(2)-2) * (nI(2)-1) ) / 2 ) + nI(1)
 
-        IF((RDMExcitLevel.eq.2).or.(RDMExcitLevel.eq.3)) THEN
+        ELSE
 
             ExcitMat3(:,:)=0
 ! Zeros in ExcitMat3 starts off at the first single excitation.        
@@ -1094,294 +1809,6 @@ MODULE nElRDMMod
     END SUBROUTINE Gen_Hist_ExcDjs
 
 
-    subroutine Add_RDM_HFConnections_Norm(iLutJ,nJ,AvSignJ,walkExcitLevel)
-! This is called when we run over all TotWalkers in CurrentDets.    
-! It is called for each CurrentDet which is a single or double of the HF.
-! It explicitly adds in the HF - S/D connection, as if the HF were D_i and 
-! the single or double D_j.
-        use constants , only : n_int, lenof_sign, dp
-        use SystemData , only : NEl
-        use bit_reps , only : NIfTot
-        use FciMCData , only : HFDet, AvNoatHF
-        use hphf_integrals , only : hphf_sign
-        use HPHFRandExcitMod , only : FindExcitBitDetSym
-        use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
-        implicit none
-        integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
-        integer , intent(in) :: nJ(NEl)
-        real(dp) , intent(in) :: AvSignJ
-        integer , intent(in) :: walkExcitLevel
-        integer(kind=n_int) :: SpinCoupDet(0:niftot)
-        integer :: nSpinCoup(NEl), HPHFExcitLevel
-
-        if(walkExcitLevel.eq.0) then
-            if(AvSignJ.ne.AvNoatHF) then
-                write(6,*) 'AvSignJ',AvSignJ
-                write(6,*) 'AvNoatHF',AvNoatHF
-                CALL Stop_All('PerformFCIMCycPar','Incorrect instantaneous HF population.')
-            endif
-        endif
-
-! If we have a single or double, add in the connection to the HF, symmetrically.        
-        if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) &
-            call Add_RDM_From_IJ_Pair(HFDet,nJ,AvNoatHF,AvSignJ,.true.)
-
-    end subroutine Add_RDM_HFConnections_Norm
-
-
-    subroutine Add_RDM_HFConnections_HF_S_D(iLutJ,nJ,AvSignJ,walkExcitLevel)
-! This is called when we run over all TotWalkers in CurrentDets.    
-! It is called for each CurrentDet.
-        use constants , only : n_int, lenof_sign, dp
-        use SystemData , only : NEl
-        use bit_reps , only : NIfTot
-        use FciMCData , only : HFDet, AvNoatHF
-        use hphf_integrals , only : hphf_sign
-        use HPHFRandExcitMod , only : FindExcitBitDetSym
-        use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
-        implicit none
-        integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
-        integer , intent(in) :: nJ(NEl)
-        real(dp) , intent(in) :: AvSignJ
-        integer , intent(in) :: walkExcitLevel
-        integer(kind=n_int) :: SpinCoupDet(0:niftot)
-        integer :: nSpinCoup(NEl), HPHFExcitLevel
-
-! Add diagonal elements to reduced density matrices.
-
-! If HF_S_D_Ref, we are only considering determinants connected to the HF, 
-! doubles and singles (so theoretically up to quadruples).
-! But for the diagonal elements - only consider doubles and singles (and HF).
-            
-        ! In all of these cases the HF is a diagonal element.
-        if(walkExcitLevel.eq.0) then
-
-            call Fill_Diag_RDM(nJ, AvSignJ)
-            AccumRDMNorm = AccumRDMNorm + (AvSignJ * AvSignJ)
-            AccumRDMNorm_Inst = AccumRDMNorm_Inst + (AvSignJ * AvSignJ)
-
-            if(AvSignJ.ne.AvNoatHF) then
-                write(6,*) 'AvSignJ',AvSignJ
-                write(6,*) 'HF Sign',AvNoatHF
-                call stop_all('Add_RDM_HFConnections_HF_S_D','HF population is incorrect.')
-            endif
-
-            ! The HF is always closed shell (at the moment), 
-            ! so don't need to account for HPHF here.
-
-        elseif(walkExcitLevel.le.2) then
-
-            if(tHF_Ref_Explicit) then
-                
-                if(tHPHF) then
-
-                    ! Now if the determinant is connected to the HF (i.e. single or double), 
-                    ! add in the elements of this connection as well - symmetrically 
-                    ! because no probabilities are involved.
-                    call Fill_Spin_Coupled_RDM_v2(iLutRef,iLutJ,HFDet,nJ,&
-                                AvNoatHF,AvSignJ,.false.)
-
-                else
-
-                    ! The singles and doubles are connected and explicitly calculated 
-                    ! - but not symmetrically.
-                    call Add_RDM_From_IJ_Pair(HFDet, nJ, AvNoatHF, &
-                                                AvSignJ,.false.)
-
-                endif
-
-            else
-                ! For the HF,S,D symmetric case, and the HF,S,D reference, the S and D
-                ! are diagonal terms too.
-                ! These options are not set up for HPHF.
-                call Fill_Diag_RDM(nJ, AvSignJ)
-                AccumRDMNorm = AccumRDMNorm + (AvSignJ * AvSignJ)
-                AccumRDMNorm_Inst = AccumRDMNorm_Inst + (AvSignJ * AvSignJ)
-
-                call Add_RDM_From_IJ_Pair(HFDet,nJ,AvNoatHF,AvSignJ,.true.)
-
-            endif
-
-        endif
-
-    end subroutine Add_RDM_HFConnections_HF_S_D
-
-
-    subroutine Add_RDM_HFConnections_HPHF(iLutJ,nJ,AvSignJ,walkExcitLevel)
-! This is called when we run over all TotWalkers in CurrentDets.    
-! It is called for each CurrentDet which is a single or double of the HF.
-! It adds in the HF - S/D connection.
-        use constants , only : n_int, lenof_sign, dp
-        use SystemData , only : NEl
-        use bit_reps , only : NIfTot
-        use FciMCData , only : HFDet, AvNoatHF
-        use hphf_integrals , only : hphf_sign
-        use HPHFRandExcitMod , only : FindExcitBitDetSym
-        use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
-        implicit none
-        integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
-        integer , intent(in) :: nJ(NEl)
-        real(dp) , intent(in) :: AvSignJ
-        integer , intent(in) :: walkExcitLevel
-        integer(kind=n_int) :: SpinCoupDet(0:niftot)
-        integer :: nSpinCoup(NEl), HPHFExcitLevel
-
-
-        if(walkExcitLevel.eq.0) then
-            if(AvSignJ.ne.AvNoatHF) then
-                write(6,*) 'AvSignJ',AvSignJ
-                write(6,*) 'AvNoatHF',AvNoatHF
-                CALL Stop_All('PerformFCIMCycPar','Incorrect instantaneous HF population.')
-            endif
-        endif
-
-! Now if the determinant is connected to the HF (i.e. single or double), add in the diagonal elements
-! of this connection as well - symmetrically because no probabilities are involved.
-        if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) &
-            call Fill_Spin_Coupled_RDM_v2(iLutRef,iLutJ,HFDet,nJ,&
-                                            AvNoatHF,AvSignJ,.true.)
-
-    end subroutine Add_RDM_HFConnections_HPHF
-
-    subroutine Add_RDM_HFConnections_null(iLutJ,nJ,AvSignJ,walkExcitLevel)
-! This is called when we run over all TotWalkers in CurrentDets.    
-! It is called for each CurrentDet.
-! This is called when we are not filling the density matrices.
-        use constants , only : n_int, lenof_sign, dp
-        use SystemData , only : NEl
-        use bit_reps , only : NIfTot
-        use FciMCData , only : HFDet, AvNoatHF
-        use hphf_integrals , only : hphf_sign
-        use HPHFRandExcitMod , only : FindExcitBitDetSym
-        use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
-        implicit none
-        integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
-        integer , intent(in) :: nJ(NEl)
-        real(dp) , intent(in) :: AvSignJ
-        integer , intent(in) :: walkExcitLevel
-        integer(kind=n_int) :: SpinCoupDet(0:niftot)
-        integer :: nSpinCoup(NEl), HPHFExcitLevel
-
-    end subroutine Add_RDM_HFConnections_null
-
-    subroutine extract_bit_rep_rdm_diag_no_rdm(iLutnI, CurrH_I, nI, SignI, FlagsI, IterRDMStartI, AvSignI, Store)
-        use constants , only : dp, n_int, lenof_sign
-        use SystemData , only : NEl
-        use bit_reps , only : NIfTot, extract_bit_rep, extract_bit_rep_rdm
-        use FciMCData , only : excit_gen_store_type, NCurrH
-        use DetBitOps , only : TestClosedShellDet
-        implicit none
-        integer(n_int), intent(in) :: iLutnI(0:nIfTot)
-        real(dp) , intent(in) :: CurrH_I(NCurrH)
-        integer, intent(out) :: nI(nel), FlagsI
-        integer, dimension(lenof_sign), intent(out) :: SignI
-        real(dp) , intent(out) :: IterRDMStartI, AvSignI
-        type(excit_gen_store_type), intent(inout), optional :: Store
-
-        call extract_bit_rep (iLutnI, nI, SignI, FlagsI, Store)
-
-        IterRDMStartI = 0.0_dp
-        AvSignI = 0.0_dp
-
-    end subroutine extract_bit_rep_rdm_diag_no_rdm
-
-    subroutine extract_bit_rep_rdm_diag_norm(iLutnI, CurrH_I, nI, SignI, FlagsI, IterRDMStartI, AvSignI, Store)
-        use constants , only : dp, n_int, lenof_sign
-        use SystemData , only : NEl
-        use bit_reps , only : NIfTot, extract_bit_rep, extract_bit_rep_rdm
-        use FciMCData , only : excit_gen_store_type, NCurrH
-        use DetBitOps , only : TestClosedShellDet
-        implicit none
-        integer(n_int), intent(in) :: iLutnI(0:nIfTot)
-        real(dp) , intent(in) :: CurrH_I(NCurrH)
-        integer, intent(out) :: nI(nel), FlagsI
-        integer, dimension(lenof_sign), intent(out) :: SignI
-        real(dp) , intent(out) :: IterRDMStartI, AvSignI
-        type(excit_gen_store_type), intent(inout), optional :: Store
-
-        IterRDMStartI = CurrH_I(3)
-        IF(IterRDMStartI.eq.0.0_dp) IterRDMStartI = real(Iter, dp)
- 
-        call extract_bit_rep_rdm (iLutnI, IterRDMStartI, CurrH_I(2), 1.0_dp, nI, SignI, FlagsI, AvSignI)
-
-    end subroutine extract_bit_rep_rdm_diag_norm
-
-
-    subroutine extract_bit_rep_rdm_diag_hphf(iLutnI, CurrH_I, nI, SignI, FlagsI, IterRDMStartI, AvSignI, Store)
-        use constants , only : dp, n_int, lenof_sign
-        use SystemData , only : NEl
-        use bit_reps , only : NIfTot, extract_bit_rep, extract_bit_rep_rdm
-        use FciMCData , only : excit_gen_store_type, NCurrH
-        use DetBitOps , only : TestClosedShellDet
-        implicit none
-        integer(n_int), intent(in) :: iLutnI(0:nIfTot)
-        real(dp) , intent(in) :: CurrH_I(NCurrH)
-        integer, intent(out) :: nI(nel), FlagsI
-        integer, dimension(lenof_sign), intent(out) :: SignI
-        real(dp) , intent(out) :: IterRDMStartI, AvSignI
-        type(excit_gen_store_type), intent(inout), optional :: Store
-
-        IterRDMStartI = CurrH_I(3)
-        IF(IterRDMStartI.eq.0.0_dp) IterRDMStartI = real(Iter, dp)
-
-        if(.not.TestClosedShellDet(iLutnI)) then
-            call extract_bit_rep_rdm (iLutnI, IterRDMStartI, CurrH_I(2), 0.5_dp, nI, SignI, FlagsI, AvSignI)
-            call Add_StochRDM_Diag_HPHF(iLutnI, nI, AvSignI)
-        else
-            call extract_bit_rep_rdm (iLutnI, IterRDMStartI, CurrH_I(2), 1.0_dp, nI, SignI, FlagsI, AvSignI)
-        endif
-
-    end subroutine extract_bit_rep_rdm_diag_hphf
-
-    subroutine Add_StochRDM_Diag_HPHF(iLutCurr,DetCurr,AvSignCurr)
-! This is called when we run over all TotWalkers in CurrentDets.    
-! It is only called if HF is being used and we've encountered an open shell det.
-! The decoding routine would have added in the diagonal elements of the original HF pair,
-! need to take care of the spin coupled one, and any connection between them.
-        use FciMCData , only : HFDet
-        use hphf_integrals , only : hphf_sign
-        use HPHFRandExcitMod , only : FindExcitBitDetSym
-        use DetBitOps , only : FindBitExcitLevel
-        implicit none
-        integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
-        integer , intent(in) :: DetCurr(NEl)
-        real(dp) , intent(in) :: AvSignCurr
-        integer(kind=n_int) :: SpinCoupDet(0:niftot)
-        integer :: nSpinCoup(NEl), SignFac, HPHFExcitLevel
-
-! Add diagonal elements to reduced density matrices.
-
-! By default we are considering the full RDM.            
-! Add every determinant to the diagonal elements.
-
-! If HPHF is on, we need to consider I' as well as I.
-! i.e. only one of the spin coupled determinants will be in the list, need to flip 
-! the spins of all determinants to generate the other, and add in the C_I to this I' too.
-! Only need to do this if I is open shell.
-
-! C_X D_X = C_X / SQRT(2) [ D_I +/- D_I'] - for open shell dets, divide stored C_X by SQRT(2). 
-! Add in I.
-        call FindExcitBitDetSym(iLutCurr, SpinCoupDet)
-        call decode_bit_det (nSpinCoup, SpinCoupDet)
-        ! Find out if it's + or - in the above expression.                
-        SignFac = hphf_sign(iLutCurr)
-
-        call Fill_Diag_RDM(nSpinCoup, (real(SignFac,dp)*AvSignCurr)/SQRT(2.D0))
-
-! For HPHF we're considering < D_I + D_I' | a_a+ a_b+ a_j a_i | D_I + D_I' >
-! Not only do we have diagonal < D_I | a_a+ a_b+ a_j a_i | D_I > terms, but also cross terms
-! < D_I | a_a+ a_b+ a_j a_i | D_I' > if D_I and D_I' can be connected by a single or double 
-! excitation.
-! Find excitation level between D_I and D_I' and add in the contribution if connected.
-        HPHFExcitLevel = FindBitExcitLevel (iLutCurr, SpinCoupDet, 2)
-        if(HPHFExcitLevel.le.2) & 
-            call Add_RDM_From_IJ_Pair(DetCurr,nSpinCoup,&
-                                        AvSignCurr/SQRT(2.D0), &
-                                        (real(SignFac,dp)*AvSignCurr)/SQRT(2.D0),.true.)
-
-    end subroutine Add_StochRDM_Diag_HPHF
-
-
     SUBROUTINE SendProcExcDjs()
 ! In this routine the excitations are sent to the relevant processors.
 ! Sent with them will be the Di they were excited from and its sign.
@@ -1394,7 +1821,7 @@ MODULE nElRDMMod
         INTEGER :: sing_recvdisps(nProcessors),error,MaxSendIndex,MaxIndex
         INTEGER :: doub_recvcounts(nProcessors),doub_recvdisps(nProcessors)
 
-        IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) THEN
+        IF(RDMExcitLevel.eq.1) THEN
             do i=0,nProcessors-1
                 sendcounts(i+1)=Sing_ExcList(i)-(NINT(OneEl_Gap*i)+1)
 ! Sendcounts is the number of singly excited determinants we want to send for 
@@ -1433,10 +1860,9 @@ MODULE nElRDMMod
 #endif
 
             CALL Sing_SearchOccDets(sing_recvcounts,sing_recvdisps)
-        ENDIF
 
 
-        IF((RDMExcitLevel.eq.2).or.(RDMExcitLevel.eq.3)) THEN
+        ELSE
             do i=0,nProcessors-1
                 sendcounts(i+1)=Doub_ExcList(i)-(NINT(TwoEl_Gap*i)+1)
 ! Sendcounts is the number of singly excited determinants we want to send for 
@@ -1494,7 +1920,7 @@ MODULE nElRDMMod
         INTEGER :: sing_recvdisps(nProcessors),error,MaxSendIndex,MaxIndex
         INTEGER :: doub_recvcounts(nProcessors),doub_recvdisps(nProcessors)
 
-        IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) THEN
+        IF(RDMExcitLevel.eq.1) THEN
             do i=0,nProcessors-1
                 sendcounts(i+1)=Sing_ExcList(i)-(NINT(OneEl_Gap*i)+1)
 ! Sendcounts is the number of singly excited determinants we want to send for 
@@ -1533,10 +1959,9 @@ MODULE nElRDMMod
 #endif
 
             CALL Sing_Hist_SearchOccDets(sing_recvcounts,sing_recvdisps)
-        ENDIF
 
 
-        IF((RDMExcitLevel.eq.2).or.(RDMExcitLevel.eq.3)) THEN
+        ELSE
             do i=0,nProcessors-1
                 sendcounts(i+1)=Doub_ExcList(i)-(NINT(TwoEl_Gap*i)+1)
 ! Sendcounts is the number of singly excited determinants we want to send for 
@@ -1906,6 +2331,9 @@ MODULE nElRDMMod
       
     END SUBROUTINE Doub_Hist_SearchOccDets
 
+
+! THESE NEXT ROUTINES ARE GENERAL TO BOTH STOCHASTIC AND EXPLICIT    
+
     subroutine Fill_Diag_RDM(nI,realSignDi)
 ! Fill diagonal elements of 1- and 2-RDM.
 ! These are < Di | a_i+ a_i | Di > and < Di | a_i+ a_j+ a_j a_i | Di >.
@@ -1927,6 +2355,7 @@ MODULE nElRDMMod
                               + (realSignDi * realSignDi) 
             enddo
         else
+            ! Only calculating 2-RDM.
             do i=1,NEl - 1
                 iSpat = gtID(nI(i))
 
@@ -2179,306 +2608,6 @@ MODULE nElRDMMod
 
     end subroutine Fill_Doubs_RDM
 
-    !This routine does the same as Fill_Spin_Coupled_RDM, but hopefully more efficiently!
-    !It takes to HPHF functions, and calculate what needs to be summed into the RDMs
-    subroutine Fill_Spin_Coupled_RDM_v2(iLutnI,iLutnJ,nI,nJ,realSignI,realSignJ,tFill_CiCj_Symm)
-        use systemData, only: tOddS_hphf
-        use HPHFRandExcitMod, only: FindExcitBitDetSym,FindDetSpinSym
-        use HPHF_Integrals , only : hphf_sign
-        USE DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
-        implicit none
-        integer(n_int), intent(in) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot)
-        real(dp) , intent(in) :: realSignI, realSignJ
-        integer, intent(in) :: nI(NEl),nJ(NEl)
-        logical, intent(in) :: tFill_CiCj_Symm
-        integer(n_int) :: iLutnI2(0:NIfTot)
-        integer :: nI2(NEl),nJ2(NEl)
-        real(dp) :: NewSignJ,NewSignI,PermSignJ,PermSignI
-        integer :: I_J_ExcLevel,ICoup_J_ExcLevel
-        character(*), parameter :: t_r='Fill_Spin_Coupled_RDM_v2'
-
-        if(TestClosedShellDet(iLutnI)) then
-            if(tOddS_HPHF) then
-                call stop_all(t_r,"Should not be any closed shell determinants in high S states")
-            endif
-
-            if(TestClosedShellDet(iLutnJ)) then
-                !Closed shell -> Closed shell - just as in determinant case
-!                write(6,*) "CS -> CS "
-                call Add_RDM_From_IJ_Pair(nI,nJ,realSignI,realSignJ,tFill_CiCj_Symm)
-!                write(6,"(A,4I4,2F12.6)") "I -> J : ",nI(:),nJ(:),realSignI,realSignJ
-            else
-                !Closed shell -> open shell.
-!                write(6,*) "CS -> OS "
-                call FindDetSpinSym(nJ,nJ2,NEl)
-                NewSignJ = realSignJ/Root2
-                call Add_RDM_From_IJ_Pair(nI,nJ,realSignI,NewSignJ,tFill_CiCj_Symm)
-!                write(6,"(A,4I4,2F12.6)") "I -> J : ",nI(:),nJ(:),realSignI,NewSignJ
-                !What is the permutation between Di and Dj'
-                NewSignJ = NewSignJ * hphf_sign(iLutnJ)
-                call Add_RDM_From_IJ_Pair(nI,nJ2,realSignI,NewSignJ,tFill_CiCj_Symm)
-!                write(6,"(A,4I4,2F12.6)") "I -> J' : ",nI(:),nJ2(:),realSignI,NewSignJ
-            endif
-        elseif(TestClosedShellDet(iLutnJ)) then
-            !Open shell -> closed shell
-!            write(6,*) "OS -> CS "
-            call FindDetSpinSym(nI,nI2,NEl)
-            NewSignI = realSignI/Root2
-            call Add_RDM_From_IJ_Pair(nI,nJ,NewSignI,realSignJ,tFill_CiCj_Symm)
-!            write(6,"(A,4I4,2F12.6)") "I -> J : ",nI(:),nJ(:),NewSignI,realSignJ
-            !What is the permutation between Di' and Dj 
-            NewSignI = NewSignI * hphf_sign(iLutnI)
-            call Add_RDM_From_IJ_Pair(nI2,nJ,NewSignI,realSignJ,tFill_CiCj_Symm)
-!            write(6,"(A,4I4,2F12.6)") "I' -> J : ",nI2(:),nJ(:),NewSignI,realSignJ
-        else
-!            write(6,*) "OS -> OS "
-            !Open shell -> open shell
-            NewSignI = realSignI/Root2
-            NewSignJ = realSignJ/Root2
-            PermSignJ = NewSignJ * real(hphf_sign(iLutnJ),dp)
-            PermSignI = NewSignI * real(hphf_sign(iLutnI),dp)
-            call FindExcitBitDetSym(iLutnI, iLutnI2)
-            call FindDetSpinSym(nI,nI2,NEl)
-            call FindDetSpinSym(nJ,nJ2,NEl)
-            I_J_ExcLevel = FindBitExcitLevel(iLutnI, iLutnJ,2)
-            ICoup_J_ExcLevel = FindBitExcitLevel(iLutnI2,iLutnJ,2)
-            if(I_J_ExcLevel.le.2) then
-                call Add_RDM_From_IJ_Pair(nI,nJ,NewSignI,NewSignJ,tFill_CiCj_Symm)      !Di -> Dj
-!                write(6,"(A,4I4,2F12.6)") "I -> J : ",nI(:),nJ(:),NewSignI,NewSignJ
-                call Add_RDM_From_IJ_Pair(nI2,nJ2,PermSignI,PermSignJ,tFill_CiCj_Symm)   !Di' -> Dj'  (both permuted sign)
-!                write(6,"(A,4I4,2F12.6)") "I' -> J' : ",nI2(:),nJ2(:),PermSignI,PermSignJ
-            endif
-            if(ICoup_J_ExcLevel.le.2) then
-                call Add_RDM_From_IJ_Pair(nI2,nJ,PermSignI,NewSignJ,tFill_CiCj_Symm)    !Di' -> Dj  (i permuted sign)
-!                write(6,"(A,4I4,2F12.6)") "I' -> J : ",nI2(:),nJ(:),PermSignI,NewSignJ
-                call Add_RDM_From_IJ_Pair(nI,nJ2,NewSignI,PermSignJ,tFill_CiCj_Symm)     !Di  -> Dj'  (j permuted sign)
-!                write(6,"(A,4I4,2F12.6)") "I -> J' : ",nI(:),nJ2(:),NewSignI,PermSignJ
-            endif
-        endif
-
-    end subroutine Fill_Spin_Coupled_RDM_v2
-
-    subroutine Fill_Spin_Coupled_RDM(iLutnI,iLutnJ,nI,nJ,realSignI,realSignJ,tFill_CiCj_Symm)
-!If the two HPHF determinants we're considering consist of I + I' and J + J', 
-!where X' is the spin coupled (all spins flipped) version of X,
-!then we have already considered the I -> J excitation.
-!And if I and J are connected by a double excitation, tDoubleConnection is true and we have 
-!also considered I' -> J'.
-!But we need to also account for I -> J' and I' -> J.
-        use HPHFRandExcitMod, only: FindExcitBitDetSym
-        use HPHF_Integrals , only : hphf_sign
-        USE DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
-        implicit none
-        integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot)
-        integer , intent(in) :: nI(NEl), nJ(NEl)
-        real(dp) , intent(in) :: realSignI, realSignJ
-        logical , intent(in) :: tFill_CiCj_Symm
-        integer(kind=n_int) :: iLutnI2(0:NIfTot),iLutnJ2(0:NIfTot)
-        integer :: Ex(2,2), SpinCoupI_J_ExcLevel, nI2(NEl), nJ2(NEl)
-        integer :: SignFacI, SignFacJ, I_J_ExcLevel
-        logical :: tParity
-        real(dp) :: realSignFacI, realSignFacJ
-
-!First we flip the spin of both determinants, and store I' and J'.
-!Actually if I and J are related by a double excitation, we don't need J'.        
-
-!First we flip the spin of I', and find out the excitation level between I' and J.
-!If this is a double excitation, we don't actually need to find J' - we can just invert 
-!the excitation matrix of the I' -> J transition.
-!If this is anything above a double, we likewise don't need to find J', because I -> J' 
-!will also have a 0 matrix element.
-
-!        write(6,*) '***'
-!        write(6,'(A5)',advance='no') 'nI'
-!        do i = 1,4
-!            write(6,'(I5)',advance='no') nI(i)
-!        enddo
-!        write(6,*) ''
-!        write(6,'(A5)',advance='no') 'nJ'
-!        do i = 1,4
-!            write(6,'(I5)',advance='no') nJ(i)
-!        enddo
-!        write(6,*) ''
-!        write(6,*) 'realSignI',realSignI
-!        write(6,*) 'realSignJ',realSignJ
-
-        I_J_ExcLevel = FindBitExcitLevel (iLutnI, iLutnJ, 2)
-
-        if (.not. TestClosedShellDet(iLutnI)) then
-
-            ! I is open shell, and so a spin coupled determinant I' exists.
-!            write(6,*) 'I open shell'
-
-            !Find I'.
-            call FindExcitBitDetSym(iLutnI, iLutnI2)
-            call decode_bit_det (nI2, iLutnI2)
-            SignFacI = hphf_sign(iLutnI)
-            realSignFacI = real(SignFacI,dp) / SQRT(2.0)
-
-!            write(6,*) 'spin coupled nI'
-!            do i = 1,4
-!                write(6,'(I5)',advance='no') nI2(i)
-!            enddo
-!            write(6,*) ''
-
-            !Find excitation level between I' and J - not necessarily the same as 
-            !that between I and J.
-            SpinCoupI_J_ExcLevel = FindBitExcitLevel (iLutnI2, iLutnJ, 2)
-
-            IF( (.not.(I_J_ExcLevel.le.2)) .and. (.not.(SpinCoupI_J_ExcLevel.le.2)) ) &
-                call Stop_All('Fill_Spin_Coupled_RDM','No spin combination are connected.')
-                
-            if ( .not. TestClosedShellDet(iLutnJ) ) then
-                
-                ! Both I and J are open shell, need all 4 combinations.
-
-                !Find J'.
-                call FindExcitBitDetSym(iLutnJ, iLutnJ2)
-                call decode_bit_det (nJ2, iLutnJ2)
-                SignFacJ = hphf_sign(iLutnJ)
-                realSignFacJ = real(SignFacJ,dp) / SQRT(2.D0)
-
-!                write(6,*) "OS -> OS "
-
-                if (I_J_ExcLevel.le.2) then
-
-                    ! I -> J.
-                    call Add_RDM_From_IJ_Pair(nI,nJ,(realSignI/SQRT(2.D0)),&
-                                                (realSignJ/SQRT(2.D0)),tFill_CiCj_Symm)
-!                    write(6,"(A,4I4,2F12.6)") "I -> J : ",nI(:),nJ(:),realSignI/SQRT(2.D0),realSignJ/SQRT(2.D0)
- 
-                    ! I' -> J'.
-                    call Add_RDM_From_IJ_Pair(nI2,nJ2,(realSignFacI*realSignI),&
-                                              (realSignFacJ*realSignJ),tFill_CiCj_Symm)
-!                    write(6,"(A,4I4,2F12.6)") "I' -> J' : ",nI2(:),nJ2(:),(realSignFacI*realSignI),(realSignFacJ*realSignJ)
-
-                endif
-
-                if (SpinCoupI_J_ExcLevel.le.2) then
-
-                    ! I' -> J.
-                    call Add_RDM_From_IJ_Pair(nI2,nJ,(realSignFacI*realSignI),&
-                                                (realSignJ/SQRT(2.D0)),tFill_CiCj_Symm)
-
-!                    write(6,"(A,4I4,2F12.6)") "I' -> J : ",nI2(:),nJ(:),realSignFacI*realSignI,realSignJ/SQRT(2.D0)
-                    ! I -> J'.
-                    call Add_RDM_From_IJ_Pair(nI, nJ2,(realSignI/SQRT(2.D0)),&
-                                                 (realSignFacJ*realSignJ),tFill_CiCj_Symm)
-
-!                    write(6,"(A,4I4,2F12.6)") "I -> J' : ",nI(:),nJ2(:),realSignI/SQRT(2.D0),realSignFacJ*realSignJ
-
-                endif
-
-            else
-                
-                ! I is open shell, but J is not.
-                ! Need I -> J and I' -> J.
-
-!                write(6,*) "OS -> CS "
-                ! I -> J.
-                call Add_RDM_From_IJ_Pair(nI,nJ,(realSignI/SQRT(2.D0)),&
-                                                        realSignJ,tFill_CiCj_Symm)
-!                write(6,"(A,4I4,2F12.6)") "I -> J : ",nI(:),nJ(:),realSignI/SQRT(2.D0),realSignJ
-                ! I' -> J.
-                call Add_RDM_From_IJ_Pair(nI2,nJ,(realSignFacI*realSignI),&
-                                                        realSignJ,tFill_CiCj_Symm)
-!                write(6,"(A,4I4,2F12.6)") "I' -> J : ",nI2(:),nJ(:),realSignFacI*realSignI,realSignJ
-
-            endif
-
-        elseif( .not. TestClosedShellDet(iLutnJ) ) then
-            ! This is the case where I is closed shell, but J is not.
-            ! Need I -> J and I -> J'. 
-
-!            write(6,*) "CS -> OS "
-            ! I -> J.
-            if (I_J_ExcLevel.le.2) call Add_RDM_From_IJ_Pair(nI,nJ,realSignI,&
-                                               (realSignJ/SQRT(2.D0)),tFill_CiCj_Symm)
-!            write(6,"(A,4I4,2F12.6)") "I -> J : ",nI(:),nJ(:),realSignI,realSignJ/SQRT(2.D0)
-
-            ! Find J'.
-            call FindExcitBitDetSym(iLutnJ, iLutnJ2)
-            SignFacJ = hphf_sign(iLutnJ)
-            realSignFacJ = real(SignFacJ,dp) / SQRT(2.D0)
-
-            !Find excitation level between I and J'.
-            SpinCoupI_J_ExcLevel = FindBitExcitLevel (iLutnI, iLutnJ2, 2)
-
-            if (SpinCoupI_J_ExcLevel.le.2) then
-                call decode_bit_det (nJ2, iLutnJ2)
-                
-                ! I -> J'.
-                call Add_RDM_From_IJ_Pair(nI,nJ2,realSignI,&
-                                            (realSignFacJ*realSignJ),tFill_CiCj_Symm)
-!                write(6,"(A,4I4,2F12.6)") "I -> J' : ",nI(:),nJ2(:),realSignI,realSignFacJ*realSignJ
-
-           endif
-
-       elseif(I_J_ExcLevel.le.2) then
-
-            ! I and J are both closed shell.
-
-            ! Just I -> J.
-            call Add_RDM_From_IJ_Pair(nI,nJ,realSignI,realSignJ,tFill_CiCj_Symm)
-!            write(6,*) "CS -> CS "
-!            write(6,"(A,4I4,2F12.6)") "I -> J : ",nI(:),nJ(:),realSignI,realSignJ
-
-       endif
-
-    end subroutine Fill_Spin_Coupled_RDM
-
-
-    subroutine Add_RDM_From_IJ_Pair(nI,nJ,realSignI,realSignJ,tFill_CiCj_Symm)
-! This routine takes a pair of different determinants Di and Dj, and figures out which type 
-! of elements need to be added in to the RDM.
-        implicit none
-        integer , intent(in) :: nI(NEl), nJ(NEl)
-        real(dp) , intent(in) :: realSignI, realSignJ
-        logical , intent(in) :: tFill_CiCj_Symm
-        integer :: Ex(2,2),j
-        logical :: tParity
-
-
-        Ex(:,:) = 0
-        Ex(1,1) = 2         ! Maximum excitation level - we know they are connected by 
-                            ! a double or single.
-        tParity = .false.
-
-        call GetExcitation(nI,nJ,NEl,Ex,tParity)
-! Ex(1,:) comes out as the orbital(s) excited from, i.e. i,j 
-! Ex(2,:) comes out as the orbital(s) excited to, i.e. a,b.         
-
-        IF(Ex(1,1).le.0) THEN
-            write(6,*) '*'
-            WRITE(6,*) 'nI',nI
-            WRITE(6,*) 'nJ',nJ
-            WRITE(6,*) 'Ex(:,:)',Ex(1,1),Ex(1,2),Ex(2,1),Ex(2,2)
-            WRITE(6,*) 'tParity',tParity
-            WRITE(6,*) 'realSignI',realSignI
-            WRITE(6,*) 'realSignJ',realSignJ
-            write(6,*) '*'
-            call flush(6)
-            CALL Stop_All('Add_RDM_From_IJ_Pair',&
-                    'Excitation level between pair not 1 or 2 as it should be.')
-        ENDIF
-
-        if((Ex(1,2).eq.0).and.(Ex(2,2).eq.0)) then
-
-            ! Di and Dj are separated by a single excitation.
-            ! Add in the contribution from this pair into the 1- and 2-RDM.
-            call Fill_Sings_RDM(nI,Ex,tParity,realSignI,realSignJ,tFill_CiCj_Symm)
-    
-        elseif(RDMExcitLevel.ne.1) then
-
-            ! Otherwise Di and Dj are connected by a double excitation.
-            ! Add in this contribution to the 2-RDM (as long as we're calculating this obv).
-            call Fill_Doubs_RDM(Ex,tParity,realSignI,realSignJ,tFill_CiCj_Symm)
-
-        endif
-
-    end subroutine Add_RDM_From_IJ_Pair
-
-
     subroutine FinaliseRDM()
 ! This routine finalises the one electron reduced density matrix stuff at the point of a softexit.
 ! This includes summing each of the individual matrices from each processor,
@@ -2500,29 +2629,22 @@ MODULE nElRDMMod
             write(6,*) '**** RDMs CALCULATED STOCHASTICLY **** '
         endif
 
-        ! We always want to calculate one final RDM energy, whether or not we're 
-        ! calculating the energy throughout the calculation.
-        ! Unless of course, only the 1 or 2 RDM's are being calculated.
-        if(RDMExcitLevel.eq.3) then
+        ! Combine the 1- or 2-RDM from all processors etc.
+
+        if(RDMExcitLevel.eq.1) then
+
+            call Finalise_1e_RDM()  
+
+        else
+            ! We always want to calculate one final RDM energy, whether or not we're 
+            ! calculating the energy throughout the calculation.
+            ! Unless of course, only the 1-RDM is being calculated.
 
             ! Calculate the energy one last time - and write out everything we need.
             tFinalRDMEnergy = .true.
             CALL Calc_Energy_from_RDM()
 
 !            CALL Test_Energy_Calc()
-
-        else
-
-            ! Combine the 1- or 2-RDM from all processors.
-            if(RDMExcitLevel.eq.1) then
-
-                call Finalise_1e_RDM()  
- 
-            else
-
-                call Finalise_2e_RDM(Norm_2RDM_Inst, Norm_2RDM)  
-
-            endif
 
         endif
         call MPIBarrier(error)
@@ -2547,7 +2669,6 @@ MODULE nElRDMMod
 
     
     end subroutine FinaliseRDM
-
 
     subroutine find_nat_orb_occ_numbers()
         USE Logging , only : tNoRODump
@@ -3577,7 +3698,7 @@ MODULE nElRDMMod
 
         IF(tExplicitAllRDM) THEN
 
-            IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) THEN
+            IF(RDMExcitLevel.eq.1) THEN
 ! This array contains the initial positions of the single excitations for 
 ! each processor.
                 DEALLOCATE(Sing_InitExcSlots)
@@ -3593,10 +3714,9 @@ MODULE nElRDMMod
 
                 DEALLOCATE(Sing_ExcDjs2)
                 CALL LogMemDeAlloc(this_routine,Sing_ExcDjs2Tag)
-            ENDIF
 
+            ELSE
 
-            IF((RDMExcitLevel.eq.2).or.(RDMExcitLevel.eq.3)) THEN
 ! This array contains the initial positions of the single excitations for 
 ! each processor.
                 DEALLOCATE(Doub_InitExcSlots)
@@ -4241,7 +4361,7 @@ MODULE nElRDMMod
 
             call calc_2e_norms(AllAccumRDMNorm_Inst, AllAccumRDMNorm, Norm_2RDM_Inst, Norm_2RDM)
 
-            if(tFinalRDMEnergy.or.(RDMExcitLevel.eq.2)) then
+            if(tFinalRDMEnergy) then
 
                 if(twrite_RDMs_to_read) call Write_out_2RDM(Norm_2RDM,.false.)
 
