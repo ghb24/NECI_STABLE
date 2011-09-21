@@ -16,8 +16,10 @@ real(dp), parameter ::  PI    = 3.1415926535897932384626433832795028841971693993
 real(dp), parameter ::  PI2   = 9.8696044010893586188344909998761511353136994072408_dp
 real(dp), parameter ::  THIRD = 0.3333333333333333333333333333333333333333333333333_dp
 
-integer :: temp=0
+integer :: temp
 integer, parameter :: sizeof_int = kind(temp)   !Default integer size (not necessarily = no. bytes)
+!potential hack for molpro, which seems to support a compiler which doesn't like the kind() intrinsic..?
+!integer, parameter :: sizeof_int = selected_int_kind(digits(huge(temp)))   !Default integer size (not necessarily = no. bytes)
 
 logical :: temp2=.true.
 integer, parameter :: sizeof_log = kind(temp2) 
@@ -44,7 +46,7 @@ integer, parameter :: MPIArg=int32
 #ifdef __INT64
 
 ! Kind parameter for 64-bit integers.
-integer, parameter :: n_int=selected_int_kind(18)
+integer, parameter :: n_int=int64
 
 ! MPI integer kind associated with n_int.
 #ifdef PARALLEL
@@ -54,7 +56,7 @@ integer, parameter :: MpiDetInt=MPI_INTEGER8
 #else
 
 ! Kind parameter for 32-bit integers.
-integer, parameter :: n_int=selected_int_kind(8)
+integer, parameter :: n_int=int32
 
 ! MPI integer kind associated with n_int.
 #ifdef PARALLEL
@@ -66,7 +68,7 @@ integer, parameter :: MpiDetInt=MPI_INTEGER
 ! Number of bits in an n_int integer.
 ! Note that PGI (at least in 10.3) has a bug which causes
 ! bit_size(int(0,n_int)) to return an incorrect value.
-integer(kind=n_int) :: temp3=0
+integer(n_int) :: temp3=0
 integer, parameter :: bits_n_int = bit_size(temp3)
 ! Number of bytes in an n_int integer.
 integer, parameter :: size_n_int = bits_n_int/8
