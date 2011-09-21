@@ -80,7 +80,8 @@ MODULE nElRDMMod
         USE RotateOrbsMod , only : SymLabelCounts2Tag,NoRotOrbs
         USE RotateOrbsMod , only : SymLabelList2Tag,SymLabelListInvTag
         USE RotateOrbsData , only : SymLabelList3, SymLabelList3Tag
-        USE Logging , only : tDo_Not_Calc_RDMEnergy, tDiagRDM
+        USE Logging , only : tDo_Not_Calc_RDMEnergy, tDiagRDM, &
+                            TPopsFile, tno_RDMs_to_read, twrite_RDMs_to_read
         USE CalcData , only : tRegenDiagHEls
         implicit none
         INTEGER :: ierr,i, MemoryAlloc, MemoryAlloc_Root
@@ -115,6 +116,8 @@ MODULE nElRDMMod
                 &as a reference - this is not an appropriate matrix for natural orbitals.'
             tDiagRDM = .false.
         endif
+
+        if(TPopsFile.and.(.not.tno_RDMs_to_read)) twrite_RDMs_to_read = .true.
 
 ! Here we're allocating arrays for the actual calculation of the RDM.
 
@@ -314,7 +317,7 @@ MODULE nElRDMMod
         NoDumpTruncs = 1
         NoFrozenVirt = 0
 
-        IF((RDMExcitLevel.eq.1).or.(RDMExcitLevel.eq.3)) THEN
+        IF((RDMExcitLevel.eq.1).or.tDiagRDM) THEN
             ! The 2-RDM does not need to be reordered as it's never diagonalised. 
 
             ALLOCATE(SymLabelCounts2(2,32),stat=ierr)
@@ -4194,6 +4197,7 @@ MODULE nElRDMMod
 
 
     subroutine Finalise_2e_RDM(Norm_2RDM_Inst, Norm_2RDM) 
+        use Logging , only : twrite_RDMs_to_read, twrite_normalised_RDMs
         implicit none
         real(dp) , intent(out) :: Norm_2RDM_Inst, Norm_2RDM
         real(dp) :: AllAccumRDMNorm_Inst, AllAccumRDMNorm
@@ -4229,7 +4233,6 @@ MODULE nElRDMMod
             ! If we're not using HPHF - average the matrix elements that by spin we know to be equal.
             ! This is commented out now, because when using spatial orbitals the spins are effectively 
             ! already averaged - and the normalisation is being calculated on the fly. 
-
 !            if((tFinalRDMEnergy.or.(RDMExcitLevel.eq.2)).and.(.not.tHPHF)) then 
 !                call Average_Spins_and_Sum_2e_Norms(Trace_2RDM_Inst, Trace_2RDM)
 !            else
@@ -4239,19 +4242,22 @@ MODULE nElRDMMod
             call calc_2e_norms(AllAccumRDMNorm_Inst, AllAccumRDMNorm, Norm_2RDM_Inst, Norm_2RDM)
 
             if(tFinalRDMEnergy.or.(RDMExcitLevel.eq.2)) then
-                if(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref)) &
-                    call make_2e_rdm_hermitian(Norm_2RDM, Max_Error_Hermiticity, Sum_Error_Hermiticity)
 
-                call Write_out_2RDM(Norm_2RDM)
+                if(twrite_RDMs_to_read) call Write_out_2RDM(Norm_2RDM,.false.)
 
                 if(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
-                    write(6,'(A29,F30.20)') ' MAX ABS ERROR IN HERMITICITY', Max_Error_Hermiticity
-                    write(6,'(A29,F30.20)') ' SUM ABS ERROR IN HERMITICITY', Sum_Error_Hermiticity
-                    write(6,*) ''
+                    call make_2e_rdm_hermitian(Norm_2RDM, Max_Error_Hermiticity, Sum_Error_Hermiticity)
+
+                    if(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+                        write(6,'(A29,F30.20)') ' MAX ABS ERROR IN HERMITICITY', Max_Error_Hermiticity
+                        write(6,'(A29,F30.20)') ' SUM ABS ERROR IN HERMITICITY', Sum_Error_Hermiticity
+                        write(6,*) ''
+                    endif
                 endif
 
-            endif
+                if(twrite_normalised_RDMs) call Write_out_2RDM(Norm_2RDM,.true.)
 
+            endif
         endif
 
 
@@ -4511,24 +4517,32 @@ MODULE nElRDMMod
     end subroutine Write_out_1RDM
 
 
-    subroutine Write_out_2RDM(Norm_2RDM)
+    subroutine Write_out_2RDM(Norm_2RDM,tNormalise)
         implicit none
         real(dp) , intent(in) :: Norm_2RDM
+        logical , intent(in) :: tNormalise
         real(dp) :: Tot_Spin_Projection, SpinPlus, SpinMinus
         real(dp) :: ParityFactor 
         integer :: i, j, a, b, Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab
         integer :: aaaa_RDM_unit, abab_RDM_unit, abba_RDM_unit
- 
-        write(6,*) 'Writing out the 2 electron density matrix to file'
-        call flush(6)
 
         aaaa_RDM_unit = get_free_unit()
-        OPEN(aaaa_RDM_unit,file='TwoRDM_aaaa',status='unknown')
         abab_RDM_unit = get_free_unit()
-        OPEN(abab_RDM_unit,file='TwoRDM_abab',status='unknown')
         abba_RDM_unit = get_free_unit()
-        OPEN(abba_RDM_unit,file='TwoRDM_abba',status='unknown')
-
+        if(tNormalise) then
+            write(6,*) 'Writing out the *normalised* 2 electron density matrix to file'
+            call flush(6)
+            OPEN(aaaa_RDM_unit,file='TwoRDM_aaaa',status='unknown')
+            OPEN(abab_RDM_unit,file='TwoRDM_abab',status='unknown')
+            OPEN(abba_RDM_unit,file='TwoRDM_abba',status='unknown')
+        else
+            write(6,*) 'Writing out the *unnormalised* 2 electron density matrix to file for reading in'
+            call flush(6)
+            OPEN(aaaa_RDM_unit,file='TwoRDM_aaaa_TOREAD',status='unknown',form='unformatted')
+            OPEN(abab_RDM_unit,file='TwoRDM_abab_TOREAD',status='unknown',form='unformatted')
+            OPEN(abba_RDM_unit,file='TwoRDM_abba_TOREAD',status='unknown',form='unformatted')
+        endif
+ 
         Tot_Spin_Projection = 0.D0
         do i = 1, SpatOrbs
 
@@ -4548,22 +4562,39 @@ MODULE nElRDMMod
 
                         if((Ind1_aa.le.Ind2_aa).and.(i.ne.j).and.(a.ne.b)) then
 
-                            if( All_aaaa_RDM(Ind1_aa,Ind2_aa).ne.0.D0) &
-                                write(aaaa_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
-                                    All_aaaa_RDM(Ind1_aa,Ind2_aa) * Norm_2RDM 
+                            if( All_aaaa_RDM(Ind1_aa,Ind2_aa).ne.0.D0) then
+                                if(tNormalise) then
+                                    write(aaaa_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
+                                            All_aaaa_RDM(Ind1_aa,Ind2_aa) * Norm_2RDM 
+                                else
+                                    write(aaaa_RDM_unit) i,j,a,b, &
+                                            All_aaaa_RDM(Ind1_aa,Ind2_aa) 
+                                endif
+                            endif
                         endif
 
                         if(Ind1_ab.le.Ind2_ab) then
 
-                            if( All_abab_RDM(Ind1_ab,Ind2_ab).ne.0.D0) &
-                                write(abab_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
-                                    All_abab_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM 
+                            if( All_abab_RDM(Ind1_ab,Ind2_ab).ne.0.D0) then
+                                if(tNormalise) then
+                                    write(abab_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
+                                        All_abab_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM 
+                                else
+                                    write(abab_RDM_unit) i,j,a,b, &
+                                        All_abab_RDM(Ind1_ab,Ind2_ab) 
+                                endif
+                            endif
 
-                            if( All_abba_RDM(Ind1_ab,Ind2_ab).ne.0.D0) &
-                                write(abba_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
-                                    All_abba_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM 
+                            if( All_abba_RDM(Ind1_ab,Ind2_ab).ne.0.D0) then
+                                if(tNormalise) then
+                                    write(abba_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
+                                        All_abba_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM 
+                                else
+                                    write(abba_RDM_unit) i,j,a,b, &
+                                        All_abba_RDM(Ind1_ab,Ind2_ab) 
+                                endif
+                            endif
                         endif
-
                     enddo
                 enddo
 

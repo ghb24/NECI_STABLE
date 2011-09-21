@@ -29,9 +29,9 @@ MODULE Logging
     LOGICAL tRoHistOneElInts
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump,tRDMonFly,tDiagRDM,tDo_Not_Calc_RDMEnergy
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
-    LOGICAL tTruncDumpbyVal, tChangeVarsRDM, tNoRODump, tSpawnGhostChild
+    LOGICAL tTruncDumpbyVal, tChangeVarsRDM, tNoRODump, tSpawnGhostChild, tno_RDMs_to_read
     LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit,tPrintDoubsUEG
-    LOGICAL tHF_S_D_Ref, tHF_S_D, tHF_Ref_Explicit, tExplicitAllRDM
+    LOGICAL tHF_S_D_Ref, tHF_S_D, tHF_Ref_Explicit, tExplicitAllRDM, twrite_normalised_RDMs, twrite_RDMs_to_read 
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps,IterShiftBlock
     INTEGER IterRDMonFly, RDMExcitLevel, RDMEnergyIter
     real(dp) GhostThresh, GhostFac
@@ -160,6 +160,9 @@ MODULE Logging
       tSpawnGhostChild = .false.
       GhostThresh = 1.0E-5
       GhostFac = 1.0
+      twrite_normalised_RDMs = .true. 
+      twrite_RDMs_to_read = .false.
+      tno_RDMs_to_read = .false.
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -540,6 +543,21 @@ MODULE Logging
             tSpawnGhostChild = .true.
             call readf(GhostThresh)
             call readf(GhostFac)
+
+        case("WRITERDMSTOREAD")
+! Writes out the unnormalised RDMs (in binary), so they can be read back in, and the calculations restarted at a later point.            
+! This is also tied to the POPSFILE/BINARYPOPS keyword - so if we're writing a normal POPSFILE, we'll write this too, 
+! unless "NORDMSTOREAD" is on.
+            twrite_RDMs_to_read = .true. 
+
+        case("NORDMSTOREAD")
+! Tells us that although we have the POPSFILE (or some variation) on, we do not want the unnormalised RDMs written out.            
+            tno_RDMs_to_read = .true. 
+
+        case("NONORMRDMS")            
+! Does not print out the normalised (final) RDMs - to be used if you know the calculation will not be converged, and don't  
+! want to take up disk space.
+            twrite_normalised_RDMs = .false.
 
         case("AUTOCORR")
 !This is a Parallel FCIMC option - it will calculate the largest weight MP1 determinants and histogramm them
