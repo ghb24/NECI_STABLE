@@ -416,7 +416,7 @@ MODULE nElRDMMod
         use Logging , only : IterRDMonFly
         implicit none
         logical :: exists_aaaa,exists_abab,exists_abba
-        integer :: RDM_unit
+        integer :: RDM_unit, FileEnd
         integer :: i,j,a,b,Ind1,Ind2
         real(dp) :: Temp_RDM_Element
 
@@ -440,36 +440,42 @@ MODULE nElRDMMod
                     RDM_unit = get_free_unit()
                     open(RDM_unit,FILE='TwoRDM_aaaa_TOREAD',status='old',form='unformatted')
                     do while (.true.)
-                        read(RDM_unit,end=500) i,j,a,b,Temp_RDM_Element 
+                        read(RDM_unit,iostat=FileEnd) i,j,a,b,Temp_RDM_Element 
+                        if(FileEnd.gt.0) call stop_all("Read_In_RDMs","Error reading TwoRDM_aaaa_TOREAD")
+                        if(FileEnd.lt.0) exit
+
                         Ind1 = ( ( (j-2) * (j-1) ) / 2 ) + i
                         Ind2 = ( ( (b-2) * (b-1) ) / 2 ) + a
                         All_aaaa_RDM(Ind1,Ind2) = Temp_RDM_Element
                         if(Ind1.eq.Ind2) Trace_2RDM = Trace_2RDM + &
                                                         Temp_RDM_Element
                     enddo
-500                 continue                    
                     close(RDM_unit)
 
                     open(RDM_unit,FILE='TwoRDM_abab_TOREAD',status='old',form='unformatted')
                     do while (.true.)
-                        read(RDM_unit,end=501) i,j,a,b,Temp_RDM_Element 
+                        read(RDM_unit,iostat=FileEnd) i,j,a,b,Temp_RDM_Element 
+                        if(FileEnd.gt.0) call stop_all("Read_In_RDMs","Error reading TwoRDM_abab_TOREAD")
+                        if(FileEnd.lt.0) exit
+
                         Ind1 = ( ( (j-1) * j ) / 2 ) + i
                         Ind2 = ( ( (b-1) * b ) / 2 ) + a
                         All_abab_RDM(Ind1,Ind2) = Temp_RDM_Element
                         if(Ind1.eq.Ind2) Trace_2RDM = Trace_2RDM + &
                                                         Temp_RDM_Element
                     enddo
-501                 continue                    
                     close(RDM_unit)
 
                     open(RDM_unit,FILE='TwoRDM_abba_TOREAD',status='old',form='unformatted')
                     do while (.true.)
-                        read(RDM_unit,end=502) i,j,a,b,Temp_RDM_Element 
+                        read(RDM_unit,iostat=FileEnd) i,j,a,b,Temp_RDM_Element 
+                        if(FileEnd.gt.0) call stop_all("Read_In_RDMs","Error reading TwoRDM_abba_TOREAD")
+                        if(FileEnd.lt.0) exit
+
                         Ind1 = ( ( (j-1) * j ) / 2 ) + i
                         Ind2 = ( ( (b-1) * b ) / 2 ) + a
                         All_abba_RDM(Ind1,Ind2) = Temp_RDM_Element
                     enddo
-502                 continue                    
                     close(RDM_unit)
 
                 else
@@ -2711,7 +2717,7 @@ MODULE nElRDMMod
             Evalues_unit = get_free_unit()
             OPEN(Evalues_unit,file='NO_OCC_NUMBERS',status='unknown')
 
-            WRITE(Evalues_unit,'(A)') 'NORMALISED 1RDM EVALUES (NATURAL ORBITAL OCCUPATION NUMBERS:'
+            WRITE(Evalues_unit,'(A)') 'NORMALISED 1RDM EVALUES (NATURAL ORBITAL OCCUPATION NUMBERS):'
             Corr_Entropy = 0.D0
             do i=1,nBasis
                 WRITE(Evalues_unit,'(F30.20)') Evalues(i)
@@ -4011,7 +4017,7 @@ MODULE nElRDMMod
         implicit none
         real(dp) :: Norm_2RDM, Norm_2RDM_Inst
         INTEGER :: i,j,a,b,Ind1_aa,Ind1_ab,Ind2_aa,Ind2_ab,ierr
-        INTEGER :: iSpin, jSpin
+        INTEGER :: iSpin, jSpin, error
         REAL(dp) :: RDMEnergy_Inst, RDMEnergy, Coul, Exch, Parity_Factor 
         REAL(dp) :: Trace_2RDM_New, RDMEnergy1, RDMEnergy2
 
@@ -4127,6 +4133,7 @@ MODULE nElRDMMod
         integer , intent(in) :: i,j,a,iSpin,jSpin
         real(dp) , intent(in) :: Norm_2RDM, Norm_2RDM_Inst
         real(dp) , intent(inout) :: RDMEnergy_Inst, RDMEnergy1
+        real(dp) :: Parity_Factor
         integer :: Ind1_1e_ab, Ind2_1e_ab
         integer :: Ind1_1e_aa, Ind2_1e_aa
 
@@ -4243,40 +4250,46 @@ MODULE nElRDMMod
         if((i.ne.a).and.(j.ne.a)) then
             Ind1_1e_aa = ( ( (max(i,a)-2) * (max(i,a)-1) ) / 2 ) + min(i,a)
             Ind2_1e_aa = ( ( (max(j,a)-2) * (max(j,a)-1) ) / 2 ) + min(j,a)
+
+            if(((i.lt.a).and.(j.lt.a)).or.((i.gt.a).and.(j.gt.a))) then
+                Parity_Factor = 1.0_dp
+            else
+                Parity_Factor = -1.0_dp
+            endif
 !
             RDMEnergy_Inst = RDMEnergy_Inst + ( (aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM_Inst) &
                                                 * REAL(TMAT2D(iSpin,jSpin),8) &
-                                                * (1.0_dp / real(NEl - 1,dp)) )
+                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
             RDMEnergy1 = RDMEnergy1 + ( (All_aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM) &
                                                 * REAL(TMAT2D(iSpin,jSpin),8) &
-                                                * (1.0_dp / real(NEl - 1,dp)) )
+                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
 
             if(tDiagRDM.and.tFinalRDMEnergy) then                                                
                 NatOrbMat(SymLabelListInv(2*i),SymLabelListInv(2*j)) = NatOrbMat(SymLabelListInv(2*i),SymLabelListInv(2*j)) &
                                                             + ( ( All_aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
-                                                                    * (1.0_dp / real(NEl - 1,dp)) ) / 2.0_dp )
+                                                                    * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor ) / 2.0_dp )
                 NatOrbMat(SymLabelListInv((2*i)-1),SymLabelListInv((2*j)-1)) = &
                                                             NatOrbMat(SymLabelListInv((2*i)-1),SymLabelListInv((2*j)-1)) &
                                                             + ( ( All_aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
-                                                                    * (1.0_dp / real(NEl - 1,dp)) ) / 2.0_dp )
+                                                                    * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor ) / 2.0_dp )
             endif
 
             if(Ind1_1e_aa.ne.Ind2_1e_aa) then
                 RDMEnergy_Inst = RDMEnergy_Inst + ( (aaaa_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM_Inst) &
                                                 * REAL(TMAT2D(jSpin,iSpin),8) &
-                                                * (1.0_dp / real(NEl - 1,dp)) )
+                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
                 RDMEnergy1 = RDMEnergy1 + ( (All_aaaa_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM) &
                                                 * REAL(TMAT2D(jSpin,iSpin),8) &
-                                                * (1.0_dp / real(NEl - 1,dp)) )
+                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
 
                 if(tDiagRDM.and.tFinalRDMEnergy) then                                                
                     NatOrbMat(SymLabelListInv(2*j),SymLabelListInv(2*i)) = NatOrbMat(SymLabelListInv(2*j),SymLabelListInv(2*i)) &
                                                                 + ( ( All_aaaa_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
-                                                                        * (1.0_dp / real(NEl - 1,dp)) ) / 2.0_dp )
+                                                                        * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor ) / 2.0_dp )
                     NatOrbMat(SymLabelListInv((2*j)-1),SymLabelListInv((2*i)-1)) = &
                                                                 NatOrbMat(SymLabelListInv((2*j)-1),SymLabelListInv((2*i)-1)) &
                                                                 + ( ( All_aaaa_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
-                                                                        * (1.0_dp / real(NEl - 1,dp)) ) / 2.0_dp )
+                                                                        * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor ) / 2.0_dp )
                 endif
             endif
         endif
@@ -5145,6 +5158,7 @@ MODULE nElRDMMod
 
 
     END SUBROUTINE Test_Energy_Calc
+
 
 END MODULE nElRDMMod
 
