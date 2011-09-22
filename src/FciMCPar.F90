@@ -178,8 +178,6 @@ MODULE FciMCParMod
         TIncrement=.true.   !If TIncrement is true, it means that when it comes out of the loop, it wants to subtract 1 from the Iteration count to get the true number of iterations
         Iter=1
 
-        if(tRDMonFly.and.(.not.tSinglePartPhase)) call check_start_rdm()
-
         SumSigns = 0.D0
         SumSpawns = 0.D0
 
@@ -188,6 +186,8 @@ MODULE FciMCParMod
 !            WRITE(6,*) 'Iter',Iter
 
             if(iProcIndex.eq.root) s_start=etime(tstart)
+
+            if(tRDMonFly.and.(.not.tSinglePartPhase)) call check_start_rdm()
 
             if (tCCMC) then
                 CALL PerformCCMCCycPar()
@@ -345,9 +345,9 @@ MODULE FciMCParMod
             IF(tHistHamil.and.(mod(Iter,iWriteHamilEvery).eq.0)) THEN
                 CALL WriteHamilHistogram()
             ENDIF
-            IF(tRDMonFly.and.tCalc_RDMEnergy.and.(.not.tSinglePartPhase)) THEN
-                IF( ((Iter - VaryShiftIter).ge.IterRDMonFly) .and. &
-                    (mod((Iter - VaryShiftIter)-IterRDMonFly,RDMEnergyIter).eq.0) ) & 
+            IF(tRDMonFly.and.(.not.tSinglePartPhase)) THEN
+                if( tCalc_RDMEnergy .and. ((Iter - VaryShiftIter).gt.IterRDMonFly) &
+                    .and. (mod((Iter - IterRDMStart)+1,RDMEnergyIter).eq.0) ) &
                         CALL Calc_Energy_from_RDM()  
             ENDIF
             if(tChangeVarsRDM) then
@@ -362,8 +362,6 @@ MODULE FciMCParMod
             endif
 
             Iter=Iter+1
-
-            if(tRDMonFly) call check_start_rdm()
 
 !End of MC cycle
         enddo
@@ -1350,9 +1348,9 @@ MODULE FciMCParMod
     subroutine check_start_rdm()
         implicit none
 
-        IF((.not.tSinglePartPhase).and.((Iter - VaryShiftIter).eq.IterRDMonFly)) THEN
-            !We have reached the iteration where we want to start filling the RDM.
+        IF((.not.tSinglePartPhase).and.((Iter - VaryShiftIter).eq.(IterRDMonFly+1))) THEN
             IterRDMStart = Iter
+            !We have reached the iteration where we want to start filling the RDM.
             if(tExplicitAllRDM) then
                 tFillingExplicRDMonFly = .true.
                 if(tHistSpawn) NHistEquilSteps = Iter
@@ -1376,8 +1374,12 @@ MODULE FciMCParMod
                     !This is all done in the add_rdm_hfconnections routine.
                 endif
             endif
-            WRITE(6,'(A28,I1,A36)') ' Beginning to calculate the ',RDMExcitLevel,' electron density matrix on the fly.'
-            WRITE(6,'(A,I10)') ' Filling the RDM(s) from iteration',Iter
+            if(RDMExcitLevel.eq.1) then
+                WRITE(6,'(A)') 'Calculating the 1 electron density matrix on the fly.'
+            else
+                WRITE(6,'(A)') 'Calculating the 2 electron density matrix on the fly.'
+            endif
+            WRITE(6,'(A,I10)') 'Beginning to fill the RDMs during iteration',Iter
         ENDIF
 
     end subroutine check_start_rdm
@@ -6161,7 +6163,6 @@ MODULE FciMCParMod
         !start filling as soon as possible.
         if(tRDMonFly) then
             if(.not.tSinglePartPhase) VaryShiftIter = 0
-            if(IterRDMonFly.eq.0) IterRDMonFly = 1 
         endif
 
     end subroutine InitFCIMCCalcPar

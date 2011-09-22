@@ -496,7 +496,7 @@ MODULE nElRDMMod
 
 ! Continue calculating the RDMs from the first iteration when the POPSFILES (and RDMs) are read in.
 ! This overwrites the iteration number put in the input.
-        IterRDMonFly = 1
+        IterRDMonFly = 0
 
     end subroutine Read_In_RDMs
 
@@ -703,7 +703,7 @@ MODULE nElRDMMod
         SpawnedParts=>SpawnVec
         SpawnedParts2=>SpawnVec2
 
-        WRITE(6,'(A54,F10.4,A4,F10.4,A13)') ' Memory requirement for spawned arrays increased from ',&
+        WRITE(6,'(A54,F10.4,A4,F10.4,A13)') 'Memory requirement for spawned arrays increased from ',&
                                         REAL(((NIfTot+1)*MaxSpawned*2*size_n_int),dp)/1048576.D0,' to ',&
                                         REAL(((NIfTot+NIfDBO+3)*MaxSpawned*2*size_n_int),dp)/1048576.D0, ' Mb/Processor'
 
@@ -4658,7 +4658,7 @@ MODULE nElRDMMod
         real(dp) , intent(in) :: Norm_2RDM
         logical , intent(in) :: tNormalise
         real(dp) :: Tot_Spin_Projection, SpinPlus, SpinMinus
-        real(dp) :: ParityFactor 
+        real(dp) :: ParityFactor,Divide_Factor 
         integer :: i, j, a, b, Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab
         integer :: aaaa_RDM_unit, abab_RDM_unit, abba_RDM_unit
 
@@ -4690,6 +4690,12 @@ MODULE nElRDMMod
                 Ind1_aa = ( ( (j-2) * (j-1) ) / 2 ) + i
                 Ind1_ab = ( ( (j-1) * j ) / 2 ) + i
 
+                if(i.eq.j) then
+                    Divide_Factor = 1.0_dp
+                else
+                    Divide_Factor = 2.0_dp
+                endif
+
 !                    call sum_in_spin_proj(i,j,Ind1,Norm_2RDM,Tot_Spin_Projection)
 
                 do a = 1, SpatOrbs
@@ -4698,6 +4704,12 @@ MODULE nElRDMMod
 
                         Ind2_aa = ( ( (b-2) * (b-1) ) / 2 ) + a
                         Ind2_ab = ( ( (b-1) * b ) / 2 ) + a
+
+                        if(a.eq.b) then
+                            Divide_Factor = 1.0_dp
+                        else
+                            Divide_Factor = 2.0_dp
+                        endif
                         
 !                        if((Ind1_aa.le.Ind2_aa).and.(i.ne.j).and.(a.ne.b)) then
                         if((i.ne.j).and.(a.ne.b)) then
@@ -4712,7 +4724,7 @@ MODULE nElRDMMod
                                 ! find the hermiticity error in the final matrix (after all runs).
                                 if(tNormalise.and.(Ind1_aa.le.Ind2_aa)) then
                                     write(aaaa_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
-                                            All_aaaa_RDM(Ind1_aa,Ind2_aa) * Norm_2RDM 
+                                            ( All_aaaa_RDM(Ind1_aa,Ind2_aa) * Norm_2RDM ) / Divide_Factor
                                 elseif(.not.tNormalise) then
                                     write(aaaa_RDM_unit) i,j,a,b, &
                                             All_aaaa_RDM(Ind1_aa,Ind2_aa) 
@@ -4723,7 +4735,7 @@ MODULE nElRDMMod
                         if( All_abab_RDM(Ind1_ab,Ind2_ab).ne.0.0_dp) then
                             if(tNormalise.and.(Ind1_ab.le.Ind2_ab)) then
                                 write(abab_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
-                                    All_abab_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM 
+                                    ( All_abab_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM ) / Divide_Factor
                             elseif(.not.tNormalise) then
                                 write(abab_RDM_unit) i,j,a,b, &
                                     All_abab_RDM(Ind1_ab,Ind2_ab) 
@@ -4733,7 +4745,7 @@ MODULE nElRDMMod
                         if( All_abba_RDM(Ind1_ab,Ind2_ab).ne.0.0_dp) then
                             if(tNormalise.and.(Ind1_ab.le.Ind2_ab)) then
                                 write(abba_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
-                                    All_abba_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM 
+                                    ( All_abba_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM ) / Divide_Factor
                             elseif(.not.tNormalise) then
                                 write(abba_RDM_unit) i,j,a,b, &
                                     All_abba_RDM(Ind1_ab,Ind2_ab) 
