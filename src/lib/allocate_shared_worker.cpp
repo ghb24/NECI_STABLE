@@ -168,7 +168,7 @@ void allocate_shared_windows (const char * name, void ** ptr,
 	}
 	
 	// Store the handle for later cleanup.
-	g_shared_mem_map[*ptr] = map_det_t(shared_name, hMapFile);
+	g_shared_mem_map[*ptr] = map_det_t(name, hMapFile);
 	mpibarrier_c (&ierr);
 }
 
@@ -349,7 +349,7 @@ extern "C" void cleanup_shared_alloc ()
 		size_t size = iter->second.size;
 		void * ptr = iter->first;
 		string name = iter->second.name;
-		printf ("Non-deallocatedd shared memory found: %s, %d bytes\n", 
+		printf ("Non-deallocated shared memory found: %s, %d bytes\n", 
 		        name.c_str(), int(size));
 		UnmapViewOfFile (ptr);
 		CloseHandle (itr->second.hMap);
