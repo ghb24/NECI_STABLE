@@ -2688,49 +2688,68 @@ MODULE nElRDMMod
         USE RotateOrbsMod , only : FourIndInts, FourIndIntsTag
         USE RotateOrbsData , only : NoOrbs
         implicit none
-        integer :: i, ierr, Evalues_unit
-        REAL(dp) :: SumDiag, Corr_Entropy
+        integer :: i, j, ierr, Evalues_unit, NatOrbs_unit
+        REAL(dp) :: SumDiag, Corr_Entropy, Norm_Evalues
         CHARACTER(len=*), PARAMETER :: this_routine='find_nat_orb_occ_numbers'
         
         IF(iProcIndex.eq.0) THEN
             
             CALL DiagRDM()
 
-            tRotateVirtOnly=.true.
-            tRotateOccOnly=.false.
-            tSeparateOccVirt=.false.
-
-            CALL OrderRDM()
-
             IF(tTurnStoreSpinOff) tStoreSpinOrbs=.false.
 
-            ! Normalise evalues
-            SumDiag=0.D0
-            do i=1,nBasis
-                SumDiag=SumDiag+Evalues(i)
-            enddo
-            do i=1,nBasis
-                Evalues(i)=Evalues(i)/(SumDiag/REAL(NEl))
-            enddo
+            if(tNoRODump) then
 
-            ! Write out normalised evalues to file
-            Evalues_unit = get_free_unit()
-            OPEN(Evalues_unit,file='NO_OCC_NUMBERS',status='unknown')
+                ! Normalise evalues - these should sum to the number of electrons.
+                SumDiag=0.D0
+                do i=1,nBasis
+                    SumDiag=SumDiag+Evalues(i)
+                enddo
+                Norm_Evalues = SumDiag/REAL(NEl)
 
-            WRITE(Evalues_unit,'(A)') 'NORMALISED 1RDM EVALUES (NATURAL ORBITAL OCCUPATION NUMBERS):'
-            Corr_Entropy = 0.D0
-            do i=1,nBasis
-                WRITE(Evalues_unit,'(F30.20)') Evalues(i)
-                if(Evalues(i).gt.0.D0) &
-                    Corr_Entropy = Corr_Entropy - ( abs(Evalues(i)) &
-                                                    * LOG(abs(Evalues(i))) )
-            enddo
-            close(Evalues_unit)
-            WRITE(6,*) ''
-            WRITE(6,'(A20,F30.20)') ' CORRELATION ENTROPY', Corr_Entropy
-            WRITE(6,'(A33,F30.20)') ' CORRELATION ENTROPY PER ELECTRON', Corr_Entropy / real(NEl,dp) 
+                ! Write out normalised evalues to file
+                Evalues_unit = get_free_unit()
+                OPEN(Evalues_unit,file='NO_OCC_NUMBERS',status='unknown')
 
-            IF(.not.tNoRODump) THEN
+                WRITE(Evalues_unit,'(A)') '# NORMALISED 1RDM EVALUES (NATURAL ORBITAL OCCUPATION NUMBERS):'
+                Corr_Entropy = 0.D0
+                do i=1,nBasis
+                    WRITE(Evalues_unit,'(I6,G25.17)') i,Evalues(i)/Norm_Evalues
+                    if(Evalues(i).gt.0.D0) &
+                        Corr_Entropy = Corr_Entropy - ( abs(Evalues(i)/Norm_Evalues) &
+                                                        * LOG(abs(Evalues(i)/Norm_Evalues)) )
+                enddo
+                close(Evalues_unit)
+                WRITE(6,*) ''
+                WRITE(6,'(A20,F30.20)') ' CORRELATION ENTROPY', Corr_Entropy
+                WRITE(6,'(A33,F30.20)') ' CORRELATION ENTROPY PER ELECTRON', Corr_Entropy / real(NEl,dp) 
+
+                ! Write out the evectors to file.
+                ! This is the matrix that transforms the molecular orbitals into the natural orbitals.
+                ! Evalue(i) corresponds to Evector NatOrbsMat(1:nBasis,i)
+                ! We just want the Evalues in the same order as above, but the 1:nBasis part (corresponding 
+                ! to the molecular orbitals), needs to refer to the actual orbital labels.
+                ! Want these orbitals to preferably be in order, run through the orbital, need the position 
+                ! to find the corresponding NatOrbs element, use SymLabelListInv
+                NatOrbs_unit = get_free_unit()
+                OPEN(NatOrbs_unit,file='NO_TRANSFORM',status='unknown')
+                write(NatOrbs_unit,'(2A6,A20)') '#   MO','NO','Transform Coeff'
+                do i = 1, nBasis
+                    do j = 1, nBasis
+                        ! Here i corresponds to the natural orbital, and j to the molecular orbital.
+                        if(NatOrbMat(SymLabelListInv(j),i).ne.0.0_dp) &
+                            write(NatOrbs_unit,'(2I6,G25.17)') j,i,NatOrbMat(SymLabelListInv(j),i)
+                    enddo
+                enddo
+                close(NatOrbs_unit)
+
+            else
+
+                tRotateVirtOnly=.true.
+                tRotateOccOnly=.false.
+                tSeparateOccVirt=.false.
+
+                CALL OrderRDM()
 
                 ALLOCATE(CoeffT1(NoOrbs,NoOrbs),stat=ierr)
                 CALL LogMemAlloc(this_routine,NoOrbs*NoOrbs,8,this_routine,&
@@ -4690,12 +4709,7 @@ MODULE nElRDMMod
                 Ind1_aa = ( ( (j-2) * (j-1) ) / 2 ) + i
                 Ind1_ab = ( ( (j-1) * j ) / 2 ) + i
 
-                if(i.eq.j) then
-                    Divide_Factor = 1.0_dp
-                else
-                    Divide_Factor = 2.0_dp
-                endif
-
+                ! TODO : Fix this.
 !                    call sum_in_spin_proj(i,j,Ind1,Norm_2RDM,Tot_Spin_Projection)
 
                 do a = 1, SpatOrbs
@@ -4705,13 +4719,12 @@ MODULE nElRDMMod
                         Ind2_aa = ( ( (b-2) * (b-1) ) / 2 ) + a
                         Ind2_ab = ( ( (b-1) * b ) / 2 ) + a
 
-                        if(a.eq.b) then
+                        if((i.eq.j).or.(a.eq.b)) then
                             Divide_Factor = 1.0_dp
                         else
                             Divide_Factor = 2.0_dp
                         endif
                         
-!                        if((Ind1_aa.le.Ind2_aa).and.(i.ne.j).and.(a.ne.b)) then
                         if((i.ne.j).and.(a.ne.b)) then
 
                             ! It will cause problems when reading in if there is absolutely 
