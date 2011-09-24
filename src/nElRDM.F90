@@ -66,7 +66,7 @@ MODULE nElRDMMod
         REAL(dp) , ALLOCATABLE :: aaaa_RDM(:,:), abab_RDM(:,:), abba_RDM(:,:)
         REAL(dp) , ALLOCATABLE :: All_aaaa_RDM(:,:),All_abab_RDM(:,:), All_abba_RDM(:,:)
         REAL(dp) , ALLOCATABLE :: UMATTemp(:,:)
-        REAL(dp) :: OneEl_Gap,TwoEl_Gap, Normalisation,Trace_2RDM_Inst, Trace_2RDM, AllTrace_2RDM, Trace_1RDM, norm
+        REAL(dp) :: OneEl_Gap,TwoEl_Gap, Normalisation,Trace_2RDM_Inst, Trace_2RDM, Trace_1RDM, norm
         LOGICAL :: tFinalRDMEnergy, tCalc_RDMEnergy
         type(timer), save :: nElRDM_Time, FinaliseRDM_time, RDMEnergy_time
 
@@ -2393,10 +2393,6 @@ MODULE nElRDMMod
                                               + (realSignDi * realSignDi)
 
                     endif
-
-                    Trace_2RDM = Trace_2RDM + (realSignDi * realSignDi)
-                    Trace_2RDM_Inst = Trace_2RDM_Inst + (realSignDi * realSignDi)
-
                 enddo
             enddo
         endif
@@ -4117,7 +4113,7 @@ MODULE nElRDMMod
             WRITE(Energies_unit, "(I31,2F30.15)") Iter+PreviousCycles, RDMEnergy_Inst, RDMEnergy
 
             if(tFinalRDMEnergy) then
-                write(6,*) 'Trace of 2-el-RDM before normalisation : ',AllTrace_2RDM
+                write(6,*) 'Trace of 2-el-RDM before normalisation : ',Trace_2RDM
                 write(6,*) 'Trace of 2-el-RDM after normalisation : ',Trace_2RDM_New
                 write(6,*) ''
                 write(6,*) 'Energy contribution from the 1-RDM: ',RDMEnergy1
@@ -4380,9 +4376,6 @@ MODULE nElRDMMod
             CALL MPIReduce(AccumRDMNorm_Inst,MPI_SUM,AllAccumRDMNorm_Inst)
         endif
 
-        call MPISumAll_inplace(Trace_2RDM_Inst)
-        call MPISumAll(Trace_2RDM,AllTrace_2RDM)
-
         if(iProcIndex.eq.0) then
 
             ! If we're not using HPHF - average the matrix elements that by spin we know to be equal.
@@ -4393,6 +4386,8 @@ MODULE nElRDMMod
 !            else
 !                call sum_2e_norms(Trace_2RDM_Inst, Trace_2RDM)
 !            endif
+
+            call sum_2e_norms()
 
             call calc_2e_norms(AllAccumRDMNorm_Inst, AllAccumRDMNorm, Norm_2RDM_Inst, Norm_2RDM)
 
@@ -4453,7 +4448,7 @@ MODULE nElRDMMod
 
     end subroutine sum_1e_norms        
 
-    subroutine sum_2e_norms(Trace_2RDM_Inst, Trace_2RDM)
+    subroutine sum_2e_norms()
 ! We want to 'normalise' the reduced density matrices.
 ! These are not even close to being normalised at the moment, because of the way they are 
 ! calculated on the fly.
@@ -4467,7 +4462,6 @@ MODULE nElRDMMod
 
 ! This routine also initiates the stuff needed to write out the density matrices to files.
         implicit none
-        real(dp) , intent(out) :: Trace_2RDM_Inst, Trace_2RDM
         integer :: i
 
         ! Find the current, unnormalised trace of each matrix.
@@ -4482,9 +4476,7 @@ MODULE nElRDMMod
                 Trace_2RDM = Trace_2RDM + All_aaaa_RDM(i,i)
             endif
             Trace_2RDM_Inst = Trace_2RDM_Inst + abab_RDM(i,i)
-            Trace_2RDM_Inst = Trace_2RDM_Inst + abba_RDM(i,i)
             Trace_2RDM = Trace_2RDM + All_abab_RDM(i,i)
-            Trace_2RDM = Trace_2RDM + All_abba_RDM(i,i)
         enddo
 
         if(tFinalRDMEnergy) then
@@ -4540,7 +4532,7 @@ MODULE nElRDMMod
             ! Sum of diagonal elements of 2 electron RDM must equal number of 
             ! pairs of electrons, = NEl ( NEl - 1 ) / 2
             Norm_2RDM_Inst = ( (0.50 * (REAL(NEl) * (REAL(NEl) - 1.D0))) / Trace_2RDM_Inst )
-            Norm_2RDM = ( (0.50 * (REAL(NEl) * (REAL(NEl) - 1.D0))) / AllTrace_2RDM )
+            Norm_2RDM = ( (0.50 * (REAL(NEl) * (REAL(NEl) - 1.D0))) / Trace_2RDM )
         ENDIF
 
 !        if(tFinalRDMEnergy) then
@@ -5265,7 +5257,7 @@ END MODULE nElRDMMod
 ! add in the contribution to the 1 and 2-electron RDMs.
         USE SystemData , only : NEl
         USE constants , only : dp, lenof_sign
-        USE nElRDMMod , only : OneElRDM, aaaa_RDM, abab_RDM, Trace_2RDM, Trace_2RDM_Inst
+        USE nElRDMMod , only : OneElRDM, aaaa_RDM, abab_RDM
         USE Logging , only : RDMExcitLevel
         USE RotateOrbsData , only : SymLabelListInv
         USE UMatCache , only : GTID
@@ -5312,10 +5304,6 @@ END MODULE nElRDMMod
                                           + (AvSignDi * AvSignDi * SignFac)
 
                 endif
-                
-                Trace_2RDM = Trace_2RDM + (AvSignDi * AvSignDi * SignFac)
-                Trace_2RDM_Inst = Trace_2RDM_Inst + (AvSignDi * AvSignDi * SignFac)
-
             enddo
 
         ENDIF
