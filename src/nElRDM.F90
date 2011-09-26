@@ -4708,11 +4708,11 @@ MODULE nElRDMMod
             write(6,*) 'Writing out the *unnormalised* 2 electron density matrix to file for reading in'
             call flush(6)
             aaaa_RDM_unit = get_free_unit()
-            OPEN(aaaa_RDM_unit,file='POPS_TwoRDM_aaaa',status='unknown',form='unformatted')
+            OPEN(aaaa_RDM_unit,file='TwoRDM_POPS_aaaa',status='unknown',form='unformatted')
             abab_RDM_unit = get_free_unit()
-            OPEN(abab_RDM_unit,file='POPS_TwoRDM_abab',status='unknown',form='unformatted')
+            OPEN(abab_RDM_unit,file='TwoRDM_POPS_abab',status='unknown',form='unformatted')
             abba_RDM_unit = get_free_unit()
-            OPEN(abba_RDM_unit,file='POPS_TwoRDM_abba',status='unknown',form='unformatted')
+            OPEN(abba_RDM_unit,file='TwoRDM_POPS_abba',status='unknown',form='unformatted')
         endif
         
         Tot_Spin_Projection = 0.D0
