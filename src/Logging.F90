@@ -30,10 +30,10 @@ MODULE Logging
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump,tRDMonFly,tDiagRDM,tDo_Not_Calc_RDMEnergy
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
     LOGICAL tTruncDumpbyVal, tChangeVarsRDM, tNoRODump, tSpawnGhostChild, tno_RDMs_to_read, tReadRDMs
-    LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit,tPrintDoubsUEG
+    LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit,tPrintDoubsUEG, tWriteMultRDMs
     LOGICAL tHF_S_D_Ref, tHF_S_D, tHF_Ref_Explicit, tExplicitAllRDM, twrite_normalised_RDMs, twrite_RDMs_to_read 
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps,IterShiftBlock
-    INTEGER IterRDMonFly, RDMExcitLevel, RDMEnergyIter
+    INTEGER IterRDMonFly, RDMExcitLevel, RDMEnergyIter, IterWriteRDMs
     real(dp) GhostThresh, GhostFac
     INTEGER CCMCDebug  !CCMC Debugging Level 0-6.  Default 0
     INTEGER FCIMCDebug !FciMC Debugging Level 0-6.  Default 0
@@ -164,6 +164,8 @@ MODULE Logging
       twrite_RDMs_to_read = .false.
       tno_RDMs_to_read = .false.
       tReadRDMs = .false.
+      IterWriteRDMs = 10000
+      tWriteMultRDMs = .false.
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -563,6 +565,11 @@ MODULE Logging
         case("READRDMS")
 ! Read in the RDMs from a previous calculation, and continue accumulating the RDMs from the very beginning of this restart.            
             tReadRDMs = .true.
+
+        case("WRITERDMSEVERY")
+! Write out the normalised, hermitian RDMs every IterWriteRDMs iterations.  
+            tWriteMultRDMs = .true.
+            call readi(IterWriteRDMs)
 
         case("AUTOCORR")
 !This is a Parallel FCIMC option - it will calculate the largest weight MP1 determinants and histogramm them

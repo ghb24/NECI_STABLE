@@ -4348,7 +4348,8 @@ MODULE nElRDMMod
 
 
     subroutine Finalise_2e_RDM(Norm_2RDM_Inst, Norm_2RDM) 
-        use Logging , only : twrite_RDMs_to_read, twrite_normalised_RDMs, RDMEnergyIter
+        use Logging , only : twrite_RDMs_to_read, twrite_normalised_RDMs, &
+                                RDMEnergyIter, IterWriteRDMs, tWriteMultRDMs
         use FciMCData , only : IterRDMStart
         implicit none
         real(dp) , intent(out) :: Norm_2RDM_Inst, Norm_2RDM
@@ -4401,14 +4402,15 @@ MODULE nElRDMMod
 
             call calc_2e_norms(AllAccumRDMNorm_Inst, AllAccumRDMNorm, Norm_2RDM_Inst, Norm_2RDM)
 
-            if(tFinalRDMEnergy) then
+            if( tFinalRDMEnergy .or. &
+                ( tWriteMultRDMs .and. (mod((Iter - IterRDMStart)+1,IterWriteRDMs).eq.0) ) ) then
 
-                if(twrite_RDMs_to_read) call Write_out_2RDM(Norm_2RDM,.false.)
-
-                if(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
-                    call make_2e_rdm_hermitian(Norm_2RDM, Max_Error_Hermiticity, Sum_Error_Hermiticity)
+                if(tFinalRDMEnergy) then
+                    if(twrite_RDMs_to_read) call Write_out_2RDM(Norm_2RDM,.false.)
 
                     if(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+                        call make_2e_rdm_hermitian(Norm_2RDM, Max_Error_Hermiticity, Sum_Error_Hermiticity)
+
                         write(6,'(A29,F30.20)') ' MAX ABS ERROR IN HERMITICITY', Max_Error_Hermiticity
                         write(6,'(A29,F30.20)') ' SUM ABS ERROR IN HERMITICITY', Sum_Error_Hermiticity
                         write(6,*) ''
@@ -4675,6 +4677,8 @@ MODULE nElRDMMod
 
 
     subroutine Write_out_2RDM(Norm_2RDM,tNormalise)
+        use util_mod , only : get_unique_filename
+        use Logging , only : tWriteMultRDMs
         implicit none
         real(dp) , intent(in) :: Norm_2RDM
         logical , intent(in) :: tNormalise
@@ -4682,25 +4686,33 @@ MODULE nElRDMMod
         real(dp) :: ParityFactor,Divide_Factor 
         integer :: i, j, a, b, Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab
         integer :: aaaa_RDM_unit, abab_RDM_unit, abba_RDM_unit
+        character(255) :: TwoRDM_aaaa_name, TwoRDM_abab_name, TwoRDM_abba_name
 
         if(tNormalise) then
             write(6,*) 'Writing out the *normalised* 2 electron density matrix to file'
             call flush(6)
+            ! This takes the TwoRDM_aaaa, and if tWriteMultPops is true (and given that we've put 
+            ! .true. in the 3rd position, it'll find the next unused TwoRDM_aaaa.X file name.
+            call get_unique_filename('TwoRDM_aaaa',tWriteMultRDMs,.true.,1,TwoRDM_aaaa_name)
             aaaa_RDM_unit = get_free_unit()
-            OPEN(aaaa_RDM_unit,file='TwoRDM_aaaa',status='unknown')
+            OPEN(aaaa_RDM_unit,file=TwoRDM_aaaa_name,status='unknown')
+
+            call get_unique_filename('TwoRDM_abab',tWriteMultRDMs,.true.,1,TwoRDM_abab_name)
             abab_RDM_unit = get_free_unit()
-            OPEN(abab_RDM_unit,file='TwoRDM_abab',status='unknown')
+            OPEN(abab_RDM_unit,file=TwoRDM_abab_name,status='unknown')
+
+            call get_unique_filename('TwoRDM_abba',tWriteMultRDMs,.true.,1,TwoRDM_abba_name)
             abba_RDM_unit = get_free_unit()
-            OPEN(abba_RDM_unit,file='TwoRDM_abba',status='unknown')
+            OPEN(abba_RDM_unit,file=TwoRDM_abba_name,status='unknown')
         else
             write(6,*) 'Writing out the *unnormalised* 2 electron density matrix to file for reading in'
             call flush(6)
             aaaa_RDM_unit = get_free_unit()
-            OPEN(aaaa_RDM_unit,file='TwoRDM_aaaa_TOREAD',status='unknown',form='unformatted')
+            OPEN(aaaa_RDM_unit,file='POPS_TwoRDM_aaaa',status='unknown',form='unformatted')
             abab_RDM_unit = get_free_unit()
-            OPEN(abab_RDM_unit,file='TwoRDM_abab_TOREAD',status='unknown',form='unformatted')
+            OPEN(abab_RDM_unit,file='POPS_TwoRDM_abab',status='unknown',form='unformatted')
             abba_RDM_unit = get_free_unit()
-            OPEN(abba_RDM_unit,file='TwoRDM_abba_TOREAD',status='unknown',form='unformatted')
+            OPEN(abba_RDM_unit,file='POPS_TwoRDM_abba',status='unknown',form='unformatted')
         endif
         
         Tot_Spin_Projection = 0.D0
@@ -4738,8 +4750,14 @@ MODULE nElRDMMod
                                 ! Otherwise we print out Ind1, Ind2 and Ind2, Ind1 so we can 
                                 ! find the hermiticity error in the final matrix (after all runs).
                                 if(tNormalise.and.(Ind1_aa.le.Ind2_aa)) then
-                                    write(aaaa_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
-                                            ( All_aaaa_RDM(Ind1_aa,Ind2_aa) * Norm_2RDM ) / Divide_Factor
+                                    if(tFinalRDMEnergy) then
+                                        write(aaaa_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
+                                                ( All_aaaa_RDM(Ind1_aa,Ind2_aa) * Norm_2RDM ) / Divide_Factor
+                                    else
+                                        write(aaaa_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
+                                            ( ((All_aaaa_RDM(Ind1_aa,Ind2_aa) + All_aaaa_RDM(Ind2_aa,Ind1_aa))/2.0_dp) &
+                                                                * Norm_2RDM ) / Divide_Factor
+                                    endif
                                 elseif(.not.tNormalise) then
                                     write(aaaa_RDM_unit) i,j,a,b, &
                                             All_aaaa_RDM(Ind1_aa,Ind2_aa) 
@@ -4749,8 +4767,14 @@ MODULE nElRDMMod
 
                         if( All_abab_RDM(Ind1_ab,Ind2_ab).ne.0.0_dp) then
                             if(tNormalise.and.(Ind1_ab.le.Ind2_ab)) then
-                                write(abab_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
-                                    ( All_abab_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM ) / Divide_Factor
+                                if(tFinalRDMEnergy) then
+                                    write(abab_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
+                                        ( All_abab_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM ) / Divide_Factor
+                                else
+                                    write(abab_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
+                                        ( ((All_abab_RDM(Ind1_ab,Ind2_ab) + All_abab_RDM(Ind2_ab,Ind1_ab))/2.0_dp) &
+                                                                * Norm_2RDM ) / Divide_Factor
+                                endif
                             elseif(.not.tNormalise) then
                                 write(abab_RDM_unit) i,j,a,b, &
                                     All_abab_RDM(Ind1_ab,Ind2_ab) 
@@ -4759,8 +4783,14 @@ MODULE nElRDMMod
 
                         if( All_abba_RDM(Ind1_ab,Ind2_ab).ne.0.0_dp) then
                             if(tNormalise.and.(Ind1_ab.le.Ind2_ab)) then
-                                write(abba_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
-                                    ( All_abba_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM ) / Divide_Factor
+                                if(tFinalRDMEnergy) then
+                                    write(abba_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
+                                        ( All_abba_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM ) / Divide_Factor
+                                else
+                                    write(abba_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
+                                        ( ((All_abba_RDM(Ind1_ab,Ind2_ab) + All_abba_RDM(Ind2_ab,Ind1_ab))/2.0_dp) &
+                                                                * Norm_2RDM ) / Divide_Factor
+                                endif
                             elseif(.not.tNormalise) then
                                 write(abba_RDM_unit) i,j,a,b, &
                                     All_abba_RDM(Ind1_ab,Ind2_ab) 
