@@ -2363,7 +2363,7 @@ MODULE nElRDMMod
             do i=1,NEl
                 OneElRDM(SymLabelListInv(nI(i)),SymLabelListInv(nI(i))) = &
                             OneElRDM(SymLabelListInv(nI(i)),SymLabelListInv(nI(i))) &
-                              + (realSignDi * realSignDi) 
+                                          + ( realSignDi * realSignDi ) 
             enddo
         else
             ! Only calculating 2-RDM.
@@ -2382,7 +2382,7 @@ MODULE nElRDMMod
                         ! Ind doesn't include diagonal terms (when iSpat = jSpat).
                         Ind=( ( (jSpat-2) * (jSpat-1) ) / 2 ) + iSpat
                         aaaa_RDM( Ind , Ind ) = aaaa_RDM( Ind , Ind ) &
-                                              + (realSignDi * realSignDi)
+                                          + ( realSignDi * realSignDi ) 
 
                     ! either alpha beta or beta alpha -> abab array.                                              
                     else
@@ -2390,9 +2390,9 @@ MODULE nElRDMMod
                         ! Ind does include diagonal terms (when iSpat = jSpat)
                         Ind=( ( (jSpat-1) * jSpat ) / 2 ) + iSpat
                         abab_RDM( Ind , Ind ) = abab_RDM( Ind , Ind ) &
-                                              + (realSignDi * realSignDi)
-
+                                          + ( realSignDi * realSignDi ) 
                     endif
+
                 enddo
             enddo
         endif
@@ -2432,11 +2432,11 @@ MODULE nElRDMMod
             
             ! Adding to 1-RDM(i,a), ci.cj effectively.
             OneElRDM( Indik , Indak ) = OneElRDM( Indik , Indak ) + (ParityFactor * &
-                                realSignDi * realSignDj )
+                                                             realSignDi * realSignDj )
 
             if(tFill_CiCj_Symm) then                                
                 OneElRDM( Indak , Indik ) = OneElRDM( Indak , Indik ) + (ParityFactor * &
-                                realSignDi * realSignDj )
+                                                             realSignDi * realSignDj )
 
             endif
         else
@@ -2477,12 +2477,12 @@ MODULE nElRDMMod
                         Indik=( ( (max(iSpat,kSpat)-2) * (max(iSpat,kSpat)-1) ) / 2 ) + min(iSpat,kSpat)
                         Indak=( ( (max(aSpat,kSpat)-2) * (max(aSpat,kSpat)-1) ) / 2 ) + min(aSpat,kSpat)
 
-                        aaaa_RDM( Indik , Indak ) = aaaa_RDM( Indik , Indak ) &
-                                              + (realSignDi * realSignDj * ParityFactor2)
+                        aaaa_RDM( Indik , Indak ) = aaaa_RDM( Indik , Indak ) + ( ParityFactor2 * &
+                                                                             realSignDi * realSignDj )
 
                         if(tFill_CiCj_Symm) then
-                            aaaa_RDM( Indak , Indik ) = aaaa_RDM( Indak , Indik ) &
-                                                  + (realSignDi * realSignDj * ParityFactor2)
+                            aaaa_RDM( Indak , Indik ) = aaaa_RDM( Indak , Indik ) + ( ParityFactor2 * &
+                                                                             realSignDi * realSignDj )
                         endif
 
                     ! either abab or abba array. 
@@ -2506,22 +2506,22 @@ MODULE nElRDMMod
                         if( ((Ex(1,1).lt.nI(k)).and.(Ex(2,1).lt.nI(k))).or. &
                             ((Ex(1,1).gt.nI(k)).and.(Ex(2,1).gt.nI(k))) ) then
 
-                            abab_RDM( Indik , Indak ) = abab_RDM( Indik , Indak ) &
-                                                  + (realSignDi * realSignDj * ParityFactor2)
+                            abab_RDM( Indik , Indak ) = abab_RDM( Indik , Indak ) + ( ParityFactor2 * &
+                                                                             realSignDi * realSignDj )
 
                             if(tFill_CiCj_Symm) then
-                                abab_RDM( Indak , Indik ) = abab_RDM( Indak , Indik ) &
-                                                      + (realSignDi * realSignDj * ParityFactor2)
+                                abab_RDM( Indak , Indik ) = abab_RDM( Indak , Indik ) + ( ParityFactor2 * &
+                                                                             realSignDi * realSignDj )
                             endif
 
                         ! ordered with k's not aligned, i k k j -> abba array
                         else
-                            abba_RDM( Indik , Indak ) = abba_RDM( Indik , Indak ) &
-                                                  + (realSignDi * realSignDj * ParityFactor2)
+                            abba_RDM( Indik , Indak ) = abba_RDM( Indik , Indak ) + ( ParityFactor2 * &
+                                                                             realSignDi * realSignDj )
 
                             if(tFill_CiCj_Symm) then
-                                abba_RDM( Indak , Indik ) = abba_RDM( Indak , Indik ) &
-                                                      + (realSignDi * realSignDj * ParityFactor2)
+                                abba_RDM( Indak , Indik ) = abba_RDM( Indak , Indik ) + ( ParityFactor2 * &
+                                                                             realSignDi * realSignDj )
                             endif
 
                         endif
@@ -2572,12 +2572,12 @@ MODULE nElRDMMod
             Indij=( ( (jSpat-2) * (jSpat-1) ) / 2 ) + iSpat
             Indab=( ( (bSpat-2) * (bSpat-1) ) / 2 ) + aSpat
 
-            aaaa_RDM( Indij , Indab ) = aaaa_RDM( Indij , Indab ) &
-                                  + (realSignDi * realSignDj * ParityFactor)
+            aaaa_RDM( Indij , Indab ) = aaaa_RDM( Indij , Indab ) + ( ParityFactor * &
+                                                             realSignDi * realSignDj )
 
             if(tFill_CiCj_Symm) then
-                aaaa_RDM( Indab , Indij ) = aaaa_RDM( Indab , Indij ) &
-                                      + (realSignDi * realSignDj * ParityFactor)
+                aaaa_RDM( Indab , Indij ) = aaaa_RDM( Indab , Indij ) + ( ParityFactor * &
+                                                             realSignDi * realSignDj )
             endif
 
         ! Either alpha beta or beta alpha -> abab array.
@@ -2592,23 +2592,23 @@ MODULE nElRDMMod
             if( ((mod(Ex(1,1),2).eq.0).and.(mod(Ex(2,1),2).eq.0)) .or. &
                 ((mod(Ex(1,1),2).ne.0).and.(mod(Ex(2,1),2).ne.0)) ) then
 
-                abab_RDM( Indij , Indab ) = abab_RDM( Indij , Indab ) &
-                                      + (realSignDi * realSignDj * ParityFactor)
+                abab_RDM( Indij , Indab ) = abab_RDM( Indij , Indab ) + ( ParityFactor * &
+                                                             realSignDi * realSignDj )
 
                 if(tFill_CiCj_Symm) then
-                    abab_RDM( Indab , Indij ) = abab_RDM( Indab , Indij ) &
-                                          + (realSignDi * realSignDj * ParityFactor)
+                    abab_RDM( Indab , Indij ) = abab_RDM( Indab , Indij ) + ( ParityFactor * &
+                                                             realSignDi * realSignDj )
                 endif
 
             ! i and a are different spin -> abba
             else
 
-                abba_RDM( Indij , Indab ) = abba_RDM( Indij , Indab ) &
-                                  + (realSignDi * realSignDj * ParityFactor)
+                abba_RDM( Indij , Indab ) = abba_RDM( Indij , Indab ) + ( ParityFactor * &
+                                                             realSignDi * realSignDj )
 
                 if(tFill_CiCj_Symm) then
-                    abba_RDM( Indab , Indij ) = abba_RDM( Indab , Indij ) &
-                                          + (realSignDi * realSignDj * ParityFactor)
+                    abba_RDM( Indab , Indij ) = abba_RDM( Indab , Indij ) + ( ParityFactor * &
+                                                             realSignDi * realSignDj )
                 endif
             endif
         endif
@@ -4348,12 +4348,13 @@ MODULE nElRDMMod
 
 
     subroutine Finalise_2e_RDM(Norm_2RDM_Inst, Norm_2RDM) 
-        use Logging , only : twrite_RDMs_to_read, twrite_normalised_RDMs
+        use Logging , only : twrite_RDMs_to_read, twrite_normalised_RDMs, RDMEnergyIter
+        use FciMCData , only : IterRDMStart
         implicit none
         real(dp) , intent(out) :: Norm_2RDM_Inst, Norm_2RDM
         real(dp) :: AllAccumRDMNorm_Inst, AllAccumRDMNorm
         real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity
-        integer :: i,j
+        integer :: RDM_Cycles
 
         ! All the arrays are summed into the one on processor 0.
         CALL MPISum_inplace(aaaa_RDM(:,:))
@@ -4363,10 +4364,19 @@ MODULE nElRDMMod
         ! The TwoElRDM on the root is now the sum of all 'instantaneous' RDMs (summed over 
         ! the energy update cycle).
         ! Whereas AllTwoElRDM is accumulated over the entire run.
+
+        RDM_Cycles =  ( Iter - IterRDMStart ) / RDMEnergyIter
+        
         if(iProcIndex.eq.0) then
-            All_aaaa_RDM(:,:) = All_aaaa_RDM(:,:) + aaaa_RDM(:,:)
-            All_abab_RDM(:,:) = All_abab_RDM(:,:) + abab_RDM(:,:)
-            All_abba_RDM(:,:) = All_abba_RDM(:,:) + abba_RDM(:,:)
+            All_aaaa_RDM(:,:) = ( All_aaaa_RDM(:,:) * &
+                                ( real(RDM_Cycles,dp) / ( real(RDM_Cycles,dp) + 1.0_dp ) ) ) &
+                                + ( aaaa_RDM(:,:) / ( real(RDM_Cycles,dp) + 1.0_dp ) )
+            All_abab_RDM(:,:) = ( All_abab_RDM(:,:) * &
+                                ( real(RDM_Cycles,dp) / ( real(RDM_Cycles,dp) + 1.0_dp ) ) ) &
+                                + ( abab_RDM(:,:) / ( real(RDM_Cycles,dp) + 1.0_dp ) )
+            All_abba_RDM(:,:) = ( All_abba_RDM(:,:) * &
+                                ( real(RDM_Cycles,dp) / ( real(RDM_Cycles,dp) + 1.0_dp ) ) ) &
+                                + ( abba_RDM(:,:) / ( real(RDM_Cycles,dp) + 1.0_dp ) )
         endif
 
         AllAccumRDMNorm = 0.D0
@@ -5274,7 +5284,7 @@ END MODULE nElRDMMod
         IF(RDMExcitLevel.eq.1) THEN
             OneElRDM(SymLabelListInv(j),SymLabelListInv(j)) = &
                         OneElRDM(SymLabelListInv(j),SymLabelListInv(j)) &
-                          + (AvSignDi * AvSignDi * SignFac) 
+                              + ( AvSignDi * AvSignDi * SignFac )
         ELSE
 
 ! There is no need to use the SymLabelList arrays for the 2 el RDM because we are 
@@ -5293,7 +5303,7 @@ END MODULE nElRDMMod
                     ! Ind doesn't include diagonal terms (when iSpat = jSpat).
                     Ind=( ( (jSpat-2) * (jSpat-1) ) / 2 ) + iSpat
                     aaaa_RDM( Ind , Ind ) = aaaa_RDM( Ind , Ind ) &
-                                          + (AvSignDi * AvSignDi * SignFac)
+                                            + ( AvSignDi * AvSignDi * SignFac )
 
                 ! either alpha beta or beta alpha -> abab array.                                              
                 else
@@ -5301,7 +5311,7 @@ END MODULE nElRDMMod
                     ! Ind does include diagonal terms (when iSpat = jSpat)
                     Ind=( ( (jSpat-1) * jSpat ) / 2 ) + iSpat
                     abab_RDM( Ind , Ind ) = abab_RDM( Ind , Ind ) &
-                                          + (AvSignDi * AvSignDi * SignFac)
+                                            + ( AvSignDi * AvSignDi * SignFac )
 
                 endif
             enddo
