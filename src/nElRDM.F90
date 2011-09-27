@@ -47,9 +47,9 @@ MODULE nElRDMMod
         USE FciMCData , only : MaxWalkersPart, MaxSpawned, Spawned_Parents, PreviousCycles,&
                                Spawned_Parents_Index, Spawned_ParentsTag, AccumRDMNorm_Inst,&
                                Spawned_Parents_IndexTag, Iter, AccumRDMNorm, AvNoatHF,&
-                               iLutRef
+                               iLutRef, tSinglePartPhase
         USE Logging , only : RDMExcitLevel, tROFciDUmp, NoDumpTruncs, tExplicitAllRDM, &
-                             tHF_S_D_Ref, tHF_Ref_Explicit, tHF_S_D 
+                             tHF_S_D_Ref, tHF_Ref_Explicit, tHF_S_D, tPrint1RDM
         USE RotateOrbsData , only : CoeffT1, CoeffT1Tag, tTurnStoreSpinOff, NoFrozenVirt
         USE RotateOrbsData , only : SymLabelCounts2,SymLabelList2,SymLabelListInv,NoOrbs, SpatOrbs
         USE util_mod , only : get_free_unit
@@ -216,7 +216,7 @@ MODULE nElRDMMod
                 MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 8 ) 
                 MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 ) * 2 * 8 ) 
 
-                if(tDiagRDM) then
+                if(tDiagRDM.or.tPrint1RDM) then
                     ! Still need to allocate 1-RDM to get nat orb occupation numbers.
                     ! TODO : Spat Orbs.
                     ALLOCATE(NatOrbMat(nBasis,nBasis),stat=ierr)
@@ -336,7 +336,7 @@ MODULE nElRDMMod
         NoDumpTruncs = 1
         NoFrozenVirt = 0
 
-        IF((RDMExcitLevel.eq.1).or.tDiagRDM) THEN
+        IF((RDMExcitLevel.eq.1).or.tDiagRDM.or.tPrint1RDM) THEN
             ! These arrays contain indexing systems to order the 1-RDM orbitals in terms of 
             ! symmetry.
             ! This allows the diagonalisation of the RDMs to be done in symmetry blocks (a lot 
@@ -396,7 +396,16 @@ MODULE nElRDMMod
 
         ! Reads in the RDMs from a previous calculation, sets the accumulating normalisations, 
         ! writes out the starting energy.
-        if(tReadRDMs) call Read_In_RDMs()
+        if(tReadRDMs) then
+            if(tSinglePartPhase) then
+                write(6,'(A)') 'WARNING - Asking to read in the RDMs, but not varying shift from &
+                                & the beginning of the calculation.'
+                write(6,'(A)') 'Ignoring the request to read in the RDMs and starting again.'
+                tReadRDMs = .false.
+            else
+                call Read_In_RDMs()
+            endif
+        endif
 
         ! By default, if we're writing out a popsfile (and doing an RDM calculation), we also 
         ! write out the unnormalised RDMs that can be read in when restarting a calculation.
@@ -2653,6 +2662,9 @@ MODULE nElRDMMod
 
 !            CALL Test_Energy_Calc()
 
+            if(tPrint1RDM) &
+                call Finalise_1e_RDM()
+
         endif
         call MPIBarrier(error)
 
@@ -2678,7 +2690,7 @@ MODULE nElRDMMod
     end subroutine FinaliseRDM
 
     subroutine find_nat_orb_occ_numbers()
-        USE Logging , only : tNoRODump
+        USE Logging , only : tPrintRODump, tNoNOTransform
         USE SystemData , only : tSeparateOccVirt,tRotateVirtOnly,tRotateOccOnly
         USE SystemData , only : ARR, BRR, G1
         USE RotateOrbsMod , only : FourIndInts, FourIndIntsTag
@@ -2694,39 +2706,38 @@ MODULE nElRDMMod
 
             IF(tTurnStoreSpinOff) tStoreSpinOrbs=.false.
 
-            if(tNoRODump) then
+            ! Normalise evalues - these should sum to the number of electrons.
+            SumDiag=0.D0
+            do i=1,nBasis
+                SumDiag=SumDiag+Evalues(i)
+            enddo
+            Norm_Evalues = SumDiag/REAL(NEl)
 
-                ! Normalise evalues - these should sum to the number of electrons.
-                SumDiag=0.D0
-                do i=1,nBasis
-                    SumDiag=SumDiag+Evalues(i)
-                enddo
-                Norm_Evalues = SumDiag/REAL(NEl)
+            ! Write out normalised evalues to file
+            Evalues_unit = get_free_unit()
+            OPEN(Evalues_unit,file='NO_OCC_NUMBERS',status='unknown')
 
-                ! Write out normalised evalues to file
-                Evalues_unit = get_free_unit()
-                OPEN(Evalues_unit,file='NO_OCC_NUMBERS',status='unknown')
+            WRITE(Evalues_unit,'(A)') '# NORMALISED 1RDM EVALUES (NATURAL ORBITAL OCCUPATION NUMBERS):'
+            Corr_Entropy = 0.D0
+            do i=1,nBasis
+                WRITE(Evalues_unit,'(I6,G25.17)') i,Evalues(i)/Norm_Evalues
+                if(Evalues(i).gt.0.D0) &
+                    Corr_Entropy = Corr_Entropy - ( abs(Evalues(i)/Norm_Evalues) &
+                                                    * LOG(abs(Evalues(i)/Norm_Evalues)) )
+            enddo
+            close(Evalues_unit)
+            WRITE(6,*) ''
+            WRITE(6,'(A20,F30.20)') ' CORRELATION ENTROPY', Corr_Entropy
+            WRITE(6,'(A33,F30.20)') ' CORRELATION ENTROPY PER ELECTRON', Corr_Entropy / real(NEl,dp) 
 
-                WRITE(Evalues_unit,'(A)') '# NORMALISED 1RDM EVALUES (NATURAL ORBITAL OCCUPATION NUMBERS):'
-                Corr_Entropy = 0.D0
-                do i=1,nBasis
-                    WRITE(Evalues_unit,'(I6,G25.17)') i,Evalues(i)/Norm_Evalues
-                    if(Evalues(i).gt.0.D0) &
-                        Corr_Entropy = Corr_Entropy - ( abs(Evalues(i)/Norm_Evalues) &
-                                                        * LOG(abs(Evalues(i)/Norm_Evalues)) )
-                enddo
-                close(Evalues_unit)
-                WRITE(6,*) ''
-                WRITE(6,'(A20,F30.20)') ' CORRELATION ENTROPY', Corr_Entropy
-                WRITE(6,'(A33,F30.20)') ' CORRELATION ENTROPY PER ELECTRON', Corr_Entropy / real(NEl,dp) 
-
-                ! Write out the evectors to file.
-                ! This is the matrix that transforms the molecular orbitals into the natural orbitals.
-                ! Evalue(i) corresponds to Evector NatOrbsMat(1:nBasis,i)
-                ! We just want the Evalues in the same order as above, but the 1:nBasis part (corresponding 
-                ! to the molecular orbitals), needs to refer to the actual orbital labels.
-                ! Want these orbitals to preferably be in order, run through the orbital, need the position 
-                ! to find the corresponding NatOrbs element, use SymLabelListInv
+            ! Write out the evectors to file.
+            ! This is the matrix that transforms the molecular orbitals into the natural orbitals.
+            ! Evalue(i) corresponds to Evector NatOrbsMat(1:nBasis,i)
+            ! We just want the Evalues in the same order as above, but the 1:nBasis part (corresponding 
+            ! to the molecular orbitals), needs to refer to the actual orbital labels.
+            ! Want these orbitals to preferably be in order, run through the orbital, need the position 
+            ! to find the corresponding NatOrbs element, use SymLabelListInv
+            if(.not.tNoNOTransform) then
                 NatOrbs_unit = get_free_unit()
                 OPEN(NatOrbs_unit,file='NO_TRANSFORM',status='unknown')
                 write(NatOrbs_unit,'(2A6,A20)') '#   MO','NO','Transform Coeff'
@@ -2738,8 +2749,9 @@ MODULE nElRDMMod
                     enddo
                 enddo
                 close(NatOrbs_unit)
+            endif
 
-            else
+            if(tPrintRODump) then                
 
                 tRotateVirtOnly=.true.
                 tRotateOccOnly=.false.
@@ -3716,7 +3728,7 @@ MODULE nElRDMMod
                                    FourIndInts, FourIndIntsTag, &
                                    SymLabelCounts2, SymLabelCounts2Tag
         USE RotateOrbsMod , only : SymLabelList3, SymLabelList3Tag
-        USE Logging , only : tDiagRDM, tNoRODump
+        USE Logging , only : tDiagRDM, tPrintRODump
         implicit none
         CHARACTER(len=*), PARAMETER :: this_routine='DeallocateRDM'
 
@@ -3781,7 +3793,7 @@ MODULE nElRDMMod
                 DEALLOCATE(NatOrbMat)
                 CALL LogMemDeAlloc(this_routine,NatOrbMatTag)
 
-                IF(tDiagRDM.and.(.not.tNoRODump)) THEN
+                IF(tDiagRDM.and.tPrintRODump) THEN
                     DEALLOCATE(CoeffT1)
                     CALL LogMemDeAlloc(this_routine,CoeffT1Tag)
 
@@ -3817,7 +3829,7 @@ MODULE nElRDMMod
                 DEALLOCATE(All_abba_RDM)
                 CALL LogMemDeAlloc(this_routine,All_abba_RDMTag)
  
-                if(tDiagRDM) then
+                if(tDiagRDM.or.tPrint1RDM) then
                     DEALLOCATE(NatOrbMat)
                     CALL LogMemDeAlloc(this_routine,NatOrbMatTag)
                 endif
@@ -4168,7 +4180,7 @@ MODULE nElRDMMod
                                                 * REAL(TMAT2D(iSpin,jSpin),8) &
                                                 * (1.0_dp / real(NEl - 1,dp)) )
 
-            if(tDiagRDM.and.tFinalRDMEnergy) then                                                
+            if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
                 NatOrbMat(SymLabelListInv(2*i),SymLabelListInv(2*j)) = NatOrbMat(SymLabelListInv(2*i),SymLabelListInv(2*j)) &
                                                             + ( ( All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
                                                                     * (1.0_dp / real(NEl - 1,dp)) ) / 2.0_dp )
@@ -4188,7 +4200,7 @@ MODULE nElRDMMod
                                                     * REAL(TMAT2D(jSpin,iSpin),8) &
                                                     * (1.0_dp / real(NEl - 1,dp)) )
 
-                if(tDiagRDM.and.tFinalRDMEnergy) then                                                
+                if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
                     NatOrbMat(SymLabelListInv(2*j),SymLabelListInv(2*i)) = NatOrbMat(SymLabelListInv(2*j),SymLabelListInv(2*i)) &
                                                                 + ( ( All_abab_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM &
                                                                         * (1.0_dp / real(NEl - 1,dp)) ) / 2.0_dp )
@@ -4210,7 +4222,7 @@ MODULE nElRDMMod
                                             * REAL(TMAT2D(iSpin,jSpin),8) &
                                             * (1.0_dp / real(NEl - 1,dp)) )
 
-                if(tDiagRDM.and.tFinalRDMEnergy) then                                                
+                if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
                     NatOrbMat(SymLabelListInv(2*j),SymLabelListInv(2*i)) = NatOrbMat(SymLabelListInv(2*j),SymLabelListInv(2*i)) &
                                                                 + ( ( All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
                                                                         * (1.0_dp / real(NEl - 1,dp)) ) / 2.0_dp )
@@ -4232,7 +4244,7 @@ MODULE nElRDMMod
                                                 * REAL(TMAT2D(iSpin,jSpin),8) &
                                                 * (1.0_dp / real(NEl - 1,dp)) )
 
-            if(tDiagRDM.and.tFinalRDMEnergy) then                                                
+            if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
                 NatOrbMat(SymLabelListInv(2*i),SymLabelListInv(2*j)) = NatOrbMat(SymLabelListInv(2*i),SymLabelListInv(2*j)) &
                                                             - ( ( All_abba_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
                                                                     * (1.0_dp / real(NEl - 1,dp)) ) / 2.0_dp )
@@ -4250,7 +4262,7 @@ MODULE nElRDMMod
                                                     * REAL(TMAT2D(iSpin,jSpin),8) &
                                                     * (1.0_dp / real(NEl - 1,dp)) )
 
-                if(tDiagRDM.and.tFinalRDMEnergy) then                                                
+                if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
                     NatOrbMat(SymLabelListInv(2*j),SymLabelListInv(2*i)) = NatOrbMat(SymLabelListInv(2*j),SymLabelListInv(2*i)) &
                                                                 - ( ( All_abba_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM &
                                                                         * (1.0_dp / real(NEl - 1,dp)) ) / 2.0_dp )
@@ -4279,7 +4291,7 @@ MODULE nElRDMMod
                                                 * REAL(TMAT2D(iSpin,jSpin),8) &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
 
-            if(tDiagRDM.and.tFinalRDMEnergy) then                                                
+            if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
                 NatOrbMat(SymLabelListInv(2*i),SymLabelListInv(2*j)) = NatOrbMat(SymLabelListInv(2*i),SymLabelListInv(2*j)) &
                                                             + ( ( All_aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
                                                                     * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor ) / 2.0_dp )
@@ -4297,7 +4309,7 @@ MODULE nElRDMMod
                                                 * REAL(TMAT2D(jSpin,iSpin),8) &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
 
-                if(tDiagRDM.and.tFinalRDMEnergy) then                                                
+                if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
                     NatOrbMat(SymLabelListInv(2*j),SymLabelListInv(2*i)) = NatOrbMat(SymLabelListInv(2*j),SymLabelListInv(2*i)) &
                                                                 + ( ( All_aaaa_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
                                                                         * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor ) / 2.0_dp )
@@ -4324,7 +4336,8 @@ MODULE nElRDMMod
         IF(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) &
             CALL MPIReduce(AccumRDMNorm,MPI_SUM,AllAccumRDMNorm)
 
-        CALL MPIReduce(OneElRDM,MPI_SUM,NatOrbMat)
+        if(RDMExcitLevel.eq.1) &            
+            CALL MPIReduce(OneElRDM,MPI_SUM,NatOrbMat)
         
         if(iProcIndex.eq.0) then 
             if(tHPHF) then
@@ -4337,7 +4350,7 @@ MODULE nElRDMMod
             call calc_1e_norms(AllAccumRDMNorm_Inst, AllAccumRDMNorm, Norm_1RDM_Inst, &
                                         Norm_1RDM, Trace_1RDM_Inst, Trace_1RDM)
 
-            if(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref)) &
+            if((RDMExcitLevel.eq.1).and.(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref))) &
                 call make_1e_rdm_hermitian(Norm_1RDM)
 
             call Write_out_1RDM(Norm_1RDM)
@@ -4659,7 +4672,7 @@ MODULE nElRDMMod
         call flush(6)
 
         OneRDM_unit = get_free_unit()
-        OPEN(OneRDM_unit,file='1El_RDM_Matrix',status='unknown')
+        OPEN(OneRDM_unit,file='OneRDM',status='unknown')
 
         do i = 1, nBasis
             do j = i, nBasis

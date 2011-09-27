@@ -15,7 +15,7 @@ MODULE RotateOrbsMod
     use SystemData, only : tMaxHLGap,tHijSqrdMin,OneElWeight,DiagMaxMinFac,OneElMaxMinFac
     USE SystemData, only : tDiagonalizehij,tHFSingDoubExcMax,tSpinOrbs,tReadInCoeff,tUseMP2VarDenMat
     use SystemData, only : tStoreSpinOrbs,tROHF,tFindCINatOrbs,tUseHFOrbs,tUEG
-    USE Logging , only : tROHistogramAll,tROFciDump,tROHistER,tROHistOffDiag,tROHistDoubExc, tNoRODump
+    USE Logging , only : tROHistogramAll,tROFciDump,tROHistER,tROHistOffDiag,tROHistDoubExc, tPrintRODump
     use Logging, only : tROHistSingExc,tROHistOnePartOrbEn,tROHistOneElInts,tROHistVirtCoulomb
     USE Logging , only : tPrintInts,tTruncRODump,NoTruncOrbs,NoDumpTruncs,tTruncDumpbyVal,TruncEvalues,tWriteTransMat
     USE OneEInts , only : TMAT2D
@@ -394,7 +394,7 @@ MODULE RotateOrbsMod
 
             ENDIF
 
-            IF(.not.tNoRODump) THEN
+            IF(tPrintRODump) THEN
                 ALLOCATE(FourIndInts(NoOrbs,NoOrbs,NoOrbs,NoOrbs),stat=ierr)
                 CALL LogMemAlloc('FourIndInts',(NoOrbs**4),8,this_routine,FourIndIntsTag,ierr)
 
@@ -430,7 +430,7 @@ MODULE RotateOrbsMod
             CALL LogMemDeAlloc(this_routine,SymLabelList2Tag)
             DEALLOCATE(SymLabelListInv)
             CALL LogMemDeAlloc(this_routine,SymLabelListInvTag)
-            IF(.not.tNoRODump) THEN
+            IF(tPrintRODump) THEN
                 DEALLOCATE(FourIndInts)
                 CALL LogMemDeAlloc(this_routine,FourIndIntsTag)
             ENDIF
@@ -539,7 +539,7 @@ MODULE RotateOrbsMod
 !   - CoeffT1(NoOrbs,NoRotOrbs) 
 !   - FourIndInts(NoRotOrbs,NoRotOrbs,NoOrbs,NoOrbs)
 !   - Temp4indints(NoRotOrbs,NoOrbs)
-        IF(.not.tNoRODump) THEN
+        IF(tPrintRODump) THEN
             MemAllocRot=MemAllocRot+(NoOrbs*NoRotOrbs*8*2)
             MemAllocRot=MemAllocRot+((NoRotOrbs**2)*(NoOrbs**2)*8)
 

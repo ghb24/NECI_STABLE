@@ -451,12 +451,112 @@ Rotate Orbs Options
     Qchem to get the cube files for the new orbitals.  NOTE: This file is only printed correctly if NECI
     is compiled using PGI when the file is printed. 
 
-Reduced Density Matrices Options
----------------------------------
+Reduced Density Matrix (RDM) Options
+-------------------------------------
 
+**CALCRDMONFLY** [RDMExcitLevel] [RDMIterStart] [RDMEnergyIter]
+    This is the main keyword for calculating the RDMs from an FCIQMC wavefunction.  It requires 3 integers.
+    The first refers to the type of RDMs to calculate.  A value of 1 will calculate only the 1-RDM.  Any other 
+    value will calculate the 2-RDM (which contains the information of the 1-RDM).  The second integer 
+    is the number of iterations after the shift has begun to change that we want to begin filling the RDMs.  
+    Finally, if the 2-RDMs are being calculated, the RDM energy will be automatically be obtained at the 
+    end of the calculation.  The 3rd integer refers to how often (every RDMEnergyIter iterations) we want 
+    to calculate and print the energy during the calculation.  This will be ignored if only calculating the 1-RDM. 
+    Clearly making RDMEnergyIter very large will mean the energy is only calculated with a softexit, or this can 
+    also be achieved by using **CALCRDMENERGY** OFF.
 
+    The RDM energy is one measure of the accuracy of the RDMs.  Also printed by default are the maximum error in the 
+    hermiticity (2-RDM(i,j;a,b) - 2-RDM(a,b;i,j)) and the sum of the absolute errors.  
 
+Types of calculation
 
+    Using the above keyword, a stochastic RDM calculation on the entire space will be performed, but with 
+    the single and double connections to the HF included explicitly.  The type of calculation can be 
+    changed by including any of the following keywords.
 
+**EXPLICITALLRDM**
+    This performs a completely explicit calculation of the RDMs.  It considers all single and double excitations 
+    of each determinant and therefore adds in every occupied connection at each iteration.  It is very 
+    expensive and can only be done for very small systems.  Cannot use **HPHF** with this type of calculation.
 
+    If **HISTSPAWN** is also present in the Logging block, the wavefunction will be histogrammed from the same 
+    iteration we begin to fill the RDMs, and the RDMs constructed using these histogrammed coefficients.
+
+**HFREFRDMEXPLICIT**
+    This effectively calculates the matrix leading to the projected energy.  It considers the HF as a reference 
+    and explicitly considers all connections to it (in one direction only - so the matrix is not hermitian).  This 
+    will clearly not give a variational energy. 
+
+**HFSDRDM**
+    This calculates the RDM amongst the HF and single and double excitations only.  The connections to the HF will 
+    be considered explicitly, but connections between singles and doubles stochastically.  This is hermitian, and 
+    should give a variational energy.  Cannot use **HPHF** with this type of calculation.
+
+**HFSDREFRDM**
+    This effectively calculates a multireference version of the projected energy, using the HF, singles and doubles 
+    as a reference.  Again the connections to the HF are explicit, but all others (up to 4-fold excitation) are 
+    included stochastically.  Like **HFREFRDMEXPLICIT**, this matrix will not be hermitian and the energy not variational.  
+    Cannot use **HPHF** with this type of calculation.
+
+**RDMGHOSTCHILD** [GhostThresh] [GhostFac]
+    This option is to be used with any of the methods with stochastic construction of the RDMs.  In this case, if 
+    the probability of spawning on a given Dj, generated from Di, is less than GhostThresh (a real), the probability 
+    is increased to the probability of spawning multiplied by GhostFac (also a real).  If the spawning would then be 
+    accepted, a 'ghost child' is created, i.e. child is still equal to zero, but the DiDj pair are put in the 
+    spawning array to later contribute to the reduced density matrices.
+
+Options referring to the 1-RDM.
+
+**DIAGFLYONERDM**
+    This option can be used when calculating either the 1- or 2-RDM.  If we're calculating the 2-RDM, the 1-RDM is 
+    constructed and then diagonalised (to get the natural orbital occupation numbers - NO_OCC_NUMBERS, and 
+    transformation matrix - NO_TRANSFORM).  This cannot be used with either of the non-hermitian options 
+    **HFREFRDMEXPLICIT** or **HFSDREFRDM**.
+    If this keyword is present the correlation entropy is also calculated and printed in the output.  
+
+**NONOTRANSFORM**
+    This option is used if we want to diagonalise the 1-RDM to get the correlation entropy, but don't want to 
+    print the NO_TRANSFORM matrix.
+
+**PRINTRODUMP**
+    If this keyword is present, the natural orbital transformation matrix will be used to transform the 4-index 
+    integrals etc, to produce a new FCIDUMP (ROFCIDUMP) in the natural orbital basis.
+    This is quite slow and expensive and probably wants to be avoided unless actually necessary.
+
+**PRINTONERDM**
+    This means the 1-RDM will be constructed and printed, even if we are only really calculating the 2-RDM.
+
+Reading in / Writing out the RDMs for restarting calculations.
+    
+    Two types of 2-RDMs can be printed out.  The final normalised hermitian 2-RDMs of the form TwoRDM_a***, or the 
+    binary files TwoRDM_POPS_a***, which are the unnormalised RDMs, before hermiticity has been enforced.  The 
+    first are the matrices to be used for F12 calculations etc (these 2-RDM(i,j;a,b) matrices are printed in 
+    spatial orbitals with i<j, a<b and i,j<a,b).  The second are the ones to read back in if a calculation 
+    is restarted (they are also printed in spatial orbitals with i<j and a<b, but for both i,j,a,b and a,b,i,j 
+    because they are not yet hermitian).  These are the matrices exactly as they are at that point in the calculation.  
+    By default the final normalised 2-RDMs will always be printed, and the TwoRDM_POPS_a*** files are connected to the 
+    POPSFILE/BINARYPOPS keywords - i.e. if a wavefunction POPSFILE is being printed and the RDMs are being filled, 
+    a RDM POPSFILE will be also.
+    The following options can override/modify these defaults.
+
+**WRITERDMSTOREAD** [OFF]
+    The presence of this keyword overrides the default.  If the OFF word is present, the unnormalised TwoRDM_POPS_a*** 
+    files will definitely not be printed, otherwise they definitely will be, regardless of the state of the 
+    POPSFILE/BINARYPOPS keywords.  
+
+**READRDMS**
+    This keyword tells the calculation to read in the TwoRDM_POPS_a*** files from a previous calculation.  The 
+    restarted calc then continues to fill these RDMs from the very first iteration regardless of the value put with 
+    the **CALCRDMONFLY** keyword.  The calculation will crash if one of the TwoRDM_POPS_a*** files are missing.  If 
+    thisn **READRDMS** keyword is present, but the calc is doing a **STARTSINGLEPART** run, the TwoRDM_POPS_a*** files 
+    will be ignored.
+
+**NONORMRDMS**
+    This will prevent the final, normalised TwoRDM_a*** matrices from being printed.  These files can be quite 
+    large, so if the calculation is definitely not going to be converged, this keyword may be useful.
+
+**WRITERDMSEVERY** [IterWriteRDMs]
+    This will write the normalised TwoRDM_a*** matrices every IterWriteRDMs iterations while the RDMs are being 
+    filled.  At the moment, this must be a multiple of the frequency with which the energy is calculated.  The 
+    files will be labelled with incrementing values - TwoRDM_a***.1 is the first, and then next TwoRDM_a***.2 etc.
 

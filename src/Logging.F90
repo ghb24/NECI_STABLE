@@ -29,9 +29,10 @@ MODULE Logging
     LOGICAL tRoHistOneElInts
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump,tRDMonFly,tDiagRDM,tDo_Not_Calc_RDMEnergy
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
-    LOGICAL tTruncDumpbyVal, tChangeVarsRDM, tNoRODump, tSpawnGhostChild, tno_RDMs_to_read, tReadRDMs
+    LOGICAL tTruncDumpbyVal, tChangeVarsRDM, tPrintRODump, tSpawnGhostChild, tno_RDMs_to_read, tReadRDMs
     LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit,tPrintDoubsUEG, tWriteMultRDMs
     LOGICAL tHF_S_D_Ref, tHF_S_D, tHF_Ref_Explicit, tExplicitAllRDM, twrite_normalised_RDMs, twrite_RDMs_to_read 
+    LOGICAL tNoNOTransform, tPrint1RDM
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps,IterShiftBlock
     INTEGER IterRDMonFly, RDMExcitLevel, RDMEnergyIter, IterWriteRDMs
     real(dp) GhostThresh, GhostFac
@@ -149,7 +150,9 @@ MODULE Logging
       tChangeVarsRDM = .false.
       RDMEnergyIter=100
       tDiagRDM=.false.
-      tNoRODump=.false.
+      tPrint1RDM = .false.
+      tNoNOTransform = .false.
+      tPrintRODump=.false.
       IterRDMonFly=0
       RDMExcitLevel=1
       tDo_Not_Calc_RDMEnergy = .false.
@@ -498,12 +501,21 @@ MODULE Logging
             call readi(RDMEnergyIter)
 
         case("DIAGFLYONERDM")
-!This sets the calculation to diagonalise the *1* electron reduced density matrix.  Obviously this doesn't work if RDMExcitLevel = 2.            
+!This sets the calculation to diagonalise the *1* electron reduced density matrix.   
 !The eigenvalues give the occupation numbers of the natural orbitals (eigenfunctions).
             tDiagRDM=.true.
 
-        case("NORODUMP")
-            tNoRODump=.true.
+        case("NONOTRANSFORM")
+! This tells the calc that we don't want to print the NO_TRANSFORM matrix.            
+! i.e. the diagonalisation is just done to get the correlation entropy.
+            tNoNOTransform = .true.
+
+        case("PRINTONERDM")
+! This prints the OneRDM, regardless of whether or not we are calculating just the 1-RDM, or the 2-RDM.            
+            tPrint1RDM = .true.
+
+        case("PRINTRODUMP")
+            tPrintRODump=.true.
 ! This is to do with the calculation of the MP2 or CI natural orbitals.  This should be used if we want the transformation matrix of the              
 ! natural orbitals to be found, but no ROFCIDUMP file to be printed (i.e. the integrals don't need to be transformed).  This is so that at the end 
 ! of a calculation, we may get the one body reduced density matrix from the wavefunction we've found, and then use the MOTRANSFORM file printed to 
@@ -550,12 +562,18 @@ MODULE Logging
         case("WRITERDMSTOREAD")
 ! Writes out the unnormalised RDMs (in binary), so they can be read back in, and the calculations restarted at a later point.            
 ! This is also tied to the POPSFILE/BINARYPOPS keyword - so if we're writing a normal POPSFILE, we'll write this too, 
-! unless "NORDMSTOREAD" is on.
-            twrite_RDMs_to_read = .true. 
-
-        case("NORDMSTOREAD")
-! Tells us that although we have the POPSFILE (or some variation) on, we do not want the unnormalised RDMs written out.            
-            tno_RDMs_to_read = .true. 
+! unless **WRITERDMSTOREAD** OFF is used.
+            IF(item.lt.nitems) THEN
+                call readu(w)
+                select case(w)
+                    case("OFF")
+                        tno_RDMs_to_read = .true. 
+                        twrite_RDMs_to_read = .false. 
+                end select
+            ELSE
+                twrite_RDMs_to_read = .true. 
+                tno_RDMs_to_read = .false. 
+            ENDIF
 
         case("NONORMRDMS")            
 ! Does not print out the normalised (final) RDMs - to be used if you know the calculation will not be converged, and don't  
