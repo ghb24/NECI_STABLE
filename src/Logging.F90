@@ -516,6 +516,7 @@ MODULE Logging
 
         case("PRINTRODUMP")
             tPrintRODump=.true.
+            tROFciDump = .true.
 ! This is to do with the calculation of the MP2 or CI natural orbitals.  This should be used if we want the transformation matrix of the              
 ! natural orbitals to be found, but no ROFCIDUMP file to be printed (i.e. the integrals don't need to be transformed).  This is so that at the end 
 ! of a calculation, we may get the one body reduced density matrix from the wavefunction we've found, and then use the MOTRANSFORM file printed to 
