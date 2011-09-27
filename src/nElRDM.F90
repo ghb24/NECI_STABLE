@@ -148,6 +148,11 @@ MODULE nElRDMMod
         endif
 
         SpatOrbs=nBasis/2
+        if(tStoreSpinOrbs) then
+            NoOrbs=nBasis
+        else
+            NoOrbs=SpatOrbs
+        endif
 
 ! Here we're allocating arrays for the actual calculation of the RDM.
 
@@ -159,23 +164,23 @@ MODULE nElRDMMod
         IF(RDMExcitLevel.eq.1) THEN
             ! It needs to be stored if we're not calculating the 2-RDM.
             ! (which shall be changed very soon).
-            ALLOCATE(OneElRDM(SpatOrbs,SpatOrbs),stat=ierr)
+            ALLOCATE(OneElRDM(NoOrbs,NoOrbs),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating OneElRDM array,')
-            CALL LogMemAlloc('nElRDM',SpatOrbs**2,8,this_routine,OneElRDMTag,ierr)
+            CALL LogMemAlloc('nElRDM',NoOrbs**2,8,this_routine,OneElRDMTag,ierr)
             OneElRDM(:,:)=0.D0
 
-            MemoryAlloc = MemoryAlloc + ( SpatOrbs * SpatOrbs * 8 ) 
-            MemoryAlloc_Root = MemoryAlloc_Root + ( SpatOrbs * SpatOrbs * 8 ) 
+            MemoryAlloc = MemoryAlloc + ( NoOrbs * NoOrbs * 8 ) 
+            MemoryAlloc_Root = MemoryAlloc_Root + ( NoOrbs * NoOrbs * 8 ) 
 
             IF(iProcIndex.eq.0) THEN
 ! This is the AllnElRDM, called NatOrbMat simply because we use the natural 
 ! orbital routines to diagonalise etc.        
-                ALLOCATE(NatOrbMat(SpatOrbs,SpatOrbs),stat=ierr)
+                ALLOCATE(NatOrbMat(NoOrbs,NoOrbs),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating NatOrbMat array,')
-                CALL LogMemAlloc('NatOrbMat',SpatOrbs**2,8,this_routine,NatOrbMatTag,ierr)
+                CALL LogMemAlloc('NatOrbMat',NoOrbs**2,8,this_routine,NatOrbMatTag,ierr)
                 NatOrbMat(:,:)=0.D0
 
-                MemoryAlloc_Root = MemoryAlloc_Root + ( SpatOrbs * SpatOrbs * 8 ) 
+                MemoryAlloc_Root = MemoryAlloc_Root + ( NoOrbs * NoOrbs * 8 ) 
             ENDIF
         ELSE
             ! If we're calculating the 2-RDM, the 1-RDM does not need to be calculated as well 
@@ -234,7 +239,6 @@ MODULE nElRDMMod
 
                 if(tDiagRDM.or.tPrint1RDM) then
                     ! Still need to allocate 1-RDM to get nat orb occupation numbers.
-                    ! TODO : Spat Orbs.
                     ALLOCATE(NatOrbMat(SpatOrbs,SpatOrbs),stat=ierr)
                     IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating NatOrbMat array,')
                     CALL LogMemAlloc('NatOrbMat',SpatOrbs**2,8,this_routine,NatOrbMatTag,ierr)
@@ -346,19 +350,14 @@ MODULE nElRDMMod
                     & REAL(MemoryAlloc,dp)/1048576.D0," Mb/Processor on other processors."
         endif
 
-        !TODO: CHECK/CHANGE THESE THINGS
-
         ! These parameters are set for the set up of the symmetry arrays, which are later used 
         ! for the diagonalisation / rotation of the 1-RDMs.
 
         ! We are mixing occupied and virtual orbitals.
         tSeparateOccVirt=.false.
-
         if(tStoreSpinOrbs) then
-            NoOrbs=nBasis
             NoSymLabelCounts = 16
         else
-            NoOrbs=SpatOrbs
             NoSymLabelCounts = 8
         endif
 
@@ -374,18 +373,18 @@ MODULE nElRDMMod
             CALL LogMemAlloc('SymLabelCounts2',2*NoSymLabelCounts,4,this_routine,SymLabelCounts2Tag,ierr)
             SymLabelCounts2(:,:)=0
 
-            ALLOCATE(SymLabelList2(SpatOrbs),stat=ierr)
+            ALLOCATE(SymLabelList2(NoOrbs),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating SymLabelList2 array,')
-            CALL LogMemAlloc('SymLabelList2',SpatOrbs,4,this_routine,SymLabelList2Tag,ierr)
+            CALL LogMemAlloc('SymLabelList2',NoOrbs,4,this_routine,SymLabelList2Tag,ierr)
             SymLabelList2(:)=0                     
             ALLOCATE(SymLabelList3(NoOrbs),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating SymLabelList3 array,')
             CALL LogMemAlloc('SymLabelList3',NoOrbs,4,this_routine,SymLabelList3Tag,ierr)
             SymLabelList3(:)=0                     
      
-            ALLOCATE(SymLabelListInv(SpatOrbs),stat=ierr)
+            ALLOCATE(SymLabelListInv(NoOrbs),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating SymLabelListInv array,')
-            CALL LogMemAlloc('SymLabelListInv',SpatOrbs,4,this_routine,SymLabelListInvTag,ierr)
+            CALL LogMemAlloc('SymLabelListInv',NoOrbs,4,this_routine,SymLabelListInvTag,ierr)
             SymLabelListInv(:)=0   
 
             IF(iProcIndex.eq.0) THEN
@@ -397,7 +396,7 @@ MODULE nElRDMMod
             ENDIF
 
             ! This routine actually sets up the symmetry labels for the 1-RDM.
-            ! TODO : Sort out these routines with the RotateOrbs file.
+            ! TODO : Merge this routine (and rotations later) with the NatOrbs file.
             CALL SetUpSymLabels_RDM() 
 
         ENDIF            
@@ -549,8 +548,8 @@ MODULE nElRDMMod
         INTEGER :: StartFill, Prev, lo, hi, Symi, SymCurr
         CHARACTER(len=*) , PARAMETER :: this_routine = 'SetUpSymLabels_RDM'
 
-        ALLOCATE(SymOrbs(SpatOrbs),stat=ierr)
-        CALL LogMemAlloc('SymOrbs',SpatOrbs,4,this_routine,SymOrbsTag,ierr)
+        ALLOCATE(SymOrbs(NoOrbs),stat=ierr)
+        CALL LogMemAlloc('SymOrbs',NoOrbs,4,this_routine,SymOrbsTag,ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,"Mem allocation for SymOrbs failed.")
 
 ! Brr has the orbital numbers in order of energy... i.e Brr(2) = the orbital index 
@@ -569,7 +568,7 @@ MODULE nElRDMMod
 
 ! *** STEP 1 *** Fill SymLabelList2.
 ! find the spat orbitals and order them in terms of symmetry.
-        do i=1,SpatOrbs
+        do i=1,NoOrbs
             SymLabelList2(i)=gtID(BRR(2*i))
             ! Orbital BRR(2*i) for i = 1 will be the beta orbital with the 
             ! second lowest energy - want the spatial orbital index to go with this.
