@@ -2689,26 +2689,34 @@ MODULE nElRDMMod
 
         IF(iProcIndex.eq.0) THEN
             
+            ! Diagonalises the 1-RDM.  NatOrbMat goes in as the 1-RDM, comes out as the 
+            ! eigenvector of the 1-RDM (the matrix transforming the MO's into the NOs).
             CALL DiagRDM(SumDiag)
             Norm_Evalues = SumDiag/REAL(NEl)
 
-            write(6,*) 'SumDiag',SumDiag
-
-            ! Write out normalised evalues to file
+            ! Write out normalised evalues to file and calculate the correlation entropy.
+            Corr_Entropy = 0.D0
             Evalues_unit = get_free_unit()
             OPEN(Evalues_unit,file='NO_OCC_NUMBERS',status='unknown')
-
             WRITE(Evalues_unit,'(A)') '# NORMALISED 1RDM EVALUES (NATURAL ORBITAL OCCUPATION NUMBERS):'
-            Corr_Entropy = 0.D0
-            do i=1,SpatOrbs
-                WRITE(Evalues_unit,'(I6,G25.17)') i,Evalues(i)/(2.0_dp*Norm_Evalues)
-                if(Evalues(i).gt.0.D0) &
-                    Corr_Entropy = Corr_Entropy - (2.0_dp * ( abs(Evalues(i)/(2.0_dp*Norm_Evalues)) &
-                                                    * LOG(abs(Evalues(i)/(2.0_dp*Norm_Evalues))) ) )
+            do i=1,NoOrbs
+                if(tStoreSpinOrbs) then
+                    WRITE(Evalues_unit,'(I6,G25.17)') i,Evalues(i)/Norm_Evalues
+                    if(Evalues(i).gt.0.D0) &
+                        Corr_Entropy = Corr_Entropy - ( abs(Evalues(i)/ Norm_Evalues) &
+                                                        * LOG(abs(Evalues(i)/ Norm_Evalues)) )
+                else
+                    WRITE(Evalues_unit,'(I6,G25.17)') i,Evalues(i)/(2.0_dp*Norm_Evalues)
+                    if(Evalues(i).gt.0.D0) &
+                        Corr_Entropy = Corr_Entropy - (2.0_dp * ( abs(Evalues(i)/(2.0_dp*Norm_Evalues)) &
+                                                        * LOG(abs(Evalues(i)/(2.0_dp*Norm_Evalues))) ) )
+                endif
             enddo
-            do i=1,SpatOrbs
-                WRITE(Evalues_unit,'(I6,G25.17)') i+SpatOrbs,Evalues(i)/(2.0_dp*Norm_Evalues)
-            enddo
+            if(.not.tStoreSpinOrbs) then
+                do i=1,SpatOrbs
+                    WRITE(Evalues_unit,'(I6,G25.17)') i+SpatOrbs,Evalues(i)/(2.0_dp*Norm_Evalues)
+                enddo
+            endif
             close(Evalues_unit)
             WRITE(6,*) ''
             WRITE(6,'(A20,F30.20)') ' CORRELATION ENTROPY', Corr_Entropy
@@ -2808,8 +2816,8 @@ MODULE nElRDMMod
 ! Test that we're not breaking symmetry.
 ! And calculate the trace at the same time.
         SumTrace=0.D0
-        do i=1,SpatOrbs
-            do j=1,SpatOrbs
+        do i=1,NoOrbs
+            do j=1,NoOrbs
                 IF((INT(G1(2*SymLabelList2(i))%sym%S,4).ne.&
                         INT(G1(2*SymLabelList2(j))%sym%S,4))) THEN
                     IF(ABS(NatOrbMat(i,j)).ge.1.0E-15) THEN
@@ -2825,7 +2833,7 @@ MODULE nElRDMMod
                             &maintained in the final transformation matrix.'
                         ELSE
                             write(6,*) 'k,SymLabelList2(k),SymLabelListInv(k)'
-                            do k = 1,SpatOrbs
+                            do k = 1,NoOrbs
                                 write(6,*) k,SymLabelList2(k),SymLabelListInv(k)
                             enddo
                             call flush(6)
@@ -2955,7 +2963,7 @@ MODULE nElRDMMod
         CALL FLUSH(6)
 
         SumDiagTrace=0.D0
-        do i=1,SpatOrbs
+        do i=1,NoOrbs
             SumDiagTrace=SumDiagTrace+Evalues(i)
         enddo
         IF((ABS(SumDiagTrace-SumTrace)).gt.1E-5) THEN
@@ -3095,7 +3103,7 @@ MODULE nElRDMMod
     SUBROUTINE Transform2ElIntsMemSave_RDM()
         USE RotateOrbsMod , only : FourIndInts
         implicit none
-        INTEGER :: i,j,k,l,a,b,g,d,ierr,Temp4indintsTag,a2,b2,g2,d2
+        INTEGER :: i,j,k,l,a,b,g,d,ierr,Temp4indintsTag
         REAL(dp) , ALLOCATABLE :: Temp4indints(:,:)
         CHARACTER(len=*), PARAMETER :: this_routine='Transform2ElIntsMemSave_RDM'
 #ifdef __CMPLX
@@ -3135,10 +3143,10 @@ MODULE nElRDMMod
 ! UMatInd in physical notation, but FourIndInts in chemical 
 ! (just to make it more clear in these transformations).
 ! This means that here, a and g are interchangable, and so are b and d.
-                        FourIndInts(a,g,b,d)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0)),8)
-                        FourIndInts(g,a,b,d)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0)),8)
-                        FourIndInts(a,g,d,b)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0)),8)
-                        FourIndInts(g,a,d,b)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0)),8)
+                        FourIndInts(a,g,b,d)=REAL(UMAT(UMatInd(a,b,g,d,0,0)),8)
+                        FourIndInts(g,a,b,d)=REAL(UMAT(UMatInd(a,b,g,d,0,0)),8)
+                        FourIndInts(a,g,d,b)=REAL(UMAT(UMatInd(a,b,g,d,0,0)),8)
+                        FourIndInts(g,a,d,b)=REAL(UMAT(UMatInd(a,b,g,d,0,0)),8)
                     enddo
                 enddo
 
@@ -4123,12 +4131,6 @@ MODULE nElRDMMod
             CALL MPISum_inplace(NatOrbMat)
         
         if(iProcIndex.eq.0) then 
-!            if(tHPHF) then
-!                ! Normalise the 1- and 2-RDM so the traces are equal to NEl and NEl(NEl - 1)/2 respectively.
-!                call sum_1e_norms(Trace_1RDM_Inst, Trace_1RDM) 
-!            else
-!                call Average_Spins_and_Sum_1e_Norms(Trace_1RDM_Inst, Trace_1RDM)
-!            endif
 
             call sum_1e_norms(Trace_1RDM) 
 
@@ -4185,15 +4187,6 @@ MODULE nElRDMMod
         endif
 
         if(iProcIndex.eq.0) then
-
-            ! If we're not using HPHF - average the matrix elements that by spin we know to be equal.
-            ! This is commented out now, because when using spatial orbitals the spins are effectively 
-            ! already averaged - and the normalisation is being calculated on the fly. 
-!            if((tFinalRDMEnergy.or.(RDMExcitLevel.eq.2)).and.(.not.tHPHF)) then 
-!                call Average_Spins_and_Sum_2e_Norms(Trace_2RDM_Inst, Trace_2RDM)
-!            else
-!                call sum_2e_norms(Trace_2RDM_Inst, Trace_2RDM)
-!            endif
 
             call sum_2e_norms()
 
