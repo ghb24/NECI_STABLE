@@ -793,8 +793,17 @@ MODULE nElRDMMod
 
         call extract_bit_rep (iLutnI, nI, SignI, FlagsI, Store)
 
-        IterRDMStartI = 0.0_dp
-        AvSignI = real(SignI(1),dp)
+        if(tHF_Ref_Explicit) then
+            IterRDMStartI = 0.0_dp
+            AvSignI = real(SignI(1),dp)
+
+        else
+            
+            IterRDMStartI = CurrH_I(3)
+            IF(IterRDMStartI.eq.0.0_dp) IterRDMStartI = real(Iter, dp)
+            AvSignI = ( ((real(Iter,dp) - IterRDMStartI) * CurrH_I(2)) &
+                        + real(SignI(1),dp) ) / ( real(Iter,dp) - IterRDMStartI + 1.0_dp )
+        endif
 
     end subroutine extract_bit_rep_rdm_diag_hf_s_d
 
