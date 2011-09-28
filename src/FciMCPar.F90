@@ -114,7 +114,7 @@ MODULE FciMCParMod
                          fill_diag_rdm, fill_sings_rdm, fill_doubs_rdm, &
                          Add_RDM_From_IJ_Pair, tCalc_RDMEnergy, &
                          extract_bit_rep_rdm_diag_norm, extract_bit_rep_rdm_diag_hphf, &
-                         extract_bit_rep_rdm_diag_no_rdm, &
+                         extract_bit_rep_rdm_diag_no_rdm, DeallocateRDM,&
                          DeAlloc_Alloc_SpawnedParts, Add_RDM_HFConnections_Null, &
                          Add_RDM_HFConnections_HPHF, Add_RDM_HFConnections_HF_S_D, &
                          Add_RDM_HFConnections_Norm, Fill_Spin_Coupled_RDM
@@ -397,7 +397,8 @@ MODULE FciMCParMod
             CALL PrintOrbOccs(OrbOccs)
         ENDIF
 
-        IF(tRDMonFly) CALL FinaliseRDM()
+        IF(tFillingStochRDMonFly.or.&
+            tFillingExplicRDMonFly.or.tHF_Ref_Explicit) CALL FinaliseRDM()
 
         IF(tPrintDoubsUEG) THEN
             CALL PrintDoubUEGOccs(DoubsUEG)
