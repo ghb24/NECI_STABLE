@@ -522,6 +522,9 @@ Options referring to the 1-RDM.
     If this keyword is present, the natural orbital transformation matrix will be used to transform the 4-index 
     integrals etc, to produce a new FCIDUMP (ROFCIDUMP) in the natural orbital basis.
     This is quite slow and expensive and probably wants to be avoided unless actually necessary.
+    Options for truncating the orbitals based on NO occupation number has been removed from this code, as well 
+    as rotating virtual and occupied orbitals separately.  On the todo list is to put this stuff back in and 
+    merge these routines with the old equivalents (in RotateOrbs and NatOrb).
 
 **PRINTONERDM**
     This means the 1-RDM will be constructed and printed, even if we are only really calculating the 2-RDM.
@@ -537,6 +540,7 @@ Reading in / Writing out the RDMs for restarting calculations.
     By default the final normalised 2-RDMs will always be printed, and the TwoRDM_POPS_a*** files are connected to the 
     POPSFILE/BINARYPOPS keywords - i.e. if a wavefunction POPSFILE is being printed and the RDMs are being filled, 
     a RDM POPSFILE will be also.
+    If only the 1-RDM is being calculated, OneRDM_POPS/OneRDM files will be printed in the same way.
     The following options can override/modify these defaults.
 
 **WRITERDMSTOREAD** [OFF]
@@ -559,4 +563,5 @@ Reading in / Writing out the RDMs for restarting calculations.
     This will write the normalised TwoRDM_a*** matrices every IterWriteRDMs iterations while the RDMs are being 
     filled.  At the moment, this must be a multiple of the frequency with which the energy is calculated.  The 
     files will be labelled with incrementing values - TwoRDM_a***.1 is the first, and then next TwoRDM_a***.2 etc.
+    This option currently only works for the 2-RDMs.
 

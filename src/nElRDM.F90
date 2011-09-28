@@ -80,7 +80,8 @@ MODULE nElRDMMod
         USE RotateOrbsMod , only : SymLabelList2Tag,SymLabelListInvTag
         USE RotateOrbsData , only : SymLabelList3, SymLabelList3Tag
         USE Logging , only : tDo_Not_Calc_RDMEnergy, tDiagRDM, tReadRDMs, &
-                            TPopsFile, tno_RDMs_to_read, twrite_RDMs_to_read
+                            TPopsFile, tno_RDMs_to_read, twrite_RDMs_to_read,&
+                            tWriteMultRDMs
         USE CalcData , only : tRegenDiagHEls
         use DetBitOps , only : TestClosedShellDet
         implicit none
@@ -420,6 +421,13 @@ MODULE nElRDMMod
             endif
         endif
 
+        ! The WRITERDMSEVERY option only works for the 2-RDMs at the moment, and must be a 
+        ! multiple of the RDM energy calculation frequency.
+        if(tWriteMultRDMs.and.(RDMExcitLevel.eq.1)) then
+            write(6,'(A)') 'WARNING - The WRITERDMSEVERY option currently only works for the 2-RDM.'
+            write(6,'(A)') 'The OneRDM will only be printed at the end of the calculation.'
+        endif
+
         ! By default, if we're writing out a popsfile (and doing an RDM calculation), we also 
         ! write out the unnormalised RDMs that can be read in when restarting a calculation.
         ! If the NORDMSTOREAD option is on, these wont be printed.  
@@ -437,33 +445,53 @@ MODULE nElRDMMod
 ! The energy is then calculated (if required) from the RDMs read in only.
         use Logging , only : IterRDMonFly
         implicit none
-        logical :: exists_aaaa,exists_abab,exists_abba
+        logical :: exists_aaaa,exists_abab,exists_abba,exists_one
         integer :: RDM_unit, FileEnd
         integer :: i,j,a,b,Ind1,Ind2
         real(dp) :: Temp_RDM_Element
 
         if(iProcIndex.eq.0) then 
 
-            write(6,'(A)') ' Reading in the RDMs'
-
             if(RDMExcitLevel.eq.1) then
 
-                ! TODO: This.
-                call stop_all('Read_In_RDMs','Not set up for 1-RDM yet')
+                write(6,'(A)') ' Reading in the 1-RDM'
+
+                ! The OneRDM will have been printed exactly as is.  Without having been 
+                ! made hermitian, without being normalised, and in spatial orbitals if 
+                ! tStoreSpinOrbs is false.
+
+                INQUIRE(FILE='OneRDM_POPS',EXIST=exists_one)
+                if(exists_one) then
+                    RDM_unit = get_free_unit()
+                    open(RDM_unit,FILE='OneRDM_POPS',status='old',form='unformatted')
+                    do while (.true.)
+                        read(RDM_unit,iostat=FileEnd) i,j,Temp_RDM_Element
+                        if(FileEnd.gt.0) call stop_all("Read_In_RDMs","Error reading OneRDM_POPS")
+                        if(FileEnd.lt.0) exit
+
+                        NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) = Temp_RDM_Element
+                    enddo
+                    close(RDM_unit)
+                else
+                    call stop_all('Read_In_RDMs','Attempting to read in the OneRDM, but &
+                                    &the OneRDM_POPS file does not exist.')
+                endif                                    
 
             else
 
+                write(6,'(A)') ' Reading in the 2-RDMs'
+
                 ! Only read in the 2-RDMs (the 1-RDM becomes redundant).
-                INQUIRE(FILE='TwoRDM_aaaa_TOREAD',EXIST=exists_aaaa)
-                INQUIRE(FILE='TwoRDM_abab_TOREAD',EXIST=exists_abab)
-                INQUIRE(FILE='TwoRDM_abba_TOREAD',EXIST=exists_abba)
+                INQUIRE(FILE='TwoRDM_POPS_aaaa',EXIST=exists_aaaa)
+                INQUIRE(FILE='TwoRDM_POPS_abab',EXIST=exists_abab)
+                INQUIRE(FILE='TwoRDM_POPS_abba',EXIST=exists_abba)
                 if(exists_aaaa.and.exists_abab.and.exists_abba) THEN
                     ! All TOREAD RDM files are present - read in.
                     RDM_unit = get_free_unit()
-                    open(RDM_unit,FILE='TwoRDM_aaaa_TOREAD',status='old',form='unformatted')
+                    open(RDM_unit,FILE='TwoRDM_POPS_aaaa',status='old',form='unformatted')
                     do while (.true.)
                         read(RDM_unit,iostat=FileEnd) i,j,a,b,Temp_RDM_Element 
-                        if(FileEnd.gt.0) call stop_all("Read_In_RDMs","Error reading TwoRDM_aaaa_TOREAD")
+                        if(FileEnd.gt.0) call stop_all("Read_In_RDMs","Error reading TwoRDM_POPS_aaaa")
                         if(FileEnd.lt.0) exit
 
                         Ind1 = ( ( (j-2) * (j-1) ) / 2 ) + i
@@ -474,10 +502,10 @@ MODULE nElRDMMod
                     enddo
                     close(RDM_unit)
 
-                    open(RDM_unit,FILE='TwoRDM_abab_TOREAD',status='old',form='unformatted')
+                    open(RDM_unit,FILE='TwoRDM_POPS_abab',status='old',form='unformatted')
                     do while (.true.)
                         read(RDM_unit,iostat=FileEnd) i,j,a,b,Temp_RDM_Element 
-                        if(FileEnd.gt.0) call stop_all("Read_In_RDMs","Error reading TwoRDM_abab_TOREAD")
+                        if(FileEnd.gt.0) call stop_all("Read_In_RDMs","Error reading TwoRDM_POPS_abab")
                         if(FileEnd.lt.0) exit
 
                         Ind1 = ( ( (j-1) * j ) / 2 ) + i
@@ -488,10 +516,10 @@ MODULE nElRDMMod
                     enddo
                     close(RDM_unit)
 
-                    open(RDM_unit,FILE='TwoRDM_abba_TOREAD',status='old',form='unformatted')
+                    open(RDM_unit,FILE='TwoRDM_POPS_abba',status='old',form='unformatted')
                     do while (.true.)
                         read(RDM_unit,iostat=FileEnd) i,j,a,b,Temp_RDM_Element 
-                        if(FileEnd.gt.0) call stop_all("Read_In_RDMs","Error reading TwoRDM_abba_TOREAD")
+                        if(FileEnd.gt.0) call stop_all("Read_In_RDMs","Error reading TwoRDM_POPS_abba")
                         if(FileEnd.lt.0) exit
 
                         Ind1 = ( ( (j-1) * j ) / 2 ) + i
@@ -4110,6 +4138,7 @@ MODULE nElRDMMod
 
 
     subroutine Finalise_1e_RDM() 
+        use Logging , only : twrite_RDMs_to_read, twrite_normalised_RDMs
         implicit none
         integer :: i
         real(dp) :: AllAccumRDMNorm_Inst, AllAccumRDMNorm
@@ -4130,10 +4159,13 @@ MODULE nElRDMMod
             call calc_1e_norms(AllAccumRDMNorm_Inst, AllAccumRDMNorm, & 
                                         Norm_1RDM, Trace_1RDM)
 
+            if(twrite_RDMs_to_read) call Write_out_1RDM(Norm_1RDM,.false.)
+
             if((RDMExcitLevel.eq.1).and.(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref))) &
                 call make_1e_rdm_hermitian(Norm_1RDM)
 
-            call Write_out_1RDM(Norm_1RDM)
+            if(twrite_normalised_RDMs) call Write_out_1RDM(Norm_1RDM,.true.)
+
         endif
 
     end subroutine Finalise_1e_RDM
@@ -4426,35 +4458,60 @@ MODULE nElRDMMod
     end subroutine make_2e_rdm_hermitian
 
 
-    subroutine Write_out_1RDM(Norm_1RDM)
+    subroutine Write_out_1RDM(Norm_1RDM,tNormalise)
         USE UMatCache, only: GTID
         implicit none
         real(dp) , intent(in) :: Norm_1RDM
+        logical , intent(in) :: tNormalise
         integer :: i, j, iSpat, jSpat
         integer :: OneRDM_unit
  
-        write(6,*) 'Writing out 1 electron density matrix to file'
-        call flush(6)
-
-        OneRDM_unit = get_free_unit()
-        OPEN(OneRDM_unit,file='OneRDM',status='unknown')
-
+        if(tNormalise) then
+            ! Haven't got the capabilities to produce multiple 1-RDMs yet.
+            write(6,*) 'Writing out the *normalised* 1 electron density matrix to file'
+            call flush(6)
+            OneRDM_unit = get_free_unit()
+            OPEN(OneRDM_unit,file='OneRDM',status='unknown')
+        else
+            ! Only every write out 1 of these at the moment.
+            write(6,*) 'Writing out the *unnormalised* 1 electron density matrix to file for reading in'
+            call flush(6)
+            OneRDM_unit = get_free_unit()
+            OPEN(OneRDM_unit,file='OneRDM_POPS',status='unknown',form='unformatted')
+        endif
+ 
+        ! Currently always printing 1-RDM in spin orbitals.
         do i = 1, nBasis
-            do j = i, nBasis
+            do j = 1, nBasis
                 if(tStoreSpinOrbs) then
                     if(NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)).ne.0.D0) then 
-                        write(OneRDM_unit,"(2I6,G25.17)") i,j, & 
-                            NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) * Norm_1RDM
+                        if(tNormalise.and.(i.le.j)) then
+                            write(OneRDM_unit,"(2I6,G25.17)") i,j, & 
+                                NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) * Norm_1RDM
+                        elseif(.not.tNormalise) then
+                            ! For the pops, we haven't made the 1-RDM hermitian yet, 
+                            ! so print both the 1-RDM(i,j) and 1-RDM(j,i) elements.
+                            ! This is written in binary.
+                            write(OneRDM_unit) i,j,NatOrbMat(SymLabelListInv(i),SymLabelListInv(j))
+                        endif
                     endif
                 else
                     iSpat = gtID(i)
                     jSpat = gtID(j)
                     if(NatOrbMat(SymLabelListInv(iSpat),SymLabelListInv(jSpat)).ne.0.D0) then 
-                        if(((mod(i,2).eq.0).and.(mod(j,2).eq.0)).or.&
-                            ((mod(i,2).ne.0).and.(mod(j,2).ne.0))) then
-                            write(OneRDM_unit,"(2I6,G25.17)") i,j, & 
-                                ( NatOrbMat(SymLabelListInv(iSpat),SymLabelListInv(jSpat)) &
-                                                                * Norm_1RDM ) / 2.0_dp
+                        if(tNormalise.and.(i.le.j)) then
+                            if(((mod(i,2).eq.0).and.(mod(j,2).eq.0)).or.&
+                                ((mod(i,2).ne.0).and.(mod(j,2).ne.0))) then
+                                write(OneRDM_unit,"(2I6,G25.17)") i,j, & 
+                                    ( NatOrbMat(SymLabelListInv(iSpat),SymLabelListInv(jSpat)) &
+                                                                    * Norm_1RDM ) / 2.0_dp
+                            endif
+                        elseif(.not.tNormalise) then
+                            ! The popsfile can be printed in spatial orbitals.
+                            if((mod(i,2).eq.0).and.(mod(j,2).eq.0)) then
+                                write(OneRDM_unit) iSpat,jSpat, & 
+                                    NatOrbMat(SymLabelListInv(iSpat),SymLabelListInv(jSpat)) 
+                            endif
                         endif
                     endif
                 endif
