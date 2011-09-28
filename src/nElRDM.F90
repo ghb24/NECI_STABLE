@@ -776,6 +776,28 @@ MODULE nElRDMMod
 
     end subroutine extract_bit_rep_rdm_diag_norm
 
+    subroutine extract_bit_rep_rdm_diag_hf_s_d(iLutnI, CurrH_I, nI, SignI, FlagsI, IterRDMStartI, AvSignI, Store)
+! This is just the standard extract_bit_rep routine for when we're not calculating the RDMs.    
+        use constants , only : dp, n_int, lenof_sign
+        use SystemData , only : NEl
+        use bit_reps , only : NIfTot, extract_bit_rep, extract_bit_rep_rdm
+        use FciMCData , only : excit_gen_store_type, NCurrH
+        use DetBitOps , only : TestClosedShellDet
+        implicit none
+        integer(n_int), intent(in) :: iLutnI(0:nIfTot)
+        real(dp) , intent(in) :: CurrH_I(NCurrH)
+        integer, intent(out) :: nI(nel), FlagsI
+        integer, dimension(lenof_sign), intent(out) :: SignI
+        real(dp) , intent(out) :: IterRDMStartI, AvSignI
+        type(excit_gen_store_type), intent(inout), optional :: Store
+
+        call extract_bit_rep (iLutnI, nI, SignI, FlagsI, Store)
+
+        IterRDMStartI = 0.0_dp
+        AvSignI = real(SignI(1),dp)
+
+    end subroutine extract_bit_rep_rdm_diag_hf_s_d
+
     subroutine extract_bit_rep_rdm_diag_hphf(iLutnI, CurrH_I, nI, SignI, FlagsI, IterRDMStartI, AvSignI, Store)
 ! While extracting the orbitals from the bit representation of the determinant, we 
 ! simulaneously add in the contribution of each orbital to the diagonal elements of the RDMs.
@@ -4485,7 +4507,7 @@ MODULE nElRDMMod
             do j = 1, nBasis
                 if(tStoreSpinOrbs) then
                     if(NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)).ne.0.D0) then 
-                        if(tNormalise.and.(i.le.j)) then
+                        if(tNormalise.and.((i.le.j).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
                             write(OneRDM_unit,"(2I6,G25.17)") i,j, & 
                                 NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) * Norm_1RDM
                         elseif(.not.tNormalise) then
@@ -4499,7 +4521,7 @@ MODULE nElRDMMod
                     iSpat = gtID(i)
                     jSpat = gtID(j)
                     if(NatOrbMat(SymLabelListInv(iSpat),SymLabelListInv(jSpat)).ne.0.D0) then 
-                        if(tNormalise.and.(i.le.j)) then
+                        if(tNormalise.and.((i.le.j).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
                             if(((mod(i,2).eq.0).and.(mod(j,2).eq.0)).or.&
                                 ((mod(i,2).ne.0).and.(mod(j,2).ne.0))) then
                                 write(OneRDM_unit,"(2I6,G25.17)") i,j, & 
@@ -4596,7 +4618,7 @@ MODULE nElRDMMod
                                 ! need to write out Ind1 < Ind2.
                                 ! Otherwise we print out Ind1, Ind2 and Ind2, Ind1 so we can 
                                 ! find the hermiticity error in the final matrix (after all runs).
-                                if(tNormalise.and.(Ind1_aa.le.Ind2_aa)) then
+                                if(tNormalise.and.((Ind1_aa.le.Ind2_aa).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
                                     if(tFinalRDMEnergy) then
                                         write(aaaa_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
                                                 ( All_aaaa_RDM(Ind1_aa,Ind2_aa) * Norm_2RDM ) / Divide_Factor
@@ -4613,7 +4635,7 @@ MODULE nElRDMMod
                         endif
 
                         if( All_abab_RDM(Ind1_ab,Ind2_ab).ne.0.0_dp) then
-                            if(tNormalise.and.(Ind1_ab.le.Ind2_ab)) then
+                            if(tNormalise.and.((Ind1_ab.le.Ind2_ab).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
                                 if(tFinalRDMEnergy) then
                                     write(abab_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
                                         ( All_abab_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM ) / Divide_Factor
@@ -4629,7 +4651,7 @@ MODULE nElRDMMod
                         endif
 
                         if( All_abba_RDM(Ind1_ab,Ind2_ab).ne.0.0_dp) then
-                            if(tNormalise.and.(Ind1_ab.le.Ind2_ab)) then
+                            if(tNormalise.and.((Ind1_ab.le.Ind2_ab).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
                                 if(tFinalRDMEnergy) then
                                     write(abba_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
                                         ( All_abba_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM ) / Divide_Factor

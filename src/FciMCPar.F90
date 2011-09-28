@@ -114,6 +114,7 @@ MODULE FciMCParMod
                          fill_diag_rdm, fill_sings_rdm, fill_doubs_rdm, &
                          Add_RDM_From_IJ_Pair, tCalc_RDMEnergy, &
                          extract_bit_rep_rdm_diag_norm, extract_bit_rep_rdm_diag_hphf, &
+                         extract_bit_rep_rdm_diag_hf_s_d, &
                          extract_bit_rep_rdm_diag_no_rdm, DeallocateRDM,&
                          DeAlloc_Alloc_SpawnedParts, Add_RDM_HFConnections_Null, &
                          Add_RDM_HFConnections_HPHF, Add_RDM_HFConnections_HF_S_D, &
@@ -1357,6 +1358,7 @@ MODULE FciMCParMod
                 if(tHistSpawn) NHistEquilSteps = Iter
             else
                 if(tHF_S_D.or.tHF_S_D_Ref.or.tHF_Ref_Explicit) then
+                    call set_extract_bit_rep_rdm_diag(extract_bit_rep_rdm_diag_hf_s_d)
                     call set_add_rdm_hfconnections(add_rdm_hfconnections_hf_s_d)
                 elseif(tHPHF) then
                     call set_extract_bit_rep_rdm_diag(extract_bit_rep_rdm_diag_hphf)
@@ -3697,9 +3699,15 @@ MODULE FciMCParMod
 
         if(tFillingStochRDMonFly.or.(tHF_Ref_Explicit)) then
             call MPISumAll_inplace (InstNoatHF)
-            Prev_AvNoatHF = AvNoatHF
-            AvNoatHF = ( (real((Iter - IterRDMStart),dp) * Prev_AvNoatHF) &
+            if(tHF_Ref_Explicit) then
+                ! There are no probabilities involved in the HF ref calc, 
+                ! so we can just use the instantaneous populations. 
+                AvNoatHF = real(InstNoatHF(1),dp)
+            else
+                Prev_AvNoatHF = AvNoatHF
+                AvNoatHF = ( (real((Iter - IterRDMStart),dp) * Prev_AvNoatHF) &
                         + real(InstNoatHF(1),dp) ) / real((Iter - IterRDMStart) + 1,dp)
+            endif
         endif
         HFInd = 0            
 
