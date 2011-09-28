@@ -3444,8 +3444,6 @@ MODULE nElRDMMod
 !This prints out a new FCIDUMP file in the same format as the old one.
         implicit none
         INTEGER :: i,j,k,l,iunit
-        CHARACTER(len=5) :: Label
-        CHARACTER(len=20) :: LabelFull
 
         IF(tStoreSpinOrbs) THEN
             NoOrbs = nBasis
@@ -3456,13 +3454,8 @@ MODULE nElRDMMod
 !        PrintROFCIDUMP_Time%timer_name='PrintROFCIDUMP'
 !        CALL set_timer(PrintROFCIDUMP_Time,30)
 
-        Label=''
-        LabelFull=''
-        WRITE(Label,'(I5)') NoFrozenVirt
-        LabelFull='ROFCIDUMP-'//adjustl(Label)
-
         iunit = get_free_unit()
-        OPEN(iunit,FILE=LabelFull,STATUS='unknown')
+        OPEN(iunit,FILE='ROFCIDUMP',STATUS='unknown')
         
         WRITE(iunit,'(2A6,I3,A7,I3,A5,I2,A)') '&FCI ','NORB=',NoOrbs,&
                                                 ',NELEC=',NEl,',MS2=',LMS,','
