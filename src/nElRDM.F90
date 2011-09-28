@@ -50,7 +50,7 @@ MODULE nElRDMMod
                                iLutRef, tSinglePartPhase
         USE Logging , only : RDMExcitLevel, tROFciDUmp, NoDumpTruncs, tExplicitAllRDM, &
                              tHF_S_D_Ref, tHF_Ref_Explicit, tHF_S_D, tPrint1RDM
-        USE RotateOrbsData , only : CoeffT1, CoeffT1Tag, tTurnStoreSpinOff, NoFrozenVirt
+        USE RotateOrbsData , only : CoeffT1Tag, tTurnStoreSpinOff, NoFrozenVirt
         USE RotateOrbsData , only : SymLabelCounts2,SymLabelList2,SymLabelListInv,NoOrbs, SpatOrbs
         USE util_mod , only : get_free_unit
         IMPLICIT NONE
@@ -59,10 +59,9 @@ MODULE nElRDMMod
         INTEGER(kind=n_int) , ALLOCATABLE :: Sing_ExcDjs(:,:),Sing_ExcDjs2(:,:)
         INTEGER(kind=n_int) , ALLOCATABLE :: Doub_ExcDjs(:,:),Doub_ExcDjs2(:,:)
         INTEGER :: Sing_ExcDjsTag,Sing_ExcDjs2Tag,aaaa_RDMTag,All_aaaa_RDMTag
-        INTEGER :: Doub_ExcDjsTag,Doub_ExcDjs2Tag,OneElRDMTag,UMATTempTag
+        INTEGER :: Doub_ExcDjsTag,Doub_ExcDjs2Tag,UMATTempTag
         INTEGER :: Energies_unit, ActualStochSign_unit, abab_RDMTag, All_abab_RDMTag
-        INTEGER :: abba_RDMTag, All_abba_RDMTag
-        REAL(dp) , ALLOCATABLE :: OneElRDM(:,:)
+        INTEGER :: abba_RDMTag, All_abba_RDMTag, NoSymLabelCounts
         REAL(dp) , ALLOCATABLE :: aaaa_RDM(:,:), abab_RDM(:,:), abba_RDM(:,:)
         REAL(dp) , ALLOCATABLE :: All_aaaa_RDM(:,:),All_abab_RDM(:,:), All_abba_RDM(:,:)
         REAL(dp) , ALLOCATABLE :: UMATTemp(:,:)
@@ -85,7 +84,7 @@ MODULE nElRDMMod
         USE CalcData , only : tRegenDiagHEls
         use DetBitOps , only : TestClosedShellDet
         implicit none
-        INTEGER :: ierr,i, MemoryAlloc, MemoryAlloc_Root, NoSymLabelCounts
+        INTEGER :: ierr,i, MemoryAlloc, MemoryAlloc_Root
         CHARACTER(len=*), PARAMETER :: this_routine='InitRDM'
 
 ! First thing is to check we're not trying to fill the RDMs in a way that is 
@@ -162,26 +161,15 @@ MODULE nElRDMMod
 ! First for the storage of the actual 1- or 2-RMD.
 
         IF(RDMExcitLevel.eq.1) THEN
-            ! It needs to be stored if we're not calculating the 2-RDM.
-            ! (which shall be changed very soon).
-            ALLOCATE(OneElRDM(NoOrbs,NoOrbs),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating OneElRDM array,')
-            CALL LogMemAlloc('nElRDM',NoOrbs**2,8,this_routine,OneElRDMTag,ierr)
-            OneElRDM(:,:)=0.D0
+! This is the AllnElRDM, called NatOrbMat simply because we use the natural 
+! orbital routines to diagonalise etc.        
+            ALLOCATE(NatOrbMat(NoOrbs,NoOrbs),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating NatOrbMat array,')
+            CALL LogMemAlloc('NatOrbMat',NoOrbs**2,8,this_routine,NatOrbMatTag,ierr)
+            NatOrbMat(:,:)=0.D0
 
             MemoryAlloc = MemoryAlloc + ( NoOrbs * NoOrbs * 8 ) 
             MemoryAlloc_Root = MemoryAlloc_Root + ( NoOrbs * NoOrbs * 8 ) 
-
-            IF(iProcIndex.eq.0) THEN
-! This is the AllnElRDM, called NatOrbMat simply because we use the natural 
-! orbital routines to diagonalise etc.        
-                ALLOCATE(NatOrbMat(NoOrbs,NoOrbs),stat=ierr)
-                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating NatOrbMat array,')
-                CALL LogMemAlloc('NatOrbMat',NoOrbs**2,8,this_routine,NatOrbMatTag,ierr)
-                NatOrbMat(:,:)=0.D0
-
-                MemoryAlloc_Root = MemoryAlloc_Root + ( NoOrbs * NoOrbs * 8 ) 
-            ENDIF
         ELSE
             ! If we're calculating the 2-RDM, the 1-RDM does not need to be calculated as well 
             ! because all its info is in the 2-RDM anyway.
@@ -544,8 +532,8 @@ MODULE nElRDMMod
         USE UMatCache , only : GTID
         IMPLICIT NONE
         INTEGER , ALLOCATABLE :: SymOrbs(:)
-        INTEGER :: LabOrbsTag, SymOrbsTag, ierr, spin, i , j 
-        INTEGER :: StartFill, Prev, lo, hi, Symi, SymCurr
+        INTEGER :: LabOrbsTag, SymOrbsTag, ierr, i , j 
+        INTEGER :: lo, hi, Symi, SymCurr, Symi2, SymCurr2
         CHARACTER(len=*) , PARAMETER :: this_routine = 'SetUpSymLabels_RDM'
 
         ALLOCATE(SymOrbs(NoOrbs),stat=ierr)
@@ -567,45 +555,75 @@ MODULE nElRDMMod
         SymOrbs(:)=0
 
 ! *** STEP 1 *** Fill SymLabelList2.
-! find the spat orbitals and order them in terms of symmetry.
-        do i=1,NoOrbs
-            SymLabelList2(i)=gtID(BRR(2*i))
-            ! Orbital BRR(2*i) for i = 1 will be the beta orbital with the 
-            ! second lowest energy - want the spatial orbital index to go with this.
-            SymOrbs(i)=INT(G1(BRR(2*i))%sym%S,4)
-            ! G1 also in spin orbitals - get symmetry of this beta orbital, will 
-            ! be the same as the spatial orbital.
+! find the orbitals and order them in terms of symmetry.
+        do i=1,SpatOrbs
+            if(tStoreSpinOrbs) then
+                ! for open shell systems, all alpha are followed by all beta.
+                SymLabelList2(i)=BRR(2*i)
+                SymOrbs(i)=INT(G1(BRR(2*i))%sym%S,4)
+                SymLabelList2(i+SpatOrbs)=BRR((2*i)-1)
+                SymOrbs(i+SpatOrbs)=INT(G1(BRR(2*i)-1)%sym%S,4)
+            else
+                SymLabelList2(i)=gtID(BRR(2*i))
+                SymOrbs(i)=INT(G1(BRR(2*i))%sym%S,4)
+                ! Orbital BRR(2*i) for i = 1 will be the beta orbital with the 
+                ! second lowest energy - want the spatial orbital index to go with this.
+                ! G1 also in spin orbitals - get symmetry of this beta orbital, will 
+                ! be the same as the spatial orbital.
+            endif
         enddo
-
-        call sort (SymOrbs, SymLabelList2)
+        call sort (SymOrbs(1:SpatOrbs), SymLabelList2(1:SpatOrbs))
         ! Sorts SymLabelList2 according to the order of SymOrbs (i.e. in terms of symmetry). 
+        if(tStoreSpinOrbs) &
+            call sort (SymOrbs(SpatOrbs+1:nBasis), SymLabelList2(SpatOrbs+1:nBasis))
 
 !*** STEP 2 *** Fill SymLabelCounts2.
 !SymLabelCounts(1,:) contains the position in SymLabelList2 where the symmetry index starts,
 !SymLabelCounts(2,:) contains the number of orbitals in that symmetry index.
+!Again all alpha are followed by all beta - i.e. first 8 refer to alpha, second 8 to beta.
 
         IF(lNoSymmetry) THEN
             ! if we are ignoring symmetry, all orbitals essentially have symmetry 0.
             SymLabelCounts2(1,1) = 1
             SymLabelCounts2(2,1) = SpatOrbs
+            if(tStoreSpinOrbs) then
+                SymLabelCounts2(1,9) = SpatOrbs+1
+                SymLabelCounts2(2,9) = SpatOrbs
+            endif
         ELSE 
             ! otherwise we run through the occupied orbitals, counting the number with 
             ! each symmetry and noting where in SymLabelList2 each symmetry block starts.
-            SymCurr=0
-            SymLabelCounts2(1,1)=1
+            SymCurr = 0
+            SymLabelCounts2(1,1) = 1
+            if(tStoreSpinOrbs) then
+                SymCurr2 = 0
+                SymLabelCounts2(1,9) = SpatOrbs + 1
+            endif
             do i=1,SpatOrbs
-                Symi=INT(G1(2*SymLabelList2(i))%sym%S,4)
+                if(tStoreSpinOrbs) then
+                    Symi=INT(G1(SymLabelList2(i))%sym%S,4)
+                    Symi2=INT(G1(SymLabelList2(i+SpatOrbs))%sym%S,4)
+                else
+                    Symi=INT(G1(2*SymLabelList2(i))%sym%S,4)
+                endif
                 SymLabelCounts2(2,(Symi+1))= SymLabelCounts2(2,(Symi+1))+1
                 IF(Symi.ne.SymCurr) THEN
                     SymLabelCounts2(1,(Symi+1))=i
                     SymCurr=Symi
                 ENDIF
+                if(tStoreSpinOrbs) then
+                    SymLabelCounts2(2,(Symi2+9))= SymLabelCounts2(2,(Symi2+9))+1
+                    IF(Symi2.ne.SymCurr2) THEN
+                        SymLabelCounts2(1,(Symi2+9))=i
+                        SymCurr2=Symi2
+                    ENDIF
+                endif
             enddo
         ENDIF
 
         ! Go through each symmetry group, making sure the orbitals are 
         ! ordered lowest to highest.
-        do i=1,8
+        do i=1,NoSymLabelCounts
             IF(SymLabelCounts2(2,i).ne.0) THEN
                 lo = SymLabelCounts2(1, i)
                 hi = lo + SymLabelCounts2(2, i) - 1
@@ -613,7 +631,10 @@ MODULE nElRDMMod
             ENDIF
         enddo
 
-        do i=1,SpatOrbs
+        ! Construct the inverse matrix.  While SymLabelList2 takes a position and tells us 
+        ! what orbital is in it, we also might need to take an orbital and find out what 
+        ! position to put its contribution in.
+        do i=1,NoOrbs
             SymLabelListInv(SymLabelList2(i))=i
         enddo
 
@@ -635,7 +656,7 @@ MODULE nElRDMMod
 !             WRITE(6,*) i,ARR(2*SymLabelList2(i),1),ARR(2*SymLabelList2(i),2),&
 !                                               INT(G1(2*SymLabelList2(i))%sym%S,4)
 !        enddo
-
+!
 !        WRITE(6,*) 'Sym label list (i.e the orbitals in symm order), and its inverse'
 !        do i=1,SpatOrbs
 !            WRITE(6,*) SymLabelList2(i),SymLabelListInv(i)
@@ -2325,7 +2346,7 @@ MODULE nElRDMMod
         implicit none
         integer , intent(in) :: nI(NEl)
         real(dp) , intent(in) :: realSignDi
-        integer :: i, j, iSpat, jSpat, Ind
+        integer :: i, j, iSpat, jSpat, Ind, iInd
 
 ! Need to add in the diagonal elements.
 ! The RDM are always in spin orbitals, so just adding the orbital as is, is fine.
@@ -2334,8 +2355,12 @@ MODULE nElRDMMod
 
         if(RDMExcitLevel.eq.1) then
             do i=1,NEl
-                iSpat = SymLabelListInv(gtID(nI(i)))
-                OneElRDM(iSpat,iSpat) = OneElRDM(iSpat,iSpat) &
+                if(tStoreSpinOrbs) then
+                    iInd = SymLabelListInv(nI(i))
+                else
+                    iInd = SymLabelListInv(gtID(nI(i)))
+                endif
+                NatOrbMat(iInd,iInd) = NatOrbMat(iInd,iInd) &
                                           + ( realSignDi * realSignDi ) 
             enddo
         else
@@ -2381,7 +2406,7 @@ MODULE nElRDMMod
         logical , intent(in) :: tParity
         real(dp) , intent(in) :: realSignDi, realSignDj
         logical , intent(in) :: tFill_CiCj_Symm
-        integer :: k, Indik, Indak, iSpat, aSpat, kSpat
+        integer :: k, Indik, Indak, iSpat, aSpat, kSpat, iInd, aInd
         real(dp) :: ParityFactor, ParityFactor2
 
 !        WRITE(6,*) '* In singles'
@@ -2396,23 +2421,27 @@ MODULE nElRDMMod
 
 
         if(RDMExcitLevel.eq.1) then
-            ! Slightly annoyingly, our OneElRDM is ordered by the symmetry of the orbitals (for the 
+            ! Slightly annoyingly, our NatOrbMat is ordered by the symmetry of the orbitals (for the 
             ! diagonalisation later) - so we must find out what position to put this orbital in. 
             ! SymLabelList2(i), gives the orbital in position i
             ! SymLabelListInv(i), gives the position orbital i should go in.
 
-            iSpat = gtID(Ex(1,1))
-            aSpat = gtID(Ex(2,1))   ! These two must have the same spin.
-
-            Indik = SymLabelListInv(iSpat)    ! Position of i 
-            Indak = SymLabelListInv(aSpat)    ! Position of a.
+            if(tStoreSpinOrbs) then
+                iInd = Ex(1,1)
+                aInd = Ex(2,1)
+            else
+                iInd = gtID(Ex(1,1))
+                aInd = gtID(Ex(2,1))   ! These two must have the same spin.
+            endif
+            Indik = SymLabelListInv(iInd)    ! Position of i 
+            Indak = SymLabelListInv(aInd)    ! Position of a.
             
             ! Adding to 1-RDM(i,a), ci.cj effectively.
-            OneElRDM( Indik , Indak ) = OneElRDM( Indik , Indak ) + (ParityFactor * &
+            NatOrbMat( Indik , Indak ) = NatOrbMat( Indik , Indak ) + (ParityFactor * &
                                                              realSignDi * realSignDj )
 
             if(tFill_CiCj_Symm) then                                
-                OneElRDM( Indak , Indik ) = OneElRDM( Indak , Indik ) + (ParityFactor * &
+                NatOrbMat( Indak , Indik ) = NatOrbMat( Indak , Indik ) + (ParityFactor * &
                                                              realSignDi * realSignDj )
 
             endif
@@ -2654,25 +2683,16 @@ MODULE nElRDMMod
         USE RotateOrbsData , only : NoOrbs
         USE UMatCache , only : GTID
         implicit none
-        integer :: i, j, ierr, Evalues_unit, NatOrbs_unit, jSpat
+        integer :: i, j, ierr, Evalues_unit, NatOrbs_unit, jSpat, jInd
         REAL(dp) :: SumDiag, Corr_Entropy, Norm_Evalues
         CHARACTER(len=*), PARAMETER :: this_routine='find_nat_orb_occ_numbers'
-
-! Getting back into the rotate routines, which use symlabellist2 etc etc, 
-! so we need to tell these routines they've been set up as spin orbitals.
-! The only time this causes a problem is in UMAT, which will be spatial orbitals.
-        tTurnStoreSpinOff=.false.
-        IF(.not.tStoreSpinOrbs) THEN
-            tTurnStoreSpinOff=.true.
-            tStoreSpinOrbs=.true.
-        ENDIF
 
         IF(iProcIndex.eq.0) THEN
             
             CALL DiagRDM(SumDiag)
             Norm_Evalues = SumDiag/REAL(NEl)
 
-            IF(tTurnStoreSpinOff) tStoreSpinOrbs=.false.
+            write(6,*) 'SumDiag',SumDiag
 
             ! Write out normalised evalues to file
             Evalues_unit = get_free_unit()
@@ -2706,63 +2726,42 @@ MODULE nElRDMMod
                 OPEN(NatOrbs_unit,file='NO_TRANSFORM',status='unknown')
                 write(NatOrbs_unit,'(2A6,A20)') '#   MO','NO','Transform Coeff'
                 ! write out in terms of spin orbitals, all alpha then all beta.
-                do i = 1, SpatOrbs
-                    do j = 1, nBasis - 1, 2
+                do i = 1, NoOrbs
+                    do j = 1, nBasis
                         ! Here i corresponds to the natural orbital, and j to the molecular orbital.
                         ! i is actually the spin orbital in this case.
-                        jSpat = gtID(j)
-                        if(NatOrbMat(SymLabelListInv(jSpat),i).ne.0.0_dp) &
-                            write(NatOrbs_unit,'(2I6,G25.17)') j,i,NatOrbMat(SymLabelListInv(jSpat),i)/2.0_dp
+                        if(tStoreSpinOrbs) then
+                            jInd = j
+                        else
+                            if(mod(j,2).ne.0) then
+                                jInd = gtID(j)
+                            else
+                                CYCLE
+                            endif
+                        endif
+                        if(NatOrbMat(SymLabelListInv(jInd),i).ne.0.0_dp) &
+                            write(NatOrbs_unit,'(2I6,G25.17)') j,i,NatOrbMat(SymLabelListInv(jInd),i)
                     enddo
                 enddo
-                do i = 1, SpatOrbs
-                    do j = 2, nBasis, 2
-                        ! Here i corresponds to the natural orbital, and j to the molecular orbital.
-                        ! i is actually the spin orbital in this case.
-                        jSpat = gtID(j)
-                        if(NatOrbMat(SymLabelListInv(jSpat),i).ne.0.0_dp) &
-                            write(NatOrbs_unit,'(2I6,G25.17)') j,i+SpatOrbs,&
-                                                            NatOrbMat(SymLabelListInv(jSpat),i)/2.0_dp
+                if(.not.tStoreSpinOrbs) then
+                    do i = 1, SpatOrbs
+                        do j = 2, nBasis, 2
+                            ! Here i corresponds to the natural orbital, and j to the molecular orbital.
+                            ! i is actually the spin orbital in this case.
+                            jSpat = gtID(j)
+                            if(NatOrbMat(SymLabelListInv(jSpat),i).ne.0.0_dp) &
+                                write(NatOrbs_unit,'(2I6,G25.17)') j,i+SpatOrbs,&
+                                                                NatOrbMat(SymLabelListInv(jSpat),i)
+                        enddo
                     enddo
-                enddo
+                endif
                 close(NatOrbs_unit)
             endif
 
             if(tPrintRODump) then                
 
-                tRotateVirtOnly=.true.
-                tRotateOccOnly=.false.
-                tSeparateOccVirt=.false.
-
-                CALL OrderRDM()
-
-                ALLOCATE(CoeffT1(NoOrbs,NoOrbs),stat=ierr)
-                CALL LogMemAlloc(this_routine,NoOrbs*NoOrbs,8,this_routine,&
-                                                                CoeffT1Tag,ierr)
-                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating CoeffT1 array,')
-
-                CoeffT1(:,:)=0.D0
-
-                CALL FillCoeffT1_RDM()
-
-!                do i = 1, nBasis
-!                    CoeffT1(i,i) = 1.D0
-!                enddo
-
-!                WRITE(6,*) 'CoeffT1'
-!                do i = 1, nBasis
-!                    do j = 1, nBasis
-!                        WRITE(6,'(F10.6)',advance='no') CoeffT1(j,i)
-!                    enddo
-!                    WRITE(6,*) ''
-!                enddo
-!                WRITE(6,*) 'SymLabelList2'
-!                do i = 1, nBasis
-!                    WRITE(6,*) SymLabelList2(i),INT(G1(SymLabelList2(i))%sym%S,4) 
-!                enddo
-
-                ALLOCATE(FourIndInts(nBasis,nBasis,nBasis,nBasis),stat=ierr)
-                CALL LogMemAlloc('FourIndInts',(nBasis**4),8,this_routine,&
+                ALLOCATE(FourIndInts(NoOrbs,NoOrbs,NoOrbs,NoOrbs),stat=ierr)
+                CALL LogMemAlloc('FourIndInts',(NoOrbs**4),8,this_routine,&
                                                         FourIndIntsTag,ierr)
                 IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating FourIndInts array,')
 
@@ -2779,7 +2778,7 @@ MODULE nElRDMMod
 
                 CALL FLUSH(6)
 
-                CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
+                CALL WRITEBASIS(6,G1,NoOrbs,ARR,BRR)
 
             ENDIF
         ENDIF
@@ -3004,7 +3003,7 @@ MODULE nElRDMMod
 
 
     SUBROUTINE FillCoeffT1_RDM
-        USE RotateOrbsData , only : CoeffT1,SymLabelList3,SymOrbs,SymOrbsTag,&
+        USE RotateOrbsData , only : SymLabelList3,SymOrbs,SymOrbsTag,&
                                     TruncEval,NoRotOrbs,EvaluesTrunc,EvaluesTruncTag
         USE Logging , only : tTruncRODump,tTruncDumpbyVal
         IMPLICIT NONE
@@ -3020,8 +3019,8 @@ MODULE nElRDMMod
 !        CALL set_timer(FillCoeff_Time,30)
 
 !        WRITE(6,*) 'NatOrbMat'
-!        do i = 1, nBasis
-!            do j = 1, nBasis
+!        do i = 1, NoOrbs
+!            do j = 1, NoOrbs
 !                WRITE(6,'(F10.6)',advance='no') NatOrbMat(j,i)
 !            enddo
 !            WRITE(6,*) ''
@@ -3048,7 +3047,7 @@ MODULE nElRDMMod
                 !This is the orbital the old position corresponds to.
                 New_Pos = SymLabelListInvNew(Orb)   
                 !This is the new position that orbital should go into.
-                CoeffT1(New_Pos,i)=NatOrbMat(j,i)
+!                CoeffT1(New_Pos,i)=NatOrbMat(j,i)
             enddo
         enddo
 
@@ -3109,18 +3108,13 @@ MODULE nElRDMMod
 
 !Zero arrays from previous transform
 
- 
-        ALLOCATE(Temp4indints(nBasis,nBasis),stat=ierr)
-        CALL LogMemAlloc('Temp4indints',nBasis**2,8,&
+        ALLOCATE(Temp4indints(NoOrbs,NoOrbs),stat=ierr)
+        CALL LogMemAlloc('Temp4indints',NoOrbs**2,8,&
                             'Transform2ElIntsMemSave_RDM',Temp4indintsTag,ierr)
         IF(ierr.ne.0) CALL Stop_All('Transform2ElIntsMemSave_RDM',&
                                     'Problem allocating memory to Temp4indints.')
  
         FourIndInts(:,:,:,:)=0.D0
-
-!        WRITE(6,*) 'to here 01'
-!        WRITE(6,*) tStoreSpinOrbs
-!        CALL FLUSH(6)
 
 ! **************
 ! Calculating the two-transformed, four index integrals.
@@ -3130,33 +3124,13 @@ MODULE nElRDMMod
 ! All our arrays are in spin orbitals - if tStoreSpinOrbs is false, 
 ! UMAT will be in spatial orbitals - need to account for this.
 
-! Running through 1,nBasis - the actual orbitals corresponding to that index 
+! Running through 1,NoOrbs - the actual orbitals corresponding to that index 
 ! are given by SymLabelList2
 
-        do b=1,nBasis
-            IF(.not.tStoreSpinOrbs) THEN
-                b2=CEILING(REAL(SymLabelList2(b))/2.D0)
-            ELSE
-                b2=SymLabelList2(b)
-            ENDIF
+        do b=1,NoOrbs
             do d=1,b
-                IF(.not.tStoreSpinOrbs) THEN
-                    d2=CEILING(REAL(SymLabelList2(d))/2.D0)
-                ELSE
-                    d2=SymLabelList2(d)
-                ENDIF
-                do a=1,nBasis
-                    IF(.not.tStoreSpinOrbs) THEN
-                        a2=CEILING(REAL(SymLabelList2(a))/2.D0)
-                    ELSE
-                        a2=SymLabelList2(a)
-                    ENDIF
+                do a=1,NoOrbs
                     do g=1,a
-                        IF(.not.tStoreSpinOrbs) THEN
-                            g2=CEILING(REAL(SymLabelList2(g))/2.D0)
-                        ELSE
-                            g2=SymLabelList2(g)
-                        ENDIF
 
 ! UMatInd in physical notation, but FourIndInts in chemical 
 ! (just to make it more clear in these transformations).
@@ -3169,18 +3143,18 @@ MODULE nElRDMMod
                 enddo
 
                 Temp4indints(:,:)=0.D0
-                CALL DGEMM('T','N',nBasis,nBasis,nBasis,1.0,CoeffT1(:,:),nBasis,&
-                            FourIndInts(1:nBasis,1:nBasis,b,d),nBasis,0.0,&
-                            Temp4indints(1:nBasis,1:nBasis),nBasis)
+                CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0,NatOrbMat(:,:),NoOrbs,&
+                            FourIndInts(1:NoOrbs,1:NoOrbs,b,d),NoOrbs,0.0,&
+                            Temp4indints(1:NoOrbs,1:NoOrbs),NoOrbs)
                 ! Temp4indints(i,g) comes out of here, so to transform g to k, 
                 ! we need the transpose of this.
 
-                CALL DGEMM('T','T',nBasis,nBasis,nBasis,1.0,CoeffT1(:,:),nBasis,&
-                            Temp4indints(1:nBasis,1:nBasis),nBasis,0.0,&
-                            FourIndInts(1:nBasis,1:nBasis,b,d),nBasis)
+                CALL DGEMM('T','T',NoOrbs,NoOrbs,NoOrbs,1.0,NatOrbMat(:,:),NoOrbs,&
+                            Temp4indints(1:NoOrbs,1:NoOrbs),NoOrbs,0.0,&
+                            FourIndInts(1:NoOrbs,1:NoOrbs,b,d),NoOrbs)
                 ! Get Temp4indits02(i,k)
 
-                do i=1,nBasis
+                do i=1,NoOrbs
                     do k=1,i
                         FourIndInts(i,k,d,b)=FourIndInts(i,k,b,d)
                         FourIndInts(k,i,d,b)=FourIndInts(i,k,b,d)
@@ -3192,18 +3166,18 @@ MODULE nElRDMMod
         enddo
         
 ! Calculating the 3 transformed, 4 index integrals. 01=a untransformed,02=b,03=g,04=d
-        do i=1,nBasis
+        do i=1,NoOrbs
             do k=1,i
 
                 Temp4indints(:,:)=0.D0
-                CALL DGEMM('T','N',nBasis,nBasis,nBasis,1.0,CoeffT1(:,:),nBasis,&
-                            FourIndInts(i,k,1:nBasis,1:nBasis),nBasis,0.0,&
-                            Temp4indints(1:nBasis,1:nBasis),nBasis)
+                CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0,NatOrbMat(:,:),NoOrbs,&
+                            FourIndInts(i,k,1:NoOrbs,1:NoOrbs),NoOrbs,0.0,&
+                            Temp4indints(1:NoOrbs,1:NoOrbs),NoOrbs)
 
-                CALL DGEMM('T','T',nBasis,nBasis,nBasis,1.0,CoeffT1(:,:),&
-                            nBasis,Temp4indints(1:nBasis,1:nBasis),nBasis,0.0,&
-                            FourIndInts(i,k,1:nBasis,1:nBasis),nBasis)
-                do l=1,nBasis
+                CALL DGEMM('T','T',NoOrbs,NoOrbs,NoOrbs,1.0,NatOrbMat(:,:),&
+                            NoOrbs,Temp4indints(1:NoOrbs,1:NoOrbs),NoOrbs,0.0,&
+                            FourIndInts(i,k,1:NoOrbs,1:NoOrbs),NoOrbs)
+                do l=1,NoOrbs
                     do j=1,l
                         FourIndInts(k,i,j,l)=FourIndInts(i,k,j,l)
                         FourIndInts(k,i,l,j)=FourIndInts(i,k,j,l)
@@ -3230,7 +3204,6 @@ MODULE nElRDMMod
         REAL(dp) :: FOCKDiagSumHF,FOCKDiagSumNew
         CHARACTER(len=*) , PARAMETER :: this_routine='CalcFOCKMatrix_RDM'
         REAL(dp) , ALLOCATABLE :: ArrDiagNew(:)
-        !NEED TO FIX THIS!
 
 ! This subroutine calculates and writes out the fock matrix for the transformed orbitals.
 ! ARR is originally the fock matrix in the HF basis.
@@ -3251,7 +3224,6 @@ MODULE nElRDMMod
 !            WRITE(6,*) Arr(:,2)
 !        enddo
 
-
 ! First calculate the sum of the diagonal elements, ARR.
 ! Check if this is already being done.
         FOCKDiagSumHF=0.D0
@@ -3261,15 +3233,6 @@ MODULE nElRDMMod
 
         WRITE(6,*) 'Sum of the fock matrix diagonal elements in the HF basis set = ',&
                                                                         FOCKDiagSumHF
-
-!        WRITE(6,*) 'Coeffs'
-!        do i=1,NoOrbs
-!            do j=1,NoOrbs
-!                WRITE(6,'(F20.10)',advance='no') CoeffT1(j,i)
-!            enddo
-!            WRITE(6,*) ''
-!        enddo
-
 ! Then calculate the fock matrix in the transformed basis, 
 ! and the sum of the new diagonal elements.
 ! Our Arr in spin orbitals.
@@ -3278,18 +3241,32 @@ MODULE nElRDMMod
 !        enddo
 
         FOCKDiagSumNew=0.D0
-        do j=1,nBasis
+        do j=1,NoOrbs
             l=SymLabelList2(j)
-            ArrDiagNew(l) = 0.D0
-            do a=1,nBasis
+            if(tStoreSpinOrbs) then
+                ArrDiagNew(l) = 0.D0
+            else
+                ArrDiagNew(2*l) = 0.D0
+                ArrDiagNew((2*l)-1) = 0.D0
+            endif
+            do a=1,NoOrbs
                 b=SymLabelList2(a)
-                ArrDiagNew(l)=ArrDiagNew(l)+(CoeffT1(a,j)*ARR(b,2)*CoeffT1(a,j))
+                if(tStoreSpinOrbs) then
+                    ArrDiagNew(l)=ArrDiagNew(l)+(NatOrbMat(a,j)*ARR(b,2)*NatOrbMat(a,j))
+                else
+                    ArrDiagNew(2*l)=ArrDiagNew(2*l)+(NatOrbMat(a,j)*ARR(2*b,2)*NatOrbMat(a,j))
+                    ArrDiagNew((2*l)-1)=ArrDiagNew((2*l)-1)+(NatOrbMat(a,j)*ARR((2*b)-1,2)*NatOrbMat(a,j))
+                endif
             enddo
-            FOCKDiagSumNew=FOCKDiagSumNew+(ArrDiagNew(l))
+            if(tStoreSpinOrbs) then
+                FOCKDiagSumNew=FOCKDiagSumNew+(ArrDiagNew(l))
+            else
+                FOCKDiagSumNew=FOCKDiagSumNew+(ArrDiagNew(2*l))
+                FOCKDiagSumNew=FOCKDiagSumNew+(ArrDiagNew((2*l)-1))
+            endif
         enddo
         ! If we are truncation the virtual space, only the unfrozen entries will 
         ! be transformed.
-        
 
         WRITE(6,*) 'Sum of the fock matrix diagonal elements in the transformed &
                         &basis set = ',FOCKDiagSumNew
@@ -3307,18 +3284,11 @@ MODULE nElRDMMod
 !            WRITE(6,*) i,BRR(i),ARR(i,1),ARR(BRR(i),2),ArrDiagNew(i)
 !        enddo
        
-!        WRITE(6,*) 'to here',NoDumpTruncs,NoOrbs 
-!        CALL FLUSH(6)
-
 ! Refill ARR(:,1) (ordered in terms of energies), and ARR(:,2) 
 ! (ordered in terms of orbital number).
 ! ARR(:,2) needs to be ordered in terms of symmetry and then energy (like SymLabelList), 
 ! so currently this ordering will not be correct when reading in qchem INTDUMPS as the 
 ! orbital number ordering is by energy.
-
-!        IF(NoDumpTruncs.le.1) THEN
-! If we are only writing out 1 ROFCIDUMP or we are not truncating at all 
-! - can refill ARR etc.            
 
         do j=1,nBasis
             ARR(j,2)=ArrDiagNew(j)
@@ -3335,9 +3305,6 @@ MODULE nElRDMMod
         DEALLOCATE(ArrDiagNew)
         CALL LogMemDealloc(this_routine,ArrDiagNewTag)
 
-!        WRITE(6,*) 'end of calcfockmatrix'
-!        call flush(6)
-
     ENDSUBROUTINE CalcFOCKMatrix_RDM
 
 
@@ -3353,17 +3320,11 @@ MODULE nElRDMMod
                     'Rotating orbitals not implemented for complex orbitals.')
 #endif
 
-        IF(tStoreSpinOrbs) THEN
-            ALLOCATE(TMAT2DPart(nBasis,nBasis),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating TMAT2DPart array,')
-            CALL LogMemAlloc('TMAT2DPart',nBasis*nBasis,8,&
-                                        'RefillUMAT_RDM',TMAT2DPartTag,ierr)
-        ELSE
-            ALLOCATE(TMAT2DPart(nBasis,nBasis),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating TMAT2DPart array,')
-            CALL LogMemAlloc('TMAT2DPart',nBasis*nBasis,8,&
-                                        'RefillUMAT_RDM',TMAT2DPartTag,ierr)
-        ENDIF
+        ! TMAT2D is always in spin orbitals.
+        ALLOCATE(TMAT2DPart(nBasis,nBasis),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating TMAT2DPart array,')
+        CALL LogMemAlloc('TMAT2DPart',nBasis*nBasis,8,&
+                                    'RefillUMAT_RDM',TMAT2DPartTag,ierr)
         TMAT2DPart(:,:)=0.D0
 
 !        RefillUMAT_Time%timer_name='RefillUMATandTMAT'
@@ -3373,47 +3334,24 @@ MODULE nElRDMMod
 !            WRITE(6,*) SymLabelList2(i)
 !        enddo
 
-
 ! Make the UMAT elements the four index integrals.  
 ! These are calculated by transforming the HF orbitals using the coefficients 
 ! that have been found
-        IF(NoDumpTruncs.le.1) THEN
-            do l=1,nBasis
-                IF(.not.tStoreSpinOrbs) THEN
-                    d=CEILING(REAL(SymLabelList2(l))/2.D0)
-                ELSE
-                    d=SymLabelList2(l)
-                ENDIF
-                do k=1,nBasis
-
-                    IF(.not.tStoreSpinOrbs) THEN
-                        b=CEILING(REAL(SymLabelList2(k))/2.D0)
-                    ELSE
-                        b=SymLabelList2(k)
-                    ENDIF
-     
-                    do j=1,l
-
-                        IF(.not.tStoreSpinOrbs) THEN
-                            g=CEILING(REAL(SymLabelList2(j))/2.D0)
-                        ELSE
-                            g=SymLabelList2(j)
-                        ENDIF
-                        do i=1,k
-
-                            IF(.not.tStoreSpinOrbs) THEN
-                                a=CEILING(REAL(SymLabelList2(i))/2.D0)
-                            ELSE
-                                a=SymLabelList2(i)
-                            ENDIF
+        do l=1,NoOrbs
+            d=SymLabelList2(l)
+            do k=1,NoOrbs
+                b=SymLabelList2(k)
+                do j=1,l
+                    g=SymLabelList2(j)
+                    do i=1,k
+                        a=SymLabelList2(i)
 
 !The FourIndInts are in chemical notation, the UMatInd in physical.                            
-                            UMAT(UMatInd(a,b,g,d,0,0))=FourIndInts(i,j,k,l)
-                        enddo
+                        UMAT(UMatInd(a,b,g,d,0,0))=FourIndInts(i,j,k,l)
                     enddo
                 enddo
             enddo
-        ENDIF
+        enddo
 
 ! Also calculate the 2 index integrals, and make these the elements of the TMAT2D matrix.
 ! TMAT2D is in spin orbitals.
@@ -3427,31 +3365,51 @@ MODULE nElRDMMod
 !            WRITE(6,*) ''
 !        enddo
 
-!        WRITE(6,*) 'NoRotOrbs',NoRotOrbs
-!        CALL FLUSH(6)
-
-
         do a=1,nBasis
-            do k=1,nBasis
+            do k=1,NoOrbs
                 i=SymLabelList2(k)
                 NewTMAT=0.D0
-                do b=1,nBasis
+                do b=1,NoOrbs
                     d=SymLabelList2(b)
-                    NewTMAT=NewTMAT+(CoeffT1(b,k)*REAL(TMAT2D(d,a),8))
+                    if(tStoreSpinOrbs) then
+                        NewTMAT=NewTMAT+(NatOrbMat(b,k)*REAL(TMAT2D(d,a),8))
+                    else
+                        NewTMAT=NewTMAT+(NatOrbMat(b,k)*REAL(TMAT2D(2*d,a),8))
+                    endif
                 enddo
-                TMAT2DPart(i,a)=NewTMAT
+                if(tStoreSpinOrbs) then
+                    TMAT2DPart(i,a)=NewTMAT
+                else
+                    if(mod(a,2).eq.0) then
+                        TMAT2DPart(2*i,a)=NewTMAT
+                    else
+                        TMAT2DPart((2*i)-1,a)=NewTMAT
+                    endif
+                endif
             enddo
         enddo
 
         do k=1,nBasis
-            do l=1,nBasis
+            do l=1,NoOrbs
                 j=SymLabelList2(l)
                 NewTMAT=0.D0
-                do a=1,nBasis
+                do a=1,NoOrbs
                     c=SymLabelList2(a)
-                    NewTMAT=NewTMAT+(CoeffT1(a,l)*TMAT2DPart(k,c))
+                    if(tStoreSpinOrbs) then
+                        NewTMAT=NewTMAT+(NatOrbMat(a,l)*TMAT2DPart(k,c))
+                    else
+                        NewTMAT=NewTMAT+(NatOrbMat(a,l)*TMAT2DPart(k,2*c))
+                    endif
                 enddo
-                TMAT2D(k,j)=NewTMAT
+                if(tStoreSpinOrbs) then
+                    TMAT2D(k,j)=NewTMAT
+                else
+                    if(mod(k,2).eq.0) then
+                        TMAT2D(k,2*j)=NewTMAT
+                    else
+                        TMAT2D(k,(2*j)-1)=NewTMAT
+                    endif
+                endif
             enddo
         enddo
 
@@ -3469,17 +3427,7 @@ MODULE nElRDMMod
         DEALLOCATE(TMAT2DPart)
         CALL LogMemDeAlloc('RefillUMAT_RDM',TMAT2DPartTag)
 
-
-!        CALL set_timer(RefillUMAT_Time,30)
-
-        WRITE(6,'(A,I5,A)') ' Printing the new ROFCIDUMP file for a &
-                                &truncation of ',NoFrozenVirt,' orbitals.'
-        IF(tROFciDump.and.(NoDumpTruncs.gt.1)) THEN
-            CALL PrintRepeatROFCIDUMP()
-        ELSEIF(tROFciDUmp) THEN
-            CALL PrintROFCIDUMP_RDM()
-        ENDIF
-
+        CALL PrintROFCIDUMP_RDM()
 
     ENDSUBROUTINE RefillUMATandTMAT2D_RDM
 
@@ -3647,21 +3595,14 @@ MODULE nElRDMMod
 
         IF(RDMExcitLevel.eq.1) THEN
 
-            DEALLOCATE(OneElRDM)
-            CALL LogMemDeAlloc(this_routine,OneElRDMTag)
-
+            DEALLOCATE(NatOrbMat)
+            CALL LogMemDeAlloc(this_routine,NatOrbMatTag)
 
             IF(iProcIndex.eq.0) THEN
                 DEALLOCATE(Evalues)
                 CALL LogMemDeAlloc(this_routine,EvaluesTag)
 
-                DEALLOCATE(NatOrbMat)
-                CALL LogMemDeAlloc(this_routine,NatOrbMatTag)
-
                 IF(tDiagRDM.and.tPrintRODump) THEN
-                    DEALLOCATE(CoeffT1)
-                    CALL LogMemDeAlloc(this_routine,CoeffT1Tag)
-
                     DEALLOCATE(FourIndInts)
                     CALL LogMemDeAlloc(this_routine,FourIndIntsTag)
                 ENDIF
@@ -3705,16 +3646,15 @@ MODULE nElRDMMod
     END SUBROUTINE DeallocateRDM
 
 
-    SUBROUTINE Average_Spins_and_Sum_1e_Norms(Trace_1RDM_Inst, Trace_1RDM)
+    SUBROUTINE Average_Spins_and_Sum_1e_Norms(Trace_1RDM)
 ! This will only be called by the root.
 ! It takes the NatOrbMat and averages each of the elements that should be equal by spin.
 ! If HPHF is on, these things should already be true and this is not called.
         implicit none
-        real(dp) , intent(out) :: Trace_1RDM_Inst, Trace_1RDM
+        real(dp) , intent(out) :: Trace_1RDM
         real(dp) :: Entry_bb, Entry_aa
         integer :: i, a
 
-        Trace_1RDM_Inst = 0.D0
         Trace_1RDM = 0.D0
 
         do i = 1, nBasis - 1, 2
@@ -3729,8 +3669,6 @@ MODULE nElRDMMod
             NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(i+1)) = &
                                         ( Entry_bb + Entry_aa ) / 2.D0 
 
-            Trace_1RDM_Inst = Trace_1RDM_Inst + OneElRDM(SymLabelListInv(i),SymLabelListInv(i)) &
-                                              + OneElRDM(SymLabelListInv(i+1),SymLabelListInv(i+1))
             Trace_1RDM = Trace_1RDM + NatOrbMat(SymLabelListInv(i),SymLabelListInv(i)) &
                                     + NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(i+1))
 
@@ -4172,16 +4110,17 @@ MODULE nElRDMMod
 
     subroutine Finalise_1e_RDM() 
         implicit none
+        integer :: i
         real(dp) :: AllAccumRDMNorm_Inst, AllAccumRDMNorm
-        real(dp) :: Norm_1RDM_Inst, Norm_1RDM
-        real(dp) :: Trace_1RDM_Inst, Trace_1RDM
+        real(dp) :: Norm_1RDM
+        real(dp) :: Trace_1RDM
 
         AllAccumRDMNorm = 0.D0
         IF(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) &
             CALL MPIReduce(AccumRDMNorm,MPI_SUM,AllAccumRDMNorm)
 
         if(RDMExcitLevel.eq.1) &            
-            CALL MPIReduce(OneElRDM,MPI_SUM,NatOrbMat)
+            CALL MPISum_inplace(NatOrbMat)
         
         if(iProcIndex.eq.0) then 
 !            if(tHPHF) then
@@ -4191,17 +4130,16 @@ MODULE nElRDMMod
 !                call Average_Spins_and_Sum_1e_Norms(Trace_1RDM_Inst, Trace_1RDM)
 !            endif
 
-            call sum_1e_norms(Trace_1RDM_Inst, Trace_1RDM) 
+            call sum_1e_norms(Trace_1RDM) 
 
-            call calc_1e_norms(AllAccumRDMNorm_Inst, AllAccumRDMNorm, Norm_1RDM_Inst, &
-                                        Norm_1RDM, Trace_1RDM_Inst, Trace_1RDM)
+            call calc_1e_norms(AllAccumRDMNorm_Inst, AllAccumRDMNorm, & 
+                                        Norm_1RDM, Trace_1RDM)
 
             if((RDMExcitLevel.eq.1).and.(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref))) &
                 call make_1e_rdm_hermitian(Norm_1RDM)
 
             call Write_out_1RDM(Norm_1RDM)
         endif
-
 
     end subroutine Finalise_1e_RDM
 
@@ -4285,7 +4223,7 @@ MODULE nElRDMMod
     end subroutine 
 
 
-    subroutine sum_1e_norms(Trace_1RDM_Inst, Trace_1RDM)
+    subroutine sum_1e_norms(Trace_1RDM)
 ! We want to 'normalise' the reduced density matrices.
 ! These are not even close to being normalised at the moment, because of the way they are 
 ! calculated on the fly.
@@ -4299,17 +4237,14 @@ MODULE nElRDMMod
 
 ! This routine also initiates the stuff needed to write out the density matrices to files.
         implicit none
-        real(dp) , intent(out) :: Trace_1RDM_Inst, Trace_1RDM
+        real(dp) , intent(out) :: Trace_1RDM
         integer :: i
 
         ! Find the current, unnormalised trace of each matrix.
         ! TODO: This can be merged into the spin averaging when everything is working.
 
-        Trace_1RDM_Inst = 0.D0
         Trace_1RDM = 0.D0
-
-        do i = 1, SpatOrbs
-            Trace_1RDM_Inst = Trace_1RDM_Inst + OneElRDM(i,i)
+        do i = 1, NoOrbs
             Trace_1RDM = Trace_1RDM + NatOrbMat(i,i)
         enddo
 
@@ -4356,23 +4291,20 @@ MODULE nElRDMMod
 
     end subroutine sum_2e_norms        
 
-    subroutine calc_1e_norms(AllAccumRDMNorm_Inst, AllAccumRDMNorm, Norm_1RDM_Inst, &
-                                            Norm_1RDM, Trace_1RDM_Inst, Trace_1RDM)
+    subroutine calc_1e_norms(AllAccumRDMNorm_Inst, AllAccumRDMNorm, &
+                                            Norm_1RDM, Trace_1RDM)
         implicit none                            
         real(dp) , intent(in) :: AllAccumRDMNorm_Inst, AllAccumRDMNorm
-        real(dp) , intent(in) :: Trace_1RDM_Inst, Trace_1RDM
-        real(dp) , intent(out) :: Norm_1RDM_Inst, Norm_1RDM
+        real(dp) , intent(in) :: Trace_1RDM
+        real(dp) , intent(out) :: Norm_1RDM
 
-        Norm_1RDM_Inst = 0.D0
         Norm_1RDM = 0.D0
 
         IF(tHF_S_D_Ref.or.tHF_Ref_Explicit) THEN
-            Norm_1RDM_Inst = 1.D0 / AllAccumRDMNorm_Inst
             Norm_1RDM = 1.D0 / AllAccumRDMNorm
         ELSE
             ! Sum of diagonal elements of 1 electron RDM must equal NEl, 
             ! number of electrons.
-            Norm_1RDM_Inst = ( REAL(NEl,8) / Trace_1RDM_Inst )
             Norm_1RDM = ( REAL(NEl,8) / Trace_1RDM )
         ENDIF
 
@@ -4427,8 +4359,8 @@ MODULE nElRDMMod
 
         Max_Error_Hermiticity = 0.D0
         Sum_Error_Hermiticity = 0.D0
-        do i = 1, SpatOrbs
-            do j = i+1, SpatOrbs
+        do i = 1, NoOrbs
+            do j = i, NoOrbs
                 IF((abs((NatOrbMat(SymLabelListInv(i),SymLabelListInv(j))*Norm_1RDM) - &
                         (NatOrbMat(SymLabelListInv(j),SymLabelListInv(i))*Norm_1RDM))).gt.Max_Error_Hermiticity) &
                     Max_Error_Hermiticity = abs((NatOrbMat(SymLabelListInv(i),SymLabelListInv(j))*Norm_1RDM) - &
@@ -4509,9 +4441,10 @@ MODULE nElRDMMod
 
 
     subroutine Write_out_1RDM(Norm_1RDM)
+        USE UMatCache, only: GTID
         implicit none
         real(dp) , intent(in) :: Norm_1RDM
-        integer :: i, j
+        integer :: i, j, iSpat, jSpat
         integer :: OneRDM_unit
  
         write(6,*) 'Writing out 1 electron density matrix to file'
@@ -4520,15 +4453,24 @@ MODULE nElRDMMod
         OneRDM_unit = get_free_unit()
         OPEN(OneRDM_unit,file='OneRDM',status='unknown')
 
-        do i = 1, SpatOrbs
-            do j = i, SpatOrbs
-                if(NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)).ne.0.D0) then 
-                        write(OneRDM_unit,"(2I6,G25.17)") (2*i)-1,(2*j)-1, & 
-                                ( NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) &
+        do i = 1, nBasis
+            do j = i, nBasis
+                if(tStoreSpinOrbs) then
+                    if(NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)).ne.0.D0) then 
+                        write(OneRDM_unit,"(2I6,G25.17)") i,j, & 
+                            NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) * Norm_1RDM
+                    endif
+                else
+                    iSpat = gtID(i)
+                    jSpat = gtID(j)
+                    if(NatOrbMat(SymLabelListInv(iSpat),SymLabelListInv(jSpat)).ne.0.D0) then 
+                        if(((mod(i,2).eq.0).and.(mod(j,2).eq.0)).or.&
+                            ((mod(i,2).ne.0).and.(mod(j,2).ne.0))) then
+                            write(OneRDM_unit,"(2I6,G25.17)") i,j, & 
+                                ( NatOrbMat(SymLabelListInv(iSpat),SymLabelListInv(jSpat)) &
                                                                 * Norm_1RDM ) / 2.0_dp
-                        write(OneRDM_unit,"(2I6,G25.17)") 2*i,2*j, & 
-                                ( NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) &
-                                                                * Norm_1RDM ) / 2.0_dp
+                        endif
+                    endif
                 endif
             enddo
         enddo
@@ -5157,16 +5099,17 @@ END MODULE nElRDMMod
     subroutine Fill_Diag_RDM_FromOrbs(j, nI_Prev, Prev, AvSignDi, SignFac)
 ! Given an occupied orbital, and the sign of the determinant it is occupied in,
 ! add in the contribution to the 1 and 2-electron RDMs.
-        USE SystemData , only : NEl
+        USE SystemData , only : NEl, tStoreSpinOrbs
         USE constants , only : dp, lenof_sign
-        USE nElRDMMod , only : OneElRDM, aaaa_RDM, abab_RDM
+        USE nElRDMMod , only : aaaa_RDM, abab_RDM
+        USE NatOrbsMod , only : NatOrbMat
         USE Logging , only : RDMExcitLevel
         USE RotateOrbsData , only : SymLabelListInv
         USE UMatCache , only : GTID
         implicit none
         integer , intent(in) :: j, nI_Prev(NEl), Prev
         real(dp) , intent(in) :: AvSignDi, SignFac
-        integer :: i, Ind, iSpat, jSpat
+        integer :: i, Ind, iSpat, jSpat, jInd
 
 ! Need to add in the diagonal elements.
 ! The RDM are always in spin orbitals, so just adding the orbital as is, is fine.
@@ -5174,8 +5117,12 @@ END MODULE nElRDMMod
 !        WRITE(6,*) realSignDi
 
         IF(RDMExcitLevel.eq.1) THEN
-            jSpat = SymLabelListInv(gtID(j))
-            OneElRDM(jSpat,jSpat) = OneElRDM(jSpat,jSpat) &
+            if(tStoreSpinOrbs) then
+                jInd = SymLabelListInv(j)
+            else
+                jInd = SymLabelListInv(gtID(j))
+            endif
+            NatOrbMat(jInd,jInd) = NatOrbMat(jInd,jInd) &
                                       + ( AvSignDi * AvSignDi * SignFac )
         ELSE
 
