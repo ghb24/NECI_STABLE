@@ -75,10 +75,8 @@ MODULE nElRDMMod
 ! This routine initialises any of the arrays needed to calculate the reduced density matrix.    
 ! It is used for both the explicit and stochastic RDMs.
         USE NatOrbsMod , only : SetupNatOrbLabels 
-        USE SystemData , only : tSeparateOccVirt
         USE RotateOrbsMod , only : SymLabelCounts2Tag,NoRotOrbs
         USE RotateOrbsMod , only : SymLabelList2Tag,SymLabelListInvTag
-        USE RotateOrbsData , only : SymLabelList3, SymLabelList3Tag
         USE Logging , only : tDo_Not_Calc_RDMEnergy, tDiagRDM, tReadRDMs, &
                             TPopsFile, tno_RDMs_to_read, twrite_RDMs_to_read,&
                             tWriteMultRDMs
@@ -164,6 +162,7 @@ MODULE nElRDMMod
         IF(RDMExcitLevel.eq.1) THEN
 ! This is the AllnElRDM, called NatOrbMat simply because we use the natural 
 ! orbital routines to diagonalise etc.        
+! We don't have an instantaneous 1-RDM.
             ALLOCATE(NatOrbMat(NoOrbs,NoOrbs),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating NatOrbMat array,')
             CALL LogMemAlloc('NatOrbMat',NoOrbs**2,8,this_routine,NatOrbMatTag,ierr)
@@ -188,7 +187,7 @@ MODULE nElRDMMod
 
             ! The 2-RDM of the type alpha beta alpha beta ( = beta alpha beta alpha).
             ! These *do* include 2-RDM(i,j,a,b) terms where i=j or a=b, if they're different spin this 
-            ! is possible.
+            ! is possible - hence the slightly different size to the aaaa array.
             ALLOCATE(abab_RDM(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating abab_RDM array,')
             CALL LogMemAlloc('abab_RDM',(((SpatOrbs*(SpatOrbs+1))/2)**2),8,this_routine,abab_RDMTag,ierr)
@@ -240,6 +239,9 @@ MODULE nElRDMMod
 
 ! We then need to allocate the arrays for excitations etc when doing the explicit all calculation.        
         IF(tExplicitAllRDM) THEN            
+
+            ! We always calculate the single stuff - and if RDMExcitLevel is 1, this is all,
+            ! otherwise calculate the double stuff too.
 
 ! This array actually contains the excitations in blocks of the processor they will be sent to.        
 ! Only needed if the 1-RDM is the only thing being calculated.
@@ -315,6 +317,7 @@ MODULE nElRDMMod
         ELSEIF(.not.tHF_Ref_Explicit) THEN
 
 ! Finally, we need to hold onto the parents of the spawned particles.            
+! This is not necessary if we're doing completely explicit calculations.
             ALLOCATE(Spawned_Parents(0:(NIfDBO+1),MaxSpawned),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Spawned_Parents array,')
             CALL LogMemAlloc('Spawned_Parents',MaxSpawned*(NIfDBO+2),size_n_int,&
@@ -341,8 +344,6 @@ MODULE nElRDMMod
         ! These parameters are set for the set up of the symmetry arrays, which are later used 
         ! for the diagonalisation / rotation of the 1-RDMs.
 
-        ! We are mixing occupied and virtual orbitals.
-        tSeparateOccVirt=.false.
         if(tStoreSpinOrbs) then
             NoSymLabelCounts = 16
         else
@@ -365,17 +366,13 @@ MODULE nElRDMMod
             IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating SymLabelList2 array,')
             CALL LogMemAlloc('SymLabelList2',NoOrbs,4,this_routine,SymLabelList2Tag,ierr)
             SymLabelList2(:)=0                     
-            ALLOCATE(SymLabelList3(NoOrbs),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating SymLabelList3 array,')
-            CALL LogMemAlloc('SymLabelList3',NoOrbs,4,this_routine,SymLabelList3Tag,ierr)
-            SymLabelList3(:)=0                     
      
             ALLOCATE(SymLabelListInv(NoOrbs),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating SymLabelListInv array,')
             CALL LogMemAlloc('SymLabelListInv',NoOrbs,4,this_routine,SymLabelListInvTag,ierr)
             SymLabelListInv(:)=0   
 
-            IF(iProcIndex.eq.0) THEN
+            IF((iProcIndex.eq.0).and.tDiagRDM) THEN
                 ALLOCATE(Evalues(NoOrbs),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Evalues array,')
                 CALL LogMemAlloc('Evalues',NoOrbs,8,this_routine,EvaluesTag,ierr)
@@ -418,13 +415,6 @@ MODULE nElRDMMod
             else
                 call Read_In_RDMs()
             endif
-        endif
-
-        ! The WRITERDMSEVERY option only works for the 2-RDMs at the moment, and must be a 
-        ! multiple of the RDM energy calculation frequency.
-        if(tWriteMultRDMs.and.(RDMExcitLevel.eq.1)) then
-            write(6,'(A)') 'WARNING - The WRITERDMSEVERY option currently only works for the 2-RDM.'
-            write(6,'(A)') 'The OneRDM will only be printed at the end of the calculation.'
         endif
 
         ! By default, if we're writing out a popsfile (and doing an RDM calculation), we also 
@@ -479,6 +469,9 @@ MODULE nElRDMMod
             else
 
                 write(6,'(A)') ' Reading in the 2-RDMs'
+
+                ! The TwoRDMs will have been printed exactly as they were.  Without having been 
+                ! made hermitian, without being normalised, and in spatial orbitals. 
 
                 ! Only read in the 2-RDMs (the 1-RDM becomes redundant).
                 INQUIRE(FILE='TwoRDM_POPS_aaaa',EXIST=exists_aaaa)
@@ -539,6 +532,7 @@ MODULE nElRDMMod
             endif
         endif
 
+        ! Calculate the energy for the matrices read in (if we're calculating more than the 1-RDM).
         if(tCalc_RDMEnergy) then
             call Calc_Energy_from_RDM()
         endif
@@ -550,11 +544,8 @@ MODULE nElRDMMod
     end subroutine Read_In_RDMs
 
     SUBROUTINE SetUpSymLabels_RDM() 
-!We always want the RDM's to be stored in spin orbitals (for now), 
-!so this routine just sets up the symmetry labels so that
-!the orbitals are ordered according to symmetry (all beta then all alpha).
-!We also always want to mix both the occupied and virtual orbitals, 
-!so there doesn't need to be any separation of these.
+! This routine just sets up the symmetry labels so that
+! the orbitals are ordered according to symmetry (all beta then all alpha if spin orbs).
         USE sort_mod
         USE UMatCache , only : GTID
         IMPLICIT NONE
@@ -563,6 +554,7 @@ MODULE nElRDMMod
         INTEGER :: lo, hi, Symi, SymCurr, Symi2, SymCurr2
         CHARACTER(len=*) , PARAMETER :: this_routine = 'SetUpSymLabels_RDM'
 
+        ! This is only allocated temporarily to be used to order the orbitals by.
         ALLOCATE(SymOrbs(NoOrbs),stat=ierr)
         CALL LogMemAlloc('SymOrbs',NoOrbs,4,this_routine,SymOrbsTag,ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,"Mem allocation for SymOrbs failed.")
@@ -577,7 +569,6 @@ MODULE nElRDMMod
 !        CALL Stop_All('','')
 
 ! Now we want to put the spatial orbital index, followed by the symmetry.        
-
         SymLabelList2(:) = 0
         SymOrbs(:)=0
 
@@ -603,11 +594,12 @@ MODULE nElRDMMod
         ! Sorts SymLabelList2 according to the order of SymOrbs (i.e. in terms of symmetry). 
         if(tStoreSpinOrbs) &
             call sort (SymOrbs(SpatOrbs+1:nBasis), SymLabelList2(SpatOrbs+1:nBasis))
+            ! Also do this for the beta set if spin orbitals.
 
 !*** STEP 2 *** Fill SymLabelCounts2.
 !SymLabelCounts(1,:) contains the position in SymLabelList2 where the symmetry index starts,
 !SymLabelCounts(2,:) contains the number of orbitals in that symmetry index.
-!Again all alpha are followed by all beta - i.e. first 8 refer to alpha, second 8 to beta.
+!Again if spin orbs, all alpha are followed by all beta - i.e. first 8 refer to alpha, second 8 to beta.
 
         IF(lNoSymmetry) THEN
             ! if we are ignoring symmetry, all orbitals essentially have symmetry 0.
@@ -649,7 +641,7 @@ MODULE nElRDMMod
         ENDIF
 
         ! Go through each symmetry group, making sure the orbitals are 
-        ! ordered lowest to highest.
+        ! ordered lowest to highest within each symmetry.
         do i=1,NoSymLabelCounts
             IF(SymLabelCounts2(2,i).ne.0) THEN
                 lo = SymLabelCounts2(1, i)
@@ -730,7 +722,12 @@ MODULE nElRDMMod
 
     end subroutine DeAlloc_Alloc_SpawnedParts
 
-    subroutine extract_bit_rep_rdm_diag_no_rdm(iLutnI, CurrH_I, nI, SignI, FlagsI, IterRDMStartI, AvSignI, Store)
+! The following extract_bit_rep_rdm routines both extract the bit representation 
+! of the current determinant, and at the same time add in the current determinants contributions 
+! to the diagonal elements of the RDMs.
+
+    subroutine extract_bit_rep_rdm_diag_no_rdm(iLutnI, CurrH_I, nI, SignI, &
+                                                FlagsI, IterRDMStartI, AvSignI, Store)
 ! This is just the standard extract_bit_rep routine for when we're not calculating the RDMs.    
         use constants , only : dp, n_int, lenof_sign
         use SystemData , only : NEl
@@ -752,9 +749,11 @@ MODULE nElRDMMod
 
     end subroutine extract_bit_rep_rdm_diag_no_rdm
 
-    subroutine extract_bit_rep_rdm_diag_norm(iLutnI, CurrH_I, nI, SignI, FlagsI, IterRDMStartI, AvSignI, Store)
+    subroutine extract_bit_rep_rdm_diag_norm(iLutnI, CurrH_I, nI, SignI, &
+                                                FlagsI, IterRDMStartI, AvSignI, Store)
 ! While extracting the orbitals from the bit representation of the determinant, we 
 ! simulaneously add in the contribution of each orbital to the diagonal elements of the RDMs.
+! This is used for a standard full space RDM calculation without HPHF.
         use constants , only : dp, n_int, lenof_sign
         use SystemData , only : NEl
         use bit_reps , only : NIfTot, extract_bit_rep, extract_bit_rep_rdm
@@ -768,15 +767,21 @@ MODULE nElRDMMod
         real(dp) , intent(out) :: IterRDMStartI, AvSignI
         type(excit_gen_store_type), intent(inout), optional :: Store
 
+        ! This is the iteration from which this determinant has been occupied.
         IterRDMStartI = CurrH_I(3)
+        ! If there is nothing stored there yet, the first iteration is this one.
         IF(IterRDMStartI.eq.0.0_dp) IterRDMStartI = real(Iter, dp)
  
+        ! This extracts everything, calculates the average sign, and adds in the 
+        ! diagonal elements.
         call extract_bit_rep_rdm (iLutnI, IterRDMStartI, CurrH_I(2), 1.0_dp, nI, SignI, FlagsI, AvSignI)
 
     end subroutine extract_bit_rep_rdm_diag_norm
 
     subroutine extract_bit_rep_rdm_diag_hf_s_d(iLutnI, CurrH_I, nI, SignI, FlagsI, IterRDMStartI, AvSignI, Store)
-! This is just the standard extract_bit_rep routine for when we're not calculating the RDMs.    
+! This routine is used when we're doing some truncated RDM calculation.    
+! In this case, all the diagonal elements are calculated later on.
+! Here we just need to calculate the average sign and extract the info as usual.
         use constants , only : dp, n_int, lenof_sign
         use SystemData , only : NEl
         use bit_reps , only : NIfTot, extract_bit_rep, extract_bit_rep_rdm
@@ -797,7 +802,6 @@ MODULE nElRDMMod
             AvSignI = real(SignI(1),dp)
 
         else
-            
             IterRDMStartI = CurrH_I(3)
             IF(IterRDMStartI.eq.0.0_dp) IterRDMStartI = real(Iter, dp)
             AvSignI = ( ((real(Iter,dp) - IterRDMStartI) * CurrH_I(2)) &
@@ -865,9 +869,6 @@ MODULE nElRDMMod
 
 ! Add diagonal elements to reduced density matrices.
 
-! By default we are considering the full RDM.            
-! Add every determinant to the diagonal elements.
-
 ! C_X D_X = C_X / SQRT(2) [ D_I +/- D_I'] - for open shell dets, divide stored C_X by SQRT(2). 
 ! Add in I.
         call FindExcitBitDetSym(iLutCurr, SpinCoupDet)
@@ -890,12 +891,53 @@ MODULE nElRDMMod
 
     end subroutine Add_StochRDM_Diag_HPHF
 
+! These Add_RDM_HFConnections routines take the current determinant and if it is 
+! a single or double excitation of the HF, they explicitly add in the contribution to the RDM 
+! from the current and hf determinant.
 
     subroutine Add_RDM_HFConnections_Norm(iLutJ,nJ,AvSignJ,walkExcitLevel)
 ! This is called when we run over all TotWalkers in CurrentDets.    
 ! It is called for each CurrentDet which is a single or double of the HF.
 ! It explicitly adds in the HF - S/D connection, as if the HF were D_i and 
 ! the single or double D_j.
+! This is the standard full space RDM calc (No HPHF).
+! In this case the diagonal elements wll already be taken care of.
+        use constants , only : n_int, lenof_sign, dp
+        use SystemData , only : NEl
+        use bit_reps , only : NIfTot
+        use FciMCData , only : HFDet, AvNoatHF
+        use hphf_integrals , only : hphf_sign
+        use HPHFRandExcitMod , only : FindExcitBitDetSym
+        use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
+        implicit none
+        integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
+        integer , intent(in) :: nJ(NEl)
+        real(dp) , intent(in) :: AvSignJ
+        integer , intent(in) :: walkExcitLevel
+        integer(kind=n_int) :: SpinCoupDet(0:niftot)
+        integer :: nSpinCoup(NEl), HPHFExcitLevel
+
+! Quick check that the HF population is being calculated correctly.
+        if(walkExcitLevel.eq.0) then
+            if(AvSignJ.ne.AvNoatHF) then
+                write(6,*) 'AvSignJ',AvSignJ
+                write(6,*) 'AvNoatHF',AvNoatHF
+                CALL Stop_All('PerformFCIMCycPar','Incorrect instantaneous HF population.')
+            endif
+        endif
+
+! If we have a single or double, add in the connection to the HF, symmetrically.        
+        if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) &
+            call Add_RDM_From_IJ_Pair(HFDet,nJ,AvNoatHF,AvSignJ,.true.)
+
+    end subroutine Add_RDM_HFConnections_Norm
+
+
+    subroutine Add_RDM_HFConnections_HPHF(iLutJ,nJ,AvSignJ,walkExcitLevel)
+! This is called when we run over all TotWalkers in CurrentDets.    
+! It is called for each CurrentDet which is a single or double of the HF.
+! It adds in the HF - S/D connection.
+! The diagonal elements will already have been taken care of by the extract routine.
         use constants , only : n_int, lenof_sign, dp
         use SystemData , only : NEl
         use bit_reps , only : NIfTot
@@ -919,16 +961,20 @@ MODULE nElRDMMod
             endif
         endif
 
-! If we have a single or double, add in the connection to the HF, symmetrically.        
+! Now if the determinant is connected to the HF (i.e. single or double), add in the diagonal elements
+! of this connection as well - symmetrically because no probabilities are involved.
         if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) &
-            call Add_RDM_From_IJ_Pair(HFDet,nJ,AvNoatHF,AvSignJ,.true.)
+            call Fill_Spin_Coupled_RDM_v2(iLutRef,iLutJ,HFDet,nJ,&
+                                            AvNoatHF,AvSignJ,.true.)
 
-    end subroutine Add_RDM_HFConnections_Norm
-
+    end subroutine Add_RDM_HFConnections_HPHF
 
     subroutine Add_RDM_HFConnections_HF_S_D(iLutJ,nJ,AvSignJ,walkExcitLevel)
 ! This is called when we run over all TotWalkers in CurrentDets.    
-! It is called for each CurrentDet.
+! This finds all the connections to the HF when doing some sort of truncated RDM 
+! calculation.
+! Here, the diagonal elements will not have been added in by the extract routines.
+! In the case of HF_Ref_Explicit, this routine does all the work.
         use constants , only : n_int, lenof_sign, dp
         use SystemData , only : NEl
         use bit_reps , only : NIfTot
@@ -1004,45 +1050,7 @@ MODULE nElRDMMod
     end subroutine Add_RDM_HFConnections_HF_S_D
 
 
-    subroutine Add_RDM_HFConnections_HPHF(iLutJ,nJ,AvSignJ,walkExcitLevel)
-! This is called when we run over all TotWalkers in CurrentDets.    
-! It is called for each CurrentDet which is a single or double of the HF.
-! It adds in the HF - S/D connection.
-        use constants , only : n_int, lenof_sign, dp
-        use SystemData , only : NEl
-        use bit_reps , only : NIfTot
-        use FciMCData , only : HFDet, AvNoatHF
-        use hphf_integrals , only : hphf_sign
-        use HPHFRandExcitMod , only : FindExcitBitDetSym
-        use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
-        implicit none
-        integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
-        integer , intent(in) :: nJ(NEl)
-        real(dp) , intent(in) :: AvSignJ
-        integer , intent(in) :: walkExcitLevel
-        integer(kind=n_int) :: SpinCoupDet(0:niftot)
-        integer :: nSpinCoup(NEl), HPHFExcitLevel
-
-
-        if(walkExcitLevel.eq.0) then
-            if(AvSignJ.ne.AvNoatHF) then
-                write(6,*) 'AvSignJ',AvSignJ
-                write(6,*) 'AvNoatHF',AvNoatHF
-                CALL Stop_All('PerformFCIMCycPar','Incorrect instantaneous HF population.')
-            endif
-        endif
-
-! Now if the determinant is connected to the HF (i.e. single or double), add in the diagonal elements
-! of this connection as well - symmetrically because no probabilities are involved.
-        if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) &
-            call Fill_Spin_Coupled_RDM_v2(iLutRef,iLutJ,HFDet,nJ,&
-                                            AvNoatHF,AvSignJ,.true.)
-
-    end subroutine Add_RDM_HFConnections_HPHF
-
     subroutine Add_RDM_HFConnections_null(iLutJ,nJ,AvSignJ,walkExcitLevel)
-! This is called when we run over all TotWalkers in CurrentDets.    
-! It is called for each CurrentDet.
 ! This is called when we are not filling the density matrices.
         use constants , only : n_int, lenof_sign, dp
         use SystemData , only : NEl
@@ -1061,8 +1069,8 @@ MODULE nElRDMMod
 
     end subroutine Add_RDM_HFConnections_null
 
-    !This routine does the same as Fill_Spin_Coupled_RDM, but hopefully more efficiently!
-    !It takes to HPHF functions, and calculate what needs to be summed into the RDMs
+! This routine does the same as Fill_Spin_Coupled_RDM, but hopefully more efficiently!
+! It takes to HPHF functions, and calculate what needs to be summed into the RDMs
     subroutine Fill_Spin_Coupled_RDM_v2(iLutnI,iLutnJ,nI,nJ,realSignI,realSignJ,tFill_CiCj_Symm)
         use systemData, only: tOddS_hphf
         use HPHFRandExcitMod, only: FindExcitBitDetSym,FindDetSpinSym
@@ -1319,7 +1327,6 @@ MODULE nElRDMMod
         integer :: Ex(2,2),j
         logical :: tParity
 
-
         Ex(:,:) = 0
         Ex(1,1) = 2         ! Maximum excitation level - we know they are connected by 
                             ! a double or single.
@@ -1330,6 +1337,7 @@ MODULE nElRDMMod
 ! Ex(2,:) comes out as the orbital(s) excited to, i.e. a,b.         
 
         IF(Ex(1,1).le.0) THEN
+            ! Error.
             write(6,*) '*'
             WRITE(6,*) 'nI',nI
             WRITE(6,*) 'nJ',nJ
@@ -1358,7 +1366,6 @@ MODULE nElRDMMod
         endif
 
     end subroutine Add_RDM_From_IJ_Pair
-
 
 ! EXPLICIT ROUTINES    
     SUBROUTINE Fill_ExplicitRDM_this_Iter(TotWalkers)
@@ -2393,7 +2400,6 @@ MODULE nElRDMMod
         integer :: i, j, iSpat, jSpat, Ind, iInd
 
 ! Need to add in the diagonal elements.
-! The RDM are always in spin orbitals, so just adding the orbital as is, is fine.
         
 !        WRITE(6,*) realSignDi
 
@@ -2402,6 +2408,7 @@ MODULE nElRDMMod
                 if(tStoreSpinOrbs) then
                     iInd = SymLabelListInv(nI(i))
                 else
+                    ! SymLabelListInv will be in spat orbitals too.
                     iInd = SymLabelListInv(gtID(nI(i)))
                 endif
                 NatOrbMat(iInd,iInd) = NatOrbMat(iInd,iInd) &
@@ -2463,10 +2470,7 @@ MODULE nElRDMMod
         ParityFactor=1.D0
         IF(tParity) ParityFactor=-1.D0
 
-
         if(RDMExcitLevel.eq.1) then
-            ! Slightly annoyingly, our NatOrbMat is ordered by the symmetry of the orbitals (for the 
-            ! diagonalisation later) - so we must find out what position to put this orbital in. 
             ! SymLabelList2(i), gives the orbital in position i
             ! SymLabelListInv(i), gives the position orbital i should go in.
 
@@ -2536,21 +2540,13 @@ MODULE nElRDMMod
                         endif
 
                     ! either abab or abba array. 
+                    ! we distinguish between these because i<j and a<b.
                     else
 
                         ! It is possible for i = k or j = k if they are spat orbitals 
                         ! and have different spins.
-                        if(iSpat.eq.kSpat) then
-                            Indik=( ( (iSpat-1) * iSpat ) / 2 ) + kSpat
-                        else
-                            Indik=( ( (max(iSpat,kSpat)-1) * max(iSpat,kSpat) ) / 2 ) + min(iSpat,kSpat)
-                        endif
-
-                        if(aSpat.eq.kSpat) then
-                            Indak=( ( (aSpat-1) * aSpat ) / 2 ) + kSpat
-                        else
-                            Indak=( ( (max(aSpat,kSpat)-1) * max(aSpat,kSpat) ) / 2 ) + min(aSpat,kSpat)
-                        endif
+                        Indik=( ( (max(iSpat,kSpat)-1) * max(iSpat,kSpat) ) / 2 ) + min(iSpat,kSpat)
+                        Indak=( ( (max(aSpat,kSpat)-1) * max(aSpat,kSpat) ) / 2 ) + min(aSpat,kSpat)
 
                         ! ordered with k's aligned, i k j k -> abab array.
                         if( ((Ex(1,1).lt.nI(k)).and.(Ex(2,1).lt.nI(k))).or. &
@@ -2720,9 +2716,830 @@ MODULE nElRDMMod
     
     end subroutine FinaliseRDM
 
+    subroutine Finalise_1e_RDM() 
+! This routine takes the 1-RDM (NatOrbMat), normalises it, makes it 
+! hermitian if required, and prints out the versions we're interested in.    
+! This is only ever called at the very end of a calculation.
+        use Logging , only : twrite_RDMs_to_read, twrite_normalised_RDMs
+        implicit none
+        integer :: i
+        real(dp) :: Norm_1RDM, Trace_1RDM
+
+        AllAccumRDMNorm = 0.D0
+        IF(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) &
+            CALL MPIReduce(AccumRDMNorm,MPI_SUM,AllAccumRDMNorm)
+
+        if(RDMExcitLevel.eq.1) CALL MPISum_inplace(NatOrbMat)
+        
+        if(iProcIndex.eq.0) then 
+
+            ! Find the normalisation.
+            call calc_1e_norms(Trace_1RDM, Norm_1RDM)
+
+            ! Write out the unnormalised, non-hermitian OneRDM_POPS.
+            if(twrite_RDMs_to_read) call Write_out_1RDM(Norm_1RDM,.false.)
+
+            ! Enforce the hermiticity condition.  If the RDMExcitLevel is not 1, the 
+            ! 1-RDM has been constructed from the hermitian 2-RDM, so this will not 
+            ! be necessary.
+            ! The HF_Ref and HF_S_D_Ref cases are not hermitian by definition.
+            if((RDMExcitLevel.eq.1).and.(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref))) &
+                call make_1e_rdm_hermitian(Norm_1RDM)
+
+            ! Write out the final, normalised, hermitian OneRDM.                
+            if(twrite_normalised_RDMs) call Write_out_1RDM(Norm_1RDM,.true.)
+
+        endif
+
+    end subroutine Finalise_1e_RDM
+
+    subroutine calc_1e_norms(Trace_1RDM, Norm_1RDM)
+! We want to 'normalise' the reduced density matrices.
+! These are not even close to being normalised at the moment, because of the way they are 
+! calculated on the fly.
+! They should be calculated from a normalised wavefunction.
+! But we know that the trace of the one electron reduced density matrix must be equal to 
+! the number of the electrons.
+! We can use this to find the factor we must divide the 1RDM through by.
+        implicit none                            
+        real(dp) , intent(out) :: Trace_1RDM, Norm_1RDM
+
+        Trace_1RDM = 0.D0
+        Norm_1RDM = 0.D0
+
+        do i = 1, NoOrbs
+            Trace_1RDM = Trace_1RDM + NatOrbMat(i,i)
+        enddo
+
+        IF(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) THEN
+            Norm_1RDM = 1.D0 / AllAccumRDMNorm
+        ELSE
+            ! Sum of diagonal elements of 1 electron RDM must equal NEl, 
+            ! number of electrons.
+            Norm_1RDM = ( REAL(NEl,8) / Trace_1RDM )
+        ENDIF
+
+!        if(tFinalRDMEnergy) then
+!            WRITE(6,*) 'AllAccumRDMNorm',AllAccumRDMNorm
+!            WRITE(6,*) 'Norm_1RDM',Norm_1RDM
+!            WRITE(6,*) 'Trace_1RDM',Trace_1RDM
+!        endif
+
+        !Need to multiply each element of the 1 electron reduced density matrices 
+        !by NEl / Trace_1RDM,
+        !and then add it's contribution to the energy.
+
+    end subroutine calc_1e_norms
+
+    subroutine make_1e_rdm_hermitian(Norm_1RDM)
+! Simply average the 1-RDM(i,j) and 1-RDM(j,i) elements which should be equal in a perfect world.    
+        implicit none 
+        real(dp) , intent(in) :: Norm_1RDM
+        real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity 
+        integer :: i, j
+        real(dp) :: Temp
+
+        Max_Error_Hermiticity = 0.D0
+        Sum_Error_Hermiticity = 0.D0
+        do i = 1, NoOrbs
+            do j = i, NoOrbs
+                IF((abs((NatOrbMat(SymLabelListInv(i),SymLabelListInv(j))*Norm_1RDM) - &
+                        (NatOrbMat(SymLabelListInv(j),SymLabelListInv(i))*Norm_1RDM))).gt.Max_Error_Hermiticity) &
+                    Max_Error_Hermiticity = abs((NatOrbMat(SymLabelListInv(i),SymLabelListInv(j))*Norm_1RDM) - &
+                                                (NatOrbMat(SymLabelListInv(j),SymLabelListInv(i))*Norm_1RDM))
+
+                Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
+                                        abs((NatOrbMat(SymLabelListInv(i),SymLabelListInv(j))*Norm_1RDM) - &
+                                            (NatOrbMat(SymLabelListInv(j),SymLabelListInv(i))*Norm_1RDM))
+
+                Temp = (NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) + &
+                        NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)))/2.D0
+
+                NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) = Temp
+                NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) = Temp
+            enddo
+        enddo
+
+        ! Output the hermiticity errors.
+        write(6,'(A29,F30.20)') ' MAX ABS ERROR IN HERMITICITY', Max_Error_Hermiticity
+        write(6,'(A29,F30.20)') ' SUM ABS ERROR IN HERMITICITY', Sum_Error_Hermiticity
+        write(6,*) ''
+
+    end subroutine make_1e_rdm_hermitian
+
+    subroutine Write_out_1RDM(Norm_1RDM,tNormalise)
+! This routine writes out the OneRDM.
+! If tNormalise is true, we are printing the normalised, hermitian matrix.
+! Otherwise, Norm_1RDM is ignored and we print both 1-RDM(i,j) and 1-RDM(j,i) (in binary) 
+! for the OneRDM_POPS file to be read in in a restart calculation.
+        USE UMatCache, only: GTID
+        implicit none
+        real(dp) , intent(in) :: Norm_1RDM
+        logical , intent(in) :: tNormalise
+        integer :: i, j, iSpat, jSpat
+        integer :: OneRDM_unit
+ 
+        if(tNormalise) then
+            ! Haven't got the capabilities to produce multiple 1-RDMs yet.
+            write(6,*) 'Writing out the *normalised* 1 electron density matrix to file'
+            call flush(6)
+            OneRDM_unit = get_free_unit()
+            OPEN(OneRDM_unit,file='OneRDM',status='unknown')
+        else
+            ! Only every write out 1 of these at the moment.
+            write(6,*) 'Writing out the *unnormalised* 1 electron density matrix to file for reading in'
+            call flush(6)
+            OneRDM_unit = get_free_unit()
+            OPEN(OneRDM_unit,file='OneRDM_POPS',status='unknown',form='unformatted')
+        endif
+ 
+        ! Currently always printing 1-RDM in spin orbitals.
+        do i = 1, nBasis
+            do j = 1, nBasis
+                if(tStoreSpinOrbs) then
+                    if(NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)).ne.0.D0) then 
+                        if(tNormalise.and.((i.le.j).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+                            write(OneRDM_unit,"(2I6,G25.17)") i,j, & 
+                                NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) * Norm_1RDM
+                        elseif(.not.tNormalise) then
+                            ! For the pops, we haven't made the 1-RDM hermitian yet, 
+                            ! so print both the 1-RDM(i,j) and 1-RDM(j,i) elements.
+                            ! This is written in binary.
+                            write(OneRDM_unit) i,j,NatOrbMat(SymLabelListInv(i),SymLabelListInv(j))
+                        endif
+                    endif
+                else
+                    iSpat = gtID(i)
+                    jSpat = gtID(j)
+                    if(NatOrbMat(SymLabelListInv(iSpat),SymLabelListInv(jSpat)).ne.0.D0) then 
+                        if(tNormalise.and.((i.le.j).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+                            if(((mod(i,2).eq.0).and.(mod(j,2).eq.0)).or.&
+                                ((mod(i,2).ne.0).and.(mod(j,2).ne.0))) then
+                                write(OneRDM_unit,"(2I6,G25.17)") i,j, & 
+                                    ( NatOrbMat(SymLabelListInv(iSpat),SymLabelListInv(jSpat)) &
+                                                                    * Norm_1RDM ) / 2.0_dp
+                            endif
+                        elseif(.not.tNormalise) then
+                            ! The popsfile can be printed in spatial orbitals.
+                            if((mod(i,2).eq.0).and.(mod(j,2).eq.0)) then
+                                write(OneRDM_unit) iSpat,jSpat, & 
+                                    NatOrbMat(SymLabelListInv(iSpat),SymLabelListInv(jSpat)) 
+                            endif
+                        endif
+                    endif
+                endif
+            enddo
+        enddo
+                
+        close(OneRDM_unit)
+
+    end subroutine Write_out_1RDM
+
+
+    subroutine Finalise_2e_RDM(Norm_2RDM_Inst, Norm_2RDM) 
+! This routine sums, normalises, hermitian-ises, and prints the 2-RDMs.    
+! This may be called multiple times if we want to print multiple 2-RDMs.
+        use Logging , only : twrite_RDMs_to_read, twrite_normalised_RDMs, &
+                                RDMEnergyIter, IterWriteRDMs, tWriteMultRDMs
+        use FciMCData , only : IterRDMStart
+        implicit none
+        real(dp) , intent(out) :: Norm_2RDM_Inst, Norm_2RDM
+        real(dp) :: AllAccumRDMNorm_Inst
+        real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity
+        integer :: RDM_Cycles
+
+        ! All the arrays are summed into the one on processor 0.
+        CALL MPISum_inplace(aaaa_RDM(:,:))
+        CALL MPISum_inplace(abab_RDM(:,:))
+        CALL MPISum_inplace(abba_RDM(:,:))
+
+        ! The TwoElRDM on the root is now the sum of all 'instantaneous' RDMs (summed over 
+        ! the energy update cycle).
+        ! Whereas AllTwoElRDM is accumulated over the entire run.
+
+        ! The AllTwoElRDM's are actually averaged over the iterations.
+        ! This is to keep the trace's etc not too large, not sure if it's the best or not.
+        RDM_Cycles =  ( Iter - IterRDMStart ) / RDMEnergyIter
+        
+        if(iProcIndex.eq.0) then
+            All_aaaa_RDM(:,:) = ( All_aaaa_RDM(:,:) * &
+                                ( real(RDM_Cycles,dp) / ( real(RDM_Cycles,dp) + 1.0_dp ) ) ) &
+                                + ( aaaa_RDM(:,:) / ( real(RDM_Cycles,dp) + 1.0_dp ) )
+            All_abab_RDM(:,:) = ( All_abab_RDM(:,:) * &
+                                ( real(RDM_Cycles,dp) / ( real(RDM_Cycles,dp) + 1.0_dp ) ) ) &
+                                + ( abab_RDM(:,:) / ( real(RDM_Cycles,dp) + 1.0_dp ) )
+            All_abba_RDM(:,:) = ( All_abba_RDM(:,:) * &
+                                ( real(RDM_Cycles,dp) / ( real(RDM_Cycles,dp) + 1.0_dp ) ) ) &
+                                + ( abba_RDM(:,:) / ( real(RDM_Cycles,dp) + 1.0_dp ) )
+        endif
+
+        AllAccumRDMNorm_Inst = 0.D0
+        if(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) then
+!            CALL MPISum_inplace(AccumRDMNorm)
+            CALL MPIReduce(AccumRDMNorm_Inst,MPI_SUM,AllAccumRDMNorm_Inst)
+            AllAccumRDMNorm = ( AllAccumRDMNorm * &
+                                ( real(RDM_Cycles,dp) / ( real(RDM_Cycles,dp) + 1.0_dp ) ) ) &
+                                + ( AllAccumRDMNorm_Inst / ( real(RDM_Cycles,dp) + 1.0_dp ) )
+        endif
+
+        if(iProcIndex.eq.0) then
+
+            ! Calculate the normalisations.
+            call calc_2e_norms(AllAccumRDMNorm_Inst, Norm_2RDM_Inst, Norm_2RDM)
+
+            ! Print out the relevant 2-RDMs.
+            if( tFinalRDMEnergy .or. &
+                ( tWriteMultRDMs .and. (mod((Iter - IterRDMStart)+1,IterWriteRDMs).eq.0) ) ) then
+
+                if(tFinalRDMEnergy) then
+                    ! Only ever want to print the POPS 2-RDMs (for reading in) at the end.
+                    if(twrite_RDMs_to_read) call Write_out_2RDM(Norm_2RDM,.false.)
+
+                    ! We also don't want to make the 2-RDMs hermitian until the end, so that we can 
+                    ! get the hermiticity error from the final matrix.
+                    if(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+                        call make_2e_rdm_hermitian(Norm_2RDM, Max_Error_Hermiticity, Sum_Error_Hermiticity)
+
+                        write(6,'(A29,F30.20)') ' MAX ABS ERROR IN HERMITICITY', Max_Error_Hermiticity
+                        write(6,'(A29,F30.20)') ' SUM ABS ERROR IN HERMITICITY', Sum_Error_Hermiticity
+                        write(6,*) ''
+                    endif
+                endif
+
+                ! This writes out the normalised, hermitian 2-RDMs.
+                if(twrite_normalised_RDMs) call Write_out_2RDM(Norm_2RDM,.true.)
+
+            endif
+        endif
+
+    end subroutine 
+
+    subroutine calc_2e_norms(AllAccumRDMNorm_Inst, Norm_2RDM_Inst, Norm_2RDM)
+! We want to 'normalise' the reduced density matrices.
+! These are not even close to being normalised at the moment, because of the way they are 
+! calculated on the fly.
+! They should be calculated from a normalised wavefunction.
+!
+! We also know that the trace of the two electron reduced density matrix must be equal to the 
+! number of electron pairs in the system = 1/2 N ( N - 1), so we can do the same for the 2RDM.
+        implicit none                            
+        real(dp) , intent(in) :: AllAccumRDMNorm_Inst
+        real(dp) , intent(out) :: Norm_2RDM_Inst, Norm_2RDM
+        integer :: i
+
+        ! Find the current, unnormalised trace of each matrix.
+        ! TODO: This can be merged into the spin averaging when everything is working.
+
+        Trace_2RDM_Inst = 0.D0
+        Trace_2RDM = 0.D0
+
+        do i = 1, ((SpatOrbs*(SpatOrbs+1))/2)
+            if(i.le.((SpatOrbs*(SpatOrbs-1))/2)) then
+                Trace_2RDM_Inst = Trace_2RDM_Inst + aaaa_RDM(i,i)
+                Trace_2RDM = Trace_2RDM + All_aaaa_RDM(i,i)
+            endif
+            Trace_2RDM_Inst = Trace_2RDM_Inst + abab_RDM(i,i)
+            Trace_2RDM = Trace_2RDM + All_abab_RDM(i,i)
+        enddo
+
+        Norm_2RDM_Inst = 0.D0
+        Norm_2RDM = 0.D0
+
+        IF(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) THEN
+            Norm_2RDM_Inst = 1.D0 / AllAccumRDMNorm_Inst
+            Norm_2RDM = 1.D0 / AllAccumRDMNorm
+        ELSE
+            ! Sum of diagonal elements of 2 electron RDM must equal number of 
+            ! pairs of electrons, = NEl ( NEl - 1 ) / 2
+            Norm_2RDM_Inst = ( (0.50 * (REAL(NEl) * (REAL(NEl) - 1.D0))) / Trace_2RDM_Inst )
+            Norm_2RDM = ( (0.50 * (REAL(NEl) * (REAL(NEl) - 1.D0))) / Trace_2RDM )
+        ENDIF
+
+!        if(tFinalRDMEnergy) then
+!            WRITE(6,*) 'AllAccumRDMNorm',AllAccumRDMNorm
+!            WRITE(6,*) 'Norm_2RDM',Norm_2RDM
+!            WRITE(6,*) 'Trace_2RDM',Trace_2RDM
+!        endif
+
+        !Need to multiply each element of the 1 electron reduced density matrices 
+        !by NEl / Trace_1RDM,
+        !and then add it's contribution to the energy.
+
+    end subroutine calc_2e_norms
+
+    subroutine make_2e_rdm_hermitian(Norm_2RDM, Max_Error_Hermiticity, Sum_Error_Hermiticity)
+! This averages 2-RDM(i,j;a,b) and 2-RDM(a,b;i,j) or equivalently 2-RDM(Ind1,Ind2) and 2-RDM(Ind2,Ind1).
+        implicit none 
+        real(dp) , intent(in) :: Norm_2RDM
+        real(dp) , intent(out) :: Max_Error_Hermiticity, Sum_Error_Hermiticity 
+        integer :: i, j
+        real(dp) :: Temp
+
+        Max_Error_Hermiticity = 0.D0
+        Sum_Error_Hermiticity = 0.D0
+
+        do i = 1, ((SpatOrbs*(SpatOrbs+1))/2)
+            do j = i+1, ((SpatOrbs*(SpatOrbs+1))/2)
+
+                if((i.le.((SpatOrbs*(SpatOrbs-1))/2)).and.(j.le.((SpatOrbs*(SpatOrbs-1))/2))) then
+
+                    IF((abs((All_aaaa_RDM(i,j)*Norm_2RDM)-(All_aaaa_RDM(j,i)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
+                        Max_Error_Hermiticity = abs((All_aaaa_RDM(i,j)*Norm_2RDM)-(All_aaaa_RDM(j,i)*Norm_2RDM))
+
+                    Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
+                                            abs((All_aaaa_RDM(i,j)*Norm_2RDM)-(All_aaaa_RDM(j,i)*Norm_2RDM))
+
+                    Temp = (All_aaaa_RDM(i,j) + All_aaaa_RDM(j,i)) / 2.D0
+
+                    All_aaaa_RDM(i,j) = Temp
+                    All_aaaa_RDM(j,i) = Temp
+                endif
+
+                IF((abs((All_abab_RDM(i,j)*Norm_2RDM)-(All_abab_RDM(j,i)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
+                    Max_Error_Hermiticity = abs((All_abab_RDM(i,j)*Norm_2RDM)-(All_abab_RDM(j,i)*Norm_2RDM))
+
+                Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
+                                        abs((All_abab_RDM(i,j)*Norm_2RDM)-(All_abab_RDM(j,i)*Norm_2RDM))
+
+                Temp = (All_abab_RDM(i,j) + All_abab_RDM(j,i)) / 2.D0
+
+                All_abab_RDM(i,j) = Temp
+                All_abab_RDM(j,i) = Temp
+
+
+                IF((abs((All_abba_RDM(i,j)*Norm_2RDM)-(All_abba_RDM(j,i)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
+                    Max_Error_Hermiticity = abs((All_abba_RDM(i,j)*Norm_2RDM)-(All_abba_RDM(j,i)*Norm_2RDM))
+
+                Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
+                                        abs((All_abba_RDM(i,j)*Norm_2RDM)-(All_abba_RDM(j,i)*Norm_2RDM))
+
+                Temp = (All_abba_RDM(i,j) + All_abba_RDM(j,i)) / 2.D0
+
+                All_abba_RDM(i,j) = Temp
+                All_abba_RDM(j,i) = Temp
+
+            enddo
+        enddo
+
+    end subroutine make_2e_rdm_hermitian
+
+
+    subroutine Write_out_2RDM(Norm_2RDM,tNormalise)
+! Writes out the 2-RDMs.  If tNormalise is true, we print the normalised (hermitian) matrix.    
+! Otherwise we print the unnormalised 2-RDMs, and we print (in binary) both 2-RDM(Ind1,Ind2) 
+! and 2-RDM(Ind2,Ind1) because this matrix wont be hermitian.
+
+! While, for instance, the TwoRDM_aaaa so far has actually been a sum of the aaaa elements and 
+! the bbbb elements.  We only want to print the aaaa elements.
+        use util_mod , only : get_unique_filename
+        use Logging , only : tWriteMultRDMs
+        implicit none
+        real(dp) , intent(in) :: Norm_2RDM
+        logical , intent(in) :: tNormalise
+        real(dp) :: Tot_Spin_Projection, SpinPlus, SpinMinus
+        real(dp) :: ParityFactor,Divide_Factor 
+        integer :: i, j, a, b, Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab
+        integer :: aaaa_RDM_unit, abab_RDM_unit, abba_RDM_unit
+        character(255) :: TwoRDM_aaaa_name, TwoRDM_abab_name, TwoRDM_abba_name
+
+        if(tNormalise) then
+            write(6,*) 'Writing out the *normalised* 2 electron density matrix to file'
+            call flush(6)
+            ! This takes the TwoRDM_aaaa, and if tWriteMultPops is true (and given that we've put 
+            ! .true. in the 3rd position, it'll find the next unused TwoRDM_aaaa.X file name.
+            call get_unique_filename('TwoRDM_aaaa',tWriteMultRDMs,.true.,1,TwoRDM_aaaa_name)
+            aaaa_RDM_unit = get_free_unit()
+            OPEN(aaaa_RDM_unit,file=TwoRDM_aaaa_name,status='unknown')
+
+            call get_unique_filename('TwoRDM_abab',tWriteMultRDMs,.true.,1,TwoRDM_abab_name)
+            abab_RDM_unit = get_free_unit()
+            OPEN(abab_RDM_unit,file=TwoRDM_abab_name,status='unknown')
+
+            call get_unique_filename('TwoRDM_abba',tWriteMultRDMs,.true.,1,TwoRDM_abba_name)
+            abba_RDM_unit = get_free_unit()
+            OPEN(abba_RDM_unit,file=TwoRDM_abba_name,status='unknown')
+        else
+            write(6,*) 'Writing out the *unnormalised* 2 electron density matrix to file for reading in'
+            call flush(6)
+            aaaa_RDM_unit = get_free_unit()
+            OPEN(aaaa_RDM_unit,file='TwoRDM_POPS_aaaa',status='unknown',form='unformatted')
+            abab_RDM_unit = get_free_unit()
+            OPEN(abab_RDM_unit,file='TwoRDM_POPS_abab',status='unknown',form='unformatted')
+            abba_RDM_unit = get_free_unit()
+            OPEN(abba_RDM_unit,file='TwoRDM_POPS_abba',status='unknown',form='unformatted')
+        endif
+        
+        Tot_Spin_Projection = 0.D0
+        do i = 1, SpatOrbs
+
+            do j = i, SpatOrbs
+
+                Ind1_aa = ( ( (j-2) * (j-1) ) / 2 ) + i
+                Ind1_ab = ( ( (j-1) * j ) / 2 ) + i
+
+                ! TODO : Fix this.
+!                    call sum_in_spin_proj(i,j,Ind1,Norm_2RDM,Tot_Spin_Projection)
+
+                do a = 1, SpatOrbs
+
+                    do b = a, SpatOrbs
+
+                        Ind2_aa = ( ( (b-2) * (b-1) ) / 2 ) + a
+                        Ind2_ab = ( ( (b-1) * b ) / 2 ) + a
+
+                        ! usually each element will have two contributions (from aaaa and bbbb).
+                        ! we then need to divide each by 2.
+                        ! but in cases where either i and j, or a and b, are in the same spatial 
+                        ! orbital, there will be only one contribution.
+                        if((i.eq.j).or.(a.eq.b)) then
+                            Divide_Factor = 1.0_dp
+                        else
+                            Divide_Factor = 2.0_dp
+                        endif
+                        
+                        if((i.ne.j).and.(a.ne.b)) then
+
+                            if( All_aaaa_RDM(Ind1_aa,Ind2_aa).ne.0.0_dp) then
+                                ! If we're normalising (and have made the matrix hermitian) we only 
+                                ! need to write out Ind1 < Ind2.
+                                ! Otherwise we print out Ind1, Ind2 and Ind2, Ind1 so we can 
+                                ! find the hermiticity error in the final matrix (after all runs).
+                                if(tNormalise.and.((Ind1_aa.le.Ind2_aa).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+                                    if(tFinalRDMEnergy) then
+                                        ! For the final calculation, the 2-RDMs will have been made hermitian.
+                                        write(aaaa_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
+                                                ( All_aaaa_RDM(Ind1_aa,Ind2_aa) * Norm_2RDM ) / Divide_Factor
+                                    else
+                                        ! If we're printing the 2-RDMs early (using WRITERDMSEVERY), the actual 
+                                        ! matrix will not be hermitian, but we want to print a hermitian version.
+                                        ! Average the values here.
+                                        write(aaaa_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
+                                            ( ((All_aaaa_RDM(Ind1_aa,Ind2_aa) + All_aaaa_RDM(Ind2_aa,Ind1_aa))/2.0_dp) &
+                                                                * Norm_2RDM ) / Divide_Factor
+                                    endif
+                                elseif(.not.tNormalise) then
+                                    ! for the POPS files, print everything to binary.
+                                    ! no divide factor, we just read them in as is.
+                                    write(aaaa_RDM_unit) i,j,a,b, &
+                                            All_aaaa_RDM(Ind1_aa,Ind2_aa) 
+                                endif
+                            endif
+                        endif
+
+                        if( All_abab_RDM(Ind1_ab,Ind2_ab).ne.0.0_dp) then
+                            if(tNormalise.and.((Ind1_ab.le.Ind2_ab).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+                                if(tFinalRDMEnergy) then
+                                    write(abab_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
+                                        ( All_abab_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM ) / Divide_Factor
+                                else
+                                    write(abab_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
+                                        ( ((All_abab_RDM(Ind1_ab,Ind2_ab) + All_abab_RDM(Ind2_ab,Ind1_ab))/2.0_dp) &
+                                                                * Norm_2RDM ) / Divide_Factor
+                                endif
+                            elseif(.not.tNormalise) then
+                                write(abab_RDM_unit) i,j,a,b, &
+                                    All_abab_RDM(Ind1_ab,Ind2_ab) 
+                            endif
+                        endif
+
+                        if( All_abba_RDM(Ind1_ab,Ind2_ab).ne.0.0_dp) then
+                            if(tNormalise.and.((Ind1_ab.le.Ind2_ab).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+                                if(tFinalRDMEnergy) then
+                                    write(abba_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
+                                        ( All_abba_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM ) / Divide_Factor
+                                else
+                                    write(abba_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
+                                        ( ((All_abba_RDM(Ind1_ab,Ind2_ab) + All_abba_RDM(Ind2_ab,Ind1_ab))/2.0_dp) &
+                                                                * Norm_2RDM ) / Divide_Factor
+                                endif
+                            elseif(.not.tNormalise) then
+                                write(abba_RDM_unit) i,j,a,b, &
+                                    All_abba_RDM(Ind1_ab,Ind2_ab) 
+                            endif
+                        endif
+
+                    enddo
+                enddo
+
+            enddo
+
+        enddo
+        close(aaaa_RDM_unit)
+        close(abab_RDM_unit)
+        close(abba_RDM_unit)
+
+!        Tot_Spin_Projection = Tot_Spin_Projection + (3.D0 * real(NEl,dp))
+!! Tot_Spin_Projection is now equal to 4S(S+1) - find S. 
+!        Tot_Spin_Projection = Tot_Spin_Projection/4.D0
+!        if((1.D0 + 4.D0*Tot_Spin_Projection).le.0) then
+!            call Warning_neci('Write_out_1and_2RDM',"Complex spin calculated from density matrices!")
+!        else
+!            SpinPlus = (-1.D0 + sqrt(1.D0 + 4.D0*Tot_Spin_Projection))/2.D0
+!            SpinMinus = (-1.D0 + sqrt(1.D0 + 4.D0*Tot_Spin_Projection))/2.D0
+!!            write(6,*) 'SpinPlus',SpinPlus
+!!            write(6,*) 'SpinMinus',SpinMinus
+!        endif
+
+!        if(RDMExcitLevel.eq.3) then
+!            write(6,*) ''
+!            write(6,'(A22,F30.20)') ' TOTAL SPIN PROJECTION', Max(SpinPlus,SpinMinus) 
+!            write(6,*) ''
+!        endif
+
+    end subroutine Write_out_2RDM
+
+
+    SUBROUTINE Calc_Energy_from_RDM()
+! This routine takes the 1 electron and 2 electron reduced density matrices 
+! and calculated the energy they give.    
+! The equation for the energy is as follows:
+!
+!   E = Tr(h1 1RDM) + 1/2 Tr(h2 2RDM)
+!
+! where h1 are the 2 index integrals, and h2 the 4 index integrals.  The traces, Tr, 
+! are given by:
+!   Tr(h1 1RDM) = Sum_i,j [ h1(i,j) 1RDM(j,i) ]
+!   Tr(h2 2RDM) = Sum_i,j;k,l [ h2(i,j;k,l) 2RDM(k,l;i,j) ]
+        USE IntegralsData , only : UMAT
+        USE UMatCache , only : UMatInd
+        USE RotateOrbsMod , only : SymLabelList2
+        USE UMatCache , only : GTID
+        implicit none
+        real(dp) :: Norm_2RDM, Norm_2RDM_Inst
+        INTEGER :: i,j,a,b,Ind1_aa,Ind1_ab,Ind2_aa,Ind2_ab,ierr
+        INTEGER :: iSpin, jSpin, error
+        REAL(dp) :: RDMEnergy_Inst, RDMEnergy, Coul, Exch, Parity_Factor 
+        REAL(dp) :: Trace_2RDM_New, RDMEnergy1, RDMEnergy2
+
+        CALL set_timer(RDMEnergy_Time,30)
+
+        Trace_2RDM_New = 0.D0
+
+        RDMEnergy_Inst = 0.D0
+        RDMEnergy1 = 0.D0
+        RDMEnergy2 = 0.D0
+        RDMEnergy = 0.D0
+    
+        ! Normalise, make hermitian, print etc.
+        call Finalise_2e_RDM(Norm_2RDM_Inst, Norm_2RDM)
+
+        if(tFinalRDMEnergy) write(6,*) 'Calculating the final RDM energy'
+
+        if(iProcIndex.eq.0) then
+
+            do i = 1, SpatOrbs
+                iSpin = 2 * i
+
+                do j = i, SpatOrbs
+                    jSpin = 2 * j
+
+                    Ind1_aa = ( ( (j-2) * (j-1) ) / 2 ) + i
+                    Ind1_ab = ( ( (j-1) * j ) / 2 ) + i
+
+                    do a = 1, SpatOrbs
+
+                        ! Adding in contributions effectively from the 1-RDM (although these are calculated 
+                        ! from the 2-RDM.
+                        call calc_1RDM_energy(i,j,a,iSpin,jSpin, Norm_2RDM, Norm_2RDM_Inst, &
+                                                    RDMEnergy_Inst, RDMEnergy1)
+
+                        do b = a, SpatOrbs
+
+                            Ind2_aa = ( ( (b-2) * (b-1) ) / 2 ) + a
+                            Ind2_ab = ( ( (b-1) * b ) / 2 ) + a
+
+                            ! UMAT in chemical notation.
+                            ! In spin or spatial orbitals.
+                            Coul = REAL(UMAT(UMatInd(i,j,a,b,0,0)),8)
+                            Exch = REAL(UMAT(UMatInd(i,j,b,a,0,0)),8)
+
+                            if((i.ne.j).and.(a.ne.b)) then
+                                ! Cannot get i=j or a=b contributions in aaaa.
+                                RDMEnergy_Inst = RDMEnergy_Inst + ( aaaa_RDM(Ind1_aa,Ind2_aa) &
+                                                                    * Norm_2RDM_Inst * ( Coul - Exch ) )
+                                RDMEnergy2 = RDMEnergy2 + ( All_aaaa_RDM(Ind1_aa,Ind2_aa) &
+                                                            * Norm_2RDM * ( Coul - Exch ) ) 
+                                if(Ind1_aa.eq.Ind2_aa) &
+                                    Trace_2RDM_New = Trace_2RDM_New + &
+                                                        All_aaaa_RDM(Ind1_aa,Ind2_aa) * Norm_2RDM
+                            endif
+
+                            ! For abab cases, coul element will be non-zero, exchange zero.
+                            RDMEnergy_Inst = RDMEnergy_Inst + ( abab_RDM(Ind1_ab,Ind2_ab) &
+                                                                    * Norm_2RDM_Inst * Coul )
+                            RDMEnergy2 = RDMEnergy2 + ( All_abab_RDM(Ind1_ab,Ind2_ab) &
+                                                        * Norm_2RDM * Coul ) 
+
+                            ! For abba cases, coul element will be zero, exchange non-zero.
+                            RDMEnergy_Inst = RDMEnergy_Inst - ( abba_RDM(Ind1_ab,Ind2_ab) &
+                                                                    * Norm_2RDM_Inst * Exch )
+                            RDMEnergy2 = RDMEnergy2 - ( All_abba_RDM(Ind1_ab,Ind2_ab) &
+                                                        * Norm_2RDM * Exch ) 
+
+                            if(Ind1_ab.eq.Ind2_ab) &
+                                Trace_2RDM_New = Trace_2RDM_New + &
+                                                    All_abab_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM
+
+                       enddo
+
+                    enddo
+                enddo
+            enddo
+
+            RDMEnergy_Inst = RDMEnergy_Inst + Ecore
+            RDMEnergy = RDMEnergy1 + RDMEnergy2 + Ecore 
+
+            ! Obviously this 'instantaneous' energy is actually accumulated between energy 
+            ! print outs.
+            WRITE(Energies_unit, "(I31,2F30.15)") Iter+PreviousCycles, RDMEnergy_Inst, RDMEnergy
+
+            if(tFinalRDMEnergy) then
+                write(6,*) 'Trace of 2-el-RDM before normalisation : ',Trace_2RDM
+                write(6,*) 'Trace of 2-el-RDM after normalisation : ',Trace_2RDM_New
+                write(6,*) ''
+                write(6,*) 'Energy contribution from the 1-RDM: ',RDMEnergy1
+                write(6,*) 'Energy contribution from the 2-RDM: ',RDMEnergy2
+                write(6,'(A64,F30.20)') ' *TOTAL ENERGY* CALCULATED USING THE *REDUCED &
+                                            &DENSITY MATRICES*:',RDMEnergy
+                write(6,*) ''
+                CLOSE(Energies_unit) 
+            endif
+
+        endif
+
+        ! Zero all the 'instantaneous' stuff.
+        aaaa_RDM(:,:) = 0.0_dp
+        abab_RDM(:,:) = 0.0_dp
+        abba_RDM(:,:) = 0.0_dp
+        AccumRDMNorm_Inst = 0.0_dp
+        Trace_2RDM_Inst = 0.0_dp
+
+        CALL halt_timer(RDMEnergy_Time)
+
+    END SUBROUTINE Calc_Energy_from_RDM
+
+
+    subroutine calc_1RDM_energy(i,j,a,iSpin,jSpin,Norm_2RDM,Norm_2RDM_Inst,&
+                                                    RDMEnergy_Inst,RDMEnergy1)
+! This routine calculates the 1-RDM part of the RDM energy, and constructs the 
+! 1-RDM if required for diagonalisation or something.
+        ! gamma(i,j) = [1/(NEl - 1)] * SUM_a Gamma(i,a,j,a) 
+        ! want to calculate:    gamma(i,j) * h_ij
+        ! h_ij => TMAT2D(iSpin,jSpin)
+        USE OneEInts , only : TMAT2D
+        USE Logging , only : tDiagRDM
+        implicit none
+        integer , intent(in) :: i,j,a,iSpin,jSpin
+        real(dp) , intent(in) :: Norm_2RDM, Norm_2RDM_Inst
+        real(dp) , intent(inout) :: RDMEnergy_Inst, RDMEnergy1
+        real(dp) :: Parity_Factor
+        integer :: Ind1_1e_ab, Ind2_1e_ab
+        integer :: Ind1_1e_aa, Ind2_1e_aa
+
+
+        Ind1_1e_ab = ( ( (max(i,a)-1) * max(i,a) ) / 2 ) + min(i,a)
+        Ind2_1e_ab = ( ( (max(j,a)-1) * max(j,a) ) / 2 ) + min(j,a)
+
+        ! for i a -> j a excitation, when lined up as min max -> min max, 
+        ! if a's are aligned, only a b a b arrays contain single excitations, 
+        ! if a's not aligned, a b b a.
+        ! all a a a a will contain single excitations.
+        if(((i.le.a).and.(j.le.a)).or.((i.ge.a).and.(j.ge.a))) then
+            RDMEnergy_Inst = RDMEnergy_Inst + ( (abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM_Inst) &
+                                                * REAL(TMAT2D(iSpin,jSpin),8) &
+                                                * (1.0_dp / real(NEl - 1,dp)) )
+            RDMEnergy1 = RDMEnergy1 + ( (All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM) &
+                                                * REAL(TMAT2D(iSpin,jSpin),8) &
+                                                * (1.0_dp / real(NEl - 1,dp)) )
+
+            if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
+                NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) = &
+                            NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) &
+                                        + ( All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
+                                                * (1.0_dp / real(NEl - 1,dp)) ) 
+            endif
+
+            ! For Gamma elements corresponding to 1-RDMs ( Gamma(i,a,j,a) ), we're only considering 
+            ! i =< j and therefore we need to sum in the opposite contribution too.
+            if(Ind1_1e_ab.ne.Ind2_1e_ab) then                                                                
+                RDMEnergy_Inst = RDMEnergy_Inst + ( (abab_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM_Inst) &
+                                                    * REAL(TMAT2D(jSpin,iSpin),8) &
+                                                    * (1.0_dp / real(NEl - 1,dp)) )
+                RDMEnergy1 = RDMEnergy1 + ( (All_abab_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM) &
+                                                    * REAL(TMAT2D(jSpin,iSpin),8) &
+                                                    * (1.0_dp / real(NEl - 1,dp)) )
+
+                if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
+                    NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) = &
+                            NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) &
+                                        + ( All_abab_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM &
+                                                * (1.0_dp / real(NEl - 1,dp)) ) 
+                endif
+
+            endif
+
+            ! But since we're running over all a, i a and a i will both be counted, but i i only once 
+            ! (whereas it should be counted twice).
+            if((i.eq.j).and.(i.eq.a)) then                                                                
+                RDMEnergy_Inst = RDMEnergy_Inst + ( (abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM_Inst) &
+                                            * REAL(TMAT2D(iSpin,jSpin),8) &
+                                            * (1.0_dp / real(NEl - 1,dp)) )
+                RDMEnergy1 = RDMEnergy1 + ( (All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM) &
+                                            * REAL(TMAT2D(iSpin,jSpin),8) &
+                                            * (1.0_dp / real(NEl - 1,dp)) )
+
+                if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
+                    NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) = &
+                            NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) &
+                                        + ( All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
+                                                * (1.0_dp / real(NEl - 1,dp)) ) 
+                endif
+
+            endif
+
+        endif
+
+        if((i.ne.j).and.((i.le.a).and.(j.ge.a)).or.((i.ge.a).and.(j.le.a))) then
+            RDMEnergy_Inst = RDMEnergy_Inst - ( (abba_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM_Inst) &
+                                                * REAL(TMAT2D(iSpin,jSpin),8) &
+                                                * (1.0_dp / real(NEl - 1,dp)) )
+            RDMEnergy1 = RDMEnergy1 - ( (All_abba_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM) &
+                                                * REAL(TMAT2D(iSpin,jSpin),8) &
+                                                * (1.0_dp / real(NEl - 1,dp)) )
+
+            if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
+                NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) = &
+                            NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) &
+                                        - ( All_abba_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
+                                                * (1.0_dp / real(NEl - 1,dp)) ) 
+            endif
+
+            if(Ind1_1e_ab.ne.Ind2_1e_ab) then
+                RDMEnergy_Inst = RDMEnergy_Inst - ( (abba_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM_Inst) &
+                                                    * REAL(TMAT2D(iSpin,jSpin),8) &
+                                                    * (1.0_dp / real(NEl - 1,dp)) )
+                RDMEnergy1 = RDMEnergy1 - ( (All_abba_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM) &
+                                                    * REAL(TMAT2D(iSpin,jSpin),8) &
+                                                    * (1.0_dp / real(NEl - 1,dp)) )
+
+                if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
+                    NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) = &
+                            NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) &
+                                        - ( ( All_abba_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM &
+                                                * (1.0_dp / real(NEl - 1,dp)) ) / 2.0_dp )
+                endif
+            endif
+        endif
+
+        if((i.ne.a).and.(j.ne.a)) then
+            Ind1_1e_aa = ( ( (max(i,a)-2) * (max(i,a)-1) ) / 2 ) + min(i,a)
+            Ind2_1e_aa = ( ( (max(j,a)-2) * (max(j,a)-1) ) / 2 ) + min(j,a)
+
+            if(((i.lt.a).and.(j.lt.a)).or.((i.gt.a).and.(j.gt.a))) then
+                Parity_Factor = 1.0_dp
+            else
+                Parity_Factor = -1.0_dp
+            endif
+!
+            RDMEnergy_Inst = RDMEnergy_Inst + ( (aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM_Inst) &
+                                                * REAL(TMAT2D(iSpin,jSpin),8) &
+                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
+            RDMEnergy1 = RDMEnergy1 + ( (All_aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM) &
+                                                * REAL(TMAT2D(iSpin,jSpin),8) &
+                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
+
+            if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
+                NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) = &
+                            NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) &
+                                        + ( All_aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
+                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor ) 
+            endif
+
+            if(Ind1_1e_aa.ne.Ind2_1e_aa) then
+                RDMEnergy_Inst = RDMEnergy_Inst + ( (aaaa_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM_Inst) &
+                                                * REAL(TMAT2D(jSpin,iSpin),8) &
+                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
+                RDMEnergy1 = RDMEnergy1 + ( (All_aaaa_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM) &
+                                                * REAL(TMAT2D(jSpin,iSpin),8) &
+                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
+
+                if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
+                    NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) = &
+                            NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) &
+                                        + ( All_aaaa_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
+                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
+                endif
+            endif
+        endif
+
+    end subroutine calc_1RDM_energy
+
+
     subroutine find_nat_orb_occ_numbers()
+! Diagonalises the 1-RDM (NatOrbMat), so that after this routine NatOrbMat is the 
+! eigenfunctions of the 1-RDM (the matrix transforming the MO's into the NOs).
+! This also gets the NO occupation numbers (evaluse) and correlation entropy.
         USE Logging , only : tPrintRODump, tNoNOTransform
-        USE SystemData , only : tSeparateOccVirt,tRotateVirtOnly,tRotateOccOnly
         USE SystemData , only : ARR, BRR, G1
         USE RotateOrbsMod , only : FourIndInts, FourIndIntsTag
         USE RotateOrbsData , only : NoOrbs
@@ -2835,7 +3652,6 @@ MODULE nElRDMMod
 
             ENDIF
         ENDIF
-
 
     end subroutine find_nat_orb_occ_numbers
 
@@ -3020,127 +3836,7 @@ MODULE nElRDMMod
         ENDIF
 
     END SUBROUTINE DiagRDM
-
-
-    SUBROUTINE OrderRDM()
-        USE sort_mod
-        USE Logging , only : tTruncRODump
-        USE RotateOrbsData , only : SymLabelList3
-        IMPLICIT NONE
-        INTEGER :: spin,i,j,ierr,StartSort,EndSort
-        CHARACTER(len=*), PARAMETER :: this_routine='OrderRDM'
-        INTEGER , ALLOCATABLE :: SymOrbsTemp(:)
-        INTEGER :: SymOrbsTempTag
-        
-
-! Here, if symmetry is kept, we are going to have to reorder the eigenvectors 
-! according to the size of the eigenvalues, while taking the orbital labels 
-! (and therefore symmetries) with them. This will be put back into MP2VDM from MP2VDMTemp.
-
-! Want to reorder the eigenvalues from largest to smallest, taking the eigenvectors 
-! with them and the symmetry as well.  
-! If using spin orbitals, do this for the alpha spin and then the beta.
- 
-        do i = 1, SpatOrbs
-            SymLabelList3(i) = SymLabelList2(i)
-        enddo
-
-        StartSort=1
-        EndSort=SpatOrbs
-
-        call sort (EValues(startSort:endSort), &
-                   NatOrbMat(1:SpatOrbs, startSort:endSort), &
-                   symLabelList2(startSort:endSort))
-
-    END SUBROUTINE OrderRDM
-
-
-    SUBROUTINE FillCoeffT1_RDM
-        USE RotateOrbsData , only : SymLabelList3,SymOrbs,SymOrbsTag,&
-                                    TruncEval,NoRotOrbs,EvaluesTrunc,EvaluesTruncTag
-        USE Logging , only : tTruncRODump,tTruncDumpbyVal
-        IMPLICIT NONE
-        INTEGER :: l,k,i,j,NoRotAlphBet, io1, io2, SymLabelListInvNewTag
-        CHARACTER(len=*), PARAMETER :: this_routine='FillCoeffT1_RDM'
-        CHARACTER(len=5) :: Label
-        CHARACTER(len=20) :: LabelFull
-        REAL(dp) :: OccEnergies(1:NoRotOrbs)
-        INTEGER , ALLOCATABLE :: SymLabelListInvNew(:)
-        INTEGER :: ierr, Orb, New_Pos
-  
-!        FillCoeff_Time%timer_name='FillCoeff'
-!        CALL set_timer(FillCoeff_Time,30)
-
-!        WRITE(6,*) 'NatOrbMat'
-!        do i = 1, NoOrbs
-!            do j = 1, NoOrbs
-!                WRITE(6,'(F10.6)',advance='no') NatOrbMat(j,i)
-!            enddo
-!            WRITE(6,*) ''
-!        enddo
-
-
-! run through i, find out what orbital this corresponds to.  
-! the position of this orbital is given by SymLabelList2Inv.
-! the new position of this orbital is given by SymLabelList2Inv2.
-
-        ALLOCATE(SymLabelListInvNew(SpatOrbs),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating SymLabelListInvNew array,')
-        CALL LogMemAlloc('SymLabelListInvNew',SpatOrbs,4,this_routine,&
-                                                SymLabelListInvNewTag,ierr)
-        SymLabelListInvNew(:)=0   
-
-        do i=1,SpatOrbs
-            SymLabelListInvNew(SymLabelList2(i))=i
-        enddo
-
-        do i=1,SpatOrbs
-            do j = 1, SpatOrbs
-                Orb = SymLabelList3(j)      
-                !This is the orbital the old position corresponds to.
-                New_Pos = SymLabelListInvNew(Orb)   
-                !This is the new position that orbital should go into.
-!                CoeffT1(New_Pos,i)=NatOrbMat(j,i)
-            enddo
-        enddo
-
-        DEALLOCATE(SymLabelListInvNew)
-
-!        do i=1,NoOrbs
-!            WRITE(6,*) Evalues(i)
-!        enddo
-!        do i=1,NoOrbs
-!            WRITE(6,*) NatOrbMat(:,i)
-!        enddo
-!        CALL FLUSH(6)
-!        stop
-
-!        CoeffT1(:,:) = 0.D0
-!        do i = 1, nBasis
-!            CoeffT1(i,i) = 1.D0
-!        enddo
-
-!        CALL HistNatOrbEvalues()
-
-!        WRITE(6,*) 'NatOrbMat matrix'
-!        do i=1,NoOrbs
-!            WRITE(6,*) NatOrbMat(:,i)
-!        enddo
-
-!        OPEN(io1,FILE='TRANSFORMMAT',status='unknown')
-!        do i=1,NoOrbs
-!            do j=1,NoOrbs-NoFrozenVirt
-!                WRITE(io1,*) i,j,CoeffT1(i,j)
-!            enddo
-!        enddo
-!        CLOSE(io1)
-
-!        CALL halt_timer(FillCoeff_Time)
- 
-
-    ENDSUBROUTINE FillCoeffT1_RDM
-
-    
+   
 ! This is an M^5 transform, which transforms all the two-electron integrals 
 ! into the new basis described by the Coeff matrix.
 ! This is v memory inefficient and currently does not use any spatial 
@@ -3250,6 +3946,7 @@ MODULE nElRDMMod
 
 
     SUBROUTINE CalcFOCKMatrix_RDM()
+! Calculate the fock matrix in the nat orb basis.    
         USE SystemData , only : nBasis
         USE Logging , only : tRDMonfly
         implicit none
@@ -3360,8 +4057,10 @@ MODULE nElRDMMod
 
     ENDSUBROUTINE CalcFOCKMatrix_RDM
 
-
     SUBROUTINE RefillUMATandTMAT2D_RDM()
+! UMat is in spin or spatial orbitals, TMAT2D only spin.
+! This routine refills these to more easily write out the ROFCIDUMP, and originally 
+! to be able to continue a calculation (although I doubt this works at the moment).
         USE RotateOrbsMod , only : FourIndInts, PrintROFCIDUMP, PrintRepeatROFCIDUMP
         implicit none
         INTEGER :: l,k,j,i,a,b,g,d,c,nBasis2,TMAT2DPartTag,ierr
@@ -3577,16 +4276,17 @@ MODULE nElRDMMod
 
 !        CALL halt_timer(PrintROFCIDUMP_Time)
 
-
     ENDSUBROUTINE PrintROFCIDUMP_RDM
 
 
     SUBROUTINE DeallocateRDM()
+! This routine just deallocates the arrays allocated in InitRDM.
+! If the NECI calculation softexits before the RDMs start to fill, this is all that 
+! is called at the end.
         USE RotateOrbsMod , only : SymLabelList2,SymLabelListInv,&
                                    SymLabelListInvTag,SymLabelList2Tag,&
                                    FourIndInts, FourIndIntsTag, &
                                    SymLabelCounts2, SymLabelCounts2Tag
-        USE RotateOrbsMod , only : SymLabelList3, SymLabelList3Tag
         USE Logging , only : tDiagRDM, tPrintRODump
         implicit none
         CHARACTER(len=*), PARAMETER :: this_routine='DeallocateRDM'
@@ -3643,11 +4343,11 @@ MODULE nElRDMMod
             DEALLOCATE(NatOrbMat)
             CALL LogMemDeAlloc(this_routine,NatOrbMatTag)
 
-            IF(iProcIndex.eq.0) THEN
+            IF((iProcIndex.eq.0).and.tDiagRDM) THEN
                 DEALLOCATE(Evalues)
                 CALL LogMemDeAlloc(this_routine,EvaluesTag)
 
-                IF(tDiagRDM.and.tPrintRODump) THEN
+                IF(tPrintRODump) THEN
                     DEALLOCATE(FourIndInts)
                     CALL LogMemDeAlloc(this_routine,FourIndIntsTag)
                 ENDIF
@@ -3689,1012 +4389,6 @@ MODULE nElRDMMod
         ENDIF
 
     END SUBROUTINE DeallocateRDM
-
-
-    SUBROUTINE Average_Spins_and_Sum_1e_Norms(Trace_1RDM)
-! This will only be called by the root.
-! It takes the NatOrbMat and averages each of the elements that should be equal by spin.
-! If HPHF is on, these things should already be true and this is not called.
-        implicit none
-        real(dp) , intent(out) :: Trace_1RDM
-        real(dp) :: Entry_bb, Entry_aa
-        integer :: i, a
-
-        Trace_1RDM = 0.D0
-
-        do i = 1, nBasis - 1, 2
-
-            ! ialpha -> ialpha = ibeta -> ibeta
-            Entry_bb = NatOrbMat(SymLabelListInv(i),SymLabelListInv(i))
-            Entry_aa = NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(i+1))
-
-            NatOrbMat(SymLabelListInv(i),SymLabelListInv(i)) = &
-                                        ( Entry_bb + Entry_aa ) / 2.D0 
-
-            NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(i+1)) = &
-                                        ( Entry_bb + Entry_aa ) / 2.D0 
-
-            Trace_1RDM = Trace_1RDM + NatOrbMat(SymLabelListInv(i),SymLabelListInv(i)) &
-                                    + NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(i+1))
-
-            do a = 1, nBasis - 1, 2
-
-                ! ialpha -> jalpha = ibeta -> jbeta
-                Entry_bb = NatOrbMat(SymLabelListInv(i),SymLabelListInv(a))
-                Entry_aa = NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(a+1))
-
-                NatOrbMat(SymLabelListInv(i),SymLabelListInv(a)) = &
-                                        ( Entry_bb + Entry_aa ) / 2.D0 
-
-                NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(a+1)) = &
-                                        ( Entry_bb + Entry_aa ) / 2.D0 
-            enddo
-        enddo
-
-    
-    END SUBROUTINE Average_Spins_and_Sum_1e_Norms
-
-
-
-    SUBROUTINE Average_Spins_and_Sum_2e_Norms(Trace_2RDM_Inst, Trace_2RDM)
-! This will only be called by the root.
-! It takes the AllTwoElRDM, and averages each of the elements that should be equal by spin.
-! If HPHF is on, these things should already be true and this is not called.
-
-! Elements that should be equal;
-! < a a | a a > = < b b | b b > 
-! < a b | a b > = < b a | b a >
-! < a b | b a > = < b a | a b >
-        implicit none
-        real(dp) , intent(out) :: Trace_2RDM_Inst, Trace_2RDM
-        real(dp) :: Entry_abab, Entry_baba, Sign_abab, Sign_baba
-        real(dp) :: Entry_abba, Entry_baab, Sign_abba, Sign_baab
-        real(dp) :: Entry_aaaa, Entry_bbbb
-        integer :: i, j, a, b
-        integer :: Indij_ab, Indij_aa, Indij_bb, Indij_ba
-        integer :: Indab_ab, Indab_aa, Indab_bb, Indab_ba
-        real(dp) :: AllTwoElRDM(1000,1000)
-        real(dp) :: TwoElRDM(1000,1000)
-
-        Trace_2RDM_Inst = 0.D0
-        Trace_2RDM = 0.D0
-
-        do i = 1, nBasis - 1, 2
-
-            do a = 1, nBasis - 1, 2
-
-                do j = i, nBasis - 1, 2
-
-                    do b = a, nBasis - 1, 2
-
-                        ! ialpha ialpha -> jalpha jalpha
-                        ! = ibeta ibeta -> jbeta jbeta
-                        if((i.ne.j).and.(a.ne.b)) then
-                            Indij_bb = ( ( (j-2) * (j-1) ) / 2 ) + i
-                            Indab_bb = ( ( (b-2) * (b-1) ) / 2 ) + a
-                            Entry_bbbb = AllTwoElRDM(Indij_bb,Indab_bb)
-
-                            Indij_aa = ( ( ((j+1)-2) * ((j+1)-1) ) / 2 ) + (i+1)
-                            Indab_aa = ( ( ((b+1)-2) * ((b+1)-1) ) / 2 ) + (a+1)
-                            Entry_aaaa = AllTwoElRDM(Indij_aa,Indab_aa)
-
-                            AllTwoElRDM(Indij_bb,Indab_bb) = &
-                                        ( Entry_bbbb + Entry_aaaa ) / 2.D0 
-
-                            AllTwoElRDM(Indij_aa,Indab_aa) = &
-                                        ( Entry_bbbb + Entry_aaaa ) / 2.D0 
-
-                            if(Indij_aa.eq.Indab_aa) then
-                                Trace_2RDM_Inst = Trace_2RDM_Inst + TwoElRDM(Indij_aa,Indab_aa)  
-                                Trace_2RDM = Trace_2RDM + AllTwoElRDM(Indij_aa,Indab_aa)  
-                            endif
-                            if(Indij_bb.eq.Indab_bb) then
-                                Trace_2RDM_Inst = Trace_2RDM_Inst + TwoElRDM(Indij_bb,Indab_bb)  
-                                Trace_2RDM = Trace_2RDM + AllTwoElRDM(Indij_bb,Indab_bb)  
-                            endif
-
-                        endif
-
-                        ! alpha beta -> alpha beta
-                        ! = beta alpha -> beta alpha
-                        Indij_ba = ( ( (max(i,j+1)-2) * (max(i,j+1)-1) ) / 2 ) + min(i,j+1)
-                        Indab_ba = ( ( (max(a,b+1)-2) * (max(a,b+1)-1) ) / 2 ) + min(a,b+1)
-                        Entry_baba = AllTwoElRDM(Indij_ba, Indab_ba)
-
-                        ! assume i < j+1 and a < b+1 - actually this must be true.
-                        ! keep this in for now anyway.
-                        Sign_baba = 1.D0
-                        if( ((max(i,j+1).eq.i).and.(max(a,b+1).ne.a)) .or. & 
-                            ((max(i,j+1).eq.(j+1)).and.(max(a,b+1).ne.(b+1))) ) Sign_baba = -1.D0
-
-                        Indij_ab = ( ( (max(i+1,j)-2) * (max(i+1,j)-1) ) / 2 ) + min(i+1,j)
-                        Indab_ab = ( ( (max(a+1,b)-2) * (max(a+1,b)-1) ) / 2 ) + min(a+1,b)
-                        Entry_abab = AllTwoElRDM(Indij_ab,Indab_ab)
-
-                        ! assume i+1 < j and a+1 < b - not always true if i and j are from 
-                        ! the same spatial orbital.
-                        Sign_abab = 1.D0
-                        if( ((max(i+1,j).ne.j).and.(max(a+1,b).eq.b)) .or. &
-                            ((max(i+1,j).ne.(i+1)).and.(max(a+1,b).eq.(a+1))) ) Sign_abab = -1.D0
-
-                        
-                        AllTwoElRDM(Indij_ba, Indab_ba) = &
-                            Sign_baba * ( ( ( Entry_baba * Sign_baba ) + &
-                                            ( Entry_abab * Sign_abab) ) / 2.D0 )
-
-
-                        AllTwoElRDM(Indij_ab,Indab_ab) = &
-                            Sign_abab * ( ( ( Entry_baba * Sign_baba ) + &
-                                                ( Entry_abab * Sign_abab ) )  / 2.D0 )
-
-                        if(Indij_ba.eq.Indab_ba) then
-                            Trace_2RDM_Inst = Trace_2RDM_Inst + TwoElRDM(Indij_ba,Indab_ba)  
-                            Trace_2RDM = Trace_2RDM + AllTwoElRDM(Indij_ba,Indab_ba)  
-                        endif
-                        if(Indij_ab.eq.Indab_ab) then
-                            if(i.ne.j) then
-                                Trace_2RDM_Inst = Trace_2RDM_Inst + TwoElRDM(Indij_ab,Indab_ab)  
-                                Trace_2RDM = Trace_2RDM + AllTwoElRDM(Indij_ab,Indab_ab)  
-                            endif
-                        endif
-
-                        ! beta alpha -> alpha beta
-                        ! = alpha beta -> beta alpha
-                        Indij_ba = ( ( (max(i,j+1)-2) * (max(i,j+1)-1) ) / 2 ) + min(i,j+1)
-                        Indab_ab = ( ( (max(a+1,b)-2) * (max(a+1,b)-1) ) / 2 ) + min(a+1,b)
-                        Entry_baab = AllTwoElRDM(Indij_ba,Indab_ab)
-
-                        Sign_baab = 1.D0
-                        if( ((max(i,j+1).eq.i).and.(max(a+1,b).eq.b)) .or. &
-                            ((max(i,j+1).eq.(j+1)).and.(max(a+1,b).eq.(a+1))) ) Sign_baab = -1.D0
-
-                        Indij_ab = ( ( (max(i+1,j)-2) * (max(i+1,j)-1) ) / 2 ) + min(i+1,j)
-                        Indab_ba = ( ( (max(a,b+1)-2) * (max(a,b+1)-1) ) / 2 ) + min(a,b+1)
-                        Entry_abba = AllTwoElRDM(Indij_ab,Indab_ba)
-
-                        Sign_abba = 1.D0
-                        if( ((max(i+1,j).eq.(i+1)).and.(max(a,b+1).eq.(b+1))) .or. &
-                            ((max(i+1,j).eq.j).and.(max(a,b+1).eq.a)) ) Sign_abba = -1.D0
-
-                        
-                        AllTwoElRDM(Indij_ba,Indab_ab) = &
-                            Sign_baab * ( ( (Entry_baab * Sign_baab) + &
-                                                (Entry_abba * Sign_abba) ) / 2.D0 )
-
-                        AllTwoElRDM(Indij_ab,Indab_ba) = & 
-                            Sign_abba * ( ( (Entry_baab * Sign_baab) + &
-                                                (Entry_abba * Sign_abba) ) / 2.D0 )
-
-                    enddo
-                enddo
-            enddo
-        enddo
-
-    
-    END SUBROUTINE Average_Spins_and_Sum_2e_Norms
-
-
-    SUBROUTINE Calc_Energy_from_RDM()
-! This routine takes the 1 electron and 2 electron reduced density matrices 
-! and calculated the energy they give.    
-! The equation for the energy is as follows:
-!
-!   E = Tr(h1 1RDM) + 1/2 Tr(h2 2RDM)
-!
-! where h1 are the 2 index integrals, and h2 the 4 index integrals.  The traces, Tr, 
-! are given by:
-!   Tr(h1 1RDM) = Sum_i,j [ h1(i,j) 1RDM(j,i) ]
-!   Tr(h2 2RDM) = Sum_i,j;k,l [ h2(i,j;k,l) 2RDM(k,l;i,j) ]
-        USE IntegralsData , only : UMAT
-        USE UMatCache , only : UMatInd
-        USE RotateOrbsMod , only : SymLabelList2
-        USE UMatCache , only : GTID
-        implicit none
-        real(dp) :: Norm_2RDM, Norm_2RDM_Inst
-        INTEGER :: i,j,a,b,Ind1_aa,Ind1_ab,Ind2_aa,Ind2_ab,ierr
-        INTEGER :: iSpin, jSpin, error
-        REAL(dp) :: RDMEnergy_Inst, RDMEnergy, Coul, Exch, Parity_Factor 
-        REAL(dp) :: Trace_2RDM_New, RDMEnergy1, RDMEnergy2
-
-        CALL set_timer(RDMEnergy_Time,30)
-
-        Trace_2RDM_New = 0.D0
-
-        RDMEnergy_Inst = 0.D0
-        RDMEnergy1 = 0.D0
-        RDMEnergy2 = 0.D0
-        RDMEnergy = 0.D0
-    
-        call Finalise_2e_RDM(Norm_2RDM_Inst, Norm_2RDM)
-
-        if(tFinalRDMEnergy) write(6,*) 'Calculating the final RDM energy'
-
-        if(iProcIndex.eq.0) then
-
-            do i = 1, SpatOrbs
-                iSpin = 2 * i
-
-                do j = i, SpatOrbs
-                    jSpin = 2 * j
-
-                    Ind1_aa = ( ( (j-2) * (j-1) ) / 2 ) + i
-                    Ind1_ab = ( ( (j-1) * j ) / 2 ) + i
-
-                    do a = 1, SpatOrbs
-
-                        ! Adding in contributions effectively from the 1-RDM (although these are calculated 
-                        ! from the 2-RDM.
-                        call calc_1RDM_energy(i,j,a,iSpin,jSpin, Norm_2RDM, Norm_2RDM_Inst, &
-                                                    RDMEnergy_Inst, RDMEnergy1)
-
-                        do b = a, SpatOrbs
-
-                            Ind2_aa = ( ( (b-2) * (b-1) ) / 2 ) + a
-                            Ind2_ab = ( ( (b-1) * b ) / 2 ) + a
-
-                            ! UMAT in chemical notation.
-                            Coul = REAL(UMAT(UMatInd(i,j,a,b,0,0)),8)
-                            Exch = REAL(UMAT(UMatInd(i,j,b,a,0,0)),8)
-
-!                            if((Ind1_aa.ne.Ind2_aa).and.(i.ne.j).and.(a.ne.b)) then
-                            if((i.ne.j).and.(a.ne.b)) then
-                                RDMEnergy_Inst = RDMEnergy_Inst + ( aaaa_RDM(Ind1_aa,Ind2_aa) &
-                                                                    * Norm_2RDM_Inst * ( Coul - Exch ) )
-                                RDMEnergy2 = RDMEnergy2 + ( All_aaaa_RDM(Ind1_aa,Ind2_aa) &
-                                                            * Norm_2RDM * ( Coul - Exch ) ) 
-                                if(Ind1_aa.eq.Ind2_aa) &
-                                    Trace_2RDM_New = Trace_2RDM_New + &
-                                                        All_aaaa_RDM(Ind1_aa,Ind2_aa) * Norm_2RDM
-                            endif
-
-                            ! For abab cases, coul element will be non-zero, exchange zero.
-                            RDMEnergy_Inst = RDMEnergy_Inst + ( abab_RDM(Ind1_ab,Ind2_ab) &
-                                                                    * Norm_2RDM_Inst * Coul )
-                            RDMEnergy2 = RDMEnergy2 + ( All_abab_RDM(Ind1_ab,Ind2_ab) &
-                                                        * Norm_2RDM * Coul ) 
-
-                            ! For abba cases, coul element will be zero, exchange non-zero.
-                            RDMEnergy_Inst = RDMEnergy_Inst - ( abba_RDM(Ind1_ab,Ind2_ab) &
-                                                                    * Norm_2RDM_Inst * Exch )
-                            RDMEnergy2 = RDMEnergy2 - ( All_abba_RDM(Ind1_ab,Ind2_ab) &
-                                                        * Norm_2RDM * Exch ) 
-
-                            if(Ind1_ab.eq.Ind2_ab) then                                                        
-                                ! For abba cases, coul element will be zero, exchange non-zero.
-                                RDMEnergy_Inst = RDMEnergy_Inst - ( abba_RDM(Ind1_ab,Ind2_ab) &
-                                                                        * Norm_2RDM_Inst * Exch )
-                                RDMEnergy2 = RDMEnergy2 - ( All_abba_RDM(Ind1_ab,Ind2_ab) &
-                                                            * Norm_2RDM * Exch ) 
-                            endif
-
-                            if(Ind1_ab.eq.Ind2_ab) &
-                                Trace_2RDM_New = Trace_2RDM_New + &
-                                                    All_abab_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM
-
-                       enddo
-
-                    enddo
-                enddo
-            enddo
-
-            RDMEnergy_Inst = RDMEnergy_Inst + Ecore
-            RDMEnergy = RDMEnergy1 + RDMEnergy2 + Ecore 
-
-            WRITE(Energies_unit, "(I31,2F30.15)") Iter+PreviousCycles, RDMEnergy_Inst, RDMEnergy
-
-            if(tFinalRDMEnergy) then
-                write(6,*) 'Trace of 2-el-RDM before normalisation : ',Trace_2RDM
-                write(6,*) 'Trace of 2-el-RDM after normalisation : ',Trace_2RDM_New
-                write(6,*) ''
-                write(6,*) 'Energy contribution from the 1-RDM: ',RDMEnergy1
-                write(6,*) 'Energy contribution from the 2-RDM: ',RDMEnergy2
-                write(6,'(A64,F30.20)') ' *TOTAL ENERGY* CALCULATED USING THE *REDUCED &
-                                            &DENSITY MATRICES*:',RDMEnergy
-                write(6,*) ''
-                CLOSE(Energies_unit) 
-            endif
-
-        endif
-
-        aaaa_RDM(:,:) = 0.0_dp
-        abab_RDM(:,:) = 0.0_dp
-        abba_RDM(:,:) = 0.0_dp
-        AccumRDMNorm_Inst = 0.0_dp
-        Trace_2RDM_Inst = 0.0_dp
-
-        CALL halt_timer(RDMEnergy_Time)
-
-    END SUBROUTINE Calc_Energy_from_RDM
-
-
-    subroutine calc_1RDM_energy(i,j,a,iSpin,jSpin,Norm_2RDM,Norm_2RDM_Inst,&
-                                                    RDMEnergy_Inst,RDMEnergy1)
-        ! gamma(i,j) = [1/(NEl - 1)] * SUM_a Gamma(i,a,j,a) 
-        ! want to calculate:    gamma(i,j) * h_ij
-        ! h_ij => TMAT2D(iSpin,jSpin)
-        USE OneEInts , only : TMAT2D
-        USE Logging , only : tDiagRDM
-        implicit none
-        integer , intent(in) :: i,j,a,iSpin,jSpin
-        real(dp) , intent(in) :: Norm_2RDM, Norm_2RDM_Inst
-        real(dp) , intent(inout) :: RDMEnergy_Inst, RDMEnergy1
-        real(dp) :: Parity_Factor
-        integer :: Ind1_1e_ab, Ind2_1e_ab
-        integer :: Ind1_1e_aa, Ind2_1e_aa
-
-
-        Ind1_1e_ab = ( ( (max(i,a)-1) * max(i,a) ) / 2 ) + min(i,a)
-        Ind2_1e_ab = ( ( (max(j,a)-1) * max(j,a) ) / 2 ) + min(j,a)
-
-        ! for i a -> j a excitation, when lined up as min max -> min max, 
-        ! if a's are aligned, only a b a b arrays contain single excitations, 
-        ! if a's not aligned, a b b a.
-        ! all a a a a will contain single excitations.
-        if(((i.le.a).and.(j.le.a)).or.((i.ge.a).and.(j.ge.a))) then
-            RDMEnergy_Inst = RDMEnergy_Inst + ( (abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM_Inst) &
-                                                * REAL(TMAT2D(iSpin,jSpin),8) &
-                                                * (1.0_dp / real(NEl - 1,dp)) )
-            RDMEnergy1 = RDMEnergy1 + ( (All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM) &
-                                                * REAL(TMAT2D(iSpin,jSpin),8) &
-                                                * (1.0_dp / real(NEl - 1,dp)) )
-
-            if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
-                NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) = &
-                            NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) &
-                                        + ( All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
-                                                * (1.0_dp / real(NEl - 1,dp)) ) 
-            endif
-
-            ! For Gamma elements corresponding to 1-RDMs ( Gamma(i,a,j,a) ), we're only considering 
-            ! i =< j and therefore we need to sum in the opposite contribution too.
-            if(Ind1_1e_ab.ne.Ind2_1e_ab) then                                                                
-                RDMEnergy_Inst = RDMEnergy_Inst + ( (abab_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM_Inst) &
-                                                    * REAL(TMAT2D(jSpin,iSpin),8) &
-                                                    * (1.0_dp / real(NEl - 1,dp)) )
-                RDMEnergy1 = RDMEnergy1 + ( (All_abab_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM) &
-                                                    * REAL(TMAT2D(jSpin,iSpin),8) &
-                                                    * (1.0_dp / real(NEl - 1,dp)) )
-
-                if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
-                    NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) = &
-                            NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) &
-                                        + ( All_abab_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM &
-                                                * (1.0_dp / real(NEl - 1,dp)) ) 
-                endif
-
-            endif
-
-            ! But since we're running over all a, i a and a i will both be counted, but i i only once 
-            ! (whereas it should be counted twice).
-            if((i.eq.j).and.(i.eq.a)) then                                                                
-                RDMEnergy_Inst = RDMEnergy_Inst + ( (abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM_Inst) &
-                                            * REAL(TMAT2D(iSpin,jSpin),8) &
-                                            * (1.0_dp / real(NEl - 1,dp)) )
-                RDMEnergy1 = RDMEnergy1 + ( (All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM) &
-                                            * REAL(TMAT2D(iSpin,jSpin),8) &
-                                            * (1.0_dp / real(NEl - 1,dp)) )
-
-                if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
-                    NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) = &
-                            NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) &
-                                        + ( All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
-                                                * (1.0_dp / real(NEl - 1,dp)) ) 
-                endif
-
-            endif
-
-        endif
-
-        if((i.ne.j).and.((i.le.a).and.(j.ge.a)).or.((i.ge.a).and.(j.le.a))) then
-            RDMEnergy_Inst = RDMEnergy_Inst - ( (abba_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM_Inst) &
-                                                * REAL(TMAT2D(iSpin,jSpin),8) &
-                                                * (1.0_dp / real(NEl - 1,dp)) )
-            RDMEnergy1 = RDMEnergy1 - ( (All_abba_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM) &
-                                                * REAL(TMAT2D(iSpin,jSpin),8) &
-                                                * (1.0_dp / real(NEl - 1,dp)) )
-
-            if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
-                NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) = &
-                            NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) &
-                                        - ( All_abba_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
-                                                * (1.0_dp / real(NEl - 1,dp)) ) 
-            endif
-
-            if(Ind1_1e_ab.ne.Ind2_1e_ab) then
-                RDMEnergy_Inst = RDMEnergy_Inst - ( (abba_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM_Inst) &
-                                                    * REAL(TMAT2D(iSpin,jSpin),8) &
-                                                    * (1.0_dp / real(NEl - 1,dp)) )
-                RDMEnergy1 = RDMEnergy1 - ( (All_abba_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM) &
-                                                    * REAL(TMAT2D(iSpin,jSpin),8) &
-                                                    * (1.0_dp / real(NEl - 1,dp)) )
-
-                if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
-                    NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) = &
-                            NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) &
-                                        - ( ( All_abba_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM &
-                                                * (1.0_dp / real(NEl - 1,dp)) ) / 2.0_dp )
-                endif
-            endif
-        endif
-
-        if((i.ne.a).and.(j.ne.a)) then
-            Ind1_1e_aa = ( ( (max(i,a)-2) * (max(i,a)-1) ) / 2 ) + min(i,a)
-            Ind2_1e_aa = ( ( (max(j,a)-2) * (max(j,a)-1) ) / 2 ) + min(j,a)
-
-            if(((i.lt.a).and.(j.lt.a)).or.((i.gt.a).and.(j.gt.a))) then
-                Parity_Factor = 1.0_dp
-            else
-                Parity_Factor = -1.0_dp
-            endif
-!
-            RDMEnergy_Inst = RDMEnergy_Inst + ( (aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM_Inst) &
-                                                * REAL(TMAT2D(iSpin,jSpin),8) &
-                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
-            RDMEnergy1 = RDMEnergy1 + ( (All_aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM) &
-                                                * REAL(TMAT2D(iSpin,jSpin),8) &
-                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
-
-            if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
-                NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) = &
-                            NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) &
-                                        + ( All_aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
-                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor ) 
-            endif
-
-            if(Ind1_1e_aa.ne.Ind2_1e_aa) then
-                RDMEnergy_Inst = RDMEnergy_Inst + ( (aaaa_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM_Inst) &
-                                                * REAL(TMAT2D(jSpin,iSpin),8) &
-                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
-                RDMEnergy1 = RDMEnergy1 + ( (All_aaaa_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM) &
-                                                * REAL(TMAT2D(jSpin,iSpin),8) &
-                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
-
-                if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
-                    NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) = &
-                            NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) &
-                                        + ( All_aaaa_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
-                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
-                endif
-            endif
-        endif
-
-
-    end subroutine calc_1RDM_energy
-
-
-
-    subroutine Finalise_1e_RDM() 
-        use Logging , only : twrite_RDMs_to_read, twrite_normalised_RDMs
-        implicit none
-        integer :: i
-        real(dp) :: Norm_1RDM
-        real(dp) :: Trace_1RDM
-
-        AllAccumRDMNorm = 0.D0
-        IF(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) &
-            CALL MPIReduce(AccumRDMNorm,MPI_SUM,AllAccumRDMNorm)
-
-        if(RDMExcitLevel.eq.1) &            
-            CALL MPISum_inplace(NatOrbMat)
-        
-        if(iProcIndex.eq.0) then 
-
-            call sum_1e_norms(Trace_1RDM) 
-
-            call calc_1e_norms(Norm_1RDM, Trace_1RDM)
-
-            if(twrite_RDMs_to_read) call Write_out_1RDM(Norm_1RDM,.false.)
-
-            if((RDMExcitLevel.eq.1).and.(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref))) &
-                call make_1e_rdm_hermitian(Norm_1RDM)
-
-            if(twrite_normalised_RDMs) call Write_out_1RDM(Norm_1RDM,.true.)
-
-        endif
-
-    end subroutine Finalise_1e_RDM
-
-
-    subroutine Finalise_2e_RDM(Norm_2RDM_Inst, Norm_2RDM) 
-        use Logging , only : twrite_RDMs_to_read, twrite_normalised_RDMs, &
-                                RDMEnergyIter, IterWriteRDMs, tWriteMultRDMs
-        use FciMCData , only : IterRDMStart
-        implicit none
-        real(dp) , intent(out) :: Norm_2RDM_Inst, Norm_2RDM
-        real(dp) :: AllAccumRDMNorm_Inst
-        real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity
-        integer :: RDM_Cycles
-
-        ! All the arrays are summed into the one on processor 0.
-        CALL MPISum_inplace(aaaa_RDM(:,:))
-        CALL MPISum_inplace(abab_RDM(:,:))
-        CALL MPISum_inplace(abba_RDM(:,:))
-
-        ! The TwoElRDM on the root is now the sum of all 'instantaneous' RDMs (summed over 
-        ! the energy update cycle).
-        ! Whereas AllTwoElRDM is accumulated over the entire run.
-
-        RDM_Cycles =  ( Iter - IterRDMStart ) / RDMEnergyIter
-        
-        if(iProcIndex.eq.0) then
-            All_aaaa_RDM(:,:) = ( All_aaaa_RDM(:,:) * &
-                                ( real(RDM_Cycles,dp) / ( real(RDM_Cycles,dp) + 1.0_dp ) ) ) &
-                                + ( aaaa_RDM(:,:) / ( real(RDM_Cycles,dp) + 1.0_dp ) )
-            All_abab_RDM(:,:) = ( All_abab_RDM(:,:) * &
-                                ( real(RDM_Cycles,dp) / ( real(RDM_Cycles,dp) + 1.0_dp ) ) ) &
-                                + ( abab_RDM(:,:) / ( real(RDM_Cycles,dp) + 1.0_dp ) )
-            All_abba_RDM(:,:) = ( All_abba_RDM(:,:) * &
-                                ( real(RDM_Cycles,dp) / ( real(RDM_Cycles,dp) + 1.0_dp ) ) ) &
-                                + ( abba_RDM(:,:) / ( real(RDM_Cycles,dp) + 1.0_dp ) )
-        endif
-
-        AllAccumRDMNorm_Inst = 0.D0
-        if(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) then
-!            CALL MPISum_inplace(AccumRDMNorm)
-            CALL MPIReduce(AccumRDMNorm_Inst,MPI_SUM,AllAccumRDMNorm_Inst)
-            AllAccumRDMNorm = ( AllAccumRDMNorm * &
-                                ( real(RDM_Cycles,dp) / ( real(RDM_Cycles,dp) + 1.0_dp ) ) ) &
-                                + ( AllAccumRDMNorm_Inst / ( real(RDM_Cycles,dp) + 1.0_dp ) )
-        endif
-
-        if(iProcIndex.eq.0) then
-
-            call sum_2e_norms()
-
-            call calc_2e_norms(AllAccumRDMNorm_Inst, Norm_2RDM_Inst, Norm_2RDM)
-
-            if( tFinalRDMEnergy .or. &
-                ( tWriteMultRDMs .and. (mod((Iter - IterRDMStart)+1,IterWriteRDMs).eq.0) ) ) then
-
-                if(tFinalRDMEnergy) then
-                    if(twrite_RDMs_to_read) call Write_out_2RDM(Norm_2RDM,.false.)
-
-                    if(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
-                        call make_2e_rdm_hermitian(Norm_2RDM, Max_Error_Hermiticity, Sum_Error_Hermiticity)
-
-                        write(6,'(A29,F30.20)') ' MAX ABS ERROR IN HERMITICITY', Max_Error_Hermiticity
-                        write(6,'(A29,F30.20)') ' SUM ABS ERROR IN HERMITICITY', Sum_Error_Hermiticity
-                        write(6,*) ''
-                    endif
-                endif
-
-                if(twrite_normalised_RDMs) call Write_out_2RDM(Norm_2RDM,.true.)
-
-            endif
-        endif
-
-
-    end subroutine 
-
-
-    subroutine sum_1e_norms(Trace_1RDM)
-! We want to 'normalise' the reduced density matrices.
-! These are not even close to being normalised at the moment, because of the way they are 
-! calculated on the fly.
-! They should be calculated from a normalised wavefunction.
-! But we know that the trace of the one electron reduced density matrix must be equal to 
-! the number of the electrons.
-! We can use this to find the factor we must divide the 1RDM through by.
-
-! We also know that the trace of the two electron reduced density matrix must be equal to the 
-! number of electron pairs in the system = 1/2 N ( N - 1), so we can do the same for the 2RDM.
-
-! This routine also initiates the stuff needed to write out the density matrices to files.
-        implicit none
-        real(dp) , intent(out) :: Trace_1RDM
-        integer :: i
-
-        ! Find the current, unnormalised trace of each matrix.
-        ! TODO: This can be merged into the spin averaging when everything is working.
-
-        Trace_1RDM = 0.D0
-        do i = 1, NoOrbs
-            Trace_1RDM = Trace_1RDM + NatOrbMat(i,i)
-        enddo
-
-!        if(tFinalRDMEnergy) then
-!            WRITE(6,*) 'Trace_1RDM',Trace_1RDM
-!        endif
-
-    end subroutine sum_1e_norms        
-
-    subroutine sum_2e_norms()
-! We want to 'normalise' the reduced density matrices.
-! These are not even close to being normalised at the moment, because of the way they are 
-! calculated on the fly.
-! They should be calculated from a normalised wavefunction.
-! But we know that the trace of the one electron reduced density matrix must be equal to 
-! the number of the electrons.
-! We can use this to find the factor we must divide the 1RDM through by.
-
-! We also know that the trace of the two electron reduced density matrix must be equal to the 
-! number of electron pairs in the system = 1/2 N ( N - 1), so we can do the same for the 2RDM.
-
-! This routine also initiates the stuff needed to write out the density matrices to files.
-        implicit none
-        integer :: i
-
-        ! Find the current, unnormalised trace of each matrix.
-        ! TODO: This can be merged into the spin averaging when everything is working.
-
-        Trace_2RDM_Inst = 0.D0
-        Trace_2RDM = 0.D0
-
-        do i = 1, ((SpatOrbs*(SpatOrbs+1))/2)
-            if(i.le.((SpatOrbs*(SpatOrbs-1))/2)) then
-                Trace_2RDM_Inst = Trace_2RDM_Inst + aaaa_RDM(i,i)
-                Trace_2RDM = Trace_2RDM + All_aaaa_RDM(i,i)
-            endif
-            Trace_2RDM_Inst = Trace_2RDM_Inst + abab_RDM(i,i)
-            Trace_2RDM = Trace_2RDM + All_abab_RDM(i,i)
-        enddo
-
-        if(tFinalRDMEnergy) then
-            WRITE(6,*) 'Trace_2RDM before normalisation',Trace_2RDM
-        endif
-
-    end subroutine sum_2e_norms        
-
-    subroutine calc_1e_norms(Norm_1RDM, Trace_1RDM)
-        implicit none                            
-        real(dp) , intent(in) :: Trace_1RDM
-        real(dp) , intent(out) :: Norm_1RDM
-
-        Norm_1RDM = 0.D0
-
-        IF(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) THEN
-            Norm_1RDM = 1.D0 / AllAccumRDMNorm
-        ELSE
-            ! Sum of diagonal elements of 1 electron RDM must equal NEl, 
-            ! number of electrons.
-            Norm_1RDM = ( REAL(NEl,8) / Trace_1RDM )
-        ENDIF
-
-!        if(tFinalRDMEnergy) then
-!            WRITE(6,*) 'AllAccumRDMNorm',AllAccumRDMNorm
-!            WRITE(6,*) 'Norm_1RDM',Norm_1RDM
-!            WRITE(6,*) 'Trace_1RDM',Trace_1RDM
-!        endif
-
-        !Need to multiply each element of the 1 electron reduced density matrices 
-        !by NEl / Trace_1RDM,
-        !and then add it's contribution to the energy.
-
-    end subroutine calc_1e_norms
-
-    subroutine calc_2e_norms(AllAccumRDMNorm_Inst, Norm_2RDM_Inst, Norm_2RDM)
-        implicit none                            
-        real(dp) , intent(in) :: AllAccumRDMNorm_Inst
-        real(dp) , intent(out) :: Norm_2RDM_Inst, Norm_2RDM
-
-        Norm_2RDM_Inst = 0.D0
-        Norm_2RDM = 0.D0
-
-        IF(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) THEN
-            Norm_2RDM_Inst = 1.D0 / AllAccumRDMNorm_Inst
-            Norm_2RDM = 1.D0 / AllAccumRDMNorm
-        ELSE
-            ! Sum of diagonal elements of 2 electron RDM must equal number of 
-            ! pairs of electrons, = NEl ( NEl - 1 ) / 2
-            Norm_2RDM_Inst = ( (0.50 * (REAL(NEl) * (REAL(NEl) - 1.D0))) / Trace_2RDM_Inst )
-            Norm_2RDM = ( (0.50 * (REAL(NEl) * (REAL(NEl) - 1.D0))) / Trace_2RDM )
-        ENDIF
-
-!        if(tFinalRDMEnergy) then
-!            WRITE(6,*) 'AllAccumRDMNorm',AllAccumRDMNorm
-!            WRITE(6,*) 'Norm_2RDM',Norm_2RDM
-!            WRITE(6,*) 'Trace_2RDM',Trace_2RDM
-!        endif
-
-        !Need to multiply each element of the 1 electron reduced density matrices 
-        !by NEl / Trace_1RDM,
-        !and then add it's contribution to the energy.
-
-    end subroutine calc_2e_norms
-
-    subroutine make_1e_rdm_hermitian(Norm_1RDM)
-        implicit none 
-        real(dp) , intent(in) :: Norm_1RDM
-        real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity 
-        integer :: i, j
-        real(dp) :: Temp
-
-        Max_Error_Hermiticity = 0.D0
-        Sum_Error_Hermiticity = 0.D0
-        do i = 1, NoOrbs
-            do j = i, NoOrbs
-                IF((abs((NatOrbMat(SymLabelListInv(i),SymLabelListInv(j))*Norm_1RDM) - &
-                        (NatOrbMat(SymLabelListInv(j),SymLabelListInv(i))*Norm_1RDM))).gt.Max_Error_Hermiticity) &
-                    Max_Error_Hermiticity = abs((NatOrbMat(SymLabelListInv(i),SymLabelListInv(j))*Norm_1RDM) - &
-                                                (NatOrbMat(SymLabelListInv(j),SymLabelListInv(i))*Norm_1RDM))
-
-                Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
-                                        abs((NatOrbMat(SymLabelListInv(i),SymLabelListInv(j))*Norm_1RDM) - &
-                                            (NatOrbMat(SymLabelListInv(j),SymLabelListInv(i))*Norm_1RDM))
-
-                Temp = (NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) + &
-                        NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)))/2.D0
-
-                NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) = Temp
-                NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) = Temp
-            enddo
-        enddo
-
-        write(6,'(A29,F30.20)') ' MAX ABS ERROR IN HERMITICITY', Max_Error_Hermiticity
-        write(6,'(A29,F30.20)') ' SUM ABS ERROR IN HERMITICITY', Sum_Error_Hermiticity
-        write(6,*) ''
-
-    end subroutine make_1e_rdm_hermitian
-
-    subroutine make_2e_rdm_hermitian(Norm_2RDM, Max_Error_Hermiticity, Sum_Error_Hermiticity)
-        implicit none 
-        real(dp) , intent(in) :: Norm_2RDM
-        real(dp) , intent(out) :: Max_Error_Hermiticity, Sum_Error_Hermiticity 
-        integer :: i, j
-        real(dp) :: Temp
-
-        Max_Error_Hermiticity = 0.D0
-        Sum_Error_Hermiticity = 0.D0
-
-        do i = 1, ((SpatOrbs*(SpatOrbs+1))/2)
-            do j = i+1, ((SpatOrbs*(SpatOrbs+1))/2)
-
-                if((i.le.((SpatOrbs*(SpatOrbs-1))/2)).and.(j.le.((SpatOrbs*(SpatOrbs-1))/2))) then
-
-                    IF((abs((All_aaaa_RDM(i,j)*Norm_2RDM)-(All_aaaa_RDM(j,i)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
-                        Max_Error_Hermiticity = abs((All_aaaa_RDM(i,j)*Norm_2RDM)-(All_aaaa_RDM(j,i)*Norm_2RDM))
-
-                    Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
-                                            abs((All_aaaa_RDM(i,j)*Norm_2RDM)-(All_aaaa_RDM(j,i)*Norm_2RDM))
-
-                    Temp = (All_aaaa_RDM(i,j) + All_aaaa_RDM(j,i)) / 2.D0
-
-                    All_aaaa_RDM(i,j) = Temp
-                    All_aaaa_RDM(j,i) = Temp
-                endif
-
-                IF((abs((All_abab_RDM(i,j)*Norm_2RDM)-(All_abab_RDM(j,i)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
-                    Max_Error_Hermiticity = abs((All_abab_RDM(i,j)*Norm_2RDM)-(All_abab_RDM(j,i)*Norm_2RDM))
-
-                Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
-                                        abs((All_abab_RDM(i,j)*Norm_2RDM)-(All_abab_RDM(j,i)*Norm_2RDM))
-
-                Temp = (All_abab_RDM(i,j) + All_abab_RDM(j,i)) / 2.D0
-
-                All_abab_RDM(i,j) = Temp
-                All_abab_RDM(j,i) = Temp
-
-
-                IF((abs((All_abba_RDM(i,j)*Norm_2RDM)-(All_abba_RDM(j,i)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
-                    Max_Error_Hermiticity = abs((All_abba_RDM(i,j)*Norm_2RDM)-(All_abba_RDM(j,i)*Norm_2RDM))
-
-                Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
-                                        abs((All_abba_RDM(i,j)*Norm_2RDM)-(All_abba_RDM(j,i)*Norm_2RDM))
-
-                Temp = (All_abba_RDM(i,j) + All_abba_RDM(j,i)) / 2.D0
-
-                All_abba_RDM(i,j) = Temp
-                All_abba_RDM(j,i) = Temp
-
-            enddo
-        enddo
-
-    end subroutine make_2e_rdm_hermitian
-
-
-    subroutine Write_out_1RDM(Norm_1RDM,tNormalise)
-        USE UMatCache, only: GTID
-        implicit none
-        real(dp) , intent(in) :: Norm_1RDM
-        logical , intent(in) :: tNormalise
-        integer :: i, j, iSpat, jSpat
-        integer :: OneRDM_unit
- 
-        if(tNormalise) then
-            ! Haven't got the capabilities to produce multiple 1-RDMs yet.
-            write(6,*) 'Writing out the *normalised* 1 electron density matrix to file'
-            call flush(6)
-            OneRDM_unit = get_free_unit()
-            OPEN(OneRDM_unit,file='OneRDM',status='unknown')
-        else
-            ! Only every write out 1 of these at the moment.
-            write(6,*) 'Writing out the *unnormalised* 1 electron density matrix to file for reading in'
-            call flush(6)
-            OneRDM_unit = get_free_unit()
-            OPEN(OneRDM_unit,file='OneRDM_POPS',status='unknown',form='unformatted')
-        endif
- 
-        ! Currently always printing 1-RDM in spin orbitals.
-        do i = 1, nBasis
-            do j = 1, nBasis
-                if(tStoreSpinOrbs) then
-                    if(NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)).ne.0.D0) then 
-                        if(tNormalise.and.((i.le.j).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
-                            write(OneRDM_unit,"(2I6,G25.17)") i,j, & 
-                                NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) * Norm_1RDM
-                        elseif(.not.tNormalise) then
-                            ! For the pops, we haven't made the 1-RDM hermitian yet, 
-                            ! so print both the 1-RDM(i,j) and 1-RDM(j,i) elements.
-                            ! This is written in binary.
-                            write(OneRDM_unit) i,j,NatOrbMat(SymLabelListInv(i),SymLabelListInv(j))
-                        endif
-                    endif
-                else
-                    iSpat = gtID(i)
-                    jSpat = gtID(j)
-                    if(NatOrbMat(SymLabelListInv(iSpat),SymLabelListInv(jSpat)).ne.0.D0) then 
-                        if(tNormalise.and.((i.le.j).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
-                            if(((mod(i,2).eq.0).and.(mod(j,2).eq.0)).or.&
-                                ((mod(i,2).ne.0).and.(mod(j,2).ne.0))) then
-                                write(OneRDM_unit,"(2I6,G25.17)") i,j, & 
-                                    ( NatOrbMat(SymLabelListInv(iSpat),SymLabelListInv(jSpat)) &
-                                                                    * Norm_1RDM ) / 2.0_dp
-                            endif
-                        elseif(.not.tNormalise) then
-                            ! The popsfile can be printed in spatial orbitals.
-                            if((mod(i,2).eq.0).and.(mod(j,2).eq.0)) then
-                                write(OneRDM_unit) iSpat,jSpat, & 
-                                    NatOrbMat(SymLabelListInv(iSpat),SymLabelListInv(jSpat)) 
-                            endif
-                        endif
-                    endif
-                endif
-            enddo
-        enddo
-                
-        close(OneRDM_unit)
-
-    end subroutine Write_out_1RDM
-
-
-    subroutine Write_out_2RDM(Norm_2RDM,tNormalise)
-        use util_mod , only : get_unique_filename
-        use Logging , only : tWriteMultRDMs
-        implicit none
-        real(dp) , intent(in) :: Norm_2RDM
-        logical , intent(in) :: tNormalise
-        real(dp) :: Tot_Spin_Projection, SpinPlus, SpinMinus
-        real(dp) :: ParityFactor,Divide_Factor 
-        integer :: i, j, a, b, Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab
-        integer :: aaaa_RDM_unit, abab_RDM_unit, abba_RDM_unit
-        character(255) :: TwoRDM_aaaa_name, TwoRDM_abab_name, TwoRDM_abba_name
-
-        if(tNormalise) then
-            write(6,*) 'Writing out the *normalised* 2 electron density matrix to file'
-            call flush(6)
-            ! This takes the TwoRDM_aaaa, and if tWriteMultPops is true (and given that we've put 
-            ! .true. in the 3rd position, it'll find the next unused TwoRDM_aaaa.X file name.
-            call get_unique_filename('TwoRDM_aaaa',tWriteMultRDMs,.true.,1,TwoRDM_aaaa_name)
-            aaaa_RDM_unit = get_free_unit()
-            OPEN(aaaa_RDM_unit,file=TwoRDM_aaaa_name,status='unknown')
-
-            call get_unique_filename('TwoRDM_abab',tWriteMultRDMs,.true.,1,TwoRDM_abab_name)
-            abab_RDM_unit = get_free_unit()
-            OPEN(abab_RDM_unit,file=TwoRDM_abab_name,status='unknown')
-
-            call get_unique_filename('TwoRDM_abba',tWriteMultRDMs,.true.,1,TwoRDM_abba_name)
-            abba_RDM_unit = get_free_unit()
-            OPEN(abba_RDM_unit,file=TwoRDM_abba_name,status='unknown')
-        else
-            write(6,*) 'Writing out the *unnormalised* 2 electron density matrix to file for reading in'
-            call flush(6)
-            aaaa_RDM_unit = get_free_unit()
-            OPEN(aaaa_RDM_unit,file='TwoRDM_POPS_aaaa',status='unknown',form='unformatted')
-            abab_RDM_unit = get_free_unit()
-            OPEN(abab_RDM_unit,file='TwoRDM_POPS_abab',status='unknown',form='unformatted')
-            abba_RDM_unit = get_free_unit()
-            OPEN(abba_RDM_unit,file='TwoRDM_POPS_abba',status='unknown',form='unformatted')
-        endif
-        
-        Tot_Spin_Projection = 0.D0
-        do i = 1, SpatOrbs
-
-            do j = i, SpatOrbs
-
-                Ind1_aa = ( ( (j-2) * (j-1) ) / 2 ) + i
-                Ind1_ab = ( ( (j-1) * j ) / 2 ) + i
-
-                ! TODO : Fix this.
-!                    call sum_in_spin_proj(i,j,Ind1,Norm_2RDM,Tot_Spin_Projection)
-
-                do a = 1, SpatOrbs
-
-                    do b = a, SpatOrbs
-
-                        Ind2_aa = ( ( (b-2) * (b-1) ) / 2 ) + a
-                        Ind2_ab = ( ( (b-1) * b ) / 2 ) + a
-
-                        if((i.eq.j).or.(a.eq.b)) then
-                            Divide_Factor = 1.0_dp
-                        else
-                            Divide_Factor = 2.0_dp
-                        endif
-                        
-                        if((i.ne.j).and.(a.ne.b)) then
-
-                            if( All_aaaa_RDM(Ind1_aa,Ind2_aa).ne.0.0_dp) then
-                                ! If we're normalising (and have made the matrix hermitian) we only 
-                                ! need to write out Ind1 < Ind2.
-                                ! Otherwise we print out Ind1, Ind2 and Ind2, Ind1 so we can 
-                                ! find the hermiticity error in the final matrix (after all runs).
-                                if(tNormalise.and.((Ind1_aa.le.Ind2_aa).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
-                                    if(tFinalRDMEnergy) then
-                                        write(aaaa_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
-                                                ( All_aaaa_RDM(Ind1_aa,Ind2_aa) * Norm_2RDM ) / Divide_Factor
-                                    else
-                                        write(aaaa_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
-                                            ( ((All_aaaa_RDM(Ind1_aa,Ind2_aa) + All_aaaa_RDM(Ind2_aa,Ind1_aa))/2.0_dp) &
-                                                                * Norm_2RDM ) / Divide_Factor
-                                    endif
-                                elseif(.not.tNormalise) then
-                                    write(aaaa_RDM_unit) i,j,a,b, &
-                                            All_aaaa_RDM(Ind1_aa,Ind2_aa) 
-                                endif
-                            endif
-                        endif
-
-                        if( All_abab_RDM(Ind1_ab,Ind2_ab).ne.0.0_dp) then
-                            if(tNormalise.and.((Ind1_ab.le.Ind2_ab).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
-                                if(tFinalRDMEnergy) then
-                                    write(abab_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
-                                        ( All_abab_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM ) / Divide_Factor
-                                else
-                                    write(abab_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
-                                        ( ((All_abab_RDM(Ind1_ab,Ind2_ab) + All_abab_RDM(Ind2_ab,Ind1_ab))/2.0_dp) &
-                                                                * Norm_2RDM ) / Divide_Factor
-                                endif
-                            elseif(.not.tNormalise) then
-                                write(abab_RDM_unit) i,j,a,b, &
-                                    All_abab_RDM(Ind1_ab,Ind2_ab) 
-                            endif
-                        endif
-
-                        if( All_abba_RDM(Ind1_ab,Ind2_ab).ne.0.0_dp) then
-                            if(tNormalise.and.((Ind1_ab.le.Ind2_ab).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
-                                if(tFinalRDMEnergy) then
-                                    write(abba_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
-                                        ( All_abba_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM ) / Divide_Factor
-                                else
-                                    write(abba_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
-                                        ( ((All_abba_RDM(Ind1_ab,Ind2_ab) + All_abba_RDM(Ind2_ab,Ind1_ab))/2.0_dp) &
-                                                                * Norm_2RDM ) / Divide_Factor
-                                endif
-                            elseif(.not.tNormalise) then
-                                write(abba_RDM_unit) i,j,a,b, &
-                                    All_abba_RDM(Ind1_ab,Ind2_ab) 
-                            endif
-                        endif
-
-                    enddo
-                enddo
-
-            enddo
-
-        enddo
-        close(aaaa_RDM_unit)
-        close(abab_RDM_unit)
-        close(abba_RDM_unit)
-
-!        Tot_Spin_Projection = Tot_Spin_Projection + (3.D0 * real(NEl,dp))
-!! Tot_Spin_Projection is now equal to 4S(S+1) - find S. 
-!        Tot_Spin_Projection = Tot_Spin_Projection/4.D0
-!        if((1.D0 + 4.D0*Tot_Spin_Projection).le.0) then
-!            call Warning_neci('Write_out_1and_2RDM',"Complex spin calculated from density matrices!")
-!        else
-!            SpinPlus = (-1.D0 + sqrt(1.D0 + 4.D0*Tot_Spin_Projection))/2.D0
-!            SpinMinus = (-1.D0 + sqrt(1.D0 + 4.D0*Tot_Spin_Projection))/2.D0
-!!            write(6,*) 'SpinPlus',SpinPlus
-!!            write(6,*) 'SpinMinus',SpinMinus
-!        endif
-
-!        if(RDMExcitLevel.eq.3) then
-!            write(6,*) ''
-!            write(6,'(A22,F30.20)') ' TOTAL SPIN PROJECTION', Max(SpinPlus,SpinMinus) 
-!            write(6,*) ''
-!        endif
-
-
-    end subroutine Write_out_2RDM
 
 
 !    subroutine sum_in_spin_proj(i,j,Ind1,Norm_2RDM,Tot_Spin_Projection)
@@ -4761,6 +4455,307 @@ MODULE nElRDMMod
 !
 !    end subroutine
 
+!
+!    SUBROUTINE Average_Spins_and_Sum_1e_Norms(Trace_1RDM)
+!! This will only be called by the root.
+!! It takes the NatOrbMat and averages each of the elements that should be equal by spin.
+!! If HPHF is on, these things should already be true and this is not called.
+!        implicit none
+!        real(dp) , intent(out) :: Trace_1RDM
+!        real(dp) :: Entry_bb, Entry_aa
+!        integer :: i, a
+!
+!        Trace_1RDM = 0.D0
+!
+!        do i = 1, nBasis - 1, 2
+!
+!            ! ialpha -> ialpha = ibeta -> ibeta
+!            Entry_bb = NatOrbMat(SymLabelListInv(i),SymLabelListInv(i))
+!            Entry_aa = NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(i+1))
+!
+!            NatOrbMat(SymLabelListInv(i),SymLabelListInv(i)) = &
+!                                        ( Entry_bb + Entry_aa ) / 2.D0 
+!
+!            NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(i+1)) = &
+!                                        ( Entry_bb + Entry_aa ) / 2.D0 
+!
+!            Trace_1RDM = Trace_1RDM + NatOrbMat(SymLabelListInv(i),SymLabelListInv(i)) &
+!                                    + NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(i+1))
+!
+!            do a = 1, nBasis - 1, 2
+!
+!                ! ialpha -> jalpha = ibeta -> jbeta
+!                Entry_bb = NatOrbMat(SymLabelListInv(i),SymLabelListInv(a))
+!                Entry_aa = NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(a+1))
+!
+!                NatOrbMat(SymLabelListInv(i),SymLabelListInv(a)) = &
+!                                        ( Entry_bb + Entry_aa ) / 2.D0 
+!
+!                NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(a+1)) = &
+!                                        ( Entry_bb + Entry_aa ) / 2.D0 
+!            enddo
+!        enddo
+!
+!!    
+!    END SUBROUTINE Average_Spins_and_Sum_1e_Norms
+!
+!
+!
+!    SUBROUTINE Average_Spins_and_Sum_2e_Norms(Trace_2RDM_Inst, Trace_2RDM)
+!! This will only be called by the root.
+!! It takes the AllTwoElRDM, and averages each of the elements that should be equal by spin.
+!! If HPHF is on, these things should already be true and this is not called.
+!
+!! Elements that should be equal;
+!! < a a | a a > = < b b | b b > 
+!! < a b | a b > = < b a | b a >
+!! < a b | b a > = < b a | a b >
+!        implicit none
+!        real(dp) , intent(out) :: Trace_2RDM_Inst, Trace_2RDM
+!        real(dp) :: Entry_abab, Entry_baba, Sign_abab, Sign_baba
+!        real(dp) :: Entry_abba, Entry_baab, Sign_abba, Sign_baab
+!        real(dp) :: Entry_aaaa, Entry_bbbb
+!        integer :: i, j, a, b
+!        integer :: Indij_ab, Indij_aa, Indij_bb, Indij_ba
+!        integer :: Indab_ab, Indab_aa, Indab_bb, Indab_ba
+!        real(dp) :: AllTwoElRDM(1000,1000)
+!        real(dp) :: TwoElRDM(1000,1000)
+!
+!        Trace_2RDM_Inst = 0.D0
+!        Trace_2RDM = 0.D0
+!
+!        do i = 1, nBasis - 1, 2
+!
+!            do a = 1, nBasis - 1, 2
+!
+!                do j = i, nBasis - 1, 2
+!
+!                    do b = a, nBasis - 1, 2
+!
+!                        ! ialpha ialpha -> jalpha jalpha
+!                        ! = ibeta ibeta -> jbeta jbeta
+!                        if((i.ne.j).and.(a.ne.b)) then
+!                            Indij_bb = ( ( (j-2) * (j-1) ) / 2 ) + i
+!                            Indab_bb = ( ( (b-2) * (b-1) ) / 2 ) + a
+!                            Entry_bbbb = AllTwoElRDM(Indij_bb,Indab_bb)
+!
+!                            Indij_aa = ( ( ((j+1)-2) * ((j+1)-1) ) / 2 ) + (i+1)
+!                            Indab_aa = ( ( ((b+1)-2) * ((b+1)-1) ) / 2 ) + (a+1)
+!                            Entry_aaaa = AllTwoElRDM(Indij_aa,Indab_aa)
+!
+!                            AllTwoElRDM(Indij_bb,Indab_bb) = &
+!                                        ( Entry_bbbb + Entry_aaaa ) / 2.D0 
+!
+!!                            AllTwoElRDM(Indij_aa,Indab_aa) = &
+!                                        ( Entry_bbbb + Entry_aaaa ) / 2.D0 
+!
+!                            if(Indij_aa.eq.Indab_aa) then
+!                                Trace_2RDM_Inst = Trace_2RDM_Inst + TwoElRDM(Indij_aa,Indab_aa)  
+!                                Trace_2RDM = Trace_2RDM + AllTwoElRDM(Indij_aa,Indab_aa)  
+!                            endif
+!                            if(Indij_bb.eq.Indab_bb) then
+!                                Trace_2RDM_Inst = Trace_2RDM_Inst + TwoElRDM(Indij_bb,Indab_bb)  
+!                                Trace_2RDM = Trace_2RDM + AllTwoElRDM(Indij_bb,Indab_bb)  
+!                            endif
+!
+!                        endif
+!
+!                        ! alpha beta -> alpha beta
+!                        ! = beta alpha -> beta alpha
+!                        Indij_ba = ( ( (max(i,j+1)-2) * (max(i,j+1)-1) ) / 2 ) + min(i,j+1)
+!                        Indab_ba = ( ( (max(a,b+1)-2) * (max(a,b+1)-1) ) / 2 ) + min(a,b+1)
+!                        Entry_baba = AllTwoElRDM(Indij_ba, Indab_ba)
+!
+!                        ! assume i < j+1 and a < b+1 - actually this must be true.
+!                        ! keep this in for now anyway.
+!                        Sign_baba = 1.D0
+!                        if( ((max(i,j+1).eq.i).and.(max(a,b+1).ne.a)) .or. & 
+!                            ((max(i,j+1).eq.(j+1)).and.(max(a,b+1).ne.(b+1))) ) Sign_baba = -1.D0
+!
+!                        Indij_ab = ( ( (max(i+1,j)-2) * (max(i+1,j)-1) ) / 2 ) + min(i+1,j)
+!                        Indab_ab = ( ( (max(a+1,b)-2) * (max(a+1,b)-1) ) / 2 ) + min(a+1,b)
+!                        Entry_abab = AllTwoElRDM(Indij_ab,Indab_ab)
+!
+!                        ! assume i+1 < j and a+1 < b - not always true if i and j are from 
+!                        ! the same spatial orbital.
+!                        Sign_abab = 1.D0
+!                        if( ((max(i+1,j).ne.j).and.(max(a+1,b).eq.b)) .or. &
+!                            ((max(i+1,j).ne.(i+1)).and.(max(a+1,b).eq.(a+1))) ) Sign_abab = -1.D0
+!
+!                        
+!                        AllTwoElRDM(Indij_ba, Indab_ba) = &
+!                            Sign_baba * ( ( ( Entry_baba * Sign_baba ) + &
+!                                            ( Entry_abab * Sign_abab) ) / 2.D0 )
+!
+!
+!                        AllTwoElRDM(Indij_ab,Indab_ab) = &
+!                            Sign_abab * ( ( ( Entry_baba * Sign_baba ) + &
+!                                                ( Entry_abab * Sign_abab ) )  / 2.D0 )
+!
+!                        if(Indij_ba.eq.Indab_ba) then
+!                            Trace_2RDM_Inst = Trace_2RDM_Inst + TwoElRDM(Indij_ba,Indab_ba)  
+!                            Trace_2RDM = Trace_2RDM + AllTwoElRDM(Indij_ba,Indab_ba)  
+!                        endif
+!!                        if(Indij_ab.eq.Indab_ab) then
+!                            if(i.ne.j) then
+!                                Trace_2RDM_Inst = Trace_2RDM_Inst + TwoElRDM(Indij_ab,Indab_ab)  
+!                                Trace_2RDM = Trace_2RDM + AllTwoElRDM(Indij_ab,Indab_ab)  
+!                            endif
+!                        endif
+!
+!                        ! beta alpha -> alpha beta
+!                        ! = alpha beta -> beta alpha
+!                        Indij_ba = ( ( (max(i,j+1)-2) * (max(i,j+1)-1) ) / 2 ) + min(i,j+1)
+!                        Indab_ab = ( ( (max(a+1,b)-2) * (max(a+1,b)-1) ) / 2 ) + min(a+1,b)
+!                        Entry_baab = AllTwoElRDM(Indij_ba,Indab_ab)
+!
+!                        Sign_baab = 1.D0
+!                        if( ((max(i,j+1).eq.i).and.(max(a+1,b).eq.b)) .or. &
+!                            ((max(i,j+1).eq.(j+1)).and.(max(a+1,b).eq.(a+1))) ) Sign_baab = -1.D0
+!
+!                        Indij_ab = ( ( (max(i+1,j)-2) * (max(i+1,j)-1) ) / 2 ) + min(i+1,j)
+!                        Indab_ba = ( ( (max(a,b+1)-2) * (max(a,b+1)-1) ) / 2 ) + min(a,b+1)
+!                        Entry_abba = AllTwoElRDM(Indij_ab,Indab_ba)
+!
+!                        Sign_abba = 1.D0
+!                        if( ((max(i+1,j).eq.(i+1)).and.(max(a,b+1).eq.(b+1))) .or. &
+!                            ((max(i+1,j).eq.j).and.(max(a,b+1).eq.a)) ) Sign_abba = -1.D0
+!
+!                        
+!                        AllTwoElRDM(Indij_ba,Indab_ab) = &
+!                            Sign_baab * ( ( (Entry_baab * Sign_baab) + &
+!                                                (Entry_abba * Sign_abba) ) / 2.D0 )
+!
+!                        AllTwoElRDM(Indij_ab,Indab_ba) = & 
+!                            Sign_abba * ( ( (Entry_baab * Sign_baab) + &
+!                                                (Entry_abba * Sign_abba) ) / 2.D0 )
+!
+!                    enddo
+!                enddo
+!            enddo
+!        enddo
+!
+!    
+!    END SUBROUTINE Average_Spins_and_Sum_2e_Norms
+!
+!    SUBROUTINE OrderRDM()
+!        USE sort_mod
+!        USE Logging , only : tTruncRODump
+!        USE RotateOrbsData , only : SymLabelList3
+!        IMPLICIT NONE
+!        INTEGER :: spin,i,j,ierr,StartSort,EndSort
+!        CHARACTER(len=*), PARAMETER :: this_routine='OrderRDM'
+!        INTEGER , ALLOCATABLE :: SymOrbsTemp(:)
+!        INTEGER :: SymOrbsTempTag
+!        
+!
+!! Here, if symmetry is kept, we are going to have to reorder the eigenvectors 
+!! according to the size of the eigenvalues, while taking the orbital labels 
+!! (and therefore symmetries) with them. This will be put back into MP2VDM from MP2VDMTemp.
+!
+!! Want to reorder the eigenvalues from largest to smallest, taking the eigenvectors 
+!! with them and the symmetry as well.  
+!! If using spin orbitals, do this for the alpha spin and then the beta.
+! 
+!        do i = 1, SpatOrbs
+!            SymLabelList3(i) = SymLabelList2(i)
+!        enddo
+!
+!        StartSort=1
+!        EndSort=SpatOrbs
+!
+!        call sort (EValues(startSort:endSort), &
+!                   NatOrbMat(1:SpatOrbs, startSort:endSort), &
+!                   symLabelList2(startSort:endSort))
+!
+!    END SUBROUTINE OrderRDM
+!
+!
+!    SUBROUTINE FillCoeffT1_RDM
+!        USE RotateOrbsData , only : SymLabelList3,SymOrbs,SymOrbsTag,&
+!                                    TruncEval,NoRotOrbs,EvaluesTrunc,EvaluesTruncTag
+!        USE Logging , only : tTruncRODump,tTruncDumpbyVal
+!        IMPLICIT NONE
+!        INTEGER :: l,k,i,j,NoRotAlphBet, io1, io2, SymLabelListInvNewTag
+!        CHARACTER(len=*), PARAMETER :: this_routine='FillCoeffT1_RDM'
+!        CHARACTER(len=5) :: Label
+!        CHARACTER(len=20) :: LabelFull
+!        REAL(dp) :: OccEnergies(1:NoRotOrbs)
+!        INTEGER , ALLOCATABLE :: SymLabelListInvNew(:)
+!        INTEGER :: ierr, Orb, New_Pos
+!  
+!!        FillCoeff_Time%timer_name='FillCoeff'
+!!        CALL set_timer(FillCoeff_Time,30)
+!
+!!        WRITE(6,*) 'NatOrbMat'
+!!        do i = 1, NoOrbs
+!!            do j = 1, NoOrbs
+!!                WRITE(6,'(F10.6)',advance='no') NatOrbMat(j,i)
+!!            enddo
+!!            WRITE(6,*) ''
+!!        enddo
+!
+!
+!! run through i, find out what orbital this corresponds to.  
+!! the position of this orbital is given by SymLabelList2Inv.
+!! the new position of this orbital is given by SymLabelList2Inv2.
+!
+!        ALLOCATE(SymLabelListInvNew(SpatOrbs),stat=ierr)
+!        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating SymLabelListInvNew array,')
+!        CALL LogMemAlloc('SymLabelListInvNew',SpatOrbs,4,this_routine,&
+!                                                SymLabelListInvNewTag,ierr)
+!        SymLabelListInvNew(:)=0   
+!
+!        do i=1,SpatOrbs
+!            SymLabelListInvNew(SymLabelList2(i))=i
+!        enddo
+!
+!        do i=1,SpatOrbs
+!            do j = 1, SpatOrbs
+!                Orb = SymLabelList3(j)      
+!                !This is the orbital the old position corresponds to.
+!                New_Pos = SymLabelListInvNew(Orb)   
+!                !This is the new position that orbital should go into.
+!!                CoeffT1(New_Pos,i)=NatOrbMat(j,i)
+!            enddo
+!        enddo
+!
+!        DEALLOCATE(SymLabelListInvNew)
+!
+!!        do i=1,NoOrbs
+!!            WRITE(6,*) Evalues(i)
+!!        enddo
+!!        do i=1,NoOrbs
+!!            WRITE(6,*) NatOrbMat(:,i)
+!!        enddo
+!!        CALL FLUSH(6)
+!!        stop
+!
+!!        CoeffT1(:,:) = 0.D0
+!!        do i = 1, nBasis
+!!            CoeffT1(i,i) = 1.D0
+!!        enddo
+!
+!!        CALL HistNatOrbEvalues()
+!
+!!        WRITE(6,*) 'NatOrbMat matrix'
+!!        do i=1,NoOrbs
+!!            WRITE(6,*) NatOrbMat(:,i)
+!!        enddo
+!
+!!        OPEN(io1,FILE='TRANSFORMMAT',status='unknown')
+!!        do i=1,NoOrbs
+!!            do j=1,NoOrbs-NoFrozenVirt
+!!                WRITE(io1,*) i,j,CoeffT1(i,j)
+!!            enddo
+!!        enddo
+!!        CLOSE(io1)
+!
+!!        CALL halt_timer(FillCoeff_Time)
+! 
+!
+!    ENDSUBROUTINE FillCoeffT1_RDM
+!
 
     SUBROUTINE Test_Energy_Calc()
 ! This routine calculates the energy based on the simple expression Energy = Sum_IJ C_I C_J H_IJ 
