@@ -241,43 +241,42 @@ MODULE nElRDMMod
 ! We then need to allocate the arrays for excitations etc when doing the explicit all calculation.        
         IF(tExplicitAllRDM) THEN            
 
-            IF(RDMExcitLevel.eq.1) THEN
 ! This array actually contains the excitations in blocks of the processor they will be sent to.        
 ! Only needed if the 1-RDM is the only thing being calculated.
-                ALLOCATE(Sing_ExcDjs(0:NIfTot,NINT((NEl*nBasis)*MemoryFacPart)),stat=ierr)
-                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Sing_ExcDjs array.')
-                CALL LogMemAlloc('Sing_ExcDjs',NINT(NEl*nBasis*MemoryFacPart)*(NIfTot+1),&
-                                                size_n_int,this_routine,Sing_ExcDjsTag,ierr)
+            ALLOCATE(Sing_ExcDjs(0:NIfTot,NINT((NEl*nBasis)*MemoryFacPart)),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Sing_ExcDjs array.')
+            CALL LogMemAlloc('Sing_ExcDjs',NINT(NEl*nBasis*MemoryFacPart)*(NIfTot+1),&
+                                            size_n_int,this_routine,Sing_ExcDjsTag,ierr)
 
-                ALLOCATE(Sing_ExcDjs2(0:NIfTot,NINT((NEl*nBasis)*MemoryFacPart)),stat=ierr)
-                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Sing_ExcDjs2 array.')
-                CALL LogMemAlloc('Sing_ExcDjs2',NINT(NEl*nBasis*MemoryFacPart)*(NIfTot+1),&
-                                                size_n_int,this_routine,Sing_ExcDjs2Tag,ierr)
+            ALLOCATE(Sing_ExcDjs2(0:NIfTot,NINT((NEl*nBasis)*MemoryFacPart)),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Sing_ExcDjs2 array.')
+            CALL LogMemAlloc('Sing_ExcDjs2',NINT(NEl*nBasis*MemoryFacPart)*(NIfTot+1),&
+                                            size_n_int,this_routine,Sing_ExcDjs2Tag,ierr)
 
-                Sing_ExcDjs(:,:)=0
-                Sing_ExcDjs2(:,:)=0
+            Sing_ExcDjs(:,:)=0
+            Sing_ExcDjs2(:,:)=0
 
-                MemoryAlloc = MemoryAlloc + ( (NIfTot + 1) * NINT((NEl*nBasis)*MemoryFacPart) * size_n_int * 2 ) 
-                MemoryAlloc_Root = MemoryAlloc_Root + ( (NIfTot + 1) * NINT((NEl*nBasis)*MemoryFacPart) * size_n_int * 2 ) 
+            MemoryAlloc = MemoryAlloc + ( (NIfTot + 1) * NINT((NEl*nBasis)*MemoryFacPart) * size_n_int * 2 ) 
+            MemoryAlloc_Root = MemoryAlloc_Root + ( (NIfTot + 1) * NINT((NEl*nBasis)*MemoryFacPart) * size_n_int * 2 ) 
 
 ! We need room to potentially generate N*M single excitations but these will be 
 ! spread across each processor.        
 
-                OneEl_Gap=(REAL(NEl)*REAL(nBasis)*MemoryFacPart)/REAL(nProcessors)
+            OneEl_Gap=(REAL(NEl)*REAL(nBasis)*MemoryFacPart)/REAL(nProcessors)
 
 ! This array contains the initial positions of the excitations for each processor.
-                ALLOCATE(Sing_InitExcSlots(0:(nProcessors-1)),stat=ierr)
-                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Sing_InitExcSlots array,')
-                do i=0,nProcessors-1
-                    Sing_InitExcSlots(i)=NINT(OneEl_Gap*i)+1
-                enddo
+            ALLOCATE(Sing_InitExcSlots(0:(nProcessors-1)),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Sing_InitExcSlots array,')
+            do i=0,nProcessors-1
+                Sing_InitExcSlots(i)=NINT(OneEl_Gap*i)+1
+            enddo
 
 ! This array contains the current position of the excitations as they're added.
-                ALLOCATE(Sing_ExcList(0:(nProcessors-1)),stat=ierr)
-                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Sing_ExcList array,')
-                Sing_ExcList(:)=Sing_InitExcSlots(:)
+            ALLOCATE(Sing_ExcList(0:(nProcessors-1)),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Sing_ExcList array,')
+            Sing_ExcList(:)=Sing_InitExcSlots(:)
 
-            ELSE
+            IF(RDMExcitLevel.ne.1) THEN
 ! This array actually contains the excitations in blocks of the processor 
 ! they will be sent to.        
                 ALLOCATE(Doub_ExcDjs(0:NIfTot,NINT(((NEl*nBasis)**2)*MemoryFacPart)),stat=ierr)
@@ -1540,16 +1539,15 @@ MODULE nElRDMMod
 ! string of the determinant (these need to be sent along with the excitations).
 ! Each processor will have a different Di.
 
-        IF(RDMExcitLevel.eq.1) THEN
-            Sing_ExcDjs(:,:)=0
-            Sing_ExcList(:)=0
-            Sing_ExcList(:) = Sing_InitExcSlots(:)
+        Sing_ExcDjs(:,:)=0
+        Sing_ExcList(:)=0
+        Sing_ExcList(:) = Sing_InitExcSlots(:)
 
-            do i=0,nProcessors-1
-                Sing_ExcDjs(:,Sing_ExcList(i)) = iLutnI(:)
-                Sing_ExcList(i) = Sing_ExcList(i)+1
-            enddo
-        ELSE
+        do i=0,nProcessors-1
+            Sing_ExcDjs(:,Sing_ExcList(i)) = iLutnI(:)
+            Sing_ExcList(i) = Sing_ExcList(i)+1
+        enddo
+        IF(RDMExcitLevel.ne.1) THEN
             Doub_ExcDjs(:,:) = 0
             Doub_ExcList(:) = 0
             Doub_ExcList(:) = Doub_InitExcSlots(:)
@@ -1587,16 +1585,15 @@ MODULE nElRDMMod
 ! string of the determinant (these need to be sent along with the excitations).
 ! Each processor will have a different Di.
 
-        IF(RDMExcitLevel.eq.1) THEN
-            Sing_ExcDjs(:,:)=0
-            Sing_ExcList(:)=0
-            Sing_ExcList(:) = Sing_InitExcSlots(:)
+        Sing_ExcDjs(:,:)=0
+        Sing_ExcList(:)=0
+        Sing_ExcList(:) = Sing_InitExcSlots(:)
 
-            do i=0,nProcessors-1
-                Sing_ExcDjs(:,Sing_ExcList(i)) = iLutnI(:)
-                Sing_ExcList(i) = Sing_ExcList(i)+1
-            enddo
-        ELSE
+        do i=0,nProcessors-1
+            Sing_ExcDjs(:,Sing_ExcList(i)) = iLutnI(:)
+            Sing_ExcList(i) = Sing_ExcList(i)+1
+        enddo
+        IF(RDMExcitLevel.ne.1) THEN
             Doub_ExcDjs(:,:) = 0
             Doub_ExcList(:) = 0
             Doub_ExcList(:) = Doub_InitExcSlots(:)
@@ -1644,18 +1641,16 @@ MODULE nElRDMMod
 
 !        CountTemp = 0
 
-        IF(RDMExcitLevel.eq.1) THEN
-
-            ExcitMat3(:,:)=0
+        ExcitMat3(:,:)=0
 ! Zeros in ExcitMat3 starts off at the first single excitation.        
-            tAllExcitFound=.false.
+        tAllExcitFound=.false.
 ! This becomes true when all the excitations have been found.        
 
-            do while (.not.tAllExcitFound)
+        do while (.not.tAllExcitFound)
 !                write(6,*) 'generating singles'
 !                call flush(6)
-                CALL GenExcitations3(nI,iLutnI,nJ,1,ExcitMat3(:,:),tParity,&
-                                                            tAllExcitFound,.true.)            
+            CALL GenExcitations3(nI,iLutnI,nJ,1,ExcitMat3(:,:),tParity,&
+                                                        tAllExcitFound,.true.)            
 ! Passed out of here is the singly excited determinant, nJ.
 ! Information such as the orbitals involved in the excitation and the parity is also found 
 ! in this step, we are not currently storing this, and it is re-calculated later on 
@@ -1664,33 +1659,30 @@ MODULE nElRDMMod
 ! RDMExcitLevel is passed through, if this is 1, only singles are generated, 
 ! if it is 2 only doubles are found.
 
-                IF(tAllExcitFound) EXIT
+            IF(tAllExcitFound) EXIT
 
-                iLutnJ(:)=0
-                CALL EncodeBitDet(nJ,iLutnJ)
+            iLutnJ(:)=0
+            CALL EncodeBitDet(nJ,iLutnJ)
 
-                Proc = DetermineDetNode(nJ,0)   
-                !This will return a value between 0 -> nProcessors-1
-                Sing_ExcDjs(:,Sing_ExcList(Proc)) = iLutnJ(:)
-                Sing_ExcList(Proc) = Sing_ExcList(Proc)+1
+            Proc = DetermineDetNode(nJ,0)   
+            !This will return a value between 0 -> nProcessors-1
+            Sing_ExcDjs(:,Sing_ExcList(Proc)) = iLutnJ(:)
+            Sing_ExcList(Proc) = Sing_ExcList(Proc)+1
 !                CountTemp = CountTemp + 1
 
 !                IF((nI(1).eq.5).and.(nI(2).eq.6)) WRITE(6,*) CountTemp,': nJ',nJ
 
 ! Want a quick test to see if arrays are getting full.            
-                IF(Sing_ExcList(Proc).gt.NINT(OneEl_Gap*(Proc+1))) THEN
-                    WRITE(6,*) 'Proc',Proc
-                    WRITE(6,*) 'Sing_ExcList',Sing_ExcList
-                    WRITE(6,*) 'No. spaces for each proc',NINT(OneEl_Gap)
-                    CALL Stop_All('GenExcDjs',&
-                                'Too many excitations for space available.')
-                ENDIF
-            enddo
+            IF(Sing_ExcList(Proc).gt.NINT(OneEl_Gap*(Proc+1))) THEN
+                WRITE(6,*) 'Proc',Proc
+                WRITE(6,*) 'Sing_ExcList',Sing_ExcList
+                WRITE(6,*) 'No. spaces for each proc',NINT(OneEl_Gap)
+                CALL Stop_All('GenExcDjs',&
+                            'Too many excitations for space available.')
+            ENDIF
+        enddo
 
-!        IF((nI(1).eq.5).and.(nI(2).eq.6)) WRITE(6,*) 'Ind',&
-!                                    ((nI(2)-2) * (nI(2)-1) ) / 2 ) + nI(1)
-
-        ELSE
+        IF(RDMExcitLevel.ne.1) THEN            
 
             ExcitMat3(:,:)=0
 ! Zeros in ExcitMat3 starts off at the first single excitation.        
@@ -1772,18 +1764,16 @@ MODULE nElRDMMod
 
 !        CountTemp = 0
 
-        IF(RDMExcitLevel.eq.1) THEN
-
-            ExcitMat3(:,:)=0
+        ExcitMat3(:,:)=0
 ! Zeros in ExcitMat3 starts off at the first single excitation.        
-            tAllExcitFound=.false.
+        tAllExcitFound=.false.
 ! This becomes true when all the excitations have been found.        
 
-            do while (.not.tAllExcitFound)
+        do while (.not.tAllExcitFound)
 !                write(6,*) 'generating singles'
 !                call flush(6)
-                CALL GenExcitations3(nI,iLutnI,nJ,1,ExcitMat3(:,:),tParity,&
-                                                            tAllExcitFound,.true.)            
+            CALL GenExcitations3(nI,iLutnI,nJ,1,ExcitMat3(:,:),tParity,&
+                                                        tAllExcitFound,.true.)            
 ! Passed out of here is the singly excited determinant, nJ.
 ! Information such as the orbitals involved in the excitation and the parity is also found 
 ! in this step, we are not currently storing this, and it is re-calculated later on 
@@ -1792,33 +1782,30 @@ MODULE nElRDMMod
 ! RDMExcitLevel is passed through, if this is 1, only singles are generated, 
 ! if it is 2 only doubles are found.
 
-                IF(tAllExcitFound) EXIT
+            IF(tAllExcitFound) EXIT
 
-                iLutnJ(:)=0
-                CALL EncodeBitDet(nJ,iLutnJ)
+            iLutnJ(:)=0
+            CALL EncodeBitDet(nJ,iLutnJ)
 
-                Proc = DetermineDetNode(nJ,0)   
-                !This will return a value between 0 -> nProcessors-1
-                Sing_ExcDjs(:,Sing_ExcList(Proc)) = iLutnJ(:)
-                Sing_ExcList(Proc) = Sing_ExcList(Proc)+1
+            Proc = DetermineDetNode(nJ,0)   
+            !This will return a value between 0 -> nProcessors-1
+            Sing_ExcDjs(:,Sing_ExcList(Proc)) = iLutnJ(:)
+            Sing_ExcList(Proc) = Sing_ExcList(Proc)+1
 !                CountTemp = CountTemp + 1
 
 !                IF((nI(1).eq.5).and.(nI(2).eq.6)) WRITE(6,*) CountTemp,': nJ',nJ
 
 ! Want a quick test to see if arrays are getting full.            
-                IF(Sing_ExcList(Proc).gt.NINT(OneEl_Gap*(Proc+1))) THEN
-                    WRITE(6,*) 'Proc',Proc
-                    WRITE(6,*) 'Sing_ExcList',Sing_ExcList
-                    WRITE(6,*) 'No. spaces for each proc',NINT(OneEl_Gap)
-                    CALL Stop_All('GenExcDjs',&
-                                'Too many excitations for space available.')
-                ENDIF
-            enddo
+            IF(Sing_ExcList(Proc).gt.NINT(OneEl_Gap*(Proc+1))) THEN
+                WRITE(6,*) 'Proc',Proc
+                WRITE(6,*) 'Sing_ExcList',Sing_ExcList
+                WRITE(6,*) 'No. spaces for each proc',NINT(OneEl_Gap)
+                CALL Stop_All('GenExcDjs',&
+                            'Too many excitations for space available.')
+            ENDIF
+        enddo
 
-!        IF((nI(1).eq.5).and.(nI(2).eq.6)) WRITE(6,*) 'Ind',&
-!                                    ((nI(2)-2) * (nI(2)-1) ) / 2 ) + nI(1)
-
-        ELSE
+        IF(RDMExcitLevel.ne.1) THEN            
 
             ExcitMat3(:,:)=0
 ! Zeros in ExcitMat3 starts off at the first single excitation.        
@@ -1885,48 +1872,47 @@ MODULE nElRDMMod
         INTEGER :: sing_recvdisps(nProcessors),error,MaxSendIndex,MaxIndex
         INTEGER :: doub_recvcounts(nProcessors),doub_recvdisps(nProcessors)
 
-        IF(RDMExcitLevel.eq.1) THEN
-            do i=0,nProcessors-1
-                sendcounts(i+1)=Sing_ExcList(i)-(NINT(OneEl_Gap*i)+1)
+        do i=0,nProcessors-1
+            sendcounts(i+1)=Sing_ExcList(i)-(NINT(OneEl_Gap*i)+1)
 ! Sendcounts is the number of singly excited determinants we want to send for 
 ! each processor (but goes from 1, not 0).            
-                disps(i+1)=NINT(OneEl_Gap*i)
+            disps(i+1)=NINT(OneEl_Gap*i)
 ! and I think disps is the first slot for each processor - 1.            
-            enddo
+        enddo
 
-            MaxSendIndex=Sing_ExcList(nProcessors-1)-1
+        MaxSendIndex=Sing_ExcList(nProcessors-1)-1
 
 ! We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
-            sing_recvcounts(1:nProcessors)=0
-            CALL MPIAlltoAll(sendcounts,1,sing_recvcounts,1,error)
+        sing_recvcounts(1:nProcessors)=0
+        CALL MPIAlltoAll(sendcounts,1,sing_recvcounts,1,error)
 ! I think recvcounts(i) is the number of determinants sent from processor i.        
 
 ! We can now get recvdisps from recvcounts, since we want the data to be 
 ! contiguous after the move.
-            sing_recvdisps(1)=0
-            do i=2,nProcessors
-                sing_recvdisps(i)=sing_recvdisps(i-1)+sing_recvcounts(i-1)
-            enddo
+        sing_recvdisps(1)=0
+        do i=2,nProcessors
+            sing_recvdisps(i)=sing_recvdisps(i-1)+sing_recvcounts(i-1)
+        enddo
 
-            MaxIndex=sing_recvdisps(nProcessors)+sing_recvcounts(nProcessors)
+        MaxIndex=sing_recvdisps(nProcessors)+sing_recvcounts(nProcessors)
 ! But the actual number of integers we need to send is the calculated values * NIfTot+1.
-            do i=1,nProcessors
-                sendcounts(i)=sendcounts(i)*(NIfTot+1)
-                disps(i)=disps(i)*(NIfTot+1)
-                sing_recvcounts(i)=sing_recvcounts(i)*(NIfTot+1)
-                sing_recvdisps(i)=sing_recvdisps(i)*(NIfTot+1)
-            enddo
+        do i=1,nProcessors
+            sendcounts(i)=sendcounts(i)*(NIfTot+1)
+            disps(i)=disps(i)*(NIfTot+1)
+            sing_recvcounts(i)=sing_recvcounts(i)*(NIfTot+1)
+            sing_recvdisps(i)=sing_recvdisps(i)*(NIfTot+1)
+        enddo
 #ifdef PARALLEL
-            CALL MPIAlltoAllv(Sing_ExcDjs(:,1:MaxSendIndex),sendcounts,disps,&
-                                Sing_ExcDjs2,sing_recvcounts,sing_recvdisps,error)
+        CALL MPIAlltoAllv(Sing_ExcDjs(:,1:MaxSendIndex),sendcounts,disps,&
+                            Sing_ExcDjs2,sing_recvcounts,sing_recvdisps,error)
 #else
-            Sing_ExcDjs2(0:NIfTot,1:MaxIndex)=Sing_ExcDjs(0:NIfTot,1:MaxSendIndex)
+        Sing_ExcDjs2(0:NIfTot,1:MaxIndex)=Sing_ExcDjs(0:NIfTot,1:MaxSendIndex)
 #endif
 
-            CALL Sing_SearchOccDets(sing_recvcounts,sing_recvdisps)
+        CALL Sing_SearchOccDets(sing_recvcounts,sing_recvdisps)
 
 
-        ELSE
+        IF(RDMExcitLevel.ne.1) THEN
             do i=0,nProcessors-1
                 sendcounts(i+1)=Doub_ExcList(i)-(NINT(TwoEl_Gap*i)+1)
 ! Sendcounts is the number of singly excited determinants we want to send for 
@@ -1984,48 +1970,47 @@ MODULE nElRDMMod
         INTEGER :: sing_recvdisps(nProcessors),error,MaxSendIndex,MaxIndex
         INTEGER :: doub_recvcounts(nProcessors),doub_recvdisps(nProcessors)
 
-        IF(RDMExcitLevel.eq.1) THEN
-            do i=0,nProcessors-1
-                sendcounts(i+1)=Sing_ExcList(i)-(NINT(OneEl_Gap*i)+1)
+        do i=0,nProcessors-1
+            sendcounts(i+1)=Sing_ExcList(i)-(NINT(OneEl_Gap*i)+1)
 ! Sendcounts is the number of singly excited determinants we want to send for 
 ! each processor (but goes from 1, not 0).            
-                disps(i+1)=NINT(OneEl_Gap*i)
+            disps(i+1)=NINT(OneEl_Gap*i)
 ! and I think disps is the first slot for each processor - 1.            
-            enddo
+        enddo
 
-            MaxSendIndex=Sing_ExcList(nProcessors-1)-1
+        MaxSendIndex=Sing_ExcList(nProcessors-1)-1
 
 ! We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
-            sing_recvcounts(1:nProcessors)=0
-            CALL MPIAlltoAll(sendcounts,1,sing_recvcounts,1,error)
+        sing_recvcounts(1:nProcessors)=0
+        CALL MPIAlltoAll(sendcounts,1,sing_recvcounts,1,error)
 ! I think recvcounts(i) is the number of determinants sent from processor i.        
 
 ! We can now get recvdisps from recvcounts, since we want the data to be 
 ! contiguous after the move.
-            sing_recvdisps(1)=0
-            do i=2,nProcessors
-                sing_recvdisps(i)=sing_recvdisps(i-1)+sing_recvcounts(i-1)
-            enddo
+        sing_recvdisps(1)=0
+        do i=2,nProcessors
+            sing_recvdisps(i)=sing_recvdisps(i-1)+sing_recvcounts(i-1)
+        enddo
 
-            MaxIndex=sing_recvdisps(nProcessors)+sing_recvcounts(nProcessors)
+        MaxIndex=sing_recvdisps(nProcessors)+sing_recvcounts(nProcessors)
 ! But the actual number of integers we need to send is the calculated values * NIfTot+1.
-            do i=1,nProcessors
-                sendcounts(i)=sendcounts(i)*(NIfTot+1)
-                disps(i)=disps(i)*(NIfTot+1)
-                sing_recvcounts(i)=sing_recvcounts(i)*(NIfTot+1)
-                sing_recvdisps(i)=sing_recvdisps(i)*(NIfTot+1)
-            enddo
+        do i=1,nProcessors
+            sendcounts(i)=sendcounts(i)*(NIfTot+1)
+            disps(i)=disps(i)*(NIfTot+1)
+            sing_recvcounts(i)=sing_recvcounts(i)*(NIfTot+1)
+            sing_recvdisps(i)=sing_recvdisps(i)*(NIfTot+1)
+        enddo
 #ifdef PARALLEL
-            CALL MPIAlltoAllv(Sing_ExcDjs(:,1:MaxSendIndex),sendcounts,disps,&
-                                Sing_ExcDjs2,sing_recvcounts,sing_recvdisps,error)
+        CALL MPIAlltoAllv(Sing_ExcDjs(:,1:MaxSendIndex),sendcounts,disps,&
+                            Sing_ExcDjs2,sing_recvcounts,sing_recvdisps,error)
 #else
-            Sing_ExcDjs2(0:NIfTot,1:MaxIndex)=Sing_ExcDjs(0:NIfTot,1:MaxSendIndex)
+        Sing_ExcDjs2(0:NIfTot,1:MaxIndex)=Sing_ExcDjs(0:NIfTot,1:MaxSendIndex)
 #endif
 
-            CALL Sing_Hist_SearchOccDets(sing_recvcounts,sing_recvdisps)
+        CALL Sing_Hist_SearchOccDets(sing_recvcounts,sing_recvdisps)
 
 
-        ELSE
+        IF(RDMExcitLevel.ne.1) THEN            
             do i=0,nProcessors-1
                 sendcounts(i+1)=Doub_ExcList(i)-(NINT(TwoEl_Gap*i)+1)
 ! Sendcounts is the number of singly excited determinants we want to send for 
@@ -2666,6 +2651,7 @@ MODULE nElRDMMod
                 endif
 
             ! i and a are different spin -> abba
+            ! the only double excitation case with Indij = Indab will go in here.
             else
 
                 abba_RDM( Indij , Indab ) = abba_RDM( Indij , Indab ) + ( ParityFactor * &
@@ -3607,25 +3593,24 @@ MODULE nElRDMMod
 
         IF(tExplicitAllRDM) THEN
 
-            IF(RDMExcitLevel.eq.1) THEN
 ! This array contains the initial positions of the single excitations for 
 ! each processor.
-                DEALLOCATE(Sing_InitExcSlots)
-     
+            DEALLOCATE(Sing_InitExcSlots)
+ 
 ! This array contains the current position of the single excitations as 
 ! they're added.
-                DEALLOCATE(Sing_ExcList)
+            DEALLOCATE(Sing_ExcList)
 
 ! This array actually contains the single excitations in blocks of the 
 ! processor they will be sent to.        
-                DEALLOCATE(Sing_ExcDjs)
-                CALL LogMemDeAlloc(this_routine,Sing_ExcDjsTag)
+            DEALLOCATE(Sing_ExcDjs)
+            CALL LogMemDeAlloc(this_routine,Sing_ExcDjsTag)
 
-                DEALLOCATE(Sing_ExcDjs2)
-                CALL LogMemDeAlloc(this_routine,Sing_ExcDjs2Tag)
+            DEALLOCATE(Sing_ExcDjs2)
+            CALL LogMemDeAlloc(this_routine,Sing_ExcDjs2Tag)
 
-            ELSE
 
+            IF(RDMExcitLevel.ne.1) THEN
 ! This array contains the initial positions of the single excitations for 
 ! each processor.
                 DEALLOCATE(Doub_InitExcSlots)
@@ -3957,8 +3942,9 @@ MODULE nElRDMMod
                                                                     * Norm_2RDM_Inst * ( Coul - Exch ) )
                                 RDMEnergy2 = RDMEnergy2 + ( All_aaaa_RDM(Ind1_aa,Ind2_aa) &
                                                             * Norm_2RDM * ( Coul - Exch ) ) 
-                                if(Ind1_aa.eq.Ind2_aa) Trace_2RDM_New = Trace_2RDM_New + &
-                                                            All_aaaa_RDM(Ind1_aa,Ind2_aa) * Norm_2RDM
+                                if(Ind1_aa.eq.Ind2_aa) &
+                                    Trace_2RDM_New = Trace_2RDM_New + &
+                                                        All_aaaa_RDM(Ind1_aa,Ind2_aa) * Norm_2RDM
                             endif
 
                             ! For abab cases, coul element will be non-zero, exchange zero.
@@ -3973,8 +3959,17 @@ MODULE nElRDMMod
                             RDMEnergy2 = RDMEnergy2 - ( All_abba_RDM(Ind1_ab,Ind2_ab) &
                                                         * Norm_2RDM * Exch ) 
 
-                            if(Ind1_ab.eq.Ind2_ab) Trace_2RDM_New = Trace_2RDM_New + &
-                                                        All_abab_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM
+                            if(Ind1_ab.eq.Ind2_ab) then                                                        
+                                ! For abba cases, coul element will be zero, exchange non-zero.
+                                RDMEnergy_Inst = RDMEnergy_Inst - ( abba_RDM(Ind1_ab,Ind2_ab) &
+                                                                        * Norm_2RDM_Inst * Exch )
+                                RDMEnergy2 = RDMEnergy2 - ( All_abba_RDM(Ind1_ab,Ind2_ab) &
+                                                            * Norm_2RDM * Exch ) 
+                            endif
+
+                            if(Ind1_ab.eq.Ind2_ab) &
+                                Trace_2RDM_New = Trace_2RDM_New + &
+                                                    All_abab_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM
 
                        enddo
 
@@ -4617,9 +4612,6 @@ MODULE nElRDMMod
                         
                         if((i.ne.j).and.(a.ne.b)) then
 
-                            ! It will cause problems when reading in if there is absolutely 
-                            ! nothing in this file.
-                            ! So we make sure we print out at lease one element, even if it's zero.
                             if( All_aaaa_RDM(Ind1_aa,Ind2_aa).ne.0.0_dp) then
                                 ! If we're normalising (and have made the matrix hermitian) we only 
                                 ! need to write out Ind1 < Ind2.
