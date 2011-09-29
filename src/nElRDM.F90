@@ -2763,6 +2763,7 @@ MODULE nElRDMMod
 ! We can use this to find the factor we must divide the 1RDM through by.
         implicit none                            
         real(dp) , intent(out) :: Trace_1RDM, Norm_1RDM
+        integer :: i
 
         Trace_1RDM = 0.D0
         Norm_1RDM = 0.D0
