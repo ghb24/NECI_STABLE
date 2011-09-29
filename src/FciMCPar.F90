@@ -5740,10 +5740,16 @@ MODULE FciMCParMod
 
         ! Maintain a list of the degree of occupation of each orbital
         if (tPrintOrbOcc .and. (iter >= StartPrintOrbOcc)) then
+            if((Iter.eq.StartPrintOrbOcc).and.(DetBitEQ(ilut,ilutHF,NIfDBO))) then
+                write(6,*) 'Beginning to fill the HF orbital occupation list &
+                                &during iteration',Iter
+                if(tPrintOrbOccInit) &
+                    write(6,*) 'Only doing so for initiator determinants.'
+            endif
             if ((tPrintOrbOccInit .and. test_flag(ilut,flag_is_initiator(1)))&
                 .or. .not. tPrintOrbOccInit) then
                 forall (i = 1:nel) OrbOccs(nI(i)) = OrbOccs(nI(i)) &
-                                          + (real(wSign(1)) * real(wSign(1)))
+                                  + (real(wSign(1),dp) * real(wSign(1),dp))
             endif
         endif
         

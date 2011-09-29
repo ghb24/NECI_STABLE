@@ -47,7 +47,7 @@ MODULE nElRDMMod
         USE FciMCData , only : MaxWalkersPart, MaxSpawned, Spawned_Parents, PreviousCycles,&
                                Spawned_Parents_Index, Spawned_ParentsTag, AccumRDMNorm_Inst,&
                                Spawned_Parents_IndexTag, Iter, AccumRDMNorm, AvNoatHF,&
-                               iLutRef, tSinglePartPhase
+                               iLutRef, tSinglePartPhase, AllAccumRDMNorm
         USE Logging , only : RDMExcitLevel, tROFciDUmp, NoDumpTruncs, tExplicitAllRDM, &
                              tHF_S_D_Ref, tHF_Ref_Explicit, tHF_S_D, tPrint1RDM
         USE RotateOrbsData , only : CoeffT1Tag, tTurnStoreSpinOff, NoFrozenVirt
@@ -4172,7 +4172,6 @@ MODULE nElRDMMod
         use Logging , only : twrite_RDMs_to_read, twrite_normalised_RDMs
         implicit none
         integer :: i
-        real(dp) :: AllAccumRDMNorm_Inst, AllAccumRDMNorm
         real(dp) :: Norm_1RDM
         real(dp) :: Trace_1RDM
 
@@ -4187,8 +4186,7 @@ MODULE nElRDMMod
 
             call sum_1e_norms(Trace_1RDM) 
 
-            call calc_1e_norms(AllAccumRDMNorm_Inst, AllAccumRDMNorm, & 
-                                        Norm_1RDM, Trace_1RDM)
+            call calc_1e_norms(Norm_1RDM, Trace_1RDM)
 
             if(twrite_RDMs_to_read) call Write_out_1RDM(Norm_1RDM,.false.)
 
@@ -4208,7 +4206,7 @@ MODULE nElRDMMod
         use FciMCData , only : IterRDMStart
         implicit none
         real(dp) , intent(out) :: Norm_2RDM_Inst, Norm_2RDM
-        real(dp) :: AllAccumRDMNorm_Inst, AllAccumRDMNorm
+        real(dp) :: AllAccumRDMNorm_Inst
         real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity
         integer :: RDM_Cycles
 
@@ -4235,18 +4233,20 @@ MODULE nElRDMMod
                                 + ( abba_RDM(:,:) / ( real(RDM_Cycles,dp) + 1.0_dp ) )
         endif
 
-        AllAccumRDMNorm = 0.D0
         AllAccumRDMNorm_Inst = 0.D0
         if(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) then
-            CALL MPIReduce(AccumRDMNorm,MPI_SUM,AllAccumRDMNorm)
+!            CALL MPISum_inplace(AccumRDMNorm)
             CALL MPIReduce(AccumRDMNorm_Inst,MPI_SUM,AllAccumRDMNorm_Inst)
+            AllAccumRDMNorm = ( AllAccumRDMNorm * &
+                                ( real(RDM_Cycles,dp) / ( real(RDM_Cycles,dp) + 1.0_dp ) ) ) &
+                                + ( AllAccumRDMNorm_Inst / ( real(RDM_Cycles,dp) + 1.0_dp ) )
         endif
 
         if(iProcIndex.eq.0) then
 
             call sum_2e_norms()
 
-            call calc_2e_norms(AllAccumRDMNorm_Inst, AllAccumRDMNorm, Norm_2RDM_Inst, Norm_2RDM)
+            call calc_2e_norms(AllAccumRDMNorm_Inst, Norm_2RDM_Inst, Norm_2RDM)
 
             if( tFinalRDMEnergy .or. &
                 ( tWriteMultRDMs .and. (mod((Iter - IterRDMStart)+1,IterWriteRDMs).eq.0) ) ) then
@@ -4340,16 +4340,14 @@ MODULE nElRDMMod
 
     end subroutine sum_2e_norms        
 
-    subroutine calc_1e_norms(AllAccumRDMNorm_Inst, AllAccumRDMNorm, &
-                                            Norm_1RDM, Trace_1RDM)
+    subroutine calc_1e_norms(Norm_1RDM, Trace_1RDM)
         implicit none                            
-        real(dp) , intent(in) :: AllAccumRDMNorm_Inst, AllAccumRDMNorm
         real(dp) , intent(in) :: Trace_1RDM
         real(dp) , intent(out) :: Norm_1RDM
 
         Norm_1RDM = 0.D0
 
-        IF(tHF_S_D_Ref.or.tHF_Ref_Explicit) THEN
+        IF(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) THEN
             Norm_1RDM = 1.D0 / AllAccumRDMNorm
         ELSE
             ! Sum of diagonal elements of 1 electron RDM must equal NEl, 
@@ -4369,15 +4367,15 @@ MODULE nElRDMMod
 
     end subroutine calc_1e_norms
 
-    subroutine calc_2e_norms(AllAccumRDMNorm_Inst, AllAccumRDMNorm, Norm_2RDM_Inst, Norm_2RDM)
+    subroutine calc_2e_norms(AllAccumRDMNorm_Inst, Norm_2RDM_Inst, Norm_2RDM)
         implicit none                            
-        real(dp) , intent(in) :: AllAccumRDMNorm_Inst, AllAccumRDMNorm
+        real(dp) , intent(in) :: AllAccumRDMNorm_Inst
         real(dp) , intent(out) :: Norm_2RDM_Inst, Norm_2RDM
 
         Norm_2RDM_Inst = 0.D0
         Norm_2RDM = 0.D0
 
-        IF(tHF_S_D_Ref.or.tHF_Ref_Explicit) THEN
+        IF(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) THEN
             Norm_2RDM_Inst = 1.D0 / AllAccumRDMNorm_Inst
             Norm_2RDM = 1.D0 / AllAccumRDMNorm
         ELSE
