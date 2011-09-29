@@ -454,6 +454,9 @@ Rotate Orbs Options
 Reduced Density Matrix (RDM) Options
 -------------------------------------
 
+Currently the 2-RDMs can only be calculated for closed shell systems.  However, calculation of the 1-RDM only, 
+and the following diagonalisation is set up for either open shell or closed shell systems.
+
 **CALCRDMONFLY** [RDMExcitLevel] [RDMIterStart] [RDMEnergyIter]
     This is the main keyword for calculating the RDMs from an FCIQMC wavefunction.  It requires 3 integers.
     The first refers to the type of RDMs to calculate.  A value of 1 will calculate only the 1-RDM.  Any other 

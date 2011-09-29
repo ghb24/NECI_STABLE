@@ -1265,10 +1265,12 @@ MODULE FciMCParMod
                 SpawnedParts(niftot+1:niftot+nifdbo+1, ValidSpawnedList(proc)) = iLutI(0:nifdbo) 
 
                 !We also need to carry with the child (and the parent), the sign of the parent.
-                !In actual fact this is the sign of the parent divided by the probability of generating that pair Di and Dj, to account for the 
+                !In actual fact this is the sign of the parent divided by the probability of generating 
+                !that pair Di and Dj, to account for the 
                 !fact that Di and Dj are not always added to the RDM, but only when Di spawns on Dj.
                 !This RDMBiasFacI factor is turned into an integer to pass around to the relevant processors.
-                SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)) = transfer(RDMBiasFacI,SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)))
+                SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)) = &
+                    transfer(RDMBiasFacI,SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)))
             else
                 SpawnedParts(niftot+1:niftot+nifdbo+2, ValidSpawnedList(proc)) = 0
             endif
@@ -1293,7 +1295,6 @@ MODULE FciMCParMod
 
         ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
         
-
         ! Sum the number of created children to use in acceptance ratio.
         acceptances = acceptances + sum(abs(child))
     end subroutine
@@ -2399,6 +2400,7 @@ MODULE FciMCParMod
                 ! If we're stochastically filling the RDMs, we want to keep determinants even if 
                 ! their walkers have all died.
                 ! This is because we're using the sign of each determinant before death.
+                ! But if the walker is removed from the list altogether, this is lost too.
                 call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
                 if (.not.tRegenDiagHEls) CurrentH(1,VecSlot) = Kii
                 CurrentH(2,VecSlot) = wAvSign
