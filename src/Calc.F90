@@ -35,6 +35,7 @@ contains
         ! Values for old parameters.
         ! These have no input options to change the defaults, but are used in
         ! the code.
+          tInstGrowthRate=.true.
           TargetGrowRateWalk=500000
           TargetGrowRate=0.D0
           InitialPart=1
@@ -996,7 +997,9 @@ contains
                 IF(item.lt.nitems) then
                     call Getf(FracLargerDet)
                 ENDIF
-
+            case("AVGROWTHRATE")
+                !This option will average the growth rate over the update cycle when updating the shift.
+                tInstGrowthRate=.false.
             case("PROJE-SPATIAL")
                 ! Calculate the projected energy by projection onto a linear
                 ! combination of determinants, specified by a particular 

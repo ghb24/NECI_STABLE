@@ -124,6 +124,7 @@ MODULE FciMCData
       integer(int64), dimension(lenof_sign) :: AllTotParts, AllTotPartsOld
       integer(int64), dimension(lenof_sign) :: AllSumNoatHF
       INTEGER(KIND=int64) :: AllSumWalkersCyc
+      real(dp) :: OldAllAvWalkersCyc    !This is the average number of walkers each iteration over the previous update cycle
       INTEGER :: AllAnnihilated,AllNoatDoubs
       INTEGER, DIMENSION(lenof_sign) :: AllNoatHF
       HElement_t :: sum_proje_denominator, &

@@ -182,19 +182,20 @@ module shared_alloc
     use, intrinsic :: iso_c_binding
     use constants
     use HElem
-    use Parallel
+    use ParallelHelper, only: iProcIndex
     implicit none
 
     private
     public :: shared_allocate, shared_deallocate, shared_allocate_iluts
     
     interface
-        subroutine alloc_shared_worker (nm, pt, sz) bind(c)
+        subroutine alloc_shared_worker (nm, pt, sz, proc) bind(c)
             use, intrinsic :: iso_c_binding
             implicit none
             character(c_char), intent(in) :: nm
             type(c_ptr), intent(inout) :: pt
             integer(c_size_t), value :: sz
+            integer(c_int), value :: proc
         end subroutine
         subroutine dealloc_shared_worker (ptr) bind(c)
             use, intrinsic :: iso_c_binding
@@ -269,7 +270,8 @@ contains
         sz = %(sizeof)s * product(int(dims,int64))
 
         ! Allocate the shared memory
-        call alloc_shared_worker (name_tmp, tmp, int(sz, kind=c_size_t))
+        call alloc_shared_worker (name_tmp, tmp, int(sz, kind=c_size_t), &
+                                  int(iProcIndex, kind=c_int))
 
         ! Assign to a fortran pointer.
         ! Use of ptr_tmp to work around a compiler bug in ifort < 11
@@ -318,7 +320,8 @@ contains
         sz = %(sizeof)s * product(int(dims_tmp,int64))
 
         ! Allocate the shared memory
-        call alloc_shared_worker (name_tmp, tmp, int(sz, kind=c_size_t))
+        call alloc_shared_worker (name_tmp, tmp, int(sz, kind=c_size_t), &
+                                  int(iProcIndex, kind=c_int))
 
         ! Assign to a fortran pointer.
         call c_f_pointer (tmp, ptr_tmp, dims_tmp)
