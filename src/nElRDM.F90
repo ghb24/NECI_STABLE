@@ -182,8 +182,15 @@ MODULE nElRDMMod
             CALL LogMemAlloc('aaaa_RDM',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,aaaa_RDMTag,ierr)
             aaaa_RDM(:,:)=0.D0
 
-            MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 8 ) 
-            MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 8 ) 
+            ! The 2-RDM of the type alpha beta beta alpha ( = beta alpha alpha beta).
+            ! These also *do not* also include 2-RDM(i,j,a,b) terms where i=j or a=b (these are the same as the abab elements).
+            ALLOCATE(abba_RDM(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating abba_RDM array,')
+            CALL LogMemAlloc('abba_RDM',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,abba_RDMTag,ierr)
+            abba_RDM(:,:)=0.D0
+
+            MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
+            MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
 
             ! The 2-RDM of the type alpha beta alpha beta ( = beta alpha beta alpha).
             ! These *do* include 2-RDM(i,j,a,b) terms where i=j or a=b, if they're different spin this 
@@ -193,15 +200,8 @@ MODULE nElRDMMod
             CALL LogMemAlloc('abab_RDM',(((SpatOrbs*(SpatOrbs+1))/2)**2),8,this_routine,abab_RDMTag,ierr)
             abab_RDM(:,:)=0.D0
 
-            ! The 2-RDM of the type alpha beta beta alpha ( = beta alpha alpha beta).
-            ! These *do* also include 2-RDM(i,j,a,b) terms where i=j or a=b.
-            ALLOCATE(abba_RDM(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating abba_RDM array,')
-            CALL LogMemAlloc('abba_RDM',(((SpatOrbs*(SpatOrbs+1))/2)**2),8,this_routine,abba_RDMTag,ierr)
-            abba_RDM(:,:)=0.D0
-
-            MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 ) * 2 * 8 ) 
-            MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 ) * 2 * 8 ) 
+            MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 ) * 8 ) 
+            MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 ) * 8 ) 
 
             IF(iProcIndex.eq.0) THEN
                 ! Each of these currently need to be stored on the root as well as each node.
@@ -217,13 +217,13 @@ MODULE nElRDMMod
                 CALL LogMemAlloc('All_abab_RDM',(((SpatOrbs*(SpatOrbs+1))/2)**2),8,this_routine,All_abab_RDMTag,ierr)
                 All_abab_RDM(:,:)=0.D0
 
-                ALLOCATE(All_abba_RDM(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
+                ALLOCATE(All_abba_RDM(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating All_abba_RDM array,')
-                CALL LogMemAlloc('All_abba_RDM',(((SpatOrbs*(SpatOrbs+1))/2)**2),8,this_routine,All_abba_RDMTag,ierr)
+                CALL LogMemAlloc('All_abba_RDM',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,All_abba_RDMTag,ierr)
                 All_abba_RDM(:,:)=0.D0
 
-                MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 8 ) 
-                MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 ) * 2 * 8 ) 
+                MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
+                MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 ) * 8 ) 
 
                 if(tDiagRDM.or.tPrint1RDM) then
                     ! Still need to allocate 1-RDM to get nat orb occupation numbers.
@@ -428,6 +428,27 @@ MODULE nElRDMMod
 
     END SUBROUTINE InitRDM
 
+    subroutine zero_rdms()
+        implicit none
+
+        if(RDMExcitLevel.eq.1) then
+            NatOrbMat(:,:) = 0.0_dp
+        else
+            aaaa_RDM(:,:) = 0.0_dp
+            abab_RDM(:,:) = 0.0_dp
+            abba_RDM(:,:) = 0.0_dp
+            All_aaaa_RDM(:,:) = 0.0_dp
+            All_abab_RDM(:,:) = 0.0_dp
+            All_abba_RDM(:,:) = 0.0_dp
+        endif
+
+        Trace_2RDM = 0.0_dp
+        Trace_2RDM_Inst = 0.0_dp
+        AccumRDMNorm = 0.0_dp
+        AccumRDMNorm_Inst = 0.0_dp
+
+    end subroutine
+
     subroutine Read_In_RDMs()
 ! Reads in the arrays to restart the RDM calculation (and continue accumulating).
 ! These arrays are not normalised, so the trace is also calculated.
@@ -514,8 +535,8 @@ MODULE nElRDMMod
                         if(FileEnd.gt.0) call stop_all("Read_In_RDMs","Error reading TwoRDM_POPS_abba")
                         if(FileEnd.lt.0) exit
 
-                        Ind1 = ( ( (j-1) * j ) / 2 ) + i
-                        Ind2 = ( ( (b-1) * b ) / 2 ) + a
+                        Ind1 = ( ( (j-2) * (j-1) ) / 2 ) + i
+                        Ind2 = ( ( (b-2) * (b-1) ) / 2 ) + a
                         All_abba_RDM(Ind1,Ind2) = Temp_RDM_Element
                     enddo
                     close(RDM_unit)
@@ -2509,67 +2530,90 @@ MODULE nElRDMMod
 
                 IF(nI(k).ne.Ex(1,1)) THEN
 
-                    ! 2-RDM(i,j,a,b) is defined to have i < j and a < b, as that is how the unique 
-                    ! indices are defined for i,j and a,b.
-                    ! But the parity is defined so that the i -> a excitation is aligned.
+                    if((iSpat.eq.kSpat).or.(aSpat.eq.kSpat)) then
+                        ! the only array with i = j and a = b is abab.
 
-                    ! I.e. we're adding these as nI(k),Ex(1,1) -> nI(k), Ex(2,1)
-                    ! So if Ex(1,1) < nI(k), or Ex(2,1) < nI(k) then we need 
-                    ! to switch the parity.
-                    ParityFactor2 = ParityFactor
-                    IF((Ex(1,1).lt.nI(k)).and.(Ex(2,1).gt.nI(k))) &
-                                            ParityFactor2 = ParityFactor * (-1.D0)
-                    IF((Ex(1,1).gt.nI(k)).and.(Ex(2,1).lt.nI(k))) &
-                                            ParityFactor2 = ParityFactor * (-1.D0)
-
-                    ! Checking spins of i and k.
-                    ! If same, i.e alpha alpha or beta beta -> aaaa array.
-                    if( ((mod(Ex(1,1),2).ne.0).and.(mod(nI(k),2).ne.0)) .or. &
-                        ((mod(Ex(1,1),2).eq.0).and.(mod(nI(k),2).eq.0)) ) then
-
-                        ! Ind doesn't include diagonal terms (when iSpat = jSpat).
-                        Indik=( ( (max(iSpat,kSpat)-2) * (max(iSpat,kSpat)-1) ) / 2 ) + min(iSpat,kSpat)
-                        Indak=( ( (max(aSpat,kSpat)-2) * (max(aSpat,kSpat)-1) ) / 2 ) + min(aSpat,kSpat)
-
-                        aaaa_RDM( Indik , Indak ) = aaaa_RDM( Indik , Indak ) + ( ParityFactor2 * &
-                                                                             realSignDi * realSignDj )
-
-                        if(tFill_CiCj_Symm) then
-                            aaaa_RDM( Indak , Indik ) = aaaa_RDM( Indak , Indik ) + ( ParityFactor2 * &
-                                                                             realSignDi * realSignDj )
-                        endif
-
-                    ! either abab or abba array. 
-                    ! we distinguish between these because i<j and a<b.
-                    else
-
-                        ! It is possible for i = k or j = k if they are spat orbitals 
-                        ! and have different spins.
                         Indik=( ( (max(iSpat,kSpat)-1) * max(iSpat,kSpat) ) / 2 ) + min(iSpat,kSpat)
                         Indak=( ( (max(aSpat,kSpat)-1) * max(aSpat,kSpat) ) / 2 ) + min(aSpat,kSpat)
 
-                        ! ordered with k's aligned, i k j k -> abab array.
-                        if( ((Ex(1,1).lt.nI(k)).and.(Ex(2,1).lt.nI(k))).or. &
-                            ((Ex(1,1).gt.nI(k)).and.(Ex(2,1).gt.nI(k))) ) then
+                        ! This could be either abab or abba, but in both cases, add into the abab.
+                        ! Kind of pretent the abba is of the form abab.
+                        abab_RDM( Indik , Indak ) = abab_RDM( Indik , Indak ) + ( ParityFactor * &
+                                                                         realSignDi * realSignDj )
+                        if(tFill_CiCj_Symm) then
+                            abab_RDM( Indak , Indik ) = abab_RDM( Indak , Indik ) + ( ParityFactor * &
+                                                                         realSignDi * realSignDj )
+                        endif
 
-                            abab_RDM( Indik , Indak ) = abab_RDM( Indik , Indak ) + ( ParityFactor2 * &
-                                                                             realSignDi * realSignDj )
+
+                    else
+                        ! Checking spins of i and k.
+                        ! If same, i.e alpha alpha or beta beta -> aaaa array.
+                        if( ((mod(Ex(1,1),2).ne.0).and.(mod(nI(k),2).ne.0)) .or. &
+                            ((mod(Ex(1,1),2).eq.0).and.(mod(nI(k),2).eq.0)) ) then
+
+                            ! 2-RDM(i,j,a,b) is defined to have i < j and a < b, as that is how the unique 
+                            ! indices are defined for i,j and a,b.
+                            ! But the parity is defined so that the i -> a excitation is aligned.
+
+                            ! I.e. we're adding these as nI(k),Ex(1,1) -> nI(k), Ex(2,1)
+                            ! So if Ex(1,1) < nI(k), or Ex(2,1) < nI(k) then we need 
+                            ! to switch the parity.
+                            ParityFactor2 = ParityFactor
+                            IF((Ex(1,1).lt.nI(k)).and.(Ex(2,1).gt.nI(k))) &
+                                                    ParityFactor2 = ParityFactor * (-1.D0)
+                            IF((Ex(1,1).gt.nI(k)).and.(Ex(2,1).lt.nI(k))) &
+                                                    ParityFactor2 = ParityFactor * (-1.D0)
+
+                            ! Ind doesn't include diagonal terms (when iSpat = jSpat).
+                            Indik=( ( (max(iSpat,kSpat)-2) * (max(iSpat,kSpat)-1) ) / 2 ) + min(iSpat,kSpat)
+                            Indak=( ( (max(aSpat,kSpat)-2) * (max(aSpat,kSpat)-1) ) / 2 ) + min(aSpat,kSpat)
+
+                            aaaa_RDM( Indik , Indak ) = aaaa_RDM( Indik , Indak ) + ( ParityFactor2 * &
+                                                                                 realSignDi * realSignDj )
 
                             if(tFill_CiCj_Symm) then
-                                abab_RDM( Indak , Indik ) = abab_RDM( Indak , Indik ) + ( ParityFactor2 * &
-                                                                             realSignDi * realSignDj )
+                                aaaa_RDM( Indak , Indik ) = aaaa_RDM( Indak , Indik ) + ( ParityFactor2 * &
+                                                                                 realSignDi * realSignDj )
                             endif
 
-                        ! ordered with k's not aligned, i k k j -> abba array
+                        ! either abab or abba array. 
+                        ! we distinguish between these because i<j and a<b.
                         else
-                            abba_RDM( Indik , Indak ) = abba_RDM( Indik , Indak ) + ( ParityFactor2 * &
-                                                                             realSignDi * realSignDj )
 
-                            if(tFill_CiCj_Symm) then
-                                abba_RDM( Indak , Indik ) = abba_RDM( Indak , Indik ) + ( ParityFactor2 * &
-                                                                             realSignDi * realSignDj )
+                            ! ordered with k's aligned, i k j k -> abab array.
+                            if( ((Ex(1,1).lt.nI(k)).and.(Ex(2,1).lt.nI(k))).or. &
+                                ((Ex(1,1).gt.nI(k)).and.(Ex(2,1).gt.nI(k))) ) then
+
+                                ! It is possible for i = k or j = k if they are spat orbitals 
+                                ! and have different spins.
+                                Indik=( ( (max(iSpat,kSpat)-1) * max(iSpat,kSpat) ) / 2 ) + min(iSpat,kSpat)
+                                Indak=( ( (max(aSpat,kSpat)-1) * max(aSpat,kSpat) ) / 2 ) + min(aSpat,kSpat)
+
+                                abab_RDM( Indik , Indak ) = abab_RDM( Indik , Indak ) + ( ParityFactor * &
+                                                                                 realSignDi * realSignDj )
+
+                                if(tFill_CiCj_Symm) then
+                                    abab_RDM( Indak , Indik ) = abab_RDM( Indak , Indik ) + ( ParityFactor * &
+                                                                                 realSignDi * realSignDj )
+                                endif
+
+                            ! ordered with k's not aligned, i k k j -> abba array
+                            else
+
+                                ! Ind doesn't include diagonal terms (when iSpat = jSpat).
+                                Indik=( ( (max(iSpat,kSpat)-2) * (max(iSpat,kSpat)-1) ) / 2 ) + min(iSpat,kSpat)
+                                Indak=( ( (max(aSpat,kSpat)-2) * (max(aSpat,kSpat)-1) ) / 2 ) + min(aSpat,kSpat)
+
+                                abba_RDM( Indik , Indak ) = abba_RDM( Indik , Indak ) - ( ParityFactor * &
+                                                                                 realSignDi * realSignDj )
+
+                                if(tFill_CiCj_Symm) then
+                                    abba_RDM( Indak , Indik ) = abba_RDM( Indak , Indik ) - ( ParityFactor * &
+                                                                                 realSignDi * realSignDj )
+                                endif
+
                             endif
-
                         endif
                     endif
                 ENDIF
@@ -2608,54 +2652,81 @@ MODULE nElRDMMod
         aSpat = gtID(Ex(2,1)) 
         bSpat = gtID(Ex(2,2))       ! Ex(2,1) < Ex(2,2)
 
-        ! Checking spins of i and j (these must be same combination as a and b).
-        ! If alpha alpha or beta beta -> aaaa array.
-        if( ((mod(Ex(1,1),2).ne.0).and.(mod(Ex(1,2),2).ne.0)) .or. &
-            ((mod(Ex(1,1),2).eq.0).and.(mod(Ex(1,2),2).eq.0)) ) then
+        if((iSpat.eq.jSpat).or.(aSpat.eq.bSpat)) then
 
-            ! Don't need to worry about diagonal terms, i can't equal j.
-            ! jSpat > iSpat and bSpat > aSpat
-            Indij=( ( (jSpat-2) * (jSpat-1) ) / 2 ) + iSpat
-            Indab=( ( (bSpat-2) * (bSpat-1) ) / 2 ) + aSpat
+            ! i and a are different spin -> abba (but adding as abab - mult by -1).
+            if( ((mod(Ex(1,1),2).eq.0).and.(mod(Ex(2,1),2).ne.0)) .or. &
+                ((mod(Ex(1,1),2).ne.0).and.(mod(Ex(2,1),2).eq.0)) ) &
+                    ParityFactor = ParityFactor * (-1.0_dp)
 
-            aaaa_RDM( Indij , Indab ) = aaaa_RDM( Indij , Indab ) + ( ParityFactor * &
-                                                             realSignDi * realSignDj )
-
-            if(tFill_CiCj_Symm) then
-                aaaa_RDM( Indab , Indij ) = aaaa_RDM( Indab , Indij ) + ( ParityFactor * &
-                                                             realSignDi * realSignDj )
-            endif
-
-        ! Either alpha beta or beta alpha -> abab array.
-        else
-            
             Indij=( ( (jSpat-1) * jSpat ) / 2 ) + iSpat
             Indab=( ( (bSpat-1) * bSpat ) / 2 ) + aSpat
 
-            ! if when ordering i < j and a < b, is it abab or abba.
 
-            ! i and a are the same spin -> abab
-            if( ((mod(Ex(1,1),2).eq.0).and.(mod(Ex(2,1),2).eq.0)) .or. &
-                ((mod(Ex(1,1),2).ne.0).and.(mod(Ex(2,1),2).ne.0)) ) then
+            abab_RDM( Indij , Indab ) = abab_RDM( Indij , Indab ) + ( ParityFactor * &
+                                                         realSignDi * realSignDj )
 
-                abab_RDM( Indij , Indab ) = abab_RDM( Indij , Indab ) + ( ParityFactor * &
-                                                             realSignDi * realSignDj )
+            if(tFill_CiCj_Symm) then
+                abab_RDM( Indab , Indij ) = abab_RDM( Indab , Indij ) + ( ParityFactor * &
+                                                         realSignDi * realSignDj )
+            endif
+
+        else
+            ! Checking spins of i and j (these must be same combination as a and b).
+            ! If alpha alpha or beta beta -> aaaa array.
+            if( ((mod(Ex(1,1),2).ne.0).and.(mod(Ex(1,2),2).ne.0)) .or. &
+                ((mod(Ex(1,1),2).eq.0).and.(mod(Ex(1,2),2).eq.0)) ) then
+
+                ! Don't need to worry about diagonal terms, i can't equal j.
+                ! jSpat > iSpat and bSpat > aSpat
+                Indij=( ( (jSpat-2) * (jSpat-1) ) / 2 ) + iSpat
+                Indab=( ( (bSpat-2) * (bSpat-1) ) / 2 ) + aSpat
+
+                aaaa_RDM( Indij , Indab ) = aaaa_RDM( Indij , Indab ) + ( ParityFactor * &
+                                                                 realSignDi * realSignDj )
 
                 if(tFill_CiCj_Symm) then
-                    abab_RDM( Indab , Indij ) = abab_RDM( Indab , Indij ) + ( ParityFactor * &
-                                                             realSignDi * realSignDj )
+                    aaaa_RDM( Indab , Indij ) = aaaa_RDM( Indab , Indij ) + ( ParityFactor * &
+                                                                 realSignDi * realSignDj )
                 endif
 
-            ! i and a are different spin -> abba
-            ! the only double excitation case with Indij = Indab will go in here.
+            ! Either alpha beta or beta alpha -> abab array.
             else
+                
+                ! if when ordering i < j and a < b, is it abab or abba.
 
-                abba_RDM( Indij , Indab ) = abba_RDM( Indij , Indab ) + ( ParityFactor * &
-                                                             realSignDi * realSignDj )
+                ! i and a are the same spin -> abab
+                if( ((mod(Ex(1,1),2).eq.0).and.(mod(Ex(2,1),2).eq.0)) .or. &
+                    ((mod(Ex(1,1),2).ne.0).and.(mod(Ex(2,1),2).ne.0)) ) then
 
-                if(tFill_CiCj_Symm) then
-                    abba_RDM( Indab , Indij ) = abba_RDM( Indab , Indij ) + ( ParityFactor * &
-                                                             realSignDi * realSignDj )
+                    Indij=( ( (jSpat-1) * jSpat ) / 2 ) + iSpat
+                    Indab=( ( (bSpat-1) * bSpat ) / 2 ) + aSpat
+
+
+                    abab_RDM( Indij , Indab ) = abab_RDM( Indij , Indab ) + ( ParityFactor * &
+                                                                 realSignDi * realSignDj )
+
+                    if(tFill_CiCj_Symm) then
+                        abab_RDM( Indab , Indij ) = abab_RDM( Indab , Indij ) + ( ParityFactor * &
+                                                                 realSignDi * realSignDj )
+                    endif
+
+                ! i and a are different spin -> abba
+                ! the only double excitation case with Indij = Indab will go in here.
+                else
+
+                    ! Don't need to worry about diagonal terms, i can't equal j.
+                    ! jSpat > iSpat and bSpat > aSpat
+                    Indij=( ( (jSpat-2) * (jSpat-1) ) / 2 ) + iSpat
+                    Indab=( ( (bSpat-2) * (bSpat-1) ) / 2 ) + aSpat
+
+                    abba_RDM( Indij , Indab ) = abba_RDM( Indij , Indab ) + ( ParityFactor * &
+                                                                 realSignDi * realSignDj )
+
+                    if(tFill_CiCj_Symm) then
+                        abba_RDM( Indab , Indij ) = abba_RDM( Indab , Indij ) + ( ParityFactor * &
+                                                                 realSignDi * realSignDj )
+                    endif
                 endif
             endif
         endif
@@ -2682,6 +2753,7 @@ MODULE nElRDMMod
         else
             write(6,*) '**** RDMs CALCULATED STOCHASTICALLY **** '
         endif
+        write(6,*) ''
 
         ! Combine the 1- or 2-RDM from all processors etc.
 
@@ -2824,7 +2896,6 @@ MODULE nElRDMMod
         ! Output the hermiticity errors.
         write(6,'(A29,F30.20)') ' MAX ABS ERROR IN HERMITICITY', Max_Error_Hermiticity
         write(6,'(A29,F30.20)') ' SUM ABS ERROR IN HERMITICITY', Sum_Error_Hermiticity
-        write(6,*) ''
 
     end subroutine make_1e_rdm_hermitian
 
@@ -2963,7 +3034,6 @@ MODULE nElRDMMod
 
                         write(6,'(A29,F30.20)') ' MAX ABS ERROR IN HERMITICITY', Max_Error_Hermiticity
                         write(6,'(A29,F30.20)') ' SUM ABS ERROR IN HERMITICITY', Sum_Error_Hermiticity
-                        write(6,*) ''
                     endif
                 endif
 
@@ -3054,6 +3124,17 @@ MODULE nElRDMMod
 
                     All_aaaa_RDM(i,j) = Temp
                     All_aaaa_RDM(j,i) = Temp
+
+                    IF((abs((All_abba_RDM(i,j)*Norm_2RDM)-(All_abba_RDM(j,i)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
+                        Max_Error_Hermiticity = abs((All_abba_RDM(i,j)*Norm_2RDM)-(All_abba_RDM(j,i)*Norm_2RDM))
+
+                    Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
+                                            abs((All_abba_RDM(i,j)*Norm_2RDM)-(All_abba_RDM(j,i)*Norm_2RDM))
+
+                    Temp = (All_abba_RDM(i,j) + All_abba_RDM(j,i)) / 2.D0
+
+                    All_abba_RDM(i,j) = Temp
+                    All_abba_RDM(j,i) = Temp
                 endif
 
                 IF((abs((All_abab_RDM(i,j)*Norm_2RDM)-(All_abab_RDM(j,i)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
@@ -3067,17 +3148,6 @@ MODULE nElRDMMod
                 All_abab_RDM(i,j) = Temp
                 All_abab_RDM(j,i) = Temp
 
-
-                IF((abs((All_abba_RDM(i,j)*Norm_2RDM)-(All_abba_RDM(j,i)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
-                    Max_Error_Hermiticity = abs((All_abba_RDM(i,j)*Norm_2RDM)-(All_abba_RDM(j,i)*Norm_2RDM))
-
-                Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
-                                        abs((All_abba_RDM(i,j)*Norm_2RDM)-(All_abba_RDM(j,i)*Norm_2RDM))
-
-                Temp = (All_abba_RDM(i,j) + All_abba_RDM(j,i)) / 2.D0
-
-                All_abba_RDM(i,j) = Temp
-                All_abba_RDM(j,i) = Temp
 
             enddo
         enddo
@@ -3150,9 +3220,9 @@ MODULE nElRDMMod
 
                         ! usually each element will have two contributions (from aaaa and bbbb).
                         ! we then need to divide each by 2.
-                        ! but in cases where either i and j, or a and b, are in the same spatial 
+                        ! but in cases where i and j, and a and b, are in the same spatial 
                         ! orbital, there will be only one contribution.
-                        if((i.eq.j).or.(a.eq.b)) then
+                        if((i.eq.j).and.(a.eq.b)) then
                             Divide_Factor = 1.0_dp
                         else
                             Divide_Factor = 2.0_dp
@@ -3185,6 +3255,23 @@ MODULE nElRDMMod
                                             All_aaaa_RDM(Ind1_aa,Ind2_aa) 
                                 endif
                             endif
+
+                            if( All_abba_RDM(Ind1_aa,Ind2_aa).ne.0.0_dp) then
+                                if(tNormalise.and.((Ind1_aa.le.Ind2_aa).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+                                    if(tFinalRDMEnergy) then
+                                        write(abba_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
+                                            ( All_abba_RDM(Ind1_aa,Ind2_aa) * Norm_2RDM ) / Divide_Factor
+                                    else
+                                        write(abba_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
+                                            ( ((All_abba_RDM(Ind1_aa,Ind2_aa) + All_abba_RDM(Ind2_aa,Ind1_aa))/2.0_dp) &
+                                                                    * Norm_2RDM ) / Divide_Factor
+                                    endif
+                                elseif(.not.tNormalise) then
+                                    write(abba_RDM_unit) i,j,a,b, &
+                                        All_abba_RDM(Ind1_aa,Ind2_aa) 
+                                endif
+                            endif
+
                         endif
 
                         if( All_abab_RDM(Ind1_ab,Ind2_ab).ne.0.0_dp) then
@@ -3200,22 +3287,6 @@ MODULE nElRDMMod
                             elseif(.not.tNormalise) then
                                 write(abab_RDM_unit) i,j,a,b, &
                                     All_abab_RDM(Ind1_ab,Ind2_ab) 
-                            endif
-                        endif
-
-                        if( All_abba_RDM(Ind1_ab,Ind2_ab).ne.0.0_dp) then
-                            if(tNormalise.and.((Ind1_ab.le.Ind2_ab).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
-                                if(tFinalRDMEnergy) then
-                                    write(abba_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
-                                        ( All_abba_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM ) / Divide_Factor
-                                else
-                                    write(abba_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
-                                        ( ((All_abba_RDM(Ind1_ab,Ind2_ab) + All_abba_RDM(Ind2_ab,Ind1_ab))/2.0_dp) &
-                                                                * Norm_2RDM ) / Divide_Factor
-                                endif
-                            elseif(.not.tNormalise) then
-                                write(abba_RDM_unit) i,j,a,b, &
-                                    All_abba_RDM(Ind1_ab,Ind2_ab) 
                             endif
                         endif
 
@@ -3284,7 +3355,10 @@ MODULE nElRDMMod
         ! Normalise, make hermitian, print etc.
         call Finalise_2e_RDM(Norm_2RDM_Inst, Norm_2RDM)
 
-        if(tFinalRDMEnergy) write(6,*) 'Calculating the final RDM energy'
+        if(tFinalRDMEnergy) then
+            write(6,*) ''
+            write(6,*) 'Calculating the final RDM energy'
+        endif
 
         if(iProcIndex.eq.0) then
 
@@ -3323,23 +3397,42 @@ MODULE nElRDMMod
                                 if(Ind1_aa.eq.Ind2_aa) &
                                     Trace_2RDM_New = Trace_2RDM_New + &
                                                         All_aaaa_RDM(Ind1_aa,Ind2_aa) * Norm_2RDM
+
+                                ! For abab cases, coul element will be non-zero, exchange zero.
+                                RDMEnergy_Inst = RDMEnergy_Inst + ( abab_RDM(Ind1_ab,Ind2_ab) &
+                                                                        * Norm_2RDM_Inst * Coul )
+                                RDMEnergy2 = RDMEnergy2 + ( All_abab_RDM(Ind1_ab,Ind2_ab) &
+                                                            * Norm_2RDM * Coul ) 
+
+                                if(Ind1_ab.eq.Ind2_ab) &
+                                    Trace_2RDM_New = Trace_2RDM_New + &
+                                                        All_abab_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM
+
+                                ! For abba cases, coul element will be zero, exchange non-zero.
+                                RDMEnergy_Inst = RDMEnergy_Inst - ( abba_RDM(Ind1_aa,Ind2_aa) &
+                                                                        * Norm_2RDM_Inst * Exch )
+                                RDMEnergy2 = RDMEnergy2 - ( All_abba_RDM(Ind1_aa,Ind2_aa) &
+                                                            * Norm_2RDM * Exch ) 
+
+
+                            else
+                                ! i = j or a = b
+                                ! abab has both abab and abba elements in them effectively.
+                                ! half will have non-zero coul, and half non-zero exchange.
+
+                                RDMEnergy_Inst = RDMEnergy_Inst + ( 0.5_dp * abab_RDM(Ind1_ab,Ind2_ab) &
+                                                                        * Norm_2RDM_Inst * Coul ) &
+                                                                + ( 0.5_dp * abab_RDM(Ind1_ab,Ind2_ab) &
+                                                                        * Norm_2RDM_Inst * Exch )
+                                RDMEnergy2 = RDMEnergy2 + ( 0.5_dp * All_abab_RDM(Ind1_ab,Ind2_ab) &
+                                                            * Norm_2RDM * Coul ) &
+                                                        + ( 0.5_dp * All_abab_RDM(Ind1_ab,Ind2_ab) &
+                                                            * Norm_2RDM * Exch )
+                                if(Ind1_ab.eq.Ind2_ab) &
+                                    Trace_2RDM_New = Trace_2RDM_New + &
+                                                        All_abab_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM
+
                             endif
-
-                            ! For abab cases, coul element will be non-zero, exchange zero.
-                            RDMEnergy_Inst = RDMEnergy_Inst + ( abab_RDM(Ind1_ab,Ind2_ab) &
-                                                                    * Norm_2RDM_Inst * Coul )
-                            RDMEnergy2 = RDMEnergy2 + ( All_abab_RDM(Ind1_ab,Ind2_ab) &
-                                                        * Norm_2RDM * Coul ) 
-
-                            ! For abba cases, coul element will be zero, exchange non-zero.
-                            RDMEnergy_Inst = RDMEnergy_Inst - ( abba_RDM(Ind1_ab,Ind2_ab) &
-                                                                    * Norm_2RDM_Inst * Exch )
-                            RDMEnergy2 = RDMEnergy2 - ( All_abba_RDM(Ind1_ab,Ind2_ab) &
-                                                        * Norm_2RDM * Exch ) 
-
-                            if(Ind1_ab.eq.Ind2_ab) &
-                                Trace_2RDM_New = Trace_2RDM_New + &
-                                                    All_abab_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM
 
                        enddo
 
@@ -3357,7 +3450,6 @@ MODULE nElRDMMod
             if(tFinalRDMEnergy) then
                 write(6,*) 'Trace of 2-el-RDM before normalisation : ',Trace_2RDM
                 write(6,*) 'Trace of 2-el-RDM after normalisation : ',Trace_2RDM_New
-                write(6,*) ''
                 write(6,*) 'Energy contribution from the 1-RDM: ',RDMEnergy1
                 write(6,*) 'Energy contribution from the 2-RDM: ',RDMEnergy2
                 write(6,'(A64,F30.20)') ' *TOTAL ENERGY* CALCULATED USING THE *REDUCED &
@@ -3460,41 +3552,42 @@ MODULE nElRDMMod
 
         endif
 
-        if((i.ne.j).and.((i.le.a).and.(j.ge.a)).or.((i.ge.a).and.(j.le.a))) then
-            RDMEnergy_Inst = RDMEnergy_Inst - ( (abba_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM_Inst) &
-                                                * REAL(TMAT2D(iSpin,jSpin),8) &
-                                                * (1.0_dp / real(NEl - 1,dp)) )
-            RDMEnergy1 = RDMEnergy1 - ( (All_abba_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM) &
-                                                * REAL(TMAT2D(iSpin,jSpin),8) &
-                                                * (1.0_dp / real(NEl - 1,dp)) )
+        if((i.ne.a).and.(j.ne.a)) then
+            Ind1_1e_aa = ( ( (max(i,a)-2) * (max(i,a)-1) ) / 2 ) + min(i,a)
+            Ind2_1e_aa = ( ( (max(j,a)-2) * (max(j,a)-1) ) / 2 ) + min(j,a)
 
-            if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
-                NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) = &
-                            NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) &
-                                        - ( All_abba_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
-                                                * (1.0_dp / real(NEl - 1,dp)) ) 
-            endif
-
-            if(Ind1_1e_ab.ne.Ind2_1e_ab) then
-                RDMEnergy_Inst = RDMEnergy_Inst - ( (abba_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM_Inst) &
+            if((i.ne.j).and.((i.lt.a).and.(j.gt.a)).or.((i.gt.a).and.(j.lt.a))) then
+                RDMEnergy_Inst = RDMEnergy_Inst - ( (abba_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM_Inst) &
                                                     * REAL(TMAT2D(iSpin,jSpin),8) &
                                                     * (1.0_dp / real(NEl - 1,dp)) )
-                RDMEnergy1 = RDMEnergy1 - ( (All_abba_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM) &
+                RDMEnergy1 = RDMEnergy1 - ( (All_abba_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM) &
                                                     * REAL(TMAT2D(iSpin,jSpin),8) &
                                                     * (1.0_dp / real(NEl - 1,dp)) )
 
                 if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
-                    NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) = &
-                            NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) &
-                                        - ( ( All_abba_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM &
-                                                * (1.0_dp / real(NEl - 1,dp)) ) / 2.0_dp )
+                    NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) = &
+                                NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) &
+                                            - ( All_abba_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
+                                                    * (1.0_dp / real(NEl - 1,dp)) ) 
+                endif
+
+                if(Ind1_1e_aa.ne.Ind2_1e_aa) then
+                    RDMEnergy_Inst = RDMEnergy_Inst - ( (abba_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM_Inst) &
+                                                        * REAL(TMAT2D(iSpin,jSpin),8) &
+                                                        * (1.0_dp / real(NEl - 1,dp)) )
+                    RDMEnergy1 = RDMEnergy1 - ( (All_abba_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM) &
+                                                        * REAL(TMAT2D(iSpin,jSpin),8) &
+                                                        * (1.0_dp / real(NEl - 1,dp)) )
+
+                    if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
+                        NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) = &
+                                NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) &
+                                            - ( ( All_abba_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
+                                                    * (1.0_dp / real(NEl - 1,dp)) ) / 2.0_dp )
+                    endif
                 endif
             endif
-        endif
 
-        if((i.ne.a).and.(j.ne.a)) then
-            Ind1_1e_aa = ( ( (max(i,a)-2) * (max(i,a)-1) ) / 2 ) + min(i,a)
-            Ind2_1e_aa = ( ( (max(j,a)-2) * (max(j,a)-1) ) / 2 ) + min(j,a)
 
             if(((i.lt.a).and.(j.lt.a)).or.((i.gt.a).and.(j.gt.a))) then
                 Parity_Factor = 1.0_dp
@@ -3581,7 +3674,6 @@ MODULE nElRDMMod
                 enddo
             endif
             close(Evalues_unit)
-            WRITE(6,*) ''
             WRITE(6,'(A20,F30.20)') ' CORRELATION ENTROPY', Corr_Entropy
             WRITE(6,'(A33,F30.20)') ' CORRELATION ENTROPY PER ELECTRON', Corr_Entropy / real(NEl,dp) 
 

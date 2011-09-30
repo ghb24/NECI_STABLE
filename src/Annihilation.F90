@@ -1090,10 +1090,6 @@ MODULE AnnihilationMod
             TotWalkersNew=TotWalkersNew-DetsMerged
         ENDIF
 
-        IF((iProcIndex.eq.iHFProc).and.tFillingStochRDMonFly.and.(InstNoatHF(1).eq.0)) &
-            call stop_all(this_routine,'HF has been deleted from CurrentDets list. &
-                                        & This will cause problems for the RDMs.')
-
 !        do i=1,TotWalkersNew
 !            IF(CurrentSign(i).eq.0) THEN
 !                CALL Stop_All("InsertRemoveParts","Particles not removed correctly")

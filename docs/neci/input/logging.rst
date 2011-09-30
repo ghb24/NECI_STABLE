@@ -528,6 +528,9 @@ Options referring to the 1-RDM.
     Options for truncating the orbitals based on NO occupation number has been removed from this code, as well 
     as rotating virtual and occupied orbitals separately.  On the todo list is to put this stuff back in and 
     merge these routines with the old equivalents (in RotateOrbs and NatOrb).
+    Note: If you print this from a frozen core calculation, the ROFCIDUMP will be printed as though the
+    frozen electrons don't exist.  To restart in the rotated basis, you need to unfreeze the core, and reduce 
+    the number of electrons in the input by the number originally frozen.
 
 **PRINTONERDM**
     This means the 1-RDM will be constructed and printed, even if we are only really calculating the 2-RDM.

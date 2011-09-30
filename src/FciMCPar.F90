@@ -118,7 +118,7 @@ MODULE FciMCParMod
                          extract_bit_rep_rdm_diag_no_rdm, DeallocateRDM,&
                          DeAlloc_Alloc_SpawnedParts, Add_RDM_HFConnections_Null, &
                          Add_RDM_HFConnections_HPHF, Add_RDM_HFConnections_HF_S_D, &
-                         Add_RDM_HFConnections_Norm, Fill_Spin_Coupled_RDM
+                         Add_RDM_HFConnections_Norm, Fill_Spin_Coupled_RDM, zero_rdms 
 
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
@@ -483,7 +483,7 @@ MODULE FciMCParMod
         interface
             function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
                                      nJ, iLutJ, prob, HElGen, ic, ex, tPar, exLevel, &
-                                     part_type, AvSignCurr) result(child)
+                                     part_type, AvSignCurr, RDMBiasFacCurr) result(child)
                 use SystemData, only: nel
                 use bit_reps, only: niftot
                 use constants, only: n_int, dp, lenof_sign
@@ -496,6 +496,7 @@ MODULE FciMCParMod
                 logical, intent(in) :: tPar
                 real(dp), intent(inout) :: prob
                 real(dp) , intent(in) :: AvSignCurr
+                real(dp) , intent(out) :: RDMBiasFacCurr
                 integer , dimension(lenof_sign) :: child      
                 HElement_t , intent(in) :: HElGen
 
@@ -715,7 +716,7 @@ MODULE FciMCParMod
             end subroutine
             function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
                                      nJ, iLutJ, prob, HElGen, ic, ex, tPar, exLevel, &
-                                     part_type, AvSignCurr) result(child)
+                                     part_type, AvSignCurr, RDMBiasFacCurr) result(child)
                 use systemdata, only: nel
                 use bit_reps, only: niftot
                 use constants, only: dp, n_int, lenof_sign
@@ -728,6 +729,7 @@ MODULE FciMCParMod
                 logical, intent(in) :: tPar
                 real(dp), intent(inout) :: prob
                 real(dp) , intent(in) :: AvSignCurr
+                real(dp) , intent(out) :: RDMBiasFacCurr
                 integer, dimension(lenof_sign) :: child
                 HElement_t , intent(in) :: HElGen
 
@@ -839,7 +841,7 @@ MODULE FciMCParMod
         integer(int64) :: tot_parts_tmp(lenof_sign)
         logical :: tParity, tSuccess
         real(dp) :: prob, HDiagCurr, TempTotParts, Di_Sign_Temp
-        real(dp) :: AvSignCurr, IterRDMStartCurr
+        real(dp) :: AvSignCurr, IterRDMStartCurr, RDMBiasFacCurr
         HElement_t :: HDiagTemp,HElGen
 #ifdef __DEBUG
         character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
@@ -1031,7 +1033,10 @@ MODULE FciMCParMod
                                             CurrentDets(:,j), SignCurr, &
                                             nJ,iLutnJ, Prob, HElGen, IC, ex, &
                                             tParity, walkExcitLevel,part_type, &
-                                            AvSignCurr)     
+                                            AvSignCurr,RDMBiasFacCurr)     
+                                            ! Note these last two, AvSignCurr and 
+                                            ! RDMBiasFacCurr are not used unless we're 
+                                            ! doing an RDM calculation.
                     else
                         child = 0
                     endif
@@ -1049,7 +1054,10 @@ MODULE FciMCParMod
 
                         call create_particle (nJ, iLutnJ, child, &
                                               parent_flags, part_type,& 
-                                              CurrentDets(:,j),SignCurr,p)
+                                              CurrentDets(:,j),SignCurr,p,&
+                                              RDMBiasFacCurr)
+                                              ! RDMBiasFacCurr is only used if we're 
+                                              ! doing an RDM calculation.
 
                     endif ! (child /= 0). Child created
 
@@ -1194,7 +1202,8 @@ MODULE FciMCParMod
 
     end subroutine
                         
-    subroutine create_particle (nJ, iLutJ, child, parent_flags, part_type, iLutI, SignI, WalkerNumber)
+    subroutine create_particle (nJ, iLutJ, child, parent_flags, part_type, iLutI, SignI, &
+                                                WalkerNumber, RDMBiasFacCurr)
 
         ! Create a child in the spawned particles arrays. We spawn particles
         ! into a separate array, but non-contiguously. The processor that the
@@ -1211,6 +1220,7 @@ MODULE FciMCParMod
         integer, intent(in), optional :: WalkerNumber
         ! 'type' of the particle - i.e. real/imag
         integer, intent(in) :: part_type
+        real(dp) , intent(in) :: RDMBiasFacCurr
         integer :: proc, flags, j, BiasFac
         logical :: parent_init, tRDMStoreParent
 
@@ -1268,9 +1278,9 @@ MODULE FciMCParMod
                 !In actual fact this is the sign of the parent divided by the probability of generating 
                 !that pair Di and Dj, to account for the 
                 !fact that Di and Dj are not always added to the RDM, but only when Di spawns on Dj.
-                !This RDMBiasFacI factor is turned into an integer to pass around to the relevant processors.
+                !This RDMBiasFacCurr factor is turned into an integer to pass around to the relevant processors.
                 SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)) = &
-                    transfer(RDMBiasFacI,SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)))
+                    transfer(RDMBiasFacCurr,SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)))
             else
                 SpawnedParts(niftot+1:niftot+nifdbo+2, ValidSpawnedList(proc)) = 0
             endif
@@ -1737,7 +1747,7 @@ MODULE FciMCParMod
     function attempt_create_trunc_spawn (get_spawn_helement, DetCurr,&
                                          iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, &
                                          ic, ex, tparity, walkExcitLevel, part_type, &
-                                         AvSignCurr) result(child)
+                                         AvSignCurr, RDMBiasFacCurr) result(child)
         integer, intent(in) :: DetCurr(nel), nJ(nel), part_type 
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
@@ -1746,6 +1756,7 @@ MODULE FciMCParMod
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
         real(dp) , intent(in) :: AvSignCurr
+        real(dp) , intent(out) :: RDMBiasFacCurr
         integer, dimension(lenof_sign) :: child
         HElement_t, intent(in) :: HElGen
 
@@ -1768,7 +1779,7 @@ MODULE FciMCParMod
         if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
             child = attempt_create_normal (get_spawn_helement, DetCurr, &
                                iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
-                               tParity, walkExcitLevel, part_type, AvSignCurr)
+                               tParity, walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr)
         else
             child = 0
         endif
@@ -1791,7 +1802,7 @@ MODULE FciMCParMod
     function attempt_create_trunc_spawn_encode (get_spawn_helement, DetCurr,&
                                          iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, &
                                          ic, ex, tparity, walkExcitLevel, part_type, &
-                                         AvSignCurr) result(child)
+                                         AvSignCurr,RDMBiasFacCurr) result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel), part_type 
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
@@ -1801,6 +1812,7 @@ MODULE FciMCParMod
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
         real(dp) , intent(in) :: AvSignCurr
+        real(dp) , intent(out) :: RDMBiasFacCurr
         integer, dimension(lenof_sign) :: child
         HElement_t , intent(in) :: HElGen
 
@@ -1824,7 +1836,7 @@ MODULE FciMCParMod
         if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
             child = attempt_create_normal (get_spawn_helement, DetCurr, &
                                iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
-                               tParity, walkExcitLevel, part_type, AvSignCurr)
+                               tParity, walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr)
         else
             child = 0
         endif
@@ -1833,7 +1845,7 @@ MODULE FciMCParMod
 
     function attempt_create_normal (get_spawn_helement, DetCurr, iLutCurr, &
                                     wSign, nJ, iLutnJ, prob, HElGen, ic, ex, tparity,&
-                                    walkExcitLevel, part_type, AvSignCurr) result(child)
+                                    walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr) result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel)
         integer, intent(in) :: part_type    ! 1 = Real parent particle, 2 = Imag parent particle
@@ -1844,6 +1856,7 @@ MODULE FciMCParMod
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
         real(dp) , intent(in) :: AvSignCurr
+        real(dp) , intent(out) :: RDMBiasFacCurr
         integer, dimension(lenof_sign) :: child
         HElement_t , intent(in) :: HElGen
 
@@ -2030,7 +2043,8 @@ MODULE FciMCParMod
             ! Avoid compiler warnings
             iUnused = part_type
 
-            if(tSpawnGhostChild.and.tFillingStochRDMonFly) then
+        if(tFillingStochRDMonFly) then
+            if(tSpawnGhostChild) then
 
                 ! We eventually turn this real bias factor into an integer to be passed around 
                 ! with the spawned children and their parents - this only works with 64 bit at the mo.
@@ -2070,9 +2084,9 @@ MODULE FciMCParMod
                 p_notlist_rdmfac = ( 1.D0 - prob ) + ( prob * (1.D0 - p_spawn_rdmfac) )
 
                 ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i]
-                RDMBiasFacI = AvSignCurr / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp))) ) )   
+                RDMBiasFacCurr = AvSignCurr / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp))) ) )   
 
-            elseif(tFillingStochRDMonFly.and.(child(1).ne.0)) then
+            elseif(child(1).ne.0) then
 
                 ! We eventually turn this real bias factor into an integer to be passed around 
                 ! with the spawned children and their parents - this only works with 64 bit at the mo.
@@ -2103,8 +2117,11 @@ MODULE FciMCParMod
                 p_notlist_rdmfac = ( 1.D0 - prob ) + ( prob * (1.D0 - p_spawn_rdmfac) )
 
                 ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i]
-                RDMBiasFacI = AvSignCurr / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp))) ) )   
+                RDMBiasFacCurr = AvSignCurr / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp))) ) )   
             endif
+        else
+            RDMBiasFacCurr = 0.0_dp
+        endif
 
 #endif
         ! Avoid compiler warnings
@@ -3100,6 +3117,17 @@ MODULE FciMCParMod
                 call FlipSign ()
                 AllNoatHF(1) = -AllNoatHF(1)
                 NoatHF(1) = -NoatHF(1)
+
+                if(tFillingStochRDMonFly) then
+                    ! Want to zero all the averaged signs.
+                    write(6,'(A)') "Zero-ing the RDMs"
+                    CurrentH(2:3,:) = 0.0_dp
+                    AvNoatHF = 0.0_dp
+                    InstNoatHF(1) = -InstNoatHF(1)
+                    IterRDMonFly = Iter + 1
+                    call zero_rdms()
+                endif
+ 
             endif
         ENDIF
 
@@ -3802,7 +3830,7 @@ MODULE FciMCParMod
             TempSign(1)=-TempSign(1)
             call encode_sign(CurrentDets(:,i),TempSign)
         enddo
-        
+
 !Reverse the flag for whether the sign of the particles has been flipped so the ACF can be correctly calculated
         TFlippedSign=.not.TFlippedSign
         RETURN
