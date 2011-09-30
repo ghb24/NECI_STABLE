@@ -4,7 +4,6 @@
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <algorithm>
 #include <fcntl.h>
 #include <map>
@@ -23,9 +22,8 @@
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
 #endif
-
-
 
 using std::map;
 using std::string;
@@ -60,6 +58,7 @@ list<void*> g_shm_list;
 std::string cwd_name;
 std::wstring wcwd_name;
 
+#ifndef _WIN32
 //
 //
 // Test if shared memory is going to be OK. If not, print a warning...
@@ -101,7 +100,7 @@ extern "C" bool test_shared_permissions ()
 
 	return avail;
 }
-
+#endif
 
 #ifdef _WIN32
 
@@ -114,8 +113,8 @@ void allocate_shared_windows (const char * name, void ** ptr,
 	// --> Prepend to names asked for, to give unique name to avoid collisions.
 	// This really ought be done using TCHARs on windows...
 	if (wcwd_name.empty()) {
-		WCHAR szDir[MAX_PATH] = "";
-		if (!::GetCurrentDirectoryA(MAX_PATH, szDir))
+		WCHAR szDir[MAX_PATH] = L"";
+		if (!::GetCurrentDirectoryW(MAX_PATH, szDir))
 			stop_all_c (__FUNCTION__,
 			            "Obtaining current working directory failed");
 
@@ -125,7 +124,7 @@ void allocate_shared_windows (const char * name, void ** ptr,
 	}
 
 	// Name to use for shared memory.
-	WCHAR szNm[MAX_PATH] = "";
+	WCHAR szNm[MAX_PATH] = L"";
 	MultiByteToWideChar(CP_ACP, 0, name, -1, szNm, MAX_PATH);
 	std::wstring shared_name = wcwd_name + szNm;
 
@@ -137,10 +136,10 @@ void allocate_shared_windows (const char * name, void ** ptr,
 		// One process has to create the mapping
 		hMapFile = CreateFileMappingW (INVALID_HANDLE_VALUE, NULL,
 		                               PAGE_READWRITE, 0, size,
-		                               shared_name.str());
+		                               shared_name.c_str());
 		if (NULL == hMapFile)
 			stop_all_c (__FUNCTION__,
-			            string("Could not create file mapping object"));
+			            "Could not create file mapping object");
 	}
 
 	// All processes need to wait until the object has been created.
@@ -150,10 +149,10 @@ void allocate_shared_windows (const char * name, void ** ptr,
 	if (0 != proc) {
 		// The other processes then have to find it.
 		hMapFile = OpenFileMappingW (FILE_MAP_ALL_ACCESS, FALSE,
-		                             shared_name.str());
+		                             shared_name.c_str());
 		if (NULL == hMapFile)
 			stop_all_c (__FUNCTION__,
-			            string("Could not open file mapping object"));
+			            "Could not open file mapping object");
 	}
 
 	// And again we wait.
@@ -164,7 +163,7 @@ void allocate_shared_windows (const char * name, void ** ptr,
 	if (NULL == *ptr) {
 		CloseHandle(hMapFile);
 		stop_all_c (__FUNCTION__,
-					string("Memory mapping file object failed."));
+					"Memory mapping file object failed.");
 	}
 	
 	// Store the handle for later cleanup.
@@ -304,7 +303,7 @@ extern "C" void dealloc_shared_worker (void * ptr)
 	UnmapViewOfFile (ptr);
 	CloseHandle(det->second.hMap);
 
-	g_shared_map.erase(det);
+	g_shared_mem_map.erase(det);
 #else
 	if (test_shared_permissions()) {
 		//
@@ -352,7 +351,7 @@ extern "C" void cleanup_shared_alloc ()
 		printf ("Non-deallocated shared memory found: %s, %d bytes\n", 
 		        name.c_str(), int(size));
 		UnmapViewOfFile (ptr);
-		CloseHandle (itr->second.hMap);
+		CloseHandle (iter->second.hMap);
 	}
 	g_shared_mem_map.clear();
 
