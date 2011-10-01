@@ -1641,7 +1641,7 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
    integer, dimension(lenof_sign) :: iSpawnAmp
    integer iDebug
 
-   real(dp) rat,r,prob
+   real(dp) rat,r,prob,RDMBias
    integer i
    integer IC
    integer part_type
@@ -1685,7 +1685,7 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
                               C%DetCurr,C%iLutDetCurr, &
                               C%iSgn,S%nJ,S%iLutnJ,prob,S%HIJ, &
                               S%iExcitLevel,S%ExcitMat,.false., & !.false. indicates we've dealt with parit
-                              S%iExcitLevel,part_type,0.0_dp) 
+                              S%iExcitLevel,part_type,0.0_dp,RDMBias) 
 !   Here we convert nJ from a det back to an excitor.
    IC = FindBitExcitLevel(iLutHF, S%iLutnJ(:), nEl)
    iSpawnAmp=iSpawnAmp*ExcitToDetSign(iLutHF,S%iLutnJ,IC)

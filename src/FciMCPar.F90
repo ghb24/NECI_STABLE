@@ -1220,7 +1220,7 @@ MODULE FciMCParMod
         integer, intent(in), optional :: WalkerNumber
         ! 'type' of the particle - i.e. real/imag
         integer, intent(in) :: part_type
-        real(dp) , intent(in) :: RDMBiasFacCurr
+        real(dp) , intent(in) , optional :: RDMBiasFacCurr
         integer :: proc, flags, j, BiasFac
         logical :: parent_init, tRDMStoreParent
 
