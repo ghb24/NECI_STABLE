@@ -3581,7 +3581,7 @@ MODULE FciMCParMod
                 write(unit_splitprojEHist,"(G17.9)") AllENumCycHist(iProjEBins)
             endif
 
-            write(fcimcstats_unit,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,&
+            write(fcimcstats_unit,"(I12,G16.7,I10,G16.7,I13,3I15,3G17.9,2I10,&
                                   &G13.5,I12,G13.5,G17.5,I13,G13.5,10G17.9)") &
                 Iter + PreviousCycles, &
                 DiagSft, &
@@ -3613,7 +3613,7 @@ MODULE FciMCParMod
                 curr_S2, curr_S2_init
 
             if(tMCOutput) then
-                write (6, "(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,&
+                write (6, "(I12,G16.7,I10,G16.7,I13,3I13,3G17.9,2I10,G13.5,I12,&
                           &G13.5)") &
                     Iter + PreviousCycles, &
                     DiagSft, &
