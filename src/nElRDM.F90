@@ -112,7 +112,8 @@ MODULE nElRDMMod
                                                         &FCIQMC wavefunction."
         else
             write(6,'(A)') " Stochastically calculating the reduced density matrices from the &
-                    &FCIQMC wavefunction (incl. explicit connections to the reference determinant)."
+                            &FCIQMC wavefunction" 
+            write(6,'(A)') " (incl. explicit connections to the reference determinant)."
         endif
 
         IF(RDMExcitLevel.eq.1) THEN
@@ -510,8 +511,6 @@ MODULE nElRDMMod
                         Ind1 = ( ( (j-2) * (j-1) ) / 2 ) + i
                         Ind2 = ( ( (b-2) * (b-1) ) / 2 ) + a
                         All_aaaa_RDM(Ind1,Ind2) = Temp_RDM_Element
-                        if(Ind1.eq.Ind2) Trace_2RDM = Trace_2RDM + &
-                                                        Temp_RDM_Element
                     enddo
                     close(RDM_unit)
 
@@ -524,8 +523,6 @@ MODULE nElRDMMod
                         Ind1 = ( ( (j-1) * j ) / 2 ) + i
                         Ind2 = ( ( (b-1) * b ) / 2 ) + a
                         All_abab_RDM(Ind1,Ind2) = Temp_RDM_Element
-                        if(Ind1.eq.Ind2) Trace_2RDM = Trace_2RDM + &
-                                                        Temp_RDM_Element
                     enddo
                     close(RDM_unit)
 
@@ -2980,38 +2977,43 @@ MODULE nElRDMMod
         real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity
         integer :: RDM_Cycles
 
-        ! All the arrays are summed into the one on processor 0.
-        CALL MPISum_inplace(aaaa_RDM(:,:))
-        CALL MPISum_inplace(abab_RDM(:,:))
-        CALL MPISum_inplace(abba_RDM(:,:))
+        ! If Iter = 0, this means we have just read in the TwoRDM_POPS_a*** matrices into All_a***_RDM, and 
+        ! just want to calculate the old energy.
+        ! Don't need to do all this stuff here, because a***_RDM will be empty.
+        if(Iter.ne.0) then
 
-        ! The TwoElRDM on the root is now the sum of all 'instantaneous' RDMs (summed over 
-        ! the energy update cycle).
-        ! Whereas AllTwoElRDM is accumulated over the entire run.
+            ! All the arrays are summed into the one on processor 0.
+            CALL MPISum_inplace(aaaa_RDM(:,:))
+            CALL MPISum_inplace(abab_RDM(:,:))
+            CALL MPISum_inplace(abba_RDM(:,:))
 
-        ! The AllTwoElRDM's are actually averaged over the iterations.
-        ! This is to keep the trace's etc not too large, not sure if it's the best or not.
-        RDM_Cycles =  ( Iter - IterRDMStart ) / RDMEnergyIter
-        
-        if(iProcIndex.eq.0) then
-            All_aaaa_RDM(:,:) = ( All_aaaa_RDM(:,:) * &
-                                ( real(RDM_Cycles,dp) / ( real(RDM_Cycles,dp) + 1.0_dp ) ) ) &
-                                + ( aaaa_RDM(:,:) / ( real(RDM_Cycles,dp) + 1.0_dp ) )
-            All_abab_RDM(:,:) = ( All_abab_RDM(:,:) * &
-                                ( real(RDM_Cycles,dp) / ( real(RDM_Cycles,dp) + 1.0_dp ) ) ) &
-                                + ( abab_RDM(:,:) / ( real(RDM_Cycles,dp) + 1.0_dp ) )
-            All_abba_RDM(:,:) = ( All_abba_RDM(:,:) * &
-                                ( real(RDM_Cycles,dp) / ( real(RDM_Cycles,dp) + 1.0_dp ) ) ) &
-                                + ( abba_RDM(:,:) / ( real(RDM_Cycles,dp) + 1.0_dp ) )
-        endif
+            ! The TwoElRDM on the root is now the sum of all 'instantaneous' RDMs (summed over 
+            ! the energy update cycle).
+            ! Whereas AllTwoElRDM is accumulated over the entire run.
 
-        AllAccumRDMNorm_Inst = 0.D0
-        if(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) then
-!            CALL MPISum_inplace(AccumRDMNorm)
-            CALL MPIReduce(AccumRDMNorm_Inst,MPI_SUM,AllAccumRDMNorm_Inst)
-            AllAccumRDMNorm = ( AllAccumRDMNorm * &
-                                ( real(RDM_Cycles,dp) / ( real(RDM_Cycles,dp) + 1.0_dp ) ) ) &
-                                + ( AllAccumRDMNorm_Inst / ( real(RDM_Cycles,dp) + 1.0_dp ) )
+            ! The AllTwoElRDM's are actually averaged over the iterations.
+            ! This is to keep the trace's etc not too large, not sure if it's the best or not.
+            RDM_Cycles =  ( Iter - IterRDMStart ) / RDMEnergyIter
+            
+            if(iProcIndex.eq.0) then
+                All_aaaa_RDM(:,:) = ( All_aaaa_RDM(:,:) * &
+                                    ( real(RDM_Cycles,dp) / ( real(RDM_Cycles,dp) + 1.0_dp ) ) ) &
+                                    + ( aaaa_RDM(:,:) / ( real(RDM_Cycles,dp) + 1.0_dp ) )
+                All_abab_RDM(:,:) = ( All_abab_RDM(:,:) * &
+                                    ( real(RDM_Cycles,dp) / ( real(RDM_Cycles,dp) + 1.0_dp ) ) ) &
+                                    + ( abab_RDM(:,:) / ( real(RDM_Cycles,dp) + 1.0_dp ) )
+                All_abba_RDM(:,:) = ( All_abba_RDM(:,:) * &
+                                    ( real(RDM_Cycles,dp) / ( real(RDM_Cycles,dp) + 1.0_dp ) ) ) &
+                                    + ( abba_RDM(:,:) / ( real(RDM_Cycles,dp) + 1.0_dp ) )
+            endif
+
+            AllAccumRDMNorm_Inst = 0.D0
+            if(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) then
+                CALL MPIReduce(AccumRDMNorm_Inst,MPI_SUM,AllAccumRDMNorm_Inst)
+                AllAccumRDMNorm = ( AllAccumRDMNorm * &
+                                    ( real(RDM_Cycles,dp) / ( real(RDM_Cycles,dp) + 1.0_dp ) ) ) &
+                                    + ( AllAccumRDMNorm_Inst / ( real(RDM_Cycles,dp) + 1.0_dp ) )
+            endif
         endif
 
         if(iProcIndex.eq.0) then
