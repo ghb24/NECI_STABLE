@@ -580,8 +580,9 @@ MODULE nElRDMMod
 ! Brr has the orbital numbers in order of energy... i.e Brr(2) = the orbital index 
 ! with the second lowest energy.
 ! Brr is always in spin orbitals.
+!        write(6,*) 'BRR'
 !        do i=1,nBasis
-!            WRITE(6,*) BRR(i)
+!            WRITE(6,*) i, BRR(i), INT(G1(BRR(i))%sym%S,4)
 !        enddo
 !        CALL FLUSH(6)
 !        CALL Stop_All('','')
@@ -598,7 +599,7 @@ MODULE nElRDMMod
                 SymLabelList2(i)=BRR(2*i)
                 SymOrbs(i)=INT(G1(BRR(2*i))%sym%S,4)
                 SymLabelList2(i+SpatOrbs)=BRR((2*i)-1)
-                SymOrbs(i+SpatOrbs)=INT(G1(BRR(2*i)-1)%sym%S,4)
+                SymOrbs(i+SpatOrbs)=INT(G1(BRR((2*i)-1))%sym%S,4)
             else
                 SymLabelList2(i)=gtID(BRR(2*i))
                 SymOrbs(i)=INT(G1(BRR(2*i))%sym%S,4)
@@ -608,6 +609,7 @@ MODULE nElRDMMod
                 ! be the same as the spatial orbital.
             endif
         enddo
+
         call sort (SymOrbs(1:SpatOrbs), SymLabelList2(1:SpatOrbs))
         ! Sorts SymLabelList2 according to the order of SymOrbs (i.e. in terms of symmetry). 
         if(tStoreSpinOrbs) &
@@ -638,20 +640,24 @@ MODULE nElRDMMod
             endif
             do i=1,SpatOrbs
                 if(tStoreSpinOrbs) then
-                    Symi=INT(G1(SymLabelList2(i))%sym%S,4)
-                    Symi2=INT(G1(SymLabelList2(i+SpatOrbs))%sym%S,4)
+                    Symi=SymOrbs(i)
+                    Symi2=SymOrbs(i + SpatOrbs)
                 else
-                    Symi=INT(G1(2*SymLabelList2(i))%sym%S,4)
+                    Symi=SymOrbs(i)
                 endif
                 SymLabelCounts2(2,(Symi+1))= SymLabelCounts2(2,(Symi+1))+1
                 IF(Symi.ne.SymCurr) THEN
-                    SymLabelCounts2(1,(Symi+1))=i
+                    do j = SymCurr + 1, Symi
+                        SymLabelCounts2(1,(j+1))=i
+                    enddo
                     SymCurr=Symi
                 ENDIF
                 if(tStoreSpinOrbs) then
                     SymLabelCounts2(2,(Symi2+9))= SymLabelCounts2(2,(Symi2+9))+1
                     IF(Symi2.ne.SymCurr2) THEN
-                        SymLabelCounts2(1,(Symi2+9))=i
+                        do j = SymCurr2 + 1, Symi2
+                            SymLabelCounts2(1,(j+9))=i + SpatOrbs
+                        enddo
                         SymCurr2=Symi2
                     ENDIF
                 endif
@@ -3766,7 +3772,8 @@ MODULE nElRDMMod
         REAL(dp) :: SumDiagTrace
         REAL(dp) , ALLOCATABLE :: WORK2(:),EvaluesSym(:),NOMSym(:,:)
         INTEGER :: ierr,i,j,spin,Sym,LWORK2,WORK2Tag,SymStartInd,NoSymBlock
-        INTEGER :: EvaluesSymTag,NOMSymTag,k
+        INTEGER :: EvaluesSymTag,NOMSymTag,k,MaxSym
+        LOGICAL :: tDiffSym
         CHARACTER(len=*), PARAMETER :: this_routine='DiagRDM'
 
 ! Test that we're not breaking symmetry.
@@ -3774,14 +3781,27 @@ MODULE nElRDMMod
         SumTrace=0.D0
         do i=1,NoOrbs
             do j=1,NoOrbs
-                IF((INT(G1(2*SymLabelList2(i))%sym%S,4).ne.&
-                        INT(G1(2*SymLabelList2(j))%sym%S,4))) THEN
+                tDiffSym = .false.
+                if(tStoreSpinOrbs) then
+                    IF((INT(G1(SymLabelList2(i))%sym%S,4).ne.&
+                        INT(G1(SymLabelList2(j))%sym%S,4))) tDiffSym = .true.
+                else
+                    IF((INT(G1(2*SymLabelList2(i))%sym%S,4).ne.&
+                        INT(G1(2*SymLabelList2(j))%sym%S,4))) tDiffSym = .true.
+                endif
+                if(tDiffSym) then
                     IF(ABS(NatOrbMat(i,j)).ge.1.0E-15) THEN
                         WRITE(6,'(6A8,A20)') 'i','j','Label i','Label j','Sym i',&
                                                                 'Sym j','Matrix value'
-                        WRITE(6,'(6I3,F40.20)') i,j,SymLabelList2(i),SymLabelList2(j),&
-                                INT(G1(2*SymLabelList2(i))%sym%S,4),&
-                                INT(G1(2*SymLabelList2(j))%sym%S,4),NatOrbMat(i,j)
+                        if(tStoreSpinOrbs) then                                                              
+                            WRITE(6,'(6I3,F40.20)') i,j,SymLabelList2(i),SymLabelList2(j),&
+                                    INT(G1(SymLabelList2(i))%sym%S,4),&
+                                    INT(G1(SymLabelList2(j))%sym%S,4),NatOrbMat(i,j)
+                        else
+                            WRITE(6,'(6I3,F40.20)') i,j,SymLabelList2(i),SymLabelList2(j),&
+                                    INT(G1(2*SymLabelList2(i))%sym%S,4),&
+                                    INT(G1(2*SymLabelList2(j))%sym%S,4),NatOrbMat(i,j)
+                        endif
                         IF(tUseMP2VarDenMat) THEN
                             WRITE(6,*) '**WARNING** - There is a non-zero NatOrbMat &
                             &value between orbitals of different symmetry.'
@@ -3813,7 +3833,12 @@ MODULE nElRDMMod
 ! the symmetry labels are all that are relevant and these are unaffected.
         Sym=0
         LWORK2=-1
-        do while (Sym.le.7)
+        if(tStoreSpinOrbs) then
+            MaxSym = 15
+        else
+            MaxSym = 7
+        endif
+        do while (Sym.le.MaxSym)
 
             NoSymBlock=SymLabelCounts2(2,Sym+1)
 
@@ -4283,12 +4308,6 @@ MODULE nElRDMMod
 !This prints out a new FCIDUMP file in the same format as the old one.
         implicit none
         INTEGER :: i,j,k,l,iunit
-
-        IF(tStoreSpinOrbs) THEN
-            NoOrbs = nBasis
-        ELSE
-            NoOrbs = nBasis/2
-        ENDIF
 
 !        PrintROFCIDUMP_Time%timer_name='PrintROFCIDUMP'
 !        CALL set_timer(PrintROFCIDUMP_Time,30)
