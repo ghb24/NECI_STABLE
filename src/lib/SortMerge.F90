@@ -17,9 +17,9 @@
 ! a linear search would be quicker.
     SUBROUTINE MergeListswH(nlist1,nlist2,list2)
         USE FciMCParMOD , only : Hii,CurrentDets,CurrentH
-        use FciMCData , only : tFillingStochRDMonFly
+        use FciMCData , only : tFillingStochRDMonFly, InstNoatHF
         use SystemData, only: nel, tHPHF,tMomInv
-        use bit_reps, only: NIfTot, NIfDBO, decode_bit_det
+        use bit_reps, only: NIfTot, NIfDBO, decode_bit_det, extract_sign
         USE Determinants , only : get_helement
         use DetBitOps, only: DetBitEQ
         use hphf_integrals, only: hphf_diag_helement
@@ -75,6 +75,8 @@
            endif
            HDiag=(REAL(HDiagTemp,dp))-Hii
            CurrentH(1,ips+i-1)=HDiag
+           if(HDiag.eq.0.0_dp) &
+               call extract_sign(CurrentDets(:,ips+i-1),InstNoatHF)
            if(tFillingStochRDMonFly) CurrentH(2:3,ips+i-1) = 0.D0
 ! Next element to be inserted must be smaller than DetCurr, so must be inserted
 ! at (at most) at ips-1.

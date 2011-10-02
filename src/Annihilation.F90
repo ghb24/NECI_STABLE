@@ -1155,6 +1155,7 @@ MODULE AnnihilationMod
                     if (DetBitEQ(CurrentDets(:,i), iLutHF, NIfDBO)) then
 !We know we are at HF - HDiag=0
                         HDiag=0.D0
+                        call extract_sign(CurrentDets(:,i),InstNoatHF)
                     else
                         call decode_bit_det (nJ, CurrentDets(:,i))
                         if (tHPHF) then

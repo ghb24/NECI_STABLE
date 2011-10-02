@@ -1363,6 +1363,7 @@ MODULE FciMCParMod
 
         IF((.not.tSinglePartPhase).and.((Iter - VaryShiftIter).eq.(IterRDMonFly+1))) THEN
             IterRDMStart = Iter
+            IterRDM_HF = Iter
             !We have reached the iteration where we want to start filling the RDM.
             if(tExplicitAllRDM) then
                 tFillingExplicRDMonFly = .true.
@@ -3124,7 +3125,7 @@ MODULE FciMCParMod
                     CurrentH(2:3,:) = 0.0_dp
                     AvNoatHF = 0.0_dp
                     InstNoatHF(1) = -InstNoatHF(1)
-                    IterRDMonFly = Iter + 1
+                    IterRDM_HF = Iter + 1
                     call zero_rdms()
                 endif
  
@@ -3744,9 +3745,14 @@ MODULE FciMCParMod
                 ! so we can just use the instantaneous populations. 
                 AvNoatHF = real(InstNoatHF(1),dp)
             else
-                Prev_AvNoatHF = AvNoatHF
-                AvNoatHF = ( (real((Iter - IterRDMStart),dp) * Prev_AvNoatHF) &
-                        + real(InstNoatHF(1),dp) ) / real((Iter - IterRDMStart) + 1,dp)
+                if(InstNoatHF(1).eq.0) then
+                    IterRDM_HF = Iter + 1 
+                    AvNoatHF = 0.0_dp
+                else
+                    Prev_AvNoatHF = AvNoatHF
+                    AvNoatHF = ( (real((Iter - IterRDM_HF),dp) * Prev_AvNoatHF) &
+                        + real(InstNoatHF(1),dp) ) / real((Iter - IterRDM_HF) + 1,dp)
+                endif
             endif
         endif
         HFInd = 0            
