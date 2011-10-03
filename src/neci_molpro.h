@@ -18,4 +18,8 @@
 #define PARALLEL
 #endif
 
+#ifndef MOLPRO_f2003
+#define __ISO_C_HACK
+#endif
+
 #endif /* MOLPRO */
