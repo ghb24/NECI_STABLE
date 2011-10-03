@@ -43,7 +43,7 @@ MODULE FciMCData
       REAL(dp) :: SumSigns, SumSpawns, AvNoatHF
       LOGICAL :: tFillingStochRDMonFly, tFillingExplicRDMonFly, tGhostChild
       integer :: Spawned_Parts_Zero, HFInd, NCurrH, IterRDMStart, IterRDM_HF
-      integer(int64), dimension(lenof_sign) :: InstNoatHf
+      integer, dimension(lenof_sign) :: InstNoatHf
 
       INTEGER(KIND=n_int) , ALLOCATABLE :: TempSpawnedParts(:,:)
       INTEGER :: TempSpawnedPartsTag, TempSpawnedPartsInd
