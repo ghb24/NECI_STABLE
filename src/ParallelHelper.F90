@@ -109,7 +109,7 @@ end module
 subroutine mpibarrier_c (error) bind(c)
     use ParallelHelper, only: MPIBarrier
     use constants, only: MPIArg
-    use, intrinsic :: iso_c_binding
+    use iso_c_hack
     implicit none
     integer(c_int), intent(inout) :: error
     integer :: ierr

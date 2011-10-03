@@ -409,7 +409,7 @@ MODULE FciMCParMod
     ! These wrapper functions exist only to enforce interfaces at compile
     ! time. And to contain the access to the (slightly hackish) assign_proc
     subroutine set_excit_generator (gen)
-        use, intrinsic :: iso_c_binding
+        use iso_c_hack
         implicit none
         interface
             subroutine gen (nI, iLutI, nJ, iLutJ, exFlag, IC, ex, tParity, &
@@ -439,7 +439,7 @@ MODULE FciMCParMod
     end subroutine
 
     subroutine set_attempt_create (attempt_create)
-        use, intrinsic :: iso_c_binding
+        use iso_c_hack
         implicit none
         interface
             function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
@@ -482,7 +482,7 @@ MODULE FciMCParMod
     end subroutine
 
     subroutine set_get_spawn_helement (get_spawn_helement)
-        use, intrinsic :: iso_c_binding
+        use iso_c_hack
         implicit none
         interface
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
@@ -504,7 +504,7 @@ MODULE FciMCParMod
     end subroutine
 
     subroutine set_encode_child (encode_child)
-        use, intrinsic :: iso_c_binding
+        use iso_c_hack
         implicit none
         interface
             subroutine encode_child (ilutI, ilutJ, ic, ex)
@@ -538,7 +538,7 @@ MODULE FciMCParMod
     end subroutine
 
     subroutine set_new_child_stats (new_child_stats)
-        use, intrinsic :: iso_c_binding
+        use iso_c_hack
         implicit none
         interface
             subroutine new_child_stats (iter_data, iLutI, nJ, iLutJ, ic, &
@@ -561,7 +561,7 @@ MODULE FciMCParMod
     end subroutine
 
     subroutine set_attempt_die (attempt_die)
-        use, intrinsic :: iso_c_binding
+        use iso_c_hack
         implicit none
         interface
             function attempt_die (nI, Kii, wSign) result(ndie)
@@ -579,7 +579,7 @@ MODULE FciMCParMod
     end subroutine
 
     subroutine set_fcimc_iter_data (data_struct)
-        use, intrinsic :: iso_c_binding
+        use iso_c_hack
         implicit none
         type(fcimc_iter_data), target :: data_struct
 

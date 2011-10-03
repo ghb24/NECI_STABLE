@@ -28,7 +28,7 @@ module Integrals
             !    i,j,k,l: orbital indices. These refer to spin orbitals in
             !      unrestricted calculations and spatial orbitals in restricted
             !      calculations.
-            use, intrinsic :: iso_c_binding
+            use iso_c_hack
             use constants, only: dp
             implicit none
             type(c_ptr), intent(in), value :: fn

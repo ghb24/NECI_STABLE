@@ -1,10 +1,10 @@
 subroutine stop_all_c (sub_name, error_msg) bind(c)
-    use, intrinsic :: iso_c_binding
+    use iso_c_hack
     implicit none
 
     interface
         pure function strlen_wrap (str) result(len) bind(c)
-            use, intrinsic :: iso_c_binding
+            use iso_c_hack
             implicit none
             character(c_char), intent(in) :: str(*)
             integer(c_int) :: len
