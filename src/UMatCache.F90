@@ -1571,7 +1571,7 @@ function get_umat_el (fn, i, j, k, l) result(hel)
     !    i,j,k,l: orbital indices. These refer to spin orbitals in
     !      unrestricted calculations and spatial orbitals in restricted
     !      calculations.
-    use, intrinsic :: iso_c_binding
+    use iso_c_hack
     use constants, only: dp
     use IntegralsData, only: ptr_getumatel_2
     implicit none
@@ -1579,7 +1579,7 @@ function get_umat_el (fn, i, j, k, l) result(hel)
     interface
         function fn (i, j, k, l, fn2) result(hel)
             use constants, only: dp
-            use, intrinsic :: iso_c_binding
+            use iso_c_hack
             implicit none
             integer, intent(in) :: i, j, k, l
             type(c_ptr), intent(in), value :: fn2

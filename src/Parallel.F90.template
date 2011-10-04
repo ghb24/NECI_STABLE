@@ -1028,7 +1028,7 @@ supermodule Parallel
    IMPLICIT NONE
    interface
         subroutine gethostname(nm, sz) bind(c)
-            use, intrinsic :: iso_c_binding
+            use iso_c_hack
             implicit none
             integer(c_size_t), value :: sz
             character(kind=c_char), intent(out) :: nm
@@ -1199,7 +1199,7 @@ end subroutine
 !       irrespective of the logical node structure.
 
 subroutine MPINodes(tUseProcsAsNodes)
-   use, intrinsic :: iso_c_binding
+   use iso_c_hack
    use CalcData, only : iLogicalNodeSize
    implicit none
    logical, intent(in) :: tUseProcsAsNodes !Set if we use Procs as Nodes.

@@ -179,7 +179,7 @@ alloc_str = dims(1), dims(2), dims(3)
 
 
 module shared_alloc
-    use, intrinsic :: iso_c_binding
+    use iso_c_hack
     use constants
     use HElem
     use ParallelHelper, only: iProcIndex
@@ -190,7 +190,7 @@ module shared_alloc
     
     interface
         subroutine alloc_shared_worker (nm, pt, sz, proc) bind(c)
-            use, intrinsic :: iso_c_binding
+            use iso_c_hack
             implicit none
             character(c_char), intent(in) :: nm
             type(c_ptr), intent(inout) :: pt
@@ -198,10 +198,10 @@ module shared_alloc
             integer(c_int), value :: proc
         end subroutine
         subroutine dealloc_shared_worker (ptr) bind(c)
-            use, intrinsic :: iso_c_binding
+            use iso_c_hack
             use constants, only: int32, int64
             implicit none
-#ifdef __PATHSCALE__
+#if defined(__PATHSCALE__) || defined(__ISO_C_HACK)
 #ifdef POINTER8
             integer(int64), value :: ptr
 #else
@@ -212,12 +212,12 @@ module shared_alloc
 #endif
         end subroutine
         subroutine shm_unlink_shared_worker (ptr) bind(c)
-            use, intrinsic :: iso_c_binding
+            use iso_c_hack
             implicit none
             type(c_ptr), value :: ptr
         end subroutine
         function test_shared_permissions () result(bAvail) bind(c)
-            use, intrinsic :: iso_c_binding
+            use iso_c_hack
             implicit none
 #if defined __PGI__ || defined __G95__
             logical :: bAvail
@@ -359,7 +359,7 @@ contains
         %(type)s, pointer :: pt1
 
         ! Sigh, a hack to get pathscale to work
-#ifdef __PATHSCALE__
+#if defined(__PATHSCALE__) || defined(__ISO_C_HACK)
 #ifdef POINTER8
         integer(int64) :: tmp
 #else
@@ -373,7 +373,7 @@ contains
         ! be a scalar variable.
         pt1 => ptr(lbound(ptr,1) %(elem1)s)
 
-#ifdef __PATHSCALE__
+#if defined(__PATHSCALE__) || defined(__ISO_C_HACK)
         tmp = loc(ptr(:%(elem1)s))
 #else
         tmp = c_loc(pt1)
