@@ -179,6 +179,8 @@ MODULE PopsfileMod
         call MPISum(TempCurrWalkers,1,AllCurrWalkers)
         if(iProcIndex.eq.Root) then
             if((iWeightPopRead.eq.0).and.(AllCurrWalkers.ne.EndPopsList)) then
+                write(6,*) "AllCurrWalkers: ",AllCurrWalkers
+                write(6,*) "EndPopsList: ",EndPopsList
                 call Stop_All(this_routine,"Not all walkers accounted for when reading in")
             endif
         endif

@@ -194,7 +194,7 @@ MODULE FciMCParMod
                 CALL PerformCCMCCycPar()
             else
                 if (.not. (tSpinProject .and. spin_proj_interval == -1)) then
-                    call sub_dispatcher_9 (PerformFciMCycPar, &
+                    call sub_dispatcher_10 (PerformFciMCycPar, &
                                            ptr_excit_generator, &
                                            ptr_attempt_create, &
                                            ptr_get_spawn_helement, &
@@ -448,7 +448,7 @@ MODULE FciMCParMod
     ! These wrapper functions exist only to enforce interfaces at compile
     ! time. And to contain the access to the (slightly hackish) assign_proc
     subroutine set_excit_generator (gen)
-        use, intrinsic :: iso_c_binding
+        use iso_c_hack
         implicit none
         interface
             subroutine gen (nI, iLutI, nJ, iLutJ, exFlag, IC, ex, tParity, &
@@ -478,7 +478,7 @@ MODULE FciMCParMod
     end subroutine
 
     subroutine set_attempt_create (attempt_create)
-        use, intrinsic :: iso_c_binding
+        use iso_c_hack
         implicit none
         interface
             function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
@@ -523,7 +523,7 @@ MODULE FciMCParMod
     end subroutine
 
     subroutine set_get_spawn_helement (get_spawn_helement)
-        use, intrinsic :: iso_c_binding
+        use iso_c_hack
         implicit none
         interface
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
@@ -545,7 +545,7 @@ MODULE FciMCParMod
     end subroutine
 
     subroutine set_encode_child (encode_child)
-        use, intrinsic :: iso_c_binding
+        use iso_c_hack
         implicit none
         interface
             subroutine encode_child (ilutI, ilutJ, ic, ex)
@@ -579,7 +579,7 @@ MODULE FciMCParMod
     end subroutine
 
     subroutine set_new_child_stats (new_child_stats)
-        use, intrinsic :: iso_c_binding
+        use iso_c_hack
         implicit none
         interface
             subroutine new_child_stats (iter_data, iLutI, nJ, iLutJ, ic, &
@@ -602,7 +602,7 @@ MODULE FciMCParMod
     end subroutine
 
     subroutine set_attempt_die (attempt_die)
-        use, intrinsic :: iso_c_binding
+        use iso_c_hack
         implicit none
         interface
             function attempt_die (nI, Kii, wSign) result(ndie)
@@ -620,7 +620,7 @@ MODULE FciMCParMod
     end subroutine
 
     subroutine set_fcimc_iter_data (data_struct)
-        use, intrinsic :: iso_c_binding
+        use iso_c_hack
         implicit none
         type(fcimc_iter_data), target :: data_struct
 
@@ -3988,7 +3988,7 @@ MODULE FciMCParMod
                 write(unit_splitprojEHist,"(G17.9)") AllENumCycHist(iProjEBins)
             endif
 
-            write(fcimcstats_unit,"(I12,G16.7,I10,G16.7,I12,3I13,3G17.9,2I10,&
+            write(fcimcstats_unit,"(I12,G16.7,I10,G16.7,I13,3I15,3G17.9,2I10,&
                                   &G13.5,I12,G13.5,G17.5,I13,G13.5,10G17.9)") &
                 Iter + PreviousCycles, &
                 DiagSft, &
@@ -4020,7 +4020,7 @@ MODULE FciMCParMod
                 curr_S2, curr_S2_init
 
             if(tMCOutput) then
-                write (6, "(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,&
+                write (6, "(I12,G16.7,I10,G16.7,I13,3I13,3G17.9,2I10,G13.5,I12,&
                           &G13.5)") &
                     Iter + PreviousCycles, &
                     DiagSft, &

@@ -1,5 +1,5 @@
 MODULE FciMCData
-      use, intrinsic :: iso_c_binding
+      use iso_c_hack
       use SystemData, only: BasisFN
       use constants, only: dp, int64, n_int, lenof_sign, sp
       use global_utilities

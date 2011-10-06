@@ -6,7 +6,7 @@ subroutine assign_proc (ptr, proc)
 
     ! In:   proc - A function pointer (effectively). n.b. passed by value.
     ! Out:  A type(c_ptr) which
-    use, intrinsic :: iso_c_binding
+    use iso_c_hack
     use constants, only: int32, int64
     implicit none
 
@@ -38,7 +38,7 @@ subroutine assign_data (ptr, proc)
 
     ! In:   proc - A function pointer (effectively). n.b. passed by value.
     ! Out:  A type(c_ptr) which
-    use, intrinsic :: iso_c_binding
+    use iso_c_hack
     use constants, only: int32, int64
     implicit none
 
@@ -61,12 +61,12 @@ subroutine assign_data (ptr, proc)
 end subroutine
 
 subroutine sub_dispatcher_1 (fn, arg1)
-    use, intrinsic :: iso_c_binding
+    use iso_c_hack
     implicit none
 
     interface
         subroutine fn (arg)
-            use, intrinsic :: iso_c_binding
+            use iso_c_hack
             implicit none
             type(c_ptr), intent(in), value :: arg
         end subroutine
@@ -77,22 +77,23 @@ subroutine sub_dispatcher_1 (fn, arg1)
     call fn(arg1)
 end subroutine
 
-subroutine sub_dispatcher_9 (fn, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9)
+subroutine sub_dispatcher_10 (fn, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10)
     use, intrinsic :: iso_c_binding
     implicit none
 
     interface
-        subroutine fn (arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9)
+        subroutine fn (arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10)
             use, intrinsic :: iso_c_binding
+            use iso_c_hack
             implicit none
             type(c_ptr), intent(in), value :: arg1, arg2, arg3, arg4, arg5
-            type(c_ptr), intent(in), value :: arg6, arg7, arg8, arg9
+            type(c_ptr), intent(in), value :: arg6, arg7, arg8, arg9, arg10
         end subroutine
     end interface
 
-    type(c_ptr), intent(in) :: arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9
+    type(c_ptr), intent(in) :: arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10
 
-    call fn(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9)
+    call fn(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10)
 end subroutine
 
 subroutine print_pointer (ptr)
