@@ -116,6 +116,9 @@ MODULE PopsfileMod
             CALL LogMemAlloc('BatchRead',MaxSendIndex*(NIfTot+1),size_n_int,this_routine,BatchReadTag,ierr)
         endif
 
+        write(6,*) "ReadBatch: ",ReadBatch
+        write(6,*) "MaxSendIndex: ",MaxSendIndex
+
         CurrHF=0        !Number of HF walkers on each node.
         CurrParts=0     !Number of walkers on each node.
         CurrWalkers=0   !Number of determinants on each node.
@@ -175,10 +178,13 @@ MODULE PopsfileMod
         if(iProcIndex.eq.Root) close(iunit)
 
         !Test we have still got all determinants
+        write(6,*) "CurrWalkers: ",CurrWalkers
         TempCurrWalkers=int(CurrWalkers,int64)
         call MPISum(TempCurrWalkers,1,AllCurrWalkers)
         if(iProcIndex.eq.Root) then
             if((iWeightPopRead.eq.0).and.(AllCurrWalkers.ne.EndPopsList)) then
+                write(6,*) "AllCurrWalkers: ", AllCurrWalkers
+                write(6,*) "EndPopsList: ", EndPopsList
                 call Stop_All(this_routine,"Not all walkers accounted for when reading in")
             endif
         endif

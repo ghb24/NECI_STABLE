@@ -3454,6 +3454,7 @@ MODULE nElRDMMod
             ! Obviously this 'instantaneous' energy is actually accumulated between energy 
             ! print outs.
             WRITE(Energies_unit, "(I31,2F30.15)") Iter+PreviousCycles, RDMEnergy_Inst, RDMEnergy
+            call flush(Energies_unit)
 
             if(tFinalRDMEnergy) then
                 write(6,*) 'Trace of 2-el-RDM before normalisation : ',Trace_2RDM
