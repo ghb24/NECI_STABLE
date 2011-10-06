@@ -4110,8 +4110,8 @@ MODULE nElRDMMod
             FOCKDiagSumHF=FOCKDiagSumHF+Arr(a,2)
         enddo
 
-        WRITE(6,*) 'Sum of the fock matrix diagonal elements in the HF basis set = ',&
-                                                                        FOCKDiagSumHF
+!        WRITE(6,*) 'Sum of the fock matrix diagonal elements in the HF basis set = ',&
+!                                                                        FOCKDiagSumHF
 ! Then calculate the fock matrix in the transformed basis, 
 ! and the sum of the new diagonal elements.
 ! Our Arr in spin orbitals.
@@ -4147,8 +4147,8 @@ MODULE nElRDMMod
         ! If we are truncation the virtual space, only the unfrozen entries will 
         ! be transformed.
 
-        WRITE(6,*) 'Sum of the fock matrix diagonal elements in the transformed &
-                        &basis set = ',FOCKDiagSumNew
+!        WRITE(6,*) 'Sum of the fock matrix diagonal elements in the transformed &
+!                        &basis set = ',FOCKDiagSumNew
 
 !        WRITE(6,*) 'The fock matrix for the transformed orbitals'
 !        do j=1,NoOrbs

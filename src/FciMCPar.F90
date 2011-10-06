@@ -194,7 +194,7 @@ MODULE FciMCParMod
                 CALL PerformCCMCCycPar()
             else
                 if (.not. (tSpinProject .and. spin_proj_interval == -1)) then
-                    call sub_dispatcher_10 (PerformFciMCycPar, &
+                    call sub_dispatcher_9 (PerformFciMCycPar, &
                                            ptr_excit_generator, &
                                            ptr_attempt_create, &
                                            ptr_get_spawn_helement, &
