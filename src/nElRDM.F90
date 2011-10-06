@@ -3649,6 +3649,7 @@ MODULE nElRDMMod
         implicit none
         integer :: i, j, ierr, Evalues_unit, NatOrbs_unit, jSpat, jInd
         REAL(dp) :: SumDiag, Corr_Entropy, Norm_Evalues
+        logical :: tNegEvalue
         CHARACTER(len=*), PARAMETER :: this_routine='find_nat_orb_occ_numbers'
 
         IF(iProcIndex.eq.0) THEN
@@ -3663,17 +3664,24 @@ MODULE nElRDMMod
             Evalues_unit = get_free_unit()
             OPEN(Evalues_unit,file='NO_OCC_NUMBERS',status='unknown')
             WRITE(Evalues_unit,'(A)') '# NORMALISED 1RDM EVALUES (NATURAL ORBITAL OCCUPATION NUMBERS):'
+            tNegEvalue = .false.
             do i=1,NoOrbs
                 if(tStoreSpinOrbs) then
                     WRITE(Evalues_unit,'(I6,G25.17)') i,Evalues(i)/Norm_Evalues
-                    if(Evalues(i).gt.0.D0) &
+                    if(Evalues(i).gt.0.D0) then
                         Corr_Entropy = Corr_Entropy - ( abs(Evalues(i)/ Norm_Evalues) &
                                                         * LOG(abs(Evalues(i)/ Norm_Evalues)) )
+                    else
+                        tNegEvalue = .true.
+                    endif
                 else
                     WRITE(Evalues_unit,'(I6,G25.17)') i,Evalues(i)/(2.0_dp*Norm_Evalues)
-                    if(Evalues(i).gt.0.D0) &
+                    if(Evalues(i).gt.0.D0) then
                         Corr_Entropy = Corr_Entropy - (2.0_dp * ( abs(Evalues(i)/(2.0_dp*Norm_Evalues)) &
                                                         * LOG(abs(Evalues(i)/(2.0_dp*Norm_Evalues))) ) )
+                    else
+                        tNegEvalue = .true.
+                    endif
                 endif
             enddo
             if(.not.tStoreSpinOrbs) then
@@ -3684,6 +3692,7 @@ MODULE nElRDMMod
             close(Evalues_unit)
             WRITE(6,'(A20,F30.20)') ' CORRELATION ENTROPY', Corr_Entropy
             WRITE(6,'(A33,F30.20)') ' CORRELATION ENTROPY PER ELECTRON', Corr_Entropy / real(NEl,dp) 
+            if(tNegEvalue) write(6,'(A)') ' WARNING: Negative NO occupation numbers found.'
 
             ! Write out the evectors to file.
             ! This is the matrix that transforms the molecular orbitals into the natural orbitals.
