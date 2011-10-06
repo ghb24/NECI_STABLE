@@ -78,12 +78,11 @@ subroutine sub_dispatcher_1 (fn, arg1)
 end subroutine
 
 subroutine sub_dispatcher_10 (fn, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10)
-    use, intrinsic :: iso_c_binding
+    use iso_c_hack
     implicit none
 
     interface
         subroutine fn (arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10)
-            use, intrinsic :: iso_c_binding
             use iso_c_hack
             implicit none
             type(c_ptr), intent(in), value :: arg1, arg2, arg3, arg4, arg5
