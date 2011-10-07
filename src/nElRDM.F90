@@ -61,10 +61,10 @@ MODULE nElRDMMod
         INTEGER :: Sing_ExcDjsTag,Sing_ExcDjs2Tag,aaaa_RDMTag,All_aaaa_RDMTag
         INTEGER :: Doub_ExcDjsTag,Doub_ExcDjs2Tag,UMATTempTag
         INTEGER :: Energies_unit, ActualStochSign_unit, abab_RDMTag, All_abab_RDMTag
-        INTEGER :: abba_RDMTag, All_abba_RDMTag, NoSymLabelCounts
+        INTEGER :: abba_RDMTag, All_abba_RDMTag, NoSymLabelCounts, Rho_iiTag
         REAL(dp) , ALLOCATABLE :: aaaa_RDM(:,:), abab_RDM(:,:), abba_RDM(:,:)
         REAL(dp) , ALLOCATABLE :: All_aaaa_RDM(:,:),All_abab_RDM(:,:), All_abba_RDM(:,:)
-        REAL(dp) , ALLOCATABLE :: UMATTemp(:,:)
+        REAL(dp) , ALLOCATABLE :: UMATTemp(:,:), Rho_ii(:)
         REAL(dp) :: OneEl_Gap,TwoEl_Gap, Normalisation,Trace_2RDM_Inst, Trace_2RDM, Trace_1RDM, norm
         LOGICAL :: tFinalRDMEnergy, tCalc_RDMEnergy
         type(timer), save :: nElRDM_Time, FinaliseRDM_time, RDMEnergy_time
@@ -377,8 +377,13 @@ MODULE nElRDMMod
                 ALLOCATE(Evalues(NoOrbs),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Evalues array,')
                 CALL LogMemAlloc('Evalues',NoOrbs,8,this_routine,EvaluesTag,ierr)
-                IF(ierr.ne.0) CALL Stop_All(this_routine,"Mem allocation for Evalues failed.")
                 Evalues(:)=0.D0
+
+                ALLOCATE(Rho_ii(NoOrbs),stat=ierr)
+                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Rho_ii array,')
+                CALL LogMemAlloc('Rho_ii',NoOrbs,8,this_routine,Rho_iiTag,ierr)
+                Rho_ii(:)=0.D0
+
             ENDIF
 
             ! This routine actually sets up the symmetry labels for the 1-RDM.
@@ -566,6 +571,7 @@ MODULE nElRDMMod
 ! the orbitals are ordered according to symmetry (all beta then all alpha if spin orbs).
         USE sort_mod
         USE UMatCache , only : GTID
+        USE Logging , only : tDiagRDM
         IMPLICIT NONE
         INTEGER , ALLOCATABLE :: SymOrbs(:)
         INTEGER :: LabOrbsTag, SymOrbsTag, ierr, i , j 
@@ -2744,6 +2750,7 @@ MODULE nElRDMMod
         implicit none
         INTEGER :: error
         real(dp) :: Norm_2RDM, Norm_2RDM_Inst
+        real(dp) :: Norm_1RDM, Trace_1RDM, SumN_Rho_ii
         CHARACTER(len=*), PARAMETER :: this_routine='FinaliseRDM'
 
         CALL set_timer(FinaliseRDM_Time)
@@ -2775,7 +2782,14 @@ MODULE nElRDMMod
 
 !            CALL Test_Energy_Calc()
 
-            if(tPrint1RDM) call Finalise_1e_RDM()
+            if(tPrint1RDM) then
+                call Finalise_1e_RDM()
+            elseif(tDiagRDM.and.(iProcIndex.eq.0)) then
+                call calc_1e_norms(Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
+                write(6,*) ''
+                write(6,'(A55,F30.20)') ' SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY &
+                                            &HF ORBITALS: ',SumN_Rho_ii
+            endif
 
         endif
         call MPIBarrier(error)
@@ -2798,7 +2812,7 @@ MODULE nElRDMMod
         use Logging , only : twrite_RDMs_to_read, twrite_normalised_RDMs
         implicit none
         integer :: i
-        real(dp) :: Norm_1RDM, Trace_1RDM
+        real(dp) :: Norm_1RDM, Trace_1RDM, SumN_Rho_ii
 
         AllAccumRDMNorm = 0.D0
         IF(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) &
@@ -2809,7 +2823,7 @@ MODULE nElRDMMod
         if(iProcIndex.eq.0) then 
 
             ! Find the normalisation.
-            call calc_1e_norms(Trace_1RDM, Norm_1RDM)
+            call calc_1e_norms(Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
 
             ! Write out the unnormalised, non-hermitian OneRDM_POPS.
             if(twrite_RDMs_to_read) call Write_out_1RDM(Norm_1RDM,.false.)
@@ -2824,11 +2838,13 @@ MODULE nElRDMMod
             ! Write out the final, normalised, hermitian OneRDM.                
             if(twrite_normalised_RDMs) call Write_out_1RDM(Norm_1RDM,.true.)
 
+            write(6,'(A55,F30.20)') ' SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS: ',SumN_Rho_ii
+
         endif
 
     end subroutine Finalise_1e_RDM
 
-    subroutine calc_1e_norms(Trace_1RDM, Norm_1RDM)
+    subroutine calc_1e_norms(Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
 ! We want to 'normalise' the reduced density matrices.
 ! These are not even close to being normalised at the moment, because of the way they are 
 ! calculated on the fly.
@@ -2836,15 +2852,19 @@ MODULE nElRDMMod
 ! But we know that the trace of the one electron reduced density matrix must be equal to 
 ! the number of the electrons.
 ! We can use this to find the factor we must divide the 1RDM through by.
+        USE UMatCache, only: GTID
+        use FciMCData , only : HFDet
+        USE Logging , only : tDiagRDM
         implicit none                            
-        real(dp) , intent(out) :: Trace_1RDM, Norm_1RDM
-        integer :: i
+        real(dp) , intent(out) :: Trace_1RDM, Norm_1RDM, SumN_Rho_ii
+        integer :: i, HFDet_ID, BRR_ID
 
         Trace_1RDM = 0.D0
         Norm_1RDM = 0.D0
 
         do i = 1, NoOrbs
             Trace_1RDM = Trace_1RDM + NatOrbMat(i,i)
+
         enddo
 
         IF(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) THEN
@@ -2864,6 +2884,39 @@ MODULE nElRDMMod
         !Need to multiply each element of the 1 electron reduced density matrices 
         !by NEl / Trace_1RDM,
         !and then add it's contribution to the energy.
+        
+! Want to sum the diagonal elements of the 1-RDM for the HF orbitals.
+! Given the HF orbitals, SymLabelListInv tells us their position in the 1-RDM.
+        SumN_Rho_ii = 0.0_dp
+        do i = 1, NoOrbs
+            ! Rho_ii is the diagonal elements of the 1-RDM.
+            ! Want this ordered according to the energy of the orbitals.
+            ! Brr has the orbital numbers in order of energy... i.e Brr(2) = the orbital index 
+            ! with the second lowest energy.
+            ! Brr is always in spin orbitals.
+            ! i gives the energy level, BRR gives the orbital, SymLabelListInv gives the position of 
+            ! this orbital in NatOrbMat.
+            if(tDiagRDM) then
+                if(tStoreSpinOrbs) then
+                    Rho_ii(i) = NatOrbMat(SymLabelListInv(BRR(i)),SymLabelListInv(BRR(i))) * Norm_1RDM
+                else
+                    BRR_ID = gtID(BRR(2*i))
+                    Rho_ii(i) = NatOrbMat(SymLabelListInv(BRR_ID),SymLabelListInv(BRR_ID)) * Norm_1RDM
+                endif
+            endif
+            if(i.le.NEl) then
+                if(tStoreSpinOrbs) then
+                    SumN_Rho_ii = SumN_Rho_ii + &
+                            ( NatOrbMat(SymLabelListInv(HFDet(i)),SymLabelListInv(HFDet(i))) &
+                                * Norm_1RDM )
+                else
+                    HFDet_ID = gtID(HFDet(i))
+                    SumN_Rho_ii = SumN_Rho_ii + &
+                            ( NatOrbMat(SymLabelListInv(HFDet_ID),SymLabelListInv(HFDet_ID)) &
+                                * Norm_1RDM ) / 2.0_dp
+                endif
+            endif
+        enddo
 
     end subroutine calc_1e_norms
 
@@ -3454,6 +3507,7 @@ MODULE nElRDMMod
             ! Obviously this 'instantaneous' energy is actually accumulated between energy 
             ! print outs.
             WRITE(Energies_unit, "(I31,2F30.15)") Iter+PreviousCycles, RDMEnergy_Inst, RDMEnergy
+            call flush(Energies_unit)
 
             if(tFinalRDMEnergy) then
                 write(6,*) 'Trace of 2-el-RDM before normalisation : ',Trace_2RDM
@@ -3462,7 +3516,6 @@ MODULE nElRDMMod
                 write(6,*) 'Energy contribution from the 2-RDM: ',RDMEnergy2
                 write(6,'(A64,F30.20)') ' *TOTAL ENERGY* CALCULATED USING THE *REDUCED &
                                             &DENSITY MATRICES*:',RDMEnergy
-                write(6,*) ''
                 CLOSE(Energies_unit) 
             endif
 
@@ -3641,15 +3694,13 @@ MODULE nElRDMMod
 ! Diagonalises the 1-RDM (NatOrbMat), so that after this routine NatOrbMat is the 
 ! eigenfunctions of the 1-RDM (the matrix transforming the MO's into the NOs).
 ! This also gets the NO occupation numbers (evaluse) and correlation entropy.
-        USE Logging , only : tPrintRODump, tNoNOTransform
+        USE Logging , only : tPrintRODump
         USE SystemData , only : ARR, BRR, G1
         USE RotateOrbsMod , only : FourIndInts, FourIndIntsTag
         USE RotateOrbsData , only : NoOrbs
-        USE UMatCache , only : GTID
         implicit none
-        integer :: i, j, ierr, Evalues_unit, NatOrbs_unit, jSpat, jInd
-        REAL(dp) :: SumDiag, Corr_Entropy, Norm_Evalues
-        logical :: tNegEvalue
+        integer :: ierr 
+        REAL(dp) :: SumDiag
         CHARACTER(len=*), PARAMETER :: this_routine='find_nat_orb_occ_numbers'
 
         IF(iProcIndex.eq.0) THEN
@@ -3657,86 +3708,9 @@ MODULE nElRDMMod
             ! Diagonalises the 1-RDM.  NatOrbMat goes in as the 1-RDM, comes out as the 
             ! eigenvector of the 1-RDM (the matrix transforming the MO's into the NOs).
             CALL DiagRDM(SumDiag)
-            Norm_Evalues = SumDiag/REAL(NEl)
 
-            ! Write out normalised evalues to file and calculate the correlation entropy.
-            Corr_Entropy = 0.D0
-            Evalues_unit = get_free_unit()
-            OPEN(Evalues_unit,file='NO_OCC_NUMBERS',status='unknown')
-            WRITE(Evalues_unit,'(A)') '# NORMALISED 1RDM EVALUES (NATURAL ORBITAL OCCUPATION NUMBERS):'
-            tNegEvalue = .false.
-            do i=1,NoOrbs
-                if(tStoreSpinOrbs) then
-                    WRITE(Evalues_unit,'(I6,G25.17)') i,Evalues(i)/Norm_Evalues
-                    if(Evalues(i).gt.0.D0) then
-                        Corr_Entropy = Corr_Entropy - ( abs(Evalues(i)/ Norm_Evalues) &
-                                                        * LOG(abs(Evalues(i)/ Norm_Evalues)) )
-                    else
-                        tNegEvalue = .true.
-                    endif
-                else
-                    WRITE(Evalues_unit,'(I6,G25.17)') i,Evalues(i)/(2.0_dp*Norm_Evalues)
-                    if(Evalues(i).gt.0.D0) then
-                        Corr_Entropy = Corr_Entropy - (2.0_dp * ( abs(Evalues(i)/(2.0_dp*Norm_Evalues)) &
-                                                        * LOG(abs(Evalues(i)/(2.0_dp*Norm_Evalues))) ) )
-                    else
-                        tNegEvalue = .true.
-                    endif
-                endif
-            enddo
-            if(.not.tStoreSpinOrbs) then
-                do i=1,SpatOrbs
-                    WRITE(Evalues_unit,'(I6,G25.17)') i+SpatOrbs,Evalues(i)/(2.0_dp*Norm_Evalues)
-                enddo
-            endif
-            close(Evalues_unit)
-            WRITE(6,'(A20,F30.20)') ' CORRELATION ENTROPY', Corr_Entropy
-            WRITE(6,'(A33,F30.20)') ' CORRELATION ENTROPY PER ELECTRON', Corr_Entropy / real(NEl,dp) 
-            if(tNegEvalue) write(6,'(A)') ' WARNING: Negative NO occupation numbers found.'
-
-            ! Write out the evectors to file.
-            ! This is the matrix that transforms the molecular orbitals into the natural orbitals.
-            ! Evalue(i) corresponds to Evector NatOrbsMat(1:nBasis,i)
-            ! We just want the Evalues in the same order as above, but the 1:nBasis part (corresponding 
-            ! to the molecular orbitals), needs to refer to the actual orbital labels.
-            ! Want these orbitals to preferably be in order, run through the orbital, need the position 
-            ! to find the corresponding NatOrbs element, use SymLabelListInv
-            if(.not.tNoNOTransform) then
-                NatOrbs_unit = get_free_unit()
-                OPEN(NatOrbs_unit,file='NO_TRANSFORM',status='unknown')
-                write(NatOrbs_unit,'(2A6,A20)') '#   MO','NO','Transform Coeff'
-                ! write out in terms of spin orbitals, all alpha then all beta.
-                do i = 1, NoOrbs
-                    do j = 1, nBasis
-                        ! Here i corresponds to the natural orbital, and j to the molecular orbital.
-                        ! i is actually the spin orbital in this case.
-                        if(tStoreSpinOrbs) then
-                            jInd = j
-                        else
-                            if(mod(j,2).ne.0) then
-                                jInd = gtID(j)
-                            else
-                                CYCLE
-                            endif
-                        endif
-                        if(NatOrbMat(SymLabelListInv(jInd),i).ne.0.0_dp) &
-                            write(NatOrbs_unit,'(2I6,G25.17)') j,i,NatOrbMat(SymLabelListInv(jInd),i)
-                    enddo
-                enddo
-                if(.not.tStoreSpinOrbs) then
-                    do i = 1, SpatOrbs
-                        do j = 2, nBasis, 2
-                            ! Here i corresponds to the natural orbital, and j to the molecular orbital.
-                            ! i is actually the spin orbital in this case.
-                            jSpat = gtID(j)
-                            if(NatOrbMat(SymLabelListInv(jSpat),i).ne.0.0_dp) &
-                                write(NatOrbs_unit,'(2I6,G25.17)') j,i+SpatOrbs,&
-                                                                NatOrbMat(SymLabelListInv(jSpat),i)
-                        enddo
-                    enddo
-                endif
-                close(NatOrbs_unit)
-            endif
+            ! Writes out the NO occupation numbers and evectors to files.
+            call write_evales_and_transform_mat(SumDiag)
 
             if(tPrintRODump) then                
 
@@ -3766,6 +3740,130 @@ MODULE nElRDMMod
 
     end subroutine find_nat_orb_occ_numbers
 
+    subroutine write_evales_and_transform_mat(SumDiag)
+        USE Logging , only : tNoNOTransform
+        USE RotateOrbsData , only : NoOrbs
+        USE UMatCache , only : GTID
+        implicit none
+        real(dp) , intent(in) :: SumDiag
+        integer :: i, j, Evalues_unit, NatOrbs_unit, jSpat, jInd, NO_Number
+        REAL(dp) :: Corr_Entropy, Norm_Evalues, SumN_NO_Occ
+        logical :: tNegEvalue, tWrittenEvalue
+
+        if(tStoreSpinOrbs) then
+            Norm_Evalues = SumDiag/REAL(NEl)
+        else
+            Norm_Evalues = 2.0_dp*(SumDiag/REAL(NEl))
+        endif
+
+        ! Write out normalised evalues to file and calculate the correlation entropy.
+        Corr_Entropy = 0.D0
+        Evalues_unit = get_free_unit()
+        OPEN(Evalues_unit,file='NO_OCC_NUMBERS',status='unknown')
+
+        WRITE(Evalues_unit,'(A)') '# NOs (natural orbitals) ordered by occupation number' 
+        WRITE(Evalues_unit,'(A)') '# MOs (HF orbitals) ordered by energy' 
+        WRITE(Evalues_unit,'(A1,A5,A30,A20,A30)') '#','NO','NO OCCUPATION NUMBER','MO','MO OCCUPATION NUMBER'
+        tNegEvalue = .false.
+        SumN_NO_Occ = 0.0_dp
+        NO_Number = 1
+        do i=1,NoOrbs
+            if(tStoreSpinOrbs) then
+                WRITE(Evalues_unit,'(I6,G35.17,I15,G35.17)') i,Evalues(i)/Norm_Evalues, &
+                                                                BRR(i), Rho_ii(i)
+                if(Evalues(i).gt.0.D0) then
+                    Corr_Entropy = Corr_Entropy - ( abs(Evalues(i)/ Norm_Evalues) &
+                                                    * LOG(abs(Evalues(i)/ Norm_Evalues)) )
+                else
+                    tNegEvalue = .true.
+                endif
+                if(i.le.NEl) SumN_NO_Occ = SumN_NO_Occ + (Evalues(i)/Norm_Evalues)
+            else
+                WRITE(Evalues_unit,'(I6,G35.17,I15,G35.17)') (2*i)-1,Evalues(i)/Norm_Evalues, &
+                                                            BRR((2*i)-1), Rho_ii(i)/2.0_dp
+                if(Evalues(i).gt.0.D0) then
+                    Corr_Entropy = Corr_Entropy - (2.0_dp * ( abs(Evalues(i)/Norm_Evalues) &
+                                                    * LOG(abs(Evalues(i)/Norm_Evalues)) ) )
+                else
+                    tNegEvalue = .true.
+                endif
+                WRITE(Evalues_unit,'(I6,G35.17,I15,G35.17)') 2*i,Evalues(i)/Norm_Evalues, &
+                                                            BRR(2*i), Rho_ii(i)/2.0_dp
+                if(i.le.(NEl/2)) SumN_NO_Occ = SumN_NO_Occ + (2.0_dp * (Evalues(i)/Norm_Evalues))
+            endif
+        enddo
+        close(Evalues_unit)
+
+        write(6,'(A45,F30.20)') ' SUM OF THE N LARGEST NO OCCUPATION NUMBERS: ',SumN_NO_Occ
+   
+        WRITE(6,'(A20,F30.20)') ' CORRELATION ENTROPY', Corr_Entropy
+        WRITE(6,'(A33,F30.20)') ' CORRELATION ENTROPY PER ELECTRON', Corr_Entropy / real(NEl,dp) 
+        if(tNegEvalue) write(6,'(A)') ' WARNING: Negative NO occupation numbers found.'
+
+        ! Write out the evectors to file.
+        ! This is the matrix that transforms the molecular orbitals into the natural orbitals.
+        ! Evalue(i) corresponds to Evector NatOrbsMat(1:nBasis,i)
+        ! We just want the Evalues in the same order as above, but the 1:nBasis part (corresponding 
+        ! to the molecular orbitals), needs to refer to the actual orbital labels.
+        ! Want these orbitals to preferably be in order, run through the orbital, need the position 
+        ! to find the corresponding NatOrbs element, use SymLabelListInv
+        if(.not.tNoNOTransform) then
+            NatOrbs_unit = get_free_unit()
+            OPEN(NatOrbs_unit,file='NO_TRANSFORM',status='unknown')
+            write(NatOrbs_unit,'(2A6,2A30)') '#   MO','NO','Transform Coeff','NO OCC NUMBER'
+            ! write out in terms of spin orbitals, all alpha then all beta.
+            NO_Number = 1
+            do i = 1, NoOrbs
+                tWrittenEvalue = .false.
+                do j = 1, nBasis
+                    ! Here i corresponds to the natural orbital, and j to the molecular orbital.
+                    ! i is actually the spin orbital in this case.
+                    if(tStoreSpinOrbs) then
+                        jInd = j
+                    else
+                        if(mod(j,2).ne.0) then
+                            jInd = gtID(j)
+                        else
+                            CYCLE
+                        endif
+                    endif
+                    if(tWrittenEvalue) then
+                        if(NatOrbMat(SymLabelListInv(jInd),i).ne.0.0_dp) &
+                            write(NatOrbs_unit,'(2I6,G35.17)') j,NO_Number,NatOrbMat(SymLabelListInv(jInd),i)
+                    else
+                        if(NatOrbMat(SymLabelListInv(jInd),i).ne.0.0_dp) then 
+                            write(NatOrbs_unit,'(2I6,2G35.17)') j,NO_Number,NatOrbMat(SymLabelListInv(jInd),i),&
+                                                                                Evalues(i)/Norm_Evalues
+                            tWrittenEvalue = .true.
+                        endif
+                    endif
+                enddo
+                NO_Number = NO_Number + 1
+                if(.not.tStoreSpinOrbs) then
+                    tWrittenEvalue = .false.
+                    do j = 2, nBasis, 2
+                        ! Here i corresponds to the natural orbital, and j to the molecular orbital.
+                        ! i is actually the spin orbital in this case.
+                        jSpat = gtID(j)
+                        if(tWrittenEvalue) then
+                            if(NatOrbMat(SymLabelListInv(jSpat),i).ne.0.0_dp) &
+                                write(NatOrbs_unit,'(2I6,G35.17)') j,NO_Number,&
+                                                                NatOrbMat(SymLabelListInv(jSpat),i)
+                        else
+                            if(NatOrbMat(SymLabelListInv(jSpat),i).ne.0.0_dp) then
+                                write(NatOrbs_unit,'(2I6,2G35.17)') j,NO_Number,&
+                                                        NatOrbMat(SymLabelListInv(jSpat),i), Evalues(i)/Norm_Evalues
+                                tWrittenEvalue = .true.
+                            endif
+                        endif
+                    enddo
+                    NO_Number = NO_Number + 1
+                endif
+            enddo
+            close(NatOrbs_unit)
+        endif
+
+    end subroutine write_evales_and_transform_mat
 
     SUBROUTINE DiagRDM(SumTrace)
 ! The diagonalisation routine reorders the orbitals in such a way that the 
@@ -3971,9 +4069,13 @@ MODULE nElRDMMod
             write(6,*) 'not equal to that after.'
         ENDIF
 
-! The MO's still correspond to SymLabelList2, but the NO's are slightly jumbled now.
+! The MO's still correspond to SymLabelList2.
+! Although the NO's are slightly jumbled, they are only jumbled within their symmetry blocks.  
+! They still correspond to the symmetries of SymLabelList2, which is the important part.
 
-!        call OrderNatOrbMat()
+! But in order to look at the output, it is easier to consider them in terms of highest 
+! occupied to lowest occupied - i.e. in terms of the NO eigenvalues (occupation numbers).
+        call OrderNatOrbMat()
 
     END SUBROUTINE DiagRDM
 
@@ -3984,8 +4086,9 @@ MODULE nElRDMMod
         IMPLICIT NONE
         INTEGER :: spin,i,j,ierr,StartSort,EndSort
         CHARACTER(len=*), PARAMETER :: this_routine='OrderRDM'
-        INTEGER , ALLOCATABLE :: NatOrbMatTemp(:,:), SymLabelList3(:), SymLabelListTemp(:), EvaluesTemp(:)
-        INTEGER :: NatOrbMatTempTag, SymLabelList3Tag, Orb, New_Pos
+        INTEGER , ALLOCATABLE :: SymLabelList3(:)
+        REAL(dp) , ALLOCATABLE :: NatOrbMatTemp(:,:), EvaluesTemp(:)
+        INTEGER :: NatOrbMatTempTag, SymLabelList3Tag, EvaluesTempTag, Orb, New_Pos
         
 ! Here, if symmetry is kept, we are going to have to reorder the eigenvectors 
 ! according to the size of the eigenvalues, while taking the orbital labels 
@@ -3999,22 +4102,24 @@ MODULE nElRDMMod
         CALL LogMemAlloc('NatOrbMatTemp',NoOrbs**2,8,&
                             'OrderNatOrbMat',NatOrbMatTempTag,ierr)
         ALLOCATE(SymLabelList3(NoOrbs),stat=ierr)
-        CALL LogMemAlloc('SymLabelList3',NoOrbs,8,&
+        CALL LogMemAlloc('SymLabelList3',NoOrbs,4,&
                             'OrderNatOrbMat',SymLabelList3Tag,ierr)
-
-        ALLOCATE(SymLabelListTemp(NoOrbs),stat=ierr)
         ALLOCATE(EvaluesTemp(NoOrbs),stat=ierr)
+        CALL LogMemAlloc('EvaluesTemp',NoOrbs,4,&
+                            'OrderNatOrbMat',EvaluesTempTag,ierr)
 
-        do i = 1, NoOrbs
-            SymLabelList3(i) = SymLabelList2(i)
-        enddo
+! Want to remember the original orbital ordering, as after the sort, the MO's 
+! will still have this ordering.
+        SymLabelList3(:) = SymLabelList2(:)
 
         StartSort=1
         EndSort=SpatOrbs
 
+! Unfortunately this sort routine orders the orbitals in ascending order... which is not quite 
+! what we want.  Just remember this when printing out the Evalues.
         call sort (EValues(startSort:endSort), &
                    NatOrbMat(1:NoOrbs, startSort:endSort), &
-                   symLabelList2(startSort:endSort))
+                   SymLabelList2(startSort:endSort))
 
         if(tStoreSpinOrbs) then                  
             StartSort=SpatOrbs + 1
@@ -4022,25 +4127,18 @@ MODULE nElRDMMod
 
             call sort (EValues(startSort:endSort), &
                        NatOrbMat(1:NoOrbs, startSort:endSort), &
-                       symLabelList2(startSort:endSort))
+                       SymLabelList2(startSort:endSort))
 
         endif                       
 
-        write(6,*) 'after sort'
-        do i = 1, NoOrbs
-            write(6,*) i,SymLabelList2(i),SymLabelList3(i)
-        enddo
+! We now have the NO's ordered according to the size of their Evalues (occupation 
+! numbers).  This will have jumbled up their symmetries.  Want to reorder the 
+! MO's to match this ordering (so that we only have one SymLabelList array).
 
-        SymLabelListTemp(:) = SymLabelList2(:)
-        EvaluesTemp(:) = Evalues(:)
-        do i = 1, NoOrbs
-            SymLabelList2(NoOrbs - i + 1) = SymLabelListTemp(i)
-            Evalues(NoOrbs - i + 1) = EvaluesTemp(i)
-        enddo
-
+! Need a new SymLabelListInv too.        
         SymLabelListInv(:)=0   
         do i=1,NoOrbs
-            SymLabelListInv(SymLabelList2(i))=i
+            SymLabelListInv(SymLabelList2(NoOrbs-i+1))=i
         enddo
 
         NatOrbMatTemp(:,:) = NatOrbMat(:,:)
@@ -4048,18 +4146,28 @@ MODULE nElRDMMod
 
         do i=1,NoOrbs
             do j = 1, NoOrbs
+
+                ! In position j, the MO orbital Orb is currently there.
                 Orb = SymLabelList3(j)      
-                !This is the orbital the old position corresponds to.
+
+                ! Want to move it to the position the NO's are in.
                 New_Pos = SymLabelListInv(Orb)   
-                !This is the new position that orbital should go into.
-                NatOrbMat(NoOrbs-New_Pos+1,NoOrbs-i+1)=NatOrbMatTemp(j,i)
+
+                ! But we also want to reverse the order of everything... 
+                NatOrbMat(New_Pos,NoOrbs - i + 1)=NatOrbMatTemp(j,i)
             enddo
         enddo
 
+        SymLabelList3(:) = SymLabelList2(:)
+        EvaluesTemp(:) = Evalues(:)
+        do i = 1, NoOrbs
+            SymLabelList2(i) = SymLabelList3(NoOrbs - i + 1)
+            Evalues(i) = EvaluesTemp(NoOrbs - i + 1)
+        enddo
 
         DEALLOCATE(NatOrbMatTemp)
         DEALLOCATE(SymLabelList3)
-
+        DEALLOCATE(EvaluesTemp)
 
     END SUBROUTINE OrderNatOrbMat
 
@@ -4532,6 +4640,9 @@ MODULE nElRDMMod
             IF((iProcIndex.eq.0).and.tDiagRDM) THEN
                 DEALLOCATE(Evalues)
                 CALL LogMemDeAlloc(this_routine,EvaluesTag)
+
+                DEALLOCATE(Rho_ii)
+                CALL LogMemDeAlloc(this_routine,Rho_iiTag)
 
                 IF(tPrintRODump) THEN
                     DEALLOCATE(FourIndInts)
