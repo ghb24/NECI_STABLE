@@ -3746,6 +3746,7 @@ MODULE nElRDMMod
                 IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating FourIndInts array,')
 
 ! Then, transform2ElInts
+                WRITE(6,*) ''
                 WRITE(6,*) 'Transforming the four index integrals'
                 CALL Transform2ElIntsMemSave_RDM()
 
@@ -3832,6 +3833,7 @@ MODULE nElRDMMod
             SumTrace=SumTrace+NatOrbMat(i,i)
         enddo
 
+        write(6,*) ''
         WRITE(6,*) 'Calculating eigenvectors and eigenvalues of NatOrbMat'
         CALL FLUSH(6)
 
@@ -3892,17 +3894,16 @@ MODULE nElRDMMod
                 ! eigenvectors (Coefficients).
                 ! EvaluesSym comes out as the eigenvalues in ascending order.
 
-!                WRITE(6,*) 'After diagonalization, the e-vectors (diagonal elements) 
-!                                                                    of this matrix are ,'
+!                WRITE(6,*) 'After diagonalization, the e-vectors (diagonal elements) of this matrix are ,'
 !                do i=1,NoSymBlock
-!                    WRITE(6,'(F20.10)',advance='no') EvaluesSym(i)
+!                    WRITE(6,'(F20.10)',advance='no') EvaluesSym(NoSymBlock-i+1)
 !                enddo
 !                WRITE(6,*) ''
 !                WRITE(6,*) 'These go from orbital ,',SymStartInd+1,' to '&
 !                                                            ,SymStartInd+NoSymBlock
 
                 do i=1,NoSymBlock
-                    Evalues(SymStartInd+i)=EvaluesSym(i)
+                    Evalues(SymStartInd+i)=EvaluesSym(NoSymBlock-i+1)
                 enddo
 
                 ! CAREFUL if eigenvalues are put in ascending order, this may not be 
@@ -3912,16 +3913,22 @@ MODULE nElRDMMod
                 ! a check that comes out as diagonal is a check of this routine anyway.
 
 !                WRITE(6,*) 'The eigenvectors (coefficients) for symmetry block ',Sym
+!                WRITE(6,'(I20)',advance='no') 0
+!                do i = 1, NoSymBlock
+!                    WRITE(6,'(I20)',advance='no') SymLabelList2(SymStartInd+i)
+!                enddo
+!                write(6,*) ''
 !                do i=1,NoSymBlock
+!                    write(6,'(I20)',advance='no') SymLabelList2(SymStartInd+i)
 !                    do j=1,NoSymBlock
-!                        WRITE(6,'(F20.10)',advance='no') NOMSym(j,i)
+!                        WRITE(6,'(F20.10)',advance='no') NOMSym(j,NoSymBlock-i+1)
 !                    enddo
 !                    WRITE(6,*) ''
 !                enddo
          
                 do j=1,NoSymBlock
                     do i=1,NoSymBlock
-                        NatOrbMat(SymStartInd+i,SymStartInd+j)=NOMSym(i,j)
+                        NatOrbMat(SymStartInd+i,SymStartInd+j)=NOMSym(i,NoSymBlock-j+1)
                     enddo
                 enddo
                 ! Directly fill the coefficient matrix with the eigenvectors from 
@@ -3956,7 +3963,7 @@ MODULE nElRDMMod
         do i=1,NoOrbs
             SumDiagTrace=SumDiagTrace+Evalues(i)
         enddo
-        IF((ABS(SumDiagTrace-SumTrace)).gt.1E-5) THEN
+        IF((ABS(SumDiagTrace-SumTrace)).gt.1.D0) THEN
             WRITE(6,*) 'Sum of diagonal NatOrbMat elements : ',SumTrace
             WRITE(6,*) 'Sum of eigenvalues : ',SumDiagTrace
             WRITE(6,*) 'WARNING : &
@@ -3964,7 +3971,98 @@ MODULE nElRDMMod
             write(6,*) 'not equal to that after.'
         ENDIF
 
+! The MO's still correspond to SymLabelList2, but the NO's are slightly jumbled now.
+
+!        call OrderNatOrbMat()
+
     END SUBROUTINE DiagRDM
+
+
+    SUBROUTINE OrderNatOrbMat()
+        USE sort_mod
+        USE Logging , only : tTruncRODump
+        IMPLICIT NONE
+        INTEGER :: spin,i,j,ierr,StartSort,EndSort
+        CHARACTER(len=*), PARAMETER :: this_routine='OrderRDM'
+        INTEGER , ALLOCATABLE :: NatOrbMatTemp(:,:), SymLabelList3(:), SymLabelListTemp(:), EvaluesTemp(:)
+        INTEGER :: NatOrbMatTempTag, SymLabelList3Tag, Orb, New_Pos
+        
+! Here, if symmetry is kept, we are going to have to reorder the eigenvectors 
+! according to the size of the eigenvalues, while taking the orbital labels 
+! (and therefore symmetries) with them. This will be put back into MP2VDM from MP2VDMTemp.
+
+! Want to reorder the eigenvalues from largest to smallest, taking the eigenvectors 
+! with them and the symmetry as well.  
+! If using spin orbitals, do this for the alpha spin and then the beta.
+
+        ALLOCATE(NatOrbMatTemp(NoOrbs,NoOrbs),stat=ierr)
+        CALL LogMemAlloc('NatOrbMatTemp',NoOrbs**2,8,&
+                            'OrderNatOrbMat',NatOrbMatTempTag,ierr)
+        ALLOCATE(SymLabelList3(NoOrbs),stat=ierr)
+        CALL LogMemAlloc('SymLabelList3',NoOrbs,8,&
+                            'OrderNatOrbMat',SymLabelList3Tag,ierr)
+
+        ALLOCATE(SymLabelListTemp(NoOrbs),stat=ierr)
+        ALLOCATE(EvaluesTemp(NoOrbs),stat=ierr)
+
+        do i = 1, NoOrbs
+            SymLabelList3(i) = SymLabelList2(i)
+        enddo
+
+        StartSort=1
+        EndSort=SpatOrbs
+
+        call sort (EValues(startSort:endSort), &
+                   NatOrbMat(1:NoOrbs, startSort:endSort), &
+                   symLabelList2(startSort:endSort))
+
+        if(tStoreSpinOrbs) then                  
+            StartSort=SpatOrbs + 1
+            EndSort=nBasis
+
+            call sort (EValues(startSort:endSort), &
+                       NatOrbMat(1:NoOrbs, startSort:endSort), &
+                       symLabelList2(startSort:endSort))
+
+        endif                       
+
+        write(6,*) 'after sort'
+        do i = 1, NoOrbs
+            write(6,*) i,SymLabelList2(i),SymLabelList3(i)
+        enddo
+
+        SymLabelListTemp(:) = SymLabelList2(:)
+        EvaluesTemp(:) = Evalues(:)
+        do i = 1, NoOrbs
+            SymLabelList2(NoOrbs - i + 1) = SymLabelListTemp(i)
+            Evalues(NoOrbs - i + 1) = EvaluesTemp(i)
+        enddo
+
+        SymLabelListInv(:)=0   
+        do i=1,NoOrbs
+            SymLabelListInv(SymLabelList2(i))=i
+        enddo
+
+        NatOrbMatTemp(:,:) = NatOrbMat(:,:)
+        NatOrbMat(:,:) = 0.0_dp
+
+        do i=1,NoOrbs
+            do j = 1, NoOrbs
+                Orb = SymLabelList3(j)      
+                !This is the orbital the old position corresponds to.
+                New_Pos = SymLabelListInv(Orb)   
+                !This is the new position that orbital should go into.
+                NatOrbMat(NoOrbs-New_Pos+1,NoOrbs-i+1)=NatOrbMatTemp(j,i)
+            enddo
+        enddo
+
+
+        DEALLOCATE(NatOrbMatTemp)
+        DEALLOCATE(SymLabelList3)
+
+
+    END SUBROUTINE OrderNatOrbMat
+
    
 ! This is an M^5 transform, which transforms all the two-electron integrals 
 ! into the new basis described by the Coeff matrix.
@@ -3973,7 +4071,7 @@ MODULE nElRDMMod
     SUBROUTINE Transform2ElIntsMemSave_RDM()
         USE RotateOrbsMod , only : FourIndInts
         implicit none
-        INTEGER :: i,j,k,l,a,b,g,d,ierr,Temp4indintsTag
+        INTEGER :: i,j,k,l,a,b,g,d,ierr,Temp4indintsTag,a2,d2,b2,g2
         REAL(dp) , ALLOCATABLE :: Temp4indints(:,:)
         CHARACTER(len=*), PARAMETER :: this_routine='Transform2ElIntsMemSave_RDM'
 #ifdef __CMPLX
@@ -3981,9 +4079,6 @@ MODULE nElRDMMod
                     'Rotating orbitals not implemented for complex orbitals.')
 #endif
         
-!        Transform2ElInts_Time%timer_name='Transform2ElIntsTime'
-!        CALL set_timer(Transform2ElInts_time,30)
-
 !Zero arrays from previous transform
 
         ALLOCATE(Temp4indints(NoOrbs,NoOrbs),stat=ierr)
@@ -4006,17 +4101,18 @@ MODULE nElRDMMod
 ! are given by SymLabelList2
 
         do b=1,NoOrbs
-            do d=1,b
+            b2 = SymLabelList2(b)
+            do d=1,NoOrbs
+                d2 = SymLabelList2(d)
                 do a=1,NoOrbs
-                    do g=1,a
+                    a2 = SymLabelList2(a)
+                    do g=1,NoOrbs
+                        g2 = SymLabelList2(g)
 
 ! UMatInd in physical notation, but FourIndInts in chemical 
 ! (just to make it more clear in these transformations).
 ! This means that here, a and g are interchangable, and so are b and d.
-                        FourIndInts(a,g,b,d)=REAL(UMAT(UMatInd(a,b,g,d,0,0)),8)
-                        FourIndInts(g,a,b,d)=REAL(UMAT(UMatInd(a,b,g,d,0,0)),8)
-                        FourIndInts(a,g,d,b)=REAL(UMAT(UMatInd(a,b,g,d,0,0)),8)
-                        FourIndInts(g,a,d,b)=REAL(UMAT(UMatInd(a,b,g,d,0,0)),8)
+                        FourIndInts(a,g,b,d)=REAL(UMAT(UMatInd(a2,b2,g2,d2,0,0)),8)
                     enddo
                 enddo
 
@@ -4031,21 +4127,12 @@ MODULE nElRDMMod
                             Temp4indints(1:NoOrbs,1:NoOrbs),NoOrbs,0.0,&
                             FourIndInts(1:NoOrbs,1:NoOrbs,b,d),NoOrbs)
                 ! Get Temp4indits02(i,k)
-
-                do i=1,NoOrbs
-                    do k=1,i
-                        FourIndInts(i,k,d,b)=FourIndInts(i,k,b,d)
-                        FourIndInts(k,i,d,b)=FourIndInts(i,k,b,d)
-                        FourIndInts(i,k,b,d)=FourIndInts(i,k,b,d)
-                        FourIndInts(k,i,b,d)=FourIndInts(i,k,b,d)
-                    enddo
-                enddo
             enddo
         enddo
         
 ! Calculating the 3 transformed, 4 index integrals. 01=a untransformed,02=b,03=g,04=d
         do i=1,NoOrbs
-            do k=1,i
+            do k=1,NoOrbs
 
                 Temp4indints(:,:)=0.D0
                 CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0,NatOrbMat(:,:),NoOrbs,&
@@ -4055,22 +4142,12 @@ MODULE nElRDMMod
                 CALL DGEMM('T','T',NoOrbs,NoOrbs,NoOrbs,1.0,NatOrbMat(:,:),&
                             NoOrbs,Temp4indints(1:NoOrbs,1:NoOrbs),NoOrbs,0.0,&
                             FourIndInts(i,k,1:NoOrbs,1:NoOrbs),NoOrbs)
-                do l=1,NoOrbs
-                    do j=1,l
-                        FourIndInts(k,i,j,l)=FourIndInts(i,k,j,l)
-                        FourIndInts(k,i,l,j)=FourIndInts(i,k,j,l)
-                        FourIndInts(i,k,j,l)=FourIndInts(i,k,j,l)
-                        FourIndInts(i,k,l,j)=FourIndInts(i,k,j,l)
-                    enddo
-                enddo
             enddo
         enddo
 
         DEALLOCATE(Temp4indints)
         CALL LogMemDeAlloc('Transform2ElIntsMemSave_RDM',Temp4indintsTag)
  
-!        CALL halt_timer(Transform2ElInts_Time)
-
     END SUBROUTINE Transform2ElIntsMemSave_RDM
 
 
@@ -4208,13 +4285,6 @@ MODULE nElRDMMod
                                     'RefillUMAT_RDM',TMAT2DPartTag,ierr)
         TMAT2DPart(:,:)=0.D0
 
-!        RefillUMAT_Time%timer_name='RefillUMATandTMAT'
-!        CALL set_timer(RefillUMAT_Time,30)
-
-!        do i = 1,nBasis
-!            WRITE(6,*) SymLabelList2(i)
-!        enddo
-
 ! Make the UMAT elements the four index integrals.  
 ! These are calculated by transforming the HF orbitals using the coefficients 
 ! that have been found
@@ -4222,11 +4292,10 @@ MODULE nElRDMMod
             d=SymLabelList2(l)
             do k=1,NoOrbs
                 b=SymLabelList2(k)
-                do j=1,l
+                do j=1,NoOrbs
                     g=SymLabelList2(j)
-                    do i=1,k
+                    do i=1,NoOrbs
                         a=SymLabelList2(i)
-
 !The FourIndInts are in chemical notation, the UMatInd in physical.                            
                         UMAT(UMatInd(a,b,g,d,0,0))=FourIndInts(i,j,k,l)
                     enddo
@@ -4343,18 +4412,12 @@ MODULE nElRDMMod
         WRITE(iunit,'(A5)') '&END'
        
         do i=1,NoOrbs
-            do j=1,i
-                do l=1,NoOrbs
-!                    Sym=IEOR(INT(G1(j*2)%sym%S,4),IEOR(INT(G1(k*2)%sym%S,4),&
-!                                INT(G1(i*2)%sym%S,4)))
+            do j=1,NoOrbs
+                do l=1,j
                     ! Potential to put symmetry in here, have currently taken it out, 
                     ! because when we're only printing non-zero values, it is kind 
                     ! of unnecessary - although it may be used to speed things up.
-                    do k=1,NoOrbs
-!                        Syml=INT(G1(l*2)%sym%S,4)
-!                        IF((Syml.eq.Sym).and.&
-!                            ((REAL(UMat(UMatInd(i,j,k,l,0,0)),8)).ne.0.D0)) &
-
+                    do k=1,i
 ! UMatInd is in physical notation <ij|kl>, but the indices printed in the FCIDUMP 
 ! are in chemical notation (ik|jl).
                         IF((ABS(REAL(UMat(UMatInd(i,j,k,l,0,0)),8))).ne.0.D0) &
@@ -4761,125 +4824,6 @@ MODULE nElRDMMod
 !    
 !    END SUBROUTINE Average_Spins_and_Sum_2e_Norms
 !
-!    SUBROUTINE OrderRDM()
-!        USE sort_mod
-!        USE Logging , only : tTruncRODump
-!        USE RotateOrbsData , only : SymLabelList3
-!        IMPLICIT NONE
-!        INTEGER :: spin,i,j,ierr,StartSort,EndSort
-!        CHARACTER(len=*), PARAMETER :: this_routine='OrderRDM'
-!        INTEGER , ALLOCATABLE :: SymOrbsTemp(:)
-!        INTEGER :: SymOrbsTempTag
-!        
-!
-!! Here, if symmetry is kept, we are going to have to reorder the eigenvectors 
-!! according to the size of the eigenvalues, while taking the orbital labels 
-!! (and therefore symmetries) with them. This will be put back into MP2VDM from MP2VDMTemp.
-!
-!! Want to reorder the eigenvalues from largest to smallest, taking the eigenvectors 
-!! with them and the symmetry as well.  
-!! If using spin orbitals, do this for the alpha spin and then the beta.
-! 
-!        do i = 1, SpatOrbs
-!            SymLabelList3(i) = SymLabelList2(i)
-!        enddo
-!
-!        StartSort=1
-!        EndSort=SpatOrbs
-!
-!        call sort (EValues(startSort:endSort), &
-!                   NatOrbMat(1:SpatOrbs, startSort:endSort), &
-!                   symLabelList2(startSort:endSort))
-!
-!    END SUBROUTINE OrderRDM
-!
-!
-!    SUBROUTINE FillCoeffT1_RDM
-!        USE RotateOrbsData , only : SymLabelList3,SymOrbs,SymOrbsTag,&
-!                                    TruncEval,NoRotOrbs,EvaluesTrunc,EvaluesTruncTag
-!        USE Logging , only : tTruncRODump,tTruncDumpbyVal
-!        IMPLICIT NONE
-!        INTEGER :: l,k,i,j,NoRotAlphBet, io1, io2, SymLabelListInvNewTag
-!        CHARACTER(len=*), PARAMETER :: this_routine='FillCoeffT1_RDM'
-!        CHARACTER(len=5) :: Label
-!        CHARACTER(len=20) :: LabelFull
-!        REAL(dp) :: OccEnergies(1:NoRotOrbs)
-!        INTEGER , ALLOCATABLE :: SymLabelListInvNew(:)
-!        INTEGER :: ierr, Orb, New_Pos
-!  
-!!        FillCoeff_Time%timer_name='FillCoeff'
-!!        CALL set_timer(FillCoeff_Time,30)
-!
-!!        WRITE(6,*) 'NatOrbMat'
-!!        do i = 1, NoOrbs
-!!            do j = 1, NoOrbs
-!!                WRITE(6,'(F10.6)',advance='no') NatOrbMat(j,i)
-!!            enddo
-!!            WRITE(6,*) ''
-!!        enddo
-!
-!
-!! run through i, find out what orbital this corresponds to.  
-!! the position of this orbital is given by SymLabelList2Inv.
-!! the new position of this orbital is given by SymLabelList2Inv2.
-!
-!        ALLOCATE(SymLabelListInvNew(SpatOrbs),stat=ierr)
-!        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating SymLabelListInvNew array,')
-!        CALL LogMemAlloc('SymLabelListInvNew',SpatOrbs,4,this_routine,&
-!                                                SymLabelListInvNewTag,ierr)
-!        SymLabelListInvNew(:)=0   
-!
-!        do i=1,SpatOrbs
-!            SymLabelListInvNew(SymLabelList2(i))=i
-!        enddo
-!
-!        do i=1,SpatOrbs
-!            do j = 1, SpatOrbs
-!                Orb = SymLabelList3(j)      
-!                !This is the orbital the old position corresponds to.
-!                New_Pos = SymLabelListInvNew(Orb)   
-!                !This is the new position that orbital should go into.
-!!                CoeffT1(New_Pos,i)=NatOrbMat(j,i)
-!            enddo
-!        enddo
-!
-!        DEALLOCATE(SymLabelListInvNew)
-!
-!!        do i=1,NoOrbs
-!!            WRITE(6,*) Evalues(i)
-!!        enddo
-!!        do i=1,NoOrbs
-!!            WRITE(6,*) NatOrbMat(:,i)
-!!        enddo
-!!        CALL FLUSH(6)
-!!        stop
-!
-!!        CoeffT1(:,:) = 0.D0
-!!        do i = 1, nBasis
-!!            CoeffT1(i,i) = 1.D0
-!!        enddo
-!
-!!        CALL HistNatOrbEvalues()
-!
-!!        WRITE(6,*) 'NatOrbMat matrix'
-!!        do i=1,NoOrbs
-!!            WRITE(6,*) NatOrbMat(:,i)
-!!        enddo
-!
-!!        OPEN(io1,FILE='TRANSFORMMAT',status='unknown')
-!!        do i=1,NoOrbs
-!!            do j=1,NoOrbs-NoFrozenVirt
-!!                WRITE(io1,*) i,j,CoeffT1(i,j)
-!!            enddo
-!!        enddo
-!!        CLOSE(io1)
-!
-!!        CALL halt_timer(FillCoeff_Time)
-! 
-!
-!    ENDSUBROUTINE FillCoeffT1_RDM
-!
-
     SUBROUTINE Test_Energy_Calc()
 ! This routine calculates the energy based on the simple expression Energy = Sum_IJ C_I C_J H_IJ 
 ! where I and J are determinants    
