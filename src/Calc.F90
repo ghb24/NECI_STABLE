@@ -51,6 +51,7 @@ contains
 
 
 !       Calc defaults 
+          iReadWalkersRoot=0 
           tShiftonHFPop=.false.
           MaxWalkerBloom=-1
           tSearchTau=.true.
@@ -861,6 +862,9 @@ contains
                     iPopsFileNoWrite = iPopsFileNoRead
                     iPopsFileNoRead = -iPopsFileNoRead-1
                 end if
+            case("WALKERREADBATCH")
+                !The number of walkers to read in on the head node in each batch during a popsread
+                call readi(iReadWalkersRoot)
             case("POPSFILEMAPPING")
 !This indicates that we will be mapping a popsfile from a smaller basis calculation, into a bigger basis calculation.
 !Requires a "mapping" file.
