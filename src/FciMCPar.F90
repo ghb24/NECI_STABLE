@@ -5437,7 +5437,7 @@ MODULE FciMCParMod
         use FciMCLoggingMOD , only : InitHistInitPops
         use SystemData , only : tRotateOrbs
         use CalcData , only : InitialPart,tstartmp1,tStartCAS
-        use CalcData , only : MemoryFacPart,MemoryFacAnnihil
+        use CalcData , only : MemoryFacPart,MemoryFacAnnihil,iReadWalkersRoot
         use constants , only : size_n_int
         use DeterminantData , only : write_det
         INTEGER :: ierr,iunithead
@@ -5561,10 +5561,14 @@ MODULE FciMCParMod
 !If we have a popsfile, read the walkers in now.
             if(tReadPops.and..not.tPopsAlreadyRead) then
 
-                ReadBatch=MaxSpawned    !ReadBatch is the number of walkers to read in from the popsfile at one time.
+                if(iReadWalkersRoot.eq.0) then
+                    ReadBatch=MaxSpawned    !ReadBatch is the number of walkers to read in from the popsfile at one time.
                                         !The larger it is, the fewer communications will be needed to scatter the particles.
                                         !By default, the new array (which is only created on the root processors) is the
                                         !same length as the spawning arrays.
+                else
+                    ReadBatch = iReadWalkersRoot
+                endif
 
                 !TotWalkers and TotParts are returned as the dets and parts on each processor.
                 call ReadFromPopsfilev3(iPopAllTotWalkers,ReadBatch,TotWalkers,TotParts,NoatHF,CurrentDets,MaxWalkersPart)

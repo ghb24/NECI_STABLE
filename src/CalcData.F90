@@ -60,6 +60,8 @@ integer :: iPopsFileNoRead, iPopsFileNoWrite,iWeightPopRead,iRestartWalkNum
 integer :: MaxWalkerBloom   !Max number of walkers allowed in one bloom before reducing tau
 INTEGER(int64) :: MaxNoatHF,HFPopThresh,InitWalkers
 
+integer :: iReadWalkersRoot !The number of walkers to read in on the head node in each batch during a popsread
+
 real(dp) :: g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
 real(dp) :: G_VMC_EXCITWEIGHT(10),G_VMC_EXCITWEIGHTS(6,10)
 real(dp) :: BETAP,RHOEPSILON,DBETA,STARCONV,GraphBias
