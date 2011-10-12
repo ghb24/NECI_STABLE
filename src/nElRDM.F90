@@ -3034,7 +3034,6 @@ MODULE nElRDMMod
         real(dp) , intent(out) :: Norm_2RDM_Inst, Norm_2RDM
         real(dp) :: AllAccumRDMNorm_Inst
         real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity
-        integer :: RDM_Cycles
 
         ! If Iter = 0, this means we have just read in the TwoRDM_POPS_a*** matrices into All_a***_RDM, and 
         ! just want to calculate the old energy.
@@ -3050,28 +3049,16 @@ MODULE nElRDMMod
             ! the energy update cycle).
             ! Whereas AllTwoElRDM is accumulated over the entire run.
 
-            ! The AllTwoElRDM's are actually averaged over the iterations.
-            ! This is to keep the trace's etc not too large, not sure if it's the best or not.
-            RDM_Cycles =  ( Iter - IterRDMStart ) / RDMEnergyIter
-            
             if(iProcIndex.eq.0) then
-                All_aaaa_RDM(:,:) = ( All_aaaa_RDM(:,:) * &
-                                    ( real(RDM_Cycles,dp) / ( real(RDM_Cycles,dp) + 1.0_dp ) ) ) &
-                                    + ( aaaa_RDM(:,:) / ( real(RDM_Cycles,dp) + 1.0_dp ) )
-                All_abab_RDM(:,:) = ( All_abab_RDM(:,:) * &
-                                    ( real(RDM_Cycles,dp) / ( real(RDM_Cycles,dp) + 1.0_dp ) ) ) &
-                                    + ( abab_RDM(:,:) / ( real(RDM_Cycles,dp) + 1.0_dp ) )
-                All_abba_RDM(:,:) = ( All_abba_RDM(:,:) * &
-                                    ( real(RDM_Cycles,dp) / ( real(RDM_Cycles,dp) + 1.0_dp ) ) ) &
-                                    + ( abba_RDM(:,:) / ( real(RDM_Cycles,dp) + 1.0_dp ) )
+                All_aaaa_RDM(:,:) = All_aaaa_RDM(:,:) + aaaa_RDM(:,:) 
+                All_abab_RDM(:,:) = All_abab_RDM(:,:) + abab_RDM(:,:) 
+                All_abba_RDM(:,:) = All_abba_RDM(:,:) + abba_RDM(:,:)
             endif
 
             AllAccumRDMNorm_Inst = 0.D0
             if(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) then
                 CALL MPIReduce(AccumRDMNorm_Inst,MPI_SUM,AllAccumRDMNorm_Inst)
-                AllAccumRDMNorm = ( AllAccumRDMNorm * &
-                                    ( real(RDM_Cycles,dp) / ( real(RDM_Cycles,dp) + 1.0_dp ) ) ) &
-                                    + ( AllAccumRDMNorm_Inst / ( real(RDM_Cycles,dp) + 1.0_dp ) )
+                AllAccumRDMNorm = AllAccumRDMNorm + AllAccumRDMNorm_Inst
             endif
         endif
 
