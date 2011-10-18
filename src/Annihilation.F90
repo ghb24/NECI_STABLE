@@ -803,17 +803,17 @@ MODULE AnnihilationMod
                         ! In the case of the HF S D matrix (symmetric), Di and Dj can both 
                         ! be the HF, singles or doubles.
                         ! This is the excitation level of Dj.
-                        ExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,PartInd), 2)
+                        ExcitLevel = FindBitExcitLevel (iLutHF_True, CurrentDets(:,PartInd), 2)
                         if((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) &
                             CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
                     elseif(tHF_S_D_Ref) then
                         ! In the case of the HF and singles and doubles Ref, 
                         ! Di is only ever the HF, and Dj is 
                         ! anything connected - i.e. up to quadruples.
-                        ExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,PartInd), 4)
+                        ExcitLevel = FindBitExcitLevel (iLutHf_True, CurrentDets(:,PartInd), 4)
                         if((ExcitLevel.le.4).and.(ExcitLevel.ne.0)) &
                             CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
-                    elseif(.not.DetBitEQ(iLutRef,CurrentDets(:,PartInd),NIfDBO)) then
+                    elseif(.not.DetBitEQ(iLutHF_True,CurrentDets(:,PartInd),NIfDBO)) then
                         CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
                     endif
                 endif

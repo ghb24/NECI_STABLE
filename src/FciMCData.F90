@@ -72,7 +72,7 @@ MODULE FciMCData
 
       real(dp) :: DiagSftRe,DiagSftIm     !For complex walkers - this is just for info - not used for population control.
     
-      INTEGER , ALLOCATABLE :: HFDet(:)       !This will store the HF determinant
+      INTEGER , ALLOCATABLE :: HFDet(:), HFDet_True(:)       !This will store the HF determinant
       INTEGER(TagIntType) :: HFDetTag=0
 
       INTEGER :: MaxWalkersPart,PreviousNMCyc,Iter,NoComps,MaxWalkersAnnihil
@@ -170,7 +170,7 @@ MODULE FciMCData
       integer :: nSingles, nDoubles
       
       ! Bit representation of the HF determinant
-      integer(kind=n_int), allocatable :: iLutHF(:)
+      integer(kind=n_int), allocatable :: iLutHF(:), iLutHF_True(:)
     
       REAL(KIND=sp) :: IterTime
     

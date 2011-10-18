@@ -15,7 +15,7 @@ MODULE FciMCParMod
                           tReal, tRotatedOrbs, tFindCINatOrbs, tFixLz, &
                           LzTot, tUEG, tLatticeGens, tCSF, G1, Arr, &
                           tNoBrillouin, tKPntSym, tPickVirtUniform, &
-                          tMomInv
+                          tMomInv, tRef_Not_HF
     use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY, decode_bit_det, &
                         encode_bit_rep, encode_det, extract_bit_rep, &
                         test_flag, set_flag, extract_flags, &
@@ -837,7 +837,7 @@ MODULE FciMCParMod
         integer :: DetCurr(nel), nJ(nel), FlagsCurr, parent_flags
         integer, dimension(lenof_sign) :: SignCurr, child
         integer(kind=n_int) :: iLutnJ(0:niftot)
-        integer :: IC, walkExcitLevel, ex(2,2), TotWalkersNew, part_type
+        integer :: IC, walkExcitLevel, walkExcitLevel_toHF, ex(2,2), TotWalkersNew, part_type
         integer(int64) :: tot_parts_tmp(lenof_sign)
         logical :: tParity, tSuccess
         real(dp) :: prob, HDiagCurr, TempTotParts, Di_Sign_Temp
@@ -952,7 +952,13 @@ MODULE FciMCParMod
             walkExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,j), &
                                                 max_calc_ex_level)
 
-            if(walkExcitLevel.eq.0) HFInd = VecSlot                                                
+            if(tRef_Not_HF) then
+                walkExcitLevel_toHF = FindBitExcitLevel (iLutHF_true, CurrentDets(:,j), &
+                                                max_calc_ex_level)
+            else
+                walkExcitLevel_toHF = walkExcitLevel
+            endif
+            if(walkExcitLevel_toHF.eq.0) HFInd = VecSlot                                                
 
             ! Should be able to make this function pointer-able
             if (tRegenDiagHEls) then
@@ -993,7 +999,7 @@ MODULE FciMCParMod
             ! If we're filling the RDM, this calculates the explicitly connected singles and doubles.
             ! Or in the case of HFSD (or some combination of this), it calculates the 
             ! diagonal elements too - as we need the walkExcitlevel for the diagonal elements as well.
-            call Add_RDM_HFConnections(CurrentDets(:,j),DetCurr,AvSignCurr,walkExcitLevel)   
+            call Add_RDM_HFConnections(CurrentDets(:,j),DetCurr,AvSignCurr,walkExcitLevel_toHF)   
             TempSpawnedPartsInd = 0
 
             ! Loop over the 'type' of particle. 
@@ -3263,6 +3269,7 @@ MODULE FciMCParMod
                     write (6, '(a)', advance='no') 'Changing projected &
                           &energy reference determinant for the next update cycle to: '
                     call write_det (6, ProjEDet, .true.)
+                    tRef_Not_HF = .true.
 
                     if(tHPHF) then
                         if(.not.TestClosedShellDet(iLutRef)) then
@@ -3363,6 +3370,7 @@ MODULE FciMCParMod
                     call MPIBcast (HighestPopDet, NIfTot+1, proc_highest)
                     iLutRef = 0
                     iLutRef(0:NIfDBO) = HighestPopDet(0:NIfDBO)
+                    tRef_Not_HF = .true.
 
                     call decode_bit_det (ProjEDet, iLutRef)
                     write (6, '(a)', advance='no') 'Changing projected &
@@ -4202,12 +4210,27 @@ MODULE FciMCParMod
         ALLOCATE(iLutRef(0:NIfTot),stat=ierr)
         ALLOCATE(ProjEDet(NEl),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutRef")
-        
+
         ! The reference / projected energy determinants are the same as the
         ! HF determinant.
         ! TODO: Make these pointers rather than copies?
         iLutRef = iLutHF
         ProjEDet = HFDet
+
+        ALLOCATE(iLutHF_True(0:NIfTot),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutHF_True")
+        ALLOCATE(HFDet_True(NEl),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for HFDet_True")
+
+        if(tRef_Not_HF) then
+            do i = 1, NEl
+                HFDet_True(i) = BRR(i)
+            enddo
+            call sort(HFDet_True(1:NEl))
+            CALL EncodeBitDet(HFDet_True,iLutHF_True)
+        else
+            iLutHF_True = iLutHF
+        endif
 
         if(tHPHF) then
             if(.not.TestClosedShellDet(iLutRef)) then

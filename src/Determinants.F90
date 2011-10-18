@@ -53,7 +53,8 @@ contains
 
     Subroutine DetPreFreezeInit()
         Use global_utilities
-        use SystemData, only : nEl, ECore, Arr, Brr, G1, nBasis, LMS, nBasisMax,tFixLz, tUEGSpecifyMomentum
+        use SystemData, only : nEl, ECore, Arr, Brr, G1, nBasis, LMS, nBasisMax,&
+                                tFixLz, tUEGSpecifyMomentum, tRef_Not_HF
         use sym_mod
         use util_mod, only: NECI_ICOPY
         integer ierr
@@ -68,12 +69,14 @@ contains
             do i=1,NEl
                 FDet(i)=DefDet(i)
             enddo
+            tRef_Not_HF = .true.
         ELSE
              CALL GENFDET(BRR,G1,NBASIS,LMS,NEL,FDET)
              IF(tUEGSpecifyMomentum) THEN
                 WRITE(6,*) 'Defining FDet according to a momentum input'
                 CALL ModifyMomentum(FDET)
             ENDIF
+            tRef_Not_HF = .false.
         ENDIF
 !      ENDIF
       WRITE(6,"(A)",advance='no') " Fermi det (D0):"

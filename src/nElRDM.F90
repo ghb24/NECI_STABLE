@@ -47,7 +47,7 @@ MODULE nElRDMMod
         USE FciMCData , only : MaxWalkersPart, MaxSpawned, Spawned_Parents, PreviousCycles,&
                                Spawned_Parents_Index, Spawned_ParentsTag, AccumRDMNorm_Inst,&
                                Spawned_Parents_IndexTag, Iter, AccumRDMNorm, AvNoatHF,&
-                               iLutRef, tSinglePartPhase, AllAccumRDMNorm
+                               tSinglePartPhase, AllAccumRDMNorm, iLutRef, HFDet_True
         USE Logging , only : RDMExcitLevel, tROFciDUmp, NoDumpTruncs, tExplicitAllRDM, &
                              tHF_S_D_Ref, tHF_Ref_Explicit, tHF_S_D, tPrint1RDM
         USE RotateOrbsData , only : CoeffT1Tag, tTurnStoreSpinOff, NoFrozenVirt
@@ -82,6 +82,9 @@ MODULE nElRDMMod
                             tWriteMultRDMs
         USE CalcData , only : tRegenDiagHEls
         use DetBitOps , only : TestClosedShellDet
+        use bit_reps , only : decode_bit_det
+        use FciMCData , only : iLutHF_True
+        use Determinants , only : write_det
         implicit none
         INTEGER :: ierr,i, MemoryAlloc, MemoryAlloc_Root
         CHARACTER(len=*), PARAMETER :: this_routine='InitRDM'
@@ -113,7 +116,8 @@ MODULE nElRDMMod
         else
             write(6,'(A)') " Stochastically calculating the reduced density matrices from the &
                             &FCIQMC wavefunction" 
-            write(6,'(A)') " (incl. explicit connections to the reference determinant)."
+            write(6,'(A)',advance='no') " incl. explicit connections to the following HF determinant:"
+            call write_det (6, HFDet_True, .true.)
         endif
 
         IF(RDMExcitLevel.eq.1) THEN
@@ -886,7 +890,6 @@ MODULE nElRDMMod
 ! It is only called if HF is being used and we've encountered an open shell det.
 ! The decoding routine would have added in the diagonal elements of the original HF pair,
 ! need to take care of the spin coupled one, and any connection between them.
-        use FciMCData , only : HFDet
         use hphf_integrals , only : hphf_sign
         use HPHFRandExcitMod , only : FindExcitBitDetSym
         use DetBitOps , only : FindBitExcitLevel
@@ -935,7 +938,7 @@ MODULE nElRDMMod
         use constants , only : n_int, lenof_sign, dp
         use SystemData , only : NEl
         use bit_reps , only : NIfTot
-        use FciMCData , only : HFDet, AvNoatHF
+        use FciMCData , only : AvNoatHF
         use hphf_integrals , only : hphf_sign
         use HPHFRandExcitMod , only : FindExcitBitDetSym
         use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
@@ -958,7 +961,7 @@ MODULE nElRDMMod
 
 ! If we have a single or double, add in the connection to the HF, symmetrically.        
         if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) &
-            call Add_RDM_From_IJ_Pair(HFDet,nJ,AvNoatHF,AvSignJ,.true.)
+            call Add_RDM_From_IJ_Pair(HFDet_True,nJ,AvNoatHF,AvSignJ,.true.)
 
     end subroutine Add_RDM_HFConnections_Norm
 
@@ -971,7 +974,7 @@ MODULE nElRDMMod
         use constants , only : n_int, lenof_sign, dp
         use SystemData , only : NEl
         use bit_reps , only : NIfTot
-        use FciMCData , only : HFDet, AvNoatHF
+        use FciMCData , only : AvNoatHF, iLutHF_True
         use hphf_integrals , only : hphf_sign
         use HPHFRandExcitMod , only : FindExcitBitDetSym
         use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
@@ -994,7 +997,7 @@ MODULE nElRDMMod
 ! Now if the determinant is connected to the HF (i.e. single or double), add in the diagonal elements
 ! of this connection as well - symmetrically because no probabilities are involved.
         if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) &
-            call Fill_Spin_Coupled_RDM_v2(iLutRef,iLutJ,HFDet,nJ,&
+            call Fill_Spin_Coupled_RDM_v2(iLutHF_True,iLutJ,HFDet_True,nJ,&
                                             AvNoatHF,AvSignJ,.true.)
 
     end subroutine Add_RDM_HFConnections_HPHF
@@ -1008,7 +1011,7 @@ MODULE nElRDMMod
         use constants , only : n_int, lenof_sign, dp
         use SystemData , only : NEl
         use bit_reps , only : NIfTot
-        use FciMCData , only : HFDet, AvNoatHF
+        use FciMCData , only : AvNoatHF, iLutHF_True
         use hphf_integrals , only : hphf_sign
         use HPHFRandExcitMod , only : FindExcitBitDetSym
         use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
@@ -1051,14 +1054,14 @@ MODULE nElRDMMod
                     ! Now if the determinant is connected to the HF (i.e. single or double), 
                     ! add in the elements of this connection as well - symmetrically 
                     ! because no probabilities are involved.
-                    call Fill_Spin_Coupled_RDM_v2(iLutRef,iLutJ,HFDet,nJ,&
+                    call Fill_Spin_Coupled_RDM_v2(iLutHF_True,iLutJ,HFDet_True,nJ,&
                                 AvNoatHF,AvSignJ,.false.)
 
                 else
 
                     ! The singles and doubles are connected and explicitly calculated 
                     ! - but not symmetrically.
-                    call Add_RDM_From_IJ_Pair(HFDet, nJ, AvNoatHF, &
+                    call Add_RDM_From_IJ_Pair(HFDet_True, nJ, AvNoatHF, &
                                                 AvSignJ,.false.)
 
                 endif
@@ -1071,7 +1074,7 @@ MODULE nElRDMMod
                 AccumRDMNorm = AccumRDMNorm + (AvSignJ * AvSignJ)
                 AccumRDMNorm_Inst = AccumRDMNorm_Inst + (AvSignJ * AvSignJ)
 
-                call Add_RDM_From_IJ_Pair(HFDet,nJ,AvNoatHF,AvSignJ,.true.)
+                call Add_RDM_From_IJ_Pair(HFDet_True,nJ,AvNoatHF,AvSignJ,.true.)
 
             endif
 
@@ -1085,7 +1088,7 @@ MODULE nElRDMMod
         use constants , only : n_int, lenof_sign, dp
         use SystemData , only : NEl
         use bit_reps , only : NIfTot
-        use FciMCData , only : HFDet, AvNoatHF
+        use FciMCData , only : AvNoatHF
         use hphf_integrals , only : hphf_sign
         use HPHFRandExcitMod , only : FindExcitBitDetSym
         use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
@@ -2255,7 +2258,7 @@ MODULE nElRDMMod
         USE FciMCData , only : TotWalkers,CurrentDets
         USE RotateOrbsData , only : SymLabelListInv
         USE bit_reps , only : extract_bit_rep
-        USE FciMCData , only : iluthf
+        USE FciMCData , only : iluthf_true
         use DetBitOps , only : FindBitExcitLevel
         use hist_data, only: AllHistogram
         use hist , only : find_hist_coeff_explicit
@@ -2292,7 +2295,7 @@ MODULE nElRDMMod
 ! determinant is.
 !                    CALL BinSearchParts(iLutnJ,1,int(TotWalkers,sizeof_int),PartInd,tDetFound)
 
-                    ExcitLevel = FindBitExcitLevel (iLutHF, iLutnJ, NEl)
+                    ExcitLevel = FindBitExcitLevel (iLutHF_true, iLutnJ, NEl)
                     call find_hist_coeff_explicit (iLutnJ, ExcitLevel,PartInd,tDetFound)
 
                     IF(tDetFound) THEN
@@ -2340,7 +2343,7 @@ MODULE nElRDMMod
         USE FciMCData , only : TotWalkers,CurrentDets
         USE RotateOrbsData , only : SymLabelListInv
         USE bit_reps , only : extract_bit_rep
-        USE FciMCData , only : iluthf
+        USE FciMCData , only : iluthf_true
         use DetBitOps , only : FindBitExcitLevel
         use hist_data, only: AllHistogram
         use hist , only : find_hist_coeff_explicit
@@ -2380,7 +2383,7 @@ MODULE nElRDMMod
 ! determinant is.
 !                    CALL BinSearchParts(iLutnJ,1,int(TotWalkers,sizeof_int),PartInd,tDetFound)
 
-                    ExcitLevel = FindBitExcitLevel (iLutHF, iLutnJ, NEl)
+                    ExcitLevel = FindBitExcitLevel (iLutHF_True, iLutnJ, NEl)
                     call find_hist_coeff_explicit (iLutnJ, ExcitLevel, PartInd, tDetFound)
 
                     IF(tDetFound) THEN
@@ -2853,7 +2856,6 @@ MODULE nElRDMMod
 ! the number of the electrons.
 ! We can use this to find the factor we must divide the 1RDM through by.
         USE UMatCache, only: GTID
-        use FciMCData , only : HFDet
         USE Logging , only : tDiagRDM
         implicit none                            
         real(dp) , intent(out) :: Trace_1RDM, Norm_1RDM, SumN_Rho_ii
@@ -2907,10 +2909,10 @@ MODULE nElRDMMod
             if(i.le.NEl) then
                 if(tStoreSpinOrbs) then
                     SumN_Rho_ii = SumN_Rho_ii + &
-                            ( NatOrbMat(SymLabelListInv(HFDet(i)),SymLabelListInv(HFDet(i))) &
+                            ( NatOrbMat(SymLabelListInv(HFDet_True(i)),SymLabelListInv(HFDet_True(i))) &
                                 * Norm_1RDM )
                 else
-                    HFDet_ID = gtID(HFDet(i))
+                    HFDet_ID = gtID(HFDet_True(i))
                     SumN_Rho_ii = SumN_Rho_ii + &
                             ( NatOrbMat(SymLabelListInv(HFDet_ID),SymLabelListInv(HFDet_ID)) &
                                 * Norm_1RDM ) / 2.0_dp
@@ -4926,7 +4928,7 @@ MODULE nElRDMMod
 ! This routine calculates the energy based on the simple expression Energy = Sum_IJ C_I C_J H_IJ 
 ! where I and J are determinants    
 ! (rather than occupied orbitals), and H_IJ is the Hamiltonian element between them.
-        USE FciMCData , only : TotWalkers,CurrentDets,iluthf
+        USE FciMCData , only : TotWalkers,CurrentDets,iluthf_true
         USE Determinants, only : get_helement
         USE bit_reps , only : extract_bit_rep, extract_sign,nifdbo
         USE DetBitOps, only : detbiteq
@@ -5253,7 +5255,7 @@ END MODULE nElRDMMod
 ! with sign /= 0 (i.e. occupied).
 ! We then want to run through all the Di, Dj pairs and add their coefficients 
 ! (with appropriate de-biasing factors) into the 1 and 2 electron RDM.
-        USE FciMCData , only : Spawned_Parents, Spawned_Parents_Index, iLutHF
+        USE FciMCData , only : Spawned_Parents, Spawned_Parents_Index, iLutHF_True
         USE bit_reps , only : NIfTot, NIfDBO, decode_bit_det
         USE nElRDMMod , only : Add_RDM_From_IJ_Pair, Fill_Spin_Coupled_RDM, Fill_Spin_Coupled_RDM_v2
         USE Logging , only : tHF_S_D_Ref, tHF_S_D
@@ -5286,10 +5288,10 @@ END MODULE nElRDMMod
                 ! And for HF_S_D if Dj has excitation level le 2.
                 ! Calc excitation level of Di - this needs to be 1 or 2 in 
                 ! both cases (connections to the HF have already been included).
-                walkExcitLevel = FindBitExcitLevel (iLutHF, Spawned_Parents(0:NIfDBO,i), 2)
+                walkExcitLevel = FindBitExcitLevel (iLutHF_True, Spawned_Parents(0:NIfDBO,i), 2)
                 IF(walkExcitLevel.gt.2) CYCLE
                 IF(walkExcitLevel.eq.0) CYCLE
-            ELSEIF(DetBitEQ(iLutHF,Spawned_Parents(0:NIfDBO,i),NIfDBO)) then
+            ELSEIF(DetBitEQ(iLutHF_True,Spawned_Parents(0:NIfDBO,i),NIfDBO)) then
                 ! We've already added HF - S, and HF - D symmetrically.
                 ! Any connection with the HF has therefore already been added.
                 CYCLE
