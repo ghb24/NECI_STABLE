@@ -167,7 +167,8 @@ MODULE PopsfileMod
             if(err.ne.0) call stop_all(this_routine,"MPI scatter error")
             if(bNodeRoot) then
 !                call MPIScatterV(BatchRead(:,1:MaxSendIndex),sendcounts,disps,Dets(:,CurrWalkers+1:DetsLen),recvcount,err,Roots)
-                call MPIScatterV(BatchRead(:,1:MaxSendIndex),sendcounts,disps,Dets(:,CurrWalkers+1:(recvcount/NIfTot+1)),recvcount,err,Roots)
+                call MPIScatterV(BatchRead(:,1:MaxSendIndex),sendcounts,disps,  &
+                    Dets(:,CurrWalkers+1:(recvcount/NIfTot+1)),recvcount,err,Roots)
             endif
             if(err.ne.0) call stop_all(this_routine,"MPI error")
             if(bNodeRoot) CurrWalkers=CurrWalkers+recvcount/(NIfTot+1)
