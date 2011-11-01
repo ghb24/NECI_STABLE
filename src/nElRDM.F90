@@ -3446,9 +3446,9 @@ MODULE nElRDMMod
         close(abba_RDM_unit)
 
         if(tNormalise.and.(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref))) then
-            write(6,'(A29,F30.20)') ' MAX ABS ERROR IN HERMITICITY', Max_Error_Hermiticity
-            write(6,'(A29,F30.20)') ' SUM ABS ERROR IN HERMITICITY', Sum_Error_Hermiticity
-            write(6,'(A41,F30.20)') ' AVERAGE ABS PERCENTAGE ERROR HERMITICITY', Sum_Herm_Percent/real(No_Herm_Elements,dp)
+            write(6,'(I15,F30.20,A20,A39)') Iter+PreviousCycles, Max_Error_Hermiticity, '( Iteration,',' MAX ABS ERROR IN HERMITICITY )'
+            write(6,'(I15,F30.20,A20,A39)') Iter+PreviousCycles, Sum_Error_Hermiticity, '( Iteration,',' SUM ABS ERROR IN HERMITICITY )'
+            write(6,'(I15,F30.20,A20,A51)') Iter+PreviousCycles, Sum_Herm_Percent/real(No_Herm_Elements,dp), '( Iteration,',' AVERAGE ABS PERCENTAGE HERMITICITY ERROR )'
         endif
 
 !        Tot_Spin_Projection = Tot_Spin_Projection + (3.D0 * real(NEl,dp))
