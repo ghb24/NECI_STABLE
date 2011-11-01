@@ -39,7 +39,7 @@ MODULE nElRDMMod
         USE IntegralsData , only : UMAT
         USE UMatCache , only : UMatInd
         USE SystemData , only : NEl,nBasis,tStoreSpinOrbs, G1, BRR, lNoSymmetry, ARR
-        USE SystemData , only : tUseMP2VarDenMat, Ecore, LMS, tHPHF
+        USE SystemData , only : tUseMP2VarDenMat, Ecore, LMS, tHPHF, tFixLz, iMaxLz
         USE NatOrbsMod , only : NatOrbMat,NatOrbMatTag,Evalues,EvaluesTag
         USE CalcData , only : MemoryFacPart
         USE constants , only : n_int, dp, Root2, sizeof_int
@@ -350,9 +350,17 @@ MODULE nElRDMMod
         ! for the diagonalisation / rotation of the 1-RDMs.
 
         if(tStoreSpinOrbs) then
-            NoSymLabelCounts = 16
+            if(tFixLz) then
+                NoSymLabelCounts = 16 * ( (2 * iMaxLz) + 1 )
+            else
+                NoSymLabelCounts = 16 
+            endif
         else
-            NoSymLabelCounts = 8
+            if(tFixLz) then
+                NoSymLabelCounts = 8 * ( (2 * iMaxLz) + 1 )
+            else
+                NoSymLabelCounts = 8
+            endif
         endif
 
         IF((RDMExcitLevel.eq.1).or.tDiagRDM.or.tPrint1RDM) THEN
@@ -578,7 +586,7 @@ MODULE nElRDMMod
         USE Logging , only : tDiagRDM
         IMPLICIT NONE
         INTEGER , ALLOCATABLE :: SymOrbs(:)
-        INTEGER :: LabOrbsTag, SymOrbsTag, ierr, i , j 
+        INTEGER :: LabOrbsTag, SymOrbsTag, ierr, i , j, SpatSym, LzSym 
         INTEGER :: lo, hi, Symi, SymCurr, Symi2, SymCurr2
         CHARACTER(len=*) , PARAMETER :: this_routine = 'SetUpSymLabels_RDM'
 
@@ -606,13 +614,30 @@ MODULE nElRDMMod
         do i=1,SpatOrbs
             if(tStoreSpinOrbs) then
                 ! for open shell systems, all alpha are followed by all beta.
-                SymLabelList2(i)=BRR(2*i)
-                SymOrbs(i)=INT(G1(BRR(2*i))%sym%S,4)
-                SymLabelList2(i+SpatOrbs)=BRR((2*i)-1)
-                SymOrbs(i+SpatOrbs)=INT(G1(BRR((2*i)-1))%sym%S,4)
+                SymLabelList2(i) = BRR(2*i)
+                SymLabelList2(i+SpatOrbs) = BRR((2*i)-1)
+
+                if(tFixLz) then
+                    SpatSym = INT(G1(BRR(2*i))%sym%S,4)
+                    LzSym = INT(G1(BRR(2*i))%Ml,4)
+                    SymOrbs(i) = ( SpatSym * ((2 * iMaxLz) + 1) ) + ( LzSym + iMaxLz )
+
+                    SpatSym = INT(G1(BRR((2*i)-1))%sym%S,4)
+                    LzSym = INT(G1(BRR((2*i)-1))%Ml,4)
+                    SymOrbs(i+SpatOrbs) = ( SpatSym * ((2 * iMaxLz) + 1) ) + ( LzSym + iMaxLz )
+                else
+                    SymOrbs(i) = INT(G1(BRR(2*i))%sym%S,4) 
+                    SymOrbs(i+SpatOrbs) = INT(G1(BRR((2*i)-1))%sym%S,4) 
+                endif
             else
-                SymLabelList2(i)=gtID(BRR(2*i))
-                SymOrbs(i)=INT(G1(BRR(2*i))%sym%S,4)
+                SymLabelList2(i) = gtID(BRR(2*i))
+                if(tFixLz) then
+                    SpatSym = INT(G1(BRR(2*i))%sym%S,4)
+                    LzSym = INT(G1(BRR(2*i))%Ml,4)
+                    SymOrbs(i) = ( SpatSym * ((2 * iMaxLz) + 1) ) + ( LzSym + iMaxLz )
+                else
+                    SymOrbs(i) = INT(G1(BRR(2*i))%sym%S,4) 
+                endif
                 ! Orbital BRR(2*i) for i = 1 will be the beta orbital with the 
                 ! second lowest energy - want the spatial orbital index to go with this.
                 ! G1 also in spin orbitals - get symmetry of this beta orbital, will 
@@ -641,7 +666,7 @@ MODULE nElRDMMod
             endif
         ELSE 
             ! otherwise we run through the occupied orbitals, counting the number with 
-            ! each symmetry and noting where in SymLabelList2 each symmetry block starts.
+            ! each symmetry (spatial and Lz) and noting where in SymLabelList2 each symmetry block starts.
             SymCurr = 0
             SymLabelCounts2(1,1) = 1
             if(tStoreSpinOrbs) then
@@ -3035,7 +3060,8 @@ MODULE nElRDMMod
         implicit none
         real(dp) , intent(out) :: Norm_2RDM_Inst, Norm_2RDM
         real(dp) :: AllAccumRDMNorm_Inst
-        real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity
+        logical :: tmake_herm
+!        real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity
 
         ! If Iter = 0, this means we have just read in the TwoRDM_POPS_a*** matrices into All_a***_RDM, and 
         ! just want to calculate the old energy.
@@ -3073,22 +3099,27 @@ MODULE nElRDMMod
             if( tFinalRDMEnergy .or. &
                 ( tWriteMultRDMs .and. (mod((Iter - IterRDMStart)+1,IterWriteRDMs).eq.0) ) ) then
 
+                tmake_herm = .false.
+
                 if(tFinalRDMEnergy) then
                     ! Only ever want to print the POPS 2-RDMs (for reading in) at the end.
-                    if(twrite_RDMs_to_read) call Write_out_2RDM(Norm_2RDM,.false.)
+                    if(twrite_RDMs_to_read) call Write_out_2RDM(Norm_2RDM,.false.,.false.)
 
-                    ! We also don't want to make the 2-RDMs hermitian until the end, so that we can 
-                    ! get the hermiticity error from the final matrix.
-                    if(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
-                        call make_2e_rdm_hermitian(Norm_2RDM, Max_Error_Hermiticity, Sum_Error_Hermiticity)
+!                    ! We also don't want to make the 2-RDMs hermitian until the end, so that we can 
+!                    ! get the hermiticity error from the final matrix.
+!                    if(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+!                        call make_2e_rdm_hermitian(Norm_2RDM, Max_Error_Hermiticity, Sum_Error_Hermiticity)
+!
+!                        write(6,'(A29,F30.20)') ' MAX ABS ERROR IN HERMITICITY', Max_Error_Hermiticity
+!                        write(6,'(A29,F30.20)') ' SUM ABS ERROR IN HERMITICITY', Sum_Error_Hermiticity
+!                    endif
 
-                        write(6,'(A29,F30.20)') ' MAX ABS ERROR IN HERMITICITY', Max_Error_Hermiticity
-                        write(6,'(A29,F30.20)') ' SUM ABS ERROR IN HERMITICITY', Sum_Error_Hermiticity
-                    endif
+                    if(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref)) tmake_herm = .true.
+
                 endif
 
                 ! This writes out the normalised, hermitian 2-RDMs.
-                if(twrite_normalised_RDMs) call Write_out_2RDM(Norm_2RDM,.true.)
+                if(twrite_normalised_RDMs) call Write_out_2RDM(Norm_2RDM,.true.,tmake_herm)
 
             endif
         endif
@@ -3205,7 +3236,7 @@ MODULE nElRDMMod
     end subroutine make_2e_rdm_hermitian
 
 
-    subroutine Write_out_2RDM(Norm_2RDM,tNormalise)
+    subroutine Write_out_2RDM(Norm_2RDM,tNormalise,tmake_herm)
 ! Writes out the 2-RDMs.  If tNormalise is true, we print the normalised (hermitian) matrix.    
 ! Otherwise we print the unnormalised 2-RDMs, and we print (in binary) both 2-RDM(Ind1,Ind2) 
 ! and 2-RDM(Ind2,Ind1) because this matrix wont be hermitian.
@@ -3216,12 +3247,15 @@ MODULE nElRDMMod
         use Logging , only : tWriteMultRDMs
         implicit none
         real(dp) , intent(in) :: Norm_2RDM
-        logical , intent(in) :: tNormalise
+        logical , intent(in) :: tNormalise, tmake_herm
         real(dp) :: Tot_Spin_Projection, SpinPlus, SpinMinus
         real(dp) :: ParityFactor,Divide_Factor 
         integer :: i, j, a, b, Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab
-        integer :: aaaa_RDM_unit, abab_RDM_unit, abba_RDM_unit
+        integer :: aaaa_RDM_unit, abab_RDM_unit, abba_RDM_unit, No_Herm_Elements
         character(255) :: TwoRDM_aaaa_name, TwoRDM_abab_name, TwoRDM_abba_name
+        real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity, Sum_Herm_Percent 
+        real(dp) :: Temp
+
 
         if(tNormalise) then
             write(6,*) 'Writing out the *normalised* 2 electron density matrix to file'
@@ -3250,6 +3284,10 @@ MODULE nElRDMMod
             OPEN(abba_RDM_unit,file='TwoRDM_POPS_abba',status='unknown',form='unformatted')
         endif
         
+        Max_Error_Hermiticity = 0.D0
+        Sum_Error_Hermiticity = 0.D0
+        Sum_Herm_Percent = 0.D0
+        No_Herm_Elements = 0
         Tot_Spin_Projection = 0.D0
         do i = 1, SpatOrbs
 
@@ -3286,6 +3324,25 @@ MODULE nElRDMMod
                                 ! Otherwise we print out Ind1, Ind2 and Ind2, Ind1 so we can 
                                 ! find the hermiticity error in the final matrix (after all runs).
                                 if(tNormalise.and.((Ind1_aa.le.Ind2_aa).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+                                    
+                                    IF((abs((All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)-(All_aaaa_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
+                                        Max_Error_Hermiticity = abs((All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)-(All_aaaa_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))
+
+                                    Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
+                                                            abs((All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)-(All_aaaa_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))
+
+                                    Sum_Herm_Percent = Sum_Herm_Percent +   &
+                                                        ( abs((All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)-(All_aaaa_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM)) / &
+                                                        (abs((All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)+(All_aaaa_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM)) / 2.0_dp) )
+                                    No_Herm_Elements = No_Herm_Elements + 1                                                        
+
+                                    if(tmake_herm) then                                                            
+                                        Temp = (All_aaaa_RDM(Ind1_aa,Ind2_aa) + All_aaaa_RDM(Ind2_aa,Ind1_aa)) / 2.D0
+
+                                        All_aaaa_RDM(Ind1_aa,Ind2_aa) = Temp
+                                        All_aaaa_RDM(Ind2_aa,Ind1_aa) = Temp
+                                    endif
+
                                     if(tFinalRDMEnergy) then
                                         ! For the final calculation, the 2-RDMs will have been made hermitian.
                                         write(aaaa_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
@@ -3308,6 +3365,25 @@ MODULE nElRDMMod
 
                             if( All_abba_RDM(Ind1_aa,Ind2_aa).ne.0.0_dp) then
                                 if(tNormalise.and.((Ind1_aa.le.Ind2_aa).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+
+                                    IF((abs((All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)-(All_abba_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
+                                        Max_Error_Hermiticity = abs((All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)-(All_abba_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))
+
+                                    Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
+                                                            abs((All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)-(All_abba_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))
+
+                                    Sum_Herm_Percent = Sum_Herm_Percent +   &
+                                                        ( abs((All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)-(All_abba_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM)) / &
+                                                        (abs((All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)+(All_abba_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM)) / 2.0_dp) )
+                                    No_Herm_Elements = No_Herm_Elements + 1                                                        
+
+                                    if(tmake_herm) then                                                            
+                                        Temp = (All_abba_RDM(Ind1_aa,Ind2_aa) + All_abba_RDM(Ind2_aa,Ind1_aa)) / 2.D0
+
+                                        All_abba_RDM(Ind1_aa,Ind2_aa) = Temp
+                                        All_abba_RDM(Ind2_aa,Ind1_aa) = Temp
+                                    endif
+
                                     if(tFinalRDMEnergy) then
                                         write(abba_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
                                             ( All_abba_RDM(Ind1_aa,Ind2_aa) * Norm_2RDM ) / Divide_Factor
@@ -3325,6 +3401,25 @@ MODULE nElRDMMod
                         endif
 
                         if( All_abab_RDM(Ind1_ab,Ind2_ab).ne.0.0_dp) then
+
+                            IF((abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM)-(All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
+                                Max_Error_Hermiticity = abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM)-(All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM))
+
+                            Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
+                                                    abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM)-(All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM))
+
+                            Sum_Herm_Percent = Sum_Herm_Percent +   &
+                                                ( abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM)-(All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM)) / &
+                                                (abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM)+(All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM)) / 2.0_dp) )
+                            No_Herm_Elements = No_Herm_Elements + 1                                                        
+
+                            if(tmake_herm) then                                                            
+                                Temp = (All_abab_RDM(Ind1_ab,Ind2_ab) + All_abab_RDM(Ind2_ab,Ind1_ab)) / 2.D0
+
+                                All_abab_RDM(Ind1_ab,Ind2_ab) = Temp
+                                All_abab_RDM(Ind2_ab,Ind1_ab) = Temp
+                            endif
+
                             if(tNormalise.and.((Ind1_ab.le.Ind2_ab).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
                                 if(tFinalRDMEnergy) then
                                     write(abab_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
@@ -3349,6 +3444,12 @@ MODULE nElRDMMod
         close(aaaa_RDM_unit)
         close(abab_RDM_unit)
         close(abba_RDM_unit)
+
+        if(tNormalise.and.(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref))) then
+            write(6,'(A29,F30.20)') ' MAX ABS ERROR IN HERMITICITY', Max_Error_Hermiticity
+            write(6,'(A29,F30.20)') ' SUM ABS ERROR IN HERMITICITY', Sum_Error_Hermiticity
+            write(6,'(A41,F30.20)') ' AVERAGE ABS PERCENTAGE ERROR HERMITICITY', Sum_Herm_Percent/real(No_Herm_Elements,dp)
+        endif
 
 !        Tot_Spin_Projection = Tot_Spin_Projection + (3.D0 * real(NEl,dp))
 !! Tot_Spin_Projection is now equal to 4S(S+1) - find S. 
@@ -3688,7 +3789,7 @@ MODULE nElRDMMod
         USE RotateOrbsMod , only : FourIndInts, FourIndIntsTag
         USE RotateOrbsData , only : NoOrbs
         implicit none
-        integer :: ierr 
+        integer :: ierr
         REAL(dp) :: SumDiag
         CHARACTER(len=*), PARAMETER :: this_routine='find_nat_orb_occ_numbers'
 
@@ -3954,9 +4055,17 @@ MODULE nElRDMMod
         Sym=0
         LWORK2=-1
         if(tStoreSpinOrbs) then
-            MaxSym = 15
+            if(tFixLz) then
+                MaxSym = (16 * ( ( 2 * iMaxLz ) + 1 ) ) - 1
+            else
+                MaxSym = 15
+            endif
         else
-            MaxSym = 7
+            if(tFixLz) then
+                MaxSym = (8 * ( ( 2 * iMaxLz ) + 1 ) ) - 1
+            else
+                MaxSym = 7
+            endif
         endif
         do while (Sym.le.MaxSym)
 
@@ -4526,32 +4635,34 @@ MODULE nElRDMMod
         IF(tStoreSpinOrbs) THEN
             WRITE(iunit,'(A7,I1,A11)') 'ISYM=',1,' UHF=.TRUE.'
         ELSE
-            WRITE(iunit,'(A7,I1,A11)') 'ISYM=',1,' UHF=.FALSE.'
+            WRITE(iunit,'(A7,I1,A12)') 'ISYM=',1,' UHF=.FALSE.'
         ENDIF
-        WRITE(iunit,'(A7)',advance='no') 'SYML='
-        do i=1,NoOrbs
-            if(i.eq.NoOrbs) then
-                WRITE(iunit,'(I3,A1)') -20,','
-            else
-                WRITE(iunit,'(I3,A1)',advance='no') -20,','
-            endif
-        enddo
-        WRITE(iunit,'(A8)',advance='no') 'SYMLZ='
-        do i=1,NoOrbs
-            if(i.eq.NoOrbs) then
-                IF(tStoreSpinOrbs) THEN
-                    WRITE(iunit,'(I2,A1)') INT(G1(i)%Ml,4),','
-                ELSE
-                    WRITE(iunit,'(I2,A1)') INT(G1(i*2)%Ml,4),','
-                ENDIF
-            else
-                IF(tStoreSpinOrbs) THEN
-                    WRITE(iunit,'(I2,A1)',advance='no') INT(G1(i)%Ml,4),','
-                ELSE
-                    WRITE(iunit,'(I2,A1)',advance='no') INT(G1(i*2)%Ml,4),','
-                ENDIF
-            endif
-        enddo
+        if(tFixLz) then
+            WRITE(iunit,'(A7)',advance='no') 'SYML='
+            do i=1,NoOrbs
+                if(i.eq.NoOrbs) then
+                    WRITE(iunit,'(I3,A1)') -20,','
+                else
+                    WRITE(iunit,'(I3,A1)',advance='no') -20,','
+                endif
+            enddo
+            WRITE(iunit,'(A8)',advance='no') 'SYMLZ='
+            do i=1,NoOrbs
+                if(i.eq.NoOrbs) then
+                    IF(tStoreSpinOrbs) THEN
+                        WRITE(iunit,'(I2,A1)') INT(G1(i)%Ml,4),','
+                    ELSE
+                        WRITE(iunit,'(I2,A1)') INT(G1(i*2)%Ml,4),','
+                    ENDIF
+                else
+                    IF(tStoreSpinOrbs) THEN
+                        WRITE(iunit,'(I2,A1)',advance='no') INT(G1(i)%Ml,4),','
+                    ELSE
+                        WRITE(iunit,'(I2,A1)',advance='no') INT(G1(i*2)%Ml,4),','
+                    ENDIF
+                endif
+            enddo
+        endif
         WRITE(iunit,'(A5)') '&END'
        
         do i=1,NoOrbs
