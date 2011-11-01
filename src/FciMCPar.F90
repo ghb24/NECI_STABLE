@@ -4230,6 +4230,7 @@ MODULE FciMCParMod
             CALL EncodeBitDet(HFDet_True,iLutHF_True)
         else
             iLutHF_True = iLutHF
+            HFDet_True = HFDet
         endif
 
         if(tHPHF) then
