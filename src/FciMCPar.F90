@@ -3126,13 +3126,9 @@ MODULE FciMCParMod
                 NoatHF(1) = -NoatHF(1)
 
                 if(tFillingStochRDMonFly) then
-                    ! Want to zero all the averaged signs.
-                    write(6,'(A)') "Zero-ing the RDMs"
-                    CurrentH(2:3,:) = 0.0_dp
-                    AvNoatHF = 0.0_dp
+                    ! Want to flip all the averaged signs.
+                    AvNoatHF = -AvNoatHF 
                     InstNoatHF(1) = -InstNoatHF(1)
-                    IterRDM_HF = Iter + 1
-                    call zero_rdms()
                 endif
  
             endif
@@ -3843,6 +3839,7 @@ MODULE FciMCParMod
             call extract_sign(CurrentDets(:,i),TempSign)
             TempSign(1)=-TempSign(1)
             call encode_sign(CurrentDets(:,i),TempSign)
+            if(tFillingStochRDMonFly) CurrentH(2,i) = -CurrentH(2,i)
         enddo
 
 !Reverse the flag for whether the sign of the particles has been flipped so the ACF can be correctly calculated
