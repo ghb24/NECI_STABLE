@@ -3870,7 +3870,7 @@ MODULE nElRDMMod
         REAL(dp) , ALLOCATABLE :: WORK2(:),EvaluesSym(:),NOMSym(:,:)
         INTEGER :: ierr,i,j,spin,Sym,LWORK2,WORK2Tag,SymStartInd,NoSymBlock
         INTEGER :: EvaluesSymTag,NOMSymTag,k,MaxSym
-        LOGICAL :: tDiffSym
+        LOGICAL :: tDiffSym, tDiffLzSym
         CHARACTER(len=*), PARAMETER :: this_routine='DiagRDM'
 
 ! Test that we're not breaking symmetry.
@@ -3879,12 +3879,17 @@ MODULE nElRDMMod
         do i=1,NoOrbs
             do j=1,NoOrbs
                 tDiffSym = .false.
+                tDiffLzSym = .false.
                 if(tStoreSpinOrbs) then
                     IF((INT(G1(SymLabelList2(i))%sym%S,4).ne.&
                         INT(G1(SymLabelList2(j))%sym%S,4))) tDiffSym = .true.
+                    IF((INT(G1(SymLabelList2(i))%Ml,4).ne.&
+                        INT(G1(SymLabelList2(j))%Ml,4))) tDiffLzSym = .true.
                 else
                     IF((INT(G1(2*SymLabelList2(i))%sym%S,4).ne.&
                         INT(G1(2*SymLabelList2(j))%sym%S,4))) tDiffSym = .true.
+                    IF((INT(G1(2*SymLabelList2(i))%Ml,4).ne.&
+                        INT(G1(2*SymLabelList2(j))%Ml,4))) tDiffLzSym = .true.
                 endif
                 if(tDiffSym) then
                     IF(ABS(NatOrbMat(i,j)).ge.1.0E-15) THEN
@@ -3916,6 +3921,23 @@ MODULE nElRDMMod
                     ENDIF
                     NatOrbMat(i,j)=0.D0
                 ENDIF
+                if(tDiffLzSym) then
+                    IF(ABS(NatOrbMat(i,j)).ge.1.0E-15) THEN
+                        WRITE(6,'(6A8,A40)') 'i','j','Label i','Label j','Lz i',&
+                                                                'Lz j','Matrix value'
+                        if(tStoreSpinOrbs) then                                                              
+                            WRITE(6,'(6I8,F40.20)') i,j,SymLabelList2(i),SymLabelList2(j),&
+                                    INT(G1(SymLabelList2(i))%Ml,4),&
+                                    INT(G1(SymLabelList2(j))%Ml,4),NatOrbMat(i,j)
+                        else
+                            WRITE(6,'(6I8,F40.20)') i,j,SymLabelList2(i),SymLabelList2(j),&
+                                    INT(G1(2*SymLabelList2(i))%Ml,4),&
+                                    INT(G1(2*SymLabelList2(j))%Ml,4),NatOrbMat(i,j)
+                        endif
+                        write(6,'(A)') ' **WARNING** - There is a non-zero NatOrbMat element &
+                        &between orbitals of different Lz symmetry.'
+                    endif
+                endif
             enddo
             SumTrace=SumTrace+NatOrbMat(i,i)
         enddo
@@ -4504,8 +4526,32 @@ MODULE nElRDMMod
         IF(tStoreSpinOrbs) THEN
             WRITE(iunit,'(A7,I1,A11)') 'ISYM=',1,' UHF=.TRUE.'
         ELSE
-            WRITE(iunit,'(A7,I1)') 'ISYM=',1
+            WRITE(iunit,'(A7,I1,A11)') 'ISYM=',1,' UHF=.FALSE.'
         ENDIF
+        WRITE(iunit,'(A7)',advance='no') 'SYML='
+        do i=1,NoOrbs
+            if(i.eq.NoOrbs) then
+                WRITE(iunit,'(I3,A1)') -20,','
+            else
+                WRITE(iunit,'(I3,A1)',advance='no') -20,','
+            endif
+        enddo
+        WRITE(iunit,'(A8)',advance='no') 'SYMLZ='
+        do i=1,NoOrbs
+            if(i.eq.NoOrbs) then
+                IF(tStoreSpinOrbs) THEN
+                    WRITE(iunit,'(I2,A1)') INT(G1(i)%Ml,4),','
+                ELSE
+                    WRITE(iunit,'(I2,A1)') INT(G1(i*2)%Ml,4),','
+                ENDIF
+            else
+                IF(tStoreSpinOrbs) THEN
+                    WRITE(iunit,'(I2,A1)',advance='no') INT(G1(i)%Ml,4),','
+                ELSE
+                    WRITE(iunit,'(I2,A1)',advance='no') INT(G1(i*2)%Ml,4),','
+                ENDIF
+            endif
+        enddo
         WRITE(iunit,'(A5)') '&END'
        
         do i=1,NoOrbs
