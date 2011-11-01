@@ -4621,19 +4621,27 @@ MODULE nElRDMMod
 
         IF(RDMExcitLevel.eq.1) THEN
 
-            DEALLOCATE(NatOrbMat)
-            CALL LogMemDeAlloc(this_routine,NatOrbMatTag)
+            if(allocated(NatOrbMat)) then
+                DEALLOCATE(NatOrbMat)
+                CALL LogMemDeAlloc(this_routine,NatOrbMatTag)
+            endif
 
             IF((iProcIndex.eq.0).and.tDiagRDM) THEN
-                DEALLOCATE(Evalues)
-                CALL LogMemDeAlloc(this_routine,EvaluesTag)
+                if(allocated(Evalues)) then
+                    DEALLOCATE(Evalues)
+                    CALL LogMemDeAlloc(this_routine,EvaluesTag)
+                endif
 
-                DEALLOCATE(Rho_ii)
-                CALL LogMemDeAlloc(this_routine,Rho_iiTag)
+                if(allocated(Rho_ii)) then
+                    DEALLOCATE(Rho_ii)
+                    CALL LogMemDeAlloc(this_routine,Rho_iiTag)
+                endif
 
                 IF(tPrintRODump) THEN
-                    DEALLOCATE(FourIndInts)
-                    CALL LogMemDeAlloc(this_routine,FourIndIntsTag)
+                    if(allocated(FourIndInts)) then
+                        DEALLOCATE(FourIndInts)
+                        CALL LogMemDeAlloc(this_routine,FourIndIntsTag)
+                    endif
                 ENDIF
 
             ENDIF
@@ -4665,8 +4673,10 @@ MODULE nElRDMMod
                 CALL LogMemDeAlloc(this_routine,All_abba_RDMTag)
  
                 if(tDiagRDM.or.tPrint1RDM) then
-                    DEALLOCATE(NatOrbMat)
-                    CALL LogMemDeAlloc(this_routine,NatOrbMatTag)
+                    if(allocated(NatOrbMat)) then
+                        DEALLOCATE(NatOrbMat)
+                        CALL LogMemDeAlloc(this_routine,NatOrbMatTag)
+                    endif
                 endif
             ENDIF
 
