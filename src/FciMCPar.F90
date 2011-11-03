@@ -4398,6 +4398,11 @@ MODULE FciMCParMod
 
         if(tSearchTau) then
 
+            if(tReadPops) then
+                call stop_all(this_routine,"Cannot dynamically search for timestep if reading &
+                    &in POPSFILE. Manually specify tau.")
+            endif
+
             if(.not.tRestart) then
                 !Set initial tau value.
                 if(UpperTau.le.0.0_dp) then
