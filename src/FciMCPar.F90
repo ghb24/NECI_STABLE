@@ -7203,6 +7203,8 @@ MODULE FciMCParMod
         DEALLOCATE(iLutHF)
         DEALLOCATE(iLutRef)
         DEALLOCATE(ProjEDet)
+        DEALLOCATE(iLutHF_True)
+        DEALLOCATE(HFDet_True)
         IF(ALLOCATED(HighestPopDet)) DEALLOCATE(HighestPopDet)
         IF(ALLOCATED(RandomHash)) DEALLOCATE(RandomHash)
 
