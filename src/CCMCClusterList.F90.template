@@ -432,7 +432,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,
    use CCMCData, only: ClustSelector
    use BinSearch, only: BinarySearch
    use dSFMT_interface , only : genrand_real2_dSFMT
-   use timing
+   use timing_neci
    use Parallel, only : nProcessors,nNodes
    use FciMCParMod, only: iLutHF
    use bit_rep_data
@@ -690,7 +690,7 @@ SUBROUTINE CollapseCluster (C,iLutHF,AL,iAmpList,nDet,iDebug,tExToDet)
    use SystemData, only : nEl
    use DetBitOps, only: FindBitExcitLevel
    use bit_reps, only: decode_bit_det
-   use timing
+   use timing_neci
    IMPLICIT NONE
    TYPE(Cluster) C
    INTEGER(KIND=n_int) :: iLutHF(0:nIfTot)
@@ -762,7 +762,7 @@ subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,dNorm,AL,iAmpList,nAmpl,dTol,Wal
    use Parallel, only: iProcIndex
    use CCMCData, only: tCCMCFCI
    use FciMCData, only: TotParts,TotWalkers,NoatHF,NoatDoubs, iter_data_ccmc
-   use timing
+   use timing_neci
    implicit none
    integer iNumExcitors,nAmpl
    real(dp) dTotAbsAmpl,dTol

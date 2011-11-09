@@ -16,7 +16,7 @@ MODULE ReadInput
         USE input
         use System,     only : SysReadInput,SetSysDefaults
         use Calc,       only : CalcReadInput,SetCalcDefaults
-        use Integrals,  only : IntReadInput,SetIntDefaults
+        use Integrals_neci,  only : IntReadInput,SetIntDefaults
         Use Logging,    only : LogReadInput,SetLogDefaults
         use Parallel,   only : iProcIndex
         use default_sets

@@ -1,5 +1,5 @@
 #include "macros.h"
-module Integrals
+module Integrals_neci
 
     use SystemData, only: tStoreSpinOrbs, tStarStore, nBasisMax, iSpinSkip, &
                           tFixLz, nBasis, G1, Symmetry, tCacheFCIDUMPInts, &
@@ -1858,7 +1858,7 @@ contains
       close(iunit)
     END subroutine writesymclasses
 
-END MODULE Integrals
+END MODULE Integrals_neci
 
 
 
