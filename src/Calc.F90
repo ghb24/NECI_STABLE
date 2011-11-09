@@ -262,7 +262,7 @@ contains
 
 
         SUBROUTINE CalcReadInput()
-          USE input
+          USE input_neci
           Use Determinants, only : iActiveBasis, SpecDet, tagSpecDet, tSpecDet, nActiveSpace
           Use Determinants, only : tDefineDet, DefDet, tagDefDet
           use SystemData, only : Beta,nEl
@@ -1817,7 +1817,7 @@ contains
 
 
       subroutine inpgetmethod(I_HMAX,NWHTAY,I_V)
-         use input
+         use input_neci
          use UMatCache , only : TSTARSTORE
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
          use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,tCCMC
@@ -2026,7 +2026,7 @@ contains
 
 
       subroutine inpgetexcitations(NWHTAY,w)
-         use input
+         use input_neci
          IMPLICIT NONE
          INTEGER NWHTAY
          CHARACTER(LEN=16) w

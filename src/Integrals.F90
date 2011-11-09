@@ -139,7 +139,7 @@ contains
     end subroutine SetIntDefaults
 
     SUBROUTINE IntReadInput()
-      USE input
+      USE input_neci
       use SystemData , only : NEL,TUSEBRILLOUIN,tStarStore,OrbOrder,NMSH,BasisFN
       use UMatCache, only: tReadInCache,nSlotsInit,nMemInit,iDumpCacheFlag,iDFMethod
       IMPLICIT NONE

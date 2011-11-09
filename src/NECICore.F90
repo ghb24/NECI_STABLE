@@ -12,7 +12,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local)
     !=    tCPMD: True if doing a CPMD-based calculation.
     !=    tVASP: True if doing a VASP-based calculation.
 
-    Use ReadInput, only : ReadInputMain
+    Use ReadInput_neci, only : ReadInputMain
     Use SystemData, only : tMolpro
 
     ! main-level modules.
