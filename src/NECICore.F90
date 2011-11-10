@@ -12,7 +12,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local)
     !=    tCPMD: True if doing a CPMD-based calculation.
     !=    tVASP: True if doing a VASP-based calculation.
 
-    Use ReadInput, only : ReadInputMain
+    Use ReadInput_neci, only : ReadInputMain
     Use SystemData, only : tMolpro
 
     ! main-level modules.
@@ -83,7 +83,7 @@ subroutine NECICodeInit(tCPMD,tVASP)
 
     ! Utility modules
     use MemoryManager, only: InitMemoryManager
-    use timing, only: init_timing
+    use timing_neci, only: init_timing
     use Parallel, only: MPIInit
 
     implicit none
@@ -114,7 +114,7 @@ subroutine NECICodeEnd(tCPMD,tVASP)
 
     ! Utility modules
     use MemoryManager, only: LeaveMemoryManager
-    use timing, only: end_timing,print_timing_report
+    use timing_neci, only: end_timing,print_timing_report
 #ifdef PARALLEL
     use Parallel, only: MPIEnd
 #endif
@@ -149,7 +149,7 @@ subroutine NECICalcInit(iCacheFlag)
 
     use System, only : SysInit
     use SystemData, only : tRotateOrbs,tFindCINatOrbs
-    use Integrals, only : IntInit,IntFreeze,tPostFreezeHF
+    use Integrals_neci, only : IntInit,IntFreeze,tPostFreezeHF
     use DetCalc, only : DetCalcInit,DoDetCalc
     use Determinants, only : DetPreFreezeInit,DetInit
     use Calc, only : CalcInit
@@ -213,7 +213,7 @@ subroutine NECICalcEnd(iCacheFlag)
 
     ! Main level modules.
     use System, only: SysCleanup
-    use Integrals, only: IntCleanup
+    use Integrals_neci, only: IntCleanup
     use Determinants, only: DetCleanup
     use Calc, only: CalcCleanup
     use shared_alloc, only: cleanup_shared_alloc

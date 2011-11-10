@@ -1,4 +1,4 @@
-MODULE input
+MODULE input_neci
 
 !  Fortran90 input parsing module
 !
@@ -1120,4 +1120,4 @@ end if
 
 END SUBROUTINE read_colour
 
-END MODULE input
+END MODULE input_neci

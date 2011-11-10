@@ -508,7 +508,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          RETURN
       END
       SUBROUTINE GENDMAT(NSPINS,NSBASIS,NELS,FMAT,DMAT,LTRANS)
-         use Integrals, only: GetUMatEl
+         use Integrals_neci, only: GetUMatEl
          USE Logging, only: HFLogLevel
          use SystemData, only: BasisFN
          use constants, only: dp
@@ -555,7 +555,7 @@ C.. vector
       SUBROUTINE GENFMAT(FMAT,DMAT,NSBASIS,NSPINS)
          USE OneEInts, only: GetTMATEl
          USE UMatCache, only: GTID
-         use Integrals, only: GetUMatEl
+         use Integrals_neci, only: GetUMatEl
          USE Logging, only: HFLogLevel
          use constants, only: dp
          use SystemData, only: BasisFN

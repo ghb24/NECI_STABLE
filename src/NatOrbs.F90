@@ -590,7 +590,7 @@ MODULE NatOrbsMod
 ! MP2VDM = D2_ab = sum_ijc [ t_ij^ac ( 2 t_ij^bc - t_ji^bc ) ]
 ! Where :  t_ij^ac = - < ab | ij > / ( E_a - E_i + E_b - Ej )
 ! Ref : J. Chem. Phys. 131, 034113 (2009) - note: in Eqn 1, the cb indices are the wrong way round (should be bc).
-        USE Integrals , only : GetUMatEl
+        USE Integrals_neci , only : GetUMatEl
         USE SystemData , only : tUEG
         use constants, only: dp
         INTEGER :: a,b,c,i,j,a2,b2,c2,i2,j2,x,y,z,w

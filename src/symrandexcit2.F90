@@ -44,7 +44,7 @@ MODULE GenRandSymExcitNUMod
     use constants, only: dp, n_int, bits_n_int
     use bit_reps, only: NIfTot
     use sym_mod, only: mompbcsym, GetLz
-    use timing
+    use timing_neci
     use sym_general_mod
     use spin_project, only: tSpinProject
     IMPLICIT NONE
@@ -1878,7 +1878,7 @@ MODULE GenRandSymExcitNUMod
     END SUBROUTINE CreateDoubExcitBiased
 
     SUBROUTINE CalcAllab(nI,ILUT,Elec1Ind,Elec2Ind,SymProduct,iSpn,OrbA,OrbB,nParts,iCreate,Tau)
-        use Integrals , only : GetUMatEl
+        use Integrals_neci , only : GetUMatEl
         INTEGER :: nI(NEl),Elec1Ind,Elec2Ind,SymProduct,iSpn,OrbA,OrbB,iCreate
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
         INTEGER :: SpatOrbi,SpatOrbj,Spini,Spinj,i,aspn,bspn,SymA,SymB,SpatOrba,EndSymState,VecInd

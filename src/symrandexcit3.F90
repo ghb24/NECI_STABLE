@@ -24,7 +24,7 @@ module symrandexcit3
     use FciMCData, only: pDoubles, iter, excit_gen_store_type
     use bit_reps, only: niftot, decode_bit_det_lists
     use constants, only: dp, n_int, bits_n_int
-    use timing
+    use timing_neci
     use Parallel
     use util_mod, only: binary_search_first_ge
     implicit none

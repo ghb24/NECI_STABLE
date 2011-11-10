@@ -109,7 +109,7 @@ module soft_exit
     use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
                              NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt
-    use Input
+    use Input_neci
     use Logging, only: tHistSpawn, tCalcFCIMCPsi, tIterStartBlock, &
                        IterStartBlocking, tHFPopStartBlock, NHistEquilSteps
     use FCIMCLoggingMOD, only: PrintBlocking, RestartBlocking, &
