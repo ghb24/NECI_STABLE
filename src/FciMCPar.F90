@@ -35,7 +35,8 @@ MODULE FciMCParMod
                         tChangeProjEDet, tCheckHighestPop, tSpawnSpatialInit,&
                         MemoryFacInit, tMaxBloom, tTruncNOpen, tFCIMC, &
                         trunc_nopen_max, tSpawn_Only_Init, tSpawn_Only_Init_Grow, &
-                        TargetGrowRate, TargetGrowRateWalk, tShiftonHFPop
+                        TargetGrowRate, TargetGrowRateWalk, tShiftonHFPop, &
+                        tContinueAfterMP2
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
     use Determinants, only: FDet, get_helement, write_det, &
@@ -6496,11 +6497,11 @@ MODULE FciMCParMod
                     if(abs(ky).gt.NMAXY) cycle
                     kz=Ki(3)+Kj(3)-Ka(3)
                     if(abs(kz).gt.NMAXZ) cycle
-                    if(tGCutoff) then
-                        length_g=real((kx-kj(1))**2+(ky-kj(2))**2+(kz-kj(3))**2)
-                        length_g_2=real((kx-ki(1))**2+(ky-ki(2))**2+(kz-ki(3))**2)
-                        if(length_g.gt.gCutoff.and.length_g_2.gt.gCutoff) cycle
-                    endif
+                    !if(tGCutoff) then
+                    !    length_g=real((kx-kj(1))**2+(ky-kj(2))**2+(kz-kj(3))**2)
+                    !    length_g_2=real((kx-ki(1))**2+(ky-ki(2))**2+(kz-ki(3))**2)
+                    !    if(length_g.gt.gCutoff.and.length_g_2.gt.gCutoff) cycle
+                    !endif
                     length=real((kx**2)+(ky**2)+(kz**2))
                     if(length.gt.OrbECutoff) cycle
 
@@ -6549,11 +6550,11 @@ MODULE FciMCParMod
                     if(abs(ky).gt.NMAXY) cycle
                     kz=Ki(3)+Kj(3)-Ka(3)
                     if(abs(kz).gt.NMAXZ) cycle
-                    if(tGCutoff) then
-                        length_g=real((kx-kj(1))**2+(ky-kj(2))**2+(kz-kj(3))**2)
-                        length_g_2=real((kx-ki(1))**2+(ky-ki(2))**2+(kz-ki(3))**2)
-                        if(length_g.gt.gCutoff.and.length_g_2.gt.gCutoff) cycle
-                    endif
+                    !if(tGCutoff) then
+                    !    length_g=real((kx-kj(1))**2+(ky-kj(2))**2+(kz-kj(3))**2)
+                    !    length_g_2=real((kx-ki(1))**2+(ky-ki(2))**2+(kz-ki(3))**2)
+                    !    if(length_g.gt.gCutoff.and.length_g_2.gt.gCutoff) cycle
+                    !endif
                     length=real((kx**2)+(ky**2)+(kz**2))
                     if(length.gt.OrbECutoff) cycle
 
@@ -6594,7 +6595,9 @@ MODULE FciMCParMod
         call MPISumAll(mp2,mp2all)
         write(6,"(A,2G25.15)") "MP2 energy calculated: ",MP2All,MP2All+Hii
         call flush(6)
-        call stop_all("CalcUEGMP2","Dying after calculation of MP2 energy...")
+        if (.not.tContinueAfterMP2) then
+            call stop_all("CalcUEGMP2","Dying after calculation of MP2 energy...")
+        endif
 
     end subroutine CalcUEGMP2
             

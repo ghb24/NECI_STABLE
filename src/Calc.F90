@@ -256,6 +256,7 @@ contains
 
           proje_linear_comb = .false.
           hash_shift=0
+          tContinueAfterMP2=.false.
       
         end subroutine SetCalcDefaults
 
@@ -913,6 +914,8 @@ contains
                     !change dramatically to start with.
                     call geti(InitialPart)
                 endif
+            case("CONTINUEAFTERMP2")
+                tContinueAfterMP2=.true.
             case("STARTCAS")
 !For FCIMC, this has an initial configuration of walkers which is proportional to the MP1 wavefunction
 !                CALL Stop_All(t_r,"STARTMP1 option depreciated")
