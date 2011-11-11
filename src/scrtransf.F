@@ -314,7 +314,7 @@ C         SUM2=SUM2-UMAT(ID(I),ID(J),ID(J),ID(I))
 C.. Calculate <phi_a phi_b | U | phi_c phi_d> from <u_i u_j|U|u_k u_l>
       SUBROUTINE GETTRUMATEL(A,B,C,D,BTRANS,NSBASIS,NSPINS,TOTSUM)
          use constants, only: dp
-         use Integrals, Only : GetUMatEl
+         use Integrals_neci, Only : GetUMatEl
          USE UMatCache , Only : GTID
          use SystemData, only: BasisFN
          IMPLICIT NONE

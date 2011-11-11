@@ -26,7 +26,7 @@ module hist
                    extract_dorder
     use AnnihilationMod, only: DetermineDetNode
     use hist_data
-    use timing
+    use timing_neci
     use Determinants, only: write_det
 
     implicit none

@@ -1,5 +1,5 @@
 #include "macros.h"
-module Integrals
+module Integrals_neci
 
     use SystemData, only: tStoreSpinOrbs, tStarStore, nBasisMax, iSpinSkip, &
                           tFixLz, nBasis, G1, Symmetry, tCacheFCIDUMPInts, &
@@ -139,7 +139,7 @@ contains
     end subroutine SetIntDefaults
 
     SUBROUTINE IntReadInput()
-      USE input
+      USE input_neci
       use SystemData , only : NEL,TUSEBRILLOUIN,tStarStore,OrbOrder,NMSH,BasisFN
       use UMatCache, only: tReadInCache,nSlotsInit,nMemInit,iDumpCacheFlag,iDFMethod
       IMPLICIT NONE
@@ -1858,7 +1858,7 @@ contains
       close(iunit)
     END subroutine writesymclasses
 
-END MODULE Integrals
+END MODULE Integrals_neci
 
 
 

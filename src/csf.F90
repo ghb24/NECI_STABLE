@@ -13,10 +13,10 @@ module csf
                          get_bit_open_unique_ind, FindSpatialBitExcitLevel
     use CalcData, only: InitiatorWalkNo
     use OneEInts, only: GetTMatEl
-    use Integrals, only: GetUMatEl
+    use Integrals_neci, only: GetUMatEl
     use UMatCache, only: gtID
     use csf_data
-    use timing
+    use timing_neci
     use util_mod, only: swap, choose
     use bit_reps, only: NIfD, NIfTot, NIfY, extract_sign
 

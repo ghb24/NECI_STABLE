@@ -13,10 +13,10 @@ module sltcnd_mod
     use UMatCache, only: GTID
     use IntegralsData, only: UMAT, ptr_getumatel
     use OneEInts, only: GetTMatEl
-    use Integrals, only: get_umat_el
+    use Integrals_neci, only: get_umat_el
     use DetBitOps, only: count_open_orbs, FindBitExcitLevel
     use csf_data, only: csf_sort_det_block
-    use timing
+    use timing_neci
     use bit_reps, only: NIfTot
     implicit none
 

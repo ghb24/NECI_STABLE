@@ -1,4 +1,4 @@
-module timing
+module timing_neci
 != JSS.  Routines for timing code blocks.
 
 != To do: 
@@ -358,4 +358,4 @@ contains
 
 
 
-end module timing
+end module timing_neci

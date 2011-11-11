@@ -12,7 +12,7 @@ subroutine assign_proc (ptr, proc)
 
     ! sds: This is to work around a bug in Pathscale which causes the 
     !      compiler to crash on valid code.
-#ifdef __PATHSCALE__
+#if defined __PATHSCALE__ || defined __PGI__
 #ifdef POINTER8
     integer(int64), intent(in), value :: proc
     integer(int64), intent(inout) :: ptr
@@ -44,7 +44,7 @@ subroutine assign_data (ptr, proc)
 
     ! sds: This is to work around a bug in Pathscale which causes the 
     !      compiler to crash on valid code.
-#ifdef __PATHSCALE__
+#if defined __PATHSCALE__ || defined __PGI__
 #ifdef POINTER8
     integer(int64), intent(in), value :: proc
     integer(int64), intent(inout) :: ptr

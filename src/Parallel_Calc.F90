@@ -32,7 +32,7 @@ subroutine ParMP2(nI)
    use System, only: AreSameSpatialOrb
    use SystemData, only: nBasisMax,nEl,Beta,ARR,nBasis,ECore,G1,tCPMD,Symmetry
    use CalcData, only: NWHTAY
-   use Integrals, only: GetUMatEl2
+   use Integrals_neci, only: GetUMatEl2
    use UMatCache, only: GTID
    use OneEInts, only: GetTMatEl
    Use Determinants, only: get_helement, GetH0Element3
