@@ -219,7 +219,7 @@ module shared_alloc
         function test_shared_permissions () result(bAvail) bind(c)
             use iso_c_hack
             implicit none
-#if defined __PGI__ || defined __G95__
+#if defined __PGI || defined __G95__
             logical :: bAvail
 #else
             logical(c_bool) :: bAvail
