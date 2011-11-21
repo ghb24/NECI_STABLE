@@ -51,6 +51,7 @@ contains
 
 
 !       Calc defaults 
+          iReadWalkersRoot=0 
           tShiftonHFPop=.false.
           MaxWalkerBloom=-1
           tSearchTau=.true.
@@ -255,13 +256,14 @@ contains
 
           proje_linear_comb = .false.
           hash_shift=0
+          tContinueAfterMP2=.false.
       
         end subroutine SetCalcDefaults
 
 
 
         SUBROUTINE CalcReadInput()
-          USE input
+          USE input_neci
           Use Determinants, only : iActiveBasis, SpecDet, tagSpecDet, tSpecDet, nActiveSpace
           Use Determinants, only : tDefineDet, DefDet, tagDefDet
           use SystemData, only : Beta,nEl
@@ -861,6 +863,9 @@ contains
                     iPopsFileNoWrite = iPopsFileNoRead
                     iPopsFileNoRead = -iPopsFileNoRead-1
                 end if
+            case("WALKERREADBATCH")
+                !The number of walkers to read in on the head node in each batch during a popsread
+                call readi(iReadWalkersRoot)
             case("POPSFILEMAPPING")
 !This indicates that we will be mapping a popsfile from a smaller basis calculation, into a bigger basis calculation.
 !Requires a "mapping" file.
@@ -909,6 +914,8 @@ contains
                     !change dramatically to start with.
                     call geti(InitialPart)
                 endif
+            case("CONTINUEAFTERMP2")
+                tContinueAfterMP2=.true.
             case("STARTCAS")
 !For FCIMC, this has an initial configuration of walkers which is proportional to the MP1 wavefunction
 !                CALL Stop_All(t_r,"STARTMP1 option depreciated")
@@ -1813,7 +1820,7 @@ contains
 
 
       subroutine inpgetmethod(I_HMAX,NWHTAY,I_V)
-         use input
+         use input_neci
          use UMatCache , only : TSTARSTORE
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
          use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,tCCMC
@@ -2022,7 +2029,7 @@ contains
 
 
       subroutine inpgetexcitations(NWHTAY,w)
-         use input
+         use input_neci
          IMPLICIT NONE
          INTEGER NWHTAY
          CHARACTER(LEN=16) w

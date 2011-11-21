@@ -555,7 +555,7 @@ end module
          Subroutine GetGraphstats(IPATH, I_V, nEl,nBasis,Arr,Weight,NBASISMAX,DLWDB2)
          use constants, only: dp,int64
          USE UMatCache , only : GTID
-         use Integrals, only : GetUMatEl
+         use Integrals_neci, only : GetUMatEl
          use SystemData, only: BasisFN
          IMPLICIT NONE
          Integer I_V,nEl,nBasis,IPATH(nEl,0:I_V),EX(2,2)

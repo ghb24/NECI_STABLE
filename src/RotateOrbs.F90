@@ -20,7 +20,7 @@ MODULE RotateOrbsMod
     USE Logging , only : tPrintInts,tTruncRODump,NoTruncOrbs,NoDumpTruncs,tTruncDumpbyVal,TruncEvalues,tWriteTransMat
     USE OneEInts , only : TMAT2D
     USE SymData , only : TwoCycleSymGens,SymLabelList,SymLabelCounts
-    USE Timing , only : end_timing,print_timing_report
+    USE Timing_neci , only : end_timing,print_timing_report
     USE Soft_exit, only : test_SOFTEXIT
     USE RotateOrbsData 
     use sort_mod

@@ -3,7 +3,7 @@
 MODULE Logging
             
     use constants, only: dp,int64
-    use input
+    use input_neci
     use MemoryManager, only: LogMemAlloc, LogMemDealloc,TagIntType
     use SystemData, only: nel, LMS, nbasis, tHistSpinDist, nI_spindist, &
                           hist_spin_dist_iter

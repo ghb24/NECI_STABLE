@@ -35,7 +35,8 @@ MODULE FciMCParMod
                         tChangeProjEDet, tCheckHighestPop, tSpawnSpatialInit,&
                         MemoryFacInit, tMaxBloom, tTruncNOpen, tFCIMC, &
                         trunc_nopen_max, tSpawn_Only_Init, tSpawn_Only_Init_Grow, &
-                        TargetGrowRate, TargetGrowRateWalk, tShiftonHFPop
+                        TargetGrowRate, TargetGrowRateWalk, tShiftonHFPop, &
+                        tContinueAfterMP2
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
     use Determinants, only: FDet, get_helement, write_det, &
@@ -4830,6 +4831,11 @@ MODULE FciMCParMod
 
         if(tSearchTau) then
 
+            if(tReadPops) then
+                call stop_all(this_routine,"Cannot dynamically search for timestep if reading &
+                    &in POPSFILE. Manually specify tau.")
+            endif
+
             if(.not.tRestart) then
                 !Set initial tau value.
                 if(UpperTau.le.0.0_dp) then
@@ -5875,7 +5881,7 @@ MODULE FciMCParMod
         use FciMCLoggingMOD , only : InitHistInitPops
         use SystemData , only : tRotateOrbs
         use CalcData , only : InitialPart,tstartmp1,tStartCAS
-        use CalcData , only : MemoryFacPart,MemoryFacAnnihil
+        use CalcData , only : MemoryFacPart,MemoryFacAnnihil,iReadWalkersRoot
         use constants , only : size_n_int
         use DeterminantData , only : write_det
         use nElRDMMod, only: InitRDM
@@ -6025,10 +6031,14 @@ MODULE FciMCParMod
 !If we have a popsfile, read the walkers in now.
             if(tReadPops.and..not.tPopsAlreadyRead) then
 
-                ReadBatch=MaxSpawned    !ReadBatch is the number of walkers to read in from the popsfile at one time.
+                if(iReadWalkersRoot.eq.0) then
+                    ReadBatch=MaxSpawned    !ReadBatch is the number of walkers to read in from the popsfile at one time.
                                         !The larger it is, the fewer communications will be needed to scatter the particles.
                                         !By default, the new array (which is only created on the root processors) is the
                                         !same length as the spawning arrays.
+                else
+                    ReadBatch = iReadWalkersRoot
+                endif
 
                 !TotWalkers and TotParts are returned as the dets and parts on each processor.
                 call ReadFromPopsfilev3(iPopAllTotWalkers,ReadBatch,TotWalkers,TotParts,NoatHF,CurrentDets,MaxWalkersPart)
@@ -6974,11 +6984,11 @@ MODULE FciMCParMod
                     if(abs(ky).gt.NMAXY) cycle
                     kz=Ki(3)+Kj(3)-Ka(3)
                     if(abs(kz).gt.NMAXZ) cycle
-                    if(tGCutoff) then
-                        length_g=real((kx-kj(1))**2+(ky-kj(2))**2+(kz-kj(3))**2)
-                        length_g_2=real((kx-ki(1))**2+(ky-ki(2))**2+(kz-ki(3))**2)
-                        if(length_g.gt.gCutoff.and.length_g_2.gt.gCutoff) cycle
-                    endif
+                    !if(tGCutoff) then
+                    !    length_g=real((kx-kj(1))**2+(ky-kj(2))**2+(kz-kj(3))**2)
+                    !    length_g_2=real((kx-ki(1))**2+(ky-ki(2))**2+(kz-ki(3))**2)
+                    !    if(length_g.gt.gCutoff.and.length_g_2.gt.gCutoff) cycle
+                    !endif
                     length=real((kx**2)+(ky**2)+(kz**2))
                     if(length.gt.OrbECutoff) cycle
 
@@ -7027,11 +7037,11 @@ MODULE FciMCParMod
                     if(abs(ky).gt.NMAXY) cycle
                     kz=Ki(3)+Kj(3)-Ka(3)
                     if(abs(kz).gt.NMAXZ) cycle
-                    if(tGCutoff) then
-                        length_g=real((kx-kj(1))**2+(ky-kj(2))**2+(kz-kj(3))**2)
-                        length_g_2=real((kx-ki(1))**2+(ky-ki(2))**2+(kz-ki(3))**2)
-                        if(length_g.gt.gCutoff.and.length_g_2.gt.gCutoff) cycle
-                    endif
+                    !if(tGCutoff) then
+                    !    length_g=real((kx-kj(1))**2+(ky-kj(2))**2+(kz-kj(3))**2)
+                    !    length_g_2=real((kx-ki(1))**2+(ky-ki(2))**2+(kz-ki(3))**2)
+                    !    if(length_g.gt.gCutoff.and.length_g_2.gt.gCutoff) cycle
+                    !endif
                     length=real((kx**2)+(ky**2)+(kz**2))
                     if(length.gt.OrbECutoff) cycle
 
@@ -7072,7 +7082,9 @@ MODULE FciMCParMod
         call MPISumAll(mp2,mp2all)
         write(6,"(A,2G25.15)") "MP2 energy calculated: ",MP2All,MP2All+Hii
         call flush(6)
-        call stop_all("CalcUEGMP2","Dying after calculation of MP2 energy...")
+        if (.not.tContinueAfterMP2) then
+            call stop_all("CalcUEGMP2","Dying after calculation of MP2 energy...")
+        endif
 
     end subroutine CalcUEGMP2
             

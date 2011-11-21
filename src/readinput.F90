@@ -3,7 +3,7 @@
 !               If Filename=="" then we check to see if there's a filename on the command line.
 !               Failing that, we use stdin
 !   ios is an Integer which is set to 0 on a successful return, or is non-zero if a file error has occurred, where it is the iostat.
-MODULE ReadInput 
+MODULE ReadInput_neci 
     Implicit none
 !   Used to specify which default set of inputs to use
 !    An enum would be nice, but is sadly not supported
@@ -13,10 +13,10 @@ MODULE ReadInput
     contains
 
     Subroutine ReadInputMain(cFilename,ios)
-        USE input
+        USE input_neci
         use System,     only : SysReadInput,SetSysDefaults
         use Calc,       only : CalcReadInput,SetCalcDefaults
-        use Integrals,  only : IntReadInput,SetIntDefaults
+        use Integrals_neci,  only : IntReadInput,SetIntDefaults
         Use Logging,    only : LogReadInput,SetLogDefaults
         use Parallel,   only : iProcIndex
         use default_sets
@@ -172,7 +172,7 @@ MODULE ReadInput
         use Logging, only: iLogging, tCalcFCIMCPsi, tHistSpawn, tHistHamil, &
                            tCalcInstantS2
         use DetCalc, only: tEnergy, tCalcHMat, tFindDets, tCompressDets
-        USE input
+        USE input_neci
         use global_utilities
         use spin_project, only: tSpinProject, spin_proj_nopen_max
 
@@ -376,7 +376,7 @@ MODULE ReadInput
 
     end subroutine checkinput
 
-end Module ReadInput
+end Module ReadInput_neci
 
         
 

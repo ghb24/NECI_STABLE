@@ -172,7 +172,7 @@ MODULE System
     end subroutine SetSysDefaults
 
     SUBROUTINE SysReadInput()
-      USE input
+      USE input_neci
       USE SymData, only: tAbelianFastExcitGen
       USE SymData, only: tStoreStateList
       use OneEInts, only: tOneElecDiag 

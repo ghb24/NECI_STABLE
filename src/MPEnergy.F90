@@ -185,7 +185,7 @@ END
       END
 
       Subroutine ModMPDiagElement(hEl,nI,nJ,nEl)
-         use Integrals, only : GetUMatEl
+         use Integrals_neci, only : GetUMatEl
          use constants, only: dp
          use SystemData, only: BasisFN
          implicit none

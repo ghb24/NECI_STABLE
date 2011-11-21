@@ -2259,7 +2259,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use AnnihilationMod, only: AnnihilationInterface
    use CalcData, only: DiagSft
    use CalcData, only: TStartSinglePart
-   use timing, only: print_timing_report
+   use timing_neci, only: print_timing_report
    use Parallel
    use shared_alloc, only: shared_allocate_iluts, shared_deallocate
    use CalcData, only: tAddToInitiator,InitiatorWalkNo,tTruncInitiator
