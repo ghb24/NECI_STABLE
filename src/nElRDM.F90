@@ -3318,7 +3318,8 @@ MODULE nElRDMMod
                         
                         if((i.ne.j).and.(a.ne.b)) then
 
-                            if( All_aaaa_RDM(Ind1_aa,Ind2_aa).ne.0.0_dp) then
+                            if( (All_aaaa_RDM(Ind1_aa,Ind2_aa).ne.0.0_dp).or.&
+                                (All_aaaa_RDM(Ind2_aa,Ind1_aa).ne.0.0_dp) )then
                                 ! If we're normalising (and have made the matrix hermitian) we only 
                                 ! need to write out Ind1 < Ind2.
                                 ! Otherwise we print out Ind1, Ind2 and Ind2, Ind1 so we can 
@@ -3363,7 +3364,8 @@ MODULE nElRDMMod
                                 endif
                             endif
 
-                            if( All_abba_RDM(Ind1_aa,Ind2_aa).ne.0.0_dp) then
+                            if( (All_abba_RDM(Ind1_aa,Ind2_aa).ne.0.0_dp).or.&
+                                (All_abba_RDM(Ind2_aa,Ind1_aa).ne.0.0_dp) ) then
                                 if(tNormalise.and.((Ind1_aa.le.Ind2_aa).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
 
                                     IF((abs((All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)-(All_abba_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
@@ -3400,7 +3402,8 @@ MODULE nElRDMMod
 
                         endif
 
-                        if( All_abab_RDM(Ind1_ab,Ind2_ab).ne.0.0_dp) then
+                        if( (All_abab_RDM(Ind1_ab,Ind2_ab).ne.0.0_dp).or.&
+                            (All_abab_RDM(Ind2_ab,Ind1_ab).ne.0.0_dp) ) then
 
                             IF((abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM)-(All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
                                 Max_Error_Hermiticity = abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM)-(All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM))
