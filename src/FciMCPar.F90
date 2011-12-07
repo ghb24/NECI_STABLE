@@ -6762,6 +6762,9 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
+        if (allocated(refdetflip)) deallocate(refdetflip)
+        if (allocated(ilutrefflip)) deallocate(ilutrefflip)
+
         ! Cleanup excitation generation storage
         call clean_excit_gen_store (fcimc_excit_gen_store)
 
