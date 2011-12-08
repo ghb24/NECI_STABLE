@@ -223,7 +223,7 @@ C            WRITE(32,*) I_V,ICLASS,RHOC
       END
 
       SUBROUTINE WRITECLASSPATHS()
-         USE Parallel , only : iProcIndex
+         USE Parallel_neci , only : iProcIndex
          use legacy_data, only: CALCP_N, CALCP_NT, CALCP_SUM, CALCP_HSUM
          INTEGER I,J
          IF(iProcIndex.eq.0) THEN

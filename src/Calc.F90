@@ -276,7 +276,7 @@ contains
           use CCMCData, only: tExactEnergy,tSharedExcitors
           use FciMCData, only: hash_shift
           use global_utilities
-          use Parallel, only : nProcessors
+          use Parallel_neci, only : nProcessors
           use Logging, only: tLogDets
           IMPLICIT NONE
           LOGICAL eof

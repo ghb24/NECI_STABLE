@@ -303,7 +303,7 @@ CONTAINS
       use IntegralsData, only: FCK,NMAX, UMat
       Use Logging, only: iLogging,tHistSpawn,tHistHamil,tLogDets
       use SystemData, only  : tCSFOLD
-      use Parallel, only : iProcIndex
+      use Parallel_neci, only : iProcIndex
       use DetBitops, only: DetBitEQ,EncodeBitDet,FindBitExcitLevel
       use bit_rep_data, only: NIfDBO,NIfTot,NIfD
       use legacy_data, only: irat

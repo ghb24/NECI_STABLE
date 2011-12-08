@@ -36,7 +36,7 @@ subroutine stop_all(sub_name,error_msg)
 
 use shared_alloc, only: cleanup_shared_alloc
 #ifdef PARALLEL
-use Parallel, only: iProcIndex,MPIStopAll
+use Parallel_neci, only: iProcIndex,MPIStopAll
 #endif
 implicit none
 character(*), intent(in) :: sub_name,error_msg
@@ -90,7 +90,7 @@ subroutine quiet_stop(msg)
 != In:
 !=    msg (optional) : Print msg before exiting if msg is present.
 #ifdef PARALLEL
-use Parallel, only: MPIStopAll
+use Parallel_neci, only: MPIStopAll
 #endif
 
 implicit none

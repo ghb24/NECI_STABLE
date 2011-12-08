@@ -25,7 +25,7 @@ module symrandexcit3
     use bit_reps, only: niftot, decode_bit_det_lists
     use constants, only: dp, n_int, bits_n_int
     use timing_neci
-    use Parallel
+    use Parallel_neci
     use util_mod, only: binary_search_first_ge
     implicit none
 
@@ -434,7 +434,6 @@ ASSERT(exFlag<=3.and.exFlag>=1)
                           tLatticeGens, tHub,tKPntSym, tFixLz
     use GenRandSymExcitNUMod, only: gen_rand_excit, ScratchSize
     Use SymData , only : nSymLabels
-    use Parallel
 !    use soft_exit , only : ChangeVars 
     use DetBitOps , only : EncodeBitDet, FindExcitBitDet
     use GenRandSymExcitNUMod, only: IsMomentumAllowed

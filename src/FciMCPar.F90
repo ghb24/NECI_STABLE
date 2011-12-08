@@ -77,7 +77,7 @@ MODULE FciMCParMod
                     calc_s_squared_star
     USE SymData , only : nSymLabels
     USE dSFMT_interface , only : genrand_real2_dSFMT
-    USE Parallel
+    USE Parallel_neci
     USE FciMCData
     USE AnnihilationMod
     use PopsfileMod

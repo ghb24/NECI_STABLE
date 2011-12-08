@@ -11,7 +11,7 @@ MODULE PopsfileMod
     USE dSFMT_interface , only : genrand_real2_dSFMT
     use FciMCData
     use bit_reps
-    use Parallel
+    use Parallel_neci
     use AnnihilationMod, only: DetermineDetNode
     USE Logging , only : iWritePopsEvery,tPopsFile,iPopsPartEvery,tBinPops
     USE Logging , only : tPrintPopsDefault,tIncrementPops

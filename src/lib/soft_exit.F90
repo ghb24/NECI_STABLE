@@ -123,7 +123,7 @@ module soft_exit
                             spin_proj_cutoff, spin_proj_spawn_initiators, &
                             spin_proj_no_death, spin_proj_iter_count
     use hist_data, only: Histogram
-    use Parallel
+    use Parallel_neci
     implicit none
 
 contains

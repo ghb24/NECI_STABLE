@@ -17,7 +17,7 @@ contains
          use DeterminantData, only : FDet
          use dSFMT_interface
          use soft_exit, only : ChangeVars
-         use Parallel
+         use Parallel_neci
          use DetBitops, only: EncodeBitDet
          use util_mod, only: choose
          use bit_rep_data, only: NIfTot
@@ -309,7 +309,7 @@ contains
          use DetCalcData, only : ICILevel
          use dSFMT_interface
          use soft_exit, only : ChangeVars
-         use Parallel
+         use Parallel_neci
          use DetBitops, only: EncodeBitDet, IsAllowedHPHF, count_open_orbs
          use util_mod, only: choose
          use bit_rep_data, only: NIfTot

@@ -6,7 +6,7 @@ contains
          use SystemData , only : tNoSymGenRandExcits,lNoSymmetry,tROHF,tHub,tUEG
          use SystemData , only : tStoreSpinOrbs,tKPntSym,tRotatedOrbsReal,tFixLz
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
-         use Parallel
+         use Parallel_neci
          use util_mod, only: get_free_unit
          IMPLICIT NONE
          logical, intent(in) :: tbin
@@ -146,7 +146,7 @@ contains
          use UMatCache, only: nSlotsInit,CalcNSlotsInit
          use UMatCache, only: GetCacheIndexStates,GTID
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
-         use Parallel
+         use Parallel_neci
          use constants, only: dp
          use util_mod, only: get_free_unit
          IMPLICIT NONE
@@ -477,7 +477,7 @@ contains
          USE UMatCache, only: UMatCacheData,UMatLabels,GetUMatSize
          use OneEInts, only: TMatind,TMat2D,TMATSYM,TSTARSTORE
          use OneEInts, only: CalcTMatSize
-         use Parallel
+         use Parallel_neci
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
          use util_mod, only: get_free_unit
          IMPLICIT NONE

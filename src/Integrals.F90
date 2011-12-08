@@ -15,7 +15,7 @@ module Integrals_neci
     use gen_coul_ueg_mod, only: gen_coul_hubnpbc, get_ueg_umat_el, &
                                 get_hub_umat_el
     use HElem, only: HElement_t_size, HElement_t_sizeB
-    use Parallel, only: iProcIndex
+    use Parallel_neci, only: iProcIndex
     use bit_reps, only: init_bit_rep
 
     implicit none

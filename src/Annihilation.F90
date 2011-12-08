@@ -3,7 +3,7 @@ MODULE AnnihilationMod
     use SystemData , only : NEl, tHPHF, nBasis
     use CalcData , only : TRegenExcitgens,tRegenDiagHEls
     USE DetCalcData , only : Det,FCIDetIndex
-    USE Parallel
+    USE Parallel_neci
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE FciMCData
     use DetBitOps, only: DetBitEQ, DetBitLT, FindBitExcitLevel, ilut_lt, &
