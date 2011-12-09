@@ -1,7 +1,7 @@
 MODULE RotateOrbsMod
 
     USE Global_utilities
-    USE Parallel 
+    USE Parallel_neci 
     USE IntegralsData , only : UMAT,nFrozen,ChemPot
     USE UMatCache , only : UMatInd
     use constants, only: dp, PI

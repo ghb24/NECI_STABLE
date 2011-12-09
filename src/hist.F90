@@ -21,7 +21,7 @@ module hist
     use bit_rep_data, only: NIfTot, NIfD
     use bit_reps, only: extract_sign, encode_sign, extract_bit_rep, NOffSgn, &
                         decode_bit_det, flag_is_initiator, test_flag
-    use parallel
+    use parallel_neci
     use csf, only: get_num_csfs, csf_coeff, csf_get_yamas, write_yama, &
                    extract_dorder
     use AnnihilationMod, only: DetermineDetNode

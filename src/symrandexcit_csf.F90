@@ -18,7 +18,7 @@ module GenRandSymExcitCSF
     use DetBitOps, only: EncodeBitDet, is_canonical_ms_order, &
                          shift_det_bit_singles_to_beta, count_open_orbs
     use Determinants, only: write_det
-    use Parallel
+    use Parallel_neci
     use constants, only: n_int, bits_n_int
     use bit_reps, only: NIfTot,NIfD
     use sym_general_mod, only: CCIndS

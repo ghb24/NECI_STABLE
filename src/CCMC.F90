@@ -8,7 +8,7 @@ MODULE CCMC
     use bit_reps, only: encode_det
     use FciMCData, only: iter_data_ccmc
     use FciMCParMod, only: calculate_new_shift_wrapper
-    use Parallel
+    use Parallel_neci
    IMPLICIT NONE
    CONTAINS
 
@@ -1193,7 +1193,7 @@ END SUBROUTINE InitClustSelectorFull
 
 SUBROUTINE InitClustSelectorRandom(CS,iMaxSize,nSelects,dRatio,dProbSelNewEx,tTruncInit,dInitThresh)
    use CCMCData
-   use Parallel, only: nProcessors
+   use Parallel_neci, only: nProcessors
    IMPLICIT NONE
    TYPE(ClustSelector) CS
    INTEGER iMaxSize,nSelects
@@ -1864,7 +1864,7 @@ end subroutine AttemptDieParticle
 SUBROUTINE CCMCStandalone(Weight,Energyxw)
    Use global_utilities
    use SystemData, only: nEl
-   use Parallel, only: iProcIndex
+   use Parallel_neci, only: iProcIndex
    use CCMCData, only: tCCMCFCI,dInitAmplitude,dProbSelNewExcitor,tExactCluster,tExactSpawn,nSpawnings,tCCBuffer
    use CCMCData, only: ClustSelector,Spawner,CCTransitionLog,nClustSelections,dClustSelectionRatio,tExactEnergy
    use DetCalcData, only: Det       ! The number of Dets/Excitors in FCIDets
@@ -2260,7 +2260,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use CalcData, only: DiagSft
    use CalcData, only: TStartSinglePart
    use timing_neci, only: print_timing_report
-   use Parallel
+   use Parallel_neci
    use shared_alloc, only: shared_allocate_iluts, shared_deallocate
    use CalcData, only: tAddToInitiator,InitiatorWalkNo,tTruncInitiator
    use bit_reps, only: encode_sign,extract_sign
@@ -3131,7 +3131,7 @@ subroutine WriteExcitorListP2(iUnit,Dets,starts,ends,dTol,Title)
    use bit_rep_data, only: NIfDBO,NIfTot
    use FciMCData, only: iLutHF
    use bit_reps, only: extract_sign,extract_flags
-   use Parallel
+   use Parallel_neci
    IMPLICIT NONE
    INTEGER iUnit,nDet
    INTEGER(KIND=n_int) Dets(0:nIfTot,*)

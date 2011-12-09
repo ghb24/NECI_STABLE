@@ -18,7 +18,7 @@ MODULE ReadInput_neci
         use Calc,       only : CalcReadInput,SetCalcDefaults
         use Integrals_neci,  only : IntReadInput,SetIntDefaults
         Use Logging,    only : LogReadInput,SetLogDefaults
-        use Parallel,   only : iProcIndex
+        use Parallel_neci,   only : iProcIndex
         use default_sets
         use util_mod, only: get_free_unit
 #ifdef NAGF95

@@ -144,7 +144,7 @@ mpitype=MPI_INTEGER8
 
    ! mpi USE is in mixed case to avoid it being picked up by the the Configure
    ! script, as it doesn't require a module file.
-module Parallel
+module Parallel_neci
 #ifdef PARALLEL
    uSe MPI
 #endif

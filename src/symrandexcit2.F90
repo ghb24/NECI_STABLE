@@ -32,7 +32,7 @@ MODULE GenRandSymExcitNUMod
                           nOccAlpha, nOccBeta, ElecPairs, MaxABPairs, &
                           tKPntSym, lzTot, tNoBrillouin, tUseBrillouin
     use FciMCData, only: pDoubles, iter, excit_gen_store_type
-    use Parallel
+    use Parallel_neci
     use IntegralsData, only: UMat
     use Determinants, only: get_helement, write_det
     use SymData, only: nSymLabels, TwoCycleSymGens, SymLabelList, &

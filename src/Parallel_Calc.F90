@@ -5,7 +5,7 @@ module Parallel_Calc
 != These routines are still in heavy development (i.e. may well contain numerous
 != bugs) and should not be used in production work blindly. :-)
 
-use Parallel
+use Parallel_neci
 
 implicit none
 

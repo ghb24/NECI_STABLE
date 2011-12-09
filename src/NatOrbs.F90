@@ -7,7 +7,7 @@ MODULE NatOrbsMod
 ! integrals and produce a ROFCIDUMP file in the natural orbital basis.
         
         USE Global_utilities
-        USE Parallel
+        USE Parallel_neci
         USE IntegralsData , only : UMAT
         USE UMatCache , only : UMatInd
         USE SystemData , only : NEl,nBasis,G1,ARR,BRR,lNoSymmetry,LMS,tStoreSpinOrbs,nOccAlpha,nOccBeta,tSeparateOccVirt
