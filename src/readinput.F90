@@ -7,8 +7,9 @@ MODULE ReadInput_neci
     Implicit none
 !   Used to specify which default set of inputs to use
 !    An enum would be nice, but is sadly not supported
-    integer, parameter :: idDefault=0
-    integer, parameter :: idFeb08=1
+    integer, parameter :: idDefault = 0
+    integer, parameter :: idFeb08 = 1
+    integer, parameter :: idNov11 = 2
 
     contains
 
@@ -82,6 +83,8 @@ MODULE ReadInput_neci
                     idDef=idDefault
                 case("FEB08")
                     idDef=idFeb08
+                case("NOV11")
+                    idDef=idNov11
                 case default
                     write(6,*) "No defaults selected - using 'default' defaults"
                     idDef=idDefault
@@ -94,9 +97,12 @@ MODULE ReadInput_neci
         select case(idDef)
         case(0)
             write (6,*) 'Using the default set of defaults.'
-        case(1)
-            Feb08=.true.
+        case(idFeb08)
+            Feb08 = .true.
             write (6,*) 'Using the Feb08 set of defaults.'
+        case(idNov11)
+            Nov11 = .true.
+            write(6,*) 'Using the November 2011 set of defaults'
         end select
 
         ! Set up defaults.
