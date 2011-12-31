@@ -5592,7 +5592,7 @@ MODULE FciMCParMod
                 if(lenof_sign.eq.1) then
                     OldAllHFCyc = real(AllNoatHF(1),dp)
                 else
-                    OldAllHFCyc = cmplx(real(AllNoatHF(1),dp),real(AllNoatHF(lenof_sign),dp))
+                    OldAllHFCyc = cmplx(real(AllNoatHF(1),dp),real(AllNoatHF(lenof_sign),dp), dp)
                 endif
 
                 AllNoAbortedOld=0.D0
@@ -5687,7 +5687,7 @@ MODULE FciMCParMod
                             if(lenof_sign.eq.1) then
                                 OldAllHFCyc = real(InitialPart,dp)
                             else
-                                OldAllHFCyc = cmplx(real(InitialPart,dp),0.0_dp)
+                                OldAllHFCyc = cmplx(real(InitialPart,dp),0.0_dp,dp)
                             endif
                             OldAllAvWalkersCyc = real(InitialPart,dp)
                             AllNoatHF(1)=InitialPart
