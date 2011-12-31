@@ -3677,8 +3677,10 @@ MODULE FciMCParMod
                 call flush(6)
             endif
             call flush(fcimcstats_unit)
-            call flush(unit_splitprojEHistG)
-            call flush(unit_splitprojEHistK3)
+            if(tSplitProjEHist) then
+                if(tSplitProjEHistG) call flush(unit_splitprojEHistG)
+                if(tSplitProjEHistK3) call flush(unit_splitprojEHistK3)
+            endif
             
         endif
 
@@ -7360,7 +7362,7 @@ integer function FindSplitProjEBinG(Ex)
         FindSplitProjEBinG=min((ki(1)-ka(1))**2+(ki(2)-ka(2))**2+(ki(3)-ka(3))**2, &
                                 (ki(1)-kb(1))**2+(ki(2)-kb(2))**2+(ki(3)-kb(3))**2)
     else
-        call stop_all(FindSplitProjEBinG,"Shouldn't be called without HistG being on")
+        call stop_all("FindSplitProjEBinG","Shouldn't be called without HistG being on")
     endif
 
 end function FindSplitProjEBinG
@@ -7382,7 +7384,7 @@ integer function FindSplitProjEBinK3(Ex)
                                 ! both k3 and k4 are within the e-cutoff
         FindSplitProjEBinK3=max(ka(1)**2+ka(2)**2+ka(3)**2,kb(1)**2+kb(2)**2+kb(3)**2)
     else
-        call stop_all(FindSplitProjEBinK3,"Shouldn't be called without HistK3 being on")
+        call stop_all("FindSplitProjEBinK3","Shouldn't be called without HistK3 being on")
     endif
 
 end function FindSplitProjEBinK3
