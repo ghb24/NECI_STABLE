@@ -3078,7 +3078,12 @@ MODULE FciMCParMod
         AllSumENum = helem_tmp(2)
 
         if(tSplitProjEHist) then
-            call MPISum(ENumCycHist,AllENumCycHist)
+            if(tSplitProjEHistG) then
+                call MPISum(ENumCycHistG,AllENumCycHistG)
+            endif
+            if(tSplitProjEHistK3) then
+                call MPISum(ENumCycHistK3,AllENumCycHistK3)
+            endif
         endif
 
         ! real(dp) values
@@ -3371,7 +3376,12 @@ MODULE FciMCParMod
         ENumCyc = 0
         HFCyc = 0
         if(tSplitProjEHist) then
-            ENumCycHist(:)=0.0_dp
+            if(tSplitProjEHistG) then
+                ENumCycHistG(:)=0.0_dp
+            endif
+            if(tSplitProjEHistK3) then
+                ENumCycHistK3(:)=0.0_dp
+            endif
         endif
 
         ! Reset TotWalkersOld so that it is the number of walkers now
@@ -3498,7 +3508,12 @@ MODULE FciMCParMod
                   &26.HF weight    27.|Psi|     28.Inst S^2"
 
            if(tSplitProjEHist) then
-               write(unit_splitprojEHist,"(A)") "# Iter     ENumContribs..."
+               if(tSplitProjEHistG) then
+                    write(unit_splitprojEHistG,"(A)") "# Iter     ENumContribs..."
+                endif
+               if(tSplitProjEHistK3) then
+                    write(unit_splitprojEHistK3,"(A)") "# Iter     ENumContribs..."
+                endif
            endif
 #endif
             
@@ -3575,11 +3590,20 @@ MODULE FciMCParMod
 #else
 
             if(tSplitProjEHist) then
-                write(unit_splitprojEHist,"(I12)",advance="no") Iter + PreviousCycles
-                do i=1,iProjEBins-1
-                    write(unit_splitprojEHist,"(G17.9)",advance='no') AllENumCycHist(i)
-                enddo
-                write(unit_splitprojEHist,"(G17.9)") AllENumCycHist(iProjEBins)
+                if(tSplitProjEHistG) then
+                    write(unit_splitprojEHistG,"(I12)",advance="no") Iter + PreviousCycles
+                    do i=1,iProjEBins-1 ! Assumes common ProjEBins
+                        write(unit_splitprojEHistG,"(G17.9)",advance='no') AllENumCycHistG(i)
+                    enddo
+                    write(unit_splitprojEHistG,"(G17.9)") AllENumCycHistG(iProjEBins)
+                endif
+                if(tSplitProjEHistK3) then
+                    write(unit_splitprojEHistK3,"(I12)",advance="no") Iter + PreviousCycles
+                    do i=1,iProjEBins-1
+                        write(unit_splitprojEHistK3,"(G17.9)",advance='no') AllENumCycHistK3(i)
+                    enddo
+                    write(unit_splitprojEHistK3,"(G17.9)") AllENumCycHistK3(iProjEBins)
+                endif
             endif
 
             write(fcimcstats_unit,"(I12,G16.7,I10,G16.7,I13,3I15,3G17.9,2I10,&
@@ -3653,7 +3677,10 @@ MODULE FciMCParMod
                 call flush(6)
             endif
             call flush(fcimcstats_unit)
-            call flush(unit_splitprojEHist)
+            if(tSplitProjEHist) then
+                if(tSplitProjEHistG) call flush(unit_splitprojEHistG)
+                if(tSplitProjEHistK3) call flush(unit_splitprojEHistK3)
+            endif
             
         endif
 
@@ -3775,8 +3802,14 @@ MODULE FciMCParMod
                 OPEN(ComplexStats_unit,file='COMPLEXStats',status='unknown')
             ENDIF
             if(tSplitProjEHist) then
-                unit_splitprojEHist = get_free_unit()
-                open(unit_splitprojEHist,file='SPLITPROJE',status='unknown')
+                if(tSplitProjEHistG) then
+                    unit_splitprojEHistG = get_free_unit()
+                    open(unit_splitprojEHistG,file='SPLITPROJE',status='unknown')
+                endif
+                if(tSplitProjEHistK3) then
+                    unit_splitprojEHistK3 = get_free_unit()
+                    open(unit_splitprojEHistK3,file='SPLITPROJE_K3',status='unknown')
+                endif
             endif
         ENDIF
 
@@ -4178,9 +4211,15 @@ MODULE FciMCParMod
             if (.not.tUEG) call stop_all("SetupParameters","SPLITPROJE only compatible with UEG")
 
             iProjEBins = FindProjEBins()+1 !Needs to store zero momentum too
-            write (6,*) "************ iProjEBins found:", iProjEBins
-            allocate(ENumCycHist(iProjEBins))
-            allocate(AllENumCycHist(iProjEBins))
+            write (6,*) "************ iProjEBins found:", iProjEBins !Should be the same for k and g
+            if(tSplitProjEHistG) then
+                allocate(ENumCycHistG(iProjEBins))
+                allocate(AllENumCycHistG(iProjEBins))
+            endif
+            if(tSplitProjEHistK3) then
+                allocate(ENumCycHistK3(iProjEBins))
+                allocate(AllENumCycHistK3(iProjEBins))
+            endif
         endif
 
 !Initialise variables for calculation on each node
@@ -4203,7 +4242,12 @@ MODULE FciMCParMod
         HFCyc=0
         ENumCyc=0.D0
         if(tSplitProjEHist) then
-            ENumCycHist(:)=0.0_dp
+            if(tSplitProjEHistG) then
+                ENumCycHistG(:)=0.0_dp
+            endif
+            if(tSplitProjEHistK3) then
+                ENumCycHistK3(:)=0.0_dp
+            endif
         endif
         VaryShiftCycles=0
         AvDiagSft=0.D0
@@ -5267,7 +5311,7 @@ MODULE FciMCParMod
         HElement_t :: HOffDiag
         HElement_t :: HDoubDiag
         integer :: DoubEx(2,2),DoubEx2(2,2),kDoub(3) ! For histogramming UEG doubles
-        integer :: ExMat(2,2),FindSplitProjEBin
+        integer :: ExMat(2,2),FindSplitProjEBinG,FindSplitProjEBinK3
         logical :: tDoubParity,tDoubParity2,tSign ! As above
 
         ! Are we performing a linear sum over various determinants?
@@ -5347,10 +5391,18 @@ MODULE FciMCParMod
             ExMat(:,:)=0
             ExMat(1,1)=2
             call GetExcitation (ProjEDet,nI,NEl,ExMat,tSign)
-            ProjEBin=FindSplitProjEBin(ExMat)+1
-            
-            ! Sum in energy contribution
-            ENumCycHist(ProjEBin) = ENumCycHist(ProjEBin) + (HOffDiag * ARR_RE_OR_CPLX(wSign)) / dProbFin
+            if (tSplitProjEHistG) then 
+                ProjEBin=FindSplitProjEBinG(ExMat)+1
+                
+                ! Sum in energy contribution
+                ENumCycHistG(ProjEBin) = ENumCycHistG(ProjEBin) + (HOffDiag * ARR_RE_OR_CPLX(wSign)) / dProbFin
+            endif
+            if (tSplitProjEHistK3) then 
+                ProjEBin=FindSplitProjEBinK3(ExMat)+1
+                
+                ! Sum in energy contribution
+                ENumCycHistK3(ProjEBin) = ENumCycHistK3(ProjEBin) + (HOffDiag * ARR_RE_OR_CPLX(wSign)) / dProbFin
+            endif
 
             ! Sum in energy contribution
             if (iter > NEquilSteps) &
@@ -5592,7 +5644,7 @@ MODULE FciMCParMod
                 if(lenof_sign.eq.1) then
                     OldAllHFCyc = real(AllNoatHF(1),dp)
                 else
-                    OldAllHFCyc = cmplx(real(AllNoatHF(1),dp),real(AllNoatHF(lenof_sign),dp))
+                    OldAllHFCyc = cmplx(real(AllNoatHF(1),dp),real(AllNoatHF(lenof_sign),dp), dp)
                 endif
 
                 AllNoAbortedOld=0.D0
@@ -5687,7 +5739,7 @@ MODULE FciMCParMod
                             if(lenof_sign.eq.1) then
                                 OldAllHFCyc = real(InitialPart,dp)
                             else
-                                OldAllHFCyc = cmplx(real(InitialPart,dp),0.0_dp)
+                                OldAllHFCyc = cmplx(real(InitialPart,dp),0.0_dp,dp)
                             endif
                             OldAllAvWalkersCyc = real(InitialPart,dp)
                             AllNoatHF(1)=InitialPart
@@ -7292,7 +7344,7 @@ integer function FindProjEBins ()
 
 end function FindProjEBins
     
-integer function FindSplitProjEBin(Ex)
+integer function FindSplitProjEBinG(Ex)
                        
     use Logging, only : tSplitProjEHist,tSplitProjEHistG,tSplitProjEHistK3
     use SystemData, only : G1
@@ -7307,12 +7359,32 @@ integer function FindSplitProjEBin(Ex)
     
     if (tSplitProjEHistG) then ! <k1 k2 || k3 k4 > is included if the min
                                ! out of k1-k3 or k1-k4 are within g-cutoff
-        FindSplitProjEBin=min((ki(1)-ka(1))**2+(ki(2)-ka(2))**2+(ki(3)-ka(3))**2, &
+        FindSplitProjEBinG=min((ki(1)-ka(1))**2+(ki(2)-ka(2))**2+(ki(3)-ka(3))**2, &
                                 (ki(1)-kb(1))**2+(ki(2)-kb(2))**2+(ki(3)-kb(3))**2)
-    endif
-    if (tSplitProjEHistK3) then ! <k1 k2 || k3 k4> is included only if
-                                ! both k3 and k4 are within the e-cutoff
-        FindSplitProjEBin=max(ka(1)**2+ka(2)**2+ka(3)**2,kb(1)**2+kb(2)**2+kb(3)**2)
+    else
+        call stop_all("FindSplitProjEBinG","Shouldn't be called without HistG being on")
     endif
 
-end function FindSplitProjEBin
+end function FindSplitProjEBinG
+
+integer function FindSplitProjEBinK3(Ex)
+                       
+    use Logging, only : tSplitProjEHist,tSplitProjEHistG,tSplitProjEHistK3
+    use SystemData, only : G1
+
+    integer :: ki(3),kj(3),ka(3),kb(3)
+    integer, intent(in) :: Ex(2,2)
+
+    ki=G1(Ex(1,1))%k
+    ka=G1(Ex(2,1))%k
+    kj=G1(Ex(1,2))%k
+    kb=G1(Ex(2,2))%k
+    
+    if (tSplitProjEHistK3) then ! <k1 k2 || k3 k4> is included only if
+                                ! both k3 and k4 are within the e-cutoff
+        FindSplitProjEBinK3=max(ka(1)**2+ka(2)**2+ka(3)**2,kb(1)**2+kb(2)**2+kb(3)**2)
+    else
+        call stop_all("FindSplitProjEBinK3","Shouldn't be called without HistK3 being on")
+    endif
+
+end function FindSplitProjEBinK3

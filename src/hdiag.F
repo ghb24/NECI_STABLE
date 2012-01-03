@@ -47,7 +47,7 @@ C.. Now we fill the RIJ array
              !ensure hermitian
              do i=1,ndet
                  do j=1,i-1
-                     CK(i,j)=CONJG(CMPLX(CK(j,i)))
+                     CK(i,j)=CONJG(CMPLX(CK(j,i),kind=kind(0.0_dp)))
                  enddo
              enddo
          ENDIF
