@@ -537,11 +537,15 @@ MODULE Logging
 ! passes that many.
             TPopsFile=.true.
             IF(item.lt.nitems) THEN
-                tPrintPopsDefault=.false.
                 call readi(iWritePopsEvery)
                 IF(iWritePopsEvery.lt.0) THEN
 !If a negative argument is supplied to iWritePopsEvery, then the POPSFILE will never be written out, even at the end of a simulation.
+!If it is exactly zero, this will be the same as without any argument, and a
+!popsfile will only be written out in the instance of a clean exit
                     TPopsFile=.false.
+                    tPrintPopsDefault=.false.
+                ELSEIF(iWritePopsEvery.gt.0) THEN
+                    tPrintPopsDefault=.false.
                 ENDIF
             ENDIF
         case("REDUCEDPOPSFILE")
