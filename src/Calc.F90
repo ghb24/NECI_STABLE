@@ -51,6 +51,7 @@ contains
 
 
 !       Calc defaults 
+          FracLargerDet=1.2
           iReadWalkersRoot=0 
           tShiftonHFPop=.false.
           MaxWalkerBloom=-1
