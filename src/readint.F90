@@ -141,7 +141,7 @@ contains
 
 
       SUBROUTINE GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN,TBIN)
-         use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn
+         use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn,tMolpro
          use SystemData, only: tCacheFCIDUMPInts,tROHF,tFixLz,iMaxLz,tRotatedOrbsReal
          use UMatCache, only: nSlotsInit,CalcNSlotsInit
          use UMatCache, only: GetCacheIndexStates,GTID
@@ -315,7 +315,12 @@ contains
                         call stop_all("GETFCIBASIS","Real orbitals indicated, but imaginary part of integrals larger than 1.D-7")
                     endif
                 else
-                    READ(iunit,'(1X,G20.12,4I3)',END=99) Z,I,J,K,L
+                    if(tMolpro) then
+                        !If calling from within molpro, integrals are written out to greater precision
+                        read(iunit,*,END=99) Z,I,J,K,L
+                    else
+                        READ(iunit,'(1X,G20.12,4I3)',END=99) Z,I,J,K,L
+                    endif
                 endif
 #endif
 
@@ -469,7 +474,7 @@ contains
       SUBROUTINE READFCIINT(UMAT,NBASIS,ECORE,tReadFreezeInts)
          use constants, only: dp
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,NEl
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,tMolpro
          use SystemData, only: UMatEps,tUMatEps,tCacheFCIDUMPInts
          use SystemData, only: tRIIntegrals,nBasisMax,tROHF,tRotatedOrbsReal
          USE UMatCache, only: UMatInd,UMatConj,UMAT2D,TUMAT2D,nPairs,CacheFCIDUMP
@@ -563,7 +568,11 @@ contains
                      call stop_all("READFCIINT","Real orbitals indicated, but imaginary part of integrals larger than 1.D-7")
                  endif
              else
-                 READ(iunit,'(1X,G20.12,4I3)',END=199) Z,I,J,K,L
+                 if(tMolpro) then
+                     read(iunit,*,END=199) Z,I,J,K,L
+                 else
+                     READ(iunit,'(1X,G20.12,4I3)',END=199) Z,I,J,K,L
+                 endif
              endif
 #endif
              IF(tROHF) THEN
