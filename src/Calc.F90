@@ -35,7 +35,6 @@ contains
         ! Values for old parameters.
         ! These have no input options to change the defaults, but are used in
         ! the code.
-          tInstGrowthRate=.true.
           TargetGrowRateWalk=500000
           TargetGrowRate=0.D0
           InitialPart=1
@@ -49,8 +48,14 @@ contains
           TRHOIJ = .false.
           TBEGRAPH = .false.
 
+          if (Nov11) then
+              tInstGrowthRate=.true.
+          else
+              tInstGrowthRate = .false.
+          end if
 
 !       Calc defaults 
+          FracLargerDet=1.2
           iReadWalkersRoot=0 
           tShiftonHFPop=.false.
           MaxWalkerBloom=-1
@@ -1004,9 +1009,24 @@ contains
                 IF(item.lt.nitems) then
                     call Getf(FracLargerDet)
                 ENDIF
+                
             case("AVGROWTHRATE")
-                !This option will average the growth rate over the update cycle when updating the shift.
-                tInstGrowthRate=.false.
+
+                ! This option will average the growth rate over the update 
+                ! cycle when updating the shift.
+
+                if (item < nitems) then
+                    call readu(w)
+                    select case(w)
+                    case("OFF")
+                        tInstGrowthRate = .true.
+                    case default
+                        tInstGrowthRate = .false.
+                    end select
+                else
+                    tInstGrowthRate = .false.
+                end if
+
             case("PROJE-SPATIAL")
                 ! Calculate the projected energy by projection onto a linear
                 ! combination of determinants, specified by a particular 
