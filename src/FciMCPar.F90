@@ -730,7 +730,7 @@ MODULE FciMCParMod
                 ! Why do this? Why not just get all procs to do division?
                 IF(iProcIndex.eq.root) THEN
                     Tau=Tau/10.D0
-                    WRITE(6,'(A,F10.5)') 'Beginning truncated initiator calculation and reducing tau by " &
+                    WRITE(6,'(A,F10.5)') 'Beginning truncated initiator calculation and reducing timestep by " &
                         &//"a factor of 10. New tau is : ',Tau
                 ENDIF
                 CALL MPIBCast(Tau)
@@ -3104,12 +3104,13 @@ MODULE FciMCParMod
 
         if(tSearchTau) then
             call MPISumAll(MaxSpawnProb,AllMaxSpawnProb)
-            if((AllMaxSpawnProb-MaxAllowedSpawnProb).gt.1.D-5) then
+!            if((AllMaxSpawnProb-MaxAllowedSpawnProb).gt.1.D-5) then
+            if((AllMaxSpawnProb/MaxAllowedSpawnProb).gt.1.02) then
                 !Reduce tau, so that the maximum spawning probability is reduced.
                 tau = tau * (MaxAllowedSpawnProb/AllMaxSpawnProb)
                 if(iProcIndex.eq.root) then
                     write(6,"(A,f15.10)") "Spawning probability found of: ",AllMaxSpawnProb
-                    write(6,"(A,f10.5)") "Reducing tau to limit spawning probability to: ",MaxAllowedSpawnProb
+                    write(6,"(A,f10.5)") "Reducing timestep to limit spawning probability to: ",MaxAllowedSpawnProb
                     write(6,"(A,f20.15)") "New tau: ",tau
                 endif
                 MaxSpawnProb=0.0_dp
@@ -4608,7 +4609,7 @@ MODULE FciMCParMod
         use HPHFRandExcitMod, only: ReturnAlphaOpenDet,CalcPGenHPHF
         implicit none
         type(excit_gen_store_type) :: store, store2
-        logical :: tAllExcitFound,tParity,tSameFunc,tSwapped
+        logical :: tAllExcitFound,tParity,tSameFunc,tSwapped,tSign
         character(len=*), parameter :: t_r="FindMaxTauDoubs"
         integer :: ex(2,2),ex2(2,2),exflag
         real(dp) :: nAddFac,MagHel,pGen,pGenFac
@@ -4631,12 +4632,13 @@ MODULE FciMCParMod
             nAddFac = real(MaxWalkerBloom,dp) !Won't allow more than MaxWalkerBloom particles to spawn in one event. 
         endif
 
+        Tau = 1000.0_dp
         tAllExcitFound=.false.
         Ex(:,:)=0
         exflag=3
         tSameFunc=.false.
-        call init_excit_gen_store (store)
-        call init_excit_gen_store (store2)
+        call init_excit_gen_store(store)
+        call init_excit_gen_store(store2)
         store%tFilled = .false.
         store2%tFilled = .false.
         CALL construct_class_counts(ProjEDet, store%ClassCountOcc, &
@@ -4655,7 +4657,9 @@ MODULE FciMCParMod
 
             !Find Hij
             if(tHPHF) then
-                CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.true.,.true.,tSwapped)
+                if(.not.TestClosedShellDet(iLutnJ)) then
+                    CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.true.,.true.,tSwapped)
+                endif
                 hel = hphf_off_diag_helement_norm(ProjEDet,nJ,iLutRef,iLutnJ)
             else
                 hel = get_helement(ProjEDet,nJ,ic,ex,tParity)
@@ -4671,32 +4675,46 @@ MODULE FciMCParMod
                 call CalcNonUnipGen(ProjEDet,ex,ic,store%ClassCountOcc,store%ClassCountUnocc,pDoubles,pGen)
             endif
             if(tSameFunc) cycle
-            pGenFac = pGen*nAddFac/MagHel
-            if(Tau.gt.pGenFac) Tau = pGenFac
+            if(MagHel.gt.0.0_dp) then
+                pGenFac = pGen*nAddFac/MagHel
+                if(Tau.gt.pGenFac) then
+                    Tau = pGenFac
+                endif
+            endif
 
             !Find pGen(nJ -> nI)
             CALL construct_class_counts(nJ, store2%ClassCountOcc, &
                                         store2%ClassCountUnocc)
             store2%tFilled = .true.
-            ex2(1,:) = ex(2,:)
-            ex2(2,:) = ex(1,:)
             if(tHPHF) then
+                ic = FindBitExcitLevel(iLutnJ, iLutRef, 2)
+                ex2(:,:) = 0
+                ex2(1,1) = ic
+                call GetBitExcitation(iLutnJ,iLutRef,Ex2,tSign)
                 call CalcPGenHPHF(nJ,iLutnJ,ProjEDet,iLutRef,ex2,store2%ClassCountOcc,    &
                             store2%ClassCountUnocc,pDoubles,pGen,tSameFunc)
             else
+                ex2(1,:) = ex(2,:)
+                ex2(2,:) = ex(1,:)
                 call CalcNonUnipGen(nJ,ex2,ic,store2%ClassCountOcc,store2%ClassCountUnocc,pDoubles,pGen)
             endif
             if(tSameFunc) cycle
-            pGenFac = pGen*nAddFac/MagHel
-            if(Tau.gt.pGenFac) Tau = pGenFac
+            if(MagHel.gt.0.0_dp) then
+                pGenFac = pGen*nAddFac/MagHel
+                if(Tau.gt.pGenFac) then
+                    Tau = pGenFac
+                endif
+            endif
 
         enddo
                 
         call clean_excit_gen_store (store)
         call clean_excit_gen_store (store2)
 
+        if(tau.gt.0.1) tau=0.15_dp
+
         write(6,"(A,F18.10)") "From analysis of reference determinant and connections, &
-     &                          an upper bound for the timestep is: ",Tau
+                                 &an upper bound for the timestep is: ",Tau
 
     end subroutine FindMaxTauDoubs
 

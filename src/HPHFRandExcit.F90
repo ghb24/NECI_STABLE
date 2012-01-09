@@ -58,7 +58,7 @@ MODULE HPHFRandExcitMod
                 tSameFunc=.true. 
                 return
             endif
-            if(ic.lt.2) then
+            if(ic.le.2) then
                 call CalcNonUniPGen(nI,ex,ic,ClassCount,ClassCountUnocc,pDoubles,pGen)
             endif
         else
@@ -73,7 +73,7 @@ MODULE HPHFRandExcitMod
                 tSameFunc=.true. 
                 return
             endif
-            if(ic.lt.2) then
+            if(ic.le.2) then
                 if(.not.tSwapped) then
                     !ex is correct for this excitation
                     call CalcNonUnipGen(nI,ex,ic,ClassCount,ClassCountUnocc,pDoubles,pGen)
@@ -90,7 +90,7 @@ MODULE HPHFRandExcitMod
                 tSameFunc=.true. 
                 return
             endif
-            if(ic.lt.2) then
+            if(ic.le.2) then
                 if(tSwapped) then
                     !ex is correct for this excitation
                     call CalcNonUnipGen(nI,ex,ic,ClassCount,ClassCountUnocc,pDoubles,pGen2)
