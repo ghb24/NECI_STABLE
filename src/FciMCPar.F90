@@ -4607,6 +4607,7 @@ MODULE FciMCParMod
         use GenRandSymExcitNUMod, only : construct_class_counts,CalcNonUniPGen
         use SymExcit3, only: GenExcitations3
         use HPHFRandExcitMod, only: ReturnAlphaOpenDet,CalcPGenHPHF
+        use HPHF_integrals, only: hphf_off_diag_helement_spawn
         implicit none
         type(excit_gen_store_type) :: store, store2
         logical :: tAllExcitFound,tParity,tSameFunc,tSwapped,tSign
