@@ -301,7 +301,7 @@ contains
 !allowed size of the determinant space. However, it can be simply found using a MC technique.
       SUBROUTINE FindSymMCSizeofSpace(IUNIT)
          use SymData, only : TwoCycleSymGens
-         use SystemData, only: nEl,G1,nBasis,nOccAlpha,nOccBeta
+         use SystemData, only: nEl,G1,nBasis,nOccAlpha,nOccBeta,tMolpro
          use SystemData, only: tUEG,tHPHF,tHub,tKPntSym,Symmetry
          use SystemData, only : CalcDetCycles, CalcDetPrint,tFixLz
          use CalcData, only : tTruncNOpen, trunc_nopen_max
@@ -314,11 +314,12 @@ contains
          use util_mod, only: choose
          use bit_rep_data, only: NIfTot
          use sym_mod, only: SymProd
+         use util_mod, only: get_free_unit
          IMPLICIT NONE
          INTEGER :: IUNIT,j,SpatOrbs,FDetMom,ExcitLev
          INTEGER(KIND=n_int) :: FDetiLut(0:NIfTot),iLut(0:NIfTot)
          INTEGER :: FDetSym,TotalSym,TotalMom,alpha,beta,ierr,Momx,Momy
-         INTEGER :: Momz,nopenorbs
+         INTEGER :: Momz,nopenorbs,Space_unit
          integer(int64) :: Accept,AcceptAll,i
          integer(int64) :: ExcitBin(0:NEl),ExcitBinAll(0:NEl)
          real(dp) :: FullSpace,r,Frac
@@ -400,7 +401,8 @@ contains
          CALL FLUSH(IUNIT)
 
          IF(iProcIndex.eq.0) THEN
-             OPEN(14,file="SpaceMCStats",status='unknown',              &
+             Space_unit = get_free_unit()
+             OPEN(Space_unit,file="SpaceMCStats",status='unknown',              &
                  form='formatted')
          ENDIF
 
@@ -676,11 +678,15 @@ contains
                      SizeLevel(j)=(REAL(ExcitBinAll(j),dp)/REAL(AcceptAll,dp))*Frac*FullSpace
                  enddo
                  IF(iProcIndex.eq.0) THEN
-                     WRITE(14,"(2I16,2G35.15)",advance='no') i,AcceptAll,Frac,Frac*FullSpace
-                     do j=0,NEl
-                         WRITE(14,"(F30.5)",advance='no') SizeLevel(j)
-                     enddo
-                     WRITE(14,"(A)") ""
+                     if(tMolpro) then
+                         write(Space_unit,"(I16,G35.15)") i,Frac*FullSpace
+                     else
+                         WRITE(Space_unit,"(2I16,2G35.15)",advance='no') i,AcceptAll,Frac,Frac*FullSpace
+                         do j=0,NEl
+                             WRITE(Space_unit,"(F30.5)",advance='no') SizeLevel(j)
+                         enddo
+                         WRITE(Space_unit,"(A)") ""
+                     endif
                  ENDIF
 
                  AcceptAll=0
@@ -702,12 +708,16 @@ contains
          enddo
 
          IF(iProcIndex.eq.0) THEN
-             WRITE(14,"(2I16,2G35.15)",advance='no') i,AcceptAll,Frac,Frac*FullSpace
+             if(tMolpro) then
+                 write(Space_unit,"(I16,G35.15)") i,Frac*FullSpace
+             else
+                 WRITE(Space_unit,"(2I16,2G35.15)",advance='no') i,AcceptAll,Frac,Frac*FullSpace
                  do j=0,NEl
-                     WRITE(14,"(F30.5)",advance='no') SizeLevel(j)
+                     WRITE(Space_unit,"(F30.5)",advance='no') SizeLevel(j)
                  enddo
-                 WRITE(14,"(A)") ""
-             CLOSE(14)
+                 WRITE(Space_unit,"(A)") ""
+             endif
+             CLOSE(Space_unit)
          ENDIF
 
          WRITE(IUNIT,*) "MC size of space: ",Frac*FullSpace
