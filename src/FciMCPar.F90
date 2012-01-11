@@ -36,7 +36,7 @@ MODULE FciMCParMod
                         MemoryFacInit, tMaxBloom, tTruncNOpen, tFCIMC, &
                         trunc_nopen_max, tSpawn_Only_Init, tSpawn_Only_Init_Grow, &
                         TargetGrowRate, TargetGrowRateWalk, tShiftonHFPop, &
-                        tContinueAfterMP2
+                        tContinueAfterMP2,iExitWalkers
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
     use Determinants, only: FDet, get_helement, write_det, &
@@ -276,6 +276,13 @@ MODULE FciMCParMod
                     write(6,"(A,F8.2,A)") "Time limit reached for simulation of: ",MaxTimeExit/60.0," minutes - exiting..."
                     tIncrement=.false.
                     EXIT
+                ENDIF
+                IF((iExitWalkers.ne.-1).and.(sum(AllTotParts).gt.iExitWalkers)) THEN
+                    !Exit criterion based on total walker number met.
+                    write(6,"(A,I15)") "Total walker population exceeds that given by &
+                        &EXITWALKERS criteria - exiting...",sum(AllTotParts)
+                    tIncrement=.false.
+                    exit
                 ENDIF
                 IF(tWritePopsFound) THEN
 !We have explicitly asked to write out the POPSFILE from the CHANGEVARS file.
@@ -3062,7 +3069,7 @@ MODULE FciMCParMod
         endif
 
         ! 64bit integers
-        call MPISum ((/TotWalkers, norm_psi_squared, TotParts, SumNoatHF, &
+        call MPISumAll ((/TotWalkers, norm_psi_squared, TotParts, SumNoatHF, &
                        tot_parts_new/), int64_tmp(1:2+3*lenof_sign))
         AllTotWalkers = int64_tmp(1)
         norm_psi_squared = int64_tmp(2)

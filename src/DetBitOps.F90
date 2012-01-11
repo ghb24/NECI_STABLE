@@ -103,7 +103,8 @@ module DetBitOps
 
         nbits = sum(count_set_bits(iLut))
         
-        if (present(nBitsMax)) nbits = min(nBitsmax+1, nbits)
+        !No advantage to test for this!
+!        if (present(nBitsMax)) nbits = min(nBitsmax+1, nbits)
     end function
 
     ! An elemental routine which will count the number of bits set in one 
@@ -202,11 +203,14 @@ module DetBitOps
         tmp = iand(iLutnI, tmp)
 
         ! Then count them
-        if (present(maxExLevel)) then
-            IC = CountBits(tmp, NIfD, maxExLevel)
-        else
+        ! Since our CountBits routines don't actually make a saving
+        ! for counting smaller numbers of bits, no point in even testing
+        ! for a maxExLevel!
+!        if (present(maxExLevel)) then
+!            IC = CountBits(tmp, NIfD, maxExLevel)
+!        else
             IC = CountBits(tmp, NIfD)
-        endif
+!        endif
 
     end function FindBitExcitLevel
 
