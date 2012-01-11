@@ -164,6 +164,46 @@ contains
 
         integer, parameter :: last_item = refshift
         integer, parameter :: max_item_len = 30
+        character(max_item_len), parameter :: option_list_molp(last_item) &
+                               = (/"truncate                     ", &
+                                   "not_option                   ", &
+                                   "exit                         ", &
+                                   "writepopsfile                ", &
+                                   "varyshift                    ", &
+                                   "iterations                   ", &
+                                   "timestep                     ", &
+                                   "shift                        ", &
+                                   "shiftdamping                 ", &
+                                   "interval                     ", &
+                                   "singlesbias                  ", &
+                                   "zeroproje                    ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "initiator_thresh             ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "changeref                    ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   "/)
         character(max_item_len), parameter :: option_list(last_item) &
                                = (/"excite                       ", &
                                    "truncatecas                  ", &
@@ -256,7 +296,7 @@ contains
 
                         ! Mark any selected options.
                         do i = 1, last_item
-                            if (trim(w) == trim(option_list(i))) then
+                            if ((trim(w) == trim(option_list(i))).or.(trim(w).eq.trim(option_list_molp(i)))) then
                                 opts_selected(i) = .true.
                                 exit
                             endif
