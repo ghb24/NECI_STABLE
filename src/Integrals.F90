@@ -548,9 +548,10 @@ contains
          IF(ISPINSKIP.le.0) STOP 'NBASISMAX(2,3) ISpinSkip unset'
 !nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF/ROHF
          CALL GetUMatSize(nBasis,nEl,UMATINT)
-         WRITE(6,*) "UMatSize: ",UMATINT
+!         WRITE(6,*) "UMatSize: ",UMATINT
          UMatMem=REAL(UMatInt,dp)*REAL(HElement_t_sizeB,dp)*(9.536743164D-7)
-         WRITE(6,"(A,G20.10,A)") " UMatMemory: ",UMatMem, " Mb/Processor"
+         WRITE(6,"(A,G20.10,A)") "Memory required for integral storage: ",UMatMem, " Mb/Processor"
+         call flush(6)
          call shared_allocate ("umat", umat, (/UMatInt/))
          !Allocate(UMat(UMatInt), stat=ierr)
          LogAlloc(ierr, 'UMat', UMatInt,HElement_t_SizeB, tagUMat)

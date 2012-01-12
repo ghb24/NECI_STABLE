@@ -36,7 +36,7 @@ MODULE FciMCParMod
                         MemoryFacInit, tMaxBloom, tTruncNOpen, tFCIMC, &
                         trunc_nopen_max, tSpawn_Only_Init, tSpawn_Only_Init_Grow, &
                         TargetGrowRate, TargetGrowRateWalk, tShiftonHFPop, &
-                        tContinueAfterMP2
+                        tContinueAfterMP2,iExitWalkers
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
     use Determinants, only: FDet, get_helement, write_det, &
@@ -276,6 +276,13 @@ MODULE FciMCParMod
                     write(6,"(A,F8.2,A)") "Time limit reached for simulation of: ",MaxTimeExit/60.0," minutes - exiting..."
                     tIncrement=.false.
                     EXIT
+                ENDIF
+                IF((iExitWalkers.ne.-1).and.(sum(AllTotParts).gt.iExitWalkers)) THEN
+                    !Exit criterion based on total walker number met.
+                    write(6,"(A,I15)") "Total walker population exceeds that given by &
+                        &EXITWALKERS criteria - exiting...",sum(AllTotParts)
+                    tIncrement=.false.
+                    exit
                 ENDIF
                 IF(tWritePopsFound) THEN
 !We have explicitly asked to write out the POPSFILE from the CHANGEVARS file.
@@ -730,7 +737,7 @@ MODULE FciMCParMod
                 ! Why do this? Why not just get all procs to do division?
                 IF(iProcIndex.eq.root) THEN
                     Tau=Tau/10.D0
-                    WRITE(6,'(A,F10.5)') 'Beginning truncated initiator calculation and reducing tau by " &
+                    WRITE(6,'(A,F10.5)') 'Beginning truncated initiator calculation and reducing timestep by " &
                         &//"a factor of 10. New tau is : ',Tau
                 ENDIF
                 CALL MPIBCast(Tau)
@@ -3062,7 +3069,7 @@ MODULE FciMCParMod
         endif
 
         ! 64bit integers
-        call MPISum ((/TotWalkers, norm_psi_squared, TotParts, SumNoatHF, &
+        call MPISumAll ((/TotWalkers, norm_psi_squared, TotParts, SumNoatHF, &
                        tot_parts_new/), int64_tmp(1:2+3*lenof_sign))
         AllTotWalkers = int64_tmp(1)
         norm_psi_squared = int64_tmp(2)
@@ -3104,12 +3111,13 @@ MODULE FciMCParMod
 
         if(tSearchTau) then
             call MPISumAll(MaxSpawnProb,AllMaxSpawnProb)
-            if((AllMaxSpawnProb-MaxAllowedSpawnProb).gt.1.D-5) then
+!            if((AllMaxSpawnProb-MaxAllowedSpawnProb).gt.1.D-5) then
+            if((AllMaxSpawnProb/MaxAllowedSpawnProb).gt.1.02) then
                 !Reduce tau, so that the maximum spawning probability is reduced.
                 tau = tau * (MaxAllowedSpawnProb/AllMaxSpawnProb)
                 if(iProcIndex.eq.root) then
                     write(6,"(A,f15.10)") "Spawning probability found of: ",AllMaxSpawnProb
-                    write(6,"(A,f10.5)") "Reducing tau to limit spawning probability to: ",MaxAllowedSpawnProb
+                    write(6,"(A,f10.5)") "Reducing timestep to limit spawning probability to: ",MaxAllowedSpawnProb
                     write(6,"(A,f20.15)") "New tau: ",tau
                 endif
                 MaxSpawnProb=0.0_dp
@@ -4450,17 +4458,8 @@ MODULE FciMCParMod
 
             if(.not.tRestart) then
                 !Set initial tau value.
-                if(UpperTau.le.0.0_dp) then
-                    Tau = 0.1_dp    !Initialise tau to 0.1 - can we do better than this for an upper bound?
-                else
-                    Tau=UpperTau    !Initialise tau to be approximately maximum possible without timestep errors.
-                endif
-
-                !Assume a p_spawn of 1, and an Hij = 0.01 - what would tau be?
-                Tau=min(Tau,1.0_dp/(0.01*real(HFConn,dp)))
+                call FindMaxTauDoubs()
             endif
-
-            write(6,"(A,f17.12)") "Initial tau value set to: ",Tau
 
             if(MaxWalkerBloom.eq.-1) then
                 !No MaxWalkerBloom specified
@@ -4475,8 +4474,8 @@ MODULE FciMCParMod
                 MaxAllowedSpawnProb = real(MaxWalkerBloom,dp) !Won't allow more than MaxWalkerBloom particles to spawn in one event. 
             endif
 
-            write(6,"(A,f10.5)") "Will search for optimal tau without &
-                       &restarting, to limit spawning probability to: ", &
+            write(6,"(A,f10.5)") "Will search for optimal tau &
+                       &to limit spawning probability to: ", &
                        MaxAllowedSpawnProb
         endif
 
@@ -4606,6 +4605,126 @@ MODULE FciMCParMod
         endif
 
     END SUBROUTINE SetupParameters
+
+
+    !Routine to find an upper bound to tau, by consideration of the singles and doubles connected
+    !to the reference determinant
+    subroutine FindMaxTauDoubs()
+        use CalcData, only : MaxWalkerBloom
+        use GenRandSymExcitNUMod, only : construct_class_counts,CalcNonUniPGen
+        use SymExcit3, only: GenExcitations3
+        use HPHFRandExcitMod, only: ReturnAlphaOpenDet,CalcPGenHPHF
+        use HPHF_integrals, only: hphf_off_diag_helement_norm
+        implicit none
+        type(excit_gen_store_type) :: store, store2
+        logical :: tAllExcitFound,tParity,tSameFunc,tSwapped,tSign
+        character(len=*), parameter :: t_r="FindMaxTauDoubs"
+        integer :: ex(2,2),ex2(2,2),exflag
+        real(dp) :: nAddFac,MagHel,pGen,pGenFac
+        HElement_t :: hel
+        integer :: ic,nJ(nel),nJ2(nel)
+        integer(kind=n_int) :: iLutnJ(0:niftot),iLutnJ2(0:niftot)
+
+        if(tCSF.or.tMomInv) call stop_all(t_r,"TauSearching needs fixing to work with CSFs or MI funcs")
+
+        if(MaxWalkerBloom.eq.-1) then
+            !No MaxWalkerBloom specified
+            !Therefore, assume that we do not want blooms larger than n_add if initiator,
+            !or 5 if non-initiator calculation.
+            if(tTruncInitiator) then
+                nAddFac = real(InitiatorWalkNo,dp)
+            else
+                nAddFac = 5.0_dp    !Won't allow more than 5 particles at a time
+            endif
+        else
+            nAddFac = real(MaxWalkerBloom,dp) !Won't allow more than MaxWalkerBloom particles to spawn in one event. 
+        endif
+
+        Tau = 1000.0_dp
+        tAllExcitFound=.false.
+        Ex(:,:)=0
+        exflag=3
+        tSameFunc=.false.
+        call init_excit_gen_store(store)
+        call init_excit_gen_store(store2)
+        store%tFilled = .false.
+        store2%tFilled = .false.
+        CALL construct_class_counts(ProjEDet, store%ClassCountOcc, &
+                                    store%ClassCountUnocc)
+        store%tFilled = .true.
+
+        do while (.not.tAllExcitFound)
+            CALL GenExcitations3(ProjEDet,iLutRef,nJ,exflag,Ex,tParity,tAllExcitFound)
+            IF(tAllExcitFound) EXIT
+            if(Ex(2,2).eq.0) then
+                ic=1
+            else
+                ic=2
+            endif
+            call EncodeBitDet (nJ, iLutnJ)
+
+            !Find Hij
+            if(tHPHF) then
+                if(.not.TestClosedShellDet(iLutnJ)) then
+                    CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.true.,.true.,tSwapped)
+                endif
+                hel = hphf_off_diag_helement_norm(ProjEDet,nJ,iLutRef,iLutnJ)
+            else
+                hel = get_helement(ProjEDet,nJ,ic,ex,tParity)
+            endif
+
+            MagHel = abs(hel)
+
+            !Find pGen (nI -> nJ)
+            if(tHPHF) then
+                call CalcPGenHPHF(ProjEDet,iLutRef,nJ,iLutnJ,ex,store%ClassCountOcc,    &
+                            store%ClassCountUnocc,pDoubles,pGen,tSameFunc)
+            else
+                call CalcNonUnipGen(ProjEDet,ex,ic,store%ClassCountOcc,store%ClassCountUnocc,pDoubles,pGen)
+            endif
+            if(tSameFunc) cycle
+            if(MagHel.gt.0.0_dp) then
+                pGenFac = pGen*nAddFac/MagHel
+                if(Tau.gt.pGenFac) then
+                    Tau = pGenFac
+                endif
+            endif
+
+            !Find pGen(nJ -> nI)
+            CALL construct_class_counts(nJ, store2%ClassCountOcc, &
+                                        store2%ClassCountUnocc)
+            store2%tFilled = .true.
+            if(tHPHF) then
+                ic = FindBitExcitLevel(iLutnJ, iLutRef, 2)
+                ex2(:,:) = 0
+                ex2(1,1) = ic
+                call GetBitExcitation(iLutnJ,iLutRef,Ex2,tSign)
+                call CalcPGenHPHF(nJ,iLutnJ,ProjEDet,iLutRef,ex2,store2%ClassCountOcc,    &
+                            store2%ClassCountUnocc,pDoubles,pGen,tSameFunc)
+            else
+                ex2(1,:) = ex(2,:)
+                ex2(2,:) = ex(1,:)
+                call CalcNonUnipGen(nJ,ex2,ic,store2%ClassCountOcc,store2%ClassCountUnocc,pDoubles,pGen)
+            endif
+            if(tSameFunc) cycle
+            if(MagHel.gt.0.0_dp) then
+                pGenFac = pGen*nAddFac/MagHel
+                if(Tau.gt.pGenFac) then
+                    Tau = pGenFac
+                endif
+            endif
+
+        enddo
+                
+        call clean_excit_gen_store (store)
+        call clean_excit_gen_store (store2)
+
+        if(tau.gt.0.1) tau=0.15_dp
+
+        write(6,"(A,F18.10)") "From analysis of reference determinant and connections, &
+                                 &an upper bound for the timestep is: ",Tau
+
+    end subroutine FindMaxTauDoubs
 
     SUBROUTINE CheckforBrillouins()
         use SystemData, only : tUseBrillouin,tNoBrillouin,tUHF

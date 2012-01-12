@@ -55,6 +55,7 @@ contains
           end if
 
 !       Calc defaults 
+          iExitWalkers=-1
           FracLargerDet=1.2
           iReadWalkersRoot=0 
           tShiftonHFPop=.false.
@@ -855,6 +856,9 @@ contains
             case("STEPSSHIFT")
 !For FCIMC, this is the number of steps taken before the Diag shift is updated
                 call geti(StepsSft)
+            case("EXITWALKERS")
+!For FCIMC, this is an exit criterion based on the total number of walkers in the system.
+                call getiLong(iExitWalkers)
             case("TARGETGROWRATE")
 !For FCIMC, this is the target growth rate once in vary shift mode.
                 call getf(TargetGrowRate)
