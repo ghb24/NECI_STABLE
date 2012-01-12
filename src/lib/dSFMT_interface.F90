@@ -26,7 +26,7 @@ module dSFMT_interface
     ! WARNING: random_store should be accessed via genrand_real2_dSFMT!
     integer, save :: current_element
 
-    real(dp), external :: genrand_close_open ! Given in dSFTM_wrapper.cpp.
+!    real(dp), external :: genrand_close_open ! Given in dSFTM_wrapper.cpp.
 
     interface
         subroutine init_gen_rand_fwrapper (sd) bind(c)
