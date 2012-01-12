@@ -19,3 +19,8 @@ real(dp) CALCP_SUM(0:1023,3),CALCP_HSUM(0:1023)
 integer, parameter :: CSF_NBSTART=100000
  
 end module legacy_data
+
+subroutine legacy_data_dummy
+implicit none
+return
+end subroutine legacy_data_dummy
