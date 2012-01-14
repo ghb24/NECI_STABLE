@@ -49,7 +49,7 @@ CONTAINS
         use Logging,    only : tLogDets
         use legacy_data, only: irat
         use HElem
-        use util_mod, only: get_free_unit, NECI_ICOPY
+        use util_mod, only: get_free_unit, NECI_ICOPY,neci_flush
         Type(BasisFn) ISym
 
         integer i,ii,iunit
@@ -174,7 +174,7 @@ CONTAINS
 !C.. NEL now only includes active electrons
          WRITE(6,*) "Number of determinants found to be: ",II
          WRITE(6,*) "Allocating initial memory for calculation of energy..."
-         CALL FLUSH(6)
+         CALL neci_flush(6)
          Allocate(NMrks(nEl,II),stat=ierr)
          LogAlloc(ierr,'NMRKS',NEL*II,4,tagNMRKS)
          NMRKS(1:NEL,1:II)=0
@@ -266,7 +266,7 @@ CONTAINS
             WRITE(6,*) 'Setting DETINV to 0'
             DETINV=0
          ENDIF
-         CALL FLUSH(6)
+         CALL neci_flush(6)
     
 !C ==----------------------------------------------------------------==
 !C..Set up memory for c's, nrow and the label
@@ -296,7 +296,7 @@ CONTAINS
     
     Subroutine DoDetCalc
       Use global_utilities
-      use util_mod, only: get_free_unit
+      use util_mod, only: get_free_unit,neci_flush
       use Determinants , only : get_helement,FDet
       use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
       use SystemData, only : nBasis, nBasisMax,nEl,nMsh,LzTot,tMomInv
@@ -369,7 +369,7 @@ CONTAINS
          CALL DETHAM(NDET,NEL,NMRKS,HAMIL,LAB,NROW,.TRUE.,ICMAX,GC,TMC)
          WRITE(6,*) ' FINISHED COUNTING '
          WRITE(6,*) "Allocating memory for hamiltonian: ",GC*2
-         CALL FLUSH(6)
+         CALL neci_flush(6)
 !C..Now we know size, allocate memory to HAMIL and LAB
          LENHAMIL=GC
          Allocate(Hamil(LenHamil), stat=ierr)
@@ -449,7 +449,7 @@ CONTAINS
          ENDIF
         WRITE(6,*) '<D0|H|D0>=',GETHELEMENT(IFDET,IFDET,HAMIL,LAB,NROW,NDET)
         WRITE(6,*) '<D0|T|D0>=',CALCT(NMRKS(1,IFDET),NEL)
-        CALL FLUSH(6)
+        CALL neci_flush(6)
 !CC         CALL HAMHIST(HMIN,HMAX,LENHAMIL,NHISTBOXES)
       ENDIF
 !C.. We've now finished calculating H if we were going to.
@@ -562,7 +562,7 @@ CONTAINS
 !C.. END ENERGY CALC
       ENDIF
 
-      call FLUSH(6)
+      call neci_flush(6)
 !C.. If we're calculating rhos (for which we have to have calced H
 !No longer used
 !      IF(TRHOIJ) THEN
@@ -585,7 +585,7 @@ CONTAINS
             CALL GETSYM(FDET,NEL,G1,NBASISMAX,IHFSYM)
             IF(.not.associated(NMRKS)) THEN
                 WRITE(6,*) "NMRKS not allocated"
-                CALL FLUSH(6) 
+                CALL neci_flush(6) 
                 CALL Stop_All("DoDetCalc","NMRKS not allocated so cannot compress dets.")
             ENDIF
 !First, we want to count the number of determinants of the correct symmetry...
@@ -600,7 +600,7 @@ CONTAINS
             enddo
             WRITE(6,"(I25,A,I4,A)") Det," determinants of symmetry ",IHFSym%Sym%S," found."
             WRITE(6,*) "Normalization of eigenvector 1 is: ", norm
-            CALL FLUSH(6)
+            CALL neci_flush(6)
 
             ALLOCATE(FCIDets(0:NIfTot,Det),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold vector")
@@ -676,7 +676,7 @@ CONTAINS
             do i=1,MaxIndex
                 IF(.not.tEnergy) THEN
 !                    WRITE(6,*) i,FCIDetIndex(i),FCIDetIndex(i+1)-1
-!                    CALL FLUSH(6)
+!                    CALL neci_flush(6)
                     call sort (FCIDets(:,FCIDetIndex(i):FCIDetIndex(i+1)-1), &
                                temp(FCIDetIndex(i):FCIDetIndex(i+1)-1))
                 ELSE
@@ -840,7 +840,7 @@ CONTAINS
 !             enddo
 !             IF(.not.associated(NMRKS)) THEN
 !                 WRITE(6,*) "NMRKS not allocated"
-!                 CALL FLUSH(6)
+!                 CALL neci_flush(6)
 !             ENDIF
 !             norm=0.D0
 !             OPEN(17,FILE='SymDETS',STATUS='UNKNOWN')
@@ -995,7 +995,7 @@ END MODULE DetCalc
      &   NTAY,RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,   &
      &   DETINV,TSPECDET,SPECDET)
          use constants, only: dp
-         use util_mod, only: get_free_unit
+         use util_mod, only: get_free_unit,neci_flush
          use SystemData, only: BasisFN
          use CalcData, only: tFCIMC
          use global_utilities
@@ -1143,9 +1143,9 @@ END MODULE DetCalc
             TOT=TOT+WINORM*(DLWDB)
             WRITE(iunit,*) DLWDB
             IF(DETINV.EQ.III.AND.III.NE.0) THEN
-               CALL FLUSH(iunit)
+               CALL neci_flush(iunit)
                WRITE(6,*) "Investigating det ",DETINV
-               CALL FLUSH(6)
+               CALL neci_flush(6)
                CALL WIRD_SUBSET(NMRKS(:,DETINV),BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,ECORE)
             ENDIF
           ENDDO

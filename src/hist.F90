@@ -14,7 +14,7 @@ module hist
     use DetCalcData, only: FCIDetIndex, det
     use FciMCData, only: tFlippedSign, TotWalkers, CurrentDets, iter, &
                          norm_psi_squared
-    use util_mod, only: choose, get_free_unit, binary_search
+    use util_mod, only: choose, get_free_unit, binary_search,neci_flush
     use HPHFRandExcitMod, only: FindExcitBitDetSym
     use hphf_integrals, only: hphf_sign
     use constants, only: n_int, bits_n_int, size_n_int, lenof_sign
@@ -133,7 +133,7 @@ contains
         ! and value of Ms
         write(6,*) 'Initialising Spin distribution histogramming'
         write(fmt_str,'("(",i2,"i20,",i4,"f20.15)")') NIfD+1, ncsf
-        call flush(6)
+        call neci_flush(6)
         nfound = 0
         dorder(1) = -1
         call get_lexicographic (dorder, nopen, nup)

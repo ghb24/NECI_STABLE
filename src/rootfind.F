@@ -2,6 +2,7 @@
       SUBROUTINE PLOTROOTSTAR(N,A,B)
          use constants, only: dp
          use legacy_data, only: CALCP_N, CALCP_NT, CALCP_SUM, CALCP_HSUM
+         use util_mod, only: neci_flush
          IMPLICIT NONE
          INTEGER N,I,J
          HElement_t A(0:N),B(0:N)
@@ -19,7 +20,7 @@
 !         DO I=1,N
 !            WRITE(97,*) (A(I)), (B(I))
 !         ENDDO
-!         CALL FLUSH(97)
+!         CALL neci_flush(97)
          
          WRITE(66,*) "Z     STARVAL     PRODVAL    PRODVALALL"
          DO WHILE(Z.LE.HIGHZ)
@@ -49,7 +50,7 @@
             Z=Z+DELTA
             WRITE(66,"(4F14.10)") Z,STAR,STARPROD,STARPROD2
          ENDDO
-         CALL FLUSH(66)
+         CALL neci_flush(66)
          RETURN
       END
                 
@@ -184,7 +185,7 @@ C.. The value at XHIGH is always bigger than at XLOW
 !            WRITE(55,*) "XHIGH/XLOW NOW: ", XHIGH,XLOW
 !             WRITE(55,*) "END OF BISECTION - ", J," STEPS NEEDED"
 !            WRITE(55,*) "No. steps needed: ",J
-!            CALL FLUSH(55)
+!            CALL neci_flush(55)
 
             !No longer need to do extended RF since have finite boundary
 !            WRITE(55,*) "***RF starting..."
@@ -307,7 +308,7 @@ C.. Now polish off with some Newton Raphson
 !            WRITE(55,*) "FINISHED NR WITH J= ", J, " and K= ",K
 !            WRITE(55,*) ""
 !            WRITE(55,*) "Number of steps with wrong deriv= ", K
-!            CALL FLUSH(55)
+!            CALL neci_flush(55)
 !            JTOT=JTOT+J
             
 !  If this STOP is reached then we've likely hit a pole with a very small numerator, so the root is very close to it.

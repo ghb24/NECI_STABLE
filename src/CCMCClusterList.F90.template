@@ -691,6 +691,7 @@ SUBROUTINE CollapseCluster (C,iLutHF,AL,iAmpList,nDet,iDebug,tExToDet)
    use DetBitOps, only: FindBitExcitLevel
    use bit_reps, only: decode_bit_det
    use timing_neci
+   use util_mod, only: neci_flush
    IMPLICIT NONE
    TYPE(Cluster) C
    INTEGER(KIND=n_int) :: iLutHF(0:nIfTot)
@@ -744,7 +745,7 @@ SUBROUTINE CollapseCluster (C,iLutHF,AL,iAmpList,nDet,iDebug,tExToDet)
       C%%iSgn(1)=0
    endif
    IFDEBUG(iDebug,4) Write(6,*) " Final sign including amplitudes ",C%%iSgn
-   IFDEBUG(iDebug,1) CALL FLUSH(6)
+   IFDEBUG(iDebug,1) CALL neci_flush(6)
    if(any(C%%iSgn/=0)) then
 
 !First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers

@@ -148,7 +148,7 @@ contains
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
          use Parallel_neci
          use constants, only: dp
-         use util_mod, only: get_free_unit
+         use util_mod, only: get_free_unit,neci_flush
          IMPLICIT NONE
          integer, intent(in) :: LEN
          integer, intent(inout) :: nBasisMax(5,*)
@@ -242,7 +242,7 @@ contains
              ENDIF
              nPairs=NORB*(NORB+1)/2
 !             WRITE(6,*) "NPAIRS: ",NORB,NPAIRS
-             CALL FLUSH(6)
+             CALL neci_flush(6)
              ALLOCATE(MaxSlots(nPairs),stat=ierr)
              MaxSlots(:)=0
          ENDIF

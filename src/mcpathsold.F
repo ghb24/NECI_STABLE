@@ -1,14 +1,15 @@
 
       SUBROUTINE LOGNAN(NI,NEL,BETA,ITIME)
       use constants, only: dp
+      use util_mod, only: neci_system
          IMPLICIT NONE
-         INTEGER NEL,ITIME,NI(NEL),K,I,SYSTEM
+         INTEGER NEL,ITIME,NI(NEL),K,I
          real(dp) BETA
          CHARACTER(40) STR
          WRITE(STR,*) 'mkdir "nan',ITIME,'"'
-         I=SYSTEM(STR)
+         I=neci_SYSTEM(STR)
          WRITE(STR,*) 'cp * "nan',ITIME,'"'
-         I=SYSTEM(STR)
+         I=neci_SYSTEM(STR)
          WRITE(STR,*) 'nan',ITIME,"/LOG"
          OPEN(12,FILE=STR,STATUS="UNKNOWN")
          WRITE(12,*) "WARNING: nan found at time",ITIME

@@ -11,6 +11,7 @@ module OneEInts
 use constants, only: dp
 use SystemData, only: TSTARSTORE
 use MemoryManager, only: TagIntType
+use util_mod, only: get_free_unit,neci_flush
 
 implicit none
 
@@ -247,7 +248,6 @@ contains
         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
         use SymData, only: SymLabelCounts,SymLabelCountsCum,nSymLabels
         use SymData, only: SymLabelIntsCum,SymLabelIntsCum2,SymLabelCountsCum2
-        use util_mod, only: get_free_unit
         IMPLICIT NONE
         INTEGER II,I,J,NBASIS,iunit
         
@@ -257,17 +257,17 @@ contains
             write(iunit,*) "SYMLABELCOUNTS,SYMLABELCOUNTSCUM,SYMLABELINTSCUM:"
             DO I=1,NSYMLABELS
                 WRITE(iunit,"(I5)",advance='no') SYMLABELCOUNTS(2,I)
-                CALL FLUSH(iunit)
+                CALL neci_flush(iunit)
             ENDDO
             WRITE(iunit,*) ""
             DO I=1,NSYMLABELS
                 WRITE(iunit,"(I5)",advance='no') SYMLABELCOUNTSCUM(I)
-                CALL FLUSH(iunit)
+                CALL neci_flush(iunit)
             ENDDO
             WRITE(iunit,*) ""
             DO I=1,NSYMLABELS
                 WRITE(iunit,"(I5)",advance='no') SYMLABELINTSCUM(I)
-                CALL FLUSH(iunit)
+                CALL neci_flush(iunit)
             ENDDO
             WRITE(iunit,*) ""
             WRITE(iunit,*) "**********************************"
@@ -276,21 +276,21 @@ contains
             write(iunit,*) "SYMLABELCOUNTS,SYMLABELCOUNTSCUM2,SYMLABELINTSCUM2:"
             DO I=1,NSYMLABELS
                 WRITE(iunit,"(I5)",advance='no') SYMLABELCOUNTS(2,I)
-                CALL FLUSH(iunit)
+                CALL neci_flush(iunit)
             ENDDO
             WRITE(iunit,*) ""
             DO I=1,NSYMLABELS
                 WRITE(iunit,"(I5)",advance='no') SYMLABELCOUNTSCUM2(I)
-                CALL FLUSH(iunit)
+                CALL neci_flush(iunit)
             ENDDO
             WRITE(iunit,*) ""
             DO I=1,NSYMLABELS
                 WRITE(iunit,"(I5)",advance='no') SYMLABELINTSCUM2(I)
-                CALL FLUSH(iunit)
+                CALL neci_flush(iunit)
             ENDDO
             WRITE(iunit,*) ""
             WRITE(iunit,*) "**********************************"
-            CALL FLUSH(iunit)
+            CALL neci_flush(iunit)
         ENDIF
         WRITE(iunit,*) "TMAT:"
         IF(TSTARSTORE) THEN
@@ -298,7 +298,7 @@ contains
                 DO I=SYMLABELCOUNTSCUM(II-1)+1,SYMLABELCOUNTSCUM(II)
                     DO J=SYMLABELCOUNTSCUM(II-1)+1,I
                         WRITE(iunit,*) I,J,GetTMATEl((2*I),(2*J))
-                        CALL FLUSH(iunit)
+                        CALL neci_flush(iunit)
                     ENDDO
                 ENDDO
             ENDDO
@@ -310,21 +310,21 @@ contains
             ENDDO
         ENDIF
         WRITE(iunit,*) "**********************************"
-        CALL FLUSH(iunit)
+        CALL neci_flush(iunit)
         IF(ASSOCIated(TMATSYM2).or.ASSOCIated(TMAT2D2)) THEN
             WRITE(iunit,*) "TMAT2:"
             DO II=1,NSYMLABELS
                 DO I=SYMLABELCOUNTSCUM(II-1)+1,SYMLABELCOUNTSCUM(II)
                     DO J=SYMLABELCOUNTSCUM(II-1)+1,I
                         WRITE(iunit,*) I,J,GetNEWTMATEl((2*I),(2*J))
-                        CALL FLUSH(iunit)
+                        CALL neci_flush(iunit)
                     ENDDO
                 ENDDO
             ENDDO
         ENDIF
         WRITE(iunit,*) "*********************************"
         WRITE(iunit,*) "*********************************"
-        CALL FLUSH(iunit)
+        CALL neci_flush(iunit)
       END SUBROUTINE WriteTMat
         
 !Routine to calculate number of elements allocated for TMAT matrix
@@ -367,7 +367,6 @@ contains
         use SymData, only: tagSymLabelIntsCum,tagStateSymMap,tagSymLabelCountsCum
         use HElem, only: HElement_t_size
         use global_utilities
-        use util_mod, only: get_free_unit
         IMPLICIT NONE
         integer Nirrep,nBasis,iSS,nBi,i,basirrep,t,ierr,iState,nStateIrrep
         integer iSize, iunit
@@ -443,7 +442,7 @@ contains
                 ENDDO
                 write(iunit,*) "***************"
                 write(iunit,*) NBI
-                CALL FLUSH(iunit)
+                CALL neci_flush(iunit)
                 close(iunit)
                 STOP 'Not all basis functions found while setting up TMAT'
             ENDIF
@@ -494,7 +493,6 @@ contains
         use SymData, only: SymLabelIntsCum2,nSymLabels,StateSymMap2
         use SymData, only: tagSymLabelIntsCum2,tagStateSymMap2,tagSymLabelCountsCum2
         use global_utilities
-        use util_mod, only: get_free_unit
         use HElem, only: HElement_t_size
         IMPLICIT NONE
         integer Nirrep,nBasisfrz,iSS,nBi,i,basirrep,t,ierr,iState,nStateIrrep
@@ -545,7 +543,7 @@ contains
                     ENDDO
                 ENDIF
 !                write(6,*) basirrep,SYMLABELINTSCUM(i),SYMLABELCOUNTSCUM(i)
-!                call flush(6)
+!                call neci_flush(6)
                 ! JSS: Label states of symmetry i by the order in which they come.
                 nStateIrrep=0
                 do iState=1,nBi
@@ -560,7 +558,7 @@ contains
                 open(iunit, file="SYMLABELCOUNTS", status="unknown")
                 DO i=1,Nirrep
                     WRITE(iunit,*) SYMLABELCOUNTS(2,i)
-                    CALL FLUSH(iunit)
+                    CALL neci_flush(iunit)
                 ENDDO
                 STOP 'Not all basis functions found while setting up TMAT2'
             ENDIF

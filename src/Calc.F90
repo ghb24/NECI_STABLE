@@ -1582,7 +1582,7 @@ contains
           use IntegralsData, only: HFEDelta, HFMix,nTay
           Use Logging, only: iLogging
           use Parallel_Calc
-          use util_mod, only: get_free_unit, NECI_ICOPY
+          use util_mod, only: get_free_unit, NECI_ICOPY,neci_flush
           use sym_mod
 
 !Calls
@@ -1653,7 +1653,7 @@ contains
          &                 RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,           &
          &                 DETINV,TSPECDET,SPECDET)
     !                      WRITE(6,*) "Out Here 2"
-    !                      CALL FLUSH(6)
+    !                      CALL neci_flush(6)
                     ELSE
                        IF(TCSFOLD) THEN
                           IF(.NOT.TSPECDET) THEN
@@ -1687,7 +1687,7 @@ contains
 !             DBETA=DBRAT*BETA
              WRITE(6,*) "I_HMAX:",I_HMAX
              WRITE(6,*) "Calculating MC Energy..."
-             CALL FLUSH(6)
+             CALL neci_flush(6)
              IF(NTAY(1).GT.0) THEN
                 WRITE(6,*) "Using approx RHOs generated on the fly, NTAY=",NTAY(1)
 !C.. NMAX is now ARR

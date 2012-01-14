@@ -1409,6 +1409,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
       SUBROUTINE ORDERBASISHF(ARR,BRR,HFE,HFBASIS,NBASIS,FDET,NEL)
          use sort_mod
          use constants, only: dp
+         use util_mod, only: neci_flush
          IMPLICIT NONE
          INTEGER NBASIS,BRR(NBASIS)
          real(dp) ARR(NBASIS,2),HFE(NBASIS),HFBASIS(NBASIS,NBASIS)
@@ -1432,7 +1433,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
 C.. The largest element isn't big enough, so we abort
                WRITE(6,*) "Largest coeff of HF basis fn ",I," is ",MX
                WRITE(6,*) "Aborting ORDERBASISHF"
-               CALL FLUSH(6)
+               CALL neci_flush(6)
                STOP "ORDERBASISHF failed - HF Basis not converged"
             ENDIF
             ARR(I,1)=HFE(I)

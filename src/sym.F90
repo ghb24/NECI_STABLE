@@ -2051,6 +2051,7 @@ contains
         use SymData, only: SymLabelIntsCum
         use SymData, only: tagSymLabelIntsCum,tagSymLabelCountsCum
         use global_utilities
+        use util_mod, only: neci_flush
         implicit none
         integer Nirrep,nBasis,iSS,nBi,i,basirrep,t
         integer(int64) iSize
@@ -2075,7 +2076,7 @@ contains
                 ENDDO
             ENDIF
             write(6,*) basirrep,SYMLABELINTSCUM(i),SYMLABELCOUNTSCUM(i)
-            call flush(6)
+            call neci_flush(6)
         enddo
         iSize=iSize+2
         !This is to allow the index of '-1' in the array to give a zero value

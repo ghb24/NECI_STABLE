@@ -20,6 +20,7 @@ MODULE HFCalc
       use shared_alloc, only: shared_allocate, shared_deallocate
       use HElem, only: helement_t_size, helement_t_sizeb
       use MemoryManager, only: TagIntType
+      use util_mod, only: neci_flush
       character(25), parameter :: this_routine='HFDoCalc'
       HElement_t,ALLOCATABLE :: HFBASIS(:),HFE(:)
       HElement_t,pointer :: UMat2(:)
@@ -65,7 +66,7 @@ MODULE HFCalc
 
             WRITE(6,"(A)",advance='no') " Fermi det (D0):"
             call write_det (6, FDET, .true.)
-            CALL FLUSH(6)
+            CALL neci_flush(6)
 !C.. If in Hubbard, we generate site-spin occupations
             IF(THUB) THEN
 !  Don't think this works
@@ -129,7 +130,7 @@ MODULE HFCalc
             deallocate(HFE,HFBasis)
             call LogMemDealloc(this_routine,tagHFE)
             call LogMemDealloc(this_routine,tagHFBasis)
-            CALL FLUSH(6)
+            CALL neci_flush(6)
          ENDIF
       End Subroutine HFDoCalc
 End Module HFCalc

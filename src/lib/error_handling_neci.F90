@@ -35,6 +35,7 @@ subroutine stop_all(sub_name,error_msg)
 !=    error_msg: error message.
 
 use shared_alloc, only: cleanup_shared_alloc
+use util_mod, only: neci_flush
 #ifdef PARALLEL
 use Parallel_neci, only: iProcIndex,MPIStopAll
 #endif
@@ -49,7 +50,7 @@ write (6,'(/a7)') 'ERROR.'
 write (6,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
 write (6,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
 write (6,'(a11)') 'EXITING...'
-CALL FLUSH(6)
+CALL neci_flush(6)
 
 call cleanup_shared_alloc()
 #ifdef PARALLEL
@@ -92,13 +93,14 @@ subroutine quiet_stop(msg)
 #ifdef PARALLEL
 use Parallel_neci, only: MPIStopAll
 #endif
+use util_mod, only: neci_flush
 
 implicit none
 character(*), intent(in), optional :: msg
 
 if (present(msg)) then
     write (6,'(1X,a)') adjustl(msg)
-    CALL FLUSH(6)
+    CALL neci_flush(6)
 end if
 
 #ifdef PARALLEL

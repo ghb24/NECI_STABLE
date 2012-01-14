@@ -21,6 +21,7 @@ MODULE ISKRandExcit
     use bit_reps, only: NIfD, NIfDBO, NIfTot
     use SymExcitDataMod, only: SpinOrbSymLabel,SymTableLabels,SymInvLabel, &
                                KPntInvSymOrb
+    use util_mod, only: neci_flush
     IMPLICIT NONE
 
     contains
@@ -392,7 +393,7 @@ MODULE ISKRandExcit
         WRITE(6,*) "***"
         WRITE(6,*) Iterations,pDoub
 !        WRITE(6,*) "nSymLabels: ",nSymLabels
-        CALL FLUSH(6)
+        CALL neci_flush(6)
 
 !First, we need to enumerate all possible ISK wavefunctions from each inverse-pair of determinants.
 !These need to be stored in an array
@@ -510,7 +511,7 @@ MODULE ISKRandExcit
         & //"which are not in the alpha version."
         IF(iUniqueBeta.ne.0) THEN
             WRITE(6,*) "ISK from beta, but not from alpha!"
-            CALL FLUSH(6)
+            CALL neci_flush(6)
             STOP
         ENDIF
 

@@ -7,7 +7,7 @@
      &            TSPECDET,SPECDET,nActiveBasis)
          use constants, only: dp
          use global_utilities
-         use util_mod, only: get_free_unit, NECI_ICOPY
+         use util_mod, only: get_free_unit, NECI_ICOPY,neci_flush
          use SystemData, only: BasisFN,BasisFNSize
          use legacy_data, only: irat
          use CalcData, only: tFCIMC
@@ -149,9 +149,9 @@
             TOT=TOT+(IDEG)*WINORM*DLWDB
             IF(TLOG) WRITE(iunit,"(G25.16,I5)") DLWDB,IDEG
             IF(DETINV.EQ.III) THEN
-               IF(TLOG) CALL FLUSH(iunit)
+               IF(TLOG) CALL neci_flush(iunit)
                WRITE(6,*) "Investigating det ",DETINV
-               CALL FLUSH(6)
+               CALL neci_flush(6)
                CALL WIRD_SUBSET(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,ECORE)
             ENDIF
            ELSE

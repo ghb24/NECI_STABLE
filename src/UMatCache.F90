@@ -2,7 +2,7 @@
 MODULE UMatCache
     use constants, only: dp
     use SystemData , only : TSTARSTORE, tROHF,tStoreSpinOrbs
-    use util_mod, only: swap
+    use util_mod, only: swap,neci_flush
     use sort_mod
     use MemoryManager, only: TagIntType
 
@@ -262,7 +262,7 @@ MODULE UMatCache
                     WRITE(6,*) "USING ORIGINAL UMAT AND STORED NOCC"
                     WRITE(6,*) "NOCC is: ",NOCC
                     WRITE(6,*) "SPIN-ORBITALS ",I*2,", ", J*2,", ",K*2,", ",L*2," requested."
-                    CALL FLUSH(6)
+                    CALL neci_flush(6)
                     STOP 'NO OCCUPIED ORBITAL PAIR REQUESTED'
                 ENDIF
             ELSE
@@ -271,7 +271,7 @@ MODULE UMatCache
                     WRITE(6,*) "USING UMAT2 AND NOCC FROM ARGUMENT"
                     WRITE(6,*) "NOCC is: ",NOCC
                     WRITE(6,*) "SPIN-ORBITALS ",I*2,", ", J*2,", ",K*2,", ",L*2," requested."
-                    CALL FLUSH(6)
+                    CALL neci_flush(6)
                     STOP 'NO OCCUPIED ORBITAL PAIR REQUESTED'
                 ENDIF
             ENDIF
@@ -420,7 +420,7 @@ MODULE UMatCache
 
          nBi=nBasis/iSS
 !         WRITE(6,*) iSS,nBasis,nBi
-!         CALL FLUSH(6)
+!         CALL neci_flush(6)
          IF(TSTARSTORE) THEN
             IF(MOD(nel,2).ne.0) THEN
                 noccup=(nel+1)/iSS
