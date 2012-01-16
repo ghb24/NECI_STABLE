@@ -185,10 +185,10 @@ contains
                 ret = TMatSym(TMatInd(i,j))
             else
                 ! Work around a bug in gfortran's parser: it doesn't like
-                ! doing dconjg(TMatSym).
+                ! doing conjg(TMatSym).
 #ifdef __CMPLX
                 t = TMatSym(TmatInd(i,j))
-                ret = dconjg(t)
+                ret = conjg(t)
 #else
                 ret = TMatSym(TmatInd(i,j))
 #endif
@@ -222,7 +222,7 @@ contains
             if (j.ge.i) then
                 GetNewTMatEl=TMATSYM2(TMatInd(I,J))
             else
-                GetNewTMatEl=dConjg(TMATSYM2(TMatInd(I,J)))
+                GetNewTMatEl=Conjg(TMATSYM2(TMatInd(I,J)))
             end if
 #else
             GetNewTMatEl=TMATSYM2(TMatInd(I,J))

@@ -1443,7 +1443,7 @@ MODULE UMatCache
             !WRITE(6,*) "C",IDI,IDJ,IDK,IDL,ITYPE,UMatCacheData(0:nTypes-1,ICACHEI,ICACHE)
             UMATEL=UMatCacheData(IAND(ITYPE,1),ICACHEI,ICACHE)
 #ifdef __CMPLX
-            IF(BTEST(ITYPE,1)) UMATEL=DCONJG(UMATEL)  ! Bit 1 tells us whether we need to complex conjg the integral
+            IF(BTEST(ITYPE,1)) UMATEL=CONJG(UMATEL)  ! Bit 1 tells us whether we need to complex conjg the integral
 #endif
 !   signal success
             GETCACHEDUMATEL=.FALSE.
@@ -1500,7 +1500,7 @@ END MODULE UMatCache
 !  If bit 1 is set we must conjg the (to-be-)first integral
 #ifdef __CMPLX
             if(btest(iType,1)) then
-               Tmp(0)=dconjg(UMatEl(iIntPos))
+               Tmp(0)=conjg(UMatEl(iIntPos))
             else
                Tmp(0)=UMatEl(iIntPos)
             endif
@@ -1510,7 +1510,7 @@ END MODULE UMatCache
 !  If bit 2 is set we must conjg the (to-be-)second integral
 #ifdef __CMPLX
             if(btest(iType,2)) then
-               Tmp(1)=dconjg(UMatEl(1-iIntPos))
+               Tmp(1)=conjg(UMatEl(1-iIntPos))
             else
                Tmp(1)=UMatEl(1-iIntPos)
             endif
