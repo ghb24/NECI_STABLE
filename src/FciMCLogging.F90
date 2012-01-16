@@ -4,7 +4,7 @@
 MODULE FciMCLoggingMod
 
     USE Global_utilities
-    USE Parallel
+    USE Parallel_neci
     USE Logging , only : tSaveBlocking,tBlockEveryIteration,HistInitPops,HistInitPopsTag,AllHistInitPops,AllHistInitPopsTag
     use SystemData, only: NEl
     use bit_reps, only: NIfTot, NIfDBO
@@ -469,7 +469,7 @@ MODULE FciMCLoggingMod
 !        WRITE(6,*) 'DetCurr',DetCurr
 !        WRITE(6,*) 'nJ',nJ
 !        WRITE(6,*) 'iLutnJ',iLutnJ
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 !        stop
 
         ! Need to find the H element between the current determinant and that which we're trying to spawn on.
@@ -510,7 +510,7 @@ MODULE FciMCLoggingMod
 
         IF(iProcIndex.eq.Root) THEN 
 !            WRITE(6,*) 'AllMinHElAccept',AllMinHElAccept
-            CALL FLUSH(6)
+            CALL neci_flush(6)
             MaxHElNotAccept=ABS(AllMaxHElNotAccept(1))
             do i=2,nProcessors
                 IF(ABS(AllMaxHElNotAccept(i)).gt.ABS(MaxHElNotAccept)) MaxHElNotAccept=ABS(AllMaxHElNotAccept(i))

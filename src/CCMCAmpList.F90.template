@@ -18,7 +18,7 @@ module AmpList
    use constants, only: dp, int32, n_int
    use bit_rep_data, only: NIfDBO,NIfD,NIfTot
    use CCMCData, only: ExcitToDetSign,AddBitExcitor
-   use Parallel
+   use Parallel_neci
    use MemoryManager, only: TagIntType
    implicit none
 

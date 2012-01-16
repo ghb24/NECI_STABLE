@@ -302,8 +302,8 @@ MODULE FciMCData
       integer :: hash_iter       ! An iteration number added to make iteration-dependent hashes
       integer :: hash_shift      ! -Ln_2 (Cycletime), where CycleTime is the average number of cycles until a det returns to its processor
 
-      !Variables for weird histogramming of projected energy contributions
-      real(dp), allocatable :: ENumCycHist(:),AllENumCycHist(:)
-      integer :: iNumWeirdBins,unit_splitprojEHist
+      !Variables for very useful histogramming of projected energy contributions
+      real(dp), allocatable :: ENumCycHistG(:),AllENumCycHistG(:),ENumCycHistK3(:),AllENumCycHistK3(:)
+      integer :: unit_splitprojEHistG,unit_splitprojEHistK3
 
 END MODULE FciMCData

@@ -100,7 +100,7 @@ C         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
          use constants, only: dp
          use SystemData, only: BasisFN
          USE OneEInts,only : TMat2D,TMATSYM,TSTARSTORE,TMatInd,SetupTMAT
-         USE Parallel , only : iProcIndex
+         USE Parallel_neci , only : iProcIndex
          IMPLICIT NONE
          INTEGER NBASIS,nBasisMax(5,*)
          TYPE(BasisFN) G1(nBasis)

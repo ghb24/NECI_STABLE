@@ -35,7 +35,6 @@ contains
         ! Values for old parameters.
         ! These have no input options to change the defaults, but are used in
         ! the code.
-          tInstGrowthRate=.true.
           TargetGrowRateWalk=500000
           TargetGrowRate=0.D0
           InitialPart=1
@@ -49,8 +48,15 @@ contains
           TRHOIJ = .false.
           TBEGRAPH = .false.
 
+          if (Nov11) then
+              tInstGrowthRate=.true.
+          else
+              tInstGrowthRate = .false.
+          end if
 
 !       Calc defaults 
+          iExitWalkers=-1
+          FracLargerDet=1.2
           iReadWalkersRoot=0 
           tShiftonHFPop=.false.
           MaxWalkerBloom=-1
@@ -276,7 +282,7 @@ contains
           use CCMCData, only: tExactEnergy,tSharedExcitors
           use FciMCData, only: hash_shift
           use global_utilities
-          use Parallel, only : nProcessors
+          use Parallel_neci, only : nProcessors
           use Logging, only: tLogDets
           IMPLICIT NONE
           LOGICAL eof
@@ -850,6 +856,9 @@ contains
             case("STEPSSHIFT")
 !For FCIMC, this is the number of steps taken before the Diag shift is updated
                 call geti(StepsSft)
+            case("EXITWALKERS")
+!For FCIMC, this is an exit criterion based on the total number of walkers in the system.
+                call getiLong(iExitWalkers)
             case("TARGETGROWRATE")
 !For FCIMC, this is the target growth rate once in vary shift mode.
                 call getf(TargetGrowRate)
@@ -1004,9 +1013,24 @@ contains
                 IF(item.lt.nitems) then
                     call Getf(FracLargerDet)
                 ENDIF
+                
             case("AVGROWTHRATE")
-                !This option will average the growth rate over the update cycle when updating the shift.
-                tInstGrowthRate=.false.
+
+                ! This option will average the growth rate over the update 
+                ! cycle when updating the shift.
+
+                if (item < nitems) then
+                    call readu(w)
+                    select case(w)
+                    case("OFF")
+                        tInstGrowthRate = .true.
+                    case default
+                        tInstGrowthRate = .false.
+                    end select
+                else
+                    tInstGrowthRate = .false.
+                end if
+
             case("PROJE-SPATIAL")
                 ! Calculate the projected energy by projection onto a linear
                 ! combination of determinants, specified by a particular 
@@ -1629,7 +1653,7 @@ contains
          &                 RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,           &
          &                 DETINV,TSPECDET,SPECDET)
     !                      WRITE(6,*) "Out Here 2"
-    !                      CALL FLUSH(6)
+    !                      CALL neci_flush(6)
                     ELSE
                        IF(TCSFOLD) THEN
                           IF(.NOT.TSPECDET) THEN
@@ -1663,7 +1687,7 @@ contains
 !             DBETA=DBRAT*BETA
              WRITE(6,*) "I_HMAX:",I_HMAX
              WRITE(6,*) "Calculating MC Energy..."
-             CALL FLUSH(6)
+             CALL neci_flush(6)
              IF(NTAY(1).GT.0) THEN
                 WRITE(6,*) "Using approx RHOs generated on the fly, NTAY=",NTAY(1)
 !C.. NMAX is now ARR

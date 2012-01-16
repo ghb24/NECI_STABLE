@@ -34,7 +34,7 @@ C.. a real root
 C.. we have a complex root, so we use its conjugate as well
                ZROOTS(IROOTS)=ZROOT
                IROOTS=IROOTS+1
-               ZROOTS(IROOTS)=DCMPLX(DBLE(ZROOT),-AIMAG(ZROOT))
+               ZROOTS(IROOTS)=CMPLX(DBLE(ZROOT),-AIMAG(ZROOT))
 C.. we divide out the product of ZROOT and ZROOT*
                POLY(0)=DBLE(ZROOT)*DBLE(ZROOT)+AIMAG(ZROOT)*AIMAG(ZROOT)
                POLY(1)=-2.D0*DBLE(ZROOT)

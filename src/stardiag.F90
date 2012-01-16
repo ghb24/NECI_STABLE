@@ -3,6 +3,7 @@
         use sort_mod
         use constants, only: dp,int32
         use MemoryManager, only: TagIntType
+        use util_mod, only: NECI_ICOPY,get_unique_filename
         IMPLICIT NONE
       
 !.. ExcitInfo will contain all the info needed to work out the value of the star
@@ -45,7 +46,6 @@
          use SystemData , only : TSTOREASEXCITATIONS,BasisFN
          use IntegralsData , only : TCalcRhoProd,TSumProd,TCalcRealProd,TCalcExcitStar,TDiagStarStars,TLinRootChange
          use global_utilities
-         use util_mod, only: NECI_ICOPY
          use HElem
          IMPLICIT NONE
          Type(BasisFN) G1(*)
@@ -770,7 +770,7 @@
             calcs=100
             minimum=1.D0-((1.D0-REAL(ExcitInfo(iExcit,0),dp))*2)
             WRITE(6,*) "Minimum root value to search for is: ", minimum
-            CALL FLUSH(6)
+            CALL neci_flush(6)
             gap=(1.D0-minimum)/(calcs-1)
             
 !This is the number of non-degenerate eigenvectors to print out.            
@@ -803,7 +803,7 @@
                 DiagRhos(1)=r
 
                 WRITE(6,*) "Running calculation ",j, "out of ",calcs
-                CALL FLUSH(6)
+                CALL neci_flush(6)
                 CALL GetValsnVecs(iExcit+1,DiagRhos,ExcitInfo(1:iExcit,1),Vals,Vecs)
 !                CALL GetValsnVecs(iExcit+1,DiagRhos,TESTER,Vals,Vecs)
                 
@@ -843,8 +843,8 @@
                     WRITE(49,"(F13.9)",advance='no') Vals(iExcit+1-DegenPos(i-1))
                 enddo
                 WRITE(49,*) ""
-                CALL FLUSH(48)
-                CALL FLUSH(49)
+                CALL neci_flush(48)
+                CALL neci_flush(49)
 
 !To write out all possible eigenvalues/vectors
 !                WRITE(48,"(F11.7)",advance='no') r
@@ -857,8 +857,8 @@
 !                    WRITE(49,"(F13.9)",advance='no') Vals(i)
 !                enddo
 !                WRITE(49,*) ""
-!                CALL FLUSH(48)
-!                CALL FLUSH(49)
+!                CALL neci_flush(48)
+!                CALL neci_flush(49)
 
             enddo
 
@@ -2040,8 +2040,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          use global_utilities
          use legacy_data, only: irat
          use HElem
-         use util_mod, only: NECI_ICOPY
-        use MemoryManager, only: TagIntType
+         use MemoryManager, only: TagIntType
+         use util_mod, only: neci_icopy
          IMPLICIT NONE
          INTEGER NEL,I_P,NBASISMAX(*),NBASIS,NMSH,NMAX
          INTEGER NTAY(2),NWHTAY,LT
@@ -2128,7 +2128,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          use constants, only: dp     
          use SystemData, only: BasisFN
          use Determinants, only: get_helement
-         use util_mod, only: NECI_ICOPY
+         use util_mod, only: neci_icopy
          IMPLICIT NONE
          real(dp) FMCPR3Star2
          TYPE(BasisFN) G1(*)
@@ -2306,7 +2306,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          use global_utilities
          use sort_mod
          use helem, only: helement_t_size
-        use MemoryManager, only: TagIntType
+         use MemoryManager, only: TagIntType
          IMPLICIT NONE
          INTEGER I_P
          INTEGER NLIST,ILMAX
@@ -2356,7 +2356,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
         IF(PRODVERT.NE.IND) THEN
             WRITE(6,*) "EXPECTED EXTRA VERTICES = ", PRODVERT
             WRITE(6,*) "VERTICES ADDED = ", IND
-            CALL FLUSH(6)
+            CALL neci_flush(6)
             STOP 'WRONG NUMBER OF ADDED VERTICES'
         ENDIF
 
@@ -2447,11 +2447,11 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          use CalcData , only : TReadPops,ScaleWalkers,TBinCancel, iPopsFileNoRead, iPopsFileNoWrite
          USE Logging , only : TPopsFile,TCalcWavevector,WavevectorPrint, tIncrementPops
          USE global_utilities
-         use util_mod, only: get_unique_filename
          use sort_mod
          use StarDiagData, only: star_walker
          use helem, only: helement_t_size
-        use MemoryManager, only: TagIntType
+         use MemoryManager, only: TagIntType
+         use util_mod, only: get_unique_filename
          IMPLICIT NONE
          CHARACTER(len=*), PARAMETER :: this_routine='StarDiagMC'
          INTEGER :: i,j,NList,ILMax,ierr,WorkL,toprint,PreviousNMCyc
@@ -3011,8 +3011,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
                      WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7)") i,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
                      WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7)") i,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
                  ENDIF
-                 CALL FLUSH(15)
-                 CALL FLUSH(6)
+                 CALL neci_flush(15)
+                 CALL neci_flush(6)
                  IF((DiagSft).gt.0.D0) THEN
                      WRITE(6,*) "***WARNING*** - DiagSft trying to become positive...",DiagSft
                      STOP
@@ -3603,7 +3603,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          use SystemData, only: BasisFN
          use sort_mod
          use helem, only: helement_t_size
-         use util_mod, only: NECI_ICOPY
+         use util_mod, only: neci_icopy
          IMPLICIT NONE
          Type(BasisFN) G1(*)
          INTEGER nEl,nI(nEl),i_P,nBasis,nMsh

@@ -7,7 +7,7 @@ MODULE NatOrbsMod
 ! integrals and produce a ROFCIDUMP file in the natural orbital basis.
         
         USE Global_utilities
-        USE Parallel
+        USE Parallel_neci
         USE IntegralsData , only : UMAT
         USE UMatCache , only : UMatInd
         USE SystemData , only : NEl,nBasis,G1,ARR,BRR,lNoSymmetry,LMS,tStoreSpinOrbs,nOccAlpha,nOccBeta,tSeparateOccVirt
@@ -18,6 +18,7 @@ MODULE NatOrbsMod
         use sort_mod
         use bit_reps, only: decode_bit_det
         use MemoryManager, only: TagIntType
+        use util_mod, only: get_free_unit
         IMPLICIT NONE
         INTEGER(TagIntType) :: NoSpinCyc,SymOrbsTempTag
         real(dp) , ALLOCATABLE :: NatOrbMat(:,:),Evalues(:)
@@ -141,7 +142,7 @@ MODULE NatOrbsMod
 !            do i=1,(SpatOrbs*2)
 !                WRITE(6,*) BRR(i)
 !            enddo
-!            CALL FLUSH(6)
+!            CALL neci_flush(6)
 !            CALL Stop_All('','')
 
 ! this picks out the NoOcc lowest energy orbitals from BRR as these will be the occupied.
@@ -208,7 +209,7 @@ MODULE NatOrbsMod
 !                WRITE(6,*) LabVirtOrbs(i),SymVirtOrbs(i)
 !            enddo
 
-!            CALL FLUSH(6)
+!            CALL neci_flush(6)
 !            stop
 
  
@@ -373,7 +374,7 @@ MODULE NatOrbsMod
 !        do i=1,NoOrbs
 !            WRITE(6,*) SymLabelList2(i),SymLabelListInv(i)
 !        enddo
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 !        CALL Stop_All('SetupNatOrbLabels','Checking orbital labelling.')
 
 
@@ -436,7 +437,7 @@ MODULE NatOrbsMod
 !        do i=1,Det
 !            WRITE(6,*) FCIDets(0:NIfTot,i),AllHistogram(i)
 !        enddo
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 !        stop
         WRITE(6,*) '*** The weight of the HF determinant is : ', AllHistogram(1,1)
 
@@ -546,7 +547,7 @@ MODULE NatOrbsMod
                             WRITE(6,*) 'j',nJ
                             WRITE(6,*) 'AllHistogram(1,i)',AllHistogram(1,i)
                             WRITE(6,*) 'AllHistogram(1,j)',AllHistogram(1,j)
-                            CALL FLUSH(6)
+                            CALL neci_flush(6)
                             CALL Stop_All('FillOneRDM','Non-zero element between different symmetries.')
                         ENDIF
 
@@ -577,7 +578,7 @@ MODULE NatOrbsMod
 !            enddo
 !            WRITE(6,*) ''
 !        enddo
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 !        stop
 
         CALL halt_timer(FillOneRDM_Time)
@@ -620,7 +621,7 @@ MODULE NatOrbsMod
 
 
         WRITE(6,*) 'Filling MP2VDM nat orb matrix'
-        CALL FLUSH(6)
+        CALL neci_flush(6)
         
         FillMP2VDM_Time%timer_name='FillMP2VDM'
         CALL set_timer(FillMP2VDM_Time,30)
@@ -775,7 +776,7 @@ MODULE NatOrbsMod
 !                WRITE(6,*) NatOrbMat(i,j)
 !            enddo
 !        enddo
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 !        CALL Stop_All('','')
 
         CALL halt_timer(FillMP2VDM_Time)
@@ -897,7 +898,7 @@ MODULE NatOrbsMod
         enddo
 
         WRITE(6,*) 'Calculating eigenvectors and eigenvalues of NatOrbMat'
-        CALL FLUSH(6)
+        CALL neci_flush(6)
 
         ! If we are using spin orbitals, need to feed in the alpha and beta spins separately.
         ! Otherwise these jumble up and the final ordering is uncorrect. 
@@ -1022,7 +1023,7 @@ MODULE NatOrbsMod
         enddo
 
         WRITE(6,*) 'Matrix diagonalised'
-        CALL FLUSH(6)
+        CALL neci_flush(6)
 
         SumDiagTrace=0.D0
         do i=1,NoOrbs
@@ -1165,7 +1166,6 @@ MODULE NatOrbsMod
     SUBROUTINE FillCoeffT1
         USE RotateOrbsData , only : CoeffT1,SymLabelList3,SymOrbs,SymOrbsTag,TruncEval,NoRotOrbs,EvaluesTrunc,EvaluesTruncTag
         USE Logging , only : tTruncRODump,tTruncDumpbyVal
-        use util_mod, only: get_free_unit
         IMPLICIT NONE
         INTEGER :: l,k,i,j,NoRotAlphBet, io1, io2
         CHARACTER(len=*), PARAMETER :: this_routine='FillCoeffT1'
@@ -1369,7 +1369,7 @@ MODULE NatOrbsMod
             ENDIF
 
 !            WRITE(6,*) SymOrbs(:)
-!            CALL FLUSH(6)
+!            CALL neci_flush(6)
 !            CALL Stop_All('','')
 
         ELSE
@@ -1387,7 +1387,7 @@ MODULE NatOrbsMod
 !        do i=1,NoOrbs
 !            WRITE(6,*) NatOrbMat(:,i)
 !        enddo
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 !        stop
 
         IF(tTruncRODump) THEN
@@ -1463,7 +1463,6 @@ MODULE NatOrbsMod
     SUBROUTINE HistNatOrbEvalues()
         USE Logging , only : tTruncRODump
         USE RotateOrbsData , only : CoeffT1,EvaluesTrunc
-        use util_mod, only: get_free_unit
         IMPLICIT NONE
         INTEGER :: i,k,a,b,NoOcc,io1, io2
         real(dp) :: EvalueEnergies(1:NoOrbs),OrbEnergies(1:NoOrbs)
@@ -1600,9 +1599,9 @@ MODULE NatOrbsMod
         enddo
         WRITE(io2,*) 'The sum of the occupation numbers (eigenvalues) = ',SumEvalues
         WRITE(io2,*) 'The number of electrons = ',NEl
-        CALL FLUSH(io2)
+        CALL neci_flush(io2)
         CLOSE(io2)
-        CALL FLUSH(6)
+        CALL neci_flush(6)
 
         CALL PrintOccTable()
 
@@ -1655,7 +1654,6 @@ MODULE NatOrbsMod
         USE Logging , only : tTruncRODump
         USE RotateOrbsData , only : CoeffT1,EvaluesTrunc
         USE SystemData , only : tUseHFOrbs
-        use util_mod, only: get_free_unit
         INTEGER x,i,a,b, io2
 
         io2 = get_free_unit()
@@ -1698,9 +1696,9 @@ MODULE NatOrbsMod
             WRITE(io2,*) ''
             x=x+10
         enddo
-        CALL FLUSH(io2)
+        CALL neci_flush(io2)
         CLOSE(io2)
-        CALL FLUSH(6)
+        CALL neci_flush(6)
         
 
     END SUBROUTINE PrintOccTable
@@ -1712,7 +1710,6 @@ MODULE NatOrbsMod
 ! occupied.
 ! This is essentially < Psi | a_p+ a_p | Psi > - the diagonal terms of the one electron reduced density matrix.
 !        USE Logging , only : OrbOccs
-        use util_mod, only: get_free_unit
         IMPLICIT NONE
         real(dp) :: Norm,OrbOccs(nBasis),AllOrbOccs(nBasis)
         INTEGER :: i,error, iunit
@@ -1755,7 +1752,6 @@ MODULE NatOrbsMod
 ! Based on PrintOrbOccs (above), but for PrintDoubsUEG
 ! Histogram determinant populations for all doubles
 ! This hopefully prints it all out
-        use util_mod, only: get_free_unit
         IMPLICIT NONE
         real(dp) :: Norm,OrbOccs(nEl,nEl,nBasis,4),AllOrbOccs(nEl,nEl,nBasis,4)
         INTEGER :: i,i2,i3,error, iunit
@@ -1840,7 +1836,6 @@ MODULE NatOrbsMod
 !The 1-electron Reduced density matrix was inputted, and the natural orbitals constructed. From there, the
 !1 and 2 electron integrals were transformed and replaced into UMat.
     SUBROUTINE FindNatOrbsOld()
-        use util_mod, only: get_free_unit
         IMPLICIT NONE
         INTEGER :: i,j, iunit
 
@@ -1902,7 +1897,7 @@ MODULE NatOrbsMod
         CALL LogMemAlloc('Work',WorkSize,8,this_routine,WorkTag,iErr)
 
         WRITE(6,"(A)",advance='no') "Diagonalizing 1-RDM to find approximate natural orbitals..."
-        CALL FLUSH(6)
+        CALL neci_flush(6)
 
 !Diagonalize... Matrix must be symmetric
         CALL DSYEV('V','U',nBasis,NatOrbMat,nBasis,NOccNums,Work,WorkSize,iErr)
@@ -1920,7 +1915,7 @@ MODULE NatOrbsMod
         do i=1,nBasis
             WRITE(6,*) i,NOccNums(i)    !Symmetry of orbital...?
         enddo
-        CALL FLUSH(6)
+        CALL neci_flush(6)
 
     END SUBROUTINE Diag1RDMOld
 

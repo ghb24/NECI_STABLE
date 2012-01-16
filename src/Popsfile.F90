@@ -11,11 +11,12 @@ MODULE PopsfileMod
     USE dSFMT_interface , only : genrand_real2_dSFMT
     use FciMCData
     use bit_reps
-    use Parallel
+    use Parallel_neci
     use AnnihilationMod, only: DetermineDetNode
     USE Logging , only : iWritePopsEvery,tPopsFile,iPopsPartEvery,tBinPops
     USE Logging , only : tPrintPopsDefault,tIncrementPops
     use sort_mod
+    use util_mod, only: get_free_unit,get_unique_filename
 
     implicit none
 
@@ -26,7 +27,6 @@ MODULE PopsfileMod
 !EndPopsList is the number of entries in the POPSFILE to read, and ReadBatch is the number of determinants
 !which can be read in in a single batch.
     SUBROUTINE ReadFromPopsfilev3(EndPopsList,ReadBatch,CurrWalkers64,CurrParts,CurrHF,Dets,DetsLen)
-        use util_mod , only : get_unique_filename
         use MemoryManager, only: TagIntType
         integer(int64) , intent(in) :: EndPopsList  !Number of entries in the POPSFILE.
         integer , intent(in) :: ReadBatch       !Size of the batch of determinants to read in in one go.
@@ -92,7 +92,7 @@ MODULE PopsfileMod
             if(ScaleWalkers.ne.1) then
                 call warning_neci(this_routine,"ScaleWalkers parameter found, but not implemented in POPSFILE v3 - ignoring.")
             endif
-            call flush(6)
+            call neci_flush(6)
         ENDIF
 
         if(tPopsMapping) then
@@ -110,7 +110,7 @@ MODULE PopsfileMod
             allocate(BatchRead(0:NIfTot,1:ReadBatch),stat=ierr)
             CALL LogMemAlloc('BatchRead',ReadBatch*(NIfTot+1),size_n_int,this_routine,BatchReadTag,ierr)
             write(6,"(A,I12,A)") "Reading in a maximum of ",ReadBatch," determinants at a time from POPSFILE."
-            call flush(6)
+            call neci_flush(6)
         else
             allocate(BatchRead(0:NIfTot,1:MaxSendIndex),stat=ierr)
             CALL LogMemAlloc('BatchRead',MaxSendIndex*(NIfTot+1),size_n_int,this_routine,BatchReadTag,ierr)
@@ -316,7 +316,6 @@ MODULE PopsfileMod
     
     !Read in mapping file, and store the mapping between orbitals in the old and new bases.
     subroutine init_popsfile_mapping()
-        use util_mod, only: get_free_unit
         integer :: OldBasisSize,NewBasisSize,iunit,NewBasis,kkx,kky,kkz,dumint,OldBasis,i
         real(dp) :: dumEn
         logical :: exists
@@ -498,7 +497,6 @@ MODULE PopsfileMod
     
     !NOTE: This should only be used for the v3 POPSFILEs, since we only open the POPSFILE on the head node.
     subroutine open_pops_head(iunithead,formpops,binpops)
-        use util_mod, only: get_free_unit,get_unique_filename
         integer , intent(out) :: iunithead
         logical , intent(out) :: formpops,binpops
         character(255) :: popsfile
@@ -554,7 +552,6 @@ MODULE PopsfileMod
 !The root processors data will be stored in a temporary array while it recieves the data from the other processors.
 !This routine will write out to a popsfile. It transfers all walkers to the head node sequentially, so does not want to be called too often
     SUBROUTINE WriteToPopsfileParOneArr(Dets,nDets)
-        use util_mod, only: get_unique_filename, get_free_unit
         use CalcData, only: iPopsFileNoWrite
         use constants, only: size_n_int,MpiDetInt,n_int
         use MemoryManager, only: TagIntType
@@ -574,7 +571,7 @@ MODULE PopsfileMod
 
         CALL MPIBarrier(error)  !sync
 !        WRITE(6,*) "Get Here",nDets
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 
 !First, make sure we have up-to-date information - again collect AllTotWalkers,AllSumNoatHF and AllSumENum...
 !Calculate the energy by summing all on HF and doubles - convert number at HF to a real since no int*8 MPI data type
@@ -684,7 +681,7 @@ MODULE PopsfileMod
             ENDIF
 !            WRITE(6,*) "Written out own walkers..."
 !            write(6,*) WalkersOnNodes
-            CALL FLUSH(6)
+            CALL neci_flush(6)
 
 !Now, we copy the head nodes data to a new array...
             nMaxDets=maxval(WalkersOnNodes)
@@ -698,7 +695,7 @@ MODULE PopsfileMod
                 j=WalkersonNodes(i)*(NIfTot+1)
                 CALL MPIRecv(Parts(0:NIfTot,1:WalkersonNodes(i)),j,NodeRoots(i),Tag,error)
 !                WRITE(6,*) "Recieved walkers for processor ",i,WalkersOnNodes(i)
-!                CALL FLUSH(6)
+!                CALL neci_flush(6)
                 
 !Then write it out...
                 IF(tBinPops) THEN
@@ -721,7 +718,7 @@ MODULE PopsfileMod
                     enddo
                 ENDIF
 !                WRITE(6,*) "Writted out walkers for processor ",i
-!                CALL FLUSH(6)
+!                CALL neci_flush(6)
 
             enddo
 
@@ -736,7 +733,7 @@ MODULE PopsfileMod
             j=nDets*(NIfTot+1)
             CALL MPISend(Dets(0:NIfTot,1:nDets),j,root,Tag,error)
 !            WRITE(6,*) "Have sent info to head node..."
-!            CALL FLUSH(6)
+!            CALL neci_flush(6)
         ENDIF
 
 !Reset the values of the global variables
@@ -749,7 +746,6 @@ MODULE PopsfileMod
 
 !This routine reads in particle configurations from a POPSFILE.
     SUBROUTINE ReadFromPopsfilePar()
-        use util_mod, only: get_unique_filename, get_free_unit
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn,iWeightPopRead
         use Logging, only: tZeroProjE, tRDMonFly, tExplicitAllRDM, tHF_Ref_Explicit 
         use constants, only: size_n_int,bits_n_int
@@ -1194,7 +1190,7 @@ MODULE PopsfileMod
         WRITE(6,"(A,F14.6,A)") " Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,dp)/1048576.D0," Mb"
         WRITE(6,*) "Initial memory allocation successful..."
         WRITE(6,*) "Excitgens will be regenerated when they are needed..."
-        CALL FLUSH(6)
+        CALL neci_flush(6)
 
         ! If we are changing the reference determinant to the largest
         ! weighted one in the file, do it here
@@ -1280,7 +1276,6 @@ MODULE PopsfileMod
 ! This will very likely still be tweaking the inner heart-strings of FciMCPar.  Caveatis stulti!  AJWT
 ! GHB says he will incorporate this functionality into a rewrite of ReadFromPopsfilePar. 19/8/2010
     SUBROUTINE ReadFromPopsfileOnly(Dets,nDets)
-        use util_mod, only: get_unique_filename, get_free_unit
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn,iWeightPopRead
         use Logging, only: tZeroProjE
         use constants, only: size_n_int,bits_n_int
@@ -1629,7 +1624,7 @@ MODULE PopsfileMod
         WRITE(6,"(A,F14.6,A)") " Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,dp)/1048576.D0," Mb"
         WRITE(6,*) "Initial memory allocation successful..."
         WRITE(6,*) "Excitgens will be regenerated when they are needed..."
-        CALL FLUSH(6)
+        CALL neci_flush(6)
 
 !Now find out the data needed for the particles which have been read in...
         TotParts=0

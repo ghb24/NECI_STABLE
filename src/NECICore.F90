@@ -18,7 +18,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local)
     ! main-level modules.
     use Calc, only: CalcDoCalc
     use CalcData, only: tUseProcsAsNodes
-    use Parallel, only: MPINodes
+    use Parallel_neci, only: MPINodes
 
     ! Utility modules.
     use global_utilities
@@ -84,7 +84,7 @@ subroutine NECICodeInit(tCPMD,tVASP)
     ! Utility modules
     use MemoryManager, only: InitMemoryManager
     use timing_neci, only: init_timing
-    use Parallel, only: MPIInit
+    use Parallel_neci, only: MPIInit
 
     implicit none
     logical, intent(in) :: tCPMD,tVASP
@@ -116,7 +116,7 @@ subroutine NECICodeEnd(tCPMD,tVASP)
     use MemoryManager, only: LeaveMemoryManager
     use timing_neci, only: end_timing,print_timing_report
 #ifdef PARALLEL
-    use Parallel, only: MPIEnd
+    use Parallel_neci, only: MPIEnd
 #endif
 
     implicit none

@@ -603,7 +603,7 @@ END MODULE Determinants
          endif
 !         call writedet(77,nI,nel,.false.)
 !         write(77,*) "H0",hEl
-!         call flush(77)
+!         call neci_flush(77)
       end subroutine
 
       subroutine DetFreezeBasis(GG)

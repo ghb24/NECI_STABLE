@@ -1,7 +1,7 @@
 MODULE RotateOrbsMod
 
     USE Global_utilities
-    USE Parallel 
+    USE Parallel_neci 
     USE IntegralsData , only : UMAT,nFrozen,ChemPot
     USE UMatCache , only : UMatInd
     use constants, only: dp, PI
@@ -24,6 +24,7 @@ MODULE RotateOrbsMod
     USE Soft_exit, only : test_SOFTEXIT
     USE RotateOrbsData 
     use sort_mod
+    use util_mod, only: get_free_unit
     IMPLICIT NONE
     INTEGER , ALLOCATABLE :: Lab(:,:),LabVirtOrbs(:),LabOccOrbs(:),SymLabelList3Inv(:)
     real(dp) , ALLOCATABLE :: CoeffCorT2(:,:),CoeffUncorT2(:,:)
@@ -141,8 +142,8 @@ MODULE RotateOrbsMod
 
             ENDIF            
 
-            CALL FLUSH(6)
-            CALL FLUSH(transform_unit)
+            CALL neci_flush(6)
+            CALL neci_flush(transform_unit)
         ENDIF
 
 
@@ -158,7 +159,6 @@ MODULE RotateOrbsMod
 ! Where :  t_ij^ac = - < ab | ij > / ( E_a - E_i + E_b - Ej )
 ! Ref : J. Chem. Phys. 131, 034113 (2009) - note: in Eqn 1, the cb indices are the wrong way round (should be bc).
         USE NatOrbsMod , only : SetUpNatOrbLabels,FindNatOrbs,FillCoeffT1,DeallocateNatOrbs,PrintOccTable
-        use util_mod, only: get_free_unit
         INTEGER :: i,a,ierr,MinReadIn,MaxReadIn, iunit
         CHARACTER(len=*) , PARAMETER :: this_routine='FindNatOrbitals'
 
@@ -228,7 +228,7 @@ MODULE RotateOrbsMod
 !        do i=1,nBasis
 !            WRITE(6,*) i,BRR(i),ARR(i,1),ARR(BRR(i),2)
 !        enddo
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 !        CALL Stop_All('','')
 
 
@@ -409,7 +409,7 @@ MODULE RotateOrbsMod
 ! The ROFCIDUMP is also printed out in here.        
                 CALL RefillUMATandTMAT2D()        
 
-                CALL FLUSH(6)
+                CALL neci_flush(6)
 
 
                 IF((tFindCINatOrbs.or.tUseMP2VarDenMat).and.(NoDumpTruncs.gt.1)) CALL ReTruncROFciDump()
@@ -507,7 +507,7 @@ MODULE RotateOrbsMod
 ! The ROFCIDUMP is also printed out in here.        
             CALL RefillUMATandTMAT2D()        
 
-            CALL FLUSH(6)
+            CALL neci_flush(6)
 
         enddo
 
@@ -561,7 +561,6 @@ MODULE RotateOrbsMod
 
 
     SUBROUTINE WriteTransformMat()
-        use util_mod, only: get_free_unit
         INTEGER :: w,x,i,a,b,iunit
 
 ! This file is printed to be used to produce cube files from QChem.
@@ -653,7 +652,7 @@ MODULE RotateOrbsMod
                 WRITE(iunit,*) CoeffT1(b,i)
             enddo
         enddo
-        CALL FLUSH(iunit)
+        CALL neci_flush(iunit)
         CLOSE(iunit)
       
 
@@ -664,7 +663,6 @@ MODULE RotateOrbsMod
 
    
     SUBROUTINE InitLocalOrbs()
-        use util_mod, only: get_free_unit
         CHARACTER(len=*) , PARAMETER :: this_routine='InitLocalOrbs'
         INTEGER :: ierr
 
@@ -708,7 +706,7 @@ MODULE RotateOrbsMod
 ! Writing out which orthonormalisation method is being used...       
         IF(tLagrange) THEN
             IF(tShake) THEN
-                CALL FLUSH(6)
+                CALL neci_flush(6)
                 CALL Stop_All(this_routine,"ERROR. Both LAGRANGE and SHAKE keywords present in the input. &
                 & These two orthonormalisation methods clash.")
             ENDIF
@@ -722,7 +720,7 @@ MODULE RotateOrbsMod
         
 ! Check for a few possible errors.
         IF(.not.TwoCycleSymGens) THEN
-            CALL FLUSH(6)
+            CALL neci_flush(6)
             CALL Stop_All(this_routine,"ERROR. TwoCycleSymGens is false.  Symmetry is not abelian.") 
         ENDIF
         IF((tRotateOccOnly.or.tRotateVirtOnly).and.(.not.tSeparateOccVirt)) THEN
@@ -731,11 +729,11 @@ MODULE RotateOrbsMod
             WRITE(6,*) "SEPARATEOCCVIRT keyword is being turned on."
         ENDIF        
         IF((tOffDiagSqrdMax.and.tOffDiagSqrdMin).or.(tOffDiagMax.and.tOffDiagMin)) THEN
-            CALL FLUSH(6)
+            CALL neci_flush(6)
             CALL Stop_All(this_routine,"ERROR. Cannot both maximise and minimise off diagonal elements simultaneously")
         ENDIF
         IF(tOnePartOrbEnMax.and.(.not.tSeparateOccVirt)) THEN
-            CALL FLUSH(6)
+            CALL neci_flush(6)
             CALL Stop_All(this_routine, &
             "ERROR. Cannot currently maximise the one particle orbital energies without separating occupied and virtual.") 
         ENDIF
@@ -1228,8 +1226,8 @@ MODULE RotateOrbsMod
                 WRITE(transform_unit,"(I12,5F24.10)") Iteration,PotEnergy,Force,TotCorrectedForce,OrthoNorm,DistCs
             ENDIF
         ENDIF
-        CALL FLUSH(6)
-        CALL FLUSH(transform_unit)
+        CALL neci_flush(6)
+        CALL neci_flush(transform_unit)
 
 ! after writing out stats, test for SOFTEXIT.
         if (test_SOFTEXIT()) then
@@ -1336,7 +1334,7 @@ MODULE RotateOrbsMod
 !        do i=1,NoOrbs
 !            WRITE(6,*) SymLabelList2(i),SymLabelListInv(i)
 !        enddo
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 !        CALL Stop_All('InitSymmArrays','Checking orbital labels.')
 
 
@@ -1748,7 +1746,7 @@ MODULE RotateOrbsMod
                 ! TMAT2DBlock comes out as the eigenvalues in ascending order.
                 IF(ierr.ne.0) THEN
                     WRITE(6,*) 'Problem with symmetry, ',Sym,' of TMAT2D'
-                    CALL FLUSH(6)
+                    CALL neci_flush(6)
                     CALL Stop_All(this_routine,"Diagonalization of TMAT2DSymBlock failed...")
                 ENDIF
 
@@ -2439,7 +2437,7 @@ MODULE RotateOrbsMod
             do i=Starti,Finishi
                     ERPotEnergy=ERPotEnergy+FourIndIntsER(i)
                     IF(FourIndIntsER(i).lt.0) THEN
-                        CALL FLUSH(6)
+                        CALL neci_flush(6)
                         CALL Stop_All('CalcPotentials','A <ii|ii> value is less than 0.')
                     ENDIF
 !                    WRITE(6,*) FourIndIntsER(i)
@@ -2478,7 +2476,7 @@ MODULE RotateOrbsMod
                     ENDIF
                     ERPotEnergy=ERPotEnergy+FourIndInts(i,j,i,j)
                     IF((FourIndInts(i,j,i,j).lt.0).or.(FourIndInts(j,i,j,i).lt.0)) THEN
-                        CALL FLUSH(6)
+                        CALL neci_flush(6)
                         CALL Stop_All('CalcPotentials','A <ii|ii> value is less than 0.')
                     ENDIF
                     PotEnergy=PotEnergy+FourIndInts(i,j,i,j)
@@ -2487,7 +2485,7 @@ MODULE RotateOrbsMod
                 ELSE
                     ERPotEnergy=ERPotEnergy+FourIndInts(i,i,i,i)
                     IF((FourIndInts(i,i,i,i).lt.0)) THEN
-                        CALL FLUSH(6)
+                        CALL neci_flush(6)
                         CALL Stop_All('CalcPotentials','A <ii|ii> value is less than 0.')
                     ENDIF
                     PotEnergy=PotEnergy+FourIndInts(i,i,i,i)
@@ -3072,7 +3070,6 @@ MODULE RotateOrbsMod
 
     SUBROUTINE ShakeConstraints()
 ! DerivCoeff(k,a) is the unconstrained force on the original coefficients (CoeffT1(a,k)). 
-        use util_mod, only: get_free_unit
         INTEGER :: w,l,a,m,ShakeIteration,ConvergeCount,SymM,SymMin
         real(dp) :: TotCorConstraints,TotConstraints,TotLambdas
         real(dp) :: TotUncorForce,TotDiffUncorCoeffs,TotDiffCorCoeffs
@@ -3220,8 +3217,8 @@ MODULE RotateOrbsMod
 !            ENDIF
 
 ! and to SHAKEstats file:
-            CALL FLUSH(6)
-            CALL FLUSH(shake_io)
+            CALL neci_flush(6)
+            CALL neci_flush(shake_io)
             IF(Mod(Iteration,10).eq.0) THEN
                 WRITE(shake_io,'(I20,4F35.20,I20)') ShakeIteration,TotLambdas,TotCorrectedForce,TotConstraints, &
                     TotCorConstraints,ConvergeCount 
@@ -3612,7 +3609,6 @@ MODULE RotateOrbsMod
 ! combinations ui which minimise |<ij|kl>|^2.  This is the final subroutine after all iterations (but before the memory deallocation)
 ! that calculates the final 4 index integrals to be used in the NECI calculation.
         use sym_mod, only: GenSymStatePairs
-        use util_mod, only: get_free_unit
         INTEGER :: i,a,j
         real(dp) :: TotGSConstraints,GSConstraint(TotNoConstraints),CoeffTemp(SpatOrbs,SpatOrbs)
         
@@ -3716,7 +3712,6 @@ MODULE RotateOrbsMod
 
 
     SUBROUTINE WriteSingHisttofile()
-        use util_mod, only: get_free_unit
         INTEGER :: i,j,k,BinNo,a,b,iunit
         real(dp) :: MaxFII,MinFII,BinIter,BinVal,SingExcit(NoOrbs,NoOrbs)
 
@@ -4148,7 +4143,6 @@ MODULE RotateOrbsMod
 
 
     SUBROUTINE WriteDoubHisttofile()
-        use util_mod, only: get_free_unit
         INTEGER :: i,j,k,l,BinNo, iunit
         real(dp) :: MaxFII,MinFII,BinIter,OnePartOrbEnValue,BinVal
 
@@ -4712,7 +4706,6 @@ MODULE RotateOrbsMod
 
 
     SUBROUTINE PrintIntegrals()
-        use util_mod, only: get_free_unit
         INTEGER :: i,j,k,l, io1, io2
         real(dp) :: DiagOneElPot,ERPot,ijVirtOneElPot,ijVirtCoulPot,ijVirtExchPot
         real(dp) :: singCoulijVirt,singExchijVirt,singCoulconHF,singExchconHF,ijklPot,ijklantisymPot
@@ -5038,7 +5031,7 @@ MODULE RotateOrbsMod
 !        do i=1,nBasis
 !            WRITE(6,*) i,BRR(i),ARR(i,1),ARR(BRR(i),2)
 !        enddo
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 !        stop       
 
         IF((tUseMP2VarDenMat.or.tFindCINatOrbs.or.tUseHFOrbs.or.tRDMonfly).and.(NoDumpTruncs.le.1)) THEN
@@ -5148,7 +5141,7 @@ MODULE RotateOrbsMod
 
 !        WRITE(6,*) 'SpatOrbs',SpatOrbs
 !        WRITE(6,*) 'NoRotOrbs',NoRotOrbs
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 
 !        do l=1,NoRotOrbs
 !            j=SymLabelList3(l)
@@ -5251,7 +5244,7 @@ MODULE RotateOrbsMod
 !            enddo
 !            WRITE(6,*) ''
 !        enddo
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 !        stop
 
         DEALLOCATE(TMAT2DPart)
@@ -5283,7 +5276,6 @@ MODULE RotateOrbsMod
 
     SUBROUTINE PrintROFCIDUMP()
 !This prints out a new FCIDUMP file in the same format as the old one.
-        use util_mod, only: get_free_unit
         INTEGER :: i,j,k,l,iunit
         CHARACTER(len=5) :: Label
         CHARACTER(len=20) :: LabelFull
@@ -5378,7 +5370,7 @@ MODULE RotateOrbsMod
 
         WRITE(iunit,'(F21.12,4I3)') ECore,0,0,0,0
         
-        CALL FLUSH(iunit)
+        CALL neci_flush(iunit)
 
         CLOSE(iunit)
 
@@ -5390,7 +5382,6 @@ MODULE RotateOrbsMod
 
     SUBROUTINE PrintRepeatROFCIDUMP()
 !This prints out a new FCIDUMP file in the same format as the old one.
-        use util_mod, only: get_free_unit
         INTEGER :: i,j,k,l,ierr,a,b,g,d, iunit
         CHARACTER(len=5) :: Label
         CHARACTER(len=20) :: LabelFull
@@ -5506,7 +5497,7 @@ MODULE RotateOrbsMod
 
         WRITE(iunit,'(F21.12,4I3)') ECore,0,0,0,0
         
-        CALL FLUSH(iunit)
+        CALL neci_flush(iunit)
 
         CLOSE(iunit)
 
@@ -5671,7 +5662,7 @@ MODULE RotateOrbsMod
             WRITE(6,'(F20.10)',advance='no') Constraint(l)
             WRITE(6,*) l,i,j 
         enddo
-        CALL FLUSH(6) 
+        CALL neci_flush(6) 
 
     ENDSUBROUTINE WriteShakeOUTstats01
 

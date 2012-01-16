@@ -136,7 +136,7 @@ mpitype=MPI_INTEGER8
 !CALL MPI_Error_string(error,message,length,temp)
 !IF(temp.ne.MPI_SUCCESS) THEN
 !    WRITE(6,*) "REALLY SERIOUS PROBLEMS HERE!",temp
-!    CALL FLUSH(6)
+!    CALL neci_flush(6)
 !ENDIF
 !WRITE(6,*) message(1:length)
 
@@ -144,7 +144,7 @@ mpitype=MPI_INTEGER8
 
    ! mpi USE is in mixed case to avoid it being picked up by the the Configure
    ! script, as it doesn't require a module file.
-module Parallel
+module Parallel_neci
 #ifdef PARALLEL
    uSe MPI
 #endif
@@ -382,7 +382,7 @@ subroutine MPIAllReduce_inplace (v, iType, Node)
     int(Comm,MPIArg), ierr)
     if (ierr /= MPI_SUCCESS) then
         !write(6,*) 'ierr: ', ierr
-        !call flush(6)
+        !call neci_flush(6)
         call stop_all ("MPIAllReduce_inplace", 'Error in MPI_ALLREDUCE. Terminating.')
     endif
 #endif
@@ -1101,7 +1101,7 @@ Subroutine MPIInit(tExternal)
 !          CALL Stop_All('MPIInit',"IO not possible on this processor")
 !      ELSE
 !          WRITE(6,*) "IO possible on this processor"
-!          CALL FLUSH(6)
+!          CALL neci_flush(6)
 !      ENDIF
 
           if(iProcIndex.eq.0) then
@@ -1305,7 +1305,7 @@ subroutine MPINodes(tUseProcsAsNodes)
    iNodeIndex=Node%n  !Used as a plain integer version.
 !   write(6,*) iNodeIndex,iProcIndex,Node%n,size(NodeRoots)
 !   write(6,*) "***************************************"
-!   call flush(6)
+!   call neci_flush(6)
 
    if (iProcIndex==NodeRoots(Node%n)) then
       bNodeRoot=.true.
@@ -1382,7 +1382,7 @@ Subroutine MPIStopAll(error_str)
    ! Currently neither are analysed.
    call MPI_ABORT(MPI_COMM_WORLD, error_code, ierror)
    WRITE(6,*) error_str
-   CALL FLUSH(6)
+   CALL neci_flush(6)
    stop
 #endif
 end subroutine

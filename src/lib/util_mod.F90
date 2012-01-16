@@ -321,7 +321,7 @@ contains
         integer(kind=n_int), intent(in) :: val(:)
         integer, intent(in), optional :: cf_len
         integer :: data_lo, data_hi, val_lo, val_hi
-        integer :: pos, len
+        integer :: pos
 
         integer :: hi, lo
 
@@ -350,8 +350,6 @@ contains
         ! Narrow the search range down in steps.
         do while (hi /= lo)
             pos = int(real(hi + lo) / 2)
-!>>>!            write(6,*) 'pos', pos, lo, hi
-!>>>!            call flush(6)
 
             if (all(arr(data_lo:data_hi,pos) == val(val_lo:val_hi))) then
                 exit
@@ -506,24 +504,121 @@ contains
         if (i == max_unit+1) call stop_all('get_free_unit','Cannot find a free unit below max_unit.')
 
     end function get_free_unit
-
+    
 end module
+
+!Hacks for compiler specific system calls.
+    
+    INTEGER FUNCTION neci_iargc()
+#ifdef NAGF95
+    USe f90_unix_env, only: iargc
+#endif
+    IMPLICIT NONE
+#ifdef NAGF95
+    neci_iargc=iargc()
+#else
+#ifndef MOLPRO
+    INTEGER command_argument_count
+    neci_iargc=command_argument_count()
+#else
+#ifndef MOLPRO_f2003
+    INTEGER iargc
+    neci_iargc=iargc()
+#else
+    INTEGER command_argument_count
+    neci_iargc=command_argument_count()
+#endif
+#endif
+#endif
+    RETURN
+    END FUNCTION neci_iargc
+
+    SUBROUTINE neci_getarg(i,str)
+#ifdef NAGF95
+    USe f90_unix_env, only: getarg
+#endif
+    IMPLICIT NONE
+    INTEGER          :: i
+    CHARACTER(LEN=*) :: str
+#if defined(__OPEN64__) || defined(__PATHSCALE__)
+    INTEGER*4        :: j
+#endif
+#ifdef NAGF95
+    CALL getarg(i,str)
+#else
+#ifdef MOLPRO
+#ifndef MOLPRO_f2003
+    CALL getarg(i,str)
+#else
+#if defined(__OPEN64__) || defined(__PATHSCALE__)
+    j=i
+    CALL get_command_argument(j,str)
+#else
+    CALL get_command_argument(i,str)
+#endif
+#endif
+!endif molp2003
+#else
+!else not molp
+#if defined(__OPEN64__) || defined(__PATHSCALE__)
+    j=i
+    CALL get_command_argument(j,str)
+#else
+    CALL get_command_argument(i,str)
+#endif
+#endif
+!endif molpro
+#endif
+!endif nag
+    RETURN
+    END SUBROUTINE neci_getarg
+
+    subroutine neci_flush(un)
+#ifdef NAGF95
+    USe f90_unix, only: flush
+#endif
+    implicit none
+    integer, intent(in) :: un
+#ifdef BLUEGENE_HACKS
+        call flush_(un)
+#else
+        call flush(un)
+#endif
+    end subroutine neci_flush
+
+    real(sp) function neci_etime(time)
+      use constants, only: sp
+      real(sp) :: time(2)
+      call cpu_time(neci_etime)
+      time(1) = neci_etime
+      time(2) = 0
+    end function neci_etime
+
+    integer function neci_system(str) 
+#ifdef NAGF95
+    Use f90_unix_proc, only: system
+#endif
+        character(*), intent(in) :: str
+#ifndef NAGF95
+        integer :: system
+        neci_system=system(str)
+#else
+        call system(str)
+        neci_system=0
+#endif
+    end function neci_system
 
 ! Hacks for the IBM compilers on BlueGenes.
 ! --> The compiler intrinsics are provided as flush_, etime_, sleep_ etc.
 ! --> We need to either change the names used in the code, or provide wrappers
 #ifdef BLUEGENE_HACKS
-
-    subroutine flush (ut)
-        implicit none
-        integer :: ut
-        call flush_(ut)
-    end subroutine
-    function etime (t) result(ret)
-        implicit none
-        real(4) :: t(2), etime_, ret
-        ret = etime_(t)
-    end function
+! I presume that the function cpu_time will work here?
+! If not, simply add BLUEGENE_HACKS to the neci_etime above.
+!    function etime (t) result(ret)
+!        implicit none
+!        real(4) :: t(2), etime_, ret
+!        ret = etime_(t)
+!    end function
     function hostnm (nm) result(ret)
         implicit none
         integer :: ret, hostnm_
