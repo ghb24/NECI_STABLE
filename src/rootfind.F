@@ -2,7 +2,6 @@
       SUBROUTINE PLOTROOTSTAR(N,A,B)
          use constants, only: dp
          use legacy_data, only: CALCP_N, CALCP_NT, CALCP_SUM, CALCP_HSUM
-         use util_mod, only: neci_flush
          IMPLICIT NONE
          INTEGER N,I,J
          HElement_t A(0:N),B(0:N)

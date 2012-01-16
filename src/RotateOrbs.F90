@@ -24,7 +24,7 @@ MODULE RotateOrbsMod
     USE Soft_exit, only : test_SOFTEXIT
     USE RotateOrbsData 
     use sort_mod
-    use util_mod, only: get_free_unit,neci_flush
+    use util_mod, only: get_free_unit
     IMPLICIT NONE
     INTEGER , ALLOCATABLE :: Lab(:,:),LabVirtOrbs(:),LabOccOrbs(:),SymLabelList3Inv(:)
     real(dp) , ALLOCATABLE :: CoeffCorT2(:,:),CoeffUncorT2(:,:)

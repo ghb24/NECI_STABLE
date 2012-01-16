@@ -2,7 +2,7 @@
 MODULE UMatCache
     use constants, only: dp
     use SystemData , only : TSTARSTORE, tROHF,tStoreSpinOrbs
-    use util_mod, only: swap,neci_flush
+    use util_mod, only: swap
     use sort_mod
     use MemoryManager, only: TagIntType
 

@@ -22,7 +22,6 @@ module GenRandSymExcitCSF
     use constants, only: n_int, bits_n_int
     use bit_reps, only: NIfTot,NIfD
     use sym_general_mod, only: CCIndS
-    use util_mod, only: neci_flush
     implicit none
 
 contains

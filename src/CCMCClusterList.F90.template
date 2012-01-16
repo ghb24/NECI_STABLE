@@ -691,7 +691,6 @@ SUBROUTINE CollapseCluster (C,iLutHF,AL,iAmpList,nDet,iDebug,tExToDet)
    use DetBitOps, only: FindBitExcitLevel
    use bit_reps, only: decode_bit_det
    use timing_neci
-   use util_mod, only: neci_flush
    IMPLICIT NONE
    TYPE(Cluster) C
    INTEGER(KIND=n_int) :: iLutHF(0:nIfTot)

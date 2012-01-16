@@ -21,7 +21,7 @@ MODULE ReadInput_neci
         Use Logging,    only : LogReadInput,SetLogDefaults
         use Parallel_neci,   only : iProcIndex
         use default_sets
-        use util_mod, only: get_free_unit,neci_iargc,neci_getarg
+        use util_mod, only: get_free_unit
 !#ifdef NAGF95
 !    !  USe doesn't get picked up by the make scripts
 !        USe f90_unix_env, ONLY: getarg,iargc
@@ -42,6 +42,7 @@ MODULE ReadInput_neci
         Logical             tEof        !set when read_line runs out of lines
         logical             tExists     !test for existence of input file.
         Integer             idDef       !What default set do we use
+        integer neci_iargc
         
         cTitle=""
         idDef=idDefault                 !use the Default defaults (pre feb08)

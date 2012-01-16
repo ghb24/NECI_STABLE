@@ -7,7 +7,7 @@
      &            TSPECDET,SPECDET,nActiveBasis)
          use constants, only: dp
          use global_utilities
-         use util_mod, only: get_free_unit, NECI_ICOPY,neci_flush
+         use util_mod, only: get_free_unit, NECI_ICOPY
          use SystemData, only: BasisFN,BasisFNSize
          use legacy_data, only: irat
          use CalcData, only: tFCIMC

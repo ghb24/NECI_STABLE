@@ -18,7 +18,7 @@ MODULE NatOrbsMod
         use sort_mod
         use bit_reps, only: decode_bit_det
         use MemoryManager, only: TagIntType
-        use util_mod, only: get_free_unit,neci_flush
+        use util_mod, only: get_free_unit
         IMPLICIT NONE
         INTEGER(TagIntType) :: NoSpinCyc,SymOrbsTempTag
         real(dp) , ALLOCATABLE :: NatOrbMat(:,:),Evalues(:)

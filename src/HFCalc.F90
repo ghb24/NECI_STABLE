@@ -20,7 +20,6 @@ MODULE HFCalc
       use shared_alloc, only: shared_allocate, shared_deallocate
       use HElem, only: helement_t_size, helement_t_sizeb
       use MemoryManager, only: TagIntType
-      use util_mod, only: neci_flush
       character(25), parameter :: this_routine='HFDoCalc'
       HElement_t,ALLOCATABLE :: HFBASIS(:),HFE(:)
       HElement_t,pointer :: UMat2(:)

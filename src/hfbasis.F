@@ -1409,7 +1409,6 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
       SUBROUTINE ORDERBASISHF(ARR,BRR,HFE,HFBASIS,NBASIS,FDET,NEL)
          use sort_mod
          use constants, only: dp
-         use util_mod, only: neci_flush
          IMPLICIT NONE
          INTEGER NBASIS,BRR(NBASIS)
          real(dp) ARR(NBASIS,2),HFE(NBASIS),HFBASIS(NBASIS,NBASIS)

@@ -1582,7 +1582,7 @@ contains
           use IntegralsData, only: HFEDelta, HFMix,nTay
           Use Logging, only: iLogging
           use Parallel_Calc
-          use util_mod, only: get_free_unit, NECI_ICOPY,neci_flush
+          use util_mod, only: get_free_unit, NECI_ICOPY
           use sym_mod
 
 !Calls

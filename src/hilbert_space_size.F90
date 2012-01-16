@@ -3,7 +3,7 @@
 module hilbert_space_size
 
 use constants, only: dp,int64,n_int,bits_n_int,sizeof_int
-use util_mod, only: choose,get_free_unit,neci_flush
+use util_mod, only: choose,get_free_unit
 implicit none
 
 contains

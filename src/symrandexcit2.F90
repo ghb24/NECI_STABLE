@@ -47,7 +47,6 @@ MODULE GenRandSymExcitNUMod
     use timing_neci
     use sym_general_mod
     use spin_project, only: tSpinProject
-    use util_mod, only: neci_flush
     IMPLICIT NONE
 !    INTEGER , SAVE :: Counter=0
 

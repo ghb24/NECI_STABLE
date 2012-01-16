@@ -21,7 +21,6 @@ MODULE input_neci
 !  http://www.gnu.org/copyleft/gpl.html
 
 use constants, only: sp,dp,int64
-use util_mod, only: neci_getarg
 
 IMPLICIT NONE
 

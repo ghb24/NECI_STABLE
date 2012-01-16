@@ -148,7 +148,7 @@ C         ENDDO
      &      ECORE)
          use global_utilities
          use legacy_data, only: irat
-         use util_mod, only: NECI_ICOPY,neci_flush
+         use util_mod, only: NECI_ICOPY
          use MemoryManager, only: TagIntType
          use SystemData, only: BasisFN
          use constants, only: dp

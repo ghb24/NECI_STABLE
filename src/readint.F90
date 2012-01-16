@@ -148,7 +148,7 @@ contains
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
          use Parallel_neci
          use constants, only: dp
-         use util_mod, only: get_free_unit,neci_flush
+         use util_mod, only: get_free_unit
          IMPLICIT NONE
          integer, intent(in) :: LEN
          integer, intent(inout) :: nBasisMax(5,*)

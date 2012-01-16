@@ -11,7 +11,7 @@ module OneEInts
 use constants, only: dp
 use SystemData, only: TSTARSTORE
 use MemoryManager, only: TagIntType
-use util_mod, only: get_free_unit,neci_flush
+use util_mod, only: get_free_unit
 
 implicit none
 

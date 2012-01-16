@@ -1,9 +1,8 @@
 
       SUBROUTINE LOGNAN(NI,NEL,BETA,ITIME)
       use constants, only: dp
-      use util_mod, only: neci_system
          IMPLICIT NONE
-         INTEGER NEL,ITIME,NI(NEL),K,I
+         INTEGER NEL,ITIME,NI(NEL),K,I,neci_system
          real(dp) BETA
          CHARACTER(40) STR
          WRITE(STR,*) 'mkdir "nan',ITIME,'"'

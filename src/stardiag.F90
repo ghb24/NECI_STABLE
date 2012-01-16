@@ -3,7 +3,7 @@
         use sort_mod
         use constants, only: dp,int32
         use MemoryManager, only: TagIntType
-        use util_mod, only: NECI_ICOPY,get_unique_filename,neci_flush
+        use util_mod, only: NECI_ICOPY,get_unique_filename
         IMPLICIT NONE
       
 !.. ExcitInfo will contain all the info needed to work out the value of the star
@@ -2307,7 +2307,6 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          use sort_mod
          use helem, only: helement_t_size
          use MemoryManager, only: TagIntType
-         use util_mod, only: neci_flush
          IMPLICIT NONE
          INTEGER I_P
          INTEGER NLIST,ILMAX
@@ -2452,7 +2451,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          use StarDiagData, only: star_walker
          use helem, only: helement_t_size
          use MemoryManager, only: TagIntType
-         use util_mod, only: neci_flush, get_unique_filename
+         use util_mod, only: get_unique_filename
          IMPLICIT NONE
          CHARACTER(len=*), PARAMETER :: this_routine='StarDiagMC'
          INTEGER :: i,j,NList,ILMax,ierr,WorkL,toprint,PreviousNMCyc

@@ -16,7 +16,7 @@ MODULE PopsfileMod
     USE Logging , only : iWritePopsEvery,tPopsFile,iPopsPartEvery,tBinPops
     USE Logging , only : tPrintPopsDefault,tIncrementPops
     use sort_mod
-    use util_mod, only: get_free_unit,get_unique_filename,neci_flush
+    use util_mod, only: get_free_unit,get_unique_filename
 
     implicit none
 

@@ -9,7 +9,6 @@ MODULE CCMC
     use FciMCData, only: iter_data_ccmc
     use FciMCParMod, only: calculate_new_shift_wrapper
     use Parallel_neci
-    use util_mod, only: neci_flush
    IMPLICIT NONE
    CONTAINS
 

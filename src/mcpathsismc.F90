@@ -1,6 +1,6 @@
 module mcpathsismc
     use constants, only: dp,int64,sp
-    use util_mod, only: NECI_ICOPY,neci_etime,isnan,neci_flush
+    use util_mod, only: NECI_ICOPY,isnan
    contains
 !C.. Calculate RHO^(P)_II without having a stored H matrix
 !C.. SAMPLE over distinct nodes, e.g. IJKLI, with paths up to I_HMAX
@@ -72,7 +72,7 @@ module mcpathsismc
          INTEGER IOV,IGV,IACC
          LOGICAL TSEQ,TBLOCKING
          real(dp) PREJ,PGR
-         REAL(sp) OTIME,NTIME,tarr(2)
+         REAL(sp) OTIME,NTIME,tarr(2),neci_etime
          integer(int64) LP
          HElement_t :: hel
 

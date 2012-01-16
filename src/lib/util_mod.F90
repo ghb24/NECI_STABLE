@@ -2,11 +2,6 @@ module util_mod
     use util_mod_comparisons
     use util_mod_cpts
     use constants, only: dp, lenof_sign,sizeof_int
-#ifdef NAGF95
-    USe f90_unix_env, only: getarg,iargc
-    USe f90_unix, only: flush
-    Use f90_unix_proc, only: system
-#endif
     implicit none
 
     ! sds: It would be nice to use a proper private/public interface here,
@@ -510,10 +505,21 @@ contains
 
     end function get_free_unit
     
+end module
+
+!Hacks for compiler specific system calls.
+    
     INTEGER FUNCTION neci_iargc()
+#ifdef NAGF95
+    USe f90_unix_env, only: iargc
+#endif
     IMPLICIT NONE
 #ifdef NAGF95
     neci_iargc=iargc()
+#else
+#ifndef MOLPRO
+    INTEGER command_argument_count
+    neci_iargc=command_argument_count()
 #else
 #ifndef MOLPRO_f2003
     INTEGER iargc
@@ -523,16 +529,24 @@ contains
     neci_iargc=command_argument_count()
 #endif
 #endif
+#endif
     RETURN
     END FUNCTION neci_iargc
 
     SUBROUTINE neci_getarg(i,str)
+#ifdef NAGF95
+    USe f90_unix_env, only: getarg
+#endif
     IMPLICIT NONE
     INTEGER          :: i
     CHARACTER(LEN=*) :: str
 #if defined(__OPEN64__) || defined(__PATHSCALE__)
     INTEGER*4        :: j
 #endif
+#ifdef NAGF95
+    CALL getarg(i,str)
+#else
+#ifdef MOLPRO
 #ifndef MOLPRO_f2003
     CALL getarg(i,str)
 #else
@@ -543,10 +557,26 @@ contains
     CALL get_command_argument(i,str)
 #endif
 #endif
+!endif molp2003
+#else
+!else not molp
+#if defined(__OPEN64__) || defined(__PATHSCALE__)
+    j=i
+    CALL get_command_argument(j,str)
+#else
+    CALL get_command_argument(i,str)
+#endif
+#endif
+!endif molpro
+#endif
+!endif nag
     RETURN
     END SUBROUTINE neci_getarg
 
     subroutine neci_flush(un)
+#ifdef NAGF95
+    USe f90_unix, only: flush
+#endif
     implicit none
     integer, intent(in) :: un
 #ifdef BLUEGENE_HACKS
@@ -557,6 +587,7 @@ contains
     end subroutine neci_flush
 
     real(sp) function neci_etime(time)
+      use constants, only: sp
       real(sp) :: time(2)
       call cpu_time(neci_etime)
       time(1) = neci_etime
@@ -564,6 +595,9 @@ contains
     end function neci_etime
 
     integer function neci_system(str) 
+#ifdef NAGF95
+    Use f90_unix_proc, only: system
+#endif
         character(*), intent(in) :: str
 #ifndef NAGF95
         integer :: system
@@ -573,10 +607,6 @@ contains
         neci_system=0
 #endif
     end function neci_system
-        
-
-
-end module
 
 ! Hacks for the IBM compilers on BlueGenes.
 ! --> The compiler intrinsics are provided as flush_, etime_, sleep_ etc.
@@ -609,6 +639,4 @@ end module
     end function
 
 #endif
-
-
 

@@ -21,7 +21,6 @@ MODULE ISKRandExcit
     use bit_reps, only: NIfD, NIfDBO, NIfTot
     use SymExcitDataMod, only: SpinOrbSymLabel,SymTableLabels,SymInvLabel, &
                                KPntInvSymOrb
-    use util_mod, only: neci_flush
     IMPLICIT NONE
 
     contains

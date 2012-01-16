@@ -150,7 +150,6 @@ module Parallel_neci
 #endif
    use ParallelHelper,  only: CommI, GetComm, MPIErr, iProcIndex
    use constants
-   use util_mod, only: neci_flush
    implicit none
 
 

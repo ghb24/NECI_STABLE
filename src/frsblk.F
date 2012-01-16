@@ -87,7 +87,6 @@ C ====================================================================
      &     NCYCLE,PRINTOUT,TLargest,tDie2,tFail)
       use constants, only: dp,sp
       use global_utilities
-      use util_mod, only: neci_etime
 !      IMPLICIT real(dp) (A-H,O-Z)
       IMPLICIT NONE
       LOGICAL :: PRINTOUT,TLargest,tDie2,tFail
@@ -101,7 +100,7 @@ C ====================================================================
       integer :: NCONV
       integer :: INDEX(N),NROW(M),LAB(M,ICMAX),INFO 
       type(timer), save :: proc_timer
-      real(sp) t1,t2,t3,tarr(2)
+      real(sp) t1,t2,t3,tarr(2),neci_etime
 C..temp
       real(dp) ::  H(*)
 C..temp

@@ -88,7 +88,7 @@ MODULE FciMCParMod
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
     use MI_integrals
-    use util_mod, only: choose, abs_int_sign, abs_int8_sign, binary_search,neci_flush
+    use util_mod, only: choose, abs_int_sign, abs_int8_sign, binary_search
     use constants, only: dp, int64, n_int, lenof_sign, sizeof_int
     use soft_exit, only: ChangeVars 
     use FciMCLoggingMod, only: FinaliseBlocking, FinaliseShiftBlocking, &
@@ -116,11 +116,11 @@ MODULE FciMCParMod
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
         use Logging, only: PopsfileTimer
-        use util_mod, only: get_free_unit,neci_etime
+        use util_mod, only: get_free_unit
         real(dp) :: Weight, Energyxw
         INTEGER :: error
         LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange,tPrintWarn
-        REAL(sp) :: s_start,s_end,tstart(2),tend(2),totaltime
+        REAL(sp) :: s_start,s_end,tstart(2),tend(2),totaltime,neci_etime
         real(dp) :: TotalTime8
         INTEGER(int64) :: MaxWalkers,MinWalkers
         real(dp) :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
@@ -3698,7 +3698,6 @@ MODULE FciMCParMod
     !files. If there is already an FCIMCStats file present, then move it to FCIMCStats.x, where x is a largest
     !free filename.
     subroutine MoveFCIMCStatsFiles()
-!        use util_mod, only: neci_system
 #ifdef NAGF95
         USe f90_unix_dir, only: rename
 #endif

@@ -491,7 +491,7 @@ MODULE FciMCLoggingMod
         
 
     SUBROUTINE PrintSpawnAttemptStats(Iteration)
-        use util_mod, only: get_free_unit,neci_flush
+        use util_mod, only: get_free_unit
         real(dp) :: AllStats(4),AcceptStats(4),AllMaxHElNotAccept(1:nProcessors),AllMinHElAccept(1:nProcessors)
         INTEGER :: i,error,Iteration, iunit
 

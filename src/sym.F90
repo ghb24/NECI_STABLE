@@ -2051,7 +2051,6 @@ contains
         use SymData, only: SymLabelIntsCum
         use SymData, only: tagSymLabelIntsCum,tagSymLabelCountsCum
         use global_utilities
-        use util_mod, only: neci_flush
         implicit none
         integer Nirrep,nBasis,iSS,nBi,i,basirrep,t
         integer(int64) iSize

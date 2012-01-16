@@ -881,7 +881,6 @@ MODULE System
       use legacy_data, only: CSF_NBSTART
       use read_fci
       use sym_mod
-      use util_mod, only: neci_flush
       implicit none
       character(*), parameter :: this_routine='SysInit'
       integer ierr

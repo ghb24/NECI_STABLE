@@ -49,7 +49,7 @@ CONTAINS
         use Logging,    only : tLogDets
         use legacy_data, only: irat
         use HElem
-        use util_mod, only: get_free_unit, NECI_ICOPY,neci_flush
+        use util_mod, only: get_free_unit, NECI_ICOPY
         Type(BasisFn) ISym
 
         integer i,ii,iunit
@@ -296,7 +296,7 @@ CONTAINS
     
     Subroutine DoDetCalc
       Use global_utilities
-      use util_mod, only: get_free_unit,neci_flush
+      use util_mod, only: get_free_unit
       use Determinants , only : get_helement,FDet
       use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
       use SystemData, only : nBasis, nBasisMax,nEl,nMsh,LzTot,tMomInv
@@ -995,7 +995,7 @@ END MODULE DetCalc
      &   NTAY,RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,   &
      &   DETINV,TSPECDET,SPECDET)
          use constants, only: dp
-         use util_mod, only: get_free_unit,neci_flush
+         use util_mod, only: get_free_unit
          use SystemData, only: BasisFN
          use CalcData, only: tFCIMC
          use global_utilities

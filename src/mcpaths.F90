@@ -1,5 +1,5 @@
 module mcpaths
-    use util_mod, only: isnan,neci_flush
+    use util_mod, only: isnan
 contains
 
 !C.. Calculate RHO^(P)_II without having a stored H matrix
@@ -44,7 +44,7 @@ contains
          use mcpathshdiag, only: fmcpr3b2
          use mcpathsismc, only: mcpathsr4, fmcpr4b,fmcpr4c
          use sym_mod, only: getsym
-         use util_mod, only: isnan, NECI_ICOPY,neci_etime
+         use util_mod, only: isnan, NECI_ICOPY
          IMPLICIT NONE
          TYPE(BasisFN) :: G1(*),KSYM
          INTEGER I_VMAX,NEL,NBASIS
@@ -54,7 +54,7 @@ contains
          INTEGER I_P,I_HMAX,BRR(*),NMSH,NMAX
          INTEGER NTAY(2),NWHTAY(3,I_VMAX),ILOGGING,I,I_V
          INTEGER L,LT,J
-         real(sp) otime,itime,tarr(2)
+         real(sp) otime,itime,tarr(2),neci_etime
          real(dp) BETA,ECORE
          real(dp) WLRI,WLSI
          HElement_t UMat(*),RH
@@ -424,7 +424,7 @@ contains
          use mcpathsdata, only: EGP
          use mcpathshdiag, only: fmcpr3b2
          use mcpathsismc, only: mcpathsr4
-         use util_mod, only: NECI_ICOPY,neci_etime
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          TYPE(BasisFN) G1(*)
          INTEGER I_VMAX,NEL,NBASIS
@@ -437,7 +437,7 @@ contains
          type(timer), save :: proc_timer,proc_timer2
          INTEGER L,LT,ITIME
          real(dp) BETA,ECORE
-         real(sp) tarr(2)
+         real(sp) tarr(2),neci_etime
          real(dp) WLRI,WLSI
          real(dp) F(2:I_VMAX)
          CHARACTER(40) STR
@@ -1555,7 +1555,6 @@ end module mcpaths
       END
 
       SUBROUTINE WRITEPATHEX(NUNIT,IPATH,I_V,NEL,LTERM)
-         use util_mod, only: neci_flush
          IMPLICIT NONE
          INTEGER I_V,NEL
          INTEGER NUNIT,IPATH(NEL,0:I_V)

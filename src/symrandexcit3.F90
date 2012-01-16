@@ -26,7 +26,7 @@ module symrandexcit3
     use constants, only: dp, n_int, bits_n_int
     use timing_neci
     use Parallel_neci
-    use util_mod, only: binary_search_first_ge,neci_flush
+    use util_mod, only: binary_search_first_ge
     implicit none
 
 contains

@@ -35,7 +35,6 @@ subroutine stop_all(sub_name,error_msg)
 !=    error_msg: error message.
 
 use shared_alloc, only: cleanup_shared_alloc
-use util_mod, only: neci_flush
 #ifdef PARALLEL
 use Parallel_neci, only: iProcIndex,MPIStopAll
 #endif
@@ -93,7 +92,6 @@ subroutine quiet_stop(msg)
 #ifdef PARALLEL
 use Parallel_neci, only: MPIStopAll
 #endif
-use util_mod, only: neci_flush
 
 implicit none
 character(*), intent(in), optional :: msg
