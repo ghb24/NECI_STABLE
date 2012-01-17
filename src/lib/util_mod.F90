@@ -576,13 +576,22 @@ end module
     subroutine neci_flush(un)
 #ifdef NAGF95
     USe f90_unix, only: flush
+    use constants, only: int32
 #endif
     implicit none
     integer, intent(in) :: un
+#ifdef NAGF95
+    integer(kind=int32) :: dummy
+#endif
 #ifdef BLUEGENE_HACKS
         call flush_(un)
 #else
+#ifdef NAGF95
+        dummy=un
+        call flush(dummy)
+#else
         call flush(un)
+#endif
 #endif
     end subroutine neci_flush
 
