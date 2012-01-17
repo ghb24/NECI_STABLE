@@ -586,11 +586,13 @@ end module
 #endif
     end subroutine neci_flush
 
-    real(sp) function neci_etime(time)
+
+    function neci_etime(time) result(ret)
       use constants, only: sp
+      real(sp) :: ret
       real(sp) :: time(2)
-      call cpu_time(neci_etime)
-      time(1) = neci_etime
+      call cpu_time(ret)
+      time(1) = ret
       time(2) = 0
     end function neci_etime
 
