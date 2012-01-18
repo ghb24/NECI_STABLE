@@ -4986,7 +4986,7 @@ MODULE RotateOrbsMod
 !        enddo
        
 !        WRITE(6,*) 'to here',NoDumpTruncs,NoOrbs 
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 
 ! Refill ARR(:,1) (ordered in terms of energies), and ARR(:,2) (ordered in terms of orbital number).
 ! ARR(:,2) needs to be ordered in terms of symmetry and then energy (like SymLabelList), so currently this ordering will not be 
@@ -5044,7 +5044,7 @@ MODULE RotateOrbsMod
 
 
         WRITE(6,*) 'end of calcfockmatrix'
-        call flush(6)
+        call neci_flush(6)
 
     ENDSUBROUTINE CalcFOCKMatrix
 

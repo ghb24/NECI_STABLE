@@ -221,6 +221,10 @@ contains
                                    "not_option                   ", &
                                    "not_option                   ", &
                                    "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
                                    "not_option                   "/)
         character(max_item_len), parameter :: option_list(last_item) &
                                = (/"excite                       ", &

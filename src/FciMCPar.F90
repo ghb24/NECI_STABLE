@@ -5090,7 +5090,7 @@ MODULE FciMCParMod
         store%tFilled = .true.
 
         do while (.not.tAllExcitFound)
-            CALL GenExcitations3(ProjEDet,iLutRef,nJ,exflag,Ex,tParity,tAllExcitFound)
+            CALL GenExcitations3(ProjEDet,iLutRef,nJ,exflag,Ex,tParity,tAllExcitFound,.false.)
             IF(tAllExcitFound) EXIT
             if(Ex(2,2).eq.0) then
                 ic=1

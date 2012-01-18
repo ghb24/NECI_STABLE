@@ -34,7 +34,7 @@ MODULE nElRDMMod
 ! densities etc.
         
         USE Global_Utilities
-        USE Parallel
+        USE Parallel_neci
         USE bit_reps , only : NIfTot, NIfDBO, decode_bit_det
         USE IntegralsData , only : UMAT
         USE UMatCache , only : UMatInd
@@ -559,7 +559,7 @@ MODULE nElRDMMod
                     write(6,*) 'exists_aaaa',exists_aaaa
                     write(6,*) 'exists_abab',exists_abab
                     write(6,*) 'exists_abba',exists_abba
-                    call flush(6)
+                    call neci_flush(6)
                     CALL Stop_All('Read_in_RDMs',"Attempting to read in the RDMs, &
                                     &but at least one of the TwoRDM_a***_TOREAD files are missing.")
                 endif
@@ -602,7 +602,7 @@ MODULE nElRDMMod
 !        do i=1,nBasis
 !            WRITE(6,*) i, BRR(i), INT(G1(BRR(i))%sym%S,4)
 !        enddo
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 !        CALL Stop_All('','')
 
 ! Now we want to put the spatial orbital index, followed by the symmetry.        
@@ -739,7 +739,7 @@ MODULE nElRDMMod
 !        do i=1,SpatOrbs
 !            WRITE(6,*) SymLabelList2(i),SymLabelListInv(i)
 !        enddo
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 !        CALL Stop_All('SetUpSymLabels_RDM','Checking orbital labelling.')
 
     END SUBROUTINE SetUpSymLabels_RDM
@@ -1404,7 +1404,7 @@ MODULE nElRDMMod
             WRITE(6,*) 'realSignI',realSignI
             WRITE(6,*) 'realSignJ',realSignJ
             write(6,*) '*'
-            call flush(6)
+            call neci_flush(6)
             CALL Stop_All('Add_RDM_From_IJ_Pair',&
                     'Excitation level between pair not 1 or 2 as it should be.')
         ENDIF
@@ -1713,7 +1713,7 @@ MODULE nElRDMMod
 
         do while (.not.tAllExcitFound)
 !                write(6,*) 'generating singles'
-!                call flush(6)
+!                call neci_flush(6)
             CALL GenExcitations3(nI,iLutnI,nJ,1,ExcitMat3(:,:),tParity,&
                                                         tAllExcitFound,.true.)            
 ! Passed out of here is the singly excited determinant, nJ.
@@ -1759,7 +1759,7 @@ MODULE nElRDMMod
 
             do while (.not.tAllExcitFound)
 !                write(6,*) 'generating doubles'
-!                call flush(6)
+!                call neci_flush(6)
                 CALL GenExcitations3(nI,iLutnI,nJ,2,ExcitMat3(:,:),tParity,&
                                                             tAllExcitFound,.true.)            
 ! Passed out of here is the doubly excited determinant, nJ.
@@ -1836,7 +1836,7 @@ MODULE nElRDMMod
 
         do while (.not.tAllExcitFound)
 !                write(6,*) 'generating singles'
-!                call flush(6)
+!                call neci_flush(6)
             CALL GenExcitations3(nI,iLutnI,nJ,1,ExcitMat3(:,:),tParity,&
                                                         tAllExcitFound,.true.)            
 ! Passed out of here is the singly excited determinant, nJ.
@@ -1882,7 +1882,7 @@ MODULE nElRDMMod
 
             do while (.not.tAllExcitFound)
 !                write(6,*) 'generating doubles'
-!                call flush(6)
+!                call neci_flush(6)
                 CALL GenExcitations3(nI,iLutnI,nJ,2,ExcitMat3(:,:),tParity,&
                                                             tAllExcitFound,.true.)            
 ! Passed out of here is the doubly excited determinant, nJ.
@@ -2519,7 +2519,7 @@ MODULE nElRDMMod
         real(dp) :: ParityFactor, ParityFactor2
 
 !        WRITE(6,*) '* In singles'
-!        call flush(6)
+!        call neci_flush(6)
 !        WRITE(6,*) 'Ex(1,:)',Ex(1,:)
 !        WRITE(6,*) 'Ex(2,:)',Ex(2,:)
 !        WRITE(6,*) 'tParity',tParity
@@ -2678,7 +2678,7 @@ MODULE nElRDMMod
         IF(tParity) ParityFactor=-1.D0
 
 !        WRITE(6,*) '* In doubles'
-!        call flush(6)
+!        call neci_flush(6)
 !        WRITE(6,*) 'Ex(1,:)',Ex(1,:)
 !        WRITE(6,*) 'Ex(2,:)',Ex(2,:)
 !        WRITE(6,*) 'tParity',tParity
@@ -2997,13 +2997,13 @@ MODULE nElRDMMod
         if(tNormalise) then
             ! Haven't got the capabilities to produce multiple 1-RDMs yet.
             write(6,*) 'Writing out the *normalised* 1 electron density matrix to file'
-            call flush(6)
+            call neci_flush(6)
             OneRDM_unit = get_free_unit()
             OPEN(OneRDM_unit,file='OneRDM',status='unknown')
         else
             ! Only every write out 1 of these at the moment.
             write(6,*) 'Writing out the *unnormalised* 1 electron density matrix to file for reading in'
-            call flush(6)
+            call neci_flush(6)
             OneRDM_unit = get_free_unit()
             OPEN(OneRDM_unit,file='OneRDM_POPS',status='unknown',form='unformatted')
         endif
@@ -3259,7 +3259,7 @@ MODULE nElRDMMod
 
         if(tNormalise) then
             write(6,*) 'Writing out the *normalised* 2 electron density matrix to file'
-            call flush(6)
+            call neci_flush(6)
             ! This takes the TwoRDM_aaaa, and if tWriteMultPops is true (and given that we've put 
             ! .true. in the 3rd position, it'll find the next unused TwoRDM_aaaa.X file name.
             call get_unique_filename('TwoRDM_aaaa',tWriteMultRDMs,.true.,1,TwoRDM_aaaa_name)
@@ -3275,7 +3275,7 @@ MODULE nElRDMMod
             OPEN(abba_RDM_unit,file=TwoRDM_abba_name,status='unknown')
         else
             write(6,*) 'Writing out the *unnormalised* 2 electron density matrix to file for reading in'
-            call flush(6)
+            call neci_flush(6)
             aaaa_RDM_unit = get_free_unit()
             OPEN(aaaa_RDM_unit,file='TwoRDM_POPS_aaaa',status='unknown',form='unformatted')
             abab_RDM_unit = get_free_unit()
@@ -3600,7 +3600,7 @@ MODULE nElRDMMod
             ! Obviously this 'instantaneous' energy is actually accumulated between energy 
             ! print outs.
             WRITE(Energies_unit, "(I31,2F30.15)") Iter+PreviousCycles, RDMEnergy_Inst, RDMEnergy
-            call flush(Energies_unit)
+            call neci_flush(Energies_unit)
 
             if(tFinalRDMEnergy) then
                 write(6,*) 'Trace of 2-el-RDM before normalisation : ',Trace_2RDM
@@ -3824,7 +3824,7 @@ MODULE nElRDMMod
 ! The ROFCIDUMP is also printed out in here.        
                 CALL RefillUMATandTMAT2D_RDM()        
 
-                CALL FLUSH(6)
+                CALL neci_flush(6)
 
                 CALL WRITEBASIS(6,G1,NoOrbs,ARR,BRR)
 
@@ -4018,7 +4018,7 @@ MODULE nElRDMMod
                             do k = 1,NoOrbs
                                 write(6,*) k,SymLabelList2(k),SymLabelListInv(k)
                             enddo
-                            call flush(6)
+                            call neci_flush(6)
                             CALL Stop_All(this_routine,'Non-zero NatOrbMat value between &
                             &different symmetries.')
                         ENDIF
@@ -4048,7 +4048,7 @@ MODULE nElRDMMod
 
         write(6,*) ''
         WRITE(6,*) 'Calculating eigenvectors and eigenvalues of NatOrbMat'
-        CALL FLUSH(6)
+        CALL neci_flush(6)
 
 ! If we want to maintain the symmetry, we cannot have all the orbitals jumbled up when the 
 ! diagonaliser reorders the eigenvectors.
@@ -4178,7 +4178,7 @@ MODULE nElRDMMod
         enddo
 
         WRITE(6,*) 'Matrix diagonalised'
-        CALL FLUSH(6)
+        CALL neci_flush(6)
 
         SumDiagTrace=0.D0
         do i=1,NoOrbs
@@ -4486,7 +4486,7 @@ MODULE nElRDMMod
 !        do i=1,nBasis
 !            WRITE(6,*) i,BRR(i),ARR(i,1),ARR(BRR(i),2)
 !        enddo
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 !        stop       
 
         DEALLOCATE(ArrDiagNew)
@@ -4602,7 +4602,7 @@ MODULE nElRDMMod
 !            enddo
 !            WRITE(6,*) ''
 !        enddo
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 !        stop
 
         DEALLOCATE(TMAT2DPart)
@@ -4713,7 +4713,7 @@ MODULE nElRDMMod
 
         WRITE(iunit,'(F21.12,4I3)') ECore,0,0,0,0
         
-        CALL FLUSH(iunit)
+        CALL neci_flush(iunit)
 
         CLOSE(iunit)
 
@@ -5179,7 +5179,7 @@ MODULE nElRDMMod
                     H_IJ = get_helement(nI, nJ, AllCurrentDets(:,I), AllCurrentDets(:,J), IC)
 
 !                    WRITE(6,*) 'H_IJ',H_IJ
-!                    CALL FLUSH(6)
+!                    CALL neci_flush(6)
 
                     IF(IC.eq.0) THEN
                         !Add to both 1El and 2El contributions.
