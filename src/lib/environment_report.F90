@@ -22,12 +22,15 @@ subroutine environment_report(tCPMD)
 
 #ifdef NAGF95
 USe f90_unix_dir
+use constants, only: int32
 #endif
 implicit none
 logical :: tCPMD
 integer :: stat,hostnm
 #ifndef NAGF95
 integer :: getcwd
+#else
+integer(kind=int32) :: stat_dum
 #endif
 character(255) :: dirname,host
 integer :: date_values(8)
@@ -42,7 +45,8 @@ write (6,'(a29,/,5X,a)') 'VCS BASE repository version:',_VCS_VER
 write (6,'(a42)') 'Working directory contains local changes.'
 #endif
 #ifdef NAGF95
-call getcwd(path=dirname,errno=stat)
+call getcwd(path=dirname,errno=stat_dum)
+stat=stat_dum
 #else
 stat=getcwd(dirname)
 #endif

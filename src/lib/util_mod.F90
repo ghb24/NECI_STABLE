@@ -576,21 +576,32 @@ end module
     subroutine neci_flush(un)
 #ifdef NAGF95
     USe f90_unix, only: flush
+    use constants, only: int32
 #endif
     implicit none
     integer, intent(in) :: un
+#ifdef NAGF95
+    integer(kind=int32) :: dummy
+#endif
 #ifdef BLUEGENE_HACKS
         call flush_(un)
 #else
+#ifdef NAGF95
+        dummy=un
+        call flush(dummy)
+#else
         call flush(un)
+#endif
 #endif
     end subroutine neci_flush
 
-    real(sp) function neci_etime(time)
+
+    function neci_etime(time) result(ret)
       use constants, only: sp
+      real(sp) :: ret
       real(sp) :: time(2)
-      call cpu_time(neci_etime)
-      time(1) = neci_etime
+      call cpu_time(ret)
+      time(1) = ret
       time(2) = 0
     end function neci_etime
 
