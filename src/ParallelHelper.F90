@@ -1,5 +1,5 @@
 module ParallelHelper
-   use constants, only : MPIArg 
+   use constants
    Type :: CommI
       Integer n
    End Type
@@ -80,9 +80,6 @@ contains
    end subroutine
 
    subroutine MPIErr(error)
-#ifdef PARALLEL
-      uSE MPI
-#endif
       INTEGER(MPIArg) :: error,l,e
 #ifdef PARALLEL
       character(len=MPI_MAX_ERROR_STRING) :: s
@@ -108,7 +105,7 @@ end module
 
 subroutine mpibarrier_c (error) bind(c)
     use ParallelHelper, only: MPIBarrier
-    use constants, only: MPIArg
+    use constants
     use iso_c_hack
     implicit none
     integer(c_int), intent(inout) :: error

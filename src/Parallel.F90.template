@@ -145,13 +145,9 @@ mpitype=MPI_INTEGER8
    ! mpi USE is in mixed case to avoid it being picked up by the the Configure
    ! script, as it doesn't require a module file.
 module Parallel_neci
-#ifdef PARALLEL
-   uSe MPI
-#endif
    use ParallelHelper,  only: CommI, GetComm, MPIErr, iProcIndex
    use constants
    implicit none
-
 
 #ifndef PARALLEL
 ! These don't exist in serial, so fudge them
@@ -236,7 +232,7 @@ subroutine MPIReduce_len (v, iLen, iType, Ret, Node)
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
     integer(MPIArg)  ierr
-#if PARALLEL
+#ifdef PARALLEL
     call GetComm(Comm,Node,rt)
     call MPI_REDUCE (v, Ret, &
     int(iLen,MPIArg), %(mpitype)s, iType, int(rt,MPIArg), &
@@ -260,7 +256,7 @@ subroutine MPIReduce_auto (v, iType, Ret, Node)
     integer(MPIArg) :: ierr
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
-#if PARALLEL
+#ifdef PARALLEL
     call GetComm(Comm,Node,rt)
     call MPI_REDUCE (v, Ret, &
 %(mpilen)s, &
@@ -286,7 +282,7 @@ subroutine MPIReduce_inplace (v, iType, Node)
     type(CommI), intent(in), optional :: node
     integer :: comm, rt
 
-#if PARALLEL
+#ifdef PARALLEL
     call GetComm (Comm, Node, rt)
     if (iProcIndex == rt) then
         call MPI_REDUCE (MPI_IN_PLACE, v, &
@@ -324,7 +320,7 @@ subroutine MPIAllReduce_len (v, iLen, iType, Ret, Node)
     type(CommI), intent(in),optional :: Node
     integer Comm
 
-#if PARALLEL
+#ifdef PARALLEL
     call GetComm(Comm,Node)
 
     call MPI_ALLREDUCE (v, Ret, int(iLen,MPIArg), &
@@ -350,7 +346,7 @@ subroutine MPIAllReduce_auto (v, iType, Ret, Node)
     integer(MPIArg) :: ierr
     type(CommI), intent(in),optional :: Node
     integer Comm
-#if PARALLEL
+#ifdef PARALLEL
     call GetComm(Comm,Node)
     call MPI_ALLREDUCE (v, Ret, &
 %(mpilen)s,&
@@ -374,7 +370,7 @@ subroutine MPIAllReduce_inplace (v, iType, Node)
     integer(MPIArg) :: ierr
     type(CommI), intent(in),optional :: Node
     integer Comm
-#if PARALLEL
+#ifdef PARALLEL
     call GetComm(Comm,Node)
     call MPI_ALLREDUCE (MPI_IN_PLACE, v, &
 %(mpilen)s,&
@@ -407,7 +403,7 @@ Subroutine MPIAllReduceDatatype(v, iLen, iType, iDatatype, Ret, Node)
    integer(MPIArg) :: ierr 
    type(CommI), intent(in),optional :: Node
    integer Comm
-#if PARALLEL
+#ifdef PARALLEL
    call GetComm(Comm,Node)
 !   write(6,*) "AllReduceDatatype %(type1)s",iLen,iType
    call MPI_ALLREDUCE(v,Ret,int(iLen,MPIArg),iDatatype,iType,int(Comm,MPIArg),ierr)
@@ -523,7 +519,7 @@ subroutine MPIBCast_lenroot (v, iLen, rt)
     %(type1)s, intent(inout) :: v()
     integer, intent(in) :: iLen,rt
     integer(MPIArg) :: error,error2,length
-#if PARALLEL
+#ifdef PARALLEL
     character(len=MPI_MAX_ERROR_STRING) :: message
     call MPI_BCAST (v, int(iLen,MPIArg), &
     %(mpitype)s, int(rt,MPIArg), int(CommGlobal,MPIArg), error)
@@ -552,7 +548,7 @@ subroutine MPIBCast_len (v, iLen, Node)
     integer(MPIArg) :: error
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
-#if PARALLEL
+#ifdef PARALLEL
     call GetComm(Comm,Node,rt)
     call MPI_BCAST (v, int(iLen,MPIArg), &
     %(mpitype)s, int(rt,MPIArg), int(Comm,MPIArg), error)
@@ -574,7 +570,7 @@ subroutine MPIBCast_auto (v, Node)
     integer(MPIArg) :: error
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
-#if PARALLEL
+#ifdef PARALLEL
     call GetComm(Comm,Node,rt)
     call MPI_BCAST (v, &
 %(mpilen)s,&
@@ -601,7 +597,7 @@ subroutine MPIBCast_logic (v, tMe, Node)
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
     integer(MPIArg) :: nrt
-#if PARALLEL
+#ifdef PARALLEL
     call GetComm(Comm,Node,rt,tMe)
     call MPI_AllReduce(int(rt,MPIArg),nrt,1,MPI_INTEGER, MPI_MAX,int(Comm,MPIArg),error)  !Work out which processor is the root
     call MPI_BCAST (v, &
@@ -622,7 +618,7 @@ Subroutine MPIAlltoAll(SendBuf,SendSize,RecvBuf,RecvSize,ierr, Node)
     %(type1)s, intent(inout):: RecvBuf(:)
     type(CommI), intent(in),optional :: Node
     integer Comm
-#if PARALLEL
+#ifdef PARALLEL
     call GetComm(Comm,Node)
     CALL MPI_AlltoAll(SendBuf,int(SendSize,MPIArg),%(mpitype)s,&
     RecvBuf,int(RecvSize,MPIArg),%(mpitype)s,int(Comm,MPIArg),error)
@@ -643,7 +639,7 @@ Subroutine MPIAlltoAllV(SendBuf,SendSizes,SendOffsets,RecvBuf,RecvSizes,RecvOffs
 !    write(6,*) "AllToAllV %(type1)s",shape(SendBuf),shape(RecvBuf)
     type(CommI), intent(in),optional :: Node
     integer Comm
-#if PARALLEL
+#ifdef PARALLEL
     call GetComm(Comm,Node)
     CALL MPI_AlltoAllV(SendBuf,int(SendSizes,MPIArg),int(SendOffsets,MPIArg),&
     %(mpitype)s,RecvBuf,int(RecvSizes,MPIArg),int(RecvOffsets,MPIArg),&
@@ -663,7 +659,7 @@ Subroutine MPIAllGather_len(SendBuf,SendSize,RecvBuf,RecvSize,ierr,Node)
     %(type1)s,intent(inout) :: RecvBuf(:)
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
-#if PARALLEL
+#ifdef PARALLEL
     call GetComm(Comm,Node)
     CALL MPI_AllGather(SendBuf,int(SendSize,MPIArg),%(mpitype)s,RecvBuf,&
     int(RecvSize,MPIArg),%(mpitype)s,int(Comm,MPIArg),error)
@@ -683,7 +679,7 @@ Subroutine MPIAllGather_auto(v,v2,ierr,Node)
     %(type1)s,intent(inout) :: v2(:)
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
-#if PARALLEL
+#ifdef PARALLEL
     call GetComm(Comm,Node,rt)
     CALL MPI_AllGather(v,&
 %(mpilen)s,&
@@ -705,7 +701,7 @@ Subroutine MPIGather_len(SendBuf,SendSize,RecvBuf,RecvSize,ierr,Node)
     %(type1)s,intent(inout) :: RecvBuf(:)
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
-#if PARALLEL
+#ifdef PARALLEL
     call GetComm(Comm,Node,rt)
     CALL MPI_Gather(SendBuf,int(SendSize,MPIArg),%(mpitype)s,&
     RecvBuf,int(RecvSize,MPIArg),%(mpitype)s,int(rt,MPIArg),int(Comm,MPIArg),error)
@@ -725,7 +721,7 @@ Subroutine MPIGather_auto(v,v2,ierr,Node)
     %(type1)s,intent(inout) :: v2(:)
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
-#if PARALLEL
+#ifdef PARALLEL
     call GetComm(Comm,Node,rt)
     CALL MPI_Gather(v, &
 %(mpilen)s,&
@@ -751,7 +747,7 @@ Subroutine MPIGatherV_len(SendBuf,SendSize,RecvBuf,Lengths,Disps,ierr,Node)
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
     stop "MPIGatherV_len is probably broken.  MPIGatherV_auto2 does work.  AJWT."
-#if PARALLEL
+#ifdef PARALLEL
     call GetComm(Comm,Node,rt)
     CALL MPI_GatherV(SendBuf,int(SendSize,MPIArg),%(mpitype)s,&
     RecvBuf,int(Lengths,MPIArg),int(Disps,MPIArg),%(mpitype)s,int(rt,MPIArg),int(COMM,MPIArg),error)
@@ -772,7 +768,7 @@ Subroutine MPIGatherV_len2(SendBuf,SendSize,RecvBuf,Lengths,Disps,ierr,Node)
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
     stop "MPIGatherV_len2 is probably broken.  MPIGatherV_auto2 does work.  AJWT."
-#if PARALLEL
+#ifdef PARALLEL
     call GetComm(Comm,Node,rt)
     CALL MPI_GatherV(SendBuf,int(SendSize,MPIArg),%(mpitype)s,&
     RecvBuf,int(Lengths,MPIArg),int(Disps,MPIArg),%(mpitype)s,int(rt,MPIArg),int(COMM,MPIArg),error)
@@ -796,7 +792,7 @@ Subroutine MPIGatherV_auto(v,v2,Lengths,Disps,ierr,Node)
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
     stop "MPIGatherV_auto is probably broken.  MPIGatherV_auto2 does work.  AJWT."
-#if PARALLEL
+#ifdef PARALLEL
     call GetComm(Comm,Node,rt)
     CALL MPI_GatherV(v,&
 %(mpilen)s,&
@@ -823,7 +819,7 @@ Subroutine MPIGatherV_auto2(v,v2,Lengths,Disps,ierr,Node)
     integer :: LengthIn
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
-#if PARALLEL
+#ifdef PARALLEL
     DispsN=Disps&
  *%(mpilen)s
     LengthsN=Lengths&
@@ -855,7 +851,7 @@ Subroutine MPIScatterV_len(SendBuf,SendSizes,Disps,RecvBuf,Length,ierr,Node)
     %(type1)s,intent(inout) :: RecvBuf(:)
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
-#if PARALLEL
+#ifdef PARALLEL
     call GetComm(Comm,Node,rt)
 !    write(6,*) "AllToAll %(type1)s",SendSize,RecvSize
     CALL MPI_ScatterV(SendBuf,int(SendSizes,MPIArg),int(Disps,MPIArg),%(mpitype)s,&
@@ -877,7 +873,7 @@ Subroutine MPIScatterV_len2(SendBuf,SendSizes,Disps,RecvBuf,Length,ierr,Node)
     %(type1)s,intent(inout) :: RecvBuf(:)
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
-#if PARALLEL
+#ifdef PARALLEL
     call GetComm(Comm,Node,rt)
 !    write(6,*) "AllToAll %(type1)s",SendSize,RecvSize
     CALL MPI_ScatterV(SendBuf,int(SendSizes,MPIArg),int(Disps,MPIArg),%(mpitype)s,&
@@ -899,7 +895,7 @@ Subroutine MPIScatter_len(SendBuf,SendSize,RecvBuf,RecvSize,ierr,Node)
     %(type1)s, intent(inout) :: RecvBuf()
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
-#if PARALLEL
+#ifdef PARALLEL
     call GetComm(Comm,Node,rt)
     CALL MPI_Scatter(SendBuf,int(SendSize,MPIArg),%(mpitype)s,RecvBuf, &
        int(RecvSize,MPIArg),%(mpitype)s,int(rt,MPIArg),int(COMM,MPIArg),error)
@@ -919,7 +915,7 @@ Subroutine MPIScatter_auto(v,v2,ierr,Node)
     %(type1)s, intent(inout) :: v2()
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
-#if PARALLEL
+#ifdef PARALLEL
     call GetComm(Comm,Node,rt)
     CALL MPI_Scatter(v,&
 %(mpilen2)s,&
@@ -1019,12 +1015,8 @@ supermodule Parallel
 
    ! mpi USE is in mixed case to avoid it being picked up by the the Configure
    ! script, as it doesn't require a module file.
-#ifdef PARALLEL
-   uSE mpi
-
-#endif
    use ParallelHelper
-   use constants, only: MPIArg
+   use constants
    IMPLICIT NONE
    interface
         subroutine gethostname(nm, sz) bind(c)
@@ -1067,13 +1059,13 @@ Subroutine MPIInit(tExternal)
    integer(MPIArg) :: iProcInd,nProcess
    character(len=20) NodeFile
    logical, save :: initialised=.false.
-#if PARALLEL
+#ifdef PARALLEL
    nNodes=0  !Indicate we haven't setup nodes yet
    CommGlobal=MPI_COMM_WORLD
    if (.not.initialised) then
 
        if(tExternal) then
-         write(6,*) 'Using CPMD MPI configuration'
+         write(6,*) 'Using external MPI configuration'
        else 
          write(6,*) 'Initing MPI'
 
@@ -1360,7 +1352,7 @@ Subroutine MPIEnd(tExternal)
    implicit none
    logical tExternal
    integer(MPIArg) ierr
-#if PARALLEL
+#ifdef PARALLEL
    if(.not.tExternal) then
       call MPI_FINALIZE(ierr)
    endif
@@ -1376,7 +1368,7 @@ Subroutine MPIStopAll(error_str)
    !=     error_str: parameter string containing error used as argument to STOP.
    character(3) :: error_str
    integer(MPIArg) :: error_code, ierror
-#if PARALLEL
+#ifdef PARALLEL
    ! errorcode: Error returned to invoking environment.
    ! ierror: error status (of abort: was abort successful?)
    ! Currently neither are analysed.
