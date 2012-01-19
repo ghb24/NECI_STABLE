@@ -3028,7 +3028,7 @@ MODULE FciMCParMod
 
     subroutine collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all)
         integer :: int_tmp(5+2*lenof_sign), proc, sgn(lenof_sign), pos, i
-        HElement_t :: helem_tmp(2)
+        HElement_t :: helem_tmp(3)
         HElement_t :: real_tmp(2)!*lenof_sign)
         integer(int64) :: int64_tmp(9)
         type(fcimc_iter_data) :: iter_data
@@ -3080,9 +3080,10 @@ MODULE FciMCParMod
 
         ! HElement_t values (Calculates the energy by summing all on HF and 
         ! doubles)
-        call MPISum ((/ENumCyc, SumENum/), helem_tmp)
+        call MPISum ((/ENumCyc, SumENum, ENumCycAbs/), helem_tmp)
         AllENumCyc = helem_tmp(1)
         AllSumENum = helem_tmp(2)
+        AllENumCycAbs = helem_tmp(3)
 
         if(tSplitProjEHist) then
             if(tSplitProjEHistG) then
@@ -3317,6 +3318,7 @@ MODULE FciMCParMod
 !                              ARR_RE_OR_CPLX(all_sum_proje_denominator)
                 proje_iter = AllENumCyc / all_cyc_proje_denominator 
 !                              ARR_RE_OR_CPLX(all_cyc_proje_denominator)
+                AbsProjE = AllENumCycAbs / all_cyc_proje_denominator 
             endif
 
             ! If we are re-zeroing the shift
@@ -3382,6 +3384,7 @@ MODULE FciMCParMod
         SpawnFromSing = 0
         NoDied = 0
         ENumCyc = 0
+        ENumCycAbs = 0
         HFCyc = 0
         if(tSplitProjEHist) then
             if(tSplitProjEHistG) then
@@ -3513,7 +3516,7 @@ MODULE FciMCParMod
                   &17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime  &
                   &20.ProjE.ThisIter  21.HFInstShift  22.TotInstShift  &
                   &23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE &
-                  &26.HF weight    27.|Psi|     28.Inst S^2"
+                  &26.HF weight    27.|Psi|     28.Inst S^2 30.AbsProjE"
 
            if(tSplitProjEHist) then
                if(tSplitProjEHistG) then
@@ -3615,7 +3618,7 @@ MODULE FciMCParMod
             endif
 
             write(fcimcstats_unit,"(I12,G16.7,I10,G16.7,I13,3I15,3G17.9,2I10,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,10G17.9)") &
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9)") &
                 Iter + PreviousCycles, &
                 DiagSft, &
                 sum(AllTotParts) - sum(AllTotPartsOld), &
@@ -3643,7 +3646,8 @@ MODULE FciMCParMod
                 AllENumCyc / StepsSft, &
                 real(AllNoatHF, dp) / norm_psi, &
                 norm_psi, &
-                curr_S2, curr_S2_init
+                curr_S2, curr_S2_init, &
+                AbsProjE
 
             if(tMCOutput) then
                 write (6, "(I12,G16.7,I10,G16.7,I13,3I13,3G17.9,2I10,G13.5,I12,&
@@ -5529,12 +5533,14 @@ MODULE FciMCParMod
             if (iter > NEquilSteps) &
                 SumENum = SumENum + (HOffDiag * ARR_RE_OR_CPLX(wSign)) / dProbFin
             ENumCyc = ENumCyc + (HOffDiag * ARR_RE_OR_CPLX(wSign)) / dProbFin
+            ENumCycAbs = ENumCycAbs + abs(HOffDiag * ARR_RE_OR_CPLX(wSign)) / dProbFin
         else
 
             ! Sum in energy contribution
             if (iter > NEquilSteps) &
                 SumENum = SumENum + (HOffDiag * ARR_RE_OR_CPLX(wSign)) / dProbFin
             ENumCyc = ENumCyc + (HOffDiag * ARR_RE_OR_CPLX(wSign)) / dProbFin
+            ENumCycAbs = ENumCycAbs + abs(HOffDiag * ARR_RE_OR_CPLX(wSign)) / dProbFin
         endif
 
         ! -----------------------------------
