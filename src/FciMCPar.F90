@@ -4220,13 +4220,15 @@ MODULE FciMCParMod
 
             iProjEBins = FindProjEBins()+1 !Needs to store zero momentum too
             write (6,*) "************ iProjEBins found:", iProjEBins !Should be the same for k and g
-            if(tSplitProjEHistG) then
-                allocate(ENumCycHistG(iProjEBins))
-                allocate(AllENumCycHistG(iProjEBins))
-            endif
-            if(tSplitProjEHistK3) then
-                allocate(ENumCycHistK3(iProjEBins))
-                allocate(AllENumCycHistK3(iProjEBins))
+            if (.not.allocated(ENumCycHistG)) then
+                if(tSplitProjEHistG) then
+                    allocate(ENumCycHistG(iProjEBins))
+                    allocate(AllENumCycHistG(iProjEBins))
+                endif
+                if(tSplitProjEHistK3) then
+                    allocate(ENumCycHistK3(iProjEBins))
+                    allocate(AllENumCycHistK3(iProjEBins))
+                endif
             endif
         endif
 
