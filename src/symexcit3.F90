@@ -622,7 +622,7 @@ MODULE SymExcit3
 !        WRITE(6,*) 'These have symmetries : ',INT(G1(ExcitMat3(1,1))%Sym%S,4),INT(G1(ExcitMat3(1,2))%Sym%S,4),' to ',INT(G1(Orba)%Sym%S,4),INT(G1(Orbb)%Sym%S,4)
 !        WRITE(6,*) 'These have symmetries : ',G1(ExcitMat3(1,1))%Ml,G1(ExcitMat3(1,2))%Ml,' to ',G1(Orba)%Ml,G1(Orbb)%Ml
 !        WRITE(6,*) 'The new determinant is : ',nJ(:)
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 
 
     ENDSUBROUTINE GenDoubleExcit

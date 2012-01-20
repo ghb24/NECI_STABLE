@@ -120,7 +120,7 @@ MODULE FciMCParMod
         real(dp) :: Weight, Energyxw
         INTEGER :: error
         LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange,tPrintWarn
-        REAL(sp) :: s_start,s_end,etime,tstart(2),tend(2),totaltime
+        REAL(sp) :: s_start,s_end,tstart(2),tend(2),totaltime,neci_etime
         real(dp) :: TotalTime8
         INTEGER(int64) :: MaxWalkers,MinWalkers
         real(dp) :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
@@ -167,7 +167,7 @@ MODULE FciMCParMod
 !Main iteration loop...
 !            WRITE(6,*) 'Iter',Iter
 
-            if(iProcIndex.eq.root) s_start=etime(tstart)
+            if(iProcIndex.eq.root) s_start=neci_etime(tstart)
 
             if (tCCMC) then
                 CALL PerformCCMCCycPar()
@@ -200,7 +200,7 @@ MODULE FciMCParMod
             endif
 
             if(iProcIndex.eq.root) then
-                s_end=etime(tend)
+                s_end=neci_etime(tend)
                 IterTime=IterTime+(s_end-s_start)
             endif
             
@@ -300,7 +300,7 @@ MODULE FciMCParMod
                     call WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
                     iPopsTimers=iPopsTimers+1
                     if(iProcIndex.eq.Root) then
-                        s_end=etime(tend)
+                        s_end=neci_etime(tend)
                         write(6,"(A,F7.3,A)") "Time taken to write out POPSFILE: ",real(s_end,dp)-TotalTime8," seconds."
                     endif
                 endif
@@ -817,7 +817,7 @@ MODULE FciMCParMod
                     write(6,"(A,I10,I7,I5)",advance='no') "TW:", j,SignCurr,FlagsCurr
                 endif
                 call WriteBitDet(6,CurrentDets(:,j),.true.)
-                call Flush(6) 
+                call neci_flush(6) 
             ENDIFDEBUG
 
 !            call test_sym_excit3 (DetCurr, 1000000, pDoubles, 3)
@@ -1025,7 +1025,7 @@ MODULE FciMCParMod
             write(6,"(A,2I4,A)",advance='no') &
                                       "Parent flag: ", parent_flags, part_type
             call writebitdet (6, ilutJ, .true.)
-            call flush(6)
+            call neci_flush(6)
         endif
        
         ! Count the number of children born
@@ -1107,7 +1107,7 @@ MODULE FciMCParMod
         if (rat > 0.95) then
             write (6, '(a)') '*WARNING* - Number of particles/determinants &
                              &has increased to over 95% of MaxWakersPart.'
-            call flush(6)
+            call neci_flush(6)
         end if
 
         ! Are ony of the sublists near the end of their alloted space?
@@ -1119,7 +1119,7 @@ MODULE FciMCParMod
                     write (6, '(a)') '*WARNING* - Highest processor spawned &
                                      &particles has reached over 95% of &
                                      &MaxSpawned.'
-                    call flush(6)
+                    call neci_flush(6)
                 endif
             enddo
         else
@@ -1127,7 +1127,7 @@ MODULE FciMCParMod
             if (rat > 0.95) then
                 write (6, '(a)') '*WARNING* - Number of spawned particles has&
                                  & reached over 95% of MaxSpawned.'
-                call flush(6)
+                call neci_flush(6)
             endif
         endif
 
@@ -1137,7 +1137,7 @@ MODULE FciMCParMod
             if (rat > 0.95) then
                 write(6, '(a)') '*WARNING* - Number of spatial initiators has&
                                 & reached over 95% f max_inits.'
-                call flush(6)
+                call neci_flush(6)
             endif
         endif
 
@@ -2468,7 +2468,7 @@ MODULE FciMCParMod
         abstr='SpawnHist-'//adjustl(abstr)
         IF(iProcIndex.eq.0) THEN
             WRITE(6,*) "Writing out the average wavevector up to iteration number: ", Iter
-            CALL FLUSH(6)
+            CALL neci_flush(6)
         ENDIF
 
         IF(iProcIndex.eq.0) THEN
@@ -2642,7 +2642,7 @@ MODULE FciMCParMod
         abstr='HamilHist-'//adjustl(abstr)
         IF(iProcIndex.eq.0) THEN
             WRITE(6,*) "Writing out the average hamiltonian up to iteration number: ", Iter
-            CALL FLUSH(6)
+            CALL neci_flush(6)
         ENDIF
 
         IF(iProcIndex.eq.0) THEN
@@ -3150,7 +3150,7 @@ MODULE FciMCParMod
         real(dp), dimension(lenof_sign) :: denominator, all_denominator
         integer :: error, i, proc, sgn(lenof_sign), pos
 
-!        call flush(6)
+!        call neci_flush(6)
         CALL MPIBarrier(error)
 
         ! collate_iter_data --> The values used are only valid on Root
@@ -3164,7 +3164,7 @@ MODULE FciMCParMod
 !            WRITE(6,*) "iter_data%update_growth_tot: ",iter_data%update_growth_tot(:)
 !            WRITE(6,*) "iter_data%tot_parts_old: ",iter_data%tot_parts_old(:)
 !            WRITE(6,*) "iter_data%update_iters: ",iter_data%update_iters
-!            CALL FLUSH(6)
+!            CALL neci_flush(6)
 
             if(tInstGrowthRate) then
 !Calculate the growth rate simply using the two points at the beginning and the
@@ -3686,12 +3686,12 @@ MODULE FciMCParMod
             endif
 
             if(tMCOutput) then
-                call flush(6)
+                call neci_flush(6)
             endif
-            call flush(fcimcstats_unit)
+            call neci_flush(fcimcstats_unit)
             if(tSplitProjEHist) then
-                if(tSplitProjEHistG) call flush(unit_splitprojEHistG)
-                if(tSplitProjEHistK3) call flush(unit_splitprojEHistK3)
+                if(tSplitProjEHistG) call neci_flush(unit_splitprojEHistG)
+                if(tSplitProjEHistK3) call neci_flush(unit_splitprojEHistK3)
             endif
             
         endif
@@ -3702,9 +3702,13 @@ MODULE FciMCParMod
     !files. If there is already an FCIMCStats file present, then move it to FCIMCStats.x, where x is a largest
     !free filename.
     subroutine MoveFCIMCStatsFiles()
+#ifdef NAGF95
+        USe f90_unix_dir, only: rename
+#endif
         integer :: extension,stat
         logical :: exists
         character(len=22) :: abstr
+!        character(len=36) :: command
         character(len=*), parameter :: t_r='MoveFCIMCStatsFiles'
 
         inquire(file='FCIMCStats',exist=exists)
@@ -3727,7 +3731,7 @@ MODULE FciMCParMod
             !We have got a unique filename
             !Do not use system call
 !            command = 'mv' // ' FCIMCStats ' // abstr
-!            call system(command)
+!            stat = neci_system(trim(command))
 
             call rename('FCIMCStats',abstr)
             !Doesn't like the stat argument
@@ -4988,7 +4992,7 @@ MODULE FciMCParMod
         LOGICAL :: tSuccess
 
 !        WRITE(6,*) "Binary searching between ",MinInd, " and ",MaxInd
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
         i=MinInd
         j=MaxInd
         IF(i-j.eq.0) THEN
@@ -5896,7 +5900,7 @@ MODULE FciMCParMod
                 & REAL(MemoryAlloc,dp)/1048576.D0," Mb/Processor"
             WRITE(6,*) "Only one array of memory to store main particle list allocated..."
             WRITE(6,*) "Initial memory allocation sucessful..."
-            CALL FLUSH(6)
+            CALL neci_flush(6)
 
         ENDIF   !End if initial walkers method
 
@@ -5977,9 +5981,11 @@ MODULE FciMCParMod
         integer(n_int) :: iLutnJ(0:NIfTot)
         logical :: tMC
         HElement_t :: HDiagTemp
-        real(dp) , allocatable :: CK(:,:),W(:),CKN(:,:),Hamil(:),A(:,:),V(:),BM(:),T(:),WT(:),SCR(:),WH(:),Work2(:),V2(:,:),AM(:)
+        real(dp) , allocatable :: CK(:,:),W(:),CKN(:,:),Hamil(:),A_Arr(:,:),V(:),BM(:),T(:),WT(:)
+        real(dp) , allocatable :: SCR(:),WH(:),Work2(:),V2(:,:),AM(:)
         real(dp) , allocatable :: Work(:)
-        integer(TagIntType) :: ATag=0,VTag=0,BMTag=0,TTag=0,WTTag=0,SCRTag=0,WHTag=0,Work2Tag=0,V2Tag=0,ISCRTag=0,IndexTag=0,AMTag=0
+        integer(TagIntType) :: ATag=0,VTag=0,BMTag=0,TTag=0,WTTag=0,SCRTag=0,WHTag=0,Work2Tag=0,V2Tag=0
+        integer(TagIntType) :: ISCRTag=0,IndexTag=0,AMTag=0
         integer(TagIntType) :: WorkTag=0
         real(dp) :: CASRefEnergy,TotWeight,PartFac,amp,rat,r,GetHElement
         integer , dimension(lenof_sign) :: temp_sign
@@ -6124,9 +6130,9 @@ MODULE FciMCParMod
             NBLOCK=MIN(NEVAL,NBLK)
             LSCR=MAX(nCASDet*NEVAL,8*NBLOCK*NKRY)
             LISCR=6*NBLOCK*NKRY
-            ALLOCATE(A(NEVAL,NEVAL),stat=ierr)
-            CALL LogMemAlloc('A',NEVAL**2,8,this_routine,ATag,ierr)
-            A=0.d0
+            ALLOCATE(A_Arr(NEVAL,NEVAL),stat=ierr)
+            CALL LogMemAlloc('A_Arr',NEVAL**2,8,this_routine,ATag,ierr)
+            A_Arr=0.d0
             ALLOCATE(V(nCASDet*NBLOCK*NKRY1),stat=ierr)
             CALL LogMemAlloc('V',nCASDet*NBLOCK*NKRY1,8,this_routine,VTag,ierr)
             V=0.d0
@@ -6163,7 +6169,7 @@ MODULE FciMCParMod
             Allocate(CkN(nCASDet,nEval), stat=ierr)
             CkN=0.D0
     !C..Lanczos iterative diagonalising routine
-            CALL NECI_FRSBLKH(nCASDet,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT, &
+            CALL NECI_FRSBLKH(nCASDet,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A_Arr,W,V,AM,BM,T,WT, &
          &  SCR,ISCR,INDEX,NCYCLE,B2L,.false.,.false.,.false.,.true.)
     !Multiply all eigenvalues by -1.
             CALL DSCAL(NEVAL,-1.D0,W,1)
@@ -6173,7 +6179,7 @@ MODULE FciMCParMod
                 enddo
             endif
 
-            deallocate(CKN,A,V,BM,T,WT,SCR,WH,V2,iscr,index,AM)
+            deallocate(CKN,A_Arr,V,BM,T,WT,SCR,WH,V2,iscr,index,AM)
             call logmemdealloc(this_routine,ATag)
             call logmemdealloc(this_routine,VTag)
             call logmemdealloc(this_routine,BMTag)
@@ -6597,7 +6603,7 @@ MODULE FciMCParMod
         use GenRandSymExcitNUMod, only: FindNewDet
         use Determinants, only: GetH0Element4, get_helement_excit
         integer :: Ki(3),Kj(3),Ka(3),LowLoop,HighLoop,X,i,Elec1Ind,Elec2Ind,K,Orbi,Orbj
-        integer :: iSpn,FirstA,nJ(NEl),a,Ex(2,2),kx,ky,kz,OrbB,FirstB
+        integer :: iSpn,FirstA,nJ(NEl),a_loc,Ex(2,2),kx,ky,kz,OrbB,FirstB
         integer :: ki2,kj2
         logical :: tParity,tMom
         real(dp) :: Ranger,mp2,mp2all,length,length_g,length_g_2
@@ -6666,13 +6672,13 @@ MODULE FciMCParMod
                     FirstA=1    !Loop over beta
                 endif
 
-                do a=FirstA,nBasis,2
+                do a_loc=FirstA,nBasis,2
                     !Loop over all a
 
                     !Reject if a is occupied
-                    if(IsOcc(iLutHF,a)) cycle
+                    if(IsOcc(iLutHF,a_loc)) cycle
 
-                    Ka=G1(a)%k
+                    Ka=G1(a_loc)%k
 
                     !Find k labels of b
                     kx=Ki(1)+Kj(1)-Ka(1)
@@ -6700,11 +6706,11 @@ MODULE FciMCParMod
 
                     !Reject k orbital if it is occupied or gt a
                     if(IsOcc(iLutHF,OrbB)) cycle
-                    if(OrbB.ge.a) cycle
+                    if(OrbB.ge.a_loc) cycle
 
                     !Find det
 !                    write(6,*) "OrbB: ",OrbB
-                    call FindNewDet(HFDet,nJ,Elec1Ind,Elec2Ind,a,OrbB,Ex,tParity)
+                    call FindNewDet(HFDet,nJ,Elec1Ind,Elec2Ind,a_loc,OrbB,Ex,tParity)
                     !Sum in mp2 contrib
                     hel=get_helement_excit(HFDet,nJ,2,Ex,tParity)
 
@@ -6718,14 +6724,14 @@ MODULE FciMCParMod
                 enddo
 
             elseif(iSpn.eq.2) then
-                do a=1,nBasis
-                    !Loop over all a
-!                    write(6,*) "a: ",a
+                do a_loc=1,nBasis
+                    !Loop over all a_loc
+!                    write(6,*) "a_loc: ",a_loc
 
                     !Reject if a is occupied
-                    if(IsOcc(iLutHF,a)) cycle
+                    if(IsOcc(iLutHF,a_loc)) cycle
 
-                    Ka=G1(a)%k
+                    Ka=G1(a_loc)%k
 
                     !Find k labels of b
                     kx=Ki(1)+Kj(1)-Ka(1)
@@ -6743,7 +6749,7 @@ MODULE FciMCParMod
                     if(length.gt.OrbECutoff) cycle
 
                     !Find the actual k orbital
-                    if(is_beta(a)) then
+                    if(is_beta(a_loc)) then
                         !want alpha b orbital
                         OrbB=kPointToBasisFn(kx,ky,kz,2)
                     else
@@ -6753,11 +6759,11 @@ MODULE FciMCParMod
 
                     !Reject k orbital if it is occupied or gt a
                     if(IsOcc(iLutHF,OrbB)) cycle
-                    if(OrbB.ge.a) cycle
+                    if(OrbB.ge.a_loc) cycle
 
 !                    write(6,*) "OrbB: ",OrbB
                     !Find det
-                    call FindNewDet(HFDet,nJ,Elec1Ind,Elec2Ind,a,OrbB,Ex,tParity)
+                    call FindNewDet(HFDet,nJ,Elec1Ind,Elec2Ind,a_loc,OrbB,Ex,tParity)
                     !Sum in mp2 contrib
                     hel=get_helement_excit(HFDet,nJ,2,Ex,tParity)
                     H0tmp=getH0Element4(nJ,HFDet)
@@ -6778,7 +6784,7 @@ MODULE FciMCParMod
         !Sum contributions across nodes.
         call MPISumAll(mp2,mp2all)
         write(6,"(A,2G25.15)") "MP2 energy calculated: ",MP2All,MP2All+Hii
-        call flush(6)
+        call neci_flush(6)
         if (.not.tContinueAfterMP2) then
             call stop_all("CalcUEGMP2","Dying after calculation of MP2 energy...")
         endif
@@ -6962,11 +6968,11 @@ MODULE FciMCParMod
 !                CALL MPI_Error_string(error,message,length,temp)
 !                IF(temp.ne.MPI_SUCCESS) THEN
 !                    WRITE(6,*) "REALLY SERIOUS PROBLEMS HERE!",temp
-!                    CALL FLUSH(6)
+!                    CALL neci_flush(6)
 !                ENDIF
 !                WRITE(6,*) message(1:length)
 !                WRITE(6,*) "ERROR FOUND"
-!                CALL FLUSH(6)
+!                CALL neci_flush(6)
 !            ENDIF
 !        ENDIF
 
@@ -7095,7 +7101,7 @@ MODULE FciMCParMod
         integer :: gc,ierr,icmax,lenhamil,nKry1,nBlock,LScr,LIScr
         integer(n_int) :: ilut(0:NIfTot)
         logical :: tmc,tSuccess
-        real(dp) , allocatable :: A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),W(:)
+        real(dp) , allocatable :: A_Arr(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),W(:)
         HElement_t, allocatable :: Work(:)
         HElement_t, allocatable :: CkN(:,:),Hamil(:),TruncWavefunc(:)
         HElement_t, allocatable :: Ck(:,:)  !This holds eigenvectors in the end
@@ -7135,7 +7141,7 @@ MODULE FciMCParMod
         call DETHAM(DetLen,NEL,Dets,HAMIL,LAB,NROW,.TRUE.,ICMAX,GC,TMC)
 !        WRITE(6,*) ' FINISHED COUNTING '
         WRITE(6,*) "Allocating memory for hamiltonian: ",GC*2
-        CALL FLUSH(6)
+        CALL neci_flush(6)
 !C..Now we know size, allocate memory to HAMIL and LAB
         LENHAMIL=GC
         Allocate(Hamil(LenHamil), stat=ierr)
@@ -7164,9 +7170,9 @@ MODULE FciMCParMod
     !       write (6,'(7X," *",19X,A,18X,"*")') ' LANCZOS DIAGONALISATION '
     !C..Set up memory for FRSBLKH
 
-            ALLOCATE(A(NEVAL,NEVAL),stat=ierr)
-            CALL LogMemAlloc('A',NEVAL**2,8,t_r,ATag,ierr)
-            A=0.d0
+            ALLOCATE(A_Arr(NEVAL,NEVAL),stat=ierr)
+            CALL LogMemAlloc('A_Arr',NEVAL**2,8,t_r,ATag,ierr)
+            A_Arr=0.d0
     !C..
     !C,, W is now allocated with CK
     !C..
@@ -7210,7 +7216,7 @@ MODULE FciMCParMod
             CALL LogMemAlloc('V2',DetLen*NEVAL,8,t_r,V2Tag,ierr)
             V2=0.d0
     !C..Lanczos iterative diagonalising routine
-            CALL NECI_FRSBLKH(DetLen,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT, &
+            CALL NECI_FRSBLKH(DetLen,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A_Arr,W,V,AM,BM,T,WT, &
              &  SCR,ISCR,INDEX,NCYCLE,B2L,.true.,.false.,.false.,.false.)
 
             !Eigenvalues may come out wrong sign - multiply by -1
@@ -7220,7 +7226,7 @@ MODULE FciMCParMod
                 GroundE = W(1)
             endif
 
-            deallocate(A,V,AM,BM,T,WT,SCR,WH,V2,CkN,Index,IScr)
+            deallocate(A_Arr,V,AM,BM,T,WT,SCR,WH,V2,CkN,Index,IScr)
             call LogMemDealloc(t_r,ATag)
             call LogMemDealloc(t_r,VTag)
             call LogMemDealloc(t_r,AMTag)
@@ -7373,7 +7379,7 @@ SUBROUTINE BinSearchParts2(iLut,MinInd,MaxInd,PartInd,tSuccess)
     LOGICAL :: tSuccess
 
 !    WRITE(6,*) "Binary searching between ",MinInd, " and ",MaxInd
-!    CALL FLUSH(6)
+!    CALL neci_flush(6)
     i=MinInd
     j=MaxInd
     IF(i-j.eq.0) THEN

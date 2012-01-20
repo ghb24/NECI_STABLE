@@ -133,7 +133,7 @@ contains
         ! and value of Ms
         write(6,*) 'Initialising Spin distribution histogramming'
         write(fmt_str,'("(",i2,"i20,",i4,"f20.15)")') NIfD+1, ncsf
-        call flush(6)
+        call neci_flush(6)
         nfound = 0
         dorder(1) = -1
         call get_lexicographic (dorder, nopen, nup)

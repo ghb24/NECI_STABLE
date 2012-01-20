@@ -149,7 +149,7 @@ MODULE AnnihilationMod
          
 
 !        WRITE(6,*) "Direct annihilation"
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 
 !This routine will send all the newly-spawned particles to their correct processor. MaxIndex is returned as the new number of newly-spawned particles on the processor. May have duplicates.
 !The particles are now stored in SpawnedParts2/SpawnedSign2.
@@ -159,7 +159,7 @@ MODULE AnnihilationMod
 
 !        WRITE(6,*) "Sent particles"
 !        WRITE(6,*) 'MaxIndex',MaxIndex
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 
 !CompressSpawnedList works on SpawnedParts arrays, so swap the pointers around.
         PointTemp => SpawnedParts2
@@ -299,10 +299,10 @@ MODULE AnnihilationMod
 !        enddo
 
 !        write(6,*) "Second all to all"
-!        call flush(6)
+!        call neci_flush(6)
         CALL MPIAlltoAllv(SpawnedParts,sendcounts,disps,SpawnedParts2,recvcounts,recvdisps,error)
 !        write(6,*) "Second all to all finish"
-!        call flush(6)
+!        call neci_flush(6)
 
 !        WRITE(6,*) MaxIndex, "Recieved particles: "
 !        do i=1,MaxIndex
@@ -465,7 +465,7 @@ MODULE AnnihilationMod
 !!            WRITE(6,*) SpawnedParts(0:NIfTot-1,i),SpawnedParts(NIfTot,i)-2
 !!        enddo
 !!        WRITE(6,*) "***","iter_data%naborted: ",iter_data%naborted
-!!        CALL FLUSH(6)
+!!        CALL neci_flush(6)
         
     END SUBROUTINE CompressSpawnedList
 
@@ -953,7 +953,7 @@ MODULE AnnihilationMod
 !            WRITE(6,*) i,SpawnedParts(:,i),SpawnedSign(i)
 !        enddo
 !        WRITE(6,*) "***"
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 
 !TotWalkersNew is now the number of determinants in the main list left.
 !We now want to merge the main list with the spawned list of non-annihilated spawned particles.

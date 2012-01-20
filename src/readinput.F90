@@ -22,14 +22,14 @@ MODULE ReadInput_neci
         use Parallel_neci,   only : iProcIndex
         use default_sets
         use util_mod, only: get_free_unit
-#ifdef NAGF95
-    !  USe doesn't get picked up by the make scripts
-        USe f90_unix_env, ONLY: getarg,iargc
-#endif
+!#ifdef NAGF95
+!    !  USe doesn't get picked up by the make scripts
+!        USe f90_unix_env, ONLY: getarg,iargc
+!#endif
         Implicit none
-#ifndef NAGF95
-        Integer :: iargc
-#endif
+!#ifndef NAGF95
+!        Integer :: iargc
+!#endif
     !  INPUT/OUTPUT params
         Character(len=255)  cFilename    !Input  filename or "" if we check arg list or stdin
         Integer             ios         !Output 0 if no error or nonzero iostat if error
@@ -42,6 +42,7 @@ MODULE ReadInput_neci
         Logical             tEof        !set when read_line runs out of lines
         logical             tExists     !test for existence of input file.
         Integer             idDef       !What default set do we use
+        integer neci_iargc
         
         cTitle=""
         idDef=idDefault                 !use the Default defaults (pre feb08)
@@ -51,9 +52,9 @@ MODULE ReadInput_neci
             inquire(file=cFilename,exist=tExists)
             if (.not.tExists) call stop_all('ReadInputMain','File '//Trim(cFilename)//' does not exist.')
             Open(ir,File=cFilename,Status='OLD',err=99,iostat=ios)
-        ElseIf(iArgC().gt.0) then
+        ElseIf(neci_iArgC().gt.0) then
     ! We have some arguments we can process instead
-            Call GetArg(1,cInp)      !Read argument 1 into inp
+            Call neci_GetArg(1,cInp)      !Read argument 1 into inp
             Write(6,*) "Reading from file: ", Trim(cInp)
             inquire(file=cInp,exist=tExists)
             if (.not.tExists) call stop_all('ReadInputMain','File '//Trim(cInp)//' does not exist.')

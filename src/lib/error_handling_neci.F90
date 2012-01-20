@@ -49,7 +49,7 @@ write (6,'(/a7)') 'ERROR.'
 write (6,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
 write (6,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
 write (6,'(a11)') 'EXITING...'
-CALL FLUSH(6)
+CALL neci_flush(6)
 
 call cleanup_shared_alloc()
 #ifdef PARALLEL
@@ -98,7 +98,7 @@ character(*), intent(in), optional :: msg
 
 if (present(msg)) then
     write (6,'(1X,a)') adjustl(msg)
-    CALL FLUSH(6)
+    CALL neci_flush(6)
 end if
 
 #ifdef PARALLEL
