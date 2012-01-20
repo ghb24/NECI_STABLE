@@ -1,7 +1,14 @@
 module constants
 
+!All use of mpi routines come from this module
 #ifdef PARALLEL
+#ifndef MOLPRO
 uSE mpi
+implicit none
+#else
+implicit none
+#include "mpif.h"
+#endif
 #endif
 
 ! Constant data.
