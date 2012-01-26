@@ -32,7 +32,7 @@ MODULE GenRandSymExcitNUMod
                           nOccAlpha, nOccBeta, ElecPairs, MaxABPairs, &
                           tKPntSym, lzTot, tNoBrillouin, tUseBrillouin
     use FciMCData, only: pDoubles, iter, excit_gen_store_type
-    use Parallel
+    use Parallel_neci
     use IntegralsData, only: UMat
     use Determinants, only: get_helement, write_det
     use SymData, only: nSymLabels, TwoCycleSymGens, SymLabelList, &
@@ -44,7 +44,7 @@ MODULE GenRandSymExcitNUMod
     use constants, only: dp, n_int, bits_n_int
     use bit_reps, only: NIfTot
     use sym_mod, only: mompbcsym, GetLz
-    use timing
+    use timing_neci
     use sym_general_mod
     use spin_project, only: tSpinProject
     IMPLICIT NONE
@@ -170,7 +170,7 @@ MODULE GenRandSymExcitNUMod
 !        do i=1,nBasis
 !            WRITE(6,*) G1(i)%Sym%S
 !        enddo
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 !        STOP
         IF(.not.TwoCycleSymGens) THEN
 !Currently only available for molecular systems, or without using symmetry.
@@ -185,7 +185,7 @@ MODULE GenRandSymExcitNUMod
                 WRITE(6,*) "This is because of difficulties with other symmetries setup."
                 WRITE(6,*) "If you want to use these excitation generators, then add NOSYMGEN " &
        &                //"to the input to ignore symmetry while generating excitations."
-                CALL FLUSH(6)
+                CALL neci_flush(6)
                 CALL Stop_All(this_routine,"GenRandSymExcitNU can only be used for molecular systems using symmetry")
             ENDIF
         ENDIF
@@ -1603,7 +1603,7 @@ MODULE GenRandSymExcitNUMod
                 WRITE(6,*) "This is because of difficulties with other symmetries setup."
                 WRITE(6,*) "If you want to use these excitation generators, then add NOSYMGEN " &
                 & //"to the input to ignore symmetry while generating excitations."
-                CALL FLUSH(6)
+                CALL neci_flush(6)
                 CALL Stop_All(this_routine,"GenRandSymExcitBiased can only be used for molecular systems using symmetry")
             ENDIF
         ELSEIF(nBasisMax(2,3).eq.1) THEN
@@ -1878,7 +1878,7 @@ MODULE GenRandSymExcitNUMod
     END SUBROUTINE CreateDoubExcitBiased
 
     SUBROUTINE CalcAllab(nI,ILUT,Elec1Ind,Elec2Ind,SymProduct,iSpn,OrbA,OrbB,nParts,iCreate,Tau)
-        use Integrals , only : GetUMatEl
+        use Integrals_neci , only : GetUMatEl
         INTEGER :: nI(NEl),Elec1Ind,Elec2Ind,SymProduct,iSpn,OrbA,OrbB,iCreate
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
         INTEGER :: SpatOrbi,SpatOrbj,Spini,Spinj,i,aspn,bspn,SymA,SymB,SpatOrba,EndSymState,VecInd
@@ -2539,12 +2539,12 @@ MODULE GenRandSymExcitNUMod
         HElement_t :: HElGen
 
         write(6,*) 'In HERE'
-        call flush(6)
+        call neci_flush(6)
 
         WRITE(6,*) nI(:)
         WRITE(6,*) Iterations,pDoub,exFlag
         WRITE(6,*) "nSymLabels: ",nSymLabels
-        CALL FLUSH(6)
+        CALL neci_flush(6)
 
         ! The old excitation generator will not generate singles from the HF
         ! unless tNoBrillouin is set
@@ -2598,7 +2598,7 @@ MODULE GenRandSymExcitNUMod
         tUseBrillouin = brillouin_tmp(2)
 
         WRITE(6,*) "Determinant has ",excitcount," total excitations from it."
-        CALL FLUSH(6)
+        CALL neci_flush(6)
 
         ! Allocate the accumulators
         allocate (DoublesHist(nbasis, nbasis, nbasis, nbasis))
@@ -2642,7 +2642,7 @@ MODULE GenRandSymExcitNUMod
         
             IF(mod(i,400000).eq.0) THEN
                 WRITE(6,"(A,I10)") "Iteration: ",i
-                CALL FLUSH(6)
+                CALL neci_flush(6)
             ENDIF
 
             call gen_rand_excit (nI, iLut, nJ, iLutnJ, exFlag, IC, ExcitMat, &

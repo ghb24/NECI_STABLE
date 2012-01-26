@@ -157,7 +157,7 @@ MODULE GraphMorph
 !                WRITE(64,"(I8)",advance='no') Distribs(i,1)
 !            enddo
 !            WRITE(64,*) ""
-!            CALL FLUSH(64)
+!            CALL neci_flush(64)
 !        ENDIF
 !        
 !!Allocate space for largest Eigenvector for various graphs
@@ -177,7 +177,7 @@ MODULE GraphMorph
 !            WRITE(6,*) ""
 !            WRITE(6,"(A,I4,A)") "Starting Iteration ", Iteration, " ..."
 !            WRITE(6,*) ""
-!            CALL FLUSH(6)
+!            CALL neci_flush(6)
 !
 !            IF((Iteration.eq.2).and.ReturntoTMoveDets) THEN
 !!If one iteration of regrowing graphs is used, then return to the moving dets algorithm                
@@ -204,7 +204,7 @@ MODULE GraphMorph
 !                    BestSI=SI
 !                ENDIF
 !            ENDIF
-!            CALL FLUSH(6)
+!            CALL neci_flush(6)
 !
 !!Write out stats
 !            IF(Iteration.eq.1) THEN
@@ -212,14 +212,14 @@ MODULE GraphMorph
 !            ELSE
 !                WRITE(63,"(I10,5G20.12)") Iteration,DLWDB,PStay,Orig_Graph,SucRat,MeanExcit
 !            ENDIF
-!            CALL FLUSH(63)
+!            CALL neci_flush(63)
 !
 !!Excitation generators are initialised for each of the determinants in the graph, and the total number of possible
 !!connected determinants calculated. Memory allocated for the ensuing calculation.
 !            CALL CountExcits()
 !!            WRITE(6,*) "Fraction of space which is space of excitations is: ", TotExcits/(TotExcits+NDets)
 !            WRITE(6,*) "Total number of determinants available from current graph is: ",TotExcits
-!!            CALL FLUSH(6)
+!!            CALL neci_flush(6)
 !
 !!Run through each determinant in the graph, calculating the excitations, storing them, and the rho elements to them.
 !            CALL FindConnections()
@@ -246,7 +246,7 @@ MODULE GraphMorph
 !!Pick NDets new excitations stocastically from normalised list of determinants with probability |c|^2. Ensure connections,
 !!allocate and create rho matrix for new graph. Deallocate info for old graph.
 !                WRITE(6,*) "Choosing new graph stochastically from previous graph and its excitations..."
-!                CALL FLUSH(6)
+!                CALL neci_flush(6)
 !                CALL PickNewDets()
 !
 !            ENDIF
@@ -257,7 +257,7 @@ MODULE GraphMorph
 !                    WRITE(64,"(I8)",advance='no') Distribs(i,Iteration+1)
 !                enddo
 !                WRITE(64,*) ""
-!                CALL FLUSH(64)
+!                CALL neci_flush(64)
 !            ENDIF
 !
 !!Once graph is fully constructed, the next iteration can begin.
@@ -409,7 +409,7 @@ MODULE GraphMorph
 !            do while(i.lt.NDets)
 !
 !!                WRITE(6,*) i
-!!                CALL FLUSH(6)
+!!                CALL neci_flush(6)
 !                CALL GenSymExcitIt2(RootDet,NEl,G1,nBasis,nBasisMax,.FALSE.,nExcit,nJ,iExcit,0,nStore,exFlag)
 !                IF(nJ(1).eq.0) THEN
 !!In the next sweep, look at the next determinant being the root
@@ -1178,7 +1178,7 @@ MODULE GraphMorph
 !            do j=2,NDets
 !                WRITE(6,*) Eigenvector(j)
 !            enddo
-!            CALL FLUSH(6)
+!            CALL neci_flush(6)
 !            STOP 'Error in trying to pick a determinant to move'
 !        ELSE
 !!            WRITE(6,*) "Determinants which have been removed are: "
@@ -1190,7 +1190,7 @@ MODULE GraphMorph
 !!        do j=1,NoMoveDets
 !!            WRITE(6,*) MoveDetsFromPaths(j,:)
 !!        enddo
-!!        CALL FLUSH(6)
+!!        CALL neci_flush(6)
 !
 !        
 !!Now need to find a determinant from the excitations space to attach
@@ -1640,7 +1640,7 @@ MODULE GraphMorph
 !                enddo
 !                NoVerts=NoVerts+1
 !!                WRITE(6,"A,I5") "Vertex Added - ",NoVerts
-!!                CALL FLUSH(6)
+!!                CALL neci_flush(6)
 !
 !                Success=Success+1
 !                IF(OriginalPicked) THEN
@@ -1852,7 +1852,7 @@ MODULE GraphMorph
 !        PStay=Stay
 !        WRITE(6,*) "Probability of staying at original determinants: ", Stay
 !!        WRITE(6,*) "Probability of Moving: ", Move
-!!        CALL FLUSH(6)
+!!        CALL neci_flush(6)
 !!        WRITE(6,*) "Total Probability: ", Stay+Move
 !!        WRITE(6,*) "Normalisation constant for propagation vector: ", Norm
 !

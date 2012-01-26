@@ -206,7 +206,7 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          use constants, only: dp
          use CPMDData, only: nStates,PIInt,EIonIon,EigenValues,tagPIInt
          use SystemData, only: BasisFN
-         use Integrals, only: GetUMatEl
+         use Integrals_neci, only: GetUMatEl
          USE UMatCache, only: nstatesumat=>nstates,tUMAT2D
          USE UMatCache, only: SetUmatTrans,SetUMatCacheFlag,SetupUMat2D,
      &                        SetupUMatCache
@@ -304,8 +304,8 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
                       TMAT2D(II,JJ)=TOT
                       TMAT2D(II+1,JJ+1)=TOT
 #ifdef __CMPLX
-                      TMAT2D(JJ,II)=dconjg(TOT)
-                      TMAT2D(JJ+1,II+1)=dconjg(TOT)
+                      TMAT2D(JJ,II)=conjg(TOT)
+                      TMAT2D(JJ+1,II+1)=conjg(TOT)
 #else
                       TMAT2D(JJ,II)=(TOT)
                       TMAT2D(JJ+1,II+1)=(TOT)
@@ -333,7 +333,7 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
 !                          FockMat(i,j)=FockMat(i,j)-F*dcmplx(U)/2
 !                      end if
 !                  end do
-!                 FockMat(j,i)=dconjg(FockMat(i,j))
+!                 FockMat(j,i)=conjg(FockMat(i,j))
 
                ENDIF
 

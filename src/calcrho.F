@@ -189,8 +189,8 @@ C               IC=IC+1
              call stop_all(t_r,"Call to GenNewDet2 removed due to       &
      &          incorrect number of arguments")
 !            CALL GENNEWDET2(NI,NI,NEL,NBASIS,NBASISMAX,G1,ISEED)
-            CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,
-     &            G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,RH,NTAY,0,ECORE)
+!            CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,
+!     &            G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,RH,NTAY,0,ECORE)
             IF(RH.GT.RHOMAX) RHOMAX=RH
          ENDDO
          RETURN

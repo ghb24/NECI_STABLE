@@ -1,4 +1,4 @@
-MODULE input
+MODULE input_neci
 
 !  Fortran90 input parsing module
 !
@@ -21,9 +21,6 @@ MODULE input
 !  http://www.gnu.org/copyleft/gpl.html
 
 use constants, only: sp,dp,int64
-#ifdef NAGF95
-USe f90_unix_env, ONLY: getarg
-#endif
 
 IMPLICIT NONE
 
@@ -508,7 +505,7 @@ last=-1
 
 do
   nitems=nitems+1
-  call getarg(nitems,word)
+  call neci_getarg(nitems,word)
   if (word .eq. "") then
     nitems=nitems-1
     exit
@@ -1120,4 +1117,4 @@ end if
 
 END SUBROUTINE read_colour
 
-END MODULE input
+END MODULE input_neci

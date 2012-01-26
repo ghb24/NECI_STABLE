@@ -110,7 +110,7 @@ module soft_exit
     use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
                              NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt
-    use Input
+    use Input_neci
     use Logging, only: tHistSpawn, tCalcFCIMCPsi, tIterStartBlock, &
                        IterStartBlocking, tHFPopStartBlock, NHistEquilSteps
     use FCIMCLoggingMOD, only: PrintBlocking, RestartBlocking, &
@@ -124,7 +124,7 @@ module soft_exit
                             spin_proj_cutoff, spin_proj_spawn_initiators, &
                             spin_proj_no_death, spin_proj_iter_count
     use hist_data, only: Histogram
-    use Parallel
+    use Parallel_neci
     implicit none
 
 contains
@@ -165,6 +165,46 @@ contains
 
         integer, parameter :: last_item = nprojesum
         integer, parameter :: max_item_len = 30
+        character(max_item_len), parameter :: option_list_molp(last_item) &
+                               = (/"truncate                     ", &
+                                   "not_option                   ", &
+                                   "exit                         ", &
+                                   "writepopsfile                ", &
+                                   "varyshift                    ", &
+                                   "iterations                   ", &
+                                   "timestep                     ", &
+                                   "shift                        ", &
+                                   "shiftdamping                 ", &
+                                   "interval                     ", &
+                                   "singlesbias                  ", &
+                                   "zeroproje                    ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "initiator_thresh             ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "changeref                    ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   "/)
         character(max_item_len), parameter :: option_list(last_item) &
                                = (/"excite                       ", &
                                    "truncatecas                  ", &
@@ -258,7 +298,7 @@ contains
 
                         ! Mark any selected options.
                         do i = 1, last_item
-                            if (trim(w) == trim(option_list(i))) then
+                            if ((trim(w) == trim(option_list(i))).or.(trim(w).eq.trim(option_list_molp(i)))) then
                                 opts_selected(i) = .true.
                                 exit
                             endif

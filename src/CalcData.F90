@@ -78,6 +78,7 @@ real(dp) :: GraphEpsilon
 real(dp) :: PGenEpsilon
 real(dp) :: TargetGrowRate
 integer(int64) :: TargetGrowRateWalk    !Number of walkers before targetgrowrate kicks in
+integer(int64) :: iExitWalkers  !Exit criterion, based on total walker number
 
 
 !// additional from NECI.F
@@ -91,5 +92,7 @@ LOGICAL :: lNoTriples
 LOGICAL tUseProcsAsNodes  !Set if we treat each processor as its own node.
 INTEGER iLogicalNodeSize  !An alternative to the above, create logical nodes of at most this size.
                           ! 0 means use physical nodes.
+
+logical :: tContinueAfterMP2 ! UEG option only
 
 end module CalcData

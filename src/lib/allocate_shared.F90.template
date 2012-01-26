@@ -185,8 +185,10 @@ module shared_alloc
     use ParallelHelper, only: iProcIndex
     implicit none
 
+#ifndef __PGI
     private
     public :: shared_allocate, shared_deallocate, shared_allocate_iluts
+#endif
     
     interface
         subroutine alloc_shared_worker (nm, pt, sz, proc) bind(c)
@@ -219,7 +221,7 @@ module shared_alloc
         function test_shared_permissions () result(bAvail) bind(c)
             use iso_c_hack
             implicit none
-#if defined __PGI__ || defined __G95__
+#if defined __PGI || defined __G95__
             logical :: bAvail
 #else
             logical(c_bool) :: bAvail

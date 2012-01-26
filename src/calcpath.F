@@ -210,12 +210,12 @@ C            WRITE(32,*) I_V,ICLASS,RHOC
       SUBROUTINE CLASSPATH(RHOIJ,N,ICLASS)
         use constants, only: dp,int64
          INTEGER I,J,N,ICLASS
-         real(dp) RHOIJ(0:N,0:N)
+         HElement_t RHOIJ(0:N,0:N)
          ICLASS=0
          DO I=0,N-1
             DO J=I+1,N-1
                ICLASS=ICLASS*2
-               IF(RHOIJ(I,J).NE.0.D0) THEN
+               IF(abs(RHOIJ(I,J)).NE.0.D0) THEN
                   ICLASS=ICLASS+1
                ENDIF
             ENDDO
@@ -223,7 +223,7 @@ C            WRITE(32,*) I_V,ICLASS,RHOC
       END
 
       SUBROUTINE WRITECLASSPATHS()
-         USE Parallel , only : iProcIndex
+         USE Parallel_neci , only : iProcIndex
          use legacy_data, only: CALCP_N, CALCP_NT, CALCP_SUM, CALCP_HSUM
          INTEGER I,J
          IF(iProcIndex.eq.0) THEN

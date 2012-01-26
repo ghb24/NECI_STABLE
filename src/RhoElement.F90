@@ -215,7 +215,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
 !   with the double counting subtracted, Sum_i eps_i - 1/2 Sum_i,j <ij|ij>-<ij|ji>.  (i in HF det, j in excited det)
       subroutine GetH0ElementDCCorr(nHFDet,nJ,nEl,G1,nBasis,NMAX,ECore,hEl)
          use constants, only: dp
-         use Integrals, only: GetUMatEl
+         use Integrals_neci, only: GetUMatEl
          use UMatCache
          use SystemData, only: BasisFN,Arr
          implicit none
@@ -244,5 +244,5 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
          enddo
 !         call writedet(77,nj,nel,.false.)
 !         write(77,*) "H0DC",hEl
-!         call flush(77)
+!         call neci_flush(77)
       end

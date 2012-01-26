@@ -6,7 +6,7 @@ contains
          use SystemData , only : tNoSymGenRandExcits,lNoSymmetry,tROHF,tHub,tUEG
          use SystemData , only : tStoreSpinOrbs,tKPntSym,tRotatedOrbsReal,tFixLz
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
-         use Parallel
+         use Parallel_neci
          use util_mod, only: get_free_unit
          IMPLICIT NONE
          logical, intent(in) :: tbin
@@ -141,12 +141,12 @@ contains
 
 
       SUBROUTINE GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN,TBIN)
-         use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn
+         use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn,tMolpro
          use SystemData, only: tCacheFCIDUMPInts,tROHF,tFixLz,iMaxLz,tRotatedOrbsReal
          use UMatCache, only: nSlotsInit,CalcNSlotsInit
          use UMatCache, only: GetCacheIndexStates,GTID
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
-         use Parallel
+         use Parallel_neci
          use constants, only: dp
          use util_mod, only: get_free_unit
          IMPLICIT NONE
@@ -242,7 +242,7 @@ contains
              ENDIF
              nPairs=NORB*(NORB+1)/2
 !             WRITE(6,*) "NPAIRS: ",NORB,NPAIRS
-             CALL FLUSH(6)
+             CALL neci_flush(6)
              ALLOCATE(MaxSlots(nPairs),stat=ierr)
              MaxSlots(:)=0
          ENDIF
@@ -315,7 +315,12 @@ contains
                         call stop_all("GETFCIBASIS","Real orbitals indicated, but imaginary part of integrals larger than 1.D-7")
                     endif
                 else
-                    READ(iunit,'(1X,G20.12,4I3)',END=99) Z,I,J,K,L
+                    if(tMolpro) then
+                        !If calling from within molpro, integrals are written out to greater precision
+                        read(iunit,*,END=99) Z,I,J,K,L
+                    else
+                        READ(iunit,'(1X,G20.12,4I3)',END=99) Z,I,J,K,L
+                    endif
                 endif
 #endif
 
@@ -469,7 +474,7 @@ contains
       SUBROUTINE READFCIINT(UMAT,NBASIS,ECORE,tReadFreezeInts)
          use constants, only: dp
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,NEl
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,tMolpro
          use SystemData, only: UMatEps,tUMatEps,tCacheFCIDUMPInts
          use SystemData, only: tRIIntegrals,nBasisMax,tROHF,tRotatedOrbsReal
          USE UMatCache, only: UMatInd,UMatConj,UMAT2D,TUMAT2D,nPairs,CacheFCIDUMP
@@ -477,7 +482,7 @@ contains
          USE UMatCache, only: UMatCacheData,UMatLabels,GetUMatSize
          use OneEInts, only: TMatind,TMat2D,TMATSYM,TSTARSTORE
          use OneEInts, only: CalcTMatSize
-         use Parallel
+         use Parallel_neci
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
          use util_mod, only: get_free_unit
          IMPLICIT NONE
@@ -563,7 +568,11 @@ contains
                      call stop_all("READFCIINT","Real orbitals indicated, but imaginary part of integrals larger than 1.D-7")
                  endif
              else
-                 READ(iunit,'(1X,G20.12,4I3)',END=199) Z,I,J,K,L
+                 if(tMolpro) then
+                     read(iunit,*,END=199) Z,I,J,K,L
+                 else
+                     READ(iunit,'(1X,G20.12,4I3)',END=199) Z,I,J,K,L
+                 endif
              endif
 #endif
              IF(tROHF) THEN

@@ -3,6 +3,7 @@
 module hilbert_space_size
 
 use constants, only: dp,int64,n_int,bits_n_int,sizeof_int
+use util_mod, only: choose,get_free_unit
 implicit none
 
 contains
@@ -17,9 +18,8 @@ contains
          use DeterminantData, only : FDet
          use dSFMT_interface
          use soft_exit, only : ChangeVars
-         use Parallel
+         use Parallel_neci
          use DetBitops, only: EncodeBitDet
-         use util_mod, only: choose
          use bit_rep_data, only: NIfTot
          IMPLICIT NONE
          INTEGER , intent(in) :: IUNIT
@@ -80,7 +80,7 @@ contains
          WRITE(IUNIT,*) "Size of excitation level neglecting all symmetry: "&
             ,FullSpace
 
-         CALL FLUSH(IUNIT)
+         CALL neci_flush(IUNIT)
 
          IF(iProcIndex.eq.0) THEN
              OPEN(14,file="TruncSpaceMCStats",status='unknown',              &
@@ -160,7 +160,7 @@ contains
          do j=0,iExcitLevTest
              WRITE(IUNIT,"(I5,F30.5)") j,SizeLevel(j)
          enddo
-         CALL FLUSH(IUNIT)
+         CALL neci_flush(IUNIT)
       
       END SUBROUTINE FindSymMCSizeExcitLevel
 
@@ -168,7 +168,6 @@ contains
 !levels 0 -> iExcitLevTest. It does this by rejecting determinants, so that the resultant excitations are
 !unbiased.
      SUBROUTINE CreateRandomExcitLevDetUnbias(iExcitLevTest,FDet,FDetiLut,iLut,ExcitLev,Attempts)
-         use util_mod, only: choose
          use SystemData, only: nEl
          use bit_rep_data, only: NIfTot
          use dSFMT_interface
@@ -301,7 +300,7 @@ contains
 !allowed size of the determinant space. However, it can be simply found using a MC technique.
       SUBROUTINE FindSymMCSizeofSpace(IUNIT)
          use SymData, only : TwoCycleSymGens
-         use SystemData, only: nEl,G1,nBasis,nOccAlpha,nOccBeta
+         use SystemData, only: nEl,G1,nBasis,nOccAlpha,nOccBeta,tMolpro
          use SystemData, only: tUEG,tHPHF,tHub,tKPntSym,Symmetry
          use SystemData, only : CalcDetCycles, CalcDetPrint,tFixLz
          use CalcData, only : tTruncNOpen, trunc_nopen_max
@@ -309,16 +308,15 @@ contains
          use DetCalcData, only : ICILevel
          use dSFMT_interface
          use soft_exit, only : ChangeVars
-         use Parallel
+         use Parallel_neci
          use DetBitops, only: EncodeBitDet, IsAllowedHPHF, count_open_orbs
-         use util_mod, only: choose
          use bit_rep_data, only: NIfTot
          use sym_mod, only: SymProd
          IMPLICIT NONE
          INTEGER :: IUNIT,j,SpatOrbs,FDetMom,ExcitLev
          INTEGER(KIND=n_int) :: FDetiLut(0:NIfTot),iLut(0:NIfTot)
          INTEGER :: FDetSym,TotalSym,TotalMom,alpha,beta,ierr,Momx,Momy
-         INTEGER :: Momz,nopenorbs
+         INTEGER :: Momz,nopenorbs,Space_unit
          integer(int64) :: Accept,AcceptAll,i
          integer(int64) :: ExcitBin(0:NEl),ExcitBinAll(0:NEl)
          real(dp) :: FullSpace,r,Frac
@@ -397,10 +395,11 @@ contains
          WRITE(IUNIT,*) "Size of space neglecting all but Sz symmetry: "&
             ,FullSpace
 
-         CALL FLUSH(IUNIT)
+         CALL neci_flush(IUNIT)
 
          IF(iProcIndex.eq.0) THEN
-             OPEN(14,file="SpaceMCStats",status='unknown',              &
+             Space_unit = get_free_unit()
+             OPEN(Space_unit,file="SpaceMCStats",status='unknown',              &
                  form='formatted')
          ENDIF
 
@@ -676,11 +675,15 @@ contains
                      SizeLevel(j)=(REAL(ExcitBinAll(j),dp)/REAL(AcceptAll,dp))*Frac*FullSpace
                  enddo
                  IF(iProcIndex.eq.0) THEN
-                     WRITE(14,"(2I16,2G35.15)",advance='no') i,AcceptAll,Frac,Frac*FullSpace
-                     do j=0,NEl
-                         WRITE(14,"(F30.5)",advance='no') SizeLevel(j)
-                     enddo
-                     WRITE(14,"(A)") ""
+                     if(tMolpro) then
+                         write(Space_unit,"(I16,G35.15)") i,Frac*FullSpace
+                     else
+                         WRITE(Space_unit,"(2I16,2G35.15)",advance='no') i,AcceptAll,Frac,Frac*FullSpace
+                         do j=0,NEl
+                             WRITE(Space_unit,"(F30.5)",advance='no') SizeLevel(j)
+                         enddo
+                         WRITE(Space_unit,"(A)") ""
+                     endif
                  ENDIF
 
                  AcceptAll=0
@@ -702,12 +705,16 @@ contains
          enddo
 
          IF(iProcIndex.eq.0) THEN
-             WRITE(14,"(2I16,2G35.15)",advance='no') i,AcceptAll,Frac,Frac*FullSpace
+             if(tMolpro) then
+                 write(Space_unit,"(I16,G35.15)") i,Frac*FullSpace
+             else
+                 WRITE(Space_unit,"(2I16,2G35.15)",advance='no') i,AcceptAll,Frac,Frac*FullSpace
                  do j=0,NEl
-                     WRITE(14,"(F30.5)",advance='no') SizeLevel(j)
+                     WRITE(Space_unit,"(F30.5)",advance='no') SizeLevel(j)
                  enddo
-                 WRITE(14,"(A)") ""
-             CLOSE(14)
+                 WRITE(Space_unit,"(A)") ""
+             endif
+             CLOSE(Space_unit)
          ENDIF
 
          WRITE(IUNIT,*) "MC size of space: ",Frac*FullSpace
@@ -715,7 +722,7 @@ contains
          do j=0,NEl
              WRITE(IUNIT,"(I5,F30.5)") j,SizeLevel(j)
          enddo
-         CALL FLUSH(IUNIT)
+         CALL neci_flush(IUNIT)
 
       END SUBROUTINE FindSymMCSizeofSpace
 
@@ -726,7 +733,6 @@ contains
          use SymData , only : TwoCycleSymGens
          use SystemData , only : nEl,G1,nBasis,nOccAlpha,nOccBeta
          use DeterminantData, only : FDet
-         use util_mod, only: choose
          IMPLICIT NONE
          INTEGER :: ClassCounts(2,0:7)
          INTEGER :: Lima(0:7),Limb(0:7),a0,a1,a2,a3,a4,a5,a6,a7,NAlph
@@ -749,7 +755,7 @@ contains
             FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,sizeof_int))
          enddo
          WRITE(6,*) "Symmetry of HF determinant is: ",FDetSym
-         CALL FLUSH(IUNIT)
+         CALL neci_flush(IUNIT)
          ClassCounts(:,:)=0
 !First, we need to find the number of spatial orbitals in each symmetry irrep.
          do i=1,nBasis,1
@@ -901,7 +907,7 @@ contains
          enddo
 
          WRITE(IUNIT,"(A,G25.16)") " *EXACT* size of symmetry allowed space of determinants is: ",Space
-         CALL FLUSH(IUNIT)
+         CALL neci_flush(IUNIT)
 
       END SUBROUTINE FindSymSizeofSpace
 
@@ -914,7 +920,6 @@ contains
          use SystemData , only : nEl,G1,nBasis,nOccAlpha,nOccBeta,Brr
          use DeterminantData, only : FDet
          use DetCalcData, only : ICILevel
-         use util_mod, only: choose
          IMPLICIT NONE
          INTEGER :: ClassCountsOcc(0:7)
          INTEGER :: ClassCountsVirt(0:7),NAlphOcc,NAlphVirt
@@ -944,7 +949,7 @@ contains
             FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,sizeof_int))
          enddo
          WRITE(6,*) "Symmetry of HF determinant is: ",FDetSym
-         CALL FLUSH(IUNIT)
+         CALL neci_flush(IUNIT)
          ClassCountsOcc(:)=0
          ClassCountsVirt(:)=0
 !First, we need to find the number of spatial orbitals in each symmetry irrep.
@@ -1212,7 +1217,7 @@ contains
 
          WRITE(IUNIT,"(A,G25.16)") " *EXACT* size of symmetry allowed " &
              //"space of determinants is: ",Space
-         CALL FLUSH(IUNIT)
+         CALL neci_flush(IUNIT)
 
       END SUBROUTINE FindSymSizeofTruncSpace
 

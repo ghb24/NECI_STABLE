@@ -35,7 +35,6 @@ contains
         ! Values for old parameters.
         ! These have no input options to change the defaults, but are used in
         ! the code.
-          tInstGrowthRate=.true.
           TargetGrowRateWalk=500000
           TargetGrowRate=0.D0
           InitialPart=1
@@ -49,8 +48,15 @@ contains
           TRHOIJ = .false.
           TBEGRAPH = .false.
 
+          if (Nov11) then
+              tInstGrowthRate=.true.
+          else
+              tInstGrowthRate = .false.
+          end if
 
 !       Calc defaults 
+          iExitWalkers=-1
+          FracLargerDet=1.2
           iReadWalkersRoot=0 
           tShiftonHFPop=.false.
           MaxWalkerBloom=-1
@@ -258,13 +264,14 @@ contains
 	  proje_update_comb = .false.
           proje_spatial = .false.
           hash_shift=0
+          tContinueAfterMP2=.false.
       
         end subroutine SetCalcDefaults
 
 
 
         SUBROUTINE CalcReadInput()
-          USE input
+          USE input_neci
           Use Determinants, only : iActiveBasis, SpecDet, tagSpecDet, tSpecDet, nActiveSpace
           Use Determinants, only : tDefineDet, DefDet, tagDefDet
           use SystemData, only : Beta,nEl
@@ -277,7 +284,7 @@ contains
           use CCMCData, only: tExactEnergy,tSharedExcitors
           use FciMCData, only: hash_shift
           use global_utilities
-          use Parallel, only : nProcessors
+          use Parallel_neci, only : nProcessors
           use Logging, only: tLogDets
           IMPLICIT NONE
           LOGICAL eof
@@ -851,6 +858,9 @@ contains
             case("STEPSSHIFT")
 !For FCIMC, this is the number of steps taken before the Diag shift is updated
                 call geti(StepsSft)
+            case("EXITWALKERS")
+!For FCIMC, this is an exit criterion based on the total number of walkers in the system.
+                call getiLong(iExitWalkers)
             case("TARGETGROWRATE")
 !For FCIMC, this is the target growth rate once in vary shift mode.
                 call getf(TargetGrowRate)
@@ -915,6 +925,8 @@ contains
                     !change dramatically to start with.
                     call geti(InitialPart)
                 endif
+            case("CONTINUEAFTERMP2")
+                tContinueAfterMP2=.true.
             case("STARTCAS")
 !For FCIMC, this has an initial configuration of walkers which is proportional to the MP1 wavefunction
 !                CALL Stop_All(t_r,"STARTMP1 option depreciated")
@@ -1003,9 +1015,24 @@ contains
                 IF(item.lt.nitems) then
                     call Getf(FracLargerDet)
                 ENDIF
+                
             case("AVGROWTHRATE")
-                !This option will average the growth rate over the update cycle when updating the shift.
-                tInstGrowthRate=.false.
+
+                ! This option will average the growth rate over the update 
+                ! cycle when updating the shift.
+
+                if (item < nitems) then
+                    call readu(w)
+                    select case(w)
+                    case("OFF")
+                        tInstGrowthRate = .true.
+                    case default
+                        tInstGrowthRate = .false.
+                    end select
+                else
+                    tInstGrowthRate = .false.
+                end if
+
             case("PROJE-SPATIAL")
                 ! Calculate the projected energy by projection onto a linear
                 ! combination of determinants, specified by a particular 
@@ -1632,7 +1659,7 @@ contains
          &                 RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,           &
          &                 DETINV,TSPECDET,SPECDET)
     !                      WRITE(6,*) "Out Here 2"
-    !                      CALL FLUSH(6)
+    !                      CALL neci_flush(6)
                     ELSE
                        IF(TCSFOLD) THEN
                           IF(.NOT.TSPECDET) THEN
@@ -1666,7 +1693,7 @@ contains
 !             DBETA=DBRAT*BETA
              WRITE(6,*) "I_HMAX:",I_HMAX
              WRITE(6,*) "Calculating MC Energy..."
-             CALL FLUSH(6)
+             CALL neci_flush(6)
              IF(NTAY(1).GT.0) THEN
                 WRITE(6,*) "Using approx RHOs generated on the fly, NTAY=",NTAY(1)
 !C.. NMAX is now ARR
@@ -1823,7 +1850,7 @@ contains
 
 
       subroutine inpgetmethod(I_HMAX,NWHTAY,I_V)
-         use input
+         use input_neci
          use UMatCache , only : TSTARSTORE
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
          use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,tCCMC
@@ -2032,7 +2059,7 @@ contains
 
 
       subroutine inpgetexcitations(NWHTAY,w)
-         use input
+         use input_neci
          IMPLICIT NONE
          INTEGER NWHTAY
          CHARACTER(LEN=16) w

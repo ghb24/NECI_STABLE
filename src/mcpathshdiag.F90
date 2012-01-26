@@ -183,7 +183,7 @@ module mcpathshdiag
             ENDIF
                 
                    !WRITE(43,*) DLWDB2, EREF
-                   !CALL FLUSH(43)
+                   !CALL neci_flush(43)
 !        write (6,*) "from mcpathshdiag, EREF=",EREF
 !            IF (TVARCALC(I_V)) THEN
 !                CALL WRITEPATH(43,IPATH,I_V,NEL,.TRUE.)
@@ -231,7 +231,7 @@ module mcpathshdiag
             IF(TLOG4.AND.MOD(L,G_VMC_LOGCOUNT).EQ.0) THEN
 !C.. log every 1000
                WRITE(10,"(I10,3E25.16)") L,NTOTAL,DLWDB,MP2E(2)
-               CALL FLUSH(10)
+               CALL neci_flush(10)
             ENDIF
             RETURN
          ENDIF
@@ -555,7 +555,7 @@ end module
          Subroutine GetGraphstats(IPATH, I_V, nEl,nBasis,Arr,Weight,NBASISMAX,DLWDB2)
          use constants, only: dp,int64
          USE UMatCache , only : GTID
-         use Integrals, only : GetUMatEl
+         use Integrals_neci, only : GetUMatEl
          use SystemData, only: BasisFN
          IMPLICIT NONE
          Integer I_V,nEl,nBasis,IPATH(nEl,0:I_V),EX(2,2)
