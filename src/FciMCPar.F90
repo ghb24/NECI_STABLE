@@ -276,6 +276,7 @@ MODULE FciMCParMod
                     tIncrement=.false.
                     EXIT
                 ENDIF
+		IF (proje_update_comb) CALL update_linear_comb_coeffs()
                 IF(tWritePopsFound) THEN
 !We have explicitly asked to write out the POPSFILE from the CHANGEVARS file.
                     CALL WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
@@ -709,7 +710,7 @@ MODULE FciMCParMod
         type(fcimc_iter_data), intent(inout) :: iter_data
 
         ! Now the local, iteration specific, variables
-        integer :: VecSlot, j, p, error
+        integer :: VecSlot, j, p, error,i
         integer :: DetCurr(nel), nJ(nel), FlagsCurr, parent_flags
         integer, dimension(lenof_sign) :: SignCurr, child
         integer(kind=n_int) :: iLutnJ(0:niftot)
@@ -721,6 +722,8 @@ MODULE FciMCParMod
 #ifdef __DEBUG
         character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
 #endif
+	HElement_t :: delta
+        integer :: proc, pos, sgn(lenof_sign)
 
         call set_timer(Walker_Time,30)
 
@@ -765,6 +768,26 @@ MODULE FciMCParMod
         ! different by exFlag for CSFs than in normal determinential code.
         ! It would be nice to fix this properly
         if (tCSF) exFlag = 7
+
+       
+        ! Update here the sum for the projected-energy denominator if projecting
+        ! onto a linear combination of determinants.
+        if (proje_linear_comb .and. (.not. proje_spatial) .and. nproje_sum > 1) then
+           sum_proje_denominator=0
+           do i = 1, nproje_sum
+              proc = DetermineDetNode (proje_ref_dets(:,i), 0)
+              if (iProcIndex == proc) then
+                    pos = binary_search (CurrentDets(:,1:TotWalkers), &
+                         proje_ref_iluts(:,i), NIfD+1)
+                    if (pos > 0) then
+                        call extract_sign (CurrentDets(:,pos), sgn)
+                        delta = ARR_RE_OR_CPLX(sgn) * proje_ref_coeffs(i)
+                        cyc_proje_denominator = cyc_proje_denominator + delta
+                        sum_proje_denominator = sum_proje_denominator + delta
+                    endif
+                endif
+            enddo
+        endif
 
         IFDEBUG(FCIMCDebug,3) write(6,"(A)") "TW: Walker  Det"
         do j=1,TotWalkers
@@ -976,7 +999,7 @@ MODULE FciMCParMod
 
         ! Update the sum for the projected-energy denominatior if projecting
         ! onto a linear combination of determinants.
-        if (proje_linear_comb .and. nproje_sum > 1) then
+        if (proje_spatial .and. proje_linear_comb .and. nproje_sum > 1) then
             do i = 1, nproje_sum
                 proc = DetermineDetNode (proje_ref_dets(:,i), 0)
                 if (iProcIndex == proc) then
@@ -3369,6 +3392,7 @@ MODULE FciMCParMod
         NoDied = 0
         ENumCyc = 0
         HFCyc = 0
+	cyc_proje_denominator=0
         if(tSplitProjEHist) then
             ENumCycHist(:)=0.0_dp
         endif
@@ -3397,8 +3421,8 @@ MODULE FciMCParMod
 
         ! Reset the linear combination coefficients
         ! TODO: Need to rethink how/when this is done. This is just for tests
-        if (proje_linear_comb) &
-            call update_linear_comb_coeffs()
+        if (proje_spatial .and. proje_linear_comb) &
+             call update_linear_comb_coeffs()
 
 
     end subroutine
@@ -5206,31 +5230,80 @@ MODULE FciMCParMod
 
     subroutine update_linear_comb_coeffs ()
 
-        integer :: i, pos, sgn(lenof_sign)
-        real(dp) :: norm
+        integer :: i, pos, sgn(lenof_sign),nfound,ierr
+        real(dp) :: norm,reduce_in(1:2),reduce_out(1:2)
 
-        if (nproje_sum > 1) then
-
-            proje_ref_coeffs = 0
-            do i = 1, nproje_sum
-
-                pos = binary_search (CurrentDets(:,1:TotWalkers), &
-                                     proje_ref_iluts(:,i), NIfD+1)
-                if (pos > 0) then
+        if(nproje_sum>1) then
+           if(proje_spatial) then
+              proje_ref_coeffs = 0
+              do i = 1, nproje_sum
+                 
+                 pos = binary_search (CurrentDets(:,1:TotWalkers), &
+                      proje_ref_iluts(:,i), NIfD+1)
+                 if (pos > 0) then
                     call extract_sign (CurrentDets(:,pos), sgn)
                     proje_ref_coeffs(i) = sgn(1)
-                endif
-            enddo
-
-            call MPISumAll_inplace (proje_ref_coeffs)
-            norm = sqrt(sum(proje_ref_coeffs**2))
-            if (norm == 0) norm = 1
-            proje_ref_coeffs = proje_ref_coeffs / norm
-            
+                 endif
+              enddo
+              
+              call MPISumAll_inplace (proje_ref_coeffs)
+              norm = sqrt(sum(proje_ref_coeffs**2))
+              if (norm == 0) norm = 1
+              proje_ref_coeffs = proje_ref_coeffs / norm
+           else
+              ! Finds the nproje_sum highest weight determinants in CurrentDets and
+              ! forms a linear combination reference using the corresponding instantaneous weights.
+              proje_linear_comb=.true.
+              call clean_linear_comb()             
+              allocate(proje_ref_dets(1:nel, 1:nproje_sum))
+              allocate(proje_ref_iluts(0:NIfTot, 1:nproje_sum))
+              allocate(proje_ref_coeffs(1:nproje_sum))
+              proje_ref_coeffs=0
+              proje_ref_dets=0
+              proje_ref_iluts=0
+              
+              do pos=1,TotWalkers
+                 call extract_sign(CurrentDets(:,pos),sgn)
+                 if(abs(sgn(1))>abs(proje_ref_coeffs(nproje_sum))) then
+                    inner: do nfound=1,nproje_sum
+                       if(abs(sgn(1))>abs(proje_ref_coeffs(nfound))) then
+                          proje_ref_coeffs((nfound+1):nproje_sum)=proje_ref_coeffs((nfound):(nproje_sum-1))
+                          proje_ref_iluts(0:NIfTot,(nfound+1):nproje_sum)=proje_ref_iluts(0:NIfTot,(nfound):(nproje_sum-1))
+                          proje_ref_coeffs(nfound)=sgn(1)
+                          proje_ref_iluts(0:NIfTot,nfound)=CurrentDets(:,pos)
+                          exit inner
+                       endif
+                    enddo inner
+                 endif
+              enddo
+              
+              do nfound=1,nproje_sum
+                 reduce_in=(/abs(proje_ref_coeffs(nfound)),real(iProcIndex,dp)/)
+                 CALL MPIAllReduceDatatype(reduce_in,1,MPI_MAXLOC,MPI_2DOUBLE_PRECISION,reduce_out)
+                 IF(nint(reduce_out(2))/=iProcIndex) THEN 
+                    proje_ref_coeffs((nfound+1):nproje_sum)=proje_ref_coeffs(nfound:(nproje_sum-1))
+                    proje_ref_iluts(0:NIfTot,(nfound+1):nproje_sum)=proje_ref_iluts(0:NIfTot,(nfound):(nproje_sum-1))
+                 ENDIF
+                 CALL MPIBCast(proje_ref_coeffs(nfound),1,nint(reduce_out(2)))
+                 CALL MPIBCast(proje_ref_iluts(0:NIfTot,nfound),NIfTot+1,nint(reduce_out(2)))
+              enddo
+              do nfound=1,nproje_sum
+                 call decode_bit_det(proje_ref_dets(:,nfound),proje_ref_iluts(0:NIfTot,nfound))
+              enddo
+              norm = sqrt(sum(proje_ref_coeffs**2))
+              if (norm == 0) norm = 1
+              proje_ref_coeffs = proje_ref_coeffs / norm
+              proje_update_comb=.false.
+              write(6,*) ' Linear combination coeffs successfully updated. '
+              write(6,*) ' Number of linear combination coeffs is now',nproje_sum
+              write(6,*) ' Coeff | Determinant '
+              do nfound=1,nproje_sum
+                 write(6,*) nfound, proje_ref_coeffs(nfound),'DET:',proje_ref_dets(:,nfound)
+              enddo
+              write(6,*) ' end of linear combination list'
+           endif
         endif
-
     end subroutine
-
 
     subroutine clean_linear_comb ()
 
@@ -5268,18 +5341,36 @@ MODULE FciMCParMod
         ! TODO: If we use this, function pointer it.
         HOffDiag = 0
         if (proje_linear_comb .and. nproje_sum > 1) then
-
-            spatial_ic = FindSpatialBitExcitLevel (ilut, proje_ref_iluts(:,1))
-            if (spatial_ic <= 2) then
-                do i = 1, nproje_sum
+	   if(proje_spatial) then
+              spatial_ic = FindSpatialBitExcitLevel (ilut, proje_ref_iluts(:,1))
+              if (spatial_ic <= 2) then
+                 do i = 1, nproje_sum
                     if (proje_ref_coeffs(i) /= 0) then
-                        HOffDiag = HOffDiag + proje_ref_coeffs(i) &
-                                 * get_helement (proje_ref_dets(:,i), nI, &
-                                                 proje_ref_iluts(:,i), ilut)
+                       HOffDiag = HOffDiag + proje_ref_coeffs(i) &
+                            * get_helement (proje_ref_dets(:,i), nI, &
+                            proje_ref_iluts(:,i), ilut)
                     endif
-                enddo
-            endif
-
+                 enddo
+              endif
+           else
+              do i=1, nproje_sum
+                 !this is thought for a spin-polarized system.
+                 spatial_ic = FindBitExcitLevel (ilut, proje_ref_iluts(:,i))
+                 if (spatial_ic <= 2) then
+                    if (proje_ref_coeffs(i) /= 0._dp) then
+                       IF(spatial_ic==0) THEN
+                          HOffDiag = HOffDiag + proje_ref_coeffs(i) &
+                               * (get_helement (proje_ref_dets(:,i),nI,spatial_ic, &
+                               proje_ref_iluts(:,i), ilut)-Hii)
+                       ELSE
+                          HOffDiag = HOffDiag + proje_ref_coeffs(i) &
+                               * get_helement (proje_ref_dets(:,i),nI,spatial_ic, &
+                               proje_ref_iluts(:,i), ilut)
+                       ENDIF
+                    endif
+                 endif
+              enddo  
+           endif
         else
             ! ExcitLevel indicates the excitation level between the det and
             ! *one* of the determinants in an HPHF/MomInv function. If needed,
@@ -5717,8 +5808,8 @@ MODULE FciMCParMod
 
         ! If we are projecting onto a linear combination to calculate projE,
         ! then do the setup
-        if (proje_linear_comb) &
-            call setup_linear_comb ()
+        if (proje_spatial .and. proje_linear_comb) &
+             call setup_linear_comb ()
 
             
 !Put a barrier here so all processes synchronise
