@@ -79,7 +79,7 @@ MODULE FciMCParMod
                     InstHist, HistMinInd, project_spins, calc_s_squared, &
                     project_spin_csfs, calc_s_squared_multi, &
                     calc_s_squared_star
-    USE SymData , only : nSymLabels
+    USE SymData , only : nSymLabels, Sym_Psi
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE Parallel
     USE FciMCData
@@ -132,7 +132,7 @@ MODULE FciMCParMod
     SUBROUTINE FciMCPar(Weight,Energyxw)
         use Logging, only: PopsfileTimer
         use util_mod, only: get_free_unit
-        use nElRDMMod, only: InitRDM 
+        use nElRDMMod, only: InitRDM
         real(dp) :: Weight, Energyxw
         INTEGER :: error
         LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange,tPrintWarn
@@ -142,7 +142,7 @@ MODULE FciMCParMod
         real(dp) :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
         integer, dimension(lenof_sign) :: tmp_sgn
         integer :: tmp_int(lenof_sign), i
-        real(dp) :: grow_rate
+        real(dp) :: grow_rate, Norm_2RDM
 
         TDebug=.false.  !Set debugging flag
                     
@@ -350,7 +350,7 @@ MODULE FciMCParMod
             IF(tRDMonFly.and.(.not.tSinglePartPhase)) THEN
                 if( tCalc_RDMEnergy .and. ((Iter - VaryShiftIter).gt.IterRDMonFly) &
                     .and. (mod((Iter - IterRDMStart)+1,RDMEnergyIter).eq.0) ) &
-                        CALL Calc_Energy_from_RDM()  
+                        CALL Calc_Energy_from_RDM(Norm_2RDM)  
             ENDIF
             if(tChangeVarsRDM) then
                 call InitRDM() 
@@ -686,6 +686,9 @@ MODULE FciMCParMod
                                  new_child_stats, attempt_die, &
                                  iter_data, extract_bit_rep_rdm_diag, &
                                  add_rdm_hfconnections)
+        
+         use sym_mod
+         use IntegralsData, only : Nfrozen
 
         ! **********************************************************
         ! ************************* NOTE ***************************
@@ -829,12 +832,12 @@ MODULE FciMCParMod
                 integer :: nSpinCoup(NEl), HPHFExcitLevel
             end subroutine
         end interface
-
+        
         ! Iteration specific data
         type(fcimc_iter_data), intent(inout) :: iter_data
 
         ! Now the local, iteration specific, variables
-        integer :: VecSlot, j, p, error, proc_temp, i, HFPartInd
+        integer :: VecSlot, j, p, error, proc_temp, i, HFPartInd,isym
         integer :: DetCurr(nel), nJ(nel), FlagsCurr, parent_flags
         integer, dimension(lenof_sign) :: SignCurr, child
         integer(kind=n_int) :: iLutnJ(0:niftot)
@@ -1104,6 +1107,7 @@ MODULE FciMCParMod
 !        enddo
 
         call DirectAnnihilation (totWalkersNew, iter_data,.false.) !.false. for not single processor
+
         TotWalkers=TotWalkersNew
         CALL halt_timer(Annihil_Time)
         IFDEBUG(FCIMCDebug,2) WRITE(6,*) "Finished Annihilation step"
@@ -4379,6 +4383,7 @@ MODULE FciMCParMod
         CALL GetSym(HFDet,NEl,G1,NBasisMax,HFSym)
         
         WRITE(6,"(A,I10)") "Symmetry of reference determinant is: ",INT(HFSym%Sym%S,sizeof_int)
+        Sym_Psi=INT(HFSym%Sym%S,sizeof_int)  !Store the symmetry of the wavefunction for later
         SymHF=0
         do i=1,NEl
             SymHF=IEOR(SymHF,G1(HFDet(i))%Sym%S)

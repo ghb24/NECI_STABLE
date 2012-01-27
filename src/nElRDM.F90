@@ -1,4 +1,4 @@
-MODULE nElRDMMod
+module NeLrdmmOD
 ! This file contains the routines used to find the full n electron reduced density matrix (nElRDM).
 ! This is done on the fly to avoid having to histogram the full wavefunction which is extremely 
 ! time and memory inefficient.
@@ -51,7 +51,7 @@ MODULE nElRDMMod
         USE Logging , only : RDMExcitLevel, tROFciDUmp, NoDumpTruncs, tExplicitAllRDM, &
                              tHF_S_D_Ref, tHF_Ref_Explicit, tHF_S_D, tPrint1RDM
         USE RotateOrbsData , only : CoeffT1Tag, tTurnStoreSpinOff, NoFrozenVirt
-        USE RotateOrbsData , only : SymLabelCounts2,SymLabelList2,SymLabelListInv,NoOrbs, SpatOrbs
+        USE RotateOrbsData , only : SymLabelCounts2_rot,SymLabelList2_rot,SymLabelListInv_rot,NoOrbs, SpatOrbs
         USE util_mod , only : get_free_unit
         IMPLICIT NONE
         INTEGER , ALLOCATABLE :: Sing_InitExcSlots(:),Sing_ExcList(:)
@@ -68,6 +68,7 @@ MODULE nElRDMMod
         REAL(dp) :: OneEl_Gap,TwoEl_Gap, Normalisation,Trace_2RDM_Inst, Trace_2RDM, Trace_1RDM, norm
         LOGICAL :: tFinalRDMEnergy, tCalc_RDMEnergy
         type(timer), save :: nElRDM_Time, FinaliseRDM_time, RDMEnergy_time
+        REAL(dp), ALLOCATABLE :: Lagrangian(:,:)
 
     contains
 
@@ -75,11 +76,11 @@ MODULE nElRDMMod
 ! This routine initialises any of the arrays needed to calculate the reduced density matrix.    
 ! It is used for both the explicit and stochastic RDMs.
         USE NatOrbsMod , only : SetupNatOrbLabels 
-        USE RotateOrbsMod , only : SymLabelCounts2Tag,NoRotOrbs
-        USE RotateOrbsMod , only : SymLabelList2Tag,SymLabelListInvTag
+        USE RotateOrbsMod , only : SymLabelCounts2_rotTag,NoRotOrbs
+        USE RotateOrbsMod , only : SymLabelList2_rotTag,SymLabelListInv_rotTag
         USE Logging , only : tDo_Not_Calc_RDMEnergy, tDiagRDM, tReadRDMs, &
                             TPopsFile, tno_RDMs_to_read, twrite_RDMs_to_read,&
-                            tWriteMultRDMs
+                            tWriteMultRDMs, tDumpForcesInfo
         USE CalcData , only : tRegenDiagHEls
         use DetBitOps , only : TestClosedShellDet
         use bit_reps , only : decode_bit_det
@@ -230,7 +231,7 @@ MODULE nElRDMMod
                 MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
                 MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 ) * 8 ) 
 
-                if(tDiagRDM.or.tPrint1RDM) then
+                if(tDiagRDM.or.tPrint1RDM .or. tDumpForcesInfo) then
                     ! Still need to allocate 1-RDM to get nat orb occupation numbers.
                     ALLOCATE(NatOrbMat(SpatOrbs,SpatOrbs),stat=ierr)
                     IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating NatOrbMat array,')
@@ -370,20 +371,20 @@ MODULE nElRDMMod
             ! quicker/easier).
             ! The 2-RDM does not need to be reordered as it's never diagonalised. 
 
-            ALLOCATE(SymLabelCounts2(2,NoSymLabelCounts),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating SymLabelCounts2 array,')
-            CALL LogMemAlloc('SymLabelCounts2',2*NoSymLabelCounts,4,this_routine,SymLabelCounts2Tag,ierr)
-            SymLabelCounts2(:,:)=0
+            ALLOCATE(SymLabelCounts2_rot(2,NoSymLabelCounts),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating SymLabelCounts2_rot array,')
+            CALL LogMemAlloc('SymLabelCounts2_rot',2*NoSymLabelCounts,4,this_routine,SymLabelCounts2_rotTag,ierr)
+            SymLabelCounts2_rot(:,:)=0
 
-            ALLOCATE(SymLabelList2(NoOrbs),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating SymLabelList2 array,')
-            CALL LogMemAlloc('SymLabelList2',NoOrbs,4,this_routine,SymLabelList2Tag,ierr)
-            SymLabelList2(:)=0                     
+            ALLOCATE(SymLabelList2_rot(NoOrbs),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating SymLabelList2_rot array,')
+            CALL LogMemAlloc('SymLabelList2_rot',NoOrbs,4,this_routine,SymLabelList2_rotTag,ierr)
+            SymLabelList2_rot(:)=0                     
      
-            ALLOCATE(SymLabelListInv(NoOrbs),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating SymLabelListInv array,')
-            CALL LogMemAlloc('SymLabelListInv',NoOrbs,4,this_routine,SymLabelListInvTag,ierr)
-            SymLabelListInv(:)=0   
+            ALLOCATE(SymLabelListInv_rot(NoOrbs),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating SymLabelListInv_rot array,')
+            CALL LogMemAlloc('SymLabelListInv_rot',NoOrbs,4,this_routine,SymLabelListInv_rotTag,ierr)
+            SymLabelListInv_rot(:)=0   
 
             IF((iProcIndex.eq.0).and.tDiagRDM) THEN
                 ALLOCATE(Evalues(NoOrbs),stat=ierr)
@@ -476,7 +477,7 @@ MODULE nElRDMMod
         logical :: exists_aaaa,exists_abab,exists_abba,exists_one
         integer :: RDM_unit, FileEnd
         integer :: i,j,a,b,Ind1,Ind2
-        real(dp) :: Temp_RDM_Element
+        real(dp) :: Temp_RDM_Element, Norm_2RDM
 
         if(iProcIndex.eq.0) then 
 
@@ -497,7 +498,7 @@ MODULE nElRDMMod
                         if(FileEnd.gt.0) call stop_all("Read_In_RDMs","Error reading OneRDM_POPS")
                         if(FileEnd.lt.0) exit
 
-                        NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) = Temp_RDM_Element
+                        NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = Temp_RDM_Element
                     enddo
                     close(RDM_unit)
                 else
@@ -569,7 +570,7 @@ MODULE nElRDMMod
 
         ! Calculate the energy for the matrices read in (if we're calculating more than the 1-RDM).
         if(tCalc_RDMEnergy) then
-            call Calc_Energy_from_RDM()
+            call Calc_Energy_from_RDM(Norm_2RDM)
         endif
 
 ! Continue calculating the RDMs from the first iteration when the POPSFILES (and RDMs) are read in.
@@ -585,15 +586,15 @@ MODULE nElRDMMod
         USE UMatCache , only : GTID
         USE Logging , only : tDiagRDM
         IMPLICIT NONE
-        INTEGER , ALLOCATABLE :: SymOrbs(:)
-        INTEGER :: LabOrbsTag, SymOrbsTag, ierr, i , j, SpatSym, LzSym 
+        INTEGER , ALLOCATABLE :: SymOrbs_rot(:)
+        INTEGER :: LabOrbsTag, SymOrbs_rotTag, ierr, i , j, SpatSym, LzSym 
         INTEGER :: lo, hi, Symi, SymCurr, Symi2, SymCurr2
         CHARACTER(len=*) , PARAMETER :: this_routine = 'SetUpSymLabels_RDM'
 
         ! This is only allocated temporarily to be used to order the orbitals by.
-        ALLOCATE(SymOrbs(NoOrbs),stat=ierr)
-        CALL LogMemAlloc('SymOrbs',NoOrbs,4,this_routine,SymOrbsTag,ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,"Mem allocation for SymOrbs failed.")
+        ALLOCATE(SymOrbs_rot(NoOrbs),stat=ierr)
+        CALL LogMemAlloc('SymOrbs_rot',NoOrbs,4,this_routine,SymOrbs_rotTag,ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,"Mem allocation for SymOrbs_rot failed.")
 
 ! Brr has the orbital numbers in order of energy... i.e Brr(2) = the orbital index 
 ! with the second lowest energy.
@@ -606,37 +607,37 @@ MODULE nElRDMMod
 !        CALL Stop_All('','')
 
 ! Now we want to put the spatial orbital index, followed by the symmetry.        
-        SymLabelList2(:) = 0
-        SymOrbs(:)=0
+        SymLabelList2_rot(:) = 0
+        SymOrbs_rot(:)=0
 
-! *** STEP 1 *** Fill SymLabelList2.
+! *** STEP 1 *** Fill SymLabelList2_rot.
 ! find the orbitals and order them in terms of symmetry.
         do i=1,SpatOrbs
             if(tStoreSpinOrbs) then
                 ! for open shell systems, all alpha are followed by all beta.
-                SymLabelList2(i) = BRR(2*i)
-                SymLabelList2(i+SpatOrbs) = BRR((2*i)-1)
+                SymLabelList2_rot(i) = BRR(2*i)
+                SymLabelList2_rot(i+SpatOrbs) = BRR((2*i)-1)
 
                 if(tFixLz) then
                     SpatSym = INT(G1(BRR(2*i))%sym%S,4)
                     LzSym = INT(G1(BRR(2*i))%Ml,4)
-                    SymOrbs(i) = ( SpatSym * ((2 * iMaxLz) + 1) ) + ( LzSym + iMaxLz )
+                    SymOrbs_rot(i) = ( SpatSym * ((2 * iMaxLz) + 1) ) + ( LzSym + iMaxLz )
 
                     SpatSym = INT(G1(BRR((2*i)-1))%sym%S,4)
                     LzSym = INT(G1(BRR((2*i)-1))%Ml,4)
-                    SymOrbs(i+SpatOrbs) = ( SpatSym * ((2 * iMaxLz) + 1) ) + ( LzSym + iMaxLz )
+                    SymOrbs_rot(i+SpatOrbs) = ( SpatSym * ((2 * iMaxLz) + 1) ) + ( LzSym + iMaxLz )
                 else
-                    SymOrbs(i) = INT(G1(BRR(2*i))%sym%S,4) 
-                    SymOrbs(i+SpatOrbs) = INT(G1(BRR((2*i)-1))%sym%S,4) 
+                    SymOrbs_rot(i) = INT(G1(BRR(2*i))%sym%S,4) 
+                    SymOrbs_rot(i+SpatOrbs) = INT(G1(BRR((2*i)-1))%sym%S,4) 
                 endif
             else
-                SymLabelList2(i) = gtID(BRR(2*i))
+                SymLabelList2_rot(i) = gtID(BRR(2*i))
                 if(tFixLz) then
                     SpatSym = INT(G1(BRR(2*i))%sym%S,4)
                     LzSym = INT(G1(BRR(2*i))%Ml,4)
-                    SymOrbs(i) = ( SpatSym * ((2 * iMaxLz) + 1) ) + ( LzSym + iMaxLz )
+                    SymOrbs_rot(i) = ( SpatSym * ((2 * iMaxLz) + 1) ) + ( LzSym + iMaxLz )
                 else
-                    SymOrbs(i) = INT(G1(BRR(2*i))%sym%S,4) 
+                    SymOrbs_rot(i) = INT(G1(BRR(2*i))%sym%S,4) 
                 endif
                 ! Orbital BRR(2*i) for i = 1 will be the beta orbital with the 
                 ! second lowest energy - want the spatial orbital index to go with this.
@@ -645,53 +646,53 @@ MODULE nElRDMMod
             endif
         enddo
 
-        call sort (SymOrbs(1:SpatOrbs), SymLabelList2(1:SpatOrbs))
-        ! Sorts SymLabelList2 according to the order of SymOrbs (i.e. in terms of symmetry). 
+        call sort (SymOrbs_rot(1:SpatOrbs), SymLabelList2_rot(1:SpatOrbs))
+        ! Sorts SymLabelList2_rot according to the order of SymOrbs_rot (i.e. in terms of symmetry). 
         if(tStoreSpinOrbs) &
-            call sort (SymOrbs(SpatOrbs+1:nBasis), SymLabelList2(SpatOrbs+1:nBasis))
+            call sort (SymOrbs_rot(SpatOrbs+1:nBasis), SymLabelList2_rot(SpatOrbs+1:nBasis))
             ! Also do this for the beta set if spin orbitals.
 
-!*** STEP 2 *** Fill SymLabelCounts2.
-!SymLabelCounts(1,:) contains the position in SymLabelList2 where the symmetry index starts,
+!*** STEP 2 *** Fill SymLabelCounts2_rot_rot. This is like SymLabelCounts2_rot, but has a different ordering - BEWARE
+!SymLabelCounts(1,:) contains the position in SymLabelList2_rot where the symmetry index starts,
 !SymLabelCounts(2,:) contains the number of orbitals in that symmetry index.
 !Again if spin orbs, all alpha are followed by all beta - i.e. first 8 refer to alpha, second 8 to beta.
 
         IF(lNoSymmetry) THEN
             ! if we are ignoring symmetry, all orbitals essentially have symmetry 0.
-            SymLabelCounts2(1,1) = 1
-            SymLabelCounts2(2,1) = SpatOrbs
+            SymLabelCounts2_rot(1,1) = 1
+            SymLabelCounts2_rot(2,1) = SpatOrbs
             if(tStoreSpinOrbs) then
-                SymLabelCounts2(1,9) = SpatOrbs+1
-                SymLabelCounts2(2,9) = SpatOrbs
+                SymLabelCounts2_rot(1,9) = SpatOrbs+1
+                SymLabelCounts2_rot(2,9) = SpatOrbs
             endif
         ELSE 
             ! otherwise we run through the occupied orbitals, counting the number with 
-            ! each symmetry (spatial and Lz) and noting where in SymLabelList2 each symmetry block starts.
+            ! each symmetry (spatial and Lz) and noting where in SymLabelList2_rot each symmetry block starts.
             SymCurr = 0
-            SymLabelCounts2(1,1) = 1
+            SymLabelCounts2_rot(1,1) = 1
             if(tStoreSpinOrbs) then
                 SymCurr2 = 0
-                SymLabelCounts2(1,9) = SpatOrbs + 1
+                SymLabelCounts2_rot(1,9) = SpatOrbs + 1
             endif
             do i=1,SpatOrbs
                 if(tStoreSpinOrbs) then
-                    Symi=SymOrbs(i)
-                    Symi2=SymOrbs(i + SpatOrbs)
+                    Symi=SymOrbs_rot(i)
+                    Symi2=SymOrbs_rot(i + SpatOrbs)
                 else
-                    Symi=SymOrbs(i)
+                    Symi=SymOrbs_rot(i)
                 endif
-                SymLabelCounts2(2,(Symi+1))= SymLabelCounts2(2,(Symi+1))+1
+                SymLabelCounts2_rot(2,(Symi+1))= SymLabelCounts2_rot(2,(Symi+1))+1
                 IF(Symi.ne.SymCurr) THEN
                     do j = SymCurr + 1, Symi
-                        SymLabelCounts2(1,(j+1))=i
+                        SymLabelCounts2_rot(1,(j+1))=i
                     enddo
                     SymCurr=Symi
                 ENDIF
                 if(tStoreSpinOrbs) then
-                    SymLabelCounts2(2,(Symi2+9))= SymLabelCounts2(2,(Symi2+9))+1
+                    SymLabelCounts2_rot(2,(Symi2+9))= SymLabelCounts2_rot(2,(Symi2+9))+1
                     IF(Symi2.ne.SymCurr2) THEN
                         do j = SymCurr2 + 1, Symi2
-                            SymLabelCounts2(1,(j+9))=i + SpatOrbs
+                            SymLabelCounts2_rot(1,(j+9))=i + SpatOrbs
                         enddo
                         SymCurr2=Symi2
                     ENDIF
@@ -702,42 +703,42 @@ MODULE nElRDMMod
         ! Go through each symmetry group, making sure the orbitals are 
         ! ordered lowest to highest within each symmetry.
         do i=1,NoSymLabelCounts
-            IF(SymLabelCounts2(2,i).ne.0) THEN
-                lo = SymLabelCounts2(1, i)
-                hi = lo + SymLabelCounts2(2, i) - 1
-                call sort (SymLabelList2 (lo:hi))
+            IF(SymLabelCounts2_rot(2,i).ne.0) THEN
+                lo = SymLabelCounts2_rot(1, i)
+                hi = lo + SymLabelCounts2_rot(2, i) - 1
+                call sort (SymLabelList2_rot (lo:hi))
             ENDIF
         enddo
 
-        ! Construct the inverse matrix.  While SymLabelList2 takes a position and tells us 
+        ! Construct the inverse matrix.  While SymLabelList2_rot takes a position and tells us 
         ! what orbital is in it, we also might need to take an orbital and find out what 
         ! position to put its contribution in.
         do i=1,NoOrbs
-            SymLabelListInv(SymLabelList2(i))=i
+            SymLabelListInv_rot(SymLabelList2_rot(i))=i
         enddo
 
 ! Deallocate the arrays just used in this routine.
-        DEALLOCATE(SymOrbs)
-        CALL LogMemDealloc(this_routine,SymOrbsTag)
+        DEALLOCATE(SymOrbs_rot)
+        CALL LogMemDealloc(this_routine,SymOrbs_rotTag)
 
 !        WRITE(6,*) 'Sym Label Counts'
 !        do i=1,8
-!            WRITE(6,*) i,SymLabelCounts2(1,i),SymLabelCounts2(2,i)
+!            WRITE(6,*) i,SymLabelCounts2_rot(1,i),SymLabelCounts2_rot(2,i)
 !        enddo
 !        WRITE(6,*) 'Sym label list (i.e the orbitals in symm order), &
 !                               & and their symmetries according to G1'
 !        do i=1,SpatOrbs
-!            WRITE(6,*) i,SymLabelList2(i),INT(G1(2*SymLabelList2(i))%sym%S,4)
+!            WRITE(6,*) i,SymLabelList2_rot(i),INT(G1(2*SymLabelList2_rot(i))%sym%S,4)
 !        enddo
-!        WRITE(6,*) 'i','ARR(SymLabelList2(i),1)','ARR(SymLabelList2(i),2)','Sym'
+!        WRITE(6,*) 'i','ARR(SymLabelList2_rot(i),1)','ARR(SymLabelList2_rot(i),2)','Sym'
 !        do i=1,SpatOrbs
-!             WRITE(6,*) i,ARR(2*SymLabelList2(i),1),ARR(2*SymLabelList2(i),2),&
-!                                               INT(G1(2*SymLabelList2(i))%sym%S,4)
+!             WRITE(6,*) i,ARR(2*SymLabelList2_rot(i),1),ARR(2*SymLabelList2_rot(i),2),&
+!                                               INT(G1(2*SymLabelList2_rot(i))%sym%S,4)
 !        enddo
 !
 !        WRITE(6,*) 'Sym label list (i.e the orbitals in symm order), and its inverse'
 !        do i=1,SpatOrbs
-!            WRITE(6,*) SymLabelList2(i),SymLabelListInv(i)
+!            WRITE(6,*) SymLabelList2_rot(i),SymLabelListInv_rot(i)
 !        enddo
 !        CALL FLUSH(6)
 !        CALL Stop_All('SetUpSymLabels_RDM','Checking orbital labelling.')
@@ -1690,7 +1691,7 @@ MODULE nElRDMMod
         USE DetBitOps , only : EncodeBitDet
         USE AnnihilationMod , only : DetermineDetNode
         USE SymExcit3 , only : GenExcitations3
-        USE RotateOrbsData , only : SymLabelListInv
+        USE RotateOrbsData , only : SymLabelListInv_rot
         USE bit_reps , only : extract_bit_rep
         implicit none
         INTEGER(kind=n_int) , INTENT(IN) :: iLutnI(0:NIfTot)
@@ -1809,7 +1810,7 @@ MODULE nElRDMMod
         USE DetBitOps , only : EncodeBitDet
         USE AnnihilationMod , only : DetermineDetNode
         USE SymExcit3 , only : GenExcitations3
-        USE RotateOrbsData , only : SymLabelListInv
+        USE RotateOrbsData , only : SymLabelListInv_rot
         USE bit_reps , only : extract_bit_rep
         use hist_data, only: AllHistogram
         implicit none
@@ -2129,7 +2130,7 @@ MODULE nElRDMMod
 ! about the determinant Di from which the Dj's are single excitations (and it's sign).
         USE AnnihilationMod , only : BinSearchParts
         USE FciMCData , only : TotWalkers,CurrentDets
-        USE RotateOrbsData , only : SymLabelListInv
+        USE RotateOrbsData , only : SymLabelListInv_rot
         USE bit_reps , only : extract_bit_rep
         implicit none
         INTEGER, INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
@@ -2203,7 +2204,7 @@ MODULE nElRDMMod
 ! about the determinant Di from which the Dj's are single excitations (and it's sign).
         USE AnnihilationMod , only : BinSearchParts
         USE FciMCData , only : TotWalkers,CurrentDets
-        USE RotateOrbsData , only : SymLabelListInv
+        USE RotateOrbsData , only : SymLabelListInv_rot
         USE bit_reps , only : extract_bit_rep
         implicit none
         INTEGER, INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
@@ -2281,7 +2282,7 @@ MODULE nElRDMMod
 ! about the determinant Di from which the Dj's are single excitations (and it's sign).
         USE AnnihilationMod , only : BinSearchParts
         USE FciMCData , only : TotWalkers,CurrentDets
-        USE RotateOrbsData , only : SymLabelListInv
+        USE RotateOrbsData , only : SymLabelListInv_rot
         USE bit_reps , only : extract_bit_rep
         USE FciMCData , only : iluthf_true
         use DetBitOps , only : FindBitExcitLevel
@@ -2366,7 +2367,7 @@ MODULE nElRDMMod
 ! about the determinant Di from which the Dj's are single excitations (and it's sign).
         USE AnnihilationMod , only : BinSearchParts
         USE FciMCData , only : TotWalkers,CurrentDets
-        USE RotateOrbsData , only : SymLabelListInv
+        USE RotateOrbsData , only : SymLabelListInv_rot
         USE bit_reps , only : extract_bit_rep
         USE FciMCData , only : iluthf_true
         use DetBitOps , only : FindBitExcitLevel
@@ -2464,10 +2465,10 @@ MODULE nElRDMMod
         if(RDMExcitLevel.eq.1) then
             do i=1,NEl
                 if(tStoreSpinOrbs) then
-                    iInd = SymLabelListInv(nI(i))
+                    iInd = SymLabelListInv_rot(nI(i))
                 else
-                    ! SymLabelListInv will be in spat orbitals too.
-                    iInd = SymLabelListInv(gtID(nI(i)))
+                    ! SymLabelListInv_rot will be in spat orbitals too.
+                    iInd = SymLabelListInv_rot(gtID(nI(i)))
                 endif
                 NatOrbMat(iInd,iInd) = NatOrbMat(iInd,iInd) &
                                           + ( realSignDi * realSignDi ) 
@@ -2529,8 +2530,8 @@ MODULE nElRDMMod
         IF(tParity) ParityFactor=-1.D0
 
         if(RDMExcitLevel.eq.1) then
-            ! SymLabelList2(i), gives the orbital in position i
-            ! SymLabelListInv(i), gives the position orbital i should go in.
+            ! SymLabelList2_rot(i), gives the orbital in position i
+            ! SymLabelListInv_rot(i), gives the position orbital i should go in.
 
             if(tStoreSpinOrbs) then
                 iInd = Ex(1,1)
@@ -2539,8 +2540,8 @@ MODULE nElRDMMod
                 iInd = gtID(Ex(1,1))
                 aInd = gtID(Ex(2,1))   ! These two must have the same spin.
             endif
-            Indik = SymLabelListInv(iInd)    ! Position of i 
-            Indak = SymLabelListInv(aInd)    ! Position of a.
+            Indik = SymLabelListInv_rot(iInd)    ! Position of i 
+            Indak = SymLabelListInv_rot(aInd)    ! Position of a.
             
             ! Adding to 1-RDM(i,a), ci.cj effectively.
             NatOrbMat( Indik , Indak ) = NatOrbMat( Indik , Indak ) + (ParityFactor * &
@@ -2774,7 +2775,7 @@ MODULE nElRDMMod
 ! This routine finalises the one electron reduced density matrix stuff at the point of a softexit.
 ! This includes summing each of the individual matrices from each processor,
 ! and calling the diagonalisation routines if we want to get the occupation numbers.
-        USE Logging , only : tDiagRDM
+        USE Logging , only : tDiagRDM, tDumpForcesInfo
         implicit none
         INTEGER :: error
         real(dp) :: Norm_2RDM, Norm_2RDM_Inst
@@ -2806,17 +2807,22 @@ MODULE nElRDMMod
 
             ! Calculate the energy one last time - and write out everything we need.
             tFinalRDMEnergy = .true.
-            CALL Calc_Energy_from_RDM()
+            CALL Calc_Energy_from_RDM(Norm_2RDM)
 
 !            CALL Test_Energy_Calc()
 
             if(tPrint1RDM) then
-                call Finalise_1e_RDM()
+                call Finalise_1e_RDM(Norm_1RDM)
             elseif(tDiagRDM.and.(iProcIndex.eq.0)) then
                 call calc_1e_norms(Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
                 write(6,*) ''
                 write(6,'(A55,F30.20)') ' SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY &
                                             &HF ORBITALS: ',SumN_Rho_ii
+            endif
+            if (tDumpForcesInfo) then
+                call Finalise_1e_RDM(Norm_1RDM)
+                CALL Calc_Lagrangian_from_RDM(Norm_2RDM)
+                call convert_matrices_for_Molpro_forces(Norm_2RDM, Norm_1RDM)
             endif
 
         endif
@@ -2833,14 +2839,15 @@ MODULE nElRDMMod
     
     end subroutine FinaliseRDM
 
-    subroutine Finalise_1e_RDM() 
+    subroutine Finalise_1e_RDM(Norm_1RDM) 
 ! This routine takes the 1-RDM (NatOrbMat), normalises it, makes it 
 ! hermitian if required, and prints out the versions we're interested in.    
 ! This is only ever called at the very end of a calculation.
         use Logging , only : twrite_RDMs_to_read, twrite_normalised_RDMs
         implicit none
         integer :: i
-        real(dp) :: Norm_1RDM, Trace_1RDM, SumN_Rho_ii
+        real(dp), intent(out), optional :: Norm_1RDM
+        real(dp) :: Trace_1RDM, SumN_Rho_ii
 
         AllAccumRDMNorm = 0.D0
         IF(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) &
@@ -2913,7 +2920,7 @@ MODULE nElRDMMod
         !and then add it's contribution to the energy.
         
 ! Want to sum the diagonal elements of the 1-RDM for the HF orbitals.
-! Given the HF orbitals, SymLabelListInv tells us their position in the 1-RDM.
+! Given the HF orbitals, SymLabelListInv_rot tells us their position in the 1-RDM.
         SumN_Rho_ii = 0.0_dp
         do i = 1, NoOrbs
             ! Rho_ii is the diagonal elements of the 1-RDM.
@@ -2921,25 +2928,25 @@ MODULE nElRDMMod
             ! Brr has the orbital numbers in order of energy... i.e Brr(2) = the orbital index 
             ! with the second lowest energy.
             ! Brr is always in spin orbitals.
-            ! i gives the energy level, BRR gives the orbital, SymLabelListInv gives the position of 
+            ! i gives the energy level, BRR gives the orbital, SymLabelListInv_rot gives the position of 
             ! this orbital in NatOrbMat.
             if(tDiagRDM) then
                 if(tStoreSpinOrbs) then
-                    Rho_ii(i) = NatOrbMat(SymLabelListInv(BRR(i)),SymLabelListInv(BRR(i))) * Norm_1RDM
+                    Rho_ii(i) = NatOrbMat(SymLabelListInv_rot(BRR(i)),SymLabelListInv_rot(BRR(i))) * Norm_1RDM
                 else
                     BRR_ID = gtID(BRR(2*i))
-                    Rho_ii(i) = NatOrbMat(SymLabelListInv(BRR_ID),SymLabelListInv(BRR_ID)) * Norm_1RDM
+                    Rho_ii(i) = NatOrbMat(SymLabelListInv_rot(BRR_ID),SymLabelListInv_rot(BRR_ID)) * Norm_1RDM
                 endif
             endif
             if(i.le.NEl) then
                 if(tStoreSpinOrbs) then
                     SumN_Rho_ii = SumN_Rho_ii + &
-                            ( NatOrbMat(SymLabelListInv(HFDet_True(i)),SymLabelListInv(HFDet_True(i))) &
+                            ( NatOrbMat(SymLabelListInv_rot(HFDet_True(i)),SymLabelListInv_rot(HFDet_True(i))) &
                                 * Norm_1RDM )
                 else
                     HFDet_ID = gtID(HFDet_True(i))
                     SumN_Rho_ii = SumN_Rho_ii + &
-                            ( NatOrbMat(SymLabelListInv(HFDet_ID),SymLabelListInv(HFDet_ID)) &
+                            ( NatOrbMat(SymLabelListInv_rot(HFDet_ID),SymLabelListInv_rot(HFDet_ID)) &
                                 * Norm_1RDM ) / 2.0_dp
                 endif
             endif
@@ -2959,20 +2966,20 @@ MODULE nElRDMMod
         Sum_Error_Hermiticity = 0.D0
         do i = 1, NoOrbs
             do j = i, NoOrbs
-                IF((abs((NatOrbMat(SymLabelListInv(i),SymLabelListInv(j))*Norm_1RDM) - &
-                        (NatOrbMat(SymLabelListInv(j),SymLabelListInv(i))*Norm_1RDM))).gt.Max_Error_Hermiticity) &
-                    Max_Error_Hermiticity = abs((NatOrbMat(SymLabelListInv(i),SymLabelListInv(j))*Norm_1RDM) - &
-                                                (NatOrbMat(SymLabelListInv(j),SymLabelListInv(i))*Norm_1RDM))
+                IF((abs((NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM) - &
+                        (NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i))*Norm_1RDM))).gt.Max_Error_Hermiticity) &
+                    Max_Error_Hermiticity = abs((NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM) - &
+                                                (NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i))*Norm_1RDM))
 
                 Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
-                                        abs((NatOrbMat(SymLabelListInv(i),SymLabelListInv(j))*Norm_1RDM) - &
-                                            (NatOrbMat(SymLabelListInv(j),SymLabelListInv(i))*Norm_1RDM))
+                                        abs((NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM) - &
+                                            (NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i))*Norm_1RDM))
 
-                Temp = (NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) + &
-                        NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)))/2.D0
+                Temp = (NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) + &
+                        NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)))/2.D0
 
-                NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) = Temp
-                NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) = Temp
+                NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = Temp
+                NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = Temp
             enddo
         enddo
 
@@ -3012,33 +3019,33 @@ MODULE nElRDMMod
         do i = 1, nBasis
             do j = 1, nBasis
                 if(tStoreSpinOrbs) then
-                    if(NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)).ne.0.D0) then 
+                    if(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)).ne.0.D0) then 
                         if(tNormalise.and.((i.le.j).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
                             write(OneRDM_unit,"(2I6,G25.17)") i,j, & 
-                                NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) * Norm_1RDM
+                                NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) * Norm_1RDM
                         elseif(.not.tNormalise) then
                             ! For the pops, we haven't made the 1-RDM hermitian yet, 
                             ! so print both the 1-RDM(i,j) and 1-RDM(j,i) elements.
                             ! This is written in binary.
-                            write(OneRDM_unit) i,j,NatOrbMat(SymLabelListInv(i),SymLabelListInv(j))
+                            write(OneRDM_unit) i,j,NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))
                         endif
                     endif
                 else
                     iSpat = gtID(i)
                     jSpat = gtID(j)
-                    if(NatOrbMat(SymLabelListInv(iSpat),SymLabelListInv(jSpat)).ne.0.D0) then 
+                    if(NatOrbMat(SymLabelListInv_rot(iSpat),SymLabelListInv_rot(jSpat)).ne.0.D0) then 
                         if(tNormalise.and.((i.le.j).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
                             if(((mod(i,2).eq.0).and.(mod(j,2).eq.0)).or.&
                                 ((mod(i,2).ne.0).and.(mod(j,2).ne.0))) then
                                 write(OneRDM_unit,"(2I6,G25.17)") i,j, & 
-                                    ( NatOrbMat(SymLabelListInv(iSpat),SymLabelListInv(jSpat)) &
+                                    ( NatOrbMat(SymLabelListInv_rot(iSpat),SymLabelListInv_rot(jSpat)) &
                                                                     * Norm_1RDM ) / 2.0_dp
                             endif
                         elseif(.not.tNormalise) then
                             ! The popsfile can be printed in spatial orbitals.
                             if((mod(i,2).eq.0).and.(mod(j,2).eq.0)) then
                                 write(OneRDM_unit) iSpat,jSpat, & 
-                                    NatOrbMat(SymLabelListInv(iSpat),SymLabelListInv(jSpat)) 
+                                    NatOrbMat(SymLabelListInv_rot(iSpat),SymLabelListInv_rot(jSpat)) 
                             endif
                         endif
                     endif
@@ -3049,6 +3056,31 @@ MODULE nElRDMMod
         close(OneRDM_unit)
 
     end subroutine Write_out_1RDM
+
+    subroutine Write_out_Lagrangian()
+! This routine writes out the Lagrangian X_pq
+! Note that we have calculated only beta-beta components - this is sufficient as long as the system is closed shell
+        implicit none
+!        real(dp) , intent(in) :: Lagrangian(:,:)
+        integer :: i, j
+        integer :: Lagrangian_unit
+ 
+        Write(6,*) "Writing out the beta Lagrangian, constructed from the 'normalised' and finalised 2e RDM"
+        
+        Lagrangian_unit = get_free_unit()
+        OPEN(Lagrangian_unit,file='Lagrangian',status='unknown')
+ 
+        ! Currently printing Lagrangian with spatial orbital labels, though we specifically refer to beta spin orbitals.
+        do i = 1, SpatOrbs
+            do j = 1, SpatOrbs
+                write(Lagrangian_unit, "(2I6,G25.17)") i, j, Lagrangian(i,j)
+            enddo
+        enddo
+                
+        close(Lagrangian_unit)
+
+    end subroutine Write_out_Lagrangian
+
 
 
     subroutine Finalise_2e_RDM(Norm_2RDM_Inst, Norm_2RDM) 
@@ -3475,7 +3507,7 @@ MODULE nElRDMMod
     end subroutine Write_out_2RDM
 
 
-    SUBROUTINE Calc_Energy_from_RDM()
+    SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
 ! This routine takes the 1 electron and 2 electron reduced density matrices 
 ! and calculated the energy they give.    
 ! The equation for the energy is as follows:
@@ -3488,10 +3520,11 @@ MODULE nElRDMMod
 !   Tr(h2 2RDM) = Sum_i,j;k,l [ h2(i,j;k,l) 2RDM(k,l;i,j) ]
         USE IntegralsData , only : UMAT
         USE UMatCache , only : UMatInd
-        USE RotateOrbsMod , only : SymLabelList2
+        USE RotateOrbsMod , only : SymLabelList2_rot
         USE UMatCache , only : GTID
         implicit none
-        real(dp) :: Norm_2RDM, Norm_2RDM_Inst
+        real(dp), intent(out) :: Norm_2RDM
+        real(dp) :: Norm_2RDM_Inst
         INTEGER :: i,j,a,b,Ind1_aa,Ind1_ab,Ind2_aa,Ind2_ab,ierr
         INTEGER :: iSpin, jSpin, error
         REAL(dp) :: RDMEnergy_Inst, RDMEnergy, Coul, Exch, Parity_Factor 
@@ -3624,7 +3657,376 @@ MODULE nElRDMMod
         CALL halt_timer(RDMEnergy_Time)
 
     END SUBROUTINE Calc_Energy_from_RDM
+    
+    SUBROUTINE Calc_Lagrangian_from_RDM(Norm_2RDM)
+! CMO
+! This routine takes the 1 electron and 2 electron reduced density matrices 
+! and calculated the Lagrangian term, X, required for the calculation of forces.    
+! The equation for X is as follows:
+!
+!   X_pq = Sum_r[h_pr 1RDM_qr] + Sum_rst[(pr|st)[2RDM_qrst + 2RDM_rqst]]
+!        where 2RDM is defined in the traditional sense: 2RDM_ijkl = <Psi| a_i+ a_k+ a_l a_j|Psi>
+!
+!   Converting this to notation consistent with the rest of this module:
+!
+!   X_pq = Sum_r[h1(p,r) 1RDM(r,q)] + Sum_rst[h2(p,r;s,t)[2RDM(q,s;r,t) + 2RDM(r,s;q,t)]
+!
+!       where the subset 2RDM is now defined in the two-index notation: 2RDM(i,j;k,l) =  <Psi| a_i+ a_j+ a_l a_k|Psi>
+!
+! where h1 are the 2 index integrals, and h2 the 4 index integrals.
+        USE IntegralsData , only : UMAT
+        USE UMatCache , only : UMatInd
+        USE RotateOrbsMod , only : SymLabelList2_rot
+        USE UMatCache , only : GTID
+        USE Logging, only : tDumpForcesInfo
+        implicit none
+        real(dp), intent(in) :: Norm_2RDM
+        real(dp) :: Norm_2RDM_Inst
+        INTEGER :: p,q,r,s,t,ierr,stat
+        INTEGER :: pSpin, qSpin, rSpin, error
+        INTEGER :: Ind1_aa_qs,Ind1_ab_qs,Ind2_aa_qt,Ind2_ab_qt
+        INTEGER :: Ind1_aa_sq,Ind1_ab_sq,Ind2_aa_tq,Ind2_ab_tq
+        INTEGER :: Ind1_aa_rs,Ind1_ab_rs,Ind2_aa_rt,Ind2_ab_rt
+        INTEGER :: Ind1_aa_sr,Ind1_ab_sr,Ind2_aa_tr,Ind2_ab_tr
+        REAL(dp) :: RDMEnergy_Inst, RDMEnergy, Coul, Exch, Parity_Factor 
+        REAL(dp) :: Trace_2RDM_New, RDMEnergy1, RDMEnergy2
+!        REAL(dp) :: Lagrangian(SpatOrbs,SpatOrbs)
 
+        ALLOCATE(Lagrangian(SpatOrbs,SpatOrbs),stat=ierr)
+        
+        ! We will begin by calculating Lagrangian in a basis of beta spin orbitals - we will explicitely calculate
+        ! both halves (X_pq and X_qp) in order to check if it is symmetric or not.
+        !  - a symmetric Lagrangian is important in allowing us to use the derivative overlap matrix rather than the 
+        !    coupled-perturbed coefficients when calculating the Forces later on 
+        !    (see Sherrill, Analytic Gradients of CI Energies eq38)
+
+        ! Note that the trace of the Lagrangian should be equal to the energy as calculated from the RDMs.
+        ! Note that ab terms of the lagrangian are zero by definition.
+        ! Equally, for a closed-shell calculation, aa terms are the same as the paired bb terms
+        ! Density Matrices are not setup to work with open-shell problems yet, so we will deal with this situation as
+        ! it becomes necessary
+
+        Lagrangian(:,:)=0.D0
+
+        ! Normalise, make hermitian, print etc - Wary of summing things up twice! This has already been called at the end of the calc
+        !call Finalise_2e_RDM(Norm_2RDM_Inst, Norm_2RDM)
+
+        !if(tFinalLagrangian) then
+            write(6,*) ''
+            write(6,*) 'Calculating the Lagrangian X from the final density matrices'
+        !endif
+
+        if(iProcIndex.eq.0) then
+
+            do p = 1, SpatOrbs  !Run over just the beta spin orbitals - Any alpha/beta terms in X are zero
+                pSpin = 2 * p    ! Picks out beta component
+
+                WRITE(6,*) "Running over p: p=", p
+
+                do q = 1, SpatOrbs  !Want to calculate X(p,q) separately from X(q,p) for now to see if we're symmetric
+                    qSpin = 2 * q  !Picks out beta component
+                
+                    WRITE(6,*) "Running over q: q=", q
+
+                    do r = 1, SpatOrbs
+
+                        WRITE(6,*) "Running over r: r=", r
+
+                        rSpin=2*r
+
+                        ! Adding in contributions effectively from the 1-RDM (although these are calculated 
+                        ! from the 2-RDM.
+                        
+                        !call calc_1RDM_Lagrangian(p,q,r,pSpin,rSpin, Norm_2RDM, Norm_2RDM_Inst)
+                        if(tStoreSpinOrbs) then
+                            WRITE(6,*) "Yes storing spin orbs"
+                            Lagrangian(p,q)=Lagrangian(p,q)+2*NatOrbMat(SymLabelListInv_rot(2*q),SymLabelListInv_rot(2*r))* &
+                               REAL(TMAT2D(pSpin,rSpin),8)
+                               ! Include both aa and bb contributions
+                               WRITE(6,*) "r contribution to X_pq is twice", NatOrbMat(SymLabelListInv_rot(2*q),SymLabelListInv_rot(2*r)), &
+                                                 "times",  REAL(TMAT2D(pSpin,rSpin),8)
+                        else
+                            WRITE(6,*) "Storing spatial orbs"
+                            Lagrangian(p,q)=Lagrangian(p,q)+NatOrbMat(SymLabelListInv_rot(q),SymLabelListInv_rot(r))* &
+                               REAL(TMAT2D(pSpin,rSpin),8)
+                               WRITE(6,*) "r contribution to X_pq is", NatOrbMat(SymLabelListInv_rot(q),SymLabelListInv_rot(r)), &
+                                                 "times",  REAL(TMAT2D(pSpin,rSpin),8)
+                        endif
+
+                        WRITE(6,*) "p=",p," q=",q," Lagrangian(p,q)=", Lagrangian(p,q)
+
+                        ! Adding in the 1-RDM contribution to the Lagrangian term X(i,j)
+                        !! Add in aaaa terms h_pr*gamma_rq and bbbb terms of the same type
+                        !! note that p&r, r&q pairs must all have the same spin in order for these terms to contribute
+
+                        do s = 1, SpatOrbs
+
+                            WRITE(6,*) "Running over s: s=", s
+
+                            ! Here we're looking to start adding on the contributions from the 2-RDM and the 2-el integrals
+                            ! For X(p,q), these have the form (pr|st) * [Gamma(qs;rt) + Gamma(rs;qt)]
+                            ! For the integral to be non-zero, p&r and s&t pairs must have the same spin
+                            ! For the density matrix to be non-zero q&r must also have the same spin
+                            ! So, p,q,r must be of the same spin; s&t must be of the same spin
+                            ! Therefore we can consider the contribution to the Lagrangian:
+                            ! X(p,q) += Sum_rst from 1 to Spatial { (2p-1 2r-1 | 2s 2t ) * [Gamma_abab(qs;rt) +Gamma_abab(rs;qt)]
+                            !                       + (2p-1 2r-1 | 2s-1 2t-1 ) * [Gamma_aaaa(qs;rt) +Gamma_aaaa(rs;qt)] }
+                            
+                            ! We'll need to consider the alpha (2p-1,2q-1) and beta (2p,2q) terms separately
+
+                            ! As the 2-RDM is stored as a 2-index integral, we need to translate the 4-index notation to the 2-index
+                            ! Index1 will depend on q&s or r&s
+                            ! Index2 will depend on r&t or q&t
+                    
+                            !Ind1_aa_qs = ( ( (s-2) * (s-1) ) / 2 ) + q
+                            !Ind1_aa_rs = ( ( (s-2) * (s-1) ) / 2 ) + r
+                            !Ind1_ab_qs = ( ( (s-1) * s ) / 2 ) + q
+                            !Ind1_ab_rs = ( ( (s-1) * s ) / 2 ) + r
+                
+                            do t=1, SpatOrbs
+                                write(6,*) "running over t: t=", t
+                                WRITE(6,*) "p,q, Lagrangian(p,q) is currently", p, q, Lagrangian(p,q)
+                                    call flush(6)
+
+                               ! Ind2_aa_rt = ( ( (t-2) * (t-1) ) / 2 ) + r
+                               ! Ind2_aa_qt = ( ( (t-2) * (t-1) ) / 2 ) + q
+                               ! Ind2_ab_rt = ( ( (t-1) * t ) / 2 ) + r
+                               ! Ind2_ab_qt = ( ( (t-1) * t ) / 2 ) + q
+
+                                ! UMAT in chemical notation.
+                                ! In spin or spatial orbitals.
+                                !Coul = REAL(UMAT(UMatInd(p,r,s,t,0,0)),8)
+                                Coul = REAL(UMAT(UMatInd(p,s,r,t,0,0)),8)
+                                !Give indices in PHYSICAL NOTATION *CMO
+
+                                WRITE(6,*) "Integral (pr|st) or <ps|rt> is ", Coul
+                                    call flush(6)
+                                !Exch = REAL(UMAT(UMatInd(i,j,b,a,0,0)),8)
+                                
+                                !We need to find elements D_qs,rt and D_rs,qt where
+                                !p,q and r are all BETA
+                                !s and t are the same spin (ALPHA or BETA)
+                                if ((s.ne.q) .and. (t.ne.r)) then  !Don't have to worry about any q=s or t=r terms yet - bbbb always allowed
+                                    if ((s.gt.q) .and. (t.gt.r)) then       !The D_qs,rt is correctly ordered
+                                        Ind1_aa_qs = ( ( (s-2) * (s-1) ) / 2 ) + q
+                                        Ind2_aa_rt = ( ( (t-2) * (t-1) ) / 2 ) + r
+                                        Lagrangian(p,q)=Lagrangian(p,q) + (All_aaaa_RDM(Ind1_aa_qs,Ind2_aa_rt) &
+                                                                        * Norm_2RDM * Coul)
+                                        WRITE(6,*) "qsrt aaaa contribution", q,s,r,t,All_aaaa_RDM(Ind1_aa_qs,Ind2_aa_rt)*Norm_2RDM
+                                        call flush(6)
+                                        Ind1_ab_qs = ( ( (s-1) * s ) / 2 ) + q
+                                        Ind2_ab_rt = ( ( (t-1) * t ) / 2 ) + r
+                                        Lagrangian(p,q)=Lagrangian(p,q) + (All_abab_RDM(Ind1_ab_qs,Ind2_ab_rt) &
+                                                                         * Norm_2RDM * Coul)
+                                        !Don't need to worry about s=q or t=r cases, as these are stored in abab anyway
+                                        WRITE(6,*) "qsrt abab contribution", q,s,r,t,All_abab_RDM(Ind1_ab_qs,Ind2_ab_rt)
+                                        call flush(6)
+                                    elseif ((s.gt.q) .and. (r.gt.t)) then  ! We need to reorder D_qs,rt to -D_qs,tr
+                                        Ind1_aa_qs = ( ( (s-2) * (s-1) ) / 2 ) + q
+                                        Ind2_aa_tr = ( ( (r-2) * (r-1) ) / 2 ) + t
+                                        call flush(6)
+                                        Lagrangian(p,q)=Lagrangian(p,q) - (All_aaaa_RDM(Ind1_aa_qs,Ind2_aa_tr) &
+                                                                        * Norm_2RDM * Coul)
+                                        WRITE(6,*) "qstr aaaa contribution", q,s,t,r,-All_aaaa_RDM(Ind1_aa_qs,Ind2_aa_tr)*Norm_2RDM
+                                        call flush(6)
+                                        ! only abab possible as spin t must equal spin s    
+                                        Lagrangian(p,q)=Lagrangian(p,q) - (All_abba_RDM(Ind1_aa_qs,Ind2_aa_tr) &
+                                                                             * Norm_2RDM * Coul)
+                                        WRITE(6,*) "qstr abba contribution", q,s,t,r,-All_abba_RDM(Ind1_aa_qs,Ind2_aa_tr)*Norm_2RDM
+                                        call flush(6)
+                                    elseif ((q.gt.s) .and. (t.gt.r)) then  ! We need to reorder D_qs,rt to -D_sq,rt
+                                        Ind1_aa_sq = ( ( (q-2) * (q-1) ) / 2 ) + s
+                                        Ind2_aa_rt = ( ( (t-2) * (t-1) ) / 2 ) + r
+                                        Lagrangian(p,q)=Lagrangian(p,q) -(All_aaaa_RDM(Ind1_aa_sq,Ind2_aa_rt) &
+                                                                        * Norm_2RDM * Coul)
+                                        WRITE(6,*) "sqrt aaaa contribution", s,q,r,t,-All_aaaa_RDM(Ind1_aa_sq,Ind2_aa_rt)*Norm_2RDM
+                                        call flush(6)
+                                        !no abab, as spin s must equal spin t
+                                        Lagrangian(p,q)=Lagrangian(p,q) - (All_abba_RDM(Ind1_aa_sq,Ind2_aa_rt) &
+                                                                         * Norm_2RDM * Coul)
+                                        WRITE(6,*) "sqrt abba contribution", s,q,r,t,-All_abba_RDM(Ind1_aa_sq,Ind2_aa_rt)*Norm_2RDM
+                                        call flush(6)
+                                    else !Must need to reodrder D_qs,rt to D_sq,tr
+                                        Ind1_aa_sq = ( ( (q-2) * (q-1) ) / 2 ) + s
+                                        Ind2_aa_tr = ( ( (r-2) * (r-1) ) / 2 ) + t
+                                        Lagrangian(p,q)=Lagrangian(p,q) + (All_aaaa_RDM(Ind1_aa_sq,Ind2_aa_tr) &
+                                                                        * Norm_2RDM * Coul)
+                                        WRITE(6,*) "sqtr aaaa contribution", s,q,t,r,All_aaaa_RDM(Ind1_aa_sq,Ind2_aa_tr)*Norm_2RDM
+                                        call flush(6)
+                                        Ind1_ab_sq = ( ( (q-1) * q ) / 2 ) + s
+                                        Ind2_ab_tr = ( ( (r-1) * r ) / 2 ) + t
+                                        Lagrangian(p,q)=Lagrangian(p,q) + (All_abab_RDM(Ind1_ab_sq,Ind2_ab_tr) &
+                                                                         * Norm_2RDM * Coul)
+                                        WRITE(6,*) "sqtr abab contribution", s,q,t,r,All_abab_RDM(Ind1_ab_sq,Ind2_ab_tr)
+                                        call flush(6)
+                                    endif
+                                elseif (((s.eq.q) .and. (t.gt.r)) .or. ((s.gt.q) .and. (t.eq.r)) .or. ((s.eq.q) .and. (t.eq.r))) then
+                                        ! Everything is in the right order already
+                                        Ind1_ab_qs = ( ( (s-1) * s ) / 2 ) + q
+                                        Ind2_ab_rt = ( ( (t-1) * t ) / 2 ) + r
+                                        if ((s.eq.q) .and. (t.eq.r)) then
+                                        ! this array contains only one contribution, rather than aaaa + bbbb (for example)
+                                        ! We think that we now need to double it in order to properly convert from spin
+                                        ! to spatial orbs (see eq 2.7.9 in Helgie)
+                                            Lagrangian(p,q)=Lagrangian(p,q) + 2*(All_abab_RDM(Ind1_ab_qs,Ind2_ab_rt) &
+                                                                         * Norm_2RDM * Coul)
+                                        WRITE(6,*) "qsrt abab contribution", q,s, r, t, 2*All_abab_RDM(Ind1_ab_qs,Ind2_ab_rt)*Norm_2RDM
+                                        else
+                                            Lagrangian(p,q)=Lagrangian(p,q) + (All_abab_RDM(Ind1_ab_qs,Ind2_ab_rt) &
+                                                                         * Norm_2RDM * Coul)
+                                        WRITE(6,*) "qsrt abab contribution", q,s, r, t, All_abab_RDM(Ind1_ab_qs,Ind2_ab_rt)*Norm_2RDM
+                                        endif
+                                elseif ((s.eq.q) .and. (r.gt.t)) then
+                                        ! need to reorder D_qs,rt to -D_qs,tr
+                                        Ind1_ab_qs = ( ( (s-1) * s ) / 2 ) + q
+                                        Ind2_ab_tr = ( ( (r-1) * r ) / 2 ) + t
+                                        ! We would want to look up -D_qs,tr in abba (on account of spin contraints)
+                                        ! However, all such terms are stored abab, so instead we look up D_qs,tr in abab
+                                        Lagrangian(p,q)=Lagrangian(p,q) + (All_abab_RDM(Ind1_ab_qs,Ind2_ab_tr) &
+                                                                         * Norm_2RDM * Coul)
+                                        WRITE(6,*) "qstr abab contribution", q,s, t, r, All_abab_RDM(Ind1_ab_qs,Ind2_ab_tr)*Norm_2RDM
+                                elseif ((q.gt.s) .and. (t.eq.r)) then
+                                        ! need to reorder D_qs,rt to -D_sq,rt
+                                        Ind1_ab_sq = ( ( (q-1) * q ) / 2 ) + s
+                                        Ind2_ab_tr = ( ( (r-1) * r ) / 2 ) + t
+                                        ! We would want to look up -D_sq,rt in abba (on account of spin contraints)
+                                        ! However, all such terms are stored abab, so instead we look up D_sq,rt in abab
+                                        Lagrangian(p,q)=Lagrangian(p,q) + (All_abab_RDM(Ind1_ab_sq,Ind2_ab_tr) &
+                                                                         * Norm_2RDM * Coul)
+                                        WRITE(6,*) "sqrt abab contribution", s,q, r, t, All_abab_RDM(Ind1_ab_sq,Ind2_ab_rt)*Norm_2RDM
+                                endif
+                                
+                                if ((s.ne.r) .and. (t.ne.q)) then  !Don't have to worry about any r=s or t=q terms yet - bbbb always allowed
+                                    if ((s.gt.r) .and. (t.gt.q)) then       !The D_rs,qt is correctly ordered
+                                        Ind1_aa_rs = ( ( (s-2) * (s-1) ) / 2 ) + r
+                                        Ind2_aa_qt = ( ( (t-2) * (t-1) ) / 2 ) + q
+                                        Lagrangian(p,q)=Lagrangian(p,q) + (All_aaaa_RDM(Ind1_aa_rs,Ind2_aa_qt) &
+                                                                        * Norm_2RDM * Coul)
+                                        Ind1_ab_rs = ( ( (s-1) * s ) / 2 ) + r
+                                        Ind2_ab_qt = ( ( (t-1) * t ) / 2 ) + q
+                                        Lagrangian(p,q)=Lagrangian(p,q) + (All_abab_RDM(Ind1_ab_rs,Ind2_ab_qt) &
+                                                                         * Norm_2RDM * Coul)
+                                        WRITE(6,*) "rsqt aaaa contribution", r, s,q,t, All_aaaa_RDM(Ind1_aa_rs,Ind2_aa_qt)*Norm_2RDM
+                                        WRITE(6,*) "rsqt abab contribution", r, s,q,t, All_abab_RDM(Ind1_ab_rs,Ind2_ab_qt)*Norm_2RDM
+                                        !Don't need to worry about s=r or t=q cases, as these are stored in abab anyway
+                                    elseif ((s.gt.r) .and. (q.gt.t)) then  ! We need to reorder D_rs,qt to -D_rs,tq
+                                        Ind1_aa_rs = ( ( (s-2) * (s-1) ) / 2 ) + r
+                                        Ind2_aa_tq = ( ( (q-2) * (q-1) ) / 2 ) + t
+                                        call flush(6)
+                                        Lagrangian(p,q)=Lagrangian(p,q) - (All_aaaa_RDM(Ind1_aa_rs,Ind2_aa_tq) &
+                                                                        * Norm_2RDM * Coul)
+                                        WRITE(6,*) "qstr aaaa contribution", r,s,t,q,-All_aaaa_RDM(Ind1_aa_rs,Ind2_aa_tq)*Norm_2RDM
+                                        call flush(6)
+                                        ! only abab possible as spin t must equal spin s    
+                                        Lagrangian(p,q)=Lagrangian(p,q) - (All_abba_RDM(Ind1_aa_rs,Ind2_aa_tq) &
+                                                                             * Norm_2RDM * Coul)
+                                        WRITE(6,*) "qstr abba contribution", r,s,t,q,-All_abba_RDM(Ind1_aa_rs,Ind2_aa_tq)*Norm_2RDM
+                                        call flush(6)
+                                    elseif ((r.gt.s) .and. (t.gt.q)) then  ! We need to reorder D_rs,qt to -D_sr,qt
+                                        Ind1_aa_sr = ( ( (r-2) * (r-1) ) / 2 ) + s
+                                        Ind2_aa_qt = ( ( (t-2) * (t-1) ) / 2 ) + q
+                                        Lagrangian(p,q)=Lagrangian(p,q) - (All_aaaa_RDM(Ind1_aa_sr,Ind2_aa_qt) &
+                                                                        * Norm_2RDM * Coul)
+                                        WRITE(6,*) "srqt aaaa contribution", s,r,q,t,-All_aaaa_RDM(Ind1_aa_sr,Ind2_aa_qt)*Norm_2RDM
+                                        call flush(6)
+                                        !no abab, as spin s must equal spin t
+                                        Lagrangian(p,q)=Lagrangian(p,q) - (All_abba_RDM(Ind1_aa_sr,Ind2_aa_qt) &
+                                                                         * Norm_2RDM * Coul)
+                                        WRITE(6,*) "srqt abba contribution", s,r,q,t,-All_abba_RDM(Ind1_aa_sr,Ind2_aa_qt)*Norm_2RDM
+                                        call flush(6)
+                                    else !Must need to reodrder D_rs,qt to D_sr,tq
+                                        Ind1_aa_sq = ( ( (r-2) * (r-1) ) / 2 ) + s
+                                        Ind2_aa_tr = ( ( (q-2) * (q-1) ) / 2 ) + t
+                                        Lagrangian(p,q)=Lagrangian(p,q) + (All_aaaa_RDM(Ind1_aa_sr,Ind2_aa_tq) &
+                                                                        * Norm_2RDM * Coul)
+                                        WRITE(6,*) "srtq aaaa contribution", s,r,t,q,All_aaaa_RDM(Ind1_aa_sr,Ind2_aa_tq)*Norm_2RDM
+                                        call flush(6)
+                                        Ind1_ab_sr = ( ( (r-1) * r ) / 2 ) + s
+                                        Ind2_ab_tq = ( ( (q-1) * q ) / 2 ) + t
+                                        Lagrangian(p,q)=Lagrangian(p,q) + (All_abab_RDM(Ind1_ab_sr,Ind2_ab_tq) &
+                                                                         * Norm_2RDM * Coul)
+                                        WRITE(6,*) "srtq abab contribution", s,q,t,r,All_abab_RDM(Ind1_ab_sr,Ind2_ab_tq)*Norm_2RDM
+                                        call flush(6)
+                                    endif
+                                elseif (((s.eq.r) .and. (t.gt.q)) .or. ((s.gt.r) .and. (t.eq.q)) &
+                                                .or. ((s.eq.r) .and. (t.eq.q))) then
+                                        ! Everything is in the right order already
+                                        Ind1_ab_rs = ( ( (s-1) * s ) / 2 ) + r
+                                        Ind2_ab_qt = ( ( (t-1) * t ) / 2 ) + q
+                                        if ((s.eq.r) .and. (t.eq.q)) then
+                                        ! this array contains only one contribution, rather than aaaa + bbbb (for example)
+                                        ! We think that we now need to double it in order to properly convert from spin
+                                        ! to spatial orbs (see eq 2.7.9 in Helgie)
+                                            Lagrangian(p,q)=Lagrangian(p,q) + 2*(All_abab_RDM(Ind1_ab_rs,Ind2_ab_qt) &
+                                                                         * Norm_2RDM * Coul)
+                                        WRITE(6,*) "rsqt abab contribution", r,s, q, t, 2*All_abab_RDM(Ind1_ab_rs,Ind2_ab_qt)*Norm_2RDM
+                                        else
+                                            Lagrangian(p,q)=Lagrangian(p,q) + (All_abab_RDM(Ind1_ab_rs,Ind2_ab_qt) &
+                                                                         * Norm_2RDM * Coul)
+                                        WRITE(6,*) "rsqt abab contribution", r,s, q, t, All_abab_RDM(Ind1_ab_rs,Ind2_ab_qt)*Norm_2RDM
+                                        endif
+                                elseif ((s.eq.r) .and. (q.gt.t)) then
+                                        ! need to reorder D_rs,qt to -D_rs,tq
+                                        Ind1_ab_rs = ( ( (s-1) * s ) / 2 ) + r
+                                        Ind2_ab_tq = ( ( (q-1) * q ) / 2 ) + t
+                                        ! We would want to look up -D_rs,tq in abba (on account of spin contraints)
+                                        ! However, all such terms are stored abab, so instead we look up D_rs,tq in abab
+                                        Lagrangian(p,q)=Lagrangian(p,q) + (All_abab_RDM(Ind1_ab_rs,Ind2_ab_tq) &
+                                                                         * Norm_2RDM * Coul)
+                                        WRITE(6,*) "rstq abab contribution", r, s,t, q, All_abab_RDM(Ind1_ab_rs,Ind2_ab_tq)*Norm_2RDM
+                                elseif ((r.gt.s) .and. (t.eq.q)) then
+                                        ! need to reorder D_qs,rt to -D_sq,rt
+                                        Ind1_ab_sr = ( ( (r-1) * r ) / 2 ) + s
+                                        Ind2_ab_tq = ( ( (q-1) * q ) / 2 ) + t
+                                        ! We would want to look up -D_sq,rt in abba (on account of spin contraints)
+                                        ! However, all such terms are stored abab, so instead we look up D_sq,rt in abab
+                                        Lagrangian(p,q)=Lagrangian(p,q) + (All_abab_RDM(Ind1_ab_sr,Ind2_ab_tq) &
+                                                                         * Norm_2RDM * Coul)
+                                        WRITE(6,*) "srtq abab contribution", s,r,t,q, All_abab_RDM(Ind1_ab_sr,Ind2_ab_tq)*Norm_2RDM
+                                endif
+
+                                !___    
+                                !if((q.ne.s).and.(r.ne.t)) then
+                                !    ! Cannot get q=s or r=t contributions in aaaa. RDM_aaaa(qs;rt)
+                                !    Lagrangian(p,q)=Lagrangian(p,q) + (All_aaaa_RDM(Ind1_aa_qs,Ind2_aa_rt) &
+                                !                                        * Norm_2RDM * Coul)
+                                !    WRITE(6,*) "qsrt aaaa contribution", All_aaaa_RDM(Ind1_aa_qs,Ind2_aa_rt)
+                                !endif
+                                
+                               ! if((r.ne.s).and.(q.ne.t)) then
+                                    ! Cannot get r=s or q=t contributions in aaaa. RDM_aaaa(rs;qt)
+                               !     Lagrangian(p,q)=Lagrangian(p,q) + (All_aaaa_RDM(Ind1_aa_rs,Ind2_aa_qt) &
+                               !                                         * Norm_2RDM * Coul)
+                               !     WRITE(6,*) "rsqt aaaa contribution", All_aaaa_RDM(Ind1_aa_rs,Ind2_aa_qt)
+                               ! endif
+                                    
+                                ! For abab cases, coul element will be non-zero, exchange zero.
+                                
+                                !Lagrangian(p,q)=Lagrangian(p,q) + ((All_abab_RDM(Ind1_ab_rs,Ind2_ab_qt) &
+                                 !                                       + All_abab_RDM(Ind1_ab_qs,Ind2_ab_rt)) * Norm_2RDM * Coul)
+                                !    WRITE(6,*) "rsqt abab contribution", All_abab_RDM(Ind1_ab_rs,Ind2_ab_qt)
+                                !    WRITE(6,*) "qsrt abab contribution", All_abab_RDM(Ind1_ab_qs,Ind2_ab_rt)
+
+                                ! For abba cases, coul element will be zero, so there is no contribution
+                                           call flush(6)
+                            enddo
+
+                    enddo
+                enddo
+                WRITE(6,*) "p=", p, " q=", q, " Lagrangian(p,q)=", Lagrangian(p,q)
+            enddo
+        enddo
+
+        call Write_out_Lagrangian()
+
+        !probably don't need these for now (only calculating Lagrangian once at the end), but we might need it in future
+        aaaa_RDM(:,:) = 0.0_dp
+        abab_RDM(:,:) = 0.0_dp
+        abba_RDM(:,:) = 0.0_dp
+        AccumRDMNorm_Inst = 0.0_dp
+        Trace_2RDM_Inst = 0.0_dp
+    endif
+    end subroutine
 
     subroutine calc_1RDM_energy(i,j,a,iSpin,jSpin,Norm_2RDM,Norm_2RDM_Inst,&
                                                     RDMEnergy_Inst,RDMEnergy1)
@@ -3634,7 +4036,7 @@ MODULE nElRDMMod
         ! want to calculate:    gamma(i,j) * h_ij
         ! h_ij => TMAT2D(iSpin,jSpin)
         USE OneEInts , only : TMAT2D
-        USE Logging , only : tDiagRDM
+        USE Logging , only : tDiagRDM, tDumpForcesInfo
         implicit none
         integer , intent(in) :: i,j,a,iSpin,jSpin
         real(dp) , intent(in) :: Norm_2RDM, Norm_2RDM_Inst
@@ -3659,9 +4061,9 @@ MODULE nElRDMMod
                                                 * REAL(TMAT2D(iSpin,jSpin),8) &
                                                 * (1.0_dp / real(NEl - 1,dp)) )
 
-            if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
-                NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) = &
-                            NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) &
+            if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then                                                
+                NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
+                            NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) &
                                         + ( All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
                                                 * (1.0_dp / real(NEl - 1,dp)) ) 
             endif
@@ -3676,9 +4078,9 @@ MODULE nElRDMMod
                                                     * REAL(TMAT2D(jSpin,iSpin),8) &
                                                     * (1.0_dp / real(NEl - 1,dp)) )
 
-                if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
-                    NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) = &
-                            NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) &
+                if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then                                                
+                    NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
+                            NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
                                         + ( All_abab_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM &
                                                 * (1.0_dp / real(NEl - 1,dp)) ) 
                 endif
@@ -3695,9 +4097,9 @@ MODULE nElRDMMod
                                             * REAL(TMAT2D(iSpin,jSpin),8) &
                                             * (1.0_dp / real(NEl - 1,dp)) )
 
-                if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
-                    NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) = &
-                            NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) &
+                if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then                                                
+                    NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
+                            NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
                                         + ( All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
                                                 * (1.0_dp / real(NEl - 1,dp)) ) 
                 endif
@@ -3719,8 +4121,8 @@ MODULE nElRDMMod
                                                     * (1.0_dp / real(NEl - 1,dp)) )
 
                 if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
-                    NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) = &
-                                NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) &
+                    NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
+                                NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) &
                                             - ( All_abba_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
                                                     * (1.0_dp / real(NEl - 1,dp)) ) 
                 endif
@@ -3734,8 +4136,8 @@ MODULE nElRDMMod
                                                         * (1.0_dp / real(NEl - 1,dp)) )
 
                     if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
-                        NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) = &
-                                NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) &
+                        NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
+                                NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
                                             - ( ( All_abba_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
                                                     * (1.0_dp / real(NEl - 1,dp)) ) / 2.0_dp )
                     endif
@@ -3757,8 +4159,8 @@ MODULE nElRDMMod
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
 
             if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
-                NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) = &
-                            NatOrbMat(SymLabelListInv(i),SymLabelListInv(j)) &
+                NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
+                            NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) &
                                         + ( All_aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor ) 
             endif
@@ -3772,8 +4174,8 @@ MODULE nElRDMMod
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
 
                 if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
-                    NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) = &
-                            NatOrbMat(SymLabelListInv(j),SymLabelListInv(i)) &
+                    NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
+                            NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
                                         + ( All_aaaa_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
                 endif
@@ -3781,7 +4183,74 @@ MODULE nElRDMMod
         endif
 
     end subroutine calc_1RDM_energy
+    
+    subroutine calc_1RDM_Lagrangian(p,q,r,pSpin,rSpin,Norm_2RDM,Norm_2RDM_Inst)
+! This routine calculates the 1-RDM part of the RDM energy, and constructs the 
+! 1-RDM if required for diagonalisation or something.
+        ! gamma(i,j) = [1/(NEl - 1)] * SUM_a Gamma(i,a,j,a) 
+        ! want to calculate:    gamma(i,j) * h_ij
+        ! h_ij => TMAT2D(iSpin,jSpin)
+        USE OneEInts , only : TMAT2D
+        USE Logging , only : tDiagRDM
+        implicit none
+        integer , intent(in) :: p,q,r,pSpin,rSpin
+        real(dp) , intent(in) :: Norm_2RDM, Norm_2RDM_Inst
+  !      real(dp) , intent(inout) :: Lagrangian_pq
+        real(dp) :: Parity_Factor
+        integer :: Ind1_1e_ab, Ind2_1e_ab
+        integer :: Ind1_1e_aa, Ind2_1e_aa, a
 
+            WRITE(6,*) "Running over a: a dummy index required to extract 1RDM from 2RDM"
+            WRITE(6,*) "Norm_2RDM is ", Norm_2RDM
+            WRITE(6,*) "h_pr is ", REAL(TMAT2D(pSpin,rSpin),8)
+     
+        do a=1, SpatOrbs
+
+            WRITE(6,*) "a= ", a
+
+            Ind1_1e_ab = ( ( (max(r,a)-1) * max(r,a) ) / 2 ) + min(r,a)
+            Ind2_1e_ab = ( ( (max(q,a)-1) * max(q,a) ) / 2 ) + min(q,a)
+
+        ! for q a -> r a excitation, when lined up as min max -> min max, 
+        ! if a's are aligned, only a b a b arrays contain single excitations, 
+        ! if a's not aligned, a b b a.
+        ! all a a a a will contain single excitations.
+            if(((r.le.a).and.(q.le.a)).or.((r.ge.a).and.(q.ge.a))) then
+           
+                Lagrangian(p,q) = Lagrangian(p,q) + ( (All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM) &
+                                                * REAL(TMAT2D(pSpin,rSpin),8) &
+                                               * (1.0_dp / real(NEl - 1,dp)) )
+WRITE(6,*) "abab contribution", All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab)
+            endif
+
+            if((r.ne.a).and.(q.ne.a)) then
+                Ind1_1e_aa = ( ( (max(r,a)-2) * (max(r,a)-1) ) / 2 ) + min(r,a)
+                Ind2_1e_aa = ( ( (max(q,a)-2) * (max(q,a)-1) ) / 2 ) + min(q,a)
+
+                if((r.ne.q).and.((r.lt.a).and.(q.gt.a)).or.((r.gt.a).and.(q.lt.a))) then
+                
+                    Lagrangian(p,q) = Lagrangian(p,q) - ( (All_abba_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM) &
+                                                    * REAL(TMAT2D(pSpin,rSpin),8) &
+                                                    * (1.0_dp / real(NEl - 1,dp)) )
+
+                                                    WRITE(6,*) "abba contribution", All_abba_RDM(Ind1_1e_aa,Ind2_1e_aa)
+                endif
+
+                if(((r.lt.a).and.(q.lt.a)).or.((r.gt.a).and.(q.gt.a))) then
+                    Parity_Factor = 1.0_dp
+                else
+                    Parity_Factor = -1.0_dp
+                endif
+!
+                Lagrangian(p,q) = Lagrangian(p,q) + ( (All_aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM) &
+                                                * REAL(TMAT2D(pSpin,rSpin),8) &
+                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
+                                                    
+                                                WRITE(6,*) "aaaa contribution", All_aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa)
+            endif
+        enddo
+
+    end subroutine calc_1RDM_Lagrangian
 
     subroutine find_nat_orb_occ_numbers()
 ! Diagonalises the 1-RDM (NatOrbMat), so that after this routine NatOrbMat is the 
@@ -3899,7 +4368,7 @@ MODULE nElRDMMod
         ! We just want the Evalues in the same order as above, but the 1:nBasis part (corresponding 
         ! to the molecular orbitals), needs to refer to the actual orbital labels.
         ! Want these orbitals to preferably be in order, run through the orbital, need the position 
-        ! to find the corresponding NatOrbs element, use SymLabelListInv
+        ! to find the corresponding NatOrbs element, use SymLabelListInv_rot
         if(.not.tNoNOTransform) then
             NatOrbs_unit = get_free_unit()
             OPEN(NatOrbs_unit,file='NO_TRANSFORM',status='unknown')
@@ -3921,11 +4390,11 @@ MODULE nElRDMMod
                         endif
                     endif
                     if(tWrittenEvalue) then
-                        if(NatOrbMat(SymLabelListInv(jInd),i).ne.0.0_dp) &
-                            write(NatOrbs_unit,'(2I6,G35.17)') j,NO_Number,NatOrbMat(SymLabelListInv(jInd),i)
+                        if(NatOrbMat(SymLabelListInv_rot(jInd),i).ne.0.0_dp) &
+                            write(NatOrbs_unit,'(2I6,G35.17)') j,NO_Number,NatOrbMat(SymLabelListInv_rot(jInd),i)
                     else
-                        if(NatOrbMat(SymLabelListInv(jInd),i).ne.0.0_dp) then 
-                            write(NatOrbs_unit,'(2I6,2G35.17)') j,NO_Number,NatOrbMat(SymLabelListInv(jInd),i),&
+                        if(NatOrbMat(SymLabelListInv_rot(jInd),i).ne.0.0_dp) then 
+                            write(NatOrbs_unit,'(2I6,2G35.17)') j,NO_Number,NatOrbMat(SymLabelListInv_rot(jInd),i),&
                                                                                 Evalues(i)/Norm_Evalues
                             tWrittenEvalue = .true.
                         endif
@@ -3939,13 +4408,13 @@ MODULE nElRDMMod
                         ! i is actually the spin orbital in this case.
                         jSpat = gtID(j)
                         if(tWrittenEvalue) then
-                            if(NatOrbMat(SymLabelListInv(jSpat),i).ne.0.0_dp) &
+                            if(NatOrbMat(SymLabelListInv_rot(jSpat),i).ne.0.0_dp) &
                                 write(NatOrbs_unit,'(2I6,G35.17)') j,NO_Number,&
-                                                                NatOrbMat(SymLabelListInv(jSpat),i)
+                                                                NatOrbMat(SymLabelListInv_rot(jSpat),i)
                         else
-                            if(NatOrbMat(SymLabelListInv(jSpat),i).ne.0.0_dp) then
+                            if(NatOrbMat(SymLabelListInv_rot(jSpat),i).ne.0.0_dp) then
                                 write(NatOrbs_unit,'(2I6,2G35.17)') j,NO_Number,&
-                                                        NatOrbMat(SymLabelListInv(jSpat),i), Evalues(i)/Norm_Evalues
+                                                        NatOrbMat(SymLabelListInv_rot(jSpat),i), Evalues(i)/Norm_Evalues
                                 tWrittenEvalue = .true.
                             endif
                         endif
@@ -3985,28 +4454,28 @@ MODULE nElRDMMod
                 tDiffSym = .false.
                 tDiffLzSym = .false.
                 if(tStoreSpinOrbs) then
-                    IF((INT(G1(SymLabelList2(i))%sym%S,4).ne.&
-                        INT(G1(SymLabelList2(j))%sym%S,4))) tDiffSym = .true.
-                    IF((INT(G1(SymLabelList2(i))%Ml,4).ne.&
-                        INT(G1(SymLabelList2(j))%Ml,4))) tDiffLzSym = .true.
+                    IF((INT(G1(SymLabelList2_rot(i))%sym%S,4).ne.&
+                        INT(G1(SymLabelList2_rot(j))%sym%S,4))) tDiffSym = .true.
+                    IF((INT(G1(SymLabelList2_rot(i))%Ml,4).ne.&
+                        INT(G1(SymLabelList2_rot(j))%Ml,4))) tDiffLzSym = .true.
                 else
-                    IF((INT(G1(2*SymLabelList2(i))%sym%S,4).ne.&
-                        INT(G1(2*SymLabelList2(j))%sym%S,4))) tDiffSym = .true.
-                    IF((INT(G1(2*SymLabelList2(i))%Ml,4).ne.&
-                        INT(G1(2*SymLabelList2(j))%Ml,4))) tDiffLzSym = .true.
+                    IF((INT(G1(2*SymLabelList2_rot(i))%sym%S,4).ne.&
+                        INT(G1(2*SymLabelList2_rot(j))%sym%S,4))) tDiffSym = .true.
+                    IF((INT(G1(2*SymLabelList2_rot(i))%Ml,4).ne.&
+                        INT(G1(2*SymLabelList2_rot(j))%Ml,4))) tDiffLzSym = .true.
                 endif
                 if(tDiffSym) then
                     IF(ABS(NatOrbMat(i,j)).ge.1.0E-15) THEN
                         WRITE(6,'(6A8,A20)') 'i','j','Label i','Label j','Sym i',&
                                                                 'Sym j','Matrix value'
                         if(tStoreSpinOrbs) then                                                              
-                            WRITE(6,'(6I3,F40.20)') i,j,SymLabelList2(i),SymLabelList2(j),&
-                                    INT(G1(SymLabelList2(i))%sym%S,4),&
-                                    INT(G1(SymLabelList2(j))%sym%S,4),NatOrbMat(i,j)
+                            WRITE(6,'(6I3,F40.20)') i,j,SymLabelList2_rot(i),SymLabelList2_rot(j),&
+                                    INT(G1(SymLabelList2_rot(i))%sym%S,4),&
+                                    INT(G1(SymLabelList2_rot(j))%sym%S,4),NatOrbMat(i,j)
                         else
-                            WRITE(6,'(6I3,F40.20)') i,j,SymLabelList2(i),SymLabelList2(j),&
-                                    INT(G1(2*SymLabelList2(i))%sym%S,4),&
-                                    INT(G1(2*SymLabelList2(j))%sym%S,4),NatOrbMat(i,j)
+                            WRITE(6,'(6I3,F40.20)') i,j,SymLabelList2_rot(i),SymLabelList2_rot(j),&
+                                    INT(G1(2*SymLabelList2_rot(i))%sym%S,4),&
+                                    INT(G1(2*SymLabelList2_rot(j))%sym%S,4),NatOrbMat(i,j)
                         endif
                         IF(tUseMP2VarDenMat) THEN
                             WRITE(6,*) '**WARNING** - There is a non-zero NatOrbMat &
@@ -4014,9 +4483,9 @@ MODULE nElRDMMod
                             WRITE(6,*) 'These elements will be ignored, and the symmetry &
                             &maintained in the final transformation matrix.'
                         ELSE
-                            write(6,*) 'k,SymLabelList2(k),SymLabelListInv(k)'
+                            write(6,*) 'k,SymLabelList2_rot(k),SymLabelListInv_rot(k)'
                             do k = 1,NoOrbs
-                                write(6,*) k,SymLabelList2(k),SymLabelListInv(k)
+                                write(6,*) k,SymLabelList2_rot(k),SymLabelListInv_rot(k)
                             enddo
                             call flush(6)
                             CALL Stop_All(this_routine,'Non-zero NatOrbMat value between &
@@ -4030,13 +4499,13 @@ MODULE nElRDMMod
                         WRITE(6,'(6A8,A40)') 'i','j','Label i','Label j','Lz i',&
                                                                 'Lz j','Matrix value'
                         if(tStoreSpinOrbs) then                                                              
-                            WRITE(6,'(6I8,F40.20)') i,j,SymLabelList2(i),SymLabelList2(j),&
-                                    INT(G1(SymLabelList2(i))%Ml,4),&
-                                    INT(G1(SymLabelList2(j))%Ml,4),NatOrbMat(i,j)
+                            WRITE(6,'(6I8,F40.20)') i,j,SymLabelList2_rot(i),SymLabelList2_rot(j),&
+                                    INT(G1(SymLabelList2_rot(i))%Ml,4),&
+                                    INT(G1(SymLabelList2_rot(j))%Ml,4),NatOrbMat(i,j)
                         else
-                            WRITE(6,'(6I8,F40.20)') i,j,SymLabelList2(i),SymLabelList2(j),&
-                                    INT(G1(2*SymLabelList2(i))%Ml,4),&
-                                    INT(G1(2*SymLabelList2(j))%Ml,4),NatOrbMat(i,j)
+                            WRITE(6,'(6I8,F40.20)') i,j,SymLabelList2_rot(i),SymLabelList2_rot(j),&
+                                    INT(G1(2*SymLabelList2_rot(i))%Ml,4),&
+                                    INT(G1(2*SymLabelList2_rot(j))%Ml,4),NatOrbMat(i,j)
                         endif
                         write(6,'(A)') ' **WARNING** - There is a non-zero NatOrbMat element &
                         &between orbitals of different Lz symmetry.'
@@ -4072,9 +4541,9 @@ MODULE nElRDMMod
         endif
         do while (Sym.le.MaxSym)
 
-            NoSymBlock=SymLabelCounts2(2,Sym+1)
+            NoSymBlock=SymLabelCounts2_rot(2,Sym+1)
 
-            SymStartInd=SymLabelCounts2(1,Sym+1)-1
+            SymStartInd=SymLabelCounts2_rot(1,Sym+1)-1
             ! This is one less than the index that the symmetry starts, so that when we 
             ! run through i=1,..., we can start at SymStartInd+i.
 
@@ -4136,11 +4605,11 @@ MODULE nElRDMMod
 !                WRITE(6,*) 'The eigenvectors (coefficients) for symmetry block ',Sym
 !                WRITE(6,'(I20)',advance='no') 0
 !                do i = 1, NoSymBlock
-!                    WRITE(6,'(I20)',advance='no') SymLabelList2(SymStartInd+i)
+!                    WRITE(6,'(I20)',advance='no') SymLabelList2_rot(SymStartInd+i)
 !                enddo
 !                write(6,*) ''
 !                do i=1,NoSymBlock
-!                    write(6,'(I20)',advance='no') SymLabelList2(SymStartInd+i)
+!                    write(6,'(I20)',advance='no') SymLabelList2_rot(SymStartInd+i)
 !                    do j=1,NoSymBlock
 !                        WRITE(6,'(F20.10)',advance='no') NOMSym(j,NoSymBlock-i+1)
 !                    enddo
@@ -4192,9 +4661,9 @@ MODULE nElRDMMod
             write(6,*) 'not equal to that after.'
         ENDIF
 
-! The MO's still correspond to SymLabelList2.
+! The MO's still correspond to SymLabelList2_rot.
 ! Although the NO's are slightly jumbled, they are only jumbled within their symmetry blocks.  
-! They still correspond to the symmetries of SymLabelList2, which is the important part.
+! They still correspond to the symmetries of SymLabelList2_rot, which is the important part.
 
 ! But in order to look at the output, it is easier to consider them in terms of highest 
 ! occupied to lowest occupied - i.e. in terms of the NO eigenvalues (occupation numbers).
@@ -4209,9 +4678,9 @@ MODULE nElRDMMod
         IMPLICIT NONE
         INTEGER :: spin,i,j,ierr,StartSort,EndSort
         CHARACTER(len=*), PARAMETER :: this_routine='OrderRDM'
-        INTEGER , ALLOCATABLE :: SymLabelList3(:)
+        INTEGER , ALLOCATABLE :: SymLabelList3_rot(:)
         REAL(dp) , ALLOCATABLE :: NatOrbMatTemp(:,:), EvaluesTemp(:)
-        INTEGER :: NatOrbMatTempTag, SymLabelList3Tag, EvaluesTempTag, Orb, New_Pos
+        INTEGER :: NatOrbMatTempTag, SymLabelList3_rotTag, EvaluesTempTag, Orb, New_Pos
         
 ! Here, if symmetry is kept, we are going to have to reorder the eigenvectors 
 ! according to the size of the eigenvalues, while taking the orbital labels 
@@ -4224,16 +4693,16 @@ MODULE nElRDMMod
         ALLOCATE(NatOrbMatTemp(NoOrbs,NoOrbs),stat=ierr)
         CALL LogMemAlloc('NatOrbMatTemp',NoOrbs**2,8,&
                             'OrderNatOrbMat',NatOrbMatTempTag,ierr)
-        ALLOCATE(SymLabelList3(NoOrbs),stat=ierr)
-        CALL LogMemAlloc('SymLabelList3',NoOrbs,4,&
-                            'OrderNatOrbMat',SymLabelList3Tag,ierr)
+        ALLOCATE(SymLabelList3_rot(NoOrbs),stat=ierr)
+        CALL LogMemAlloc('SymLabelList3_rot',NoOrbs,4,&
+                            'OrderNatOrbMat',SymLabelList3_rotTag,ierr)
         ALLOCATE(EvaluesTemp(NoOrbs),stat=ierr)
         CALL LogMemAlloc('EvaluesTemp',NoOrbs,4,&
                             'OrderNatOrbMat',EvaluesTempTag,ierr)
 
 ! Want to remember the original orbital ordering, as after the sort, the MO's 
 ! will still have this ordering.
-        SymLabelList3(:) = SymLabelList2(:)
+        SymLabelList3_rot(:) = SymLabelList2_rot(:)
 
         StartSort=1
         EndSort=SpatOrbs
@@ -4242,7 +4711,7 @@ MODULE nElRDMMod
 ! what we want.  Just remember this when printing out the Evalues.
         call sort (EValues(startSort:endSort), &
                    NatOrbMat(1:NoOrbs, startSort:endSort), &
-                   SymLabelList2(startSort:endSort))
+                   SymLabelList2_rot(startSort:endSort))
 
         if(tStoreSpinOrbs) then                  
             StartSort=SpatOrbs + 1
@@ -4250,7 +4719,7 @@ MODULE nElRDMMod
 
             call sort (EValues(startSort:endSort), &
                        NatOrbMat(1:NoOrbs, startSort:endSort), &
-                       SymLabelList2(startSort:endSort))
+                       SymLabelList2_rot(startSort:endSort))
 
         endif                       
 
@@ -4258,10 +4727,10 @@ MODULE nElRDMMod
 ! numbers).  This will have jumbled up their symmetries.  Want to reorder the 
 ! MO's to match this ordering (so that we only have one SymLabelList array).
 
-! Need a new SymLabelListInv too.        
-        SymLabelListInv(:)=0   
+! Need a new SymLabelListInv_rot too.        
+        SymLabelListInv_rot(:)=0   
         do i=1,NoOrbs
-            SymLabelListInv(SymLabelList2(NoOrbs-i+1))=i
+            SymLabelListInv_rot(SymLabelList2_rot(NoOrbs-i+1))=i
         enddo
 
         NatOrbMatTemp(:,:) = NatOrbMat(:,:)
@@ -4271,25 +4740,25 @@ MODULE nElRDMMod
             do j = 1, NoOrbs
 
                 ! In position j, the MO orbital Orb is currently there.
-                Orb = SymLabelList3(j)      
+                Orb = SymLabelList3_rot(j)      
 
                 ! Want to move it to the position the NO's are in.
-                New_Pos = SymLabelListInv(Orb)   
+                New_Pos = SymLabelListInv_rot(Orb)   
 
                 ! But we also want to reverse the order of everything... 
                 NatOrbMat(New_Pos,NoOrbs - i + 1)=NatOrbMatTemp(j,i)
             enddo
         enddo
 
-        SymLabelList3(:) = SymLabelList2(:)
+        SymLabelList3_rot(:) = SymLabelList2_rot(:)
         EvaluesTemp(:) = Evalues(:)
         do i = 1, NoOrbs
-            SymLabelList2(i) = SymLabelList3(NoOrbs - i + 1)
+            SymLabelList2_rot(i) = SymLabelList3_rot(NoOrbs - i + 1)
             Evalues(i) = EvaluesTemp(NoOrbs - i + 1)
         enddo
 
         DEALLOCATE(NatOrbMatTemp)
-        DEALLOCATE(SymLabelList3)
+        DEALLOCATE(SymLabelList3_rot)
         DEALLOCATE(EvaluesTemp)
 
     END SUBROUTINE OrderNatOrbMat
@@ -4329,16 +4798,16 @@ MODULE nElRDMMod
 ! UMAT will be in spatial orbitals - need to account for this.
 
 ! Running through 1,NoOrbs - the actual orbitals corresponding to that index 
-! are given by SymLabelList2
+! are given by SymLabelList2_rot
 
         do b=1,NoOrbs
-            b2 = SymLabelList2(b)
+            b2 = SymLabelList2_rot(b)
             do d=1,NoOrbs
-                d2 = SymLabelList2(d)
+                d2 = SymLabelList2_rot(d)
                 do a=1,NoOrbs
-                    a2 = SymLabelList2(a)
+                    a2 = SymLabelList2_rot(a)
                     do g=1,NoOrbs
-                        g2 = SymLabelList2(g)
+                        g2 = SymLabelList2_rot(g)
 
 ! UMatInd in physical notation, but FourIndInts in chemical 
 ! (just to make it more clear in these transformations).
@@ -4429,7 +4898,7 @@ MODULE nElRDMMod
 
         FOCKDiagSumNew=0.D0
         do j=1,NoOrbs
-            l=SymLabelList2(j)
+            l=SymLabelList2_rot(j)
             if(tStoreSpinOrbs) then
                 ArrDiagNew(l) = 0.D0
             else
@@ -4437,7 +4906,7 @@ MODULE nElRDMMod
                 ArrDiagNew((2*l)-1) = 0.D0
             endif
             do a=1,NoOrbs
-                b=SymLabelList2(a)
+                b=SymLabelList2_rot(a)
                 if(tStoreSpinOrbs) then
                     ArrDiagNew(l)=ArrDiagNew(l)+(NatOrbMat(a,j)*ARR(b,2)*NatOrbMat(a,j))
                 else
@@ -4520,13 +4989,13 @@ MODULE nElRDMMod
 ! These are calculated by transforming the HF orbitals using the coefficients 
 ! that have been found
         do l=1,NoOrbs
-            d=SymLabelList2(l)
+            d=SymLabelList2_rot(l)
             do k=1,NoOrbs
-                b=SymLabelList2(k)
+                b=SymLabelList2_rot(k)
                 do j=1,NoOrbs
-                    g=SymLabelList2(j)
+                    g=SymLabelList2_rot(j)
                     do i=1,NoOrbs
-                        a=SymLabelList2(i)
+                        a=SymLabelList2_rot(i)
 !The FourIndInts are in chemical notation, the UMatInd in physical.                            
                         UMAT(UMatInd(a,b,g,d,0,0))=FourIndInts(i,j,k,l)
                     enddo
@@ -4548,10 +5017,10 @@ MODULE nElRDMMod
 
         do a=1,nBasis
             do k=1,NoOrbs
-                i=SymLabelList2(k)
+                i=SymLabelList2_rot(k)
                 NewTMAT=0.D0
                 do b=1,NoOrbs
-                    d=SymLabelList2(b)
+                    d=SymLabelList2_rot(b)
                     if(tStoreSpinOrbs) then
                         NewTMAT=NewTMAT+(NatOrbMat(b,k)*REAL(TMAT2D(d,a),8))
                     else
@@ -4572,10 +5041,10 @@ MODULE nElRDMMod
 
         do k=1,nBasis
             do l=1,NoOrbs
-                j=SymLabelList2(l)
+                j=SymLabelList2_rot(l)
                 NewTMAT=0.D0
                 do a=1,NoOrbs
-                    c=SymLabelList2(a)
+                    c=SymLabelList2_rot(a)
                     if(tStoreSpinOrbs) then
                         NewTMAT=NewTMAT+(NatOrbMat(a,l)*TMAT2DPart(k,c))
                     else
@@ -4726,10 +5195,10 @@ MODULE nElRDMMod
 ! This routine just deallocates the arrays allocated in InitRDM.
 ! If the NECI calculation softexits before the RDMs start to fill, this is all that 
 ! is called at the end.
-        USE RotateOrbsMod , only : SymLabelList2,SymLabelListInv,&
-                                   SymLabelListInvTag,SymLabelList2Tag,&
+        USE RotateOrbsMod , only : SymLabelList2_rot,SymLabelListInv_rot,&
+                                   SymLabelListInv_rotTag,SymLabelList2_rotTag,&
                                    FourIndInts, FourIndIntsTag, &
-                                   SymLabelCounts2, SymLabelCounts2Tag
+                                   SymLabelCounts2_rot, SymLabelCounts2_rotTag
         USE Logging , only : tDiagRDM, tPrintRODump
         implicit none
         CHARACTER(len=*), PARAMETER :: this_routine='DeallocateRDM'
@@ -4808,14 +5277,14 @@ MODULE nElRDMMod
 
             ENDIF
 
-            DEALLOCATE(SymLabelCounts2)
-            CALL LogMemDeAlloc(this_routine,SymLabelCounts2Tag)
+            DEALLOCATE(SymLabelCounts2_rot)
+            CALL LogMemDeAlloc(this_routine,SymLabelCounts2_rotTag)
 
-            DEALLOCATE(SymLabelList2)
-            CALL LogMemDeAlloc(this_routine,SymLabelList2Tag)
+            DEALLOCATE(SymLabelList2_rot)
+            CALL LogMemDeAlloc(this_routine,SymLabelList2_rotTag)
 
-            DEALLOCATE(SymLabelListInv)
-            CALL LogMemDeAlloc(this_routine,SymLabelListInvTag)
+            DEALLOCATE(SymLabelListInv_rot)
+            CALL LogMemDeAlloc(this_routine,SymLabelListInv_rotTag)
 
         ELSE
 
@@ -4926,28 +5395,28 @@ MODULE nElRDMMod
 !        do i = 1, nBasis - 1, 2
 !
 !            ! ialpha -> ialpha = ibeta -> ibeta
-!            Entry_bb = NatOrbMat(SymLabelListInv(i),SymLabelListInv(i))
-!            Entry_aa = NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(i+1))
+!            Entry_bb = NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(i))
+!            Entry_aa = NatOrbMat(SymLabelListInv_rot(i+1),SymLabelListInv_rot(i+1))
 !
-!            NatOrbMat(SymLabelListInv(i),SymLabelListInv(i)) = &
+!            NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(i)) = &
 !                                        ( Entry_bb + Entry_aa ) / 2.D0 
 !
-!            NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(i+1)) = &
+!            NatOrbMat(SymLabelListInv_rot(i+1),SymLabelListInv_rot(i+1)) = &
 !                                        ( Entry_bb + Entry_aa ) / 2.D0 
 !
-!            Trace_1RDM = Trace_1RDM + NatOrbMat(SymLabelListInv(i),SymLabelListInv(i)) &
-!                                    + NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(i+1))
+!            Trace_1RDM = Trace_1RDM + NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(i)) &
+!                                    + NatOrbMat(SymLabelListInv_rot(i+1),SymLabelListInv_rot(i+1))
 !
 !            do a = 1, nBasis - 1, 2
 !
 !                ! ialpha -> jalpha = ibeta -> jbeta
-!                Entry_bb = NatOrbMat(SymLabelListInv(i),SymLabelListInv(a))
-!                Entry_aa = NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(a+1))
+!                Entry_bb = NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(a))
+!                Entry_aa = NatOrbMat(SymLabelListInv_rot(i+1),SymLabelListInv_rot(a+1))
 !
-!                NatOrbMat(SymLabelListInv(i),SymLabelListInv(a)) = &
+!                NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(a)) = &
 !                                        ( Entry_bb + Entry_aa ) / 2.D0 
 !
-!                NatOrbMat(SymLabelListInv(i+1),SymLabelListInv(a+1)) = &
+!                NatOrbMat(SymLabelListInv_rot(i+1),SymLabelListInv_rot(a+1)) = &
 !                                        ( Entry_bb + Entry_aa ) / 2.D0 
 !            enddo
 !        enddo
@@ -5189,8 +5658,8 @@ MODULE nElRDMMod
                         Test_Energy_1El = Test_Energy_1El + &
                                 ( SignIreal * SignIreal * REAL( TMAT2D(nI(NEl),nI(NEl)) ) )
 
-!                        TestRDM(SymLabelListInv(nI(NEl)),SymLabelListInv(nI(NEl))) &
-!                                = TestRDM(SymLabelListInv(nI(NEl)),SymLabelListInv(nI(NEl))) &
+!                        TestRDM(SymLabelListInv_rot(nI(NEl)),SymLabelListInv_rot(nI(NEl))) &
+!                                = TestRDM(SymLabelListInv_rot(nI(NEl)),SymLabelListInv_rot(nI(NEl))) &
 !                                                                + (SignIreal * SignIreal)
 
                         do k = 1, NEl - 1
@@ -5199,8 +5668,8 @@ MODULE nElRDMMod
                             Test_Energy_1El = Test_Energy_1El + &
                                         ( SignIreal * SignIreal * REAL( TMAT2D(nI(k),nI(k)) ) )
 
-!                            TestRDM(SymLabelListInv(nI(k)),SymLabelListInv(nI(k))) &
-!                                    = TestRDM(SymLabelListInv(nI(k)),SymLabelListInv(nI(k))) &
+!                            TestRDM(SymLabelListInv_rot(nI(k)),SymLabelListInv_rot(nI(k))) &
+!                                    = TestRDM(SymLabelListInv_rot(nI(k)),SymLabelListInv_rot(nI(k))) &
 !                                                                       + (SignIreal * SignIreal)
 
                             ! For i,j -> i,j type doubles, UMat(i,j,i,j) &
@@ -5239,8 +5708,8 @@ MODULE nElRDMMod
                         Test_Energy_1El = Test_Energy_1El + &
                             ( ParityFactor * SignIreal * SignJreal * REAL( TMAT2D(Ex(1,1),Ex(2,1)) ) )
 
-!                        TestRDM(SymLabelListInv(Ex(1,1)),SymLabelListInv(Ex(2,1))) &
-!                            = TestRDM(SymLabelListInv(Ex(1,1)),SymLabelListInv(Ex(2,1))) + &
+!                        TestRDM(SymLabelListInv_rot(Ex(1,1)),SymLabelListInv_rot(Ex(2,1))) &
+!                            = TestRDM(SymLabelListInv_rot(Ex(1,1)),SymLabelListInv_rot(Ex(2,1))) + &
 !                                                    (ParityFactor * SignIreal * SignJreal)
 !                        TestRDM(Ex(1,1),Ex(2,1)) = TestRDM(Ex(1,1),Ex(2,1)) + &
 !                                                        (ParityFactor * SignIreal * SignJreal)
@@ -5331,14 +5800,14 @@ MODULE nElRDMMod
             WRITE(6,*) '       ********        '
 !            WRITE(6,*) 'The 2 electron part should be : ',Test_Energy - Test_Energy_1El
 
-!            WRITE(6,*) 'SymLabelListInv',SymLabelListInv
+!            WRITE(6,*) 'SymLabelListInv_rot',SymLabelListInv_rot
 
 !            do i = 1, nBasis
 !                i2 = gtID(i)
 !
-!                WRITE(6,'(A8,4I5,2F30.15)') '** diag',i,i,i2,i2,TestRDM(SymLabelListInv(i),&
-!                                            SymLabelListInv(i)),NatOrbMat(SymLabelListInv(i),&
-!                                            SymLabelListInv(i)) * ( REAL(NEl,8) / Trace_1RDM ) 
+!                WRITE(6,'(A8,4I5,2F30.15)') '** diag',i,i,i2,i2,TestRDM(SymLabelListInv_rot(i),&
+!                                            SymLabelListInv_rot(i)),NatOrbMat(SymLabelListInv_rot(i),&
+!                                            SymLabelListInv_rot(i)) * ( REAL(NEl,8) / Trace_1RDM ) 
 !
 !                do k = i + 1, nBasis
 !                    k2 = gtID(k)
@@ -5350,9 +5819,9 @@ MODULE nElRDMMod
 !                        Exch = 0.D0
 !                    ENDIF
 !
-!                    WRITE(6,'(6I5,2F30.15)') i,k,i2,k2,SymLabelListInv(i),SymLabelListInv(k), &
-!                                            TestRDM(SymLabelListInv(i),SymLabelListInv(k)),&
-!                                            NatOrbMat(SymLabelListInv(i),SymLabelListInv(k)) * &
+!                    WRITE(6,'(6I5,2F30.15)') i,k,i2,k2,SymLabelListInv_rot(i),SymLabelListInv_rot(k), &
+!                                            TestRDM(SymLabelListInv_rot(i),SymLabelListInv_rot(k)),&
+!                                            NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(k)) * &
 !                                            ( REAL(NEl,8) / Trace_1RDM ) 
 !    
 !                    WRITE(6,*) '** diag',i,k,TestRDM(Ind1,Ind1),UMATTemp(Ind1,Ind1)
@@ -5416,6 +5885,328 @@ MODULE nElRDMMod
 
     END SUBROUTINE Test_Energy_Calc
 
+        subroutine convert_matrices_for_Molpro_forces(Norm_1RDM, Norm_2RDM)
+! name?
+! ifil ?
+        use SystemData, only : nEl,nbasis,LMS
+        use IntegralsData, only : nFrozen
+        use NatOrbsMod, only : NatOrbMat
+        use SymData, only : Sym_Psi, SymLabelCounts,nSymLabels
+        use SymExcitDataMod, only: SpinOrbSymLabel,SymLabelCounts2
+        use GenRandSymExcitNUMod , only : ClassCountInd, RandExcitSymLabelProd
+        use sym_mod
+
+        integer :: iblkq, iseccr, istat1, sym, isyref, ms2
+        integer :: posn1, posn2
+        integer :: i, j, k, l
+        integer :: Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab 
+        integer :: myname, ifil, intrel, iout, igrsav
+        integer :: orb1, orb2, Sym_i, Sym_j, Sym_ij
+        integer :: Sym_k, Sym_l, Sym_kl
+        integer, dimension(8) :: iact, ldact !iact(:) # of active orbs per sym, !ldact(:) - # Pairs of orbs that multiply to give given sym
+        integer, dimension(8) :: icore, iclos 
+        integer :: FC_Lag_Len  !Length of the Frozen Core Lagrangian
+        integer :: Len_1RDM, Len_2RDM, FCLag_Len
+        real(dp) :: Factor, Divide_Factor
+        real(dp), intent(in) :: Norm_1RDM, Norm_2RDM
+        real(dp), allocatable :: SymmetryPacked2RDM(:), SymmetryPacked1RDM(:)
+        real(dp), allocatable :: SymmetryPackedLagrangian(:)
+        real(dp), allocatable :: FC_Lagrangian(:)
+
+        !!!!! First calculate header information !!!!!
+
+#ifdef __INT64
+    intrel=1
+#else
+    intrel=2
+#endif
+
+        if (iProcIndex .eq. 0) then
+
+        !Considering all electron for now
+        icore(:)=0  !Number of frozen orbitals per symmetry
+        iclos(:)=0  !icore(i) + Number of 'closed' orbitals per symmetry (iclos is the same as icore for us)
+        iblkq=21402
+        iseccr=21102    !both required for molpro read in
+        istat1=1        !ground state
+        isyref=Sym_Psi  !spatial symmetry of the wavefunction
+        ms2=LMS  !2 * M_s
+        myname=60 !Arbitrary file names
+        ifil=50
+        iout=6
+
+        ldact(:)=0
+        iact(:)=0
+        Len_1RDM=0
+        Len_2RDM=0
+
+        !!!!! Calculate lengths of arrays !!!!!
+
+        do i=0,nSymLabels-1  !i labels the symmetry
+            iact(i+1)=SymLabelCounts2(2,ClassCountInd(1,i,0))  ! Count the number of active orbitals of the given symmetry
+            Len_1RDM=Len_1RDM+(iact(i+1)*(iact(i+1)+1)/2)
+        enddo
+
+        ! Find out the number of orbital pairs that multiply to a given sym (ldact)
+        do i=1,SpatOrbs  
+            !run over spatial orbitals
+            do j=1,  i    ! i .ge. j
+                Sym_i=SpinOrbSymLabel(2*i)  !Consider only alpha orbitals
+                Sym_j=SpinOrbSymLabel(2*j)
+                Sym_ij=RandExcitSymLabelProd(Sym_i, Sym_j)
+                ldact(Sym_ij+1)=ldact(Sym_ij+1)+1
+            enddo
+        enddo
+        
+        ! Use this to allocate the 2RDM
+        do Sym=0,7
+            Len_2RDM=Len_2RDM+(ldact(Sym+1))**2
+        enddo!Assumes no frozen orbitals
+        
+        FCLag_Len=SpatOrbs**2  !! Arbitrarily set this for now - we will not be printing it whilst nfrozen=0
+        
+        !!!!! Allocate arrays accordingly !!!!!
+        allocate(SymmetryPacked1RDM(Len_1RDM))
+        allocate(SymmetryPackedLagrangian(Len_1RDM))
+        allocate(SymmetryPacked2RDM(Len_2RDM))
+        allocate(FC_Lagrangian(FCLag_Len))
+
+        !!!!! Construct the Symmetry Packed arrays !!!!!
+
+        FC_Lagrangian(:)=0  !Whilst we do all electron calcs
+
+        ! Convert our 1RDM, Lagrangian and  2RDM into the required Molpro symmetry-packed format
+        ! 2RDM is stored as a full square matrix, separated into symmetry blocks
+        ! We store D_ij,kl where (i .ge. j) and (k .ge. l)
+        ! For each symmetry X, there will be a block where (i,j) and (k,l) both have symmetry X
+        ! making (ij,kl) totally symmetric, and D_ij,kl (potentially) non-zero.
+        ! 1RDM and Lagrangian are stored as upper triangles, separated by symmetry block
+
+        posn1=1
+        posn2=1
+        SymmetryPacked2RDM(:)=0
+        
+        !NB: This is far from the optimally efficient way to do things
+        ! We should ditch running over symmetry, and instead use ldact to position each contribution correctly
+        do Sym=0, 7  !Run over blocks: symmetry of orbital pairs 
+            WRITE(6,*) "SYM", sym
+            do i=1, SpatOrbs  !run over spatial orbitals, ALL ELECTRON ONLY
+                do j=1,  i    ! i .ge. j
+                    Sym_i=SpinOrbSymLabel(2*i)  !Consider only alpha orbitals
+                    Sym_j=SpinOrbSymLabel(2*j)
+                    Sym_ij=RandExcitSymLabelProd(Sym_i, Sym_j)
+                    if ((SYM.eq.0) .and. (Sym_ij .eq. 0)) then   ! Only need to count this once (not 8 times!)
+                        if(tStoreSpinOrbs) then
+                            SymmetryPacked1RDM(posn1)=2*NatOrbMat(SymLabelListInv_rot(2*i),SymLabelListInv_rot(2*j))
+                               ! Include both aa and bb contributions
+                        else
+                            SymmetryPacked1RDM(posn1)=NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))
+                        endif
+                        SymmetryPackedLagrangian(posn1)=Lagrangian(i,j)
+                        posn1=posn1+1
+                    endif
+                    if (Sym_ij .ne. Sym) CYCLE
+                    do k=1, SpatOrbs
+                        do l=1, k
+                            Sym_k=SpinOrbSymLabel(2*k)  !Consider only alpha orbitals
+                            Sym_l=SpinOrbSymLabel(2*l)
+                            Sym_kl=RandExcitSymLabelProd(Sym_k, Sym_l)
+                            WRITE(6,*) "i, j", i, j
+                            WRITE(6,*) "Sym_i, Sym_j, Sym_ij", Sym_i, Sym_j, Sym_ij
+                            WRITE(6,*) "k, l", k, l
+                            WRITE(6,*) "Sym_k, Sym_l, Sym_kl", Sym_k, Sym_l, Sym_kl
+                            call flush(6) 
+                            if (Sym_kl .ne. Sym) CYCLE
+                        
+                            ! usually each element will have two contributions (from aaaa and bbbb).
+                            ! we then need to divide each by 2.
+                            ! but in cases where i and j, and a and b, are in the same spatial 
+                            ! orbital, there will be only one contribution.
+                            if((i.eq.j).and.(k.eq.l)) then
+                                Divide_Factor = 1.0_dp
+                            else
+                                Divide_Factor = 2.0_dp
+                            endif
+
+                            !Swap order of ij and kl indices: NECI store D_ij,kl as j>i, l>k
+                            ! Whilst we want the other way around
+                            ! Swapping both pairs makes no sign change to the element in question
+                            Ind1_aa = ( ( (i-2) * (i-1) ) / 2 ) + j
+                            Ind1_ab = ( ( (i-1) * i ) / 2 ) + j
+                            Ind2_aa = ( ( (k-2) * (k-1) ) / 2 ) + l
+                            Ind2_ab = ( ( (k-1) * k ) / 2 ) + l
+
+                            WRITE(6,*) " Ind1_aa, Ind2_aa ",  Ind1_aa,  Ind2_aa 
+
+                            !We are also recording the SYMMETRISED 2RDM
+                            !ie: D_ij,kl = 0.5*(D_ij,kl + D_kj,il) to reflect the symmetries of the 
+                            ! integrals by which they are multiplied later on
+
+                            !First Term
+                            if ((i.ne.j) .and. (k.ne.l)) then
+                                !aaaa is stored as aaaa + bbbb
+                                WRITE(6,*) "aaaa contribution",  2*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                                SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                            endif
+                            WRITE(6,*) "half abab contribution", 2*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
+                            call flush(6) 
+                            SymmetryPacked2RDM(posn2)=  SymmetryPacked2RDM(posn2)+2*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
+                            WRITE(6,*) "posn2, SymmetryPacked2RDM(posn)", posn2, SymmetryPacked2RDM(posn2)
+                            call flush(6)
+
+                            !Second Term D_kj,il
+                            if (((j.ge.k) .and. (l.ge.i))) then 
+                                Ind1_aa = ( ( (j-2) * (j-1) ) / 2 ) + k
+                                Ind1_ab = ( ( (j-1) * j ) / 2 ) + k
+                                Ind2_aa = ( ( (l-2) * (l-1) ) / 2 ) + i
+                                Ind2_ab = ( ( (l-1) * l ) / 2 ) + i
+                                Factor=1.D0
+                            elseif ((j.le.k) .and. (l.le.i)) then
+                                Ind1_aa = ( ( (k-2) * (k-1) ) / 2 ) + j
+                                Ind1_ab = ( ( (k-1) * k ) / 2 ) + j
+                                Ind2_aa = ( ( (i-2) * (i-1) ) / 2 ) + l
+                                Ind2_ab = ( ( (i-1) * i ) / 2 ) + l
+                                Factor=1.D0
+                            elseif ((j.ge.k) .and. (i.gt.l)) then  !look up -D_kj,li instead
+                                Ind1_aa = ( ( (j-2) * (j-1) ) / 2 ) + k
+                                Ind1_ab = ( ( (j-1) * j ) / 2 ) + k
+                                Ind2_aa = ( ( (i-2) * (i-1) ) / 2 ) + l
+                                Ind2_ab = ( ( (i-1) * i ) / 2 ) + l
+                                Factor=-1.D0
+                            elseif ((k.gt.j) .and. (l.ge.i)) then !look up -D_jk,il
+                                Ind1_aa = ( ( (k-2) * (k-1) ) / 2 ) + j
+                                Ind1_ab = ( ( (k-1) * k ) / 2 ) + j
+                                Ind2_aa = ( ( (l-2) * (l-1) ) / 2 ) + i
+                                Ind2_ab = ( ( (l-1) * l ) / 2 ) + i
+                                Factor=-1.D0
+                            endif
+                                
+                            if ((k.ne.j) .and. (i.ne.l)) then
+                                SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                            endif
+                            SymmetryPacked2RDM(posn2)=  SymmetryPacked2RDM(posn2)+2*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
+                            
+                            SymmetryPacked2RDM(posn2) =  SymmetryPacked2RDM(posn2)/2  !Average the two terms included above
+
+
+                            posn2=posn2+1
+                        enddo
+                    enddo
+                enddo
+            enddo
+        enddo
+            
+        WRITE(6,*) "Ready to call MOLPRO routine"
+        call molpro_dump_mcscf_dens_for_grad(myname,ifil, &
+            icore, iclos, iact, nEL, isyref, ms2, iblkq,&
+            iseccr, istat1, SymmetryPacked1RDM, Len_1RDM, &
+            SymmetryPacked2RDM, Len_2RDM, SymmetryPackedLagrangian, &
+            Len_1RDM, FC_Lagrangian, FC_Lag_Len, &
+            iout, intrel, igrsav)
+        
+        endif
+        
+        end subroutine
+      
+!> Write mcscf density in format needed for gradient program.
+!> \param[in,out] name record number to be written
+!> \param[in,out] ifil file number to be written
+!> \param[in] icore numbers of frozen core orbitals in each symmetry
+!> \param[in] iclos plus numbers of closed-shell orbitals in each symmetry
+!> \param[in] iact numbers of active orbitals in each symmetry
+!> \param[in] nelec number of active electrons -- DONE
+!> \param[in] isyref spatial symmetry of wavefunction -- DONE
+!> \param[in] ms2 spin quauntum number times 2 -- DONE
+!> \param[in] iblkq record number * 10 + file number for orbitals (typically 21402) -- DONE
+!> \param[in] iseccr record number * 10 + file number for frozen orbitals (typically 21002) -- DONE
+!> \param[in] istat1 state number (1 for ground state) -- DONE
+!> \param[in] den1 1-particle density matrix
+!> \param[in] lden1 size of den1
+!> \param[in] den2 2-particle density matrix
+!> \param[in] lden2 size of den2
+!> \param[in] eps Lagrangian
+!> \param[in] leps size of leps
+!> \param[in] epsc Lagrangian for frozen core
+!> \param[in] lepsc size of epsc
+!> \param[in] iout unit for output, eg. 6
+!> \param[in] intrel byte size ratio of integer to double precision, normally 1 or 2
+!> \param[out] igrsav where the record was written (needed in common/cwsave)
+
+!  Use the following subroutine to dump the information needed for molpro
+!  forces calculations.  We need to amass the appropriate arguments to pass into
+!  this routine, and also need to sort the "write" statements so they work for us
+!  (some kind of binary write).  This same routine is in the Molpro code, so when
+!  we move over eventually, we could run the entire FCIQMC-DMAT-FORCES calculation all
+!  in one shot.
+
+    subroutine molpro_dump_mcscf_dens_for_grad(name,ifil, &
+          icore,iclos,iact,nelec,isyref,ms2,iblkq,iseccr,istat1, &
+          den1,lden1, &
+          den2,lden2, &
+          eps,leps, &
+          epsc,lepsc,iout,intrel,igrsav)
+      implicit double precision (a-h,o-z)
+      integer,                            intent(inout) :: name
+      integer,                            intent(inout) :: ifil
+      integer, dimension(8),              intent(in)    :: icore
+      integer, dimension(8),              intent(in)    :: iclos
+      integer, dimension(8),              intent(in)    :: iact
+      integer,                            intent(in)    :: nelec
+      integer,                            intent(in)    :: isyref
+      integer,                            intent(in)    :: ms2
+      integer,                            intent(in)    :: iblkq
+      integer,                            intent(in)    :: iseccr
+      integer,                            intent(in)    :: istat1
+      integer,                            intent(in)    :: lden1
+      double precision, dimension(lden1), intent(in)    :: den1
+      integer,                            intent(in)    :: lden2
+      double precision, dimension(lden2), intent(in)    :: den2
+      integer,                            intent(in)    :: leps
+      double precision, dimension(leps),  intent(in)    :: eps
+      integer,                            intent(in)    :: lepsc
+      double precision, dimension(lepsc), intent(in)    :: epsc
+      integer,                            intent(in)    :: iout
+      integer,                            intent(in)    :: intrel
+      integer,                            intent(out)   :: igrsav
+
+      integer, dimension(30)      :: header
+      integer :: i, ncore
+      character(len=6), parameter :: label='MCGRAD'
+
+
+      WRITE(6,*) "In Molpro routine"
+      ncore = 0
+      do i=1,8
+       ncore = ncore + icore(i)
+       header(1-1+i)=icore(i)
+       header(1+7+i)=iclos(i)
+       header(1+15+i)=iact(i)
+      enddo
+      header(1+24)=nelec
+      header(1+25)=isyref
+      header(1+26)=ms2
+      header(1+27)=iabs(iblkq)
+      header(1+28)=iabs(iseccr)
+      header(1+29)=iabs(istat1)
+      !lhead=30/intrel
+      igrsav=10*(name-1)+ifil
+      !igrsav=nexfre(igrsav)
+      !name=igrsav/10
+      !ifil=igrsav-10*name
+      !call reserv(lhead+lden1+lden2+leps+lepsc,ifil,name,-1)
+      open (unit = ifil, file = "fciqmc_forces_info", form='UNFORMATTED', access='sequential')
+      write(ifil) header, den1, den2, eps
+      !write(ifil,access=sequential) den1,lden1,ifil,name,lhead,label)
+      !call writem(den2,lden2,ifil,name,lhead+lden1,label)
+      !call writem(eps,leps,ifil,name,lhead+lden1+lden2,label)
+      !if(ncore.ne.0) call writem(epsc,lepsc,ifil,name,
+      !>                          lhead+lden1+lden2+leps,label)
+      write(iout,*) "istat1, isyref, name, ifil", istat1,isyref,name,ifil
+      write(iout,*) "header, den1, den2, eps", header, den1, den2, eps
+!20    format(/' Gradient information for state',i2,'.',i1,
+     !>        ' saved on record  ',i8,'.',i1)
+     ! return
+      end subroutine
 
 END MODULE nElRDMMod
 
@@ -5500,7 +6291,7 @@ END MODULE nElRDMMod
         USE nElRDMMod , only : aaaa_RDM, abab_RDM
         USE NatOrbsMod , only : NatOrbMat
         USE Logging , only : RDMExcitLevel
-        USE RotateOrbsData , only : SymLabelListInv
+        USE RotateOrbsData , only : SymLabelListInv_rot
         USE UMatCache , only : GTID
         implicit none
         integer , intent(in) :: j, nI_Prev(NEl), Prev
@@ -5514,9 +6305,9 @@ END MODULE nElRDMMod
 
         IF(RDMExcitLevel.eq.1) THEN
             if(tStoreSpinOrbs) then
-                jInd = SymLabelListInv(j)
+                jInd = SymLabelListInv_rot(j)
             else
-                jInd = SymLabelListInv(gtID(j))
+                jInd = SymLabelListInv_rot(gtID(j))
             endif
             NatOrbMat(jInd,jInd) = NatOrbMat(jInd,jInd) &
                                       + ( AvSignDi * AvSignDi * SignFac )
@@ -5557,4 +6348,5 @@ END MODULE nElRDMMod
 
     end subroutine Fill_Diag_RDM_FromOrbs
  
+
 
