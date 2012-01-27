@@ -647,9 +647,8 @@ SUBROUTINE read_double(A,factor)
 !  If the optional argument factor is present, the value read should be
 !  divided by it. (External value = factor*internal value)
 
-DOUBLE PRECISION, INTENT(INOUT) :: a
-DOUBLE PRECISION, INTENT(IN), OPTIONAL :: factor
-
+REAL(KIND=dp), INTENT(INOUT) :: a
+REAL(KIND=dp), INTENT(IN), OPTIONAL :: factor
 CHARACTER(LEN=50) :: string
 
 if (clear) a=0d0

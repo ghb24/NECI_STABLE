@@ -228,7 +228,7 @@ MODULE FciMCData
       ! If we are calculating the projected energy based on a linear
       ! sum of multiple determinants, we need them and their coeffs
       ! to have been enumerated.
-      logical :: proje_linear_comb
+      logical :: proje_linear_comb,proje_update_comb,proje_spatial
       integer(n_int), allocatable :: proje_ref_iluts(:,:)
       integer :: nproje_sum
       integer, allocatable :: proje_ref_dets(:,:), proje_ref_det_init(:)
