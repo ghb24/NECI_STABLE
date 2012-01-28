@@ -1032,6 +1032,7 @@ supermodule Parallel
 
 #ifndef PARALLEL
    integer(MPIArg), parameter :: MPI_2INTEGER=0
+   integer(MPIArg), parameter :: MPI_2DOUBLE_PRECISION=0
    integer(MPIArg), parameter :: MPI_MIN=0
    integer(MPIArg), parameter :: MPI_MAX=0
    integer(MPIArg), parameter :: MPI_SUM=0
