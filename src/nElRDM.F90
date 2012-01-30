@@ -2822,7 +2822,7 @@ module NeLrdmmOD
             if (tDumpForcesInfo) then
                 call Finalise_1e_RDM(Norm_1RDM)
                 CALL Calc_Lagrangian_from_RDM(Norm_2RDM)
-                call convert_matrices_for_Molpro_forces(Norm_2RDM, Norm_1RDM)
+                call convert_matrices_for_Molpro_forces(Norm_1RDM, Norm_2RDM)
             endif
 
         endif
@@ -3819,7 +3819,7 @@ module NeLrdmmOD
                                         Lagrangian(p,q)=Lagrangian(p,q) + (All_abab_RDM(Ind1_ab_qs,Ind2_ab_rt) &
                                                                          * Norm_2RDM * Coul)
                                         !Don't need to worry about s=q or t=r cases, as these are stored in abab anyway
-                                        WRITE(6,*) "qsrt abab contribution", q,s,r,t,All_abab_RDM(Ind1_ab_qs,Ind2_ab_rt)
+                                        WRITE(6,*) "qsrt abab contribution", q,s,r,t,All_abab_RDM(Ind1_ab_qs,Ind2_ab_rt)*Norm_2RDM
                                         call flush(6)
                                     elseif ((s.gt.q) .and. (r.gt.t)) then  ! We need to reorder D_qs,rt to -D_qs,tr
                                         Ind1_aa_qs = ( ( (s-2) * (s-1) ) / 2 ) + q
@@ -5935,6 +5935,8 @@ WRITE(6,*) "abab contribution", All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab)
         ifil=50
         iout=6
 
+
+        WRITE(6,*) "Norm_2RDM", Norm_2RDM
         ldact(:)=0
         iact(:)=0
         Len_1RDM=0
@@ -6048,7 +6050,7 @@ WRITE(6,*) "abab contribution", All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab)
                                 WRITE(6,*) "aaaa contribution",  2*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                                 SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                             endif
-                            WRITE(6,*) "half abab contribution", 2*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
+                            WRITE(6,*) "abab contribution", 2*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
                             call flush(6) 
                             SymmetryPacked2RDM(posn2)=  SymmetryPacked2RDM(posn2)+2*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
                             WRITE(6,*) "posn2, SymmetryPacked2RDM(posn)", posn2, SymmetryPacked2RDM(posn2)
@@ -6061,30 +6063,33 @@ WRITE(6,*) "abab contribution", All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab)
                                 Ind2_aa = ( ( (l-2) * (l-1) ) / 2 ) + i
                                 Ind2_ab = ( ( (l-1) * l ) / 2 ) + i
                                 Factor=1.D0
+                                SymmetryPacked2RDM(posn2)=  SymmetryPacked2RDM(posn2)+2*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
                             elseif ((j.le.k) .and. (l.le.i)) then
                                 Ind1_aa = ( ( (k-2) * (k-1) ) / 2 ) + j
                                 Ind1_ab = ( ( (k-1) * k ) / 2 ) + j
                                 Ind2_aa = ( ( (i-2) * (i-1) ) / 2 ) + l
                                 Ind2_ab = ( ( (i-1) * i ) / 2 ) + l
                                 Factor=1.D0
+                                SymmetryPacked2RDM(posn2)=  SymmetryPacked2RDM(posn2)+2*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
                             elseif ((j.ge.k) .and. (i.gt.l)) then  !look up -D_kj,li instead
                                 Ind1_aa = ( ( (j-2) * (j-1) ) / 2 ) + k
                                 Ind1_ab = ( ( (j-1) * j ) / 2 ) + k
                                 Ind2_aa = ( ( (i-2) * (i-1) ) / 2 ) + l
                                 Ind2_ab = ( ( (i-1) * i ) / 2 ) + l
                                 Factor=-1.D0
+                                SymmetryPacked2RDM(posn2)=  SymmetryPacked2RDM(posn2)+2*Factor*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                             elseif ((k.gt.j) .and. (l.ge.i)) then !look up -D_jk,il
                                 Ind1_aa = ( ( (k-2) * (k-1) ) / 2 ) + j
                                 Ind1_ab = ( ( (k-1) * k ) / 2 ) + j
                                 Ind2_aa = ( ( (l-2) * (l-1) ) / 2 ) + i
                                 Ind2_ab = ( ( (l-1) * l ) / 2 ) + i
                                 Factor=-1.D0
+                                SymmetryPacked2RDM(posn2)=  SymmetryPacked2RDM(posn2)+2*Factor*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                             endif
                                 
                             if ((k.ne.j) .and. (i.ne.l)) then
                                 SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                             endif
-                            SymmetryPacked2RDM(posn2)=  SymmetryPacked2RDM(posn2)+2*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
                             
                             SymmetryPacked2RDM(posn2) =  SymmetryPacked2RDM(posn2)/2  !Average the two terms included above
 
