@@ -3719,6 +3719,7 @@ module NeLrdmmOD
         ! it becomes necessary
 
         Lagrangian(:,:)=0.D0
+        Lagrangian2(:,:)=0.D0
 
         ! Normalise, make hermitian, print etc - Wary of summing things up twice! This has already been called at the end of the calc
         !call Finalise_2e_RDM(Norm_2RDM_Inst, Norm_2RDM)
@@ -3969,6 +3970,7 @@ module NeLrdmmOD
                                         ! this array contains only one contribution, rather than aaaa + bbbb (for example)
                                         ! We think that we now need to double it in order to properly convert from spin
                                         ! to spatial orbs (see eq 2.7.9 in Helgie)
+                                        !DEBUG:NOW WE THINK WE DONT
                                             Lagrangian(p,q)=Lagrangian(p,q) + 2*(All_abab_RDM(Ind1_ab_rs,Ind2_ab_qt) &
                                                                          * Norm_2RDM * Coul)
                                         WRITE(6,*) "rsqt abab contribution", r,s, q, t, 2*All_abab_RDM(Ind1_ab_rs,Ind2_ab_qt)*Norm_2RDM
@@ -4058,11 +4060,11 @@ module NeLrdmmOD
                             ! we then need to divide each by 2.
                             ! but in cases where i and j, and a and b, are in the same spatial 
                             ! orbital, there will be only one contribution.
-                            if((i.eq.j).and.(k.eq.l)) then
-                                Divide_Factor = 1.0_dp
-                            else
+                            !if((i.eq.j).and.(k.eq.l)) then
+                            !    Divide_Factor = 1.0_dp
+                            !else
                                 Divide_Factor = 2.0_dp
-                            endif
+                            !endif
 
                             !Swap order of ij and kl indices: NECI store D_ij,kl as j>i, l>k
                             ! Whilst we want the other way around
@@ -4081,9 +4083,13 @@ module NeLrdmmOD
                             !!DEBUG -- DO NOT SYMMETRISE YET !!
 
                             !First Term
+                            WRITE(6,*) "i,j,k,l, Ind1_aa, Ind1_ab,  Ind2_aa,  Ind2_ab ", i,j,k,l,Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab
+                            call flush(6)
                             if ((i.ne.j) .and. (k.ne.l)) then
                                 !aaaa is stored as aaaa + bbbb
                                 Spatial_RDM(i,j,k,l) = Spatial_RDM(i,j,k,l)+2*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                                Spatial_RDM(j,i,k,l) = Spatial_RDM(j,i,k,l)-2*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                                Spatial_RDM(i,j,l,k) = Spatial_RDM(i,j,l,k)-2*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                                 Spatial_RDM(j,i,k,l) = Spatial_RDM(j,i,k,l)-2*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                                 Spatial_RDM(i,j,l,k) = Spatial_RDM(i,j,l,k)-2*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                             endif
