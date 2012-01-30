@@ -3674,25 +3674,37 @@ module NeLrdmmOD
 !       where the subset 2RDM is now defined in the two-index notation: 2RDM(i,j;k,l) =  <Psi| a_i+ a_j+ a_l a_k|Psi>
 !
 ! where h1 are the 2 index integrals, and h2 the 4 index integrals.
+        Use SymData, only : nSymLabels !DEBUG
+        Use SymExcitDataMod, only : SpinOrbSymLabel, SymLabelCounts2 !DEBUG
+        Use GenRandSymExcitNUMod, only : ClassCountInd, RandExcitSymLabelProd !DEBUG
         USE IntegralsData , only : UMAT
         USE UMatCache , only : UMatInd
         USE RotateOrbsMod , only : SymLabelList2_rot
         USE UMatCache , only : GTID
         USE Logging, only : tDumpForcesInfo
+        use sym_mod !DEBUG
         implicit none
         real(dp), intent(in) :: Norm_2RDM
+        real(dp) :: Divide_Factor !DEBUG
         real(dp) :: Norm_2RDM_Inst
         INTEGER :: p,q,r,s,t,ierr,stat
+        INTEGER :: i,j,k,l !DEBUG
         INTEGER :: pSpin, qSpin, rSpin, error
+        INTEGER :: Ind1_aa,Ind1_ab,Ind2_aa,Ind2_ab ! DEBUG
         INTEGER :: Ind1_aa_qs,Ind1_ab_qs,Ind2_aa_qt,Ind2_ab_qt
         INTEGER :: Ind1_aa_sq,Ind1_ab_sq,Ind2_aa_tq,Ind2_ab_tq
         INTEGER :: Ind1_aa_rs,Ind1_ab_rs,Ind2_aa_rt,Ind2_ab_rt
         INTEGER :: Ind1_aa_sr,Ind1_ab_sr,Ind2_aa_tr,Ind2_ab_tr
+        integer :: Sym_i, Sym_j, Sym_ij !DEBUG
+        integer :: Sym_k, Sym_l, Sym_kl !DEBUG
+        integer :: Spatial_RDM_unit !DEBUG
         REAL(dp) :: RDMEnergy_Inst, RDMEnergy, Coul, Exch, Parity_Factor 
         REAL(dp) :: Trace_2RDM_New, RDMEnergy1, RDMEnergy2
-!        REAL(dp) :: Lagrangian(SpatOrbs,SpatOrbs)
+        REAL(dp), allocatable :: Lagrangian2(:,:) !! Debug
+        real(dp),allocatable :: Spatial_RDM(:,:,:,:) !! DEBUG
 
         ALLOCATE(Lagrangian(SpatOrbs,SpatOrbs),stat=ierr)
+        ALLOCATE(Lagrangian2(SpatOrbs,SpatOrbs),stat=ierr)
         
         ! We will begin by calculating Lagrangian in a basis of beta spin orbitals - we will explicitely calculate
         ! both halves (X_pq and X_qp) in order to check if it is symmetric or not.
@@ -4017,6 +4029,212 @@ module NeLrdmmOD
             enddo
         enddo
 
+        WRITE(6,*) "!!!!!!!!!!!!!!!!! NOW RECALCULATING LAGRANGIAN WITH SPATIAL DMAT TO DEBUG !!!!!!!!!!!!!!!!! "
+
+        
+        !!DEBUG - Spatial_RDM(i,j,k,l) = D_ij,kl
+        allocate(Spatial_RDM(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs))
+        Spatial_RDM(:,:,:,:)=0.D0
+        
+        !!! CALC LAGRANGIAN FROM SPATIAL RDM  -DEBUG !!!
+        
+            do i=1, SpatOrbs  !run over spatial orbitals, ALL ELECTRON ONLY
+                do j=1,  i    ! i .ge. j
+                    Sym_i=SpinOrbSymLabel(2*i)  !Consider only alpha orbitals
+                    Sym_j=SpinOrbSymLabel(2*j)
+                    Sym_ij=RandExcitSymLabelProd(Sym_i, Sym_j)
+                    do k=1, SpatOrbs
+                        do l=1, k
+                            Sym_k=SpinOrbSymLabel(2*k)  !Consider only alpha orbitals
+                            Sym_l=SpinOrbSymLabel(2*l)
+                            Sym_kl=RandExcitSymLabelProd(Sym_k, Sym_l)
+                       !     WRITE(6,*) "i, j", i, j
+                       !     WRITE(6,*) "Sym_i, Sym_j, Sym_ij", Sym_i, Sym_j, Sym_ij
+                       !     WRITE(6,*) "k, l", k, l
+                       !     WRITE(6,*) "Sym_k, Sym_l, Sym_kl", Sym_k, Sym_l, Sym_kl
+                            call flush(6) 
+                        
+                            ! usually each element will have two contributions (from aaaa and bbbb).
+                            ! we then need to divide each by 2.
+                            ! but in cases where i and j, and a and b, are in the same spatial 
+                            ! orbital, there will be only one contribution.
+                            if((i.eq.j).and.(k.eq.l)) then
+                                Divide_Factor = 1.0_dp
+                            else
+                                Divide_Factor = 2.0_dp
+                            endif
+
+                            !Swap order of ij and kl indices: NECI store D_ij,kl as j>i, l>k
+                            ! Whilst we want the other way around
+                            ! Swapping both pairs makes no sign change to the element in question
+                            Ind1_aa = ( ( (i-2) * (i-1) ) / 2 ) + j
+                            Ind1_ab = ( ( (i-1) * i ) / 2 ) + j
+                            Ind2_aa = ( ( (k-2) * (k-1) ) / 2 ) + l
+                            Ind2_ab = ( ( (k-1) * k ) / 2 ) + l
+
+                            !WRITE(6,*) " Ind1_aa, Ind2_aa ",  Ind1_aa,  Ind2_aa 
+
+                            !We are also recording the SYMMETRISED 2RDM
+                            !ie: D_ij,kl = 0.5*(D_ij,kl + D_kj,il) to reflect the symmetries of the 
+                            ! integrals by which they are multiplied later on
+
+                            !!DEBUG -- DO NOT SYMMETRISE YET !!
+
+                            !First Term
+                            if ((i.ne.j) .and. (k.ne.l)) then
+                                !aaaa is stored as aaaa + bbbb
+                                Spatial_RDM(i,j,k,l) = Spatial_RDM(i,j,k,l)+2*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                                Spatial_RDM(j,i,k,l) = Spatial_RDM(j,i,k,l)-2*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                                Spatial_RDM(i,j,l,k) = Spatial_RDM(i,j,l,k)-2*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                            endif
+                                call flush(6) 
+                            Spatial_RDM(i,j,k,l) = Spatial_RDM(i,j,k,l)+2*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
+                            call flush(6)
+
+                            !Second Term D_kj,il
+                            !if (((j.ge.k) .and. (l.ge.i))) then 
+                            !    Ind1_aa = ( ( (j-2) * (j-1) ) / 2 ) + k
+                            !    Ind1_ab = ( ( (j-1) * j ) / 2 ) + k
+                            !    Ind2_aa = ( ( (l-2) * (l-1) ) / 2 ) + i
+                            !    Ind2_ab = ( ( (l-1) * l ) / 2 ) + i
+                            !    Factor=1.D0
+                            !    Spatial_RDM(i,j,k,l) = Spatial_RDM(i,j,k,l)+2*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
+                            !elseif ((j.le.k) .and. (l.le.i)) then
+                            !    Ind1_aa = ( ( (k-2) * (k-1) ) / 2 ) + j
+                            !    Ind1_ab = ( ( (k-1) * k ) / 2 ) + j
+                            !    Ind2_aa = ( ( (i-2) * (i-1) ) / 2 ) + l
+                            !    Ind2_ab = ( ( (i-1) * i ) / 2 ) + l
+                            !    Factor=1.D0
+                            !    Spatial_RDM(i,j,k,l) = Spatial_RDM(i,j,k,l)+2*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
+                            !elseif ((j.ge.k) .and. (i.gt.l)) then  !look up -D_kj,li instead
+                            !    Ind1_aa = ( ( (j-2) * (j-1) ) / 2 ) + k
+                            !    Ind1_ab = ( ( (j-1) * j ) / 2 ) + k
+                            !    Ind2_aa = ( ( (i-2) * (i-1) ) / 2 ) + l
+                            !    Ind2_ab = ( ( (i-1) * i ) / 2 ) + l
+                            !    Factor=-1.D0
+                            !    SymmetryPacked2RDM2(posn2)=  SymmetryPacked2RDM2(posn2)+2*Factor*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                            !elseif ((k.gt.j) .and. (l.ge.i)) then !look up -D_jk,il
+                            !    Ind1_aa = ( ( (k-2) * (k-1) ) / 2 ) + j
+                            !    Ind1_ab = ( ( (k-1) * k ) / 2 ) + j
+                            !    Ind2_aa = ( ( (l-2) * (l-1) ) / 2 ) + i
+                            !    Ind2_ab = ( ( (l-1) * l ) / 2 ) + i
+                            !    Factor=-1.D0
+                            !    SymmetryPacked2RDM2(posn2)=  SymmetryPacked2RDM2(posn2)+2*Factor*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                            !endif
+                                
+                            !if ((k.ne.j) .and. (i.ne.l)) then
+                            !    SymmetryPacked2RDM2(posn2)=SymmetryPacked2RDM2(posn2)+2*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                            !endif
+                            
+                            !SymmetryPacked2RDM2(posn2) =  SymmetryPacked2RDM2(posn2)/2  !Average the two terms included above
+
+                            Spatial_RDM(j,i,l,k) = Spatial_RDM(i,j,k,l) 
+                       !     Spatial_RDM(k,l,i,j) = Spatial_RDM(i,j,k,l) 
+                       !     Spatial_RDM(l,k,j,i) = Spatial_RDM(i,j,k,l) 
+
+                        enddo
+                    enddo
+                enddo
+            enddo
+        
+            Spatial_RDM_unit = get_free_unit()
+        OPEN(Spatial_RDM_unit,file='Spatial_RDM',status='unknown')
+ 
+        ! Currently printing Lagrangian with spatial orbital labels, though we specifically refer to beta spin orbitals.
+        do i = 1, SpatOrbs
+            do j = 1, SpatOrbs
+                do k=1, SpatOrbs
+                    do l=1, SpatOrbs
+                        write(Spatial_RDM_unit, "(4I6,G25.17)") i, j,k,l, Spatial_RDM(i,j,k,l)
+                    enddo
+                enddo
+            enddo
+        enddo
+
+        !! Calc My Lagrangian
+            do p = 1, SpatOrbs  !Run over just the beta spin orbitals - Any alpha/beta terms in X are zero
+                pSpin = 2 * p    ! Picks out beta component
+
+                do q = 1, SpatOrbs  !Want to calculate X(p,q) separately from X(q,p) for now to see if we're symmetric
+                    qSpin = 2 * q  !Picks out beta component
+                
+                    do r = 1, SpatOrbs
+
+                        rSpin=2*r
+
+                        ! Adding in contributions effectively from the 1-RDM (although these are calculated 
+                        ! from the 2-RDM.
+                        
+                        !call calc_1RDM_Lagrangian(p,q,r,pSpin,rSpin, Norm_2RDM, Norm_2RDM_Inst)
+                        if(tStoreSpinOrbs) then
+                            WRITE(6,*) "Yes storing spin orbs"
+                            Lagrangian2(p,q)=Lagrangian2(p,q)+2*NatOrbMat(SymLabelListInv_rot(2*q),SymLabelListInv_rot(2*r))* &
+                               REAL(TMAT2D(pSpin,rSpin),8)
+                               ! Include both aa and bb contributions
+                               WRITE(6,*) "r contribution to X_pq is twice", NatOrbMat(SymLabelListInv_rot(2*q),SymLabelListInv_rot(2*r)), &
+                                                 "times",  REAL(TMAT2D(pSpin,rSpin),8)
+                        else
+                            WRITE(6,*) "Storing spatial orbs"
+                            Lagrangian2(p,q)=Lagrangian2(p,q)+NatOrbMat(SymLabelListInv_rot(q),SymLabelListInv_rot(r))* &
+                               REAL(TMAT2D(pSpin,rSpin),8)
+                               WRITE(6,*) "r contribution to X_pq is", NatOrbMat(SymLabelListInv_rot(q),SymLabelListInv_rot(r)), &
+                                                 "times",  REAL(TMAT2D(pSpin,rSpin),8)
+                        endif
+
+                        WRITE(6,*) "p=",p," q=",q," Lagrangian2(p,q)=", Lagrangian2(p,q)
+
+                        ! Adding in the 1-RDM contribution to the Lagrangian term X(i,j)
+                        !! Add in aaaa terms h_pr*gamma_rq and bbbb terms of the same type
+                        !! note that p&r, r&q pairs must all have the same spin in order for these terms to contribute
+
+                        do s = 1, SpatOrbs
+
+                            WRITE(6,*) "Running over s: s=", s
+
+                            ! Here we're looking to start adding on the contributions from the 2-RDM and the 2-el integrals
+                            ! For X(p,q), these have the form (pr|st) * [Gamma(qs;rt) + Gamma(rs;qt)]
+                            ! For the integral to be non-zero, p&r and s&t pairs must have the same spin
+                            ! For the density matrix to be non-zero q&r must also have the same spin
+                            ! So, p,q,r must be of the same spin; s&t must be of the same spin
+                            ! Therefore we can consider the contribution to the Lagrangian:
+                            ! X(p,q) += Sum_rst from 1 to Spatial { (2p-1 2r-1 | 2s 2t ) * [Gamma_abab(qs;rt) +Gamma_abab(rs;qt)]
+                            !                       + (2p-1 2r-1 | 2s-1 2t-1 ) * [Gamma_aaaa(qs;rt) +Gamma_aaaa(rs;qt)] }
+                            
+                            ! We'll need to consider the alpha (2p-1,2q-1) and beta (2p,2q) terms separately
+
+                            ! As the 2-RDM is stored as a 2-index integral, we need to translate the 4-index notation to the 2-index
+                            ! Index1 will depend on q&s or r&s
+                            ! Index2 will depend on r&t or q&t
+                    
+                            !Ind1_aa_qs = ( ( (s-2) * (s-1) ) / 2 ) + q
+                            !Ind1_aa_rs = ( ( (s-2) * (s-1) ) / 2 ) + r
+                            !Ind1_ab_qs = ( ( (s-1) * s ) / 2 ) + q
+                            !Ind1_ab_rs = ( ( (s-1) * s ) / 2 ) + r
+                
+                            do t=1, SpatOrbs
+                                Coul = REAL(UMAT(UMatInd(p,s,r,t,0,0)),8)
+                                !Give indices in PHYSICAL NOTATION *CMO
+
+                                WRITE(6,*) "Lagrangian2(p,q) was ", Lagrangian2(p,q)
+                                WRITE(6,*) "p,q,r,s,t", p,q,r,s,t
+                                WRITE(6,*) "Integral is ", Coul
+                                Lagrangian2(p,q) = Lagrangian2(p,q) + (Spatial_RDM(q,s,r,t) + Spatial_RDM(r,s,q,t))*Coul
+                               WRITE(6,*) "RDM terms used are ", Spatial_RDM(q,s,r,t), Spatial_RDM(r,s,q,t)
+
+                            enddo
+                        enddo
+                    enddo
+                enddo
+            enddo
+
+        WRITE(6,*) "WRITING OUT MY DEBUG LAGRANGIAN"
+
+        do i=1, SpatOrbs
+            do j=1, SpatOrbs
+                WRITE(6,*) i, j, Lagrangian2(i,j)
+            enddo
+        enddo
+
         call Write_out_Lagrangian()
 
         !probably don't need these for now (only calculating Lagrangian once at the end), but we might need it in future
@@ -4203,6 +4421,7 @@ module NeLrdmmOD
             WRITE(6,*) "Running over a: a dummy index required to extract 1RDM from 2RDM"
             WRITE(6,*) "Norm_2RDM is ", Norm_2RDM
             WRITE(6,*) "h_pr is ", REAL(TMAT2D(pSpin,rSpin),8)
+
      
         do a=1, SpatOrbs
 
@@ -4249,6 +4468,9 @@ WRITE(6,*) "abab contribution", All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab)
                                                 WRITE(6,*) "aaaa contribution", All_aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa)
             endif
         enddo
+
+
+
 
     end subroutine calc_1RDM_Lagrangian
 
