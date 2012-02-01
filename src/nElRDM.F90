@@ -364,7 +364,7 @@ module NeLrdmmOD
             endif
         endif
 
-        IF((RDMExcitLevel.eq.1).or.tDiagRDM.or.tPrint1RDM) THEN
+        IF((RDMExcitLevel.eq.1).or.tDiagRDM.or.tPrint1RDM .or. tDumpForcesInfo) THEN
             ! These arrays contain indexing systems to order the 1-RDM orbitals in terms of 
             ! symmetry.
             ! This allows the diagonalisation of the RDMs to be done in symmetry blocks (a lot 
@@ -3687,6 +3687,7 @@ module NeLrdmmOD
         real(dp), intent(in) :: Norm_2RDM
         real(dp) :: Divide_Factor !DEBUG
         real(dp) :: Norm_2RDM_Inst
+        real(dp) :: MyEnergy, Contrib1, Contrib2
         INTEGER :: p,q,r,s,t,ierr,stat
         INTEGER :: i,j,k,l !DEBUG
         INTEGER :: pSpin, qSpin, rSpin, error
@@ -3701,10 +3702,12 @@ module NeLrdmmOD
         REAL(dp) :: RDMEnergy_Inst, RDMEnergy, Coul, Exch, Parity_Factor 
         REAL(dp) :: Trace_2RDM_New, RDMEnergy1, RDMEnergy2
         REAL(dp), allocatable :: Lagrangian2(:,:) !! Debug
+        REAL(dp), allocatable :: Lagrangian3(:,:) !! Debug
         real(dp),allocatable :: Spatial_RDM(:,:,:,:) !! DEBUG
 
         ALLOCATE(Lagrangian(SpatOrbs,SpatOrbs),stat=ierr)
         ALLOCATE(Lagrangian2(SpatOrbs,SpatOrbs),stat=ierr)
+        ALLOCATE(Lagrangian3(SpatOrbs,SpatOrbs),stat=ierr)
         
         ! We will begin by calculating Lagrangian in a basis of beta spin orbitals - we will explicitely calculate
         ! both halves (X_pq and X_qp) in order to check if it is symmetric or not.
@@ -3720,246 +3723,172 @@ module NeLrdmmOD
 
         Lagrangian(:,:)=0.D0
         Lagrangian2(:,:)=0.D0
-
-        ! Normalise, make hermitian, print etc - Wary of summing things up twice! This has already been called at the end of the calc
-        !call Finalise_2e_RDM(Norm_2RDM_Inst, Norm_2RDM)
+        Lagrangian3(:,:)=0.D0
 
         !if(tFinalLagrangian) then
             write(6,*) ''
             write(6,*) 'Calculating the Lagrangian X from the final density matrices'
         !endif
 
+        !Calculating the Lagrangian X in terms of spatial orbitals
         if(iProcIndex.eq.0) then
 
             do p = 1, SpatOrbs  !Run over just the beta spin orbitals - Any alpha/beta terms in X are zero
-                pSpin = 2 * p    ! Picks out beta component
-
-                WRITE(6,*) "Running over p: p=", p
-
+                pSpin = 2*p    ! Picks out beta component
                 do q = 1, SpatOrbs  !Want to calculate X(p,q) separately from X(q,p) for now to see if we're symmetric
-                    qSpin = 2 * q  !Picks out beta component
-                
-                    WRITE(6,*) "Running over q: q=", q
-
                     do r = 1, SpatOrbs
-
-                        WRITE(6,*) "Running over r: r=", r
-
                         rSpin=2*r
-
-                        ! Adding in contributions effectively from the 1-RDM (although these are calculated 
-                        ! from the 2-RDM.
-                        
-                        !call calc_1RDM_Lagrangian(p,q,r,pSpin,rSpin, Norm_2RDM, Norm_2RDM_Inst)
+                        ! Adding in contributions effectively from the 1-RDM
+                        ! We made sure earlier that the 1RDM is contructed, so we can call directly from this
                         if(tStoreSpinOrbs) then
-                            WRITE(6,*) "Yes storing spin orbs"
+                            ! Include both aa and bb contributions
                             Lagrangian(p,q)=Lagrangian(p,q)+2*NatOrbMat(SymLabelListInv_rot(2*q),SymLabelListInv_rot(2*r))* &
-                               REAL(TMAT2D(pSpin,rSpin),8)
-                               ! Include both aa and bb contributions
-                               WRITE(6,*) "r contribution to X_pq is twice", NatOrbMat(SymLabelListInv_rot(2*q),SymLabelListInv_rot(2*r)), &
-                                                 "times",  REAL(TMAT2D(pSpin,rSpin),8)
+                                                                                                    REAL(TMAT2D(pSpin,rSpin),8)
                         else
-                            WRITE(6,*) "Storing spatial orbs"
+                            !We will be here most often (?)
                             Lagrangian(p,q)=Lagrangian(p,q)+NatOrbMat(SymLabelListInv_rot(q),SymLabelListInv_rot(r))* &
-                               REAL(TMAT2D(pSpin,rSpin),8)
-                               WRITE(6,*) "r contribution to X_pq is", NatOrbMat(SymLabelListInv_rot(q),SymLabelListInv_rot(r)), &
-                                                 "times",  REAL(TMAT2D(pSpin,rSpin),8)
+                                                                                                    REAL(TMAT2D(pSpin,rSpin),8)
                         endif
 
-                        WRITE(6,*) "p=",p," q=",q," Lagrangian(p,q)=", Lagrangian(p,q)
-
-                        ! Adding in the 1-RDM contribution to the Lagrangian term X(i,j)
-                        !! Add in aaaa terms h_pr*gamma_rq and bbbb terms of the same type
-                        !! note that p&r, r&q pairs must all have the same spin in order for these terms to contribute
-
                         do s = 1, SpatOrbs
-
-                            WRITE(6,*) "Running over s: s=", s
-
                             ! Here we're looking to start adding on the contributions from the 2-RDM and the 2-el integrals
-                            ! For X(p,q), these have the form (pr|st) * [Gamma(qs;rt) + Gamma(rs;qt)]
+                            ! For X(p,q), these have the form sum_rst 0.5 *(pr|st) * [Gamma(qs;rt) + Gamma(rs;qt)]
+                            
+                            ! NOTE: When the spatial 2RDM is calculated, the factor of a half goes inside the density
+                            ! Matrix elements - consistent with Yamaguchi etc (see eq 11 in Sherrill, Analytic Gradients
+                            ! of CI energies
+
                             ! For the integral to be non-zero, p&r and s&t pairs must have the same spin
                             ! For the density matrix to be non-zero q&r must also have the same spin
                             ! So, p,q,r must be of the same spin; s&t must be of the same spin
                             ! Therefore we can consider the contribution to the Lagrangian:
-                            ! X(p,q) += Sum_rst from 1 to Spatial { (2p-1 2r-1 | 2s 2t ) * [Gamma_abab(qs;rt) +Gamma_abab(rs;qt)]
-                            !                       + (2p-1 2r-1 | 2s-1 2t-1 ) * [Gamma_aaaa(qs;rt) +Gamma_aaaa(rs;qt)] }
-                            
-                            ! We'll need to consider the alpha (2p-1,2q-1) and beta (2p,2q) terms separately
-
-                            ! As the 2-RDM is stored as a 2-index integral, we need to translate the 4-index notation to the 2-index
-                            ! Index1 will depend on q&s or r&s
-                            ! Index2 will depend on r&t or q&t
-                    
-                            !Ind1_aa_qs = ( ( (s-2) * (s-1) ) / 2 ) + q
-                            !Ind1_aa_rs = ( ( (s-2) * (s-1) ) / 2 ) + r
-                            !Ind1_ab_qs = ( ( (s-1) * s ) / 2 ) + q
-                            !Ind1_ab_rs = ( ( (s-1) * s ) / 2 ) + r
-                
                             do t=1, SpatOrbs
-                                write(6,*) "running over t: t=", t
-                                WRITE(6,*) "p,q, Lagrangian(p,q) is currently", p, q, Lagrangian(p,q)
-                                    call flush(6)
-
-                               ! Ind2_aa_rt = ( ( (t-2) * (t-1) ) / 2 ) + r
-                               ! Ind2_aa_qt = ( ( (t-2) * (t-1) ) / 2 ) + q
-                               ! Ind2_ab_rt = ( ( (t-1) * t ) / 2 ) + r
-                               ! Ind2_ab_qt = ( ( (t-1) * t ) / 2 ) + q
-
-                                ! UMAT in chemical notation.
-                                ! In spin or spatial orbitals.
-                                !Coul = REAL(UMAT(UMatInd(p,r,s,t,0,0)),8)
+                                
+                                !Integral (pr|st) = <ps|rt>
+                                !Give indices in PHYSICAL NOTATION
+                                !NB, FCIDUMP is labelled in chemical notation
                                 Coul = REAL(UMAT(UMatInd(p,s,r,t,0,0)),8)
-                                !Give indices in PHYSICAL NOTATION *CMO
-
-                                WRITE(6,*) "Integral (pr|st) or <ps|rt> is ", Coul
-                                    call flush(6)
-                                !Exch = REAL(UMAT(UMatInd(i,j,b,a,0,0)),8)
                                 
                                 !We need to find elements D_qs,rt and D_rs,qt where
-                                !p,q and r are all BETA
-                                !s and t are the same spin (ALPHA or BETA)
-                                if ((s.ne.q) .and. (t.ne.r)) then  !Don't have to worry about any q=s or t=r terms yet - bbbb always allowed
+                                !Note that All_aaaa_RDM stores the *sum* of aaaa and bbbb components
+                                !D_ij,kl All_abab_RDM also stores the sum of abab + baba, UNLESS
+                                ! i=j and k=l, where only one contribution is held
+                                ! We therefore have to double this kind of term
+                                
+                                if((s.eq.q).and.(t.eq.r)) then
+                                    Divide_Factor = 1.0_dp
+                                else
+                                    Divide_Factor = 2.0_dp
+                                endif
+
+                                !Also note that we are effectively considering the conversion from spin to
+                                ! spatial orbitals (2.7.9 in Helgie)
+                                ! D_pq,rs = D_pq,rs(aaaa) +  D_pq,rs(bbbb)+  D_pq,rs(abab) +  D_pq,rs(baba)
+                                ! At this point we can then reorder indices (and spins) as appropriate
+                                ! Note that any p=q or r=s terms are stores in the abab array
+                                ! rather than the abba
+                                
+                                if ((s.ne.q) .and. (t.ne.r)) then  !aaaa/bbbb always allowed
                                     if ((s.gt.q) .and. (t.gt.r)) then       !The D_qs,rt is correctly ordered
                                         Ind1_aa_qs = ( ( (s-2) * (s-1) ) / 2 ) + q
                                         Ind2_aa_rt = ( ( (t-2) * (t-1) ) / 2 ) + r
-                                        Lagrangian(p,q)=Lagrangian(p,q) + (All_aaaa_RDM(Ind1_aa_qs,Ind2_aa_rt) &
-                                                                        * Norm_2RDM * Coul)
-                                        WRITE(6,*) "qsrt aaaa contribution", q,s,r,t,All_aaaa_RDM(Ind1_aa_qs,Ind2_aa_rt)*Norm_2RDM
-                                        call flush(6)
                                         Ind1_ab_qs = ( ( (s-1) * s ) / 2 ) + q
                                         Ind2_ab_rt = ( ( (t-1) * t ) / 2 ) + r
-                                        Lagrangian(p,q)=Lagrangian(p,q) + (All_abab_RDM(Ind1_ab_qs,Ind2_ab_rt) &
-                                                                         * Norm_2RDM * Coul)
-                                        !Don't need to worry about s=q or t=r cases, as these are stored in abab anyway
-                                        WRITE(6,*) "qsrt abab contribution", q,s,r,t,All_abab_RDM(Ind1_ab_qs,Ind2_ab_rt)*Norm_2RDM
-                                        call flush(6)
+                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_aaaa_RDM(Ind1_aa_qs,Ind2_aa_rt) &
+                                                                        * Norm_2RDM * Coul)/Divide_Factor
+                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_qs,Ind2_ab_rt) &
+                                                                         * Norm_2RDM * Coul)/Divide_Factor
                                     elseif ((s.gt.q) .and. (r.gt.t)) then  ! We need to reorder D_qs,rt to -D_qs,tr
                                         Ind1_aa_qs = ( ( (s-2) * (s-1) ) / 2 ) + q
                                         Ind2_aa_tr = ( ( (r-2) * (r-1) ) / 2 ) + t
-                                        call flush(6)
-                                        Lagrangian(p,q)=Lagrangian(p,q) - (All_aaaa_RDM(Ind1_aa_qs,Ind2_aa_tr) &
-                                                                        * Norm_2RDM * Coul)
-                                        WRITE(6,*) "qstr aaaa contribution", q,s,t,r,-All_aaaa_RDM(Ind1_aa_qs,Ind2_aa_tr)*Norm_2RDM
-                                        call flush(6)
-                                        ! only abab possible as spin t must equal spin s    
-                                        Lagrangian(p,q)=Lagrangian(p,q) - (All_abba_RDM(Ind1_aa_qs,Ind2_aa_tr) &
-                                                                             * Norm_2RDM * Coul)
-                                        WRITE(6,*) "qstr abba contribution", q,s,t,r,-All_abba_RDM(Ind1_aa_qs,Ind2_aa_tr)*Norm_2RDM
-                                        call flush(6)
+                                        Lagrangian(p,q)=Lagrangian(p,q) - 0.5*2*(All_aaaa_RDM(Ind1_aa_qs,Ind2_aa_tr) &
+                                                                        * Norm_2RDM * Coul)/Divide_Factor
+                                        Lagrangian(p,q)=Lagrangian(p,q) - 0.5*2*(All_abba_RDM(Ind1_aa_qs,Ind2_aa_tr) &
+                                                                             * Norm_2RDM * Coul)/Divide_Factor
                                     elseif ((q.gt.s) .and. (t.gt.r)) then  ! We need to reorder D_qs,rt to -D_sq,rt
                                         Ind1_aa_sq = ( ( (q-2) * (q-1) ) / 2 ) + s
                                         Ind2_aa_rt = ( ( (t-2) * (t-1) ) / 2 ) + r
-                                        Lagrangian(p,q)=Lagrangian(p,q) -(All_aaaa_RDM(Ind1_aa_sq,Ind2_aa_rt) &
-                                                                        * Norm_2RDM * Coul)
-                                        WRITE(6,*) "sqrt aaaa contribution", s,q,r,t,-All_aaaa_RDM(Ind1_aa_sq,Ind2_aa_rt)*Norm_2RDM
-                                        call flush(6)
-                                        !no abab, as spin s must equal spin t
-                                        Lagrangian(p,q)=Lagrangian(p,q) - (All_abba_RDM(Ind1_aa_sq,Ind2_aa_rt) &
-                                                                         * Norm_2RDM * Coul)
-                                        WRITE(6,*) "sqrt abba contribution", s,q,r,t,-All_abba_RDM(Ind1_aa_sq,Ind2_aa_rt)*Norm_2RDM
-                                        call flush(6)
+                                        Lagrangian(p,q)=Lagrangian(p,q) -0.5*2*(All_aaaa_RDM(Ind1_aa_sq,Ind2_aa_rt) &
+                                                                        * Norm_2RDM * Coul)/Divide_Factor
+                                        Lagrangian(p,q)=Lagrangian(p,q) -0.5*2*(All_abba_RDM(Ind1_aa_sq,Ind2_aa_rt) &
+                                                                         * Norm_2RDM * Coul)/Divide_Factor
                                     else !Must need to reodrder D_qs,rt to D_sq,tr
                                         Ind1_aa_sq = ( ( (q-2) * (q-1) ) / 2 ) + s
                                         Ind2_aa_tr = ( ( (r-2) * (r-1) ) / 2 ) + t
-                                        Lagrangian(p,q)=Lagrangian(p,q) + (All_aaaa_RDM(Ind1_aa_sq,Ind2_aa_tr) &
-                                                                        * Norm_2RDM * Coul)
-                                        WRITE(6,*) "sqtr aaaa contribution", s,q,t,r,All_aaaa_RDM(Ind1_aa_sq,Ind2_aa_tr)*Norm_2RDM
-                                        call flush(6)
+                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_aaaa_RDM(Ind1_aa_sq,Ind2_aa_tr) &
+                                                                        * Norm_2RDM * Coul)/Divide_Factor
                                         Ind1_ab_sq = ( ( (q-1) * q ) / 2 ) + s
                                         Ind2_ab_tr = ( ( (r-1) * r ) / 2 ) + t
-                                        Lagrangian(p,q)=Lagrangian(p,q) + (All_abab_RDM(Ind1_ab_sq,Ind2_ab_tr) &
-                                                                         * Norm_2RDM * Coul)
-                                        WRITE(6,*) "sqtr abab contribution", s,q,t,r,All_abab_RDM(Ind1_ab_sq,Ind2_ab_tr)
-                                        call flush(6)
+                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_sq,Ind2_ab_tr) &
+                                                                         * Norm_2RDM * Coul)/Divide_Factor
                                     endif
                                 elseif (((s.eq.q) .and. (t.gt.r)) .or. ((s.gt.q) .and. (t.eq.r)) .or. ((s.eq.q) .and. (t.eq.r))) then
-                                        ! Everything is in the right order already
-                                        Ind1_ab_qs = ( ( (s-1) * s ) / 2 ) + q
-                                        Ind2_ab_rt = ( ( (t-1) * t ) / 2 ) + r
-                                        if ((s.eq.q) .and. (t.eq.r)) then
-                                        ! this array contains only one contribution, rather than aaaa + bbbb (for example)
-                                        ! We think that we now need to double it in order to properly convert from spin
-                                        ! to spatial orbs (see eq 2.7.9 in Helgie)
-                                            Lagrangian(p,q)=Lagrangian(p,q) + 2*(All_abab_RDM(Ind1_ab_qs,Ind2_ab_rt) &
-                                                                         * Norm_2RDM * Coul)
-                                        WRITE(6,*) "qsrt abab contribution", q,s, r, t, 2*All_abab_RDM(Ind1_ab_qs,Ind2_ab_rt)*Norm_2RDM
-                                        else
-                                            Lagrangian(p,q)=Lagrangian(p,q) + (All_abab_RDM(Ind1_ab_qs,Ind2_ab_rt) &
-                                                                         * Norm_2RDM * Coul)
-                                        WRITE(6,*) "qsrt abab contribution", q,s, r, t, All_abab_RDM(Ind1_ab_qs,Ind2_ab_rt)*Norm_2RDM
-                                        endif
-                                elseif ((s.eq.q) .and. (r.gt.t)) then
-                                        ! need to reorder D_qs,rt to -D_qs,tr
-                                        Ind1_ab_qs = ( ( (s-1) * s ) / 2 ) + q
-                                        Ind2_ab_tr = ( ( (r-1) * r ) / 2 ) + t
-                                        ! We would want to look up -D_qs,tr in abba (on account of spin contraints)
-                                        ! However, all such terms are stored abab, so instead we look up D_qs,tr in abab
-                                        Lagrangian(p,q)=Lagrangian(p,q) + (All_abab_RDM(Ind1_ab_qs,Ind2_ab_tr) &
-                                                                         * Norm_2RDM * Coul)
-                                        WRITE(6,*) "qstr abab contribution", q,s, t, r, All_abab_RDM(Ind1_ab_qs,Ind2_ab_tr)*Norm_2RDM
-                                elseif ((q.gt.s) .and. (t.eq.r)) then
-                                        ! need to reorder D_qs,rt to -D_sq,rt
-                                        Ind1_ab_sq = ( ( (q-1) * q ) / 2 ) + s
-                                        Ind2_ab_tr = ( ( (r-1) * r ) / 2 ) + t
-                                        ! We would want to look up -D_sq,rt in abba (on account of spin contraints)
-                                        ! However, all such terms are stored abab, so instead we look up D_sq,rt in abab
-                                        Lagrangian(p,q)=Lagrangian(p,q) + (All_abab_RDM(Ind1_ab_sq,Ind2_ab_tr) &
-                                                                         * Norm_2RDM * Coul)
-                                        WRITE(6,*) "sqrt abab contribution", s,q, r, t, All_abab_RDM(Ind1_ab_sq,Ind2_ab_rt)*Norm_2RDM
+                                    ! Everything is in the right order already
+                                    Ind1_ab_qs = ( ( (s-1) * s ) / 2 ) + q
+                                    Ind2_ab_rt = ( ( (t-1) * t ) / 2 ) + r
+                                    if ((s.eq.q) .and. (t.eq.r)) then
+                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_qs,Ind2_ab_rt) &
+                                                                     * Norm_2RDM * Coul)/Divide_Factor
+                                    else
+                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_qs,Ind2_ab_rt) &
+                                                                     * Norm_2RDM * Coul)/Divide_Factor
+                                    endif
+                                !elseif ((s.eq.q) .and. (r.gt.t)) then
+                                !    ! need to reorder D_qs,rt to D_sq,tr
+                                !    Ind1_ab_qs = ( ( (s-1) * s ) / 2 ) + q
+                                !    Ind2_ab_tr = ( ( (r-1) * r ) / 2 ) + t
+                                !    Lagrangian(p,q)=Lagrangian(p,q) + (All_abab_RDM(Ind1_ab_qs,Ind2_ab_tr) &
+                                !                                         * Norm_2RDM * Coul)
+                                elseif ((q.ge.s) .and. (t.eq.r)) then
+                                    ! need to reorder D_qs,rt to D_sq,tr
+                                    Ind1_ab_sq = ( ( (q-1) * q ) / 2 ) + s
+                                    Ind2_ab_tr = ( ( (r-1) * r ) / 2 ) + t
+                                    Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_sq,Ind2_ab_tr) &
+                                                                     * Norm_2RDM * Coul)/Divide_Factor
+                                endif
+                                
+                                ! SECOND TERM  (These two terms are explicitely symmetrised for the Molpro dump routine later)
+                                if((s.eq.r).and.(t.eq.q)) then
+                                    Divide_Factor = 1.0_dp
+                                else
+                                    Divide_Factor = 2.0_dp
                                 endif
                                 
                                 if ((s.ne.r) .and. (t.ne.q)) then  !Don't have to worry about any r=s or t=q terms yet - bbbb always allowed
                                     if ((s.gt.r) .and. (t.gt.q)) then       !The D_rs,qt is correctly ordered
                                         Ind1_aa_rs = ( ( (s-2) * (s-1) ) / 2 ) + r
                                         Ind2_aa_qt = ( ( (t-2) * (t-1) ) / 2 ) + q
-                                        Lagrangian(p,q)=Lagrangian(p,q) + (All_aaaa_RDM(Ind1_aa_rs,Ind2_aa_qt) &
-                                                                        * Norm_2RDM * Coul)
+                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_aaaa_RDM(Ind1_aa_rs,Ind2_aa_qt) &
+                                                                        * Norm_2RDM * Coul)/Divide_Factor
                                         Ind1_ab_rs = ( ( (s-1) * s ) / 2 ) + r
                                         Ind2_ab_qt = ( ( (t-1) * t ) / 2 ) + q
-                                        Lagrangian(p,q)=Lagrangian(p,q) + (All_abab_RDM(Ind1_ab_rs,Ind2_ab_qt) &
-                                                                         * Norm_2RDM * Coul)
-                                        WRITE(6,*) "rsqt aaaa contribution", r, s,q,t, All_aaaa_RDM(Ind1_aa_rs,Ind2_aa_qt)*Norm_2RDM
-                                        WRITE(6,*) "rsqt abab contribution", r, s,q,t, All_abab_RDM(Ind1_ab_rs,Ind2_ab_qt)*Norm_2RDM
-                                        !Don't need to worry about s=r or t=q cases, as these are stored in abab anyway
+                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_rs,Ind2_ab_qt) &
+                                                                         * Norm_2RDM * Coul)/Divide_Factor
                                     elseif ((s.gt.r) .and. (q.gt.t)) then  ! We need to reorder D_rs,qt to -D_rs,tq
                                         Ind1_aa_rs = ( ( (s-2) * (s-1) ) / 2 ) + r
                                         Ind2_aa_tq = ( ( (q-2) * (q-1) ) / 2 ) + t
-                                        call flush(6)
-                                        Lagrangian(p,q)=Lagrangian(p,q) - (All_aaaa_RDM(Ind1_aa_rs,Ind2_aa_tq) &
-                                                                        * Norm_2RDM * Coul)
-                                        WRITE(6,*) "qstr aaaa contribution", r,s,t,q,-All_aaaa_RDM(Ind1_aa_rs,Ind2_aa_tq)*Norm_2RDM
-                                        call flush(6)
+                                        Lagrangian(p,q)=Lagrangian(p,q) - 0.5*2*(All_aaaa_RDM(Ind1_aa_rs,Ind2_aa_tq) &
+                                                                        * Norm_2RDM * Coul)/Divide_Factor
                                         ! only abab possible as spin t must equal spin s    
-                                        Lagrangian(p,q)=Lagrangian(p,q) - (All_abba_RDM(Ind1_aa_rs,Ind2_aa_tq) &
-                                                                             * Norm_2RDM * Coul)
-                                        WRITE(6,*) "qstr abba contribution", r,s,t,q,-All_abba_RDM(Ind1_aa_rs,Ind2_aa_tq)*Norm_2RDM
-                                        call flush(6)
+                                        Lagrangian(p,q)=Lagrangian(p,q) - 0.5*2*(All_abba_RDM(Ind1_aa_rs,Ind2_aa_tq) &
+                                                                             * Norm_2RDM * Coul)/Divide_Factor
                                     elseif ((r.gt.s) .and. (t.gt.q)) then  ! We need to reorder D_rs,qt to -D_sr,qt
                                         Ind1_aa_sr = ( ( (r-2) * (r-1) ) / 2 ) + s
                                         Ind2_aa_qt = ( ( (t-2) * (t-1) ) / 2 ) + q
-                                        Lagrangian(p,q)=Lagrangian(p,q) - (All_aaaa_RDM(Ind1_aa_sr,Ind2_aa_qt) &
-                                                                        * Norm_2RDM * Coul)
-                                        WRITE(6,*) "srqt aaaa contribution", s,r,q,t,-All_aaaa_RDM(Ind1_aa_sr,Ind2_aa_qt)*Norm_2RDM
-                                        call flush(6)
+                                        Lagrangian(p,q)=Lagrangian(p,q) - 0.5*2*(All_aaaa_RDM(Ind1_aa_sr,Ind2_aa_qt) &
+                                                                        * Norm_2RDM * Coul)/Divide_Factor
                                         !no abab, as spin s must equal spin t
-                                        Lagrangian(p,q)=Lagrangian(p,q) - (All_abba_RDM(Ind1_aa_sr,Ind2_aa_qt) &
-                                                                         * Norm_2RDM * Coul)
-                                        WRITE(6,*) "srqt abba contribution", s,r,q,t,-All_abba_RDM(Ind1_aa_sr,Ind2_aa_qt)*Norm_2RDM
-                                        call flush(6)
+                                        Lagrangian(p,q)=Lagrangian(p,q) - 0.5*2*(All_abba_RDM(Ind1_aa_sr,Ind2_aa_qt) &
+                                                                         * Norm_2RDM * Coul)/Divide_Factor
                                     else !Must need to reodrder D_rs,qt to D_sr,tq
-                                        Ind1_aa_sq = ( ( (r-2) * (r-1) ) / 2 ) + s
-                                        Ind2_aa_tr = ( ( (q-2) * (q-1) ) / 2 ) + t
-                                        Lagrangian(p,q)=Lagrangian(p,q) + (All_aaaa_RDM(Ind1_aa_sr,Ind2_aa_tq) &
-                                                                        * Norm_2RDM * Coul)
-                                        WRITE(6,*) "srtq aaaa contribution", s,r,t,q,All_aaaa_RDM(Ind1_aa_sr,Ind2_aa_tq)*Norm_2RDM
-                                        call flush(6)
+                                        Ind1_aa_sr = ( ( (r-2) * (r-1) ) / 2 ) + s
+                                        Ind2_aa_tq = ( ( (q-2) * (q-1) ) / 2 ) + t
+                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_aaaa_RDM(Ind1_aa_sr,Ind2_aa_tq) &
+                                                                        * Norm_2RDM * Coul)/Divide_Factor
                                         Ind1_ab_sr = ( ( (r-1) * r ) / 2 ) + s
                                         Ind2_ab_tq = ( ( (q-1) * q ) / 2 ) + t
-                                        Lagrangian(p,q)=Lagrangian(p,q) + (All_abab_RDM(Ind1_ab_sr,Ind2_ab_tq) &
-                                                                         * Norm_2RDM * Coul)
-                                        WRITE(6,*) "srtq abab contribution", s,q,t,r,All_abab_RDM(Ind1_ab_sr,Ind2_ab_tq)*Norm_2RDM
-                                        call flush(6)
+                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_sr,Ind2_ab_tq) &
+                                                                         * Norm_2RDM * Coul)/Divide_Factor
                                     endif
                                 elseif (((s.eq.r) .and. (t.gt.q)) .or. ((s.gt.r) .and. (t.eq.q)) &
                                                 .or. ((s.eq.r) .and. (t.eq.q))) then
@@ -3967,67 +3896,28 @@ module NeLrdmmOD
                                         Ind1_ab_rs = ( ( (s-1) * s ) / 2 ) + r
                                         Ind2_ab_qt = ( ( (t-1) * t ) / 2 ) + q
                                         if ((s.eq.r) .and. (t.eq.q)) then
-                                        ! this array contains only one contribution, rather than aaaa + bbbb (for example)
-                                        ! We think that we now need to double it in order to properly convert from spin
-                                        ! to spatial orbs (see eq 2.7.9 in Helgie)
-                                        !DEBUG:NOW WE THINK WE DONT
-                                            Lagrangian(p,q)=Lagrangian(p,q) + 2*(All_abab_RDM(Ind1_ab_rs,Ind2_ab_qt) &
-                                                                         * Norm_2RDM * Coul)
-                                        WRITE(6,*) "rsqt abab contribution", r,s, q, t, 2*All_abab_RDM(Ind1_ab_rs,Ind2_ab_qt)*Norm_2RDM
+                                            Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_rs,Ind2_ab_qt) &
+                                                                         * Norm_2RDM * Coul)/Divide_Factor
                                         else
-                                            Lagrangian(p,q)=Lagrangian(p,q) + (All_abab_RDM(Ind1_ab_rs,Ind2_ab_qt) &
-                                                                         * Norm_2RDM * Coul)
-                                        WRITE(6,*) "rsqt abab contribution", r,s, q, t, All_abab_RDM(Ind1_ab_rs,Ind2_ab_qt)*Norm_2RDM
+                                            Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_rs,Ind2_ab_qt) &
+                                                                         * Norm_2RDM * Coul)/Divide_Factor
                                         endif
                                 elseif ((s.eq.r) .and. (q.gt.t)) then
-                                        ! need to reorder D_rs,qt to -D_rs,tq
+                                        ! need to reorder D_rs,qt to D_sr,tq
                                         Ind1_ab_rs = ( ( (s-1) * s ) / 2 ) + r
                                         Ind2_ab_tq = ( ( (q-1) * q ) / 2 ) + t
-                                        ! We would want to look up -D_rs,tq in abba (on account of spin contraints)
-                                        ! However, all such terms are stored abab, so instead we look up D_rs,tq in abab
-                                        Lagrangian(p,q)=Lagrangian(p,q) + (All_abab_RDM(Ind1_ab_rs,Ind2_ab_tq) &
-                                                                         * Norm_2RDM * Coul)
-                                        WRITE(6,*) "rstq abab contribution", r, s,t, q, All_abab_RDM(Ind1_ab_rs,Ind2_ab_tq)*Norm_2RDM
+                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_rs,Ind2_ab_tq) &
+                                                                         * Norm_2RDM * Coul)/Divide_Factor
                                 elseif ((r.gt.s) .and. (t.eq.q)) then
-                                        ! need to reorder D_qs,rt to -D_sq,rt
+                                        ! need to reorder D_rs,qt to D_sr,tq
                                         Ind1_ab_sr = ( ( (r-1) * r ) / 2 ) + s
                                         Ind2_ab_tq = ( ( (q-1) * q ) / 2 ) + t
-                                        ! We would want to look up -D_sq,rt in abba (on account of spin contraints)
-                                        ! However, all such terms are stored abab, so instead we look up D_sq,rt in abab
-                                        Lagrangian(p,q)=Lagrangian(p,q) + (All_abab_RDM(Ind1_ab_sr,Ind2_ab_tq) &
-                                                                         * Norm_2RDM * Coul)
-                                        WRITE(6,*) "srtq abab contribution", s,r,t,q, All_abab_RDM(Ind1_ab_sr,Ind2_ab_tq)*Norm_2RDM
+                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_sr,Ind2_ab_tq) &
+                                                                         * Norm_2RDM * Coul)/Divide_Factor
                                 endif
-
-                                !___    
-                                !if((q.ne.s).and.(r.ne.t)) then
-                                !    ! Cannot get q=s or r=t contributions in aaaa. RDM_aaaa(qs;rt)
-                                !    Lagrangian(p,q)=Lagrangian(p,q) + (All_aaaa_RDM(Ind1_aa_qs,Ind2_aa_rt) &
-                                !                                        * Norm_2RDM * Coul)
-                                !    WRITE(6,*) "qsrt aaaa contribution", All_aaaa_RDM(Ind1_aa_qs,Ind2_aa_rt)
-                                !endif
-                                
-                               ! if((r.ne.s).and.(q.ne.t)) then
-                                    ! Cannot get r=s or q=t contributions in aaaa. RDM_aaaa(rs;qt)
-                               !     Lagrangian(p,q)=Lagrangian(p,q) + (All_aaaa_RDM(Ind1_aa_rs,Ind2_aa_qt) &
-                               !                                         * Norm_2RDM * Coul)
-                               !     WRITE(6,*) "rsqt aaaa contribution", All_aaaa_RDM(Ind1_aa_rs,Ind2_aa_qt)
-                               ! endif
-                                    
-                                ! For abab cases, coul element will be non-zero, exchange zero.
-                                
-                                !Lagrangian(p,q)=Lagrangian(p,q) + ((All_abab_RDM(Ind1_ab_rs,Ind2_ab_qt) &
-                                 !                                       + All_abab_RDM(Ind1_ab_qs,Ind2_ab_rt)) * Norm_2RDM * Coul)
-                                !    WRITE(6,*) "rsqt abab contribution", All_abab_RDM(Ind1_ab_rs,Ind2_ab_qt)
-                                !    WRITE(6,*) "qsrt abab contribution", All_abab_RDM(Ind1_ab_qs,Ind2_ab_rt)
-
-                                ! For abba cases, coul element will be zero, so there is no contribution
-                                           call flush(6)
                             enddo
-
                     enddo
                 enddo
-                WRITE(6,*) "p=", p, " q=", q, " Lagrangian(p,q)=", Lagrangian(p,q)
             enddo
         enddo
 
@@ -4060,11 +3950,11 @@ module NeLrdmmOD
                             ! we then need to divide each by 2.
                             ! but in cases where i and j, and a and b, are in the same spatial 
                             ! orbital, there will be only one contribution.
-                            !if((i.eq.j).and.(k.eq.l)) then
-                            !    Divide_Factor = 1.0_dp
-                            !else
-                                Divide_Factor = 2.0_dp
-                            !endif
+                            if((i.eq.j).and.(k.eq.l)) then
+                                Divide_Factor = 1.0_dp
+                            else
+                               Divide_Factor = 2.0_dp
+                            endif
 
                             !Swap order of ij and kl indices: NECI store D_ij,kl as j>i, l>k
                             ! Whilst we want the other way around
@@ -4090,11 +3980,20 @@ module NeLrdmmOD
                                 Spatial_RDM(i,j,k,l) = Spatial_RDM(i,j,k,l)+2*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                                 Spatial_RDM(j,i,k,l) = Spatial_RDM(j,i,k,l)-2*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                                 Spatial_RDM(i,j,l,k) = Spatial_RDM(i,j,l,k)-2*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
-                                Spatial_RDM(j,i,k,l) = Spatial_RDM(j,i,k,l)-2*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
-                                Spatial_RDM(i,j,l,k) = Spatial_RDM(i,j,l,k)-2*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                            !    if ((i.eq.k) .and. (j.eq.l)) then
+                            !        Spatial_RDM(j,i,k,l) = Spatial_RDM(j,i,k,l)-All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor !DEBUG
+                            !        Spatial_RDM(i,j,l,k) = Spatial_RDM(i,j,l,k)-All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor ! DEBUG
+                            !    else
+                                    Spatial_RDM(j,i,k,l) = Spatial_RDM(j,i,k,l)-2*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                                    Spatial_RDM(i,j,l,k) = Spatial_RDM(i,j,l,k)-2*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                             !   endif
                             endif
                                 call flush(6) 
-                            Spatial_RDM(i,j,k,l) = Spatial_RDM(i,j,k,l)+2*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
+                            !if ((j.eq.k) .and. (i.eq.l)) then
+                            !    Spatial_RDM(i,j,k,l) = Spatial_RDM(i,j,k,l)+All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor !DEBUG
+                            !else   
+                                Spatial_RDM(i,j,k,l) = Spatial_RDM(i,j,k,l)+2*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
+                            !endif
                             call flush(6)
 
                             !Second Term D_kj,il
@@ -4146,7 +4045,6 @@ module NeLrdmmOD
             Spatial_RDM_unit = get_free_unit()
         OPEN(Spatial_RDM_unit,file='Spatial_RDM',status='unknown')
  
-        ! Currently printing Lagrangian with spatial orbital labels, though we specifically refer to beta spin orbitals.
         do i = 1, SpatOrbs
             do j = 1, SpatOrbs
                 do k=1, SpatOrbs
@@ -4157,75 +4055,69 @@ module NeLrdmmOD
             enddo
         enddo
 
+        if(tStoreSpinOrbs) then
+            do i=1, 2*SpatOrbs
+                do j=1, 2*SpatOrbs
+                    WRITE(6,*) "i, j, 1RDM(i,j)", i, j, NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))
+                enddo
+            enddo
+        else
+            do i=1, SpatOrbs
+                do j=1, SpatOrbs
+                WRITE(6,*) "i, j, 1RDM(i,j)", i, j, NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))
+            enddo
+        enddo
+    endif
+
+        !WRITE(6,*) "!!!!!!!!!!!!! CHECKING RDMS ARE AS EXPECTED !!!!!!!!!!!!!!"
+        !do i=1, SpatOrbs
+        !    do j=1, i
+        !        do k=1, SpatOrbs
+        !            do l=1,k
+        !                Ind1_aa = ( ( (i-2) * (i-1) ) / 2 ) + j
+        !                Ind1_ab = ( ( (i-1) * i ) / 2 ) + j
+        !                Ind2_aa = ( ( (k-2) * (k-1) ) / 2 ) + l
+        !                Ind2_ab = ( ( (k-1) * k ) / 2 ) + l
+        !                if ((i.ne.j) .and. (k.ne.l)) then
+        !                    WRITE(6,*) "aaaa i j k l ", i, j, k, l, All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM
+        !                    WRITE(6,*) "abba i j k l ", i, j, k, l, All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM
+        !                endif
+        !                WRITE(6,*) "abab i j k l ", i, j, k, l, All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM
+        !            enddo
+        !        enddo
+        !    enddo
+        !enddo
+
+
         !! Calc My Lagrangian
-            do p = 1, SpatOrbs  !Run over just the beta spin orbitals - Any alpha/beta terms in X are zero
-                pSpin = 2 * p    ! Picks out beta component
+        do p = 1, SpatOrbs 
+            do q = 1, SpatOrbs  
+                do r = 1, SpatOrbs
+                    WRITE(6,*) "p r Integral is ", p,r,REAL(TMAT2D(2*p,2*r),8)
+                    !if(tStoreSpinOrbs) then
+                    !    Lagrangian2(p,q)=Lagrangian2(p,q)+2*NatOrbMat(SymLabelListInv_rot(2*q),SymLabelListInv_rot(2*r))* &
+                    !           REAL(TMAT2D(pSpin,rSpin),8)
+                    !          ! Include both aa and bb contributions
+                    !          WRITE(6,*) "r contribution to X_pq is twice", NatOrbMat(SymLabelListInv_rot(2*q),SymLabelListInv_rot(2*r)), &
+                    !                             "times",  REAL(TMAT2D(pSpin,rSpin),8)
+                    !else
+                    Lagrangian2(p,q)=Lagrangian2(p,q)+NatOrbMat(SymLabelListInv_rot(q),SymLabelListInv_rot(r))*REAL(TMAT2D(2*p,2*r),8)
+                    WRITE(6,*) "Here ok"
+                    call flush(6)
+                    Lagrangian3(p,q)=Lagrangian3(p,q)+NatOrbMat(SymLabelListInv_rot(q),SymLabelListInv_rot(r))*REAL(TMAT2D(2*p,2*r),8)
+                       ! WRITE(6,*) "r contribution to X_pq is", NatOrbMat(SymLabelListInv_rot(q),SymLabelListInv_rot(r)), &
+                       !                          "times",  REAL(TMAT2D(pSpin,rSpin),8)
+                    !endif
 
-                do q = 1, SpatOrbs  !Want to calculate X(p,q) separately from X(q,p) for now to see if we're symmetric
-                    qSpin = 2 * q  !Picks out beta component
-                
-                    do r = 1, SpatOrbs
+                    WRITE(6,*) "p=",p," q=",q," Lagrangian2(p,q)=", Lagrangian2(p,q)
+                    call flush(6)
 
-                        rSpin=2*r
-
-                        ! Adding in contributions effectively from the 1-RDM (although these are calculated 
-                        ! from the 2-RDM.
-                        
-                        !call calc_1RDM_Lagrangian(p,q,r,pSpin,rSpin, Norm_2RDM, Norm_2RDM_Inst)
-                        if(tStoreSpinOrbs) then
-                            WRITE(6,*) "Yes storing spin orbs"
-                            Lagrangian2(p,q)=Lagrangian2(p,q)+2*NatOrbMat(SymLabelListInv_rot(2*q),SymLabelListInv_rot(2*r))* &
-                               REAL(TMAT2D(pSpin,rSpin),8)
-                               ! Include both aa and bb contributions
-                               WRITE(6,*) "r contribution to X_pq is twice", NatOrbMat(SymLabelListInv_rot(2*q),SymLabelListInv_rot(2*r)), &
-                                                 "times",  REAL(TMAT2D(pSpin,rSpin),8)
-                        else
-                            WRITE(6,*) "Storing spatial orbs"
-                            Lagrangian2(p,q)=Lagrangian2(p,q)+NatOrbMat(SymLabelListInv_rot(q),SymLabelListInv_rot(r))* &
-                               REAL(TMAT2D(pSpin,rSpin),8)
-                               WRITE(6,*) "r contribution to X_pq is", NatOrbMat(SymLabelListInv_rot(q),SymLabelListInv_rot(r)), &
-                                                 "times",  REAL(TMAT2D(pSpin,rSpin),8)
-                        endif
-
-                        WRITE(6,*) "p=",p," q=",q," Lagrangian2(p,q)=", Lagrangian2(p,q)
-
-                        ! Adding in the 1-RDM contribution to the Lagrangian term X(i,j)
-                        !! Add in aaaa terms h_pr*gamma_rq and bbbb terms of the same type
-                        !! note that p&r, r&q pairs must all have the same spin in order for these terms to contribute
-
-                        do s = 1, SpatOrbs
-
-                            WRITE(6,*) "Running over s: s=", s
-
-                            ! Here we're looking to start adding on the contributions from the 2-RDM and the 2-el integrals
-                            ! For X(p,q), these have the form (pr|st) * [Gamma(qs;rt) + Gamma(rs;qt)]
-                            ! For the integral to be non-zero, p&r and s&t pairs must have the same spin
-                            ! For the density matrix to be non-zero q&r must also have the same spin
-                            ! So, p,q,r must be of the same spin; s&t must be of the same spin
-                            ! Therefore we can consider the contribution to the Lagrangian:
-                            ! X(p,q) += Sum_rst from 1 to Spatial { (2p-1 2r-1 | 2s 2t ) * [Gamma_abab(qs;rt) +Gamma_abab(rs;qt)]
-                            !                       + (2p-1 2r-1 | 2s-1 2t-1 ) * [Gamma_aaaa(qs;rt) +Gamma_aaaa(rs;qt)] }
-                            
-                            ! We'll need to consider the alpha (2p-1,2q-1) and beta (2p,2q) terms separately
-
-                            ! As the 2-RDM is stored as a 2-index integral, we need to translate the 4-index notation to the 2-index
-                            ! Index1 will depend on q&s or r&s
-                            ! Index2 will depend on r&t or q&t
-                    
-                            !Ind1_aa_qs = ( ( (s-2) * (s-1) ) / 2 ) + q
-                            !Ind1_aa_rs = ( ( (s-2) * (s-1) ) / 2 ) + r
-                            !Ind1_ab_qs = ( ( (s-1) * s ) / 2 ) + q
-                            !Ind1_ab_rs = ( ( (s-1) * s ) / 2 ) + r
-                
-                            do t=1, SpatOrbs
-                                Coul = REAL(UMAT(UMatInd(p,s,r,t,0,0)),8)
-                                !Give indices in PHYSICAL NOTATION *CMO
-
-                                WRITE(6,*) "Lagrangian2(p,q) was ", Lagrangian2(p,q)
-                                WRITE(6,*) "p,q,r,s,t", p,q,r,s,t
-                                WRITE(6,*) "Integral is ", Coul
-                                Lagrangian2(p,q) = Lagrangian2(p,q) + (Spatial_RDM(q,s,r,t) + Spatial_RDM(r,s,q,t))*Coul
-                               WRITE(6,*) "RDM terms used are ", Spatial_RDM(q,s,r,t), Spatial_RDM(r,s,q,t)
+                    do s=1, SpatOrbs
+                        do t=1, SpatOrbs
+                            Lagrangian2(p,q) = Lagrangian2(p,q) + REAL(UMAT(UMatInd(p,s,r,t,0,0)),8)* &
+                                    (Spatial_RDM(q,s,r,t) + Spatial_RDM(r,s,q,t))
+                            Lagrangian3(p,q) = Lagrangian3(p,q) + 0.5*REAL(UMAT(UMatInd(p,s,r,t,0,0)),8)* &
+                                    (Spatial_RDM(q,s,r,t) + Spatial_RDM(r,s,q,t))
 
                             enddo
                         enddo
@@ -4233,13 +4125,41 @@ module NeLrdmmOD
                 enddo
             enddo
 
-        WRITE(6,*) "WRITING OUT MY DEBUG LAGRANGIAN"
+        WRITE(6,*) "WRITING OUT MY DEBUG LAGRANGIAN2"
 
         do i=1, SpatOrbs
             do j=1, SpatOrbs
                 WRITE(6,*) i, j, Lagrangian2(i,j)
             enddo
         enddo
+        WRITE(6,*) "WRITING OUT MY DEBUG LAGRANGIAN3"
+        do i=1, SpatOrbs
+            do j=1, SpatOrbs
+                WRITE(6,*) i, j, Lagrangian3(i,j)
+            enddo
+        enddo
+
+        MyEnergy=ECore
+        Contrib1=0.D0
+        Contrib2=0.D0
+
+        WRITE(6,*) "!!!!!! CALCING ENERGY USING SPATIAL DMAT !!!!!"
+        do i=1, SpatOrbs
+            do j=1,SpatOrbs
+                MyEnergy=MyEnergy+NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))* &
+                               REAL(TMAT2D(2*i,2*j),8)
+                               Contrib1=Contrib1+ NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))* &
+                                                              REAL(TMAT2D(2*i,2*j),8)
+                do k=1,SpatOrbs
+                    do l=1,SpatOrbs
+                        MyEnergy=MyEnergy + 0.5*REAL(UMAT(UMatInd(i,j,k,l,0,0)),8)*Spatial_RDM(i,j,k,l)
+                        Contrib2=Contrib2+  0.5*REAL(UMAT(UMatInd(i,j,k,l,0,0)),8)*Spatial_RDM(i,j,k,l)
+                    enddo
+                enddo
+            enddo
+        enddo
+        WRITE(6,*) "!!!!!! MYENERGY USING SPATIAL DMAT IS", MyEnergy
+        WRITE(6,*) "1 Contrib, 2 Contrib", Contrib1, Contrib2
 
         call Write_out_Lagrangian()
 
@@ -6175,6 +6095,9 @@ WRITE(6,*) "abab contribution", All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab)
         do i=0,nSymLabels-1  !i labels the symmetry
             iact(i+1)=SymLabelCounts2(2,ClassCountInd(1,i,0))  ! Count the number of active orbitals of the given symmetry
             Len_1RDM=Len_1RDM+(iact(i+1)*(iact(i+1)+1)/2)
+            WRITE(6,*) "i is, ", i
+            WRITE(6,*) "iact(i+1) is, ", iact(i+1)
+            WRITE(6,*) "Len_1RDM ", Len_1RDM
         enddo
 
         ! Find out the number of orbital pairs that multiply to a given sym (ldact)
@@ -6225,14 +6148,29 @@ WRITE(6,*) "abab contribution", All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab)
                     Sym_i=SpinOrbSymLabel(2*i)  !Consider only alpha orbitals
                     Sym_j=SpinOrbSymLabel(2*j)
                     Sym_ij=RandExcitSymLabelProd(Sym_i, Sym_j)
+                    WRITE(6,*) "i, j", i, j
+                    WRITE(6,*) "Sym_i, Sym_j, Sym_ij", Sym_i, Sym_j, Sym_ij
+                    call flush(6)
                     if ((SYM.eq.0) .and. (Sym_ij .eq. 0)) then   ! Only need to count this once (not 8 times!)
                         if(tStoreSpinOrbs) then
+                            WRITE(6,*) "Here 2"
+                    call flush(6)
                             SymmetryPacked1RDM(posn1)=2*NatOrbMat(SymLabelListInv_rot(2*i),SymLabelListInv_rot(2*j))
                                ! Include both aa and bb contributions
+                            WRITE(6,*) "Here 3"
+                    call flush(6)
                         else
+                            WRITE(6,*) "Here 4"
+                    call flush(6)
                             SymmetryPacked1RDM(posn1)=NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))
+                            WRITE(6,*) "Here 5 "
+                    call flush(6)
                         endif
+                            WRITE(6,*) "Here 6"
+                    call flush(6)
                         SymmetryPackedLagrangian(posn1)=Lagrangian(i,j)
+                            WRITE(6,*) "Here 7"
+                    call flush(6)
                         posn1=posn1+1
                     endif
                     if (Sym_ij .ne. Sym) CYCLE
@@ -6241,8 +6179,6 @@ WRITE(6,*) "abab contribution", All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab)
                             Sym_k=SpinOrbSymLabel(2*k)  !Consider only alpha orbitals
                             Sym_l=SpinOrbSymLabel(2*l)
                             Sym_kl=RandExcitSymLabelProd(Sym_k, Sym_l)
-                            WRITE(6,*) "i, j", i, j
-                            WRITE(6,*) "Sym_i, Sym_j, Sym_ij", Sym_i, Sym_j, Sym_ij
                             WRITE(6,*) "k, l", k, l
                             WRITE(6,*) "Sym_k, Sym_l, Sym_kl", Sym_k, Sym_l, Sym_kl
                             call flush(6) 
