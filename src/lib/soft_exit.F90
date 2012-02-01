@@ -99,7 +99,7 @@ module soft_exit
                          AvAnnihil, VaryShiftCycles, SumDiagSft, &
                          VaryShiftIter, CurrentDets, iLutHF, HFDet, &
                          TotWalkers,tPrintHighPop, tSearchTau,&
-			 n_proje_sum => nproje_sum,proje_update_comb
+             n_proje_sum => nproje_sum,proje_update_comb
     use CalcData, only: DiagSft, SftDamp, StepsSft, OccCASOrbs, VirtCASOrbs, &
                         tTruncCAS,  NEquilSteps, tTruncInitiator, &
                         InitiatorWalkNo, tCheckHighestPop, tRestartHighPop, &
@@ -308,8 +308,8 @@ contains
                         ! Do we have any other items to read in?
                         if (i == tau) then
                             call readf (tau_value)
-                        elseif (i == nprojesum) then	 
-                            call readi (n_proje_sum)	 
+                        elseif (i == nprojesum) then     
+                            call readi (n_proje_sum)     
                         elseif (i == TargetGrowRate) then
                             call readf (target_grow_rate)
                         elseif (i == diagshift) then
@@ -481,7 +481,7 @@ contains
                 endif
             endif
 
-	    if(opts_selected(nprojesum)) then
+            if(opts_selected(nprojesum)) then
                 call MPIBCast(n_proje_sum, tSource)
                 proje_update_comb=.true.
                 call MPIBCast(proje_update_comb, tSource)

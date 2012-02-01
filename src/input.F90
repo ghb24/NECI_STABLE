@@ -689,7 +689,7 @@ SUBROUTINE read_single(A,factor)
 REAL(kind=sp), INTENT(INOUT) :: a
 REAL(kind=sp), INTENT(IN), OPTIONAL :: factor
 
-DOUBLE PRECISION :: aa
+REAL(kind=dp) :: aa
 
 if (present(factor)) then
   call read_double(aa,real(factor,dp))
@@ -842,8 +842,8 @@ SUBROUTINE getf(A,factor)
 !  If the optional argument factor is present, the value read should be
 !  divided by it. (External value = factor*internal value)
 
-DOUBLE PRECISION, INTENT(INOUT) :: A
-DOUBLE PRECISION, INTENT(IN), OPTIONAL :: factor
+REAL(kind=dp), INTENT(INOUT) :: A
+REAL(kind=dp), INTENT(IN), OPTIONAL :: factor
 
 LOGICAL :: eof
 
@@ -1079,7 +1079,7 @@ REAL(kind=sp), INTENT(OUT) :: colour(3)
 LOGICAL, INTENT(IN), OPTIONAL :: clamp
 CHARACTER(LEN=6) :: x
 INTEGER :: i, r, g, b
-DOUBLE PRECISION :: c
+REAL(kind=dp) :: c
 
 select case(fmt)
 case("GREY","GRAY")

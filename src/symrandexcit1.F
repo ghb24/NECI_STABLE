@@ -65,13 +65,13 @@
             ITO=EXCITTYPES(4,IEXCIT)
             IF(tNoRenormRandExcits) THEN
 !There is no excitation weighting - we do not need to enumerate all excitations
-                Call SymGenRandExcitIt2_Single_GetFrom_NoWeight(iSeed,
+                Call SymGenRandExcitIt2_Sing_GF_NoW(iSeed,
      &                  nEl,iSpn,iFrom,I,nI)
-                Call SymGenRandExcitIt2_Single_GetTo_NoWeight(iSeed,nI,
+                Call SymGenRandExcitIt2_Sing_GT_NoW(iSeed,nI,
      &                  nEl,I,iSpn,iTo,nK,ExcitMat,TParity)
             ELSE
 !We have an excitation weighting - enumerate all excitations to get normalisation
-                Call SymGenRandExcitIt2_Single_GetFrom(iSeed,nI,nEl,
+                Call SymGenRandExcitIt2_Sing_GF(iSeed,nI,nEl,
      &                  iSpn,iFrom,I)
                 Call SymGenRandExcitIt2_Single_GetTo(iSeed,nI,nEl,I,
      &                  iSpn,iTo,nK,ExcitMat,TParity)
@@ -92,14 +92,14 @@
             IF(tStoreStateList.and.tNoRenormRandExcits) THEN
 !There is no excitation weighting - we do not need to enumerate all excitations in the class
 !However, currently, we do need a list of state pairs.
-                Call SymGenRandExcitIt2_Double_GetFrom_NoWeight(iSeed,
+                Call SymGenRandExcitIt2_Doub_GF_NoW(iSeed,
      &               iSpn,iFrom,SymProdInd,I,nI,OrbPairs)
 
-                Call SymGenRandExcitIt2_Double_GetTo_NoWeight(iSeed,
+                Call SymGenRandExcitIt2_Doub_GT_NoW(iSeed,
      &               nI,ExcitTypes,iExcit,OrbPairs,SymProdInd,iSpn,
      &               iFrom,iLUT,I,nK,ExcitMat,TParity)
             ELSE
-                Call SymGenRandExcitIt2_Double_GetFrom(iSeed,ExcitTypes,
+                Call SymGenRandExcitIt2_Doub_GF(iSeed,ExcitTypes,
      &         iExcit,iSpn, iFrom, OrbPairs, SymProdInd, iTotal, I,pGen)
 
                Call SymGenRandExcitIt2_Double_GetTo(iSeed,nI,ExcitTypes,

@@ -13,19 +13,19 @@ ndim=0
 type1=integer(int64)
 mpitype=MPI_INTEGER8
 
-[double]
+[doub]
 type1=real(dp)
 mpitype=MPI_DOUBLE_PRECISION
 
-[logical4]
+[log4]
 type1=logical(kind=int32)
 mpitype=MPI_INTEGER4
 
-[logical8]
+[log8]
 type1=logical(kind=int64)
 mpitype=MPI_INTEGER8
 
-[complex]
+[comp]
 type1=complex(dp)
 mpitype=MPI_DOUBLE_COMPLEX
 
@@ -45,19 +45,19 @@ ndim=1
 type1=integer(int64), dimension(:)
 mpitype=MPI_INTEGER8
 
-[arr_double]
+[arr_doub]
 type1=real(dp), dimension(:)
 mpitype=MPI_DOUBLE_PRECISION
 
-[arr_complex]
+[arr_comp]
 type1=complex(dp), dimension(:)
 mpitype=MPI_DOUBLE_COMPLEX
 
-[arr_logical4]
+[arr_log4]
 type1=logical(kind=int32), dimension(:)
 mpitype=MPI_INTEGER4
 
-[arr_logical8]
+[arr_log8]
 type1=logical(kind=int64), dimension(:)
 mpitype=MPI_INTEGER8
 ######################
@@ -75,19 +75,19 @@ ndim=2
 type1=integer(int64), dimension(:,:)
 mpitype=MPI_INTEGER8
 
-[arr2_double]
+[arr2_doub]
 type1=real(dp), dimension(:,:)
 mpitype=MPI_DOUBLE_PRECISION
 
-[arr2_complex]
+[arr2_comp]
 type1=complex(dp), dimension(:,:)
 mpitype=MPI_DOUBLE_COMPLEX
 
-[arr2_logical4]
+[arr2_log4]
 type1=logical(kind=int32), dimension(:,:)
 mpitype=MPI_INTEGER4
 
-[arr2_logical8]
+[arr2_log8]
 type1=logical(kind=int64), dimension(:,:)
 mpitype=MPI_INTEGER8
 ######################
@@ -101,11 +101,11 @@ mpilen=((ubound(v,1)-lbound(v,1)+1)*(ubound(v,2)-lbound(v,2)+1)*(ubound(v,3)-lbo
 mpilen2=((ubound(v2,1)-lbound(v2,1)+1)*(ubound(v2,2)-lbound(v2,2)+1)*(ubound(v2,3)-lbound(v2,3)+1))
 ndim=3
 
-[arr3_double]
+[arr3_doub]
 type1=real(dp), dimension(:,:,:)
 mpitype=MPI_DOUBLE_PRECISION
 
-[arr3_complex]
+[arr3_comp]
 type1=complex(dp), dimension(:,:,:)
 mpitype=MPI_DOUBLE_COMPLEX
 
@@ -120,7 +120,7 @@ mpilen=((ubound(v,1)-lbound(v,1)+1)*(ubound(v,2)-lbound(v,2)+1)*(ubound(v,3)-lbo
 mpilen2=((ubound(v2,1)-lbound(v2,1)+1)*(ubound(v2,2)-lbound(v2,2)+1)*(ubound(v2,3)-lbound(v2,3)+1)*(ubound(v2,4)-lbound(v2,4)+1))
 ndim=4
 
-[arr4_double]
+[arr4_doub]
 type1=real(dp), dimension(:,:,:,:)
 mpitype=MPI_DOUBLE_PRECISION
 
