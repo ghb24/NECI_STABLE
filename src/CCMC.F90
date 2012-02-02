@@ -1894,7 +1894,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    IMPLICIT NONE
    character(len=*), parameter :: this_routine="CCMCStandalone"
    real(dp) Weight,EnergyxW
-   TYPE(AmplitudeList_double),target :: AL
+   TYPE(AmplitudeList_doub),target :: AL
 
    INTEGER iNumExcitors          ! The number of non-zero excitors (excluding the ref det)
    real(dp) dTotAbsAmpl            ! The total of the absolute amplitudes
@@ -1921,9 +1921,9 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    TYPE(ClustSelector),target :: CSBuff   ! This is used when we're doing buffered CC
    TYPE(ClustSelector),pointer :: CS      ! This will point to the appropriate selector
    LOGICAL tPostBuffering                 ! Set after prebuffering
-   TYPE(AmplitudeList_double), target :: ALBuffer !(Det)  used for buffered CC, storing intermediate amplitudes from cluster generation
+   TYPE(AmplitudeList_doub), target :: ALBuffer !(Det)  used for buffered CC, storing intermediate amplitudes from cluster generation
    LOGICAL tMoreClusters                  ! Indicates we've not finished selecting clusters 
-   TYPE(AmplitudeList_double), pointer :: OldAL          ! The previous cycle's amplitudes
+   TYPE(AmplitudeList_doub), pointer :: OldAL          ! The previous cycle's amplitudes
    INTEGER oldALIndex                     !The index in OldAL of the list to use
 
    TYPE(Spawner) S                        ! A spawner used to generate spanees from a cluster
@@ -2270,7 +2270,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    IMPLICIT NONE
    real(dp) Weight,EnergyxW
    CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandaloneParticle'
-   TYPE(AmplitudeList_bitrep),target :: AL
+   TYPE(AmplitudeList_btrp),target :: AL
    INTEGER(kind=n_int), pointer :: DetList(:,:)
    INTEGER(TagIntType) ::  tagDetList
 

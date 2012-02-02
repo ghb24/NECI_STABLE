@@ -34,8 +34,8 @@ end module
 subroutine c_f_pointer (a, b, dims)
 
     integer, intent(in) :: dims(:)
-    integer, dimension(:), pointer, intent(in) :: a
-    integer, dimension(:), pointer, intent(out) :: b
+    integer, dimension(:), pointer :: a
+    integer, dimension(:), pointer :: b
 
     b => a
 

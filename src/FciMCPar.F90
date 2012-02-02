@@ -730,7 +730,7 @@ MODULE FciMCParMod
 #ifdef __DEBUG
         character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
 #endif
-	HElement_t :: delta
+    HElement_t :: delta
         integer :: proc, pos, sgn(lenof_sign)
 
         call set_timer(Walker_Time,30)
@@ -1403,7 +1403,7 @@ MODULE FciMCParMod
             if (tHPHF .or. tCSF .or. tMomInv) then
                 call set_attempt_create (attempt_create_trunc_spawn)
             else
-                call set_attempt_create (attempt_create_trunc_spawn_encode)
+                call set_attempt_create (att_create_trunc_spawn_enc)
             endif
         else
             call set_attempt_create (attempt_create_normal)
@@ -1562,7 +1562,7 @@ MODULE FciMCParMod
 !  walkExcitLevel:      Is Unused
 ! 
 !  child:      A lenof_sign array containing the particles spawned.
-    function attempt_create_trunc_spawn_encode (get_spawn_helement, DetCurr,&
+    function att_create_trunc_spawn_enc (get_spawn_helement, DetCurr,&
                                          iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, &
                                          ic, ex, tparity, walkExcitLevel, part_type) &
                                          result(child)
@@ -3409,7 +3409,7 @@ MODULE FciMCParMod
         ENumCyc = 0
         ENumCycAbs = 0
         HFCyc = 0
-	cyc_proje_denominator=0
+    cyc_proje_denominator=0
         if(tSplitProjEHist) then
             if(tSplitProjEHistG) then
                 ENumCycHistG(:)=0.0_dp
@@ -5520,7 +5520,7 @@ MODULE FciMCParMod
         ! TODO: If we use this, function pointer it.
         HOffDiag = 0
         if (proje_linear_comb .and. nproje_sum > 1) then
-	   if(proje_spatial) then
+       if(proje_spatial) then
               spatial_ic = FindSpatialBitExcitLevel (ilut, proje_ref_iluts(:,1))
               if (spatial_ic <= 2) then
                  do i = 1, nproje_sum
