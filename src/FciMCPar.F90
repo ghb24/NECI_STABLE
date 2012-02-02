@@ -3540,7 +3540,7 @@ MODULE FciMCParMod
                   &17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime  &
                   &20.ProjE.ThisIter  21.HFInstShift  22.TotInstShift  &
                   &23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE &
-                  &26.HF weight    27.|Psi|     28.Inst S^2 30.AbsProjE"
+                  &26.HF weight    27.|Psi|     28.Inst S^2 29.Inst S^2 30.AbsProjE"
 
            if(tSplitProjEHist) then
                if(tSplitProjEHistG) then
@@ -5627,6 +5627,7 @@ MODULE FciMCParMod
             ! Sum in energy contribution
             if (iter > NEquilSteps) &
                 SumENum = SumENum + (HOffDiag * ARR_RE_OR_CPLX(wSign)) / dProbFin
+            
             ENumCyc = ENumCyc + (HOffDiag * ARR_RE_OR_CPLX(wSign)) / dProbFin
             ENumCycAbs = ENumCycAbs + abs(HOffDiag * ARR_RE_OR_CPLX(wSign)) / dProbFin
         else
@@ -5634,6 +5635,7 @@ MODULE FciMCParMod
             ! Sum in energy contribution
             if (iter > NEquilSteps) &
                 SumENum = SumENum + (HOffDiag * ARR_RE_OR_CPLX(wSign)) / dProbFin
+            
             ENumCyc = ENumCyc + (HOffDiag * ARR_RE_OR_CPLX(wSign)) / dProbFin
             ENumCycAbs = ENumCycAbs + abs(HOffDiag * ARR_RE_OR_CPLX(wSign)) / dProbFin
         endif
