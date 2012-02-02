@@ -3058,30 +3058,21 @@ module NeLrdmmOD
     end subroutine Write_out_1RDM
 
     subroutine Write_out_Lagrangian()
-! This routine writes out the Lagrangian X_pq
-! Note that we have calculated only beta-beta components - this is sufficient as long as the system is closed shell
+       ! This routine writes out the Lagrangian X_pq
         implicit none
-!        real(dp) , intent(in) :: Lagrangian(:,:)
         integer :: i, j
         integer :: Lagrangian_unit
- 
-        Write(6,*) "Writing out the beta Lagrangian, constructed from the 'normalised' and finalised 2e RDM"
-        
+        Write(6,*) "Writing out the spatial Lagrangian, constructed from the 'normalised' and finalised 2e RDM"
         Lagrangian_unit = get_free_unit()
         OPEN(Lagrangian_unit,file='Lagrangian',status='unknown')
- 
         ! Currently printing Lagrangian with spatial orbital labels, though we specifically refer to beta spin orbitals.
         do i = 1, SpatOrbs
             do j = 1, SpatOrbs
                 write(Lagrangian_unit, "(2I6,G25.17)") i, j, Lagrangian(i,j)
             enddo
         enddo
-                
         close(Lagrangian_unit)
-
     end subroutine Write_out_Lagrangian
-
-
 
     subroutine Finalise_2e_RDM(Norm_2RDM_Inst, Norm_2RDM) 
 ! This routine sums, normalises, hermitian-ises, and prints the 2-RDMs.    
@@ -3674,40 +3665,27 @@ module NeLrdmmOD
 !       where the subset 2RDM is now defined in the two-index notation: 2RDM(i,j;k,l) =  <Psi| a_i+ a_j+ a_l a_k|Psi>
 !
 ! where h1 are the 2 index integrals, and h2 the 4 index integrals.
-        Use SymData, only : nSymLabels !DEBUG
-        Use SymExcitDataMod, only : SpinOrbSymLabel, SymLabelCounts2 !DEBUG
-        Use GenRandSymExcitNUMod, only : ClassCountInd, RandExcitSymLabelProd !DEBUG
         USE IntegralsData , only : UMAT
         USE UMatCache , only : UMatInd
         USE RotateOrbsMod , only : SymLabelList2_rot
         USE UMatCache , only : GTID
         USE Logging, only : tDumpForcesInfo
-        use sym_mod !DEBUG
         implicit none
         real(dp), intent(in) :: Norm_2RDM
-        real(dp) :: Divide_Factor !DEBUG
+        real(dp) :: Divide_Factor
         real(dp) :: Norm_2RDM_Inst
         real(dp) :: MyEnergy, Contrib1, Contrib2
         INTEGER :: p,q,r,s,t,ierr,stat
-        INTEGER :: i,j,k,l !DEBUG
         INTEGER :: pSpin, qSpin, rSpin, error
-        INTEGER :: Ind1_aa,Ind1_ab,Ind2_aa,Ind2_ab ! DEBUG
         INTEGER :: Ind1_aa_qs,Ind1_ab_qs,Ind2_aa_qt,Ind2_ab_qt
         INTEGER :: Ind1_aa_sq,Ind1_ab_sq,Ind2_aa_tq,Ind2_ab_tq
         INTEGER :: Ind1_aa_rs,Ind1_ab_rs,Ind2_aa_rt,Ind2_ab_rt
         INTEGER :: Ind1_aa_sr,Ind1_ab_sr,Ind2_aa_tr,Ind2_ab_tr
-        integer :: Sym_i, Sym_j, Sym_ij !DEBUG
-        integer :: Sym_k, Sym_l, Sym_kl !DEBUG
-        integer :: Spatial_RDM_unit !DEBUG
         REAL(dp) :: RDMEnergy_Inst, RDMEnergy, Coul, Exch, Parity_Factor 
         REAL(dp) :: Trace_2RDM_New, RDMEnergy1, RDMEnergy2
-        REAL(dp), allocatable :: Lagrangian2(:,:) !! Debug
-        REAL(dp), allocatable :: Lagrangian3(:,:) !! Debug
-        real(dp),allocatable :: Spatial_RDM(:,:,:,:) !! DEBUG
 
         ALLOCATE(Lagrangian(SpatOrbs,SpatOrbs),stat=ierr)
-        ALLOCATE(Lagrangian2(SpatOrbs,SpatOrbs),stat=ierr)
-        ALLOCATE(Lagrangian3(SpatOrbs,SpatOrbs),stat=ierr)
+        Lagrangian(:,:)=0.D0
         
         ! We will begin by calculating Lagrangian in a basis of beta spin orbitals - we will explicitely calculate
         ! both halves (X_pq and X_qp) in order to check if it is symmetric or not.
@@ -3721,14 +3699,8 @@ module NeLrdmmOD
         ! Density Matrices are not setup to work with open-shell problems yet, so we will deal with this situation as
         ! it becomes necessary
 
-        Lagrangian(:,:)=0.D0
-        Lagrangian2(:,:)=0.D0
-        Lagrangian3(:,:)=0.D0
-
-        !if(tFinalLagrangian) then
-            write(6,*) ''
-            write(6,*) 'Calculating the Lagrangian X from the final density matrices'
-        !endif
+        write(6,*) ''
+        write(6,*) 'Calculating the Lagrangian X from the final density matrices'
 
         !Calculating the Lagrangian X in terms of spatial orbitals
         if(iProcIndex.eq.0) then
@@ -3787,7 +3759,7 @@ module NeLrdmmOD
                                 ! At this point we can then reorder indices (and spins) as appropriate
                                 ! Note that any p=q or r=s terms are stores in the abab array
                                 ! rather than the abba
-                                
+
                                 if ((s.ne.q) .and. (t.ne.r)) then  !aaaa/bbbb always allowed
                                     if ((s.gt.q) .and. (t.gt.r)) then       !The D_qs,rt is correctly ordered
                                         Ind1_aa_qs = ( ( (s-2) * (s-1) ) / 2 ) + q
@@ -3833,12 +3805,12 @@ module NeLrdmmOD
                                         Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_qs,Ind2_ab_rt) &
                                                                      * Norm_2RDM * Coul)/Divide_Factor
                                     endif
-                                !elseif ((s.eq.q) .and. (r.gt.t)) then
-                                !    ! need to reorder D_qs,rt to D_sq,tr
-                                !    Ind1_ab_qs = ( ( (s-1) * s ) / 2 ) + q
-                                !    Ind2_ab_tr = ( ( (r-1) * r ) / 2 ) + t
-                                !    Lagrangian(p,q)=Lagrangian(p,q) + (All_abab_RDM(Ind1_ab_qs,Ind2_ab_tr) &
-                                !                                         * Norm_2RDM * Coul)
+                                elseif ((s.eq.q) .and. (r.gt.t)) then
+                                    ! need to reorder D_qs,rt to D_sq,tr
+                                    Ind1_ab_qs = ( ( (s-1) * s ) / 2 ) + q
+                                    Ind2_ab_tr = ( ( (r-1) * r ) / 2 ) + t
+                                    Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_qs,Ind2_ab_tr) &
+                                                                         * Norm_2RDM * Coul)/Divide_Factor
                                 elseif ((q.ge.s) .and. (t.eq.r)) then
                                     ! need to reorder D_qs,rt to D_sq,tr
                                     Ind1_ab_sq = ( ( (q-1) * q ) / 2 ) + s
@@ -3920,248 +3892,9 @@ module NeLrdmmOD
                 enddo
             enddo
         enddo
-
-        WRITE(6,*) "!!!!!!!!!!!!!!!!! NOW RECALCULATING LAGRANGIAN WITH SPATIAL DMAT TO DEBUG !!!!!!!!!!!!!!!!! "
-
         
-        !!DEBUG - Spatial_RDM(i,j,k,l) = D_ij,kl
-        allocate(Spatial_RDM(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs))
-        Spatial_RDM(:,:,:,:)=0.D0
-        
-        !!! CALC LAGRANGIAN FROM SPATIAL RDM  -DEBUG !!!
-        
-            do i=1, SpatOrbs  !run over spatial orbitals, ALL ELECTRON ONLY
-                do j=1,  i    ! i .ge. j
-                    Sym_i=SpinOrbSymLabel(2*i)  !Consider only alpha orbitals
-                    Sym_j=SpinOrbSymLabel(2*j)
-                    Sym_ij=RandExcitSymLabelProd(Sym_i, Sym_j)
-                    do k=1, SpatOrbs
-                        do l=1, k
-                            Sym_k=SpinOrbSymLabel(2*k)  !Consider only alpha orbitals
-                            Sym_l=SpinOrbSymLabel(2*l)
-                            Sym_kl=RandExcitSymLabelProd(Sym_k, Sym_l)
-                       !     WRITE(6,*) "i, j", i, j
-                       !     WRITE(6,*) "Sym_i, Sym_j, Sym_ij", Sym_i, Sym_j, Sym_ij
-                       !     WRITE(6,*) "k, l", k, l
-                       !     WRITE(6,*) "Sym_k, Sym_l, Sym_kl", Sym_k, Sym_l, Sym_kl
-                            call flush(6) 
-                        
-                            ! usually each element will have two contributions (from aaaa and bbbb).
-                            ! we then need to divide each by 2.
-                            ! but in cases where i and j, and a and b, are in the same spatial 
-                            ! orbital, there will be only one contribution.
-                            if((i.eq.j).and.(k.eq.l)) then
-                                Divide_Factor = 1.0_dp
-                            else
-                               Divide_Factor = 2.0_dp
-                            endif
+        call Write_Out_Lagrangian()
 
-                            !Swap order of ij and kl indices: NECI store D_ij,kl as j>i, l>k
-                            ! Whilst we want the other way around
-                            ! Swapping both pairs makes no sign change to the element in question
-                            Ind1_aa = ( ( (i-2) * (i-1) ) / 2 ) + j
-                            Ind1_ab = ( ( (i-1) * i ) / 2 ) + j
-                            Ind2_aa = ( ( (k-2) * (k-1) ) / 2 ) + l
-                            Ind2_ab = ( ( (k-1) * k ) / 2 ) + l
-
-                            !WRITE(6,*) " Ind1_aa, Ind2_aa ",  Ind1_aa,  Ind2_aa 
-
-                            !We are also recording the SYMMETRISED 2RDM
-                            !ie: D_ij,kl = 0.5*(D_ij,kl + D_kj,il) to reflect the symmetries of the 
-                            ! integrals by which they are multiplied later on
-
-                            !!DEBUG -- DO NOT SYMMETRISE YET !!
-
-                            !First Term
-                            WRITE(6,*) "i,j,k,l, Ind1_aa, Ind1_ab,  Ind2_aa,  Ind2_ab ", i,j,k,l,Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab
-                            call flush(6)
-                            if ((i.ne.j) .and. (k.ne.l)) then
-                                !aaaa is stored as aaaa + bbbb
-                                Spatial_RDM(i,j,k,l) = Spatial_RDM(i,j,k,l)+2*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
-                                Spatial_RDM(j,i,k,l) = Spatial_RDM(j,i,k,l)-2*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
-                                Spatial_RDM(i,j,l,k) = Spatial_RDM(i,j,l,k)-2*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
-                            !    if ((i.eq.k) .and. (j.eq.l)) then
-                            !        Spatial_RDM(j,i,k,l) = Spatial_RDM(j,i,k,l)-All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor !DEBUG
-                            !        Spatial_RDM(i,j,l,k) = Spatial_RDM(i,j,l,k)-All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor ! DEBUG
-                            !    else
-                                    Spatial_RDM(j,i,k,l) = Spatial_RDM(j,i,k,l)-2*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
-                                    Spatial_RDM(i,j,l,k) = Spatial_RDM(i,j,l,k)-2*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
-                             !   endif
-                            endif
-                                call flush(6) 
-                            !if ((j.eq.k) .and. (i.eq.l)) then
-                            !    Spatial_RDM(i,j,k,l) = Spatial_RDM(i,j,k,l)+All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor !DEBUG
-                            !else   
-                                Spatial_RDM(i,j,k,l) = Spatial_RDM(i,j,k,l)+2*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
-                            !endif
-                            call flush(6)
-
-                            !Second Term D_kj,il
-                            !if (((j.ge.k) .and. (l.ge.i))) then 
-                            !    Ind1_aa = ( ( (j-2) * (j-1) ) / 2 ) + k
-                            !    Ind1_ab = ( ( (j-1) * j ) / 2 ) + k
-                            !    Ind2_aa = ( ( (l-2) * (l-1) ) / 2 ) + i
-                            !    Ind2_ab = ( ( (l-1) * l ) / 2 ) + i
-                            !    Factor=1.D0
-                            !    Spatial_RDM(i,j,k,l) = Spatial_RDM(i,j,k,l)+2*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
-                            !elseif ((j.le.k) .and. (l.le.i)) then
-                            !    Ind1_aa = ( ( (k-2) * (k-1) ) / 2 ) + j
-                            !    Ind1_ab = ( ( (k-1) * k ) / 2 ) + j
-                            !    Ind2_aa = ( ( (i-2) * (i-1) ) / 2 ) + l
-                            !    Ind2_ab = ( ( (i-1) * i ) / 2 ) + l
-                            !    Factor=1.D0
-                            !    Spatial_RDM(i,j,k,l) = Spatial_RDM(i,j,k,l)+2*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
-                            !elseif ((j.ge.k) .and. (i.gt.l)) then  !look up -D_kj,li instead
-                            !    Ind1_aa = ( ( (j-2) * (j-1) ) / 2 ) + k
-                            !    Ind1_ab = ( ( (j-1) * j ) / 2 ) + k
-                            !    Ind2_aa = ( ( (i-2) * (i-1) ) / 2 ) + l
-                            !    Ind2_ab = ( ( (i-1) * i ) / 2 ) + l
-                            !    Factor=-1.D0
-                            !    SymmetryPacked2RDM2(posn2)=  SymmetryPacked2RDM2(posn2)+2*Factor*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
-                            !elseif ((k.gt.j) .and. (l.ge.i)) then !look up -D_jk,il
-                            !    Ind1_aa = ( ( (k-2) * (k-1) ) / 2 ) + j
-                            !    Ind1_ab = ( ( (k-1) * k ) / 2 ) + j
-                            !    Ind2_aa = ( ( (l-2) * (l-1) ) / 2 ) + i
-                            !    Ind2_ab = ( ( (l-1) * l ) / 2 ) + i
-                            !    Factor=-1.D0
-                            !    SymmetryPacked2RDM2(posn2)=  SymmetryPacked2RDM2(posn2)+2*Factor*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
-                            !endif
-                                
-                            !if ((k.ne.j) .and. (i.ne.l)) then
-                            !    SymmetryPacked2RDM2(posn2)=SymmetryPacked2RDM2(posn2)+2*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
-                            !endif
-                            
-                            !SymmetryPacked2RDM2(posn2) =  SymmetryPacked2RDM2(posn2)/2  !Average the two terms included above
-
-                            Spatial_RDM(j,i,l,k) = Spatial_RDM(i,j,k,l) 
-                       !     Spatial_RDM(k,l,i,j) = Spatial_RDM(i,j,k,l) 
-                       !     Spatial_RDM(l,k,j,i) = Spatial_RDM(i,j,k,l) 
-
-                        enddo
-                    enddo
-                enddo
-            enddo
-        
-            Spatial_RDM_unit = get_free_unit()
-        OPEN(Spatial_RDM_unit,file='Spatial_RDM',status='unknown')
- 
-        do i = 1, SpatOrbs
-            do j = 1, SpatOrbs
-                do k=1, SpatOrbs
-                    do l=1, SpatOrbs
-                        write(Spatial_RDM_unit, "(4I6,G25.17)") i, j,k,l, Spatial_RDM(i,j,k,l)
-                    enddo
-                enddo
-            enddo
-        enddo
-
-        if(tStoreSpinOrbs) then
-            do i=1, 2*SpatOrbs
-                do j=1, 2*SpatOrbs
-                    WRITE(6,*) "i, j, 1RDM(i,j)", i, j, NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))
-                enddo
-            enddo
-        else
-            do i=1, SpatOrbs
-                do j=1, SpatOrbs
-                WRITE(6,*) "i, j, 1RDM(i,j)", i, j, NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))
-            enddo
-        enddo
-    endif
-
-        !WRITE(6,*) "!!!!!!!!!!!!! CHECKING RDMS ARE AS EXPECTED !!!!!!!!!!!!!!"
-        !do i=1, SpatOrbs
-        !    do j=1, i
-        !        do k=1, SpatOrbs
-        !            do l=1,k
-        !                Ind1_aa = ( ( (i-2) * (i-1) ) / 2 ) + j
-        !                Ind1_ab = ( ( (i-1) * i ) / 2 ) + j
-        !                Ind2_aa = ( ( (k-2) * (k-1) ) / 2 ) + l
-        !                Ind2_ab = ( ( (k-1) * k ) / 2 ) + l
-        !                if ((i.ne.j) .and. (k.ne.l)) then
-        !                    WRITE(6,*) "aaaa i j k l ", i, j, k, l, All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM
-        !                    WRITE(6,*) "abba i j k l ", i, j, k, l, All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM
-        !                endif
-        !                WRITE(6,*) "abab i j k l ", i, j, k, l, All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM
-        !            enddo
-        !        enddo
-        !    enddo
-        !enddo
-
-
-        !! Calc My Lagrangian
-        do p = 1, SpatOrbs 
-            do q = 1, SpatOrbs  
-                do r = 1, SpatOrbs
-                    WRITE(6,*) "p r Integral is ", p,r,REAL(TMAT2D(2*p,2*r),8)
-                    !if(tStoreSpinOrbs) then
-                    !    Lagrangian2(p,q)=Lagrangian2(p,q)+2*NatOrbMat(SymLabelListInv_rot(2*q),SymLabelListInv_rot(2*r))* &
-                    !           REAL(TMAT2D(pSpin,rSpin),8)
-                    !          ! Include both aa and bb contributions
-                    !          WRITE(6,*) "r contribution to X_pq is twice", NatOrbMat(SymLabelListInv_rot(2*q),SymLabelListInv_rot(2*r)), &
-                    !                             "times",  REAL(TMAT2D(pSpin,rSpin),8)
-                    !else
-                    Lagrangian2(p,q)=Lagrangian2(p,q)+NatOrbMat(SymLabelListInv_rot(q),SymLabelListInv_rot(r))*REAL(TMAT2D(2*p,2*r),8)
-                    WRITE(6,*) "Here ok"
-                    call flush(6)
-                    Lagrangian3(p,q)=Lagrangian3(p,q)+NatOrbMat(SymLabelListInv_rot(q),SymLabelListInv_rot(r))*REAL(TMAT2D(2*p,2*r),8)
-                       ! WRITE(6,*) "r contribution to X_pq is", NatOrbMat(SymLabelListInv_rot(q),SymLabelListInv_rot(r)), &
-                       !                          "times",  REAL(TMAT2D(pSpin,rSpin),8)
-                    !endif
-
-                    WRITE(6,*) "p=",p," q=",q," Lagrangian2(p,q)=", Lagrangian2(p,q)
-                    call flush(6)
-
-                    do s=1, SpatOrbs
-                        do t=1, SpatOrbs
-                            Lagrangian2(p,q) = Lagrangian2(p,q) + REAL(UMAT(UMatInd(p,s,r,t,0,0)),8)* &
-                                    (Spatial_RDM(q,s,r,t) + Spatial_RDM(r,s,q,t))
-                            Lagrangian3(p,q) = Lagrangian3(p,q) + 0.5*REAL(UMAT(UMatInd(p,s,r,t,0,0)),8)* &
-                                    (Spatial_RDM(q,s,r,t) + Spatial_RDM(r,s,q,t))
-
-                            enddo
-                        enddo
-                    enddo
-                enddo
-            enddo
-
-        WRITE(6,*) "WRITING OUT MY DEBUG LAGRANGIAN2"
-
-        do i=1, SpatOrbs
-            do j=1, SpatOrbs
-                WRITE(6,*) i, j, Lagrangian2(i,j)
-            enddo
-        enddo
-        WRITE(6,*) "WRITING OUT MY DEBUG LAGRANGIAN3"
-        do i=1, SpatOrbs
-            do j=1, SpatOrbs
-                WRITE(6,*) i, j, Lagrangian3(i,j)
-            enddo
-        enddo
-
-        MyEnergy=ECore
-        Contrib1=0.D0
-        Contrib2=0.D0
-
-        WRITE(6,*) "!!!!!! CALCING ENERGY USING SPATIAL DMAT !!!!!"
-        do i=1, SpatOrbs
-            do j=1,SpatOrbs
-                MyEnergy=MyEnergy+NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))* &
-                               REAL(TMAT2D(2*i,2*j),8)
-                               Contrib1=Contrib1+ NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))* &
-                                                              REAL(TMAT2D(2*i,2*j),8)
-                do k=1,SpatOrbs
-                    do l=1,SpatOrbs
-                        MyEnergy=MyEnergy + 0.5*REAL(UMAT(UMatInd(i,j,k,l,0,0)),8)*Spatial_RDM(i,j,k,l)
-                        Contrib2=Contrib2+  0.5*REAL(UMAT(UMatInd(i,j,k,l,0,0)),8)*Spatial_RDM(i,j,k,l)
-                    enddo
-                enddo
-            enddo
-        enddo
-        WRITE(6,*) "!!!!!! MYENERGY USING SPATIAL DMAT IS", MyEnergy
-        WRITE(6,*) "1 Contrib, 2 Contrib", Contrib1, Contrib2
-
-        call Write_out_Lagrangian()
 
         !probably don't need these for now (only calculating Lagrangian once at the end), but we might need it in future
         aaaa_RDM(:,:) = 0.0_dp
@@ -4328,78 +4061,6 @@ module NeLrdmmOD
 
     end subroutine calc_1RDM_energy
     
-    subroutine calc_1RDM_Lagrangian(p,q,r,pSpin,rSpin,Norm_2RDM,Norm_2RDM_Inst)
-! This routine calculates the 1-RDM part of the RDM energy, and constructs the 
-! 1-RDM if required for diagonalisation or something.
-        ! gamma(i,j) = [1/(NEl - 1)] * SUM_a Gamma(i,a,j,a) 
-        ! want to calculate:    gamma(i,j) * h_ij
-        ! h_ij => TMAT2D(iSpin,jSpin)
-        USE OneEInts , only : TMAT2D
-        USE Logging , only : tDiagRDM
-        implicit none
-        integer , intent(in) :: p,q,r,pSpin,rSpin
-        real(dp) , intent(in) :: Norm_2RDM, Norm_2RDM_Inst
-  !      real(dp) , intent(inout) :: Lagrangian_pq
-        real(dp) :: Parity_Factor
-        integer :: Ind1_1e_ab, Ind2_1e_ab
-        integer :: Ind1_1e_aa, Ind2_1e_aa, a
-
-            WRITE(6,*) "Running over a: a dummy index required to extract 1RDM from 2RDM"
-            WRITE(6,*) "Norm_2RDM is ", Norm_2RDM
-            WRITE(6,*) "h_pr is ", REAL(TMAT2D(pSpin,rSpin),8)
-
-     
-        do a=1, SpatOrbs
-
-            WRITE(6,*) "a= ", a
-
-            Ind1_1e_ab = ( ( (max(r,a)-1) * max(r,a) ) / 2 ) + min(r,a)
-            Ind2_1e_ab = ( ( (max(q,a)-1) * max(q,a) ) / 2 ) + min(q,a)
-
-        ! for q a -> r a excitation, when lined up as min max -> min max, 
-        ! if a's are aligned, only a b a b arrays contain single excitations, 
-        ! if a's not aligned, a b b a.
-        ! all a a a a will contain single excitations.
-            if(((r.le.a).and.(q.le.a)).or.((r.ge.a).and.(q.ge.a))) then
-           
-                Lagrangian(p,q) = Lagrangian(p,q) + ( (All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM) &
-                                                * REAL(TMAT2D(pSpin,rSpin),8) &
-                                               * (1.0_dp / real(NEl - 1,dp)) )
-WRITE(6,*) "abab contribution", All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab)
-            endif
-
-            if((r.ne.a).and.(q.ne.a)) then
-                Ind1_1e_aa = ( ( (max(r,a)-2) * (max(r,a)-1) ) / 2 ) + min(r,a)
-                Ind2_1e_aa = ( ( (max(q,a)-2) * (max(q,a)-1) ) / 2 ) + min(q,a)
-
-                if((r.ne.q).and.((r.lt.a).and.(q.gt.a)).or.((r.gt.a).and.(q.lt.a))) then
-                
-                    Lagrangian(p,q) = Lagrangian(p,q) - ( (All_abba_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM) &
-                                                    * REAL(TMAT2D(pSpin,rSpin),8) &
-                                                    * (1.0_dp / real(NEl - 1,dp)) )
-
-                                                    WRITE(6,*) "abba contribution", All_abba_RDM(Ind1_1e_aa,Ind2_1e_aa)
-                endif
-
-                if(((r.lt.a).and.(q.lt.a)).or.((r.gt.a).and.(q.gt.a))) then
-                    Parity_Factor = 1.0_dp
-                else
-                    Parity_Factor = -1.0_dp
-                endif
-!
-                Lagrangian(p,q) = Lagrangian(p,q) + ( (All_aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM) &
-                                                * REAL(TMAT2D(pSpin,rSpin),8) &
-                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
-                                                    
-                                                WRITE(6,*) "aaaa contribution", All_aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa)
-            endif
-        enddo
-
-
-
-
-    end subroutine calc_1RDM_Lagrangian
-
     subroutine find_nat_orb_occ_numbers()
 ! Diagonalises the 1-RDM (NatOrbMat), so that after this routine NatOrbMat is the 
 ! eigenfunctions of the 1-RDM (the matrix transforming the MO's into the NOs).
@@ -6033,35 +5694,35 @@ WRITE(6,*) "abab contribution", All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab)
 
     END SUBROUTINE Test_Energy_Calc
 
-        subroutine convert_matrices_for_Molpro_forces(Norm_1RDM, Norm_2RDM)
+    subroutine convert_matrices_for_Molpro_forces(Norm_1RDM, Norm_2RDM)
 ! name?
 ! ifil ?
-        use SystemData, only : nEl,nbasis,LMS
-        use IntegralsData, only : nFrozen
-        use NatOrbsMod, only : NatOrbMat
-        use SymData, only : Sym_Psi, SymLabelCounts,nSymLabels
-        use SymExcitDataMod, only: SpinOrbSymLabel,SymLabelCounts2
-        use GenRandSymExcitNUMod , only : ClassCountInd, RandExcitSymLabelProd
-        use sym_mod
+    use SystemData, only : nEl,nbasis,LMS
+    use IntegralsData, only : nFrozen
+    use NatOrbsMod, only : NatOrbMat
+    use SymData, only : Sym_Psi, SymLabelCounts,nSymLabels
+    use SymExcitDataMod, only: SpinOrbSymLabel,SymLabelCounts2
+    use GenRandSymExcitNUMod , only : ClassCountInd, RandExcitSymLabelProd
+    use sym_mod
+    
+    integer :: iblkq, iseccr, istat1, sym, isyref, ms2
+    integer :: posn1, posn2
+    integer :: i, j, k, l
+    integer :: Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab 
+    integer :: myname, ifil, intrel, iout, igrsav
+    integer :: orb1, orb2, Sym_i, Sym_j, Sym_ij
+    integer :: Sym_k, Sym_l, Sym_kl
+    integer, dimension(8) :: iact, ldact !iact(:) # of active orbs per sym, !ldact(:) - # Pairs of orbs that multiply to give given sym
+    integer, dimension(8) :: icore, iclos 
+    integer :: FC_Lag_Len  !Length of the Frozen Core Lagrangian
+    integer :: Len_1RDM, Len_2RDM, FCLag_Len
+    real(dp) :: Factor, Divide_Factor, AnotherValue
+    real(dp), intent(in) :: Norm_1RDM, Norm_2RDM
+    real(dp), allocatable :: SymmetryPacked2RDM(:), SymmetryPacked1RDM(:)
+    real(dp), allocatable :: SymmetryPackedLagrangian(:)
+    real(dp), allocatable :: FC_Lagrangian(:)
 
-        integer :: iblkq, iseccr, istat1, sym, isyref, ms2
-        integer :: posn1, posn2
-        integer :: i, j, k, l
-        integer :: Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab 
-        integer :: myname, ifil, intrel, iout, igrsav
-        integer :: orb1, orb2, Sym_i, Sym_j, Sym_ij
-        integer :: Sym_k, Sym_l, Sym_kl
-        integer, dimension(8) :: iact, ldact !iact(:) # of active orbs per sym, !ldact(:) - # Pairs of orbs that multiply to give given sym
-        integer, dimension(8) :: icore, iclos 
-        integer :: FC_Lag_Len  !Length of the Frozen Core Lagrangian
-        integer :: Len_1RDM, Len_2RDM, FCLag_Len
-        real(dp) :: Factor, Divide_Factor
-        real(dp), intent(in) :: Norm_1RDM, Norm_2RDM
-        real(dp), allocatable :: SymmetryPacked2RDM(:), SymmetryPacked1RDM(:)
-        real(dp), allocatable :: SymmetryPackedLagrangian(:)
-        real(dp), allocatable :: FC_Lagrangian(:)
-
-        !!!!! First calculate header information !!!!!
+    !!!!! First calculate header information !!!!!
 
 #ifdef __INT64
     intrel=1
@@ -6069,8 +5730,7 @@ WRITE(6,*) "abab contribution", All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab)
     intrel=2
 #endif
 
-        if (iProcIndex .eq. 0) then
-
+    if (iProcIndex .eq. 0) then
         !Considering all electron for now
         icore(:)=0  !Number of frozen orbitals per symmetry
         iclos(:)=0  !icore(i) + Number of 'closed' orbitals per symmetry (iclos is the same as icore for us)
@@ -6082,9 +5742,6 @@ WRITE(6,*) "abab contribution", All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab)
         myname=60 !Arbitrary file names
         ifil=50
         iout=6
-
-
-        WRITE(6,*) "Norm_2RDM", Norm_2RDM
         ldact(:)=0
         iact(:)=0
         Len_1RDM=0
@@ -6095,9 +5752,6 @@ WRITE(6,*) "abab contribution", All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab)
         do i=0,nSymLabels-1  !i labels the symmetry
             iact(i+1)=SymLabelCounts2(2,ClassCountInd(1,i,0))  ! Count the number of active orbitals of the given symmetry
             Len_1RDM=Len_1RDM+(iact(i+1)*(iact(i+1)+1)/2)
-            WRITE(6,*) "i is, ", i
-            WRITE(6,*) "iact(i+1) is, ", iact(i+1)
-            WRITE(6,*) "Len_1RDM ", Len_1RDM
         enddo
 
         ! Find out the number of orbital pairs that multiply to a given sym (ldact)
@@ -6142,35 +5796,19 @@ WRITE(6,*) "abab contribution", All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab)
         !NB: This is far from the optimally efficient way to do things
         ! We should ditch running over symmetry, and instead use ldact to position each contribution correctly
         do Sym=0, 7  !Run over blocks: symmetry of orbital pairs 
-            WRITE(6,*) "SYM", sym
             do i=1, SpatOrbs  !run over spatial orbitals, ALL ELECTRON ONLY
                 do j=1,  i    ! i .ge. j
                     Sym_i=SpinOrbSymLabel(2*i)  !Consider only alpha orbitals
                     Sym_j=SpinOrbSymLabel(2*j)
                     Sym_ij=RandExcitSymLabelProd(Sym_i, Sym_j)
-                    WRITE(6,*) "i, j", i, j
-                    WRITE(6,*) "Sym_i, Sym_j, Sym_ij", Sym_i, Sym_j, Sym_ij
-                    call flush(6)
-                    if ((SYM.eq.0) .and. (Sym_ij .eq. 0)) then   ! Only need to count this once (not 8 times!)
+                    if ((Sym_i.eq.SYM) .and. (Sym_ij .eq. 0)) then   
                         if(tStoreSpinOrbs) then
-                            WRITE(6,*) "Here 2"
-                    call flush(6)
                             SymmetryPacked1RDM(posn1)=2*NatOrbMat(SymLabelListInv_rot(2*i),SymLabelListInv_rot(2*j))
                                ! Include both aa and bb contributions
-                            WRITE(6,*) "Here 3"
-                    call flush(6)
                         else
-                            WRITE(6,*) "Here 4"
-                    call flush(6)
                             SymmetryPacked1RDM(posn1)=NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))
-                            WRITE(6,*) "Here 5 "
-                    call flush(6)
                         endif
-                            WRITE(6,*) "Here 6"
-                    call flush(6)
                         SymmetryPackedLagrangian(posn1)=Lagrangian(i,j)
-                            WRITE(6,*) "Here 7"
-                    call flush(6)
                         posn1=posn1+1
                     endif
                     if (Sym_ij .ne. Sym) CYCLE
@@ -6179,9 +5817,6 @@ WRITE(6,*) "abab contribution", All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab)
                             Sym_k=SpinOrbSymLabel(2*k)  !Consider only alpha orbitals
                             Sym_l=SpinOrbSymLabel(2*l)
                             Sym_kl=RandExcitSymLabelProd(Sym_k, Sym_l)
-                            WRITE(6,*) "k, l", k, l
-                            WRITE(6,*) "Sym_k, Sym_l, Sym_kl", Sym_k, Sym_l, Sym_kl
-                            call flush(6) 
                             if (Sym_kl .ne. Sym) CYCLE
                         
                             ! usually each element will have two contributions (from aaaa and bbbb).
@@ -6202,8 +5837,6 @@ WRITE(6,*) "abab contribution", All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab)
                             Ind2_aa = ( ( (k-2) * (k-1) ) / 2 ) + l
                             Ind2_ab = ( ( (k-1) * k ) / 2 ) + l
 
-                            WRITE(6,*) " Ind1_aa, Ind2_aa ",  Ind1_aa,  Ind2_aa 
-
                             !We are also recording the SYMMETRISED 2RDM
                             !ie: D_ij,kl = 0.5*(D_ij,kl + D_kj,il) to reflect the symmetries of the 
                             ! integrals by which they are multiplied later on
@@ -6211,14 +5844,9 @@ WRITE(6,*) "abab contribution", All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab)
                             !First Term
                             if ((i.ne.j) .and. (k.ne.l)) then
                                 !aaaa is stored as aaaa + bbbb
-                                WRITE(6,*) "aaaa contribution",  2*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                                 SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                             endif
-                            WRITE(6,*) "abab contribution", 2*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
-                            call flush(6) 
                             SymmetryPacked2RDM(posn2)=  SymmetryPacked2RDM(posn2)+2*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
-                            WRITE(6,*) "posn2, SymmetryPacked2RDM(posn)", posn2, SymmetryPacked2RDM(posn2)
-                            call flush(6)
 
                             !Second Term D_kj,il
                             if (((j.ge.k) .and. (l.ge.i))) then 
@@ -6254,10 +5882,10 @@ WRITE(6,*) "abab contribution", All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab)
                             if ((k.ne.j) .and. (i.ne.l)) then
                                 SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                             endif
-                            
-                            SymmetryPacked2RDM(posn2) =  SymmetryPacked2RDM(posn2)/2  !Average the two terms included above
+                            !Average the two terms included above and apply "half" as required by Molpro's definition of 2RDM
+                            SymmetryPacked2RDM(posn2) =  SymmetryPacked2RDM(posn2)/4
 
-
+                            !WRITE(6,*) "i,j,k,l, posn2, DMAT(posn2)", i,j,k,l, posn2,SymmetryPacked2RDM(posn2)
                             posn2=posn2+1
                         enddo
                     enddo
@@ -6265,7 +5893,6 @@ WRITE(6,*) "abab contribution", All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab)
             enddo
         enddo
             
-        WRITE(6,*) "Ready to call MOLPRO routine"
         call molpro_dump_mcscf_dens_for_grad(myname,ifil, &
             icore, iclos, iact, nEL, isyref, ms2, iblkq,&
             iseccr, istat1, SymmetryPacked1RDM, Len_1RDM, &
@@ -6343,7 +5970,6 @@ WRITE(6,*) "abab contribution", All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab)
       character(len=6), parameter :: label='MCGRAD'
 
 
-      WRITE(6,*) "In Molpro routine"
       ncore = 0
       do i=1,8
        ncore = ncore + icore(i)
@@ -6365,7 +5991,6 @@ WRITE(6,*) "abab contribution", All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab)
       !call reserv(lhead+lden1+lden2+leps+lepsc,ifil,name,-1)
       open (unit = ifil, file = "fciqmc_forces_info", form='UNFORMATTED', access='sequential')
       write(ifil) header, den1, den2, eps
-      !write(ifil,access=sequential) den1,lden1,ifil,name,lhead,label)
       !call writem(den2,lden2,ifil,name,lhead+lden1,label)
       !call writem(eps,leps,ifil,name,lhead+lden1+lden2,label)
       !if(ncore.ne.0) call writem(epsc,lepsc,ifil,name,
