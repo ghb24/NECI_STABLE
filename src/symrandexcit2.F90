@@ -170,7 +170,7 @@ MODULE GenRandSymExcitNUMod
 !        do i=1,nBasis
 !            WRITE(6,*) G1(i)%Sym%S
 !        enddo
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 !        STOP
         IF(.not.TwoCycleSymGens) THEN
 !Currently only available for molecular systems, or without using symmetry.
@@ -185,7 +185,7 @@ MODULE GenRandSymExcitNUMod
                 WRITE(6,*) "This is because of difficulties with other symmetries setup."
                 WRITE(6,*) "If you want to use these excitation generators, then add NOSYMGEN " &
        &                //"to the input to ignore symmetry while generating excitations."
-                CALL FLUSH(6)
+                CALL neci_flush(6)
                 CALL Stop_All(this_routine,"GenRandSymExcitNU can only be used for molecular systems using symmetry")
             ENDIF
         ENDIF
@@ -1603,7 +1603,7 @@ MODULE GenRandSymExcitNUMod
                 WRITE(6,*) "This is because of difficulties with other symmetries setup."
                 WRITE(6,*) "If you want to use these excitation generators, then add NOSYMGEN " &
                 & //"to the input to ignore symmetry while generating excitations."
-                CALL FLUSH(6)
+                CALL neci_flush(6)
                 CALL Stop_All(this_routine,"GenRandSymExcitBiased can only be used for molecular systems using symmetry")
             ENDIF
         ELSEIF(nBasisMax(2,3).eq.1) THEN
@@ -2185,19 +2185,19 @@ MODULE GenRandSymExcitNUMod
 
         !Calculate generation probabilities
         IF (iSpn.eq.2) THEN
-            pAIJ=1.0/(nBasis-Nel)
+            pAIJ=1.0_dp/(nBasis-Nel)
         ELSEIF (iSpn.eq.1) THEN
-            pAIJ=1.0/(nBasis/2-nOccBeta)
+            pAIJ=1.0_dp/(nBasis/2-nOccBeta)
         ELSE
             !iSpn = 3
-            pAIJ=1.0/(nBasis/2-nOccAlpha)
+            pAIJ=1.0_dp/(nBasis/2-nOccAlpha)
         ENDIF
         ! Note, p(b|ij)=p(a|ij) for this system
         if (tUEG) then
-            pGen=2.0/(NEl*(NEl-1))*2.0*pAIJ
+            pGen=2.0_dp/(NEl*(NEl-1))*2.0_dp*pAIJ
         else ! i.e. if hubbard model, use modified probabilities
             ! hubbard model can't spawn alpha/alpha and beta/beta type excitations
-            pGen=1.0/(nOccAlpha*nOccBeta)*2.0*pAIJ
+            pGen=1.0_dp/(nOccAlpha*nOccBeta)*2.0_dp*pAIJ
         endif
 
     END SUBROUTINE CreateDoubExcitLattice
@@ -2346,16 +2346,16 @@ MODULE GenRandSymExcitNUMod
         ! Else the pgen used is from CreateDoubExcitLattice
 
         ! Now calculate pgen
-        pAIJ=1.0/(KaXRange*KaYRange*KaZRange-iElecInExcitRange) 
+        pAIJ=1.0_dp/(KaXRange*KaYRange*KaZRange-iElecInExcitRange) 
         ! pBIJ is zero for this kind of excitation generator for antiparallel spins
         ! but is equal to pAIJ for parallel spins.
         IF(G1(nI(Elec1Ind))%Ms.ne.G1(nI(Elec2Ind))%Ms) THEN
-            pGen=2.0/(NEl*(NEl-1))*pAIJ ! Spins not equal
+            pGen=2.0_dp/(NEl*(NEl-1))*pAIJ ! Spins not equal
         ELSE
-            pGen=2.0/(NEl*(NEl-1))*2.0*pAIJ ! Spins equal
+            pGen=2.0_dp/(NEl*(NEl-1))*2.0*pAIJ ! Spins equal
         ENDIF
 
-        IF(pAIJ.le.0.0) CALL Stop_All("CreateExcitLattice","pAIJ is less than 0")
+        IF(pAIJ.le.0.0_dp) CALL Stop_All("CreateExcitLattice","pAIJ is less than 0")
 
     END SUBROUTINE CreateExcitLattice
    
@@ -2539,12 +2539,12 @@ MODULE GenRandSymExcitNUMod
         HElement_t :: HElGen
 
         write(6,*) 'In HERE'
-        call flush(6)
+        call neci_flush(6)
 
         WRITE(6,*) nI(:)
         WRITE(6,*) Iterations,pDoub,exFlag
         WRITE(6,*) "nSymLabels: ",nSymLabels
-        CALL FLUSH(6)
+        CALL neci_flush(6)
 
         ! The old excitation generator will not generate singles from the HF
         ! unless tNoBrillouin is set
@@ -2598,7 +2598,7 @@ MODULE GenRandSymExcitNUMod
         tUseBrillouin = brillouin_tmp(2)
 
         WRITE(6,*) "Determinant has ",excitcount," total excitations from it."
-        CALL FLUSH(6)
+        CALL neci_flush(6)
 
         ! Allocate the accumulators
         allocate (DoublesHist(nbasis, nbasis, nbasis, nbasis))
@@ -2642,7 +2642,7 @@ MODULE GenRandSymExcitNUMod
         
             IF(mod(i,400000).eq.0) THEN
                 WRITE(6,"(A,I10)") "Iteration: ",i
-                CALL FLUSH(6)
+                CALL neci_flush(6)
             ENDIF
 
             call gen_rand_excit (nI, iLut, nJ, iLutnJ, exFlag, IC, ExcitMat, &

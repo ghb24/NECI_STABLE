@@ -25,6 +25,7 @@
          INTEGER NBLOCKS,NBLOCKSTARTS(NBLOCKS+1)
          type(timer), save :: proc_timer
          real(dp) GSEN
+         character(len=*), parameter :: t_r="HDIAG_neci"
          proc_timer%timer_name='HDIAG     '
          call set_timer(proc_timer)
          GSEN=1.D100
@@ -72,11 +73,19 @@ C.. Diagonalize
          DO I=1,NBLOCKS
             NBS=NBLOCKSTARTS(I)
             IF(HElement_t_size.EQ.1) THEN
+#ifndef __CMPLX 
                CALL DSYEV('V','U',NBLOCKSTARTS(I+1)-NBS,CK(NBS,NBS),
      &            NDET,W(NBS),WORK2,3*NDET,INFO)
+#else
+               call stop_all(t_r,"This block for real calcs only")
+#endif
             ELSE
+#ifdef __CMPLX
                  CALL ZHEEV('V','U',NBLOCKSTARTS(I+1)-NBS,CK(NBS,NBS),
      &            NDET,W(NBS),WORK,4*NDET,WORK2,INFO)
+#else
+                 call stop_all(t_r,"This block for complex calcs only")
+#endif
             ENDIF
             IF(INFO.NE.0) THEN
                WRITE(6,*) 'DYSEV error: ',INFO

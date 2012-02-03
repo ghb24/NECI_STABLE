@@ -187,7 +187,7 @@ MODULE CCMC
 
         IF(TDebug.and.(mod(Iter,10).eq.0)) THEN
             WRITE(11,*) Iter,TotWalkers,NoatHF,NoatDoubs,MaxIndex,TotParts(1)
-            CALL FLUSH(11)
+            CALL neci_flush(11)
         ENDIF
 
 
@@ -539,7 +539,7 @@ MODULE CCMC
                      if(iSgn(1).eq.0) exit
                      IFDEBUG(iDebug,4) call WriteBitEx(6,iLutHF,iLutnI,.true.)
                   enddo
-                  IFDEBUG(iDebug,1) CALL FLUSH(6)
+                  IFDEBUG(iDebug,1) CALL neci_flush(6)
                   if(iSgn(1).eq.0) cycle
                endif
 
@@ -547,7 +547,7 @@ MODULE CCMC
                   WRITE(6,*) "Chosen det/excitor is:"
                   WRITE(6,"(A)",advance="no") "  "
                   call WriteBitDet(6,iLutnI,.true.)
-                  CALL FLUSH(6)
+                  CALL neci_flush(6)
                endif
 
                ! First, decode the bit-string representation of the 
@@ -641,7 +641,7 @@ MODULE CCMC
    !                        WRITE(6,"(A,I10,A)") "LARGE PARTICLE BLOOM - ",Child," particles created in one attempt."
    !                        WRITE(6,"(A,I5)") "Excitation: ",IC
    !                        WRITE(6,"(A,G25.10)") "PROB IS: ",Prob
-   !                        CALL FLUSH(6)
+   !                        CALL neci_flush(6)
                        ENDIF
 
 
@@ -650,7 +650,7 @@ MODULE CCMC
 
                        Proc=DetermineDetNode(nJ,0)   !This wants to return a value between 0 -> nProcessors-1
    !                    WRITE(6,*) iLutnJ(:),Proc,ValidSpawnedList(Proc),Child,TotWalkers
-   !                    CALL FLUSH(6)
+   !                    CALL neci_flush(6)
                        call encode_det(SpawnedParts(:,ValidSpawnedList(Proc)),iLutnJ)
                        call encode_sign(SpawnedParts(:,ValidSpawnedList(Proc)),Child)
                        ! SpawnedParts(:,ValidSpawnedList(Proc))=iLutnJ(:)
@@ -844,7 +844,7 @@ MODULE CCMC
         rat=(TotWalkersNew+0.D0)/(MaxWalkersPart+0.D0)
         IF(rat.gt.0.95) THEN
             WRITE(6,*) "*WARNING* - Number of particles/determinants has increased to over 95% of MaxWalkersPart"
-            CALL FLUSH(6)
+            CALL neci_flush(6)
         ENDIF
 
 !Need to test whether any of the sublists in the spawning array are getting to the end of their allotted space.
@@ -853,14 +853,14 @@ MODULE CCMC
                 rat=(ValidSpawnedList(i)-InitialSpawnedSlots(i))/(InitialSpawnedSlots(1)+0.D0)
                 IF(rat.gt.0.95) THEN
                     WRITE(6,*) "*WARNING* - Highest processor spawned particles has reached over 95% of MaxSpawned"
-                    CALL FLUSH(6)
+                    CALL neci_flush(6)
                 ENDIF
             enddo
         ELSE
             rat=(ValidSpawnedList(0)+0.D0)/(MaxSpawned+0.D0)
             IF(rat.gt.0.9) THEN
                 WRITE(6,*) "*WARNING* - Number of spawned particles has reached over 90% of MaxSpawned"
-                CALL FLUSH(6)
+                CALL neci_flush(6)
             ENDIF
         ENDIF
 
@@ -868,7 +868,7 @@ MODULE CCMC
         CALL set_timer(Annihil_Time,30)
 !        CALL MPI_Barrier(MPI_COMM_WORLD,error)
 !        WRITE(6,*) "Get into annihilation"
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 
 
 !This is the direct annihilation algorithm. The newly spawned walkers should be in a seperate array (SpawnedParts) and the other list should be ordered.
@@ -1894,7 +1894,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    IMPLICIT NONE
    character(len=*), parameter :: this_routine="CCMCStandalone"
    real(dp) Weight,EnergyxW
-   TYPE(AmplitudeList_double),target :: AL
+   TYPE(AmplitudeList_doub),target :: AL
 
    INTEGER iNumExcitors          ! The number of non-zero excitors (excluding the ref det)
    real(dp) dTotAbsAmpl            ! The total of the absolute amplitudes
@@ -1921,9 +1921,9 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    TYPE(ClustSelector),target :: CSBuff   ! This is used when we're doing buffered CC
    TYPE(ClustSelector),pointer :: CS      ! This will point to the appropriate selector
    LOGICAL tPostBuffering                 ! Set after prebuffering
-   TYPE(AmplitudeList_double), target :: ALBuffer !(Det)  used for buffered CC, storing intermediate amplitudes from cluster generation
+   TYPE(AmplitudeList_doub), target :: ALBuffer !(Det)  used for buffered CC, storing intermediate amplitudes from cluster generation
    LOGICAL tMoreClusters                  ! Indicates we've not finished selecting clusters 
-   TYPE(AmplitudeList_double), pointer :: OldAL          ! The previous cycle's amplitudes
+   TYPE(AmplitudeList_doub), pointer :: OldAL          ! The previous cycle's amplitudes
    INTEGER oldALIndex                     !The index in OldAL of the list to use
 
    TYPE(Spawner) S                        ! A spawner used to generate spanees from a cluster
@@ -2140,7 +2140,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
             WRITE(6,*) "Chosen det/excitor is:"
             WRITE(6,"(A)",advance="no") "  "
             call WriteBitDet(6,CS%C%iLutDetCurr,.true.)
-            CALL FLUSH(6)
+            CALL neci_flush(6)
          endif
          if(tTruncSpace.and.CS%C%iExcitLevel>iExcitLevelCluster) cycle !Don't try to die if we're truncated
 
@@ -2270,7 +2270,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    IMPLICIT NONE
    real(dp) Weight,EnergyxW
    CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandaloneParticle'
-   TYPE(AmplitudeList_bitrep),target :: AL
+   TYPE(AmplitudeList_btrp),target :: AL
    INTEGER(kind=n_int), pointer :: DetList(:,:)
    INTEGER(TagIntType) ::  tagDetList
 
@@ -2606,7 +2606,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
                WRITE(6,*) " Chosen det/excitor is:"
                WRITE(6,"(A)",advance="no") "  "
                call WriteBitDet(6,CS%C%iLutDetCurr,.true.)
-               CALL FLUSH(6)
+               CALL neci_flush(6)
             endif
          endif
          if(tTruncSpace.and.CS%C%iExcitLevel>iExcitLevelCluster) cycle !Don't try to die if we're truncated

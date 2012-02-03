@@ -138,7 +138,7 @@ C.. NPairs totals all SymProdCounts.
 
 C.. For each pair of symmetry classes, determine its symmetry product.
 C.. We list them and then sort them
-      Subroutine SymSetupExcits_CreateClassSymProds(nPr,nPairs,nCl,
+      Subroutine SymSetupExcits_CreateCSProds(nPr,nPairs,nCl,
      &   SymProds, ThisClassCount, PrevClassCount, ClassCount,Classes,
      &   SymProdCount)
          use SystemData, only: Symmetry,SymmetrySize, nel
@@ -418,7 +418,7 @@ C     &                     ,L1B,L1A,L2B,L2A
 !         WRITE(6,*) "Number of double excitations: ",NDOUB
       End Subroutine
 
-      Subroutine SymSetupExcitsAbelian_CountVirtProds(nDoub,nExcitTypes,
+      Subroutine SymSetupExcitsAb_CountVProds(nDoub,nExcitTypes,
      &            nCl,nPr,SymProds,SymProdInd,Classes,ClassCount,
      &            nAllowPPS) ! Calculated not enumerated
          use SymData, only: SymPairProds,nSymPairProds,SymmetrySize
@@ -607,7 +607,7 @@ C     &                  (SYMLABELCOUNTS(2,J)-CLASSCOUNT(ISPN,I))
 !orbital 'a' must have the same symmetry and spin as orbital 'b'
 !Simply run through symmetry classes in NI to count these.
 !NExcitTypes counts the number of different ways of getting an excitation, i.e. Different spin or symmetry
-      Subroutine SymSetupExcitsAbelian_CountSingles(nSing,nCl,
+      Subroutine SymSetupExcitsAb_CountSing(nSing,nCl,
      &      nExcitTypes,ThisClassCount,Classes)
          use SystemData, only: Symmetry
          use SymData, only: SymClass,SymLabelCounts,nSymLabels,SymLabels
@@ -653,11 +653,11 @@ C     &                  (SYMLABELCOUNTS(2,J)-CLASSCOUNT(ISPN,I))
 
          ENDDO
 
-      End Subroutine SymSetupExcitsAbelian_CountSingles
+      End Subroutine SymSetupExcitsAb_CountSing
 
 !Based on the Count singles analogue, this fills the ExcitTypes array with
 !symmetry and excitation type information.
-      Subroutine SymSetupExcitsAbelian_StoreSingles(nExcitTypes,nCl,
+      Subroutine SymSetupExcitsAb_StoreSing(nExcitTypes,nCl,
      &      Classes,ThisClassCount,ExcitTypes)
          use SystemData, only: Symmetry
          use SymData, only: SymClass,SymLabelCounts,nSymLabels,SymLabels
@@ -718,7 +718,7 @@ C     &                  (SYMLABELCOUNTS(2,J)-CLASSCOUNT(ISPN,I))
 
          ENDDO
 
-      End Subroutine SymSetupExcitsAbelian_StoreSingles
+      End Subroutine SymSetupExcitsAb_StoreSing
 
       
       Subroutine SymSetupExcits_StoreSingles(nExcitTypes,nCl,

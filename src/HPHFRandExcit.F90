@@ -147,7 +147,7 @@ MODULE HPHFRandExcitMod
 
 !        Count=Count+1
 !        WRITE(6,*) "COUNT: ",Count
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 
 !Create excitation of uniquely chosen determinant in this HPHF function.
         IF(IsNullDet(nJ)) RETURN
@@ -341,7 +341,7 @@ MODULE HPHFRandExcitMod
 !            write(6,*) iLutnI
 !            write(6,*) "HEl: ",HEl
 !            if(HEl.ne.0.D0) call stop_all("gen_hphf_excit","WHY?!")
-!            call flush(6)
+!            call neci_flush(6)
 !        endif
 
     end subroutine
@@ -517,7 +517,7 @@ MODULE HPHFRandExcitMod
 !        WRITE(6,*) "***"
 !        WRITE(6,*) Iterations,pDoub
 !!        WRITE(6,*) "nSymLabels: ",nSymLabels
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 !
 !!First, we need to enumerate all possible HPHF wavefunctions from each spin-pair of determinants.
 !!These need to be stored in an array
@@ -624,7 +624,7 @@ MODULE HPHFRandExcitMod
 !        WRITE(6,*) "There are ",iUniqueBeta," unique HPHF wavefunctions from the spin-coupled determinant, which are not in a alpha version."
 !        IF(iUniqueBeta.ne.0) THEN
 !            WRITE(6,*) "HPHF from beta, but not from alpha!"
-!            CALL FLUSH(6)
+!            CALL neci_flush(6)
 !            STOP
 !        ENDIF
 !
@@ -752,7 +752,7 @@ MODULE HPHFRandExcitMod
         LOGICAL :: tSuccess
 
 !        WRITE(6,*) "Binary searching between ",MinInd, " and ",MaxInd
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
         i=MinInd
         j=MaxInd
         IF(i-j.eq.0) THEN

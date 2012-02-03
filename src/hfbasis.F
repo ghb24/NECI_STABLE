@@ -531,9 +531,9 @@ C.. eigenvector N is in FMAT(i,N,ISPN), where i is the component of the
 C.. vector
 #ifdef __CMPLX
                      IF(LTRANS) THEN
-                        TOT=TOT+DCONJG(FMAT(K,I,ISPN))*FMAT(K,J,ISPN)
+                        TOT=TOT+CONJG(FMAT(K,I,ISPN))*FMAT(K,J,ISPN)
                      ELSE
-                        TOT=TOT+FMAT(I,K,ISPN)*DCONJG(FMAT(J,K,ISPN))
+                        TOT=TOT+FMAT(I,K,ISPN)*CONJG(FMAT(J,K,ISPN))
                      ENDIF
 #else
                      IF(LTRANS) THEN
@@ -610,7 +610,7 @@ C.. Now sum in the alpha and beta block of u matrix
                   ENDDO
                   FMAT(I,J,ISPN)=TOT
 #ifdef __CMPLX
-                  FMAT(J,I,ISPN)=DCONJG(TOT)
+                  FMAT(J,I,ISPN)=CONJG(TOT)
 #endif
                ENDDO
             ENDDO
@@ -1432,7 +1432,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
 C.. The largest element isn't big enough, so we abort
                WRITE(6,*) "Largest coeff of HF basis fn ",I," is ",MX
                WRITE(6,*) "Aborting ORDERBASISHF"
-               CALL FLUSH(6)
+               CALL neci_flush(6)
                STOP "ORDERBASISHF failed - HF Basis not converged"
             ENDIF
             ARR(I,1)=HFE(I)

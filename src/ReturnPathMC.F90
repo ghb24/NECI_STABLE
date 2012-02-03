@@ -123,8 +123,8 @@ MODULE ReturnPathMCMod
 !                WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,G16.7,2I6)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,MeanExit,MinExit,MaxExit
 !                WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,G16.7,2I6)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,MeanExit,MinExit,MaxExit
 !
-!                CALL FLUSH(15)
-!                CALL FLUSH(6)       !Probably remove flushes for big systems
+!                CALL neci_flush(15)
+!                CALL neci_flush(6)       !Probably remove neci_flushes for big systems
 !
 !                TotWalkersOld=TotWalkers    !Reset 'old' number of walkers for next shift update cycle
 !                MeanExit=0.D0
@@ -913,7 +913,7 @@ MODULE ReturnPathMCMod
 !        PartSize=((CLMax*(NEl+4))+4)*4      !This is the size of a particle (without exgen stuff)
 !
 !        WRITE(6,"(A)",advance='no') "Attempting to allocate initial memory....."
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 !
 !!Allocate memory to hold all walkers
 !        ALLOCATE(WalkVec(MaxWalkers),stat=ierr)
@@ -940,7 +940,7 @@ MODULE ReturnPathMCMod
 !        NewVec=>WalkVec2
 !
 !        WRITE(6,*) "DONE"
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 !
 !        FDetExGen%ForCurrentDet=.false.
 !        CALL SetupExitGen(HFDet,FDetExGen)

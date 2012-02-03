@@ -20,8 +20,8 @@ MODULE Calc
     use CCMCData, only: dInitAmplitude, dProbSelNewExcitor, nSpawnings, &
                         tSpawnProp, nClustSelections, tExactEnergy,     &
                         dClustSelectionRatio,tSharedExcitors
-    use FciMCData, only: proje_linear_comb, proje_ref_det_init,tTimeExit,MaxTimeExit, &
-                         InputDiagSft,tSearchTau
+    use FciMCData, only: proje_update_comb,proje_linear_comb, proje_ref_det_init,tTimeExit,MaxTimeExit, &
+                         InputDiagSft,tSearchTau,proje_spatial
 
     implicit none
 
@@ -261,6 +261,8 @@ contains
           tTruncNOpen = .false.
 
           proje_linear_comb = .false.
+      proje_update_comb = .false.
+          proje_spatial = .false.
           hash_shift=0
           tContinueAfterMP2=.false.
       
@@ -1036,6 +1038,7 @@ contains
                 ! combination of determinants, specified by a particular 
                 ! spatial determinant.
                 proje_linear_comb = .true.
+                proje_spatial = .true.
                 if (.not. allocated(proje_ref_det_init)) &
                     allocate(proje_ref_det_init(nel))
                 proje_ref_det_init = 0
@@ -1044,7 +1047,10 @@ contains
                     call geti(proje_ref_det_init(i))
                     i = i+1
                 enddo
-
+            case("PROJE-LINEAR-COMB")
+                ! Calculate the projected energy by projection onto a linear
+                ! combination of determinants.
+                proje_linear_comb = .true.
             case("RESTARTLARGEPOP")
                 tCheckHighestPop=.true.
                 tRestartHighPop=.true.
@@ -1653,7 +1659,7 @@ contains
          &                 RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,           &
          &                 DETINV,TSPECDET,SPECDET)
     !                      WRITE(6,*) "Out Here 2"
-    !                      CALL FLUSH(6)
+    !                      CALL neci_flush(6)
                     ELSE
                        IF(TCSFOLD) THEN
                           IF(.NOT.TSPECDET) THEN
@@ -1687,7 +1693,7 @@ contains
 !             DBETA=DBRAT*BETA
              WRITE(6,*) "I_HMAX:",I_HMAX
              WRITE(6,*) "Calculating MC Energy..."
-             CALL FLUSH(6)
+             CALL neci_flush(6)
              IF(NTAY(1).GT.0) THEN
                 WRITE(6,*) "Using approx RHOs generated on the fly, NTAY=",NTAY(1)
 !C.. NMAX is now ARR

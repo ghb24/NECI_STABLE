@@ -21,9 +21,6 @@ MODULE input_neci
 !  http://www.gnu.org/copyleft/gpl.html
 
 use constants, only: sp,dp,int64
-#ifdef NAGF95
-USe f90_unix_env, ONLY: getarg
-#endif
 
 IMPLICIT NONE
 
@@ -508,7 +505,7 @@ last=-1
 
 do
   nitems=nitems+1
-  call getarg(nitems,word)
+  call neci_getarg(nitems,word)
   if (word .eq. "") then
     nitems=nitems-1
     exit
@@ -650,9 +647,8 @@ SUBROUTINE read_double(A,factor)
 !  If the optional argument factor is present, the value read should be
 !  divided by it. (External value = factor*internal value)
 
-DOUBLE PRECISION, INTENT(INOUT) :: a
-DOUBLE PRECISION, INTENT(IN), OPTIONAL :: factor
-
+REAL(KIND=dp), INTENT(INOUT) :: a
+REAL(KIND=dp), INTENT(IN), OPTIONAL :: factor
 CHARACTER(LEN=50) :: string
 
 if (clear) a=0d0
@@ -693,7 +689,7 @@ SUBROUTINE read_single(A,factor)
 REAL(kind=sp), INTENT(INOUT) :: a
 REAL(kind=sp), INTENT(IN), OPTIONAL :: factor
 
-DOUBLE PRECISION :: aa
+REAL(kind=dp) :: aa
 
 if (present(factor)) then
   call read_double(aa,real(factor,dp))
@@ -846,8 +842,8 @@ SUBROUTINE getf(A,factor)
 !  If the optional argument factor is present, the value read should be
 !  divided by it. (External value = factor*internal value)
 
-DOUBLE PRECISION, INTENT(INOUT) :: A
-DOUBLE PRECISION, INTENT(IN), OPTIONAL :: factor
+REAL(kind=dp), INTENT(INOUT) :: A
+REAL(kind=dp), INTENT(IN), OPTIONAL :: factor
 
 LOGICAL :: eof
 
@@ -1083,7 +1079,7 @@ REAL(kind=sp), INTENT(OUT) :: colour(3)
 LOGICAL, INTENT(IN), OPTIONAL :: clamp
 CHARACTER(LEN=6) :: x
 INTEGER :: i, r, g, b
-DOUBLE PRECISION :: c
+REAL(kind=dp) :: c
 
 select case(fmt)
 case("GREY","GRAY")
