@@ -764,11 +764,11 @@ contains
          TYPE(BasisFn) G1(*),ISym
          INTEGER I,J,NI2(NEL)
          INTEGER NREPS(NEL),NELECS(NEL),SSYM
-         LOGICAL ISCSF,ISC
+         LOGICAL iscsf_old,ISC
          I=1
          NREPS(1:NEL)=0
          CALL SETUPSYM(ISYM)
-         ISC=ISCSF(NI2,NEL)
+         ISC=iscsf_old(NI2,NEL)
          IF(tFixLz) THEN
             CALL GetLz(NI2,NEL,ISYM%Ml)
          ELSE

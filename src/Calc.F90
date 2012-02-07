@@ -2114,9 +2114,9 @@ contains
          INTEGER NEL,NI(NEL),I,J
          TYPE(BasisFN) G1(*)
          real(dp) ALAT(4),CST,TMAT,CALCT2
-         LOGICAL ISCSF
+         LOGICAL ISCSF_old
          CALCT2=0.D0
-         IF(ISCSF(NI,NEL)) RETURN
+         IF(iscsf_old(NI,NEL)) RETURN
          DO J=1,NEL
             I=NI(J)
            TMAT=((ALAT(1)**2)*((G1(I)%K(1)**2)/(ALAT(1)**2)+   &
