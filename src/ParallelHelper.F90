@@ -83,7 +83,11 @@ contains
       INTEGER(MPIArg) :: error,l,e
 #ifdef PARALLEL
       character(len=MPI_MAX_ERROR_STRING) :: s
+#ifdef CBINDMPI
+      e = MPI_ERROR_STRING(error,s,l)
+#else
       call MPI_ERROR_STRING(error,s,l,e)
+#endif
       write(6,*) s
 #endif
    end subroutine
@@ -94,10 +98,22 @@ contains
         type(CommI), intent(in),optional :: Node
         integer Comm
         integer(MPIArg) :: CommArg
+#ifdef CBINDMPI
+        interface
+            function MPI_Barrier (comm) result(ret) bind(c)
+                integer, intent(in), value :: comm
+                integer :: ret
+            end function
+        end interface
+#endif
 #ifdef PARALLEL
         call GetComm(Comm,Node)
         CommArg=Comm
+#ifdef CBINDMPI
+        err = MPI_Barrier(CommArg)
+#else
         CALL MPI_Barrier(CommArg,err)
+#endif
         error=err
 #endif
     end subroutine
