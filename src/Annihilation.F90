@@ -484,13 +484,14 @@ MODULE AnnihilationMod
         ExcitLevel = FindBitExcitLevel(iLut,iLutHF, nel)
         IF(ExcitLevel.eq.NEl) THEN
             CALL BinSearchParts2(iLut(:),HistMinInd2(ExcitLevel),Det,PartIndex,tSuc)
+            HistMinInd2(ExcitLevel)=PartIndex
         ELSEIF(ExcitLevel.eq.0) THEN
             PartIndex=1
             tSuc=.true.
         ELSE
             CALL BinSearchParts2(iLut(:),HistMinInd2(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartIndex,tSuc)
+            HistMinInd2(ExcitLevel)=PartIndex
         ENDIF
-        HistMinInd2(ExcitLevel)=PartIndex
         IF(tSuc) THEN
             AvAnnihil(part_type,PartIndex)=AvAnnihil(part_type,PartIndex)+ &
                 REAL(2*(MIN(abs(Sign1(part_type)),abs(Sign2(part_type)))),dp)
@@ -714,14 +715,15 @@ MODULE AnnihilationMod
                                                            iLutHF, nel)
                             IF(ExcitLevel.eq.NEl) THEN
                                 CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel),Det,PartIndex,tSuc)
+                                HistMinInd2(ExcitLevel)=PartIndex
                             ELSEIF(ExcitLevel.eq.0) THEN
                                 PartIndex=1
                                 tSuc=.true.
                             ELSE
                                 CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel), &
                                         FCIDetIndex(ExcitLevel+1)-1,PartIndex,tSuc)
+                                HistMinInd2(ExcitLevel)=PartIndex
                             ENDIF
-                            HistMinInd2(ExcitLevel)=PartIndex
                             IF(tSuc) THEN
                                 AvAnnihil(j,PartIndex)=AvAnnihil(j,PartIndex)+ &
                                 REAL(2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j)))))
