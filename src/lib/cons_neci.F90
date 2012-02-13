@@ -7,7 +7,7 @@ uSE mpi
 implicit none
 #else
 implicit none
-#include "mpi.h"
+#include <mpi.h>
 #endif
 #endif
 
