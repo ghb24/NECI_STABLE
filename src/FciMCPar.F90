@@ -1300,7 +1300,6 @@ MODULE FciMCParMod
 
 
     SUBROUTINE FindHighPopDet(TotWalkersNew)
-        USE constants, only : MpiDetInt
 !Found the highest population on each processor, need to find out which of these has the highest of all.
         INTEGER(KIND=n_int) :: DetPos(0:NIfTot),DetNeg(0:NIfTot)
         INTEGER :: TotWalkersNew,ProcBCastNeg,ProcBCastPos

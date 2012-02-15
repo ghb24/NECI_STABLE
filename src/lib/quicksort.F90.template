@@ -334,6 +334,25 @@ contains
         ! sample code in NumericalRecipies as a base.
         ! Optionally sort arr2 in parallel (in the routines it is enabled)
 
+        ! Custom comparisons. Use the operator .locallt. & .localgt.
+        %(custom_compare_prefix)s interface operator(.locallt.)
+        %(custom_compare_prefix)s     pure function custom_lt (b, c) result (ret)
+        %(custom_compare_prefix)s         use constants
+        %(custom_compare_prefix)s         %(type1)s, intent(in) :: b(:)
+        %(custom_compare_prefix)s         %(type1)s, intent(in) :: c(:)
+        %(custom_compare_prefix)s         logical :: ret
+        %(custom_compare_prefix)s     end function 
+        %(custom_compare_prefix)s end interface    
+        %(custom_compare_prefix)s interface operator(.localgt.)
+        %(custom_compare_prefix)s     pure function custom_gt (b, c) result (ret)
+        %(custom_compare_prefix)s         use constants
+        %(custom_compare_prefix)s         %(type1)s, intent(in) :: b(:)
+        %(custom_compare_prefix)s         %(type1)s, intent(in) :: c(:)
+        %(custom_compare_prefix)s         logical :: ret
+        %(custom_compare_prefix)s     end function 
+        %(custom_compare_prefix)s end interface    
+
+
         ! sort needs auxiliary storage of length 2*log_2(n).
         integer, parameter :: nStackMax = 50
         integer, parameter :: nInsertionSort = 7
@@ -366,24 +385,6 @@ contains
         %(type5)s :: tmp5(size(arr5(1)))
         %(type6)s :: tmp6(size(arr6(1)))
         character(*), parameter :: this_routine = 'sort'
-
-        ! Custom comparisons. Use the operator .locallt. & .localgt.
-        %(custom_compare_prefix)s interface operator(.locallt.)
-        %(custom_compare_prefix)s     pure function custom_lt (b, c) result (ret)
-        %(custom_compare_prefix)s         use constants
-        %(custom_compare_prefix)s         %(type1)s, intent(in) :: b(:)
-        %(custom_compare_prefix)s         %(type1)s, intent(in) :: c(:)
-        %(custom_compare_prefix)s         logical :: ret
-        %(custom_compare_prefix)s     end function 
-        %(custom_compare_prefix)s end interface    
-        %(custom_compare_prefix)s interface operator(.localgt.)
-        %(custom_compare_prefix)s     pure function custom_gt (b, c) result (ret)
-        %(custom_compare_prefix)s         use constants
-        %(custom_compare_prefix)s         %(type1)s, intent(in) :: b(:)
-        %(custom_compare_prefix)s         %(type1)s, intent(in) :: c(:)
-        %(custom_compare_prefix)s         logical :: ret
-        %(custom_compare_prefix)s     end function 
-        %(custom_compare_prefix)s end interface    
 
 
         ! Initialise temporary variables if required

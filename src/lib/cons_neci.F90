@@ -5,9 +5,6 @@ module constants
 #ifndef CBINDMPI 
 uSE mpi
 implicit none
-#else
-implicit none
-#include "mpi.h"
 #endif
 #endif
 
@@ -55,20 +52,10 @@ integer, parameter :: MPIArg=int32
 ! Kind parameter for 64-bit integers.
 integer, parameter :: n_int=int64
 
-! MPI integer kind associated with n_int.
-#ifdef PARALLEL
-integer, parameter :: MpiDetInt=MPI_INTEGER8
-#endif
-
 #else
 
 ! Kind parameter for 32-bit integers.
 integer, parameter :: n_int=int32
-
-! MPI integer kind associated with n_int.
-#ifdef PARALLEL
-integer, parameter :: MpiDetInt=MPI_INTEGER
-#endif
 
 #endif
 
