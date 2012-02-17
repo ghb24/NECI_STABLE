@@ -3168,7 +3168,7 @@ MODULE FciMCParMod
         type(fcimc_iter_data), intent(in) :: iter_data
         integer(int64) :: tot_walkers
         logical :: tReZeroShift
-        real(dp) :: AllGrowRateRe, AllGrowRateIm, AllHFGrowRate
+        real(dp) :: AllGrowRateRe, AllGrowRateIm, AllHFGrowRate, tmp_dp
         real(dp), dimension(lenof_sign) :: denominator, all_denominator
         integer :: error, i, proc, sgn(lenof_sign), pos
 
@@ -3360,13 +3360,35 @@ MODULE FciMCParMod
             call MPIBcast(tSpawn_Only_Init)
         endif
         call MPIBcast (tSinglePartPhase)
-        call MPIBcast (VaryShiftIter)
-        call MPIBcast (DiagSft)
+        call MPIBarrier(error)
+        write(6,*) 'All together', iprocindex
+        call flush(6)
+        call MPIBarrier(error)
+        call mpisumall(1.5_dp, tmp_dp)
+        write(6,*) 'SUMMED', tmp_dp
+        call flush(6)
+        call MPIBarrier(error)
+        error = 1
+        call MPIBcast (error)
+        write(6,*) 'BCAST', error
+        call flush(6)
+        call MPIBarrier(error)
+        call MPIBcast_dbg (VaryShiftIter)
+        write(6,*) '================================================'
+        write(6,*) 'SHIFT to bcast', DiagSft
+        call flush(6)
+        call MPIBcast_dbg (DiagSft)
+        write(6,*) 'SHIFT recieved', diagsft
+        write(6,*) '================================================'
+        call flush(6)
+        call MPIBarrier(error)
+        call stop_all("this", 'end')
         if(.not.tSinglePartPhase) then
             TargetGrowRate=0.D0
             tSearchTau=.false.
         endif
 
+        write(6,*) 'SHIFT UPDATED', diagsft
 
     end subroutine
 

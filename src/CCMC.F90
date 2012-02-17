@@ -1577,6 +1577,7 @@ subroutine AttemptDie(C,CurAmpl,OldAmpl,TL,WalkerScale,iDebug)
    r=rat
    rat=rat/abs(OldAmpl(iPartDie))  !Take into account we're killing at a different place from the cluster
 
+
    IFDEBUG(iDebug,4) then
       WRITE(6,*) "   Product Contributions to Number Died:"
       WRITE(6,*) "    Energy difference: ",HDiagCurr-DiagSft
@@ -2322,7 +2323,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    INTEGER :: iLengths(nProcessors)  !Used to store spawning data for annihilation
    INTEGER :: iOffset(1)
 
-   INTEGER ierr
+   INTEGER ierr, iii
 
    real(dp) dInitThresh
 

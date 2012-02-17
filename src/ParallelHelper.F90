@@ -49,15 +49,6 @@ module ParallelHelper
             integer(c_int), intent(in), value :: comm
             integer(c_int), intent(out) :: ierr
         end subroutine
-        subroutine MPI_Allreduce_rt (val, ret, cnt, dtype, op, comm, ierr) &
-            bind(c, name='mpi_allreduce_wrap')
-            use iso_c_hack
-            use constants
-            integer(MPIArg), intent(in) :: val
-            integer(MPIArg), intent(out) :: ret
-            integer(c_int), intent(in), value :: cnt, dtype, op, comm
-            integer(c_int), intent(out) :: ierr
-        end subroutine
         subroutine MPI_Init (ierr) bind(c, name='mpi_init_wrap')
             use iso_c_hack
             integer(c_int), intent(out) :: ierr
@@ -278,6 +269,84 @@ contains
         call MPI_Comm_Group (comm, gout, err)
         ierr = err
         grp = gout
+
+    end subroutine
+
+    subroutine MPIGather_hack (v, v2, nchar, nprocs, ierr, Node)
+        interface
+            ! Put this here to avoid polluting the global namespace
+            subroutine MPI_Gather_2 (sbuf, scnt, stype, rbuf, rcnt, rtype, &
+                                     rt, comm, ierr) &
+                                     bind(c, name='mpi_gather_wrap')
+                use iso_c_hack
+                use constants
+                character(c_char), intent(in) :: sbuf
+                character(c_char), intent(out) :: rbuf
+                integer(c_int), intent(in), value :: scnt, stype, rcnt, rtype
+                integer(c_int), intent(in), value :: comm, rt
+                integer(c_int), intent(out) :: ierr
+            end subroutine
+        end interface
+
+        integer, intent(in) :: nchar, nprocs
+        character(len=nchar) :: v
+        character(len=nchar) :: v2(nprocs)
+        integer, intent(out) :: ierr
+        type(CommI), intent(in), optional :: Node
+        integer(MPIArg) :: Comm, rt, err
+
+#ifdef CBINDMPI
+        character(c_char) :: in_tmp(nchar)
+        character(len=nchar*nprocs) :: out_tmp
+        integer :: i, st, fn
+#endif
+
+
+#ifdef PARALLEL
+        call GetComm (Comm, Node, rt)
+
+#ifdef CBINDMPI
+        call MPI_Gather_2 (v, int(nchar, MPIArg), MPI_CHARACTER, &
+                           out_tmp, int(nchar, MPIArg), &
+                           MPI_CHARACTER, rt, comm, err)
+        do i = 1, nprocs
+            st = 1 + ((i - 1) * nchar)
+            fn = st + nchar - 1
+            v2(i) = out_tmp(st:fn)
+        end do
+#else
+        call MPI_Gather (v, &
+                int(nchar, MPIArg), &
+                MPI_CHARACTER, &
+                v2, &
+                int(nchar, MPIArg), &
+                MPI_CHARACTER, &
+                rt, comm, err)
+#endif
+        ierr = err
+#else
+        v2(1) = v
+        ierr = 0
+#endif
+    end subroutine
+
+    subroutine MPIAllreduceRt(rt, nrt, comm, ierr)
+        interface
+            ! Put this here to avoid polluting the global namespace
+            subroutine MPI_Allreduce_rt(val, ret, cnt, dtype, op, comm, ierr)&
+                bind(c, name='mpi_allreduce_wrap')
+                use iso_c_hack
+                use constants
+                integer(MPIArg), intent(in) :: val
+                integer(MPIArg), intent(out) :: ret
+                integer(c_int), intent(in), value :: cnt, dtype, op, comm
+                integer(c_int), intent(out) :: ierr
+            end subroutine
+        end interface
+        integer(MPIArg), intent(in) :: rt, comm
+        integer(MPIArg), intent(out) :: nrt, ierr
+        call MPI_Allreduce_rt (rt, nrt, 1_MPIArg, MPI_INTEGER, MPI_MAX, &
+                               comm, ierr)
 
     end subroutine
 

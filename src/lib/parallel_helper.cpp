@@ -1,6 +1,8 @@
 #include "mpi.h"
 #include "stdio.h"
+#include <string.h>
 #include <vector>
+#include <unistd.h>
 
 #ifdef CBINDMPI
 
@@ -35,14 +37,10 @@ int c_getarg_len (int i)
 	return strlen(g_argv[i]);
 }
 
-// n.b. here we return an array of integers. This is just easier than
-//      faffing with the (supposed) f2003 c_char support
-void c_getarg (int i, int * str)
+void c_getarg (int i, char * str)
 {
-	for (int j=0; j<strlen(g_argv[i]); j++)
-		str[j] = (int)g_argv[i][j];
+	strcpy(str, g_argv[i]);
 }
-
 
 
 //
@@ -193,7 +191,6 @@ void mpi_group_incl_wrap (int group, int n, int * ranks, int * ogroup,
 	MPI_Group new_group;
 
 	*ierr = MPI_Group_incl (grp_handle, n, ranks, &new_group);
-	printf("Got back: %d\n", *ierr);
 
 	// Add this group to the list, and return its index
 	group_vec.push_back (new_group);
@@ -223,7 +220,7 @@ void mpi_reduce_wrap (void * sbuf, void * rbuf, int count, int dtype,
 
 //
 // Wrapper for MPI_Allreduce
-void mpi_allreduce_wrap (void * sbuf, void * rbuf, int count, int dtype,
+void mpi_allreduce_wrap (double * sbuf, double * rbuf, int count, int dtype,
                          int op, int comm, int * ierr)
 {
     *ierr = MPI_Allreduce (sbuf ? sbuf : MPI_IN_PLACE, 
@@ -238,6 +235,33 @@ void mpi_bcast_wrap (void * buf, int count, int dtype, int root, int comm,
                      int * ierr)
 {
     *ierr = MPI_Bcast (buf, count, dtype_map[dtype], root, comm_vec[comm]);
+}
+
+
+//
+// Wrapper for MPI_Bcast
+void mpi_bcast_wrap_dbg (void * buf, int count, int dtype, int root, int comm,
+                     int * ierr)
+{
+	int err, rnk;
+	mpi_comm_rank_wrap (comm, &rnk, &err);
+	if (dtype == 2)
+		printf (">>>> %d, %d, %d, %f\n", rnk, count, root, ((double*)buf)[0]);
+	else if (dtype == 1)
+		printf (">>>> %d, %d, %d, %ld\n", rnk, count, root, ((long*)buf)[0]);
+	else if (dtype == 0)
+		printf (">>>> %d, %d, %d, %d\n", rnk, count, root, ((int*)buf)[0]);
+
+	fflush(stdout);
+    *ierr = MPI_Bcast (buf, count, dtype_map[dtype], root, MPI_COMM_WORLD);
+	if (dtype == 2)
+		printf ("<<<< %d, %d, %d, %f\n", rnk, count, root, ((double*)buf)[0]);
+	else if (dtype == 1)
+		printf ("<<<< %d, %d, %d, %ld\n", rnk, count, root, ((long*)buf)[0]);
+	else if (dtype == 0)
+		printf ("<<<< %d, %d, %d, %d\n", rnk, count, root, ((int*)buf)[0]);
+	fflush(stdout);
+//	}
 }
 
 

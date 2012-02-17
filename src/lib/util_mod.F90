@@ -576,23 +576,15 @@ end module
             pure subroutine c_getarg (i, str) bind(c)
                 use iso_c_hack
                 integer(c_int), intent(in), value :: i
-                integer(c_int), intent(out) :: str(*)
-!                character(c_char), intent(out) :: str(*)
+                character(c_char), intent(out) :: str
             end subroutine
         end interface
         integer :: j
-        integer(c_int) :: str_c(c_getarg_len(int(i, c_int)))
         character(len=c_getarg_len(int(i, c_int))) :: str2
 
-        call c_getarg (int(i, c_int), str_c)
-!
-        str2 = ""
-        do j = 1, c_getarg_len(int(i, c_int))
-            str2 = trim(str2)//achar(str_c(j))
-        end do
-        write(6,*) '--> ', str2
+        call c_getarg (int(i, c_int), str2)
+
         str = str2
-!        write(6,*) 'GOT STRING', tmp_str
 
 #elif defined NAGF95
         call getarg(i, str)

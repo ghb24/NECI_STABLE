@@ -29,10 +29,6 @@ mpitype=MPI_INTEGER8
 type1=complex(dp)
 mpitype=MPI_DOUBLE_COMPLEX
 
-[char]
-type1=character(len=1)
-mpitype=MPI_CHARACTER
-
 
 #####################
 # 1-D Arrays
@@ -208,7 +204,6 @@ module Parallel_neci
 
 
 #ifdef CBINDMPI
-
     interface
         subroutine MPI_Reduce (val, ret, cnt, dtype, op, rt, comm, ierr) &
             bind(c, name='mpi_reduce_wrap')
@@ -230,6 +225,14 @@ module Parallel_neci
         end subroutine
         subroutine MPI_Bcast (buf, cnt, dtype, rt, comm, ierr) &
             bind(c, name='mpi_bcast_wrap')
+            use iso_c_hack
+            use constants
+            %(type1)s, intent(inout) :: buf(*)
+            integer(c_int), intent(in), value :: cnt, dtype, rt, comm
+            integer(c_int), intent(out) :: ierr
+        end subroutine
+        subroutine MPI_Bcast_dbg (buf, cnt, dtype, rt, comm, ierr) &
+            bind(c, name='mpi_bcast_wrap_dbg')
             use iso_c_hack
             use constants
             %(type1)s, intent(inout) :: buf(*)
@@ -265,17 +268,6 @@ module Parallel_neci
             use constants
             %(type1)s, intent(in) :: sbuf(*)
             %(type1)s, intent(out) :: rbuf( *)
-            integer(c_int), intent(in), value :: scnt, stype, rcnt, rtype
-            integer(c_int), intent(in), value :: comm, rt
-            integer(c_int), intent(out) :: ierr
-        end subroutine
-        subroutine MPI_Gather_2 (sbuf, scnt, stype, rbuf, rcnt, rtype, &
-                                 rt, comm, ierr) &
-                                 bind(c, name='mpi_gather_wrap')
-            use iso_c_hack
-            use constants
-            %(type1)s, intent(in) :: sbuf(*)
-            %(type1)s, intent(out) :: rbuf(*)
             integer(c_int), intent(in), value :: scnt, stype, rcnt, rtype
             integer(c_int), intent(in), value :: comm, rt
             integer(c_int), intent(out) :: ierr
@@ -779,6 +771,38 @@ contains
 #endif
     end subroutine
 
+    subroutine MPIBCast_dbg (v, Node)
+
+        ! The same as MPIBcast_len, but the number of elements in v is 
+        ! determined automagically
+        !
+        ! In:    Root   - The processor to broadcast from
+        ! InOut: v - The data to broadcast, and the returned v
+
+        %(type1)s, intent(inout) :: v()
+        integer(MPIArg) :: ierr, comm, rt
+        type(CommI), intent(in), optional :: Node
+        character(*), parameter :: t_r = 'MPIBcast'
+
+#ifdef PARALLEL
+        call GetComm (Comm, Node, rt)
+        if (%(mpitype)s == 2) &
+            write(6,*) 'V', v, rt, comm
+        call flush(6)
+
+        call MPI_Bcast_dbg (v, &
+                int(%(mpilen)s, MPIArg), &
+                %(mpitype)s, &
+                rt, comm, ierr)
+
+        if (%(mpitype)s == 2) &
+            write(6,*) 'VV', v, ierr
+        call flush(6)
+
+        if (ierr /= MPI_SUCCESS) &
+            call stop_all (t_r, 'MPI Error. Terminating.')
+#endif
+    end subroutine
 
 
     subroutine MPIBCast_logic (v, tMe, Node)
@@ -799,8 +823,7 @@ contains
         call GetComm(Comm, Node, rt, tMe)
 
         ! Which processor is root?
-        call MPI_Allreduce_rt (rt, nrt, 1_MPIArg, MPI_INTEGER, MPI_MAX, &
-                               comm, ierr)
+        call MPIAllreducert (rt, nrt, comm, ierr)
 
         if (ierr == MPI_SUCCESS) then
             call MPI_Bcast (v, &
@@ -981,34 +1004,6 @@ contains
     end subroutine
 
 
-    subroutine MPIGather_auto_hack (v, v2, ierr, Node)
-
-        %(type1)s, intent(in) :: v()
-        %(type1)s, intent(inout) :: v2()
-        integer, intent(out) :: ierr
-        type(CommI), intent(in), optional :: Node
-        integer(MPIArg) :: Comm, rt, err
-
-#ifdef PARALLEL
-        call GetComm (Comm, Node, rt)
-
-#ifdef CBINDMPI
-        call MPI_Gather_2 (v, &
-#else
-        call MPI_Gather (v, &
-#endif
-                int(%(mpilen)s, MPIArg), &
-                %(mpitype)s, &
-                v2, &
-                int(%(mpilen2)s, MPIArg), &
-                %(mpitype)s, &
-                rt, comm, err)
-        ierr = err
-#else
-        v2(1) = v
-        ierr = 0
-#endif
-    end subroutine
 
 
     ! This gathers an array into another array with the same number of dims.
@@ -1512,7 +1507,7 @@ contains
             nm2 = nm
             !No templated character type
 
-            call MPIGather_auto_hack (nm2, nms(0), ierr)
+            call MPIGather_hack (nm2, nms(0), 30, nProcessors, ierr)
 
             write(6,*) "Processor      Node hostname"
             if (iProcIndex == root) then
