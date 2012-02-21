@@ -3522,6 +3522,7 @@ module NeLrdmmOD
         REAL(dp) :: Trace_2RDM_New, RDMEnergy1, RDMEnergy2
 
         CALL set_timer(RDMEnergy_Time,30)
+    WRITE(6,*) "Norm2RDM is ", Norm_2RDM
 
         Trace_2RDM_New = 0.D0
 
@@ -3566,6 +3567,9 @@ module NeLrdmmOD
                             Coul = REAL(UMAT(UMatInd(i,j,a,b,0,0)),8)
                             Exch = REAL(UMAT(UMatInd(i,j,b,a,0,0)),8)
 
+                            WRITE(6,*) "i,j,a,b", i, j, a, b
+                            WRITE(6,*) "For integral <ij|ab> the RDM contribution is:"
+
                             if((i.ne.j).and.(a.ne.b)) then
                                 ! Cannot get i=j or a=b contributions in aaaa.
                                 RDMEnergy_Inst = RDMEnergy_Inst + ( aaaa_RDM(Ind1_aa,Ind2_aa) &
@@ -3592,7 +3596,8 @@ module NeLrdmmOD
                                 RDMEnergy2 = RDMEnergy2 - ( All_abba_RDM(Ind1_aa,Ind2_aa) &
                                                             * Norm_2RDM * Exch ) 
 
-
+                                WRITE(6,*) (All_aaaa_RDM(Ind1_aa,Ind2_aa)+All_abab_RDM(Ind1_ab,Ind2_ab))&
+                                    *Norm_2RDM
                             else
                                 ! i = j or a = b
                                 ! abab has both abab and abba elements in them effectively.
@@ -3606,6 +3611,7 @@ module NeLrdmmOD
                                                             * Norm_2RDM * Coul ) &
                                                         + ( 0.5_dp * All_abab_RDM(Ind1_ab,Ind2_ab) &
                                                             * Norm_2RDM * Exch )
+                                WRITE(6,*) All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM
                                 if(Ind1_ab.eq.Ind2_ab) &
                                     Trace_2RDM_New = Trace_2RDM_New + &
                                                         All_abab_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM
@@ -3656,7 +3662,7 @@ module NeLrdmmOD
 ! The equation for X is as follows:
 !
 !   X_pq = Sum_r[h_pr 1RDM_qr] + Sum_rst[(pr|st)[2RDM_qrst + 2RDM_rqst]]
-!        where 2RDM is defined in the traditional sense: 2RDM_ijkl = <Psi| a_i+ a_k+ a_l a_j|Psi>
+!        where 2RDM is defined in the traditional sense: 2RDM_ijkl = 0.5*<Psi| a_i+ a_k+ a_l a_j|Psi>
 !
 !   Converting this to notation consistent with the rest of this module:
 !
@@ -5697,7 +5703,7 @@ module NeLrdmmOD
     subroutine convert_matrices_for_Molpro_forces(Norm_1RDM, Norm_2RDM)
 ! name?
 ! ifil ?
-    use SystemData, only : nEl,nbasis,LMS
+    use SystemData, only : nEl,nbasis,LMS,ECore
     use IntegralsData, only : nFrozen
     use NatOrbsMod, only : NatOrbMat
     use SymData, only : Sym_Psi, SymLabelCounts,nSymLabels
@@ -5716,11 +5722,23 @@ module NeLrdmmOD
     integer, dimension(8) :: icore, iclos 
     integer :: FC_Lag_Len  !Length of the Frozen Core Lagrangian
     integer :: Len_1RDM, Len_2RDM, FCLag_Len
-    real(dp) :: Factor, Divide_Factor, AnotherValue
+    real(dp) :: Factor, Divide_Factor
     real(dp), intent(in) :: Norm_1RDM, Norm_2RDM
     real(dp), allocatable :: SymmetryPacked2RDM(:), SymmetryPacked1RDM(:)
     real(dp), allocatable :: SymmetryPackedLagrangian(:)
     real(dp), allocatable :: FC_Lagrangian(:)
+    real(dp) :: MySymRDMEnergy, Coul, Exch
+    real(dp) :: MySymRDMEnergy2
+    real(dp) :: MySymRDMEnergy1
+    real(dp), allocatable :: Symmetrised2RDM(:,:,:,:)
+
+    MySymRDMEnergy=0.D0
+    MySymRDMEnergy1=0.D0
+    MySymRDMEnergy2=0.D0
+
+    allocate(Symmetrised2RDM(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs))
+
+    WRITE(6,*) "Norm2RDM is ", Norm_2RDM
 
     !!!!! First calculate header information !!!!!
 
@@ -5791,7 +5809,7 @@ module NeLrdmmOD
 
         posn1=1
         posn2=1
-        SymmetryPacked2RDM(:)=0
+        SymmetryPacked2RDM(:)=0.D0
         
         !NB: This is far from the optimally efficient way to do things
         ! We should ditch running over symmetry, and instead use ldact to position each contribution correctly
@@ -5803,12 +5821,24 @@ module NeLrdmmOD
                     Sym_ij=RandExcitSymLabelProd(Sym_i, Sym_j)
                     if ((Sym_i.eq.SYM) .and. (Sym_ij .eq. 0)) then   
                         if(tStoreSpinOrbs) then
-                            SymmetryPacked1RDM(posn1)=2*NatOrbMat(SymLabelListInv_rot(2*i),SymLabelListInv_rot(2*j))
+                            SymmetryPacked1RDM(posn1)=2.0_dp*NatOrbMat(SymLabelListInv_rot(2*i),SymLabelListInv_rot(2*j))
                                ! Include both aa and bb contributions
                         else
                             SymmetryPacked1RDM(posn1)=NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))
                         endif
-                        SymmetryPackedLagrangian(posn1)=Lagrangian(i,j)
+                        if(i.eq.j) then
+                            MySymRDMEnergy=MySymRDMEnergy+SymmetryPacked1RDM(posn1)*REAL(TMAT2D(2*i,2*j),8)
+                            MySymRDMEnergy1=MySymRDMEnergy1+SymmetryPacked1RDM(posn1)*REAL(TMAT2D(2*i,2*j),8)
+                        else
+                            MySymRDMEnergy=MySymRDMEnergy+2.0_dp*SymmetryPacked1RDM(posn1)*REAL(TMAT2D(2*i,2*j),8)
+                            MySymRDMEnergy1=MySymRDMEnergy1+2.0_dp*SymmetryPacked1RDM(posn1)*REAL(TMAT2D(2*i,2*j),8)
+                        endif
+                        !NOTE: We average the (theoretically) symmetric terms of the Lagrangian
+                        ! The unsymmetrised Lagrangian is automatically printed out at the end of a run
+                        ! so that we can see how valid this assumption is
+                        ! If our DMats are well converged, applying this symmetrisation shouldn't make 
+                        ! much difference
+                        SymmetryPackedLagrangian(posn1)=0.5_dp*(Lagrangian(i,j)+Lagrangian(j,i))
                         posn1=posn1+1
                     endif
                     if (Sym_ij .ne. Sym) CYCLE
@@ -5844,54 +5874,119 @@ module NeLrdmmOD
                             !First Term
                             if ((i.ne.j) .and. (k.ne.l)) then
                                 !aaaa is stored as aaaa + bbbb
-                                SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                                SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                             endif
-                            SymmetryPacked2RDM(posn2)=  SymmetryPacked2RDM(posn2)+2*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
+                            SymmetryPacked2RDM(posn2)=  SymmetryPacked2RDM(posn2)+2.0_dp*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
 
                             !Second Term D_kj,il
+                            !NEW BIT
+                            if((k.eq.j).and.(i.eq.l)) then
+                                Divide_Factor = 1.0_dp
+                            else
+                                Divide_Factor = 2.0_dp
+                            endif
+                            !HERE
                             if (((j.ge.k) .and. (l.ge.i))) then 
                                 Ind1_aa = ( ( (j-2) * (j-1) ) / 2 ) + k
                                 Ind1_ab = ( ( (j-1) * j ) / 2 ) + k
                                 Ind2_aa = ( ( (l-2) * (l-1) ) / 2 ) + i
                                 Ind2_ab = ( ( (l-1) * l ) / 2 ) + i
                                 Factor=1.D0
-                                SymmetryPacked2RDM(posn2)=  SymmetryPacked2RDM(posn2)+2*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
+                                SymmetryPacked2RDM(posn2)=  SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
+                                if ((k.ne.j) .and. (i.ne.l)) then
+           !                         SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                                    WRITE(6,*) All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM
+                                endif
                             elseif ((j.le.k) .and. (l.le.i)) then
                                 Ind1_aa = ( ( (k-2) * (k-1) ) / 2 ) + j
                                 Ind1_ab = ( ( (k-1) * k ) / 2 ) + j
                                 Ind2_aa = ( ( (i-2) * (i-1) ) / 2 ) + l
                                 Ind2_ab = ( ( (i-1) * i ) / 2 ) + l
                                 Factor=1.D0
-                                SymmetryPacked2RDM(posn2)=  SymmetryPacked2RDM(posn2)+2*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
+                                SymmetryPacked2RDM(posn2)=  SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
+                                if ((k.ne.j) .and. (i.ne.l)) then
+          !                          SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                                    WRITE(6,*) All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM
+                                endif
                             elseif ((j.ge.k) .and. (i.gt.l)) then  !look up -D_kj,li instead
                                 Ind1_aa = ( ( (j-2) * (j-1) ) / 2 ) + k
                                 Ind1_ab = ( ( (j-1) * j ) / 2 ) + k
                                 Ind2_aa = ( ( (i-2) * (i-1) ) / 2 ) + l
                                 Ind2_ab = ( ( (i-1) * i ) / 2 ) + l
                                 Factor=-1.D0
-                                SymmetryPacked2RDM(posn2)=  SymmetryPacked2RDM(posn2)+2*Factor*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                                SymmetryPacked2RDM(posn2)=  SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                                if ((k.ne.j) .and. (i.ne.l)) then
+         !                           SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                                    WRITE(6,*) All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM
+                                endif
                             elseif ((k.gt.j) .and. (l.ge.i)) then !look up -D_jk,il
                                 Ind1_aa = ( ( (k-2) * (k-1) ) / 2 ) + j
                                 Ind1_ab = ( ( (k-1) * k ) / 2 ) + j
                                 Ind2_aa = ( ( (l-2) * (l-1) ) / 2 ) + i
                                 Ind2_ab = ( ( (l-1) * l ) / 2 ) + i
                                 Factor=-1.D0
-                                SymmetryPacked2RDM(posn2)=  SymmetryPacked2RDM(posn2)+2*Factor*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                                SymmetryPacked2RDM(posn2)=  SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                                if ((k.ne.j) .and. (i.ne.l)) then
+        !                            SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                                    WRITE(6,*) All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM
+                                endif
                             endif
                                 
-                            if ((k.ne.j) .and. (i.ne.l)) then
-                                SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
-                            endif
-                            !Average the two terms included above and apply "half" as required by Molpro's definition of 2RDM
-                            SymmetryPacked2RDM(posn2) =  SymmetryPacked2RDM(posn2)/4
+                            !Average the two terms included above
+                            !The energy calculation (for example) would now still need an explicit factor of a half in front if
+                            ! we run over all pqrs
+                            SymmetryPacked2RDM(posn2) =  SymmetryPacked2RDM(posn2)/2.0_dp
+
+                            Symmetrised2RDM(i,j,k,l)=SymmetryPacked2RDM(posn2)
+                            Symmetrised2RDM(j,i,l,k)=SymmetryPacked2RDM(posn2)
+                            Symmetrised2RDM(l,k,j,i)=SymmetryPacked2RDM(posn2)
+                            Symmetrised2RDM(k,l,i,j)=SymmetryPacked2RDM(posn2)
+                            Symmetrised2RDM(k,j,i,l)=SymmetryPacked2RDM(posn2)
+                            Symmetrised2RDM(i,l,k,j)=SymmetryPacked2RDM(posn2)
+                            Symmetrised2RDM(j,k,l,i)=SymmetryPacked2RDM(posn2)
+                            Symmetrised2RDM(l,i,j,k)=SymmetryPacked2RDM(posn2)
+
 
                             !WRITE(6,*) "i,j,k,l, posn2, DMAT(posn2)", i,j,k,l, posn2,SymmetryPacked2RDM(posn2)
+            !                Coul = REAL(UMAT(UMatInd(i,j,k,l,0,0)),8)
+            !                Exch = REAL(UMAT(UMatInd(i,j,l,k,0,0)),8)
+            !                if ((i.eq.j) .and. (k.eq.l)) then
+            !                    MySymRDMEnergy=MySymRDMEnergy+SymmetryPacked2RDM(posn2)*Coul
+            !                    MySymRDMEnergy2=MySymRDMEnergy2+SymmetryPacked2RDM(posn2)*Coul
+            !                elseif ((i.eq.j).or.(k.eq.l)) then
+            !                    MySymRDMEnergy=MySymRDMEnergy+SymmetryPacked2RDM(posn2)*(Coul-Exch)
+            !                    MySymRDMEnergy2=MySymRDMEnergy2+SymmetryPacked2RDM(posn2)*(Coul-Exch)
+            !                else
+            !                    MySymRDMEnergy=MySymRDMEnergy+2*SymmetryPacked2RDM(posn2)*(Coul-Exch)
+            !                    MySymRDMEnergy2=MySymRDMEnergy2+2*SymmetryPacked2RDM(posn2)*(Coul-Exch)
+            !                endif
+
                             posn2=posn2+1
                         enddo
                     enddo
                 enddo
             enddo
         enddo
+        
+        do i=1,SpatOrbs
+            do j=1,SpatOrbs
+                do k=1,SpatOrbs
+                    do l=1,SpatOrbs
+                        WRITE(6,*) i, j, k, l, Symmetrised2RDM(i,j,k,l)
+                        Coul = REAL(UMAT(UMatInd(i,j,k,l,0,0)),8)
+                        MySymRDMEnergy=MySymRDMEnergy+0.5_dp*Symmetrised2RDM(i,j,k,l)*Coul
+                        MySymRDMEnergy2=MySymRDMEnergy2+0.5_dp*Symmetrised2RDM(i,j,k,l)*Coul
+                    enddo
+                enddo
+            enddo
+        enddo
+
+        
+
+        MySymRDMEnergy=MySymRDMEnergy+ECore
+        WRITE(6,*) "MySYmRDMEnergy = ", MySymRDMEnergy
+        WRITE(6,*) "MySYmRDMEnergy1 = ", MySymRDMEnergy1
+        WRITE(6,*) "MySYmRDMEnergy2 = ", MySymRDMEnergy2
             
         call molpro_dump_mcscf_dens_for_grad(myname,ifil, &
             icore, iclos, iact, nEL, isyref, ms2, iblkq,&
