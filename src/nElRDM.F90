@@ -5731,7 +5731,9 @@ module NeLrdmmOD
     real(dp) :: MySymRDMEnergy2
     real(dp) :: MySymRDMEnergy1
     real(dp), allocatable :: Symmetrised2RDM(:,:,:,:)
+    logical :: tSYMMETRISETHIS
 
+    tSYMMETRISETHIS=.false.
     MySymRDMEnergy=0.D0
     MySymRDMEnergy1=0.D0
     MySymRDMEnergy2=0.D0
@@ -5894,8 +5896,7 @@ module NeLrdmmOD
                                 Factor=1.D0
                                 SymmetryPacked2RDM(posn2)=  SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
                                 if ((k.ne.j) .and. (i.ne.l)) then
-           !                         SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
-                                    WRITE(6,*) All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM
+                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                                 endif
                             elseif ((j.le.k) .and. (l.le.i)) then
                                 Ind1_aa = ( ( (k-2) * (k-1) ) / 2 ) + j
@@ -5905,8 +5906,7 @@ module NeLrdmmOD
                                 Factor=1.D0
                                 SymmetryPacked2RDM(posn2)=  SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
                                 if ((k.ne.j) .and. (i.ne.l)) then
-          !                          SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
-                                    WRITE(6,*) All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM
+                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                                 endif
                             elseif ((j.ge.k) .and. (i.gt.l)) then  !look up -D_kj,li instead
                                 Ind1_aa = ( ( (j-2) * (j-1) ) / 2 ) + k
@@ -5916,8 +5916,7 @@ module NeLrdmmOD
                                 Factor=-1.D0
                                 SymmetryPacked2RDM(posn2)=  SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                                 if ((k.ne.j) .and. (i.ne.l)) then
-         !                           SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
-                                    WRITE(6,*) All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM
+                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                                 endif
                             elseif ((k.gt.j) .and. (l.ge.i)) then !look up -D_jk,il
                                 Ind1_aa = ( ( (k-2) * (k-1) ) / 2 ) + j
@@ -5927,8 +5926,7 @@ module NeLrdmmOD
                                 Factor=-1.D0
                                 SymmetryPacked2RDM(posn2)=  SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                                 if ((k.ne.j) .and. (i.ne.l)) then
-        !                            SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
-                                    WRITE(6,*) All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM
+                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                                 endif
                             endif
                                 
@@ -5945,21 +5943,6 @@ module NeLrdmmOD
                             Symmetrised2RDM(i,l,k,j)=SymmetryPacked2RDM(posn2)
                             Symmetrised2RDM(j,k,l,i)=SymmetryPacked2RDM(posn2)
                             Symmetrised2RDM(l,i,j,k)=SymmetryPacked2RDM(posn2)
-
-
-                            !WRITE(6,*) "i,j,k,l, posn2, DMAT(posn2)", i,j,k,l, posn2,SymmetryPacked2RDM(posn2)
-            !                Coul = REAL(UMAT(UMatInd(i,j,k,l,0,0)),8)
-            !                Exch = REAL(UMAT(UMatInd(i,j,l,k,0,0)),8)
-            !                if ((i.eq.j) .and. (k.eq.l)) then
-            !                    MySymRDMEnergy=MySymRDMEnergy+SymmetryPacked2RDM(posn2)*Coul
-            !                    MySymRDMEnergy2=MySymRDMEnergy2+SymmetryPacked2RDM(posn2)*Coul
-            !                elseif ((i.eq.j).or.(k.eq.l)) then
-            !                    MySymRDMEnergy=MySymRDMEnergy+SymmetryPacked2RDM(posn2)*(Coul-Exch)
-            !                    MySymRDMEnergy2=MySymRDMEnergy2+SymmetryPacked2RDM(posn2)*(Coul-Exch)
-            !                else
-            !                    MySymRDMEnergy=MySymRDMEnergy+2*SymmetryPacked2RDM(posn2)*(Coul-Exch)
-            !                    MySymRDMEnergy2=MySymRDMEnergy2+2*SymmetryPacked2RDM(posn2)*(Coul-Exch)
-            !                endif
 
                             posn2=posn2+1
                         enddo
@@ -5980,8 +5963,6 @@ module NeLrdmmOD
                 enddo
             enddo
         enddo
-
-        
 
         MySymRDMEnergy=MySymRDMEnergy+ECore
         WRITE(6,*) "MySYmRDMEnergy = ", MySymRDMEnergy
