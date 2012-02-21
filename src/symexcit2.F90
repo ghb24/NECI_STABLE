@@ -595,7 +595,7 @@ MODULE SymExcit2
       iMinElec1, iMaxElec1, ThisClassCount, PrevClassCount,ClassCount, &
       G1, nCl)
          SYMPRODCOUNT(:,:)=0
-         Call SymSetupExcits_CreateClassSymProds(nPr,nPairs,nCl, &
+         Call SymSetupExcits_CreateCSProds(nPr,nPairs,nCl, &
         SymProds, ThisClassCount, PrevClassCount, ClassCount,Classes, &
         SymProdCount)
 !nPr now contains the number of items in SymProds
@@ -660,7 +660,7 @@ MODULE SymExcit2
          nExcitTypes=0
          if(.not.tStoreStateList) then
 !We can calculate the virtual pairs more easily in abelian symmetry.
-            Call SymSetupExcitsAbelian_CountVirtProds(nDoub,nExcitTypes,&
+            Call SymSetupExcitsAb_CountVProds(nDoub,nExcitTypes,&
                 nCl,nPr,SymProds,SymProdInd(1:2,1:3,1:NPR),Classes,&
                 ClassCount,  &
                 nAllowPPS) ! Calculated not enumerated
@@ -671,7 +671,7 @@ MODULE SymExcit2
          IF(.NOT.ISUHFDET(NI,NEL)) THEN
             if(tAbelianFastExcitGen) then
 !This can be done quicker for abelian symmetry, whether or not the state pairs are stored or not.
-                CALL SymSetupExcitsAbelian_CountSingles(nSing,nCl,&
+                CALL SymSetupExcitsAb_CountSing(nSing,nCl,&
                    nExcitTypes,ThisClassCount,Classes)
             else
                 Call SymSetupExcits_CountSingles(nSing,nCl,nExcitTypes,&
@@ -727,7 +727,7 @@ MODULE SymExcit2
              IF(.NOT.ISUHFDET(NI,NEL)) THEN
                 IF(BTEST(ILEVEL,0)) THEN
                     IF(tAbelianFastExcitGen) THEN
-                        Call SymSetupExcitsAbelian_StoreSingles(&
+                        Call SymSetupExcitsAb_StoreSing(&
                                 nExcitTypes,nCl,Classes,ThisClassCount,&
                                ExcitTypes)
                     ELSE

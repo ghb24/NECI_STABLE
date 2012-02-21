@@ -13,19 +13,19 @@ ndim=0
 type1=integer(int64)
 mpitype=MPI_INTEGER8
 
-[double]
+[doub]
 type1=real(dp)
 mpitype=MPI_DOUBLE_PRECISION
 
-[logical4]
+[log4]
 type1=logical(kind=int32)
 mpitype=MPI_INTEGER4
 
-[logical8]
+[log8]
 type1=logical(kind=int64)
 mpitype=MPI_INTEGER8
 
-[complex]
+[comp]
 type1=complex(dp)
 mpitype=MPI_DOUBLE_COMPLEX
 
@@ -45,19 +45,19 @@ ndim=1
 type1=integer(int64), dimension(:)
 mpitype=MPI_INTEGER8
 
-[arr_double]
+[arr_doub]
 type1=real(dp), dimension(:)
 mpitype=MPI_DOUBLE_PRECISION
 
-[arr_complex]
+[arr_comp]
 type1=complex(dp), dimension(:)
 mpitype=MPI_DOUBLE_COMPLEX
 
-[arr_logical4]
+[arr_log4]
 type1=logical(kind=int32), dimension(:)
 mpitype=MPI_INTEGER4
 
-[arr_logical8]
+[arr_log8]
 type1=logical(kind=int64), dimension(:)
 mpitype=MPI_INTEGER8
 ######################
@@ -75,19 +75,19 @@ ndim=2
 type1=integer(int64), dimension(:,:)
 mpitype=MPI_INTEGER8
 
-[arr2_double]
+[arr2_doub]
 type1=real(dp), dimension(:,:)
 mpitype=MPI_DOUBLE_PRECISION
 
-[arr2_complex]
+[arr2_comp]
 type1=complex(dp), dimension(:,:)
 mpitype=MPI_DOUBLE_COMPLEX
 
-[arr2_logical4]
+[arr2_log4]
 type1=logical(kind=int32), dimension(:,:)
 mpitype=MPI_INTEGER4
 
-[arr2_logical8]
+[arr2_log8]
 type1=logical(kind=int64), dimension(:,:)
 mpitype=MPI_INTEGER8
 ######################
@@ -101,11 +101,11 @@ mpilen=((ubound(v,1)-lbound(v,1)+1)*(ubound(v,2)-lbound(v,2)+1)*(ubound(v,3)-lbo
 mpilen2=((ubound(v2,1)-lbound(v2,1)+1)*(ubound(v2,2)-lbound(v2,2)+1)*(ubound(v2,3)-lbound(v2,3)+1))
 ndim=3
 
-[arr3_double]
+[arr3_doub]
 type1=real(dp), dimension(:,:,:)
 mpitype=MPI_DOUBLE_PRECISION
 
-[arr3_complex]
+[arr3_comp]
 type1=complex(dp), dimension(:,:,:)
 mpitype=MPI_DOUBLE_COMPLEX
 
@@ -120,7 +120,7 @@ mpilen=((ubound(v,1)-lbound(v,1)+1)*(ubound(v,2)-lbound(v,2)+1)*(ubound(v,3)-lbo
 mpilen2=((ubound(v2,1)-lbound(v2,1)+1)*(ubound(v2,2)-lbound(v2,2)+1)*(ubound(v2,3)-lbound(v2,3)+1)*(ubound(v2,4)-lbound(v2,4)+1))
 ndim=4
 
-[arr4_double]
+[arr4_doub]
 type1=real(dp), dimension(:,:,:,:)
 mpitype=MPI_DOUBLE_PRECISION
 
@@ -158,6 +158,249 @@ module Parallel_neci
    integer(MPIArg), private, parameter :: MPI_MAX_ERROR_STRING=255
 #endif
 
+#ifdef CBINDMPI
+!Interfaces to C binding MPI routines
+    interface
+        function MPI_Reduce (sendbuf, recvbuf, count, datatype, op, root, comm) result(ret) bind(c)
+            %(type1)s, intent(in) :: sendbuf()
+            %(type1)s, intent(out) :: recvbuf()
+            integer, intent(in), value :: count
+            integer(MPIArg), intent(in), value :: datatype  !mpitype
+            integer(MPIArg), intent(in), value :: op  !itype
+            integer, intent(in), value :: root
+            integer, intent(in), value :: comm
+            integer :: ret
+        end function
+    end interface
+
+    interface
+        function MPI_AllReduce (sendbuf, recvbuf, count, datatype, op, comm) result(ret) bind(c)
+            %(type1)s, intent(in) :: sendbuf()
+            %(type1)s, intent(out) :: recvbuf()
+            integer, intent(in), value :: count
+            integer(MPIArg), intent(in), value :: datatype  !mpitype
+            integer(MPIArg), intent(in), value :: op  !itype
+            integer, intent(in), value :: comm
+            integer :: ret
+        end function
+    end interface
+
+    interface
+        function MPI_Bcast(buffer, count, datatype, root, comm) result(ret) bind(c)
+            %(type1)s, intent(inout) :: buffer()
+            integer, intent(in), value :: count
+            integer, intent(in), value :: root
+            integer, intent(in), value :: comm
+            integer(MPIArg), intent(in), value :: datatype  !mpitype
+            integer :: ret
+        end function
+    end interface
+
+    interface
+        function MPI_AlltoAll(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, comm) result(ret) bind(c)
+            %(type1)s, intent(in) :: sendbuf()
+            %(type1)s, intent(out) :: recvbuf()
+            integer, intent(in), value :: sendcount
+            integer, intent(in), value :: recvcount
+            integer(MPIArg), intent(in), value :: sendtype  !mpitype
+            integer(MPIArg), intent(in), value :: recvtype  !mpitype
+            integer, intent(in), value :: comm
+            integer :: ret
+        end function
+    end interface
+
+    interface
+        function MPI_AlltoAllv(sendbuf, sendcount, senddisps, sendtype, recvbuf, recvcount, &
+                                    recvdisps, recvtype, comm) result(ret) bind(c)
+            %(type1)s, intent(in) :: sendbuf()
+            %(type1)s, intent(out) :: recvbuf()
+            integer, intent(in), value :: sendcount
+            integer, intent(in), value :: recvcount
+            integer, intent(in), value :: senddisps
+            integer, intent(in), value :: recvdisps
+            integer(MPIArg), intent(in), value :: sendtype  !mpitype
+            integer(MPIArg), intent(in), value :: recvtype  !mpitype
+            integer, intent(in), value :: comm
+            integer :: ret
+        end function
+    end interface
+
+    interface
+        function MPI_Allgather(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, comm) result(ret) bind(c)
+            %(type1)s, intent(in) :: sendbuf()
+            %(type1)s, intent(out) :: recvbuf()
+            integer, intent(in), value :: sendcount
+            integer, intent(in), value :: recvcount
+            integer(MPIArg), intent(in), value :: sendtype  !mpitype
+            integer(MPIArg), intent(in), value :: recvtype  !mpitype
+            integer, intent(in), value :: comm
+            integer :: ret
+        end function
+    end interface
+
+    interface
+        function MPI_Gather(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, root, comm) result(ret) bind(c)
+            %(type1)s, intent(in) :: sendbuf()
+            %(type1)s, intent(out) :: recvbuf()
+            integer, intent(in), value :: sendcount
+            integer, intent(in), value :: recvcount
+            integer(MPIArg), intent(in), value :: sendtype  !mpitype
+            integer(MPIArg), intent(in), value :: recvtype  !mpitype
+            integer, intent(in), value :: comm
+            integer, intent(in), value :: root
+            integer :: ret
+        end function
+    end interface
+
+    interface
+        function MPI_Gatherv(sendbuf, sendcount, sendtype, recvbuf, recvcount, &
+                                displs, recvtype, root, comm) result(ret) bind(c)
+            %(type1)s, intent(in) :: sendbuf()
+            %(type1)s, intent(out) :: recvbuf()
+            integer, intent(in), value :: sendcount
+            integer, intent(in), value :: recvcount
+            integer(MPIArg), intent(in), value :: sendtype  !mpitype
+            integer(MPIArg), intent(in), value :: recvtype  !mpitype
+            integer, intent(in), value :: displs
+            integer, intent(in), value :: comm
+            integer, intent(in), value :: root
+            integer :: ret
+        end function
+    end interface
+
+    interface
+        function MPI_Gatherv(sendbuf, sendcount, sendtype, recvbuf, recvcount, &
+                                displs, recvtype, root, comm) result(ret) bind(c)
+            %(type1)s, intent(in) :: sendbuf()
+            %(type1)s, intent(out) :: recvbuf()
+            integer, intent(in), value :: sendcount
+            integer, intent(in), value :: recvcount
+            integer(MPIArg), intent(in), value :: sendtype  !mpitype
+            integer(MPIArg), intent(in), value :: recvtype  !mpitype
+            integer, intent(in), value :: displs
+            integer, intent(in), value :: comm
+            integer, intent(in), value :: root
+            integer :: ret
+        end function
+    end interface
+
+    interface
+        function MPI_Scatterv(sendbuf, sendcount, displs, sendtype, recvbuf, recvcount, &
+                                recvtype, root, comm) result(ret) bind(c)
+            %(type1)s, intent(in) :: sendbuf()
+            %(type1)s, intent(out) :: recvbuf()
+            integer, intent(in), value :: sendcount
+            integer, intent(in), value :: recvcount
+            integer(MPIArg), intent(in), value :: sendtype  !mpitype
+            integer(MPIArg), intent(in), value :: recvtype  !mpitype
+            integer, intent(in), value :: displs
+            integer, intent(in), value :: comm
+            integer, intent(in), value :: root
+            integer :: ret
+        end function
+    end interface
+    
+    interface
+        function MPI_Scatter(sendbuf, sendcount, sendtype, recvbuf, recvcount, &
+                                recvtype, root, comm) result(ret) bind(c)
+            %(type1)s, intent(in) :: sendbuf()
+            %(type1)s, intent(out) :: recvbuf()
+            integer, intent(in), value :: sendcount
+            integer, intent(in), value :: recvcount
+            integer(MPIArg), intent(in), value :: sendtype  !mpitype
+            integer(MPIArg), intent(in), value :: recvtype  !mpitype
+            integer, intent(in), value :: comm
+            integer, intent(in), value :: root
+            integer :: ret
+        end function
+    end interface
+
+    interface
+        function MPI_Recv(buf, count, datatype, source, tag, comm, stat) result(ret) bind(c)
+            %(type1)s, intent(out) :: buf()
+            integer, intent(in), value :: count
+            integer(MPIArg), intent(in), value :: datatype
+            integer, intent(in), value :: source
+            integer, intent(in), value :: tag
+            integer, intent(in), value :: comm
+            integer(MPIArg), intent(out) :: stat(MPI_STATUS_SIZE)
+            integer :: ret
+        end function
+    end interface
+
+    interface
+        function MPI_Send(buf, count, datatype, dest, tag, comm)
+            %(type1)s, intent(in) :: buf()
+            integer, intent(in), value :: count
+            integer(MPIArg), intent(in), value :: datatype
+            integer, intent(in), value :: dest
+            integer, intent(in), value :: tag
+            integer, intent(in), value :: comm
+            integer :: ret
+        end function
+    end interface
+
+    interface
+        function MPI_Error_string(errcode, string, resultlen) result(ret) bind(c)
+            integer, intent(in), value :: errcode
+            character(len=MPI_MAX_ERROR_STRING), intent(in) :: string
+            integer, intent(out) :: resultlen 
+            integer :: ret
+        end function
+    end interface
+
+    interface
+        function MPI_Comm_Rank(comm, rank) result(ret) bind(c)
+            integer, intent(out) :: rank
+            integer, intent(in), value :: comm
+            integer :: ret
+        end function
+    end interface
+
+    interface
+        function MPI_Comm_size(comm, nsize) result(ret) bind(c)
+            integer, intent(out) :: nsize
+            integer, intent(in), value :: comm
+            integer :: ret
+        end function
+    end interface
+
+    interface
+        function MPI_Comm_Group(comm, group) result(ret) bind(c)
+            integer(MPIArg), intent(out) :: group
+            integer, intent(in), value :: comm
+            integer :: ret
+        end function
+    end interface
+
+    interface 
+        function MPI_Abort(comm, errorcode) result(ret) bind(c)
+            integer, intent(in), value :: comm
+            integer, intent(in), value :: errorcode
+            integer :: ret
+        end function
+    end interface
+
+    interface
+        function MPI_Group_incl(group, n, ranks, newgroup) result(ret) bind(c)
+            integer, intent(in) , value :: n
+            integer, intent(in) , value :: group
+            integer, intent(in) :: ranks()
+            integer, intent(out) :: newgroup()
+            integer :: ret
+        end function
+    end interface
+
+    interface
+        function MPI_Comm_Create(comm, group, newcomm) result(ret) bind(c)
+            integer, intent(in), value :: comm
+            integer, intent(in), value :: group
+            integer, intent(out) :: newcomm
+            integer :: ret
+        end function
+    end interface
+
+#endif
 
     interface MPIReduce
         module procedure MPIReduce_len_%(name)s
@@ -232,11 +475,18 @@ subroutine MPIReduce_len (v, iLen, iType, Ret, Node)
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
     integer(MPIArg)  ierr
+           
 #ifdef PARALLEL
     call GetComm(Comm,Node,rt)
+#ifdef CBINDMPI
+    ierr = MPI_Reduce(v,Ret, &
+    iLen,%(mpitype)s,iType,rt, &
+    Comm,ierr)
+#else
     call MPI_REDUCE (v, Ret, &
     int(iLen,MPIArg), %(mpitype)s, iType, int(rt,MPIArg), &
                      int(Comm,MPIArg), ierr)
+#endif
     if (ierr .ne. MPI_SUCCESS) then
         call Stop_All("MPIReduce", 'Error in MPI_REDUCE. Terminating.')
     end if
@@ -258,10 +508,17 @@ subroutine MPIReduce_auto (v, iType, Ret, Node)
     integer Comm,rt
 #ifdef PARALLEL
     call GetComm(Comm,Node,rt)
+#ifdef CBINDMPI
+    ierr = MPI_Reduce(v, Ret, &
+%(mpilen)s, &
+    %(mpitype)s, iType, rt, &
+                     Comm)
+#else
     call MPI_REDUCE (v, Ret, &
 %(mpilen)s, &
     %(mpitype)s, iType, int(rt,MPIArg), &
                      int(Comm,MPIArg), ierr)
+#endif
     if (ierr .ne. MPI_SUCCESS) then
         call Stop_All("MPIReduce", 'Error in MPI_REDUCE. Terminating.')
     end if
@@ -285,15 +542,29 @@ subroutine MPIReduce_inplace (v, iType, Node)
 #ifdef PARALLEL
     call GetComm (Comm, Node, rt)
     if (iProcIndex == rt) then
+#ifdef CBINDMPI
+        ierr = MPI_Reduce (MPI_IN_PLACE, v, &
+%(mpilen)s, &
+        %(mpitype)s, &
+        iType, rt, Comm)
+#else
         call MPI_REDUCE (MPI_IN_PLACE, v, &
 %(mpilen)s, &
         %(mpitype)s, &
         iType, int(rt,MPIArg), int(Comm,MPIArg), ierr)
+#endif
     else
+#ifdef CBINDMPI
+        ierr = MPI_Reduce (v, MPI_IN_PLACE, &
+%(mpilen)s, &
+        %(mpitype)s, &
+        iType, rt, Comm)
+#else
         call MPI_REDUCE (v, MPI_IN_PLACE, &
 %(mpilen)s, &
         %(mpitype)s, &
         iType, int(rt,MPIArg), int(Comm,MPIArg), ierr)
+#endif
     endif
     if (ierr /= MPI_SUCCESS) &
         call stop_all('MPIReduce_inplace', 'Error in MPI_REDUCE')
@@ -322,11 +593,15 @@ subroutine MPIAllReduce_len (v, iLen, iType, Ret, Node)
 
 #ifdef PARALLEL
     call GetComm(Comm,Node)
-
+#ifdef CBINDMPI
+    ierr = MPI_ALLREDUCE (v, Ret, iLen, &
+%(mpitype)s, &
+                        iType, Comm)
+#else
     call MPI_ALLREDUCE (v, Ret, int(iLen,MPIArg), &
 %(mpitype)s, &
                         iType, int(Comm,MPIArg), ierr)
-
+#endif
     if (ierr /= MPI_SUCCESS) then
         call stop_all ("MPIAllReduce_len", 'Error in MPI_ALLREDUCE. Terminating.')
     endif
@@ -348,10 +623,17 @@ subroutine MPIAllReduce_auto (v, iType, Ret, Node)
     integer Comm
 #ifdef PARALLEL
     call GetComm(Comm,Node)
+#ifdef CBINDMPI
+    ierr = MPI_ALLREDUCE (v, Ret, &
+%(mpilen)s,&
+    %(mpitype)s, iType, &
+    Comm)
+#else
     call MPI_ALLREDUCE (v, Ret, &
 %(mpilen)s,&
     %(mpitype)s, iType, &
     int(Comm,MPIArg), ierr)
+#endif
     if (ierr /= MPI_SUCCESS) then
         call stop_all ("MPIAllReduce_auto", 'Error in MPI_ALLREDUCE. Terminating.')
     endif
@@ -372,10 +654,17 @@ subroutine MPIAllReduce_inplace (v, iType, Node)
     integer Comm
 #ifdef PARALLEL
     call GetComm(Comm,Node)
+#ifdef CBINDMPI
+    ierr = MPI_ALLREDUCE (MPI_IN_PLACE, v, &
+%(mpilen)s,&
+    %(mpitype)s, iType,&
+    Comm)
+#else
     call MPI_ALLREDUCE (MPI_IN_PLACE, v, &
 %(mpilen)s,&
     %(mpitype)s, iType,&
     int(Comm,MPIArg), ierr)
+#endif
     if (ierr /= MPI_SUCCESS) then
         !write(6,*) 'ierr: ', ierr
         !call neci_flush(6)
@@ -406,7 +695,11 @@ Subroutine MPIAllReduceDatatype(v, iLen, iType, iDatatype, Ret, Node)
 #ifdef PARALLEL
    call GetComm(Comm,Node)
 !   write(6,*) "AllReduceDatatype %(type1)s",iLen,iType
+#ifdef CBINDMPI
+   ierr = MPI_ALLREDUCE(v,Ret,iLen,iDatatype,iType,Comm)
+#else
    call MPI_ALLREDUCE(v,Ret,int(iLen,MPIArg),iDatatype,iType,int(Comm,MPIArg),ierr)
+#endif
    if (ierr .ne. MPI_SUCCESS) then
       call Stop_All("MPIAllReduceDatatype",'Error in MPIAllReduce. Terminating.')
    end if
@@ -521,6 +814,19 @@ subroutine MPIBCast_lenroot (v, iLen, rt)
     integer(MPIArg) :: error,error2,length
 #ifdef PARALLEL
     character(len=MPI_MAX_ERROR_STRING) :: message
+#ifdef CBINDMPI
+    error = MPI_BCAST (v, iLen, &
+    %(mpitype)s, rt, CommGlobal)
+    if (error /= MPI_SUCCESS) then
+        write(6,*) error,MPI_SUCCESS
+        error2 = MPI_Error_string(error,message,length)
+        IF(error2.ne.MPI_SUCCESS) THEN
+            WRITE(6,*) "REALLY SERIOUS PROBLEMS HERE!",error2
+        ENDIF
+        WRITE(6,*) message(1:length)
+        call stop_all("MPIBCast_lenroot", 'Error in MPI_BCAST. Terminating.')
+    endif
+#else
     call MPI_BCAST (v, int(iLen,MPIArg), &
     %(mpitype)s, int(rt,MPIArg), int(CommGlobal,MPIArg), error)
     if (error /= MPI_SUCCESS) then
@@ -532,6 +838,7 @@ subroutine MPIBCast_lenroot (v, iLen, rt)
         WRITE(6,*) message(1:length)
         call stop_all("MPIBCast_lenroot", 'Error in MPI_BCAST. Terminating.')
     endif
+#endif
 #endif
 end subroutine
 subroutine MPIBCast_len (v, iLen, Node)
@@ -550,8 +857,13 @@ subroutine MPIBCast_len (v, iLen, Node)
     integer Comm,rt
 #ifdef PARALLEL
     call GetComm(Comm,Node,rt)
+#ifdef CBINDMPI
+    error = MPI_BCAST (v, iLen, &
+    %(mpitype)s, rt, Comm)
+#else
     call MPI_BCAST (v, int(iLen,MPIArg), &
     %(mpitype)s, int(rt,MPIArg), int(Comm,MPIArg), error)
+#endif
     if (error /= MPI_SUCCESS) then
         call stop_all("MPIBCast_len", 'Error in MPI_BCAST. Terminating.')
     endif
@@ -572,10 +884,16 @@ subroutine MPIBCast_auto (v, Node)
     integer Comm,rt
 #ifdef PARALLEL
     call GetComm(Comm,Node,rt)
+#ifdef CBINDMPI
+    error = MPI_BCAST (v, &
+%(mpilen)s,&
+    %(mpitype)s, rt, Comm)
+#else
     call MPI_BCAST (v, &
 %(mpilen)s,&
     %(mpitype)s, int(rt,MPIArg), int(Comm,MPIArg), &
     error)
+#endif
     if (error /= MPI_SUCCESS) then
         call MPIErr(error)
         call stop_all("MPIBCast_auto", 'Error in MPI_BCAST. Terminating.')
@@ -599,11 +917,18 @@ subroutine MPIBCast_logic (v, tMe, Node)
     integer(MPIArg) :: nrt
 #ifdef PARALLEL
     call GetComm(Comm,Node,rt,tMe)
+#ifdef CBINDMPI
+    error = MPI_AllReduce(rt,nrt,1,MPI_INTEGER, MPI_MAX,Comm)  !Work out which processor is the root
+    error = MPI_BCAST (v, &
+%(mpilen)s,&
+    %(mpitype)s, nrt, Comm)
+#else
     call MPI_AllReduce(int(rt,MPIArg),nrt,1,MPI_INTEGER, MPI_MAX,int(Comm,MPIArg),error)  !Work out which processor is the root
     call MPI_BCAST (v, &
 %(mpilen)s,&
     %(mpitype)s, int(nrt,MPIArg), int(Comm,MPIArg), &
     error)
+#endif
     if (error /= MPI_SUCCESS) then
         call stop_all("MPIBCast_logic", 'Error in MPI_BCAST. Terminating.')
     endif
@@ -620,8 +945,13 @@ Subroutine MPIAlltoAll(SendBuf,SendSize,RecvBuf,RecvSize,ierr, Node)
     integer Comm
 #ifdef PARALLEL
     call GetComm(Comm,Node)
+#ifdef CBINDMPI
+    error = MPI_AlltoAll(SendBuf,SendSize,%(mpitype)s,&
+    RecvBuf,RecvSize,%(mpitype)s,Comm)
+#else
     CALL MPI_AlltoAll(SendBuf,int(SendSize,MPIArg),%(mpitype)s,&
     RecvBuf,int(RecvSize,MPIArg),%(mpitype)s,int(Comm,MPIArg),error)
+#endif
     ierr=error
 #else
     RecvBuf=SendBuf
@@ -641,9 +971,15 @@ Subroutine MPIAlltoAllV(SendBuf,SendSizes,SendOffsets,RecvBuf,RecvSizes,RecvOffs
     integer Comm
 #ifdef PARALLEL
     call GetComm(Comm,Node)
+#ifdef CBINDMPI
+    error = MPI_AlltoAllV(SendBuf,SendSizes,SendOffsets,&
+    %(mpitype)s,RecvBuf,RecvSizes,RecvOffsets,&
+    %(mpitype)s,Comm)
+#else
     CALL MPI_AlltoAllV(SendBuf,int(SendSizes,MPIArg),int(SendOffsets,MPIArg),&
     %(mpitype)s,RecvBuf,int(RecvSizes,MPIArg),int(RecvOffsets,MPIArg),&
     %(mpitype)s,int(Comm,MPIArg),error)
+#endif
     ierr=error
 #else
     RecvBuf=SendBuf
@@ -661,8 +997,13 @@ Subroutine MPIAllGather_len(SendBuf,SendSize,RecvBuf,RecvSize,ierr,Node)
     integer Comm,rt
 #ifdef PARALLEL
     call GetComm(Comm,Node)
+#ifdef CBINDMPI
+    error = MPI_AllGather(SendBuf,SendSize,%(mpitype)s,RecvBuf,&
+    RecvSize,%(mpitype)s,Comm)
+#else
     CALL MPI_AllGather(SendBuf,int(SendSize,MPIArg),%(mpitype)s,RecvBuf,&
     int(RecvSize,MPIArg),%(mpitype)s,int(Comm,MPIArg),error)
+#endif
     ierr=error
 #else
     RecvBuf(1)=SendBuf
@@ -681,11 +1022,19 @@ Subroutine MPIAllGather_auto(v,v2,ierr,Node)
     integer Comm,rt
 #ifdef PARALLEL
     call GetComm(Comm,Node,rt)
+#ifdef CBINDMPI
+    error = MPI_AllGather(v,&
+%(mpilen)s,&
+      %(mpitype)s,v2,&
+%(mpilen2)s,&
+      %(mpitype)s,Comm)
+#else
     CALL MPI_AllGather(v,&
 %(mpilen)s,&
       %(mpitype)s,v2,&
 %(mpilen2)s,&
       %(mpitype)s,int(Comm,MPIArg),error)
+#endif
       ierr=error
 #else
     v2(1)=v
@@ -703,8 +1052,13 @@ Subroutine MPIGather_len(SendBuf,SendSize,RecvBuf,RecvSize,ierr,Node)
     integer Comm,rt
 #ifdef PARALLEL
     call GetComm(Comm,Node,rt)
+#ifdef CBINDMPI
+    error = MPI_Gather(SendBuf,SendSize,%(mpitype)s,&
+    RecvBuf,RecvSize,%(mpitype)s,rt,Comm)
+#else
     CALL MPI_Gather(SendBuf,int(SendSize,MPIArg),%(mpitype)s,&
     RecvBuf,int(RecvSize,MPIArg),%(mpitype)s,int(rt,MPIArg),int(Comm,MPIArg),error)
+#endif
     ierr=error
 #else
     RecvBuf(1)=SendBuf
@@ -723,11 +1077,19 @@ Subroutine MPIGather_auto(v,v2,ierr,Node)
     integer Comm,rt
 #ifdef PARALLEL
     call GetComm(Comm,Node,rt)
+#ifdef CBINDMPI
+    error = MPI_Gather(v, &
+%(mpilen)s,&
+      %(mpitype)s,v2, &
+%(mpilen2)s,&
+      %(mpitype)s,rt,COMM)
+#else
     CALL MPI_Gather(v, &
 %(mpilen)s,&
       %(mpitype)s,v2, &
 %(mpilen2)s,&
       %(mpitype)s,int(rt,MPIArg),int(COMM,MPIArg),error)
+#endif
       ierr=error
 #else
     v2(1)=v
@@ -746,11 +1108,11 @@ Subroutine MPIGatherV_len(SendBuf,SendSize,RecvBuf,Lengths,Disps,ierr,Node)
     %(type1)s,intent(inout) :: RecvBuf(:)
     type(CommI), intent(in),optional :: Node
     integer Comm,rt
-    stop "MPIGatherV_len is probably broken.  MPIGatherV_auto2 does work.  AJWT."
+    stop "MPIGatherV_len is probably broken.  MPIGatherV_auto2 does work.  Bug AJWT to fix."
 #ifdef PARALLEL
     call GetComm(Comm,Node,rt)
-    CALL MPI_GatherV(SendBuf,int(SendSize,MPIArg),%(mpitype)s,&
-    RecvBuf,int(Lengths,MPIArg),int(Disps,MPIArg),%(mpitype)s,int(rt,MPIArg),int(COMM,MPIArg),error)
+!    CALL MPI_GatherV(SendBuf,int(SendSize,MPIArg),%(mpitype)s,&
+!    RecvBuf,int(Lengths,MPIArg),int(Disps,MPIArg),%(mpitype)s,int(rt,MPIArg),int(COMM,MPIArg),error)
     ierr=error
 #else
     RecvBuf(1)=SendBuf()
@@ -770,8 +1132,13 @@ Subroutine MPIGatherV_len2(SendBuf,SendSize,RecvBuf,Lengths,Disps,ierr,Node)
     stop "MPIGatherV_len2 is probably broken.  MPIGatherV_auto2 does work.  AJWT."
 #ifdef PARALLEL
     call GetComm(Comm,Node,rt)
+#ifdef CBINDMPI
+    error = MPI_GatherV(SendBuf,SendSize,%(mpitype)s,&
+    RecvBuf,Lengths,Disps,%(mpitype)s,rt,COMM)
+#else
     CALL MPI_GatherV(SendBuf,int(SendSize,MPIArg),%(mpitype)s,&
     RecvBuf,int(Lengths,MPIArg),int(Disps,MPIArg),%(mpitype)s,int(rt,MPIArg),int(COMM,MPIArg),error)
+#endif
     ierr=error
 #else
 !    write(6,*) lbound(RecvBuf),ubound(RecvBuf),lbound(SendBuf),ubound(SendBuf)
@@ -794,10 +1161,10 @@ Subroutine MPIGatherV_auto(v,v2,Lengths,Disps,ierr,Node)
     stop "MPIGatherV_auto is probably broken.  MPIGatherV_auto2 does work.  AJWT."
 #ifdef PARALLEL
     call GetComm(Comm,Node,rt)
-    CALL MPI_GatherV(v,&
-%(mpilen)s,&
-      %(mpitype)s,v2,int(Lengths,MPIArg),&
-      int(Disps,MPIArg),%(mpitype)s,int(rt,MPIArg),int(COMM,MPIArg),error)
+!    CALL MPI_GatherV(v,&
+!%(mpilen)s,&
+!      %(mpitype)s,v2,int(Lengths,MPIArg),&
+!      int(Disps,MPIArg),%(mpitype)s,int(rt,MPIArg),int(COMM,MPIArg),error)
       ierr=error
 #else
     v2(1)=v
@@ -832,9 +1199,15 @@ Subroutine MPIGatherV_auto2(v,v2,Lengths,Disps,ierr,Node)
     call GetComm(Comm,Node,rt)
 LengthIn=%(mpilen)s&
 *(ubound(v,%(ndim)s+1)-lbound(v,%(ndim)s+1)+1)
+#ifdef CBINDMPI
+    error = MPI_GatherV(V,LengthIn,&
+      %(mpitype)s,V2,LengthsN,&
+      DispsN,%(mpitype)s,rt,COMM)
+#else
     CALL MPI_GatherV(V,int(LengthIn,MPIArg),&
       %(mpitype)s,V2,int(LengthsN,MPIArg),&
       int(DispsN,MPIArg),%(mpitype)s,int(rt,MPIArg),int(COMM,MPIArg),error)
+#endif
       ierr = error
 #else
     v2(Disps(1):Disps(1)+Lengths(1))=v(:)
@@ -854,8 +1227,13 @@ Subroutine MPIScatterV_len(SendBuf,SendSizes,Disps,RecvBuf,Length,ierr,Node)
 #ifdef PARALLEL
     call GetComm(Comm,Node,rt)
 !    write(6,*) "AllToAll %(type1)s",SendSize,RecvSize
+#ifdef CBINDMPI
+    error = MPI_ScatterV(SendBuf,SendSizes,Disps,%(mpitype)s,&
+    RecvBuf,Length,%(mpitype)s,rt,COMM)
+#else
     CALL MPI_ScatterV(SendBuf,int(SendSizes,MPIArg),int(Disps,MPIArg),%(mpitype)s,&
     RecvBuf,int(Length,MPIArg),%(mpitype)s,int(rt,MPIArg),int(COMM,MPIArg),error)
+#endif
     ierr=error
 #else
     RecvBuf(1)=SendBuf()
@@ -876,8 +1254,13 @@ Subroutine MPIScatterV_len2(SendBuf,SendSizes,Disps,RecvBuf,Length,ierr,Node)
 #ifdef PARALLEL
     call GetComm(Comm,Node,rt)
 !    write(6,*) "AllToAll %(type1)s",SendSize,RecvSize
+#ifdef CBINDMPI
+    error = MPI_ScatterV(SendBuf,SendSizes,Disps,%(mpitype)s,&
+    RecvBuf,Length,%(mpitype)s,rt,COMM)
+#else
     CALL MPI_ScatterV(SendBuf,int(SendSizes,MPIArg),int(Disps,MPIArg),%(mpitype)s,&
     RecvBuf,int(Length,MPIArg),%(mpitype)s,int(rt,MPIArg),int(COMM,MPIArg),error)
+#endif
     ierr=error
 #else
 !    write(6,*) lbound(RecvBuf),ubound(RecvBuf),lbound(SendBuf),ubound(SendBuf)
@@ -897,8 +1280,13 @@ Subroutine MPIScatter_len(SendBuf,SendSize,RecvBuf,RecvSize,ierr,Node)
     integer Comm,rt
 #ifdef PARALLEL
     call GetComm(Comm,Node,rt)
+#ifdef CBINDMPI
+    error = MPI_Scatter(SendBuf,SendSize,%(mpitype)s,RecvBuf, &
+       RecvSize,%(mpitype)s,rt,COMM)
+#else
     CALL MPI_Scatter(SendBuf,int(SendSize,MPIArg),%(mpitype)s,RecvBuf, &
        int(RecvSize,MPIArg),%(mpitype)s,int(rt,MPIArg),int(COMM,MPIArg),error)
+#endif
     ierr=error
 #else
     RecvBuf=SendBuf(1)
@@ -917,11 +1305,19 @@ Subroutine MPIScatter_auto(v,v2,ierr,Node)
     integer Comm,rt
 #ifdef PARALLEL
     call GetComm(Comm,Node,rt)
+#ifdef CBINDMPI
+    error = MPI_Scatter(v,&
+%(mpilen2)s,&
+    %(mpitype)s,v2,&
+%(mpilen2)s,&
+    %(mpitype)s,rt,COMM)
+#else
     CALL MPI_Scatter(v,&
 %(mpilen2)s,&
     %(mpitype)s,v2,&
 %(mpilen2)s,&
     %(mpitype)s,int(rt,MPIArg),int(COMM,MPIArg),error)
+#endif
     ierr=error
 #else
     v2=v(1)
@@ -936,7 +1332,11 @@ subroutine MPIRecv(Buffer,BuffSize,Source,Tag,ierr)
     %(type1)s, intent(out) :: Buffer(:)
 #ifdef PARALLEL
     INTEGER(MPIArg) :: Stat(MPI_STATUS_SIZE)
+#ifdef CBINDMPI
+    error = MPI_Recv(Buffer,BuffSize,%(mpitype)s,Source,Tag,MPI_COMM_WORLD,Stat)
+#else
     CALL MPI_Recv(Buffer,int(BuffSize,MPIArg),%(mpitype)s,int(Source,MPIArg),int(Tag,MPIArg),MPI_COMM_WORLD,Stat,error)
+#endif
     ierr=error
 #else
     ierr=0
@@ -950,7 +1350,11 @@ subroutine MPISend(Buffer,BuffSize,Dest,Tag,ierr)
     INTEGER(MPIArg) :: error
     %(type1)s, intent(in) :: Buffer(:)
 #ifdef PARALLEL
+#ifdef CBINDMPI
+    error = MPI_Send(Buffer,BuffSize,%(mpitype)s,Dest,Tag,MPI_COMM_WORLD)
+#else
     CALL MPI_Send(Buffer,int(BuffSize,MPIArg),%(mpitype)s,int(Dest,MPIArg),int(Tag,MPIArg),MPI_COMM_WORLD,error)
+#endif
     ierr=error
 #else
     ierr=0
@@ -1032,6 +1436,7 @@ supermodule Parallel
 
 #ifndef PARALLEL
    integer(MPIArg), parameter :: MPI_2INTEGER=0
+   integer(MPIArg), parameter :: MPI_2DOUBLE_PRECISION=0
    integer(MPIArg), parameter :: MPI_MIN=0
    integer(MPIArg), parameter :: MPI_MAX=0
    integer(MPIArg), parameter :: MPI_SUM=0
@@ -1069,14 +1474,26 @@ Subroutine MPIInit(tExternal)
        else 
          write(6,*) 'Initing MPI'
 
+#ifdef CBINDMPI
+!Don't bother calling MPI_INIT
+#else
          call MPI_INIT(ierr)
+#endif
          if (ierr .ne. MPI_SUCCESS) then
             call Stop_All("MPIInit",'Error starting MPI program. Terminating.')
          end if
        endif
+#ifdef CBINDMPI
+       ierr = MPI_Comm_Rank(MPI_COMM_WORLD, iProcInd)
+#else
        call MPI_COMM_RANK(MPI_COMM_WORLD, iProcInd, ierr)
+#endif
        iProcIndex=iProcInd
+#ifdef CBINDMPI
+       ierr = MPI_COMM_SIZE(MPI_COMM_WORLD, nProcess)
+#else
        call MPI_COMM_SIZE(MPI_COMM_WORLD, nProcess, ierr)
+#endif
        nProcessors=nProcess
        WRITE(6,*) "Number of processors: ",nProcessors
 
@@ -1122,7 +1539,10 @@ Subroutine MPIInit(tExternal)
           WRITE(6,*) "Sum: ",g
        endif
 
+#ifndef CBINDMPI
+!Don't bother with this if using c bindings (probably should though)
        call MPI_ERRHANDLER_SET(MPI_COMM_WORLD,MPI_ERRORS_RETURN,ierr)
+#endif
    end if
 
 #else 
@@ -1216,7 +1636,11 @@ subroutine MPINodes(tUseProcsAsNodes)
    NodeLengths=0
    if(iLogicalNodeSize/=0) write(6,*)  "Using Logical Node Size ", iLogicalNodeSize
    if(tUseProcsAsNodes) then
+#ifdef CBINDMPI
+      ierr = MPI_Comm_Group(CommGlobal,GroupDum)
+#else
       call MPI_Comm_Group(int(CommGlobal,MPIArg),GroupDum,ierr)
+#endif
       Group=GroupDum
       write(6,*) "Allocating each processor as a separate node."
       if(iProcIndex==root) then
@@ -1231,7 +1655,11 @@ subroutine MPINodes(tUseProcsAsNodes)
          enddo
       endif
    else 
+#ifdef CBINDMPI
+      ierr = MPI_Comm_Group(CommGlobal,GroupDum)
+#else
       call MPI_Comm_Group(int(CommGlobal,MPIArg),GroupDum,ierr)
+#endif
       Group=GroupDum
       length=30
       call gethostname(nm,length)
@@ -1242,7 +1670,12 @@ subroutine MPINodes(tUseProcsAsNodes)
          endif
       enddo
       nm2=nm
+      !No templated character type
+#ifdef CBINDMPI
+      ierr = MPI_Gather(nm2,30,MPI_CHARACTER,nms,30,MPI_CHARACTER,root,CommGlobal)
+#else
       call MPI_Gather(nm2,30,MPI_CHARACTER,nms,30,MPI_CHARACTER,int(root,MPIArg),int(CommGlobal,MPIArg),ierr)
+#endif
       write(6,*) "Processor      Node hostname"
       if(iProcIndex==root) then
          nNodes=0
@@ -1354,7 +1787,9 @@ Subroutine MPIEnd(tExternal)
    integer(MPIArg) ierr
 #ifdef PARALLEL
    if(.not.tExternal) then
+#ifndef CBINDMPI
       call MPI_FINALIZE(ierr)
+#endif
    endif
 #endif
 end subroutine
@@ -1372,7 +1807,11 @@ Subroutine MPIStopAll(error_str)
    ! errorcode: Error returned to invoking environment.
    ! ierror: error status (of abort: was abort successful?)
    ! Currently neither are analysed.
+#ifdef CBINDMPI
+   ierror = MPI_ABORT(MPI_COMM_WORLD, error_code)
+#else
    call MPI_ABORT(MPI_COMM_WORLD, error_code, ierror)
+#endif
    WRITE(6,*) error_str
    CALL neci_flush(6)
    stop

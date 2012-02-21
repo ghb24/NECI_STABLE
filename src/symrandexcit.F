@@ -439,7 +439,7 @@ C.. Actually generate a det
 !iSpn is -1 for alpha and 0 for beta.
 !iFrom is the symmetry label of the electron to pick.
 !I is the returned orbital to excite
-      Subroutine SymGenRandExcitIt2_Single_GetFrom_NoWeight(iSeed,
+      Subroutine SymGenRandExcitIt2_Sing_GF_NoW(iSeed,
      &       nEl,iSpn,iFrom,I,nI)
          use SymData, only: SymClass,SymLabelCounts,SymLabelList
          use constants, only: dp
@@ -493,10 +493,10 @@ C.. Actually generate a det
 
         enddo
 
-      End Subroutine SymGenRandExcitIt2_Single_GetFrom_NoWeight
+      End Subroutine SymGenRandExcitIt2_Sing_GF_NoW
 
 !Return the index of orbital to excit within nI into I. i.e. nI(I) will be excited.
-      Subroutine SymGenRandExcitIt2_Single_GetFrom(iSeed,nI,nEl,iSpn,
+      Subroutine SymGenRandExcitIt2_Sing_GF(iSeed,nI,nEl,iSpn,
      &       iFrom,I)
          use SymData, only: SymClass,SymLabelCounts,SymLabelList
          use constants, only: dp
@@ -546,12 +546,12 @@ C.. Actually generate a det
             ICOUNT=ICOUNT*RAN2(ISEED)
          ENDDO ot
 !.. NI(I) is now the orbital to excite
-      End Subroutine SymGenRandExcitIt2_Single_GetFrom
+      End Subroutine SymGenRandExcitIt2_Sing_GF
 
 !.. Locate an orbital to excite to, and create the excitation, copying it back to nI.
 !..  I is the index in NI to excite from.
 ! This is for the case that there is no excitation weighting
-      Subroutine SymGenRandExcitIt2_Single_GetTo_NoWeight(iSeed,nI,nEl,
+      Subroutine SymGenRandExcitIt2_Sing_GT_NoW(iSeed,nI,nEl,
      &              I,iSpn,iTo,nK,ExcitMat,TParity)
       use SymData, only: SymClass,SymLabelCounts,SymLabelList
          use constants, only: dp
@@ -617,7 +617,7 @@ C.. Actually generate a det
 
         enddo
 
-      End Subroutine SymGenRandExcitIt2_Single_GetTo_NoWeight
+      End Subroutine SymGenRandExcitIt2_Sing_GT_NoW
 
 
 !.. Locate an orbital to excite to, and create the excitation, copying it back to nI.
@@ -707,7 +707,7 @@ C.. Actually generate a det
 !.. iFrom is the symmetry label of the orbital pair to choose
 !.. OrbPairs is the list of all occupied pairs, ordered by symmetry and spin.
 !.. iTotal is the total number of excitations.
-      Subroutine SymGenRandExcitIt2_Double_GetFrom_NoWeight(iSeed,
+      Subroutine SymGenRandExcitIt2_Doub_GF_NoW(iSeed,
      &       iSpn, iFrom,
      &       SymProdInd,I,nI,OrbPairs)
          use SystemData , only: NEl
@@ -751,10 +751,10 @@ C.. Actually generate a det
 !          WRITE(6,*) "i,j = ",OrbPairs(1,I+SymProdInd(1,iSpn,iFrom)),
 !     &          OrbPairs(2,I+SymProdInd(1,iSpn,iFrom))
 
-      End Subroutine SymGenRandExcitIt2_Double_GetFrom_NoWeight
+      End Subroutine SymGenRandExcitIt2_Doub_GF_NoW
 
 
-      Subroutine SymGenRandExcitIt2_Double_GetFrom(iSeed,ExcitTypes,
+      Subroutine SymGenRandExcitIt2_Doub_GF(iSeed,ExcitTypes,
      &       iExcit,iSpn, iFrom,
      &      OrbPairs, SymProdInd, iTotal, 
      &      I, pGen)
@@ -823,11 +823,11 @@ C.. Actually generate a det
 !  pGen is the prob of choosing a specific FROM (given having chosen iExcit proportional to the number of excitations in each iExcit)
 !           times the prob of choosing iExcit
          deallocate(ews)
-      End Subroutine SymGenRandExcitIt2_Double_GetFrom
+      End Subroutine SymGenRandExcitIt2_Doub_GF
       
 !This is a routine to pick an allowed virtual pair of orbitals to excite to.
 !There is no weighting function, so it simply 
-      Subroutine SymGenRandExcitIt2_Double_GetTo_NoWeight(iSeed,nI,
+      Subroutine SymGenRandExcitIt2_Doub_GT_NoW(iSeed,nI,
      &      ExcitTypes,iExcit,OrbPairs, SymProdInd,iSpn,iFrom,iLUT,
      &      I,nK,ExcitMat,TParity)
          use SystemData, only: nEl
@@ -998,7 +998,7 @@ C.. Actually generate a det
 !             STOP "INVALID DET SYMGENRANDEXCITIT DOUBLE"
 !         ENDIF
 
-      End Subroutine SymGenRandExcitIt2_Double_GetTo_NoWeight
+      End Subroutine SymGenRandExcitIt2_Doub_GT_NoW
 
       Subroutine SymGenRandExcitIt2_Double_GetTo(iSeed,nI,ExcitTypes,
      &      iExcit,OrbPairs, SymProdInd,iSpn,iFrom,iLUT,

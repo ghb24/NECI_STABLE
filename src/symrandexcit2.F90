@@ -2194,19 +2194,19 @@ MODULE GenRandSymExcitNUMod
 
         !Calculate generation probabilities
         IF (iSpn.eq.2) THEN
-            pAIJ=1.0/(nBasis-Nel)
+            pAIJ=1.0_dp/(nBasis-Nel)
         ELSEIF (iSpn.eq.1) THEN
-            pAIJ=1.0/(nBasis/2-nOccBeta)
+            pAIJ=1.0_dp/(nBasis/2-nOccBeta)
         ELSE
             !iSpn = 3
-            pAIJ=1.0/(nBasis/2-nOccAlpha)
+            pAIJ=1.0_dp/(nBasis/2-nOccAlpha)
         ENDIF
         ! Note, p(b|ij)=p(a|ij) for this system
         if (tUEG) then
-            pGen=2.0/(NEl*(NEl-1))*2.0*pAIJ
+            pGen=2.0_dp/(NEl*(NEl-1))*2.0_dp*pAIJ
         else ! i.e. if hubbard model, use modified probabilities
             ! hubbard model can't spawn alpha/alpha and beta/beta type excitations
-            pGen=1.0/(nOccAlpha*nOccBeta)*2.0*pAIJ
+            pGen=1.0_dp/(nOccAlpha*nOccBeta)*2.0_dp*pAIJ
         endif
 
     END SUBROUTINE CreateDoubExcitLattice
@@ -2355,16 +2355,16 @@ MODULE GenRandSymExcitNUMod
         ! Else the pgen used is from CreateDoubExcitLattice
 
         ! Now calculate pgen
-        pAIJ=1.0/(KaXRange*KaYRange*KaZRange-iElecInExcitRange) 
+        pAIJ=1.0_dp/(KaXRange*KaYRange*KaZRange-iElecInExcitRange) 
         ! pBIJ is zero for this kind of excitation generator for antiparallel spins
         ! but is equal to pAIJ for parallel spins.
         IF(G1(nI(Elec1Ind))%Ms.ne.G1(nI(Elec2Ind))%Ms) THEN
-            pGen=2.0/(NEl*(NEl-1))*pAIJ ! Spins not equal
+            pGen=2.0_dp/(NEl*(NEl-1))*pAIJ ! Spins not equal
         ELSE
-            pGen=2.0/(NEl*(NEl-1))*2.0*pAIJ ! Spins equal
+            pGen=2.0_dp/(NEl*(NEl-1))*2.0*pAIJ ! Spins equal
         ENDIF
 
-        IF(pAIJ.le.0.0) CALL Stop_All("CreateExcitLattice","pAIJ is less than 0")
+        IF(pAIJ.le.0.0_dp) CALL Stop_All("CreateExcitLattice","pAIJ is less than 0")
 
     END SUBROUTINE CreateExcitLattice
    

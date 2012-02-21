@@ -3,12 +3,12 @@ type1=integer
 unity=1
 size=8
 
-[double]
+[doub]
 type1=real(dp)
 unity=1.d0
 size=8
 
-[bitrep]
+[btrp]
 type1=integer
 unity=1
 size=8

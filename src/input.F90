@@ -1,24 +1,6 @@
-MODULE input_neci
+!Original author: Anthony Stone, since modified by ajwt and ghb.
 
-!  Fortran90 input parsing module
-!
-!  Copyright (C) 2005 Anthony J. Stone
-!
-!  This program is free software; you can redistribute it and/or
-!  modify it under the terms of the GNU General Public License
-!  as published by the Free Software Foundation; either version 2
-!  of the License, or (at your option) any later version.
-!  
-!  This program is distributed in the hope that it will be useful,
-!  but WITHOUT ANY WARRANTY; without even the implied warranty of
-!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-!  GNU General Public License for more details.
-!  
-!  You should have received a copy of the GNU General Public License
-!  along with this program; if not, write to
-!  the Free Software Foundation, Inc., 51 Franklin Street,
-!  Fifth Floor, Boston, MA 02110-1301, USA, or see
-!  http://www.gnu.org/copyleft/gpl.html
+MODULE input_neci
 
 use constants, only: sp,dp,int64
 
@@ -647,9 +629,8 @@ SUBROUTINE read_double(A,factor)
 !  If the optional argument factor is present, the value read should be
 !  divided by it. (External value = factor*internal value)
 
-DOUBLE PRECISION, INTENT(INOUT) :: a
-DOUBLE PRECISION, INTENT(IN), OPTIONAL :: factor
-
+REAL(KIND=dp), INTENT(INOUT) :: a
+REAL(KIND=dp), INTENT(IN), OPTIONAL :: factor
 CHARACTER(LEN=50) :: string
 
 if (clear) a=0d0
@@ -690,7 +671,7 @@ SUBROUTINE read_single(A,factor)
 REAL(kind=sp), INTENT(INOUT) :: a
 REAL(kind=sp), INTENT(IN), OPTIONAL :: factor
 
-DOUBLE PRECISION :: aa
+REAL(kind=dp) :: aa
 
 if (present(factor)) then
   call read_double(aa,real(factor,dp))
@@ -843,8 +824,8 @@ SUBROUTINE getf(A,factor)
 !  If the optional argument factor is present, the value read should be
 !  divided by it. (External value = factor*internal value)
 
-DOUBLE PRECISION, INTENT(INOUT) :: A
-DOUBLE PRECISION, INTENT(IN), OPTIONAL :: factor
+REAL(kind=dp), INTENT(INOUT) :: A
+REAL(kind=dp), INTENT(IN), OPTIONAL :: factor
 
 LOGICAL :: eof
 
@@ -1080,7 +1061,7 @@ REAL(kind=sp), INTENT(OUT) :: colour(3)
 LOGICAL, INTENT(IN), OPTIONAL :: clamp
 CHARACTER(LEN=6) :: x
 INTEGER :: i, r, g, b
-DOUBLE PRECISION :: c
+REAL(kind=dp) :: c
 
 select case(fmt)
 case("GREY","GRAY")

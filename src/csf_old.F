@@ -246,11 +246,11 @@ C.. is put in SSYM
       END
 
 C.. test if NCI is a CSF
-      LOGICAL FUNCTION ISCSF(NCI,NEL)
+      LOGICAL FUNCTION iscsf_old(NCI,NEL)
          use legacy_data, only: CSF_NBSTART
          IMPLICIT NONE
          INTEGER NEL,NCI(NEL)
-         ISCSF=NCI(NEL).GE.CSF_NBSTART
+         iscsf_old=NCI(NEL).GE.CSF_NBSTART
       END
 
       SUBROUTINE GETNEXTSYMCSF(NEL,NBASIS,NBASISMAX,

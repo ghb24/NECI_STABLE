@@ -20,8 +20,8 @@ MODULE Calc
     use CCMCData, only: dInitAmplitude, dProbSelNewExcitor, nSpawnings, &
                         tSpawnProp, nClustSelections, tExactEnergy,     &
                         dClustSelectionRatio,tSharedExcitors
-    use FciMCData, only: proje_linear_comb, proje_ref_det_init,tTimeExit,MaxTimeExit, &
-                         InputDiagSft,tSearchTau
+    use FciMCData, only: proje_update_comb,proje_linear_comb, proje_ref_det_init,tTimeExit,MaxTimeExit, &
+                         InputDiagSft,tSearchTau,proje_spatial
 
     implicit none
 
@@ -261,6 +261,8 @@ contains
           tTruncNOpen = .false.
 
           proje_linear_comb = .false.
+      proje_update_comb = .false.
+          proje_spatial = .false.
           hash_shift=0
           tContinueAfterMP2=.false.
       
@@ -1036,6 +1038,7 @@ contains
                 ! combination of determinants, specified by a particular 
                 ! spatial determinant.
                 proje_linear_comb = .true.
+                proje_spatial = .true.
                 if (.not. allocated(proje_ref_det_init)) &
                     allocate(proje_ref_det_init(nel))
                 proje_ref_det_init = 0
@@ -1044,7 +1047,10 @@ contains
                     call geti(proje_ref_det_init(i))
                     i = i+1
                 enddo
-
+            case("PROJE-LINEAR-COMB")
+                ! Calculate the projected energy by projection onto a linear
+                ! combination of determinants.
+                proje_linear_comb = .true.
             case("RESTARTLARGEPOP")
                 tCheckHighestPop=.true.
                 tRestartHighPop=.true.
@@ -2108,9 +2114,9 @@ contains
          INTEGER NEL,NI(NEL),I,J
          TYPE(BasisFN) G1(*)
          real(dp) ALAT(4),CST,TMAT,CALCT2
-         LOGICAL ISCSF
+         LOGICAL ISCSF_old
          CALCT2=0.D0
-         IF(ISCSF(NI,NEL)) RETURN
+         IF(iscsf_old(NI,NEL)) RETURN
          DO J=1,NEL
             I=NI(J)
            TMAT=((ALAT(1)**2)*((G1(I)%K(1)**2)/(ALAT(1)**2)+   &
