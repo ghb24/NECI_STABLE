@@ -180,7 +180,7 @@ contains
                               spin_project_iter_count = 36, trunc_nopen = 37, &
                               targetgrowrate = 38, refshift = 39, & 
                               calc_rdm = 40, calc_explic_rdm = 41, &
-                              fill_rdm_iter = 42, diag_one_rdm = 43
+                              fill_rdm_iter = 42, diag_one_rdm = 43, &
                               nprojesum = 44
         integer, parameter :: last_item = nprojesum
         integer, parameter :: max_item_len = 30
@@ -213,6 +213,7 @@ contains
                                    "not_option                   ", &
                                    "not_option                   ", &
                                    "changeref                    ", &
+                                   "not_option                   ", &
                                    "not_option                   ", &
                                    "not_option                   ", &
                                    "not_option                   ", &
