@@ -5828,9 +5828,6 @@ module NeLrdmmOD
                     Sym_i=SpinOrbSymLabel(2*i)  !Consider only alpha orbitals
                     Sym_j=SpinOrbSymLabel(2*j)
                     Sym_ij=RandExcitSymLabelProd(Sym_i, Sym_j)
-                    if ((i.eq.3).and.(j.eq.2)) then
-                        WRITE(6,*) "Sym_i, Sym_j, Sym_ij", Sym_i, Sym_j, Sym_ij
-                    endif
                     if ((Sym_i.eq.SYM) .and. (Sym_ij .eq. 0)) then   
                         if(tStoreSpinOrbs) then
                             SymmetryPacked1RDM(posn1)=2.0_dp*NatOrbMat(SymLabelListInv_rot(2*i),SymLabelListInv_rot(2*j))
@@ -5880,13 +5877,14 @@ module NeLrdmmOD
                             
                             if ((i.ne.k) .and. (j.ne.l)) then !aaaa/bbbb always allowed
                                 if ((k.gt.i) .and. (l.gt.j)) then !D_ik,jl correctly ordered
-                                    Ind1_aa = ( ( (i-2) * (i-1) ) / 2 ) + k
-                                    Ind1_ab = ( ( (i-1) * i ) / 2 ) + k
+                                    Ind1_aa = ( ( (k-2) * (k-1) ) / 2 ) + i
+                                    Ind1_ab = ( ( (k-1) * k ) / 2 ) + i
                                     Ind2_aa = ( ( (l-2) * (l-1) ) / 2 ) + j
                                     Ind2_ab = ( ( (l-1) * l ) / 2 ) + j
                                     Factor=1.D0
                                     SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
                                     SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                                    if ((i.eq.3).and.(j.eq.1).and.(k.eq.4).and.(l.eq.2)) WRITE(6,*) "HELP!", SymmetryPacked2RDM(posn2)
                                 elseif ((i.gt.k) .and. (l.gt.j)) then !Need to reorder D_ik,jl to -D_ki,jl
                                     Ind1_aa = ( ( (i-2) * (i-1) ) / 2 ) + k
                                     Ind2_aa = ( ( (l-2) * (l-1) ) / 2 ) + j
@@ -5899,11 +5897,11 @@ module NeLrdmmOD
                                     Factor=-1.D0
                                     SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                                     SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
-                                else !Must need to reorder D_ik,jl to D_ik,lj
-                                    Ind1_aa = ( ( (k-2) * (k-1) ) / 2 ) + j
-                                    Ind1_ab = ( ( (k-1) * k ) / 2 ) + j
-                                    Ind2_aa = ( ( (i-2) * (i-1) ) / 2 ) + l
-                                    Ind2_ab = ( ( (i-1) * i ) / 2 ) + l
+                                else !Must need to reorder D_ik,jl to D_ki,lj
+                                    Ind1_aa = ( ( (i-2) * (i-1) ) / 2 ) + k
+                                    Ind1_ab = ( ( (i-1) * i ) / 2 ) + k
+                                    Ind2_aa = ( ( (j-2) * (j-1) ) / 2 ) + l
+                                    Ind2_ab = ( ( (j-1) * j ) / 2 ) + l
                                     Factor=1.D0
                                     SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
                                     SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
@@ -5916,10 +5914,13 @@ module NeLrdmmOD
                                 SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
                             elseif (((k.eq.i) .and. (j.gt.l)).or. ((i.gt.k) .and.(j.eq.l))) then
                                 !Need to reorder D_ik,jl to D_ki,lj
-                                Ind1_ab = ( ( (k-1) * k ) / 2 ) + j
-                                Ind2_ab = ( ( (i-1) * i ) / 2 ) + l
+                                Ind1_ab = ( ( (i-1) * i ) / 2 ) + k
+                                Ind2_ab = ( ( (j-1) * j ) / 2 ) + l
                                 Factor=1.D0
                                 SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
+                                if ((i.eq.4).and.(j.eq.1).and.(k.eq.3).and.(l.eq.1)) then
+                                    WRITE(6,*) "bSymPacked 4131", SymmetryPacked2RDM(posn2)
+                                endif
                             endif
 
                             !We are also recording the SYMMETRISED 2RDM
@@ -5947,6 +5948,9 @@ module NeLrdmmOD
                                     Factor=-1.D0
                                     SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                                     SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                            if ((i.eq.4).and.(j.eq.1).and.(k.eq.3).and.(l.eq.1)) then
+                                WRITE(6,*) "cSymPacked 4131", SymmetryPacked2RDM(posn2)
+                            endif
                                 elseif ((j.gt.k) .and. (l.gt.i)) then !Need to reorder D_jk,il to -D_kj,il
                                     Ind1_aa = ( ( (j-2) * (j-1) ) / 2 ) + k
                                     Ind2_aa = ( ( (l-2) * (l-1) ) / 2 ) + i
@@ -5975,22 +5979,41 @@ module NeLrdmmOD
                                 Factor=1.D0
                                 SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
                             endif
+                                    if ((i.eq.3).and.(j.eq.1).and.(k.eq.4).and.(l.eq.2)) WRITE(6,*) "HELP!", SymmetryPacked2RDM(posn2)
 
                             SymmetryPacked2RDM(posn2) =  SymmetryPacked2RDM(posn2)/2.0_dp
+                                    if ((i.eq.3).and.(j.eq.1).and.(k.eq.4).and.(l.eq.2)) WRITE(6,*) "HELP!", SymmetryPacked2RDM(posn2)
                             
+                            if ((i.eq.4).and.(j.eq.1).and.(k.eq.3).and.(l.eq.1)) then
+                                WRITE(6,*) "dSymPacked 4131", SymmetryPacked2RDM(posn2)
+                            endif
+
                             WRITE(6,*) "i,j,k,l SymmetryPacked2RDM(posn2):"
                             WRITE(6,*) i, j, k, l, SymmetryPacked2RDM(posn2)
 
-                            Symmetrised2RDM(i,j,k,l)=SymmetryPacked2RDM(posn2)
-                            Symmetrised2RDM(j,i,l,k)=SymmetryPacked2RDM(posn2)
-                            Symmetrised2RDM(l,k,j,i)=SymmetryPacked2RDM(posn2)
-                            Symmetrised2RDM(k,l,i,j)=SymmetryPacked2RDM(posn2)
-                            Symmetrised2RDM(k,j,i,l)=SymmetryPacked2RDM(posn2)
-                            Symmetrised2RDM(i,l,k,j)=SymmetryPacked2RDM(posn2)
-                            Symmetrised2RDM(j,k,l,i)=SymmetryPacked2RDM(posn2)
-                            Symmetrised2RDM(l,i,j,k)=SymmetryPacked2RDM(posn2)
+                            !SymmetryPacked2RDM(posn2) is D_ijkl = D_ik,jl
+                            Symmetrised2RDM(i,k,j,l)=SymmetryPacked2RDM(posn2)
+                            Symmetrised2RDM(k,i,l,j)=SymmetryPacked2RDM(posn2)
+                            Symmetrised2RDM(j,k,i,l)=SymmetryPacked2RDM(posn2)
+                            Symmetrised2RDM(k,j,l,i)=SymmetryPacked2RDM(posn2)
+                            Symmetrised2RDM(j,l,i,k)=SymmetryPacked2RDM(posn2)
+                            Symmetrised2RDM(l,j,k,i)=SymmetryPacked2RDM(posn2)
+                            Symmetrised2RDM(i,l,j,k)=SymmetryPacked2RDM(posn2)
+                            Symmetrised2RDM(l,i,k,j)=SymmetryPacked2RDM(posn2)
+                            !Symmetrised2RDM(j,k,i,l)=SymmetryPacked2RDM(posn2)
+                            !Symmetrised2RDM(k,j,l,i)=SymmetryPacked2RDM(posn2)
+                            !Symmetrised2RDM(i,l,j,k)=SymmetryPacked2RDM(posn2)
+                            !Symmetrised2RDM(l,i,k,j)=SymmetryPacked2RDM(posn2)
+
+                            if ((i.eq.4).and.(j.eq.1).and.(k.eq.3).and.(l.eq.1)) then
+                                WRITE(6,*) "Symmetrised2RDM(i,k,j,l), Symmetrised2RDM(j,k,i,l):"
+                                WRITE(6,*) Symmetrised2RDM(i,k,j,l), Symmetrised2RDM(j,k,i,l)
+                                WRITE(6,*) "Symmetrised2RDM(j,l,i,k)", Symmetrised2RDM(j,l,i,k)
+                            endif
 
                             posn2=posn2+1
+                            WRITE(6,*) "i,j,k,l", i, j, k, l
+                            WRITE(6,*) "Symmetrised2RDM(1,2,3,4)", Symmetrised2RDM(1,2,3,4)
                         enddo
                     enddo
                 enddo
