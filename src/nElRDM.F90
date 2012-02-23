@@ -2820,7 +2820,7 @@ module NeLrdmmOD
                                             &HF ORBITALS: ',SumN_Rho_ii
             endif
             if (tDumpForcesInfo) then
-                call Finalise_1e_RDM(Norm_1RDM)
+                if (.not. tPrint1RDM) call Finalise_1e_RDM(Norm_1RDM)
                 CALL Calc_Lagrangian_from_RDM(Norm_2RDM)
                 call convert_matrices_for_Molpro_forces(Norm_1RDM, Norm_2RDM)
             endif
@@ -3033,6 +3033,14 @@ module NeLrdmmOD
                 else
                     iSpat = gtID(i)
                     jSpat = gtID(j)
+                    if((i.eq.5).and.(j.eq.9)) then
+                        WRITE(6,*) "ispat", iSpat
+                        WRITE(6,*) "jspat", jSpat
+                        WRITE(6,*) "NatOrbMat(SymLabelListInv_rot(iSpat),SymLabelListInv_rot(jSpat))*Norm_1RDM/2.0_dp"
+                        WRITE(6,*) NatOrbMat(SymLabelListInv_rot(iSpat),SymLabelListInv_rot(jSpat))*Norm_1RDM/2.0_dp
+                        WRITE(6,*) NatOrbMat(SymLabelListInv_rot(jSpat),SymLabelListInv_rot(iSpat))*Norm_1RDM/2.0_dp
+                        WRITE(6,*) "Norm_1RDM", Norm_1RDM
+                    endif
                     if(NatOrbMat(SymLabelListInv_rot(iSpat),SymLabelListInv_rot(jSpat)).ne.0.D0) then 
                         if(tNormalise.and.((i.le.j).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
                             if(((mod(i,2).eq.0).and.(mod(j,2).eq.0)).or.&
@@ -3052,6 +3060,7 @@ module NeLrdmmOD
                 endif
             enddo
         enddo
+                WRITE(6,*) "WRiteoutNatOrbMat(SymLabelListInv_rot(5),SymLabelListInv_rot(3))", NatOrbMat(SymLabelListInv_rot(5),SymLabelListInv_rot(3))
                 
         close(OneRDM_unit)
 
@@ -3624,10 +3633,10 @@ module NeLrdmmOD
                                                         All_abab_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM
 
                             endif
-                                WRITE(6,*) "Integral: <ij|ab>",i,j,a,b
-                                WRITE(6,*) "Contribution from RDM: ", MyCoulContribution
-                                WRITE(6,*) "Integral: <ij|ab>",i,j,b,a
-                                WRITE(6,*) "Contribution from RDM: ", MyExchContribution
+                                !WRITE(6,*) "Integral: <ij|ab>",i,j,a,b
+                                !WRITE(6,*) "Contribution from RDM: ", MyCoulContribution
+                                !WRITE(6,*) "Integral: <ij|ab>",i,j,b,a
+                                !WRITE(6,*) "Contribution from RDM: ", MyExchContribution
 
                        enddo
 
@@ -3722,6 +3731,7 @@ module NeLrdmmOD
         !Calculating the Lagrangian X in terms of spatial orbitals
         if(iProcIndex.eq.0) then
 
+                WRITE(6,*) "Lag: NatOrbMat(SymLabelListInv_rot(5),SymLabelListInv_rot(3))", NatOrbMat(SymLabelListInv_rot(5),SymLabelListInv_rot(3))
             do p = 1, SpatOrbs  !Run over just the beta spin orbitals - Any alpha/beta terms in X are zero
                 pSpin = 2*p    ! Picks out beta component
                 do q = 1, SpatOrbs  !Want to calculate X(p,q) separately from X(q,p) for now to see if we're symmetric
@@ -3815,20 +3825,15 @@ module NeLrdmmOD
                                     ! Everything is in the right order already
                                     Ind1_ab_qs = ( ( (s-1) * s ) / 2 ) + q
                                     Ind2_ab_rt = ( ( (t-1) * t ) / 2 ) + r
-                                    if ((s.eq.q) .and. (t.eq.r)) then
-                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_qs,Ind2_ab_rt) &
+                                    Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_qs,Ind2_ab_rt) &
                                                                      * Norm_2RDM * Coul)/Divide_Factor
-                                    else
-                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_qs,Ind2_ab_rt) &
-                                                                     * Norm_2RDM * Coul)/Divide_Factor
-                                    endif
                                 elseif ((s.eq.q) .and. (r.gt.t)) then
                                     ! need to reorder D_qs,rt to D_sq,tr
-                                    Ind1_ab_qs = ( ( (q-1) * q ) / 2 ) + s
+                                    Ind1_ab_sq = ( ( (q-1) * q ) / 2 ) + s
                                     Ind2_ab_tr = ( ( (r-1) * r ) / 2 ) + t
-                                    Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_qs,Ind2_ab_tr) &
+                                    Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_sq,Ind2_ab_tr) &
                                                                          * Norm_2RDM * Coul)/Divide_Factor
-                                elseif ((q.ge.s) .and. (t.eq.r)) then
+                                elseif ((q.gt.s) .and. (t.eq.r)) then
                                     ! need to reorder D_qs,rt to D_sq,tr
                                     Ind1_ab_sq = ( ( (q-1) * q ) / 2 ) + s
                                     Ind2_ab_tr = ( ( (r-1) * r ) / 2 ) + t
@@ -3836,7 +3841,7 @@ module NeLrdmmOD
                                                                      * Norm_2RDM * Coul)/Divide_Factor
                                 endif
                                 
-                                ! SECOND TERM  (These two terms are explicitely symmetrised for the Molpro dump routine later)
+                                ! SECOND TERM  (These two terms in the RDM are explicitely symmetrised for the Molpro dump routine later)
                                 if((s.eq.r).and.(t.eq.q)) then
                                     Divide_Factor = 1.0_dp
                                 else
@@ -3884,18 +3889,13 @@ module NeLrdmmOD
                                         ! Everything is in the right order already
                                         Ind1_ab_rs = ( ( (s-1) * s ) / 2 ) + r
                                         Ind2_ab_qt = ( ( (t-1) * t ) / 2 ) + q
-                                        if ((s.eq.r) .and. (t.eq.q)) then
-                                            Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_rs,Ind2_ab_qt) &
+                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_rs,Ind2_ab_qt) &
                                                                          * Norm_2RDM * Coul)/Divide_Factor
-                                        else
-                                            Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_rs,Ind2_ab_qt) &
-                                                                         * Norm_2RDM * Coul)/Divide_Factor
-                                        endif
                                 elseif ((s.eq.r) .and. (q.gt.t)) then
                                         ! need to reorder D_rs,qt to D_sr,tq
-                                        Ind1_ab_rs = ( ( (s-1) * s ) / 2 ) + r
+                                        Ind1_ab_sr = ( ( (r-1) * r ) / 2 ) + s
                                         Ind2_ab_tq = ( ( (q-1) * q ) / 2 ) + t
-                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_rs,Ind2_ab_tq) &
+                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_sr,Ind2_ab_tq) &
                                                                          * Norm_2RDM * Coul)/Divide_Factor
                                 elseif ((r.gt.s) .and. (t.eq.q)) then
                                         ! need to reorder D_rs,qt to D_sr,tq
@@ -3910,7 +3910,9 @@ module NeLrdmmOD
             enddo
         enddo
         
+                WRITE(6,*) "Lag: NatOrbMat(SymLabelListInv_rot(5),SymLabelListInv_rot(3))", NatOrbMat(SymLabelListInv_rot(5),SymLabelListInv_rot(3))
         call Write_Out_Lagrangian()
+                WRITE(6,*) "Lag: NatOrbMat(SymLabelListInv_rot(5),SymLabelListInv_rot(3))", NatOrbMat(SymLabelListInv_rot(5),SymLabelListInv_rot(3))
 
 
         !probably don't need these for now (only calculating Lagrangian once at the end), but we might need it in future
@@ -5721,6 +5723,7 @@ module NeLrdmmOD
     use SymExcitDataMod, only: SpinOrbSymLabel,SymLabelCounts2
     use GenRandSymExcitNUMod , only : ClassCountInd, RandExcitSymLabelProd
     use sym_mod
+    use UMatCache, only: GTID
     
     integer :: iblkq, iseccr, istat1, sym, isyref, ms2
     integer :: posn1, posn2
@@ -5742,7 +5745,7 @@ module NeLrdmmOD
     real(dp) :: MySymRDMEnergy2
     real(dp) :: MySymRDMEnergy1
     real(dp), allocatable :: Symmetrised2RDM(:,:,:,:) !Now in CHEMICAL notation
-
+    integer :: iSpat, jSpat
     MySymRDMEnergy=0.D0
     MySymRDMEnergy1=0.D0
     MySymRDMEnergy2=0.D0
@@ -5819,12 +5822,15 @@ module NeLrdmmOD
         posn1=1
         posn2=1
         SymmetryPacked2RDM(:)=0.D0
-        
+        SymmetryPacked1RDM(:)=0.D0
+       WRITE(6,*) "NatOrbMat(SymLabelListInv_rot(5),SymLabelListInv_rot(3))", NatOrbMat(SymLabelListInv_rot(5),SymLabelListInv_rot(3))
+
         !NB: This is far from the optimally efficient way to do things
         ! We should ditch running over symmetry, and instead use ldact to position each contribution correctly
         do Sym=0, 7  !Run over blocks: symmetry of orbital pairs 
             do i=1, SpatOrbs  !run over spatial orbitals, ALL ELECTRON ONLY
                 do j=1,  i    ! i .ge. j
+      WRITE(6,*) "NatOrbMat(SymLabelListInv_rot(5),SymLabelListInv_rot(3))", NatOrbMat(SymLabelListInv_rot(5),SymLabelListInv_rot(3))
                     Sym_i=SpinOrbSymLabel(2*i)  !Consider only alpha orbitals
                     Sym_j=SpinOrbSymLabel(2*j)
                     Sym_ij=RandExcitSymLabelProd(Sym_i, Sym_j)
@@ -5833,8 +5839,15 @@ module NeLrdmmOD
                             SymmetryPacked1RDM(posn1)=2.0_dp*NatOrbMat(SymLabelListInv_rot(2*i),SymLabelListInv_rot(2*j))
                                ! Include both aa and bb contributions
                         else
-                            SymmetryPacked1RDM(posn1)=NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))
+                            iSpat = gtID(i)
+                            jSpat = gtID(j)
+                            WRITE(6,*) NatOrbMat(SymLabelListInv_rot(iSpat),SymLabelListInv_rot(jSpat))/2.0_dp
+                            WRITE(6,*) NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))/2.0_dp
+                            !SymmetryPacked1RDM(posn1)=NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))
+                            SymmetryPacked1RDM(posn1)=NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i))
                         endif
+                        WRITE(6,*) "i,j,1RDM", i, j, SymmetryPacked1RDM(posn1)
+                        WRITE(6,*) "Matrix Element", REAL(TMAT2D(2*i,2*j),8)
                         if(i.eq.j) then
                             MySymRDMEnergy=MySymRDMEnergy+SymmetryPacked1RDM(posn1)*REAL(TMAT2D(2*i,2*j),8)
                             MySymRDMEnergy1=MySymRDMEnergy1+SymmetryPacked1RDM(posn1)*REAL(TMAT2D(2*i,2*j),8)
@@ -5851,7 +5864,6 @@ module NeLrdmmOD
                         posn1=posn1+1
                     endif
                     if (Sym_ij .ne. Sym) CYCLE
-                    WRITE(6,*) "Sym_ij, Sym", Sym_ij, Sym
                     do k=1, SpatOrbs
                         do l=1, k
                             Sym_k=SpinOrbSymLabel(2*k)  !Consider only alpha orbitals
@@ -5884,7 +5896,6 @@ module NeLrdmmOD
                                     Factor=1.D0
                                     SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
                                     SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
-                                    if ((i.eq.3).and.(j.eq.1).and.(k.eq.4).and.(l.eq.2)) WRITE(6,*) "HELP!", SymmetryPacked2RDM(posn2)
                                 elseif ((i.gt.k) .and. (l.gt.j)) then !Need to reorder D_ik,jl to -D_ki,jl
                                     Ind1_aa = ( ( (i-2) * (i-1) ) / 2 ) + k
                                     Ind2_aa = ( ( (l-2) * (l-1) ) / 2 ) + j
@@ -5892,8 +5903,8 @@ module NeLrdmmOD
                                     SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                                     SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                                 elseif ((k.gt.i) .and. (j.gt.l)) then !Need to reorder D_ik,jl to -D_ik,lj
-                                    Ind1_aa = ( ( (k-2) * (k-1) ) / 2 ) + j
-                                    Ind2_aa = ( ( (l-2) * (l-1) ) / 2 ) + i
+                                    Ind1_aa = ( ( (k-2) * (k-1) ) / 2 ) + i
+                                    Ind2_aa = ( ( (j-2) * (j-1) ) / 2 ) + l
                                     Factor=-1.D0
                                     SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                                     SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
@@ -5918,9 +5929,6 @@ module NeLrdmmOD
                                 Ind2_ab = ( ( (j-1) * j ) / 2 ) + l
                                 Factor=1.D0
                                 SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
-                                if ((i.eq.4).and.(j.eq.1).and.(k.eq.3).and.(l.eq.1)) then
-                                    WRITE(6,*) "bSymPacked 4131", SymmetryPacked2RDM(posn2)
-                                endif
                             endif
 
                             !We are also recording the SYMMETRISED 2RDM
@@ -5948,9 +5956,6 @@ module NeLrdmmOD
                                     Factor=-1.D0
                                     SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                                     SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
-                            if ((i.eq.4).and.(j.eq.1).and.(k.eq.3).and.(l.eq.1)) then
-                                WRITE(6,*) "cSymPacked 4131", SymmetryPacked2RDM(posn2)
-                            endif
                                 elseif ((j.gt.k) .and. (l.gt.i)) then !Need to reorder D_jk,il to -D_kj,il
                                     Ind1_aa = ( ( (j-2) * (j-1) ) / 2 ) + k
                                     Ind2_aa = ( ( (l-2) * (l-1) ) / 2 ) + i
@@ -5979,17 +5984,11 @@ module NeLrdmmOD
                                 Factor=1.D0
                                 SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
                             endif
-                                    if ((i.eq.3).and.(j.eq.1).and.(k.eq.4).and.(l.eq.2)) WRITE(6,*) "HELP!", SymmetryPacked2RDM(posn2)
 
                             SymmetryPacked2RDM(posn2) =  SymmetryPacked2RDM(posn2)/2.0_dp
-                                    if ((i.eq.3).and.(j.eq.1).and.(k.eq.4).and.(l.eq.2)) WRITE(6,*) "HELP!", SymmetryPacked2RDM(posn2)
                             
-                            if ((i.eq.4).and.(j.eq.1).and.(k.eq.3).and.(l.eq.1)) then
-                                WRITE(6,*) "dSymPacked 4131", SymmetryPacked2RDM(posn2)
-                            endif
-
-                            WRITE(6,*) "i,j,k,l SymmetryPacked2RDM(posn2):"
-                            WRITE(6,*) i, j, k, l, SymmetryPacked2RDM(posn2)
+                            !WRITE(6,*) "i,j,k,l SymmetryPacked2RDM(posn2):"
+                            !WRITE(6,*) i, j, k, l, SymmetryPacked2RDM(posn2)
 
                             !SymmetryPacked2RDM(posn2) is D_ijkl = D_ik,jl
                             Symmetrised2RDM(i,k,j,l)=SymmetryPacked2RDM(posn2)
@@ -6000,20 +5999,16 @@ module NeLrdmmOD
                             Symmetrised2RDM(l,j,k,i)=SymmetryPacked2RDM(posn2)
                             Symmetrised2RDM(i,l,j,k)=SymmetryPacked2RDM(posn2)
                             Symmetrised2RDM(l,i,k,j)=SymmetryPacked2RDM(posn2)
-                            !Symmetrised2RDM(j,k,i,l)=SymmetryPacked2RDM(posn2)
-                            !Symmetrised2RDM(k,j,l,i)=SymmetryPacked2RDM(posn2)
-                            !Symmetrised2RDM(i,l,j,k)=SymmetryPacked2RDM(posn2)
-                            !Symmetrised2RDM(l,i,k,j)=SymmetryPacked2RDM(posn2)
 
-                            if ((i.eq.4).and.(j.eq.1).and.(k.eq.3).and.(l.eq.1)) then
-                                WRITE(6,*) "Symmetrised2RDM(i,k,j,l), Symmetrised2RDM(j,k,i,l):"
-                                WRITE(6,*) Symmetrised2RDM(i,k,j,l), Symmetrised2RDM(j,k,i,l)
-                                WRITE(6,*) "Symmetrised2RDM(j,l,i,k)", Symmetrised2RDM(j,l,i,k)
-                            endif
+                          !  if ((i.eq.4).and.(j.eq.1).and.(k.eq.3).and.(l.eq.1)) then
+                          !      WRITE(6,*) "Symmetrised2RDM(i,k,j,l), Symmetrised2RDM(j,k,i,l):"
+                          !      WRITE(6,*) Symmetrised2RDM(i,k,j,l), Symmetrised2RDM(j,k,i,l)
+                          !      WRITE(6,*) "Symmetrised2RDM(j,l,i,k)", Symmetrised2RDM(j,l,i,k)
+                          !  endif
 
                             posn2=posn2+1
-                            WRITE(6,*) "i,j,k,l", i, j, k, l
-                            WRITE(6,*) "Symmetrised2RDM(1,2,3,4)", Symmetrised2RDM(1,2,3,4)
+                         !   WRITE(6,*) "i,j,k,l", i, j, k, l
+                         !   WRITE(6,*) "Symmetrised2RDM(1,2,3,4)", Symmetrised2RDM(1,2,3,4)
                         enddo
                     enddo
                 enddo
@@ -6026,10 +6021,10 @@ module NeLrdmmOD
             do j=1,SpatOrbs
                 do k=1,SpatOrbs
                     do l=1,SpatOrbs
-                        WRITE(6,*) "Integral <ij|kl>"
-                        WRITE(6,*) i, j, k, l
-                        WRITE(6,*) "Contribution: ", 0.5_dp*Symmetrised2RDM(i,j,k,l)
-                        WRITE(6,*) "Contribution inc other terms", 4.0_dp*Symmetrised2RDM(i,j,k,l)
+                        !WRITE(6,*) "Integral <ij|kl>"
+                        !WRITE(6,*) i, j, k, l
+                        !WRITE(6,*) "Contribution: ", 0.5_dp*Symmetrised2RDM(i,j,k,l)
+                        !WRITE(6,*) "Contribution inc other terms", 4.0_dp*Symmetrised2RDM(i,j,k,l)
                         Coul = REAL(UMAT(UMatInd(i,j,k,l,0,0)),8)
                         
                         MySymRDMEnergy=MySymRDMEnergy+0.5_dp*Symmetrised2RDM(i,j,k,l)*Coul
@@ -6146,8 +6141,8 @@ module NeLrdmmOD
       !call writem(eps,leps,ifil,name,lhead+lden1+lden2,label)
       !if(ncore.ne.0) call writem(epsc,lepsc,ifil,name,
       !>                          lhead+lden1+lden2+leps,label)
-      write(iout,*) "istat1, isyref, name, ifil", istat1,isyref,name,ifil
-      write(iout,*) "header, den1, den2, eps", header, den1, den2, eps
+      !write(iout,*) "istat1, isyref, name, ifil", istat1,isyref,name,ifil
+      !write(iout,*) "header, den1, den2, eps", header, den1, den2, eps
 !20    format(/' Gradient information for state',i2,'.',i1,
      !>        ' saved on record  ',i8,'.',i1)
      ! return
