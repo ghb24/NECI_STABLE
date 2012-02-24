@@ -2821,7 +2821,7 @@ module NeLrdmmOD
             endif
             if (tDumpForcesInfo) then
                 if (.not. tPrint1RDM) call Finalise_1e_RDM(Norm_1RDM)
-                CALL Calc_Lagrangian_from_RDM(Norm_2RDM)
+                CALL Calc_Lagrangian_from_RDM(Norm_1RDM, Norm2RDM)
                 call convert_matrices_for_Molpro_forces(Norm_1RDM, Norm_2RDM)
             endif
 
@@ -3033,14 +3033,14 @@ module NeLrdmmOD
                 else
                     iSpat = gtID(i)
                     jSpat = gtID(j)
-                    if((i.eq.5).and.(j.eq.9)) then
-                        WRITE(6,*) "ispat", iSpat
-                        WRITE(6,*) "jspat", jSpat
-                        WRITE(6,*) "NatOrbMat(SymLabelListInv_rot(iSpat),SymLabelListInv_rot(jSpat))*Norm_1RDM/2.0_dp"
-                        WRITE(6,*) NatOrbMat(SymLabelListInv_rot(iSpat),SymLabelListInv_rot(jSpat))*Norm_1RDM/2.0_dp
-                        WRITE(6,*) NatOrbMat(SymLabelListInv_rot(jSpat),SymLabelListInv_rot(iSpat))*Norm_1RDM/2.0_dp
-                        WRITE(6,*) "Norm_1RDM", Norm_1RDM
-                    endif
+               !     if((i.eq.5).and.(j.eq.9)) then
+               !         WRITE(6,*) "ispat", iSpat
+               !         WRITE(6,*) "jspat", jSpat
+               !         WRITE(6,*) "NatOrbMat(SymLabelListInv_rot(iSpat),SymLabelListInv_rot(jSpat))*Norm_1RDM/2.0_dp"
+               !         WRITE(6,*) NatOrbMat(SymLabelListInv_rot(iSpat),SymLabelListInv_rot(jSpat))*Norm_1RDM/2.0_dp
+               !         WRITE(6,*) NatOrbMat(SymLabelListInv_rot(jSpat),SymLabelListInv_rot(iSpat))*Norm_1RDM/2.0_dp
+               !         WRITE(6,*) "Norm_1RDM", Norm_1RDM
+               !     endif
                     if(NatOrbMat(SymLabelListInv_rot(iSpat),SymLabelListInv_rot(jSpat)).ne.0.D0) then 
                         if(tNormalise.and.((i.le.j).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
                             if(((mod(i,2).eq.0).and.(mod(j,2).eq.0)).or.&
@@ -3060,7 +3060,6 @@ module NeLrdmmOD
                 endif
             enddo
         enddo
-                WRITE(6,*) "WRiteoutNatOrbMat(SymLabelListInv_rot(5),SymLabelListInv_rot(3))", NatOrbMat(SymLabelListInv_rot(5),SymLabelListInv_rot(3))
                 
         close(OneRDM_unit)
 
@@ -3675,7 +3674,7 @@ module NeLrdmmOD
 
     END SUBROUTINE Calc_Energy_from_RDM
     
-    SUBROUTINE Calc_Lagrangian_from_RDM(Norm_2RDM)
+    SUBROUTINE Calc_Lagrangian_from_RDM(Norm_1RDM,Norm_2RDM)
 ! CMO
 ! This routine takes the 1 electron and 2 electron reduced density matrices 
 ! and calculated the Lagrangian term, X, required for the calculation of forces.    
@@ -3698,6 +3697,7 @@ module NeLrdmmOD
         USE Logging, only : tDumpForcesInfo
         implicit none
         real(dp), intent(in) :: Norm_2RDM
+        real(dp), intent(in) :: Norm_1RDM
         real(dp) :: Divide_Factor
         real(dp) :: Norm_2RDM_Inst
         real(dp) :: MyEnergy, Contrib1, Contrib2
@@ -3731,7 +3731,6 @@ module NeLrdmmOD
         !Calculating the Lagrangian X in terms of spatial orbitals
         if(iProcIndex.eq.0) then
 
-                WRITE(6,*) "Lag: NatOrbMat(SymLabelListInv_rot(5),SymLabelListInv_rot(3))", NatOrbMat(SymLabelListInv_rot(5),SymLabelListInv_rot(3))
             do p = 1, SpatOrbs  !Run over just the beta spin orbitals - Any alpha/beta terms in X are zero
                 pSpin = 2*p    ! Picks out beta component
                 do q = 1, SpatOrbs  !Want to calculate X(p,q) separately from X(q,p) for now to see if we're symmetric
@@ -3741,12 +3740,14 @@ module NeLrdmmOD
                         ! We made sure earlier that the 1RDM is contructed, so we can call directly from this
                         if(tStoreSpinOrbs) then
                             ! Include both aa and bb contributions
-                            Lagrangian(p,q)=Lagrangian(p,q)+2*NatOrbMat(SymLabelListInv_rot(2*q),SymLabelListInv_rot(2*r))* &
-                                                                                                    REAL(TMAT2D(pSpin,rSpin),8)
+                            Lagrangian(p,q)=Lagrangian(p,q)+2.0_dp*0.5_dp*(NatOrbMat(SymLabelListInv_rot(2*q),SymLabelListInv_rot(2*r))+ &
+                                                            NatOrbMat(SymLabelListInv_rot(2*r),SymLabelListInv_rot(2*q)))* &
+                                                                REAL(TMAT2D(pSpin,rSpin),8)/Norm_1RDM
                         else
                             !We will be here most often (?)
-                            Lagrangian(p,q)=Lagrangian(p,q)+NatOrbMat(SymLabelListInv_rot(q),SymLabelListInv_rot(r))* &
-                                                                                                    REAL(TMAT2D(pSpin,rSpin),8)
+                            Lagrangian(p,q)=Lagrangian(p,q)+0.5_dp*(NatOrbMat(SymLabelListInv_rot(q),SymLabelListInv_rot(r))+ &
+                                                            NatOrbMat(SymLabelListInv_rot(r),SymLabelListInv_rot(q)))* &
+                                                                REAL(TMAT2D(pSpin,rSpin),8)/Norm_1RDM
                         endif
 
                         do s = 1, SpatOrbs
@@ -3793,51 +3794,51 @@ module NeLrdmmOD
                                         Ind2_aa_rt = ( ( (t-2) * (t-1) ) / 2 ) + r
                                         Ind1_ab_qs = ( ( (s-1) * s ) / 2 ) + q
                                         Ind2_ab_rt = ( ( (t-1) * t ) / 2 ) + r
-                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_aaaa_RDM(Ind1_aa_qs,Ind2_aa_rt) &
+                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5_dp*2.0_dp*(All_aaaa_RDM(Ind1_aa_qs,Ind2_aa_rt) &
                                                                         * Norm_2RDM * Coul)/Divide_Factor
-                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_qs,Ind2_ab_rt) &
+                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5_dp*2.0_dp*(All_abab_RDM(Ind1_ab_qs,Ind2_ab_rt) &
                                                                          * Norm_2RDM * Coul)/Divide_Factor
                                     elseif ((s.gt.q) .and. (r.gt.t)) then  ! We need to reorder D_qs,rt to -D_qs,tr
                                         Ind1_aa_qs = ( ( (s-2) * (s-1) ) / 2 ) + q
                                         Ind2_aa_tr = ( ( (r-2) * (r-1) ) / 2 ) + t
-                                        Lagrangian(p,q)=Lagrangian(p,q) - 0.5*2*(All_aaaa_RDM(Ind1_aa_qs,Ind2_aa_tr) &
+                                        Lagrangian(p,q)=Lagrangian(p,q) - 0.5_dp*2.0_dp*(All_aaaa_RDM(Ind1_aa_qs,Ind2_aa_tr) &
                                                                         * Norm_2RDM * Coul)/Divide_Factor
-                                        Lagrangian(p,q)=Lagrangian(p,q) - 0.5*2*(All_abba_RDM(Ind1_aa_qs,Ind2_aa_tr) &
+                                        Lagrangian(p,q)=Lagrangian(p,q) - 0.5_dp*2.0_dp*(All_abba_RDM(Ind1_aa_qs,Ind2_aa_tr) &
                                                                              * Norm_2RDM * Coul)/Divide_Factor
                                     elseif ((q.gt.s) .and. (t.gt.r)) then  ! We need to reorder D_qs,rt to -D_sq,rt
                                         Ind1_aa_sq = ( ( (q-2) * (q-1) ) / 2 ) + s
                                         Ind2_aa_rt = ( ( (t-2) * (t-1) ) / 2 ) + r
-                                        Lagrangian(p,q)=Lagrangian(p,q) -0.5*2*(All_aaaa_RDM(Ind1_aa_sq,Ind2_aa_rt) &
+                                        Lagrangian(p,q)=Lagrangian(p,q) -0.5_dp*2.0_dp*(All_aaaa_RDM(Ind1_aa_sq,Ind2_aa_rt) &
                                                                         * Norm_2RDM * Coul)/Divide_Factor
-                                        Lagrangian(p,q)=Lagrangian(p,q) -0.5*2*(All_abba_RDM(Ind1_aa_sq,Ind2_aa_rt) &
+                                        Lagrangian(p,q)=Lagrangian(p,q) -0.5_dp*2.0_dp*(All_abba_RDM(Ind1_aa_sq,Ind2_aa_rt) &
                                                                          * Norm_2RDM * Coul)/Divide_Factor
                                     else !Must need to reodrder D_qs,rt to D_sq,tr
                                         Ind1_aa_sq = ( ( (q-2) * (q-1) ) / 2 ) + s
                                         Ind2_aa_tr = ( ( (r-2) * (r-1) ) / 2 ) + t
-                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_aaaa_RDM(Ind1_aa_sq,Ind2_aa_tr) &
+                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5_dp*2.0_dp*(All_aaaa_RDM(Ind1_aa_sq,Ind2_aa_tr) &
                                                                         * Norm_2RDM * Coul)/Divide_Factor
                                         Ind1_ab_sq = ( ( (q-1) * q ) / 2 ) + s
                                         Ind2_ab_tr = ( ( (r-1) * r ) / 2 ) + t
-                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_sq,Ind2_ab_tr) &
+                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5_dp*2.0_dp*(All_abab_RDM(Ind1_ab_sq,Ind2_ab_tr) &
                                                                          * Norm_2RDM * Coul)/Divide_Factor
                                     endif
                                 elseif (((s.eq.q) .and. (t.gt.r)) .or. ((s.gt.q) .and. (t.eq.r)) .or. ((s.eq.q) .and. (t.eq.r))) then
                                     ! Everything is in the right order already
                                     Ind1_ab_qs = ( ( (s-1) * s ) / 2 ) + q
                                     Ind2_ab_rt = ( ( (t-1) * t ) / 2 ) + r
-                                    Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_qs,Ind2_ab_rt) &
+                                    Lagrangian(p,q)=Lagrangian(p,q) + 0.5_dp*2.0_dp*(All_abab_RDM(Ind1_ab_qs,Ind2_ab_rt) &
                                                                      * Norm_2RDM * Coul)/Divide_Factor
                                 elseif ((s.eq.q) .and. (r.gt.t)) then
                                     ! need to reorder D_qs,rt to D_sq,tr
                                     Ind1_ab_sq = ( ( (q-1) * q ) / 2 ) + s
                                     Ind2_ab_tr = ( ( (r-1) * r ) / 2 ) + t
-                                    Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_sq,Ind2_ab_tr) &
+                                    Lagrangian(p,q)=Lagrangian(p,q) + 0.5_dp*2.0_dp*(All_abab_RDM(Ind1_ab_sq,Ind2_ab_tr) &
                                                                          * Norm_2RDM * Coul)/Divide_Factor
                                 elseif ((q.gt.s) .and. (t.eq.r)) then
                                     ! need to reorder D_qs,rt to D_sq,tr
                                     Ind1_ab_sq = ( ( (q-1) * q ) / 2 ) + s
                                     Ind2_ab_tr = ( ( (r-1) * r ) / 2 ) + t
-                                    Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_sq,Ind2_ab_tr) &
+                                    Lagrangian(p,q)=Lagrangian(p,q) + 0.5_dp*2.0_dp*(All_abab_RDM(Ind1_ab_sq,Ind2_ab_tr) &
                                                                      * Norm_2RDM * Coul)/Divide_Factor
                                 endif
                                 
@@ -3852,36 +3853,36 @@ module NeLrdmmOD
                                     if ((s.gt.r) .and. (t.gt.q)) then       !The D_rs,qt is correctly ordered
                                         Ind1_aa_rs = ( ( (s-2) * (s-1) ) / 2 ) + r
                                         Ind2_aa_qt = ( ( (t-2) * (t-1) ) / 2 ) + q
-                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_aaaa_RDM(Ind1_aa_rs,Ind2_aa_qt) &
+                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5_dp*2.0_dp*(All_aaaa_RDM(Ind1_aa_rs,Ind2_aa_qt) &
                                                                         * Norm_2RDM * Coul)/Divide_Factor
                                         Ind1_ab_rs = ( ( (s-1) * s ) / 2 ) + r
                                         Ind2_ab_qt = ( ( (t-1) * t ) / 2 ) + q
-                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_rs,Ind2_ab_qt) &
+                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5_dp*2.0_dp*(All_abab_RDM(Ind1_ab_rs,Ind2_ab_qt) &
                                                                          * Norm_2RDM * Coul)/Divide_Factor
                                     elseif ((s.gt.r) .and. (q.gt.t)) then  ! We need to reorder D_rs,qt to -D_rs,tq
                                         Ind1_aa_rs = ( ( (s-2) * (s-1) ) / 2 ) + r
                                         Ind2_aa_tq = ( ( (q-2) * (q-1) ) / 2 ) + t
-                                        Lagrangian(p,q)=Lagrangian(p,q) - 0.5*2*(All_aaaa_RDM(Ind1_aa_rs,Ind2_aa_tq) &
+                                        Lagrangian(p,q)=Lagrangian(p,q) - 0.5_dp*2.0_dp*(All_aaaa_RDM(Ind1_aa_rs,Ind2_aa_tq) &
                                                                         * Norm_2RDM * Coul)/Divide_Factor
                                         ! only abab possible as spin t must equal spin s    
-                                        Lagrangian(p,q)=Lagrangian(p,q) - 0.5*2*(All_abba_RDM(Ind1_aa_rs,Ind2_aa_tq) &
+                                        Lagrangian(p,q)=Lagrangian(p,q) - 0.5_dp*2.0_dp*(All_abba_RDM(Ind1_aa_rs,Ind2_aa_tq) &
                                                                              * Norm_2RDM * Coul)/Divide_Factor
                                     elseif ((r.gt.s) .and. (t.gt.q)) then  ! We need to reorder D_rs,qt to -D_sr,qt
                                         Ind1_aa_sr = ( ( (r-2) * (r-1) ) / 2 ) + s
                                         Ind2_aa_qt = ( ( (t-2) * (t-1) ) / 2 ) + q
-                                        Lagrangian(p,q)=Lagrangian(p,q) - 0.5*2*(All_aaaa_RDM(Ind1_aa_sr,Ind2_aa_qt) &
+                                        Lagrangian(p,q)=Lagrangian(p,q) - 0.5_dp*2.0_dp*(All_aaaa_RDM(Ind1_aa_sr,Ind2_aa_qt) &
                                                                         * Norm_2RDM * Coul)/Divide_Factor
                                         !no abab, as spin s must equal spin t
-                                        Lagrangian(p,q)=Lagrangian(p,q) - 0.5*2*(All_abba_RDM(Ind1_aa_sr,Ind2_aa_qt) &
+                                        Lagrangian(p,q)=Lagrangian(p,q) - 0.5_dp*2.0_dp*(All_abba_RDM(Ind1_aa_sr,Ind2_aa_qt) &
                                                                          * Norm_2RDM * Coul)/Divide_Factor
                                     else !Must need to reodrder D_rs,qt to D_sr,tq
                                         Ind1_aa_sr = ( ( (r-2) * (r-1) ) / 2 ) + s
                                         Ind2_aa_tq = ( ( (q-2) * (q-1) ) / 2 ) + t
-                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_aaaa_RDM(Ind1_aa_sr,Ind2_aa_tq) &
+                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5_dp*2.0_dp*(All_aaaa_RDM(Ind1_aa_sr,Ind2_aa_tq) &
                                                                         * Norm_2RDM * Coul)/Divide_Factor
                                         Ind1_ab_sr = ( ( (r-1) * r ) / 2 ) + s
                                         Ind2_ab_tq = ( ( (q-1) * q ) / 2 ) + t
-                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_sr,Ind2_ab_tq) &
+                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5_dp*2.0_dp*(All_abab_RDM(Ind1_ab_sr,Ind2_ab_tq) &
                                                                          * Norm_2RDM * Coul)/Divide_Factor
                                     endif
                                 elseif (((s.eq.r) .and. (t.gt.q)) .or. ((s.gt.r) .and. (t.eq.q)) &
@@ -3889,19 +3890,19 @@ module NeLrdmmOD
                                         ! Everything is in the right order already
                                         Ind1_ab_rs = ( ( (s-1) * s ) / 2 ) + r
                                         Ind2_ab_qt = ( ( (t-1) * t ) / 2 ) + q
-                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_rs,Ind2_ab_qt) &
+                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5_dp*2.0_dp*(All_abab_RDM(Ind1_ab_rs,Ind2_ab_qt) &
                                                                          * Norm_2RDM * Coul)/Divide_Factor
                                 elseif ((s.eq.r) .and. (q.gt.t)) then
                                         ! need to reorder D_rs,qt to D_sr,tq
                                         Ind1_ab_sr = ( ( (r-1) * r ) / 2 ) + s
                                         Ind2_ab_tq = ( ( (q-1) * q ) / 2 ) + t
-                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_sr,Ind2_ab_tq) &
+                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5_dp*2.0_dp*(All_abab_RDM(Ind1_ab_sr,Ind2_ab_tq) &
                                                                          * Norm_2RDM * Coul)/Divide_Factor
                                 elseif ((r.gt.s) .and. (t.eq.q)) then
                                         ! need to reorder D_rs,qt to D_sr,tq
                                         Ind1_ab_sr = ( ( (r-1) * r ) / 2 ) + s
                                         Ind2_ab_tq = ( ( (q-1) * q ) / 2 ) + t
-                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5*2*(All_abab_RDM(Ind1_ab_sr,Ind2_ab_tq) &
+                                        Lagrangian(p,q)=Lagrangian(p,q) + 0.5_dp*2.0_dp*(All_abab_RDM(Ind1_ab_sr,Ind2_ab_tq) &
                                                                          * Norm_2RDM * Coul)/Divide_Factor
                                 endif
                             enddo
@@ -3910,10 +3911,7 @@ module NeLrdmmOD
             enddo
         enddo
         
-                WRITE(6,*) "Lag: NatOrbMat(SymLabelListInv_rot(5),SymLabelListInv_rot(3))", NatOrbMat(SymLabelListInv_rot(5),SymLabelListInv_rot(3))
         call Write_Out_Lagrangian()
-                WRITE(6,*) "Lag: NatOrbMat(SymLabelListInv_rot(5),SymLabelListInv_rot(3))", NatOrbMat(SymLabelListInv_rot(5),SymLabelListInv_rot(3))
-
 
         !probably don't need these for now (only calculating Lagrangian once at the end), but we might need it in future
         aaaa_RDM(:,:) = 0.0_dp
@@ -5794,7 +5792,9 @@ module NeLrdmmOD
                 ldact(Sym_ij+1)=ldact(Sym_ij+1)+1
             enddo
         enddo
-        
+     
+        WRITE(6,*) "Norm_1RDM", Norm_1RDM
+
         ! Use this to allocate the 2RDM
         do Sym=0,7
             Len_2RDM=Len_2RDM+(ldact(Sym+1))**2
@@ -5823,31 +5823,25 @@ module NeLrdmmOD
         posn2=1
         SymmetryPacked2RDM(:)=0.D0
         SymmetryPacked1RDM(:)=0.D0
-       WRITE(6,*) "NatOrbMat(SymLabelListInv_rot(5),SymLabelListInv_rot(3))", NatOrbMat(SymLabelListInv_rot(5),SymLabelListInv_rot(3))
 
         !NB: This is far from the optimally efficient way to do things
         ! We should ditch running over symmetry, and instead use ldact to position each contribution correctly
         do Sym=0, 7  !Run over blocks: symmetry of orbital pairs 
             do i=1, SpatOrbs  !run over spatial orbitals, ALL ELECTRON ONLY
                 do j=1,  i    ! i .ge. j
-      WRITE(6,*) "NatOrbMat(SymLabelListInv_rot(5),SymLabelListInv_rot(3))", NatOrbMat(SymLabelListInv_rot(5),SymLabelListInv_rot(3))
                     Sym_i=SpinOrbSymLabel(2*i)  !Consider only alpha orbitals
                     Sym_j=SpinOrbSymLabel(2*j)
                     Sym_ij=RandExcitSymLabelProd(Sym_i, Sym_j)
                     if ((Sym_i.eq.SYM) .and. (Sym_ij .eq. 0)) then   
                         if(tStoreSpinOrbs) then
-                            SymmetryPacked1RDM(posn1)=2.0_dp*NatOrbMat(SymLabelListInv_rot(2*i),SymLabelListInv_rot(2*j))
+                            SymmetryPacked1RDM(posn1)=2.0_dp*0.5_dp*(NatOrbMat(SymLabelListInv_rot(2*i),SymLabelListInv_rot(2*j))+ &
+                                            NatOrbMat(SymLabelListInv_rot(2*j),SymLabelListInv_rot(2*i)))/Norm_1RDM
                                ! Include both aa and bb contributions
                         else
-                            iSpat = gtID(i)
-                            jSpat = gtID(j)
-                            WRITE(6,*) NatOrbMat(SymLabelListInv_rot(iSpat),SymLabelListInv_rot(jSpat))/2.0_dp
-                            WRITE(6,*) NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))/2.0_dp
-                            !SymmetryPacked1RDM(posn1)=NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))
-                            SymmetryPacked1RDM(posn1)=NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i))
+                            !Explicitly symmetrise - move this into a dedicated routine eventually
+                            SymmetryPacked1RDM(posn1)=0.5_dp*(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))+ &
+                                            NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)))/Norm_1RDM
                         endif
-                        WRITE(6,*) "i,j,1RDM", i, j, SymmetryPacked1RDM(posn1)
-                        WRITE(6,*) "Matrix Element", REAL(TMAT2D(2*i,2*j),8)
                         if(i.eq.j) then
                             MySymRDMEnergy=MySymRDMEnergy+SymmetryPacked1RDM(posn1)*REAL(TMAT2D(2*i,2*j),8)
                             MySymRDMEnergy1=MySymRDMEnergy1+SymmetryPacked1RDM(posn1)*REAL(TMAT2D(2*i,2*j),8)
@@ -6141,8 +6135,8 @@ module NeLrdmmOD
       !call writem(eps,leps,ifil,name,lhead+lden1+lden2,label)
       !if(ncore.ne.0) call writem(epsc,lepsc,ifil,name,
       !>                          lhead+lden1+lden2+leps,label)
-      !write(iout,*) "istat1, isyref, name, ifil", istat1,isyref,name,ifil
-      !write(iout,*) "header, den1, den2, eps", header, den1, den2, eps
+      write(iout,*) "istat1, isyref, name, ifil", istat1,isyref,name,ifil
+      write(iout,*) "header, den1, den2, eps", header, den1, den2, eps
 !20    format(/' Gradient information for state',i2,'.',i1,
      !>        ' saved on record  ',i8,'.',i1)
      ! return
