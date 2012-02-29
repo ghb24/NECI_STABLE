@@ -1188,6 +1188,7 @@ SUBROUTINE InitClustSelectorFull(CS,iMaxSize,tTruncInit,dInitThresh)
    CS%tDynamic=.false.
    CS%tInitiators=tTruncInit
    CS%dInitiatorThresh=dInitThresh
+   CS%nSelects = 0
    Call InitCluster(CS%C)
 END SUBROUTINE InitClustSelectorFull
 
@@ -1223,6 +1224,7 @@ SUBROUTINE ResetClustSelector(CS,iRefPos)
    CS%iIndex=0
    CS%C%iSize=0
    CS%iRefPos=iRefPos
+   CS%nSelects = 0
 END SUBROUTINE ResetClustSelector
 
 !Takes an ordered tuple of length iSize, and gives the next one in sequence.
@@ -1576,7 +1578,6 @@ subroutine AttemptDie(C,CurAmpl,OldAmpl,TL,WalkerScale,iDebug)
 ! We've now calculated rat fully
    r=rat
    rat=rat/abs(OldAmpl(iPartDie))  !Take into account we're killing at a different place from the cluster
-
 
    IFDEBUG(iDebug,4) then
       WRITE(6,*) "   Product Contributions to Number Died:"
@@ -2323,7 +2324,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    INTEGER :: iLengths(nProcessors)  !Used to store spawning data for annihilation
    INTEGER :: iOffset(1)
 
-   INTEGER ierr, iii
+   INTEGER ierr
 
    real(dp) dInitThresh
 
@@ -2538,7 +2539,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
          IFDEBUG(iDebug,2) write(6,*) "Ref Det on this processor, pos ", iRefPos
       else
          iRefPos=-1
-         call MPIBCast(dNorm,.false.)
+         call MPIBcast(dnorm,.false.)
       endif
       IFDEBUG(iDebug,2) write(6,*) "Ref Det norm ", dNorm
 ! If we fail to find the HF det, the broadcast above will fail.

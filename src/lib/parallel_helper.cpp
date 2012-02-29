@@ -239,33 +239,6 @@ void mpi_bcast_wrap (void * buf, int count, int dtype, int root, int comm,
 
 
 //
-// Wrapper for MPI_Bcast
-void mpi_bcast_wrap_dbg (void * buf, int count, int dtype, int root, int comm,
-                     int * ierr)
-{
-	int err, rnk;
-	mpi_comm_rank_wrap (comm, &rnk, &err);
-	if (dtype == 2)
-		printf (">>>> %d, %d, %d, %f\n", rnk, count, root, ((double*)buf)[0]);
-	else if (dtype == 1)
-		printf (">>>> %d, %d, %d, %ld\n", rnk, count, root, ((long*)buf)[0]);
-	else if (dtype == 0)
-		printf (">>>> %d, %d, %d, %d\n", rnk, count, root, ((int*)buf)[0]);
-
-	fflush(stdout);
-    *ierr = MPI_Bcast (buf, count, dtype_map[dtype], root, MPI_COMM_WORLD);
-	if (dtype == 2)
-		printf ("<<<< %d, %d, %d, %f\n", rnk, count, root, ((double*)buf)[0]);
-	else if (dtype == 1)
-		printf ("<<<< %d, %d, %d, %ld\n", rnk, count, root, ((long*)buf)[0]);
-	else if (dtype == 0)
-		printf ("<<<< %d, %d, %d, %d\n", rnk, count, root, ((int*)buf)[0]);
-	fflush(stdout);
-//	}
-}
-
-
-//
 // Wrapper for MPI_Alltoall
 void mpi_alltoall_wrap (void * sbuf, int scount, int stype, void * rbuf, 
                         int rcount, int rtype, int comm, int * ierr)

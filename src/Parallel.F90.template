@@ -231,14 +231,6 @@ module Parallel_neci
             integer(c_int), intent(in), value :: cnt, dtype, rt, comm
             integer(c_int), intent(out) :: ierr
         end subroutine
-        subroutine MPI_Bcast_dbg (buf, cnt, dtype, rt, comm, ierr) &
-            bind(c, name='mpi_bcast_wrap_dbg')
-            use iso_c_hack
-            use constants
-            %(type1)s, intent(inout) :: buf(*)
-            integer(c_int), intent(in), value :: cnt, dtype, rt, comm
-            integer(c_int), intent(out) :: ierr
-        end subroutine
         subroutine MPI_Alltoall (sbuf, scnt, stype, rbuf, rcnt, rtype, &
                                  comm, ierr) bind(c, name='mpi_alltoall_wrap')
             use iso_c_hack
@@ -771,38 +763,6 @@ contains
 #endif
     end subroutine
 
-    subroutine MPIBCast_dbg (v, Node)
-
-        ! The same as MPIBcast_len, but the number of elements in v is 
-        ! determined automagically
-        !
-        ! In:    Root   - The processor to broadcast from
-        ! InOut: v - The data to broadcast, and the returned v
-
-        %(type1)s, intent(inout) :: v()
-        integer(MPIArg) :: ierr, comm, rt
-        type(CommI), intent(in), optional :: Node
-        character(*), parameter :: t_r = 'MPIBcast'
-
-#ifdef PARALLEL
-        call GetComm (Comm, Node, rt)
-        if (%(mpitype)s == 2) &
-            write(6,*) 'V', v, rt, comm
-        call flush(6)
-
-        call MPI_Bcast_dbg (v, &
-                int(%(mpilen)s, MPIArg), &
-                %(mpitype)s, &
-                rt, comm, ierr)
-
-        if (%(mpitype)s == 2) &
-            write(6,*) 'VV', v, ierr
-        call flush(6)
-
-        if (ierr /= MPI_SUCCESS) &
-            call stop_all (t_r, 'MPI Error. Terminating.')
-#endif
-    end subroutine
 
 
     subroutine MPIBCast_logic (v, tMe, Node)
@@ -829,7 +789,7 @@ contains
             call MPI_Bcast (v, &
                     int(%(mpilen)s, MPIArg), &
                     %(mpitype)s, &
-                    rt, comm, ierr)
+                    nrt, comm, ierr)
         end if
 
         if (ierr /= MPI_SUCCESS) &
