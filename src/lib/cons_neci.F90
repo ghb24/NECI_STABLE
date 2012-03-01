@@ -4,9 +4,9 @@ module constants
 #ifdef PARALLEL
 #ifndef CBINDMPI 
 uSE mpi
+#endif
+#endif
 implicit none
-#endif
-#endif
 
 ! Constant data.
 
