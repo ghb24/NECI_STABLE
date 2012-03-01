@@ -1188,7 +1188,6 @@ SUBROUTINE InitClustSelectorFull(CS,iMaxSize,tTruncInit,dInitThresh)
    CS%tDynamic=.false.
    CS%tInitiators=tTruncInit
    CS%dInitiatorThresh=dInitThresh
-   CS%nSelects = 0
    Call InitCluster(CS%C)
 END SUBROUTINE InitClustSelectorFull
 
@@ -1224,7 +1223,6 @@ SUBROUTINE ResetClustSelector(CS,iRefPos)
    CS%iIndex=0
    CS%C%iSize=0
    CS%iRefPos=iRefPos
-   CS%nSelects = 0
 END SUBROUTINE ResetClustSelector
 
 !Takes an ordered tuple of length iSize, and gives the next one in sequence.
