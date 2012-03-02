@@ -6,6 +6,8 @@
 #ifdef CBINDMPI
 #include "mpi.h"
 
+int g_argc;
+char** g_argv;
 #ifndef MOLPRO
 //
 // We need an entry point which can be found by a c++ based linker
@@ -18,8 +20,6 @@ int main (int argc, char ** argv)
 	neci_main_c ();
 }
 #endif
-int g_argc;
-char** g_argv;
 
 // We need C-linkage
 extern "C" {
