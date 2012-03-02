@@ -227,6 +227,8 @@ contains
 
         call MPI_Barrier (comm, ierr)
         err = ierr
+#else
+        err = 0
 #endif
 
     end subroutine
@@ -239,9 +241,14 @@ contains
         integer(MPIArg), intent(out) :: ogrp
         integer(MPIArg) :: err, out_grp
 
+#ifdef PARALLEL
         call MPI_Group_incl (int(grp, MPIArg), int(n, MPIArg), &
                 int(rnks, MPIArg), ogrp, err)
         ierr = err
+#else
+        ogrp = 0
+        ierr = 0
+#endif
 
     end subroutine
 
@@ -253,9 +260,14 @@ contains
         integer, intent(out) :: ierr
         integer(MPIArg) :: err
 
+#ifdef PARALLEL
         call MPI_Comm_create (int(comm, MPIArg), int(group, MPIArg), &
                               ncomm, err)
         ierr = err
+#else
+        ncomm = 0
+        ierr = 0
+#endif
 
     end subroutine
 
@@ -266,13 +278,19 @@ contains
         integer, intent(out) :: ierr
         integer(MPIArg) :: err, gout
 
+#ifdef PARALLEL
         call MPI_Comm_Group (comm, gout, err)
         ierr = err
         grp = gout
+#else
+        grp = 0
+        ierr = 0
+#endif
 
     end subroutine
 
     subroutine MPIGather_hack (v, v2, nchar, nprocs, ierr, Node)
+#ifdef CBINDMPI
         interface
             ! Put this here to avoid polluting the global namespace
             subroutine MPI_Gather_2 (sbuf, scnt, stype, rbuf, rcnt, rtype, &
@@ -287,6 +305,7 @@ contains
                 integer(c_int), intent(out) :: ierr
             end subroutine
         end interface
+#endif
 
         integer, intent(in) :: nchar, nprocs
         character(len=nchar) :: v
@@ -331,6 +350,10 @@ contains
     end subroutine
 
     subroutine MPIAllreduceRt(rt, nrt, comm, ierr)
+        integer(MPIArg), intent(in) :: rt, comm
+        integer(MPIArg), intent(out) :: nrt, ierr
+#ifdef PARALLEL
+#ifdef CBINDMPI
         interface
             ! Put this here to avoid polluting the global namespace
             subroutine MPI_Allreduce_rt(val, ret, cnt, dtype, op, comm, ierr)&
@@ -343,10 +366,13 @@ contains
                 integer(c_int), intent(out) :: ierr
             end subroutine
         end interface
-        integer(MPIArg), intent(in) :: rt, comm
-        integer(MPIArg), intent(out) :: nrt, ierr
         call MPI_Allreduce_rt (rt, nrt, 1_MPIArg, MPI_INTEGER, MPI_MAX, &
                                comm, ierr)
+#else
+        call MPI_Allreduce (rt, nrt, 1_MPIArg, MPI_INTEGER, MPI_MAX, &
+                            comm, ierr)
+#endif
+#endif
 
     end subroutine
 
@@ -360,6 +386,10 @@ subroutine mpibarrier_c (error) bind(c)
     integer(c_int), intent(inout) :: error
     integer :: ierr
 
+#ifdef PARALLEL
     call MPIBarrier (ierr)
     error = ierr
+#else
+    error = 0
+#endif
 end subroutine

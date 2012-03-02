@@ -69,9 +69,5 @@ integer, parameter :: size_n_int = bits_n_int/8
 ! Index of last bit in an n_int integer (bits are indexed 0,1,...,bits_n_int-1).
 integer, parameter :: end_n_int = bits_n_int - 1
 
-#ifndef PARALLEL
-! This should not be used in serial.  Set to a nonsense value.
-integer, parameter :: MpiDetInt=-1
-#endif
 
 end module constants

@@ -1112,7 +1112,7 @@ contains
         ierr = err
 #else
         ierr = 0
-        Buffer(1) = Buffer(1)
+        Buffer = Buffer
 #endif
     end subroutine
 
@@ -1130,6 +1130,8 @@ contains
                 %(mpitype)s, &
                 int(Dest, MPIArg), int(Tag, MPIArg), MPI_COMM_WORLD, err)
         ierr = err
+#else
+        ierr = 0
 #endif
     end subroutine
 

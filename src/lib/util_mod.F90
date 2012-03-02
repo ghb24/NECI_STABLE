@@ -539,10 +539,10 @@ end module
         integer iargc
         neci_iargc = iargc()
 #elif defined MOLPRO
-        integer :: command_argument_count()
+        integer :: command_argument_count
         neci_iargc = command_argument_count ()
 #else
-        integer :: command_argument_count()
+        integer :: command_argument_count
         neci_iargc = command_argument_count ()
 #endif
     end function

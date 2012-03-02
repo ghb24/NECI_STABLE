@@ -1,16 +1,15 @@
-#include "mpi.h"
 #include "stdio.h"
 #include <string.h>
 #include <vector>
 #include <unistd.h>
 
 #ifdef CBINDMPI
+#include "mpi.h"
 
+#ifndef MOLPRO
 //
 // We need an entry point which can be found by a c++ based linker
 extern "C" void neci_main_c ();
-int g_argc;
-char** g_argv;
 
 int main (int argc, char ** argv)
 {
@@ -18,6 +17,9 @@ int main (int argc, char ** argv)
 	g_argv = argv;
 	neci_main_c ();
 }
+#endif
+int g_argc;
+char** g_argv;
 
 // We need C-linkage
 extern "C" {
