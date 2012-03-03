@@ -664,8 +664,8 @@ contains
         integer(n_int) :: recv_dets(0:NIfTot, max_spawned)
         integer :: proc_pos (nProcessors), proc_pos_init(nProcessors)
         integer :: send_count(nProcessors), recv_count(nProcessors)
-        integer :: send_data(nProcessors), recv_data(nProcessors)
-        integer :: send_off(nProcessors), recv_off(nProcessors)
+        integer(MPIArg) :: send_data(nProcessors), recv_data(nProcessors)
+        integer(MPIArg) :: send_off(nProcessors), recv_off(nProcessors)
 
         running = (TotWalkers > 0)
         any_running = .true.

@@ -2537,7 +2537,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
          IFDEBUG(iDebug,2) write(6,*) "Ref Det on this processor, pos ", iRefPos
       else
          iRefPos=-1
-         call MPIBCast(dNorm,.false.)
+         call MPIBcast(dnorm,.false.)
       endif
       IFDEBUG(iDebug,2) write(6,*) "Ref Det norm ", dNorm
 ! If we fail to find the HF det, the broadcast above will fail.
@@ -2708,12 +2708,14 @@ subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
       integer ValidSpawnedList(0:nNodes-1)
       integer nI(nEl)
       integer iDebug
-      integer Ends(0:NodeLengths(Node%n)-1)  !An index into DetList for each core in the node
-      integer Starts(0:NodeLengths(Node%n))  !An index into DetList for each core in the node
+      ! An index into DetList for each core in the node
+      integer(MPIArg) :: Ends(0:NodeLengths(Node%n)-1), iNext
+      ! An index into DetList for each core in the node
+      integer(MPIArg) :: Starts(0:NodeLengths(Node%n))
       integer nCores,mystart,myend
       integer ierr
 
-      integer i,p,iNext
+      integer i,p
 !Each processor has its own SpawnList and ValidSpawnedList, and can apportion particles into that.
 ! However, DetList is identical between cores on the same node.  We split the list into parts for each core on the node, and then put it back together later
 !      call WriteExcitorListP(6,DetList,0,nAmpl,0,"DetListIn")

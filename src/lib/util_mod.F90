@@ -16,6 +16,15 @@ module util_mod
     
 contains
 
+    subroutine print_cstr (str)
+        use iso_c_hack
+        character(c_char), intent(in) :: str(*)
+        integer :: i
+
+        print*, 'got str', (str(i),i=1,8)
+
+    end subroutine
+
 !routine to calculation the absolute magnitude of a complex integer variable (to nearest integer)
     pure integer function abs_int_sign(wsign)
         integer, dimension(lenof_sign), intent(in) :: wsign
@@ -509,69 +518,87 @@ end module
 
 !Hacks for compiler specific system calls.
     
-    INTEGER FUNCTION neci_iargc()
-#ifdef NAGF95
-    USe f90_unix_env, only: iargc
-#endif
-    IMPLICIT NONE
-#ifdef NAGF95
-    neci_iargc=iargc()
-#else
-#ifndef MOLPRO
-    INTEGER command_argument_count
-    neci_iargc=command_argument_count()
-#else
-#ifndef MOLPRO_f2003
-    INTEGER iargc
-    neci_iargc=iargc()
-#else
-    INTEGER command_argument_count
-    neci_iargc=command_argument_count()
-#endif
-#endif
-#endif
-    RETURN
-    END FUNCTION neci_iargc
+    integer function neci_iargc()
 
-    SUBROUTINE neci_getarg(i,str)
 #ifdef NAGF95
-    USe f90_unix_env, only: getarg
+        use f90_unix_env, only: iargc
 #endif
-    IMPLICIT NONE
-    INTEGER          :: i
-    CHARACTER(LEN=*) :: str
-#if defined(__OPEN64__) || defined(__PATHSCALE__)
-    INTEGER*4        :: j
+
+        implicit none
+#if defined(CBINDMPI) && !defined(MOLPRO)
+        interface
+            function c_argc () result(ret) bind(c)
+                use iso_c_hack
+                integer(c_int) :: ret
+            end function
+        end interface
+        neci_iargc = c_argc()
+#elif defined NAGF90
+        neci_iargc = iargc()
+#elif defined MOLPRO_f2003
+        integer iargc
+        neci_iargc = iargc()
+#elif defined MOLPRO
+        integer :: command_argument_count
+        neci_iargc = command_argument_count ()
+#else
+        integer :: command_argument_count
+        neci_iargc = command_argument_count ()
 #endif
+    end function
+
+
+
+    subroutine neci_getarg (i, str)
+
 #ifdef NAGF95
-    CALL getarg(i,str)
-#else
-#ifdef MOLPRO
-#ifndef MOLPRO_f2003
-    CALL getarg(i,str)
-#else
+        use f90_unix_env, only: getarg
+#endif
+        use constants
+        use iso_c_hack
+        use util_mod
+        implicit none
+        integer, intent(in) :: i
+        character(len=*), intent(out) :: str
+
 #if defined(__OPEN64__) || defined(__PATHSCALE__)
-    j=i
-    CALL get_command_argument(j,str)
+        integer(int32) :: j
+#endif
+
+#if defined(CBINDMPI) && !defined(MOLPRO)
+        ! Define interfaces that we need
+        interface
+            pure function c_getarg_len (i) result(ret) bind(c)
+                use iso_c_hack
+                integer(c_int), intent(in), value :: i
+                integer(c_int) :: ret
+            end function
+            pure subroutine c_getarg (i, str) bind(c)
+                use iso_c_hack
+                integer(c_int), intent(in), value :: i
+                character(c_char), intent(out) :: str
+            end subroutine
+        end interface
+        integer :: j
+        character(len=c_getarg_len(int(i, c_int))) :: str2
+
+        call c_getarg (int(i, c_int), str2)
+
+        str = str2
+
+#elif defined NAGF95
+        call getarg(i, str)
+#elif defined(MOLPRO) && !defined(MOLPRO_f2003)
+        call getarg(i, str)
+#elif defined(__OPEN64__) || defined(__PATHSCALE__)
+        j = i
+        call get_command_argument (j, str)
 #else
-    CALL get_command_argument(i,str)
+        call get_command_argument (i, str)
 #endif
-#endif
-!endif molp2003
-#else
-!else not molp
-#if defined(__OPEN64__) || defined(__PATHSCALE__)
-    j=i
-    CALL get_command_argument(j,str)
-#else
-    CALL get_command_argument(i,str)
-#endif
-#endif
-!endif molpro
-#endif
-!endif nag
-    RETURN
-    END SUBROUTINE neci_getarg
+
+    end subroutine neci_getarg
+
 
     subroutine neci_flush(un)
 #ifdef NAGF95

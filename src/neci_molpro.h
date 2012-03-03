@@ -15,9 +15,10 @@
 
 /* parallel not yet working */
 /*#ifdef _MOLCAS_MPP_ */
-/*#define __SHARED_MEM*/
-/*#define PARALLEL*/
-/*#endif*/
+/*#define __SHARED_MEM */
+/*#define PARALLEL */
+/*#define CBINDMPI */
+/*#endif */
 
 #ifndef MOLPRO_f2003
 #define __ISO_C_HACK

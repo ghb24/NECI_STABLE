@@ -334,6 +334,25 @@ contains
         ! sample code in NumericalRecipies as a base.
         ! Optionally sort arr2 in parallel (in the routines it is enabled)
 
+        ! Custom comparisons. Use the operator .locallt. & .localgt.
+        %(custom_compare_prefix)s interface operator(.locallt.)
+        %(custom_compare_prefix)s     pure function custom_lt (b, c) result (ret)
+        %(custom_compare_prefix)s         use constants
+        %(custom_compare_prefix)s         %(type1)s, intent(in) :: b(:)
+        %(custom_compare_prefix)s         %(type1)s, intent(in) :: c(:)
+        %(custom_compare_prefix)s         logical :: ret
+        %(custom_compare_prefix)s     end function 
+        %(custom_compare_prefix)s end interface    
+        %(custom_compare_prefix)s interface operator(.localgt.)
+        %(custom_compare_prefix)s     pure function custom_gt (b, c) result (ret)
+        %(custom_compare_prefix)s         use constants
+        %(custom_compare_prefix)s         %(type1)s, intent(in) :: b(:)
+        %(custom_compare_prefix)s         %(type1)s, intent(in) :: c(:)
+        %(custom_compare_prefix)s         logical :: ret
+        %(custom_compare_prefix)s     end function 
+        %(custom_compare_prefix)s end interface    
+
+
         ! sort needs auxiliary storage of length 2*log_2(n).
         integer, parameter :: nStackMax = 50
         integer, parameter :: nInsertionSort = 7
@@ -367,24 +386,6 @@ contains
         %(type6)s :: tmp6(size(arr6(1)))
         character(*), parameter :: this_routine = 'sort'
 
-        ! Custom comparisons. Use the operator .locallt. & .localgt.
-        %(custom_compare_prefix)s interface operator(.locallt.)
-        %(custom_compare_prefix)s     pure function custom_lt (b, c) result (ret)
-        %(custom_compare_prefix)s         use constants
-        %(custom_compare_prefix)s         %(type1)s, intent(in) :: b(:)
-        %(custom_compare_prefix)s         %(type1)s, intent(in) :: c(:)
-        %(custom_compare_prefix)s         logical :: ret
-        %(custom_compare_prefix)s     end function 
-        %(custom_compare_prefix)s end interface    
-        %(custom_compare_prefix)s interface operator(.localgt.)
-        %(custom_compare_prefix)s     pure function custom_gt (b, c) result (ret)
-        %(custom_compare_prefix)s         use constants
-        %(custom_compare_prefix)s         %(type1)s, intent(in) :: b(:)
-        %(custom_compare_prefix)s         %(type1)s, intent(in) :: c(:)
-        %(custom_compare_prefix)s         logical :: ret
-        %(custom_compare_prefix)s     end function 
-        %(custom_compare_prefix)s end interface    
-
 
         ! Initialise temporary variables if required
         %(tmp_init1)s(a)
@@ -402,6 +403,8 @@ contains
         
         ! *** HACK ***
         ! Workaround for gfortran compiler bug
+        ! n.b. This will produce spurious warnings if run in valgrind, as
+        !      a is not initialised. Not a problem in optimised build.
         %(custom_compare_prefix)s if (custom_lt(a, a)) i = i
         %(custom_compare_prefix)s if (custom_gt(a, a)) i = i
 
