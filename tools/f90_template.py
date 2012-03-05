@@ -206,7 +206,7 @@ def adj_arrays (template, config):
 	tsplitter=re.compile("\n[^!\n]*(subroutine|function)",flags=re.IGNORECASE)
 
 	# Locate any local interfaces.
-	re_interfaces = re.compile("(interface)((.|\n)+?)(end\s+interface)")
+	re_interfaces = re.compile("(\n[^!\n]*interface)((.|\n)+?)(\n[^!\n]*end\s+interface)")
 
 	# Find splitting points for subroutines excluding those within
 	# interface statements.
@@ -301,7 +301,53 @@ def adj_arrays (template, config):
 				
 		newtemplate += templpart 
 
-	return (newtemplate, config)
+
+	# Now we want to search through for any interfaces. We then want to remove the (*)
+	# from any arrys which have them.
+	split_ints = []
+	last_end = 0
+	new_template2 = ""
+	for s in re_interfaces.finditer (newtemplate):
+
+		# Where does this interface start/end
+		start, end = s.start(), s.end()
+		templpart = template[start:end+1]
+
+		# Fill in any unchanged region.
+		new_template2 += template[last_end:start]
+
+		# Find and fix any variables of the managed types.
+		for type in types:
+
+			# If the type is a scalar, then we need to remove the assumed-type part
+			# of it
+			if types[type] == 0:
+
+				re_assumed = re.compile ('(\n\s*%%\(%s\)s.*::\s*[^()]*)([\s^\n]*\(\*\))(.*\n)' % type)
+
+				v = re_assumed.search(templpart)
+				offset = 0
+				while v:
+
+					# Fix this section by removing assumed-type parts
+					templpart = (templpart[0:v.start()+offset] +
+						re_assumed.sub("\\1\\3", templpart[v.start()+offset:], 1))
+
+					offset = offset + v.start() + 1
+					v = re_assumed.search(templpart[offset:])
+
+
+		# We want to start after this region.
+		new_template2 += templpart
+		last_end = end
+
+	# Fill in the rest
+	new_template2 += newtemplate[last_end:]
+
+	return (new_template2, config)
+
+
+
 
 def interface_procs (template):
 	'''Create module procedure interfaces for all of the module procedures'''
@@ -366,7 +412,15 @@ if __name__ == '__main__':
 		for s in config:
 			# Adjust arrays to have the right number of dimensions
 			(tmpl, cfg) = adj_arrays(template, config[s])
-			fout.write(tmpl % cfg)
+			try:
+				fout.write(tmpl % cfg)
+			except ValueError as e:
+				print 'Value error: ', e
+				fout.write(tmpl)
+			except Exception as e:
+				print tmpl
+				print "Exception: ", e
+				raise
 			fout.write("\n\n")
 		fout.write(super_mod)
 

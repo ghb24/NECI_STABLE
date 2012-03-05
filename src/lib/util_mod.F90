@@ -13,8 +13,17 @@ module util_mod
 !    public :: swap, arr_lt, arr_gt, operator(.arrlt.), operator(.arrgt.)
 !    public :: factrl, choose, int_fmt, binary_search
 !    public :: append_ext, get_unique_filename, get_nan, isnan
-    
+
 contains
+
+    subroutine print_cstr (str)
+        use iso_c_hack
+        character(c_char), intent(in) :: str(*)
+        integer :: i
+
+        print*, 'got str', (str(i),i=1,8)
+
+    end subroutine
 
 !routine to calculation the absolute magnitude of a complex integer variable (to nearest integer)
     pure integer function abs_int_sign(wsign)
@@ -49,9 +58,9 @@ contains
          ! In:
          !    N: number of elements in A.
          !    A: vector to be copied.
-         !    IA: increment between elements to be copied in A.  
+         !    IA: increment between elements to be copied in A.
          !        IA=1 for continuous data blocks.
-         !    IB: increment between elements to be copied to in B.  
+         !    IB: increment between elements to be copied to in B.
          !        IB=1 for continuous data blocks.
          ! Out:
          !    B: result vector.
@@ -62,13 +71,13 @@ contains
          INTEGER, INTENT(OUT) :: B(IB*N)
 !        Variables
          INTEGER I,IAX,IBX
-     
+
          DO I=1,N
            IAX=(I-1)*IA + 1
            IBX=(I-1)*IB + 1
            B(IBX) = A(IAX)
          ENDDO
-     
+
          RETURN
       END SUBROUTINE NECI_ICOPY
 
@@ -113,7 +122,7 @@ contains
     end function factrl
 
     elemental real(dp) function choose (n, r)
-        
+
         ! Return the binomail coefficient nCr
 
         integer, intent(in) :: n, r
@@ -137,7 +146,7 @@ contains
     end function choose
 
 !--- Comparison of subarrays ---
-    
+
     logical pure function det_int_arr_gt (a, b, len)
         use constants, only: n_int
 
@@ -151,7 +160,7 @@ contains
         !NOTE: These will sort by the bit-string integer length, n_int.
         !Therefore, these may be 32 or 64 bit integers and should
         !only be used as such.
-    
+
         integer(kind=n_int), intent(in), dimension(:) :: a, b
         integer, intent(in), optional :: len
 
@@ -180,7 +189,7 @@ contains
             endif
         endif
     end function det_int_arr_gt
-        
+
 
     logical pure function det_int_arr_eq (a, b, len)
         use constants, only: n_int
@@ -197,7 +206,7 @@ contains
 
         integer(kind=n_int), intent(in), dimension(:) :: a, b
         integer, intent(in), optional :: len
-        
+
         integer llen, i
 
         ! Obtain the lengths of the arrays if a bound is not specified.
@@ -304,14 +313,14 @@ contains
                 lo = pos + 1
             endif
         enddo
-        
+
         ! Return the converged value.
         pos = hi
 
     end function
 
-    ! NOTE: This can only be used for binary searching determinant bit 
-    !       strings now. We can template it if it wants to be more general 
+    ! NOTE: This can only be used for binary searching determinant bit
+    !       strings now. We can template it if it wants to be more general
     !       in the future if needed.
     function binary_search (arr, val, cf_len) &
                                  result(pos)
@@ -371,7 +380,7 @@ contains
             endif
         enddo
 
-        ! If we have narrowed down to one position, and it is not the item, 
+        ! If we have narrowed down to one position, and it is not the item,
         ! then return -pos to indicate that the item is not present, but that
         ! this is the location it should be in.
         if (hi == lo) then
@@ -404,7 +413,7 @@ contains
        integer, intent(in) :: bytes
        integer :: record_length_loc
        inquire(iolength=record_length_loc) bytes
-!       record_length = (bytes/4)*record_length   
+!       record_length = (bytes/4)*record_length
        record_length = (bytes/sizeof_int)*int(record_length_loc,sizeof_int)
 ! 8 indicates 8-byte words I think
     end function record_length
@@ -504,74 +513,85 @@ contains
         if (i == max_unit+1) call stop_all('get_free_unit','Cannot find a free unit below max_unit.')
 
     end function get_free_unit
-    
+
 end module
 
 !Hacks for compiler specific system calls.
-    
-    INTEGER FUNCTION neci_iargc()
-#ifdef NAGF95
-    USe f90_unix_env, only: iargc
-#endif
-    IMPLICIT NONE
-#ifdef NAGF95
-    neci_iargc=iargc()
-#else
-#ifndef MOLPRO
-    INTEGER command_argument_count
-    neci_iargc=command_argument_count()
-#else
-#ifndef MOLPRO_f2003
-    INTEGER iargc
-    neci_iargc=iargc()
-#else
-    INTEGER command_argument_count
-    neci_iargc=command_argument_count()
-#endif
-#endif
-#endif
-    RETURN
-    END FUNCTION neci_iargc
 
-    SUBROUTINE neci_getarg(i,str)
+    integer function neci_iargc()
+        implicit none
+#if defined(CBINDMPI) && !defined(MOLPRO)
+        interface
+            function c_argc () result(ret) bind(c)
+                use iso_c_hack
+                integer(c_int) :: ret
+            end function
+        end interface
+        neci_iargc = c_argc()
+#elif defined(MOLPRO_f2003)
+        integer command_argument_count
+        neci_iargc=command_argument_count()
+#elif defined(MOLPRO)
+        integer iargc
+        neci_iargc=iargc()
+#else
+        integer :: command_argument_count
+        neci_iargc = command_argument_count ()
+#endif
+    end function
+
+
+
+    subroutine neci_getarg (i, str)
+
 #ifdef NAGF95
-    USe f90_unix_env, only: getarg
+        use f90_unix_env, only: getarg
 #endif
-    IMPLICIT NONE
-    INTEGER          :: i
-    CHARACTER(LEN=*) :: str
+        use constants
+        use iso_c_hack
+        use util_mod
+        implicit none
+        integer, intent(in) :: i
+        character(len=*), intent(out) :: str
+
 #if defined(__OPEN64__) || defined(__PATHSCALE__)
-    INTEGER*4        :: j
+        integer(int32) :: j
 #endif
-#ifdef NAGF95
-    CALL getarg(i,str)
+
+#if defined(CBINDMPI) && !defined(MOLPRO)
+        ! Define interfaces that we need
+        interface
+            pure function c_getarg_len (i) result(ret) bind(c)
+                use iso_c_hack
+                integer(c_int), intent(in), value :: i
+                integer(c_int) :: ret
+            end function
+            pure subroutine c_getarg (i, str) bind(c)
+                use iso_c_hack
+                integer(c_int), intent(in), value :: i
+                character(c_char), intent(out) :: str
+            end subroutine
+        end interface
+        integer :: j
+        character(len=c_getarg_len(int(i, c_int))) :: str2
+
+        call c_getarg (int(i, c_int), str2)
+
+        str = str2
+
+#elif defined NAGF95
+        call getarg(i, str)
+#elif defined(MOLPRO) && !defined(MOLPRO_f2003)
+        call getarg(i, str)
+#elif defined(__OPEN64__) || defined(__PATHSCALE__)
+        j = i
+        call get_command_argument (j, str)
 #else
-#ifdef MOLPRO
-#ifndef MOLPRO_f2003
-    CALL getarg(i,str)
-#else
-#if defined(__OPEN64__) || defined(__PATHSCALE__)
-    j=i
-    CALL get_command_argument(j,str)
-#else
-    CALL get_command_argument(i,str)
+        call get_command_argument (i, str)
 #endif
-#endif
-!endif molp2003
-#else
-!else not molp
-#if defined(__OPEN64__) || defined(__PATHSCALE__)
-    j=i
-    CALL get_command_argument(j,str)
-#else
-    CALL get_command_argument(i,str)
-#endif
-#endif
-!endif molpro
-#endif
-!endif nag
-    RETURN
-    END SUBROUTINE neci_getarg
+
+    end subroutine neci_getarg
+
 
     subroutine neci_flush(un)
 #ifdef NAGF95
@@ -605,7 +625,7 @@ end module
       time(2) = 0
     end function neci_etime
 
-    integer function neci_system(str) 
+    integer function neci_system(str)
 #ifdef NAGF95
     Use f90_unix_proc, only: system
 #endif
@@ -650,4 +670,3 @@ end module
     end function
 
 #endif
-
