@@ -17,7 +17,7 @@
 #include "dSFMT-params.h"
 
 /** dsfmt internal state vector */
-static dsfmt_t dsfmt_global_data;
+dsfmt_t dsfmt_global_data;
 /** dsfmt mexp for check */
 static const int dsfmt_mexp = DSFMT_MEXP;
 
