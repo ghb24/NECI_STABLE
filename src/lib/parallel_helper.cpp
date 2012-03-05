@@ -1,10 +1,13 @@
-#include "stdio.h"
+#ifdef MOLPRO
+#include "neci_molpro.h"
+#endif
+#include <stdio.h>
 #include <string.h>
 #include <vector>
 #include <unistd.h>
 
 #ifdef CBINDMPI
-#include "mpi.h"
+#include <mpi.h>
 
 int g_argc;
 char** g_argv;
@@ -52,7 +55,7 @@ void c_getarg (int i, char * str)
 // --> We need to create a mapping between constants in fortran and C.
 //     See ParallelHelper.F90 for the fortran equivalents.
 //
-// --> We need to store generated Comms and Groups within the C code and 
+// --> We need to store generated Comms and Groups within the C code and
 //     pass an index to those lists between fortran and C.
 //
 
@@ -175,7 +178,7 @@ void mpi_comm_create_wrap (int comm, int group, int * ncomm, int * ierr)
 	MPI_Comm comm_handle = comm_vec[comm];
 	MPI_Group grp_handle = group_vec[group];
 	MPI_Comm new_comm;
-	
+
 	*ierr = MPI_Comm_create (comm_handle, grp_handle, &new_comm);
 
 	// Add this comm to the list, and return its index
@@ -214,8 +217,8 @@ void mpi_reduce_wrap (void * sbuf, void * rbuf, int count, int dtype,
                       int op, int root, int comm, int * ierr)
 {
 
-    *ierr = MPI_Reduce (sbuf ? sbuf : MPI_IN_PLACE, 
-                        rbuf ? rbuf : MPI_IN_PLACE, count, dtype_map[dtype], 
+    *ierr = MPI_Reduce (sbuf ? sbuf : MPI_IN_PLACE,
+                        rbuf ? rbuf : MPI_IN_PLACE, count, dtype_map[dtype],
                         op_map[op], root, comm_vec[comm]);
 }
 
@@ -225,15 +228,15 @@ void mpi_reduce_wrap (void * sbuf, void * rbuf, int count, int dtype,
 void mpi_allreduce_wrap (double * sbuf, double * rbuf, int count, int dtype,
                          int op, int comm, int * ierr)
 {
-    *ierr = MPI_Allreduce (sbuf ? sbuf : MPI_IN_PLACE, 
-                           rbuf ? rbuf : MPI_IN_PLACE, count, 
+    *ierr = MPI_Allreduce (sbuf ? sbuf : MPI_IN_PLACE,
+                           rbuf ? rbuf : MPI_IN_PLACE, count,
                            dtype_map[dtype], op_map[op], comm_vec[comm]);
 }
 
 
 //
 // Wrapper for MPI_Bcast
-void mpi_bcast_wrap (void * buf, int count, int dtype, int root, int comm, 
+void mpi_bcast_wrap (void * buf, int count, int dtype, int root, int comm,
                      int * ierr)
 {
     *ierr = MPI_Bcast (buf, count, dtype_map[dtype], root, comm_vec[comm]);
@@ -242,28 +245,28 @@ void mpi_bcast_wrap (void * buf, int count, int dtype, int root, int comm,
 
 //
 // Wrapper for MPI_Alltoall
-void mpi_alltoall_wrap (void * sbuf, int scount, int stype, void * rbuf, 
+void mpi_alltoall_wrap (void * sbuf, int scount, int stype, void * rbuf,
                         int rcount, int rtype, int comm, int * ierr)
 {
-    *ierr = MPI_Alltoall (sbuf, scount, dtype_map[stype], rbuf, rcount, 
+    *ierr = MPI_Alltoall (sbuf, scount, dtype_map[stype], rbuf, rcount,
                           dtype_map[rtype], comm_vec[comm]);
 }
 
 
 //
 // Wrapper for MPI_AlltoallV
-void mpi_alltoallv_wrap (void * sbuf, int * scount, int * sdispl, int stype, 
+void mpi_alltoallv_wrap (void * sbuf, int * scount, int * sdispl, int stype,
                          void * rbuf, int * rcount, int * rdispl, int rtype,
                          int comm, int * ierr)
 {
-    *ierr = MPI_Alltoallv (sbuf, scount, sdispl, dtype_map[stype], rbuf, 
+    *ierr = MPI_Alltoallv (sbuf, scount, sdispl, dtype_map[stype], rbuf,
                            rcount, rdispl, dtype_map[rtype], comm_vec[comm]);
 }
 
 
 //
 // Wrapper for MPI_Gather
-void mpi_gather_wrap (void * sbuf, int scount, int stype, void * rbuf, 
+void mpi_gather_wrap (void * sbuf, int scount, int stype, void * rbuf,
                       int rcount, int rtype, int root, int comm, int * ierr)
 {
     *ierr = MPI_Gather (sbuf, scount, dtype_map[stype], rbuf, rcount,
@@ -273,7 +276,7 @@ void mpi_gather_wrap (void * sbuf, int scount, int stype, void * rbuf,
 
 //
 // Wrapper for MPI_GatherV
-void mpi_gatherv_wrap (void * sbuf, int scount, int stype, void * rbuf, 
+void mpi_gatherv_wrap (void * sbuf, int scount, int stype, void * rbuf,
                       int * rcount, int * displs, int rtype, int root,
                       int comm, int * ierr)
 {
@@ -286,18 +289,18 @@ void mpi_gatherv_wrap (void * sbuf, int scount, int stype, void * rbuf,
 void mpi_allgather_wrap (void * sbuf, int scount, int stype, void * rbuf,
                          int rcount, int rtype, int comm, int * ierr)
 {
-    *ierr = MPI_Allgather (sbuf, scount, dtype_map[stype], rbuf, rcount, 
+    *ierr = MPI_Allgather (sbuf, scount, dtype_map[stype], rbuf, rcount,
                            dtype_map[rtype], comm_vec[comm]);
 }
 
 
 //
 // Wrapper for MPI_ScatterV
-void mpi_scatterv_wrap (void * sbuf, int * scount, int * displs, int stype, 
-                        void * rbuf, int rcount, int rtype, int root, 
+void mpi_scatterv_wrap (void * sbuf, int * scount, int * displs, int stype,
+                        void * rbuf, int rcount, int rtype, int root,
                         int comm, int * ierr)
 {
-    *ierr = MPI_Scatterv (sbuf, scount, displs, dtype_map[stype], rbuf, 
+    *ierr = MPI_Scatterv (sbuf, scount, displs, dtype_map[stype], rbuf,
                           rcount, dtype_map[rtype], root, comm_vec[comm]);
 }
 
@@ -307,14 +310,14 @@ void mpi_scatterv_wrap (void * sbuf, int * scount, int * displs, int stype,
 void mpi_scatter_wrap (void * sbuf, int scount, int stype, void * rbuf,
 		               int rcount, int rtype, int root, int comm, int * ierr)
 {
-    *ierr = MPI_Scatter (sbuf, scount, dtype_map[stype], rbuf, 
+    *ierr = MPI_Scatter (sbuf, scount, dtype_map[stype], rbuf,
                           rcount, dtype_map[rtype], root, comm_vec[comm]);
 }
 
 
 //
 // Wrapper for MPI_Send
-void mpi_send_wrap (void * buf, int count, int dtype, int dest, int tag, 
+void mpi_send_wrap (void * buf, int count, int dtype, int dest, int tag,
                     int comm, int * ierr)
 {
     *ierr = MPI_Send (buf, count, dtype_map[dtype], dest, tag,
@@ -324,11 +327,11 @@ void mpi_send_wrap (void * buf, int count, int dtype, int dest, int tag,
 
 //
 // Wrapper for MPI_Recv
-void mpi_recv_wrap (void * buf, int count, int dtype, int src, int tag, 
+void mpi_recv_wrap (void * buf, int count, int dtype, int src, int tag,
                     int comm, int * stat_ignore, int * ierr)
 {
     MPI_Status stat;
-    *ierr = MPI_Recv (buf, count, dtype_map[dtype], src, tag, 
+    *ierr = MPI_Recv (buf, count, dtype_map[dtype], src, tag,
                       comm_vec[comm], &stat); // comm
 }
 
