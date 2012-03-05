@@ -1,6 +1,3 @@
-#ifdef MOLPRO
-#include "neci_molpro.h"
-#endif
 #include <stdio.h>
 #include <string.h>
 #include <vector>
