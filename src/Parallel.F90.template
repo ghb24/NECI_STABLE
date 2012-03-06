@@ -8,6 +8,7 @@ mpiprt="None"
 mpilen=1
 mpilen2=1
 ndim=0
+arr_shp=
 
 [int64]
 type1=integer(int64)
@@ -40,6 +41,7 @@ mpiprt=ubound(v,1),lbound(v,1)
 mpilen=(ubound(v,1)-lbound(v,1)+1)
 mpilen2=(ubound(v2,1)-lbound(v2,1)+1)
 ndim=1
+arr_shp=, (/1/)
 
 [arr_int64]
 type1=integer(int64), dimension(:)
@@ -70,6 +72,7 @@ mpiprt=ubound(v,1),lbound(v,1),ubound(v,2),lbound(v,2)
 mpilen=((ubound(v,1)-lbound(v,1)+1)*(ubound(v,2)-lbound(v,2)+1))
 mpilen2=((ubound(v2,1)-lbound(v2,1)+1)*(ubound(v2,2)-lbound(v2,2)+1))
 ndim=2
+arr_shp=, (/1,1/)
 
 [arr2_int64]
 type1=integer(int64), dimension(:,:)
@@ -102,6 +105,7 @@ mpilen=((ubound(v,1)-lbound(v,1)+1)*(ubound(v,2)-lbound(v,2)+1)*&
 mpilen2=((ubound(v2,1)-lbound(v2,1)+1)*(ubound(v2,2)-lbound(v2,2)+1)*& 
  (ubound(v2,3)-lbound(v2,3)+1))
 ndim=3
+arr_shp=, (/1,1,1/)
 
 [arr3_doub]
 type1=real(dp), dimension(:,:,:)
@@ -124,6 +128,7 @@ mpilen=((ubound(v,1)-lbound(v,1)+1)*(ubound(v,2)-lbound(v,2)+1)*&
 mpilen2=((ubound(v2,1)-lbound(v2,1)+1)*(ubound(v2,2)-lbound(v2,2)+1)*& 
  (ubound(v2,3)-lbound(v2,3)+1)*(ubound(v2,4)-lbound(v2,4)+1))
 ndim=4
+arr_shp=, (/1,1,1,1/)
 
 [arr4_doub]
 type1=real(dp), dimension(:,:,:,:)
@@ -415,7 +420,7 @@ contains
 #ifdef CBINDMPI
         ! Spaces prevent template adjustment
         %(type1)s, pointer :: MPI_IN_PLACE( : )
-        call c_f_pointer (C_NULL_PTR, MPI_IN_PLACE, (/1/))
+        call c_f_pointer (C_NULL_PTR, MPI_IN_PLACE%(arr_shp)s)
 #endif
 
 #ifdef PARALLEL
@@ -520,7 +525,7 @@ contains
 #ifdef CBINDMPI
         ! Spaces prevent template adjustment
         %(type1)s, pointer :: MPI_IN_PLACE( : )
-        call c_f_pointer (C_NULL_PTR, MPI_IN_PLACE, (/1/))
+        call c_f_pointer (C_NULL_PTR, MPI_IN_PLACE%(arr_shp)s)
 #endif
 
 #ifdef PARALLEL
