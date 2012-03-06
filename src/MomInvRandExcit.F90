@@ -1,7 +1,7 @@
 #include "macros.h"
 module MomInvRandExcit
     use constants, only: dp,n_int
-    use SystemData, only: NEl, G1, nBasis, tAntisym_MI
+    use SystemData, only: NEl, G1, nBasis, tAntisym_MI, modk_offdiag
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel
     use sltcnd_mod, only: sltcnd, sltcnd_excit
     use bit_reps, only: NIfD, NIfTot, NIfDBO, decode_bit_det
@@ -76,6 +76,7 @@ module MomInvRandExcit
                         HEl=MatEl*SQRT(2.D0)
                     endif
                 ENDIF
+                if (ic /= 0 .and. modk_offdiag) hel = -abs(hel)
             ENDIF
         ELSE
 !Momentum paired excitation - could we have generated the momentum inverted determinant instead?
@@ -162,6 +163,7 @@ module MomInvRandExcit
                     
                     ENDIF   !Endif from MomInv/not det
 
+                    if (ic /= 0 .and. modk_offdiag) hel = -abs(hel)
                 ENDIF   !Endif want to generate matrix element
 
             ELSEIF(ExcitLevel.eq.0) THEN
@@ -183,6 +185,7 @@ module MomInvRandExcit
                     ENDIF
 
                     HEl=MatEl
+                    if (ic /= 0 .and. modk_offdiag) hel = -abs(hel)
                         
                 ENDIF
 
