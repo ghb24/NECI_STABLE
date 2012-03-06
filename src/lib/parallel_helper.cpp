@@ -1,5 +1,5 @@
-#ifdef MOLPRO
-#include "neci_molpro.h"
+#ifdef CBINDMPI
+#include <mpi.h>
 #endif
 #include <stdio.h>
 #include <string.h>
@@ -7,7 +7,6 @@
 #include <unistd.h>
 
 #ifdef CBINDMPI
-#include <mpi.h>
 
 int g_argc;
 char** g_argv;

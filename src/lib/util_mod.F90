@@ -1,4 +1,3 @@
-#include "neci_molpro.h"
 module util_mod
     use util_mod_comparisons
     use util_mod_cpts
