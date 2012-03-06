@@ -69,3 +69,14 @@ endif
 #define ARR_RE_OR_CPLX(arr) real(arr(1), dp)
 #define ARR_ABS(arr) abs(arr(1))
 #endif
+
+
+#if defined(__PATHSCALE__) || defined(__ISO_C_HACK)
+#ifdef POINTER8
+#define c_ptr_t integer(int64)
+#else
+#define c_ptr_t integer(int32)
+#endif
+#else
+#define c_ptr_t type(c_ptr)
+#endif

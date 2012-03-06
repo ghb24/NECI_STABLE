@@ -141,6 +141,8 @@ mpitype=MPI_INTEGER8
 =========================
 
 
+#include "macros.h"
+
 !
 ! n.b HACK
 ! We need to be able to do a bit of hackery when using C-based MPI
@@ -222,7 +224,7 @@ module Parallel_neci
             bind(c, name='mpi_reduce_wrap')
             use iso_c_hack
             use constants
-            type(c_ptr), intent(in), value :: val, ret
+            c_ptr_t, intent(in), value :: val, ret
             integer(c_int), intent(in), value :: cnt, dtype, op, rt, comm
             integer(c_int), intent(out) :: ierr
         end subroutine
@@ -230,7 +232,7 @@ module Parallel_neci
             bind(c, name='mpi_allreduce_wrap')
             use iso_c_hack
             use constants
-            type(c_ptr), intent(in), value :: val, ret
+            c_ptr_t, intent(in), value :: val, ret
             integer(c_int), intent(in), value :: cnt, dtype, op, comm
             integer(c_int), intent(out) :: ierr
         end subroutine
@@ -238,7 +240,7 @@ module Parallel_neci
             bind(c, name='mpi_bcast_wrap')
             use iso_c_hack
             use constants
-            type(c_ptr), intent(in), value :: buf
+            c_ptr_t, intent(in), value :: buf
             integer(c_int), intent(in), value :: cnt, dtype, rt, comm
             integer(c_int), intent(out) :: ierr
         end subroutine
@@ -246,7 +248,7 @@ module Parallel_neci
                                  comm, ierr) bind(c, name='mpi_alltoall_wrap')
             use iso_c_hack
             use constants
-            type(c_ptr), intent(in), value :: sbuf, rbuf
+            c_ptr_t, intent(in), value :: sbuf, rbuf
             integer(c_int), intent(in), value :: scnt, stype, rcnt
             integer(c_int), intent(in), value :: rtype, comm
             integer(c_int), intent(out) :: ierr
@@ -256,7 +258,7 @@ module Parallel_neci
                                   bind(c, name='mpi_alltoallv_wrap')
             use iso_c_hack
             use constants
-            type(c_ptr), intent(in), value :: sbuf, rbuf
+            c_ptr_t, intent(in), value :: sbuf, rbuf
             integer(MPIArg), intent(in) :: scnts(*), sdispl(*)
             integer(MPIArg), intent(in) :: rcnts(*), rdispl(*)
             integer(c_int), intent(in), value :: stype, rtype, comm
@@ -267,7 +269,7 @@ module Parallel_neci
                                  bind(c, name='mpi_gather_wrap')
             use iso_c_hack
             use constants
-            type(c_ptr), intent(in), value :: sbuf, rbuf
+            c_ptr_t, intent(in), value :: sbuf, rbuf
             integer(c_int), intent(in), value :: scnt, stype, rcnt, rtype
             integer(c_int), intent(in), value :: comm, rt
             integer(c_int), intent(out) :: ierr
@@ -277,7 +279,7 @@ module Parallel_neci
                                 bind(c, name='mpi_gatherv_wrap')
             use iso_c_hack
             use constants
-            type(c_ptr), intent(in), value :: sbuf, rbuf
+            c_ptr_t, intent(in), value :: sbuf, rbuf
             integer(c_int), intent(in), value :: scnt, stype, rtype
             integer(c_int), intent(in), value :: comm, rt
             integer(MPIArg), intent(in) :: displs(*)
@@ -289,7 +291,7 @@ module Parallel_neci
                                bind(c, name='mpi_allgather_wrap')
             use iso_c_hack
             use constants
-            type(c_ptr), intent(in), value :: sbuf, rbuf
+            c_ptr_t, intent(in), value :: sbuf, rbuf
             integer(c_int), intent(in), value :: scnt, stype, rcnt, rtype
             integer(c_int), intent(in), value :: comm
             integer(c_int), intent(out) :: ierr
@@ -299,7 +301,7 @@ module Parallel_neci
                                  bind(c, name='mpi_scatterv_wrap')
             use iso_c_hack
             use constants
-            type(c_ptr), intent(in), value :: sbuf, rbuf
+            c_ptr_t, intent(in), value :: sbuf, rbuf
             integer(c_int), intent(in), value :: stype, rcnt, rtype
             integer(c_int), intent(in), value :: comm, rt
             integer(MPIArg), intent(in) :: scnts(*)
@@ -310,7 +312,7 @@ module Parallel_neci
                                 comm, ierr) bind(c, name='mpi_scatter_wrap')
             use iso_c_hack
             use constants
-            type(c_ptr), intent(in), value :: sbuf, rbuf
+            c_ptr_t, intent(in), value :: sbuf, rbuf
             integer(c_int), intent(in), value :: scnt, stype, rcnt, rtype
             integer(c_int), intent(in), value :: comm, rt
             integer(c_int), intent(out) :: ierr
@@ -319,7 +321,7 @@ module Parallel_neci
             bind(c, name='mpi_recv_wrap')
             use iso_c_hack
             use constants
-            type(c_ptr), intent(in), value :: buf
+            c_ptr_t, intent(in), value :: buf
             integer(c_int), intent(in), value :: cnt, dtype, src, tag, comm
             integer(c_int), intent(inout) :: stat(*)
             integer(c_int), intent(out) :: ierr
@@ -328,7 +330,7 @@ module Parallel_neci
             bind(c, name='mpi_send_wrap')
             use iso_c_hack
             use constants
-            type(c_ptr), intent(in), value :: buf
+            c_ptr_t, intent(in), value :: buf
             integer(c_int), intent(in), value :: cnt, dtype, src, tag, comm
             integer(c_int), intent(out) :: ierr
         end subroutine
@@ -357,7 +359,7 @@ contains
            
 #ifdef PARALLEL
 #ifdef CBINDMPI
-        type(c_ptr) :: vptr, rptr
+        c_ptr_t :: vptr, rptr
         vptr = c_loc(v)
         rptr = c_loc(ret)
 #endif
@@ -391,7 +393,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-        type(c_ptr) :: vptr, rptr
+        c_ptr_t :: vptr, rptr
         vptr = c_loc(v)
         rptr = c_loc(ret)
 #endif
@@ -425,7 +427,7 @@ contains
 
 #ifdef CBINDMPI
         ! Spaces prevent template adjustment
-        type(c_ptr) :: vptr
+        c_ptr_t :: vptr
         vptr = c_loc(v)
 #endif
 
@@ -472,7 +474,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-        type(c_ptr) :: vptr, rptr
+        c_ptr_t :: vptr, rptr
         vptr = c_loc(v)
         rptr = c_loc(ret)
 #endif
@@ -506,7 +508,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-        type(c_ptr) :: vptr, rptr
+        c_ptr_t :: vptr, rptr
         vptr = c_loc(v)
         rptr = c_loc(ret)
 #endif
@@ -542,7 +544,7 @@ contains
 #ifdef PARALLEL
 #ifdef CBINDMPI
         ! Spaces prevent template adjustment
-        type(c_ptr) :: vptr
+        c_ptr_t :: vptr
         vptr = c_loc(v)
 #endif
         call GetComm (Comm, Node)
@@ -582,7 +584,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-        type(c_ptr) :: vptr, rptr
+        c_ptr_t :: vptr, rptr
         vptr = c_loc(v)
         rptr = c_loc(ret)
 #endif
@@ -723,7 +725,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-        type(c_ptr) :: vptr
+        c_ptr_t :: vptr
         vptr = c_loc(v)
 #endif
         call MPI_Bcast (val_in, int(iLen, MPIArg), &
@@ -755,7 +757,7 @@ contains
         
 #ifdef PARALLEL
 #ifdef CBINDMPI
-        type(c_ptr) :: vptr
+        c_ptr_t :: vptr
         vptr = c_loc(v)
 #endif
         call GetComm (Comm, Node, rt)
@@ -787,7 +789,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-        type(c_ptr) :: vptr
+        c_ptr_t :: vptr
         vptr = c_loc(v)
 #endif
 
@@ -821,7 +823,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-        type(c_ptr) :: vptr
+        c_ptr_t :: vptr
         vptr = c_loc(v)
 #endif
 
@@ -855,7 +857,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-        type(c_ptr) :: vptr, rptr
+        c_ptr_t :: vptr, rptr
         vptr = c_loc(v)
         rptr = c_loc(ret)
 #endif
@@ -890,7 +892,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-        type(c_ptr) :: vptr, rptr
+        c_ptr_t :: vptr, rptr
         vptr = c_loc(v)
         rptr = c_loc(ret)
 #endif
@@ -923,7 +925,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-        type(c_ptr) :: vptr, rptr
+        c_ptr_t :: vptr, rptr
         vptr = c_loc(v)
         rptr = c_loc(ret)
 #endif
@@ -956,7 +958,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-        type(c_ptr) :: vptr, rptr
+        c_ptr_t :: vptr, rptr
         vptr = c_loc(v)
         rptr = c_loc(ret)
 #endif
@@ -991,7 +993,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-        type(c_ptr) :: vptr, rptr
+        c_ptr_t :: vptr, rptr
         vptr = c_loc(v)
         rptr = c_loc(ret)
 #endif
@@ -1023,7 +1025,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-        type(c_ptr) :: vptr, rptr
+        c_ptr_t :: vptr, rptr
         vptr = c_loc(v)
         rptr = c_loc(ret)
 #endif
@@ -1066,7 +1068,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-        type(c_ptr) :: vptr, rptr
+        c_ptr_t :: vptr, rptr
         vptr = c_loc(v)
         rptr = c_loc(ret)
 #endif
@@ -1111,7 +1113,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-        type(c_ptr) :: vptr, rptr
+        c_ptr_t :: vptr, rptr
         vptr = c_loc(v)
         rptr = c_loc(ret)
 #endif
@@ -1144,7 +1146,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-        type(c_ptr) :: vptr, rptr
+        c_ptr_t :: vptr, rptr
         vptr = c_loc(v)
         rptr = c_loc(ret)
 #endif
@@ -1177,7 +1179,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-        type(c_ptr) :: vptr, rptr
+        c_ptr_t :: vptr, rptr
         vptr = c_loc(v)
         rptr = c_loc(ret)
 #endif
@@ -1209,7 +1211,7 @@ contains
 #ifdef PARALLEL
         integer(MPIArg) :: stat(MPI_STATUS_SIZE), err
 #ifdef CBINDMPI
-        type(c_ptr) :: rptr
+        c_ptr_t :: rptr
         rptr = c_loc(ret)
 #endif
 
@@ -1235,7 +1237,7 @@ contains
 #ifdef PARALLEL
         integer(MPIArg) :: err
 #ifdef CBINDMPI
-        type(c_ptr) :: vptr
+        c_ptr_t :: vptr
         vptr = c_loc(v)
 #endif
 
