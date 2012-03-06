@@ -39,7 +39,7 @@ type1=integer(int32), dimension(:)
 mpitype=MPI_INTEGER4
 mpiprt=ubound(v,1),lbound(v,1)
 mpilen=(ubound(v,1)-lbound(v,1)+1)
-mpilen2=(ubound(v2,1)-lbound(v2,1)+1)
+mpilen2=(ubound(ret,1)-lbound(ret,1)+1)
 ndim=1
 arr_shp=, (/1/)
 
@@ -70,7 +70,7 @@ type1=integer(int32), dimension(:,:)
 mpitype=MPI_INTEGER4
 mpiprt=ubound(v,1),lbound(v,1),ubound(v,2),lbound(v,2)
 mpilen=((ubound(v,1)-lbound(v,1)+1)*(ubound(v,2)-lbound(v,2)+1))
-mpilen2=((ubound(v2,1)-lbound(v2,1)+1)*(ubound(v2,2)-lbound(v2,2)+1))
+mpilen2=((ubound(ret,1)-lbound(ret,1)+1)*(ubound(ret,2)-lbound(ret,2)+1))
 ndim=2
 arr_shp=, (/1,1/)
 
@@ -102,8 +102,8 @@ mpitype=MPI_INTEGER4
 mpiprt=ubound(v,1),lbound(v,1),ubound(v,2),lbound(v,2),ubound(v,3),lbound(v,3)
 mpilen=((ubound(v,1)-lbound(v,1)+1)*(ubound(v,2)-lbound(v,2)+1)*& 
  (ubound(v,3)-lbound(v,3)+1))
-mpilen2=((ubound(v2,1)-lbound(v2,1)+1)*(ubound(v2,2)-lbound(v2,2)+1)*& 
- (ubound(v2,3)-lbound(v2,3)+1))
+mpilen2=((ubound(ret,1)-lbound(ret,1)+1)*(ubound(ret,2)-lbound(ret,2)+1)*& 
+ (ubound(ret,3)-lbound(ret,3)+1))
 ndim=3
 arr_shp=, (/1,1,1/)
 
@@ -125,8 +125,8 @@ mpiprt=ubound(v,1),lbound(v,1),ubound(v,2),lbound(v,2),ubound(v,3),&
  lbound(v,3),ubound(v,4),lbound(v,4)
 mpilen=((ubound(v,1)-lbound(v,1)+1)*(ubound(v,2)-lbound(v,2)+1)*& 
  (ubound(v,3)-lbound(v,3)+1)*(ubound(v,4)-lbound(v,4)+1))
-mpilen2=((ubound(v2,1)-lbound(v2,1)+1)*(ubound(v2,2)-lbound(v2,2)+1)*& 
- (ubound(v2,3)-lbound(v2,3)+1)*(ubound(v2,4)-lbound(v2,4)+1))
+mpilen2=((ubound(ret,1)-lbound(ret,1)+1)*(ubound(ret,2)-lbound(ret,2)+1)*& 
+ (ubound(ret,3)-lbound(ret,3)+1)*(ubound(ret,4)-lbound(ret,4)+1))
 ndim=4
 arr_shp=, (/1,1,1,1/)
 
@@ -140,21 +140,29 @@ mpitype=MPI_INTEGER8
 
 =========================
 
+
+!
+! n.b HACK
+! We need to be able to do a bit of hackery when using C-based MPI
+!
+! --> We relabel things a bit...
+#ifdef CBINDMPI
+#define val_in vptr
+#define val_out rptr
+#else
+#define val_in v
+#define val_out Ret
+#endif
+
+
+
+
 module Parallel_neci
     use ParallelHelper
     use CalcData, only: iLogicalNodeSize
     use iso_c_hack
     use constants
     implicit none
-
-#ifndef PARALLEL
-! These don't exist in serial, so fudge them
-    integer(MPIArg), private, parameter :: MPI_MIN=0
-    integer(MPIArg), private, parameter :: MPI_MAX=0
-    integer(MPIArg), private, parameter :: MPI_SUM=0
-    integer(MPIArg), private, parameter :: MPI_MAXLOC=0
-    integer(MPIArg), private, parameter :: MPI_MAX_ERROR_STRING=255
-#endif
 
     interface MPIReduce
         module procedure MPIReduce_len_%(name)s
@@ -214,8 +222,7 @@ module Parallel_neci
             bind(c, name='mpi_reduce_wrap')
             use iso_c_hack
             use constants
-            %(type1)s, intent(in) :: val(*)
-            %(type1)s, intent(out) :: ret(*)
+            type(c_ptr), intent(in), value :: val, ret
             integer(c_int), intent(in), value :: cnt, dtype, op, rt, comm
             integer(c_int), intent(out) :: ierr
         end subroutine
@@ -223,8 +230,7 @@ module Parallel_neci
             bind(c, name='mpi_allreduce_wrap')
             use iso_c_hack
             use constants
-            %(type1)s, intent(in) :: val(*)
-            %(type1)s, intent(out) :: ret(*)
+            type(c_ptr), intent(in), value :: val, ret
             integer(c_int), intent(in), value :: cnt, dtype, op, comm
             integer(c_int), intent(out) :: ierr
         end subroutine
@@ -232,7 +238,7 @@ module Parallel_neci
             bind(c, name='mpi_bcast_wrap')
             use iso_c_hack
             use constants
-            %(type1)s, intent(inout) :: buf(*)
+            type(c_ptr), intent(in), value :: buf
             integer(c_int), intent(in), value :: cnt, dtype, rt, comm
             integer(c_int), intent(out) :: ierr
         end subroutine
@@ -240,8 +246,7 @@ module Parallel_neci
                                  comm, ierr) bind(c, name='mpi_alltoall_wrap')
             use iso_c_hack
             use constants
-            %(type1)s, intent(in) :: sbuf(*)
-            %(type1)s, intent(out) :: rbuf(*)
+            type(c_ptr), intent(in), value :: sbuf, rbuf
             integer(c_int), intent(in), value :: scnt, stype, rcnt
             integer(c_int), intent(in), value :: rtype, comm
             integer(c_int), intent(out) :: ierr
@@ -251,8 +256,7 @@ module Parallel_neci
                                   bind(c, name='mpi_alltoallv_wrap')
             use iso_c_hack
             use constants
-            %(type1)s, intent(in) :: sbuf(*)
-            %(type1)s, intent(out) :: rbuf(*)
+            type(c_ptr), intent(in), value :: sbuf, rbuf
             integer(MPIArg), intent(in) :: scnts(*), sdispl(*)
             integer(MPIArg), intent(in) :: rcnts(*), rdispl(*)
             integer(c_int), intent(in), value :: stype, rtype, comm
@@ -263,8 +267,7 @@ module Parallel_neci
                                  bind(c, name='mpi_gather_wrap')
             use iso_c_hack
             use constants
-            %(type1)s, intent(in) :: sbuf(*)
-            %(type1)s, intent(out) :: rbuf( *)
+            type(c_ptr), intent(in), value :: sbuf, rbuf
             integer(c_int), intent(in), value :: scnt, stype, rcnt, rtype
             integer(c_int), intent(in), value :: comm, rt
             integer(c_int), intent(out) :: ierr
@@ -274,9 +277,7 @@ module Parallel_neci
                                 bind(c, name='mpi_gatherv_wrap')
             use iso_c_hack
             use constants
-            ! Spaces prevent this being removed by templater
-            %(type1)s, intent(in) :: sbuf( *)
-            %(type1)s, intent(out) :: rbuf( *)
+            type(c_ptr), intent(in), value :: sbuf, rbuf
             integer(c_int), intent(in), value :: scnt, stype, rtype
             integer(c_int), intent(in), value :: comm, rt
             integer(MPIArg), intent(in) :: displs(*)
@@ -288,9 +289,7 @@ module Parallel_neci
                                bind(c, name='mpi_allgather_wrap')
             use iso_c_hack
             use constants
-            %(type1)s, intent(in) :: sbuf(*)
-            ! Spaces prevent this being removed by templater
-            %(type1)s, intent(out) :: rbuf( *)
+            type(c_ptr), intent(in), value :: sbuf, rbuf
             integer(c_int), intent(in), value :: scnt, stype, rcnt, rtype
             integer(c_int), intent(in), value :: comm
             integer(c_int), intent(out) :: ierr
@@ -300,9 +299,7 @@ module Parallel_neci
                                  bind(c, name='mpi_scatterv_wrap')
             use iso_c_hack
             use constants
-            ! Spaces prevent this being removed by templater
-            %(type1)s, intent(in) :: sbuf( *)
-            %(type1)s, intent(out) :: rbuf( *)
+            type(c_ptr), intent(in), value :: sbuf, rbuf
             integer(c_int), intent(in), value :: stype, rcnt, rtype
             integer(c_int), intent(in), value :: comm, rt
             integer(MPIArg), intent(in) :: scnts(*)
@@ -313,9 +310,7 @@ module Parallel_neci
                                 comm, ierr) bind(c, name='mpi_scatter_wrap')
             use iso_c_hack
             use constants
-            ! Spaces prevent this being removed by templater
-            %(type1)s, intent(in) :: sbuf( *)
-            %(type1)s, intent(out) :: rbuf(*)
+            type(c_ptr), intent(in), value :: sbuf, rbuf
             integer(c_int), intent(in), value :: scnt, stype, rcnt, rtype
             integer(c_int), intent(in), value :: comm, rt
             integer(c_int), intent(out) :: ierr
@@ -324,7 +319,7 @@ module Parallel_neci
             bind(c, name='mpi_recv_wrap')
             use iso_c_hack
             use constants
-            %(type1)s, intent(out) :: buf(*)
+            type(c_ptr), intent(in), value :: buf
             integer(c_int), intent(in), value :: cnt, dtype, src, tag, comm
             integer(c_int), intent(inout) :: stat(*)
             integer(c_int), intent(out) :: ierr
@@ -333,7 +328,7 @@ module Parallel_neci
             bind(c, name='mpi_send_wrap')
             use iso_c_hack
             use constants
-            %(type1)s, intent(in) :: buf(*)
+            type(c_ptr), intent(in), value :: buf
             integer(c_int), intent(in), value :: cnt, dtype, src, tag, comm
             integer(c_int), intent(out) :: ierr
         end subroutine
@@ -361,9 +356,15 @@ contains
         character(*), parameter :: t_r = "MPIReduce"
            
 #ifdef PARALLEL
+#ifdef CBINDMPI
+        type(c_ptr) :: vptr, rptr
+        vptr = c_loc(v)
+        rptr = c_loc(ret)
+#endif
+
         call GetComm (Comm, Node, rt)
 
-        call MPI_Reduce(v, Ret, int(iLen, MPIArg), &
+        call MPI_Reduce(val_in, val_out, int(iLen, MPIArg), &
                 %(mpitype)s, &
                 iType, rt, Comm, ierr)
 
@@ -389,9 +390,14 @@ contains
         character(*), parameter :: t_r = 'MPIReduce'
 
 #ifdef PARALLEL
+#ifdef CBINDMPI
+        type(c_ptr) :: vptr, rptr
+        vptr = c_loc(v)
+        rptr = c_loc(ret)
+#endif
         call GetComm(Comm, Node, rt)
 
-        call MPI_Reduce(v, Ret, &
+        call MPI_Reduce(val_in, val_out, &
                 int(%(mpilen)s, MPIArg), &
                 %(mpitype)s, iType, rt, &
                 Comm, ierr)
@@ -419,20 +425,20 @@ contains
 
 #ifdef CBINDMPI
         ! Spaces prevent template adjustment
-        %(type1)s, pointer :: MPI_IN_PLACE( : )
-        call c_f_pointer (C_NULL_PTR, MPI_IN_PLACE%(arr_shp)s)
+        type(c_ptr) :: vptr
+        vptr = c_loc(v)
 #endif
 
 #ifdef PARALLEL
         call GetComm (Comm, Node, rt)
 
         if (iProcIndex == rt) then
-            call MPI_Reduce (MPI_IN_PLACE, v, &
+            call MPI_Reduce (MPI_IN_PLACE, val_in, &
                     int(%(mpilen)s, MPIArg), &
                     %(mpitype)s, iType, rt, &
                     comm, ierr)
         else
-            call MPI_Reduce (v, MPI_IN_PLACE, &
+            call MPI_Reduce (val_in, MPI_IN_PLACE, &
                     int(%(mpilen)s, MPIArg), &
                     %(mpitype)s, iType, rt, &
                     comm, ierr)
@@ -465,9 +471,14 @@ contains
         character(*), parameter :: t_r = 'MPIAllReduce'
 
 #ifdef PARALLEL
+#ifdef CBINDMPI
+        type(c_ptr) :: vptr, rptr
+        vptr = c_loc(v)
+        rptr = c_loc(ret)
+#endif
         call GetComm (Comm, Node)
 
-        call MPI_Allreduce (v, ret, int(ilen, MPIArg), &
+        call MPI_Allreduce (val_in, val_out, int(ilen, MPIArg), &
                 %(mpitype)s, &
                 itype, comm, ierr)
 
@@ -494,9 +505,15 @@ contains
         character(*), parameter :: t_r = 'MPIAllReduce'
 
 #ifdef PARALLEL
+#ifdef CBINDMPI
+        type(c_ptr) :: vptr, rptr
+        vptr = c_loc(v)
+        rptr = c_loc(ret)
+#endif
+
         call GetComm (Comm, Node)
 
-        call MPI_Allreduce (v, ret, &
+        call MPI_Allreduce (val_in, val_out, &
                 int(%(mpilen)s, MPIArg), &
                 %(mpitype)s, &
                 itype, comm, ierr)
@@ -522,16 +539,15 @@ contains
         integer(MPIArg) :: comm, ierr
         character(*), parameter :: t_r = 'MPIAllReduce'
 
+#ifdef PARALLEL
 #ifdef CBINDMPI
         ! Spaces prevent template adjustment
-        %(type1)s, pointer :: MPI_IN_PLACE( : )
-        call c_f_pointer (C_NULL_PTR, MPI_IN_PLACE%(arr_shp)s)
+        type(c_ptr) :: vptr
+        vptr = c_loc(v)
 #endif
-
-#ifdef PARALLEL
         call GetComm (Comm, Node)
 
-        call MPI_Allreduce (MPI_IN_PLACE, v, &
+        call MPI_Allreduce (MPI_IN_PLACE, val_in, &
                 int(%(mpilen)s, MPIArg), &
                 %(mpitype)s, &
                 iType, comm, ierr)
@@ -565,10 +581,16 @@ contains
         character(*), parameter :: t_r = 'MPIAllReduce'
 
 #ifdef PARALLEL
+#ifdef CBINDMPI
+        type(c_ptr) :: vptr, rptr
+        vptr = c_loc(v)
+        rptr = c_loc(ret)
+#endif
+
         call GetComm (Comm, Node)
 
-        call MPI_Allreduce (v, ret, int(iLen, MPIArg), dtype, itype, comm, &
-                            ierr)
+        call MPI_Allreduce (val_in, val_out, int(iLen, MPIArg), dtype, itype, &
+                            comm, ierr)
 
         if (ierr /= MPI_SUCCESS) &
             call stop_all (t_r, 'MPI Error. Terminating.')
@@ -700,7 +722,11 @@ contains
         character(*), parameter :: t_r = 'MPIBcast'
 
 #ifdef PARALLEL
-        call MPI_Bcast (v, int(iLen, MPIArg), &
+#ifdef CBINDMPI
+        type(c_ptr) :: vptr
+        vptr = c_loc(v)
+#endif
+        call MPI_Bcast (val_in, int(iLen, MPIArg), &
                 %(mpitype)s, &
                 int(rt, MPIArg), CommGlobal, ierr)
 
@@ -728,9 +754,13 @@ contains
         character(*), parameter :: t_r = 'MPIBcast'
         
 #ifdef PARALLEL
+#ifdef CBINDMPI
+        type(c_ptr) :: vptr
+        vptr = c_loc(v)
+#endif
         call GetComm (Comm, Node, rt)
 
-        call MPI_Bcast (v, int(ilen, MPIArg), &
+        call MPI_Bcast (val_in, int(ilen, MPIArg), &
                 %(mpitype)s, &
                 rt, comm, ierr)
 
@@ -756,9 +786,14 @@ contains
         character(*), parameter :: t_r = 'MPIBcast'
 
 #ifdef PARALLEL
+#ifdef CBINDMPI
+        type(c_ptr) :: vptr
+        vptr = c_loc(v)
+#endif
+
         call GetComm (Comm, Node, rt)
 
-        call MPI_Bcast (v, &
+        call MPI_Bcast (val_in, &
                 int(%(mpilen)s, MPIArg), &
                 %(mpitype)s, &
                 rt, comm, ierr)
@@ -785,13 +820,18 @@ contains
         character(*), parameter :: t_r = 'MPIBCast'
 
 #ifdef PARALLEL
+#ifdef CBINDMPI
+        type(c_ptr) :: vptr
+        vptr = c_loc(v)
+#endif
+
         call GetComm(Comm, Node, rt, tMe)
 
         ! Which processor is root?
         call MPIAllreducert (rt, nrt, comm, ierr)
 
         if (ierr == MPI_SUCCESS) then
-            call MPI_Bcast (v, &
+            call MPI_Bcast (val_in, &
                     int(%(mpilen)s, MPIArg), &
                     %(mpitype)s, &
                     nrt, comm, ierr)
@@ -804,26 +844,32 @@ contains
 
 
 
-    subroutine MPIAlltoAll (SendBuf, SendSize, RecvBuf, RecvSize, ierr, Node)
+    subroutine MPIAlltoAll (v, SendSize, ret, RecvSize, ierr, Node)
 
-        %(type1)s, intent(in) :: SendBuf()
-        %(type1)s, intent(out) :: RecvBuf()
+        %(type1)s, intent(in) :: v()
+        %(type1)s, intent(out) :: Ret()
         integer, intent(in) :: SendSize, RecvSize
         integer, intent(out) :: ierr
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: comm, err
 
 #ifdef PARALLEL
+#ifdef CBINDMPI
+        type(c_ptr) :: vptr, rptr
+        vptr = c_loc(v)
+        rptr = c_loc(ret)
+#endif
+
         call GetComm (Comm, Node)
 
-        call MPI_Alltoall (SendBuf, int(SendSize, MPIArg), &
+        call MPI_Alltoall (val_in, int(SendSize, MPIArg), &
                 %(mpitype)s, &
-                RecvBuf, int(RecvSize, MPIArg), &
+                val_out, int(RecvSize, MPIArg), &
                 %(mpitype)s, &
                 comm, err)
         ierr = err
 #else
-        RecvBuf = SendBuf
+        Ret = v
         ierr = 0
 #endif
 
@@ -831,55 +877,67 @@ contains
 
 
 
-    subroutine MPIAlltoAllV (SendBuf, SendSizes, SendOffsets, RecvBuf, &
+    subroutine MPIAlltoAllV (v, SendSizes, SendOffsets, Ret, &
                              RecvSizes, RecvOffsets, ierr, Node)
 
         integer(MPIArg), intent(in) :: SendSizes(:), SendOffsets(:)
         integer(MPIArg), intent(in) :: RecvSizes(:), RecvOffsets(:)
         integer, intent(out) :: ierr
-        %(type1)s, intent(in) :: SendBuf()
-        %(type1)s, intent(inout):: RecvBuf()
+        %(type1)s, intent(in) :: v()
+        %(type1)s, intent(inout):: Ret()
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: comm, err
 
 #ifdef PARALLEL
+#ifdef CBINDMPI
+        type(c_ptr) :: vptr, rptr
+        vptr = c_loc(v)
+        rptr = c_loc(ret)
+#endif
+
         call GetComm (Comm, Node)
 
-        call MPI_Alltoallv (SendBuf, SendSizes, SendOffsets, &
+        call MPI_Alltoallv (val_in, SendSizes, SendOffsets, &
                 %(mpitype)s, &
-                RecvBuf, RecvSizes, RecvOffsets, &
+                val_out, RecvSizes, RecvOffsets, &
                 %(mpitype)s, &
                 comm, err)
         ierr = err
 #else
-        RecvBuf = SendBuf
+        Ret = v
         ierr = 0
 #endif
     end subroutine
 
 
 
-    subroutine MPIAllGather_len (SendBuf, SendSize, RecvBuf, RecvSize, ierr, &
+    subroutine MPIAllGather_len (v, SendSize, Ret, RecvSize, ierr, &
                                  Node)
 
         integer, intent(in) :: SendSize, RecvSize
         integer, intent(out) :: ierr
-        %(type1)s, intent(in) :: SendBuf()
-        %(type1)s, intent(inout) :: RecvBuf(:)
+        %(type1)s, intent(in) :: v()
+        %(type1)s, intent(inout) :: Ret(:)
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: comm, rt, err
 
 #ifdef PARALLEL
+#ifdef CBINDMPI
+        type(c_ptr) :: vptr, rptr
+        vptr = c_loc(v)
+        rptr = c_loc(ret)
+#endif
+
         call GetComm (Comm, Node)
 
-        call MPI_AllGather (SendBuf, int(SendSize, MPIArg), &
+        call MPI_AllGather (val_in, int(SendSize, MPIArg), &
                 %(mpitype)s, &
-                RecvBuf, int(RecvSize, MPIArg), &
+                val_out, int(RecvSize, MPIArg), &
                 %(mpitype)s, &
                 comm, err)
         ierr = err
 #else
-        RecvBuf(1) = SendBuf
+        Ret(1) = v
         ierr = 0
 #endif
     end subroutine
@@ -887,83 +945,101 @@ contains
 
 
     ! v is the Send Buffer
-    ! v2 is the Receive Buffer
-    Subroutine MPIAllGather_auto(v, v2, ierr, Node)
+    ! ret is the Receive Buffer
+    Subroutine MPIAllGather_auto(v, ret, ierr, Node)
 
         %(type1)s, intent(in) :: v()
-        %(type1)s, intent(inout) :: v2(:)
+        %(type1)s, intent(inout) :: ret(:)
         integer, intent(out) :: ierr
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: Comm, rt, err
 
 #ifdef PARALLEL
+#ifdef CBINDMPI
+        type(c_ptr) :: vptr, rptr
+        vptr = c_loc(v)
+        rptr = c_loc(ret)
+#endif
+
         call GetComm (Comm, Node, rt)
 
-        call MPI_Allgather (v, &
+        call MPI_Allgather (val_in, &
                 int(%(mpilen)s, MPIArg), &
                 %(mpitype)s, &
-                v2, &
+                val_out, &
                 int(%(mpilen2)s, MPIArg), &
                 %(mpitype)s, &
                 comm, err)
         ierr = err
 #else
-        v2(1) = v
+        ret(1) = v
         ierr = 0
 #endif
     end subroutine
 
 
 
-    subroutine MPIGather_len (SendBuf, SendSize, RecvBuf, RecvSize, ierr, &
+    subroutine MPIGather_len (v, SendSize, Ret, RecvSize, ierr, &
                               Node)
 
-        %(type1)s, intent(in) :: SendBuf()
-        %(type1)s, intent(inout) :: RecvBuf(:)
+        %(type1)s, intent(in) :: v()
+        %(type1)s, intent(inout) :: Ret(:)
         integer, intent(in) :: SendSize, RecvSize
         integer, intent(out) :: ierr
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: Comm, rt, err
 
 #ifdef PARALLEL
+#ifdef CBINDMPI
+        type(c_ptr) :: vptr, rptr
+        vptr = c_loc(v)
+        rptr = c_loc(ret)
+#endif
+
         call GetComm (Comm, Node, rt)
 
-        call MPI_Gather (SendBuf, int(SendSize, MPIArg), &
+        call MPI_Gather (val_in, int(SendSize, MPIArg), &
                 %(mpitype)s, &
-                RecvBuf, int(RecvSize, MPIArg), &
+                val_out, int(RecvSize, MPIArg), &
                 %(mpitype)s, &
                 rt, comm, err)
         ierr = err
 #else
-        RecvBuf(1) = SendBuf
+        Ret(1) = v
         ierr = 0
 #endif
     end subroutine
 
 
     ! v is the Send Buffer
-    ! v2 is the Receive Buffer
-    subroutine MPIGather_auto (v, v2, ierr, Node)
+    ! ret is the Receive Buffer
+    subroutine MPIGather_auto (v, ret, ierr, Node)
 
         %(type1)s, intent(in) :: v()
-        %(type1)s, intent(inout) :: v2(:)
+        %(type1)s, intent(inout) :: ret(:)
         integer, intent(out) :: ierr
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: Comm, rt, err
 
 #ifdef PARALLEL
+#ifdef CBINDMPI
+        type(c_ptr) :: vptr, rptr
+        vptr = c_loc(v)
+        rptr = c_loc(ret)
+#endif
+
         call GetComm (Comm, Node, rt)
 
-        call MPI_Gather (v, &
+        call MPI_Gather (val_in, &
                 int(%(mpilen)s, MPIArg), &
                 %(mpitype)s, &
-                v2, &
+                val_out, &
                 int(%(mpilen2)s, MPIArg), &
                 %(mpitype)s, &
                 rt, comm, err)
         ierr = err
 #else
-        v2(1) = v
+        ret(1) = v
         ierr = 0
 #endif
     end subroutine
@@ -973,11 +1049,11 @@ contains
 
     ! This gathers an array into another array with the same number of dims.
     ! v is the Send Buffer
-    ! v2 is the Receive Buffer
-    subroutine MPIGatherV_auto2 (v, v2, Lengths, Disps, ierr, Node)
+    ! ret is the Receive Buffer
+    subroutine MPIGatherV_auto2 (v, ret, Lengths, Disps, ierr, Node)
 
         %(type1)s, intent(in) :: v(:)
-        %(type1)s, intent(inout) :: v2(:)
+        %(type1)s, intent(inout) :: ret(:)
         integer(MPIArg), intent(in) :: Disps(:), Lengths(:)
         integer, intent(out) :: ierr
         type(CommI), intent(in), optional :: Node
@@ -989,6 +1065,12 @@ contains
         integer(MPIArg) :: LengthIn
 
 #ifdef PARALLEL
+#ifdef CBINDMPI
+        type(c_ptr) :: vptr, rptr
+        vptr = c_loc(v)
+        rptr = c_loc(ret)
+#endif
+
         DispsN = Disps &
                * %(mpilen)s
         LengthsN = Lengths &
@@ -999,14 +1081,14 @@ contains
         LengthIn = %(mpilen)s &
                  * (ubound(v,%(ndim)s+1)-lbound(v,%(ndim)s+1)+1)
         
-        call MPI_GatherV (V, LengthIn, &
+        call MPI_GatherV (val_in, LengthIn, &
                 %(mpitype)s, &
-                v2, lengthsN, dispsN, &
+                val_out, lengthsN, dispsN, &
                 %(mpitype)s, &
                 rt, comm, err)
         ierr = err
 #else
-        v2(Disps(1):Disps(1)+Lengths(1)) = v(:)
+        ret(Disps(1):Disps(1)+Lengths(1)) = v(:)
         ierr = 0
 #endif
     end subroutine
@@ -1017,54 +1099,66 @@ contains
     ! SendSizes are the lengths to send to each proc and Disps are the 
     ! displacements of the data in SendBuf.  Each processor should know its 
     ! own Length
-    subroutine MPIScatterV_len2 (SendBuf, SendSizes, Disps, RecvBuf, Length, &
+    subroutine MPIScatterV_len2 (v, SendSizes, Disps, Ret, Length, &
                                  ierr, Node)
 
-        %(type1)s, intent(in) :: SendBuf(:)
-        %(type1)s, intent(inout) :: RecvBuf(:)
+        %(type1)s, intent(in) :: v(:)
+        %(type1)s, intent(inout) :: Ret(:)
         integer(MPIArg), intent(in) :: SendSizes(:), Disps(:), Length
         integer, intent(out) :: ierr
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: Comm, rt, err
 
 #ifdef PARALLEL
+#ifdef CBINDMPI
+        type(c_ptr) :: vptr, rptr
+        vptr = c_loc(v)
+        rptr = c_loc(ret)
+#endif
+
         call GetComm (Comm, Node, rt)
 
-        call MPI_ScatterV (SendBuf, SendSizes, Disps, &
+        call MPI_ScatterV (val_in, SendSizes, Disps, &
                 %(mpitype)s, &
-                RecvBuf, Length, &
+                val_out, Length, &
                 %(mpitype)s, &
                 rt, comm, err)
         ierr = err
 #else
-        RecvBuf(:) = SendBuf(lbound(SendBuf,%(ndim)s+1):&
-                            (lbound(SendBuf,%(ndim)s+1)+Length-1))
+        Ret(:) = v(lbound(v,%(ndim)s+1):&
+                  (lbound(v,%(ndim)s+1)+Length-1))
         ierr = 0
 #endif
     end subroutine
 
 
-    subroutine MPIScatter_len (SendBuf, SendSize, RecvBuf, RecvSize, ierr, &
+    subroutine MPIScatter_len (v, SendSize, Ret, RecvSize, ierr, &
                                Node)
 
-        %(type1)s, intent(in) :: SendBuf(:)
-        %(type1)s, intent(inout) :: RecvBuf()
+        %(type1)s, intent(in) :: v(:)
+        %(type1)s, intent(inout) :: Ret()
         integer, intent(in) :: SendSize, RecvSize
         integer, intent(out) :: ierr
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: Comm, rt, err
 
 #ifdef PARALLEL
+#ifdef CBINDMPI
+        type(c_ptr) :: vptr, rptr
+        vptr = c_loc(v)
+        rptr = c_loc(ret)
+#endif
+
         call GetComm (Comm, Node, rt)
 
-        call MPI_Scatter (SendBuf, int(SendSize, MPIArg), &
+        call MPI_Scatter (val_in, int(SendSize, MPIArg), &
                 %(mpitype)s, &
-                RecvBuf, int(RecvSize, MPIArg), &
+                val_out, int(RecvSize, MPIArg), &
                 %(mpitype)s, &
                 rt, comm, err)
         ierr = err
 #else
-        RecvBuf = SendBuf(1)
+        Ret = v(1)
         ierr = 0
 #endif
     end subroutine
@@ -1072,45 +1166,54 @@ contains
 
 
     ! v is the Send Buffer
-    ! v2 is the Receive Buffer
-    subroutine MPIScatter_auto(v, v2, ierr, Node)
+    ! ret is the Receive Buffer
+    subroutine MPIScatter_auto(v, Ret, ierr, Node)
 
         %(type1)s, intent(in) :: v(:)
-        %(type1)s, intent(inout) :: v2()
+        %(type1)s, intent(inout) :: Ret()
         integer, intent(out) :: ierr
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: Comm, rt, err
 
 #ifdef PARALLEL
+#ifdef CBINDMPI
+        type(c_ptr) :: vptr, rptr
+        vptr = c_loc(v)
+        rptr = c_loc(ret)
+#endif
         call GetComm (Comm, Node, rt)
 
         ! TODO: Should the first of these be mpilen not mpilen2?
-        call MPI_Scatter(v, &
+        call MPI_Scatter(val_in, &
                 int(%(mpilen2)s, MPIArg), &
                 %(mpitype)s, &
-                v2, &
+                val_out, &
                 int(%(mpilen2)s, MPIArg), &
                 %(mpitype)s, &
                 rt, comm, err)
         ierr = err
 #else
-        v2 = v(1)
+        Ret = v(1)
         ierr = 0
 #endif
     end subroutine
 
 
 
-    subroutine MPIRecv (Buffer, BuffSize, Source, Tag, ierr)
+    subroutine MPIRecv (Ret, BuffSize, Source, Tag, ierr)
 
-        %(type1)s, intent(out) :: Buffer()
+        %(type1)s, intent(out) :: Ret()
         integer, intent(in) :: BuffSize, tag, source
         integer, intent(out) :: ierr
 
 #ifdef PARALLEL
         integer(MPIArg) :: stat(MPI_STATUS_SIZE), err
+#ifdef CBINDMPI
+        type(c_ptr) :: rptr
+        rptr = c_loc(ret)
+#endif
 
-        call MPI_Recv (buffer, int(BuffSize, MPIArg), &
+        call MPI_Recv (val_out, int(BuffSize, MPIArg), &
                 %(mpitype)s, &
                 int(Source, MPIArg), int(Tag, MPIArg), MPI_COMM_WORLD, &
                 stat, err)
@@ -1123,15 +1226,20 @@ contains
 
 
 
-    subroutine MPISend (Buffer, BuffSize, Dest, Tag, ierr)
+    subroutine MPISend (v, BuffSize, Dest, Tag, ierr)
 
-        %(type1)s, intent(in) :: Buffer()
+        %(type1)s, intent(in) :: v()
         integer, intent(in) :: BuffSize, tag, dest
         integer, intent(out) :: ierr
 
 #ifdef PARALLEL
         integer(MPIArg) :: err
-        call MPI_Send (Buffer, int(BuffSize, MPIArg), &
+#ifdef CBINDMPI
+        type(c_ptr) :: vptr
+        vptr = c_loc(v)
+#endif
+
+        call MPI_Send (val_in, int(BuffSize, MPIArg), &
                 %(mpitype)s, &
                 int(Dest, MPIArg), int(Tag, MPIArg), MPI_COMM_WORLD, err)
         ierr = err
@@ -1219,17 +1327,6 @@ supermodule Parallel
     save
     integer :: iProcMinE, iProcMaxE, nProcessors
 
-#ifndef PARALLEL
-    integer(MPIArg), parameter :: MPI_2INTEGER=0
-    integer(MPIArg), parameter :: MPI_2DOUBLE_PRECISION=0
-    integer(MPIArg), parameter :: MPI_MIN=0
-    integer(MPIArg), parameter :: MPI_MAX=0
-    integer(MPIArg), parameter :: MPI_SUM=0
-    integer(MPIArg), parameter :: MPI_LOR=0
-    integer(MPIArg), parameter :: MPI_MAXLOC=0
-    integer(MPIArg), parameter :: MPI_MINLOC=0
-    integer(MPIArg), parameter :: MPI_MAX_ERROR_STRING=255
-#endif
    
 contains
 

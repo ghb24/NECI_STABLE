@@ -279,8 +279,10 @@ def adj_arrays (template, config):
 			if types[vars[var][0]] != 0:  # If the type is not a scalar
 				# If we are considering dimensionality of 2 or larger
 				dimstr = ":,"*(vars[var][1]-1)
-				redim = '%s\s*\(' % (var)
-				substr = ('%s(' % var) + dimstr
+				#redim = '([\( ,]+)%s\s*\(' % (var)
+				#substr = ('\\1%s(' % var) + dimstr
+				redim = '([\( ,=])%s\s*\(' % (var)
+				substr = ('\\1%s(' % var) + dimstr
 
 				# If our original dimension string was empty (i.e. didn't 
 				# contain anything special we had to leave) then we need to
@@ -289,7 +291,7 @@ def adj_arrays (template, config):
 
 				if vars[var][2]=="":
 					re_redim = re.compile (redim+"\)")
-					templpart = re_redim.sub (('%s(' % var)+":)", templpart)
+					templpart = re_redim.sub (('\\1%s(' % var)+":)", templpart)
 				re_redim = re.compile (redim)
 				templpart = re_redim.sub (substr, templpart)
 
