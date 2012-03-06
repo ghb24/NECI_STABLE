@@ -347,8 +347,8 @@ contains
         !      iType  - MPI specification (e.g. MPI_MAX)
         ! Out: Ret    - The reduced elements are returned in this array
         !               *** ON ROOT ONLY ***
-        %(type1)s, intent(in)  :: v()
-        %(type1)s, intent(out) :: Ret()
+        %(type1)s, intent(in), target :: v()
+        %(type1)s, intent(out), target :: Ret()
         integer, intent(in) :: iLen
         integer(MPIArg), intent(in) :: iType
         type(CommI), intent(in), optional :: Node
@@ -382,8 +382,8 @@ contains
         ! The same as MPIReduce_len, without the iLen specification. The 
         ! number of elements is determined automatically.
 
-        %(type1)s, intent(in)  :: v()
-        %(type1)s, intent(out) :: Ret()
+        %(type1)s, intent(in), target :: v()
+        %(type1)s, intent(out), target :: Ret()
         integer(MPIArg), intent(in) :: iType
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) ::  comm, rt, ierr
@@ -417,8 +417,8 @@ contains
         ! The same as MPIReduce, but using the v array as the return
         ! array on the target node.
 
-        %(type1)s, intent(inout)  :: v()
-        integer(MPIArg), intent(in) :: iType
+        %(type1)s, intent(inout), target :: v()
+        integer(MPIArg), intent(in), target :: iType
         type(CommI), intent(in), optional :: node
         integer(MPIArg) :: comm, rt, ierr
         character(*), parameter :: t_r = 'MPIReduce'
@@ -462,8 +462,8 @@ contains
         !      iType  - Reduction operation to perform
         ! Out: Ret    - Reduced data
 
-        %(type1)s, intent(in) :: v()
-        %(type1)s, intent(out) :: Ret()
+        %(type1)s, intent(in), target :: v()
+        %(type1)s, intent(out), target :: Ret()
         integer, intent(in) :: iLen
         integer(MPIArg), intent(in) :: iType
         type(CommI), intent(in), optional :: Node
@@ -497,8 +497,8 @@ contains
         ! The same as MPIAllReduce_len, but the length of array Value (and
         ! thus Ret) is determinend automagically
 
-        %(type1)s, intent(in) :: v()
-        %(type1)s, intent(out) :: Ret()
+        %(type1)s, intent(in), target :: v()
+        %(type1)s, intent(out), target :: Ret()
         integer(MPIArg), intent(in) :: iType
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: comm, ierr
@@ -533,8 +533,8 @@ contains
         ! The same as MPIAllReduce_len, but the length of array Value (and 
         ! thus Ret) is determinend automagically
 
-        %(type1)s, intent(inout) :: v()
-        integer(MPIArg), intent(in) :: iType
+        %(type1)s, intent(inout), target :: v()
+        integer(MPIArg), intent(in), target :: iType
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: comm, ierr
         character(*), parameter :: t_r = 'MPIAllReduce'
@@ -572,8 +572,8 @@ contains
         !
         ! Out: Ret   - Reduced array.
         
-        %(type1)s, intent(in)  :: v()
-        %(type1)s, intent(out) :: Ret()
+        %(type1)s, intent(in), target :: v()
+        %(type1)s, intent(out), target :: Ret()
         integer(MPIArg), intent(in) :: dtype, itype
         integer, intent(in) :: ilen
         type(CommI), intent(in),optional :: Node
@@ -716,7 +716,7 @@ contains
         ! In:    iLen   - The number of elements in v
         ! InOut: v - The data to broadcast, and the returned v
 
-        %(type1)s, intent(inout) :: v()
+        %(type1)s, intent(inout), target :: v()
         integer, intent(in) :: iLen, rt
         integer(MPIArg) :: ierr
         character(*), parameter :: t_r = 'MPIBcast'
@@ -747,7 +747,7 @@ contains
         ! In:    iLen   - The number of elements in v
         ! InOut: v - The data to broadcast, and the returned v
 
-        %(type1)s, intent(inout) :: v()
+        %(type1)s, intent(inout), target :: v()
         integer, intent(in) :: iLen
         integer(MPIArg) :: ierr, comm, rt
         type(CommI), intent(in), optional :: Node
@@ -780,7 +780,7 @@ contains
         ! In:    Root   - The processor to broadcast from
         ! InOut: v - The data to broadcast, and the returned v
 
-        %(type1)s, intent(inout) :: v()
+        %(type1)s, intent(inout), target :: v()
         integer(MPIArg) :: ierr, comm, rt
         type(CommI), intent(in), optional :: Node
         character(*), parameter :: t_r = 'MPIBcast'
@@ -813,7 +813,7 @@ contains
         ! In: tMe - Set to be true by the processor which is sending the info
         ! InOut: v - The data to broadcast, and the returned v
 
-        %(type1)s, intent(inout) :: v()
+        %(type1)s, intent(inout), target :: v()
         logical, intent(in) :: tMe
         integer(MPIArg) :: ierr, comm, rt, nrt
         type(CommI), intent(in), optional :: Node
@@ -846,8 +846,8 @@ contains
 
     subroutine MPIAlltoAll (v, SendSize, ret, RecvSize, ierr, Node)
 
-        %(type1)s, intent(in) :: v()
-        %(type1)s, intent(out) :: Ret()
+        %(type1)s, intent(in), target :: v()
+        %(type1)s, intent(out), target :: Ret()
         integer, intent(in) :: SendSize, RecvSize
         integer, intent(out) :: ierr
         type(CommI), intent(in), optional :: Node
@@ -883,8 +883,8 @@ contains
         integer(MPIArg), intent(in) :: SendSizes(:), SendOffsets(:)
         integer(MPIArg), intent(in) :: RecvSizes(:), RecvOffsets(:)
         integer, intent(out) :: ierr
-        %(type1)s, intent(in) :: v()
-        %(type1)s, intent(inout):: Ret()
+        %(type1)s, intent(in), target :: v()
+        %(type1)s, intent(inout), target :: Ret()
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: comm, err
 
@@ -916,8 +916,8 @@ contains
 
         integer, intent(in) :: SendSize, RecvSize
         integer, intent(out) :: ierr
-        %(type1)s, intent(in) :: v()
-        %(type1)s, intent(inout) :: Ret(:)
+        %(type1)s, intent(in), target :: v()
+        %(type1)s, intent(inout), target :: Ret(:)
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: comm, rt, err
 
@@ -948,8 +948,8 @@ contains
     ! ret is the Receive Buffer
     Subroutine MPIAllGather_auto(v, ret, ierr, Node)
 
-        %(type1)s, intent(in) :: v()
-        %(type1)s, intent(inout) :: ret(:)
+        %(type1)s, intent(in), target :: v()
+        %(type1)s, intent(inout), target :: ret(:)
         integer, intent(out) :: ierr
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: Comm, rt, err
@@ -982,8 +982,8 @@ contains
     subroutine MPIGather_len (v, SendSize, Ret, RecvSize, ierr, &
                               Node)
 
-        %(type1)s, intent(in) :: v()
-        %(type1)s, intent(inout) :: Ret(:)
+        %(type1)s, intent(in), target :: v()
+        %(type1)s, intent(inout), target :: Ret(:)
         integer, intent(in) :: SendSize, RecvSize
         integer, intent(out) :: ierr
         type(CommI), intent(in), optional :: Node
@@ -1015,8 +1015,8 @@ contains
     ! ret is the Receive Buffer
     subroutine MPIGather_auto (v, ret, ierr, Node)
 
-        %(type1)s, intent(in) :: v()
-        %(type1)s, intent(inout) :: ret(:)
+        %(type1)s, intent(in), target :: v()
+        %(type1)s, intent(inout), target :: ret(:)
         integer, intent(out) :: ierr
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: Comm, rt, err
@@ -1052,8 +1052,8 @@ contains
     ! ret is the Receive Buffer
     subroutine MPIGatherV_auto2 (v, ret, Lengths, Disps, ierr, Node)
 
-        %(type1)s, intent(in) :: v(:)
-        %(type1)s, intent(inout) :: ret(:)
+        %(type1)s, intent(in), target :: v(:)
+        %(type1)s, intent(inout), target :: ret(:)
         integer(MPIArg), intent(in) :: Disps(:), Lengths(:)
         integer, intent(out) :: ierr
         type(CommI), intent(in), optional :: Node
@@ -1102,8 +1102,8 @@ contains
     subroutine MPIScatterV_len2 (v, SendSizes, Disps, Ret, Length, &
                                  ierr, Node)
 
-        %(type1)s, intent(in) :: v(:)
-        %(type1)s, intent(inout) :: Ret(:)
+        %(type1)s, intent(in), target :: v(:)
+        %(type1)s, intent(inout), target :: Ret(:)
         integer(MPIArg), intent(in) :: SendSizes(:), Disps(:), Length
         integer, intent(out) :: ierr
         type(CommI), intent(in), optional :: Node
@@ -1135,8 +1135,8 @@ contains
     subroutine MPIScatter_len (v, SendSize, Ret, RecvSize, ierr, &
                                Node)
 
-        %(type1)s, intent(in) :: v(:)
-        %(type1)s, intent(inout) :: Ret()
+        %(type1)s, intent(in), target :: v(:)
+        %(type1)s, intent(inout), target :: Ret()
         integer, intent(in) :: SendSize, RecvSize
         integer, intent(out) :: ierr
         type(CommI), intent(in), optional :: Node
@@ -1169,8 +1169,8 @@ contains
     ! ret is the Receive Buffer
     subroutine MPIScatter_auto(v, Ret, ierr, Node)
 
-        %(type1)s, intent(in) :: v(:)
-        %(type1)s, intent(inout) :: Ret()
+        %(type1)s, intent(in), target :: v(:)
+        %(type1)s, intent(inout), target :: Ret()
         integer, intent(out) :: ierr
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: Comm, rt, err
@@ -1202,7 +1202,7 @@ contains
 
     subroutine MPIRecv (Ret, BuffSize, Source, Tag, ierr)
 
-        %(type1)s, intent(out) :: Ret()
+        %(type1)s, intent(out), target :: Ret()
         integer, intent(in) :: BuffSize, tag, source
         integer, intent(out) :: ierr
 
@@ -1228,7 +1228,7 @@ contains
 
     subroutine MPISend (v, BuffSize, Dest, Tag, ierr)
 
-        %(type1)s, intent(in) :: v()
+        %(type1)s, intent(in), target :: v()
         integer, intent(in) :: BuffSize, tag, dest
         integer, intent(out) :: ierr
 
