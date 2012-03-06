@@ -1,3 +1,5 @@
+#include "macros.h"
+
 module ParallelHelper
    use constants
    use iso_c_hack
