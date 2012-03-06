@@ -163,7 +163,7 @@ C               IC=IC+1
             IF(NTHISEL.EQ.NEL) THEN
 !               CALL CALCRHO2(IDET,IDET,BETA,I_P,NEL,NBASISMAX,
 !     &            G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,RH,NTAY,0,ECORE)
-               IF(RH.GT.RHOMAX) RHOMAX=RH
+!               IF(RH.GT.RHOMAX) RHOMAX=RH
             ELSE
 !               CALL CALCRHOIIMAXR(BETA,I_P,NEL,
 !     &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,NTAY,
@@ -191,7 +191,7 @@ C               IC=IC+1
 !            CALL GENNEWDET2(NI,NI,NEL,NBASIS,NBASISMAX,G1,ISEED)
 !            CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,
 !     &            G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,RH,NTAY,0,ECORE)
-            IF(RH.GT.RHOMAX) RHOMAX=RH
+!            IF(RH.GT.RHOMAX) RHOMAX=RH
          ENDDO
          RETURN
       END
