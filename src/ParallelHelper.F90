@@ -13,7 +13,11 @@ module ParallelHelper
     ! These are not defined, if using MPI in C
     integer(MPIArg), parameter :: MPI_SUCCESS = 0
     integer(MPIArg), parameter :: MPI_COMM_WORLD = 0
-    type(c_ptr), parameter :: MPI_IN_PLACE = C_NULL_PTR
+#if defined(__PATHSCALE__) || defined(__ISO_C_HACK)
+    c_ptr_t, parameter :: MPI_IN_PLACE = 0
+#else
+    c_ptr_t, parameter :: MPI_IN_PLACE = C_NULL_PTR
+#endif
     integer, parameter :: MPI_STATUS_SIZE = 1
 
     ! Define values so our C-wrapper can work nicely

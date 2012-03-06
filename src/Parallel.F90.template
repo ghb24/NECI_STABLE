@@ -360,8 +360,8 @@ contains
 #ifdef PARALLEL
 #ifdef CBINDMPI
         c_ptr_t :: vptr, rptr
-        vptr = c_loc(v)
-        rptr = c_loc(ret)
+        vptr = loc_neci(v)
+        rptr = loc_neci(ret)
 #endif
 
         call GetComm (Comm, Node, rt)
@@ -394,8 +394,8 @@ contains
 #ifdef PARALLEL
 #ifdef CBINDMPI
         c_ptr_t :: vptr, rptr
-        vptr = c_loc(v)
-        rptr = c_loc(ret)
+        vptr = loc_neci(v)
+        rptr = loc_neci(ret)
 #endif
         call GetComm(Comm, Node, rt)
 
@@ -428,7 +428,7 @@ contains
 #ifdef CBINDMPI
         ! Spaces prevent template adjustment
         c_ptr_t :: vptr
-        vptr = c_loc(v)
+        vptr = loc_neci(v)
 #endif
 
 #ifdef PARALLEL
@@ -475,8 +475,8 @@ contains
 #ifdef PARALLEL
 #ifdef CBINDMPI
         c_ptr_t :: vptr, rptr
-        vptr = c_loc(v)
-        rptr = c_loc(ret)
+        vptr = loc_neci(v)
+        rptr = loc_neci(ret)
 #endif
         call GetComm (Comm, Node)
 
@@ -509,8 +509,8 @@ contains
 #ifdef PARALLEL
 #ifdef CBINDMPI
         c_ptr_t :: vptr, rptr
-        vptr = c_loc(v)
-        rptr = c_loc(ret)
+        vptr = loc_neci(v)
+        rptr = loc_neci(ret)
 #endif
 
         call GetComm (Comm, Node)
@@ -545,7 +545,7 @@ contains
 #ifdef CBINDMPI
         ! Spaces prevent template adjustment
         c_ptr_t :: vptr
-        vptr = c_loc(v)
+        vptr = loc_neci(v)
 #endif
         call GetComm (Comm, Node)
 
@@ -585,8 +585,8 @@ contains
 #ifdef PARALLEL
 #ifdef CBINDMPI
         c_ptr_t :: vptr, rptr
-        vptr = c_loc(v)
-        rptr = c_loc(ret)
+        vptr = loc_neci(v)
+        rptr = loc_neci(ret)
 #endif
 
         call GetComm (Comm, Node)
@@ -726,7 +726,7 @@ contains
 #ifdef PARALLEL
 #ifdef CBINDMPI
         c_ptr_t :: vptr
-        vptr = c_loc(v)
+        vptr = loc_neci(v)
 #endif
         call MPI_Bcast (val_in, int(iLen, MPIArg), &
                 %(mpitype)s, &
@@ -758,7 +758,7 @@ contains
 #ifdef PARALLEL
 #ifdef CBINDMPI
         c_ptr_t :: vptr
-        vptr = c_loc(v)
+        vptr = loc_neci(v)
 #endif
         call GetComm (Comm, Node, rt)
 
@@ -790,7 +790,7 @@ contains
 #ifdef PARALLEL
 #ifdef CBINDMPI
         c_ptr_t :: vptr
-        vptr = c_loc(v)
+        vptr = loc_neci(v)
 #endif
 
         call GetComm (Comm, Node, rt)
@@ -824,7 +824,7 @@ contains
 #ifdef PARALLEL
 #ifdef CBINDMPI
         c_ptr_t :: vptr
-        vptr = c_loc(v)
+        vptr = loc_neci(v)
 #endif
 
         call GetComm(Comm, Node, rt, tMe)
@@ -858,8 +858,8 @@ contains
 #ifdef PARALLEL
 #ifdef CBINDMPI
         c_ptr_t :: vptr, rptr
-        vptr = c_loc(v)
-        rptr = c_loc(ret)
+        vptr = loc_neci(v)
+        rptr = loc_neci(ret)
 #endif
 
         call GetComm (Comm, Node)
@@ -893,8 +893,8 @@ contains
 #ifdef PARALLEL
 #ifdef CBINDMPI
         c_ptr_t :: vptr, rptr
-        vptr = c_loc(v)
-        rptr = c_loc(ret)
+        vptr = loc_neci(v)
+        rptr = loc_neci(ret)
 #endif
 
         call GetComm (Comm, Node)
@@ -926,8 +926,8 @@ contains
 #ifdef PARALLEL
 #ifdef CBINDMPI
         c_ptr_t :: vptr, rptr
-        vptr = c_loc(v)
-        rptr = c_loc(ret)
+        vptr = loc_neci(v)
+        rptr = loc_neci(ret)
 #endif
 
         call GetComm (Comm, Node)
@@ -959,8 +959,8 @@ contains
 #ifdef PARALLEL
 #ifdef CBINDMPI
         c_ptr_t :: vptr, rptr
-        vptr = c_loc(v)
-        rptr = c_loc(ret)
+        vptr = loc_neci(v)
+        rptr = loc_neci(ret)
 #endif
 
         call GetComm (Comm, Node, rt)
@@ -994,8 +994,8 @@ contains
 #ifdef PARALLEL
 #ifdef CBINDMPI
         c_ptr_t :: vptr, rptr
-        vptr = c_loc(v)
-        rptr = c_loc(ret)
+        vptr = loc_neci(v)
+        rptr = loc_neci(ret)
 #endif
 
         call GetComm (Comm, Node, rt)
@@ -1026,8 +1026,8 @@ contains
 #ifdef PARALLEL
 #ifdef CBINDMPI
         c_ptr_t :: vptr, rptr
-        vptr = c_loc(v)
-        rptr = c_loc(ret)
+        vptr = loc_neci(v)
+        rptr = loc_neci(ret)
 #endif
 
         call GetComm (Comm, Node, rt)
@@ -1069,8 +1069,8 @@ contains
 #ifdef PARALLEL
 #ifdef CBINDMPI
         c_ptr_t :: vptr, rptr
-        vptr = c_loc(v)
-        rptr = c_loc(ret)
+        vptr = loc_neci(v)
+        rptr = loc_neci(ret)
 #endif
 
         DispsN = Disps &
@@ -1114,8 +1114,8 @@ contains
 #ifdef PARALLEL
 #ifdef CBINDMPI
         c_ptr_t :: vptr, rptr
-        vptr = c_loc(v)
-        rptr = c_loc(ret)
+        vptr = loc_neci(v)
+        rptr = loc_neci(ret)
 #endif
 
         call GetComm (Comm, Node, rt)
@@ -1147,8 +1147,8 @@ contains
 #ifdef PARALLEL
 #ifdef CBINDMPI
         c_ptr_t :: vptr, rptr
-        vptr = c_loc(v)
-        rptr = c_loc(ret)
+        vptr = loc_neci(v)
+        rptr = loc_neci(ret)
 #endif
 
         call GetComm (Comm, Node, rt)
@@ -1180,8 +1180,8 @@ contains
 #ifdef PARALLEL
 #ifdef CBINDMPI
         c_ptr_t :: vptr, rptr
-        vptr = c_loc(v)
-        rptr = c_loc(ret)
+        vptr = loc_neci(v)
+        rptr = loc_neci(ret)
 #endif
         call GetComm (Comm, Node, rt)
 
@@ -1212,7 +1212,7 @@ contains
         integer(MPIArg) :: stat(MPI_STATUS_SIZE), err
 #ifdef CBINDMPI
         c_ptr_t :: rptr
-        rptr = c_loc(ret)
+        rptr = loc_neci(ret)
 #endif
 
         call MPI_Recv (val_out, int(BuffSize, MPIArg), &
@@ -1238,7 +1238,7 @@ contains
         integer(MPIArg) :: err
 #ifdef CBINDMPI
         c_ptr_t :: vptr
-        vptr = c_loc(v)
+        vptr = loc_neci(v)
 #endif
 
         call MPI_Send (val_in, int(BuffSize, MPIArg), &

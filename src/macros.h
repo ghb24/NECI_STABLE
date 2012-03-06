@@ -72,6 +72,7 @@ endif
 
 
 #if defined(__PATHSCALE__) || defined(__ISO_C_HACK)
+#define loc_neci loc
 #ifdef POINTER8
 #define c_ptr_t integer(int64)
 #else
@@ -79,4 +80,5 @@ endif
 #endif
 #else
 #define c_ptr_t type(c_ptr)
+#define loc_neci c_loc
 #endif
