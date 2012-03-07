@@ -414,7 +414,7 @@ MODULE FciMCParMod
         use sort_mod
         integer, dimension(lenof_sign) :: SignCurr,LowSign
         integer :: ierr,i,j,counter
-        real(dp) :: SmallestSign,SignCurrReal,HighSign,reduce_in(1:2),reduce_out(1:2),Norm
+        real(dp) :: SmallestSign,SignCurrReal,HighSign,reduce_in(1:2),reduce_out(1:2),Norm,AllNorm
         integer(n_int) , allocatable :: LargestWalkers(:,:)
         integer(n_int) , allocatable :: GlobalLargestWalkers(:,:)
         integer(n_int) :: HighestDet(0:NIfTot)
@@ -462,7 +462,8 @@ MODULE FciMCParMod
                 endif
             endif
         enddo
-        norm=sqrt(norm)
+        call MpiSum(norm,allnorm)
+        norm=sqrt(allnorm)
 
 !        write(6,*) "Highest weighted dets on this process:"
 !        do i=1,iHighPopWrite
