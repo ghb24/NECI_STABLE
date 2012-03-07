@@ -670,3 +670,17 @@ end module
     end function
 
 #endif
+
+#ifdef GFORTRAN
+    function g_loc (var) result(addr)
+
+        use iso_c_binding
+
+        integer, target :: var
+        type(c_ptr) :: addr
+        
+        addr = c_loc(var)
+
+    end function
+#endif
+
