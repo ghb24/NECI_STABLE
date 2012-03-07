@@ -443,21 +443,18 @@ MODULE FciMCParMod
 
             !Is this determinant more populated than the last in the list
             if(SignCurrReal.gt.SmallestSign) then
-                LargestWalkers(:,iHighPopWrite)=CurrentDets(:,i)
+                LargestWalkers(:,1)=CurrentDets(:,i)
 
                 !Now need to recalculate the list - resort LargestWalkers list by sign
                 !(check that these are from high to low!)
                 write(6,*) "New large weight found. Entering sort: "
-                do j=1,iHighPopWrite
-                    write(6,*) "Unsorted: ",j,LargestWalkers(:,j), sign_lt(LargestWalkers(:,j), LargestWalkers(:,1)),  sign_gt(LargestWalkers(:,j), LargestWalkers(:,1))
-                enddo
                 call sort(LargestWalkers(:,1:iHighPopWrite), sign_lt, sign_gt)
                 do j=1,iHighPopWrite
-                    write(6,*) "Sorted: ",j,LargestWalkers(:,j), sign_lt(LargestWalkers(:,j), LargestWalkers(:,1)),  sign_gt(LargestWalkers(:,j), LargestWalkers(:,1))
+                    write(6,*) "Sorted: ",j,LargestWalkers(:,j)
                 enddo
 
                 !Now extract the smallest sign
-                call extract_sign(LargestWalkers(:,iHighPopWrite),LowSign)
+                call extract_sign(LargestWalkers(:,1),LowSign)
                 if(lenof_sign.eq.1) then
                     SmallestSign=real(abs(LowSign(1)),dp)
                 else

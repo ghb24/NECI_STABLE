@@ -402,7 +402,7 @@ module DetBitOps
     pure function sign_lt (ilutI, ilutJ) result (bLt)
         ! This is a comparison function between two bit strings of length 0:NIfTot, and will return
         ! true if absolute value of the sign of ilutI is less than ilutJ
-        integer(n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        integer(n_int), intent(in) :: iLutI(0:), iLutJ(0:)
         logical :: bLt
         integer, dimension(lenof_sign) :: SignI, SignJ
         real(dp) :: WeightI,WeightJ
@@ -430,7 +430,7 @@ module DetBitOps
     pure function sign_gt (ilutI, ilutJ) result (bGt)
         ! This is a comparison function between two bit strings of length 0:NIfTot, and will return
         ! true if the abs sign of ilutI is greater than ilutJ
-        integer(n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        integer(n_int), intent(in) :: iLutI(0:), iLutJ(0:)
         logical :: bGt
         integer, dimension(lenof_sign) :: SignI, SignJ
         real(dp) :: WeightI,WeightJ
