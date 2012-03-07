@@ -1,9 +1,6 @@
 #include "dSFMT.h"
 #include "dSFMT_wrapper.h"
 
-/** dsfmt internal state vector */
-dsfmt_t dsfmt_global_data;
-
 // Wrap around the required dSFMT functions so that they're accessible from 
 // fortran. We use C++'s handy reference function to allow Fortran and C to 
 // communicate, despite the different approaches in passing arguments.

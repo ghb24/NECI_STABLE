@@ -1,4 +1,6 @@
 #ifdef CBINDMPI
+#define OMPI_SKIP_MPICXX
+#define MPICH_SKIP_MPICXX
 #include <mpi.h>
 #endif
 #include <stdio.h>

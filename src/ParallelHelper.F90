@@ -1,3 +1,5 @@
+#include "macros.h"
+
 module ParallelHelper
    use constants
    use iso_c_hack
@@ -13,6 +15,11 @@ module ParallelHelper
     ! These are not defined, if using MPI in C
     integer(MPIArg), parameter :: MPI_SUCCESS = 0
     integer(MPIArg), parameter :: MPI_COMM_WORLD = 0
+#if defined(__PATHSCALE__) || defined(__ISO_C_HACK)
+    c_ptr_t, parameter :: MPI_IN_PLACE = 0
+#else
+    c_ptr_t, parameter :: MPI_IN_PLACE = C_NULL_PTR
+#endif
     integer, parameter :: MPI_STATUS_SIZE = 1
 
     ! Define values so our C-wrapper can work nicely
@@ -109,6 +116,18 @@ module ParallelHelper
     integer(MPIArg), parameter :: MpiDetInt = -1
 #endif
 
+#ifndef PARALLEL
+    ! These don't exist in serial, so fudge them
+    integer(MPIArg), parameter :: MPI_2INTEGER=0
+    integer(MPIArg), parameter :: MPI_2DOUBLE_PRECISION=0
+    integer(MPIArg), parameter :: MPI_MIN=0
+    integer(MPIArg), parameter :: MPI_MAX=0
+    integer(MPIArg), parameter :: MPI_SUM=0
+    integer(MPIArg), parameter :: MPI_LOR=0
+    integer(MPIArg), parameter :: MPI_MAXLOC=0
+    integer(MPIArg), parameter :: MPI_MINLOC=0
+    integer(MPIArg), parameter :: MPI_MAX_ERROR_STRING=255
+#endif
 
 
    Type :: CommI
