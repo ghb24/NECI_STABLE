@@ -374,6 +374,8 @@ MODULE FciMCParMod
             CALL PrintDoubUEGOccs(DoubsUEG)
         ENDIF
 
+        call PrintHighPops()
+
 ! Print out some load balancing stats nicely to end.
         CALL MPIReduce(TotWalkers,MPI_MAX,MaxWalkers)
         CALL MPIReduce(TotWalkers,MPI_MIN,MinWalkers)
@@ -404,6 +406,131 @@ MODULE FciMCParMod
         endif
 
     END SUBROUTINE FciMCPar
+
+    !Routine to print the highest populated determinants at the end of a run
+    SUBROUTINE PrintHighPops()
+        use DetBitOps, only : sign_lt,sign_gt
+        use Logging, only: iHighPopWrite
+        use Determinants, only: write_bit_rep
+        use sort_mod
+        integer, dimension(lenof_sign) :: SignCurr,LowSign
+        integer :: ierr,i,j
+        real(dp) :: SmallestSign,SignCurrReal,HighSign,reduce_in(1:2),reduce_out(1:2)
+        integer(n_int) , allocatable :: LargestWalkers(:,:)
+        integer(n_int) , allocatable :: GlobalLargestWalkers(:,:)
+        integer(n_int) :: HighestDet(0:NIfTot)
+        integer , allocatable :: GlobalProc(:)
+        character(len=*), parameter :: t_r='PrintHighPops'
+
+        !Allocate memory to hold highest iHighPopWrite determinants
+        allocate(LargestWalkers(0:NIfTot,iHighPopWrite),stat=ierr)
+        if(ierr.ne.0) call stop_all(t_r,"error allocating here")
+        LargestWalkers(:,:)=0
+
+        SmallestSign=0.0_dp !Real, so can deal with complex amplitudes
+        !Run through all walkers on process
+        do i=1,TotWalkers
+            write(6,*) "Smallest sign is: ",SmallestSign
+            call extract_sign(CurrentDets(:,i),SignCurr)
+
+            write(6,*) "***",i,SignCurr,CurrentDets(0:NIfDBO,i)
+
+            if(lenof_sign.eq.1) then
+                SignCurrReal=real(abs(SignCurr(1)),dp)
+            else
+                SignCurrReal=sqrt(real(SignCurr(1),dp)**2+real(SignCurr(lenof_sign),dp)**2)
+            endif
+
+            !Is this determinant more populated than the last in the list
+            if(SignCurrReal.gt.SmallestSign) then
+                LargestWalkers(:,iHighPopWrite)=CurrentDets(:,i)
+
+                !Now need to recalculate the list - resort LargestWalkers list by sign
+                !(check that these are from high to low!)
+                write(6,*) "New large weight found. Entering sort: "
+                do j=1,iHighPopWrite
+                    write(6,*) "Unsorted: ",j,LargestWalkers(:,j), sign_lt(LargestWalkers(:,j), LargestWalkers(:,1)),  sign_gt(LargestWalkers(:,j), LargestWalkers(:,1))
+                enddo
+                call sort(LargestWalkers(:,1:iHighPopWrite), sign_lt, sign_gt)
+                do j=1,iHighPopWrite
+                    write(6,*) "Sorted: ",j,LargestWalkers(:,j), sign_lt(LargestWalkers(:,j), LargestWalkers(:,1)),  sign_gt(LargestWalkers(:,j), LargestWalkers(:,1))
+                enddo
+
+                !Now extract the smallest sign
+                call extract_sign(LargestWalkers(:,iHighPopWrite),LowSign)
+                if(lenof_sign.eq.1) then
+                    SmallestSign=real(abs(LowSign(1)),dp)
+                else
+                    SmallestSign=sqrt(real(LowSign(1),dp)**2+real(LowSign(lenof_sign),dp)**2)
+                endif
+            endif
+        enddo
+
+        write(6,*) "Highest weighted dets on this process:"
+        do i=1,iHighPopWrite
+            write(6,*) LargestWalkers(:,i)
+        enddo
+
+        !Now have sorted list of the iHighPopWrite largest weighted determinants on the process
+
+        if(iProcIndex.eq.Root) then
+            allocate(GlobalLargestWalkers(0:NIfTot,iHighPopWrite),stat=ierr)
+            if(ierr.ne.0) call stop_all(t_r,"error allocating here")
+            GlobalLargestWalkers(:,:)=0
+            allocate(GlobalProc(iHighPopWrite),stat=ierr)
+            if(ierr.ne.0) call stop_all(t_r,"error allocating here")
+            GlobalProc(:)=0
+        endif
+
+        do i=1,iHighPopWrite
+
+            call extract_sign(LargestWalkers(:,1),SignCurr)
+
+            if(lenof_sign.eq.1) then
+                HighSign=real(abs(SignCurr(1)),dp)
+            else
+                HighSign=sqrt(real(SignCurr(1),dp)**2+real(SignCurr(lenof_sign),dp)**2)
+            endif
+            reduce_in=(/ HighSign,real(iProcIndex,dp) /)
+            call MPIAllReduceDatatype(reduce_in,1,MPI_MAXLOC,MPI_2DOUBLE_PRECISION,reduce_out)
+            !Now, reduce_out(2) has the process of the largest weighted determinant - broadcast it!
+            if(iProcIndex.eq.nint(reduce_out(2))) then
+                HighestDet(0:NIfTot) = LargestWalkers(:,1)
+            else
+                HighestDet(0:NIfTot) = 0
+            endif
+            call MPIBCast(HighestDet(:),NIfTot+1,nint(reduce_out(2)))
+            if(iProcIndex.eq.Root) then
+                GlobalLargestWalkers(0:NIfTot,i) = HighestDet(:)
+                GlobalProc(i) = nint(reduce_out(2))
+            endif
+
+            !Now delete this highest determinant from the list on the corresponding processor
+            if(iProcIndex.eq.nint(reduce_out(2))) then
+                LargestWalkers(:,1) = 0
+                !Resort
+                call sort(LargestWalkers(:,1:iHighPopWrite), sign_lt, sign_gt)
+            endif
+        enddo
+
+        if(iProcIndex.eq.Root) then
+            !Now print out the info contained in GlobalLargestWalkers and GlobalProc
+
+            !TODO: Sort for HPHF
+
+            write(6,*) "Largest weighted ",iHighPopWrite," determinants: "
+            write(6,*) 
+            do i=1,iHighPopWrite
+                call write_bit_rep(6,GlobalLargestWalkers(:,i),.false.)
+                write(6,*) "Proc: ",GlobalProc(i)
+            enddo
+
+            deallocate(GlobalLargestWalkers,GlobalProc)
+        endif
+
+        deallocate(LargestWalkers)
+
+    END SUBROUTINE PrintHighPops
 
 
     ! **********************************************************
