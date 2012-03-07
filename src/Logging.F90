@@ -52,7 +52,7 @@ MODULE Logging
     integer :: iProjEBins
 
     logical :: tCalcInstantS2, tCalcInstSCpts
-    integer :: instant_s2_multiplier
+    integer :: instant_s2_multiplier,iHighPopWrite
 
     contains
 
@@ -62,6 +62,7 @@ MODULE Logging
       use default_sets
       implicit none
 
+      iHighPopWrite = 15    !How many highest weighted determinants to write out at the end of an FCIQMC calc.
       tDiagWalkerSubspace = .false.
       iDiagSubspaceIter = 1
       tSplitProjEHist = .false.
@@ -172,6 +173,9 @@ MODULE Logging
         call readu(w)
         select case(w)
 
+        case("HIGHLYPOPWRITE")
+            !At the end of an FCIMC calculation, how many highly populated determinants should we write out?
+            call readi(iHighPopWrite)
         case("DIAGWALKERSUBSPACE")
             !Diagonalise walker subspaces every iDiagSubspaceIter iterations
             tDiagWalkerSubspace = .true.
