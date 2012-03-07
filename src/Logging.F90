@@ -173,6 +173,9 @@ MODULE Logging
         call readu(w)
         select case(w)
 
+        case("HIGHLYPOPWRITE")
+            !At the end of an FCIMC calculation, how many highly populated determinants should we write out?
+            call readi(iHighPopWrite)
         case("DIAGWALKERSUBSPACE")
             !Diagonalise walker subspaces every iDiagSubspaceIter iterations
             tDiagWalkerSubspace = .true.
