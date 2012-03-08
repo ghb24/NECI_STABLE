@@ -607,7 +607,6 @@ contains
                 ! --> need fewest stack elements. 
                 nstack = nstack + 2
                 if (nstack > nStackMax) then
-                        write(6,*) nstack,nStackMax,n
                         call stop_all (this_routine, &
                                         "parameter nStackMax too small")
                 endif

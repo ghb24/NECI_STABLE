@@ -68,7 +68,8 @@ const MPI_Datatype dtype_map[] = {MPI_INTEGER4,
                                   MPI_DOUBLE_COMPLEX,
                                   MPI_2INTEGER,
                                   MPI_INTEGER,
-                                  MPI_CHARACTER};
+                                  MPI_CHARACTER,
+                                  MPI_2DOUBLE_PRECISION};
 
 //
 // Match the MPI operations between fortran and C
