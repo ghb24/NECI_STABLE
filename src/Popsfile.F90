@@ -563,7 +563,7 @@ MODULE PopsfileMod
         INTEGER :: Total,i,j,k
         INTEGER(KIND=n_int), ALLOCATABLE :: Parts(:,:)
         INTEGER(TagIntType) :: PartsTag=0
-        INTEGER :: nMaxDets
+        INTEGER :: nMaxDets, TempDet(0:NIfTot), TempFlags
         integer :: iunit, iunit_2, Initiator_Count
         CHARACTER(len=*) , PARAMETER :: this_routine='WriteToPopsfileParOneArr'
         character(255) :: popsfile
@@ -686,10 +686,12 @@ MODULE PopsfileMod
             ENDIF
             if(tPrintInitiators) then
                 do j = 1, nDets
-                    call extract_sign(Dets(:,j),TempSign)
+                    call extract_bit_rep (Dets(:,j), TempDet, TempSign, &
+                                      TempFlags, fcimc_excit_gen_store)
+!                    call extract_sign(Dets(:,j),TempSign)
                     if(abs(TempSign(1)).gt.InitiatorWalkNo) then
-                        Initiator_Count = Initiator_Count + 1
-                        write(iunit_2,"(2I30)") Initiator_Count,abs(TempSign(1))
+                        write(iunit_2,"(I30,A20)",advance='no') abs(TempSign(1)),''
+                        call write_det (iunit_2, TempDet, .true.)
                     endif
                 enddo
             endif
@@ -734,10 +736,11 @@ MODULE PopsfileMod
                 ENDIF
                 if(tPrintInitiators) then
                     do j = 1, WalkersonNodes(i)
-                        call extract_sign(Parts(:,j),TempSign)
+                        call extract_bit_rep (Parts(:,j), TempDet, TempSign, &
+                                      TempFlags, fcimc_excit_gen_store)
                         if(abs(TempSign(1)).gt.InitiatorWalkNo) then
-                            Initiator_Count = Initiator_Count + 1
-                            write(iunit_2,"(2I30)") Initiator_Count,abs(TempSign(1))
+                            write(iunit_2,"(I30,A20)",advance='no') abs(TempSign(1)),''
+                            call write_det (iunit_2, TempDet, .true.)
                         endif
                     enddo
                 endif
