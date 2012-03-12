@@ -14,7 +14,7 @@ MODULE PopsfileMod
     use Parallel_neci
     use AnnihilationMod, only: DetermineDetNode
     USE Logging , only : iWritePopsEvery,tPopsFile,iPopsPartEvery,tBinPops
-    USE Logging , only : tPrintPopsDefault,tIncrementPops
+    USE Logging , only : tPrintPopsDefault,tIncrementPops, tPrintInitiators
     use sort_mod
     use util_mod, only: get_free_unit,get_unique_filename
 
@@ -552,7 +552,7 @@ MODULE PopsfileMod
 !The root processors data will be stored in a temporary array while it recieves the data from the other processors.
 !This routine will write out to a popsfile. It transfers all walkers to the head node sequentially, so does not want to be called too often
     SUBROUTINE WriteToPopsfileParOneArr(Dets,nDets)
-        use CalcData, only: iPopsFileNoWrite
+        use CalcData, only: iPopsFileNoWrite, InitiatorWalkNo
         use constants, only: size_n_int,MpiDetInt,n_int
         use MemoryManager, only: TagIntType
         integer(int64),intent(in) :: nDets !The number of occupied entries in Dets
@@ -564,7 +564,7 @@ MODULE PopsfileMod
         INTEGER(KIND=n_int), ALLOCATABLE :: Parts(:,:)
         INTEGER(TagIntType) :: PartsTag=0
         INTEGER :: nMaxDets
-        integer :: iunit
+        integer :: iunit, iunit_2, Initiator_Count
         CHARACTER(len=*) , PARAMETER :: this_routine='WriteToPopsfileParOneArr'
         character(255) :: popsfile
         INTEGER, DIMENSION(lenof_sign) :: TempSign
@@ -657,6 +657,11 @@ MODULE PopsfileMod
                 call get_unique_filename('POPSFILEBIN',tIncrementPops,.true.,iPopsFileNoWrite,popsfile)
                 OPEN(iunit,FILE=popsfile,Status='replace',form='unformatted')
             ENDIF
+            if(tPrintInitiators) then
+                iunit_2 = get_free_unit()
+                OPEN(iunit_2,FILE='INITIATORS',Status='UNKNOWN')
+                Initiator_Count = 0
+            endif
 
             IF(tBinPops) THEN
                 do j=1,nDets
@@ -679,6 +684,16 @@ MODULE PopsfileMod
                     ENDIF
                 enddo
             ENDIF
+            if(tPrintInitiators) then
+                do j = 1, nDets
+                    call extract_sign(Dets(:,j),TempSign)
+                    if(abs(TempSign(1)).gt.InitiatorWalkNo) then
+                        Initiator_Count = Initiator_Count + 1
+                        write(iunit_2,"(2I30)") Initiator_Count,abs(TempSign(1))
+                    endif
+                enddo
+            endif
+
 !            WRITE(6,*) "Written out own walkers..."
 !            write(6,*) WalkersOnNodes
             CALL neci_flush(6)
@@ -717,12 +732,23 @@ MODULE PopsfileMod
                         ENDIF
                     enddo
                 ENDIF
+                if(tPrintInitiators) then
+                    do j = 1, WalkersonNodes(i)
+                        call extract_sign(Parts(:,j),TempSign)
+                        if(abs(TempSign(1)).gt.InitiatorWalkNo) then
+                            Initiator_Count = Initiator_Count + 1
+                            write(iunit_2,"(2I30)") Initiator_Count,abs(TempSign(1))
+                        endif
+                    enddo
+                endif
+
 !                WRITE(6,*) "Writted out walkers for processor ",i
 !                CALL neci_flush(6)
 
             enddo
 
             CLOSE(iunit)
+            CLOSE(iunit_2)
 
 !Deallocate memory for temporary storage of information.
             DEALLOCATE(Parts)

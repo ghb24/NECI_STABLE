@@ -32,9 +32,9 @@ MODULE Logging
     LOGICAL tTruncDumpbyVal, tChangeVarsRDM, tPrintRODump, tSpawnGhostChild, tno_RDMs_to_read, tReadRDMs
     LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit,tPrintDoubsUEG, tWriteMultRDMs
     LOGICAL tHF_S_D_Ref, tHF_S_D, tHF_Ref_Explicit, tExplicitAllRDM, twrite_normalised_RDMs, twrite_RDMs_to_read 
-    LOGICAL tNoNOTransform, tPrint1RDM
+    LOGICAL tNoNOTransform, tPrint1RDM, tPrintInitiators
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps,IterShiftBlock
-    INTEGER IterRDMonFly, RDMExcitLevel, RDMEnergyIter, IterWriteRDMs
+    INTEGER IterRDMonFly, RDMExcitLevel, RDMEnergyIter, IterWriteRDMs 
     real(dp) GhostThresh, GhostFac
     INTEGER CCMCDebug  !CCMC Debugging Level 0-6.  Default 0
     INTEGER FCIMCDebug !FciMC Debugging Level 0-6.  Default 0
@@ -589,6 +589,10 @@ MODULE Logging
 ! Write out the normalised, hermitian RDMs every IterWriteRDMs iterations.  
             tWriteMultRDMs = .true.
             call readi(IterWriteRDMs)
+
+        case("WRITEINITIATORS")
+! Requires a popsfile to be written out.  Writes out the initiator populations. 
+            tPrintInitiators = .true.
 
         case("AUTOCORR")
 !This is a Parallel FCIMC option - it will calculate the largest weight MP1 determinants and histogramm them
