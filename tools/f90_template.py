@@ -54,6 +54,18 @@ space clashes between templated modules, and an interface generated to allow acc
 
 ************************
 
+If the property 'conditional_enable' is defined, it is only valid for the
+particular configuration it is specified in.
+
+It will be the condition placed in:
+
+	#if *
+	#endif
+
+block around the configuration.
+
+************************
+
 Supermodule:
 Once multiple, subtly renamed, modules have been produced in the output file,
 they are then all included into an overall module, with the specified name, 
@@ -119,12 +131,11 @@ def read_config(fin):
 	print 'Producing configurations: ',
 	sprev = None
 	for s in sections:
+		config[s] = dict()
 		if sprev is not None:
-			config[s] = dict()
 			config[s].update(config[sprev])
-			config[s].update(parser.items(s))
-		else:
-			config[s] = dict(parser.items(s))
+		config[s].update({'conditional_enable' : None})
+		config[s].update(parser.items(s))
 		config[s].update({'name' : s})
 
 		if sprev:
@@ -164,7 +175,11 @@ def super_module(template, config):
 	# Construct super module
 	super_mod = m.group(1) + "\n"
 	for s in config:
+		if config[s]['conditional_enable'] is not None:
+			super_mod += '#if %s\n' % config[s]['conditional_enable']
 		super_mod += "    use " + m.group(2) + "_" + s + "\n"
+		if config[s]['conditional_enable'] is not None:
+			super_mod += '#endif\n'
 
 	if m_super: super_mod += m_super.group(3)
 	super_mod += "end module\n"
@@ -345,6 +360,10 @@ def adj_arrays (template, config):
 
 	# Fill in the rest
 	new_template2 += newtemplate[last_end:]
+
+	if config['conditional_enable'] is not None:
+
+		new_template2 = '#if %s\n' % config['conditional_enable'] + new_template2 + '\n#endif\n'
 
 	return (new_template2, config)
 

@@ -26,9 +26,13 @@ INTEGER, SAVE :: lc=3
 
 !INTEGER, PARAMETER :: sp=kind(1.0_4),dp=kind(1.0_8)!, qp=selected_real_kind(30)
 
-INTERFACE readf
-  MODULE    PROCEDURE read_single, read_double!, read_quad
-END INTERFACE
+interface readf
+#ifndef SX
+    module procedure read_single
+#endif
+    module procedure read_double
+!    module procedure read_quad
+end interface
 
 PRIVATE
 PUBLIC :: item, nitems, read_line, stream, reada, readu, readl,        &
@@ -114,7 +118,7 @@ PUBLIC :: item, nitems, read_line, stream, reada, readu, readl,        &
 !  (default) no skipping occurs and the next data line is returned
 !  regardless of what it contains.
 
-!  If CLEAR is set to TRUE (default) then null items will be returned 
+!  If CLEAR is set to TRUE (default) then null items will be returned
 !  as zero or blank. If an attempt is made to read more than
 !  NITEMS items from a line, the items are treated as null. If
 !  CLEAR is FALSE, a variable into which a null item is read is
@@ -366,7 +370,7 @@ nitems=0
 L=0            ! Position in input buffer
 tcomma=.true.  !  True if last item was terminated by comma
                !  and also at start of buffer
-      
+
 
 chars: do
 
@@ -413,7 +417,7 @@ chars: do
       loc(nitems)=L
       state=2
     end select
-    
+
   case(1)                ! Reading through quoted string
     if (c .eq. term) then ! Closing quote found
       end(nitems)=L
@@ -469,9 +473,9 @@ chars: do
     case default
       call report("Space or comma needed after quoted string",.true.)
     end select
-      
+
   end select
-    
+
 end do chars
 
 END SUBROUTINE parse
@@ -584,21 +588,21 @@ END SUBROUTINE reada
 !-----------------------------------------------------------------------
 
 ! SUBROUTINE read_quad(A,factor)
-! 
+!
 ! !  Read the next item from the buffer as a real (quadruple precision) number.
 ! !  If the optional argument factor is present, the value read should be
 ! !  divided by it. (External value = factor*internal value)
-! 
+!
 ! REAL(KIND=qp), INTENT(INOUT) :: a
 ! REAL(KIND=qp), INTENT(IN), OPTIONAL :: factor
-! 
+!
 ! CHARACTER(LEN=50) :: string
-! 
+!
 ! if (clear) a=0.0_qp
-! 
+!
 ! !  If there are no more items on the line, I is unchanged
 ! if (item .ge. nitems) return
-! 
+!
 ! string=""
 ! call reada(string)
 ! !  If the item is null, I is unchanged
@@ -608,7 +612,7 @@ END SUBROUTINE reada
 !   a=a/factor
 ! endif
 ! return
-! 
+!
 ! 99 a=0.0_qp
 ! select case(nerror)
 ! case(-1,0)
@@ -618,7 +622,7 @@ END SUBROUTINE reada
 ! case(2)
 !   nerror=-1
 ! end select
-! 
+!
 ! END SUBROUTINE read_quad
 
 !-----------------------------------------------------------------------
@@ -760,7 +764,7 @@ END SUBROUTINE readi
         endif
 
     end function
-                
+
 
 
 !-----------------------------------------------------------------------
