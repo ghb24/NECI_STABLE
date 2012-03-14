@@ -100,6 +100,16 @@ module ParallelHelper
             integer(c_int), intent(in), value :: comm
             integer(c_int), intent(out) :: group, ierr
         end subroutine
+        subroutine MPI_Gather (sbuf, scnt, stype, rbuf, rcnt, rtype, &
+                                 rt, comm, ierr) &
+                                 bind(c, name='mpi_gather_wrap')
+            use iso_c_hack
+            use constants
+            c_ptr_t, intent(in), value :: sbuf, rbuf
+            integer(c_int), intent(in), value :: scnt, stype, rcnt, rtype
+            integer(c_int), intent(in), value :: comm, rt
+            integer(c_int), intent(out) :: ierr
+        end subroutine
     end interface
 #endif
 
@@ -307,63 +317,54 @@ contains
 #endif
 
     end subroutine
-
-    subroutine MPIGather_hack (v, v2, nchar, nprocs, ierr, Node)
+!
+! n.b HACK
+! We need to be able to do a bit of hackery when using C-based MPI
+!
+! --> We relabel things a bit...
 #ifdef CBINDMPI
-        interface
-            ! Put this here to avoid polluting the global namespace
-            subroutine MPI_Gather_2 (sbuf, scnt, stype, rbuf, rcnt, rtype, &
-                                     rt, comm, ierr) &
-                                     bind(c, name='mpi_gather_wrap')
-                use iso_c_hack
-                use constants
-                character(c_char), intent(in) :: sbuf
-                character(c_char), intent(out) :: rbuf
-                integer(c_int), intent(in), value :: scnt, stype, rcnt, rtype
-                integer(c_int), intent(in), value :: comm, rt
-                integer(c_int), intent(out) :: ierr
-            end subroutine
-        end interface
+#define val_in vptr
+#define val_out rptr
+#else
+#define val_in v
+#define val_out Ret
 #endif
 
+    subroutine MPIGather_hack (v, ret, nchar, nprocs, ierr, Node)
+
         integer, intent(in) :: nchar, nprocs
-        character(len=nchar) :: v
-        character(len=nchar) :: v2(nprocs)
+        character(len=nchar), target :: v
+        character(len=nchar), target :: ret(nprocs)
         integer, intent(out) :: ierr
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: Comm, rt, err
 
 #ifdef CBINDMPI
         character(c_char) :: in_tmp(nchar)
-        character(len=nchar*nprocs) :: out_tmp
+        character(len=nchar*nprocs), target :: out_tmp
         integer :: i, st, fn
 #endif
 
 
 #ifdef PARALLEL
+#ifdef CBINDMPI
+#ifdef GFORTRAN
+        type(c_ptr) :: g_loc
+#endif
+        c_ptr_t :: vptr, rptr
+        vptr = loc_neci(v)
+        rptr = loc_neci(ret)
+#endif
+
         call GetComm (Comm, Node, rt)
 
-#ifdef CBINDMPI
-        call MPI_Gather_2 (v, int(nchar, MPIArg), MPI_CHARACTER, &
-                           out_tmp, int(nchar, MPIArg), &
-                           MPI_CHARACTER, rt, comm, err)
-        do i = 1, nprocs
-            st = 1 + ((i - 1) * nchar)
-            fn = st + nchar - 1
-            v2(i) = out_tmp(st:fn)
-        end do
-#else
-        call MPI_Gather (v, &
-                int(nchar, MPIArg), &
-                MPI_CHARACTER, &
-                v2, &
-                int(nchar, MPIArg), &
-                MPI_CHARACTER, &
-                rt, comm, err)
-#endif
+        call MPI_Gather (val_in, int(nchar, MPIArg), MPI_CHARACTER, &
+                         val_out, int(nchar, MPIArg), MPI_CHARACTER, &
+                         rt, comm, err)
+
         ierr = err
 #else
-        v2(1) = v
+        ret(1) = v
         ierr = 0
 #endif
     end subroutine
