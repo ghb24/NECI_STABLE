@@ -435,10 +435,10 @@ if __name__ == '__main__':
 			(tmpl, cfg) = adj_arrays(template, config[s])
 			try:
 				fout.write(tmpl % cfg)
-			except ValueError as e:
+			except ValueError, e:
 				print 'Value error: ', e
 				fout.write(tmpl)
-			except Exception as e:
+			except Exception, e:
 				print tmpl
 				print "Exception: ", e
 				raise
