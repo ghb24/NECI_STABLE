@@ -9,6 +9,7 @@ mpilen=1
 mpilen2=1
 ndim=0
 arr_shp=
+conditional_enable = !defined(SX)
 
 [int64]
 type1=integer(int64)
@@ -21,6 +22,7 @@ mpitype=MPI_DOUBLE_PRECISION
 [log4]
 type1=logical(kind=int32)
 mpitype=MPI_INTEGER4
+conditional_enable = !defined(SX)
 
 [log8]
 type1=logical(kind=int64)
@@ -42,6 +44,7 @@ mpilen=(ubound(v,1)-lbound(v,1)+1)
 mpilen2=(ubound(ret,1)-lbound(ret,1)+1)
 ndim=1
 arr_shp=, (/1/)
+conditional_enable = !defined(SX)
 
 [arr_int64]
 type1=integer(int64), dimension(:)
@@ -73,6 +76,7 @@ mpilen=((ubound(v,1)-lbound(v,1)+1)*(ubound(v,2)-lbound(v,2)+1))
 mpilen2=((ubound(ret,1)-lbound(ret,1)+1)*(ubound(ret,2)-lbound(ret,2)+1))
 ndim=2
 arr_shp=, (/1,1/)
+conditional_enable = !defined(SX)
 
 [arr2_int64]
 type1=integer(int64), dimension(:,:)
@@ -89,6 +93,7 @@ mpitype=MPI_DOUBLE_COMPLEX
 [arr2_log4]
 type1=logical(kind=int32), dimension(:,:)
 mpitype=MPI_INTEGER4
+conditional_enable = !defined(SX)
 
 [arr2_log8]
 type1=logical(kind=int64), dimension(:,:)
@@ -129,6 +134,7 @@ mpilen2=((ubound(ret,1)-lbound(ret,1)+1)*(ubound(ret,2)-lbound(ret,2)+1)*&
  (ubound(ret,3)-lbound(ret,3)+1)*(ubound(ret,4)-lbound(ret,4)+1))
 ndim=4
 arr_shp=, (/1,1,1,1/)
+conditional_enable = !defined(SX)
 
 [arr4_doub]
 type1=real(dp), dimension(:,:,:,:)

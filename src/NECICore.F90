@@ -28,9 +28,15 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local)
     logical,intent(in) :: tCPMD,tVASP,tMolpro_local
     type(timer), save :: proc_timer
     integer :: ios
+    character(*), parameter :: this_routine = 'NECICore'
     character(255) :: Filename
     
     tMolpro = tMolpro_local
+
+#ifdef SX
+    call stop_all(this_routine, 'The NEC compiler does not produce a working &
+                                &version of NECI.')
+#endif
 
     ! Do the program initialisation.
     call NECICodeInit(tCPMD,tVASP)
