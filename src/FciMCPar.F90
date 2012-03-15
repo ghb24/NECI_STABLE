@@ -1056,7 +1056,7 @@ MODULE FciMCParMod
             ! other parameters, such as excitlevel info.
             ! This is where the projected energy is calculated.
             call SumEContrib (DetCurr, WalkExcitLevel, SignCurr, &
-                              CurrentDets(:,j), HDiagCurr, 1.d0)
+                              CurrentDets(:,j), HDiagCurr, 1.0_dp)
 
             ! Loop over the 'type' of particle. 
             ! lenof_sign == 1 --> Only real particles

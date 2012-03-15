@@ -1439,11 +1439,11 @@ MODULE System
       ELSEIF(TCPMD) THEN
 !C.. If TCPMD, then we've generated the symmetry table earlier,
 !C.. but we still need the sym reps table.
-         CALL GENCPMDSYMREPS(G1,NBASIS,ARR,1.d-5)
+         CALL GENCPMDSYMREPS(G1,NBASIS,ARR,1.e-5_dp)
       ELSEIF(tVASP) THEN
 !C.. If VASP-based calculation, then we've generated the symmetry table earlier,
 !C.. but we still need the sym reps table. DEGENTOL=1.d-6. CHECK w/AJWT.
-         CALL GENSYMREPS(G1,NBASIS,ARR,1.d-6)
+         CALL GENSYMREPS(G1,NBASIS,ARR,1.e-6_dp)
       ELSEIF(THUB.AND..NOT.TREAL) THEN
          CALL GenHubMomIrrepsSymTable(G1,nBasis,nBasisMax)
          CALL GENHUBSYMREPS(NBASIS,ARR,BRR)
