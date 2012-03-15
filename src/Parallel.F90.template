@@ -270,16 +270,6 @@ module Parallel_neci
             integer(c_int), intent(in), value :: stype, rtype, comm
             integer(c_int), intent(out) :: ierr
         end subroutine
-        subroutine MPI_Gather (sbuf, scnt, stype, rbuf, rcnt, rtype, &
-                                 rt, comm, ierr) &
-                                 bind(c, name='mpi_gather_wrap')
-            use iso_c_hack
-            use constants
-            c_ptr_t, intent(in), value :: sbuf, rbuf
-            integer(c_int), intent(in), value :: scnt, stype, rcnt, rtype
-            integer(c_int), intent(in), value :: comm, rt
-            integer(c_int), intent(out) :: ierr
-        end subroutine
         subroutine MPI_GatherV (sbuf, scnt, stype, rbuf, rcnts, displs, &
                                 rtype, rt, comm, ierr) &
                                 bind(c, name='mpi_gatherv_wrap')
