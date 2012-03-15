@@ -556,6 +556,8 @@ end module
 
 #if defined(__OPEN64__) || defined(__PATHSCALE__)
         integer(int32) :: j
+#else
+        integer :: j
 #endif
 
 #if defined(CBINDMPI) && !defined(MOLPRO)
@@ -572,7 +574,6 @@ end module
                 character(c_char), intent(out) :: str
             end subroutine
         end interface
-        integer :: j
         character(len=c_getarg_len(int(i, c_int))) :: str2
 
         call c_getarg (int(i, c_int), str2)
