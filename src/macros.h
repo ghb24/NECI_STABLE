@@ -78,7 +78,7 @@ endif
 #else
 #define c_ptr_t integer(int32)
 #endif
-#elif defined(GFORTRAN)
+#elif defined(__GFORTRAN__)
 #define c_ptr_t type(c_ptr)
 #define loc_neci g_loc
 #else
