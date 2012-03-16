@@ -281,7 +281,7 @@ MODULE GenRandSymExcitNUMod
         IF(tAOrbFail) THEN
 !            WRITE(6,*) "A ORB FAIL"
             nJ(1)=0
-            pGen=HUGE(0.D0)
+            pGen=HUGE(0.0_dp)
             RETURN
         ENDIF
 

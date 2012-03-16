@@ -13,9 +13,13 @@
 #endif
 
 #if defined(_MOLCAS_MPP_) && !defined(GA_TCGMSG)
-#define __SHARED_MEM
 #define PARALLEL
 #define CBINDMPI
+
+#ifndef __OPEN64__
+#define __SHARED_MEM
+#endif
+
 #endif
 
 #ifndef MOLPRO_f2003

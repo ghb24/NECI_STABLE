@@ -71,7 +71,7 @@ endif
 #endif
 
 
-#if defined(__PATHSCALE__) || defined(__ISO_C_HACK)
+#if defined(__PATHSCALE__) || defined(__ISO_C_HACK) || defined(__OPEN64__)
 #define loc_neci loc
 #ifdef POINTER8
 #define c_ptr_t integer(int64)

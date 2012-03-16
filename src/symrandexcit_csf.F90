@@ -1785,7 +1785,7 @@ contains
 
             write (6, '(i6,": ")', advance='no') i
             call write_det (6, nK(i,:), .true.)
-            call TestGenRandSymCSFExcit (nK(i,:), 4000000, 0.2d0, 0.75d0, 7, &
+            call TestGenRandSymCSFExcit (nK(i,:), 4000000, 0.2_dp, 0.75_dp, 7, &
                                          10000)
         enddo
         deallocate(nK)
@@ -1795,7 +1795,7 @@ contains
         write (6, '("Num remaining: ", i5)') nexcit - nFreeze
 
         ! Test the starting determinants excitations
-        call TestGenRandSymCSFExcit (nI, 4000000, 0.d0, 1.0d0, 4, 10000)
+        call TestGenRandSymCSFExcit (nI, 4000000, 0.0_dp, 1.0_dp, 4, 10000)
         call stop_all(this_routine, 'end of test')
     end subroutine
 

@@ -592,7 +592,7 @@ C.. appropriate projection onto the root
 C            WRITE(6,*) WLIST(I),RIJMAT(1,I)
                S=abs(RIJMAT(1,I))**2
                R=HIJ(1,1)
-               R=DEXP(-BETA*(WLIST(I)-R))
+               R=EXP(-BETA*(WLIST(I)-R))
                SI2=SI2+S*R
 C%/RII
 C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
@@ -1005,7 +1005,7 @@ C.. appropriate projection onto the root
 C            WRITE(6,*) WLIST(I),RIJMAT(1,I)
                S=abs(RIJMAT(1,I))**2
                R=HIJ(1,1)
-               R=DEXP(-BETA*(WLIST(I)-R))
+               R=EXP(-BETA*(WLIST(I)-R))
                SI2=SI2+S*R
 C%/RII
 C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
