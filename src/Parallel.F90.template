@@ -355,7 +355,7 @@ contains
            
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef GFORTRAN
+#ifdef __GFORTRAN__
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -392,7 +392,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef GFORTRAN
+#ifdef __GFORTRAN__
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -428,7 +428,7 @@ contains
         character(*), parameter :: t_r = 'MPIReduce'
 
 #ifdef CBINDMPI
-#ifdef GFORTRAN
+#ifdef __GFORTRAN__
         type(c_ptr) :: g_loc
 #endif
         ! Spaces prevent template adjustment
@@ -479,7 +479,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef GFORTRAN
+#ifdef __GFORTRAN__
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -516,7 +516,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef GFORTRAN
+#ifdef __GFORTRAN__
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -554,7 +554,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef GFORTRAN
+#ifdef __GFORTRAN__
         type(c_ptr) :: g_loc
 #endif
         ! Spaces prevent template adjustment
@@ -598,7 +598,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef GFORTRAN
+#ifdef __GFORTRAN__
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -742,7 +742,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef GFORTRAN
+#ifdef __GFORTRAN__
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr
@@ -777,7 +777,7 @@ contains
         
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef GFORTRAN
+#ifdef __GFORTRAN__
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr
@@ -812,7 +812,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef GFORTRAN
+#ifdef __GFORTRAN__
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr
@@ -849,7 +849,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef GFORTRAN
+#ifdef __GFORTRAN__
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr
@@ -886,7 +886,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef GFORTRAN
+#ifdef __GFORTRAN__
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -924,7 +924,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef GFORTRAN
+#ifdef __GFORTRAN__
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -960,7 +960,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef GFORTRAN
+#ifdef __GFORTRAN__
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -996,7 +996,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef GFORTRAN
+#ifdef __GFORTRAN__
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -1034,7 +1034,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef GFORTRAN
+#ifdef __GFORTRAN__
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -1069,7 +1069,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef GFORTRAN
+#ifdef __GFORTRAN__
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -1115,7 +1115,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef GFORTRAN
+#ifdef __GFORTRAN__
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -1163,7 +1163,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef GFORTRAN
+#ifdef __GFORTRAN__
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -1199,7 +1199,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef GFORTRAN
+#ifdef __GFORTRAN__
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -1235,7 +1235,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef GFORTRAN
+#ifdef __GFORTRAN__
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -1270,7 +1270,7 @@ contains
 #ifdef PARALLEL
         integer(MPIArg) :: stat(MPI_STATUS_SIZE), err
 #ifdef CBINDMPI
-#ifdef GFORTRAN
+#ifdef __GFORTRAN__
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: rptr
@@ -1299,7 +1299,7 @@ contains
 #ifdef PARALLEL
         integer(MPIArg) :: err
 #ifdef CBINDMPI
-#ifdef GFORTRAN
+#ifdef __GFORTRAN__
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr

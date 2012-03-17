@@ -672,7 +672,7 @@ end module
 
 #endif
 
-#ifdef GFORTRAN
+#ifdef __GFORTRAN__
     function g_loc (var) result(addr)
 
         use iso_c_binding

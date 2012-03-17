@@ -348,7 +348,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef GFORTRAN
+#ifdef __GFORTRAN__
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr

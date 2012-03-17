@@ -5,7 +5,7 @@ ld = mpicxx
 ldflags = -m64
 compiler = GCC-f95-on-LINUX
 cpp = cpp -C -traditional
-cppflags = -D__Linux -DPOINTER8 -DPARALLEL -D__INT64 -D__SHARED_MEM -DCBINDMPI -DGFORTRAN
+cppflags = -D__Linux -DPOINTER8 -DPARALLEL -D__INT64 -D__SHARED_MEM -DCBINDMPI -D__GFORTRAN__
 libs = -lacml -lrt -lgfortran -lfftw3
 module_flag = -J
 
