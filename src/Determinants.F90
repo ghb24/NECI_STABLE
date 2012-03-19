@@ -54,12 +54,14 @@ contains
     Subroutine DetPreFreezeInit()
         Use global_utilities
         use SystemData, only : nEl, ECore, Arr, Brr, G1, nBasis, LMS, nBasisMax,tFixLz, tUEGSpecifyMomentum
+        use SystemData, only : tMolpro
         use sym_mod
         use util_mod, only: NECI_ICOPY
+        use sltcnd_mod, only: CalcFockOrbEnergy 
         integer ierr
-        integer i,Lz
+        integer i,Lz,OrbOrder(8,2)
         type(BasisFn) s
-   
+        HElement_t :: OrbE
         character(25), parameter :: this_routine='DetPreFreezeInit'
         Allocate(FDet(nEl), stat=ierr)
         LogAlloc(ierr, 'FDet', nEl, 4, tagFDet)
@@ -86,6 +88,23 @@ contains
          WRITE(6,"(A,I5)") "Lz of Fermi det:",Lz
       ENDIF
       CALL NECI_ICOPY(NEL,FDET,1,NUHFDET,1)
+      if(tMolpro) then
+          !Orbitals are ordered by occupation number from MOLPRO, and not reordered in NECI
+          !Therefore, we know HF determinant is first four occupied orbitals.
+          write(6,"(A)") "NECI called from MOLPRO, so assuming orbitals ordered by occupation number."
+          do i=1,NEL
+            if(FDet(i).ne.i) call stop_all(this_routine,"Error in assigning initial reference determinant")
+          enddo
+          write(6,"(A)") "Calculating orbital energies..."
+          do i=1,nBasis
+               OrbE=CalcFockOrbEnergy(i,FDet)
+               Arr(i,1)=real(OrbE,dp)
+          enddo
+          write(6,"(A)") "Reordering basis by orbital energies..."
+          call ORDERBASIS(NBASIS,Arr,Brr,OrbOrder,nBasisMax,G1)
+          !However, we reorder them here
+          call writebasis(6,G1,nBasis,Arr,Brr)
+      endif
       E0HFDET=ECORE
       DO I=1,NEL
          E0HFDET=E0HFDET+ARR(NUHFDET(i),2)

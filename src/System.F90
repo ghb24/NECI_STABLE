@@ -1418,7 +1418,10 @@ MODULE System
           CALL DCOPY(NBASIS,ARR(1,1),1,ARR(1,2),1)
       ENDIF
 !      WRITE(6,*) THFNOORDER, " THFNOORDER"
-      CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
+      if(.not.tMolpro) then
+          !If we are calling from molpro, we write the basis later (after reordering)
+          CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
+      endif
       IF(NEL.GT.NBASIS) STOP 'MORE ELECTRONS THAN BASIS FUNCTIONS'
       CALL neci_flush(6)
       IF(TREAL.AND.THUB) THEN
