@@ -30,6 +30,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local)
     integer :: ios
     character(*), parameter :: this_routine = 'NECICore'
     character(255) :: Filename
+    logical :: toverride_input
     
     tMolpro = tMolpro_local
 
@@ -46,7 +47,12 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local)
 
 !   See ReadInputMain.  Causes the command line arguments to be checked for the input filename.
     if(tMolpro) then
-        Filename="FCIQMC_input"
+        inquire(file="FCIQMC_input_override",exist=toverride_input)
+        if(toverride_input) then
+            Filename="FCIQMC_input_override"
+        else
+            Filename="FCIQMC_input"
+        endif
     else
         Filename="" 
     endif

@@ -366,6 +366,30 @@ MODULE FciMCParMod
         Weight=(0.D0)
         Energyxw=(ProjectionE+Hii)
         
+        IF(tHistEnergies) CALL WriteHistogramEnergies()
+
+        IF(tPrintOrbOcc) THEN
+            CALL PrintOrbOccs(OrbOccs)
+        ENDIF
+
+        IF(tPrintDoubsUEG) THEN
+            CALL PrintDoubUEGOccs(DoubsUEG)
+        ENDIF
+
+        call PrintHighPops()
+
+! Print out some load balancing stats nicely to end.
+        CALL MPIReduce(TotWalkers,MPI_MAX,MaxWalkers)
+        CALL MPIReduce(TotWalkers,MPI_MIN,MinWalkers)
+        CALL MPIAllReduce(Real(TotWalkers,dp),MPI_SUM,AllTotWalkers)
+        if (iProcIndex.eq.Root) then
+            MeanWalkers=AllTotWalkers/nNodes
+            write (6,'(/,1X,a55)') 'Load balancing information based on the last iteration:'
+            write (6,'(1X,a35,1X,f18.10)') 'Mean number of determinants/process:',MeanWalkers
+            write (6,'(1X,a34,1X,i18)') 'Min number of determinants/process:',MinWalkers
+            write (6,'(1X,a34,1X,i18,/)') 'Max number of determinants/process:',MaxWalkers
+        end if
+        
         if(tMolpro) then
             !Write out XML
             CALL GetSym(HFDet,NEl,G1,NBasisMax,HFSym)
@@ -387,29 +411,6 @@ MODULE FciMCParMod
             endif
         endif
 
-        IF(tHistEnergies) CALL WriteHistogramEnergies()
-
-        IF(tPrintOrbOcc) THEN
-            CALL PrintOrbOccs(OrbOccs)
-        ENDIF
-
-        IF(tPrintDoubsUEG) THEN
-            CALL PrintDoubUEGOccs(DoubsUEG)
-        ENDIF
-
-        call PrintHighPops()
-
-! Print out some load balancing stats nicely to end.
-        CALL MPIReduce(TotWalkers,MPI_MAX,MaxWalkers)
-        CALL MPIReduce(TotWalkers,MPI_MIN,MinWalkers)
-        CALL MPIAllReduce(Real(TotWalkers,dp),MPI_SUM,AllTotWalkers)
-        if (iProcIndex.eq.Root) then
-            MeanWalkers=AllTotWalkers/nNodes
-            write (6,'(/,1X,a55)') 'Load balancing information based on the last iteration:'
-            write (6,'(1X,a33,1X,f18.10)') 'Mean number of determinants/processor:',MeanWalkers
-            write (6,'(1X,a32,1X,i18)') 'Min number of determinants/processor:',MinWalkers
-            write (6,'(1X,a32,1X,i18,/)') 'Max number of determinants/processor:',MaxWalkers
-        end if
 
 !Deallocate memory
         CALL DeallocFCIMCMemPar()
