@@ -59,7 +59,7 @@ contains
         use util_mod, only: NECI_ICOPY
         use sltcnd_mod, only: CalcFockOrbEnergy 
         integer ierr
-        integer i,Lz,OrbOrder(8,2)
+        integer i,Lz,OrbOrder(8,2),FDetTemp(NEl)
         type(BasisFn) s
         HElement_t :: OrbE
         character(25), parameter :: this_routine='DetPreFreezeInit'
@@ -92,12 +92,19 @@ contains
           !Orbitals are ordered by occupation number from MOLPRO, and not reordered in NECI
           !Therefore, we know HF determinant is first four occupied orbitals.
           write(6,"(A)") "NECI called from MOLPRO, so assuming orbitals ordered by occupation number."
-          do i=1,NEL
-            if(FDet(i).ne.i) call stop_all(this_routine,"Error in assigning initial reference determinant")
-          enddo
+          if(.not.tDefineDet) then
+              do i=1,NEL
+                if(FDet(i).ne.i) call stop_all(this_routine,"Error in assigning initial reference determinant")
+              enddo
+              FDetTemp(:)=FDet(:)
+          else
+              !We have defined our own reference determinant, but still use the first orbitals for the calculation
+              !of 'orbital energies'
+              CALL GENFDET(BRR,G1,NBASIS,LMS,NEL,FDETTEMP)
+          endif
           write(6,"(A)") "Calculating orbital energies..."
           do i=1,nBasis
-               OrbE=CalcFockOrbEnergy(i,FDet)
+               OrbE=CalcFockOrbEnergy(i,FDetTemp)
                Arr(i,1)=real(OrbE,dp)
                Brr(i)=i
           enddo
