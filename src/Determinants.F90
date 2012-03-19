@@ -99,8 +99,10 @@ contains
           do i=1,nBasis
                OrbE=CalcFockOrbEnergy(i,FDet)
                Arr(i,1)=real(OrbE,dp)
+               Brr(i)=i
           enddo
           write(6,"(A)") "Reordering basis by orbital energies..."
+          OrbOrder(:,:)=0
           call ORDERBASIS(NBASIS,Arr,Brr,OrbOrder,nBasisMax,G1)
           !However, we reorder them here
           call writebasis(6,G1,nBasis,Arr,Brr)
