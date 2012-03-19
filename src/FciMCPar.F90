@@ -15,7 +15,7 @@ MODULE FciMCParMod
                           tReal, tRotatedOrbs, tFindCINatOrbs, tFixLz, &
                           LzTot, tUEG, tLatticeGens, tCSF, G1, Arr, &
                           tNoBrillouin, tKPntSym, tPickVirtUniform, &
-                          tMomInv
+                          tMomInv,tMolpro
     use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY, decode_bit_det, &
                         encode_bit_rep, encode_det, extract_bit_rep, &
                         test_flag, set_flag, extract_flags, &
@@ -117,6 +117,7 @@ MODULE FciMCParMod
     SUBROUTINE FciMCPar(Weight,Energyxw)
         use Logging, only: PopsfileTimer
         use util_mod, only: get_free_unit
+        use sym_mod, only: getsym
         real(dp) :: Weight, Energyxw
         INTEGER :: error
         LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange,tPrintWarn
@@ -127,6 +128,7 @@ MODULE FciMCParMod
         integer, dimension(lenof_sign) :: tmp_sgn
         integer :: tmp_int(lenof_sign), i
         real(dp) :: grow_rate
+        TYPE(BasisFn) HFSym
 
         TDebug=.false.  !Set debugging flag
                     
@@ -363,6 +365,27 @@ MODULE FciMCParMod
 
         Weight=(0.D0)
         Energyxw=(ProjectionE+Hii)
+        
+        if(tMolpro) then
+            !Write out XML
+            CALL GetSym(HFDet,NEl,G1,NBasisMax,HFSym)
+            if(ProjectionE+Hii.lt.10.e0_dp) then
+                write(6,"(A,I1,A,F16.13,A)") '   --><property name="Energy" method="FCIQMC" principal="true" stateSymmetry="', &
+                    int(HFSym%Sym%S,sizeof_int)+1,'" stateNumber="1" value="',ProjectionE+Hii,'"/><!--   '
+            elseif(ProjectionE+Hii.lt.100.e0_dp) then
+                write(6,"(A,I1,A,F16.12,A)") '   --><property name="Energy" method="FCIQMC" principal="true" stateSymmetry="', &
+                    int(HFSym%Sym%S,sizeof_int)+1,'" stateNumber="1" value="',ProjectionE+Hii,'"/><!--   '
+            elseif(ProjectionE+Hii.lt.1000.e0_dp) then
+                write(6,"(A,I1,A,F16.11,A)") '   --><property name="Energy" method="FCIQMC" principal="true" stateSymmetry="', &
+                    int(HFSym%Sym%S,sizeof_int)+1,'" stateNumber="1" value="',ProjectionE+Hii,'"/><!--   '
+            elseif(ProjectionE+Hii.lt.10000.e0_dp) then
+                write(6,"(A,I1,A,F16.10,A)") '   --><property name="Energy" method="FCIQMC" principal="true" stateSymmetry="', &
+                    int(HFSym%Sym%S,sizeof_int)+1,'" stateNumber="1" value="',ProjectionE+Hii,'"/><!--   '
+            else
+                write(6,"(A,I1,A,F16.9,A)") '   --><property name="Energy" method="FCIQMC" principal="true" stateSymmetry="', &
+                    int(HFSym%Sym%S,sizeof_int)+1,'" stateNumber="1" value="',ProjectionE+Hii,'"/><!--   '
+            endif
+        endif
 
         IF(tHistEnergies) CALL WriteHistogramEnergies()
 
@@ -383,9 +406,9 @@ MODULE FciMCParMod
         if (iProcIndex.eq.Root) then
             MeanWalkers=AllTotWalkers/nNodes
             write (6,'(/,1X,a55)') 'Load balancing information based on the last iteration:'
-            write (6,'(1X,a33,1X,f18.10)') 'Mean number of walkers/processor:',MeanWalkers
-            write (6,'(1X,a32,1X,i18)') 'Min number of walkers/processor:',MinWalkers
-            write (6,'(1X,a32,1X,i18,/)') 'Max number of walkers/processor:',MaxWalkers
+            write (6,'(1X,a33,1X,f18.10)') 'Mean number of determinants/processor:',MeanWalkers
+            write (6,'(1X,a32,1X,i18)') 'Min number of determinants/processor:',MinWalkers
+            write (6,'(1X,a32,1X,i18,/)') 'Max number of determinants/processor:',MaxWalkers
         end if
 
 !Deallocate memory
@@ -4718,7 +4741,7 @@ MODULE FciMCParMod
         endif
 
         IF(.not.TReadPops) THEN
-            WRITE(6,"(A)") "Initial Diagonal Shift: ", DiagSft
+            WRITE(6,"(A,F20.10)") "Initial Diagonal Shift: ", DiagSft
         ENDIF
 !        WRITE(6,*) "Damping parameter for Diag Shift set to: ", SftDamp
         if(tShiftonHFPop) then
