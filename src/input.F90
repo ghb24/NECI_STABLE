@@ -208,7 +208,7 @@ lines: do
     go to 10
 !  End of file
 900 if (more .and. m .gt. 1) then
-      print "(a)", "Apparently concatenating at end-of-file"
+      write(6,"(a)") "Apparently concatenating at end-of-file"
       call report("Unexpected end of data file",.true.)
     endif
     if (level .gt. 0) then
@@ -229,7 +229,7 @@ lines: do
 
 !  Find last non-blank character
 10  last=verify(char,space//tab,back=.true.)
-    if (echo) print "(a)", char(m:last)
+    if (echo) write(6,"(a)") char(m:last)
 !  Look for concatenation string
     if (lc .gt. 0 .and. last .ge. lc) then
       more=(char(last-lc+1:last) .eq. concat)
@@ -332,11 +332,11 @@ end do lines
 if (debug) then
   !       print "(8(I6,I4))", (loc(i), end(i), i=1,nitems)
   if (echo .and. nitems .gt. 0) then
-    print "(100a1)", (" ", i=1,loc(1)-1),                              &
+    write(6,"(100a1)") (" ", i=1,loc(1)-1),                              &
         (("+", i=loc(k), end(k)), (" ", i=end(k)+1, loc(k+1)-1), k=1,nitems-1), &
         ("+", i=loc(nitems), end(nitems))
   endif
-  print "(I2,A)", nitems, " items"
+  write(6,"(I2,A)") nitems, " items"
 endif
 
 END SUBROUTINE read_line
@@ -657,7 +657,7 @@ select case(nerror)
 case(-1,0)
   call report("Error while reading real number",.true.)
 case(1)
-  print "(2a)", "Error while reading real number. Input is ", trim(string)
+  write(6,"(2a)") "Error while reading real number. Input is ", trim(string)
 case(2)
   nerror=-1
 end select
@@ -712,7 +712,7 @@ select case(nerror)
 case(-1,0)
   call report("Error while reading integer",.true.)
 case(1)
-  print "(2a)", "Error while reading integer. Input is ", trim(string)
+  write(6,"(2a)") "Error while reading integer. Input is ", trim(string)
 case(2)
   nerror=-1
 end select
@@ -793,7 +793,7 @@ select case(nerror)
 case(-1,0)
   call report("Error while reading long integer",.true.)
 case(1)
-  print "(2a)", "Error while reading long integer. Input is ", trim(string)
+  write(6,"(2a)") "Error while reading long integer. Input is ", trim(string)
 case(2)
   nerror=-1
 end select
@@ -840,7 +840,7 @@ do
   else
     call read_line(eof)
     if (eof) then
-      print "(A)", "End of file while attempting to read a number"
+      write(6,"(A)") "End of file while attempting to read a number"
       stop
     endif
   endif
@@ -862,7 +862,7 @@ do
   else
     call read_line(eof)
     if (eof) then
-      print "(A)", "End of file while attempting to read a number"
+      write(6,"(A)") "End of file while attempting to read a number"
       stop
     endif
   endif
@@ -884,7 +884,7 @@ do
   else
     call read_line(eof)
     if (eof) then
-      print "(A)", "End of file while attempting to read a number"
+      write(6,"(A)") "End of file while attempting to read a number"
       stop
     endif
   endif
@@ -907,7 +907,7 @@ do
   else
     call read_line(eof)
     if (eof) then
-      print "(A)", "End of file while attempting to read a character string"
+      write(6,"(A)") "End of file while attempting to read a character string"
       stop
     endif
   endif
@@ -982,7 +982,7 @@ INTEGER :: i, i1, i2, l
 
 CHARACTER(LEN=3) s1, s2
 
-print "(a)", c
+write(6,"(a)") c
 if (present(reflect)) then
   if (reflect) then
     l=loc(item)
@@ -993,13 +993,13 @@ if (present(reflect)) then
     s2=" "
     if (i2 .lt. last) s2="..."
     if (level .gt. 0) then
-      print "(a, I5, a,a)", "Input line ", line(level),                &
+      write(6,"(a, I5, a,a)") "Input line ", line(level),                &
           " in file ", trim(file(level))
     else
-      print "(a, I5)", "Input line ", line(level)
+      write(6,"(a, I5)") "Input line ", line(level)
     endif
-    print "(a3,1x,a,1x,a3)", s1, char(i1:i2), s2
-    print "(3x,80a1)", (" ", i=i1,l), "*"
+    write(6,"(a3,1x,a,1x,a3)") s1, char(i1:i2), s2
+    write(6,"(3x,80a1)") (" ", i=i1,l), "*"
   end if
 end if
 stop

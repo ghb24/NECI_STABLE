@@ -550,7 +550,7 @@ contains
          CALL GetUMatSize(nBasis,nEl,UMATINT)
 !         WRITE(6,*) "UMatSize: ",UMATINT
          UMatMem=REAL(UMatInt,dp)*REAL(HElement_t_sizeB,dp)*(9.536743164D-7)
-         WRITE(6,"(A,G20.10,A)") "Memory required for integral storage: ",UMatMem, " Mb/Processor"
+         WRITE(6,"(A,G20.10,A)") "Memory required for integral storage: ",UMatMem, " Mb/Shared Memory"
          call neci_flush(6)
          call shared_allocate ("umat", umat, (/UMatInt/))
          !Allocate(UMat(UMatInt), stat=ierr)
@@ -711,7 +711,7 @@ contains
       nHG=nBasis
             
       CHEMPOT=(ARR(NEL,1)+ARR(NEL+1,1))/2.D0
-      WRITE(6,*) "Chemical Potential: ",CHEMPOT
+!      WRITE(6,*) "Chemical Potential: ",CHEMPOT
       IF(NTFROZEN.LT.0) THEN
          WRITE(6,*) "NTFROZEN<0.  Leaving ", -NTFROZEN," unfrozen virtuals."
          NTFROZEN=NTFROZEN+nBasis-NEL

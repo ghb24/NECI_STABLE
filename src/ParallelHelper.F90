@@ -15,12 +15,17 @@ module ParallelHelper
     ! These are not defined, if using MPI in C
     integer(MPIArg), parameter :: MPI_SUCCESS = 0
     integer(MPIArg), parameter :: MPI_COMM_WORLD = 0
-#if defined(__PATHSCALE__) || defined(__ISO_C_HACK) || defined (__OPEN64__)
-    c_ptr_t, parameter :: MPI_IN_PLACE = 0
-#else
-    c_ptr_t, parameter :: MPI_IN_PLACE = C_NULL_PTR
-#endif
     integer, parameter :: MPI_STATUS_SIZE = 1
+
+! ****** HACK ********
+! We would like to define these consts as here, but this breaks gfortran 4.5.1
+! --> See macros.h
+! ********************
+!#if defined(__PATHSCALE__) || defined(__ISO_C_HACK) || defined (__OPEN64__)
+!    c_ptr_t, parameter :: MPI_IN_PLACE = 0
+!#else
+!    c_ptr_t, parameter :: MPI_IN_PLACE = C_NULL_PTR
+!#endif
 
     ! Define values so our C-wrapper can work nicely
     integer(MPIArg), parameter :: MPI_INTEGER4 = 0, &

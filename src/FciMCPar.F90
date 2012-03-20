@@ -15,7 +15,7 @@ MODULE FciMCParMod
                           tReal, tRotatedOrbs, tFindCINatOrbs, tFixLz, &
                           LzTot, tUEG, tLatticeGens, tCSF, G1, Arr, &
                           tNoBrillouin, tKPntSym, tPickVirtUniform, &
-                          tMomInv
+                          tMomInv,tMolpro
     use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY, decode_bit_det, &
                         encode_bit_rep, encode_det, extract_bit_rep, &
                         test_flag, set_flag, extract_flags, &
@@ -117,6 +117,7 @@ MODULE FciMCParMod
     SUBROUTINE FciMCPar(Weight,Energyxw)
         use Logging, only: PopsfileTimer
         use util_mod, only: get_free_unit
+        use sym_mod, only: getsym
         real(dp) :: Weight, Energyxw
         INTEGER :: error
         LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange,tPrintWarn
@@ -127,6 +128,7 @@ MODULE FciMCParMod
         integer, dimension(lenof_sign) :: tmp_sgn
         integer :: tmp_int(lenof_sign), i
         real(dp) :: grow_rate
+        TYPE(BasisFn) HFSym
 
         TDebug=.false.  !Set debugging flag
                     
@@ -363,7 +365,7 @@ MODULE FciMCParMod
 
         Weight=(0.D0)
         Energyxw=(ProjectionE+Hii)
-
+        
         IF(tHistEnergies) CALL WriteHistogramEnergies()
 
         IF(tPrintOrbOcc) THEN
@@ -383,10 +385,32 @@ MODULE FciMCParMod
         if (iProcIndex.eq.Root) then
             MeanWalkers=AllTotWalkers/nNodes
             write (6,'(/,1X,a55)') 'Load balancing information based on the last iteration:'
-            write (6,'(1X,a33,1X,f18.10)') 'Mean number of walkers/processor:',MeanWalkers
-            write (6,'(1X,a32,1X,i18)') 'Min number of walkers/processor:',MinWalkers
-            write (6,'(1X,a32,1X,i18,/)') 'Max number of walkers/processor:',MaxWalkers
+            write (6,'(1X,a35,1X,f18.10)') 'Mean number of determinants/process:',MeanWalkers
+            write (6,'(1X,a34,1X,i18)') 'Min number of determinants/process:',MinWalkers
+            write (6,'(1X,a34,1X,i18,/)') 'Max number of determinants/process:',MaxWalkers
         end if
+        
+        if(tMolpro) then
+            !Write out XML
+            CALL GetSym(HFDet,NEl,G1,NBasisMax,HFSym)
+            if(real(ProjectionE,dp)+Hii.lt.10.e0_dp) then
+                write(6,"(A,I1,A,F16.13,A)") '   --><property name="Energy" method="FCIQMC" principal="true" stateSymmetry="', &
+                    int(HFSym%Sym%S,sizeof_int)+1,'" stateNumber="1" value="',ProjectionE+Hii,'"/><!--   '
+            elseif(real(ProjectionE,dp)+Hii.lt.100.e0_dp) then
+                write(6,"(A,I1,A,F16.12,A)") '   --><property name="Energy" method="FCIQMC" principal="true" stateSymmetry="', &
+                    int(HFSym%Sym%S,sizeof_int)+1,'" stateNumber="1" value="',ProjectionE+Hii,'"/><!--   '
+            elseif(real(ProjectionE,dp)+Hii.lt.1000.e0_dp) then
+                write(6,"(A,I1,A,F16.11,A)") '   --><property name="Energy" method="FCIQMC" principal="true" stateSymmetry="', &
+                    int(HFSym%Sym%S,sizeof_int)+1,'" stateNumber="1" value="',ProjectionE+Hii,'"/><!--   '
+            elseif(real(ProjectionE+Hii,dp).lt.10000.e0_dp) then
+                write(6,"(A,I1,A,F16.10,A)") '   --><property name="Energy" method="FCIQMC" principal="true" stateSymmetry="', &
+                    int(HFSym%Sym%S,sizeof_int)+1,'" stateNumber="1" value="',ProjectionE+Hii,'"/><!--   '
+            else
+                write(6,"(A,I1,A,F16.9,A)") '   --><property name="Energy" method="FCIQMC" principal="true" stateSymmetry="', &
+                    int(HFSym%Sym%S,sizeof_int)+1,'" stateNumber="1" value="',ProjectionE+Hii,'"/><!--   '
+            endif
+        endif
+
 
 !Deallocate memory
         CALL DeallocFCIMCMemPar()
@@ -4230,8 +4254,8 @@ MODULE FciMCParMod
                 WRITE(6,'(2F19.9)')  ARR(I,1),ARR(BRR(I),2)
             ENDDO
         ELSEIF(tTruncInitiator) THEN
-            WRITE(6,'(A)') " *********** INITIATOR METHOD IN USE ***********"
-            WRITE(6,'(A /)') " Starting with only the HF determinant in the fixed initiator space."
+            WRITE(6,'(A)') "*********** INITIATOR METHOD IN USE ***********"
+            WRITE(6,'(A)') "Starting with only the reference determinant in the fixed initiator space."
         ENDIF
 
         if(tSpawn_Only_Init.and.tSpawn_Only_Init_Grow) then
@@ -4260,7 +4284,7 @@ MODULE FciMCParMod
 !Initialise random number seed - since the seeds need to be different on different processors, subract processor rank from random number
         if(.not.tRestart) then
             Seed=abs(G_VMC_Seed-iProcIndex)
-            WRITE(6,*) "Value for seed is: ",Seed
+            WRITE(6,"(A,I12)") "Value for seed is: ",Seed
             !Initialise...
             CALL dSFMT_init(Seed)
         else
@@ -4349,7 +4373,7 @@ MODULE FciMCParMod
             TempHii = get_helement (HFDet, HFDet, 0)
         ENDIF
         Hii=REAL(TempHii,dp)
-        WRITE(6,*) "Reference Energy set to: ",Hii
+        WRITE(6,"(A,F20.10)") "Reference Energy set to: ",Hii
         if(tUEG) then
             !We require calculation of the sum of fock eigenvalues,
             !without knowing them - calculate from the full 1e matrix elements
@@ -4641,7 +4665,7 @@ MODULE FciMCParMod
 !        CALL MPI_Type_create_f90_integer(18,mpilongintegertype,error)
 !        CALL MPI_Type_commit(mpilongintegertype,error)
         IF(tUseBrillouin) THEN
-            WRITE(6,*) "Brillouin theorem specified, but this will not be in use with the non-uniform excitation generators."
+            WRITE(6,"(A)") "Brillouin theorem in use for calculation of projected energy." 
         ENDIF
         WRITE(6,*) "Non-uniform excitation generators in use."
         CALL CalcApproxpDoubles()
@@ -4718,7 +4742,7 @@ MODULE FciMCParMod
         endif
 
         IF(.not.TReadPops) THEN
-            WRITE(6,*) "Initial Diagonal Shift (Ecorr guess) is: ", DiagSft
+            WRITE(6,"(A,F20.10)") "Initial Diagonal Shift: ", DiagSft
         ENDIF
 !        WRITE(6,*) "Damping parameter for Diag Shift set to: ", SftDamp
         if(tShiftonHFPop) then
@@ -4794,17 +4818,17 @@ MODULE FciMCParMod
                     &unpaired electrons.")') trunc_nopen_max
         endif
 
-        SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.D0)
-        TotDets=1.D0
-        do i=1,NEl
-            ExcitLevPop=int((Choose(NEl,i)*Choose(nBasis-NEl,i))/SymFactor,int64)
-            if(ExcitLevPop.lt.0) cycle  !int overflow
-            WRITE(6,"(A,I5,I20)") "Approximate excitation level population: ",i,ExcitLevPop
-            TotDets=TotDets+(Choose(NEl,i)*Choose(nBasis-NEl,i))/SymFactor
-        enddo
-        if(TotDets.gt.0) then
-            WRITE(6,"(A,I20)") "Approximate size of determinant space is: ",NINT(TotDets)
-        endif
+!        SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.D0)
+!        TotDets=1.D0
+!        do i=1,NEl
+!            ExcitLevPop=int((Choose(NEl,i)*Choose(nBasis-NEl,i))/SymFactor,int64)
+!            if(ExcitLevPop.lt.0) cycle  !int overflow
+!            WRITE(6,"(A,I5,I20)") "Approximate excitation level population: ",i,ExcitLevPop
+!            TotDets=TotDets+(Choose(NEl,i)*Choose(nBasis-NEl,i))/SymFactor
+!        enddo
+!        if(TotDets.gt.0) then
+!            WRITE(6,"(A,I20)") "Approximate size of determinant space is: ",NINT(TotDets)
+!        endif
 
     END SUBROUTINE SetupParameters
 
@@ -5301,7 +5325,9 @@ MODULE FciMCParMod
 
 !NSing=Number singles from HF, nDoub=No Doubles from HF
 
-        WRITE(6,"(A)") " Calculating approximate pDoubles for use with excitation generator by looking a excitations from HF."
+        WRITE(6,"(A)") " Calculating approximate pDoubles for use with &
+                       &excitation generator by looking a excitations from &
+                       &reference."
         exflag=3
         IF(tKPntSym) THEN
             !use Alex's old excitation generators.
@@ -5341,7 +5367,7 @@ MODULE FciMCParMod
         iTotal=nSing + nDoub + ncsf
 
         WRITE(6,"(I7,A,I7,A)") NDoub, " double excitations, and ",NSing, &
-            " single excitations found from HF. This will be used to calculate pDoubles."
+            " single excitations found from reference. This will be used to calculate pDoubles."
 
         IF(SinglesBias.ne.1.D0) THEN
             WRITE(6,*) "Singles Bias detected. Multiplying single excitation connectivity of HF determinant by ", &
@@ -5946,7 +5972,7 @@ MODULE FciMCParMod
             endif
 
             MaxWalkersPart=NINT(MemoryFacPart*WalkerListSize)
-            WRITE(6,"(A,I14)") " Memory allocated for a maximum particle number per node of: ",MaxWalkersPart
+            WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node of: ",MaxWalkersPart
             Call SetupValidSpawned(int(WalkerListSize,int64))
 
 !Put a barrier here so all processes synchronise
@@ -5968,7 +5994,7 @@ MODULE FciMCParMod
             ENDIF
             
 
-            WRITE(6,"(A,I12,A)") " Spawning vectors allowing for a total of ",MaxSpawned, &
+            WRITE(6,"(A,I12,A)") "Spawning vectors allowing for a total of ",MaxSpawned, &
                     " particles to be spawned in any one iteration per core."
             ALLOCATE(SpawnVec(0:NIftot,MaxSpawned),stat=ierr)
             CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVecTag,ierr)
@@ -5991,8 +6017,8 @@ MODULE FciMCParMod
         
             ! Get the (0-based) processor index for the HF det.
             iHFProc = DetermineDetNode(HFDet,0)
-            WRITE(6,*) "Reference processor is: ",iHFProc
-            write(6,*) "Initial reference is: "
+            WRITE(6,"(A,I8)") "Reference processor is: ",iHFProc
+            write(6,"(A)",advance='no') "Initial reference is: "
             call write_det(6,HFDet,.true.)
 
             TotParts(:)=0
@@ -6072,7 +6098,7 @@ MODULE FciMCParMod
                 else !Set up walkers on HF det
 
                     if(tStartSinglePart) then
-                        WRITE(6,"(A,I15,A,F9.3,A,I15)") " Initial number of particles set to ",InitialPart, &
+                        WRITE(6,"(A,I10,A,F9.3,A,I15)") "Initial number of particles set to ",InitialPart, &
                             " and shift will be held at ",DiagSft," until particle number gets to ",InitWalkers*nNodes
                     else
                         write(6,"(A,I16)") "Initial number of walkers per processor chosen to be: ", InitWalkers
@@ -7248,7 +7274,7 @@ MODULE FciMCParMod
       MaxSpawned=NINT(MemoryFacSpawn*WalkerListSize)
 !            WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for spawning of: ",MaxSpawned
             
-      WRITE(6,*) "*Direct Annihilation* in use...Explicit load-balancing disabled."
+      WRITE(6,"(A)") "*Direct Annihilation* in use...Explicit load-balancing disabled."
       ALLOCATE(ValidSpawnedList(0:nNodes-1),stat=ierr)
       !InitialSpawnedSlots is now filled later, once the number of particles wanted is known
       !(it can change according to the POPSFILE).

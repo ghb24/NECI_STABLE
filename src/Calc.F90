@@ -1564,7 +1564,7 @@ contains
 !C.. If we're using rhos,
              RHOEPS=GETRHOEPS(RHOEPSILON,BETA,NEL,BRR,I_P)
 
-             WRITE(6,*) "RHOEPS:",RHOEPS
+!             WRITE(6,*) "RHOEPS:",RHOEPS
           ELSE
 !C.. we're acutally diagonalizing H's, so we just leave RHOEPS as RHOEPSILON
              RHOEPS=RHOEPSILON
@@ -1746,7 +1746,7 @@ contains
             
           IF(TENERGY.and.(.not.tFindDets)) THEN
              RHOEPS=RHOEPSILON*EXP(-BETA*(W(1))/I_P)
-            WRITE(6,*) "RHOEPS:",RHOEPS
+!            WRITE(6,*) "RHOEPS:",RHOEPS
              IF(TREAD) THEN
                 EXEN=CALCMCEN(NEVAL,W,BETA)
                 WRITE(6,"(A,F19.5)") "EXACT E(BETA)=",EXEN
