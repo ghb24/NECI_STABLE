@@ -393,16 +393,16 @@ MODULE FciMCParMod
         if(tMolpro) then
             !Write out XML
             CALL GetSym(HFDet,NEl,G1,NBasisMax,HFSym)
-            if(ProjectionE+Hii.lt.10.e0_dp) then
+            if(real(ProjectionE,dp)+Hii.lt.10.e0_dp) then
                 write(6,"(A,I1,A,F16.13,A)") '   --><property name="Energy" method="FCIQMC" principal="true" stateSymmetry="', &
                     int(HFSym%Sym%S,sizeof_int)+1,'" stateNumber="1" value="',ProjectionE+Hii,'"/><!--   '
-            elseif(ProjectionE+Hii.lt.100.e0_dp) then
+            elseif(real(ProjectionE,dp)+Hii.lt.100.e0_dp) then
                 write(6,"(A,I1,A,F16.12,A)") '   --><property name="Energy" method="FCIQMC" principal="true" stateSymmetry="', &
                     int(HFSym%Sym%S,sizeof_int)+1,'" stateNumber="1" value="',ProjectionE+Hii,'"/><!--   '
-            elseif(ProjectionE+Hii.lt.1000.e0_dp) then
+            elseif(real(ProjectionE,dp)+Hii.lt.1000.e0_dp) then
                 write(6,"(A,I1,A,F16.11,A)") '   --><property name="Energy" method="FCIQMC" principal="true" stateSymmetry="', &
                     int(HFSym%Sym%S,sizeof_int)+1,'" stateNumber="1" value="',ProjectionE+Hii,'"/><!--   '
-            elseif(ProjectionE+Hii.lt.10000.e0_dp) then
+            elseif(real(ProjectionE+Hii,dp).lt.10000.e0_dp) then
                 write(6,"(A,I1,A,F16.10,A)") '   --><property name="Energy" method="FCIQMC" principal="true" stateSymmetry="', &
                     int(HFSym%Sym%S,sizeof_int)+1,'" stateNumber="1" value="',ProjectionE+Hii,'"/><!--   '
             else
