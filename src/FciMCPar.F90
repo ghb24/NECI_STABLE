@@ -432,13 +432,15 @@ MODULE FciMCParMod
     END SUBROUTINE FciMCPar
 
     !Routine to print the highest populated determinants at the end of a run
+    !There is a slight subtlety with HPHF - the weight is not directly proportional to nw.
     SUBROUTINE PrintHighPops()
         use DetBitOps, only : sign_lt,sign_gt
         use Logging, only: iHighPopWrite
         use sort_mod
         integer, dimension(lenof_sign) :: SignCurr,LowSign
-        integer :: ierr,i,j,counter
+        integer :: ierr,i,j,counter,ExcitLev
         real(dp) :: SmallestSign,SignCurrReal,HighSign,reduce_in(1:2),reduce_out(1:2),Norm,AllNorm
+        real(dp) :: SignCurrWeight
         integer(n_int) , allocatable :: LargestWalkers(:,:)
         integer(n_int) , allocatable :: GlobalLargestWalkers(:,:)
         integer(n_int) :: HighestDet(0:NIfTot)
@@ -464,7 +466,13 @@ MODULE FciMCParMod
             else
                 SignCurrReal=sqrt(real(SignCurr(1),dp)**2+real(SignCurr(lenof_sign),dp)**2)
             endif
-            Norm=Norm+(SignCurrReal**2.0)
+            if(tHPHF.and.(.not.TestClosedShellDet(CurrentDets(:,i)))) then 
+                !HPHF det - both spin-coupled parts will have an determinant weight of ni/sqrt(2)
+                SignCurrWeight=SignCurrReal*(sqrt(2.0_dp))
+            else
+                SignCurrWeight=SignCurrReal
+            endif
+            Norm=Norm+(SignCurrWeight**2.0)
 
             !Is this determinant more populated than the first in the list (which is always the smallest)
             if(SignCurrReal.gt.SmallestSign) then
@@ -550,20 +558,34 @@ MODULE FciMCParMod
                 if(HighSign.gt.1.D-7) counter=counter+1
             enddo
 
-            !TODO: Sort for HPHF
+
             write(6,*) ""
             write(6,'(A)') "Current reference: "
             call write_det (6, ProjEDet, .true.)
+            call writeDetBit(6,iLutRef,.true.)
             write(6,*) ""
-            write(6,"(A,I10,A)") "Largest weighted ",counter," determinants as excitations from reference: "
+            write(6,"(A,I10,A)") "Most occupied ",counter," determinants as excitations from reference: "
             write(6,*) 
             if(lenof_sign.eq.1) then
-                write(6,*) "Excitation      Sign    Weight    Init?   Proc"    
+                if(tHPHF) then
+                    write(6,"(A)") " Excitation   ExcitLevel    Walkers    Weight    Init?   Proc  Spin-Coup?"    
+                else
+                    write(6,"(A)") " Excitation   ExcitLevel   Walkers    Weight    Init?   Proc"    
+                endif
             else
-                write(6,"(A)") "Excitation      Sign(Re)   Sign(Im)  Weight   Init?(Re)   Init(Im)   Proc"
+                if(tHPHF) then
+                    write(6,"(A)") " Excitation   ExcitLevel   Walkers(Re)   Walkers(Im)  Weight   &
+                                        &Init?(Re)   Init?(Im)   Proc  Spin-Coup?"
+                else
+                    write(6,"(A)") " Excitation   ExcitLevel    Walkers(Re)   Walkers(Im)  Weight   &
+                                        &Init?(Re)   Init?(Im)   Proc"
+                endif
             endif
             do i=1,counter
-                call WriteBitEx(6,iLutRef,GlobalLargestWalkers(:,i),.false.)
+!                call WriteBitEx(6,iLutRef,GlobalLargestWalkers(:,i),.false.)
+                call WriteDetBit(6,GlobalLargestWalkers(:,i),.false.)
+                Excitlev=FindBitExcitLevel(iLutRef,GlobalLargestWalkers(:,i),nEl)
+                write(6,"(I5)",advance='no') Excitlev
                 call extract_sign(GlobalLargestWalkers(:,i),SignCurr)
                 do j=1,lenof_sign
                     write(6,"(I9)",advance='no') SignCurr(j)
@@ -573,7 +595,12 @@ MODULE FciMCParMod
                 else
                     HighSign=sqrt(real(SignCurr(1),dp)**2+real(SignCurr(lenof_sign),dp)**2)
                 endif
-                write(6,"(F9.5)",advance='no') HighSign/norm 
+                if(tHPHF.and.(.not.TestClosedShellDet(GlobalLargestWalkers(:,i)))) then 
+                    !Weight is proportional to nw/sqrt(2)
+                    write(6,"(F9.5)",advance='no') (HighSign/sqrt(2.0_dp))/norm 
+                else
+                    write(6,"(F9.5)",advance='no') HighSign/norm 
+                endif
                 do j=1,lenof_sign
                     if(.not.tTruncInitiator) then
                         write(6,"(A3)",advance='no') 'Y'
@@ -585,13 +612,20 @@ MODULE FciMCParMod
                         endif
                     endif
                 enddo
-                write(6,"(I7)") GlobalProc(i)
                 if(tHPHF.and.(.not.TestClosedShellDet(GlobalLargestWalkers(:,i)))) then 
-                    write(6,"(A)") "Spin-coupled function implicitly has time-reversed determinant with same weight."
+                    write(6,"(I7)",advance='no') GlobalProc(i)
+                    write(6,"(A3)") "*"
+                else
+                    write(6,"(I7)") GlobalProc(i)
                 endif
             enddo
 
+            if(tHPHF) then
+                write(6,"(A)") " * = Spin-coupled function implicitly has time-reversed determinant with same weight."
+            endif
+
             deallocate(GlobalLargestWalkers,GlobalProc)
+            write(6,*) ""
         endif
 
         deallocate(LargestWalkers)
