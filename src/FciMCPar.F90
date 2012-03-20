@@ -432,7 +432,6 @@ MODULE FciMCParMod
     END SUBROUTINE FciMCPar
 
     !Routine to print the highest populated determinants at the end of a run
-    !There is a slight subtlety with HPHF - the weight is not directly proportional to nw.
     SUBROUTINE PrintHighPops()
         use DetBitOps, only : sign_lt,sign_gt
         use Logging, only: iHighPopWrite
@@ -440,7 +439,6 @@ MODULE FciMCParMod
         integer, dimension(lenof_sign) :: SignCurr,LowSign
         integer :: ierr,i,j,counter,ExcitLev
         real(dp) :: SmallestSign,SignCurrReal,HighSign,reduce_in(1:2),reduce_out(1:2),Norm,AllNorm
-        real(dp) :: SignCurrWeight
         integer(n_int) , allocatable :: LargestWalkers(:,:)
         integer(n_int) , allocatable :: GlobalLargestWalkers(:,:)
         integer(n_int) :: HighestDet(0:NIfTot)
@@ -466,13 +464,7 @@ MODULE FciMCParMod
             else
                 SignCurrReal=sqrt(real(SignCurr(1),dp)**2+real(SignCurr(lenof_sign),dp)**2)
             endif
-            if(tHPHF.and.(.not.TestClosedShellDet(CurrentDets(:,i)))) then 
-                !HPHF det - both spin-coupled parts will have an determinant weight of ni/sqrt(2)
-                SignCurrWeight=SignCurrReal*(sqrt(2.0_dp))
-            else
-                SignCurrWeight=SignCurrReal
-            endif
-            Norm=Norm+(SignCurrWeight**2.0)
+            Norm=Norm+(SignCurrReal**2.0)
 
             !Is this determinant more populated than the first in the list (which is always the smallest)
             if(SignCurrReal.gt.SmallestSign) then
