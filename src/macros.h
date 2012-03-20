@@ -71,6 +71,9 @@ endif
 #endif
 
 
+
+! Define types for C pointers to work between various compilers with
+! differing levels of brokenness.
 #if defined(__PATHSCALE__) || defined(__ISO_C_HACK) || defined(__OPEN64__)
 #define loc_neci loc
 #ifdef POINTER8
@@ -84,4 +87,19 @@ endif
 #else
 #define c_ptr_t type(c_ptr)
 #define loc_neci c_loc
+#endif
+
+! ***** HACK *****
+! gfortran was playing up using a parameter defined to equal C_NULL_PTR
+! --> use pre-processor defines instead!
+#ifdef CBINDMPI
+#if defined(__PATHSCALE__) || defined(__ISO_C_HACK) || defined(__OPEN64__)
+#ifdef POINTER8
+#define MPI_IN_PLACE (0_int64)
+#else
+#define MPI_IN_PLACE (0_int32)
+#endif
+#else
+#define MPI_IN_PLACE (C_NULL_PTR)
+#endif
 #endif

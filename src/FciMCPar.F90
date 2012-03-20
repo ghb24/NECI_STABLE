@@ -5325,7 +5325,9 @@ MODULE FciMCParMod
 
 !NSing=Number singles from HF, nDoub=No Doubles from HF
 
-        WRITE(6,"(A)") " Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference."
+        WRITE(6,"(A)") " Calculating approximate pDoubles for use with &
+                       &excitation generator by looking a excitations from &
+                       &reference."
         exflag=3
         IF(tKPntSym) THEN
             !use Alex's old excitation generators.
