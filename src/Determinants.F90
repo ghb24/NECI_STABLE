@@ -911,6 +911,40 @@ END MODULE Determinants
          call write_det (nUnit, nI, lTerm)
       END
 
+      !Write out the determinant in bit notation
+      SUBROUTINE WriteDetBit(nUnit,iLutnI,lTerm)
+         use SystemData,only: nBasis
+         use bit_reps, only: nIfTot
+         use constants, only: n_int,bits_n_int
+         implicit none
+         integer, intent(in) :: nUnit
+         integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot)
+         logical, intent(in) :: lTerm
+         integer :: i
+
+         do i=1,nBasis-1
+             if(IsOcc(iLutnI,i)) then
+                 write(nUnit,"(A1)",advance='no') "1"
+             else
+                 write(nUnit,"(A1)",advance='no') "0"
+             endif
+         enddo
+         if(IsOcc(iLutnI,nBasis)) then
+             if(lTerm) then
+                 write(nUnit,"(A1)") "1"
+             else
+                 write(nUnit,"(A1)",advance='no') "1"
+             endif
+         else
+             if(lTerm) then
+                 write(nUnit,"(A1)") "0"
+             else
+                 write(nUnit,"(A1)",advance='no') "0"
+             endif
+         endif
+
+      END SUBROUTINE WriteDetBit
+
 ! Write bit-determinant NI to unit NUnit.  Set LTerm if to add a newline at end.  Also prints CSFs
       SUBROUTINE WriteBitEx(nUnit,iLutRef,iLutnI,lTerm)
          use SystemData, only : nEl
