@@ -16,13 +16,14 @@
 #define PARALLEL
 #define CBINDMPI
 
-#ifndef __OPEN64__
+#if !defined(__OPEN64__) && !defined(__OLD_PGI__)
+/* __OLD_PGI__ refers to bugs in pgi v. 7->8: see bugzilla 3616 */
 #define __SHARED_MEM
 #endif
 
 #endif
 
-#ifndef MOLPRO_f2003
+#if !defined(MOLPRO_f2003) || defined(__OLD_PGI__)
 #define __ISO_C_HACK
 #endif
 
