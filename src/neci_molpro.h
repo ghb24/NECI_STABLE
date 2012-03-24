@@ -12,7 +12,7 @@
 #define HElement_t real(dp)
 #endif
 
-#if defined(_MOLCAS_MPP_) && !defined(GA_TCGMSG)
+#if defined(_MOLCAS_MPP_) && !defined(GA_TCGMSG) && !defined(GA_TCGMSGMPI)
 #define PARALLEL
 #define CBINDMPI
 
