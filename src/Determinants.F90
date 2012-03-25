@@ -93,9 +93,6 @@ contains
           !Therefore, we know HF determinant is first four occupied orbitals.
           write(6,"(A)") "NECI called from MOLPRO, so assuming orbitals ordered by occupation number."
           if(.not.tDefineDet) then
-              do i=1,NEL
-                if(FDet(i).ne.i) call stop_all(this_routine,"Error in assigning initial reference determinant")
-              enddo
               FDetTemp(:)=FDet(:)
           else
               !We have defined our own reference determinant, but still use the first orbitals for the calculation
