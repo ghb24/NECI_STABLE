@@ -5925,7 +5925,7 @@ MODULE FciMCParMod
                         DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),3)=HDoubDiag
                         kDoub=0
                         kDoub=G1(DoubEx(2,1))%k
-                        DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),4)=REAL(kDoub(1))**2.D0+REAL(kDoub(2))**2.D0+REAL(kDoub(3))**2.D0
+                        DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),4)=REAL(kDoub(1)*kDoub(1))+REAL(kDoub(2)*kDoub(2))+REAL(kDoub(3)*kDoub(3))
                     endif
                 endif
             endif

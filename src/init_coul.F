@@ -116,8 +116,8 @@ C..
       HSTEPY=2.D0*A(2)/N
       HSTEPZ=2.D0*A(3)/N
 C..
-#ifdef NAGF95
-      call stop_all(t_r,"No ERF in NAG?")
+#if defined(NAGF95) || defined(__GFORTRAN__)
+      call stop_all(t_r,"No ERF in NAG/GFortran?")
 #endif
       DO I=-N/2,N/2-1
         DO J=-N/2,N/2-1
@@ -129,7 +129,7 @@ C..
             IF(AUX.NE.0.D0) THEN
               IF(TALPHA) THEN 
                 R=SQRT(AUX) 
-#ifndef NAGF95                
+#if !defined(NAGF95) && !defined(__GFORTRAN__)                
                 AUX=1.D0/R*(-1)**(I+J+K)*DERF(R/ALPHA)
 #endif                
               ELSE
@@ -199,7 +199,7 @@ C..the short-range correction for alpha
               GZ=PI*K/A(3)
               G2=GX*GX+GY*GY+GZ*GZ
               IF(G2.NE.0.D0) THEN 
-                AUX=EXP(-G2*ALPHA2/4.D0)
+!                AUX=EXP(-G2*ALPHA2/4.D0)
                 SUM=4.D0*PI*(1.D0-AUX)/OMEGAP/G2
               ELSE
                 SUM=PI*ALPHA2/OMEGAP 
