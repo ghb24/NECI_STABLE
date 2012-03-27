@@ -54,7 +54,7 @@ MODULE Logging
     LOGICAL tMCOutput
     logical :: tSplitProjEHist,tSplitProjEHistG,tSplitProjEHistK3
     integer :: iProjEBins
-    logical :: tDumpForcesInfo  !Print out the 1RDM,2RDM and Lagrangian to file at the end of a run as long as 2RDM is calculated
+    logical :: tDumpForcesInfo, tPrintLagrangian  !Print out the 1RDM,2RDM and Lagrangian to file at the end of a run as long as 2RDM is calculated
 
     logical :: tCalcInstantS2, tCalcInstSCpts
     integer :: instant_s2_multiplier
@@ -171,6 +171,7 @@ MODULE Logging
       IterWriteRDMs = 10000
       tWriteMultRDMs = .false.
       tDumpForcesInfo = .false.
+      tPrintLagrangian = .false.
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -594,7 +595,13 @@ MODULE Logging
 
         case("DUMPFORCESINFO")
 ! Using the finalised 2RDM, calculate the Lagrangian X used for the calculation of the forces, and dump all these in Molpro-friendly format
+! Note that this currently requires calculation of *both* the 1 and 2 body RDMS (i.e. CALCRDMONFLY 3 .. ... )
+! I will eventually reorganise so it can work with just the calculation of the two body RDM.
             tDumpForcesInfo = .true.
+        
+        case("PRINTLAGRANGIAN")
+            ! Print out the Lagrangian X to file (Only works in conjuction with DUMPFORCESINFO: otherwise, this option does nothing)
+            tPrintLagrangian = .true.
 
         case("AUTOCORR")
 !This is a Parallel FCIMC option - it will calculate the largest weight MP1 determinants and histogramm them
