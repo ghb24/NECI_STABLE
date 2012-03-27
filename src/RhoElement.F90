@@ -244,5 +244,5 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
          enddo
 !         call writedet(77,nj,nel,.false.)
 !         write(77,*) "H0DC",hEl
-!         call flush(77)
+!         call neci_flush(77)
       end

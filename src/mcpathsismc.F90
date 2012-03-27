@@ -1,5 +1,6 @@
 module mcpathsismc
     use constants, only: dp,int64,sp
+    use util_mod, only: NECI_ICOPY,isnan
    contains
 !C.. Calculate RHO^(P)_II without having a stored H matrix
 !C.. SAMPLE over distinct nodes, e.g. IJKLI, with paths up to I_HMAX
@@ -22,7 +23,6 @@ module mcpathsismc
          use SystemData, only: BasisFN
          use sym_mod, only: getsym
          use global_utilities
-         use util_mod, only: NECI_ICOPY
          use mcpathsdata, only: egp
          IMPLICIT NONE
          INTEGER I_VMAX,NEL,NBASIS
@@ -72,12 +72,12 @@ module mcpathsismc
          INTEGER IOV,IGV,IACC
          LOGICAL TSEQ,TBLOCKING
          real(dp) PREJ,PGR
-         REAL(sp) etime,OTIME,NTIME,tarr(2)
+         REAL(sp) OTIME,NTIME,tarr(2),neci_etime
          integer(int64) LP
          HElement_t :: hel
 
          ISEED=0  !Init the seed
-         OTIME=etime(tarr)
+         OTIME=neci_etime(tarr)
          TST=0
          proc_timer%timer_name='MCPATHSR4 '
          call set_timer(proc_timer)
@@ -125,7 +125,7 @@ module mcpathsismc
             WRITE(6,*) "MCPATHSR4 Direct Sum"
             !Print out Eref
 !            write(6,*) DLWDBCORE/WCore
-            !call flush(6)
+            !call neci_flush(6)
          ELSEIF(I_VMIN.NE.0) THEN
             CALL Create(MCSt,I_VMAX,                        &
      &         INT(LOG(NWHTAY/(G_VMC_FAC**4))/LOG(2.D0)+1), &
@@ -227,7 +227,7 @@ module mcpathsismc
 !               WRITE(6,*) I_V
 !               WRITE(6,*) G_VMC_EXCITWEIGHTS(:,CUR_VERT)
 !               WRITE(6,*) G_VMC_EXCITWEIGHT(CUR_VERT)
-!               CALL FLUSH(6)
+!               CALL neci_flush(6)
                DO ICOUNT=1,NWHTAY
 !C                  IF(ICOUNT.EQ.135) TST=1
 !C                  DLWDB2=0.D0
@@ -265,10 +265,10 @@ module mcpathsismc
      &                   RHOEPS,RHOII,RHOIJ,I_HMAX,ILOGGING,              &
      &                   ECORE,ISEED,DBETA,DLWDB2,HIJS,NMEM,              &
      &                   ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,   &
-     &                   IACC,0.D0,I_VMAX,EXCITGEN)
+     &                   IACC,0.0_dp,I_VMAX,EXCITGEN)
                     
 !     WRITE(43,"(I3,4G25.16)") I_VCUR,ECORE,DLWDB2, ODLWDB,OWEIGHT
-!                  CALL FLUSH(43)
+!                  CALL neci_flush(43)
                     
                     !Set up values for the AddGraph routine later:
                     ioV=i_vcur
@@ -320,7 +320,7 @@ module mcpathsismc
      &                   RHOEPS,RHOII,RHOIJ,I_HMAX,ILOGGING,             &
      &                     ECORE,ISEED,DBETA,DLWDB2,HIJS,NMEM,           &
      &                    ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC, &
-     &                     IACC,0.D0,I_VMAX,EXCITGEN)
+     &                     IACC,0.0_dp,I_VMAX,EXCITGEN)
 !                   !   .
                         ELSE
 !..   We're doing MC where we have either the gestalt 1..I_VMIN-1 vertex object
@@ -359,7 +359,7 @@ module mcpathsismc
      &                   RHOEPS,RHOII,RHOIJ,I_HMAX,ILOGGING,               &
      &                     ECORE,ISEED,DBETA,DLWDB2,HIJS,NMEM,             &
      &                    ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,   &
-     &                           IACC,0.D0,I_VMAX,EXCITGEN)
+     &                           IACC,0.0_dp,I_VMAX,EXCITGEN)
                            ENDIF
 !                   !   .
                          ELSE
@@ -467,7 +467,7 @@ module mcpathsismc
      &                         RHOII,RHOIJ,I_HMAX,ILOGGING,                 &
      &                         ECORE,ISEED,DBETA,DLWDB2,HIJS,NMEM,          &
      &                         ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,    &
-     &                         PFAC,IACC,0.D0,I_VMAX,EXCITGEN)
+     &                         PFAC,IACC,0.0_dp,I_VMAX,EXCITGEN)
 !                              WRITE(39,*) IOV,IGV,1,IACC
 !C                              WRITE(6,*) IACC
                          ENDIF
@@ -482,7 +482,7 @@ module mcpathsismc
                   ENDIF
                   LP=1
                   If (FF.eq.0) Then
-         CALL AddGraph(MCSt,LP,I_VCUR,(0.D0),(0.D0)               &
+         CALL AddGraph(MCSt,LP,I_VCUR,(0.0_dp),(0.0_dp)               &
      &               ,OWEIGHT,IOCLS, ITREE,                       &
      &               IACC,IOV,IGV,BTEST(ILOGGING,10),OPROB,       &
      &               TBLOCKING)
@@ -511,7 +511,7 @@ module mcpathsismc
      &                  MCSt%wWeightedDelta(0)/MCSt%wWeighting(0),    &
      &                  MCSt%wWeightedDelta(0),MCSt%wWeighting(0)
                      EndIf
-                     CALL FLUSH(12)
+                     CALL neci_flush(12)
                   ENDIF
                ENDDO   ! end loop over mc cycles  nwhtay
             ENDIF
@@ -526,23 +526,23 @@ module mcpathsismc
 !     &         WRITE(11,"(I12,2G25.16,G19.7,I12,2G19.7)") I_V,F(I_V),
 !     &            TOTAL,get_total_time(proc_timer2),L,STD,DLWDB3/NWHTAY
 !C ,F(I_V),FSQ(I_V)
-            NTIME=etime(tarr)
+            NTIME=neci_etime(tarr)
             IF(TLOG.AND.(I_HMAX.EQ.-7.OR.I_HMAX.LE.-12)) THEN
               IF(I_VM1.EQ.I_VM2) THEN
 !.. just give the additional components for this vertex level
-                CALL WriteLongStats2(MCSt,11,WCORE, dble(NTIME-OTIME))
+                CALL WriteLongStats2(MCSt,11,WCORE, real(NTIME-OTIME,dp))
               ELSE
 !.. rejig the sums so the result is Sum w Delta / Sum w 
                 CALL WriteLongStats(MCSt,11,WCORE,DLWDBCORE,         &
-     &                                            dble(NTIME-OTIME))
+     &                                            real(NTIME-OTIME,dp))
               ENDIF
             ENDIF
-            CALL FLUSH(11)
+            CALL neci_flush(11)
 !            IF(ISNAN(F(I_V))) THEN
 !C.. save all log files
-!               ITIME=etime(tarr)
-!               CALL FLUSH(11)
-!caa            CALL FLUSH(10)
+!               ITIME=neci_etime(tarr)
+!               CALL neci_flush(11)
+!caa            CALL neci_flush(10)
 !               CALL LOGNAN(NI,NEL,BETA,ITIME)
 !               WRITE(6,*) "WARNING: nan found at time",ITIME
 !               WRITE(6,"(A)",advance='no') "  nan det=("
@@ -559,14 +559,14 @@ module mcpathsismc
          IGV=0
          IACC=1
          If (FF.eq.0) Then
-         CALL AddGraph(MCSt,LP,I_VCUR,(0.D0),(0.D0)                &
+         CALL AddGraph(MCSt,LP,I_VCUR,(0.0_dp),(0.0_dp)                &
      &               ,OWEIGHT,IOCLS, ITREE,                        &
-     &               IACC,IOV,IGV,BTEST(ILOGGING,10),0.D0,         &
+     &               IACC,IOV,IGV,BTEST(ILOGGING,10),0.0_dp,         &
      &               BTEST(ILOGGING,13))             
          Else
          CALL AddGraph(MCSt,LP,I_VCUR,FF,DLWDB2/FF,OWEIGHT,IOCLS,  &
      &               ITREE,                                        &
-     &               IACC,IOV,IGV,BTEST(ILOGGING,10),0.D0,         &
+     &               IACC,IOV,IGV,BTEST(ILOGGING,10),0.0_dp,         &
      &               BTEST(ILOGGING,13))
          EndIf
          IF(I_HMAX.EQ.-7.OR.I_HMAX.LE.-12) THEN
@@ -580,7 +580,7 @@ module mcpathsismc
          IF(BTEST(ILOGGING,13)) THEN
             Call CalcStDev(MCSt,R)
             WRITE(6,"(A,I4,A,G25.16)") "Error in MC ",I_VM2,":",R
-            CALL FLUSH(6)
+            CALL neci_flush(6)
         ENDIF
          IF(TMPTHEORY) THEN
             Call GetStats(MCSt,0,TOTAL,WLSI,DLWDB2)
@@ -649,7 +649,6 @@ module mcpathsismc
      &   G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,          &
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,       &
      &   ECORE,ISEED)
-         use util_mod, only: NECI_ICOPY
          use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER NEL,I_V,NI(NEL),I_P,IPATH(NEL,0:I_V)
@@ -761,7 +760,6 @@ module mcpathsismc
 
       SUBROUTINE GENRANDOMEXCIT(NI,NEL,NBASIS,IEXLEVEL,ISEED,NJ)
          use sort_mod
-         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,IEXLEVEL,ISEED,NJ(NEL)
          INTEGER I,J,K,IEX,IEXL2
@@ -821,7 +819,6 @@ module mcpathsismc
      &   ECORE,ISEED,DBETA,DLWDB,HIJS)
          use SystemData , only : BasisFN
          use Determinants, only: get_helement
-         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I_V,I_P,IPATH(NEL,0:I_V)
          INTEGER nBasisMax(5,*),NBASIS,NMAX
@@ -984,7 +981,6 @@ module mcpathsismc
      &   ECORE,ISEED,KSYM,DBETA,DLWDB,HIJS)
          use SystemData , only : BasisFN
          use Determinants, only: get_helement
-         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          TYPE(BasisFN) :: KSYM,G1(*)
          INTEGER NEL,I_V,NI(NEL),I_P,IPATH(NEL,0:I_V)
@@ -1176,7 +1172,7 @@ module mcpathsismc
             M(1,1)=1.D0
             RET=0.D0
 !C            STOP 'Cannot handle new path gen with IV_MAX>3'
-            CALL GETPP2_R(IPATH,XIJ,M,I_V,2,RET,1.D0,INV)
+            CALL GETPP2_R(IPATH,XIJ,M,I_V,2,RET,1.0_dp,INV)
             GETPATHPROB2=RET
          ENDIF
          RETURN
@@ -1204,7 +1200,7 @@ module mcpathsismc
             IPATH(1)=1
             M(1,1)=1.D0
             RET=0.D0
-            CALL GETPP_R(IPATH,XIJ,M,I_V,2,RET,1.D0)
+            CALL GETPP_R(IPATH,XIJ,M,I_V,2,RET,1.0_dp)
             GETPATHPROB=RET
          ENDIF
          RETURN
@@ -1323,7 +1319,6 @@ module mcpathsismc
          use SystemData, only: BasisFN
          use sort_mod
          use sym_mod, only: lChkSym
-         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,IEXLEVEL,ISEED,NJ(NEL)
          INTEGER I,J,K,IEX,IEXL2
@@ -1371,7 +1366,6 @@ module mcpathsismc
          use SystemData, only: BasisFN
          use sort_mod
          use sym_mod, only: getsym
-         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,NEXCITS,ISEED,NJ(NEL)
          INTEGER NB2,NA,NB,NEX1,NEX2
@@ -1385,7 +1379,7 @@ module mcpathsismc
          real(dp) RAN2
          TYPE(BasisFN) KSym
 !C         CALL WRITEDET(56,NI,NEL,.TRUE.)
-!C         CALL FLUSH(56)
+!C         CALL neci_flush(56)
          CALL GETSYM(NI,NEL,G1,NBASISMAX,KSYM)
             CALL NECI_ICOPY(NEL,NI,1,NJ,1)
          NB2=NBASIS/2
@@ -1447,7 +1441,7 @@ module mcpathsismc
          NJ(IEX1)=IIEX1 
          call sort (nJ)
 !C         CALL WRITEDET(57,NJ,NEL,.TRUE.)
-!C         CALL FLUSH(57)
+!C         CALL neci_flush(57)
          RETURN
       END subroutine genrandomspinexcit
       
@@ -1504,9 +1498,7 @@ module mcpathsismc
      &   I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,IACC,INWI,I_VMAX,EXCITGEN)
          USE SystemData , only : BasisFN
          use CalcData, only: tMPTheory, tMCDirectSum, pGenEpsilon
-         use util_mod, only: isnan
          use CalcData , only : TMPTHEORY,TMCDIRECTSUM,PGenEpsilon
-         use util_mod, only: NECI_ICOPY
          use mcpathsdata, only: egp
          IMPLICIT NONE
          real(dp) FMCPR4D2
@@ -1711,7 +1703,6 @@ module mcpathsismc
          use CalcData , only : G_VMC_PI
          use Determinants, only: get_helement, write_det
          use SystemData, only: BasisFN,Arr
-         use util_mod, only: NECI_ICOPY
          use mcpathsdata, only: egp
          IMPLICIT NONE
          INTEGER NEL,I_V,IPATH(NEL,0:I_V),NI(NEL)

@@ -2,8 +2,8 @@
          IMPLICIT NONE
          INTEGER NEL,I
          INTEGER D1(1:NEL),D2(1:NEL),ICMPCSFS
-         LOGICAL ISCSF
-         IF(ISCSF(D1,NEL).OR.ISCSF(D2,NEL)) THEN
+         LOGICAL iscsf_old
+         IF(iscsf_old(D1,NEL).OR.iscsf_old(D2,NEL)) THEN
             ICMPDETS=ICMPCSFS(D1,D2,NEL)
             RETURN
          ENDIF
@@ -23,8 +23,8 @@
       INTEGER FUNCTION IGETEXCITLEVEL(NI,NJ,NEL)
          IMPLICIT NONE
          INTEGER I,J,NEL,NI(NEL),NJ(NEL),IC
-         LOGICAL ISCSF
-         IF(ISCSF(NI,NEL).OR.ISCSF(NJ,NEL)) THEN
+         LOGICAL iscsf_old
+         IF(iscsf_old(NI,NEL).OR.iscsf_old(NJ,NEL)) THEN
             CALL GETCSFEXCITLEVEL(NI,NJ,NEL,IGETEXCITLEVEL)
 C            IGETEXCITLEVEL=2
             RETURN
@@ -53,9 +53,9 @@ C            IGETEXCITLEVEL=2
         IMPLICIT NONE
         INTEGER :: NEL,NI(NEl),NJ(NEl),MaxExcit,I,IC,j,MaxIC
         LOGICAL :: CommonOrb
-        LOGICAL :: ISCSF
+        LOGICAL :: iscsf_old
 
-        IF(ISCSF(NI,NEL).OR.ISCSF(NJ,NEL)) THEN
+        IF(iscsf_old(NI,NEL).OR.iscsf_old(NJ,NEL)) THEN
             CALL GETCSFEXCITLEVEL(NI,NJ,NEL,IGETEXCITLEVEL_2)
             RETURN
         ENDIF
@@ -163,7 +163,7 @@ C               IC=IC+1
             IF(NTHISEL.EQ.NEL) THEN
 !               CALL CALCRHO2(IDET,IDET,BETA,I_P,NEL,NBASISMAX,
 !     &            G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,RH,NTAY,0,ECORE)
-               IF(RH.GT.RHOMAX) RHOMAX=RH
+!               IF(RH.GT.RHOMAX) RHOMAX=RH
             ELSE
 !               CALL CALCRHOIIMAXR(BETA,I_P,NEL,
 !     &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,NTAY,
@@ -189,9 +189,9 @@ C               IC=IC+1
              call stop_all(t_r,"Call to GenNewDet2 removed due to       &
      &          incorrect number of arguments")
 !            CALL GENNEWDET2(NI,NI,NEL,NBASIS,NBASISMAX,G1,ISEED)
-            CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,
-     &            G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,RH,NTAY,0,ECORE)
-            IF(RH.GT.RHOMAX) RHOMAX=RH
+!            CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,
+!     &            G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,RH,NTAY,0,ECORE)
+!            IF(RH.GT.RHOMAX) RHOMAX=RH
          ENDDO
          RETURN
       END

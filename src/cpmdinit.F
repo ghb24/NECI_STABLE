@@ -304,8 +304,8 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
                       TMAT2D(II,JJ)=TOT
                       TMAT2D(II+1,JJ+1)=TOT
 #ifdef __CMPLX
-                      TMAT2D(JJ,II)=dconjg(TOT)
-                      TMAT2D(JJ+1,II+1)=dconjg(TOT)
+                      TMAT2D(JJ,II)=conjg(TOT)
+                      TMAT2D(JJ+1,II+1)=conjg(TOT)
 #else
                       TMAT2D(JJ,II)=(TOT)
                       TMAT2D(JJ+1,II+1)=(TOT)
@@ -333,7 +333,7 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
 !                          FockMat(i,j)=FockMat(i,j)-F*dcmplx(U)/2
 !                      end if
 !                  end do
-!                 FockMat(j,i)=dconjg(FockMat(i,j))
+!                 FockMat(j,i)=conjg(FockMat(i,j))
 
                ENDIF
 

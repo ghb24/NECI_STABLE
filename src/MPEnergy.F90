@@ -119,18 +119,18 @@ END
          real(dp) DENOM,CONTR
          INTEGER I,J,S
          LOGICAL TLOG
-         LOGICAL ISCSF
+         LOGICAL iscsf_old
 
 
 !.. If we have CSFs, unCSF the elecs
-         IF(ISCSF(IPATH(1,0),NEL)) THEN
+         IF(iscsf_old(IPATH(1,0),NEL)) THEN
             DO I=1,NEL
                CALL GETUNCSFELEC(IPATH(I,0),NI(I),S)
             ENDDO
          ELSE
             CALL NECI_ICOPY(NEL,IPATH(1,0),1,NI,1)
          ENDIF
-         IF(ISCSF(IPATH(1,1),NEL)) THEN
+         IF(iscsf_old(IPATH(1,1),NEL)) THEN
             DO I=1,NEL
                CALL GETUNCSFELEC(IPATH(I,1),NJ(I),S)
             ENDDO

@@ -531,9 +531,9 @@ C.. eigenvector N is in FMAT(i,N,ISPN), where i is the component of the
 C.. vector
 #ifdef __CMPLX
                      IF(LTRANS) THEN
-                        TOT=TOT+DCONJG(FMAT(K,I,ISPN))*FMAT(K,J,ISPN)
+                        TOT=TOT+CONJG(FMAT(K,I,ISPN))*FMAT(K,J,ISPN)
                      ELSE
-                        TOT=TOT+FMAT(I,K,ISPN)*DCONJG(FMAT(J,K,ISPN))
+                        TOT=TOT+FMAT(I,K,ISPN)*CONJG(FMAT(J,K,ISPN))
                      ENDIF
 #else
                      IF(LTRANS) THEN
@@ -610,7 +610,7 @@ C.. Now sum in the alpha and beta block of u matrix
                   ENDDO
                   FMAT(I,J,ISPN)=TOT
 #ifdef __CMPLX
-                  FMAT(J,I,ISPN)=DCONJG(TOT)
+                  FMAT(J,I,ISPN)=CONJG(TOT)
 #endif
                ENDDO
             ENDDO
@@ -796,7 +796,7 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
       END
 C.. Generate an initial determinant of specified spin
       SUBROUTINE GENFDET(BRR,G1,NBASIS,LMS,NEL,FDET)
-         use SystemData, only: BasisFN
+         use SystemData, only: BasisFN,tMolpro
          use util_mod, only: int_fmt
          use sort_mod
          IMPLICIT NONE
@@ -813,6 +813,17 @@ C.. vector unless transposed
          NELS(1)=NEL-NELS(2)
          WRITE(6,'(4(A,'//int_fmt(nel)//'))') " N_alpha:",NELS(1),      &
      &   " ; N_beta:",  NELS(2)," ; LMS:",LMS," ; NEl:",NEL
+         if(tMolpro) then
+             !Assume that orbitals are ordered by occupation number
+             !Assuming LMS positive, NELS(2) > NELS(1)
+             do i=1,NELS(1)*2
+                 FDET(i)=i  !Fill up closed shells
+             enddo
+             do i=1,LMS !Fill up open shells in odd orbitals
+                 FDET(NELS(1)*2+i)=NELS(1)*2+(i*2-1)
+             enddo
+             return
+         endif
          NEL=0
          DO IS=1,2
             IF(LMS.GE.0) THEN
@@ -1432,7 +1443,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
 C.. The largest element isn't big enough, so we abort
                WRITE(6,*) "Largest coeff of HF basis fn ",I," is ",MX
                WRITE(6,*) "Aborting ORDERBASISHF"
-               CALL FLUSH(6)
+               CALL neci_flush(6)
                STOP "ORDERBASISHF failed - HF Basis not converged"
             ENDIF
             ARR(I,1)=HFE(I)

@@ -21,7 +21,7 @@ module hist
     use bit_rep_data, only: NIfTot, NIfD
     use bit_reps, only: extract_sign, encode_sign, extract_bit_rep, NOffSgn, &
                         decode_bit_det, flag_is_initiator, test_flag
-    use parallel
+    use parallel_neci
     use csf, only: get_num_csfs, csf_coeff, csf_get_yamas, write_yama, &
                    extract_dorder
     use AnnihilationMod, only: DetermineDetNode
@@ -133,7 +133,7 @@ contains
         ! and value of Ms
         write(6,*) 'Initialising Spin distribution histogramming'
         write(fmt_str,'("(",i2,"i20,",i4,"f20.15)")') NIfD+1, ncsf
-        call flush(6)
+        call neci_flush(6)
         nfound = 0
         dorder(1) = -1
         call get_lexicographic (dorder, nopen, nup)
@@ -692,8 +692,8 @@ contains
         integer(n_int) :: recv_dets(0:NIfTot, max_spawned)
         integer :: proc_pos (nProcessors), proc_pos_init(nProcessors)
         integer :: send_count(nProcessors), recv_count(nProcessors)
-        integer :: send_data(nProcessors), recv_data(nProcessors)
-        integer :: send_off(nProcessors), recv_off(nProcessors)
+        integer(MPIArg) :: send_data(nProcessors), recv_data(nProcessors)
+        integer(MPIArg) :: send_off(nProcessors), recv_off(nProcessors)
 
         running = (TotWalkers > 0)
         any_running = .true.

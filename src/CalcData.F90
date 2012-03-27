@@ -77,6 +77,7 @@ real(dp) :: GraphEpsilon
 real(dp) :: PGenEpsilon
 real(dp) :: TargetGrowRate
 integer(int64) :: TargetGrowRateWalk    !Number of walkers before targetgrowrate kicks in
+integer(int64) :: iExitWalkers  !Exit criterion, based on total walker number
 
 
 !// additional from NECI.F

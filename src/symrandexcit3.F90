@@ -25,7 +25,7 @@ module symrandexcit3
     use bit_reps, only: niftot, decode_bit_det_lists
     use constants, only: dp, n_int, bits_n_int
     use timing_neci
-    use Parallel
+    use Parallel_neci
     use util_mod, only: binary_search_first_ge
     implicit none
 
@@ -434,7 +434,6 @@ ASSERT(exFlag<=3.and.exFlag>=1)
                           tLatticeGens, tHub,tKPntSym, tFixLz
     use GenRandSymExcitNUMod, only: gen_rand_excit, ScratchSize
     Use SymData , only : nSymLabels
-    use Parallel
 !    use soft_exit , only : ChangeVars 
     use DetBitOps , only : EncodeBitDet, FindExcitBitDet
     use GenRandSymExcitNUMod, only: IsMomentumAllowed
@@ -470,7 +469,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
     WRITE(6,*) nI(:)
     WRITE(6,*) Iterations,pDoub,exFlag
     WRITE(6,*) "nSymLabels: ",nSymLabels
-    CALL FLUSH(6)
+    CALL neci_flush(6)
 
     ! The old excitation generator will not generate singles from the HF
     ! unless tNoBrillouin is set
@@ -524,7 +523,7 @@ lp2: do while(.true.)
     tUseBrillouin = brillouin_tmp(2)
 
     WRITE(6,*) "Determinant has ",excitcount," total excitations from it."
-    CALL FLUSH(6)
+    CALL neci_flush(6)
 
     ! Allocate the accumulators
     allocate (DoublesHist(nbasis, nbasis, nbasis, nbasis))
@@ -573,7 +572,7 @@ lp2: do while(.true.)
     
         IF(mod(i,400000).eq.0) THEN
             WRITE(6,"(A,I10)") "Iteration: ",i
-            CALL FLUSH(6)
+            CALL neci_flush(6)
         ENDIF
 
         call gen_rand_excit3 (nI, iLut, nJ, iLutnJ, exFlag, IC, ExcitMat, &

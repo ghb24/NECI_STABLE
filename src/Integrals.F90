@@ -15,7 +15,7 @@ module Integrals_neci
     use gen_coul_ueg_mod, only: gen_coul_hubnpbc, get_ueg_umat_el, &
                                 get_hub_umat_el
     use HElem, only: HElement_t_size, HElement_t_sizeB
-    use Parallel, only: iProcIndex
+    use Parallel_neci, only: iProcIndex
     use bit_reps, only: init_bit_rep
 
     implicit none
@@ -548,9 +548,10 @@ contains
          IF(ISPINSKIP.le.0) STOP 'NBASISMAX(2,3) ISpinSkip unset'
 !nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF/ROHF
          CALL GetUMatSize(nBasis,nEl,UMATINT)
-         WRITE(6,*) "UMatSize: ",UMATINT
+!         WRITE(6,*) "UMatSize: ",UMATINT
          UMatMem=REAL(UMatInt,dp)*REAL(HElement_t_sizeB,dp)*(9.536743164D-7)
-         WRITE(6,"(A,G20.10,A)") " UMatMemory: ",UMatMem, " Mb/Processor"
+         WRITE(6,"(A,G20.10,A)") "Memory required for integral storage: ",UMatMem, " Mb/Shared Memory"
+         call neci_flush(6)
          call shared_allocate ("umat", umat, (/UMatInt/))
          !Allocate(UMat(UMatInt), stat=ierr)
          LogAlloc(ierr, 'UMat', UMatInt,HElement_t_SizeB, tagUMat)
@@ -710,7 +711,7 @@ contains
       nHG=nBasis
             
       CHEMPOT=(ARR(NEL,1)+ARR(NEL+1,1))/2.D0
-      WRITE(6,*) "Chemical Potential: ",CHEMPOT
+!      WRITE(6,*) "Chemical Potential: ",CHEMPOT
       IF(NTFROZEN.LT.0) THEN
          WRITE(6,*) "NTFROZEN<0.  Leaving ", -NTFROZEN," unfrozen virtuals."
          NTFROZEN=NTFROZEN+nBasis-NEL
@@ -761,7 +762,7 @@ contains
  
 !At the end of IntFREEZEBASIS, NHG is reset to nBasis - the final number of active orbitals.
          CALL IntFREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE, G1,NBASISMAX,ISPINSKIP,BRR,NFROZEN,NTFROZEN,NFROZENIN,NTFROZENIN,NEL)
-         CALL FLUSH(6)
+         CALL neci_flush(6)
 !         CALL N_MEMORY_CHECK()
          WRITE(6,*) "ECORE now",ECORE
          WRITE(6,*) "Number of orbitals remaining: ",NBASIS
@@ -1102,7 +1103,7 @@ contains
                     ELSE
                        IF(IPB.eq.0.or.JPB.eq.0) THEN
 !                           WRITE(6,*) 'W',W,'I',I,'J',J,'IPB',IPB,'JPB',JPB
-!                           CALL FLUSH(6)
+!                           CALL neci_flush(6)
 !                           CALL Stop_All("","here 01")
                        ENDIF
                        if(tOneElecDiag) then
@@ -1323,8 +1324,8 @@ contains
                  ENDIF
               ENDDO
           ENDDO
-          CALL FLUSH(11)
-          CALL FLUSH(12)
+          CALL neci_flush(11)
+          CALL neci_flush(12)
  
           IF(TSTARSTORE) CALL FreezeUMAT2D(NHG,NBASIS,GG,2)
        ELSEIF(Associated(UMatCacheData)) THEN
@@ -1849,7 +1850,7 @@ contains
       open(iunit, file="SYMCLASSES", status="unknown")
       DO I=1,NBASIS/2
           WRITE(iunit,*) I,SYMCLASSES(I)
-          CALL FLUSH(iunit)
+          CALL neci_flush(iunit)
       ENDDO
       DO I=1,NSYMLABELS
           WRITE(iunit,*) I,SYMLABELCOUNTS(2,I)

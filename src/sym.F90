@@ -342,7 +342,7 @@ contains
              !These symmetry routines only work for cases where all irreps are their
              !own inverse. In systems with multiple kpoints, this will not be the
              !case. Setup the symreps for non-abelian symmetries.
-             CALL GENSYMREPS(G1,NBASIS,ARR,1.d-6)
+             CALL GENSYMREPS(G1,NBASIS,ARR,1.e-6_dp)
              return
          endif
          
@@ -764,11 +764,11 @@ contains
          TYPE(BasisFn) G1(*),ISym
          INTEGER I,J,NI2(NEL)
          INTEGER NREPS(NEL),NELECS(NEL),SSYM
-         LOGICAL ISCSF,ISC
+         LOGICAL iscsf_old,ISC
          I=1
          NREPS(1:NEL)=0
          CALL SETUPSYM(ISYM)
-         ISC=ISCSF(NI2,NEL)
+         ISC=iscsf_old(NI2,NEL)
          IF(tFixLz) THEN
             CALL GetLz(NI2,NEL,ISYM%Ml)
          ELSE
@@ -2075,7 +2075,7 @@ contains
                 ENDDO
             ENDIF
             write(6,*) basirrep,SYMLABELINTSCUM(i),SYMLABELCOUNTSCUM(i)
-            call flush(6)
+            call neci_flush(6)
         enddo
         iSize=iSize+2
         !This is to allow the index of '-1' in the array to give a zero value

@@ -20,8 +20,8 @@ MODULE Calc
     use CCMCData, only: dInitAmplitude, dProbSelNewExcitor, nSpawnings, &
                         tSpawnProp, nClustSelections, tExactEnergy,     &
                         dClustSelectionRatio,tSharedExcitors
-    use FciMCData, only: proje_linear_comb, proje_ref_det_init,tTimeExit,MaxTimeExit, &
-                         InputDiagSft,tSearchTau
+    use FciMCData, only: proje_update_comb,proje_linear_comb, proje_ref_det_init,tTimeExit,MaxTimeExit, &
+                         InputDiagSft,tSearchTau,proje_spatial
 
     implicit none
 
@@ -35,7 +35,6 @@ contains
         ! Values for old parameters.
         ! These have no input options to change the defaults, but are used in
         ! the code.
-          tInstGrowthRate=.true.
           TargetGrowRateWalk=500000
           TargetGrowRate=0.D0
           InitialPart=1
@@ -49,8 +48,15 @@ contains
           TRHOIJ = .false.
           TBEGRAPH = .false.
 
+          if (Nov11) then
+              tInstGrowthRate=.true.
+          else
+              tInstGrowthRate = .false.
+          end if
 
 !       Calc defaults 
+          iExitWalkers=-1
+          FracLargerDet=1.2
           iReadWalkersRoot=0 
           tShiftonHFPop=.false.
           MaxWalkerBloom=-1
@@ -255,6 +261,8 @@ contains
           tTruncNOpen = .false.
 
           proje_linear_comb = .false.
+      proje_update_comb = .false.
+          proje_spatial = .false.
           hash_shift=0
           tContinueAfterMP2=.false.
       
@@ -276,7 +284,7 @@ contains
           use CCMCData, only: tExactEnergy,tSharedExcitors
           use FciMCData, only: hash_shift
           use global_utilities
-          use Parallel, only : nProcessors
+          use Parallel_neci, only : nProcessors
           use Logging, only: tLogDets
           IMPLICIT NONE
           LOGICAL eof
@@ -850,6 +858,9 @@ contains
             case("STEPSSHIFT")
 !For FCIMC, this is the number of steps taken before the Diag shift is updated
                 call geti(StepsSft)
+            case("EXITWALKERS")
+!For FCIMC, this is an exit criterion based on the total number of walkers in the system.
+                call getiLong(iExitWalkers)
             case("TARGETGROWRATE")
 !For FCIMC, this is the target growth rate once in vary shift mode.
                 call getf(TargetGrowRate)
@@ -1004,14 +1015,30 @@ contains
                 IF(item.lt.nitems) then
                     call Getf(FracLargerDet)
                 ENDIF
+                
             case("AVGROWTHRATE")
-                !This option will average the growth rate over the update cycle when updating the shift.
-                tInstGrowthRate=.false.
+
+                ! This option will average the growth rate over the update 
+                ! cycle when updating the shift.
+
+                if (item < nitems) then
+                    call readu(w)
+                    select case(w)
+                    case("OFF")
+                        tInstGrowthRate = .true.
+                    case default
+                        tInstGrowthRate = .false.
+                    end select
+                else
+                    tInstGrowthRate = .false.
+                end if
+
             case("PROJE-SPATIAL")
                 ! Calculate the projected energy by projection onto a linear
                 ! combination of determinants, specified by a particular 
                 ! spatial determinant.
                 proje_linear_comb = .true.
+                proje_spatial = .true.
                 if (.not. allocated(proje_ref_det_init)) &
                     allocate(proje_ref_det_init(nel))
                 proje_ref_det_init = 0
@@ -1020,7 +1047,10 @@ contains
                     call geti(proje_ref_det_init(i))
                     i = i+1
                 enddo
-
+            case("PROJE-LINEAR-COMB")
+                ! Calculate the projected energy by projection onto a linear
+                ! combination of determinants.
+                proje_linear_comb = .true.
             case("RESTARTLARGEPOP")
                 tCheckHighestPop=.true.
                 tRestartHighPop=.true.
@@ -1534,7 +1564,7 @@ contains
 !C.. If we're using rhos,
              RHOEPS=GETRHOEPS(RHOEPSILON,BETA,NEL,BRR,I_P)
 
-             WRITE(6,*) "RHOEPS:",RHOEPS
+!             WRITE(6,*) "RHOEPS:",RHOEPS
           ELSE
 !C.. we're acutally diagonalizing H's, so we just leave RHOEPS as RHOEPSILON
              RHOEPS=RHOEPSILON
@@ -1629,7 +1659,7 @@ contains
          &                 RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,           &
          &                 DETINV,TSPECDET,SPECDET)
     !                      WRITE(6,*) "Out Here 2"
-    !                      CALL FLUSH(6)
+    !                      CALL neci_flush(6)
                     ELSE
                        IF(TCSFOLD) THEN
                           IF(.NOT.TSPECDET) THEN
@@ -1663,7 +1693,7 @@ contains
 !             DBETA=DBRAT*BETA
              WRITE(6,*) "I_HMAX:",I_HMAX
              WRITE(6,*) "Calculating MC Energy..."
-             CALL FLUSH(6)
+             CALL neci_flush(6)
              IF(NTAY(1).GT.0) THEN
                 WRITE(6,*) "Using approx RHOs generated on the fly, NTAY=",NTAY(1)
 !C.. NMAX is now ARR
@@ -1716,7 +1746,7 @@ contains
             
           IF(TENERGY.and.(.not.tFindDets)) THEN
              RHOEPS=RHOEPSILON*EXP(-BETA*(W(1))/I_P)
-            WRITE(6,*) "RHOEPS:",RHOEPS
+!            WRITE(6,*) "RHOEPS:",RHOEPS
              IF(TREAD) THEN
                 EXEN=CALCMCEN(NEVAL,W,BETA)
                 WRITE(6,"(A,F19.5)") "EXACT E(BETA)=",EXEN
@@ -2084,9 +2114,9 @@ contains
          INTEGER NEL,NI(NEL),I,J
          TYPE(BasisFN) G1(*)
          real(dp) ALAT(4),CST,TMAT,CALCT2
-         LOGICAL ISCSF
+         LOGICAL ISCSF_old
          CALCT2=0.D0
-         IF(ISCSF(NI,NEL)) RETURN
+         IF(iscsf_old(NI,NEL)) RETURN
          DO J=1,NEL
             I=NI(J)
            TMAT=((ALAT(1)**2)*((G1(I)%K(1)**2)/(ALAT(1)**2)+   &

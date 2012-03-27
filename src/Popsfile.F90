@@ -11,11 +11,12 @@ MODULE PopsfileMod
     USE dSFMT_interface , only : genrand_real2_dSFMT
     use FciMCData
     use bit_reps
-    use Parallel
+    use Parallel_neci
     use AnnihilationMod, only: DetermineDetNode
     USE Logging , only : iWritePopsEvery,tPopsFile,iPopsPartEvery,tBinPops
     USE Logging , only : tPrintPopsDefault,tIncrementPops
     use sort_mod
+    use util_mod, only: get_free_unit,get_unique_filename
 
     implicit none
 
@@ -26,7 +27,6 @@ MODULE PopsfileMod
 !EndPopsList is the number of entries in the POPSFILE to read, and ReadBatch is the number of determinants
 !which can be read in in a single batch.
     SUBROUTINE ReadFromPopsfilev3(EndPopsList,ReadBatch,CurrWalkers64,CurrParts,CurrHF,Dets,DetsLen)
-        use util_mod , only : get_unique_filename
         use MemoryManager, only: TagIntType
         integer(int64) , intent(in) :: EndPopsList  !Number of entries in the POPSFILE.
         integer , intent(in) :: ReadBatch       !Size of the batch of determinants to read in in one go.
@@ -37,8 +37,9 @@ MODULE PopsfileMod
         integer :: iunit,i,j,ierr,PopsInitialSlots(0:nNodes-1)
         INTEGER(TagIntType) :: BatchReadTag=0
         real(dp) :: BatchSize
-        integer :: PopsSendList(0:nNodes-1),proc,sendcounts(nNodes),disps(nNodes)
-        integer :: MaxSendIndex,recvcount,err
+        integer :: PopsSendList(0:nNodes-1),proc
+        integer(MPIArg) :: sendcounts(nNodes), disps(nNodes), recvcount
+        integer :: MaxSendIndex,err
         integer(n_int) , allocatable :: BatchRead(:,:)
         integer(n_int) :: WalkerTemp(0:NIfTot)
         integer(int64) :: Det,AllCurrWalkers,TempCurrWalkers
@@ -92,7 +93,7 @@ MODULE PopsfileMod
             if(ScaleWalkers.ne.1) then
                 call warning_neci(this_routine,"ScaleWalkers parameter found, but not implemented in POPSFILE v3 - ignoring.")
             endif
-            call flush(6)
+            call neci_flush(6)
         ENDIF
 
         if(tPopsMapping) then
@@ -110,7 +111,7 @@ MODULE PopsfileMod
             allocate(BatchRead(0:NIfTot,1:ReadBatch),stat=ierr)
             CALL LogMemAlloc('BatchRead',ReadBatch*(NIfTot+1),size_n_int,this_routine,BatchReadTag,ierr)
             write(6,"(A,I12,A)") "Reading in a maximum of ",ReadBatch," determinants at a time from POPSFILE."
-            call flush(6)
+            call neci_flush(6)
         else
             allocate(BatchRead(0:NIfTot,1:MaxSendIndex),stat=ierr)
             CALL LogMemAlloc('BatchRead',MaxSendIndex*(NIfTot+1),size_n_int,this_routine,BatchReadTag,ierr)
@@ -316,7 +317,6 @@ MODULE PopsfileMod
     
     !Read in mapping file, and store the mapping between orbitals in the old and new bases.
     subroutine init_popsfile_mapping()
-        use util_mod, only: get_free_unit
         integer :: OldBasisSize,NewBasisSize,iunit,NewBasis,kkx,kky,kkz,dumint,OldBasis,i
         real(dp) :: dumEn
         logical :: exists
@@ -498,7 +498,6 @@ MODULE PopsfileMod
     
     !NOTE: This should only be used for the v3 POPSFILEs, since we only open the POPSFILE on the head node.
     subroutine open_pops_head(iunithead,formpops,binpops)
-        use util_mod, only: get_free_unit,get_unique_filename
         integer , intent(out) :: iunithead
         logical , intent(out) :: formpops,binpops
         character(255) :: popsfile
@@ -550,13 +549,15 @@ MODULE PopsfileMod
     end function FindPopsfileVersion
 
 
-!This routine is the same as WriteToPopsfilePar, but does not require two main arrays to hold the data.
-!The root processors data will be stored in a temporary array while it recieves the data from the other processors.
-!This routine will write out to a popsfile. It transfers all walkers to the head node sequentially, so does not want to be called too often
+!This routine is the same as WriteToPopsfilePar, but does not require two 
+! main arrays to hold the data.
+!The root processors data will be stored in a temporary array while it 
+! recieves the data from the other processors.
+!This routine will write out to a popsfile. It transfers all walkers to the 
+! head node sequentially, so does not want to be called too often
     SUBROUTINE WriteToPopsfileParOneArr(Dets,nDets)
-        use util_mod, only: get_unique_filename, get_free_unit
         use CalcData, only: iPopsFileNoWrite
-        use constants, only: size_n_int,MpiDetInt,n_int
+        use constants, only: size_n_int,n_int
         use MemoryManager, only: TagIntType
         integer(int64),intent(in) :: nDets !The number of occupied entries in Dets
         integer(kind=n_int),intent(in) :: Dets(0:nIfTot,1:nDets)
@@ -574,14 +575,17 @@ MODULE PopsfileMod
 
         CALL MPIBarrier(error)  !sync
 !        WRITE(6,*) "Get Here",nDets
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 
-!First, make sure we have up-to-date information - again collect AllTotWalkers,AllSumNoatHF and AllSumENum...
-!Calculate the energy by summing all on HF and doubles - convert number at HF to a real since no int*8 MPI data type
+!First, make sure we have up-to-date information - again collect AllTotWalkers
+! ,AllSumNoatHF and AllSumENum...
+!Calculate the energy by summing all on HF and doubles - convert number at HF
+!  to a real since no int*8 MPI data type
         CALL MPISum(SumNoatHF,1,AllSumNoatHF)
         CALL MPISum(SumENum,1,AllSumENum)
 
-!We also need to tell the root processor how many particles to expect from each node - these are gathered into WalkersonNodes
+!We also need to tell the root processor how many particles to expect from 
+!each node - these are gathered into WalkersonNodes
         if(bNodeRoot) CALL MPIAllGather(nDets,WalkersonNodes,error,Roots)
 
         Tag=125
@@ -684,7 +688,7 @@ MODULE PopsfileMod
             ENDIF
 !            WRITE(6,*) "Written out own walkers..."
 !            write(6,*) WalkersOnNodes
-            CALL FLUSH(6)
+            CALL neci_flush(6)
 
 !Now, we copy the head nodes data to a new array...
             nMaxDets=maxval(WalkersOnNodes)
@@ -698,7 +702,7 @@ MODULE PopsfileMod
                 j=WalkersonNodes(i)*(NIfTot+1)
                 CALL MPIRecv(Parts(0:NIfTot,1:WalkersonNodes(i)),j,NodeRoots(i),Tag,error)
 !                WRITE(6,*) "Recieved walkers for processor ",i,WalkersOnNodes(i)
-!                CALL FLUSH(6)
+!                CALL neci_flush(6)
                 
 !Then write it out...
                 IF(tBinPops) THEN
@@ -721,7 +725,7 @@ MODULE PopsfileMod
                     enddo
                 ENDIF
 !                WRITE(6,*) "Writted out walkers for processor ",i
-!                CALL FLUSH(6)
+!                CALL neci_flush(6)
 
             enddo
 
@@ -736,7 +740,7 @@ MODULE PopsfileMod
             j=nDets*(NIfTot+1)
             CALL MPISend(Dets(0:NIfTot,1:nDets),j,root,Tag,error)
 !            WRITE(6,*) "Have sent info to head node..."
-!            CALL FLUSH(6)
+!            CALL neci_flush(6)
         ENDIF
 
 !Reset the values of the global variables
@@ -749,7 +753,6 @@ MODULE PopsfileMod
 
 !This routine reads in particle configurations from a POPSFILE.
     SUBROUTINE ReadFromPopsfilePar()
-        use util_mod, only: get_unique_filename, get_free_unit
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn,iWeightPopRead
         use Logging, only: tZeroProjE, tRDMonFly, tExplicitAllRDM, tHF_Ref_Explicit 
         use constants, only: size_n_int,bits_n_int
@@ -848,7 +851,8 @@ MODULE PopsfileMod
         ENDIF
 
         IF(.not.tWalkContGrow) THEN
-!If we want the walker number to continue growing, then take the diagonal shift from the input, rather than the POPSFILE.
+!If we want the walker number to continue growing, then take the diagonal 
+! shift from the input, rather than the POPSFILE.
             DiagSft=DiagSftTemp
         ENDIF
 
@@ -859,7 +863,8 @@ MODULE PopsfileMod
 
         IF(tBinRead) THEN
 !Test for the end of the file.
-!If this is not the end of the file, there is one more keyword that tells us the calculation had not entered variable shift mode yet.
+!If this is not the end of the file, there is one more keyword that tells us 
+! the calculation had not entered variable shift mode yet.
 !Want to put this test at the end of the non-binary file too.
             CLOSE(iunit)
             call get_unique_filename('POPSFILEBIN',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
@@ -932,7 +937,8 @@ MODULE PopsfileMod
         CALL MPIBCast(NShiftEquilSteps)
         CALL MPIBCast(TSinglePartPhase)
 !        CALL MPI_BCast(tChangenProcessors,1,MPI_LOGICAL,root,MPI_COMM_WORLD,error)
-!Scatter the number of walkers each node will receive to TempInitWalkers, and the SumNoatHF for each node which is distributed approximatly equally
+!Scatter the number of walkers each node will receive to TempInitWalkers, and 
+! the SumNoatHF for each node which is distributed approximatly equally
         CALL MPIScatter(WalkerstoReceive,TempInitWalkers,error)
         CALL MPIScatter(NodeSumNoatHF,SumNoatHF(1),error)
 
@@ -942,14 +948,16 @@ MODULE PopsfileMod
         ENDIF
         
 !Now we want to allocate memory on all nodes.
-        MaxWalkersPart=NINT(MemoryFacPart*(NINT(InitWalkers*ScaleWalkers)))   !InitWalkers here is simply the average number of walkers per node, not actual
+!InitWalkers here is simply the average number of walkers per node, not actual
+        MaxWalkersPart=NINT(MemoryFacPart*(NINT(InitWalkers*ScaleWalkers)))
         MaxSpawned=NINT(MemoryFacSpawn*(NINT(InitWalkers*ScaleWalkers)))
 
         Gap=REAL(MaxSpawned)/REAL(nProcessors)
         do i=0,nProcessors-1
             InitialSpawnedSlots(i)=NINT(Gap*i)+1
         enddo
-!ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
+!ValidSpawndList now holds the next free position in the newly-spawned list, 
+! but for each processor.
         ValidSpawnedList(:)=InitialSpawnedSlots(:)
 
         CALL MPIBarrier(error)  !Sync
@@ -1013,8 +1021,12 @@ MODULE PopsfileMod
             CurrentH=>WalkVecH
         ENDIF
 
-! The hashing will be different in the new calculation from the one where the POPSFILE was produced, this means we must recalculate the processor each determinant wants to go to.                
-! This is done by reading in all walkers to the root and then distributing them in the same way as the spawning steps are done - by finding the determinant and sending it there.
+! The hashing will be different in the new calculation from the one where the
+!  POPSFILE was produced, this means we must recalculate the processor each 
+! determinant wants to go to.
+! This is done by reading in all walkers to the root and then distributing 
+! them in the same way as the spawning steps are done - by finding the
+!  determinant and sending it there.
         IF((PopsVersion.ne.1).and.tHPHF.and.(.not.tPopHPHF)) THEN
             CALL Stop_All(this_routine,"HPHF on, but HPHF was not used in creation of the POPSFILE")
         ENDIF
@@ -1111,8 +1123,9 @@ MODULE PopsfileMod
             Proc = DetermineDetNode(TempnI,0)
             IF((Proc.eq.iNodeIndex).and.(abs(TempSign(1)).ge.iWeightPopRead)) THEN
                 CurrWalkers=CurrWalkers+1
-                call encode_bit_rep(CurrentDets(:,CurrWalkers),iLutTemp(0:NIfDBO),TempSign,0)   !Do not need to send a flag here...
-                                                                                                !TODO: Add flag for complex walkers to read in both
+                !Do not need to send a flag here...
+                call encode_bit_rep(CurrentDets(:,CurrWalkers),iLutTemp(0:NIfDBO),TempSign,0) 
+                !TODO: Add flag for complex walkers to read in both
             ENDIF
 
             ! Keep track of what the most highly weighted determinant is
@@ -1194,7 +1207,7 @@ MODULE PopsfileMod
         WRITE(6,"(A,F14.6,A)") " Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,dp)/1048576.D0," Mb"
         WRITE(6,*) "Initial memory allocation successful..."
         WRITE(6,*) "Excitgens will be regenerated when they are needed..."
-        CALL FLUSH(6)
+        CALL neci_flush(6)
 
         ! If we are changing the reference determinant to the largest
         ! weighted one in the file, do it here
@@ -1280,7 +1293,6 @@ MODULE PopsfileMod
 ! This will very likely still be tweaking the inner heart-strings of FciMCPar.  Caveatis stulti!  AJWT
 ! GHB says he will incorporate this functionality into a rewrite of ReadFromPopsfilePar. 19/8/2010
     SUBROUTINE ReadFromPopsfileOnly(Dets,nDets)
-        use util_mod, only: get_unique_filename, get_free_unit
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn,iWeightPopRead
         use Logging, only: tZeroProjE
         use constants, only: size_n_int,bits_n_int
@@ -1390,7 +1402,8 @@ MODULE PopsfileMod
 
         IF(tBinRead) THEN
 !Test for the end of the file.
-!If this is not the end of the file, there is one more keyword that tells us the calculation had not entered variable shift mode yet.
+!If this is not the end of the file, there is one more keyword that tells us 
+! the calculation had not entered variable shift mode yet.
 !Want to put this test at the end of the non-binary file too.
             CLOSE(iunit)
             call get_unique_filename('POPSFILEBIN',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
@@ -1440,7 +1453,8 @@ MODULE PopsfileMod
         CALL MPIBCast(NShiftEquilSteps)
         CALL MPIBCast(TSinglePartPhase)
 !        CALL MPI_BCast(tChangenProcessors,1,MPI_LOGICAL,root,MPI_COMM_WORLD,error)
-!Scatter the number of walkers each node will receive to TempInitWalkers, and the SumNoatHF for each node which is distributed approximatly equally
+!Scatter the number of walkers each node will receive to TempInitWalkers, 
+! and the SumNoatHF for each node which is distributed approximatly equally
 
         IF(MemoryFacPart.le.1.D0) THEN
             WRITE(6,*) 'MemoryFacPart must be larger than 1.0 when reading in a POPSFILE - increasing it to 1.50.'
@@ -1451,8 +1465,12 @@ MODULE PopsfileMod
 
         if(AllTotWalkers>nDets) CALL Stop_All(this_routine,'Not enough memory to read in POPSFILE.')
 
-! The hashing will be different in the new calculation from the one where the POPSFILE was produced, this means we must recalculate the processor each determinant wants to go to.                
-! This is done by reading in all walkers to the root and then distributing them in the same way as the spawning steps are done - by finding the determinant and sending it there.
+! The hashing will be different in the new calculation from the one where the
+! POPSFILE was produced, this means we must recalculate the processor each 
+! determinant wants to go to.                
+! This is done by reading in all walkers to the root and then distributing 
+! them in the same way as the spawning steps are done - by finding the 
+! determinant and sending it there.
         IF((PopsVersion.ne.1).and.tHPHF.and.(.not.tPopHPHF)) THEN
             CALL Stop_All(this_routine,"HPHF on, but HPHF was not used in creation of the POPSFILE")
         ENDIF
@@ -1550,8 +1568,9 @@ MODULE PopsfileMod
             Proc=0  !DetermineDetNode(TempnI)   !This wants to return a value between 0 -> nProcessors-1
             IF((Proc.eq.iProcIndex).and.(abs(TempSign(1)).ge.iWeightPopRead)) THEN
                 CurrWalkers=CurrWalkers+1
-                call encode_bit_rep(Dets(:,CurrWalkers),iLutTemp(0:NIfDBO),TempSign,0)   !Do not need to send a flag here...
-                                                                                                !TODO: Add flag for complex walkers to read in both
+                !Do not need to send a flag here...
+                call encode_bit_rep(Dets(:,CurrWalkers),iLutTemp(0:NIfDBO),TempSign,0)
+                !TODO: Add flag for complex walkers to read in both
             ENDIF
 
             ! Keep track of what the most highly weighted determinant is
@@ -1629,7 +1648,7 @@ MODULE PopsfileMod
         WRITE(6,"(A,F14.6,A)") " Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,dp)/1048576.D0," Mb"
         WRITE(6,*) "Initial memory allocation successful..."
         WRITE(6,*) "Excitgens will be regenerated when they are needed..."
-        CALL FLUSH(6)
+        CALL neci_flush(6)
 
 !Now find out the data needed for the particles which have been read in...
         TotParts=0

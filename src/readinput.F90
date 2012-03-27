@@ -7,8 +7,9 @@ MODULE ReadInput_neci
     Implicit none
 !   Used to specify which default set of inputs to use
 !    An enum would be nice, but is sadly not supported
-    integer, parameter :: idDefault=0
-    integer, parameter :: idFeb08=1
+    integer, parameter :: idDefault = 0
+    integer, parameter :: idFeb08 = 1
+    integer, parameter :: idNov11 = 2
 
     contains
 
@@ -18,17 +19,17 @@ MODULE ReadInput_neci
         use Calc,       only : CalcReadInput,SetCalcDefaults
         use Integrals_neci,  only : IntReadInput,SetIntDefaults
         Use Logging,    only : LogReadInput,SetLogDefaults
-        use Parallel,   only : iProcIndex
+        use Parallel_neci,   only : iProcIndex
         use default_sets
         use util_mod, only: get_free_unit
-#ifdef NAGF95
-    !  USe doesn't get picked up by the make scripts
-        USe f90_unix_env, ONLY: getarg,iargc
-#endif
+!#ifdef NAGF95
+!    !  USe doesn't get picked up by the make scripts
+!        USe f90_unix_env, ONLY: getarg,iargc
+!#endif
         Implicit none
-#ifndef NAGF95
-        Integer :: iargc
-#endif
+!#ifndef NAGF95
+!        Integer :: iargc
+!#endif
     !  INPUT/OUTPUT params
         Character(len=255)  cFilename    !Input  filename or "" if we check arg list or stdin
         Integer             ios         !Output 0 if no error or nonzero iostat if error
@@ -41,6 +42,7 @@ MODULE ReadInput_neci
         Logical             tEof        !set when read_line runs out of lines
         logical             tExists     !test for existence of input file.
         Integer             idDef       !What default set do we use
+        integer neci_iargc
         
         cTitle=""
         idDef=idDefault                 !use the Default defaults (pre feb08)
@@ -50,9 +52,9 @@ MODULE ReadInput_neci
             inquire(file=cFilename,exist=tExists)
             if (.not.tExists) call stop_all('ReadInputMain','File '//Trim(cFilename)//' does not exist.')
             Open(ir,File=cFilename,Status='OLD',err=99,iostat=ios)
-        ElseIf(iArgC().gt.0) then
+        ElseIf(neci_iArgC().gt.0) then
     ! We have some arguments we can process instead
-            Call GetArg(1,cInp)      !Read argument 1 into inp
+            Call neci_GetArg(1,cInp)      !Read argument 1 into inp
             Write(6,*) "Reading from file: ", Trim(cInp)
             inquire(file=cInp,exist=tExists)
             if (.not.tExists) call stop_all('ReadInputMain','File '//Trim(cInp)//' does not exist.')
@@ -65,7 +67,6 @@ MODULE ReadInput_neci
             open(7,status='scratch',iostat=ios) 
         Endif
         Call input_options(echo_lines=.false.,skip_blank_lines=.true.)
-
 
     !Look to find default options (line can be added anywhere in input)
         Do
@@ -82,6 +83,8 @@ MODULE ReadInput_neci
                     idDef=idDefault
                 case("FEB08")
                     idDef=idFeb08
+                case("NOV11")
+                    idDef=idNov11
                 case default
                     write(6,*) "No defaults selected - using 'default' defaults"
                     idDef=idDefault
@@ -94,9 +97,12 @@ MODULE ReadInput_neci
         select case(idDef)
         case(0)
             write (6,*) 'Using the default set of defaults.'
-        case(1)
-            Feb08=.true.
+        case(idFeb08)
+            Feb08 = .true.
             write (6,*) 'Using the Feb08 set of defaults.'
+        case(idNov11)
+            Nov11 = .true.
+            write(6,*) 'Using the November 2011 set of defaults'
         end select
 
         ! Set up defaults.
@@ -108,9 +114,14 @@ MODULE ReadInput_neci
 !Now return to the beginning and process the whole input file
         if (ir.eq.5) ir=7 ! If read from STDIN, re-read from our temporary scratch file.
         Rewind(ir)
+#ifdef MOLPRO
+!Molpro writes out its own input file
+        Call input_options(echo_lines=.false.,skip_blank_lines=.true.)
+#else
         Call input_options(echo_lines=iProcIndex.eq.0,skip_blank_lines=.true.)
-
         Write (6,'(/,64("*"),/)')
+#endif
+
 
         Do
             Call read_line(tEof)

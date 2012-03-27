@@ -57,7 +57,7 @@ MODULE Logging
     logical :: tDumpForcesInfo, tPrintLagrangian  !Print out the 1RDM,2RDM and Lagrangian to file at the end of a run as long as 2RDM is calculated
 
     logical :: tCalcInstantS2, tCalcInstSCpts
-    integer :: instant_s2_multiplier
+    integer :: instant_s2_multiplier,iHighPopWrite
 
     contains
 
@@ -67,6 +67,7 @@ MODULE Logging
       use default_sets
       implicit none
 
+      iHighPopWrite = 15    !How many highest weighted determinants to write out at the end of an FCIQMC calc.
       tDiagWalkerSubspace = .false.
       iDiagSubspaceIter = 1
       tSplitProjEHist = .false.
@@ -202,6 +203,9 @@ MODULE Logging
         call readu(w)
         select case(w)
 
+        case("HIGHLYPOPWRITE")
+            !At the end of an FCIMC calculation, how many highly populated determinants should we write out?
+            call readi(iHighPopWrite)
         case("DIAGWALKERSUBSPACE")
             !Diagonalise walker subspaces every iDiagSubspaceIter iterations
             tDiagWalkerSubspace = .true.
@@ -675,11 +679,15 @@ MODULE Logging
 ! passes that many.
             TPopsFile=.true.
             IF(item.lt.nitems) THEN
-                tPrintPopsDefault=.false.
                 call readi(iWritePopsEvery)
                 IF(iWritePopsEvery.lt.0) THEN
 !If a negative argument is supplied to iWritePopsEvery, then the POPSFILE will never be written out, even at the end of a simulation.
+!If it is exactly zero, this will be the same as without any argument, and a
+!popsfile will only be written out in the instance of a clean exit
                     TPopsFile=.false.
+                    tPrintPopsDefault=.false.
+                ELSEIF(iWritePopsEvery.gt.0) THEN
+                    tPrintPopsDefault=.false.
                 ENDIF
             ENDIF
         case("REDUCEDPOPSFILE")

@@ -8,9 +8,9 @@ module DetBitOps
     use Systemdata, only: nel, tCSF, tTruncateCSF, csf_trunc_level
     use CalcData, only: tTruncInitiator
     use bit_rep_data, only: NIfY, NIfTot, NIfD, NOffFlag, NIfFlag, &
-                            test_flag, flag_is_initiator,NIfDBO
+                            test_flag, flag_is_initiator,NIfDBO,NOffSgn
     use csf_data, only: iscsf, csf_yama_bit, csf_orbital_mask, csf_test_bit
-    use constants, only: n_int,bits_n_int,end_n_int
+    use constants, only: n_int,bits_n_int,end_n_int,dp,lenof_sign
 
     implicit none
 
@@ -103,7 +103,8 @@ module DetBitOps
 
         nbits = sum(count_set_bits(iLut))
         
-        if (present(nBitsMax)) nbits = min(nBitsmax+1, nbits)
+        !No advantage to test for this!
+!        if (present(nBitsMax)) nbits = min(nBitsmax+1, nbits)
     end function
 
     ! An elemental routine which will count the number of bits set in one 
@@ -202,11 +203,14 @@ module DetBitOps
         tmp = iand(iLutnI, tmp)
 
         ! Then count them
-        if (present(maxExLevel)) then
-            IC = CountBits(tmp, NIfD, maxExLevel)
-        else
+        ! Since our CountBits routines don't actually make a saving
+        ! for counting smaller numbers of bits, no point in even testing
+        ! for a maxExLevel!
+!        if (present(maxExLevel)) then
+!            IC = CountBits(tmp, NIfD, maxExLevel)
+!        else
             IC = CountBits(tmp, NIfD)
-        endif
+!        endif
 
     end function FindBitExcitLevel
 
@@ -395,31 +399,61 @@ module DetBitOps
         DetBitEQ=.true.
     end function DetBitEQ
 
-    ! This will return true if the determinant has been set to zero, and 
-    ! false otherwise.
-    pure logical function DetBitZero(iLutI,nLast)
-        integer, intent(in), optional :: nLast
-        integer(kind=n_int), intent(in) :: iLutI(0:NIfTot)
-        integer :: i, lnLast
+    pure function sign_lt (ilutI, ilutJ) result (bLt)
+        ! This is a comparison function between two bit strings of length 0:NIfTot, and will return
+        ! true if absolute value of the sign of ilutI is less than ilutJ
+        integer(n_int), intent(in) :: iLutI(0:), iLutJ(0:)
+        logical :: bLt
+        integer, dimension(lenof_sign) :: SignI, SignJ
+        real(dp) :: WeightI,WeightJ
 
-        if(iLutI(0).ne.0) then
-            DetBitZero=.false.
-            return
-        else
-            if (present(nLast)) then
-                lnLast = nLast
+        SignI = iLutI(NOffSgn:NOffSgn+lenof_sign-1)
+        SignJ = iLutJ(NOffSgn:NOffSgn+lenof_sign-1)
+
+        if(lenof_sign.eq.1) then
+            if(abs(SignI(1)).lt.abs(SignJ(1))) then
+                bLt = .true.
             else
-                lnLast = NIftot
+                bLt = .false.
             endif
-            do i=1,lnLast
-                if(iLutI(i).ne.0) then
-                    DetBitZero=.false.
-                    return
-                endif
-            enddo
+        else
+            WeightI=sqrt(real(SignI(1),dp)**2+real(SignI(lenof_sign),dp)**2)
+            WeightJ=sqrt(real(SignJ(1),dp)**2+real(SignJ(lenof_sign),dp)**2)
+            if(WeightI.lt.WeightJ) then
+                bLt = .true.
+            else
+                bLt = .false.
+            endif
         endif
-        DetBitZero=.true.
-    end function DetBitZero
+    end function sign_lt
+
+    pure function sign_gt (ilutI, ilutJ) result (bGt)
+        ! This is a comparison function between two bit strings of length 0:NIfTot, and will return
+        ! true if the abs sign of ilutI is greater than ilutJ
+        integer(n_int), intent(in) :: iLutI(0:), iLutJ(0:)
+        logical :: bGt
+        integer, dimension(lenof_sign) :: SignI, SignJ
+        real(dp) :: WeightI,WeightJ
+
+        SignI = iLutI(NOffSgn:NOffSgn+lenof_sign-1)
+        SignJ = iLutJ(NOffSgn:NOffSgn+lenof_sign-1)
+
+        if(lenof_sign.eq.1) then
+            if(abs(SignI(1)).gt.abs(SignJ(1))) then
+                bGt = .true.
+            else
+                bGt = .false.
+            endif
+        else
+            WeightI=sqrt(real(SignI(1),dp)**2+real(SignI(lenof_sign),dp)**2)
+            WeightJ=sqrt(real(SignJ(1),dp)**2+real(SignJ(lenof_sign),dp)**2)
+            if(WeightI.gt.WeightJ) then
+                bGt = .true.
+            else
+                bGt = .false.
+            endif
+        endif
+    end function sign_gt
 
     pure function ilut_lt (ilutI, ilutJ) result (bLt)
 !        use util_mod, only: operator(.arrlt.)

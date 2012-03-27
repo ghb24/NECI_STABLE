@@ -19,11 +19,13 @@ module iso_c_hack
     type c_ptr
         integer(int64) :: p
     end type
+    integer(int64), parameter :: C_NULL_PTR = 0
 #else
     integer, parameter :: c_size_t = int32
     type c_ptr
         integer(int32) :: p
     end type
+    integer(int32), parameter :: C_NULL_PTR = 0
 #endif
 
 #endif
@@ -34,8 +36,8 @@ end module
 subroutine c_f_pointer (a, b, dims)
 
     integer, intent(in) :: dims(:)
-    integer, dimension(:), pointer, intent(in) :: a
-    integer, dimension(:), pointer, intent(out) :: b
+    integer, dimension(:), pointer :: a
+    integer, dimension(:), pointer :: b
 
     b => a
 

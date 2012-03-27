@@ -191,8 +191,8 @@ contains
         ! The total number of bits_n_int-bit integers used - 1
         NIfTot = NIfD + NIfY + NIfSgn + NIfFlag
 
-        WRITE(6,*) "Setting integer length of determinants as bit-strings to: ", NIfTot + 1
-        WRITE(6,*) "Setting integer bit-length of determinants as bit-strings to: ", bits_n_int
+        WRITE(6,"(A,I6)") "Setting integer length of determinants as bit-strings to: ", NIfTot + 1
+        WRITE(6,"(A,I6)") "Setting integer bit-length of determinants as bit-strings to: ", bits_n_int
          
     end subroutine
 

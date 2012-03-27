@@ -12,13 +12,13 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local)
     !=    tCPMD: True if doing a CPMD-based calculation.
     !=    tVASP: True if doing a VASP-based calculation.
 
-    Use ReadInput_neci, only : ReadInputMain
-    Use SystemData, only : tMolpro
+    use ReadInput_neci, only : ReadInputMain
+    use SystemData, only : tMolpro
 
     ! main-level modules.
     use Calc, only: CalcDoCalc
     use CalcData, only: tUseProcsAsNodes
-    use Parallel, only: MPINodes
+    use Parallel_neci, only: MPINodes
 
     ! Utility modules.
     use global_utilities
@@ -28,9 +28,16 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local)
     logical,intent(in) :: tCPMD,tVASP,tMolpro_local
     type(timer), save :: proc_timer
     integer :: ios
+    character(*), parameter :: this_routine = 'NECICore'
     character(255) :: Filename
+    logical :: toverride_input
     
     tMolpro = tMolpro_local
+
+#ifdef SX
+    call stop_all(this_routine, 'The NEC compiler does not produce a working &
+                                &version of NECI.')
+#endif
 
     ! Do the program initialisation.
     call NECICodeInit(tCPMD,tVASP)
@@ -40,7 +47,12 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local)
 
 !   See ReadInputMain.  Causes the command line arguments to be checked for the input filename.
     if(tMolpro) then
-        Filename="FCIQMC_input"
+        inquire(file="FCIQMC_input_override",exist=toverride_input)
+        if(toverride_input) then
+            Filename="FCIQMC_input_override"
+        else
+            Filename="FCIQMC_input"
+        endif
     else
         Filename="" 
     endif
@@ -84,7 +96,8 @@ subroutine NECICodeInit(tCPMD,tVASP)
     ! Utility modules
     use MemoryManager, only: InitMemoryManager
     use timing_neci, only: init_timing
-    use Parallel, only: MPIInit
+    use Parallel_neci, only: MPIInit
+    use SystemData, only : tMolpro
 
     implicit none
     logical, intent(in) :: tCPMD,tVASP
@@ -93,7 +106,7 @@ subroutine NECICodeInit(tCPMD,tVASP)
 
     ! MPIInit contains dummy initialisation for serial jobs, e.g. so we
     ! can refer to the processor index being 0 for the parent processor.
-    Call MPIInit(tCPMD.or.tVASP) ! CPMD and VASP have their own MPI initialisation and termination routines.
+    Call MPIInit(tCPMD.or.tVASP.or.tMolpro) ! CPMD and VASP have their own MPI initialisation and termination routines.
 
     if (.not.TCPMD) then
         call InitMemoryManager()
@@ -115,15 +128,16 @@ subroutine NECICodeEnd(tCPMD,tVASP)
     ! Utility modules
     use MemoryManager, only: LeaveMemoryManager
     use timing_neci, only: end_timing,print_timing_report
+    use SystemData, only : tMolpro
 #ifdef PARALLEL
-    use Parallel, only: MPIEnd
+    use Parallel_neci, only: MPIEnd
 #endif
 
     implicit none
     logical, intent(in) :: tCPMD,tVASP
 
 #ifdef PARALLEL
-    call MPIEnd(tCPMD.or.tVASP) ! CPMD and VASP have their own MPI initialisation and termination routines.
+    call MPIEnd(tMolpro.or.tCPMD.or.tVASP) ! CPMD and VASP have their own MPI initialisation and termination routines.
 #endif
 
 !    CALL N_MEMORY_CHECK
