@@ -11,7 +11,7 @@ C  ========================================================
       complex(dp) CK(NMESHX,NMESHX,NMESHX)
       complex(dp) ZIA(-NMESHX/2:NMESHX/2,NMAX,NMAX) 
       real(dp) A(3),OMEGA,ALPHA
-      real(sp) t1,t2,t3,t(2),etime
+      real(sp) t1,t2,t3,t(2),neci_etime
       LOGICAL TALPHA
       INTEGER, SAVE :: IFIRST=0
 !      SAVE IFIRST 
@@ -19,10 +19,10 @@ C..
       IF(IFIRST.EQ.1) RETURN 
       IFIRST=1
 C..      
-      T1 = etime(t)
+      T1 = neci_etime(t)
       CALL GEN_CK_FFT2D(NMESHX,CK,A,TALPHA,ALPHA,OMEGA)
       CALL GEN_ZIA(NMESHX,NMAX,ZIA)
-      T2 = etime(t)
+      T2 = neci_etime(t)
       T3=(T2-T1)
       WRITE(6,*) 'V0=',CK(NMESHX/2+1,NMESHX/2+1,NMESHX/2+1)
       WRITE(6,*) ' TIME FOR INITIALISATION:',T3/1000.
@@ -106,7 +106,8 @@ C =========================================================
       real(dp) A(3),x,y,z,aux,r,ALPHA,ALPHA2,OMEGA,OMEGAP
       LOGICAL TALPHA
       complex(dp) D(-N/2:N/2-1,-N/2:N/2-1)
-      real(dp) :: HSTEPX,HSTEPY,HSTEPZ,gx,gy,gz,SUM,G,derf
+      real(dp) :: HSTEPX,HSTEPY,HSTEPZ,gx,gy,gz,SUM,G,DERF
+      character(len=*), parameter :: t_r="GEN_CK_FFT2D"
 C..
 !      PI=ACOS(-1.D0)
       ALPHA2=ALPHA*ALPHA
@@ -114,6 +115,10 @@ C..
       HSTEPX=2.D0*A(1)/N
       HSTEPY=2.D0*A(2)/N
       HSTEPZ=0
+
+#ifdef NAGF95
+      call stop_all(t_r,"No ERF in NAG?")
+#endif
     
 C..
       DO I=-N/2,N/2-1
@@ -127,7 +132,9 @@ c          DO K=-N/2,N/2-1
             IF(AUX.NE.0.D0) THEN
               IF(TALPHA) THEN 
                 R=SQRT(AUX) 
+#ifndef NAGF95                
                 AUX=1.D0/R*(-1)**(I+J)*DERF(R/ALPHA)
+#endif
               ELSE
                 AUX=1.D0/SQRT(AUX)*(-1)**(I+J)
               ENDIF
@@ -213,7 +220,9 @@ C..PI*K/A(3)
               G=SQRT(GX*GX+GY*GY+GZ*GZ)
               IF(G.NE.0.D0) THEN 
 c sum=2 Pi * erf(a G/2)/G/omegap
+#ifndef NAGF95
                 SUM=2.D0*PI*DERF(ALPHA*G/2)/OMEGAP/G
+#endif
 C                AUX=EXP(-G2*ALPHA2/4.D0)
 C                SUM=4.D0*PI*(1.D0-AUX)/OMEGAP/G2
               ELSE

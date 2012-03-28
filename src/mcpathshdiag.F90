@@ -183,7 +183,7 @@ module mcpathshdiag
             ENDIF
                 
                    !WRITE(43,*) DLWDB2, EREF
-                   !CALL FLUSH(43)
+                   !CALL neci_flush(43)
 !        write (6,*) "from mcpathshdiag, EREF=",EREF
 !            IF (TVARCALC(I_V)) THEN
 !                CALL WRITEPATH(43,IPATH,I_V,NEL,.TRUE.)
@@ -231,7 +231,7 @@ module mcpathshdiag
             IF(TLOG4.AND.MOD(L,G_VMC_LOGCOUNT).EQ.0) THEN
 !C.. log every 1000
                WRITE(10,"(I10,3E25.16)") L,NTOTAL,DLWDB,MP2E(2)
-               CALL FLUSH(10)
+               CALL neci_flush(10)
             ENDIF
             RETURN
          ENDIF

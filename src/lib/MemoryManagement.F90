@@ -91,7 +91,7 @@ logical, save :: MemUnitsBytes = .true. ! If true, then output object size in by
 
 logical, save :: err_output = .true. ! Print error messages.
 
-integer, parameter :: li = selected_int_kind(18) !ints between +-10^18
+integer, parameter :: li = selected_int_kind(15) !ints between +-10^18
 integer, parameter :: lr = selected_real_kind(1,18) !reals between +-10^18
 
 type MemLogEl

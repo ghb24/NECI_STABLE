@@ -112,7 +112,8 @@ module soft_exit
                          SumENum, SumNoatHF, &
                          AvAnnihil, VaryShiftCycles, SumDiagSft, &
                          VaryShiftIter, CurrentDets, iLutHF, HFDet, &
-                         TotWalkers,tPrintHighPop, tSearchTau
+                         TotWalkers,tPrintHighPop, tSearchTau,&
+             n_proje_sum => nproje_sum,proje_update_comb
     use CalcData, only: DiagSft, SftDamp, StepsSft, OccCASOrbs, VirtCASOrbs, &
                         tTruncCAS,  NEquilSteps, tTruncInitiator, &
                         InitiatorWalkNo, tCheckHighestPop, tRestartHighPop, &
@@ -140,7 +141,7 @@ module soft_exit
                             spin_proj_cutoff, spin_proj_spawn_initiators, &
                             spin_proj_no_death, spin_proj_iter_count
     use hist_data, only: Histogram
-    use Parallel
+    use Parallel_neci
     implicit none
 
 contains
@@ -179,9 +180,55 @@ contains
                               spin_project_iter_count = 36, trunc_nopen = 37, &
                               targetgrowrate = 38, refshift = 39, & 
                               calc_rdm = 40, calc_explic_rdm = 41, &
-                              fill_rdm_iter = 42, diag_one_rdm = 43
-        integer, parameter :: last_item = diag_one_rdm
+                              fill_rdm_iter = 42, diag_one_rdm = 43, &
+                              nprojesum = 44
+        integer, parameter :: last_item = nprojesum
         integer, parameter :: max_item_len = 30
+        character(max_item_len), parameter :: option_list_molp(last_item) &
+                               = (/"truncate                     ", &
+                                   "not_option                   ", &
+                                   "exit                         ", &
+                                   "writepopsfile                ", &
+                                   "varyshift                    ", &
+                                   "iterations                   ", &
+                                   "timestep                     ", &
+                                   "shift                        ", &
+                                   "shiftdamping                 ", &
+                                   "interval                     ", &
+                                   "singlesbias                  ", &
+                                   "zeroproje                    ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "initiator_thresh             ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "changeref                    ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   "/)
         character(max_item_len), parameter :: option_list(last_item) &
                                = (/"excite                       ", &
                                    "truncatecas                  ", &
@@ -225,7 +272,8 @@ contains
                                    "calcrdmonfly                 ", &
                                    "calcexplicitrdm              ", &
                                    "fillrdmiter                  ", &
-                                   "diagflyonerdm                "/)
+                                   "diagflyonerdm                ", &
+                                   "nprojesum                    "/)
 
         logical :: exists, any_exist, eof, deleted, any_deleted, tSource
         logical :: opts_selected(last_item)
@@ -277,7 +325,7 @@ contains
 
                         ! Mark any selected options.
                         do i = 1, last_item
-                            if (trim(w) == trim(option_list(i))) then
+                            if ((trim(w) == trim(option_list(i))).or.(trim(w).eq.trim(option_list_molp(i)))) then
                                 opts_selected(i) = .true.
                                 exit
                             endif
@@ -286,6 +334,8 @@ contains
                         ! Do we have any other items to read in?
                         if (i == tau) then
                             call readf (tau_value)
+                        elseif (i == nprojesum) then     
+                            call readi (n_proje_sum)     
                         elseif (i == TargetGrowRate) then
                             call readf (target_grow_rate)
                         elseif (i == diagshift) then
@@ -465,6 +515,13 @@ contains
                     write(6,*) "Ceasing the searching for tau."
                     tSearchTau = .false.
                 endif
+            endif
+
+            if(opts_selected(nprojesum)) then
+                call MPIBCast(n_proje_sum, tSource)
+                proje_update_comb=.true.
+                call MPIBCast(proje_update_comb, tSource)
+                write(6,*) "NPROJE_SUM changed to: ",n_proje_sum, "on iteration: ",iter
             endif
 
             if(opts_selected(targetgrowrate)) then

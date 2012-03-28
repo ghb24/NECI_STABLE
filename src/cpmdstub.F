@@ -12,8 +12,20 @@ C.. A stub containing dummy functions in CPMD, which will appear on linking appr
          UMATEL=0.D0
       END
 
-      SUBROUTINE CPMDANTISYMINTEL 
+      SUBROUTINE CPMDANTISYMINTEL(G1,UMat2D,HarInt,NStates) 
+         use constants, only: dp
+         use SystemData, only: BasisFN
          IMPLICIT NONE
+         type(BasisFN) :: G1(*)
+         complex(dp) :: HarInt(*)
+         integer :: nStates
+         HElement_t :: UMat2D(*)
+         !eliminate warnings
+         G1(1)=G1(1)
+         nStates=nStates
+         UMat2D(1)=UMat2D(1)
+         HarInt(1)=HarInt(1)
+         call stop_all("CPMDANTISYMINTEL","Entering stub routine.")
       END SUBROUTINE
 
       SUBROUTINE CPMDGETOCC(ISTATE,OCC)

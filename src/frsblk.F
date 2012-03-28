@@ -61,7 +61,7 @@ C ==----------------------------------------------------------------==
 C ==----------------------------------------------------------------==
 C..Uncomment to test to see if routine is working
 C..Exact eigenstates
-C      T1 = etime()
+C      T1 = neci_etime()
 C      CALL DSYEV('V','U',M,H,M,WH,WORK2,3*M,INFO)
 C      WRITE(6,'(//14X,''Exact'',15X,''Lanczos'',10X,''Residual'')')
 C      DO I=1,N
@@ -69,7 +69,7 @@ C        AUX=ABS(DDOT(M,V0(1,I),1,H(1,M-I+1),1))
 C        AUX=1.D0-AUX
 C        WRITE(6,'(6X,I3,2E19.11,2X,E10.3)') I,WH(M-I+1),W(I),AUX
 C      ENDDO
-C      T2 = etime()
+C      T2 = neci_etime()
 C      T3=(T2-T1)
 C      WRITE(6,'(//5X,''TIME FOR EXACT DIAGONALISATION'',F10.2)')
 C     &       T3/1000.D0
@@ -100,7 +100,7 @@ C ====================================================================
       integer :: NCONV
       integer :: INDEX(N),NROW(M),LAB(M,ICMAX),INFO 
       type(timer), save :: proc_timer
-      real(sp) t1,t2,t3,etime,tarr(2)
+      real(sp) t1,t2,t3,tarr(2),neci_etime
 C..temp
       real(dp) ::  H(*)
 C..temp
@@ -122,7 +122,7 @@ C        WRITE(6,*) 'LSCR2:',LSCR2
         WRITE(6,*) 'LSCR:',LSCR
         STOP ' LSCR TOO SMALL '  
       ENDIF
-      T1 = etime(tarr) 
+      T1 = neci_etime(tarr) 
 C ====================================================================
       INDEX(1:N)=0
       NHPSI=0
@@ -237,7 +237,7 @@ C.. End of Lanczos diagonalisation
       IF(PRINTOUT) THEN
           WRITE(6,'(//''    NCONV:'',I5)') NCONV
       ENDIF
-      T2 = etime(tarr) 
+      T2 = neci_etime(tarr) 
       T3=(T2-T1)
       IF(PRINTOUT) THEN
           WRITE(6,'(//5X,''TIME FOR LANCZOS DIAGONALISATION'',F10.2)')

@@ -93,6 +93,10 @@ MODULE FciMCData
       ! The averaged projected energy - calculated over the last update cycle
       HElement_t :: proje_iter
 
+      ! The averaged 'absolute' projected energy - calculated over the last update cycle
+      ! The magnitude of each contribution is taken before it is summed in
+      HElement_t :: AbsProjE
+
       integer(int64), dimension(lenof_sign) :: SumNoatHF      !This is the sum over all previous cycles of the number of particles at the HF determinant
       real(dp) :: AvSign           !This is the average sign of the particles on each node
       real(dp) :: AvSignHFD        !This is the average sign of the particles at HF or Double excitations on each node
@@ -111,6 +115,8 @@ MODULE FciMCData
       HElement_t :: OldAllHFCyc       !This is the old *average* (not sum) of HF*sign over all procs over previous update cycle
       HElement_t :: ENumCyc           !This is the sum of doubles*sign*Hij on a given processor over the course of the update cycle
       HElement_t :: AllENumCyc        !This is the sum of double*sign*Hij over all processors over the course of the update cycle
+      HElement_t :: ENumCycAbs        !This is the sum of abs(doubles*sign*Hij) on a given processor over the course of the update cycle
+      HElement_t :: AllENumCycAbs     !This is the sum of abs(double*sign*Hij) over all processors over the course of the update cycle
 
       ! The projected energy over the current update cycle.
       HElement_t :: ProjECyc
@@ -234,7 +240,7 @@ MODULE FciMCData
       ! If we are calculating the projected energy based on a linear
       ! sum of multiple determinants, we need them and their coeffs
       ! to have been enumerated.
-      logical :: proje_linear_comb
+      logical :: proje_linear_comb,proje_update_comb,proje_spatial
       integer(n_int), allocatable :: proje_ref_iluts(:,:)
       integer :: nproje_sum
       integer, allocatable :: proje_ref_dets(:,:), proje_ref_det_init(:)
@@ -302,8 +308,8 @@ MODULE FciMCData
       integer :: hash_iter       ! An iteration number added to make iteration-dependent hashes
       integer :: hash_shift      ! -Ln_2 (Cycletime), where CycleTime is the average number of cycles until a det returns to its processor
 
-      !Variables for weird histogramming of projected energy contributions
-      real(dp), allocatable :: ENumCycHist(:),AllENumCycHist(:)
-      integer :: iNumWeirdBins,unit_splitprojEHist
+      !Variables for very useful histogramming of projected energy contributions
+      real(dp), allocatable :: ENumCycHistG(:),AllENumCycHistG(:),ENumCycHistK3(:),AllENumCycHistK3(:)
+      integer :: unit_splitprojEHistG,unit_splitprojEHistK3
 
 END MODULE FciMCData

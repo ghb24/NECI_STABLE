@@ -1412,7 +1412,7 @@ MODULE System
 !      WRITE(6,*) THFNOORDER, " THFNOORDER"
       CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
       IF(NEL.GT.NBASIS) STOP 'MORE ELECTRONS THAN BASIS FUNCTIONS'
-      CALL FLUSH(6)
+      CALL neci_flush(6)
       IF(TREAL.AND.THUB) THEN
 !C.. we need to allow integrals between different spins
          NBASISMAX(2,3)=1

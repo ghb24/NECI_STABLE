@@ -18,7 +18,7 @@ module GenRandSymExcitCSF
     use DetBitOps, only: EncodeBitDet, is_canonical_ms_order, &
                          shift_det_bit_singles_to_beta, count_open_orbs
     use Determinants, only: write_det
-    use Parallel
+    use Parallel_neci
     use constants, only: n_int, bits_n_int
     use bit_reps, only: NIfTot,NIfD
     use sym_general_mod, only: CCIndS
@@ -125,7 +125,7 @@ contains
                 write(6,'("If you want to use these excitation generators &
                           &then add NOSYMGEN to the input to ignore symmetry &
                           &while generating excitations.")')
-                call flush(6)
+                call neci_flush(6)
                 call stop_all(this_routine,"GenRandsymExcitCSF can only be &
                                   &used for molecular systems using symmetry")
             endif
@@ -386,7 +386,7 @@ contains
                 symProd
             write(6,*) 'src', orbs(1), orbs(2)
             call write_det (6, nI, .true.)
-            call flush(6)
+            call neci_flush(6)
             call stop_all(this_routine, "Cannot find an unoccupied orbital &
                          &for a double excitation after 250 attempts.")
         endif
@@ -455,7 +455,7 @@ contains
             write(6,*) 'src', orbs(1), orbs(2)
             write(6,*) 'tgt', orbA
             write(6,*) 'num orbs', nbasis
-            call flush(6)
+            call neci_flush(6)
             call stop_all(this_routine, "Cannot find an unoccupied orbital &
                          &for a double excitation after 250 attempts.")
         endif
@@ -688,7 +688,7 @@ contains
         if (i > 250) then
             write(6,'("Cannot find single excitation after 250 attempts")')
             call write_det (6, nI, .true.)
-            call flush(6)
+            call neci_flush(6)
             call stop_all(this_routine, "Cannot find single excitation after &
                                         &250 attempts")
         endif
@@ -737,7 +737,7 @@ contains
             print*, SymLabelList2(SymLabelCounts2(1,symEx):SymLabelCounts2(1,symEx)+OrbClassCount(symEx)-1)
             write(6,'("Number of orbitals to legitimately pick =",i4)') nexcit
             call write_det (6, nI, .true.)
-            call flush(6)
+            call neci_flush(6)
             call stop_all(this_routine, "Cannot find an unoccupied orbital &
                          &for a single excitation after 250 attempts.")
         endif

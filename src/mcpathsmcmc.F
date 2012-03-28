@@ -40,7 +40,7 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          LOGICAL LCANMOVE
          EXTERNAL FMCPR4WFUNC,FMCPR4VFUNC,FMCPR4UFUNC
          real(dp) RNORM,ND,STD,GETNLOOPS,FMCPR5,WLRI,ECORE
-         real(sp) itime,etime,tarr(2)
+         real(sp) itime,tarr(2),neci_etime
          type(timer), save :: proc_timer
          type(timer), save :: proc_timer2
          proc_timer%timer_name='MCPATHSR5 '
@@ -136,8 +136,8 @@ c            WRITE(6,*) I_V,F(I_V),TOTAL,get_total_time(proc_timer2),L,LT
      &            I_V,F(I_V),TOTAL,get_total_time(proc_timer2),L,STD
             IF(ISNAN(F(I_V))) THEN
 C.. save all log files
-               ITIME=etime(tarr)
-               CALL FLUSH(11)
+               ITIME=neci_etime(tarr)
+               CALL neci_flush(11)
                CALL LOGNAN(NI,NEL,BETA,ITIME)
                WRITE(6,*) "WARNING: nan found at time",ITIME
                WRITE(6,"(A)",advance='no') "  nan det=("

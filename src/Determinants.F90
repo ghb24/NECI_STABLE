@@ -603,7 +603,7 @@ END MODULE Determinants
          endif
 !         call writedet(77,nI,nel,.false.)
 !         write(77,*) "H0",hEl
-!         call flush(77)
+!         call neci_flush(77)
       end subroutine
 
       subroutine DetFreezeBasis(GG)
@@ -813,10 +813,10 @@ END MODULE Determinants
         integer, intent(in) :: nunit, nel, nI(nel)
         logical, intent(in) :: lTerm
         integer :: i, orb
-        logical iscsf, bCSF
+        logical iscsf_old, bCSF
 
         ! Is this a csf? Note use of old (non-modularised) iscsf
-        bCSF = (tCSF .or. tCSFOLD) .and. iscsf(nI, nel)
+        bCSF = (tCSF .or. tCSFOLD) .and. iscsf_old(nI, nel)
 
         ! Begin with an open bracket
         write(nunit,'("(")',advance='no')
@@ -861,10 +861,10 @@ END MODULE Determinants
          USE OneEInts, only : GetTMatEl
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I
-         LOGICAL ISCSF
+         LOGICAL ISCSF_old
          real(dp) :: CALCT
          CALCT=0.D0
-         IF(ISCSF(NI,NEL)) RETURN
+         IF(ISCSF_old(NI,NEL)) RETURN
          DO I=1,NEL
             CALCT=CALCT+GetTMATEl(NI(I),NI(I))
          ENDDO

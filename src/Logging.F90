@@ -32,9 +32,9 @@ MODULE Logging
     LOGICAL tTruncDumpbyVal, tChangeVarsRDM, tPrintRODump, tSpawnGhostChild, tno_RDMs_to_read, tReadRDMs
     LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit,tPrintDoubsUEG, tWriteMultRDMs
     LOGICAL tHF_S_D_Ref, tHF_S_D, tHF_Ref_Explicit, tExplicitAllRDM, twrite_normalised_RDMs, twrite_RDMs_to_read 
-    LOGICAL tNoNOTransform, tPrint1RDM
+    LOGICAL tNoNOTransform, tPrint1RDM, tPrintInitiators
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps,IterShiftBlock
-    INTEGER IterRDMonFly, RDMExcitLevel, RDMEnergyIter, IterWriteRDMs
+    INTEGER IterRDMonFly, RDMExcitLevel, RDMEnergyIter, IterWriteRDMs 
     real(dp) GhostThresh, GhostFac
     INTEGER CCMCDebug  !CCMC Debugging Level 0-6.  Default 0
     INTEGER FCIMCDebug !FciMC Debugging Level 0-6.  Default 0
@@ -592,7 +592,6 @@ MODULE Logging
 ! Write out the normalised, hermitian RDMs every IterWriteRDMs iterations.  
             tWriteMultRDMs = .true.
             call readi(IterWriteRDMs)
-
         case("DUMPFORCESINFO")
 ! Using the finalised 2RDM, calculate the Lagrangian X used for the calculation of the forces, and dump all these in Molpro-friendly format
 ! Note that this currently requires calculation of *both* the 1 and 2 body RDMS (i.e. CALCRDMONFLY 3 .. ... )
@@ -602,7 +601,9 @@ MODULE Logging
         case("PRINTLAGRANGIAN")
             ! Print out the Lagrangian X to file (Only works in conjuction with DUMPFORCESINFO: otherwise, this option does nothing)
             tPrintLagrangian = .true.
-
+        case("WRITEINITIATORS")
+! Requires a popsfile to be written out.  Writes out the initiator populations. 
+            tPrintInitiators = .true.
         case("AUTOCORR")
 !This is a Parallel FCIMC option - it will calculate the largest weight MP1 determinants and histogramm them
 !HF Determinant is always histogrammed. NoACDets(2) is number of doubles. NoACDets(3) is number of triples and NoACDets(4) is 
@@ -675,11 +676,15 @@ MODULE Logging
 ! passes that many.
             TPopsFile=.true.
             IF(item.lt.nitems) THEN
-                tPrintPopsDefault=.false.
                 call readi(iWritePopsEvery)
                 IF(iWritePopsEvery.lt.0) THEN
 !If a negative argument is supplied to iWritePopsEvery, then the POPSFILE will never be written out, even at the end of a simulation.
+!If it is exactly zero, this will be the same as without any argument, and a
+!popsfile will only be written out in the instance of a clean exit
                     TPopsFile=.false.
+                    tPrintPopsDefault=.false.
+                ELSEIF(iWritePopsEvery.gt.0) THEN
+                    tPrintPopsDefault=.false.
                 ENDIF
             ENDIF
         case("REDUCEDPOPSFILE")

@@ -54,7 +54,7 @@ contains
          INTEGER I_P,I_HMAX,BRR(*),NMSH,NMAX
          INTEGER NTAY(2),NWHTAY(3,I_VMAX),ILOGGING,I,I_V
          INTEGER L,LT,J
-         real(sp) otime,itime,etime,tarr(2)
+         real(sp) otime,itime,tarr(2),neci_etime
          real(dp) BETA,ECORE
          real(dp) WLRI,WLSI
          HElement_t UMat(*),RH
@@ -143,7 +143,7 @@ contains
             WRITE(STR,"(A,I5)") "FMCPR",I_V
             proc_timer2%timer_name=trim(STR(1:25))
             call set_timer(proc_timer2)
-            OTIME=etime(tarr)
+            OTIME=neci_etime(tarr)
             L=0
             LT=0
             BTABLE(0)=-1
@@ -317,7 +317,7 @@ contains
                     WRITE(12,"(I3,I10,4F19.7)") I_V,ICOUNT/1000,F(I_V)/ICOUNT,&
      &                   SQRT(FSQ(I_V)/ICOUNT-abs(F(I_V)**2/ICOUNT)),         &   
      &                   DLWDB3/ICOUNT,(DLWDB+DLWDB3/ICOUNT)/(F(I_V)/ICOUNT+TOTAL)
-                     CALL FLUSH(12)
+                     CALL neci_flush(12)
                   ENDIF
                ENDDO
                F(I_V)=F(I_V)/CNWHTAY
@@ -327,19 +327,19 @@ contains
             ENDIF
 
             call halt_timer(proc_timer2)
-            NTIME=etime(tarr)
+            NTIME=neci_etime(tarr)
             TOTAL=TOTAL+F(I_V)
             DLWDB=DLWDB+DLWDB2
 !            WRITE(6,*) "Get Here2: ",TOTAL,DLWDB
 !            WRITE(6,*) "MCP",I_V,TOTAL,DLWDB
             IF(TLOG.AND.I_V1.EQ.0) THEN
                 WRITE(11,"(I12,2G25.16,F19.7,I12,2G25.12)") I_V,F(I_V),TOTAL,NTIME-OTIME,L,STD,DLWDB2
-               CALL FLUSH(11)
+               CALL neci_flush(11)
             ENDIF
             IF(ISNAN(TOTAL)) THEN
 !C.. save all log files
-               ITIME=etime(tarr)
-               CALL FLUSH(11)
+               ITIME=neci_etime(tarr)
+               CALL neci_flush(11)
 !               CALL LOGNAN(NI,NEL,BETA,ITIME)
                WRITE(6,*) "WARNING: nan found at time",ITIME
                WRITE(6,"(A)",advance='no') "  nan det="
@@ -437,7 +437,7 @@ contains
          type(timer), save :: proc_timer,proc_timer2
          INTEGER L,LT,ITIME
          real(dp) BETA,ECORE
-         real(sp) etime,tarr(2)
+         real(sp) tarr(2),neci_etime
          real(dp) WLRI,WLSI
          real(dp) F(2:I_VMAX)
          CHARACTER(40) STR
@@ -534,7 +534,7 @@ contains
          ENDIF
          proc_timer%timer_name='MCPATHSR3 '
          call set_timer(proc_timer)
-         OTIME=etime(tarr)
+         OTIME=neci_etime(tarr)
          TLOG=BTEST(ILOGGING,1)
          IF(TLOG) THEN
             OPEN(11,FILE="MCPATHS",STATUS="OLD",POSITION='APPEND')
@@ -638,7 +638,7 @@ contains
                ENDIF
             ENDIF
             call halt_timer(proc_timer2)
-            NTIME=etime(tarr)
+            NTIME=neci_etime(tarr)
             TOTAL=TOTAL+F(I_V)
             DLWDB=DLWDB+DLWDB2
 !c            WRITE(6,*) I_V,F(I_V),TOTAL,get_total_time(proc_timer2),L,LT
@@ -651,12 +651,12 @@ contains
                   ENDDO
                ENDIF
                WRITE(11,*)
-               CALL FLUSH(11)
+               CALL neci_flush(11)
             ENDIF
             IF(ISNAN(TOTAL)) THEN
 !C.. save all log files
-               ITIME=etime(tarr)
-               CALL FLUSH(11)
+               ITIME=neci_etime(tarr)
+               CALL neci_flush(11)
 !               CALL LOGNAN(NI,NEL,BETA,ITIME)
                WRITE(6,*) "WARNING: nan found at time",ITIME
                WRITE(6,"(A)",advance='no') "  nan det="
@@ -797,7 +797,7 @@ contains
 !C.. Sum up the components of <D|H exp(-b H)|D>
             DLWDB=DLWDB+DLWDB2
                IF(TLOG) WRITE(10,"(2E25.16, I7)") TOTAL,DLWDB2,ICLS
-!caa     call flush(10) 
+!caa     call neci_flush(10) 
             L=L+1
             FMCPR3RES=TOTAL
             IF(I_V.EQ.2.AND.TMPTHEORY) THEN
@@ -812,7 +812,7 @@ contains
                ELSE
                   WRITE(10,*) L,NTOTAL,DLWDB
                ENDIF
-               CALL FLUSH(10)
+               CALL neci_flush(10)
             ENDIF
             RETURN
          ENDIF
@@ -1192,7 +1192,7 @@ contains
                ELSE
                   WRITE(10,"(I10,2E25.16)") L,NTOTAL,DLWDB
                ENDIF
-               CALL FLUSH(10)
+               CALL neci_flush(10)
             ENDIF
 !C            WRITE(10,*) (LOCTAB(I)%v,I=1,I_V-1)
 !C            WRITE(6,*) "X"
@@ -1393,7 +1393,7 @@ contains
 !                     IF(abs(RH ).gt. 0.D0) THEN
                      IF(II<I_VIND) then
 !                      WRITE(6,*) "ICD", II
-!                      call flush(6)
+!                      call neci_flush(6)
                       IF(IsConnectedDet(IPATH(1,II),NJ)) THEN
 !if rhoeps is zero then always set TFAIL.  if rhoeps isn't zero, then set TFAIL if Rh isn't zero (i.e. we've included it before)
                        IF(RH.NE.0.D0.OR.RHOEPS.EQ.0.D0) THEN
@@ -1531,7 +1531,7 @@ contains
            SumXY=0.D0
        ENDIF
 !       WRITE(6,*) "Leaving ",I_VIND
-!       call flush(6) 
+!       call neci_flush(6) 
        RETURN
       END FUNCTION
 
@@ -1579,7 +1579,7 @@ end module mcpaths
          ENDDO
          WRITE(NUNIT,"(A)",advance='no') "]"
          IF(LTERM) WRITE(NUNIT,*)
-         CALL FLUSH(NUNIT)
+         CALL neci_flush(NUNIT)
          RETURN
       END
 

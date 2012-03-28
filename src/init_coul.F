@@ -12,17 +12,17 @@ C  ========================================================
       complex(dp) ZIA(-NMESHX/2:NMESHX/2,NMAX,NMAX) 
       real(dp) :: ALPHA,OMEGA
       real(dp) A(3),t3
-      real(sp) etime,t(2),t1,t2
+      real(sp) t(2),t1,t2,neci_etime
       LOGICAL TALPHA
       INTEGER , SAVE :: IFIRST=0
 C..
       IF(IFIRST.EQ.1) RETURN 
       IFIRST=1
 C..      
-      T1 = etime(t)
+      T1 = neci_etime(t)
       CALL GEN_CK_FFT(NMESHX,CK,A,TALPHA,ALPHA,OMEGA)
       CALL GEN_ZIA(NMESHX,NMAX,ZIA)
-      T2 = etime(t)
+      T2 = neci_etime(t)
       T3=(T2-T1)
       WRITE(6,*) 'V0=',CK(NMESHX/2,NMESHX/2,NMESHX/2)
       WRITE(6,*) ' TIME FOR INITIALISATION:',T3/1000.
@@ -33,6 +33,7 @@ C =========================================================
       SUBROUTINE GEN_CK_FFT(N,DIST,A,TALPHA,ALPHA,OMEGA)
 !      IMPLICIT real(dp)(A-H,O-Z)
       use constants, only: dp,int64,pi
+
       IMPLICIT NONE
 #if !defined(__alpha) || !defined(__SGI) 
       !INTEGER FFTW_R2HC
@@ -103,9 +104,10 @@ C =========================================================
       integer :: N,I,J,K,N1,N2,N3
       complex(dp) DIST(-N/2:N/2-1,-N/2:N/2-1,-N/2:N/2-1)
       integer(int64) PLAN
-      real(dp) A(3),ALPHA2,ALPHA,HSTEPX,HSTEPY,HSTEPZ,derf
+      real(dp) A(3),ALPHA2,ALPHA,HSTEPX,HSTEPY,HSTEPZ,DERF
       real(dp) :: X,Y,Z,AUX,SUM,G2,GX,GY,GZ,OMEGA,OMEGAP,R
       LOGICAL TALPHA
+      character(len=*), parameter :: t_r="GEN_CK_FFT"
 C..
 !      PI=ACOS(-1.D0)
       ALPHA2=ALPHA*ALPHA
@@ -114,6 +116,9 @@ C..
       HSTEPY=2.D0*A(2)/N
       HSTEPZ=2.D0*A(3)/N
 C..
+#ifdef NAGF95
+      call stop_all(t_r,"No ERF in NAG?")
+#endif
       DO I=-N/2,N/2-1
         DO J=-N/2,N/2-1
           DO K=-N/2,N/2-1
@@ -124,7 +129,9 @@ C..
             IF(AUX.NE.0.D0) THEN
               IF(TALPHA) THEN 
                 R=SQRT(AUX) 
+#ifndef NAGF95                
                 AUX=1.D0/R*(-1)**(I+J+K)*DERF(R/ALPHA)
+#endif                
               ELSE
                 AUX=1.D0/SQRT(AUX)*(-1)**(I+J+K)
               ENDIF

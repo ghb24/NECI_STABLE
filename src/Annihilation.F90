@@ -3,7 +3,7 @@ MODULE AnnihilationMod
     use SystemData , only : NEl, tHPHF, nBasis
     use CalcData , only : TRegenExcitgens,tRegenDiagHEls
     USE DetCalcData , only : Det,FCIDetIndex
-    USE Parallel
+    USE Parallel_neci
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE FciMCData
     use DetBitOps, only: DetBitEQ, DetBitLT, FindBitExcitLevel, ilut_lt, &
@@ -58,7 +58,7 @@ MODULE AnnihilationMod
         INTEGER, INTENT(IN) :: MaxMainInd,MaxSpawnInd
         INTEGER, INTENT(INOUT) :: TotDets
         type(fcimc_iter_data), intent(inout) :: iter_data
-        INTEGER(KIND=n_int), INTENT(INOUT) , TARGET :: MainParts(0:NIfTot,MaxMainInd),SpawnParts(0:(NIfTot+NIfDBO+2),MaxSpawnInd)
+        INTEGER(KIND=n_int), INTENT(INOUT) , TARGET :: MainParts(0:NIfTot,MaxMainInd),SpawnParts(0:NIfTot,MaxSpawnInd)
 !        INTEGER, INTENT(INOUT) , TARGET :: MainSign(MaxMainInd)
         INTEGER, INTENT(INOUT) :: SpawnDets
         INTEGER :: ierr,i
@@ -80,9 +80,9 @@ MODULE AnnihilationMod
         call set_timer(Annihil_time,20)
         IF(.not.(ASSOCIATED(SpawnVecLocal))) THEN
 !This is required scratch space of the size of the spawned arrays
-            call shared_allocate_iluts("SpawnVecLocal",SpawnVecLocal,(/(NIfTot+NIfDBO+2),MaxSpawnInd/),iNodeIndex)
+            call shared_allocate_iluts("SpawnVecLocal",SpawnVecLocal,(/NIfTot,MaxSpawnInd/),iNodeIndex)
             ierr=0
-            CALL LogMemAlloc('SpawnVecLocal',MaxSpawnInd*(NIfTot+NIfDBO+2),size_n_int,this_routine,SpawnVec2Tag,ierr)
+            CALL LogMemAlloc('SpawnVecLocal',MaxSpawnInd*(NIfTot+1),size_n_int,this_routine,SpawnVec2Tag,ierr)
             call MPIBarrier(ierr)
 !            SpawnVecLocal(:,:)=0
 !            ALLOCATE(SpawnSignVec2(0:MaxSpawnInd),stat=ierr)
@@ -149,7 +149,7 @@ MODULE AnnihilationMod
         TYPE(timer),save :: Compress_time
          
 !        WRITE(6,*) "Direct annihilation"
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 
 !This routine will send all the newly-spawned particles to their correct processor. MaxIndex is returned as the new number of newly-spawned particles on the processor. May have duplicates.
 !The particles are now stored in SpawnedParts2/SpawnedSign2.
@@ -159,7 +159,7 @@ MODULE AnnihilationMod
 
 !        WRITE(6,*) "Sent particles"
 !        WRITE(6,*) 'MaxIndex',MaxIndex
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 
 !CompressSpawnedList works on SpawnedParts arrays, so swap the pointers around.
         PointTemp => SpawnedParts2
@@ -314,10 +314,10 @@ MODULE AnnihilationMod
 !        enddo
 
 !        write(6,*) "Second all to all"
-!        call flush(6)
+!        call neci_flush(6)
         CALL MPIAlltoAllv(SpawnedParts,sendcounts,disps,SpawnedParts2,recvcounts,recvdisps,error)
 !        write(6,*) "Second all to all finish"
-!        call flush(6)
+!        call neci_flush(6)
 
 !        WRITE(6,*) MaxIndex, "Recieved particles: "
 !        do i=1,MaxIndex
@@ -557,7 +557,7 @@ MODULE AnnihilationMod
 !!            WRITE(6,*) SpawnedParts(0:NIfTot-1,i),SpawnedParts(NIfTot,i)-2
 !!        enddo
 !!        WRITE(6,*) "***","iter_data%naborted: ",iter_data%naborted
-!!        CALL FLUSH(6)
+!!        CALL neci_flush(6)
         
     END SUBROUTINE CompressSpawnedList
 
@@ -576,13 +576,14 @@ MODULE AnnihilationMod
         ExcitLevel = FindBitExcitLevel(iLut,iLutHF, nel)
         IF(ExcitLevel.eq.NEl) THEN
             CALL BinSearchParts2(iLut(:),HistMinInd2(ExcitLevel),Det,PartIndex,tSuc)
+            HistMinInd2(ExcitLevel)=PartIndex
         ELSEIF(ExcitLevel.eq.0) THEN
             PartIndex=1
             tSuc=.true.
         ELSE
             CALL BinSearchParts2(iLut(:),HistMinInd2(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartIndex,tSuc)
+            HistMinInd2(ExcitLevel)=PartIndex
         ENDIF
-        HistMinInd2(ExcitLevel)=PartIndex
         IF(tSuc) THEN
             AvAnnihil(part_type,PartIndex)=AvAnnihil(part_type,PartIndex)+ &
                 REAL(2*(MIN(abs(Sign1(part_type)),abs(Sign2(part_type)))),dp)
@@ -906,8 +907,35 @@ MODULE AnnihilationMod
                                         call add_initiator_list (CurrentDets(:,PartInd))
                                 endif
                             endif
-
-                        endif
+                        ENDIF
+                        
+                        IF(tHistSpawn) THEN
+!We want to histogram where the particle annihilations are taking place.
+                            ExcitLevel = FindBitExcitLevel(SpawnedParts(:,i),&
+                                                           iLutHF, nel)
+                            IF(ExcitLevel.eq.NEl) THEN
+                                CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel),Det,PartIndex,tSuc)
+                                HistMinInd2(ExcitLevel)=PartIndex
+                            ELSEIF(ExcitLevel.eq.0) THEN
+                                PartIndex=1
+                                tSuc=.true.
+                            ELSE
+                                CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel), &
+                                        FCIDetIndex(ExcitLevel+1)-1,PartIndex,tSuc)
+                                HistMinInd2(ExcitLevel)=PartIndex
+                            ENDIF
+                            IF(tSuc) THEN
+                                AvAnnihil(j,PartIndex)=AvAnnihil(j,PartIndex)+ &
+                                REAL(2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j)))))
+                                InstAnnihil(j,PartIndex)=InstAnnihil(j,PartIndex)+ &
+                                REAL(2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j)))))
+                            ELSE
+                                WRITE(6,*) "***",SpawnedParts(0:NIftot,i)
+                                Call WriteBitDet(6,SpawnedParts(0:NIfTot,i),.true.)
+                                CALL Stop_All("AnnihilateSpawnedParts","Cannot find corresponding FCI "&
+                                    & //"determinant when histogramming")
+                            ENDIF
+                        ENDIF
 
                     enddo   !Finish running over components of signs
                 endif
@@ -1121,7 +1149,7 @@ MODULE AnnihilationMod
 !            WRITE(6,*) i,SpawnedParts(:,i),SpawnedSign(i)
 !        enddo
 !        WRITE(6,*) "***"
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 
 !TotWalkersNew is now the number of determinants in the main list left.
 !We now want to merge the main list with the spawned list of non-annihilated spawned particles.

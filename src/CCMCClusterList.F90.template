@@ -3,12 +3,12 @@ type1=integer
 unity=1
 size=8
 
-[double]
+[doub]
 type1=real(dp)
 unity=1.d0
 size=8
 
-[bitrep]
+[btrp]
 type1=integer
 unity=1
 size=8
@@ -23,7 +23,7 @@ module ClusterList
    use constants, only: dp, int32, n_int
    use bit_rep_data, only: NIfDBO,NIfD,NIfTot
    use CCMCData, only: ExcitToDetSign,AddBitExcitor
-   use Parallel
+   use Parallel_neci
    use AmpList
    implicit none
 
@@ -153,7 +153,7 @@ END SUBROUTINE !GetNextNonZeroExcitor
 ! ProjE                        The projected energy for this cycle is returned here.
 
 SUBROUTINE CalcClusterEnergy (tFCI,AL,iAmpList,nExcit,ExcitList,ExcitLevelIndex,iRefPos,dNorm,iDebug,ProjE)
-   use Parallel, only: iProcIndex
+   use Parallel_neci, only: iProcIndex
    use SystemData, only: nEl
    use FciMCData, only: HFDet
    use FciMCParMod, only: iLutHF,SumEContrib
@@ -280,7 +280,7 @@ END SUBROUTINE !CalcClusterEnergy
 ! ProjE                        The projected energy for this cycle is returned here.
 
 SUBROUTINE CalcClusterEnergyUnsrt (tFCI,AL,iAmpList,nExcit,ExcitList,iRefPos,dNorm,ProjE)
-   use Parallel, only: iProcIndex
+   use Parallel_neci, only: iProcIndex
    use CCMCData
    use SystemData, only: nEl
    use FciMCData, only: HFDet
@@ -433,7 +433,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,
    use BinSearch, only: BinarySearch
    use dSFMT_interface , only : genrand_real2_dSFMT
    use timing_neci
-   use Parallel, only : nProcessors,nNodes
+   use Parallel_neci, only : nProcessors,nNodes
    use FciMCParMod, only: iLutHF
    use bit_rep_data
    use bit_reps, only: set_flag, clr_flag 
@@ -744,7 +744,7 @@ SUBROUTINE CollapseCluster (C,iLutHF,AL,iAmpList,nDet,iDebug,tExToDet)
       C%%iSgn(1)=0
    endif
    IFDEBUG(iDebug,4) Write(6,*) " Final sign including amplitudes ",C%%iSgn
-   IFDEBUG(iDebug,1) CALL FLUSH(6)
+   IFDEBUG(iDebug,1) CALL neci_flush(6)
    if(any(C%%iSgn/=0)) then
 
 !First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
@@ -759,7 +759,7 @@ END SUBROUTINE !CollapseCluster
 
 !Calculate the total cluster amplitude as well as the magnitude of the e^T.
 subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,dNorm,AL,iAmpList,nAmpl,dTol,WalkerScale,iRefPos,iOldTotParts,iDebug)
-   use Parallel, only: iProcIndex
+   use Parallel_neci, only: iProcIndex
    use CCMCData, only: tCCMCFCI
    use FciMCData, only: TotParts,TotWalkers,NoatHF,NoatDoubs, iter_data_ccmc
    use timing_neci

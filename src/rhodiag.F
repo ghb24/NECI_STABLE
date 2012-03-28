@@ -366,7 +366,7 @@ C            WRITE(37,*) SN
             VARRAY(IPLEN)=SN
             SNC=SNC+SN
             WRITE(37,"(I4,3G25.16,I5)") IPLEN+1,SN,SNC,SNN,NCOUNT
-            IF(NLMAX.GT.10) CALL FLUSH(37)
+            IF(NLMAX.GT.10) CALL neci_flush(37)
 C            IF(IPLEN.EQ.NLMAX-1) WRITE(37,*) IPLEN+1,0.D0, SNN
          ENDDO
          deallocate(WLIST,RIJMAT,LSTE,RJJLIST,WORK)
