@@ -37,8 +37,9 @@ MODULE PopsfileMod
         integer :: iunit,i,j,ierr,PopsInitialSlots(0:nNodes-1)
         INTEGER(TagIntType) :: BatchReadTag=0
         real(dp) :: BatchSize
-        integer :: PopsSendList(0:nNodes-1),proc,sendcounts(nNodes),disps(nNodes)
-        integer :: MaxSendIndex,recvcount,err
+        integer :: PopsSendList(0:nNodes-1),proc
+        integer(MPIArg) :: sendcounts(nNodes), disps(nNodes), recvcount
+        integer :: MaxSendIndex,err
         integer(n_int) , allocatable :: BatchRead(:,:)
         integer(n_int) :: WalkerTemp(0:NIfTot)
         integer(int64) :: Det,AllCurrWalkers,TempCurrWalkers
@@ -548,12 +549,16 @@ MODULE PopsfileMod
     end function FindPopsfileVersion
 
 
-!This routine is the same as WriteToPopsfilePar, but does not require two main arrays to hold the data.
-!The root processors data will be stored in a temporary array while it recieves the data from the other processors.
-!This routine will write out to a popsfile. It transfers all walkers to the head node sequentially, so does not want to be called too often
+!This routine is the same as WriteToPopsfilePar, but does not require two 
+! main arrays to hold the data.
+!The root processors data will be stored in a temporary array while it 
+! recieves the data from the other processors.
+!This routine will write out to a popsfile. It transfers all walkers to the 
+! head node sequentially, so does not want to be called too often
     SUBROUTINE WriteToPopsfileParOneArr(Dets,nDets)
         use CalcData, only: iPopsFileNoWrite, InitiatorWalkNo
-        use constants, only: size_n_int,MpiDetInt,n_int
+        use constants, only: size_n_int,n_int
+        use ParallelHelper, only: MpiDetInt
         use MemoryManager, only: TagIntType
         integer(int64),intent(in) :: nDets !The number of occupied entries in Dets
         integer(kind=n_int),intent(in) :: Dets(0:nIfTot,1:nDets)
@@ -573,12 +578,15 @@ MODULE PopsfileMod
 !        WRITE(6,*) "Get Here",nDets
 !        CALL neci_flush(6)
 
-!First, make sure we have up-to-date information - again collect AllTotWalkers,AllSumNoatHF and AllSumENum...
-!Calculate the energy by summing all on HF and doubles - convert number at HF to a real since no int*8 MPI data type
+!First, make sure we have up-to-date information - again collect AllTotWalkers
+! ,AllSumNoatHF and AllSumENum...
+!Calculate the energy by summing all on HF and doubles - convert number at HF
+!  to a real since no int*8 MPI data type
         CALL MPISum(SumNoatHF,1,AllSumNoatHF)
         CALL MPISum(SumENum,1,AllSumENum)
 
-!We also need to tell the root processor how many particles to expect from each node - these are gathered into WalkersonNodes
+!We also need to tell the root processor how many particles to expect from 
+!each node - these are gathered into WalkersonNodes
         if(bNodeRoot) CALL MPIAllGather(nDets,WalkersonNodes,error,Roots)
 
         Tag=125
@@ -873,7 +881,8 @@ MODULE PopsfileMod
         ENDIF
 
         IF(.not.tWalkContGrow) THEN
-!If we want the walker number to continue growing, then take the diagonal shift from the input, rather than the POPSFILE.
+!If we want the walker number to continue growing, then take the diagonal 
+! shift from the input, rather than the POPSFILE.
             DiagSft=DiagSftTemp
         ENDIF
 
@@ -884,7 +893,8 @@ MODULE PopsfileMod
 
         IF(tBinRead) THEN
 !Test for the end of the file.
-!If this is not the end of the file, there is one more keyword that tells us the calculation had not entered variable shift mode yet.
+!If this is not the end of the file, there is one more keyword that tells us 
+! the calculation had not entered variable shift mode yet.
 !Want to put this test at the end of the non-binary file too.
             CLOSE(iunit)
             call get_unique_filename('POPSFILEBIN',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
@@ -957,7 +967,8 @@ MODULE PopsfileMod
         CALL MPIBCast(NShiftEquilSteps)
         CALL MPIBCast(TSinglePartPhase)
 !        CALL MPI_BCast(tChangenProcessors,1,MPI_LOGICAL,root,MPI_COMM_WORLD,error)
-!Scatter the number of walkers each node will receive to TempInitWalkers, and the SumNoatHF for each node which is distributed approximatly equally
+!Scatter the number of walkers each node will receive to TempInitWalkers, and 
+! the SumNoatHF for each node which is distributed approximatly equally
         CALL MPIScatter(WalkerstoReceive,TempInitWalkers,error)
         CALL MPIScatter(NodeSumNoatHF,SumNoatHF(1),error)
 
@@ -967,14 +978,16 @@ MODULE PopsfileMod
         ENDIF
         
 !Now we want to allocate memory on all nodes.
-        MaxWalkersPart=NINT(MemoryFacPart*(NINT(InitWalkers*ScaleWalkers)))   !InitWalkers here is simply the average number of walkers per node, not actual
+!InitWalkers here is simply the average number of walkers per node, not actual
+        MaxWalkersPart=NINT(MemoryFacPart*(NINT(InitWalkers*ScaleWalkers)))
         MaxSpawned=NINT(MemoryFacSpawn*(NINT(InitWalkers*ScaleWalkers)))
 
         Gap=REAL(MaxSpawned)/REAL(nProcessors)
         do i=0,nProcessors-1
             InitialSpawnedSlots(i)=NINT(Gap*i)+1
         enddo
-!ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
+!ValidSpawndList now holds the next free position in the newly-spawned list, 
+! but for each processor.
         ValidSpawnedList(:)=InitialSpawnedSlots(:)
 
         CALL MPIBarrier(error)  !Sync
@@ -1038,8 +1051,12 @@ MODULE PopsfileMod
             CurrentH=>WalkVecH
         ENDIF
 
-! The hashing will be different in the new calculation from the one where the POPSFILE was produced, this means we must recalculate the processor each determinant wants to go to.                
-! This is done by reading in all walkers to the root and then distributing them in the same way as the spawning steps are done - by finding the determinant and sending it there.
+! The hashing will be different in the new calculation from the one where the
+!  POPSFILE was produced, this means we must recalculate the processor each 
+! determinant wants to go to.
+! This is done by reading in all walkers to the root and then distributing 
+! them in the same way as the spawning steps are done - by finding the
+!  determinant and sending it there.
         IF((PopsVersion.ne.1).and.tHPHF.and.(.not.tPopHPHF)) THEN
             CALL Stop_All(this_routine,"HPHF on, but HPHF was not used in creation of the POPSFILE")
         ENDIF
@@ -1136,8 +1153,9 @@ MODULE PopsfileMod
             Proc = DetermineDetNode(TempnI,0)
             IF((Proc.eq.iNodeIndex).and.(abs(TempSign(1)).ge.iWeightPopRead)) THEN
                 CurrWalkers=CurrWalkers+1
-                call encode_bit_rep(CurrentDets(:,CurrWalkers),iLutTemp(0:NIfDBO),TempSign,0)   !Do not need to send a flag here...
-                                                                                                !TODO: Add flag for complex walkers to read in both
+                !Do not need to send a flag here...
+                call encode_bit_rep(CurrentDets(:,CurrWalkers),iLutTemp(0:NIfDBO),TempSign,0) 
+                !TODO: Add flag for complex walkers to read in both
             ENDIF
 
             ! Keep track of what the most highly weighted determinant is
@@ -1414,7 +1432,8 @@ MODULE PopsfileMod
 
         IF(tBinRead) THEN
 !Test for the end of the file.
-!If this is not the end of the file, there is one more keyword that tells us the calculation had not entered variable shift mode yet.
+!If this is not the end of the file, there is one more keyword that tells us 
+! the calculation had not entered variable shift mode yet.
 !Want to put this test at the end of the non-binary file too.
             CLOSE(iunit)
             call get_unique_filename('POPSFILEBIN',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
@@ -1464,7 +1483,8 @@ MODULE PopsfileMod
         CALL MPIBCast(NShiftEquilSteps)
         CALL MPIBCast(TSinglePartPhase)
 !        CALL MPI_BCast(tChangenProcessors,1,MPI_LOGICAL,root,MPI_COMM_WORLD,error)
-!Scatter the number of walkers each node will receive to TempInitWalkers, and the SumNoatHF for each node which is distributed approximatly equally
+!Scatter the number of walkers each node will receive to TempInitWalkers, 
+! and the SumNoatHF for each node which is distributed approximatly equally
 
         IF(MemoryFacPart.le.1.D0) THEN
             WRITE(6,*) 'MemoryFacPart must be larger than 1.0 when reading in a POPSFILE - increasing it to 1.50.'
@@ -1475,8 +1495,12 @@ MODULE PopsfileMod
 
         if(AllTotWalkers>nDets) CALL Stop_All(this_routine,'Not enough memory to read in POPSFILE.')
 
-! The hashing will be different in the new calculation from the one where the POPSFILE was produced, this means we must recalculate the processor each determinant wants to go to.                
-! This is done by reading in all walkers to the root and then distributing them in the same way as the spawning steps are done - by finding the determinant and sending it there.
+! The hashing will be different in the new calculation from the one where the
+! POPSFILE was produced, this means we must recalculate the processor each 
+! determinant wants to go to.                
+! This is done by reading in all walkers to the root and then distributing 
+! them in the same way as the spawning steps are done - by finding the 
+! determinant and sending it there.
         IF((PopsVersion.ne.1).and.tHPHF.and.(.not.tPopHPHF)) THEN
             CALL Stop_All(this_routine,"HPHF on, but HPHF was not used in creation of the POPSFILE")
         ENDIF
@@ -1574,8 +1598,9 @@ MODULE PopsfileMod
             Proc=0  !DetermineDetNode(TempnI)   !This wants to return a value between 0 -> nProcessors-1
             IF((Proc.eq.iProcIndex).and.(abs(TempSign(1)).ge.iWeightPopRead)) THEN
                 CurrWalkers=CurrWalkers+1
-                call encode_bit_rep(Dets(:,CurrWalkers),iLutTemp(0:NIfDBO),TempSign,0)   !Do not need to send a flag here...
-                                                                                                !TODO: Add flag for complex walkers to read in both
+                !Do not need to send a flag here...
+                call encode_bit_rep(Dets(:,CurrWalkers),iLutTemp(0:NIfDBO),TempSign,0)
+                !TODO: Add flag for complex walkers to read in both
             ENDIF
 
             ! Keep track of what the most highly weighted determinant is

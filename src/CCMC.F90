@@ -322,7 +322,7 @@ MODULE CCMC
                   else
                      WalkExcitLevel = FindBitExcitLevel(iLutHF, iLutnI, 2)
                   endif
-                  CALL SumEContrib(DetCurr,WalkExcitLevel,iSgn(1),iLutnI,HDiagCurr,1.d0)
+                  CALL SumEContrib(DetCurr,WalkExcitLevel,iSgn(1),iLutnI,HDiagCurr,1.0_dp)
                else
                   IFDEBUG(iDebug,5) write(6,*) 'Excitor composite number ',iExcitor
 ! Now select a sample of walkers.  We need up to as many walkers as electrons.
@@ -1470,7 +1470,7 @@ subroutine AttemptSpawn(S,C,Amplitude,dTol,TL,WalkerScale,iDebug)
          i=FCIDetIndex(IC)
          j=FCIDetIndex(IC+1)-1
          WRITE(6,*) "Dets ",i,' to ',j
-         call WriteExcitorListA(6,Amplitude(i:j),FciDets(:,i:j),i-1,j-i+1,0.d0,"Excitors in that level")
+         call WriteExcitorListA(6,Amplitude(i:j),FciDets(:,i:j),i-1,j-i+1,0.0_dp,"Excitors in that level")
          call Stop_All("CCMCStandalone","Cannot find excitor in list.")
       endif
 ! We need to calculate the sign change from excitor to det:
@@ -2170,7 +2170,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
 !         IFDEBUG(iDebug,4) WRITE(6,*) " Cluster Prob: ",CS%C%dSelectionProb
          if(.not.tExactEnergy.and.CS%C%iExcitLevel.le.2) then
             TempSign=CS%C%iSgn
-            CALL SumEContrib(CS%C%DetCurr,CS%C%iExcitLevel,TempSign,CS%C%iLutDetCurr,0.d0,1/CS%C%dSelectionNorm)
+            CALL SumEContrib(CS%C%DetCurr,CS%C%iExcitLevel,TempSign,CS%C%iLutDetCurr,0.0_dp,1/CS%C%dSelectionNorm)
          endif
 !Now consider a number of possible spawning events
          CALL ResetSpawner(S,CS%C,nSpawnings)
@@ -2537,7 +2537,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
          IFDEBUG(iDebug,2) write(6,*) "Ref Det on this processor, pos ", iRefPos
       else
          iRefPos=-1
-         call MPIBCast(dNorm,.false.)
+         call MPIBcast(dnorm,.false.)
       endif
       IFDEBUG(iDebug,2) write(6,*) "Ref Det norm ", dNorm
 ! If we fail to find the HF det, the broadcast above will fail.
@@ -2622,7 +2622,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
          IFDEBUG(iDebug,4) WRITE(6,*) " Cluster Amplitude: ",CS%C%iSgn*CS%C%dAbsAmplitude 
          TempSign=CS%C%iSgn
-         CALL SumEContrib(CS%C%DetCurr,CS%C%iExcitLevel,TempSign,CS%C%iLutDetCurr,0.d0,1/CS%C%dSelectionNorm)
+         CALL SumEContrib(CS%C%DetCurr,CS%C%iExcitLevel,TempSign,CS%C%iLutDetCurr,0.0_dp,1/CS%C%dSelectionNorm)
 !Now consider a number of possible spawning events
          CALL ResetSpawner(S,CS%C,nSpawnings)
 
@@ -2708,12 +2708,14 @@ subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
       integer ValidSpawnedList(0:nNodes-1)
       integer nI(nEl)
       integer iDebug
-      integer Ends(0:NodeLengths(Node%n)-1)  !An index into DetList for each core in the node
-      integer Starts(0:NodeLengths(Node%n))  !An index into DetList for each core in the node
+      ! An index into DetList for each core in the node
+      integer(MPIArg) :: Ends(0:NodeLengths(Node%n)-1), iNext
+      ! An index into DetList for each core in the node
+      integer(MPIArg) :: Starts(0:NodeLengths(Node%n))
       integer nCores,mystart,myend
       integer ierr
 
-      integer i,p,iNext
+      integer i,p
 !Each processor has its own SpawnList and ValidSpawnedList, and can apportion particles into that.
 ! However, DetList is identical between cores on the same node.  We split the list into parts for each core on the node, and then put it back together later
 !      call WriteExcitorListP(6,DetList,0,nAmpl,0,"DetListIn")

@@ -168,7 +168,7 @@ contains
                F(I_V)=FMCPR3B(NI,BETA,I_P,IPATH,I_V,NEL,                   &
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,        &
      &         RHOEPS,0,RHOII,RHOIJ,CNWHTAY,I_CHMAX,LOCTAB,                &
-     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,       &
+     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.0_dp,     &
      &         MP2E,NTOTAL,EREF,VARSUM,TOTAL)
             ELSEIF(I_CHMAX.EQ.-14) THEN
 !.. We read in this vertex level from the MCPATHS file
@@ -185,7 +185,7 @@ contains
                F(I_V)=FMCPR3B2(NI,BETA,I_P,IPATH,I_V,NEL,                  &
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,        &
      &         RHOEPS,0,RHOIJ,CNWHTAY,I_CHMAX,LOCTAB,                      &
-     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,       &
+     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.0_dp,     &
      &        MP2E,NTOTAL,I_VMAX,EREF,VARSUM,TOTAL)
             ELSEIF(I_CHMAX.EQ.-9) THEN
 !C.. This code generates a star consisting of all the two-vertex terms,
@@ -589,7 +589,7 @@ contains
                F(I_V)=FMCPR3B(NI,BETA,I_P,IPATH,I_V,NEL,                   &
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,        &
      &        RHOEPS,0,RHOII,RHOIJ,NWHTAY(1,1),I_HMAX,LOCTAB,                   &
-     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,       &
+     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.0_dp,       &
      &         MP2E,NTOTAL,EREF,VARSUM,TOTAL)
             ELSEIF(I_HMAX.EQ.-20) THEN 
 !C.. This code generates excitations on the fly, and diagonalizes a matrix of
@@ -601,7 +601,7 @@ contains
                F(I_V)=FMCPR3B2(NI,BETA,I_P,IPATH,I_V,NEL,                  &
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,        &
      &        RHOEPS,0,RHOIJ,NWHTAY(1,1),I_HMAX,LOCTAB,                         &
-     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,       &
+     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.0_dp,       &
      &        MP2E,NTOTAL,I_VMAX,EREF,VARSUM,TOTAL)
             ELSEIF(I_HMAX.EQ.-9) THEN
 !C.. This code generates a star consisting of all the two-vertex terms,

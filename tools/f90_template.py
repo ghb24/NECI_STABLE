@@ -54,6 +54,18 @@ space clashes between templated modules, and an interface generated to allow acc
 
 ************************
 
+If the property 'conditional_enable' is defined, it is only valid for the
+particular configuration it is specified in.
+
+It will be the condition placed in:
+
+	#if *
+	#endif
+
+block around the configuration.
+
+************************
+
 Supermodule:
 Once multiple, subtly renamed, modules have been produced in the output file,
 they are then all included into an overall module, with the specified name, 
@@ -119,12 +131,11 @@ def read_config(fin):
 	print 'Producing configurations: ',
 	sprev = None
 	for s in sections:
+		config[s] = dict()
 		if sprev is not None:
-			config[s] = dict()
 			config[s].update(config[sprev])
-			config[s].update(parser.items(s))
-		else:
-			config[s] = dict(parser.items(s))
+		config[s].update({'conditional_enable' : None})
+		config[s].update(parser.items(s))
 		config[s].update({'name' : s})
 
 		if sprev:
@@ -164,7 +175,11 @@ def super_module(template, config):
 	# Construct super module
 	super_mod = m.group(1) + "\n"
 	for s in config:
+		if config[s]['conditional_enable'] is not None:
+			super_mod += '#if %s\n' % config[s]['conditional_enable']
 		super_mod += "    use " + m.group(2) + "_" + s + "\n"
+		if config[s]['conditional_enable'] is not None:
+			super_mod += '#endif\n'
 
 	if m_super: super_mod += m_super.group(3)
 	super_mod += "end module\n"
@@ -206,7 +221,7 @@ def adj_arrays (template, config):
 	tsplitter=re.compile("\n[^!\n]*(subroutine|function)",flags=re.IGNORECASE)
 
 	# Locate any local interfaces.
-	re_interfaces = re.compile("(interface)((.|\n)+?)(end\s+interface)")
+	re_interfaces = re.compile("(\n[^!\n]*interface)((.|\n)+?)(\n[^!\n]*end\s+interface)")
 
 	# Find splitting points for subroutines excluding those within
 	# interface statements.
@@ -279,8 +294,10 @@ def adj_arrays (template, config):
 			if types[vars[var][0]] != 0:  # If the type is not a scalar
 				# If we are considering dimensionality of 2 or larger
 				dimstr = ":,"*(vars[var][1]-1)
-				redim = '%s\s*\(' % (var)
-				substr = ('%s(' % var) + dimstr
+				#redim = '([\( ,]+)%s\s*\(' % (var)
+				#substr = ('\\1%s(' % var) + dimstr
+				redim = '([\( ,=])%s\s*\(' % (var)
+				substr = ('\\1%s(' % var) + dimstr
 
 				# If our original dimension string was empty (i.e. didn't 
 				# contain anything special we had to leave) then we need to
@@ -289,7 +306,7 @@ def adj_arrays (template, config):
 
 				if vars[var][2]=="":
 					re_redim = re.compile (redim+"\)")
-					templpart = re_redim.sub (('%s(' % var)+":)", templpart)
+					templpart = re_redim.sub (('\\1%s(' % var)+":)", templpart)
 				re_redim = re.compile (redim)
 				templpart = re_redim.sub (substr, templpart)
 
@@ -301,7 +318,57 @@ def adj_arrays (template, config):
 				
 		newtemplate += templpart 
 
-	return (newtemplate, config)
+
+	# Now we want to search through for any interfaces. We then want to remove the (*)
+	# from any arrys which have them.
+	split_ints = []
+	last_end = 0
+	new_template2 = ""
+	for s in re_interfaces.finditer (newtemplate):
+
+		# Where does this interface start/end
+		start, end = s.start(), s.end()
+		templpart = template[start:end+1]
+
+		# Fill in any unchanged region.
+		new_template2 += template[last_end:start]
+
+		# Find and fix any variables of the managed types.
+		for type in types:
+
+			# If the type is a scalar, then we need to remove the assumed-type part
+			# of it
+			if types[type] == 0:
+
+				re_assumed = re.compile ('(\n\s*%%\(%s\)s.*::\s*[^()]*)([\s^\n]*\(\*\))(.*\n)' % type)
+
+				v = re_assumed.search(templpart)
+				offset = 0
+				while v:
+
+					# Fix this section by removing assumed-type parts
+					templpart = (templpart[0:v.start()+offset] +
+						re_assumed.sub("\\1\\3", templpart[v.start()+offset:], 1))
+
+					offset = offset + v.start() + 1
+					v = re_assumed.search(templpart[offset:])
+
+
+		# We want to start after this region.
+		new_template2 += templpart
+		last_end = end
+
+	# Fill in the rest
+	new_template2 += newtemplate[last_end:]
+
+	if config['conditional_enable'] is not None:
+
+		new_template2 = '#if %s\n' % config['conditional_enable'] + new_template2 + '\n#endif\n'
+
+	return (new_template2, config)
+
+
+
 
 def interface_procs (template):
 	'''Create module procedure interfaces for all of the module procedures'''
@@ -366,7 +433,15 @@ if __name__ == '__main__':
 		for s in config:
 			# Adjust arrays to have the right number of dimensions
 			(tmpl, cfg) = adj_arrays(template, config[s])
-			fout.write(tmpl % cfg)
+			try:
+				fout.write(tmpl % cfg)
+			except ValueError, e:
+				print 'Value error: ', e
+				fout.write(tmpl)
+			except Exception, e:
+				print tmpl
+				print "Exception: ", e
+				raise
 			fout.write("\n\n")
 		fout.write(super_mod)
 

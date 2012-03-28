@@ -265,7 +265,7 @@ module mcpathsismc
      &                   RHOEPS,RHOII,RHOIJ,I_HMAX,ILOGGING,              &
      &                   ECORE,ISEED,DBETA,DLWDB2,HIJS,NMEM,              &
      &                   ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,   &
-     &                   IACC,0.D0,I_VMAX,EXCITGEN)
+     &                   IACC,0.0_dp,I_VMAX,EXCITGEN)
                     
 !     WRITE(43,"(I3,4G25.16)") I_VCUR,ECORE,DLWDB2, ODLWDB,OWEIGHT
 !                  CALL neci_flush(43)
@@ -320,7 +320,7 @@ module mcpathsismc
      &                   RHOEPS,RHOII,RHOIJ,I_HMAX,ILOGGING,             &
      &                     ECORE,ISEED,DBETA,DLWDB2,HIJS,NMEM,           &
      &                    ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC, &
-     &                     IACC,0.D0,I_VMAX,EXCITGEN)
+     &                     IACC,0.0_dp,I_VMAX,EXCITGEN)
 !                   !   .
                         ELSE
 !..   We're doing MC where we have either the gestalt 1..I_VMIN-1 vertex object
@@ -359,7 +359,7 @@ module mcpathsismc
      &                   RHOEPS,RHOII,RHOIJ,I_HMAX,ILOGGING,               &
      &                     ECORE,ISEED,DBETA,DLWDB2,HIJS,NMEM,             &
      &                    ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,   &
-     &                           IACC,0.D0,I_VMAX,EXCITGEN)
+     &                           IACC,0.0_dp,I_VMAX,EXCITGEN)
                            ENDIF
 !                   !   .
                          ELSE
@@ -467,7 +467,7 @@ module mcpathsismc
      &                         RHOII,RHOIJ,I_HMAX,ILOGGING,                 &
      &                         ECORE,ISEED,DBETA,DLWDB2,HIJS,NMEM,          &
      &                         ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,    &
-     &                         PFAC,IACC,0.D0,I_VMAX,EXCITGEN)
+     &                         PFAC,IACC,0.0_dp,I_VMAX,EXCITGEN)
 !                              WRITE(39,*) IOV,IGV,1,IACC
 !C                              WRITE(6,*) IACC
                          ENDIF
@@ -482,7 +482,7 @@ module mcpathsismc
                   ENDIF
                   LP=1
                   If (FF.eq.0) Then
-         CALL AddGraph(MCSt,LP,I_VCUR,(0.D0),(0.D0)               &
+         CALL AddGraph(MCSt,LP,I_VCUR,(0.0_dp),(0.0_dp)               &
      &               ,OWEIGHT,IOCLS, ITREE,                       &
      &               IACC,IOV,IGV,BTEST(ILOGGING,10),OPROB,       &
      &               TBLOCKING)
@@ -530,11 +530,11 @@ module mcpathsismc
             IF(TLOG.AND.(I_HMAX.EQ.-7.OR.I_HMAX.LE.-12)) THEN
               IF(I_VM1.EQ.I_VM2) THEN
 !.. just give the additional components for this vertex level
-                CALL WriteLongStats2(MCSt,11,WCORE, dble(NTIME-OTIME))
+                CALL WriteLongStats2(MCSt,11,WCORE, real(NTIME-OTIME,dp))
               ELSE
 !.. rejig the sums so the result is Sum w Delta / Sum w 
                 CALL WriteLongStats(MCSt,11,WCORE,DLWDBCORE,         &
-     &                                            dble(NTIME-OTIME))
+     &                                            real(NTIME-OTIME,dp))
               ENDIF
             ENDIF
             CALL neci_flush(11)
@@ -559,14 +559,14 @@ module mcpathsismc
          IGV=0
          IACC=1
          If (FF.eq.0) Then
-         CALL AddGraph(MCSt,LP,I_VCUR,(0.D0),(0.D0)                &
+         CALL AddGraph(MCSt,LP,I_VCUR,(0.0_dp),(0.0_dp)                &
      &               ,OWEIGHT,IOCLS, ITREE,                        &
-     &               IACC,IOV,IGV,BTEST(ILOGGING,10),0.D0,         &
+     &               IACC,IOV,IGV,BTEST(ILOGGING,10),0.0_dp,         &
      &               BTEST(ILOGGING,13))             
          Else
          CALL AddGraph(MCSt,LP,I_VCUR,FF,DLWDB2/FF,OWEIGHT,IOCLS,  &
      &               ITREE,                                        &
-     &               IACC,IOV,IGV,BTEST(ILOGGING,10),0.D0,         &
+     &               IACC,IOV,IGV,BTEST(ILOGGING,10),0.0_dp,         &
      &               BTEST(ILOGGING,13))
          EndIf
          IF(I_HMAX.EQ.-7.OR.I_HMAX.LE.-12) THEN
@@ -1172,7 +1172,7 @@ module mcpathsismc
             M(1,1)=1.D0
             RET=0.D0
 !C            STOP 'Cannot handle new path gen with IV_MAX>3'
-            CALL GETPP2_R(IPATH,XIJ,M,I_V,2,RET,1.D0,INV)
+            CALL GETPP2_R(IPATH,XIJ,M,I_V,2,RET,1.0_dp,INV)
             GETPATHPROB2=RET
          ENDIF
          RETURN
@@ -1200,7 +1200,7 @@ module mcpathsismc
             IPATH(1)=1
             M(1,1)=1.D0
             RET=0.D0
-            CALL GETPP_R(IPATH,XIJ,M,I_V,2,RET,1.D0)
+            CALL GETPP_R(IPATH,XIJ,M,I_V,2,RET,1.0_dp)
             GETPATHPROB=RET
          ENDIF
          RETURN

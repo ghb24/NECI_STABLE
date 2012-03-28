@@ -198,9 +198,10 @@ MODULE AnnihilationMod
 
 !This routine is used for sending the determinants to the correct processors. 
     SUBROUTINE SendProcNewParts(MaxIndex,tSingleProc)
-        use constants, only: MpiDetInt
         REAL :: Gap
-        INTEGER :: i,sendcounts(nProcessors),disps(nProcessors),recvcounts(nProcessors),recvdisps(nProcessors),error
+        integer :: i, error
+        integer(MPIArg), dimension(nProcessors) :: sendcounts, disps, &
+                                                   recvcounts, recvdisps
         INTEGER :: MaxSendIndex
         INTEGER, INTENT(OUT) :: MaxIndex
         LOGICAL, intent(in) :: tSingleProc

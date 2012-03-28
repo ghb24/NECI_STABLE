@@ -28,9 +28,16 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local)
     logical,intent(in) :: tCPMD,tVASP,tMolpro_local
     type(timer), save :: proc_timer
     integer :: ios
+    character(*), parameter :: this_routine = 'NECICore'
     character(255) :: Filename
+    logical :: toverride_input
     
     tMolpro = tMolpro_local
+
+#ifdef SX
+    call stop_all(this_routine, 'The NEC compiler does not produce a working &
+                                &version of NECI.')
+#endif
 
     ! Do the program initialisation.
     call NECICodeInit(tCPMD,tVASP)
@@ -40,7 +47,12 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local)
 
 !   See ReadInputMain.  Causes the command line arguments to be checked for the input filename.
     if(tMolpro) then
-        Filename="FCIQMC_input"
+        inquire(file="FCIQMC_input_override",exist=toverride_input)
+        if(toverride_input) then
+            Filename="FCIQMC_input_override"
+        else
+            Filename="FCIQMC_input"
+        endif
     else
         Filename="" 
     endif

@@ -1410,7 +1410,10 @@ MODULE System
           CALL DCOPY(NBASIS,ARR(1,1),1,ARR(1,2),1)
       ENDIF
 !      WRITE(6,*) THFNOORDER, " THFNOORDER"
-      CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
+      if(.not.tMolpro) then
+          !If we are calling from molpro, we write the basis later (after reordering)
+          CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
+      endif
       IF(NEL.GT.NBASIS) STOP 'MORE ELECTRONS THAN BASIS FUNCTIONS'
       CALL neci_flush(6)
       IF(TREAL.AND.THUB) THEN
@@ -1431,11 +1434,11 @@ MODULE System
       ELSEIF(TCPMD) THEN
 !C.. If TCPMD, then we've generated the symmetry table earlier,
 !C.. but we still need the sym reps table.
-         CALL GENCPMDSYMREPS(G1,NBASIS,ARR,1.d-5)
+         CALL GENCPMDSYMREPS(G1,NBASIS,ARR,1.e-5_dp)
       ELSEIF(tVASP) THEN
 !C.. If VASP-based calculation, then we've generated the symmetry table earlier,
 !C.. but we still need the sym reps table. DEGENTOL=1.d-6. CHECK w/AJWT.
-         CALL GENSYMREPS(G1,NBASIS,ARR,1.d-6)
+         CALL GENSYMREPS(G1,NBASIS,ARR,1.e-6_dp)
       ELSEIF(THUB.AND..NOT.TREAL) THEN
          CALL GenHubMomIrrepsSymTable(G1,nBasis,nBasisMax)
          CALL GENHUBSYMREPS(NBASIS,ARR,BRR)
