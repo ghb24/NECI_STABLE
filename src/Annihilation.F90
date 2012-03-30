@@ -603,7 +603,7 @@ MODULE AnnihilationMod
 !In the main list, we change the 'sign' element of the array to zero. These will be deleted at the end of the total annihilation step.
     SUBROUTINE AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew, iter_data)
         type(fcimc_iter_data), intent(inout) :: iter_data
-        integer, intent(in) :: TotWalkersNew
+        integer, intent(inout) :: TotWalkersNew
         integer, intent(inout) :: ValidSpawned 
         INTEGER :: MinInd,PartInd,i,j,ToRemove,DetsMerged,PartIndex
         INTEGER, DIMENSION(lenof_sign) :: SignProd,CurrentSign,SpawnedSign,SignTemp
@@ -618,6 +618,14 @@ MODULE AnnihilationMod
 !MinInd indicates the minimum bound of the main array in which the particle can be found.
 !Since the spawnedparts arrays are ordered in the same fashion as the main array, we can find the particle position in the main array by only searching a subset.
         MinInd=1
+        !NewDetNumber is used for tHashWalkerList option, where the spawned walkers are immediately merged into the
+        !main list. NewDetNumber will update the length of this list.
+        NewDetNumber=TotWalkersNew
+        !HolesInList indicates (if tHashWalkerList is being used) the number of determinants in the main list
+        !that are completely annihilated. These will need to be removed from the main list at some point.
+        !The easiest point will be the next main loop, although now there can be holes in the main list (though
+        !there shouldnt be too many)
+        HolesInList=0
         IF(tHistSpawn) HistMinInd2(1:NEl)=FCIDetIndex(1:NEl)
         ToRemove=0  !The number of particles to annihilate
 !        WRITE(6,*) "Annihilating between ",ValidSpawned, " spawned particles and ",TotWalkersNew," original particles..."
@@ -653,7 +661,23 @@ MODULE AnnihilationMod
 !               write(6,"(I5)",advance='no') j 
 !               call WriteBitDet(6,CurrentDets(:,j),.true.)
 !            enddo
-            CALL BinSearchParts(SpawnedParts(:,i),MinInd,TotWalkersNew,PartInd,tSuccess)
+            if(tHashWalkerList) then
+                !Do not need to binary search list. It is not sorted, but there is a hash table to it.
+                tSuccess=.false.
+                DetHash=FindWalkerHash(SpawnedParts(:,i))
+                FinalVal=HashIndex(0,DetHash)-1
+                do clash=1,FinalVal
+                    ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
+                    if(DetBitEQ(SpawnedParts(:,i),CurrentDets(:,HashIndex(clash,DetHash)))) then
+                        !We have found the matching determinant
+                        tSuccess=.true.
+                        PartInd=HashIndex(clash,DetHash)
+                        exit
+                    endif
+                enddo
+            else
+                CALL BinSearchParts(SpawnedParts(:,i),MinInd,TotWalkersNew,PartInd,tSuccess)
+            endif
 !            WRITE(6,"(A,2I6,L)",advance="no") "Binary search complete: ",i,PartInd,tSuccess
 !            call WriteBitDet(6,SpawnedParts(:,i),.true.)
 !            call WriteBitDet(6,CurrentDets(:,PartInd),.true.)
@@ -709,6 +733,17 @@ MODULE AnnihilationMod
                                 endif
                             endif
                         ENDIF
+
+                        if(tHashWalkerList) then
+                            call extract_sign (CurrentDets(:,PartInd), SignTemp)
+                            if (IsUnoccDet(SignTemp)) then
+                                !All walkers in this main list have been annihilated away
+                                HolesInList=HolesInList+1
+                                !Remove it from the hash index array so that no others find it (it is impossible to have
+                                !another spawned walker yet to find this determinant)
+                                call RemoveDetHashIndex(CurrentDets(:,PartInd),PartInd)
+                            endif
+                        endif
                         
                         IF(tHistSpawn) THEN
 !We want to histogram where the particle annihilations are taking place.
@@ -780,7 +815,6 @@ MODULE AnnihilationMod
                             endif
                         endif
 
-
                         ! Walkers came from outside initiator space.
                         NoAborted = NoAborted + abs(SignTemp(j))
                         iter_data%naborted(j) = iter_data%naborted(j) + abs(SignTemp(j))
@@ -791,7 +825,24 @@ MODULE AnnihilationMod
                 if (IsUnoccDet(SignTemp)) then
                     ! All particle 'types' have been aborted
                     ToRemove = ToRemove + 1
+                elseif(tHashWalkerList) then
+                    !Walkers have not been aborted, and so we should copy the determinant straight over to the main list
+                    !We do not need to recompute the hash, since this should be the same one as was generated at the
+                    !beginning of the loop
+                    NewDetNumber=NewDetNumber+1
+                    CurrentDets(:,NewDetNumber)=SpawnedParts(:,i)
+                    !We also may need to calculate a new diagonal hamiltonian matrix element here
+                    HashIndex(0,DetHash)=HashIndex(0,DetHash)+1
+                    HashIndex(FinalVal+1,DetHash)=NewDetNumber
                 endif
+            elseif(tHashWalkerList) then
+                !This is the full scheme, and the walkers all spawning to new determinants.
+                !Copy them across now.
+                NewDetNumber=NewDetNumber+1
+                CurrentDets(:,NewDetNumber)=SpawnedParts(:,i)
+                !We also may need to calculate a new diagonal hamiltonian matrix element here
+                HashIndex(0,DetHash)=HashIndex(0,DetHash)+1
+                HashIndex(FinalVal+1,DetHash)=NewDetNumber
             endif
 
             ! Even if a corresponding particle wasn't found, we can still
@@ -799,6 +850,9 @@ MODULE AnnihilationMod
             MinInd=PartInd
 
         enddo
+
+        !If tHashWalkerList is being used, then TotWalkersNew is returned as the new length of the main list
+        if(tHashWalkerList) TotWalkersNew=NewDetNumber
         
         CALL halt_timer(BinSearch_time)
 
@@ -807,33 +861,36 @@ MODULE AnnihilationMod
 !            WRITE(6,*) SpawnedParts(0:NIfTot-1,i),SpawnedParts(NIfTot,i)-2
 !        enddo
 
+        if(.not.tHashWalkerList) then
+
 !Now we have to remove the annihilated particles from the spawned list. They will be removed from the main list at the end of the annihilation process.
 !It may actually be easier to just move the annihilated particles to the end of the list and resort the list?
 !Or, the removed indices could be found on the fly? This may have little benefit though if the memory isn't needed.
-        IF(ToRemove.gt.0) THEN
+            IF(ToRemove.gt.0) THEN
 
 !Since reading and writing from the same array is slow, copy the information accross to the other spawned array, and just swap the pointers around after.
-            DetsMerged=0
-            do i=1,ValidSpawned
+                DetsMerged=0
+                do i=1,ValidSpawned
 !We want to move all the elements above this point down to 'fill in' the annihilated determinant.
-                call extract_sign(SpawnedParts(:,i),SignTemp)
-                IF(IsUnoccDet(SignTemp)) THEN
-                    DetsMerged=DetsMerged+1
-                ELSE
-                    SpawnedParts2(0:NIfTot,i-DetsMerged)=SpawnedParts(0:NIfTot,i)
+                    call extract_sign(SpawnedParts(:,i),SignTemp)
+                    IF(IsUnoccDet(SignTemp)) THEN
+                        DetsMerged=DetsMerged+1
+                    ELSE
+                        SpawnedParts2(0:NIfTot,i-DetsMerged)=SpawnedParts(0:NIfTot,i)
+                    ENDIF
+                enddo
+                ValidSpawned=ValidSpawned-DetsMerged
+                IF(DetsMerged.ne.ToRemove) THEN
+                    WRITE(6,*) "***", Iter, DetsMerged, ToRemove
+                    CALL Stop_All("AnnihilateSpawnedParts","Incorrect number of particles removed from spawned list")
                 ENDIF
-            enddo
-            ValidSpawned=ValidSpawned-DetsMerged
-            IF(DetsMerged.ne.ToRemove) THEN
-                WRITE(6,*) "***", Iter, DetsMerged, ToRemove
-                CALL Stop_All("AnnihilateSpawnedParts","Incorrect number of particles removed from spawned list")
-            ENDIF
 !We always want to annihilate from the SpawedParts and SpawnedSign arrays, so swap them around.
-            PointTemp => SpawnedParts2
-            SpawnedParts2 => SpawnedParts
-            SpawnedParts => PointTemp
+                PointTemp => SpawnedParts2
+                SpawnedParts2 => SpawnedParts
+                SpawnedParts => PointTemp
 
-        ENDIF
+            ENDIF
+        endif
 !        call WriteExcitorListP(6,SpawnedParts,0,ValidSpawned,0,"After zero-removal")
 
 !        WRITE(6,*) "After removal of zeros: "
