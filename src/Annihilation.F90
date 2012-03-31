@@ -142,7 +142,7 @@ MODULE AnnihilationMod
         use bit_reps, only: test_flag
         integer, intent(inout) :: TotWalkersNew
         type(fcimc_iter_data), intent(inout) :: iter_data
-        INTEGER :: MaxIndex,ierr
+        INTEGER :: MaxIndex,ierr,HolesInList
         INTEGER(Kind=n_int) , POINTER :: PointTemp(:,:)
         logical, intent(in) :: tSingleProc
         TYPE(timer),save :: Compress_time
@@ -181,15 +181,14 @@ MODULE AnnihilationMod
 
 !Binary search the main list and copy accross/annihilate determinants which are found.
 !This will also remove the found determinants from the spawnedparts lists.
-
-        CALL AnnihilateSpawnedParts(MaxIndex,TotWalkersNew, iter_data)  
+        CALL AnnihilateSpawnedParts(MaxIndex,TotWalkersNew, iter_data, HolesInList)  
 
  !       WRITE(6,*) "Annihilation finished",MaxIndex,TotWalkersNew
 
-!Put the surviving particles in the main list, maintaining order of the main list.
+!Put the surviving particles in the main list, maintaining order of the main list (unless tHashWalkerList specified).
 !Now we insert the remaining newly-spawned particles back into the original list (keeping it sorted), and remove the annihilated particles from the main list.
         CALL set_timer(Sort_Time,30)
-        CALL InsertRemoveParts(MaxIndex,TotWalkersNew)
+        CALL InsertRemoveParts(MaxIndex,TotWalkersNew,HolesInList)
 
         CALL halt_timer(Sort_Time)
         call MPIBarrier(ierr)
@@ -601,10 +600,11 @@ MODULE AnnihilationMod
 !to see if an annihilation event can occur. The annihilated particles are then removed from the spawned list
 !to the whole list of spawned particles at the end of the routine.
 !In the main list, we change the 'sign' element of the array to zero. These will be deleted at the end of the total annihilation step.
-    SUBROUTINE AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew, iter_data)
+    SUBROUTINE AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew, iter_data, HolesInList)
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer, intent(inout) :: TotWalkersNew
         integer, intent(inout) :: ValidSpawned 
+        integer, intent(out) :: HolesInList
         INTEGER :: MinInd,PartInd,i,j,ToRemove,DetsMerged,PartIndex
         INTEGER, DIMENSION(lenof_sign) :: SignProd,CurrentSign,SpawnedSign,SignTemp
         INTEGER :: ExcitLevel
@@ -833,6 +833,9 @@ MODULE AnnihilationMod
                     CurrentDets(:,NewDetNumber)=SpawnedParts(:,i)
                     !We also may need to calculate a new diagonal hamiltonian matrix element here
                     HashIndex(0,DetHash)=HashIndex(0,DetHash)+1
+                    if(HashIndex(0,DetHash).ge.(nClashMax-1)) then
+                        call EnlargeHashTable()
+                    endif
                     HashIndex(FinalVal+1,DetHash)=NewDetNumber
                 endif
             elseif(tHashWalkerList) then
@@ -842,6 +845,9 @@ MODULE AnnihilationMod
                 CurrentDets(:,NewDetNumber)=SpawnedParts(:,i)
                 !We also may need to calculate a new diagonal hamiltonian matrix element here
                 HashIndex(0,DetHash)=HashIndex(0,DetHash)+1
+                if(HashIndex(0,DetHash).ge.(nClashMax-1)) then
+                    call EnlargeHashTable()
+                endif
                 HashIndex(FinalVal+1,DetHash)=NewDetNumber
             endif
 
@@ -923,12 +929,13 @@ MODULE AnnihilationMod
 !Binary searching can be used to speed up this transfer substantially.
 !The key feature which makes this work, is that it is impossible for the same determinant to be specified in both the spawned and main list at the end of
 !the annihilation process. Therefore we will not multiply specify determinants when we merge the lists.
-    SUBROUTINE InsertRemoveParts(ValidSpawned,TotWalkersNew)
+    SUBROUTINE InsertRemoveParts(ValidSpawned,TotWalkersNew,HolesInList)
         use util_mod, only: abs_int_sign
         use SystemData, only: tHPHF
         use bit_reps, only: NIfD
         use CalcData , only : tCheckHighestPop
-        INTEGER :: TotWalkersNew,ValidSpawned
+        INTEGER, intent(in) :: ValidSpawned,HolesInList
+        integer, intent(inout) :: TotWalkersNew
         INTEGER :: i,DetsMerged,nJ(NEl),part_type
         INTEGER, DIMENSION(lenof_sign) :: CurrentSign,SpawnedSign
         real(dp) :: HDiag
