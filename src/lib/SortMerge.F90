@@ -15,6 +15,9 @@
 ! matrix elements for the elements it is merging into the main list.
 ! The list1 will be binary searched to find insertion points. Generally, if list2 > list1/2,
 ! a linear search would be quicker.
+!nlist1 = TotWalkersNew
+!nlist2 = ValidSpawned
+!list2 = SpawnedParts(:,1:nlist2)
     SUBROUTINE MergeListswH(nlist1,nlist2,list2)
         USE FciMCParMOD , only : Hii,CurrentDets,CurrentH
         use SystemData, only: nel, tHPHF,tMomInv

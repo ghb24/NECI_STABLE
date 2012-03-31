@@ -838,6 +838,7 @@ MODULE AnnihilationMod
                     endif
                     CurrentDets(:,NewDetNumber)=SpawnedParts(:,i)
 
+                    !Also need to call FlagifDetisInitiator here
 
 
                     !Need to sort this bit out here. Put into own routine (comes up in lots of places)
