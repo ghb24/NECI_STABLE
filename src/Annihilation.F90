@@ -185,11 +185,14 @@ MODULE AnnihilationMod
 
  !       WRITE(6,*) "Annihilation finished",MaxIndex,TotWalkersNew
 
+        CALL set_timer(Sort_Time,30)
+        if(tHashWalkerList) then
+            call CalcHashTableStats(TotWalkersNew,HolesInList) 
+        else
 !Put the surviving particles in the main list, maintaining order of the main list (unless tHashWalkerList specified).
 !Now we insert the remaining newly-spawned particles back into the original list (keeping it sorted), and remove the annihilated particles from the main list.
-        CALL set_timer(Sort_Time,30)
-        CALL InsertRemoveParts(MaxIndex,TotWalkersNew,HolesInList)
-
+            CALL InsertRemoveParts(MaxIndex,TotWalkersNew)
+        endif
         CALL halt_timer(Sort_Time)
         call MPIBarrier(ierr)
 
@@ -830,8 +833,37 @@ MODULE AnnihilationMod
                     !We do not need to recompute the hash, since this should be the same one as was generated at the
                     !beginning of the loop
                     NewDetNumber=NewDetNumber+1
+                    if(NewDetNumber.ge.MaxWalkersPart) then
+                        call stop_all(t_r,"Not enough memory to merge walkers into main list. Increase MemoryFacPart")
+                    endif
                     CurrentDets(:,NewDetNumber)=SpawnedParts(:,i)
+
+
+
+                    !Need to sort this bit out here. Put into own routine (comes up in lots of places)
+                    !Also, do we really want to check if its the HF, or the reference det??
+
                     !We also may need to calculate a new diagonal hamiltonian matrix element here
+!We want to calculate the diagonal hamiltonian matrix element for the new particle to be merged.
+                    if (DetBitEQ(CurrentDets(:,NewDetNumber), iLutHF, NIfDBO)) then
+!We know we are at HF - HDiag=0
+                        HDiag=0.D0
+                    else
+                        call decode_bit_det (nJ, CurrentDets(:,NewDetNumber))
+                        if (tHPHF) then
+                            HDiagTemp = hphf_diag_helement (nJ, &
+                                                            CurrentDets(:,i))
+                        else
+                            HDiagTemp = get_helement (nJ, nJ, 0)
+                        endif
+                        HDiag=(REAL(HDiagTemp,dp))-Hii
+                    endif
+                    CurrentH(i)=HDiag
+
+
+
+
+
                     HashIndex(0,DetHash)=HashIndex(0,DetHash)+1
                     if(HashIndex(0,DetHash).ge.(nClashMax-1)) then
                         call EnlargeHashTable()
@@ -842,6 +874,9 @@ MODULE AnnihilationMod
                 !This is the full scheme, and the walkers all spawning to new determinants.
                 !Copy them across now.
                 NewDetNumber=NewDetNumber+1
+                if(NewDetNumber.ge.MaxWalkersPart) then
+                    call stop_all(t_r,"Not enough memory to merge walkers into main list. Increase MemoryFacPart")
+                endif
                 CurrentDets(:,NewDetNumber)=SpawnedParts(:,i)
                 !We also may need to calculate a new diagonal hamiltonian matrix element here
                 HashIndex(0,DetHash)=HashIndex(0,DetHash)+1
@@ -921,7 +956,62 @@ MODULE AnnihilationMod
             ENDIF
         ENDIF
     END FUNCTION IsUnoccDet
+    
+    
+    SUBROUTINE CalcHashTableStats(TotWalkersNew,HolesInList)
+        use util_mod, only: abs_int_sign
+        use SystemData, only: tHPHF
+        use bit_reps, only: NIfD
+        use CalcData , only : tCheckHighestPop
+        integer, intent(inout) :: TotWalkersNew
+        INTEGER :: i,DetsMerged,nJ(NEl),part_type
+        INTEGER, DIMENSION(lenof_sign) :: CurrentSign,SpawnedSign
+        real(dp) :: HDiag
+        LOGICAL :: TestClosedShellDet
+        character(*), parameter :: this_routine = 'InsertRemoveParts'
+        HElement_t :: HDiagTemp
 
+        if(.not.bNodeRoot) return
+        TotParts=0
+        norm_psi_squared = 0
+        DetsMerged=0
+        iHighestPop=0
+        AnnihilatedDet=0
+        IF(TotWalkersNew.gt.0) THEN
+            do i=1,TotWalkersNew
+                call extract_sign(CurrentDets(:,i),CurrentSign)
+                IF(IsUnoccDet(CurrentSign)) then
+                    AnnihilatedDet=AnnihilatedDet+1 
+                    IF(tTruncInitiator) THEN
+                        do part_type=1,lenof_sign
+                            if (test_flag(CurrentDets(:,i),flag_parent_initiator(part_type))) then
+                                !determinant was an initiator...it obviously isn't any more...
+                                NoAddedInitiators=NoAddedInitiators-1.D0
+                                if (tSpawnSpatialInit) &
+                                    call rm_initiator_list (CurrentDets(:,i))
+                            endif
+                        enddo
+                    ENDIF
+                ELSE
+!We want to move all the elements above this point down to 'fill in' the annihilated determinant.
+                    TotParts=TotParts+abs(CurrentSign)
+                    norm_psi_squared = norm_psi_squared + sum(int(CurrentSign,int64)**2)
+                    IF(tCheckHighestPop) THEN
+!If this option is on, then we want to compare the weight on each determinant to the weight at the HF determinant.
+!Record the highest weighted determinant on each processor.
+                        IF(abs_int_sign(CurrentSign).gt.iHighestPop) THEN
+                            iHighestPop=abs_int_sign(CurrentSign)
+                            HighestPopDet(:)=CurrentDets(:,i)
+                        ENDIF
+                    ENDIF
+                ENDIF
+            enddo
+        ENDIF
+        if(AnnihilatedDet.ne.HolesInList) then
+            call stop_all(t_r,"Error in determining annihilated determinants")
+        endif
+
+    END SUBROUTINE CalcHashTableStats
     
 !This routine will run through the total list of particles (TotWalkersNew in CurrentDets with sign CurrentSign) and the list of newly-spawned but
 !non annihilated particles (ValidSpawned in SpawnedParts and SpawnedSign) and move the new particles into the correct place in the new list,
@@ -929,12 +1019,12 @@ MODULE AnnihilationMod
 !Binary searching can be used to speed up this transfer substantially.
 !The key feature which makes this work, is that it is impossible for the same determinant to be specified in both the spawned and main list at the end of
 !the annihilation process. Therefore we will not multiply specify determinants when we merge the lists.
-    SUBROUTINE InsertRemoveParts(ValidSpawned,TotWalkersNew,HolesInList)
+    SUBROUTINE InsertRemoveParts(ValidSpawned,TotWalkersNew)
         use util_mod, only: abs_int_sign
         use SystemData, only: tHPHF
         use bit_reps, only: NIfD
         use CalcData , only : tCheckHighestPop
-        INTEGER, intent(in) :: ValidSpawned,HolesInList
+        INTEGER, intent(in) :: ValidSpawned
         integer, intent(inout) :: TotWalkersNew
         INTEGER :: i,DetsMerged,nJ(NEl),part_type
         INTEGER, DIMENSION(lenof_sign) :: CurrentSign,SpawnedSign
