@@ -27,6 +27,7 @@ MODULE FciMCData
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: WalkVecDets(:,:)                !Contains determinant list
       REAL(KIND=dp) , ALLOCATABLE , TARGET :: WalkVecH(:)                    !Diagonal hamiltonian element
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVec(:,:),SpawnVec2(:,:)
+
     
       INTEGER(TagIntType) :: WalkVecDetsTag=0
       INTEGER(TagIntType) :: WalkVecHTag=0
@@ -70,6 +71,10 @@ MODULE FciMCData
       integer(int64) :: norm_psi_squared
       real(dp) :: norm_psi
       INTEGER :: exFlag=3
+      
+      !Hash tables to point to the correct determinants in CurrentDets
+      integer , allocatable , target :: HashIndexArr2(:,:),HashIndexArr1(:,:)
+      integer , pointer :: HashIndex(:,:) 
 
 !The following variables are calculated as per processor, but at the end of each update cycle, are combined to the root processor
       real(dp) :: GrowRate,DieRat

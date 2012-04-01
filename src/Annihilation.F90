@@ -60,7 +60,7 @@ MODULE AnnihilationMod
         INTEGER(KIND=n_int), INTENT(INOUT) , TARGET :: MainParts(0:NIfTot,MaxMainInd),SpawnParts(0:NIfTot,MaxSpawnInd)
 !        INTEGER, INTENT(INOUT) , TARGET :: MainSign(MaxMainInd)
         INTEGER, INTENT(INOUT) :: SpawnDets
-        INTEGER :: ierr,i
+        INTEGER :: ierr,i,HolesInList
         CHARACTER(len=*) , PARAMETER :: this_routine='AnnihilationInterface'
 !        INTEGER, DIMENSION(lenof_sign) :: TempSign
         TYPE(timer),save :: Annihil_time
@@ -68,6 +68,8 @@ MODULE AnnihilationMod
         integer(kind=n_int), pointer,save :: SpawnVecLocal(:,:)
         Sync_time%timer_name='AnnihSync   innterface'
         call set_timer(Sync_time,20)
+
+        if(tHashWalkerList) call stop_all(this_routine,"Cannot use annihilation interface with Hash table of particles")
 
         IF(.not.(ALLOCATED(ValidSpawnedList))) THEN
 !This needs to be filled correctly before annihilation can take place.
@@ -122,7 +124,7 @@ MODULE AnnihilationMod
         SpawnedParts2 => SpawnVecLocal
 
 !          CALL DirectAnnihilation(TotDets, iter_data,.true.) !.true. for single processor annihilation
-        CALL DirectAnnihilation(TotDets, iter_data,.false.) !.true. for single processor annihilation
+        CALL DirectAnnihilation(TotDets, iter_data,.false., HolesInList) !.true. for single processor annihilation
 !        if(iProcIndex==root) then        
 !Signs put back again into seperate array
 !           do i=1,TotDets
@@ -138,9 +140,10 @@ MODULE AnnihilationMod
 
 !This is a new annihilation algorithm. In this, determinants are kept on predefined processors, and newlyspawned particles are sent here so that all the annihilations are
 !done on a predetermined processor, and not rotated around all of them.
-    SUBROUTINE DirectAnnihilation(TotWalkersNew, iter_data, tSingleProc)
+    SUBROUTINE DirectAnnihilation(TotWalkersNew, iter_data, tSingleProc, HolesInList)
         use bit_reps, only: test_flag
         integer, intent(inout) :: TotWalkersNew
+        integer, intent(out) :: HolesInList
         type(fcimc_iter_data), intent(inout) :: iter_data
         INTEGER :: MaxIndex,ierr,HolesInList
         INTEGER(Kind=n_int) , POINTER :: PointTemp(:,:)
@@ -667,7 +670,8 @@ MODULE AnnihilationMod
             if(tHashWalkerList) then
                 !Do not need to binary search list. It is not sorted, but there is a hash table to it.
                 tSuccess=.false.
-                DetHash=FindWalkerHash(SpawnedParts(:,i))
+                call decode_bit_det (nJ, SpawnedParts(:,i))              
+                DetHash=FindWalkerHash(nJ)
                 FinalVal=HashIndex(0,DetHash)-1
                 do clash=1,FinalVal
                     ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
@@ -832,59 +836,13 @@ MODULE AnnihilationMod
                     !Walkers have not been aborted, and so we should copy the determinant straight over to the main list
                     !We do not need to recompute the hash, since this should be the same one as was generated at the
                     !beginning of the loop
-                    NewDetNumber=NewDetNumber+1
-                    if(NewDetNumber.ge.MaxWalkersPart) then
-                        call stop_all(t_r,"Not enough memory to merge walkers into main list. Increase MemoryFacPart")
-                    endif
-                    CurrentDets(:,NewDetNumber)=SpawnedParts(:,i)
+                    call AddNewHashDet(NewDetNumber,SpawnedParts(:,i),DetHash,nJ)
 
-                    !Also need to call FlagifDetisInitiator here
-
-
-                    !Need to sort this bit out here. Put into own routine (comes up in lots of places)
-                    !Also, do we really want to check if its the HF, or the reference det??
-
-                    !We also may need to calculate a new diagonal hamiltonian matrix element here
-!We want to calculate the diagonal hamiltonian matrix element for the new particle to be merged.
-                    if (DetBitEQ(CurrentDets(:,NewDetNumber), iLutHF, NIfDBO)) then
-!We know we are at HF - HDiag=0
-                        HDiag=0.D0
-                    else
-                        call decode_bit_det (nJ, CurrentDets(:,NewDetNumber))
-                        if (tHPHF) then
-                            HDiagTemp = hphf_diag_helement (nJ, &
-                                                            CurrentDets(:,i))
-                        else
-                            HDiagTemp = get_helement (nJ, nJ, 0)
-                        endif
-                        HDiag=(REAL(HDiagTemp,dp))-Hii
-                    endif
-                    CurrentH(i)=HDiag
-
-
-
-
-
-                    HashIndex(0,DetHash)=HashIndex(0,DetHash)+1
-                    if(HashIndex(0,DetHash).ge.(nClashMax-1)) then
-                        call EnlargeHashTable()
-                    endif
-                    HashIndex(FinalVal+1,DetHash)=NewDetNumber
                 endif
             elseif(tHashWalkerList) then
                 !This is the full scheme, and the walkers all spawning to new determinants.
                 !Copy them across now.
-                NewDetNumber=NewDetNumber+1
-                if(NewDetNumber.ge.MaxWalkersPart) then
-                    call stop_all(t_r,"Not enough memory to merge walkers into main list. Increase MemoryFacPart")
-                endif
-                CurrentDets(:,NewDetNumber)=SpawnedParts(:,i)
-                !We also may need to calculate a new diagonal hamiltonian matrix element here
-                HashIndex(0,DetHash)=HashIndex(0,DetHash)+1
-                if(HashIndex(0,DetHash).ge.(nClashMax-1)) then
-                    call EnlargeHashTable()
-                endif
-                HashIndex(FinalVal+1,DetHash)=NewDetNumber
+                call AddNewHashDet(NewDetNumber,SpawnedParts(:,i),DetHash,nJ)
             endif
 
             ! Even if a corresponding particle wasn't found, we can still
@@ -943,6 +901,81 @@ MODULE AnnihilationMod
         CALL halt_timer(AnnMain_time)
 
     END SUBROUTINE AnnihilateSpawnedParts
+
+    !Add a new determinant to the main list when tHashWalkerList is true
+    !This involves updating the list length, copying it across, updating its flag, adding its diagonal helement(if neccessary)
+    !Also need to update the hash table to point at it correctly
+    subroutine AddNewHashDet(CurrDetsIndex,iLutCurr,DetHash,nJ)
+        implicit none
+        integer, intent(inout) :: CurrDetsIndex
+        integer(n_int), intent(inout) :: iLutCurr(0:NIfTot)
+        integer, intent(in) :: DetHash, nJ(nel)
+        integer :: nJ(NEl)
+        HElement_t :: HDiag
+
+        !update its flag
+        if(tTruncInitiator) call FlagifDetisInitiator(iLutCurr)
+        
+        !Update CurrentDets list
+        CurrDetsIndex=CurrDetsIndex+1
+        if(CurrDetsIndex.ge.MaxWalkersPart) then
+            call stop_all(t_r,"Not enough memory to merge walkers into main list. Increase MemoryFacPart")
+        endif
+
+        CurrentDets(:,CurrDetsIndex)=iLutCurr(:)       
+        if(.not.tRegenDiagHEls) then
+!We want to calculate the diagonal hamiltonian matrix element for the new particle to be merged.
+!            call decode_bit_det (nJ, CurrentDets(:,CurrDetsIndex))
+            if (tHPHF) then
+                HDiag = hphf_diag_helement (nJ,CurrentDets(:,CurrDetsIndex))
+            else
+                HDiag = get_helement (nJ, nJ, 0)
+            endif
+            CurrentH(CurrDetsIndex)=real(HDiag,dp)-Hii
+        endif
+
+        HashIndex(0,DetHash)=HashIndex(0,DetHash)+1
+        if(HashIndex(0,DetHash).ge.(nClashMax-1)) then
+            call EnlargeHashTable()
+        endif
+        HashIndex(FinalVal+1,DetHash)=CurrDetsIndex
+
+    end subroutine AddNewHashDet
+
+    subroutine EnlargeHashTable()
+        implicit none
+        integer :: ierr
+
+        nClashMax=nClashMax+1
+        write(6,"(A)") "Enlarging hash table since it is not optimally load balanced."
+        write(6,"(A,I5,A,I14,A)") "Allowing for a maximum of ",nClashMax," hash clashes, and potential storage for "&
+                            ,nClashMax*nWalkerHashes," occupied determinants"
+
+        if(allocated(HashIndexArr1)) then
+            allocate(HashIndexArr2(0:nClashMax,nWalkerHashes),stat=ierr)
+            HashIndexArr2(:,:)=0
+            if(ierr.ne.0) then
+                call stop_all(t_r,"Error reallocating HashIndexArr2")
+            endif
+            HashIndexArr2(:,:)=0
+            HashIndexArr2(0:nClashMax-1,1:nWalkerHashes)=HashIndex(:,:)
+            deallocate(HashIndexArr1)
+            HashIndex => HashIndexArr2
+        else
+            if(allocated(HashIndexArr1)) then
+                call stop_all(t_r,"HashIndexArr1 should not be allocated")
+            endif
+            allocate(HashIndexArr1(0:nClashMax,nWalkerHashes),stat=ierr)
+            if(ierr.ne.0) then
+                call stop_all(t_r,"Error reallocating HashIndexArr2")
+            endif
+            HashIndexArr1(:,:)=0
+            HashIndexArr1(0:nClashMax-1,1:nWalkerHashes)=HashIndex(:,:)
+            deallocate(HashIndexArr2)
+            HashIndex => HashIndexArr1
+        endif
+
+    end subroutine EnlargeHashTable
 
     PURE LOGICAL FUNCTION IsUnoccDet(CurrentSign)
         INTEGER, DIMENSION(lenof_sign), INTENT(IN) :: CurrentSign
@@ -1165,6 +1198,23 @@ MODULE AnnihilationMod
 !        CALL CheckOrdering(CurrentDets,CurrentSign(1:TotWalkers),TotWalkers,.true.)
 
     END SUBROUTINE InsertRemoveParts
+    
+    !Another hashing routine - this time to find the correct position in the hash table
+    !Why do we need this csf_orbital_mask??!
+    pure function FindWalkerHash(nJ) result(hashInd)
+        implicit none
+        integer, intent(in) :: nJ(nel)
+        integer :: hashInd
+        integer :: i
+        integer(int64) :: hash
+        hash = 0
+        do i = 1, nel
+            hash = (1099511628211_int64 * hash) + &
+                    (RandomHash2(mod(iand(nJ(i), csf_orbital_mask)-1,int(nBasis,int64))+1) * i)
+        enddo
+        hashInd = abs(mod(hash, int(nWalkerHashes, int64)))
+    end function FindWalkerHash
+
 
     pure function DetermineDetNode (nI, iIterOffset) result(node)
 

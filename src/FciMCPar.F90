@@ -858,6 +858,8 @@ MODULE FciMCParMod
                                                           parent_flags)
             endif                                                          
 
+            !Test here as to whether this is a "hole" or not...
+
             !Debug output.
             IFDEBUGTHEN(FCIMCDebug,3)
                 if(lenof_sign.eq.2) then
@@ -883,7 +885,7 @@ MODULE FciMCParMod
             if (tRegenDiagHEls) then
                 ! We are not storing the diagonal hamiltonian elements for 
                 ! each particle. Therefore, we need to regenerate them.
-                if (DetBitEQ(CurrentDets(:,j), iLutHF, NIfDBO) .and. &
+                if (DetBitEQ(CurrentDets(:,j), iLutRef, NIfDBO) .and. &
                     (.not.(tHub .and. tReal))) then
                     HDiagCurr = 0
                 else
@@ -999,8 +1001,10 @@ MODULE FciMCParMod
         ! walkers should be in a seperate array (SpawnedParts) and the other 
         ! list should be ordered.
         call set_timer (annihil_time, 30)
-        call DirectAnnihilation (totWalkersNew, iter_data,.false.) !.false. for not single processor
-        TotWalkers=TotWalkersNew
+        !HolesInList will be returned with the number of unoccupied determinants in the list
+        !They have already been removed from the hash table though.
+        call DirectAnnihilation (totWalkersNew, iter_data,.false.,HolesInList) !.false. for not single processor
+        TotWalkers=TotWalkersNew    !with tHashWalkerList this indicates the number of determinants in list + holes
         CALL halt_timer(Annihil_Time)
         IFDEBUG(FCIMCDebug,2) WRITE(6,*) "Finished Annihilation step"
 
@@ -2107,7 +2111,7 @@ MODULE FciMCParMod
                 endif
                 if(tHashWalkerList) then
                     !We need to remove this determinant from the hashindex array
-                    call RemoveDetHashIndex(iLutCurr,DetPosition)
+                    call RemoveDetHashIndex(DetCurr,DetPosition)
                 endif
             ELSE
                 !Normally we will go in this block
@@ -2124,11 +2128,11 @@ MODULE FciMCParMod
             endif
             if(tHashWalkerList) then
                 !Remove the determinant from the indexing list
-                call RemoveDetHashIndex(iLutCurr,DetPosition)
+                call RemoveDetHashIndex(DetCurr,DetPosition)
             endif
         elseif(tHashWalkerList) then
             !Remove the determinant from the indexing list
-            call RemoveDetHashIndex(iLutCurr,DetPosition)
+            call RemoveDetHashIndex(DetCurr,DetPosition)
         endif
 #else
         !In complex case, fill slot if either real or imaginary particle still there.
@@ -2146,7 +2150,7 @@ MODULE FciMCParMod
             endif
         ELSEIF(tHashWalkerList) then
             !Remove the determinant from the indexing list
-            call RemoveDetHashIndex(iLutCurr,DetPosition)
+            call RemoveDetHashIndex(DetCurr,DetPosition)
         ENDIF
 #endif            
 
@@ -2154,13 +2158,14 @@ MODULE FciMCParMod
 
     !routine to find and remove the index to a determinant from the HashIndex array
     !This could potentially be speeded up by an ordered HashIndex array, and binary searching
-    subroutine RemoveDetHashIndex(ilut,DetPosition)
+    subroutine RemoveDetHashIndex(nI,DetPosition)
         implicit none
-        integer(n_int), intent(in) :: ilut(0:NIfTot)
+!        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer, intent(in) :: nI(nel) 
         integer, intent(in) :: DetPosition
         integer :: DetHash,FinalVal,i
 
-        DetHash=FindWalkerHash(ilut)
+        DetHash=FindWalkerHash(nI)
         FinalVal=HashIndex(0,DetHash)-1
         do i=1,FinalVal !Run through all indices
             if(HashIndex(i,DetHash).eq.DetPosition) exit
@@ -4180,6 +4185,15 @@ MODULE FciMCParMod
             CALL Stop_All(this_routine,"Error in allocating RandomHash")
         ENDIF
         RandomHash(:)=0
+        if(tHashWalkerList) then
+            !We want another independent randomizing array for the hash table, so we do not introduce
+            !correlations between the two
+            ALLOCATE(RandomHash2(nBasis),stat=ierr)
+            IF(ierr.ne.0) THEN
+                CALL Stop_All(this_routine,"Error in allocating RandomHash2")
+            ENDIF
+            RandomHash2(:)=0
+        endif
         IF(iProcIndex.eq.root) THEN
             do i=1,nBasis
                 ! If we want to hash only by spatial orbitals, then the
@@ -4207,9 +4221,37 @@ MODULE FciMCParMod
                     RandomHash(i) = ChosenOrb
                 enddo
             enddo
+            if(tHashWalkerList) then
+                !Do again for RandomHash2
+                do i=1,nBasis
+                    ! If we want to hash only by spatial orbitals, then the
+                    ! spin paired orbitals must be set equal
+                    if (tSpatialOnlyHash) then
+                        if (.not. btest(i, 0)) then
+                            RandomHash2(i) = RandomHash2(i - 1)
+                            cycle
+                        endif
+                    endif
+                    ! Ensure that we don't set two values to be equal accidentally
+                    FoundPair=.false.
+                    do while(.not.FoundPair)
+                        r = genrand_real2_dSFMT()
+                        ChosenOrb=INT(nBasis*r*1000)+1
 
-!                WRITE(6,*) "Random Orbital Indexing for hash:"
-!                WRITE(6,*) RandomHash(:)
+                        ! Check all values which have already been set.
+                        do j=1,nBasis
+                            IF(RandomHash2(j).eq.ChosenOrb) EXIT
+                        enddo
+
+                        ! If not already used, then we can move on
+                        if (j == nBasis+1) FoundPair = .true.
+                        RandomHash2(i) = ChosenOrb
+                    enddo
+                enddo
+            endif
+
+!            WRITE(6,*) "Random Orbital Indexing for hash:"
+!            WRITE(6,*) RandomHash(:)
             if (tSpatialOnlyHash) then
                 step = 2
             else
@@ -4219,15 +4261,26 @@ MODULE FciMCParMod
                 IF((RandomHash(i).eq.0).or.(RandomHash(i).gt.nBasis*1000)) THEN
                     CALL Stop_All(this_routine,"Random Hash incorrectly calculated")
                 ENDIF
+                if(tHashWalkerList) then
+                    IF((RandomHash2(i).eq.0).or.(RandomHash2(i).gt.nBasis*1000)) THEN
+                        CALL Stop_All(this_routine,"Random Hash 2 incorrectly calculated")
+                    ENDIF
+                endif
                 do j = i+step, nBasis, step
                     IF(RandomHash(i).eq.RandomHash(j)) THEN
                         CALL Stop_All(this_routine,"Random Hash incorrectly calculated")
                     ENDIF
+                    if(tHashWalkerList) then
+                        IF(RandomHash2(i).eq.RandomHash2(j)) THEN
+                            CALL Stop_All(this_routine,"Random Hash incorrectly calculated")
+                        ENDIF
+                    endif
                 enddo
             enddo
         ENDIF
         !Now broadcast to all processors
         CALL MPIBCast(RandomHash,nBasis)
+        if(tHashWalkerList) call MPIBCast(RandomHash2,nBasis)
 
         IF(tHPHF) THEN
             !IF(tLatticeGens) CALL Stop_All("SetupParameters","Cannot use HPHF with model systems currently.")
@@ -5897,11 +5950,12 @@ MODULE FciMCParMod
                 nClashMax=int(real(MaxWalkersPart,dp)/real(nWalkerHashes,dp))+1
                 write(6,"(A,I7,A)") "Initially allocating memory in hash table for a maximum of ",nClashMax," walker hash clashes"
                 !HashIndex: (0,:) is first free slot in the hash list.
-                allocate(HashIndex(0:nClashMax,nWalkerHashes),stat=ierr)
+                allocate(HashIndexArr1(0:nClashMax,nWalkerHashes),stat=ierr)
                 if(ierr.ne.0) call stop_all(this_routine,"Error in allocation")
+                HashIndex(:,:) => HashIndexArr1(:,:)
                 HashIndex(:,:)=0
                 HashIndex(0,:)=1    !First free slot is first slot
-                MemoryAlloc=MemoryAlloc+(8*(nClashMax+1)*nWalkerHashes)
+                MemoryAlloc=MemoryAlloc+2*(8*(nClashMax+1)*nWalkerHashes)
             endif
 
 !Allocate pointers to the correct walker arrays
@@ -6010,7 +6064,7 @@ MODULE FciMCParMod
                         if(tHashWalkerList) then
                             !Point at the correct position for the first walker
 
-                            DetHash=FindWalkerHash(CurrentDets(:,1))    !Find det hash position
+                            DetHash=FindWalkerHash(HFDet)    !Find det hash position
                             FreeSlot=HashIndex(0,DetHash)               !Find which free slot is next in the clashes
                             HashIndex(FreeSlot,DetHash)=1               !Index the position of the determinant in CurrentDets
                             HashIndex(0,DetHash)=HashIndex(0,DetHash)+1 !Increment the number of hash clashes here
