@@ -885,11 +885,14 @@ MODULE FciMCParMod
             ! truncated etc.)
             walkExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,j), &
                                                 max_calc_ex_level)
-            if(j.gt.1) then
-                if(DetBitEQ(CurrentDets(:,j-1),CurrentDets(:,j),NIfDBO)) then
-                    call stop_all("kuyh bl","Shouldn't have the same determinant twice")
+
+            IFDEBUGTHEN(FCIMCDebug,1)
+                if(j.gt.1) then
+                    if(DetBitEQ(CurrentDets(:,j-1),CurrentDets(:,j),NIfDBO)) then
+                        call stop_all(this_routine,"Shouldn't have the same determinant twice")
+                    endif
                 endif
-            endif
+            ENDIFDEBUG
 
             ! Should be able to make this function pointer-able
             if (tRegenDiagHEls) then
@@ -1102,7 +1105,6 @@ MODULE FciMCParMod
 #endif
             write(6,"(A,2I4,A)",advance='no') &
                                       "Parent flag: ", parent_flags, part_type
-                                      write(6,*) "ParentFlag: ",parent_flags
             call writebitdet (6, ilutJ, .true.)
             call neci_flush(6)
         endif
