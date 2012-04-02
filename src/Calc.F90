@@ -21,7 +21,7 @@ MODULE Calc
                         tSpawnProp, nClustSelections, tExactEnergy,     &
                         dClustSelectionRatio,tSharedExcitors
     use FciMCData, only: proje_update_comb,proje_linear_comb, proje_ref_det_init,tTimeExit,MaxTimeExit, &
-                         InputDiagSft,tSearchTau,proje_spatial
+                         InputDiagSft,tSearchTau,proje_spatial,nWalkerHashes,tHashWalkerList
 
     implicit none
 
@@ -55,6 +55,8 @@ contains
           end if
 
 !       Calc defaults 
+          tHashWalkerList=.false.
+          nWalkerHashes=0
           iExitWalkers=-1
           FracLargerDet=1.2
           iReadWalkersRoot=0 
@@ -852,6 +854,10 @@ contains
             case("SHIFTDAMP")
 !For FCIMC, this is the damping parameter with respect to the update in the DiagSft value for a given number of MC cycles.
                 call getf(SftDamp)
+            case("LINSCALEFCIMCALGO")
+                !Use the linear scaling FCIMC algorithm
+                call geti(nWalkerHashes)
+                tHashWalkerList=.true.
             case("STEPSSHIFTIMAG")
 !For FCIMC, this is the amount of imaginary time which will elapse between updates of the shift.
                 call getf(StepsSftImag)

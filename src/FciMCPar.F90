@@ -766,6 +766,11 @@ MODULE FciMCParMod
         NoatDoubs = 0
         ! Next free position in newly spawned list.
         ValidSpawnedList = InitialSpawnedSlots
+        if(tHashWalkerList) then
+            FreeSlot(1:iEndFreeSlot)=0  !Does this cover enough?
+            iStartFreeSlot=1
+            iEndFreeSlot=0
+        endif
         
         call rezero_iter_stats_each_iter (iter_data)
 
@@ -801,6 +806,17 @@ MODULE FciMCParMod
             enddo
         endif
 
+        IFDEBUGTHEN(FCIMCDebug,6)
+            if(tHashWalkerList) then
+                write(6,"(A)") "Hash Table: "
+                do j=1,nWalkerHashes
+                    if(HashIndex(0,j).eq.1) cycle
+                    write(6,*) j,HashIndex(0:HashIndex(0,j),j)
+                enddo
+            endif
+        ENDIFDEBUG
+
+        IFDEBUG(FCIMCDebug,3) write(6,"(A,I12)") "Walker list length: ",TotWalkers
         IFDEBUG(FCIMCDebug,3) write(6,"(A)") "TW: Walker  Det"
         do j=1,TotWalkers
             ! N.B. j indicates the number of determinants, not the number
@@ -836,7 +852,18 @@ MODULE FciMCParMod
                                                           parent_flags)
             endif                                                          
 
-            !Test here as to whether this is a "hole" or not...
+            if(tHashWalkerList) then
+                !Test here as to whether this is a "hole" or not...
+                !Unfortunately, the main list no longer needs to be contiguous
+                if(IsUnoccDet(SignCurr)) then
+                    !It has been removed from the hash table already
+                    !Add to the "freeslot" list
+                    iEndFreeSlot=iEndFreeSlot+1
+                    FreeSlot(iEndFreeSlot)=j
+                    cycle
+                endif
+            endif
+
 
             !Debug output.
             IFDEBUGTHEN(FCIMCDebug,3)
@@ -858,6 +885,11 @@ MODULE FciMCParMod
             ! truncated etc.)
             walkExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,j), &
                                                 max_calc_ex_level)
+            if(j.gt.1) then
+                if(DetBitEQ(CurrentDets(:,j-1),CurrentDets(:,j),NIfDBO)) then
+                    call stop_all("kuyh bl","Shouldn't have the same determinant twice")
+                endif
+            endif
 
             ! Should be able to make this function pointer-able
             if (tRegenDiagHEls) then
@@ -961,15 +993,27 @@ MODULE FciMCParMod
                                CurrentDets(:,j), HDiagCurr, SignCurr, VecSlot, j)
 
         enddo ! Loop over determinants.
-        IFDEBUG(FCIMCDebug,2) write(6,*) 'Finished loop over determinants'
-        
-        ! Since VecSlot holds the next vacant slot in the array, TotWalkers
-        ! should be one less than this. TotWalkersNew is now the number of particles
-        ! in the main array, before annihilation
-        TotWalkersNew = VecSlot - 1
+        IFDEBUGTHEN(FCIMCDebug,2) 
+            write(6,*) 'Finished loop over determinants'
+            if(tHashWalkerList) then
+                write(6,*) "Holes in list: ",iEndFreeSlot
+            endif
+        ENDIFDEBUG
+
+        if(tHashWalkerList) then
+            !With this algorithm, the determinants do not move, and therefore TotWalkersNew is simply equal
+            !to TotWalkers
+            TotWalkersNew=TotWalkers
+        else
+            ! Since VecSlot holds the next vacant slot in the array, TotWalkers
+            ! should be one less than this. TotWalkersNew is now the number of particles
+            ! in the main array, before annihilation
+            TotWalkersNew = VecSlot - 1
+        endif
 
         ! Update the statistics for the end of an iteration.
-        call end_iter_stats (TotWalkersNew)
+        ! Why is this done here - before annihilation!
+        call end_iter_stats(TotWalkersNew)
         
         ! Print bloom/memory warnings
         call end_iteration_print_warn (totWalkersNew)
@@ -979,10 +1023,11 @@ MODULE FciMCParMod
         ! walkers should be in a seperate array (SpawnedParts) and the other 
         ! list should be ordered.
         call set_timer (annihil_time, 30)
-        !HolesInList will be returned with the number of unoccupied determinants in the list
+        !HolesInList is returned from direct annihilation with the number of unoccupied determinants in the list
         !They have already been removed from the hash table though.
-        call DirectAnnihilation (totWalkersNew, iter_data,.false.,HolesInList) !.false. for not single processor
-        TotWalkers=TotWalkersNew    !with tHashWalkerList this indicates the number of determinants in list + holes
+        call DirectAnnihilation (totWalkersNew, iter_data,.false.) !.false. for not single processor
+        TotWalkers=TotWalkersNew    !with tHashWalkerList this indicates the number of determinants 
+                                    !in list + holes from annihilation
         CALL halt_timer(Annihil_Time)
         IFDEBUG(FCIMCDebug,2) WRITE(6,*) "Finished Annihilation step"
 
@@ -1005,6 +1050,7 @@ MODULE FciMCParMod
         SumWalkersCyc = SumWalkersCyc + int(sum(TotParts), int64)
 
         ! Write initiator histograms if on the correct iteration.
+        ! Why is this done here - before annihilation!
         if ((tHistInitPops .and. mod(iter, HistInitPopsIter) == 0) &
             .or. tPrintHighPop) then
             call FindHighPopDet (TotWalkersNew)
@@ -1015,6 +1061,7 @@ MODULE FciMCParMod
 
         ! Update the sum for the projected-energy denominatior if projecting
         ! onto a linear combination of determinants.
+        ! Why is this done here - before annihilation!
         if (proje_spatial .and. proje_linear_comb .and. nproje_sum > 1) then
             do i = 1, nproje_sum
                 proc = DetermineDetNode (proje_ref_dets(:,i), 0)
@@ -1055,6 +1102,7 @@ MODULE FciMCParMod
 #endif
             write(6,"(A,2I4,A)",advance='no') &
                                       "Parent flag: ", parent_flags, part_type
+                                      write(6,*) "ParentFlag: ",parent_flags
             call writebitdet (6, ilutJ, .true.)
             call neci_flush(6)
         endif
@@ -2049,6 +2097,7 @@ MODULE FciMCParMod
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer, dimension(lenof_sign) :: iDie
         integer, dimension(lenof_sign) :: CopySign
+        integer, dimension(lenof_sign), parameter :: NullSign=0
 
         ! Do particles on determinant die? iDie can be both +ve (deaths), or
         ! -ve (births, if shift > 0)
@@ -2075,6 +2124,8 @@ MODULE FciMCParMod
         ! This will normally increment with j, except when a particle dies
         ! completely (so VecSlot <= j, and we can't overwrite a walker we
         ! haven't got to yet).
+        !This does not hold with tHashWalkerList, since the determinants do
+        !not move
 #ifndef __CMPLX            
         if (CopySign(1).ne.0) then
             IF(tTruncInitiator.and.(sign(1,CopySign(1)).ne.sign(1,wSign(1)))) THEN
@@ -2090,12 +2141,23 @@ MODULE FciMCParMod
                 if(tHashWalkerList) then
                     !We need to remove this determinant from the hashindex array
                     call RemoveDetHashIndex(DetCurr,DetPosition)
+                    !Add to the "freeslot" list
+                    iEndFreeSlot=iEndFreeSlot+1
+                    FreeSlot(iEndFreeSlot)=DetPosition
+                    !Encode a null det to be picked up
+                    call encode_sign(CurrentDets(:,DetPosition),NullSign)
                 endif
             ELSE
                 !Normally we will go in this block
-                call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
-                if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
-                VecSlot = VecSlot + 1
+                if(tHashWalkerList) then
+                    !Here, determinants always stay in the same place
+                    !Therefore, only need to encode sign, and not to worry about helement or anything else
+                    call encode_sign(CurrentDets(:,DetPosition),CopySign)
+                else
+                    call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
+                    if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
+                    VecSlot = VecSlot + 1
+                endif
             ENDIF
         elseif(tTruncInitiator) then
             ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
@@ -2107,10 +2169,20 @@ MODULE FciMCParMod
             if(tHashWalkerList) then
                 !Remove the determinant from the indexing list
                 call RemoveDetHashIndex(DetCurr,DetPosition)
+                !Add to the "freeslot" list
+                iEndFreeSlot=iEndFreeSlot+1
+                FreeSlot(iEndFreeSlot)=DetPosition
+                !Encode a null det to be picked up
+                call encode_sign(CurrentDets(:,DetPosition),NullSign)
             endif
         elseif(tHashWalkerList) then
             !Remove the determinant from the indexing list
             call RemoveDetHashIndex(DetCurr,DetPosition)
+            !Add to the "freeslot" list
+            iEndFreeSlot=iEndFreeSlot+1
+            FreeSlot(iEndFreeSlot)=DetPosition
+            !Encode a null det to be picked up
+            call encode_sign(CurrentDets(:,DetPosition),NullSign)
         endif
 #else
         !In complex case, fill slot if either real or imaginary particle still there.
@@ -2122,43 +2194,28 @@ MODULE FciMCParMod
                 call stop_all(t_r,"Real antiparticles created - this is not dealt with correctly")
                 !The particles here need to be removed as in the real case, and the stats updated accordingly
             else
-                call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
-                if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
-                VecSlot=VecSlot+1
+                if(tHashWalkerList) then
+                    !Here, determinants always stay in the same place
+                    !Therefore, only need to encode sign, and not to worry about helement or anything else
+                    call encode_sign(CurrentDets(:,DetPosition),CopySign)
+                else
+                    call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
+                    if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
+                    VecSlot=VecSlot+1
+                endif
             endif
         ELSEIF(tHashWalkerList) then
             !Remove the determinant from the indexing list
             call RemoveDetHashIndex(DetCurr,DetPosition)
+            !Add to the "freeslot" list
+            iEndFreeSlot=iEndFreeSlot+1
+            FreeSlot(iEndFreeSlot)=DetPosition
+            !Encode a null det to be picked up
+            call encode_sign(CurrentDets(:,DetPosition),NullSign)
         ENDIF
 #endif            
 
     end subroutine
-
-    !routine to find and remove the index to a determinant from the HashIndex array
-    !This could potentially be speeded up by an ordered HashIndex array, and binary searching
-    subroutine RemoveDetHashIndex(nI,DetPosition)
-        implicit none
-!        integer(n_int), intent(in) :: ilut(0:NIfTot)
-        integer, intent(in) :: nI(nel) 
-        integer, intent(in) :: DetPosition
-        integer :: DetHash,FinalVal,i
-
-        DetHash=FindWalkerHash(nI)
-        FinalVal=HashIndex(0,DetHash)-1
-        do i=1,FinalVal !Run through all indices
-            if(HashIndex(i,DetHash).eq.DetPosition) exit
-        enddo
-        ASSERT(i.le.FinalVal)
-
-        !i is now the position of the determinant to remove
-        !Indicate that there is now one less determinant at this hash value
-        HashIndex(0,DetHash)=HashIndex(0,DetHash)-1
-        !Move everything from i+1 -> HashIndex(0,DetHash) down one
-        if(i.ne.FinalVal) then
-            HashIndex(i:FinalVal-1,DetHash)=HashIndex(i+1:FinalVal,DetHash)
-        endif
-
-    end subroutine RemoveDetHashIndex
 
     function attempt_die_normal (DetCurr, Kii, wSign) result(ndie)
         
@@ -3108,7 +3165,7 @@ MODULE FciMCParMod
         integer :: int_tmp(5+2*lenof_sign), proc, sgn(lenof_sign), pos, i
         HElement_t :: helem_tmp(3)
         HElement_t :: real_tmp(2)!*lenof_sign)
-        integer(int64) :: int64_tmp(9)
+        integer(int64) :: int64_tmp(9),TotWalkersTemp
         type(fcimc_iter_data) :: iter_data
         integer(int64), dimension(lenof_sign), intent(in) :: tot_parts_new
         integer(int64), dimension(lenof_sign), intent(out) :: tot_parts_new_all
@@ -3147,7 +3204,10 @@ MODULE FciMCParMod
         endif
 
         ! 64bit integers
-        call MPISumAll ((/TotWalkers, norm_psi_squared, TotParts, SumNoatHF, &
+        !Remove the holes in the main list when wanting the number of uniquely occupied determinants
+        !this should only change the number for tHashWalkerList
+        TotWalkersTemp=TotWalkers-HolesInList
+        call MPISumAll ((/TotWalkersTemp, norm_psi_squared, TotParts, SumNoatHF, &
                        tot_parts_new/), int64_tmp(1:2+3*lenof_sign))
         AllTotWalkers = int64_tmp(1)
         norm_psi_squared = int64_tmp(2)
@@ -3178,8 +3238,8 @@ MODULE FciMCParMod
         all_sum_proje_denominator = real_tmp(2)!(lenof_sign+1:2*lenof_sign)
 
         ! Max/Min values (check load balancing)
-        call MPIReduce (TotWalkers, MPI_MAX, MaxWalkersProc)
-        call MPIReduce (TotWalkers, MPI_MIN, MinWalkersProc)
+        call MPIReduce (TotWalkersTemp, MPI_MAX, MaxWalkersProc)
+        call MPIReduce (TotWalkersTemp, MPI_MIN, MinWalkersProc)
 
         ! We need the total number on the HF and SumWalkersCyc to be valid on
         ! ALL processors (n.b. one of these is 32bit, the other 64)
@@ -3424,7 +3484,7 @@ MODULE FciMCParMod
         endif
 
 
-    end subroutine
+    end subroutine update_shift
 
 
     subroutine rezero_iter_stats_each_iter (iter_data)
@@ -5827,7 +5887,7 @@ MODULE FciMCParMod
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil,iReadWalkersRoot
         use constants , only : size_n_int
         use DeterminantData , only : write_det
-        INTEGER :: ierr,iunithead
+        INTEGER :: ierr,iunithead,DetHash
         LOGICAL :: formpops,binpops
         INTEGER :: error,MemoryAlloc,PopsVersion,j,iLookup,WalkerListSize
         INTEGER, DIMENSION(lenof_sign) :: InitialSign
@@ -5930,10 +5990,14 @@ MODULE FciMCParMod
                 !HashIndex: (0,:) is first free slot in the hash list.
                 allocate(HashIndexArr1(0:nClashMax,nWalkerHashes),stat=ierr)
                 if(ierr.ne.0) call stop_all(this_routine,"Error in allocation")
-                HashIndex(:,:) => HashIndexArr1(:,:)
+                HashIndex => HashIndexArr1
                 HashIndex(:,:)=0
                 HashIndex(0,:)=1    !First free slot is first slot
-                MemoryAlloc=MemoryAlloc+2*(8*(nClashMax+1)*nWalkerHashes)
+                !Also need to allocate memory for the freeslot array
+                allocate(FreeSlot(MaxWalkersPart),stat=ierr)
+                if(ierr.ne.0) call stop_all(this_routine,"Error in allocation")
+                freeslot(:)=0
+                MemoryAlloc=MemoryAlloc+2*(8*(nClashMax+1)*nWalkerHashes)+8*MaxWalkersPart
             endif
 
 !Allocate pointers to the correct walker arrays
