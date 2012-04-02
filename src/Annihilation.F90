@@ -987,7 +987,7 @@ MODULE AnnihilationMod
                     CurrentDets(:,i)=SpawnedParts(:,i)
                     IF(tTruncInitiator) CALL FlagifDetisInitiator(CurrentDets(0:NIfTot,i))
 !We want to calculate the diagonal hamiltonian matrix element for the new particle to be merged.
-                    if (DetBitEQ(CurrentDets(:,i), iLutHF, NIfDBO)) then
+                    if (DetBitEQ(CurrentDets(:,i), iLutRef, NIfDBO)) then
 !We know we are at HF - HDiag=0
                         HDiag=0.D0
                     else
