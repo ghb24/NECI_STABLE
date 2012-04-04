@@ -203,7 +203,6 @@ MODULE AnnihilationMod
             CALL InsertRemoveParts(MaxIndex,TotWalkersNew)
         endif
         CALL halt_timer(Sort_Time)
-        call MPIBarrier(ierr)
 
     END SUBROUTINE DirectAnnihilation
 
@@ -256,6 +255,7 @@ MODULE AnnihilationMod
 !We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
         recvcounts(1:nProcessors)=0
         
+        call MPIBarrier(error)
         CALL set_timer(Comms_Time,30)
 
         CALL MPIAlltoAll(sendcounts,1,recvcounts,1,error)
@@ -970,7 +970,10 @@ MODULE AnnihilationMod
         HashIndex(HashIndex(0,DetHash),DetHash)=DetPosition
 !        write(6,*) "Adding index to hash position: ",HashIndex(0,DetHash)
         HashIndex(0,DetHash)=HashIndex(0,DetHash)+1
-        if(HashIndex(0,DetHash).ge.(nClashMax-1)) then
+!        write(6,*) "DetHash: ",DetHash
+!        write(6,*) "HashIndex(0,DetHash): ",HashIndex(0,DetHash)
+!        write(6,*) "nClashMax: ",nClashMax
+        if(HashIndex(0,DetHash).gt.nClashMax) then
             call EnlargeHashTable()
         endif
 

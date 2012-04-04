@@ -731,10 +731,8 @@ MODULE FciMCParMod
         logical :: tParity
         real(dp) :: prob, HDiagCurr
         HElement_t :: HDiagTemp,HElGen
-#ifdef __DEBUG
         character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
-#endif
-    HElement_t :: delta
+        HElement_t :: delta
         integer :: proc, pos, sgn(lenof_sign)
 
         call set_timer(Walker_Time,30)
@@ -758,7 +756,7 @@ MODULE FciMCParMod
         HighPopPos=1
 
         ! Synchronise processors
-        CALL MPIBarrier(error)
+!        CALL MPIBarrier(error)
 
         ! Reset iteration variables
         VecSlot = 1    ! Next position to write into CurrentDets
@@ -3291,7 +3289,7 @@ MODULE FciMCParMod
         integer :: error, i, proc, sgn(lenof_sign), pos
 
 !        call neci_flush(6)
-        CALL MPIBarrier(error)
+!        CALL MPIBarrier(error)
 
         ! collate_iter_data --> The values used are only valid on Root
         if (iProcIndex == Root) then
