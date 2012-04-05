@@ -981,7 +981,7 @@ MODULE AnnihilationMod
 
     subroutine EnlargeHashTable()
         implicit none
-        integer :: ierr,i
+        integer :: ierr,i,FinalVal
         character(len=*), parameter :: t_r="EnlargeHashTable"
 
         nClashMax=nClashMax+1
@@ -1003,7 +1003,8 @@ MODULE AnnihilationMod
             do i=1,nWalkerHashes
 !                write(6,*) i
 !                call flush(6)
-                HashIndexArr2(0:nClashMax-1,i) = HashIndex(0:nClashMax-1,i)
+                FinalVal=HashIndex(0,i)-1
+                HashIndexArr2(0:FinalVal,i) = HashIndex(0:FinalVal,i)
             enddo
 !            write(6,*) "Deallocating old hash array"
             deallocate(HashIndexArr1)
@@ -1023,7 +1024,8 @@ MODULE AnnihilationMod
             endif
             HashIndexArr1(:,:)=0
             do i=1,nWalkerHashes
-                HashIndexArr1(0:nClashMax-1,i)=HashIndex(0:nClashMax-1,i)
+                FinalVal=HashIndex(0,i)-1
+                HashIndexArr1(0:FinalVal,i)=HashIndex(0:FinalVal,i)
             enddo
             deallocate(HashIndexArr2)
             nullify(HashIndex)

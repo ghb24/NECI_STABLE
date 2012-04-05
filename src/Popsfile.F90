@@ -12,7 +12,7 @@ MODULE PopsfileMod
     use FciMCData
     use bit_reps
     use Parallel_neci
-    use AnnihilationMod, only: DetermineDetNode
+    use AnnihilationMod, only: DetermineDetNode,FindWalkerHash,EnlargeHashTable
     USE Logging , only : iWritePopsEvery,tPopsFile,iPopsPartEvery,tBinPops
     USE Logging , only : tPrintPopsDefault,tIncrementPops
     use sort_mod
@@ -33,13 +33,13 @@ MODULE PopsfileMod
         integer(int64) , intent(out) :: CurrWalkers64    !Number of determinants which end up on a given processor.
         integer(int64) , dimension(lenof_sign) , intent(out) :: CurrParts
         integer , dimension(lenof_sign) , intent(out) :: CurrHF
-        integer :: CurrWalkers
+        integer :: CurrWalkers,Slot,nJ(nel)
         integer :: iunit,i,j,ierr,PopsInitialSlots(0:nNodes-1)
         INTEGER(TagIntType) :: BatchReadTag=0
         real(dp) :: BatchSize
         integer :: PopsSendList(0:nNodes-1),proc
         integer(MPIArg) :: sendcounts(nNodes), disps(nNodes), recvcount
-        integer :: MaxSendIndex,err
+        integer :: MaxSendIndex,err,DetHash
         integer(n_int) , allocatable :: BatchRead(:,:)
         integer(n_int) :: WalkerTemp(0:NIfTot)
         integer(int64) :: Det,AllCurrWalkers,TempCurrWalkers
@@ -196,8 +196,21 @@ MODULE PopsfileMod
         write(6,"(A,I8)") "Number of batches required to distribute all determinants in POPSFILE: ",nBatches
         write(6,*) "Number of configurations read in to this core: ",CurrWalkers 
 
-        !Order the determinants on all the lists.
-        call sort (dets(:,1:CurrWalkers))
+        if(tHashWalkerList) then
+            do i=1,CurrWalkers
+                call decode_bit_det (nJ, dets(:,i))              
+                DetHash=FindWalkerHash(nJ)
+                Slot=HashIndex(0,DetHash)
+                HashIndex(Slot,DetHash)=i
+                HashIndex(0,DetHash)=HashIndex(0,DetHash)+1
+                if(HashIndex(0,DetHash).gt.nClashMax) then
+                    call EnlargeHashTable()
+                endif
+            enddo
+        else
+            !Order the determinants on all the lists.
+            call sort (dets(:,1:CurrWalkers))
+        endif
 
         !Run through all determinants on each node, and calculate the total number of walkers, and noathf
         do i=1,CurrWalkers

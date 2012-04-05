@@ -4289,7 +4289,7 @@ MODULE FciMCParMod
             endif
 
 !            WRITE(6,*) "Random Orbital Indexing for hash:"
-!            WRITE(6,*) RandomHash(:)
+!            WRITE(6,*) RandomHash2(:)
             if (tSpatialOnlyHash) then
                 step = 2
             else
@@ -4310,7 +4310,7 @@ MODULE FciMCParMod
                     ENDIF
                     if(tHashWalkerList) then
                         IF(RandomHash2(i).eq.RandomHash2(j)) THEN
-                            CALL Stop_All(this_routine,"Random Hash incorrectly calculated")
+                            CALL Stop_All(this_routine,"Random Hash 2 incorrectly calculated")
                         ENDIF
                     endif
                 enddo
@@ -5887,7 +5887,7 @@ MODULE FciMCParMod
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil,iReadWalkersRoot
         use constants , only : size_n_int
         use DeterminantData , only : write_det
-        INTEGER :: ierr,iunithead,DetHash
+        INTEGER :: ierr,iunithead,DetHash,Slot
         LOGICAL :: formpops,binpops
         INTEGER :: error,MemoryAlloc,PopsVersion,j,iLookup,WalkerListSize
         INTEGER, DIMENSION(lenof_sign) :: InitialSign
@@ -5903,9 +5903,6 @@ MODULE FciMCParMod
         HElement_t :: PopAllSumENum
 
         if(tReadPops.and..not.tPopsAlreadyRead) then
-            if(tHashWalkerList) then
-                call stop_all(this_routine,"Hashing walker list will not work with reading in popsfiles yet (bug ghb24)")
-            endif
             call open_pops_head(iunithead,formpops,binpops)
             PopsVersion=FindPopsfileVersion(iunithead)
             if(iProcIndex.eq.root) close(iunithead)
@@ -6107,8 +6104,8 @@ MODULE FciMCParMod
                             !Point at the correct position for the first walker
 
                             DetHash=FindWalkerHash(HFDet)    !Find det hash position
-                            FreeSlot=HashIndex(0,DetHash)               !Find which free slot is next in the clashes
-                            HashIndex(FreeSlot,DetHash)=1               !Index the position of the determinant in CurrentDets
+                            Slot=HashIndex(0,DetHash)               !Find which free slot is next in the clashes
+                            HashIndex(Slot,DetHash)=1               !Index the position of the determinant in CurrentDets
                             HashIndex(0,DetHash)=HashIndex(0,DetHash)+1 !Increment the number of hash clashes here
                         endif
 
