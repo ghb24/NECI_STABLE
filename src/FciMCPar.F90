@@ -7131,7 +7131,19 @@ MODULE FciMCParMod
 
     SUBROUTINE DeallocFCIMCMemPar()
         CHARACTER(len=*), PARAMETER :: this_routine='DeallocFciMCMemPar'
+        integer :: ierr
 
+        if(tHashWalkerList) then
+            deallocate(RandomHash2,stat=ierr)
+            if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
+            if(allocated(HashIndexArr1)) deallocate(HashIndexArr1,stat=ierr)
+            if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
+            if(allocated(HashIndexArr2)) deallocate(HashIndexArr2,stat=ierr)
+            if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
+            nullify(HashIndex)
+            deallocate(FreeSlot,stat=ierr)
+            if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
+        endif
 
         IF(tHistSpawn.or.tCalcFCIMCPsi) THEN
             DEALLOCATE(Histogram)
