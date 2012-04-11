@@ -62,7 +62,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local)
         ! CPMD and VASP calculations call the input parser *before* they call
         ! NECICore.  This is to allow the NECI input filename(s) to be specified
         ! easily from within the CPMD/VASP input files.
-        call ReadInputMain(Filename,ios)
+        call ReadInputMain(Filename,ios,toverride_input)
         If (ios.ne.0) stop 'Error in Read'
     endif
 

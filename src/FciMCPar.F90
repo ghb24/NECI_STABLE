@@ -119,6 +119,11 @@ MODULE FciMCParMod
         use Logging, only: PopsfileTimer
         use util_mod, only: get_free_unit
         use sym_mod, only: getsym
+#ifdef MOLPRO
+        use outputResult
+        integer :: nv,ityp(1)
+#endif
+        integer :: iroot,isymh
         real(dp) :: Weight, Energyxw
         INTEGER :: error
         LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange,tPrintWarn
@@ -129,7 +134,7 @@ MODULE FciMCParMod
         integer, dimension(lenof_sign) :: tmp_sgn
         integer :: tmp_int(lenof_sign), i
         real(dp) :: grow_rate
-        TYPE(BasisFn) HFSym
+        TYPE(BasisFn) RefSym
 
         TDebug=.false.  !Set debugging flag
                     
@@ -398,6 +403,21 @@ MODULE FciMCParMod
             write (6,'(1X,a34,1X,i18)') 'Min number of determinants/process:',MinWalkers
             write (6,'(1X,a34,1X,i18,/)') 'Max number of determinants/process:',MaxWalkers
         end if
+
+        iroot=1
+        CALL GetSym(ProjEDet,NEl,G1,NBasisMax,RefSym)
+        isymh=int(RefSym%Sym%S,sizeof_int)+1
+        write (6,10101) iroot,isymh
+10101   format(//'RESULTS FOR STATE',i2,'.',i1/'====================='/)
+        write (6,'('' Current reference energy'',T36,F19.12)') Hii 
+        write (6,'('' Correlation energy'',T36,F19.12)') ProjectionE
+#ifdef MOLPRO
+        call output_result('FCIQMC','Energy',ProjectionE+Hii,iroot,isymh)
+        if (iroot.eq.1) call clearvar('ENERGY')
+        ityp(1)=1
+        call setvar('ENERGY',ProjectionE+Hii,'AU',ityp,1,nv,iroot)
+#endif MOLPRO
+ 
         
 !Deallocate memory
         CALL DeallocFCIMCMemPar()
