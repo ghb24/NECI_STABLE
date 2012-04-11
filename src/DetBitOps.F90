@@ -386,7 +386,7 @@ module DetBitOps
             if (present(nLast)) then
                 lnLast = nLast
             else
-                lnLast = NIftot
+                lnLast = NIfDBO
             endif
 
             do i=1,lnLast
@@ -553,7 +553,7 @@ module DetBitOps
             if (present(nLast)) then
                 lnLast = nLast
             else
-                lnLast = NIftot
+                lnLast = NIfDBO
             endif
 
             do i=1,lnLast
@@ -594,7 +594,7 @@ module DetBitOps
             if (present(nLast)) then
                 lnLast = nLast
             else
-                lnLast = NIftot
+                lnLast = NIfDBO
             endif
             do i=1,lnLast
                 IF(iLutI(i).lt.iLutJ(i)) THEN
@@ -665,7 +665,7 @@ module DetBitOps
                 if (present(nLast)) then
                     lnLast = nLast
                 else
-                    lnLast = NIftot
+                    lnLast = NIfDBO
                 endif
                 do i=1,lnLast
                     IF(iLutI(i).lt.iLutJ(i)) THEN
