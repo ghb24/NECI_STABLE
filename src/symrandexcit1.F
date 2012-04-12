@@ -8,9 +8,9 @@
      &               CLASSES,                                           &
      &               SYMPRODIND,ILUT,ORBPAIRS,iTotal,ISEED,             &
      &               NK,IC,PGEN,EXCITMAT,TPARITY)      
-         USE symexcit2
          use CalcData, only: ExcitFuncs
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         USE symexcit2
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,nBasis
          use SymData, only: SymClass,SymLabelCounts,SymLabelList
          use SymData, only: tAbelianFastExcitgen

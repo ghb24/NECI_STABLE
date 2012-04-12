@@ -13,8 +13,9 @@ MODULE ReadInput_neci
 
     contains
 
-    Subroutine ReadInputMain(cFilename,ios)
+    Subroutine ReadInputMain(cFilename,ios,tOverride_input)
         USE input_neci
+        use SystemData, only : tMolpro
         use System,     only : SysReadInput,SetSysDefaults
         use Calc,       only : CalcReadInput,SetCalcDefaults
         use Integrals_neci,  only : IntReadInput,SetIntDefaults
@@ -43,6 +44,7 @@ MODULE ReadInput_neci
         logical             tExists     !test for existence of input file.
         Integer             idDef       !What default set do we use
         integer neci_iargc
+        logical, intent(in) :: tOverride_input  !If running through molpro, is this an override input?
         
         cTitle=""
         idDef=idDefault                 !use the Default defaults (pre feb08)
@@ -114,13 +116,13 @@ MODULE ReadInput_neci
 !Now return to the beginning and process the whole input file
         if (ir.eq.5) ir=7 ! If read from STDIN, re-read from our temporary scratch file.
         Rewind(ir)
-#ifdef MOLPRO
+        if(tMolpro.and.(.not.tOverride_input)) then
 !Molpro writes out its own input file
-        Call input_options(echo_lines=.false.,skip_blank_lines=.true.)
-#else
-        Call input_options(echo_lines=iProcIndex.eq.0,skip_blank_lines=.true.)
-        Write (6,'(/,64("*"),/)')
-#endif
+            Call input_options(echo_lines=.false.,skip_blank_lines=.true.)
+        else
+            Call input_options(echo_lines=iProcIndex.eq.0,skip_blank_lines=.true.)
+            Write (6,'(/,64("*"),/)')
+        endif
 
 
         Do
