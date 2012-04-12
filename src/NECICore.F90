@@ -18,19 +18,20 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local)
     ! main-level modules.
     use Calc, only: CalcDoCalc
     use CalcData, only: tUseProcsAsNodes
-    use Parallel_neci, only: MPINodes
+    use Parallel_neci, only: MPINodes, iProcIndex
 
     ! Utility modules.
     use global_utilities
+    use util_mod, only: get_free_unit
 
     Implicit none
     integer,intent(in) :: iCacheFlag
     logical,intent(in) :: tCPMD,tVASP,tMolpro_local
     type(timer), save :: proc_timer
-    integer :: ios
+    integer :: ios,iunit
     character(*), parameter :: this_routine = 'NECICore'
     character(255) :: Filename
-    logical :: toverride_input
+    logical :: toverride_input,tFCIDUMP_exist
     
     tMolpro = tMolpro_local
 
@@ -77,6 +78,19 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local)
     call NECICalcEnd(iCacheFlag)
 
     call halt_timer(proc_timer)
+    
+    if(tMolpro.and.(.not.toverride_input)) then
+        !Delete the FCIDUMP unless we are overriding the input
+        if(iProcIndex.eq.0) then
+            inquire(file='FCIDUMP',exist=tFCIDUMP_exist)
+            if(tFCIDUMP_exist) then
+                iunit = get_free_unit()
+                open(iunit,file='FCIDUMP',status='old',form='formatted')
+                close(iunit,status='delete')
+            endif
+        endif
+    endif
+
 
     call NECICodeEnd(tCPMD,tVASP)
 
