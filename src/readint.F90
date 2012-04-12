@@ -661,25 +661,27 @@ contains
                     L = GTID(L)
                 ENDIF
              elseif(tMolpro.and.tUHF) then
-                !Need to transfer the orbital index into spin orbital notation
-                if((iSpinType.eq.1).or.(iSpinType.eq.4)) then
-                    !aaaa/aa00
-                    I=I*2-1
-                    J=J*2-1
-                    if(iSpinType.eq.1) K=K*2-1   !(just so it doesn't give -1!)
-                    if(iSpinType.eq.1) L=L*2-1
-                elseif((iSpinType.eq.2).or.(iSpinType.eq.5)) then
-                    !bbbb/bb00
-                    I=I*2
-                    J=J*2
-                    K=K*2
-                    L=L*2
-                elseif(iSpinType.eq.3) then
-                    !aabb spin type (remember its still in chemical notation!)
-                    I=I*2-1
-                    J=J*2-1
-                    K=K*2
-                    L=L*2
+                if(i.ne.0) then
+                    !Need to transfer the orbital index into spin orbital notation
+                    if((iSpinType.eq.1).or.(iSpinType.eq.4)) then
+                        !aaaa/aa00
+                        I=I*2-1
+                        J=J*2-1
+                        if(iSpinType.eq.1) K=K*2-1   !(just so it doesn't give -1!)
+                        if(iSpinType.eq.1) L=L*2-1
+                    elseif((iSpinType.eq.2).or.(iSpinType.eq.5)) then
+                        !bbbb/bb00
+                        I=I*2
+                        J=J*2
+                        K=K*2
+                        L=L*2
+                    elseif(iSpinType.eq.3) then
+                        !aabb spin type (remember its still in chemical notation!)
+                        I=I*2-1
+                        J=J*2-1
+                        K=K*2
+                        L=L*2
+                    endif
                 endif
              ENDIF
 !.. Each orbital in the file corresponds to alpha and beta spinorbitalsa
