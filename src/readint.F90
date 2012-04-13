@@ -177,7 +177,7 @@ contains
          HElement_t Z
          COMPLEX(dp) :: CompInt
          integer(int64) IND,MASK
-         INTEGER I,J,K,L,I1, iunit,iSpinType
+         INTEGER I,J,K,L,I1, iunit
          INTEGER ISYMNUM,ISNMAX,SYMMAX,SYMLZ(1000)
          INTEGER NORB,NELEC,MS2,ISYM,ISPINS,ISPN,SYML(1000)
          integer(int64) ORBSYM(1000)
@@ -342,18 +342,6 @@ contains
 #ifdef __CMPLX
 1               READ(iunit,*,END=99) Z,I,J,K,L
 #else
-                if(tMolpro.and.tUHF) then
-                    !In molpro, UHF FCIDUMPs are written out as:
-                    !1: aaaa
-                    !2: bbbb
-                    !3: aabb
-                    !4: aa
-                    !5: bb
-                    !with delimiters of 0.000000 0 0 0 0
-                    iSpinType=0
-                endif
-40              CONTINUE
-                if(tMolpro.and.tUHF) iSpinType=iSpinType+1  !Starts at 1 and then increments
 1               CONTINUE
                 !It is possible that the FCIDUMP can be written out in complex notation, but still only
                 !have real orbitals. This occurs with solid systems, where all kpoints are at the 
