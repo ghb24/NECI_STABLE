@@ -249,20 +249,21 @@ contains
              endif
          ENDIF
 
-         if(tMolpro.and.tUHF) then
-             !Double up the arrays to take into account both spins
-             do i=NORB*2,1,-1
-                 if(mod(i,2).eq.0) then
-                     ORBSYM(i)=ORBSYM(i/2)
-                     SYML(i)=SYML(i/2)
-                     SYMLZ(i)=SYMLZ(i/2)
-                 else
-                     ORBSYM(i)=ORBSYM((i+1)/2)
-                     SYML(i)=SYML((i+1)/2)
-                     SYMLZ(i)=SYMLZ((i+1)/2)
-                 endif
-             enddo
-         endif
+         !Below is a mistake - since ISPINS is always two, it will be doubled up for us automatically for G1
+!         if(tMolpro.and.tUHF) then
+!             !Double up the arrays to take into account both spins
+!             do i=NORB*2,1,-1
+!                 if(mod(i,2).eq.0) then
+!                     ORBSYM(i)=ORBSYM(i/2)
+!                     SYML(i)=SYML(i/2)
+!                     SYMLZ(i)=SYMLZ(i/2)
+!                 else
+!                     ORBSYM(i)=ORBSYM((i+1)/2)
+!                     SYML(i)=SYML((i+1)/2)
+!                     SYMLZ(i)=SYMLZ((i+1)/2)
+!                 endif
+!             enddo
+!         endif
         
          !For Molpro, ISPINS should always be 2, and therefore NORB is spatial, and len is spin orbtials
          IF(LEN.NE.ISPINS*NORB) STOP 'LEN .NE. NORB in GETFCIBASIS'
