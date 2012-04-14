@@ -152,7 +152,8 @@ MODULE ReadInput_neci
             end select
         end do
         write (6,'(/,64("*"),/)')
-        IF(IR.EQ.1.or.IR.EQ.7) CLOSE(ir)
+!        IF(IR.EQ.1.or.IR.EQ.7) CLOSE(ir)
+        CLOSE(ir)
    99   IF (ios.gt.0) THEN
             WRITE (6,*) 'Problem reading input file ',TRIM(cFilename)
             call stop_all('ReadInputMain','Input error.')
