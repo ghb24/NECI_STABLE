@@ -2929,6 +2929,7 @@ SUBROUTINE SpinOrbSymSetup()
     !For molecular systems, this IS the character of the irrep
     !For k-point systems, this is an arbitrary label, and is equal to the standard label - 1.
     !This is chosen so that the indexing works with the rest of the excitation generators.
+    if(allocated(SpinOrbSymLabel)) deallocate(SpinOrbSymLabel)
     Allocate(SpinOrbSymLabel(nBasis))
     do i=1,nBasis
         if(tNoSymGenRandExcits.or.tUEG) then
