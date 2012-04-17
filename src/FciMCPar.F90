@@ -4306,7 +4306,7 @@ MODULE FciMCParMod
                 WRITE(6,'(I4)',advance='no') G1(BRR(I))%Ml
                 WRITE(6,'(2F19.9)')  ARR(I,1),ARR(BRR(I),2)
             ENDDO
-            WRITE(6,'(A)') " -------------------------------------------------------------------------------------------------"
+            WRITE(6,'(A)') " ================================================================================================="
             DO I=NEl+1,NEl+VirtCASOrbs
                 WRITE(6,'(6I7)',advance='no') I,BRR(I),G1(BRR(I))%K(1), G1(BRR(I))%K(2),G1(BRR(I))%K(3), G1(BRR(I))%MS
                 CALL WRITESYM(6,G1(BRR(I))%SYM,.FALSE.)
@@ -6402,7 +6402,7 @@ MODULE FciMCParMod
             WRITE(6,'(I4)',advance='no') G1(BRR(I))%Ml
             WRITE(6,'(2F19.9)')  ARR(I,1),ARR(BRR(I),2)
         ENDDO
-        WRITE(6,'(A)') " -------------------------------------------------------------------------------------------------"
+        WRITE(6,'(A)') " ================================================================================================="
         DO I=NEl+1,NEl+VirtCASOrbs
             WRITE(6,'(6I7)',advance='no') I,BRR(I),G1(BRR(I))%K(1), G1(BRR(I))%K(2),G1(BRR(I))%K(3), G1(BRR(I))%MS
             CALL WRITESYM(6,G1(BRR(I))%SYM,.FALSE.)

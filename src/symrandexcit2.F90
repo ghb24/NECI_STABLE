@@ -3348,7 +3348,7 @@ SUBROUTINE IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
             kOcc=G1(ExcitMat(1,1))%Ml+G1(ExcitMat(1,2))%Ml
             KUnocc=G1(ExcitMat(2,1))%Ml+G1(ExcitMat(2,2))%Ml
             IF(Kocc.ne.KUnocc) THEN
-                write(6,*) G1(ExcitMat(1,1))%Ml,G1(ExcitMat(1,2))%Ml,"-->",G1(ExcitMat(2,1))%Ml,G1(ExcitMat(2,2))%Ml
+                write(6,*) G1(ExcitMat(1,1))%Ml,G1(ExcitMat(1,2))%Ml,"==>",G1(ExcitMat(2,1))%Ml,G1(ExcitMat(2,2))%Ml
                 CALL Stop_All("IsSymAllowedExcit","Excitation not a valid momentum allowed double excitation")
             ENDIF
         ENDIF

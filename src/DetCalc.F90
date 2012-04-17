@@ -909,7 +909,7 @@ CONTAINS
           ENDIF
           IF(BTEST(ILOGGING,7)) CALL WRITE_PSI(BOX,BOA,COA,NDET,NEVAL,NBASISMAX,NEL,CK,W)
           IF(BTEST(ILOGGING,8)) CALL WRITE_PSI_COMP(BOX,BOA,COA,NDET,NEVAL,NBASISMAX,NEL,CK,W)
-          WRITE(6,*) '       ==--------------------------------------------------== '
+          WRITE(6,*) '       ====================================================== '
           WRITE(6,'(A5,5X,A15,1X,A18,1x,A20)') 'STATE','KINETIC ENERGY', 'COULOMB ENERGY', 'TOTAL ENERGY'
           iunit = get_free_unit()
           OPEN(iunit,FILE='ENERGIES',STATUS='UNKNOWN')
@@ -920,7 +920,7 @@ CONTAINS
              WRITE(iunit,"(F19.11)") W(IN)
           ENDDO
           CLOSE(iunit)
-          WRITE(6,*)   '       ==--------------------------------------------------== '
+          WRITE(6,*)   '       ====================================================== '
 !C., END energy calc
       ENDIF
 

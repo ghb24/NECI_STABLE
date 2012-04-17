@@ -728,7 +728,7 @@ contains
                                 & systems with only 8 symmetry irreps.")
       ENDIF
       IF(NFROZEN.GT.0.OR.NTFROZEN.GT.0.OR.NFROZENIN.GT.0.OR.NTFROZENIN.GT.0) THEN
-          WRITE(6,'(A)') '-------- FREEZING ORBITALS ----------'
+          WRITE(6,'(A)') '======== FREEZING ORBITALS =========='
 !!C.. At this point, we transform the UMAT and TMAT into a new UMAT and
 !!C.. TMAT and Ecore with the frozen orbitals factored in
 !!C..
