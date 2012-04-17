@@ -441,7 +441,7 @@ contains
 
          ENDIF
 
-         if(tMolpro) close(iunit)
+         if(tMolpro.and.(iProcIndex.eq.0)) close(iunit)
 
 !We now need to broadcast all the information we've just read in...
          IF(tCacheFCIDUMPInts) THEN
