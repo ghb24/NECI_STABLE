@@ -43,7 +43,7 @@ CONTAINS
         Use IntegralsData, only : NFROZEN
         use SystemData, only : tCSFOLD,lms, lms2, nBasis, nBasisMax, nEl, SymRestrict
         use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
-        use SystemData, only : tParity, tSpn,Symmetry,STot, NullBasisFn
+        use SystemData, only : tParity, tSpn,Symmetry,STot, NullBasisFn, tUHF,tMolpro
         use sym_mod
         use CCMCData,   only : tCCBuffer !This is messy, but I don't see anywhere else to put it. AJWT
         use Logging,    only : tLogDets
@@ -133,9 +133,16 @@ CONTAINS
             IF(TSPN) THEN
                WRITE(6,*) "Using spin restriction:",LMS
             ENDIF
-            CALL GNDTS_BLK(NEL,nBasis,BRR,NBASISMAX,NMRKS, .TRUE.,             &
-     &            NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,LMS2,TPARITY,        &
-     &           SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM)
+            if(tUHF.and.tMolpro) then
+                !When breaking spin symmetry in molpro, it is important to occupy alpha orbs preferentially
+                CALL GNDTS_BLK(NEL,nBasis,BRR,NBASISMAX,NMRKS, .TRUE.,             &
+     &                NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,-LMS2,TPARITY,        &
+     &               SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM)
+            else
+                CALL GNDTS_BLK(NEL,nBasis,BRR,NBASISMAX,NMRKS, .TRUE.,             &
+     &                NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,LMS2,TPARITY,        &
+     &               SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM)
+            endif
             WRITE(6,*) "NBLOCKS:",NBLOCKS
          ELSEIF(TCSFOLD) THEN
             WRITE(6,*) "Determining CSFs."
@@ -162,7 +169,12 @@ CONTAINS
             IF(TSPN) THEN
                WRITE(6,*) "Using spin restriction:",LMS
             ENDIF
-            CALL GNDTS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.TRUE.,G1,TSPN,LMS,TPARITY,SymRestrict,II,IFDET)
+            if(tUHF.and.tMolpro) then
+                !When breaking spin symmetry in molpro, it is important to occupy alpha orbs preferentially
+                CALL GNDTS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.TRUE.,G1,TSPN,-LMS,TPARITY,SymRestrict,II,IFDET)
+            else
+                CALL GNDTS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.TRUE.,G1,TSPN,LMS,TPARITY,SymRestrict,II,IFDET)
+            endif
             NBLOCKS=1
             NDET=II
          ENDIF
@@ -204,8 +216,14 @@ CONTAINS
             NBLOCKSTARTS(2)=II+1
             IFDET=1
          ELSEIF(TBLOCK) THEN 
-            CALL GNDTS_BLK(NEL,nBasis,BRR,NBASISMAX,NMRKS, .FALSE.,NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,LMS2,TPARITY, &
-     &           SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM)
+            if(tUHF.and.tMolpro) then
+                !When breaking spin symmetry in molpro, it is important to occupy alpha orbs preferentially
+                CALL GNDTS_BLK(NEL,nBasis,BRR,NBASISMAX,NMRKS, .FALSE.,NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,-LMS2,TPARITY, &
+     &               SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM)
+            else
+                CALL GNDTS_BLK(NEL,nBasis,BRR,NBASISMAX,NMRKS, .FALSE.,NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,LMS2,TPARITY, &
+     &               SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM)
+            endif
          ELSEIF(TCSFOLD) THEN
             NDET=0  !This will be reset by GNCSFS
             CALL GNCSFS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.FALSE.,G1,TSPN,LMS2,TPARITY, &
@@ -213,7 +231,12 @@ CONTAINS
                NBLOCKSTARTS(1)=1
                NBLOCKSTARTS(2)=II+1
          ELSE
-            CALL GNDTS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.FALSE.,G1,TSPN,LMS,TPARITY,SymRestrict,II,IFDET)
+            if(tUHF.and.tMolpro) then
+                !When breaking spin symmetry in molpro, it is important to occupy alpha orbs preferentially
+                CALL GNDTS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.FALSE.,G1,TSPN,-LMS,TPARITY,SymRestrict,II,IFDET)
+            else
+                CALL GNDTS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.FALSE.,G1,TSPN,LMS,TPARITY,SymRestrict,II,IFDET)
+            endif
                NBLOCKSTARTS(1)=1
                NBLOCKSTARTS(2)=II+1
          ENDIF
