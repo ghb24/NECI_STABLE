@@ -1860,7 +1860,7 @@ contains
                 do i=1,nexcit
                     call write_det (9, nK(i,:), .true.)
                 enddo
-                write(9,'("------------------")')
+                write(9,'("==================")')
                 close(9)
             endif
         else

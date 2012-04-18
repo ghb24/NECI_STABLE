@@ -298,7 +298,7 @@ contains
             if (pos < 0) then
                 call writebitdet(6, ilut, .false.)
                 write(6,*) ilut
-                write(6,*) '----------------'
+                write(6,*) '================'
                 do i=1,ubound(hist_spin_dist, 2)
                     write(6,*) hist_spin_dist(:,i)
                 enddo
