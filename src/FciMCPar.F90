@@ -1359,11 +1359,11 @@ MODULE FciMCParMod
             if(tMolpro) then
                 write (6, '(a)') '*WARNING* - Number of particles/determinants &
                                  &has increased to over 95% of allotted memory. &
-                                 &Errors imminent. Increase MEMORYFACWALKERS.'
+                                 &Errors imminent. Increase MEMORYFACWALKERS, or reduce rate of growth.'
             else
                 write (6, '(a)') '*WARNING* - Number of particles/determinants &
                                  &has increased to over 95% of allotted memory. &
-                                 &Errors imminent. Increase MEMORYFACPART.'
+                                 &Errors imminent. Increase MEMORYFACPART, or reduce rate of growth.'
             endif
             call neci_flush(6)
         end if
@@ -1377,11 +1377,11 @@ MODULE FciMCParMod
                     if(tMolpro) then
                         write (6, '(a)') '*WARNING* - Highest processor spawned &
                                          &particles has reached over 95% of allotted memory.&
-                                         &Errors imminent. Increase MEMORYFACSPAWNED'
+                                         &Errors imminent. Increase MEMORYFACSPAWNED, or reduce spawning rate.'
                     else
                         write (6, '(a)') '*WARNING* - Highest processor spawned &
                                          &particles has reached over 95% of allotted memory.&
-                                         &Errors imminent. Increase MEMORYFACSPAWN'
+                                         &Errors imminent. Increase MEMORYFACSPAWN, or reduce spawning rate.'
                     endif
                     call neci_flush(6)
                 endif
@@ -1392,11 +1392,11 @@ MODULE FciMCParMod
                 if(tMolpro) then
                     write (6, '(a)') '*WARNING* - Highest processor spawned &
                                      &particles has reached over 95% of allotted memory.&
-                                     &Errors imminent. Increase MEMORYFACSPAWNED'
+                                     &Errors imminent. Increase MEMORYFACSPAWNED, or reduce spawning rate.'
                 else
                     write (6, '(a)') '*WARNING* - Highest processor spawned &
                                      &particles has reached over 95% of allotted memory.&
-                                     &Errors imminent. Increase MEMORYFACSPAWN'
+                                     &Errors imminent. Increase MEMORYFACSPAWN, or reduce spawning rate.'
                 endif
                 call neci_flush(6)
             endif
@@ -6100,7 +6100,7 @@ MODULE FciMCParMod
         INTEGER, DIMENSION(lenof_sign) :: InitialSign
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
         integer :: ReadBatch    !This parameter determines the length of the array to batch read in walkers from a popsfile
-        real(dp) :: Gap
+        real(dp) :: Gap,ExpectedMemWalk
         !Variables from popsfile header...
         logical :: tPop64Bit,tPopHPHF,tPopLz
         integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
@@ -6150,8 +6150,15 @@ MODULE FciMCParMod
             endif
 
             MaxWalkersPart=NINT(MemoryFacPart*WalkerListSize)
+            ExpectedMemWalk=real((NIfTot+1)*MaxWalkersPart*size_n_int+8*MaxWalkersPart,dp)/1048576.0_dp
+            if(ExpectedMemWalk.lt.20.0) then
+                !Increase memory allowance for small runs to a min of 20mb
+                MaxWalkersPart=20.0*1048576.0/real((NIfTot+1)*size_n_int+8,dp)
+                write(6,"(A)") "Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors"
+            endif
             WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node of: ",MaxWalkersPart
-            Call SetupValidSpawned(int(WalkerListSize,int64))
+            !Here is where MaxSpawned is set up - do we want to set up a minimum allocation here too?
+            Call SetupValidSpawned(int(WalkerListSize,int64))  
 
 !Put a barrier here so all processes synchronise
             CALL MPIBarrier(error)

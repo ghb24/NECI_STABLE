@@ -194,7 +194,7 @@ MODULE PopsfileMod
         CALL LogMemDealloc(this_routine,BatchReadTag)
 
         write(6,"(A,I8)") "Number of batches required to distribute all determinants in POPSFILE: ",nBatches
-        write(6,*) "Number of configurations read in to this core: ",CurrWalkers 
+        write(6,*) "Number of configurations read in to this process: ",CurrWalkers 
 
         !Order the determinants on all the lists.
         call sort (dets(:,1:CurrWalkers))
@@ -426,7 +426,7 @@ MODULE PopsfileMod
         AllSumNoatHF=PopSumNoatHF
         AllSumENum=PopAllSumENum
         PreviousCycles=iPopIter
-        WRITE(6,*) "Number of cycles in previous simulation: ",PreviousCycles
+        WRITE(6,*) "Number of iterations in previous simulation: ",PreviousCycles
         IF(NEquilSteps.gt.0) THEN
             WRITE(6,*) "Removing equilibration steps since reading in from POPSFILE."
             NEquilSteps=0
