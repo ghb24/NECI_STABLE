@@ -4397,6 +4397,22 @@ MODULE FciMCParMod
             WRITE(6,"(A,I12)") "Value for seed is: ",Seed
             !Initialise...
             CALL dSFMT_init(Seed)
+            if(tMolpro) then
+                if((NMCyc.eq.-1).and.(.not.tTimeExit)) then
+                    !No iteration number, or TIME option has been specified.
+                    call warning_neci(this_routine,          &
+                    "No iteration number specified. Only running for 100 iterations initially. Change with ITERATIONS option.")
+                    NMCyc=100   !Only run for 100 iterations.
+                elseif(tTimeExit.and.(NMCyc.eq.-1)) then
+                    write(6,"(A,F10.3,A)") "Running FCIQMC for ",MaxTimeExit/60.0_dp," minutes."
+                elseif(tTimeExit.and.(NMCyc.ne.-1)) then
+                    write(6,"(A,F10.3,A,I15,A)") "Running FCIQMC for ",MaxTimeExit/60.0_dp," minutes OR ",NMCyc," iterations."
+                elseif((.not.tTimeExit).and.(NMCyc.gt.0)) then
+                    write(6,"(A,I15,A)") "Running FCIQMC for ",NMCyc," iterations."
+                else
+                    call stop_all(this_routine,"Iteration number/Time unknown for simulation - contact ghb")
+                endif
+            endif
         else
             !Reset the DiagSft to its original value
             DiagSft = InputDiagSft
