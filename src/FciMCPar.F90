@@ -160,8 +160,11 @@ MODULE FciMCParMod
         call WriteFciMCStatsHeader()
         ! Prepend a # to the initial status line so analysis doesn't pick up
         ! repetitions in the FCIMCStats or INITIATORStats files from restarts.
-        if(iProcIndex.eq.Root) write (fcimcstats_unit,'("#")', advance='no')
-        if(iProcIndex.eq.Root) write (initiatorstats_unit,'("#")', advance='no')
+!        write (6,'("#")', advance='no')
+        if (iProcIndex == root) then
+            write (fcimcstats_unit,'("#")', advance='no')
+            write (initiatorstats_unit,'("#")', advance='no')
+        end if
         call WriteFCIMCStats()
 
         ! Put a barrier here so all processes synchronise before we begin.
@@ -3074,8 +3077,10 @@ MODULE FciMCParMod
             ! Prepend a # to the initial status line so analysis doesn't pick up
             ! repetitions in the FCIMCStats or INITIATORStats files from restarts.
     !        write (6,'("#")', advance='no')
-            if(iProcIndex.eq.Root) write (fcimcstats_unit,'("#")', advance='no')
-            if(iProcIndex.eq.Root) write (initiatorstats_unit,'("#")', advance='no')
+            if (iProcIndex == root) then
+                write (fcimcstats_unit,'("#")', advance='no')
+                write (initiatorstats_unit,'("#")', advance='no')
+            end if
             call WriteFCIMCStats()
             return
         endif
