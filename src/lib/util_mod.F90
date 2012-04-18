@@ -2,7 +2,17 @@ module util_mod
     use util_mod_comparisons
     use util_mod_cpts
     use constants, only: dp, lenof_sign,sizeof_int
+    use iso_c_hack
     implicit none
+
+    interface
+        pure function strlen_wrap (str) result(len) bind(c)
+            use iso_c_hack
+            implicit none
+            character(c_char), intent(in) :: str(*)
+            integer(c_int) :: len
+        end function
+    end interface
 
     ! sds: It would be nice to use a proper private/public interface here,
     !      BUT PGI throws a wobbly on using the public definition on
@@ -16,12 +26,28 @@ module util_mod
 
 contains
 
-    subroutine print_cstr (str)
-        use iso_c_hack
-        character(c_char), intent(in) :: str(*)
-        integer :: i
+    subroutine print_cstr (str) bind(c)
 
-        print*, 'got str', (str(i),i=1,8)
+        ! Write a string outputted by calling fort_printf in C.
+        ! --> Ensure that it is redirected to the same place as the normal
+        !     STDOUT within fortran.
+
+        character(c_char), intent(in) :: str(*)
+        integer :: l, i
+
+        l = strlen_wrap(str)
+        call print_cstr_local (str, l)
+
+    end subroutine
+
+    subroutine print_cstr_local (str, l)
+
+        character(c_char), intent(in) :: str(*)
+        integer, intent(in) :: l
+        character(len=l) :: tmp_s
+
+        tmp_s = transfer(str(1:l), tmp_s)
+        write(6, '(a)', advance='no') tmp_s
 
     end subroutine
 
