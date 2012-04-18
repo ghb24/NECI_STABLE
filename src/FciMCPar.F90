@@ -160,9 +160,8 @@ MODULE FciMCParMod
         call WriteFciMCStatsHeader()
         ! Prepend a # to the initial status line so analysis doesn't pick up
         ! repetitions in the FCIMCStats or INITIATORStats files from restarts.
-!        write (6,'("#")', advance='no')
-        write (fcimcstats_unit,'("#")', advance='no')
-        write (initiatorstats_unit,'("#")', advance='no')
+        if(iProcIndex.eq.Root) write (fcimcstats_unit,'("#")', advance='no')
+        if(iProcIndex.eq.Root) write (initiatorstats_unit,'("#")', advance='no')
         call WriteFCIMCStats()
 
         ! Put a barrier here so all processes synchronise before we begin.
@@ -558,11 +557,11 @@ MODULE FciMCParMod
             enddo
 
 
-            write(6,*) ""
+            write(6,*) 
             write(6,'(A)') "Current reference: "
             call write_det (6, ProjEDet, .true.)
             call writeDetBit(6,iLutRef,.true.)
-            write(6,*) ""
+            write(6,*) 
             write(6,"(A,I10,A)") "Most occupied ",counter," determinants as excitations from reference: "
             write(6,*) 
             if(lenof_sign.eq.1) then
@@ -1354,8 +1353,15 @@ MODULE FciMCParMod
         ! Too many particles?
         rat = real(TotWalkersNew,dp) / real(MaxWalkersPart,dp)
         if (rat > 0.95) then
-            write (6, '(a)') '*WARNING* - Number of particles/determinants &
-                             &has increased to over 95% of MaxWakersPart.'
+            if(tMolpro) then
+                write (6, '(a)') '*WARNING* - Number of particles/determinants &
+                                 &has increased to over 95% of allotted memory. &
+                                 &Errors imminent. Increase MEMORYFACWALKERS.'
+            else
+                write (6, '(a)') '*WARNING* - Number of particles/determinants &
+                                 &has increased to over 95% of allotted memory. &
+                                 &Errors imminent. Increase MEMORYFACPART.'
+            endif
             call neci_flush(6)
         end if
 
@@ -1365,17 +1371,30 @@ MODULE FciMCParMod
                 rat = real(ValidSpawnedList(i) - InitialSpawnedSlots(i),dp) /&
                              real(InitialSpawnedSlots(1), dp)
                 if (rat > 0.95) then
-                    write (6, '(a)') '*WARNING* - Highest processor spawned &
-                                     &particles has reached over 95% of &
-                                     &MaxSpawned.'
+                    if(tMolpro) then
+                        write (6, '(a)') '*WARNING* - Highest processor spawned &
+                                         &particles has reached over 95% of allotted memory.&
+                                         &Errors imminent. Increase MEMORYFACSPAWNED'
+                    else
+                        write (6, '(a)') '*WARNING* - Highest processor spawned &
+                                         &particles has reached over 95% of allotted memory.&
+                                         &Errors imminent. Increase MEMORYFACSPAWN'
+                    endif
                     call neci_flush(6)
                 endif
             enddo
         else
             rat = real(ValidSpawnedList(0), dp) / real(MaxSpawned, dp)
             if (rat > 0.95) then
-                write (6, '(a)') '*WARNING* - Number of spawned particles has&
-                                 & reached over 95% of MaxSpawned.'
+                if(tMolpro) then
+                    write (6, '(a)') '*WARNING* - Highest processor spawned &
+                                     &particles has reached over 95% of allotted memory.&
+                                     &Errors imminent. Increase MEMORYFACSPAWNED'
+                else
+                    write (6, '(a)') '*WARNING* - Highest processor spawned &
+                                     &particles has reached over 95% of allotted memory.&
+                                     &Errors imminent. Increase MEMORYFACSPAWN'
+                endif
                 call neci_flush(6)
             endif
         endif
@@ -1390,7 +1409,7 @@ MODULE FciMCParMod
             endif
         endif
 
-    end subroutine
+    end subroutine end_iteration_print_warn 
 
 
     subroutine CalcParentFlag(j, VecSlot, parent_flags)
@@ -3055,8 +3074,8 @@ MODULE FciMCParMod
             ! Prepend a # to the initial status line so analysis doesn't pick up
             ! repetitions in the FCIMCStats or INITIATORStats files from restarts.
     !        write (6,'("#")', advance='no')
-            write (fcimcstats_unit,'("#")', advance='no')
-            write (initiatorstats_unit,'("#")', advance='no')
+            if(iProcIndex.eq.Root) write (fcimcstats_unit,'("#")', advance='no')
+            if(iProcIndex.eq.Root) write (initiatorstats_unit,'("#")', advance='no')
             call WriteFCIMCStats()
             return
         endif
@@ -3388,7 +3407,7 @@ MODULE FciMCParMod
                 if(iProcIndex.eq.root) then
                     write(6,"(A,f15.10)") "Spawning probability found of: ",AllMaxSpawnProb
                     write(6,"(A,f10.5)") "Reducing timestep to limit spawning probability to: ",MaxAllowedSpawnProb
-                    write(6,"(A,f20.15)") "New tau: ",tau
+                    write(6,"(A,f20.15)") "New timestep: ",tau
                 endif
                 MaxSpawnProb=0.0_dp
             endif
@@ -3985,7 +4004,11 @@ MODULE FciMCParMod
 !        character(len=36) :: command
         character(len=*), parameter :: t_r='MoveFCIMCStatsFiles'
 
-        inquire(file='FCIMCStats',exist=exists)
+        if(tMolpro) then
+            inquire(file='FCIQMCStats',exist=exists)
+        else
+            inquire(file='FCIMCStats',exist=exists)
+        endif
         if(exists) then
             !We already have an FCIMCStats file - move it to the end of the list of FCIMCStats files.
 
@@ -3993,7 +4016,11 @@ MODULE FciMCParMod
             do while(.true.)
                 abstr=''
                 write(abstr,'(I12)') extension
-                abstr='FCIMCStats.'//adjustl(abstr)
+                if(tMolpro) then
+                    abstr='FCIQMCStats.'//adjustl(abstr)
+                else
+                    abstr='FCIMCStats.'//adjustl(abstr)
+                endif
                 inquire(file=abstr,exist=exists)
                 if(.not.exists) exit
                 extension=extension+1
@@ -4007,7 +4034,11 @@ MODULE FciMCParMod
 !            command = 'mv' // ' FCIMCStats ' // abstr
 !            stat = neci_system(trim(command))
 
-            call rename('FCIMCStats',abstr)
+            if(tMolpro) then
+                call rename('FCIQMCStats',abstr)
+            else
+                call rename('FCIMCStats',abstr)
+            endif
             !Doesn't like the stat argument
 !            if(stat.ne.0) then
 !                call stop_all(t_r,"Error with renaming FCIMCStats file")
@@ -4047,9 +4078,13 @@ MODULE FciMCParMod
         integer(int64) :: ExcitLevPop,SymHF
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
-        WRITE(6,*) ""
-        WRITE(6,*) "Performing Parallel FCIMC...."
-        WRITE(6,*) ""
+        WRITE(6,*) 
+        if(nProcessors.gt.1) then
+            WRITE(6,*) "Performing Parallel FCIQMC...."
+        else
+            write(6,*) "Performing FCIQMC...."
+        endif
+        WRITE(6,*) 
         
 !Set timed routine names
         Walker_Time%timer_name='WalkerTime'
@@ -4073,10 +4108,18 @@ MODULE FciMCParMod
             fcimcstats_unit = get_free_unit()
             if (tReadPops) then
                 ! Restart calculation.  Append to stats file (if it exists).
-                OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown',position='append')
+                if(tMolpro) then
+                    OPEN(fcimcstats_unit,file='FCIQMCStats',status='unknown',position='append')
+                else
+                    OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown',position='append')
+                endif
             else
                 call MoveFCIMCStatsFiles()          !This ensures that FCIMCStats files are not overwritten
-                OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown')
+                if(tMolpro) then
+                    OPEN(fcimcstats_unit,file='FCIQMCStats',status='unknown')
+                else
+                    OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown')
+                endif
             end if
             IF(tTruncInitiator.or.tDelayTruncInit) THEN
                 initiatorstats_unit = get_free_unit()
@@ -4462,8 +4505,8 @@ MODULE FciMCParMod
                 TempHii = get_helement (HighEDet, HighEDet, 0)
             ENDIF
             UpperTau = 1.D0/REAL(TempHii-Hii,dp)
-            WRITE(6,"(A,G25.15)") "Highest energy determinant is (approximately): ",REAL(TempHii,dp)
-            WRITE(6,"(A,F25.15)") "This means tau should be no more than about ",UpperTau
+!            WRITE(6,"(A,G25.15)") "Highest energy determinant is (approximately): ",REAL(TempHii,dp)
+!            WRITE(6,"(A,F25.15)") "This means tau should be no more than about ",UpperTau
 !            WRITE(6,*) "Highest energy determinant is: ", HighEDet(:)
         else
             UpperTau=0.0_dp
@@ -4729,12 +4772,12 @@ MODULE FciMCParMod
         IF(tUseBrillouin) THEN
             WRITE(6,"(A)") "Brillouin theorem in use for calculation of projected energy." 
         ENDIF
-        WRITE(6,*) "Non-uniform excitation generators in use."
+!        WRITE(6,*) "Non-uniform excitation generators in use."
         CALL CalcApproxpDoubles()
         IF(TauFactor.ne.0.D0) THEN
             WRITE(6,*) "TauFactor detected. Resetting Tau based on connectivity of: ",HFConn
             Tau=TauFactor/REAL(HFConn,dp)
-            WRITE(6,*) "Tau set to: ",Tau
+            WRITE(6,*) "Timestep set to: ",Tau
         ENDIF
 
         if(tSearchTau) then
@@ -4764,7 +4807,7 @@ MODULE FciMCParMod
                 MaxAllowedSpawnProb = real(MaxWalkerBloom,dp)
             endif
 
-            write(6,"(A,f10.5)") "Will search for optimal tau &
+            write(6,"(A,f10.5)") "Will search for optimal timestep &
                        &to limit spawning probability to: ", &
                        MaxAllowedSpawnProb
         endif
@@ -4817,7 +4860,7 @@ MODULE FciMCParMod
         if(tShiftonHFPop) then
             write(6,*) "Shift will be varied in order to keep the population on the reference determinant fixed"
         endif
-        WRITE(6,*) "Maximum connectivity of HF determinant is: ",HFConn
+        WRITE(6,*) "Connectivity of HF determinant is: ",HFConn
         IF(TStartSinglePart) THEN
             TSinglePartPhase=.true.
         ELSE
@@ -5023,10 +5066,14 @@ MODULE FciMCParMod
         call clean_excit_gen_store (store)
         call clean_excit_gen_store (store2)
 
-        if(tau.gt.0.1) tau=0.15_dp
-
-        write(6,"(A,F18.10)") "From analysis of reference determinant and connections, &
-                                 &an upper bound for the timestep is: ",Tau
+        if(tau.gt.0.075) then
+            tau=0.075_dp
+            write(6,"(A,F8.5,A)") "Small system. Setting initial timestep to be ",Tau," although this &
+                                            &may be inappropriate. Care needed"
+        else
+            write(6,"(A,F18.10)") "From analysis of reference determinant and connections, &
+                                     &an upper bound for the timestep is: ",Tau
+        endif
 
     end subroutine FindMaxTauDoubs
 
@@ -5519,8 +5566,8 @@ MODULE FciMCParMod
                        &" rather than (without bias): ", f14.6)') &
                        pSingles, real(nSing,dp) / real(iTotal,dp)
 
-            WRITE(6,"(A,F14.6,A,F14.6)") "pDoubles set to: ",pDoubles, " rather than (without bias): ", &
-                & real(nDoub,dp)/real(iTotal,dp)
+!            WRITE(6,"(A,F14.6,A,F14.6)") "pDoubles set to: ",pDoubles, " rather than (without bias): ", &
+!                & real(nDoub,dp)/real(iTotal,dp)
         ELSE
             write (6,'(A,F14.6)') " pDoubles set to: ", pDoubles
             write (6,'(A,F14.6)') " pSingles set to: ", pSingles
@@ -7384,7 +7431,7 @@ MODULE FciMCParMod
       MaxSpawned=NINT(MemoryFacSpawn*WalkerListSize)
 !            WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for spawning of: ",MaxSpawned
             
-      WRITE(6,"(A)") "*Direct Annihilation* in use...Explicit load-balancing disabled."
+!      WRITE(6,"(A)") "*Direct Annihilation* in use...Explicit load-balancing disabled."
       ALLOCATE(ValidSpawnedList(0:nNodes-1),stat=ierr)
       ! InitialSpawnedSlots is now filled later, once the number of particles
       ! wanted is known
