@@ -276,7 +276,7 @@ MODULE FciMCParMod
                     ENDIF
                 ENDIF
 
-                TotalTime8=real(s_end,dp)
+                if(iProcIndex.eq.root) TotalTime8=real(s_end,dp)
                 call MPIBCast(TotalTime8)    !TotalTime is local - broadcast to all procs
 
 !This routine will check for a CHANGEVARS file and change the parameters of the calculation accordingly.
