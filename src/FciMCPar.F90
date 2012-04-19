@@ -6256,13 +6256,10 @@ MODULE FciMCParMod
 
                 if(tStartMP1) then
                     !Initialise walkers according to mp1 amplitude.
-                    if(tHashWalkerList) call stop_all(this_routine,"StartMP1 does not currently work with walker hashing algorithm")
                     call InitFCIMC_MP1()
 
                 elseif(tStartCAS) then
                     !Initialise walkers according to a CAS diagonalisation.
-                    if(tHashWalkerList) call stop_all(this_routine,"StartCAS does not currently work with walker hashing algorithm")
-
                     call InitFCIMC_CAS()
 
                 else !Set up walkers on HF det
@@ -6440,7 +6437,7 @@ MODULE FciMCParMod
         use MomInv, only: IsAllowedMI 
         type(BasisFN) :: CASSym
         integer :: i,j,ierr,nEval,NKRY1,NBLOCK,LSCR,LISCR,DetIndex,iNode,NoWalkers,nBlocks,nBlockStarts(2)
-        integer :: CASSpinBasisSize,elec,nCASDet,ICMax,GC,LenHamil,iInit,nHPHFCAS
+        integer :: CASSpinBasisSize,elec,nCASDet,ICMax,GC,LenHamil,iInit,nHPHFCAS,Slot,DetHash
         integer , allocatable :: CASBrr(:),CASDet(:),CASFullDets(:,:),nRow(:),Lab(:),ISCR(:),INDEX(:)
         integer , pointer :: CASDetList(:,:) => null()
         integer(n_int) :: iLutnJ(0:NIfTot)
@@ -6789,6 +6786,16 @@ MODULE FciMCParMod
                         endif
                         CurrentH(DetIndex)=real(HDiagTemp,dp)-Hii
                     endif
+                    if(tHashWalkerList) then
+                        !Now need to index this determinant
+                        DetHash=FindWalkerHash(CASFullDets(:,i))  !Find det hash position
+                        Slot=HashIndex(0,DetHash)   !Find which free slot is next in the clashes
+                        HashIndex(Slot,DetHash)=DetIndex    !Index the position of the determinant in CurrentDets
+                        HashIndex(0,DetHash)=HashIndex(0,DetHash)+1 !Increment the number of hash clashes here
+                        if(HashIndex(0,DetHash).gt.nClashMax) then
+                            call EnlargeHashTable()
+                        endif
+                    endif
                     DetIndex=DetIndex+1
                     TotParts(1)=TotParts(1)+abs(NoWalkers)
                 endif
@@ -6797,7 +6804,10 @@ MODULE FciMCParMod
 
         TotWalkers=DetIndex-1   !This is the number of occupied determinants on each node
         TotWalkersOld=TotWalkers
-        call sort(CurrentDets(:,1:TotWalkers),CurrentH(1:TotWalkers))
+
+        if(.not.tHashWalkerList) then
+            call sort(CurrentDets(:,1:TotWalkers),CurrentH(1:TotWalkers))
+        endif
 
         !Set local&global variables
         TotPartsOld=TotParts
@@ -6825,7 +6835,7 @@ MODULE FciMCParMod
         use CalcData , only : InitialPart
         real(dp) :: TotMP1Weight,amp,MP2Energy,PartFac,H0tmp,rat,r
         HElement_t :: hel,HDiagtemp
-        integer :: iExcits,exflag,Ex(2,2),nJ(NEl),ic,DetIndex,iNode,NoWalkers,iInit
+        integer :: iExcits,exflag,Ex(2,2),nJ(NEl),ic,DetIndex,iNode,NoWalkers,iInit,Slot,DetHash
         integer(n_int) :: iLutnJ(0:NIfTot)
         integer, dimension(lenof_sign) :: temp_sign
         logical :: tAllExcitsFound,tParity
@@ -7005,6 +7015,16 @@ MODULE FciMCParMod
                         endif
                         CurrentH(DetIndex)=real(HDiagTemp,dp)-Hii
                     endif
+                    if(tHashWalkerList) then
+                        !Now need to index this determinant
+                        DetHash=FindWalkerHash(nJ)  !Find det hash position
+                        Slot=HashIndex(0,DetHash)   !Find which free slot is next in the clashes
+                        HashIndex(Slot,DetHash)=DetIndex    !Index the position of the determinant in CurrentDets
+                        HashIndex(0,DetHash)=HashIndex(0,DetHash)+1 !Increment the number of hash clashes here
+                        if(HashIndex(0,DetHash).gt.nClashMax) then
+                            call EnlargeHashTable()
+                        endif
+                    endif
                     DetIndex=DetIndex+1
                     TotParts(1)=TotParts(1)+abs(NoWalkers)
                 endif
@@ -7031,6 +7051,16 @@ MODULE FciMCParMod
                     call set_flag(CurrentDets(:,DetIndex),flag_is_initiator(2))
                 endif
                 if(.not.tRegenDiagHEls) CurrentH(DetIndex)=0.D0
+                if(tHashWalkerList) then
+                    !Now need to index HF. Note that this is *not* slot 1 now, though this shouldn't be a problem. 
+                    DetHash=FindWalkerHash(HFDet)  !Find det hash position
+                    Slot=HashIndex(0,DetHash)   !Find which free slot is next in the clashes
+                    HashIndex(Slot,DetHash)=DetIndex    !Index the position of the determinant in CurrentDets
+                    HashIndex(0,DetHash)=HashIndex(0,DetHash)+1 !Increment the number of hash clashes here
+                    if(HashIndex(0,DetHash).gt.nClashMax) then
+                        call EnlargeHashTable()
+                    endif
+                endif
                 DetIndex=DetIndex+1
                 TotParts(1)=TotParts(1)+abs(NoWalkers)
                 NoatHF(1) = NoWalkers
@@ -7043,7 +7073,10 @@ MODULE FciMCParMod
             
         TotWalkers=DetIndex-1   !This is the number of occupied determinants on each node
         TotWalkersOld=TotWalkers
-        call sort(CurrentDets(:,1:TotWalkers),CurrentH(1:TotWalkers))
+
+        if(.not.tHashWalkerList) then
+            call sort(CurrentDets(:,1:TotWalkers),CurrentH(1:TotWalkers))
+        endif
 
         !Set local&global variables
         TotPartsOld=TotParts
