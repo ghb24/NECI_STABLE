@@ -920,7 +920,7 @@ MODULE System
 
 !C ==-------------------------------------------------------------------==
 !C..Input parameters
-      WRITE(6,'(A)') '-------- SYSTEM ----------'
+      WRITE(6,'(A)') '======== SYSTEM =========='
       WRITE(6,'(A,I5)') '  NUMBER OF ELECTRONS : ' , NEL
       IF(TSPN) THEN
           WRITE(6,*) ' Restricting the spin state of the system, TSPN : ' , TSPN

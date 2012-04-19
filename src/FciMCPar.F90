@@ -65,7 +65,8 @@ MODULE FciMCParMod
                        tPrintDoubsUEG, StartPrintDoubsUEG, tCalcInstantS2, &
                        instant_s2_multiplier, tMCOutput, tSplitProjEHist, &
                        tSplitProjEHistG, tSplitProjEHistK3, iProjEBins, &
-                       tDiagWalkerSubspace,iDiagSubspaceIter
+                       tDiagWalkerSubspace, iDiagSubspaceIter, &
+                       tCalcInstantS2Init, instant_s2_multiplier_init
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
                     hist_spin_dist, ilut_spindist, tHistSpinDist, &
                     write_clear_hist_spin_dist, hist_spin_dist_iter, &
@@ -118,6 +119,11 @@ MODULE FciMCParMod
         use Logging, only: PopsfileTimer
         use util_mod, only: get_free_unit
         use sym_mod, only: getsym
+#ifdef MOLPRO
+        use outputResult
+        integer :: nv,ityp(1)
+#endif
+        integer :: iroot,isymh
         real(dp) :: Weight, Energyxw
         INTEGER :: error
         LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange,tPrintWarn
@@ -128,7 +134,7 @@ MODULE FciMCParMod
         integer, dimension(lenof_sign) :: tmp_sgn
         integer :: tmp_int(lenof_sign), i
         real(dp) :: grow_rate
-        TYPE(BasisFn) HFSym
+        TYPE(BasisFn) RefSym
 
         TDebug=.false.  !Set debugging flag
                     
@@ -155,15 +161,21 @@ MODULE FciMCParMod
         ! Prepend a # to the initial status line so analysis doesn't pick up
         ! repetitions in the FCIMCStats or INITIATORStats files from restarts.
 !        write (6,'("#")', advance='no')
-        write (fcimcstats_unit,'("#")', advance='no')
-        write (initiatorstats_unit,'("#")', advance='no')
+        if (iProcIndex == root) then
+            write (fcimcstats_unit,'("#")', advance='no')
+            write (initiatorstats_unit,'("#")', advance='no')
+        end if
         call WriteFCIMCStats()
 
         ! Put a barrier here so all processes synchronise before we begin.
         call MPIBarrier(error)
 
-!Start MC simulation...
-        TIncrement=.true.   !If TIncrement is true, it means that when it comes out of the loop, it wants to subtract 1 from the Iteration count to get the true number of iterations
+        ! Start MC simulation...
+        !
+        ! If tIncrument is true, it means that when it comes out of the loop,
+        ! it wants to subtract 1 from the iteration count to get the true
+        ! number of iterations
+        tIncrement = .true.
         Iter=1
         do while (Iter <= NMCyc .or. NMCyc == -1)
 !Main iteration loop...
@@ -341,7 +353,9 @@ MODULE FciMCParMod
 !End of MC cycle
         enddo
 
-        IF(TIncrement) Iter=Iter-1     !Reduce the iteration count for the POPSFILE since it is incremented upon leaving the loop (if done naturally)
+        ! Reduce the iteration count fro the POPSFILE since it is incremented
+        ! upon leaving the loop (If done naturally).
+        IF(TIncrement) Iter=Iter-1
         IF(TPopsFile) THEN
             CALL WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
         ENDIF
@@ -350,7 +364,9 @@ MODULE FciMCParMod
             CALL PrintFCIMCPsi()
 
             IF(tFindCINatOrbs) THEN
-!This routine takes the wavefunction Psi, calculates the one electron density matrix, and rotates the HF orbitals to produce a new ROFCIDUMP file.
+               ! This routine takes the wavefunction Psi, calculates the one 
+               ! electron density matrix, and rotates the HF orbitals to 
+               ! produce a new ROFCIDUMP file.
                 CALL RotateOrbs() 
                 CALL MPIBarrier(error)
             ENDIF
@@ -389,6 +405,21 @@ MODULE FciMCParMod
             write (6,'(1X,a34,1X,i18)') 'Min number of determinants/process:',MinWalkers
             write (6,'(1X,a34,1X,i18,/)') 'Max number of determinants/process:',MaxWalkers
         end if
+
+        iroot=1
+        CALL GetSym(ProjEDet,NEl,G1,NBasisMax,RefSym)
+        isymh=int(RefSym%Sym%S,sizeof_int)+1
+        write (6,10101) iroot,isymh
+10101   format(//'RESULTS FOR STATE',i2,'.',i1/'====================='/)
+        write (6,'('' Current reference energy'',T36,F19.12)') Hii 
+        write (6,'('' Correlation energy'',T36,F19.12)') ProjectionE
+#ifdef MOLPRO
+        call output_result('FCIQMC','Energy',ProjectionE+Hii,iroot,isymh)
+        if (iroot.eq.1) call clearvar('ENERGY')
+        ityp(1)=1
+        call setvar('ENERGY',ProjectionE+Hii,'AU',ityp,1,nv,iroot)
+#endif MOLPRO
+ 
         
 !Deallocate memory
         CALL DeallocFCIMCMemPar()
@@ -408,7 +439,6 @@ MODULE FciMCParMod
         endif
 
     END SUBROUTINE FciMCPar
-
 
     ! **********************************************************
     ! ************************* NOTE ***************************
@@ -1184,8 +1214,15 @@ MODULE FciMCParMod
         ! Too many particles?
         rat = real(TotWalkersNew,dp) / real(MaxWalkersPart,dp)
         if (rat > 0.95) then
-            write (6, '(a)') '*WARNING* - Number of particles/determinants &
-                             &has increased to over 95% of MaxWakersPart.'
+            if(tMolpro) then
+                write (6, '(a)') '*WARNING* - Number of particles/determinants &
+                                 &has increased to over 95% of allotted memory. &
+                                 &Errors imminent. Increase MEMORYFACWALKERS, or reduce rate of growth.'
+            else
+                write (6, '(a)') '*WARNING* - Number of particles/determinants &
+                                 &has increased to over 95% of allotted memory. &
+                                 &Errors imminent. Increase MEMORYFACPART, or reduce rate of growth.'
+            endif
             call neci_flush(6)
         end if
 
@@ -1195,17 +1232,30 @@ MODULE FciMCParMod
                 rat = real(ValidSpawnedList(i) - InitialSpawnedSlots(i),dp) /&
                              real(InitialSpawnedSlots(1), dp)
                 if (rat > 0.95) then
-                    write (6, '(a)') '*WARNING* - Highest processor spawned &
-                                     &particles has reached over 95% of &
-                                     &MaxSpawned.'
+                    if(tMolpro) then
+                        write (6, '(a)') '*WARNING* - Highest processor spawned &
+                                         &particles has reached over 95% of allotted memory.&
+                                         &Errors imminent. Increase MEMORYFACSPAWNED, or reduce spawning rate.'
+                    else
+                        write (6, '(a)') '*WARNING* - Highest processor spawned &
+                                         &particles has reached over 95% of allotted memory.&
+                                         &Errors imminent. Increase MEMORYFACSPAWN, or reduce spawning rate.'
+                    endif
                     call neci_flush(6)
                 endif
             enddo
         else
             rat = real(ValidSpawnedList(0), dp) / real(MaxSpawned, dp)
             if (rat > 0.95) then
-                write (6, '(a)') '*WARNING* - Number of spawned particles has&
-                                 & reached over 95% of MaxSpawned.'
+                if(tMolpro) then
+                    write (6, '(a)') '*WARNING* - Highest processor spawned &
+                                     &particles has reached over 95% of allotted memory.&
+                                     &Errors imminent. Increase MEMORYFACSPAWNED, or reduce spawning rate.'
+                else
+                    write (6, '(a)') '*WARNING* - Highest processor spawned &
+                                     &particles has reached over 95% of allotted memory.&
+                                     &Errors imminent. Increase MEMORYFACSPAWN, or reduce spawning rate.'
+                endif
                 call neci_flush(6)
             endif
         endif
@@ -1220,7 +1270,7 @@ MODULE FciMCParMod
             endif
         endif
 
-    end subroutine
+    end subroutine end_iteration_print_warn 
 
 
     subroutine CalcParentFlag(j, VecSlot, parent_flags)
@@ -1385,15 +1435,17 @@ MODULE FciMCParMod
 
         CALL MPIAllReduceDatatype(HighPopinPos,1,MPI_MAXLOC,MPI_2INTEGER,HighPopoutPos)
 
-!Now, on all processors, HighPopoutPos(1) is the highest positive population, and HighPopoutNeg(1) is the highest negative population.
-!HighPopoutPos(2) is the processor the highest population came from.
+        ! Now, on all processors, HighPopoutPos(1) is the highest positive 
+        ! population, and HighPopoutNeg(1) is the highest negative population.
+        ! HighPopoutPos(2) is the processor the highest population came from.
 
         IF(iProcIndex.eq.HighPopOutNeg(2)) DetNeg(:)=CurrentDets(:,HighPopNeg)
         IF(iProcIndex.eq.HighPopOutPos(2)) DetPos(:)=CurrentDets(:,HighPopPos)
 
-        !This is a horrible hack, because the process argument should be of type 'integer' - whatever that is,
-        !but the highpopoutneg is explicitly an int(4), so that it works with MPI_2INTEGER. Because
-        !of the explicit interfaces, we need to do this.
+        ! This is a horrible hack, because the process argument should be of 
+        ! type 'integer' - whatever that is, but the highpopoutneg is 
+        ! explicitly an int(4), so that it works with MPI_2INTEGER. Because
+        ! of the explicit interfaces, we need to do this.
         ProcBCastNeg=HighPopOutNeg(2)
         ProcBCastPos=HighPopOutPos(2)
         CALL MPIBcast(DetNeg,NIfTot+1,ProcBCastNeg)
@@ -1862,9 +1914,13 @@ MODULE FciMCParMod
 
     end function
 
-!Depreciated function - only used for CCMC
-!This function tells us whether we should create a child particle on nJ, from a parent particle on DetCurr with sign WSign, created with probability Prob
-!It returns zero if we are not going to create a child, or -1/+1 if we are to create a child, giving the sign of the new particle
+    ! Depreciated function - only used for CCMC
+    !
+    ! This function tells us whether we should create a child particle on nJ,
+    ! from a parent particle on DetCurr with sign WSign, created with 
+    ! probability Prob. It returns zero if we are not going to create a child,
+    ! or -1/+1 if we are to create a child, giving the sign of the new
+    ! particle
     INTEGER FUNCTION AttemptCreatePar(DetCurr,iLutCurr,WSign,nJ,iLutnJ,Prob,IC,Ex,tParity)
         use GenRandSymExcitNUMod , only : GenRandSymExcitBiased
         use Logging, only : CCMCDebug
@@ -1876,8 +1932,10 @@ MODULE FciMCParMod
         HElement_t :: rh
 
         IF(tMCExcits) THEN
-!If we are generating multiple excitations, then the probability of spawning on them must be reduced by the number of excitations generated.
-!This is equivalent to saying that the excitation is likely to arise a factor of NoMCExcits more often.
+        ! If we are generating multiple excitations, then the probability of 
+        ! spawning on them must be reduced by the number of excitations 
+        ! generated. This is equivalent to saying that the excitation is 
+        ! likely to arise a factor of NoMCExcits more often.
             Prob=Prob*REAL(NoMCExcits,dp)
         ENDIF
             
@@ -1899,10 +1957,15 @@ MODULE FciMCParMod
 !                CALL HPHFGetOffDiagHElement(DetCurr,nJ,iLutCurr,iLutnJ,rh)
 
             ELSE
-!The IC given doesn't really matter. It just needs to know whether it is a diagonal or off-diagonal matrix element.
-!However, the excitation generator can generate the same HPHF again. If this is done, the routine will send the matrix element back as zero.
+                ! The IC given doesn't really matter. It just needs to know 
+                ! whether it is a diagonal or off-diagonal matrix element.
+                ! However, the excitation generator can generate the same 
+                ! HPHF again. If this is done, the routine will send the 
+                ! matrix element back as zero.
                 rh = hphf_off_diag_helement (DetCurr, nJ, iLutCurr, iLutnJ)
-!Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
+
+                ! Divide by the probability of creating the excitation to 
+                ! negate the fact that we are only creating a few determinants
                 rat=Tau*abs(rh)/Prob
 !                WRITE(6,*) Prob/rh, DetCurr(:),"***",nJ(:)
 !                WRITE(6,*) "******"
@@ -2269,11 +2332,13 @@ MODULE FciMCParMod
 
     
 
-!This routine will find the largest weighted MP1 determinants, from which we can construct energy level splitting dependant on the sign.
+    ! This routine will find the largest weighted MP1 determinants, from
+    ! which we can construct energy level splitting dependant on the sign.
     
-
-!This routine will take the particle and sign lists, sort them and then compress them so each determinant is only specified once. This requires sign-coherent lists.
-!The 'length' will be returned as the length of the new list.
+    ! This routine will take the particle and sign lists, sort them and then 
+    ! compress them so each determinant is only specified once. This requires 
+    ! sign-coherent lists.
+    ! The 'length' will be returned as the length of the new list.
     SUBROUTINE SortCompressLists(Length,PartList,SignList)
         INTEGER :: Length,SignList(Length)
         INTEGER(KIND=n_int) :: PartList(0:NIfTot,Length)
@@ -2304,9 +2369,13 @@ MODULE FciMCParMod
 
     END SUBROUTINE SortCompressLists
 
-!This routine will take the particle and sign lists, sort them and then compress them so each determinant is only specified once. This requires sign-coherent lists.
-!The 'length' will be returned as the length of the new list.
-!In this version, the hamiltonian matrix elements will be fed through with the rest of the list and taken with the particles.
+    ! This routine will take the particle and sign lists, sort them and then 
+    ! compress them so each determinant is only specified once. This requires
+    ! sign-coherent lists.
+
+    ! The 'length' will be returned as the length of the new list.
+    ! In this version, the hamiltonian matrix elements will be fed through
+    ! with the rest of the list and taken with the particles.
     SUBROUTINE SortCompressListswH(Length,PartList,SignList,HList)
         INTEGER :: Length,SignList(Length)
         INTEGER(KIND=n_int) :: PartList(0:NIfTot,Length)
@@ -2621,7 +2690,9 @@ MODULE FciMCParMod
         IF(iProcIndex.eq.0) THEN
 
 !            IF(.not.associated(NMRKS)) THEN
-!                CALL Stop_All("WriteHistogram","A Full Diagonalization is required in the same calculation before histogramming can occur.")
+!                CALL Stop_All("WriteHistogram","A Full Diagonalization is &
+!                              &required in the same calculation before &
+!                              &histogramming can occur.")
 !            ENDIF
 
             norm=0.D0
@@ -2921,8 +2992,10 @@ MODULE FciMCParMod
             ! Prepend a # to the initial status line so analysis doesn't pick up
             ! repetitions in the FCIMCStats or INITIATORStats files from restarts.
     !        write (6,'("#")', advance='no')
-            write (fcimcstats_unit,'("#")', advance='no')
-            write (initiatorstats_unit,'("#")', advance='no')
+            if (iProcIndex == root) then
+                write (fcimcstats_unit,'("#")', advance='no')
+                write (initiatorstats_unit,'("#")', advance='no')
+            end if
             call WriteFCIMCStats()
             return
         endif
@@ -3257,7 +3330,7 @@ MODULE FciMCParMod
                 if(iProcIndex.eq.root) then
                     write(6,"(A,f15.10)") "Spawning probability found of: ",AllMaxSpawnProb
                     write(6,"(A,f10.5)") "Reducing timestep to limit spawning probability to: ",MaxAllowedSpawnProb
-                    write(6,"(A,f20.15)") "New tau: ",tau
+                    write(6,"(A,f20.15)") "New timestep: ",tau
                 endif
                 MaxSpawnProb=0.0_dp
             endif
@@ -3675,14 +3748,18 @@ MODULE FciMCParMod
         INTEGER :: i
 
         ! What is the current value of S2
-        ! TODO: This should probably be placed somewhere cleaner.
         if (tCalcInstantS2) then
-            if (mod(iter / StepsSft, instant_s2_multiplier) == 0) then
+            if (mod(iter / StepsSft, instant_s2_multiplier) == 0) &
                 curr_S2 = calc_s_squared_star (.false.)
-            !    curr_S2_init = calc_s_squared_star(.true.)
-            endif
         else
             curr_S2 = -1
+        end if
+
+        ! What is the current value of S2 considering only initiators
+        if (tCalcInstantS2Init) then
+            if (mod(iter / StepsSft, instant_s2_multiplier_init) == 0) &
+                curr_S2_init = calc_s_squared_star (.true.)
+        else
             curr_S2_init = -1
         endif
 
@@ -3850,7 +3927,11 @@ MODULE FciMCParMod
 !        character(len=36) :: command
         character(len=*), parameter :: t_r='MoveFCIMCStatsFiles'
 
-        inquire(file='FCIMCStats',exist=exists)
+        if(tMolpro) then
+            inquire(file='FCIQMCStats',exist=exists)
+        else
+            inquire(file='FCIMCStats',exist=exists)
+        endif
         if(exists) then
             !We already have an FCIMCStats file - move it to the end of the list of FCIMCStats files.
 
@@ -3858,7 +3939,11 @@ MODULE FciMCParMod
             do while(.true.)
                 abstr=''
                 write(abstr,'(I12)') extension
-                abstr='FCIMCStats.'//adjustl(abstr)
+                if(tMolpro) then
+                    abstr='FCIQMCStats.'//adjustl(abstr)
+                else
+                    abstr='FCIMCStats.'//adjustl(abstr)
+                endif
                 inquire(file=abstr,exist=exists)
                 if(.not.exists) exit
                 extension=extension+1
@@ -3872,7 +3957,11 @@ MODULE FciMCParMod
 !            command = 'mv' // ' FCIMCStats ' // abstr
 !            stat = neci_system(trim(command))
 
-            call rename('FCIMCStats',abstr)
+            if(tMolpro) then
+                call rename('FCIQMCStats',abstr)
+            else
+                call rename('FCIMCStats',abstr)
+            endif
             !Doesn't like the stat argument
 !            if(stat.ne.0) then
 !                call stop_all(t_r,"Error with renaming FCIMCStats file")
@@ -3912,9 +4001,13 @@ MODULE FciMCParMod
         integer(int64) :: ExcitLevPop,SymHF
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
-        WRITE(6,*) ""
-        WRITE(6,*) "Performing Parallel FCIMC...."
-        WRITE(6,*) ""
+        WRITE(6,*) 
+        if(nProcessors.gt.1) then
+            WRITE(6,*) "Performing Parallel FCIQMC...."
+        else
+            write(6,*) "Performing FCIQMC...."
+        endif
+        WRITE(6,*) 
         
 !Set timed routine names
         Walker_Time%timer_name='WalkerTime'
@@ -3938,10 +4031,18 @@ MODULE FciMCParMod
             fcimcstats_unit = get_free_unit()
             if (tReadPops) then
                 ! Restart calculation.  Append to stats file (if it exists).
-                OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown',position='append')
+                if(tMolpro) then
+                    OPEN(fcimcstats_unit,file='FCIQMCStats',status='unknown',position='append')
+                else
+                    OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown',position='append')
+                endif
             else
                 call MoveFCIMCStatsFiles()          !This ensures that FCIMCStats files are not overwritten
-                OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown')
+                if(tMolpro) then
+                    OPEN(fcimcstats_unit,file='FCIQMCStats',status='unknown')
+                else
+                    OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown')
+                endif
             end if
             IF(tTruncInitiator.or.tDelayTruncInit) THEN
                 initiatorstats_unit = get_free_unit()
@@ -4132,9 +4233,11 @@ MODULE FciMCParMod
             WRITE(6,*) "Symmetry now set up in terms of spin orbitals"
             WRITE(6,*) "I strongly suggest you check that the reference energy is correct."
         ENDIF
-! From now on, the orbitals are contained in symlabellist2 and symlabelcounts2 rather than the original arrays.
-! These are stored using spin orbitals.
-!Assume that if we want to use the non-uniform random excitation generator, we also want to use the NoSpinSym full excitation generators if they are needed. 
+        ! From now on, the orbitals are contained in symlabellist2 and 
+        ! symlabelcounts2 rather than the original arrays. These are stored 
+        ! using spin orbitals. Assume that if we want to use the non-uniform 
+        ! random excitation generator, we also want to use the NoSpinSym full
+        ! excitation generators if they are needed. 
 
         CALL GetSym(HFDet,NEl,G1,NBasisMax,HFSym)
         
@@ -4169,7 +4272,7 @@ MODULE FciMCParMod
                 WRITE(6,'(I4)',advance='no') G1(BRR(I))%Ml
                 WRITE(6,'(2F19.9)')  ARR(I,1),ARR(BRR(I),2)
             ENDDO
-            WRITE(6,'(A)') " -------------------------------------------------------------------------------------------------"
+            WRITE(6,'(A)') " ================================================================================================="
             DO I=NEl+1,NEl+VirtCASOrbs
                 WRITE(6,'(6I7)',advance='no') I,BRR(I),G1(BRR(I))%K(1), G1(BRR(I))%K(2),G1(BRR(I))%K(3), G1(BRR(I))%MS
                 CALL WRITESYM(6,G1(BRR(I))%SYM,.FALSE.)
@@ -4188,7 +4291,8 @@ MODULE FciMCParMod
             write(6,"(A)") "Only allowing initiator determinants to spawn"
         endif
  
-!Setup excitation generator for the HF determinant. If we are using assumed sized excitgens, this will also be assumed size.
+        ! Setup excitation generator for the HF determinant. If we are using 
+        ! assumed sized excitgens, this will also be assumed size.
         IF(tUEG.or.tHub.or.tNoSingExcits) THEN
             exflag=2
         ELSE
@@ -4204,12 +4308,29 @@ MODULE FciMCParMod
         ENDIF
         HFConn=nSingles+nDoubles
 
-!Initialise random number seed - since the seeds need to be different on different processors, subract processor rank from random number
+        ! Initialise random number seed - since the seeds need to be different
+        ! on different processors, subract processor rank from random number
         if(.not.tRestart) then
             Seed=abs(G_VMC_Seed-iProcIndex)
             WRITE(6,"(A,I12)") "Value for seed is: ",Seed
             !Initialise...
             CALL dSFMT_init(Seed)
+            if(tMolpro) then
+                if((NMCyc.eq.-1).and.(.not.tTimeExit)) then
+                    !No iteration number, or TIME option has been specified.
+                    call warning_neci(this_routine,          &
+                    "No iteration number specified. Only running for 100 iterations initially. Change with ITERATIONS option.")
+                    NMCyc=100   !Only run for 100 iterations.
+                elseif(tTimeExit.and.(NMCyc.eq.-1)) then
+                    write(6,"(A,F10.3,A)") "Running FCIQMC for ",MaxTimeExit/60.0_dp," minutes."
+                elseif(tTimeExit.and.(NMCyc.ne.-1)) then
+                    write(6,"(A,F10.3,A,I15,A)") "Running FCIQMC for ",MaxTimeExit/60.0_dp," minutes OR ",NMCyc," iterations."
+                elseif((.not.tTimeExit).and.(NMCyc.gt.0)) then
+                    write(6,"(A,I15,A)") "Running FCIQMC for ",NMCyc," iterations."
+                else
+                    call stop_all(this_routine,"Iteration number/Time unknown for simulation - contact ghb")
+                endif
+            endif
         else
             !Reset the DiagSft to its original value
             DiagSft = InputDiagSft
@@ -4371,8 +4492,8 @@ MODULE FciMCParMod
                 TempHii = get_helement (HighEDet, HighEDet, 0)
             ENDIF
             UpperTau = 1.D0/REAL(TempHii-Hii,dp)
-            WRITE(6,"(A,G25.15)") "Highest energy determinant is (approximately): ",REAL(TempHii,dp)
-            WRITE(6,"(A,F25.15)") "This means tau should be no more than about ",UpperTau
+!            WRITE(6,"(A,G25.15)") "Highest energy determinant is (approximately): ",REAL(TempHii,dp)
+!            WRITE(6,"(A,F25.15)") "This means tau should be no more than about ",UpperTau
 !            WRITE(6,*) "Highest energy determinant is: ", HighEDet(:)
         else
             UpperTau=0.0_dp
@@ -4638,12 +4759,12 @@ MODULE FciMCParMod
         IF(tUseBrillouin) THEN
             WRITE(6,"(A)") "Brillouin theorem in use for calculation of projected energy." 
         ENDIF
-        WRITE(6,*) "Non-uniform excitation generators in use."
+!        WRITE(6,*) "Non-uniform excitation generators in use."
         CALL CalcApproxpDoubles()
         IF(TauFactor.ne.0.D0) THEN
             WRITE(6,*) "TauFactor detected. Resetting Tau based on connectivity of: ",HFConn
             Tau=TauFactor/REAL(HFConn,dp)
-            WRITE(6,*) "Tau set to: ",Tau
+            WRITE(6,*) "Timestep set to: ",Tau
         ENDIF
 
         if(tSearchTau) then
@@ -4668,10 +4789,12 @@ MODULE FciMCParMod
                     MaxAllowedSpawnProb = 5.0_dp    !Won't allow more than 5 particles at a time
                 endif
             else
-                MaxAllowedSpawnProb = real(MaxWalkerBloom,dp) !Won't allow more than MaxWalkerBloom particles to spawn in one event. 
+                ! Won't allow more than MaxWalkerBloom particles to spawn
+                ! in one event.
+                MaxAllowedSpawnProb = real(MaxWalkerBloom,dp)
             endif
 
-            write(6,"(A,f10.5)") "Will search for optimal tau &
+            write(6,"(A,f10.5)") "Will search for optimal timestep &
                        &to limit spawning probability to: ", &
                        MaxAllowedSpawnProb
         endif
@@ -4683,18 +4806,23 @@ MODULE FciMCParMod
             WRITE(6,*) "StepsShift set to: ",StepsSft
         ENDIF
 !        IF(tConstructNOs) THEN
-!! This is the option for constructing the natural orbitals actually during a NECI calculation.  This is different (and probably a lot more complicated and doesn't 
-!! currently work) from the FINDCINATORBS option which finds the natural orbitals given a final wavefunction.
+!            ! This is the option for constructing the natural orbitals 
+!            ! actually during a NECI calculation.  This is different (and 
+!            ! probably a lot more complicated and doesn't  currently work) 
+!            ! from the FINDCINATORBS option which finds the natural orbitals
+!            ! given a final wavefunction.
 !            ALLOCATE(OneRDM(nBasis,nBasis),stat=ierr)
 !            CALL LogMemAlloc('OneRDM',nBasis*nBasis,8,this_routine,OneRDMTag,ierr)
 !            OneRDM(:,:)=0.D0
 !        ENDIF
 
-        IF(tCCMC) then      !Once alex's CCMC/FCIMC unification project is finished we can remove this
-                            !The problem is that ValidSpawnedList is now setup in InitFCIMCCalcPar.
-                            !This is for compatibility with POPSFILE v.3, where MaxSpawned is calculated
-                            !from the number in the POPSFILE.
-                            !Set it up here for CCMC.
+        ! Once Alex's CCMC/FCIMC unification project is finished, we can
+        ! remove this. The problem is that ValidSpawnedList is now setup in
+        ! InitFCIMCCalcPar - this is for compatibility with POPSFILE v.3,
+        ! where MaxSpawned is calculated from the number in the POPSFILE.
+        !
+        ! Set it pu here for CCMC.
+        IF(tCCMC) then
             Call SetupValidSpawned(InitWalkers)
         endif
 
@@ -4719,7 +4847,7 @@ MODULE FciMCParMod
         if(tShiftonHFPop) then
             write(6,*) "Shift will be varied in order to keep the population on the reference determinant fixed"
         endif
-        WRITE(6,*) "Maximum connectivity of HF determinant is: ",HFConn
+        WRITE(6,*) "Connectivity of HF determinant is: ",HFConn
         IF(TStartSinglePart) THEN
             TSinglePartPhase=.true.
         ELSE
@@ -4732,21 +4860,30 @@ MODULE FciMCParMod
             WRITE(6,'(A,I4)') "Truncating the S.D. space at determinants will an excitation level w.r.t. HF of: ",ICILevel
         ENDIF
         IF(tTruncCAS.or.tStartCAS) THEN
-!We are truncating the FCI space by only allowing excitations in a predetermined CAS space.
-!The following line has already been written out if we are doing a CAS calculation.
-!            WRITE(6,'(A,I4,A,I5)') "Truncating the S.D. space as determinants must be within a CAS of ",OccCASOrbs," , ",VirtCASOrbs
-!The SpinInvBRR array is required for the tTruncCAS option. Its properties are explained more fully in the subroutine. 
+            ! We are truncating the FCI space by only allowing excitations 
+            ! in a predetermined CAS space.
+            ! The following line has already been written out if we are doing
+            ! a CAS calculation.
+
+!            WRITE(6,'(A,I4,A,I5)') "Truncating the S.D. space as &
+!                                   &determinants must be within a CAS of ", &
+!                                   OccCASOrbs, " , ", VirtCASOrbs
+            ! The SpinInvBRR array is required for the tTruncCAS option. Its 
+            ! properties are explained more fully in the subroutine. 
 
             CALL CreateSpinInvBRR()
 
+            ! CASmax is the max spin orbital number (when ordered 
+            ! energetically) within the chosen active space.
+            ! Spin orbitals with energies larger than this maximum value must 
+            ! be unoccupied for the determinant to be in the active space.
             CASmax=NEl+VirtCASorbs
-! CASmax is the max spin orbital number (when ordered energetically) within the chosen active space.
-! Spin orbitals with energies larger than this maximum value must be unoccupied for the determinant
-! to be in the active space.
+
+            ! CASmin is the max spin orbital number below the active space.  
+            ! As well as the above criteria, spin orbitals with energies
+            ! equal to, or below that of the CASmin orbital must be completely
+            ! occupied for the determinant to be in the active space.
             CASmin=NEl-OccCASorbs
-! CASmin is the max spin orbital number below the active space.  As well as the above criteria, spin 
-! orbitals with energies equal to, or below that of the CASmin orbital must be completely occupied for 
-! the determinant to be in the active space.
 
             IF(OccCASOrbs.gt.NEl) then
                 CALL Stop_All("SetupParameters","Occupied orbitals in CAS space specified is greater than number of electrons")
@@ -4916,10 +5053,14 @@ MODULE FciMCParMod
         call clean_excit_gen_store (store)
         call clean_excit_gen_store (store2)
 
-        if(tau.gt.0.1) tau=0.15_dp
-
-        write(6,"(A,F18.10)") "From analysis of reference determinant and connections, &
-                                 &an upper bound for the timestep is: ",Tau
+        if(tau.gt.0.075) then
+            tau=0.075_dp
+            write(6,"(A,F8.5,A)") "Small system. Setting initial timestep to be ",Tau," although this &
+                                            &may be inappropriate. Care needed"
+        else
+            write(6,"(A,F18.10)") "From analysis of reference determinant and connections, &
+                                     &an upper bound for the timestep is: ",Tau
+        endif
 
     end subroutine FindMaxTauDoubs
 
@@ -4945,19 +5086,28 @@ MODULE FciMCParMod
             tNoBrillouin=.true.
         ENDIF
 
-!Special case of defining a det with LMS=0, but which is open shell. No Brillouins if it's a restricted HF calc.
+        ! Special case of defining a det with LMS=0, but which is open shell.
+        ! No Brillouins if it's a restricted HF calc.
         tSpinPair = .false.
         IF(tDefineDet.and.(LMS.eq.0).and.(.not.tUHF)) THEN
-!If we are defining our own reference determinant, we want to find out if it is open shell or closed to know whether or not brillouins theorem holds.            
-!If LMS/=0, then it is easy and must be open shell, otherwise we need to consider the occupied orbitals.
+            ! If we are defining our own reference determinant, we want to 
+            ! find out if it is open shell or closed to know whether or not 
+            ! brillouins theorem holds.
+            !
+            ! If LMS/=0, then it is easy and must be open shell, otherwise 
+            ! we need to consider the occupied orbitals.
             do i=1,(NEl-1),2
-!Assuming things will probably go alpha beta alpha beta, run through each alpha and see if there's a corresponding beta.
+                ! Assuming things will probably go alpha beta alpha beta, 
+                ! run through each alpha and see if there's a corresponding 
+                ! beta.
                 tSpinPair=.false.
                 IF(MOD(BRR(FDet(i)),2).ne.0) THEN
 !Odd energy, alpha orbital.                    
                     IF(BRR(FDet(i+1)).ne.(BRR(FDet(i))+1)) THEN
-!Check the next orbital to see if it's the beta (will be alpha+1 when ordered by energy). 
-!If not, check the other orbitals for the beta, as it's possible the orbitals are ordered weird (?).
+                        ! Check the next orbital to see if it's the beta (will
+                        ! be alpha+1 when ordered by energy). If not, check 
+                        ! the other orbitals for the beta, as it's possible 
+                        ! the orbitals are ordered weird (?).
                         do j=1,NEl
                             IF(BRR(FDet(j)).eq.(BRR(FDet(i))+1)) tSpinPair=.true. 
                         enddo
@@ -5009,15 +5159,20 @@ MODULE FciMCParMod
         INTEGER :: k,z,CASDet(NEl), orb
         LOGICAL :: tElecInVirt, bIsCsf
 
+        ! CASmax is the max spin orbital number (when ordered energetically) 
+        ! within the chosen active space. Spin orbitals with energies larger 
+        ! than this maximum value must be unoccupied for the determinant to 
+        ! be in the active space.
 !        CASmax=NEl+VirtCASorbs
-! CASmax is the max spin orbital number (when ordered energetically) within the chosen active space.
-! Spin orbitals with energies larger than this maximum value must be unoccupied for the determinant
-! to be in the active space.
-!        CASmin=NEl-OccCASorbs   (These have been moved to the InitCalc subroutine so they're not calculated
-! each time.
-! CASmin is the max spin orbital number below the active space.  As well as the above criteria, spin 
-! orbitals with energies equal to, or below that of the CASmin orbital must be completely occupied for 
-! the determinant to be in the active space.
+
+        ! CASmin is the max spin orbital number below the active space.  As 
+        ! well as the above criteria, spin orbitals with energies equal to,
+        ! or below that of the CASmin orbital must be completely occupied for
+        ! the determinant to be in the active space.
+        !
+        ! (These have been moved to the InitCalc subroutine so they're not
+        !  calculated each time).
+!        CASmin=NEl-OccCASorbs
 
         bIsCsf = iscsf(CASDet)
 
@@ -5035,22 +5190,27 @@ MODULE FciMCParMod
             if (SpinInvBRR(orb).gt.CASmax) THEN
                 tElecInVirt=.true.
                 EXIT            
-! if at any stage an electron has an energy greater than the CASmax value, the determinant can be ruled out
-! of the active space.  Upon identifying this, it is not necessary to check the remaining electrons.
+                ! if at any stage an electron has an energy greater than the 
+                ! CASmax value, the determinant can be ruled out of the active
+                ! space.  Upon identifying this, it is not necessary to check
+                ! the remaining electrons.
             else
                 if (SpinInvBRR(orb).le.CASmin) THEN
                     z=z+1
                 endif
-! while running over all electrons, the number that occupy orbitals equal to or below the CASmin cutoff are
-! counted.
+                ! while running over all electrons, the number that occupy 
+                ! orbitals equal to or below the CASmin cutoff are counted.
             endif
         enddo
 
         if(tElecInVirt.or.(z.ne.CASmin)) THEN
-! if an electron is in an orbital above the active space, or the inactive orbitals are not full, the determinant is automatically ruled out.            
+            ! if an electron is in an orbital above the active space, or the 
+            ! inactive orbitals are not full, the determinant is automatically
+            ! ruled out.
             TestifDETinCAS=.false.
         else
-! no orbital in virtual and the inactive orbitals are completely full - det in active space.        
+            ! no orbital in virtual and the inactive orbitals are completely 
+            ! full - det in active space.        
             TestifDETinCAS=.true.
         endif
         
@@ -5170,7 +5330,9 @@ MODULE FciMCParMod
 
 
 
-!This is the same as BinSearchParts1, but this time, the list to search is passed in as an argument. The list goes from 1 to Length, but only between MinInd and MaxInd is actually searched.
+    ! This is the same as BinSearchParts1, but this time, the list to search 
+    ! is passed in as an argument. The list goes from 1 to Length, but only 
+    ! between MinInd and MaxInd is actually searched.
     SUBROUTINE BinSearchParts3(iLut,List,Length,MinInd,MaxInd,PartInd,tSuccess)
         INTEGER :: MinInd,MaxInd,PartInd
         INTEGER :: Length
@@ -5197,7 +5359,8 @@ MODULE FciMCParMod
             N=(i+j)/2       !Find the midpoint of the two indices
 !            WRITE(6,*) i,j,n
 
-!Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
+            ! Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it 
+            ! is more or 0 if they are the same
             Comp=DetBitLT(List(:,N),iLut(:),NIfDBO)
 
             IF(Comp.eq.0) THEN
@@ -5206,15 +5369,19 @@ MODULE FciMCParMod
                 PartInd=N
                 RETURN
             ELSEIF((Comp.eq.1).and.(i.ne.N)) THEN
-!The value of the determinant at N is LESS than the determinant we're looking for. Therefore, move the lower bound of the search up to N.
-!However, if the lower bound is already equal to N then the two bounds are consecutive and we have failed...
+                ! The value of the determinant at N is LESS than the 
+                ! determinant we're looking for. Therefore, move the lower 
+                ! bound of the search up to N. However, if the lower bound is
+                ! already equal to N then the two bounds are consecutive and 
+                ! we have failed...
                 i=N
             ELSEIF(i.eq.N) THEN
 
 
                 IF(i.eq.MaxInd-1) THEN
-!This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
-!We need to check the last index.
+                    ! This deals with the case where we are interested in the
+                    ! final/first entry in the list. Check the final entry of
+                    ! the list and leave We need to check the last index.
                     Comp=DetBitLT(List(:,i+1),iLut(:),NIfDBO)
                     IF(Comp.eq.0) THEN
                         tSuccess=.true.
@@ -5241,7 +5408,9 @@ MODULE FciMCParMod
 
 
             ELSEIF(Comp.eq.-1) THEN
-!The value of the determinant at N is MORE than the determinant we're looking for. Move the upper bound of the search down to N.
+                ! The value of the determinant at N is MORE than the 
+                ! determinant we're looking for. Move the upper bound of the 
+                ! search down to N.
                 j=N
             ELSE
 !We have failed - exit loop
@@ -5250,7 +5419,8 @@ MODULE FciMCParMod
 
         enddo
 
-!If we have failed, then we want to find the index that is one less than where the particle would have been.
+        ! If we have failed, then we want to find the index that is one less 
+        ! than where the particle would have been.
         tSuccess=.false.
         PartInd=MAX(MinInd,i-1)
 
@@ -5383,8 +5553,8 @@ MODULE FciMCParMod
                        &" rather than (without bias): ", f14.6)') &
                        pSingles, real(nSing,dp) / real(iTotal,dp)
 
-            WRITE(6,"(A,F14.6,A,F14.6)") "pDoubles set to: ",pDoubles, " rather than (without bias): ", &
-                & real(nDoub,dp)/real(iTotal,dp)
+!            WRITE(6,"(A,F14.6,A,F14.6)") "pDoubles set to: ",pDoubles, " rather than (without bias): ", &
+!                & real(nDoub,dp)/real(iTotal,dp)
         ELSE
             write (6,'(A,F14.6)') " pDoubles set to: ", pDoubles
             write (6,'(A,F14.6)') " pSingles set to: ", pSingles
@@ -5660,9 +5830,12 @@ MODULE FciMCParMod
 
     end subroutine clean_linear_comb
 
-!This routine sums in the energy contribution from a given walker and updates stats such as mean excit level
-!AJWT added optional argument dProbFin which is a probability that whatever gave this contribution was generated.
-!  It defaults to 1, and weights the contribution of this det (only in the projected energy) by dividing its contribution by this number 
+    ! This routine sums in the energy contribution from a given walker and 
+    ! updates stats such as mean excit level AJWT added optional argument 
+    ! dProbFin which is a probability that whatever gave this contribution 
+    ! was generated. It defaults to 1, and weights the contribution of this 
+    ! det (only in the projected energy) by dividing its contribution by this
+    ! number 
     subroutine SumEContrib (nI, ExcitLevel, WSign, ilut, HDiagCurr, dProbFin)
 
         integer, intent(in) :: nI(nel), ExcitLevel
@@ -5893,7 +6066,7 @@ MODULE FciMCParMod
         INTEGER, DIMENSION(lenof_sign) :: InitialSign
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
         integer :: ReadBatch    !This parameter determines the length of the array to batch read in walkers from a popsfile
-        real(dp) :: Gap
+        real(dp) :: Gap,ExpectedMemWalk
         !Variables from popsfile header...
         logical :: tPop64Bit,tPopHPHF,tPopLz
         integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
@@ -5943,8 +6116,15 @@ MODULE FciMCParMod
             endif
 
             MaxWalkersPart=NINT(MemoryFacPart*WalkerListSize)
+            ExpectedMemWalk=real((NIfTot+1)*MaxWalkersPart*size_n_int+8*MaxWalkersPart,dp)/1048576.0_dp
+            if(ExpectedMemWalk.lt.20.0) then
+                !Increase memory allowance for small runs to a min of 20mb
+                MaxWalkersPart=20.0*1048576.0/real((NIfTot+1)*size_n_int+8,dp)
+                write(6,"(A)") "Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors"
+            endif
             WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node of: ",MaxWalkersPart
-            Call SetupValidSpawned(int(WalkerListSize,int64))
+            !Here is where MaxSpawned is set up - do we want to set up a minimum allocation here too?
+            Call SetupValidSpawned(int(WalkerListSize,int64))  
 
 !Put a barrier here so all processes synchronise
             CALL MPIBarrier(error)
@@ -6290,7 +6470,7 @@ MODULE FciMCParMod
             WRITE(6,'(I4)',advance='no') G1(BRR(I))%Ml
             WRITE(6,'(2F19.9)')  ARR(I,1),ARR(BRR(I),2)
         ENDDO
-        WRITE(6,'(A)') " -------------------------------------------------------------------------------------------------"
+        WRITE(6,'(A)') " ================================================================================================="
         DO I=NEl+1,NEl+VirtCASOrbs
             WRITE(6,'(6I7)',advance='no') I,BRR(I),G1(BRR(I))%K(1), G1(BRR(I))%K(2),G1(BRR(I))%K(3), G1(BRR(I))%MS
             CALL WRITESYM(6,G1(BRR(I))%SYM,.FALSE.)
@@ -7284,18 +7464,22 @@ MODULE FciMCParMod
       MaxSpawned=NINT(MemoryFacSpawn*WalkerListSize)
 !            WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for spawning of: ",MaxSpawned
             
-      WRITE(6,"(A)") "*Direct Annihilation* in use...Explicit load-balancing disabled."
+!      WRITE(6,"(A)") "*Direct Annihilation* in use...Explicit load-balancing disabled."
       ALLOCATE(ValidSpawnedList(0:nNodes-1),stat=ierr)
-      !InitialSpawnedSlots is now filled later, once the number of particles wanted is known
+      ! InitialSpawnedSlots is now filled later, once the number of particles
+      ! wanted is known
       !(it can change according to the POPSFILE).
       ALLOCATE(InitialSpawnedSlots(0:nNodes-1),stat=ierr)
-!InitialSpawnedSlots now holds the first free position in the newly-spawned list for each processor, so it does not need to be reevaluated each iteration.
+      ! InitialSpawnedSlots now holds the first free position in the 
+      ! newly-spawned list for each processor, so it does not need to be 
+      ! reevaluated each iteration.
       MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
       Gap=REAL(MaxSpawned)/REAL(nNodes)
       do j=0,nNodes-1
           InitialSpawnedSlots(j)=NINT(Gap*j)+1
       enddo
-!ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
+      ! ValidSpawndList now holds the next free position in the newly-spawned
+      ! list, but for each processor.
       ValidSpawnedList(:)=InitialSpawnedSlots(:)
    end subroutine
 
@@ -7826,8 +8010,9 @@ MODULE FciMCParMod
 
 END MODULE FciMCParMod
 
-!This routine will change the reference determinant to DetCurr. It will also re-zero all the energy estimators, since they now correspond to
-!projection onto a different determinant.
+    ! This routine will change the reference determinant to DetCurr. It will 
+    ! also re-zero all the energy estimators, since they now correspond to
+    ! projection onto a different determinant.
     SUBROUTINE ChangeRefDet(DetCurr)
         use FciMCParMod
         use SystemData , only : NEl
@@ -7856,8 +8041,11 @@ END MODULE FciMCParMod
     END SUBROUTINE ChangeRefDet
             
 
-!This is the same as BinSearchParts1, but this time, it searches though the full list of determinants created by the full diagonalizer when the histogramming option is on.
-!This is outside the module so it is accessible to AnnihilateMod
+! This is the same as BinSearchParts1, but this time, it searches though the 
+! full list of determinants created by the full diagonalizer when the 
+! histogramming option is on. 
+!
+! This is outside the module so it is accessible to AnnihilateMod
 SUBROUTINE BinSearchParts2(iLut,MinInd,MaxInd,PartInd,tSuccess)
     use DetCalcData , only : FCIDets
     use DetBitOps, only: DetBitLT
@@ -7888,7 +8076,8 @@ SUBROUTINE BinSearchParts2(iLut,MinInd,MaxInd,PartInd,tSuccess)
         N=(i+j)/2       !Find the midpoint of the two indices
 !        WRITE(6,*) i,j,n
 
-!Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
+        ! Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is 
+        ! more or 0 if they are the same
         Comp=DetBitLT(FCIDets(:,N),iLut(:),NIfDBO)
 
         IF(Comp.eq.0) THEN
@@ -7897,15 +8086,18 @@ SUBROUTINE BinSearchParts2(iLut,MinInd,MaxInd,PartInd,tSuccess)
             PartInd=N
             RETURN
         ELSEIF((Comp.eq.1).and.(i.ne.N)) THEN
-!The value of the determinant at N is LESS than the determinant we're looking for. Therefore, move the lower bound of the search up to N.
-!However, if the lower bound is already equal to N then the two bounds are consecutive and we have failed...
+            ! The value of the determinant at N is LESS than the determinant 
+            ! we're looking for. Therefore, move the lower bound of the 
+            ! search up to N. However, if the lower bound is already equal to
+            ! N then the two bounds are consecutive and we have failed...
             i=N
         ELSEIF(i.eq.N) THEN
 
 
             IF(i.eq.MaxInd-1) THEN
-!This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
-!We need to check the last index.
+                ! This deals with the case where we are interested in the 
+                ! final/first entry in the list. Check the final entry of the
+                ! list and leave. We need to check the last index.
                 Comp=DetBitLT(FCIDets(:,i+1),iLut(:),NIfDBO)
                 IF(Comp.eq.0) THEN
                     tSuccess=.true.

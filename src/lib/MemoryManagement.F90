@@ -532,7 +532,7 @@ contains
         write (iunit,*) ''
     end if
     write (iunit,*) 'Name              Allocated in       Deallocated in         Size'
-    write (iunit,*) '----------------------------------------------------------------'
+    write (iunit,*) '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - '
     return
     end subroutine WriteMemLogHeader
 
