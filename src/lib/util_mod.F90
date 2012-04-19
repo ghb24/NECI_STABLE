@@ -26,7 +26,7 @@ module util_mod
 
 contains
 
-    subroutine print_cstr (str) bind(c)
+    subroutine print_cstr (str) bind(c, name='print_cstr')
 
         ! Write a string outputted by calling fort_printf in C.
         ! --> Ensure that it is redirected to the same place as the normal
