@@ -11,6 +11,7 @@
 #include <string>
 #include <fstream>
 #include <iostream>
+#include <stdarg.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -32,6 +33,26 @@ using std::ofstream;
 
 extern "C" void stop_all_c (const char* a, const char* b);
 extern "C" void mpibarrier_c (int * error);
+extern "C" void print_cstr (const char* s);
+
+void fort_printf (const char * fmt, ...)
+{
+	// Create a buffer to process the printf arguments.
+	const int buflen = 1024;
+	char buf[buflen];
+
+	// Process the arguments
+	va_list args;
+	va_start(args, fmt);
+	vsnprintf (buf, buflen, fmt, args);
+	va_end(args);
+
+	// Ensure that the string is terminated, even if it has been truncated
+	buf[buflen-1] = '\0';
+
+	// And output via fortran
+	print_cstr (buf);
+}
 
 // This shared memory mapping is the only bit of this file which is c++
 // rather than C, but it is definitely a better way of doing it than 
@@ -72,27 +93,27 @@ extern "C" bool test_shared_permissions ()
 	if (!tested) {
 		int stat = access (shm_dir, F_OK);
 		if (stat) {
-			printf ("SHM directory not found: %s\n", strerror(errno));
+			fort_printf ("SHM directory not found: %s\n", strerror(errno));
 			avail = false;
 		}
 
 		stat = access (shm_dir, R_OK);
 		if (stat) {
-			printf ("Read access to SHM directory unavailable: %s\n",
+			fort_printf ("Read access to SHM directory unavailable: %s\n",
 					strerror(errno));
 			avail = false;
 		}
 
 		stat = access (shm_dir, W_OK);
 		if (stat) {
-			printf ("Write access to SHM directory unavailable: %s\n",
+			fort_printf ("Write access to SHM directory unavailable: %s\n",
 					strerror(errno));
 			avail = false;
 		}
 
 		// Indicate that the above are warnings, not errors.
 		if (!avail)
-			printf ("Falling back on System V Shared memory.\n");
+			fort_printf ("Falling back on System V Shared memory.\n");
 
 		fflush (stdout);
 		tested = true;
@@ -348,7 +369,7 @@ extern "C" void cleanup_shared_alloc ()
 		size_t size = iter->second.size;
 		void * ptr = iter->first;
 		string name = iter->second.name;
-		printf ("Non-deallocated shared memory found: %s, %d bytes\n", 
+		fort_printf ("Non-deallocated shared memory found: %s, %d bytes\n", 
 		        name.c_str(), int(size));
 		UnmapViewOfFile (ptr);
 		CloseHandle (iter->second.hMap);
@@ -368,7 +389,7 @@ extern "C" void cleanup_shared_alloc ()
 			void * ptr = iter->first;
 			string name = iter->second.name;
 
-			printf ("Non-deallocated shared memory found: %s, %d bytes\n",
+			fort_printf ("Non-deallocated shared memory found: %s, %d bytes\n",
 					name.c_str(), int(size));
 
 			munmap (ptr, size);
