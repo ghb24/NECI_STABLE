@@ -379,9 +379,6 @@ MODULE FciMCParMod
 
         IF(tHistHamil) CALL WriteHamilHistogram()
 
-        Weight=(0.D0)
-        Energyxw=(ProjectionE+Hii)
-        
         IF(tHistEnergies) CALL WriteHistogramEnergies()
 
         IF(tPrintOrbOcc) THEN
@@ -406,6 +403,10 @@ MODULE FciMCParMod
             write (6,'(1X,a34,1X,i18,/)') 'Max number of determinants/process:',MaxWalkers
         end if
 
+        call MPIBCast(ProjectionE)
+        Weight=(0.D0)
+        Energyxw=(ProjectionE+Hii)
+        
         iroot=1
         CALL GetSym(ProjEDet,NEl,G1,NBasisMax,RefSym)
         isymh=int(RefSym%Sym%S,sizeof_int)+1
@@ -420,7 +421,6 @@ MODULE FciMCParMod
         call setvar('ENERGY',ProjectionE+Hii,'AU',ityp,1,nv,iroot)
 #endif MOLPRO
  
-        
 !Deallocate memory
         CALL DeallocFCIMCMemPar()
 
