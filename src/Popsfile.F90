@@ -3,7 +3,7 @@ MODULE PopsfileMod
     use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin,tMomInv
     use CalcData, only: tTruncInitiator,DiagSft,tWalkContGrow,nEquilSteps,ScaleWalkers, &
                         tReadPopsRestart, tRegenDiagHEls,InitWalkers, tReadPopsChangeRef, &
-                        nShiftEquilSteps,iWeightPopRead,iPopsFileNoRead,tPopsMapping
+                        nShiftEquilSteps,iWeightPopRead,iPopsFileNoRead,tPopsMapping,Tau
     use DetBitOps, only: DetBitLT,FindBitExcitLevel,DetBitEQ
     use Determinants, only : get_helement,write_det
     use hphf_integrals, only: hphf_diag_helement
@@ -22,11 +22,11 @@ MODULE PopsfileMod
 
     contains
 
-    !   V.3 POPSFILE ROUTINES   !
-!This routine reads in particle configurations from a POPSFILE v.3.
+    !   V.3/4 POPSFILE ROUTINES   !
+!This routine reads in particle configurations from a POPSFILE v.3-4.
 !EndPopsList is the number of entries in the POPSFILE to read, and ReadBatch is the number of determinants
 !which can be read in in a single batch.
-    SUBROUTINE ReadFromPopsfilev3(EndPopsList,ReadBatch,CurrWalkers64,CurrParts,CurrHF,Dets,DetsLen)
+    SUBROUTINE ReadFromPopsfile(EndPopsList,ReadBatch,CurrWalkers64,CurrParts,CurrHF,Dets,DetsLen)
         use MemoryManager, only: TagIntType
         integer(int64) , intent(in) :: EndPopsList  !Number of entries in the POPSFILE.
         integer , intent(in) :: ReadBatch       !Size of the batch of determinants to read in in one go.
@@ -45,15 +45,15 @@ MODULE PopsfileMod
         integer(int64) :: Det,AllCurrWalkers,TempCurrWalkers
         logical :: FormPops,BinPops,tReadAllPops,tStoreDet
         integer , dimension(lenof_sign) :: SignTemp
-        integer :: TempNI(NEl),nBatches
-        character(len=*) , parameter :: this_routine='ReadFromPopsfilev3'
+        integer :: TempNI(NEl),nBatches,PopsVersion
+        character(len=*) , parameter :: this_routine='ReadFromPopsfile'
         HElement_t :: HElemTemp
         character(255) :: popsfile
         !variables from header file
         logical :: tPop64Bit,tPopHPHF,tPopLz
         integer :: iPopLenof_sign,iPopNEl,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
         integer(int64) :: iPopAllTotWalkers
-        real(dp) :: PopDiagSft
+        real(dp) :: PopDiagSft,read_tau
         integer(int64) , dimension(lenof_sign) :: PopSumNoatHF
         integer, intent(in) :: DetsLen
         INTEGER(kind=n_int), intent(out) :: Dets(0:nIfTot,DetsLen)
@@ -65,13 +65,21 @@ MODULE PopsfileMod
       
         call open_pops_head(iunit,formpops,binpops)
         IF(FormPops) THEN
-            call ReadPopsHeadv3(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot)
+            !determine version number
+            PopsVersion=FindPopsfileVersion(iunit)
+            if(PopsVersion.eq.3) then
+                call ReadPopsHeadv3(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
+                    iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+                    PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot)
+            else
+                call ReadPopsHeadv4(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
+                    iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+                    PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau)
+            endif
 
-                if(EndPopsList.ne.iPopAllTotWalkers) then
-                    call stop_all(this_routine,"Error in assessing number of entries in POPSFILE")
-                endif
+            if(EndPopsList.ne.iPopAllTotWalkers) then
+                call stop_all(this_routine,"Error in assessing number of entries in POPSFILE")
+            endif
 
         ELSEIF(BinPops) THEN
             if(iProcIndex.eq.root) then
@@ -245,7 +253,7 @@ MODULE PopsfileMod
 
         if(allocated(PopsMapping)) deallocate(PopsMapping)
     
-    end subroutine ReadFromPopsfilev3
+    end subroutine ReadFromPopsfile
 
     !This routine reads the next determinant entry from a popsfile and stores it in WalkerTemp,
     !ready to be distributed.
@@ -379,12 +387,12 @@ MODULE PopsfileMod
 
     subroutine CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                     iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                    PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize)
+                    PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau)
         use Logging , only : tZeroProjE
         logical , intent(in) :: tPop64Bit,tPopHPHF,tPopLz
         integer , intent(in) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
         integer(int64) , intent(in) :: iPopAllTotWalkers
-        real(dp) , intent(in) :: PopDiagSft
+        real(dp) , intent(in) :: PopDiagSft,read_tau
         integer(int64) , dimension(lenof_sign) , intent(in) :: PopSumNoatHF
         HElement_t , intent(in) :: PopAllSumENum
         integer , intent(out) :: WalkerListSize
@@ -450,6 +458,30 @@ MODULE PopsfileMod
             AllSumENum=0.D0
             AllSumNoatHF = 0
         ENDIF
+        if(read_tau.eq.0.0_dp) then
+            !Using popsfile v.3, where tau is not written out.
+            !Exit if trying to dynamically search for timestep
+            if(tSearchTau) then
+                call stop_all(this_routine,"Cannot dynamically search for timestep if reading &
+                    &in POPSFILE v.3. Manually specify timestep.")
+            endif
+        else
+            !Using popsfile v.4, where tau is written out and read in
+            if(tSearchTau) then
+                if(.not.tSinglePartPhase) then
+                    tSearchTau=.false.
+                endif
+                Tau=read_tau
+                write(6,"(A)") "Using timestep specified in POPSFILE, although continuing to dynamically adjust to optimise this"
+            else
+                !Tau specified. if it is different, write this here.
+                if(abs(read_tau-Tau).gt.1.D-5) then
+                    call warning_neci(this_routine,"Timestep specified in input file is different to that in the popsfile.")
+                    write(6,"(A,F12.8)") "Old timestep: ",read_tau
+                    write(6,"(A,F12.8)") "New timestep: ",tau
+                endif
+            endif
+        endif
     
     end subroutine CheckPopsParams
 
@@ -466,7 +498,6 @@ MODULE PopsfileMod
         integer(int64) , dimension(lenof_sign) , intent(out) :: PopSumNoatHF
         HElement_t , intent(out) :: PopAllSumENum
         character(len=24) :: junk,junk2,junk3,junk4,junk5
-        character(255) :: FirstLine
         integer :: PopsVersion
 
         PopsVersion=FindPopsfileVersion(iunithead)
@@ -504,6 +535,63 @@ MODULE PopsfileMod
         call MPIBCast(PopNIfTot)
 
     end subroutine ReadPopsHeadv3
+
+    !Routine for reading in from iunit the header information from a popsile v4 file.
+    subroutine ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
+                iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+                PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau)
+        integer , intent(in) :: iunithead
+        logical , intent(out) :: tPop64Bit,tPopHPHF,tPopLz
+        integer , intent(out) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
+        integer(int64) , intent(out) :: iPopAllTotWalkers
+        real(dp) , intent(out) :: PopDiagSft,read_tau
+        integer(int64) , dimension(lenof_sign) , intent(out) :: PopSumNoatHF
+        HElement_t , intent(out) :: PopAllSumENum
+        integer :: PopsVersion
+        !Variables for the namelist
+        logical :: Pop64Bit,PopHPHF,PopLz
+        integer :: PopLensign,PopNEl,PopCyc
+        integer(int64) :: PopTotwalk
+        real(dp) :: PopSft,PopTau
+        HElement_t :: PopSumENum
+        namelist /POPSHEAD/ Pop64Bit,PopHPHF,PopLz,PopLensign,PopNEl,PopTotwalk,PopSft,PopSumNoatHF,PopSumENum, &
+                    PopCyc,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,PopTau
+
+        PopsVersion=FindPopsfileVersion(iunithead)
+        if(PopsVersion.ne.4) call stop_all("ReadPopsfileHeadv4","Wrong popsfile version for this routine.")
+            
+        if(iProcIndex.eq.root) then
+            read(iunithead,POPSHEAD)
+        endif
+        !Broadcast the read in values from the header to all nodes.
+        call MPIBCast(Pop64Bit)
+        call MPIBCast(PopHPHF)
+        call MPIBCast(PopLz)
+        call MPIBCast(PopLensign)
+        call MPIBCast(PopNEl)
+        call MPIBCast(PopTotwalk)
+        call MPIBCast(PopSft)
+        call MPIBCast(PopSumNoatHF)
+        call MPIBCast(PopSumENum)
+        call MPIBCast(PopCyc)
+        call MPIBCast(PopNIfD)
+        call MPIBCast(PopNIfY)
+        call MPIBCast(PopNIfSgn)
+        call MPIBCast(PopNIfFlag)
+        call MPIBCast(PopNIfTot)
+        call MPIBCast(PopTau)
+        tPop64Bit=Pop64Bit
+        tPopHPHF=PopHPHF
+        tPopLz=PopLz
+        iPopLenof_sign=PopLensign
+        iPopNel=PopNel
+        iPopAllTotWalkers=PopTotwalk
+        PopDiagSft=PopSft
+        PopAllSumENum=PopSumENum
+        iPopIter=PopCyc
+        read_tau=PopTau 
+
+    end subroutine ReadPopsHeadv4
     
     !NOTE: This should only be used for the v3 POPSFILEs, since we only open the POPSFILE on the head node.
     subroutine open_pops_head(iunithead,formpops,binpops)
@@ -534,7 +622,6 @@ MODULE PopsfileMod
         call MPIBCast(formpops) 
 
     end subroutine open_pops_head
-
 
 !Return the version number of the popsfile
     integer function FindPopsfileVersion(iunithead)
@@ -650,24 +737,40 @@ MODULE PopsfileMod
             ENDIF
             iunit = get_free_unit()
             OPEN(iunit,FILE=popsfile,Status='replace')
-            WRITE(iunit,"(A)") "# POPSFILE VERSION 3"
+            WRITE(iunit,"(A)") "# POPSFILE VERSION 4"
+
+!v.3 POPSFILE HEADER - now depreciated.
+!#ifdef __INT64
+!            WRITE(iunit,'(A12,L5,A8,L5,A8,L5,A13,I5,A7,I6)') '64BitDets=',.TRUE.,'HPHF=',tHPHF,'Lz=', &
+!                tFixLz,'Lenof_sign=',lenof_sign,'NEl=',NEl
+!#else
+!            WRITE(iunit,'(A12,L5,A8,L5,A8,L5,A13,I5,A7,I6)') '64BitDets=',.FALSE.,'HPHF=',tHPHF,'Lz=', &
+!                tFixLz,'Lenof_sign=',lenof_sign,'NEl=',NEl
+!#endif
+!            WRITE(iunit,*) AllTotWalkers,"   TOTWALKERS (all nodes)"
+!            WRITE(iunit,*) DiagSft,"   DIAG SHIFT"
+!            WRITE(iunit,*) AllSumNoatHF,"   SUMNOATHF (all nodes)"
+!            WRITE(iunit,*) AllSumENum,"   SUMENUM ( \sum<D0|H|Psi> - all nodes)"
+!            WRITE(iunit,*) Iter+PreviousCycles,"   PREVIOUS CYCLES"
+!            WRITE(iunit,*) NIfD,"    NIfD"
+!            WRITE(iunit,*) NIfY,"    NIfY"
+!            WRITE(iunit,*) NIfSgn,"    NIfSgn"
+!            WRITE(iunit,*) NIfFlag,"    NIfFlag"
+!            WRITE(iunit,*) NIfTot,"    NIfTot"
+
 #ifdef __INT64
-            WRITE(iunit,'(A12,L5,A8,L5,A8,L5,A13,I5,A7,I6)') '64BitDets=',.TRUE.,'HPHF=',tHPHF,'Lz=', &
-                tFixLz,'Lenof_sign=',lenof_sign,'NEl=',NEl
+            write(iunit,'(A)') '&POPSHEAD Pop64Bit=.TRUE.,'
 #else
-            WRITE(iunit,'(A12,L5,A8,L5,A8,L5,A13,I5,A7,I6)') '64BitDets=',.FALSE.,'HPHF=',tHPHF,'Lz=', &
-                tFixLz,'Lenof_sign=',lenof_sign,'NEl=',NEl
+            write(iunit,'(A)') '&POPSHEAD Pop64Bit=.FALSE.,'
 #endif
-            WRITE(iunit,*) AllTotWalkers,"   TOTWALKERS (all nodes)"
-            WRITE(iunit,*) DiagSft,"   DIAG SHIFT"
-            WRITE(iunit,*) AllSumNoatHF,"   SUMNOATHF (all nodes)"
-            WRITE(iunit,*) AllSumENum,"   SUMENUM ( \sum<D0|H|Psi> - all nodes)"
-            WRITE(iunit,*) Iter+PreviousCycles,"   PREVIOUS CYCLES"
-            WRITE(iunit,*) NIfD,"    NIfD"
-            WRITE(iunit,*) NIfY,"    NIfY"
-            WRITE(iunit,*) NIfSgn,"    NIfSgn"
-            WRITE(iunit,*) NIfFlag,"    NIfFlag"
-            WRITE(iunit,*) NIfTot,"    NIfTot"
+            write(iunit,'(A,L1,A,L1,A,I2,A,I3,A)') 'PopHPHF=',tHPHF,',PopLz=',tFixLz,',PopLensign=',lenof_sign,',PopNEl=',NEl,','
+            write(iunit,'(A,I15,A,F18.12,A)') 'PopTotwalk=',AllTotWalkers,',PopSft=',DiagSft,','
+            write(iunit,*) 'PopSumNoatHF=',AllSumNoatHF,','
+            write(iunit,*) 'PopSumENum=',AllSumENum,','
+            write(iunit,'(A,I16,A,I2,A,I2,A,I2,A)') 'PopCyc=',Iter+PreviousCycles,',PopNIfD=',NIfD,',PopNIfY=',NIfY,',PopNIfSgn=',NIfSgn,','
+            write(iunit,'(A,I2,A,I2,A,F18.12)') 'PopNIfFlag=',NIfFlag,',PopNIfTot=',NIfTot,',PopTau=',Tau
+            write(iunit,'(A5)') '&END'
+
             IF(tBinPops) THEN
                 CLOSE(iunit)
                 call get_unique_filename('POPSFILEBIN',tIncrementPops,.true.,iPopsFileNoWrite,popsfile)
