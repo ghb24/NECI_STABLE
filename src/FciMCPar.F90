@@ -6056,7 +6056,7 @@ MODULE FciMCParMod
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil,iReadWalkersRoot
         use constants , only : size_n_int
         use DeterminantData , only : write_det
-        INTEGER :: ierr,iunithead,DetHash,Slot
+        INTEGER :: ierr,iunithead,DetHash,Slot,MemTemp
         LOGICAL :: formpops,binpops
         INTEGER :: error,MemoryAlloc,PopsVersion,j,iLookup,WalkerListSize
         INTEGER, DIMENSION(lenof_sign) :: InitialSign
@@ -6168,8 +6168,13 @@ MODULE FciMCParMod
 
             if(tHashWalkerList) then
                 write(6,"(A)") "Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number"
+                write(6,"(A,I15)") "Length of hash-table: ",nWalkerHashes
+                write(6,"(A,F25.10)") "Length of hash-table as a fraction of targetwalkers: ",HashLengthFrac
                 nClashMax=int(real(MaxWalkersPart,dp)/real(nWalkerHashes,dp))+1
                 write(6,"(A,I7,A)") "Initially allocating memory in hash table for a maximum of ",nClashMax," walker hash clashes"
+                MemTemp=2*(8*(nClashMax+1)*nWalkerHashes)+8*MaxWalkersPart
+                write(6,"(A,F14.7,A)") "This will use ",real(MemTemp,dp)/1048576.0_dp,&
+                    "Mb of memory per process, although this is likely to increase as it expands"
                 !HashIndex: (0,:) is first free slot in the hash list.
                 allocate(HashIndexArr1(0:nClashMax,nWalkerHashes),stat=ierr)
                 if(ierr.ne.0) call stop_all(this_routine,"Error in allocation")
@@ -6180,7 +6185,7 @@ MODULE FciMCParMod
                 allocate(FreeSlot(MaxWalkersPart),stat=ierr)
                 if(ierr.ne.0) call stop_all(this_routine,"Error in allocation")
                 freeslot(:)=0
-                MemoryAlloc=MemoryAlloc+2*(8*(nClashMax+1)*nWalkerHashes)+8*MaxWalkersPart
+                MemoryAlloc=MemoryAlloc+MemTemp
             endif
 
 !Allocate pointers to the correct walker arrays

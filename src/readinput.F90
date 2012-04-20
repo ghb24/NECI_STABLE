@@ -176,7 +176,7 @@ MODULE ReadInput_neci
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
                             TNoSameExcit, TInitStar, tMP2Standalone, &
                             GrowMaxFactor, MemoryFacPart, tTruncInitiator, &
-                            tSpawnSpatialInit, tSpatialOnlyHash
+                            tSpawnSpatialInit, tSpatialOnlyHash, InitWalkers
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
@@ -189,12 +189,18 @@ MODULE ReadInput_neci
         USE input_neci
         use global_utilities
         use spin_project, only: tSpinProject, spin_proj_nopen_max
+        use FciMCData, only: nWalkerHashes,HashLengthFrac,tHashWalkerList
 
         implicit none
 
         integer :: vv, kk, cc, ierr
         logical :: check
         character(*), parameter :: t_r='checkinput'
+
+        if(tHashWalkerList) then
+            nWalkerHashes=nint(HashLengthFrac*InitWalkers)
+        endif
+
 
         ! Turn on histogramming of fcimc wavefunction in order to find density
         ! matrix, or the orbital occupations

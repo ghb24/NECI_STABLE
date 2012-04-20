@@ -21,7 +21,7 @@ MODULE Calc
                         tSpawnProp, nClustSelections, tExactEnergy,     &
                         dClustSelectionRatio,tSharedExcitors
     use FciMCData, only: proje_update_comb,proje_linear_comb, proje_ref_det_init,tTimeExit,MaxTimeExit, &
-                         InputDiagSft,tSearchTau,proje_spatial,nWalkerHashes,tHashWalkerList
+                         InputDiagSft,tSearchTau,proje_spatial,nWalkerHashes,tHashWalkerList,HashLengthFrac
 
     implicit none
 
@@ -56,6 +56,7 @@ contains
 
 !       Calc defaults 
           tHashWalkerList=.false.
+          HashLengthFrac=0.0_dp
           nWalkerHashes=0
           iExitWalkers=-1
           FracLargerDet=1.2
@@ -856,7 +857,9 @@ contains
                 call getf(SftDamp)
             case("LINSCALEFCIMCALGO")
                 !Use the linear scaling FCIMC algorithm
-                call geti(nWalkerHashes)
+                !Instead of the absolute length of the hash table, read in the fraction of initwalkers that it wants to be.
+!                call geti(nWalkerHashes)
+                call getf(HashLengthFrac)
                 tHashWalkerList=.true.
             case("STEPSSHIFTIMAG")
 !For FCIMC, this is the amount of imaginary time which will elapse between updates of the shift.

@@ -81,6 +81,7 @@ MODULE FciMCData
       integer , allocatable , target :: HashIndexArr2(:,:),HashIndexArr1(:,:)
       integer , pointer :: HashIndex(:,:) 
       integer :: nClashMax,nWalkerHashes    !Number of hash clashes allowed, and length of hash table respectively
+      real(dp) :: HashLengthFrac
 
 !The following variables are calculated as per processor, but at the end of each update cycle, are combined to the root processor
       real(dp) :: GrowRate,DieRat
