@@ -1,6 +1,6 @@
 [main]
 fc = mpif90
-cc = mpic++
+cc = mpicxx
 ld = mpif90
 ldflags = -i-dynamic
 compiler = INTEL-ifort9-on-LINUX
