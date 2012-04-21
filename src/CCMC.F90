@@ -2907,7 +2907,7 @@ SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
       logical :: tPop64Bit,tPopHPHF,tPopLz
       integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
       integer(int64) :: iPopAllTotWalkers
-      real(dp) :: PopDiagSft
+      real(dp) :: PopDiagSft,read_tau
       integer(int64) , dimension(lenof_sign) :: PopSumNoatHF
       integer nMaxAmpl,nAmpl
       integer(int64) , dimension(lenof_sign) :: CurrParts
@@ -2926,18 +2926,24 @@ SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
          call ReadFromPopsfileOnly(DetList,CurrParts(1))
          nAmpl=CurrParts(1)
       else
-         !We must have a v.3 popsfile. Read header.
          call open_pops_head(iunithead,formpops,binpops)
-         call ReadPopsHeadv3(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-               iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-               PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot)
+         if(PopsVersion.eq.3) then 
+             call ReadPopsHeadv3(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
+                   iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+                   PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot)
+             read_tau=0.0_dp
+         elseif(PopsVersion.eq.4) then
+             call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
+                   iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+                   PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau)
+         endif
 
          call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-               PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize)
+               PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau)
 
          if(iProcIndex.eq.root) close(iunithead)
-         call ReadFromPopsfilev3(iPopAllTotWalkers,ReadBatch,TotWalkers,CurrParts,NoatHF,DetList,nMaxAmpl)
+         call ReadFromPopsfile(iPopAllTotWalkers,ReadBatch,TotWalkers,CurrParts,NoatHF,DetList,nMaxAmpl)
          nAmpl=TotWalkers
          dNorm=NoatHF(1)
       endif

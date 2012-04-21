@@ -379,9 +379,6 @@ MODULE FciMCParMod
 
         IF(tHistHamil) CALL WriteHamilHistogram()
 
-        Weight=(0.D0)
-        Energyxw=(ProjectionE+Hii)
-        
         IF(tHistEnergies) CALL WriteHistogramEnergies()
 
         IF(tPrintOrbOcc) THEN
@@ -406,6 +403,10 @@ MODULE FciMCParMod
             write (6,'(1X,a34,1X,i18,/)') 'Max number of determinants/process:',MaxWalkers
         end if
 
+        call MPIBCast(ProjectionE)
+        Weight=(0.D0)
+        Energyxw=(ProjectionE+Hii)
+        
         iroot=1
         CALL GetSym(ProjEDet,NEl,G1,NBasisMax,RefSym)
         isymh=int(RefSym%Sym%S,sizeof_int)+1
@@ -420,7 +421,6 @@ MODULE FciMCParMod
         call setvar('ENERGY',ProjectionE+Hii,'AU',ityp,1,nv,iroot)
 #endif MOLPRO
  
-        
 !Deallocate memory
         CALL DeallocFCIMCMemPar()
 
@@ -3638,8 +3638,7 @@ MODULE FciMCParMod
             tSearchTau=.false.
         endif
 
-
-    end subroutine
+    end subroutine update_shift 
 
 
     subroutine rezero_iter_stats_each_iter (iter_data)
@@ -4803,13 +4802,8 @@ MODULE FciMCParMod
 
         if(tSearchTau) then
 
-            if(tReadPops) then
-                call stop_all(this_routine,"Cannot dynamically search for timestep if reading &
-                    &in POPSFILE. Manually specify tau.")
-            endif
-
-            if(.not.tRestart) then
-                !Set initial tau value.
+            if(.not.tRestart.and.(.not.tReadPops)) then
+                !Set initial tau value, unless we are restarting, or reading it from popsfileheader
                 call FindMaxTauDoubs()
             endif
 
@@ -4828,9 +4822,11 @@ MODULE FciMCParMod
                 MaxAllowedSpawnProb = real(MaxWalkerBloom,dp)
             endif
 
-            write(6,"(A,f10.5)") "Will search for optimal timestep &
-                       &to limit spawning probability to: ", &
-                       MaxAllowedSpawnProb
+            if(.not.(tReadPops.and.tWalkContGrow)) then
+                write(6,"(A,f10.5)") "Will search for optimal timestep &
+                           &to limit spawning probability to: ", &
+                           MaxAllowedSpawnProb
+            endif
         endif
 
         IF(StepsSftImag.ne.0.D0) THEN
@@ -6100,7 +6096,7 @@ MODULE FciMCParMod
         INTEGER, DIMENSION(lenof_sign) :: InitialSign
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
         integer :: ReadBatch    !This parameter determines the length of the array to batch read in walkers from a popsfile
-        real(dp) :: Gap,ExpectedMemWalk
+        real(dp) :: Gap,ExpectedMemWalk,read_tau
         !Variables from popsfile header...
         logical :: tPop64Bit,tPopHPHF,tPopLz
         integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
@@ -6134,15 +6130,25 @@ MODULE FciMCParMod
 !initialise the particle positions - start at HF with positive sign
 !Set the maximum number of walkers allowed
             if(tReadPops.and..not.tPopsAlreadyRead) then
-                !We must have a v.3 popsfile. Read header.
+                !Read header.
                 call open_pops_head(iunithead,formpops,binpops)
-                call ReadPopsHeadv3(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                        iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                        PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot)
+                if(PopsVersion.eq.3) then
+                    call ReadPopsHeadv3(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
+                            iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+                            PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot)
+                    read_tau=0.0_dp !Indicate that this was not read in.
+                elseif(PopsVersion.eq.4) then
+                    call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
+                            iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+                            PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau)
+                    !The only difference between 3 & 4 is just that 4 reads in via a namelist, so that we can add more details whenever we want.
+                else
+                    call stop_all(this_routine,"Popsfile version invalid")
+                endif
 
                 call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                         iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                        PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize)
+                        PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau)
 
                 if(iProcIndex.eq.root) close(iunithead)
             else
@@ -6232,7 +6238,7 @@ MODULE FciMCParMod
                 endif
 
                 !TotWalkers and TotParts are returned as the dets and parts on each processor.
-                call ReadFromPopsfilev3(iPopAllTotWalkers,ReadBatch,TotWalkers,TotParts,NoatHF,CurrentDets,MaxWalkersPart)
+                call ReadFromPopsfile(iPopAllTotWalkers,ReadBatch,TotWalkers,TotParts,NoatHF,CurrentDets,MaxWalkersPart)
 
                 !Setup global variables
                 TotWalkersOld=TotWalkers

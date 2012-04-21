@@ -26,6 +26,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tMolproMimic=.false.
       tAntisym_MI=.false.
       tMomInv=.false.
       tNoSingExcits=.false.
@@ -849,6 +850,10 @@ MODULE System
             call readi(LzTot)
         case("KPOINTS")
             tKPntSym=.true.
+        case("MOLPROMIMIC")
+            !Mimic the run-time behaviour of molpros NECI implementation
+            tMolpro=.true.
+            tMolproMimic=.true.
         case("ENDSYS") 
             exit system
         case default

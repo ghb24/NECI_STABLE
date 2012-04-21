@@ -1576,7 +1576,7 @@ contains
     
         Subroutine CalcDoCalc()
           use SystemData, only: Alat, Arr,Brr, Beta, ECore, G1, LMS, LMS2, nBasis,NMSH, nBasisMax
-          use SystemData, only: SymRestrict, tCSFOLD, tParity, tSpn, ALat, Beta,tMolpro
+          use SystemData, only: SymRestrict, tCSFOLD, tParity, tSpn, ALat, Beta,tMolpro,tMolproMimic
           use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,BasisFN,BasisFNSize,BasisFNSizeB,nEl
           Use DetCalcData, only : nDet, nEval, nmrks, w
           USE FciMCParMod , only : FciMCPar
@@ -1622,7 +1622,7 @@ contains
              if(tFCIMC) then
                  call FciMCPar(WeightDum,EnerDum)
 
-                 if(.not.tMolpro) WRITE(6,*) "Summed approx E(Beta)=",EnerDum
+                 if((.not.tMolpro).or.tMolproMimic) WRITE(6,*) "Summed approx E(Beta)=",EnerDum
              elseif(tCCMC) then
                   if(tAmplitudes) THEN
                      CALL CCMCStandAlone(WeightDum,EnerDum)
