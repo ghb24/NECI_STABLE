@@ -767,7 +767,8 @@ MODULE PopsfileMod
             write(iunit,'(A,I15,A,F18.12,A)') 'PopTotwalk=',AllTotWalkers,',PopSft=',DiagSft,','
             write(iunit,*) 'PopSumNoatHF=',AllSumNoatHF,','
             write(iunit,*) 'PopSumENum=',AllSumENum,','
-            write(iunit,'(A,I16,A,I2,A,I2,A,I2,A)') 'PopCyc=',Iter+PreviousCycles,',PopNIfD=',NIfD,',PopNIfY=',NIfY,',PopNIfSgn=',NIfSgn,','
+            write(iunit,'(A,I16,A,I2,A,I2,A,I2,A)') 'PopCyc=',Iter+PreviousCycles,',PopNIfD=',  &
+                                NIfD,',PopNIfY=',NIfY,',PopNIfSgn=',NIfSgn,','
             write(iunit,'(A,I2,A,I2,A,F18.12)') 'PopNIfFlag=',NIfFlag,',PopNIfTot=',NIfTot,',PopTau=',Tau
             write(iunit,'(A5)') '&END'
 
