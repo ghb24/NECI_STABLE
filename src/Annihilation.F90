@@ -1092,10 +1092,10 @@ MODULE AnnihilationMod
                 ENDIF
             enddo
         ENDIF
-!        write(6,*) "TotWalkersNew: ",TotWalkersNew
-!        write(6,*) "AnnihilatedDet: ",AnnihilatedDet
-!        write(6,*) "HolesInList: ",HolesInList
         if(AnnihilatedDet.ne.HolesInList) then
+            write(6,*) "TotWalkersNew: ",TotWalkersNew
+            write(6,*) "AnnihilatedDet: ",AnnihilatedDet
+            write(6,*) "HolesInList: ",HolesInList
             call stop_all(t_r,"Error in determining annihilated determinants")
         endif
 
