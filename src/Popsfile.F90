@@ -12,7 +12,7 @@ MODULE PopsfileMod
     use FciMCData
     use bit_reps
     use Parallel_neci
-    use AnnihilationMod, only: DetermineDetNode,FindWalkerHash,EnlargeHashTable
+    use AnnihilationMod, only: DetermineDetNode,FindWalkerHash,EnlargeHashTable,IsUnoccDet
     USE Logging , only : iWritePopsEvery,tPopsFile,iPopsPartEvery,tBinPops
     USE Logging , only : tPrintPopsDefault,tIncrementPops
     use sort_mod
@@ -658,7 +658,7 @@ MODULE PopsfileMod
         integer(int64),intent(in) :: nDets !The number of occupied entries in Dets
         integer(kind=n_int),intent(in) :: Dets(0:nIfTot,1:nDets)
         INTEGER :: error
-        integer(int64) :: WalkersonNodes(0:nNodes-1)
+        integer(int64) :: WalkersonNodes(0:nNodes-1),writeoutdet
         INTEGER :: Tag
         INTEGER :: Total,i,j,k
         INTEGER(KIND=n_int), ALLOCATABLE :: Parts(:,:)
@@ -686,13 +686,31 @@ MODULE PopsfileMod
 
         Tag=125
 
+!We have to make the distinction here between the number of entries to expect,
+!and the number of determinants we are writing out. Since the list is not
+!necessarily contiguous any more, we have to calculate Alltotwalkers seperately.
+        if(tHashwalkerlist) then
+            Writeoutdet=0
+            do i=1,nDets
+                call extract_sign(Dets(:,i),TempSign)
+                if(.not.IsUnoccDet(TempSign)) then
+                    !Count this det in AllTotWalkers
+                    Writeoutdet=Writeoutdet+1
+                endif
+            enddo
+        else
+            writeoutdet=nDets   !array is contiguous
+        endif
+        call mpisum(writeoutdet,1,AllTotWalkers)
+
+
         IF(iProcIndex.eq.root) THEN
 !First, check that we are going to receive the correct number of particles...
             Total=0
             do i=0,nNodes-1
                 Total=Total+INT(WalkersonNodes(i)/iPopsPartEvery)
             enddo
-            AllTotWalkers=REAL(Total,dp)
+
 !            IF(Total.ne.AllTotWalkers) THEN
 !                CALL Stop_All("WriteToPopsfilePar","Not all walkers accounted for...")
 !            ENDIF
@@ -702,10 +720,10 @@ MODULE PopsfileMod
             IF(iPopsPartEvery.ne.1) THEN
                 IF(tBinPops) THEN
                     WRITE(6,"(A,I12,A)") "Writing a 64-bit binary reduced POPSFILEBIN, printing a total of ", &
-                        INT(AllTotWalkers,int64), " particles."
+                        AllTotWalkers, " particles."
                 ELSE
                     WRITE(6,"(A,I12,A)") "Writing a 64-bit reduced POPSFILE, printing a total of ", &
-                        INT(AllTotWalkers,int64), " particles."
+                        AllTotWalkers, " particles."
                 ENDIF
             ELSE
                 IF(tBinPops) THEN
@@ -718,9 +736,9 @@ MODULE PopsfileMod
             IF(iPopsPartEvery.ne.1) THEN
                 IF(tBinPops) THEN
                     WRITE(6,"(A,I12,A)") "Writing a binary reduced POPSFILEBIN, printing a total of ", &
-                        INT(AllTotWalkers,int64), " particles."
+                        AllTotWalkers, " particles."
                 ELSE
-                    WRITE(6,"(A,I12,A)") "Writing a reduced POPSFILE, printing a total of ",INT(AllTotWalkers,int64), " particles."
+                    WRITE(6,"(A,I12,A)") "Writing a reduced POPSFILE, printing a total of ",AllTotWalkers, " particles."
                 ENDIF
             ELSE
                 IF(tBinPops) THEN
@@ -781,8 +799,11 @@ MODULE PopsfileMod
             IF(tBinPops) THEN
                 do j=1,nDets
 !First write out walkers on head node
+!                    write(6,*) j,nDets
+!                    call flush(6)
                     IF(mod(j,iPopsPartEvery).eq.0) THEN
-!                        call extract_sign(Dets(:,j),TempSign)
+                        call extract_sign(Dets(:,j),TempSign)
+                        if(IsUnoccDet(TempSign)) cycle
                         WRITE(iunit) Dets(0:NIfTot,j)!,TempSign(:)
                     ENDIF
                 enddo
@@ -790,6 +811,8 @@ MODULE PopsfileMod
                 do j=1,nDets
 !First write out walkers on head node
                     IF(mod(j,iPopsPartEvery).eq.0) THEN
+                        call extract_sign(Dets(:,j),TempSign)
+                        if(IsUnoccDet(TempSign)) cycle
                         do k=0,NIfTot-1
                             WRITE(iunit,"(I24)",advance='no') Dets(k,j)
                         enddo
@@ -801,7 +824,7 @@ MODULE PopsfileMod
             ENDIF
 !            WRITE(6,*) "Written out own walkers..."
 !            write(6,*) WalkersOnNodes
-            CALL neci_flush(6)
+!            CALL neci_flush(6)
 
 !Now, we copy the head nodes data to a new array...
             nMaxDets=maxval(WalkersOnNodes)
@@ -820,7 +843,11 @@ MODULE PopsfileMod
 !Then write it out...
                 IF(tBinPops) THEN
                     do j=1,WalkersonNodes(i)
+!                        write(6,*) j,WalkersonNodes(i)
+!                        call flush(6)
                         IF(mod(j,iPopsPartEvery).eq.0) THEN
+                            call extract_sign(Parts(:,j),TempSign)
+                            if(IsUnoccDet(TempSign)) cycle
 !                            call extract_sign(Parts(:,j),TempSign)
                             WRITE(iunit) Parts(0:NIfTot,j)!,TempSign(:)
                         ENDIF
@@ -828,6 +855,8 @@ MODULE PopsfileMod
                 ELSE
                     do j=1,WalkersonNodes(i)
                         IF(mod(j,iPopsPartEvery).eq.0) THEN
+                            call extract_sign(Parts(:,j),TempSign)
+                            if(IsUnoccDet(TempSign)) cycle
                             do k=0,NIfTot-1
                                 WRITE(iunit,"(I24)",advance='no') Parts(k,j)
                             enddo
@@ -859,7 +888,7 @@ MODULE PopsfileMod
 !Reset the values of the global variables
         AllSumNoatHF = 0
         AllSumENum=0.D0
-        AllTotWalkers=0.D0
+        AllTotWalkers=0
         RETURN
 
     END SUBROUTINE WriteToPopsfileParOneArr
