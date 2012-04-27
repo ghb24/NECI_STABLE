@@ -1933,10 +1933,10 @@ MODULE nElRDMMod
 ! The original Di's will (I think) still be in the original InitSingExcSlots positions.
 ! This follows the directannihilation algorithm closely.
         implicit none
-        INTEGER :: i,j,sendcounts(nProcessors),disps(nProcessors)
-        INTEGER :: sing_recvcounts(nProcessors)
-        INTEGER :: sing_recvdisps(nProcessors),error,MaxSendIndex,MaxIndex
-        INTEGER :: doub_recvcounts(nProcessors),doub_recvdisps(nProcessors)
+        INTEGER :: i,j
+        INTEGER(MPIarg), dimension(nProcessors) :: sendcounts,disps,sing_recvcounts
+        INTEGER(MPIarg), dimension(nProcessors) :: sing_recvdisps,doub_recvcounts,doub_recvdisps
+        INTEGER :: error,MaxSendIndex,MaxIndex
 
         do i=0,nProcessors-1
             sendcounts(i+1)=Sing_ExcList(i)-(NINT(OneEl_Gap*i)+1)
@@ -2031,10 +2031,10 @@ MODULE nElRDMMod
 ! The original Di's will (I think) still be in the original InitSingExcSlots positions.
 ! This follows the directannihilation algorithm closely.
         implicit none
-        INTEGER :: i,j,sendcounts(nProcessors),disps(nProcessors)
-        INTEGER :: sing_recvcounts(nProcessors)
-        INTEGER :: sing_recvdisps(nProcessors),error,MaxSendIndex,MaxIndex
-        INTEGER :: doub_recvcounts(nProcessors),doub_recvdisps(nProcessors)
+        INTEGER :: i,j
+        INTEGER(MPIarg), dimension(nProcessors) :: sendcounts, sing_recvcounts, doub_recvdisps
+        INTEGER(MPIarg), dimension(nProcessors) :: doub_recvcounts, sing_recvdisps, disps 
+        INTEGER :: error,MaxSendIndex,MaxIndex
 
         do i=0,nProcessors-1
             sendcounts(i+1)=Sing_ExcList(i)-(NINT(OneEl_Gap*i)+1)
@@ -2133,7 +2133,7 @@ MODULE nElRDMMod
         USE RotateOrbsData , only : SymLabelListInv_rot
         USE bit_reps , only : extract_bit_rep
         implicit none
-        INTEGER, INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
+        INTEGER(MPIarg), INTENT(IN), dimension(nProcessors) :: recvcounts,recvdisps
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: SignDi,SignDj, SignDi2,SignDj2
         INTEGER :: PartInd
@@ -2207,7 +2207,7 @@ MODULE nElRDMMod
         USE RotateOrbsData , only : SymLabelListInv_rot
         USE bit_reps , only : extract_bit_rep
         implicit none
-        INTEGER, INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
+        INTEGER(MPIarg), INTENT(IN), dimension(nProcessors) :: recvcounts,recvdisps
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: SignDi,SignDj, SignDi2, SignDj2
         INTEGER :: PartInd
@@ -2289,7 +2289,7 @@ MODULE nElRDMMod
         use hist_data, only: AllHistogram
         use hist , only : find_hist_coeff_explicit
         implicit none
-        INTEGER, INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
+        INTEGER(MPIarg), INTENT(IN),dimension(nProcessors) :: recvcounts,recvdisps
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: HistPos
         INTEGER :: PartInd, ExcitLevel
@@ -2374,7 +2374,7 @@ MODULE nElRDMMod
         use hist_data, only: AllHistogram
         use hist , only : find_hist_coeff_explicit
         implicit none
-        INTEGER, INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
+        INTEGER(MPIarg), INTENT(IN), dimension(nProcessors) :: recvcounts,recvdisps
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: HistPos
         INTEGER :: PartInd, ExcitLevel
@@ -3352,15 +3352,18 @@ MODULE nElRDMMod
                                 ! find the hermiticity error in the final matrix (after all runs).
                                 if(tNormalise.and.((Ind1_aa.le.Ind2_aa).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
                                     
-                                    IF((abs((All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)-(All_aaaa_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
-                                        Max_Error_Hermiticity = abs((All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)-(All_aaaa_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))
+                                    IF((abs((All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)-&
+                                    (All_aaaa_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
+                                        Max_Error_Hermiticity = abs((All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)&
+                                                                    -(All_aaaa_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))
 
-                                    Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
-                                                            abs((All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)-(All_aaaa_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))
+                                    Sum_Error_Hermiticity = Sum_Error_Hermiticity + abs((All_aaaa_RDM(Ind1_aa,Ind2_aa)&
+                                                                *Norm_2RDM)-(All_aaaa_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))
 
-                                    Sum_Herm_Percent = Sum_Herm_Percent +   &
-                                                        ( abs((All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)-(All_aaaa_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM)) / &
-                                                        (abs((All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)+(All_aaaa_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM)) / 2.0_dp) )
+                                    Sum_Herm_Percent = Sum_Herm_Percent + ( abs((All_aaaa_RDM(Ind1_aa,Ind2_aa)&
+                                                        *Norm_2RDM)-(All_aaaa_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM)) / &
+                                                        (abs((All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)&
+                                                        +(All_aaaa_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM)) / 2.0_dp) )
                                     No_Herm_Elements = No_Herm_Elements + 1                                                        
 
                                     if(tmake_herm) then                                                            
@@ -3394,15 +3397,18 @@ MODULE nElRDMMod
                                 (All_abba_RDM(Ind2_aa,Ind1_aa).ne.0.0_dp) ) then
                                 if(tNormalise.and.((Ind1_aa.le.Ind2_aa).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
 
-                                    IF((abs((All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)-(All_abba_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
-                                        Max_Error_Hermiticity = abs((All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)-(All_abba_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))
+                                    IF((abs((All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)-(All_abba_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM)))&
+                                                                                                        .gt.Max_Error_Hermiticity) &
+                                        Max_Error_Hermiticity = abs((All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)&
+                                                                                         -(All_abba_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))
 
-                                    Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
-                                                            abs((All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)-(All_abba_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))
+                                    Sum_Error_Hermiticity = Sum_Error_Hermiticity + abs((All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)&
+                                                                                         -(All_abba_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))
 
-                                    Sum_Herm_Percent = Sum_Herm_Percent +   &
-                                                        ( abs((All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)-(All_abba_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM)) / &
-                                                        (abs((All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)+(All_abba_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM)) / 2.0_dp) )
+                                    Sum_Herm_Percent = Sum_Herm_Percent + ( abs((All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)&
+                                                                            -(All_abba_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM)) / &
+                                                                            (abs((All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)&
+                                                                        +(All_abba_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM)) / 2.0_dp) )
                                     No_Herm_Elements = No_Herm_Elements + 1                                                        
 
                                     if(tmake_herm) then                                                            
@@ -3431,15 +3437,18 @@ MODULE nElRDMMod
                         if( (All_abab_RDM(Ind1_ab,Ind2_ab).ne.0.0_dp).or.&
                             (All_abab_RDM(Ind2_ab,Ind1_ab).ne.0.0_dp) ) then
 
-                            IF((abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM)-(All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
-                                Max_Error_Hermiticity = abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM)-(All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM))
+                            IF((abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM)-(All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM)))&
+                                                                                                .gt.Max_Error_Hermiticity) &
+                                Max_Error_Hermiticity = abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM)&
+                                                                                    -(All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM))
 
-                            Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
-                                                    abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM)-(All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM))
+                            Sum_Error_Hermiticity = Sum_Error_Hermiticity + abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM)&
+                                                                                    -(All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM))
 
-                            Sum_Herm_Percent = Sum_Herm_Percent +   &
-                                                ( abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM)-(All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM)) / &
-                                                (abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM)+(All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM)) / 2.0_dp) )
+                            Sum_Herm_Percent = Sum_Herm_Percent + ( abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM)&
+                                                                    -(All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM)) / &
+                                                                    (abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM)&
+                                                                +(All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM)) / 2.0_dp) )
                             No_Herm_Elements = No_Herm_Elements + 1                                                        
 
                             if(tmake_herm) then                                                            
@@ -3475,9 +3484,12 @@ MODULE nElRDMMod
         close(abba_RDM_unit)
 
         if(tNormalise.and.(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref))) then
-            write(6,'(I15,F30.20,A20,A39)') Iter+PreviousCycles, Max_Error_Hermiticity, '( Iteration,',' MAX ABS ERROR IN HERMITICITY )'
-            write(6,'(I15,F30.20,A20,A39)') Iter+PreviousCycles, Sum_Error_Hermiticity, '( Iteration,',' SUM ABS ERROR IN HERMITICITY )'
-            write(6,'(I15,F30.20,A20,A51)') Iter+PreviousCycles, Sum_Herm_Percent/real(No_Herm_Elements,dp), '( Iteration,',' AVERAGE ABS PERCENTAGE HERMITICITY ERROR )'
+            write(6,'(I15,F30.20,A20,A39)') Iter+PreviousCycles, Max_Error_Hermiticity, &
+                                                                            '( Iteration,',' MAX ABS ERROR IN HERMITICITY )'
+            write(6,'(I15,F30.20,A20,A39)') Iter+PreviousCycles, Sum_Error_Hermiticity, &
+                                                                            '( Iteration,',' SUM ABS ERROR IN HERMITICITY )'
+            write(6,'(I15,F30.20,A20,A51)') Iter+PreviousCycles, Sum_Herm_Percent/real(No_Herm_Elements,dp), &
+                                                                '( Iteration,',' AVERAGE ABS PERCENTAGE HERMITICITY ERROR )'
         endif
 
 !        Tot_Spin_Projection = Tot_Spin_Projection + (3.D0 * real(NEl,dp))
@@ -3800,7 +3812,8 @@ MODULE nElRDMMod
                                         Lagrangian(p,q)=Lagrangian(p,q) + 0.5_dp*2.0_dp*(All_abab_RDM(Ind1_ab_sq,Ind2_ab_tr) &
                                                                          * Norm_2RDM * Coul)/Divide_Factor
                                     endif
-                                elseif (((s.eq.q) .and. (t.gt.r)) .or. ((s.gt.q) .and. (t.eq.r)) .or. ((s.eq.q) .and. (t.eq.r))) then
+                                elseif (((s.eq.q) .and. (t.gt.r)) .or. ((s.gt.q) .and. (t.eq.r)) &
+                                                                                      .or. ((s.eq.q) .and. (t.eq.r))) then
                                     ! Everything is in the right order already
                                     Ind1_ab_qs = ( ( (s-1) * s ) / 2 ) + q
                                     Ind2_ab_rt = ( ( (t-1) * t ) / 2 ) + r
@@ -3820,14 +3833,15 @@ MODULE nElRDMMod
                                                                      * Norm_2RDM * Coul)/Divide_Factor
                                 endif
                                 
-                                ! SECOND TERM  (These two terms in the RDM are explicitely symmetrised for the Molpro dump routine later)
+                                ! SECOND TERM  (These terms are explicitely symmetrised for Molpro dump routine later)
                                 if((s.eq.r).and.(t.eq.q)) then
                                     Divide_Factor = 1.0_dp
                                 else
                                     Divide_Factor = 2.0_dp
                                 endif
                                 
-                                if ((s.ne.r) .and. (t.ne.q)) then  !Don't have to worry about any r=s or t=q terms yet - bbbb always allowed
+                                if ((s.ne.r) .and. (t.ne.q)) then  
+                                    !Don't have to worry about any r=s or t=q terms yet - bbbb always allowed
                                     if ((s.gt.r) .and. (t.gt.q)) then       !The D_rs,qt is correctly ordered
                                         Ind1_aa_rs = ( ( (s-2) * (s-1) ) / 2 ) + r
                                         Ind2_aa_qt = ( ( (t-2) * (t-1) ) / 2 ) + q
@@ -3972,7 +3986,7 @@ MODULE nElRDMMod
                                                     * REAL(TMAT2D(jSpin,iSpin),8) &
                                                     * (1.0_dp / real(NEl - 1,dp)) )
 
-                if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then                                                
+                if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then 
                     NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
                             NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
                                         + ( All_abab_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM &
@@ -3991,7 +4005,7 @@ MODULE nElRDMMod
                                             * REAL(TMAT2D(iSpin,jSpin),8) &
                                             * (1.0_dp / real(NEl - 1,dp)) )
 
-                if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then                                                
+                if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then 
                     NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
                             NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
                                         + ( All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
@@ -5398,6 +5412,7 @@ MODULE nElRDMMod
         USE bit_reps , only : extract_bit_rep, extract_sign,nifdbo
         USE DetBitOps, only : detbiteq
         USE UMatCache, only: GTID
+        use ParallelHelper
         implicit none
         INTEGER :: I, J, nI(NEl), nJ(NEl), FlagsI, FlagsJ, IC, Ex(2,2)
         INTEGER :: k,l,k2,l2,a2,b2,i2,j2, AllCurrentDetsTag
@@ -5410,8 +5425,10 @@ MODULE nElRDMMod
         REAL(dp) , ALLOCATABLE :: TestRDM(:,:)
         INTEGER(n_int) , ALLOCATABLE :: AllCurrentDets(:,:)
         HElement_t :: H_IJ
-        INTEGER :: Ind1,Ind2,TestRDMTag,ierr,comm
-        INTEGER :: lengthsout(0:nProcessors-1), disp(0:nProcessors-1)
+        INTEGER :: Ind1,Ind2,TestRDMTag,comm
+        INTEGER :: ierr
+        INTEGER(MPIarg) :: lengthsout(0:nProcessors-1)
+        INTEGER(MPIarg) :: disp(0:nProcessors-1)
         CHARACTER(len=*), PARAMETER :: this_routine='Test_Energy_Calc'
 
         WRITE(6,*) '****************'
@@ -5728,7 +5745,8 @@ MODULE nElRDMMod
     integer :: myname, ifil, intrel, iout, igrsav
     integer :: orb1, orb2, Sym_i, Sym_j, Sym_ij
     integer :: Sym_k, Sym_l, Sym_kl
-    integer, dimension(8) :: iact, ldact !iact(:) # of active orbs per sym, !ldact(:) - # Pairs of orbs that multiply to give given sym
+    integer, dimension(8) :: iact, ldact !iact(:) # of active orbs per sym, 
+                                         !ldact(:) - # Pairs of orbs that multiply to give given sym
     integer, dimension(8) :: icore, iclos 
     integer :: FC_Lag_Len  !Length of the Frozen Core Lagrangian
     integer :: Len_1RDM, Len_2RDM, FCLag_Len
@@ -5830,7 +5848,8 @@ MODULE nElRDMMod
                     Sym_ij=RandExcitSymLabelProd(Sym_i, Sym_j)
                     if ((Sym_i.eq.SYM) .and. (Sym_ij .eq. 0)) then   
                         if(tStoreSpinOrbs) then
-                            SymmetryPacked1RDM(posn1)=2.0_dp*(NatOrbMat(SymLabelListInv_rot(2*i),SymLabelListInv_rot(2*j)))/Norm_1RDM
+                            SymmetryPacked1RDM(posn1)=&
+                                        2.0_dp*(NatOrbMat(SymLabelListInv_rot(2*i),SymLabelListInv_rot(2*j)))/Norm_1RDM
                                ! Include both aa and bb contributions
                         else
                             ! The 1RDM has been explicitly symmetrised already
@@ -5878,41 +5897,51 @@ MODULE nElRDMMod
                                     Ind2_aa = ( ( (l-2) * (l-1) ) / 2 ) + j
                                     Ind2_ab = ( ( (l-1) * l ) / 2 ) + j
                                     Factor=1.D0
-                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
-                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+&
+                                                              2.0_dp*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
+                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+&
+                                                              2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                                 elseif ((i.gt.k) .and. (l.gt.j)) then !Need to reorder D_ik,jl to -D_ki,jl
                                     Ind1_aa = ( ( (i-2) * (i-1) ) / 2 ) + k
                                     Ind2_aa = ( ( (l-2) * (l-1) ) / 2 ) + j
                                     Factor=-1.D0
-                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
-                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+&
+                                                              2.0_dp*Factor*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+&
+                                                              2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                                 elseif ((k.gt.i) .and. (j.gt.l)) then !Need to reorder D_ik,jl to -D_ik,lj
                                     Ind1_aa = ( ( (k-2) * (k-1) ) / 2 ) + i
                                     Ind2_aa = ( ( (j-2) * (j-1) ) / 2 ) + l
                                     Factor=-1.D0
-                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
-                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+&
+                                                              2.0_dp*Factor*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+&
+                                                              2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                                 else !Must need to reorder D_ik,jl to D_ki,lj
                                     Ind1_aa = ( ( (i-2) * (i-1) ) / 2 ) + k
                                     Ind1_ab = ( ( (i-1) * i ) / 2 ) + k
                                     Ind2_aa = ( ( (j-2) * (j-1) ) / 2 ) + l
                                     Ind2_ab = ( ( (j-1) * j ) / 2 ) + l
                                     Factor=1.D0
-                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
-                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+&
+                                                              2.0_dp*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
+                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+&
+                                                              2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                                 endif
                             elseif (((k.eq.i).and.(l.gt.j)) .or. ((k.gt.i).and.(l.eq.j)) .or. ((i.eq.k) .and. (l.eq.j))) then
                                 !Everything is in the right order already
                                 Ind1_ab = ( ( (k-1) * k ) / 2 ) + i
                                 Ind2_ab = ( ( (l-1) * l ) / 2 ) + j
                                 Factor=1.D0
-                                SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
+                                SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+&
+                                                          2.0_dp*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
                             elseif (((k.eq.i) .and. (j.gt.l)).or. ((i.gt.k) .and.(j.eq.l))) then
                                 !Need to reorder D_ik,jl to D_ki,lj
                                 Ind1_ab = ( ( (i-1) * i ) / 2 ) + k
                                 Ind2_ab = ( ( (j-1) * j ) / 2 ) + l
                                 Factor=1.D0
-                                SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
+                                SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+&
+                                                          2.0_dp*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
                             endif
 
                             !We are also recording the SYMMETRISED 2RDM
@@ -5932,41 +5961,51 @@ MODULE nElRDMMod
                                     Ind2_aa = ( ( (l-2) * (l-1) ) / 2 ) + i
                                     Ind2_ab = ( ( (l-1) * l ) / 2 ) + i
                                     Factor=1.D0
-                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
-                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+&
+                                                              2.0_dp*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
+                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+&
+                                                              2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                                 elseif ((k.gt.j) .and. (i.gt.l)) then !Need to reorder D_jk,il to -D_jk,li
                                     Ind1_aa = ( ( (k-2) * (k-1) ) / 2 ) + j
                                     Ind2_aa = ( ( (i-2) * (i-1) ) / 2 ) + l
                                     Factor=-1.D0
-                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
-                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+&
+                                                              2.0_dp*Factor*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+&
+                                                              2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                                 elseif ((j.gt.k) .and. (l.gt.i)) then !Need to reorder D_jk,il to -D_kj,il
                                     Ind1_aa = ( ( (j-2) * (j-1) ) / 2 ) + k
                                     Ind2_aa = ( ( (l-2) * (l-1) ) / 2 ) + i
                                     Factor=-1.D0
-                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
-                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+&
+                                                              2.0_dp*Factor*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+&
+                                                              2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                                 else !Must need to reorder D_jk,il to D_kj,li
                                     Ind1_aa = ( ( (j-2) * (j-1) ) / 2 ) + k
                                     Ind1_ab = ( ( (j-1) * j ) / 2 ) + k
                                     Ind2_aa = ( ( (i-2) * (i-1) ) / 2 ) + l
                                     Ind2_ab = ( ( (i-1) * i ) / 2 ) + l
                                     Factor=1.D0
-                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
-                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
+                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+&
+                                                              2.0_dp*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
+                                    SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+&
+                                                              2.0_dp*Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM/Divide_Factor
                                 endif
                             elseif (((k.eq.j).and.(l.gt.i)) .or. ((k.gt.j).and.(l.eq.i)) .or. ((k.eq.j) .and. (l.eq.i))) then
                                 !Everything is in the right order already
                                 Ind1_ab = ( ( (k-1) * k ) / 2 ) + j
                                 Ind2_ab = ( ( (l-1) * l ) / 2 ) + i
                                 Factor=1.D0
-                                SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
+                                SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+&
+                                                          2.0_dp*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
                             elseif (((k.eq.j) .and. (i.gt.l)).or. ((j.gt.k) .and.(i.eq.l))) then
                                 !Need to reorder D_jk,il to D_kj,li
                                 Ind1_ab = ( ( (j-1) * j ) / 2 ) + k
                                 Ind2_ab = ( ( (i-1) * i ) / 2 ) + l
                                 Factor=1.D0
-                                SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+2.0_dp*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
+                                SymmetryPacked2RDM(posn2)=SymmetryPacked2RDM(posn2)+&
+                                                          2.0_dp*Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM/Divide_Factor
                             endif
 
                             SymmetryPacked2RDM(posn2) =  SymmetryPacked2RDM(posn2)/2.0_dp
