@@ -5450,7 +5450,8 @@ MODULE nElRDMMod
         ENDIF
 
         lengthsout(0:nProcessors-1) = 0
-        CALL MPIAllGather(int(TotWalkers,sizeof_int)*(NIfTot+1),lengthsout,ierr)
+        call MPIAllGather(int(TotWalkers * (NIftot + 1), MPIArg), &
+                          lengthsout, ierr)
 
         disp(:) = 0
         do i = 1, nProcessors-1
