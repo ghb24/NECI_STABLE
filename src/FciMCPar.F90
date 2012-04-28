@@ -2161,6 +2161,7 @@ MODULE FciMCParMod
         integer, dimension(lenof_sign) :: iDie
         integer, dimension(lenof_sign) :: CopySign
         integer, dimension(lenof_sign), parameter :: NullSign=0
+        character(len=*), parameter :: t_r="walker_death"
 
         ! Do particles on determinant die? iDie can be both +ve (deaths), or
         ! -ve (births, if shift > 0)
