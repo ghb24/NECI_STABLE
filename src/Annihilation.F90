@@ -1303,12 +1303,12 @@ MODULE AnnihilationMod
         else
             do i = 1, nel
                 hash = (1099511628211_int64 * hash) + &
-                        (RandomHash2(mod(nJ(i)-1,int(nBasis,int64))+1) * i)
+                        int(RandomHash2(nJ(i))*i,int64)
 
 !                        (RandomHash(mod(nI(i)+offset-1,int(nBasis,int64))+1) * i)
             enddo
         endif
-        hashInd = abs(mod(hash, int(nWalkerHashes, int64)))+1
+        hashInd = abs(mod(hash, int(nWalkerHashes, int64)))+1_int64
     end function FindWalkerHash
 
 
