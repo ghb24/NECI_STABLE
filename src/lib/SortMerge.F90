@@ -235,15 +235,15 @@
         endif
         goto 100
 !...........................................................................
-        continue
+!        continue
 !..simple linear search. At the moment, you cannot get here.
-        do i=1,n
-           if(DetBitLT(CurrentDets(0:NIfTot,i),DetCurr(:),NIfDBO).ne.1) then 
-             ipos=i
-             return
-           endif
-        enddo
-        ipos=n+1
+!        do i=1,n
+!           if(DetBitLT(CurrentDets(0:NIfTot,i),DetCurr(:),NIfDBO).ne.1) then 
+!             ipos=i
+!             return
+!           endif
+!        enddo
+!        ipos=n+1
     END SUBROUTINE Search
 !..............................................................................
 !..find the position in list such that 
@@ -321,15 +321,15 @@
         endif
         goto 100
 !...........................................................................
-        continue
-!..simple linear search. At the moment, you cannot get here.
-        do i=1,n
-           if(DetBitLT(list(:,i),DetCurr(:),NIfDBO).ne.1) then 
-             ipos=i
-             return
-           endif
-        enddo
-        ipos=n+1
+!        continue
+!!..simple linear search. At the moment, you cannot get here.
+!        do i=1,n
+!           if(DetBitLT(list(:,i),DetCurr(:),NIfDBO).ne.1) then 
+!             ipos=i
+!             return
+!           endif
+!        enddo
+!        ipos=n+1
     END SUBROUTINE Searchgen
 
 
