@@ -2252,12 +2252,22 @@ MODULE FciMCParMod
         !In complex case, fill slot if either real or imaginary particle still there.
         IF((CopySign(1).ne.0).or.(CopySign(2).ne.0)) THEN
             if(tTruncInitiator.and.(sign(1,CopySign(1)).ne.sign(1,wSign(1)))) then
-                call stop_all(t_r,"Real antiparticles created - this is not dealt with correctly")
-                !The particles here need to be removed as in the real case, and the stats updated accordingly
-            elseif(tTruncInitiator.and.(sign(1,CopySign(lenof_sign)).ne.sign(1,wSign(lenof_sign)))) then
-                call stop_all(t_r,"Real antiparticles created - this is not dealt with correctly")
-                !The particles here need to be removed as in the real case, and the stats updated accordingly
-            else
+                !Remove the real anti-particle
+                NoAborted=NoAborted+abs(CopySign(1))
+                iter_data%naborted(1) = iter_data%naborted(1) + abs(CopySign(1))
+                if(test_flag(iLutCurr,flag_is_initiator(1))) NoAddedInitiators=NoAddedInitiators-1.0_dp
+                CopySign(1)=0
+            endif
+            if(tTruncInitiator.and.(sign(1,CopySign(lenof_sign)).ne.sign(1,wSign(lenof_sign)))) then
+                !Remove the imaginary anti-particle
+                NoAborted=NoAborted+abs(CopySign(lenof_sign))
+                iter_data%naborted(lenof_sign) = iter_data%naborted(lenof_sign) + abs(CopySign(lenof_sign))
+                if(test_flag(iLutCurr,flag_is_initiator(lenof_sign))) NoAddedInitiators=NoAddedInitiators-1.0_dp
+                CopySign(lenof_sign)=0
+            endif
+            if((CopySign(1).ne.0).or.(CopySign(lenof_sign).ne.0)) then
+                !These could have both been aborted for being antiparitlces
+                !Here, some survive - put them back in the list
                 if(tHashWalkerList) then
                     !Here, determinants always stay in the same place
                     !Therefore, only need to encode sign, and not to worry about helement or anything else
@@ -2266,6 +2276,17 @@ MODULE FciMCParMod
                     call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
                     if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
                     VecSlot=VecSlot+1
+                endif
+            else
+                !All walkers have been aborted
+                if(tHashWalkerList) then
+                    !Remove the determinant from the indexing list
+                    call RemoveDetHashIndex(DetCurr,DetPosition)
+                    !Add to the "freeslot" list
+                    iEndFreeSlot=iEndFreeSlot+1
+                    FreeSlot(iEndFreeSlot)=DetPosition
+                    !Encode a null det to be picked up
+                    call encode_sign(CurrentDets(:,DetPosition),NullSign)
                 endif
             endif
         ELSEIF(tHashWalkerList) then
