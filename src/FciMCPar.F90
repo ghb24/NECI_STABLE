@@ -440,200 +440,6 @@ MODULE FciMCParMod
 
     END SUBROUTINE FciMCPar
 
-    !Routine to print the highest populated determinants at the end of a run
-    SUBROUTINE PrintHighPops()
-        use DetBitOps, only : sign_lt,sign_gt
-        use Logging, only: iHighPopWrite
-        use sort_mod
-        integer, dimension(lenof_sign) :: SignCurr,LowSign
-        integer :: ierr,i,j,counter,ExcitLev
-        real(dp) :: SmallestSign,SignCurrReal,HighSign,reduce_in(1:2),reduce_out(1:2),Norm,AllNorm
-        integer(n_int) , allocatable :: LargestWalkers(:,:)
-        integer(n_int) , allocatable :: GlobalLargestWalkers(:,:)
-        integer(n_int) :: HighestDet(0:NIfTot)
-        integer , allocatable :: GlobalProc(:)
-        character(len=*), parameter :: t_r='PrintHighPops'
-
-        !Allocate memory to hold highest iHighPopWrite determinants
-        allocate(LargestWalkers(0:NIfTot,iHighPopWrite),stat=ierr)
-        if(ierr.ne.0) call stop_all(t_r,"error allocating here")
-        LargestWalkers(:,:)=0
-
-        SmallestSign=0.0_dp !Real, so can deal with complex amplitudes
-        Norm=0.0_dp
-        !Run through all walkers on process
-        do i=1,TotWalkers
-!            write(6,*) "Smallest sign is: ",SmallestSign
-            call extract_sign(CurrentDets(:,i),SignCurr)
-
-!            write(6,*) "***",i,SignCurr,CurrentDets(0:NIfDBO,i)
-
-            if(lenof_sign.eq.1) then
-                SignCurrReal=real(abs(SignCurr(1)),dp)
-            else
-                SignCurrReal=sqrt(real(SignCurr(1),dp)**2+real(SignCurr(lenof_sign),dp)**2)
-            endif
-            Norm=Norm+(SignCurrReal**2.0)
-
-            !Is this determinant more populated than the first in the list (which is always the smallest)
-            if(SignCurrReal.gt.SmallestSign) then
-                LargestWalkers(:,1)=CurrentDets(:,i)
-
-                !Now need to recalculate the list - resort LargestWalkers list by sign
-!                write(6,*) "New large weight found. Entering sort: "
-                call sort(LargestWalkers(:,1:iHighPopWrite), sign_lt, sign_gt)
-!                do j=1,iHighPopWrite
-!                    write(6,*) "Sorted: ",j,LargestWalkers(:,j)
-!                enddo
-
-                !Now extract the smallest sign
-                call extract_sign(LargestWalkers(:,1),LowSign)
-                if(lenof_sign.eq.1) then
-                    SmallestSign=real(abs(LowSign(1)),dp)
-                else
-                    SmallestSign=sqrt(real(LowSign(1),dp)**2+real(LowSign(lenof_sign),dp)**2)
-                endif
-            endif
-        enddo
-        call MpiSum(norm,allnorm)
-        norm=sqrt(allnorm)
-
-!        write(6,*) "Highest weighted dets on this process:"
-!        do i=1,iHighPopWrite
-!            write(6,*) LargestWalkers(:,i)
-!        enddo
-
-        !Now have sorted list of the iHighPopWrite largest weighted determinants on the process
-        if(iProcIndex.eq.Root) then
-            allocate(GlobalLargestWalkers(0:NIfTot,iHighPopWrite),stat=ierr)
-            if(ierr.ne.0) call stop_all(t_r,"error allocating here")
-            GlobalLargestWalkers(:,:)=0
-            allocate(GlobalProc(iHighPopWrite),stat=ierr)
-            if(ierr.ne.0) call stop_all(t_r,"error allocating here")
-            GlobalProc(:)=0
-        endif
-
-        do i=1,iHighPopWrite
-
-            call extract_sign(LargestWalkers(:,iHighPopWrite),SignCurr)
-
-            if(lenof_sign.eq.1) then
-                HighSign=real(abs(SignCurr(1)),dp)
-            else
-                HighSign=sqrt(real(SignCurr(1),dp)**2+real(SignCurr(lenof_sign),dp)**2)
-            endif
-            reduce_in=(/ HighSign,real(iProcIndex,dp) /)
-            call MPIAllReduceDatatype(reduce_in,1,MPI_MAXLOC,MPI_2DOUBLE_PRECISION,reduce_out)
-            !Now, reduce_out(2) has the process of the largest weighted determinant - broadcast it!
-            if(iProcIndex.eq.nint(reduce_out(2))) then
-                HighestDet(0:NIfTot) = LargestWalkers(:,iHighPopWrite)
-            else
-                HighestDet(0:NIfTot) = 0
-            endif
-            call MPIBCast(HighestDet(:),NIfTot+1,nint(reduce_out(2)))
-            if(iProcIndex.eq.Root) then
-                GlobalLargestWalkers(0:NIfTot,i) = HighestDet(:)
-                GlobalProc(i) = nint(reduce_out(2))
-            endif
-
-            !Now delete this highest determinant from the list on the corresponding processor
-            if(iProcIndex.eq.nint(reduce_out(2))) then
-                LargestWalkers(:,iHighPopWrite) = 0
-                !Resort
-                call sort(LargestWalkers(:,1:iHighPopWrite), sign_lt, sign_gt)
-            endif
-        enddo
-
-        if(iProcIndex.eq.Root) then
-            !Now print out the info contained in GlobalLargestWalkers and GlobalProc
-
-            counter=0
-            do i=1,iHighPopWrite
-                !How many non-zero determinants do we actually have?
-                call extract_sign(GlobalLargestWalkers(:,i),SignCurr)
-                if(lenof_sign.eq.1) then
-                    HighSign=real(abs(SignCurr(1)),dp)
-                else
-                    HighSign=sqrt(real(SignCurr(1),dp)**2+real(SignCurr(lenof_sign),dp)**2)
-                endif
-                if(HighSign.gt.1.D-7) counter=counter+1
-            enddo
-
-
-            write(6,*) 
-            write(6,'(A)') "Current reference: "
-            call write_det (6, ProjEDet, .true.)
-            call writeDetBit(6,iLutRef,.true.)
-            write(6,*) 
-            write(6,"(A,I10,A)") "Most occupied ",counter," determinants as excitations from reference: "
-            write(6,*) 
-            if(lenof_sign.eq.1) then
-                if(tHPHF) then
-                    write(6,"(A)") " Excitation   ExcitLevel    Walkers    Weight    Init?   Proc  Spin-Coup?"    
-                else
-                    write(6,"(A)") " Excitation   ExcitLevel   Walkers    Weight    Init?   Proc"    
-                endif
-            else
-                if(tHPHF) then
-                    write(6,"(A)") " Excitation   ExcitLevel   Walkers(Re)   Walkers(Im)  Weight   &
-                                        &Init?(Re)   Init?(Im)   Proc  Spin-Coup?"
-                else
-                    write(6,"(A)") " Excitation   ExcitLevel    Walkers(Re)   Walkers(Im)  Weight   &
-                                        &Init?(Re)   Init?(Im)   Proc"
-                endif
-            endif
-            do i=1,counter
-!                call WriteBitEx(6,iLutRef,GlobalLargestWalkers(:,i),.false.)
-                call WriteDetBit(6,GlobalLargestWalkers(:,i),.false.)
-                Excitlev=FindBitExcitLevel(iLutRef,GlobalLargestWalkers(:,i),nEl)
-                write(6,"(I5)",advance='no') Excitlev
-                call extract_sign(GlobalLargestWalkers(:,i),SignCurr)
-                do j=1,lenof_sign
-                    write(6,"(I9)",advance='no') SignCurr(j)
-                enddo
-                if(lenof_sign.eq.1) then
-                    HighSign=real(abs(SignCurr(1)),dp)
-                else
-                    HighSign=sqrt(real(SignCurr(1),dp)**2+real(SignCurr(lenof_sign),dp)**2)
-                endif
-                if(tHPHF.and.(.not.TestClosedShellDet(GlobalLargestWalkers(:,i)))) then 
-                    !Weight is proportional to nw/sqrt(2)
-                    write(6,"(F9.5)",advance='no') (HighSign/sqrt(2.0_dp))/norm 
-                else
-                    write(6,"(F9.5)",advance='no') HighSign/norm 
-                endif
-                do j=1,lenof_sign
-                    if(.not.tTruncInitiator) then
-                        write(6,"(A3)",advance='no') 'Y'
-                    else
-                        if(test_flag(GlobalLargestWalkers(:,i),flag_is_initiator(j))) then
-                            write(6,"(A3)",advance='no') 'Y'
-                        else
-                            write(6,"(A3)",advance='no') 'N'
-                        endif
-                    endif
-                enddo
-                if(tHPHF.and.(.not.TestClosedShellDet(GlobalLargestWalkers(:,i)))) then 
-                    write(6,"(I7)",advance='no') GlobalProc(i)
-                    write(6,"(A3)") "*"
-                else
-                    write(6,"(I7)") GlobalProc(i)
-                endif
-            enddo
-
-            if(tHPHF) then
-                write(6,"(A)") " * = Spin-coupled function implicitly has time-reversed determinant with same weight."
-            endif
-
-            deallocate(GlobalLargestWalkers,GlobalProc)
-            write(6,*) ""
-        endif
-
-        deallocate(LargestWalkers)
-
-    END SUBROUTINE PrintHighPops
-
-
     ! **********************************************************
     ! ************************* NOTE ***************************
     ! ANY changes to the following interfaces MUST be replicated in the
@@ -955,10 +761,8 @@ MODULE FciMCParMod
         logical :: tParity
         real(dp) :: prob, HDiagCurr
         HElement_t :: HDiagTemp,HElGen
-#ifdef __DEBUG
         character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
-#endif
-    HElement_t :: delta
+        HElement_t :: delta
         integer :: proc, pos, sgn(lenof_sign)
 
         call set_timer(Walker_Time,30)
@@ -982,7 +786,7 @@ MODULE FciMCParMod
         HighPopPos=1
 
         ! Synchronise processors
-        CALL MPIBarrier(error)
+!        CALL MPIBarrier(error)
 
         ! Reset iteration variables
         VecSlot = 1    ! Next position to write into CurrentDets
@@ -990,6 +794,11 @@ MODULE FciMCParMod
         NoatDoubs = 0
         ! Next free position in newly spawned list.
         ValidSpawnedList = InitialSpawnedSlots
+        if(tHashWalkerList) then
+            FreeSlot(1:iEndFreeSlot)=0  !Does this cover enough?
+            iStartFreeSlot=1
+            iEndFreeSlot=0
+        endif
         
         call rezero_iter_stats_each_iter (iter_data)
 
@@ -1025,6 +834,17 @@ MODULE FciMCParMod
             enddo
         endif
 
+        IFDEBUGTHEN(FCIMCDebug,6)
+            if(tHashWalkerList) then
+                write(6,"(A)") "Hash Table: "
+                do j=1,nWalkerHashes
+                    if(HashIndex(0,j).eq.1) cycle
+                    write(6,*) j,HashIndex(0:HashIndex(0,j),j)
+                enddo
+            endif
+        ENDIFDEBUG
+
+        IFDEBUG(FCIMCDebug,3) write(6,"(A,I12)") "Walker list length: ",TotWalkers
         IFDEBUG(FCIMCDebug,3) write(6,"(A)") "TW: Walker  Det"
         do j=1,TotWalkers
             ! N.B. j indicates the number of determinants, not the number
@@ -1060,6 +880,19 @@ MODULE FciMCParMod
                                                           parent_flags)
             endif                                                          
 
+            if(tHashWalkerList) then
+                !Test here as to whether this is a "hole" or not...
+                !Unfortunately, the main list no longer needs to be contiguous
+                if(IsUnoccDet(SignCurr)) then
+                    !It has been removed from the hash table already
+                    !Add to the "freeslot" list
+                    iEndFreeSlot=iEndFreeSlot+1
+                    FreeSlot(iEndFreeSlot)=j
+                    cycle
+                endif
+            endif
+
+
             !Debug output.
             IFDEBUGTHEN(FCIMCDebug,3)
                 if(lenof_sign.eq.2) then
@@ -1081,11 +914,19 @@ MODULE FciMCParMod
             walkExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,j), &
                                                 max_calc_ex_level)
 
+            IFDEBUGTHEN(FCIMCDebug,1)
+                if(j.gt.1) then
+                    if(DetBitEQ(CurrentDets(:,j-1),CurrentDets(:,j),NIfDBO)) then
+                        call stop_all(this_routine,"Shouldn't have the same determinant twice")
+                    endif
+                endif
+            ENDIFDEBUG
+
             ! Should be able to make this function pointer-able
             if (tRegenDiagHEls) then
                 ! We are not storing the diagonal hamiltonian elements for 
                 ! each particle. Therefore, we need to regenerate them.
-                if (DetBitEQ(CurrentDets(:,j), iLutHF, NIfDBO) .and. &
+                if (DetBitEQ(CurrentDets(:,j), iLutRef, NIfDBO) .and. &
                     (.not.(tHub .and. tReal))) then
                     HDiagCurr = 0
                 else
@@ -1180,18 +1021,30 @@ MODULE FciMCParMod
             ! DEBUG
             ! if (VecSlot > j) call stop_all (this_routine, 'vecslot > j')
             call walker_death (attempt_die, iter_data, DetCurr, &
-                               CurrentDets(:,j), HDiagCurr, SignCurr, VecSlot)
+                               CurrentDets(:,j), HDiagCurr, SignCurr, VecSlot, j)
 
         enddo ! Loop over determinants.
-        IFDEBUG(FCIMCDebug,2) write(6,*) 'Finished loop over determinants'
-        
-        ! Since VecSlot holds the next vacant slot in the array, TotWalkers
-        ! should be one less than this. TotWalkersNew is now the number of particles
-        ! in the main array, before annihilation
-        TotWalkersNew = VecSlot - 1
+        IFDEBUGTHEN(FCIMCDebug,2) 
+            write(6,*) 'Finished loop over determinants'
+            if(tHashWalkerList) then
+                write(6,*) "Holes in list: ",iEndFreeSlot
+            endif
+        ENDIFDEBUG
+
+        if(tHashWalkerList) then
+            !With this algorithm, the determinants do not move, and therefore TotWalkersNew is simply equal
+            !to TotWalkers
+            TotWalkersNew=TotWalkers
+        else
+            ! Since VecSlot holds the next vacant slot in the array, TotWalkers
+            ! should be one less than this. TotWalkersNew is now the number of particles
+            ! in the main array, before annihilation
+            TotWalkersNew = VecSlot - 1
+        endif
 
         ! Update the statistics for the end of an iteration.
-        call end_iter_stats (TotWalkersNew)
+        ! Why is this done here - before annihilation!
+        call end_iter_stats(TotWalkersNew)
         
         ! Print bloom/memory warnings
         call end_iteration_print_warn (totWalkersNew)
@@ -1201,8 +1054,11 @@ MODULE FciMCParMod
         ! walkers should be in a seperate array (SpawnedParts) and the other 
         ! list should be ordered.
         call set_timer (annihil_time, 30)
+        !HolesInList is returned from direct annihilation with the number of unoccupied determinants in the list
+        !They have already been removed from the hash table though.
         call DirectAnnihilation (totWalkersNew, iter_data,.false.) !.false. for not single processor
-        TotWalkers=TotWalkersNew
+        TotWalkers=TotWalkersNew    !with tHashWalkerList this indicates the number of determinants 
+                                    !in list + holes from annihilation
         CALL halt_timer(Annihil_Time)
         IFDEBUG(FCIMCDebug,2) WRITE(6,*) "Finished Annihilation step"
 
@@ -1225,6 +1081,7 @@ MODULE FciMCParMod
         SumWalkersCyc = SumWalkersCyc + int(sum(TotParts), int64)
 
         ! Write initiator histograms if on the correct iteration.
+        ! Why is this done here - before annihilation!
         if ((tHistInitPops .and. mod(iter, HistInitPopsIter) == 0) &
             .or. tPrintHighPop) then
             call FindHighPopDet (TotWalkersNew)
@@ -1235,6 +1092,7 @@ MODULE FciMCParMod
 
         ! Update the sum for the projected-energy denominatior if projecting
         ! onto a linear combination of determinants.
+        ! Why is this done here - before annihilation!
         if (proje_spatial .and. proje_linear_comb .and. nproje_sum > 1) then
             do i = 1, nproje_sum
                 proc = DetermineDetNode (proje_ref_dets(:,i), 0)
@@ -2280,7 +2138,7 @@ MODULE FciMCParMod
     END FUNCTION AttemptCreatePar
 
     subroutine walker_death (attempt_die, iter_data, DetCurr, iLutCurr, Kii, &
-                             wSign, VecSlot)
+                             wSign, VecSlot,DetPosition)
         interface
             function attempt_die (nI, Kii, wSign) result(ndie)
                 use SystemData, only: nel
@@ -2297,10 +2155,13 @@ MODULE FciMCParMod
         integer, dimension(lenof_sign), intent(in) :: wSign
         integer(kind=n_int), intent(in) :: iLutCurr(0:niftot)
         integer, intent(inout) :: VecSlot
+        integer, intent(in) :: DetPosition
         real(dp), intent(in) :: Kii
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer, dimension(lenof_sign) :: iDie
         integer, dimension(lenof_sign) :: CopySign
+        integer, dimension(lenof_sign), parameter :: NullSign=0
+        character(len=*), parameter :: t_r="walker_death"
 
         ! Do particles on determinant die? iDie can be both +ve (deaths), or
         ! -ve (births, if shift > 0)
@@ -2327,6 +2188,8 @@ MODULE FciMCParMod
         ! This will normally increment with j, except when a particle dies
         ! completely (so VecSlot <= j, and we can't overwrite a walker we
         ! haven't got to yet).
+        !This does not hold with tHashWalkerList, since the determinants do
+        !not move
 #ifndef __CMPLX            
         if (CopySign(1).ne.0) then
             IF(tTruncInitiator.and.(sign(1,CopySign(1)).ne.sign(1,wSign(1)))) THEN
@@ -2339,12 +2202,26 @@ MODULE FciMCParMod
                     if (tSpawnSpatialInit) &
                         call rm_initiator_list (ilutCurr)
                 endif
-
+                if(tHashWalkerList) then
+                    !We need to remove this determinant from the hashindex array
+                    call RemoveDetHashIndex(DetCurr,DetPosition)
+                    !Add to the "freeslot" list
+                    iEndFreeSlot=iEndFreeSlot+1
+                    FreeSlot(iEndFreeSlot)=DetPosition
+                    !Encode a null det to be picked up
+                    call encode_sign(CurrentDets(:,DetPosition),NullSign)
+                endif
             ELSE
                 !Normally we will go in this block
-                call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
-                if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
-                VecSlot = VecSlot + 1
+                if(tHashWalkerList) then
+                    !Here, determinants always stay in the same place
+                    !Therefore, only need to encode sign, and not to worry about helement or anything else
+                    call encode_sign(CurrentDets(:,DetPosition),CopySign)
+                else
+                    call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
+                    if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
+                    VecSlot = VecSlot + 1
+                endif
             ENDIF
         elseif(tTruncInitiator) then
             ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
@@ -2353,13 +2230,73 @@ MODULE FciMCParMod
                 if (tSpawnSpatialInit) &
                     call rm_initiator_list (ilutCurr)
             endif
+            if(tHashWalkerList) then
+                !Remove the determinant from the indexing list
+                call RemoveDetHashIndex(DetCurr,DetPosition)
+                !Add to the "freeslot" list
+                iEndFreeSlot=iEndFreeSlot+1
+                FreeSlot(iEndFreeSlot)=DetPosition
+                !Encode a null det to be picked up
+                call encode_sign(CurrentDets(:,DetPosition),NullSign)
+            endif
+        elseif(tHashWalkerList) then
+            !Remove the determinant from the indexing list
+            call RemoveDetHashIndex(DetCurr,DetPosition)
+            !Add to the "freeslot" list
+            iEndFreeSlot=iEndFreeSlot+1
+            FreeSlot(iEndFreeSlot)=DetPosition
+            !Encode a null det to be picked up
+            call encode_sign(CurrentDets(:,DetPosition),NullSign)
         endif
 #else
         !In complex case, fill slot if either real or imaginary particle still there.
         IF((CopySign(1).ne.0).or.(CopySign(2).ne.0)) THEN
-            call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
-            if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
-            VecSlot=VecSlot+1
+            if(tTruncInitiator.and.(sign(1,CopySign(1)).ne.sign(1,wSign(1)))) then
+                !Remove the real anti-particle
+                NoAborted=NoAborted+abs(CopySign(1))
+                iter_data%naborted(1) = iter_data%naborted(1) + abs(CopySign(1))
+                if(test_flag(iLutCurr,flag_is_initiator(1))) NoAddedInitiators=NoAddedInitiators-1.0_dp
+                CopySign(1)=0
+            endif
+            if(tTruncInitiator.and.(sign(1,CopySign(lenof_sign)).ne.sign(1,wSign(lenof_sign)))) then
+                !Remove the imaginary anti-particle
+                NoAborted=NoAborted+abs(CopySign(lenof_sign))
+                iter_data%naborted(lenof_sign) = iter_data%naborted(lenof_sign) + abs(CopySign(lenof_sign))
+                if(test_flag(iLutCurr,flag_is_initiator(lenof_sign))) NoAddedInitiators=NoAddedInitiators-1.0_dp
+                CopySign(lenof_sign)=0
+            endif
+            if((CopySign(1).ne.0).or.(CopySign(lenof_sign).ne.0)) then
+                !These could have both been aborted for being antiparitlces
+                !Here, some survive - put them back in the list
+                if(tHashWalkerList) then
+                    !Here, determinants always stay in the same place
+                    !Therefore, only need to encode sign, and not to worry about helement or anything else
+                    call encode_sign(CurrentDets(:,DetPosition),CopySign)
+                else
+                    call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
+                    if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
+                    VecSlot=VecSlot+1
+                endif
+            else
+                !All walkers have been aborted
+                if(tHashWalkerList) then
+                    !Remove the determinant from the indexing list
+                    call RemoveDetHashIndex(DetCurr,DetPosition)
+                    !Add to the "freeslot" list
+                    iEndFreeSlot=iEndFreeSlot+1
+                    FreeSlot(iEndFreeSlot)=DetPosition
+                    !Encode a null det to be picked up
+                    call encode_sign(CurrentDets(:,DetPosition),NullSign)
+                endif
+            endif
+        ELSEIF(tHashWalkerList) then
+            !Remove the determinant from the indexing list
+            call RemoveDetHashIndex(DetCurr,DetPosition)
+            !Add to the "freeslot" list
+            iEndFreeSlot=iEndFreeSlot+1
+            FreeSlot(iEndFreeSlot)=DetPosition
+            !Encode a null det to be picked up
+            call encode_sign(CurrentDets(:,DetPosition),NullSign)
         ENDIF
 #endif            
 
@@ -3323,7 +3260,7 @@ MODULE FciMCParMod
         integer :: int_tmp(5+2*lenof_sign), proc, sgn(lenof_sign), pos, i
         HElement_t :: helem_tmp(3)
         HElement_t :: real_tmp(2)!*lenof_sign)
-        integer(int64) :: int64_tmp(9)
+        integer(int64) :: int64_tmp(9),TotWalkersTemp
         type(fcimc_iter_data) :: iter_data
         integer(int64), dimension(lenof_sign), intent(in) :: tot_parts_new
         integer(int64), dimension(lenof_sign), intent(out) :: tot_parts_new_all
@@ -3362,7 +3299,10 @@ MODULE FciMCParMod
         endif
 
         ! 64bit integers
-        call MPISumAll ((/TotWalkers, norm_psi_squared, TotParts, SumNoatHF, &
+        !Remove the holes in the main list when wanting the number of uniquely occupied determinants
+        !this should only change the number for tHashWalkerList
+        TotWalkersTemp=TotWalkers-HolesInList
+        call MPISumAll ((/TotWalkersTemp, norm_psi_squared, TotParts, SumNoatHF, &
                        tot_parts_new/), int64_tmp(1:2+3*lenof_sign))
         AllTotWalkers = int64_tmp(1)
         norm_psi_squared = int64_tmp(2)
@@ -3393,8 +3333,8 @@ MODULE FciMCParMod
         all_sum_proje_denominator = real_tmp(2)!(lenof_sign+1:2*lenof_sign)
 
         ! Max/Min values (check load balancing)
-        call MPIReduce (TotWalkers, MPI_MAX, MaxWalkersProc)
-        call MPIReduce (TotWalkers, MPI_MIN, MinWalkersProc)
+        call MPIReduce (TotWalkersTemp, MPI_MAX, MaxWalkersProc)
+        call MPIReduce (TotWalkersTemp, MPI_MIN, MinWalkersProc)
 
         ! We need the total number on the HF and SumWalkersCyc to be valid on
         ! ALL processors (n.b. one of these is 32bit, the other 64)
@@ -3444,7 +3384,7 @@ MODULE FciMCParMod
         integer :: error, i, proc, sgn(lenof_sign), pos
 
 !        call neci_flush(6)
-        CALL MPIBarrier(error)
+!        CALL MPIBarrier(error)
 
         ! collate_iter_data --> The values used are only valid on Root
         if (iProcIndex == Root) then
@@ -4425,6 +4365,15 @@ MODULE FciMCParMod
             CALL Stop_All(this_routine,"Error in allocating RandomHash")
         ENDIF
         RandomHash(:)=0
+        if(tHashWalkerList) then
+            !We want another independent randomizing array for the hash table, so we do not introduce
+            !correlations between the two
+            ALLOCATE(RandomHash2(nBasis),stat=ierr)
+            IF(ierr.ne.0) THEN
+                CALL Stop_All(this_routine,"Error in allocating RandomHash2")
+            ENDIF
+            RandomHash2(:)=0
+        endif
         IF(iProcIndex.eq.root) THEN
             do i=1,nBasis
                 ! If we want to hash only by spatial orbitals, then the
@@ -4452,9 +4401,37 @@ MODULE FciMCParMod
                     RandomHash(i) = ChosenOrb
                 enddo
             enddo
+            if(tHashWalkerList) then
+                !Do again for RandomHash2
+                do i=1,nBasis
+                    ! If we want to hash only by spatial orbitals, then the
+                    ! spin paired orbitals must be set equal
+                    if (tSpatialOnlyHash) then
+                        if (.not. btest(i, 0)) then
+                            RandomHash2(i) = RandomHash2(i - 1)
+                            cycle
+                        endif
+                    endif
+                    ! Ensure that we don't set two values to be equal accidentally
+                    FoundPair=.false.
+                    do while(.not.FoundPair)
+                        r = genrand_real2_dSFMT()
+                        ChosenOrb=INT(nBasis*r*1000)+1
 
-!                WRITE(6,*) "Random Orbital Indexing for hash:"
-!                WRITE(6,*) RandomHash(:)
+                        ! Check all values which have already been set.
+                        do j=1,nBasis
+                            IF(RandomHash2(j).eq.ChosenOrb) EXIT
+                        enddo
+
+                        ! If not already used, then we can move on
+                        if (j == nBasis+1) FoundPair = .true.
+                        RandomHash2(i) = ChosenOrb
+                    enddo
+                enddo
+            endif
+
+!            WRITE(6,*) "Random Orbital Indexing for hash:"
+!            WRITE(6,*) RandomHash2(:)
             if (tSpatialOnlyHash) then
                 step = 2
             else
@@ -4464,15 +4441,26 @@ MODULE FciMCParMod
                 IF((RandomHash(i).eq.0).or.(RandomHash(i).gt.nBasis*1000)) THEN
                     CALL Stop_All(this_routine,"Random Hash incorrectly calculated")
                 ENDIF
+                if(tHashWalkerList) then
+                    IF((RandomHash2(i).eq.0).or.(RandomHash2(i).gt.nBasis*1000)) THEN
+                        CALL Stop_All(this_routine,"Random Hash 2 incorrectly calculated")
+                    ENDIF
+                endif
                 do j = i+step, nBasis, step
                     IF(RandomHash(i).eq.RandomHash(j)) THEN
                         CALL Stop_All(this_routine,"Random Hash incorrectly calculated")
                     ENDIF
+                    if(tHashWalkerList) then
+                        IF(RandomHash2(i).eq.RandomHash2(j)) THEN
+                            CALL Stop_All(this_routine,"Random Hash 2 incorrectly calculated")
+                        ENDIF
+                    endif
                 enddo
             enddo
         ENDIF
         !Now broadcast to all processors
         CALL MPIBCast(RandomHash,nBasis)
+        if(tHashWalkerList) call MPIBCast(RandomHash2,nBasis)
 
         IF(tHPHF) THEN
             !IF(tLatticeGens) CALL Stop_All("SetupParameters","Cannot use HPHF with model systems currently.")
@@ -6073,7 +6061,7 @@ MODULE FciMCParMod
                         DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),3)=HDoubDiag
                         kDoub=0
                         kDoub=G1(DoubEx(2,1))%k
-                        DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),4)=REAL(kDoub(1))**2.D0+REAL(kDoub(2))**2.D0+REAL(kDoub(3))**2.D0
+                        DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),4)=REAL(kDoub(1)*kDoub(1))+REAL(kDoub(2)*kDoub(2))+REAL(kDoub(3)*kDoub(3))
                     endif
                 endif
             endif
@@ -6090,7 +6078,7 @@ MODULE FciMCParMod
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil,iReadWalkersRoot
         use constants , only : size_n_int
         use DeterminantData , only : write_det
-        INTEGER :: ierr,iunithead
+        INTEGER :: ierr,iunithead,DetHash,Slot,MemTemp
         LOGICAL :: formpops,binpops
         INTEGER :: error,MemoryAlloc,PopsVersion,j,iLookup,WalkerListSize
         INTEGER, DIMENSION(lenof_sign) :: InitialSign
@@ -6200,6 +6188,29 @@ MODULE FciMCParMod
 
             MemoryAlloc=MemoryAlloc+(NIfTot+1)*MaxSpawned*2*size_n_int
 
+            if(tHashWalkerList) then
+                write(6,"(A)") "Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number"
+                write(6,"(A,I15)") "Length of hash-table: ",nWalkerHashes
+                write(6,"(A,F20.5)") "Length of hash-table as a fraction of targetwalkers: ",HashLengthFrac
+                nClashMax=int(real(WalkerListSize,dp)/real(nWalkerHashes,dp))+1
+!                write(6,*) MaxWalkersPart,nWalkerHashes,nClashMax
+                write(6,"(A,I7,A)") "Initially allocating memory in hash table for a maximum of ",nClashMax," walker hash clashes"
+                MemTemp=2*(8*(nClashMax+1)*nWalkerHashes)+8*MaxWalkersPart
+                write(6,"(A,F10.3,A)") "This will use ",real(MemTemp,dp)/1048576.0_dp,&
+                    " Mb of memory per process, although this is likely to increase as it expands"
+                !HashIndex: (0,:) is first free slot in the hash list.
+                allocate(HashIndexArr1(0:nClashMax,nWalkerHashes),stat=ierr)
+                if(ierr.ne.0) call stop_all(this_routine,"Error in allocation")
+                HashIndex => HashIndexArr1
+                HashIndex(:,:)=0
+                HashIndex(0,:)=1    !First free slot is first slot
+                !Also need to allocate memory for the freeslot array
+                allocate(FreeSlot(MaxWalkersPart),stat=ierr)
+                if(ierr.ne.0) call stop_all(this_routine,"Error in allocation")
+                freeslot(:)=0
+                MemoryAlloc=MemoryAlloc+MemTemp
+            endif
+
 !Allocate pointers to the correct walker arrays
             CurrentDets=>WalkVecDets
             IF(.not.tRegenDiagHEls) THEN
@@ -6283,7 +6294,6 @@ MODULE FciMCParMod
 
                 elseif(tStartCAS) then
                     !Initialise walkers according to a CAS diagonalisation.
-
                     call InitFCIMC_CAS()
 
                 else !Set up walkers on HF det
@@ -6301,6 +6311,14 @@ MODULE FciMCParMod
 
                         ! Encode the reference determinant identification.
                         call encode_det(CurrentDets(:,1), iLutHF)
+                        if(tHashWalkerList) then
+                            !Point at the correct position for the first walker
+
+                            DetHash=FindWalkerHash(HFDet)    !Find det hash position
+                            Slot=HashIndex(0,DetHash)               !Find which free slot is next in the clashes
+                            HashIndex(Slot,DetHash)=1               !Index the position of the determinant in CurrentDets
+                            HashIndex(0,DetHash)=HashIndex(0,DetHash)+1 !Increment the number of hash clashes here
+                        endif
 
                         ! Clear the flags
                         call clear_all_flags (CurrentDets(:,1))
@@ -6453,7 +6471,7 @@ MODULE FciMCParMod
         use MomInv, only: IsAllowedMI 
         type(BasisFN) :: CASSym
         integer :: i,j,ierr,nEval,NKRY1,NBLOCK,LSCR,LISCR,DetIndex,iNode,NoWalkers,nBlocks,nBlockStarts(2)
-        integer :: CASSpinBasisSize,elec,nCASDet,ICMax,GC,LenHamil,iInit,nHPHFCAS
+        integer :: CASSpinBasisSize,elec,nCASDet,ICMax,GC,LenHamil,iInit,nHPHFCAS,Slot,DetHash
         integer , allocatable :: CASBrr(:),CASDet(:),CASFullDets(:,:),nRow(:),Lab(:),ISCR(:),INDEX(:)
         integer , pointer :: CASDetList(:,:) => null()
         integer(n_int) :: iLutnJ(0:NIfTot)
@@ -6802,6 +6820,16 @@ MODULE FciMCParMod
                         endif
                         CurrentH(DetIndex)=real(HDiagTemp,dp)-Hii
                     endif
+                    if(tHashWalkerList) then
+                        !Now need to index this determinant
+                        DetHash=FindWalkerHash(CASFullDets(:,i))  !Find det hash position
+                        Slot=HashIndex(0,DetHash)   !Find which free slot is next in the clashes
+                        HashIndex(Slot,DetHash)=DetIndex    !Index the position of the determinant in CurrentDets
+                        HashIndex(0,DetHash)=HashIndex(0,DetHash)+1 !Increment the number of hash clashes here
+                        if(HashIndex(0,DetHash).gt.nClashMax) then
+                            call EnlargeHashTable()
+                        endif
+                    endif
                     DetIndex=DetIndex+1
                     TotParts(1)=TotParts(1)+abs(NoWalkers)
                 endif
@@ -6810,7 +6838,10 @@ MODULE FciMCParMod
 
         TotWalkers=DetIndex-1   !This is the number of occupied determinants on each node
         TotWalkersOld=TotWalkers
-        call sort(CurrentDets(:,1:TotWalkers),CurrentH(1:TotWalkers))
+
+        if(.not.tHashWalkerList) then
+            call sort(CurrentDets(:,1:TotWalkers),CurrentH(1:TotWalkers))
+        endif
 
         !Set local&global variables
         TotPartsOld=TotParts
@@ -6838,7 +6869,7 @@ MODULE FciMCParMod
         use CalcData , only : InitialPart
         real(dp) :: TotMP1Weight,amp,MP2Energy,PartFac,H0tmp,rat,r
         HElement_t :: hel,HDiagtemp
-        integer :: iExcits,exflag,Ex(2,2),nJ(NEl),ic,DetIndex,iNode,NoWalkers,iInit
+        integer :: iExcits,exflag,Ex(2,2),nJ(NEl),ic,DetIndex,iNode,NoWalkers,iInit,Slot,DetHash
         integer(n_int) :: iLutnJ(0:NIfTot)
         integer, dimension(lenof_sign) :: temp_sign
         logical :: tAllExcitsFound,tParity
@@ -7018,6 +7049,16 @@ MODULE FciMCParMod
                         endif
                         CurrentH(DetIndex)=real(HDiagTemp,dp)-Hii
                     endif
+                    if(tHashWalkerList) then
+                        !Now need to index this determinant
+                        DetHash=FindWalkerHash(nJ)  !Find det hash position
+                        Slot=HashIndex(0,DetHash)   !Find which free slot is next in the clashes
+                        HashIndex(Slot,DetHash)=DetIndex    !Index the position of the determinant in CurrentDets
+                        HashIndex(0,DetHash)=HashIndex(0,DetHash)+1 !Increment the number of hash clashes here
+                        if(HashIndex(0,DetHash).gt.nClashMax) then
+                            call EnlargeHashTable()
+                        endif
+                    endif
                     DetIndex=DetIndex+1
                     TotParts(1)=TotParts(1)+abs(NoWalkers)
                 endif
@@ -7044,6 +7085,16 @@ MODULE FciMCParMod
                     call set_flag(CurrentDets(:,DetIndex),flag_is_initiator(2))
                 endif
                 if(.not.tRegenDiagHEls) CurrentH(DetIndex)=0.D0
+                if(tHashWalkerList) then
+                    !Now need to index HF. Note that this is *not* slot 1 now, though this shouldn't be a problem. 
+                    DetHash=FindWalkerHash(HFDet)  !Find det hash position
+                    Slot=HashIndex(0,DetHash)   !Find which free slot is next in the clashes
+                    HashIndex(Slot,DetHash)=DetIndex    !Index the position of the determinant in CurrentDets
+                    HashIndex(0,DetHash)=HashIndex(0,DetHash)+1 !Increment the number of hash clashes here
+                    if(HashIndex(0,DetHash).gt.nClashMax) then
+                        call EnlargeHashTable()
+                    endif
+                endif
                 DetIndex=DetIndex+1
                 TotParts(1)=TotParts(1)+abs(NoWalkers)
                 NoatHF(1) = NoWalkers
@@ -7056,7 +7107,10 @@ MODULE FciMCParMod
             
         TotWalkers=DetIndex-1   !This is the number of occupied determinants on each node
         TotWalkersOld=TotWalkers
-        call sort(CurrentDets(:,1:TotWalkers),CurrentH(1:TotWalkers))
+
+        if(.not.tHashWalkerList) then
+            call sort(CurrentDets(:,1:TotWalkers),CurrentH(1:TotWalkers))
+        endif
 
         !Set local&global variables
         TotPartsOld=TotParts
@@ -7324,7 +7378,19 @@ MODULE FciMCParMod
 
     SUBROUTINE DeallocFCIMCMemPar()
         CHARACTER(len=*), PARAMETER :: this_routine='DeallocFciMCMemPar'
+        integer :: ierr
 
+        if(tHashWalkerList) then
+            deallocate(RandomHash2,stat=ierr)
+            if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
+            if(allocated(HashIndexArr1)) deallocate(HashIndexArr1,stat=ierr)
+            if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
+            if(allocated(HashIndexArr2)) deallocate(HashIndexArr2,stat=ierr)
+            if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
+            nullify(HashIndex)
+            deallocate(FreeSlot,stat=ierr)
+            if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
+        endif
 
         IF(tHistSpawn.or.tCalcFCIMCPsi) THEN
             DEALLOCATE(Histogram)
@@ -7814,6 +7880,200 @@ MODULE FciMCParMod
         call LogMemDealloc(t_r,tagCK)
     
     end subroutine LanczosFindGroundE
+    
+    !Routine to print the highest populated determinants at the end of a run
+    SUBROUTINE PrintHighPops()
+        use DetBitOps, only : sign_lt,sign_gt
+        use Logging, only: iHighPopWrite
+        use sort_mod
+        integer, dimension(lenof_sign) :: SignCurr,LowSign
+        integer :: ierr,i,j,counter,ExcitLev
+        real(dp) :: SmallestSign,SignCurrReal,HighSign,reduce_in(1:2),reduce_out(1:2),Norm,AllNorm
+        integer(n_int) , allocatable :: LargestWalkers(:,:)
+        integer(n_int) , allocatable :: GlobalLargestWalkers(:,:)
+        integer(n_int) :: HighestDet(0:NIfTot)
+        integer , allocatable :: GlobalProc(:)
+        character(len=*), parameter :: t_r='PrintHighPops'
+
+        !Allocate memory to hold highest iHighPopWrite determinants
+        allocate(LargestWalkers(0:NIfTot,iHighPopWrite),stat=ierr)
+        if(ierr.ne.0) call stop_all(t_r,"error allocating here")
+        LargestWalkers(:,:)=0
+
+        SmallestSign=0.0_dp !Real, so can deal with complex amplitudes
+        Norm=0.0_dp
+        !Run through all walkers on process
+        do i=1,TotWalkers
+!            write(6,*) "Smallest sign is: ",SmallestSign
+            call extract_sign(CurrentDets(:,i),SignCurr)
+
+!            write(6,*) "***",i,SignCurr,CurrentDets(0:NIfDBO,i)
+
+            if(lenof_sign.eq.1) then
+                SignCurrReal=real(abs(SignCurr(1)),dp)
+            else
+                SignCurrReal=sqrt(real(SignCurr(1),dp)**2+real(SignCurr(lenof_sign),dp)**2)
+            endif
+            Norm=Norm+(SignCurrReal**2.0)
+
+            !Is this determinant more populated than the first in the list (which is always the smallest)
+            if(SignCurrReal.gt.SmallestSign) then
+                LargestWalkers(:,1)=CurrentDets(:,i)
+
+                !Now need to recalculate the list - resort LargestWalkers list by sign
+!                write(6,*) "New large weight found. Entering sort: "
+                call sort(LargestWalkers(:,1:iHighPopWrite), sign_lt, sign_gt)
+!                do j=1,iHighPopWrite
+!                    write(6,*) "Sorted: ",j,LargestWalkers(:,j)
+!                enddo
+
+                !Now extract the smallest sign
+                call extract_sign(LargestWalkers(:,1),LowSign)
+                if(lenof_sign.eq.1) then
+                    SmallestSign=real(abs(LowSign(1)),dp)
+                else
+                    SmallestSign=sqrt(real(LowSign(1),dp)**2+real(LowSign(lenof_sign),dp)**2)
+                endif
+            endif
+        enddo
+        call MpiSum(norm,allnorm)
+        norm=sqrt(allnorm)
+
+!        write(6,*) "Highest weighted dets on this process:"
+!        do i=1,iHighPopWrite
+!            write(6,*) LargestWalkers(:,i)
+!        enddo
+
+        !Now have sorted list of the iHighPopWrite largest weighted determinants on the process
+        if(iProcIndex.eq.Root) then
+            allocate(GlobalLargestWalkers(0:NIfTot,iHighPopWrite),stat=ierr)
+            if(ierr.ne.0) call stop_all(t_r,"error allocating here")
+            GlobalLargestWalkers(:,:)=0
+            allocate(GlobalProc(iHighPopWrite),stat=ierr)
+            if(ierr.ne.0) call stop_all(t_r,"error allocating here")
+            GlobalProc(:)=0
+        endif
+
+        do i=1,iHighPopWrite
+
+            call extract_sign(LargestWalkers(:,iHighPopWrite),SignCurr)
+
+            if(lenof_sign.eq.1) then
+                HighSign=real(abs(SignCurr(1)),dp)
+            else
+                HighSign=sqrt(real(SignCurr(1),dp)**2+real(SignCurr(lenof_sign),dp)**2)
+            endif
+            reduce_in=(/ HighSign,real(iProcIndex,dp) /)
+            call MPIAllReduceDatatype(reduce_in,1,MPI_MAXLOC,MPI_2DOUBLE_PRECISION,reduce_out)
+            !Now, reduce_out(2) has the process of the largest weighted determinant - broadcast it!
+            if(iProcIndex.eq.nint(reduce_out(2))) then
+                HighestDet(0:NIfTot) = LargestWalkers(:,iHighPopWrite)
+            else
+                HighestDet(0:NIfTot) = 0
+            endif
+            call MPIBCast(HighestDet(:),NIfTot+1,nint(reduce_out(2)))
+            if(iProcIndex.eq.Root) then
+                GlobalLargestWalkers(0:NIfTot,i) = HighestDet(:)
+                GlobalProc(i) = nint(reduce_out(2))
+            endif
+
+            !Now delete this highest determinant from the list on the corresponding processor
+            if(iProcIndex.eq.nint(reduce_out(2))) then
+                LargestWalkers(:,iHighPopWrite) = 0
+                !Resort
+                call sort(LargestWalkers(:,1:iHighPopWrite), sign_lt, sign_gt)
+            endif
+        enddo
+
+        if(iProcIndex.eq.Root) then
+            !Now print out the info contained in GlobalLargestWalkers and GlobalProc
+
+            counter=0
+            do i=1,iHighPopWrite
+                !How many non-zero determinants do we actually have?
+                call extract_sign(GlobalLargestWalkers(:,i),SignCurr)
+                if(lenof_sign.eq.1) then
+                    HighSign=real(abs(SignCurr(1)),dp)
+                else
+                    HighSign=sqrt(real(SignCurr(1),dp)**2+real(SignCurr(lenof_sign),dp)**2)
+                endif
+                if(HighSign.gt.1.D-7) counter=counter+1
+            enddo
+
+
+            write(6,*) ""
+            write(6,'(A)') "Current reference: "
+            call write_det (6, ProjEDet, .true.)
+            call writeDetBit(6,iLutRef,.true.)
+            write(6,*) ""
+            write(6,"(A,I10,A)") "Most occupied ",counter," determinants as excitations from reference: "
+            write(6,*) 
+            if(lenof_sign.eq.1) then
+                if(tHPHF) then
+                    write(6,"(A)") " Excitation   ExcitLevel    Walkers    Weight    Init?   Proc  Spin-Coup?"    
+                else
+                    write(6,"(A)") " Excitation   ExcitLevel   Walkers    Weight    Init?   Proc"    
+                endif
+            else
+                if(tHPHF) then
+                    write(6,"(A)") " Excitation   ExcitLevel   Walkers(Re)   Walkers(Im)  Weight   &
+                                        &Init?(Re)   Init?(Im)   Proc  Spin-Coup?"
+                else
+                    write(6,"(A)") " Excitation   ExcitLevel    Walkers(Re)   Walkers(Im)  Weight   &
+                                        &Init?(Re)   Init?(Im)   Proc"
+                endif
+            endif
+            do i=1,counter
+!                call WriteBitEx(6,iLutRef,GlobalLargestWalkers(:,i),.false.)
+                call WriteDetBit(6,GlobalLargestWalkers(:,i),.false.)
+                Excitlev=FindBitExcitLevel(iLutRef,GlobalLargestWalkers(:,i),nEl)
+                write(6,"(I5)",advance='no') Excitlev
+                call extract_sign(GlobalLargestWalkers(:,i),SignCurr)
+                do j=1,lenof_sign
+                    write(6,"(I9)",advance='no') SignCurr(j)
+                enddo
+                if(lenof_sign.eq.1) then
+                    HighSign=real(abs(SignCurr(1)),dp)
+                else
+                    HighSign=sqrt(real(SignCurr(1),dp)**2+real(SignCurr(lenof_sign),dp)**2)
+                endif
+                if(tHPHF.and.(.not.TestClosedShellDet(GlobalLargestWalkers(:,i)))) then 
+                    !Weight is proportional to nw/sqrt(2)
+                    write(6,"(F9.5)",advance='no') (HighSign/sqrt(2.0_dp))/norm 
+                else
+                    write(6,"(F9.5)",advance='no') HighSign/norm 
+                endif
+                do j=1,lenof_sign
+                    if(.not.tTruncInitiator) then
+                        write(6,"(A3)",advance='no') 'Y'
+                    else
+                        if(test_flag(GlobalLargestWalkers(:,i),flag_is_initiator(j))) then
+                            write(6,"(A3)",advance='no') 'Y'
+                        else
+                            write(6,"(A3)",advance='no') 'N'
+                        endif
+                    endif
+                enddo
+                if(tHPHF.and.(.not.TestClosedShellDet(GlobalLargestWalkers(:,i)))) then 
+                    write(6,"(I7)",advance='no') GlobalProc(i)
+                    write(6,"(A3)") "*"
+                else
+                    write(6,"(I7)") GlobalProc(i)
+                endif
+            enddo
+
+            if(tHPHF) then
+                write(6,"(A)") " * = Spin-coupled function implicitly has time-reversed determinant with same weight."
+            endif
+
+            deallocate(GlobalLargestWalkers,GlobalProc)
+            write(6,*) ""
+        endif
+
+        deallocate(LargestWalkers)
+
+    END SUBROUTINE PrintHighPops
+
 
 END MODULE FciMCParMod
 

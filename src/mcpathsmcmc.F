@@ -445,7 +445,6 @@ C.. If we cannot find a det that's connected, we give up
         real(dp) Beta,Brr(*),fck,ALAT(3),UMAT(*),RHOEPS,ECORE,WLRI,WLSI
         integer G1(*)
         character(*), parameter :: t_r="MCPATHSR5"
-
         call stop_all(t_r,"Routine depreciated. See mcpathsmcmc.F head")
       end subroutine MCPATHSR5
 
@@ -528,7 +527,8 @@ C.. If we cannot find a det that's connected, we give up
          LOGICAL LCANMOVE
          real(dp) WEIGHT,VALUE
          real(dp) WFUNC,VFUNC
-        character(*), parameter :: t_r="FMCPR5"
+         character(*), parameter :: t_r="FMCPR5"
+         FMCPR5=0.0_dp
         call stop_all(t_r,"Routine depreciated. See mcpathsmcmc.F head")
 
        END FUNCTION FMCPR5

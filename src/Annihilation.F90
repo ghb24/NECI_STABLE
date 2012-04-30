@@ -1,6 +1,7 @@
+#include "macros.h"
 !This module is to be used for various types of walker MC annihilation in serial and parallel.
 MODULE AnnihilationMod
-    use SystemData , only : NEl, tHPHF, nBasis
+    use SystemData , only : NEl, tHPHF, nBasis, tCSF
     use CalcData , only : TRegenExcitgens,tRegenDiagHEls
     USE DetCalcData , only : Det,FCIDetIndex
     USE Parallel_neci
@@ -49,7 +50,8 @@ MODULE AnnihilationMod
 !                           out: This is the new number of determinants, having been annihilated and merged with the
 !                                spawned list.
 !       SpawnParts(:,:)     This is the list of particles to attempt to annihilate. Unlike the Main list, this list
-!                           does *not* need to be ordered or sign coherent, and can also contain 'zero' sign particles.  Each particle contains its own sign
+!                           does *not* need to be ordered or sign coherent, and can also contain 'zero' sign particles.  
+!                           Each particle contains its own sign
 !       MaxSpawnInd         This is the size of the SpawnParts array.
 !       SpawnDets           This is the number of spawned particles in SpawnParts.
 !                           entry in the SpawnParts array.
@@ -68,6 +70,8 @@ MODULE AnnihilationMod
         integer(kind=n_int), pointer,save :: SpawnVecLocal(:,:)
         Sync_time%timer_name='AnnihSync   innterface'
         call set_timer(Sync_time,20)
+
+        if(tHashWalkerList) call stop_all(this_routine,"Cannot use annihilation interface with Hash table of particles")
 
         IF(.not.(ALLOCATED(ValidSpawnedList))) THEN
 !This needs to be filled correctly before annihilation can take place.
@@ -136,7 +140,8 @@ MODULE AnnihilationMod
     END SUBROUTINE AnnihilationInterface
 
 
-!This is a new annihilation algorithm. In this, determinants are kept on predefined processors, and newlyspawned particles are sent here so that all the annihilations are
+!This is a new annihilation algorithm. In this, determinants are kept on predefined processors, 
+!and newlyspawned particles are sent here so that all the annihilations are
 !done on a predetermined processor, and not rotated around all of them.
     SUBROUTINE DirectAnnihilation(TotWalkersNew, iter_data, tSingleProc)
         use bit_reps, only: test_flag
@@ -151,7 +156,8 @@ MODULE AnnihilationMod
 !        WRITE(6,*) "Direct annihilation"
 !        CALL neci_flush(6)
 
-!This routine will send all the newly-spawned particles to their correct processor. MaxIndex is returned as the new number of newly-spawned particles on the processor. May have duplicates.
+!This routine will send all the newly-spawned particles to their correct processor. 
+!MaxIndex is returned as the new number of newly-spawned particles on the processor. May have duplicates.
 !The particles are now stored in SpawnedParts2/SpawnedSign2.
 !        call WriteExcitorListP2(6,SpawnedParts,InitialSpawnedSlots,ValidSpawnedList,0,"Local")
 !        if(bNodeRoot) 
@@ -166,8 +172,10 @@ MODULE AnnihilationMod
         SpawnedParts2 => SpawnedParts
         SpawnedParts => PointTemp
 
-!Now we want to order and compress the spawned list of particles. This will also annihilate the newly spawned particles amongst themselves.
-!MaxIndex will change to reflect the final number of unique determinants in the newly-spawned list, and the particles will end up in the spawnedSign/SpawnedParts lists.
+!Now we want to order and compress the spawned list of particles. 
+!This will also annihilate the newly spawned particles amongst themselves.
+!MaxIndex will change to reflect the final number of unique determinants in the newly-spawned list, 
+!and the particles will end up in the spawnedSign/SpawnedParts lists.
 !        WRITE(6,*) "Transferred",MaxIndex
 
         Compress_time%timer_name='Compression interface'
@@ -181,18 +189,20 @@ MODULE AnnihilationMod
 
 !Binary search the main list and copy accross/annihilate determinants which are found.
 !This will also remove the found determinants from the spawnedparts lists.
-
         CALL AnnihilateSpawnedParts(MaxIndex,TotWalkersNew, iter_data)  
 
  !       WRITE(6,*) "Annihilation finished",MaxIndex,TotWalkersNew
 
-!Put the surviving particles in the main list, maintaining order of the main list.
-!Now we insert the remaining newly-spawned particles back into the original list (keeping it sorted), and remove the annihilated particles from the main list.
         CALL set_timer(Sort_Time,30)
-        CALL InsertRemoveParts(MaxIndex,TotWalkersNew)
-
+        if(tHashWalkerList) then
+            call CalcHashTableStats(TotWalkersNew) 
+        else
+!Put the surviving particles in the main list, maintaining order of the main list (unless tHashWalkerList specified).
+!Now we insert the remaining newly-spawned particles back into the original list (keeping it sorted), 
+!and remove the annihilated particles from the main list.
+            CALL InsertRemoveParts(MaxIndex,TotWalkersNew)
+        endif
         CALL halt_timer(Sort_Time)
-        call MPIBarrier(ierr)
 
     END SUBROUTINE DirectAnnihilation
 
@@ -211,7 +221,8 @@ MODULE AnnihilationMod
 !Put all particles and gap on one proc.
 
 !ValidSpawnedList(0:nNodes-1) indicates the next free index for each processor (for spawnees from this processor)
-!  i.e. the list of spawned particles has already been arranged so that newly spawned particles are grouped according to the processor they go to.
+!  i.e. the list of spawned particles has already been arranged so that newly spawned particles are 
+!grouped according to the processor they go to.
 
 ! sendcounts(1:) indicates the number of spawnees to send to each processor
 ! disps(1:) is the index into the spawned list of the beginning of the list to send to each processor (0-based)
@@ -244,6 +255,7 @@ MODULE AnnihilationMod
 !We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
         recvcounts(1:nProcessors)=0
         
+        call MPIBarrier(error)
         CALL set_timer(Comms_Time,30)
 
         CALL MPIAlltoAll(sendcounts,1,recvcounts,1,error)
@@ -327,7 +339,8 @@ MODULE AnnihilationMod
         CHARACTER(len=*), parameter :: this_routine='CompressSpawnedList'
         TYPE(timer),save :: Sort_time
 
-!We want to sort the list of newly spawned particles, in order for quicker binary searching later on. (this is not essential, but should proove faster)
+!We want to sort the list of newly spawned particles, in order for quicker binary searching later on. 
+!(this is not essential, but should proove faster)
 !They should remain sorted after annihilation between spawned
         if(.not.bNodeRoot) return
 !        call WriteExcitorListP(6,SpawnedParts,0,ValidSpawned,0,"UnOrdered")
@@ -600,23 +613,29 @@ MODULE AnnihilationMod
 !we binary search the list of particles on the processor
 !to see if an annihilation event can occur. The annihilated particles are then removed from the spawned list
 !to the whole list of spawned particles at the end of the routine.
-!In the main list, we change the 'sign' element of the array to zero. These will be deleted at the end of the total annihilation step.
+!In the main list, we change the 'sign' element of the array to zero. 
+!These will be deleted at the end of the total annihilation step.
     SUBROUTINE AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew, iter_data)
         type(fcimc_iter_data), intent(inout) :: iter_data
-        integer, intent(in) :: TotWalkersNew
+        integer, intent(inout) :: TotWalkersNew
         integer, intent(inout) :: ValidSpawned 
         INTEGER :: MinInd,PartInd,i,j,ToRemove,DetsMerged,PartIndex
         INTEGER, DIMENSION(lenof_sign) :: SignProd,CurrentSign,SpawnedSign,SignTemp
-        INTEGER :: ExcitLevel
+        INTEGER :: ExcitLevel,nJ(NEl),DetHash,FinalVal,clash
         INTEGER(KIND=n_int) , POINTER :: PointTemp(:,:)
         LOGICAL :: tSuccess,tSuc
+        character(len=*), parameter :: this_routine="AnnihilateSpawnedParts"
 
         if(.not.bNodeRoot) return  !Only node roots to do this.
 
         CALL set_timer(AnnMain_time,30)
 
+!        write(6,*) "Entering AnnihilateSpawnedParts"
+!        call flush(6)
+
 !MinInd indicates the minimum bound of the main array in which the particle can be found.
-!Since the spawnedparts arrays are ordered in the same fashion as the main array, we can find the particle position in the main array by only searching a subset.
+!Since the spawnedparts arrays are ordered in the same fashion as the main array, 
+!we can find the particle position in the main array by only searching a subset.
         MinInd=1
         IF(tHistSpawn) HistMinInd2(1:NEl)=FCIDetIndex(1:NEl)
         ToRemove=0  !The number of particles to annihilate
@@ -645,7 +664,8 @@ MODULE AnnihilationMod
 
         do i=1,ValidSpawned
 
-!This will binary search the CurrentDets array to find the desired particle. tSuccess will determine whether the particle has been found or not.
+!This will binary search the CurrentDets array to find the desired particle. 
+!tSuccess will determine whether the particle has been found or not.
 !It will also return the index of the position one below where the particle would be found if was in the list.
 !            CALL LinSearchParts(CurrentDets(:,1:TotWalkersNew),SpawnedParts(0:NIfD,i),MinInd,TotWalkersNew,PartInd,tSuccess)
 !            WRITE(6,*) "MinInd",MinInd
@@ -653,15 +673,39 @@ MODULE AnnihilationMod
 !               write(6,"(I5)",advance='no') j 
 !               call WriteBitDet(6,CurrentDets(:,j),.true.)
 !            enddo
-            CALL BinSearchParts(SpawnedParts(:,i),MinInd,TotWalkersNew,PartInd,tSuccess)
+            if(tHashWalkerList) then
+                !Do not need to binary search list. It is not sorted, but there is a hash table to it.
+                tSuccess=.false.
+                call decode_bit_det (nJ, SpawnedParts(:,i))              
+!                write(6,*) "Sending to hash func 1: ",nJ(:)
+                DetHash=FindWalkerHash(nJ)
+!                write(6,*) "DetHash: ",DetHash
+                FinalVal=HashIndex(0,DetHash)-1
+!                write(6,*) "FinalVal: ",FinalVal
+                do clash=1,FinalVal
+                    ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
+                    if(DetBitEQ(SpawnedParts(:,i),CurrentDets(:,HashIndex(clash,DetHash)),NIfDBO)) then
+                        !We have found the matching determinant
+                        tSuccess=.true.
+                        PartInd=HashIndex(clash,DetHash)
+!                        write(6,*) "Found it at: ",PartInd
+                        exit
+                    endif
+                enddo
+            else
+                CALL BinSearchParts(SpawnedParts(:,i),MinInd,TotWalkersNew,PartInd,tSuccess)
+            endif
 !            WRITE(6,"(A,2I6,L)",advance="no") "Binary search complete: ",i,PartInd,tSuccess
 !            call WriteBitDet(6,SpawnedParts(:,i),.true.)
 !            call WriteBitDet(6,CurrentDets(:,PartInd),.true.)
 
             IF(tSuccess) THEN
-!                SearchInd=PartInd   !This can actually be min(1,PartInd-1) once we know that the binary search is working, as we know that PartInd is the same particle.
-!                MinInd=PartInd      !Make sure we only have a smaller list to search next time since the next particle will not be at an index smaller than PartInd
-!                AnnihilateInd=0     !AnnihilateInd indicates the index in CurrentDets of the particle we want to annihilate. It will remain 0 if we find not complimentary particle.
+!                SearchInd=PartInd   !This can actually be min(1,PartInd-1) once we know that the binary search is working, 
+!                                   as we know that PartInd is the same particle.
+!                MinInd=PartInd      !Make sure we only have a smaller list to search next time since the next 
+!                                   particle will not be at an index smaller than PartInd
+!                AnnihilateInd=0    !AnnihilateInd indicates the index in CurrentDets of the particle we want to annihilate. 
+!                                   It will remain 0 if we find not complimentary particle.
 !                WRITE(6,'(3I20,A,3I20)') SpawnedParts(:,i),' equals ',CurrentDets(:,PartInd)
                 call extract_sign(CurrentDets(:,PartInd),CurrentSign)
                 call extract_sign(SpawnedParts(:,i),SpawnedSign)
@@ -709,6 +753,19 @@ MODULE AnnihilationMod
                                 endif
                             endif
                         ENDIF
+
+                        if(tHashWalkerList) then
+                            call extract_sign (CurrentDets(:,PartInd), SignTemp)
+                            if (IsUnoccDet(SignTemp)) then
+                                !All walkers in this main list have been annihilated away
+                                !Remove it from the hash index array so that no others find it (it is impossible to have
+                                !another spawned walker yet to find this determinant)
+                                call RemoveDetHashIndex(nJ,PartInd)
+                                !Add to "freeslot" list so it can be filled in
+                                iEndFreeSlot=iEndFreeSlot+1
+                                FreeSlot(iEndFreeSlot)=PartInd
+                            endif
+                        endif
                         
                         IF(tHistSpawn) THEN
 !We want to histogram where the particle annihilations are taking place.
@@ -780,7 +837,6 @@ MODULE AnnihilationMod
                             endif
                         endif
 
-
                         ! Walkers came from outside initiator space.
                         NoAborted = NoAborted + abs(SignTemp(j))
                         iter_data%naborted(j) = iter_data%naborted(j) + abs(SignTemp(j))
@@ -791,7 +847,16 @@ MODULE AnnihilationMod
                 if (IsUnoccDet(SignTemp)) then
                     ! All particle 'types' have been aborted
                     ToRemove = ToRemove + 1
+                elseif(tHashWalkerList) then
+                    !Walkers have not been aborted, and so we should copy the determinant straight over to the main list
+                    !We do not need to recompute the hash, since this should be the same one as was generated at the
+                    !beginning of the loop
+                    call AddNewHashDet(TotWalkersNew,SpawnedParts(:,i),DetHash,nJ)
                 endif
+            elseif(tHashWalkerList) then
+                !This is the full scheme, and the walkers all spawning to new determinants.
+                !Copy them across now.
+                call AddNewHashDet(TotWalkersNew,SpawnedParts(:,i),DetHash,nJ)
             endif
 
             ! Even if a corresponding particle wasn't found, we can still
@@ -799,7 +864,7 @@ MODULE AnnihilationMod
             MinInd=PartInd
 
         enddo
-        
+
         CALL halt_timer(BinSearch_time)
 
 !        WRITE(6,*) "Leftover Parts..."
@@ -807,33 +872,48 @@ MODULE AnnihilationMod
 !            WRITE(6,*) SpawnedParts(0:NIfTot-1,i),SpawnedParts(NIfTot,i)-2
 !        enddo
 
+        if(.not.tHashWalkerList) then
+
 !Now we have to remove the annihilated particles from the spawned list. They will be removed from the main list at the end of the annihilation process.
 !It may actually be easier to just move the annihilated particles to the end of the list and resort the list?
 !Or, the removed indices could be found on the fly? This may have little benefit though if the memory isn't needed.
-        IF(ToRemove.gt.0) THEN
+            IF(ToRemove.gt.0) THEN
 
 !Since reading and writing from the same array is slow, copy the information accross to the other spawned array, and just swap the pointers around after.
-            DetsMerged=0
-            do i=1,ValidSpawned
+                DetsMerged=0
+                do i=1,ValidSpawned
 !We want to move all the elements above this point down to 'fill in' the annihilated determinant.
-                call extract_sign(SpawnedParts(:,i),SignTemp)
-                IF(IsUnoccDet(SignTemp)) THEN
-                    DetsMerged=DetsMerged+1
-                ELSE
-                    SpawnedParts2(0:NIfTot,i-DetsMerged)=SpawnedParts(0:NIfTot,i)
+                    call extract_sign(SpawnedParts(:,i),SignTemp)
+                    IF(IsUnoccDet(SignTemp)) THEN
+                        DetsMerged=DetsMerged+1
+                    ELSE
+                        SpawnedParts2(0:NIfTot,i-DetsMerged)=SpawnedParts(0:NIfTot,i)
+                    ENDIF
+                enddo
+                ValidSpawned=ValidSpawned-DetsMerged
+                IF(DetsMerged.ne.ToRemove) THEN
+                    WRITE(6,*) "***", Iter, DetsMerged, ToRemove
+                    CALL Stop_All("AnnihilateSpawnedParts","Incorrect number of particles removed from spawned list")
                 ENDIF
-            enddo
-            ValidSpawned=ValidSpawned-DetsMerged
-            IF(DetsMerged.ne.ToRemove) THEN
-                WRITE(6,*) "***", Iter, DetsMerged, ToRemove
-                CALL Stop_All("AnnihilateSpawnedParts","Incorrect number of particles removed from spawned list")
-            ENDIF
 !We always want to annihilate from the SpawedParts and SpawnedSign arrays, so swap them around.
-            PointTemp => SpawnedParts2
-            SpawnedParts2 => SpawnedParts
-            SpawnedParts => PointTemp
+                PointTemp => SpawnedParts2
+                SpawnedParts2 => SpawnedParts
+                SpawnedParts => PointTemp
 
-        ENDIF
+            ENDIF
+        else
+
+            !Update remaining number of holes in list for walkers stats.
+            if(iStartFreeSlot.gt.iEndFreeSlot) then
+                !All slots filled
+                HolesInList=0
+!                write(6,*) "No holes in list"
+            else
+                HolesInList=iEndFreeSlot-(iStartFreeSlot-1)
+!                write(6,*) "Holes in main list: ",HolesInList
+            endif
+
+        endif
 !        call WriteExcitorListP(6,SpawnedParts,0,ValidSpawned,0,"After zero-removal")
 
 !        WRITE(6,*) "After removal of zeros: "
@@ -844,6 +924,115 @@ MODULE AnnihilationMod
         CALL halt_timer(AnnMain_time)
 
     END SUBROUTINE AnnihilateSpawnedParts
+
+    !Add a new determinant to the main list when tHashWalkerList is true
+    !This involves updating the list length, copying it across, updating its flag, adding its diagonal helement(if neccessary)
+    !Also need to update the hash table to point at it correctly
+    subroutine AddNewHashDet(TotWalkersNew,iLutCurr,DetHash,nJ)
+        implicit none
+        integer, intent(inout) :: TotWalkersNew 
+        integer(n_int), intent(inout) :: iLutCurr(0:NIfTot)
+        integer, intent(in) :: DetHash, nJ(nel)
+        integer :: DetPosition
+        HElement_t :: HDiag
+        character(len=*), parameter :: t_r="AddNewHashDet"
+
+        !update its flag
+        if(tTruncInitiator) call FlagifDetisInitiator(iLutCurr)
+
+        if(iStartFreeSlot.le.iEndFreeSlot) then
+            !We can slot it into a free slot in the main list, rather than increase its length
+            DetPosition =  FreeSlot(iStartFreeSlot)
+            CurrentDets(:,DetPosition)=iLutCurr(:)
+            iStartFreeSlot=iStartFreeSlot+1
+        else
+            !We must increase the length of the main list to slot the new walker in
+            TotWalkersNew=TotWalkersNew+1
+            DetPosition=TotWalkersNew
+            if(TotWalkersNew.ge.MaxWalkersPart) then
+                call stop_all(t_r,"Not enough memory to merge walkers into main list. Increase MemoryFacPart")
+            endif
+            CurrentDets(:,DetPosition)=iLutCurr(:)
+        endif
+!        write(6,*) "Putting into position: ",DetPosition
+        
+        if(.not.tRegenDiagHEls) then
+!We want to calculate the diagonal hamiltonian matrix element for the new particle to be merged.
+!            call decode_bit_det (nJ, CurrentDets(:,CurrDetsIndex))
+            if (tHPHF) then
+                HDiag = hphf_diag_helement (nJ,CurrentDets(:,DetPosition))
+            else
+                HDiag = get_helement (nJ, nJ, 0)
+            endif
+            CurrentH(DetPosition)=real(HDiag,dp)-Hii
+        endif
+
+        HashIndex(HashIndex(0,DetHash),DetHash)=DetPosition
+!        write(6,*) "Adding index to hash position: ",HashIndex(0,DetHash)
+        HashIndex(0,DetHash)=HashIndex(0,DetHash)+1
+!        write(6,*) "DetHash: ",DetHash
+!        write(6,*) "HashIndex(0,DetHash): ",HashIndex(0,DetHash)
+!        write(6,*) "nClashMax: ",nClashMax
+        if(HashIndex(0,DetHash).gt.nClashMax) then
+            call EnlargeHashTable()
+        endif
+
+    end subroutine AddNewHashDet
+
+    subroutine EnlargeHashTable()
+        implicit none
+        integer :: ierr,i,FinalVal
+        character(len=*), parameter :: t_r="EnlargeHashTable"
+
+        nClashMax=nClashMax+1
+        write(6,"(A)") "Enlarging hash table since it is not optimally load balanced."
+        write(6,"(A,I5,A,I14,A)") "Allowing for a maximum of ",nClashMax," hash clashes, and potential storage for "&
+                            ,nClashMax*nWalkerHashes," occupied determinants"
+
+        if(allocated(HashIndexArr1)) then
+!            write(6,*) "HashIndexArr1 allocated"
+            allocate(HashIndexArr2(0:nClashMax,nWalkerHashes),stat=ierr)
+!            write(6,*) "Ierr: ",ierr
+            if(ierr.ne.0) then
+                call stop_all(t_r,"Error reallocating HashIndexArr2")
+            endif
+!            write(6,*) "Zeroing array"
+!            call flush(6)
+            HashIndexArr2(:,:)=0
+!            write(6,*) "Filling new hash array"
+            do i=1,nWalkerHashes
+!                write(6,*) i
+!                call flush(6)
+                FinalVal=HashIndex(0,i)-1
+                HashIndexArr2(0:FinalVal,i) = HashIndex(0:FinalVal,i)
+            enddo
+!            write(6,*) "Deallocating old hash array"
+            deallocate(HashIndexArr1)
+            nullify(HashIndex)
+            HashIndex => HashIndexArr2
+        else
+!            write(6,*) "HashIndexArr2 allocated"
+            if(.not.allocated(HashIndexArr2)) then
+                call stop_all(t_r,"HashIndexArr2 should be allocated")
+            endif
+            if(allocated(HashIndexArr1)) then
+                call stop_all(t_r,"HashIndexArr1 should not be allocated")
+            endif
+            allocate(HashIndexArr1(0:nClashMax,nWalkerHashes),stat=ierr)
+            if(ierr.ne.0) then
+                call stop_all(t_r,"Error reallocating HashIndexArr2")
+            endif
+            HashIndexArr1(:,:)=0
+            do i=1,nWalkerHashes
+                FinalVal=HashIndex(0,i)-1
+                HashIndexArr1(0:FinalVal,i)=HashIndex(0:FinalVal,i)
+            enddo
+            deallocate(HashIndexArr2)
+            nullify(HashIndex)
+            HashIndex => HashIndexArr1
+        endif
+
+    end subroutine EnlargeHashTable
 
     PURE LOGICAL FUNCTION IsUnoccDet(CurrentSign)
         INTEGER, DIMENSION(lenof_sign), INTENT(IN) :: CurrentSign
@@ -858,6 +1047,91 @@ MODULE AnnihilationMod
             ENDIF
         ENDIF
     END FUNCTION IsUnoccDet
+    
+    
+    SUBROUTINE CalcHashTableStats(TotWalkersNew)
+        use util_mod, only: abs_int_sign
+        use CalcData , only : tCheckHighestPop
+        integer, intent(in) :: TotWalkersNew
+        INTEGER :: i,part_type,AnnihilatedDet
+        INTEGER, DIMENSION(lenof_sign) :: CurrentSign,SpawnedSign
+        character(*), parameter :: t_r = 'CalcHashTableStats'
+
+        if(.not.bNodeRoot) return
+        TotParts=0
+        norm_psi_squared = 0
+        iHighestPop=0
+        AnnihilatedDet=0
+        IF(TotWalkersNew.gt.0) THEN
+            do i=1,TotWalkersNew
+                call extract_sign(CurrentDets(:,i),CurrentSign)
+                IF(IsUnoccDet(CurrentSign)) then
+                    AnnihilatedDet=AnnihilatedDet+1 
+                    IF(tTruncInitiator) THEN
+                        do part_type=1,lenof_sign
+                            if (test_flag(CurrentDets(:,i),flag_parent_initiator(part_type))) then
+                                !determinant was an initiator...it obviously isn't any more...
+                                NoAddedInitiators=NoAddedInitiators-1.D0
+                                if (tSpawnSpatialInit) &
+                                    call rm_initiator_list (CurrentDets(:,i))
+                            endif
+                        enddo
+                    ENDIF
+                ELSE
+!We want to move all the elements above this point down to 'fill in' the annihilated determinant.
+                    TotParts=TotParts+abs(CurrentSign)
+                    norm_psi_squared = norm_psi_squared + sum(int(CurrentSign,int64)**2)
+                    IF(tCheckHighestPop) THEN
+!If this option is on, then we want to compare the weight on each determinant to the weight at the HF determinant.
+!Record the highest weighted determinant on each processor.
+                        IF(abs_int_sign(CurrentSign).gt.iHighestPop) THEN
+                            iHighestPop=abs_int_sign(CurrentSign)
+                            HighestPopDet(:)=CurrentDets(:,i)
+                        ENDIF
+                    ENDIF
+                ENDIF
+            enddo
+        ENDIF
+        if(AnnihilatedDet.ne.HolesInList) then
+            write(6,*) "TotWalkersNew: ",TotWalkersNew
+            write(6,*) "AnnihilatedDet: ",AnnihilatedDet
+            write(6,*) "HolesInList: ",HolesInList
+            call stop_all(t_r,"Error in determining annihilated determinants")
+        endif
+
+    END SUBROUTINE CalcHashTableStats
+    
+    !routine to find and remove the index to a determinant from the HashIndex array
+    !This could potentially be speeded up by an ordered HashIndex array, and binary searching
+    subroutine RemoveDetHashIndex(nI,DetPosition)
+        implicit none
+!        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer, intent(in) :: nI(nel) 
+        integer, intent(in) :: DetPosition
+        integer :: DetHash,FinalVal,i
+        character(*), parameter :: this_routine="RemoveDetHashIndex"
+
+!        write(6,*) "Sending to hash func 2: ",nI(:)
+        DetHash=FindWalkerHash(nI)
+        FinalVal=HashIndex(0,DetHash)-1
+        do i=1,FinalVal !Run through all indices
+!            write(6,*) "i, HashIndex(i,DetHash): ",i, HashIndex(i,DetHash)
+            if(HashIndex(i,DetHash).eq.DetPosition) exit
+        enddo
+!        write(6,*) "DetHash: ",DetHash
+!        write(6,*) "FinalVal: ",FinalVal
+!        write(6,*) "DetPosition: ",DetPosition
+        ASSERT(i.le.FinalVal)
+
+        !i is now the position of the determinant to remove
+        !Indicate that there is now one less determinant at this hash value
+        HashIndex(0,DetHash)=HashIndex(0,DetHash)-1
+        !Move everything from i+1 -> HashIndex(0,DetHash) down one
+        if(i.ne.FinalVal) then
+            HashIndex(i:FinalVal-1,DetHash)=HashIndex(i+1:FinalVal,DetHash)
+        endif
+
+    end subroutine RemoveDetHashIndex
 
     
 !This routine will run through the total list of particles (TotWalkersNew in CurrentDets with sign CurrentSign) and the list of newly-spawned but
@@ -871,7 +1145,8 @@ MODULE AnnihilationMod
         use SystemData, only: tHPHF
         use bit_reps, only: NIfD
         use CalcData , only : tCheckHighestPop
-        INTEGER :: TotWalkersNew,ValidSpawned
+        INTEGER, intent(in) :: ValidSpawned
+        integer, intent(inout) :: TotWalkersNew
         INTEGER :: i,DetsMerged,nJ(NEl),part_type
         INTEGER, DIMENSION(lenof_sign) :: CurrentSign,SpawnedSign
         real(dp) :: HDiag
@@ -1010,6 +1285,32 @@ MODULE AnnihilationMod
 !        CALL CheckOrdering(CurrentDets,CurrentSign(1:TotWalkers),TotWalkers,.true.)
 
     END SUBROUTINE InsertRemoveParts
+    
+    !Another hashing routine - this time to find the correct position in the hash table
+    pure function FindWalkerHash(nJ) result(hashInd)
+        implicit none
+        integer, intent(in) :: nJ(nel)
+        integer :: hashInd
+        integer :: i
+        integer(int64) :: hash
+        hash = 0
+!        write(6,*) "nJ: ",nJ(:)
+        if(tCSF) then
+            do i = 1, nel
+                hash = (1099511628211_int64 * hash) + &
+                        (RandomHash2(mod(iand(nJ(i), csf_orbital_mask)-1,int(nBasis,int64))+1) * i)
+            enddo
+        else
+            do i = 1, nel
+                hash = (1099511628211_int64 * hash) + &
+                        int(RandomHash2(nJ(i))*i,int64)
+
+!                        (RandomHash(mod(nI(i)+offset-1,int(nBasis,int64))+1) * i)
+            enddo
+        endif
+        hashInd = abs(mod(hash, int(nWalkerHashes, int64)))+1_int64
+    end function FindWalkerHash
+
 
     pure function DetermineDetNode (nI, iIterOffset) result(node)
 
@@ -1042,10 +1343,17 @@ MODULE AnnihilationMod
            offset=0
         endif
         acc = 0
-        do i = 1, nel
-            acc = (1099511628211_int64 * acc) + &
-                    (RandomHash(mod(iand(nI(i), csf_orbital_mask)+offset-1,int(nBasis,int64))+1) * i)
-        enddo
+        if(tCSF) then
+            do i = 1, nel
+                acc = (1099511628211_int64 * acc) + &
+                        (RandomHash(mod(iand(nI(i), csf_orbital_mask)+offset-1,int(nBasis,int64))+1) * i)
+            enddo
+        else
+            do i = 1, nel
+                acc = (1099511628211_int64 * acc) + &
+                        (RandomHash(mod(nI(i)+offset-1,int(nBasis,int64))+1) * i)
+            enddo
+        endif
         node = abs(mod(acc, int(nNodes, int64)))
 
     end function

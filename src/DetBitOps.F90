@@ -374,13 +374,14 @@ module DetBitOps
 
     ! This will return true if iLutI is identical to iLutJ and will return 
     ! false otherwise.
-    logical function DetBitEQ(iLutI,iLutJ,nLast)
+    pure function DetBitEQ(iLutI,iLutJ,nLast) result(res)
         integer, intent(in), optional :: nLast
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        logical :: res
         integer :: i, lnLast
 
         if(iLutI(0).ne.iLutJ(0)) then
-            DetBitEQ=.false.
+            res=.false.
             return
         else
             if (present(nLast)) then
@@ -391,12 +392,12 @@ module DetBitOps
 
             do i=1,lnLast
                 if(iLutI(i).ne.iLutJ(i)) then
-                    DetBitEQ=.false.
+                    res=.false.
                     return
                 endif
             enddo
         endif
-        DetBitEQ=.true.
+        res=.true.
     end function DetBitEQ
 
     pure function sign_lt (ilutI, ilutJ) result (bLt)

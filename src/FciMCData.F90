@@ -27,6 +27,7 @@ MODULE FciMCData
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: WalkVecDets(:,:)                !Contains determinant list
       REAL(KIND=dp) , ALLOCATABLE , TARGET :: WalkVecH(:)                    !Diagonal hamiltonian element
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVec(:,:),SpawnVec2(:,:)
+
     
       INTEGER(TagIntType) :: WalkVecDetsTag=0
       INTEGER(TagIntType) :: WalkVecHTag=0
@@ -55,6 +56,11 @@ MODULE FciMCData
     integer(int64) :: AllNoAbortedOld, AllGrowRateAbort
 
       LOGICAL :: tHFInitiator,tPrintHighPop, tcurr_initiator
+      logical :: tHashWalkerList    !Option to store occupied determinant in a hash table
+      integer, allocatable :: FreeSlot(:)   !List of the free slots in the main list
+      integer :: iStartFreeSlot     !=1 at the beginning of an iteration, will increment
+      !as free slots are used up for *newly spawned* walkers onto previously unoccupied determinants only
+      integer :: iEndFreeSlot   !Position of last free slot, so after we exceed this, just add the the end of the main list.
  
       real(dp) :: AvDiagSftAbort,SumDiagSftAbort,DiagSftAbort     !This is the average diagonal shift value since it started varying, and the sum of the shifts since it started varying, and
                                                                 !the instantaneous shift, including the number of aborted as though they had lived.
@@ -70,6 +76,12 @@ MODULE FciMCData
       integer(int64) :: norm_psi_squared
       real(dp) :: norm_psi
       INTEGER :: exFlag=3
+      
+      !Hash tables to point to the correct determinants in CurrentDets
+      integer , allocatable , target :: HashIndexArr2(:,:),HashIndexArr1(:,:)
+      integer , pointer :: HashIndex(:,:) 
+      integer :: nClashMax,nWalkerHashes    !Number of hash clashes allowed, and length of hash table respectively
+      real(dp) :: HashLengthFrac
 
 !The following variables are calculated as per processor, but at the end of each update cycle, are combined to the root processor
       real(dp) :: GrowRate,DieRat
@@ -152,6 +164,8 @@ MODULE FciMCData
       ! Store the current value of S^2 between update cycles
       real(dp) :: curr_S2, curr_S2_init
 
+      integer :: HolesInList    !This is for tHashWalkerList and indicates the number of holes in the main list this iter
+
 !These are variables needed for the FixCASshift option in which an active space is chosen and the shift fixed only for determinants within this space
 !The SpinInvBRR vector stores the energy ordering for each spatial orbital, which is the inverse of the BRR vector
       INTEGER, ALLOCATABLE :: SpinInvBRR(:)
@@ -203,6 +217,7 @@ MODULE FciMCData
       INTEGER(KIND=n_int) , ALLOCATABLE :: CoreMask(:)       !These are masking arrays for the Core orbitals in the cas space
 
       INTEGER , ALLOCATABLE :: RandomHash(:)    !This is a random indexing scheme by which the orbital indices are randomised to attempt to provide a better hashing performance
+      integer, allocatable :: RandomHash2(:)    !Another random index scheme for the hashing used by tHashWalkerList
 
       real(dp) :: HFShift     !A 'shift'-like value for the total energy which is taken from the growth of walkers on the HF determinant.
       real(dp) :: InstShift   !An instantaneous value for the shift from the growth of walkers.
