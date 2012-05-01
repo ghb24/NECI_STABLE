@@ -15,7 +15,7 @@ MODULE AnnihilationMod
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use sort_mod
-    use constants, only: n_int,lenof_sign,null_part
+    use constants, only: n_int,lenof_sign,null_part,sizeof_int
     use bit_rep_data
     use bit_reps, only: decode_bit_det, extract_sign, extract_flags, &
                         encode_sign, encode_flags, test_flag, set_flag, &
@@ -1298,7 +1298,7 @@ MODULE AnnihilationMod
         if(tCSF) then
             do i = 1, nel
                 hash = (1099511628211_int64 * hash) + &
-                        (RandomHash2(mod(iand(nJ(i), csf_orbital_mask)-1,int(nBasis,int64))+1) * i)
+                        int(RandomHash2(mod(iand(nJ(i), csf_orbital_mask)-1,nBasis)+1) * i,int64)
             enddo
         else
             do i = 1, nel
@@ -1308,7 +1308,7 @@ MODULE AnnihilationMod
 !                        (RandomHash(mod(nI(i)+offset-1,int(nBasis,int64))+1) * i)
             enddo
         endif
-        hashInd = abs(mod(hash, int(nWalkerHashes, int64)))+1_int64
+        hashInd = int(abs(mod(hash, int(nWalkerHashes, int64))),sizeof_int)+1_int64
     end function FindWalkerHash
 
 
