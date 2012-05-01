@@ -759,7 +759,7 @@ MODULE PopsfileMod
             enddo
 
             CLOSE(iunit)
-            CLOSE(iunit_2)
+            if (tPrintInitiators) CLOSE(iunit_2)
 
 !Deallocate memory for temporary storage of information.
             DEALLOCATE(Parts)

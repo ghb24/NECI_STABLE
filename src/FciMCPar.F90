@@ -66,7 +66,7 @@ MODULE FciMCParMod
                        instant_s2_multiplier, tMCOutput, tSplitProjEHist, &
                        tSplitProjEHistG, tSplitProjEHistK3, iProjEBins, &
                        tDiagWalkerSubspace,iDiagSubspaceIter, &
-                       tCalcInstantS2Init, instant_s2_multiplier_init
+                       tCalcInstantS2Init, instant_s2_multiplier_init, &
                        tRDMonFly, IterRDMonFly, tSpawnGhostChild, &
                        GhostFac, GhostThresh,RDMExcitLevel, RDMEnergyIter, &
                        tChangeVarsRDM, tExplicitAllRDM, tHF_Ref_Explicit, &
@@ -392,6 +392,7 @@ MODULE FciMCParMod
         ! upon leaving the loop (If done naturally).
         IF(TIncrement) Iter=Iter-1
         IF(TPopsFile) THEN
+            WRITE(6,*) "Totwalkers", TotWalkers
             CALL WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
         ENDIF
         IF(tCalcFCIMCPsi) THEN
