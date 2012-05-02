@@ -784,6 +784,8 @@ MODULE FciMCParMod
         MaxInitPopNeg=0
         HighPopNeg=1
         HighPopPos=1
+        parent_flags=0
+        FlagsCurr=0
 
         ! Synchronise processors
 !        CALL MPIBarrier(error)
@@ -1197,7 +1199,6 @@ MODULE FciMCParMod
         ENDIF
 
         ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
-        
 
         ! Sum the number of created children to use in acceptance ratio.
         acceptances = acceptances + sum(abs(child))
@@ -6152,7 +6153,7 @@ MODULE FciMCParMod
             endif
             WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node of: ",MaxWalkersPart
             !Here is where MaxSpawned is set up - do we want to set up a minimum allocation here too?
-            Call SetupValidSpawned(int(WalkerListSize,int64))  
+            Call SetupValidSpawned(InitWalkers)  
 
 !Put a barrier here so all processes synchronise
             CALL MPIBarrier(error)
