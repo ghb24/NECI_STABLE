@@ -1206,7 +1206,8 @@ MODULE AnnihilationMod
 
     END SUBROUTINE InsertRemoveParts
 
-    pure function DetermineDetNode (nI, iIterOffset) result(node)
+    !pure function DetermineDetNode (nI, iIterOffset) result(node)
+    function DetermineDetNode (nI, iIterOffset) result(node)
 
         ! Depending on the Hash, determine which node determinant nI
         ! belongs to in the DirectAnnihilation scheme. NB FCIMC has each processor as a separate logical node.
@@ -1214,6 +1215,8 @@ MODULE AnnihilationMod
         ! In:  nI   - Integer ordered list for the determinant
         ! In:  iIterOffset - Offset this iteration by this amount
         ! Out: proc - The (0-based) processor index.
+
+        use FciMCData, only : Iter
 
         integer, intent(in) :: nI(nel)
         integer, intent(in) :: iIterOffset
