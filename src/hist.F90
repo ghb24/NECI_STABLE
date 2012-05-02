@@ -212,7 +212,7 @@ contains
                 call extract_sign (all_hist(:,i), sgn)
 
                 ! Output to file
-                write(fd, *) all_hist(0:NIfD, i), float(sgn)/nsteps
+                write(fd, *) all_hist(0:NIfD, i), dble(sgn)/nsteps
                 
                 ! Add csf contribs
                 do j = 1, ubound(csf_contrib, 2)
