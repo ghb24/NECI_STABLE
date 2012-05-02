@@ -7528,6 +7528,9 @@ MODULE FciMCParMod
       integer(int64), intent(in) :: WalkerListSize
       integer ierr,i,j
       real(dp) Gap
+
+      !When running normall, WalkerListSize will be equal to initwalkers
+      !However, when reading in (and not continuing to grow) it should be equal to the number of dets in the popsfile
       MaxSpawned=NINT(MemoryFacSpawn*WalkerListSize)
 !            WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for spawning of: ",MaxSpawned
             
@@ -7540,7 +7543,7 @@ MODULE FciMCParMod
       ! InitialSpawnedSlots now holds the first free position in the 
       ! newly-spawned list for each processor, so it does not need to be 
       ! reevaluated each iteration.
-      MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
+!      MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
       Gap=REAL(MaxSpawned)/REAL(nNodes)
       do j=0,nNodes-1
           InitialSpawnedSlots(j)=NINT(Gap*j)+1
