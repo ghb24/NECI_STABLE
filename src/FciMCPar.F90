@@ -419,7 +419,7 @@ MODULE FciMCParMod
         if (iroot.eq.1) call clearvar('ENERGY')
         ityp(1)=1
         call setvar('ENERGY',ProjectionE+Hii,'AU',ityp,1,nv,iroot)
-#endif MOLPRO
+#endif
  
 !Deallocate memory
         CALL DeallocFCIMCMemPar()
