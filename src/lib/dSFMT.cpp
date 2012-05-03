@@ -1406,3 +1406,20 @@ extern "C"
     }
 
 }
+
+/* this routine avoids compilers reporting warnings about unused inline functions */
+void dummy_dSFMT (dsfmt_t *dsfmt, int i, uint32_t a[], double b[]) {
+    dsfmt_genrand_close_open(dsfmt);
+    dsfmt_genrand_open_close(dsfmt);
+    dsfmt_gv_genrand_uint32();
+    get_idstring();
+    get_min_array_size();
+    init_by_array(a, i);
+    genrand_close1_open2();
+    genrand_open_close();
+    genrand_open_open();
+    fill_array_open_close(b, i);
+    fill_array_open_open(b, i);
+    fill_array_close1_open2(b, i);
+return;
+}
