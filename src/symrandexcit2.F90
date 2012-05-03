@@ -78,6 +78,7 @@ MODULE GenRandSymExcitNUMod
 
         ! Just in case
         ilutnJ(0) = -1
+        HElGen = 0.0_dp
 
         IF((tUEG.and.tLatticeGens) .or. (tHub.and.tLatticeGens)) THEN
             call CreateExcitLattice(nI,iLut,nJ,tParity,ExcitMat,pGen)

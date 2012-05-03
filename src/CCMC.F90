@@ -2784,7 +2784,7 @@ END SUBROUTINE CCMCStandaloneParticle
 subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
       use SystemData, only : nEl
       use AnnihilationMod, only: DetermineDetNode
-      use bit_reps, only: decode_bit_det, set_flag_general
+      use bit_reps, only: decode_bit_det, set_flag
       use bit_rep_data, only: flag_parent_initiator
       use CCMCData, only: tSharedExcitors
       use CalcData, only: tTruncInitiator
@@ -2830,7 +2830,7 @@ subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
 ! Beware - if initiator is on, we need to flag this as an initiator det, otherwise it'll die before reaching the new proc.
 ! This may need to change with complex walkers.
             if(tTruncInitiator) then
-              call set_flag_general(SpawnList(:,ValidSpawnedList(p)),flag_parent_initiator(1),.true.)
+              call set_flag(SpawnList(:,ValidSpawnedList(p)),flag_parent_initiator(1),.true.)
             endif
 !            write(6,*) "Det",i,"=>Node",p
             ValidSpawnedList(p)=ValidSpawnedList(p)+1

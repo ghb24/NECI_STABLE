@@ -51,6 +51,7 @@ contains
 
         ! Just in case
         ilutJ(0) = -1
+        HElGen = 0.0_dp
 
         ! UEG and Hubbard interjection for now
         ! TODO: This should be made into its own fn-pointered case.
