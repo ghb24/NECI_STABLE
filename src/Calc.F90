@@ -882,6 +882,7 @@ contains
 !For FCIMC, this indicates that the initial walker configuration will be read in from the file POPSFILE, which must be present.
 !DiagSft and InitWalkers will be overwritten with the values in that file.
                 TReadPops=.true.
+                tStartSinglePart=.false.
                 if (item.lt.nitems) then
                     call readi(iPopsFileNoRead)
                     iPopsFileNoWrite = iPopsFileNoRead
