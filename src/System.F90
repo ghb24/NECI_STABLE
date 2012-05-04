@@ -67,6 +67,7 @@ MODULE System
       tVASP=.false.
       THUB=.false.
       TUEG=.false.
+      tUEG2=.false.
       tLatticeGens =.false.
       tNoFailAb=.false.
       LMS=0
@@ -399,6 +400,8 @@ MODULE System
         case("MADELUNG")
           tMadelung=.true.
           call getf(Madelung)
+        case("UEG2")
+           tUEG2 = .true.
         case("STORE-AS-EXCITATIONS")
            tStoreAsExcitations=.true.  
         case("MP2-UEG-RESTRICT")
@@ -1097,6 +1100,11 @@ MODULE System
             ENDIF
          ENDIF 
       ELSE   
+      
+      if (tUEG2) then
+          call setup_ueg2
+          return
+      endif
 
           IF(TUEG) THEN
              WRITE(6,'(A)') '  *** UNIFORM ELECTRON GAS CALCULATION ***  ' 
@@ -1671,3 +1679,7 @@ SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,Energy,dUnsc
        Energy=E
     ENDIF
 END SUBROUTINE GetUEGKE
+
+subroutine setup_ueg2
+
+end subroutine setup_ueg2
