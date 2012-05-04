@@ -48,7 +48,7 @@ call cleanup_shared_alloc()
 write (6,'(a12,15X,i3)') 'Processor: ',iProcIndex
 call MPIStopAll(error_str)
 #else
-stop error_str
+stop '999'    
 #endif
 
 return
