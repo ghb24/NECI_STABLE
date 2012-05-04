@@ -609,6 +609,14 @@ contains
         integer :: nopen
         character(*), parameter :: this_routine = 'generate_excit_hamil_proj'
 
+        !Remove warnings
+        nJ(:)=0
+        iLutJ(:)=0
+        ic=0
+        ex(:,:)=0
+        pGen=0.0_dp
+        HElGen=0.0_dp
+        tParity=.true.
 
         ! Unpaired electron/Ms properties.
         !nopen = count_open_orbs (ilutI)

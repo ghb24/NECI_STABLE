@@ -397,6 +397,9 @@ contains
         call MPI_Allreduce (rt, nrt, 1_MPIArg, MPI_INTEGER, MPI_MAX, &
                             comm, ierr)
 #endif
+#else
+        ierr=0  !Avoid compiler warnings
+        nrt=rt
 #endif
 
     end subroutine
