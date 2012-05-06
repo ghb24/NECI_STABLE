@@ -135,6 +135,9 @@ MODULE FciMCParMod
         integer :: tmp_int(lenof_sign), i
         real(dp) :: grow_rate
         TYPE(BasisFn) RefSym
+#ifdef MOLPRO
+        include "common/molen"
+#endif
 
         TDebug=.false.  !Set debugging flag
                     
@@ -419,6 +422,12 @@ MODULE FciMCParMod
         if (iroot.eq.1) call clearvar('ENERGY')
         ityp(1)=1
         call setvar('ENERGY',ProjectionE+Hii,'AU',ityp,1,nv,iroot)
+        do i=10,2,-1
+            gesnam(i)=gesnam(i-1)
+            energ(i)=energ(i-1)
+        enddo
+        gesnam(i) = 'FCIQMC'
+        energ(i) = get_scalar("ENERGY")
 #endif
  
 !Deallocate memory
