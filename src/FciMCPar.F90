@@ -141,6 +141,7 @@ MODULE FciMCParMod
         real(dp) :: grow_rate
         TYPE(BasisFn) RefSym
 #ifdef MOLPRO
+        real(dp) :: get_scalar
         include "common/molen"
 #endif
 
