@@ -4,12 +4,9 @@ module constants
 #ifdef PARALLEL
 #ifndef CBINDMPI 
 uSE mpi
-implicit none
-#else
-implicit none
-#include <mpi.h>
 #endif
 #endif
+implicit none
 
 ! Constant data.
 
@@ -55,20 +52,10 @@ integer, parameter :: MPIArg=int32
 ! Kind parameter for 64-bit integers.
 integer, parameter :: n_int=int64
 
-! MPI integer kind associated with n_int.
-#ifdef PARALLEL
-integer, parameter :: MpiDetInt=MPI_INTEGER8
-#endif
-
 #else
 
 ! Kind parameter for 32-bit integers.
 integer, parameter :: n_int=int32
-
-! MPI integer kind associated with n_int.
-#ifdef PARALLEL
-integer, parameter :: MpiDetInt=MPI_INTEGER
-#endif
 
 #endif
 
@@ -82,9 +69,5 @@ integer, parameter :: size_n_int = bits_n_int/8
 ! Index of last bit in an n_int integer (bits are indexed 0,1,...,bits_n_int-1).
 integer, parameter :: end_n_int = bits_n_int - 1
 
-#ifndef PARALLEL
-! This should not be used in serial.  Set to a nonsense value.
-integer, parameter :: MpiDetInt=-1
-#endif
 
 end module constants

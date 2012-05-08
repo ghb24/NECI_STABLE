@@ -316,7 +316,7 @@ contains
       if (min(itimer,nobjs).gt.0) then
           write (io,'(a37/)') 'Timing of most expensive procedures.'
           write (io,'(a65)') 'Procedure                    Calls       CPU    system     total'
-          write (io,'(a65)') '----------------------------------------------------------------'
+          write (io,'(a65)') '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - '
           
           total_cpu=0.d0
           total_system=0.d0
@@ -331,7 +331,7 @@ contains
               total_cpu=total_cpu+timers(it)%sum_time_cpu
               total_system=total_system+timers(it)%sum_time_system
           end do
-          write (io,'(a65)') '----------------------------------------------------------------'
+          write (io,'(a65)') '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - '
           write (io,'(a35,3f10.2/)') 'Total                             ',total_cpu,total_system,total_cpu+total_system
       end if
       if (.not.global_timing_on) then

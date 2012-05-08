@@ -21,7 +21,7 @@ MODULE Calc
                         tSpawnProp, nClustSelections, tExactEnergy,     &
                         dClustSelectionRatio,tSharedExcitors
     use FciMCData, only: proje_update_comb,proje_linear_comb, proje_ref_det_init,tTimeExit,MaxTimeExit, &
-                         InputDiagSft,tSearchTau,proje_spatial
+                         InputDiagSft,tSearchTau,proje_spatial,nWalkerHashes,tHashWalkerList,HashLengthFrac
 
     implicit none
 
@@ -55,6 +55,9 @@ contains
           end if
 
 !       Calc defaults 
+          tHashWalkerList=.false.
+          HashLengthFrac=0.0_dp
+          nWalkerHashes=0
           iExitWalkers=-1
           FracLargerDet=1.2
           iReadWalkersRoot=0 
@@ -852,6 +855,16 @@ contains
             case("SHIFTDAMP")
 !For FCIMC, this is the damping parameter with respect to the update in the DiagSft value for a given number of MC cycles.
                 call getf(SftDamp)
+            case("LINSCALEFCIMCALGO")
+                !Use the linear scaling FCIMC algorithm
+                !Instead of the absolute length of the hash table, read in the fraction of initwalkers that it wants to be.
+!                call geti(nWalkerHashes)
+                tHashWalkerList=.true.
+                if(item.lt.nitems) then
+                    call getf(HashLengthFrac)
+                else
+                    HashLengthFrac=0.7
+                endif
             case("STEPSSHIFTIMAG")
 !For FCIMC, this is the amount of imaginary time which will elapse between updates of the shift.
                 call getf(StepsSftImag)
@@ -869,6 +882,7 @@ contains
 !For FCIMC, this indicates that the initial walker configuration will be read in from the file POPSFILE, which must be present.
 !DiagSft and InitWalkers will be overwritten with the values in that file.
                 TReadPops=.true.
+                tStartSinglePart=.false.
                 if (item.lt.nitems) then
                     call readi(iPopsFileNoRead)
                     iPopsFileNoWrite = iPopsFileNoRead
@@ -1564,7 +1578,7 @@ contains
 !C.. If we're using rhos,
              RHOEPS=GETRHOEPS(RHOEPSILON,BETA,NEL,BRR,I_P)
 
-             WRITE(6,*) "RHOEPS:",RHOEPS
+!             WRITE(6,*) "RHOEPS:",RHOEPS
           ELSE
 !C.. we're acutally diagonalizing H's, so we just leave RHOEPS as RHOEPSILON
              RHOEPS=RHOEPSILON
@@ -1576,7 +1590,7 @@ contains
     
         Subroutine CalcDoCalc()
           use SystemData, only: Alat, Arr,Brr, Beta, ECore, G1, LMS, LMS2, nBasis,NMSH, nBasisMax
-          use SystemData, only: SymRestrict, tCSFOLD, tParity, tSpn, ALat, Beta
+          use SystemData, only: SymRestrict, tCSFOLD, tParity, tSpn, ALat, Beta,tMolpro,tMolproMimic
           use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,BasisFN,BasisFNSize,BasisFNSizeB,nEl
           Use DetCalcData, only : nDet, nEval, nmrks, w
           USE FciMCParMod , only : FciMCPar
@@ -1622,7 +1636,7 @@ contains
              if(tFCIMC) then
                  call FciMCPar(WeightDum,EnerDum)
 
-                 WRITE(6,*) "Summed approx E(Beta)=",EnerDum
+                 if((.not.tMolpro).or.tMolproMimic) WRITE(6,*) "Summed approx E(Beta)=",EnerDum
              elseif(tCCMC) then
                   if(tAmplitudes) THEN
                      CALL CCMCStandAlone(WeightDum,EnerDum)
@@ -1746,7 +1760,7 @@ contains
             
           IF(TENERGY.and.(.not.tFindDets)) THEN
              RHOEPS=RHOEPSILON*EXP(-BETA*(W(1))/I_P)
-            WRITE(6,*) "RHOEPS:",RHOEPS
+!            WRITE(6,*) "RHOEPS:",RHOEPS
              IF(TREAD) THEN
                 EXEN=CALCMCEN(NEVAL,W,BETA)
                 WRITE(6,"(A,F19.5)") "EXACT E(BETA)=",EXEN

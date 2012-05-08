@@ -1,15 +1,7 @@
 subroutine stop_all_c (sub_name, error_msg) bind(c)
     use iso_c_hack
+    use util_mod, only: strlen_wrap
     implicit none
-
-    interface
-        pure function strlen_wrap (str) result(len) bind(c)
-            use iso_c_hack
-            implicit none
-            character(c_char), intent(in) :: str(*)
-            integer(c_int) :: len
-        end function
-    end interface
 
     character(c_char), target, intent(in) :: sub_name(*), error_msg(*)
     character(len=strlen_wrap(sub_name)), target :: sub_name_tmp
@@ -56,7 +48,7 @@ call cleanup_shared_alloc()
 write (6,'(a12,15X,i3)') 'Processor: ',iProcIndex
 call MPIStopAll(error_str)
 #else
-stop error_str
+stop '999'    
 #endif
 
 return

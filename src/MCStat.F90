@@ -197,6 +197,8 @@ MODULE MCStat
             real(dp) wWeighting,wValue,wWeightedValue,wGraphWeight,wDelta
             real(dp) cc,ave1,ave2,hh,top,bot,calc
             LOGICAL tLog,tNewSeq,tNewPower,TBLOCKING
+            tNewPower=.true.    !Really, this should be only true occasionally when we want to write stats out,
+                                !But since this is decreciated code, this will remove compile warnings.
             wWeightedValue=wWeighting*wValue
             IF(M%nGraphs(0).EQ.0.OR.iAcc.EQ.0.OR.(iV.EQ.ioV.AND.iV.EQ.1)) THEN
                M%iSeqLen=M%iSeqLen+nTimes

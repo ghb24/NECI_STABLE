@@ -4,31 +4,37 @@ sizeof = sizeof_int32
 dim = :
 elem1 = 
 alloc_str = dims(1)
+conditional_enable = !defined(SX)
 
 [int2]
 dim = :,:
 elem1 = ,1
 alloc_str = dims(1), dims(2)
+conditional_enable = !defined(SX)
 
 [int3]
 dim = :,:,:
 elem1 = ,1,1
 alloc_str = dims(1), dims(2), dims(3)
+conditional_enable = !defined(SX)
 
 [int4]
 dim = :,:,:,:
 elem1 = ,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4)
+conditional_enable = !defined(SX)
 
 [int5]
 dim = :,:,:,:,:
 elem1 = ,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5)
+conditional_enable = !defined(SX)
 
 [int6]
 dim = :,:,:,:,:,:
 elem1 = ,1,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
+conditional_enable = !defined(SX)
 
 [int64_1]
 type = integer(int64)
@@ -100,31 +106,37 @@ sizeof = sizeof_sp
 dim = :
 elem1 = 
 alloc_str = dims(1)
+conditional_enable = !defined(SX)
 
 [real2]
 dim = :,:
 elem1 = ,1
 alloc_str = dims(1), dims(2)
+conditional_enable = !defined(SX)
 
 [real3]
 dim = :,:,:
 elem1 = ,1,1
 alloc_str = dims(1), dims(2), dims(3)
+conditional_enable = !defined(SX)
 
 [real4]
 dim = :,:,:,:
 elem1 = ,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4)
+conditional_enable = !defined(SX)
 
 [real5]
 dim = :,:,:,:,:
 elem1 = ,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5)
+conditional_enable = !defined(SX)
 
 [real6]
 dim = :,:,:,:,:,:
 elem1 = ,1,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
+conditional_enable = !defined(SX)
 
 [complex1]
 type = complex(dp)

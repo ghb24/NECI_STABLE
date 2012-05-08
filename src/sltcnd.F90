@@ -167,6 +167,46 @@ contains
 
     end function
 
+    function CalcFockOrbEnergy (Orb,HFDet) result(hel)
+        ! This calculates the orbital fock energy from
+        ! the one- and two- electron integrals. This
+        ! requires a knowledge of the HF determinant.
+        !In: Orbital (Spin orbital notation)
+        !In: HFDet (HF Determinant)
+        integer, intent(in) :: HFDet(nel),Orb
+        integer :: idHF(NEl),idOrb,j,idN
+        HElement_t :: hel_sing,hel
+
+        !GetTMATEl works with spin orbitals
+        hel_sing = GetTMATEl(Orb,Orb)
+        
+        ! Obtain the spatial rather than spin indices if required
+        idOrb = gtID(Orb)
+        idHF = gtID(HFDet)
+        
+        ! Sum in the two electron contributions. 
+        hel = (0)
+        do j=1,nel
+            idN = idHF(j)
+            hel = hel + get_umat_el (ptr_getumatel, idOrb, idN, &
+                                               idOrb, idN)
+        enddo
+                
+        ! Exchange contribution only considered if tExch set.
+        ! This is only separated from the above loop to keep "if (tExch)" out
+        ! of the tight loop for efficiency.
+        do j=1,nel
+            ! Exchange contribution is zero if I,J are alpha/beta
+            if (G1(Orb)%Ms == G1(HFDet(j))%Ms) then
+                idN = idHF(j)
+                hel = hel - get_umat_el (ptr_getumatel, idOrb, &
+                                      idN, idN, idOrb)
+            endif
+        enddo
+        hel = hel + hel_sing
+
+    end function CalcFockOrbEnergy 
+
     function SumFock (nI,HFDet) result(hel)
 
         ! This just calculates the sum of the Fock energies

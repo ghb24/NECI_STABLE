@@ -188,7 +188,9 @@ contains
 !       Deal with debug options at a later date.
 !       debug = gmemdebug
 
+#ifndef MOLPRO
         write (6,'(a33,f8.1,a3)') ' Memory Manager initialised with ',real(MaxMemBytes,dp)/(1024**2),' MB'
+#endif
     end if
 
     return
@@ -530,7 +532,7 @@ contains
         write (iunit,*) ''
     end if
     write (iunit,*) 'Name              Allocated in       Deallocated in         Size'
-    write (iunit,*) '----------------------------------------------------------------'
+    write (iunit,*) '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - '
     return
     end subroutine WriteMemLogHeader
 

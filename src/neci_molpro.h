@@ -5,7 +5,6 @@
 #endif
 
 #define POINTER8
-/*#define HAVE_SSE2*/
 #define __INT64
 #define DISABLE_FFTW
 
@@ -13,13 +12,18 @@
 #define HElement_t real(dp)
 #endif
 
-/* parallel not yet working */
-/*#ifdef _MOLCAS_MPP_ */
-/*#define __SHARED_MEM*/
-/*#define PARALLEL*/
-/*#endif*/
+#if defined(_MOLCAS_MPP_) && !defined(GA_TCGMSG) && !defined(GA_TCGMSG5)
+#define PARALLEL
+#define CBINDMPI
 
-#ifndef MOLPRO_f2003
+#if !defined(__OPEN64__) && !defined(__OLD_PGI__)
+/* __OLD_PGI__ refers to bugs in pgi v. 7->8: see bugzilla 3616 */
+#define __SHARED_MEM
+#endif
+
+#endif
+
+#if !defined(MOLPRO_f2003) || defined(__OLD_PGI__)
 #define __ISO_C_HACK
 #endif
 

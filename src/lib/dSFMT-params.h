@@ -1,7 +1,6 @@
 #ifndef DSFMT_PARAMS_H
 #define DSFMT_PARAMS_H
 
-#include "dSFMT.h"
 
 /*----------------------
   the parameters of DSFMT

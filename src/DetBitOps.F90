@@ -8,9 +8,9 @@ module DetBitOps
     use Systemdata, only: nel, tCSF, tTruncateCSF, csf_trunc_level
     use CalcData, only: tTruncInitiator
     use bit_rep_data, only: NIfY, NIfTot, NIfD, NOffFlag, NIfFlag, &
-                            test_flag, flag_is_initiator,NIfDBO
+                            test_flag, flag_is_initiator,NIfDBO,NOffSgn
     use csf_data, only: iscsf, csf_yama_bit, csf_orbital_mask, csf_test_bit
-    use constants, only: n_int,bits_n_int,end_n_int
+    use constants, only: n_int,bits_n_int,end_n_int,dp,lenof_sign
 
     implicit none
 
@@ -374,30 +374,88 @@ module DetBitOps
 
     ! This will return true if iLutI is identical to iLutJ and will return 
     ! false otherwise.
-    logical function DetBitEQ(iLutI,iLutJ,nLast)
+    pure function DetBitEQ(iLutI,iLutJ,nLast) result(res)
         integer, intent(in), optional :: nLast
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        logical :: res
         integer :: i, lnLast
 
         if(iLutI(0).ne.iLutJ(0)) then
-            DetBitEQ=.false.
+            res=.false.
             return
         else
             if (present(nLast)) then
                 lnLast = nLast
             else
-                lnLast = NIftot
+                lnLast = NIfDBO
             endif
 
             do i=1,lnLast
                 if(iLutI(i).ne.iLutJ(i)) then
-                    DetBitEQ=.false.
+                    res=.false.
                     return
                 endif
             enddo
         endif
-        DetBitEQ=.true.
+        res=.true.
     end function DetBitEQ
+
+    pure function sign_lt (ilutI, ilutJ) result (bLt)
+        ! This is a comparison function between two bit strings of length 0:NIfTot, and will return
+        ! true if absolute value of the sign of ilutI is less than ilutJ
+        integer(n_int), intent(in) :: iLutI(0:), iLutJ(0:)
+        logical :: bLt
+        integer, dimension(lenof_sign) :: SignI, SignJ
+        real(dp) :: WeightI,WeightJ
+
+        SignI = iLutI(NOffSgn:NOffSgn+lenof_sign-1)
+        SignJ = iLutJ(NOffSgn:NOffSgn+lenof_sign-1)
+
+        if(lenof_sign.eq.1) then
+            if(abs(SignI(1)).lt.abs(SignJ(1))) then
+                bLt = .true.
+            else
+                bLt = .false.
+            endif
+        else
+            WeightI=sqrt(real(SignI(1),dp)**2+real(SignI(lenof_sign),dp)**2)
+            WeightJ=sqrt(real(SignJ(1),dp)**2+real(SignJ(lenof_sign),dp)**2)
+            if(WeightI.lt.WeightJ) then
+                bLt = .true.
+            else
+                bLt = .false.
+            endif
+        endif
+    end function sign_lt
+
+    pure function sign_gt (ilutI, ilutJ) result (bGt)
+        ! This is a comparison function between two bit strings of length 0:NIfTot, and will return
+        ! true if the abs sign of ilutI is greater than ilutJ
+        integer(n_int), intent(in) :: iLutI(0:), iLutJ(0:)
+        logical :: bGt
+        integer, dimension(lenof_sign) :: SignI, SignJ
+        real(dp) :: WeightI,WeightJ
+
+        SignI = iLutI(NOffSgn:NOffSgn+lenof_sign-1)
+        SignJ = iLutJ(NOffSgn:NOffSgn+lenof_sign-1)
+
+        if(lenof_sign.eq.1) then
+            if(abs(SignI(1)).gt.abs(SignJ(1))) then
+                bGt = .true.
+            else
+                bGt = .false.
+            endif
+        else
+            WeightI=sqrt(real(SignI(1),dp)**2+real(SignI(lenof_sign),dp)**2)
+            WeightJ=sqrt(real(SignJ(1),dp)**2+real(SignJ(lenof_sign),dp)**2)
+            if(WeightI.gt.WeightJ) then
+                bGt = .true.
+            else
+                bGt = .false.
+            endif
+        endif
+    end function sign_gt
+
 
     pure function ilut_lt (ilutI, ilutJ) result (bLt)
 !        use util_mod, only: operator(.arrlt.)
@@ -496,7 +554,7 @@ module DetBitOps
             if (present(nLast)) then
                 lnLast = nLast
             else
-                lnLast = NIftot
+                lnLast = NIfDBO
             endif
 
             do i=1,lnLast
@@ -537,7 +595,7 @@ module DetBitOps
             if (present(nLast)) then
                 lnLast = nLast
             else
-                lnLast = NIftot
+                lnLast = NIfDBO
             endif
             do i=1,lnLast
                 IF(iLutI(i).lt.iLutJ(i)) THEN
@@ -608,7 +666,7 @@ module DetBitOps
                 if (present(nLast)) then
                     lnLast = nLast
                 else
-                    lnLast = NIftot
+                    lnLast = NIfDBO
                 endif
                 do i=1,lnLast
                     IF(iLutI(i).lt.iLutJ(i)) THEN

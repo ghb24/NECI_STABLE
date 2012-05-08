@@ -116,7 +116,7 @@ C..
       HSTEPY=2.D0*A(2)/N
       HSTEPZ=0
 
-#ifdef NAGF95
+#if defined(NAGF95) || defined(__GFORTRAN__)
       call stop_all(t_r,"No ERF in NAG?")
 #endif
     
@@ -132,7 +132,7 @@ c          DO K=-N/2,N/2-1
             IF(AUX.NE.0.D0) THEN
               IF(TALPHA) THEN 
                 R=SQRT(AUX) 
-#ifndef NAGF95                
+#if !defined(NAGF95) && !defined(__GFORTRAN__)                
                 AUX=1.D0/R*(-1)**(I+J)*DERF(R/ALPHA)
 #endif
               ELSE
@@ -220,7 +220,7 @@ C..PI*K/A(3)
               G=SQRT(GX*GX+GY*GY+GZ*GZ)
               IF(G.NE.0.D0) THEN 
 c sum=2 Pi * erf(a G/2)/G/omegap
-#ifndef NAGF95
+#if !defined(NAGF95) && !defined(__GFORTRAN__)                
                 SUM=2.D0*PI*DERF(ALPHA*G/2)/OMEGAP/G
 #endif
 C                AUX=EXP(-G2*ALPHA2/4.D0)

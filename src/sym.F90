@@ -342,7 +342,7 @@ contains
              !These symmetry routines only work for cases where all irreps are their
              !own inverse. In systems with multiple kpoints, this will not be the
              !case. Setup the symreps for non-abelian symmetries.
-             CALL GENSYMREPS(G1,NBASIS,ARR,1.d-6)
+             CALL GENSYMREPS(G1,NBASIS,ARR,1.e-6_dp)
              return
          endif
          

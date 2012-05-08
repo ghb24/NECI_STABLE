@@ -51,8 +51,9 @@ MODULE Logging
     logical :: tSplitProjEHist,tSplitProjEHistG,tSplitProjEHistK3
     integer :: iProjEBins
 
-    logical :: tCalcInstantS2, tCalcInstSCpts
-    integer :: instant_s2_multiplier
+    logical :: tCalcInstantS2, tCalcInstSCpts, tCalcInstantS2Init
+    integer :: instant_s2_multiplier, instant_s2_multiplier_init
+    integer :: iHighPopWrite
 
     contains
 
@@ -62,6 +63,7 @@ MODULE Logging
       use default_sets
       implicit none
 
+      iHighPopWrite = 15    !How many highest weighted determinants to write out at the end of an FCIQMC calc.
       tDiagWalkerSubspace = .false.
       iDiagSubspaceIter = 1
       tSplitProjEHist = .false.
@@ -140,8 +142,10 @@ MODULE Logging
       hist_spin_dist_iter = 1000
       tLogDets=.false.
       tCalcInstantS2 = .false.
+      tCalcInstantS2Init = .false.
       tCalcInstSCpts = .false.
       instant_s2_multiplier = 1
+      instant_s2_multiplier_init = 1
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -172,6 +176,9 @@ MODULE Logging
         call readu(w)
         select case(w)
 
+        case("HIGHLYPOPWRITE")
+            !At the end of an FCIMC calculation, how many highly populated determinants should we write out?
+            call readi(iHighPopWrite)
         case("DIAGWALKERSUBSPACE")
             !Diagonalise walker subspaces every iDiagSubspaceIter iterations
             tDiagWalkerSubspace = .true.
@@ -689,7 +696,7 @@ MODULE Logging
         case("DETERMINANTS")
             tLogDets=.true.
 
-        case ("INSTANT-S2")
+        case ("INSTANT-S2-FULL")
             ! Calculate an instantaneous value for S^2, and output it to the
             ! relevant column in the FCIMCStats file.
             !
@@ -697,10 +704,20 @@ MODULE Logging
             ! S^2 once for every n update cycles (it must be on an update
             ! cycle such that norm_psi_squared is correct)
             tCalcInstantS2 = .true.
-            if (item < nitems) then
+            if (item < nitems) &
                 call readi (instant_s2_multiplier)
-            endif
 
+        case ("INSTANT-S2-INIT")
+            ! Calculate an instantaneous value ofr S^2 considering only the
+            ! initiators, and output it to the relevant column in the
+            ! FCIMCStats file.
+            !
+            ! The second parameter is a multiplier such that we only calculate
+            ! S^2 once for every n update cycles (it must be an update
+            ! cycle such that norm_psi_squared is correct).
+            tCalcInstantS2Init = .true.
+            if (item < nitems) &
+                call readi (instant_s2_multiplier_init)
 
         case ("INSTANT-S-CPTS")
             ! Calculate components of the wavefunction with each value of S.
