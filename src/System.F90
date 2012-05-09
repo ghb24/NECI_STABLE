@@ -1100,10 +1100,313 @@ MODULE System
             ENDIF
          ENDIF 
       ELSE   
-      
+
       if (tUEG2) then
-          call setup_ueg2
-          return
+! ======================================================
+          WRITE(6,'(A)') '  *** In UEG2 ***  ' 
+          WRITE(6,'(A)') '  *** UNIFORM ELECTRON GAS CALCULATION ***  ' 
+          if (iPeriodicDampingType /= 0) then
+                 ! We are using either a screened or an attenuated Coulomb
+                 ! potential for calculating the exchange integrals.
+                 ! This means that we need to be able to distinguish between
+                 ! exchange integrals and normal Coulomb integrals and hence we
+                 ! should refer to spin-orbitals throughout.
+              nBasisMax(2,3) = 1
+              tStoreSpinOrbs = .true.
+          end if
+
+          IF(FUEGRS.NE.0.D0) THEN
+             WRITE(6,'(A,F20.16)') '  Electron Gas Rs set to ',FUEGRS
+             OMEGA=BOX*BOX*BOX*BOA*COA
+!C.. required density is (3/(4 pi rs^3))
+!C.. need omega to be (NEL* 4 pi rs^3 / 3)
+!C.. need box to be (NEL*4 pi/(3 BOA COA))^(1/3) rs
+             BOX=(NEL*4.D0*PI/(3.D0*BOA*COA))**(1.D0/3.D0)
+             BOX=BOX*FUEGRS
+             WRITE(6,'(A, F20.16)') "  Resetting box size to ", BOX
+          ENDIF
+        
+          IF(TPARITY) THEN
+             WRITE(6,*) ' MOMENTUM : ',(IPARITY(I),I=1,3)
+          ENDIF
+
+!C..
+          NMAX=MAX(NMAXX,NMAXY,NMAXZ)
+          NNR=NMSH*NMSH*NMSH
+          WRITE(6,'(A,I5)') '  NMAXX : ' , NMAXX
+          WRITE(6,'(A,I5)') '  NMAXY : ' , NMAXY
+          WRITE(6,'(A,I5)') '  NMAXZ : ' , NMAXZ
+          WRITE(6,'(A,I5)') '  NMSH : ' , NMSH 
+!C.. 2D check
+          IF(NMAXZ.EQ.0) THEN
+             WRITE(6,'(A)') ' NMAXZ=0.  2D calculation using C/A=1/A  '
+             COA=1/BOX
+          ENDIF
+
+!C..
+          WRITE(6,'(1X,A,F19.5)') '  BOX LENGTH : ' , BOX
+          WRITE(6,'(1X,A,F19.5)') '  B/A : ' , BOA
+          WRITE(6,'(1X,A,F19.5)') '  C/A : ' , COA
+          TTILT=.FALSE.
+        
+
+          ALAT(1)=BOX
+          ALAT(2)=BOX*BOA
+          ALAT(3)=BOX*COA
+
+          IF(fRc.EQ.0.0.AND.iPeriodicDampingType.NE.0) THEN
+             ALAT(4)=BOX*((BOA*COA)/(4*PI/3))**THIRD
+          ELSE
+             ALAT(4)=fRc
+          ENDIF
+!      ALAT(4)=2*BOX*(BOA*COA)**(1/3.D0)          
+
+          OMEGA=ALAT(1)*ALAT(2)*ALAT(3)
+          RS=(3.D0*OMEGA/(4.D0*PI*NEL))**THIRD
+          ALAT(5)=RS
+          IF(iPeriodicDampingType.NE.0) THEN
+                IF(iPeriodicDampingType.EQ.1) THEN
+                   WRITE(6,*) " Using attenuated Coulomb potential for exchange interactions."
+                ELSEIF(iPeriodicDampingType.EQ.2) THEN
+                   WRITE(6,*) " Using cut-off Coulomb potential for exchange interactions."
+                ENDIF     
+                WRITE(6,*) " Rc cutoff: ",ALAT(4)
+          ENDIF
+
+          WRITE(6,*) " Wigner-Seitz radius Rs=",RS
+          FKF=(9*PI/4)**THIRD/RS
+          WRITE(6,*) " Fermi vector kF=",FKF
+          WRITE(6,*) " Fermi Energy EF=",FKF*FKF/2
+          WRITE(6,*) " Unscaled Fermi Energy nmax**2=",(FKF*FKF/2)/(0.5*(2*PI/ALAT(5))**2)
+         
+          IF(OrbECutoff.ne.1e-20) WRITE(6,*) " Orbital Energy Cutoff:",OrbECutoff
+          WRITE(6,'(1X,A,F19.5)') '  VOLUME : ' , OMEGA
+          WRITE(6,*) ' TALPHA : ' , TALPHA
+          WRITE(6,'(1X,A,F19.5)') '  ALPHA : ' , ALPHA
+          ALPHA=MIN(ALAT(1),ALAT(2),ALAT(3))*ALPHA
+          WRITE(6,'(1X,A,F19.5)') '  SCALED ALPHA : ' , ALPHA
+
+!C..
+!C..Calculate number of basis functions
+!C.. UEG allows from -NMAX->NMAX      
+          IF(TSPINPOLAR) THEN
+             NBASISMAX(4,1)=1 
+!C.. spinskip
+             NBASISMAX(2,3)=1
+          ELSE
+             NBASISMAX(4,1)=-1
+!C.. spinskip
+!  If spinskip is unset
+             IF(NBASISMAX(2,3).EQ.0) NBASISMAX(2,3)=2
+          ENDIF
+
+          NBASISMAX(4,2)=1
+
+          NBASISMAX(1,1)=-NMAXX
+          NBASISMAX(1,2)=NMAXX
+          NBASISMAX(2,1)=-NMAXY
+          NBASISMAX(2,2)=NMAXY
+          NBASISMAX(3,1)=-NMAXZ
+          NBASISMAX(3,2)=NMAXZ
+          NBASISMAX(1,3)=-1
+          LEN=(2*NMAXX+1)*(2*NMAXY+1)*(2*NMAXZ+1)*((NBASISMAX(4,2)-NBASISMAX(4,1))/2+1)
+!C.. UEG
+          NBASISMAX(3,3)=-1
+
+
+!C..         (.NOT.TREADINT)
+
+
+!C.. we actually store twice as much in arr as we need.
+!C.. the ARR(1:LEN,1) are the energies of the orbitals ordered according to
+!C.. BRR.  ARR(1:LEN,2) are the energies of the orbitals with default 
+!C.. ordering.
+!C.. ARR is reallocated in IntFreezeBasis if orbitals are frozen so that it
+!C.. has the correct size and shape to contain the eigenvalues of the active
+!C.. basis.
+      WRITE(6,'(A,I5)') "  NUMBER OF SPIN ORBITALS IN BASIS : ", Len
+      Allocate(Arr(LEN,2),STAT=ierr)
+      LogAlloc(ierr,'Arr',2*LEN,8,tagArr)
+! // TBR
+!      IP_ARRSTORE=IP_ARR
+      ARR=0.d0
+      Allocate(Brr(LEN),STAT=ierr)
+      LogAlloc(ierr,'Brr',LEN,4,tagBrr)
+      BRR(1:LEN)=0
+      Allocate(G1(Len),STAT=ierr)
+      LogAlloc(ierr,'G1',LEN,BasisFNSizeB,tagG1)
+      G1(1:LEN)=NullBasisFn
+
+      IF(TCPMD) THEN
+         WRITE(6,'(A)') '*** INITIALIZING BASIS FNs FROM CPMD ***'
+         CALL CPMDBASISINIT(NBASISMAX,ARR,BRR,G1,LEN) 
+         NBASIS=LEN
+         iSpinSkip=NBasisMax(2,3)
+      ELSEIF(tVASP) THEN
+         WRITE(6,'(A)') '*** INITIALIZING BASIS FNs FROM VASP ***'
+         CALL VASPBasisInit(ARR,BRR,G1,LEN) ! This also modifies nBasisMax
+         NBASIS=LEN
+         iSpinSkip=NBasisMax(2,3)
+      ELSEIF(TREADINT.AND.TDFREAD) THEN
+         WRITE(6,'(A)') '*** Creating Basis Fns from Dalton output ***'
+         call InitDaltonBasis(Arr,Brr,G1,Len)
+         nBasis=Len
+         call GenMolpSymTable(1,G1,nBasis)
+      ELSEIF(TREADINT) THEN
+!This is also called for tRiIntegrals and tCacheFCIDUMPInts
+         WRITE(6,'(A)') '*** CREATING BASIS FNs FROM FCIDUMP ***'
+         CALL GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN,TBIN) 
+         NBASIS=LEN
+
+!C.. we're reading in integrals and have a molpro symmetry table
+         IF(lNoSymmetry) THEN
+            WRITE(6,*) "Turning Symmetry off"
+            DO I=1,nBasis
+               G1(I)%Sym%s=0
+            ENDDO
+            CALL GENMOLPSYMTABLE(1,G1,NBASIS)
+            DO I=1,nBasis
+               G1(I)%Sym%s=0
+            ENDDO
+         ELSE
+            CALL GENMOLPSYMTABLE(NBASISMAX(5,2)+1,G1,NBASIS)
+         ENDIF
+
+      ELSE
+!C.. Create plane wave basis functions
+         WRITE(6,*) "Creating plane wave basis."
+         IG=0
+         DO I=NBASISMAX(1,1),NBASISMAX(1,2)
+           DO J=NBASISMAX(2,1),NBASISMAX(2,2)
+             DO K=NBASISMAX(3,1),NBASISMAX(3,2)
+               DO L=NBASISMAX(4,1),NBASISMAX(4,2),2
+                  G%k(1)=I
+                  G%k(2)=J
+                  G%k(3)=K
+                  G%Ms=L
+
+                  IF((THUB.AND.(TREAL.OR..NOT.TPBC)).OR.KALLOWED(G,NBASISMAX)) THEN
+                    CALL GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,SUM,dUnscaledE)
+                    IF(dUnscaledE.gt.OrbECutoff) CYCLE
+                    IG=IG+1
+                    ARR(IG,1)=SUM
+                    ARR(IG,2)=SUM
+                    BRR(IG)=IG
+!C..These are the quantum numbers: n,l,m and sigma
+                    G1(IG)%K(1)=I
+                    G1(IG)%K(2)=J
+                    G1(IG)%K(3)=K
+                    G1(IG)%MS=L
+                    G1(IG)%Sym=TotSymRep()
+                  ENDIF
+
+               ENDDO
+             ENDDO
+           ENDDO
+         ENDDO
+!C..Check to see if all's well
+         WRITE(6,*) ' NUMBER OF BASIS FUNCTIONS : ' , IG 
+         NBASIS=IG
+         IF(LEN.NE.IG) THEN
+            IF(OrbECutoff.gt.-1e20) then
+               write(6,*) " Have removed ", LEN-IG, " high energy orbitals "
+               ! Resize arr and brr.
+               allocate(arr_tmp(nbasis,2),brr_tmp(nbasis),stat=ierr)
+               arr_tmp = arr(1:nbasis,:)
+               brr_tmp = brr(1:nbasis)
+               deallocate(arr,brr,stat=ierr)
+               LogDealloc(tagarr)
+               LogDealloc(tagbrr)
+               allocate(arr(nbasis,2),brr(nbasis),stat=ierr)
+               LogAlloc(ierr,'Arr',2*nbasis,8,tagArr)
+               LogAlloc(ierr,'Brr',nbasis,4,tagBrr)
+               arr = arr_tmp
+               brr = brr_tmp
+               deallocate(arr_tmp, brr_tmp, stat=ierr)
+            else
+               WRITE(6,*) " LEN=",LEN,"IG=",IG
+               STOP ' LEN NE IG ' 
+            endif
+         ENDIF
+         CALL GENMOLPSYMTABLE(1,G1,NBASIS)
+      ENDIF
+
+      IF(tFixLz) THEN
+          WRITE(6,'(A)') "****** USING Lz SYMMETRY *******"
+          WRITE(6,'(A,I5)') "Pure spherical harmonics with complex orbitals used to constrain Lz to: ",LzTot
+          WRITE(6,*) "Due to the breaking of the Ml degeneracy, the fock energies are slightly wrong, "&
+          &//"on order of 1.D-4 - do not use for MP2!"
+          if(nsymlabels.gt.4) then
+              call stop_all(this_routine,"D2h point group detected. Incompatable with Lz symmetry conserving "&
+              &//"orbitals. Have you transformed these orbitals into spherical harmonics correctly?!")
+          endif
+      ENDIF
+
+!C..        (.NOT.TREADINT)
+!C.. Set the initial symmetry to be totally symmetric
+      FrzSym=NullBasisFn
+      FrzSym%Sym=TotSymRep()
+      CALL SetupFreezeSym(FrzSym)
+!C..Now we sort them using SORT2 and then SORT
+
+!C.. This sorts ARR and BRR into order of ARR [AJWT]
+      IF(.NOT.THFNOORDER) THEN
+          CALL ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
+      ELSE
+!.. copy the default ordered energies.
+          CALL DCOPY(NBASIS,ARR(1,1),1,ARR(1,2),1)
+      ENDIF
+!      WRITE(6,*) THFNOORDER, " THFNOORDER"
+      if(.not.tMolpro) then
+          !If we are calling from molpro, we write the basis later (after reordering)
+          CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
+      endif
+      IF(NEL.GT.NBASIS) STOP 'MORE ELECTRONS THAN BASIS FUNCTIONS'
+      CALL neci_flush(6)
+      IF(TREAL.AND.THUB) THEN
+!C.. we need to allow integrals between different spins
+         NBASISMAX(2,3)=1
+      ENDIF      
+
+      !This is used in a test in UMatInd
+      NOCC=NEl/2 
+      IF(TREADINT) THEN
+!C.. we're reading in integrals and have a molpro symmetry table
+         IF(lNoSymmetry) THEN
+            WRITE(6,*) "Turning Symmetry off"
+            CALL GENMOLPSYMREPS() 
+         ELSE
+            CALL GENMOLPSYMREPS() 
+         ENDIF
+      ELSEIF(TCPMD) THEN
+!C.. If TCPMD, then we've generated the symmetry table earlier,
+!C.. but we still need the sym reps table.
+         CALL GENCPMDSYMREPS(G1,NBASIS,ARR,1.e-5_dp)
+      ELSEIF(tVASP) THEN
+!C.. If VASP-based calculation, then we've generated the symmetry table earlier,
+!C.. but we still need the sym reps table. DEGENTOL=1.d-6. CHECK w/AJWT.
+         CALL GENSYMREPS(G1,NBASIS,ARR,1.e-6_dp)
+      ELSEIF(THUB.AND..NOT.TREAL) THEN
+         CALL GenHubMomIrrepsSymTable(G1,nBasis,nBasisMax)
+         CALL GENHUBSYMREPS(NBASIS,ARR,BRR)
+         CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
+      ELSE
+!C.. no symmetry, so a simple sym table
+         CALL GENMOLPSYMREPS()
+      ENDIF
+
+!C..
+!// TBR
+!      WRITE(6,*) ' TREAD : ' , TREAD
+
+
+!// TBR
+!      WRITE(6,*) ' ETRIAL : ',ETRIAL
+!      IF(FCOUL.NE.1.D0)  WRITE(6,*) "WARNING: FCOUL is not 1.D0. FCOUL=",FCOUL
+      IF(FCOULDAMPBETA.GT.0) WRITE(6,*) "FCOUL Damping.  Beta ",FCOULDAMPBETA," Mu ",FCOULDAMPMU
+      call halt_timer(proc_timer)
+! ======================================================
+          return 
       endif
 
           IF(TUEG) THEN
@@ -1343,7 +1646,7 @@ MODULE System
          DO I=NBASISMAX(1,1),NBASISMAX(1,2)
            DO J=NBASISMAX(2,1),NBASISMAX(2,2)
              DO K=NBASISMAX(3,1),NBASISMAX(3,2)
-               DO L=NBASISMAX(4,1),NBASISMAX(4,2),2
+               DO L=NBASISMAX(4,1),NBASISMAX(4,2)!,2
                   G%k(1)=I
                   G%k(2)=J
                   G%k(3)=K
@@ -1679,7 +1982,3 @@ SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,Energy,dUnsc
        Energy=E
     ENDIF
 END SUBROUTINE GetUEGKE
-
-subroutine setup_ueg2
-
-end subroutine setup_ueg2
