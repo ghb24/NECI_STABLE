@@ -2104,9 +2104,9 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    TotPartsOld(1)=0
 !WalkerScale*dTotAbsAmpl
    AllTotWalkersOld=1
-   AllTotParts(1)=nint(WalkerScale*dTotAbsAmpl,int64)
-   AllTotPartsOld(1)=nint(WalkerScale*dTotAbsAmpl,int64)
-   iOldTotParts=nint(WalkerScale*dTotAbsAmpl,sizeof_int)
+   AllTotParts(1)=int(WalkerScale*dTotAbsAmpl,int64)
+   AllTotPartsOld(1)=int(WalkerScale*dTotAbsAmpl,int64)
+   iOldTotParts=int(WalkerScale*dTotAbsAmpl,sizeof_int)
    iter_data_ccmc%tot_parts_old = int(WalkerScale * dTotAbsAmpl,int64)
    dAveTotAbsAmp=0
    dAveNorm=0
@@ -2487,7 +2487,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !      write(6,*) "Initializing with MP1 amplitudes."
 !      CALL InitMP1Amplitude(tCCMCFCI,Amplitude(:,iCurAmpList),nAmpl,FciDets,FCIDetIndex,dInitAmplitude,dTotAbsAmpl)
 !   else
-   i=nint(dInitAmplitude,sizeof_int)
+   i=int(dInitAmplitude,sizeof_int)
    if(TStartSinglePart) then
       tShifting=.false.
    else
@@ -2527,7 +2527,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    AllTotPartsOld(1)=int(WalkerScale*dTotAbsAmpl,int64)
    if(iProcIndex==root) then
       iOldTotParts=0
-      iOldTotParts(1)=nint(WalkerScale*dTotAbsAmpl,sizeof_int)
+      iOldTotParts(1)=int(WalkerScale*dTotAbsAmpl,sizeof_int)
       iter_data_ccmc%tot_parts_old = 0
       iter_data_ccmc%tot_parts_old(1) = int(WalkerScale * dTotAbsAmpl,int64)
    else
