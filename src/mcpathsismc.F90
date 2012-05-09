@@ -1,6 +1,6 @@
 module mcpathsismc
     use constants, only: dp,int64,sp,sizeof_int
-    use util_mod, only: NECI_ICOPY,isnan
+    use util_mod, only: NECI_ICOPY,isnan_neci
    contains
 !C.. Calculate RHO^(P)_II without having a stored H matrix
 !C.. SAMPLE over distinct nodes, e.g. IJKLI, with paths up to I_HMAX
@@ -538,7 +538,7 @@ module mcpathsismc
               ENDIF
             ENDIF
             CALL neci_flush(11)
-!            IF(ISNAN(F(I_V))) THEN
+!            IF(ISNAN_neci(F(I_V))) THEN
 !C.. save all log files
 !               ITIME=neci_etime(tarr)
 !               CALL neci_flush(11)
@@ -1610,7 +1610,7 @@ module mcpathsismc
             PR=(OPROB/RHX)*ABS((WEIGHT/OWEIGHT))
 !            WRITE(40,"(5G)",advance='no') OPROB,RH,(WEIGHT), (OWEIGHT),PR
             IF(RHX.EQ.0.D0.OR..NOT.abs(OWEIGHT).gt.0.D0) PR=0.D0
-            IF(isnan(WEIGHT)) THEN
+            IF(isnan_neci(WEIGHT)) THEN
                 WRITE(60,*) WEIGHT,ETILDE,RHX
                 CALL WRITEPATH(60,IPATH,I_V,NEL,.FALSE.)
                 CALL WRITERHOMAT(60,RHOIJ,I_V,.TRUE.)

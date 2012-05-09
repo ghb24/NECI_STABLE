@@ -1,16 +1,19 @@
 [int]
 type1=integer
 unity=1
+flr=1
 size=8
 
 [doub]
 type1=real(dp)
 unity=1.0_dp
+flr=0
 size=8
 
 [btrp]
 type1=integer
 unity=1
+flr=1
 size=8
 
 ===================
@@ -570,7 +573,13 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,
                   k=k+1  !We're not allowed to choose the ref det.
                endif
             else
-               rt=r*dTotLocAbsAmpl
+               !To remove compiler warnings due to implicit type-checking
+               if(%(flr)s.eq.1) then
+                   !Integer representation
+                   rt=int(r*dTotLocAbsAmpl,sizeof_int)
+               else
+                   rt=r*dTotLocAbsAmpl
+               endif
                dCurTot=0
                IFDEBUG(iDebug,7) Write(6,*) "Probability Threshold",rt
                call BinarySearch(rt,AL%%CumlAmplitude,1,nDet,k,tSuccess)

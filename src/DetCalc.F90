@@ -1189,7 +1189,7 @@ END MODULE DetCalc
 !.. sum I_P*FLRI+FLSI will still retain the correct value.
       SUBROUTINE CALCRHOPII(I,NDET,NEVAL,CK,W,BETA,I_P,FLRI,FLSI,TWARN)
          use constants, only: dp
-         use util_mod, only: isnan
+         use util_mod, only: isnan_neci
          IMPLICIT NONE
          INTEGER NDET,NEVAL
          HElement_t CK(NDET,NEVAL)
@@ -1231,7 +1231,7 @@ END MODULE DetCalc
             RH=RH+R*EXP(-(W(IK)-W(1))*BETA)
          ENDDO
          FLSI=LOG(RH)-W(1)*BETA-I_P*FLRI
-         IF(ISNAN((RH+1)-RH)) THEN
+         IF(ISNAN_neci((RH+1)-RH)) THEN
             RH=0
             FLSI=0
          ENDIF
