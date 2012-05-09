@@ -296,7 +296,7 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
 !                      FockMat(I,J)=FockMat(I,J)+Eigenvalues(I)
                   END IF
                   TOT=TOT-CPMD1EINT(I,J)
-                  TOT=TOT-(HarInt(i,j))
+                  TOT=TOT-real(HarInt(i,j),dp)
 !                  FockMat(i,j)=FockMat(i,j)-dcmplx(CPMD1EInt(I,J))
                   IF (tCPMDSymTMat) THEN
                       TMATSYM(TMatInd(II+1,JJ+1))=TOT ! Indexing needs to be compatiable with TMatInd.

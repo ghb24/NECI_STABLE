@@ -649,7 +649,7 @@ end module
       real(sp) :: time(2)
       call cpu_time(ret)
       time(1) = ret
-      time(2) = 0
+      time(2) = real(0.0,sp)
     end function neci_etime
 
     integer function neci_system(str)

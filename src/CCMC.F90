@@ -1553,7 +1553,7 @@ subroutine AttemptSpawn(S,C,Amplitude,dTol,TL,WalkerScale,iDebug)
 !   Here we convert from a det back to an excitor.
       rat=rat*ExcitToDetSign(iLutHF,S%iLutnJ,IC)
       Amplitude(PartIndex)=Amplitude(PartIndex)+rat
-      iter_data_ccmc%nborn=iter_data_ccmc%nborn+abs(rat*WalkerScale)
+      iter_data_ccmc%nborn=iter_data_ccmc%nborn+int(abs(rat*WalkerScale),sizeof_int)
       if(tCCMCLogTransitions.and.Iter.gt.NEquilSteps) then
          call LogTransition(TL,C%SelectedExcitorIndices(:),C%iSize,PartIndex,rat,C%dProbNorm)
       endif
@@ -1676,7 +1676,7 @@ subroutine AttemptDie(C,CurAmpl,OldAmpl,TL,WalkerScale,iDebug)
    endif
 
    CurAmpl(iPartDie)=CurAmpl(iPartDie)-r
-   iter_data_ccmc%ndied=iter_data_ccmc%ndied+abs(r*WalkerScale)
+   iter_data_ccmc%ndied=iter_data_ccmc%ndied+int(abs(r*WalkerScale),sizeof_int)
    if(lLogTransitions.and.Iter.gt.NEquilSteps) then
       call LogTransition(TL,C%SelectedExcitorIndices(:),C%iSize,iPartDie,-r,C%dProbNorm)
    endif
@@ -2104,10 +2104,10 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    TotPartsOld(1)=0
 !WalkerScale*dTotAbsAmpl
    AllTotWalkersOld=1
-   AllTotParts(1)=WalkerScale*dTotAbsAmpl
-   AllTotPartsOld(1)=WalkerScale*dTotAbsAmpl
-   iOldTotParts=WalkerScale*dTotAbsAmpl
-   iter_data_ccmc%tot_parts_old = WalkerScale * dTotAbsAmpl
+   AllTotParts(1)=nint(WalkerScale*dTotAbsAmpl,int64)
+   AllTotPartsOld(1)=nint(WalkerScale*dTotAbsAmpl,int64)
+   iOldTotParts=nint(WalkerScale*dTotAbsAmpl,sizeof_int)
+   iter_data_ccmc%tot_parts_old = int(WalkerScale * dTotAbsAmpl,int64)
    dAveTotAbsAmp=0
    dAveNorm=0
    Iter=1
@@ -2280,7 +2280,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
       iShiftLeft=iShiftLeft-1
 
 !TotWalkers is used for this and is WalkerScale* total of all amplitudes
-      NoAtHF=AL%Amplitude(iRefPos,iCurAmpList)
+      NoAtHF=int(AL%Amplitude(iRefPos,iCurAmpList),sizeof_int)
 
       if(iShiftLeft.le.0)  then
           Call calculate_new_shift_wrapper(iter_data_ccmc, &
@@ -2460,7 +2460,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    ierr=0
    LogAlloc(ierr,'DetList',(nIfTot+1)*nMaxAmpl,4,tagDetList)
    call AllocateAmplitudeList(AL,nMaxAmpl,1,tSharedExcitors,DetList)
-   nMaxSpawn=MemoryFacSpawn*InitWalkers
+   nMaxSpawn=int(MemoryFacSpawn*real(InitWalkers,dp),sizeof_int)
    Allocate(SpawnList(0:nIfTot,nMaxSpawn))
    LogAlloc(ierr,'SpawnList',(nIfTot+1)*nMaxAmpl,4,tagSpawnList)
    write(6,*) "Allocating ", nMaxSpawn
@@ -2487,7 +2487,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !      write(6,*) "Initializing with MP1 amplitudes."
 !      CALL InitMP1Amplitude(tCCMCFCI,Amplitude(:,iCurAmpList),nAmpl,FciDets,FCIDetIndex,dInitAmplitude,dTotAbsAmpl)
 !   else
-   i=dInitAmplitude
+   i=nint(dInitAmplitude,sizeof_int)
    if(TStartSinglePart) then
       tShifting=.false.
    else
@@ -2509,7 +2509,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    TempSign=GetAmpl(AL,iRefPos,iCurAmpList)
    dTotAbsAmpl=sum(TempSign)
 !   endif
-   dAmpPrintTol=(dTolerance*dInitAmplitude)
+   dAmpPrintTol=int(dTolerance*dInitAmplitude,sizeof_int)
    IFDEBUG(iDebug,4) dAmpPrintTol=0
 
    iShiftLeft=StepsSft-1  !So the first one comes at StepsSft
@@ -2523,13 +2523,13 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !WalkerScale*dTotAbsAmpl
    AllTotWalkersOld=1
 !WalkerScale*dTotAbsAmpl
-   AllTotParts(1)=WalkerScale*dTotAbsAmpl
-   AllTotPartsOld(1)=WalkerScale*dTotAbsAmpl
+   AllTotParts(1)=int(WalkerScale*dTotAbsAmpl,int64)
+   AllTotPartsOld(1)=int(WalkerScale*dTotAbsAmpl,int64)
    if(iProcIndex==root) then
       iOldTotParts=0
-      iOldTotParts(1)=WalkerScale*dTotAbsAmpl
+      iOldTotParts(1)=nint(WalkerScale*dTotAbsAmpl,sizeof_int)
       iter_data_ccmc%tot_parts_old = 0
-      iter_data_ccmc%tot_parts_old(1) = WalkerScale * dTotAbsAmpl
+      iter_data_ccmc%tot_parts_old(1) = int(WalkerScale * dTotAbsAmpl,int64)
    else
       iOldTotParts=0
       iter_data_ccmc%tot_parts_old = 0
@@ -2648,7 +2648,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
 !Fix the statistics for multiple threads
       if(iProcIndex==root) then
-         NoAtHF=dNorm
+         NoAtHF=nint(dNorm,sizeof_int)
       else
          TotParts=0
          NoAtHF=0
@@ -2814,11 +2814,11 @@ subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
       Starts(0)=1
       p=nAmpl/nCores
       do i=1,nCores-1
-         Starts(i)=Starts(i-1)+p
+         Starts(i)=Starts(i-1)+int(p,MPIArg)
       enddo
-      Starts(nCores)=nAmpl+1
+      Starts(nCores)=int(nAmpl+1,MPIArg)
 !      write(6,*) "Starts: ",starts
-      iNext=Starts(iIndexInNode)-1
+      iNext=Starts(iIndexInNode)-int(1,MPIArg)
       do i=Starts(iIndexInNode),Starts(iIndexInNode+1)-1
          call decode_bit_det(nI,DetList(:,i))
          ! NB This doesn't have an offset of 1, because actually we're working
@@ -2835,7 +2835,7 @@ subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
 !            write(6,*) "Det",i,"=>Node",p
             ValidSpawnedList(p)=ValidSpawnedList(p)+1
          else
-            iNext=iNext+1
+            iNext=iNext+int(1,MPIArg)
             if(iNext/=i) DetList(:,iNext)=DetList(:,i)
          endif
       enddo 
@@ -2855,7 +2855,7 @@ subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
             do i=0,nCores-1
                p=(Ends(i)-Starts(i))+1
                DetList(:,iNext:iNext+p)=DetList(:,Starts(i):Ends(i))  !This is potentially overlapping, but is allowed in Fortran90+
-               iNext=iNext+p
+               iNext=iNext+int(p,MPIArg)
             enddo
             nAmpl=iNext-1
          endif
@@ -2865,7 +2865,7 @@ subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
          Starts(0)=0 !Displacements are 0-based
          !Ends(0) is correct as the length.
          do i=1,nCores-1
-            iNext=(Ends(i)-Starts(i))+1  !The length
+            iNext=(Ends(i)-Starts(i))+int(1,MPIArg)  !The length
             Starts(i)=Starts(i-1)+Ends(i-1)
             Ends(i)=iNext
          enddo

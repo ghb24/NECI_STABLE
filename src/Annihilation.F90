@@ -226,19 +226,20 @@ MODULE AnnihilationMod
 
 ! sendcounts(1:) indicates the number of spawnees to send to each processor
 ! disps(1:) is the index into the spawned list of the beginning of the list to send to each processor (0-based)
-           sendcounts(1)=ValidSpawnedList(0)-1
+           sendcounts(1)=int(ValidSpawnedList(0)-1,MPIArg)
            disps(1)=0
            if(nNodes>1) then
               sendcounts(2:nNodes)=0
-              disps(2:nNodes)=ValidSpawnedList(1)
+              disps(2:nNodes)=int(ValidSpawnedList(1),MPIArg)
            endif
         else
 !Distribute the gaps on all procs
            do i=0,nProcessors-1
                if(NodeRoots(ProcNode(i))==i) then  !This is a root 
-                  sendcounts(i+1)=ValidSpawnedList(ProcNode(i))-InitialSpawnedSlots(ProcNode(i))
+                  sendcounts(i+1)=int(ValidSpawnedList(ProcNode(i))-    &
+                        InitialSpawnedSlots(ProcNode(i)),MPIArg)
 ! disps is zero-based, but InitialSpawnedSlots is 1-based
-                  disps(i+1)=InitialSpawnedSlots(ProcNode(i))-1
+                  disps(i+1)=int(InitialSpawnedSlots(ProcNode(i))-1,MPIArg)
                else
                   sendcounts(i+1)=0
                   disps(i+1)=disps(i)
@@ -267,10 +268,10 @@ MODULE AnnihilationMod
         enddo
         MaxIndex=recvdisps(nProcessors)+recvcounts(nProcessors)
         do i=1,nProcessors
-            recvdisps(i)=recvdisps(i)*(NIfTot+1)
-            recvcounts(i)=recvcounts(i)*(NIfTot+1)
-            sendcounts(i)=sendcounts(i)*(NIfTot+1)
-            disps(i)=disps(i)*(NIfTot+1)
+            recvdisps(i)=recvdisps(i)*int(NIfTot+1,MPIArg)
+            recvcounts(i)=recvcounts(i)*int(NIfTot+1,MPIArg)
+            sendcounts(i)=sendcounts(i)*int(NIfTot+1,MPIArg)
+            disps(i)=disps(i)*int(NIfTot+1,MPIArg)
         enddo
 
 !Max index is the largest occupied index in the array of hashes to be ordered in each processor 
@@ -1071,7 +1072,7 @@ MODULE AnnihilationMod
                         do part_type=1,lenof_sign
                             if (test_flag(CurrentDets(:,i),flag_parent_initiator(part_type))) then
                                 !determinant was an initiator...it obviously isn't any more...
-                                NoAddedInitiators=NoAddedInitiators-1.D0
+                                NoAddedInitiators=NoAddedInitiators-1
                                 if (tSpawnSpatialInit) &
                                     call rm_initiator_list (CurrentDets(:,i))
                             endif
@@ -1171,7 +1172,7 @@ MODULE AnnihilationMod
                         do part_type=1,lenof_sign
                             if (test_flag(CurrentDets(:,i),flag_parent_initiator(part_type))) then
                                 !determinant was an initiator...it obviously isn't any more...
-                                NoAddedInitiators=NoAddedInitiators-1.D0
+                                NoAddedInitiators=NoAddedInitiators-1
                                 if (tSpawnSpatialInit) &
                                     call rm_initiator_list (CurrentDets(:,i))
                             endif

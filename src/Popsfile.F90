@@ -164,9 +164,9 @@ MODULE PopsfileMod
 
                 do j=0,nNodes-1
 !                    sendcounts(j+1)=(PopsSendList(j)-(NINT(BatchSize*j)+1))*(NIfTot+1)
-                    sendcounts(j+1)=(PopsSendList(j)-PopsInitialSlots(j))*(NIfTot+1)
+                    sendcounts(j+1)=int((PopsSendList(j)-PopsInitialSlots(j))*(NIfTot+1),MPIArg)
 !                    disps(j+1)=(NINT(BatchSize*j))*(NIfTot+1)
-                    disps(j+1)=(PopsInitialSlots(j)-1)*(NIfTot+1)
+                    disps(j+1)=int((PopsInitialSlots(j)-1)*(NIfTot+1),MPIArg)
                 enddo
                 MaxSendIndex=(disps(nNodes)+sendcounts(nNodes))/(nIfTot+1)
 
@@ -982,7 +982,7 @@ MODULE PopsfileMod
             & //"are the same as when POPSFILE was written"
         ENDIF
         READ(iunit,*) tmp_dp
-        AllTotWalkers = tmp_dp
+        AllTotWalkers = int(tmp_dp,int64)
         READ(iunit,*) DiagSftTemp
         READ(iunit,*) AllSumNoatHF
         READ(iunit,*) AllSumENum
@@ -1260,7 +1260,7 @@ MODULE PopsfileMod
             endif
         enddo
         CLOSE(iunit)
-        TempCurrWalkers=REAL(CurrWalkers,dp)
+        TempCurrWalkers=int(CurrWalkers,int64)
 
         ! Sort the lists so that they are in order if we change the number
         ! of processors.
@@ -1705,7 +1705,7 @@ MODULE PopsfileMod
             endif
         enddo
         CLOSE(iunit)
-        TempCurrWalkers=REAL(CurrWalkers,dp)
+        TempCurrWalkers=int(CurrWalkers,int64)
 
         ! Sort the lists so that they are in order if we change the number
         ! of processors.
@@ -1782,7 +1782,7 @@ MODULE PopsfileMod
             TotParts=TotParts+abs(TempSign(1))
         enddo
 
-        TempTotParts=REAL(TotParts,dp)
+        TempTotParts=TotParts
 
         CALL MPIBarrier(error)  !Sync
         CALL MPIReduce(TempTotParts,MPI_SUM,AllTotParts)

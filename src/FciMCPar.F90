@@ -2214,7 +2214,7 @@ MODULE FciMCParMod
                 NoAborted=NoAborted+abs(CopySign(1)) 
                 iter_data%naborted(1) = iter_data%naborted(1) + abs(CopySign(1))
                 if(test_flag(iLutCurr,flag_is_initiator(1))) then
-                    NoAddedInitiators=NoAddedInitiators-1.D0
+                    NoAddedInitiators=NoAddedInitiators-1
                     if (tSpawnSpatialInit) &
                         call rm_initiator_list (ilutCurr)
                 endif
@@ -2242,7 +2242,7 @@ MODULE FciMCParMod
         elseif(tTruncInitiator) then
             ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
             if(test_flag(iLutCurr,flag_is_initiator(1))) then
-                NoAddedInitiators=NoAddedInitiators-1.D0
+                NoAddedInitiators=NoAddedInitiators-1
                 if (tSpawnSpatialInit) &
                     call rm_initiator_list (ilutCurr)
             endif
@@ -2271,14 +2271,14 @@ MODULE FciMCParMod
                 !Remove the real anti-particle
                 NoAborted=NoAborted+abs(CopySign(1))
                 iter_data%naborted(1) = iter_data%naborted(1) + abs(CopySign(1))
-                if(test_flag(iLutCurr,flag_is_initiator(1))) NoAddedInitiators=NoAddedInitiators-1.0_dp
+                if(test_flag(iLutCurr,flag_is_initiator(1))) NoAddedInitiators=NoAddedInitiators-1
                 CopySign(1)=0
             endif
             if(tTruncInitiator.and.(sign(1,CopySign(lenof_sign)).ne.sign(1,wSign(lenof_sign)))) then
                 !Remove the imaginary anti-particle
                 NoAborted=NoAborted+abs(CopySign(lenof_sign))
                 iter_data%naborted(lenof_sign) = iter_data%naborted(lenof_sign) + abs(CopySign(lenof_sign))
-                if(test_flag(iLutCurr,flag_is_initiator(lenof_sign))) NoAddedInitiators=NoAddedInitiators-1.0_dp
+                if(test_flag(iLutCurr,flag_is_initiator(lenof_sign))) NoAddedInitiators=NoAddedInitiators-1
                 CopySign(lenof_sign)=0
             endif
             if((CopySign(1).ne.0).or.(CopySign(lenof_sign).ne.0)) then
@@ -2982,7 +2982,7 @@ MODULE FciMCParMod
 
         ! Set Iter time to equal the average time per iteration in the
         ! previous update cycle.
-        IterTime = IterTime / real(StepsSft)
+        IterTime = IterTime / real(StepsSft,sp)
 
         ! Calculate the acceptance ratio
         AccRat = real(Acceptances, dp) / SumWalkersCyc
@@ -3296,7 +3296,9 @@ MODULE FciMCParMod
         if (lenof_sign == 1) then
             AllHFCyc = real(int_tmp(5), dp)
         else
+#ifdef __CMPLX
             AllHFCyc = cmplx(int_tmp(5),int_tmp(6), dp)
+#endif
         endif
 
         ! Integer summations required for the initiator method
@@ -3625,7 +3627,7 @@ MODULE FciMCParMod
         
         ! Zero all of the variables which accumulate for each iteration.
 
-        IterTime = 0
+        IterTime = 0.0
         SumWalkersCyc = 0
         Annihilated = 0
         Acceptances = 0
@@ -4639,7 +4641,7 @@ MODULE FciMCParMod
         AllNoatDoubs=0
         AllSumNoatHF = 0
         AllGrowRate=0.D0
-        AllGrowRateAbort=0.D0
+        AllGrowRateAbort=0
 !        AllMeanExcitLevel=0.D0
         AllSumWalkersCyc=0
         AllAvSign=0.D0
@@ -6057,8 +6059,8 @@ MODULE FciMCParMod
                     endif
                     iUEG1=0
                     iUEG2=0
-                    iUEG1=DoubsUEGLookup(DoubEx(1,1))
-                    iUEG2=DoubsUEGLookup(DoubEx(1,2))
+                    iUEG1=int(DoubsUEGLookup(DoubEx(1,1)),sizeof_int)
+                    iUEG2=int(DoubsUEGLookup(DoubEx(1,2)),sizeof_int)
                     if (iUEG1.eq.0.or.iUEG2.eq.0) call stop_all("SumEContrib","Array bounds issue")
                     DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),1)=DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),1)+REAL(WSign(1))
     ! Test against natural orbital generation. For a two electron system, this should just be the same 
@@ -6164,7 +6166,7 @@ MODULE FciMCParMod
             ExpectedMemWalk=real((NIfTot+1)*MaxWalkersPart*size_n_int+8*MaxWalkersPart,dp)/1048576.0_dp
             if(ExpectedMemWalk.lt.20.0) then
                 !Increase memory allowance for small runs to a min of 20mb
-                MaxWalkersPart=20.0*1048576.0/real((NIfTot+1)*size_n_int+8,dp)
+                MaxWalkersPart=int(20.0*1048576.0/real((NIfTot+1)*size_n_int+8,dp),sizeof_int)
                 write(iout,"(A)") "Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors"
             endif
             WRITE(iout,"(A,I14)") "Memory allocated for a maximum particle number per node of: ",MaxWalkersPart
@@ -6282,10 +6284,13 @@ MODULE FciMCParMod
                 if(lenof_sign.eq.1) then
                     OldAllHFCyc = real(AllNoatHF(1),dp)
                 else
+#ifdef __CMPLX
+                    !cpp to avoid compiler warnings
                     OldAllHFCyc = cmplx(real(AllNoatHF(1),dp),real(AllNoatHF(lenof_sign),dp), dp)
+#endif
                 endif
 
-                AllNoAbortedOld=0.D0
+                AllNoAbortedOld=0
                 iter_data_fciqmc%tot_parts_old = AllTotParts
 
                 ! Calculate the projected energy for this iteration.
@@ -6384,7 +6389,9 @@ MODULE FciMCParMod
                             if(lenof_sign.eq.1) then
                                 OldAllHFCyc = real(InitialPart,dp)
                             else
+#ifdef __CMPLX
                                 OldAllHFCyc = cmplx(real(InitialPart,dp),0.0_dp,dp)
+#endif
                             endif
                             OldAllAvWalkersCyc = real(InitialPart,dp)
                             AllNoatHF(1)=InitialPart
@@ -6393,7 +6400,7 @@ MODULE FciMCParMod
                             iter_data_fciqmc%tot_parts_old(1) = InitialPart
                             AllTotParts(1)=InitialPart
                             AllTotPartsOld(1)=InitialPart
-                            AllNoAbortedOld=0.D0
+                            AllNoAbortedOld=0
                         ENDIF
                     ELSE
         !In this, only one processor has initial particles.
@@ -6403,7 +6410,7 @@ MODULE FciMCParMod
                             iter_data_fciqmc%tot_parts_old(1) = InitWalkers
                             AllTotParts(1)=InitWalkers
                             AllTotPartsOld(1)=InitWalkers
-                            AllNoAbortedOld=0.D0
+                            AllNoAbortedOld=0
                         ENDIF
                     ENDIF
 
@@ -6872,7 +6879,7 @@ MODULE FciMCParMod
         AllTotPartsOld=AllTotParts
         OldAllAvWalkersCyc=real(sum(AllTotParts),dp)
         iter_data_fciqmc%tot_parts_old = AllTotPartsOld
-        AllNoAbortedOld=0.D0
+        AllNoAbortedOld=0
 
         deallocate(CK,W,Hamil,CASBrr,CASDet,CASFullDets)
 
@@ -7141,7 +7148,7 @@ MODULE FciMCParMod
         AllTotPartsOld=AllTotParts
         OldAllAvWalkersCyc=real(sum(AllTotParts),dp)
         iter_data_fciqmc%tot_parts_old = AllTotPartsOld
-        AllNoAbortedOld=0.D0
+        AllNoAbortedOld=0
 
     end subroutine InitFCIMC_MP1
 

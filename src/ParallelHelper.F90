@@ -193,7 +193,7 @@ contains
          Comm=CommGlobal
          if(present(rt)) then
             if(tMe2) then
-               rt=iProcIndex
+               rt=int(iProcIndex,MPIArg)
             else
                rt=Root
             endif
@@ -206,16 +206,16 @@ contains
             Comm=CommRoot
             if (present(rt)) then
                if(tMe2) then
-                  rt=iNodeIndex
+                  rt=int(iNodeIndex,MPIArg)
                else
                   rt=Root
                endif
             endif
          else
-            Comm=CommNodes(Node%n)
+            Comm=int(CommNodes(Node%n),MPIArg)
             if (present(rt)) then
                if(tMe2) then
-                  rt=iIndexInNode 
+                  rt=int(iIndexInNode,MPIArg)
                else
                   rt=0 !NodeRoots(Node%n) is the procindex of the root, but not the index within the communicator
                endif
@@ -225,7 +225,7 @@ contains
          Comm=CommGlobal
          if (present(rt)) then
             if(tMe2) then
-               rt=iProcIndex 
+               rt=int(iProcIndex,MPIArg) 
             else
                rt=Root
             endif

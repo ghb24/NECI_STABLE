@@ -435,7 +435,8 @@ contains
          INTEGER I_P,I_HMAX,BRR(*),NMSH,NMAX
          INTEGER NTAY(2),NWHTAY(3,I_VMAX),ILOGGING,I,I_V
          type(timer), save :: proc_timer,proc_timer2
-         INTEGER L,LT,ITIME
+         INTEGER L,LT
+         real(sp) ITIME(2)
          real(dp) BETA,ECORE
          real(sp) tarr(2),neci_etime
          real(dp) WLRI,WLSI
@@ -655,10 +656,10 @@ contains
             ENDIF
             IF(ISNAN(TOTAL)) THEN
 !C.. save all log files
-               ITIME=neci_etime(tarr)
+               iTIME=neci_etime(tarr)
                CALL neci_flush(11)
-!               CALL LOGNAN(NI,NEL,BETA,ITIME)
-               WRITE(6,*) "WARNING: nan found at time",ITIME
+!               CALL LOGNAN(NI,NEL,BETA,iTIME)
+               WRITE(6,*) "WARNING: nan found at time",iTIME
                WRITE(6,"(A)",advance='no') "  nan det="
                call write_det (6, NI, .true.)
             ENDIF
