@@ -682,7 +682,7 @@ if (present(factor)) then
 else
   call read_double(aa)
 endif
-a=aa
+a=real(aa,sp)
 
 END SUBROUTINE read_single
 
@@ -1070,7 +1070,7 @@ REAL(kind=dp) :: c
 select case(fmt)
 case("GREY","GRAY")
   call readf(c)
-  colour(:)=c
+  colour(:)=real(c,sp)
 case("RGB")
   call readf(colour(1))
   call readf(colour(2))
@@ -1082,11 +1082,11 @@ case("RGB255")
 case("RGBX")
   call readu(x)
   read (x(1:2),"(z2)") r
-  colour(1)=r/255d0
+  colour(1)=real(real(r,dp)/255.0_dp,sp)
   read (x(3:4),"(z2)") g
-  colour(2)=g/255d0
+  colour(2)=real(real(g,dp)/255.0_dp,sp)
   read (x(5:6),"(z2)") b
-  colour(3)=b/255d0
+  colour(3)=real(real(b,dp)/255.0_dp,sp)
 case default
   call die('COLOUR keyword not recognised',.true.)
 end select

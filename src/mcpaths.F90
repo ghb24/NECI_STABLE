@@ -1,5 +1,5 @@
 module mcpaths
-    use util_mod, only: isnan
+    use util_mod, only: isnan_neci
 contains
 
 !C.. Calculate RHO^(P)_II without having a stored H matrix
@@ -44,7 +44,7 @@ contains
          use mcpathshdiag, only: fmcpr3b2
          use mcpathsismc, only: mcpathsr4, fmcpr4b,fmcpr4c
          use sym_mod, only: getsym
-         use util_mod, only: isnan, NECI_ICOPY
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          TYPE(BasisFN) :: G1(*),KSYM
          INTEGER I_VMAX,NEL,NBASIS
@@ -336,7 +336,7 @@ contains
                 WRITE(11,"(I12,2G25.16,F19.7,I12,2G25.12)") I_V,F(I_V),TOTAL,NTIME-OTIME,L,STD,DLWDB2
                CALL neci_flush(11)
             ENDIF
-            IF(ISNAN(TOTAL)) THEN
+            IF(ISNAN_neci(TOTAL)) THEN
 !C.. save all log files
                ITIME=neci_etime(tarr)
                CALL neci_flush(11)
@@ -435,7 +435,8 @@ contains
          INTEGER I_P,I_HMAX,BRR(*),NMSH,NMAX
          INTEGER NTAY(2),NWHTAY(3,I_VMAX),ILOGGING,I,I_V
          type(timer), save :: proc_timer,proc_timer2
-         INTEGER L,LT,ITIME
+         INTEGER L,LT
+         real(sp) ITIME(2)
          real(dp) BETA,ECORE
          real(sp) tarr(2),neci_etime
          real(dp) WLRI,WLSI
@@ -653,12 +654,12 @@ contains
                WRITE(11,*)
                CALL neci_flush(11)
             ENDIF
-            IF(ISNAN(TOTAL)) THEN
+            IF(ISNAN_neci(TOTAL)) THEN
 !C.. save all log files
-               ITIME=neci_etime(tarr)
+               iTIME=neci_etime(tarr)
                CALL neci_flush(11)
-!               CALL LOGNAN(NI,NEL,BETA,ITIME)
-               WRITE(6,*) "WARNING: nan found at time",ITIME
+!               CALL LOGNAN(NI,NEL,BETA,iTIME)
+               WRITE(6,*) "WARNING: nan found at time",iTIME
                WRITE(6,"(A)",advance='no') "  nan det="
                call write_det (6, NI, .true.)
             ENDIF

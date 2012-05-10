@@ -730,11 +730,11 @@ contains
             send_off = (proc_pos_init - 1) * (NIfTot + 1)
             recv_off(1) = 0
             do i = 2, nProcessors
-                recv_off(i) = recv_off(i - 1) + recv_count(i - 1)
+                recv_off(i) = recv_off(i - 1) + int(recv_count(i - 1),MPIArg)
             enddo
-            recv_off = recv_off * (NIfTot + 1)
-            send_data = send_count * (NIfTot + 1)
-            recv_data = recv_count * (NIfTot + 1)
+            recv_off = recv_off * int(NIfTot + 1,MPIArg)
+            send_data = int(send_count * (NIfTot + 1),MPIArg)
+            recv_data = int(recv_count * (NIfTot + 1),MPIArg)
 
             call MPIAlltoAllv (det_list, send_data, send_off, &
                                recv_dets, recv_data, recv_off, ierr)

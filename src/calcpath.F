@@ -167,7 +167,7 @@ C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
          RETURN
       END
       SUBROUTINE CLASSPATHS(RHOC,HC,WEIGHT,RHOIJ,I_V,ICLASS)
-         use constants, only: dp
+         use constants, only: dp,sizeof_int
          use legacy_data, only: CALCP_N, CALCP_NT, CALCP_SUM, CALCP_HSUM
          IMPLICIT NONE
          INTEGER I_V
@@ -183,7 +183,7 @@ C.. allow for subtractions
      &      CALL CLASSPATH(RHOIJ,I_V,ICLASS)
 C            WRITE(56,*) ICLASS,RHOC
 C            WRITE(32,*) I_V,ICLASS,RHOC
-            ILG=LOG(ABS(RHOC))/LOG(10.D0)
+            ILG=int(LOG(ABS(RHOC))/LOG(10.D0),sizeof_int)
             IF(ILG.GE.0) THEN
                ILG=1
             ELSEIF(ILG.LT.-15) THEN

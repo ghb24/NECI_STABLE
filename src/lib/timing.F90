@@ -65,8 +65,8 @@ end type timer_object
 type(timer_object),allocatable,target :: timers(:)
 
 ! For total calculation time.
-real(sp) :: global_time_cpu=0.d0
-real(sp) :: global_time_system=0.d0
+real(sp) :: global_time_cpu=real(0.0,sp)
+real(sp) :: global_time_system=real(0.0,sp)
 ! If global_timing_on is true, then handle the total time differently in the timing output,
 ! as then have requested timing output without halting the global timer.
 logical :: global_timing_on=.false. 
@@ -85,7 +85,7 @@ contains
       integer :: i
 
       call cpu_time(global_time_cpu)
-      global_time_system=0
+      global_time_system=real(0.0,sp)
       global_timing_on=.true.
 
       if (.not.allocated(timers)) allocate(timers(ntimer))
@@ -112,7 +112,7 @@ contains
 
       if (global_timing_on) then
           call cpu_time(t(1))
-          t(2)=0
+          t(2)=real(0.0,sp)
           
           global_time_cpu=t(1)-global_time_cpu
           global_time_system=t(2)-global_time_system
@@ -184,7 +184,7 @@ contains
               ! correct timings are obtained.
               ! Start the clock.
               call cpu_time(t(1))
-              t(2)=0
+              t(2)=real(0.0,sp)
               proc_timer%store%time_cpu=t(1)
               proc_timer%store%time_system=t(2)
               proc_timer%store%timing_on=.true.
@@ -217,7 +217,7 @@ contains
           timer_error=.true.
       else
           call cpu_time(t(1))
-          t(2)=0
+          t(2)=real(0.0,sp)
           time_cpu=t(1)-proc_timer%store%time_cpu
           time_system=t(2)-proc_timer%store%time_system
           proc_timer%store%sum_time_cpu=proc_timer%store%sum_time_cpu+time_cpu
@@ -264,7 +264,7 @@ contains
           if (present(t_elapsed)) then
               if (t_elapsed) then
                   call cpu_time(t(1))
-                  t(2)=0
+                  t(2)=real(0.0,sp)
                   get_total_time=get_total_time+t(1)+t(2)-proc_timer%store%time_cpu-proc_timer%store%time_system
               end if
           end if
@@ -301,7 +301,7 @@ contains
       ! zero to single-precision.  This forces the procedure times to be printed
       ! out, if required, even if they are 0.0000, by avoiding issues with
       ! maxloc as the elements of the sum_times array are set to zero.
-      sum_times=timers(:)%sum_time_system+timers(:)%sum_time_cpu+1.e-4
+      sum_times=timers(:)%sum_time_system+timers(:)%sum_time_cpu+real(1.e-4,sp)
 
       if (present(iunit)) io=iunit
       if (present(ntimer_objects)) then
@@ -340,7 +340,7 @@ contains
           write (io,'(a20,f10.2)')  'Global total time  ',global_time_cpu+global_time_system
       else
           call cpu_time(t(1))
-          t(2)=0
+          t(2)=real(0.0,sp)
           write (io,'(/a20,f10.2)') 'Global CPU time    ',t(1)-global_time_cpu
           write (io,'(a20,f10.2)') 'Global system time',t(2)-global_time_system
       end if

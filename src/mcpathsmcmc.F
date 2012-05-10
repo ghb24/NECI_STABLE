@@ -17,7 +17,7 @@ C.. This is an approach based on Markov Chains
      &               NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &               NWHTAY,ILOGGING,ECORE, WLRI,WLSI)
          use global_utilities
-         use util_mod, only: isnan
+         use util_mod, only: isnan_neci
          use util_mod, only: NECI_ICOPY
          use constants, only: dp,sp
 !         IMPLICIT real(dp) (A-H,O-Z)
@@ -134,7 +134,7 @@ c            WRITE(6,*) I_V,F(I_V),TOTAL,get_total_time(proc_timer2),L,LT
             IF(TLOG)
      &         WRITE(11,"(I12,2G25.16,F19.7,I12,F19.7)")
      &            I_V,F(I_V),TOTAL,get_total_time(proc_timer2),L,STD
-            IF(ISNAN(F(I_V))) THEN
+            IF(ISNAN_neci(F(I_V))) THEN
 C.. save all log files
                ITIME=neci_etime(tarr)
                CALL FLUSH(11)

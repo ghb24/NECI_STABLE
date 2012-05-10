@@ -16,7 +16,7 @@
          use SymData, only: tAbelianFastExcitgen
          use SymData, only: tStoreStateList
          use SystemData, only: tNoRenormRandExcits
-         use constants, only: dp
+         use constants, only: dp,sizeof_int
          IMPLICIT NONE
          INTEGER nEl,nI(nEl)
          INTEGER I
@@ -49,7 +49,7 @@
 !     &                   EXCITTYPES(5,IEXCIT),I
 !            IEXCIT=IEXCIT+1
 !         ENDDO
-         I=ITOTAL*RAN2(ISEED)
+         I=int(real(ITOTAL,dp)*RAN2(ISEED),sizeof_int)
 !.. Now work out which Excitation Type it's in.
          IEXCIT=1
          DO WHILE(I.GT.0.AND.EXCITTYPES(5,IEXCIT).LE.I)

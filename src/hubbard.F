@@ -241,6 +241,8 @@ C         ENDIF
 
       SUBROUTINE SETBASISLIM_HUBTILT(NBASISMAX,NMAXX,NMAXY,NMAXZ,LEN,
      &         TPBC,ITILTX,ITILTY)
+         use constants, only : sizeof_int,dp
+         IMPLICIT NONE
          INTEGER nBasisMax(5,*),NMAXX,NMAXY,NMAXZ,LEN
          LOGICAL TPBC
          INTEGER ITILTX,ITILTY
@@ -251,12 +253,14 @@ C.. Indicate tilted
 C.. Not periodic boundaries
             NBASISMAX(1,3)=3
          ENDIF
-         NBASISMAX(1,2)=(NMAXX*((ITILTX+ITILTY)/2.D0))
+         NBASISMAX(1,2)=int(real(NMAXX,dp)*                          
+     &          (real(ITILTX+ITILTY,dp)/2.D0),sizeof_int)
          NBASISMAX(1,1)=-NBASISMAX(1,2)
 C+1-MOD(NMAXX,2)
          IF(NMAXY.NE.NMAXX)
      &      STOP 'CANNOT HANDLE NON-SQUARE TILTED HUBBARD'
-         NBASISMAX(2,2)=(NMAXX*((ITILTY+ITILTX)/2.D0))
+         NBASISMAX(2,2)=int(real(NMAXX,dp)*        
+     &          (real(ITILTY+ITILTX)/2.D0),sizeof_int)
          NBASISMAX(2,1)=-NBASISMAX(2,2)
 C+1-MOD(NMAXX,2)
          IF(NMAXZ.GT.1) STOP 'CANNOT HANDLE TILTED 3D HUBBARD'
