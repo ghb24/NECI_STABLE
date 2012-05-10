@@ -1953,7 +1953,9 @@ END subroutine ORDERBASIS
 
 
 !dUnscaledEnergy gives the energy without reference to box size and without any offset.
-SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,Energy,dUnscaledEnergy)
+SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,Energy,dUnscaledEnergy)        
+   
+   use SystemData, only: tUEG2
    use constants, only: Pi, Pi2, THIRD
    use constants, only: dp
    IMPLICIT NONE
@@ -1961,6 +1963,30 @@ SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,Energy,dUnsc
    real(dp) ALat(3),k_offset(3),Energy,E
    LOGICAL tUEGOffset, tUEGTrueEnergies
    INTEGER dUnscaledEnergy
+   if (tUEG2) then
+   IF(tUEGTrueEnergies) then
+       IF(tUEGOffset) then
+          E=((I+k_offset(1))**2/ALAT(1)**2)
+          E=E+((J+k_offset(2))**2/ALAT(2)**2)
+          E=E+((K+k_offset(3))**2/ALAT(3)**2)
+       else
+          E=(I*I/ALAT(1)**2)
+          E=E+(J*J/ALAT(2)**2)
+          E=E+(K*K/ALAT(3)**2)
+       endif
+       Energy=0.5*4*PI*PI*E
+       dUnscaledEnergy=(I*I)
+       dUnscaledEnergy=dUnscaledEnergy+(J*J)
+       dUnscaledEnergy=dUnscaledEnergy+(K*K)
+   ELSE
+       E=(I*I)
+       E=E+(J*J)
+       E=E+(K*K)
+       Energy=E
+    ENDIF
+    return
+   endif
+
    IF(tUEGTrueEnergies) then
        IF(tUEGOffset) then
           E=((I+k_offset(1))**2/ALAT(1)**2)

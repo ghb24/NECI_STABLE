@@ -421,7 +421,7 @@ contains
 		else
 		    hel = 0
 		endif
-
+	  return
        end if   !UEG2
 
 
