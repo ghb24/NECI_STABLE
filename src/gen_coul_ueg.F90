@@ -353,77 +353,53 @@ contains
         real(dp) :: G, G2
         logical :: tCoulomb, tExchange
         character(*), parameter :: this_routine = 'get_ueg_umat_el'
-        
+
+  	!==================================================      
 	if (tUEG2) then
 
-	  ISS = nBasisMax(2,3) ! ick
+	    ISS = nBasisMax(2,3) ! ick
+	    i = (idi - 1) * ISS + 1
+	    j = (idj - 1) * ISS + 1
+	    k = (idk - 1) * ISS + 1
+	    l = (idl - 1) * ISS + 1
 
-		i = (idi - 1) * ISS + 1
-		j = (idj - 1) * ISS + 1
-		k = (idk - 1) * ISS + 1
-		l = (idl - 1) * ISS + 1
+	    ! The Uniform Electron Gas
+	    a = G1(i)%k(1) - G1(k)%k(1)
+	    b = G1(i)%k(2) - G1(k)%k(2)
+	    c = G1(i)%k(3) - G1(k)%k(3)
 
-		tCoulomb = .false.
-		tExchange = .false.
+	    ! Energy conservation
+	    if ( ((G1(l)%k(1) - G1(j)%k(1)) == a) .and. &		
+		((G1(l)%k(2) - G1(j)%k(2)) == b) .and. &
+		((G1(l)%k(3) - G1(j)%k(3)) == c) ) then
 
-		if ( (i == k) .and. (j == l) ) tCoulomb = .true.
-! 		if ( (i == l) .and. (j == k) ) tExchange = .true.
+		! no Coulomb
+		if ( (a /= 0) .or. (b /= 0) .or. (c /= 0) ) then
+		    ! WRITE(6,*) "(",I,J,"|",K,L,")",A,B,C
+		    ! Coulomb integrals are long-ranged, so calculated with 
+		    ! 4 pi/G**2.
+		    !AJWT <IJ|r_12^-1|KL> = v_(G_I-G_K) delta_((G_I-G_K)-(G_L-G_J)
+		    ! v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
+		    ! For Coulomb interactions <ij|ij> we have explicitly excluded
+		    ! the G=0 component as it is divergent.
+		    ! This is the equivalent of adding a positive uniform 
+		    ! background.
+		    ! The effects
+		    G2 = ((a / ALAT(1))**2 +(b / ALAT(2))**2)
+		    if (ALAT(3) /= 0) G2 = G2 + (c / ALAT(3))**2
 
-		! The Uniform Electron Gas
-		a = G1(i)%k(1) - G1(k)%k(1)
-		b = G1(i)%k(2) - G1(k)%k(2)
-		c = G1(i)%k(3) - G1(k)%k(3)
+		    hel = (1.0_dp / PI) / (G2 * ALAT(1) * ALAT(2) * ALAT(3))
+    
+		else  ! <ii|ii>
+		    hel = 0		
+		endif  !Coulomb
 
-		if ( ((G1(l)%k(1) - G1(j)%k(1)) == a) .and. &
-		    ((G1(l)%k(2) - G1(j)%k(2)) == b) .and. &
-		    ((G1(l)%k(3) - G1(j)%k(3)) == c) ) then
-
-		    if ( (a /= 0) .or. (b /= 0) .or. (c /= 0) ) then
-			! WRITE(6,*) "(",I,J,"|",K,L,")",A,B,C
-			! Coulomb integrals are long-ranged, so calculated with 
-			! 4 pi/G**2.
-			!AJWT <IJ|r_12^-1|KL> = v_(G_I-G_K) delta_((G_I-G_K)-(G_L-G_J)
-			! v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
-			! For Coulomb interactions <ij|ij> we have explicitly excluded
-			! the G=0 component as it is divergent.
-			! This is the equivalent of adding a positive uniform 
-			! background.
-			! The effects
-			G2 = ((a / ALAT(1))**2 +(b / ALAT(2))**2)
-			if (ALAT(3) /= 0) G2 = G2 + (c / ALAT(3))**2
-
-			! Sum is G^2 / 4 Pi*Pi
-			G = 2 * PI * sqrt(G2)
-			hel = (1.0_dp / PI) / (G2 * ALAT(1) * ALAT(2) * ALAT(3))
-	
-			! Sum is now (4 Pi / G^2 ) / Omega
-			! ALAT(4) is Rc, a cutoff length.
-			! For Exchange integrals we calculate <ij|kl>cell with a 
-			! potenial v(r)=1/r (r<Rc) and 0 (r>=Rc)
-! 			if (tExchange) then
-! 			    if (iPeriodicDampingType == 2) then
-! 				! Spherical cutoff used.
-! 				! For non-Coulomb integrals we calculate <ij|kl>_cell
-! 				! with a potenial v(r)=1/r (r<Rc) and 0 (r>=Rc).
-! 				hel = hel * (1.0_dp - cos(G * ALAT(4)))
-! 			    else if (iPeriodicDampingType == 1) then
-! 				! Screened potential used.
-! 				! For non-Coulomb integrals we calculate <ij|kl>
-! 				! with a potenial v(r)=erfc(r/Rc)/r.
-! 				hel = hel * (1.0_dp - exp(-(G * ALAT(4))**2 / 2.0_dp))
-! 			    endif
-! 			endif
-		    else
-			! <ii|ii>
-			hel = 0
-			
-		    endif
-		else
-		    hel = 0
-		endif
-	  return
+	    else  !no energy conservation
+		hel = 0
+	    endif
+	    return
        end if   !UEG2
-
+	!==================================================
 
         ISS = nBasisMax(2,3) ! ick
 

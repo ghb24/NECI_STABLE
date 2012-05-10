@@ -1903,27 +1903,30 @@ SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
   LOGICAL TPERIODIC
   real(dp), PARAMETER :: PI=3.1415926535897932384626433832795029D0
 
+!=================================================
   if (tUEG2) then
   
-    IF(TPERIODIC) WRITE(6,*) "Periodic UEG"
-    iunit = get_free_unit()
-    OPEN(iunit,FILE='TMAT',STATUS='UNKNOWN')
-    IF(TSTARSTORE) STOP 'Cannot use TSTARSTORE with UEG'
-    CALL SetupTMAT(NBASIS,2,iSIZE)
+      IF(TPERIODIC) WRITE(6,*) "Periodic UEG"
+      iunit = get_free_unit()
 
-    DO I=1,NBASIS
-      K_REAL=G1(I)%K+K_OFFSET
-      TMAT2D(I,1)=((ALAT(1)**2)*((K_REAL(1)**2)/(ALAT(1)**2)+        &
-  &        (K_REAL(2)**2)/(ALAT(2)**2)+(K_REAL(3)**2)/(ALAT(3)**2)))
-     TMAT2D(I,1)=TMAT2D(I,1)*(CST)
-  !..  The G=0 component is explicitly calculated for the cell interactions as 2 PI Rc**2 .
-  !   we *1/2 as we attribute only half the interaction to this cell.
-      IF(TPERIODIC .and. iPeriodicDampingType/=0) TMAT2D(I,1)=TMAT2D(I,1)-(PI*ALAT(4)**2/OMEGA)
-      WRITE(iunit,*) I,I,TMAT2D(I,1)
-    ENDDO
-    CLOSE(iunit)
-    RETURN
+      OPEN(iunit,FILE='TMAT',STATUS='UNKNOWN')
+	  IF(TSTARSTORE) STOP 'Cannot use TSTARSTORE with UEG'
+	  CALL SetupTMAT(NBASIS,2,iSIZE)
+	  DO I=1,NBASIS
+	      K_REAL=G1(I)%K+K_OFFSET
+	      TMAT2D(I,1)=((ALAT(1)**2)*((K_REAL(1)**2)/(ALAT(1)**2)+        &
+	      &   (K_REAL(2)**2)/(ALAT(2)**2)+(K_REAL(3)**2)/(ALAT(3)**2)))
+	      TMAT2D(I,1)=TMAT2D(I,1)*(CST)
+	      !..  The G=0 component is explicitly calculated for the cell interactions as 2 PI Rc**2 .
+	      !   we *1/2 as we attribute only half the interaction to this cell.
+	      IF(TPERIODIC .and. iPeriodicDampingType/=0) TMAT2D(I,1)=TMAT2D(I,1)-(PI*ALAT(4)**2/OMEGA)
+	      WRITE(iunit,*) I,I,TMAT2D(I,1)
+	  ENDDO
+      CLOSE(iunit)
+	      
+      RETURN
   end if ! tUEG2
+!=================================================
 
   IF(TPERIODIC) WRITE(6,*) "Periodic UEG"
   iunit = get_free_unit()

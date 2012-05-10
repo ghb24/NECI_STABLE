@@ -97,6 +97,10 @@ real(dp) :: Madelung ! variable storage for self-interaction term
 logical :: tUEGFreeze ! Freeze core electrons for the UEG, a crude hack for this to work-around freezing not working for UEG
 real(dp) :: FreezeCutoff
 
+! Inputs for the UEG2
+character(len=3) :: recip_lattice_type ! type of reciprocal lattice (eg. fcc, sc, bcc, hcp)
+real(dp) :: lattice_vectors(3,3)
+
 ! For the UEG, we damp the exchange interactions.
 !    0 means none
 !    1 means screened (using an erfc)
@@ -131,6 +135,7 @@ TYPE BasisFN
    INTEGER :: Ms
    INTEGER :: Ml            !This is the Ml symmetry of the orbital
    TYPE(Symmetry) :: sym
+ !  real(dp) :: kvec(3)
 END TYPE
 
 ! Empty basis function is used in many places.
