@@ -918,6 +918,8 @@ MODULE System
       real(dp), allocatable :: arr_tmp(:,:)
       integer, allocatable :: brr_tmp(:)
 
+      integer :: AllocateStatus
+
 !      write (6,*)
 !      call TimeTag()
 !      if (.not.TCPMD) call Envir()
@@ -1281,10 +1283,43 @@ MODULE System
 		ENDDO
 	      ENDDO
 	    ENDDO
-	  
+
 !C..Check to see if all's well
 	    WRITE(6,*) ' NUMBER OF BASIS FUNCTIONS : ' , IG 
 	    NBASIS=IG
+
+	     ! define reciprocal lattice vectors and lattice constant in recip space
+	     if (recip_lattice_type == "sc") then
+		lattice_constant = 2.0d0*PI/OMEGA**THIRD
+		lattice_vectors(1,1:3) = (/1, 0, 0 /)
+		lattice_vectors(2,1:3) = (/0, 1, 0 /)
+		lattice_vectors(3,1:3) = (/0, 0, 1 /)	
+	    else if (recip_lattice_type == "fcc") then
+		!real space lattice constant = (2.0d0*OMEGA/NEL)**(1.0d0/3.0d0)
+		lattice_constant = 2.0d0*PI/OMEGA**THIRD
+		lattice_vectors(1,1:3) = (/0, 1, 1 /)
+		lattice_vectors(2,1:3) = (/1, 0, 1 /)
+		lattice_vectors(3,1:3) = (/1, 1, 0 /)		
+	    else if (recip_lattice_type == "bcc") then
+		!real space lattice constant = (4.0d0*OMEGA/NEL)**(1.0d0/3.0d0)
+		lattice_constant =2.0d0*PI/OMEGA**THIRD
+		lattice_vectors(1,1:3) = (/-1, 1, 1 /)
+		lattice_vectors(2,1:3) = (/1, -1, 1 /)
+		lattice_vectors(3,1:3) = (/1, 1, -1 /)
+	    end if
+
+	    allocate(kvec(NBASIS, 3), STAT = AllocateStatus)
+
+	    ! calculate k-vectors in cartesian coordinates	      
+	    IG=0
+	    DO I=1, NBASIS      
+		IG=IG+1
+		kvec(IG, 1)=lattice_vectors(1,1)*G1(IG)%K(1)+lattice_vectors(2,1)*G1(IG)%K(2)+lattice_vectors(3,1)*G1(IG)%K(3)
+		kvec(IG, 2)=lattice_vectors(1,2)*G1(IG)%K(1)+lattice_vectors(2,2)*G1(IG)%K(2)+lattice_vectors(3,2)*G1(IG)%K(3)
+		kvec(IG, 3)=lattice_vectors(1,3)*G1(IG)%K(1)+lattice_vectors(2,3)*G1(IG)%K(2)+lattice_vectors(3,3)*G1(IG)%K(3)
+	    ENDDO
+	    
+	    !kvec = kvec*lattice_constant
 
 	    IF(LEN.NE.IG) THEN
 		if(OrbECutoff.gt.-1e20) then

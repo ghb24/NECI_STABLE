@@ -346,10 +346,10 @@ contains
 
     function get_ueg_umat_el (idi, idj, idk, idl) result(hel)
 
-        use SystemData, only: tUEG2
+        use SystemData, only: tUEG2, kvec, lattice_constant
         integer, intent(in) :: idi, idj, idk, idl
         HElement_t :: hel
-        integer :: i, j, k, l, a, b, c, iss
+        integer :: i, j, k, l, a, b, c, iss, aneu
         real(dp) :: G, G2
         logical :: tCoulomb, tExchange
         character(*), parameter :: this_routine = 'get_ueg_umat_el'
@@ -357,23 +357,24 @@ contains
   	!==================================================      
 	if (tUEG2) then
 
+	    ! omit even numbers of idi if there is spin degeneracy
 	    ISS = nBasisMax(2,3) ! ick
 	    i = (idi - 1) * ISS + 1
 	    j = (idj - 1) * ISS + 1
 	    k = (idk - 1) * ISS + 1
 	    l = (idl - 1) * ISS + 1
 
-	    ! The Uniform Electron Gas
-	    a = G1(i)%k(1) - G1(k)%k(1)
-	    b = G1(i)%k(2) - G1(k)%k(2)
-	    c = G1(i)%k(3) - G1(k)%k(3)
+	    ! calucate unscaled momentum transfer
+	    a = kvec(i,1) - kvec(k, 1)
+	    b = kvec(i, 2) - kvec(k, 2)
+	    c = kvec(i, 3) - kvec(k, 3)
 
 	    ! Energy conservation
-	    if ( ((G1(l)%k(1) - G1(j)%k(1)) == a) .and. &		
-		((G1(l)%k(2) - G1(j)%k(2)) == b) .and. &
-		((G1(l)%k(3) - G1(j)%k(3)) == c) ) then
+	    if ((kvec(l, 1) - kvec(j, 1) == a) .and. &		
+		(kvec(l, 2) - kvec(j, 2) == b) .and. &
+		(kvec(l, 3) - kvec(j, 3) == c) ) then
 
-		! no Coulomb
+		! no Coulomb (-> no divergency)
 		if ( (a /= 0) .or. (b /= 0) .or. (c /= 0) ) then
 		    ! WRITE(6,*) "(",I,J,"|",K,L,")",A,B,C
 		    ! Coulomb integrals are long-ranged, so calculated with 
@@ -385,11 +386,11 @@ contains
 		    ! This is the equivalent of adding a positive uniform 
 		    ! background.
 		    ! The effects
-		    G2 = ((a / ALAT(1))**2 +(b / ALAT(2))**2)
+		   G2 = ((a / ALAT(1))**2 +(b / ALAT(2))**2)
 		    if (ALAT(3) /= 0) G2 = G2 + (c / ALAT(3))**2
-
+		    !G2 =( a**2 +b**2+c**2)/lattice_constant**2
 		    hel = (1.0_dp / PI) / (G2 * ALAT(1) * ALAT(2) * ALAT(3))
-    
+! 		    hel = 4.0d0*PI/OMEGA/G2
 		else  ! <ii|ii>
 		    hel = 0		
 		endif  !Coulomb
