@@ -727,7 +727,7 @@ contains
 
             call MPIAlltoAll (send_count, 1, recv_count, 1, ierr)
 
-            send_off = (proc_pos_init - 1) * (NIfTot + 1)
+            send_off = int((proc_pos_init - 1) * (NIfTot + 1),MPIArg)
             recv_off(1) = 0
             do i = 2, nProcessors
                 recv_off(i) = recv_off(i - 1) + int(recv_count(i - 1),MPIArg)
