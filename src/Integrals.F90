@@ -1889,14 +1889,14 @@ END MODULE Integrals_neci
 
 SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
   use constants, only: dp
-  use SystemData, only: BasisFN, k_offset, iPeriodicDampingType
+  use SystemData, only: BasisFN, k_offset, iPeriodicDampingType, kvec, k_lattice_constant
   USE OneEInts, only : SetupTMAT,TMAT2D,TSTARSTORE
   use util_mod, only: get_free_unit
   use SystemData, only: tUEG2
   IMPLICIT NONE
   INTEGER NBASIS
   TYPE(BASISFN) G1(NBASIS)
-  real(dp) ALAT(4),CST,K_REAL(3)
+  real(dp) ALAT(4),CST,K_REAL(3), temp
   INTEGER I
   INTEGER iSIZE, iunit
   real(dp) OMEGA
@@ -1913,12 +1913,12 @@ SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
 	  IF(TSTARSTORE) STOP 'Cannot use TSTARSTORE with UEG'
 	  CALL SetupTMAT(NBASIS,2,iSIZE)
 	  DO I=1,NBASIS
-	      K_REAL=G1(I)%K+K_OFFSET
-	      TMAT2D(I,1)=((ALAT(1)**2)*((K_REAL(1)**2)/(ALAT(1)**2)+        &
-	      &   (K_REAL(2)**2)/(ALAT(2)**2)+(K_REAL(3)**2)/(ALAT(3)**2)))
-	      TMAT2D(I,1)=TMAT2D(I,1)*(CST)
-	      !..  The G=0 component is explicitly calculated for the cell interactions as 2 PI Rc**2 .
-	      !   we *1/2 as we attribute only half the interaction to this cell.
+	      !K_OFFSET in cartesian coordinates
+	      K_REAL=kvec(I, 1:3)+K_OFFSET
+	      temp=K_REAL(1)**2+K_REAL(2)**2+K_REAL(3)**2
+	      ! TMAT is diagonal for the UEG
+	      TMAT2D(I,1)=0.5d0*temp*k_lattice_constant**2
+
 	      IF(TPERIODIC .and. iPeriodicDampingType/=0) TMAT2D(I,1)=TMAT2D(I,1)-(PI*ALAT(4)**2/OMEGA)
 	      WRITE(iunit,*) I,I,TMAT2D(I,1)
 	  ENDDO

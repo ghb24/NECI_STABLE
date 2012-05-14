@@ -346,7 +346,7 @@ contains
 
     function get_ueg_umat_el (idi, idj, idk, idl) result(hel)
 
-        use SystemData, only: tUEG2, kvec, lattice_constant
+        use SystemData, only: tUEG2, kvec, k_lattice_constant
         integer, intent(in) :: idi, idj, idk, idl
         HElement_t :: hel
         integer :: i, j, k, l, a, b, c, iss, aneu
@@ -376,7 +376,6 @@ contains
 
 		! no Coulomb (-> no divergency)
 		if ( (a /= 0) .or. (b /= 0) .or. (c /= 0) ) then
-		    ! WRITE(6,*) "(",I,J,"|",K,L,")",A,B,C
 		    ! Coulomb integrals are long-ranged, so calculated with 
 		    ! 4 pi/G**2.
 		    !AJWT <IJ|r_12^-1|KL> = v_(G_I-G_K) delta_((G_I-G_K)-(G_L-G_J)
@@ -385,12 +384,9 @@ contains
 		    ! the G=0 component as it is divergent.
 		    ! This is the equivalent of adding a positive uniform 
 		    ! background.
-		    ! The effects
-		   G2 = ((a / ALAT(1))**2 +(b / ALAT(2))**2)
-		    if (ALAT(3) /= 0) G2 = G2 + (c / ALAT(3))**2
-		    !G2 =( a**2 +b**2+c**2)/lattice_constant**2
-		    hel = (1.0_dp / PI) / (G2 * ALAT(1) * ALAT(2) * ALAT(3))
-! 		    hel = 4.0d0*PI/OMEGA/G2
+		    G2 = (a *k_lattice_constant)**2 +(b *k_lattice_constant)**2 + (c *k_lattice_constant)**2	      
+		    hel = (4.0d0*PI) / (G2 * OMEGA)
+! 		
 		else  ! <ii|ii>
 		    hel = 0		
 		endif  !Coulomb
