@@ -2122,14 +2122,27 @@ contains
 ! Calculate the kinetic energy of the UEG (this differs from CALCT by including the constant CST
       FUNCTION CALCT2(NI,NEL,G1,ALAT,CST)
          use constants, only: dp
-         use SystemData, only: BasisFN
+         use SystemData, only: BasisFN, kvec, k_lattice_constant, TUEG2
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I,J
          TYPE(BasisFN) G1(*)
          real(dp) ALAT(4),CST,TMAT,CALCT2
          LOGICAL ISCSF_old
+
          CALCT2=0.D0
          IF(iscsf_old(NI,NEL)) RETURN
+
+         !===============================
+         if (TUEG2) then
+            DO J=1,NEL
+               I=NI(J)
+	      TMAT=kvec(I, 1)**2+kvec(I, 2)**2+kvec(I, 3)**2
+	      TMAT=0.5d0*TMAT*k_lattice_constant**2
+              CALCT2=CALCT2+TMAT
+            ENDDO
+            return
+        end if ! TUEG2
+         !===============================
          DO J=1,NEL
             I=NI(J)
            TMAT=((ALAT(1)**2)*((G1(I)%K(1)**2)/(ALAT(1)**2)+   &

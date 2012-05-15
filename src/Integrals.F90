@@ -1918,8 +1918,6 @@ SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
 	      temp=K_REAL(1)**2+K_REAL(2)**2+K_REAL(3)**2
 	      ! TMAT is diagonal for the UEG
 	      TMAT2D(I,1)=0.5d0*temp*k_lattice_constant**2
-
-	      IF(TPERIODIC .and. iPeriodicDampingType/=0) TMAT2D(I,1)=TMAT2D(I,1)-(PI*ALAT(4)**2/OMEGA)
 	      WRITE(iunit,*) I,I,TMAT2D(I,1)
 	  ENDDO
       CLOSE(iunit)

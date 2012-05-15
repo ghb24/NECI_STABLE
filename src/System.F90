@@ -1113,17 +1113,8 @@ MODULE System
       
           WRITE(6,'(A)') '  *** In UEG2 ***  ' 
           WRITE(6,'(A)') '  *** UNIFORM ELECTRON GAS CALCULATION ***  ' 
+          WRITE(6,'(A,F20.16)') '  Electron Gas Rs set to ',FUEGRS
 
-	      
-          IF(FUEGRS.NE.0.D0) THEN
-             WRITE(6,'(A,F20.16)') '  Electron Gas Rs set to ',FUEGRS
-	      !C.. required density is (3/(4 pi rs^3))
-	      !C.. need omega to be (NEL* 4 pi rs^3 / 3)
-	      !C.. need box to be (NEL*4 pi/(3 BOA COA))^(1/3) rs
-             BOX=(NEL*4.D0*PI/(3.D0*BOA*COA))**(1.D0/3.D0)
-             BOX=BOX*FUEGRS
-             WRITE(6,'(A, F20.16)') "  Resetting box size to ", BOX
-          ENDIF
         
           IF(TPARITY) THEN
              WRITE(6,*) ' MOMENTUM : ',(IPARITY(I),I=1,3)
@@ -1136,27 +1127,44 @@ MODULE System
           WRITE(6,'(A,I5)') '  NMAXZ : ' , NMAXZ
           WRITE(6,'(A,I5)') '  NMSH : ' , NMSH 
 
-!C.. 2D check
-          IF(NMAXZ.EQ.0) THEN
-             WRITE(6,'(A)') ' NMAXZ=0.  2D calculation using C/A=1/A  '
-             COA=1/BOX
-          ENDIF
+!         check dimension
+          if(NMAXX .ne. 0 .and.  NMAXY .ne. 0 .and. NMAXZ .ne. 0) then ! 3D
+              OMEGA=4.0d0/3.0d0*PI*FUEGRS**3*NEL
+          ! define  lattice vectors and lattice constant in reciprocal space
+              if (recip_lattice_type == "sc") then
+                  k_lattice_constant = 2.0d0*PI/OMEGA**THIRD
+                  lattice_vectors(1,1:3) = (/1, 0, 0 /)
+                  lattice_vectors(2,1:3) = (/0, 1, 0 /)
+                  lattice_vectors(3,1:3) = (/0, 0, 1 /)	
+              else if (recip_lattice_type == "fcc") then
+                  k_lattice_constant = 2.0d0*PI/(2.0d0*OMEGA)**THIRD
+                  lattice_vectors(1,1:3) = (/0, 1, 1 /)
+                  lattice_vectors(2,1:3) = (/1, 0, 1 /)
+                  lattice_vectors(3,1:3) = (/1, 1, 0 /)		
+              else if (recip_lattice_type == "bcc") then
+                  k_lattice_constant =2.0d0*PI/(4.0d0*OMEGA)**THIRD
+                  lattice_vectors(1,1:3) = (/-1, 1, 1 /)
+                  lattice_vectors(2,1:3) = (/1, -1, 1 /)
+                  lattice_vectors(3,1:3) = (/1, 1, -1 /)
+              end if
+          else if (NMAXX .ne. 0 .and.  NMAXY .ne. 0 .and. NMAXZ.eq.0) then !2D
+              write(6,'(A)') ' NMAXZ=0 : 2D calculation'
+              OMEGA=4.0d0*PI*FUEGRS**2*NEL
+
+          else if (NMAXX .ne. 0 .and.  NMAXY .eq. 0 .and. NMAXZ.eq.0) then !1D
+              write(6,'(A)') ' NMAXZ=0,  NMAXY=0 : 1D calculation'
+              OMEGA=2.0d0*FUEGRS*NEL
+          else 
+             write(6,'(A)') 'Problem with dimension! ' 
+          endif
 !C..
-          WRITE(6,'(1X,A,F19.5)') '  BOX LENGTH : ' , BOX
-          WRITE(6,'(1X,A,F19.5)') '  B/A : ' , BOA
-          WRITE(6,'(1X,A,F19.5)') '  C/A : ' , COA
+
           TTILT=.FALSE.
-        
-          ALAT(1)=BOX
-          ALAT(2)=BOX*BOA
-          ALAT(3)=BOX*COA
-	  ALAT(4)=fRc
- 
-          OMEGA=ALAT(1)*ALAT(2)*ALAT(3)
+          ALAT=0.0d0
           RS=(3.D0*OMEGA/(4.D0*PI*NEL))**THIRD  
+          FKF=(9*PI/4)**THIRD/RS
 
           WRITE(6,*) " Wigner-Seitz radius Rs=",RS
-          FKF=(9*PI/4)**THIRD/RS
           WRITE(6,*) " Fermi vector kF=",FKF
           WRITE(6,*) " Fermi Energy EF=",FKF*FKF/2
           WRITE(6,*) " Unscaled Fermi Energy nmax**2=",(FKF*FKF/2)/(0.5*(2*PI/ALAT(5))**2)
@@ -1165,7 +1173,7 @@ MODULE System
           WRITE(6,'(1X,A,F19.5)') '  VOLUME : ' , OMEGA
           WRITE(6,*) ' TALPHA : ' , TALPHA
           WRITE(6,'(1X,A,F19.5)') '  ALPHA : ' , ALPHA
-          ALPHA=MIN(ALAT(1),ALAT(2),ALAT(3))*ALPHA
+          ALPHA=(OMEGA)**THIRD*ALPHA
           WRITE(6,'(1X,A,F19.5)') '  SCALED ALPHA : ' , ALPHA
 
 !C..
@@ -1193,7 +1201,9 @@ MODULE System
           LEN=(2*NMAXX+1)*(2*NMAXY+1)*(2*NMAXZ+1)*((NBASISMAX(4,2)-NBASISMAX(4,1))/2+1)
 !C.. UEG
           NBASISMAX(3,3)=-1
-	  
+ 
+
+
 !C..         (.NOT.TREADINT)
 
 !C.. we actually store twice as much in arr as we need.
@@ -1287,25 +1297,6 @@ MODULE System
 !C..Check to see if all's well
 	    WRITE(6,*) ' NUMBER OF BASIS FUNCTIONS : ' , IG 
 	    NBASIS=IG
-
-	     ! define  lattice vectors and lattice constant in reciprocal space
-	     if (recip_lattice_type == "sc") then
-		k_lattice_constant = 2.0d0*PI/OMEGA**THIRD
-		lattice_vectors(1,1:3) = (/1, 0, 0 /)
-		lattice_vectors(2,1:3) = (/0, 1, 0 /)
-		lattice_vectors(3,1:3) = (/0, 0, 1 /)	
-	    else if (recip_lattice_type == "fcc") then
-		k_lattice_constant = 2.0d0*PI/(4.0d0*OMEGA)**THIRD
-		lattice_vectors(1,1:3) = (/0, 1, 1 /)
-		lattice_vectors(2,1:3) = (/1, 0, 1 /)
-		lattice_vectors(3,1:3) = (/1, 1, 0 /)		
-	    else if (recip_lattice_type == "bcc") then
-		k_lattice_constant =2.0d0*PI/(2.0d0*OMEGA)**THIRD
-		lattice_vectors(1,1:3) = (/-1, 1, 1 /)
-		lattice_vectors(2,1:3) = (/1, -1, 1 /)
-		lattice_vectors(3,1:3) = (/1, 1, -1 /)
-	    end if
-
 	    allocate(kvec(NBASIS, 3), STAT = AllocateStatus)
 
 	    ! calculate k-vectors in cartesian coordinates	      
@@ -1649,7 +1640,7 @@ MODULE System
          DO I=NBASISMAX(1,1),NBASISMAX(1,2)
            DO J=NBASISMAX(2,1),NBASISMAX(2,2)
              DO K=NBASISMAX(3,1),NBASISMAX(3,2)
-               DO L=NBASISMAX(4,1),NBASISMAX(4,2)!,2
+               DO L=NBASISMAX(4,1),NBASISMAX(4,2),2
                   G%k(1)=I
                   G%k(2)=J
                   G%k(3)=K
@@ -1958,7 +1949,7 @@ END subroutine ORDERBASIS
 !dUnscaledEnergy gives the energy without reference to box size and without any offset.
 SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,Energy,dUnscaledEnergy)        
    
-   use SystemData, only: tUEG2
+   use SystemData, only: tUEG2, lattice_vectors, k_lattice_constant
    use constants, only: Pi, Pi2, THIRD
    use constants, only: dp
    IMPLICIT NONE
@@ -1966,30 +1957,29 @@ SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,Energy,dUnsc
    real(dp) ALat(3),k_offset(3),Energy,E
    LOGICAL tUEGOffset, tUEGTrueEnergies
    INTEGER dUnscaledEnergy
+   real(dp) :: kvecX, kvecY, kvecZ
+   !==================================
    if (tUEG2) then
-   IF(tUEGTrueEnergies) then
-       IF(tUEGOffset) then
-          E=((I+k_offset(1))**2/ALAT(1)**2)
-          E=E+((J+k_offset(2))**2/ALAT(2)**2)
-          E=E+((K+k_offset(3))**2/ALAT(3)**2)
-       else
-          E=(I*I/ALAT(1)**2)
-          E=E+(J*J/ALAT(2)**2)
-          E=E+(K*K/ALAT(3)**2)
-       endif
-       Energy=0.5*4*PI*PI*E
-       dUnscaledEnergy=(I*I)
-       dUnscaledEnergy=dUnscaledEnergy+(J*J)
-       dUnscaledEnergy=dUnscaledEnergy+(K*K)
-   ELSE
-       E=(I*I)
-       E=E+(J*J)
-       E=E+(K*K)
-       Energy=E
-    ENDIF
-    return
-   endif
+      ! kvectors in cartesian coordinates                
+      kvecX=lattice_vectors(1,1)*I+lattice_vectors(2,1)*J+lattice_vectors(3,1)*K
+      kvecY=lattice_vectors(1,2)*I+lattice_vectors(2,2)*J+lattice_vectors(3,2)*K
+      kvecZ=lattice_vectors(1,3)*I+lattice_vectors(2,3)*J+lattice_vectors(3,3)*K
 
+       IF(tUEGTrueEnergies) then
+          if(tUEGOffset) then
+             E=(kvecX+k_offset(1))**2+(kvecY+k_offset(2))**2+(kvecZ+k_offset(3))**2
+          else
+             E=(kvecX)**2+(kvecY)**2+(kvecZ)**2
+          endif
+          Energy=0.5d0*E*k_lattice_constant**2
+          dUnscaledEnergy=(kvecX)**2+(kvecY)**2+(kvecZ)**2
+       ELSE
+          Energy=(kvecX)**2+(kvecY)**2+(kvecZ)**2
+       ENDIF
+
+       return
+   endif
+   !==================================
    IF(tUEGTrueEnergies) then
        IF(tUEGOffset) then
           E=((I+k_offset(1))**2/ALAT(1)**2)
