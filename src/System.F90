@@ -1138,20 +1138,24 @@ MODULE System
                   lattice_vectors(3,1:3) = (/0, 0, 1 /)	
               else if (recip_lattice_type == "fcc") then
                   k_lattice_constant = 2.0d0*PI/(2.0d0*OMEGA)**THIRD
-                  lattice_vectors(1,1:3) = (/0, 1, 1 /)
-                  lattice_vectors(2,1:3) = (/1, 0, 1 /)
-                  lattice_vectors(3,1:3) = (/1, 1, 0 /)		
+                  lattice_vectors(1,1:3) = (/0.0d0, 1.0d0, 1.0d0 /)
+                  lattice_vectors(2,1:3) = (/1.0d0, 0.0d0, 1.0d0 /)
+                  lattice_vectors(3,1:3) = (/1.0d0, 1.0d0, 0.0d0 /)     
+!                   k_lattice_constant = 4.0d0*PI/(2.0d0*OMEGA)**THIRD
+!                   lattice_vectors(1,1:3) = (/0.0d0, 0.5d0, 0.5d0 /)
+!                   lattice_vectors(2,1:3) = (/0.5d0, 0.0d0, 0.5d0 /)
+!                   lattice_vectors(3,1:3) = (/0.5d0, 0.5d0, 0.0d0 /)		
               else if (recip_lattice_type == "bcc") then
-                  k_lattice_constant =2.0d0*PI/(4.0d0*OMEGA)**THIRD
-                  lattice_vectors(1,1:3) = (/-1, 1, 1 /)
-                  lattice_vectors(2,1:3) = (/1, -1, 1 /)
-                  lattice_vectors(3,1:3) = (/1, 1, -1 /)
+                  k_lattice_constant =4.0d0*PI/(4.0d0*OMEGA)**THIRD
+                  lattice_vectors(1,1:3) = (/-0.5d0, 0.5d0, 0.5d0 /)
+                  lattice_vectors(2,1:3) = (/0.5d0, -0.5d0, 0.5d0 /)
+                  lattice_vectors(3,1:3) = (/0.5d0, 0.5d0, -0.5d0 /)
               else
                   write(6,'(A)')  'lattice type not valid'
               end if             
           else if (NMAXX .ne. 0 .and.  NMAXY .ne. 0 .and. NMAXZ.eq.0) then !2D
               write(6,'(A)') ' NMAXZ=0 : 2D calculation'
-              OMEGA=4.0d0*PI*FUEGRS**2*NEL
+              OMEGA=PI*FUEGRS**2*NEL
               k_lattice_constant = 2.0d0*PI/OMEGA**(1.0d0/2.0d0)
               lattice_vectors(1,1:3) = (/1, 0, 0 /)
               lattice_vectors(2,1:3) = (/0, 1, 0 /)
@@ -1175,10 +1179,10 @@ MODULE System
               FKF=(9*PI/4)**THIRD/RS
           else if (NMAXX .ne. 0 .and.  NMAXY .ne. 0 .and. NMAXZ.eq.0) then !2D
               RS=(OMEGA/(4.D0*PI*NEL))**(1.0d0/2.0d0) 
-              FKF=(9*PI/4)**THIRD/RS
+              FKF=sqrt(2.0d0)/RS
           else if (NMAXX .ne. 0 .and.  NMAXY .eq. 0 .and. NMAXZ.eq.0) then !1D
               RS=OMEGA/(2.D0*NEL) 
-              FKF=(9*PI/4)**THIRD/RS
+              FKF=(PI/2.0d0)/RS
           endif
 
           WRITE(6,*) " Wigner-Seitz radius Rs=",RS

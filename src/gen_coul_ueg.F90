@@ -346,7 +346,7 @@ contains
 
     function get_ueg_umat_el (idi, idj, idk, idl) result(hel)
 
-        use SystemData, only: tUEG2, kvec, k_lattice_constant
+        use SystemData, only: tUEG2, kvec, k_lattice_constant, NMAXX, NMAXY, NMAXZ
         integer, intent(in) :: idi, idj, idk, idl
         HElement_t :: hel
         integer :: i, j, k, l, a, b, c, iss, aneu
@@ -370,7 +370,7 @@ contains
             c = kvec(i, 3) - kvec(k, 3)
 
             ! Energy conservation
-            if ((kvec(l, 1) - kvec(j, 1) == a) .and. &		
+            if ((kvec(l, 1) - kvec(j, 1) == a) .and. &
             (kvec(l, 2) - kvec(j, 2) == b) .and. &
             (kvec(l, 3) - kvec(j, 3) == c) ) then
 
@@ -394,7 +394,7 @@ contains
 
                     endif
                 else  ! <ii|ii>
-                    hel = 0		
+                    hel = 0
                 endif  !Coulomb
 
             else  !no energy conservation
