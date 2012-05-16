@@ -354,49 +354,55 @@ contains
         logical :: tCoulomb, tExchange
         character(*), parameter :: this_routine = 'get_ueg_umat_el'
 
-  	!==================================================      
-	if (tUEG2) then
+        !==================================================      
+        if (tUEG2) then
 
-	    ! omit even numbers of idi if there is spin degeneracy
-	    ISS = nBasisMax(2,3) ! ick
-	    i = (idi - 1) * ISS + 1
-	    j = (idj - 1) * ISS + 1
-	    k = (idk - 1) * ISS + 1
-	    l = (idl - 1) * ISS + 1
+            ! omit even numbers of idi if there is spin degeneracy
+            ISS = nBasisMax(2,3) ! ick
+            i = (idi - 1) * ISS + 1
+            j = (idj - 1) * ISS + 1
+            k = (idk - 1) * ISS + 1
+            l = (idl - 1) * ISS + 1
 
-	    ! calucate unscaled momentum transfer
-	    a = kvec(i,1) - kvec(k, 1)
-	    b = kvec(i, 2) - kvec(k, 2)
-	    c = kvec(i, 3) - kvec(k, 3)
+            ! calucate unscaled momentum transfer
+            a = kvec(i,1) - kvec(k, 1)
+            b = kvec(i, 2) - kvec(k, 2)
+            c = kvec(i, 3) - kvec(k, 3)
 
-	    ! Energy conservation
-	    if ((kvec(l, 1) - kvec(j, 1) == a) .and. &		
-		(kvec(l, 2) - kvec(j, 2) == b) .and. &
-		(kvec(l, 3) - kvec(j, 3) == c) ) then
+            ! Energy conservation
+            if ((kvec(l, 1) - kvec(j, 1) == a) .and. &		
+            (kvec(l, 2) - kvec(j, 2) == b) .and. &
+            (kvec(l, 3) - kvec(j, 3) == c) ) then
 
-		! no Coulomb (-> no divergency)
-		if ( (a /= 0) .or. (b /= 0) .or. (c /= 0) ) then
-		    ! Coulomb integrals are long-ranged, so calculated with 
-		    ! 4 pi/G**2.
-		    !AJWT <IJ|r_12^-1|KL> = v_(G_I-G_K) delta_((G_I-G_K)-(G_L-G_J)
-		    ! v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
-		    ! For Coulomb interactions <ij|ij> we have explicitly excluded
-		    ! the G=0 component as it is divergent.
-		    ! This is the equivalent of adding a positive uniform 
-		    ! background.
-		    G2 = (a *k_lattice_constant)**2 +(b *k_lattice_constant)**2 + (c *k_lattice_constant)**2	      
-		    hel = (4.0d0*PI) / (G2 * OMEGA)
-! 		
-		else  ! <ii|ii>
-		    hel = 0		
-		endif  !Coulomb
+                ! no Coulomb (-> no divergency)
+                if ( (a /= 0) .or. (b /= 0) .or. (c /= 0) ) then
+                    ! Coulomb integrals are long-ranged, so calculated with 
+                    ! 4 pi/G**2.
+                    !AJWT <IJ|r_12^-1|KL> = v_(G_I-G_K) delta_((G_I-G_K)-(G_L-G_J)
+                    ! v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
+                    ! For Coulomb interactions <ij|ij> we have explicitly excluded
+                    ! the G=0 component as it is divergent.
+                    ! This is the equivalent of adding a positive uniform 
+                    ! background.
+                    G2 = (a *k_lattice_constant)**2 +(b *k_lattice_constant)**2 + (c *k_lattice_constant)**2         
+                    ! check dimension
+                    if(NMAXX .ne. 0 .and.  NMAXY .ne. 0 .and. NMAXZ .ne. 0) then ! 3D
+                        hel = (4.0d0*PI) / (G2 * OMEGA)
+                    else if (NMAXX .ne. 0 .and.  NMAXY .ne. 0 .and. NMAXZ.eq.0) then !2D
+                        hel = (2.0d0*PI) / (sqrt(G2) * OMEGA)
+                    else if (NMAXX .ne. 0 .and.  NMAXY .eq. 0 .and. NMAXZ.eq.0) then !1D
 
-	    else  !no energy conservation
-		hel = 0
-	    endif
-	    return
-       end if   !UEG2
-	!==================================================
+                    endif
+                else  ! <ii|ii>
+                    hel = 0		
+                endif  !Coulomb
+
+            else  !no energy conservation
+                hel = 0
+            endif
+            return
+        end if   !UEG2
+!==================================================
 
         ISS = nBasisMax(2,3) ! ick
 

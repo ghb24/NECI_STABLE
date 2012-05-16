@@ -1146,23 +1146,40 @@ MODULE System
                   lattice_vectors(1,1:3) = (/-1, 1, 1 /)
                   lattice_vectors(2,1:3) = (/1, -1, 1 /)
                   lattice_vectors(3,1:3) = (/1, 1, -1 /)
-              end if
+              else
+                  write(6,'(A)')  'lattice type not valid'
+              end if             
           else if (NMAXX .ne. 0 .and.  NMAXY .ne. 0 .and. NMAXZ.eq.0) then !2D
               write(6,'(A)') ' NMAXZ=0 : 2D calculation'
               OMEGA=4.0d0*PI*FUEGRS**2*NEL
-
+              k_lattice_constant = 2.0d0*PI/OMEGA**(1.0d0/2.0d0)
+              lattice_vectors(1,1:3) = (/1, 0, 0 /)
+              lattice_vectors(2,1:3) = (/0, 1, 0 /)
+              lattice_vectors(3,1:3) = (/0, 0, 0 /)  
           else if (NMAXX .ne. 0 .and.  NMAXY .eq. 0 .and. NMAXZ.eq.0) then !1D
               write(6,'(A)') ' NMAXZ=0,  NMAXY=0 : 1D calculation'
               OMEGA=2.0d0*FUEGRS*NEL
+              k_lattice_constant = 2.0d0*PI/OMEGA
+              lattice_vectors(1,1:3) = (/1, 0, 0 /)
+              lattice_vectors(2,1:3) = (/0, 0, 0 /)
+              lattice_vectors(3,1:3) = (/0, 0, 0 /)  
           else 
              write(6,'(A)') 'Problem with dimension! ' 
           endif
 !C..
 
           TTILT=.FALSE.
-          ALAT=0.0d0
-          RS=(3.D0*OMEGA/(4.D0*PI*NEL))**THIRD  
-          FKF=(9*PI/4)**THIRD/RS
+          ALAT=0.0d0   !shouldn't be used in the UEG2 part...
+          if(NMAXX .ne. 0 .and.  NMAXY .ne. 0 .and. NMAXZ .ne. 0) then ! 3D
+              RS=(3.D0*OMEGA/(4.D0*PI*NEL))**THIRD  
+              FKF=(9*PI/4)**THIRD/RS
+          else if (NMAXX .ne. 0 .and.  NMAXY .ne. 0 .and. NMAXZ.eq.0) then !2D
+              RS=(OMEGA/(4.D0*PI*NEL))**(1.0d0/2.0d0) 
+              FKF=(9*PI/4)**THIRD/RS
+          else if (NMAXX .ne. 0 .and.  NMAXY .eq. 0 .and. NMAXZ.eq.0) then !1D
+              RS=OMEGA/(2.D0*NEL) 
+              FKF=(9*PI/4)**THIRD/RS
+          endif
 
           WRITE(6,*) " Wigner-Seitz radius Rs=",RS
           WRITE(6,*) " Fermi vector kF=",FKF
@@ -1213,193 +1230,193 @@ MODULE System
 !C.. ARR is reallocated in IntFreezeBasis if orbitals are frozen so that it
 !C.. has the correct size and shape to contain the eigenvalues of the active
 !C.. basis.
-	  WRITE(6,'(A,I5)') "  NUMBER OF SPIN ORBITALS IN BASIS : ", Len
-	  Allocate(Arr(LEN,2),STAT=ierr)
-	  LogAlloc(ierr,'Arr',2*LEN,8,tagArr)
-    ! // TBR
-    !      IP_ARRSTORE=IP_ARR
-	  ARR=0.d0
-	  Allocate(Brr(LEN),STAT=ierr)
-	  LogAlloc(ierr,'Brr',LEN,4,tagBrr)
-	  BRR(1:LEN)=0
-	  Allocate(G1(Len),STAT=ierr)
-	  LogAlloc(ierr,'G1',LEN,BasisFNSizeB,tagG1)
-	  G1(1:LEN)=NullBasisFn
+          WRITE(6,'(A,I5)') "  NUMBER OF SPIN ORBITALS IN BASIS : ", Len
+          Allocate(Arr(LEN,2),STAT=ierr)
+          LogAlloc(ierr,'Arr',2*LEN,8,tagArr)
+          ! // TBR
+          !      IP_ARRSTORE=IP_ARR
+          ARR=0.d0
+          Allocate(Brr(LEN),STAT=ierr)
+          LogAlloc(ierr,'Brr',LEN,4,tagBrr)
+          BRR(1:LEN)=0
+          Allocate(G1(Len),STAT=ierr)
+          LogAlloc(ierr,'G1',LEN,BasisFNSizeB,tagG1)
+          G1(1:LEN)=NullBasisFn
 
-	  IF(TCPMD) THEN
-	      WRITE(6,'(A)') '*** INITIALIZING BASIS FNs FROM CPMD ***'
-	      CALL CPMDBASISINIT(NBASISMAX,ARR,BRR,G1,LEN) 
-	      NBASIS=LEN
-	      iSpinSkip=NBasisMax(2,3)
-	  ELSEIF(tVASP) THEN
-	      WRITE(6,'(A)') '*** INITIALIZING BASIS FNs FROM VASP ***'
-	      CALL VASPBasisInit(ARR,BRR,G1,LEN) ! This also modifies nBasisMax
-	      NBASIS=LEN
-	      iSpinSkip=NBasisMax(2,3)
-	  ELSEIF(TREADINT.AND.TDFREAD) THEN
-	      WRITE(6,'(A)') '*** Creating Basis Fns from Dalton output ***'
-	      call InitDaltonBasis(Arr,Brr,G1,Len)
-	      nBasis=Len
-	      call GenMolpSymTable(1,G1,nBasis)
-	  ELSEIF(TREADINT) THEN
-      !This is also called for tRiIntegrals and tCacheFCIDUMPInts
-	      WRITE(6,'(A)') '*** CREATING BASIS FNs FROM FCIDUMP ***'
-	      CALL GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN,TBIN) 
-	      NBASIS=LEN
+          IF(TCPMD) THEN
+              WRITE(6,'(A)') '*** INITIALIZING BASIS FNs FROM CPMD ***'
+              CALL CPMDBASISINIT(NBASISMAX,ARR,BRR,G1,LEN) 
+              NBASIS=LEN
+              iSpinSkip=NBasisMax(2,3)
+          ELSEIF(tVASP) THEN
+              WRITE(6,'(A)') '*** INITIALIZING BASIS FNs FROM VASP ***'
+              CALL VASPBasisInit(ARR,BRR,G1,LEN) ! This also modifies nBasisMax
+              NBASIS=LEN
+              iSpinSkip=NBasisMax(2,3)
+          ELSEIF(TREADINT.AND.TDFREAD) THEN
+              WRITE(6,'(A)') '*** Creating Basis Fns from Dalton output ***'
+              call InitDaltonBasis(Arr,Brr,G1,Len)
+              nBasis=Len
+              call GenMolpSymTable(1,G1,nBasis)
+          ELSEIF(TREADINT) THEN
+          !This is also called for tRiIntegrals and tCacheFCIDUMPInts
+              WRITE(6,'(A)') '*** CREATING BASIS FNs FROM FCIDUMP ***'
+              CALL GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN,TBIN) 
+              NBASIS=LEN
 
-    !C.. we're reading in integrals and have a molpro symmetry table
-	      IF(lNoSymmetry) THEN
-		  WRITE(6,*) "Turning Symmetry off"
-		  DO I=1,nBasis
-		    G1(I)%Sym%s=0
-		  ENDDO
-		  CALL GENMOLPSYMTABLE(1,G1,NBASIS)
-		  DO I=1,nBasis
-		    G1(I)%Sym%s=0
-		  ENDDO
-	      ELSE
-		  CALL GENMOLPSYMTABLE(NBASISMAX(5,2)+1,G1,NBASIS)
-	      ENDIF
+  !C.. we're reading in integrals and have a molpro symmetry table
+              IF(lNoSymmetry) THEN
+                  WRITE(6,*) "Turning Symmetry off"
+                  DO I=1,nBasis
+                      G1(I)%Sym%s=0
+                  ENDDO
+                  CALL GENMOLPSYMTABLE(1,G1,NBASIS)
+                  DO I=1,nBasis
+                      G1(I)%Sym%s=0
+                  ENDDO
+              ELSE
+                  CALL GENMOLPSYMTABLE(NBASISMAX(5,2)+1,G1,NBASIS)
+              ENDIF
       
-	  ELSE
+          ELSE
 !C.. Create plane wave basis functions
-	    WRITE(6,*) "Creating plane wave basis."
-	    IG=0
-	    DO I=NBASISMAX(1,1),NBASISMAX(1,2)
-	      DO J=NBASISMAX(2,1),NBASISMAX(2,2)
-		DO K=NBASISMAX(3,1),NBASISMAX(3,2)
-		  DO L=NBASISMAX(4,1),NBASISMAX(4,2),2
-			G%k(1)=I
-			G%k(2)=J
-			G%k(3)=K
-			G%Ms=L
+              WRITE(6,*) "Creating plane wave basis."
+              IG=0
+              DO I=NBASISMAX(1,1),NBASISMAX(1,2)
+                  DO J=NBASISMAX(2,1),NBASISMAX(2,2)
+                      DO K=NBASISMAX(3,1),NBASISMAX(3,2)
+                          DO L=NBASISMAX(4,1),NBASISMAX(4,2),2
+                              G%k(1)=I
+                              G%k(2)=J
+                              G%k(3)=K
+                              G%Ms=L
 
-			IF((THUB.AND.(TREAL.OR..NOT.TPBC)).OR.KALLOWED(G,NBASISMAX)) THEN
-			    CALL GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,SUM,dUnscaledE)
-			    IF(dUnscaledE.gt.OrbECutoff) CYCLE
-			    IG=IG+1
-			    ARR(IG,1)=SUM
-			    ARR(IG,2)=SUM
-			    BRR(IG)=IG
-			    !C..These are the quantum numbers: n,l,m and sigma
-			    G1(IG)%K(1)=I
-			    G1(IG)%K(2)=J
-			    G1(IG)%K(3)=K
-			    G1(IG)%MS=L
-			    G1(IG)%Sym=TotSymRep()
-			ENDIF
+                              IF((THUB.AND.(TREAL.OR..NOT.TPBC)).OR.KALLOWED(G,NBASISMAX)) THEN
+                                  CALL GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,SUM,dUnscaledE)
+                                  IF(dUnscaledE.gt.OrbECutoff) CYCLE
+                                  IG=IG+1
+                                  ARR(IG,1)=SUM
+                                  ARR(IG,2)=SUM
+                                  BRR(IG)=IG
+                                  !C..These are the quantum numbers: n,l,m and sigma
+                                  G1(IG)%K(1)=I
+                                  G1(IG)%K(2)=J
+                                  G1(IG)%K(3)=K
+                                  G1(IG)%MS=L
+                                  G1(IG)%Sym=TotSymRep()
+                              ENDIF
 
-		  ENDDO
-		ENDDO
-	      ENDDO
-	    ENDDO
+                          ENDDO
+                      ENDDO
+                  ENDDO
+              ENDDO
 
 !C..Check to see if all's well
-	    WRITE(6,*) ' NUMBER OF BASIS FUNCTIONS : ' , IG 
-	    NBASIS=IG
-	    allocate(kvec(NBASIS, 3), STAT = AllocateStatus)
+              WRITE(6,*) ' NUMBER OF BASIS FUNCTIONS : ' , IG 
+              NBASIS=IG
+              allocate(kvec(NBASIS, 3), STAT = AllocateStatus)
 
-	    ! calculate k-vectors in cartesian coordinates	      
-	    IG=0
-	    DO I=1, NBASIS      
-		IG=IG+1
-		kvec(IG, 1)=lattice_vectors(1,1)*G1(IG)%K(1)+lattice_vectors(2,1)*G1(IG)%K(2)+lattice_vectors(3,1)*G1(IG)%K(3)
-		kvec(IG, 2)=lattice_vectors(1,2)*G1(IG)%K(1)+lattice_vectors(2,2)*G1(IG)%K(2)+lattice_vectors(3,2)*G1(IG)%K(3)
-		kvec(IG, 3)=lattice_vectors(1,3)*G1(IG)%K(1)+lattice_vectors(2,3)*G1(IG)%K(2)+lattice_vectors(3,3)*G1(IG)%K(3)
-	    ENDDO
+              ! calculate k-vectors in cartesian coordinates	      
+              IG=0
+              DO I=1, NBASIS      
+                  IG=IG+1
+                  kvec(IG, 1)=lattice_vectors(1,1)*G1(IG)%K(1)+lattice_vectors(2,1)*G1(IG)%K(2)+lattice_vectors(3,1)*G1(IG)%K(3)
+                  kvec(IG, 2)=lattice_vectors(1,2)*G1(IG)%K(1)+lattice_vectors(2,2)*G1(IG)%K(2)+lattice_vectors(3,2)*G1(IG)%K(3)
+                  kvec(IG, 3)=lattice_vectors(1,3)*G1(IG)%K(1)+lattice_vectors(2,3)*G1(IG)%K(2)+lattice_vectors(3,3)*G1(IG)%K(3)
+              ENDDO
 
-	    IF(LEN.NE.IG) THEN
-		if(OrbECutoff.gt.-1e20) then
-		    write(6,*) " Have removed ", LEN-IG, " high energy orbitals "
-		    ! Resize arr and brr.
-		    allocate(arr_tmp(nbasis,2),brr_tmp(nbasis),stat=ierr)
-		    arr_tmp = arr(1:nbasis,:)
-		    brr_tmp = brr(1:nbasis)
-		    deallocate(arr,brr,stat=ierr)
-		    LogDealloc(tagarr)
-		    LogDealloc(tagbrr)
-		    allocate(arr(nbasis,2),brr(nbasis),stat=ierr)
-		    LogAlloc(ierr,'Arr',2*nbasis,8,tagArr)
-		    LogAlloc(ierr,'Brr',nbasis,4,tagBrr)
-		    arr = arr_tmp
-		    brr = brr_tmp
-		    deallocate(arr_tmp, brr_tmp, stat=ierr)
-		else
-		    WRITE(6,*) " LEN=",LEN,"IG=",IG
-		    STOP ' LEN NE IG ' 
-		endif
-	    ENDIF
+              IF(LEN.NE.IG) THEN
+                  if(OrbECutoff.gt.-1e20) then
+                      write(6,*) " Have removed ", LEN-IG, " high energy orbitals "
+                      ! Resize arr and brr.
+                      allocate(arr_tmp(nbasis,2),brr_tmp(nbasis),stat=ierr)
+                      arr_tmp = arr(1:nbasis,:)
+                      brr_tmp = brr(1:nbasis)
+                      deallocate(arr,brr,stat=ierr)
+                      LogDealloc(tagarr)
+                      LogDealloc(tagbrr)
+                      allocate(arr(nbasis,2),brr(nbasis),stat=ierr)
+                      LogAlloc(ierr,'Arr',2*nbasis,8,tagArr)
+                      LogAlloc(ierr,'Brr',nbasis,4,tagBrr)
+                      arr = arr_tmp
+                      brr = brr_tmp
+                      deallocate(arr_tmp, brr_tmp, stat=ierr)
+                  else
+                      WRITE(6,*) " LEN=",LEN,"IG=",IG
+                      STOP ' LEN NE IG ' 
+                  endif
+              ENDIF
 
-	      CALL GENMOLPSYMTABLE(1,G1,NBASIS)
+              CALL GENMOLPSYMTABLE(1,G1,NBASIS)
           ENDIF
 
-	  IF(tFixLz) THEN
-	      WRITE(6,'(A)') "****** USING Lz SYMMETRY *******"
-	      WRITE(6,'(A,I5)') "Pure spherical harmonics with complex orbitals used to constrain Lz to: ",LzTot
-	      WRITE(6,*) "Due to the breaking of the Ml degeneracy, the fock energies are slightly wrong, "&
-	      &//"on order of 1.D-4 - do not use for MP2!"
-	      if(nsymlabels.gt.4) then
-		  call stop_all(this_routine,"D2h point group detected. Incompatable with Lz symmetry conserving "&
-		  &//"orbitals. Have you transformed these orbitals into spherical harmonics correctly?!")
-	      endif
-	  ENDIF
+          IF(tFixLz) THEN
+              WRITE(6,'(A)') "****** USING Lz SYMMETRY *******"
+              WRITE(6,'(A,I5)') "Pure spherical harmonics with complex orbitals used to constrain Lz to: ",LzTot
+              WRITE(6,*) "Due to the breaking of the Ml degeneracy, the fock energies are slightly wrong, "&
+              &//"on order of 1.D-4 - do not use for MP2!"
+              if(nsymlabels.gt.4) then
+                  call stop_all(this_routine,"D2h point group detected. Incompatable with Lz symmetry conserving "&
+                  &//"orbitals. Have you transformed these orbitals into spherical harmonics correctly?!")
+              endif
+          ENDIF
 
 !C..        (.NOT.TREADINT)
 !C.. Set the initial symmetry to be totally symmetric
-	  FrzSym=NullBasisFn
-	  FrzSym%Sym=TotSymRep()
-	  CALL SetupFreezeSym(FrzSym)
+          FrzSym=NullBasisFn
+          FrzSym%Sym=TotSymRep()
+          CALL SetupFreezeSym(FrzSym)
 !C..Now we sort them using SORT2 and then SORT
 
 !C.. This sorts ARR and BRR into order of ARR [AJWT]
-	  IF(.NOT.THFNOORDER) THEN
-	      CALL ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
-	  ELSE
-!.. copy the default ordered energies.
-	      CALL DCOPY(NBASIS,ARR(1,1),1,ARR(1,2),1)
-	  ENDIF
+          IF(.NOT.THFNOORDER) THEN
+              CALL ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
+          ELSE
+              !.. copy the default ordered energies.
+              CALL DCOPY(NBASIS,ARR(1,1),1,ARR(1,2),1)
+          ENDIF
 !      WRITE(6,*) THFNOORDER, " THFNOORDER"
-	  if(.not.tMolpro) then
+          if(.not.tMolpro) then
           !If we are calling from molpro, we write the basis later (after reordering)
-	      CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
-	  endif
-	  IF(NEL.GT.NBASIS) STOP 'MORE ELECTRONS THAN BASIS FUNCTIONS'
-	  CALL neci_flush(6)    
+              CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
+          endif
+          IF(NEL.GT.NBASIS) STOP 'MORE ELECTRONS THAN BASIS FUNCTIONS'
+          CALL neci_flush(6)    
 
       !This is used in a test in UMatInd
-	  NOCC=NEl/2 
-	  IF(TREADINT) THEN
-!C.. we're reading in integrals and have a molpro symmetry table
-	      IF(lNoSymmetry) THEN
-		  WRITE(6,*) "Turning Symmetry off"
-		  CALL GENMOLPSYMREPS() 
-	      ELSE
-		  CALL GENMOLPSYMREPS() 
-	      ENDIF   
-	  ELSEIF(TCPMD) THEN
-!C.. If TCPMD, then we've generated the symmetry table earlier,
-!C.. but we still need the sym reps table.
-	      CALL GENCPMDSYMREPS(G1,NBASIS,ARR,1.e-5_dp)
-	  ELSEIF(tVASP) THEN
-!C.. If VASP-based calculation, then we've generated the symmetry table earlier,
-!C.. but we still need the sym reps table. DEGENTOL=1.d-6. CHECK w/AJWT.
-	      CALL GENSYMREPS(G1,NBASIS,ARR,1.e-6_dp)
-	  ELSEIF(THUB.AND..NOT.TREAL) THEN
-	      CALL GenHubMomIrrepsSymTable(G1,nBasis,nBasisMax)
-	      CALL GENHUBSYMREPS(NBASIS,ARR,BRR)
-	      CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
-	  ELSE
-!C.. no symmetry, so a simple sym table
-	      CALL GENMOLPSYMREPS()
-	  ENDIF
+          NOCC=NEl/2 
+          IF(TREADINT) THEN
+      !C.. we're reading in integrals and have a molpro symmetry table
+              IF(lNoSymmetry) THEN
+                  WRITE(6,*) "Turning Symmetry off"
+                  CALL GENMOLPSYMREPS() 
+              ELSE
+                  CALL GENMOLPSYMREPS() 
+              ENDIF   
+          ELSEIF(TCPMD) THEN
+      !C.. If TCPMD, then we've generated the symmetry table earlier,
+      !C.. but we still need the sym reps table.
+              CALL GENCPMDSYMREPS(G1,NBASIS,ARR,1.e-5_dp)
+          ELSEIF(tVASP) THEN
+      !C.. If VASP-based calculation, then we've generated the symmetry table earlier,
+      !C.. but we still need the sym reps table. DEGENTOL=1.d-6. CHECK w/AJWT.
+              CALL GENSYMREPS(G1,NBASIS,ARR,1.e-6_dp)
+          ELSEIF(THUB.AND..NOT.TREAL) THEN
+              CALL GenHubMomIrrepsSymTable(G1,nBasis,nBasisMax)
+              CALL GENHUBSYMREPS(NBASIS,ARR,BRR)
+              CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
+          ELSE
+      !C.. no symmetry, so a simple sym table
+              CALL GENMOLPSYMREPS()
+          ENDIF
 
-!// TBR
-!      WRITE(6,*) ' ETRIAL : ',ETRIAL
-!      IF(FCOUL.NE.1.D0)  WRITE(6,*) "WARNING: FCOUL is not 1.D0. FCOUL=",FCOUL
-	  IF(FCOULDAMPBETA.GT.0) WRITE(6,*) "FCOUL Damping.  Beta ",FCOULDAMPBETA," Mu ",FCOULDAMPMU
-	  call halt_timer(proc_timer)
+      !// TBR
+      !      WRITE(6,*) ' ETRIAL : ',ETRIAL
+      !      IF(FCOUL.NE.1.D0)  WRITE(6,*) "WARNING: FCOUL is not 1.D0. FCOUL=",FCOUL
+          IF(FCOULDAMPBETA.GT.0) WRITE(6,*) "FCOUL Damping.  Beta ",FCOULDAMPBETA," Mu ",FCOULDAMPMU
+          call halt_timer(proc_timer)
 
-	  return 
+      return 
       endif  !UEG2
 ! ======================================================
 
@@ -1966,15 +1983,15 @@ SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,Energy,dUnsc
       kvecZ=lattice_vectors(1,3)*I+lattice_vectors(2,3)*J+lattice_vectors(3,3)*K
 
        IF(tUEGTrueEnergies) then
-          if(tUEGOffset) then
-             E=(kvecX+k_offset(1))**2+(kvecY+k_offset(2))**2+(kvecZ+k_offset(3))**2
-          else
-             E=(kvecX)**2+(kvecY)**2+(kvecZ)**2
-          endif
-          Energy=0.5d0*E*k_lattice_constant**2
-          dUnscaledEnergy=(kvecX)**2+(kvecY)**2+(kvecZ)**2
+           if(tUEGOffset) then
+              E=(kvecX+k_offset(1))**2+(kvecY+k_offset(2))**2+(kvecZ+k_offset(3))**2
+           else
+              E=(kvecX)**2+(kvecY)**2+(kvecZ)**2
+           endif
+           Energy=0.5d0*E*k_lattice_constant**2
+           dUnscaledEnergy=(kvecX)**2+(kvecY)**2+(kvecZ)**2
        ELSE
-          Energy=(kvecX)**2+(kvecY)**2+(kvecZ)**2
+           Energy=(kvecX)**2+(kvecY)**2+(kvecZ)**2
        ENDIF
 
        return
