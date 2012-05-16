@@ -65,8 +65,8 @@ end type timer_object
 type(timer_object),allocatable,target :: timers(:)
 
 ! For total calculation time.
-real(sp) :: global_time_cpu=0
-real(sp) :: global_time_system=0
+real(sp) :: global_time_cpu=0.0
+real(sp) :: global_time_system=0.0
 ! If global_timing_on is true, then handle the total time differently in the timing output,
 ! as then have requested timing output without halting the global timer.
 logical :: global_timing_on=.false. 
