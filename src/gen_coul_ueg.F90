@@ -351,7 +351,8 @@ contains
         HElement_t :: hel
         integer :: i, j, k, l, a, b, c, iss, aneu
         real(dp) :: G, G2
-        logical :: tCoulomb, tExchange
+        logical :: tCoulomb, tExchange          
+        real(dp), parameter :: EulersConst = 0.5772156649015328606065120900824024d0
         character(*), parameter :: this_routine = 'get_ueg_umat_el'
 
         !==================================================      
@@ -391,7 +392,7 @@ contains
                     else if (NMAXX .ne. 0 .and.  NMAXY .ne. 0 .and. NMAXZ.eq.0) then !2D
                         hel = (2.0d0*PI) / (sqrt(G2) * OMEGA)
                     else if (NMAXX .ne. 0 .and.  NMAXY .eq. 0 .and. NMAXZ.eq.0) then !1D
-
+                        hel = (-log(G2**2/4.0d0) - 2.0d0*EulersConst)/OMEGA
                     endif
                 else  ! <ii|ii>
                     hel = 0

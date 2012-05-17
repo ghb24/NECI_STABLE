@@ -1133,23 +1133,22 @@ MODULE System
           ! define  lattice vectors and lattice constant in reciprocal space
               if (recip_lattice_type == "sc") then
                   k_lattice_constant = 2.0d0*PI/OMEGA**THIRD
+                  Unscaled_LatConst_sqrt =1.0d0
                   lattice_vectors(1,1:3) = (/1, 0, 0 /)
                   lattice_vectors(2,1:3) = (/0, 1, 0 /)
                   lattice_vectors(3,1:3) = (/0, 0, 1 /)	
               else if (recip_lattice_type == "fcc") then
                   k_lattice_constant = 2.0d0*PI/(2.0d0*OMEGA)**THIRD
+                  Unscaled_LatConst_sqrt=1.0d0/(2.0d0**(2.0d0/3.0d0))
                   lattice_vectors(1,1:3) = (/0.0d0, 1.0d0, 1.0d0 /)
                   lattice_vectors(2,1:3) = (/1.0d0, 0.0d0, 1.0d0 /)
-                  lattice_vectors(3,1:3) = (/1.0d0, 1.0d0, 0.0d0 /)     
-!                   k_lattice_constant = 4.0d0*PI/(2.0d0*OMEGA)**THIRD
-!                   lattice_vectors(1,1:3) = (/0.0d0, 0.5d0, 0.5d0 /)
-!                   lattice_vectors(2,1:3) = (/0.5d0, 0.0d0, 0.5d0 /)
-!                   lattice_vectors(3,1:3) = (/0.5d0, 0.5d0, 0.0d0 /)		
+                  lattice_vectors(3,1:3) = (/1.0d0, 1.0d0, 0.0d0 /)    
               else if (recip_lattice_type == "bcc") then
                   k_lattice_constant =4.0d0*PI/(4.0d0*OMEGA)**THIRD
-                  lattice_vectors(1,1:3) = (/-0.5d0, 0.5d0, 0.5d0 /)
-                  lattice_vectors(2,1:3) = (/0.5d0, -0.5d0, 0.5d0 /)
-                  lattice_vectors(3,1:3) = (/0.5d0, 0.5d0, -0.5d0 /)
+                  Unscaled_LatConst_sqrt=1.0d0/(4.0d0**(2.0d0/3.0d0))
+                  lattice_vectors(1,1:3) = (/-1.0d0, 1.0d0, 1.0d0 /)
+                  lattice_vectors(2,1:3) = (/1.0d0, -1.0d0, 1.0d0 /)
+                  lattice_vectors(3,1:3) = (/1.0d0, 1.0d0, -1.0d0 /) 
               else
                   write(6,'(A)')  'lattice type not valid'
               end if             
@@ -1157,12 +1156,14 @@ MODULE System
               write(6,'(A)') ' NMAXZ=0 : 2D calculation'
               OMEGA=PI*FUEGRS**2*NEL
               k_lattice_constant = 2.0d0*PI/OMEGA**(1.0d0/2.0d0)
+              Unscaled_LatConst_sqrt =1.0d0
               lattice_vectors(1,1:3) = (/1, 0, 0 /)
               lattice_vectors(2,1:3) = (/0, 1, 0 /)
               lattice_vectors(3,1:3) = (/0, 0, 0 /)  
           else if (NMAXX .ne. 0 .and.  NMAXY .eq. 0 .and. NMAXZ.eq.0) then !1D
               write(6,'(A)') ' NMAXZ=0,  NMAXY=0 : 1D calculation'
               OMEGA=2.0d0*FUEGRS*NEL
+              Unscaled_LatConst_sqrt =1.0d0
               k_lattice_constant = 2.0d0*PI/OMEGA
               lattice_vectors(1,1:3) = (/1, 0, 0 /)
               lattice_vectors(2,1:3) = (/0, 0, 0 /)
@@ -1182,7 +1183,7 @@ MODULE System
               FKF=sqrt(2.0d0)/RS
           else if (NMAXX .ne. 0 .and.  NMAXY .eq. 0 .and. NMAXZ.eq.0) then !1D
               RS=OMEGA/(2.D0*NEL) 
-              FKF=(PI/2.0d0)/RS
+              FKF=(PI/2.0d0)/RS  !for spin polarised simulation
           endif
 
           WRITE(6,*) " Wigner-Seitz radius Rs=",RS
@@ -1295,7 +1296,7 @@ MODULE System
                               G%k(3)=K
                               G%Ms=L
 
-                              IF((THUB.AND.(TREAL.OR..NOT.TPBC)).OR.KALLOWED(G,NBASISMAX)) THEN
+                              IF(KALLOWED(G,NBASISMAX)) THEN
                                   CALL GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,SUM,dUnscaledE)
                                   IF(dUnscaledE.gt.OrbECutoff) CYCLE
                                   IG=IG+1
@@ -1836,8 +1837,8 @@ END MODULE System
 
 SUBROUTINE WRITEBASIS(NUNIT,G1,NHG,ARR,BRR)
   ! Write out the current basis to unit nUnit
-  use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-  use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, nel
+  use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,Unscaled_LatConst_sqrt , lattice_vectors
+  use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, nel, tUEG2
   use DeterminantData, only: fdet
   use sym_mod, only: writesym
   use constants, only: dp
@@ -1845,14 +1846,41 @@ SUBROUTINE WRITEBASIS(NUNIT,G1,NHG,ARR,BRR)
   INTEGER NUNIT,NHG,BRR(NHG),I
   integer :: pos
   TYPE(BASISFN) G1(NHG)
-  real(dp) ARR(NHG,2)
+  real(dp) ARR(NHG,2), unscaled_energy, kvecX, kvecY, kvecZ
 
   ! nb. Cannot use EncodeBitDet as would be easy, as nifd, niftot etc are not
   !     filled in yet. --> track pos.
   if (.not. associated(fdet)) &
       write(nunit,'("HF determinant not yet defined.")')
   pos = 1
+!=============================================
+  if (tUEG2) then
 
+      DO I=1,NHG
+!     kvectors in cartesian coordinates                
+          kvecX=lattice_vectors(1,1)*G1(BRR(I))%K(1)+lattice_vectors(2,1)* G1(BRR(I))%K(2)+lattice_vectors(3,1)*G1(BRR(I))%K(3)
+          kvecY=lattice_vectors(1,2)*G1(BRR(I))%K(1)+lattice_vectors(2,2)* G1(BRR(I))%K(2)+lattice_vectors(3,2)*G1(BRR(I))%K(3)
+          kvecZ=lattice_vectors(1,3)*G1(BRR(I))%K(1)+lattice_vectors(2,3)* G1(BRR(I))%K(2)+lattice_vectors(3,3)*G1(BRR(I))%K(3)
+
+          unscaled_energy=((kvecX)**2+(kvecY)**2+(kvecZ)**2)*Unscaled_LatConst_sqrt
+    
+          WRITE(NUNIT,'(6I7)',advance='no') I,BRR(I),G1(BRR(I))%K(1), G1(BRR(I))%K(2),G1(BRR(I))%K(3), G1(BRR(I))%MS
+          CALL WRITESYM(NUNIT,G1(BRR(I))%SYM,.FALSE.)
+          WRITE(NUNIT,'(I4)',advance='no') G1(BRR(I))%Ml
+          WRITE(NUNIT,'(2F19.9)', advance='no')  ARR(I,1), unscaled_energy
+
+          if (associated(fdet)) then
+              pos=1
+              do while (pos < nel .and. fdet(pos) < brr(i))
+                  pos = pos + 1
+              enddo
+              if (brr(i) == fdet(pos)) write (nunit, '(" #")', advance='no')
+          endif
+          write (nunit,*)
+      ENDDO
+      RETURN
+  end if !UEG2
+!=============================================
   DO I=1,NHG
       WRITE(NUNIT,'(6I7)',advance='no') I,BRR(I),G1(BRR(I))%K(1), G1(BRR(I))%K(2),G1(BRR(I))%K(3), G1(BRR(I))%MS
       CALL WRITESYM(NUNIT,G1(BRR(I))%SYM,.FALSE.)
@@ -1970,7 +1998,7 @@ END subroutine ORDERBASIS
 !dUnscaledEnergy gives the energy without reference to box size and without any offset.
 SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,Energy,dUnscaledEnergy)        
    
-   use SystemData, only: tUEG2, lattice_vectors, k_lattice_constant
+   use SystemData, only: tUEG2, lattice_vectors, k_lattice_constant, Unscaled_LatConst_sqrt
    use constants, only: Pi, Pi2, THIRD
    use constants, only: dp
    IMPLICIT NONE
@@ -1993,7 +2021,7 @@ SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,Energy,dUnsc
               E=(kvecX)**2+(kvecY)**2+(kvecZ)**2
            endif
            Energy=0.5d0*E*k_lattice_constant**2
-           dUnscaledEnergy=(kvecX)**2+(kvecY)**2+(kvecZ)**2
+           dUnscaledEnergy=Unscaled_LatConst_sqrt*((kvecX)**2+(kvecY)**2+(kvecZ)**2)
        ELSE
            Energy=(kvecX)**2+(kvecY)**2+(kvecZ)**2
        ENDIF

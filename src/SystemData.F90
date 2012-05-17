@@ -101,6 +101,7 @@ real(dp) :: FreezeCutoff
 character(len=3) :: recip_lattice_type ! type of reciprocal lattice (eg. fcc, sc, bcc, hcp)
 real(dp) :: lattice_vectors(3,3)
 real(dp) :: k_lattice_constant
+real(dp) :: Unscaled_LatConst_sqrt
 real(dp), allocatable :: kvec(:,:)
 
 ! For the UEG, we damp the exchange interactions.
