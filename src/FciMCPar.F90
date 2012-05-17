@@ -3786,6 +3786,7 @@ MODULE FciMCParMod
 
     subroutine WriteFCIMCStats()
         INTEGER :: i
+        real(dp) :: FracFromSing
 
         ! What is the current value of S2
         if (tCalcInstantS2) then
@@ -3801,6 +3802,13 @@ MODULE FciMCParMod
                 curr_S2_init = calc_s_squared_star (.true.)
         else
             curr_S2_init = -1
+        endif
+
+        !To prevent /0 problems
+        if(AllNoBorn.ne.0) then
+            FracFromSing=real(AllSpawnFromSing,dp) / real(AllNoBorn,dp)
+        else
+            FracFromSing=0.0_dp
         endif
 
         if (iProcIndex == root) then
@@ -3824,7 +3832,7 @@ MODULE FciMCParMod
                 AccRat, &                               !14.
                 AllTotWalkers, &                        !15.
                 IterTime, &                             !16.
-                real(AllSpawnFromSing, dp) / real(AllNoBorn), &     !17.
+                FracFromSing, &     !17.
                 WalkersDiffProc, &                           !18.
                 TotImagTime, &                               !19.
                 HFShift, &                                   !20.
@@ -3891,7 +3899,7 @@ MODULE FciMCParMod
                 AccRat, &
                 AllTotWalkers, &
                 IterTime, &
-                real(AllSpawnFromSing) / real(AllNoBorn), &
+                FracFromSing, &
                 WalkersDiffProc, &
                 TotImagTime, &
                 0.D0, &

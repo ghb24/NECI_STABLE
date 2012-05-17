@@ -6,7 +6,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <vector>
+#ifdef _WIN32
+#include <windows.h>
+#include <tchar.h>
+#else
 #include <unistd.h>
+#endif
 
 #ifdef CBINDMPI
 
