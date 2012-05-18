@@ -421,9 +421,12 @@ MODULE System
             call geti(NMAXY)
             call geti(NMAXZ)
 
-       ! Options for the type of the reciprocal lattice (eg sc, fcc, bcc, hcp)
-	case("RECIP_LATTICE_TYPE")
-	    call readl(recip_lattice_type) 
+       ! Options for the type of the reciprocal lattice (eg sc, fcc, bcc)
+        case("RECIP_LATTICE_TYPE")
+            call readl(recip_lattice_type) 
+
+         case("DIMENSION")
+            call geti(dimen)       
 
         ! This means that no a is generated when b would be made and rejected
         ! O(N^2) loop makes this a poor choice for larger systems.
@@ -872,16 +875,19 @@ MODULE System
 
       if(NEL.eq.0)                                                    &
    &     call report("Number of electrons cannot be zero.",.true.)
-      if(THUB.OR.TUEG.OR..NOT.(TREADINT.OR.TCPMD.or.tVASP)) then
-         if(NMAXX.EQ.0)                                               &
-   &        call report("Must specify CELL "                          &
-   &        //"- the number of basis functions in each dim.",         &
-   &        .true.)
-         if(.NOT.THUB.AND.BOX.EQ.0.D0)                                &
-   &        call report("Must specify BOX size.",.true.)
-         if(TTILT.AND..NOT.THUB)                                      &
-   &        call report("TILT can only be specified with HUBBARD.",.true.)
-      endif
+
+      if (.not. tUEG2) then
+          if(THUB.OR.TUEG.OR..NOT.(TREADINT.OR.TCPMD.or.tVASP)) then
+            if(NMAXX.EQ.0)                                               &
+            &        call report("Must specify CELL "                          &
+            &        //"- the number of basis functions in each dim.",         &
+            &        .true.)
+            if(.NOT.THUB.AND.BOX.EQ.0.D0)                                &
+            &        call report("Must specify BOX size.",.true.)
+            if(TTILT.AND..NOT.THUB)                                      &
+            &        call report("TILT can only be specified with HUBBARD.",.true.)
+          endif
+      end if
 
     END SUBROUTINE SysReadInput
 
@@ -917,8 +923,11 @@ MODULE System
       integer dUnscaledE
       real(dp), allocatable :: arr_tmp(:,:)
       integer, allocatable :: brr_tmp(:)
-
+!     UEG2
       integer :: AllocateStatus
+      integer :: ii, jj, kk, EE
+      logical :: under_cutoff
+
 
 !      write (6,*)
 !      call TimeTag()
@@ -1109,61 +1118,53 @@ MODULE System
       ELSE   
 
     ! ======================================================
-      if (tUEG2) then
-      
-          WRITE(6,'(A)') '  *** In UEG2 ***  ' 
-          WRITE(6,'(A)') '  *** UNIFORM ELECTRON GAS CALCULATION ***  ' 
-          WRITE(6,'(A,F20.16)') '  Electron Gas Rs set to ',FUEGRS
-
-        
-          IF(TPARITY) THEN
-             WRITE(6,*) ' MOMENTUM : ',(IPARITY(I),I=1,3)
-          ENDIF
-
-          NMAX=MAX(NMAXX,NMAXY,NMAXZ)
-          NNR=NMSH*NMSH*NMSH
-          WRITE(6,'(A,I5)') '  NMAXX : ' , NMAXX
-          WRITE(6,'(A,I5)') '  NMAXY : ' , NMAXY
-          WRITE(6,'(A,I5)') '  NMAXZ : ' , NMAXZ
-          WRITE(6,'(A,I5)') '  NMSH : ' , NMSH 
+      if (tUEG2) then   
 
 !         check dimension
-          if(NMAXX .ne. 0 .and.  NMAXY .ne. 0 .and. NMAXZ .ne. 0) then ! 3D
+          if(dimen==3) then ! 3D
               OMEGA=4.0d0/3.0d0*PI*FUEGRS**3*NEL
+              RS=(3.D0*OMEGA/(4.D0*PI*NEL))**THIRD  
+              FKF=(9*PI/4)**THIRD/RS
           ! define  lattice vectors and lattice constant in reciprocal space
               if (recip_lattice_type == "sc") then
                   k_lattice_constant = 2.0d0*PI/OMEGA**THIRD
-                  Unscaled_LatConst_sqrt =1.0d0
+                  Unscaled_LatConst_square=1.0d0
                   lattice_vectors(1,1:3) = (/1, 0, 0 /)
                   lattice_vectors(2,1:3) = (/0, 1, 0 /)
-                  lattice_vectors(3,1:3) = (/0, 0, 1 /)	
+                  lattice_vectors(3,1:3) = (/0, 0, 1 /)
               else if (recip_lattice_type == "fcc") then
                   k_lattice_constant = 2.0d0*PI/(2.0d0*OMEGA)**THIRD
-                  Unscaled_LatConst_sqrt=1.0d0/(2.0d0**(2.0d0/3.0d0))
+                  Unscaled_LatConst_square=1.0d0/(2.0d0**(2.0d0/3.0d0))
                   lattice_vectors(1,1:3) = (/0.0d0, 1.0d0, 1.0d0 /)
                   lattice_vectors(2,1:3) = (/1.0d0, 0.0d0, 1.0d0 /)
                   lattice_vectors(3,1:3) = (/1.0d0, 1.0d0, 0.0d0 /)    
               else if (recip_lattice_type == "bcc") then
                   k_lattice_constant =4.0d0*PI/(4.0d0*OMEGA)**THIRD
-                  Unscaled_LatConst_sqrt=1.0d0/(4.0d0**(2.0d0/3.0d0))
+                  Unscaled_LatConst_square=1.0d0/(4.0d0**(2.0d0/3.0d0))
                   lattice_vectors(1,1:3) = (/-1.0d0, 1.0d0, 1.0d0 /)
                   lattice_vectors(2,1:3) = (/1.0d0, -1.0d0, 1.0d0 /)
                   lattice_vectors(3,1:3) = (/1.0d0, 1.0d0, -1.0d0 /) 
               else
                   write(6,'(A)')  'lattice type not valid'
               end if             
-          else if (NMAXX .ne. 0 .and.  NMAXY .ne. 0 .and. NMAXZ.eq.0) then !2D
+          else if (dimen==2) then !2D
               write(6,'(A)') ' NMAXZ=0 : 2D calculation'
               OMEGA=PI*FUEGRS**2*NEL
+              RS=(OMEGA/(4.D0*PI*NEL))**(1.0d0/2.0d0) 
+              FKF=sqrt(2.0d0)/RS
+              ! define  lattice vectors and lattice constant in reciprocal space
               k_lattice_constant = 2.0d0*PI/OMEGA**(1.0d0/2.0d0)
-              Unscaled_LatConst_sqrt =1.0d0
+              Unscaled_LatConst_square=1.0d0
               lattice_vectors(1,1:3) = (/1, 0, 0 /)
               lattice_vectors(2,1:3) = (/0, 1, 0 /)
               lattice_vectors(3,1:3) = (/0, 0, 0 /)  
-          else if (NMAXX .ne. 0 .and.  NMAXY .eq. 0 .and. NMAXZ.eq.0) then !1D
+          else if (dimen==1) then !1D
               write(6,'(A)') ' NMAXZ=0,  NMAXY=0 : 1D calculation'
               OMEGA=2.0d0*FUEGRS*NEL
-              Unscaled_LatConst_sqrt =1.0d0
+              RS=OMEGA/(2.D0*NEL) 
+              FKF=(PI/2.0d0)/RS  !for spin polarised simulation
+              ! define  lattice vectors and lattice constant in reciprocal space
+              Unscaled_LatConst_square =1.0d0
               k_lattice_constant = 2.0d0*PI/OMEGA
               lattice_vectors(1,1:3) = (/1, 0, 0 /)
               lattice_vectors(2,1:3) = (/0, 0, 0 /)
@@ -1171,26 +1172,66 @@ MODULE System
           else 
              write(6,'(A)') 'Problem with dimension! ' 
           endif
-!C..
+
+          ! engergy cutoff not given -> set to 2* Fermi vector
+          if(.not. torbEcutoff) then
+              orbEcutoff =(2.0d0*FKF/k_lattice_constant)**2.0d0 
+              torbEcutoff = .true.
+          end if
+          ! cell size not given
+          if(NMAXX == 0 .and.  NMAXY == 0 .and. NMAXZ == 0) then
+              if (recip_lattice_type == "sc") then
+                  NMAXX=int(sqrt(orbEcutoff))+1
+                  if(dimen .gt. 1) NMAXY=int(sqrt(orbEcutoff))+1
+                  if(dimen .gt. 2) NMAXZ=int(sqrt(orbEcutoff))+1
+              else if (recip_lattice_type == "fcc" .or. recip_lattice_type == "bcc") then
+                  ! calculate needed cell size
+                  ii = 0
+                  under_cutoff = .true.
+                  do while (ii .le. int(orbEcutoff) .and. under_cutoff) !until  no E < cutoff was found
+                      under_cutoff = .false.
+                      jj =-ii   
+                      do while (abs(jj) .le. abs(ii) .and. .not. under_cutoff) !until E < cutoff is found or ii 
+                          kk = -abs(jj)
+                          do while (abs(kk) .le. abs(jj) .and. .not. under_cutoff)!until E < cutoff is found or jj
+                              !calculate unscaled energy for ii, jj, kk
+                              EE =(lattice_vectors(1,1)*ii+lattice_vectors(2,1)*jj+lattice_vectors(3,1)*kk)**2
+                              EE =EE +(lattice_vectors(1,2)*ii+lattice_vectors(2,2)*jj+lattice_vectors(3,2)*kk)**2
+                              EE =EE +(lattice_vectors(1,3)*ii+lattice_vectors(2,3)*jj+lattice_vectors(3,3)*kk)**2  
+                              if ( (EE*Unscaled_LatConst_square) .le. orbEcutoff) under_cutoff = .true.
+                              kk=kk+1
+                          end do
+                           jj = jj+1
+                      end do
+                      ii = ii+1
+                  end do 
+                  NMAXX=ii-1
+                  if(dimen .gt. 1) NMAXY=ii-1
+                  if(dimen .gt. 2) NMAXZ=ii-1
+              end if ! lattice type
+          end if ! cell defined
 
           TTILT=.FALSE.
           ALAT=0.0d0   !shouldn't be used in the UEG2 part...
-          if(NMAXX .ne. 0 .and.  NMAXY .ne. 0 .and. NMAXZ .ne. 0) then ! 3D
-              RS=(3.D0*OMEGA/(4.D0*PI*NEL))**THIRD  
-              FKF=(9*PI/4)**THIRD/RS
-          else if (NMAXX .ne. 0 .and.  NMAXY .ne. 0 .and. NMAXZ.eq.0) then !2D
-              RS=(OMEGA/(4.D0*PI*NEL))**(1.0d0/2.0d0) 
-              FKF=sqrt(2.0d0)/RS
-          else if (NMAXX .ne. 0 .and.  NMAXY .eq. 0 .and. NMAXZ.eq.0) then !1D
-              RS=OMEGA/(2.D0*NEL) 
-              FKF=(PI/2.0d0)/RS  !for spin polarised simulation
-          endif
+          NMAX=MAX(NMAXX,NMAXY,NMAXZ)
+          NNR=NMSH*NMSH*NMSH
 
+          WRITE(6,'(A)') '  *** In UEG2 ***  ' 
+          WRITE(6,'(A)') '  *** UNIFORM ELECTRON GAS CALCULATION ***  ' 
+          WRITE(6,'(A,F20.16)') '  Electron Gas Rs set to ',FUEGRS
+          IF(TPARITY) THEN
+             WRITE(6,*) ' MOMENTUM : ',(IPARITY(I),I=1,3)
+          ENDIF
+          WRITE(6,'(A,I5)') '  Dimension : ' , Dimen
+          WRITE(6,'(A,I5)') '  NMAXX : ' , NMAXX
+          WRITE(6,'(A,I5)') '  NMAXY : ' , NMAXY
+          WRITE(6,'(A,I5)') '  NMAXZ : ' , NMAXZ
+          WRITE(6,'(A,I5)') '  NMSH : ' , NMSH 
           WRITE(6,*) " Wigner-Seitz radius Rs=",RS
           WRITE(6,*) " Fermi vector kF=",FKF
           WRITE(6,*) " Fermi Energy EF=",FKF*FKF/2
-          WRITE(6,*) " Unscaled Fermi Energy nmax**2=",(FKF*FKF/2)/(0.5*(2*PI/ALAT(5))**2)
-         
+          write(6,*) " Unscaled fermi vector kF=", FKF/k_lattice_constant
+          WRITE(6,*) " Unscaled Fermi Energy nmax**2=",(FKF*FKF/2)/(0.5*(2*PI/ALAT(5))**2)         
           IF(OrbECutoff.ne.1e-20) WRITE(6,*) " Orbital Energy Cutoff:",OrbECutoff
           WRITE(6,'(1X,A,F19.5)') '  VOLUME : ' , OMEGA
           WRITE(6,*) ' TALPHA : ' , TALPHA
@@ -1285,7 +1326,7 @@ MODULE System
       
           ELSE
 !C.. Create plane wave basis functions
-              WRITE(6,*) "Creating plane wave basis."
+              WRITE(6,*) "Creating plane wave basis."     
               IG=0
               DO I=NBASISMAX(1,1),NBASISMAX(1,2)
                   DO J=NBASISMAX(2,1),NBASISMAX(2,2)
@@ -1837,7 +1878,7 @@ END MODULE System
 
 SUBROUTINE WRITEBASIS(NUNIT,G1,NHG,ARR,BRR)
   ! Write out the current basis to unit nUnit
-  use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,Unscaled_LatConst_sqrt , lattice_vectors
+  use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,Unscaled_LatConst_square , lattice_vectors
   use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, nel, tUEG2
   use DeterminantData, only: fdet
   use sym_mod, only: writesym
@@ -1862,12 +1903,12 @@ SUBROUTINE WRITEBASIS(NUNIT,G1,NHG,ARR,BRR)
           kvecY=lattice_vectors(1,2)*G1(BRR(I))%K(1)+lattice_vectors(2,2)* G1(BRR(I))%K(2)+lattice_vectors(3,2)*G1(BRR(I))%K(3)
           kvecZ=lattice_vectors(1,3)*G1(BRR(I))%K(1)+lattice_vectors(2,3)* G1(BRR(I))%K(2)+lattice_vectors(3,3)*G1(BRR(I))%K(3)
 
-          unscaled_energy=((kvecX)**2+(kvecY)**2+(kvecZ)**2)*Unscaled_LatConst_sqrt
+          unscaled_energy=((kvecX)**2+(kvecY)**2+(kvecZ)**2)*Unscaled_LatConst_square
     
           WRITE(NUNIT,'(6I7)',advance='no') I,BRR(I),G1(BRR(I))%K(1), G1(BRR(I))%K(2),G1(BRR(I))%K(3), G1(BRR(I))%MS
           CALL WRITESYM(NUNIT,G1(BRR(I))%SYM,.FALSE.)
           WRITE(NUNIT,'(I4)',advance='no') G1(BRR(I))%Ml
-          WRITE(NUNIT,'(2F19.9)', advance='no')  ARR(I,1), unscaled_energy
+          WRITE(NUNIT,'(3F19.9)', advance='no')  ARR(I,1), ARR(BRR(I),2), unscaled_energy 
 
           if (associated(fdet)) then
               pos=1
@@ -1998,7 +2039,7 @@ END subroutine ORDERBASIS
 !dUnscaledEnergy gives the energy without reference to box size and without any offset.
 SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,Energy,dUnscaledEnergy)        
    
-   use SystemData, only: tUEG2, lattice_vectors, k_lattice_constant, Unscaled_LatConst_sqrt
+   use SystemData, only: tUEG2, lattice_vectors, k_lattice_constant, Unscaled_LatConst_square
    use constants, only: Pi, Pi2, THIRD
    use constants, only: dp
    IMPLICIT NONE
@@ -2021,9 +2062,9 @@ SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,Energy,dUnsc
               E=(kvecX)**2+(kvecY)**2+(kvecZ)**2
            endif
            Energy=0.5d0*E*k_lattice_constant**2
-           dUnscaledEnergy=Unscaled_LatConst_sqrt*((kvecX)**2+(kvecY)**2+(kvecZ)**2)
+           dUnscaledEnergy=Unscaled_LatConst_square*((kvecX)**2+(kvecY)**2+(kvecZ)**2)
        ELSE
-           Energy=(kvecX)**2+(kvecY)**2+(kvecZ)**2
+           Energy=Unscaled_LatConst_square*((kvecX)**2+(kvecY)**2+(kvecZ)**2)
        ENDIF
 
        return
