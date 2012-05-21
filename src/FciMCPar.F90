@@ -5997,8 +5997,10 @@ MODULE FciMCParMod
             if (tSplitProjEHistG) then 
                 ProjEBin=FindSplitProjEBinG(ExMat)+1
                 
-                ! Sum in energy contribution
-                ENumCycHistG(ProjEBin) = ENumCycHistG(ProjEBin) + (HOffDiag * ARR_RE_OR_CPLX(wSign)) / dProbFin
+                if (ProjEBin.le.iProjEBins) then
+                    ! Sum in energy contribution
+                    ENumCycHistG(ProjEBin) = ENumCycHistG(ProjEBin) + (HOffDiag * ARR_RE_OR_CPLX(wSign)) / dProbFin
+                endif
             endif
             if (tSplitProjEHistK3) then 
                 ProjEBin=FindSplitProjEBinK3(ExMat)+1
