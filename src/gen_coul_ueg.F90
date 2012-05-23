@@ -346,7 +346,7 @@ contains
 
     function get_ueg_umat_el (idi, idj, idk, idl) result(hel)
 
-        use SystemData, only: tUEG2, kvec, k_lattice_constant, NMAXX, NMAXY, NMAXZ
+        use SystemData, only: tUEG2, kvec, k_lattice_constant, dimen
         integer, intent(in) :: idi, idj, idk, idl
         HElement_t :: hel
         integer :: i, j, k, l, a, b, c, iss, aneu
@@ -385,14 +385,15 @@ contains
                     ! the G=0 component as it is divergent.
                     ! This is the equivalent of adding a positive uniform 
                     ! background.
+                    !scaled momentum transfer
                     G2 = (a *k_lattice_constant)**2 +(b *k_lattice_constant)**2 + (c *k_lattice_constant)**2         
                     ! check dimension
-                    if(NMAXX .ne. 0 .and.  NMAXY .ne. 0 .and. NMAXZ .ne. 0) then ! 3D
+                    if(dimen == 3) then ! 3D
                         hel = (4.0d0*PI) / (G2 * OMEGA)
-                    else if (NMAXX .ne. 0 .and.  NMAXY .ne. 0 .and. NMAXZ.eq.0) then !2D
+                    else if (dimen ==2) then !2D
                         hel = (2.0d0*PI) / (sqrt(G2) * OMEGA)
-                    else if (NMAXX .ne. 0 .and.  NMAXY .eq. 0 .and. NMAXZ.eq.0) then !1D
-                        hel = (-log(G2**2/4.0d0) - 2.0d0*EulersConst)/OMEGA
+                    else if (dimen ==1) then !1D
+                        hel = (-log(G2/4.0d0) - 2.0d0*EulersConst)/OMEGA
                     endif
                 else  ! <ii|ii>
                     hel = 0

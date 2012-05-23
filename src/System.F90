@@ -424,7 +424,7 @@ MODULE System
        ! Options for the type of the reciprocal lattice (eg sc, fcc, bcc)
         case("RECIP_LATTICE_TYPE")
             call readl(recip_lattice_type) 
-
+       ! Options for the dimension (1, 2, or 3)
          case("DIMENSION")
             call geti(dimen)       
 
@@ -1139,7 +1139,7 @@ MODULE System
                   lattice_vectors(2,1:3) = (/1.0d0, 0.0d0, 1.0d0 /)
                   lattice_vectors(3,1:3) = (/1.0d0, 1.0d0, 0.0d0 /)    
               else if (recip_lattice_type == "bcc") then
-                  k_lattice_constant =4.0d0*PI/(4.0d0*OMEGA)**THIRD
+                  k_lattice_constant =2.0d0*PI/(4.0d0*OMEGA)**THIRD
                   Unscaled_LatConst_square=1.0d0/(4.0d0**(2.0d0/3.0d0))
                   lattice_vectors(1,1:3) = (/-1.0d0, 1.0d0, 1.0d0 /)
                   lattice_vectors(2,1:3) = (/1.0d0, -1.0d0, 1.0d0 /)
@@ -1178,7 +1178,7 @@ MODULE System
               orbEcutoff =(2.0d0*FKF/k_lattice_constant)**2.0d0 
               torbEcutoff = .true.
           end if
-          ! cell size not given
+          ! if cell size not given
           if(NMAXX == 0 .and.  NMAXY == 0 .and. NMAXZ == 0) then
               if (recip_lattice_type == "sc") then
                   NMAXX=int(sqrt(orbEcutoff))+1
@@ -1186,14 +1186,14 @@ MODULE System
                   if(dimen .gt. 2) NMAXZ=int(sqrt(orbEcutoff))+1
               else if (recip_lattice_type == "fcc" .or. recip_lattice_type == "bcc") then
                   ! calculate needed cell size
-                  ii = 0
+                  ii = 0  ! ii is always positiv. jj varies from -ii to ii, kk from -|jj| to |jj|
                   under_cutoff = .true.
                   do while (ii .le. int(orbEcutoff) .and. under_cutoff) !until  no E < cutoff was found
                       under_cutoff = .false.
                       jj =-ii   
-                      do while (abs(jj) .le. abs(ii) .and. .not. under_cutoff) !until E < cutoff is found or ii 
+                      do while (abs(jj) .le. abs(ii) .and. .not. under_cutoff) !until E < cutoff is found or jj =ii 
                           kk = -abs(jj)
-                          do while (abs(kk) .le. abs(jj) .and. .not. under_cutoff)!until E < cutoff is found or jj
+                          do while (abs(kk) .le. abs(jj) .and. .not. under_cutoff)!until E < cutoff is found or kk=jj
                               !calculate unscaled energy for ii, jj, kk
                               EE =(lattice_vectors(1,1)*ii+lattice_vectors(2,1)*jj+lattice_vectors(3,1)*kk)**2
                               EE =EE +(lattice_vectors(1,2)*ii+lattice_vectors(2,2)*jj+lattice_vectors(3,2)*kk)**2
@@ -1223,6 +1223,7 @@ MODULE System
              WRITE(6,*) ' MOMENTUM : ',(IPARITY(I),I=1,3)
           ENDIF
           WRITE(6,'(A,I5)') '  Dimension : ' , Dimen
+          WRITE(6,*) '  Reciprocal lattice constant : ' ,  k_lattice_constant
           WRITE(6,'(A,I5)') '  NMAXX : ' , NMAXX
           WRITE(6,'(A,I5)') '  NMAXY : ' , NMAXY
           WRITE(6,'(A,I5)') '  NMAXZ : ' , NMAXZ
@@ -1356,13 +1357,14 @@ MODULE System
                       ENDDO
                   ENDDO
               ENDDO
-
+              if( maxval(G1%K(1)) .ge. NMAXX)  WRITE(6,*) 'ERROR IN CELL CALCULATION! ' 
+       
 !C..Check to see if all's well
               WRITE(6,*) ' NUMBER OF BASIS FUNCTIONS : ' , IG 
               NBASIS=IG
-              allocate(kvec(NBASIS, 3), STAT = AllocateStatus)
 
               ! calculate k-vectors in cartesian coordinates	      
+              allocate(kvec(NBASIS, 3), STAT = AllocateStatus)
               IG=0
               DO I=1, NBASIS      
                   IG=IG+1
