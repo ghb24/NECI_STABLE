@@ -2,7 +2,7 @@
 MODULE System
 
     use SystemData
-    use CalcData, only: tRotoAnnihil
+    use CalcData, only: tRotoAnnihil, TAU, tTruncInitiator, InitiatorWalkNo, tHPHF
     use sort_mod
     use SymExcitDataMod, only: tBuildOccVirtList
     use constants, only: dp,int64
@@ -927,7 +927,7 @@ MODULE System
       integer :: AllocateStatus
       integer :: ii, jj, kk, EE
       logical :: under_cutoff
-
+      real(dp), parameter :: EulersConst = 0.5772156649015328606065120900824024d0
 
 !      write (6,*)
 !      call TimeTag()
@@ -1265,8 +1265,6 @@ MODULE System
           LEN=(2*NMAXX+1)*(2*NMAXY+1)*(2*NMAXZ+1)*((NBASISMAX(4,2)-NBASISMAX(4,1))/2+1)
 !C.. UEG
           NBASISMAX(3,3)=-1
- 
-
 
 !C..         (.NOT.TREADINT)
 
@@ -1463,6 +1461,21 @@ MODULE System
       !      IF(FCOUL.NE.1.D0)  WRITE(6,*) "WARNING: FCOUL is not 1.D0. FCOUL=",FCOUL
           IF(FCOULDAMPBETA.GT.0) WRITE(6,*) "FCOUL Damping.  Beta ",FCOULDAMPBETA," Mu ",FCOULDAMPMU
           call halt_timer(proc_timer)
+
+          !calculate tau if not given
+          if (TAU .lt. 0.0d0) then
+              if(dimen == 3) then ! 3D
+                  TAU = (k_lattice_constant**2* OMEGA) / (4.0d0*PI) !H_min**-1
+              else if (dimen ==2) then !2D
+                  TAU = (k_lattice_constant * OMEGA)/(2.0d0*PI)  !H_min**-1
+              else if (dimen ==1) then !1D
+                  TAU = OMEGA/ (-log(k_lattice_constant**2/4.0d0) - 2.0d0*EulersConst) !H_min**-1
+              endif
+              TAU = 0.9d0*TAU*4.0d0/(NEL*(NEL-1))/(NBASIS-NEL)
+              if (tTruncInitiator) TAU = TAU*InitiatorWalkNo
+              if (tHPHF) TAU = TAU /sqrt(2.0d0)
+              write(6, *) 'Tau set to: ', TAU
+          end if
 
       return 
       endif  !UEG2
