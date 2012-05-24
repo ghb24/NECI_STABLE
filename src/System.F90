@@ -959,6 +959,7 @@ MODULE System
       SymRestrict%Ms=IPARITY(4)
       SymRestrict%Sym%s=IPARITY(5)
 
+
       IF(TSPN) THEN
 !C.. If we're doing monte carlo without generating a list of
 !C.. determinants, we cannot as yet force spin or parity, except by
@@ -973,12 +974,24 @@ MODULE System
 !C            ENDIF
 !C            TSPINPOLAR=.TRUE.
 !C         ENDIF
-         IF(MOD(LMS+NEL*2,2).NE.MOD(NEL,2)) THEN
-           WRITE(6,*) 'LMS=',LMS,' not achievable with',NEL,' electrons'
-           WRITE(6,*) 'Resetting LMS'
-           LMS=MOD(NEL,2)
-         ENDIF
-         LMS2=LMS
+          IF(MOD(LMS+NEL*2,2).NE.MOD(NEL,2)) THEN
+            WRITE(6,*) 'LMS=',LMS,' not achievable with',NEL,' electrons'
+            WRITE(6,*) 'Resetting LMS'
+            LMS=MOD(NEL,2)
+          ENDIF
+          LMS2=LMS
+      ELSE
+          if (tUEG2) then
+              TSPN =.TRUE. 
+              if (dimen==1) then
+!                 1D calculations are always spin polarised
+                  LMS = NEL
+                  !TSPINPOLAR = .TRUE.
+              else
+                  LMS = 0
+              end if
+               LMS2=LMS  
+          end if
       ENDIF
       WRITE(6,*) ' GLOBAL MS : ' , LMS
 
@@ -1331,6 +1344,7 @@ MODULE System
                   DO J=NBASISMAX(2,1),NBASISMAX(2,2)
                       DO K=NBASISMAX(3,1),NBASISMAX(3,2)
                           DO L=NBASISMAX(4,1),NBASISMAX(4,2),2
+                              !if (dimen ==1 .AND. L ==1) cycle
                               G%k(1)=I
                               G%k(2)=J
                               G%k(3)=K
@@ -1465,15 +1479,22 @@ MODULE System
           !calculate tau if not given
           if (TAU .lt. 0.0d0) then
               if(dimen == 3) then ! 3D
-                  TAU = (k_lattice_constant**2* OMEGA) / (4.0d0*PI) !H_min**-1
+                  TAU = (k_lattice_constant**2* OMEGA) / (4.0d0*PI) !Hij_min**-1
               else if (dimen ==2) then !2D
-                  TAU = (k_lattice_constant * OMEGA)/(2.0d0*PI)  !H_min**-1
+                  TAU = (k_lattice_constant * OMEGA)/(2.0d0*PI)  !Hij_min**-1
               else if (dimen ==1) then !1D
-                  TAU = OMEGA/ (-log(k_lattice_constant**2/4.0d0) - 2.0d0*EulersConst) !H_min**-1
+                  TAU = OMEGA/ (-2.0d0*log(1.0d0/(2.0d0*sqrt(orbEcutoff)))) 
               endif
               TAU = 0.9d0*TAU*4.0d0/(NEL*(NEL-1))/(NBASIS-NEL)
               if (tTruncInitiator) TAU = TAU*InitiatorWalkNo
               if (tHPHF) TAU = TAU /sqrt(2.0d0)
+              if (TAU .gt. k_lattice_constant**(-2)/OrbEcutoff) then 
+                 TAU= 1.0d0/(k_lattice_constant**(2)*OrbEcutoff)  !using Hii 
+                  write(6,*) '***************** Tau set by using Hii *******************************'
+                  write(6,*) 1.0d0/((2.0d0*PI/Omega**third)**2*orbEcutoff)
+              else
+                  write(6,*) 'Tau set by using Hji'
+              end if
               write(6, *) 'Tau set to: ', TAU
           end if
 

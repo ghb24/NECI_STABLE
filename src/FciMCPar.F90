@@ -119,6 +119,7 @@ MODULE FciMCParMod
         use Logging, only: PopsfileTimer
         use util_mod, only: get_free_unit
         use sym_mod, only: getsym
+        use SystemData, only: tUEG2
 #ifdef MOLPRO
         use outputResult
         integer :: nv,ityp(1)
@@ -243,6 +244,9 @@ MODULE FciMCParMod
                             write (6, '("double excit.")')
                         else
                             write (6, '("single excit.")')
+                        endif
+                        if (tUEG2) then
+                            call stop_all("FCIMCPar","Should never bloom in UEG2")
                         endif
                     endif
                     iPartBloom = 0 ! Max number spawned from an excitation
