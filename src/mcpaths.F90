@@ -29,12 +29,13 @@ contains
          USE GraphMorph , only : MorphGraph
          USE StarDiagTripMod , only : StarDiagTrips
          USE FciMCParMod , only : FciMCPar
+         use RPA_Mod, only : RunRPA_QBA 
          USE ReturnPathMCMod , only : ReturnPathMC
          USE NODEDIAG , only : fMCPR3StarNodes
          use CalcData , only : G_VMC_FAC,CUR_VERT,g_MultiWeight,         &
      &          TMPTHEORY,TMCDIRECTSUM,TDIAGNODES,TGraphMorph,           &
      &          calcp_logweight,TFCIMC,TReturnPathMC
-         use CalcData, only: tCCMC
+         use CalcData, only: tCCMC,tRPA_QBA
          use CalcData, only: TStarTrips
          USE Logging , only : G_VMC_LOGCOUNT
          USE CCMC, only: CCMCStandalone,CCMCStandaloneParticle
@@ -221,6 +222,9 @@ contains
                ELSEIF(TReturnPathMC) THEN
 !A MC simulation involving replicating particles, constrained to returning paths is run
                     CALL ReturnPathMC(F(I_V),DLWDB2)
+               elseif(tRPA_QBA) then
+!RPA calculation using the quasi-boson approximation
+                    call RunRPA_QBA(F(I_V),DLWDB2)
                ELSE
 !C.. This code generates a star consisting of all the two-vertex terms,
 !C.. forcing them to be disconnected. - this uses new excitation generators
@@ -419,7 +423,8 @@ contains
          USE ReturnPathMCMod , only : ReturnPathMC
          use CalcData , only : TMPTHEORY,TDIAGNODES,TGraphMorph
          use CalcData, only : calcp_logweight,TFCIMC,TReturnPathMC
-         use CalcData, only: TStarTrips
+         use CalcData, only: TStarTrips,tRPA_QBA
+         use RPA_Mod, only: RunRPA_QBA 
          use global_utilities
          use mcpathsdata, only: EGP
          use mcpathshdiag, only: fmcpr3b2
@@ -630,6 +635,9 @@ contains
                ELSEIF(TReturnPathMC) THEN
 !A MC simulation involving replicating particles, constrained to returning paths is run
                     CALL ReturnPathMC(F(I_V),DLWDB2)
+               elseif(tRPA_QBA) then
+!RPA calculation using the quasi-boson approximation
+                    call RunRPA_QBA(F(I_V),DLWDB2)
                ELSE
 !C.. This code generates a star consisting of all the two-vertex terms,
 !C.. forcing them to be disconnected. - this uses new excitation generators
