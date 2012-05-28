@@ -4998,10 +4998,11 @@ MODULE FciMCParMod
         type(excit_gen_store_type) :: store, store2
         logical :: tAllExcitFound,tParity,tSameFunc,tSwapped,tSign
         character(len=*), parameter :: t_r="FindMaxTauDoubs"
-        integer :: ex(2,2),ex2(2,2),exflag
+        integer :: ex(2,2),ex2(2,2),exflag,iMaxExcit,nStore(6),nExcitMemLen(1)
+        integer, allocatable :: Excitgen(:)
         real(dp) :: nAddFac,MagHel,pGen,pGenFac
         HElement_t :: hel
-        integer :: ic,nJ(nel),nJ2(nel)
+        integer :: ic,nJ(nel),nJ2(nel),ierr,iExcit
         integer(kind=n_int) :: iLutnJ(0:niftot),iLutnJ2(0:niftot)
 
         if(tCSF.or.tMomInv) call stop_all(t_r,"TauSearching needs fixing to work with CSFs or MI funcs")
@@ -5031,16 +5032,38 @@ MODULE FciMCParMod
         CALL construct_class_counts(ProjEDet, store%ClassCountOcc, &
                                     store%ClassCountUnocc)
         store%tFilled = .true.
+        if(tKPntSym) then
+            !TODO: It REALLY needs to be fixed so that we don't need to do this!!
+            !Setting up excitation generators that will work with kpoint sampling
+            iMaxExcit=0
+            nStore(:)=0
+            CALL GenSymExcitIt2(ProjEDet,NEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
+            ALLOCATE(EXCITGEN(nExcitMemLen(1)),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All(t_r,"Problem allocating excitation generator")
+            EXCITGEN(:)=0
+            CALL GenSymExcitIt2(ProjEDet,NEl,G1,nBasis,.TRUE.,EXCITGEN,nJ,iMaxExcit,nStore,exFlag)
+        !    CALL GetSymExcitCount(EXCITGEN,DetConn)
+        endif
 
         do while (.not.tAllExcitFound)
-            CALL GenExcitations3(ProjEDet,iLutRef,nJ,exflag,Ex,tParity,tAllExcitFound)
-            IF(tAllExcitFound) EXIT
-            if(Ex(2,2).eq.0) then
-                ic=1
+            if(tKPntSym) then
+                call GenSymExcitIt2(ProjEDet,nel,G1,nBasis,.false.,EXCITGEN,nJ,iExcit,nStore,exFlag)
+                if(nJ(1).eq.0) exit
+                !Calculate ic, tParity and Ex
+                call EncodeBitDet (nJ, iLutnJ)
+                Ex(:,:)=0
+                Ex(1,1)=FindBitExcitlevel(iLutnJ,iLutRef,2)
+                call GetExcitation(ProjEDet,nJ,Nel,ex,tParity)
             else
-                ic=2
+                CALL GenExcitations3(ProjEDet,iLutRef,nJ,exflag,Ex,tParity,tAllExcitFound)
+                IF(tAllExcitFound) EXIT
+                if(Ex(2,2).eq.0) then
+                    ic=1
+                else
+                    ic=2
+                endif
+                call EncodeBitDet (nJ, iLutnJ)
             endif
-            call EncodeBitDet (nJ, iLutnJ)
 
             !Find Hij
             if(tHPHF) then
@@ -5097,6 +5120,7 @@ MODULE FciMCParMod
                 
         call clean_excit_gen_store (store)
         call clean_excit_gen_store (store2)
+        if(tKPntSym) deallocate(EXCITGEN)
 
         if(tau.gt.0.075) then
             tau=0.075_dp
