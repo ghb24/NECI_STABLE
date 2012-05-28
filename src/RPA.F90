@@ -6,8 +6,12 @@
 module RPA_Mod
     use SystemData, only: nel, nBasis, Arr, Brr
     use sltcnd_mod, only: sltcnd_2
-    use constants, only: dp, int64
+    use constants, only: dp, int64, n_int
     use Determinants, only: get_helement, fDet
+    use SymExcit3, only: GenExcitations3
+    use Determinants, only: GetH0Element3
+    use bit_reps, only: NIfTot
+    use DetBitops, only: EncodeBitDet
 
     implicit none
 
@@ -27,10 +31,13 @@ module RPA_Mod
     subroutine RunRPA_QBA(Weight,Energy)
         implicit none
         integer :: ierr,i,j,m,n,ex(2,2),ex2(2,2),mi_ind,nj_ind
-        integer :: StabilitySize,lWork,info,i_p,m_p,v,mp_ip_ind
+        integer :: StabilitySize,lWork,info,i_p,m_p,v,mp_ip_ind,ic
+        integer :: nJ(NEl),exflag
+        integer(n_int) :: iLutHF(0:NIfTot)
         real(dp), intent(out) :: Weight,Energy
-        real(dp) :: Energy_stab,Temp_real,norm,Energy2
-        HElement_t :: HDiagTemp
+        real(dp) :: Energy_stab,Temp_real,norm,Energy2,H0tmp,Fii
+        HElement_t :: HDiagTemp,hel
+        logical :: tAllExcitsFound,tParity
         real(dp), allocatable :: Stability(:,:),temp2(:,:),W2(:)
         real(dp), allocatable :: W(:),Work(:),S_minhalf(:,:),temp(:,:)
         real(dp), allocatable :: X_stab(:,:),Y_stab(:,:)
@@ -43,6 +50,30 @@ module RPA_Mod
         write(6,"(A)") "*   Entering RPA calculation with quasi-boson approximation...  *"
         write(6,"(A)") "*****************************************************************"
         write(6,"(A)") 
+        call neci_flush(6)
+
+        !Quickly find correlation energy from MP2 for comparison.
+        Temp_real = 0.0_dp
+        tAllExcitsFound=.false.
+        exflag=3
+        ex(:,:)=0
+        call EncodeBitDet(FDet,iLutHF)
+        HDiagTemp=GetH0Element3(FDet)
+        Fii=real(HDiagTemp,dp)
+        do while(.true.)
+            call GenExcitations3(FDet,iLutHF,nJ,exflag,Ex,tParity,tAllExcitsFound)
+            if(tAllExcitsFound) exit !All excits found
+            if(Ex(1,2).eq.0) then
+                ic=1
+            else
+                ic=2
+            endif
+            hel=get_helement(FDet,nJ,ic,Ex,tParity)
+            H0tmp=getH0Element3(nJ)
+            H0tmp=Fii-H0tmp
+            Temp_real=Temp_real+(hel**2)/H0tmp
+        enddo
+        write(6,"(A,G25.10)") "For comparison, MP2 correlation energy is: ",Temp_real
 
         Weight=(0.0_dp)
         Energy=(0.0_dp)
@@ -157,7 +188,7 @@ module RPA_Mod
             do i=1,StabilitySize
                 if(W(i).lt.0.0_dp) then
                     write(6,*) i,W(i)
-                    call stop_all(t_r,"HF solution not stable. Not local minimum. Recompute.")
+                    call stop_all(t_r,"HF solution not stable. Not local minimum. Recompute HF.")
                 endif
             enddo
             write(6,"(A)") "Stability matrix positive definite. HF solution is minimum. RPA stable"
@@ -211,9 +242,8 @@ module RPA_Mod
             enddo
 
             !We actually have everything we need for the energy already now. However, calculate X and Y too.
-
             !Now construct (X Y) = S^(-1/2) (X~ Y~)
-            !First get S^(-1/2)
+            !First get S^(-1/2) in the original basis
             S_minhalf(:,:)=0.0_dp
             do i=1,StabilitySize
                 S_minhalf(i,i)=-sqrt(W(i))
@@ -226,20 +256,22 @@ module RPA_Mod
             call dgemm('n','n',StabilitySize,StabilitySize,StabilitySize,1.0_dp,S_minhalf,StabilitySize,temp,StabilitySize,0.0_dp,temp2,StabilitySize)
 
             !temp2 now runs over X, Y
-            allocate(X_stab(ov_space,StabilitySize)) !First index is (m,i) compound index. Second is the eigenvector index.
-            allocate(Y_stab(ov_space,StabilitySize))
+            allocate(X_stab(ov_space,ov_space)) !First index is (m,i) compound index. Second is the eigenvector index.
+            allocate(Y_stab(ov_space,ov_space))
             X_stab(:,:)=0.0_dp
             Y_stab(:,:)=0.0_dp
             !Put these into the X_stab and Y_stab arrays.
-            X_stab(1:ov_space,1:StabilitySize)=temp2(1:ov_space,1:StabilitySize)
-            Y_stab(1:ov_space,1:StabilitySize)=temp2(ov_space+1:StabilitySize,1:StabilitySize)
+            X_stab(1:ov_space,1:ov_space)=temp2(1:ov_space,1:ov_space)
+            Y_stab(1:ov_space,1:ov_space)=temp2(ov_space+1:StabilitySize,1:ov_space)
             deallocate(temp2)
 
+!            call writevector(W2,'Stab_eigenvalues')
+
             !Now check orthogonality (normalization currently commented out)
-            call Check_XY_orthogonality(X_stab,Y_stab)
+!            call Check_XY_orthogonality(X_stab,Y_stab)
 
             !Now calculate energy, in two different ways
-            call CalcRPAEnergy(Y_stab,W2,Energy_stab)
+!            call CalcRPAEnergy(Y_stab,W2,Energy_stab)
 
             Energy = Energy_stab
 
@@ -253,7 +285,11 @@ module RPA_Mod
 
         !Calculate A-B
         allocate(AminB(ov_space,ov_space))
-        AminB(:,:) = A_mat(:,:) - B_mat(:,:)
+        do i=1,ov_space
+            do j=1,ov_space
+                AminB(j,i) = A_mat(j,i) - B_mat(j,i)
+            enddo
+        enddo
 
         if(.true.) then
             !Optional
@@ -284,6 +320,7 @@ module RPA_Mod
             deallocate(work)
             do i=1,ov_space
                 if(W(i).lt.0.0_dp) then
+                    call writevector(W,'AminB eigenvalues')
                     call stop_all(t_r,"A-B not positive definite - cannot do cholesky decomposition")
                 endif
             enddo
@@ -305,7 +342,7 @@ module RPA_Mod
 !            call writematrix(AminB,'T')
             !Check cholesky decomposition successful
             allocate(temp(ov_space,ov_space))
-            call dgemm('t','n',ov_space,ov_space,ov_space,1.0_dp,AminB,ov_space,AminB,ov_space,0.0_dp,temp,ov_space)
+            call dgemm('T','N',ov_space,ov_space,ov_space,1.0_dp,AminB,ov_space,AminB,ov_space,0.0_dp,temp,ov_space)
             do i=1,ov_space
                 do j=1,ov_space
                     if(abs(temp(i,j)-(A_mat(i,j)-B_mat(i,j))).gt.1.0e-7_dp) then
@@ -317,12 +354,24 @@ module RPA_Mod
         endif
 
         allocate(AplusB(ov_space,ov_space),stat=ierr)
-        AplusB(:,:) = A_mat(:,:) - B_mat(:,:)
+        do i=1,ov_space
+            do j=1,ov_space
+                AplusB(j,i) = A_mat(j,i) - B_mat(j,i)
+            enddo
+        enddo
 
         allocate(temp(ov_space,ov_space))
-        call dgemm('n','n',ov_space,ov_space,ov_space,1.0_dp,AminB,ov_space,AplusB,ov_space,0.0_dp,temp,ov_space)
-        call dgemm('n','t',ov_space,ov_space,ov_space,1.0_dp,temp,ov_space,AminB,ov_space,0.0_dp,AplusB,ov_space)
+        call dgemm('N','N',ov_space,ov_space,ov_space,1.0_dp,AminB,ov_space,AplusB,ov_space,0.0_dp,temp,ov_space)
+        call dgemm('N','T',ov_space,ov_space,ov_space,1.0_dp,temp,ov_space,AminB,ov_space,0.0_dp,AplusB,ov_space)
         deallocate(temp)
+        !Check T (A + B) T^T is actually symmetric
+        do i=1,ov_space
+            do j=1,ov_space
+                if(abs(AplusB(i,j)-AplusB(j,i)).gt.1.0e-7_dp) then
+                    call stop_all(t_r,'Not symmetric')
+                endif
+            enddo
+        enddo
 
         !AplusB is now actually T (A + B) T^T
         !Diagonalize this
@@ -340,36 +389,52 @@ module RPA_Mod
         deallocate(work)
         do i=1,ov_space
             if(W(i).lt.0.0_dp) then
-                call stop_all(t_r,"A-B not positive definite - cannot do cholesky decomposition")
+                call stop_all(t_r,"Excitation energies not positive. Error in diagonalization.")
             endif
         enddo
+!        call writevector(sqrt(W),'Eigenvalues')
 
         !Excitation energies are now the +- sqrt of eigenvalues
         !Construct W^(-1/2) T^T R   (temp)
         !and W^(1/2) T^-1 R (temp2)
         allocate(temp(ov_space,ov_space))
-        call dgemm('t','n',ov_space,ov_space,ov_space,1.0_dp,AminB,ov_space,AplusB,ov_space,0.0_dp,temp,ov_space)
+        call dgemm('T','N',ov_space,ov_space,ov_space,1.0_dp,AminB,ov_space,AplusB,ov_space,0.0_dp,temp,ov_space)
         do i=1,ov_space
             !Mulitply each column by corresponding eigenvalue^(-1/2). Only deal with positive eigenvalues here
-            temp(:,i) = temp(:,i)*(1.0_dp/(sqrt(sqrt(W(i)))))
+            do j=1,ov_space
+                temp(j,i) = temp(j,i)*(1.0_dp/(sqrt(sqrt(W(i)))))
+            enddo
         enddo
 
         allocate(temp2(ov_space,ov_space))
         allocate(temp3(ov_space,ov_space))  !Temp3 will hold the inverse of the T matrix temporarily.
 
         call d_inv(AminB,temp3)
-        call dgemm('n','n',ov_space,ov_space,ov_space,1.0_dp,temp3,ov_space,AplusB,ov_space,0.0_dp,temp2,ov_space)
+        call dgemm('N','N',ov_space,ov_space,ov_space,1.0_dp,temp3,ov_space,AplusB,ov_space,0.0_dp,temp2,ov_space)
         deallocate(temp3)
 
         do i=1,ov_space
             !Mulitply each column by corresponding eigenvalue^(1/2). Only deal with positive eigenvalues here
-            temp2(:,i) = temp2(:,i)*(sqrt(sqrt(W(i))))
+            do j=1,ov_space
+                temp2(j,i) = temp2(j,i)*(sqrt(sqrt(W(i))))
+            enddo
         enddo
 
         allocate(X_Chol(ov_space,ov_space))
         allocate(Y_Chol(ov_space,ov_space))
-        X_Chol(:,:) = 0.5_dp * (temp(:,:) + temp2(:,:))
-        Y_Chol(:,:) = 0.5_dp * (temp(:,:) - temp2(:,:))
+        do i=1,ov_space
+            do j=1,ov_space
+                X_Chol(j,i) = 0.5_dp * (temp(j,i) + temp2(j,i))
+                Y_Chol(j,i) = 0.5_dp * (temp(j,i) - temp2(j,i))
+            enddo
+        enddo
+!        do i=1,ov_space
+!            do j=1,ov_space
+!                if(abs(Y_Chol(i,j)).gt.1.0e-7) then
+!                    write(6,*) "Found non-zero Y matrix value..."
+!                endif
+!            enddo
+!        enddo
 
         !Y_Chol and X_Chol now cover all eigenvectors.
         !Eigensystem can be represented as:
@@ -412,15 +477,12 @@ module RPA_Mod
 
         do v=1,ov_space
             norm=0.0_dp
-            do i=1,nel
-                do m=virt_start,nBasis
-                    mi_ind = ov_space_ind(m,i)
-                    norm = norm + (abs(Y_Chol(mi_ind,v)))**2.0_dp
-                enddo
+            do i=1,ov_space
+                norm = norm + (abs(Y_Chol(i,v)))**2.0_dp
             enddo
             Energy = Energy - norm*sqrt(W(v))
         enddo
-        write(6,"(A,G25.10)") "RPA correlation energy from Y matrix boson formulation: ",Energy-real(HDiagTemp,dp)
+        write(6,"(A,G25.10)") "RPA correlation energy from Y matrix: ",Energy-real(HDiagTemp,dp)
         
         Energy2 = real(HDiagTemp,dp)
         
@@ -443,31 +505,30 @@ module RPA_Mod
     end subroutine RunRPA_QBA
 
     SUBROUTINE d_inv (mat,matinv)
+        implicit none
+        real(dp), INTENT(IN) :: mat(:,:)
+        real(dp), dimension(size(mat,1),size(mat,2)), intent(out) :: matinv
+        real(dp), dimension(size(mat,1),size(mat,2)) :: matdum
+        integer, dimension(size(mat,1)) :: ipiv
+        integer :: nsize,msize,i,info
 
-      CHARACTER,PARAMETER :: trans='N'
-      REAL(dp), INTENT(IN) :: mat(:,:)
-!      REAL(KIND=KIND(1.d0)), DIMENSION(SIZE(mat(:,1)),SIZE(mat(1,:))) ::&
-      REAL(dp), DIMENSION(SIZE(mat,1),SIZE(mat,2)) :: matinv, matdum
-      INTEGER, DIMENSION(SIZE(mat,1)) :: IPIV
-      INTEGER :: nsize,msize,i,INFO
-
-      msize=SIZE(mat,1)
-      nsize=SIZE(mat,2)
-      matdum=mat
-      matinv=0.0_dp
-      DO i=1,msize
-         matinv(i,i)=1.0_dp
-      END DO
-      INFO=-1
-      CALL dGETRF(msize,nsize,matdum,nsize,IPIV,INFO)
-!    IF (INFO /= 0) STOP 'Error with d_inv 1'
-      IF (INFO /= 0) THEN
-        WRITE(6,*) 'Warning from d_inv 1', INFO
-        call stop_all("d_inv","Warning from d_inv 1")
-      END IF
-      INFO=-1
-      CALL dGETRS(trans,msize,nsize,matdum,nsize,IPIV,matinv,msize,INFO)
-      IF (INFO /= 0) call stop_all("d_inv",'Error with d_inv 2')
+        msize=size(mat,1)
+        nsize=size(mat,2)
+        matdum=mat
+        matinv=0.0_dp
+        do i=1,msize
+            matinv(i,i)=1.0_dp
+        enddo  
+        info=-1
+        call dGETRF(msize,nsize,matdum,nsize,ipiv,info)
+!        IF (INFO /= 0) STOP 'Error with d_inv 1'
+        if(info /= 0) then
+            write(6,*) 'Warning from d_inv 1', info
+            call stop_all("d_inv","Warning from d_inv 1")
+        endif 
+        info=-1
+        call dGETRS('n',msize,nsize,matdum,nsize,IPIV,matinv,msize,info)
+        if(info.ne.0) call stop_all("d_inv",'Error with d_inv 2')
 
     END SUBROUTINE d_inv
 
@@ -525,7 +586,7 @@ module RPA_Mod
 
     subroutine Check_XY_orthogonality(X,Y)
         implicit none
-        real(dp), intent(in) :: X(ov_space,ov_space*2),Y(ov_space,ov_space*2)
+        real(dp), intent(in) :: X(ov_space,ov_space),Y(ov_space,ov_space)
         integer :: i,i_p,m,m_p,v,mi_ind,mp_ip_ind
         real(dp) :: temp
         character(len=*), parameter :: t_r="Check_XY_orthogonality"
@@ -537,7 +598,7 @@ module RPA_Mod
                         temp=0.0_dp
                         mi_ind = ov_space_ind(m,i)
                         mp_ip_ind = ov_space_ind(m_p,i_p)
-                        do v=1,ov_space*2
+                        do v=1,ov_space
                             temp=temp+(X(mi_ind,v)*X(mp_ip_ind,v)-Y(mi_ind,v)*Y(mp_ip_ind,v))
                         enddo
                         if((i.eq.i_p).and.(m.eq.m_p)) then
@@ -569,17 +630,22 @@ module RPA_Mod
 
     end function ov_space_ind
 
-    subroutine WriteMatrix(mat,matname)
+    subroutine WriteMatrix(mat,matname,tOneLine)
         implicit none
         real(dp), intent(in) :: mat(:,:)
         character(len=*), intent(in) :: matname
         integer :: i,j
+        logical :: tOneLine
 
         write(6,*) "Writing out matrix: ",trim(matname)
         write(6,"(A,I7,A,I7)") "Size: ",size(mat,1)," by ",size(mat,2)
         do i=1,size(mat,1)
             do j=1,size(mat,2)
-                write(6,"(G25.10)",advance='no') mat(i,j)
+                if(tOneLine) then
+                    write(6,"(G25.10)",advance='no') mat(i,j)
+                else
+                    write(6,"(2I6,G25.10)") i,j,mat(i,j)
+                endif
             enddo
             write(6,*)
         enddo
