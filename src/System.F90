@@ -1478,26 +1478,51 @@ MODULE System
 
           !calculate tau if not given
           if (TAU .lt. 0.0d0) then
+
               if(dimen == 3) then ! 3D
                   TAU = (k_lattice_constant**2* OMEGA) / (4.0d0*PI) !Hij_min**-1
+                  if (tTruncInitiator) TAU = TAU*InitiatorWalkNo
+                  if (tHPHF) TAU = TAU /sqrt(2.0d0)
+                  TAU = 0.9d0*TAU*4.0d0/(NEL*(NEL-1))/(NBASIS-NEL)
+                  if (TAU .gt. k_lattice_constant**(-2)/OrbEcutoff) then 
+                      TAU= 1.0d0/(k_lattice_constant**(2)*OrbEcutoff)  !using Hii 
+                      write(6,*) '***************** Tau set by using Hii *******************************'
+                      !write(6,*) 1.0d0/((2.0d0*PI/Omega**third)**2*orbEcutoff)
+                  else
+                      write(6,*) 'Tau set by using Hji'
+                  end if
+
               else if (dimen ==2) then !2D
                   TAU = (k_lattice_constant * OMEGA)/(2.0d0*PI)  !Hij_min**-1
+                  TAU = OMEGA/ (-2.0d0*log(1.0d0/(2.0d0*sqrt(orbEcutoff)))) 
+                  if (tTruncInitiator) TAU = TAU*InitiatorWalkNo
+                  if (tHPHF) TAU = TAU /sqrt(2.0d0)
+                  TAU = 0.9d0*TAU*4.0d0/(NEL*(NEL-1))/(NBASIS-NEL)
+                  if (TAU .gt. k_lattice_constant**(-2)/OrbEcutoff) then 
+                      !!!!!!!! NOT WORKING YET!!!!!!!
+                      TAU= 1.0d0/(k_lattice_constant**(2)*OrbEcutoff)  !using Hii 
+                      write(6,*) '***************** Tau set by using Hii *******************************'
+                  else
+                      write(6,*) 'Tau set by using Hji'
+                  end if
+
               else if (dimen ==1) then !1D
                   TAU = OMEGA/ (-2.0d0*log(1.0d0/(2.0d0*sqrt(orbEcutoff)))) 
-              endif
-              TAU = 0.9d0*TAU*4.0d0/(NEL*(NEL-1))/(NBASIS-NEL)
-              if (tTruncInitiator) TAU = TAU*InitiatorWalkNo
-              if (tHPHF) TAU = TAU /sqrt(2.0d0)
-              if (TAU .gt. k_lattice_constant**(-2)/OrbEcutoff) then 
-                 TAU= 1.0d0/(k_lattice_constant**(2)*OrbEcutoff)  !using Hii 
-                  write(6,*) '***************** Tau set by using Hii *******************************'
-                  write(6,*) 1.0d0/((2.0d0*PI/Omega**third)**2*orbEcutoff)
-              else
-                  write(6,*) 'Tau set by using Hji'
-              end if
-              write(6, *) 'Tau set to: ', TAU
-          end if
+                  if (tTruncInitiator) TAU = TAU*InitiatorWalkNo
+                  if (tHPHF) TAU = TAU /sqrt(2.0d0)
+                  TAU = 0.9d0*TAU*4.0d0/(NEL*(NEL-1))/(NBASIS-NEL)
+                  if (TAU .gt. 0.9d0* 1.0d0/(0.5d0*(k_lattice_constant)**2*NEL*OrbEcutoff))  then 
+                      TAU=0.9d0* 1.0d0/(0.5d0*(k_lattice_constant)**2*NEL*OrbEcutoff)   !using Hii 
+                      write(6,*) '***************** Tau set by using Hii *******************************'
+                  else
+                      write(6,*) 'Tau set by using Hji'
+                  end if
 
+              endif !dimension
+              write(6, *)   0.9d0* 1.0d0/(0.5d0*(k_lattice_constant)**2*NEL*OrbEcutoff)               
+              write(6, *) 'Tau set to: ', TAU
+          end if  
+              
       return 
       endif  !UEG2
 ! ======================================================
