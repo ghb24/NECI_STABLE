@@ -925,8 +925,6 @@ MODULE System
       integer, allocatable :: brr_tmp(:)
 !     UEG2
       integer :: AllocateStatus
-      integer :: ii, jj, kk, EE
-      logical :: under_cutoff
       real(dp), parameter :: EulersConst = 0.5772156649015328606065120900824024d0
 
 !      write (6,*)
@@ -1132,59 +1130,8 @@ MODULE System
 
     ! ======================================================
       if (tUEG2) then   
-
-!         check dimension
-          if(dimen==3) then ! 3D
-              OMEGA=4.0d0/3.0d0*PI*FUEGRS**3*NEL
-              RS=(3.D0*OMEGA/(4.D0*PI*NEL))**THIRD  
-              FKF=(9*PI/4)**THIRD/RS
-          ! define  lattice vectors and lattice constant in reciprocal space
-              if (recip_lattice_type == "sc") then
-                  k_lattice_constant = 2.0d0*PI/OMEGA**THIRD
-                  Unscaled_LatConst_square=1.0d0
-                  lattice_vectors(1,1:3) = (/1, 0, 0 /)
-                  lattice_vectors(2,1:3) = (/0, 1, 0 /)
-                  lattice_vectors(3,1:3) = (/0, 0, 1 /)
-              else if (recip_lattice_type == "fcc") then
-                  k_lattice_constant = 2.0d0*PI/(2.0d0*OMEGA)**THIRD
-                  Unscaled_LatConst_square=1.0d0/(2.0d0**(2.0d0/3.0d0))
-                  lattice_vectors(1,1:3) = (/0.0d0, 1.0d0, 1.0d0 /)
-                  lattice_vectors(2,1:3) = (/1.0d0, 0.0d0, 1.0d0 /)
-                  lattice_vectors(3,1:3) = (/1.0d0, 1.0d0, 0.0d0 /)    
-              else if (recip_lattice_type == "bcc") then
-                  k_lattice_constant =2.0d0*PI/(4.0d0*OMEGA)**THIRD
-                  Unscaled_LatConst_square=1.0d0/(4.0d0**(2.0d0/3.0d0))
-                  lattice_vectors(1,1:3) = (/-1.0d0, 1.0d0, 1.0d0 /)
-                  lattice_vectors(2,1:3) = (/1.0d0, -1.0d0, 1.0d0 /)
-                  lattice_vectors(3,1:3) = (/1.0d0, 1.0d0, -1.0d0 /) 
-              else
-                  write(6,'(A)')  'lattice type not valid'
-              end if             
-          else if (dimen==2) then !2D
-              write(6,'(A)') ' NMAXZ=0 : 2D calculation'
-              OMEGA=PI*FUEGRS**2*NEL
-              RS=(OMEGA/(4.D0*PI*NEL))**(1.0d0/2.0d0) 
-              FKF=sqrt(2.0d0)/RS
-              ! define  lattice vectors and lattice constant in reciprocal space
-              k_lattice_constant = 2.0d0*PI/OMEGA**(1.0d0/2.0d0)
-              Unscaled_LatConst_square=1.0d0
-              lattice_vectors(1,1:3) = (/1, 0, 0 /)
-              lattice_vectors(2,1:3) = (/0, 1, 0 /)
-              lattice_vectors(3,1:3) = (/0, 0, 0 /)  
-          else if (dimen==1) then !1D
-              write(6,'(A)') ' NMAXZ=0,  NMAXY=0 : 1D calculation'
-              OMEGA=2.0d0*FUEGRS*NEL
-              RS=OMEGA/(2.D0*NEL) 
-              FKF=(PI/2.0d0)/RS  !for spin polarised simulation
-              ! define  lattice vectors and lattice constant in reciprocal space
-              Unscaled_LatConst_square =1.0d0
-              k_lattice_constant = 2.0d0*PI/OMEGA
-              lattice_vectors(1,1:3) = (/1, 0, 0 /)
-              lattice_vectors(2,1:3) = (/0, 0, 0 /)
-              lattice_vectors(3,1:3) = (/0, 0, 0 /)  
-          else 
-             write(6,'(A)') 'Problem with dimension! ' 
-          endif
+          !determines the recip lattice, the real volume, R_s and the Fermi vector
+          call LatticeInit(RS, FKF)
 
           ! engergy cutoff not given -> set to 2* Fermi vector
           if(.not. torbEcutoff) then
@@ -1193,36 +1140,8 @@ MODULE System
           end if
           ! if cell size not given
           if(NMAXX == 0 .and.  NMAXY == 0 .and. NMAXZ == 0) then
-              if (recip_lattice_type == "sc") then
-                  NMAXX=int(sqrt(orbEcutoff))+1
-                  if(dimen .gt. 1) NMAXY=int(sqrt(orbEcutoff))+1
-                  if(dimen .gt. 2) NMAXZ=int(sqrt(orbEcutoff))+1
-              else if (recip_lattice_type == "fcc" .or. recip_lattice_type == "bcc") then
-                  ! calculate needed cell size
-                  ii = 0  ! ii is always positiv. jj varies from -ii to ii, kk from -|jj| to |jj|
-                  under_cutoff = .true.
-                  do while (ii .le. int(orbEcutoff) .and. under_cutoff) !until  no E < cutoff was found
-                      under_cutoff = .false.
-                      jj =-ii   
-                      do while (abs(jj) .le. abs(ii) .and. .not. under_cutoff) !until E < cutoff is found or jj =ii 
-                          kk = -abs(jj)
-                          do while (abs(kk) .le. abs(jj) .and. .not. under_cutoff)!until E < cutoff is found or kk=jj
-                              !calculate unscaled energy for ii, jj, kk
-                              EE =(lattice_vectors(1,1)*ii+lattice_vectors(2,1)*jj+lattice_vectors(3,1)*kk)**2
-                              EE =EE +(lattice_vectors(1,2)*ii+lattice_vectors(2,2)*jj+lattice_vectors(3,2)*kk)**2
-                              EE =EE +(lattice_vectors(1,3)*ii+lattice_vectors(2,3)*jj+lattice_vectors(3,3)*kk)**2  
-                              if ( (EE*Unscaled_LatConst_square) .le. orbEcutoff) under_cutoff = .true.
-                              kk=kk+1
-                          end do
-                           jj = jj+1
-                      end do
-                      ii = ii+1
-                  end do 
-                  NMAXX=ii-1
-                  if(dimen .gt. 1) NMAXY=ii-1
-                  if(dimen .gt. 2) NMAXZ=ii-1
-              end if ! lattice type
-          end if ! cell defined
+              call CalcCell
+          end if 
 
           TTILT=.FALSE.
           ALAT=0.0d0   !shouldn't be used in the UEG2 part...
@@ -1478,49 +1397,7 @@ MODULE System
 
           !calculate tau if not given
           if (TAU .lt. 0.0d0) then
-
-              if(dimen == 3) then ! 3D
-                  TAU = (k_lattice_constant**2* OMEGA) / (4.0d0*PI) !Hij_min**-1
-                  if (tTruncInitiator) TAU = TAU*InitiatorWalkNo
-                  if (tHPHF) TAU = TAU /sqrt(2.0d0)
-                  TAU = 0.9d0*TAU*4.0d0/(NEL*(NEL-1))/(NBASIS-NEL)
-                  if (TAU .gt. k_lattice_constant**(-2)/OrbEcutoff) then 
-                      TAU= 1.0d0/(k_lattice_constant**(2)*OrbEcutoff)  !using Hii 
-                      write(6,*) '***************** Tau set by using Hii *******************************'
-                      !write(6,*) 1.0d0/((2.0d0*PI/Omega**third)**2*orbEcutoff)
-                  else
-                      write(6,*) 'Tau set by using Hji'
-                  end if
-
-              else if (dimen ==2) then !2D
-                  TAU = (k_lattice_constant * OMEGA)/(2.0d0*PI)  !Hij_min**-1
-                  TAU = OMEGA/ (-2.0d0*log(1.0d0/(2.0d0*sqrt(orbEcutoff)))) 
-                  if (tTruncInitiator) TAU = TAU*InitiatorWalkNo
-                  if (tHPHF) TAU = TAU /sqrt(2.0d0)
-                  TAU = 0.9d0*TAU*4.0d0/(NEL*(NEL-1))/(NBASIS-NEL)
-                  if (TAU .gt. k_lattice_constant**(-2)/OrbEcutoff) then 
-                      !!!!!!!! NOT WORKING YET!!!!!!!
-                      TAU= 1.0d0/(k_lattice_constant**(2)*OrbEcutoff)  !using Hii 
-                      write(6,*) '***************** Tau set by using Hii *******************************'
-                  else
-                      write(6,*) 'Tau set by using Hji'
-                  end if
-
-              else if (dimen ==1) then !1D
-                  TAU = OMEGA/ (-2.0d0*log(1.0d0/(2.0d0*sqrt(orbEcutoff)))) 
-                  if (tTruncInitiator) TAU = TAU*InitiatorWalkNo
-                  if (tHPHF) TAU = TAU /sqrt(2.0d0)
-                  TAU = 0.9d0*TAU*4.0d0/(NEL*(NEL-1))/(NBASIS-NEL)
-                  if (TAU .gt. 0.9d0* 1.0d0/(0.5d0*(k_lattice_constant)**2*NEL*OrbEcutoff))  then 
-                      TAU=0.9d0* 1.0d0/(0.5d0*(k_lattice_constant)**2*NEL*OrbEcutoff)   !using Hii 
-                      write(6,*) '***************** Tau set by using Hii *******************************'
-                  else
-                      write(6,*) 'Tau set by using Hji'
-                  end if
-
-              endif !dimension
-              write(6, *)   0.9d0* 1.0d0/(0.5d0*(k_lattice_constant)**2*NEL*OrbEcutoff)               
-              write(6, *) 'Tau set to: ', TAU
+              call  CalcTau
           end if  
               
       return 
@@ -2152,3 +2029,168 @@ SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,Energy,dUnsc
        Energy=E
     ENDIF
 END SUBROUTINE GetUEGKE
+
+!================================================================
+!         UEG2 Subroutines
+!================================================================
+SUBROUTINE LatticeInit(RS, FKF)
+ !  initiates  the reciprocal lattice, real volume and the Fermi vector
+
+    use SystemData
+    use Constants, only: PI, THIRD
+    implicit none
+
+    real(dp), intent(out) :: RS, FKF
+    
+    !   check dimension
+    if(dimen==3) then ! 3D
+        OMEGA=4.0d0/3.0d0*PI*FUEGRS**3*NEL
+        RS=(3.D0*OMEGA/(4.D0*PI*NEL))**THIRD  
+        FKF=(9*PI/4)**THIRD/RS
+    ! define  lattice vectors and lattice constant in reciprocal space
+        if (recip_lattice_type == "sc") then
+            k_lattice_constant = 2.0d0*PI/OMEGA**THIRD
+            Unscaled_LatConst_square=1.0d0
+            lattice_vectors(1,1:3) = (/1, 0, 0 /)
+            lattice_vectors(2,1:3) = (/0, 1, 0 /)
+            lattice_vectors(3,1:3) = (/0, 0, 1 /)
+        else if (recip_lattice_type == "fcc") then
+            k_lattice_constant = 2.0d0*PI/(2.0d0*OMEGA)**THIRD
+            Unscaled_LatConst_square=1.0d0/(2.0d0**(2.0d0/3.0d0))
+            lattice_vectors(1,1:3) = (/0.0d0, 1.0d0, 1.0d0 /)
+            lattice_vectors(2,1:3) = (/1.0d0, 0.0d0, 1.0d0 /)
+            lattice_vectors(3,1:3) = (/1.0d0, 1.0d0, 0.0d0 /)    
+        else if (recip_lattice_type == "bcc") then
+            k_lattice_constant =2.0d0*PI/(4.0d0*OMEGA)**THIRD
+            Unscaled_LatConst_square=1.0d0/(4.0d0**(2.0d0/3.0d0))
+            lattice_vectors(1,1:3) = (/-1.0d0, 1.0d0, 1.0d0 /)
+            lattice_vectors(2,1:3) = (/1.0d0, -1.0d0, 1.0d0 /)
+            lattice_vectors(3,1:3) = (/1.0d0, 1.0d0, -1.0d0 /) 
+        else
+            write(6,'(A)')  'lattice type not valid'
+        end if             
+    else if (dimen==2) then !2D
+        write(6,'(A)') ' NMAXZ=0 : 2D calculation'
+        OMEGA=PI*FUEGRS**2*NEL
+        RS=(OMEGA/(4.D0*PI*NEL))**(1.0d0/2.0d0) 
+        FKF=sqrt(2.0d0)/RS
+        ! define  lattice vectors and lattice constant in reciprocal space
+        k_lattice_constant = 2.0d0*PI/OMEGA**(1.0d0/2.0d0)
+        Unscaled_LatConst_square=1.0d0
+        lattice_vectors(1,1:3) = (/1, 0, 0 /)
+        lattice_vectors(2,1:3) = (/0, 1, 0 /)
+        lattice_vectors(3,1:3) = (/0, 0, 0 /)  
+    else if (dimen==1) then !1D
+        write(6,'(A)') ' NMAXZ=0,  NMAXY=0 : 1D calculation'
+        OMEGA=2.0d0*FUEGRS*NEL
+        RS=OMEGA/(2.D0*NEL) 
+        FKF=(PI/2.0d0)/RS  !for spin polarised simulation
+        ! define  lattice vectors and lattice constant in reciprocal space
+        Unscaled_LatConst_square =1.0d0
+        k_lattice_constant = 2.0d0*PI/OMEGA
+        lattice_vectors(1,1:3) = (/1, 0, 0 /)
+        lattice_vectors(2,1:3) = (/0, 0, 0 /)
+        lattice_vectors(3,1:3) = (/0, 0, 0 /)  
+    else 
+        write(6,'(A)') 'Problem with dimension! ' 
+    endif
+    return
+
+END SUBROUTINE LatticeInit
+
+
+
+SUBROUTINE CalcCell
+    !Detemines the cell size for a given cutoff and lattice type
+
+    use SystemData
+    implicit none
+
+    integer :: ii, jj, kk, EE
+    logical :: under_cutoff
+
+    if (recip_lattice_type == "sc") then
+        NMAXX=int(sqrt(orbEcutoff))+1
+        if(dimen .gt. 1) NMAXY=int(sqrt(orbEcutoff))+1
+        if(dimen .gt. 2) NMAXZ=int(sqrt(orbEcutoff))+1
+    else if (recip_lattice_type == "fcc" .or. recip_lattice_type == "bcc") then
+        ! calculate needed cell size
+        ii = 0  ! ii is always positiv. jj varies from -ii to ii, kk from -|jj| to |jj|
+        under_cutoff = .true.
+        do while (ii .le. int(orbEcutoff) .and. under_cutoff) !until  no E < cutoff was found
+            under_cutoff = .false.
+            jj =-ii   
+            do while (abs(jj) .le. abs(ii) .and. .not. under_cutoff) !until E < cutoff is found or jj =ii 
+                kk = -abs(jj)
+                do while (abs(kk) .le. abs(jj) .and. .not. under_cutoff)!until E < cutoff is found or kk=jj
+                    !calculate unscaled energy for ii, jj, kk
+                    EE =(lattice_vectors(1,1)*ii+lattice_vectors(2,1)*jj+lattice_vectors(3,1)*kk)**2
+                    EE =EE +(lattice_vectors(1,2)*ii+lattice_vectors(2,2)*jj+lattice_vectors(3,2)*kk)**2
+                    EE =EE +(lattice_vectors(1,3)*ii+lattice_vectors(2,3)*jj+lattice_vectors(3,3)*kk)**2  
+                    if ( (EE*Unscaled_LatConst_square) .le. orbEcutoff) under_cutoff = .true.
+                    kk=kk+1
+                end do
+                  jj = jj+1
+            end do
+            ii = ii+1
+        end do 
+        NMAXX=ii-1
+        if(dimen .gt. 1) NMAXY=ii-1
+        if(dimen .gt. 2) NMAXZ=ii-1
+    end if ! lattice type
+    return
+
+END SUBROUTINE CalcCell
+
+
+SUBROUTINE CalcTau
+    !Detemines tau for a given lattice type
+    use SystemData
+    use CalcData, only: TAU, tTruncInitiator, InitiatorWalkNo, tHPHF
+    use Constants, only: PI
+    implicit none
+
+    if(dimen == 3) then ! 3D
+        TAU = (k_lattice_constant**2* OMEGA) / (4.0d0*PI) !Hij_min**-1
+        if (tTruncInitiator) TAU = TAU*InitiatorWalkNo
+        if (tHPHF) TAU = TAU /sqrt(2.0d0)
+        TAU = 0.9d0*TAU*4.0d0/(NEL*(NEL-1))/(NBASIS-NEL)
+        if (TAU .gt. k_lattice_constant**(-2)/OrbEcutoff) then 
+            TAU= 1.0d0/(k_lattice_constant**(2)*OrbEcutoff)  !using Hii 
+            write(6,*) '***************** Tau set by using Hii *******************************'
+            !write(6,*) 1.0d0/((2.0d0*PI/Omega**third)**2*orbEcutoff)
+        else
+            write(6,*) 'Tau set by using Hji'
+        end if
+
+    else if (dimen ==2) then !2D
+        TAU = (k_lattice_constant * OMEGA)/(2.0d0*PI)  !Hij_min**-1
+        TAU = OMEGA/ (-2.0d0*log(1.0d0/(2.0d0*sqrt(orbEcutoff)))) 
+        if (tTruncInitiator) TAU = TAU*InitiatorWalkNo
+        if (tHPHF) TAU = TAU /sqrt(2.0d0)
+        TAU = 0.9d0*TAU*4.0d0/(NEL*(NEL-1))/(NBASIS-NEL)
+        if (TAU .gt. k_lattice_constant**(-2)/OrbEcutoff) then 
+            !!!!!!!! NOT WORKING YET!!!!!!!
+            TAU= 1.0d0/(k_lattice_constant**(2)*OrbEcutoff)  !using Hii 
+            write(6,*) '***************** Tau set by using Hii *******************************'
+        else
+            write(6,*) 'Tau set by using Hji'
+        end if
+
+    else if (dimen ==1) then !1D
+        TAU = OMEGA/ (-2.0d0*log(1.0d0/(2.0d0*sqrt(orbEcutoff)))) 
+        if (tTruncInitiator) TAU = TAU*InitiatorWalkNo
+        if (tHPHF) TAU = TAU /sqrt(2.0d0)
+        TAU = 0.9d0*TAU*4.0d0/(NEL*(NEL-1))/(NBASIS-NEL)
+        if (TAU .gt. 0.9d0* 1.0d0/(0.5d0*(k_lattice_constant)**2*NEL*OrbEcutoff))  then 
+            TAU=0.9d0* 1.0d0/(0.5d0*(k_lattice_constant)**2*NEL*OrbEcutoff)   !using Hii 
+            write(6,*) '***************** Tau set by using Hii *******************************'
+        else
+            write(6,*) 'Tau set by using Hji'
+        end if
+
+    endif !dimension           
+    write(6, *) 'Tau set to: ', TAU
+    return
+END SUBROUTINE CalcTau
+      
