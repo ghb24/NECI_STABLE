@@ -2034,7 +2034,7 @@ MODULE GenRandSymExcitNUMod
 ! For a given ij pair in the UEG or Hubbard model, this generates ab as a double excitation efficiently.
 ! This takes into account the momentum conservation rule, i.e. that kb=ki+ki-ka(+G).
     SUBROUTINE CreateDoubExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn)
-        Use SystemData , only : NMAXX,NMAXY,NMAXZ,tOrbECutoff,OrbECutoff
+        Use SystemData , only : NMAXX,NMAXY,NMAXZ,tOrbECutoff,OrbECutoff, kvec, TUEG2
         use sym_mod, only: mompbcsym
 
         INTEGER :: i,nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,iSpn,kb_ms
@@ -2067,11 +2067,89 @@ MODULE GenRandSymExcitNUMod
             CALL Stop_All("CreateDoubExcitLattice","Incorrect basis function generated") 
         ENDIF
 
+
+        !=============================================
+        if (tUEG2) then
+ 
+            ! kb is now uniquely defined
+            ki=kvec(nI(Elec1Ind),1:3)
+            kj=kvec(nI(Elec2Ind),1:3)
+            ka=kvec(Hole1BasisNum,1:3)
+            kb=ki+kj-ka
+
+            ! Find the spin of b
+            IF(iSpn.eq.2)THEN ! alpha/beta required, therefore b has to be opposite spin to a
+                kb_ms=1-((G1(Hole1BasisNum)%Ms+1)/2)*2
+            ELSE ! b is the same spin as a
+                kb_ms=G1(Hole1BasisNum)%Ms
+            ENDIF
+
+            ! Is kb allowed by the size of the space?
+            tAllowedExcit=.true.
+            TestEnergyB=kb(1)**2+kb(2)**2+kb(3)**2
+            IF(tOrbECutoff.and.(TestEnergyB.gt.OrbECutoff)) tAllowedExcit=.false.
+            IF(.not.tAllowedExcit) THEN
+                nJ(1)=0
+                RETURN
+            ENDIF
+            
+            iSpinIndex=(kb_ms+1)/2+1
+            Hole2BasisNum=kPointToBasisFn(kb(1),kb(2),kb(3),iSpinIndex)
+            
+            IF(Hole2BasisNum==-1.or.Hole1BasisNum.eq.Hole2BasisNum) THEN
+                nJ(1)=0 
+                RETURN
+            ENDIF
+
+            ! Is b occupied?
+            IF(BTEST(iLutnI((Hole2BasisNum-1)/bits_n_int),MOD(Hole2BasisNum-1,bits_n_int))) THEN
+            !Orbital is in nI. Reject.
+                tAllowedExcit=.false.
+            ENDIF
+            
+            IF(.not.tAllowedExcit) THEN
+                nJ(1)=0
+                RETURN
+            ENDIF
+
+            ! Check that the correct kb has been found -- can be commented out later
+            DO i=1,3
+                IF ((kvec(nI(Elec2Ind), i)+kvec(nI(Elec1Ind), i)-kvec(Hole1BasisNum, i)-kvec(Hole2BasisNum, i)) .ne. 0) THEN
+                    WRITE(6,*) "Tried to excite " 
+                    WRITE(6,*) "ki ", ki 
+                    WRITE(6,*) "kj ", kj
+                    WRITE(6,*) "ka ", ka
+                    WRITE(6,*) "kb should be ", kb
+                    WRITE(6,*) "but found as ", G1(Hole2BasisNum)%k
+                    CALL Stop_All("CreateDoubExcitLattice", "Wrong b found")
+                ENDIF
+            ENDDO
+
+            ! Find the new determinant
+            CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,Hole1BasisNum,Hole2BasisNum,ExcitMat,tParity)     
+
+            !Calculate generation probabilities
+            IF (iSpn.eq.2) THEN
+                pAIJ=1.0_dp/(nBasis-Nel)
+            ELSEIF (iSpn.eq.1) THEN
+                pAIJ=1.0_dp/(nBasis/2-nOccBeta)
+            ELSE
+                !iSpn = 3
+                pAIJ=1.0_dp/(nBasis/2-nOccAlpha)
+            ENDIF
+            ! Note, p(b|ij)=p(a|ij) for this system
+
+            pGen=2.0_dp/(NEl*(NEl-1))*2.0_dp*pAIJ
+
+            return
+        end if
+        !=============================================
+
         ! kb is now uniquely defined
-        ki=G1(nI(Elec1Ind))%k
-        kj=G1(nI(Elec2Ind))%k
-        ka=G1(Hole1BasisNum)%k
-        kb=ki+kj-ka
+            ki=G1(nI(Elec1Ind))%k
+            kj=G1(nI(Elec2Ind))%k
+            ka=G1(Hole1BasisNum)%k
+            kb=ki+kj-ka
 
         ! Find the spin of b
         IF(iSpn.eq.2)THEN ! alpha/beta required, therefore b has to be opposite spin to a
@@ -2886,11 +2964,13 @@ SUBROUTINE SpinOrbSymSetup()
     use SymData, only: SymLabelList,SymLabelCounts,SymConjTab,SymLabels
     use SystemData , only : NMAXZ,tFixLz,iMaxLz,nBasis,tUEG,tKPntSym,G1,tHub,nBasisMax,NEl
     use SystemData , only : Symmetry,tHPHF,tSpn,tISKFuncs,Arr,tNoSymGenRandExcits, Elecpairs
-    use SystemData , only : MaxABPairs
+    use SystemData , only : MaxABPairs, tUEG2, kvec
     use Determinants, only : FDet
     use sym_mod, only: mompbcsym,SymProd
     use constants, only: dp
+
     IMPLICIT NONE
+
     INTEGER :: i,j,k,SymInd,Lab
     INTEGER :: Spin,ierr,OrbSym,InvSym
     real(dp) :: OrbEnergy
@@ -2899,7 +2979,7 @@ SUBROUTINE SpinOrbSymSetup()
     INTEGER :: kmaxX,kmaxY,kminX,kminY,kminZ,kmaxz,iSpinIndex,ktrial(3)
     type(Symmetry) :: SymProduct, SymI, SymJ
     character(len=*), parameter :: this_routine='SpinOrbSymSetup'
-    
+
     ElecPairs=(NEl*(NEl-1))/2
     MaxABPairs=(nBasis*(nBasis-1)/2)
 !    WRITE(6,*) "SETTING UP SYMMETRY!!",nBasis,elecpairs
@@ -3185,6 +3265,49 @@ SUBROUTINE SpinOrbSymSetup()
         enddo
     ENDIF
     
+
+    !======================================================
+    if (tUEG2) then
+
+        kmaxX=0
+        kminX=0
+        kmaxY=0
+        kminY=0
+        kminZ=0
+        kmaxZ=0
+
+        do i=1,nBasis 
+            IF(kvec(i, 1) .gt. kmaxX) kmaxX=kvec(i, 1)
+            IF(kvec(i, 1) .lt. kminX) kminX=kvec(i, 1)
+            IF(kvec(i, 2) .gt. kmaxY) kmaxY=kvec(i, 2)
+            IF(kvec(i, 2) .lt. kminY) kminY=kvec(i, 2)
+            IF(kvec(i, 3) .gt. kmaxZ) kmaxZ=kvec(i, 3)
+            IF(kvec(i, 3) .lt. kminZ) kminZ=kvec(i, 3)
+        enddo
+
+        ALLOCATE(kPointToBasisFn(kminX:kmaxX,kminY:kmaxY,kminZ:kmaxZ,2))
+        kPointToBasisFn=-1 !Init to invalid
+        do i=1,nBasis
+            iSpinIndex=(G1(i)%Ms+1)/2+1 ! iSpinIndex equals 1 for a beta spin (ms=-1), and 2 for an alpha spin (ms=1)
+            kPointToBasisFn(int(kvec(i, 1)), int(kvec(i, 2)), int(kvec(i, 3)), iSpinIndex)=i
+        enddo
+
+        kTotal(1)=0
+        kTotal(2)=0
+        kTotal(3)=0
+        do j=1,NEl
+            kTotal(1)=kTotal(1)+kvec(FDet(j), 1)
+            kTotal(2)=kTotal(2)+kvec(FDet(j), 2)
+            kTotal(3)=kTotal(3)+kvec(FDet(j), 3)
+        enddo
+        write(6,*) "Total momentum is", kTotal
+
+        return
+    end if
+    !======================================================
+
+
+
     ! This makes a 3D lookup table kPointToBasisFn(kx,ky,kz,ms_index) which gives the orbital number for a given kx, ky, kz and ms_index
     IF(tUEG)THEN
         kmaxX=0
@@ -3193,6 +3316,7 @@ SUBROUTINE SpinOrbSymSetup()
         kminY=0
         kminZ=0
         kmaxZ=0
+
         do i=1,nBasis 
             IF(G1(i)%k(1).gt.kmaxX) kmaxX=G1(i)%k(1)
             IF(G1(i)%k(1).lt.kminX) kminX=G1(i)%k(1)

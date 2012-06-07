@@ -346,7 +346,7 @@ contains
 
     function get_ueg_umat_el (idi, idj, idk, idl) result(hel)
 
-        use SystemData, only: tUEG2, kvec, k_lattice_constant, dimen
+        use SystemData, only: tUEG2, kvec, k_lattice_constant, dimen, Madelung
         integer, intent(in) :: idi, idj, idk, idl
         HElement_t :: hel
         integer :: i, j, k, l, a, b, c, iss, aneu
@@ -400,7 +400,7 @@ contains
                 endif  !Coulomb
 
             else  !no energy conservation
-                hel = 0
+                hel = 0.0d0
             endif
             return
         end if   !UEG2
