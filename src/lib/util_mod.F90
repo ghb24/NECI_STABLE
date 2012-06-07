@@ -12,13 +12,13 @@ module util_mod
             character(c_char), intent(in) :: str(*)
             integer(c_int) :: len
         end function
-        pure function erf (x) result(e)
+        pure function erf (x) result(e) bind(c)
             use iso_c_hack
             implicit none
             real(c_double), intent(in) :: x
             real(c_double) :: e
         end function
-        pure function erfc (x) result(ec)
+        pure function erfc (x) result(ec) bind(c)
             use iso_c_hack
             implicit none
             real(c_double), intent(in) :: x
