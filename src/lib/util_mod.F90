@@ -12,6 +12,18 @@ module util_mod
             character(c_char), intent(in) :: str(*)
             integer(c_int) :: len
         end function
+        pure function erf (x) result(e)
+            use iso_c_hack
+            implicit none
+            real(c_double), intent(in) :: x
+            real(c_double) :: e
+        end function
+        pure function erfc (x) result(ec)
+            use iso_c_hack
+            implicit none
+            real(c_double), intent(in) :: x
+            real(c_double) :: ec
+        end function
     end interface
 
     ! sds: It would be nice to use a proper private/public interface here,
