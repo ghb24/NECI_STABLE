@@ -60,7 +60,7 @@ MODULE AnnihilationMod
         INTEGER, INTENT(IN) :: MaxMainInd,MaxSpawnInd
         INTEGER, INTENT(INOUT) :: TotDets
         type(fcimc_iter_data), intent(inout) :: iter_data
-        INTEGER(KIND=n_int), INTENT(INOUT) , TARGET :: MainParts(0:NIfTot,MaxMainInd),SpawnParts(0:(NIfTot+NIfDBO+2),MaxSpawnInd)
+        INTEGER(KIND=n_int), INTENT(INOUT) , TARGET :: MainParts(0:NIfTot,MaxMainInd),SpawnParts(0:NIfTot,MaxSpawnInd)
 !        INTEGER, INTENT(INOUT) , TARGET :: MainSign(MaxMainInd)
         INTEGER, INTENT(INOUT) :: SpawnDets
         INTEGER :: ierr,i
@@ -84,9 +84,9 @@ MODULE AnnihilationMod
         call set_timer(Annihil_time,20)
         IF(.not.(ASSOCIATED(SpawnVecLocal))) THEN
 !This is required scratch space of the size of the spawned arrays
-            call shared_allocate_iluts("SpawnVecLocal",SpawnVecLocal,(/(NIfTot+NIfDBO+2),MaxSpawnInd/),iNodeIndex)
+            call shared_allocate_iluts("SpawnVecLocal",SpawnVecLocal,(/NIfTot,MaxSpawnInd/),iNodeIndex)
             ierr=0
-            CALL LogMemAlloc('SpawnVecLocal',MaxSpawnInd*(NIfTot+NIfDBO+2),size_n_int,this_routine,SpawnVec2Tag,ierr)
+            CALL LogMemAlloc('SpawnVecLocal',MaxSpawnInd*(NIfTot+1),size_n_int,this_routine,SpawnVec2Tag,ierr)
             call MPIBarrier(ierr)
 !            SpawnVecLocal(:,:)=0
 !            ALLOCATE(SpawnSignVec2(0:MaxSpawnInd),stat=ierr)
@@ -995,8 +995,6 @@ MODULE AnnihilationMod
                                     & //"determinant when histogramming")
                             ENDIF
                         ENDIF
-
-                        endif
 
                     enddo   !Finish running over components of signs
                 endif

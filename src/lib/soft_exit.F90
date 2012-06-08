@@ -275,7 +275,6 @@ contains
                                    "diagflyonerdm                ", &
                                    "nprojesum                    "/)
 
-
         logical :: exists, any_exist, eof, deleted, any_deleted, tSource
         logical :: opts_selected(last_item)
         logical, intent(out) :: tSingBiasChange, tSoftExitFound
