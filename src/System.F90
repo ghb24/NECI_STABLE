@@ -26,6 +26,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tMolproMimic=.false.
       tAntisym_MI=.false.
       tMomInv=.false.
       tNoSingExcits=.false.
@@ -841,6 +842,10 @@ MODULE System
             call readi(LzTot)
         case("KPOINTS")
             tKPntSym=.true.
+        case("MOLPROMIMIC")
+            !Mimic the run-time behaviour of molpros NECI implementation
+            tMolpro=.true.
+            tMolproMimic=.true.
         case("ENDSYS") 
             exit system
         case default
@@ -912,7 +917,7 @@ MODULE System
 
 !C ==-------------------------------------------------------------------==
 !C..Input parameters
-      WRITE(6,'(A)') '-------- SYSTEM ----------'
+      WRITE(6,'(A)') '======== SYSTEM =========='
       WRITE(6,'(A,I5)') '  NUMBER OF ELECTRONS : ' , NEL
       IF(TSPN) THEN
           WRITE(6,*) ' Restricting the spin state of the system, TSPN : ' , TSPN

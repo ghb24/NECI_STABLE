@@ -51,6 +51,7 @@ contains
 
         ! Just in case
         ilutJ(0) = -1
+        HElGen = 0.0_dp
 
         ! UEG and Hubbard interjection for now
         ! TODO: This should be made into its own fn-pointered case.
@@ -392,7 +393,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         endif
 
         ! Pick a pair
-        rint = 1 + (genrand_real2_dSFMT() * npairs)
+        rint = int(1.0_dp + (genrand_real2_dSFMT() * real(npairs,dp)),sizeof_int)
         
         ! Select which symmetry/spin category we want.
         !ind = binary_search_first_ge (pair_list, rint)

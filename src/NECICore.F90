@@ -13,24 +13,25 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local)
     !=    tVASP: True if doing a VASP-based calculation.
 
     use ReadInput_neci, only : ReadInputMain
-    use SystemData, only : tMolpro
+    use SystemData, only : tMolpro,tMolproMimic
 
     ! main-level modules.
     use Calc, only: CalcDoCalc
     use CalcData, only: tUseProcsAsNodes
-    use Parallel_neci, only: MPINodes
+    use Parallel_neci, only: MPINodes, iProcIndex
 
     ! Utility modules.
     use global_utilities
+    use util_mod, only: get_free_unit
 
     Implicit none
     integer,intent(in) :: iCacheFlag
     logical,intent(in) :: tCPMD,tVASP,tMolpro_local
     type(timer), save :: proc_timer
-    integer :: ios
+    integer :: ios,iunit
     character(*), parameter :: this_routine = 'NECICore'
     character(255) :: Filename
-    logical :: toverride_input
+    logical :: toverride_input,tFCIDUMP_exist
     
     tMolpro = tMolpro_local
 
@@ -62,7 +63,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local)
         ! CPMD and VASP calculations call the input parser *before* they call
         ! NECICore.  This is to allow the NECI input filename(s) to be specified
         ! easily from within the CPMD/VASP input files.
-        call ReadInputMain(Filename,ios)
+        call ReadInputMain(Filename,ios,toverride_input)
         If (ios.ne.0) stop 'Error in Read'
     endif
 
@@ -77,6 +78,19 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local)
     call NECICalcEnd(iCacheFlag)
 
     call halt_timer(proc_timer)
+    
+    if(tMolpro.and.(.not.toverride_input).and.(.not.tMolproMimic)) then
+        !Delete the FCIDUMP unless we are overriding the input, or mimicing molpro run-time behaviour
+        if(iProcIndex.eq.0) then
+            inquire(file='FCIDUMP',exist=tFCIDUMP_exist)
+            if(tFCIDUMP_exist) then
+                iunit = get_free_unit()
+                open(iunit,file='FCIDUMP',status='old',form='formatted')
+                close(iunit,status='delete')
+            endif
+        endif
+    endif
+
 
     call NECICodeEnd(tCPMD,tVASP)
 
@@ -128,7 +142,7 @@ subroutine NECICodeEnd(tCPMD,tVASP)
     ! Utility modules
     use MemoryManager, only: LeaveMemoryManager
     use timing_neci, only: end_timing,print_timing_report
-    use SystemData, only : tMolpro
+    use SystemData, only : tMolpro,tMolproMimic
 #ifdef PARALLEL
     use Parallel_neci, only: MPIEnd
 #endif
@@ -137,7 +151,7 @@ subroutine NECICodeEnd(tCPMD,tVASP)
     logical, intent(in) :: tCPMD,tVASP
 
 #ifdef PARALLEL
-    call MPIEnd(tMolpro.or.tCPMD.or.tVASP) ! CPMD and VASP have their own MPI initialisation and termination routines.
+    call MPIEnd((tMolpro.and.(.not.tMolproMimic)).or.tCPMD.or.tVASP) ! CPMD and VASP have their own MPI initialisation and termination routines.
 #endif
 
 !    CALL N_MEMORY_CHECK

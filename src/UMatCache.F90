@@ -1,6 +1,6 @@
 
 MODULE UMatCache
-    use constants, only: dp
+    use constants, only: dp,sizeof_int
     use SystemData , only : TSTARSTORE, tROHF,tStoreSpinOrbs
     use util_mod, only: swap
     use sort_mod
@@ -470,7 +470,7 @@ MODULE UMatCache
             ELSE
                IF(nMemInit.NE.0) THEN
                   WRITE(6,*) "Allocating ",nMemInit,"Mb for UMatCache+Labels."
-                  nSlotsInit=(nMemInit*1048576/8)/(nPairs*(nTypes*HElement_t_size+1.D0/irat))
+                  nSlotsInit=nint((nMemInit*1048576/8)/(nPairs*(nTypes*HElement_t_size+1.D0/irat)),sizeof_int)
                ENDIF
                NSLOTS=MIN(NPAIRS, NSLOTSINIT)
                tSmallUMat=.FALSE.
@@ -844,7 +844,7 @@ MODULE UMatCache
          ! Reverse of GetCacheIndex.
          IMPLICIT NONE
          INTEGER I,J,IND
-         J=SQRT(2.0*IND)
+         J=int(SQRT(2.0*IND))
          IF(J*(J+1)/2.LT.IND) J=J+1
          I=IND-J*(J-1)/2
       END SUBROUTINE GetCacheIndexStates

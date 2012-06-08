@@ -212,7 +212,7 @@ contains
                 call extract_sign (all_hist(:,i), sgn)
 
                 ! Output to file
-                write(fd, *) all_hist(0:NIfD, i), float(sgn)/nsteps
+                write(fd, *) all_hist(0:NIfD, i), dble(sgn)/nsteps
                 
                 ! Add csf contribs
                 do j = 1, ubound(csf_contrib, 2)
@@ -298,7 +298,7 @@ contains
             if (pos < 0) then
                 call writebitdet(6, ilut, .false.)
                 write(6,*) ilut
-                write(6,*) '----------------'
+                write(6,*) '================'
                 do i=1,ubound(hist_spin_dist, 2)
                     write(6,*) hist_spin_dist(:,i)
                 enddo
@@ -755,14 +755,14 @@ contains
 
             call MPIAlltoAll (send_count, 1, recv_count, 1, ierr)
 
-            send_off = (proc_pos_init - 1) * (NIfTot + 1)
+            send_off = int((proc_pos_init - 1) * (NIfTot + 1),MPIArg)
             recv_off(1) = 0
             do i = 2, nProcessors
-                recv_off(i) = recv_off(i - 1) + recv_count(i - 1)
+                recv_off(i) = recv_off(i - 1) + int(recv_count(i - 1),MPIArg)
             enddo
-            recv_off = recv_off * (NIfTot + 1)
-            send_data = send_count * (NIfTot + 1)
-            recv_data = recv_count * (NIfTot + 1)
+            recv_off = recv_off * int(NIfTot + 1,MPIArg)
+            send_data = int(send_count * (NIfTot + 1),MPIArg)
+            recv_data = int(recv_count * (NIfTot + 1),MPIArg)
 
             call MPIAlltoAllv (det_list, send_data, send_off, &
                                recv_dets, recv_data, recv_off, ierr)
@@ -805,9 +805,9 @@ contains
         integer, parameter :: max_per_proc = 1000
         integer(n_int) :: recv_dets(0:NIfTot,max_per_proc)
         integer :: proc_dets, start_pos, nsend, i, lms_tmp, p
-        integer :: bcast_tmp(2)
+        integer :: bcast_tmp(2), sgn_tmp(lenof_sign)
         type(timer), save :: s2_timer, s2_timer_init
-        integer(int64) :: ssq_sum
+        integer(int64) :: ssq_sum, psi_squared
         logical, intent(in) :: only_init
 
 
@@ -820,6 +820,7 @@ contains
         endif
 
         ssq_sum = 0
+        psi_squared = 0
         do p = 0, nProcessors-1
 
             ! How many dets are on processor p
@@ -844,6 +845,12 @@ contains
                                           flag_is_initiator(lenof_sign))) then
                                 nsend = nsend + 1
                                 recv_dets(:,nsend) = CurrentDets(:,i)
+
+                                ! If we are using initiators only, keep track
+                                ! of the overall magnitude of the init-only
+                                ! wavefunction.
+                                call extract_sign (CurrentDets(:,i), sgn_tmp)
+                                psi_squared = psi_squared + sum(sgn_tmp ** 2)
                             endif
                         enddo
                         start_pos = i
@@ -879,7 +886,8 @@ contains
                     if (.not. TestClosedShellDet(recv_dets(:,i))) then
                         ! If nopen == 2, and tHPHF, then this can be
                         ! optimised further
-                        ssq_sum = ssq_sum + ssquared_contrib (recv_dets(:,i))
+                        ssq_sum = ssq_sum + ssquared_contrib (recv_dets(:,i),&
+                                                              only_init)
                     endif
                 enddo
 
@@ -889,8 +897,13 @@ contains
 
 
         ! Sum all of the s squared terms
+        if (tTruncInitiator .and. only_init) then
+            call MPISum_inplace (psi_squared)
+        else
+            psi_squared = norm_psi_squared
+        end if
         call MPISum_inplace (ssq_sum)
-        ssq = real(ssq_sum,dp) / norm_psi_squared
+        ssq = real(ssq_sum,dp) / psi_squared
          
         ! TODO: n.b. This is a hack. LMS appears to contain -2Ms of the system
         !            I am somewhat astounded I haven't noticed this before...
@@ -905,7 +918,7 @@ contains
 
     end function
 
-    function ssquared_contrib (ilut) result(ssq)
+    function ssquared_contrib (ilut, only_init_) result(ssq)
 
         ! Calculate the contribution to s-squared from the determinant
         ! provided (from walkers on this processor).
@@ -915,11 +928,19 @@ contains
         !      <Psi(iProcIndex) | S-S+ | D_i>
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
+        logical, intent(in), optional :: only_init_
         integer(n_int) :: splus(0:NIfD), sminus(0:NIfD)
         integer(n_int) :: ilut_srch(0:NIfD), ilut_sym(0:NIfD)
         integer :: sgn(lenof_sign), sgn2(lenof_sign), flg, nI(nel)
         integer :: j, k, orb2, pos, sgn_hphf, orb_tmp
         integer(int64) :: ssq
+        logical :: only_init, inc
+
+        if (present(only_init_)) then
+            only_init = only_init_
+        else
+            only_init = .false.
+        end if
 
         ! Extract details of determinant
         call extract_bit_rep (ilut, nI, sgn, flg)
@@ -961,6 +982,23 @@ contains
                         pos = binary_search (CurrentDets(:,1:TotWalkers), &
                                              ilut_srch, NIfD+1)
                         if (pos > 0) then
+
+                            ! If we are looking for the spin of the initiator
+                            ! only wavefunction, we need to ensure that we
+                            ! are projecting onto an initiator...
+                            inc = .true.
+                            if (tTruncInitiator .and. only_init) then
+                                if (test_flag(CurrentDets(:,pos), &
+                                              flag_is_initiator(1)) .or. &
+                                    test_flag(CurrentDets(:,pos), &
+                                              flag_is_initiator(lenof_sign)))&
+                                                                    then
+                                    inc = .true.
+                                else
+                                    inc = .false.
+                                end if
+                            end if
+
                             call extract_sign (CurrentDets(:,pos), sgn2)
                             ssq = ssq + (sgn(1) * sgn2(1) * sgn_hphf) 
                         endif

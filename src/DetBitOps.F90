@@ -377,26 +377,27 @@ module DetBitOps
     pure logical function DetBitEQ(iLutI,iLutJ,nLast)
         integer, intent(in), optional :: nLast
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        logical :: res
         integer :: i, lnLast
 
         if(iLutI(0).ne.iLutJ(0)) then
-            DetBitEQ=.false.
+            res=.false.
             return
         else
             if (present(nLast)) then
                 lnLast = nLast
             else
-                lnLast = NIftot
+                lnLast = NIfDBO
             endif
 
             do i=1,lnLast
                 if(iLutI(i).ne.iLutJ(i)) then
-                    DetBitEQ=.false.
+                    res=.false.
                     return
                 endif
             enddo
         endif
-        DetBitEQ=.true.
+        res=.true.
     end function DetBitEQ
 
     pure function sign_lt (ilutI, ilutJ) result (bLt)
@@ -552,7 +553,7 @@ module DetBitOps
             if (present(nLast)) then
                 lnLast = nLast
             else
-                lnLast = NIftot
+                lnLast = NIfDBO
             endif
 
             do i=1,lnLast
@@ -593,7 +594,7 @@ module DetBitOps
             if (present(nLast)) then
                 lnLast = nLast
             else
-                lnLast = NIftot
+                lnLast = NIfDBO
             endif
             do i=1,lnLast
                 IF(iLutI(i).lt.iLutJ(i)) THEN
@@ -664,7 +665,7 @@ module DetBitOps
                 if (present(nLast)) then
                     lnLast = nLast
                 else
-                    lnLast = NIftot
+                    lnLast = NIfDBO
                 endif
                 do i=1,lnLast
                     IF(iLutI(i).lt.iLutJ(i)) THEN

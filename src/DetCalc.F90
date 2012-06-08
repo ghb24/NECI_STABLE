@@ -43,7 +43,7 @@ CONTAINS
         Use IntegralsData, only : NFROZEN
         use SystemData, only : tCSFOLD,lms, lms2, nBasis, nBasisMax, nEl, SymRestrict
         use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
-        use SystemData, only : tParity, tSpn,Symmetry,STot, NullBasisFn
+        use SystemData, only : tParity, tSpn,Symmetry,STot, NullBasisFn, tUHF,tMolpro
         use sym_mod
         use CCMCData,   only : tCCBuffer !This is messy, but I don't see anywhere else to put it. AJWT
         use Logging,    only : tLogDets
@@ -133,9 +133,16 @@ CONTAINS
             IF(TSPN) THEN
                WRITE(6,*) "Using spin restriction:",LMS
             ENDIF
-            CALL GNDTS_BLK(NEL,nBasis,BRR,NBASISMAX,NMRKS, .TRUE.,             &
-     &            NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,LMS2,TPARITY,        &
-     &           SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM)
+            if(tUHF.and.tMolpro) then
+                !When breaking spin symmetry in molpro, it is important to occupy alpha orbs preferentially
+                CALL GNDTS_BLK(NEL,nBasis,BRR,NBASISMAX,NMRKS, .TRUE.,             &
+     &                NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,-LMS2,TPARITY,        &
+     &               SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM)
+            else
+                CALL GNDTS_BLK(NEL,nBasis,BRR,NBASISMAX,NMRKS, .TRUE.,             &
+     &                NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,LMS2,TPARITY,        &
+     &               SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM)
+            endif
             WRITE(6,*) "NBLOCKS:",NBLOCKS
          ELSEIF(TCSFOLD) THEN
             WRITE(6,*) "Determining CSFs."
@@ -162,7 +169,12 @@ CONTAINS
             IF(TSPN) THEN
                WRITE(6,*) "Using spin restriction:",LMS
             ENDIF
-            CALL GNDTS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.TRUE.,G1,TSPN,LMS,TPARITY,SymRestrict,II,IFDET)
+            if(tUHF.and.tMolpro) then
+                !When breaking spin symmetry in molpro, it is important to occupy alpha orbs preferentially
+                CALL GNDTS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.TRUE.,G1,TSPN,-LMS,TPARITY,SymRestrict,II,IFDET)
+            else
+                CALL GNDTS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.TRUE.,G1,TSPN,LMS,TPARITY,SymRestrict,II,IFDET)
+            endif
             NBLOCKS=1
             NDET=II
          ENDIF
@@ -204,8 +216,14 @@ CONTAINS
             NBLOCKSTARTS(2)=II+1
             IFDET=1
          ELSEIF(TBLOCK) THEN 
-            CALL GNDTS_BLK(NEL,nBasis,BRR,NBASISMAX,NMRKS, .FALSE.,NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,LMS2,TPARITY, &
-     &           SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM)
+            if(tUHF.and.tMolpro) then
+                !When breaking spin symmetry in molpro, it is important to occupy alpha orbs preferentially
+                CALL GNDTS_BLK(NEL,nBasis,BRR,NBASISMAX,NMRKS, .FALSE.,NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,-LMS2,TPARITY, &
+     &               SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM)
+            else
+                CALL GNDTS_BLK(NEL,nBasis,BRR,NBASISMAX,NMRKS, .FALSE.,NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,LMS2,TPARITY, &
+     &               SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM)
+            endif
          ELSEIF(TCSFOLD) THEN
             NDET=0  !This will be reset by GNCSFS
             CALL GNCSFS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.FALSE.,G1,TSPN,LMS2,TPARITY, &
@@ -213,7 +231,12 @@ CONTAINS
                NBLOCKSTARTS(1)=1
                NBLOCKSTARTS(2)=II+1
          ELSE
-            CALL GNDTS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.FALSE.,G1,TSPN,LMS,TPARITY,SymRestrict,II,IFDET)
+            if(tUHF.and.tMolpro) then
+                !When breaking spin symmetry in molpro, it is important to occupy alpha orbs preferentially
+                CALL GNDTS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.FALSE.,G1,TSPN,-LMS,TPARITY,SymRestrict,II,IFDET)
+            else
+                CALL GNDTS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.FALSE.,G1,TSPN,LMS,TPARITY,SymRestrict,II,IFDET)
+            endif
                NBLOCKSTARTS(1)=1
                NBLOCKSTARTS(2)=II+1
          ENDIF
@@ -886,7 +909,7 @@ CONTAINS
           ENDIF
           IF(BTEST(ILOGGING,7)) CALL WRITE_PSI(BOX,BOA,COA,NDET,NEVAL,NBASISMAX,NEL,CK,W)
           IF(BTEST(ILOGGING,8)) CALL WRITE_PSI_COMP(BOX,BOA,COA,NDET,NEVAL,NBASISMAX,NEL,CK,W)
-          WRITE(6,*) '       ==--------------------------------------------------== '
+          WRITE(6,*) '       ====================================================== '
           WRITE(6,'(A5,5X,A15,1X,A18,1x,A20)') 'STATE','KINETIC ENERGY', 'COULOMB ENERGY', 'TOTAL ENERGY'
           iunit = get_free_unit()
           OPEN(iunit,FILE='ENERGIES',STATUS='UNKNOWN')
@@ -897,7 +920,7 @@ CONTAINS
              WRITE(iunit,"(F19.11)") W(IN)
           ENDDO
           CLOSE(iunit)
-          WRITE(6,*)   '       ==--------------------------------------------------== '
+          WRITE(6,*)   '       ====================================================== '
 !C., END energy calc
       ENDIF
 
@@ -1166,7 +1189,7 @@ END MODULE DetCalc
 !.. sum I_P*FLRI+FLSI will still retain the correct value.
       SUBROUTINE CALCRHOPII(I,NDET,NEVAL,CK,W,BETA,I_P,FLRI,FLSI,TWARN)
          use constants, only: dp
-         use util_mod, only: isnan
+         use util_mod, only: isnan_neci
          IMPLICIT NONE
          INTEGER NDET,NEVAL
          HElement_t CK(NDET,NEVAL)
@@ -1208,7 +1231,7 @@ END MODULE DetCalc
             RH=RH+R*EXP(-(W(IK)-W(1))*BETA)
          ENDDO
          FLSI=LOG(RH)-W(1)*BETA-I_P*FLRI
-         IF(ISNAN((RH+1)-RH)) THEN
+         IF(ISNAN_neci((RH+1)-RH)) THEN
             RH=0
             FLSI=0
          ENDIF

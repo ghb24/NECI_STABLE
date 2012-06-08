@@ -162,6 +162,12 @@ mpitype=MPI_INTEGER8
 #define val_out Ret
 #endif
 
+#ifdef CBINDMPI
+#define cbind_loc loc_neci
+#else
+#define cbind_loc 
+#endif
+
 
 
 
@@ -265,8 +271,7 @@ module Parallel_neci
             use iso_c_hack
             use constants
             c_ptr_t, intent(in), value :: sbuf, rbuf
-            integer(MPIArg), intent(in) :: scnts(*), sdispl(*)
-            integer(MPIArg), intent(in) :: rcnts(*), rdispl(*)
+            c_ptr_t, intent(in), value :: scnts, sdispl, rcnts, rdispl
             integer(c_int), intent(in), value :: stype, rtype, comm
             integer(c_int), intent(out) :: ierr
         end subroutine
@@ -278,8 +283,7 @@ module Parallel_neci
             c_ptr_t, intent(in), value :: sbuf, rbuf
             integer(c_int), intent(in), value :: scnt, stype, rtype
             integer(c_int), intent(in), value :: comm, rt
-            integer(MPIArg), intent(in) :: displs(*)
-            integer(MPIArg), intent(in) :: rcnts(*)
+            c_ptr_t, intent(in), value :: displs, rcnts
             integer(c_int), intent(out) :: ierr
         end subroutine
         subroutine MPI_Allgather (sbuf, scnt, stype, rbuf, rcnt, rtype, &
@@ -300,8 +304,7 @@ module Parallel_neci
             c_ptr_t, intent(in), value :: sbuf, rbuf
             integer(c_int), intent(in), value :: stype, rcnt, rtype
             integer(c_int), intent(in), value :: comm, rt
-            integer(MPIArg), intent(in) :: scnts(*)
-            integer(MPIArg), intent(in) :: displs(*)
+            c_ptr_t, intent(in), value :: scnts, displs
             integer(c_int), intent(out) :: ierr
         end subroutine
         subroutine MPI_Scatter (sbuf, scnt, stype, rbuf, rcnt, rtype, rt, &
@@ -319,7 +322,7 @@ module Parallel_neci
             use constants
             c_ptr_t, intent(in), value :: buf
             integer(c_int), intent(in), value :: cnt, dtype, src, tag, comm
-            integer(c_int), intent(inout) :: stat(*)
+            c_ptr_t, intent(in), value :: stat
             integer(c_int), intent(out) :: ierr
         end subroutine
         subroutine MPI_Send (buf, cnt, dtype, src, tag, comm, ierr) &
@@ -923,10 +926,10 @@ contains
         integer(MPIArg) :: comm, err
 
 #ifdef PARALLEL
-#ifdef CBINDMPI
 #ifdef __GFORTRAN__
         type(c_ptr) :: g_loc
 #endif
+#ifdef CBINDMPI
         c_ptr_t :: vptr, rptr
         vptr = loc_neci(v)
         rptr = loc_neci(ret)
@@ -934,9 +937,12 @@ contains
 
         call GetComm (Comm, Node)
 
-        call MPI_Alltoallv (val_in, SendSizes, SendOffsets, &
+        call MPI_Alltoallv (val_in, cbind_loc(SendSizes), &
+                cbind_loc(SendOffsets), &
                 %(mpitype)s, &
-                val_out, RecvSizes, RecvOffsets, &
+                val_out, &
+                cbind_loc(RecvSizes), &
+                cbind_loc(RecvOffsets), &
                 %(mpitype)s, &
                 comm, err)
         ierr = err
@@ -1135,7 +1141,7 @@ contains
         
         call MPI_GatherV (val_in, LengthIn, &
                 %(mpitype)s, &
-                val_out, lengthsN, dispsN, &
+                val_out, cbind_loc(lengthsN), cbind_loc(dispsN), &
                 %(mpitype)s, &
                 rt, comm, err)
         ierr = err
@@ -1173,7 +1179,7 @@ contains
 
         call GetComm (Comm, Node, rt)
 
-        call MPI_ScatterV (val_in, SendSizes, Disps, &
+        call MPI_ScatterV (val_in, cbind_loc(SendSizes), cbind_loc(Disps), &
                 %(mpitype)s, &
                 val_out, Length, &
                 %(mpitype)s, &
@@ -1280,7 +1286,7 @@ contains
         call MPI_Recv (val_out, int(BuffSize, MPIArg), &
                 %(mpitype)s, &
                 int(Source, MPIArg), int(Tag, MPIArg), MPI_COMM_WORLD, &
-                stat, err)
+                cbind_loc(stat), err)
         ierr = err
 #else
         ierr = 0

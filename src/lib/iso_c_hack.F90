@@ -12,6 +12,7 @@ module iso_c_hack
     integer, parameter :: c_int = c_int32_t
     integer, parameter :: c_bool = c_int
     integer, parameter :: c_char = 1
+    integer, parameter :: c_double = dp
     character(1), parameter :: c_null_char = '\0'
 
 #ifdef POINTER8
