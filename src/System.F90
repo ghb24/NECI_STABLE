@@ -2201,78 +2201,10 @@ SUBROUTINE CalcTau
     return
 END SUBROUTINE CalcTau
 
-
 ! double precision  function calc_madelung()
 ! 
-!     use constants
-!     use iso_c_hack
-!     use util_mod, only: erfc
-!     use SystemData
-! 
-!     real(dp) :: ab
-!     real(dp)  :: kappa
-!     integer :: l1,l2,l3,l4
-!     integer :: n2
-!     real(dp)  :: k2,ek2,recipsum2
-!     real(dp) :: modr,er2,realsum2
-!     real(dp)  :: term2,term4
-! 
-!     write(6,*) "Calculating Madelung Constant - Fraser et al. PRB 53 4 1814"
-!     kappa=2.8d0/OMEGA**(1.0d0/3.0d0)
-!     write(6,*) "kappa taken from CASINO manual to be", kappa
-! 
-!     term2=-pi/(kappa**2.0d0*OMEGA)
-! !     write(6,*) term2, "term2"
-!     term4=-2.0d0*kappa/sqrt(pi)
-! !     write(6,*) term4, "term4"
-! 
-!     recipsum2=0.0d0
-!     do l4=1,10
-!         recipsum2=0.0d0
-!         do l1=-l4,l4
-!             do l2=-l4,l4
-!                 do l3=-l4,l4
-!                     n2=l1**2+l2**2+l3**2
-!                     k2=(1.0d0/(OMEGA**THIRD)**2.0d0)*(l1**2+l2**2+l3**2)
-!                     ek2=(1.0d0/OMEGA)*(1.0d0/(pi*k2))*exp(-pi**2.0d0*k2/kappa**2.0d0)
-!                     if (n2.ne.0) then
-! !                         write(6,*) k2,ek2 ! for testing
-!                         recipsum2=recipsum2+ek2
-!                     endif
-!                 enddo
-!             enddo
-!         enddo
-! !         write(6,*) l4,recipsum2
-!     enddo
-! !     write(6,*) "reciprocal space", recipsum2
-!     
-!     realsum2=0.0d0
-!     !temp_sum = 0.0d0
-!     !I4 = 1 
-!     !do while (temp_sum*(1.0d0+inacc_madelung) .lt. realsum2 .and. temp_sum*(1.0d0-inacc_madelung) .gt. realsum2)
-!     !temp_sum = realsum2
-!     do l4=1,10
-!         realsum2=0.0d0
-!         do l1=-l4,l4
-!             do l2=-l4,l4
-!                 do l3=-l4,l4
-!                     modr=(OMEGA**THIRD)*sqrt(dble((l1**2+l2**2+l3**2)))
-!                     if (modr.ne.0.0d0) then
-! !                         er2=erfc(kappa*modr)
-!                         er2=(1.0d0-erf(real(kappa*modr, c_double)))/modr
-!                         realsum2=realsum2+er2
-! !                         write(6,*) er2 ! for testing
-!                     endif
-!                 enddo
-!             enddo
-!         enddo
-! !         write(6,*) l4,realsum2
-!         !I4 = I4+1
-!     enddo
-! !     write(6,*) "real space", realsum2
-!     calc_madelung=realsum2+recipsum2+term2+term4
-! 
-! end function      
+
+
 
 double precision  function calc_madelung()
 
@@ -2281,23 +2213,26 @@ double precision  function calc_madelung()
     use util_mod, only: erfc
     use SystemData
 
-    real(dp) :: ab
+    implicit none
+
     real(dp)  :: kappa
-    integer :: l1,l2,l3,l4
+    integer :: i1, i2, i3, i4
     integer :: n2
     real(dp)  :: k2,ek2,recipsum2
-    real(dp) :: modr,er2,realsum2
+    real(dp) :: t2, modr,er2,realsum2
     real(dp)  :: term2,term4
     integer :: t_lattice_vectors(3, 3)
     real(dp) :: t_lattice_constant
     real(dp) :: kvecX, kvecY, kvecZ
+    real(dp) :: tvecX, tvecY, tvecZ
+    real(dp) ::  inacc_madelung, temp_sum 
 
-    inacc_madelung = 1.0d-4
+    inacc_madelung = 1.0d-20
     write(6,*) "Calculating Madelung Constant - Fraser et al. PRB 53 4 1814"
     kappa=2.8d0/OMEGA**(1.0d0/3.0d0)
     write(6,*) "kappa taken from CASINO manual to be", kappa
 
-    !   determine real space lattice
+!       determine real space lattice
     if(dimen==3) then ! 3D
         if (recip_lattice_type == "sc") then
             t_lattice_constant = OMEGA**THIRD
@@ -2305,12 +2240,12 @@ double precision  function calc_madelung()
             t_lattice_vectors(2,1:3) = (/0, 1, 0 /)
             t_lattice_vectors(3,1:3) = (/0, 0, 1 /)
         else if (recip_lattice_type == "fcc") then
-            t_lattice_constant = (2.0d0*OMEGA)**THIRD
+            t_lattice_constant =0.5d0*(2.0d0*OMEGA)**THIRD
             t_lattice_vectors(1,1:3) = (/-1.0d0, 1.0d0, 1.0d0 /)
             t_lattice_vectors(2,1:3) = (/1.0d0, -1.0d0, 1.0d0 /)
             t_lattice_vectors(3,1:3) = (/1.0d0, 1.0d0, -1.0d0 /) 
         else if (recip_lattice_type == "bcc") then
-            t_lattice_constant =(4.0d0*OMEGA)**THIRD
+            t_lattice_constant =0.5d0*(4.0d0*OMEGA)**THIRD
             t_lattice_vectors(1,1:3) = (/0.0d0, 1.0d0, 1.0d0 /)
             t_lattice_vectors(2,1:3) = (/1.0d0, 0.0d0, 1.0d0 /)
             t_lattice_vectors(3,1:3) = (/1.0d0, 1.0d0, 0.0d0 /)   
@@ -2331,26 +2266,24 @@ double precision  function calc_madelung()
         write(6,'(A)') 'Problem with dimension! ' 
     endif
 
-    write(6,*) "Calculating Madelung Constant - Fraser et al. PRB 53 4 1814"
-    kappa=2.8d0/OMEGA**(1.0d0/3.0d0)
-    write(6,*) "kappa taken from CASINO manual to be", kappa
-
     term2=-pi/(kappa**2.0d0*OMEGA)
 !     write(6,*) term2, "term2"
     term4=-2.0d0*kappa/sqrt(pi)
-!     write(6,*) term4, "term4"
+    write(6,*) term4, "term4"
 
     recipsum2=0.0d0
-    do l4=1,10
-        recipsum2=0.0d0
-        do l1=-l4,l4
-            do l2=-l4,l4
-                do l3=-l4,l4
-                    kvecX=lattice_vectors(1,1)*I1+lattice_vectors(2,1)*I2+lattice_vectors(3,1)*I3
-                    kvecY=lattice_vectors(1,2)*I1+lattice_vectors(2,2)*I2+lattice_vectors(3,2)*I3
-                    kvecZ=lattice_vectors(1,3)*I1+lattice_vectors(2,3)*I2+lattice_vectors(3,3)*I3
+    temp_sum = 10.0d0
+    i4 =1
+    do while (temp_sum*(1.0d0+inacc_madelung) .lt. recipsum2 .or. temp_sum*(1.0d0-inacc_madelung) .gt. recipsum2)
+        temp_sum = recipsum2
+        recipsum2 =0.0d0      
+        do i1=-i4,i4
+            do i2=-i4,i4
+                do i3=-i4, i4
+                    kvecX=lattice_vectors(1,1)*i1+lattice_vectors(2,1)*i2+lattice_vectors(3,1)*i3
+                    kvecY=lattice_vectors(1,2)*i1+lattice_vectors(2,2)*i2+lattice_vectors(3,2)*i3
+                    kvecZ=lattice_vectors(1,3)*i1+lattice_vectors(2,3)*i2+lattice_vectors(3,3)*i3
                     n2=kvecX**2+kvecY**2+kvecZ**2
-                    n2=l1**2+l2**2+l3**2
                     k2=(k_lattice_constant/2.0d0/PI)**2.0d0*n2
                     ek2=(1.0d0/OMEGA)*(1.0d0/(pi*k2))*exp(-pi**2.0d0*k2/kappa**2.0d0)
                     if (n2.ne.0) then
@@ -2360,134 +2293,37 @@ double precision  function calc_madelung()
                 enddo
             enddo
         enddo
-!         write(6,*) l4,recipsum2
+        i4 = i4+1
+        write(6,*) "reciprocal space", recipsum2
     enddo
-!     write(6,*) "reciprocal space", recipsum2
-    
+
+        
     realsum2=0.0d0
-    !temp_sum = 0.0d0
-    !I4 = 1 
-    !do while (temp_sum*(1.0d0+inacc_madelung) .lt. realsum2 .and. temp_sum*(1.0d0-inacc_madelung) .gt. realsum2)
-    !temp_sum = realsum2
-    do l4=1,10
+    temp_sum = 10.0d0
+    i4 =1 
+    do while (temp_sum*(1.0d0+inacc_madelung) .lt. realsum2 .or. temp_sum*(1.0d0-inacc_madelung) .gt. realsum2)
+        temp_sum = realsum2
         realsum2=0.0d0
-        do l1=-l4,l4
-            do l2=-l4,l4
-                do l3=-l4,l4
-                    modr=t_lattice_constant*sqrt(dble((l1**2+l2**2+l3**2)))
-                    if (modr.ne.0.0d0) then
-                        er2=(1.0d0-erf(real(kappa*modr, c_double)))/modr
+        do i1=-i4,i4
+            do i2=-i4,i4
+                do i3=-i4,i4
+                    tvecX=t_lattice_vectors(1,1)*i1+t_lattice_vectors(2,1)*i2+t_lattice_vectors(3,1)*i3
+                    tvecY=t_lattice_vectors(1,2)*i1+t_lattice_vectors(2,2)*i2+t_lattice_vectors(3,2)*i3
+                    tvecZ=t_lattice_vectors(1,3)*i1+t_lattice_vectors(2,3)*i2+t_lattice_vectors(3,3)*i3
+                    n2=tvecX**2+tvecY**2+tvecZ**2
+                    t2 =t_lattice_constant*sqrt(dble(n2))
+                    if (t2.ne.0.0d0) then
+                        er2=(1.0d0-erf(real(kappa*t2, c_double)))/t2
                         realsum2=realsum2+er2
-!                         write(6,*) er2 ! for testing
                     endif
                 enddo
             enddo
         enddo
-!         write(6,*) l4,realsum2
-        !I4 = I4+1
+        write(6,*) 'i4, realsum2' , i4, realsum2
+        i4 = i4+1
     enddo
-!     write(6,*) "real space", realsum2
+   ! write(6,*) "real space", realsum2
     calc_madelung=realsum2+recipsum2+term2+term4
  write(6,*) '*************************  Madelung  *****************************************'
  write(6,*) calc_madelung
 end function     
-! double precision  function calc_madelung2()
-! 
-!     double precision :: kappa, inacc_madelung
-!     integer :: l1,l2,l3,l4
-!     integer :: n2
-!     double precision :: k2,ek2,recipsum2
-!     double precision :: modr,er2,realsum2
-!     double precision :: term2,term4
-!     integer :: t_lattice_vectors(3, 3)
-!     double precision :: t_lattice_constant
-! 
-!     inacc_madelung = 1.0d-3
-!     write(6,*) "Calculating Madelung Constant - Fraser et al. PRB 53 4 1814"
-!     kappa=2.8d0/OMEGA**(1.0d0/3.0d0)
-!     write(6,*) "kappa taken from CASINO manual to be", kappa
-! 
-!     !   determine real space lattice
-!     if(dimen==3) then ! 3D
-!         if (recip_lattice_type == "sc") then
-!             t_lattice_constant = OMEGA**THIRD
-!             t_lattice_vectors(1,1:3) = (/1, 0, 0 /)
-!             t_lattice_vectors(2,1:3) = (/0, 1, 0 /)
-!             t_lattice_vectors(3,1:3) = (/0, 0, 1 /)
-!         else if (recip_lattice_type == "fcc") then
-!             t_lattice_constant = (2.0d0*OMEGA)**THIRD
-!             t_lattice_vectors(1,1:3) = (/-1.0d0, 1.0d0, 1.0d0 /)
-!             t_lattice_vectors(2,1:3) = (/1.0d0, -1.0d0, 1.0d0 /)
-!             t_lattice_vectors(3,1:3) = (/1.0d0, 1.0d0, -1.0d0 /) 
-!         else if (recip_lattice_type == "bcc") then
-!             t_lattice_constant =(4.0d0*OMEGA)**THIRD
-!             t_lattice_vectors(1,1:3) = (/0.0d0, 1.0d0, 1.0d0 /)
-!             t_lattice_vectors(2,1:3) = (/1.0d0, 0.0d0, 1.0d0 /)
-!             t_lattice_vectors(3,1:3) = (/1.0d0, 1.0d0, 0.0d0 /)   
-!         else
-!             write(6,'(A)')  'lattice type not valid'
-!         end if             
-!     else if (dimen==2) then !2D
-!         t_lattice_constant = OMEGA**(1.0d0/2.0d0)
-!         t_lattice_vectors(1,1:3) = (/1, 0, 0 /)
-!         t_ lattice_vectors(2,1:3) = (/0, 1, 0 /)
-!         t_ lattice_vectors(3,1:3) = (/0, 0, 0 /)  
-!     else if (dimen==1) then !1D
-!         t_lattice_constant = OMEGA
-!         t_lattice_vectors(1,1:3) = (/1, 0, 0 /)
-!         t_lattice_vectors(2,1:3) = (/0, 0, 0 /)
-!         t_lattice_vectors(3,1:3) = (/0, 0, 0 /)  
-!     else 
-!         write(6,'(A)') 'Problem with dimension! ' 
-!     endif
-! 
-! 
-!     term2=-pi/(kappa**2.0d0*OMEGA)
-!     write(6,*) term2, "term2"
-!     term4=-2.0d0*kappa/sqrt(pi)
-!     write(6,*) term4, "term4"
-! 
-!     recipsum2=0.0d0
-!     temp_sum = 0.0d0
-!     I4 = 1 
-!     do while (temp_sum*(1.0d0+inacc_madelung) .lt. recipsum2 .and. temp_sum*(1.0d0-inacc_madelung) .gt. recipsum2)
-!         temp_sum = recipsum2
-!         recipsum2=0.0d0
-!         do l1=-l4,l4
-!             n2=kvec(l1,1)**2+kvec(l1,2)**2+kvec(l1,3)**2
-!             k2=((k_lattice_constant/2.0d0/PI)**2.0d0)*(l1**2+l2**2+l3**2)
-!             ek2=(1.0d0/OMEGA)*(1.0d0/(pi*k2))*exp(-pi**2.0d0*k2/kappa**2.0d0)
-!             if (n2.ne.0) then
-!                 !write(6,*) k2,ek2 ! for testing
-!                 recipsum2=recipsum2+ek2
-!             endif
-!         enddo
-!         write(6,*) l4,recipsum2
-!         I4 = I4 + 1
-!     enddo
-!     write(6,*) "reciprocal space", recipsum2
-!     
-!     realsum2=0.0d0
-!     temp_sum = 0.0d0
-!     I4 = 1 
-!     do while (temp_sum*(1.0d0+inacc_madelung) .lt. realsum2 .and. temp_sum*(1.0d0-inacc_madelung) .gt. realsum2)
-!         temp_sum = realsum2
-!         realsum2=0.0d0
-!         do l1=-l4,l4
-! 
-!             modr=(OMEGA**THIRD)*sqrt(dble((l1**2+l2**2+l3**2)))
-!             if (modr.ne.0.0d0) then
-!                 er2=erfc(kappa*modr)/modr
-!                 realsum2=realsum2+er2
-!                 write(6,*) er2 ! for testing
-!             endif
-! 
-!         enddo
-!         write(6,*) l4,realsum2
-!         I4 = I4+1
-!     enddo
-!     write(6,*) "real space", realsum2
-! 
-!     calc_madelung=realsum2+recipsum2+term2+term4
-! 
-! end function      
