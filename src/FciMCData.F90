@@ -240,8 +240,8 @@ MODULE FciMCData
       Integer :: NumQuadEntries, NumDoubEntries !The number of non-zero ext and int CISD flux components
       Integer :: SortedQuadEntries, UnsortedQuadEntries, SortedDoubEntries, UnsortedDoubEntries 
       Integer :: CISDHFPop, CISDHFCoeff !Population on the HF determinant in the CISD wavefunction - for use in proje calculation
-      REAL*16, ALLOCATABLE :: CISDTotFlux(:,:)
-      REAL*16, ALLOCATABLE :: CISDIntFlux(:,:), CISDOutFlux(:,:)
+      INTEGER(kind=n_int), ALLOCATABLE :: CISDTotFlux(:,:)
+      INTEGER(kind=n_int), ALLOCATABLE :: CISDIntFlux(:,:), CISDOutFlux(:,:)
       INTEGER(kind=n_int), ALLOCATABLE :: CISDIntFluxPosition(:,:), CISDOutFluxPosition(:,:)
       REAL(dp) :: CISDProjEContrib, CISDProjEContribAbs
       REAL(dp) :: AllCISDProjEContrib, AllCISDProjEContribAbs
