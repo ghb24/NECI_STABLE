@@ -1145,7 +1145,7 @@ MODULE System
           end if 
 
           if(Madelung .lt. 0.0d0) then
-              Madelung=calc_madelung()
+             Madelung=calc_madelung()
           end if 
 
 
@@ -2201,8 +2201,6 @@ SUBROUTINE CalcTau
     return
 END SUBROUTINE CalcTau
 
-! double precision  function calc_madelung()
-! 
 
 
 
@@ -2210,7 +2208,6 @@ double precision  function calc_madelung()
 
     use constants
     use iso_c_hack
-    use util_mod, only: erfc
     use SystemData
 
     implicit none
@@ -2219,21 +2216,20 @@ double precision  function calc_madelung()
     integer :: i1, i2, i3, i4
     integer :: n2
     real(dp)  :: k2,ek2,recipsum2
-    real(dp) :: t2, modr,er2,realsum2
+    real(dp) :: t1, modr,er2,realsum2
     real(dp)  :: term2,term4
     integer :: t_lattice_vectors(3, 3)
     real(dp) :: t_lattice_constant
     real(dp) :: kvecX, kvecY, kvecZ
     real(dp) :: tvecX, tvecY, tvecZ
     real(dp) ::  inacc_madelung, temp_sum 
+    real(dp) :: error_function_c
 
-    inacc_madelung = 1.0d-20
-    write(6,*) "Calculating Madelung Constant - Fraser et al. PRB 53 4 1814"
-    kappa=2.8d0/OMEGA**(1.0d0/3.0d0)
-    write(6,*) "kappa taken from CASINO manual to be", kappa
+    inacc_madelung = 1.0d-15 ! Cannot be set lower than 1.0d-15
 
-!       determine real space lattice
     if(dimen==3) then ! 3D
+
+        kappa=2.8d0/OMEGA**(1.0d0/3.0d0)
         if (recip_lattice_type == "sc") then
             t_lattice_constant = OMEGA**THIRD
             t_lattice_vectors(1,1:3) = (/1, 0, 0 /)
@@ -2252,11 +2248,125 @@ double precision  function calc_madelung()
         else
             write(6,'(A)')  'lattice type not valid'
         end if             
+
+        term2=-pi/(kappa**2.0d0*OMEGA)
+    !     write(6,*) term2, "term2"
+        term4=-2.0d0*kappa/sqrt(pi)
+        write(6,*) term4, "term4"
+
+        recipsum2=0.0d0
+        temp_sum = 0.0d0
+        i4 =1
+        do while (temp_sum*(1.0d0+inacc_madelung) .le. recipsum2)
+            temp_sum = recipsum2
+            recipsum2 =0.0d0      
+            do i1=-i4,i4
+                do i2=-i4,i4
+                    do i3=-i4, i4
+                        kvecX=lattice_vectors(1,1)*i1+lattice_vectors(2,1)*i2+lattice_vectors(3,1)*i3
+                        kvecY=lattice_vectors(1,2)*i1+lattice_vectors(2,2)*i2+lattice_vectors(3,2)*i3
+                        kvecZ=lattice_vectors(1,3)*i1+lattice_vectors(2,3)*i2+lattice_vectors(3,3)*i3
+                        n2=kvecX**2+kvecY**2+kvecZ**2
+                        k2=(k_lattice_constant/2.0d0/PI)**2.0d0*n2
+                        ek2=(1.0d0/OMEGA)*(1.0d0/(pi*k2))*exp(-pi**2.0d0*k2/kappa**2.0d0)
+                        if (n2.ne.0) then
+    !                         write(6,*) k2,ek2 ! for testing
+                            recipsum2=recipsum2+ek2
+                        endif
+                    enddo
+                enddo
+            enddo
+            i4 = i4+1
+            write(6,*) "i4 recipsum2", i4-1, recipsum2 
+        enddo
+            
+        realsum2=0.0d0
+        temp_sum = 0.0d0
+        i4 =1 
+        do while (temp_sum*(1.0d0+inacc_madelung) .le. realsum2)
+            temp_sum = realsum2
+            realsum2=0.0d0
+            do i1=-i4,i4
+                do i2=-i4,i4
+                    do i3=-i4,i4
+                        tvecX=t_lattice_vectors(1,1)*i1+t_lattice_vectors(2,1)*i2+t_lattice_vectors(3,1)*i3
+                        tvecY=t_lattice_vectors(1,2)*i1+t_lattice_vectors(2,2)*i2+t_lattice_vectors(3,2)*i3
+                        tvecZ=t_lattice_vectors(1,3)*i1+t_lattice_vectors(2,3)*i2+t_lattice_vectors(3,3)*i3
+                        n2=tvecX**2+tvecY**2+tvecZ**2
+                        t1 =t_lattice_constant*sqrt(dble(n2))
+                        if (t1.ne.0.0d0) then
+!                             er2=(1.0d0-erf(real(kappa*t1, c_double)))/t1
+                            er2=error_function_c(kappa*t1)/t1
+                            realsum2=realsum2+er2
+                        endif
+                    enddo
+                enddo
+            enddo
+            write(6,*) 'i4, realsum2' , i4, realsum2
+            i4 = i4+1
+        enddo
+      ! write(6,*) "real space", realsum2
+
     else if (dimen==2) then !2D
-        t_lattice_constant = OMEGA**(1.0d0/2.0d0)
+
+        kappa=2.4d0/sqrt(OMEGA)
+        t_lattice_constant = sqrt(OMEGA)
         t_lattice_vectors(1,1:3) = (/1, 0, 0 /)
         t_lattice_vectors(2,1:3) = (/0, 1, 0 /)
-        t_lattice_vectors(3,1:3) = (/0, 0, 0 /)  
+
+        term2=-sqrt(pi)/OMEGA/kappa
+        term4=-2.0d0*kappa/sqrt(PI)
+        write(6,*) term2, "term2"
+        write(6,*) term4, "term4"
+
+        recipsum2=0.0d0
+        temp_sum = 0.0d0
+        i4 =1
+        do while (temp_sum*(1.0d0+inacc_madelung) .le. recipsum2)
+            temp_sum = recipsum2
+            recipsum2 =0.0d0      
+            do i1=-i4,i4
+                do i2=-i4,i4
+                    kvecX=lattice_vectors(1,1)*i1+lattice_vectors(2,1)*i2
+                    kvecY=lattice_vectors(1,2)*i1+lattice_vectors(2,2)*i2
+                    n2=kvecX**2+kvecY**2
+                    if (n2.ne.0) then
+                        k2=(k_lattice_constant)**2.0d0*n2
+!                         ek2=(PI/2.0d0/OMEGA)*(1.0d0-erf(real(sqrt(k2)/2.0d0/kappa, c_double)))/sqrt(k2)
+                        ek2=(PI/2.0d0/OMEGA)*error_function_c(sqrt(k2)/2.0d0/kappa)/sqrt(k2)
+!                       write(6,*) k2, sqrt(k2)/2.0d0/kappa, erf(real(sqrt(k2)/2.0d0/kappa, c_double)) ! for testing
+                        recipsum2=recipsum2+ek2
+                    end if
+                enddo
+            enddo
+            i4 = i4+1
+            write(6,*) "i4 recipsum2", i4-1, recipsum2 
+        enddo
+
+        realsum2=0.0d0
+        temp_sum = 0.0d0
+        i4 =1 
+        do while (temp_sum*(1.0d0+inacc_madelung) .le. realsum2)
+            temp_sum = realsum2
+            realsum2=0.0d0
+            do i1=-i4,i4
+                do i2=-i4,i4
+                    tvecX=t_lattice_vectors(1,1)*i1+t_lattice_vectors(2,1)*i2
+                    tvecY=t_lattice_vectors(1,2)*i1+t_lattice_vectors(2,2)*i2
+                    n2=tvecX**2+tvecY**2
+                    if (n2 .ne. 0) then
+                        t1 =t_lattice_constant*sqrt(dble(n2))
+!                         er2=(1.0d0-erf(real(kappa*t1, c_double)))/t1
+                        er2=error_function_c(kappa*t1)/t1
+                        realsum2=realsum2+er2
+                    endif
+                enddo
+            enddo
+            write(6,*) 'i4, realsum2' , i4, realsum2
+            i4 = i4+1
+        enddo
+      write(6,*) "real space", realsum2
+
     else if (dimen==1) then !1D
         t_lattice_constant = OMEGA
         t_lattice_vectors(1,1:3) = (/1, 0, 0 /)
@@ -2266,64 +2376,31 @@ double precision  function calc_madelung()
         write(6,'(A)') 'Problem with dimension! ' 
     endif
 
-    term2=-pi/(kappa**2.0d0*OMEGA)
-!     write(6,*) term2, "term2"
-    term4=-2.0d0*kappa/sqrt(pi)
-    write(6,*) term4, "term4"
-
-    recipsum2=0.0d0
-    temp_sum = 10.0d0
-    i4 =1
-    do while (temp_sum*(1.0d0+inacc_madelung) .lt. recipsum2 .or. temp_sum*(1.0d0-inacc_madelung) .gt. recipsum2)
-        temp_sum = recipsum2
-        recipsum2 =0.0d0      
-        do i1=-i4,i4
-            do i2=-i4,i4
-                do i3=-i4, i4
-                    kvecX=lattice_vectors(1,1)*i1+lattice_vectors(2,1)*i2+lattice_vectors(3,1)*i3
-                    kvecY=lattice_vectors(1,2)*i1+lattice_vectors(2,2)*i2+lattice_vectors(3,2)*i3
-                    kvecZ=lattice_vectors(1,3)*i1+lattice_vectors(2,3)*i2+lattice_vectors(3,3)*i3
-                    n2=kvecX**2+kvecY**2+kvecZ**2
-                    k2=(k_lattice_constant/2.0d0/PI)**2.0d0*n2
-                    ek2=(1.0d0/OMEGA)*(1.0d0/(pi*k2))*exp(-pi**2.0d0*k2/kappa**2.0d0)
-                    if (n2.ne.0) then
-!                         write(6,*) k2,ek2 ! for testing
-                        recipsum2=recipsum2+ek2
-                    endif
-                enddo
-            enddo
-        enddo
-        i4 = i4+1
-        write(6,*) "reciprocal space", recipsum2
-    enddo
-
-        
-    realsum2=0.0d0
-    temp_sum = 10.0d0
-    i4 =1 
-    do while (temp_sum*(1.0d0+inacc_madelung) .lt. realsum2 .or. temp_sum*(1.0d0-inacc_madelung) .gt. realsum2)
-        temp_sum = realsum2
-        realsum2=0.0d0
-        do i1=-i4,i4
-            do i2=-i4,i4
-                do i3=-i4,i4
-                    tvecX=t_lattice_vectors(1,1)*i1+t_lattice_vectors(2,1)*i2+t_lattice_vectors(3,1)*i3
-                    tvecY=t_lattice_vectors(1,2)*i1+t_lattice_vectors(2,2)*i2+t_lattice_vectors(3,2)*i3
-                    tvecZ=t_lattice_vectors(1,3)*i1+t_lattice_vectors(2,3)*i2+t_lattice_vectors(3,3)*i3
-                    n2=tvecX**2+tvecY**2+tvecZ**2
-                    t2 =t_lattice_constant*sqrt(dble(n2))
-                    if (t2.ne.0.0d0) then
-                        er2=(1.0d0-erf(real(kappa*t2, c_double)))/t2
-                        realsum2=realsum2+er2
-                    endif
-                enddo
-            enddo
-        enddo
-        write(6,*) 'i4, realsum2' , i4, realsum2
-        i4 = i4+1
-    enddo
-   ! write(6,*) "real space", realsum2
     calc_madelung=realsum2+recipsum2+term2+term4
+    write(6,*) "Calculating Madelung Constant - Fraser et al. PRB 53 4 1814"
+    write(6,*) "kappa taken from CASINO manual to be", kappa
  write(6,*) '*************************  Madelung  *****************************************'
  write(6,*) calc_madelung
 end function     
+
+double precision  function error_function_c(argument)
+
+    use constants, only: dp
+    use, intrinsic :: iso_c_binding
+    implicit none 
+  
+    double precision :: argument
+
+     interface
+         real(c_double) pure function erf_lm(x) bind(c, name='erf')
+             import :: c_double
+             real(c_double), intent(in), value :: x
+         end function erf_lm
+         real(c_double) pure function erfc_lm(x) bind(c, name='erfc')
+             import :: c_double
+             real(c_double), intent(in), value :: x
+         end function erfc_lm
+     end interface
+
+     error_function_c = erfc_lm(real(argument, c_double))
+end function error_function_c
