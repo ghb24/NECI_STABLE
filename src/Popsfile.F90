@@ -659,7 +659,7 @@ MODULE PopsfileMod
     SUBROUTINE WriteToPopsfileParOneArr(Dets,nDets)
         use constants, only: size_n_int,n_int
         use CalcData, only: iPopsFileNoWrite, InitiatorWalkNo
-        use constants, only: size_n_int,MpiDetInt,n_int
+        use constants, only: size_n_int,n_int
         use MemoryManager, only: TagIntType
         integer(int64),intent(in) :: nDets !The number of occupied entries in Dets
         integer(kind=n_int),intent(in) :: Dets(0:nIfTot,1:nDets)
