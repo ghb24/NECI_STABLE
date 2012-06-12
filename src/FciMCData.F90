@@ -227,12 +227,33 @@ MODULE FciMCData
 
       !This data is for calculating the highest population determinant, and potentially restarting the calculation based on this determinant, or changing the determiant which the energy is calculated from.
       INTEGER :: iHighestPop
+      INTEGER :: QuadDetsEst !Estimate of the number of symmetry allowed determinants at excit level 4
+      INTEGER :: DoubDetsEst !Estimate of the number of symmetry allowed determinants at excit level 2
       INTEGER , ALLOCATABLE :: ProjEDet(:)
       INTEGER(KIND=n_int) , ALLOCATABLE :: HighestPopDet(:),iLutRef(:)
       INTEGER(n_int) , ALLOCATABLE :: iLutRefFlip(:)     !If we are using HPHF and projecting onto an open-shell determinant, then it is useful
                                                         !to store the spin-coupled determinant, so we can calculate projection onto both.
       INTEGER , ALLOCATABLE :: RefDetFlip(:)
       LOGICAL :: tSpinCoupProjE
+
+      INTEGER, ALLOCATABLE :: CISDref(:,:)
+      Integer :: NumQuadEntries, NumDoubEntries !The number of non-zero ext and int CISD flux components
+      Integer :: SortedQuadEntries, UnsortedQuadEntries, SortedDoubEntries, UnsortedDoubEntries 
+      Integer :: CISDHFPop, CISDHFCoeff !Population on the HF determinant in the CISD wavefunction - for use in proje calculation
+      REAL*16, ALLOCATABLE :: CISDTotFlux(:,:)
+      REAL*16, ALLOCATABLE :: CISDIntFlux(:,:), CISDOutFlux(:,:)
+      INTEGER(kind=n_int), ALLOCATABLE :: CISDIntFluxPosition(:,:), CISDOutFluxPosition(:,:)
+      REAL(dp) :: CISDProjEContrib, CISDProjEContribAbs
+      REAL(dp) :: AllCISDProjEContrib, AllCISDProjEContribAbs
+      LOGICAL :: tStaticFluxTerm, blank_det
+      INTEGER :: initiator_parent_flag !The value of FlagsCurr for an initiator det (to be used for static flux)
+      INTEGER , ALLOCATABLE :: Sing_InitExcSlots(:),Sing_ExcList(:)
+      INTEGER , ALLOCATABLE :: Doub_InitExcSlots(:),Doub_ExcList(:)
+      INTEGER(kind=n_int) , ALLOCATABLE :: Sing_ExcDjs(:,:),Sing_ExcDjs2(:,:)
+      INTEGER(kind=n_int) , ALLOCATABLE :: Doub_ExcDjs(:,:),Doub_ExcDjs2(:,:)
+      INTEGER :: Sing_ExcDjsTag,Sing_ExcDjs2Tag,aaaa_RDMTag,All_aaaa_RDMTag
+      INTEGER :: Doub_ExcDjsTag,Doub_ExcDjs2Tag,UMATTempTag
+      REAL(dp) :: OneEl_Gap,TwoEl_Gap
 
       ! Store data about all processors for calculating load balancing
       integer(int64) :: MaxWalkersProc, MinWalkersProc

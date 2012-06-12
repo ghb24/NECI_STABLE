@@ -469,6 +469,8 @@ contains
         ! This is a routine to take a determinant in bit form and construct
         ! the natural ordered Nel integer form of the det.
         ! If CSFs are enabled, transfer the Yamanouchi symbol as well.
+    
+        use FciMCData, only: blank_det
 
         integer(n_int), intent(in) :: ilut(0:NIftot)
         integer, intent(out) :: nI(nel)
@@ -477,6 +479,7 @@ contains
 
         ! We need to use the CSF decoding routine if CSFs are enabled, and 
         ! we are below a truncation limit if set.
+
         bIsCsf = .false.
         if (tCSF) then
             if (tTruncateCSF) then
@@ -550,6 +553,13 @@ contains
 !                if (elec == nel) exit
             enddo
 
+            if((elec .ne. nel).and.(.not. blank_det)) then
+                WRITE(6,*) "elec, nel", elec, nel
+                WRITE(6,*) "positions assigned", elec
+                WRITE(6,*) "iLut", iLut(:)
+                WRITE(6,*) "nI", nI(:)
+                call stop_all("decode_bit_dets", "Not the right number of electrons")
+            endif
         endif
 
     end subroutine

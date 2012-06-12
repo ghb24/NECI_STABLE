@@ -152,17 +152,12 @@ MODULE AnnihilationMod
         logical, intent(in) :: tSingleProc
         TYPE(timer),save :: Compress_time
          
-
-!        WRITE(6,*) "Direct annihilation"
-!        CALL neci_flush(6)
-
 !This routine will send all the newly-spawned particles to their correct processor. 
 !MaxIndex is returned as the new number of newly-spawned particles on the processor. May have duplicates.
 !The particles are now stored in SpawnedParts2/SpawnedSign2.
 !        call WriteExcitorListP2(6,SpawnedParts,InitialSpawnedSlots,ValidSpawnedList,0,"Local")
 !        if(bNodeRoot) 
         CALL SendProcNewParts(MaxIndex,tSingleProc)
-
 !        WRITE(6,*) "Sent particles"
 !        WRITE(6,*) 'MaxIndex',MaxIndex
 !        CALL neci_flush(6)

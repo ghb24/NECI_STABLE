@@ -364,7 +364,6 @@ contains
         lo = lbound(arr,2)
         hi = ubound(arr,2)
 
-!>>>!        write(6,*) 'hi, lo', hi, lo
         ! Account for poor usage (i.e. array len == 0)
         if (hi < lo) then
             pos = -lo

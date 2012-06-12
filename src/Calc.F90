@@ -239,6 +239,9 @@ contains
           tReadPopsRestart = .false.
           iLogicalNodeSize = 0 !Meaning use the physical node size
 
+          tCISDref=.false.
+          tExplicitOutFlux=.false.
+
 !Feb 08 default set.
           IF(Feb08) THEN
               RhoEpsilon=1.D-08
@@ -1422,6 +1425,30 @@ contains
                 ! unpaired electrons.
                 tTruncNOpen = .true.
                 call geti (trunc_nopen_max)
+
+            case("USECISDREFPOPS")
+                tCISDref=.true.
+                !We will be reading in a POPSFILE from a previous CISD run
+                !and using this distribution as a 'reference' wavefunction.
+                !the CISD coefficients will then be stored separately, and
+                !wiped from the main walker list, so only the *redisual* 
+                !walkers are stored here -- this is simpler to understand
+                !(in the first instance), as the alternative involves
+                !recalculating the number of active walkers, and the walker
+                !weights for each det at each iteration
+                TReadPops=.true.
+                tStartSinglePart=.false.
+                if (item.lt.nitems) then
+                    call readi(iPopsFileNoRead)
+                    iPopsFileNoWrite = iPopsFileNoRead
+                    iPopsFileNoRead = -iPopsFileNoRead-1
+                end if
+                !Set readpops on, incase this keyword is not already included
+
+            case("EXPLICIT-CISD-OUT-FLUX")
+                !In a residual calculation, do the outward flux term explicitely
+                !ie, flux from CISD wavefunction onto triples and quadruples
+                tExplicitOutFlux=.true.
 
             case default
                 call report("Keyword "                                &

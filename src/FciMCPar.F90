@@ -36,7 +36,8 @@ MODULE FciMCParMod
                         MemoryFacInit, tMaxBloom, tTruncNOpen, tFCIMC, &
                         trunc_nopen_max, tSpawn_Only_Init, tSpawn_Only_Init_Grow, &
                         TargetGrowRate, TargetGrowRateWalk, tShiftonHFPop, &
-                        tContinueAfterMP2,iExitWalkers
+                        tContinueAfterMP2,iExitWalkers,tCISDref, tExplicitOutFlux, &
+                        MemoryFacPart
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
     use Determinants, only: FDet, get_helement, write_det, &
@@ -107,6 +108,7 @@ MODULE FciMCParMod
                             init_yama_store, clean_yama_store, &
                             disable_spin_proj_varyshift
     use symrandexcit3, only: gen_rand_excit3, test_sym_excit3
+    USE SymExcit3 , only : GenExcitations3
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
 #endif
@@ -178,7 +180,7 @@ MODULE FciMCParMod
 
         ! Put a barrier here so all processes synchronise before we begin.
         call MPIBarrier(error)
-
+        
         ! Start MC simulation...
         !
         ! If tIncrument is true, it means that when it comes out of the loop,
@@ -264,8 +266,12 @@ MODULE FciMCParMod
                     call calculate_new_shift_wrapper (iter_data_ccmc, &
                                                       TotParts)
                 else
+            WRITE(6,*) "Here20"
+            call neci_flush(6)
                     call calculate_new_shift_wrapper (iter_data_fciqmc, &
                                                       TotParts)
+            WRITE(6,*) "Here21"
+            call neci_flush(6)
                 endif
 
                 if(tRestart) cycle
@@ -359,6 +365,8 @@ MODULE FciMCParMod
             endif
 
             Iter=Iter+1
+            WRITE(6,*) "Here22"
+            call neci_flush(6)
 !End of MC cycle
         enddo
 
@@ -768,13 +776,13 @@ MODULE FciMCParMod
 
         ! Now the local, iteration specific, variables
         integer :: VecSlot, j, p, error,i
-        integer :: DetCurr(nel), nJ(nel), FlagsCurr, parent_flags
+        integer :: DetCurr(nel), nJ(nel), nullnJ(nel), FlagsCurr, parent_flags
         integer, dimension(lenof_sign) :: SignCurr, child
-        integer(kind=n_int) :: iLutnJ(0:niftot)
-        integer :: IC, walkExcitLevel, ex(2,2), TotWalkersNew, part_type
+        integer(kind=n_int) :: iLutnJ(0:niftot), iLutCurr(0:nIfd+1)
+        integer :: IC, walkExcitLevel, nullwalkExcitLevel, ex(2,2), TotWalkersNew, part_type, CISDRefCoeff
         integer(int64) :: tot_parts_tmp(lenof_sign)
         logical :: tParity
-        real(dp) :: prob, HDiagCurr
+        real(dp) :: prob, HDiagCurr, StaticFlux
         HElement_t :: HDiagTemp,HElGen
         character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
         HElement_t :: delta
@@ -863,6 +871,7 @@ MODULE FciMCParMod
 
         IFDEBUG(FCIMCDebug,3) write(iout,"(A,I12)") "Walker list length: ",TotWalkers
         IFDEBUG(FCIMCDebug,3) write(iout,"(A)") "TW: Walker  Det"
+           
         do j=1,TotWalkers
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.
@@ -871,7 +880,6 @@ MODULE FciMCParMod
             ! from the same walker has not been filled (it is filled when we
             ! excite from the first particle on a determinant).
             fcimc_excit_gen_store%tFilled = .false.
-
 
             if (tSpawn_Only_Init) then
                 call extract_sign (CurrentDets(:,j), SignCurr)
@@ -895,7 +903,7 @@ MODULE FciMCParMod
 
                 if (tTruncInitiator) call CalcParentFlag (j, VecSlot, &
                                                           parent_flags)
-            endif                                                          
+            endif
 
             if(tHashWalkerList) then
                 !Test here as to whether this is a "hole" or not...
@@ -968,7 +976,7 @@ MODULE FciMCParMod
                 call ChangeRefDet (DetCurr)
                 exit
             endif
-
+            
             ! Sum in any energy contribution from the determinant, including 
             ! other parameters, such as excitlevel info.
             ! This is where the projected energy is calculated.
@@ -1005,7 +1013,7 @@ MODULE FciMCParMod
                     call generate_excitation (DetCurr, CurrentDets(:,j), nJ, &
                                    ilutnJ, exFlag, IC, ex, tParity, prob, &
                                    HElGen, fcimc_excit_gen_store)
-
+                    
                     ! If a valid excitation, see if we should spawn children.
                     if (.not. IsNullDet(nJ)) then
                         child = attempt_create (get_spawn_helement, DetCurr, &
@@ -1039,7 +1047,6 @@ MODULE FciMCParMod
             ! if (VecSlot > j) call stop_all (this_routine, 'vecslot > j')
             call walker_death (attempt_die, iter_data, DetCurr, &
                                CurrentDets(:,j), HDiagCurr, SignCurr, VecSlot, j)
-
         enddo ! Loop over determinants.
         IFDEBUGTHEN(FCIMCDebug,2) 
             write(iout,*) 'Finished loop over determinants'
@@ -1047,6 +1054,45 @@ MODULE FciMCParMod
                 write(iout,*) "Holes in list: ",iEndFreeSlot
             endif
         ENDIFDEBUG
+
+        do i=1, NumDoubEntries+NumQuadEntries
+            tstaticfluxterm=.true.
+            !Now apply the static flux terms
+            !These are all diagonal terms now (connections previously explicitely
+            !accounted for).  However, we cannot treat these as a "death" step, as
+            !the determinants we are considering may not appear in the currentDets
+            !array
+            iLutCurr(:)=CISDTotFlux(1:Nifd+1,i)
+            StaticFlux=CISDTotFlux(Nifd+1+lenof_sign,i)
+            CISDRefCoeff=CISDTotFlux(Nifd+1+lenof_sign+1,i)
+           
+            WRITE(6,*) "iLutCurr", iLutCurr(:)
+            !WRITE(6,*) "StaticFlux", StaticFlux
+            !WRITE(6,*) "CISDRefCoeff",CISDRefCoeff
+
+            child = attempt_create_staticflux (CISDRefCoeff,iLutCurr, StaticFlux)
+            ic=0
+            nullWalkExcitLevel=0
+
+            ! Children have been chosen to be spawned.
+            if (child(1) .ne. 0) then
+            call neci_flush(6)
+                call decode_bit_det(nJ, iLutCurr)
+            call neci_flush(6)
+
+                ! nJ is not used in either of these routines - we pass in
+                ! a null value to save us calculating it unnecessarily
+
+                call new_child_stats (iter_data, iLutCurr, &
+                                      nJ, iLutCurr, ic, nullwalkExcitLevel,&
+                                      child, parent_flags, 1)
+                call create_particle(nJ, iLutCurr, child, &
+                                      parent_flags, 1)
+            endif ! (child /= 0). Child created
+        
+        enddo
+        
+        tstaticfluxterm=.false.
 
         if(tHashWalkerList) then
             !With this algorithm, the determinants do not move, and therefore TotWalkersNew is simply equal
@@ -1191,9 +1237,12 @@ MODULE FciMCParMod
         proc = DetermineDetNode(nJ,0)    ! 0 -> nNodes-1)
         ! We need to include any flags set both from the parent and from the
         ! spawning steps
+
         flags = ior(parent_flags, extract_flags(ilutJ))
 
-        call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ, &
+        if(tstaticfluxterm) flags=3
+
+        call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ(0:NifDBO), &
                             child, flags)
 
         IF(lenof_sign.eq.2) THEN
@@ -1783,8 +1832,7 @@ MODULE FciMCParMod
         ! returns HElGen, rather than recomputing the matrix element.
         rh = get_spawn_helement (DetCurr, nJ, iLutCurr, iLutnJ, ic, ex, &
                                  tParity, HElGen)
-
-        !print*, 'p,rh', prob, rh
+        
 #ifdef __CMPLX
 
 !We actually want to calculate Hji - take the complex conjugate, rather than swap around DetCurr and nJ.
@@ -2990,7 +3038,7 @@ MODULE FciMCParMod
 
         IF(lenof_sign.eq.1) THEN
             ! Flip sign of entire ensemble if negative pop on HF
-            IF(AllNoatHF(1).lt.0) THEN
+            IF((AllNoatHF(1).lt.0).and.(.not. tCISDRef)) THEN
                 root_print "No. at HF < 0 - flipping sign of entire ensemble &
                            &of particles..."
                 root_print AllNoatHF(1)
@@ -3003,7 +3051,7 @@ MODULE FciMCParMod
 
         if (iProcIndex == Root) then
             ! Have all of the particles died?
-            if (AllTotwalkers == 0) then
+            if ((AllTotwalkers == 0) .and. (.not. tCISDref)) then
 !                write(iout,*) AllTotWalkers, TotWalkers
 !                call stop_all (this_routine, 'All particles have died. &
 !                              &Consider choosing new seed, or raising shift &
@@ -3042,7 +3090,6 @@ MODULE FciMCParMod
         if(iProcIndex.eq.Root) then
 ! AJWT dislikes doing this type of if based on a (seeminly unrelated) input option, but can't see another easy way.
 !  TODO:  Something to make it better
-
             if(.not.tCCMC) then
                ! Check how balanced the load on each processor is (even though
                ! we cannot load balance with direct annihilation).
@@ -3564,13 +3611,17 @@ MODULE FciMCParMod
             endif
 
             ! Calculate the projected energy.
-            if (any(AllSumNoatHF /= 0) .or. &
+            if(tCISDRef) then
+                ProjectionE = (AllSumENum+StepsSft*AllCISDProjEContrib) / real(all_sum_proje_denominator+StepsSft*CISDHfPop) 
+                proje_iter = (AllENumCyc+StepsSft*AllCISDProjEContrib) / real(all_cyc_proje_denominator+StepsSft*CISDHFPop) 
+                AbsProjE = (AllENumCycAbs+StepsSft*AllCISDProjEContribAbs) / real(all_cyc_proje_denominator +StepsSft*CISDHFPop)
+            elseif (any(AllSumNoatHF /= 0) .or. &
                 (proje_linear_comb .and. nproje_sum > 1)) then
-                ProjectionE = AllSumENum / all_sum_proje_denominator 
+                ProjectionE = (AllSumENum) / (all_sum_proje_denominator) 
 !                              ARR_RE_OR_CPLX(all_sum_proje_denominator)
-                proje_iter = AllENumCyc / all_cyc_proje_denominator 
+                proje_iter = (AllENumCyc) / (all_cyc_proje_denominator) 
 !                              ARR_RE_OR_CPLX(all_cyc_proje_denominator)
-                AbsProjE = AllENumCycAbs / all_cyc_proje_denominator 
+                AbsProjE = (AllENumCycAbs) / (all_cyc_proje_denominator)
             endif
 
             ! If we are re-zeroing the shift
@@ -3880,7 +3931,7 @@ MODULE FciMCParMod
                     write(unit_splitprojEHistK3,"(G17.9)") AllENumCycHistK3(iProjEBins)
                 endif
             endif
-
+            
             write(fcimcstats_unit,"(I12,G16.7,I10,G16.7,I13,3I15,3G17.9,2I10,&
                                   &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9)") &
                 Iter + PreviousCycles, &
@@ -4971,6 +5022,15 @@ MODULE FciMCParMod
                     &unpaired electrons.")') trunc_nopen_max
         endif
 
+        if (tCISDref .and. tExplicitOutFlux) then
+            !We need an estimate of the number of symmetry-allowed determinants at quads
+            !from the HF, if we are to store the CISDoutward flux term explicitely
+            SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.D0)
+            QuadDetsEst=int((Choose(NEl,4)*Choose(nBasis-NEl,4))/SymFactor,int64)
+            DoubDetsEst=2*int((Choose(NEl,2)*Choose(nBasis-NEl,2))/SymFactor,int64)
+        endif
+
+
 !        SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.D0)
 !        TotDets=1.D0
 !        do i=1,NEl
@@ -5901,6 +5961,8 @@ MODULE FciMCParMod
 
         ! Are we performing a linear sum over various determinants?
         ! TODO: If we use this, function pointer it.
+        
+
         HOffDiag = 0
         if (proje_linear_comb .and. nproje_sum > 1) then
        if(proje_spatial) then
@@ -5952,7 +6014,7 @@ MODULE FciMCParMod
 
             ! Perform normal projection onto reference determinant
             if (ExcitLevel_local == 0) then
-
+                
                 if (iter > NEquilSteps) SumNoatHF = SumNoatHF + wSign
                 NoatHF = NoatHF + wSign
                 ! Number at HF * sign over course of update cycle
@@ -5971,7 +6033,7 @@ MODULE FciMCParMod
                 ! along with the doubles
                 
                 if (ExcitLevel == 2) NoatDoubs = NoatDoubs + sum(abs(wSign))
-
+                
                 ! Obtain off-diagonal element
                 if (tHPHF) then
                     HOffDiag = hphf_off_diag_helement (ProjEDet, nI, iLutRef,&
@@ -6116,6 +6178,7 @@ MODULE FciMCParMod
         logical :: tPop64Bit,tPopHPHF,tPopLz
         integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
         integer(int64) :: iPopAllTotWalkers
+        integer :: i
         real(dp) :: PopDiagSft
         integer(int64) , dimension(lenof_sign) :: PopSumNoatHF
         HElement_t :: PopAllSumENum
@@ -6275,6 +6338,8 @@ MODULE FciMCParMod
                 else
                     ReadBatch = iReadWalkersRoot
                 endif
+                
+                WRITE(6,*) "NoAtHF", NoAtHF
 
                 !TotWalkers and TotParts are returned as the dets and parts on each processor.
                 call ReadFromPopsfile(iPopAllTotWalkers,ReadBatch,TotWalkers,TotParts,NoatHF,CurrentDets,MaxWalkersPart)
@@ -6490,6 +6555,57 @@ MODULE FciMCParMod
         endif
 
         if (tSpinProject) call init_yama_store ()
+
+        if (tCISDref) then
+            !Running the reference calculation from CISD result popsfile
+            !Although we read in the CISD configuration, we want to begin
+            !the residual calculation afresh (CISD walkers are removed from
+            !walker list)
+            if(lenof_sign.gt.1) call stop_all(this_routine,"CISD Reference calc not set up for use &
+                                                        & with complex wavefunctions. In particular, &
+                                                        & attempt_create_staticflux needs attention")
+            DiagSft = InputDiagSft
+            tSinglePartPhase=.true.
+            Allocate(CISDIntFlux(NifD+1+lenof_sign,DoubDetsEst))
+            Allocate(CISDIntFluxPosition(NifD+1,DoubDetsEst))
+            !Use an estimate for the size of the outward flux array (up to quads)
+            !CMO: This array will contain ONLY trips and quads - we could throw
+            !away the allocated spaces for HF, sings and doubs.
+            Allocate(CISDOutFlux(NifD+1+lenof_sign,QuadDetsEst))
+            Allocate(CISDOutFluxPosition(NifD+1,QuadDetsEst))
+            CISDIntFlux(:,:) = 0.D0
+            CISDOutFlux(:,:) = 0.D0
+            CISDIntFluxPosition(:,:) = 0
+            CISDOutFluxPosition(:,:) = 0
+            NumDoubEntries=0
+            NumQuadEntries=0
+            SortedDoubEntries=0
+            SortedQuadEntries=0
+            UnSortedDoubEntries=0
+            UnSortedQuadEntries=0
+
+            call calc_cisd_flux()
+            
+            WRITE(6,*) "NumDoubEntries, NumQuadEntries", NumDoubEntries, NumQuadEntries
+
+            allocate(CISDTotFlux(NifD+1+lenof_sign+1,NumDoubEntries+NumQuadEntries))
+
+            CISDTotFlux(:,:)=0
+            
+            call create_single_flux_array()
+
+            CALL MPIReduce(CISDProjEContrib,MPI_SUM,AllCISDProjEContrib)
+            CALL MPIReduce(CISDProjEContribAbs,MPI_SUM,AllCISDProjEContribAbs)
+            CALL MPIReduce(CISDHFCoeff,MPI_MAX,CISDHFPop)
+
+            deallocate(CISDOutFluxPosition)
+            deallocate(CISDOutFlux)
+            deallocate(CISDIntFluxPosition)
+            deallocate(CISDIntFlux)
+            deallocate(CISDref)
+
+           WRITE(6,*) "Completed CISD setup"
+        endif
 
     end subroutine InitFCIMCCalcPar
 
@@ -8109,8 +8225,780 @@ MODULE FciMCParMod
         deallocate(LargestWalkers)
 
     END SUBROUTINE PrintHighPops
+            
+    Subroutine Store_cisd_coeffs(iLut, wSign, j)
+
+    !At the beginning of our residual calculation, using a CISD popsfile,
+    !we retain the walker populations and save this as a static vector, 
+    !with which to calculate the constant flux terms
+    !for the second simulation on the residual wavefunction
+    integer, dimension(lenof_sign), intent(in) :: wSign
+    INTEGER(KIND=n_int), intent(in) :: iLut(0:NIfTot)
+    INTEGER :: DetCurr(NEl), FlagsCurr
+    integer :: part_type
+    integer,intent(in) :: j
+   
+    CISDref(1:nifd+1,j)=iLut(0:NifD)  !Determinant Label
+    CISDref(nifd+2:niftot,j)=wSign(:) !Sign
+
+    !call sort (CISDref(:,1:TotWalkers))
+    END SUBROUTINE store_cisd_coeffs
 
 
+    SUBROUTINE CISD_ref_allocation
+
+        INTEGER :: ierr, MemoryAlloc, MemoryAlloc_Root, i
+        character(*), parameter :: this_routine = 'CISD_ref_allocation' 
+
+        ! This array actually contains the excitations in blocks of the processor they will be sent to.        
+        ! Only needed if the 1-RDM is the only thing being calculated.
+        ALLOCATE(Sing_ExcDjs(0:NIfTot,NINT((NEl*nBasis)*MemoryFacPart)),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Sing_ExcDjs array.')
+        CALL LogMemAlloc('Sing_ExcDjs',NINT(NEl*nBasis*MemoryFacPart)*(NIfTot+1),&
+                                     size_n_int,this_routine,Sing_ExcDjsTag,ierr)
+
+        ALLOCATE(Sing_ExcDjs2(0:NIfTot,NINT((NEl*nBasis)*MemoryFacPart)),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Sing_ExcDjs2 array.')
+        CALL LogMemAlloc('Sing_ExcDjs2',NINT(NEl*nBasis*MemoryFacPart)*(NIfTot+1),&
+                            size_n_int,this_routine,Sing_ExcDjs2Tag,ierr)
+
+        Sing_ExcDjs(:,:)=0
+        Sing_ExcDjs2(:,:)=0
+
+        MemoryAlloc = MemoryAlloc + ( (NIfTot + 1) * NINT((NEl*nBasis)*MemoryFacPart) * size_n_int * 2 ) 
+        MemoryAlloc_Root = MemoryAlloc_Root + ( (NIfTot + 1) * NINT((NEl*nBasis)*MemoryFacPart) * size_n_int * 2 ) 
+
+        ! We need room to potentially generate N*M single excitations but these will be 
+        ! spread across each processor.        
+
+        OneEl_Gap=(REAL(NEl)*REAL(nBasis)*MemoryFacPart)/REAL(nProcessors)
+
+        ! This array contains the initial positions of the excitations for each processor.
+        ALLOCATE(Sing_InitExcSlots(0:(nProcessors-1)),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Sing_InitExcSlots array,')
+        do i=0,nProcessors-1
+            Sing_InitExcSlots(i)=NINT(OneEl_Gap*i)+1
+        enddo
+
+        ! This array contains the current position of the excitations as they're added.
+        ALLOCATE(Sing_ExcList(0:(nProcessors-1)),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Sing_ExcList array,')
+        Sing_ExcList(:)=Sing_InitExcSlots(:)
+
+        ALLOCATE(Doub_ExcDjs(0:NIfTot,NINT(((NEl*nBasis)**2)*MemoryFacPart)),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Doub_ExcDjs array.')
+        CALL LogMemAlloc('Doub_ExcDjs',NINT(((NEl*nBasis)**2)*MemoryFacPart)&
+                          *(NIfTot+1),size_n_int,this_routine,Doub_ExcDjsTag,ierr)
+
+        ALLOCATE(Doub_ExcDjs2(0:NIfTot,NINT(((NEl*nBasis)**2)*MemoryFacPart)),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Doub_ExcDjs2 array.')
+        CALL LogMemAlloc('Doub_ExcDjs2',NINT(((NEl*nBasis)**2)*MemoryFacPart)&
+                      *(NIfTot+1),size_n_int,this_routine,Doub_ExcDjs2Tag,ierr)
+
+        MemoryAlloc = MemoryAlloc + ( (NIfTot + 1) * NINT(((NEl*nBasis)**2)*MemoryFacPart) * size_n_int * 2 ) 
+        MemoryAlloc_Root = MemoryAlloc_Root + ( (NIfTot + 1) * NINT(((NEl*nBasis)**2)*MemoryFacPart) * size_n_int * 2 ) 
+
+        ! We need room to potentially generate (N*M)^2 double excitations but these 
+        ! will be spread across each processor.        
+        TwoEl_Gap=(((REAL(NEl)*REAL(nBasis))**2)*MemoryFacPart)/REAL(nProcessors)
+
+        Doub_ExcDjs(:,:)=0
+        Doub_ExcDjs2(:,:)=0
+
+        ! This array contains the initial positions of the excitations for each processor.
+        ALLOCATE(Doub_InitExcSlots(0:(nProcessors-1)),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Doub_InitExcSlots array,')
+        do i=0,nProcessors-1
+            Doub_InitExcSlots(i)=NINT(TwoEl_Gap*i)+1
+        enddo
+
+        ! This array contains the current position of the excitations as they're added.
+        ALLOCATE(Doub_ExcList(0:(nProcessors-1)),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Doub_ExcList array,')
+        Doub_ExcList(:)=Doub_InitExcSlots(:)
+    
+    END SUBROUTINE 
+
+    SUBROUTINE calc_cisd_flux()
+        
+        INTEGER(kind=n_int) :: iLutnI(0:NIfTot)
+        INTEGER(int64) :: MaxTotWalkers,TotWalkIn(2),TotWalkOut(2)
+        REAL(dp) :: TempTotParts, NormalisationTemp, Sum_Coeffs
+        INTEGER, DIMENSION(lenof_sign) :: SignI, SignI2, SignCurr
+        INTEGER :: i, j, posn, FlagsCurr, nI(nEl), WalkExcitLevel
+        HElement_t :: HDiagTemp, HDiagCurr
+        
+        !! Routine lifted largely from nElRDM !!
+        !! Anything that works is probably down to DMC !!
+        !! Anything that doesn't work is almost certainly down to CMO !!
+
+        ! Run through the current determinants.
+        ! Find the max number of determinants on a processor - all need to run through this 
+        ! number so that the communication can be done at all stages.
+
+        TotWalkIn(1)=TotWalkers
+        TotWalkIn(2)=iProcIndex
+
+        CALL MPIAllReduceDatatype(TotWalkIn,1,MPI_MAXLOC,MPI_2INTEGER,TotWalkOut)
+
+        MaxTotWalkers=TotWalkOut(1)
+        posn=1
+            
+        Allocate(CISDref(NifD+1+lenof_sign,MaxTotWalkers))
+            CISDref(:,:) = 0
+
+        call cisd_ref_allocation 
+       
+        WRITE(6,*) "MaxTotWalkers", MaxTotWalkers
+
+        do i=1,MaxTotWalkers
+        WRITE(6,*) "i", i
+
+            ! But if the actual number of determinants on this processor is less than the number 
+            ! we're running through, feed in 0 determinants and 0 sign in order to keep everything synced
+            IF(i.gt.TotWalkers) THEN
+                iLutnI(:)=0
+                blank_det=.true.
+            ELSE
+                iLutnI(:)=CurrentDets(:,i)
+                blank_det=.false.
+            ENDIF
+
+            WRITE(6,*) "Here1"
+            call neci_flush(6)
+            call extract_bit_rep (iLutnI, nI, SignCurr, &
+                                  FlagsCurr, fcimc_excit_gen_store)
+            WRITE(6,*) "Here2"
+            call neci_flush(6)
+            walkExcitLevel = FindBitExcitLevel (iLutRef, iLutnI, nEl)
+           
+            if (walkExcitLevel .eq. 0) then
+                CISDHFCoeff=SignCurr(1)
+            elseif (walkExcitLevel .le. 2) then
+                call calc_CISD_proje_contrib(iLutnI, nI, SignCurr, walkExcitLevel)
+            endif
+
+            call store_cisd_coeffs(CurrentDets(:,i), SignCurr, i)
+            
+            !Add the diagonal element Hii Ni to the internal flux array
+            if (tRegenDiagHEls) then
+                ! We are not storing the diagonal hamiltonian elements for 
+                ! each particle. Therefore, we need to regenerate them.
+                if (DetBitEQ(CurrentDets(:,i), iLutRef, NIfDBO) .and. &
+                    (.not.(tHub .and. tReal))) then
+                    HDiagCurr = 0
+                else
+                    if (tHPHF) then
+                        HDiagtemp = hphf_diag_helement (nI,iLutnI)
+                    elseif(tMomInv) then
+                        HDiagtemp = MI_diag_helement(nI,iLutnI)
+                    else
+                        HDiagTemp = get_helement (nI, nI, 0)
+                    endif
+                    HDiagCurr = real(HDiagTemp, dp)-Hii
+                endif
+            else
+                ! HDiags are stored.
+                HDiagCurr = CurrentH(i)
+            endif
+           
+            posn=binary_search(CISDIntFluxPosition(:,:), iLutnI(0:NifD))
+            if (posn<0) then
+                !New entry
+                NumDoubEntries=NumDoubEntries+1
+                posn=DoubDetsEst-NumDoubEntries
+                UnsortedDoubEntries=UnsortedDoubEntries+1
+            endif
+            CISDIntFlux(1:(NifD+1),posn) = iLutnI(0:NifD)
+            CISDIntFlux(NifD+2,posn) = CISDIntFlux(NifD+2,posn) + real(HDiagCurr*SignCurr(1))
+            CISDIntFluxPosition(1:NifD+1,posn)=iLutnI(0:NifD)
+            call sort (CISDIntFlux(:,DoubDetsEst-NumDoubEntries:DoubDetsEst))
+            call sort (CISDIntFluxPosition(:,DoubDetsEst-NumDoubEntries:DoubDetsEst))
+            SortedDoubEntries=SortedDoubEntries+UnsortedDoubEntries
+            UnsortedDoubEntries=0
+
+            ! Set up excitation arrays.
+            ! These are blocked according to the processor the excitation would be on if occupied.
+            ! In each block, the first entry is the sign of determinant D_i and the second the bit 
+            ! string of the determinant (these need to be sent along with the excitations).
+            ! Each processor will have a different Di.
+
+            Sing_ExcDjs(:,:)=0
+            Sing_ExcList(:)=0
+            Sing_ExcList(:) = Sing_InitExcSlots(:)
+
+            do j=0,nProcessors-1
+                Sing_ExcDjs(:,Sing_ExcList(j)) = iLutnI(:)
+                Sing_ExcList(j) = Sing_ExcList(j)+1
+            enddo
+
+            Doub_ExcDjs(:,:) = 0
+            Doub_ExcList(:) = 0
+            Doub_ExcList(:) = Doub_InitExcSlots(:)
+
+            do j=0,nProcessors-1
+                Doub_ExcDjs(:,Doub_ExcList(j)) = iLutnI(:)
+                Doub_ExcList(j) = Doub_ExcList(j)+1
+            enddo
+
+            ! Out of here we will get a filled ExcDjs array with all the single or double excitations 
+            IF(.not.blank_det) CALL GenExcDjs(iLutnI)
+            ! Out of here we will get a filled ExcDjs array with all the single or double excitations 
+            ! from Dj, this will be done for each proc. 
+
+            ! We then need to send the excitations to the relevant processors.
+            CALL SendProcExcDjs()
+            ! This routine then calls SearchOccDets which takes each excitation and and binary 
+            ! searches the occupied determinants for this.
+            ! If found, we add in the Hij Nj contribution into the cisd flux arrays 
+            !WRITE(6,*) "Before wiping coeffs", CurrentDets(:,i), blank_det
+
+            if (.not. blank_det) call wipe_CISD_coeff(CurrentDets(:,i), nI, i)
+
+            !WRITE(6,*) "After wiping coeffs", CurrentDets(:,i)
+
+        enddo
+    END SUBROUTINE
+
+    SUBROUTINE GenExcDjs(iLutnI)
+! This uses GenExcitations3 in symexcit3.F90 to generate all the possible either 
+! single or double excitations from D_i, finds the processor they would be on if occupied, 
+! and puts them in the SingExcDjs array according to that processor.
+        implicit none
+        INTEGER(kind=n_int) , INTENT(IN) :: iLutnI(0:NIfTot)
+        INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
+        INTEGER, dimension(lenof_sign) :: SignDi, SignDi2
+        INTEGER :: ExcitMat3(2,2),nI(NEl),nJ(NEl),Proc,FlagsDi,a,b,CountTemp
+        LOGICAL :: tParity,tAllExcitFound
+
+        call extract_bit_rep (iLutnI, nI, SignDi, FlagsDi)
+
+        ExcitMat3(:,:)=0
+        ! Zeros in ExcitMat3 starts off at the first single excitation.        
+        tAllExcitFound=.false.
+        ! This becomes true when all the excitations have been found.
+
+        do while (.not.tAllExcitFound)
+            CALL GenExcitations3(nI,iLutnI,nJ,1,ExcitMat3(:,:),tParity,&
+                                                   tAllExcitFound)            
+            ! Passed out of here is the singly excited determinant, nJ.
+
+            IF(tAllExcitFound) EXIT
+
+            iLutnJ(:)=0
+            CALL EncodeBitDet(nJ,iLutnJ)
+            WRITE(6,*) "GenExcDjs"
+            WRITE(6,*) "nJ", nJ
+            WRITE(6,*) "iLutnJ", iLutnJ
+
+            Proc = DetermineDetNode(nJ,0)   
+            !This will return a value between 0 -> nProcessors-1
+            Sing_ExcDjs(:,Sing_ExcList(Proc)) = iLutnJ(:)
+            Sing_ExcList(Proc) = Sing_ExcList(Proc)+1
+
+            ! Want a quick test to see if arrays are getting full.
+
+            IF(Sing_ExcList(Proc).gt.NINT(OneEl_Gap*(Proc+1))) THEN
+                WRITE(6,*) 'Proc',Proc
+                WRITE(6,*) 'Sing_ExcList',Sing_ExcList
+                WRITE(6,*) 'No. spaces for each proc',NINT(OneEl_Gap)
+                CALL Stop_All('GenExcDjs',&
+                            'Too many excitations for space available.')
+            ENDIF
+        enddo
+
+        ExcitMat3(:,:)=0
+        ! Zeros in ExcitMat3 starts off at the first single excitation.
+        tAllExcitFound=.false.
+        ! This becomes true when all the excitations have been found.        
+        do while (.not.tAllExcitFound)
+            CALL GenExcitations3(nI,iLutnI,nJ,2,ExcitMat3(:,:),tParity,&
+                                                    tAllExcitFound)            
+            ! Passed out of here is the doubly excited determinant, nJ.
+            IF(tAllExcitFound) EXIT
+
+            iLutnJ(:)=0
+            !WRITE(6,*) "before Encode nJ", nJ(:)
+            CALL EncodeBitDet(nJ,iLutnJ)
+            if (iLutnJ(0) .eq. 9007199254745200) then
+                WRITE(6,*) "After encode", iLutnJ
+                WRITE(6,*) "nJ", nJ
+            endif
+
+            Proc = DetermineDetNode(nJ,0)   
+            !This will return a value between 0 -> nProcessors-1
+            Doub_ExcDjs(:,Doub_ExcList(Proc)) = iLutnJ(:)
+            ! All the double excitations from this particular nI are being 
+            ! stored in Doub_ExcDjs.
+
+            Doub_ExcList(Proc) = Doub_ExcList(Proc)+1
+
+            ! Want a quick test to see if arrays are getting full.            
+            IF(Doub_ExcList(Proc).gt.NINT(TwoEl_Gap*(Proc+1))) THEN
+                WRITE(6,*) 'Proc',Proc
+                WRITE(6,*) 'Doub_ExcList',Doub_ExcList
+                WRITE(6,*) 'No. spaces for each proc',NINT(TwoEl_Gap)
+                CALL Stop_All('GenExcDjs','Too many excitations for space available.')
+            ENDIF
+        enddo
+    
+    END SUBROUTINE GenExcDjs
+
+    SUBROUTINE SendProcExcDjs()
+    ! In this routine the excitations are sent to the relevant processors.
+    ! Sent with them will be the Di they were excited from and its sign.
+    ! Each processor will receive nProcessor number of lists with different Di determinants.
+    ! The original Di's will (I think) still be in the original InitSingExcSlots positions.
+    ! This follows the directannihilation algorithm closely.
+     
+        implicit none
+        INTEGER :: i,j
+        INTEGER(MPIarg) :: sendcounts(nProcessors),disps(nProcessors)
+        INTEGER(MPIarg) :: sing_recvcounts(nProcessors)
+        INTEGER(MPIarg) :: sing_recvdisps(nProcessors)
+        INTEGER(MPIarg) :: doub_recvcounts(nProcessors),doub_recvdisps(nProcessors)
+        INTEGER :: error,MaxSendIndex,MaxIndex
+
+        do i=0,nProcessors-1
+            sendcounts(i+1)=Sing_ExcList(i)-(NINT(OneEl_Gap*i)+1)
+            ! Sendcounts is the number of singly excited determinants we want to send for 
+            ! each processor (but goes from 1, not 0).            
+            disps(i+1)=NINT(OneEl_Gap*i)
+            ! and I think disps is the first slot for each processor - 1.            
+        enddo
+
+        MaxSendIndex=Sing_ExcList(nProcessors-1)-1
+
+        ! We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
+        sing_recvcounts(1:nProcessors)=0
+        CALL MPIAlltoAll(sendcounts,1,sing_recvcounts,1,error)
+        ! I think recvcounts(i) is the number of determinants sent from processor i.        
+
+        ! We can now get recvdisps from recvcounts, since we want the data to be 
+        ! contiguous after the move.
+        sing_recvdisps(1)=0
+        do i=2,nProcessors
+            sing_recvdisps(i)=sing_recvdisps(i-1)+sing_recvcounts(i-1)
+        enddo
+
+        MaxIndex=sing_recvdisps(nProcessors)+sing_recvcounts(nProcessors)
+        ! But the actual number of integers we need to send is the calculated values * NIfTot+1.
+        do i=1,nProcessors
+            sendcounts(i)=sendcounts(i)*int(NIfTot+1,MPIarg)
+            disps(i)=disps(i)*int(NIfTot+1,MPIarg)
+            sing_recvcounts(i)=sing_recvcounts(i)*int(NIfTot+1,MPIarg)
+            sing_recvdisps(i)=sing_recvdisps(i)*int(NIfTot+1,MPIarg)
+        enddo
+#ifdef PARALLEL
+        CALL MPIAlltoAllv(Sing_ExcDjs(:,1:MaxSendIndex),sendcounts,disps,&
+                            Sing_ExcDjs2,sing_recvcounts,sing_recvdisps,error)
+#else
+        Sing_ExcDjs2(0:NIfTot,1:MaxIndex)=Sing_ExcDjs(0:NIfTot,1:MaxSendIndex)
+#endif
+        
+        !For a D_i to D_j excitation, the determinant D_i and its sign get sent
+        !to the processor on which D_j is stored.
+        !We then want to calculate the static flux terms onto D_j from all
+        !its connections D_i.
+        !IF D_j is HF/sing/doub, the Hamiltonian connecting D_i and D_j will
+        !be part of the CISD Hamiltonian, and we will add a contribution
+        !H_ji N_i to the inward flux onto D_j
+        !if D_j is a triple/quad, the contribution goes into the outward flux
+
+        !H_ji will need to be calculated on the target processor
+        !We also need to explicitely include the diagonal contributions to
+        !the static flux terms
+        CALL Add_Static_Flux_Contrib(sing_recvcounts,sing_recvdisps, 1)
+
+        do i=0,nProcessors-1
+            sendcounts(i+1)=Doub_ExcList(i)-(NINT(TwoEl_Gap*i)+1)
+            ! Sendcounts is the number of singly excited determinants we want to send for 
+            ! each processor (but goes from 1, not 0).            
+            disps(i+1)=NINT(TwoEl_Gap*i)
+            ! and I think disps is the first slot for each processor - 1.            
+        enddo
+
+        MaxSendIndex = Doub_ExcList(nProcessors-1)-1
+
+        ! We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
+        doub_recvcounts(1:nProcessors)=0
+        CALL MPIAlltoAll(sendcounts,1,doub_recvcounts,1,error)
+        ! I think recvcounts(i) is the number of determinants sent from processor i.        
+
+        ! We can now get recvdisps from recvcounts, since we want the data to be contiguous 
+        ! after the move.
+        doub_recvdisps(1)=0
+        do i=2,nProcessors
+            doub_recvdisps(i)=doub_recvdisps(i-1)+doub_recvcounts(i-1)
+        enddo
+
+        MaxIndex=doub_recvdisps(nProcessors)+doub_recvcounts(nProcessors)
+       
+
+
+        ! But the actual number of integers we need to send is the calculated values * NIfTot+1.
+        do i=1,nProcessors
+            sendcounts(i)=sendcounts(i)*(NIfTot+1)
+            disps(i)=disps(i)*(NIfTot+1)
+            doub_recvcounts(i)=doub_recvcounts(i)*(NIfTot+1)
+            doub_recvdisps(i)=doub_recvdisps(i)*(NIfTot+1)
+        enddo
+
+        ! This is the main send of all the double excitations to the corresponding processors.        
+#ifdef PARALLEL
+            CALL MPIAlltoAllv(Doub_ExcDjs(:,1:MaxSendIndex),sendcounts,disps,&
+                                    Doub_ExcDjs2,doub_recvcounts,doub_recvdisps,error)
+#else
+            Doub_ExcDjs2(0:NIfTot,1:MaxIndex)=Doub_ExcDjs(0:NIfTot,1:MaxSendIndex)
+#endif
+             CALL Add_Static_Flux_Contrib(doub_recvcounts,doub_recvdisps, 2)
+
+    END SUBROUTINE SendProcExcDjs
+    
+    SUBROUTINE Add_Static_Flux_Contrib(recvcounts,recvdisps, exlevel)
+! We now have arrays SingExcDjs2 which contain all the single excitations from 
+! each processor.
+! These number sent from processor i is recvcounts(i), and the first 2 have information 
+! about the determinant Di from which the Dj's are single excitations (and it's sign).
+        implicit none
+        INTEGER(MPIarg), INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
+        INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
+        INTEGER(kind=n_int) :: iLutnI(0:NIfTot)
+        INTEGER, dimension(lenof_sign) :: SignDi,SignDj, SignDi2,SignDj2
+        INTEGER, intent(in) :: exlevel !Is D_i to D_j a single or double excitation?
+        INTEGER :: ExcitLevelj, posn
+        INTEGER :: i,j,NoDets,StartDets
+        INTEGER :: nI(NEl),nJ(NEl),Ex(2,2),FlagsDi,FlagsDj
+        LOGICAL :: tDetFound,tParity
+        REAL(dp) :: realSignDi, realSignDj
+        HElement_t :: NullHEl, Hij
+
+! Take each Dj, and binary search the CurrentDets to see if it is occupied.
+
+        do i=1,nProcessors
+! Doing determinants from each processor separately because each has a different 
+! D_i it was excited from.
+            NoDets=recvcounts(i)/(NIfTot+1)
+            StartDets=(recvdisps(i)/(NIfTot+1))+1
+
+            IF(NoDets.gt.1) THEN
+                if(exlevel .eq. 1) then
+                    call extract_bit_rep (Sing_ExcDjs2(:,StartDets), nI, SignDi, FlagsDi)
+                    iLutnI=Sing_ExcDjs2(:,StartDets)
+                else
+                    call extract_bit_rep (Doub_ExcDjs2(:,StartDets), nI, SignDi, FlagsDi)
+                    iLutnI=Doub_ExcDjs2(:,StartDets)
+                endif
+
+                realSignDi = real(SignDi(1))
+
+                do j=StartDets+1,(NoDets+StartDets-1)
+
+! D_i is in the first spot - start from the second.                
+                
+                    if(exlevel .eq. 1) then
+                        iLutnJ(:)=Sing_ExcDjs2(:,j)
+                    else
+                        iLutnJ(:)=Doub_ExcDjs2(:,j)
+                    endif
+
+                    Ex(:,:)=0
+                    ! Ex(1,1) goes in as the max number of excitations 
+                    Ex(1,1)=exlevel
+                    tParity = .false.
+                    
+                    call extract_bit_rep (iLutnJ, nJ, SignDj, FlagsDj)
+
+                    WRITE(6,*) "nJ", nJ
+                    WRITE(6,*) "iLutnJ", iLutnJ 
+
+                    ! Ex(1,:) comes out as the orbital(s) excited from, Ex(2,:) comes out as the orbital(s) 
+                    ! excited to.    
+                    CALL GetExcitation(nI,nJ,NEl,Ex,tParity)
+
+                    IF(Ex(1,1).le.0) CALL Stop_All('Add_Static_Flux_Contrib',&
+                                            'nJ is not the correct excitation of nI.')
+
+                    NullHEl=0.D0 !For compatability with other interfaces only
+
+                    Hij = get_helement_det_only (nI, nJ, iLutnI, iLutnJ, exlevel, ex, &
+                                            tParity, NullHEl)
+                    WRITE(6,*) "iLutnJ2", iLutnJ 
+
+                    !Add the Hij * RealSignDi contribution to either the
+                    !inward or outward CISD flux array
+                    ExcitLevelj = FindBitExcitLevel (iLutRef, iLutnJ, max_calc_ex_level)
+                    WRITE(6,*) "iLutnJ3", iLutnJ 
+
+                    if (ExcitLevelj .le. 2) then
+                        !D_i and D_j connected by CISD Hamiltonian
+                        posn=binary_search(CISDIntFluxPosition& 
+                                   (:,DoubDetsEst-SortedDoubEntries:DoubDetsEst), iLutnJ(0:NifD), NifD+1)
+                    WRITE(6,*) "iLutnJ4", iLutnJ 
+                        if (posn<0) then
+                            !New entry
+                            NumDoubEntries=NumDoubEntries+1
+                            UnsortedDoubEntries=UnsortedDoubEntries+1
+                            posn=DoubDetsEst-SortedDoubEntries-UnsortedDoubEntries
+                        else
+           !                 WRITE(6,*) "CISDIntFluxPosition(:,:)", CISDIntFluxPosition(:,:)
+           !                 WRITE(6,*) "iLutnJ(0:NifD)", iLutnJ(0:NifD) 
+           !                 WRITE(6,*) "posn", posn
+           !                 WRITE(6,*) "asctual posn", posn+DoubDetsEst-SortedDoubEntries-1
+           !                 WRITE(6,*) "DoubDetsEst", DoubDetsEst
+                            posn=posn+DoubDetsEst-SortedDoubEntries-1
+                        endif
+                    WRITE(6,*) "iLutnJ6", iLutnJ 
+                    WRITE(6,*) "real ilutnJ", real(iLutnJ(0:NifD), 16)
+                        CISDIntFlux(1:(NifD+1),posn) = real(iLutnJ(0:NifD),16)
+                        CISDIntFlux(NifD+2,posn) = CISDIntFlux(NifD+2,posn) + real(Hij*RealSignDi)
+                        CISDIntFluxPosition(1:NifD+1,posn)=iLutnJ(0:NifD)
+                        WRITE(6,*) "CISDIntFlux(posn)", CISDIntFlux(1:(NifD+1), posn)
+                    else
+                        !D_i and D_j only connected by the residual Hamiltonian
+                        posn=binary_search(CISDOutFluxPosition&
+                                    (:,QuadDetsEst-SortedQuadEntries:QuadDetsEst), iLutnJ(0:nIfD), NifD+1)
+                        if (posn<0) then
+                            !New entry
+                            NumQuadEntries=NumQuadEntries+1
+                            UnsortedQuadEntries=UnsortedQuadEntries+1
+                            posn=QuadDetsEst-SortedQuadEntries-UnsortedQuadEntries
+                        else
+                            posn=posn+QuadDetsEst-SortedQuadEntries-1
+                        endif
+                        CISDOutFlux(1:(NifD+1),posn) = real(iLutnJ(0:NifD),16)
+                        CISDOutFlux(NifD+2,posn) = CISDOutFlux(NifD+2,posn) + real(Hij*RealSignDi)
+                        CISDOutFluxPosition(1:(NifD+1),posn) = iLutnJ(0:NifD)
+                        !WRITE(6,*) "iLutnJ", iLutnJ(0:NifD)
+                        !WRITE(6,*) "posn", posn
+                        !WRITE(6,*) "CISDOutFlux", CISDOutFlux(:,QuadDetsEst-NumQuadEntries-5:QuadDetsEst)
+                        !WRITE(6,*) "CISDOutFluxPosition", CISDOutFluxPosition(:,QuadDetsEst-NumQuadEntries-5:QuadDetsEst)
+                        !WRITE(6,*) "Herej1"
+                        !WRITE(6,*) "QuadDetsEst", QuadDetsEst
+                        !WRITE(6,*) "NumQuadEntries", NumQuadEntries
+                          call neci_flush(6)
+                        !WRITE(6,*) "Herej1"
+                        call neci_flush(6)
+
+                    endif
+                enddo
+            ENDIF
+            call sort (CISDIntFlux(:,DoubDetsEst-NumDoubEntries:DoubDetsEst))
+            call sort (CISDIntFluxPosition(:,DoubDetsEst-NumDoubEntries:DoubDetsEst))
+            call sort (CISDOutFlux(:,QuadDetsEst-NumQuadEntries:QuadDetsEst))
+            call sort (CISDOutFluxPosition(:,QuadDetsEst-NumQuadEntries:QuadDetsEst))
+            SortedQuadEntries=SortedQuadEntries+UnsortedQuadEntries
+            UnsortedQuadEntries=0
+            SortedDoubEntries=SortedDoubEntries+UnsortedDoubEntries
+            UnsortedDoubEntries=0
+            !WRITE(6,*) "Quad Sorted, Unsorted, Num", SortedQuadEntries, UnSortedQuadEntries, NumQuadEntries
+            !WRITE(6,*) "Doub Sorted, Unsorted, Num", SortedDoubEntries, UnSortedDoubEntries, NumDoubEntries
+        enddo
+
+    END SUBROUTINE Add_Static_Flux_Contrib
+
+    SUBROUTINE wipe_CISD_coeff(iLut, DetCurr, DetPosition)
+
+        INTEGER(kind=n_int), intent(in) :: iLut(0:NIfTot)
+        integer, dimension(lenof_sign), parameter :: NullSign=0
+        INTEGER, intent(in) :: DetCurr(NEl), DetPosition
+        INTEGER :: NullFlags
+
+        NullFlags=0
+        
+        if(tTruncInitiator) then
+            ! Wiping all particles on this determinant have gone.
+            if(tHashWalkerList) then
+                !Remove the determinant from the indexing list
+                call RemoveDetHashIndex(DetCurr,DetPosition)
+                !Add to the "freeslot" list
+                iEndFreeSlot=iEndFreeSlot+1
+                FreeSlot(iEndFreeSlot)=DetPosition
+                !Encode a null det to be picked up
+                call encode_sign(CurrentDets(:,DetPosition),NullSign)
+            else
+                call encode_bit_rep(CurrentDets(:,DetPosition),iLut,NullSign,NullFlags)
+            endif
+        elseif(tHashWalkerList) then
+            !Remove the determinant from the indexing list
+            call RemoveDetHashIndex(DetCurr,DetPosition)
+            !Add to the "freeslot" list
+            iEndFreeSlot=iEndFreeSlot+1
+            FreeSlot(iEndFreeSlot)=DetPosition
+            !Encode a null det to be picked up
+            call encode_sign(CurrentDets(:,DetPosition),NullSign)
+        endif
+
+    END SUBROUTINE wipe_CISD_coeff
+
+    SUBROUTINE create_single_flux_array
+
+    integer :: posn, i, posn1
+    INTEGER :: TestnJ(Nel)
+    INTEGER :: TestiLut(0:NifTot)
+
+    posn=1
+
+    do i=1, DoubDetsEst
+        WRITE(6,*) "i, CISDIntFlux(:,i)", i, CISDIntFlux(:,i)
+    enddo
+
+    do i=1,DoubDetsEst
+        !Run over the internal flux array
+        if (CISDIntFlux(1,i).eq. 0.D0) then
+            cycle !CHECK
+        else
+            !Add this internal flux term to the totflux array
+            WRITE(6,*) "Create single Flux array"
+            WRITE(6,*) "Doubs flux i", i
+            TestiLut(:)=0
+            TestiLut(0)=int(CISDIntFlux(1,i))
+            call decode_bit_det_chunks(TestnJ, TestiLut(:))
+            CISDTotFlux(1:NifD+1+lenof_sign,posn)=CISDIntFlux(:,i)
+            
+            !Search for the CISD coeff for this det, and put in final col of totflux array
+            posn1=binary_search(CISDref(:,:), CISDIntFluxPosition(:,i), NifD+1)
+            if (posn1 .lt. 0) then
+                !WRITE(6,*) "CISDref(:,:)", CISDRef(:,:)
+                !WRITE(6,*) "CISDIntFluxPosition(:,i)", CISDIntFluxPosition(:,i)
+                !WRITE(6,*) "NifD+1", NifD+1
+                !call stop_all("create_single_flux_array", "Error in Assigning the flux arrays")
+                CISDTotFlux(NifD+1+lenof_sign+1,posn)=0
+            else
+                CISDTotFlux(NifD+1+lenof_sign+1,posn)=CISDRef(NifD+2,posn1)
+            endif
+            
+            posn=posn+1
+        endif
+    enddo
+
+    if(posn .gt. NumDoubEntries + NumQuadEntries +1) then
+        call stop_all("create_single_flux_array", "Total flux array incorrectly allocated")
+    endif
+
+    do i=1,QuadDetsEst
+        !Run over the internal flux array
+        if (CISDOutFlux(1,i) .eq. 0.D0) then
+            cycle !CHECK
+        else
+            WRITE(6,*) "Quads flux i", i
+            TestiLut(:)=0
+            TestiLut(0)=int(CISDOutFlux(1,i))
+            call decode_bit_det_chunks(TestnJ, TestiLut(:))
+            CISDTotFlux(1:NifD+1+lenof_sign,posn)=CISDOutFlux(:,i)
+            posn=posn+1
+        endif
+    enddo
+    call sort (CISDTotFlux(:,1:NumDoubEntries+NumQuadEntries))
+    if(posn .gt. NumDoubEntries + NumQuadEntries+1) then
+        call stop_all("create_single_flux_array", "Total flux array incorrectly allocated")
+    endif
+
+    END SUBROUTINE
+    
+    FUNCTION attempt_create_staticflux (CISDRefCoeff,iLutnJ, StaticFlux) result(child)
+
+        integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot) !Determinant being spawned onto
+        real(dp), intent(in) :: StaticFlux
+        integer, intent(in) :: CISDRefCoeff
+        integer, dimension(lenof_sign) :: child
+        real(dp) :: rat, r
+        integer :: extracreate
+
+        child(:) = 0
+
+        !We are dealing with real particles always here.
+
+        rat = tau * abs(StaticFlux-DiagSft*CISDRefCoeff)
+        
+        ! If probability > 1, then we just create multiple children at the
+        ! chosen determinant.
+        extraCreate = int(rat)
+        rat = rat - real(extraCreate, dp)
+
+        ! Stochastically choose whether to create or not.
+        r = genrand_real2_dSFMT ()
+        if (rat > r) then
+            !Create child
+            child(1) = -nint(sign(1.0_dp, StaticFlux-DiagSft*CISDRefCoeff))
+            child(1) = child(1) + sign(extraCreate, child(1))
+        elseif(extraCreate.ne.0) then
+            !Just return if any extra particles created
+            child(1) = -extraCreate*nint(sign(1.0_dp, rat))
+        endif
+       ! if((DiagSft .lt. 0.D0).and.(child(1).ne.0)) then
+       !     WRITE(6,*) "CISDRefCoeff", CISDRefCoeff
+       !     WRITE(6,*) "iLutnJ", iLutnJ
+       !     WRITE(6,*) "child", child(1)
+       !     WRITE(6,*) "StaticFlux", StaticFlux
+       ! endif
+    END FUNCTION attempt_create_staticflux
+    
+    SUBROUTINE calc_CISD_proje_contrib(iLut, nI, wSign, ExcitLevel)
+
+        integer, intent(in) :: nI(nel)
+        integer, intent(in) :: ExcitLevel
+        integer, intent(in) :: wSign(lenof_sign)
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer :: i, bin, pos, ExcitLevel_local, ExcitLevelSpinCoup
+        HElement_t :: HOffDiag
+        HElement_t :: HDoubDiag
+
+        if (proje_linear_comb) call stop_all("calc_CISD_proje_contrib", "proje_linear_comb option &
+                                                &not setup to work with CISD reference calcs")
+            
+            ! ExcitLevel indicates the excitation level between the det and
+            ! *one* of the determinants in an HPHF/MomInv function. If needed,
+            ! calculate the connection between it and the other one. If either
+            ! is connected, then it has to be counted. Since the excitation
+            ! level is the same to either det, we don't need to consider the
+            ! spin-coupled det of both reference and current HPHFs.
+            !
+            ! For determinants, set ExcitLevel_local == ExcitLevel.
+            ExcitLevel_local = ExcitLevel
+            
+            if (tSpinCoupProjE .and. (ExcitLevel /= 0)) then
+                ExcitLevelSpinCoup = FindBitExcitLevel (iLutRefFlip, &
+                                                        ilut, 2)
+                if (ExcitLevelSpinCoup <= 2 .or. ExcitLevel <= 2) &
+                    ExcitLevel_local = 2
+            endif
+
+            if (ExcitLevel_local == 2 .or. &
+                    (ExcitLevel_local == 1 .and. tNoBrillouin)) then
+
+                ! For the real-space Hubbard model, determinants are only
+                ! connected to excitations one level away, and Brillouins
+                ! theorem cannot hold.
+                !
+                ! For Rotated orbitals, Brillouins theorem also cannot hold,
+                ! and energy contributions from walkers on singly excited
+                ! determinants must also be included in the energy values
+                ! along with the doubles
+                
+                ! Obtain off-diagonal element
+                if (tHPHF) then
+                    HOffDiag = hphf_off_diag_helement (ProjEDet, nI, iLutRef,&
+                                                       ilut)
+                elseif(tMomInv) then
+                    HOffDiag = MI_off_diag_helement (ProjEDet, nI, iLutRef, ilut)
+                else
+                    HOffDiag = get_helement (ProjEDet, nI, ExcitLevel, &
+                                             ilutRef, ilut)
+                endif
+
+            endif ! ExcitLevel_local == 1, 2, 3
+    
+        if (tSplitProjEHist) call stop_all("calc_CISD_proje_contrib", "tSplitProjeHist &
+                                             &not yet setup to work with CISD reference calcs")
+
+        ! Sum in energy contribution
+        
+        CISDProjEContrib = CISDProjEContrib + real(HOffDiag * ARR_RE_OR_CPLX(wSign))
+        CISDProjEContribAbs = CISDProjEContribAbs + real(abs(HOffDiag * ARR_RE_OR_CPLX(wSign)))
+
+    END SUBROUTINE calc_CISD_proje_contrib
+    
 END MODULE FciMCParMod
 
     ! This routine will change the reference determinant to DetCurr. It will 
