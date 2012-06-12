@@ -536,6 +536,32 @@ module DetBitOps
 
     end function
 
+    ! This will return true if the determinant has been set to zero, and 
+    ! false otherwise.
+    pure logical function DetBitZero(iLutI,nLast)
+        integer, intent(in), optional :: nLast
+        integer(kind=n_int), intent(in) :: iLutI(0:NIfTot)
+        integer :: i, lnLast
+        if(iLutI(0).ne.0) then
+            DetBitZero=.false.
+            return
+        else
+            if (present(nLast)) then
+                lnLast = nLast
+            else
+                lnLast = NIftot
+            endif
+            do i=1,lnLast
+                if(iLutI(i).ne.0) then
+                    DetBitZero=.false.
+                    return
+                endif
+            enddo
+        endif
+        DetBitZero=.true.
+    end function DetBitZero
+
+
     ! This will return 1 if iLutI is "less" than iLutJ, 0 if the determinants
     ! are identical, or -1 if iLutI is "more" than iLutJ
     pure integer function DetBitLT(iLutI,iLutJ,nLast)

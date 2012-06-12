@@ -8,7 +8,7 @@ MODULE AnnihilationMod
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE FciMCData
     use DetBitOps, only: DetBitEQ, DetBitLT, FindBitExcitLevel, ilut_lt, &
-                         ilut_gt!, DetBitZero
+                         ilut_gt, DetBitZero
     use spatial_initiator, only: add_initiator_list, rm_initiator_list, &
                                  is_spatial_init
     use CalcData , only : tTruncInitiator, tSpawnSpatialInit
