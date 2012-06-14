@@ -1057,7 +1057,7 @@ MODULE FciMCParMod
             !the determinants we are considering may not appear in the currentDets
             !array
             iLutCurr(:)=CISDTotFlux(1:Nifd+1,i)
-            StaticFlux=CISDTotFlux(Nifd+1+lenof_sign,i)*1D-16
+            StaticFlux=CISDTotFlux(Nifd+1+lenof_sign,i)*1.D-12
             CISDRefCoeff=CISDTotFlux(Nifd+1+lenof_sign+1,i)
            
             child = attempt_create_staticflux (CISDRefCoeff,iLutCurr, StaticFlux)
@@ -1066,9 +1066,7 @@ MODULE FciMCParMod
 
             ! Children have been chosen to be spawned.
             if (child(1) .ne. 0) then
-            call neci_flush(6)
                 call decode_bit_det(nJ, iLutCurr)
-            call neci_flush(6)
 
                 ! nJ is not used in either of these routines - we pass in
                 ! a null value to save us calculating it unnecessarily
@@ -8389,7 +8387,7 @@ MODULE FciMCParMod
                 HDiagCurr = CurrentH(i)
             endif
            
-            posn=binary_search(CISDIntFluxPosition(:,:), iLutnI(0:NifD))
+            posn=binary_search(CISDIntFluxPosition(:,DoubDetsEst-NumDoubEntries:DoubDetsEst), iLutnI(0:NifD))
             if (posn<0) then
                 !New entry
                 NumDoubEntries=NumDoubEntries+1
@@ -8397,7 +8395,7 @@ MODULE FciMCParMod
                 UnsortedDoubEntries=UnsortedDoubEntries+1
             endif
             CISDIntFlux(1:(NifD+1),posn) = iLutnI(0:NifD)
-            CISDIntFlux(NifD+2,posn) = CISDIntFlux(NifD+2,posn) + int(1.D+16*HDiagCurr*SignCurr(1),n_int)
+            CISDIntFlux(NifD+2,posn) = CISDIntFlux(NifD+2,posn) + int(1.D+12*HDiagCurr*SignCurr(1),n_int)
             CISDIntFluxPosition(1:NifD+1,posn)=iLutnI(0:NifD)
             call sort (CISDIntFlux(:,DoubDetsEst-NumDoubEntries:DoubDetsEst))
             call sort (CISDIntFluxPosition(:,DoubDetsEst-NumDoubEntries:DoubDetsEst))
@@ -8469,7 +8467,6 @@ MODULE FciMCParMod
             CALL GenExcitations3(nI,iLutnI,nJ,1,ExcitMat3(:,:),tParity,&
                                                    tAllExcitFound)            
             ! Passed out of here is the singly excited determinant, nJ.
-
             IF(tAllExcitFound) EXIT
 
             iLutnJ(:)=0
@@ -8615,7 +8612,7 @@ MODULE FciMCParMod
        
 
 
-        ! But the actual number of integers we need to send is the calculated values * NIfTot+1.
+        ! But the actual number of integers we need to send is the calculated values * NIfTot+1.,n_int
         do i=1,nProcessors
             sendcounts(i)=sendcounts(i)*(NIfTot+1)
             disps(i)=disps(i)*(NIfTot+1)
@@ -8700,41 +8697,80 @@ MODULE FciMCParMod
                     Hij = get_helement_det_only (nI, nJ, iLutnI, iLutnJ, exlevel, ex, &
                                             tParity, NullHEl)
 
+                    !If(Hij*RealSignDi.eq.0) then
+                    !    WRITE(6,*) "Hij", Hij
+                    !    WRITE(6,*) "RealSignDi", RealSignDi
+                    !    WRITE(6,*) "tParity", tParity
+                    !    if(Hij.eq.0) then
+                    !        WRITE(6,*) "nI", nI(:)
+                    !        WRITE(6,*) "nJ", nJ(:)
+                    !    endif
+                    !endif
+
                     !Add the Hij * RealSignDi contribution to either the
                     !inward or outward CISD flux array
                     ExcitLevelj = FindBitExcitLevel (iLutRef, iLutnJ, max_calc_ex_level)
+                
 
-                    if (ExcitLevelj .le. 2) then
-                        !D_i and D_j connected by CISD Hamiltonian
-                        posn=binary_search(CISDIntFluxPosition& 
-                                   (:,DoubDetsEst-SortedDoubEntries:DoubDetsEst), iLutnJ(0:NifD), NifD+1)
-                        if (posn<0) then
-                            !New entry
-                            NumDoubEntries=NumDoubEntries+1
-                            UnsortedDoubEntries=UnsortedDoubEntries+1
-                            posn=DoubDetsEst-SortedDoubEntries-UnsortedDoubEntries
-                        else
+
+                    if(Hij .ne. 0.D0) then
+                        if (ExcitLevelj .le. 2) then
+                            !D_i and D_j connected by CISD Hamiltonian
+                            posn=binary_search(CISDIntFluxPosition& 
+                                       (:,DoubDetsEst-SortedDoubEntries:DoubDetsEst), iLutnJ(0:NifD), NifD+1)
+                            if (posn<0) then
+                                !New entry
+                                NumDoubEntries=NumDoubEntries+1
+                                UnsortedDoubEntries=UnsortedDoubEntries+1
+                                posn=DoubDetsEst-SortedDoubEntries-UnsortedDoubEntries
+                            else
                             posn=posn+DoubDetsEst-SortedDoubEntries-1
-                        endif
-                        CISDIntFlux(1:(NifD+1),posn) = iLutnJ(0:NifD)
-                        CISDIntFlux(NifD+2,posn) = CISDIntFlux(NifD+2,posn) + int(1.D+16*(Hij*RealSignDi))
-                        CISDIntFluxPosition(1:NifD+1,posn)=iLutnJ(0:NifD)
-                    else
-                        !D_i and D_j only connected by the residual Hamiltonian
-                        posn=binary_search(CISDOutFluxPosition&
-                                    (:,QuadDetsEst-SortedQuadEntries:QuadDetsEst), iLutnJ(0:nIfD), NifD+1)
-                        if (posn<0) then
-                            !New entry
-                            NumQuadEntries=NumQuadEntries+1
-                            UnsortedQuadEntries=UnsortedQuadEntries+1
-                            posn=QuadDetsEst-SortedQuadEntries-UnsortedQuadEntries
+                            endif
+                            if(iLutnJ(0).eq.7493989779944505344) then
+                                if (iLutnJ(1).eq.65536) then
+                                    WRITE(6,*) "Before CISDIntFlux(:,posn)", CISDIntFlux(:,posn)
+                                    WRITE(6,*) "Contrib", Hij*RealSignDi
+                                    WRITE(6,*) "iLutnI", iLutnI
+                                    WRITE(6,*) "MyContrib", int(1.D+12*(Hij*RealSignDi),n_int)
+                                endif
+                            endif
+                            CISDIntFlux(1:(NifD+1),posn) = iLutnJ(0:NifD)
+                            CISDIntFlux(NifD+2,posn) = CISDIntFlux(NifD+2,posn) + int(1.D+12*(Hij*RealSignDi),n_int)
+                            CISDIntFluxPosition(1:NifD+1,posn)=iLutnJ(0:NifD)
+                            if(iLutnJ(0).eq.7493989779944505344) then
+                                if (iLutnJ(1).eq.65536) then
+                                    WRITE(6,*) "After CISDIntFlux(:,posn)", CISDIntFlux(:,posn)
+                                endif
+                            endif
                         else
-                            posn=posn+QuadDetsEst-SortedQuadEntries-1
+                            !D_i and D_j only connected by the residual Hamiltonian
+                            posn=binary_search(CISDOutFluxPosition&
+                                        (:,QuadDetsEst-SortedQuadEntries:QuadDetsEst), iLutnJ(0:nIfD), NifD+1)
+                            if (posn<0) then
+                                !New entry
+                                NumQuadEntries=NumQuadEntries+1
+                                UnsortedQuadEntries=UnsortedQuadEntries+1
+                                posn=QuadDetsEst-SortedQuadEntries-UnsortedQuadEntries
+                            else
+                                posn=posn+QuadDetsEst-SortedQuadEntries-1
+                            endif
+                            if(iLutnJ(0).eq.7493989779944505344) then
+                                if (iLutnJ(1).eq.65536) then
+                                    WRITE(6,*) "Before CISDOutFlux(:,posn)", CISDOutFlux(:,posn)
+                                    WRITE(6,*) "iLutnI", iLutnI
+                                    WRITE(6,*) "Contrib", Hij*RealSignDi
+                                    WRITE(6,*) "MyContrib", int(1.D+12*(Hij*RealSignDi),n_int)
+                                endif
+                            endif
+                            CISDOutFlux(1:(NifD+1),posn) = iLutnJ(0:NifD)
+                            CISDOutFlux(NifD+2,posn) = CISDOutFlux(NifD+2,posn) + int(1.D+12*Hij*RealSignDi,n_int)
+                            CISDOutFluxPosition(1:(NifD+1),posn) = iLutnJ(0:NifD)
+                            if(iLutnJ(0).eq.7493989779944505344) then
+                                if (iLutnJ(1).eq.65536) then
+                                    WRITE(6,*) "After CISDOutFlux(:,posn)", CISDOutFlux(:,posn)
+                                endif
+                            endif
                         endif
-                        CISDOutFlux(1:(NifD+1),posn) = iLutnJ(0:NifD)
-                        CISDOutFlux(NifD+2,posn) = CISDOutFlux(NifD+2,posn) + int(1D+16*Hij*RealSignDi,n_int)
-                        CISDOutFluxPosition(1:(NifD+1),posn) = iLutnJ(0:NifD)
-
                     endif
                 enddo
             ENDIF
@@ -8831,6 +8867,10 @@ MODULE FciMCParMod
     if(posn .gt. NumDoubEntries + NumQuadEntries+1) then
         call stop_all("create_single_flux_array", "Total flux array incorrectly allocated")
     endif
+
+    do i=1, NumDoubEntries+NumQuadEntries
+        WRITE(6,*) i, CISDTotFlux(:,i)
+    enddo
 
     END SUBROUTINE
     
