@@ -201,7 +201,10 @@ module errors
             !Now, also do this for the shift estimate
             call reblock_data(shift_data,corrlength_shift)
             call analyze_data(shift_data,mean_shift,shift_Err,eie_shift)
-            write(6,"(A,F20.10,A,G20.8,A,G22.10)") "Shift:            ", mean_shift, " +/- ", shift_Err, " Relative error: ", abs(shift_Err/mean_shift)
+            if(Errordebug.gt.0) then
+                write(6,"(A,F20.10,A,G20.8,A,G22.10)") "Shift:            ", &
+                    mean_shift, " +/- ", shift_Err, " Relative error: ", abs(shift_Err/mean_shift)
+            endif
         endif
 
         ! STEP 6) Refine statistics using covariance
@@ -235,12 +238,14 @@ module errors
                 if(ErrorDebug.gt.0) then
                     write(6,"(A,F20.8)") "Covariance correction factor (Re):", 1-correction_re
                     write(6,"(A,F20.8)") "Covariance correction factor (Im):", 1-correction_im
+                    write(6,"(A,F20.10,A,G20.8)") "Final projected energy (Re): ", mean_ProjE_re, " +/- ", ProjE_Err_re 
+                    write(6,"(A,F20.10,A,G20.8)") "Final projected energy (Im): ", mean_ProjE_im, " +/- ", ProjE_Err_im 
                 endif
-                write(6,"(A,F20.10,A,G20.8)") "Final projected energy (Re): ", mean_ProjE_re, " +/- ", ProjE_Err_re 
-                write(6,"(A,F20.10,A,G20.8)") "Final projected energy (Im): ", mean_ProjE_im, " +/- ", ProjE_Err_im 
             else
-                if(ErrorDebug.gt.0) write(6,"(A,F20.8)") "Covariance correction factor:", 1-correction_re
-                write(6,"(A,F20.10,A,G20.8)") "Final projected energy: ", mean_ProjE_re, " +/- ", ProjE_Err_re
+                if(ErrorDebug.gt.0) then
+                    write(6,"(A,F20.8)") "Covariance correction factor:", 1-correction_re
+                    write(6,"(A,F20.10,A,G20.8)") "Final projected energy: ", mean_ProjE_re, " +/- ", ProjE_Err_re
+                endif
             endif
         endif
 
