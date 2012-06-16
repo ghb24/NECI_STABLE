@@ -130,7 +130,7 @@ MODULE FciMCParMod
         integer :: nv,ityp(1)
 #endif
         integer :: iroot,isymh
-        real(dp) :: Weight, Energyxw
+        real(dp) :: Weight, Energyxw,BestEnergy
         INTEGER :: error
         LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange,tPrintWarn
         REAL(sp) :: s_start,s_end,tstart(2),tend(2),totaltime,neci_etime
@@ -139,7 +139,7 @@ MODULE FciMCParMod
         real(dp) :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
         integer, dimension(lenof_sign) :: tmp_sgn
         integer :: tmp_int(lenof_sign), i
-        real(dp) :: grow_rate
+        real(dp) :: grow_rate,EnergyDiff
         TYPE(BasisFn) RefSym
         real(dp) :: mean_ProjE_re,mean_ProjE_im,mean_Shift
         real(dp) :: ProjE_Err_re,ProjE_Err_im,Shift_Err
@@ -404,6 +404,21 @@ MODULE FciMCParMod
 
         call PrintHighPops()
 
+        !Close open files.
+        IF(iProcIndex.eq.Root) THEN
+            CLOSE(fcimcstats_unit)
+            IF(tTruncInitiator.or.tDelayTruncInit) CLOSE(initiatorstats_unit)
+            IF(tLogComplexPops) CLOSE(complexstats_unit)
+        ENDIF
+        IF(TDebug) CLOSE(11)
+
+        if(tHistSpawn) then 
+            close(Tot_Unique_Dets_Unit)
+        endif
+        if(tDiagWalkerSubspace) then
+            close(unitWalkerDiag)
+        endif
+
 ! Print out some load balancing stats nicely to end.
         CALL MPIReduce(TotWalkers,MPI_MAX,MaxWalkers)
         CALL MPIReduce(TotWalkers,MPI_MIN,MinWalkers)
@@ -417,7 +432,8 @@ MODULE FciMCParMod
         end if
         
         !Automatic error analysis
-        call error_analysis(mean_ProjE_re,ProjE_Err_re,mean_ProjE_im,ProjE_Err_im,mean_Shift,Shift_Err,tNoProjEValue,tNoShiftValue)
+        call error_analysis(tSinglePartPhase,iBlockingIter,mean_ProjE_re,ProjE_Err_re,  &
+            mean_ProjE_im,ProjE_Err_im,mean_Shift,Shift_Err,tNoProjEValue,tNoShiftValue)
 
         call MPIBCast(ProjectionE)
         call MPIBCast(mean_ProjE_re)
@@ -439,30 +455,60 @@ MODULE FciMCParMod
         write (iout,'('' Current reference energy'',T52,F19.12)') Hii 
         if(tNoProjEValue) then
             write (iout,'('' Projected correlation energy'',T52,F19.12)') ProjectionE
-            write (iout,"(A)") "No automatic errorbar obtained for projected energy"
+            write (iout,"(A)") " No automatic errorbar obtained for projected energy"
         else
             write (iout,'('' Projected correlation energy'',T52,F19.12)') mean_ProjE_re
-            write (iout,'('' Approximate error in Projected correlation energy'',T52,F19.12)') ProjE_Err_re
+            write (iout,'('' Estimated error in Projected correlation energy'',T52,F19.12)') ProjE_Err_re
             if(lenof_sign.eq.2) then
                 write (iout,'('' Projected imaginary energy'',T52,F19.12)') mean_ProjE_im
-                write (iout,'('' Approximate error in Projected imaginary energy'',T52,F19.12)') ProjE_Err_im
+                write (iout,'('' Estimated error in Projected imaginary energy'',T52,F19.12)') ProjE_Err_im
             endif
         endif
         if(.not.tNoShiftValue) then
             write (iout,'('' Shift correlation energy'',T52,F19.12)') mean_Shift
-            write (iout,'('' Approximate error in shift correlation energy'',T52,F19.12)') shift_err
+            write (iout,'('' Estimated error in shift correlation energy'',T52,F19.12)') shift_err
         else
-            write(6,"(A)") "No reliable averaged shift correlation energy could be obtained automatically"
+            write(6,"(A)") " No reliable averaged shift correlation energy could be obtained automatically"
         endif
 
-        !Do shift and projected energy agree?
-        !Write out correct total energy (both?)
-        !If change projedet, restart blocking iter (newlines)
+        if((.not.tNoProjEValue).and.(.not.tNoShiftValue)) then
+            !Do shift and projected energy agree?
+            write(iout,"(A)")
+            EnergyDiff = abs(mean_Shift-mean_ProjE_re)
+            if(EnergyDiff.le.sqrt(shift_err**2+ProjE_Err_re**2)) then
+                write(iout,"(A,F15.8)") " Projected and shift energy estimates agree within errorbars: EDiff = ",EnergyDiff
+            elseif(EnergyDiff.le.sqrt((max(shift_err,ProjE_Err_re)*2)**2+min(shift_err,ProjE_Err_re)**2)) then
+                write(iout,"(A,F15.8)") " Projected and shift energy estimates agree to within two sigma of largest error: EDiff = ",EnergyDiff
+            else
+                write(iout,"(A,F15.8)") " Projected and shift energy estimates do not agree to within approximate errorbars: EDiff = ",EnergyDiff
+            endif
+            if(ProjE_Err_re.lt.shift_err) then
+                BestEnergy = mean_ProjE_re + Hii
+            else
+                BestEnergy = mean_shift + Hii
+            endif
+        elseif(tNoShiftValue) then
+            BestEnergy = mean_ProjE_re + Hii
+        elseif(tNoProjEValue) then
+            BestEnergy = mean_shift + Hii
+        else
+            BestEnergy = ProjectionE+Hii
+        endif
+        write(iout,"(A)")
+        if(tNoProjEValue) then
+            write(iout,"(A,F20.8)") " Total projected energy ",ProjectionE+Hii
+        else
+            write(iout,"(A,F20.8,A,G15.6)") " Total projected energy ",mean_ProjE_re+Hii," +/- ",ProjE_Err_re
+        endif
+        if(.not.tNoShiftValue) then
+            write(iout,"(A,F20.8,A,G15.6)") " Total shift energy     ",mean_shift+Hii," +/- ",shift_err
+        endif
+
 #ifdef MOLPRO
-        call output_result('FCIQMC','Energy',ProjectionE+Hii,iroot,isymh)
+        call output_result('FCIQMC','Energy',BestEnergy,iroot,isymh)
         if (iroot.eq.1) call clearvar('ENERGY')
         ityp(1)=1
-        call setvar('ENERGY',ProjectionE+Hii,'AU',ityp,1,nv,iroot)
+        call setvar('ENERGY',BestEnergy,'AU',ityp,1,nv,iroot)
         do i=10,2,-1
             gesnam(i)=gesnam(i-1)
             energ(i)=energ(i-1)
@@ -470,23 +516,10 @@ MODULE FciMCParMod
         gesnam(i) = 'FCIQMC'
         energ(i) = get_scalar("ENERGY")
 #endif
+        write(iout,"(/)")
  
-!Deallocate memory
+        !Deallocate memory
         CALL DeallocFCIMCMemPar()
-
-        IF(iProcIndex.eq.Root) THEN
-            CLOSE(fcimcstats_unit)
-            IF(tTruncInitiator.or.tDelayTruncInit) CLOSE(initiatorstats_unit)
-            IF(tLogComplexPops) CLOSE(complexstats_unit)
-        ENDIF
-        IF(TDebug) CLOSE(11)
-
-        if(tHistSpawn) then 
-            close(Tot_Unique_Dets_Unit)
-        endif
-        if(tDiagWalkerSubspace) then
-            close(unitWalkerDiag)
-        endif
 
     END SUBROUTINE FciMCPar
 
@@ -3236,6 +3269,9 @@ MODULE FciMCParMod
                     SumDiagSft = 0
                     root_print 'Zeroing all energy estimators.'
 
+                    !Since we have a new reference, we must block only from after this point
+                    iBlockingIter = Iter
+
                     ! Regenerate all the diagonal elements relative to the
                     ! new reference det.
                     write (iout,*) 'Regenerating the stored diagonal HElements &
@@ -3507,6 +3543,7 @@ MODULE FciMCParMod
                     write (iout, '(a,i13,a)') 'Exiting the single particle growth phase on iteration: ',iter, &
                                  ' - Shift can now change'
                     VaryShiftIter = Iter
+                    iBlockingIter = Iter
                     tSinglePartPhase = .false.
                     if(TargetGrowRate.ne.0.D0) then
                         write(iout,"(A)") "Setting target growth rate to 1."

@@ -1,8 +1,7 @@
 #include "macros.h"
 module errors
-    use FciMCData, only: tSinglePartPhase,VaryShiftIter
     use constants, only: dp, int64,lenof_sign
-    use ParallelHelper, only: iProcIndex,Root
+    use Parallel_neci, only: iProcIndex,Root
     use util_mod, only: get_free_unit
     implicit none
     real(dp), allocatable :: numerator_data(:)
@@ -13,8 +12,13 @@ module errors
 
     contains
 
-    subroutine error_analysis(mean_ProjE_re,ProjE_Err_re,mean_ProjE_im,ProjE_Err_im,mean_Shift,Shift_Err,tNoProjEValue,tNoShiftValue)
+    !Perform automatic FCIMC blocking analysis, reading in whether we have started varying the shift or not, and which iteration we did so, and
+    !returning the mean and error for all energy estimates.
+    subroutine error_analysis(tSingPartPhase,iShiftVary,mean_ProjE_re,ProjE_Err_re, &
+        mean_ProjE_im,ProjE_Err_im,mean_Shift,Shift_Err,tNoProjEValue,tNoShiftValue)
         implicit none
+        logical , intent(in) :: tSingPartPhase
+        integer , intent(in) :: iShiftVary
         integer :: corrlength_denom,corrlength_num,corrlength_shift,corrlength_imnum
         integer :: equil_time_denom,equil_time_num,equil_time_shift,equil_time_imnum
         real(dp), allocatable :: temp(:)
@@ -38,14 +42,20 @@ module errors
         write(6,"(A)") "Calculating approximate errorbar for energy estimates..."
         write(6,"(A)")
 
-        if(tSinglePartPhase) then
+        tNoProjEValue = .false.
+        tNoShiftValue = .false.
+        if(tSingPartPhase) then
             write(6,"(A)") "Calculation has not entered constant growth phase. Error analysis therefore not performed."
             write(6,"(A)") "Direct reblocking of instantaneous energy possible, but this would contain finite sampling bias."
+            tNoProjEValue = .true.
+            tNoShiftValue = .true.
             return
+        else
+            write(6,"(A,I12)") "Attempting automatic reblocking analysis on data from iteration: ",iShiftVary
         endif
 
         !Read and store numerator_data, pophf_data, shift_data, and if complex, also imnumerator_data
-        call read_fcimcstats()
+        call read_fcimcstats(iShiftVary)
 
         ! STEP 2) Performs an preliminary blocking analysis, with a fixed blocklength of 2
         ! This is predominantly to yield the correlation length
@@ -53,7 +63,7 @@ module errors
         if(Errordebug.gt.0) then
             tPrintIntermediateBlocking=.true.
         else
-            tPrintIntermediateBlocking=.true.
+            tPrintIntermediateBlocking=.false.
         endif
         call automatic_reblocking_analysis(pophf_data,2,corrlength_denom,   &
             'PLOT_denom',tPrintIntermediateBlocking,1)
@@ -80,7 +90,7 @@ module errors
             write(6,"(A)") "*** ERROR *** Failure to automatically detect equilibration time for projected energy denominator"
             write(6,"(A)") "Skipping blocking analysis of projected energy, and energy estimate will be simple average over "
             write(6,"(A)") "all iterations (including growth phase), which may contain correlated sampling bias. Use with caution." 
-            write(6,"(A)") "Continued running suggested for accurate projected energy estimate."
+            write(6,"(A)") "Manual reblocking or continued running suggested for accurate projected energy estimate."
             tNoProjEValue = .true.
         endif
         deallocate(temp)
@@ -96,7 +106,7 @@ module errors
             write(6,"(A)") "*** ERROR *** Failure to automatically detect equilibration time for projected energy numerator"
             write(6,"(A)") "Skipping blocking analysis of projected energy, and energy estimate will be simple average over "
             write(6,"(A)") "all iterations (including growth phase), which may contain correlated sampling bias. Use with caution." 
-            write(6,"(A)") "Continued running suggested for accurate projected energy estimate."
+            write(6,"(A)") "Manual reblocking or continued running suggested for accurate projected energy estimate."
             tNoProjEValue = .true.
         endif
         deallocate(temp)
@@ -306,8 +316,9 @@ module errors
 
     end subroutine automatic_reblocking_analysis
 
-    subroutine read_fcimcstats()
+    subroutine read_fcimcstats(iShiftVary)
         use SystemData, only: tMolpro
+        integer, intent(in) :: iShiftVary
         character(len=1) :: readline
         character(len=*), parameter :: t_r="read_fcimcstats"
         logical :: exists
@@ -319,7 +330,6 @@ module errors
         real(dp) :: curr_S2_init,AbsProjE
         integer(int64) :: TotDets,iters,rewalkers,imwalkers,validdata,datapoints
         integer, dimension(lenof_sign) :: insthf
-
 
         !Open file (FCIMCStats or FCIQMCStats)
         iunit = get_free_unit()
@@ -334,7 +344,6 @@ module errors
             OPEN(iunit,file='FCIMCStats',status='old',action='read',position='rewind')
             write(6,"(A)") "Reading back in FCIMCStats datafile..."
         endif
-
 
         comments=0
         datapoints=0
@@ -358,7 +367,7 @@ module errors
                     call stop_all(t_r,"Error reading FCIMCStats file")
                 endif
                 datapoints=datapoints+1
-                if(iters.gt.VaryShiftIter) then
+                if(iters.gt.iShiftVary) then
                     validdata=validdata+1
                 endif
 
@@ -477,7 +486,7 @@ module errors
                 elseif(eof.gt.0) then
                     call stop_all(t_r,"Error reading FCIMCStats file")
                 endif
-                if(iters.gt.VaryShiftIter) then
+                if(iters.gt.iShiftVary) then
                     i=i+1
                     numerator_data(i) = renum
                     if(lenof_sign.eq.2) then
