@@ -107,6 +107,7 @@ MODULE FciMCParMod
                             init_yama_store, clean_yama_store, &
                             disable_spin_proj_varyshift
     use symrandexcit3, only: gen_rand_excit3, test_sym_excit3
+    use errors, only: error_analysis
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
 #endif
@@ -140,6 +141,9 @@ MODULE FciMCParMod
         integer :: tmp_int(lenof_sign), i
         real(dp) :: grow_rate
         TYPE(BasisFn) RefSym
+        real(dp) :: mean_ProjE_re,mean_ProjE_im,mean_Shift
+        real(dp) :: ProjE_Err_re,ProjE_Err_im,Shift_Err
+        logical :: tNoProjEValue,tNoShiftValue
 #ifdef MOLPRO
         real(dp) :: get_scalar
         include "common/molen"
@@ -411,8 +415,19 @@ MODULE FciMCParMod
             write (iout,'(1X,a34,1X,i18)') 'Min number of determinants/process:',MinWalkers
             write (iout,'(1X,a34,1X,i18,/)') 'Max number of determinants/process:',MaxWalkers
         end if
+        
+        !Automatic error analysis
+        call error_analysis(mean_ProjE_re,ProjE_Err_re,mean_ProjE_im,ProjE_Err_im,mean_Shift,Shift_Err,tNoProjEValue,tNoShiftValue)
 
         call MPIBCast(ProjectionE)
+        call MPIBCast(mean_ProjE_re)
+        call MPIBCast(ProjE_Err_re)
+        call MPIBCast(mean_ProjE_im)
+        call MPIBCast(ProjE_Err_im)
+        call MPIBCast(mean_Shift)
+        call MPIBCast(Shift_Err)
+        call MPIBCast(tNoProjEValue)
+        call MPIBCast(tNoShiftValue)
         Weight=(0.D0)
         Energyxw=(ProjectionE+Hii)
         
@@ -421,8 +436,28 @@ MODULE FciMCParMod
         isymh=int(RefSym%Sym%S,sizeof_int)+1
         write (iout,10101) iroot,isymh
 10101   format(//'RESULTS FOR STATE',i2,'.',i1/'====================='/)
-        write (iout,'('' Current reference energy'',T36,F19.12)') Hii 
-        write (iout,'('' Correlation energy'',T36,F19.12)') ProjectionE
+        write (iout,'('' Current reference energy'',T52,F19.12)') Hii 
+        if(tNoProjEValue) then
+            write (iout,'('' Projected correlation energy'',T52,F19.12)') ProjectionE
+            write (iout,"(A)") "No automatic errorbar obtained for projected energy"
+        else
+            write (iout,'('' Projected correlation energy'',T52,F19.12)') mean_ProjE_re
+            write (iout,'('' Approximate error in Projected correlation energy'',T52,F19.12)') ProjE_Err_re
+            if(lenof_sign.eq.2) then
+                write (iout,'('' Projected imaginary energy'',T52,F19.12)') mean_ProjE_im
+                write (iout,'('' Approximate error in Projected imaginary energy'',T52,F19.12)') ProjE_Err_im
+            endif
+        endif
+        if(.not.tNoShiftValue) then
+            write (iout,'('' Shift correlation energy'',T52,F19.12)') mean_Shift
+            write (iout,'('' Approximate error in shift correlation energy'',T52,F19.12)') shift_err
+        else
+            write(6,"(A)") "No reliable averaged shift correlation energy could be obtained automatically"
+        endif
+
+        !Do shift and projected energy agree?
+        !Write out correct total energy (both?)
+        !If change projedet, restart blocking iter (newlines)
 #ifdef MOLPRO
         call output_result('FCIQMC','Energy',ProjectionE+Hii,iroot,isymh)
         if (iroot.eq.1) call clearvar('ENERGY')
@@ -3030,7 +3065,6 @@ MODULE FciMCParMod
             call WriteFciMCStatsHeader()
             ! Prepend a # to the initial status line so analysis doesn't pick up
             ! repetitions in the FCIMCStats or INITIATORStats files from restarts.
-    !        write (iout,'("#")', advance='no')
             if (iProcIndex == root) then
                 write (fcimcstats_unit,'("#")', advance='no')
                 write (initiatorstats_unit,'("#")', advance='no')
@@ -4224,7 +4258,7 @@ MODULE FciMCParMod
         ENDIF
 
         IF(tCheckHighestPop) THEN
-            ALLOCATE(HighestPopDet(0:NIfDBO),stat=ierr)
+            ALLOCATE(HighestPopDet(0:NIfTot),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for HighestPopDet")
             HighestPopDet(:)=0
         ENDIF

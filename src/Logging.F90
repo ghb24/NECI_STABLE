@@ -11,6 +11,7 @@ MODULE Logging
     use bit_rep_data, only: NIfTot, NIfD
     use DetBitOps, only: EncodeBitDet
     use hist_data, only: iNoBins, tHistSpawn, BinRange
+    use errors, only: Errordebug 
 
     IMPLICIT NONE
     Save
@@ -63,6 +64,7 @@ MODULE Logging
       use default_sets
       implicit none
 
+      ErrorDebug = 0
       iHighPopWrite = 15    !How many highest weighted determinants to write out at the end of an FCIQMC calc.
       tDiagWalkerSubspace = .false.
       iDiagSubspaceIter = 1
@@ -573,8 +575,11 @@ MODULE Logging
 !CCMC debugging level. Takes an integer 0-6
             call readi(CCMCDebug)
         case("FCIMCDEBUG")
-!CCMC debugging level. Takes an integer 0-6
+!FCIQMC debugging level. Takes an integer 0-6
             call readi(FCIMCDebug)
+        case("ERRORDEBUG")
+!Error analysus debugging level. Takes an integer 0-6
+            call readi(ErrorDebug)
         case("CCMCLOGTRANSITIONS")
             tCCMCLogTransitions=.true.
             do while(item.lt.nitems)
