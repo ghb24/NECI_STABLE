@@ -110,10 +110,14 @@ module errors
             call attempt_detect_equil_time(temp,equil_time_denom,tFail_denom)
             if(tFail_denom) then
                 write(6,"(A)")
-                write(6,"(A)") "*** ERROR *** Failure to automatically detect equilibration time for projected energy denominator"
-                write(6,"(A)") "Skipping blocking analysis of projected energy, and energy estimate will be simple average over "
-                write(6,"(A)") "all iterations (including growth phase), which may contain correlated sampling bias. Use with caution." 
-                write(6,"(A)") "Manual reblocking or continued running suggested for accurate projected energy estimate."
+                write(6,"(A)") "*** ERROR *** Failure to automatically detect equilibration time for " &
+                    & //"projected energy denominator"
+                write(6,"(A)") "Skipping blocking analysis of projected energy, and energy estimate " &
+                    & //"will be simple average over "
+                write(6,"(A)") "all iterations (including growth phase), which may contain correlated " &
+                    & //"sampling bias. Use with caution." 
+                write(6,"(A)") "Manual reblocking or continued running suggested for accurate " &
+                    & //"projected energy estimate."
                 tNoProjEValue = .true.
             endif
             deallocate(temp)
@@ -126,10 +130,14 @@ module errors
             call attempt_detect_equil_time(temp,equil_time_num,tFail_num)
             if(tFail_num) then
                 write(6,"(A)")
-                write(6,"(A)") "*** ERROR *** Failure to automatically detect equilibration time for projected energy numerator"
-                write(6,"(A)") "Skipping blocking analysis of projected energy, and energy estimate will be simple average over "
-                write(6,"(A)") "all iterations (including growth phase), which may contain correlated sampling bias. Use with caution." 
-                write(6,"(A)") "Manual reblocking or continued running suggested for accurate projected energy estimate."
+                write(6,"(A)") "*** ERROR *** Failure to automatically detect equilibration time for " &
+                    & //"projected energy numerator"
+                write(6,"(A)") "Skipping blocking analysis of projected energy, and energy estimate " &
+                    & //"will be simple average over "
+                write(6,"(A)") "all iterations (including growth phase), which may contain correlated " &
+                    & //"sampling bias. Use with caution." 
+                write(6,"(A)") "Manual reblocking or continued running suggested for accurate " &
+                    & //"projected energy estimate."
                 tNoProjEValue = .true.
             endif
             deallocate(temp)
@@ -158,9 +166,12 @@ module errors
                 call attempt_detect_equil_time(temp,equil_time_imnum,tFail_imnum)
                 if(tFail_imnum) then
                     write(6,"(A)")
-                    write(6,"(A)") "*** ERROR *** Failure to automatically detect equilibration time for imaginary projected energy numerator"
-                    write(6,"(A)") "Skipping blocking analysis of projected energy, and energy estimate will be simple average over "
-                    write(6,"(A)") "all iterations (including growth phase), which may contain correlated sampling bias. Use with caution." 
+                    write(6,"(A)") "*** ERROR *** Failure to automatically detect equilibration time for " &
+                        & //"imaginary projected energy numerator"
+                    write(6,"(A)") "Skipping blocking analysis of projected energy, and energy estimate " &
+                        & //"will be simple average over "
+                    write(6,"(A)") "all iterations (including growth phase), which may contain correlated " &
+                        & //"sampling bias. Use with caution." 
                     write(6,"(A)") "Continued running suggested for accurate projected energy estimate."
                     tNoProjEValue = .true.
                 endif
@@ -175,15 +186,18 @@ module errors
                 if(lenof_sign.eq.2) then
                     relaxation_time_proje=max(relaxation_time_proje,equil_time_imnum*corrlength_imnum)
                 endif
-                write(6,"(A,I8,A)") "Relaxation time for projected energy estimated to be ", relaxation_time_proje," update cycles."
+                write(6,"(A,I8,A)") "Relaxation time for projected energy estimated to be ", relaxation_time_proje, &
+                    " update cycles."
             endif
             if(.not.tNoShiftValue) then
                 relaxation_time_shift = equil_time_shift*corrlength_shift
-                write(6,"(A,I8,A)") "Relaxation time for shift estimated to be ", relaxation_time_shift," update cycles."
+                write(6,"(A,I8,A)") "Relaxation time for shift estimated to be ", relaxation_time_shift,    &
+                    " update cycles."
             endif
 
         else
-            write(6,"(A,I8,A)") "Relaxation time for projected energy estimated to be ", relaxation_time_proje," update cycles."
+            write(6,"(A,I8,A)") "Relaxation time for projected energy estimated to be ", relaxation_time_proje, &
+                " update cycles."
             write(6,"(A,I8,A)") "Relaxation time for shift estimated to be ", relaxation_time_shift," update cycles."
         endif   !Endif automatic relaxation time calculation
 
@@ -213,14 +227,18 @@ module errors
             call reblock_data(numerator_data,final_corrlength_proj)
             call analyze_data(pophf_data,mean_denom,error_denom,eie_denom)
             call analyze_data(numerator_data,mean_num,error_num,eie_num)
-            write(6,"(A,F20.10,A,G20.8,A,G22.10)") "ProjE_denominator:", mean_denom, " +/- ", error_denom, " Relative error: ", abs(error_denom/mean_denom)
+            write(6,"(A,F20.10,A,G20.8,A,G22.10)") "ProjE_denominator:", mean_denom, " +/- ", error_denom, &
+                " Relative error: ", abs(error_denom/mean_denom)
             if(lenof_sign.eq.2) then
                 call reblock_data(imnumerator_data,final_corrlength_proj)
                 call analyze_data(imnumerator_data,mean_imnum,error_imnum,eie_imnum)
-                write(6,"(A,F20.10,A,G20.8,A,G22.10)") "ProjE_numerator (Re):", mean_num, " +/- ", error_num, " Relative error: ", abs(error_num/mean_num)
-                write(6,"(A,F20.10,A,G20.8,A,G22.10)") "ProjE_numerator (Im):", mean_imnum, " +/- ", error_imnum, " Relative error: ", abs(error_imnum/mean_imnum)
+                write(6,"(A,F20.10,A,G20.8,A,G22.10)") "ProjE_numerator (Re):", mean_num, " +/- ", error_num, &
+                    " Relative error: ", abs(error_num/mean_num)
+                write(6,"(A,F20.10,A,G20.8,A,G22.10)") "ProjE_numerator (Im):", mean_imnum, " +/- ", error_imnum, &
+                    " Relative error: ", abs(error_imnum/mean_imnum)
             else
-                write(6,"(A,F20.10,A,G20.8,A,G22.10)") "ProjE_numerator:  ", mean_num, " +/- ", error_num, " Relative error: ", abs(error_num/mean_num)
+                write(6,"(A,F20.10,A,G20.8,A,G22.10)") "ProjE_numerator:  ", mean_num, " +/- ", error_num, &
+                    " Relative error: ", abs(error_num/mean_num)
             endif
         endif
         ! write(6,*) "OVERALL", mean2/mean1, "+-", abs(mean2/mean1)*((abs(error1/mean1))**2.0_dp+(abs(error2/mean2))**2.0_dp)**0.5_dp
@@ -258,12 +276,12 @@ module errors
             correction_re=2.0_dp*corr_coeff_re*error_denom*error_num/(mean_denom*mean_num)
 
             mean_ProjE_re = mean_num/mean_denom
-            ProjE_Err_re = abs(mean_num/mean_denom)*((abs(error_denom/mean_denom))**2.0_dp+(abs(error_num/mean_num))**2.0_dp)**0.5_dp &
-                *(1.0_dp-correction_re)
+            ProjE_Err_re = abs(mean_num/mean_denom)*((abs(error_denom/mean_denom))**2.0_dp  &
+                +(abs(error_num/mean_num))**2.0_dp)**0.5_dp*(1.0_dp-correction_re)
             if(lenof_sign.eq.2) then
                 mean_ProjE_im = mean_imnum/mean_denom
-                ProjE_Err_im = abs(mean_imnum/mean_denom)*((abs(error_denom/mean_denom))**2.0_dp+(abs(error_imnum/mean_num))**2.0_dp)**0.5_dp &
-                    *(1.0_dp-correction_im)
+                ProjE_Err_im = abs(mean_imnum/mean_denom)*((abs(error_denom/mean_denom))**2.0_dp    &
+                    +(abs(error_imnum/mean_num))**2.0_dp)**0.5_dp*(1.0_dp-correction_im)
                 if(ErrorDebug.gt.0) then
                     write(6,"(A,F20.8)") "Covariance correction factor (Re):", 1-correction_re
                     write(6,"(A,F20.8)") "Covariance correction factor (Im):", 1-correction_im
@@ -661,7 +679,9 @@ module errors
                     exit
                 endif
                 if (i.eq.length) then
-                    if(Errordebug.gt.0) write(6,*) "ERROR: the whole data file would be removed by automatic equilibrium detection"
+                    if(Errordebug.gt.0) then
+                        write(6,*) "ERROR: the whole data file would be removed by automatic equilibrium detection"
+                    endif
                     tFail = .true.
                     return
                 endif
@@ -676,7 +696,9 @@ module errors
                     exit
                 endif
                 if (i.eq.length) then
-                    if(Errordebug.gt.0) write(6,*) "ERROR: the whole data file would be removed by automatic equilibrium detection"
+                    if(Errordebug.gt.0) then
+                        write(6,*) "ERROR: the whole data file would be removed by automatic equilibrium detection"
+                    endif
                     tFail = .true.
                     return
                 endif
@@ -826,13 +848,16 @@ module errors
         enddo
         if (monotonic.and.tPrint) then
             if(iValue.eq.1) then
-                write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for *denominator of projected energy*" 
+                write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for " &
+                    & //"*denominator of projected energy*" 
             elseif(iValue.eq.2) then
-                write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for *numerator of projected energy*" 
+                write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for " &
+                    & //"*numerator of projected energy*" 
             elseif(iValue.eq.3) then
                 write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for *shift*" 
             elseif(iValue.eq.4) then
-                write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for *imaginary numerator of projected energy*" 
+                write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for " &
+                    & //"*imaginary numerator of projected energy*" 
             else
                 call stop_all(t_r,"Unknown iValue passed in")
             endif
@@ -840,13 +865,16 @@ module errors
             write(6,"(A)") "         Inspect BLOCKING files carefully. Manual reblocking may be necessary."
         elseif(monotonic.and.(ErrorDebug.gt.0)) then
             if(iValue.eq.1) then
-                write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for *denominator of projected energy*" 
+                write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for " &
+                    & //"*denominator of projected energy*" 
             elseif(iValue.eq.2) then
-                write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for *numerator of projected energy*" 
+                write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for " &
+                    & //"*numerator of projected energy*" 
             elseif(iValue.eq.3) then
                 write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for *shift*" 
             elseif(iValue.eq.4) then
-                write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for *imaginary numerator of projected energy*" 
+                write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for " &
+                    & //"*imaginary numerator of projected energy*" 
             else
                 call stop_all(t_r,"Unknown iValue passed in")
             endif
