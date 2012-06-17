@@ -66,7 +66,8 @@ MODULE FciMCParMod
                        instant_s2_multiplier, tMCOutput, tSplitProjEHist, &
                        tSplitProjEHistG, tSplitProjEHistK3, iProjEBins, &
                        tDiagWalkerSubspace, iDiagSubspaceIter, &
-                       tCalcInstantS2Init, instant_s2_multiplier_init
+                       tCalcInstantS2Init, instant_s2_multiplier_init, &
+                       tJustBlocking, iBlockEquilShift, iBlockEquilProjE
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
                     hist_spin_dist, ilut_spindist, tHistSpinDist, &
                     write_clear_hist_spin_dist, hist_spin_dist_iter, &
@@ -148,6 +149,14 @@ MODULE FciMCParMod
         real(dp) :: get_scalar
         include "common/molen"
 #endif
+
+        if(tJustBlocking) then
+            !Just reblock the current data, and do not perform an fcimc calculation
+            write(6,"(A)") "Skipping FCIQMC calculation and simply reblocking previous output"
+            call Standalone_Errors()
+            return
+        endif
+
 
         TDebug=.false.  !Set debugging flag
                     
@@ -8161,6 +8170,88 @@ MODULE FciMCParMod
 
     END SUBROUTINE PrintHighPops
 
+!Routine to just calculate errors from FCIMCStats file
+    subroutine Standalone_Errors()
+        use sym_mod, only: getsym
+#ifdef MOLPRO
+        use outputResult
+        integer :: nv,ityp(1)
+#endif
+        implicit none
+        real(dp) :: mean_ProjE_re,mean_ProjE_im,mean_Shift
+        real(dp) :: ProjE_Err_re,ProjE_Err_im,Shift_Err
+        logical :: tNoProjEValue,tNoShiftValue
+        integer :: iroot,isymh
+        TYPE(BasisFn) RefSym
+        HElement_t :: h_tmp
+        real(dp) :: Hii,BestEnergy,EnergyDiff
+
+        !Automatic error analysis
+        call error_analysis(tSinglePartPhase,iBlockingIter,mean_ProjE_re,ProjE_Err_re,  &
+            mean_ProjE_im,ProjE_Err_im,mean_Shift,Shift_Err,tNoProjEValue,tNoShiftValue, &
+            equilshift=iBlockEquilShift,equilproje=iBlockEquilProjE)
+        call MPIBCast(ProjectionE)
+        call MPIBCast(mean_ProjE_re)
+        call MPIBCast(ProjE_Err_re)
+        call MPIBCast(mean_ProjE_im)
+        call MPIBCast(ProjE_Err_im)
+        call MPIBCast(mean_Shift)
+        call MPIBCast(Shift_Err)
+        call MPIBCast(tNoProjEValue)
+        call MPIBCast(tNoShiftValue)
+
+        h_tmp = get_helement (FDet, FDet, 0)
+        Hii = real(h_tmp, dp)
+
+        iroot=1
+        CALL GetSym(FDet,NEl,G1,NBasisMax,RefSym)
+        isymh=int(RefSym%Sym%S,sizeof_int)+1
+        write (iout,10101) iroot,isymh
+10101   format(//'RESULTS FOR STATE',i2,'.',i1/'====================='/)
+        write (iout,'('' Current reference energy'',T52,F19.12)') Hii 
+        write (iout,'('' Projected correlation energy'',T52,F19.12)') mean_ProjE_re
+        write (iout,'('' Estimated error in Projected correlation energy'',T52,F19.12)') ProjE_Err_re
+        if(lenof_sign.eq.2) then
+            write (iout,'('' Projected imaginary energy'',T52,F19.12)') mean_ProjE_im
+            write (iout,'('' Estimated error in Projected imaginary energy'',T52,F19.12)') ProjE_Err_im
+        endif
+        write (iout,'('' Shift correlation energy'',T52,F19.12)') mean_Shift
+        write (iout,'('' Estimated error in shift correlation energy'',T52,F19.12)') shift_err
+
+        !Do shift and projected energy agree?
+        write(iout,"(A)")
+        EnergyDiff = abs(mean_Shift-mean_ProjE_re)
+        if(EnergyDiff.le.sqrt(shift_err**2+ProjE_Err_re**2)) then
+            write(iout,"(A,F15.8)") " Projected and shift energy estimates agree within errorbars: EDiff = ",EnergyDiff
+        elseif(EnergyDiff.le.sqrt((max(shift_err,ProjE_Err_re)*2)**2+min(shift_err,ProjE_Err_re)**2)) then
+            write(iout,"(A,F15.8)") " Projected and shift energy estimates agree to within two sigma of largest error: EDiff = ",EnergyDiff
+        else
+            write(iout,"(A,F15.8)") " Projected and shift energy estimates do not agree to within approximate errorbars: EDiff = ",EnergyDiff
+        endif
+        if(ProjE_Err_re.lt.shift_err) then
+            BestEnergy = mean_ProjE_re + Hii
+        else
+            BestEnergy = mean_shift + Hii
+        endif
+        write(iout,"(A)")
+        write(iout,"(A,F20.8,A,G15.6)") " Total projected energy ",mean_ProjE_re+Hii," +/- ",ProjE_Err_re
+        write(iout,"(A,F20.8,A,G15.6)") " Total shift energy     ",mean_shift+Hii," +/- ",shift_err
+
+#ifdef MOLPRO
+        call output_result('FCIQMC','Energy',BestEnergy,iroot,isymh)
+        if (iroot.eq.1) call clearvar('ENERGY')
+        ityp(1)=1
+        call setvar('ENERGY',BestEnergy,'AU',ityp,1,nv,iroot)
+        do i=10,2,-1
+            gesnam(i)=gesnam(i-1)
+            energ(i)=energ(i-1)
+        enddo
+        gesnam(i) = 'FCIQMC'
+        energ(i) = get_scalar("ENERGY")
+#endif
+        write(iout,"(/)")
+
+    end subroutine Standalone_Errors
 
 END MODULE FciMCParMod
 

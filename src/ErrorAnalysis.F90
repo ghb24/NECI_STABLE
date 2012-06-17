@@ -9,21 +9,25 @@ module errors
     real(dp), allocatable :: pophf_data(:)
     real(dp), allocatable :: shift_data(:)
     integer :: Errordebug
+    logical :: tGivenEquilibrium
+    real(dp) :: Shift_Start, ProjE_Start
+    integer :: relaxation_time_shift, relaxation_time_proje
 
     contains
 
     !Perform automatic FCIMC blocking analysis, reading in whether we have started varying the shift or not, and which iteration we did so, and
     !returning the mean and error for all energy estimates.
     subroutine error_analysis(tSingPartPhase,iShiftVary,mean_ProjE_re,ProjE_Err_re, &
-        mean_ProjE_im,ProjE_Err_im,mean_Shift,Shift_Err,tNoProjEValue,tNoShiftValue)
+        mean_ProjE_im,ProjE_Err_im,mean_Shift,Shift_Err,tNoProjEValue,tNoShiftValue, &
+        equilshift,equilproje)
         implicit none
         logical , intent(in) :: tSingPartPhase
-        integer , intent(in) :: iShiftVary
+        integer , intent(inout) :: iShiftVary
+        integer , intent(in) , optional :: equilshift,equilproje
         integer :: corrlength_denom,corrlength_num,corrlength_shift,corrlength_imnum
         integer :: equil_time_denom,equil_time_num,equil_time_shift,equil_time_imnum
         real(dp), allocatable :: temp(:)
-        integer :: ierr, relaxation_time_proj, relaxation_time_shift
-        integer :: final_corrlength_proj
+        integer :: final_corrlength_proj,ierr
         real(dp) :: mean_denom, error_denom, eie_denom
         real(dp) :: mean_num, error_num, eie_num
         real(dp) :: eie_shift
@@ -42,9 +46,26 @@ module errors
         write(6,"(A)") "Calculating approximate errorbar for energy estimates..."
         write(6,"(A)")
 
+        if(present(equilshift).or.present(equilproje)) then
+            tGivenEquilibrium = .true.
+            if(present(equilshift)) then
+                Shift_Start = equilshift
+            else
+                Shift_Start = 0
+            endif
+            if(present(equilproje)) then
+                ProjE_Start = equilproje
+            else
+                ProjE_Start = 0
+            endif
+            iShiftVary = min(ProjE_Start,Shift_Start)
+        else
+            tGivenEquilibrium = .false.
+        endif
+
         tNoProjEValue = .false.
         tNoShiftValue = .false.
-        if(tSingPartPhase) then
+        if(tSingPartPhase.and.(.not.tGivenEquilibrium)) then
             write(6,"(A)") "Calculation has not entered constant growth phase. Error analysis therefore not performed."
             write(6,"(A)") "Direct reblocking of instantaneous energy possible, but this would contain finite sampling bias."
             tNoProjEValue = .true.
@@ -76,95 +97,103 @@ module errors
                 corrlength_imnum,'PLOT_imnum',tPrintIntermediateBlocking,4)
         endif
 
-        ! STEP 3) Attempts an automatic removal of equilibration time
-        ! From the data that's had serial correlation removed
-        ! (See subroutine for how this is achieved)
-        allocate(temp(size(pophf_data)),stat=ierr)
-        if(ierr.ne.0) call stop_all(t_r,'Alloc error')
-        temp = pophf_data
-        call reblock_data(temp,corrlength_denom)
-        if(errordebug.gt.0) call print_vector(temp,filename='PLOT_blocked_pophf')
-        call attempt_detect_equil_time(temp,equil_time_denom,tFail_denom)
-        if(tFail_denom) then
-            write(6,"(A)")
-            write(6,"(A)") "*** ERROR *** Failure to automatically detect equilibration time for projected energy denominator"
-            write(6,"(A)") "Skipping blocking analysis of projected energy, and energy estimate will be simple average over "
-            write(6,"(A)") "all iterations (including growth phase), which may contain correlated sampling bias. Use with caution." 
-            write(6,"(A)") "Manual reblocking or continued running suggested for accurate projected energy estimate."
-            tNoProjEValue = .true.
-        endif
-        deallocate(temp)
+        if(.not.tGivenEquilibrium) then
 
-        allocate(temp(size(numerator_data)),stat=ierr)
-        if(ierr.ne.0) call stop_all(t_r,'Alloc error')
-        temp = numerator_data
-        call reblock_data(temp,corrlength_num)
-        if(errordebug.gt.0) call print_vector(temp,filename='PLOT_blocked_num')
-        call attempt_detect_equil_time(temp,equil_time_num,tFail_num)
-        if(tFail_num) then
-            write(6,"(A)")
-            write(6,"(A)") "*** ERROR *** Failure to automatically detect equilibration time for projected energy numerator"
-            write(6,"(A)") "Skipping blocking analysis of projected energy, and energy estimate will be simple average over "
-            write(6,"(A)") "all iterations (including growth phase), which may contain correlated sampling bias. Use with caution." 
-            write(6,"(A)") "Manual reblocking or continued running suggested for accurate projected energy estimate."
-            tNoProjEValue = .true.
-        endif
-        deallocate(temp)
-
-        allocate(temp(size(shift_data)),stat=ierr)
-        if(ierr.ne.0) call stop_all(t_r,'Alloc error')
-        temp = shift_data
-        call reblock_data(temp,corrlength_shift)
-        if(errordebug.gt.0) call print_vector(temp,filename='PLOT_blocked_shift')
-        call attempt_detect_equil_time(temp,equil_time_shift,tFail_shift)
-        if(tFail_shift) then
-            write(6,"(A)")
-            write(6,"(A)") "*** ERROR *** Failure to automatically detect equilibration time for shift value."
-            write(6,"(A)") "Skipping blocking analysis and calculation of average shift."
-            write(6,"(A)") "Continued running suggested if accurate shift estimate required."
-            tNoShiftValue = .true.
-        endif
-        deallocate(temp)
-
-        if(lenof_sign.eq.2) then
-            allocate(temp(size(imnumerator_data)),stat=ierr)
+            ! STEP 3) Attempts an automatic removal of equilibration time
+            ! From the data that's had serial correlation removed
+            ! (See subroutine for how this is achieved)
+            allocate(temp(size(pophf_data)),stat=ierr)
             if(ierr.ne.0) call stop_all(t_r,'Alloc error')
-            temp = imnumerator_data
-            call reblock_data(temp,corrlength_imnum)
-            if(errordebug.gt.0) call print_vector(temp,filename='PLOT_blocked_imnum')
-            call attempt_detect_equil_time(temp,equil_time_imnum,tFail_imnum)
-            if(tFail_imnum) then
+            temp = pophf_data
+            call reblock_data(temp,corrlength_denom)
+            if(errordebug.gt.0) call print_vector(temp,filename='PLOT_blocked_pophf')
+            call attempt_detect_equil_time(temp,equil_time_denom,tFail_denom)
+            if(tFail_denom) then
                 write(6,"(A)")
-                write(6,"(A)") "*** ERROR *** Failure to automatically detect equilibration time for imaginary projected energy numerator"
+                write(6,"(A)") "*** ERROR *** Failure to automatically detect equilibration time for projected energy denominator"
                 write(6,"(A)") "Skipping blocking analysis of projected energy, and energy estimate will be simple average over "
                 write(6,"(A)") "all iterations (including growth phase), which may contain correlated sampling bias. Use with caution." 
-                write(6,"(A)") "Continued running suggested for accurate projected energy estimate."
+                write(6,"(A)") "Manual reblocking or continued running suggested for accurate projected energy estimate."
                 tNoProjEValue = .true.
             endif
             deallocate(temp)
-        endif
 
-        ! STEP 4) Removes the equilibration time from the start of the data set
-        ! Allow shift and projected energy to have seperate equilibration times
-        ! If complex, the equilibration time for projected energy is the longest of all three quantities
-        if(.not.tNoProjEValue) then
-            relaxation_time_proj=max(equil_time_denom*corrlength_denom,equil_time_num*corrlength_num)
-            if(lenof_sign.eq.2) then
-                relaxation_time_proj=max(relaxation_time_proj,equil_time_imnum*corrlength_imnum)
+            allocate(temp(size(numerator_data)),stat=ierr)
+            if(ierr.ne.0) call stop_all(t_r,'Alloc error')
+            temp = numerator_data
+            call reblock_data(temp,corrlength_num)
+            if(errordebug.gt.0) call print_vector(temp,filename='PLOT_blocked_num')
+            call attempt_detect_equil_time(temp,equil_time_num,tFail_num)
+            if(tFail_num) then
+                write(6,"(A)")
+                write(6,"(A)") "*** ERROR *** Failure to automatically detect equilibration time for projected energy numerator"
+                write(6,"(A)") "Skipping blocking analysis of projected energy, and energy estimate will be simple average over "
+                write(6,"(A)") "all iterations (including growth phase), which may contain correlated sampling bias. Use with caution." 
+                write(6,"(A)") "Manual reblocking or continued running suggested for accurate projected energy estimate."
+                tNoProjEValue = .true.
             endif
-            write(6,"(A,I8,A)") "Relaxation time for projected energy estimated to be ", relaxation_time_proj," update cycles."
-        endif
-        if(.not.tNoShiftValue) then
-            relaxation_time_shift = equil_time_shift*corrlength_shift
+            deallocate(temp)
+
+            allocate(temp(size(shift_data)),stat=ierr)
+            if(ierr.ne.0) call stop_all(t_r,'Alloc error')
+            temp = shift_data
+            call reblock_data(temp,corrlength_shift)
+            if(errordebug.gt.0) call print_vector(temp,filename='PLOT_blocked_shift')
+            call attempt_detect_equil_time(temp,equil_time_shift,tFail_shift)
+            if(tFail_shift) then
+                write(6,"(A)")
+                write(6,"(A)") "*** ERROR *** Failure to automatically detect equilibration time for shift value."
+                write(6,"(A)") "Skipping blocking analysis and calculation of average shift."
+                write(6,"(A)") "Continued running suggested if accurate shift estimate required."
+                tNoShiftValue = .true.
+            endif
+            deallocate(temp)
+
+            if(lenof_sign.eq.2) then
+                allocate(temp(size(imnumerator_data)),stat=ierr)
+                if(ierr.ne.0) call stop_all(t_r,'Alloc error')
+                temp = imnumerator_data
+                call reblock_data(temp,corrlength_imnum)
+                if(errordebug.gt.0) call print_vector(temp,filename='PLOT_blocked_imnum')
+                call attempt_detect_equil_time(temp,equil_time_imnum,tFail_imnum)
+                if(tFail_imnum) then
+                    write(6,"(A)")
+                    write(6,"(A)") "*** ERROR *** Failure to automatically detect equilibration time for imaginary projected energy numerator"
+                    write(6,"(A)") "Skipping blocking analysis of projected energy, and energy estimate will be simple average over "
+                    write(6,"(A)") "all iterations (including growth phase), which may contain correlated sampling bias. Use with caution." 
+                    write(6,"(A)") "Continued running suggested for accurate projected energy estimate."
+                    tNoProjEValue = .true.
+                endif
+                deallocate(temp)
+            endif
+
+            ! STEP 4) Removes the equilibration time from the start of the data set
+            ! Allow shift and projected energy to have seperate equilibration times
+            ! If complex, the equilibration time for projected energy is the longest of all three quantities
+            if(.not.tNoProjEValue) then
+                relaxation_time_proje=max(equil_time_denom*corrlength_denom,equil_time_num*corrlength_num)
+                if(lenof_sign.eq.2) then
+                    relaxation_time_proje=max(relaxation_time_proje,equil_time_imnum*corrlength_imnum)
+                endif
+                write(6,"(A,I8,A)") "Relaxation time for projected energy estimated to be ", relaxation_time_proje," update cycles."
+            endif
+            if(.not.tNoShiftValue) then
+                relaxation_time_shift = equil_time_shift*corrlength_shift
+                write(6,"(A,I8,A)") "Relaxation time for shift estimated to be ", relaxation_time_shift," update cycles."
+            endif
+
+        else
+            write(6,"(A,I8,A)") "Relaxation time for projected energy estimated to be ", relaxation_time_proje," update cycles."
             write(6,"(A,I8,A)") "Relaxation time for shift estimated to be ", relaxation_time_shift," update cycles."
-        endif
+        endif   !Endif automatic relaxation time calculation
+
         if(.not.tNoProjEValue) then
-            call resize(pophf_data,relaxation_time_proj)
+            call resize(pophf_data,relaxation_time_proje)
             call automatic_reblocking_analysis(pophf_data,2,corrlength_denom,'PLOT_denom_final',.true.,1)
-            call resize(numerator_data,relaxation_time_proj)
+            call resize(numerator_data,relaxation_time_proje)
             call automatic_reblocking_analysis(numerator_data,2,corrlength_num,'PLOT_num_final',.true.,2)
             if(lenof_sign.eq.2) then
-                call resize(imnumerator_data,relaxation_time_proj)
+                call resize(imnumerator_data,relaxation_time_proje)
                 call automatic_reblocking_analysis(imnumerator_data,2,corrlength_imnum,'PLOT_imnum_final',.true.,4)
             endif
         endif
@@ -335,7 +364,7 @@ module errors
         real(dp) :: curr_S2_init,AbsProjE
         integer(int64) :: TotDets,iters,rewalkers,imwalkers,validdata,datapoints
         integer, dimension(lenof_sign) :: insthf
-
+        
         !Open file (FCIMCStats or FCIQMCStats)
         iunit = get_free_unit()
         if(tMolpro) then
@@ -390,7 +419,7 @@ module errors
 
         write(6,"(A,I12)") "Number of comment lines found in file: ",comments
         write(6,"(A,I12)") "Number of data points found in file: ",datapoints
-        write(6,"(A,I12)") "Number of data points after shift varied: ",validdata
+        write(6,"(A,I12)") "Number of useable data points: ",validdata
 
         if(validdata.le.0) call stop_all(t_r,"No valid datapoints found in file")
 
@@ -493,6 +522,15 @@ module errors
                 endif
                 if(iters.gt.iShiftVary) then
                     i=i+1
+                    if(tGivenEquilibrium) then
+                        !Count the update cycles we are to ignore
+                        if(iters.lt.Shift_Start) then
+                            relaxation_time_shift = relaxation_time_shift + 1
+                        endif
+                        if(iters.lt.ProjE_Start) then
+                            relaxation_time_proje = relaxation_time_proje + 1
+                        endif
+                    endif
                     numerator_data(i) = renum
                     if(lenof_sign.eq.2) then
                         imnumerator_data(i) = imnum
