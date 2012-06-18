@@ -52,6 +52,7 @@ MODULE PopsfileMod
         !variables from header file
         logical :: tPop64Bit,tPopHPHF,tPopLz
         integer :: iPopLenof_sign,iPopNEl,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
+        integer :: PopBlockingIter
         integer(int64) :: iPopAllTotWalkers
         real(dp) :: PopDiagSft,read_tau
         integer(int64) , dimension(lenof_sign) :: PopSumNoatHF
@@ -74,7 +75,7 @@ MODULE PopsfileMod
             else
                 call ReadPopsHeadv4(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                     iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                    PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau)
+                    PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
             endif
 
             if(EndPopsList.ne.iPopAllTotWalkers) then
@@ -388,10 +389,11 @@ MODULE PopsfileMod
 
     subroutine CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                     iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                    PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau)
+                    PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau,PopBlockingIter)
         use Logging , only : tZeroProjE
         logical , intent(in) :: tPop64Bit,tPopHPHF,tPopLz
         integer , intent(in) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
+        integer , intent(in) :: PopBlockingIter
         integer(int64) , intent(in) :: iPopAllTotWalkers
         real(dp) , intent(in) :: PopDiagSft,read_tau
         integer(int64) , dimension(lenof_sign) , intent(in) :: PopSumNoatHF
@@ -466,6 +468,9 @@ MODULE PopsfileMod
                 call stop_all(this_routine,"Cannot dynamically search for timestep if reading &
                     &in POPSFILE v.3. Manually specify timestep.")
             endif
+            write(6,*) "Old popsfile detected."
+            write(6,*) "Therefore automatic blocking will only start from current run"
+            iBlockingIter = PreviousCycles
         else
             !Using popsfile v.4, where tau is written out and read in
             if(tSearchTau) then
@@ -482,6 +487,7 @@ MODULE PopsfileMod
                     write(6,"(A,F12.8)") "New timestep: ",tau
                 endif
             endif
+            iBlockingIter = PopBlockingIter
         endif
     
     end subroutine CheckPopsParams
@@ -540,10 +546,11 @@ MODULE PopsfileMod
     !Routine for reading in from iunit the header information from a popsile v4 file.
     subroutine ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                 iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau)
+                PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
         integer , intent(in) :: iunithead
         logical , intent(out) :: tPop64Bit,tPopHPHF,tPopLz
         integer , intent(out) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
+        integer , intent(out) :: PopBlockingIter
         integer(int64) , intent(out) :: iPopAllTotWalkers
         real(dp) , intent(out) :: PopDiagSft,read_tau
         integer(int64) , dimension(lenof_sign) , intent(out) :: PopSumNoatHF
@@ -551,12 +558,12 @@ MODULE PopsfileMod
         integer :: PopsVersion
         !Variables for the namelist
         logical :: Pop64Bit,PopHPHF,PopLz
-        integer :: PopLensign,PopNEl,PopCyc
+        integer :: PopLensign,PopNEl,PopCyc,PopiBlockingIter
         integer(int64) :: PopTotwalk
         real(dp) :: PopSft,PopTau
         HElement_t :: PopSumENum
         namelist /POPSHEAD/ Pop64Bit,PopHPHF,PopLz,PopLensign,PopNEl,PopTotwalk,PopSft,PopSumNoatHF,PopSumENum, &
-                    PopCyc,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,PopTau
+                    PopCyc,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,PopTau,PopiBlockingIter
 
         PopsVersion=FindPopsfileVersion(iunithead)
         if(PopsVersion.ne.4) call stop_all("ReadPopsfileHeadv4","Wrong popsfile version for this routine.")
@@ -581,6 +588,7 @@ MODULE PopsfileMod
         call MPIBCast(PopNIfFlag)
         call MPIBCast(PopNIfTot)
         call MPIBCast(PopTau)
+        call MPIBCast(PopiBlockingIter)
         tPop64Bit=Pop64Bit
         tPopHPHF=PopHPHF
         tPopLz=PopLz
@@ -591,6 +599,7 @@ MODULE PopsfileMod
         PopAllSumENum=PopSumENum
         iPopIter=PopCyc
         read_tau=PopTau 
+        PopBlockingIter=PopiBlockingIter
 
     end subroutine ReadPopsHeadv4
     
@@ -790,7 +799,8 @@ MODULE PopsfileMod
             write(iunit,*) 'PopSumENum=',AllSumENum,','
             write(iunit,'(A,I16,A,I2,A,I2,A,I2,A)') 'PopCyc=',Iter+PreviousCycles,',PopNIfD=',  &
                                 NIfD,',PopNIfY=',NIfY,',PopNIfSgn=',NIfSgn,','
-            write(iunit,'(A,I2,A,I2,A,F18.12)') 'PopNIfFlag=',NIfFlag,',PopNIfTot=',NIfTot,',PopTau=',Tau
+            write(iunit,'(A,I2,A,I2,A,F18.12,A)') 'PopNIfFlag=',NIfFlag,',PopNIfTot=',NIfTot,',PopTau=',Tau,','
+            write(iunit,'(A,I16)') 'PopiBlockingIter=',iBlockingIter
             write(iunit,'(A5)') '&END'
 
             IF(tBinPops) THEN
