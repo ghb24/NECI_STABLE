@@ -160,17 +160,17 @@ module errors
         endif
         if(.not.tNoProjEValue) then
             call resize(pophf_data,relaxation_time_proj)
-            call automatic_reblocking_analysis(pophf_data,2,corrlength_denom,'PLOT_denom_final',.true.,1)
+            call automatic_reblocking_analysis(pophf_data,2,corrlength_denom,'Blocks_denom',.true.,1)
             call resize(numerator_data,relaxation_time_proj)
-            call automatic_reblocking_analysis(numerator_data,2,corrlength_num,'PLOT_num_final',.true.,2)
+            call automatic_reblocking_analysis(numerator_data,2,corrlength_num,'Blocks_num',.true.,2)
             if(lenof_sign.eq.2) then
                 call resize(imnumerator_data,relaxation_time_proj)
-                call automatic_reblocking_analysis(imnumerator_data,2,corrlength_imnum,'PLOT_imnum_final',.true.,4)
+                call automatic_reblocking_analysis(imnumerator_data,2,corrlength_imnum,'Blocks_imnum',.true.,4)
             endif
         endif
         if(.not.tNoShiftValue) then
             call resize(shift_data,relaxation_time_shift)
-            call automatic_reblocking_analysis(shift_data,2,corrlength_shift,'PLOT_shift_final',.true.,3)
+            call automatic_reblocking_analysis(shift_data,2,corrlength_shift,'Blocks_shift',.true.,3)
         endif
 
         ! STEP 5) Now gathers together the properly reblocked data and find statistics
