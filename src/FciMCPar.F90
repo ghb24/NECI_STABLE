@@ -144,6 +144,7 @@ MODULE FciMCParMod
         real(dp) :: mean_ProjE_re,mean_ProjE_im,mean_Shift
         real(dp) :: ProjE_Err_re,ProjE_Err_im,Shift_Err
         logical :: tNoProjEValue,tNoShiftValue
+        real(dp) :: BestErr
 #ifdef MOLPRO
         real(dp) :: get_scalar
         include "common/molen"
@@ -484,15 +485,20 @@ MODULE FciMCParMod
             endif
             if(ProjE_Err_re.lt.shift_err) then
                 BestEnergy = mean_ProjE_re + Hii
+                BestErr = ProjE_Err_re
             else
                 BestEnergy = mean_shift + Hii
+                BestErr = shift_err
             endif
         elseif(tNoShiftValue) then
             BestEnergy = mean_ProjE_re + Hii
+            BestErr = ProjE_Err_re
         elseif(tNoProjEValue) then
             BestEnergy = mean_shift + Hii
+            BestErr = shift_err 
         else
             BestEnergy = ProjectionE+Hii
+            BestErr = 0.0_dp
         endif
         write(iout,"(A)")
         if(tNoProjEValue) then
@@ -505,10 +511,12 @@ MODULE FciMCParMod
         endif
 
 #ifdef MOLPRO
-        call output_result('FCIQMC','Energy',BestEnergy,iroot,isymh)
+        call output_result('FCIQMC','ENERGY',BestEnergy,iroot,isymh)
+        call output_result('FCIQMC','ERROR',BestErr,iroot,isymh)
         if (iroot.eq.1) call clearvar('ENERGY')
         ityp(1)=1
         call setvar('ENERGY',BestEnergy,'AU',ityp,1,nv,iroot)
+        call setvar('ERROR',BestErr,'AU',ityp,1,nv,iroot)
         do i=10,2,-1
             gesnam(i)=gesnam(i-1)
             energ(i)=energ(i-1)
