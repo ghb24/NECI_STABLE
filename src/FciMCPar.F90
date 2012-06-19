@@ -8235,11 +8235,14 @@ MODULE FciMCParMod
         write(iout,"(A)")
         EnergyDiff = abs(mean_Shift-mean_ProjE_re)
         if(EnergyDiff.le.sqrt(shift_err**2+ProjE_Err_re**2)) then
-            write(iout,"(A,F15.8)") " Projected and shift energy estimates agree within errorbars: EDiff = ",EnergyDiff
+            write(iout,"(A,F15.8)") " Projected and shift energy estimates agree " &
+                & //"within errorbars: EDiff = ",EnergyDiff
         elseif(EnergyDiff.le.sqrt((max(shift_err,ProjE_Err_re)*2)**2+min(shift_err,ProjE_Err_re)**2)) then
-            write(iout,"(A,F15.8)") " Projected and shift energy estimates agree to within two sigma of largest error: EDiff = ",EnergyDiff
+            write(iout,"(A,F15.8)") " Projected and shift energy estimates agree to within two sigma " &
+                & //"of largest error: EDiff = ",EnergyDiff
         else
-            write(iout,"(A,F15.8)") " Projected and shift energy estimates do not agree to within approximate errorbars: EDiff = ",EnergyDiff
+            write(iout,"(A,F15.8)") " Projected and shift energy estimates do not agree to " &
+                & //"within approximate errorbars: EDiff = ",EnergyDiff
         endif
         if(ProjE_Err_re.lt.shift_err) then
             BestEnergy = mean_ProjE_re + Hii
@@ -8247,8 +8250,10 @@ MODULE FciMCParMod
             BestEnergy = mean_shift + Hii
         endif
         write(iout,"(A)")
-        write(iout,"(A,F20.8,A,G15.6)") " Total projected energy ",mean_ProjE_re+Hii," +/- ",ProjE_Err_re
-        write(iout,"(A,F20.8,A,G15.6)") " Total shift energy     ",mean_shift+Hii," +/- ",shift_err
+        write(iout,"(A,F20.8,A,G15.6)") " Total projected energy ", &
+            mean_ProjE_re+Hii," +/- ",ProjE_Err_re
+        write(iout,"(A,F20.8,A,G15.6)") " Total shift energy     ", &
+            mean_shift+Hii," +/- ",shift_err
 
 #ifdef MOLPRO
         call output_result('FCIQMC','Energy',BestEnergy,iroot,isymh)
