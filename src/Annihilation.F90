@@ -275,17 +275,17 @@ MODULE AnnihilationMod
             ! already occupied.  We then need to search the CurrentDets of that processor 
             ! to find Cj - while remembering the Di (and Ci) it goes with.
             do i=1,nProcessors
-                recvdisps(i)=recvdisps(i)*(NIfTot+NIfDBO+3)
-                recvcounts(i)=recvcounts(i)*(NIfTot+NIfDBO+3)
-                sendcounts(i)=sendcounts(i)*(NIfTot+NIfDBO+3)
-                disps(i)=disps(i)*(NIfTot+NIfDBO+3)
+                recvdisps(i)=recvdisps(i)*int(NIfTot+NIfDBO+3,MPIArg)
+                recvcounts(i)=recvcounts(i)*int(NIfTot+NIfDBO+3,MPIArg)
+                sendcounts(i)=sendcounts(i)*int(NIfTot+NIfDBO+3,MPIArg)
+                disps(i)=disps(i)*int(NIfTot+NIfDBO+3,MPIArg)
             enddo
         ELSE
             do i=1,nProcessors
-                recvdisps(i)=recvdisps(i)*(NIfTot+1)
-                recvcounts(i)=recvcounts(i)*(NIfTot+1)
-                sendcounts(i)=sendcounts(i)*(NIfTot+1)
-                disps(i)=disps(i)*(NIfTot+1)
+                recvdisps(i)=recvdisps(i)*int(NIfTot+1,MPIArg)
+                recvcounts(i)=recvcounts(i)*int(NIfTot+1,MPIArg)
+                sendcounts(i)=sendcounts(i)*int(NIfTot+1,MPIArg)
+                disps(i)=disps(i)*int(NIfTot+1,MPIArg)
             enddo
         ENDIF
 
