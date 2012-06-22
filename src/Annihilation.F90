@@ -972,55 +972,67 @@ MODULE AnnihilationMod
                 endif
             endif
                 
-            if (tTruncInitiator.and.((.not.tSuccess).or.(sum(abs(CurrentSign)) .eq. 0))) then
-                ! Determinant in newly spawned list is not found in currentdets - usually this 
-                ! would mean the walkers just stay in this list and get merged later - but in 
-                ! this case we want to check where the walkers came from - because if the newly 
-                ! spawned walkers are from a parent outside the active space they should be 
-                ! killed - as they have been spawned on an unoccupied determinant.
-                !
-                ! If flag_make_initiator is set, then obviously these are allowed to survive
-                call extract_sign (SpawnedParts(:,i), SignTemp)
-                do j = 1, lenof_sign
-                    if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(j)) .and. &
-                        .not. test_flag (SpawnedParts(:,i), flag_make_initiator(j))) then
-                        ! Are we allowing particles to survive if there is an
-                        ! initiator with the same spatial structure?
-                        ! TODO: optimise this. Only call it once?
+            if((.not.tSuccess).or.(sum(abs(CurrentSign)) .eq. 0)) then
+                if(tTruncInitiator) then
+                    ! Determinant in newly spawned list is not found in currentdets - usually this 
+                    ! would mean the walkers just stay in this list and get merged later - but in 
+                    ! this case we want to check where the walkers came from - because if the newly 
+                    ! spawned walkers are from a parent outside the active space they should be 
+                    ! killed - as they have been spawned on an unoccupied determinant.
+                    !
+                    ! If flag_make_initiator is set, then obviously these are allowed to survive
+                    call extract_sign (SpawnedParts(:,i), SignTemp)
+                    do j = 1, lenof_sign
+                        if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(j)) .and. &
+                            .not. test_flag (SpawnedParts(:,i), flag_make_initiator(j))) then
+                            ! Are we allowing particles to survive if there is an
+                            ! initiator with the same spatial structure?
+                            ! TODO: optimise this. Only call it once?
 
-                        ! TODO: Surely this doesn't work? Need to avoid aborting
-                        !       the particle?
-                        if (tSpawnSpatialInit) then
-                            if (is_spatial_init(SpawnedParts(:,i))) then
-                                call set_flag (SpawnedParts(:,i), &
-                                               flag_parent_initiator(j))
+                            ! TODO: Surely this doesn't work? Need to avoid aborting
+                            !       the particle?
+                            if (tSpawnSpatialInit) then
+                                if (is_spatial_init(SpawnedParts(:,i))) then
+                                    call set_flag (SpawnedParts(:,i), &
+                                                   flag_parent_initiator(j))
+                                endif
+                            endif
+
+                            ! Walkers came from outside initiator space.
+                            NoAborted = NoAborted + abs(SignTemp(j))
+                            iter_data%naborted(j) = iter_data%naborted(j) + abs(SignTemp(j))
+                            ! We've already counted the walkers where SpawnedSign become zero in the compress,
+                            ! and in the merge, all that's left is those which get aborted which are counted here
+                            ! only if the sign was not already zero (when it already would have been counted).
+    !                        if(SignTemp(j).ne.0) ToRemove = ToRemove + 1
+                            SignTemp(j) = 0
+                            call encode_part_sign (SpawnedParts(:,i), 0, j)
+
+                            if(tHashWalkerList.and.(sum(abs(CurrentSign)) .eq. 0)) then
+                                !All walkers in this main list have died, and none have been spawned onto it.
+                                !Remove it from the hash index array so that no others find it (it is impossible to have
+                                !another spawned walker yet to find this determinant)
+                                call RemoveDetHashIndex(nJ,PartInd)
+                                !Add to "freeslot" list so it can be filled in
+                                iEndFreeSlot=iEndFreeSlot+1
+                                FreeSlot(iEndFreeSlot)=PartInd
                             endif
                         endif
-
-                        ! Walkers came from outside initiator space.
-                        NoAborted = NoAborted + abs(SignTemp(j))
-                        iter_data%naborted(j) = iter_data%naborted(j) + abs(SignTemp(j))
-                        ! We've already counted the walkers where SpawnedSign become zero in the compress,
-                        ! and in the merge, all that's left is those which get aborted which are counted here
-                        ! only if the sign was not already zero (when it already would have been counted).
-                        if(SignTemp(j).ne.0) ToRemove = ToRemove + 1
-                        SignTemp(j) = 0
-                        call encode_part_sign (SpawnedParts(:,i), 0, j)
+                    enddo
+                    if (IsUnoccDet(SignTemp)) then
+                        ! All particle 'types' have been aborted
+                        ToRemove = ToRemove + 1
+                    elseif(tHashWalkerList) then
+                        !Walkers have not been aborted, and so we should copy the determinant straight over to the main list
+                        !We do not need to recompute the hash, since this should be the same one as was generated at the
+                        !beginning of the loop
+                        call AddNewHashDet(TotWalkersNew,SpawnedParts(:,i),DetHash,nJ)
                     endif
-                enddo
-                if (IsUnoccDet(SignTemp)) then
-                    ! All particle 'types' have been aborted
-                    ToRemove = ToRemove + 1
                 elseif(tHashWalkerList) then
-                    !Walkers have not been aborted, and so we should copy the determinant straight over to the main list
-                    !We do not need to recompute the hash, since this should be the same one as was generated at the
-                    !beginning of the loop
+                    !This is the full scheme, and the walkers all spawning to new determinants.
+                    !Copy them across now.
                     call AddNewHashDet(TotWalkersNew,SpawnedParts(:,i),DetHash,nJ)
                 endif
-            elseif(tHashWalkerList) then
-                !This is the full scheme, and the walkers all spawning to new determinants.
-                !Copy them across now.
-                call AddNewHashDet(TotWalkersNew,SpawnedParts(:,i),DetHash,nJ)
             endif
 
             ! Even if a corresponding particle wasn't found, we can still
