@@ -913,9 +913,22 @@ MODULE AnnihilationMod
                                     endif
                                 endif
                             ENDIF
-                            
+
+                            if(tHashWalkerList) then
+                                call extract_sign (CurrentDets(:,PartInd), SignTemp)
+                                if (IsUnoccDet(SignTemp)) then
+                                    !All walkers in this main list have been annihilated away
+                                    !Remove it from the hash index array so that no others find it (it is impossible to have
+                                    !another spawned walker yet to find this determinant)
+                                    call RemoveDetHashIndex(nJ,PartInd)
+                                    !Add to "freeslot" list so it can be filled in
+                                    iEndFreeSlot=iEndFreeSlot+1
+                                    FreeSlot(iEndFreeSlot)=PartInd
+                                endif
+                            endif
+     
                             IF(tHistSpawn) THEN
-    !We want to histogram where the particle annihilations are taking place.
+!We want to histogram where the particle annihilations are taking place.
                                 ExcitLevel = FindBitExcitLevel(SpawnedParts(:,i),&
                                                                iLutHF, nel)
                                 IF(ExcitLevel.eq.NEl) THEN
@@ -953,47 +966,6 @@ MODULE AnnihilationMod
                                         call add_initiator_list (CurrentDets(:,PartInd))
                                 endif
                             endif
-                        ENDIF
-
-                        if(tHashWalkerList) then
-                            call extract_sign (CurrentDets(:,PartInd), SignTemp)
-                            if (IsUnoccDet(SignTemp)) then
-                                !All walkers in this main list have been annihilated away
-                                !Remove it from the hash index array so that no others find it (it is impossible to have
-                                !another spawned walker yet to find this determinant)
-                                call RemoveDetHashIndex(nJ,PartInd)
-                                !Add to "freeslot" list so it can be filled in
-                                iEndFreeSlot=iEndFreeSlot+1
-                                FreeSlot(iEndFreeSlot)=PartInd
-                            endif
-                        endif
-                        
-                        IF(tHistSpawn) THEN
-!We want to histogram where the particle annihilations are taking place.
-                            ExcitLevel = FindBitExcitLevel(SpawnedParts(:,i),&
-                                                           iLutHF, nel)
-                            IF(ExcitLevel.eq.NEl) THEN
-                                CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel),Det,PartIndex,tSuc)
-                                HistMinInd2(ExcitLevel)=PartIndex
-                            ELSEIF(ExcitLevel.eq.0) THEN
-                                PartIndex=1
-                                tSuc=.true.
-                            ELSE
-                                CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel), &
-                                        FCIDetIndex(ExcitLevel+1)-1,PartIndex,tSuc)
-                                HistMinInd2(ExcitLevel)=PartIndex
-                            ENDIF
-                            IF(tSuc) THEN
-                                AvAnnihil(j,PartIndex)=AvAnnihil(j,PartIndex)+ &
-                                REAL(2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j)))))
-                                InstAnnihil(j,PartIndex)=InstAnnihil(j,PartIndex)+ &
-                                REAL(2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j)))))
-                            ELSE
-                                WRITE(6,*) "***",SpawnedParts(0:NIftot,i)
-                                Call WriteBitDet(6,SpawnedParts(0:NIfTot,i),.true.)
-                                CALL Stop_All("AnnihilateSpawnedParts","Cannot find corresponding FCI "&
-                                    & //"determinant when histogramming")
-                            ENDIF
                         ENDIF
 
                     enddo   !Finish running over components of signs
