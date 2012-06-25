@@ -39,6 +39,7 @@ module errors
         logical, intent(out) :: tNoProjEValue,tNoShiftValue
         real(dp), intent(out) :: mean_ProjE_re,ProjE_Err_re,mean_ProjE_im,ProjE_Err_im,mean_Shift,Shift_Err
         character(len=*), parameter :: t_r='Error_analysis'
+        logical :: tFailRead
 
         if(iProcIndex.ne.Root) return   !Just do this in serial
 
@@ -76,7 +77,12 @@ module errors
         endif
 
         !Read and store numerator_data, pophf_data, shift_data, and if complex, also imnumerator_data
-        call read_fcimcstats(iShiftVary)
+        call read_fcimcstats(iShiftVary,tFailRead)
+        if(tFailRead) then
+            tNoProjEValue = .true.
+            tNoShiftValue = .true.
+            return
+        endif
 
         ! STEP 2) Performs an preliminary blocking analysis, with a fixed blocklength of 2
         ! This is predominantly to yield the correlation length
@@ -368,12 +374,13 @@ module errors
 
     end subroutine automatic_reblocking_analysis
 
-    subroutine read_fcimcstats(iShiftVary)
+    subroutine read_fcimcstats(iShiftVary,tFailRead)
         use SystemData, only: tMolpro
-        integer, intent(in) :: iShiftVary
+        integer, intent(inout) :: iShiftVary
+        logical, intent(out) :: tFailRead
         character(len=1) :: readline
         character(len=*), parameter :: t_r="read_fcimcstats"
-        logical :: exists
+        logical :: exists,tRefToZero
         integer :: eof,comments,i,ierr
         integer :: iunit,doubs,WalkersDiffProc,change,Ann,Died,Born
         real(dp) :: shift,rate,reproje,improje,reinstproje,iminstproje
@@ -400,6 +407,7 @@ module errors
         comments=0
         datapoints=0
         validdata=0
+        tRefToZero = .false.
         do while(.true.)
 
             read(iunit,"(A)",advance='no',iostat=eof) readline
@@ -412,7 +420,62 @@ module errors
             if(readline.ne.'#') then
                 !Valid data on line
 
-                read(iunit,*,iostat=eof) iters
+                if(lenof_sign.eq.2) then
+                    !complex fcimcstats
+                    read(iunit,"(I12,G16.7,2I10,2I12,4G17.9,3I10,&
+                                          &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9)") &
+                        iters, &                !1.
+                        shift, &                              !2.
+                        change, &   !3.
+                        rate, &   !4.
+                        rewalkers, &                       !5.
+                        imwalkers, &                       !6.
+                        reproje, &                !7.     real \sum[ nj H0j / n0 ]
+                        improje, &                   !8.     Im   \sum[ nj H0j / n0 ]
+                        reinstproje, &                 !9.     
+                        iminstproje, &                    !10.
+                        insthf(1), &                         !11.
+                        insthf(lenof_sign), &                         !12.
+                        doubs, &                         !13.
+                        AccRat, &                               !14.
+                        TotDets, &                        !15.
+                        IterTime, &                             !16.
+                        FracFromSing, &     !17.
+                        WalkersDiffProc, &                           !18.
+                        TotImagTime, &                               !19.
+                        HFShift, &                                   !20.
+                        InstShift, &                                 !21.
+                        denom     !24     |n0|^2  This is the denominator for both calcs
+                else
+                    read(iunit,"(I12,G16.7,I10,G16.7,I13,3I15,3G17.9,2I10,&
+                                          &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9)") &
+                        Iters, &
+                        shift, &
+                        change, &
+                        rate, &
+                        rewalkers, &
+                        Ann, &
+                        Died, &
+                        Born, &
+                        reproje, &
+                        Avshift, &
+                        reinstproje, &
+                        insthf(1), &
+                        doubs, &
+                        AccRat, &
+                        totdets, &
+                        IterTime, &
+                        FracFromSing, &
+                        WalkersDiffProc, &
+                        TotImagTime, &
+                        dud, &
+                        HFShift, &
+                        InstShift, &
+                        tote, &
+                        denom
+                endif
+
+!                read(iunit,*,iostat=eof) iters
                 if(eof.lt.0) then
                     exit
                 elseif(eof.gt.0) then
@@ -420,7 +483,14 @@ module errors
                 endif
                 datapoints=datapoints+1
                 if(iters.gt.iShiftVary) then
-                    validdata=validdata+1
+                    if(abs(denom).lt.1.0e-5_dp) then
+                        !Denominator gone to zero - wipe the stats
+                        tRefToZero = .true.
+                        validdata=0
+                        iShiftVary = Iters + 1
+                    else
+                        validdata=validdata+1
+                    endif
                 endif
 
             else
@@ -435,11 +505,22 @@ module errors
             endif
         enddo
 
+        if(tRefToZero) then
+            write(6,"(A)") "After shift varies, reference population goes to zero"
+            write(6,"(A,I14)") "Blocking will only start after non-zero population, at iteration ",iShiftVary-1
+        endif
+
         write(6,"(A,I12)") "Number of comment lines found in file: ",comments
         write(6,"(A,I12)") "Number of data points found in file: ",datapoints
         write(6,"(A,I12)") "Number of useable data points: ",validdata
 
-        if(validdata.le.0) call stop_all(t_r,"No valid datapoints found in file")
+        if(validdata.le.0) then
+            write(6,"(A)") "No valid datapoints found in file. Exiting error analysis."
+            tFailRead = .true.
+            return
+        else
+            tFailRead = .false.
+        endif
 
         !Allocate arrays
         allocate(numerator_data(validdata),stat=ierr)

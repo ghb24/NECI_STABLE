@@ -2,9 +2,6 @@
 !This is a parallel MPI version of the FciMC code.
 !All variables refer to values per processor
 
-! AJWT
-! Bringing you a better FciMCPar.  A vision for the future...
-!
 !   The module now has the same structure with and without PARALLEL being defined.
 !   Some routines require MPI and are enclosed in the #ifdef PARALLEL section.  These
 !   should have dummy replacements in the #else of this if required.
