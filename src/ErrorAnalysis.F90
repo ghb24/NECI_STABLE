@@ -9,21 +9,25 @@ module errors
     real(dp), allocatable :: pophf_data(:)
     real(dp), allocatable :: shift_data(:)
     integer :: Errordebug
+    logical :: tGivenEquilibrium
+    real(dp) :: Shift_Start, ProjE_Start
+    integer :: relaxation_time_shift, relaxation_time_proje
 
     contains
 
     !Perform automatic FCIMC blocking analysis, reading in whether we have started varying the shift or not, and which iteration we did so, and
     !returning the mean and error for all energy estimates.
     subroutine error_analysis(tSingPartPhase,iShiftVary,mean_ProjE_re,ProjE_Err_re, &
-        mean_ProjE_im,ProjE_Err_im,mean_Shift,Shift_Err,tNoProjEValue,tNoShiftValue)
+        mean_ProjE_im,ProjE_Err_im,mean_Shift,Shift_Err,tNoProjEValue,tNoShiftValue, &
+        equilshift,equilproje)
         implicit none
         logical , intent(in) :: tSingPartPhase
-        integer , intent(in) :: iShiftVary
+        integer , intent(inout) :: iShiftVary
+        integer , intent(in) , optional :: equilshift,equilproje
         integer :: corrlength_denom,corrlength_num,corrlength_shift,corrlength_imnum
         integer :: equil_time_denom,equil_time_num,equil_time_shift,equil_time_imnum
         real(dp), allocatable :: temp(:)
-        integer :: ierr, relaxation_time_proj, relaxation_time_shift
-        integer :: final_corrlength_proj
+        integer :: final_corrlength_proj,ierr
         real(dp) :: mean_denom, error_denom, eie_denom
         real(dp) :: mean_num, error_num, eie_num
         real(dp) :: eie_shift
@@ -35,6 +39,7 @@ module errors
         logical, intent(out) :: tNoProjEValue,tNoShiftValue
         real(dp), intent(out) :: mean_ProjE_re,ProjE_Err_re,mean_ProjE_im,ProjE_Err_im,mean_Shift,Shift_Err
         character(len=*), parameter :: t_r='Error_analysis'
+        logical :: tFailRead
 
         if(iProcIndex.ne.Root) return   !Just do this in serial
 
@@ -42,9 +47,26 @@ module errors
         write(6,"(A)") "Calculating approximate errorbar for energy estimates..."
         write(6,"(A)")
 
+        if(present(equilshift).or.present(equilproje)) then
+            tGivenEquilibrium = .true.
+            if(present(equilshift)) then
+                Shift_Start = equilshift
+            else
+                Shift_Start = 0
+            endif
+            if(present(equilproje)) then
+                ProjE_Start = equilproje
+            else
+                ProjE_Start = 0
+            endif
+            iShiftVary = min(ProjE_Start,Shift_Start)
+        else
+            tGivenEquilibrium = .false.
+        endif
+
         tNoProjEValue = .false.
         tNoShiftValue = .false.
-        if(tSingPartPhase) then
+        if(tSingPartPhase.and.(.not.tGivenEquilibrium)) then
             write(6,"(A)") "Calculation has not entered constant growth phase. Error analysis therefore not performed."
             write(6,"(A)") "Direct reblocking of instantaneous energy possible, but this would contain finite sampling bias."
             tNoProjEValue = .true.
@@ -55,7 +77,12 @@ module errors
         endif
 
         !Read and store numerator_data, pophf_data, shift_data, and if complex, also imnumerator_data
-        call read_fcimcstats(iShiftVary)
+        call read_fcimcstats(iShiftVary,tFailRead)
+        if(tFailRead) then
+            tNoProjEValue = .true.
+            tNoShiftValue = .true.
+            return
+        endif
 
         ! STEP 2) Performs an preliminary blocking analysis, with a fixed blocklength of 2
         ! This is predominantly to yield the correlation length
@@ -76,101 +103,123 @@ module errors
                 corrlength_imnum,'PLOT_imnum',tPrintIntermediateBlocking,4)
         endif
 
-        ! STEP 3) Attempts an automatic removal of equilibration time
-        ! From the data that's had serial correlation removed
-        ! (See subroutine for how this is achieved)
-        allocate(temp(size(pophf_data)),stat=ierr)
-        if(ierr.ne.0) call stop_all(t_r,'Alloc error')
-        temp = pophf_data
-        call reblock_data(temp,corrlength_denom)
-        if(errordebug.gt.0) call print_vector(temp,filename='PLOT_blocked_pophf')
-        call attempt_detect_equil_time(temp,equil_time_denom,tFail_denom)
-        if(tFail_denom) then
-            write(6,"(A)")
-            write(6,"(A)") "*** ERROR *** Failure to automatically detect equilibration time for projected energy denominator"
-            write(6,"(A)") "Skipping blocking analysis of projected energy, and energy estimate will be simple average over "
-            write(6,"(A)") "all iterations (including growth phase), which may contain correlated sampling bias. Use with caution." 
-            write(6,"(A)") "Manual reblocking or continued running suggested for accurate projected energy estimate."
-            tNoProjEValue = .true.
-        endif
-        deallocate(temp)
+        if(.not.tGivenEquilibrium) then
 
-        allocate(temp(size(numerator_data)),stat=ierr)
-        if(ierr.ne.0) call stop_all(t_r,'Alloc error')
-        temp = numerator_data
-        call reblock_data(temp,corrlength_num)
-        if(errordebug.gt.0) call print_vector(temp,filename='PLOT_blocked_num')
-        call attempt_detect_equil_time(temp,equil_time_num,tFail_num)
-        if(tFail_num) then
-            write(6,"(A)")
-            write(6,"(A)") "*** ERROR *** Failure to automatically detect equilibration time for projected energy numerator"
-            write(6,"(A)") "Skipping blocking analysis of projected energy, and energy estimate will be simple average over "
-            write(6,"(A)") "all iterations (including growth phase), which may contain correlated sampling bias. Use with caution." 
-            write(6,"(A)") "Manual reblocking or continued running suggested for accurate projected energy estimate."
-            tNoProjEValue = .true.
-        endif
-        deallocate(temp)
-
-        allocate(temp(size(shift_data)),stat=ierr)
-        if(ierr.ne.0) call stop_all(t_r,'Alloc error')
-        temp = shift_data
-        call reblock_data(temp,corrlength_shift)
-        if(errordebug.gt.0) call print_vector(temp,filename='PLOT_blocked_shift')
-        call attempt_detect_equil_time(temp,equil_time_shift,tFail_shift)
-        if(tFail_shift) then
-            write(6,"(A)")
-            write(6,"(A)") "*** ERROR *** Failure to automatically detect equilibration time for shift value."
-            write(6,"(A)") "Skipping blocking analysis and calculation of average shift."
-            write(6,"(A)") "Continued running suggested if accurate shift estimate required."
-            tNoShiftValue = .true.
-        endif
-        deallocate(temp)
-
-        if(lenof_sign.eq.2) then
-            allocate(temp(size(imnumerator_data)),stat=ierr)
+            ! STEP 3) Attempts an automatic removal of equilibration time
+            ! From the data that's had serial correlation removed
+            ! (See subroutine for how this is achieved)
+            allocate(temp(size(pophf_data)),stat=ierr)
             if(ierr.ne.0) call stop_all(t_r,'Alloc error')
-            temp = imnumerator_data
-            call reblock_data(temp,corrlength_imnum)
-            if(errordebug.gt.0) call print_vector(temp,filename='PLOT_blocked_imnum')
-            call attempt_detect_equil_time(temp,equil_time_imnum,tFail_imnum)
-            if(tFail_imnum) then
+            temp = pophf_data
+            call reblock_data(temp,corrlength_denom)
+            if(errordebug.gt.0) call print_vector(temp,filename='PLOT_blocked_pophf')
+            call attempt_detect_equil_time(temp,equil_time_denom,tFail_denom)
+            if(tFail_denom) then
                 write(6,"(A)")
-                write(6,"(A)") "*** ERROR *** Failure to automatically detect equilibration time for imaginary projected energy numerator"
-                write(6,"(A)") "Skipping blocking analysis of projected energy, and energy estimate will be simple average over "
-                write(6,"(A)") "all iterations (including growth phase), which may contain correlated sampling bias. Use with caution." 
-                write(6,"(A)") "Continued running suggested for accurate projected energy estimate."
+                write(6,"(A)") "*** ERROR *** Failure to automatically detect equilibration time for " &
+                    & //"projected energy denominator"
+                write(6,"(A)") "Skipping blocking analysis of projected energy, and energy estimate " &
+                    & //"will be simple average over "
+                write(6,"(A)") "all iterations (including growth phase), which may contain correlated " &
+                    & //"sampling bias. Use with caution." 
+                write(6,"(A)") "Manual reblocking or continued running suggested for accurate " &
+                    & //"projected energy estimate."
                 tNoProjEValue = .true.
             endif
             deallocate(temp)
-        endif
 
-        ! STEP 4) Removes the equilibration time from the start of the data set
-        ! Allow shift and projected energy to have seperate equilibration times
-        ! If complex, the equilibration time for projected energy is the longest of all three quantities
-        if(.not.tNoProjEValue) then
-            relaxation_time_proj=max(equil_time_denom*corrlength_denom,equil_time_num*corrlength_num)
-            if(lenof_sign.eq.2) then
-                relaxation_time_proj=max(relaxation_time_proj,equil_time_imnum*corrlength_imnum)
+            allocate(temp(size(numerator_data)),stat=ierr)
+            if(ierr.ne.0) call stop_all(t_r,'Alloc error')
+            temp = numerator_data
+            call reblock_data(temp,corrlength_num)
+            if(errordebug.gt.0) call print_vector(temp,filename='PLOT_blocked_num')
+            call attempt_detect_equil_time(temp,equil_time_num,tFail_num)
+            if(tFail_num) then
+                write(6,"(A)")
+                write(6,"(A)") "*** ERROR *** Failure to automatically detect equilibration time for " &
+                    & //"projected energy numerator"
+                write(6,"(A)") "Skipping blocking analysis of projected energy, and energy estimate " &
+                    & //"will be simple average over "
+                write(6,"(A)") "all iterations (including growth phase), which may contain correlated " &
+                    & //"sampling bias. Use with caution." 
+                write(6,"(A)") "Manual reblocking or continued running suggested for accurate " &
+                    & //"projected energy estimate."
+                tNoProjEValue = .true.
             endif
-            write(6,"(A,I8,A)") "Relaxation time for projected energy estimated to be ", relaxation_time_proj," update cycles."
-        endif
-        if(.not.tNoShiftValue) then
-            relaxation_time_shift = equil_time_shift*corrlength_shift
-            write(6,"(A,I8,A)") "Relaxation time for shift estimated to be ", relaxation_time_shift," update cycles."
-        endif
-        if(.not.tNoProjEValue) then
-            call resize(pophf_data,relaxation_time_proj)
-            call automatic_reblocking_analysis(pophf_data,2,corrlength_denom,'PLOT_denom_final',.true.,1)
-            call resize(numerator_data,relaxation_time_proj)
-            call automatic_reblocking_analysis(numerator_data,2,corrlength_num,'PLOT_num_final',.true.,2)
+            deallocate(temp)
+
+            allocate(temp(size(shift_data)),stat=ierr)
+            if(ierr.ne.0) call stop_all(t_r,'Alloc error')
+            temp = shift_data
+            call reblock_data(temp,corrlength_shift)
+            if(errordebug.gt.0) call print_vector(temp,filename='PLOT_blocked_shift')
+            call attempt_detect_equil_time(temp,equil_time_shift,tFail_shift)
+            if(tFail_shift) then
+                write(6,"(A)")
+                write(6,"(A)") "*** ERROR *** Failure to automatically detect equilibration time for shift value."
+                write(6,"(A)") "Skipping blocking analysis and calculation of average shift."
+                write(6,"(A)") "Continued running suggested if accurate shift estimate required."
+                tNoShiftValue = .true.
+            endif
+            deallocate(temp)
+
             if(lenof_sign.eq.2) then
-                call resize(imnumerator_data,relaxation_time_proj)
-                call automatic_reblocking_analysis(imnumerator_data,2,corrlength_imnum,'PLOT_imnum_final',.true.,4)
+                allocate(temp(size(imnumerator_data)),stat=ierr)
+                if(ierr.ne.0) call stop_all(t_r,'Alloc error')
+                temp = imnumerator_data
+                call reblock_data(temp,corrlength_imnum)
+                if(errordebug.gt.0) call print_vector(temp,filename='PLOT_blocked_imnum')
+                call attempt_detect_equil_time(temp,equil_time_imnum,tFail_imnum)
+                if(tFail_imnum) then
+                    write(6,"(A)")
+                    write(6,"(A)") "*** ERROR *** Failure to automatically detect equilibration time for " &
+                        & //"imaginary projected energy numerator"
+                    write(6,"(A)") "Skipping blocking analysis of projected energy, and energy estimate " &
+                        & //"will be simple average over "
+                    write(6,"(A)") "all iterations (including growth phase), which may contain correlated " &
+                        & //"sampling bias. Use with caution." 
+                    write(6,"(A)") "Continued running suggested for accurate projected energy estimate."
+                    tNoProjEValue = .true.
+                endif
+                deallocate(temp)
+            endif
+
+            ! STEP 4) Removes the equilibration time from the start of the data set
+            ! Allow shift and projected energy to have seperate equilibration times
+            ! If complex, the equilibration time for projected energy is the longest of all three quantities
+            if(.not.tNoProjEValue) then
+                relaxation_time_proje=max(equil_time_denom*corrlength_denom,equil_time_num*corrlength_num)
+                if(lenof_sign.eq.2) then
+                    relaxation_time_proje=max(relaxation_time_proje,equil_time_imnum*corrlength_imnum)
+                endif
+                write(6,"(A,I8,A)") "Relaxation time for projected energy estimated to be ", relaxation_time_proje, &
+                    " update cycles."
+            endif
+            if(.not.tNoShiftValue) then
+                relaxation_time_shift = equil_time_shift*corrlength_shift
+                write(6,"(A,I8,A)") "Relaxation time for shift estimated to be ", relaxation_time_shift,    &
+                    " update cycles."
+            endif
+
+        else
+            write(6,"(A,I8,A)") "Relaxation time for projected energy estimated to be ", relaxation_time_proje, &
+                " update cycles."
+            write(6,"(A,I8,A)") "Relaxation time for shift estimated to be ", relaxation_time_shift," update cycles."
+        endif   !Endif automatic relaxation time calculation
+
+        if(.not.tNoProjEValue) then
+            call resize(pophf_data,relaxation_time_proje)
+            call automatic_reblocking_analysis(pophf_data,2,corrlength_denom,'Blocks_denom',.true.,1)
+            call resize(numerator_data,relaxation_time_proje)
+            call automatic_reblocking_analysis(numerator_data,2,corrlength_num,'Blocks_num',.true.,2)
+            if(lenof_sign.eq.2) then
+                call resize(imnumerator_data,relaxation_time_proje)
+                call automatic_reblocking_analysis(imnumerator_data,2,corrlength_imnum,'Blocks_imnum',.true.,4)
             endif
         endif
         if(.not.tNoShiftValue) then
             call resize(shift_data,relaxation_time_shift)
-            call automatic_reblocking_analysis(shift_data,2,corrlength_shift,'PLOT_shift_final',.true.,3)
+            call automatic_reblocking_analysis(shift_data,2,corrlength_shift,'Blocks_shift',.true.,3)
         endif
 
         ! STEP 5) Now gathers together the properly reblocked data and find statistics
@@ -184,14 +233,18 @@ module errors
             call reblock_data(numerator_data,final_corrlength_proj)
             call analyze_data(pophf_data,mean_denom,error_denom,eie_denom)
             call analyze_data(numerator_data,mean_num,error_num,eie_num)
-            write(6,"(A,F20.10,A,G20.8,A,G22.10)") "ProjE_denominator:", mean_denom, " +/- ", error_denom, " Relative error: ", abs(error_denom/mean_denom)
+            write(6,"(A,F20.10,A,G20.8,A,G22.10)") "ProjE_denominator:", mean_denom, " +/- ", error_denom, &
+                " Relative error: ", abs(error_denom/mean_denom)
             if(lenof_sign.eq.2) then
                 call reblock_data(imnumerator_data,final_corrlength_proj)
                 call analyze_data(imnumerator_data,mean_imnum,error_imnum,eie_imnum)
-                write(6,"(A,F20.10,A,G20.8,A,G22.10)") "ProjE_numerator (Re):", mean_num, " +/- ", error_num, " Relative error: ", abs(error_num/mean_num)
-                write(6,"(A,F20.10,A,G20.8,A,G22.10)") "ProjE_numerator (Im):", mean_imnum, " +/- ", error_imnum, " Relative error: ", abs(error_imnum/mean_imnum)
+                write(6,"(A,F20.10,A,G20.8,A,G22.10)") "ProjE_numerator (Re):", mean_num, " +/- ", error_num, &
+                    " Relative error: ", abs(error_num/mean_num)
+                write(6,"(A,F20.10,A,G20.8,A,G22.10)") "ProjE_numerator (Im):", mean_imnum, " +/- ", error_imnum, &
+                    " Relative error: ", abs(error_imnum/mean_imnum)
             else
-                write(6,"(A,F20.10,A,G20.8,A,G22.10)") "ProjE_numerator:  ", mean_num, " +/- ", error_num, " Relative error: ", abs(error_num/mean_num)
+                write(6,"(A,F20.10,A,G20.8,A,G22.10)") "ProjE_numerator:  ", mean_num, " +/- ", error_num, &
+                    " Relative error: ", abs(error_num/mean_num)
             endif
         endif
         ! write(6,*) "OVERALL", mean2/mean1, "+-", abs(mean2/mean1)*((abs(error1/mean1))**2.0_dp+(abs(error2/mean2))**2.0_dp)**0.5_dp
@@ -229,12 +282,12 @@ module errors
             correction_re=2.0_dp*corr_coeff_re*error_denom*error_num/(mean_denom*mean_num)
 
             mean_ProjE_re = mean_num/mean_denom
-            ProjE_Err_re = abs(mean_num/mean_denom)*((abs(error_denom/mean_denom))**2.0_dp+(abs(error_num/mean_num))**2.0_dp)**0.5_dp &
-                *(1.0_dp-correction_re)
+            ProjE_Err_re = abs(mean_num/mean_denom)*((abs(error_denom/mean_denom))**2.0_dp  &
+                +(abs(error_num/mean_num))**2.0_dp)**0.5_dp*(1.0_dp-correction_re)
             if(lenof_sign.eq.2) then
                 mean_ProjE_im = mean_imnum/mean_denom
-                ProjE_Err_im = abs(mean_imnum/mean_denom)*((abs(error_denom/mean_denom))**2.0_dp+(abs(error_imnum/mean_num))**2.0_dp)**0.5_dp &
-                    *(1.0_dp-correction_im)
+                ProjE_Err_im = abs(mean_imnum/mean_denom)*((abs(error_denom/mean_denom))**2.0_dp    &
+                    +(abs(error_imnum/mean_num))**2.0_dp)**0.5_dp*(1.0_dp-correction_im)
                 if(ErrorDebug.gt.0) then
                     write(6,"(A,F20.8)") "Covariance correction factor (Re):", 1-correction_re
                     write(6,"(A,F20.8)") "Covariance correction factor (Im):", 1-correction_im
@@ -321,12 +374,13 @@ module errors
 
     end subroutine automatic_reblocking_analysis
 
-    subroutine read_fcimcstats(iShiftVary)
+    subroutine read_fcimcstats(iShiftVary,tFailRead)
         use SystemData, only: tMolpro
-        integer, intent(in) :: iShiftVary
+        integer, intent(inout) :: iShiftVary
+        logical, intent(out) :: tFailRead
         character(len=1) :: readline
         character(len=*), parameter :: t_r="read_fcimcstats"
-        logical :: exists
+        logical :: exists,tRefToZero
         integer :: eof,comments,i,ierr
         integer :: iunit,doubs,WalkersDiffProc,change,Ann,Died,Born
         real(dp) :: shift,rate,reproje,improje,reinstproje,iminstproje
@@ -335,7 +389,7 @@ module errors
         real(dp) :: curr_S2_init,AbsProjE
         integer(int64) :: TotDets,iters,rewalkers,imwalkers,validdata,datapoints
         integer, dimension(lenof_sign) :: insthf
-
+        
         !Open file (FCIMCStats or FCIQMCStats)
         iunit = get_free_unit()
         if(tMolpro) then
@@ -353,6 +407,7 @@ module errors
         comments=0
         datapoints=0
         validdata=0
+        tRefToZero = .false.
         do while(.true.)
 
             read(iunit,"(A)",advance='no',iostat=eof) readline
@@ -365,7 +420,62 @@ module errors
             if(readline.ne.'#') then
                 !Valid data on line
 
-                read(iunit,*,iostat=eof) iters
+                if(lenof_sign.eq.2) then
+                    !complex fcimcstats
+                    read(iunit,"(I12,G16.7,2I10,2I12,4G17.9,3I10,&
+                                          &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9)") &
+                        iters, &                !1.
+                        shift, &                              !2.
+                        change, &   !3.
+                        rate, &   !4.
+                        rewalkers, &                       !5.
+                        imwalkers, &                       !6.
+                        reproje, &                !7.     real \sum[ nj H0j / n0 ]
+                        improje, &                   !8.     Im   \sum[ nj H0j / n0 ]
+                        reinstproje, &                 !9.     
+                        iminstproje, &                    !10.
+                        insthf(1), &                         !11.
+                        insthf(lenof_sign), &                         !12.
+                        doubs, &                         !13.
+                        AccRat, &                               !14.
+                        TotDets, &                        !15.
+                        IterTime, &                             !16.
+                        FracFromSing, &     !17.
+                        WalkersDiffProc, &                           !18.
+                        TotImagTime, &                               !19.
+                        HFShift, &                                   !20.
+                        InstShift, &                                 !21.
+                        denom     !24     |n0|^2  This is the denominator for both calcs
+                else
+                    read(iunit,"(I12,G16.7,I10,G16.7,I13,3I15,3G17.9,2I10,&
+                                          &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9)") &
+                        Iters, &
+                        shift, &
+                        change, &
+                        rate, &
+                        rewalkers, &
+                        Ann, &
+                        Died, &
+                        Born, &
+                        reproje, &
+                        Avshift, &
+                        reinstproje, &
+                        insthf(1), &
+                        doubs, &
+                        AccRat, &
+                        totdets, &
+                        IterTime, &
+                        FracFromSing, &
+                        WalkersDiffProc, &
+                        TotImagTime, &
+                        dud, &
+                        HFShift, &
+                        InstShift, &
+                        tote, &
+                        denom
+                endif
+
+!                read(iunit,*,iostat=eof) iters
                 if(eof.lt.0) then
                     exit
                 elseif(eof.gt.0) then
@@ -373,7 +483,14 @@ module errors
                 endif
                 datapoints=datapoints+1
                 if(iters.gt.iShiftVary) then
-                    validdata=validdata+1
+                    if(abs(denom).lt.1.0e-5_dp) then
+                        !Denominator gone to zero - wipe the stats
+                        tRefToZero = .true.
+                        validdata=0
+                        iShiftVary = Iters + 1
+                    else
+                        validdata=validdata+1
+                    endif
                 endif
 
             else
@@ -388,11 +505,22 @@ module errors
             endif
         enddo
 
+        if(tRefToZero) then
+            write(6,"(A)") "After shift varies, reference population goes to zero"
+            write(6,"(A,I14)") "Blocking will only start after non-zero population, at iteration ",iShiftVary-1
+        endif
+
         write(6,"(A,I12)") "Number of comment lines found in file: ",comments
         write(6,"(A,I12)") "Number of data points found in file: ",datapoints
-        write(6,"(A,I12)") "Number of data points after shift varied: ",validdata
+        write(6,"(A,I12)") "Number of useable data points: ",validdata
 
-        if(validdata.le.0) call stop_all(t_r,"No valid datapoints found in file")
+        if(validdata.le.0) then
+            write(6,"(A)") "No valid datapoints found in file. Exiting error analysis."
+            tFailRead = .true.
+            return
+        else
+            tFailRead = .false.
+        endif
 
         !Allocate arrays
         allocate(numerator_data(validdata),stat=ierr)
@@ -493,6 +621,15 @@ module errors
                 endif
                 if(iters.gt.iShiftVary) then
                     i=i+1
+                    if(tGivenEquilibrium) then
+                        !Count the update cycles we are to ignore
+                        if(iters.lt.Shift_Start) then
+                            relaxation_time_shift = relaxation_time_shift + 1
+                        endif
+                        if(iters.lt.ProjE_Start) then
+                            relaxation_time_proje = relaxation_time_proje + 1
+                        endif
+                    endif
                     numerator_data(i) = renum
                     if(lenof_sign.eq.2) then
                         imnumerator_data(i) = imnum
@@ -623,7 +760,9 @@ module errors
                     exit
                 endif
                 if (i.eq.length) then
-                    if(Errordebug.gt.0) write(6,*) "ERROR: the whole data file would be removed by automatic equilibrium detection"
+                    if(Errordebug.gt.0) then
+                        write(6,*) "ERROR: the whole data file would be removed by automatic equilibrium detection"
+                    endif
                     tFail = .true.
                     return
                 endif
@@ -638,7 +777,9 @@ module errors
                     exit
                 endif
                 if (i.eq.length) then
-                    if(Errordebug.gt.0) write(6,*) "ERROR: the whole data file would be removed by automatic equilibrium detection"
+                    if(Errordebug.gt.0) then
+                        write(6,*) "ERROR: the whole data file would be removed by automatic equilibrium detection"
+                    endif
                     tFail = .true.
                     return
                 endif
@@ -788,13 +929,16 @@ module errors
         enddo
         if (monotonic.and.tPrint) then
             if(iValue.eq.1) then
-                write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for *denominator of projected energy*" 
+                write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for " &
+                    & //"*denominator of projected energy*" 
             elseif(iValue.eq.2) then
-                write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for *numerator of projected energy*" 
+                write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for " &
+                    & //"*numerator of projected energy*" 
             elseif(iValue.eq.3) then
                 write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for *shift*" 
             elseif(iValue.eq.4) then
-                write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for *imaginary numerator of projected energy*" 
+                write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for " &
+                    & //"*imaginary numerator of projected energy*" 
             else
                 call stop_all(t_r,"Unknown iValue passed in")
             endif
@@ -802,13 +946,16 @@ module errors
             write(6,"(A)") "         Inspect BLOCKING files carefully. Manual reblocking may be necessary."
         elseif(monotonic.and.(ErrorDebug.gt.0)) then
             if(iValue.eq.1) then
-                write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for *denominator of projected energy*" 
+                write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for " &
+                    & //"*denominator of projected energy*" 
             elseif(iValue.eq.2) then
-                write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for *numerator of projected energy*" 
+                write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for " &
+                    & //"*numerator of projected energy*" 
             elseif(iValue.eq.3) then
                 write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for *shift*" 
             elseif(iValue.eq.4) then
-                write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for *imaginary numerator of projected energy*" 
+                write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for " &
+                    & //"*imaginary numerator of projected energy*" 
             else
                 call stop_all(t_r,"Unknown iValue passed in")
             endif

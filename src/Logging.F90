@@ -56,6 +56,10 @@ MODULE Logging
     integer :: instant_s2_multiplier, instant_s2_multiplier_init
     integer :: iHighPopWrite
 
+    !Just do a blocking analysis on previous data
+    logical :: tJustBlocking
+    integer :: iBlockEquilShift,iBlockEquilProjE
+
     contains
 
     subroutine SetLogDefaults()
@@ -64,6 +68,9 @@ MODULE Logging
       use default_sets
       implicit none
 
+      tJustBlocking = .false.
+      iBlockEquilShift = 0
+      iBlockEquilProjE = 0
       ErrorDebug = 0
       iHighPopWrite = 15    !How many highest weighted determinants to write out at the end of an FCIQMC calc.
       tDiagWalkerSubspace = .false.
@@ -178,6 +185,14 @@ MODULE Logging
         call readu(w)
         select case(w)
 
+        case("REBLOCKSHIFT")
+            !Abort all other calculations, and just block data again with given equilibration time (in iterations)
+            tJustBlocking = .true.
+            call readi(iBlockEquilShift)
+        case("REBLOCKPROJE")
+            !Abort all other calculations, and just block data again with given equilibration time (in iterations)
+            tJustBlocking = .true.
+            call readi(iBlockEquilProjE)
         case("HIGHLYPOPWRITE")
             !At the end of an FCIMC calculation, how many highly populated determinants should we write out?
             call readi(iHighPopWrite)
