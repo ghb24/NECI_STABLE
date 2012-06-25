@@ -1004,7 +1004,7 @@ MODULE AnnihilationMod
                             ! We've already counted the walkers where SpawnedSign become zero in the compress,
                             ! and in the merge, all that's left is those which get aborted which are counted here
                             ! only if the sign was not already zero (when it already would have been counted).
-    !                        if(SignTemp(j).ne.0) ToRemove = ToRemove + 1
+                            if(SignTemp(j).ne.0) ToRemove = ToRemove + 1
                             SignTemp(j) = 0
                             call encode_part_sign (SpawnedParts(:,i), 0, j)
 
@@ -1019,10 +1019,10 @@ MODULE AnnihilationMod
                             endif
                         endif
                     enddo
-                    if (IsUnoccDet(SignTemp)) then
-                        ! All particle 'types' have been aborted
-                        ToRemove = ToRemove + 1
-                    elseif(tHashWalkerList) then
+!                    if (IsUnoccDet(SignTemp)) then
+!                        ! All particle 'types' have been aborted
+!                        ToRemove = ToRemove + 1
+                    if(tHashWalkerList.and.(.not.IsUnoccDet(SignTemp))) then
                         !Walkers have not been aborted, and so we should copy the determinant straight over to the main list
                         !We do not need to recompute the hash, since this should be the same one as was generated at the
                         !beginning of the loop
@@ -1067,8 +1067,8 @@ MODULE AnnihilationMod
                     ENDIF
                 enddo
                 ValidSpawned=ValidSpawned-DetsMerged
-                IF(DetsMerged.ne.ToRemove) THEN
-                    WRITE(6,*) "***", Iter, DetsMerged, ToRemove
+                IF(DetsMerged.ne.(ToRemove+Spawned_Parts_Zero)) THEN
+                    WRITE(6,*) "***", Iter, DetsMerged, ToRemove, Spawned_Parts_Zero
                     CALL Stop_All("AnnihilateSpawnedParts","Incorrect number of particles removed from spawned list")
                 ENDIF
 !We always want to annihilate from the SpawedParts and SpawnedSign arrays, so swap them around.
