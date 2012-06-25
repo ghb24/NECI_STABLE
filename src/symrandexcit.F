@@ -5,7 +5,7 @@
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SystemData, only: nEl,G1, nBasis,nBasisMax
-         use constants, only: dp
+         use constants, only: dp,sizeof_int
          use SystemData, only: Arr,nMax,tAssumeSizeExcitgen
          use IntegralsData, only: UMat
          use SymData, only: SymClassSize,nSymPairProds,nSymLabels
@@ -211,7 +211,7 @@ C.. Actually generate a det
      &               SYMPRODIND,ILUT,ORBPAIRS,IEXCIT,ISPN,IFROM,ITO,    &
      &               I,J,K,L,ITOTAL,ISEED,                              &
      &               NK,IC,NBASISMAX,ARR,NBASIS,PGEN)      
-      use constants, only: dp
+      use constants, only: dp,sizeof_int
       USE symexcit2
       use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
       use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
@@ -244,7 +244,7 @@ C.. Actually generate a det
       real(dp) ARR(NBASIS,2)
 !.. First generate a random excitation 
       PGEN=1.D0/ITOTAL
-      I=ITOTAL*RAN2(ISEED)
+      I=int(ITOTAL*RAN2(ISEED),sizeof_int)
       IEXCIT=1
       DO WHILE(EXCITTYPES(5,IEXCIT).LE.I)
          I=I-EXCITTYPES(5,IEXCIT)
@@ -288,7 +288,7 @@ C.. Actually generate a det
                ENDIF
                I=I+1
             ENDDO
-            ICOUNT=ICOUNT*RAN2(ISEED)
+            ICOUNT=int(ICOUNT*RAN2(ISEED),sizeof_int)
          ENDDO ot
 !.. NI(I) is now the orbital to excite
 ! Now go through the list of possible excitations of it
@@ -336,7 +336,7 @@ C.. Actually generate a det
                ENDIF
                K=K+1
             ENDDO
-            ICOUNT=ICOUNT*RAN2(ISEED)
+            ICOUNT=int(ICOUNT*RAN2(ISEED),sizeof_int)
          ENDDO
       ELSE
 !.. a double excitation
@@ -499,7 +499,7 @@ C.. Actually generate a det
       Subroutine SymGenRandExcitIt2_Sing_GF(iSeed,nI,nEl,iSpn,
      &       iFrom,I)
          use SymData, only: SymClass,SymLabelCounts,SymLabelList
-         use constants, only: dp
+         use constants, only: dp,sizeof_int
          IMPLICIT NONE
          INTEGER iSeed
          INTEGER nEl,nI(nEl)
@@ -543,7 +543,7 @@ C.. Actually generate a det
                ENDIF
                I=I+1
             ENDDO
-            ICOUNT=ICOUNT*RAN2(ISEED)
+            ICOUNT=int(ICOUNT*RAN2(ISEED),sizeof_int)
          ENDDO ot
 !.. NI(I) is now the orbital to excite
       End Subroutine SymGenRandExcitIt2_Sing_GF
@@ -626,7 +626,7 @@ C.. Actually generate a det
      &   iTo,nK,ExcitMat,TParity)
       use SymData, only: SymClass,SymLabelCounts,SymLabelList
         use Determinants, only: write_det
-         use constants, only: dp
+         use constants, only: dp,sizeof_int
          IMPLICIT NONE
          INTEGER iSeed
          INTEGER nEl,nI(nEl)
@@ -696,7 +696,7 @@ C.. Actually generate a det
                ENDIF
                K=K+1
             ENDDO
-            ICOUNT=ICOUNT*RAN2(ISEED)
+            ICOUNT=int(ICOUNT*RAN2(ISEED),sizeof_int)
          ENDDO
       End Subroutine SymGenRandExcitIt2_Single_GetTo
 

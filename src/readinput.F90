@@ -152,7 +152,8 @@ MODULE ReadInput_neci
             end select
         end do
         write (6,'(/,64("*"),/)')
-        IF(IR.EQ.1.or.IR.EQ.7) CLOSE(ir)
+!        IF(IR.EQ.1.or.IR.EQ.7) CLOSE(ir)
+        CLOSE(ir)
    99   IF (ios.gt.0) THEN
             WRITE (6,*) 'Problem reading input file ',TRIM(cFilename)
             call stop_all('ReadInputMain','Input error.')
@@ -175,7 +176,7 @@ MODULE ReadInput_neci
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
                             TNoSameExcit, TInitStar, tMP2Standalone, &
                             GrowMaxFactor, MemoryFacPart, tTruncInitiator, &
-                            tSpawnSpatialInit, tSpatialOnlyHash
+                            tSpawnSpatialInit, tSpatialOnlyHash, InitWalkers
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
@@ -188,12 +189,18 @@ MODULE ReadInput_neci
         USE input_neci
         use global_utilities
         use spin_project, only: tSpinProject, spin_proj_nopen_max
+        use FciMCData, only: nWalkerHashes,HashLengthFrac,tHashWalkerList
 
         implicit none
 
         integer :: vv, kk, cc, ierr
         logical :: check
         character(*), parameter :: t_r='checkinput'
+
+        if(tHashWalkerList) then
+            nWalkerHashes=nint(HashLengthFrac*InitWalkers)
+        endif
+
 
         ! Turn on histogramming of fcimc wavefunction in order to find density
         ! matrix, or the orbital occupations

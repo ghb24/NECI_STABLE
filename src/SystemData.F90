@@ -7,13 +7,9 @@ implicit none
 
 save
 
-! Why is so little of this commented.  'tis horrific.  AJWT.
-! Agree.
-! But...
-! I blame the original authors for setting the precedent... JSS
-! ;-)
-
 logical :: tMolpro  !True if the code has been called from Molpro
+logical :: tMolproMimic !True if the code is being run from standalone neci, but designed to mimic the runtime 
+                        !behaviour of molpro
 
 logical :: tNoSingExcits    !True if there are no single excitations in the system
 
@@ -36,6 +32,7 @@ logical :: tRotatedOrbsReal     !This means we are reading in a complex FCIDUMP,
                                 !kpoints to be at the gamma point or BZ boundary.
                                 !At the reading in, the integrals will be converted to reals,
                                 !but kpoint symmetry can still be used.
+logical :: tReadFreeFormat
 
 logical :: tRIIntegrals   ! Read in RI 2-e integrals from RIDUMP file
 logical :: tStoreSpinOrbs ! This is set when the orbitals are stored in 

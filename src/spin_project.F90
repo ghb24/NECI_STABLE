@@ -7,7 +7,7 @@ module spin_project
                         flag_make_initiator, test_flag, set_flag, &
                         flag_parent_initiator
     use csf, only: csf_get_yamas, get_num_csfs, csf_coeff, random_spin_permute
-    use constants, only: dp, bits_n_int, lenof_sign, n_int, end_n_int, int32
+    use constants, only: dp, bits_n_int, lenof_sign, n_int, end_n_int, int32,sizeof_int
     use FciMCData, only: TotWalkers, CurrentDets, fcimc_iter_data, &
                          yama_global, excit_gen_store_type, &
                          fcimc_excit_gen_store
@@ -126,7 +126,7 @@ contains
 
         if (nopen /= 0) then
             ! How many dets are there to choose from
-            ndet = choose (nopen, nup)
+            ndet = int(choose (nopen, nup),sizeof_int)
 
             ! initialise iluttmp
             iluttmp = ilutI
@@ -226,7 +226,7 @@ contains
         elem_i = csf_coeff (yama, dorder_i, nopen)
 
         ! How many dets are there to choose from
-        ndet = choose (nopen, nup)
+        ndet = int(choose (nopen, nup),sizeof_int)
 
         ! Construct the format string
         write(fmt_num, '(i6)') nopen
@@ -609,6 +609,14 @@ contains
         integer :: nopen
         character(*), parameter :: this_routine = 'generate_excit_hamil_proj'
 
+        !Remove warnings
+        nJ(:)=0
+        iLutJ(:)=0
+        ic=0
+        ex(:,:)=0
+        pGen=0.0_dp
+        HElGen=0.0_dp
+        tParity=.true.
 
         ! Unpaired electron/Ms properties.
         !nopen = count_open_orbs (ilutI)

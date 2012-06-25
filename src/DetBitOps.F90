@@ -374,13 +374,14 @@ module DetBitOps
 
     ! This will return true if iLutI is identical to iLutJ and will return 
     ! false otherwise.
-    pure logical function DetBitEQ(iLutI,iLutJ,nLast)
+    pure function DetBitEQ(iLutI,iLutJ,nLast) result(res)
         integer, intent(in), optional :: nLast
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        logical :: res
         integer :: i, lnLast
 
         if(iLutI(0).ne.iLutJ(0)) then
-            DetBitEQ=.false.
+            res=.false.
             return
         else
             if (present(nLast)) then
@@ -391,40 +392,14 @@ module DetBitOps
 
             do i=1,lnLast
                 if(iLutI(i).ne.iLutJ(i)) then
-                    DetBitEQ=.false.
+                    res=.false.
                     return
                 endif
             enddo
         endif
-        DetBitEQ=.true.
+        res=.true.
     end function DetBitEQ
 
-    ! This will return true if the determinant has been set to zero, and 
-    ! false otherwise.
-    pure logical function DetBitZero(iLutI,nLast)
-        integer, intent(in), optional :: nLast
-        integer(kind=n_int), intent(in) :: iLutI(0:NIfTot)
-        integer :: i, lnLast
-
-        if(iLutI(0).ne.0) then
-            DetBitZero=.false.
-            return
-        else
-            if (present(nLast)) then
-                lnLast = nLast
-            else
-                lnLast = NIftot
-            endif
-            do i=1,lnLast
-                if(iLutI(i).ne.0) then
-                    DetBitZero=.false.
-                    return
-                endif
-            enddo
-        endif
-        DetBitZero=.true.
-    end function DetBitZero
-    
     pure function sign_lt (ilutI, ilutJ) result (bLt)
         ! This is a comparison function between two bit strings of length 0:NIfTot, and will return
         ! true if absolute value of the sign of ilutI is less than ilutJ
@@ -560,6 +535,32 @@ module DetBitOps
         endif
 
     end function
+
+    ! This will return true if the determinant has been set to zero, and 
+    ! false otherwise.
+    pure logical function DetBitZero(iLutI,nLast)
+        integer, intent(in), optional :: nLast
+        integer(kind=n_int), intent(in) :: iLutI(0:NIfTot)
+        integer :: i, lnLast
+        if(iLutI(0).ne.0) then
+            DetBitZero=.false.
+            return
+        else
+            if (present(nLast)) then
+                lnLast = nLast
+            else
+                lnLast = NIftot
+            endif
+            do i=1,lnLast
+                if(iLutI(i).ne.0) then
+                    DetBitZero=.false.
+                    return
+                endif
+            enddo
+        endif
+        DetBitZero=.true.
+    end function DetBitZero
+
 
     ! This will return 1 if iLutI is "less" than iLutJ, 0 if the determinants
     ! are identical, or -1 if iLutI is "more" than iLutJ

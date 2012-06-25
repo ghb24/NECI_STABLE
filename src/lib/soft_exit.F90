@@ -696,13 +696,13 @@ contains
                 root_print 'Number at Hartree-Fock scaled by factor: ', &
                            hfScaleFactor
 
-                SumNoatHF = SumNoatHF * hfScaleFactor
+                SumNoatHF = nint(real(SumNoatHF,dp) * hfScaleFactor,int64)
                 if (iNodeIndex == DetermineDetNode(HFDet,0).and. bNodeRoot) then
                     pos = binary_search (CurrentDets(:,1:TotWalkers), &
                                          iLutHF)
                     call extract_sign (CurrentDets(:,pos), hfsign)
                     do i = 1, lenof_sign
-                        hfsign(i) = hfsign(i) * hfScaleFactor
+                        hfsign(i) = nint(real(hfsign(i),dp) * hfScaleFactor,sizeof_int)
                     enddo
                     call encode_sign (CurrentDets(:,pos), HFSign)
                 endif

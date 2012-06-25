@@ -2,7 +2,17 @@ module util_mod
     use util_mod_comparisons
     use util_mod_cpts
     use constants, only: dp, lenof_sign,sizeof_int
+    use iso_c_hack
     implicit none
+
+    interface
+        pure function strlen_wrap (str) result(len) bind(c)
+            use iso_c_hack
+            implicit none
+            character(c_char), intent(in) :: str(*)
+            integer(c_int) :: len
+        end function
+    end interface
 
     ! sds: It would be nice to use a proper private/public interface here,
     !      BUT PGI throws a wobbly on using the public definition on
@@ -12,16 +22,32 @@ module util_mod
 
 !    public :: swap, arr_lt, arr_gt, operator(.arrlt.), operator(.arrgt.)
 !    public :: factrl, choose, int_fmt, binary_search
-!    public :: append_ext, get_unique_filename, get_nan, isnan
+!    public :: append_ext, get_unique_filename, get_nan, isnan_neci
 
 contains
 
-    subroutine print_cstr (str)
-        use iso_c_hack
-        character(c_char), intent(in) :: str(*)
-        integer :: i
+    subroutine print_cstr (str) bind(c, name='print_cstr')
 
-        print*, 'got str', (str(i),i=1,8)
+        ! Write a string outputted by calling fort_printf in C.
+        ! --> Ensure that it is redirected to the same place as the normal
+        !     STDOUT within fortran.
+
+        character(c_char), intent(in) :: str(*)
+        integer :: l, i
+
+        l = strlen_wrap(str)
+        call print_cstr_local (str, l)
+
+    end subroutine
+
+    subroutine print_cstr_local (str, l)
+
+        character(c_char), intent(in) :: str(*)
+        integer, intent(in) :: l
+        character(len=l) :: tmp_s
+
+        tmp_s = transfer(str(1:l), tmp_s)
+        write(6, '(a)', advance='no') tmp_s
 
     end subroutine
 
@@ -94,13 +120,13 @@ contains
 
     ! If all of the compilers supported ieee_arithmetic
     ! --> could use ieee_is_nan (r)
-    elemental logical function isnan (r)
+    elemental logical function isnan_neci (r)
         real(dp), intent(in) :: r
 
         if ( (r == 0) .and. (r * 1 == 1) ) then
-            isnan = .true.
+            isnan_neci = .true.
         else
-            isnan = .false.
+            isnan_neci = .false.
         endif
     end function
 
@@ -623,7 +649,7 @@ end module
       real(sp) :: time(2)
       call cpu_time(ret)
       time(1) = ret
-      time(2) = 0
+      time(2) = real(0.0,sp)
     end function neci_etime
 
     integer function neci_system(str)

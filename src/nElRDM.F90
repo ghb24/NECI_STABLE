@@ -65,10 +65,10 @@ MODULe nElRDMMod
         REAL(dp) , ALLOCATABLE :: aaaa_RDM(:,:), abab_RDM(:,:), abba_RDM(:,:)
         REAL(dp) , ALLOCATABLE :: All_aaaa_RDM(:,:),All_abab_RDM(:,:), All_abba_RDM(:,:)
         REAL(dp) , ALLOCATABLE :: UMATTemp(:,:), Rho_ii(:)
+        REAL(dp) , ALLOCATABLE :: Lagrangian(:,:)
         REAL(dp) :: OneEl_Gap,TwoEl_Gap, Normalisation,Trace_2RDM_Inst, Trace_2RDM, Trace_1RDM, norm
         LOGICAL :: tFinalRDMEnergy, tCalc_RDMEnergy
         type(timer), save :: nElRDM_Time, FinaliseRDM_time, RDMEnergy_time
-        REAL(dp), ALLOCATABLE :: Lagrangian(:,:)
 
     contains
 
@@ -1934,9 +1934,11 @@ MODULe nElRDMMod
 ! This follows the directannihilation algorithm closely.
         implicit none
         INTEGER :: i,j
-        INTEGER(MPIarg), dimension(nProcessors) :: sendcounts,disps,sing_recvcounts
-        INTEGER(MPIarg), dimension(nProcessors) :: sing_recvdisps,doub_recvcounts,doub_recvdisps
+        INTEGER(MPIArg) :: sendcounts(nProcessors),disps(nProcessors)
+        INTEGER(MPIArg) :: sing_recvcounts(nProcessors)
         INTEGER :: error,MaxSendIndex,MaxIndex
+        INTEGER(MPIArg) :: sing_recvdisps(nProcessors)
+        INTEGER(MPIArg) :: doub_recvcounts(nProcessors),doub_recvdisps(nProcessors)
 
         do i=0,nProcessors-1
             sendcounts(i+1)=Sing_ExcList(i)-(NINT(OneEl_Gap*i)+1)
@@ -2032,9 +2034,11 @@ MODULe nElRDMMod
 ! This follows the directannihilation algorithm closely.
         implicit none
         INTEGER :: i,j
-        INTEGER(MPIarg), dimension(nProcessors) :: sendcounts, sing_recvcounts, doub_recvdisps
-        INTEGER(MPIarg), dimension(nProcessors) :: doub_recvcounts, sing_recvdisps, disps 
+        INTEGER(MPIArg) :: sendcounts(nProcessors),disps(nProcessors)
+        INTEGER(MPIArg) :: sing_recvcounts(nProcessors)
         INTEGER :: error,MaxSendIndex,MaxIndex
+        INTEGER(MPIArg) :: sing_recvdisps(nProcessors)
+        INTEGER(MPIArg) :: doub_recvcounts(nProcessors),doub_recvdisps(nProcessors)
 
         do i=0,nProcessors-1
             sendcounts(i+1)=Sing_ExcList(i)-(NINT(OneEl_Gap*i)+1)
@@ -2133,7 +2137,7 @@ MODULe nElRDMMod
         USE RotateOrbsData , only : SymLabelListInv_rot
         USE bit_reps , only : extract_bit_rep
         implicit none
-        INTEGER(MPIarg), INTENT(IN), dimension(nProcessors) :: recvcounts,recvdisps
+        INTEGER(MPIArg), INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: SignDi,SignDj, SignDi2,SignDj2
         INTEGER :: PartInd
@@ -2207,7 +2211,7 @@ MODULe nElRDMMod
         USE RotateOrbsData , only : SymLabelListInv_rot
         USE bit_reps , only : extract_bit_rep
         implicit none
-        INTEGER(MPIarg), INTENT(IN), dimension(nProcessors) :: recvcounts,recvdisps
+        INTEGER(MPIArg), INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: SignDi,SignDj, SignDi2, SignDj2
         INTEGER :: PartInd
@@ -2289,7 +2293,7 @@ MODULe nElRDMMod
         use hist_data, only: AllHistogram
         use hist , only : find_hist_coeff_explicit
         implicit none
-        INTEGER(MPIarg), INTENT(IN),dimension(nProcessors) :: recvcounts,recvdisps
+        INTEGER(MPIArg), INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: HistPos
         INTEGER :: PartInd, ExcitLevel
@@ -2374,7 +2378,7 @@ MODULe nElRDMMod
         use hist_data, only: AllHistogram
         use hist , only : find_hist_coeff_explicit
         implicit none
-        INTEGER(MPIarg), INTENT(IN), dimension(nProcessors) :: recvcounts,recvdisps
+        INTEGER(MPIArg), INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: HistPos
         INTEGER :: PartInd, ExcitLevel
@@ -2820,11 +2824,6 @@ MODULe nElRDMMod
                 write(6,'(A55,F30.20)') ' SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY &
                                             &HF ORBITALS: ',SumN_Rho_ii
             endif
-            if (tDumpForcesInfo) then
-                if (.not. tPrint1RDM) call Finalise_1e_RDM(Norm_1RDM)
-                CALL Calc_Lagrangian_from_RDM(Norm_1RDM, Norm_2RDM)
-                call convert_matrices_for_Molpro_forces(Norm_1RDM, Norm_2RDM)
-            endif
 
         endif
         call MPIBarrier(error)
@@ -3060,23 +3059,6 @@ MODULe nElRDMMod
         close(OneRDM_unit)
 
     end subroutine Write_out_1RDM
-
-    subroutine Write_out_Lagrangian()
-       ! This routine writes out the Lagrangian X_pq
-        implicit none
-        integer :: i, j
-        integer :: Lagrangian_unit
-        Write(6,*) "Writing out the spatial Lagrangian, constructed from the 'normalised' and finalised 2e RDM"
-        Lagrangian_unit = get_free_unit()
-        OPEN(Lagrangian_unit,file='Lagrangian',status='unknown')
-        ! Currently printing Lagrangian with spatial orbital labels, though we specifically refer to beta spin orbitals.
-        do i = 1, SpatOrbs
-            do j = 1, SpatOrbs
-                write(Lagrangian_unit, "(2I6,G25.17)") i, j, Lagrangian(i,j)
-            enddo
-        enddo
-        close(Lagrangian_unit)
-    end subroutine Write_out_Lagrangian
 
     subroutine Finalise_2e_RDM(Norm_2RDM_Inst, Norm_2RDM) 
 ! This routine sums, normalises, hermitian-ises, and prints the 2-RDMs.    
@@ -3772,7 +3754,6 @@ MODULe nElRDMMod
             write(6,'(A29,F30.20)') ' MAX ABS ERROR IN Lagrangian HERMITICITY', Max_Error_Hermiticity
             write(6,'(A29,F30.20)') ' SUM ABS ERROR IN Lagrangian HERMITICITY', Sum_Error_Hermiticity
 
-            if (tPrintLagrangian) call Write_Out_Lagrangian()
         endif
 
     end subroutine
@@ -5252,7 +5233,6 @@ MODULe nElRDMMod
         USE FciMCData , only : TotWalkers,CurrentDets,iluthf_true
         USE Determinants, only : get_helement
         USE bit_reps , only : extract_bit_rep, extract_sign,nifdbo
-        USE DetBitOps, only : detbiteq
         USE UMatCache, only: GTID
         use ParallelHelper
         implicit none
@@ -5267,10 +5247,8 @@ MODULe nElRDMMod
         REAL(dp) , ALLOCATABLE :: TestRDM(:,:)
         INTEGER(n_int) , ALLOCATABLE :: AllCurrentDets(:,:)
         HElement_t :: H_IJ
-        INTEGER :: Ind1,Ind2,TestRDMTag,comm
-        INTEGER :: ierr
-        INTEGER(MPIarg) :: lengthsout(0:nProcessors-1)
-        INTEGER(MPIarg) :: disp(0:nProcessors-1)
+        INTEGER :: Ind1,Ind2,TestRDMTag,ierr,comm
+        INTEGER(MPIArg) :: lengthsout(0:nProcessors-1), disp(0:nProcessors-1)
         CHARACTER(len=*), PARAMETER :: this_routine='Test_Energy_Calc'
 
         WRITE(6,*) '****************'

@@ -6,7 +6,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <vector>
+#ifdef _WIN32
+#include <windows.h>
+#include <tchar.h>
+#else
 #include <unistd.h>
+#endif
 
 #ifdef CBINDMPI
 
@@ -160,7 +165,7 @@ void mpi_comm_group_wrap (int comm, int * group, int * ierr)
 	// We need to return an integer, so store group in a vector and return
 	// its index. See if it is already in there first...
 	// n.b. Don't use an iterator, as we actually want the index...
-	for (int i = 0; i < group_vec.size(); ++i) {
+	for (size_t i = 0; i < group_vec.size(); ++i) {
 		if (group_vec[i] == grp_handle) {
 			*group = i;
 			return;

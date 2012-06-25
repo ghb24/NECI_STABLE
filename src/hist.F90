@@ -212,7 +212,7 @@ contains
                 call extract_sign (all_hist(:,i), sgn)
 
                 ! Output to file
-                write(fd, *) all_hist(0:NIfD, i), float(sgn)/nsteps
+                write(fd, *) all_hist(0:NIfD, i), dble(sgn)/nsteps
                 
                 ! Add csf contribs
                 do j = 1, ubound(csf_contrib, 2)
@@ -298,7 +298,7 @@ contains
             if (pos < 0) then
                 call writebitdet(6, ilut, .false.)
                 write(6,*) ilut
-                write(6,*) '----------------'
+                write(6,*) '================'
                 do i=1,ubound(hist_spin_dist, 2)
                     write(6,*) hist_spin_dist(:,i)
                 enddo
@@ -755,14 +755,14 @@ contains
 
             call MPIAlltoAll (send_count, 1, recv_count, 1, ierr)
 
-            send_off = (proc_pos_init - 1) * (NIfTot + 1)
+            send_off = int((proc_pos_init - 1) * (NIfTot + 1),MPIArg)
             recv_off(1) = 0
             do i = 2, nProcessors
-                recv_off(i) = recv_off(i - 1) + recv_count(i - 1)
+                recv_off(i) = recv_off(i - 1) + int(recv_count(i - 1),MPIArg)
             enddo
-            recv_off = recv_off * (NIfTot + 1)
-            send_data = send_count * (NIfTot + 1)
-            recv_data = recv_count * (NIfTot + 1)
+            recv_off = recv_off * int(NIfTot + 1,MPIArg)
+            send_data = int(send_count * (NIfTot + 1),MPIArg)
+            recv_data = int(recv_count * (NIfTot + 1),MPIArg)
 
             call MPIAlltoAllv (det_list, send_data, send_off, &
                                recv_dets, recv_data, recv_off, ierr)

@@ -275,7 +275,7 @@ contains
     end function
 
     subroutine encode_bit_rep (ilut, Det, sgn, flag)
-        integer(n_int), intent(inout) :: ilut(0:nIfTot)
+        integer(n_int), intent(out) :: ilut(0:nIfTot)
         integer, dimension(lenof_sign), intent(in) :: sgn
         integer(n_int), intent(in) :: Det(0:NIfDBO)
         integer, intent(in) :: flag
@@ -283,7 +283,7 @@ contains
         iLut(0:NIfDBO) = Det
         iLut(NOffSgn:NOffSgn+NIfSgn-1) = sgn
         IF(NIfFlag.eq.1) THEN
-            iLut(NOffFlag) = flag
+            iLut(NOffFlag) = int(flag,n_int)
         ENDIF
 
     end subroutine encode_bit_rep
