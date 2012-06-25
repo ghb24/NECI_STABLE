@@ -54,7 +54,7 @@ if (stat.eq.0.and..not.tCPMD) then
     write (6,'(a20)') 'Working directory: '
     write (6,'(5X,a)') trim(dirname)
 end if
-#ifdef NAGF95 || defined(_WIN32_)
+#if defined(NAGF95) || defined(_WIN32_)
 !Can't find a hostnm intrinsic equivalent in the nag system modules
     stat=1
 #else

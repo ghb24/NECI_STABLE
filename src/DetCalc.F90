@@ -1019,7 +1019,7 @@ END MODULE DetCalc
      &   DETINV,TSPECDET,SPECDET)
          use constants, only: dp
          use util_mod, only: get_free_unit
-         use SystemData, only: BasisFN
+         use SystemData, only: BasisFN, tMolpro,tMolproMimic
          use CalcData, only: tFCIMC
          use global_utilities
          use DetCalcData, only: NMRKS
@@ -1173,7 +1173,11 @@ END MODULE DetCalc
             ENDIF
           ENDDO
          CLOSE(iunit)
-         WRITE(6,*) "Summed approx E(Beta)=",TOT/NORM
+         if(tFCIMC) then
+             if((.not.tMolpro).and.(.not.tMolproMimic)) write(6,*) "Summed approx E(Beta)=",TOT/NORM
+         else
+             WRITE(6,*) "Summed approx E(Beta)=",TOT/NORM
+         endif
          DEALLOCATE(RIJLIST,ICE,LSTE)
          CALL LogMemDealloc(this_routine,RIJLISTTag)
          CALL LogMemDealloc(this_routine,ICETag)

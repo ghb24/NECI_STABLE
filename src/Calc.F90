@@ -1663,7 +1663,7 @@ contains
              if(tFCIMC) then
                  call FciMCPar(WeightDum,EnerDum)
 
-                 if((.not.tMolpro).or.tMolproMimic) WRITE(6,*) "Summed approx E(Beta)=",EnerDum
+                 if((.not.tMolpro).and.(.not.tMolproMimic)) WRITE(6,*) "Summed approx E(Beta)=",EnerDum
              elseif(tCCMC) then
                   if(tAmplitudes) THEN
                      CALL CCMCStandAlone(WeightDum,EnerDum)
