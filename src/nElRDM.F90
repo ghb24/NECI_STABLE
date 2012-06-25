@@ -5109,7 +5109,6 @@ MODULE nElRDMMod
         USE FciMCData , only : TotWalkers,CurrentDets,iluthf_true
         USE Determinants, only : get_helement
         USE bit_reps , only : extract_bit_rep, extract_sign,nifdbo
-        USE DetBitOps, only : detbiteq
         USE UMatCache, only: GTID
         implicit none
         INTEGER :: I, J, nI(NEl), nJ(NEl), FlagsI, FlagsJ, IC, Ex(2,2)

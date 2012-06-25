@@ -2625,10 +2625,8 @@ MODULE FciMCParMod
                 ! But if the walker is removed from the list altogether, this is lost too.
                 if(tHashWalkerList) then
                     call encode_sign(CurrentDets(:,DetPosition),CopySign)
-                    if (tFillingStochRDMonFly) then
-                        CurrentH(2,DetPosition) = wAvSign
-                        CurrentH(3,DetPosition) = IterRDMStartCurr
-                    endif
+                    CurrentH(2,DetPosition) = wAvSign
+                    CurrentH(3,DetPosition) = IterRDMStartCurr
                 else
                     call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
                     if (.not.tRegenDiagHEls) CurrentH(1,VecSlot) = Kii
