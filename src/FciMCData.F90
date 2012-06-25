@@ -2,9 +2,9 @@ MODULE FciMCData
       use iso_c_hack
       use SystemData, only: BasisFN
       use constants, only: dp, int64, n_int, lenof_sign, sp
-      use global_utilities
       use SymExcitDataMod, only: excit_gen_store_type
       use MemoryManager, only: TagIntType
+      use global_utilities         
 
       implicit none
       save
@@ -162,6 +162,7 @@ MODULE FciMCData
       LOGICAL :: TDebug                           !Debugging flag
       INTEGER :: MaxIndex
 
+      integer :: iBlockingIter                    !The iteration to begin the automatic blocking from 
       LOGICAL :: tErrorBlocking=.false.           !This becomes true when the blocking error analysis begins, and initiates the calling of the blocking routine.
       LOGICAL :: tShiftBlocking=.false.
 

@@ -1814,7 +1814,7 @@ contains
         real(dp)  :: pGen, avContrib, avContribAll
         ! Store the generated excitations and if they have been generated.
         integer, allocatable, dimension(:,:) :: nK
-        logical, allocatable, dimension(:)   :: ex_list(:)
+        logical, allocatable, dimension(:)   :: ex_list
         ! Histogram the generation probabilities.
         real(dp),  allocatable, dimension(:,:) :: SinglesHist, AllSinglesHist
         real(dp),  allocatable, dimension(:,:,:,:) :: DoublesHist,AllDoublesHist
