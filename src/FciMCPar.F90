@@ -188,6 +188,8 @@ MODULE FciMCParMod
         ! number of iterations
         tIncrement = .true.
         Iter=1
+        if (tCISDref) NumUpdateCycles=0
+
         do while (Iter <= NMCyc .or. NMCyc == -1)
 !Main iteration loop...
 !            WRITE(iout,*) 'Iter',Iter
@@ -230,6 +232,8 @@ MODULE FciMCParMod
             endif
             
             if (mod(Iter, StepsSft) == 0) then
+
+                if (tCISDref) NumUpdateCycles=NumUpdateCycles+1
 
                 ! Has there been a particle bloom this update cycle?
                 if(iProcIndex.eq.Root) then
@@ -1030,7 +1034,7 @@ MODULE FciMCParMod
 
                         call create_particle (nJ, iLutnJ, child, &
                                               parent_flags, part_type)
-                    
+                      !if (DetBitEq(iLutnJ,iLutHF, NifD)) WRITE(6,*) "iLutnJ, child", iLutnJ, child 
                     endif ! (child /= 0). Child created
 
                 enddo ! Cycling over mulitple particles on same determinant.
@@ -1063,9 +1067,12 @@ MODULE FciMCParMod
             child = attempt_create_staticflux (CISDRefCoeff,iLutCurr, StaticFlux)
             ic=0
             nullWalkExcitLevel=0
+            
+           ! if (DetBitEq(iLutCurr,iLutHF, NifD)) WRITE(6,*) "StaticFlux, CISDRefCoeff", StaticFlux, CISDRefCoeff 
 
             ! Children have been chosen to be spawned.
             if (child(1) .ne. 0) then
+            !  if (DetBitEq(iLutCurr,iLutHF, NifD)) WRITE(6,*) "child", child 
                 call decode_bit_det(nJ, iLutCurr)
 
                 ! nJ is not used in either of these routines - we pass in
@@ -3367,10 +3374,15 @@ MODULE FciMCParMod
 
         ! HElement_t values (Calculates the energy by summing all on HF and 
         ! doubles)
+
         call MPISum ((/ENumCyc, SumENum, ENumCycAbs/), helem_tmp)
         AllENumCyc = helem_tmp(1)
         AllSumENum = helem_tmp(2)
         AllENumCycAbs = helem_tmp(3)
+        
+
+        if (tCISDref) AllSumENum = AllSumENum + StepsSft*AllCISDProjEContrib*NumUpdateCycles
+        if (tCISDref) AllSumNoatHF = AllSumNoAtHF + StepsSft*CISDHfPop*NumUpdateCycles
 
         if(tSplitProjEHist) then
             if(tSplitProjEHistG) then
@@ -3600,7 +3612,11 @@ MODULE FciMCParMod
 
             ! Calculate the projected energy.
             if(tCISDRef) then
-                ProjectionE = (AllSumENum+StepsSft*AllCISDProjEContrib) / real(all_sum_proje_denominator+StepsSft*CISDHfPop) 
+                ProjectionE = (AllSumENum) / real(all_sum_proje_denominator)
+                !WRITE(6,*) "AllSumENum", AllSumENum
+                !WRITE(6,*) "all_sum_proje_denominator", all_sum_proje_denominator
+                !WRITE(6,*) "CISDHFPop", CISDHFPop
+                !WRITE(6,*) "AllCISDProjEContrib", AllCISDProjEContrib
                 proje_iter = (AllENumCyc+StepsSft*AllCISDProjEContrib) / real(all_cyc_proje_denominator+StepsSft*CISDHFPop) 
                 AbsProjE = (AllENumCycAbs+StepsSft*AllCISDProjEContribAbs) / real(all_cyc_proje_denominator +StepsSft*CISDHFPop)
             elseif (any(AllSumNoatHF /= 0) .or. &
@@ -3945,8 +3961,8 @@ MODULE FciMCParMod
                 HFShift, &
                 InstShift, &
                 proje_iter + Hii, &
-                AllHFCyc / StepsSft, &
-                AllENumCyc / StepsSft, &
+                (AllHFCyc / StepsSft)+CISDHfPop, &
+                (AllENumCyc / StepsSft)+AllCISDProjEContrib, &
                 real(AllNoatHF, dp) / norm_psi, &
                 norm_psi, &
                 curr_S2, curr_S2_init, &
@@ -6066,7 +6082,7 @@ MODULE FciMCParMod
         else
 
             ! Sum in energy contribution
-            if (iter > NEquilSteps) &
+            if (iter > NEquilSteps)  &
                 SumENum = SumENum + (HOffDiag * ARR_RE_OR_CPLX(wSign)) / dProbFin
             
             ENumCyc = ENumCyc + (HOffDiag * ARR_RE_OR_CPLX(wSign)) / dProbFin
@@ -6327,8 +6343,6 @@ MODULE FciMCParMod
                     ReadBatch = iReadWalkersRoot
                 endif
                 
-                WRITE(6,*) "NoAtHF", NoAtHF
-
                 !TotWalkers and TotParts are returned as the dets and parts on each processor.
                 call ReadFromPopsfile(iPopAllTotWalkers,ReadBatch,TotWalkers,TotParts,NoatHF,CurrentDets,MaxWalkersPart)
 
@@ -6574,8 +6588,6 @@ MODULE FciMCParMod
 
             call calc_cisd_flux()
             
-            WRITE(6,*) "NumDoubEntries, NumQuadEntries", NumDoubEntries, NumQuadEntries
-
             allocate(CISDTotFlux(NifD+1+lenof_sign+1,NumDoubEntries+NumQuadEntries))
 
             CISDTotFlux(:,:)=0
@@ -6591,6 +6603,11 @@ MODULE FciMCParMod
             deallocate(CISDIntFluxPosition)
             deallocate(CISDIntFlux)
             deallocate(CISDref)
+                    
+            SumENum = 0
+            sum_proje_denominator = 0
+            cyc_proje_denominator = 0
+            SumNoatHF = 0
 
            WRITE(6,*) "Completed CISD setup"
         endif
@@ -8337,10 +8354,13 @@ MODULE FciMCParMod
         Allocate(CISDref(NifD+1+lenof_sign,TotWalkers))
         CISDref(:,:) = 0
 
-        call cisd_ref_allocation 
+        call cisd_ref_allocation
+
+        WRITE(6,*) "Max CISD Determinants per core:", MaxTotWalkers
        
         do i=1,MaxTotWalkers
             if (mod(i,10).eq.0) WRITE(6,*) "Dets processed", i
+
 
             ! But if the actual number of determinants on this processor is less than the number 
             ! we're running through, feed in 0 determinants and 0 sign in order to keep everything synced
@@ -8803,7 +8823,7 @@ MODULE FciMCParMod
 
     do i=1,DoubDetsEst
         !Run over the internal flux array
-        if ((CISDIntFlux(1,i).eq. 0).and.(CISDIntFlux(2,i).eq.0) .and. (CISDIntFlux(3,i).eq.0)) then
+        if ((CISDIntFlux(1,i).eq. 0).and.(CISDIntFlux(NifD+1,i).eq.0) .and. (CISDIntFlux(NifD+2,i).eq.0)) then
             cycle !CHECK
         else
             !Add this internal flux term to the totflux array
@@ -8827,7 +8847,7 @@ MODULE FciMCParMod
 
     do i=1,QuadDetsEst
         !Run over the internal flux array
-        if ((CISDOutFlux(1,i).eq. 0).and.(CISDOutFlux(2,i).eq.0) .and. (CISDOutFlux(3,i).eq.0)) then
+        if ((CISDOutFlux(1,i).eq. 0).and.(CISDOutFlux(NifD+1,i).eq.0) .and. (CISDOutFlux(NifD+2,i).eq.0)) then
             cycle !CHECK
         else
             CISDTotFlux(1:NifD+1+lenof_sign,posn)=CISDOutFlux(:,i)

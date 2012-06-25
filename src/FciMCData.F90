@@ -245,6 +245,7 @@ MODULE FciMCData
       INTEGER(kind=n_int), ALLOCATABLE :: CISDIntFluxPosition(:,:), CISDOutFluxPosition(:,:)
       REAL(dp) :: CISDProjEContrib, CISDProjEContribAbs
       REAL(dp) :: AllCISDProjEContrib, AllCISDProjEContribAbs
+      INTEGER :: NumUpdateCycles
       LOGICAL :: tStaticFluxTerm, blank_det
       INTEGER :: initiator_parent_flag !The value of FlagsCurr for an initiator det (to be used for static flux)
       INTEGER , ALLOCATABLE :: Sing_InitExcSlots(:),Sing_ExcList(:)
