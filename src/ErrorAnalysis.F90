@@ -3,6 +3,7 @@ module errors
     use constants, only: dp, int64,lenof_sign
     use Parallel_neci, only: iProcIndex,Root
     use util_mod, only: get_free_unit
+    use CalcData, only: SftDamp
     implicit none
     real(dp), allocatable :: numerator_data(:)
     real(dp), allocatable :: imnumerator_data(:)
