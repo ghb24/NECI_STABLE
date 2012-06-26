@@ -66,8 +66,8 @@ module errors
 
         tNoProjEValue = .false.
         tNoShiftValue = .false.
-        if(tSingPartPhase.and.(.not.tGivenEquilibrium)) then
-            write(6,"(A)") "Calculation has not entered constant growth phase. Error analysis therefore not performed."
+        if((tSingPartPhase.and.(.not.tGivenEquilibrium)).or.(SftDamp.lt.1.0e-7_dp)) then
+            write(6,"(A)") "Calculation has not entered variable shift phase. Error analysis therefore not performed."
             write(6,"(A)") "Direct reblocking of instantaneous energy possible, but this would contain finite sampling bias."
             tNoProjEValue = .true.
             tNoShiftValue = .true.
@@ -650,12 +650,13 @@ module errors
         enddo
 
         if(i.ne.validdata) then
-            call stop_all(t_r,"Data arrays not filled correctly")
+            call stop_all(t_r,"Data arrays not filled correctly 1")
         endif
 
         if(shift_data(validdata).eq.0.0_dp.or.pophf_data(validdata).eq.0.0_dp.or. &
             numerator_data(validdata).eq.0.0_dp) then
-            call stop_all(t_r,"Data arrays not filled correctly")
+            write(6,*) shift_data(validdata), pophf_data(validdata), numerator_data(validdata)
+            call stop_all(t_r,"Data arrays not filled correctly 2")
         endif
 
         close(iunit)
