@@ -8720,17 +8720,26 @@ MODULE FciMCParMod
         write (iout,10101) iroot,isymh
 10101   format(//'RESULTS FOR STATE',i2,'.',i1/'====================='/)
         write (iout,'('' Current reference energy'',T52,F19.12)') Hii 
-        write (iout,'('' Projected correlation energy'',T52,F19.12)') mean_ProjE_re
-        write (iout,'('' Estimated error in Projected correlation energy'',T52,F19.12)') ProjE_Err_re
+        if(tNoProjEValue) then
+            write(iout,'('' No projected energy value could be obtained'',T52)')
+        else
+            write (iout,'('' Projected correlation energy'',T52,F19.12)') mean_ProjE_re
+            write (iout,'('' Estimated error in Projected correlation energy'',T52,F19.12)') ProjE_Err_re
+        endif
         if(lenof_sign.eq.2) then
             write (iout,'('' Projected imaginary energy'',T52,F19.12)') mean_ProjE_im
             write (iout,'('' Estimated error in Projected imaginary energy'',T52,F19.12)') ProjE_Err_im
         endif
-        write (iout,'('' Shift correlation energy'',T52,F19.12)') mean_Shift
-        write (iout,'('' Estimated error in shift correlation energy'',T52,F19.12)') shift_err
+        if(tNoShiftValue) then
+            write(iout,'('' No shift energy value could be obtained'',T52)')
+        else
+            write (iout,'('' Shift correlation energy'',T52,F19.12)') mean_Shift
+            write (iout,'('' Estimated error in shift correlation energy'',T52,F19.12)') shift_err
+        endif
 
         !Do shift and projected energy agree?
         write(iout,"(A)")
+        if(tNoProjEValue.and.tNoShiftValue) return 
         EnergyDiff = abs(mean_Shift-mean_ProjE_re)
         if(EnergyDiff.le.sqrt(shift_err**2+ProjE_Err_re**2)) then
             write(iout,"(A,F15.8)") " Projected and shift energy estimates agree " &
