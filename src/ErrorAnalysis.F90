@@ -361,7 +361,7 @@ module errors
             eie_array(i+1)=eie
             if(tPrint) write(iunit,*) size(that), mean, error, eie
         enddo
-        call check_reblocking_for_monotonic_increase(error_array,tPrint,iValue)
+        call check_reblock_monotonic_inc(error_array,tPrint,iValue)
         call find_max_error(error_array,final_error,which_element)
         corrlength=blocklength**(which_element-1)
         if(errordebug.gt.0) then
@@ -905,7 +905,7 @@ module errors
 
     end subroutine print_vector
 
-    subroutine check_reblocking_for_monotonic_increase(these_errors,tPrint,iValue)
+    subroutine check_reblock_monotonic_inc(these_errors,tPrint,iValue)
     ! One of the simplest checks on the errors for F&P blocking analysis
     ! is to look for a monotonic increase in errors
     ! which indicates no tail-off/plateauing.
@@ -922,7 +922,7 @@ module errors
         integer :: length
         integer :: i
         logical :: monotonic
-        character(len=*), parameter :: t_r='check_reblocking_for_monotonic_increase'
+        character(len=*), parameter :: t_r='check_reblock_monotonic_inc'
 
         monotonic=.true.
         length=size(these_errors)
@@ -966,7 +966,7 @@ module errors
             write(6,"(A)") "         BLOCKING files carefully"
         endif
 
-    end subroutine check_reblocking_for_monotonic_increase
+    end subroutine check_reblock_monotonic_inc
 
     subroutine find_max_error(these_errors,error,which_element)
     ! One of the simplest ways to choose the error in F+P reblocking
