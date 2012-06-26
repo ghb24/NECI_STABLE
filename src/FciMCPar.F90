@@ -8037,6 +8037,7 @@ MODULE FciMCParMod
                 SmallestPos=1
                 do j=2,iHighPopWrite
                     !ExtractSign
+                    if(SmallestSign.lt.1.0e-7_dp) exit
                     call extract_sign(LargestWalkers(:,j),LowSign)
                     if(lenof_sign.eq.1) then
                         SignCurrReal=real(abs(LowSign(1)),dp)
