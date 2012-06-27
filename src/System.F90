@@ -26,6 +26,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tReadFreeFormat=.false.
       tMolproMimic=.false.
       tAntisym_MI=.false.
       tMomInv=.false.
@@ -333,6 +334,8 @@ MODULE System
             IF(tHub) THEN
                 CALL Stop_All("SysReadInput","Cannot turn off symmetry with the hubbard model.")
             ENDIF
+        case("FREEFORMAT")
+            tReadFreeFormat = .true.
         case("SYM")
             TPARITY = .true.
             do I = 1,4

@@ -5,7 +5,7 @@ contains
     SUBROUTINE INITFROMFCID(NEL,NBASISMAX,LEN,LMS,TBIN)
          use SystemData , only : tNoSymGenRandExcits,lNoSymmetry,tROHF,tHub,tUEG
          use SystemData , only : tStoreSpinOrbs,tKPntSym,tRotatedOrbsReal,tFixLz,tUHF
-         use SystemData , only : tMolpro
+         use SystemData , only : tMolpro,tReadFreeFormat
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
          use Parallel_neci
          use util_mod, only: get_free_unit
@@ -162,6 +162,7 @@ contains
       SUBROUTINE GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN,TBIN)
          use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn,tMolpro,tUHF
          use SystemData, only: tCacheFCIDUMPInts,tROHF,tFixLz,iMaxLz,tRotatedOrbsReal
+         use SystemData, only: tReadFreeFormat
          use UMatCache, only: nSlotsInit,CalcNSlotsInit
          use UMatCache, only: GetCacheIndexStates,GTID
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
@@ -359,7 +360,7 @@ contains
                         call stop_all("GETFCIBASIS","Real orbitals indicated, but imaginary part of integrals larger than 1.D-7")
                     endif
                 else
-                    if(tMolpro) then
+                    if(tMolpro.or.tReadFreeFormat) then
                         !If calling from within molpro, integrals are written out to greater precision
                         read(iunit,*,END=99) Z,I,J,K,L
                     else
@@ -523,6 +524,7 @@ contains
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,tMolpro
          use SystemData, only: UMatEps,tUMatEps,tCacheFCIDUMPInts,tUHF
          use SystemData, only: tRIIntegrals,nBasisMax,tROHF,tRotatedOrbsReal
+         use SystemData, only: tReadFreeFormat
          USE UMatCache, only: UMatInd,UMatConj,UMAT2D,TUMAT2D,nPairs,CacheFCIDUMP
          USE UMatCache, only: FillUpCache,GTID,nStates,nSlots,nTypes
          USE UMatCache, only: UMatCacheData,UMatLabels,GetUMatSize
@@ -628,7 +630,7 @@ contains
                      call stop_all("READFCIINT","Real orbitals indicated, but imaginary part of integrals larger than 1.D-7")
                  endif
              else
-                 if(tMolpro) then
+                 if(tMolpro.or.tReadFreeFormat) then
                      read(iunit,*,END=199) Z,I,J,K,L
                  else
                      READ(iunit,'(1X,G20.12,4I3)',END=199) Z,I,J,K,L

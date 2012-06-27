@@ -1166,9 +1166,9 @@ contains
         ! This assumes that the passed yama array is the correct size, if
         ! it is too small, then the symbol will be truncated.
 
-        integer, intent(in), dimension(:) :: nI(nel)
+        integer, intent(in) :: nI(nel)
         integer, intent(in) :: nopen
-        integer, intent(out), dimension(:) :: yama(nopen)
+        integer, intent(out) :: yama(nopen)
         integer i, nclosed
 
         nclosed = nel - nopen

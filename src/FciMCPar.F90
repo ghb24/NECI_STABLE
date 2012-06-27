@@ -2,9 +2,6 @@
 !This is a parallel MPI version of the FciMC code.
 !All variables refer to values per processor
 
-! AJWT
-! Bringing you a better FciMCPar.  A vision for the future...
-!
 !   The module now has the same structure with and without PARALLEL being defined.
 !   Some routines require MPI and are enclosed in the #ifdef PARALLEL section.  These
 !   should have dummy replacements in the #else of this if required.
@@ -66,7 +63,8 @@ MODULE FciMCParMod
                        instant_s2_multiplier, tMCOutput, tSplitProjEHist, &
                        tSplitProjEHistG, tSplitProjEHistK3, iProjEBins, &
                        tDiagWalkerSubspace, iDiagSubspaceIter, &
-                       tCalcInstantS2Init, instant_s2_multiplier_init
+                       tCalcInstantS2Init, instant_s2_multiplier_init, &
+                       tJustBlocking, iBlockEquilShift, iBlockEquilProjE
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
                     hist_spin_dist, ilut_spindist, tHistSpinDist, &
                     write_clear_hist_spin_dist, hist_spin_dist_iter, &
@@ -107,6 +105,7 @@ MODULE FciMCParMod
                             init_yama_store, clean_yama_store, &
                             disable_spin_proj_varyshift
     use symrandexcit3, only: gen_rand_excit3, test_sym_excit3
+    use errors, only: error_analysis
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
 #endif
@@ -129,7 +128,7 @@ MODULE FciMCParMod
         integer :: nv,ityp(1)
 #endif
         integer :: iroot,isymh
-        real(dp) :: Weight, Energyxw
+        real(dp) :: Weight, Energyxw,BestEnergy
         INTEGER :: error
         LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange,tPrintWarn
         REAL(sp) :: s_start,s_end,tstart(2),tend(2),totaltime,neci_etime
@@ -138,12 +137,24 @@ MODULE FciMCParMod
         real(dp) :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
         integer, dimension(lenof_sign) :: tmp_sgn
         integer :: tmp_int(lenof_sign), i
-        real(dp) :: grow_rate
+        real(dp) :: grow_rate,EnergyDiff
         TYPE(BasisFn) RefSym
+        real(dp) :: mean_ProjE_re,mean_ProjE_im,mean_Shift
+        real(dp) :: ProjE_Err_re,ProjE_Err_im,Shift_Err
+        logical :: tNoProjEValue,tNoShiftValue
+        real(dp) :: BestErr
 #ifdef MOLPRO
         real(dp) :: get_scalar
         include "common/molen"
 #endif
+
+        if(tJustBlocking) then
+            !Just reblock the current data, and do not perform an fcimc calculation
+            write(6,"(A)") "Skipping FCIQMC calculation and simply reblocking previous output"
+            call Standalone_Errors()
+            return
+        endif
+
 
         TDebug=.false.  !Set debugging flag
                     
@@ -280,7 +291,7 @@ MODULE FciMCParMod
                         tTruncCAS=.false.
                         IF(tTruncInitiator) tTruncInitiator=.false.
                         IF(iProcIndex.eq.0) THEN
-                            WRITE(iout,*) "Expanding to the full space on iteration ",Iter
+                            WRITE(iout,*) "Expanding to the full space on iteration ",Iter + PreviousCycles
                         ENDIF
                     ENDIF
                 ENDIF
@@ -331,12 +342,6 @@ MODULE FciMCParMod
             
             ENDIF   !Endif end of update cycle
 
-!            IF(mod(Iter,iWriteBlockingEvery).eq.0) THEN
-!                !Every 100 update cycles, write out a new blocking file.
-!                IF(tErrorBlocking.and.(Iter.gt.IterStartBlocking)) CALL PrintBlocking(Iter) 
-!                IF(tShiftBlocking.and.(Iter.gt.(VaryShiftIter+IterShiftBlock))) CALL PrintShiftBlocking(Iter)
-!            ENDIF
-            
             if (tHistSpinDist .and. (mod(iter, hist_spin_dist_iter) == 0)) &
                 call write_clear_hist_spin_dist (iter, hist_spin_dist_iter)
 
@@ -381,9 +386,6 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
-!        IF(tErrorBlocking) CALL FinaliseBlocking(Iter)
-!        IF(tShiftBlocking) CALL FinaliseShiftBlocking(Iter)
-
         IF(tHistSpawn) CALL WriteHistogram()
 
         IF(tHistHamil) CALL WriteHamilHistogram()
@@ -400,45 +402,7 @@ MODULE FciMCParMod
 
         call PrintHighPops()
 
-! Print out some load balancing stats nicely to end.
-        CALL MPIReduce(TotWalkers,MPI_MAX,MaxWalkers)
-        CALL MPIReduce(TotWalkers,MPI_MIN,MinWalkers)
-        CALL MPIAllReduce(Real(TotWalkers,dp),MPI_SUM,AllTotWalkers)
-        if (iProcIndex.eq.Root) then
-            MeanWalkers=AllTotWalkers/nNodes
-            write (iout,'(/,1X,a55)') 'Load balancing information based on the last iteration:'
-            write (iout,'(1X,a35,1X,f18.10)') 'Mean number of determinants/process:',MeanWalkers
-            write (iout,'(1X,a34,1X,i18)') 'Min number of determinants/process:',MinWalkers
-            write (iout,'(1X,a34,1X,i18,/)') 'Max number of determinants/process:',MaxWalkers
-        end if
-
-        call MPIBCast(ProjectionE)
-        Weight=(0.D0)
-        Energyxw=(ProjectionE+Hii)
-        
-        iroot=1
-        CALL GetSym(ProjEDet,NEl,G1,NBasisMax,RefSym)
-        isymh=int(RefSym%Sym%S,sizeof_int)+1
-        write (iout,10101) iroot,isymh
-10101   format(//'RESULTS FOR STATE',i2,'.',i1/'====================='/)
-        write (iout,'('' Current reference energy'',T36,F19.12)') Hii 
-        write (iout,'('' Correlation energy'',T36,F19.12)') ProjectionE
-#ifdef MOLPRO
-        call output_result('FCIQMC','Energy',ProjectionE+Hii,iroot,isymh)
-        if (iroot.eq.1) call clearvar('ENERGY')
-        ityp(1)=1
-        call setvar('ENERGY',ProjectionE+Hii,'AU',ityp,1,nv,iroot)
-        do i=10,2,-1
-            gesnam(i)=gesnam(i-1)
-            energ(i)=energ(i-1)
-        enddo
-        gesnam(i) = 'FCIQMC'
-        energ(i) = get_scalar("ENERGY")
-#endif
- 
-!Deallocate memory
-        CALL DeallocFCIMCMemPar()
-
+        !Close open files.
         IF(iProcIndex.eq.Root) THEN
             CLOSE(fcimcstats_unit)
             IF(tTruncInitiator.or.tDelayTruncInit) CLOSE(initiatorstats_unit)
@@ -452,6 +416,120 @@ MODULE FciMCParMod
         if(tDiagWalkerSubspace) then
             close(unitWalkerDiag)
         endif
+
+! Print out some load balancing stats nicely to end.
+        CALL MPIReduce(TotWalkers,MPI_MAX,MaxWalkers)
+        CALL MPIReduce(TotWalkers,MPI_MIN,MinWalkers)
+        CALL MPIAllReduce(Real(TotWalkers,dp),MPI_SUM,AllTotWalkers)
+        if (iProcIndex.eq.Root) then
+            MeanWalkers=AllTotWalkers/nNodes
+            write (iout,'(/,1X,a55)') 'Load balancing information based on the last iteration:'
+            write (iout,'(1X,a35,1X,f18.10)') 'Mean number of determinants/process:',MeanWalkers
+            write (iout,'(1X,a34,1X,i18)') 'Min number of determinants/process:',MinWalkers
+            write (iout,'(1X,a34,1X,i18,/)') 'Max number of determinants/process:',MaxWalkers
+        end if
+        
+        !Automatic error analysis
+        call error_analysis(tSinglePartPhase,iBlockingIter,mean_ProjE_re,ProjE_Err_re,  &
+            mean_ProjE_im,ProjE_Err_im,mean_Shift,Shift_Err,tNoProjEValue,tNoShiftValue)
+
+        call MPIBCast(ProjectionE)
+        call MPIBCast(mean_ProjE_re)
+        call MPIBCast(ProjE_Err_re)
+        call MPIBCast(mean_ProjE_im)
+        call MPIBCast(ProjE_Err_im)
+        call MPIBCast(mean_Shift)
+        call MPIBCast(Shift_Err)
+        call MPIBCast(tNoProjEValue)
+        call MPIBCast(tNoShiftValue)
+        Weight=(0.D0)
+        Energyxw=(ProjectionE+Hii)
+        
+        iroot=1
+        CALL GetSym(ProjEDet,NEl,G1,NBasisMax,RefSym)
+        isymh=int(RefSym%Sym%S,sizeof_int)+1
+        write (iout,10101) iroot,isymh
+10101   format(//'RESULTS FOR STATE',i2,'.',i1/'====================='/)
+        write (iout,'('' Current reference energy'',T52,F19.12)') Hii 
+        if(tNoProjEValue) then
+            write (iout,'('' Projected correlation energy'',T52,F19.12)') ProjectionE
+            write (iout,"(A)") " No automatic errorbar obtained for projected energy"
+        else
+            write (iout,'('' Projected correlation energy'',T52,F19.12)') mean_ProjE_re
+            write (iout,'('' Estimated error in Projected correlation energy'',T52,F19.12)') ProjE_Err_re
+            if(lenof_sign.eq.2) then
+                write (iout,'('' Projected imaginary energy'',T52,F19.12)') mean_ProjE_im
+                write (iout,'('' Estimated error in Projected imaginary energy'',T52,F19.12)') ProjE_Err_im
+            endif
+        endif
+        if(.not.tNoShiftValue) then
+            write (iout,'('' Shift correlation energy'',T52,F19.12)') mean_Shift
+            write (iout,'('' Estimated error in shift correlation energy'',T52,F19.12)') shift_err
+        else
+            write(6,"(A)") " No reliable averaged shift correlation energy could be obtained automatically"
+        endif
+
+        if((.not.tNoProjEValue).and.(.not.tNoShiftValue)) then
+            !Do shift and projected energy agree?
+            write(iout,"(A)")
+            EnergyDiff = abs(mean_Shift-mean_ProjE_re)
+            if(EnergyDiff.le.sqrt(shift_err**2+ProjE_Err_re**2)) then
+                write(iout,"(A,F15.8)") " Projected and shift energy estimates agree " &
+                    & //"within errorbars: EDiff = ",EnergyDiff
+            elseif(EnergyDiff.le.sqrt((max(shift_err,ProjE_Err_re)*2)**2+min(shift_err,ProjE_Err_re)**2)) then
+                write(iout,"(A,F15.8)") " Projected and shift energy estimates agree to within " &
+                    & //"two sigma of largest error: EDiff = ",EnergyDiff
+            else
+                write(iout,"(A,F15.8)") " Projected and shift energy estimates do not agree to " &
+                    & //"within approximate errorbars: EDiff = ",EnergyDiff
+            endif
+            if(ProjE_Err_re.lt.shift_err) then
+                BestEnergy = mean_ProjE_re + Hii
+                BestErr = ProjE_Err_re
+            else
+                BestEnergy = mean_shift + Hii
+                BestErr = shift_err
+            endif
+        elseif(tNoShiftValue) then
+            BestEnergy = mean_ProjE_re + Hii
+            BestErr = ProjE_Err_re
+        elseif(tNoProjEValue) then
+            BestEnergy = mean_shift + Hii
+            BestErr = shift_err 
+        else
+            BestEnergy = ProjectionE+Hii
+            BestErr = 0.0_dp
+        endif
+        write(iout,"(A)")
+        if(tNoProjEValue) then
+            write(iout,"(A,F20.8)") " Total projected energy ",ProjectionE+Hii
+        else
+            write(iout,"(A,F20.8,A,G15.6)") " Total projected energy ", &
+                mean_ProjE_re+Hii," +/- ",ProjE_Err_re
+        endif
+        if(.not.tNoShiftValue) then
+            write(iout,"(A,F20.8,A,G15.6)") " Total shift energy     ", &
+                mean_shift+Hii," +/- ",shift_err
+        endif
+
+#ifdef MOLPRO
+        call output_result('FCIQMC','ENERGY',BestEnergy,iroot,isymh)
+        call output_result('FCIQMC','ERROR',BestErr,iroot,isymh)
+        if (iroot.eq.1) call clearvar('ENERGY')
+        ityp(1)=1
+        call setvar('ENERGY',BestEnergy,'AU',ityp,1,nv,iroot)
+        call setvar('ERROR',BestErr,'AU',ityp,1,nv,iroot)
+        do i=10,2,-1
+            gesnam(i)=gesnam(i-1)
+            energ(i)=energ(i-1)
+        enddo
+        gesnam(i) = 'FCIQMC'
+        energ(i) = get_scalar("ENERGY")
+#endif
+        write(iout,"(/)")
+ 
+        !Deallocate memory
+        CALL DeallocFCIMCMemPar()
 
     END SUBROUTINE FciMCPar
 
@@ -3030,7 +3108,6 @@ MODULE FciMCParMod
             call WriteFciMCStatsHeader()
             ! Prepend a # to the initial status line so analysis doesn't pick up
             ! repetitions in the FCIMCStats or INITIATORStats files from restarts.
-    !        write (iout,'("#")', advance='no')
             if (iProcIndex == root) then
                 write (fcimcstats_unit,'("#")', advance='no')
                 write (initiatorstats_unit,'("#")', advance='no')
@@ -3051,49 +3128,10 @@ MODULE FciMCParMod
                if (WalkersDiffProc > nint(mean_walkers / 10.d0) .and. &
                    sum(AllTotParts) > real(nNodes * 500, dp)) then
                    root_write (iout, '(a, i13,a,2i11)') &
-                       'Potential load-imbalance on iter ',iter,' Min/Max determinants on node: ', &
+                       'Potential load-imbalance on iter ',iter + PreviousCycles,' Min/Max determinants on node: ', &
                        MinWalkersProc,MaxWalkersProc
                endif
             endif
-
-!            ! Deal with blocking analysis - this has been temporarily disabled
-!            !
-!            ! If we are waiting to start error blocking, check if we should 
-!            ! enable it. The conditional causes this test to be skipped once
-!            ! blocking has been enabled.            
-!            if (tIterStartBlock) then
-!                ! If IterStartBlocking is positive, then start blocking when
-!                ! we are at that iteration. Otherwise, wait until out of
-!                ! fixed shift.
-!                if ( (IterStartBlocking > 0 .and. iter > IterStartBlocking) &
-!                     .or. (IterStartBlocking <= 0 .and. &
-!                           .not. tSinglePartPhase)) then
-!                    call InitErrorBlocking (iter)
-!                    tIterStartBlock = .false.
-!                    tErrorBlocking = .true.
-!                endif
-!            elseif (tHFPopStartBlock) then
-!                if (abs(AllHFCyc) / StepsSft >= HFPopStartBlocking) then
-!                    call InitErrorBlocking (iter)
-!                    tHFPopStartBlock = .false.
-!                    tErrorBlocking = .true.
-!                endif
-!            endif
-!
-!            ! If we are waiting to start shift blocking, check if we should
-!            ! enable it. The test is skipped once blocknig is enabled.
-!            if ((.not. tSinglePartPhase) .and. tInitShiftBlocking .and. &
-!                (iter == VaryShiftIter + IterShiftBlock)) then
-!                call InitShiftErrorBlocking (iter)
-!                tInitShiftBlocking = .false.
-!                tShiftBlocking = .true.
-!            endif
-!
-!            ! Perform the blocking at the end of each update
-!            if (tErrorBlocking .and. .not. tBlockEveryIteration) &
-!                call SumInErrorContrib (iter, AllENumCyc, AllHFCyc)
-!            if (tShiftBlocking .and. iter >= VaryShiftIter + IterShiftBlock) &
-!                call SumInShiftErrorContrib (iter, DiagSft)
         endif
 
     end subroutine iter_diagnostics
@@ -3201,6 +3239,9 @@ MODULE FciMCParMod
                     VaryShiftCycles = 0
                     SumDiagSft = 0
                     root_print 'Zeroing all energy estimators.'
+
+                    !Since we have a new reference, we must block only from after this point
+                    iBlockingIter = Iter + PreviousCycles
 
                     ! Regenerate all the diagonal elements relative to the
                     ! new reference det.
@@ -3470,9 +3511,10 @@ MODULE FciMCParMod
                 if ( (sum(AllTotParts) > tot_walkers) .or. &
                      (abs_int_sign(AllNoatHF) > MaxNoatHF)) then
 !                     WRITE(iout,*) "AllTotParts: ",AllTotParts(1),AllTotParts(2),tot_walkers
-                    write (iout, '(a,i13,a)') 'Exiting the single particle growth phase on iteration: ',iter, &
+                    write (iout, '(a,i13,a)') 'Exiting the single particle growth phase on iteration: ',iter + PreviousCycles, &
                                  ' - Shift can now change'
                     VaryShiftIter = Iter
+                    iBlockingIter = Iter + PreviousCycles
                     tSinglePartPhase = .false.
                     if(TargetGrowRate.ne.0.D0) then
                         write(iout,"(A)") "Setting target growth rate to 1."
@@ -3486,7 +3528,7 @@ MODULE FciMCParMod
                 endif
             elseif (abs_int_sign(AllNoatHF) < (MaxNoatHF - HFPopThresh)) then
                 write (iout, '(a,i13,a)') 'No at HF has fallen too low - reentering the &
-                             &single particle growth phase on iteration',iter,' - particle number &
+                             &single particle growth phase on iteration',iter + PreviousCycles,' - particle number &
                              &may grow again.'
                 tSinglePartPhase = .true.
                 tReZeroShift = .true.
@@ -3528,7 +3570,7 @@ MODULE FciMCParMod
                 ! Update the shift averages
                 if ((iter - VaryShiftIter) >= nShiftEquilSteps) then
                     if ((iter-VaryShiftIter-nShiftEquilSteps) < StepsSft) &
-                        write (iout, '(a,i14)') 'Beginning to average shift value on iteration: ',iter
+                        write (iout, '(a,i14)') 'Beginning to average shift value on iteration: ',iter + PreviousCycles
                     VaryShiftCycles = VaryShiftCycles + 1
                     SumDiagSft = SumDiagSft + DiagSft
                     AvDiagSft = SumDiagSft / real(VaryShiftCycles, dp)
@@ -4224,7 +4266,7 @@ MODULE FciMCParMod
         ENDIF
 
         IF(tCheckHighestPop) THEN
-            ALLOCATE(HighestPopDet(0:NIfDBO),stat=ierr)
+            ALLOCATE(HighestPopDet(0:NIfTot),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for HighestPopDet")
             HighestPopDet(:)=0
         ENDIF
@@ -4599,6 +4641,7 @@ MODULE FciMCParMod
 !Initialise variables for calculation on each node
         iter=0          !This is set so that calls to CalcParentFlag in the initialisation are ok with the logging.
         iPopsTimers=1   !Number of timed popsfiles written out
+        iBlockingIter=0
         IterTime=0.0
         ProjectionE=0.D0
         AvSign=0.D0
@@ -6137,6 +6180,7 @@ MODULE FciMCParMod
         INTEGER, DIMENSION(lenof_sign) :: InitialSign
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
         integer :: ReadBatch    !This parameter determines the length of the array to batch read in walkers from a popsfile
+        integer :: PopBlockingIter
         real(dp) :: Gap,ExpectedMemWalk,read_tau
         !Variables from popsfile header...
         logical :: tPop64Bit,tPopHPHF,tPopLz
@@ -6181,7 +6225,7 @@ MODULE FciMCParMod
                 elseif(PopsVersion.eq.4) then
                     call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                             iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                            PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau)
+                            PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
                     !The only difference between 3 & 4 is just that 4 reads in via a namelist, so that we can add more details whenever we want.
                 else
                     call stop_all(this_routine,"Popsfile version invalid")
@@ -6189,7 +6233,7 @@ MODULE FciMCParMod
 
                 call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                         iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                        PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau)
+                        PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau,PopBlockingIter)
 
                 if(iProcIndex.eq.root) close(iunithead)
             else
@@ -7949,7 +7993,7 @@ MODULE FciMCParMod
         use Logging, only: iHighPopWrite
         use sort_mod
         integer, dimension(lenof_sign) :: SignCurr,LowSign
-        integer :: ierr,i,j,counter,ExcitLev
+        integer :: ierr,i,j,counter,ExcitLev,SmallestPos,HighPos
         real(dp) :: SmallestSign,SignCurrReal,HighSign,reduce_in(1:2),reduce_out(1:2),Norm,AllNorm
         integer(n_int) , allocatable :: LargestWalkers(:,:)
         integer(n_int) , allocatable :: GlobalLargestWalkers(:,:)
@@ -7963,6 +8007,7 @@ MODULE FciMCParMod
         LargestWalkers(:,:)=0
 
         SmallestSign=0.0_dp !Real, so can deal with complex amplitudes
+        SmallestPos=1
         Norm=0.0_dp
         !Run through all walkers on process
         do i=1,TotWalkers
@@ -7978,29 +8023,53 @@ MODULE FciMCParMod
             endif
             Norm=Norm+(SignCurrReal**2.0)
 
-            !Is this determinant more populated than the first in the list (which is always the smallest)
+            !Is this determinant more populated than the smallest  !!first in the list (which is always the smallest)
             if(SignCurrReal.gt.SmallestSign) then
-                LargestWalkers(:,1)=CurrentDets(:,i)
+                LargestWalkers(:,SmallestPos)=CurrentDets(:,i)
 
-                !Now need to recalculate the list - resort LargestWalkers list by sign
-!                write(iout,*) "New large weight found. Entering sort: "
-                call sort(LargestWalkers(:,1:iHighPopWrite), sign_lt, sign_gt)
-!                do j=1,iHighPopWrite
-!                    write(iout,*) "Sorted: ",j,LargestWalkers(:,j)
-!                enddo
-
-                !Now extract the smallest sign
+                !Instead of resorting, just find new smallest sign and position
                 call extract_sign(LargestWalkers(:,1),LowSign)
                 if(lenof_sign.eq.1) then
                     SmallestSign=real(abs(LowSign(1)),dp)
                 else
                     SmallestSign=sqrt(real(LowSign(1),dp)**2+real(LowSign(lenof_sign),dp)**2)
                 endif
+                SmallestPos=1
+                do j=2,iHighPopWrite
+                    !ExtractSign
+                    if(SmallestSign.lt.1.0e-7_dp) exit
+                    call extract_sign(LargestWalkers(:,j),LowSign)
+                    if(lenof_sign.eq.1) then
+                        SignCurrReal=real(abs(LowSign(1)),dp)
+                    else
+                        SignCurrReal=sqrt(real(LowSign(1),dp)**2+real(LowSign(lenof_sign),dp)**2)
+                    endif
+                    if(SignCurrReal.lt.SmallestSign) then
+                        SmallestPos = j
+                        SmallestSign = SignCurrReal
+                    endif
+                enddo
+
+!                !Now need to recalculate the list - resort LargestWalkers list by sign
+!!                write(iout,*) "New large weight found. Entering sort: "
+!                call sort(LargestWalkers(:,1:iHighPopWrite), sign_lt, sign_gt)
+!!                do j=1,iHighPopWrite
+!!                    write(iout,*) "Sorted: ",j,LargestWalkers(:,j)
+!!                enddo
+!
+!                !Now extract the smallest sign
+!                call extract_sign(LargestWalkers(:,1),LowSign)
+!                if(lenof_sign.eq.1) then
+!                    SmallestSign=real(abs(LowSign(1)),dp)
+!                else
+!                    SmallestSign=sqrt(real(LowSign(1),dp)**2+real(LowSign(lenof_sign),dp)**2)
+!                endif
             endif
         enddo
         call MpiSum(norm,allnorm)
         norm=sqrt(allnorm)
 
+        call sort(LargestWalkers(:,1:iHighPopWrite), sign_lt, sign_gt)
 !        write(iout,*) "Highest weighted dets on this process:"
 !        do i=1,iHighPopWrite
 !            write(iout,*) LargestWalkers(:,i)
@@ -8018,18 +8087,34 @@ MODULE FciMCParMod
 
         do i=1,iHighPopWrite
 
-            call extract_sign(LargestWalkers(:,iHighPopWrite),SignCurr)
+            !Find highest sign on each processor. Since all lists are sorted, this is just the first nonzero value
+            do j=iHighPopWrite,1,-1
+                call extract_sign(LargestWalkers(:,j),SignCurr)
 
-            if(lenof_sign.eq.1) then
-                HighSign=real(abs(SignCurr(1)),dp)
-            else
-                HighSign=sqrt(real(SignCurr(1),dp)**2+real(SignCurr(lenof_sign),dp)**2)
-            endif
+                if(lenof_sign.eq.1) then
+                    HighSign=real(abs(SignCurr(1)),dp)
+                else
+                    HighSign=sqrt(real(SignCurr(1),dp)**2+real(SignCurr(lenof_sign),dp)**2)
+                endif
+                if(HighSign.gt.1.0e-7_dp) then
+                    !We have the largest sign
+                    HighPos = j
+                    exit
+                endif
+            enddo
+
+!            call extract_sign(LargestWalkers(:,iHighPopWrite),SignCurr)
+!
+!            if(lenof_sign.eq.1) then
+!                HighSign=real(abs(SignCurr(1)),dp)
+!            else
+!                HighSign=sqrt(real(SignCurr(1),dp)**2+real(SignCurr(lenof_sign),dp)**2)
+!            endif
             reduce_in=(/ HighSign,real(iProcIndex,dp) /)
             call MPIAllReduceDatatype(reduce_in,1,MPI_MAXLOC,MPI_2DOUBLE_PRECISION,reduce_out)
             !Now, reduce_out(2) has the process of the largest weighted determinant - broadcast it!
             if(iProcIndex.eq.nint(reduce_out(2))) then
-                HighestDet(0:NIfTot) = LargestWalkers(:,iHighPopWrite)
+                HighestDet(0:NIfTot) = LargestWalkers(:,HighPos)
             else
                 HighestDet(0:NIfTot) = 0
             endif
@@ -8041,9 +8126,9 @@ MODULE FciMCParMod
 
             !Now delete this highest determinant from the list on the corresponding processor
             if(iProcIndex.eq.nint(reduce_out(2))) then
-                LargestWalkers(:,iHighPopWrite) = 0
-                !Resort
-                call sort(LargestWalkers(:,1:iHighPopWrite), sign_lt, sign_gt)
+                LargestWalkers(:,HighPos) = 0
+                !No need to resort any more
+!                call sort(LargestWalkers(:,1:iHighPopWrite), sign_lt, sign_gt)
             endif
         enddo
 
@@ -8136,6 +8221,102 @@ MODULE FciMCParMod
 
     END SUBROUTINE PrintHighPops
 
+!Routine to just calculate errors from FCIMCStats file
+    subroutine Standalone_Errors()
+        use sym_mod, only: getsym
+#ifdef MOLPRO
+        use outputResult
+        integer :: nv,ityp(1)
+#endif
+        implicit none
+        real(dp) :: mean_ProjE_re,mean_ProjE_im,mean_Shift
+        real(dp) :: ProjE_Err_re,ProjE_Err_im,Shift_Err
+        logical :: tNoProjEValue,tNoShiftValue
+        integer :: iroot,isymh
+        TYPE(BasisFn) RefSym
+        HElement_t :: h_tmp
+        real(dp) :: Hii,BestEnergy,EnergyDiff
+
+        !Automatic error analysis
+        call error_analysis(tSinglePartPhase,iBlockingIter,mean_ProjE_re,ProjE_Err_re,  &
+            mean_ProjE_im,ProjE_Err_im,mean_Shift,Shift_Err,tNoProjEValue,tNoShiftValue, &
+            equilshift=iBlockEquilShift,equilproje=iBlockEquilProjE)
+        call MPIBCast(ProjectionE)
+        call MPIBCast(mean_ProjE_re)
+        call MPIBCast(ProjE_Err_re)
+        call MPIBCast(mean_ProjE_im)
+        call MPIBCast(ProjE_Err_im)
+        call MPIBCast(mean_Shift)
+        call MPIBCast(Shift_Err)
+        call MPIBCast(tNoProjEValue)
+        call MPIBCast(tNoShiftValue)
+
+        h_tmp = get_helement (FDet, FDet, 0)
+        Hii = real(h_tmp, dp)
+
+        iroot=1
+        CALL GetSym(FDet,NEl,G1,NBasisMax,RefSym)
+        isymh=int(RefSym%Sym%S,sizeof_int)+1
+        write (iout,10101) iroot,isymh
+10101   format(//'RESULTS FOR STATE',i2,'.',i1/'====================='/)
+        write (iout,'('' Current reference energy'',T52,F19.12)') Hii 
+        if(tNoProjEValue) then
+            write(iout,'('' No projected energy value could be obtained'',T52)')
+        else
+            write (iout,'('' Projected correlation energy'',T52,F19.12)') mean_ProjE_re
+            write (iout,'('' Estimated error in Projected correlation energy'',T52,F19.12)') ProjE_Err_re
+        endif
+        if(lenof_sign.eq.2) then
+            write (iout,'('' Projected imaginary energy'',T52,F19.12)') mean_ProjE_im
+            write (iout,'('' Estimated error in Projected imaginary energy'',T52,F19.12)') ProjE_Err_im
+        endif
+        if(tNoShiftValue) then
+            write(iout,'('' No shift energy value could be obtained'',T52)')
+        else
+            write (iout,'('' Shift correlation energy'',T52,F19.12)') mean_Shift
+            write (iout,'('' Estimated error in shift correlation energy'',T52,F19.12)') shift_err
+        endif
+
+        !Do shift and projected energy agree?
+        write(iout,"(A)")
+        if(tNoProjEValue.and.tNoShiftValue) return 
+        EnergyDiff = abs(mean_Shift-mean_ProjE_re)
+        if(EnergyDiff.le.sqrt(shift_err**2+ProjE_Err_re**2)) then
+            write(iout,"(A,F15.8)") " Projected and shift energy estimates agree " &
+                & //"within errorbars: EDiff = ",EnergyDiff
+        elseif(EnergyDiff.le.sqrt((max(shift_err,ProjE_Err_re)*2)**2+min(shift_err,ProjE_Err_re)**2)) then
+            write(iout,"(A,F15.8)") " Projected and shift energy estimates agree to within two sigma " &
+                & //"of largest error: EDiff = ",EnergyDiff
+        else
+            write(iout,"(A,F15.8)") " Projected and shift energy estimates do not agree to " &
+                & //"within approximate errorbars: EDiff = ",EnergyDiff
+        endif
+        if(ProjE_Err_re.lt.shift_err) then
+            BestEnergy = mean_ProjE_re + Hii
+        else
+            BestEnergy = mean_shift + Hii
+        endif
+        write(iout,"(A)")
+        write(iout,"(A,F20.8,A,G15.6)") " Total projected energy ", &
+            mean_ProjE_re+Hii," +/- ",ProjE_Err_re
+        write(iout,"(A,F20.8,A,G15.6)") " Total shift energy     ", &
+            mean_shift+Hii," +/- ",shift_err
+
+#ifdef MOLPRO
+        call output_result('FCIQMC','Energy',BestEnergy,iroot,isymh)
+        if (iroot.eq.1) call clearvar('ENERGY')
+        ityp(1)=1
+        call setvar('ENERGY',BestEnergy,'AU',ityp,1,nv,iroot)
+        do i=10,2,-1
+            gesnam(i)=gesnam(i-1)
+            energ(i)=energ(i-1)
+        enddo
+        gesnam(i) = 'FCIQMC'
+        energ(i) = get_scalar("ENERGY")
+#endif
+        write(iout,"(/)")
+
+    end subroutine Standalone_Errors
 
 END MODULE FciMCParMod
 
