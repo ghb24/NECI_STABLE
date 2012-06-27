@@ -2824,6 +2824,11 @@ MODULe nElRDMMod
                 write(6,'(A55,F30.20)') ' SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY &
                                             &HF ORBITALS: ',SumN_Rho_ii
             endif
+            if (tDumpForcesInfo) then
+                if (.not. tPrint1RDM) call Finalise_1e_RDM(Norm_1RDM)
+                CALL Calc_Lagrangian_from_RDM(Norm_1RDM, Norm_2RDM)
+                call convert_matrices_for_Molpro_forces(Norm_1RDM, Norm_2RDM)
+            endif
 
         endif
         call MPIBarrier(error)
