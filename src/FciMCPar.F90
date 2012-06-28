@@ -8228,14 +8228,17 @@ MODULE FciMCParMod
         use outputResult
         integer :: nv,ityp(1)
 #endif
-        implicit none
         real(dp) :: mean_ProjE_re,mean_ProjE_im,mean_Shift
         real(dp) :: ProjE_Err_re,ProjE_Err_im,Shift_Err
         logical :: tNoProjEValue,tNoShiftValue
-        integer :: iroot,isymh
+        integer :: iroot,isymh,i
         TYPE(BasisFn) RefSym
         HElement_t :: h_tmp
         real(dp) :: Hii,BestEnergy,EnergyDiff
+#ifdef MOLPRO
+        real(dp) :: get_scalar
+        include "common/molen"
+#endif
 
         !Automatic error analysis
         call error_analysis(tSinglePartPhase,iBlockingIter,mean_ProjE_re,ProjE_Err_re,  &
@@ -8320,36 +8323,36 @@ MODULE FciMCParMod
 
 END MODULE FciMCParMod
 
-    ! This routine will change the reference determinant to DetCurr. It will 
-    ! also re-zero all the energy estimators, since they now correspond to
-    ! projection onto a different determinant.
-    SUBROUTINE ChangeRefDet(DetCurr)
-        use FciMCParMod
-        use SystemData , only : NEl
-        IMPLICIT NONE
-        INTEGER :: DetCurr(NEl),i
+! This routine will change the reference determinant to DetCurr. It will 
+! also re-zero all the energy estimators, since they now correspond to
+! projection onto a different determinant.
+SUBROUTINE ChangeRefDet(DetCurr)
+    use FciMCParMod
+    use SystemData , only : NEl
+    IMPLICIT NONE
+    INTEGER :: DetCurr(NEl),i
 
-        do i=1,NEl
-            FDet(i)=DetCurr(i)
-        enddo
+    do i=1,NEl
+        FDet(i)=DetCurr(i)
+    enddo
 
-        WRITE(iout,"(A)") "*** Changing the reference determinant ***"
-        WRITE(iout,"(A)") "Switching reference and zeroing energy counters - restarting simulation"
+    WRITE(iout,"(A)") "*** Changing the reference determinant ***"
+    WRITE(iout,"(A)") "Switching reference and zeroing energy counters - restarting simulation"
 !        
 !Initialise variables for calculation on each node
-        Iter=1
-        CALL DeallocFCIMCMemPar()
-        IF(iProcIndex.eq.Root) THEN
-            CLOSE(fcimcstats_unit)
-            IF(tTruncInitiator.or.tDelayTruncInit) CLOSE(initiatorstats_unit)
-            IF(tLogComplexPops) CLOSE(complexstats_unit)
-        ENDIF
-        IF(TDebug) CLOSE(11)
-        CALL SetupParameters()
-        CALL InitFCIMCCalcPar()
+    Iter=1
+    CALL DeallocFCIMCMemPar()
+    IF(iProcIndex.eq.Root) THEN
+        CLOSE(fcimcstats_unit)
+        IF(tTruncInitiator.or.tDelayTruncInit) CLOSE(initiatorstats_unit)
+        IF(tLogComplexPops) CLOSE(complexstats_unit)
+    ENDIF
+    IF(TDebug) CLOSE(11)
+    CALL SetupParameters()
+    CALL InitFCIMCCalcPar()
 
-    END SUBROUTINE ChangeRefDet
-            
+END SUBROUTINE ChangeRefDet
+        
 
 ! This is the same as BinSearchParts1, but this time, it searches though the 
 ! full list of determinants created by the full diagonalizer when the 
