@@ -171,11 +171,6 @@ MODULE FciMCParMod
         call InitFCIMCCalcPar()
         call init_fcimc_fn_pointers () 
 
-        if(tHistSpawn) then 
-            Tot_Unique_Dets_Unit = get_free_unit()
-            OPEN(Tot_Unique_Dets_Unit,FILE='TOTUNIQUEDETS',STATUS='UNKNOWN')
-        endif
-
         ! Initial output
         call WriteFciMCStatsHeader()
         ! Prepend a # to the initial status line so analysis doesn't pick up
@@ -2772,16 +2767,21 @@ MODULE FciMCParMod
 
     END SUBROUTINE PrintFCIMCPsi
 
-
-
 !This routine will write out the average wavevector from the spawning run up until now.
     SUBROUTINE WriteHistogram()
         use SystemData , only : BasisFN
         use util_mod, only: get_free_unit
-        INTEGER :: i,IterRead, io1, io2, io3, Tot_No_Unique_Dets
-        real(dp) :: norm,norm1,norm2,norm3,ShiftRead,AllERead,NumParts
+        use DetCalcData, only: Lab,NRow,Hamil,FCIDets,ReIndex
+        use Logging, only: tDiagAllSpaceEver,tCalcVariationalEnergy
+        use sort_mod
+        INTEGER :: i,IterRead, io1, io2, io3, Tot_No_Unique_Dets,ierr,val
+        real(dp) :: norm,norm1,norm2,norm3,ShiftRead,AllERead,NumParts,DDOT
+        real(dp) :: AvVarEnergy, VarEnergy, GroundE_Ever, ProjGroundE
+        real(dp) , allocatable :: CKN(:),HOrderedHist(:),HOrderedInstHist(:)
+        integer , allocatable :: ExpandedWalkerDets(:,:)
         CHARACTER(len=22) :: abstr,abstr2
         LOGICAL :: exists
+        character(len=*), parameter :: t_r='WriteHistogram'
 
 !This will open a file called SpawnHist-"Iter" on unit number 17.
         abstr=''
@@ -2793,10 +2793,10 @@ MODULE FciMCParMod
         ENDIF
 
         IF(iProcIndex.eq.0) THEN
-            AllHistogram(:,:)=0.D0
-            AllInstHist(:,:)=0.D0
-            AllAvAnnihil(:,:)=0.D0
-            AllInstAnnihil(:,:)=0.D0
+            AllHistogram(:,:)=0.0_dp
+            AllInstHist(:,:)=0.0_dp
+            AllAvAnnihil(:,:)=0.0_dp
+            AllInstAnnihil(:,:)=0.0_dp
         ENDIF
 
         CALL MPIReduce(Histogram,MPI_SUM,AllHistogram)
@@ -2806,16 +2806,10 @@ MODULE FciMCParMod
         
         IF(iProcIndex.eq.0) THEN
 
-!            IF(.not.associated(NMRKS)) THEN
-!                CALL Stop_All("WriteHistogram","A Full Diagonalization is &
-!                              &required in the same calculation before &
-!                              &histogramming can occur.")
-!            ENDIF
-
-            norm=0.D0
-            norm1=0.D0
-            norm2=0.D0
-            norm3=0.D0
+            norm=0.0_dp
+            norm1=0.0_dp
+            norm2=0.0_dp
+            norm3=0.0_dp
             do i=1,Det
                 IF(lenof_sign.eq.1) THEN
                     norm=norm+AllHistogram(1,i)**2
@@ -2838,10 +2832,10 @@ MODULE FciMCParMod
                 IF(lenof_sign.eq.1) THEN
                     AllHistogram(1,i)=AllHistogram(1,i)/norm
                     AllInstHist(1,i)=AllInstHist(1,i)/norm1
-                    IF(norm2.ne.0.D0) THEN
+                    IF(norm2.ne.0.0_dp) THEN
                         AllInstAnnihil(1,i)=AllInstAnnihil(1,i)/norm2
                     ENDIF
-                    IF(norm3.ne.0.D0) THEN
+                    IF(norm3.ne.0.0_dp) THEN
                         AllAvAnnihil(1,i)=AllAvAnnihil(1,i)/norm3
                     ENDIF
                 ELSE
@@ -2849,11 +2843,11 @@ MODULE FciMCParMod
                     AllHistogram(lenof_sign,i)=AllHistogram(lenof_sign,i)/norm
                     AllInstHist(1,i)=AllInstHist(1,i)/norm1
                     AllInstHist(lenof_sign,i)=AllInstHist(lenof_sign,i)/norm1
-                    IF(norm2.ne.0.D0) THEN
+                    IF(norm2.ne.0.0_dp) THEN
                         AllInstAnnihil(1,i)=AllInstAnnihil(1,i)/norm2
                         AllInstAnnihil(lenof_sign,i)=AllInstAnnihil(lenof_sign,i)/norm2
                     ENDIF
-                    IF(norm3.ne.0.D0) THEN
+                    IF(norm3.ne.0.0_dp) THEN
                         AllAvAnnihil(1,i)=AllAvAnnihil(1,i)/norm3
                         AllAvAnnihil(lenof_sign,i)=AllAvAnnihil(lenof_sign,i)/norm3
                     ENDIF
@@ -2882,7 +2876,7 @@ MODULE FciMCParMod
                     WRITE(io2,"(I13,3G25.16)") IterRead,ShiftRead,AllERead,NumParts
                 enddo
 99              CONTINUE
-                IF(AllHFCyc.eq.0.D0) THEN
+                IF(AllHFCyc.eq.0.0_dp) THEN
                     WRITE(io2,"(I13,3G25.16)") Iter,DiagSft,AllERead,SUM(AllTotPartsOld)
                 ELSE
                     WRITE(io2,"(I13,3G25.16)") Iter,DiagSft,AllENumCyc/AllHFCyc,SUM(AllTotPartsOld)
@@ -2897,8 +2891,8 @@ MODULE FciMCParMod
             ENDIF
 
 
-            norm=0.D0
-            norm1=0.D0
+            norm=0.0_dp
+            norm1=0.0_dp
             Tot_No_Unique_Dets = 0
             do i=1,Det
                 IF(lenof_sign.eq.1) THEN
@@ -2913,42 +2907,77 @@ MODULE FciMCParMod
                 ELSE
                     WRITE(io1,"(I13,6G25.16)") i,AllHistogram(1,i),norm,AllInstHist(1,i),AllInstAnnihil(1,i),AllAvAnnihil(1,i),norm1
                 ENDIF
-                IF(AllHistogram(1,i).ne.0.D0) Tot_No_Unique_Dets = Tot_No_Unique_Dets + 1
+                IF(AllHistogram(1,i).ne.0.0_dp) Tot_No_Unique_Dets = Tot_No_Unique_Dets + 1
             enddo
-            write(Tot_Unique_Dets_Unit,"(2A20)") Iter, Tot_No_Unique_Dets
+            if(tCalcVariationalEnergy) then
+                !Calculate the variational FCIMC energy
 
+                !Check that Det eq NDet
+                if(Det.ne.NDet) call stop_all(t_r,'Error')
+                allocate(CKN(1:Det))
+                CKN = 0.0_dp
+                !We need to reorder the vectors so that they are in the same order as the hamiltonian
+                allocate(HOrderedHist(1:Det))
+                HOrderedHist(:) = AllHistogram(1,:)
+                allocate(HOrderedInstHist(1:Det))
+                HOrderedInstHist(:) = AllInstHist(1,:)
+                call sort(ReIndex(1:Det),HOrderedHist(1:Det),HOrderedInstHist(1:Det))
 
-!            do i=1,Maxdet
-!                bits=0
-!                do j=0,nbasis-1
-!                    IF(BTEST(i,j)) THEN
-!                        Bits=Bits+1
-!                    ENDIF
-!                enddo
-!                IF(Bits.eq.NEl) THEN
-!
-!                    do j=1,ndet
-!                        CALL EncodeBitDet(NMRKS(:,j),iLut)
-!                        IF(iLut(0).eq.i) THEN
-!                            CALL GETSYM(NMRKS(1,j),NEL,G1,NBASISMAX,ISYM)
-!                            IF(ISym%Sym%S.eq.0) THEN
-!                                Det=Det+1
-!                                WRITE(io1,"(3I12)",advance='no') Det,iLut(0)
-!                                HEL=GetHElement3(NMRKS(:,j),NMRKS(:,j),0)
-!                                norm=norm+(AllHistogram(i))**2
-!                                norm1=norm1+(AllInstHist(i))**2
-!                                WRITE(io1,"(5G25.16)") REAL(HEL,8),AllHistogram(i),norm,AllInstHist(i),norm1
-!                            ENDIF
-!                            EXIT
-!                        ENDIF
-!                    ENDDO
-!                ENDIF
-!
-!            ENDDO
+!                write(6,*) ReIndex(1:10)    !Must be in increasing order
+!                write(6,*) HOrderedHist(:)
+
+                call my_hpsi(Det,1,NROW,LAB,HAMIL,HOrderedHist,CKN,.true.)
+                AvVarEnergy = DDOT(Det,HOrderedHist,1,CKN,1)
+                
+                CKN = 0.0_dp
+                call my_hpsi(Det,1,NROW,LAB,HAMIL,HOrderedInstHist,CKN,.true.)
+                VarEnergy = DDOT(Det,HOrderedInstHist,1,CKN,1)
+
+                deallocate(CKN)
+                deallocate(HOrderedHist,HOrderedInstHist)
+                if(tDiagAllSpaceEver) then
+
+                    allocate(ExpandedWalkerDets(NEl,Tot_No_Unique_Dets),stat=ierr)
+                    val=1
+                    do i=1,Det
+                        if(AllHistogram(1,i).ne.0.0_dp) then
+                            call decode_bit_det(ExpandedWalkerDets(:,val),FCIDets(0:NIfTot,i))
+                            val=val+1
+                        endif
+                    enddo
+                    if((val-1).ne.Tot_No_Unique_Dets) call stop_all(t_r,'Wrong counting')
+
+                    call LanczosFindGroundE(ExpandedWalkerDets,Tot_No_Unique_Dets,GroundE_Ever,ProjGroundE,.true.)
+                    if(abs(GroundE_Ever-ProjGroundE).gt.1.0e-7_dp) call stop_all(t_r,'Why do these not agree?!')
+                    write(Tot_Unique_Dets_Unit,"(2I14,3G25.15)") Iter,Tot_No_Unique_Dets,AvVarEnergy,VarEnergy,GroundE_Ever
+                else
+                    write(Tot_Unique_Dets_Unit,"(2I14,2G25.15)") Iter,Tot_No_Unique_Dets,AvVarEnergy,VarEnergy
+                endif
+            else
+                if(tDiagAllSpaceEver) then
+
+                    allocate(ExpandedWalkerDets(NEl,Tot_No_Unique_Dets),stat=ierr)
+                    val=1
+                    do i=1,Det
+                        if(AllHistogram(1,i).ne.0.0_dp) then
+                            call decode_bit_det(ExpandedWalkerDets(:,val),FCIDets(0:NIfTot,i))
+                            val=val+1
+                        endif
+                    enddo
+                    if((val-1).ne.Tot_No_Unique_Dets) call stop_all(t_r,'Wrong counting')
+
+                    call LanczosFindGroundE(ExpandedWalkerDets,Tot_No_Unique_Dets,GroundE_Ever,ProjGroundE,.true.)
+                    if(abs(GroundE_Ever-ProjGroundE).gt.1.0e-7_dp) call stop_all(t_r,'Why do these not agree?!')
+                    write(Tot_Unique_Dets_Unit,"(2I14,3G25.15)") Iter,Tot_No_Unique_Dets,GroundE_Ever
+                else
+                    write(Tot_Unique_Dets_Unit,"(2I14)") Iter, Tot_No_Unique_Dets
+                endif
+            endif
+
             CLOSE(io1)
         ENDIF
-        InstHist(:,:)=0.D0
-        InstAnnihil(:,:)=0.D0
+        InstHist(:,:)=0.0_dp
+        InstAnnihil(:,:)=0.0_dp
 
     END SUBROUTINE WriteHistogram
 
@@ -4070,7 +4099,7 @@ MODULE FciMCParMod
                             MaxWalkerBloom
         use Determinants , only : GetH0Element3,GetH0Element4
         use SymData , only : SymLabelList,SymLabelCounts,TwoCycleSymGens
-        use Logging , only : tTruncRODump
+        use Logging , only : tTruncRODump,tCalcVariationalEnergy,tDiagAllSpaceEver
         use DetCalcData, only : NMRKS,tagNMRKS,FCIDets
         use SymExcit3, only : CountExcitations3 
         use constants, only: bits_n_int
@@ -4826,7 +4855,7 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
-        if(tDiagWalkerSubspace) then
+        if((iProcIndex.eq.Root).and.tDiagWalkerSubspace) then
             write(iout,'(A,I9,A)') "Diagonalising walker subspace every ",iDiagSubspaceIter," iterations"
             unitWalkerDiag = get_free_unit()
             open(unitWalkerDiag,file='WalkerSubspaceDiag',status='unknown')
@@ -4836,6 +4865,19 @@ MODULE FciMCParMod
             else
                 write(unitWalkerDiag,'(A)') "# Iter    NoOccDets    InitiatorSubspaceEnergy         &
                         & FullSubspaceEnergy    ProjFullEnergy"
+            endif
+        endif
+        if(iProcIndex.eq.Root) then
+            Tot_Unique_Dets_Unit = get_free_unit()
+            OPEN(Tot_Unique_Dets_Unit,FILE='TOTUNIQUEDETS',STATUS='UNKNOWN')
+            if(tCalcVariationalEnergy.and.tDiagAllSpaceEver) then
+                write(Tot_Unique_Dets_Unit,"(A)") "# Iter  UniqueDetsEver  AvVarEnergy   InstVarEnergy   GroundE_Ever"
+            elseif(tCalcVariationalEnergy) then
+                write(Tot_Unique_Dets_Unit,"(A)") "# Iter  UniqueDetsEver  AvVarEnergy   InstVarEnergy"
+            elseif(tDiagAllSpaceEver) then
+                write(Tot_Unique_Dets_Unit,"(A)") "# Iter  UniqueDetsEver  GroundE_Ever"
+            else
+                write(Tot_Unique_Dets_Unit,"(A)") "# Iter  UniqueDetsEver"
             endif
         endif
 
