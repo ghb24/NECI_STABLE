@@ -485,10 +485,10 @@ MODULE FciMCParMod
                 BestEnergy = mean_shift + Hii
                 BestErr = shift_err
             endif
-        elseif(tNoShiftValue) then
+        elseif(tNoShiftValue.and.(.not.tNoProjEValue)) then
             BestEnergy = mean_ProjE_re + Hii
             BestErr = ProjE_Err_re
-        elseif(tNoProjEValue) then
+        elseif(tNoProjEValue.and.(.not.tNoShiftValue)) then
             BestEnergy = mean_shift + Hii
             BestErr = shift_err 
         else
