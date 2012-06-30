@@ -520,6 +520,12 @@ MODULE FciMCParMod
         enddo
         gesnam(i) = 'FCIQMC'
         energ(i) = get_scalar("ENERGY")
+        do i=10,2,-1
+            gesnam(i)=gesnam(i-1)
+            energ(i)=energ(i-1)
+        enddo
+        gesnam(i) = 'FCIQMC_ERR'
+        energ(i) = get_scalar("ERROR")
 #endif
         write(iout,"(/)")
  
