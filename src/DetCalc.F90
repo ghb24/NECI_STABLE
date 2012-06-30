@@ -679,9 +679,9 @@ CONTAINS
                 call sort (temp(1:Det), FCIDets(:,1:Det))
             ELSE
                 if(tCalcVariationalEnergy) then
-                    call sort (temp(1:Det), FCIDets(:,1:Det), FCIGS(1:Det))
-                else
                     call sort (temp(1:Det), FCIDets(:,1:Det), FCIGS(1:Det), ReIndex(1:Det))
+                else
+                    call sort (temp(1:Det), FCIDets(:,1:Det), FCIGS(1:Det))
                 endif
 !                CALL Stop_All("DetCalc","Cannot do histogramming FCI without JUSTFINDDETS at the moment (need new sorting - bug ghb24)")
             ENDIF
