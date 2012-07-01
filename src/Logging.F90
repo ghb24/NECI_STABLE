@@ -59,6 +59,7 @@ MODULE Logging
     !Just do a blocking analysis on previous data
     logical :: tJustBlocking
     integer :: iBlockEquilShift,iBlockEquilProjE
+    logical :: tDiagAllSpaceEver,tCalcVariationalEnergy
 
     contains
 
@@ -68,6 +69,8 @@ MODULE Logging
       use default_sets
       implicit none
 
+      tDiagAllSpaceEver = .false.
+      tCalcVariationalEnergy = .false.
       tJustBlocking = .false.
       iBlockEquilShift = 0
       iBlockEquilProjE = 0
@@ -200,6 +203,12 @@ MODULE Logging
             !Diagonalise walker subspaces every iDiagSubspaceIter iterations
             tDiagWalkerSubspace = .true.
             call readi(iDiagSubspaceIter)
+        case("DIAGALLSPACEEVER")
+            !Diagonalise all space ever visited in the fciqmc dynamic. This will be written out each time HistSpawn is
+            tDiagAllSpaceEver=.true.
+        case("CALCVARIATIONALENERGY")
+            !Calculate the variational energy of the FCIQMC dynamic each time Histspawn is calculated
+            tCalcVariationalEnergy=.true.
         case("SPLITPROJE")
             !Partition contribution from doubles, and write them out
             tSplitProjEHist=.true.
