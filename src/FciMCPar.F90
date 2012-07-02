@@ -519,15 +519,15 @@ MODULE FciMCParMod
         gesnam(i) = 'FCIQMC'
         energ(i) = get_scalar("ENERGY")
         if(.not.(tNoShiftValue.and.tNoProjEValue)) then
-            call output_result('FCIQMC','ERROR',BestErr,iroot,isymh)
-            if (iroot.eq.1) call clearvar('ERROR')
-            call setvar('ERROR',BestErr,'AU',ityp,1,nv,iroot)
+            call output_result('FCIQMC','FCIQMC_ERR',BestErr,iroot,isymh)
+            if (iroot.eq.1) call clearvar('FCIQMC_ERR')
+            call setvar('FCIQMC_ERR',BestErr,'AU',ityp,1,nv,iroot)
             do i=10,2,-1
                 gesnam(i)=gesnam(i-1)
                 energ(i)=energ(i-1)
             enddo
             gesnam(i) = 'FCIQMC_ERR'
-            energ(i) = get_scalar("ERROR")
+            energ(i) = get_scalar("FCIQMC_ERR")
         endif
 #endif
         write(iout,"(/)")
