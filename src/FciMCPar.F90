@@ -75,6 +75,7 @@ MODULE FciMCParMod
                     InstHist, HistMinInd, project_spins, calc_s_squared, &
                     project_spin_csfs, calc_s_squared_multi, &
                     calc_s_squared_star
+    use hist_data, only: beforenormhist
     USE SymData , only : nSymLabels
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE Parallel_neci
@@ -851,13 +852,14 @@ MODULE FciMCParMod
         type(fcimc_iter_data), intent(inout) :: iter_data
 
         ! Now the local, iteration specific, variables
-        integer :: VecSlot, j, p, error,i
+        integer :: VecSlot, j, p, error,i, k
         integer :: DetCurr(nel), nJ(nel), nullnJ(nel), FlagsCurr, parent_flags
         integer, dimension(lenof_sign) :: SignCurr, child
         integer(kind=n_int) :: iLutnJ(0:niftot), iLutCurr(0:nIfd+1)
         integer :: IC, walkExcitLevel, nullwalkExcitLevel, ex(2,2), TotWalkersNew, part_type, CISDRefCoeff
+        integer :: FluxListOffset, FluxListHoles, SearchingOffset, LastEntryAdded
         integer(int64) :: tot_parts_tmp(lenof_sign)
-        logical :: tParity
+        logical :: tParity, tNotFound
         real(dp) :: prob, HDiagCurr, StaticFlux
         HElement_t :: HDiagTemp,HElGen
         character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
@@ -878,7 +880,9 @@ MODULE FciMCParMod
             ENDIF
             tTruncInitiator=.true.
         ENDIF
-
+        FluxListOffset=0
+        FluxListHoles=0
+        LastEntryAdded=0
         MaxInitPopPos=0
         MaxInitPopNeg=0
         HighPopNeg=1
@@ -947,6 +951,12 @@ MODULE FciMCParMod
 
         IFDEBUG(FCIMCDebug,3) write(iout,"(A,I12)") "Walker list length: ",TotWalkers
         IFDEBUG(FCIMCDebug,3) write(iout,"(A)") "TW: Walker  Det"
+            
+        if(TotWalkers.eq.0) then
+            do k=1, NumDoubEntries + NumQuadEntries
+                TotWalkersCombinedCyc=TotWalkersCombinedCyc+abs(CISDTotFlux(NifD+3, k))
+            enddo
+        endif
            
         do j=1,TotWalkers
             ! N.B. j indicates the number of determinants, not the number
@@ -1059,6 +1069,58 @@ MODULE FciMCParMod
             call SumEContrib (DetCurr, WalkExcitLevel, SignCurr, &
                               CurrentDets(:,j), HDiagCurr, 1.0_dp)
 
+            ! Find this det in CISDTotFlux
+            tNotFound=.true.
+            SearchingOffset=0
+            if(tCISDRef) then
+                do while (tNotFound)
+                    if(DetBitEq(CurrentDets(:,j),CISDTotFlux(:,j+FluxListOffset+SearchingOffset-FluxListHoles),NifD)) then
+                        tNotFound=.false.
+                    else
+                        if(CISDTotFlux(1,j+FluxListOffset+SearchingOffset-FluxListHoles) .gt. CurrentDets(1,j)) then
+                            FluxListHoles=FluxListHoles+1
+                            exit
+                        endif
+                        SearchingOffset=SearchingOffset+1
+                    endif
+                    if (j+FluxListOffset+SearchingOffset-FluxListHoles.gt.NumDoubEntries+NumQuadEntries) then
+                        FluxListHoles=FluxListHoles+1
+                        exit
+                    endif
+                enddo
+
+                if(.not. tNotFound) then !Det appears in both lists
+                    !WRITE(6,*) "DetAppears in both lists"
+                    TotWalkersCombinedCyc = TotWalkersCombinedCyc + abs(CISDTotFlux(NifD+3, j+FluxListOffset+SearchingOffset-FluxListHoles)+SignCurr(1))
+                  !  WRITE(6,*) "Adding abs", CISDTotFlux(:, j+FluxListOffset+SearchingOffset-FluxListHoles), "and", SignCurr(1)
+                    LastEntryAdded=j+FluxListOffset+SearchingOffset-FluxListHoles
+                    if (SearchingOffset.ne.0) then !We had to skip some of the flux entries
+                     !   WRITE(6,*) "We had to skip", SearchingOffset, "entries in the flux list"
+                        do k=j+FluxListOffset-FluxListHoles,j+FluxListOffset+SearchingOffset-FluxListHoles-1
+                            TotWalkersCombinedCyc=TotWalkersCombinedCyc+abs(CISDTotFlux(NifD+3, k))
+                            !if (CISDTotFlux(NifD+3, k) .ne. 0) WRITE(6,*) "Adding", (CISDTotFlux(:, k))
+                        enddo
+                       !     WRITE(6,*) "The last det of the flux array that we added in was ", CISDTotFlux(:,k-1) 
+                    endif
+                    FluxListOffset=FluxListOffset+SearchingOffset
+                else !Det isn't in the flux list
+                    TotWalkersCombinedCyc=TotWalkersCombinedCyc+abs(SignCurr(1))
+            !        WRITE(6,*) "Det only in CurrentDets, adding", CurrentDets(:,j)
+                endif
+            endif
+
+          !  WRITE(6,*) "j, TotWalkers", j, TotWalkers
+          !  WRITE(6,*) "LastEntryAdded", LastEntryAdded
+          !  WRITE(6,*) "NumDoubEntries+NumQuadEntries", NumDoubEntries + NumQuadEntries
+            if((j .eq. TotWalkers) .and. (LastEntryAdded.ne.NumDoubEntries + NumQuadEntries)) then
+                do k=LastEntryAdded+1, NumDoubEntries + NumQuadEntries
+                    TotWalkersCombinedCyc=TotWalkersCombinedCyc+abs(CISDTotFlux(NifD+3, k))
+                    !if (CISDTotFlux(NifD+3, k) .ne. 0) WRITE(6,*) "Adding abs", CISDTotFlux(:, k)
+                enddo
+            endif
+
+            !WRITE(6,*) "TotWalkersCombinedCyc", TotWalkersCombinedCyc
+            
             ! Loop over the 'type' of particle. 
             ! lenof_sign == 1 --> Only real particles
             ! lenof_sign == 2 --> complex walkers
@@ -2821,7 +2883,8 @@ MODULE FciMCParMod
     SUBROUTINE WriteHistogram()
         use SystemData , only : BasisFN
         use util_mod, only: get_free_unit
-        INTEGER :: i,IterRead, io1, io2, io3, Tot_No_Unique_Dets
+        use DetCalcData, only: FCIDets
+        INTEGER :: i,IterRead, io1, io2, io3, Tot_No_Unique_Dets, posn, FinalPop
         real(dp) :: norm,norm1,norm2,norm3,ShiftRead,AllERead,NumParts
         CHARACTER(len=22) :: abstr,abstr2
         LOGICAL :: exists
@@ -2846,6 +2909,8 @@ MODULE FciMCParMod
         CALL MPIReduce(InstHist,MPI_SUM,AllInstHist)
         CALL MPIReduce(InstAnnihil,MPI_SUM,AllInstAnnihil)
         CALL MPIReduce(AvAnnihil,MPI_SUM,AllAvAnnihil)
+
+        BeforeNormHist(:) = AllHistogram(1,:)
         
         IF(iProcIndex.eq.0) THEN
 
@@ -2944,6 +3009,15 @@ MODULE FciMCParMod
             norm1=0.D0
             Tot_No_Unique_Dets = 0
             do i=1,Det
+
+                posn=binary_search(CurrentDets(:,1:TotWalkers), FCIDETS(:,i), NifD+1)
+
+                if (posn.lt.0) then
+                    FinalPop = 0
+                else
+                    FinalPop = CurrentDets(NifD+1,posn)
+                endif
+
                 IF(lenof_sign.eq.1) THEN
                     norm=norm+AllHistogram(1,i)**2
                     norm1=norm1+(AllAvAnnihil(1,i))**2
@@ -2952,7 +3026,7 @@ MODULE FciMCParMod
                     norm1=norm1+(AllAvAnnihil(1,i)**2)+(AllAvAnnihil(lenof_sign,i)**2)
                 ENDIF
                 IF(lenof_sign.eq.1) THEN
-                    WRITE(io1,"(I13,6G25.16)") i,AllHistogram(1,i),norm,AllInstHist(1,i),AllInstAnnihil(1,i),AllAvAnnihil(1,i),norm1
+                    WRITE(io1,"(I13,6G25.16,I13,G25.16)") i,AllHistogram(1,i),norm,AllInstHist(1,i),AllInstAnnihil(1,i),AllAvAnnihil(1,i),norm1,FinalPop, BeforeNormHist(i)
                 ELSE
                     WRITE(io1,"(I13,6G25.16)") i,AllHistogram(1,i),norm,AllInstHist(1,i),AllInstAnnihil(1,i),AllAvAnnihil(1,i),norm1
                 ENDIF
@@ -3493,6 +3567,9 @@ MODULE FciMCParMod
 !        call neci_flush(iout)
 !        CALL MPIBarrier(error)
 
+        !WRITe(6,*) "TotWalkersCombined", TotWalkersCombinedCyc
+        CALL MPIReduce(TotWalkersCombinedCyc,MPI_SUM,AllTotWalkersCombinedCyc)
+        
         ! collate_iter_data --> The values used are only valid on Root
         if (iProcIndex == Root) then
             ! Calculate the growth rate
@@ -3506,17 +3583,30 @@ MODULE FciMCParMod
 !            WRITE(iout,*) "iter_data%update_iters: ",iter_data%update_iters
 !            CALL neci_flush(iout)
 
-            if(tInstGrowthRate) then
-!Calculate the growth rate simply using the two points at the beginning and the
-!end of the update cycle. 
-                AllGrowRate = (sum(iter_data%update_growth_tot &
-                           + iter_data%tot_parts_old)) &
-                          / real(sum(iter_data%tot_parts_old), dp)
+
+            if(tCISDRef) then
+                !Instead attempt to calculate the average growth over every iteration
+                !over the update cycle
+                !AllGrowRate = ((real(AllSumWalkersCyc,dp)/real(StepsSft,dp))+real(AllTotCISDWalkers,dp)) &
+                !                /(OldAllAvWalkersCyc+AllTotCISDWalkers)
+                !WRITE(6,*) "AllTotWalkersCombinedCyc", AllTotWalkersCombinedCyc
+                !WRITE(6,*) "OldAllAvWalkersCyc", OldAllAvWalkersCyc
+                AllGrowRate = (real(AllTotWalkersCombinedCyc,dp)/real(StepsSft,dp)) &
+                                /(OldAllAvWalkersCyc)
+
             else
-!Instead attempt to calculate the average growth over every iteration
-!over the update cycle
-                AllGrowRate = (real(AllSumWalkersCyc,dp)/real(StepsSft,dp)) &
-                                /OldAllAvWalkersCyc
+                if(tInstGrowthRate) then
+    !Calculate the growth rate simply using the two points at the beginning and the
+    !end of the update cycle. 
+                    AllGrowRate = (sum(iter_data%update_growth_tot &
+                               + iter_data%tot_parts_old)) &
+                              / real(sum(iter_data%tot_parts_old), dp)
+                else
+    !Instead attempt to calculate the average growth over every iteration
+    !over the update cycle
+                    AllGrowRate = (real(AllSumWalkersCyc,dp)/real(StepsSft,dp)) &
+                                    /OldAllAvWalkersCyc
+                endif
             endif
 
             ! For complex case, obtain both Re and Im parts
@@ -3602,6 +3692,7 @@ MODULE FciMCParMod
                         DiagSft = DiagSft - (log(AllHFGrowRate) * SftDamp) / &
                                             (Tau * StepsSft)
                     else
+                        !"WRITE(6,*) "AllGrowRate, TargetGrowRate", AllGrowRate, TargetGrowRate
                         DiagSft = DiagSft - (log(AllGrowRate) * SftDamp) / &
                                             (Tau * StepsSft)
                     endif
@@ -3641,9 +3732,15 @@ MODULE FciMCParMod
             HFShift = -1.d0 / real(abs_int_sign(AllNoatHF), dp) * &
                               (real(abs_int_sign(AllNoatHF) - abs_int_sign(OldAllNoatHF), dp) / &
                               (Tau * real(StepsSft, dp)))
-            InstShift = -1.d0 / sum(AllTotParts) * &
+            if(tCISDRef) then
+                InstShift = -1.d0 / (sum(AllTotParts)+AllTotCISDWalkers) * &
                         ((sum(AllTotParts) - sum(AllTotPartsOld)) / &
                          (Tau * real(StepsSft, dp)))
+             else
+                InstShift = -1.d0 / sum(AllTotParts) * &
+                        ((sum(AllTotParts) - sum(AllTotPartsOld)) / &
+                         (Tau * real(StepsSft, dp)))
+             endif
 
             ! When using a linear combination, the denominator is summed
             ! directly.
@@ -3734,7 +3831,8 @@ MODULE FciMCParMod
         ENumCyc = 0
         ENumCycAbs = 0
         HFCyc = 0
-    cyc_proje_denominator=0
+        TotWalkersCombinedCyc=0
+        cyc_proje_denominator=0
         if(tSplitProjEHist) then
             if(tSplitProjEHistG) then
                 ENumCycHistG(:)=0.0_dp
@@ -3753,7 +3851,13 @@ MODULE FciMCParMod
         !OldAllHFCyc is the average HF value for this update cycle
         OldAllHFCyc = AllHFCyc/real(StepsSft,dp)
         !OldAllAvWalkersCyc gives the average number of walkers per iteration in the last update cycle
-        OldAllAvWalkersCyc = real(AllSumWalkersCyc,dp)/real(StepsSft,dp)
+        
+        if(tCISDRef) then
+            OldAllAvWalkersCyc = real(AllTotWalkersCombinedCyc,dp)/real(StepsSft,dp)
+        else
+            OldAllAvWalkersCyc = real(AllSumWalkersCyc,dp)/real(StepsSft,dp)
+        endif
+
 
         ! Also the cumulative global variables
         AllTotWalkersOld = AllTotWalkers
@@ -4768,6 +4872,8 @@ MODULE FciMCParMod
         AllNoExtraInitDoubs=0
         AllInitRemoved=0
         AllMaxSpawnProb=0.0_dp
+        TotWalkersCombinedCyc=0
+        AllTotWalkersCombinedCyc=0
 
         ! Initialise the fciqmc counters
         iter_data_fciqmc%update_growth = 0
@@ -4809,6 +4915,7 @@ MODULE FciMCParMod
                 ENDIF
                 Histogram(:,:)=0.D0
                 ALLOCATE(AllHistogram(1:lenof_sign,1:det),stat=ierr)
+                ALLOCATE(BeforeNormHist(1:det),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays")
             ENDIF
             IF(tHistSpawn) THEN
@@ -6655,6 +6762,8 @@ MODULE FciMCParMod
             SortedQuadEntries=0
             UnSortedDoubEntries=0
             UnSortedQuadEntries=0
+            TotCISDWalkers=0
+            AllTotCISDWalkers=0
 
             call calc_cisd_flux()
             
@@ -6666,6 +6775,7 @@ MODULE FciMCParMod
 
             CALL MPIReduce(CISDProjEContrib,MPI_SUM,AllCISDProjEContrib)
             CALL MPIReduce(CISDProjEContribAbs,MPI_SUM,AllCISDProjEContribAbs)
+            CALL MPIReduce(TotCISDWalkers,MPI_SUM,AllTotCISDWalkers)
             CALL MPIReduce(CISDHFCoeff,MPI_MAX,CISDHFPop)
 
             deallocate(CISDOutFluxPosition)
@@ -8316,6 +8426,9 @@ MODULE FciMCParMod
     CISDref(1:nifd+1,j)=iLut(0:NifD)  !Determinant Label
     CISDref(nifd+2:niftot,j)=wSign(:) !Sign
 
+    TotCISDWalkers=TotCISDWalkers+abs(wSign(1))
+    WRITE(6,*) "CISDRef", CISDRef(:,j)
+
     !call sort (CISDref(:,1:TotWalkers))
     END SUBROUTINE store_cisd_coeffs
 
@@ -8427,6 +8540,7 @@ MODULE FciMCParMod
         call cisd_ref_allocation
 
         WRITE(6,*) "Max CISD Determinants per core:", MaxTotWalkers
+        WRITE(6,*) "NifD", NifD
        
         do i=1,MaxTotWalkers
             if (mod(i,10).eq.0) WRITE(6,*) "Dets processed", i
@@ -8479,7 +8593,7 @@ MODULE FciMCParMod
             if (.not. blank_det) then
                 posn=-1 !If SortedDoubEntries is 0, default set so that we have a new entry
                 if (SortedDoubEntries .ne. 0) posn=binary_search(CISDIntFluxPosition(:,DoubDetsEst-SortedDoubEntries+1:DoubDetsEst), iLutnI(0:NifD))
-                if (posn<0) then
+                if (posn.le.0) then
                     !New entry
                     NumDoubEntries=NumDoubEntries+1
                     posn=DoubDetsEst-NumDoubEntries+1
@@ -8806,7 +8920,7 @@ MODULE FciMCParMod
                             !D_i and D_j connected by CISD Hamiltonian
                             !posn=binary_search(CISDIntFluxPosition& 
                             !           (:,DoubDetsEst-SortedDoubEntries:DoubDetsEst), iLutnJ(0:NifD), NifD+1)
-                            if (posn<0) then
+                            if (posn.le.0) then
                                 !New entry
                                 NumDoubEntries=NumDoubEntries+1
                                 UnsortedDoubEntries=UnsortedDoubEntries+1
@@ -8824,7 +8938,7 @@ MODULE FciMCParMod
                             if (SortedQuadEntries .ne. 0) &
                                 posn=binary_search(CISDOutFluxPosition(:,QuadDetsEst-SortedQuadEntries+1:QuadDetsEst),&
                                                     iLutnJ(0:NifD),NifD+1)
-                            if (posn<0) then
+                            if (posn.le.0) then
                                 !New entry
                                 NumQuadEntries=NumQuadEntries+1
                                 UnsortedQuadEntries=UnsortedQuadEntries+1
@@ -8975,15 +9089,23 @@ MODULE FciMCParMod
 
     SUBROUTINE create_single_flux_array
 
-    integer :: posn, i, posn1
+    integer :: posn, i, posn1, j
+    logical :: tValidDet
 
     posn=1
 
     do i=1,DoubDetsEst
         !Run over the internal flux array
-        if ((CISDIntFlux(1,i).eq. 0).and.(CISDIntFlux(NifD+1,i).eq.0) .and. (CISDIntFlux(NifD+2,i).eq.0)) then
-            cycle !CHECK
-        else
+        tValidDet=.false.
+        do j=1,NifD+1
+            if (CISDIntFlux(j,i).eq.0) then
+                cycle
+            else
+                tValidDet=.true.
+                exit
+            endif
+        enddo
+        if(tValidDet) then
             !Add this internal flux term to the totflux array
             CISDTotFlux(1:NifD+1+lenof_sign,posn)=CISDIntFlux(:,i)
             
@@ -8994,8 +9116,11 @@ MODULE FciMCParMod
             else
                 CISDTotFlux(NifD+1+lenof_sign+1,posn)=CISDRef(NifD+2,posn1)
             endif
-            
+
+
             posn=posn+1
+        else
+            cycle
         endif
     enddo
 
@@ -9005,11 +9130,20 @@ MODULE FciMCParMod
 
     do i=1,QuadDetsEst
         !Run over the internal flux array
-        if ((CISDOutFlux(1,i).eq. 0).and.(CISDOutFlux(NifD+1,i).eq.0) .and. (CISDOutFlux(NifD+2,i).eq.0)) then
-            cycle !CHECK
-        else
+        tValidDet=.false.
+        do j=1,NifD+1
+            if (CISDOutFlux(j,i).eq.0) then
+                cycle
+            else
+                tValidDet=.true.
+                exit
+            endif
+        enddo
+        if (tValidDet) then
             CISDTotFlux(1:NifD+1+lenof_sign,posn)=CISDOutFlux(:,i)
             posn=posn+1
+        else
+            cycle
         endif
     enddo
 
@@ -9018,7 +9152,7 @@ MODULE FciMCParMod
         WRITE(6,*) "CISDTotFlux", CISDTotFlux(:,:)
         call stop_all("create_single_flux_array", "Total flux array incorrectly allocated")
     endif
-
+        
 
     END SUBROUTINE
     
@@ -9052,12 +9186,12 @@ MODULE FciMCParMod
             !Just return if any extra particles created
             child(1) = -extraCreate*nint(sign(1.0_dp, rat))
         endif
-       ! if((DiagSft .lt. 0.D0).and.(child(1).ne.0)) then
-       !     WRITE(6,*) "CISDRefCoeff", CISDRefCoeff
-       !     WRITE(6,*) "iLutnJ", iLutnJ
-       !     WRITE(6,*) "child", child(1)
-       !     WRITE(6,*) "StaticFlux", StaticFlux
-       ! endif
+        if((DiagSft .lt. 0.D0).and.(child(1).ne.0)) then
+            !WRITE(6,*) "CISDRefCoeff", CISDRefCoeff
+            !WRITE(6,*) "iLutnJ", iLutnJ
+            !WRITE(6,*) "child", child(1)
+            !WRITE(6,*) "StaticFlux", StaticFlux
+        endif
     END FUNCTION attempt_create_staticflux
     
     SUBROUTINE calc_CISD_proje_contrib(iLut, nI, wSign, ExcitLevel)

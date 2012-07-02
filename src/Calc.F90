@@ -240,6 +240,7 @@ contains
           iLogicalNodeSize = 0 !Meaning use the physical node size
 
           tCISDref=.false.
+          tCISDrefcalc=.false.
           tExplicitOutFlux=.false.
 
 !Feb 08 default set.
@@ -1449,6 +1450,11 @@ contains
                 !In a residual calculation, do the outward flux term explicitely
                 !ie, flux from CISD wavefunction onto triples and quadruples
                 tExplicitOutFlux=.true.
+
+            case("CISDRefCalc")
+                tCisdRefCalc=.true.
+                ICILEVEL=2
+                !This calculation is the CISD reference calculation
 
             case default
                 call report("Keyword "                                &
