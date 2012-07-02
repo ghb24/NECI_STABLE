@@ -4811,6 +4811,17 @@ MODULE FciMCParMod
 
             IF(iProcIndex.eq.0) THEN
                 IF(tHistSpawn) THEN
+                    Tot_Unique_Dets_Unit = get_free_unit()
+                    OPEN(Tot_Unique_Dets_Unit,FILE='TOTUNIQUEDETS',STATUS='UNKNOWN')
+                    if(tCalcVariationalEnergy.and.tDiagAllSpaceEver) then
+                        write(Tot_Unique_Dets_Unit,"(A)") "# Iter  UniqueDetsEver  AvVarEnergy   InstVarEnergy   GroundE_Ever"
+                    elseif(tCalcVariationalEnergy) then
+                        write(Tot_Unique_Dets_Unit,"(A)") "# Iter  UniqueDetsEver  AvVarEnergy   InstVarEnergy"
+                    elseif(tDiagAllSpaceEver) then
+                        write(Tot_Unique_Dets_Unit,"(A)") "# Iter  UniqueDetsEver  GroundE_Ever"
+                    else
+                        write(Tot_Unique_Dets_Unit,"(A)") "# Iter  UniqueDetsEver"
+                    endif
                     ALLOCATE(AllInstHist(1:lenof_sign,1:det),stat=ierr)
                     ALLOCATE(AllInstAnnihil(1:lenof_sign,1:det),stat=ierr)
                     ALLOCATE(AllAvAnnihil(1:lenof_sign,1:det),stat=ierr)
@@ -4871,19 +4882,6 @@ MODULE FciMCParMod
             else
                 write(unitWalkerDiag,'(A)') "# Iter    NoOccDets    InitiatorSubspaceEnergy         &
                         & FullSubspaceEnergy    ProjFullEnergy"
-            endif
-        endif
-        if(iProcIndex.eq.Root) then
-            Tot_Unique_Dets_Unit = get_free_unit()
-            OPEN(Tot_Unique_Dets_Unit,FILE='TOTUNIQUEDETS',STATUS='UNKNOWN')
-            if(tCalcVariationalEnergy.and.tDiagAllSpaceEver) then
-                write(Tot_Unique_Dets_Unit,"(A)") "# Iter  UniqueDetsEver  AvVarEnergy   InstVarEnergy   GroundE_Ever"
-            elseif(tCalcVariationalEnergy) then
-                write(Tot_Unique_Dets_Unit,"(A)") "# Iter  UniqueDetsEver  AvVarEnergy   InstVarEnergy"
-            elseif(tDiagAllSpaceEver) then
-                write(Tot_Unique_Dets_Unit,"(A)") "# Iter  UniqueDetsEver  GroundE_Ever"
-            else
-                write(Tot_Unique_Dets_Unit,"(A)") "# Iter  UniqueDetsEver"
             endif
         endif
 
