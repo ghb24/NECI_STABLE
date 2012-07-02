@@ -509,23 +509,26 @@ MODULE FciMCParMod
 
 #ifdef MOLPRO
         call output_result('FCIQMC','ENERGY',BestEnergy,iroot,isymh)
-        call output_result('FCIQMC','ERROR',BestErr,iroot,isymh)
         if (iroot.eq.1) call clearvar('ENERGY')
         ityp(1)=1
         call setvar('ENERGY',BestEnergy,'AU',ityp,1,nv,iroot)
-        call setvar('ERROR',BestErr,'AU',ityp,1,nv,iroot)
         do i=10,2,-1
             gesnam(i)=gesnam(i-1)
             energ(i)=energ(i-1)
         enddo
         gesnam(i) = 'FCIQMC'
         energ(i) = get_scalar("ENERGY")
-        do i=10,2,-1
-            gesnam(i)=gesnam(i-1)
-            energ(i)=energ(i-1)
-        enddo
-        gesnam(i) = 'FCIQMC_ERR'
-        energ(i) = get_scalar("ERROR")
+        if(.not.(tNoShiftValue.and.tNoProjEValue)) then
+            call output_result('FCIQMC','ERROR',BestErr,iroot,isymh)
+            if (iroot.eq.1) call clearvar('ERROR')
+            call setvar('ERROR',BestErr,'AU',ityp,1,nv,iroot)
+            do i=10,2,-1
+                gesnam(i)=gesnam(i-1)
+                energ(i)=energ(i-1)
+            enddo
+            gesnam(i) = 'FCIQMC_ERR'
+            energ(i) = get_scalar("ERROR")
+        endif
 #endif
         write(iout,"(/)")
  
