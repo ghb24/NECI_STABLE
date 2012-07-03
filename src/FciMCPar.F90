@@ -509,23 +509,26 @@ MODULE FciMCParMod
 
 #ifdef MOLPRO
         call output_result('FCIQMC','ENERGY',BestEnergy,iroot,isymh)
-        call output_result('FCIQMC','ERROR',BestErr,iroot,isymh)
         if (iroot.eq.1) call clearvar('ENERGY')
         ityp(1)=1
         call setvar('ENERGY',BestEnergy,'AU',ityp,1,nv,iroot)
-        call setvar('ERROR',BestErr,'AU',ityp,1,nv,iroot)
         do i=10,2,-1
             gesnam(i)=gesnam(i-1)
             energ(i)=energ(i-1)
         enddo
         gesnam(i) = 'FCIQMC'
         energ(i) = get_scalar("ENERGY")
-        do i=10,2,-1
-            gesnam(i)=gesnam(i-1)
-            energ(i)=energ(i-1)
-        enddo
-        gesnam(i) = 'FCIQMC_ERR'
-        energ(i) = get_scalar("ERROR")
+        if(.not.(tNoShiftValue.and.tNoProjEValue)) then
+            call output_result('FCIQMC','FCIQMC_ERR',BestErr,iroot,isymh)
+            if (iroot.eq.1) call clearvar('FCIQMC_ERR')
+            call setvar('FCIQMC_ERR',BestErr,'AU',ityp,1,nv,iroot)
+            do i=10,2,-1
+                gesnam(i)=gesnam(i-1)
+                energ(i)=energ(i-1)
+            enddo
+            gesnam(i) = 'FCIQMC_ERR'
+            energ(i) = get_scalar("FCIQMC_ERR")
+        endif
 #endif
         write(iout,"(/)")
  
@@ -4811,6 +4814,17 @@ MODULE FciMCParMod
 
             IF(iProcIndex.eq.0) THEN
                 IF(tHistSpawn) THEN
+                    Tot_Unique_Dets_Unit = get_free_unit()
+                    OPEN(Tot_Unique_Dets_Unit,FILE='TOTUNIQUEDETS',STATUS='UNKNOWN')
+                    if(tCalcVariationalEnergy.and.tDiagAllSpaceEver) then
+                        write(Tot_Unique_Dets_Unit,"(A)") "# Iter  UniqueDetsEver  AvVarEnergy   InstVarEnergy   GroundE_Ever"
+                    elseif(tCalcVariationalEnergy) then
+                        write(Tot_Unique_Dets_Unit,"(A)") "# Iter  UniqueDetsEver  AvVarEnergy   InstVarEnergy"
+                    elseif(tDiagAllSpaceEver) then
+                        write(Tot_Unique_Dets_Unit,"(A)") "# Iter  UniqueDetsEver  GroundE_Ever"
+                    else
+                        write(Tot_Unique_Dets_Unit,"(A)") "# Iter  UniqueDetsEver"
+                    endif
                     ALLOCATE(AllInstHist(1:lenof_sign,1:det),stat=ierr)
                     ALLOCATE(AllInstAnnihil(1:lenof_sign,1:det),stat=ierr)
                     ALLOCATE(AllAvAnnihil(1:lenof_sign,1:det),stat=ierr)
@@ -4871,19 +4885,6 @@ MODULE FciMCParMod
             else
                 write(unitWalkerDiag,'(A)') "# Iter    NoOccDets    InitiatorSubspaceEnergy         &
                         & FullSubspaceEnergy    ProjFullEnergy"
-            endif
-        endif
-        if(iProcIndex.eq.Root) then
-            Tot_Unique_Dets_Unit = get_free_unit()
-            OPEN(Tot_Unique_Dets_Unit,FILE='TOTUNIQUEDETS',STATUS='UNKNOWN')
-            if(tCalcVariationalEnergy.and.tDiagAllSpaceEver) then
-                write(Tot_Unique_Dets_Unit,"(A)") "# Iter  UniqueDetsEver  AvVarEnergy   InstVarEnergy   GroundE_Ever"
-            elseif(tCalcVariationalEnergy) then
-                write(Tot_Unique_Dets_Unit,"(A)") "# Iter  UniqueDetsEver  AvVarEnergy   InstVarEnergy"
-            elseif(tDiagAllSpaceEver) then
-                write(Tot_Unique_Dets_Unit,"(A)") "# Iter  UniqueDetsEver  GroundE_Ever"
-            else
-                write(Tot_Unique_Dets_Unit,"(A)") "# Iter  UniqueDetsEver"
             endif
         endif
 
