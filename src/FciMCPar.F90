@@ -8365,9 +8365,9 @@ MODULE FciMCParMod
         enddo
         gesnam(i) = 'FCIQMC'
         energ(i) = get_scalar("ENERGY")
-        call output_result('FCIQMC','FCIQMC_ERR',BestErr,iroot,isymh)
+        call output_result('FCIQMC','FCIQMC_ERR',min(ProjE_Err_re,shift_err),iroot,isymh)
         if (iroot.eq.1) call clearvar('FCIQMC_ERR')
-        call setvar('FCIQMC_ERR',BestErr,'AU',ityp,1,nv,iroot)
+        call setvar('FCIQMC_ERR',min(ProjE_Err_re,shift_err),'AU',ityp,1,nv,iroot)
 #endif
         write(iout,"(/)")
 
