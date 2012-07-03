@@ -11,7 +11,7 @@ module errors
     real(dp), allocatable :: shift_data(:)
     integer :: Errordebug
     logical :: tGivenEquilibrium
-    real(dp) :: Shift_Start, ProjE_Start
+    integer :: Shift_Start, ProjE_Start
     integer :: relaxation_time_shift, relaxation_time_proje
 
     contains

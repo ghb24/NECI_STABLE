@@ -101,6 +101,11 @@
 !   FILLRDMITER XXX      Change the number of iterations after the shift has 
 !                        changed that the RDM are filled from.
 !   DIAGFLYONERDM        Requests to diagonalise the 1-RDM at the end.
+!   REFSHIFT             Change the default use of the shift to now keep HF 
+!                        populations constant.
+!   TIME                 Specify a total elapsed-time before the calculation
+!                        performs an automatic soft-exit. If specified as -1,
+!                        we don't stop automatically. 
 ! **********************************************************
 
 module soft_exit
@@ -109,11 +114,11 @@ module soft_exit
     use bit_reps, only: NIfTot
     use util_mod, only: binary_search, get_free_unit
     use FciMCData, only: iter, CASMin, CASMax, tTruncSpace, tSinglePartPhase,&
-                         SumENum, SumNoatHF, &
+                         SumENum, SumNoatHF, tTimeExit, &
                          AvAnnihil, VaryShiftCycles, SumDiagSft, &
                          VaryShiftIter, CurrentDets, iLutHF, HFDet, &
-                         TotWalkers,tPrintHighPop, tSearchTau,&
-             n_proje_sum => nproje_sum,proje_update_comb
+                         TotWalkers,tPrintHighPop, tSearchTau, MaxTimeExit, &
+                         n_proje_sum => nproje_sum, proje_update_comb
     use CalcData, only: DiagSft, SftDamp, StepsSft, OccCASOrbs, VirtCASOrbs, &
                         tTruncCAS,  NEquilSteps, tTruncInitiator, &
                         InitiatorWalkNo, tCheckHighestPop, tRestartHighPop, &
@@ -181,8 +186,8 @@ contains
                               targetgrowrate = 38, refshift = 39, & 
                               calc_rdm = 40, calc_explic_rdm = 41, &
                               fill_rdm_iter = 42, diag_one_rdm = 43, &
-                              nprojesum = 44
-        integer, parameter :: last_item = nprojesum
+                              nprojesum = 44, time = 45
+        integer, parameter :: last_item = time
         integer, parameter :: max_item_len = 30
         character(max_item_len), parameter :: option_list_molp(last_item) &
                                = (/"truncate                     ", &
@@ -213,6 +218,7 @@ contains
                                    "not_option                   ", &
                                    "not_option                   ", &
                                    "changeref                    ", &
+                                   "not_option                   ", &
                                    "not_option                   ", &
                                    "not_option                   ", &
                                    "not_option                   ", &
@@ -273,7 +279,8 @@ contains
                                    "calcexplicitrdm              ", &
                                    "fillrdmiter                  ", &
                                    "diagflyonerdm                ", &
-                                   "nprojesum                    "/)
+                                   "nprojesum                    ", &
+                                   "time                         "/)
 
         logical :: exists, any_exist, eof, deleted, any_deleted, tSource
         logical :: opts_selected(last_item)
@@ -393,6 +400,8 @@ contains
                             call readi (RDMEnergyIter)
                         elseif (i == fill_rdm_iter) then
                             call readi (IterRDMonFly_new)
+                        elseif (i == time) then
+                            call readf (MaxTimeExit)
                         endif
                     enddo
 
@@ -927,6 +936,20 @@ contains
                 root_print 'Requesting to diagonalise the 1-RDM at the end of the &
                            &calculation.'
             endif
+
+            if (opts_selected(time)) then
+                call MPIBcast(MaxTimeExit, tSource)
+                if (MaxTimeExit <= 0) then
+                    tTimeExit = .false.
+                    root_print "Automatic time-based soft-exit disabled."
+                else
+                    tTimeExit = .true.
+                    root_print "Automatic soft-exit set to ", MaxTimeExit, &
+                               "mins"
+                    MaxTimeExit = MaxTimeExit * 60.0_dp
+                end if
+            end if
+
         endif
 
     end subroutine ChangeVars
