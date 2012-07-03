@@ -666,7 +666,6 @@ MODULE PopsfileMod
 !This routine will write out to a popsfile. It transfers all walkers to the 
 ! head node sequentially, so does not want to be called too often
     SUBROUTINE WriteToPopsfileParOneArr(Dets,nDets)
-        use constants, only: size_n_int,n_int
         use CalcData, only: iPopsFileNoWrite, InitiatorWalkNo
         use constants, only: size_n_int,n_int
         use MemoryManager, only: TagIntType
