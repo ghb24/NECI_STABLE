@@ -27,7 +27,7 @@ MODULE Logging
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn
     LOGICAL tPrintPopsDefault
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tIncrementPops,tROHistogramAll,tROHistER,tROHistSingExc
-    LOGICAL tRoHistOneElInts
+    LOGICAL tRoHistOneElInts, tPrintInitiators
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
     LOGICAL tTruncDumpbyVal
@@ -497,6 +497,10 @@ MODULE Logging
 !and the number with this population. The range of populations histogrammed goes from ln(N_add) -> ln(1,000,000) with 50,000 bins.
             tHistInitPops=.true.
             call readi(HistInitPopsIter)
+
+        case("WRITEINITIATORS")
+! Requires a popsfile to be written out.  Writes out the initiator populations. 
+            tPrintInitiators = .true.
         
         case("AUTOCORR")
 !This is a Parallel FCIMC option - it will calculate the largest weight MP1 determinants and histogramm them
