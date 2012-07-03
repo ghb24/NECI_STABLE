@@ -528,7 +528,6 @@ MODULE Logging
             tHistInitPops=.true.
             call readi(HistInitPopsIter)
 
-<<<<<<< HEAD:src/Logging.F90
         case("CALCRDMONFLY")
 !This keyword sets the calculation to calculate the reduced density matrix on the fly.  This starts at IterRDMonFly iterations after the shift changes.
 !If RDMExcitLevel = 1, only the 1 electron RDM is found, if RDMExcitLevel = 2, only the 2 electron RDM is found and if RDMExcitLevel = 3, both are found. 
