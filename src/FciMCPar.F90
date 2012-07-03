@@ -522,12 +522,12 @@ MODULE FciMCParMod
             call output_result('FCIQMC','FCIQMC_ERR',BestErr,iroot,isymh)
             if (iroot.eq.1) call clearvar('FCIQMC_ERR')
             call setvar('FCIQMC_ERR',BestErr,'AU',ityp,1,nv,iroot)
-            do i=10,2,-1
-                gesnam(i)=gesnam(i-1)
-                energ(i)=energ(i-1)
-            enddo
-            gesnam(i) = 'FCIQMC_ERR'
-            energ(i) = get_scalar("FCIQMC_ERR")
+!            do i=10,2,-1
+!                gesnam(i)=gesnam(i-1)
+!                energ(i)=energ(i-1)
+!            enddo
+!            gesnam(i) = 'FCIQMC_ERR'
+!            energ(i) = get_scalar("FCIQMC_ERR")
         endif
 #endif
         write(iout,"(/)")
@@ -8355,7 +8355,7 @@ MODULE FciMCParMod
             mean_shift+Hii," +/- ",shift_err
 
 #ifdef MOLPRO
-        call output_result('FCIQMC','Energy',BestEnergy,iroot,isymh)
+        call output_result('FCIQMC','ENERGY',BestEnergy,iroot,isymh)
         if (iroot.eq.1) call clearvar('ENERGY')
         ityp(1)=1
         call setvar('ENERGY',BestEnergy,'AU',ityp,1,nv,iroot)
@@ -8365,6 +8365,9 @@ MODULE FciMCParMod
         enddo
         gesnam(i) = 'FCIQMC'
         energ(i) = get_scalar("ENERGY")
+        call output_result('FCIQMC','FCIQMC_ERR',BestErr,iroot,isymh)
+        if (iroot.eq.1) call clearvar('FCIQMC_ERR')
+        call setvar('FCIQMC_ERR',BestErr,'AU',ityp,1,nv,iroot)
 #endif
         write(iout,"(/)")
 
