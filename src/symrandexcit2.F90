@@ -2984,6 +2984,7 @@ SUBROUTINE SpinOrbSymSetup()
     endif
 !SymInvLabel takes the label (0 -> nSymLabels-1) of a spin orbital, and returns the inverse symmetry label, suitable for
 !use in ClassCountInd.
+    if(allocated(SymInvLabel)) deallocate(SymInvLabel)
     Allocate(SymInvLabel(0:nSymLabels-1))
     SymInvLabel=-999
     do i=0,nSymLabels-1
