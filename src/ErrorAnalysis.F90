@@ -210,14 +210,26 @@ module errors
 
         if(.not.tNoProjEValue) then
             call resize(pophf_data,relaxation_time_proje)
-            call automatic_reblocking_analysis(pophf_data,2,corrlength_denom,'Blocks_denom',.true.,1)
             call resize(numerator_data,relaxation_time_proje)
+            if(lenof_sign.eq.2) call resize(imnumerator_data,relaxation_time_proje)
+
+            !Now find all block lengths, and write them to file, so that blocklengths can be checked.
+            !Call routine here to write out a file (Blocks_proje) with the projected energy mean and error for all block sizes.
+            if(lenof_sign.eq.1) then
+                call print_proje_blocks(pophf_data,numerator_data,2,'Blocks_proje')
+            else
+                call print_proje_blocks(pophf_data,numerator_data,2,'Blocks_proje_re')
+                call print_proje_blocks(pophf_data,imnumerator_data,2,'Blocks_proje_im')
+            endif
+
+            !Now perform automatic reblocking again, to get expected blocklength
+            call automatic_reblocking_analysis(pophf_data,2,corrlength_denom,'Blocks_denom',.true.,1)
             call automatic_reblocking_analysis(numerator_data,2,corrlength_num,'Blocks_num',.true.,2)
             if(lenof_sign.eq.2) then
-                call resize(imnumerator_data,relaxation_time_proje)
                 call automatic_reblocking_analysis(imnumerator_data,2,corrlength_imnum,'Blocks_imnum',.true.,4)
             endif
         endif
+
         if(.not.tNoShiftValue) then
             call resize(shift_data,relaxation_time_shift)
             call automatic_reblocking_analysis(shift_data,2,corrlength_shift,'Blocks_shift',.true.,3)
@@ -307,6 +319,57 @@ module errors
         if(lenof_sign.eq.2) deallocate(imnumerator_data)
 
     end subroutine error_analysis
+
+    subroutine print_proje_blocks(hf_data,num_data,blocklength,filename)
+        implicit none
+        integer :: iunit,length,blocking_events,i
+        real(dp), intent(in) :: hf_data(:),num_data(:)
+        character(len=*), intent(in) :: filename
+        integer,intent(in) :: blocklength ! this is the minimum step size (e.g. 2)
+        real(dp) :: mean1, error1, eie1,mean2,error2,eie2
+        real(dp) :: covariance,corr_coeff,correction,mean_proje,final_error,final_eie
+        real(dp), allocatable :: this(:),that(:) ! stores this array
+
+        iunit = get_free_unit()
+        open(iunit,file=filename)
+        write(iunit,"(A)") "# Block_length   Mean       Error        Error_in_Error"
+
+        length=size(hf_data,1)
+        allocate(this(length))
+        allocate(that(length))
+        that = hf_data  !Denominator data
+        this = num_data !Numerator data
+
+        call analyze_data(this,mean1,error1,eie1)   !means & error in num
+        call analyze_data(that,mean2,error2,eie2)   !means & error in denom
+        covariance=calc_covariance(that,this)
+        corr_coeff=covariance/(error1*error2*(size(this)-1)**2.0_dp)
+        correction = 2.0_dp*corr_coeff*error2*error1/(mean1*mean2)
+        mean_proje = mean1/mean2
+        final_error=abs(mean1/mean2)*((abs(error2/mean2))**2.0_dp    &
+                +(abs(error1/mean1))**2.0_dp)**0.5_dp*(1.0_dp-correction)
+        final_eie = final_error/sqrt(2.0_dp*(size(this)-1))
+        write(iunit,*) size(that), mean_proje, final_error, final_eie
+
+        blocking_events=int(log(real(length,dp))/log(2.0_dp)-1.0_dp)
+        do i=1,blocking_events
+            call reblock_data(this,blocklength)
+            call analyze_data(this,mean1,error1,eie1)   !means & error in num
+            call reblock_data(that,blocklength)
+            call analyze_data(that,mean2,error2,eie2)   !means & error in denom
+            ! now have the correct means, but incorrect errors
+            covariance=calc_covariance(that,this)
+            corr_coeff=covariance/(error1*error2*(size(this)-1)**2.0_dp)
+            correction = 2.0_dp*corr_coeff*error2*error1/(mean1*mean2)
+            mean_proje = mean1/mean2
+            final_error=abs(mean1/mean2)*((abs(error2/mean2))**2.0_dp    &
+                    +(abs(error1/mean1))**2.0_dp)**0.5_dp*(1.0_dp-correction)
+            final_eie = final_error/sqrt(2.0_dp*(size(this)-1))
+            write(iunit,*) size(that), mean_proje, final_error, final_eie
+        enddo
+        close(iunit)
+
+    end subroutine print_proje_blocks
 
     subroutine automatic_reblocking_analysis(this,blocklength,corrlength,filename,tPrint,iValue)
     ! Performs automatic reblocking (Flyvbjerg and Petersen)
