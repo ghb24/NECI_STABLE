@@ -1,6 +1,6 @@
 module mcpathsismc
-    use constants, only: dp,int64,sp
-    use util_mod, only: NECI_ICOPY,isnan
+    use constants, only: dp,int64,sp,sizeof_int
+    use util_mod, only: NECI_ICOPY,isnan_neci
    contains
 !C.. Calculate RHO^(P)_II without having a stored H matrix
 !C.. SAMPLE over distinct nodes, e.g. IJKLI, with paths up to I_HMAX
@@ -265,7 +265,7 @@ module mcpathsismc
      &                   RHOEPS,RHOII,RHOIJ,I_HMAX,ILOGGING,              &
      &                   ECORE,ISEED,DBETA,DLWDB2,HIJS,NMEM,              &
      &                   ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,   &
-     &                   IACC,0.D0,I_VMAX,EXCITGEN)
+     &                   IACC,0.0_dp,I_VMAX,EXCITGEN)
                     
 !     WRITE(43,"(I3,4G25.16)") I_VCUR,ECORE,DLWDB2, ODLWDB,OWEIGHT
 !                  CALL neci_flush(43)
@@ -297,12 +297,12 @@ module mcpathsismc
                          IF(G_VMC_FAC.GT.0) THEN
                            DO WHILE(I_VCUR.LT.1.OR.I_VCUR.GT.I_VMAX)
                               R=RAN2(ISEED)
-                              I_VCUR=I_VMAX+1+LOG(R)/LOG(G_VMC_FAC)
+                              I_VCUR=I_VMAX+1+int(LOG(R)/LOG(G_VMC_FAC),sizeof_int)
                            ENDDO
                            PFAC=G_VMC_FAC**(I_VCUR-1)
                          ELSEIF(G_VMC_FAC.EQ.0) THEN
                            R=RAN2(ISEED)
-                           I_VCUR=R*(I_VMAX-1)+2
+                           I_VCUR=int(R*real(I_VMAX-1,dp)+2.0_dp,sizeof_int)
                            PFAC=1.D0/(I_VMAX-1)
                          ELSE
                            DO WHILE(I_VCUR.LT.1.OR.I_VCUR.GT.I_VMAX)
@@ -320,7 +320,7 @@ module mcpathsismc
      &                   RHOEPS,RHOII,RHOIJ,I_HMAX,ILOGGING,             &
      &                     ECORE,ISEED,DBETA,DLWDB2,HIJS,NMEM,           &
      &                    ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC, &
-     &                     IACC,0.D0,I_VMAX,EXCITGEN)
+     &                     IACC,0.0_dp,I_VMAX,EXCITGEN)
 !                   !   .
                         ELSE
 !..   We're doing MC where we have either the gestalt 1..I_VMIN-1 vertex object
@@ -359,7 +359,7 @@ module mcpathsismc
      &                   RHOEPS,RHOII,RHOIJ,I_HMAX,ILOGGING,               &
      &                     ECORE,ISEED,DBETA,DLWDB2,HIJS,NMEM,             &
      &                    ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,   &
-     &                           IACC,0.D0,I_VMAX,EXCITGEN)
+     &                           IACC,0.0_dp,I_VMAX,EXCITGEN)
                            ENDIF
 !                   !   .
                          ELSE
@@ -370,7 +370,7 @@ module mcpathsismc
                          IF(TSEQ) THEN
                            I_VCUR=1
 !.. The last graph was a 1-vertex gestalt.  See how many 1->1 transitions we are likely to generate in a row
-                           LP=LOG(1-RAN2(ISEED))/LOG(1-G_VMC_FAC)
+                           LP=int(LOG(1.0_dp-RAN2(ISEED))/LOG(1.0_dp-G_VMC_FAC),sizeof_int)
                            IF(LP.GT.0) THEN
                               IGV=1
                               I_OVCUR=1
@@ -405,7 +405,7 @@ module mcpathsismc
                               PGR=PREJ*(1.D0-G_VMC_FAC)
                            ENDIF
 !C.. L is the number of strings of rejections (i.e. of V's we add
-                           LP=LOG((1-RAN2(ISEED)))/LOG(PGR)
+                           LP=int(LOG((1.0_dp-RAN2(ISEED)))/LOG(PGR),sizeof_int)
 !C                           WRITE(6,*) "V->V",PREJ,L,I_OVCUR,DLWDB2
                            IF(LP.GT.0) THEN
                               CALL AddGraph(MCSt,LP,I_OVCUR,FF,              &
@@ -467,7 +467,7 @@ module mcpathsismc
      &                         RHOII,RHOIJ,I_HMAX,ILOGGING,                 &
      &                         ECORE,ISEED,DBETA,DLWDB2,HIJS,NMEM,          &
      &                         ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,    &
-     &                         PFAC,IACC,0.D0,I_VMAX,EXCITGEN)
+     &                         PFAC,IACC,0.0_dp,I_VMAX,EXCITGEN)
 !                              WRITE(39,*) IOV,IGV,1,IACC
 !C                              WRITE(6,*) IACC
                          ENDIF
@@ -482,7 +482,7 @@ module mcpathsismc
                   ENDIF
                   LP=1
                   If (FF.eq.0) Then
-         CALL AddGraph(MCSt,LP,I_VCUR,(0.D0),(0.D0)               &
+         CALL AddGraph(MCSt,LP,I_VCUR,(0.0_dp),(0.0_dp)               &
      &               ,OWEIGHT,IOCLS, ITREE,                       &
      &               IACC,IOV,IGV,BTEST(ILOGGING,10),OPROB,       &
      &               TBLOCKING)
@@ -530,15 +530,15 @@ module mcpathsismc
             IF(TLOG.AND.(I_HMAX.EQ.-7.OR.I_HMAX.LE.-12)) THEN
               IF(I_VM1.EQ.I_VM2) THEN
 !.. just give the additional components for this vertex level
-                CALL WriteLongStats2(MCSt,11,WCORE, dble(NTIME-OTIME))
+                CALL WriteLongStats2(MCSt,11,WCORE, real(NTIME-OTIME,dp))
               ELSE
 !.. rejig the sums so the result is Sum w Delta / Sum w 
                 CALL WriteLongStats(MCSt,11,WCORE,DLWDBCORE,         &
-     &                                            dble(NTIME-OTIME))
+     &                                            real(NTIME-OTIME,dp))
               ENDIF
             ENDIF
             CALL neci_flush(11)
-!            IF(ISNAN(F(I_V))) THEN
+!            IF(ISNAN_neci(F(I_V))) THEN
 !C.. save all log files
 !               ITIME=neci_etime(tarr)
 !               CALL neci_flush(11)
@@ -559,14 +559,14 @@ module mcpathsismc
          IGV=0
          IACC=1
          If (FF.eq.0) Then
-         CALL AddGraph(MCSt,LP,I_VCUR,(0.D0),(0.D0)                &
+         CALL AddGraph(MCSt,LP,I_VCUR,(0.0_dp),(0.0_dp)                &
      &               ,OWEIGHT,IOCLS, ITREE,                        &
-     &               IACC,IOV,IGV,BTEST(ILOGGING,10),0.D0,         &
+     &               IACC,IOV,IGV,BTEST(ILOGGING,10),0.0_dp,         &
      &               BTEST(ILOGGING,13))             
          Else
          CALL AddGraph(MCSt,LP,I_VCUR,FF,DLWDB2/FF,OWEIGHT,IOCLS,  &
      &               ITREE,                                        &
-     &               IACC,IOV,IGV,BTEST(ILOGGING,10),0.D0,         &
+     &               IACC,IOV,IGV,BTEST(ILOGGING,10),0.0_dp,         &
      &               BTEST(ILOGGING,13))
          EndIf
          IF(I_HMAX.EQ.-7.OR.I_HMAX.LE.-12) THEN
@@ -769,8 +769,8 @@ module mcpathsismc
      &    STOP "Cannot handle more than double excitations."
          IF(IEXLEVEL.LT.2) IEXL2=IEXLEVEL
          IF(IEXLEVEL.EQ.2) THEN
-            IEX=RAN2(ISEED)*(NBASIS-NEL)*NEL*                  &
-     &         (1+(NBASIS-NEL-1)*(NEL-1)/4.D0)
+            IEX=int(RAN2(ISEED)*real((NBASIS-NEL)*NEL)*                     &
+     &         (1.0_dp+real((NBASIS-NEL-1)*(NEL-1),dp)/4.0_dp),sizeof_int)
             IF(IEX.LT.(NBASIS-NEL)*NEL) THEN
                IEXL2=1
             ELSE
@@ -1172,7 +1172,7 @@ module mcpathsismc
             M(1,1)=1.D0
             RET=0.D0
 !C            STOP 'Cannot handle new path gen with IV_MAX>3'
-            CALL GETPP2_R(IPATH,XIJ,M,I_V,2,RET,1.D0,INV)
+            CALL GETPP2_R(IPATH,XIJ,M,I_V,2,RET,1.0_dp,INV)
             GETPATHPROB2=RET
          ENDIF
          RETURN
@@ -1200,7 +1200,7 @@ module mcpathsismc
             IPATH(1)=1
             M(1,1)=1.D0
             RET=0.D0
-            CALL GETPP_R(IPATH,XIJ,M,I_V,2,RET,1.D0)
+            CALL GETPP_R(IPATH,XIJ,M,I_V,2,RET,1.0_dp)
             GETPATHPROB=RET
          ENDIF
          RETURN
@@ -1454,7 +1454,7 @@ module mcpathsismc
          real(dp) RAN2
          BR=.TRUE.
          DO WHILE(BR)
-            IEL=RAN2(ISEED)*NEL+1
+            IEL=int(RAN2(ISEED)*real(NEL+1,dp),sizeof_int)
             IF(G1(NI(IEL))%Ms.EQ.NSPIN.AND.IEL.NE.IEX) BR=.FALSE.
          ENDDO
          IEX=IEL
@@ -1470,7 +1470,7 @@ module mcpathsismc
          real(dp) RAN2
          BR=.TRUE.
          DO WHILE(BR)
-            IEL=RAN2(ISEED)*NBASIS+1
+            IEL=int(RAN2(ISEED)*real(NBASIS+1,dp),sizeof_int)
             IF(G1(IEL)%Ms.EQ.NSPIN) THEN
                BR=.FALSE.
                IF(IEX1.EQ.IEL) BR=.TRUE.
@@ -1610,7 +1610,7 @@ module mcpathsismc
             PR=(OPROB/RHX)*ABS((WEIGHT/OWEIGHT))
 !            WRITE(40,"(5G)",advance='no') OPROB,RH,(WEIGHT), (OWEIGHT),PR
             IF(RHX.EQ.0.D0.OR..NOT.abs(OWEIGHT).gt.0.D0) PR=0.D0
-            IF(isnan(WEIGHT)) THEN
+            IF(isnan_neci(WEIGHT)) THEN
                 WRITE(60,*) WEIGHT,ETILDE,RHX
                 CALL WRITEPATH(60,IPATH,I_V,NEL,.FALSE.)
                 CALL WRITERHOMAT(60,RHOIJ,I_V,.TRUE.)

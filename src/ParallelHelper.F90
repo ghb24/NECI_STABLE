@@ -1,3 +1,5 @@
+#include "macros.h"
+
 module ParallelHelper
    use constants
    use iso_c_hack
@@ -14,6 +16,16 @@ module ParallelHelper
     integer(MPIArg), parameter :: MPI_SUCCESS = 0
     integer(MPIArg), parameter :: MPI_COMM_WORLD = 0
     integer, parameter :: MPI_STATUS_SIZE = 1
+
+! ****** HACK ********
+! We would like to define these consts as here, but this breaks gfortran 4.5.1
+! --> See macros.h
+! ********************
+!#if defined(__PATHSCALE__) || defined(__ISO_C_HACK) || defined (__OPEN64__)
+!    c_ptr_t, parameter :: MPI_IN_PLACE = 0
+!#else
+!    c_ptr_t, parameter :: MPI_IN_PLACE = C_NULL_PTR
+!#endif
 
     ! Define values so our C-wrapper can work nicely
     integer(MPIArg), parameter :: MPI_INTEGER4 = 0, &
@@ -93,6 +105,16 @@ module ParallelHelper
             integer(c_int), intent(in), value :: comm
             integer(c_int), intent(out) :: group, ierr
         end subroutine
+        subroutine MPI_Gather (sbuf, scnt, stype, rbuf, rcnt, rtype, &
+                                 rt, comm, ierr) &
+                                 bind(c, name='mpi_gather_wrap')
+            use iso_c_hack
+            use constants
+            c_ptr_t, intent(in), value :: sbuf, rbuf
+            integer(c_int), intent(in), value :: scnt, stype, rcnt, rtype
+            integer(c_int), intent(in), value :: comm, rt
+            integer(c_int), intent(out) :: ierr
+        end subroutine
     end interface
 #endif
 
@@ -109,6 +131,18 @@ module ParallelHelper
     integer(MPIArg), parameter :: MpiDetInt = -1
 #endif
 
+#ifndef PARALLEL
+    ! These don't exist in serial, so fudge them
+    integer(MPIArg), parameter :: MPI_2INTEGER=0
+    integer(MPIArg), parameter :: MPI_2DOUBLE_PRECISION=0
+    integer(MPIArg), parameter :: MPI_MIN=0
+    integer(MPIArg), parameter :: MPI_MAX=0
+    integer(MPIArg), parameter :: MPI_SUM=0
+    integer(MPIArg), parameter :: MPI_LOR=0
+    integer(MPIArg), parameter :: MPI_MAXLOC=0
+    integer(MPIArg), parameter :: MPI_MINLOC=0
+    integer(MPIArg), parameter :: MPI_MAX_ERROR_STRING=255
+#endif
 
 
    Type :: CommI
@@ -159,7 +193,7 @@ contains
          Comm=CommGlobal
          if(present(rt)) then
             if(tMe2) then
-               rt=iProcIndex
+               rt=int(iProcIndex,MPIArg)
             else
                rt=Root
             endif
@@ -172,16 +206,16 @@ contains
             Comm=CommRoot
             if (present(rt)) then
                if(tMe2) then
-                  rt=iNodeIndex
+                  rt=int(iNodeIndex,MPIArg)
                else
                   rt=Root
                endif
             endif
          else
-            Comm=CommNodes(Node%n)
+            Comm=int(CommNodes(Node%n),MPIArg)
             if (present(rt)) then
                if(tMe2) then
-                  rt=iIndexInNode 
+                  rt=int(iIndexInNode,MPIArg)
                else
                   rt=0 !NodeRoots(Node%n) is the procindex of the root, but not the index within the communicator
                endif
@@ -191,7 +225,7 @@ contains
          Comm=CommGlobal
          if (present(rt)) then
             if(tMe2) then
-               rt=iProcIndex 
+               rt=int(iProcIndex,MPIArg) 
             else
                rt=Root
             endif
@@ -288,63 +322,54 @@ contains
 #endif
 
     end subroutine
-
-    subroutine MPIGather_hack (v, v2, nchar, nprocs, ierr, Node)
+!
+! n.b HACK
+! We need to be able to do a bit of hackery when using C-based MPI
+!
+! --> We relabel things a bit...
 #ifdef CBINDMPI
-        interface
-            ! Put this here to avoid polluting the global namespace
-            subroutine MPI_Gather_2 (sbuf, scnt, stype, rbuf, rcnt, rtype, &
-                                     rt, comm, ierr) &
-                                     bind(c, name='mpi_gather_wrap')
-                use iso_c_hack
-                use constants
-                character(c_char), intent(in) :: sbuf
-                character(c_char), intent(out) :: rbuf
-                integer(c_int), intent(in), value :: scnt, stype, rcnt, rtype
-                integer(c_int), intent(in), value :: comm, rt
-                integer(c_int), intent(out) :: ierr
-            end subroutine
-        end interface
+#define val_in vptr
+#define val_out rptr
+#else
+#define val_in v
+#define val_out Ret
 #endif
 
+    subroutine MPIGather_hack (v, ret, nchar, nprocs, ierr, Node)
+
         integer, intent(in) :: nchar, nprocs
-        character(len=nchar) :: v
-        character(len=nchar) :: v2(nprocs)
+        character(len=nchar), target :: v
+        character(len=nchar), target :: ret(nprocs)
         integer, intent(out) :: ierr
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: Comm, rt, err
 
 #ifdef CBINDMPI
         character(c_char) :: in_tmp(nchar)
-        character(len=nchar*nprocs) :: out_tmp
+        character(len=nchar*nprocs), target :: out_tmp
         integer :: i, st, fn
 #endif
 
 
 #ifdef PARALLEL
+#ifdef CBINDMPI
+#ifdef __GFORTRAN__
+        type(c_ptr) :: g_loc
+#endif
+        c_ptr_t :: vptr, rptr
+        vptr = loc_neci(v)
+        rptr = loc_neci(ret)
+#endif
+
         call GetComm (Comm, Node, rt)
 
-#ifdef CBINDMPI
-        call MPI_Gather_2 (v, int(nchar, MPIArg), MPI_CHARACTER, &
-                           out_tmp, int(nchar, MPIArg), &
-                           MPI_CHARACTER, rt, comm, err)
-        do i = 1, nprocs
-            st = 1 + ((i - 1) * nchar)
-            fn = st + nchar - 1
-            v2(i) = out_tmp(st:fn)
-        end do
-#else
-        call MPI_Gather (v, &
-                int(nchar, MPIArg), &
-                MPI_CHARACTER, &
-                v2, &
-                int(nchar, MPIArg), &
-                MPI_CHARACTER, &
-                rt, comm, err)
-#endif
+        call MPI_Gather (val_in, int(nchar, MPIArg), MPI_CHARACTER, &
+                         val_out, int(nchar, MPIArg), MPI_CHARACTER, &
+                         rt, comm, err)
+
         ierr = err
 #else
-        v2(1) = v
+        ret(1) = v
         ierr = 0
 #endif
     end subroutine
@@ -372,6 +397,9 @@ contains
         call MPI_Allreduce (rt, nrt, 1_MPIArg, MPI_INTEGER, MPI_MAX, &
                             comm, ierr)
 #endif
+#else
+        ierr=0  !Avoid compiler warnings
+        nrt=rt
 #endif
 
     end subroutine

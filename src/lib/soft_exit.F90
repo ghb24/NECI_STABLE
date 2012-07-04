@@ -86,7 +86,11 @@
 !   SPIN-PROJECT-GAMMA   Change the delta-gamma value used for stochastic
 !                        spin projection
 !   SPIN-PROJECT-SHIFT   Change the spin projection shift value.
-!   REFSHIFT             Change the default use of the shift to now keep HF populations constant.
+!   REFSHIFT             Change the default use of the shift to now keep HF 
+!                        populations constant.
+!   TIME                 Specify a total elapsed-time before the calculation
+!                        performs an automatic soft-exit. If specified as -1,
+!                        we don't stop automatically. 
 ! **********************************************************
 
 module soft_exit
@@ -95,11 +99,11 @@ module soft_exit
     use bit_reps, only: NIfTot
     use util_mod, only: binary_search, get_free_unit
     use FciMCData, only: iter, CASMin, CASMax, tTruncSpace, tSinglePartPhase,&
-                         SumENum, SumNoatHF, &
+                         SumENum, SumNoatHF, tTimeExit, &
                          AvAnnihil, VaryShiftCycles, SumDiagSft, &
                          VaryShiftIter, CurrentDets, iLutHF, HFDet, &
-                         TotWalkers,tPrintHighPop, tSearchTau,&
-             n_proje_sum => nproje_sum,proje_update_comb
+                         TotWalkers,tPrintHighPop, tSearchTau, MaxTimeExit, &
+                         n_proje_sum => nproje_sum, proje_update_comb
     use CalcData, only: DiagSft, SftDamp, StepsSft, OccCASOrbs, VirtCASOrbs, &
                         tTruncCAS,  NEquilSteps, tTruncInitiator, &
                         InitiatorWalkNo, tCheckHighestPop, tRestartHighPop, &
@@ -160,10 +164,11 @@ contains
                               spin_project_cutoff = 33, &
                               spin_project_spawn_initiators = 34, &
                               spin_project_no_death = 35, &
-                              spin_project_iter_count = 36, trunc_nopen = 37, &
-                              targetgrowrate = 38, refshift = 39 ,nprojesum = 40
+                              spin_project_iter_count = 36, trunc_nopen = 37,&
+                              targetgrowrate = 38, refshift = 39, &
+                              nprojesum = 40, time = 41
 
-        integer, parameter :: last_item = nprojesum
+        integer, parameter :: last_item = time
         integer, parameter :: max_item_len = 30
         character(max_item_len), parameter :: option_list_molp(last_item) &
                                = (/"truncate                     ", &
@@ -194,6 +199,7 @@ contains
                                    "not_option                   ", &
                                    "not_option                   ", &
                                    "changeref                    ", &
+                                   "not_option                   ", &
                                    "not_option                   ", &
                                    "not_option                   ", &
                                    "not_option                   ", &
@@ -246,7 +252,8 @@ contains
                                    "trunc-nopen                  ", &
                                    "targetgrowrate               ", &
                                    "refshift                     ", &
-                                   "nprojesum                    "/)
+                                   "nprojesum                    ", &
+                                   "time                         "/)
 
 
         logical :: exists, any_exist, eof, deleted, any_deleted, tSource
@@ -357,6 +364,8 @@ contains
                             call readi (spin_proj_iter_count)
                         elseif (i == trunc_nopen) then
                             call readi (trunc_nop_new)
+                        elseif (i == time) then
+                            call readf (MaxTimeExit)
                         endif
                     enddo
 
@@ -660,13 +669,13 @@ contains
                 root_print 'Number at Hartree-Fock scaled by factor: ', &
                            hfScaleFactor
 
-                SumNoatHF = SumNoatHF * hfScaleFactor
+                SumNoatHF = nint(real(SumNoatHF,dp) * hfScaleFactor,int64)
                 if (iNodeIndex == DetermineDetNode(HFDet,0).and. bNodeRoot) then
                     pos = binary_search (CurrentDets(:,1:TotWalkers), &
                                          iLutHF)
                     call extract_sign (CurrentDets(:,pos), hfsign)
                     do i = 1, lenof_sign
-                        hfsign(i) = hfsign(i) * hfScaleFactor
+                        hfsign(i) = nint(real(hfsign(i),dp) * hfScaleFactor,sizeof_int)
                     enddo
                     call encode_sign (CurrentDets(:,pos), HFSign)
                 endif
@@ -785,6 +794,20 @@ contains
                 write(6,*) 'Request to change default shift action to REFSHIFT &
                 &detected on a node on iteration: ',iter
             endif
+
+            if (opts_selected(time)) then
+                call MPIBcast(MaxTimeExit, tSource)
+                if (MaxTimeExit <= 0) then
+                    tTimeExit = .false.
+                    root_print "Automatic time-based soft-exit disabled."
+                else
+                    tTimeExit = .true.
+                    root_print "Automatic soft-exit set to ", MaxTimeExit, &
+                               "mins"
+                    MaxTimeExit = MaxTimeExit * 60.0_dp
+                end if
+
+            end if
         endif
 
     end subroutine ChangeVars

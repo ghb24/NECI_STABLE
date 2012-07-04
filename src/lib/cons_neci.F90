@@ -36,11 +36,11 @@ integer, parameter :: sizeof_sp = 4
 #ifdef __CMPLX
 integer, parameter :: sizeof_helement = 16
 integer, parameter :: lenof_sign = 2
-integer, dimension(2), parameter :: null_part(1:2) = 0
+integer, dimension(2), parameter :: null_part = 0
 #else
 integer, parameter :: sizeof_helement = 8
 integer, parameter :: lenof_sign = 1
-integer, dimension(1), parameter :: null_part(1) = 0
+integer, dimension(1), parameter :: null_part = 0
 #endif
 
 !This is the integer type which is used in MPI call arguments

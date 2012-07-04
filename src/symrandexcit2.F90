@@ -78,6 +78,7 @@ MODULE GenRandSymExcitNUMod
 
         ! Just in case
         ilutnJ(0) = -1
+        HElGen = 0.0_dp
 
         IF((tUEG.and.tLatticeGens) .or. (tHub.and.tLatticeGens)) THEN
             call CreateExcitLattice(nI,iLut,nJ,tParity,ExcitMat,pGen)
@@ -281,7 +282,7 @@ MODULE GenRandSymExcitNUMod
         IF(tAOrbFail) THEN
 !            WRITE(6,*) "A ORB FAIL"
             nJ(1)=0
-            pGen=HUGE(0.D0)
+            pGen=HUGE(0.0_dp)
             RETURN
         ENDIF
 
@@ -2929,6 +2930,7 @@ SUBROUTINE SpinOrbSymSetup()
     !For molecular systems, this IS the character of the irrep
     !For k-point systems, this is an arbitrary label, and is equal to the standard label - 1.
     !This is chosen so that the indexing works with the rest of the excitation generators.
+    if(allocated(SpinOrbSymLabel)) deallocate(SpinOrbSymLabel)
     Allocate(SpinOrbSymLabel(nBasis))
     do i=1,nBasis
         if(tNoSymGenRandExcits.or.tUEG) then
@@ -3347,7 +3349,7 @@ SUBROUTINE IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
             kOcc=G1(ExcitMat(1,1))%Ml+G1(ExcitMat(1,2))%Ml
             KUnocc=G1(ExcitMat(2,1))%Ml+G1(ExcitMat(2,2))%Ml
             IF(Kocc.ne.KUnocc) THEN
-                write(6,*) G1(ExcitMat(1,1))%Ml,G1(ExcitMat(1,2))%Ml,"-->",G1(ExcitMat(2,1))%Ml,G1(ExcitMat(2,2))%Ml
+                write(6,*) G1(ExcitMat(1,1))%Ml,G1(ExcitMat(1,2))%Ml,"==>",G1(ExcitMat(2,1))%Ml,G1(ExcitMat(2,2))%Ml
                 CALL Stop_All("IsSymAllowedExcit","Excitation not a valid momentum allowed double excitation")
             ENDIF
         ENDIF

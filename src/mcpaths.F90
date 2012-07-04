@@ -1,5 +1,5 @@
 module mcpaths
-    use util_mod, only: isnan
+    use util_mod, only: isnan_neci
 contains
 
 !C.. Calculate RHO^(P)_II without having a stored H matrix
@@ -44,7 +44,7 @@ contains
          use mcpathshdiag, only: fmcpr3b2
          use mcpathsismc, only: mcpathsr4, fmcpr4b,fmcpr4c
          use sym_mod, only: getsym
-         use util_mod, only: isnan, NECI_ICOPY
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          TYPE(BasisFN) :: G1(*),KSYM
          INTEGER I_VMAX,NEL,NBASIS
@@ -168,7 +168,7 @@ contains
                F(I_V)=FMCPR3B(NI,BETA,I_P,IPATH,I_V,NEL,                   &
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,        &
      &         RHOEPS,0,RHOII,RHOIJ,CNWHTAY,I_CHMAX,LOCTAB,                &
-     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,       &
+     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.0_dp,     &
      &         MP2E,NTOTAL,EREF,VARSUM,TOTAL)
             ELSEIF(I_CHMAX.EQ.-14) THEN
 !.. We read in this vertex level from the MCPATHS file
@@ -185,7 +185,7 @@ contains
                F(I_V)=FMCPR3B2(NI,BETA,I_P,IPATH,I_V,NEL,                  &
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,        &
      &         RHOEPS,0,RHOIJ,CNWHTAY,I_CHMAX,LOCTAB,                      &
-     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,       &
+     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.0_dp,     &
      &        MP2E,NTOTAL,I_VMAX,EREF,VARSUM,TOTAL)
             ELSEIF(I_CHMAX.EQ.-9) THEN
 !C.. This code generates a star consisting of all the two-vertex terms,
@@ -336,7 +336,7 @@ contains
                 WRITE(11,"(I12,2G25.16,F19.7,I12,2G25.12)") I_V,F(I_V),TOTAL,NTIME-OTIME,L,STD,DLWDB2
                CALL neci_flush(11)
             ENDIF
-            IF(ISNAN(TOTAL)) THEN
+            IF(ISNAN_neci(TOTAL)) THEN
 !C.. save all log files
                ITIME=neci_etime(tarr)
                CALL neci_flush(11)
@@ -435,7 +435,8 @@ contains
          INTEGER I_P,I_HMAX,BRR(*),NMSH,NMAX
          INTEGER NTAY(2),NWHTAY(3,I_VMAX),ILOGGING,I,I_V
          type(timer), save :: proc_timer,proc_timer2
-         INTEGER L,LT,ITIME
+         INTEGER L,LT
+         real(sp) ITIME(2)
          real(dp) BETA,ECORE
          real(sp) tarr(2),neci_etime
          real(dp) WLRI,WLSI
@@ -589,7 +590,7 @@ contains
                F(I_V)=FMCPR3B(NI,BETA,I_P,IPATH,I_V,NEL,                   &
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,        &
      &        RHOEPS,0,RHOII,RHOIJ,NWHTAY(1,1),I_HMAX,LOCTAB,                   &
-     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,       &
+     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.0_dp,       &
      &         MP2E,NTOTAL,EREF,VARSUM,TOTAL)
             ELSEIF(I_HMAX.EQ.-20) THEN 
 !C.. This code generates excitations on the fly, and diagonalizes a matrix of
@@ -601,7 +602,7 @@ contains
                F(I_V)=FMCPR3B2(NI,BETA,I_P,IPATH,I_V,NEL,                  &
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,        &
      &        RHOEPS,0,RHOIJ,NWHTAY(1,1),I_HMAX,LOCTAB,                         &
-     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,       &
+     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.0_dp,       &
      &        MP2E,NTOTAL,I_VMAX,EREF,VARSUM,TOTAL)
             ELSEIF(I_HMAX.EQ.-9) THEN
 !C.. This code generates a star consisting of all the two-vertex terms,
@@ -653,12 +654,12 @@ contains
                WRITE(11,*)
                CALL neci_flush(11)
             ENDIF
-            IF(ISNAN(TOTAL)) THEN
+            IF(ISNAN_neci(TOTAL)) THEN
 !C.. save all log files
-               ITIME=neci_etime(tarr)
+               iTIME=neci_etime(tarr)
                CALL neci_flush(11)
-!               CALL LOGNAN(NI,NEL,BETA,ITIME)
-               WRITE(6,*) "WARNING: nan found at time",ITIME
+!               CALL LOGNAN(NI,NEL,BETA,iTIME)
+               WRITE(6,*) "WARNING: nan found at time",iTIME
                WRITE(6,"(A)",advance='no') "  nan det="
                call write_det (6, NI, .true.)
             ENDIF

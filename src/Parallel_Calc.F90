@@ -315,20 +315,20 @@ subroutine ParMP2(nI)
 
             if (Excit(1,2).eq.0) then
                 ! Singles contribution.
-                call getMP2E(0.d0,dE2,dU(1),dE)
+                call getMP2E(0.0_dp,dE2,dU(1),dE)
                 dETot(1)=dETot(1)+(weight)*dE
             else
                 ! Doubles contributions.
                 if (abs(dU(2)).gt.0.d0) then
                     ! Get e.g. (1a,2b)->(3a,4b) and (1a,2b)->(3b,4a) for "free"
                     ! when we evaluate (1a,2a)->(3a,4a).
-                    call getMP2E(0.d0,dE2,dU(1),dE)
+                    call getMP2E(0.0_dp,dE2,dU(1),dE)
                     dETot(2)=dETot(2)+(weight)*dE
-                    call getMP2E(0.d0,dE2,dU(2),dE)
+                    call getMP2E(0.0_dp,dE2,dU(2),dE)
                     dETot(2)=dETot(2)+(weight)*dE
                 end if
                 dU(1)=dU(1)-dU(2)
-                call getMP2E(0.d0,dE2,dU(1),dE)
+                call getMP2E(0.0_dp,dE2,dU(1),dE)
                 dETot(2)=dETot(2)+(weight)*dE
             end if
 

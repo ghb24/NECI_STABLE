@@ -550,7 +550,7 @@ contains
          CALL GetUMatSize(nBasis,nEl,UMATINT)
 !         WRITE(6,*) "UMatSize: ",UMATINT
          UMatMem=REAL(UMatInt,dp)*REAL(HElement_t_sizeB,dp)*(9.536743164D-7)
-         WRITE(6,"(A,G20.10,A)") "Memory required for integral storage: ",UMatMem, " Mb/Processor"
+         WRITE(6,"(A,G20.10,A)") "Memory required for integral storage: ",UMatMem, " Mb/Shared Memory"
          call neci_flush(6)
          call shared_allocate ("umat", umat, (/UMatInt/))
          !Allocate(UMat(UMatInt), stat=ierr)
@@ -711,7 +711,7 @@ contains
       nHG=nBasis
             
       CHEMPOT=(ARR(NEL,1)+ARR(NEL+1,1))/2.D0
-      WRITE(6,*) "Chemical Potential: ",CHEMPOT
+!      WRITE(6,*) "Chemical Potential: ",CHEMPOT
       IF(NTFROZEN.LT.0) THEN
          WRITE(6,*) "NTFROZEN<0.  Leaving ", -NTFROZEN," unfrozen virtuals."
          NTFROZEN=NTFROZEN+nBasis-NEL
@@ -728,7 +728,7 @@ contains
                                 & systems with only 8 symmetry irreps.")
       ENDIF
       IF(NFROZEN.GT.0.OR.NTFROZEN.GT.0.OR.NFROZENIN.GT.0.OR.NTFROZENIN.GT.0) THEN
-          WRITE(6,'(A)') '-------- FREEZING ORBITALS ----------'
+          WRITE(6,'(A)') '======== FREEZING ORBITALS =========='
 !!C.. At this point, we transform the UMAT and TMAT into a new UMAT and
 !!C.. TMAT and Ecore with the frozen orbitals factored in
 !!C..
@@ -1614,8 +1614,11 @@ contains
                     call construct_ijab_one (i, j, k, l, vasp_int(1,0))
                     call construct_ijab_one (i, l, k, j, vasp_int(1,1))
                 end if
+#ifdef __CMPLX
+                !cpp to avoid gfortran compiler warnings
                 UElems(0) = vasp_int(1,0)
                 UElems(1) = vasp_int(1,1)
+#endif
                 ! TODO: This bit seems broken. Why hel = ? twice
                 !       Why not iand(iType, 0)
                 hel = UElems(0)

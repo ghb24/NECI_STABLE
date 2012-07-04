@@ -12,13 +12,18 @@
 #define HElement_t real(dp)
 #endif
 
-#if defined(_MOLCAS_MPP_) && !defined(GA_TCGMSG)
-#define __SHARED_MEM
+#if defined(_MOLCAS_MPP_) && !defined(GA_TCGMSG) && !defined(GA_TCGMSG5)
 #define PARALLEL
 #define CBINDMPI
+
+#if !defined(__OPEN64__) && !defined(__OLD_PGI__)
+/* __OLD_PGI__ refers to bugs in pgi v. 7->8: see bugzilla 3616 */
+#define __SHARED_MEM
 #endif
 
-#ifndef MOLPRO_f2003
+#endif
+
+#if !defined(MOLPRO_f2003) || defined(__OLD_PGI__)
 #define __ISO_C_HACK
 #endif
 

@@ -11,6 +11,7 @@ MODULE Logging
     use bit_rep_data, only: NIfTot, NIfD
     use DetBitOps, only: EncodeBitDet
     use hist_data, only: iNoBins, tHistSpawn, BinRange
+    use errors, only: Errordebug 
 
     IMPLICIT NONE
     Save
@@ -26,7 +27,7 @@ MODULE Logging
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn
     LOGICAL tPrintPopsDefault
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tIncrementPops,tROHistogramAll,tROHistER,tROHistSingExc
-    LOGICAL tRoHistOneElInts
+    LOGICAL tRoHistOneElInts, tPrintInitiators
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
     LOGICAL tTruncDumpbyVal
@@ -51,8 +52,14 @@ MODULE Logging
     logical :: tSplitProjEHist,tSplitProjEHistG,tSplitProjEHistK3
     integer :: iProjEBins
 
-    logical :: tCalcInstantS2, tCalcInstSCpts
-    integer :: instant_s2_multiplier
+    logical :: tCalcInstantS2, tCalcInstSCpts, tCalcInstantS2Init
+    integer :: instant_s2_multiplier, instant_s2_multiplier_init
+    integer :: iHighPopWrite
+
+    !Just do a blocking analysis on previous data
+    logical :: tJustBlocking
+    integer :: iBlockEquilShift,iBlockEquilProjE
+    logical :: tDiagAllSpaceEver,tCalcVariationalEnergy
 
     contains
 
@@ -62,6 +69,13 @@ MODULE Logging
       use default_sets
       implicit none
 
+      tDiagAllSpaceEver = .false.
+      tCalcVariationalEnergy = .false.
+      tJustBlocking = .false.
+      iBlockEquilShift = 0
+      iBlockEquilProjE = 0
+      ErrorDebug = 0
+      iHighPopWrite = 15    !How many highest weighted determinants to write out at the end of an FCIQMC calc.
       tDiagWalkerSubspace = .false.
       iDiagSubspaceIter = 1
       tSplitProjEHist = .false.
@@ -140,8 +154,10 @@ MODULE Logging
       hist_spin_dist_iter = 1000
       tLogDets=.false.
       tCalcInstantS2 = .false.
+      tCalcInstantS2Init = .false.
       tCalcInstSCpts = .false.
       instant_s2_multiplier = 1
+      instant_s2_multiplier_init = 1
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -172,10 +188,27 @@ MODULE Logging
         call readu(w)
         select case(w)
 
+        case("REBLOCKSHIFT")
+            !Abort all other calculations, and just block data again with given equilibration time (in iterations)
+            tJustBlocking = .true.
+            call readi(iBlockEquilShift)
+        case("REBLOCKPROJE")
+            !Abort all other calculations, and just block data again with given equilibration time (in iterations)
+            tJustBlocking = .true.
+            call readi(iBlockEquilProjE)
+        case("HIGHLYPOPWRITE")
+            !At the end of an FCIMC calculation, how many highly populated determinants should we write out?
+            call readi(iHighPopWrite)
         case("DIAGWALKERSUBSPACE")
             !Diagonalise walker subspaces every iDiagSubspaceIter iterations
             tDiagWalkerSubspace = .true.
             call readi(iDiagSubspaceIter)
+        case("DIAGALLSPACEEVER")
+            !Diagonalise all space ever visited in the fciqmc dynamic. This will be written out each time HistSpawn is
+            tDiagAllSpaceEver=.true.
+        case("CALCVARIATIONALENERGY")
+            !Calculate the variational energy of the FCIQMC dynamic each time Histspawn is calculated
+            tCalcVariationalEnergy=.true.
         case("SPLITPROJE")
             !Partition contribution from doubles, and write them out
             tSplitProjEHist=.true.
@@ -464,6 +497,10 @@ MODULE Logging
 !and the number with this population. The range of populations histogrammed goes from ln(N_add) -> ln(1,000,000) with 50,000 bins.
             tHistInitPops=.true.
             call readi(HistInitPopsIter)
+
+        case("WRITEINITIATORS")
+! Requires a popsfile to be written out.  Writes out the initiator populations. 
+            tPrintInitiators = .true.
         
         case("AUTOCORR")
 !This is a Parallel FCIMC option - it will calculate the largest weight MP1 determinants and histogramm them
@@ -566,8 +603,11 @@ MODULE Logging
 !CCMC debugging level. Takes an integer 0-6
             call readi(CCMCDebug)
         case("FCIMCDEBUG")
-!CCMC debugging level. Takes an integer 0-6
+!FCIQMC debugging level. Takes an integer 0-6
             call readi(FCIMCDebug)
+        case("ERRORDEBUG")
+!Error analysus debugging level. Takes an integer 0-6
+            call readi(ErrorDebug)
         case("CCMCLOGTRANSITIONS")
             tCCMCLogTransitions=.true.
             do while(item.lt.nitems)
@@ -689,7 +729,7 @@ MODULE Logging
         case("DETERMINANTS")
             tLogDets=.true.
 
-        case ("INSTANT-S2")
+        case ("INSTANT-S2-FULL")
             ! Calculate an instantaneous value for S^2, and output it to the
             ! relevant column in the FCIMCStats file.
             !
@@ -697,10 +737,20 @@ MODULE Logging
             ! S^2 once for every n update cycles (it must be on an update
             ! cycle such that norm_psi_squared is correct)
             tCalcInstantS2 = .true.
-            if (item < nitems) then
+            if (item < nitems) &
                 call readi (instant_s2_multiplier)
-            endif
 
+        case ("INSTANT-S2-INIT")
+            ! Calculate an instantaneous value ofr S^2 considering only the
+            ! initiators, and output it to the relevant column in the
+            ! FCIMCStats file.
+            !
+            ! The second parameter is a multiplier such that we only calculate
+            ! S^2 once for every n update cycles (it must be an update
+            ! cycle such that norm_psi_squared is correct).
+            tCalcInstantS2Init = .true.
+            if (item < nitems) &
+                call readi (instant_s2_multiplier_init)
 
         case ("INSTANT-S-CPTS")
             ! Calculate components of the wavefunction with each value of S.

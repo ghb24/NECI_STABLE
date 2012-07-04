@@ -105,7 +105,7 @@ C.. Perform the contour integration to calculate the Z-sum
          use constants, only: dp,pi
          IMPLICIT NONE
          real(dp) ZSD1(*),ZSD2(*),ZSFUN
-         complex(dp) Z,ZI,ZRET,ZS,DZ,Z0,Z2
+         complex(dp) Z,ZI,ZS,DZ,Z0,Z2
          INTEGER I_P,I_POINTS,I
          real(dp) THETA,R,SUM,SUMI,DTHETA,P
          character(*), parameter :: t_r="ZSUM2"
@@ -128,8 +128,8 @@ C.. Calculate an even point
 C            WRITE(6,*),Z
              call stop_all(t_r,"ZSFUN should be a function!")
 !            CALL ZSFUN(ZSD1,ZSD2,P,Z2,R,THETA,Z,ZRET)
-            ZS=ZS+2*ZRET
-            IF(I.EQ.1) ZS=ZS-ZRET
+!            ZS=ZS+2*ZRET
+!            IF(I.EQ.1) ZS=ZS-ZRET
 C.. Move round DTHETA in the complex plane
             THETA=THETA+DTHETA
             Z=Z*DZ
@@ -137,7 +137,7 @@ C.. Move round DTHETA in the complex plane
 C            WRITE(6,*),Z
 C.. Calculate an odd point
 !            CALL ZSFUN(ZSD1,ZSD2,P,Z2,R,THETA,Z,ZRET)
-            ZS=ZS+4*ZRET
+!            ZS=ZS+4*ZRET
 C.. Move round DTHETA in the complex plane
             THETA=THETA+DTHETA
             Z=Z*DZ
@@ -146,7 +146,7 @@ C.. Move round DTHETA in the complex plane
 C         WRITE(6,*),Z
 C.. Now do the last point, f2n
 !         CALL ZSFUN(ZSD1,ZSD2,P,Z2,R,THETA,Z,ZRET)
-         ZS=ZS+ZRET
+!         ZS=ZS+ZRET
          ZS=ZS*DTHETA/3.D0
          ZS=ZS/(2.D0*PI*ZI)
          SUM=DBLE(ZS)

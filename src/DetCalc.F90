@@ -23,9 +23,6 @@ MODULE DetCalc
       INTEGER,ALLOCATABLE :: NBLOCKSTARTS(:) !Index of the first det of different symmetry blocks in the complete list of dets
       INTEGER(TagIntType) :: tagNBLOCKSTARTS=0
       INTEGER NBLOCKS                        !Number of Symmetry blocks
-      HElement_t, pointer :: HAMIL(:)    !The Hamiltonian in compressed form.  Contains only non-zero elements.  The total number of elements is in LenHamil
-      INTEGER(TagIntType) :: tagHamil=0
-      INTEGER LenHamil                       !The Total number of non-zero elements in the compressed Hamiltonian
       INTEGER iFDet                       ! The index of the Fermi det in the list of dets.
       HElement_t, pointer :: CKN(:,:) !  (nDet,nEval)  Temporary storage for the Lanczos routine
       INTEGER(TagIntType) :: tagCKN=0
@@ -43,7 +40,7 @@ CONTAINS
         Use IntegralsData, only : NFROZEN
         use SystemData, only : tCSFOLD,lms, lms2, nBasis, nBasisMax, nEl, SymRestrict
         use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
-        use SystemData, only : tParity, tSpn,Symmetry,STot, NullBasisFn
+        use SystemData, only : tParity, tSpn,Symmetry,STot, NullBasisFn, tUHF,tMolpro
         use sym_mod
         use CCMCData,   only : tCCBuffer !This is messy, but I don't see anywhere else to put it. AJWT
         use Logging,    only : tLogDets
@@ -133,9 +130,16 @@ CONTAINS
             IF(TSPN) THEN
                WRITE(6,*) "Using spin restriction:",LMS
             ENDIF
-            CALL GNDTS_BLK(NEL,nBasis,BRR,NBASISMAX,NMRKS, .TRUE.,             &
-     &            NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,LMS2,TPARITY,        &
-     &           SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM)
+            if(tUHF.and.tMolpro) then
+                !When breaking spin symmetry in molpro, it is important to occupy alpha orbs preferentially
+                CALL GNDTS_BLK(NEL,nBasis,BRR,NBASISMAX,NMRKS, .TRUE.,             &
+     &                NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,-LMS2,TPARITY,        &
+     &               SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM)
+            else
+                CALL GNDTS_BLK(NEL,nBasis,BRR,NBASISMAX,NMRKS, .TRUE.,             &
+     &                NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,LMS2,TPARITY,        &
+     &               SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM)
+            endif
             WRITE(6,*) "NBLOCKS:",NBLOCKS
          ELSEIF(TCSFOLD) THEN
             WRITE(6,*) "Determining CSFs."
@@ -162,7 +166,12 @@ CONTAINS
             IF(TSPN) THEN
                WRITE(6,*) "Using spin restriction:",LMS
             ENDIF
-            CALL GNDTS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.TRUE.,G1,TSPN,LMS,TPARITY,SymRestrict,II,IFDET)
+            if(tUHF.and.tMolpro) then
+                !When breaking spin symmetry in molpro, it is important to occupy alpha orbs preferentially
+                CALL GNDTS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.TRUE.,G1,TSPN,-LMS,TPARITY,SymRestrict,II,IFDET)
+            else
+                CALL GNDTS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.TRUE.,G1,TSPN,LMS,TPARITY,SymRestrict,II,IFDET)
+            endif
             NBLOCKS=1
             NDET=II
          ENDIF
@@ -204,8 +213,14 @@ CONTAINS
             NBLOCKSTARTS(2)=II+1
             IFDET=1
          ELSEIF(TBLOCK) THEN 
-            CALL GNDTS_BLK(NEL,nBasis,BRR,NBASISMAX,NMRKS, .FALSE.,NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,LMS2,TPARITY, &
-     &           SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM)
+            if(tUHF.and.tMolpro) then
+                !When breaking spin symmetry in molpro, it is important to occupy alpha orbs preferentially
+                CALL GNDTS_BLK(NEL,nBasis,BRR,NBASISMAX,NMRKS, .FALSE.,NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,-LMS2,TPARITY, &
+     &               SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM)
+            else
+                CALL GNDTS_BLK(NEL,nBasis,BRR,NBASISMAX,NMRKS, .FALSE.,NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,LMS2,TPARITY, &
+     &               SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM)
+            endif
          ELSEIF(TCSFOLD) THEN
             NDET=0  !This will be reset by GNCSFS
             CALL GNCSFS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.FALSE.,G1,TSPN,LMS2,TPARITY, &
@@ -213,7 +228,12 @@ CONTAINS
                NBLOCKSTARTS(1)=1
                NBLOCKSTARTS(2)=II+1
          ELSE
-            CALL GNDTS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.FALSE.,G1,TSPN,LMS,TPARITY,SymRestrict,II,IFDET)
+            if(tUHF.and.tMolpro) then
+                !When breaking spin symmetry in molpro, it is important to occupy alpha orbs preferentially
+                CALL GNDTS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.FALSE.,G1,TSPN,-LMS,TPARITY,SymRestrict,II,IFDET)
+            else
+                CALL GNDTS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.FALSE.,G1,TSPN,LMS,TPARITY,SymRestrict,II,IFDET)
+            endif
                NBLOCKSTARTS(1)=1
                NBLOCKSTARTS(2)=II+1
          ENDIF
@@ -302,6 +322,7 @@ CONTAINS
       use SystemData, only : nBasis, nBasisMax,nEl,nMsh,LzTot,tMomInv
       use IntegralsData, only: FCK,NMAX, UMat
       Use Logging, only: iLogging,tHistSpawn,tHistHamil,tLogDets
+      use logging, only: tCalcVariationalEnergy
       use SystemData, only  : tCSFOLD
       use Parallel_neci, only : iProcIndex
       use DetBitops, only: DetBitEQ,EncodeBitDet,FindBitExcitLevel
@@ -315,8 +336,8 @@ CONTAINS
 
       real(dp) , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),FCIGS(:)
       HElement_t, ALLOCATABLE :: WORK(:)
-      INTEGER , ALLOCATABLE :: LAB(:),NROW(:),INDEX(:),ISCR(:),Temp(:)
-      integer(TagIntType) :: LabTag=0,NRowTag=0,TKETag=0,ATag=0,VTag=0,AMTag=0,BMTag=0,TTag=0
+      INTEGER , ALLOCATABLE :: INDEX(:),ISCR(:),Temp(:)
+      integer(TagIntType) :: TKETag=0,ATag=0,VTag=0,AMTag=0,BMTag=0,TTag=0
       INTEGER(TagIntType) :: WTTag=0,SCRTag=0,ISCRTag=0,INDEXTag=0,WHTag=0,Work2Tag=0,V2Tag=0,WorkTag=0
       integer :: ierr,Lz
       character(25), parameter :: this_routine = 'DoDetCalc'
@@ -547,10 +568,12 @@ CONTAINS
          ENDIF
 !C..
 !  Since we no longer use HAMIL or LAB, we deallocate
-         LogDealloc(tagHamil)
-         Deallocate(Hamil)
-         DEALLOCATE(LAB)
-         CALL LogMemDealloc(this_routine,LabTag)
+         if(.not.tCalcVariationalEnergy) then
+             LogDealloc(tagHamil)
+             Deallocate(Hamil)
+             DEALLOCATE(LAB)
+             CALL LogMemDealloc(this_routine,LabTag)
+         endif
          ALLOCATE(TKE(NEVAL),stat=ierr)
          CALL LogMemAlloc('TKE',NEVAL,8,this_routine,TKETag,ierr)
 
@@ -611,6 +634,12 @@ CONTAINS
                 ALLOCATE(FCIGS(Det),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold vector")
             ENDIF
+            if(tCalcVariationalEnergy) then
+                !This allows us to resort to get back to the hamiltonian ordering
+                allocate(ReIndex(Det),stat=ierr)
+                if(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold vector")
+                ReIndex(:)=0
+            endif
 
             Det=0
             FCIDetIndex(:)=0
@@ -632,6 +661,7 @@ CONTAINS
                         FCIGS(Det)=REAL(CK(i,1),dp)/norm
                     ENDIF
                 ENDIF
+                if(tCalcVariationalEnergy) ReIndex(i)=i
             enddo
             IF(iExcitLevel.le.0) THEN
                 MaxIndex=NEl
@@ -648,7 +678,11 @@ CONTAINS
             IF(.not.tEnergy) THEN
                 call sort (temp(1:Det), FCIDets(:,1:Det))
             ELSE
-                call sort (temp(1:Det), FCIDets(:,1:Det), FCIGS(1:Det))
+                if(tCalcVariationalEnergy) then
+                    call sort (temp(1:Det), FCIDets(:,1:Det), FCIGS(1:Det), ReIndex(1:Det))
+                else
+                    call sort (temp(1:Det), FCIDets(:,1:Det), FCIGS(1:Det))
+                endif
 !                CALL Stop_All("DetCalc","Cannot do histogramming FCI without JUSTFINDDETS at the moment (need new sorting - bug ghb24)")
             ENDIF
 
@@ -680,9 +714,16 @@ CONTAINS
                     call sort (FCIDets(:,FCIDetIndex(i):FCIDetIndex(i+1)-1), &
                                temp(FCIDetIndex(i):FCIDetIndex(i+1)-1))
                 ELSE
-                    call sort (FCIDets(:,FCIDetIndex(i):FCIDetIndex(i+1)-1), &
-                               temp(FCIDetIndex(i):FCIDetIndex(i+1)-1), &
-                               FCIGS(FCIDetIndex(i):FCIDetIndex(i+1)-1))
+                    if(tCalcVariationalEnergy) then
+                        call sort (FCIDets(:,FCIDetIndex(i):FCIDetIndex(i+1)-1), &
+                                   temp(FCIDetIndex(i):FCIDetIndex(i+1)-1), &
+                                   FCIGS(FCIDetIndex(i):FCIDetIndex(i+1)-1), &
+                                   ReIndex(FCIDetIndex(i):FCIDetIndex(i+1)-1))
+                    else
+                        call sort (FCIDets(:,FCIDetIndex(i):FCIDetIndex(i+1)-1), &
+                                   temp(FCIDetIndex(i):FCIDetIndex(i+1)-1), &
+                                   FCIGS(FCIDetIndex(i):FCIDetIndex(i+1)-1))
+                     endif
                 ENDIF
             enddo
 
@@ -886,7 +927,7 @@ CONTAINS
           ENDIF
           IF(BTEST(ILOGGING,7)) CALL WRITE_PSI(BOX,BOA,COA,NDET,NEVAL,NBASISMAX,NEL,CK,W)
           IF(BTEST(ILOGGING,8)) CALL WRITE_PSI_COMP(BOX,BOA,COA,NDET,NEVAL,NBASISMAX,NEL,CK,W)
-          WRITE(6,*) '       ==--------------------------------------------------== '
+          WRITE(6,*) '       ====================================================== '
           WRITE(6,'(A5,5X,A15,1X,A18,1x,A20)') 'STATE','KINETIC ENERGY', 'COULOMB ENERGY', 'TOTAL ENERGY'
           iunit = get_free_unit()
           OPEN(iunit,FILE='ENERGIES',STATUS='UNKNOWN')
@@ -897,7 +938,7 @@ CONTAINS
              WRITE(iunit,"(F19.11)") W(IN)
           ENDDO
           CLOSE(iunit)
-          WRITE(6,*)   '       ==--------------------------------------------------== '
+          WRITE(6,*)   '       ====================================================== '
 !C., END energy calc
       ENDIF
 
@@ -996,7 +1037,7 @@ END MODULE DetCalc
      &   DETINV,TSPECDET,SPECDET)
          use constants, only: dp
          use util_mod, only: get_free_unit
-         use SystemData, only: BasisFN
+         use SystemData, only: BasisFN, tMolpro,tMolproMimic
          use CalcData, only: tFCIMC
          use global_utilities
          use DetCalcData, only: NMRKS
@@ -1150,7 +1191,11 @@ END MODULE DetCalc
             ENDIF
           ENDDO
          CLOSE(iunit)
-         WRITE(6,*) "Summed approx E(Beta)=",TOT/NORM
+         if(tFCIMC) then
+             if((.not.tMolpro).and.(.not.tMolproMimic)) write(6,*) "Summed approx E(Beta)=",TOT/NORM
+         else
+             WRITE(6,*) "Summed approx E(Beta)=",TOT/NORM
+         endif
          DEALLOCATE(RIJLIST,ICE,LSTE)
          CALL LogMemDealloc(this_routine,RIJLISTTag)
          CALL LogMemDealloc(this_routine,ICETag)
@@ -1166,7 +1211,7 @@ END MODULE DetCalc
 !.. sum I_P*FLRI+FLSI will still retain the correct value.
       SUBROUTINE CALCRHOPII(I,NDET,NEVAL,CK,W,BETA,I_P,FLRI,FLSI,TWARN)
          use constants, only: dp
-         use util_mod, only: isnan
+         use util_mod, only: isnan_neci
          IMPLICIT NONE
          INTEGER NDET,NEVAL
          HElement_t CK(NDET,NEVAL)
@@ -1208,7 +1253,7 @@ END MODULE DetCalc
             RH=RH+R*EXP(-(W(IK)-W(1))*BETA)
          ENDDO
          FLSI=LOG(RH)-W(1)*BETA-I_P*FLRI
-         IF(ISNAN((RH+1)-RH)) THEN
+         IF(ISNAN_neci((RH+1)-RH)) THEN
             RH=0
             FLSI=0
          ENDIF

@@ -54,12 +54,14 @@ contains
     Subroutine DetPreFreezeInit()
         Use global_utilities
         use SystemData, only : nEl, ECore, Arr, Brr, G1, nBasis, LMS, nBasisMax,tFixLz, tUEGSpecifyMomentum
+        use SystemData, only : tMolpro
         use sym_mod
         use util_mod, only: NECI_ICOPY
+        use sltcnd_mod, only: CalcFockOrbEnergy 
         integer ierr
-        integer i,Lz
+        integer i,Lz,OrbOrder(8,2),FDetTemp(NEl)
         type(BasisFn) s
-   
+        HElement_t :: OrbE
         character(25), parameter :: this_routine='DetPreFreezeInit'
         Allocate(FDet(nEl), stat=ierr)
         LogAlloc(ierr, 'FDet', nEl, 4, tagFDet)
@@ -86,6 +88,29 @@ contains
          WRITE(6,"(A,I5)") "Lz of Fermi det:",Lz
       ENDIF
       CALL NECI_ICOPY(NEL,FDET,1,NUHFDET,1)
+      if(tMolpro) then
+          !Orbitals are ordered by occupation number from MOLPRO, and not reordered in NECI
+          !Therefore, we know HF determinant is first four occupied orbitals.
+          write(6,"(A)") "NECI called from MOLPRO, so assuming orbitals ordered by occupation number."
+          if(.not.tDefineDet) then
+              FDetTemp(:)=FDet(:)
+          else
+              !We have defined our own reference determinant, but still use the first orbitals for the calculation
+              !of 'orbital energies'
+              CALL GENFDET(BRR,G1,NBASIS,LMS,NEL,FDETTEMP)
+          endif
+          write(6,"(A)") "Calculating orbital energies..."
+          do i=1,nBasis
+               OrbE=CalcFockOrbEnergy(i,FDetTemp)
+               Arr(i,1)=real(OrbE,dp)
+               Brr(i)=i
+          enddo
+          write(6,"(A)") "Reordering basis by orbital energies..."
+          OrbOrder(:,:)=0
+          call ORDERBASIS(NBASIS,Arr,Brr,OrbOrder,nBasisMax,G1)
+          !However, we reorder them here
+          call writebasis(6,G1,nBasis,Arr,Brr)
+      endif
       E0HFDET=ECORE
       DO I=1,NEL
          E0HFDET=E0HFDET+ARR(NUHFDET(i),2)
@@ -900,6 +925,40 @@ END MODULE Determinants
          call decode_bit_det (nI, iLutnI)
          call write_det (nUnit, nI, lTerm)
       END
+
+      !Write out the determinant in bit notation
+      SUBROUTINE WriteDetBit(nUnit,iLutnI,lTerm)
+         use SystemData,only: nBasis
+         use bit_reps, only: nIfTot
+         use constants, only: n_int,bits_n_int
+         implicit none
+         integer, intent(in) :: nUnit
+         integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot)
+         logical, intent(in) :: lTerm
+         integer :: i
+
+         do i=1,nBasis-1
+             if(IsOcc(iLutnI,i)) then
+                 write(nUnit,"(A1)",advance='no') "1"
+             else
+                 write(nUnit,"(A1)",advance='no') "0"
+             endif
+         enddo
+         if(IsOcc(iLutnI,nBasis)) then
+             if(lTerm) then
+                 write(nUnit,"(A1)") "1"
+             else
+                 write(nUnit,"(A1)",advance='no') "1"
+             endif
+         else
+             if(lTerm) then
+                 write(nUnit,"(A1)") "0"
+             else
+                 write(nUnit,"(A1)",advance='no') "0"
+             endif
+         endif
+
+      END SUBROUTINE WriteDetBit
 
 ! Write bit-determinant NI to unit NUnit.  Set LTerm if to add a newline at end.  Also prints CSFs
       SUBROUTINE WriteBitEx(nUnit,iLutRef,iLutnI,lTerm)

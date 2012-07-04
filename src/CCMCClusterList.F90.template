@@ -1,16 +1,19 @@
 [int]
 type1=integer
 unity=1
+flr=floor
 size=8
 
 [doub]
 type1=real(dp)
-unity=1.d0
+unity=1.0_dp
+flr=
 size=8
 
 [btrp]
 type1=integer
 unity=1
+flr=floor
 size=8
 
 ===================
@@ -192,7 +195,8 @@ SUBROUTINE CalcClusterEnergy (tFCI,AL,iAmpList,nExcit,ExcitList,ExcitLevelIndex,
    iC=0
    dT1Sq=0
    do j=1,nExcit
-      do while(j.ge.ExcitLevelIndex(iC+1).or.ExcitLevelIndex(iC).eq.ExcitLevelIndex(iC+1))  !Need to take into account if (e.g.) singles are empty (FCIDI(0:3) = 1 2 2 3, we want j=2 to get to iC=2 not iC=1
+      do while(j.ge.ExcitLevelIndex(iC+1).or.ExcitLevelIndex(iC).eq.ExcitLevelIndex(iC+1))  
+      !Need to take into account if (e.g.) singles are empty (FCIDI(0:3) = 1 2 2 3, we want j=2 to get to iC=2 not iC=1
          iC=iC+1
       enddo
       CALL Decode_Bit_Det(DetCurr,ExcitList(:,j))
@@ -469,7 +473,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,
    if(CS%%tInitiators) call set_flag(ilutFlag,flag_parent_initiator(1))
    !This indicates it's going to be an initiator, but we can change that later by looking at the populations.
    if(CS%%tDynamic.and.CS%%iIndex.eq.0) then
-      CS%%nSelects=(dTotAbsAmpl+abs(dNorm))/nProcessors+1
+      CS%%nSelects=int((dTotAbsAmpl+abs(dNorm))/nProcessors+1,sizeof_int)
       CS%%nSelects=nint(CS%%nSelects*CS%%dRatio)
       IF(iDebug>2) write(6,*) "Setting #Selections: ",CS%%nSelects
    endif
@@ -569,7 +573,8 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,
                   k=k+1  !We're not allowed to choose the ref det.
                endif
             else
-               rt=r*dTotLocAbsAmpl
+               !To remove compiler warnings due to implicit type-checking
+               rt=%(flr)s(r*dTotLocAbsAmpl)
                dCurTot=0
                IFDEBUG(iDebug,7) Write(6,*) "Probability Threshold",rt
                call BinarySearch(rt,AL%%CumlAmplitude,1,nDet,k,tSuccess)
@@ -838,7 +843,7 @@ subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,dNorm,AL,iAmpList,nAmpl,dTol,Wal
 !   TotParts=0
 !   TotParts(1)=dTotExcitors*WalkerScale !TotParts indicates the total number of excitors
  
-    TotParts=nparts*WalkerScale  
+    TotParts=int(nparts*WalkerScale,int64) 
    if(iProcIndex.eq.root) then 
       TotWalkers=iNumExcitors+1  !TotWalkers indicates the total number of unique excitors with a population
    else

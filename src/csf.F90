@@ -2,6 +2,7 @@
 
 ! A new implementation file for csfs
 module csf
+    use constants, only: sizeof_int
     use systemdata, only: nel, brr, ecore, alat, nmsh, nbasismax, G1, nbasis,&
                           LMS, iSpinSkip, STOT, ECore, modk_offdiag
     use memorymanager, only: LogMemAlloc, LogMemDealloc
@@ -889,7 +890,7 @@ contains
             if (pos > nopen) exit
         !    write (6, '(i5)', advance='no') pos
 
-            det_pos = det_pos + choose(pos-1, i)
+            det_pos = det_pos + int(choose(pos-1, i),sizeof_int)
         enddo
     end function
 
@@ -1177,9 +1178,9 @@ contains
         ! This assumes that the passed yama array is the correct size, if
         ! it is too small, then the symbol will be truncated.
 
-        integer, intent(in), dimension(:) :: nI(nel)
+        integer, intent(in) :: nI(nel)
         integer, intent(in) :: nopen
-        integer, intent(out), dimension(:) :: yama(nopen)
+        integer, intent(out) :: yama(nopen)
         integer i, nclosed
 
         nclosed = nel - nopen
@@ -1326,7 +1327,7 @@ contains
         if ((nopen < 0) .or. (mod(nOpen+S, 2) /= 0))then
             ncsf = 0
         else
-            ncsf = (2*S + 2) * choose(nOpen, (nOpen+S)/2)
+            ncsf = (2*S + 2) * int(choose(nOpen, (nOpen+S)/2),sizeof_int)
             ncsf = ncsf / (nOpen + S + 2)
         endif
     end function
@@ -1385,7 +1386,7 @@ contains
         spins = csf_alpha_beta(spins, perm)
 
         ! How many dets were there to choose from?
-        no_dets = choose(nopen, nchoose)
+        no_dets = int(choose(nopen, nchoose),sizeof_int)
 
     end function
 

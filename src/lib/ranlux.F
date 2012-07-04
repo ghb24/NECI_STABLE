@@ -82,7 +82,7 @@ C!!! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       integer , SAVE :: NSKIP, IN24, KOUNT, MKOUNT, INSEED
       LOGICAL , save :: NOTYET
       DATA NOTYET, LUXLEV, IN24, KOUNT, MKOUNT /.TRUE., LXDFLT, 0,0,0/
-      DATA I24,J24,CARRY/24,10,0./
+      DATA I24,J24,CARRY/24,10,0.0_dp/
       integer :: IOUTER,INS,ILX,K2,K1,INOUT,LOUT,ISD,LUX,IVEC
       real(dp) :: UNI
 C                               default

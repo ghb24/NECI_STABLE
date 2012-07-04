@@ -17,7 +17,7 @@ C.. This is an approach based on Markov Chains
      &               NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &               NWHTAY,ILOGGING,ECORE, WLRI,WLSI)
          use global_utilities
-         use util_mod, only: isnan
+         use util_mod, only: isnan_neci
          use util_mod, only: NECI_ICOPY
          use constants, only: dp,sp
 !         IMPLICIT real(dp) (A-H,O-Z)
@@ -134,7 +134,7 @@ c            WRITE(6,*) I_V,F(I_V),TOTAL,get_total_time(proc_timer2),L,LT
             IF(TLOG)
      &         WRITE(11,"(I12,2G25.16,F19.7,I12,F19.7)")
      &            I_V,F(I_V),TOTAL,get_total_time(proc_timer2),L,STD
-            IF(ISNAN(F(I_V))) THEN
+            IF(ISNAN_neci(F(I_V))) THEN
 C.. save all log files
                ITIME=neci_etime(tarr)
                CALL FLUSH(11)
@@ -445,7 +445,6 @@ C.. If we cannot find a det that's connected, we give up
         real(dp) Beta,Brr(*),fck,ALAT(3),UMAT(*),RHOEPS,ECORE,WLRI,WLSI
         integer G1(*)
         character(*), parameter :: t_r="MCPATHSR5"
-
         call stop_all(t_r,"Routine depreciated. See mcpathsmcmc.F head")
       end subroutine MCPATHSR5
 
@@ -528,7 +527,8 @@ C.. If we cannot find a det that's connected, we give up
          LOGICAL LCANMOVE
          real(dp) WEIGHT,VALUE
          real(dp) WFUNC,VFUNC
-        character(*), parameter :: t_r="FMCPR5"
+         character(*), parameter :: t_r="FMCPR5"
+         FMCPR5=0.0_dp
         call stop_all(t_r,"Routine depreciated. See mcpathsmcmc.F head")
 
        END FUNCTION FMCPR5
