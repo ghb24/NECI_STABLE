@@ -543,7 +543,7 @@ contains
         integer(n_int) :: ilut_tmp(0:NIfTot)
 
         ! If we haven't initialised the generator, do that now.
-        if (.not. allocated(store%dorder)) then
+        if (.not. associated(store%dorder)) then
 
             ! Allocate dorder storage
             allocate(store%dorder(nel))
@@ -579,8 +579,10 @@ contains
 
         if (store%dorder(1) == -1) then
             deallocate(store%dorder)
+            nullify(store%dorder)
             !deallocate(store%open_indices)
             deallocate(store%open_orbs)
+            nullify(store%open_orbs)
             if (present(ilut_gen)) ilut_gen = 0
             !if (present(det)) det = 0
         else
