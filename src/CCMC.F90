@@ -229,7 +229,7 @@ MODULE CCMC
             HFcount=abs(TempSign(1))
         endif
 
-        allocate(iKillDetIndices(2,TotParts(1)*2))
+        allocate(iKillDetIndices(2,int(TotParts(1))*2))
 
         IFDEBUG(iDebug,2) THEN
          write(6,*) "HF det"
@@ -2911,6 +2911,7 @@ SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
       integer(int64) , dimension(lenof_sign) :: PopSumNoatHF
       integer nMaxAmpl,nAmpl,PopBlockingIter
       integer(int64) , dimension(lenof_sign) :: CurrParts
+      real(dp) , dimension(lenof_sign) :: RealCurrParts
       integer :: ReadBatch    !This parameter determines the length of the array to batch read in walkers from a popsfile
       HElement_t :: PopAllSumENum
       ReadBatch=nMaxAmpl
@@ -2922,9 +2923,9 @@ SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
       if(PopsVersion.lt.3)  then
 !Read in particles from multiple POPSFILES for each processor
          WRITE(6,*) "Reading in initial particle configuration from *OLD* POPSFILES..."
-         CurrParts(1)=nMaxAmpl 
+         CurrParts(1)=nMaxAmpl
          call ReadFromPopsfileOnly(DetList,CurrParts(1))
-         nAmpl=CurrParts(1)
+         nAmpl=int(CurrParts(1))
       else
          call open_pops_head(iunithead,formpops,binpops)
          if(PopsVersion.eq.3) then 
@@ -2944,7 +2945,8 @@ SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
                PopBlockingIter)
 
          if(iProcIndex.eq.root) close(iunithead)
-         call ReadFromPopsfile(iPopAllTotWalkers,ReadBatch,TotWalkers,CurrParts,NoatHF,DetList,nMaxAmpl)
+         RealCurrParts=real(CurrParts(1), dp)
+         call ReadFromPopsfile(iPopAllTotWalkers,ReadBatch,TotWalkers,RealCurrParts,NoatHF,DetList,nMaxAmpl)
          nAmpl=TotWalkers
          dNorm=NoatHF(1)
       endif

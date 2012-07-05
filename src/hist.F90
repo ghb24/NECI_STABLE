@@ -10,7 +10,7 @@ module hist
     use DetBitOps, only: count_open_orbs, EncodeBitDet, spatial_bit_det, &
                          DetBitEq, count_open_orbs, TestClosedShellDet, &
                          CalcOpenOrbs, IsAllowedHPHF
-    use CalcData, only: tFCIMC, tTruncInitiator
+    use CalcData, only: tFCIMC, tTruncInitiator, tCISDRealRef
     use DetCalcData, only: FCIDetIndex, det
     use FciMCData, only: tFlippedSign, TotWalkers, CurrentDets, iter, &
                          norm_psi_squared
@@ -320,8 +320,15 @@ contains
         integer :: PartInd, open_orbs
         integer(n_int) :: ilut_sym(0:NIfTot)
         real(dp) :: delta(lenof_sign)
+        real(dp) :: realsign(lenof_sign)
         logical :: tSuccess
         character(*), parameter :: t_r = 'add_hist_spawn'
+        
+        if (tCISDRealRef .and. (ExcitLevel .le. 2)) then
+            RealSign(:)=transfer(sgn(:), RealSign(:))
+        else
+            RealSign(:)=real(sgn(:),dp)
+        endif
 
         if (ExcitLevel == nel) then
             call BinSearchParts2 (ilut, HistMinInd(ExcitLevel), det, PartInd,&
@@ -342,7 +349,7 @@ contains
         endif
 
         if (tSuccess) then
-            delta = real(sgn(:), dp) / dProbFin
+            delta = real(RealSign(:), dp) / dProbFin
 
             if (tHPHF) then
                 call FindExcitBitDetSym (ilut, ilut_sym)
@@ -394,7 +401,7 @@ contains
 
     end subroutine
 
-    subroutine add_hist_energies (ilut, sgn, HDiag)
+    subroutine add_hist_energies (ilut, sgn, HDiag, ExcitLevel)
 
         ! This will histogram the energies of the particles, rather than the
         ! determinants themselves.
@@ -402,14 +409,22 @@ contains
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, dimension(lenof_sign), intent(in) :: sgn
         real(dp), intent(in) :: HDiag
+        integer, intent(in) :: ExcitLevel
+        real(dp), dimension(lenof_sign) :: RealSign
         integer :: bin
         character(*), parameter :: t_r = "add_hist_energies"
+        
+        if (tCISDRealRef .and. (ExcitLevel .le. 2)) then
+            RealSign(:)=transfer(sgn(:), RealSign(:))
+        else
+            RealSign(:)=real(sgn(:),dp)
+        endif
 
         bin = int(HDiag / BinRange) + 1
         if (bin > iNoBins) &
             call stop_all (t_r, "Histogramming energies higher than the &
                          &arrays can cope with. Increase iNoBins or BinRange")
-        HistogramEnergy(bin) = HistogramEnergy(bin) + real(sum(abs(sgn)),dp)
+        HistogramEnergy(bin) = HistogramEnergy(bin) + real(sum(abs(RealSign)),dp)
 
     end subroutine
 

@@ -382,12 +382,13 @@ module errors
         character(len=*), parameter :: t_r="read_fcimcstats"
         logical :: exists,tRefToZero
         integer :: eof,comments,i,ierr
-        integer :: iunit,doubs,WalkersDiffProc,change,Ann,Died,Born
+        integer :: iunit,WalkersDiffProc
+        real(dp) :: doubs,change,Ann,Died,Born, rewalkers
         real(dp) :: shift,rate,reproje,improje,reinstproje,iminstproje
         real(dp) :: AccRat,IterTime,FracFromSing,TotImagTime,HFShift,InstShift
         real(dp) :: denom,renum,imnum,normhf,norm_psi,curr_S2,Avshift,dud,tote
         real(dp) :: curr_S2_init,AbsProjE
-        integer(int64) :: TotDets,iters,rewalkers,imwalkers,validdata,datapoints
+        integer(int64) :: TotDets,iters,imwalkers,validdata,datapoints
         integer, dimension(lenof_sign) :: insthf
         
         !Open file (FCIMCStats or FCIQMCStats)
@@ -447,8 +448,8 @@ module errors
                         InstShift, &                                 !21.
                         denom     !24     |n0|^2  This is the denominator for both calcs
                 else
-                    read(iunit,"(I12,G16.7,I10,G16.7,I13,3I15,3G17.9,2I10,&
-                                          &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9)") &
+                    read(iunit,"(I12,G16.7,3G16.7,3G16.7,5G17.9,&
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5, 5G17.9)") &
                         Iters, &
                         shift, &
                         change, &

@@ -1,7 +1,7 @@
 #include "macros.h"
 module spin_project
     use SystemData, only: LMS, STOT, nel, nbasis, tHPHF
-    use CalcData, only: tau, tTruncInitiator
+    use CalcData, only: tau, tTruncInitiator, tCISDRealRef
     use SymExcitDataMod, only: scratchsize
     use bit_reps, only: NIfD, NIfTot, extract_sign, flag_is_initiator, &
                         flag_make_initiator, test_flag, set_flag, &
@@ -541,12 +541,13 @@ contains
 
     end subroutine generate_excit_spin_proj
 
-    function attempt_die_spin_proj (nI, Kii, wSign) result (ndie)
+    function attempt_die_spin_proj (nI, Kii, RealwSign, WalkExcitLevel) result (ndie)
 
         integer, intent(in) :: nI(nel)
-        integer, dimension(lenof_sign), intent(in) :: wSign
+        real(dp), dimension(lenof_sign), intent(in) :: RealwSign
         real(dp), intent(in) :: Kii
-        integer, dimension(lenof_sign) :: ndie
+        real(dp), dimension(lenof_sign) :: ndie
+        integer, intent(in) :: WalkExcitLevel
 
         real(dp) :: elem, r, rat, rUnused
         integer :: i
@@ -554,14 +555,14 @@ contains
         ! If we are not allowing death, or we are below the cutoff for 
         ! consideration, then the particle cannot die
         if (spin_proj_no_death .or. &
-            sum(abs(wSign(1:lenof_sign))) < spin_proj_cutoff) then
-            ndie = 0
+            sum(abs(realwSign(1:lenof_sign))) < spin_proj_cutoff) then
+            ndie = 0.0_dp
             return
         endif
 
         if (fcimc_excit_gen_store%nopen == STOT .or. &
             fcimc_excit_gen_store%nopen > spin_proj_nopen_max) then
-            ndie = 0
+            ndie = 0.0_dp
             return
         endif
 
@@ -574,17 +575,21 @@ contains
         elem = elem - 1 + spin_proj_shift
         elem = - elem * spin_proj_gamma
 
-        do i = 1, lenof_sign
-            rat = elem * abs(wSign(i))
-            
-            ndie(i) = int(rat)
-            rat = rat - real(ndie(i), dp)
-            !print*, 'RAT die', rat
+        if (tCISDRealRef .and. (WalkExcitLevel .le. 2)) then
+            ndie(1)=elem*abs(realwSign(1))
+        else
+            do i = 1, lenof_sign
+                rat = elem * abs(realwSign(i))
+                
+                ndie(i) = real(int(rat),dp)
+                rat = rat - real(ndie(i), dp)
+                !print*, 'RAT die', rat
 
-            ! Choose to die or not stochastically
-            r = genrand_real2_dSFMT()
-            if (abs(rat) > r) ndie(i) = ndie(i) + nint(sign(1.0_dp, rat))
-        enddo
+                ! Choose to die or not stochastically
+                r = genrand_real2_dSFMT()
+                if (abs(rat) > r) ndie(i) = ndie(i) + real(nint(sign(1.0_dp, rat)),dp)
+            enddo
+        endif
 
         ! Protect against compiler warnings
         rUnused = Kii

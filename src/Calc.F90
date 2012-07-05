@@ -240,7 +240,7 @@ contains
           iLogicalNodeSize = 0 !Meaning use the physical node size
 
           tCISDref=.false.
-          tCISDrefcalc=.false.
+          tCISDrealref=.false.
           tExplicitOutFlux=.false.
 
 !Feb 08 default set.
@@ -1451,10 +1451,12 @@ contains
                 !ie, flux from CISD wavefunction onto triples and quadruples
                 tExplicitOutFlux=.true.
 
-            case("CISDRefCalc")
-                tCisdRefCalc=.true.
-                ICILEVEL=2
-                !This calculation is the CISD reference calculation
+            case("CISDRealRef")
+                tCisdRealRef=.true.
+                !We're running either the CISD reference calculation, or the residual calculation using a CISD reference
+                !In either case, we wish the Coefficients at doubles or below to be stored as reals rather than integers
+                !if tCisdRef=.true. then we're doing the residual calc
+                !if tCISDRef=.false. then we're doing the CISD calc (needs EXCITE 2 inputted elsewhere)
 
             case default
                 call report("Keyword "                                &

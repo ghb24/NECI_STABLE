@@ -31,8 +31,8 @@ MODULE PopsfileMod
         integer(int64) , intent(in) :: EndPopsList  !Number of entries in the POPSFILE.
         integer , intent(in) :: ReadBatch       !Size of the batch of determinants to read in in one go.
         integer(int64) , intent(out) :: CurrWalkers64    !Number of determinants which end up on a given processor.
-        integer(int64) , dimension(lenof_sign) , intent(out) :: CurrParts
-        integer , dimension(lenof_sign) , intent(out) :: CurrHF
+        real(dp), dimension(lenof_sign) , intent(out) :: CurrParts
+        real(dp) , dimension(lenof_sign) , intent(out) :: CurrHF
         integer :: CurrWalkers,Slot,nJ(nel)
         integer :: iunit,i,j,ierr,PopsInitialSlots(0:nNodes-1)
         INTEGER(TagIntType) :: BatchReadTag=0
@@ -45,6 +45,7 @@ MODULE PopsfileMod
         integer(int64) :: Det,AllCurrWalkers,TempCurrWalkers
         logical :: FormPops,BinPops,tReadAllPops,tStoreDet
         integer , dimension(lenof_sign) :: SignTemp
+        real(dp) , dimension(lenof_sign) :: RealSignTemp
         integer :: TempNI(NEl),nBatches,PopsVersion
         character(len=*) , parameter :: this_routine='ReadFromPopsfile'
         HElement_t :: HElemTemp
@@ -126,8 +127,8 @@ MODULE PopsfileMod
             CALL LogMemAlloc('BatchRead',MaxSendIndex*(NIfTot+1),size_n_int,this_routine,BatchReadTag,ierr)
         endif
 
-        CurrHF=0        !Number of HF walkers on each node.
-        CurrParts=0     !Number of walkers on each node.
+        CurrHF=0.0_dp        !Number of HF walkers on each node.
+        CurrParts=0.0     !Number of walkers on each node.
         CurrWalkers=0   !Number of determinants on each node.
         nBatches=0      !Number of batches of walkers it takes to distribute popsfile.
         Det=1
@@ -226,12 +227,16 @@ MODULE PopsfileMod
         do i=1,CurrWalkers
 !            WRITE(6,*) i,Dets(:,i)
             call extract_sign(Dets(:,i),SignTemp)
-            CurrParts=CurrParts+abs(SignTemp)
+            RealSignTemp=transfer(SignTemp,RealSignTemp)
+            CurrParts=CurrParts+abs(RealSignTemp)
             if(DetBitEQ(Dets(:,i),iLutRef,NIfDBO)) then
                 if(CurrHF(1).ne.0) then
                     call stop_all(this_routine,"HF already found, but shouldn't have")
                 endif
-                CurrHF=CurrHF+SignTemp 
+                CurrHF=CurrHF+real(RealSignTemp,dp)
+                !Note, this value of CurrHF will not be correct if tCISDRealRef,
+                !But it doesn't matter, as this value gets wiped immediately
+                ! in the residual calculation
                 IF(.not.tRegenDiagHEls) CurrentH(i)=0.D0
             else
                 if(.not.tRegenDiagHEls) THEN
@@ -678,6 +683,7 @@ MODULE PopsfileMod
         CHARACTER(len=*) , PARAMETER :: this_routine='WriteToPopsfileParOneArr'
         character(255) :: popsfile
         INTEGER, DIMENSION(lenof_sign) :: TempSign
+        REAL(dp), DIMENSION(lenof_sign) :: RealTempSign
 
         CALL MPIBarrier(error)  !sync
 !        WRITE(6,*) "Get Here",nDets
@@ -703,7 +709,8 @@ MODULE PopsfileMod
             Writeoutdet=0
             do i=1,nDets
                 call extract_sign(Dets(:,i),TempSign)
-                if(.not.IsUnoccDet(TempSign)) then
+                RealTempSign=transfer(TempSign,RealTempSign)
+                if(.not.IsUnoccDet(RealTempSign)) then
                     !Count this det in AllTotWalkers
                     Writeoutdet=Writeoutdet+1
                 endif
@@ -815,7 +822,8 @@ MODULE PopsfileMod
 !                    write(6,*) j,nDets
 !                    call flush(6)
                     call extract_sign(Dets(:,j),TempSign)
-                    if(IsUnoccDet(TempSign)) cycle
+                    RealTempSign=transfer(TempSign,RealTempSign)
+                    if(IsUnoccDet(RealTempSign)) cycle
                     IF(mod(j,iPopsPartEvery).eq.0) THEN
                         WRITE(iunit) Dets(0:NIfTot,j)!,TempSign(:)
                     ENDIF
@@ -824,7 +832,8 @@ MODULE PopsfileMod
                 do j=1,nDets
 !First write out walkers on head node
                     call extract_sign(Dets(:,j),TempSign)
-                    if(IsUnoccDet(TempSign)) cycle
+                    RealTempSign=transfer(TempSign,RealTempSign)
+                    if(IsUnoccDet(RealTempSign)) cycle
                     IF(mod(j,iPopsPartEvery).eq.0) THEN
                         do k=0,NIfTot-1
                             WRITE(iunit,"(I24)",advance='no') Dets(k,j)
@@ -859,7 +868,8 @@ MODULE PopsfileMod
 !                        write(6,*) j,WalkersonNodes(i)
 !                        call flush(6)
                         call extract_sign(Parts(:,j),TempSign)
-                        if(IsUnoccDet(TempSign)) cycle
+                        RealTempSign=transfer(TempSign,RealTempSign)
+                        if(IsUnoccDet(RealTempSign)) cycle
                         IF(mod(j,iPopsPartEvery).eq.0) THEN
 !                            call extract_sign(Parts(:,j),TempSign)
                             WRITE(iunit) Parts(0:NIfTot,j)!,TempSign(:)
@@ -868,7 +878,8 @@ MODULE PopsfileMod
                 ELSE
                     do j=1,WalkersonNodes(i)
                         call extract_sign(Parts(:,j),TempSign)
-                        if(IsUnoccDet(TempSign)) cycle
+                        RealTempSign=transfer(TempSign,RealTempSign)
+                        if(IsUnoccDet(RealTempSign)) cycle
                         IF(mod(j,iPopsPartEvery).eq.0) THEN
                             do k=0,NIfTot-1
                                 WRITE(iunit,"(I24)",advance='no') Parts(k,j)
@@ -913,7 +924,7 @@ MODULE PopsfileMod
         use constants, only: size_n_int,bits_n_int
         LOGICAL :: exists,tBinRead
         INTEGER :: AvWalkers,WalkerstoReceive(nProcessors)
-        integer(int64) :: NodeSumNoatHF(nProcessors)
+        Real(dp) :: NodeSumNoatHF(nProcessors)
         integer(int64) :: TempTotParts(lenof_sign),TempCurrWalkers
         INTEGER :: TempInitWalkers,error,i,j,l,total,ierr,MemoryAlloc,Tag,Proc,CurrWalkers,ii
         INTEGER , DIMENSION(lenof_sign) :: TempSign
@@ -936,7 +947,7 @@ MODULE PopsfileMod
         PreviousCycles=0    !Zero previous cycles
         SumENum=0.D0
         TotParts=0
-        SumNoatHF=0
+        SumNoatHF=0.0_dp
         DiagSft=0.D0
         Tag=124             !Set Tag
         
@@ -1069,9 +1080,9 @@ MODULE PopsfileMod
             SumENum=AllSumENum/REAL(nProcessors,dp)     !Divide up the SumENum over all processors
             AvSumNoatHF = AllSumNoatHF(1)/nProcessors !This is the average Sumnoathf
             do i=1,nProcessors-1
-                NodeSumNoatHF(i)=INT(AvSumNoatHF,int64)
+                NodeSumNoatHF(i)=real(INT(AvSumNoatHF,int64),dp)
             enddo
-            NodeSumNoatHF(nProcessors)=AllSumNoatHF(1)-INT((AvSumNoatHF*(nProcessors-1)),int64)
+            NodeSumNoatHF(nProcessors)=real(AllSumNoatHF(1)-INT((AvSumNoatHF*(nProcessors-1)),int64),dp)
 
             ProjectionE=AllSumENum/real(AllSumNoatHF(1),dp)
                 
@@ -1434,9 +1445,11 @@ MODULE PopsfileMod
         integer(int64),intent(inout) :: nDets !The number of occupied entries in Dets
         integer(kind=n_int),intent(out) :: Dets(0:nIfTot,1:nDets)
         LOGICAL :: exists,tBinRead
-        integer(int64) :: TempTotParts(lenof_sign),TempCurrWalkers
+        integer(int64) :: TempCurrWalkers
+        REAL(dp) :: TempTotParts(lenof_sign)
         INTEGER :: TempInitWalkers,error,i,j,l,total,ierr,MemoryAlloc,Tag,Proc,CurrWalkers,ii
         INTEGER , DIMENSION(lenof_sign) :: TempSign
+        REAL(dp) , DIMENSION(lenof_sign) :: RealTempSign
         integer(int64) :: iLutTemp64(0:nBasis/64+1)
         INTEGER :: iLutTemp32(0:nBasis/32+1)
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
@@ -1456,7 +1469,7 @@ MODULE PopsfileMod
         PreviousCycles=0    !Zero previous cycles
         SumENum=0.D0
         TotParts=0
-        SumNoatHF=0
+        SumNoatHF=0.0_dp
         DiagSft=0.D0
         Tag=124             !Set Tag
         
@@ -1789,7 +1802,8 @@ MODULE PopsfileMod
         TotParts=0
         do j=1,nDets
             call extract_sign(Dets(:,j),TempSign)
-            TotParts=TotParts+abs(TempSign(1))
+            RealTempSign=transfer(TempSign, RealTempSign)
+            TotParts=TotParts+abs(RealTempSign(1))
         enddo
 
         TempTotParts=TotParts

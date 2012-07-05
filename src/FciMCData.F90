@@ -45,15 +45,16 @@ MODULE FciMCData
 
       INTEGER :: NoAbortedInCAS,NoAbortedOutCAS,NoInCAS,NoOutCAS,HighPopNeg,HighPopPos,MaxInitPopNeg,MaxInitPopPos
 
-    integer(int64) :: NoAborted, NoAddedInitiators, NoInitDets, NoNonInitDets
+    real(dp) :: NoAborted, AllNoAborted, AllNoAbortedOld
+    integer(int64) :: NoAddedInitiators, NoInitDets, NoNonInitDets
     integer(int64) :: NoInitWalk, NoNonInitWalk
     integer(int64) :: NoExtraInitDoubs, InitRemoved
     integer :: no_spatial_init_dets
 
-    integer(int64) :: AllNoAborted, AllNoAddedInitiators, AllNoInitDets
+    integer(int64) :: AllNoAddedInitiators, AllNoInitDets
     integer(int64) :: AllNoNonInitDets, AllNoInitWalk, AllNoNonInitWalk
     integer(int64) :: AllNoExtraInitDoubs, AllInitRemoved
-    integer(int64) :: AllNoAbortedOld, AllGrowRateAbort
+    integer(int64) :: AllGrowRateAbort
 
       LOGICAL :: tHFInitiator,tPrintHighPop, tcurr_initiator
       logical :: tHashWalkerList    !Option to store occupied determinant in a hash table
@@ -72,8 +73,8 @@ MODULE FciMCData
 
       INTEGER :: MaxWalkersPart,PreviousNMCyc,Iter,NoComps,MaxWalkersAnnihil
       integer(int64) :: TotWalkers, TotWalkersOld
-      integer(int64), dimension(lenof_sign) :: TotParts, TotPartsOld
-      integer(int64) :: norm_psi_squared
+      real(dp), dimension(lenof_sign) :: TotParts, TotPartsOld
+      real(dp) :: norm_psi_squared
       real(dp) :: norm_psi
       INTEGER :: exFlag=3
       
@@ -97,20 +98,20 @@ MODULE FciMCData
       ! The magnitude of each contribution is taken before it is summed in
       HElement_t :: AbsProjE
 
-      integer(int64), dimension(lenof_sign) :: SumNoatHF      !This is the sum over all previous cycles of the number of particles at the HF determinant
+      real(dp), dimension(lenof_sign) :: SumNoatHF !This is the sum over all previous cycles of the number of particles at the HF determinant
       real(dp) :: AvSign           !This is the average sign of the particles on each node
       real(dp) :: AvSignHFD        !This is the average sign of the particles at HF or Double excitations on each node
       INTEGER(KIND=int64) :: SumWalkersCyc    !This is the sum of all walkers over an update cycle on each processor
-      INTEGER :: Annihilated      !This is the number annihilated on one processor
-      INTEGER, DIMENSION(lenof_sign) :: NoatHF           !This is the instantaneous number of particles at the HF determinant
-      INTEGER :: NoatDoubs
+      Real(dp) :: Annihilated      !This is the number annihilated on one processor
+      REAL(dp), DIMENSION(lenof_sign) :: NoatHF           !This is the instantaneous number of particles at the HF determinant
+      REAL(dp) :: NoatDoubs
       INTEGER :: Acceptances      !This is the number of accepted spawns - this is only calculated per node.
       real(dp) :: AccRat            !Acceptance ratio for each node over the update cycle
       INTEGER :: PreviousCycles   !This is just for the head node, so that it can store the number of previous cycles when reading from POPSFILE
-      INTEGER :: NoBorn,NoDied
+      REAL(dp) :: NoBorn,NoDied
       INTEGER :: SpawnFromSing  !These will output the number of particles in the last update cycle which have been spawned by a single excitation.
       INTEGER :: AllSpawnFromSing
-      INTEGER, DIMENSION(lenof_sign) :: HFCyc            !This is the number of HF*sign particles on a given processor over the course of the update cycle
+      REAL(dp), DIMENSION(lenof_sign) :: HFCyc            !This is the number of HF*sign particles on a given processor over the course of the update cycle
       HElement_t :: AllHFCyc          !This is the sum of HF*sign particles over all processors over the course of the update cycle
       HElement_t :: OldAllHFCyc       !This is the old *average* (not sum) of HF*sign over all procs over previous update cycle
       HElement_t :: ENumCyc           !This is the sum of doubles*sign*Hij on a given processor over the course of the update cycle
@@ -121,23 +122,25 @@ MODULE FciMCData
       ! The projected energy over the current update cycle.
       HElement_t :: ProjECyc
 
-      integer :: iPartBloom   ! The maximum number of children spawned from a
+      real(dp) :: iPartBloom   ! The maximum number of children spawned from a
                               ! single excitation. Used to calculate blooms.
 
 !These are the global variables, calculated on the root processor, from the values above
       real(dp) :: AllGrowRate
       integer(int64) :: AllTotWalkers, AllTotWalkersOld
-      integer(int64), dimension(lenof_sign) :: AllTotParts, AllTotPartsOld
-      integer(int64), dimension(lenof_sign) :: AllSumNoatHF
+      real(dp), dimension(lenof_sign) :: AllTotParts, AllTotPartsOld
+      real(dp), dimension(lenof_sign) :: AllSumNoatHF
       INTEGER(KIND=int64) :: AllSumWalkersCyc
       real(dp) :: OldAllAvWalkersCyc    !This is the average number of walkers each iteration over the previous update cycle
-      INTEGER :: AllAnnihilated,AllNoatDoubs
-      INTEGER, DIMENSION(lenof_sign) :: AllNoatHF
+      REAL(dp) :: AllAnnihilated
+      REAL(dp) :: AllNoAtDoubs
+      REAl(dp), DIMENSION(lenof_sign) :: AllNoatHF
       HElement_t :: sum_proje_denominator, &
                         cyc_proje_denominator, all_cyc_proje_denominator, &
                         all_sum_proje_denominator
       real(dp) :: AllAvSign,AllAvSignHFD
-      INTEGER :: AllNoBorn,AllNoDied,MaxSpawned
+      INTEGER :: MaxSpawned
+      REAL(dp) :: AllNoBorn,AllNoDied
 
       HElement_t :: AllSumENum
   
@@ -222,7 +225,7 @@ MODULE FciMCData
 
       real(dp) :: HFShift     !A 'shift'-like value for the total energy which is taken from the growth of walkers on the HF determinant.
       real(dp) :: InstShift   !An instantaneous value for the shift from the growth of walkers.
-      INTEGER, DIMENSION(lenof_sign) :: OldAllNoatHF
+      REAL(dp), DIMENSION(lenof_sign) :: OldAllNoatHF
 
       INTEGER :: iHFProc    !Processor index for HF determinant
 
@@ -240,13 +243,13 @@ MODULE FciMCData
       INTEGER, ALLOCATABLE :: CISDref(:,:)
       Integer :: NumQuadEntries, NumDoubEntries !The number of non-zero ext and int CISD flux components
       Integer :: SortedQuadEntries, UnsortedQuadEntries, SortedDoubEntries, UnsortedDoubEntries 
-      Integer :: CISDHFPop, CISDHFCoeff !Population on the HF determinant in the CISD wavefunction - for use in proje calculation
+      Real(dp) :: CISDHFPop, CISDHFCoeff !Population on the HF determinant in the CISD wavefunction - for use in proje calculation
       INTEGER(kind=n_int), ALLOCATABLE :: CISDTotFlux(:,:)
       INTEGER(kind=n_int), ALLOCATABLE :: CISDIntFlux(:,:), CISDOutFlux(:,:)
-      INTEGER(kind=n_int), ALLOCATABLE :: CISDIntFluxPosition(:,:), CISDOutFluxPosition(:,:)
       REAL(dp) :: CISDProjEContrib, CISDProjEContribAbs
       REAL(dp) :: AllCISDProjEContrib, AllCISDProjEContribAbs
-      INTEGER :: TotCISDWalkers, AllTotCISDWalkers
+      REAL(dp) :: TotCISDWalkers, AllTotCISDWalkers
+      LOGICAL :: tFinalWalker  !The last walker on this determinant - spawn this one with a fractional population
       INTEGER :: TotWalkersCombinedCyc, AllTotWalkersCombinedCyc
       INTEGER :: NumUpdateCycles
       LOGICAL :: tStaticFluxTerm, blank_det
