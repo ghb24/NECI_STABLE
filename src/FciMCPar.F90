@@ -4237,9 +4237,11 @@ MODULE FciMCParMod
                     exit
                 endif
             enddo
-            if(tAlreadyOcc) call stop_all(t_r,"Cannot automatically detect open-shell determinant for reference to use with odd S")
+            if(tAlreadyOcc)     &
+                call stop_all(t_r,"Cannot automatically detect open-shell determinant for reference to use with odd S")
             call EncodeBitDet(HFDet,iLutHF)
-            if(TestClosedShellDet(iLutHF)) call stop_all(t_r,"Fail to create open-shell determinant for reference to use with odd S")
+            if(TestClosedShellDet(iLutHF))  &
+                call stop_all(t_r,"Fail to create open-shell determinant for reference to use with odd S")
             write(6,*) "Reference determinant changed to the open-shell:"
             call write_det(iout,HFDet,.true.)
         endif
