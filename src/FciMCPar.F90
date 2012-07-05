@@ -4100,7 +4100,7 @@ MODULE FciMCParMod
 
     SUBROUTINE SetupParameters()
         use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tROHF,tFindCINatOrbs,nOccBeta,nOccAlpha,tUHF
-        use SystemData, only : tBrillouinsDefault,ECore,tNoSingExcits
+        use SystemData, only : tBrillouinsDefault,ECore,tNoSingExcits,tOddS_HPHF
         USE dSFMT_interface , only : dSFMT_init
         use CalcData, only: G_VMC_Seed, &
                             MemoryFacPart, MemoryFacAnnihil, TauFactor, &
@@ -4108,6 +4108,7 @@ MODULE FciMCParMod
                             MaxWalkerBloom
         use Determinants , only : GetH0Element3,GetH0Element4
         use SymData , only : SymLabelList,SymLabelCounts,TwoCycleSymGens
+        use DeterminantData , only : write_det
         use Logging , only : tTruncRODump,tCalcVariationalEnergy,tDiagAllSpaceEver
         use DetCalcData, only : NMRKS,tagNMRKS,FCIDets
         use SymExcit3, only : CountExcitations3 
@@ -4117,15 +4118,15 @@ MODULE FciMCParMod
         use sym_mod
         use HElem
         INTEGER :: ierr,i,j,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate
-        INTEGER :: HFConn,LargestOrb,nBits,HighEDet(NEl)
+        INTEGER :: HFConn,LargestOrb,nBits,HighEDet(NEl),orb
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
         HElement_t :: TempHii
         TYPE(BasisFn) HFSym
         real(dp) :: TotDets,SymFactor,r,Gap,UpperTau
-        CHARACTER(len=*), PARAMETER :: this_routine='SetupParameters'
+        CHARACTER(len=*), PARAMETER :: t_r='SetupParameters'
         CHARACTER(len=12) :: abstr
-        LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped
-        INTEGER :: HFLz,ChosenOrb,KPnt(3), step,FindProjEBins
+        LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped,tAlreadyOcc
+        INTEGER :: HFLz,ChosenOrb,KPnt(3), step,FindProjEBins,SymFinal
         integer(int64) :: ExcitLevPop,SymHF
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
@@ -4199,20 +4200,55 @@ MODULE FciMCParMod
 
 !Store information specifically for the HF determinant
         ALLOCATE(HFDet(NEl),stat=ierr)
-        CALL LogMemAlloc('HFDet',NEl,4,this_routine,HFDetTag)
+        CALL LogMemAlloc('HFDet',NEl,4,t_r,HFDetTag)
         ALLOCATE(iLutHF(0:NIfTot),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutHF")
+        IF(ierr.ne.0) CALL Stop_All(t_r,"Cannot allocate memory for iLutHF")
 
         do i=1,NEl
             HFDet(i)=FDet(i)
         enddo
         CALL EncodeBitDet(HFDet,iLutHF)
 
+        if(tHPHF.and.TestClosedShellDet(iLutHF).and.tOddS_HPHF.and.TwoCycleSymGens) then
+            !This is not a compatible reference function.
+            !Create single excitation of the correct symmetry
+            !Use this as the reference.
+            write(6,"(A)") "Converging to ODD S eigenstate"
+
+            SymFinal = int((G1(HFDet(nel))%Sym%S),sizeof_int)+1
+
+            do i=SymLabelCounts(1,SymFinal),SymLabelCounts(1,SymFinal)+SymLabelCounts(2,SymFinal)-1
+                if(G1(HFDet(nel))%Ms.eq.-1) then
+                    !Choose beta ones
+                    orb=(2*SymLabelList(i))-1
+                else
+                    orb=(2*SymLabelList(i))
+                endif
+                tAlreadyOcc=.false.
+                do j=1,nel
+                    if(orb.eq.HFDet(j)) then
+                        tAlreadyOcc=.true.
+                        exit
+                    endif
+                enddo
+                if(.not.tAlreadyOcc) then
+                    HFDet(nel) = orb
+                    call sort(HFDet)
+                    exit
+                endif
+            enddo
+            if(tAlreadyOcc) call stop_all(t_r,"Cannot automatically detect open-shell determinant for reference to use with odd S")
+            call EncodeBitDet(HFDet,iLutHF)
+            if(TestClosedShellDet(iLutHF)) call stop_all(t_r,"Fail to create open-shell determinant for reference to use with odd S")
+            write(6,*) "Reference determinant changed to the open-shell:"
+            call write_det(iout,HFDet,.true.)
+        endif
+
         !iLutRef is the reference determinant for the projected energy.
         !Initially, it is chosen to be the same as the inputted reference determinant
         ALLOCATE(iLutRef(0:NIfTot),stat=ierr)
         ALLOCATE(ProjEDet(NEl),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutRef")
+        IF(ierr.ne.0) CALL Stop_All(t_r,"Cannot allocate memory for iLutRef")
         
         ! The reference / projected energy determinants are the same as the
         ! HF determinant.
@@ -4239,7 +4275,7 @@ MODULE FciMCParMod
                 tSpinCoupProjE=.false.
             endif
             if(tMomInv) then
-                call stop_all(this_routine,"Cannot currently have MomInv and HPHF functions. If this is important, bug ghb")
+                call stop_all(t_r,"Cannot currently have MomInv and HPHF functions. If this is important, bug ghb")
             endif
         elseif(tMomInv) then
             if(tAntisym_MI) then
@@ -4291,21 +4327,21 @@ MODULE FciMCParMod
             IF(HFDetTest(i).ne.HFDet(i)) THEN
                 WRITE(iout,*) "HFDet: ",HFDet(:)
                 WRITE(iout,*) "HFDetTest: ",HFDetTest(:)
-                CALL Stop_All(this_routine,"HF Determinant incorrectly decoded.")
+                CALL Stop_All(t_r,"HF Determinant incorrectly decoded.")
             ENDIF
         enddo
         CALL LargestBitSet(iLutHF,NIfD,LargestOrb)
         IF(LargestOrb.ne.HFDet(NEl)) THEN
-            CALL Stop_All(this_routine,"LargestBitSet FAIL")
+            CALL Stop_All(t_r,"LargestBitSet FAIL")
         ENDIF
         nBits = CountBits(iLutHF, NIfD, NEl)
         IF(nBits.ne.NEl) THEN
-            CALL Stop_All(this_routine,"CountBits FAIL")
+            CALL Stop_All(t_r,"CountBits FAIL")
         ENDIF
 
         IF(tCheckHighestPop) THEN
             ALLOCATE(HighestPopDet(0:NIfTot),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for HighestPopDet")
+            IF(ierr.ne.0) CALL Stop_All(t_r,"Cannot allocate memory for HighestPopDet")
             HighestPopDet(:)=0
         ENDIF
 
@@ -4377,7 +4413,7 @@ MODULE FciMCParMod
         WRITE(iout,"(A,I10)") "Symmetry of reference determinant from spin orbital symmetry info is: ",SymHF
         if(SymHF.ne.HFSym%Sym%S) then
             !When is this allowed to happen?! Comment!!
-            call warning_neci(this_routine,"Inconsistency in the symmetry arrays. Beware.")
+            call warning_neci(t_r,"Inconsistency in the symmetry arrays. Beware.")
         endif
         IF(tKPntSym) THEN
             CALL DecomposeAbelianSym(HFSym%Sym%S,KPnt)
@@ -4446,7 +4482,7 @@ MODULE FciMCParMod
             if(tMolpro) then
                 if((NMCyc.eq.-1).and.(.not.tTimeExit)) then
                     !No iteration number, or TIME option has been specified.
-                    call warning_neci(this_routine,          &
+                    call warning_neci(t_r,          &
                     "No iteration number specified. Only running for 100 iterations initially. Change with ITERATIONS option.")
                     NMCyc=100   !Only run for 100 iterations.
                 elseif(tTimeExit.and.(NMCyc.eq.-1)) then
@@ -4456,7 +4492,7 @@ MODULE FciMCParMod
                 elseif((.not.tTimeExit).and.(NMCyc.gt.0)) then
                     write(iout,"(A,I15,A)") "Running FCIQMC for ",NMCyc," iterations."
                 else
-                    call stop_all(this_routine,"Iteration number/Time unknown for simulation - contact ghb")
+                    call stop_all(t_r,"Iteration number/Time unknown for simulation - contact ghb")
                 endif
             endif
         else
@@ -4469,7 +4505,7 @@ MODULE FciMCParMod
         ! --> Create a random mapping for the orbitals 
         ALLOCATE(RandomHash(nBasis),stat=ierr)
         IF(ierr.ne.0) THEN
-            CALL Stop_All(this_routine,"Error in allocating RandomHash")
+            CALL Stop_All(t_r,"Error in allocating RandomHash")
         ENDIF
         RandomHash(:)=0
         if(tHashWalkerList) then
@@ -4477,7 +4513,7 @@ MODULE FciMCParMod
             !correlations between the two
             ALLOCATE(RandomHash2(nBasis),stat=ierr)
             IF(ierr.ne.0) THEN
-                CALL Stop_All(this_routine,"Error in allocating RandomHash2")
+                CALL Stop_All(t_r,"Error in allocating RandomHash2")
             ENDIF
             RandomHash2(:)=0
         endif
@@ -4546,20 +4582,20 @@ MODULE FciMCParMod
             endif
             do i=1,nBasis
                 IF((RandomHash(i).eq.0).or.(RandomHash(i).gt.nBasis*1000)) THEN
-                    CALL Stop_All(this_routine,"Random Hash incorrectly calculated")
+                    CALL Stop_All(t_r,"Random Hash incorrectly calculated")
                 ENDIF
                 if(tHashWalkerList) then
                     IF((RandomHash2(i).eq.0).or.(RandomHash2(i).gt.nBasis*1000)) THEN
-                        CALL Stop_All(this_routine,"Random Hash 2 incorrectly calculated")
+                        CALL Stop_All(t_r,"Random Hash 2 incorrectly calculated")
                     ENDIF
                 endif
                 do j = i+step, nBasis, step
                     IF(RandomHash(i).eq.RandomHash(j)) THEN
-                        CALL Stop_All(this_routine,"Random Hash incorrectly calculated")
+                        CALL Stop_All(t_r,"Random Hash incorrectly calculated")
                     ENDIF
                     if(tHashWalkerList) then
                         IF(RandomHash2(i).eq.RandomHash2(j)) THEN
-                            CALL Stop_All(this_routine,"Random Hash 2 incorrectly calculated")
+                            CALL Stop_All(t_r,"Random Hash 2 incorrectly calculated")
                         ENDIF
                     endif
                 enddo
@@ -4651,7 +4687,7 @@ MODULE FciMCParMod
             ENDIF
 !            tRotatedOrbs=.true.
 !        ELSEIF(LMS.ne.0) THEN
-!            CALL Stop_All(this_routine,"Ms not equal to zero, but tSpn is false. Error here")
+!            CALL Stop_All(t_r,"Ms not equal to zero, but tSpn is false. Error here")
         ENDIF
 
         if(tSplitProjEHist) then
@@ -4765,7 +4801,7 @@ MODULE FciMCParMod
             enddo
 
             IF(.not.allocated(FCIDets)) THEN
-                CALL Stop_All(this_routine,"A Full Diagonalization is required before histogramming can occur.")
+                CALL Stop_All(t_r,"A Full Diagonalization is required before histogramming can occur.")
             ENDIF
 
             IF(tHistHamil) THEN
@@ -4965,13 +5001,13 @@ MODULE FciMCParMod
 
         IF(TPopsFile) THEN
             IF(mod(iWritePopsEvery,StepsSft).ne.0) then
-                CALL Warning_neci(this_routine,"POPSFILE writeout should be a multiple of the update cycle length.")
+                CALL Warning_neci(t_r,"POPSFILE writeout should be a multiple of the update cycle length.")
             endif
         ENDIF
 
         if (TReadPops) then
             if (tStartSinglePart .and. .not. tReadPopsRestart) then
-                call warning_neci(this_routine, &
+                call warning_neci(t_r, &
                                "ReadPOPS cannot work with StartSinglePart: ignoring StartSinglePart")
                 tStartSinglePart = .false.
             end if
