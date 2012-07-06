@@ -7,7 +7,8 @@ MODULE HPHFRandExcitMod
 ![ P(i->a) + P(i->b) + P(j->a) + P(j->b) ]/2
 !We therefore need to find the excitation matrix between the determinant which wasn't excited and the determinant which was created.
 
-    use SystemData, only: nel, tCSF, Alat, G1, nbasis, nbasismax, nmsh, arr, tOddS_HPHF
+    use SystemData, only: nel, tCSF, Alat, G1, nbasis, nbasismax, nmsh, arr, &
+                          tOddS_HPHF, modk_offdiag
     use IntegralsData, only: UMat, fck, nMax
     use SymData, only: nSymLabels
     use dSFMT_interface, only : genrand_real2_dSFMT
@@ -182,6 +183,7 @@ MODULE HPHFRandExcitMod
                         HEl=MatEl*SQRT(2.D0)
                     endif
                 ENDIF
+                if (IC /= 0 .and. modk_offdiag) hel = -abs(hel)
             ENDIF
         ELSE
 !Open shell excitation - could we have generated the spin-coupled determinant instead?
@@ -282,6 +284,7 @@ MODULE HPHFRandExcitMod
                         HEl=MatEl
                     
                     ENDIF   !Endif from open/closed shell det
+                    if (IC /= 0 .and. modk_offdiag) hel = -abs(hel)
 
                 ENDIF   !Endif want to generate matrix element
 
@@ -321,6 +324,7 @@ MODULE HPHFRandExcitMod
                     ENDIF
 
                     HEl=MatEl
+                    if (IC /= 0 .and. modk_offdiag) hel = -abs(hel)
                         
                 ENDIF
 
