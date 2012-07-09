@@ -29,6 +29,7 @@ logical :: tReadPopsRestart, tReadPopsChangeRef, tInstGrowthRate
 logical :: tCISDref !Start from a CISD popsfile, and conduct a calculation for the residual wavefunction
 logical :: tCISDrealref !Use real coeffs for the CISD space
 logical :: tAllRealCoeff
+logical :: tEnhanceRemainder
 logical :: tExplicitOutFlux
 logical :: tStartCAS    !Start FCIMC dynamic with walkers distributed according to CAS diag.
 logical :: tPopsMapping !Map popsfile from smaller basis onto larger basis

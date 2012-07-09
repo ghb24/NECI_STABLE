@@ -11,7 +11,7 @@ MODULE AnnihilationMod
                          ilut_gt
     use spatial_initiator, only: add_initiator_list, rm_initiator_list, &
                                  is_spatial_init
-    use CalcData , only : tTruncInitiator, tSpawnSpatialInit
+    use CalcData , only : tTruncInitiator, tSpawnSpatialInit, tEnhanceRemainder
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use sort_mod
@@ -885,7 +885,7 @@ MODULE AnnihilationMod
                             RealSignTemp(j) = 0.0_dp
                             SignTemp(j)=transfer(RealSignTemp(j), SignTemp(j))
                             call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
-                        else
+                        elseif (tEnhanceRemainder) then
                             NewRealSignTemp(j)=Sign(1.0_dp,RealSignTemp(j))
                             SignTemp(j)=transfer(NewRealSignTemp(j), SignTemp(j))
                             call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
@@ -1232,7 +1232,7 @@ MODULE AnnihilationMod
                             RealCurrentSign(j) = 0.0_dp
                             CurrentSign(j)=transfer(RealCurrentSign(j), CurrentSign(j))
                             call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
-                        else
+                        elseif (tEnhanceRemainder) then
                             NewRealCurrentSign(j)=Sign(1.0_dp,RealCurrentSign(j))
                             CurrentSign(j)=transfer(NewRealCurrentSign(j), CurrentSign(j))
                             call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
