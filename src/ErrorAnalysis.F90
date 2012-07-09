@@ -343,11 +343,10 @@ module errors
         call analyze_data(this,mean1,error1,eie1)   !means & error in num
         call analyze_data(that,mean2,error2,eie2)   !means & error in denom
         covariance=calc_covariance(that,this)
-        corr_coeff=covariance/(error1*error2*(size(this)-1)**2.0_dp)
-        correction = 2.0_dp*corr_coeff*error2*error1/(mean1*mean2)
         mean_proje = mean1/mean2
-        final_error=abs(mean1/mean2)*((abs(error2/mean2))**2.0_dp    &
-                +(abs(error1/mean1))**2.0_dp)**0.5_dp*(1.0_dp-correction)
+        final_error=abs(mean_proje) * &
+            sqrt(   (error2/mean2)**2.0_dp + (error1/mean1)**2.0_dp &
+                    - 2.0_dp*covariance/(size(this)*mean1*mean2)       )
         final_eie = final_error/sqrt(2.0_dp*(size(this)-1))
         write(iunit,*) size(that), mean_proje, final_error, final_eie
 
@@ -359,11 +358,10 @@ module errors
             call analyze_data(that,mean2,error2,eie2)   !means & error in denom
             ! now have the correct means, but incorrect errors
             covariance=calc_covariance(that,this)
-            corr_coeff=covariance/(error1*error2*(size(this)-1)**2.0_dp)
-            correction = 2.0_dp*corr_coeff*error2*error1/(mean1*mean2)
             mean_proje = mean1/mean2
-            final_error=abs(mean1/mean2)*((abs(error2/mean2))**2.0_dp    &
-                    +(abs(error1/mean1))**2.0_dp)**0.5_dp*(1.0_dp-correction)
+            final_error=abs(mean_proje) * &
+                sqrt(   (error2/mean2)**2.0_dp + (error1/mean1)**2.0_dp &
+                        - 2.0_dp*covariance/(size(this)*mean1*mean2)       )
             final_eie = final_error/sqrt(2.0_dp*(size(this)-1))
             write(iunit,*) size(that), mean_proje, final_error, final_eie
         enddo
