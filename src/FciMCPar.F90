@@ -34,7 +34,7 @@ MODULE FciMCParMod
                         trunc_nopen_max, tSpawn_Only_Init, tSpawn_Only_Init_Grow, &
                         TargetGrowRate, TargetGrowRateWalk, tShiftonHFPop, &
                         tContinueAfterMP2,iExitWalkers,tCISDref, tExplicitOutFlux, &
-                        MemoryFacPart, tCISDRealRef
+                        MemoryFacPart, tCISDRealRef, tAllRealCoeff
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
     use Determinants, only: FDet, get_helement, write_det, &
@@ -588,8 +588,8 @@ MODULE FciMCParMod
         use iso_c_hack
         implicit none
         interface
-            function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
-                                     nJ, iLutJ, prob, HElGen, ic, ex, tPar, exLevel, part_type)&
+            function attempt_create (get_spawn_helement, nI, iLutI, RealwSign, &
+                                     nJ, iLutJ, prob, HElGen, ic, ex, tPar, exLevel, part_type, realchild)&
                                      result(child)
                 use SystemData, only: nel
                 use bit_reps, only: niftot
@@ -599,7 +599,8 @@ MODULE FciMCParMod
                 integer(kind=n_int), intent(in) :: iLutI(0:nIfTot)
                 integer(kind=n_int), intent(inout) :: iLutJ(0:nIfTot)
                 integer, intent(in) :: ic, ex(2,2), exLevel
-                integer, dimension(lenof_sign), intent(in) :: wSign
+                real(dp), dimension(lenof_sign), intent(in) :: RealwSign
+                real(dp), dimension(lenof_sign) :: RealChild
                 logical, intent(in) :: tPar
                 real(dp), intent(inout) :: prob
                 integer , dimension(lenof_sign) :: child      
@@ -688,17 +689,17 @@ MODULE FciMCParMod
         implicit none
         interface
             subroutine new_child_stats (iter_data, iLutI, nJ, iLutJ, ic, &
-                                        walkExLevel, child, parent_flags, &
+                                        walkExLevel, realchild, parent_flags, &
                                         part_type)
                 use SystemData, only: nel
                 use bit_reps, only: niftot
-                use constants, only: n_int, lenof_sign
+                use constants, only: n_int, lenof_sign, dp
                 use FciMCData, only: fcimc_iter_data
                 implicit none
                 integer(kind=n_int), intent(in) :: ilutI(0:niftot), iLutJ(0:niftot)
                 integer, intent(in) :: ic, walkExLevel, parent_flags, nJ(nel)
                 integer, intent(in) :: part_type
-                integer, dimension(lenof_sign) , intent(in) :: child
+                real(dp), dimension(lenof_sign) , intent(in) :: realchild
                 type(fcimc_iter_data), intent(inout) :: iter_data
             end subroutine
         end interface
@@ -770,8 +771,8 @@ MODULE FciMCParMod
                 HElement_t, intent(out) :: HEl
                 type(excit_gen_store_type), intent(inout), target :: store
             end subroutine
-            function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
-                                     nJ, iLutJ, prob, HElGen, ic, ex, tPar, exLevel, part_type)&
+            function attempt_create (get_spawn_helement, nI, iLutI, RealwSign, &
+                                     nJ, iLutJ, prob, HElGen, ic, ex, tPar, exLevel, part_type, realchild)&
                                      result(child)
                 use systemdata, only: nel
                 use bit_reps, only: niftot
@@ -781,7 +782,8 @@ MODULE FciMCParMod
                 integer(kind=n_int), intent(in) :: iLutI(0:nifTot)
                 integer(kind=n_int), intent(inout) :: iLutJ(0:nIfTot)
                 integer, intent(in) :: ic, ex(2,2), exLevel
-                integer, dimension(lenof_sign), intent(in) :: wSign
+                real(dp), dimension(lenof_sign), intent(in) :: RealwSign
+                real(dp), dimension(lenof_sign) :: RealChild
                 logical, intent(in) :: tPar
                 real(dp), intent(inout) :: prob
                 integer, dimension(lenof_sign) :: child
@@ -828,17 +830,17 @@ MODULE FciMCParMod
                 integer(kind=n_int), intent(inout) :: iLutJ(0:nIfTot)
             end subroutine
             subroutine new_child_stats (iter_data, iLutI, nJ, iLutJ, ic, &
-                                        walkExLevel, child, parent_flags, &
+                                        walkExLevel, realchild, parent_flags, &
                                         part_type)
                 use SystemData, only: nel
                 use bit_reps, only: niftot
-                use constants, only: n_int, lenof_sign
+                use constants, only: n_int, lenof_sign, dp
                 use FciMCData, only: fcimc_iter_data
                 implicit none
                 integer(kind=n_int), intent(in) :: ilutI(0:niftot), iLutJ(0:niftot)
                 integer, intent(in) :: ic, walkExLevel, parent_flags, nJ(nel)
                 integer, intent(in) :: part_type
-                integer, dimension(lenof_sign), intent(in) :: child
+                real(dp), dimension(lenof_sign), intent(in) :: realchild
                 type(fcimc_iter_data), intent(inout) :: iter_data
             end subroutine
             function attempt_die (nI, Kii, RealwSign, WalkExcitLevel) result(ndie)
@@ -860,17 +862,18 @@ MODULE FciMCParMod
         integer :: VecSlot, j, p, error,i, k
         integer :: DetCurr(nel), nJ(nel), nullnJ(nel), FlagsCurr, parent_flags
         integer, dimension(lenof_sign) :: SignCurr, child
+        real(dp), dimension(lenof_sign) :: realchild
         integer(kind=n_int) :: iLutnJ(0:niftot), iLutCurr(0:nIfd+1)
         integer :: IC, walkExcitLevel, nullwalkExcitLevel, ex(2,2), TotWalkersNew, part_type, CISDRefCoeff
         integer :: FluxListOffset, FluxListHoles, SearchingOffset, LastEntryAdded
         integer(int64) :: tot_parts_tmp(lenof_sign)
         logical :: tParity, tNotFound
-        real(dp) :: prob, HDiagCurr, StaticFlux, fractionalwalker
+        real(dp) :: prob, HDiagCurr, StaticFlux
         HElement_t :: HDiagTemp,HElGen
         character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
         HElement_t :: delta
-        integer :: proc, pos, sgn(lenof_sign), coeff
-        real(dp) :: realcisdcoeff
+        integer :: proc, pos, sgn(lenof_sign), coeff, WalkersToSpawn
+        real(dp) :: r,realcisdcoeff, RealSign(lenof_sign), prob_extra_walker
         real(dp), dimension(lenof_sign) :: RealSignCurr
 
         call set_timer(Walker_Time,30)
@@ -938,7 +941,8 @@ MODULE FciMCParMod
                          proje_ref_iluts(:,i), NIfD+1)
                     if (pos > 0) then
                         call extract_sign (CurrentDets(:,pos), sgn)
-                        delta = ARR_RE_OR_CPLX(sgn) * proje_ref_coeffs(i)
+                        RealSign=transfer(sgn,RealSign)
+                        delta = ARR_RE_OR_CPLX(RealSign) * proje_ref_coeffs(i)
                         cyc_proje_denominator = cyc_proje_denominator + delta
                         sum_proje_denominator = sum_proje_denominator + delta
                     endif
@@ -959,20 +963,13 @@ MODULE FciMCParMod
         IFDEBUG(FCIMCDebug,3) write(iout,"(A,I12)") "Walker list length: ",TotWalkers
         IFDEBUG(FCIMCDebug,3) write(iout,"(A)") "TW: Walker  Det"
             
-        if(TotWalkers.eq.0) then
+        if(tCISDRef .and. (TotWalkers.eq.0)) then
             do k=1, NumDoubEntries + NumQuadEntries
                 call GetRealCISDCoeff(CISDTotFlux(:,k), RealCISDCoeff)
                 TotWalkersCombinedCyc=TotWalkersCombinedCyc+abs(RealCISDCoeff)
             enddo
         endif
         
-       ! if (Iter .ge. 49180) then
-            !WRITE(6,*) "Start Of Iter"
-            !WRITE(6,*) "CurrentDets"
-            !WRITE(6,*) CurrentDets(:,:)
-       
-        !endif
-
         do j=1,TotWalkers
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.
@@ -1075,13 +1072,11 @@ MODULE FciMCParMod
                 exit
             endif
             
-            
             ! Sum in any energy contribution from the determinant, including 
             ! other parameters, such as excitlevel info.
             ! This is where the projected energy is calculated.
-            call SumEContrib (DetCurr, WalkExcitLevel, SignCurr, &
+            call SumEContrib (DetCurr, WalkExcitLevel,RealSignCurr, &
                               CurrentDets(:,j), HDiagCurr, 1.0_dp)
-
 
             ! Find this det in CISDTotFlux
             tNotFound=.true.
@@ -1129,9 +1124,6 @@ MODULE FciMCParMod
                 endif
             endif
 
-          !  WRITE(6,*) "j, TotWalkers", j, TotWalkers
-          !  WRITE(6,*) "LastEntryAdded", LastEntryAdded
-          !  WRITE(6,*) "NumDoubEntries+NumQuadEntries", NumDoubEntries + NumQuadEntries
             if((j .eq. TotWalkers) .and. (LastEntryAdded.ne.NumDoubEntries + NumQuadEntries)) then
                 do k=LastEntryAdded+1, NumDoubEntries + NumQuadEntries
 
@@ -1165,13 +1157,19 @@ MODULE FciMCParMod
                 ! up by noMCExcits if attempting multiple excitations from 
                 ! each walker (default 1)
 
-                tFinalWalker=.false.
-                do p = 1, abs(ceiling(RealSignCurr(part_type),dp)) * noMCExcits
+                WalkersToSpawn=abs(int(RealSignCurr(part_type)))
+                if ((abs(RealSignCurr(part_type))-real(WalkersToSpawn,dp)).gt.0) then
+                    prob_extra_walker=abs(RealSignCurr(part_type)) - real(WalkersToSpawn,dp)
+                    r = genrand_real2_dSFMT ()
+                    if (prob_extra_walker > r) then
+                        WalkersToSpawn=WalkersToSpawn+1
+                    endif
+                endif
+
+                do p = 1, WalkersToSpawn * noMCExcits
                     ! Zero the bit representation, to ensure no extraneous
                     ! data gets through.
                     ilutnJ = 0
-
-                    if (p.eq.abs(ceiling(RealSignCurr(part_type),dp)) * noMCExcits) tFinalWalker=.true.
 
                     ! Generate a (random) excitation
                     call generate_excitation (DetCurr, CurrentDets(:,j), nJ, &
@@ -1189,38 +1187,34 @@ MODULE FciMCParMod
                         call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
                         
                         child = attempt_create (get_spawn_helement, DetCurr, &
-                                            CurrentDets(:,j), SignCurr, &
+                                            CurrentDets(:,j), RealSignCurr, &
                                             nJ,iLutnJ, Prob, HElGen, IC, ex, &
-                                            tParity, walkExcitLevel,part_type)
+                                            tParity, walkExcitLevel,part_type, &
+                                            realchild)
                     else
-                        child = 0
+                        realchild(part_type) = 0.0_dp
                     endif
 
                     ! Children have been chosen to be spawned.
-                    if (any(child /= 0)) then
+                    if (any(realchild /= 0.0)) then
                         ! We know we want to create a particle of this type.
                         call new_child_stats (iter_data, CurrentDets(:,j), &
                                               nJ, iLutnJ, ic, walkExcitLevel,&
-                                              child, parent_flags, part_type)
+                                              realchild, parent_flags, part_type)
 
                         call create_particle (nJ, iLutnJ, child, &
-                                              parent_flags, part_type)
-                      !if (DetBitEq(iLutnJ,iLutHF, NifD)) WRITE(6,*) "iLutnJ, child", iLutnJ, child 
+                                              parent_flags, part_type, realchild)
                     endif ! (child /= 0). Child created
 
                 enddo ! Cycling over mulitple particles on same determinant.
 
             enddo   ! Cycling over 'type' of particle on a given determinant.
-       ! if (Iter .ge. 49180) then
-        !    WRITE(6,*) "Mid Of Iter"
-        !    WRITE(6,*) "CurrentDets"
-        !    WRITE(6,*) CurrentDets(:,:)
-       ! endif
-
+            
             ! DEBUG
             ! if (VecSlot > j) call stop_all (this_routine, 'vecslot > j')
+            
             call walker_death (attempt_die, iter_data, DetCurr, &
-                               CurrentDets(:,j), HDiagCurr, SignCurr, VecSlot, j, WalkExcitLevel)
+                               CurrentDets(:,j), HDiagCurr, RealSignCurr, VecSlot, j, WalkExcitLevel)
         enddo ! Loop over determinants.
         IFDEBUGTHEN(FCIMCDebug,2) 
             write(iout,*) 'Finished loop over determinants'
@@ -1245,24 +1239,21 @@ MODULE FciMCParMod
 
                 RealCISDCoeff = transfer(CISDRefCoeff, RealCISDCoeff)
 
-                child = attempt_create_staticflux (RealCISDCoeff,iLutCurr, StaticFlux, WalkExcitLevel)
+                child = attempt_create_staticflux (RealCISDCoeff,iLutCurr, StaticFlux, WalkExcitLevel, realchild)
                 ic=0
                 
-               ! if (DetBitEq(iLutCurr,iLutHF, NifD)) WRITE(6,*) "StaticFlux, CISDRefCoeff", StaticFlux, CISDRefCoeff 
-
                 ! Children have been chosen to be spawned.
-                if (child(1) .ne. 0) then
+                if (realchild(1) .ne. 0.0) then
                 !  if (DetBitEq(iLutCurr,iLutHF, NifD)) WRITE(6,*) "child", child 
                     call decode_bit_det(nJ, iLutCurr)
 
                     ! nJ is not used in either of these routines - we pass in
                     ! a null value to save us calculating it unnecessarily
-
                     call new_child_stats (iter_data, iLutCurr, &
                                           nJ, iLutCurr, ic, walkExcitLevel,&
-                                          child, parent_flags, 1)
+                                          realchild, parent_flags, 1)
                     call create_particle(nJ, iLutCurr, child, &
-                                          parent_flags, 1)
+                                          parent_flags, 1, realchild)
                 endif ! (child /= 0). Child created
             
             enddo
@@ -1351,25 +1342,24 @@ MODULE FciMCParMod
     end subroutine end_iter_stats
 
     subroutine new_child_stats_normal (iter_data, iLutI, nJ, iLutJ, ic, &
-                                       walkExLevel, child, parent_flags, &
+                                       walkExLevel, Realchild, parent_flags, &
                                        part_type)
 
         integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
         integer, intent(in) :: ic, walkExLevel, parent_flags, nJ(nel)
         integer, intent(in) :: part_type
-        integer, dimension(lenof_sign), intent(in) :: child
+        real(dp), dimension(lenof_sign), intent(in) :: realchild
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer(n_int) :: iUnused
-        real(dp), dimension(lenof_sign) :: realchild
 
         ! Write out some debugging information if asked
         IFDEBUG(FCIMCDebug,3) then
 #ifdef __CMPLX
             write(iout,"(A,2I4,A)", advance='no') &
-                               "Creating ", child(1), child(2), " particles: "
+                               "Creating ", realchild(1), realchild(2), " particles: "
 #else
             write(iout,"(A,I4,A)",advance='no') &
-                                         "Creating ", child(1), " particles: "
+                                         "Creating ", realchild(1), " particles: "
 #endif
             write(iout,"(A,2I4,A)",advance='no') &
                                       "Parent flag: ", parent_flags, part_type
@@ -1377,8 +1367,6 @@ MODULE FciMCParMod
             call neci_flush(iout)
         endif
         
-        RealChild(1)=transfer(child(1), RealChild(1))
-       
         ! Count the number of children born
         NoBorn = NoBorn + sum(abs(realchild))
         iter_data%nborn = iter_data%nborn + abs(int(realchild))
@@ -1386,7 +1374,7 @@ MODULE FciMCParMod
         if (ic == 1) SpawnFromSing = SpawnFromSing + sum(abs(realchild))
 
         if(iProcIndex.eq.Root) then
-            if (sum(abs(child)) > abs(iPartBloom)) then
+            if (sum(abs(realchild)) > abs(iPartBloom)) then
                 iPartBloom = sign(sum(abs(realchild)), 2.0*ic - 3.0)
             endif
         endif
@@ -1396,7 +1384,7 @@ MODULE FciMCParMod
 
     end subroutine
                         
-    subroutine create_particle (nJ, iLutJ, child, parent_flags, part_type)
+    subroutine create_particle (nJ, iLutJ, child, parent_flags, part_type, realchild)
 
         ! Create a child in the spawned particles arrays. We spawn particles
         ! into a separate array, but non-contiguously. The processor that the
@@ -1412,7 +1400,7 @@ MODULE FciMCParMod
         integer, intent(in) :: part_type
         integer :: proc, flags, j
         logical :: parent_init
-        real(dp), dimension(lenof_sign) :: realchild
+        real(dp), dimension(lenof_sign), intent(in) :: realchild
 
         proc = DetermineDetNode(nJ,0)    ! 0 -> nNodes-1)
         ! We need to include any flags set both from the parent and from the
@@ -1422,8 +1410,6 @@ MODULE FciMCParMod
 
         if(tstaticfluxterm) flags=3
         
-        Realchild(:)=transfer(child(:), Realchild(:))
-
         call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ(0:NifDBO), &
                             child, flags)
 
@@ -1873,17 +1859,18 @@ MODULE FciMCParMod
     END SUBROUTINE CheckOrdering
         
     function attempt_create_trunc_spawn (get_spawn_helement, DetCurr,&
-                                         iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, &
-                                         ic, ex, tparity, walkExcitLevel, part_type) &
+                                         iLutCurr, RealwSign, nJ, iLutnJ, prob, HElGen, &
+                                         ic, ex, tparity, walkExcitLevel, part_type, realchild) &
                                          result(child)
         integer, intent(in) :: DetCurr(nel), nJ(nel), part_type 
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
         integer, intent(in) :: ic, ex(2,2), walkExcitLevel
-        integer, dimension(lenof_sign), intent(in) :: wSign
+        real(dp), dimension(lenof_sign), intent(in) :: RealwSign
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
         integer, dimension(lenof_sign) :: child
+        real(dp), dimension(lenof_sign) :: realchild
         HElement_t, intent(in) :: HElGen
 
         interface
@@ -1904,8 +1891,8 @@ MODULE FciMCParMod
 
         if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
             child = attempt_create_normal (get_spawn_helement, DetCurr, &
-                               iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
-                               tParity, walkExcitLevel, part_type)
+                               iLutCurr, RealwSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
+                               tParity, walkExcitLevel, part_type, realchild)
         else
             child = 0
         endif
@@ -1926,18 +1913,19 @@ MODULE FciMCParMod
 ! 
 !  child:      A lenof_sign array containing the particles spawned.
     function att_create_trunc_spawn_enc (get_spawn_helement, DetCurr,&
-                                         iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, &
-                                         ic, ex, tparity, walkExcitLevel, part_type) &
+                                         iLutCurr, RealwSign, nJ, iLutnJ, prob, HElGen, &
+                                         ic, ex, tparity, walkExcitLevel, part_type, realchild) &
                                          result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel), part_type 
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
         integer, intent(in) :: ic, ex(2,2), walkExcitLevel
-        integer, dimension(lenof_sign), intent(in) :: wSign
+        real(dp), dimension(lenof_sign), intent(in) :: RealwSign
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
         integer, dimension(lenof_sign) :: child
+        real(dp), dimension(lenof_sign) :: realchild
         HElement_t , intent(in) :: HElGen
 
         interface
@@ -1959,8 +1947,8 @@ MODULE FciMCParMod
         call EncodeBitDet (nJ, iLutnJ)
         if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
             child = attempt_create_normal (get_spawn_helement, DetCurr, &
-                               iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
-                               tParity, walkExcitLevel, part_type)
+                               iLutCurr, RealwSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
+                               tParity, walkExcitLevel, part_type, realchild)
         else
             child = 0
         endif
@@ -1968,18 +1956,19 @@ MODULE FciMCParMod
 
 
     function attempt_create_normal (get_spawn_helement, DetCurr, iLutCurr, &
-                                    wSign, nJ, iLutnJ, prob, HElGen, ic, ex, tparity,&
-                                    walkExcitLevel, part_type) result(child)
+                                    RealwSign, nJ, iLutnJ, prob, HElGen, ic, ex, tparity,&
+                                    walkExcitLevel, part_type, realchild) result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel)
         integer, intent(in) :: part_type    ! 1 = Real parent particle, 2 = Imag parent particle
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
         integer, intent(in) :: ic, ex(2,2), walkExcitLevel
-        integer, dimension(lenof_sign), intent(in) :: wSign
+        real(dp), dimension(lenof_sign), intent(in) :: RealwSign
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
         integer, dimension(lenof_sign) :: child
+        real(dp), dimension(lenof_sign) :: realchild
         HElement_t , intent(in) :: HElGen
 
         interface
@@ -1998,8 +1987,7 @@ MODULE FciMCParMod
             end function
         end interface
         
-        real(dp) :: rat, r, walkerweight, realchild
-        real(dp), dimension(lenof_sign) :: realwSign
+        real(dp) :: rat, r, walkerweight
         integer :: extracreate, iUnused
         integer :: TargetExcitLevel
         logical :: tRealSpawning
@@ -2143,24 +2131,14 @@ MODULE FciMCParMod
             !We are dealing with real particles always here.
             tRealSpawning=.false. !default
             
-            RealwSign(1)=transfer(wSign(1), RealwSign(1))
-            
             if (tCISDRealRef) then
                 TargetExcitLevel = FindBitExcitLevel (iLutRef, iLutnJ, max_calc_ex_level)
                 if (TargetExcitLevel .le. 2) tRealSpawning=.true.
             endif
 
-            !!!!! CMO check last time around
-        
-            if (tFinalWalker .and. (walkExcitLevel .le. 2)) then
-                if(RealwSign(1) .eq. real(int(realwSign(1)),dp)) then
-                    walkerweight=sign(1.0_dp, real(wSign(1)))
-                else
-                    walkerweight=sign(abs(RealwSign(1))-abs(real(int(RealwSign(1)),dp)), real(wSign(1)))
-                endif
-            else
-                walkerweight=sign(1.0_dp, real(wSign(1)))
-            endif
+            if (tAllRealCoeff) tRealSpawning=.true.
+
+            walkerweight=sign(1.0_dp, realwSign(1))
 
             if (tRealSpawning) then
                 !Spawning onto CISD Space
@@ -2431,7 +2409,7 @@ MODULE FciMCParMod
     END FUNCTION AttemptCreatePar
 
     subroutine walker_death (attempt_die, iter_data, DetCurr, iLutCurr, Kii, &
-                             wSign, VecSlot,DetPosition,walkExcitLevel)
+                             RealwSign, VecSlot,DetPosition,walkExcitLevel)
         interface
             function attempt_die (nI, Kii, realwSign, walkExcitLevel) result(ndie)
                 use SystemData, only: nel
@@ -2446,12 +2424,11 @@ MODULE FciMCParMod
         end interface
 
         integer, intent(in) :: DetCurr(nel) 
-        integer, dimension(lenof_sign), intent(in) :: wSign
+        real(dp), dimension(lenof_sign), intent(in) :: RealwSign
         integer(kind=n_int), intent(in) :: iLutCurr(0:niftot)
         integer, intent(inout) :: VecSlot
         integer, intent(in) :: DetPosition
         real(dp), intent(in) :: Kii
-        real(dp), dimension(lenof_sign) :: RealWSign
         type(fcimc_iter_data), intent(inout) :: iter_data
         real(dp), dimension(lenof_sign) :: iDie
         integer, dimension(lenof_sign) :: CopySign
@@ -2460,12 +2437,10 @@ MODULE FciMCParMod
         integer, intent(in) :: walkExcitLevel
         character(len=*), parameter :: t_r="walker_death"
 
-        NullSign(:)=0
+        NullSign(:)=transfer(0.0_dp, NullSign(:))
 
         ! Do particles on determinant die? iDie can be both +ve (deaths), or
         ! -ve (births, if shift > 0)
-        RealwSign=transfer(wSign(1), RealwSign)
-
         iDie = attempt_die (DetCurr, Kii, realwSign, WalkExcitLevel)
 
 !        IF(iDie.ne.0) WRITE(iout,*) "Death: ",iDie
@@ -2494,7 +2469,7 @@ MODULE FciMCParMod
         !This does not hold with tHashWalkerList, since the determinants do
         !not move
 #ifndef __CMPLX            
-        if (RealCopySign(1).ne.0) then
+        if (RealCopySign(1).ne.0.d0) then
             IF(tTruncInitiator.and.(sign(1.0_dp,RealCopySign(1)).ne.sign(1.0_dp,RealwSign(1)))) THEN
                 !Abort creation of antiparticles if using initiator
 !                WRITE(iout,*) "Creating Antiparticles"
@@ -2553,22 +2528,23 @@ MODULE FciMCParMod
         endif
 #else
         !In complex case, fill slot if either real or imaginary particle still there.
-        IF((CopySign(1).ne.0).or.(CopySign(2).ne.0)) THEN
-            if(tTruncInitiator.and.(sign(1,CopySign(1)).ne.sign(1,wSign(1)))) then
+        IF((RealCopySign(1).ne.0).or.(RealCopySign(2).ne.0)) THEN
+            if(tTruncInitiator.and.(sign(1,RealCopySign(1)).ne.sign(1,RealwSign(1)))) then
                 !Remove the real anti-particle
-                NoAborted=NoAborted+abs(real(CopySign(1),dp))
-                iter_data%naborted(1) = iter_data%naborted(1) + abs(CopySign(1))
+                NoAborted=NoAborted+abs(RealCopySign(1))
+                iter_data%naborted(1) = iter_data%naborted(1) + abs(int(RealCopySign(1)))
                 if(test_flag(iLutCurr,flag_is_initiator(1))) NoAddedInitiators=NoAddedInitiators-1
-                CopySign(1)=0
+                RealCopySign(1)=0.0
             endif
-            if(tTruncInitiator.and.(sign(1,CopySign(lenof_sign)).ne.sign(1,wSign(lenof_sign)))) then
+            if(tTruncInitiator.and.(sign(1,RealCopySign(lenof_sign)).ne.sign(1,RealwSign(lenof_sign)))) then
                 !Remove the imaginary anti-particle
-                NoAborted=NoAborted+abs(real(CopySign(lenof_sign),dp))
-                iter_data%naborted(lenof_sign) = iter_data%naborted(lenof_sign) + abs(CopySign(lenof_sign))
+                NoAborted=NoAborted+abs(RealCopySign(lenof_sign))
+                iter_data%naborted(lenof_sign) = iter_data%naborted(lenof_sign) + abs(int(RealCopySign(lenof_sign)))
                 if(test_flag(iLutCurr,flag_is_initiator(lenof_sign))) NoAddedInitiators=NoAddedInitiators-1
-                CopySign(lenof_sign)=0
+                RealCopySign(lenof_sign)=0.0
             endif
-            if((CopySign(1).ne.0).or.(CopySign(lenof_sign).ne.0)) then
+            CopySign=transfer(RealCopySign, CopySign)
+            if((RealCopySign(1).ne.0).or.(RealCopySign(lenof_sign).ne.0)) then
                 !These could have both been aborted for being antiparitlces
                 !Here, some survive - put them back in the list
                 if(tHashWalkerList) then
@@ -2639,7 +2615,7 @@ MODULE FciMCParMod
             endif
         endif
 
-        if (tCISDRealRef .and. (WalkExcitLevel .le. 2)) then
+        if ((tCISDRealRef .and. (WalkExcitLevel .le. 2)).or. tAllRealCoeff) then
             ndie(1)=fac*abs(realwSign(1))
         else
             do i=1,lenof_sign
@@ -3219,7 +3195,7 @@ MODULE FciMCParMod
     END SUBROUTINE WriteHamilHistogram
 
     subroutine new_child_stats_hist_hamil (iter_data, iLutI, nJ, iLutJ, ic, &
-                                           walkExLevel, child, parent_flags, &
+                                           walkExLevel, realchild, parent_flags, &
                                            part_type)
         ! Based on old AddHistHamilEl. Histograms the hamiltonian matrix, and 
         ! then calls the normal statistics routine.
@@ -3227,7 +3203,7 @@ MODULE FciMCParMod
         integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
         integer, intent(in) :: ic, walkExLevel, parent_flags, nJ(nel)
         integer, intent(in) :: part_type
-        integer, dimension(lenof_sign) , intent(in) :: child
+        real(dp), dimension(lenof_sign) , intent(in) :: realchild
         type(fcimc_iter_data), intent(inout) :: iter_data
         character(*), parameter :: this_routine = 'new_child_stats_hist_hamil'
         integer :: partInd, partIndChild, childExLevel
@@ -3259,17 +3235,17 @@ MODULE FciMCParMod
         endif
 
         histHamil (partIndChild, partInd) = &
-                histHamil (partIndChild, partInd) + (1.0_dp * child(1))
+                histHamil (partIndChild, partInd) + (1.0_dp * realchild(1))
         histHamil (partInd, partIndChild) = &
-                histHamil (partInd, partIndChild) + (1.0_dp * child(1))
+                histHamil (partInd, partIndChild) + (1.0_dp * realchild(1))
         avHistHamil (partIndChild, partInd) = &
-                avHistHamil (partIndChild, partInd) + (1.0_dp * child(1))
+                avHistHamil (partIndChild, partInd) + (1.0_dp * realchild(1))
         avHistHamil (partInd, partIndChild) = &
-                avHistHamil (partInd, partIndChild) + (1.0_dp * child(1))
+                avHistHamil (partInd, partIndChild) + (1.0_dp * realchild(1))
 
         ! Call the normal stats routine
         call new_child_stats_normal (iter_data, iLutI, nJ, iLutJ, ic, &
-                                     walkExLevel, child, parent_flags, &
+                                     walkExLevel, realchild, parent_flags, &
                                      part_type)
 
     end subroutine
@@ -3313,6 +3289,8 @@ MODULE FciMCParMod
 !                              &Consider choosing new seed, or raising shift &
 !                              &value.')
                 write(iout,"(A)") "All particles have died. Restarting."
+
+                call stop_all("It's buggered", "Yes, yes it is")
                 tRestart=.true.
             else
                 tRestart=.false.
@@ -3586,6 +3564,7 @@ MODULE FciMCParMod
             AllInitRemoved = int64_tmp(7)
 
             call MPIReduce(NoAborted, MPI_SUM, AllNoAborted)
+            call MPIReduce(NoRemoved, MPI_SUM, AllNoRemoved)
         endif
 
         ! 64bit integers
@@ -3916,6 +3895,7 @@ MODULE FciMCParMod
         InitRemoved = 0
 
         NoAborted = 0.0_dp
+        NoRemoved = 0.0_dp
 
         iter_data%nborn = 0
         iter_data%ndied = 0
@@ -3994,7 +3974,7 @@ MODULE FciMCParMod
         type(fcimc_iter_data) :: iter_data
         real(dp), dimension(lenof_sign), intent(in) :: tot_parts_new
         real(dp), dimension(lenof_sign) :: tot_parts_new_all
-        
+       
         call collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all)
         call iter_diagnostics ()
         if(tRestart) return
@@ -4008,12 +3988,15 @@ MODULE FciMCParMod
 !This routine flips the sign of all particles on the node
     SUBROUTINE FlipSign()
         INTEGER :: i
-        INTEGER, DIMENSION(lenof_sign) :: TempSign
+        INTEGER, DIMENSION(lenof_sign) :: TempSign, TempSignNew
+        REAL(dp), DIMENSION(lenof_sign) :: RealTempSign, RealTempSignNew
 
         do i=1,TotWalkers
             call extract_sign(CurrentDets(:,i),TempSign)
-            TempSign(1)=-TempSign(1)
-            call encode_sign(CurrentDets(:,i),TempSign)
+            RealTempSign=transfer(TempSign,RealTempSign)
+            RealTempSignNew(1)=-RealTempSign(1)
+            TempSignNew=transfer(RealTempSignNew, TempSignnew)
+            call encode_sign(CurrentDets(:,i),TempSignnew)
         enddo
         
 !Reverse the flag for whether the sign of the particles has been flipped so the ACF can be correctly calculated
@@ -4248,11 +4231,11 @@ MODULE FciMCParMod
 #endif
 
             if (tTruncInitiator .or. tDelayTruncInit) then
-               write(initiatorstats_unit,"(I12,4G16.7,5I20,G16.7)")&
+               write(initiatorstats_unit,"(I12,4G16.7,5I20,2G16.7)")&
                    Iter + PreviousCycles, sum(AllTotParts), &
                    AllAnnihilated, AllNoDied, AllNoBorn, AllTotWalkers,&
                    AllNoInitDets, AllNoNonInitDets, AllNoInitWalk, &
-                   AllNoNonInitWalk,AllNoAborted
+                   AllNoNonInitWalk,AllNoAborted, AllNoRemoved
             endif
 
             if (tLogComplexPops) then
@@ -4942,6 +4925,7 @@ MODULE FciMCParMod
         SumDiagSftAbort=0.0_dp
         AvDiagSftAbort=0.0_dp
         NoAborted=0.0_dp
+        NoRemoved=0.0_dp
         NoAddedInitiators=0
         NoInitDets=0
         NoNonInitDets=0
@@ -4975,6 +4959,7 @@ MODULE FciMCParMod
         AllHFCyc=0.D0
 !        AllDetsNorm=0.D0
         AllNoAborted=0.0_dp
+        AllNoRemoved=0.0_dp
         AllNoAddedInitiators=0
         AllNoInitDets=0
         AllNoNonInitDets=0
@@ -6230,10 +6215,10 @@ MODULE FciMCParMod
     ! was generated. It defaults to 1, and weights the contribution of this 
     ! det (only in the projected energy) by dividing its contribution by this
     ! number 
-    subroutine SumEContrib (nI, ExcitLevel, WSign, ilut, HDiagCurr, dProbFin)
+    subroutine SumEContrib (nI, ExcitLevel, RealWSign, ilut, HDiagCurr, dProbFin)
 
         integer, intent(in) :: nI(nel), ExcitLevel
-        integer, intent(in) :: wSign(lenof_sign)
+        real(dp), intent(in) :: RealwSign(lenof_sign)
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         real(dp), intent(in) :: HDiagCurr, dProbFin
 
@@ -6247,12 +6232,9 @@ MODULE FciMCParMod
         integer :: DoubEx(2,2),DoubEx2(2,2),kDoub(3) ! For histogramming UEG doubles
         integer :: ExMat(2,2),FindSplitProjEBinG,FindSplitProjEBinK3
         logical :: tDoubParity,tDoubParity2,tSign ! As above
-        real(dp) :: RealWSign(lenof_sign)
 
         ! Are we performing a linear sum over various determinants?
         ! TODO: If we use this, function pointer it.
-
-        RealWSign(:)=transfer(wSign(:), RealWSign(:))
 
         HOffDiag = 0
         if (proje_linear_comb .and. nproje_sum > 1) then
@@ -6385,16 +6367,16 @@ MODULE FciMCParMod
         if ((tHistSpawn .or. (tCalcFCIMCPsi .and. tFCIMC)) .and. &
             (iter >= NHistEquilSteps)) then
             ! Histogram particles by determinant
-            call add_hist_spawn (ilut, wSign, ExcitLevel_local, dProbFin)
+            call add_hist_spawn (ilut, RealwSign, ExcitLevel_local, dProbFin)
         elseif (tHistEnergies) then
             ! Histogram particles by energy
-            call add_hist_energies (ilut, wSign, HDiagCurr, ExcitLevel)
+            call add_hist_energies (ilut, RealwSign, HDiagCurr, ExcitLevel)
         endif
 
         ! Are we doing a spin-projection histogram?
         if (tHistSpinDist) then
             if (tCISDRealRef) call stop_all("SumEContrib", "Not set up to use real coeffs with tHistSpinDist")
-            call test_add_hist_spin_dist_det (ilut, wSign)
+            call test_add_hist_spin_dist_det (ilut, RealwSign)
         endif
 
         ! Maintain a list of the degree of occupation of each orbital
@@ -6427,7 +6409,7 @@ MODULE FciMCParMod
                     iUEG1=int(DoubsUEGLookup(DoubEx(1,1)),sizeof_int)
                     iUEG2=int(DoubsUEGLookup(DoubEx(1,2)),sizeof_int)
                     if (iUEG1.eq.0.or.iUEG2.eq.0) call stop_all("SumEContrib","Array bounds issue")
-                    DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),1)=DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),1)+REAL(WSign(1))
+                    DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),1)=DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),1)+RealWSign(1)
     ! Test against natural orbital generation. For a two electron system, this should just be the same 
     ! as the nat orbs if WSign is squared
     !                    DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),1)=DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),1)+(REAL(WSign(1))*REAL(WSign(1)))
@@ -9288,14 +9270,15 @@ MODULE FciMCParMod
 
     END SUBROUTINE
     
-    FUNCTION attempt_create_staticflux (RealCISDRefCoeff,iLutnJ, StaticFlux, WalkExcitLevel) result(child)
+    FUNCTION attempt_create_staticflux (RealCISDRefCoeff,iLutnJ, StaticFlux, WalkExcitLevel, realchild) result(child)
 
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot) !Determinant being spawned onto
         real(dp), intent(in) :: StaticFlux
         real(dp), intent(in) :: RealCISDRefCoeff
         integer, dimension(lenof_sign) :: child
+        real(dp), dimension(lenof_sign), intent(out) :: realchild
         integer, intent(in) :: WalkExcitLevel
-        real(dp) :: rat, r, realchild
+        real(dp) :: rat, r
         integer :: extracreate
 
         child(:) = 0
@@ -9304,7 +9287,7 @@ MODULE FciMCParMod
 
         rat = tau * abs(StaticFlux-DiagSft*RealCISDRefCoeff)
 
-        if (tCISDRealRef .and. (WalkExcitLevel .le. 2)) then
+        if ((tCISDRealRef .and. (WalkExcitLevel .le. 2)).or. tAllRealCoeff) then
             realchild=-rat
             child(1)=transfer(realchild, child(1))
         else

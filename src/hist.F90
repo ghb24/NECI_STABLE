@@ -282,12 +282,14 @@ contains
 
     end subroutine
 
-    subroutine test_add_hist_spin_dist_det (ilut, sgn)
+    subroutine test_add_hist_spin_dist_det (ilut, RealSign)
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer(n_int) :: ilut_tmp(0:NIfTot)
-        integer, dimension(lenof_sign), intent(in) :: sgn
+        real(dp), dimension(lenof_sign), intent(in) :: RealSign
         integer, dimension(lenof_sign) :: sgn_old
+        real(dp) :: realsignOld(lenof_sign)
+        integer, dimension(lenof_sign) :: new_sgn
         integer :: pos, i
 
         ! Should we add this ilut to the histogram?
@@ -306,30 +308,26 @@ contains
                                "Determinant not found in spin histogram list")
             endif
             call extract_sign (hist_spin_dist(:,pos), sgn_old)
-            call encode_sign(hist_spin_dist(:,pos), sgn + sgn_old)
+            RealSignOld=transfer(sgn_old, RealSignOld)
+            new_sgn=transfer(RealSignOld+RealSign, new_sgn)
+            call encode_sign(hist_spin_dist(:,pos), new_sgn)
         endif
 
     end subroutine
 
-    subroutine add_hist_spawn (ilut, sgn, ExcitLevel, dProbFin)
+    subroutine add_hist_spawn (ilut, Realsign, ExcitLevel, dProbFin)
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
-        integer, intent(in) :: sgn(lenof_sign), ExcitLevel
+        integer, intent(in) :: ExcitLevel
         real(dp), intent(in) :: dProbFin
+        real(dp), intent(in) :: Realsign(lenof_sign)
 
         integer :: PartInd, open_orbs
         integer(n_int) :: ilut_sym(0:NIfTot)
         real(dp) :: delta(lenof_sign)
-        real(dp) :: realsign(lenof_sign)
         logical :: tSuccess
         character(*), parameter :: t_r = 'add_hist_spawn'
         
-        if (tCISDRealRef .and. (ExcitLevel .le. 2)) then
-            RealSign(:)=transfer(sgn(:), RealSign(:))
-        else
-            RealSign(:)=real(sgn(:),dp)
-        endif
-
         if (ExcitLevel == nel) then
             call BinSearchParts2 (ilut, HistMinInd(ExcitLevel), det, PartInd,&
                                   tSuccess)
@@ -378,7 +376,7 @@ contains
                                           PartInd, tSuccess)
                 endif
                 if (tSuccess) then
-                    delta = (real(sgn(:), dp) / sqrt(2.0)) / dProbFin
+                    delta = (real(realsign(:), dp) / sqrt(2.0)) / dProbFin
 
                     call CalcOpenOrbs(ilut_sym, open_orbs)
                     if ((mod(open_orbs, 2) == 1) .neqv. tOddS_HPHF) &
@@ -401,25 +399,18 @@ contains
 
     end subroutine
 
-    subroutine add_hist_energies (ilut, sgn, HDiag, ExcitLevel)
+    subroutine add_hist_energies (ilut, RealSign, HDiag, ExcitLevel)
 
         ! This will histogram the energies of the particles, rather than the
         ! determinants themselves.
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
-        integer, dimension(lenof_sign), intent(in) :: sgn
+        real(dp), dimension(lenof_sign), intent(in) :: RealSign
         real(dp), intent(in) :: HDiag
         integer, intent(in) :: ExcitLevel
-        real(dp), dimension(lenof_sign) :: RealSign
         integer :: bin
         character(*), parameter :: t_r = "add_hist_energies"
         
-        if (tCISDRealRef .and. (ExcitLevel .le. 2)) then
-            RealSign(:)=transfer(sgn(:), RealSign(:))
-        else
-            RealSign(:)=real(sgn(:),dp)
-        endif
-
         bin = int(HDiag / BinRange) + 1
         if (bin > iNoBins) &
             call stop_all (t_r, "Histogramming energies higher than the &

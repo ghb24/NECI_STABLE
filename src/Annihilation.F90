@@ -186,9 +186,7 @@ MODULE AnnihilationMod
 !Binary search the main list and copy accross/annihilate determinants which are found.
 !This will also remove the found determinants from the spawnedparts lists.
         CALL AnnihilateSpawnedParts(MaxIndex,TotWalkersNew, iter_data)  
-
- !       WRITE(6,*) "Annihilation finished",MaxIndex,TotWalkersNew
-
+        
         CALL set_timer(Sort_Time,30)
         if(tHashWalkerList) then
             call CalcHashTableStats(TotWalkersNew) 
@@ -633,11 +631,19 @@ MODULE AnnihilationMod
         integer, intent(inout) :: ValidSpawned 
         INTEGER :: MinInd,PartInd,i,j,ToRemove,DetsMerged,PartIndex
         INTEGER, DIMENSION(lenof_sign) :: CurrentSign,SpawnedSign,SignTemp
-        REAL(dp), DIMENSION(lenof_sign) :: SignProd,RealCurrentSign,RealSpawnedSign,RealSignTemp
+        REAL(dp), DIMENSION(lenof_sign) :: SignProd,RealCurrentSign,RealSpawnedSign,RealSignTemp, NewRealSignTemp
+        REAL(dp) :: pRemove, r
         INTEGER :: ExcitLevel,nJ(NEl),DetHash,FinalVal,clash
+        INTEGER, dimension(lenof_sign) :: nullpartcomplex
+        INTEGER :: nullpart
         INTEGER(KIND=n_int) , POINTER :: PointTemp(:,:)
         LOGICAL :: tSuccess,tSuc
         character(len=*), parameter :: this_routine="AnnihilateSpawnedParts"
+
+        do j=1, lenof_sign
+            nullpartcomplex(j)=transfer(0.0_dp, nullpartcomplex(j))
+        enddo
+        nullpart=transfer(0.0_dp, nullpart)
 
         if(.not.bNodeRoot) return  !Only node roots to do this.
 
@@ -713,6 +719,12 @@ MODULE AnnihilationMod
 !            call WriteBitDet(6,CurrentDets(:,PartInd),.true.)
 
             IF(tSuccess) THEN
+
+                 !Our SpawnedParts determinant is found in CurrentDets
+                 !If we're using real coefficients, the "removal" step for these
+                 !Determinants (and the others in currentdets) will occur later
+                 !in InsertRemoveParts
+
 !                SearchInd=PartInd   !This can actually be min(1,PartInd-1) once we know that the binary search is working, 
 !                                   as we know that PartInd is the same particle.
 !                MinInd=PartInd      !Make sure we only have a smaller list to search next time since the next 
@@ -730,7 +742,7 @@ MODULE AnnihilationMod
                 RealSignTemp=RealSpawnedSign+RealCurrentSign
                 SignTemp=transfer(RealSignTemp,SignTemp)
                 call encode_sign(CurrentDets(:,PartInd),SignTemp)
-                call encode_sign(SpawnedParts(:,i),null_part)
+                call encode_sign(SpawnedParts(:,i),nullpartcomplex)
                 ToRemove=ToRemove+1
 
                 do j=1,lenof_sign   !Run over real (& imag ) components
@@ -765,7 +777,7 @@ MODULE AnnihilationMod
                                     if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(j))) then
                                         NoAborted = NoAborted + abs(RealSpawnedSign(j)) - abs(RealCurrentSign(j))
                                         iter_data%naborted(j) = iter_data%naborted(j) + abs(int(RealSpawnedSign(j))) - abs(int(RealCurrentSign(j)))
-                                        call encode_part_sign (CurrentDets(:,PartInd), 0, j)
+                                        call encode_part_sign (CurrentDets(:,PartInd), nullpart, j)
                                     endif
                                 endif
                             endif
@@ -861,8 +873,25 @@ MODULE AnnihilationMod
                         iter_data%naborted(j) = iter_data%naborted(j) + abs(int(RealSignTemp(j)))
                         RealSignTemp(j) = 0.0_dp
                         SignTemp(j)=transfer(RealSignTemp(j), SignTemp(j))
-                        call encode_part_sign (SpawnedParts(:,i), 0, j)
+                        call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
                     endif
+                    if ((abs(RealSignTemp(j)).gt.0.0) .and. (abs(RealSignTemp(j)).lt.1.0)) then
+                        !We remove this walker with probability 1-RealSignTemp
+                        pRemove=1-abs(RealSignTemp(j))
+                        r = genrand_real2_dSFMT ()
+                        if (pRemove .gt. r) then
+                            !Remove this walker
+                            NoRemoved = NoRemoved + abs(RealSignTemp(j))
+                            RealSignTemp(j) = 0.0_dp
+                            SignTemp(j)=transfer(RealSignTemp(j), SignTemp(j))
+                            call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
+                        else
+                            NewRealSignTemp(j)=Sign(1.0_dp,RealSignTemp(j))
+                            SignTemp(j)=transfer(NewRealSignTemp(j), SignTemp(j))
+                            call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
+                        endif
+                    endif
+
                 enddo
                 if (IsUnoccDet(RealSignTemp)) then
                     ! All particle 'types' have been aborted
@@ -1171,16 +1200,17 @@ MODULE AnnihilationMod
         use CalcData , only : tCheckHighestPop
         INTEGER, intent(in) :: ValidSpawned
         integer, intent(inout) :: TotWalkersNew
-        INTEGER :: i,DetsMerged,nJ(NEl),part_type
+        INTEGER :: i,DetsMerged,nJ(NEl),part_type,j
         INTEGER, DIMENSION(lenof_sign) :: CurrentSign,SpawnedSign
-        REAL(dp), DIMENSION(lenof_sign) :: RealCurrentSign,RealSpawnedSign
-        real(dp) :: HDiag
+        REAL(dp), DIMENSION(lenof_sign) :: RealCurrentSign,RealSpawnedSign,NewRealCurrentSign
+        real(dp) :: HDiag, pRemove, r
         LOGICAL :: TestClosedShellDet
         character(*), parameter :: this_routine = 'InsertRemoveParts'
         HElement_t :: HDiagTemp
 
 !It appears that the rest of this routine isn't thread-safe if ValidSpawned is zero.
-        if(.not.bNodeRoot) return
+        
+    if(.not.bNodeRoot) return
 !Annihilated determinants first are removed from the main array (zero sign). 
 !Surely we only need to perform this loop if the number of annihilated particles > 0?
         TotParts=0.0
@@ -1191,6 +1221,24 @@ MODULE AnnihilationMod
             do i=1,TotWalkersNew
                 call extract_sign(CurrentDets(:,i),CurrentSign)
                 RealCurrentSign(:)=transfer(CurrentSign(:), RealCurrentSign(:))
+                do j=1, lenof_sign
+                    if ((abs(RealCurrentSign(j)).gt.0.0) .and. (abs(RealCurrentSign(j)).lt.1.0)) then
+                        !We remove this walker with probability 1-RealSignTemp
+                        pRemove=1-abs(RealCurrentSign(j))
+                        r = genrand_real2_dSFMT ()
+                        if (pRemove .gt. r) then
+                            !Remove this walker
+                            NoRemoved = NoRemoved + abs(RealCurrentSign(j))
+                            RealCurrentSign(j) = 0.0_dp
+                            CurrentSign(j)=transfer(RealCurrentSign(j), CurrentSign(j))
+                            call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
+                        else
+                            NewRealCurrentSign(j)=Sign(1.0_dp,RealCurrentSign(j))
+                            CurrentSign(j)=transfer(NewRealCurrentSign(j), CurrentSign(j))
+                            call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
+                        endif
+                    endif
+                enddo
                 IF(IsUnoccDet(RealCurrentSign)) THEN
                     DetsMerged=DetsMerged+1
                     IF(tTruncInitiator) THEN

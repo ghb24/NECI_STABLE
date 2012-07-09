@@ -243,6 +243,8 @@ contains
           tCISDrealref=.false.
           tExplicitOutFlux=.false.
 
+          tAllRealCoeff=.false.
+
 !Feb 08 default set.
           IF(Feb08) THEN
               RhoEpsilon=1.D-08
@@ -1451,12 +1453,17 @@ contains
                 !ie, flux from CISD wavefunction onto triples and quadruples
                 tExplicitOutFlux=.true.
 
-            case("CISDRealRef")
+            case("CISDREALREF")
                 tCisdRealRef=.true.
                 !We're running either the CISD reference calculation, or the residual calculation using a CISD reference
                 !In either case, we wish the Coefficients at doubles or below to be stored as reals rather than integers
                 !if tCisdRef=.true. then we're doing the residual calc
                 !if tCISDRef=.false. then we're doing the CISD calc (needs EXCITE 2 inputted elsewhere)
+            
+            case("ALLREALCOEFF")
+                tAllRealCoeff=.true.
+                !Turn on continuous spawning/death
+                !Kill populations n<1 with probability 1-n
 
             case default
                 call report("Keyword "                                &

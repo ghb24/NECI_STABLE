@@ -46,6 +46,7 @@ MODULE FciMCData
       INTEGER :: NoAbortedInCAS,NoAbortedOutCAS,NoInCAS,NoOutCAS,HighPopNeg,HighPopPos,MaxInitPopNeg,MaxInitPopPos
 
     real(dp) :: NoAborted, AllNoAborted, AllNoAbortedOld
+    real(dp) :: NoRemoved, AllNoRemoved, AllNoRemovedOld
     integer(int64) :: NoAddedInitiators, NoInitDets, NoNonInitDets
     integer(int64) :: NoInitWalk, NoNonInitWalk
     integer(int64) :: NoExtraInitDoubs, InitRemoved
@@ -249,7 +250,6 @@ MODULE FciMCData
       REAL(dp) :: CISDProjEContrib, CISDProjEContribAbs
       REAL(dp) :: AllCISDProjEContrib, AllCISDProjEContribAbs
       REAL(dp) :: TotCISDWalkers, AllTotCISDWalkers
-      LOGICAL :: tFinalWalker  !The last walker on this determinant - spawn this one with a fractional population
       INTEGER :: TotWalkersCombinedCyc, AllTotWalkersCombinedCyc
       INTEGER :: NumUpdateCycles
       LOGICAL :: tStaticFluxTerm, blank_det
