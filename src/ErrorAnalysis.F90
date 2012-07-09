@@ -33,8 +33,8 @@ module errors
         real(dp) :: mean_num, error_num, eie_num
         real(dp) :: eie_shift
         real(dp) :: mean_imnum, error_imnum, eie_imnum
-        real(dp) :: covariance_re, corr_coeff_re, correction_re
-        real(dp) :: covariance_im, corr_coeff_im, correction_im
+        real(dp) :: covariance_re, correction_re
+        real(dp) :: covariance_im, correction_im
         logical :: tFail_num,tFail_denom,tFail_imnum,tFail_shift
         logical :: tPrintIntermediateBlocking
         logical, intent(out) :: tNoProjEValue,tNoShiftValue
@@ -272,44 +272,33 @@ module errors
                     mean_shift, " +/- ", shift_Err, " Relative error: ", abs(shift_Err/mean_shift)
             endif
         endif
-
+        
         ! STEP 6) Refine statistics using covariance
         if(.not.tNoProjEValue) then
             covariance_re=calc_covariance(pophf_data,numerator_data)
-            corr_coeff_re=covariance_re/(error_denom*error_num*(size(pophf_data)-1)**2.0_dp)
+            correction_re=2.0_dp*covariance_re/((size(pophf_data)-1)*mean_denom*mean_num)
             if(lenof_sign.eq.2) then
                 covariance_im=calc_covariance(pophf_data,imnumerator_data)
-                corr_coeff_im=covariance_im/(error_denom*error_imnum*(size(pophf_data)-1)**2.0_dp)
-                if(Errordebug.gt.0) then
-                    write(6,"(A,F20.8)") "Correlation coefficient (Re) :", corr_coeff_re
-                    write(6,"(A,F20.8)") "Correlation coefficient (Im) :", corr_coeff_im
-                endif
-                if (corr_coeff_im.gt.1.0_dp) call stop_all(t_r,"ERROR: Im correlation coefficient > 1")
-                if (corr_coeff_im.lt.-1.0_dp) call stop_all(t_r,"ERROR: Im correlation coefficient < -1")
-                correction_im=2.0_dp*corr_coeff_im*error_denom*error_imnum/(mean_denom*mean_imnum)
-            else
-                if(Errordebug.gt.0) write(6,"(A,F20.8)") "Correlation coefficient:", corr_coeff_re
+                correction_im=2.0_dp*covariance_im/((size(pophf_data)-1)*mean_denom*mean_imnum)
             endif
-            if (corr_coeff_re.gt.1.0_dp) call stop_all(t_r,"ERROR: correlation coefficient > 1")
-            if (corr_coeff_re.lt.-1.0_dp) call stop_all(t_r,"ERROR: correlation coefficient < -1")
-            correction_re=2.0_dp*corr_coeff_re*error_denom*error_num/(mean_denom*mean_num)
 
             mean_ProjE_re = mean_num/mean_denom
-            ProjE_Err_re = abs(mean_num/mean_denom)*((abs(error_denom/mean_denom))**2.0_dp  &
-                +(abs(error_num/mean_num))**2.0_dp)**0.5_dp*(1.0_dp-correction_re)
+            ProjE_Err_re = abs(mean_ProjE_re)* sqrt( (abs(error_denom/mean_denom))**2.0_dp &
+                + (abs(error_num/mean_num))**2.0_dp - correction_re )
             if(lenof_sign.eq.2) then
                 mean_ProjE_im = mean_imnum/mean_denom
-                ProjE_Err_im = abs(mean_imnum/mean_denom)*((abs(error_denom/mean_denom))**2.0_dp    &
-                    +(abs(error_imnum/mean_num))**2.0_dp)**0.5_dp*(1.0_dp-correction_im)
+
+                ProjE_Err_im = abs(mean_ProjE_im)* sqrt( (abs(error_denom/mean_denom))**2.0_dp &
+                    + (abs(error_imnum/mean_imnum))**2.0_dp - correction_im )
                 if(ErrorDebug.gt.0) then
-                    write(6,"(A,F20.8)") "Covariance correction factor (Re):", 1-correction_re
-                    write(6,"(A,F20.8)") "Covariance correction factor (Im):", 1-correction_im
+                    write(6,"(A,F20.8)") "Covariance correction (Re):", correction_re
+                    write(6,"(A,F20.8)") "Covariance correction (Im):", correction_im
                     write(6,"(A,F20.10,A,G20.8)") "Final projected energy (Re): ", mean_ProjE_re, " +/- ", ProjE_Err_re 
                     write(6,"(A,F20.10,A,G20.8)") "Final projected energy (Im): ", mean_ProjE_im, " +/- ", ProjE_Err_im 
                 endif
             else
                 if(ErrorDebug.gt.0) then
-                    write(6,"(A,F20.8)") "Covariance correction factor:", 1-correction_re
+                    write(6,"(A,F20.8)") "Covariance correction:", correction_re
                     write(6,"(A,F20.10,A,G20.8)") "Final projected energy: ", mean_ProjE_re, " +/- ", ProjE_Err_re
                 endif
             endif
@@ -327,7 +316,7 @@ module errors
         character(len=*), intent(in) :: filename
         integer,intent(in) :: blocklength ! this is the minimum step size (e.g. 2)
         real(dp) :: mean1, error1, eie1,mean2,error2,eie2
-        real(dp) :: covariance,corr_coeff,correction,mean_proje,final_error,final_eie
+        real(dp) :: covariance,correction,mean_proje,final_error,final_eie
         real(dp), allocatable :: this(:),that(:) ! stores this array
 
         iunit = get_free_unit()
@@ -346,7 +335,7 @@ module errors
         mean_proje = mean1/mean2
         final_error=abs(mean_proje) * &
             sqrt(   (error2/mean2)**2.0_dp + (error1/mean1)**2.0_dp &
-                    - 2.0_dp*covariance/(size(this)*mean1*mean2)       )
+                    - 2.0_dp*covariance/((size(this)-1)*mean1*mean2)  )
         final_eie = final_error/sqrt(2.0_dp*(size(this)-1))
         write(iunit,*) size(that), mean_proje, final_error, final_eie
 
@@ -360,8 +349,8 @@ module errors
             covariance=calc_covariance(that,this)
             mean_proje = mean1/mean2
             final_error=abs(mean_proje) * &
-                sqrt(   (error2/mean2)**2.0_dp + (error1/mean1)**2.0_dp &
-                        - 2.0_dp*covariance/(size(this)*mean1*mean2)       )
+                sqrt( (error2/mean2)**2.0_dp + (error1/mean1)**2.0_dp &
+                        - 2.0_dp*covariance/((size(this)-1)*mean1*mean2)  )
             final_eie = final_error/sqrt(2.0_dp*(size(this)-1))
             write(iunit,*) size(that), mean_proje, final_error, final_eie
         enddo
