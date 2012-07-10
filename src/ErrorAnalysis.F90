@@ -381,6 +381,7 @@ module errors
         real(dp), allocatable :: mean_array(:), error_array(:), eie_array(:)
         integer :: which_element,iunit
         real(dp) :: final_error
+        character(len=*), parameter :: t_r="automatic_reblocking_analysis"
 
         length=size(this,1)
         allocate(that(length))
@@ -395,7 +396,7 @@ module errors
         if(tPrint) then
             iunit = get_free_unit()
             open(iunit,file=filename)
-            write(iunit,"(A)") "# Block_length   Mean       Error        Error_in_Error"
+            write(iunit,"(A)") "# No.Blocks      Mean       Error        Error_in_Error"
         endif
 
         call analyze_data(that,mean,error,eie)
@@ -414,6 +415,23 @@ module errors
         call check_reblock_monotonic_inc(error_array,tPrint,iValue)
         call find_max_error(error_array,final_error,which_element)
         corrlength=blocklength**(which_element-1)
+        if(tPrint) then
+            if(iValue.eq.1) then
+                write(6,"(A,I7)") "Number of blocks assumed for calculation of error in projected energy denominator: ", &
+                    length/corrlength 
+            elseif(iValue.eq.2) then
+                write(6,"(A,I7)") "Number of blocks assumed for calculation of error in projected energy numerator: ", &
+                    length/corrlength 
+            elseif(iValue.eq.3) then
+                write(6,"(A,I7)") "Number of blocks assumed for calculation of error in shift: ",   &
+                    length/corrlength 
+            elseif(iValue.eq.4) then
+                write(6,"(A,I7)") "Number of blocks assumed for calculation of error in Im projected energy numerator: ", &
+                    length/corrlength 
+            else
+                call stop_all(t_r,"Error in iValue")
+            endif
+        endif
         if(errordebug.gt.0) then
             write(6,*) "Mean", mean_array(1)
             write(6,*) "Final error", final_error, "number of blocks", length/blocklength**(which_element-1)
@@ -1081,7 +1099,7 @@ module errors
         do i=1,length1
             sxy=sxy+(this(i)-meanx)*(that(i)-meany)
         enddo
-        calc_covariance=sxy/length1
+        calc_covariance=sxy/(length1-1)
 
     end function calc_covariance
 
