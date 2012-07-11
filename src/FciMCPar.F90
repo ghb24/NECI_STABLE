@@ -5132,7 +5132,7 @@ MODULE FciMCParMod
         integer, allocatable :: Excitgen(:)
         real(dp) :: nAddFac,MagHel,pGen,pGenFac
         HElement_t :: hel
-        integer :: ic,nJ(nel),nJ2(nel),ierr,iExcit
+        integer :: ic,nJ(nel),nJ2(nel),ierr,iExcit,ex_saved(2,2)
         integer(kind=n_int) :: iLutnJ(0:niftot),iLutnJ2(0:niftot)
 
         if(tCSF.or.tMomInv) call stop_all(t_r,"TauSearching needs fixing to work with CSFs or MI funcs")
@@ -5152,7 +5152,7 @@ MODULE FciMCParMod
 
         Tau = 1000.0_dp
         tAllExcitFound=.false.
-        Ex(:,:)=0
+        Ex_saved(:,:)=0
         exflag=3
         tSameFunc=.false.
         call init_excit_gen_store(store)
@@ -5185,8 +5185,9 @@ MODULE FciMCParMod
                 Ex(1,1)=FindBitExcitlevel(iLutnJ,iLutRef,2)
                 call GetExcitation(ProjEDet,nJ,Nel,ex,tParity)
             else
-                CALL GenExcitations3(ProjEDet,iLutRef,nJ,exflag,Ex,tParity,tAllExcitFound)
+                CALL GenExcitations3(ProjEDet,iLutRef,nJ,exflag,Ex_saved,tParity,tAllExcitFound)
                 IF(tAllExcitFound) EXIT
+                Ex = Ex_saved
                 if(Ex(2,2).eq.0) then
                     ic=1
                 else
@@ -5199,6 +5200,13 @@ MODULE FciMCParMod
             if(tHPHF) then
                 if(.not.TestClosedShellDet(iLutnJ)) then
                     CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.true.,.true.,tSwapped)
+                    if(tSwapped) then
+                        !Have to recalculate the excitation matrix.
+                        ic = FindBitExcitLevel(iLutnJ, iLutRef, 2)
+                        ex(:,:) = 0
+                        ex(1,1) = ic
+                        call GetBitExcitation(iLutRef,iLutnJ,Ex,tParity)
+                    endif
                 endif
                 hel = hphf_off_diag_helement_norm(ProjEDet,nJ,iLutRef,iLutnJ)
             else
