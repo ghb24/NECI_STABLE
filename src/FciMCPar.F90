@@ -34,7 +34,8 @@ MODULE FciMCParMod
                         trunc_nopen_max, tSpawn_Only_Init, tSpawn_Only_Init_Grow, &
                         TargetGrowRate, TargetGrowRateWalk, tShiftonHFPop, &
                         tContinueAfterMP2,iExitWalkers,tCISDref, tExplicitOutFlux, &
-                        MemoryFacPart, tCISDRealRef, tAllRealCoeff
+                        MemoryFacPart, tAllRealCoeff, &
+                        tRealCoeffByExcitLevel, RealCoeffExcitThresh
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
     use Determinants, only: FDet, get_helement, write_det, &
@@ -872,7 +873,7 @@ MODULE FciMCParMod
         HElement_t :: HDiagTemp,HElGen
         character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
         HElement_t :: delta
-        integer :: proc, pos, sgn(lenof_sign), coeff, WalkersToSpawn
+        integer :: proc, pos, sgn(lenof_sign), coeff
         real(dp) :: r,realcisdcoeff, RealSign(lenof_sign), prob_extra_walker
         real(dp), dimension(lenof_sign) :: RealSignCurr
 
@@ -899,7 +900,9 @@ MODULE FciMCParMod
         HighPopPos=1
         parent_flags=0
         FlagsCurr=0
-
+        TotWalkersToSpawn=0
+        NuMSpawnedEntries=0
+        ZeroMatrixElem=0
         ! Synchronise processors
 !        CALL MPIBarrier(error)
 
@@ -1166,6 +1169,8 @@ MODULE FciMCParMod
                     endif
                 endif
 
+                TotWalkersToSpawn=TotWalkersToSpawn+WalkersToSpawn
+
                 do p = 1, WalkersToSpawn * noMCExcits
                     ! Zero the bit representation, to ensure no extraneous
                     ! data gets through.
@@ -1197,6 +1202,7 @@ MODULE FciMCParMod
 
                     ! Children have been chosen to be spawned.
                     if (any(realchild /= 0.0)) then
+                        NumSpawnedEntries=NumSpawnedEntries+1
                         ! We know we want to create a particle of this type.
                         call new_child_stats (iter_data, CurrentDets(:,j), &
                                               nJ, iLutnJ, ic, walkExcitLevel,&
@@ -1204,7 +1210,7 @@ MODULE FciMCParMod
 
                         call create_particle (nJ, iLutnJ, child, &
                                               parent_flags, part_type, realchild)
-                    endif ! (child /= 0). Child created
+                    endif
 
                 enddo ! Cycling over mulitple particles on same determinant.
 
@@ -2015,6 +2021,7 @@ MODULE FciMCParMod
         rh = get_spawn_helement (DetCurr, nJ, iLutCurr, iLutnJ, ic, ex, &
                                  tParity, HElGen)
 
+        if (rh .eq.0.0) ZeroMatrixElem=ZeroMatrixElem+1
 #ifdef __CMPLX
 
 !We actually want to calculate Hji - take the complex conjugate, rather than swap around DetCurr and nJ.
@@ -2131,9 +2138,9 @@ MODULE FciMCParMod
             !We are dealing with real particles always here.
             tRealSpawning=.false. !default
             
-            if (tCISDRealRef) then
+            if (tRealCoeffByExcitLevel) then
                 TargetExcitLevel = FindBitExcitLevel (iLutRef, iLutnJ, max_calc_ex_level)
-                if (TargetExcitLevel .le. 2) tRealSpawning=.true.
+                if (TargetExcitLevel .le. RealCoeffExcitThresh) tRealSpawning=.true.
             endif
 
             if (tAllRealCoeff) tRealSpawning=.true.
@@ -2444,7 +2451,7 @@ MODULE FciMCParMod
         iDie = attempt_die (DetCurr, Kii, realwSign, WalkExcitLevel)
 
 !        IF(iDie.ne.0) WRITE(iout,*) "Death: ",iDie
-        
+       
         IFDEBUG(FCIMCDebug,3) then 
             if(sum(abs(iDie)).ne.0) write(iout,"(A,2I4)") "Death: ",iDie(:)
         endif
@@ -2615,7 +2622,7 @@ MODULE FciMCParMod
             endif
         endif
 
-        if ((tCISDRealRef .and. (WalkExcitLevel .le. 2)).or. tAllRealCoeff) then
+        if ((tRealCoeffByExcitLevel .and. (WalkExcitLevel .le. RealCoeffExcitThresh)).or. tAllRealCoeff) then
             ndie(1)=fac*abs(realwSign(1))
         else
             do i=1,lenof_sign
@@ -3364,7 +3371,7 @@ MODULE FciMCParMod
                 ! Write out info!
                     root_print 'Highest weighted determinant not reference &
                                &det: ', pop_highest, abs_int_sign(int(AllNoAtHF))
-                    if (tCISDRealRef) WRITE(6,*) "Warning: slight error due to using integer N_HF"
+                    
 
                 ! Are we changing the reference determinant?
                 if (tChangeProjEDet) then
@@ -3541,6 +3548,10 @@ MODULE FciMCParMod
         call MPIReduce(HFCyc, MPI_SUM, RealAllHFCyc)
         call MPIReduce(NoAtDoubs, MPI_SUM, AllNoAtDoubs)
         call MPIReduce(Annihilated, MPI_SUM, AllAnnihilated)
+        call MPIReduce(NuMSpawnedEntries, MPI_SUM, AllNumSpawnedEntries)
+        call MPIReduce(ZeroMatrixElem, MPI_SUM, AllZeroMatrixElem)
+        call MPIReduce(NuMMerged, MPI_SUM, AllNumMerged)
+        call MPIReduce(TotWalkersToSpawn, MPI_SUM, AllTotWalkersToSpawn)
         if (lenof_sign == 1) then
             AllHFCyc = real(RealAllHFCyc(1), dp)
         else
@@ -4043,7 +4054,7 @@ MODULE FciMCParMod
                    &22.HFContribtoE(Both)  &
                    &23.NumContribtoE(Re)  &
                    &24.NumContribtoE(Im)  25.HF weight   26.|Psi|    &
-                   &28.Inst S^2"
+                   &28.Inst S^2  29.SpawnedParts  30.MergedParts"
 #else
             if(tMCOutput) then
                 write(iout,"(A)") "       Step     Shift      WalkerCng    &
@@ -4063,7 +4074,8 @@ MODULE FciMCParMod
                   &17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime  &
                   &20.ProjE.ThisIter  21.HFInstShift  22.TotInstShift  &
                   &23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE &
-                  &26.HF weight    27.|Psi|     28.Inst S^2 29.Inst S^2 30.AbsProjE"
+                  &26.HF weight    27.|Psi|     28.Inst S^2 29.Inst S^2 30.AbsProjE &
+                  &31.SpawnedParts  32.MergedParts  33.WalkersToSpawn  34.ZeroMatrixElements"
 
            if(tSplitProjEHist) then
                if(tSplitProjEHistG) then
@@ -4110,7 +4122,7 @@ MODULE FciMCParMod
 
 #ifdef __CMPLX
             write(fcimcstats_unit,"(I12,G16.7,2I10,2I12,7G17.9,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9)") &
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9,4I13)") &
                 Iter + PreviousCycles, &                !1.
                 DiagSft, &                              !2.
                 AllTotParts(1) - AllTotPartsOld(1), &   !3.
@@ -4137,7 +4149,10 @@ MODULE FciMCParMod
                 aimag(AllENumCyc * conjg(AllHFCyc)), &       !23.    Im[\sum njH0j] x Re[n0] - Re[\sum njH0j] x Im[n0]   since no physicality
                 sqrt(float(sum(AllNoatHF**2))) / norm_psi, &
                 norm_psi, &
-                curr_S2
+                curr_S2, &
+                AllNumSpawnedEntries, &
+                AllNumMerged, &
+                AllZeroMatrixElem
 
             if(tMCOutput) then
                 write (iout, "(I12,G16.7,2I10,2I12,7G17.9,G13.5,I12,G13.5)") &
@@ -4177,7 +4192,7 @@ MODULE FciMCParMod
             endif
             
             write(fcimcstats_unit,"(I12,G16.7,3G16.7,3G16.7,5G17.9,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9)") &
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9, 4I13)") &
                 Iter + PreviousCycles, &
                 DiagSft, &
                 sum(AllTotParts) - sum(AllTotPartsOld), &
@@ -4206,7 +4221,11 @@ MODULE FciMCParMod
                 AllNoatHF / norm_psi, &
                 norm_psi, &
                 curr_S2, curr_S2_init, &
-                AbsProjE
+                AbsProjE, &
+                AllNumSpawnedEntries, &
+                AllNumMerged, &
+                AllTotWalkersToSpawn, &
+                AllZeroMatrixElem
 
             if(tMCOutput) then
                 write (iout, "(I12,G16.7,3G16.7,3G16.7,5G17.9,G13.5,I12,&
@@ -6375,7 +6394,7 @@ MODULE FciMCParMod
 
         ! Are we doing a spin-projection histogram?
         if (tHistSpinDist) then
-            if (tCISDRealRef) call stop_all("SumEContrib", "Not set up to use real coeffs with tHistSpinDist")
+            if (tRealCoeffByExcitLevel) call stop_all("SumEContrib", "Not set up to use real coeffs with tHistSpinDist")
             call test_add_hist_spin_dist_det (ilut, RealwSign)
         endif
 
@@ -6834,7 +6853,7 @@ MODULE FciMCParMod
 
         if (tSpinProject) call init_yama_store ()
     
-        if (tCISDRealRef .and. (lenof_sign.ne.1)) &
+        if (tRealCoeffByExcitLevel .and. (lenof_sign.ne.1)) &
             CALL stop_all(this_routine,"Code not yet setup to store complex coefficients as reals &
                                         & - attempt_create_normal is an example")
 
@@ -9287,7 +9306,7 @@ MODULE FciMCParMod
 
         rat = tau * abs(StaticFlux-DiagSft*RealCISDRefCoeff)
 
-        if ((tCISDRealRef .and. (WalkExcitLevel .le. 2)).or. tAllRealCoeff) then
+        if (tAllRealCoeff .or. (tRealCoeffByExcitLevel .and.(WalkExcitLevel .le. RealCoeffExcitThresh))) then
             realchild=-rat
             child(1)=transfer(realchild, child(1))
         else

@@ -2,7 +2,7 @@
 !This module is to be used for various types of walker MC annihilation in serial and parallel.
 MODULE AnnihilationMod
     use SystemData , only : NEl, tHPHF, nBasis, tCSF
-    use CalcData , only : TRegenExcitgens,tRegenDiagHEls
+    use CalcData , only : TRegenExcitgens,tRegenDiagHEls, tEnhanceRemainder
     USE DetCalcData , only : Det,FCIDetIndex
     USE Parallel_neci
     USE dSFMT_interface , only : genrand_real2_dSFMT
@@ -11,7 +11,7 @@ MODULE AnnihilationMod
                          ilut_gt
     use spatial_initiator, only: add_initiator_list, rm_initiator_list, &
                                  is_spatial_init
-    use CalcData , only : tTruncInitiator, tSpawnSpatialInit, tEnhanceRemainder
+    use CalcData , only : tTruncInitiator, tSpawnSpatialInit
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use sort_mod
@@ -152,16 +152,14 @@ MODULE AnnihilationMod
         INTEGER(Kind=n_int) , POINTER :: PointTemp(:,:)
         logical, intent(in) :: tSingleProc
         TYPE(timer),save :: Compress_time
-         
+
+
 !This routine will send all the newly-spawned particles to their correct processor. 
 !MaxIndex is returned as the new number of newly-spawned particles on the processor. May have duplicates.
 !The particles are now stored in SpawnedParts2/SpawnedSign2.
 !        call WriteExcitorListP2(6,SpawnedParts,InitialSpawnedSlots,ValidSpawnedList,0,"Local")
 !        if(bNodeRoot) 
         CALL SendProcNewParts(MaxIndex,tSingleProc)
-!        WRITE(6,*) "Sent particles"
-!        WRITE(6,*) 'MaxIndex',MaxIndex
-!        CALL neci_flush(6)
 
 !CompressSpawnedList works on SpawnedParts arrays, so swap the pointers around.
         PointTemp => SpawnedParts2
@@ -338,7 +336,6 @@ MODULE AnnihilationMod
 !We want to sort the list of newly spawned particles, in order for quicker binary searching later on. 
 !(this is not essential, but should proove faster)
 !They should remain sorted after annihilation between spawned
-        
         if(.not.bNodeRoot) return
 !        call WriteExcitorListP(6,SpawnedParts,0,ValidSpawned,0,"UnOrdered")
         Sort_time%timer_name='Compres Sort interface'
@@ -902,10 +899,38 @@ MODULE AnnihilationMod
                     !beginning of the loop
                     call AddNewHashDet(TotWalkersNew,SpawnedParts(:,i),DetHash,nJ)
                 endif
-            elseif(tHashWalkerList) then
-                !This is the full scheme, and the walkers all spawning to new determinants.
-                !Copy them across now.
-                call AddNewHashDet(TotWalkersNew,SpawnedParts(:,i),DetHash,nJ)
+            else
+                ! Determinant in newly spawned list is not found in currentdets
+                ! If coeff <1, apply removal criterion
+                call extract_sign (SpawnedParts(:,i), SignTemp)
+                RealSignTemp=transfer(SignTemp,RealSignTemp)
+                do j = 1, lenof_sign
+                    if ((abs(RealSignTemp(j)).gt.0.0) .and. (abs(RealSignTemp(j)).lt.1.0)) then
+                        !We remove this walker with probability 1-RealSignTemp
+                        pRemove=1-abs(RealSignTemp(j))
+                        r = genrand_real2_dSFMT ()
+                        if (pRemove .gt. r) then
+                            !Remove this walker
+                            NoRemoved = NoRemoved + abs(RealSignTemp(j))
+                            RealSignTemp(j) = 0.0_dp
+                            SignTemp(j)=transfer(RealSignTemp(j), SignTemp(j))
+                            call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
+                        elseif (tEnhanceRemainder) then
+                            NewRealSignTemp(j)=Sign(1.0_dp,RealSignTemp(j))
+                            SignTemp(j)=transfer(NewRealSignTemp(j), SignTemp(j))
+                            call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
+                        endif
+                    endif
+                enddo
+                if (IsUnoccDet(RealSignTemp)) then
+                    ! All particle 'types' have been aborted
+                    ToRemove = ToRemove + 1
+                elseif(tHashWalkerList) then
+                    !Walkers have not been aborted, and so we should copy the determinant straight over to the main list
+                    !We do not need to recompute the hash, since this should be the same one as was generated at the
+                    !beginning of the loop
+                    call AddNewHashDet(TotWalkersNew,SpawnedParts(:,i),DetHash,nJ)
+                endif
             endif
 
             ! Even if a corresponding particle wasn't found, we can still
@@ -1234,6 +1259,7 @@ MODULE AnnihilationMod
                             call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
                         elseif (tEnhanceRemainder) then
                             NewRealCurrentSign(j)=Sign(1.0_dp,RealCurrentSign(j))
+                            RealCurrentSign(j)=NewRealCurrentSign(j)
                             CurrentSign(j)=transfer(NewRealCurrentSign(j), CurrentSign(j))
                             call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
                         endif
@@ -1284,6 +1310,7 @@ MODULE AnnihilationMod
 
 !We now calculate the contribution to the total number of particles from the spawned lists.
 !The list has previously been compressed.
+        NumMerged=ValidSpawned        
 
         IF(ValidSpawned.gt.0) THEN
             call extract_sign(SpawnedParts(:,1),SpawnedSign)

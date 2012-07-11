@@ -250,7 +250,11 @@ MODULE FciMCData
       REAL(dp) :: CISDProjEContrib, CISDProjEContribAbs
       REAL(dp) :: AllCISDProjEContrib, AllCISDProjEContribAbs
       REAL(dp) :: TotCISDWalkers, AllTotCISDWalkers
+      INTEGER :: NumSpawnedEntries, AllNumSpawnedEntries
+      INTEGER :: ZeroMatrixElem, AllZeroMatrixelem
+      INTEGER :: NumMerged, AllNumMerged
       INTEGER :: TotWalkersCombinedCyc, AllTotWalkersCombinedCyc
+      INTEGER :: WalkersToSpawn, TotWalkersToSpawn, AllTotWalkersToSpawn
       INTEGER :: NumUpdateCycles
       LOGICAL :: tStaticFluxTerm, blank_det
       INTEGER :: initiator_parent_flag !The value of FlagsCurr for an initiator det (to be used for static flux)

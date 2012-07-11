@@ -1,7 +1,8 @@
 #include "macros.h"
 module spin_project
     use SystemData, only: LMS, STOT, nel, nbasis, tHPHF
-    use CalcData, only: tau, tTruncInitiator, tCISDRealRef
+    use CalcData, only: tau, tTruncInitiator, tAlLRealCoeff, &
+                        tRealCoeffByExcitLevel, RealCoeffExcitThresh
     use SymExcitDataMod, only: scratchsize
     use bit_reps, only: NIfD, NIfTot, extract_sign, flag_is_initiator, &
                         flag_make_initiator, test_flag, set_flag, &
@@ -575,7 +576,7 @@ contains
         elem = elem - 1 + spin_proj_shift
         elem = - elem * spin_proj_gamma
 
-        if (tCISDRealRef .and. (WalkExcitLevel .le. 2)) then
+        if (tAllRealCoeff .or. (tRealCoeffByExcitLevel .and.(WalkExcitLevel .le. RealCoeffExcitThresh))) then
             ndie(1)=elem*abs(realwSign(1))
         else
             do i = 1, lenof_sign

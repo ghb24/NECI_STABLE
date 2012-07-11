@@ -240,11 +240,12 @@ contains
           iLogicalNodeSize = 0 !Meaning use the physical node size
 
           tCISDref=.false.
-          tCISDrealref=.false.
           tExplicitOutFlux=.false.
 
           tAllRealCoeff=.false.
           tEnhanceRemainder=.true.
+          tRealCoeffByExcitLevel=.false.
+          RealCoeffExcitThresh=2
 
 !Feb 08 default set.
           IF(Feb08) THEN
@@ -1455,7 +1456,8 @@ contains
                 tExplicitOutFlux=.true.
 
             case("CISDREALREF")
-                tCisdRealRef=.true.
+                tRealCoeffByExcitLevel=.true.
+                RealCoeffExcitThresh=2
                 !We're running either the CISD reference calculation, or the residual calculation using a CISD reference
                 !In either case, we wish the Coefficients at doubles or below to be stored as reals rather than integers
                 !if tCisdRef=.true. then we're doing the residual calc
@@ -1466,6 +1468,9 @@ contains
                 !Turn on continuous spawning/death
                 !Kill populations n<1 with probability 1-n
 
+            case("REALCOEFFBYEXCITLEVEL")
+                tRealCoeffByExcitLevel=.true.
+                call readi(RealCoeffExcitThresh)
             case("KEEPWALKSMALL")
                 tEnhanceRemainder=.false.
                 !When we do the removal step with AllRealCoeff, on the occasions where these pops are *not* removed,
