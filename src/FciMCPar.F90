@@ -35,7 +35,8 @@ MODULE FciMCParMod
                         TargetGrowRate, TargetGrowRateWalk, tShiftonHFPop, &
                         tContinueAfterMP2,iExitWalkers,tCISDref, tExplicitOutFlux, &
                         MemoryFacPart, tAllRealCoeff, &
-                        tRealCoeffByExcitLevel, RealCoeffExcitThresh
+                        tRealCoeffByExcitLevel, RealCoeffExcitThresh, &
+                        tRealSpawnCutoff, RealSpawnCutoff
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
     use Determinants, only: FDet, get_helement, write_det, &
@@ -1993,7 +1994,7 @@ MODULE FciMCParMod
             end function
         end interface
         
-        real(dp) :: rat, r, walkerweight
+        real(dp) :: rat, r, walkerweight, pSpawn
         integer :: extracreate, iUnused
         integer :: TargetExcitLevel
         logical :: tRealSpawning
@@ -2149,8 +2150,22 @@ MODULE FciMCParMod
 
             if (tRealSpawning) then
                 !Spawning onto CISD Space
-                realchild=-tau*(rh/prob)*walkerweight
-                child(1)=transfer(realchild, child(1))
+                realchild(1)=-tau*(rh/prob)*walkerweight
+                
+                if (tRealSpawnCutoff .and. (abs(realchild(1)).lt.RealSpawnCutoff)) then
+                     !We don't want to bother spawning negligible coefficients everytime
+                     pSpawn=abs(realchild(1))/RealSpawnCutoff
+                     r = genrand_real2_dSFMT ()
+                     if (pSpawn > r) then
+                         !Keep this walker, and set equal to RealSpawnCutoff
+                         realchild(1)=sign(RealSpawnCutoff, -tau*(rh/prob)*walkerweight)
+                     else
+                         !Remove this walker -- do not spawn small coeff this time
+                         realchild(1)=0.d0
+                     endif
+                 endif
+
+                child(1)=transfer(realchild(1), child(1))
             else
                 rat = tau * abs(rh / prob) * abs(walkerweight)
                 if(tSearchTau) then

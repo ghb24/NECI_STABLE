@@ -28,8 +28,10 @@ LOGICAL :: tInitIncDoubs,tWalkContGrow,tAnnihilatebyRange,tRetestAddtoInit
 logical :: tReadPopsRestart, tReadPopsChangeRef, tInstGrowthRate
 logical :: tCISDref !Start from a CISD popsfile, and conduct a calculation for the residual wavefunction
 logical :: tAllRealCoeff
+logical :: tRealSpawnCutoff
 logical :: tRealCoeffByExcitLevel
 integer :: RealCoeffExcitThresh
+real(dp) :: RealSpawnCutoff
 logical :: tEnhanceRemainder
 logical :: tExplicitOutFlux
 logical :: tStartCAS    !Start FCIMC dynamic with walkers distributed according to CAS diag.

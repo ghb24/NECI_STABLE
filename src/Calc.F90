@@ -246,6 +246,8 @@ contains
           tEnhanceRemainder=.true.
           tRealCoeffByExcitLevel=.false.
           RealCoeffExcitThresh=2
+          tRealSpawnCutoff=.false.
+          RealSpawnCutoff=1D-5
 
 !Feb 08 default set.
           IF(Feb08) THEN
@@ -1467,7 +1469,6 @@ contains
                 tAllRealCoeff=.true.
                 !Turn on continuous spawning/death
                 !Kill populations n<1 with probability 1-n
-
             case("REALCOEFFBYEXCITLEVEL")
                 tRealCoeffByExcitLevel=.true.
                 call readi(RealCoeffExcitThresh)
@@ -1476,6 +1477,9 @@ contains
                 !When we do the removal step with AllRealCoeff, on the occasions where these pops are *not* removed,
                 !Keep their population the same, rather than resetting as a value of 1 (which is technically correct)
                 !This "bug" produced initiator-like (no plateau) behaviour, so is of interest
+            case("REALSPAWNCUTOFF")
+                tRealSpawnCutoff=.true.
+                call Getf(RealSpawnCutoff)
 
             case default
                 call report("Keyword "                                &
