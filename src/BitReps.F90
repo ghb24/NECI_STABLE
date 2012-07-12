@@ -220,31 +220,6 @@ contains
 
     end subroutine extract_bit_rep
 
-    subroutine extract_bit_rep_rdm (ilut, IterRDMStartI, PrevAvSignI, sgnfac, nI, sgn, flags, AvSignI)
-        
-        ! Extract useful terms out of the bit-representation of a walker
-        use FciMCData , only : Iter
-        integer(n_int), intent(in) :: ilut(0:nIfTot)
-        integer, intent(out) :: nI(nel), flags
-        integer, dimension(lenof_sign), intent(out) :: sgn
-        real(dp) , intent(in) :: sgnfac, IterRDMStartI, PrevAvSignI
-        real(dp) , intent(out) :: AvSignI
-
-        sgn = iLut(NOffSgn:NOffSgn+lenof_sign-1)
-        IF(NifFlag.eq.1) THEN
-            flags = iLut(NOffFlag)
-        ELSE
-            flags = 0
-        ENDIF
-
-        AvSignI = ( ((real(Iter,dp) - IterRDMStartI) * PrevAvSignI) &
-                        + real(sgn(1),dp) ) / ( real(Iter,dp) - IterRDMStartI + 1.0_dp )
-
-        ! This routine also adds in the diagonal elements of the rdm.
-        call decode_bit_det_rdm (nI, ilut, AvSignI, sgnfac)
-
-    end subroutine extract_bit_rep_rdm
-
     pure subroutine extract_sign (ilut,sgn)
         integer(n_int), intent(in) :: ilut(0:nIfTot)
         integer, dimension(lenof_sign), intent(out) :: sgn

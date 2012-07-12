@@ -133,7 +133,8 @@ module soft_exit
     use FCIMCLoggingMOD, only: PrintBlocking, RestartBlocking, &
                                PrintShiftBlocking_proc => PrintShiftBlocking,&
                                RestartShiftBlocking_proc=>RestartShiftBlocking
-    use AnnihilationMod, only: DetermineDetNode
+!    use AnnihilationMod, only: DetermineDetNode
+    use HashMod, only: DetermineDetNode
     use constants, only: lenof_sign, int32, dp
     use bit_reps, only: extract_sign,encode_sign
     use spin_project, only: tSpinProject, spin_proj_gamma, &

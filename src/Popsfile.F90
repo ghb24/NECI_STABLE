@@ -12,7 +12,9 @@ MODULE PopsfileMod
     use FciMCData
     use bit_reps
     use Parallel_neci
-    use AnnihilationMod, only: DetermineDetNode,FindWalkerHash,EnlargeHashTable,IsUnoccDet
+!    use AnnihilationMod, only: DetermineDetNode,FindWalkerHash,EnlargeHashTable,IsUnoccDet
+    use HashMod , only : DetermineDetNode
+    use AnnihilationMod, only: FindWalkerHash,EnlargeHashTable,IsUnoccDet
     USE Logging , only : iWritePopsEvery,tPopsFile,iPopsPartEvery,tBinPops
     USE Logging , only : tPrintPopsDefault,tIncrementPops, tPrintInitiators
     use sort_mod

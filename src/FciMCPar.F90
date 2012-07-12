@@ -115,12 +115,13 @@ MODULE FciMCParMod
                          fill_hist_explicitrdm_this_iter, &
                          fill_diag_rdm, fill_sings_rdm, fill_doubs_rdm, &
                          Add_RDM_From_IJ_Pair, tCalc_RDMEnergy, &
-                         extract_bit_rep_rdm_diag_norm, extract_bit_rep_rdm_diag_hphf, &
+                         extract_bit_rep_rdm_diag_norm, &
                          extract_bit_rep_rdm_diag_hf_s_d, &
                          extract_bit_rep_rdm_diag_no_rdm, DeallocateRDM,&
-                         DeAlloc_Alloc_SpawnedParts, Add_RDM_HFConnections_Null, &
-                         Add_RDM_HFConnections_HPHF, Add_RDM_HFConnections_HF_S_D, &
-                         Add_RDM_HFConnections_Norm, Fill_Spin_Coupled_RDM, zero_rdms 
+                         DeAlloc_Alloc_SpawnedParts, &
+                         Fill_Spin_Coupled_RDM, zero_rdms, &
+                         Add_RDM_HFConnections_Null, Add_RDM_HFConnections_Norm, &
+                         Add_RDM_HFConnections_HPHF, Add_RDM_HFConnections_HF_S_D
 
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
@@ -773,7 +774,7 @@ MODULE FciMCParMod
                                                 FlagsI, IterRDMStartI, AvSignI, Store)
                 use constants , only : dp, n_int, lenof_sign
                 use SystemData , only : NEl
-                use bit_reps , only : NIfTot, extract_bit_rep, extract_bit_rep_rdm
+                use bit_reps , only : NIfTot, extract_bit_rep
                 use FciMCData , only : excit_gen_store_type, NCurrH
                 use DetBitOps , only : TestClosedShellDet
                 implicit none
@@ -793,21 +794,22 @@ MODULE FciMCParMod
         use, intrinsic :: iso_c_binding
         implicit none
         interface
-            subroutine Add_RDM_HFConnections(iLutJ,nJ,AvSignJ,walkExcitLevel)
+            subroutine Add_RDM_HFConnections(iLutJ,nJ,AvSignJ,walkExcitLevel,IterRDMStartI)
                 use constants , only : n_int, lenof_sign, dp
                 use SystemData , only : NEl
                 use bit_reps , only : NIfTot
-                use FciMCData , only : HFDet
+                use FciMCData , only : AvNoatHF, iLutHF_True
                 use hphf_integrals , only : hphf_sign
                 use HPHFRandExcitMod , only : FindExcitBitDetSym
                 use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
                 implicit none
                 integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
                 integer , intent(in) :: nJ(NEl)
-                real(dp) , intent(in) :: AvSignJ
+                real(dp) , intent(in) :: AvSignJ, IterRDMStartI
                 integer , intent(in) :: walkExcitLevel
                 integer(kind=n_int) :: SpinCoupDet(0:niftot)
                 integer :: nSpinCoup(NEl), HPHFExcitLevel
+                real(dp) :: IterRDM
             end subroutine
         end interface
 
@@ -941,7 +943,7 @@ MODULE FciMCParMod
                                                     FlagsI, IterRDMStartI, AvSignI, Store)
                 use constants , only : dp, n_int, lenof_sign
                 use SystemData , only : NEl
-                use bit_reps , only : NIfTot, extract_bit_rep, extract_bit_rep_rdm
+                use bit_reps , only : NIfTot, extract_bit_rep 
                 use FciMCData , only : excit_gen_store_type, NCurrH
                 use DetBitOps , only : TestClosedShellDet
                 implicit none
@@ -952,21 +954,22 @@ MODULE FciMCParMod
                 real(dp) , intent(out) :: IterRDMStartI, AvSignI
                 type(excit_gen_store_type), intent(inout), optional :: Store
             end subroutine
-            subroutine Add_RDM_HFConnections(iLutJ,nJ,AvSignJ,walkExcitLevel)
+            subroutine Add_RDM_HFConnections(iLutJ,nJ,AvSignJ,walkExcitLevel,IterRDMStartI)
                 use constants , only : n_int, lenof_sign, dp
                 use SystemData , only : NEl
                 use bit_reps , only : NIfTot
-                use FciMCData , only : HFDet
+                use FciMCData , only : AvNoatHF, iLutHF_True
                 use hphf_integrals , only : hphf_sign
                 use HPHFRandExcitMod , only : FindExcitBitDetSym
                 use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
                 implicit none
                 integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
                 integer , intent(in) :: nJ(NEl)
-                real(dp) , intent(in) :: AvSignJ
+                real(dp) , intent(in) :: AvSignJ, IterRDMStartI
                 integer , intent(in) :: walkExcitLevel
                 integer(kind=n_int) :: SpinCoupDet(0:niftot)
                 integer :: nSpinCoup(NEl), HPHFExcitLevel
+                real(dp) :: IterRDM
             end subroutine
         end interface
         
@@ -1071,6 +1074,7 @@ MODULE FciMCParMod
 
         IFDEBUG(FCIMCDebug,3) write(iout,"(A,I12)") "Walker list length: ",TotWalkers
         IFDEBUG(FCIMCDebug,3) write(iout,"(A)") "TW: Walker  Det"
+
         do j=1,TotWalkers
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.
@@ -1122,7 +1126,6 @@ MODULE FciMCParMod
                 endif
             endif
 
-
             !Debug output.
             IFDEBUGTHEN(FCIMCDebug,3)
                 if(lenof_sign.eq.2) then
@@ -1150,7 +1153,7 @@ MODULE FciMCParMod
             else
                 walkExcitLevel_toHF = walkExcitLevel
             endif
-            if(walkExcitLevel_toHF.eq.0) HFInd = VecSlot                                                
+            if(walkExcitLevel_toHF.eq.0) HFInd = VecSlot     
             IFDEBUGTHEN(FCIMCDebug,1)
                 if(j.gt.1) then
                     if(DetBitEQ(CurrentDets(:,j-1),CurrentDets(:,j),NIfDBO)) then
@@ -1195,10 +1198,10 @@ MODULE FciMCParMod
             call SumEContrib (DetCurr, WalkExcitLevel, SignCurr, &
                               CurrentDets(:,j), HDiagCurr, 1.0_dp)
 
-            ! If we're filling the RDM, this calculates the explicitly connected singles and doubles.
-            ! Or in the case of HFSD (or some combination of this), it calculates the 
-            ! diagonal elements too - as we need the walkExcitlevel for the diagonal elements as well.
-            call Add_RDM_HFConnections(CurrentDets(:,j),DetCurr,AvSignCurr,walkExcitLevel_toHF)   
+!            ! If we're filling the RDM, this calculates the explicitly connected singles and doubles.
+!            ! Or in the case of HFSD (or some combination of this), it calculates the 
+!            ! diagonal elements too - as we need the walkExcitlevel for the diagonal elements as well.
+!            call Add_RDM_HFConnections(CurrentDets(:,j),DetCurr,AvSignCurr,walkExcitLevel_toHF)   
             TempSpawnedPartsInd = 0
 
             ! Loop over the 'type' of particle. 
@@ -1275,6 +1278,11 @@ MODULE FciMCParMod
             call walker_death (attempt_die, iter_data, DetCurr, &
                                CurrentDets(:,j), HDiagCurr, SignCurr, &
                                AvSignCurr, IterRDMStartCurr, VecSlot, j)
+
+            if(tFillingStochRDMonFly.and.(Iter.eq.NMCyc)) then 
+                call fill_rdm_diag_2 (CurrentDets(:,VecSlot-1), CurrentH(1:NCurrH,VecSlot-1), DetCurr) 
+                call Add_RDM_HFConnections(CurrentDets(:,j),DetCurr,AvSignCurr,walkExcitLevel_toHF,CurrentH(3,VecSlot-1))   
+            endif
 
         enddo ! Loop over determinants.
         IFDEBUGTHEN(FCIMCDebug,2) 
@@ -1608,7 +1616,7 @@ MODULE FciMCParMod
                     call set_extract_bit_rep_rdm_diag(extract_bit_rep_rdm_diag_hf_s_d)
                     call set_add_rdm_hfconnections(add_rdm_hfconnections_hf_s_d)
                 elseif(tHPHF) then
-                    call set_extract_bit_rep_rdm_diag(extract_bit_rep_rdm_diag_hphf)
+                    call set_extract_bit_rep_rdm_diag(extract_bit_rep_rdm_diag_norm)
                     call set_add_rdm_hfconnections(add_rdm_hfconnections_hphf)
                 else
                     call set_extract_bit_rep_rdm_diag(extract_bit_rep_rdm_diag_norm)

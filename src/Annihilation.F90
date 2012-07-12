@@ -1318,13 +1318,14 @@ MODULE AnnihilationMod
 !the annihilation process. Therefore we will not multiply specify determinants when we merge the lists.
     SUBROUTINE InsertRemoveParts(ValidSpawned,TotWalkersNew)
         use util_mod, only: abs_int_sign
-        use SystemData, only: tHPHF
+        use SystemData, only: tHPHF, tRef_Not_HF
         use bit_reps, only: NIfD
-        use CalcData , only : tCheckHighestPop
+        use CalcData , only : tCheckHighestPop, NMCyc
         use Logging , only : tRDMonFly, tExplicitAllRDM
+        use nElRDMMod , only : Add_RDM_HFConnections_HPHF, Add_RDM_HFConnections_Norm
         INTEGER, intent(in) :: ValidSpawned
         integer, intent(inout) :: TotWalkersNew
-        INTEGER :: i,DetsMerged,nJ(NEl),part_type
+        INTEGER :: i,DetsMerged,nJ(NEl),part_type, ExcitLevelCurr
         INTEGER, DIMENSION(lenof_sign) :: CurrentSign,SpawnedSign
         real(dp) :: HDiag
         LOGICAL :: TestClosedShellDet
@@ -1348,6 +1349,20 @@ MODULE AnnihilationMod
 
                 IF(IsUnoccDet(CurrentSign)) THEN
                     DetsMerged=DetsMerged+1
+                    if(tFillingStochRDMonFly.and.(Iter.ne.NMCyc)) then
+                        call decode_bit_det (nJ,CurrentDets(:,i))
+                        call fill_rdm_diag_2 (CurrentDets(:,i), CurrentH(1:NCurrH,i), nJ) 
+                        if(tRef_Not_HF) then
+                            ExcitLevelCurr = FindBitExcitLevel (iLutHF_true, CurrentDets(:,i), 2)
+                        else
+                            ExcitLevelCurr = FindBitExcitLevel (iLutRef, CurrentDets(:,i), 2)
+                        endif
+                        if(tHPHF) then
+                            call Add_RDM_HFConnections_HPHF(CurrentDets(:,i),nJ,CurrentH(2,i),ExcitLevelCurr,CurrentH(3,i))   
+                        else
+                            call Add_RDM_HFConnections_Norm(CurrentDets(:,i),nJ,CurrentH(2,i),ExcitLevelCurr,CurrentH(3,i))   
+                        endif
+                    endif
                     IF(tTruncInitiator) THEN
                         do part_type=1,lenof_sign
                             if (test_flag(CurrentDets(:,i),flag_parent_initiator(part_type))) then
@@ -1492,52 +1507,6 @@ MODULE AnnihilationMod
         hashInd = int(abs(mod(hash, int(nWalkerHashes, int64))),sizeof_int)+1_int64
     end function FindWalkerHash
 
-
-    pure function DetermineDetNode (nI, iIterOffset) result(node)
-
-        ! Depending on the Hash, determine which node determinant nI
-        ! belongs to in the DirectAnnihilation scheme. NB FCIMC has each processor as a separate logical node.
-        !
-        ! In:  nI   - Integer ordered list for the determinant
-        ! In:  iIterOffset - Offset this iteration by this amount
-        ! Out: proc - The (0-based) processor index.
-
-        integer, intent(in) :: nI(nel)
-        integer, intent(in) :: iIterOffset
-        integer :: node
-        
-        integer :: i
-        integer(int64) :: acc
-        integer(int64) :: offset
-
-!sum(nI) ensures that a random number is generated for each different nI, which is then added to the iteration,
-!  and the result shifted.  Consequently, the less significant bits (but not the least, as these have been shifted away)
-!  for each nI will change on average once per 2^hash_shift iterations, but the change spread throughout the different iters.
-        if (hash_iter>0) then  !generate a hash to work out an offset.  Probably very inefficient
-           acc = 0
-           do i = 1, nel
-               acc = (1099511628211_int64 * acc) + &
-                       (RandomHash(mod(iand(nI(i), csf_orbital_mask)-1,nBasis)+1) * i)
-           enddo
-           offset=ishft(abs(ishft(acc+hash_iter+iIterOffset, -hash_shift) ),-4)
-        else
-           offset=0
-        endif
-        acc = 0
-        if(tCSF) then
-            do i = 1, nel
-                acc = (1099511628211_int64 * acc) + &
-                        (RandomHash(mod(iand(nI(i), csf_orbital_mask)+offset-1,int(nBasis,int64))+1) * i)
-            enddo
-        else
-            do i = 1, nel
-                acc = (1099511628211_int64 * acc) + &
-                        (RandomHash(mod(nI(i)+offset-1,int(nBasis,int64))+1) * i)
-            enddo
-        endif
-        node = abs(mod(acc, int(nNodes, int64)))
-
-    end function
     
     FUNCTION CreateHash(DetCurr)
         INTEGER :: DetCurr(NEl),i
@@ -1671,3 +1640,5 @@ MODULE AnnihilationMod
     END SUBROUTINE BinSearchParts
     
 END MODULE AnnihilationMod
+
+

@@ -790,7 +790,7 @@ MODULE nElRDMMod
 ! This is just the standard extract_bit_rep routine for when we're not calculating the RDMs.    
         use constants , only : dp, n_int, lenof_sign
         use SystemData , only : NEl
-        use bit_reps , only : NIfTot, extract_bit_rep, extract_bit_rep_rdm
+        use bit_reps , only : NIfTot, extract_bit_rep
         use FciMCData , only : excit_gen_store_type, NCurrH
         use DetBitOps , only : TestClosedShellDet
         implicit none
@@ -815,7 +815,7 @@ MODULE nElRDMMod
 ! This is used for a standard full space RDM calculation without HPHF.
         use constants , only : dp, n_int, lenof_sign
         use SystemData , only : NEl
-        use bit_reps , only : NIfTot, extract_bit_rep, extract_bit_rep_rdm
+        use bit_reps , only : NIfTot, extract_bit_rep
         use FciMCData , only : excit_gen_store_type, NCurrH
         use DetBitOps , only : TestClosedShellDet
         implicit none
@@ -830,10 +830,12 @@ MODULE nElRDMMod
         IterRDMStartI = CurrH_I(3)
         ! If there is nothing stored there yet, the first iteration is this one.
         IF(IterRDMStartI.eq.0.0_dp) IterRDMStartI = real(Iter, dp)
- 
-        ! This extracts everything, calculates the average sign, and adds in the 
-        ! diagonal elements.
-        call extract_bit_rep_rdm (iLutnI, IterRDMStartI, CurrH_I(2), 1.0_dp, nI, SignI, FlagsI, AvSignI)
+
+        ! This extracts everything.
+        call extract_bit_rep (iLutnI, nI, SignI, FlagsI)
+
+        AvSignI = ( ((real(Iter,dp) - IterRDMStartI) * CurrH_I(2)) &
+                        + real(SignI(1),dp) ) / ( real(Iter,dp) - IterRDMStartI + 1.0_dp )
 
     end subroutine extract_bit_rep_rdm_diag_norm
 
@@ -843,7 +845,7 @@ MODULE nElRDMMod
 ! Here we just need to calculate the average sign and extract the info as usual.
         use constants , only : dp, n_int, lenof_sign
         use SystemData , only : NEl
-        use bit_reps , only : NIfTot, extract_bit_rep, extract_bit_rep_rdm
+        use bit_reps , only : NIfTot, extract_bit_rep
         use FciMCData , only : excit_gen_store_type, NCurrH
         use DetBitOps , only : TestClosedShellDet
         implicit none
@@ -869,48 +871,7 @@ MODULE nElRDMMod
 
     end subroutine extract_bit_rep_rdm_diag_hf_s_d
 
-    subroutine extract_bit_rep_rdm_diag_hphf(iLutnI, CurrH_I, nI, SignI, FlagsI, IterRDMStartI, AvSignI, Store)
-! While extracting the orbitals from the bit representation of the determinant, we 
-! simulaneously add in the contribution of each orbital to the diagonal elements of the RDMs.
-! But we also need to add in the contribution from it's spin coupled partner if using HPHF, and possibly 
-! connections between the two.
-! This is not done in the best way at the moment, but is fine for now.
-        use constants , only : dp, n_int, lenof_sign
-        use SystemData , only : NEl
-        use bit_reps , only : NIfTot, extract_bit_rep, extract_bit_rep_rdm
-        use FciMCData , only : excit_gen_store_type, NCurrH
-        use DetBitOps , only : TestClosedShellDet
-        implicit none
-        integer(n_int), intent(in) :: iLutnI(0:nIfTot)
-        real(dp) , intent(in) :: CurrH_I(NCurrH)
-        integer, intent(out) :: nI(nel), FlagsI
-        integer, dimension(lenof_sign), intent(out) :: SignI
-        real(dp) , intent(out) :: IterRDMStartI, AvSignI
-        type(excit_gen_store_type), intent(inout), optional :: Store
-
-        IterRDMStartI = CurrH_I(3)
-        IF(IterRDMStartI.eq.0.0_dp) IterRDMStartI = real(Iter, dp)
-
-        if(.not.TestClosedShellDet(iLutnI)) then
-            ! The 0.5 factor is because each coefficient needs to be divided by SQRT(2) (when it has 
-            ! a spin coupled buddy that is not the same), but 
-            ! we then square the coefficients - multiply the squared value by 0.5.
-            call extract_bit_rep_rdm (iLutnI, IterRDMStartI, CurrH_I(2), 0.5_dp, nI, SignI, FlagsI, AvSignI)
-
-            ! If HPHF is on, we need to consider I' as well as I.
-            ! i.e. only one of the spin coupled determinants will be in the list, need to flip 
-            ! the spins of all determinants to generate the other, and add in the C_I to this I' too.
-            ! Only need to do this if I is open shell.
-            ! TODO : Make this better
-            call Add_StochRDM_Diag_HPHF(iLutnI, nI, AvSignI)
-        else
-            call extract_bit_rep_rdm (iLutnI, IterRDMStartI, CurrH_I(2), 1.0_dp, nI, SignI, FlagsI, AvSignI)
-        endif
-
-    end subroutine extract_bit_rep_rdm_diag_hphf
-
-
-    subroutine Add_StochRDM_Diag_HPHF(iLutCurr,DetCurr,AvSignCurr)
+    subroutine Add_StochRDM_Diag_HPHF(iLutCurr,DetCurr,AvSignCurr,IterRDM)
 ! This is called when we run over all TotWalkers in CurrentDets.    
 ! It is only called if HF is being used and we've encountered an open shell det.
 ! The decoding routine would have added in the diagonal elements of the original HF pair,
@@ -922,6 +883,7 @@ MODULE nElRDMMod
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer , intent(in) :: DetCurr(NEl)
         real(dp) , intent(in) :: AvSignCurr
+        real(dp) , intent(inout) :: IterRDM
         integer(kind=n_int) :: SpinCoupDet(0:niftot)
         integer :: nSpinCoup(NEl), SignFac, HPHFExcitLevel
 
@@ -934,7 +896,7 @@ MODULE nElRDMMod
         ! Find out if it's + or - in the above expression.                
         SignFac = hphf_sign(iLutCurr)
 
-        call Fill_Diag_RDM(nSpinCoup, (real(SignFac,dp)*AvSignCurr)/SQRT(2.D0))
+        call Fill_Diag_RDM(nSpinCoup, (real(SignFac,dp)*AvSignCurr)/SQRT(2.D0), IterRDM)
 
 ! For HPHF we're considering < D_I + D_I' | a_a+ a_b+ a_j a_i | D_I + D_I' >
 ! Not only do we have diagonal < D_I | a_a+ a_b+ a_j a_i | D_I > terms, but also cross terms
@@ -944,7 +906,7 @@ MODULE nElRDMMod
         HPHFExcitLevel = FindBitExcitLevel (iLutCurr, SpinCoupDet, 2)
         if(HPHFExcitLevel.le.2) & 
             call Add_RDM_From_IJ_Pair(DetCurr,nSpinCoup,&
-                                        AvSignCurr/SQRT(2.D0), &
+                                        IterRDM * AvSignCurr/SQRT(2.D0), &
                                         (real(SignFac,dp)*AvSignCurr)/SQRT(2.D0),.true.)
 
     end subroutine Add_StochRDM_Diag_HPHF
@@ -953,7 +915,7 @@ MODULE nElRDMMod
 ! a single or double excitation of the HF, they explicitly add in the contribution to the RDM 
 ! from the current and hf determinant.
 
-    subroutine Add_RDM_HFConnections_Norm(iLutJ,nJ,AvSignJ,walkExcitLevel)
+    subroutine Add_RDM_HFConnections_Norm(iLutJ,nJ,AvSignJ,walkExcitLevel,IterRDMStartI)
 ! This is called when we run over all TotWalkers in CurrentDets.    
 ! It is called for each CurrentDet which is a single or double of the HF.
 ! It explicitly adds in the HF - S/D connection, as if the HF were D_i and 
@@ -963,35 +925,41 @@ MODULE nElRDMMod
         use constants , only : n_int, lenof_sign, dp
         use SystemData , only : NEl
         use bit_reps , only : NIfTot
-        use FciMCData , only : AvNoatHF
+        use FciMCData , only : AvNoatHF, iLutHF_True
         use hphf_integrals , only : hphf_sign
         use HPHFRandExcitMod , only : FindExcitBitDetSym
         use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
         implicit none
         integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
         integer , intent(in) :: nJ(NEl)
-        real(dp) , intent(in) :: AvSignJ
+        real(dp) , intent(in) :: AvSignJ, IterRDMStartI
         integer , intent(in) :: walkExcitLevel
         integer(kind=n_int) :: SpinCoupDet(0:niftot)
         integer :: nSpinCoup(NEl), HPHFExcitLevel
+        real(dp) :: IterRDM
 
 ! Quick check that the HF population is being calculated correctly.
         if(walkExcitLevel.eq.0) then
             if(AvSignJ.ne.AvNoatHF) then
+                write(6,*) 'HFDet_True',HFDet_True
+                write(6,*) 'nJ',nJ
+                write(6,*) 'iLutJ',iLutJ
                 write(6,*) 'AvSignJ',AvSignJ
                 write(6,*) 'AvNoatHF',AvNoatHF
                 CALL Stop_All('PerformFCIMCycPar','Incorrect instantaneous HF population.')
             endif
         endif
 
+        IterRDM = real(Iter,dp) - IterRDMStartI + 1.0_dp
+
 ! If we have a single or double, add in the connection to the HF, symmetrically.        
         if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) &
-            call Add_RDM_From_IJ_Pair(HFDet_True,nJ,AvNoatHF,AvSignJ,.true.)
+            call Add_RDM_From_IJ_Pair(HFDet_True,nJ,AvNoatHF,IterRDM * AvSignJ,.true.)
 
     end subroutine Add_RDM_HFConnections_Norm
 
 
-    subroutine Add_RDM_HFConnections_HPHF(iLutJ,nJ,AvSignJ,walkExcitLevel)
+    subroutine Add_RDM_HFConnections_HPHF(iLutJ,nJ,AvSignJ,walkExcitLevel,IterRDMStartI)
 ! This is called when we run over all TotWalkers in CurrentDets.    
 ! It is called for each CurrentDet which is a single or double of the HF.
 ! It adds in the HF - S/D connection.
@@ -1006,10 +974,11 @@ MODULE nElRDMMod
         implicit none
         integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
         integer , intent(in) :: nJ(NEl)
-        real(dp) , intent(in) :: AvSignJ
+        real(dp) , intent(in) :: AvSignJ, IterRDMStartI
         integer , intent(in) :: walkExcitLevel
         integer(kind=n_int) :: SpinCoupDet(0:niftot)
         integer :: nSpinCoup(NEl), HPHFExcitLevel
+        real(dp) :: IterRDM
 
         if(walkExcitLevel.eq.0) then
             if(AvSignJ.ne.AvNoatHF) then
@@ -1019,15 +988,17 @@ MODULE nElRDMMod
             endif
         endif
 
+        IterRDM = real(Iter,dp) - IterRDMStartI + 1.0_dp
+
 ! Now if the determinant is connected to the HF (i.e. single or double), add in the diagonal elements
 ! of this connection as well - symmetrically because no probabilities are involved.
         if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) &
             call Fill_Spin_Coupled_RDM_v2(iLutHF_True,iLutJ,HFDet_True,nJ,&
-                                            AvNoatHF,AvSignJ,.true.)
+                                            AvNoatHF,IterRDM * AvSignJ,.true.)
 
     end subroutine Add_RDM_HFConnections_HPHF
 
-    subroutine Add_RDM_HFConnections_HF_S_D(iLutJ,nJ,AvSignJ,walkExcitLevel)
+    subroutine Add_RDM_HFConnections_HF_S_D(iLutJ,nJ,AvSignJ,walkExcitLevel, IterRDMStartI)
 ! This is called when we run over all TotWalkers in CurrentDets.    
 ! This finds all the connections to the HF when doing some sort of truncated RDM 
 ! calculation.
@@ -1043,16 +1014,19 @@ MODULE nElRDMMod
         implicit none
         integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
         integer , intent(in) :: nJ(NEl)
-        real(dp) , intent(in) :: AvSignJ
+        real(dp) , intent(in) :: AvSignJ, IterRDMStartI
         integer , intent(in) :: walkExcitLevel
         integer(kind=n_int) :: SpinCoupDet(0:niftot)
         integer :: nSpinCoup(NEl), HPHFExcitLevel
+        real(dp) :: IterRDM
 
 ! Add diagonal elements to reduced density matrices.
 
 ! If HF_S_D_Ref, we are only considering determinants connected to the HF, 
 ! doubles and singles (so theoretically up to quadruples).
 ! But for the diagonal elements - only consider doubles and singles (and HF).
+
+        IterRDM = real(Iter,dp) - IterRDMStartI + 1.0_dp
             
         ! In all of these cases the HF is a diagonal element.
         if(walkExcitLevel.eq.0) then
@@ -1108,24 +1082,29 @@ MODULE nElRDMMod
     end subroutine Add_RDM_HFConnections_HF_S_D
 
 
-    subroutine Add_RDM_HFConnections_null(iLutJ,nJ,AvSignJ,walkExcitLevel)
+    subroutine Add_RDM_HFConnections_null(iLutJ,nJ,AvSignJ,walkExcitLevel,IterRDMStartI)
 ! This is called when we are not filling the density matrices.
         use constants , only : n_int, lenof_sign, dp
         use SystemData , only : NEl
         use bit_reps , only : NIfTot
-        use FciMCData , only : AvNoatHF
+        use FciMCData , only : AvNoatHF, iLutHF_True
         use hphf_integrals , only : hphf_sign
         use HPHFRandExcitMod , only : FindExcitBitDetSym
         use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
         implicit none
         integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
         integer , intent(in) :: nJ(NEl)
-        real(dp) , intent(in) :: AvSignJ
+        real(dp) , intent(in) :: AvSignJ, IterRDMStartI
         integer , intent(in) :: walkExcitLevel
         integer(kind=n_int) :: SpinCoupDet(0:niftot)
         integer :: nSpinCoup(NEl), HPHFExcitLevel
+        real(dp) :: IterRDM
 
     end subroutine Add_RDM_HFConnections_null
+
+
+
+
 
 ! This routine does the same as Fill_Spin_Coupled_RDM, but hopefully more efficiently!
 ! It takes to HPHF functions, and calculate what needs to be summed into the RDMs
@@ -1688,7 +1667,8 @@ MODULE nElRDMMod
 ! single or double excitations from D_i, finds the processor they would be on if occupied, 
 ! and puts them in the SingExcDjs array according to that processor.
         USE DetBitOps , only : EncodeBitDet
-        USE AnnihilationMod , only : DetermineDetNode
+!        USE AnnihilationMod , only : DetermineDetNode
+        USE HashMod , only : DetermineDetNode
         USE SymExcit3 , only : GenExcitations3
         USE RotateOrbsData , only : SymLabelListInv_rot
         USE bit_reps , only : extract_bit_rep
@@ -1807,7 +1787,8 @@ MODULE nElRDMMod
 ! single or double excitations from D_i, finds the processor they would be on if occupied, 
 ! and puts them in the SingExcDjs array according to that processor.
         USE DetBitOps , only : EncodeBitDet
-        USE AnnihilationMod , only : DetermineDetNode
+!        USE AnnihilationMod , only : DetermineDetNode
+        USE HashMod , only : DetermineDetNode
         USE SymExcit3 , only : GenExcitations3
         USE RotateOrbsData , only : SymLabelListInv_rot
         USE bit_reps , only : extract_bit_rep
@@ -2131,7 +2112,7 @@ MODULE nElRDMMod
 ! each processor.
 ! These number sent from processor i is recvcounts(i), and the first 2 have information 
 ! about the determinant Di from which the Dj's are single excitations (and it's sign).
-        USE AnnihilationMod , only : BinSearchParts
+!        USE AnnihilationMod , only : BinSearchParts
         USE FciMCData , only : TotWalkers,CurrentDets
         USE RotateOrbsData , only : SymLabelListInv_rot
         USE bit_reps , only : extract_bit_rep
@@ -2166,7 +2147,7 @@ MODULE nElRDMMod
 ! This binary searches CurrentDets between 1 and TotWalkers for determinant iLutnJ.
 ! If found, tDetFound will be true, and PartInd the index in CurrentDets where the 
 ! determinant is.
-                    CALL BinSearchParts(iLutnJ,1,int(TotWalkers,sizeof_int),PartInd,tDetFound)
+                    CALL BinSearchParts_rdm(iLutnJ,1,int(TotWalkers,sizeof_int),PartInd,tDetFound)
                     IF(tDetFound) THEN
 ! Determinant occupied; add c_i*c_j to the relevant element of nElRDM.                    
 ! Need to first find the orbitals involved in the excitation from D_i -> D_j and the parity.
@@ -2205,7 +2186,7 @@ MODULE nElRDMMod
 ! from each processor.
 ! These number sent from processor i is recvcounts(i), and the first 2 have information 
 ! about the determinant Di from which the Dj's are single excitations (and it's sign).
-        USE AnnihilationMod , only : BinSearchParts
+!        USE AnnihilationMod , only : BinSearchParts
         USE FciMCData , only : TotWalkers,CurrentDets
         USE RotateOrbsData , only : SymLabelListInv_rot
         USE bit_reps , only : extract_bit_rep
@@ -2243,7 +2224,7 @@ MODULE nElRDMMod
 ! This binary searches CurrentDets between 1 and TotWalkers for determinant iLutnJ.
 ! If found, tDetFound will be true, and PartInd the index in CurrentDets where the 
 ! determinant is.
-                    CALL BinSearchParts(iLutnJ,1,int(TotWalkers,sizeof_int),PartInd,tDetFound)
+                    CALL BinSearchParts_rdm(iLutnJ,1,int(TotWalkers,sizeof_int),PartInd,tDetFound)
 
                     IF(tDetFound) THEN
 ! Determinant occupied; add c_i*c_j to the relevant element of nElRDM.                    
@@ -2283,7 +2264,7 @@ MODULE nElRDMMod
 ! each processor.
 ! These number sent from processor i is recvcounts(i), and the first 2 have information 
 ! about the determinant Di from which the Dj's are single excitations (and it's sign).
-        USE AnnihilationMod , only : BinSearchParts
+!        USE AnnihilationMod , only : BinSearchParts
         USE FciMCData , only : TotWalkers,CurrentDets
         USE RotateOrbsData , only : SymLabelListInv_rot
         USE bit_reps , only : extract_bit_rep
@@ -2322,7 +2303,7 @@ MODULE nElRDMMod
 ! This binary searches CurrentDets between 1 and TotWalkers for determinant iLutnJ.
 ! If found, tDetFound will be true, and PartInd the index in CurrentDets where the 
 ! determinant is.
-!                    CALL BinSearchParts(iLutnJ,1,int(TotWalkers,sizeof_int),PartInd,tDetFound)
+                    CALL BinSearchParts_rdm(iLutnJ,1,int(TotWalkers,sizeof_int),PartInd,tDetFound)
 
                     ExcitLevel = FindBitExcitLevel (iLutHF_true, iLutnJ, NEl)
                     call find_hist_coeff_explicit (iLutnJ, ExcitLevel,PartInd,tDetFound)
@@ -2368,7 +2349,7 @@ MODULE nElRDMMod
 ! from each processor.
 ! These number sent from processor i is recvcounts(i), and the first 2 have information 
 ! about the determinant Di from which the Dj's are single excitations (and it's sign).
-        USE AnnihilationMod , only : BinSearchParts
+!        USE AnnihilationMod , only : BinSearchParts
         USE FciMCData , only : TotWalkers,CurrentDets
         USE RotateOrbsData , only : SymLabelListInv_rot
         USE bit_reps , only : extract_bit_rep
@@ -2410,7 +2391,7 @@ MODULE nElRDMMod
 ! This binary searches CurrentDets between 1 and TotWalkers for determinant iLutnJ.
 ! If found, tDetFound will be true, and PartInd the index in CurrentDets where the 
 ! determinant is.
-!                    CALL BinSearchParts(iLutnJ,1,int(TotWalkers,sizeof_int),PartInd,tDetFound)
+                    CALL BinSearchParts_rdm(iLutnJ,1,int(TotWalkers,sizeof_int),PartInd,tDetFound)
 
                     ExcitLevel = FindBitExcitLevel (iLutHF_True, iLutnJ, NEl)
                     call find_hist_coeff_explicit (iLutnJ, ExcitLevel, PartInd, tDetFound)
@@ -2452,18 +2433,21 @@ MODULE nElRDMMod
 
 ! THESE NEXT ROUTINES ARE GENERAL TO BOTH STOCHASTIC AND EXPLICIT    
 
-    subroutine Fill_Diag_RDM(nI,realSignDi)
+    subroutine Fill_Diag_RDM(nI,realSignDi,RDMIters)
 ! Fill diagonal elements of 1- and 2-RDM.
 ! These are < Di | a_i+ a_i | Di > and < Di | a_i+ a_j+ a_j a_i | Di >.
         USE UMatCache , only : GTID
         implicit none
         integer , intent(in) :: nI(NEl)
         real(dp) , intent(in) :: realSignDi
+        real(dp) , intent(inout) , optional :: RDMIters
         integer :: i, j, iSpat, jSpat, Ind, iInd
 
 ! Need to add in the diagonal elements.
         
 !        WRITE(6,*) realSignDi
+
+        if(.not.present(RDMIters)) RDMIters=1.0_dp
 
         if(RDMExcitLevel.eq.1) then
             do i=1,NEl
@@ -2474,7 +2458,7 @@ MODULE nElRDMMod
                     iInd = SymLabelListInv_rot(gtID(nI(i)))
                 endif
                 NatOrbMat(iInd,iInd) = NatOrbMat(iInd,iInd) &
-                                          + ( realSignDi * realSignDi ) 
+                                          + ( realSignDi * realSignDi * RDMIters) 
             enddo
         else
             ! Only calculating 2-RDM.
@@ -2493,7 +2477,7 @@ MODULE nElRDMMod
                         ! Ind doesn't include diagonal terms (when iSpat = jSpat).
                         Ind=( ( (jSpat-2) * (jSpat-1) ) / 2 ) + iSpat
                         aaaa_RDM( Ind , Ind ) = aaaa_RDM( Ind , Ind ) &
-                                          + ( realSignDi * realSignDi ) 
+                                          + ( realSignDi * realSignDi * RDMIters) 
 
                     ! either alpha beta or beta alpha -> abab array.                                              
                     else
@@ -2501,7 +2485,7 @@ MODULE nElRDMMod
                         ! Ind does include diagonal terms (when iSpat = jSpat)
                         Ind=( ( (jSpat-1) * jSpat ) / 2 ) + iSpat
                         abab_RDM( Ind , Ind ) = abab_RDM( Ind , Ind ) &
-                                          + ( realSignDi * realSignDi ) 
+                                          + ( realSignDi * realSignDi * RDMIters) 
                     endif
 
                 enddo
@@ -5423,6 +5407,96 @@ MODULE nElRDMMod
 
     END SUBROUTINE Test_Energy_Calc
 
+!Do a binary search in CurrentDets, between the indices of MinInd and MaxInd. If successful, tSuccess will be true and 
+!PartInd will be a coincident determinant. If there are multiple values, the chosen one may be any of them...
+!If failure, then the index will be one less than the index that the particle would be in if it was present in the list.
+!(or close enough!)
+    SUBROUTINE BinSearchParts_rdm(iLut,MinInd,MaxInd,PartInd,tSuccess)
+        USE FciMCData , only : CurrentDets 
+        use DetBitOps , only: DetBitLT
+        INTEGER(KIND=n_int) :: iLut(0:NIfTot)
+        INTEGER :: MinInd,MaxInd,PartInd
+        INTEGER :: i,j,N,Comp
+        LOGICAL :: tSuccess
+
+        i=MinInd
+        j=MaxInd
+        IF(i-j.eq.0) THEN
+            Comp=DetBitLT(CurrentDets(:,MaxInd),iLut(:),NIfDBO)
+            IF(Comp.eq.0) THEN
+                tSuccess=.true.
+                PartInd=MaxInd
+                RETURN
+            ELSE
+                tSuccess=.false.
+                PartInd=MinInd
+            ENDIF
+        ENDIF
+
+        do while(j-i.gt.0)  !End when the upper and lower bound are the same.
+            N=(i+j)/2       !Find the midpoint of the two indices
+!            WRITE(6,*) i,j,n
+
+!Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
+            Comp=DetBitLT(CurrentDets(:,N),iLut(:),NIfDBO)
+
+            IF(Comp.eq.0) THEN
+!Praise the lord, we've found it!
+                tSuccess=.true.
+                PartInd=N
+                RETURN
+            ELSEIF((Comp.eq.1).and.(i.ne.N)) THEN
+!The value of the determinant at N is LESS than the determinant we're looking for. Therefore, move the lower bound of the search up to N.
+!However, if the lower bound is already equal to N then the two bounds are consecutive and we have failed...
+                i=N
+            ELSEIF(i.eq.N) THEN
+
+
+                IF(i.eq.MaxInd-1) THEN
+!This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
+!We need to check the last index.
+                    Comp=DetBitLT(CurrentDets(:,i+1),iLut(:),NIfDBO)
+                    IF(Comp.eq.0) THEN
+                        tSuccess=.true.
+                        PartInd=i+1
+                        RETURN
+                    ELSEIF(Comp.eq.1) THEN
+!final entry is less than the one we want.
+                        tSuccess=.false.
+                        PartInd=i+1
+                        RETURN
+                    ELSE
+                        tSuccess=.false.
+                        PartInd=i
+                        RETURN
+                    ENDIF
+
+                ELSEIF(i.eq.MinInd) THEN
+                    tSuccess=.false.
+                    PartInd=i
+                    RETURN
+
+                ELSE
+                    i=j
+                ENDIF
+
+
+            ELSEIF(Comp.eq.-1) THEN
+!The value of the determinant at N is MORE than the determinant we're looking for. Move the upper bound of the search down to N.
+                j=N
+            ELSE
+!We have failed - exit loop
+                i=j
+            ENDIF
+
+        enddo
+
+!If we have failed, then we want to find the index that is one less than where the particle would have been.
+        tSuccess=.false.
+        PartInd=MAX(MinInd,i-1)
+
+    END SUBROUTINE BinSearchParts_rdm
+
 END MODULE nElRDMMod
 
 
@@ -5564,4 +5638,37 @@ END MODULE nElRDMMod
     end subroutine Fill_Diag_RDM_FromOrbs
  
 
+    subroutine fill_rdm_diag_2(iLutnI, CurrH_I, nI) 
+! While extracting the orbitals from the bit representation of the determinant, we 
+! simulaneously add in the contribution of each orbital to the diagonal elements of the RDMs.
+! This is used for a standard full space RDM calculation without HPHF.  
+        use constants , only : dp, n_int, lenof_sign
+        use SystemData , only : NEl, tHPHF
+        use bit_reps , only : NIfTot
+        use FciMCData , only : NCurrH, Iter
+        use DetBitOps , only : TestClosedShellDet
+        use nElRDMMod , only : Fill_Diag_RDM, Add_StochRDM_Diag_HPHF
+        implicit none
+        integer(n_int), intent(in) :: iLutnI(0:nIfTot)
+        real(dp) , intent(in) :: CurrH_I(NCurrH)
+        integer, intent(in) :: nI(nel)
+        real(dp) :: IterRDM, AvSignI
+
+        ! This is the iteration from which this determinant has been occupied.
+        IterRDM = real(Iter,dp) - CurrH_I(3) + 1.0_dp
+
+        ! And its recently updated average sign.
+        AvSignI = CurrH_I(2)
+
+!        ! We need its occupied orbitals.
+!        call decode_bit_det (nI, ilutnI)
+
+        if(tHPHF.and.(.not.TestClosedShellDet(iLutnI))) then
+            call Fill_Diag_RDM(nI,AvSignI/SQRT(2.0_dp),IterRDM)
+            call Add_StochRDM_Diag_HPHF(iLutnI,nI,AvSignI,IterRDM)
+        else
+            call Fill_Diag_RDM(nI,AvSignI,IterRDM)
+        endif
+
+    end subroutine fill_rdm_diag_2
 
