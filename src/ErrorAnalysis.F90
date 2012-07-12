@@ -276,10 +276,10 @@ module errors
         ! STEP 6) Refine statistics using covariance
         if(.not.tNoProjEValue) then
             covariance_re=calc_covariance(pophf_data,numerator_data)
-            correction_re=2.0_dp*covariance_re/((size(pophf_data)-1)*mean_denom*mean_num)
+            correction_re=2.0_dp*covariance_re/((size(pophf_data))*mean_denom*mean_num)
             if(lenof_sign.eq.2) then
                 covariance_im=calc_covariance(pophf_data,imnumerator_data)
-                correction_im=2.0_dp*covariance_im/((size(pophf_data)-1)*mean_denom*mean_imnum)
+                correction_im=2.0_dp*covariance_im/((size(pophf_data))*mean_denom*mean_imnum)
             endif
 
             mean_ProjE_re = mean_num/mean_denom
@@ -335,7 +335,7 @@ module errors
         mean_proje = mean1/mean2
         final_error=abs(mean_proje) * &
             sqrt(   (error2/mean2)**2.0_dp + (error1/mean1)**2.0_dp &
-                    - 2.0_dp*covariance/((size(this)-1)*mean1*mean2)  )
+                    - 2.0_dp*covariance/((size(this))*mean1*mean2)  )
         final_eie = final_error/sqrt(2.0_dp*(size(this)-1))
         write(iunit,*) size(that), mean_proje, final_error, final_eie
 
@@ -350,7 +350,7 @@ module errors
             mean_proje = mean1/mean2
             final_error=abs(mean_proje) * &
                 sqrt( (error2/mean2)**2.0_dp + (error1/mean1)**2.0_dp &
-                        - 2.0_dp*covariance/((size(this)-1)*mean1*mean2)  )
+                        - 2.0_dp*covariance/((size(this))*mean1*mean2)  )
             final_eie = final_error/sqrt(2.0_dp*(size(this)-1))
             write(iunit,*) size(that), mean_proje, final_error, final_eie
         enddo
@@ -1099,7 +1099,7 @@ module errors
         do i=1,length1
             sxy=sxy+(this(i)-meanx)*(that(i)-meany)
         enddo
-        calc_covariance=sxy/(length1-1)
+        calc_covariance=sxy/(length1)
 
     end function calc_covariance
 
