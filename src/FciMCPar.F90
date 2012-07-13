@@ -2151,7 +2151,7 @@ MODULE FciMCParMod
             if (tRealSpawning) then
                 !Spawning onto CISD Space
                 realchild(1)=-tau*(rh/prob)*walkerweight
-                
+
                 if (tRealSpawnCutoff .and. (abs(realchild(1)).lt.RealSpawnCutoff)) then
                      !We don't want to bother spawning negligible coefficients everytime
                      pSpawn=abs(realchild(1))/RealSpawnCutoff
