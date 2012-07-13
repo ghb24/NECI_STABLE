@@ -239,9 +239,6 @@ contains
           tReadPopsRestart = .false.
           iLogicalNodeSize = 0 !Meaning use the physical node size
 
-          tCISDref=.false.
-          tExplicitOutFlux=.false.
-
           tAllRealCoeff=.false.
           tEnhanceRemainder=.true.
           tRealCoeffByExcitLevel=.false.
@@ -1433,38 +1430,6 @@ contains
                 tTruncNOpen = .true.
                 call geti (trunc_nopen_max)
 
-            case("USECISDREFPOPS")
-                tCISDref=.true.
-                !We will be reading in a POPSFILE from a previous CISD run
-                !and using this distribution as a 'reference' wavefunction.
-                !the CISD coefficients will then be stored separately, and
-                !wiped from the main walker list, so only the *redisual* 
-                !walkers are stored here -- this is simpler to understand
-                !(in the first instance), as the alternative involves
-                !recalculating the number of active walkers, and the walker
-                !weights for each det at each iteration
-                TReadPops=.true.
-                tStartSinglePart=.false.
-                if (item.lt.nitems) then
-                    call readi(iPopsFileNoRead)
-                    iPopsFileNoWrite = iPopsFileNoRead
-                    iPopsFileNoRead = -iPopsFileNoRead-1
-                end if
-                !Set readpops on, incase this keyword is not already included
-
-            case("EXPLICIT-CISD-OUT-FLUX")
-                !In a residual calculation, do the outward flux term explicitely
-                !ie, flux from CISD wavefunction onto triples and quadruples
-                tExplicitOutFlux=.true.
-
-            case("CISDREALREF")
-                tRealCoeffByExcitLevel=.true.
-                RealCoeffExcitThresh=2
-                !We're running either the CISD reference calculation, or the residual calculation using a CISD reference
-                !In either case, we wish the Coefficients at doubles or below to be stored as reals rather than integers
-                !if tCisdRef=.true. then we're doing the residual calc
-                !if tCISDRef=.false. then we're doing the CISD calc (needs EXCITE 2 inputted elsewhere)
-            
             case("ALLREALCOEFF")
                 tAllRealCoeff=.true.
                 !Turn on continuous spawning/death

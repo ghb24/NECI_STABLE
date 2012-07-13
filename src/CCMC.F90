@@ -113,6 +113,7 @@ MODULE CCMC
 
         ! The sign of the resultant composite
         integer, dimension(lenof_sign) :: iSgn
+        real(dp), dimension(lenof_sign) :: realiSgn
         
 
 
@@ -329,6 +330,7 @@ MODULE CCMC
                   dClusterProb=1 
                   dProbNorm=1
                   iCompositeSize=0
+                  realiSgn(1)=transfer(iSgn(1), RealiSgn(1))
                   call decode_bit_det (DetCurr, iLutnI)
 !Also take into account the contributions from the dets in the list
                   HDiagCurr=CurrentH(j)
@@ -337,7 +339,7 @@ MODULE CCMC
                   else
                      WalkExcitLevel = FindBitExcitLevel(iLutHF, iLutnI, 2)
                   endif
-                  CALL SumEContrib(DetCurr,WalkExcitLevel,iSgn(1),iLutnI,HDiagCurr,1.0_dp)
+                  CALL SumEContrib(DetCurr,WalkExcitLevel,realiSgn(1),iLutnI,HDiagCurr,1.0_dp)
                else
                   IFDEBUG(iDebug,5) write(6,*) 'Excitor composite number ',iExcitor
 ! Now select a sample of walkers.  We need up to as many walkers as electrons.
@@ -1715,6 +1717,9 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
    integer nSpawned
    integer nMaxSpawn
    integer, dimension(lenof_sign) :: iSpawnAmp
+   integer, dimension(lenof_sign) :: TempSign
+   REAL(dp), dimension(lenof_sign) :: RealTempSign
+   REAL(dp), dimension(lenof_sign) :: RealChild
    integer iDebug
 
    real(dp) rat,r,prob
@@ -1756,12 +1761,15 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
 !   rat=-C%iSgn*Tau*S%HIJ*C%dAbsAmplitude/(S%dProbSpawn*C%dProbNorm*C%dClusterNorm)  
 ! so prob is
    prob=(S%dProbSpawn*C%dProbNorm*C%dClusterNorm)/C%dAbsAmplitude
- 
+
+   TempSign=C%iSgn
+   RealTempSign=transfer(TempSign, RealTempSign)
+   
    iSpawnAmp=attempt_create_normal(hphf_spawn_sign,  & !this version of the get_spawn_helement just uses the passed-in version
                               C%DetCurr,C%iLutDetCurr, &
-                              C%iSgn,S%nJ,S%iLutnJ,prob,S%HIJ, &
+                              RealTempSign,S%nJ,S%iLutnJ,prob,S%HIJ, &
                               S%iExcitLevel,S%ExcitMat,.false., & !.false. indicates we've dealt with parit
-                              S%iExcitLevel,part_type) 
+                              S%iExcitLevel,part_type,realchild) 
 !   Here we convert nJ from a det back to an excitor.
    IC = FindBitExcitLevel(iLutHF, S%iLutnJ(:), nEl)
    iSpawnAmp=iSpawnAmp*ExcitToDetSign(iLutHF,S%iLutnJ,IC)
@@ -1769,7 +1777,7 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
       nSpawned=nSpawned+1 !The index into the spawning list
       iter_data_ccmc%nborn=iter_data_ccmc%nborn+1
 !      if(nSpawned>nMaxSpawn) call Stop_All("AttemptSpawnParticle","Not enough space in spawning list.")
-      call create_particle(S%nJ,S%iLutnJ,iSpawnAmp,C%initFlag,1)
+      call create_particle(S%nJ,S%iLutnJ,iSpawnAmp,C%initFlag,1,realchild)
       IFDEBUG(iDebug,4) THEN
    !We've not printed this out before
          WRITE(6,*) "  Spawned ",iSpawnAmp
@@ -1803,6 +1811,7 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,nSpawned)
    HElement_t Htmp
    integer i
    integer, dimension(lenof_sign) :: iSpawnAmp
+   real(dp), dimension(lenof_sign) :: realchild
    integer initFlag
    logical IsImag
 
@@ -1917,7 +1926,7 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,nSpawned)
          iSpawnAmp(1)=0
       endif
 #endif
-      call create_particle(C%DetCurr,C%iLutDetCurr,iSpawnAmp,initFlag,1)
+      call create_particle(C%DetCurr,C%iLutDetCurr,iSpawnAmp,initFlag,1,realchild)
 
       IFDEBUG(iDebug,4) then
          Write(6,'(A)',advance='no') " Killing at excitor: "
@@ -2016,6 +2025,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    TYPE(CCTransitionLog) TL               ! Store data on transitions
    INTEGER iRefPos
    INTEGER, DIMENSION(lenof_sign) :: TempSign   !ghb24: For compatibility with new walker arrays & routines
+   REAL(dp), DIMENSION(lenof_sign) :: RealTempSign   
    TYPE(timer) :: CCMC_time
 
    real(dp) dInitThresh
@@ -2251,7 +2261,8 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
 !         IFDEBUG(iDebug,4) WRITE(6,*) " Cluster Prob: ",CS%C%dSelectionProb
          if(.not.tExactEnergy.and.CS%C%iExcitLevel.le.2) then
             TempSign=CS%C%iSgn
-            CALL SumEContrib(CS%C%DetCurr,CS%C%iExcitLevel,TempSign,CS%C%iLutDetCurr,0.0_dp,1/CS%C%dSelectionNorm)
+            RealTempSign=transfer(TempSign, RealTempSign)
+            CALL SumEContrib(CS%C%DetCurr,CS%C%iExcitLevel,RealTempSign,CS%C%iLutDetCurr,0.0_dp,1/CS%C%dSelectionNorm)
          endif
 !Now consider a number of possible spawning events
          CALL ResetSpawner(S,CS%C,nSpawnings)
@@ -2399,6 +2410,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
    !ghb24: Changes to allow compatibility with the new packaged walkers.
    INTEGER, DIMENSION(lenof_sign) :: TempSign
+   REAL(dp), DIMENSION(lenof_sign) :: RealTempSign
    TYPE(timer) :: CCMC_time,SpawnTime,DieTime,CCMCComms1_time,CCMCWait_time,CCMCComms2_time
    TYPE(timer) :: Etime,CCMCrehouse
    INTEGER :: iOffsets(nProcessors)  !Used to store spawning data for annihilation
@@ -2707,7 +2719,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
          IFDEBUG(iDebug,4) WRITE(6,*) " Cluster Amplitude: ",CS%C%iSgn*CS%C%dAbsAmplitude 
          TempSign=CS%C%iSgn
-         CALL SumEContrib(CS%C%DetCurr,CS%C%iExcitLevel,TempSign,CS%C%iLutDetCurr,0.0_dp,1/CS%C%dSelectionNorm)
+         RealTempSign=transfer(TempSign, RealTempSign)
+         CALL SumEContrib(CS%C%DetCurr,CS%C%iExcitLevel,RealTempSign,CS%C%iLutDetCurr,0.0_dp,1/CS%C%dSelectionNorm)
 !Now consider a number of possible spawning events
          CALL ResetSpawner(S,CS%C,nSpawnings)
 

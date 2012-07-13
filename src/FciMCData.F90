@@ -240,31 +240,15 @@ MODULE FciMCData
                                                         !to store the spin-coupled determinant, so we can calculate projection onto both.
       INTEGER , ALLOCATABLE :: RefDetFlip(:)
       LOGICAL :: tSpinCoupProjE
-
-      INTEGER, ALLOCATABLE :: CISDref(:,:)
-      Integer :: NumQuadEntries, NumDoubEntries !The number of non-zero ext and int CISD flux components
-      Integer :: SortedQuadEntries, UnsortedQuadEntries, SortedDoubEntries, UnsortedDoubEntries 
-      Real(dp) :: CISDHFPop, CISDHFCoeff !Population on the HF determinant in the CISD wavefunction - for use in proje calculation
-      INTEGER(kind=n_int), ALLOCATABLE :: CISDTotFlux(:,:)
-      INTEGER(kind=n_int), ALLOCATABLE :: CISDIntFlux(:,:), CISDOutFlux(:,:)
-      REAL(dp) :: CISDProjEContrib, CISDProjEContribAbs
-      REAL(dp) :: AllCISDProjEContrib, AllCISDProjEContribAbs
-      REAL(dp) :: TotCISDWalkers, AllTotCISDWalkers
+      
+      !Extra data recorded for using RealCoefficients
+      !These are largely diagnostic (except WalkersToSpawn), so could be removed
+      !Once we're happy with the implementation of the algorithm
       INTEGER :: NumSpawnedEntries, AllNumSpawnedEntries
       INTEGER :: ZeroMatrixElem, AllZeroMatrixelem
       INTEGER :: NumMerged, AllNumMerged
-      INTEGER :: TotWalkersCombinedCyc, AllTotWalkersCombinedCyc
       INTEGER :: WalkersToSpawn, TotWalkersToSpawn, AllTotWalkersToSpawn
-      INTEGER :: NumUpdateCycles
-      LOGICAL :: tStaticFluxTerm, blank_det
-      INTEGER :: initiator_parent_flag !The value of FlagsCurr for an initiator det (to be used for static flux)
-      INTEGER , ALLOCATABLE :: Sing_InitExcSlots(:),Sing_ExcList(:)
-      INTEGER , ALLOCATABLE :: Doub_InitExcSlots(:),Doub_ExcList(:)
-      INTEGER(kind=n_int) , ALLOCATABLE :: Sing_ExcDjs(:,:),Sing_ExcDjs2(:,:)
-      INTEGER(kind=n_int) , ALLOCATABLE :: Doub_ExcDjs(:,:),Doub_ExcDjs2(:,:)
-      INTEGER :: Sing_ExcDjsTag,Sing_ExcDjs2Tag,aaaa_RDMTag,All_aaaa_RDMTag
-      INTEGER :: Doub_ExcDjsTag,Doub_ExcDjs2Tag,UMATTempTag
-      REAL(dp) :: OneEl_Gap,TwoEl_Gap
+      LOGICAL :: blank_det
 
       ! Store data about all processors for calculating load balancing
       integer(int64) :: MaxWalkersProc, MinWalkersProc

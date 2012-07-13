@@ -234,9 +234,6 @@ MODULE PopsfileMod
                     call stop_all(this_routine,"HF already found, but shouldn't have")
                 endif
                 CurrHF=CurrHF+real(RealSignTemp,dp)
-                !Note, this value of CurrHF will not be correct if tCISDRealRef,
-                !But it doesn't matter, as this value gets wiped immediately
-                ! in the residual calculation
                 IF(.not.tRegenDiagHEls) CurrentH(i)=0.D0
             else
                 if(.not.tRegenDiagHEls) THEN

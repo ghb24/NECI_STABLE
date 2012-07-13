@@ -176,6 +176,7 @@ SUBROUTINE CalcClusterEnergy (tFCI,AL,iAmpList,nExcit,ExcitList,ExcitLevelIndex,
    INTEGER iDebug
    integer iRefPos
    integer, dimension(lenof_sign) :: temp_sign
+   real(dp), dimension(lenof_sign) :: realtemp_sign
 
    INTEGER iC,i,j,l,iSgn
    real(dp) dT1Sq,dAmp,dTmp
@@ -214,7 +215,8 @@ SUBROUTINE CalcClusterEnergy (tFCI,AL,iAmpList,nExcit,ExcitList,ExcitLevelIndex,
             else
                temp_sign(lenof_sign)=i
             endif
-             call SumEContrib(DetCurr,iC,temp_sign,ExcitList(:,j),dTmp,1/dAmp)
+            realtemp_sign=transfer(temp_sign, realtemp_sign)
+             call SumEContrib(DetCurr,iC,realtemp_sign,ExcitList(:,j),dTmp,1/dAmp)
          endif
 ! Deal with T_1^2
          IFDEBUGTHEN(iDebug,4)
@@ -264,7 +266,8 @@ SUBROUTINE CalcClusterEnergy (tFCI,AL,iAmpList,nExcit,ExcitList,ExcitLevelIndex,
 #else
                      temp_sign(1)=iSgn
 #endif
-                     call SumEContrib(DetCurr,2,temp_sign,iLutnI(:),dTmp,1/dAmp)
+                     realtemp_sign=transfer(temp_sign, realtemp_sign)
+                     call SumEContrib(DetCurr,2,realtemp_sign,iLutnI(:),dTmp,1/dAmp)
                   endif
                endif
             enddo
@@ -303,6 +306,7 @@ SUBROUTINE CalcClusterEnergyUnsrt (tFCI,AL,iAmpList,nExcit,ExcitList,iRefPos,dNo
    real(dp) ProjE
    INTEGER iRefPos
    INTEGER, DIMENSION(lenof_sign) :: temp_sign
+   real(dp), dimension(lenof_sign) :: realtemp_sign
 
    INTEGER iC,i,j,l,iSgn,iC2
    real(dp) dT1Sq,dAmp,dTmp
@@ -334,7 +338,8 @@ SUBROUTINE CalcClusterEnergyUnsrt (tFCI,AL,iAmpList,nExcit,ExcitList,iRefPos,dNo
             else
                temp_sign(lenof_sign)=i
             endif
-            call SumEContrib(DetCurr,iC,temp_sign,ExcitList(:,j),dTmp,1/dAmp)
+            realtemp_sign=transfer(temp_sign, realtemp_sign)
+            call SumEContrib(DetCurr,iC,realtemp_sign,ExcitList(:,j),dTmp,1/dAmp)
          endif
 ! Deal with T_1^2
          if(iC.eq.1.and..not.tFCI) then
@@ -372,7 +377,8 @@ SUBROUTINE CalcClusterEnergyUnsrt (tFCI,AL,iAmpList,nExcit,ExcitList,iRefPos,dNo
 #else
                      temp_sign(1)=iSgn
 #endif
-                     call SumEContrib(DetCurr,2,temp_sign,iLutnI(:),dTmp,1/dAmp)
+                     realtemp_sign=transfer(temp_sign, realtemp_sign)
+                     call SumEContrib(DetCurr,2,realtemp_sign,iLutnI(:),dTmp,1/dAmp)
                   endif
                endif
             enddo
