@@ -3,17 +3,18 @@ MODULE Determinants
     use constants, only: dp, n_int, bits_n_int
     use SystemData, only: BasisFN, tCSF, nel, G1, Brr, ECore, ALat, NMSH, &
                           nBasis, nBasisMax, tStoreAsExcitations, tHPHFInts, &
-                          tCSF, tCPMD, tPickVirtUniform, LMS
+                          tCSF, tCPMD, tPickVirtUniform, LMS, modk_offdiag
     use IntegralsData, only: UMat, FCK, NMAX
     use csf, only: det_to_random_csf, iscsf, csf_orbital_mask, &
                    csf_yama_bit, CSFGetHelement
     use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_2, sltcnd_compat, &
-                          sltcnd_knowIC
+    sltcnd_knowIC, sltcnd_0, SumFock 
     use global_utilities
     use sort_mod
     use DetBitOps, only: EncodeBitDet, count_open_orbs, spatial_bit_det
     use DeterminantData
     use bit_reps, only: NIfTot
+    use MemoryManager, only: TagIntType
     implicit none
 
     ! TODO: Add an interface for getting a diagonal helement with an ordered
@@ -28,7 +29,7 @@ MODULE Determinants
 ! Set by Calc on input
       INTEGER nActiveSpace(2)
         INTEGER, DIMENSION(:), POINTER :: SPECDET
-        INTEGER :: tagSPECDET=0
+        INTEGER(TagIntType) :: tagSPECDET=0
         Logical TSPECDET
 
 !nActiveBasis(1) is the lowest non-active orbital
@@ -41,11 +42,11 @@ MODULE Determinants
       TYPE(BasisFN) ISym
 !Used to be from uhfdet.inc
       INTEGER nUHFDet(5000)
-      REAL*8  E0HFDet
+      real(dp)  E0HFDet
 
       INTEGER, allocatable :: DefDet(:)
       Logical :: tDefineDet
-      integer :: tagDefDet=0
+      integer(TagIntType) :: tagDefDet=0
 
 contains
 
@@ -53,12 +54,14 @@ contains
     Subroutine DetPreFreezeInit()
         Use global_utilities
         use SystemData, only : nEl, ECore, Arr, Brr, G1, nBasis, LMS, nBasisMax,tFixLz, tUEGSpecifyMomentum
+        use SystemData, only : tMolpro
         use sym_mod
         use util_mod, only: NECI_ICOPY
+        use sltcnd_mod, only: CalcFockOrbEnergy 
         integer ierr
-        integer i,Lz
+        integer i,Lz,OrbOrder(8,2),FDetTemp(NEl)
         type(BasisFn) s
-   
+        HElement_t :: OrbE
         character(25), parameter :: this_routine='DetPreFreezeInit'
         Allocate(FDet(nEl), stat=ierr)
         LogAlloc(ierr, 'FDet', nEl, 4, tagFDet)
@@ -85,6 +88,29 @@ contains
          WRITE(6,"(A,I5)") "Lz of Fermi det:",Lz
       ENDIF
       CALL NECI_ICOPY(NEL,FDET,1,NUHFDET,1)
+      if(tMolpro) then
+          !Orbitals are ordered by occupation number from MOLPRO, and not reordered in NECI
+          !Therefore, we know HF determinant is first four occupied orbitals.
+          write(6,"(A)") "NECI called from MOLPRO, so assuming orbitals ordered by occupation number."
+          if(.not.tDefineDet) then
+              FDetTemp(:)=FDet(:)
+          else
+              !We have defined our own reference determinant, but still use the first orbitals for the calculation
+              !of 'orbital energies'
+              CALL GENFDET(BRR,G1,NBASIS,LMS,NEL,FDETTEMP)
+          endif
+          write(6,"(A)") "Calculating orbital energies..."
+          do i=1,nBasis
+               OrbE=CalcFockOrbEnergy(i,FDetTemp)
+               Arr(i,1)=real(OrbE,dp)
+               Brr(i)=i
+          enddo
+          write(6,"(A)") "Reordering basis by orbital energies..."
+          OrbOrder(:,:)=0
+          call ORDERBASIS(NBASIS,Arr,Brr,OrbOrder,nBasisMax,G1)
+          !However, we reorder them here
+          call writebasis(6,G1,nBasis,Arr,Brr)
+      endif
       E0HFDET=ECORE
       DO I=1,NEL
          E0HFDET=E0HFDET+ARR(NUHFDET(i),2)
@@ -95,16 +121,17 @@ contains
     
     Subroutine DetInit()
         Use global_utilities
-        use constants, only: dp
+        use constants, only: dp,int64
         use SystemData, only: nel, Alat, Boa, Coa, BOX, BRR, ECore
-        use SystemData, only: G1, LMS, nBasis, STot, tCSFOLD, Arr,tHub,tUEG
+        use SystemData, only: G1, LMS, nBasis, STot, tCSFOLD, Arr,tHub,tUEG,tMomInv
         use SymData , only : nSymLabels,SymLabelList,SymLabelCounts,TwoCycleSymGens
         use IntegralsData, only: nfrozen
         use sym_mod
+        use MomInv, only: SetupMomInv
       
-      real*8 DNDET
+      real(dp) DNDET
       integer i,j
-      integer*8 nDet
+      integer(int64) nDet
       integer :: alpha,beta,symalpha,symbeta,endsymstate
       LOGICAL :: tSuccess,tFoundOrbs(nBasis)
       integer :: ncsf
@@ -156,7 +183,7 @@ contains
          DNDET=1.D0
          DO I=0,NEL-1
             NDET=(NDET*(nBasis-I))/(I+1)
-            DNDET=(DNDET*DFLOAT(nBasis-I))/DFLOAT(I+1)
+            DNDET=(DNDET*real(nBasis-I,dp))/real(I+1,dp)
          ENDDO
         IF(NDET.ne.DNDET) THEN
 !         WRITE(6,*) ' NUMBER OF DETERMINANTS : ' , DNDET
@@ -242,6 +269,8 @@ contains
                 ! Includes normal & HPHF
                 call SpinOrbSymSetup ()
             endif
+
+            if(tMomInv) call SetupMomInv()
         ENDIF
 ! From now on, the orbitals are also contained in symlabellist2 and symlabelcounts2.
 ! These are stored using spin orbitals.
@@ -296,7 +325,12 @@ contains
         endif
 
         ! Add in ECore if for a diagonal element
-        if (IC == 0) hel = hel + (ECore)
+        if (IC == 0) then
+            hel = hel + (ECore)
+        else if (modk_offdiag) then
+            hel = -abs(hel)
+        end if
+
     end function
     
     function get_helement_normal (nI, nJ, iLutI, iLutJ, ICret) result(hel)
@@ -350,7 +384,11 @@ contains
         endif
 
         ! Add in ECore for a diagonal element
-        if (IC == 0) hel = hel + (ECore)
+        if (IC == 0) then
+            hel = hel + (ECore)
+        else if (modk_offdiag) then
+            hel = -abs(hel)
+        end if
 
         ! If requested, return IC
         if (present(ICret)) then
@@ -394,7 +432,12 @@ contains
 
         hel = sltcnd_excit (nI, IC, ExcitMat, tParity)
 
-        if (IC == 0)  hel = hel + (ECore)
+        if (IC == 0) then
+            hel = hel + (ECore)
+        else if (modk_offdiag) then
+            hel = -abs(hel)
+        end if
+
     end function get_helement_excit
 
     function get_helement_det_only (nI, nJ, iLutI, iLutJ, ic, ex, tParity, &
@@ -425,29 +468,50 @@ contains
 
         hel = sltcnd_excit (nI, IC, ex, tParity)
 
-        if (IC == 0) hel = hel + ECore
+        if (IC == 0) then
+            hel = hel + ECore
+        else if (modk_offdiag) then
+            hel = -abs(hel)
+        end if
     end function
 
 
-      HElement_t function GetH0Element3(nI)
-         ! Wrapper for GetH0Element.
-         ! Returns the matrix element of the unperturbed Hamiltonian, which is
-         ! just the sum of the eigenvalues of the occupied orbitals and the core
-         ! energy.
-         !  Note that GetH0Element{1,2} don't exist. The name is to be
-         !  consistent with GetHElement3, i.e. offer the most abstraction possible.
-         ! In: 
-         !    nI(nEl)  list of occupied spin orbitals in the determinant.
-         use constants, only: dp
-         use SystemData, only: nEl,nBasis,Arr,ECore
-         integer nI(nEl)
-         HElement_t hEl
-         call GetH0Element(nI,nEl,Arr(1:nBasis,1:2),nBasis,ECore,hEl)
-         GetH0Element3=hEl
-      end function
+    HElement_t function GetH0Element4(nI,HFDet)
+        ! Returns the matrix element of the unperturbed Hamiltonian,
+        ! which is just the sum of the eigenvalues of the occupied
+        ! orbitals and the core energy.
+        ! HOWEVER, this routine is *SLOWER* than the GetH0Element3
+        ! routine, and should only be used if you require this
+        ! without reference to the fock eigenvalues.
+        ! This is calculated by subtracting the required two electron terms
+        ! from the diagonal matrix elements.
+        integer, intent(in) :: nI(NEl),HFDet(NEl)
+        HElement_t :: hii,hel
 
-      Subroutine DetCleanup()
-      End Subroutine DetCleanup
+        hel = SumFock(nI,HFDet)
+        GetH0Element4 = hel + ECore
+
+    end function GetH0Element4
+
+    HElement_t function GetH0Element3(nI)
+       ! Wrapper for GetH0Element.
+       ! Returns the matrix element of the unperturbed Hamiltonian, which is
+       ! just the sum of the eigenvalues of the occupied orbitals and the core
+       ! energy.
+       !  Note that GetH0Element{1,2} don't exist. The name is to be
+       !  consistent with GetHElement3, i.e. offer the most abstraction possible.
+       ! In: 
+       !    nI(nEl)  list of occupied spin orbitals in the determinant.
+       use constants, only: dp
+       use SystemData, only: nEl,nBasis,Arr,ECore
+       integer nI(nEl)
+       HElement_t hEl
+       call GetH0Element(nI,nEl,Arr(1:nBasis,1:2),nBasis,ECore,hEl)
+       GetH0Element3=hEl
+    end function
+
+    Subroutine DetCleanup()
+    End Subroutine DetCleanup
    
     subroutine write_bit_rep(iUnit, iLut, lTerm)
        use bit_reps
@@ -475,11 +539,11 @@ contains
         integer(n_int), intent(out), optional :: ilut_gen(0:NIfTot)
         !integer, intent(out), optional :: det(nel)
 
-        integer :: nI(nel), i, nfound, orb
+        integer :: nI(nel), i, nfound, orb, clro
         integer(n_int) :: ilut_tmp(0:NIfTot)
 
         ! If we haven't initialised the generator, do that now.
-        if (.not. allocated(store%dorder)) then
+        if (.not. associated(store%dorder)) then
 
             ! Allocate dorder storage
             allocate(store%dorder(nel))
@@ -515,8 +579,10 @@ contains
 
         if (store%dorder(1) == -1) then
             deallocate(store%dorder)
+            nullify(store%dorder)
             !deallocate(store%open_indices)
             deallocate(store%open_orbs)
+            nullify(store%open_orbs)
             if (present(ilut_gen)) ilut_gen = 0
             !if (present(det)) det = 0
         else
@@ -530,7 +596,8 @@ contains
                         orb = get_beta(store%open_orbs(i))
                     endif
                     set_orb(ilut_gen, orb)
-                    clr_orb(ilut_gen, ab_pair(orb))
+                    clro=ab_pair(orb)
+                    clr_orb(ilut_gen, clro)
                 enddo
             endif
 
@@ -556,9 +623,9 @@ END MODULE Determinants
          use SystemData , only : TSTOREASEXCITATIONS
          use constants, only: dp
          implicit none
-         integer nI(nEl),nEl,nBasis
+         integer nEl,nI(nEl),nBasis
          HElement_t hEl
-         real*8 Arr(nBasis,2),ECore
+         real(dp) Arr(nBasis,2),ECore
          integer i
          if(tStoreAsExcitations.and.nI(1).eq.-1) then
 !The excitation storage starts with -1.  The next number is the excitation level,L .  
@@ -578,7 +645,7 @@ END MODULE Determinants
          endif
 !         call writedet(77,nI,nel,.false.)
 !         write(77,*) "H0",hEl
-!         call flush(77)
+!         call neci_flush(77)
       end subroutine
 
       subroutine DetFreezeBasis(GG)
@@ -673,9 +740,10 @@ END MODULE Determinants
 
       SUBROUTINE GenActiveBasis(ARR,nBasis,nEl,nActiveBasis, nDown,nUp)
          use SystemData, only: BasisFN
+         use constants, only: dp
          IMPLICIT NONE
-         REAL*8 ARR(nBasis)
          INTEGER nEl,nActiveBasis(2),nBasis
+         real(dp) ARR(nBasis)
          INTEGER I,nDown,nUp,nLeft
          I=nEl+1
          nLeft=1+nUp
@@ -716,11 +784,12 @@ END MODULE Determinants
 
       SUBROUTINE GENRANDOMDET(NEL,NBASIS,MCDET)
          use sort_mod
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER NEL,NBASIS,MCDET(NEL)
          INTEGER I,J,EL,SEED
          LOGICAL BR
-         REAL*8 RAN2
+         real(dp) RAN2
          SEED=-7
          DO I=1,NEL
             BR=.TRUE.
@@ -786,10 +855,10 @@ END MODULE Determinants
         integer, intent(in) :: nunit, nel, nI(nel)
         logical, intent(in) :: lTerm
         integer :: i, orb
-        logical iscsf, bCSF
+        logical iscsf_old, bCSF
 
         ! Is this a csf? Note use of old (non-modularised) iscsf
-        bCSF = (tCSF .or. tCSFOLD) .and. iscsf(nI, nel)
+        bCSF = (tCSF .or. tCSFOLD) .and. iscsf_old(nI, nel)
 
         ! Begin with an open bracket
         write(nunit,'("(")',advance='no')
@@ -828,15 +897,16 @@ END MODULE Determinants
 
 
 ! Calculate the one-electron part of the energy of a det
-      REAL*8 FUNCTION CALCT(NI,NEL)
+      FUNCTION CALCT(NI,NEL)
          use constants, only: dp
          USE SystemData, only : BasisFN
          USE OneEInts, only : GetTMatEl
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I
-         LOGICAL ISCSF
+         LOGICAL ISCSF_old
+         real(dp) :: CALCT
          CALCT=0.D0
-         IF(ISCSF(NI,NEL)) RETURN
+         IF(ISCSF_old(NI,NEL)) RETURN
          DO I=1,NEL
             CALCT=CALCT+GetTMATEl(NI(I),NI(I))
          ENDDO
@@ -857,6 +927,40 @@ END MODULE Determinants
          call decode_bit_det (nI, iLutnI)
          call write_det (nUnit, nI, lTerm)
       END
+
+      !Write out the determinant in bit notation
+      SUBROUTINE WriteDetBit(nUnit,iLutnI,lTerm)
+         use SystemData,only: nBasis
+         use bit_reps, only: nIfTot
+         use constants, only: n_int,bits_n_int
+         implicit none
+         integer, intent(in) :: nUnit
+         integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot)
+         logical, intent(in) :: lTerm
+         integer :: i
+
+         do i=1,nBasis-1
+             if(IsOcc(iLutnI,i)) then
+                 write(nUnit,"(A1)",advance='no') "1"
+             else
+                 write(nUnit,"(A1)",advance='no') "0"
+             endif
+         enddo
+         if(IsOcc(iLutnI,nBasis)) then
+             if(lTerm) then
+                 write(nUnit,"(A1)") "1"
+             else
+                 write(nUnit,"(A1)",advance='no') "1"
+             endif
+         else
+             if(lTerm) then
+                 write(nUnit,"(A1)") "0"
+             else
+                 write(nUnit,"(A1)",advance='no') "0"
+             endif
+         endif
+
+      END SUBROUTINE WriteDetBit
 
 ! Write bit-determinant NI to unit NUnit.  Set LTerm if to add a newline at end.  Also prints CSFs
       SUBROUTINE WriteBitEx(nUnit,iLutRef,iLutnI,lTerm)

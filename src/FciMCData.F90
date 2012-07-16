@@ -1,34 +1,47 @@
 MODULE FciMCData
-      use, intrinsic :: iso_c_binding
+      use iso_c_hack
       use SystemData, only: BasisFN
-      use constants, only: dp, int64, n_int, lenof_sign
-      use global_utilities
+      use constants, only: dp, int64, n_int, lenof_sign, sp
       use SymExcitDataMod, only: excit_gen_store_type
+      use MemoryManager, only: TagIntType
+      use global_utilities         
 
       implicit none
       save
+
+      !Variables for popsfile mapping
+      integer, allocatable :: PopsMapping(:)    !Mapping function between old basis and new basis
+      integer :: MappingNIfD,MappingNIfTot      !Original basis NIfD and NIfTot
+
+      integer :: iPopsTimers    !Number of timed popsfiles written out (initiatlised to 1)
+
+      real(dp) :: MaxTimeExit   !Max time before exiting out of MC
+      logical :: tTimeExit      !Whether to exit out of MC after an amount of runtime
 
       ! Units used to write to files
       integer :: fcimcstats_unit ! FCIMCStats
       integer :: initiatorstats_unit ! INITIATORStats
       integer :: ComplexStats_unit ! COMPLEXStats
+      integer :: Tot_Unique_Dets_Unit 
 
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: WalkVecDets(:,:)                !Contains determinant list
       REAL(KIND=dp) , ALLOCATABLE , TARGET :: WalkVecH(:)                    !Diagonal hamiltonian element
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVec(:,:),SpawnVec2(:,:)
+
     
-      INTEGER :: WalkVecDetsTag=0
-      INTEGER :: WalkVecHTag=0
-      INTEGER :: SpawnVecTag=0,SpawnVec2Tag=0
+      INTEGER(TagIntType) :: WalkVecDetsTag=0
+      INTEGER(TagIntType) :: WalkVecHTag=0
+      INTEGER(TagIntType) :: SpawnVecTag=0,SpawnVec2Tag=0
 
 !Pointers to point at the correct arrays for use
       INTEGER(KIND=n_int) , POINTER :: CurrentDets(:,:)
-      REAL*8 , POINTER :: CurrentH(:)
+      real(dp) , POINTER :: CurrentH(:)
       INTEGER(KIND=n_int) , POINTER :: SpawnedParts(:,:),SpawnedParts2(:,:)
 
       ! Be able to store a list of the current initiators
       integer(n_int), allocatable :: CurrentInits(:,:)
-      integer :: max_inits, CurrentInitTag=0
+      integer :: max_inits
+      integer(TagIntType) :: CurrentInitTag=0
 
       INTEGER :: NoAbortedInCAS,NoAbortedOutCAS,NoInCAS,NoOutCAS,HighPopNeg,HighPopPos,MaxInitPopNeg,MaxInitPopPos
 
@@ -43,22 +56,35 @@ MODULE FciMCData
     integer(int64) :: AllNoAbortedOld, AllGrowRateAbort
 
       LOGICAL :: tHFInitiator,tPrintHighPop, tcurr_initiator
+      logical :: tHashWalkerList    !Option to store occupied determinant in a hash table
+      integer, allocatable :: FreeSlot(:)   !List of the free slots in the main list
+      integer :: iStartFreeSlot     !=1 at the beginning of an iteration, will increment
+      !as free slots are used up for *newly spawned* walkers onto previously unoccupied determinants only
+      integer :: iEndFreeSlot   !Position of last free slot, so after we exceed this, just add the the end of the main list.
  
-      REAL*8 :: AvDiagSftAbort,SumDiagSftAbort,DiagSftAbort     !This is the average diagonal shift value since it started varying, and the sum of the shifts since it started varying, and
+      real(dp) :: AvDiagSftAbort,SumDiagSftAbort,DiagSftAbort     !This is the average diagonal shift value since it started varying, and the sum of the shifts since it started varying, and
                                                                 !the instantaneous shift, including the number of aborted as though they had lived.
 
-      REAL*8 :: DiagSftRe,DiagSftIm     !For complex walkers - this is just for info - not used for population control.
+      real(dp) :: DiagSftRe,DiagSftIm     !For complex walkers - this is just for info - not used for population control.
     
       INTEGER , ALLOCATABLE :: HFDet(:)       !This will store the HF determinant
-      INTEGER :: HFDetTag=0
+      INTEGER(TagIntType) :: HFDetTag=0
 
       INTEGER :: MaxWalkersPart,PreviousNMCyc,Iter,NoComps,MaxWalkersAnnihil
       integer(int64) :: TotWalkers, TotWalkersOld
       integer(int64), dimension(lenof_sign) :: TotParts, TotPartsOld
+      integer(int64) :: norm_psi_squared
+      real(dp) :: norm_psi
       INTEGER :: exFlag=3
+      
+      !Hash tables to point to the correct determinants in CurrentDets
+      integer , allocatable , target :: HashIndexArr2(:,:),HashIndexArr1(:,:)
+      integer , pointer :: HashIndex(:,:) 
+      integer :: nClashMax,nWalkerHashes    !Number of hash clashes allowed, and length of hash table respectively
+      real(dp) :: HashLengthFrac
 
 !The following variables are calculated as per processor, but at the end of each update cycle, are combined to the root processor
-      REAL*8 :: GrowRate,DieRat
+      real(dp) :: GrowRate,DieRat
       HElement_t :: SumENum
 
       ! The averaged projected energy - calculated from accumulated values.
@@ -67,23 +93,30 @@ MODULE FciMCData
       ! The averaged projected energy - calculated over the last update cycle
       HElement_t :: proje_iter
 
+      ! The averaged 'absolute' projected energy - calculated over the last update cycle
+      ! The magnitude of each contribution is taken before it is summed in
+      HElement_t :: AbsProjE
+
       integer(int64), dimension(lenof_sign) :: SumNoatHF      !This is the sum over all previous cycles of the number of particles at the HF determinant
-      REAL*8 :: AvSign           !This is the average sign of the particles on each node
-      REAL*8 :: AvSignHFD        !This is the average sign of the particles at HF or Double excitations on each node
+      real(dp) :: AvSign           !This is the average sign of the particles on each node
+      real(dp) :: AvSignHFD        !This is the average sign of the particles at HF or Double excitations on each node
       INTEGER(KIND=int64) :: SumWalkersCyc    !This is the sum of all walkers over an update cycle on each processor
       INTEGER :: Annihilated      !This is the number annihilated on one processor
       INTEGER, DIMENSION(lenof_sign) :: NoatHF           !This is the instantaneous number of particles at the HF determinant
       INTEGER :: NoatDoubs
       INTEGER :: Acceptances      !This is the number of accepted spawns - this is only calculated per node.
-      REAL*8 :: AccRat            !Acceptance ratio for each node over the update cycle
+      real(dp) :: AccRat            !Acceptance ratio for each node over the update cycle
       INTEGER :: PreviousCycles   !This is just for the head node, so that it can store the number of previous cycles when reading from POPSFILE
       INTEGER :: NoBorn,NoDied
       INTEGER :: SpawnFromSing  !These will output the number of particles in the last update cycle which have been spawned by a single excitation.
       INTEGER :: AllSpawnFromSing
       INTEGER, DIMENSION(lenof_sign) :: HFCyc            !This is the number of HF*sign particles on a given processor over the course of the update cycle
       HElement_t :: AllHFCyc          !This is the sum of HF*sign particles over all processors over the course of the update cycle
+      HElement_t :: OldAllHFCyc       !This is the old *average* (not sum) of HF*sign over all procs over previous update cycle
       HElement_t :: ENumCyc           !This is the sum of doubles*sign*Hij on a given processor over the course of the update cycle
       HElement_t :: AllENumCyc        !This is the sum of double*sign*Hij over all processors over the course of the update cycle
+      HElement_t :: ENumCycAbs        !This is the sum of abs(doubles*sign*Hij) on a given processor over the course of the update cycle
+      HElement_t :: AllENumCycAbs     !This is the sum of abs(double*sign*Hij) over all processors over the course of the update cycle
 
       ! The projected energy over the current update cycle.
       HElement_t :: ProjECyc
@@ -92,23 +125,24 @@ MODULE FciMCData
                               ! single excitation. Used to calculate blooms.
 
 !These are the global variables, calculated on the root processor, from the values above
-      REAL*8 :: AllGrowRate
+      real(dp) :: AllGrowRate
       integer(int64) :: AllTotWalkers, AllTotWalkersOld
       integer(int64), dimension(lenof_sign) :: AllTotParts, AllTotPartsOld
       integer(int64), dimension(lenof_sign) :: AllSumNoatHF
       INTEGER(KIND=int64) :: AllSumWalkersCyc
+      real(dp) :: OldAllAvWalkersCyc    !This is the average number of walkers each iteration over the previous update cycle
       INTEGER :: AllAnnihilated,AllNoatDoubs
       INTEGER, DIMENSION(lenof_sign) :: AllNoatHF
-      real(dp), dimension(lenof_sign) :: sum_proje_denominator, &
+      HElement_t :: sum_proje_denominator, &
                         cyc_proje_denominator, all_cyc_proje_denominator, &
                         all_sum_proje_denominator
-      REAL*8 :: AllAvSign,AllAvSignHFD
+      real(dp) :: AllAvSign,AllAvSignHFD
       INTEGER :: AllNoBorn,AllNoDied,MaxSpawned
 
       HElement_t :: AllSumENum
   
       HElement_t :: rhii
-      REAL*8 :: Hii,Fii
+      real(dp) :: Hii,Fii
 
       LOGICAL :: TSinglePartPhase                 !This is true if TStartSinglePart is true, and we are still in the phase where the shift is fixed and particle numbers are growing
 
@@ -117,6 +151,7 @@ MODULE FciMCData
       LOGICAL :: TDebug                           !Debugging flag
       INTEGER :: MaxIndex
 
+      integer :: iBlockingIter                    !The iteration to begin the automatic blocking from 
       LOGICAL :: tErrorBlocking=.false.           !This becomes true when the blocking error analysis begins, and initiates the calling of the blocking routine.
       LOGICAL :: tShiftBlocking=.false.
 
@@ -126,56 +161,67 @@ MODULE FciMCData
       type(timer) :: Walker_Time, Annihil_Time,ACF_Time, Sort_Time, &
                            Comms_Time, AnnSpawned_time, AnnMain_time, &
                            BinSearch_time
+      
+      ! Store the current value of S^2 between update cycles
+      real(dp) :: curr_S2, curr_S2_init
+
+      integer :: HolesInList    !This is for tHashWalkerList and indicates the number of holes in the main list this iter
 
 !These are variables needed for the FixCASshift option in which an active space is chosen and the shift fixed only for determinants within this space
 !The SpinInvBRR vector stores the energy ordering for each spatial orbital, which is the inverse of the BRR vector
       INTEGER, ALLOCATABLE :: SpinInvBRR(:)
-      INTEGER :: SpinInvBRRTag=0
+      INTEGER(TagIntType) :: SpinInvBRRTag=0
       INTEGER :: CASmin=0,CASmax=0
 
       ! The approximate fraction of singles and doubles. This is calculated
       ! using the HF determinant, if using non-uniform random excitations.
       real(dp) :: pDoubles, pSingles
+      integer :: nSingles, nDoubles
       
       ! Bit representation of the HF determinant
       integer(kind=n_int), allocatable :: iLutHF(:)
     
-      REAL(4) :: IterTime
+      REAL(KIND=sp) :: IterTime
     
       REAL(KIND=dp) , ALLOCATABLE :: AttemptHist(:),AllAttemptHist(:),SpawnHist(:),AllSpawnHist(:)
       REAL(KIND=dp) , ALLOCATABLE :: AvAnnihil(:,:),AllAvAnnihil(:,:),InstAnnihil(:,:),AllInstAnnihil(:,:)
-      REAL(KIND=dp) , ALLOCATABLE :: SinglesAttemptHist(:),AllSinglesAttemptHist(:),SinglesHist(:),AllSinglesHist(:),DoublesHist(:),AllDoublesHist(:),DoublesAttemptHist(:),AllDoublesAttemptHist(:)
+      REAL(KIND=dp) , ALLOCATABLE :: SinglesAttemptHist(:),AllSinglesAttemptHist(:),SinglesHist(:),AllSinglesHist(:)
+      REAL(KIND=dp) , ALLOCATABLE :: DoublesHist(:),AllDoublesHist(:),DoublesAttemptHist(:),AllDoublesAttemptHist(:)
       REAL(KIND=dp) , ALLOCATABLE :: SinglesHistOccOcc(:),SinglesHistOccVirt(:),SinglesHistVirtOcc(:),SinglesHistVirtVirt(:)
-      REAL(KIND=dp) , ALLOCATABLE :: AllSinglesHistOccOcc(:),AllSinglesHistVirtOcc(:),AllSinglesHistOccVirt(:),AllSinglesHistVirtVirt(:)
+      REAL(KIND=dp) , ALLOCATABLE :: AllSinglesHistOccOcc(:),AllSinglesHistVirtOcc(:),AllSinglesHistOccVirt(:)
+      REAL(KIND=dp) , ALLOCATABLE :: AllSinglesHistVirtVirt(:)
 
       real(dp), allocatable :: spin_det_hist(:,:)
 
       INTEGER :: MaxDet,iOffDiagNoBins
 
       INTEGER , ALLOCATABLE :: DoublesDets(:,:)
-      INTEGER :: DoublesDetsTag,NoDoubs
+      INTEGER(TagIntType) :: DoublesDetsTag
+      INTEGER :: NoDoubs
 
       INTEGER , ALLOCATABLE :: ValidSpawnedList(:) !This is used for the direct annihilation, and ValidSpawnedList(i) indicates the next free slot in the processor iProcIndex ( 0 -> nProcessors-1 )
       INTEGER , ALLOCATABLE :: InitialSpawnedSlots(:) !This is set up as the initial ValidSpawnedList elements, so that it does not need to be reevaluated each time.
 
       INTEGER :: WalkersDiffProc
 
-      LOGICAL , PARAMETER :: tGenMatHEl=.true.      !This is whether to generate matrix elements as generating excitations for the HPHF or ISK options
+      !This is whether to generate matrix elements as generating excitations for the HPHF/MI/ISK options
+      LOGICAL , PARAMETER :: tGenMatHEl=.true.      
 
       INTEGER :: VaryShiftCycles                    !This is the number of update cycles that the shift has allowed to vary for.
       INTEGER :: VaryShiftIter                     !This is the iteration that the shift can vary.
-      REAL*8 :: AvDiagSft,SumDiagSft                !This is the average diagonal shift value since it started varying, and the sum of the shifts since it started varying.
+      real(dp) :: AvDiagSft,SumDiagSft                !This is the average diagonal shift value since it started varying, and the sum of the shifts since it started varying.
 
-      REAL*8 , ALLOCATABLE :: HistHamil(:,:),AllHistHamil(:,:),AvHistHamil(:,:),AllAvHistHamil(:,:) !These arrays are for histogramming the hamiltonian when tHistHamil is set.
-      REAL*8 :: TotImagTime
+      real(dp) , ALLOCATABLE :: HistHamil(:,:),AllHistHamil(:,:),AvHistHamil(:,:),AllAvHistHamil(:,:) !These arrays are for histogramming the hamiltonian when tHistHamil is set.
+      real(dp) :: TotImagTime
             
       INTEGER(KIND=n_int) , ALLOCATABLE :: CASMask(:)        !These are masking arrays for the core and external orbitals in the cas space
       INTEGER(KIND=n_int) , ALLOCATABLE :: CoreMask(:)       !These are masking arrays for the Core orbitals in the cas space
 
       INTEGER , ALLOCATABLE :: RandomHash(:)    !This is a random indexing scheme by which the orbital indices are randomised to attempt to provide a better hashing performance
+      integer, allocatable :: RandomHash2(:)    !Another random index scheme for the hashing used by tHashWalkerList
 
-      REAL*8 :: HFShift     !A 'shift'-like value for the total energy which is taken from the growth of walkers on the HF determinant.
-      REAL*8 :: InstShift   !An instantaneous value for the shift from the growth of walkers.
+      real(dp) :: HFShift     !A 'shift'-like value for the total energy which is taken from the growth of walkers on the HF determinant.
+      real(dp) :: InstShift   !An instantaneous value for the shift from the growth of walkers.
       INTEGER, DIMENSION(lenof_sign) :: OldAllNoatHF
 
       INTEGER :: iHFProc    !Processor index for HF determinant
@@ -198,14 +244,16 @@ MODULE FciMCData
       ! If we are calculating the projected energy based on a linear
       ! sum of multiple determinants, we need them and their coeffs
       ! to have been enumerated.
-      logical :: proje_linear_comb
+      logical :: proje_linear_comb,proje_update_comb,proje_spatial
       integer(n_int), allocatable :: proje_ref_iluts(:,:)
       integer :: nproje_sum
       integer, allocatable :: proje_ref_dets(:,:), proje_ref_det_init(:)
       real(dp), allocatable :: proje_ref_coeffs(:)
-      integer :: tag_ref_iluts = 0, tag_ref_dets = 0, tag_ref_coeffs = 0
+      integer(TagIntType) :: tag_ref_iluts = 0, tag_ref_dets = 0, tag_ref_coeffs = 0
       real(dp) :: proje_denominator_cyc(lenof_sign)
       real(dp) :: proje_denominator_sum(lenof_sign)
+      logical :: tRestart   !Whether to restart a calculation
+      real(dp) :: InputDiagSft  !Diag shift from the input file if needed to be reset after a restart
       
 
       ! ********************** FCIMCPar control variables *****************
@@ -244,86 +292,26 @@ MODULE FciMCData
 
       integer :: yama_global (4)
 
-      !*****************  Yucky globals for AJWT iter-dependent hashes ***********
-      integer :: hash_iter       ! An iteration number added to make iteration-dependent hashes
-      integer :: hash_shift      ! -Ln_2 (Cycletime), where CycleTime is the average number of cycles until a det returns to its processor
-      
-      !*****************  Redundant variables ************************
-    
-
-      INTEGER , ALLOCATABLE , TARGET :: WalkVec2Dets(:,:),WalkVec2Sign(:)
-      REAL(KIND=dp) , ALLOCATABLE , TARGET :: WalkVec2H(:)
-      INTEGER , ALLOCATABLE :: IndexTable(:),Index2Table(:)                               !Indexing for the annihilation
-      INTEGER , ALLOCATABLE :: ProcessVec(:),Process2Vec(:)                               !Index for process rank of original walker
-      INTEGER(KIND=int64) , ALLOCATABLE :: HashArray(:),Hash2Array(:)                         !Hashes for the walkers when annihilating
-      INTEGER :: HashArrayTag=0,Hash2ArrayTag=0,IndexTableTag=0,Index2TableTag=0,ProcessVecTag=0,Process2VecTag=0
-      INTEGER :: WalkVe2HTag=0,WalkVec2DetsTag=0,WalkVec2SignTag=0
-      INTEGER , POINTER :: NewDets(:,:)
-      INTEGER , POINTER :: NewSign(:)
-
-      ! Only used in FciMC, but put here to allow access to a data module for
-      ! the sorting routines etc.
-      type excitGenerator
-          integer, pointer :: excitdata(:) ! The excitation generator
-          integer :: nExcitMemLen = 0           ! Length of excitation gen.
-          logical :: excitGenForDet = .false.   ! true if excitation generator
-                                               ! stored corresponds to the
-                                               ! determinant.
-      end type
-
-      type(ExcitGenerator) :: HFExcit         !This is the excitation generator for the HF determinant
-      integer(int64) :: HFHash               !This is the hash for the HF determinant
-!This is information needed by the thermostating, so that the correct change in walker number can be calculated, and hence the correct shift change.
-!NoCulls is the number of culls in a given shift update cycle for each variable
-      INTEGER :: NoCulls=0
-!CullInfo is the number of walkers before and after the cull (elements 1&2), and the third element is the previous number of steps before this cull...
-!Only 10 culls/growth increases are allowed in a given shift cycle
-      INTEGER :: CullInfo(10,3)
-
       ! Used for modifying the ReadPops procedures, so that we can call 
       ! InitFCIMCCalcPar again without reading the popsfile.
       logical :: tPopsAlreadyRead
 
-      ! Excitation generation storage for FCIMC (and others)
+!      ! Excitation generation storage 
       type(excit_gen_store_type) :: fcimc_excit_gen_store
-      
-      interface assignment(=)
-          module procedure excitgenerator_assign
-      end interface
 
-contains
-    
-    pure subroutine excitgenerator_init (egen)
-        type(excitGenerator), intent(inout) :: egen
-        nullify(egen%excitdata)
-        egen%nExcitMemLen = 0
-        egen%excitGenForDet = .false.
-    end subroutine
+      !Tau searching variables
+      logical :: tSearchTau
+      real(dp) :: MaxSpawnProb,AllMaxSpawnProb,MaxAllowedSpawnProb
 
-    pure subroutine excitgenerator_destroy (egen)
-        type(excitGenerator), intent(inout) :: egen
-        if (associated(egen%excitdata)) deallocate(egen%excitdata)
-        nullify(egen%excitdata)
-        egen%nExcitMemLen = 0
-        egen%excitGenForDet = .false.
-    end subroutine
+      !Variables for diagonalisation of the walker subspace
+      integer :: unitWalkerDiag
 
-    elemental subroutine excitgenerator_assign (lhs, rhs)
-        type(excitGenerator), intent(inout) :: lhs
-        type(excitGenerator), intent(in) :: rhs
+      !*****************  Yucky globals for AJWT iter-dependent hashes ***********
+      integer :: hash_iter       ! An iteration number added to make iteration-dependent hashes
+      integer :: hash_shift      ! -Ln_2 (Cycletime), where CycleTime is the average number of cycles until a det returns to its processor
 
-        if (associated(lhs%excitData)) deallocate(lhs%excitData)
-
-        ! Do we actually want the excitation generator? Is it for the correct
-        ! determinant?
-        if (rhs%excitGenForDet) then
-            ! Now copy the excitation generator.
-            allocate (lhs%excitData(rhs%nExcitMemLen))
-
-            lhs%excitData = rhs%excitData
-        endif
-        lhs%nExcitMemLen = rhs%nExcitMemLen
-        lhs%excitGenForDet = rhs%excitGenForDet
-    end subroutine
+      !Variables for very useful histogramming of projected energy contributions
+      real(dp), allocatable :: ENumCycHistG(:),AllENumCycHistG(:),ENumCycHistK3(:),AllENumCycHistK3(:)
+      integer :: unit_splitprojEHistG,unit_splitprojEHistK3
 
 END MODULE FciMCData

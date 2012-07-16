@@ -1,5 +1,5 @@
 module mcpaths
-    use util_mod, only: isnan
+    use util_mod, only: isnan_neci
 contains
 
 !C.. Calculate RHO^(P)_II without having a stored H matrix
@@ -23,50 +23,48 @@ contains
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,       &
      &               WLRI,WLSI,DBETA,DLWDB)
          Use Determinants, only: get_helement, write_det
-         use constants, only: dp
+         use constants, only: dp,sp
          use SystemData, only: BasisFN
-!         USE PreCalc ,  only: GETVARS
          USE STARDIAGMOD , only: fMCPR3StarNewExcit
          USE GraphMorph , only : MorphGraph
          USE StarDiagTripMod , only : StarDiagTrips
          USE FciMCParMod , only : FciMCPar
-         USE FciMCMod , only : FciMC
          USE ReturnPathMCMod , only : ReturnPathMC
          USE NODEDIAG , only : fMCPR3StarNodes
          use CalcData , only : G_VMC_FAC,CUR_VERT,g_MultiWeight,         &
      &          TMPTHEORY,TMCDIRECTSUM,TDIAGNODES,TGraphMorph,           &
-     &          calcp_logweight,TFCIMC,TReturnPathMC,tFCIMCSerial 
+     &          calcp_logweight,TFCIMC,TReturnPathMC
          use CalcData, only: tCCMC
          use CalcData, only: TStarTrips
          USE Logging , only : G_VMC_LOGCOUNT
-         USE PrecalcData , only : PREIV_MAX,TPREVAR
          USE CCMC, only: CCMCStandalone,CCMCStandaloneParticle
          use CCMCData, only:  tAmplitudes
          use global_utilities
          use mcpathsdata, only: EGP
          use mcpathshdiag, only: fmcpr3b2
+         use mcpathsismc, only: mcpathsr4, fmcpr4b,fmcpr4c
          use sym_mod, only: getsym
-         use util_mod, only: isnan, NECI_ICOPY
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          TYPE(BasisFN) :: G1(*),KSYM
          INTEGER I_VMAX,NEL,NBASIS
          INTEGER IPATH(NEL,0:I_VMAX)
          INTEGER NI(NEL)
-         COMPLEX*16 FCK(*)
+         complex(dp) FCK(*)
          INTEGER I_P,I_HMAX,BRR(*),NMSH,NMAX
          INTEGER NTAY(2),NWHTAY(3,I_VMAX),ILOGGING,I,I_V
          INTEGER L,LT,J
-         real*4 otime,itime,etime,tarr(2)
-         REAL*8 BETA,ECORE
+         real(sp) otime,itime,tarr(2),neci_etime
+         real(dp) BETA,ECORE
          real(dp) WLRI,WLSI
          HElement_t UMat(*),RH
-         REAL*8 NTOTAL
+         real(dp) NTOTAL
 
          real(dp) F(2:I_VMAX)
-         CHARACTER*40 STR
+         CHARACTER(40) STR
          real(dp) TOTAL,RHOII(0:I_VMAX)
          HElement_t RHOIJ(0:I_VMAX,0:I_VMAX)
-         REAL*8 ALAT(3),RHOEPS
+         real(dp) ALAT(3),RHOEPS
          INTEGER  nBasisMax(5,*)
          INTEGER LSTE(*),ILMAX
 !CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
@@ -75,19 +73,18 @@ contains
 !C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER NLIST(0:I_VMAX-1),LSTP(0:I_VMAX-1),BTABLE(0:I_VMAX)
          LOGICAL TLOG,TSYM
-         REAL*8 DBETA
+         real(dp) DBETA
          real(dp) DLWDB,DLWDB2,EREF
          HElement_t  HIJS(0:I_VMAX)
          TYPE(EGP) LOCTAB(I_VMAX)
-         real(dp) FMCPR4B,FMCPR4C
          real(dp) FMCPR3STAR,FMCPR3NVSTAR
          INTEGER I_CHMAX,CNWHTAY
          INTEGER ISEED,ICOUNT
          real(dp) FF,DLWDB3,TEMPTOT
-         REAL*8 FSQ(2:I_VMAX),STD
-         REAL*8 NTIME,VARSUM
+         real(dp) FSQ(2:I_VMAX),STD
+         real(dp) NTIME,VARSUM
          INTEGER IFRZ(0:NBASIS,I_VMAX),I_V1,I_V2,T
-         REAL*8 OSI
+         real(dp) OSI
          real(dp) MP2E(2:I_VMAX)
          LOGICAL TLOGP
          type(timer), save :: proc_timer
@@ -136,27 +133,6 @@ contains
          NTOTAL=1.D0
          I_V1=0
 
-         !PRECALC block called
-         if(PREIV_MAX.ne.0) then
-             
-           TPREVAR=.TRUE. 
-            
-            IF(.not.TMCDIRECTSUM) THEN
-                WRITE(6,*) "PRECALC only valid if MCDIRECTSUM is being used"
-                CALL FLUSH(6)
-                STOP
-            ENDIF
-            
-            proc_timerPRE%timer_name='PRECALC '
-            call set_timer(proc_timerPRE)
-            CALL GETVARS(NI,BETA,I_P,IPATH,2,                           &
-     &       G1,NMSH,FCK,NMAX,UMAT,                                     &
-     &       NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,DBETA,DLWDB2,    &
-     &       HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,TLOGP,KSYM,NWHTAY,  &
-     &       I_VMAX)
-            call halt_timer(proc_timerPRE)
-         end if
-
 !C.. I_V is the number of vertices in the path
          
          DO I=2,I_VMAX
@@ -167,20 +143,10 @@ contains
             WRITE(STR,"(A,I5)") "FMCPR",I_V
             proc_timer2%timer_name=trim(STR(1:25))
             call set_timer(proc_timer2)
-            OTIME=etime(tarr)
+            OTIME=neci_etime(tarr)
             L=0
             LT=0
             BTABLE(0)=-1
-            IF(TPREVAR) THEN
-                DO T=2,I_VMAX
-                    MP2E(T)=0.D0
-                ENDDO
-                NTOTAL=1
-                TOTAL=1.D0
-                DLWDB=HIJS(0)
-                TPREVAR=.FALSE.
-            ENDIF
-
             DLWDB2=0.D0
             I_CHMAX=NWHTAY(1,I)
             CNWHTAY=NWHTAY(2,I)
@@ -202,7 +168,7 @@ contains
                F(I_V)=FMCPR3B(NI,BETA,I_P,IPATH,I_V,NEL,                   &
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,        &
      &         RHOEPS,0,RHOII,RHOIJ,CNWHTAY,I_CHMAX,LOCTAB,                &
-     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,       &
+     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.0_dp,     &
      &         MP2E,NTOTAL,EREF,VARSUM,TOTAL)
             ELSEIF(I_CHMAX.EQ.-14) THEN
 !.. We read in this vertex level from the MCPATHS file
@@ -219,7 +185,7 @@ contains
                F(I_V)=FMCPR3B2(NI,BETA,I_P,IPATH,I_V,NEL,                  &
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,        &
      &         RHOEPS,0,RHOIJ,CNWHTAY,I_CHMAX,LOCTAB,                      &
-     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,       &
+     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.0_dp,     &
      &        MP2E,NTOTAL,I_VMAX,EREF,VARSUM,TOTAL)
             ELSEIF(I_CHMAX.EQ.-9) THEN
 !C.. This code generates a star consisting of all the two-vertex terms,
@@ -244,11 +210,7 @@ contains
                ELSEIF(TFCIMC) THEN
 !A MC simulation involving replicating particles is run
 !                    WRITE(6,*) "Get Here!: ",I_V,F(I_V),DLWDB2
-                  IF(tFCIMCSerial) THEN
-                    CALL FciMC(F(I_V),DLWDB2)
-                  ELSE
                     CALL FciMCPar(F(I_V),DLWDB2)
-                  ENDIF
 !                    WRITE(6,*) "Get Here!: ",I_V,F(I_V),DLWDB2
                ELSEIF(tCCMC) THEN
                   if(tAmplitudes) THEN
@@ -268,10 +230,7 @@ contains
                ENDIF
             ELSEIF(I_CHMAX.EQ.-11) THEN
                IF(I_V.EQ.I_VMAX) THEN
-               F(I_V)=FMCPR3NVSTAR(NI,BETA,I_P,IPATH,I_V,NEL,                 &
-     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,                &
-     &   RHOEPS,0,RHOII,RHOIJ,LSTE,ICE,RIJLIST,CNWHTAY,L,LT,I_HMAX,           &
-     &   NLIST,LSTP,BTABLE,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB,HIJS)
+                  STOP "FMCPR3NVSTAR has been removed."
                ELSE
                   F(I_V)=0.D0
                   L=0
@@ -358,7 +317,7 @@ contains
                     WRITE(12,"(I3,I10,4F19.7)") I_V,ICOUNT/1000,F(I_V)/ICOUNT,&
      &                   SQRT(FSQ(I_V)/ICOUNT-abs(F(I_V)**2/ICOUNT)),         &   
      &                   DLWDB3/ICOUNT,(DLWDB+DLWDB3/ICOUNT)/(F(I_V)/ICOUNT+TOTAL)
-                     CALL FLUSH(12)
+                     CALL neci_flush(12)
                   ENDIF
                ENDDO
                F(I_V)=F(I_V)/CNWHTAY
@@ -368,19 +327,19 @@ contains
             ENDIF
 
             call halt_timer(proc_timer2)
-            NTIME=etime(tarr)
+            NTIME=neci_etime(tarr)
             TOTAL=TOTAL+F(I_V)
             DLWDB=DLWDB+DLWDB2
 !            WRITE(6,*) "Get Here2: ",TOTAL,DLWDB
 !            WRITE(6,*) "MCP",I_V,TOTAL,DLWDB
             IF(TLOG.AND.I_V1.EQ.0) THEN
                 WRITE(11,"(I12,2G25.16,F19.7,I12,2G25.12)") I_V,F(I_V),TOTAL,NTIME-OTIME,L,STD,DLWDB2
-               CALL FLUSH(11)
+               CALL neci_flush(11)
             ENDIF
-            IF(ISNAN(TOTAL)) THEN
+            IF(ISNAN_neci(TOTAL)) THEN
 !C.. save all log files
-               ITIME=etime(tarr)
-               CALL FLUSH(11)
+               ITIME=neci_etime(tarr)
+               CALL neci_flush(11)
 !               CALL LOGNAN(NI,NEL,BETA,ITIME)
                WRITE(6,*) "WARNING: nan found at time",ITIME
                WRITE(6,"(A)",advance='no') "  nan det="
@@ -430,7 +389,7 @@ contains
             DLWDB=DLWDB/TOTAL
          endif
          call halt_timer(proc_timer)
-         CALL N_MEMORY_CHECK()
+!         CALL N_MEMORY_CHECK()
 !         WRITE(6,*) "Get Here 3",WLSI,TOTAL,DLWDB
          RETURN
       END SUBROUTINE
@@ -449,46 +408,43 @@ contains
      &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,           &
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,            &
      &               WLRI,WLSI,DBETA,DLWDB)
-         use constants, only: dp
+         use constants, only: dp,sp
          use SystemData, only: BasisFN
          Use Determinants, only: get_helement, write_det
          USE STARDIAGMOD , only : fMCPR3StarNewExcit
          USE NODEDIAG , only : fMCPR3StarNodes
          USE GraphMorph , only : MorphGraph
          USE StarDiagTripMod , only : StarDiagTrips
-#ifdef PARALLEL
          USE FciMCParMod , only : FciMCPar
-#else         
-         USE FciMCMod , only : FciMC
-#endif
          USE ReturnPathMCMod , only : ReturnPathMC
-         USE PrecalcData , only : TPREVAR
          use CalcData , only : TMPTHEORY,TDIAGNODES,TGraphMorph
          use CalcData, only : calcp_logweight,TFCIMC,TReturnPathMC
          use CalcData, only: TStarTrips
          use global_utilities
          use mcpathsdata, only: EGP
          use mcpathshdiag, only: fmcpr3b2
+         use mcpathsismc, only: mcpathsr4
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          TYPE(BasisFN) G1(*)
          INTEGER I_VMAX,NEL,NBASIS
          INTEGER IPATH(NEL,0:I_VMAX)
          INTEGER NI(NEL)
-         COMPLEX*16 FCK(*)
+         complex(dp) FCK(*)
          HElement_t UMat(*), RH
          INTEGER I_P,I_HMAX,BRR(*),NMSH,NMAX
          INTEGER NTAY(2),NWHTAY(3,I_VMAX),ILOGGING,I,I_V
          type(timer), save :: proc_timer,proc_timer2
-         INTEGER L,LT,ITIME
-         REAL*8 BETA,ECORE
-         real*4 etime,tarr(2)
+         INTEGER L,LT
+         real(sp) ITIME(2)
+         real(dp) BETA,ECORE
+         real(sp) tarr(2),neci_etime
          real(dp) WLRI,WLSI
          real(dp) F(2:I_VMAX)
-         CHARACTER*40 STR
+         CHARACTER(40) STR
          HElement_t RHOIJ(0:I_VMAX,0:I_VMAX)
          real(dp) RHOII(0:I_VMAX),TOTAL
-         REAL*8 ALAT(3),RHOEPS
+         real(dp) ALAT(3),RHOEPS
          INTEGER nBasisMax(5,*)
          INTEGER, allocatable :: LSTE(:,:,:)
          INTEGER ILMAX
@@ -498,20 +454,19 @@ contains
 !C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER NLIST(0:I_VMAX-1),LSTP(0:I_VMAX-1),BTABLE(0:I_VMAX)
          LOGICAL TLOG,TSYM
-         REAL*8 DBETA
+         real(dp) DBETA
          HElement_t HIJS(0:I_VMAX)
          type(EGP), target ::  LOCTAB(I_VMAX)
          real(dp) DLWDB,DLWDB2,EREF
-         REAL*8 NTIME,OTIME,VARSUM
+         real(dp) NTIME,OTIME,VARSUM
          INTEGER IFRZ(0:NBASIS,I_VMAX)
          real(dp) MP2E(2:I_VMAX),H00,FF
-         REAL*8 NTOTAL
+         real(dp) NTOTAL
          real(dp) FMCPR3STAR
          write(6,*) "MCPATHSR3:  I_HMAX=",I_HMAX
 ! Init the weight of the 1-v graph
          WLSI=1.D0
 
-         TPREVAR=.FALSE.
 !C.. This is where we will store the MP2 energy
          DO I=2,I_VMAX
             MP2E(I)=0.D0
@@ -580,7 +535,7 @@ contains
          ENDIF
          proc_timer%timer_name='MCPATHSR3 '
          call set_timer(proc_timer)
-         OTIME=etime(tarr)
+         OTIME=neci_etime(tarr)
          TLOG=BTEST(ILOGGING,1)
          IF(TLOG) THEN
             OPEN(11,FILE="MCPATHS",STATUS="OLD",POSITION='APPEND')
@@ -635,7 +590,7 @@ contains
                F(I_V)=FMCPR3B(NI,BETA,I_P,IPATH,I_V,NEL,                   &
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,        &
      &        RHOEPS,0,RHOII,RHOIJ,NWHTAY(1,1),I_HMAX,LOCTAB,                   &
-     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,       &
+     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.0_dp,       &
      &         MP2E,NTOTAL,EREF,VARSUM,TOTAL)
             ELSEIF(I_HMAX.EQ.-20) THEN 
 !C.. This code generates excitations on the fly, and diagonalizes a matrix of
@@ -647,7 +602,7 @@ contains
                F(I_V)=FMCPR3B2(NI,BETA,I_P,IPATH,I_V,NEL,                  &
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,        &
      &        RHOEPS,0,RHOIJ,NWHTAY(1,1),I_HMAX,LOCTAB,                         &
-     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,       &
+     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.0_dp,       &
      &        MP2E,NTOTAL,I_VMAX,EREF,VARSUM,TOTAL)
             ELSEIF(I_HMAX.EQ.-9) THEN
 !C.. This code generates a star consisting of all the two-vertex terms,
@@ -671,13 +626,7 @@ contains
                     CALL StarDiagTrips(DLWDB2,F(I_V))
                ELSEIF(TFCIMC) THEN
 !A MC simulation involving replicating particles is run
-#ifdef PARALLEL
-!                    WRITE(6,*) "Get Here?!"
                     CALL FciMCPar(F(I_V),DLWDB2)
-!                    WRITE(6,*) "Get Here??!"
-#else
-                    CALL FciMC(F(I_V),DLWDB2)
-#endif
                ELSEIF(TReturnPathMC) THEN
 !A MC simulation involving replicating particles, constrained to returning paths is run
                     CALL ReturnPathMC(F(I_V),DLWDB2)
@@ -690,7 +639,7 @@ contains
                ENDIF
             ENDIF
             call halt_timer(proc_timer2)
-            NTIME=etime(tarr)
+            NTIME=neci_etime(tarr)
             TOTAL=TOTAL+F(I_V)
             DLWDB=DLWDB+DLWDB2
 !c            WRITE(6,*) I_V,F(I_V),TOTAL,get_total_time(proc_timer2),L,LT
@@ -703,14 +652,14 @@ contains
                   ENDDO
                ENDIF
                WRITE(11,*)
-               CALL FLUSH(11)
+               CALL neci_flush(11)
             ENDIF
-            IF(ISNAN(TOTAL)) THEN
+            IF(ISNAN_neci(TOTAL)) THEN
 !C.. save all log files
-               ITIME=etime(tarr)
-               CALL FLUSH(11)
-!               CALL LOGNAN(NI,NEL,BETA,ITIME)
-               WRITE(6,*) "WARNING: nan found at time",ITIME
+               iTIME=neci_etime(tarr)
+               CALL neci_flush(11)
+!               CALL LOGNAN(NI,NEL,BETA,iTIME)
+               WRITE(6,*) "WARNING: nan found at time",iTIME
                WRITE(6,"(A)",advance='no') "  nan det="
                call write_det (6, NI, .true.)
             ENDIF
@@ -746,7 +695,7 @@ contains
              ENDIF
          ENDIF
          call halt_timer(proc_timer)
-         CALL N_MEMORY_CHECK()
+!         CALL N_MEMORY_CHECK()
          RETURN
       END SUBROUTINE
 
@@ -771,8 +720,8 @@ contains
          INTEGER I_V,NEL,I_P,nBasisMax(5,*),NBASIS,BRR(*),NMSH,NMAX
          INTEGER NTAY(2),I_VIND,NWHTAY,L,LT,ILOGGING
          INTEGER I,IVLMAX,II
-         REAL*8 ALAT(*),ECORE
-         COMPLEX*16 FCK(*)
+         real(dp) ALAT(*),ECORE
+         complex(dp) FCK(*)
          real(dp) CALCPATHS_N
          HElement_t UMat(*),R
          INTEGER IPATH(NEL,0:I_V)
@@ -789,7 +738,7 @@ contains
          INTEGER ICE(0:ILMAX,0:I_V-1)
          HElement_t RIJLIST(0:ILMAX,0:I_V-1)
          INTEGER IVLEVEL,I_HMAX,BTABLE(0:I_V)
-         REAL*8 BETA,RHOEPS,DBETA
+         real(dp) BETA,RHOEPS,DBETA
          LOGICAL TSYM
          LOGICAL TLOG,TLOG2,TLOG3,TLOG4,TLOG5
          real(dp) DLWDB,DLWDB2
@@ -849,7 +798,7 @@ contains
 !C.. Sum up the components of <D|H exp(-b H)|D>
             DLWDB=DLWDB+DLWDB2
                IF(TLOG) WRITE(10,"(2E25.16, I7)") TOTAL,DLWDB2,ICLS
-!caa     call flush(10) 
+!caa     call neci_flush(10) 
             L=L+1
             FMCPR3RES=TOTAL
             IF(I_V.EQ.2.AND.TMPTHEORY) THEN
@@ -864,7 +813,7 @@ contains
                ELSE
                   WRITE(10,*) L,NTOTAL,DLWDB
                ENDIF
-               CALL FLUSH(10)
+               CALL neci_flush(10)
             ENDIF
             RETURN
          ENDIF
@@ -1087,18 +1036,18 @@ contains
          Use Determinants, only: get_helement
          use CalcData , only : TVARCALC,TMPTHEORY
          USE Logging , only : G_VMC_LOGCOUNT
-         USE PrecalcData , only : TPREVAR,PREWEIGHTEPS
          use mcpathsdata, only: EGP
          use sym_mod, only: getsym
          use legacy_data, only: irat
          use util_mod, only: NECI_ICOPY
+!         use mcpathsismc, only: calcwritegraphpgen
          IMPLICIT NONE
          TYPE(BasisFN) G1(*),ISYM
          INTEGER I_V,NEL,I_P,nBasisMax(5,*),NBASIS,BRR(*),NMSH,NMAX
          INTEGER NTAY(2),I_VIND,NWHTAY,ILOGGING,J,II
-         COMPLEX*16 FCK(*)
+         complex(dp) FCK(*)
          HElement_t UMAT(*)
-         REAL*8 ALAT(*),ECORE,PR
+         real(dp) ALAT(*),ECORE,PR
          real(dp) TOTAL,FMCPR3BRES,WREF,EREF,PROB
          real(dp) CALCPATHS_N
          INTEGER IPATH(NEL,0:I_V)
@@ -1107,13 +1056,13 @@ contains
          INTEGER INODE(NEL)
          INTEGER NI(NEL),NJ(NEL)
          INTEGER I_HMAX
-         REAL*8 BETA,RHOEPS
+         real(dp) BETA,RHOEPS
          LOGICAL TSYM
          LOGICAL TLOG,TLOG2,TLOG3,TLOG4,TLOG5,TLOG6
-         REAL*8 DBETA
+         real(dp) DBETA
          INTEGER ICLS
          INTEGER,pointer :: NMEM(:)
-         INTEGER NMEMLEN
+         INTEGER NMEMLEN(1)
          INTEGER, pointer :: OGEN(:)
          INTEGER, pointer :: CURGEN(:)
 !C.. LOCTAB(1)%p is the address of the generator used to create node 1 in
@@ -1129,11 +1078,11 @@ contains
          INTEGER IFRZ(0:NBASIS,I_V),IFRZ2(0:NBASIS)
          INTEGER EX(2,2),ICIL,ICILMAX
          INTEGER STORE(6)
-         REAL*8 FSCALE,FSC2
+         real(dp) FSCALE,FSC2
          real(dp) MP2E(:),NTOTAL
          INTEGER EXFLAG
          LOGICAL ISCONNECTEDDET
-         REAL*8 VARSUM,SumX,SumY,SumXY,SumXsq,SumYsq,SumP
+         real(dp) VARSUM,SumX,SumY,SumXY,SumXsq,SumYsq,SumP
          DATA SumP/0.D0/
          SAVE SumX,SumY,SumXY,SumXsq,SumYsq,SumP
 !         write(6, *) "FMCPR3B I_VIND:",I_VIND
@@ -1244,25 +1193,13 @@ contains
                ELSE
                   WRITE(10,"(I10,2E25.16)") L,NTOTAL,DLWDB
                ENDIF
-               CALL FLUSH(10)
+               CALL neci_flush(10)
             ENDIF
 !C            WRITE(10,*) (LOCTAB(I)%v,I=1,I_V-1)
 !C            WRITE(6,*) "X"
         
-            IF (TVARCALC(I_V).or.TPREVAR) THEN
+            IF (TVARCALC(I_V)) THEN
                 J=0
-                IF(TOTAL.ge.PREWEIGHTEPS) THEN
-
-                   CALL  CalcWriteGraphPGen(J,IPATH,I_V,nEl,G1,           &
-     &                       nBasisMax,NMAX,nBasis,Prob,DUMMY)
-                   SumX  =SumX   + DLWDB2-(EREF*TOTAL)
-                   SumY  =SumY   + TOTAL
-                   SumXsq=SumXsq + (DLWDB2-(EREF*TOTAL))**2/Prob
-                   SumYsq=SumYsq + ((TOTAL)**2)/Prob
-                   SumXY =SumXY  + (DLWDB2-(EREF*TOTAL))*TOTAL/Prob
-                   SumP=SumP+Prob
-     
-                 ENDIF
              ENDIF
             RETURN
         ENDIF
@@ -1299,7 +1236,7 @@ contains
      &         .TRUE.,NMEMLEN,NJ,IC,STORE,EXFLAG)
 !C         CALL GENSYMEXCITIT(INODE,NEL,G1,NBASIS,NBASISMAX,.TRUE.,ISYM,
 !C     &         .TRUE.,NMEMLEN,NJ,IC,IFRZ(0,I_VIND+1))
-         allocate(NMEM(NMEMLEN))
+         allocate(NMEM(NMEMLEN(1)))
 !C         WRITE(6,"(A,I)") "NMEM",NMEMLEN
 !         write(6,*) "alloc NMEM", loc(NMEM)
          NMEM(1)=0
@@ -1352,7 +1289,7 @@ contains
 
 !C.. Set these just in case
          CURGEN=>NMEM
-         LOCTAB(I_VIND+1)%l=NMEMLEN
+         LOCTAB(I_VIND+1)%l=NMEMLEN(1)
          LOCTAB(I_VIND+1)%v=IVLEVEL-1
          
          DO WHILE (IVLEVEL.GT.IVLMIN)
@@ -1381,7 +1318,7 @@ contains
                LOCTAB2(I_VIND+1)%v=LOCTAB(IVLEVEL)%v
             ELSE
                CURGEN=>NMEM
-               LOCTAB2(I_VIND+1)%l=NMEMLEN
+               LOCTAB2(I_VIND+1)%l=NMEMLEN(1)
                LOCTAB2(I_VIND+1)%v=IVLEVEL-1
             ENDIF
             IEXFROM=LOCTAB2(I_VIND+1)%v
@@ -1457,7 +1394,7 @@ contains
 !                     IF(abs(RH ).gt. 0.D0) THEN
                      IF(II<I_VIND) then
 !                      WRITE(6,*) "ICD", II
-!                      call flush(6)
+!                      call neci_flush(6)
                       IF(IsConnectedDet(IPATH(1,II),NJ)) THEN
 !if rhoeps is zero then always set TFAIL.  if rhoeps isn't zero, then set TFAIL if Rh isn't zero (i.e. we've included it before)
                        IF(RH.NE.0.D0.OR.RHOEPS.EQ.0.D0) THEN
@@ -1554,7 +1491,7 @@ contains
 !         nullify(LOCTAB(I_VIND+1)%p)
          FMCPR3BRES=TOTAL
 
-         If (TVARCALC(I_V).and.(I_VIND.eq.0).and.(.not.TPREVAR)) Then
+         If (TVARCALC(I_V).and.(I_VIND.eq.0)) Then
 
 
             SumYsq=SumYsq+(2*WREF*SumY)+(((WREF)**2)*SumP)
@@ -1576,7 +1513,7 @@ contains
             SumXY=0.D0
         End If
                           
-        IF (TPREVAR.and.I_VIND.eq.0) THEN
+        IF (I_VIND.eq.0) THEN
 
            SumYsq=SumYsq+(2*WREF*SumY)+(((WREF)**2)*SumP)
            SumY=SumY+(WREF*SumP)
@@ -1595,7 +1532,7 @@ contains
            SumXY=0.D0
        ENDIF
 !       WRITE(6,*) "Leaving ",I_VIND
-!       call flush(6) 
+!       call neci_flush(6) 
        RETURN
       END FUNCTION
 
@@ -1604,7 +1541,7 @@ end module mcpaths
       SUBROUTINE WRITEPATH(NUNIT,IPATH,I_V,NEL,LTERM)
          use Determinants, only: write_det
          IMPLICIT NONE
-         INTEGER NUNIT,IPATH(NEL,0:I_V),I_V,NEL
+         INTEGER NUNIT,I_V,NEL,IPATH(NEL,0:I_V)
          LOGICAL LTERM
          INTEGER J
          
@@ -1620,7 +1557,8 @@ end module mcpaths
 
       SUBROUTINE WRITEPATHEX(NUNIT,IPATH,I_V,NEL,LTERM)
          IMPLICIT NONE
-         INTEGER NUNIT,IPATH(NEL,0:I_V),I_V,NEL
+         INTEGER I_V,NEL
+         INTEGER NUNIT,IPATH(NEL,0:I_V)
          LOGICAL LTERM,T
          INTEGER J,K,EX(2,2)
 !C.. First determine the excitation
@@ -1642,7 +1580,7 @@ end module mcpaths
          ENDDO
          WRITE(NUNIT,"(A)",advance='no') "]"
          IF(LTERM) WRITE(NUNIT,*)
-         CALL FLUSH(NUNIT)
+         CALL neci_flush(NUNIT)
          RETURN
       END
 
@@ -1669,10 +1607,10 @@ end module mcpaths
          RETURN
       END
       SUBROUTINE ELIMDUPS(LSTE,I_V,NEL,NLIST,NLISTMAX,NI)
+         INTEGER I_V,I,J,IND,NMAX,IC,NMAX2,K
          INTEGER NEL,NLISTMAX
          INTEGER LSTE(1:NEL,0:NLISTMAX,0:I_V)
          INTEGER NLIST(0:I_V),NI(1:NEL)
-         INTEGER I_V,I,J,IND,NMAX,IC,NMAX2,K
 !C.. First we check none of our list are NI
          NMAX=NLIST(I_V)
          J=1
@@ -1725,499 +1663,13 @@ end module mcpaths
       END
 
 
-!C.. Generate a star of all n-vertex subgraphs - each of which has been
-!C.. diagonalised. 
-!C.. This calls ADDDIAGSTAR which writes the relevant roots to a file,
-!C.. and also includes the removal of subgraphs
-      RECURSIVE REAL*8 FUNCTION FMCPR3NVSTAR(NI,BETA,I_P,IPATH,I_V,NEL,    &
-     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,             &
-     &   RHOEPS,I_VIND,RHOII,RHOIJ,LSTE,ICE,RIJLIST,NWHTAY,L,LT,I_HMAX,    &
-     &   NLIST,LSTP,BTABLE,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB,HIJS      &
-     &   ) RESULT (FMCPR3NVSTARRES)
-         
-         use SystemData, only: BasisFN
-         use Determinants, only: get_helement
-         use constants, only: dp
-         use util_mod, only: NECI_ICOPY
-         IMPLICIT NONE
-         INTEGER I_V,NEL,I_P,NBASISMAX(*),G1(*),NBASIS,BRR(*),NMSH,NMAX
-         INTEGER NTAY(2),I_VIND,NWHTAY,L,LT,ILOGGING
-         INTEGER I,IVLMAX,II
-         REAL*8 FCK(*), ALAT(*),UMAT(*),ECORE,TOTAL,R
-         INTEGER IPATH(NEL,0:I_V)
-         REAL*8 RHOII(0:I_V)
-         REAL*8 RHOIJ(0:I_V,0:I_V)
-         INTEGER INODE(NEL),ILMAX
-!C.. LSTE is a list of excitations (which we will generate)
-!C.. ICE is the IC of each excitation (i.e. how much it differs from us (INODE)
-!C.. LSTP is an index into LSTE of what has been processed in it so far
-!C..      (i.e. it is the first un-processed node)
-!C.. NLIST contains the length of LSTE for each node
-         INTEGER LSTE(NEL,0:ILMAX,0:I_V-1),NI(NEL)
-         INTEGER LSTP(0:I_V),LSTP2(0:I_V),NLIST(0:I_V)
-         INTEGER ICE(0:ILMAX,0:I_V-1)
-         HElement_t RIJLIST(0:ILMAX,0:I_V-1)
-         INTEGER IVLEVEL,I_HMAX,BTABLE(0:I_V)
-         REAL*8 RH,BETA,RHOEPS
-         LOGICAL TSYM
-         LOGICAL TLOG,TLOG2
-         REAL*8 DBETA,DLWDB
-         REAL*8 HIJS(0:I_V)
-         HElement_t :: hel
-         IF(I_VIND.EQ.0) THEN
-!C.. setup
-            OPEN(19,FILE="STARDATA",STATUS="UNKNOWN")
-         ENDIF
-
-         TLOG=BTEST(ILOGGING,2)
-         TLOG2=BTEST(ILOGGING,3)
-         LT=LT+1
- 
-         TOTAL=0.D0
-!C.. This is the current node (set by our parent)         
-         CALL NECI_ICOPY(NEL,IPATH(1:NEL,I_VIND),1,INODE,1)
-!C.. Set the Zeroth node in our excitation list to be ourselves
-!C.. as we'll always want to exclude ourselves from being counted again
-!C.. (unused)
-         CALL NECI_ICOPY(NEL,INODE,1,LSTE(1:NEL,0,I_VIND),1)
-         ICE(0,I_VIND)=0
-!C.. Find RHO_II for this node
-         IF(INODE(1).EQ.0) THEN
-            R=1.D0
-         ENDIF
-         CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,&
-     &   G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
-         RHOII(I_VIND)=RH
-         RHOIJ(I_VIND,I_VIND)=RH
-!C.. we note that if this node has rho=0 (i.e. RH=0) then we just return
-         IF(RH.EQ.0.D0) THEN
-            FMCPR3NVSTARRES=0.D0
-            RETURN
-         ENDIF
-         IF(I_VIND.GT.0) THEN
-!C.. if we've got a conencted graph of more than one vertex, we send
-!C.. it off to ADDDIAGSTAR which writes it to a file.
-            CALL NECI_ICOPY(NEL,NI,1,IPATH(1:NEL,I_VIND+1),1) 
-            RHOII(I_V)=RHOII(0)
-            IF(TLOG)  CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
-            IF(TLOG2) CALL WRITERHOMAT(10,RHOIJ,I_V,.TRUE.)
-            CALL ADDDIAGSTAR(NEL,RHOIJ,I_VIND+1,I_V,ILOGGING,HIJS,1,L)
-         ENDIF
-         IF(I_VIND.EQ.(I_V-1)) THEN
-!C.. If we've made a graph of the right size, we return
-            FMCPR3NVSTARRES=0.D0
-            RETURN
-         ENDIF
-
-
-!C.. Find all nodes connected to this node
-!C.. This is of maximum order NTAY*2
-         NLIST(I_VIND)=ILMAX
-!C         CALL GETSYM(INODE,NEL,G1,NBASISMAX,ISYM)
-!C         CALL GENSYMEXCIT(INODE,NEL,G1,NBASIS,NBASISMAX,.TRUE.,ISYM,
-!C     &            LSTE(1,1,I_VIND),ICE(1,I_VIND),NLIST(I_VIND))
-         CALL GENEXCIT(INODE,ABS(NTAY(1)*2),NBASIS,NEL,                    &
-     &         LSTE(1,1,I_VIND),ICE(1,I_VIND),NLIST(I_VIND),1,G1,TSYM,     &
-     &         NBASISMAX,.FALSE.)
-!C         WRITE(37,*) I_VIND,NLIST(I_VIND)
-         IF(NLIST(I_VIND).GT.(NBASIS-NEL)**2*NEL*NEL) THEN
-            WRITE(6,*) "WARNING on excitations"
-         ENDIF
-!C.. First we need to check that all the nodes in our list are not
-!C.. members of the excitation lists of nodes further back in the line
-!C.. which have already been processed, or which are yet to be processed
-!C.. i.e. if they're already in a list somewhere, then we don't need to
-!C.. include them, as they will be processed later.
-!C.. As the lists are ordered, this is quite a small job.
-
-!C.. 20050307 - it seems that a better way to do this (which does not
-!C.. require that the lists be sorted, and thus rather frees up the 
-!C.. excitation generation routine), is to see whether each excitation
-!C.. is connected to a previous vertex in the current list.  If it is,
-!C.. and we're attempting to connect it to a new vertex, then we should
-!C.. remove it from our list.
-!C.. This procedure need not be done here, but can be done as we recurse
-!C.. through the excitations.
-         CALL ELIMDUPS(LSTE,I_VIND,NEL,NLIST,ILMAX,NI)
-
-
-
-!C.. We now find all the nodes which actually have a connection to us
-!C.. eliminating any others in the list.  As this requires that we calc
-!C.. RHOIJ, so we store it too.
-!C.. II points to the next free position in the list, as we move along,
-!C.. rewriting the list to remove the nodes which are zero, and to which
-!C.. we are not connected.  
-         II=1
-         DO I=1,NLIST(I_VIND)
-            IF(LSTE(1,I,I_VIND).NE.0) THEN
-               CALL CALCRHO2(INODE,LSTE(1:NEL,I,I_VIND),BETA,I_P,NEL,         &
-     &            G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,            &
-     &            RH,NTAY,ICE(I,I_VIND),ECORE)
-               IF(ABS(RH).GT.RHOEPS) THEN
-                  IF(II.NE.I)  CALL NECI_ICOPY(NEL,LSTE(1:NEL,I,I_VIND),1,               &
-     &                    LSTE(1:NEL,II,I_VIND),1)          
-                  ICE(II,I_VIND)=ICE(I,I_VIND)
-                  RIJLIST(II,I_VIND)=RH
-                  II=II+1
-               ENDIF
-            ENDIF
-         ENDDO
-         NLIST(I_VIND)=II-1            
-            
-!C.. We recurse over all possibilities for the next node:
-!C..  1) Nodes connected to us (excluding those connected to previous nodes
-!C..        (whether we have processed them or not))
-!C..        Once this has been done, our list of connected nodes is marked as
-!C..        entirely processed.
-!C..  2) Nodes connected to previous nodes which have not yet been processed
-!C..        (excluding those which are connected to further previous nodes. 
-!C..         NB: These may be connected to us, but will have been excluded
-!C..         in 1 as they are connected to previous nodes to 1
-!C..  3) Further recursions down the (direct) line from us back to I.  Previous 
-!C..        completed lines will have been entirely processed, so we don't
-!C..        need to attempt to add nodes to then (but we do need to ensure
-!C..        that new nodes don't connect to them)
-!C.. 
-!C..   All of this boils down to looking at all previous nodes (irrespective
-!C..   of which line they're in), and attempting to attach nodes to the
-!C..   positions after the parts which have been processed.  This requires
-!C..   a COPY of the processed index table upon which to work, as we will 
-!C..   be modifying that (i.e. processing nodes after this one or our
-!C..   predecessors), GIVEN we have connected up this node.  We will then
-!C..   wish to return to past nodes, and connect up further ones (past
-!C..   and instead of this one)
-        LSTP(I_VIND)=1
-        IF(NWHTAY.EQ.0) THEN
-!C.. allow chain graphs
-         IVLMAX=I_VIND
-        ELSE
-         IVLMAX=0
-        ENDIF
-         IVLEVEL=IVLMAX
-        DO WHILE(IVLEVEL.GE.0)
-!C.. we first take a copy of the pointer table
-         DO II=0,I_VIND
-            LSTP2(II)=LSTP(II)
-         ENDDO
-!C.. We must recurse over all the nodes connected to the node at IVLEVEL
-         I=LSTP(IVLEVEL)
-!C.. remind us which node we're doing
-         IF(IVLEVEL.LT.I_VIND) THEN
-            CALL NECI_ICOPY(NEL,IPATH(1:NEL,IVLEVEL),1,INODE,1)
-         ENDIF
-         DO WHILE (I.LE.NLIST(IVLEVEL))
-!C.. Tell future recursions that we've processed this node
-            LSTP2(IVLEVEL)=I+1
-!C.. We also need to update this node in the table we use as the master table
-!C.. This is ok as we're not modifying another vertex level's space, and 
-!C.. necessary to tell future copies of this master how far we've processed
-            IF(IVLEVEL.EQ.I_VIND) LSTP(I_VIND)=I+1
-!C.. Because of the elimination of duplicates, we need to ensure that this
-!C.. node in the list hasn't been set to 0 (i.e. it was a duplicate, and has
-!C.. been removed)
-            IF(LSTE(1,I,IVLEVEL).NE.0) THEN
-!C.. For VLEVEL=I_VIND, the list at this level has had removed all nodes
-!C.. which are connected to previous nodes.
-!C.. For VLEVEL<I_VIND, there may be some unprocessed nodes connected to the 
-!C.. node at VLEVEL, which are also connected to a node at a higher VLEVEL
-!C.. (e.g. this node).  We DO need to process these, because we specifically
-!C.  removed them from the list of nodes connected to (e.g.) this level 
-!C.. for processing later (i.e. now).
-!C.. Calculate RHO_IJ - the connection between the new node and this node
-!C.. LSTE(1:NEL,I,IVLEVEL) is the node we're attempting to connect to
-               RH=RIJLIST(I,IVLEVEL)
-!C.. see if it's worth going further
-               RHOIJ(IVLEVEL,I_VIND+1)=RH
-               RHOIJ(I_VIND+1,IVLEVEL)=RH
-               IF(ABS(RH).LE.RHOEPS) THEN
-!C.. we're not connected to this node, so we remove it from our list
-                  DO II=1,NEL
-                     LSTE(II,I,IVLEVEL)=0
-                  ENDDO
-               ELSE
-!C.. we now calculate the RHOIJ for the previous nodes to connect to the new one
-                  DO II=0,I_VIND           
-!C.. we've already calculated the RHO to the node to which we are connected.
-                        CALL CALCRHO2(IPATH(1:NEL,II), LSTE(1:NEL,I,IVLEVEL),BETA,I_P, &
-     &                   NEL,G1,NBASIS,NMSH,FCK,NMAX,                    &
-     &                   ALAT,UMAT,RH,NTAY,-1,ECORE)
-                        IF(ABS(RH).LE.RHOEPS) THEN
-!C.. These two vertices are not connected, which is as we want
-                           RH=0.D0
-                        ENDIF
-!C                        ELSE
-!C.. These two vertices are connected
-
-!C***********
-!C      STOP 'NB - LOOK AT RED GRAPH PIC'
-
-
-                        RHOIJ(I_VIND+1,II)=RH
-                        RHOIJ(II,I_VIND+1)=RH
-                  ENDDO
-!C.. 20050307 - At this point we note that if a vertex is connected to
-!C.. any vertices before it in the path (excluding the one we excited 
-!C.. it from), we need to ignore this vertex, as it will have already been
-!C.. counted before.
-
-!C.. Add the new node to the path, and then recurse from it
-                  CALL NECI_ICOPY(NEL,LSTE(1:NEL,I,IVLEVEL),1,IPATH(1:NEL,I_VIND+1),1)
-!C.. Get the H element so we can calculate the energy
-                  
-                  hel = get_helement (iPath(:,0), iPath(:,I_VIND+1))
-                  HIJS(I_VIND+1) = hel
-                  BTABLE(I_VIND+1)=IVLEVEL
-                  TOTAL=TOTAL+ FMCPR3NVSTAR(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,         &
-     &                     G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,                &
-     &                     NTAY,RHOEPS,I_VIND+1,RHOII,RHOIJ,LSTE,                &
-     &                     ICE,RIJLIST,NWHTAY,L,LT,I_HMAX,NLIST,                 &
-     &                     LSTP2,BTABLE,ILOGGING,TSYM,ECORE,ILMAX,               &
-     &                     DBETA,DLWDB,HIJS)
-               ENDIF
-            ENDIF
-            I=I+1
-          ENDDO
-!C.. Recurse back through the direct line of descendents
-          IVLEVEL=BTABLE(IVLEVEL)
-         ENDDO
-         IF(I_VIND.EQ.0) THEN
-!C.. if we're right at the end, we call the star diag
-            CLOSE(19)
-            CALL READSTARDIAG(L,I_P,RHOII(0),HIJS(0),FMCPR3NVSTAR)
-         ELSE
-            FMCPR3NVSTARRES=TOTAL
-         ENDIF
-         RETURN
-      END
-
-      RECURSIVE SUBROUTINE ADDDIAGSTAR(NEL,RHOIJ,I_V,I_VMAX,ILOGGING,HIJS,N,L)
-         IMPLICIT NONE
-         INTEGER NEL,I_V,I_VMAX
-         INTEGER ILOGGING
-         REAL*8 RHOIJ(0:I_VMAX,0:I_VMAX)
-         REAL*8 HIJS(0:I_VMAX)
-         
-         REAL*8 MAT(I_V,I_V)
-         REAL*8 HIJS2(1:I_V)
-         
-         REAL*8 WLIST(I_V-1)
-         INTEGER INFO
-         REAL*8 WORK(3*(I_V-1))
-         INTEGER ILEN
-         INTEGER I,J,K,II,JJ,N,L
-         REAL*8 HIA,RIA
-!C         CALL WRITEPATH(19,IPATH,I_V,NEL,.FALSE.)
-!C         CALL WRITERHOMAT(19,RHOIJ,I_V,.FALSE.)
-!C         WRITE(19,*) N
-
-         ILEN=I_V-1
-         IF(ILEN.EQ.1) THEN
-            WRITE(19,"(3G21.12,I4)") RHOIJ(1,1),RHOIJ(0,1),HIJS(1),N
-            L=L+1
-            RETURN
-         ENDIF
-            
-         MAT=0.d0
-!C.. Now we fill the RIJ array
-         II=0
-         DO I=1,ILEN
-            DO J=I,ILEN
-               MAT(I,J)=RHOIJ(I,J)
-            ENDDO
-         ENDDO 
-
-!C.. Diagonalize
-         CALL DSYEV('V','U',ILEN,MAT,I_V,WLIST,WORK,3*ILEN,INFO)
-         IF(INFO.NE.0) THEN
-            WRITE(6,*) 'DYSEV error: ',INFO
-            STOP
-         ENDIF
-!C.. MAT now contains the eigenvectors, and WLIST the eigenvalues
-!C.. we now need to transform the Hij and Rij elements into this new
-!C.. Corresponding to eigenvalue lambda_a, Rho_ia = Sum_j rho_ij v_ja
-         DO I=1,ILEN
-            RIA=0.D0
-            HIA=0.D0
-            DO J=1,ILEN
-               RIA=RIA+RHOIJ(0,J)*MAT(J,I)
-               HIA=HIA+HIJS(J)*MAT(J,I)
-            ENDDO
-            WRITE(19,"(3G21.12,I4)") WLIST(I),RIA,HIA,N
-         ENDDO
-         L=L+ILEN
-!C.. Now deal with the subgraphs we have to remove
-         DO K=1,ILEN
-            II=0
-            DO I=0,ILEN
-               IF(I.NE.K) THEN
-                  II=II+1
-                  JJ=0
-                  DO J=0,ILEN
-                     IF(J.NE.K) THEN
-                        JJ=JJ+1
-                        MAT(II,JJ)=RHOIJ(I,J)
-                     ENDIF
-                  ENDDO
-                  HIJS2(II)=HIJS(I)
-!C                  CALL NECI_ICOPY(NEL,IPATH(1,I),1,IPATH2(1,II-1),1)
-               ENDIF
-            ENDDO
-!C            CALL NECI_ICOPY(NEL,IPATH(1,0),1,IPATH2(1,I_V-1),1)
-            CALL ADDDIAGSTAR(NEL,MAT,I_V-1,I_V-1,ILOGGING,HIJS2,-N,L)
-         ENDDO
-         RETURN
-      END
-!C.. Use an iterative Order(N) root-finding method to diagonalize the
-!C.. star matrix read in from STARDATA
-      SUBROUTINE READSTARDIAG(NROOTS1,I_P,RII,HII,SI)
-         use global_utilities
-         use sort_mod
-         IMPLICIT NONE
-         INTEGER NROOTS,I_P,NROOTS1
-         REAL*8 SI,RII,HII
-         REAL*8 ROOTS(0:*),HIJS(0:*),RIJS(0:*),RIIS(0:*)
-         POINTER (IP_ROOTS,ROOTS),(IP_HIJS,HIJS),(IP_RIJS,RIJS)
-         POINTER (IP_RIIS,RIIS),(IP_NR,NR)
-         INTEGER NR(0:*)
-         type(timer), save :: proc_timer
-         INTEGER I,J,II,OII
-         REAL*8 NORM,A
-         NROOTS=NROOTS1
-         proc_timer%timer_name='RDSTARDIAG'
-         call set_timer(proc_timer)
-         CALL N_MEMORY(IP_RIIS,NROOTS+1,'RIIS')
-         CALL N_MEMORY(IP_ROOTS,NROOTS+1,'ROOTS')
-         CALL N_MEMORY(IP_HIJS,NROOTS+1,'HIJS')
-         CALL N_MEMORY(IP_RIJS,NROOTS+1,'RIJS')
-         CALL N_MEMORY(IP_NR,NROOTS+1,'NR')
-         NR(0)=1
-         RIJS(0)=1.D0
-!CRII
-         RIIS(0)=1.D0
-!CRII
-         HIJS(0)=HII
-         OPEN(19,FILE="STARDATA",STATUS="UNKNOWN")
-         DO I=1,NROOTS
-            READ(19,*) RIIS(I),RIJS(I),HIJS(I),NR(I)
-            RIIS(I)=RIIS(I)/RII
-            RIJS(I)=RIJS(I)/RII
-         ENDDO
-         CLOSE(19)
-!C.. we need to sort A and B (and the list of hamil values) into ascending A order
-!C         DO I=1,NROOTS
-!C            WRITE(6,*) RIIS(I),RIJS(I),NR(I)
-!C         ENDDO
-           call sort (RIIS(1:nroots), rijs(1:nroots), hijs(1:nroots), &
-                      nr(1:nroots))
-!C         WRITE(6,*)
-!C         DO I=1,NROOTS
-!C            WRITE(6,*) RIIS(I),RIJS(I),NR(I)
-!C         ENDDO
-         II=1
-         OII=1
-         A=RIJS(1)*RIJS(1)*NR(1)
-         DO I=2,NROOTS
-            IF(RIIS(I).EQ.RIIS(I-1)) THEN
-               II=II+1
-               RIIS(II)=RIIS(I)
-               RIJS(II)=RIJS(I)
-               HIJS(II)=HIJS(I)
-               NR(II)=NR(I)
-               A=A+RIJS(I)*RIJS(I)*NR(I)
-            ELSE
-               IF(OII.NE.II) THEN
-!C.. if we've just finished a string of nodes with the same diagonal
-!C.. element, we see if the total was zero.  If it was, we remove them
-!C.. all
-                  IF(SQRT(ABS(A)).LT.1.D-9) II=OII
-               ENDIF
-               OII=II
-               IF(II.EQ.0.OR.NR(II).NE.0) II=II+1
-               RIIS(II)=RIIS(I)
-               RIJS(II)=RIJS(I)
-               HIJS(II)=HIJS(I)
-               NR(II)=NR(I)
-               A=RIJS(I)*RIJS(I)*NR(I)
-            ENDIF
-         ENDDO
-         NROOTS=II
-!C         WRITE(6,*)
-!C         DO I=1,NROOTS
-!C            WRITE(6,*) RIIS(I),RIJS(I),NR(I)
-!C         ENDDO
-!C.. Find the eigenvalues
-         CALL FINDROOTSTAR2(NROOTS,RIIS,RIJS,NR,ROOTS)
-!C         WRITE(6,*)
-!C         DO I=1,NROOTS
-!C            WRITE(6,*) RIIS(I)*RII,ROOTS(I)*RII
-!C         ENDDO
-         SI=0.D0
-         DO I=NROOTS,0,-1
-!C            WRITE(6,*) I,"ROOT:",RII*ROOTS(I),RII*RIIS(I)
-            IF(ROOTS(I).EQ.RIIS(I).OR.ROOTS(I).EQ.0.D0) THEN
-!C.. If we're in a degenerate set of eigenvectors, we calculate things a
-!C.. little differently
-!C.. k is the vertex which the degeneracies couple to
-!C.. and j is the current degenerate element
-!C.. <Di|H|Dj><Dj|Psi> L**P <Psi|Di>
-!C.. <Dk|Psi>=rho_ij/NORM
-!C.. <Dj|Psi>=-rho_ik/NORM
-!C.. NORM=rho_ij**2+rho_ik**2
-!C.. <Di|Psi>=0 so we have no contributions at all!
-
-
-            ELSE
-!C.. We need to calculate the normalization of each eigenvector
-               NORM=1.D0
-               DO J=1,NROOTS
-                  NORM=NORM+NR(J)*(RIJS(J)/(ROOTS(I)-RIIS(J)))**2
-               ENDDO
-!C               WRITE(6,*) "NORM**2:",NORM
-!C               WRITE(6,*) 1,1.D0/SQRT(NORM)
-!C               DO J=1,NROOTS
-!C                  WRITE(6,*) NR(J),
-!C     &               RII*(RIJS(J)/(ROOTS(I)-RIIS(J)))/SQRT(NORM)
-!C               ENDDO 
-!C.. We add in the first element of the eigenvector * lambda**P
-               SI=SI+(ROOTS(I)**I_P)*1.D0/NORM
-!C               WRITE(6,*) "SI",SI
-!C.. We do not currently calculate the DLWDB
-
-!C               IF(DBETA.NE.0.D0) THEN
-!C                  DLWDB2=HII
-!C                  WRITE(6,*) LIST(1,2),SQRT(1/NORM)
-!C                  DO J=1,NROOTS
-!C.. NOTE - this is not correct - we might need imaginaries here.
-!C                     DLWDB2=DLWDB2+
-!C     &                  HIJS(J)*(LIST(J,1)/(ROOTS(I+1)-LIST(J,0)))
-!C                WRITE(6,*) LIST(J,2),
-!C     &            LIST(J,1)/((ROOTS(I+1)-LIST(J,0))*SQRT(NORM))
-!C                  ENDDO
-!C                  DLWDB=DLWDB+DLWDB2*(ROOTS(I+1)**I_P)/NORM
-!C               ENDIF
-!C               WRITE(6,*) ROOTS(I+1)**I_P,DLWDB2*(ROOTS(I+1)**I_P)/NORM
-!C               WRITE(6,*)
-            ENDIF
-         ENDDO
-         SI=SI-1.D0
-!C         DLWDB=DLWDB-LIST(1,2)
-         CALL N_FREEM(IP_RIIS)
-         CALL N_FREEM(IP_ROOTS)
-         CALL N_FREEM(IP_HIJS)
-         CALL N_FREEM(IP_RIJS)
-         CALL N_FREEM(IP_NR)
-         call halt_timer(proc_timer)
-         RETURN
-      END
-
 !.. Read in values for a weight and ETilde from an MCPATHS file
       SUBROUTINE ReadMCPaths(iV,wWeight,wETilde)
          use constants, only: dp
          IMPLICIT NONE
          INTEGER iV,i1,i2,i3
-         CHARACTER*1 c
-         REAL*8 r1,r2,r3,r4
+         CHARACTER(1) c
+         real(dp) r1,r2,r3,r4
          real(dp) wWeight,wETilde
          
          OPEN(43,FILE="MCPATHS",STATUS="OLD")
@@ -2236,9 +1688,9 @@ end module mcpaths
       FUNCTION ORBENERGY(ARR,orbnum)
           use constants, only: dp
           IMPLICIT NONE
-          REAL*8 ARR(*)
+          real(dp) ARR(*)
           INTEGER orbnum
-          REAL*8 ORBENERGY
+          real(dp) ORBENERGY
           ORBENERGY=ARR(orbnum)
           RETURN
       END FUNCTION ORBENERGY

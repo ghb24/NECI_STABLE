@@ -3,20 +3,21 @@ module read_fci
 contains
 
     SUBROUTINE INITFROMFCID(NEL,NBASISMAX,LEN,LMS,TBIN)
-         use SystemData , only : tNoSymGenRandExcits,lNoSymmetry,tROHF
-         use SystemData , only : tStoreSpinOrbs,tKPntSym,tRotatedOrbsReal
+         use SystemData , only : tNoSymGenRandExcits,lNoSymmetry,tROHF,tHub,tUEG
+         use SystemData , only : tStoreSpinOrbs,tKPntSym,tRotatedOrbsReal,tFixLz,tUHF
+         use SystemData , only : tMolpro,tReadFreeFormat
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
-         use Parallel
+         use Parallel_neci
          use util_mod, only: get_free_unit
          IMPLICIT NONE
          logical, intent(in) :: tbin
          integer, intent(out) :: nBasisMax(5,*),LEN,LMS
          integer, intent(in) :: NEL
          integer SYMLZ(1000)
-         INTEGER*8 :: ORBSYM(1000)
+         integer(int64) :: ORBSYM(1000)
          INTEGER NORB,NELEC,MS2,ISYM,i,SYML(1000), iunit
          LOGICAL exists,UHF
-         CHARACTER*3 :: fmat
+         CHARACTER(len=3) :: fmat
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          UHF=.FALSE.
          fmat='NO'
@@ -81,17 +82,22 @@ contains
          endif
 #endif
 
-         IF(tROHF.and.(.not.UHF)) THEN
-             CALL Stop_All("INITFROMFCID","ROHF specified, but FCIDUMP is not in a high-spin format.")
-         ENDIF
+         if(.not.tMolpro) then
+             IF(tROHF.and.(.not.UHF)) THEN
+                 CALL Stop_All("INITFROMFCID","ROHF specified, but FCIDUMP is not in a high-spin format.")
+             ENDIF
+         endif
 
 
          DO i=1,NORB
              IF(ORBSYM(i).eq.0.and.TwoCycleSymGens) THEN
                  WRITE(6,*) "** WARNING **"
                  WRITE(6,*) "** Unconverged symmetry of orbitals **"
-                 WRITE(6,*) "** Turning symmetry off for rest of run **"
-                 tNoSymGenRandExcits=.true.
+                 WRITE(6,*) "** Turning point group symmetry off for rest of run **"
+                 if(.not.(tFixLz.or.tKPntSym.or.tUEG.or.tHub)) then
+                     WRITE(6,*) "** No symmetry at all will be used in excitation generators **"
+                     tNoSymGenRandExcits=.true. 
+                 endif
                  lNoSymmetry=.true.
                  EXIT
              ENDIF
@@ -108,11 +114,17 @@ contains
             LMS=MS2                                                     
             WRITE(6,*) ' BASIS MS : ' , LMS
          ENDIF
-         IF(UHF) then
-            LEN=NORB
-         ELSE
-            LEN=2*NORB
-         ENDIF
+         if(tMolpro) then
+             !Molpros FCIDUMPs always indicate the number of spatial orbitals.
+             !Need to x2 to get spin orbitals
+             LEN=2*NORB
+         else
+             IF(UHF) then
+                LEN=NORB
+             ELSE
+                LEN=2*NORB
+             ENDIF
+         endif
          NBASISMAX(1:5,1:3)=0
 !         NBASISMAX(1,1)=1
 !         NBASISMAX(1,2)=NORB
@@ -123,12 +135,22 @@ contains
          NBASISMAX(4,2)=1
          
 !the indicator of UHF (which becomes ISpinSkip or ISS later
-         IF(UHF.and.(.not.tROHF)) then
-            NBASISMAX(2,3)=1
-            tStoreSpinOrbs=.true.   !indicate that we are storing the orbitals in umat as spin-orbitals
+         if(tMolpro) then
+             if(tUHF) then
+                NBASISMAX(2,3)=1
+                tStoreSpinOrbs=.true.   !indicate that we are storing the orbitals in umat as spin-orbitals
+            else
+                NBASISMAX(2,3)=2
+                tStoreSpinOrbs=.false.   !indicate that we are storing the orbitals in umat as spatial-orbitals
+            endif
          else
-            NBASISMAX(2,3)=2
-            tStoreSpinOrbs=.false.   !indicate that we are storing the orbitals in umat as spatial-orbitals
+             IF(UHF.and.(.not.tROHF)) then
+                NBASISMAX(2,3)=1
+                tStoreSpinOrbs=.true.   !indicate that we are storing the orbitals in umat as spin-orbitals
+             else
+                NBASISMAX(2,3)=2
+                tStoreSpinOrbs=.false.   !indicate that we are storing the orbitals in umat as spatial-orbitals
+             endif
          endif
 
 ! Show that there's no momentum conservation
@@ -138,29 +160,31 @@ contains
 
 
       SUBROUTINE GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN,TBIN)
-         use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn
+         use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn,tMolpro,tUHF
          use SystemData, only: tCacheFCIDUMPInts,tROHF,tFixLz,iMaxLz,tRotatedOrbsReal
+         use SystemData, only: tReadFreeFormat
          use UMatCache, only: nSlotsInit,CalcNSlotsInit
          use UMatCache, only: GetCacheIndexStates,GTID
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
-         use Parallel
+         use Parallel_neci
          use constants, only: dp
          use util_mod, only: get_free_unit
          IMPLICIT NONE
          integer, intent(in) :: LEN
          integer, intent(inout) :: nBasisMax(5,*)
          integer, intent(out) :: BRR(LEN)
-         REAL*8, intent(out) :: ARR(LEN,2)
+         real(dp), intent(out) :: ARR(LEN,2)
          type(BasisFN), intent(out) :: G1(LEN)
          HElement_t Z
          COMPLEX(dp) :: CompInt
-         INTEGER*8 IND,MASK
+         integer(int64) IND,MASK
          INTEGER I,J,K,L,I1, iunit
          INTEGER ISYMNUM,ISNMAX,SYMMAX,SYMLZ(1000)
          INTEGER NORB,NELEC,MS2,ISYM,ISPINS,ISPN,SYML(1000)
-         INTEGER*8 ORBSYM(1000)
+         integer(int64) ORBSYM(1000)
          INTEGER nPairs,iErr,MaxnSlot,MaxIndex
          INTEGER , ALLOCATABLE :: MaxSlots(:)
+         character(len=*), parameter :: t_r='GETFCIBASIS'
          LOGICAL TBIN,UHF
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          UHF=.FALSE.
@@ -199,27 +223,50 @@ contains
          IF(UHF.and.(.not.tROHF)) ISPINS=1
 
          IF(tROHF) THEN
-             WRITE(6,*) "Reading in Spin-orbital FCIDUMP but storing as spatial orbitals."
+             if(.not.tMolpro) then
+                 WRITE(6,*) "Reading in Spin-orbital FCIDUMP but storing as spatial orbitals."
 !             WRITE(6,*) "*** Warning - Fock energy of orbitals will be "&
 !     &                //"incorrect ***"
 !We are reading in the symmetry of the orbitals in spin-orbitals - we need to change this to spatial orbitals
-             DO i=1,NORB-1,2
-                 IF(ORBSYM(i).ne.ORBSYM(i+1)) THEN
-                     CALL Stop_All("GetFCIBASIS","Spin-orbitals are not ordered in symmetry pairs")
-                 ENDIF
-                 ORBSYM((i+1)/2)=ORBSYM(i)
-                 SYML((i+1)/2)=SYML(i)
-                 SYMLZ((i+1)/2)=SYMLZ(i)
-             ENDDO
+                 DO i=1,NORB-1,2
+                     IF(ORBSYM(i).ne.ORBSYM(i+1)) THEN
+                         CALL Stop_All("GetFCIBASIS","Spin-orbitals are not ordered in symmetry pairs")
+                     ENDIF
+                     ORBSYM((i+1)/2)=ORBSYM(i)
+                     SYML((i+1)/2)=SYML(i)
+                     SYMLZ((i+1)/2)=SYMLZ(i)
+                 ENDDO
 !NORB is the length in spatial orbitals, LEN is spin orbitals (both spin for UHF)
-             NORB=NORB/2
-             DO i=NORB+1,1000
-                 ORBSYM(i)=0
-                 SYML(i)=0
-                 SYMLZ(i)=0
-             ENDDO
+                 NORB=NORB/2
+                 DO i=NORB+1,1000
+                     ORBSYM(i)=0
+                     SYML(i)=0
+                     SYMLZ(i)=0
+                 ENDDO
+             else
+                 !Molpro goes here. tROHF is handled exactly the same way as RHF.
+                 !Therefore, the arrays should be the correct length anyway
+                 write(6,*) "Reading in ROHF FCIDUMP, and storing as spatial orbitals."
+             endif
          ENDIF
+
+         !Below is a mistake - since ISPINS is always two, it will be doubled up for us automatically for G1
+!         if(tMolpro.and.tUHF) then
+!             !Double up the arrays to take into account both spins
+!             do i=NORB*2,1,-1
+!                 if(mod(i,2).eq.0) then
+!                     ORBSYM(i)=ORBSYM(i/2)
+!                     SYML(i)=SYML(i/2)
+!                     SYMLZ(i)=SYMLZ(i/2)
+!                 else
+!                     ORBSYM(i)=ORBSYM((i+1)/2)
+!                     SYML(i)=SYML((i+1)/2)
+!                     SYMLZ(i)=SYMLZ((i+1)/2)
+!                 endif
+!             enddo
+!         endif
         
+         !For Molpro, ISPINS should always be 2, and therefore NORB is spatial, and len is spin orbtials
          IF(LEN.NE.ISPINS*NORB) STOP 'LEN .NE. NORB in GETFCIBASIS'
          G1(1:LEN)=NullBasisFn
          ARR=0.d0
@@ -239,20 +286,21 @@ contains
              ENDIF
              nPairs=NORB*(NORB+1)/2
 !             WRITE(6,*) "NPAIRS: ",NORB,NPAIRS
-             CALL FLUSH(6)
+             CALL neci_flush(6)
              ALLOCATE(MaxSlots(nPairs),stat=ierr)
              MaxSlots(:)=0
          ENDIF
 
 
-         IF(iProcIndex.eq.0) THEN
-!Just read in integrals on head node.
+         IF(iProcIndex.eq.0.and.(.not.tMolpro)) THEN
+!Just read in integrals on head node. This is only trying to read in fock energies, which aren't written out by molpro anyway
 
              IF(TBIN) THEN
+                if(tMolpro) call stop_all(t_r,'UHF Bin read not functional through molpro')
                 IF(UHF.or.tROHF) STOP 'UHF Bin read not functional'
                 MASK=(2**16)-1
                 
-                !IND contains all the indices in an integer*8 - use mask of 16bit to extract them
+                !IND contains all the indices in an integer(int64) - use mask of 16bit to extract them
 2               READ(iunit,END=99) Z,IND
                 L=iand(IND,MASK)
                 IND=Ishft(IND,-16)
@@ -312,12 +360,17 @@ contains
                         call stop_all("GETFCIBASIS","Real orbitals indicated, but imaginary part of integrals larger than 1.D-7")
                     endif
                 else
-                    READ(iunit,'(1X,G20.12,4I3)',END=99) Z,I,J,K,L
+                    if(tMolpro.or.tReadFreeFormat) then
+                        !If calling from within molpro, integrals are written out to greater precision
+                        read(iunit,*,END=99) Z,I,J,K,L
+                    else
+                        READ(iunit,'(1X,G20.12,4I3)',END=99) Z,I,J,K,L
+                    endif
                 endif
 #endif
 
-                IF(tROHF) THEN
-!The FCIDUMP file is in spin-orbitals - we need to transfer them to spatial orbitals.
+                IF(tROHF.and.(.not.tMolpro)) THEN
+!The FCIDUMP file is in spin-orbitals - we need to transfer them to spatial orbitals (unless from molpro, where already spatial).
                     IF(I.ne.0) THEN
                         I1 = GTID(I)
                     ELSE
@@ -388,6 +441,8 @@ contains
              CLOSE(iunit)
 
          ENDIF
+
+         if(tMolpro.and.(iProcIndex.eq.0)) close(iunit)
 
 !We now need to broadcast all the information we've just read in...
          IF(tCacheFCIDUMPInts) THEN
@@ -466,32 +521,34 @@ contains
       SUBROUTINE READFCIINT(UMAT,NBASIS,ECORE,tReadFreezeInts)
          use constants, only: dp
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,NEl
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
-         use SystemData, only: UMatEps,tUMatEps,tCacheFCIDUMPInts
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,tMolpro
+         use SystemData, only: UMatEps,tUMatEps,tCacheFCIDUMPInts,tUHF
          use SystemData, only: tRIIntegrals,nBasisMax,tROHF,tRotatedOrbsReal
+         use SystemData, only: tReadFreeFormat
          USE UMatCache, only: UMatInd,UMatConj,UMAT2D,TUMAT2D,nPairs,CacheFCIDUMP
          USE UMatCache, only: FillUpCache,GTID,nStates,nSlots,nTypes
          USE UMatCache, only: UMatCacheData,UMatLabels,GetUMatSize
          use OneEInts, only: TMatind,TMat2D,TMATSYM,TSTARSTORE
          use OneEInts, only: CalcTMatSize
-         use Parallel
+         use Parallel_neci
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
          use util_mod, only: get_free_unit
          IMPLICIT NONE
          integer, intent(in) :: NBASIS
          logical, intent(in) :: tReadFreezeInts
-         REAL*8, intent(out) :: ECORE
+         real(dp), intent(out) :: ECORE
          HElement_t, intent(out) :: UMAT(:)
          HElement_t Z
          COMPLEX(dp) :: CompInt
          INTEGER ZeroedInt,NonZeroInt
-         INTEGER I,J,K,L,X,Y,iunit
+         INTEGER I,J,K,L,X,Y,iunit,iSpinType
          INTEGER NORB,NELEC,MS2,ISYM,SYML(1000)
-         INTEGER*8 ORBSYM(1000)
+         integer(int64) ORBSYM(1000)
          LOGICAL LWRITE,UHF
          INTEGER ISPINS,ISPN,ierr,SYMLZ(1000)!,IDI,IDJ,IDK,IDL
          INTEGER UMatSize,TMatSize
          INTEGER , ALLOCATABLE :: CacheInd(:)
+         character(len=*), parameter :: t_r='READFCIINT'
          real(dp) :: diff
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          LWRITE=.FALSE.
@@ -522,8 +579,9 @@ contains
 
          ISPINS=2
          IF(UHF.and.(.not.tROHF)) ISPINS=1
+         if(tMolpro.and.tUHF) ISPINS=1
 
-         IF(tROHF) THEN
+         IF(tROHF.and.(.not.tMolpro)) THEN
 !We are reading in the symmetry of the orbitals in spin-orbitals - we need to change this to spatial orbitals
 !NORB is the length in spatial orbitals, LEN is spin orbitals (both spin for UHF)
              NORB=NORB/2
@@ -536,6 +594,18 @@ contains
          ENDIF
 
          IF(iProcIndex.eq.0) THEN
+             if(tMolpro.and.tUHF) then
+                 !In molpro, UHF FCIDUMPs are written out as:
+                 !1: aaaa
+                 !2: bbbb
+                 !3: aabb
+                 !4: aa
+                 !5: bb
+                 !with delimiters of 0.000000 0 0 0 0
+                 iSpinType=1
+             else
+                 iSpinType=0
+             endif
              IF(.not.TSTARSTORE) THEN
                  TMAT2D(:,:)=(0.D0)
              ENDIF
@@ -560,11 +630,15 @@ contains
                      call stop_all("READFCIINT","Real orbitals indicated, but imaginary part of integrals larger than 1.D-7")
                  endif
              else
-                 READ(iunit,'(1X,G20.12,4I3)',END=199) Z,I,J,K,L
+                 if(tMolpro.or.tReadFreeFormat) then
+                     read(iunit,*,END=199) Z,I,J,K,L
+                 else
+                     READ(iunit,'(1X,G20.12,4I3)',END=199) Z,I,J,K,L
+                 endif
              endif
 #endif
-             IF(tROHF) THEN
-!The FCIDUMP file is in spin-orbitals - we need to transfer them to spatial orbitals.
+             IF(tROHF.and.(.not.tMolpro)) THEN
+!The FCIDUMP file is in spin-orbitals - we need to transfer them to spatial orbitals (unless molpro).
                 IF(I.ne.0) THEN
                     I = GTID(I)
                 ENDIF
@@ -577,11 +651,41 @@ contains
                 IF(L.ne.0) THEN
                     L = GTID(L)
                 ENDIF
+             elseif(tMolpro.and.tUHF) then
+                if(i.ne.0) then
+                    !Need to transfer the orbital index into spin orbital notation
+                    if((iSpinType.eq.1).or.(iSpinType.eq.4)) then
+                        !aaaa/aa00
+                        I=I*2-1
+                        J=J*2-1
+                        if(iSpinType.eq.1) K=K*2-1   !(just so it doesn't give -1!)
+                        if(iSpinType.eq.1) L=L*2-1
+                    elseif((iSpinType.eq.2).or.(iSpinType.eq.5)) then
+                        !bbbb/bb00
+                        I=I*2
+                        J=J*2
+                        K=K*2
+                        L=L*2
+                    elseif(iSpinType.eq.3) then
+                        !aabb spin type (remember its still in chemical notation!)
+                        I=I*2-1
+                        J=J*2-1
+                        K=K*2
+                        L=L*2
+                    endif
+                endif
              ENDIF
 !.. Each orbital in the file corresponds to alpha and beta spinorbitalsa
              IF(I.EQ.0) THEN
+                 if(tMolpro.and.tUHF.and.(iSpinType.ne.6)) then
+                     if(abs(real(z,dp)).gt.1.0e-8_dp) then
+                         call stop_all(t_r,"This is not a delimiter in the FCIDUMP reading")
+                     endif
+                     iSpinType=iSpinType+1
+                 else
 !.. Core energy
-                ECORE=real(Z,dp)
+                     ECORE=real(Z,dp)
+                 endif
              ELSEIF(J.EQ.0) THEN
 !C.. HF Eigenvalues
 !                ARR(I*2-1,2)=real(Z,dp)
@@ -677,9 +781,13 @@ contains
                     ENDIF
                 ENDIF
              ENDIF
-             IF(I.NE.0) GOTO 101
+!             IF(I.NE.0) GOTO 101
+             GOTO 101
 199          CONTINUE
              CLOSE(iunit)
+             if(tMolpro.and.tUHF.and.(iSpinType.ne.6)) then
+                 call stop_all(t_r,"Error in reading UHF FCIDUMP from molpro")
+             endif
          ENDIF
 
 !Now broadcast the data read in
@@ -699,7 +807,7 @@ contains
          ENDIF
          IF((.not.tRIIntegrals).and.(.not.tCacheFCIDUMPInts)) THEN
              CALL GetUMATSize(nBasis,NEl,UMatSize)
-             CALL MPIBCast(UMAT,UMatSize)    !This is not an , as it is actually passed in as a real*8, even though it is HElem in IntegralsData
+             CALL MPIBCast(UMAT,UMatSize)    !This is not an , as it is actually passed in as a real(dp), even though it is HElem in IntegralsData
          ENDIF
          IF(tCacheFCIDUMPInts) THEN
 !Need to broadcast the cache...
@@ -737,17 +845,17 @@ contains
 
       !This is a copy of the routine above, but now for reading in binary files of integrals
       SUBROUTINE READFCIINTBIN(UMAT,ECORE)
-         use constants, only: dp
+         use constants, only: dp,int64
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          USE UMatCache , only : UMatInd,UMAT2D,TUMAT2D
          use OneEInts, only: TMatind,TMat2D,TMATSYM,TSTARSTORE
          use util_mod, only: get_free_unit
          IMPLICIT NONE
-         REAL*8, intent(out) :: ECORE
+         real(dp), intent(out) :: ECORE
          HElement_t, intent(out) :: UMAT(*)
          HElement_t Z
-         INTEGER*8 MASK,IND
+         integer(int64) MASK,IND
          INTEGER I,J,K,L,X,Y, iunit
          LOGICAL LWRITE
          !NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF
@@ -761,7 +869,7 @@ contains
 
 
          MASK=(2**16)-1
-         !IND contains all the indices in an integer*8 - use mask of 16bit to extract them
+         !IND contains all the indices in an integer(int64) - use mask of 16bit to extract them
 101      READ(iunit,END=199) Z,IND
          L=iand(IND,MASK)
          IND=Ishft(IND,-16)

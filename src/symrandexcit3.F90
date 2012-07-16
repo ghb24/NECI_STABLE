@@ -24,8 +24,8 @@ module symrandexcit3
     use FciMCData, only: pDoubles, iter, excit_gen_store_type
     use bit_reps, only: niftot, decode_bit_det_lists
     use constants, only: dp, n_int, bits_n_int
-    use timing
-    use Parallel
+    use timing_neci
+    use Parallel_neci
     use util_mod, only: binary_search_first_ge
     implicit none
 
@@ -51,6 +51,7 @@ contains
 
         ! Just in case
         ilutJ(0) = -1
+        HElGen = 0.0_dp
 
         ! UEG and Hubbard interjection for now
         ! TODO: This should be made into its own fn-pointered case.
@@ -66,7 +67,7 @@ contains
         ! If exFlag is 3, select singles or doubles randomly, according
         ! to the value in pDoubles. Otherwise exFlag = 1 gives a single,
         ! and exFlag = 2 gives a double.
-        ASSERT(exFlag <= 3 .and. exFlag >= 1)
+ASSERT(exFlag<=3.and.exFlag>=1)
         IC = exFlag
         select case(IC)
         case(1)
@@ -392,7 +393,7 @@ contains
         endif
 
         ! Pick a pair
-        rint = 1 + (genrand_real2_dSFMT() * npairs)
+        rint = int(1.0_dp + (genrand_real2_dSFMT() * real(npairs,dp)),sizeof_int)
         
         ! Select which symmetry/spin category we want.
         !ind = binary_search_first_ge (pair_list, rint)
@@ -434,7 +435,6 @@ contains
                           tLatticeGens, tHub,tKPntSym, tFixLz
     use GenRandSymExcitNUMod, only: gen_rand_excit, ScratchSize
     Use SymData , only : nSymLabels
-    use Parallel
 !    use soft_exit , only : ChangeVars 
     use DetBitOps , only : EncodeBitDet, FindExcitBitDet
     use GenRandSymExcitNUMod, only: IsMomentumAllowed
@@ -443,7 +443,7 @@ contains
     use sym_mod, only: mompbcsym, GetLz
     IMPLICIT NONE
     INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),kx,ky,kz,ktrial(3)
-    REAL*8 :: pDoub,pGen,AverageContrib,AllAverageContrib
+    real(dp) :: pDoub,pGen,AverageContrib,AllAverageContrib
     INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot),iLut(0:NIfTot)
     INTEGER :: iExcit
     LOGICAL :: tParity,IsMomAllowedDet,test
@@ -460,7 +460,8 @@ contains
     integer, allocatable :: AllSinglesCount(:,:)
 
     INTEGER , ALLOCATABLE :: EXCITGEN(:)
-    INTEGER :: ierr,Ind1,Ind2,Ind3,Ind4,iMaxExcit,nStore(6),nExcitMemLen,j,k,l,DetNum,DetNumS,Lz,excitcount,ForbiddenIter,error, iter_tmp
+    INTEGER :: ierr,Ind1,Ind2,Ind3,Ind4,iMaxExcit,nStore(6),nExcitMemLen(1),j,k,l,DetNum,DetNumS
+    INTEGER :: Lz,excitcount,ForbiddenIter,error, iter_tmp
     HElement_t :: HElGen
     type(excit_gen_store_type) :: store
     logical :: brillouin_tmp(2)
@@ -469,7 +470,7 @@ contains
     WRITE(6,*) nI(:)
     WRITE(6,*) Iterations,pDoub,exFlag
     WRITE(6,*) "nSymLabels: ",nSymLabels
-    CALL FLUSH(6)
+    CALL neci_flush(6)
 
     ! The old excitation generator will not generate singles from the HF
     ! unless tNoBrillouin is set
@@ -483,7 +484,7 @@ contains
     iMaxExcit=0
     nStore(1:6)=0
     CALL GenSymExcitIt2(nI,NEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
-    ALLOCATE(EXCITGEN(nExcitMemLen),stat=ierr)
+    ALLOCATE(EXCITGEN(nExcitMemLen(1)),stat=ierr)
     IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
     EXCITGEN(:)=0
     CALL GenSymExcitIt2(nI,NEl,G1,nBasis,.TRUE.,EXCITGEN,nJ,iMaxExcit,nStore,exFlag)
@@ -523,7 +524,7 @@ lp2: do while(.true.)
     tUseBrillouin = brillouin_tmp(2)
 
     WRITE(6,*) "Determinant has ",excitcount," total excitations from it."
-    CALL FLUSH(6)
+    CALL neci_flush(6)
 
     ! Allocate the accumulators
     allocate (DoublesHist(nbasis, nbasis, nbasis, nbasis))
@@ -572,7 +573,7 @@ lp2: do while(.true.)
     
         IF(mod(i,400000).eq.0) THEN
             WRITE(6,"(A,I10)") "Iteration: ",i
-            CALL FLUSH(6)
+            CALL neci_flush(6)
         ENDIF
 
         call gen_rand_excit3 (nI, iLut, nJ, iLutnJ, exFlag, IC, ExcitMat, &
@@ -701,7 +702,7 @@ lp2: do while(.true.)
                             ExcitMat(2,2)=l
                             CALL FindExcitBitDet(iLut,iLutnJ,2,ExcitMat)
                             write(8,"(i12,f20.12,2i5,'->',2i5,2i15)") DetNum,&
-                                AllDoublesHist(i,j,k,l) / (real(Iterations,8)&
+                                AllDoublesHist(i,j,k,l) / (real(Iterations,dp)&
                                                         * nProcessors), &
                                 i, j, k, l, iLutnJ(0),AllDoublesCount(i,j,k,l)
 !                            WRITE(6,*) DetNum,DoublesHist(i,j,k,l),i,j,"->",k,l
@@ -728,7 +729,7 @@ lp2: do while(.true.)
                     ExcitMat(2,1)=j
                     CALL FindExcitBitDet(iLut,iLutnJ,1,ExcitMat)
                     write(9,*) DetNumS, AllSinglesHist(i,j) / &
-                                        (real(Iterations,8) * nProcessors), &
+                                        (real(Iterations,dp) * nProcessors), &
                                i, "->", j, ALlSinglesCount(i, j)
 !                    WRITE(6,*) DetNumS,AllSinglesHist(i,j),i,"->",j
                 ENDIF

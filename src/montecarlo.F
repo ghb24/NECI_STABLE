@@ -1,7 +1,8 @@
       INTEGER FUNCTION IFINDBASISFN(NQNS,G1,NBASIS)
          use SystemData, only: BasisFN
-         IMPLICIT REAL*8 (A-H,O-Z)
-         INTEGER NBASIS
+!         IMPLICIT real(dp) (A-H,O-Z)
+         IMPLICIT NONE
+         INTEGER NBASIS,I,J
          TYPE(BasisFN) G1(NBASIS),NQNS
          LOGICAL L
          DO I=1,NBASIS
@@ -24,17 +25,19 @@
          use SystemData, only: BasisFN
          use sort_mod
          use util_mod, only: NECI_ICOPY
+         use constants, only: dp
          IMPLICIT NONE
-         INTEGER nBasisMax(5,*),NI(NEL),NJ(NEL),NQN(5)
+         INTEGER NEL,NBASIS,nBasisMax(5,*),NI(NEL),NJ(NEL),NQN(5)
          TYPE(BasisFN) G1(NBASIS)
-         INTEGER NCH,ND,NEL,BRR(NBASIS),NBASIS,ISEED
+         INTEGER NCH,ND,BRR(NBASIS),ISEED
          LOGICAL L
-         INTEGER IEL,IQN,ISGN,I,IT
-         INTEGER IFINDBASISFN
-         REAL*8 RAN2
+         INTEGER IEL,IQN,ISGN,I,IT,IFINDBASISFN
+         real(dp) RAN2
          IF(NBASISMAX(3,3).EQ.1) THEN
 C.. Generic spatial basis
-            CALL GENNEWDET3(NI,NJ,NEL,NBASIS,G1,ISEED,NCH,BRR)
+         call stop_all('GENNEWDET2',
+     &         'G1 variable needs to be made into a BasisFN.')
+!            CALL GENNEWDET3(NI,NJ,NEL,NBASIS,G1,ISEED,NCH,BRR)
             RETURN
          ENDIF
 C.. Copy NI to NJ
@@ -59,7 +62,7 @@ C.. change the spin
                NQN(IQN)=NQN(IQN)+ISGN
             ENDIF
             CALL HUB_PBC(NQN,NBASISMAX)
-            IT=IFINDBASISFN(NQN,G1,NBASIS)
+!            IT=IFINDBASISFN(NQN,G1,NBASIS)
             IF(IT.EQ.0) THEN 
                L=.TRUE.
             ELSE
@@ -81,8 +84,11 @@ C.. if we've more electrons to change, we go round again
       END
 
       SUBROUTINE HUB_PBC(NQN, NBASISMAX)
+         use constants, only: dp,sizeof_int
+         IMPLICIT NONE
          INTEGER NQN(5), nBasisMax(5,*)
-         INTEGER MPN,MMN,IQN,NMAXX
+         INTEGER MPN,MMN,IQN,NMAXX,MX,MY,I,J,KX,KY,NMINX
+         real(dp) :: XX,YY,AX,AY
          LOGICAL TALLOW
          IF(NBASISMAX(1,3).EQ.0) THEN
 C.. PBC non-tilted
@@ -101,33 +107,33 @@ C.. PBC tilted
                AX=NBASISMAX(1,4)
                AY=NBASISMAX(2,4)
 C.. (XX,YY) is the position of the bottom right corner of the unit cell
-               XX=((AX+AY)/2.D0)*NMAXX
-               YY=((AY-AX)/2.D0)*NMAXX
-               MX=XX*AX+YY*AY
-               MY=XX*AY-YY*AX
+               XX=((AX+AY)/2.D0)*real(NMAXX,dp)
+               YY=((AY-AX)/2.D0)*real(NMAXX,dp)
+               MX=int(XX*AX+YY*AY,sizeof_int)
+               MY=int(XX*AY-YY*AX,sizeof_int)
                I=NQN(1)
                J=NQN(2)
-               KX=I*AX+J*AY
-               KY=I*AY-J*AX
+               KX=int(real(I,dp)*AX+real(J,dp)*AY,sizeof_int)
+               KY=int(real(I,dp)*AY-real(J,dp)*AX,sizeof_int)
                IF(KX.GT.MX) THEN
                   TALLOW=.FALSE.
-                  NQN(1)=NQN(1)-AX*NMAXX
-                  NQN(2)=NQN(2)-AY*NMAXX
+                  NQN(1)=NQN(1)-int(AX*real(NMAXX,dp),sizeof_int)
+                  NQN(2)=NQN(2)-int(AY*real(NMAXX,dp),sizeof_int)
                ENDIF
                IF(KY.GT.MY) THEN
                   TALLOW=.FALSE.
-                  NQN(1)=NQN(1)-AY*NMAXX
-                  NQN(2)=NQN(2)+AX*NMAXX
+                  NQN(1)=NQN(1)-int(AY*real(NMAXX,dp),sizeof_int)
+                  NQN(2)=NQN(2)+int(AX*real(NMAXX,dp),sizeof_int)
                ENDIF
                IF(KX.LE.-MX) THEN
                   TALLOW=.FALSE.
-                  NQN(1)=NQN(1)+AX*NMAXX
-                  NQN(2)=NQN(2)+AY*NMAXX
+                  NQN(1)=NQN(1)+int(AX*real(NMAXX,dp),sizeof_int)
+                  NQN(2)=NQN(2)+int(AY*real(NMAXX,dp),sizeof_int)
                ENDIF
                IF(KY.LE.-MY) THEN
                   TALLOW=.FALSE.
-                  NQN(1)=NQN(1)+AY*NMAXX
-                  NQN(2)=NQN(2)-AX*NMAXX
+                  NQN(1)=NQN(1)+int(AY*real(NMAXX,dp),sizeof_int)
+                  NQN(2)=NQN(2)-int(AX*real(NMAXX,dp),sizeof_int)
                ENDIF
             ENDDO
          ELSEIF(NBASISMAX(1,3).EQ.3) THEN
@@ -149,28 +155,31 @@ C.. We do this by exciting an electron into a spinorbital of close energy.
 C.. This does not take into account any symmetries.
       SUBROUTINE GENNEWDET3(NI,NJ,NEL,NBASIS,G1,ISEED,NCH,BRR)
         use sort_mod
+        use constants, only: dp
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
-         INTEGER NI(NEL),NJ(NEL),G1(*)
-         INTEGER NCH,ND,BRR(NBASIS),NBASIS,NEL,ISEED
+         INTEGER NEL,NBASIS,NI(NEL),NJ(NEL),G1(*)
+         INTEGER NCH,ND,BRR(NBASIS),ISEED
          LOGICAL L
-         REAL*8 RN
+         real(dp) RN
          INTEGER IGETENEIGHBOUR,IGETSNEIGHBOUR
          INTEGER IEL,ISGN,IT,I,IDIST
-         REAL*8 RAN2
+         real(dp) RAN2
 C.. Copy NI to NJ
          CALL NECI_ICOPY(NEL,NI,1,NJ,1)
          L=.TRUE.
          ND=NCH
 C.. we need to keep on doing this until we make a valid choice
 C.. We keep spin fixed here.
+        call stop_all('GENNEWDET3',
+     &         'G1 variable needs to be made into a BasisFN.')
          DO WHILE(L)
             L=.FALSE.
             IEL=INT(RAN2(ISEED)*NEL)+1
             ISGN=INT(RAN2(ISEED)+0.5)*2-1
             IF(RAN2(ISEED).LT.0.25) THEN
 C.. 1/4 prob of changing the spin
-               IT=IGETSNEIGHBOUR(NI(IEL),NBASIS,BRR,ISGN,G1)
+!               IT=IGETSNEIGHBOUR(NI(IEL),NBASIS,BRR,ISGN,G1)
             ELSE
 C.. change the energy level.  Have an exponential distribution of
 C.. distance
@@ -183,7 +192,7 @@ C.. distance
                   RN=RN*2
                   IDIST=IDIST+1
                ENDDO
-               IT=IGETENEIGHBOUR(NI(IEL),NBASIS,BRR,ISGN,G1,IDIST)
+!               IT=IGETENEIGHBOUR(NI(IEL),NBASIS,BRR,ISGN,G1,IDIST)
             ENDIF
 C.. make sure the new basis fn isn't already in the det.  if so, go round again
             DO I=1,NEL

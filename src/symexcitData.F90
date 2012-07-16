@@ -1,8 +1,9 @@
 MODULE SymExcitDataMod
+    use constants, only: dp
     IMPLICIT NONE
     SAVE
 
-    REAL*8 :: pDoubNew
+    real(dp) :: pDoubNew
     INTEGER , ALLOCATABLE :: SymLabelList2(:),SymLabelCounts2(:,:)
 
     ! What are the upper bounds for the scratch arrays neede for excitation
@@ -25,6 +26,8 @@ MODULE SymExcitDataMod
     INTEGER , ALLOCATABLE :: SymTableLabels(:,:)    !Symmetry table for symexcit labels (not syms themselves)
     INTEGER , ALLOCATABLE :: KPntInvSymOrb(:)       !Lookup table to find the inverse-k point equivalent spin orbital
 
+    integer, allocatable :: MomInvSymOrb(:) !This is for when using MI functions, and gives the momentum mapping between orbs.
+
       ! Excitation generator stored information
       ! --> Due to the allocatables, we can add as many things to here as
       !     we like without causing any problems :-).
@@ -36,10 +39,13 @@ MODULE SymExcitDataMod
         !     a store object being used in that way.
         integer, pointer :: ClassCountOcc(:) => null()
         integer, pointer :: ClassCountUnocc(:) => null()
-        integer, allocatable :: scratch3(:)
-        integer, allocatable :: occ_list(:,:)
-        integer, allocatable :: virt_list(:,:)
+        integer, pointer :: scratch3(:) => null()
+        integer, pointer :: occ_list(:,:) => null()
+        integer, pointer :: virt_list(:,:) => null()
         logical :: tFilled
+        integer, pointer :: dorder_i (:) => null()
+        integer, pointer :: dorder_j (:) => null()
+        integer :: nopen
     end type
 
 END MODULE SymExcitDataMod

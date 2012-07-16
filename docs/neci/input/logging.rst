@@ -20,6 +20,10 @@ Logging
 
 General options
 ---------------
+
+**NOMCOUTPUT**
+    
+    Ensures no output to stdout from the fcimc or ccmc iterations
     
 **FMCPR** [**LABEL**, **RHO**, **1000**, **EXCITATION**]
     More than one of the options can be specified.
@@ -198,6 +202,10 @@ FCIMC options
     Append a unique suffix to the POPSFILE* restart file(s) to avoid
     overwriting them.  Note that this can quickly fill up hard drives if used
     with **POPSFILE** iWritePopsEvery: use with care!
+
+**POPSFILETIMER** [PopsfileTime]
+    Write out a POPSFILE every 'PopsfileTime' hours of the calculation. Can be used with
+    **INCREMENTPOPS** to save previous files.
 
 **ZEROPROJE**
     This is for FCIMC when reading in from a POPSFILE. If this is on, then the energy 

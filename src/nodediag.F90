@@ -11,11 +11,12 @@
 !This would reduce the scaling to M^6 - same as CID
 
     MODULE NODEDIAG
-      use constants, only: dp
+      use constants, only: dp,int32
       use SystemData, only: BasisFN
       use IntegralsData, only: tDiscoNodes
       use Determinants, only: get_helement, get_helement_excit
       use global_utilities
+      use MemoryManager, only: TagIntType
       implicit none
 
 !Stores the excitations by their {a,b} value, according to which {i,j} family they are under.
@@ -32,26 +33,26 @@
 
 !The rho_ii rho matrix element
       HElement_t :: rhii
-      REAL*8 :: totlinks
+      real(dp) :: totlinks
       INTEGER :: crosslinks
 
 ! Memory tags
-      integer, save :: tagEXCITINFO=0,tagEXCITSTORE=0,tagABCOUNTER=0,tagijorbs=0
+      integer(TagIntType), save :: tagEXCITINFO=0,tagEXCITSTORE=0,tagABCOUNTER=0,tagijorbs=0
       
       contains
 
       FUNCTION fMCPR3StarNodes(nI,Beta,i_P,nEl,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,RhoEps,ECore,dBeta,dLWdb)
       use HElem
       TYPE(BasisFN) G1(*)
-      INTEGER nI(nEl),nEl,i_P,Brr(nBasis),nBasis,nMsh
-      INTEGER nMax,nTay(2),iMaxExcit,nExcitMemLen
+      INTEGER nEl,nI(nEl),nBasis,i_P,Brr(nBasis),nMsh
+      INTEGER nMax,nTay(2),iMaxExcit,nExcitMemLen(1)
       INTEGER noij,noab,ierr,totexcits,nJ(nEl),Orbchange(4),noexcits
       INTEGER Height,TRIIND,INDX,i,ExcitInfoElems,j,exFlag
       INTEGER nStore(6),iExcit,invsbrr(nBasis),orbone,orbtwo,t
       INTEGER, ALLOCATABLE :: nExcit(:)
-      COMPLEX*16 fck(*)
+      complex(dp) fck(*)
       HElement_t UMat(*)
-      REAL*8 Beta,ALat(3),RhoEps,ECore,dBeta
+      real(dp) Beta,ALat(3),RhoEps,ECore,dBeta
       real(dp) dLWdB
       real(dp) fMCPR3StarNodes
       LOGICAL COMPIPATH
@@ -101,7 +102,7 @@
 !      nExcitMemLen=0
       nStore(1)=0
       CALL GenSymExcitIt2(nI,nEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
-      Allocate(nExcit(nExcitMemLen))
+      Allocate(nExcit(nExcitMemLen(1)))
 
 !Second call to calculate theoretical max number of excitations (iMaxExcit)
       nExcit(1)=0
@@ -188,18 +189,20 @@
 !From a given {i,j}, and a list of all {a,b}'s which result in possible double excitations from the HF, find all the connections between them, and diagonalise the resulting matrix from this 'node'. 
 !Finally, attach the resultant structures back to the HF in EXCITINFO star matrix.      
       SUBROUTINE CONSTRUCTNODE(novirt,nEl,node,nI,Beta,i_P,G1,nBasis,nMsh,fck,nMax,ALat,UMat,nTay,ECore,RhoEps,ExcitInfoElems)
+        use MemoryManager, only: TagIntType
         IMPLICIT NONE
         Type(BasisFN) G1(*)
-        COMPLEX*16 fck(*)
+        complex(dp) fck(*)
         HElement_t UMat(*),rh,Hel
-        INTEGER novirt,ierr,i,j,ijpair(2),node,nI(nEl),nJ(nEl),nK(nEl),i_P
-        INTEGER nBasis,nMsh,nMax,nTay(2),WORKMEM,INFO
-        INTEGER ExcitInfoElems,nEl,Orbchange(4),iExcit
-        REAL*8 Beta,ALat(3),RhoEps,ECore
-        REAL*8, ALLOCATABLE :: NODERHOMAT(:),WLIST(:)
+        INTEGER novirt,nEl,ierr,i,j,ijpair(2),node,nI(nEl),nJ(nEl),nK(nEl),i_P
+        INTEGER nBasis,nMsh,nMax,nTay(2),WORKMEM
+        INTEGER(int32) INFO
+        INTEGER ExcitInfoElems,Orbchange(4),iExcit
+        real(dp) Beta,ALat(3),RhoEps,ECore
+        real(dp), ALLOCATABLE :: NODERHOMAT(:),WLIST(:)
         INTEGER, ALLOCATABLE :: FULLPATHS(:,:)
-        REAL*8, ALLOCATABLE :: WORK(:)
-        integer, save :: tagNODERHOMAT=0,tagWLIST=0,tagFULLPATHS=0,tagWORK=0
+        real(dp), ALLOCATABLE :: WORK(:)
+        integer(TagIntType), save :: tagNODERHOMAT=0,tagWLIST=0,tagFULLPATHS=0,tagWORK=0
         character(*),parameter :: t_r='CONSTRUCTNODE'
 
 !iExcit should be the order of the excitation - parsed to HElement2

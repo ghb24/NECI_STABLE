@@ -2,6 +2,8 @@ module CPMDData
 
 ! Module for data required for the CPMD interface.
 ! Data passed from CPMD.
+      use MemoryManager ,only: TagIntType
+      use constants, only: dp,int64
 
       implicit none
 
@@ -38,7 +40,7 @@ module CPMDData
 !     EIONION:   nuclear-nuclear interactions.
 !     DEGENTOL:  Tolerance (in eV) below which eigenvalues are taken to be
 !                degenerate.
-      REAL*8 :: XI,EIONION,DEGENTOL
+      real(dp) :: XI,EIONION,DEGENTOL
 
 !     ROT_CHAR:  characters of (the degenerate sets of) the
 !                wavefunctions.
@@ -69,13 +71,13 @@ module CPMDData
 !                the translational symmetry operations of the
 !                equivalent supercell.
 !     KPNTIND:   K-point index of each state (using a combined index).
-      REAL*8, ALLOCATABLE :: ROT_CHAR(:,:)     ! shape: (NSTATES,NROTOP)
-      REAL*8, ALLOCATABLE :: EIGENVALUES(:)    ! shape: (NSTATES)
-      REAL*8, ALLOCATABLE :: PIInt(:)          ! shape: (NStates)
-      COMPLEX*16, ALLOCATABLE :: TRANS_CHAR(:,:)       ! shape: (NSTATES,NTRANSLAT)
-      COMPLEX*16, ALLOCATABLE :: GROUP_CHAR(:,:)       ! shape: (nSpGpOp,NSTATES)
-      COMPLEX*16, ALLOCATABLE :: TRANS_CHAR_TABLE(:,:) ! shape: (NTRANSLAT,NTRANSLAT)
-      COMPLEX*16, ALLOCATABLE :: KPNT_CHAR(:,:)        ! shape: (NKPTRANS,NKPS)
+      real(dp), ALLOCATABLE :: ROT_CHAR(:,:)     ! shape: (NSTATES,NROTOP)
+      real(dp), ALLOCATABLE :: EIGENVALUES(:)    ! shape: (NSTATES)
+      real(dp), ALLOCATABLE :: PIInt(:)          ! shape: (NStates)
+      complex(dp), ALLOCATABLE :: TRANS_CHAR(:,:)       ! shape: (NSTATES,NTRANSLAT)
+      complex(dp), ALLOCATABLE :: GROUP_CHAR(:,:)       ! shape: (nSpGpOp,NSTATES)
+      complex(dp), ALLOCATABLE :: TRANS_CHAR_TABLE(:,:) ! shape: (NTRANSLAT,NTRANSLAT)
+      complex(dp), ALLOCATABLE :: KPNT_CHAR(:,:)        ! shape: (NKPTRANS,NKPS)
       LOGICAL, ALLOCATABLE :: IMPROPER_OP(:)    ! shape: (NROTOP*NTRANSLAT)
       INTEGER, ALLOCATABLE :: K_VECTORS(:,:)    ! shape: (3,NTRANSLAT)
       INTEGER, ALLOCATABLE :: ROT_LABEL(:)      ! shape: (NSTATES)
@@ -83,17 +85,17 @@ module CPMDData
       INTEGER, ALLOCATABLE :: KPNTIND(:)        ! shape: (2*nkps*nStates)
 
       ! Memory logging tags.
-      INTEGER :: tagROT_CHAR=0
-      INTEGER :: tagEIGENVALUES=0
-      INTEGER :: tagPIInt=0
-      INTEGER :: tagTRANS_CHAR=0
-      INTEGER :: tagGROUP_CHAR=0
-      INTEGER :: tagTRANS_CHAR_TABLE=0
-      INTEGER :: tagKPNT_CHAR=0
-      INTEGER :: tagIMPROPER_OP=0
-      INTEGER :: tagK_VECTORS=0
-      INTEGER :: tagROT_LABEL=0
-      INTEGER :: tagTRANS_LABEL=0
-      INTEGER :: tagKPNTIND=0
+      INTEGER(TagIntType) :: tagROT_CHAR=0
+      INTEGER(TagIntType) :: tagEIGENVALUES=0
+      INTEGER(TagIntType) :: tagPIInt=0
+      INTEGER(TagIntType) :: tagTRANS_CHAR=0
+      INTEGER(TagIntType) :: tagGROUP_CHAR=0
+      INTEGER(TagIntType) :: tagTRANS_CHAR_TABLE=0
+      INTEGER(TagIntType) :: tagKPNT_CHAR=0
+      INTEGER(TagIntType) :: tagIMPROPER_OP=0
+      INTEGER(TagIntType) :: tagK_VECTORS=0
+      INTEGER(TagIntType) :: tagROT_LABEL=0
+      INTEGER(TagIntType) :: tagTRANS_LABEL=0
+      INTEGER(TagIntType) :: tagKPNTIND=0
 
 end module CPMDData

@@ -1,12 +1,12 @@
 module hphf_integrals
     use constants, only: dp,n_int
     use SystemData, only: NEl, nBasisMax, G1, nBasis, Brr, tHub, ECore, &
-                          ALat, NMSH, tOddS_HPHF
+                          ALat, NMSH, tOddS_HPHF, modk_offdiag
     use IntegralsData, only: UMat,FCK,NMAX
     use HPHFRandExcitMod, only: FindDetSpinSym, FindExcitBitDetSym
-    use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel
+    use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel, &
+                         TestClosedShellDet, CalcOpenOrbs
     use sltcnd_mod, only: sltcnd, sltcnd_excit
-    use IntegralsData, only: UMat,FCK,NMAX
     use bit_reps, only: NIfD, NIfTot, NIfDBO
     implicit none
 
@@ -17,6 +17,7 @@ module hphf_integrals
 
     contains
 
+! NB AJWT has also cannibalized this for CCMC where he just passes in the HElGen.
     function hphf_spawn_sign (nI, nJ, iLutI, iLutJ, ic, ex, &
                                   tParity, HElGen) result (hel)
         integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
@@ -48,6 +49,9 @@ module hphf_integrals
 
         hel = hphf_off_diag_helement_norm (nI, nJ, iLutI, iLutJ)
 
+        if (IC /= 0 .and. modk_offdiag) &
+            hel = -abs(hel)
+
         ! Avoid warnings
         iUnused = IC; iUnused = ex(1,1); lUnused = tParity
 
@@ -71,7 +75,7 @@ module hphf_integrals
         integer(kind=n_int) :: iLutnI2(0:NIfTot)
         integer :: ExcitLevel, OpenOrbsI, OpenOrbsJ, Ex(2,2)
         HElement_t :: MatEl2
-        logical :: TestClosedShellDet, tSign
+        logical :: tSign
 
         ! Avoid warnings
         iUnused = nJ(1)
@@ -106,7 +110,7 @@ module hphf_integrals
                     ! Open shell -> Closed shell. If one of
                     ! the determinants is connected, then the other is connected 
                     ! with the same IC & matrix element
-                    hel = hel * (sqrt(2.d0))
+                    hel = hel * sqrt(2.d0)
                 endif
             else
                 ! Open shell -> Open shell. Find the spin pair of nJ.
@@ -166,11 +170,10 @@ module hphf_integrals
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot)
         HElement_t :: hel
 
-        integer :: nI2(nel)
+!        integer :: nI2(nel)
         integer(kind=n_int) :: iLutnI2(0:NIfTot)
         integer :: ExcitLevel, OpenOrbs
         HElement_t :: MatEl2
-        logical :: TestClosedShellDet
 
         hel = sltcnd_excit (nI, 0)
         if (.not. TestClosedShellDet(iLutnI)) then
@@ -184,7 +187,7 @@ module hphf_integrals
             ExcitLevel = FindBitExcitLevel(iLutnI, iLutnI2, 2)
             if (ExcitLevel.le.2) then
                 call CalcOpenOrbs (iLutnI, OpenOrbs)
-                call FindDetSpinSym (nI, nI2, nel)
+!                call FindDetSpinSym (nI, nI2, nel)
                 MatEl2 = sltcnd (nI,  iLutnI, iLutnI2)
 
                 if (tOddS_HPHF) then
@@ -207,4 +210,23 @@ module hphf_integrals
 
         hel = hel + (ECore)
     end function hphf_diag_helement
+
+    pure function hphf_sign (ilut) result(sgn)
+
+        ! Is this HPHF  1/sqrt(2)*[X + X'], or 1/sqrt(2)*[X - X']
+        ! Returns +-1 respectively
+
+        integer :: sgn, open_orbs
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+
+        call CalcOpenOrbs(ilut, open_orbs)
+
+        if ((mod(open_orbs, 2) == 0) .neqv. tOddS_HPHF) then
+            sgn = 1
+        else
+            sgn = -1
+        endif
+
+    end function
+
 end module

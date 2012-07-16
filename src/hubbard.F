@@ -1,10 +1,11 @@
 C ===================================================================
       SUBROUTINE CALCUMATHUBREAL(NBASIS,UHUB, UMAT)
          use UMatCache , only : UMatInd
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER NBASIS
-         REAL*8 UMAT(*)
-         REAL*8 UHUB
+         real(dp) UMAT(*)
+         real(dp) UHUB
          INTEGER I,IC
          OPEN(10,FILE='UMAT',STATUS='UNKNOWN')
          IC=1
@@ -27,11 +28,13 @@ C returns the non-interacting energy of state with
 C..quatum numbers (i,j,k) for Hubbard model of 
 C..lengths (LX,LY,LZ) PBC.
 C..Returned in sum
-      use constants, only: Pi, Pi2, THIRD
-      IMPLICIT REAL*8 (A-H,O-Z)
+      use constants, only: Pi, Pi2, THIRD,dp
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
       INTEGER nBasisMax(5,*),AX,AY
-      INTEGER LX,LY,LZ
+      INTEGER LX,LY,LZ,K,J,I
       LOGICAL TTILT,TREAL
+      real(dp) :: TOTSUM,BHUB
       LX=NBASISMAX(1,2)-NBASISMAX(1,1)+1
       LY=NBASISMAX(2,2)-NBASISMAX(2,1)+1
       LZ=NBASISMAX(3,2)-NBASISMAX(3,1)+1
@@ -60,11 +63,14 @@ C returns the non-interacting energy of state with
 C..quatum numbers (i,j,k) for Hubbard model of 
 C..lengths (LX,LY,LZ).  NON-PBC
 C..Returned in sum
+      use constants, only: dp
       use constants, only: Pi, Pi2, THIRD
-      IMPLICIT REAL*8 (A-H,O-Z)
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
       INTEGER nBasisMax(5,*),AX,AY
       LOGICAL TTILT,TREAL
-      INTEGER II,JJ,KK
+      INTEGER II,JJ,KK,K,J,I,LZ,LX,LY
+      real(dp) :: BHUB,TOTSUM
       LX=NBASISMAX(1,2)-NBASISMAX(1,1)+1
       LY=NBASISMAX(2,2)-NBASISMAX(2,1)+1
       LZ=NBASISMAX(3,2)-NBASISMAX(3,1)+1
@@ -94,18 +100,18 @@ C         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
          use constants, only: dp
          use SystemData, only: BasisFN
          USE OneEInts,only : TMat2D,TMATSYM,TSTARSTORE,TMatInd,SetupTMAT
-         USE Parallel , only : iProcIndex
+         USE Parallel_neci , only : iProcIndex
          IMPLICIT NONE
          INTEGER NBASIS,nBasisMax(5,*)
          TYPE(BasisFN) G1(nBasis)
-         REAL*8 BHUB
+         real(dp) BHUB
          INTEGER iSize
          INTEGER I,J
          INTEGER DX,DY,DZ,LX,LY,LZ
          LOGICAL TTILT,TREAL,TPBC
-         REAL*8 TOTSUM
+         real(dp) TOTSUM
          IF(iProcIndex.eq.0) OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
-         IF(TSTARSTORE) STOP 'Using TSTARSTORE with HUB??!'
+         IF(TSTARSTORE) STOP 'Using TSTARSTORE with HUB?!'
          CALL SetupTMAT(NBASIS,2,iSize)
          TOTSUM=0.D0
          LX=NBASISMAX(1,2)-NBASISMAX(1,1)
@@ -235,6 +241,8 @@ C         ENDIF
 
       SUBROUTINE SETBASISLIM_HUBTILT(NBASISMAX,NMAXX,NMAXY,NMAXZ,LEN,
      &         TPBC,ITILTX,ITILTY)
+         use constants, only : sizeof_int,dp
+         IMPLICIT NONE
          INTEGER nBasisMax(5,*),NMAXX,NMAXY,NMAXZ,LEN
          LOGICAL TPBC
          INTEGER ITILTX,ITILTY
@@ -245,12 +253,14 @@ C.. Indicate tilted
 C.. Not periodic boundaries
             NBASISMAX(1,3)=3
          ENDIF
-         NBASISMAX(1,2)=(NMAXX*((ITILTX+ITILTY)/2.D0))
+         NBASISMAX(1,2)=int(real(NMAXX,dp)*                          
+     &          (real(ITILTX+ITILTY,dp)/2.D0),sizeof_int)
          NBASISMAX(1,1)=-NBASISMAX(1,2)
 C+1-MOD(NMAXX,2)
          IF(NMAXY.NE.NMAXX)
      &      STOP 'CANNOT HANDLE NON-SQUARE TILTED HUBBARD'
-         NBASISMAX(2,2)=(NMAXX*((ITILTY+ITILTX)/2.D0))
+         NBASISMAX(2,2)=int(real(NMAXX,dp)*        
+     &          (real(ITILTY+ITILTX)/2.D0),sizeof_int)
          NBASISMAX(2,1)=-NBASISMAX(2,2)
 C+1-MOD(NMAXX,2)
          IF(NMAXZ.GT.1) STOP 'CANNOT HANDLE TILTED 3D HUBBARD'
@@ -381,13 +391,14 @@ C.. Setup the symmetry product table
 !  not just one of the subcomponents
       SUBROUTINE GENHUBSYMREPS(NBASIS,ARR,BRR)
          use global_utilities
+         use constants, only: dp
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: SymReps,tagSymReps
          IMPLICIT NONE
          INTEGER I,J
          INTEGER NBASIS,BRR(NBASIS)
-         REAL*8 ARR(NBASIS)
+         real(dp) ARR(NBASIS)
          character(*), parameter :: this_routine='GenHubSymReps'
          
 C.. now work out which reps are degenerate and label them
@@ -411,3 +422,76 @@ C.. we have a new rep
 !         ENDDO
       END
 
+      LOGICAL FUNCTION KALLOWED(G,NBASISMAX)
+        ! See if a given G vector is within a (possibly tilted) unit cell.
+        ! Used to generate the basis functions for the hubbard model (or perhaps electrons in boxes)
+        use constants, only: dp
+        IMPLICIT NONE
+        INTEGER G(5),nBasisMax(5,*),NMAXX,I,J,AX,AY
+        INTEGER KX,KY
+        real(dp) MX,MY,XX,YY
+        LOGICAL TALLOW
+        TALLOW=.TRUE.
+        IF(NBASISMAX(3,3).EQ.1) THEN
+      !.. spatial symmetries
+            IF(G(1).NE.0) TALLOW=.FALSE.
+        ELSEIF(NBASISMAX(3,3).EQ.0) THEN
+      !.. Hubbard
+            IF(NBASISMAX(1,3).EQ.1) THEN
+      !.. Tilted hubbard
+                NMAXX=NBASISMAX(1,5)
+      !         NMAXY=
+                AX=NBASISMAX(1,4)
+                AY=NBASISMAX(2,4)
+      !.. (XX,YY) is the position of the bottom right corner of the unit cell
+                XX=((AX+AY)/2.D0)*NMAXX
+                YY=((AY-AX)/2.D0)*NMAXX
+                MX=XX*AX+YY*AY
+                MY=XX*AY-YY*AX
+                I=G(1)
+                J=G(2)
+                KX=I*AX+J*AY
+                KY=I*AY-J*AX
+                IF(KX.GT.MX) TALLOW=.FALSE.
+                IF(KY.GT.MY) TALLOW=.FALSE.
+                IF(KX.LE.-MX) TALLOW=.FALSE.
+                IF(KY.LE.-MY) TALLOW=.FALSE.
+            ELSEIF(NBASISMAX(1,3).GE.4.OR.NBASISMAX(1,3).EQ.2) THEN
+      !.. Real space Hubbard
+                IF(G(1).EQ.0.AND.G(2).EQ.0.AND.G(3).EQ.0) THEN
+                   TALLOW=.TRUE.
+                ELSE
+                    TALLOW=.FALSE.
+                ENDIF
+      !      ELSEIF(NBASISMAX(1,3).EQ.2) THEN
+      !.. mom space non-pbc non-tilt hub - parity sym
+      !          IF(  (G(1).EQ.0.OR.G(1).EQ.1)
+      !     &       .AND.(G(2).EQ.0.OR.G(2).EQ.1)
+      !     &       .AND.(G(3).EQ.0.OR.G(3).EQ.1)) THEN
+      !              TALLOW=.TRUE.
+      !          ELSE
+      !              TALLOW=.FALSE.
+      !          ENDIF
+      !      ELSEIF(NBASISMAX(1,3).EQ.2) THEN
+      !.. non-pbc hubbard
+      !          TALLOW=.TRUE.
+      !          IF(G(1).GT.NBASISMAX(1,2).OR.G(1).LT.NBASISMAX(1,1))
+      !     &       TALLOW=.FALSE.
+      !          IF(G(2).GT.NBASISMAX(2,2).OR.G(2).LT.NBASISMAX(2,1))
+      !     &       TALLOW=.FALSE.
+      !          IF(G(3).GT.NBASISMAX(3,2).OR.G(3).LT.NBASISMAX(3,1))
+      !     &       TALLOW=.FALSE.
+            ELSE
+      !.. Normal Hubbard
+                TALLOW=.TRUE.
+                IF(G(1).GT.NBASISMAX(1,2).OR.G(1).LT.NBASISMAX(1,1))    &
+     &               TALLOW=.FALSE.
+                IF(G(2).GT.NBASISMAX(2,2).OR.G(2).LT.NBASISMAX(2,1))    &
+     &               TALLOW=.FALSE.
+                IF(G(3).GT.NBASISMAX(3,2).OR.G(3).LT.NBASISMAX(3,1))    &
+     &              TALLOW=.FALSE.
+            ENDIF
+        ENDIF         
+        KALLOWED=TALLOW
+        RETURN
+      END FUNCTION KALLOWED

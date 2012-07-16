@@ -19,6 +19,7 @@ MODULE HFCalc
       use sort_mod
       use shared_alloc, only: shared_allocate, shared_deallocate
       use HElem, only: helement_t_size, helement_t_sizeb
+      use MemoryManager, only: TagIntType
       character(25), parameter :: this_routine='HFDoCalc'
       HElement_t,ALLOCATABLE :: HFBASIS(:),HFE(:)
       HElement_t,pointer :: UMat2(:)
@@ -26,7 +27,7 @@ MODULE HFCalc
       integer i
       integer nOrbUsed
       integer UMatInt, TMatInt
-      integer,save :: tagUMat2=0,tagHFE=0,tagHFBasis=0
+      integer(TagIntType),save :: tagUMat2=0,tagHFE=0,tagHFBasis=0
          
 !C.. If we are using an HF basis instead of our primitive basis, we need
 !C.. to load in the coeffs of the HF eigenfunctions in terms of the
@@ -48,10 +49,12 @@ MODULE HFCalc
 !C.. We generate the HF energies (this has no mixing or randomisation, so should jsut
 !C.. re-order the orbitals and give us some energy)
 !C.. HF basis is NOT using the LMS value set in the input
-              CALL CALCHFBASIS(NBASIS,NBASISMAX,G1,BRR,ECORE,UMAT,HFE,HFBASIS,1,NEL,LMSBASIS,1.D0,HFEDELTA,HFCDELTA,.TRUE.,0,TREADHF,0.D0,FDET,ILOGGING)
+              CALL CALCHFBASIS(NBASIS,NBASISMAX,G1,BRR,ECORE,UMAT,HFE,HFBASIS,1,NEL,LMSBASIS,1.D0,HFEDELTA, &
+                HFCDELTA,.TRUE.,0,TREADHF,0.D0,FDET,ILOGGING)
                CALL ORDERBASISHF(ARR,BRR,HFE,HFBASIS,NBASIS,FDET,NEL)
             ELSEIF(THFCALC) THEN
-              CALL CALCHFBASIS(NBASIS,NBASISMAX,G1,BRR,ECORE,UMAT,HFE,HFBASIS,NHFIT,NEL,LMS,HFMIX,HFEDELTA,HFCDELTA,TRHF,IHFMETHOD,TREADHF,HFRAND,FDET,ILOGGING)
+              CALL CALCHFBASIS(NBASIS,NBASISMAX,G1,BRR,ECORE,UMAT,HFE,HFBASIS,NHFIT,NEL,LMS,HFMIX,HFEDELTA, &
+                HFCDELTA,TRHF,IHFMETHOD,TREADHF,HFRAND,FDET,ILOGGING)
                CALL SETUPHFBASIS(NBASISMAX,G1,NBASIS,HFE,ARR,BRR)
             ELSEIF(THFBASIS) THEN
                CALL READHFBASIS(HFBASIS,HFE,G1,NBASIS)
@@ -62,7 +65,7 @@ MODULE HFCalc
 
             WRITE(6,"(A)",advance='no') " Fermi det (D0):"
             call write_det (6, FDET, .true.)
-            CALL FLUSH(6)
+            CALL neci_flush(6)
 !C.. If in Hubbard, we generate site-spin occupations
             IF(THUB) THEN
 !  Don't think this works
@@ -126,7 +129,7 @@ MODULE HFCalc
             deallocate(HFE,HFBasis)
             call LogMemDealloc(this_routine,tagHFE)
             call LogMemDealloc(this_routine,tagHFBasis)
-            CALL FLUSH(6)
+            CALL neci_flush(6)
          ENDIF
       End Subroutine HFDoCalc
 End Module HFCalc

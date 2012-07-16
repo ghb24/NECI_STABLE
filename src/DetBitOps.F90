@@ -8,19 +8,20 @@ module DetBitOps
     use Systemdata, only: nel, tCSF, tTruncateCSF, csf_trunc_level
     use CalcData, only: tTruncInitiator
     use bit_rep_data, only: NIfY, NIfTot, NIfD, NOffFlag, NIfFlag, &
-                            test_flag, flag_is_initiator,NIfDBO
+                            test_flag, flag_is_initiator,NIfDBO,NOffSgn
     use csf_data, only: iscsf, csf_yama_bit, csf_orbital_mask, csf_test_bit
-    use constants, only: n_int,bits_n_int,end_n_int
+    use constants, only: n_int,bits_n_int,end_n_int,dp,lenof_sign
 
     implicit none
 
 #ifdef __INT64
     ! 10101010 and 01010101 in binary respectively.
-    integer(n_int), parameter :: MaskBeta=Z'5555555555555555'
+!    integer(n_int), parameter :: MaskBeta=Z'5555555555555555'
+    integer(n_int), parameter :: MaskBeta=6148914691236517205_n_int
     integer(n_int), parameter :: MaskAlpha=IShft(MaskBeta,1)
 #else
-    integer(n_int), parameter :: MaskBeta=1431655765
-    integer(n_int), parameter :: MaskAlpha=-1431655766
+    integer(n_int), parameter :: MaskBeta=1431655765_n_int
+    integer(n_int), parameter :: MaskAlpha=-1431655766_n_int
 #endif
 
     ! Which count-bits procedure do we use?
@@ -102,7 +103,8 @@ module DetBitOps
 
         nbits = sum(count_set_bits(iLut))
         
-        if (present(nBitsMax)) nbits = min(nBitsmax+1, nbits)
+        !No advantage to test for this!
+!        if (present(nBitsMax)) nbits = min(nBitsmax+1, nbits)
     end function
 
     ! An elemental routine which will count the number of bits set in one 
@@ -139,10 +141,10 @@ module DetBitOps
         integer(n_int) :: tmp
 
 #ifdef __INT64
-        integer(n_int), parameter :: m1 = Z'5555555555555555'
-        integer(n_int), parameter :: m2 = Z'3333333333333333'
-        integer(n_int), parameter :: m3 = Z'0f0f0f0f0f0f0f0f'
-        integer(n_int), parameter :: m4 = Z'0101010101010101'
+        integer(n_int), parameter :: m1 = 6148914691236517205_n_int  !Z'5555555555555555'
+        integer(n_int), parameter :: m2 = 3689348814741910323_n_int  !Z'3333333333333333'
+        integer(n_int), parameter :: m3 = 1085102592571150095_n_int  !Z'0f0f0f0f0f0f0f0f'
+        integer(n_int), parameter :: m4 = 72340172838076673_n_int    !Z'0101010101010101'
 
         ! For 64 bit integers:
         tmp = a - iand(ishft(a,-1), m1)
@@ -150,10 +152,10 @@ module DetBitOps
         tmp = iand(tmp, m3) + iand(ishft(tmp,-4), m3)
         nbits = ishft(tmp*m4, -56)
 #else
-        integer(n_int), parameter :: m1 = Z'55555555'
-        integer(n_int), parameter :: m2 = Z'33333333'
-        integer(n_int), parameter :: m3 = Z'0F0F0F0F'
-        integer(n_int), parameter :: m4 = Z'01010101'
+        integer(n_int), parameter :: m1 = 1431655765_n_int    !Z'55555555'
+        integer(n_int), parameter :: m2 = 858993459_n_int     !Z'33333333'
+        integer(n_int), parameter :: m3 = 252645135_n_int     !Z'0F0F0F0F'
+        integer(n_int), parameter :: m4 = 16843009_n_int      !Z'01010101'
 
         ! For 32 bit integers:
         tmp = a - iand(ishft(a,-1), m1)
@@ -164,7 +166,7 @@ module DetBitOps
 
     end function count_set_bits
 
-    integer function count_open_orbs (iLut)
+    pure integer function count_open_orbs (iLut)
         
         ! Returns the number of unpaired electrons in the determinant.
         !
@@ -201,11 +203,14 @@ module DetBitOps
         tmp = iand(iLutnI, tmp)
 
         ! Then count them
-        if (present(maxExLevel)) then
-            IC = CountBits(tmp, NIfD, maxExLevel)
-        else
+        ! Since our CountBits routines don't actually make a saving
+        ! for counting smaller numbers of bits, no point in even testing
+        ! for a maxExLevel!
+!        if (present(maxExLevel)) then
+!            IC = CountBits(tmp, NIfD, maxExLevel)
+!        else
             IC = CountBits(tmp, NIfD)
-        endif
+!        endif
 
     end function FindBitExcitLevel
 
@@ -369,30 +374,88 @@ module DetBitOps
 
     ! This will return true if iLutI is identical to iLutJ and will return 
     ! false otherwise.
-    logical function DetBitEQ(iLutI,iLutJ,nLast)
+    pure function DetBitEQ(iLutI,iLutJ,nLast) result(res)
         integer, intent(in), optional :: nLast
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        logical :: res
         integer :: i, lnLast
 
         if(iLutI(0).ne.iLutJ(0)) then
-            DetBitEQ=.false.
+            res=.false.
             return
         else
             if (present(nLast)) then
                 lnLast = nLast
             else
-                lnLast = NIftot
+                lnLast = NIfDBO
             endif
 
             do i=1,lnLast
                 if(iLutI(i).ne.iLutJ(i)) then
-                    DetBitEQ=.false.
+                    res=.false.
                     return
                 endif
             enddo
         endif
-        DetBitEQ=.true.
+        res=.true.
     end function DetBitEQ
+
+    pure function sign_lt (ilutI, ilutJ) result (bLt)
+        ! This is a comparison function between two bit strings of length 0:NIfTot, and will return
+        ! true if absolute value of the sign of ilutI is less than ilutJ
+        integer(n_int), intent(in) :: iLutI(0:), iLutJ(0:)
+        logical :: bLt
+        integer, dimension(lenof_sign) :: SignI, SignJ
+        real(dp) :: WeightI,WeightJ
+
+        SignI = iLutI(NOffSgn:NOffSgn+lenof_sign-1)
+        SignJ = iLutJ(NOffSgn:NOffSgn+lenof_sign-1)
+
+        if(lenof_sign.eq.1) then
+            if(abs(SignI(1)).lt.abs(SignJ(1))) then
+                bLt = .true.
+            else
+                bLt = .false.
+            endif
+        else
+            WeightI=sqrt(real(SignI(1),dp)**2+real(SignI(lenof_sign),dp)**2)
+            WeightJ=sqrt(real(SignJ(1),dp)**2+real(SignJ(lenof_sign),dp)**2)
+            if(WeightI.lt.WeightJ) then
+                bLt = .true.
+            else
+                bLt = .false.
+            endif
+        endif
+    end function sign_lt
+
+    pure function sign_gt (ilutI, ilutJ) result (bGt)
+        ! This is a comparison function between two bit strings of length 0:NIfTot, and will return
+        ! true if the abs sign of ilutI is greater than ilutJ
+        integer(n_int), intent(in) :: iLutI(0:), iLutJ(0:)
+        logical :: bGt
+        integer, dimension(lenof_sign) :: SignI, SignJ
+        real(dp) :: WeightI,WeightJ
+
+        SignI = iLutI(NOffSgn:NOffSgn+lenof_sign-1)
+        SignJ = iLutJ(NOffSgn:NOffSgn+lenof_sign-1)
+
+        if(lenof_sign.eq.1) then
+            if(abs(SignI(1)).gt.abs(SignJ(1))) then
+                bGt = .true.
+            else
+                bGt = .false.
+            endif
+        else
+            WeightI=sqrt(real(SignI(1),dp)**2+real(SignI(lenof_sign),dp)**2)
+            WeightJ=sqrt(real(SignJ(1),dp)**2+real(SignJ(lenof_sign),dp)**2)
+            if(WeightI.gt.WeightJ) then
+                bGt = .true.
+            else
+                bGt = .false.
+            endif
+        endif
+    end function sign_gt
+
 
     pure function ilut_lt (ilutI, ilutJ) result (bLt)
 !        use util_mod, only: operator(.arrlt.)
@@ -476,7 +539,7 @@ module DetBitOps
 
     ! This will return 1 if iLutI is "less" than iLutJ, 0 if the determinants
     ! are identical, or -1 if iLutI is "more" than iLutJ
-    integer function DetBitLT(iLutI,iLutJ,nLast)
+    pure integer function DetBitLT(iLutI,iLutJ,nLast)
         integer, intent(in), optional :: nLast
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer :: i, lnLast
@@ -491,7 +554,7 @@ module DetBitOps
             if (present(nLast)) then
                 lnLast = nLast
             else
-                lnLast = NIftot
+                lnLast = NIfDBO
             endif
 
             do i=1,lnLast
@@ -532,7 +595,7 @@ module DetBitOps
             if (present(nLast)) then
                 lnLast = nLast
             else
-                lnLast = NIftot
+                lnLast = NIfDBO
             endif
             do i=1,lnLast
                 IF(iLutI(i).lt.iLutJ(i)) THEN
@@ -603,7 +666,7 @@ module DetBitOps
                 if (present(nLast)) then
                     lnLast = nLast
                 else
-                    lnLast = NIftot
+                    lnLast = NIfDBO
                 endif
                 do i=1,lnLast
                     IF(iLutI(i).lt.iLutJ(i)) THEN
@@ -789,6 +852,98 @@ module DetBitOps
         endif
     end function
 
+    pure function TestClosedShellDet (ilut) result(tClosed)
+
+        ! Is the determinant closed shell?
+
+        integer(n_int), intent(in) :: iLut(0:NIfTot)
+        integer(n_int) :: alpha(0:NIfD), beta(0:NIfD)
+        logical :: tClosed
+
+        ! Separate alphas and betas
+        alpha = iand(ilut(0:NIfD), MaskAlpha)
+        beta = iand(ilut(0:NIfD), MaskBeta)
+
+        ! Shift and XOR to eliminate paired electrons
+        alpha = ieor(beta, ishft(alpha, -1))
+
+        ! Are there any remaining unpaired electrons?
+        tClosed = all(alpha == 0)
+
+    end function TestClosedShellDet
+
+    ! Routine to count number of open *SPATIAL* orbitals in a bit-string 
+    ! representation of a determinant.
+    ! ************************
+    ! BROKEN
+    ! NOTE: This function name is misleading
+    !       It counts the number of unpaired Beta electrons (ignores Alpha)
+    !       --> Returns nopen/2 <==> Ms=0
+    ! ************************
+    pure SUBROUTINE CalcOpenOrbs(iLut,OpenOrbs)
+        INTEGER(kind=n_int) :: iLutAlpha(0:NIfD),iLutBeta(0:NIfD)
+        integer(n_int), intent(in) :: ilut(0:NIfD)
+        integer, intent(out) :: OpenOrbs
+        INTEGER :: i
+        
+        iLutAlpha(:)=0
+        iLutBeta(:)=0
+
+        do i=0,NIfD     
+                    
+            iLutAlpha(i)=IAND(iLut(i),MaskAlpha)    !Seperate the alpha and beta bit strings
+            iLutBeta(i)=IAND(iLut(i),MaskBeta)
+            iLutAlpha(i)=ISHFT(iLutAlpha(i),-1)     !Shift all alpha bits to the left by one.
+
+            iLutAlpha(i)=NOT(iLutAlpha(i))              ! This NOT means that set bits are now represented by 0s, not 1s
+            iLutAlpha(i)=IAND(iLutAlpha(i),iLutBeta(i)) ! Now, only the 1s in the beta string will be counted.
+
+        enddo
+
+        OpenOrbs = CountBits(iLutAlpha,NIfD,NEl)
+    END SUBROUTINE CalcOpenOrbs
+
+    function IsAllowedHPHF (ilut, sym_ilut) result (bAllowed)
+
+        ! Is the specified determinant an 'allowed' HPHF function (i.e. can
+        ! it be found in the determinant list, or is it the symmetry paired
+        ! one?
+
+        integer(n_int), intent(in) :: ilut(0:NIfD)
+        integer(n_int) :: ilut_tmp(0:NIfD)
+        integer(n_int), intent(out), optional :: sym_ilut(0:NIfD)
+        logical :: bAllowed
+
+        if (TestClosedShellDet(ilut)) then
+            bAllowed = .true.
+        else
+            call spin_sym_ilut (ilut, ilut_tmp)
+            if (DetBitLt(ilut, ilut_tmp, NIfD) > 0) then
+                bAllowed = .false.
+            else
+                bAllowed = .true.
+            endif
+
+            if (present(sym_ilut)) sym_ilut = ilut_tmp
+        endif
+
+    end function
+
+    pure subroutine spin_sym_ilut (ilutI, ilutJ)
+
+        ! Generate the spin-coupled determinant of ilutI in ilutJ. Performs
+        ! the same operation as FindDetSpinSym rather more concisely.
+
+        integer(n_int), intent(in) :: ilutI(0:NIfD)
+        integer(n_int), intent(out) :: ilutJ(0:NIfD)
+        integer(n_int) :: ilut_tmp(0:NIfD)
+
+        ilut_tmp = ishft(iand(ilutI, MaskAlpha), -1)
+        ilutJ = ishft(iand(ilutI, MaskBeta), +1)
+        ilutJ = ior(ilutJ, ilut_tmp)
+
+    end subroutine
+
 end module
 
     pure subroutine GetBitExcitation(iLutnI,iLutnJ,Ex,tSign)
@@ -902,85 +1057,6 @@ end module
 
     end subroutine GetBitExcitation
 
-
-
-!This function will return true if the determinant is closed shell, or false if not.
-    PURE FUNCTION TestClosedShellDet(iLut) result(tClosed)
-        use bit_rep_data, only: NIfD
-        use constants, only: n_int
-        use DetBitOps, only: MaskAlpha,MaskBeta
-        IMPLICIT NONE
-        INTEGER(kind=n_int), intent(in) :: iLut(0:NIfD)
-        integer(n_int) :: iLutAlpha(0:NIfD),iLutBeta(0:NIfD)
-        logical :: tClosed
-        INTEGER :: i
-        
-        iLutAlpha(:)=0
-        iLutBeta(:)=0
-        tClosed=.true.
-
-        do i=0,NIfD
-
-            iLutAlpha(i)=IAND(iLut(i),MaskAlpha)    !Seperate the alpha and beta bit strings
-            iLutBeta(i)=IAND(iLut(i),MaskBeta)
-            iLutAlpha(i)=ISHFT(iLutAlpha(i),-1)     !Shift all alpha bits to the left by one.
-            iLutAlpha(i)=IEOR(iLutAlpha(i),iLutBeta(i)) !Do an XOR on the original beta bits and shifted alpha bits - they should cancel exactly.
-            
-            IF(iLutAlpha(i).ne.0) THEN
-                tClosed=.false.  !Det is not closed shell - return
-                RETURN
-            ENDIF
-        enddo
-
-    END FUNCTION TestClosedShellDet
-
-!Routine to count number of open *SPATIAL* orbitals in a bit-string representation of a determinant.
-! ************************
-! BROKEN
-! NOTE: This function name is misleading
-!       It counts the number of unpaired Beta electrons (ignores Alpha)
-!       --> Returns nopen/2 <==> Ms=0
-! ************************
-    SUBROUTINE CalcOpenOrbs(iLut,OpenOrbs)
-        use bit_rep_data, only: NIfD
-        use systemdata, only: nel
-        use constants, only: n_int
-        use DetBitOps, only: CountBits,MaskAlpha,MaskBeta
-        IMPLICIT NONE
-        INTEGER(kind=n_int) :: iLut(0:NIfD),iLutAlpha(0:NIfD),iLutBeta(0:NIfD)
-        INTEGER :: i,OpenOrbs
-        
-        iLutAlpha(:)=0
-        iLutBeta(:)=0
-
-!        do i=0,NIfD
-!
-!            iLutAlpha(i)=IAND(iLut(i),MaskAlpha)    !Seperate the alpha and beta bit strings
-!            iLutBeta(i)=IAND(iLut(i),MaskBeta)
-!            iLutAlpha(i)=ISHFT(iLutAlpha(i),-1)     !Shift all alpha bits to the left by one.
-!            iLutAlpha(i)=IEOR(iLutAlpha(i),iLutBeta(i)) !Do an XOR on the original beta bits and shifted alpha bits - only open shell occupied orbitals will remain.
-!            
-!        enddo
-!
-!        OpenOrbs = CountBits(iLutAlpha,NIfD,NEl)
-!        OpenOrbs=OpenOrbs/2
-
-!Alternatively....use a NOT and an AND to only count half as many set bits
-
-        do i=0,NIfD     
-                    
-            iLutAlpha(i)=IAND(iLut(i),MaskAlpha)    !Seperate the alpha and beta bit strings
-            iLutBeta(i)=IAND(iLut(i),MaskBeta)
-            iLutAlpha(i)=ISHFT(iLutAlpha(i),-1)     !Shift all alpha bits to the left by one.
-
-            iLutAlpha(i)=NOT(iLutAlpha(i))              ! This NOT means that set bits are now represented by 0s, not 1s
-            iLutAlpha(i)=IAND(iLutAlpha(i),iLutBeta(i)) ! Now, only the 1s in the beta string will be counted.
-
-        enddo
-
-        OpenOrbs = CountBits(iLutAlpha,NIfD,NEl)
-    END SUBROUTINE CalcOpenOrbs
-
 !This routine will find the largest bit set in a bit-string (i.e. the highest value orbital)
     SUBROUTINE LargestBitSet(iLut,NIfD,LargestOrb)
         use constants, only: bits_n_int,end_n_int,n_int
@@ -1016,8 +1092,8 @@ end module
     SUBROUTINE FindSingleOrbs(iLutnI,iLutnJ,NIfD,Orbs)
         use constants, only: n_int,bits_n_int
         IMPLICIT NONE
-        INTEGER(KIND=n_int) :: iLutnI(0:NIfD),iLutnJ(0:NIfD)
         INTEGER :: NIfD,Orbs(2)
+        INTEGER(KIND=n_int) :: iLutnI(0:NIfD),iLutnJ(0:NIfD)
         INTEGER(kind=n_int) :: iLutExcited(0:NIfD)
 
         iLutExcited(:)=IEOR(iLutnI(:),iLutnJ(:))

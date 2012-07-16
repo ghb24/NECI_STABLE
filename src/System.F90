@@ -5,6 +5,7 @@ MODULE System
     use CalcData, only: tRotoAnnihil
     use sort_mod
     use SymExcitDataMod, only: tBuildOccVirtList
+    use constants, only: dp,int64
 
     IMPLICIT NONE
 
@@ -16,6 +17,7 @@ MODULE System
       use default_sets
       USE SymData, only: tAbelianFastExcitGen
       USE SymData, only: tStoreStateList
+      use OneEInts, only: tOneElecDiag 
       implicit none
 
       ! Default from SymExcitDataMod
@@ -24,6 +26,14 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tReadFreeFormat=.false.
+      tMolproMimic=.false.
+      tAntisym_MI=.false.
+      tMomInv=.false.
+      tNoSingExcits=.false.
+      tOneElecDiag=.false.
+      tMCSizeTruncSpace=.false.
+      iMCCalcTruncLev=0
       tOddS_HPHF=.false.
       tRotatedOrbsReal=.false.  !This is set if compiled in real, but reading in a complex FCIDUMP.
       tISKFuncs=.false.       !This is for kpoint symmetry with inversion so that determinants can be combined.
@@ -82,7 +92,6 @@ MODULE System
       iPeriodicDampingType=0
       fRc=0.D0
       TEXCH=.true.
-      FCOUL=1.D0
       UHUB = 4
       BHUB = -1
       TREAL = .false.
@@ -94,6 +103,13 @@ MODULE System
       ISTATE = 1
       OrbECutoff=1e20
       tOrbECutoff=.false.
+      gCutoff=1e20 ! This shouldn't be used
+      tgCutoff=.false.
+      tMadelung=.false.
+      Madelung=0.D0
+      tUEGFreeze=.false.
+      FreezeCutoff=1e20 ! This shouldn't be used
+      tMP2UEGRestrict=.false.
       tStoreAsExcitations=.false.
       TBIN=.false.
       tAbelianFastExcitGen=.true.
@@ -146,6 +162,7 @@ MODULE System
       tHFNoOrder=.false.
       tSymIgnoreEnergies=.false.
       tPickVirtUniform = .false.
+      modk_offdiag = .false.
 
 !Feb08 defaults:
       IF(Feb08) THEN
@@ -159,13 +176,14 @@ MODULE System
     end subroutine SetSysDefaults
 
     SUBROUTINE SysReadInput()
-      USE input
+      USE input_neci
       USE SymData, only: tAbelianFastExcitGen
       USE SymData, only: tStoreStateList
+      use OneEInts, only: tOneElecDiag 
       IMPLICIT NONE
       LOGICAL eof
       CHARACTER (LEN=100) w
-      INTEGER I,Odd_EvenHPHF
+      INTEGER I,Odd_EvenHPHF,Odd_EvenMI
       
       ! The system block is specified with at least one keyword on the same
       ! line, giving the system type being used.
@@ -235,6 +253,7 @@ MODULE System
           tReadInt=.true.
       case("UEG")
           TUEG = .true.
+          tOneElecDiag=.true.   !One electron integrals diagonal
       case("VASP")
           tVASP= .true.
       case("CPMD")
@@ -245,6 +264,7 @@ MODULE System
               THFORDER = .true.
           end select
       case("BOX")
+          tOneElecDiag=.true.   !One electron integrals diagonal
       case default
           call report("System type "//trim(w)//" not valid",.true.)
       end select
@@ -315,6 +335,8 @@ MODULE System
             IF(tHub) THEN
                 CALL Stop_All("SysReadInput","Cannot turn off symmetry with the hubbard model.")
             ENDIF
+        case("FREEFORMAT")
+            tReadFreeFormat = .true.
         case("SYM")
             TPARITY = .true.
             do I = 1,4
@@ -356,7 +378,8 @@ MODULE System
                   call report("EXCHANGE "//trim(w)//" not valid",.true.)
             end select
         case("COULOMB")
-            call getf(FCOUL)
+            call report("Coulomb feature removed",.true.)
+!            call getf(FCOUL)
         case("COULOMB-DAMPING")
             call report("Coulomb damping feature removed",.true.)
 !            call readu(w)
@@ -371,8 +394,27 @@ MODULE System
         case("ENERGY-CUTOFF")
           tOrbECutoff=.true.
           call getf(OrbECutoff)
+        case("G-CUTOFF")
+          tgCutoff=.true.
+          call getf(gCutoff)
+        case("FREEZE-CUTOFF")
+            tUEGFreeze=.true.
+            call getf(FreezeCutoff)
+        case("MADELUNG")
+          tMadelung=.true.
+          call getf(Madelung)
         case("STORE-AS-EXCITATIONS")
            tStoreAsExcitations=.true.  
+        case("MP2-UEG-RESTRICT")
+           tMP2UEGRestrict=.true.
+           call geti(kiRestrict(1))
+           call geti(kiRestrict(2))
+           call geti(kiRestrict(3))
+           call geti(kiMsRestrict)
+           call geti(kjRestrict(1))
+           call geti(kjRestrict(2))
+           call geti(kjRestrict(3))
+           call geti(kjMsRestrict)
 
         ! Options for model systems (electrons in a box/Hubbard).   
         case("CELL")
@@ -430,6 +472,8 @@ MODULE System
             if ( ISTATE /= 1 ) then
                 call report("Require ISTATE to be left set as 1",.true.)
             end if
+        case("MODK-OFFDIAG")
+            modk_offdiag = .true.
         case("FAST-EXCITGEN")
             tAbelianFastExcitGen=.true.
     ! tAbelianFastExcitGen is a temporary flag. 
@@ -467,6 +511,21 @@ MODULE System
 !use these assumed size excitation generators to generate the whole list of excitations, will result 
 !in bad, bad times.
             tAssumeSizeExcitgen=.true.
+        case("MOMINVSYM")
+            tMomInv=.true.
+            tAntisym_MI=.false.
+            if(item.lt.nitems) then
+                call geti(Odd_EvenMI)
+                if(Odd_EvenMI.eq.1) then
+                    !Converging on the antisymmetric state (- symmetry)
+                    tAntisym_MI=.true.
+                elseif(Odd_EvenMI.eq.0) then
+                    !Converging on the symmetric state (+ symmetry)
+                    !This is done by default
+                else
+                    call stop_all("SysReadInput","Invalid variable given to MOMINVSYM option: 0 = + sym; 1 = - sym")
+                endif
+            endif
         case("HPHF")
             tHPHF=.true.
             if(item.lt.nitems) then
@@ -722,6 +781,15 @@ MODULE System
         case("CALCEXACTSIZESPACE")
 !This option will calculate the exact size of the symmetry allowed space of determinants. Will scale badly.
             tExactSizeSpace=.true.
+
+        case("CALCMCSIZETRUNCSPACE")
+!This option will approximate the exact size of the symmetry allowed truncated space of determinants by MC. 
+!The variance on the value will decrease as 1/N_steps
+            tMCSizeTruncSpace=.true.
+            CALL Geti(iMCCalcTruncLev)
+            CALL GetiLong(CalcDetCycles)
+            CALL GetiLong(CalcDetPrint)
+
         case("CALCMCSIZESPACE")
 !This option will approximate the exact size of the symmetry allowed space of determinants by MC. The variance on the value will decrease as 1/N_steps
             tMCSizeSpace=.true.
@@ -767,20 +835,31 @@ MODULE System
 !magnitude than the value set for UMatEps will be set to zero.
             call readf(UMatEps)
             tUMatEps=.true.
+        case("NOSINGEXCITS")
+!This will mean that no single excitations are ever attempted to be generated.
+            tNoSingExcits=.true.
+        case("DIAGONALTMAT")
+!Implies that the orbital basis are eigenfunctions of the KE operator, so TMAT can be stored as a diagonal matrix to save space.
+          tOneElecDiag=.true.   !One electron integrals diagonal
         case("ROHF")
 !This is an option for open-shell systems to specify that the integrals are *restricted* open-shell integrals.
 !This will save memory (around a factor of 16) for the integral storage, but the FCIDUMP file should be the same as before (ie in UHF form).
             tROHF=.true.
             tNoBrillouin=.true.
             tBrillouinsDefault=.false.
-            IF(tFindCINatOrbs) CALL Stop_All("ReadSysInp","For orbital rotations of open shell systems, UMAT must be stored in spin &
-                                                           & orbitals - cannot be compressed using ROHF.") 
+            IF(tFindCINatOrbs) CALL Stop_All("ReadSysInp","For orbital rotations of open shell "&
+            &//"systems, UMAT must be stored in spin &
+            & orbitals - cannot be compressed using ROHF.") 
                                              
         case("LZTOT")
             tFixLz=.true.
             call readi(LzTot)
         case("KPOINTS")
             tKPntSym=.true.
+        case("MOLPROMIMIC")
+            !Mimic the run-time behaviour of molpros NECI implementation
+            tMolpro=.true.
+            tMolproMimic=.true.
         case("ENDSYS") 
             exit system
         case default
@@ -817,23 +896,24 @@ MODULE System
       character(*), parameter :: this_routine='SysInit'
       integer ierr
 
-      CHARACTER CPAR(3)*1,CPARITY*3
+      CHARACTER(len=1) CPAR(3)
+      CHARACTER(len=3) CPARITY
 ! For init of mom
       TYPE(BasisFN) G
         
 !  For the UEG
-      REAL*8 FKF,Rs
+      real(dp) FKF,Rs
         
 ! General variables
       INTEGER i,j,k,l,iG
       INTEGER len
       type(timer), save :: proc_timer
-      REAL*8 SUM
+      real(dp) SUM
 ! Called functions
       TYPE(BasisFN) FrzSym
       logical kallowed
       integer dUnscaledE
-      real*8, allocatable :: arr_tmp(:,:)
+      real(dp), allocatable :: arr_tmp(:,:)
       integer, allocatable :: brr_tmp(:)
 
 !      write (6,*)
@@ -851,7 +931,7 @@ MODULE System
 
 !C ==-------------------------------------------------------------------==
 !C..Input parameters
-      WRITE(6,'(A)') '-------- SYSTEM ----------'
+      WRITE(6,'(A)') '======== SYSTEM =========='
       WRITE(6,'(A,I5)') '  NUMBER OF ELECTRONS : ' , NEL
       IF(TSPN) THEN
           WRITE(6,*) ' Restricting the spin state of the system, TSPN : ' , TSPN
@@ -1121,9 +1201,9 @@ MODULE System
              WRITE(6,*) ' Periodic Boundary Conditions:',TPBC
              WRITE(6,*) ' Real space basis:',TREAL
              IF(TTILT.AND.THUB) THEN
-                OMEGA=DFLOAT(NMAXX)*NMAXY*(ITILTX*ITILTX+ITILTY*ITILTY)
+                OMEGA=real(NMAXX,dp)*NMAXY*(ITILTX*ITILTX+ITILTY*ITILTY)
              ELSE
-                OMEGA=DFLOAT(NMAXX)*(NMAXY)*(NMAXZ)
+                OMEGA=real(NMAXX,dp)*(NMAXY)*(NMAXZ)
              ENDIF
              RS=1.D0
           ELSE
@@ -1326,9 +1406,11 @@ MODULE System
       IF(tFixLz) THEN
           WRITE(6,'(A)') "****** USING Lz SYMMETRY *******"
           WRITE(6,'(A,I5)') "Pure spherical harmonics with complex orbitals used to constrain Lz to: ",LzTot
-          WRITE(6,*) "Due to the breaking of the Ml degeneracy, the fock energies are slightly wrong, on order of 1.D-4 - do not use for MP2!"
+          WRITE(6,*) "Due to the breaking of the Ml degeneracy, the fock energies are slightly wrong, "&
+          &//"on order of 1.D-4 - do not use for MP2!"
           if(nsymlabels.gt.4) then
-              call stop_all(this_routine,"D2h point group detected. Incompatable with Lz symmetry conserving orbitals. Have you transformed these orbitals into spherical harmonics correctly?!")
+              call stop_all(this_routine,"D2h point group detected. Incompatable with Lz symmetry conserving "&
+              &//"orbitals. Have you transformed these orbitals into spherical harmonics correctly?!")
           endif
       ENDIF
 
@@ -1347,9 +1429,12 @@ MODULE System
           CALL DCOPY(NBASIS,ARR(1,1),1,ARR(1,2),1)
       ENDIF
 !      WRITE(6,*) THFNOORDER, " THFNOORDER"
-      CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
+      if(.not.tMolpro) then
+          !If we are calling from molpro, we write the basis later (after reordering)
+          CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
+      endif
       IF(NEL.GT.NBASIS) STOP 'MORE ELECTRONS THAN BASIS FUNCTIONS'
-      CALL FLUSH(6)
+      CALL neci_flush(6)
       IF(TREAL.AND.THUB) THEN
 !C.. we need to allow integrals between different spins
          NBASISMAX(2,3)=1
@@ -1368,11 +1453,11 @@ MODULE System
       ELSEIF(TCPMD) THEN
 !C.. If TCPMD, then we've generated the symmetry table earlier,
 !C.. but we still need the sym reps table.
-         CALL GENCPMDSYMREPS(G1,NBASIS,ARR,1.d-5)
+         CALL GENCPMDSYMREPS(G1,NBASIS,ARR,1.e-5_dp)
       ELSEIF(tVASP) THEN
 !C.. If VASP-based calculation, then we've generated the symmetry table earlier,
 !C.. but we still need the sym reps table. DEGENTOL=1.d-6. CHECK w/AJWT.
-         CALL GENSYMREPS(G1,NBASIS,ARR,1.d-6)
+         CALL GENSYMREPS(G1,NBASIS,ARR,1.e-6_dp)
       ELSEIF(THUB.AND..NOT.TREAL) THEN
          CALL GenHubMomIrrepsSymTable(G1,nBasis,nBasisMax)
          CALL GENHUBSYMREPS(NBASIS,ARR,BRR)
@@ -1389,7 +1474,7 @@ MODULE System
 
 !// TBR
 !      WRITE(6,*) ' ETRIAL : ',ETRIAL
-      IF(FCOUL.NE.1.D0)  WRITE(6,*) "WARNING: FCOUL is not 1.D0. FCOUL=",FCOUL
+!      IF(FCOUL.NE.1.D0)  WRITE(6,*) "WARNING: FCOUL is not 1.D0. FCOUL=",FCOUL
       IF(FCOULDAMPBETA.GT.0) WRITE(6,*) "FCOUL Damping.  Beta ",FCOULDAMPBETA," Mu ",FCOULDAMPMU
       call halt_timer(proc_timer)
     End Subroutine SysInit
@@ -1435,11 +1520,12 @@ SUBROUTINE WRITEBASIS(NUNIT,G1,NHG,ARR,BRR)
   use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, nel
   use DeterminantData, only: fdet
   use sym_mod, only: writesym
+  use constants, only: dp
   IMPLICIT NONE
   INTEGER NUNIT,NHG,BRR(NHG),I
   integer :: pos
   TYPE(BASISFN) G1(NHG)
-  REAL*8 ARR(NHG,2)
+  real(dp) ARR(NHG,2)
 
   ! nb. Cannot use EncodeBitDet as would be easy, as nifd, niftot etc are not
   !     filled in yet. --> track pos.
@@ -1453,10 +1539,11 @@ SUBROUTINE WRITEBASIS(NUNIT,G1,NHG,ARR,BRR)
       WRITE(NUNIT,'(I4)',advance='no') G1(BRR(I))%Ml
       WRITE(NUNIT,'(2F19.9)', advance='no')  ARR(I,1),ARR(BRR(I),2)
       if (associated(fdet)) then
-          do while (pos < nel .and. fdet(pos) < i)
+          pos=1
+          do while (pos < nel .and. fdet(pos) < brr(i))
               pos = pos + 1
           enddo
-          if (i == fdet(pos)) write (nunit, '(" #")', advance='no')
+          if (brr(i) == fdet(pos)) write (nunit, '(" #")', advance='no')
       endif
       write (nunit,*)
   ENDDO
@@ -1469,13 +1556,14 @@ SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
   use SystemData, only: BasisFN
   use sort_mod
   use util_mod, only: NECI_ICOPY
+  use constants, only: dp
   implicit none
   INTEGER NBASIS,BRR(NBASIS),ORBORDER(8,2),nBasisMax(5,*)
   INTEGER BRR2(NBASIS)
   TYPE(BASISFN) G1(NBASIS)
-  REAL*8 ARR(NBASIS,2),ARR2(NBASIS,2)
+  real(dp) ARR(NBASIS,2),ARR2(NBASIS,2)
   INTEGER IDONE,I,J,IBFN,ITOT,ITYPE,ISPIN
-  REAL*8 OEN
+  real(dp) OEN
   IDONE=0
   ITOT=0
 !.. copy the default ordered energies.
@@ -1517,7 +1605,7 @@ SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
         ENDIF
      ENDDO
      CALL NECI_ICOPY(NBASIS,BRR2,1,BRR,1)
-     CALL DCOPY(NBASIS,ARR2,1,ARR,1) 
+     CALL DCOPY(NBASIS,ARR2(1,1),1,ARR(1,1),1) 
   ENDIF
 ! beta sort
   call sort (arr(idone+1:nbasis,1), brr(idone+1:nbasis), nskip=2)
@@ -1558,82 +1646,14 @@ END subroutine ORDERBASIS
 
 
 
-LOGICAL FUNCTION KALLOWED(G,NBASISMAX)
-  ! See if a given G vector is within a (possibly tilted) unit cell.
-  ! Used to generate the basis functions for the hubbard model (or perhaps electrons in boxes)
-  IMPLICIT NONE
-  INTEGER G(5),nBasisMax(5,*),NMAXX,I,J,AX,AY
-  INTEGER KX,KY
-  REAL*8 MX,MY,XX,YY
-  LOGICAL TALLOW
-  TALLOW=.TRUE.
-  IF(NBASISMAX(3,3).EQ.1) THEN
-!.. spatial symmetries
-      IF(G(1).NE.0) TALLOW=.FALSE.
-  ELSEIF(NBASISMAX(3,3).EQ.0) THEN
-!.. Hubbard
-      IF(NBASISMAX(1,3).EQ.1) THEN
-!.. Tilted hubbard
-          NMAXX=NBASISMAX(1,5)
-!         NMAXY=
-          AX=NBASISMAX(1,4)
-          AY=NBASISMAX(2,4)
-!.. (XX,YY) is the position of the bottom right corner of the unit cell
-          XX=((AX+AY)/2.D0)*NMAXX
-          YY=((AY-AX)/2.D0)*NMAXX
-          MX=XX*AX+YY*AY
-          MY=XX*AY-YY*AX
-          I=G(1)
-          J=G(2)
-          KX=I*AX+J*AY
-          KY=I*AY-J*AX
-          IF(KX.GT.MX) TALLOW=.FALSE.
-          IF(KY.GT.MY) TALLOW=.FALSE.
-          IF(KX.LE.-MX) TALLOW=.FALSE.
-          IF(KY.LE.-MY) TALLOW=.FALSE.
-      ELSEIF(NBASISMAX(1,3).GE.4.OR.NBASISMAX(1,3).EQ.2) THEN
-!.. Real space Hubbard
-          IF(G(1).EQ.0.AND.G(2).EQ.0.AND.G(3).EQ.0) THEN
-             TALLOW=.TRUE.
-          ELSE
-              TALLOW=.FALSE.
-          ENDIF
-!      ELSEIF(NBASISMAX(1,3).EQ.2) THEN
-!.. mom space non-pbc non-tilt hub - parity sym
-!          IF(  (G(1).EQ.0.OR.G(1).EQ.1)
-!     &       .AND.(G(2).EQ.0.OR.G(2).EQ.1)
-!     &       .AND.(G(3).EQ.0.OR.G(3).EQ.1)) THEN
-!              TALLOW=.TRUE.
-!          ELSE
-!              TALLOW=.FALSE.
-!          ENDIF
-!      ELSEIF(NBASISMAX(1,3).EQ.2) THEN
-!.. non-pbc hubbard
-!          TALLOW=.TRUE.
-!          IF(G(1).GT.NBASISMAX(1,2).OR.G(1).LT.NBASISMAX(1,1))
-!     &       TALLOW=.FALSE.
-!          IF(G(2).GT.NBASISMAX(2,2).OR.G(2).LT.NBASISMAX(2,1))
-!     &       TALLOW=.FALSE.
-!          IF(G(3).GT.NBASISMAX(3,2).OR.G(3).LT.NBASISMAX(3,1))
-!     &       TALLOW=.FALSE.
-      ELSE
-!.. Normal Hubbard
-          TALLOW=.TRUE.
-          IF(G(1).GT.NBASISMAX(1,2).OR.G(1).LT.NBASISMAX(1,1)) TALLOW=.FALSE.
-          IF(G(2).GT.NBASISMAX(2,2).OR.G(2).LT.NBASISMAX(2,1)) TALLOW=.FALSE.
-          IF(G(3).GT.NBASISMAX(3,2).OR.G(3).LT.NBASISMAX(3,1)) TALLOW=.FALSE.
-      ENDIF
-  ENDIF         
-  KALLOWED=TALLOW
-  RETURN
-END FUNCTION KALLOWED
 
 !dUnscaledEnergy gives the energy without reference to box size and without any offset.
 SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,Energy,dUnscaledEnergy)
    use constants, only: Pi, Pi2, THIRD
+   use constants, only: dp
    IMPLICIT NONE
    INTEGER I,J,K
-   REAL*8 ALat(3),k_offset(3),Energy,E
+   real(dp) ALat(3),k_offset(3),Energy,E
    LOGICAL tUEGOffset, tUEGTrueEnergies
    INTEGER dUnscaledEnergy
    IF(tUEGTrueEnergies) then

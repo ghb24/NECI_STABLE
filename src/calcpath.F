@@ -23,6 +23,7 @@ C.. RHOII2 is constructed to contain the RHOII for each point in the path
          real(dp) RhoDiag_CPP, CalcPaths_2, CalcPaths_3,
      &      CalcPaths_4, CalcPaths_R
          INTEGER I_HIND
+         CHARACTER(*), PARAMETER :: t_r="CALCPATHS"
 
          proc_timer%timer_name='CALCPATHS '
          call set_timer(proc_timer,50)
@@ -32,14 +33,18 @@ C.. REMEMBER TO MODIFY CALCPATHS_N too!
 C.. we use a diagonalization version rather than contour etc.
 C.. subtracting out lower vertex paths at this level
 C            WRITE(6,*) "-----"
-            CALCPATHS=RHODIAG_CPP(RHOIJ,I_P,I_V,I_V+1,.TRUE.,
-     &         0.D0, DLWDB)
+                   call stop_all(t_r,"RhoDiag_CPP does not have right   &
+     &                   // number of arguments")
+!            CALCPATHS=RHODIAG_CPP(RHOIJ,I_P,I_V,I_V+1,.TRUE.,
+!     &         0.D0, DLWDB)
          ELSEIF(I_HMAX.EQ.-2.OR.I_HMAX.EQ.-6) THEN
 C.. we use a diagonalization version rather than contour etc.
 C.. we deal with removing lower vertex paths later
 C            WRITE(6,*) "-----"
-            CALCPATHS=RHODIAG_CPP(RHOIJ,I_P,I_V,I_V+1,.FALSE.,
-     &         0.D0, DLWDB)
+                   call stop_all(t_r,"RhoDiag_CPP does not have right   &
+     &                   // number of arguments")
+!            CALCPATHS=RHODIAG_CPP(RHOIJ,I_P,I_V,I_V+1,.FALSE.,
+!     &         0.D0, DLWDB)
          ELSEIF(I_HMAX.EQ.0) THEN
             WRITE(6,*) "I_HMAX=0"
             STOP 'WARNING: Running old disfunctional CALCPATHS I_HMAX=0'
@@ -84,13 +89,14 @@ C.. RHOII2 is constructed to contain the RHOII for each point in the path
 !         real(dp) RHOII2(0:i_hmax)
          real(dp) CALCPATHS
          HElement_t HIJS(1:I_V),RHOIJ(0:I_V,0:I_V)
-         REAL*8 WEIGHT
-         REAL*8 DBETA
+         real(dp) WEIGHT
+         real(dp) DBETA
          real(dp) DLWDB
          type(timer), save :: proc_timer
          real(dp) RhoDiag_CPP, CalcPaths_2, CalcPaths_3,
      &      CalcPaths_4, HDiag_CPP
          real(dp) RhoDiag_CPPS2VS,HDiag_CPPS2VS
+         character(*), parameter :: t_r="CALCPATHS_N"
          proc_timer%timer_name='CALCPATHS '
          call set_timer(proc_timer,50)
 C.. If we're using the contour integral trick to sum all possible graphs with the given vertices
@@ -114,10 +120,12 @@ C.. RHOIJ elements.  We send beta in from RHOII(1)
                endif
             ELSE
                if(calcp_sub2vstar) then
-                  CALCPATHS=RHODIAG_CPP(RHOIJ,I_P,I_V,I_V+1,
-     &            .FALSE.,DBETA,DLWDB,HIJS)
-               CALCPATHS=CALCPATHS+RHODIAG_CPPS2VS(RHOIJ,I_P,I_V,
-     &            DBETA,DLWDB,HIJS)
+                   call stop_all(t_r,"RhoDiag_CPP does not have right   &
+     &                   // number of arguments")
+!                  CALCPATHS=RHODIAG_CPP(RHOIJ,I_P,I_V,I_V+1,
+!     &            .FALSE.,DBETA,DLWDB,HIJS)
+!               CALCPATHS=CALCPATHS+RHODIAG_CPPS2VS(RHOIJ,I_P,I_V,
+!     &            DBETA,DLWDB,HIJS)
                else
                   CALCPATHS=RHODIAG_CPP(RHOIJ,I_P,I_V,I_V+1,
      &            .TRUE.,DBETA,DLWDB,HIJS,calcp_logweight)
@@ -159,12 +167,13 @@ C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
          RETURN
       END
       SUBROUTINE CLASSPATHS(RHOC,HC,WEIGHT,RHOIJ,I_V,ICLASS)
-         use constants, only: dp
+         use constants, only: dp,sizeof_int
          use legacy_data, only: CALCP_N, CALCP_NT, CALCP_SUM, CALCP_HSUM
          IMPLICIT NONE
+         INTEGER I_V
          HElement_t RHOIJ(0:I_V,0:I_V)
-         REAL*8 RHOC,HC,WEIGHT
-         INTEGER I_V,ILG,ISGN,ICLASS
+         real(dp) RHOC,HC,WEIGHT
+         INTEGER ILG,ISGN,ICLASS
          INTEGER INCR
 C.. allow for subtractions
          IF(I_V.GT.5) RETURN
@@ -174,7 +183,7 @@ C.. allow for subtractions
      &      CALL CLASSPATH(RHOIJ,I_V,ICLASS)
 C            WRITE(56,*) ICLASS,RHOC
 C            WRITE(32,*) I_V,ICLASS,RHOC
-            ILG=LOG(ABS(RHOC))/LOG(10.D0)
+            ILG=int(LOG(ABS(RHOC))/LOG(10.D0),sizeof_int)
             IF(ILG.GE.0) THEN
                ILG=1
             ELSEIF(ILG.LT.-15) THEN
@@ -199,13 +208,14 @@ C            WRITE(32,*) I_V,ICLASS,RHOC
             CALCP_HSUM(ICLASS)=CALCP_HSUM(ICLASS)+HC
       END
       SUBROUTINE CLASSPATH(RHOIJ,N,ICLASS)
+        use constants, only: dp,int64
          INTEGER I,J,N,ICLASS
-         REAL*8 RHOIJ(0:N,0:N)
+         HElement_t RHOIJ(0:N,0:N)
          ICLASS=0
          DO I=0,N-1
             DO J=I+1,N-1
                ICLASS=ICLASS*2
-               IF(RHOIJ(I,J).NE.0.D0) THEN
+               IF(abs(RHOIJ(I,J)).NE.0.D0) THEN
                   ICLASS=ICLASS+1
                ENDIF
             ENDDO
@@ -213,7 +223,7 @@ C            WRITE(32,*) I_V,ICLASS,RHOC
       END
 
       SUBROUTINE WRITECLASSPATHS()
-         USE Parallel , only : iProcIndex
+         USE Parallel_neci , only : iProcIndex
          use legacy_data, only: CALCP_N, CALCP_NT, CALCP_SUM, CALCP_HSUM
          INTEGER I,J
          IF(iProcIndex.eq.0) THEN

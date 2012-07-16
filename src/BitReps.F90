@@ -34,80 +34,88 @@ module bit_reps
 !        module procedure decode_bit_det_bitwise
         module procedure decode_bit_det_chunks
     end interface
+        
+    integer, parameter :: l1(1:33)=(/0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,1,2,0,0,0,0,0,0,0,2,1,2,0,0,0/)
+    integer, parameter :: l2(1:33)=(/0,0,0,1,3,0,0,0,0,0,0,0,2,1,3,0,0,0,0,0,0,2,2,3,0,0,0,0,0,0,3,1,2/)
+    integer, parameter :: l3(1:33)=(/3,0,0,0,0,0,1,4,0,0,0,0,0,0,0,2,1,4,0,0,0,0,0,0,2,2,4,0,0,0,0,0,0/)
+    integer, parameter :: l4(1:33)=(/3,1,2,4,0,0,0,0,0,2,3,4,0,0,0,0,0,0,3,1,3,4,0,0,0,0,0,3,2,3,4,0,0/)
+    integer, parameter :: l5(1:33)=(/0,0,0,4,1,2,3,4,0,0,0,0,1,5,0,0,0,0,0,0,0,2,1,5,0,0,0,0,0,0,2,2,5/)
+    integer, parameter :: l6(1:33)=(/0,0,0,0,0,0,3,1,2,5,0,0,0,0,0,2,3,5,0,0,0,0,0,0,3,1,3,5,0,0,0,0,0/)
+    integer, parameter :: l7(1:33)=(/3,2,3,5,0,0,0,0,0,4,1,2,3,5,0,0,0,0,2,4,5,0,0,0,0,0,0,3,1,4,5,0,0/)
+    integer, parameter :: l8(1:33)=(/0,0,0,3,2,4,5,0,0,0,0,0,4,1,2,4,5,0,0,0,0,3,3,4,5,0,0,0,0,0,4,1,3/)
+    integer, parameter :: l9(1:33)=(/4,5,0,0,0,0,4,2,3,4,5,0,0,0,0,5,1,2,3,4,5,0,0,0,1,6,0,0,0,0,0,0,0/)
+    integer, parameter :: l10(1:33)=(/2,1,6,0,0,0,0,0,0,2,2,6,0,0,0,0,0,0,3,1,2,6,0,0,0,0,0,2,3,6,0,0,0/)
+    integer, parameter :: l11(1:33)=(/0,0,0,3,1,3,6,0,0,0,0,0,3,2,3,6,0,0,0,0,0,4,1,2,3,6,0,0,0,0,2,4,6/)
+    integer, parameter :: l12(1:33)=(/0,0,0,0,0,0,3,1,4,6,0,0,0,0,0,3,2,4,6,0,0,0,0,0,4,1,2,4,6,0,0,0,0/)
+    integer, parameter :: l13(1:33)=(/3,3,4,6,0,0,0,0,0,4,1,3,4,6,0,0,0,0,4,2,3,4,6,0,0,0,0,5,1,2,3,4,6/)
+    integer, parameter :: l14(1:33)=(/0,0,0,2,5,6,0,0,0,0,0,0,3,1,5,6,0,0,0,0,0,3,2,5,6,0,0,0,0,0,4,1,2/)
+    integer, parameter :: l15(1:33)=(/5,6,0,0,0,0,3,3,5,6,0,0,0,0,0,4,1,3,5,6,0,0,0,0,4,2,3,5,6,0,0,0,0/)
+    integer, parameter :: l16(1:33)=(/5,1,2,3,5,6,0,0,0,3,4,5,6,0,0,0,0,0,4,1,4,5,6,0,0,0,0,4,2,4,5,6,0/)
+    integer, parameter :: l17(1:33)=(/0,0,0,5,1,2,4,5,6,0,0,0,4,3,4,5,6,0,0,0,0,5,1,3,4,5,6,0,0,0,5,2,3/)
+    integer, parameter :: l18(1:33)=(/4,5,6,0,0,0,6,1,2,3,4,5,6,0,0,1,7,0,0,0,0,0,0,0,2,1,7,0,0,0,0,0,0/)
+    integer, parameter :: l19(1:33)=(/2,2,7,0,0,0,0,0,0,3,1,2,7,0,0,0,0,0,2,3,7,0,0,0,0,0,0,3,1,3,7,0,0/)
+    integer, parameter :: l20(1:33)=(/0,0,0,3,2,3,7,0,0,0,0,0,4,1,2,3,7,0,0,0,0,2,4,7,0,0,0,0,0,0,3,1,4/)
+    integer, parameter :: l21(1:33)=(/7,0,0,0,0,0,3,2,4,7,0,0,0,0,0,4,1,2,4,7,0,0,0,0,3,3,4,7,0,0,0,0,0/)
+    integer, parameter :: l22(1:33)=(/4,1,3,4,7,0,0,0,0,4,2,3,4,7,0,0,0,0,5,1,2,3,4,7,0,0,0,2,5,7,0,0,0/)
+    integer, parameter :: l23(1:33)=(/0,0,0,3,1,5,7,0,0,0,0,0,3,2,5,7,0,0,0,0,0,4,1,2,5,7,0,0,0,0,3,3,5/)
+    integer, parameter :: l24(1:33)=(/7,0,0,0,0,0,4,1,3,5,7,0,0,0,0,4,2,3,5,7,0,0,0,0,5,1,2,3,5,7,0,0,0/)
+    integer, parameter :: l25(1:33)=(/3,4,5,7,0,0,0,0,0,4,1,4,5,7,0,0,0,0,4,2,4,5,7,0,0,0,0,5,1,2,4,5,7/)
+    integer, parameter :: l26(1:33)=(/0,0,0,4,3,4,5,7,0,0,0,0,5,1,3,4,5,7,0,0,0,5,2,3,4,5,7,0,0,0,6,1,2/)
+    integer, parameter :: l27(1:33)=(/3,4,5,7,0,0,2,6,7,0,0,0,0,0,0,3,1,6,7,0,0,0,0,0,3,2,6,7,0,0,0,0,0/)
+    integer, parameter :: l28(1:33)=(/4,1,2,6,7,0,0,0,0,3,3,6,7,0,0,0,0,0,4,1,3,6,7,0,0,0,0,4,2,3,6,7,0/)
+    integer, parameter :: l29(1:33)=(/0,0,0,5,1,2,3,6,7,0,0,0,3,4,6,7,0,0,0,0,0,4,1,4,6,7,0,0,0,0,4,2,4/)
+    integer, parameter :: l30(1:33)=(/6,7,0,0,0,0,5,1,2,4,6,7,0,0,0,4,3,4,6,7,0,0,0,0,5,1,3,4,6,7,0,0,0/)
+    integer, parameter :: l31(1:33)=(/5,2,3,4,6,7,0,0,0,6,1,2,3,4,6,7,0,0,3,5,6,7,0,0,0,0,0,4,1,5,6,7,0/)
+    integer, parameter :: l32(1:33)=(/0,0,0,4,2,5,6,7,0,0,0,0,5,1,2,5,6,7,0,0,0,4,3,5,6,7,0,0,0,0,5,1,3/)
+    integer, parameter :: l33(1:33)=(/5,6,7,0,0,0,5,2,3,5,6,7,0,0,0,6,1,2,3,5,6,7,0,0,4,4,5,6,7,0,0,0,0/)
+    integer, parameter :: l34(1:33)=(/5,1,4,5,6,7,0,0,0,5,2,4,5,6,7,0,0,0,6,1,2,4,5,6,7,0,0,5,3,4,5,6,7/)
+    integer, parameter :: l35(1:33)=(/0,0,0,6,1,3,4,5,6,7,0,0,6,2,3,4,5,6,7,0,0,7,1,2,3,4,5,6,7,0,1,8,0/)
+    integer, parameter :: l36(1:33)=(/0,0,0,0,0,0,2,1,8,0,0,0,0,0,0,2,2,8,0,0,0,0,0,0,3,1,2,8,0,0,0,0,0/)
+    integer, parameter :: l37(1:33)=(/2,3,8,0,0,0,0,0,0,3,1,3,8,0,0,0,0,0,3,2,3,8,0,0,0,0,0,4,1,2,3,8,0/)
+    integer, parameter :: l38(1:33)=(/0,0,0,2,4,8,0,0,0,0,0,0,3,1,4,8,0,0,0,0,0,3,2,4,8,0,0,0,0,0,4,1,2/)
+    integer, parameter :: l39(1:33)=(/4,8,0,0,0,0,3,3,4,8,0,0,0,0,0,4,1,3,4,8,0,0,0,0,4,2,3,4,8,0,0,0,0/)
+    integer, parameter :: l40(1:33)=(/5,1,2,3,4,8,0,0,0,2,5,8,0,0,0,0,0,0,3,1,5,8,0,0,0,0,0,3,2,5,8,0,0/)
+    integer, parameter :: l41(1:33)=(/0,0,0,4,1,2,5,8,0,0,0,0,3,3,5,8,0,0,0,0,0,4,1,3,5,8,0,0,0,0,4,2,3/)
+    integer, parameter :: l42(1:33)=(/5,8,0,0,0,0,5,1,2,3,5,8,0,0,0,3,4,5,8,0,0,0,0,0,4,1,4,5,8,0,0,0,0/)
+    integer, parameter :: l43(1:33)=(/4,2,4,5,8,0,0,0,0,5,1,2,4,5,8,0,0,0,4,3,4,5,8,0,0,0,0,5,1,3,4,5,8/)
+    integer, parameter :: l44(1:33)=(/0,0,0,5,2,3,4,5,8,0,0,0,6,1,2,3,4,5,8,0,0,2,6,8,0,0,0,0,0,0,3,1,6/)
+    integer, parameter :: l45(1:33)=(/8,0,0,0,0,0,3,2,6,8,0,0,0,0,0,4,1,2,6,8,0,0,0,0,3,3,6,8,0,0,0,0,0/)
+    integer, parameter :: l46(1:33)=(/4,1,3,6,8,0,0,0,0,4,2,3,6,8,0,0,0,0,5,1,2,3,6,8,0,0,0,3,4,6,8,0,0/)
+    integer, parameter :: l47(1:33)=(/0,0,0,4,1,4,6,8,0,0,0,0,4,2,4,6,8,0,0,0,0,5,1,2,4,6,8,0,0,0,4,3,4/)
+    integer, parameter :: l48(1:33)=(/6,8,0,0,0,0,5,1,3,4,6,8,0,0,0,5,2,3,4,6,8,0,0,0,6,1,2,3,4,6,8,0,0/)
+    integer, parameter :: l49(1:33)=(/3,5,6,8,0,0,0,0,0,4,1,5,6,8,0,0,0,0,4,2,5,6,8,0,0,0,0,5,1,2,5,6,8/)
+    integer, parameter :: l50(1:33)=(/0,0,0,4,3,5,6,8,0,0,0,0,5,1,3,5,6,8,0,0,0,5,2,3,5,6,8,0,0,0,6,1,2/)
+    integer, parameter :: l51(1:33)=(/3,5,6,8,0,0,4,4,5,6,8,0,0,0,0,5,1,4,5,6,8,0,0,0,5,2,4,5,6,8,0,0,0/)
+    integer, parameter :: l52(1:33)=(/6,1,2,4,5,6,8,0,0,5,3,4,5,6,8,0,0,0,6,1,3,4,5,6,8,0,0,6,2,3,4,5,6/)
+    integer, parameter :: l53(1:33)=(/8,0,0,7,1,2,3,4,5,6,8,0,2,7,8,0,0,0,0,0,0,3,1,7,8,0,0,0,0,0,3,2,7/)
+    integer, parameter :: l54(1:33)=(/8,0,0,0,0,0,4,1,2,7,8,0,0,0,0,3,3,7,8,0,0,0,0,0,4,1,3,7,8,0,0,0,0/)
+    integer, parameter :: l55(1:33)=(/4,2,3,7,8,0,0,0,0,5,1,2,3,7,8,0,0,0,3,4,7,8,0,0,0,0,0,4,1,4,7,8,0/)
+    integer, parameter :: l56(1:33)=(/0,0,0,4,2,4,7,8,0,0,0,0,5,1,2,4,7,8,0,0,0,4,3,4,7,8,0,0,0,0,5,1,3/)
+    integer, parameter :: l57(1:33)=(/4,7,8,0,0,0,5,2,3,4,7,8,0,0,0,6,1,2,3,4,7,8,0,0,3,5,7,8,0,0,0,0,0/)
+    integer, parameter :: l58(1:33)=(/4,1,5,7,8,0,0,0,0,4,2,5,7,8,0,0,0,0,5,1,2,5,7,8,0,0,0,4,3,5,7,8,0/)
+    integer, parameter :: l59(1:33)=(/0,0,0,5,1,3,5,7,8,0,0,0,5,2,3,5,7,8,0,0,0,6,1,2,3,5,7,8,0,0,4,4,5/)
+    integer, parameter :: l60(1:33)=(/7,8,0,0,0,0,5,1,4,5,7,8,0,0,0,5,2,4,5,7,8,0,0,0,6,1,2,4,5,7,8,0,0/)
+    integer, parameter :: l61(1:33)=(/5,3,4,5,7,8,0,0,0,6,1,3,4,5,7,8,0,0,6,2,3,4,5,7,8,0,0,7,1,2,3,4,5/)
+    integer, parameter :: l62(1:33)=(/7,8,0,3,6,7,8,0,0,0,0,0,4,1,6,7,8,0,0,0,0,4,2,6,7,8,0,0,0,0,5,1,2/)
+    integer, parameter :: l63(1:33)=(/6,7,8,0,0,0,4,3,6,7,8,0,0,0,0,5,1,3,6,7,8,0,0,0,5,2,3,6,7,8,0,0,0/)
+    integer, parameter :: l64(1:33)=(/6,1,2,3,6,7,8,0,0,4,4,6,7,8,0,0,0,0,5,1,4,6,7,8,0,0,0,5,2,4,6,7,8/)
+    integer, parameter :: l65(1:33)=(/0,0,0,6,1,2,4,6,7,8,0,0,5,3,4,6,7,8,0,0,0,6,1,3,4,6,7,8,0,0,6,2,3/)
+    integer, parameter :: l66(1:33)=(/4,6,7,8,0,0,7,1,2,3,4,6,7,8,0,4,5,6,7,8,0,0,0,0,5,1,5,6,7,8,0,0,0/)
+    integer, parameter :: l67(1:33)=(/5,2,5,6,7,8,0,0,0,6,1,2,5,6,7,8,0,0,5,3,5,6,7,8,0,0,0,6,1,3,5,6,7/)
+    integer, parameter :: l68(1:33)=(/8,0,0,6,2,3,5,6,7,8,0,0,7,1,2,3,5,6,7,8,0,5,4,5,6,7,8,0,0,0,6,1,4/)
+    integer, parameter :: l69(1:33)=(/5,6,7,8,0,0,6,2,4,5,6,7,8,0,0,7,1,2,4,5,6,7,8,0,6,3,4,5,6,7,8,0,0/)
+    integer, parameter :: l70(1:27)=(/7,1,3,4,5,6,7,8,0,7,2,3,4,5,6,7,8,0,8,1,2,3,4,5,6,7,8/)
 
     ! Some (rather nasty) data for the chunkwise decoding
     integer, parameter :: decode_map_arr(0:8,0:255) = reshape(&
-        (/0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,1,2,0,0,0,0,0,0,0,2,1,2,0,0,0,&
-        0,0,0,1,3,0,0,0,0,0,0,0,2,1,3,0,0,0,0,0,0,2,2,3,0,0,0,0,0,0,3,1,2,&
-        3,0,0,0,0,0,1,4,0,0,0,0,0,0,0,2,1,4,0,0,0,0,0,0,2,2,4,0,0,0,0,0,0,&
-        3,1,2,4,0,0,0,0,0,2,3,4,0,0,0,0,0,0,3,1,3,4,0,0,0,0,0,3,2,3,4,0,0,&
-        0,0,0,4,1,2,3,4,0,0,0,0,1,5,0,0,0,0,0,0,0,2,1,5,0,0,0,0,0,0,2,2,5,&
-        0,0,0,0,0,0,3,1,2,5,0,0,0,0,0,2,3,5,0,0,0,0,0,0,3,1,3,5,0,0,0,0,0,&
-        3,2,3,5,0,0,0,0,0,4,1,2,3,5,0,0,0,0,2,4,5,0,0,0,0,0,0,3,1,4,5,0,0,&
-        0,0,0,3,2,4,5,0,0,0,0,0,4,1,2,4,5,0,0,0,0,3,3,4,5,0,0,0,0,0,4,1,3,&
-        4,5,0,0,0,0,4,2,3,4,5,0,0,0,0,5,1,2,3,4,5,0,0,0,1,6,0,0,0,0,0,0,0,&
-        2,1,6,0,0,0,0,0,0,2,2,6,0,0,0,0,0,0,3,1,2,6,0,0,0,0,0,2,3,6,0,0,0,&
-        0,0,0,3,1,3,6,0,0,0,0,0,3,2,3,6,0,0,0,0,0,4,1,2,3,6,0,0,0,0,2,4,6,&
-        0,0,0,0,0,0,3,1,4,6,0,0,0,0,0,3,2,4,6,0,0,0,0,0,4,1,2,4,6,0,0,0,0,&
-        3,3,4,6,0,0,0,0,0,4,1,3,4,6,0,0,0,0,4,2,3,4,6,0,0,0,0,5,1,2,3,4,6,&
-        0,0,0,2,5,6,0,0,0,0,0,0,3,1,5,6,0,0,0,0,0,3,2,5,6,0,0,0,0,0,4,1,2,&
-        5,6,0,0,0,0,3,3,5,6,0,0,0,0,0,4,1,3,5,6,0,0,0,0,4,2,3,5,6,0,0,0,0,&
-        5,1,2,3,5,6,0,0,0,3,4,5,6,0,0,0,0,0,4,1,4,5,6,0,0,0,0,4,2,4,5,6,0,&
-        0,0,0,5,1,2,4,5,6,0,0,0,4,3,4,5,6,0,0,0,0,5,1,3,4,5,6,0,0,0,5,2,3,&
-        4,5,6,0,0,0,6,1,2,3,4,5,6,0,0,1,7,0,0,0,0,0,0,0,2,1,7,0,0,0,0,0,0,&
-        2,2,7,0,0,0,0,0,0,3,1,2,7,0,0,0,0,0,2,3,7,0,0,0,0,0,0,3,1,3,7,0,0,&
-        0,0,0,3,2,3,7,0,0,0,0,0,4,1,2,3,7,0,0,0,0,2,4,7,0,0,0,0,0,0,3,1,4,&
-        7,0,0,0,0,0,3,2,4,7,0,0,0,0,0,4,1,2,4,7,0,0,0,0,3,3,4,7,0,0,0,0,0,&
-        4,1,3,4,7,0,0,0,0,4,2,3,4,7,0,0,0,0,5,1,2,3,4,7,0,0,0,2,5,7,0,0,0,&
-        0,0,0,3,1,5,7,0,0,0,0,0,3,2,5,7,0,0,0,0,0,4,1,2,5,7,0,0,0,0,3,3,5,&
-        7,0,0,0,0,0,4,1,3,5,7,0,0,0,0,4,2,3,5,7,0,0,0,0,5,1,2,3,5,7,0,0,0,&
-        3,4,5,7,0,0,0,0,0,4,1,4,5,7,0,0,0,0,4,2,4,5,7,0,0,0,0,5,1,2,4,5,7,&
-        0,0,0,4,3,4,5,7,0,0,0,0,5,1,3,4,5,7,0,0,0,5,2,3,4,5,7,0,0,0,6,1,2,&
-        3,4,5,7,0,0,2,6,7,0,0,0,0,0,0,3,1,6,7,0,0,0,0,0,3,2,6,7,0,0,0,0,0,&
-        4,1,2,6,7,0,0,0,0,3,3,6,7,0,0,0,0,0,4,1,3,6,7,0,0,0,0,4,2,3,6,7,0,&
-        0,0,0,5,1,2,3,6,7,0,0,0,3,4,6,7,0,0,0,0,0,4,1,4,6,7,0,0,0,0,4,2,4,&
-        6,7,0,0,0,0,5,1,2,4,6,7,0,0,0,4,3,4,6,7,0,0,0,0,5,1,3,4,6,7,0,0,0,&
-        5,2,3,4,6,7,0,0,0,6,1,2,3,4,6,7,0,0,3,5,6,7,0,0,0,0,0,4,1,5,6,7,0,&
-        0,0,0,4,2,5,6,7,0,0,0,0,5,1,2,5,6,7,0,0,0,4,3,5,6,7,0,0,0,0,5,1,3,&
-        5,6,7,0,0,0,5,2,3,5,6,7,0,0,0,6,1,2,3,5,6,7,0,0,4,4,5,6,7,0,0,0,0,&
-        5,1,4,5,6,7,0,0,0,5,2,4,5,6,7,0,0,0,6,1,2,4,5,6,7,0,0,5,3,4,5,6,7,&
-        0,0,0,6,1,3,4,5,6,7,0,0,6,2,3,4,5,6,7,0,0,7,1,2,3,4,5,6,7,0,1,8,0,&
-        0,0,0,0,0,0,2,1,8,0,0,0,0,0,0,2,2,8,0,0,0,0,0,0,3,1,2,8,0,0,0,0,0,&
-        2,3,8,0,0,0,0,0,0,3,1,3,8,0,0,0,0,0,3,2,3,8,0,0,0,0,0,4,1,2,3,8,0,&
-        0,0,0,2,4,8,0,0,0,0,0,0,3,1,4,8,0,0,0,0,0,3,2,4,8,0,0,0,0,0,4,1,2,&
-        4,8,0,0,0,0,3,3,4,8,0,0,0,0,0,4,1,3,4,8,0,0,0,0,4,2,3,4,8,0,0,0,0,&
-        5,1,2,3,4,8,0,0,0,2,5,8,0,0,0,0,0,0,3,1,5,8,0,0,0,0,0,3,2,5,8,0,0,&
-        0,0,0,4,1,2,5,8,0,0,0,0,3,3,5,8,0,0,0,0,0,4,1,3,5,8,0,0,0,0,4,2,3,&
-        5,8,0,0,0,0,5,1,2,3,5,8,0,0,0,3,4,5,8,0,0,0,0,0,4,1,4,5,8,0,0,0,0,&
-        4,2,4,5,8,0,0,0,0,5,1,2,4,5,8,0,0,0,4,3,4,5,8,0,0,0,0,5,1,3,4,5,8,&
-        0,0,0,5,2,3,4,5,8,0,0,0,6,1,2,3,4,5,8,0,0,2,6,8,0,0,0,0,0,0,3,1,6,&
-        8,0,0,0,0,0,3,2,6,8,0,0,0,0,0,4,1,2,6,8,0,0,0,0,3,3,6,8,0,0,0,0,0,&
-        4,1,3,6,8,0,0,0,0,4,2,3,6,8,0,0,0,0,5,1,2,3,6,8,0,0,0,3,4,6,8,0,0,&
-        0,0,0,4,1,4,6,8,0,0,0,0,4,2,4,6,8,0,0,0,0,5,1,2,4,6,8,0,0,0,4,3,4,&
-        6,8,0,0,0,0,5,1,3,4,6,8,0,0,0,5,2,3,4,6,8,0,0,0,6,1,2,3,4,6,8,0,0,&
-        3,5,6,8,0,0,0,0,0,4,1,5,6,8,0,0,0,0,4,2,5,6,8,0,0,0,0,5,1,2,5,6,8,&
-        0,0,0,4,3,5,6,8,0,0,0,0,5,1,3,5,6,8,0,0,0,5,2,3,5,6,8,0,0,0,6,1,2,&
-        3,5,6,8,0,0,4,4,5,6,8,0,0,0,0,5,1,4,5,6,8,0,0,0,5,2,4,5,6,8,0,0,0,&
-        6,1,2,4,5,6,8,0,0,5,3,4,5,6,8,0,0,0,6,1,3,4,5,6,8,0,0,6,2,3,4,5,6,&
-        8,0,0,7,1,2,3,4,5,6,8,0,2,7,8,0,0,0,0,0,0,3,1,7,8,0,0,0,0,0,3,2,7,&
-        8,0,0,0,0,0,4,1,2,7,8,0,0,0,0,3,3,7,8,0,0,0,0,0,4,1,3,7,8,0,0,0,0,&
-        4,2,3,7,8,0,0,0,0,5,1,2,3,7,8,0,0,0,3,4,7,8,0,0,0,0,0,4,1,4,7,8,0,&
-        0,0,0,4,2,4,7,8,0,0,0,0,5,1,2,4,7,8,0,0,0,4,3,4,7,8,0,0,0,0,5,1,3,&
-        4,7,8,0,0,0,5,2,3,4,7,8,0,0,0,6,1,2,3,4,7,8,0,0,3,5,7,8,0,0,0,0,0,&
-        4,1,5,7,8,0,0,0,0,4,2,5,7,8,0,0,0,0,5,1,2,5,7,8,0,0,0,4,3,5,7,8,0,&
-        0,0,0,5,1,3,5,7,8,0,0,0,5,2,3,5,7,8,0,0,0,6,1,2,3,5,7,8,0,0,4,4,5,&
-        7,8,0,0,0,0,5,1,4,5,7,8,0,0,0,5,2,4,5,7,8,0,0,0,6,1,2,4,5,7,8,0,0,&
-        5,3,4,5,7,8,0,0,0,6,1,3,4,5,7,8,0,0,6,2,3,4,5,7,8,0,0,7,1,2,3,4,5,&
-        7,8,0,3,6,7,8,0,0,0,0,0,4,1,6,7,8,0,0,0,0,4,2,6,7,8,0,0,0,0,5,1,2,&
-        6,7,8,0,0,0,4,3,6,7,8,0,0,0,0,5,1,3,6,7,8,0,0,0,5,2,3,6,7,8,0,0,0,&
-        6,1,2,3,6,7,8,0,0,4,4,6,7,8,0,0,0,0,5,1,4,6,7,8,0,0,0,5,2,4,6,7,8,&
-        0,0,0,6,1,2,4,6,7,8,0,0,5,3,4,6,7,8,0,0,0,6,1,3,4,6,7,8,0,0,6,2,3,&
-        4,6,7,8,0,0,7,1,2,3,4,6,7,8,0,4,5,6,7,8,0,0,0,0,5,1,5,6,7,8,0,0,0,&
-        5,2,5,6,7,8,0,0,0,6,1,2,5,6,7,8,0,0,5,3,5,6,7,8,0,0,0,6,1,3,5,6,7,&
-        8,0,0,6,2,3,5,6,7,8,0,0,7,1,2,3,5,6,7,8,0,5,4,5,6,7,8,0,0,0,6,1,4,&
-        5,6,7,8,0,0,6,2,4,5,6,7,8,0,0,7,1,2,4,5,6,7,8,0,6,3,4,5,6,7,8,0,0,&
-        7,1,3,4,5,6,7,8,0,7,2,3,4,5,6,7,8,0,8,1,2,3,4,5,6,7,8/),&
-        (/9,256/) )
+        (/l1,l2,l3,l4,l5,l6,l7,l8,l9,l10,l11,l12,l13,l14,l15,l16,l17,l18,l19,l20,&
+        l21,l22,l23,l24,l25,l26,l27,l28,l29,l30,l31,l32,l33,l34,l35,l36,l37,l38,l39,l40,&
+        l41,l42,l43,l44,l45,l46,l47,l48,l49,l50,l51,l52,l53,l54,l55,l56,l57,l58,l59,l60,&
+        l61,l62,l63,l64,l65,l66,l67,l68,l69,l70/),(/9,256/) )
+
+    private :: l1,l2,l3,l4,l5,l6,l7,l8,l9,l10,l11,l12,l13,l14,l15,l16,l17,l18,l19,l20,l21,l22,l23,l24,l25,l26
+    private :: l27,l28,l29,l30,l31,l32,l33,l34,l35,l36,l37,l38,l39,l40,l41,l42,l43,l44,l45,l46,l47,l48,l49,l50
+    private :: l51,l52,l53,l54,l55,l56,l57,l58,l59,l60,l61,l62,l63,l64,l65,l66,l67,l68,l69,l70
 
 contains
 
@@ -183,8 +191,8 @@ contains
         ! The total number of bits_n_int-bit integers used - 1
         NIfTot = NIfD + NIfY + NIfSgn + NIfFlag
 
-        WRITE(6,*) "Setting integer length of determinants as bit-strings to: ", NIfTot + 1
-        WRITE(6,*) "Setting integer bit-length of determinants as bit-strings to: ", bits_n_int
+        WRITE(6,"(A,I6)") "Setting integer length of determinants as bit-strings to: ", NIfTot + 1
+        WRITE(6,"(A,I6)") "Setting integer bit-length of determinants as bit-strings to: ", bits_n_int
          
     end subroutine
 
@@ -242,7 +250,7 @@ contains
     end function
 
     subroutine encode_bit_rep (ilut, Det, sgn, flag)
-        integer(n_int), intent(inout) :: ilut(0:nIfTot)
+        integer(n_int), intent(out) :: ilut(0:nIfTot)
         integer, dimension(lenof_sign), intent(in) :: sgn
         integer(n_int), intent(in) :: Det(0:NIfDBO)
         integer, intent(in) :: flag
@@ -250,7 +258,7 @@ contains
         iLut(0:NIfDBO) = Det
         iLut(NOffSgn:NOffSgn+NIfSgn-1) = sgn
         IF(NIfFlag.eq.1) THEN
-            iLut(NOffFlag) = flag
+            iLut(NOffFlag) = int(flag,n_int)
         ENDIF
 
     end subroutine encode_bit_rep
@@ -529,16 +537,17 @@ contains
             offset = 0
             do i = 0, NIfD
                 do j = 0, bits_n_int - 1, 8
-                    val = iand(ishft(ilut(i), -j), Z'FF')
+!                    val = iand(ishft(ilut(i), -j), Z'FF')
+                    val = iand(ishft(ilut(i), -j), int(255,n_int))
                     do k = 1, decode_map_arr(0, val)
                         elec = elec + 1
                         nI(elec) = offset + decode_map_arr(k, val)
-                        if (elec == nel) exit
+                        if (elec == nel) return ! exit
                     enddo
-                    if (elec == nel) exit
+!                    if (elec == nel) exit
                     offset = offset + 8
                 enddo
-                if (elec == nel) exit
+!                if (elec == nel) exit
             enddo
 
         endif
@@ -625,5 +634,107 @@ contains
             enddo
         endif
     end subroutine decode_bit_det_bitwise
+
+
+!    subroutine init_excitations()
+!        ! Allocate and initialise data in excit_mask.
+!        use basis, only: bit_lookup, nbasis, basis_length
+!        integer :: ibasis, jbasis, pos, el, ierr
+!
+!        allocate(excit_mask(basis_length, nbasis), stat=ierr)
+!        excit_mask = 0
+!
+!        do ibasis = 1, nbasis
+!            ! Set bits corresponding to all orbitals above ibasis.
+!            ! Sure, there are quicker ways of doing this, but it's a one-off
+!            do jbasis = ibasis+1, nbasis
+!                pos = bit_lookup(1, jbasis)
+!                el = bit_lookup(2, jbasis)
+!                excit_mask(el, ibasis) = ibset(excit_mask(el, ibasis), pos)
+!            end do
+!        end do
+!
+!    end subroutine init_excitations
+!
+!    !This is a JSS routine for calculation a permutation from a double excitation
+!    pure subroutine find_excitation_permutation2(f, excitation)
+!        ! Find the parity of the permutation required to maximally line up
+!        ! a determinant with an excitation of it, as needed for use with the
+!        ! Slater--Condon rules.
+!        !
+!        ! This version is for double excitations of a determinant.
+!        !
+!        ! In:
+!        !    f: bit string representation of the determinant.
+!        !    excitation: excit type specifying how the excited determinant is
+!        !        connected to the determinant described by f.
+!        !        Note that we require the lists of orbitals excited from/into
+!        !        to be ordered.
+!        ! Out:
+!        !    excitation: excit type with the parity of the permutation also
+!        !        specified.
+!
+!        use basis, only: basis_length
+!        use bit_utils, only: count_set_bits
+!
+!        integer(i0), intent(in) :: f(basis_length)
+!        type(excit), intent(inout) :: excitation
+!
+!        integer :: perm
+!        integer(i0) :: ia(basis_length), jb(basis_length)
+!
+!        ! Fast way of getting the parity of the permutation required to align
+!        ! two determinants given one determinant and the connecting excitation.
+!        ! This is hard to generalise to all cases, but we actually only care
+!        ! about single and double excitations.  The idea is quite different from
+!        ! that used in get_excitation (where we also need to find the orbitals
+!        ! involved in the excitation).
+!
+!        ! In the following & represents the bitwise and operation; ^ the
+!        ! bitwise exclusive or
+!        ! operation; xmask is a mask with all bits representing orbitals above
+!        ! x set; f is the string representing the determinant from which we
+!        ! excite and the excitation is defined by (i,j)->(a,b), where i<j and
+!        ! a<b.
+!
+!        ! imask ^ amask returns a bit string with bits corresponding to all
+!        ! orbitals between i and a set, with max(i,a) set and min(i,a) cleared.
+!        ! Thus f & (imask ^ amask) returns a bit string with only bits set for
+!        ! the occupied orbitals which are between i and a (possibly including i)
+!        ! and so the popcount of this gives the number of orbitals between i and
+!        ! a (possibly one larger than the actual answer) number of permutations
+!        ! needed to
+!        ! align i and a in the same 'slot' in the determinant string.  We need
+!        ! to subtract one if i>a to correct for the overcounting.
+!
+!        ! An analagous approach counts the number of permutations required so
+!        ! j and b are coincident.
+!
+!        ! Finally, we need to account for some more overcounting/undercounting.
+!        ! If j is between i and a, then it is counted yet j can either be moved
+!        ! before i (resulting in the actual number of permutations being one
+!        ! less than that counted) or after i (resulting in moving j taking one
+!        ! more permutation than counted).  It doesn't matter which we do, as we
+!        ! are only interested in whether the number of permutations is odd or
+!        ! even.  We similarly need to take into account the case where i is
+!        ! between j and b.
+!
+!        ia =
+!ieor(excit_mask(:,excitation%from_orb(1)),excit_mask(:,excitation%to_orb(1)))
+!        jb =
+!ieor(excit_mask(:,excitation%from_orb(2)),excit_mask(:,excitation%to_orb(2)))
+!
+!        perm = sum(count_set_bits(iand(f,ia))) +
+!sum(count_set_bits(iand(f,jb)))
+!
+!        if (excitation%from_orb(1) > excitation%to_orb(1)) perm = perm - 1
+!        if (excitation%from_orb(1) > excitation%to_orb(2)) perm = perm - 1
+!        if (excitation%from_orb(2) > excitation%to_orb(2) .or. &
+!            excitation%from_orb(2) < excitation%to_orb(1)) perm = perm - 1
+!
+!        excitation%perm = mod(perm,2) == 1
+!
+!    end subroutine find_excitation_permutation2
+
 
 end module bit_reps

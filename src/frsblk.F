@@ -1,7 +1,9 @@
       SUBROUTINE NECI_FRSBLKH(M,ICMAX,N,H,LAB,V0,VS,NKRY,NKRY1,
      &    NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT,SCR,ISCR,INDEX,
-     &    NCYCLE,B2LIMIT,PRINTOUT,TLargest,TSeeded)
-      IMPLICIT REAL*8 (A-H,O-Z) 
+     &    NCYCLE,B2LIMIT,PRINTOUT,TLargest,TSeeded,tDie)
+!      IMPLICIT real(dp) (A-H,O-Z) 
+      use constants, only: dp
+      IMPLICIT NONE
 C ==----------------------------------------------------------------==
 C ==    M is NDET : the number of rows in Hamil                     ==
 C ==    ICMAX : the MAX. number of columns in Hamil                 ==
@@ -9,23 +11,37 @@ C ==    N is NEVAL : the number of columns in the wavevector        ==
 C ==    PRINTOUT is a logical testing whether to print results      ==
 C ==    TSeeded if true, means that a seed for RAN2 has been set,   ==
 C ==    and shouldn't be reset.
+C ==    tDie indicates whether STOP should be called if it fails
+C ==    to diagonalise
 C ==----------------------------------------------------------------==
       
-      LOGICAL :: PRINTOUT,TLargest,TSeeded
-      DIMENSION V0(M,N),VS(M,N),A(N,N),W(N) 
-      DIMENSION V(M*NBLOCK*NKRY1)
-      DIMENSION AM(NBLOCK*NBLOCK*NKRY1),BM(NBLOCK*NBLOCK*NKRY)
-      DIMENSION T(3*NBLOCK*NKRY*NBLOCK*NKRY),WT(NBLOCK*NKRY)
-      DIMENSION SCR(LSCR),ISCR(LISCR)
-      DIMENSION INDEX(N)
+      LOGICAL :: PRINTOUT,TLargest,TSeeded,tDie2,tFail
+      LOGICAL :: tDie
+      integer :: LISCR,ISCR(LISCR),LSCR,NBLOCK,NKRY1,NKRY,N,ICMAX,M
+      REAL(dp) :: V0(M,N),VS(M,N),A(N,N),W(N) 
+      REAL(dp) :: V(M*NBLOCK*NKRY1)
+      REAL(dp) :: AM(NBLOCK*NBLOCK*NKRY1),BM(NBLOCK*NBLOCK*NKRY)
+      REAL(dp) :: T(3*NBLOCK*NKRY*NBLOCK*NKRY),WT(NBLOCK*NKRY)
+      real(dp) :: SCR(LSCR),B2LIMIT
+      integer :: NCYCLE,NDIAG
+      integer :: INDEX(N)
 C..temp
-      DIMENSION H(M,ICMAX)
+      real(dp) :: H(M,ICMAX),ReturnNan
 C..temp
-      DIMENSION LAB(M,ICMAX),NROW(M)
+      integer :: LAB(M,ICMAX),NROW(M)
 C ==----------------------------------------------------------------==
+      tDie2 = tDie
+      ReturnNan=-1.D0
+      tFail=.false.
+
 C..Initialise V0 
       CALL NECI_SETUP_MATRIX(M,N,V0,.FALSE.,TSeeded)
-      CALL NECI_MGS(M,N,V0,M,A,N)
+      CALL NECI_MGS(M,N,V0,M,A,N,tDie2,tFail)
+      if(tFail) then
+          W(1) = sqrt(ReturnNan)
+          return
+      endif
+
 C..Calculate top 80% of N 
       NDIAG=N-INT(N*0.2) 
 C..
@@ -37,11 +53,15 @@ C..
 C ==----------------------------------------------------------------==
       CALL NECI_FRSBLK(M,N,NKRY,NBLOCK,V0,VS,A,V,AM,BM,T,W,WT,INDEX,
      &     SCR,LSCR,ISCR,LISCR,NDIAG,B2LIMIT,H,ICMAX,LAB,NROW,NCYCLE,
-     &     PRINTOUT,TLargest)
+     &     PRINTOUT,TLargest,tDie2,tFail)
+      if(tFail) then
+          W(1) = sqrt(ReturnNan)
+          return
+      endif
 C ==----------------------------------------------------------------==
 C..Uncomment to test to see if routine is working
 C..Exact eigenstates
-C      T1 = etime()
+C      T1 = neci_etime()
 C      CALL DSYEV('V','U',M,H,M,WH,WORK2,3*M,INFO)
 C      WRITE(6,'(//14X,''Exact'',15X,''Lanczos'',10X,''Residual'')')
 C      DO I=1,N
@@ -49,7 +69,7 @@ C        AUX=ABS(DDOT(M,V0(1,I),1,H(1,M-I+1),1))
 C        AUX=1.D0-AUX
 C        WRITE(6,'(6X,I3,2E19.11,2X,E10.3)') I,WH(M-I+1),W(I),AUX
 C      ENDDO
-C      T2 = etime()
+C      T2 = neci_etime()
 C      T3=(T2-T1)
 C      WRITE(6,'(//5X,''TIME FOR EXACT DIAGONALISATION'',F10.2)')
 C     &       T3/1000.D0
@@ -64,20 +84,25 @@ C ==----------------------------------------------------------------==
 C ====================================================================
       SUBROUTINE NECI_FRSBLK(M,N,NKRY,NBLOCK,V0,VS,A,V,AM,BM,T,W,WT,
      &     INDEX,SCR,LSCR,ISCR,LISCR,NDIAG,B2LIMIT,H,ICMAX,LAB,NROW,
-     &     NCYCLE,PRINTOUT,TLargest)
+     &     NCYCLE,PRINTOUT,TLargest,tDie2,tFail)
+      use constants, only: dp,sp
       use global_utilities
-      IMPLICIT REAL*8 (A-H,O-Z)
-      LOGICAL :: PRINTOUT,TLargest
-      DIMENSION V0(M,N),VS(M,N),A(N,N),W(N) 
-      DIMENSION V(M*NBLOCK*(NKRY+1))
-      DIMENSION AM(NBLOCK*NBLOCK*(NKRY+1)),BM(NBLOCK*NBLOCK*NKRY)
-      DIMENSION T(3*NBLOCK*NKRY*NBLOCK*NKRY),WT(NBLOCK*NKRY)
-      DIMENSION SCR(LSCR),ISCR(LISCR)
-      DIMENSION INDEX(N),NROW(M),LAB(M,ICMAX) 
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
+      LOGICAL :: PRINTOUT,TLargest,tDie2,tFail
+      integer :: LISCR,ISCR(LISCR),I,J,NK,LL,NHPSI,N,NBLK,M,NBLEFF,NBL
+      integer :: NKRY,NBLOCK,ICMAX,LSCR,NLEFT,NDIAG,NCURR,NCYCLE,ICYCLE
+      real(dp) :: V0(M,N),VS(M,N),A(N,N),W(N) 
+      real(dp) :: V(M*NBLOCK*(NKRY+1))
+      real(dp) :: AM(NBLOCK*NBLOCK*(NKRY+1)),BM(NBLOCK*NBLOCK*NKRY)
+      real(dp) :: T(3*NBLOCK*NKRY*NBLOCK*NKRY),WT(NBLOCK*NKRY)
+      real(dp) :: SCR(LSCR),AUX,B2LIMIT,B2,DDOT,B2MIN,B2MAX
+      integer :: NCONV
+      integer :: INDEX(N),NROW(M),LAB(M,ICMAX),INFO 
       type(timer), save :: proc_timer
-      real*4 t1,t2,t3,etime,tarr(2)
+      real(sp) t1,t2,t3,tarr(2),neci_etime
 C..temp
-      DIMENSION H(*)
+      real(dp) ::  H(*)
 C..temp
 C ==-----------------------------------------------------------------==
       proc_timer%timer_name='    FRSBLK'
@@ -97,7 +122,7 @@ C        WRITE(6,*) 'LSCR2:',LSCR2
         WRITE(6,*) 'LSCR:',LSCR
         STOP ' LSCR TOO SMALL '  
       ENDIF
-      T1 = etime(tarr) 
+      T1 = neci_etime(tarr) 
 C ====================================================================
       INDEX(1:N)=0
       NHPSI=0
@@ -143,7 +168,7 @@ C..Residual: H(VY) - (VY)E and test for convergence
 C..
         IF(PRINTOUT) THEN
             WRITE(6,'(5X,I4,2X,I4,2X,2(E8.3,3X),F6.2)') 
-     &       ICYCLE,NCONV,B2MAX,B2MIN,DFLOAT(NHPSI)/DFLOAT(N)
+     &       ICYCLE,NCONV,B2MAX,B2MIN,real(NHPSI,dp)/real(N,dp)
         ENDIF
 C..Order states         
         DO I=NCURR,N
@@ -168,13 +193,17 @@ C ==------------------------------------------------------------------==
 C Preparation for refinement
 C ==------------------------------------------------------------------==
           CALL NECI_PRPKRV(M,NBLEFF,NKRY,NCONV,V0(1,1),V0(1,I),VS(1,I),
-     &         V,AM,BM,H,W(I),SCR,LSCR,NHPSI,LAB,NROW,TLargest)
+     &         V,AM,BM,H,W(I),SCR,LSCR,NHPSI,LAB,NROW,TLargest,tDie2,
+     &          tFail)
+          if(tFail) return
 
 C Refinement Loop
 C ==------------------------------------------------------------------==
           NBLK=NBLEFF*NKRY
           CALL NECI_KRYREF(M,NBLEFF,NKRY,NCONV,V0,V,AM,BM,T,NBLK*NBLK,
-     &      WT,NBLK,H,SCR,LSCR,ISCR,LISCR,NHPSI,LAB,NROW,TLargest)
+     &      WT,NBLK,H,SCR,LSCR,ISCR,LISCR,NHPSI,LAB,NROW,TLargest,tDie2,
+     &      tFail)
+          if(tFail) return
 C ==------------------------------------------------------------------==
 C..V=[V_1 V_2.. V_L] Y' 
           CALL DGEMM('N','N',M,NBLEFF,NBLK,1.D0,V,M,T,NBLK,0.D0,
@@ -184,7 +213,9 @@ C==  End of refinement over states                                    ==
 C==-------------------------------------------------------------------==
         ENDDO
 C..GS orthogonalisation on refined states
-        CALL NECI_MY_GSORTHO(M,V0,NCURR-1,V0(1,NCURR),NLEFT,A)
+        CALL NECI_MY_GSORTHO(M,V0,NCURR-1,V0(1,NCURR),NLEFT,A,tDie2,
+     &          tFail)
+        if(tFail) return
 C..HPSI: H V0. Enter only refined states 
         CALL MY_HPSI(M,NLEFT,NROW,LAB,H,
      &        V0(1,NCURR),VS(1,NCURR),TLargest)
@@ -206,7 +237,7 @@ C.. End of Lanczos diagonalisation
       IF(PRINTOUT) THEN
           WRITE(6,'(//''    NCONV:'',I5)') NCONV
       ENDIF
-      T2 = etime(tarr) 
+      T2 = neci_etime(tarr) 
       T3=(T2-T1)
       IF(PRINTOUT) THEN
           WRITE(6,'(//5X,''TIME FOR LANCZOS DIAGONALISATION'',F10.2)')
@@ -217,26 +248,35 @@ C     ================================================================
       RETURN
       END 
 C ======================================================================
-      SUBROUTINE NECI_MGS(M,N,A,LDA,R,LDR)
+      SUBROUTINE NECI_MGS(M,N,A,LDA,R,LDR,tDie2,tFail)
 C     ==--------------------------------------------------------------==
       use global_utilities
-      IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION A(LDA,*),R(LDR,*)
+      use constants, only : dp,sp
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
+      integer :: LDA,LDR,N,M
+      integer(sp) :: INFO
+      real(dp) :: A(LDA,*),R(LDR,*)
+      LOGICAL :: tDie2,tfail
       type(timer), save :: proc_timer
 C     ==================================================================
       proc_timer%timer_name='NECI_MGS'
       call set_timer(proc_timer)
-      CALL NECI_RGS(M,N,A,M,R)
+      CALL NECI_RGS(M,N,A,M,R,tDie2,tFail)
+      if(tFail) return
       CALL DTRTRI('U','N',N,R,N,INFO)
       call halt_timer(proc_timer)
       RETURN 
       END 
 C =======================================================================
       SUBROUTINE NECI_SETUP_MATRIX(M,N,A,TSYM,TSeeded)
-      IMPLICIT REAL*8 (A-H,O-Z)
+!      IMPLICIT real(dp) (A-H,O-Z)
+      use constants, only : dp
+      IMPLICIT NONE
 C..M = NDET
 C..N = NEVAL
-      DIMENSION A(M,N)
+      integer :: M,N,I,J
+      real(dp) :: A(M,N),RAN2
       LOGICAL TSYM,TSeeded 
       integer iseed
       IF(TSeeded) THEN
@@ -269,9 +309,12 @@ C            ENDIF
       END
 C =======================================================================
       SUBROUTINE NECI_WRITE_MATRIX(CHAR,M,N,A)
-      IMPLICIT REAL*8 (A-H,O-Z)
+!      IMPLICIT real(dp) (A-H,O-Z)
+      use constants, only: dp
+      IMPLICIT NONE
       CHARACTER(*) CHAR
-      DIMENSION A(M,N)
+      INTEGER :: N,M,I,J
+      real(dp) :: A(M,N)
       WRITE(6,*) CHAR
       DO I=1,M
         WRITE(6,1000) (A(I,J),J=1,N)
@@ -281,9 +324,12 @@ C =======================================================================
       END
 C ======================================================================
       SUBROUTINE NECI_PUTTMAT(CHAR,T,M,N,A,MA,NA,IBEG,JBEG)
-      IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION T(M,N),A(MA,NA)
-      CHARACTER*1 CHAR
+!      IMPLICIT real(dp) (A-H,O-Z)
+      use constants, only: dp
+      IMPLICIT NONE
+      integer :: N,M,MA,NA,IBEG,JBEG,I,J
+      real(dp) :: T(M,N),A(MA,NA)
+      CHARACTER(1) CHAR
       IF(MA*IBEG.GT.M) STOP ' MA+IBEG.GT.M'
       IF(NA*JBEG.GT.N) STOP ' MA+IBEG.GT.M'
       IF(CHAR.EQ.'N') THEN 
@@ -305,9 +351,12 @@ C ======================================================================
       END
 C ======================================================================
       SUBROUTINE NECI_GETMAT(CHAR,T,M,N,A,MA,NA,IBEG,JBEG)
-      IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION T(M,N),A(MA,NA)
-      CHARACTER*1 CHAR
+      use constants, only: dp
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
+      integer :: N,M,MA,NA,IBEG,JBEG,I,J
+      real(dp) :: T(M,N),A(MA,NA)
+      CHARACTER(1) :: CHAR
       IF(MA*IBEG.GT.M) STOP ' MA+IBEG.GT.M'
       IF(NA*JBEG.GT.N) STOP ' MA+IBEG.GT.M'
       IF(CHAR.EQ.'N') THEN 
@@ -329,8 +378,12 @@ C ======================================================================
       END
 C ======================================================================
       SUBROUTINE NECI_REORDER(M,N,W,A)
-      IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION W(N),A(M,N)
+      use constants, only: dp
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
+      integer :: N,M,J
+      real(dp) :: W(N),A(M,N)
+      real(dp) :: AUX
       DO J=1,N/2
         CALL DSWAP(M,A(1,J),1,A(1,N-J+1),1)
         AUX=W(N-J+1)
@@ -341,14 +394,18 @@ C ======================================================================
       END
 C ======================================================================
       SUBROUTINE NECI_KRYREF(M,N,NKRY,NCONV,V0,V,AM,BM,T,LDT,WT,
-     &       LDWT,H,SCR,LSCR,ISCR,LISCR,NHPSI,LAB,NROW,TLargest)
+     &       LDWT,H,SCR,LSCR,ISCR,LISCR,NHPSI,LAB,NROW,TLargest,tDie2
+     &       ,tFail)
 C     ==================================================================
       use global_utilities
-      IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION V0(M,*),V(M,N,NKRY+1),AM(N,N,NKRY+1),BM(N,N,NKRY)
-      DIMENSION T(LDT),WT(LDWT),H(*),SCR(LSCR),ISCR(LISCR)
-      DIMENSION LAB(M,*),NROW(M)
-      LOGICAL :: TLargest
+      use constants, only: dp
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
+      integer :: N,M,LAB(M,*),NROW(M),LSCR,LDWT,LDT,NKRY
+      integer :: LISCR,J,NCONV,NHPSI,I,ISCR(LISCR)
+      real(dp) :: V0(M,*),V(M,N,NKRY+1),AM(N,N,NKRY+1),BM(N,N,NKRY)
+      real(dp) :: T(LDT),WT(LDWT),H(*),SCR(LSCR)
+      LOGICAL :: TLargest,tDie2,tFail
       type(timer), save :: proc_timer
 C     ==================================================================
       proc_timer%timer_name='    KRYREF'
@@ -357,7 +414,8 @@ C     ==================================================================
 C..V_I = V_I - V_(I-1) A_(I-1) 
         CALL NECI_RSDBLK('N',M,N,V(1,1,I-1),AM(1,1,I-1),V(1,1,I))
 C..V_I B_I = V_I
-        CALL NECI_MGS(M,N,V(1,1,I),M,BM(1,1,I),N)
+        CALL NECI_MGS(M,N,V(1,1,I),M,BM(1,1,I),N,tDie2,tFail)
+        if(tFail) return
 C..HPSI:  H V_I
         CALL MY_HPSI(M,N,NROW,LAB,H,V(1,1,I),V(1,1,I+1),TLargest)
 C        CALL NECI_HSPI(M,N,H,V(1,1,I),V(1,1,I+1))
@@ -414,17 +472,19 @@ C ===================================================================
       END
 C ==================================================================
       SUBROUTINE NECI_PRPKRV(M,N,NKRY,NCONV,VCONV,V0,VS,V,AM,BM,H,W,
-     &     SCR,LSCR,NHPSI,LAB,NROW,TLargest)
+     &     SCR,LSCR,NHPSI,LAB,NROW,TLargest,tDie2,tFail)
 C ==------------------------------------------------------------------==
 C == Returns A_1,A_2,B_2 and V in a form suitable for krylov          ==
 C == refinement                                                       ==
 C ==------------------------------------------------------------------==
+      use constants, only: dp
       use global_utilities
-      IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION VCONV(M,*),V0(M,N),VS(M,N),V(M,N,NKRY+1),
-     &     AM(N,N,NKRY+1),BM(N,N,NKRY),SCR(LSCR),W(N),H(*)
-      DIMENSION LAB(M,*),NROW(M)
-      LOGICAL :: TLargest
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
+      integer :: M,N,LAB(M,*),NROW(M),LSCR,I,NHPSI,NKRY,NCONV
+      real(dp) :: VCONV(M,*),V0(M,N),VS(M,N),V(M,N,NKRY+1)
+      real(dp) :: AM(N,N,NKRY+1),BM(N,N,NKRY),W(N),H(*),SCR(LSCR)
+      LOGICAL :: TLargest,tDie2,tFail
       type(timer), save :: proc_timer
 C ==------------------------------------------------------------------==
       proc_timer%timer_name='NECI_PRPKRV'
@@ -438,7 +498,8 @@ C..Compute residual
       ENDDO
 C..V2 B2=R  
       BM=0.d0
-      CALL NECI_MGS(M,N,V(1,1,2),M,BM(1,1,2),N)
+      CALL NECI_MGS(M,N,V(1,1,2),M,BM(1,1,2),N,tDie2,tFail)
+      if(tFail) return
 C..   Setup A_1=diag(w)
       AM(:,:,1)=0.d0
       DO I=1,N 
@@ -459,14 +520,17 @@ C ==------------------------------------------------------------------==
       RETURN
       END
 C     ==================================================================
-      SUBROUTINE NECI_MY_GSORTHO(M,C0,N0,CP,NP,SMAT)
+      SUBROUTINE NECI_MY_GSORTHO(M,C0,N0,CP,NP,SMAT,tDie2,tFail)
 C     ==--------------------------------------------------------------==
       use global_utilities
-      IMPLICIT REAL*8 (A-H,O-Z)
+      use constants, only: dp
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
 C     Arguments
-      INTEGER    N0,NP
-      REAL*8     C0(M,*),CP(M,*)
-      REAL*8     SMAT(NP,*)             !MAX(N0,NP)
+      LOGICAL :: tDie2,tFail
+      INTEGER    N0,NP,M
+      real(dp)     C0(M,*),CP(M,*)
+      real(dp)     SMAT(NP,*)             !MAX(N0,NP)
 C     Variables
       type(timer), save :: proc_timer
 C     ==--------------------------------------------------------------==
@@ -480,15 +544,18 @@ C..CP -> CP-C0*SMAT
         CALL DGEMM('N','T',M,NP,N0,-1.D0,C0,M,SMAT,NP,
      *             1.D0,CP,M)
       ENDIF
-      CALL NECI_MGS(M,NP,CP,M,SMAT,NP)
+      CALL NECI_MGS(M,NP,CP,M,SMAT,NP,tDie2,tFail)
       call halt_timer(proc_timer)
 C     ==--------------------------------------------------------------==
       RETURN
       END
 C =======================================================================
       SUBROUTINE NECI_PUTTAB(N,KD,A,SCR,LSCR)
-      IMPLICIT REAL*8(A-H,O-Z)
-      DIMENSION A(N,N),SCR(LSCR)
+!      IMPLICIT real(dp)(A-H,O-Z)
+      use constants, only: dp
+      IMPLICIT NONE
+      integer :: N,LSCR,KD,I,IBEG,J
+      real(dp) :: A(N,N),SCR(LSCR)
 C..
       IF(LSCR.LT.N) THEN 
         WRITE(6,*) ' LSCR:',LSCR
@@ -509,8 +576,11 @@ C..
 C =======================================================================
       SUBROUTINE NECI_HPSI(M,N,H,V0,VS)
       use global_utilities
-      IMPLICIT REAL*8(A-H,O-Z)
-      DIMENSION H(M,M),V0(M,N),VS(M,N)
+      use constants, only: dp
+!      IMPLICIT real(dp)(A-H,O-Z)
+      IMPLICIT NONE
+      integer :: N,M
+      real(dp) :: H(M,M),V0(M,N),VS(M,N)
       type(timer), save :: proc_timer
       proc_timer%timer_name='      NECI_HSPI'
       call set_timer(proc_timer)
@@ -521,8 +591,11 @@ C =======================================================================
 C =======================================================================
       SUBROUTINE NECI_OVLAP(M,N,A,V0,VS)
       use global_utilities
-      IMPLICIT REAL*8(A-H,O-Z)
-      DIMENSION A(N,N),V0(M,N),VS(M,N)
+      use constants, only: dp
+!      IMPLICIT real(dp)(A-H,O-Z)
+      IMPLICIT NONE
+      integer :: N,M
+      real(dp) :: A(N,N),V0(M,N),VS(M,N)
       type(timer), save :: proc_timer
       proc_timer%timer_name='NECI_OVLAP'
       call set_timer(proc_timer)
@@ -533,9 +606,12 @@ C =======================================================================
 C =======================================================================
       SUBROUTINE NECI_RSDBLK(CHAR,M,N,V1,A,V2)
       use global_utilities
-      IMPLICIT REAL*8(A-H,O-Z)
-      CHARACTER*1 CHAR 
-      DIMENSION A(N,N),V1(M,N),V2(M,N)
+      use constants, only: dp
+!      IMPLICIT real(dp)(A-H,O-Z)
+      IMPLICIT NONE
+      CHARACTER(1) CHAR 
+      integer :: N,M
+      real(dp) :: A(N,N),V1(M,N),V2(M,N)
       type(timer), save :: proc_timer
 C..V_I = V_I - V_(I-1) A_(I-1)
       proc_timer%timer_name='    NECI_RSDBLK'
@@ -553,8 +629,11 @@ C..V_I = V_I - V_(I-1) A_(I-1)
 C =======================================================================
       SUBROUTINE NECI_ROTATE(M,N,V0,A,SCR,LSCR)
       use global_utilities
-      IMPLICIT REAL*8(A-H,O-Z)
-      DIMENSION A(N,N),V0(M,N),SCR(LSCR)
+      use constants, only: dp
+!      IMPLICIT real(dp)(A-H,O-Z)
+      IMPLICIT NONE
+      integer :: N,M,LSCR
+      REAL(dp) :: A(N,N),V0(M,N),SCR(LSCR)
       type(timer), save :: proc_timer
       proc_timer%timer_name='    NECI_ROTATE'
       call set_timer(proc_timer)
@@ -565,19 +644,16 @@ C =======================================================================
       END 
 
 
-
-
-
-
-
-
       SUBROUTINE NECI_JACOBI(M,N,T,WT,SCR,LSCR,ISCR,LISCR,IFAIL)
 C ==------------------------------------------------------------------==
 C Returns the n largest eigenvalues of MxM symtric matrix T           ==
 C ==------------------------------------------------------------------==
       use global_utilities
-      IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION T(M,M,*),WT(*),SCR(LSCR),ISCR(LISCR),IFAIL(*)
+      use constants, only: dp
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
+      INTEGER :: IFAIL(*),INFO,M,N,LISCR,LSCR,MEVAL,ISCR(LISCR)
+      REAL(dp) :: T(M,M,*),WT(*),SCR(LSCR)
       type(timer), save :: proc_timer
       proc_timer%timer_name='    JACOBI'
       call set_timer(proc_timer)
@@ -601,9 +677,12 @@ C ==------------------------------------------------------------------==
 C Returns the n largest eigenvalues of MxM symtric banded matrix T    ==
 C ==------------------------------------------------------------------==
       use global_utilities
-      IMPLICIT REAL*8 (A-H,O-Z)
+      use constants, only: dp
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
       type(timer), save :: proc_timer
-      DIMENSION T(IN,IN,*),WT(IN),SCR(LSCR),ISCR(LISCR),IFAIL(*)
+      INTEGER :: IFAIL(*),IN,LSCR,LISCR,N,MEVAL,INFO,ISCR(LISCR)
+      REAL(dp) :: T(IN,IN,*),WT(IN),SCR(LSCR)
 C     ==================================================================
       proc_timer%timer_name='     BANDM'
       call set_timer(proc_timer)
@@ -633,8 +712,11 @@ C        CALL DSBEV('V','U',IN,N,T,IN,WT,T(1,2),IN,SCR,INFO)
 C =====================================================================
       SUBROUTINE NECI_PRJCNV(M,NP,N0,V0,V,SMAT)
       use global_utilities
-      IMPLICIT REAL*8(A-H,O-Z)
-      DIMENSION V(M,NP),V0(M,*),SMAT(N0,*)
+      use constants, only: dp
+!      IMPLICIT real(dp)(A-H,O-Z)
+      IMPLICIT NONE
+      INTEGER :: M,N,N0,NP
+      REAL(dp) :: V(M,NP),V0(M,*),SMAT(N0,*)
       type(timer), save :: proc_timer
       IF(N0.EQ.0) RETURN
       proc_timer%timer_name='    PRJCNV'
@@ -650,16 +732,19 @@ C..   V -> V-V0*SMAT
       RETURN 
       END 
 C     =================================================================
-      SUBROUTINE NECI_RGS(M,N,CP,LDCP,SMAT)
+      SUBROUTINE NECI_RGS(M,N,CP,LDCP,SMAT,tDie2,tFail)
 C     ==--------------------------------------------------------------==
 C     ==  GRAM-SCHMIDT ORTHOGONALIZATION                              ==
 C     ==--------------------------------------------------------------==
       use global_utilities
-      IMPLICIT REAL*8 (A-H,O-Z)
+      use constants, only: dp
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
 C     Arguments
-      INTEGER    N
-      REAL*8     SMAT(N,N)
-      REAL*8     CP(LDCP,N)
+      INTEGER    N,M,LDCP
+      real(dp)     SMAT(N,N)
+      real(dp)     CP(LDCP,N)
+      logical :: tDie2,tFail
 C     VARIABLES
       type(timer), save :: proc_timer
 C     ==--------------------------------------------------------------==
@@ -668,30 +753,48 @@ C     ==--------------------------------------------------------------==
       call set_timer(proc_timer)
       SMAT=0
       CALL DSYRK('U','T',N,M,1.D0,CP,M,0.D0,SMAT,N)
-      CALL NECI_UINV('U',SMAT,N,N)
+      CALL NECI_UINV('U',SMAT,N,N,tDie2,tFail)
+      if(tFail) return
       CALL DTRMM('R','U','N','N',M,N,1.D0,SMAT,N,CP,M)
       call halt_timer(proc_timer)
 C     ==--------------------------------------------------------------==
       RETURN
       END
 C     ==================================================================
-      SUBROUTINE NECI_UINV(UPLO,SMAT,LDA,N)
+      SUBROUTINE NECI_UINV(UPLO,SMAT,LDA,N,tDie2,tFail)
 C     ==--------------------------------------------------------------==
+      use constants, only: dp,sp
       IMPLICIT NONE
 C     ARGUMENTS
-      CHARACTER UPLO*1
+      CHARACTER(1) UPLO
       INTEGER   LDA,N
-      REAL*8    SMAT(LDA,N)
+      real(dp)    SMAT(LDA,N)
 C     VARIABLES
-      INTEGER   INFO
+      INTEGER(sp)   INFO
+      LOGICAL :: tDie2,tFail
 C     ==--------------------------------------------------------------==
       CALL DPOTRF(UPLO,N,SMAT,LDA,INFO)
       IF(INFO.NE.0) THEN
           WRITE(6,*) "INFO is : ", INFO
       ENDIF
-      IF(INFO.NE.0) CALL Stop_All('UINV','ILLEGAL RESULTS DGETRF')
+      IF(INFO.NE.0) THEN
+          if(tDie2) then
+              CALL Stop_All('UINV','ILLEGAL RESULTS DGETRF')
+          else
+              CALL Warning_neci('UINV','ILLEGAL RESULTS DGETRF')
+              tFail=.true.
+              return
+          endif
+      endif
       CALL DTRTRI(UPLO,'N',N,SMAT,LDA,INFO)
-      IF(INFO.NE.0) CALL Stop_All('UINV','ILLEGAL RESULTS DTRTRI')
+      IF(INFO.NE.0) then
+          if(tDie2) then
+              CALL Stop_All('UINV','ILLEGAL RESULTS DTRTRI')
+          else
+              CALL Warning_neci('UINV','ILLEGAL RESULTS DTRTRI')
+              tFail = .true.
+          endif
+      endif
 C     ==--------------------------------------------------------------==
       RETURN
       END

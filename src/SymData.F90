@@ -7,6 +7,8 @@ module SymData
     use SystemData, only: BasisFn, Symmetry, SymmetrySize, assignment(=), &
                           operator(.eq.), operator(.ne.), operator(.gt.), &
                           operator(.lt.)
+    use MemoryManager, only: TagIntType
+    use constants, only: dp
 
     implicit none
 
@@ -49,11 +51,15 @@ module SymData
         module procedure SymPairLt
     end interface
 
-    !Used for  SymSetupExcits* to hold internal data.  Each symclass corresponds to a single symmetry of an orbital which is present in the determinant being excited from
+    !Used for  SymSetupExcits* to hold internal data.  Each symclass corresponds to a single 
+    !symmetry of an orbital which is present in the determinant being excited from
     TYPE SymClass 
-        TYPE(Symmetry) SymRem    ! The symmetry remaining from the determinant we excite from when one orbital from this symmetry is removed
-        INTEGER        SymLab    ! The symmetry label (i.e. from SymClasses) corresponding to the symmetry of the orbital being removed.
-        INTEGER        spacer    ! The spacer is there to make sure we have a structure which is a multiple of 8-bytes for 64-bit machines.
+        TYPE(Symmetry) SymRem    ! The symmetry remaining from the determinant we excite from when one orbital 
+                                 !from this symmetry is removed
+        INTEGER        SymLab    ! The symmetry label (i.e. from SymClasses) corresponding to the symmetry of 
+                                 !the orbital being removed.
+        INTEGER        spacer    ! The spacer is there to make sure we have a structure which is a multiple 
+                                 !of 8-bytes for 64-bit machines.
     ENDTYPE
     INTEGER, PARAMETER :: SymClassSize=2+SymmetrySize
 
@@ -117,7 +123,7 @@ module SymData
     INTEGER, POINTER ::  SymClasses2(:)
     ! The characters of this class are stored in 
     ! SYMLABELCHARS(1:NROT, SymClasses(ISTATE)).
-    COMPLEX*16, ALLOCATABLE ::  SYMLABELCHARS(:,:) ! size=NROT,NSYMLABELS
+    complex(dp), ALLOCATABLE ::  SYMLABELCHARS(:,:) ! size=NROT,NSYMLABELS
 
     !.. SYMLABELLIST holds a list of states grouped under symmlabel
     INTEGER, ALLOCATABLE ::  SYMLABELLIST(:)
@@ -145,7 +151,7 @@ module SymData
     INTEGER :: NROT
     ! All symmetries are decomposable into component irreps.
     ! The characters corresponding to each irrep are in IRREPCHARS
-    COMPLEX*16, ALLOCATABLE ::  IRREPCHARS(:,:) ! size=NROT,NSYM
+    complex(dp), ALLOCATABLE ::  IRREPCHARS(:,:) ! size=NROT,NSYM
 
     ! SYMPAIRPRODS(1:NSYMPAIRPRODS) contains the list of all SYMPRODs
     ! available, the number of pairs of states (listed in SymStatePairs), and
@@ -170,26 +176,26 @@ module SymData
 
 
     ! Memory logging tags.
-    INTEGER :: tagKPntSym 
-    INTEGER :: tagSymConjTab
-    INTEGER :: tagSYMTABLE
-    INTEGER :: tagSYMREPS 
-    INTEGER :: tagSYMLABELS
-    INTEGER :: tagStateSymMap
-    INTEGER :: tagStateSymMap2
-    INTEGER :: tagSymClasses
-    INTEGER :: tagSymClasses2
-    INTEGER :: tagSYMLABELCHARS
-    INTEGER :: tagSYMLABELLIST
-    INTEGER :: tagSYMLABELCOUNTS
-    INTEGER :: tagSYMLABELCOUNTSCUM
-    INTEGER :: tagSYMLABELINTSCUM
-    INTEGER :: tagSYMLABELCOUNTSCUM2
-    INTEGER :: tagSYMLABELINTSCUM2
-    INTEGER :: tagIRREPCHARS
-    INTEGER :: tagSymStatePairs
-    INTEGER :: tagSymPairProds
-    integer :: tagSymIndex=0, tagSymIndex2=0
+    INTEGER(TagIntType) :: tagKPntSym 
+    INTEGER(TagIntType) :: tagSymConjTab
+    INTEGER(TagIntType) :: tagSYMTABLE
+    INTEGER(TagIntType) :: tagSYMREPS 
+    INTEGER(TagIntType) :: tagSYMLABELS
+    INTEGER(TagIntType) :: tagStateSymMap
+    INTEGER(TagIntType) :: tagStateSymMap2
+    INTEGER(TagIntType) :: tagSymClasses
+    INTEGER(TagIntType) :: tagSymClasses2
+    INTEGER(TagIntType) :: tagSYMLABELCHARS
+    INTEGER(TagIntType) :: tagSYMLABELLIST
+    INTEGER(TagIntType) :: tagSYMLABELCOUNTS
+    INTEGER(TagIntType) :: tagSYMLABELCOUNTSCUM
+    INTEGER(TagIntType) :: tagSYMLABELINTSCUM
+    INTEGER(TagIntType) :: tagSYMLABELCOUNTSCUM2
+    INTEGER(TagIntType) :: tagSYMLABELINTSCUM2
+    INTEGER(TagIntType) :: tagIRREPCHARS
+    INTEGER(TagIntType) :: tagSymStatePairs
+    INTEGER(TagIntType) :: tagSymPairProds
+    integer(TagIntType) :: tagSymIndex=0, tagSymIndex2=0
 
 contains
     elemental subroutine SymPairAssign (lhs, rhs)

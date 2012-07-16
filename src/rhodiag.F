@@ -1,30 +1,32 @@
       SUBROUTINE WIRHODIAG(NI,BETA,I_P,NEL,
      &      NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &      ECORE,WLRI,WLSI)
+         use constants, only: dp
          use global_utilities
          use legacy_data, only: irat
          use sym_mod, only: lchksymd
          use SystemData, only: BasisFn
          use util_mod, only: NECI_ICOPY
+         use MemoryManager, only: TagIntType
          IMPLICIT NONE
-         REAL*8 BETA,FCK(*),ALAT(3),UMAT(*),ECORE
-         INTEGER I_P,BRR(NBASIS),NTAY,NMSH,NMAX
-
+         real(dp) BETA,FCK(*),ALAT(3),UMAT(*),ECORE
          INTEGER NEL,NBASIS,nBasisMax(5,*)
+         INTEGER I_P,BRR(NBASIS),NTAY,NMSH,NMAX
          type(BasisFn) G1(*)
          INTEGER NI(NEL),K
          LOGICAL LACC
          INTEGER NLIST,NLMAX
-         REAL*8 RH,RHII
-         REAL*8 HDMAX,RHRATMAX
+         real(dp) RH,RHII
+         real(dp) HDMAX,RHRATMAX
          INTEGER ILFREE,I,J
-         REAL*8, ALLOCATABLE :: RIJMAT(:),WLIST(:),RJJLIST(:),WORK(:)
+         real(dp), ALLOCATABLE :: RIJMAT(:),WLIST(:),RJJLIST(:),WORK(:)
          INTEGER, ALLOCATABLE :: LSTE(:,:)
          INTEGER err
-         INTEGER WORKL,INFO
-         REAL*8 WLRI,WLSI,SI
-         INTEGER,SAVE :: tagRIJMAT=0,tagWLIST=0,tagRJJLIST=0,tagWORK=0 
-         INTEGER,SAVE :: tagLSTE=0
+         INTEGER WORKL
+         INTEGER*4 INFO
+         real(dp) WLRI,WLSI,SI
+         INTEGER(TagIntType) ,SAVE :: tagRIJMAT=0,tagWLIST=0
+         INTEGER(TagIntType),SAVE :: tagLSTE=0,tagRJJLIST=0,tagWORK=0 
          type(timer), save :: proc_timer
          character(*),parameter :: thisroutine='WIRHODIAG'
          proc_timer%timer_name=thisroutine
@@ -147,28 +149,33 @@ C         ENDDO
          use global_utilities
          use legacy_data, only: irat
          use util_mod, only: NECI_ICOPY
+         use MemoryManager, only: TagIntType
+         use SystemData, only: BasisFN
+         use constants, only: dp
          IMPLICIT NONE
-         REAL*8 BETA,FCK(*),ALAT(3),UMAT(*),ECORE
+         real(dp) BETA,FCK(*),ALAT(3),UMAT(*),ECORE
+         INTEGER NEL,NBASIS,nBasisMax(5,*)
          INTEGER I_P,BRR(NBASIS),NTAY,NMSH,NMAX
-
          INTEGER K,ID,IDI,IDJ
-         INTEGER NEL,NBASIS,nBasisMax(5,*),G1(*)
+         TYPE(BasisFN) G1(*)
          INTEGER NI(NEL)
          LOGICAL LACC
          INTEGER NLIST,NLMAX
-         REAL*8 RH,RHII
-         REAL*8 HDMAX,RHRATMAX
+         real(dp) RH,RHII
+         real(dp) HDMAX,RHRATMAX
          INTEGER ILFREE,I,J
-         REAL*8, ALLOCATABLE :: RIJMAT(:),WLIST(:),RJJLIST(:)
-         REAL*8, ALLOCATABLE :: VARRAY(:)
-         INTEGER, ALLOCATABLE :: LSTE(:,:),LSTP(:),WORK(:)
-         INTEGER, SAVE :: tagRIJMAT,tagWLIST,tagRJJLIST
-         INTEGER, SAVE :: tagVARRAY
-         INTEGER, SAVE :: tagLSTE,tagLSTP,tagWORK
+         real(dp), ALLOCATABLE :: RIJMAT(:),WLIST(:),RJJLIST(:)
+         real(dp), ALLOCATABLE :: VARRAY(:)
+         INTEGER, ALLOCATABLE :: LSTE(:,:),LSTP(:)
+         real(dp), allocatable :: WORK(:)
+         INTEGER(TagIntType), SAVE :: tagRIJMAT,tagWLIST,tagRJJLIST
+         INTEGER(TagIntType), SAVE :: tagVARRAY
+         INTEGER(TagIntType), SAVE :: tagLSTE,tagLSTP,tagWORK
          type(timer), save :: proc_timer
          INTEGER err
-         INTEGER WORKL,INFO
-         REAL*8 WLRI,WLSI,SI,SN,SNO,SNC,SNN
+         INTEGER WORKL
+         INTEGER*4 INFO
+         real(dp) WLRI,WLSI,SI,SN,SNO,SNC,SNN
          INTEGER IPLEN,NCOUNT
          INTEGER BINOMIAL
          LOGICAL LSUB
@@ -359,7 +366,7 @@ C            WRITE(37,*) SN
             VARRAY(IPLEN)=SN
             SNC=SNC+SN
             WRITE(37,"(I4,3G25.16,I5)") IPLEN+1,SN,SNC,SNN,NCOUNT
-            IF(NLMAX.GT.10) CALL FLUSH(37)
+            IF(NLMAX.GT.10) CALL neci_flush(37)
 C            IF(IPLEN.EQ.NLMAX-1) WRITE(37,*) IPLEN+1,0.D0, SNN
          ENDDO
          deallocate(WLIST,RIJMAT,LSTE,RJJLIST,WORK)
@@ -377,7 +384,7 @@ C         CLOSE(36)
       RECURSIVE SUBROUTINE GETNEXTPERM(LSTP,NL,IPLEN,LACC,IPOS,IMAX)
          IMPLICIT NONE
          LOGICAL LACC
-         INTEGER LSTP(IPLEN),NL,IPOS,IMAX,IPLEN
+         INTEGER NL,IPOS,IMAX,IPLEN,LSTP(IPLEN)
          IF(IPOS.LT.1.OR.IPLEN.LT.1) THEN
             LACC=.FALSE.
             RETURN
@@ -408,17 +415,19 @@ C         CLOSE(36)
          RETURN
       END
 
-      REAL*8 FUNCTION RHODIAG_CP(RHOIJ,I_P,I_V)
+      FUNCTION RHODIAG_CP(RHOIJ,I_P,I_V)
          use global_utilities
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER I_P,I_V
          type(timer), save :: proc_timer
-         REAL*8 RHOIJ(0:I_V,0:I_V)
-         REAL*8 RIJMAT(I_V,I_V)
-         REAL*8 WLIST(I_V),WORK(3*I_V)         
-         INTEGER INFO,I,J
-         REAL*8 SI
-         REAL*8 RII
+         real(dp) RHOIJ(0:I_V,0:I_V)
+         real(dp) RIJMAT(I_V,I_V),RHODIAG_CP
+         real(dp) WLIST(I_V),WORK(3*I_V)         
+         INTEGER*4 INFO
+         INTEGER I,J
+         real(dp) SI
+         real(dp) RII
          RII=RHOIJ(0,0)
 C.. Diagonalize
          proc_timer%timer_name='RHODIAG_CP'
@@ -483,13 +492,14 @@ C.. See 1/7/04
          INTEGER I_P,I_V
          type(timer), save :: proc_timer
          HElement_t HIJ(I_V+1,I_V+1),RIJMAT(I_V,I_V)
-         REAL*8 WLIST(I_V),WORK(3*I_V)         
+         real(dp) WLIST(I_V),WORK(3*I_V)         
          HElement_t NWORK(4*I_V)
-         INTEGER INFO,I,J,IMISS,II,IJ
+         INTEGER*4 INFO
+         INTEGER I,J,IMISS,II,IJ
          real(dp) SI,SI2
 C.. do we subtract out lower vertices here or later?
          LOGICAL TSUB
-         REAL*8 BETA
+         real(dp) BETA
          HElement_t HIJS(I_V+1),HIJS2(I_V),DLWT,T,U
          real(dp) HDiag_CPPRES
          real(dp) R,S,DLWDB,DD2
@@ -582,7 +592,7 @@ C.. appropriate projection onto the root
 C            WRITE(6,*) WLIST(I),RIJMAT(1,I)
                S=abs(RIJMAT(1,I))**2
                R=HIJ(1,1)
-               R=DEXP(-BETA*(WLIST(I)-R))
+               R=EXP(-BETA*(WLIST(I)-R))
                SI2=SI2+S*R
 C%/RII
 C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
@@ -617,15 +627,16 @@ C.. See 1/7/04
          type(timer), save :: proc_timer
          HElement_t RHOIJ(I_V+1,I_V+1),HIJS(I_V+1),HIJS2(I_V)
          HElement_t RIJMAT(I_V,I_V),NWORK(4*I_V),S,DLWT,S2
-         REAL*8 WORK(3*I_V),R
-         REAL*8 WLIST(I_V)         
-         INTEGER INFO,I,J,IMISS,II,IJ
+         real(dp) WORK(3*I_V),R
+         real(dp) WLIST(I_V)         
+         INTEGER*4 INFO
+         INTEGER I,J,IMISS,II,IJ
          real(dp) SI,SI2,SS,SS2
 C.. do we subtract out lower vertices here or later?
          LOGICAL TSUB
          real(dp) DLWDB,RII,DD2
          real(dp) RhoDiag_CPPRES
-         REAL*8 DBETA
+         real(dp) DBETA
          LOGICAL tLogWeight
 ! Optimise the 1V case
          IF(I_V.EQ.1) THEN
@@ -802,14 +813,15 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
          type(timer), save :: proc_timer
          HElement_t RHOIJ(I_V+1,I_V+1),HIJS(I_V+1),HIJS2(I_V)
          HElement_t RIJMAT(I_V,I_V),NWORK(4*I_V),S,DLWT,S2
-         REAL*8 WORK(3*I_V),R
-         REAL*8 WLIST(I_V)         
-         INTEGER INFO,I,J
+         real(dp) WORK(3*I_V),R
+         real(dp) WLIST(I_V)         
+         INTEGER*4 INFO
+         INTEGER I,J
          real(dp) SI,SI2,SS,SS2
 C.. do we subtract out lower vertices here or later?
          real(dp) DLWDB,RII
          real(dp) RhoDiag_CPPS2VS
-         REAL*8 DBETA
+         real(dp) DBETA
 ! Optimise the 1V case
          IF(I_V.EQ.1) THEN
             RII=HIJS(1)
@@ -911,12 +923,13 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
          INTEGER I_V
          type(timer), save :: proc_timer
          HElement_t HIJ(I_V+1,I_V+1),RIJMAT(I_V,I_V)
-         REAL*8 WLIST(I_V),WORK(3*I_V)         
+         real(dp) WLIST(I_V),WORK(3*I_V)         
          HElement_t NWORK(4*I_V)
-         INTEGER INFO,I,J,II
+         INTEGER*4 INFO
+         INTEGER I,J,II
          real(dp) SI,SI2
 C.. do we subtract out lower vertices here or later?
-         REAL*8 BETA
+         real(dp) BETA
          HElement_t HIJS(I_V+1),HIJS2(I_V),DLWT,T,U
          real(dp) HDiag_CPPS2VS
          real(dp) R,S,DLWDB
@@ -992,7 +1005,7 @@ C.. appropriate projection onto the root
 C            WRITE(6,*) WLIST(I),RIJMAT(1,I)
                S=abs(RIJMAT(1,I))**2
                R=HIJ(1,1)
-               R=DEXP(-BETA*(WLIST(I)-R))
+               R=EXP(-BETA*(WLIST(I)-R))
                SI2=SI2+S*R
 C%/RII
 C.. calculate <D|H exp(-b H)|D>/RHO_ii^P

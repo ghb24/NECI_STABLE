@@ -1,18 +1,22 @@
       SUBROUTINE NECI_RHOOFR(NHG,CK,G1,RHO,NMSH,SITAB,NMAX,NMRKS,
      &                       NEL,NDET,NEVAL,RS,ALAT,OMEGA)
+      use SystemData, only: BasisFN
       use global_utilities
-      IMPLICIT REAL*8 (A-H,O-Z)
+      use MemoryManager, only: TagIntType
+      use constants, only: dp
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
 C..
-      real*8, allocatable, save :: CFS(:) ! NDET
-      integer, save :: tagCFS=0
-C..
-      INTEGER G1(*)
-      DIMENSION CK(NDET,NEVAL),NMRKS(NEL,*)
-      DIMENSION RHO(NMSH,NMSH,NMSH),AUX(NMSH,NMSH,NMSH)
-      DIMENSION SITAB(NMSH,NMAX),ALAT(3)
-      DATA EPS/1.D-8/
-      DATA IFIRST/0/
-      SAVE IFIRST
+      real(dp), allocatable, save :: CFS(:) ! NDET
+      integer(TagIntType), save :: tagCFS=0
+      Type(BasisFN) G1(*)
+      integer :: NMAX,NMSH,NEL,NDET,NEVAL,ICC,KI,KJ,IC,I,J,K,NHG
+      real(dp) :: CK(NDET,NEVAL)
+      integer :: NMRKS(NEL,*)
+      real(dp) :: RHO(NMSH,NMSH,NMSH),AUX(NMSH,NMSH,NMSH)
+      real(dp) :: SITAB(NMSH,NMAX),ALAT(3),RS,SUM,OMEGA,CST,CF
+      REAL(dp) :: EPS=1.D-8
+      real(dp) , SAVE :: IFIRST=0
 C..
       IF(IFIRST.EQ.0) THEN
         IFIRST=1
@@ -46,7 +50,7 @@ C..If determinants differ by more than 1 spin orbital IC < (NEL-1)
           IF(IC.LT.(NEL-1)) GOTO 500
           CALL RLS(NEL,NMSH,NHG,NMRKS(1:NEL,KI),
      &             NMRKS(1:NEL,KJ),G1,SITAB,NMAX,IC,AUX)
-          CF=CFS(KI)*CFS(KJ)*DFLOAT(ICC)
+          CF=CFS(KI)*CFS(KJ)*real(ICC,dp)
           DO K=1,NMSH-1
             DO J=1,NMSH-1
               DO I=1,NMSH-1
@@ -69,7 +73,7 @@ C..Calculate integral of RHO
           ENDDO
         ENDDO
       ENDDO
-      SUM=SUM*OMEGA/DFLOAT(NMSH*NMSH*NMSH)
+      SUM=SUM*OMEGA/real(NMSH*NMSH*NMSH,dp)
       WRITE(6,'(A,F12.6)') ' INTEGRATED DENSITY : ' , SUM
       CALL WRITE_RHO(9,'DENSITY.1',RHO,NMSH,NMSH,NMSH,ALAT,
      &    .FALSE.,.TRUE.,RS)
@@ -79,12 +83,18 @@ C ==---------------------------------------------------------==
       SUBROUTINE RLS(NEL,NMSH,NHG,NDET1,NDET2,G1,
      &     SITAB,NMAX,IC,AUX)
       use SystemData, only: BasisFN
-      IMPLICIT REAL*8 (A-H,O-Z)
+      use constants, only: dp
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
 C..
-      DIMENSION NDET1(NEL),NDET2(NEL),AUX(NMSH,NMSH,NMSH)
-      DIMENSION SITAB(NMSH,NMAX),AUXX(NEL),AUXY(NEL),AUXZ(NEL)
+      integer :: NMSH,NEL,NMAX,ND1,ND2,IC,IQ,I,J,K,ID,IPTOT,IFLAG
+      integer :: NDET1(NEL),NDET2(NEL),NHG
+      real(dp) :: AUX(NMSH,NMSH,NMSH)
+      real(dp) :: SITAB(NMSH,NMAX),AUXX(NEL),AUXY(NEL),AUXZ(NEL)
       TYPE(BasisFN) G1(NHG)
       INTEGER N1E(NHG),N2E(NHG)
+      integer :: IJK,II,IJ,IK
+      real(dp) :: AUXZ1,AUXX1,AUXX2,AUXY1,AUXY2,AUXZ2
 C..
       N1E(1:NHG)=0
       N2E(1:NHG)=0
@@ -185,18 +195,21 @@ C..
         RETURN
       ENDIF
 C..
-      CALL DSCAL(NMSH*NMSH*NMSH,DFLOAT(IPTOT),AUX,1)
+      CALL DSCAL(NMSH*NMSH*NMSH,real(IPTOT,dp),AUX,1)
       RETURN
       END
 C ==---------------------------------------------------------==
       SUBROUTINE GEN_SITAB(NMAX,NMSH,SITAB)
-      IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION SITAB(NMSH,NMAX)
+!      IMPLICIT real(dp) (A-H,O-Z)
+      use constants, only: dp,pi
+      IMPLICIT NONE
+      integer :: NMSH,NMAX,I,J
+      real(dp) :: SITAB(NMSH,NMAX),X
 C..
-      PI=ACOS(-1.D0)
+!      PI=ACOS(-1.D0)
       DO I=1,NMAX
         DO J=1,NMSH
-          X=DFLOAT(J)/DFLOAT(NMSH)
+          X=real(J,dp)/real(NMSH,dp)
           SITAB(J,I)=SIN(PI*I*X)*SQRT(2.D0)
         ENDDO
       ENDDO
@@ -205,7 +218,9 @@ C..
 C ==---------------------------------------------------------==
       SUBROUTINE CKRN(NHG,G1,ND1,ND2,ID)
       use SystemData, only: BasisFN
-      IMPLICIT REAL*8 (A-H,O-Z)
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
+      integer :: NHG,ND1,ND2,ID
       TYPE(BasisFN) G1(NHG)
 C..
       ID=0

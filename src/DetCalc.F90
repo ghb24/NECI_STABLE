@@ -4,12 +4,12 @@ MODULE DetCalc
         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
         use sort_mod
         use DetCalcData
+        use MemoryManager, only: TagIntType
         
     IMPLICIT NONE
      save
 
 !From input
-      INTEGER NCYCLE !The Max number of Lanczos cycles
       INTEGER DETINV !The index in the list of dets of a det to investigate
       INTEGER IOBS,JOBS,KOBS
       LOGICAL TRHOOFR,TCORR,TFODM
@@ -19,18 +19,15 @@ MODULE DetCalc
       LOGICAL tCompressDets       !Set if once we've found the dets we compress to bit format
    
       TYPE(BasisFN), pointer :: BLOCKSYM(:)  !The Symmetry of each block.  nBlocks elements
-      INTEGER tagBlockSym
+      INTEGER(TagIntType) :: tagBlockSym
       INTEGER,ALLOCATABLE :: NBLOCKSTARTS(:) !Index of the first det of different symmetry blocks in the complete list of dets
-      INTEGER :: tagNBLOCKSTARTS=0
+      INTEGER(TagIntType) :: tagNBLOCKSTARTS=0
       INTEGER NBLOCKS                        !Number of Symmetry blocks
-      HElement_t, pointer :: HAMIL(:)    !The Hamiltonian in compressed form.  Contains only non-zero elements.  The total number of elements is in LenHamil
-      INTEGER :: tagHamil=0
-      INTEGER LenHamil                       !The Total number of non-zero elements in the compressed Hamiltonian
       INTEGER iFDet                       ! The index of the Fermi det in the list of dets.
       HElement_t, pointer :: CKN(:,:) !  (nDet,nEval)  Temporary storage for the Lanczos routine
-      INTEGER :: tagCKN=0
+      INTEGER(TagIntType) :: tagCKN=0
 
-      REAL*8 , ALLOCATABLE :: ExpandedHamil(:,:)    ! (NDet,NDet) This is the hamiltonian in expanded form, so that it can be histogrammed against.
+      real(dp) , ALLOCATABLE :: ExpandedHamil(:,:)    ! (NDet,NDet) This is the hamiltonian in expanded form, so that it can be histogrammed against.
 
       INTEGER iExcitLevel                 ! The excitation level at which determinants are cut off.  This differs from ICILevel for tCCBuffer.
     
@@ -43,7 +40,7 @@ CONTAINS
         Use IntegralsData, only : NFROZEN
         use SystemData, only : tCSFOLD,lms, lms2, nBasis, nBasisMax, nEl, SymRestrict
         use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
-        use SystemData, only : tParity, tSpn,Symmetry,STot, NullBasisFn
+        use SystemData, only : tParity, tSpn,Symmetry,STot, NullBasisFn, tUHF,tMolpro
         use sym_mod
         use CCMCData,   only : tCCBuffer !This is messy, but I don't see anywhere else to put it. AJWT
         use Logging,    only : tLogDets
@@ -118,7 +115,7 @@ CONTAINS
             ENDIF 
             IF(TCSFOLD) WRITE(6,*) "Determining CSFs."
 !C.. if we're doing a truncated CI expansion
-            CALL GENEXCIT(FDET,iExcitLevel,NBASIS,NEL,0,0,NDET,1,G1,.TRUE.,NBASISMAX,.TRUE.)
+            CALL GENEXCIT(FDET,iExcitLevel,NBASIS,NEL,0,(/0.0_dp/),NDET,1,G1,.TRUE.,NBASISMAX,.TRUE.)
             WRITE(6,*) "NDET out of GENEXCIT ",NDET
 !C.. We need to add in the FDET
             NDET=NDET+1
@@ -133,9 +130,16 @@ CONTAINS
             IF(TSPN) THEN
                WRITE(6,*) "Using spin restriction:",LMS
             ENDIF
-            CALL GNDTS_BLK(NEL,nBasis,BRR,NBASISMAX,NMRKS, .TRUE.,             &
-     &            NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,LMS2,TPARITY,        &
-     &           SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM)
+            if(tUHF.and.tMolpro) then
+                !When breaking spin symmetry in molpro, it is important to occupy alpha orbs preferentially
+                CALL GNDTS_BLK(NEL,nBasis,BRR,NBASISMAX,NMRKS, .TRUE.,             &
+     &                NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,-LMS2,TPARITY,        &
+     &               SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM)
+            else
+                CALL GNDTS_BLK(NEL,nBasis,BRR,NBASISMAX,NMRKS, .TRUE.,             &
+     &                NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,LMS2,TPARITY,        &
+     &               SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM)
+            endif
             WRITE(6,*) "NBLOCKS:",NBLOCKS
          ELSEIF(TCSFOLD) THEN
             WRITE(6,*) "Determining CSFs."
@@ -162,7 +166,12 @@ CONTAINS
             IF(TSPN) THEN
                WRITE(6,*) "Using spin restriction:",LMS
             ENDIF
-            CALL GNDTS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.TRUE.,G1,TSPN,LMS,TPARITY,SymRestrict,II,IFDET)
+            if(tUHF.and.tMolpro) then
+                !When breaking spin symmetry in molpro, it is important to occupy alpha orbs preferentially
+                CALL GNDTS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.TRUE.,G1,TSPN,-LMS,TPARITY,SymRestrict,II,IFDET)
+            else
+                CALL GNDTS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.TRUE.,G1,TSPN,LMS,TPARITY,SymRestrict,II,IFDET)
+            endif
             NBLOCKS=1
             NDET=II
          ENDIF
@@ -174,7 +183,7 @@ CONTAINS
 !C.. NEL now only includes active electrons
          WRITE(6,*) "Number of determinants found to be: ",II
          WRITE(6,*) "Allocating initial memory for calculation of energy..."
-         CALL FLUSH(6)
+         CALL neci_flush(6)
          Allocate(NMrks(nEl,II),stat=ierr)
          LogAlloc(ierr,'NMRKS',NEL*II,4,tagNMRKS)
          NMRKS(1:NEL,1:II)=0
@@ -204,8 +213,14 @@ CONTAINS
             NBLOCKSTARTS(2)=II+1
             IFDET=1
          ELSEIF(TBLOCK) THEN 
-            CALL GNDTS_BLK(NEL,nBasis,BRR,NBASISMAX,NMRKS, .FALSE.,NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,LMS2,TPARITY, &
-     &           SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM,TCSFOLD)
+            if(tUHF.and.tMolpro) then
+                !When breaking spin symmetry in molpro, it is important to occupy alpha orbs preferentially
+                CALL GNDTS_BLK(NEL,nBasis,BRR,NBASISMAX,NMRKS, .FALSE.,NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,-LMS2,TPARITY, &
+     &               SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM)
+            else
+                CALL GNDTS_BLK(NEL,nBasis,BRR,NBASISMAX,NMRKS, .FALSE.,NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,LMS2,TPARITY, &
+     &               SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM)
+            endif
          ELSEIF(TCSFOLD) THEN
             NDET=0  !This will be reset by GNCSFS
             CALL GNCSFS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.FALSE.,G1,TSPN,LMS2,TPARITY, &
@@ -213,7 +228,12 @@ CONTAINS
                NBLOCKSTARTS(1)=1
                NBLOCKSTARTS(2)=II+1
          ELSE
-            CALL GNDTS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.FALSE.,G1,TSPN,LMS,TPARITY,SymRestrict,II,IFDET)
+            if(tUHF.and.tMolpro) then
+                !When breaking spin symmetry in molpro, it is important to occupy alpha orbs preferentially
+                CALL GNDTS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.FALSE.,G1,TSPN,-LMS,TPARITY,SymRestrict,II,IFDET)
+            else
+                CALL GNDTS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.FALSE.,G1,TSPN,LMS,TPARITY,SymRestrict,II,IFDET)
+            endif
                NBLOCKSTARTS(1)=1
                NBLOCKSTARTS(2)=II+1
          ENDIF
@@ -266,7 +286,7 @@ CONTAINS
             WRITE(6,*) 'Setting DETINV to 0'
             DETINV=0
          ENDIF
-         CALL FLUSH(6)
+         CALL neci_flush(6)
     
 !C ==----------------------------------------------------------------==
 !C..Set up memory for c's, nrow and the label
@@ -299,40 +319,42 @@ CONTAINS
       use util_mod, only: get_free_unit
       use Determinants , only : get_helement,FDet
       use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
-      use SystemData, only : nBasis, nBasisMax,nEl,nMsh,LzTot
-      use SystemData, only : nBasis, nBasisMax,nEl,nMsh
+      use SystemData, only : nBasis, nBasisMax,nEl,nMsh,LzTot,tMomInv
       use IntegralsData, only: FCK,NMAX, UMat
       Use Logging, only: iLogging,tHistSpawn,tHistHamil,tLogDets
+      use logging, only: tCalcVariationalEnergy
       use SystemData, only  : tCSFOLD
-      use Parallel, only : iProcIndex
-      use DetBitops, only: DetBitEQ,EncodeBitDet
-      use bit_rep_data, only: NIfDBO,NIfTot
+      use Parallel_neci, only : iProcIndex
+      use DetBitops, only: DetBitEQ,EncodeBitDet,FindBitExcitLevel
+      use bit_rep_data, only: NIfDBO,NIfTot,NIfD
       use legacy_data, only: irat
+      use bit_reps, only: decode_bit_det
       use sym_mod
-     use HElem
+      use HElem
+      use MemoryManager, only: TagIntType
+      use MomInv, only : IsBitMomSelfInv,InvertMomDet  
 
-      REAL*8 , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),FCIGS(:)
+      real(dp) , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),FCIGS(:)
       HElement_t, ALLOCATABLE :: WORK(:)
-      INTEGER , ALLOCATABLE :: LAB(:),NROW(:),INDEX(:),ISCR(:),Temp(:)
-
-      integer :: LabTag=0,NRowTag=0,TKETag=0,ATag=0,VTag=0,AMTag=0,BMTag=0,TTag=0
-      INTEGER :: WTTag=0,SCRTag=0,ISCRTag=0,INDEXTag=0,WHTag=0,Work2Tag=0,V2Tag=0,WorkTag=0
+      INTEGER , ALLOCATABLE :: INDEX(:),ISCR(:),Temp(:)
+      integer(TagIntType) :: TKETag=0,ATag=0,VTag=0,AMTag=0,BMTag=0,TTag=0
+      INTEGER(TagIntType) :: WTTag=0,SCRTag=0,ISCRTag=0,INDEXTag=0,WHTag=0,Work2Tag=0,V2Tag=0,WorkTag=0
       integer :: ierr,Lz
       character(25), parameter :: this_routine = 'DoDetCalc'
-      REAL*8 EXEN,GSEN
-        Type(BasisFn) ISym,IHFSYM
-
-        INTEGER GC,I,ICMAX
-        INTEGER IN,IND,INDZ
-        INTEGER NBLOCK!,OpenOrbs,OpenOrbsSym,Ex(2,NEl)
-        INTEGER nKry1
-        INTEGER(KIND=n_int) :: ilut(0:NIfTot)
-        
-        INTEGER J,JR,iGetExcitLevel_2,ExcitLevel, iunit
-        INTEGER LSCR,LISCR,MaxIndex
-        LOGICAL tMC!,TestClosedShellDet,Found,tSign
-        real*8 GetHElement, calct, calcmcen, calcdlwdb,norm
-! Doesn't seem to have been inited
+      real(dp) EXEN,GSEN
+      Type(BasisFn) ISym,IHFSYM
+      INTEGER GC,I,ICMAX
+      INTEGER IN,IND,INDZ
+      INTEGER NBLOCK!,OpenOrbs,OpenOrbsSym,Ex(2,NEl)
+      INTEGER nKry1
+      INTEGER(KIND=n_int) :: ilut(0:NIfTot)
+      INTEGER J,JR,iGetExcitLevel_2,ExcitLevel, iunit
+      INTEGER LSCR,LISCR,MaxIndex
+      LOGICAL tMC!,TestClosedShellDet,Found,tSign
+      real(dp) GetHElement, calct, calcmcen, calcdlwdb,norm
+      integer:: ic,TempnI(NEl),MomSymDet(NEl),ICSym,ICConnect,PairedUnit,SelfInvUnit
+      integer(n_int) :: iLutMomSym(0:NIfTot)
+      logical :: tSuccess
 
       IF(tEnergy) THEN
           WRITE(6,'(1X,A,E19.3)') ' B2LIMIT : ' , B2L
@@ -368,7 +390,7 @@ CONTAINS
          CALL DETHAM(NDET,NEL,NMRKS,HAMIL,LAB,NROW,.TRUE.,ICMAX,GC,TMC)
          WRITE(6,*) ' FINISHED COUNTING '
          WRITE(6,*) "Allocating memory for hamiltonian: ",GC*2
-         CALL FLUSH(6)
+         CALL neci_flush(6)
 !C..Now we know size, allocate memory to HAMIL and LAB
          LENHAMIL=GC
          Allocate(Hamil(LenHamil), stat=ierr)
@@ -396,8 +418,8 @@ CONTAINS
              DO I=1,NDet
                 INDZ=INDZ+NROW(I)
                 DO WHILE (IND.LT.INDZ)
-                   ExpandedHamil(I,LAB(IND))=REAL(HAMIL(IND),8)
-                   ExpandedHamil(LAB(IND),I)=REAL(HAMIL(IND),8)
+                   ExpandedHamil(I,LAB(IND))=REAL(HAMIL(IND),dp)
+                   ExpandedHamil(LAB(IND),I)=REAL(HAMIL(IND),dp)
                    IND=IND+1
                 ENDDO
              ENDDO
@@ -448,7 +470,7 @@ CONTAINS
          ENDIF
         WRITE(6,*) '<D0|H|D0>=',GETHELEMENT(IFDET,IFDET,HAMIL,LAB,NROW,NDET)
         WRITE(6,*) '<D0|T|D0>=',CALCT(NMRKS(1,IFDET),NEL)
-        CALL FLUSH(6)
+        CALL neci_flush(6)
 !CC         CALL HAMHIST(HMIN,HMAX,LENHAMIL,NHISTBOXES)
       ENDIF
 !C.. We've now finished calculating H if we were going to.
@@ -464,11 +486,11 @@ CONTAINS
             LSCR=MAX(NDET*NEVAL,8*NBLOCK*NKRY)
             LISCR=6*NBLOCK*NKRY
 !C..
-            write (6,'(/,/,8X,64(1H*))')
+!            write (6,'(/,/,8X,64(1H*))')
             write (6,'(7X," *",62X,"*")')
           write (6,'(7X," *",19X,A,18X,"*")') ' LANCZOS DIAGONALISATION '
             write (6,'(7X," *",62X,"*")')
-            write (6,'(7X,1X,64(1H*))')
+!            write (6,'(7X,1X,64(1H*))')
 !C..Set up memory for FRSBLKH
 
             ALLOCATE(A(NEVAL,NEVAL),stat=ierr)
@@ -518,7 +540,7 @@ CONTAINS
             V2=0.d0
 !C..Lanczos iterative diagonalising routine
             CALL NECI_FRSBLKH(NDET,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT, &
-     &  SCR,ISCR,INDEX,NCYCLE,B2L,.true.,.false.,.false.)
+     &  SCR,ISCR,INDEX,NCYCLE,B2L,.true.,.false.,.false.,.true.)
 
 !Multiply all eigenvalues by -1.
             CALL DSCAL(NEVAL,-1.D0,W,1)
@@ -534,7 +556,7 @@ CONTAINS
                CALL LogMemAlloc('WORK',4*NDET,8*HElement_t_size,this_routine,WorkTag,ierr)
                ALLOCATE(WORK2(3*NDET),stat=ierr)
                CALL LogMemAlloc('WORK2',3*NDET,8,this_routine,WORK2Tag,ierr)
-               CALL HDIAG(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,NBLOCKSTARTS,NBLOCKS)
+               CALL HDIAG_neci(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,NBLOCKSTARTS,NBLOCKS)
             ELSE
 !I_P we've replaced by 0
                CALL HDIAG_NH(NDET,NBLOCKSTARTS,NBLOCKS,NEL,NMRKS,NBASISMAX,NBASIS,G1,BRR, &
@@ -546,10 +568,12 @@ CONTAINS
          ENDIF
 !C..
 !  Since we no longer use HAMIL or LAB, we deallocate
-         LogDealloc(tagHamil)
-         Deallocate(Hamil)
-         DEALLOCATE(LAB)
-         CALL LogMemDealloc(this_routine,LabTag)
+         if(.not.tCalcVariationalEnergy) then
+             LogDealloc(tagHamil)
+             Deallocate(Hamil)
+             DEALLOCATE(LAB)
+             CALL LogMemDealloc(this_routine,LabTag)
+         endif
          ALLOCATE(TKE(NEVAL),stat=ierr)
          CALL LogMemAlloc('TKE',NEVAL,8,this_routine,TKETag,ierr)
 
@@ -561,7 +585,7 @@ CONTAINS
 !C.. END ENERGY CALC
       ENDIF
 
-      call FLUSH(6)
+      call neci_flush(6)
 !C.. If we're calculating rhos (for which we have to have calced H
 !No longer used
 !      IF(TRHOIJ) THEN
@@ -584,7 +608,7 @@ CONTAINS
             CALL GETSYM(FDET,NEL,G1,NBASISMAX,IHFSYM)
             IF(.not.associated(NMRKS)) THEN
                 WRITE(6,*) "NMRKS not allocated"
-                CALL FLUSH(6) 
+                CALL neci_flush(6) 
                 CALL Stop_All("DoDetCalc","NMRKS not allocated so cannot compress dets.")
             ENDIF
 !First, we want to count the number of determinants of the correct symmetry...
@@ -594,12 +618,12 @@ CONTAINS
                 CALL GETSYM(NMRKS(:,i),NEL,G1,NBASISMAX,ISYM)
                 IF(ISym%Sym%S.eq.IHFSYM%Sym%S) THEN
                     Det=Det+1
-                    IF(tEnergy) norm=norm+(REAL(CK(i,1),8))**2
+                    IF(tEnergy) norm=norm+(REAL(CK(i,1),dp))**2
                 ENDIF
             enddo
             WRITE(6,"(I25,A,I4,A)") Det," determinants of symmetry ",IHFSym%Sym%S," found."
             WRITE(6,*) "Normalization of eigenvector 1 is: ", norm
-            CALL FLUSH(6)
+            CALL neci_flush(6)
 
             ALLOCATE(FCIDets(0:NIfTot,Det),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold vector")
@@ -610,6 +634,12 @@ CONTAINS
                 ALLOCATE(FCIGS(Det),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold vector")
             ENDIF
+            if(tCalcVariationalEnergy) then
+                !This allows us to resort to get back to the hamiltonian ordering
+                allocate(ReIndex(Det),stat=ierr)
+                if(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold vector")
+                ReIndex(:)=0
+            endif
 
             Det=0
             FCIDetIndex(:)=0
@@ -628,9 +658,10 @@ CONTAINS
                     Temp(Det)=ExcitLevel    !Temp will now temporarily hold the excitation level of the determinant.
                     CALL EncodeBitDet(NMRKS(:,i),FCIDets(0:NIfTot,Det))
                     IF(tEnergy) THEN
-                        FCIGS(Det)=REAL(CK(i,1),8)/norm
+                        FCIGS(Det)=REAL(CK(i,1),dp)/norm
                     ENDIF
                 ENDIF
+                if(tCalcVariationalEnergy) ReIndex(i)=i
             enddo
             IF(iExcitLevel.le.0) THEN
                 MaxIndex=NEl
@@ -647,7 +678,11 @@ CONTAINS
             IF(.not.tEnergy) THEN
                 call sort (temp(1:Det), FCIDets(:,1:Det))
             ELSE
-                call sort (temp(1:Det), FCIDets(:,1:Det), FCIGS(1:Det))
+                if(tCalcVariationalEnergy) then
+                    call sort (temp(1:Det), FCIDets(:,1:Det), FCIGS(1:Det), ReIndex(1:Det))
+                else
+                    call sort (temp(1:Det), FCIDets(:,1:Det), FCIGS(1:Det))
+                endif
 !                CALL Stop_All("DetCalc","Cannot do histogramming FCI without JUSTFINDDETS at the moment (need new sorting - bug ghb24)")
             ENDIF
 
@@ -675,16 +710,71 @@ CONTAINS
             do i=1,MaxIndex
                 IF(.not.tEnergy) THEN
 !                    WRITE(6,*) i,FCIDetIndex(i),FCIDetIndex(i+1)-1
-!                    CALL FLUSH(6)
+!                    CALL neci_flush(6)
                     call sort (FCIDets(:,FCIDetIndex(i):FCIDetIndex(i+1)-1), &
                                temp(FCIDetIndex(i):FCIDetIndex(i+1)-1))
                 ELSE
-                    call sort (FCIDets(:,FCIDetIndex(i):FCIDetIndex(i+1)-1), &
-                               temp(FCIDetIndex(i):FCIDetIndex(i+1)-1), &
-                               FCIGS(FCIDetIndex(i):FCIDetIndex(i+1)-1))
+                    if(tCalcVariationalEnergy) then
+                        call sort (FCIDets(:,FCIDetIndex(i):FCIDetIndex(i+1)-1), &
+                                   temp(FCIDetIndex(i):FCIDetIndex(i+1)-1), &
+                                   FCIGS(FCIDetIndex(i):FCIDetIndex(i+1)-1), &
+                                   ReIndex(FCIDetIndex(i):FCIDetIndex(i+1)-1))
+                    else
+                        call sort (FCIDets(:,FCIDetIndex(i):FCIDetIndex(i+1)-1), &
+                                   temp(FCIDetIndex(i):FCIDetIndex(i+1)-1), &
+                                   FCIGS(FCIDetIndex(i):FCIDetIndex(i+1)-1))
+                     endif
                 ENDIF
             enddo
 
+!            if(tMomInv.and..false.) then    
+!                !These are some tests for the MomInv functions. Off and commented out by default
+!                PairedUnit = get_free_unit()
+!                open(PairedUnit,file='LzPairedDets',status='unknown')
+!                SelfInvUnit = get_free_unit()
+!                open(SelfInvUnit,file='SelfInvDet',status='unknown')
+!                do i=1,Det
+!                    if(abs(FCIGS(i)).lt.1.D-8) cycle
+!                    !Ignore if self-inverse
+!                    if(IsBitMomSelfInv(FCIDets(:,i))) then
+!                        call decode_bit_det(TempnI,FCIDets(:,i))
+!                        write(SelfInvUnit,"(I16,6I4,G19.8)") FCIDets(0:NIfD,i),TempnI(:),FCIGS(i)
+!                        cycle
+!                    endif
+!                    
+!                    IC = FindBitExcitLevel(iLut,FCIDets(:,i),nel)
+!                    !Decode
+!                    call decode_bit_det(TempnI,FCIDets(:,i))
+!
+!                    !Find inverse det
+!                    call InvertMomDet(TempnI,MomSymDet)
+!
+!                    !Encode
+!                    call EncodeBitDet(MomSymDet,iLutMomSym)
+!
+!                    !Find excit level of mom sym det
+!                    ICSym = FindBitExcitLevel(iLut,iLutMomSym,nel)
+!
+!                    !Search for it...
+!                    if(ICSym.eq.nel) then
+!                        call BinSearchParts2(iLutMomSym,FCIDetIndex(ICSym),Det,Ind,tSuccess)
+!                    elseif(ICSym.eq.0) then
+!                        call stop_all(this_routine,"HF det is not self-inverse?!")
+!                    else
+!                        call BinSearchParts2(iLutMomSym,FCIDetIndex(ICSym),FCIDetIndex(ICSym+1)-1,Ind,tSuccess)
+!                    endif
+!                    if(.not.tSuccess) then
+!                        call stop_all(this_routine,"Sym partner not found")
+!                    endif
+!                    ICConnect = FindBitExcitLevel(FCIDets(:,i),iLutMomSym,nel)
+!                    write(PairedUnit,"(2I16,15I4,2G19.8)") FCIDets(0:NIfD,i),iLutMomSym(0:NIfD),TempnI(:),MomSymDet(:),IC,ICSym,ICConnect,FCIGS(i),FCIGS(Ind)
+!                enddo
+!                close(PairedUnit)
+!                close(SelfInvUnit)
+!
+!                call TestMomInvInts() 
+!
+!            endif
 
 !This will sort the determinants into ascending order, for quick binary searching later on.
 !            IF(.not.tFindDets) THEN
@@ -791,7 +881,7 @@ CONTAINS
 !             enddo
 !             IF(.not.associated(NMRKS)) THEN
 !                 WRITE(6,*) "NMRKS not allocated"
-!                 CALL FLUSH(6)
+!                 CALL neci_flush(6)
 !             ENDIF
 !             norm=0.D0
 !             OPEN(17,FILE='SymDETS',STATUS='UNKNOWN')
@@ -837,7 +927,7 @@ CONTAINS
           ENDIF
           IF(BTEST(ILOGGING,7)) CALL WRITE_PSI(BOX,BOA,COA,NDET,NEVAL,NBASISMAX,NEL,CK,W)
           IF(BTEST(ILOGGING,8)) CALL WRITE_PSI_COMP(BOX,BOA,COA,NDET,NEVAL,NBASISMAX,NEL,CK,W)
-          WRITE(6,*) '       ==--------------------------------------------------== '
+          WRITE(6,*) '       ====================================================== '
           WRITE(6,'(A5,5X,A15,1X,A18,1x,A20)') 'STATE','KINETIC ENERGY', 'COULOMB ENERGY', 'TOTAL ENERGY'
           iunit = get_free_unit()
           OPEN(iunit,FILE='ENERGIES',STATUS='UNKNOWN')
@@ -848,7 +938,7 @@ CONTAINS
              WRITE(iunit,"(F19.11)") W(IN)
           ENDDO
           CLOSE(iunit)
-          WRITE(6,*)   '       ==--------------------------------------------------== '
+          WRITE(6,*)   '       ====================================================== '
 !C., END energy calc
       ENDIF
 
@@ -876,14 +966,14 @@ CONTAINS
         use SystemData, only: Alat, G1, nBasis, Omega, nEl,nMsh
         use IntegralsData, only: nMax
 != This variable used to be an allocatable array of size NMSH*NMSH*NMSH, but seemed to be only used as a real - ghb24 21/09/08
-        REAL*8 SCRTCH
+        real(dp) SCRTCH
 
-        REAL*8 , ALLOCATABLE :: DLINE(:),PSIR(:),RHO(:,:,:),SITAB(:,:),XCHOLE(:,:,:)!,SCRTCH()
-        INTEGER :: DLINETag=0,PSIRTag=0,RHOTag=0,SITABTag=0,XCHOLETag=0!SCRTCHTag=0
+        real(dp) , ALLOCATABLE :: DLINE(:),PSIR(:),RHO(:,:,:),SITAB(:,:),XCHOLE(:,:,:)!,SCRTCH()
+        INTEGER(TagIntType) :: DLINETag=0,PSIRTag=0,RHOTag=0,SITABTag=0,XCHOLETag=0!SCRTCHTag=0
 
         character(25), parameter :: this_routine = 'CalcRhoOfR'
         INTEGER iXD, iYD, iZD,ierr
-        REAL*8 SPAC, Rs
+        real(dp) SPAC, Rs
 !C..Generate memory for RHO and SITAB
         ALLOCATE(RHO(NMSH,NMSH,NMSH),stat=ierr)
         CALL LogMemAlloc('RHO',NMSH**3,8,this_routine,RHOTag,ierr)
@@ -917,7 +1007,8 @@ CONTAINS
           IYD=0
           IZD=0
           SPAC=0.D0
-          CALL GEN_XCHOLE(CK,PSIR,IOBS,JOBS,KOBS,G1,SITAB,NMAX,NMSH,nBasis,IXD,IYD,IZD,RHO,.TRUE.,XCHOLE,SPAC,ALAT,OMEGA,NMRKS,NDET,NEVAL,NEL)
+          CALL GEN_XCHOLE(CK,PSIR,IOBS,JOBS,KOBS,G1,SITAB,NMAX,NMSH,nBasis,IXD,IYD,IZD,RHO,.TRUE.,XCHOLE, &
+            SPAC,ALAT,OMEGA,NMRKS,NDET,NEVAL,NEL)
           CALL WRITE_RHO(10,'COMPXCHOLE',XCHOLE,NMSH,NMSH,NMSH,ALAT,.FALSE.,.TRUE.,RS)
 !C..
           CALL XCHOLES(CK,PSIR,IOBS,JOBS,KOBS,G1,SITAB,NMAX,NMSH,nBasis,RHO,XCHOLE,SPAC,RS,ALAT,OMEGA,NMRKS,NDET,NEL,NEVAL)
@@ -926,8 +1017,8 @@ CONTAINS
     Subroutine CalcFoDM()
         Use global_utilities
         use SystemData, only: G1, nBasis, nMaxX, nMaxY, nMaxZ, nEl
-        REAL*8 , ALLOCATABLE :: SUMA(:,:,:)
-        INTEGER :: SUMATag=0
+        real(dp) , ALLOCATABLE :: SUMA(:,:,:)
+        INTEGER(TagIntType) :: SUMATag=0
         INTEGER ISTATE,ierr
         character(25), parameter :: this_routine = 'CalcFoDM'
         ISTATE=0
@@ -946,13 +1037,14 @@ END MODULE DetCalc
      &   DETINV,TSPECDET,SPECDET)
          use constants, only: dp
          use util_mod, only: get_free_unit
-         use SystemData, only: BasisFN
+         use SystemData, only: BasisFN, tMolpro,tMolproMimic
          use CalcData, only: tFCIMC
          use global_utilities
          use DetCalcData, only: NMRKS
          use legacy_data, only: irat
          use Determinants, only: write_det
          use mcpaths, only: mcpathsr3
+        use MemoryManager, only: TagIntType
          implicit none
          character(25), parameter :: this_routine = 'CalcRhoPII2'
          INTEGER NEL,I_P,I_HMAX,I_VMAX,NDET,nBasisMax(5,*),nBasis
@@ -960,20 +1052,20 @@ END MODULE DetCalc
          type(timer), save :: proc_timer
          HElement_t UMat(*)
          real(dp) DLWDB, DLWDB2, DLWDB3, DLWDB4
-         TYPE(BasisFN) g1(*)
-         REAL*8 ALAT(3)
-         REAL*8 BETA,RHOEPS
-         COMPLEX*16 FCK(*)
+         TYPE(BasisFN) G1(*)
+         real(dp) ALAT(3)
+         real(dp) BETA,RHOEPS
+         complex(dp) FCK(*)
 
          
          INTEGER, ALLOCATABLE :: LSTE(:,:,:),ICE(:,:)
          HElement_t , ALLOCATABLE :: RIJLIST(:,:)
-         INTEGER,SAVE :: RIJLISTTag=0,LSTEtag=0,ICEtag=0
+         INTEGER(TagIntType),SAVE :: RIJLISTTag=0,LSTEtag=0,ICEtag=0
          INTEGER NPATHS,ierr
          INTEGER III,NWHTAY(3,I_VMAX),IMAX,ILMAX
          real(dp) WLRI,WLSI
-         REAL*8 ECORE,DBETA,WLRI1,WLRI2,WLSI1,WLSI2
-         REAL*8 TOT, NORM,WLRI0,WLSI0,WINORM
+         real(dp) ECORE,DBETA,WLRI1,WLRI2,WLSI1,WLSI2
+         real(dp) TOT, NORM,WLRI0,WLSI0,WINORM
          LOGICAL TNPDERIV
          INTEGER DETINV
          INTEGER ISTART,IEND,iunit
@@ -991,9 +1083,9 @@ END MODULE DetCalc
          IF((I_HMAX.GE.-10.AND.I_HMAX.LE.-7)      .OR.I_HMAX.LE.-12) ILMAX=1
 !         ILMAX=(NBASIS-NEL)**2*NEL*NEL/4
          ALLOCATE(LSTE(NEL,0:ILMAX,0:IMAX),stat=ierr)
-         call LogMemAlloc('LSTE',size(LSTE),4,this_routine,LSTEtag,ierr)
+         call LogMemAlloc('LSTE', int(size(LSTE)),4,this_routine,LSTEtag,ierr)
          ALLOCATE(ICE(0:ILMAX,0:IMAX),stat=ierr)
-         call LogMemAlloc('ICE',size(ICE),4,this_routine,ICEtag,ierr)
+         call LogMemAlloc('ICE',int(size(ICE)),4,this_routine,ICEtag,ierr)
          ALLOCATE(RIJLIST(0:ILMAX,0:IMAX*2),stat=ierr)
          CALL LogMemAlloc('RIJLIST',(1+ILMAX)*IMAX*2,8,this_routine,RIJLISTTag,ierr)
          IF(I_VMAX.NE.0) THEN
@@ -1092,14 +1184,18 @@ END MODULE DetCalc
             TOT=TOT+WINORM*(DLWDB)
             WRITE(iunit,*) DLWDB
             IF(DETINV.EQ.III.AND.III.NE.0) THEN
-               CALL FLUSH(iunit)
+               CALL neci_flush(iunit)
                WRITE(6,*) "Investigating det ",DETINV
-               CALL FLUSH(6)
+               CALL neci_flush(6)
                CALL WIRD_SUBSET(NMRKS(:,DETINV),BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,ECORE)
             ENDIF
           ENDDO
          CLOSE(iunit)
-         WRITE(6,*) "Summed approx E(Beta)=",TOT/NORM
+         if(tFCIMC) then
+             if((.not.tMolpro).and.(.not.tMolproMimic)) write(6,*) "Summed approx E(Beta)=",TOT/NORM
+         else
+             WRITE(6,*) "Summed approx E(Beta)=",TOT/NORM
+         endif
          DEALLOCATE(RIJLIST,ICE,LSTE)
          CALL LogMemDealloc(this_routine,RIJLISTTag)
          CALL LogMemDealloc(this_routine,ICETag)
@@ -1115,12 +1211,12 @@ END MODULE DetCalc
 !.. sum I_P*FLRI+FLSI will still retain the correct value.
       SUBROUTINE CALCRHOPII(I,NDET,NEVAL,CK,W,BETA,I_P,FLRI,FLSI,TWARN)
          use constants, only: dp
-         use util_mod, only: isnan
+         use util_mod, only: isnan_neci
          IMPLICIT NONE
          INTEGER NDET,NEVAL
          HElement_t CK(NDET,NEVAL)
-         REAL*8 W(NEVAL)
-         REAL*8 RHII,FLRI,FLSI,BETA,RH,R
+         real(dp) W(NEVAL)
+         real(dp) RHII,FLRI,FLSI,BETA,RH,R
          INTEGER I_P,I,IK
          LOGICAL TWARN
          RH=0.D0
@@ -1157,7 +1253,7 @@ END MODULE DetCalc
             RH=RH+R*EXP(-(W(IK)-W(1))*BETA)
          ENDDO
          FLSI=LOG(RH)-W(1)*BETA-I_P*FLRI
-         IF(ISNAN((RH+1)-RH)) THEN
+         IF(ISNAN_neci((RH+1)-RH)) THEN
             RH=0
             FLSI=0
          ENDIF
@@ -1166,11 +1262,11 @@ END MODULE DetCalc
       END
 
 !  Given an exact calculation of eigen-vectors and -values, calculate the expectation value of E(Beta)
-      REAL*8 FUNCTION CALCMCEN(NEVAL,W,BETA)
+      FUNCTION CALCMCEN(NEVAL,W,BETA)
          use constants, only: dp
          IMPLICIT NONE
          INTEGER NEVAL,IK
-         REAL*8  W(NEVAL),BETA,DNORM,EN
+         real(dp)  W(NEVAL),BETA,DNORM,EN,CALCMCEN
          EN=0.D0
          DNORM=0.D0
          DO IK=1,NEVAL
@@ -1182,12 +1278,12 @@ END MODULE DetCalc
       END
 
 !  Given an exact calculation of eigen-vectors and -values, calculate the expectation value of E~(Beta)_I for det I
-      REAL*8 FUNCTION CALCDLWDB(I,NDET,NEVAL,CK,W,BETA)
+      FUNCTION CALCDLWDB(I,NDET,NEVAL,CK,W,BETA)
          use constants, only: dp
          IMPLICIT NONE
          INTEGER NDET,NEVAL,IK,I
          HElement_t CK(NDET,NEVAL)
-         REAL*8  W(NEVAL),BETA,DNORM,EN
+         real(dp)  W(NEVAL),BETA,DNORM,EN,CALCDLWDB
          EN=0.D0
          DNORM=0.D0
          DO IK=1,NEVAL
@@ -1205,11 +1301,11 @@ END MODULE DetCalc
       use SystemData, only: BasisFN
       use HElem
       IMPLICIT NONE
+      INTEGER NEL,NM(NEL,*),NDET,NEVAL, iunit
       HElement_t CG(NDET,NEVAL)
-      INTEGER NM(NEL,*),NDET,NEL,NEVAL, iunit
-      REAL*8 TKE(NEVAL)
+      real(dp) TKE(NEVAL)
       TYPE(BASISFN) G1(*)
-      REAL*8 PI,S,SUM1
+      real(dp) PI,S,SUM1
       real(dp) AUX
       INTEGER I,J,IN,IEL,L
 !..Calculate the expectation value of the kinetic energy
@@ -1269,14 +1365,14 @@ END MODULE DetCalc
 
 
 !Given exact eigenvalues and vectors, do monte carlo in det space with exact weights and E~
-       REAL*8 FUNCTION DOEXMC(NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,ECORE,IMCSTEPS,G1,NMRKS,NEL,NBASISMAX,NBASIS,BRR,IEQSTEPS)
+       FUNCTION DOEXMC(NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,ECORE,IMCSTEPS,G1,NMRKS,NEL,NBASISMAX,NBASIS,BRR,IEQSTEPS)
          use constants, only: dp
          use SystemData, only: BasisFn
          implicit none
          INTEGER NDET,NEVAL,I_P,ILOGGING, NBASISMAX(5,7), NBASIS, NEL, BRR(NBASIS), IMCSTEPS, NMRKS(:,:), IEQSTEPS
          HElement_t CK(NEVAL)
          type(BasisFn) G1(nBasis)
-         REAL*8 W(NEVAL),BETA,ECORE
+         real(dp) W(NEVAL),BETA,ECORE,DOEXMC
 
          ! Avoid compiler warnings
          ndet = ndet; neval = neval; ck(1) = ck(1); W(1) = W(1); beta = beta

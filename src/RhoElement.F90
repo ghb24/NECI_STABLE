@@ -17,13 +17,13 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
       HElement_t UMat(*),RH
       INTEGER I_P,NTAY(2),NEL,NBASIS
       INTEGER NI(NEL),NJ(NEL),NMAX,IC,IC2
-      REAL*8 BETA,ECORE
+      real(dp) BETA,ECORE
       LOGICAL LSAME      
       INTEGER NMSH,IGETEXCITLEVEL
       type(timer), save :: proc_timer
       TYPE(BasisFN) G1(*)
-      COMPLEX*16 FCK(*)
-      REAL*8 ALAT(3)  
+      complex(dp) FCK(*)
+      real(dp) ALAT(3)  
       HElement_t hE,UExp,B,EDIAG
       IF(NTAY(1).LT.0) THEN
 !.. We've actually hidden a matrix of rhos in the coeffs for calcing RHOa
@@ -213,17 +213,18 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
 !  Get a matrix element of the double-counting corrected unperturbed Hamiltonian.
 !  This is just the sum of the Hartree-Fock eigenvalues 
 !   with the double counting subtracted, Sum_i eps_i - 1/2 Sum_i,j <ij|ij>-<ij|ji>.  (i in HF det, j in excited det)
-      subroutine GetH0ElementDCCorr(nHFDet,nJ,nEl,G1,nBasis,Arr,ECore,hEl)
+      subroutine GetH0ElementDCCorr(nHFDet,nJ,nEl,G1,nBasis,NMAX,ECore,hEl)
          use constants, only: dp
-         use Integrals, only: GetUMatEl
+         use Integrals_neci, only: GetUMatEl
          use UMatCache
-         use SystemData, only: BasisFN
+         use SystemData, only: BasisFN,Arr
          implicit none
-         integer nHFDet(nEl),nJ(nEl),nEl,nBasis
+         integer nEl,nBasis
+         integer nHFDet(nEl),nJ(nEl)
          type(BasisFN) G1(*)
          HElement_t hEl
-         real*8 Arr(nBasis,2),ECore
-         integer i,j
+         real(dp) ECore
+         integer i,j,NMAX
          integer IDHF(nEl),IDJ(nEl)
          hEl=(ECore)
          do i=1,nEl
@@ -243,5 +244,5 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
          enddo
 !         call writedet(77,nj,nel,.false.)
 !         write(77,*) "H0DC",hEl
-!         call flush(77)
+!         call neci_flush(77)
       end

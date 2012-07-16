@@ -1,14 +1,21 @@
       SUBROUTINE RLSXC1_SC(NEL,NMSH,NMAX,SITAB,IOBS,JOBS,KOBS,
      &  NDET1,NDET2,G1,NHG,AUXC)
       use SystemData, only: BasisFN
-      IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION NDET1(NEL),NDET2(NEL),AUXC(NMSH,NMSH,NMSH)
+!      IMPLICIT real(dp) (A-H,O-Z)
+      use constants, only: dp
+      IMPLICIT NONE
+      integer :: NEL,NHG,NMSH,NMAX
+      real(dp) :: AUXC(NMSH,NMSH,NMSH)
+      integer :: NDET1(NEL),NDET2(NEL)
 C..Cube array
-      DIMENSION SITAB(NMSH,NMAX) 
+      real(dp) :: SITAB(NMSH,NMAX) 
       TYPE(BasisFN) G1(NHG)
       INTEGER TMP1(NEL),TMP2(NEL)
       INTEGER IDS1(NEL-1),IDS2(NEL-1)
       EXTERNAL CHK,U1
+      real(dp) :: U2ND2R2,U1ND2R2,U1ND1R2,U2ND1R2
+      real(dp) :: U2ND2R1,U1ND2R1,U1ND1R1,U2ND1R1,U1KIR1,U2KIR2,U1
+      integer :: IQ,I,J,K,ND1,II,KI,KOBS,JOBS,IOBS,IDS,IX,IY,IZ,ND2
 C..
       TMP1(1:NEL)=0
       TMP2(1:NEL)=0
@@ -90,8 +97,8 @@ C..
               U2ND2R2=U1(ND2,NMAX,NMSH,NHG,G1,SITAB,IX,IY,IZ)
 
               AUXC(IX,IY,IZ)=AUXC(IX,IY,IZ)+
-     &          U1ND1R1*U1ND2R1*U2KIR2*U2KIR2*DFLOAT(IDS)  
-     &         +U1KIR1*U1KIR1*U2ND1R2*U2ND2R2*DFLOAT(IDS)   
+     &          U1ND1R1*U1ND2R1*U2KIR2*U2KIR2*real(IDS,dp)  
+     &         +U1KIR1*U1KIR1*U2ND1R2*U2ND2R2*real(IDS,dp)   
      &         -IDS1(KI)*IDS2(KI)*U1ND1R1*U1KIR1*U2KIR2*U2ND2R2   
      &         -IDS1(KI)*IDS2(KI)*U1KIR1*U1ND2R1*U2ND1R2*U2KIR2    
             ENDDO

@@ -1,12 +1,14 @@
 
       SUBROUTINE LOGNAN(NI,NEL,BETA,ITIME)
-         INTEGER NEL,ITIME,NI(NEL)
-         REAL*8 BETA
-         CHARACTER*40 STR
+      use constants, only: dp
+         IMPLICIT NONE
+         INTEGER NEL,ITIME,NI(NEL),K,I,neci_system
+         real(dp) BETA
+         CHARACTER(40) STR
          WRITE(STR,*) 'mkdir "nan',ITIME,'"'
-         I=SYSTEM(STR)
+         I=neci_SYSTEM(STR)
          WRITE(STR,*) 'cp * "nan',ITIME,'"'
-         I=SYSTEM(STR)
+         I=neci_SYSTEM(STR)
          WRITE(STR,*) 'nan',ITIME,"/LOG"
          OPEN(12,FILE=STR,STATUS="UNKNOWN")
          WRITE(12,*) "WARNING: nan found at time",ITIME
@@ -23,9 +25,10 @@
 
 
       SUBROUTINE WRITE_XMATRIX(IUNIT,RHOIJ,I_V)
+      use constants, only: dp
          IMPLICIT NONE
          INTEGER I_V,J,K,IUNIT
-         REAL*8 RHOIJ(0:I_V-1,0:I_V-1)      
+         real(dp) RHOIJ(0:I_V-1,0:I_V-1)      
          WRITE(IUNIT,"(A)",advance='no') "{"
          DO J=0,I_V-1
             DO K=0,I_V-1

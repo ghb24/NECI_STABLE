@@ -3,20 +3,28 @@
      &    NHG,IXD,IYD,IZD,RHO,TCOMPLETE,XCHOLE,SPAC,ALAT,OMEGA,
      &    NMRKS,NDET,NEVAL,NEL)
       use global_utilities
-      IMPLICIT REAL*8 (A-H,O-Z)
+      use MemoryManager, only: TagIntType
+      use constants, only: dp,pi
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
 C..
-      REAL*8,ALLOCATABLE,SAVE :: CFXCS(:)
-      integer, save :: tagCFXCS=0
-      DIMENSION CIJKL(NDET,NEVAL),NMRKS(NEL,*)
-      DIMENSION RHO(NMSH,NMSH,NMSH),XCHOLE(NMSH,NMSH,NMSH)
-      DIMENSION AUXC(NMSH,NMSH,NMSH)
+      integer :: IOBS,JOBS,KOBS,KI,KJ,ICC,IC,IL,IX,IY,IZ,NEL,I,J
+      INTEGER :: NDET,NEVAL,NMSH,NHG,NMAX
+      real(dp),ALLOCATABLE,SAVE :: CFXCS(:)
+      integer(TagIntType), save :: tagCFXCS=0
+      real(dp) :: CIJKL(NDET,NEVAL)
+      integer :: NMRKS(NEL,*)
+      real(dp) :: RHO(NMSH,NMSH,NMSH),XCHOLE(NMSH,NMSH,NMSH)
+      real(dp) :: AUXC(NMSH,NMSH,NMSH)
       INTEGER G1(5,NHG)
 C..Cube arrays
-      DIMENSION PSIR(-NMSH:NMSH)
-      DIMENSION SITAB(NMSH,NMAX),ALAT(3)
+      real(dp) :: PSIR(-NMSH:NMSH),OMEGA,CST,CF
+      real(dp) :: SITAB(NMSH,NMAX),ALAT(3)
       LOGICAL TCOMPLETE
+      real(dp) :: eps,zspacing,yspacing,xspacing,spac,SUM,CHKRHO
+      integer :: IXD,IYD,IZD
 C..
-      PI=ACOS(-1.D0)
+!      PI=ACOS(-1.D0)
       EPS=1.D-6
 C..
       IF(RHO(IOBS,JOBS,KOBS).EQ.0.D0) THEN
@@ -86,10 +94,10 @@ C..Integral of exchange-correlation hole
         ENDDO
           ENDDO
         ENDDO
-        SUM=SUM*OMEGA/DFLOAT(NMSH*NMSH*NMSH)
-        CHKRHO=CHKRHO*OMEGA/DFLOAT(NMSH*NMSH*NMSH)
+        SUM=SUM*OMEGA/real(NMSH*NMSH*NMSH,dp)
+        CHKRHO=CHKRHO*OMEGA/real(NMSH*NMSH*NMSH,dp)
         WRITE(6,'(A,F19.6)') ' RHO AT OBS. POINT : '
-     &     ,DFLOAT(NEL-1)*RHO(IOBS,JOBS,KOBS)
+     &     ,real(NEL-1,dp)*RHO(IOBS,JOBS,KOBS)
         WRITE(6,'(A,F19.6)')  
      &      ' INTEGRAL OVER 2ND ORDER DENSITY MATRIX : ' 
      &       ,CHKRHO 
@@ -119,12 +127,17 @@ C..Integral of exchange-correlation hole
 C ==-------------------------------------------------------------------==
       SUBROUTINE RLSXC(NEL,NMSH,SITAB,NMAX,I,J,K,
      &    NDET1,NDET2,G1,NHG,IC,AUXC)
-      IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION NDET1(NEL),NDET2(NEL),AUXC(NMSH,NMSH,NMSH)
-      INTEGER G1(5,NHG)
+      use constants, only: dp
+!     IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
+      INTEGER NHG,G1(5,NHG),NEL,NMSH,NMAX
+      INTEGER :: NDET1(NEL),NDET2(NEL)
+      real(dp) :: AUXC(NMSH,NMSH,NMSH)
       INTEGER N1E(NHG),N2E(NHG)
 C..Cube arrays
-      DIMENSION SITAB(NMSH,NMAX)
+      real(dp) :: SITAB(NMSH,NMAX)
+      integer :: IPTOT,IFLAG,IC,I,J,K,LEN
+
       N1E(1:NHG)=0
       N2E(1:NHG)=0
       CALL LINEUP(NEL,NDET1,NDET2,NHG,N1E,N2E,IFLAG,IPTOT)
@@ -146,6 +159,6 @@ C..Determinants are the same
       ENDIF
 C..
       LEN=NMSH*NMSH*NMSH
-      CALL DSCAL(LEN,DFLOAT(IPTOT),AUXC,1)
+      CALL DSCAL(LEN,real(IPTOT,dp),AUXC,1)
       RETURN
       END

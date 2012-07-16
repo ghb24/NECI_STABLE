@@ -55,14 +55,14 @@ MODULE GraphMorph
 !    HElement_t , ALLOCATABLE :: Eigenvector(:)
 !    INTEGER :: EigenvectorTag=0
 !!The largest Eigenvalue of the graph
-!    REAL*8 :: Eigenvalue
+!    real(dp) :: Eigenvalue
 !
 !!This is the vector of propensity to move towards the excited determinants of the graph
 !    HElement_t , ALLOCATABLE :: ExcitsVector(:)
 !    INTEGER :: ExcitsVectorTag=0
 !
 !!This is needed if we are using the MoveDets graph growing algorithm to store a copy of the rho matrix in
-!    REAL*8 , ALLOCATABLE :: CopyRhoMat(:,:)
+!    real(dp) , ALLOCATABLE :: CopyRhoMat(:,:)
 !    INTEGER :: CopyRhoMatTag=0
 !
 !!If TDistrib is on, then this will show the distribution of determinants among the excitations
@@ -79,7 +79,7 @@ MODULE GraphMorph
 !    HElement_t :: rhii,Hii
 !
 !!These are the weight and energy of the current graph respectively
-!    REAL*8 :: SI,DLWDB
+!    real(dp) :: SI,DLWDB
 !
 !!This is the seed for the random numbers needed in the routines
 !    INTEGER :: Seed
@@ -91,7 +91,7 @@ MODULE GraphMorph
 !    LOGICAL :: ReturntoTMoveDets
 !
 !!Various stats for printing
-!    REAL*8 :: PStay,Orig_Graph,SucRat,MeanExcit
+!    real(dp) :: PStay,Orig_Graph,SucRat,MeanExcit
 
     contains
 
@@ -106,7 +106,7 @@ MODULE GraphMorph
         ! Avoid warnings
         weight = weight
         energyxw = energyxw 
-!        REAL*8 :: LowestE,BestSI
+!        real(dp) :: LowestE,BestSI
 !        INTEGER :: ierr,i
 !        CHARACTER(len=*), PARAMETER :: this_routine='MorphGraph'
 
@@ -157,7 +157,7 @@ MODULE GraphMorph
 !                WRITE(64,"(I8)",advance='no') Distribs(i,1)
 !            enddo
 !            WRITE(64,*) ""
-!            CALL FLUSH(64)
+!            CALL neci_flush(64)
 !        ENDIF
 !        
 !!Allocate space for largest Eigenvector for various graphs
@@ -177,7 +177,7 @@ MODULE GraphMorph
 !            WRITE(6,*) ""
 !            WRITE(6,"(A,I4,A)") "Starting Iteration ", Iteration, " ..."
 !            WRITE(6,*) ""
-!            CALL FLUSH(6)
+!            CALL neci_flush(6)
 !
 !            IF((Iteration.eq.2).and.ReturntoTMoveDets) THEN
 !!If one iteration of regrowing graphs is used, then return to the moving dets algorithm                
@@ -204,7 +204,7 @@ MODULE GraphMorph
 !                    BestSI=SI
 !                ENDIF
 !            ENDIF
-!            CALL FLUSH(6)
+!            CALL neci_flush(6)
 !
 !!Write out stats
 !            IF(Iteration.eq.1) THEN
@@ -212,14 +212,14 @@ MODULE GraphMorph
 !            ELSE
 !                WRITE(63,"(I10,5G20.12)") Iteration,DLWDB,PStay,Orig_Graph,SucRat,MeanExcit
 !            ENDIF
-!            CALL FLUSH(63)
+!            CALL neci_flush(63)
 !
 !!Excitation generators are initialised for each of the determinants in the graph, and the total number of possible
 !!connected determinants calculated. Memory allocated for the ensuing calculation.
 !            CALL CountExcits()
 !!            WRITE(6,*) "Fraction of space which is space of excitations is: ", TotExcits/(TotExcits+NDets)
 !            WRITE(6,*) "Total number of determinants available from current graph is: ",TotExcits
-!!            CALL FLUSH(6)
+!!            CALL neci_flush(6)
 !
 !!Run through each determinant in the graph, calculating the excitations, storing them, and the rho elements to them.
 !            CALL FindConnections()
@@ -246,7 +246,7 @@ MODULE GraphMorph
 !!Pick NDets new excitations stocastically from normalised list of determinants with probability |c|^2. Ensure connections,
 !!allocate and create rho matrix for new graph. Deallocate info for old graph.
 !                WRITE(6,*) "Choosing new graph stochastically from previous graph and its excitations..."
-!                CALL FLUSH(6)
+!                CALL neci_flush(6)
 !                CALL PickNewDets()
 !
 !            ENDIF
@@ -257,7 +257,7 @@ MODULE GraphMorph
 !                    WRITE(64,"(I8)",advance='no') Distribs(i,Iteration+1)
 !                enddo
 !                WRITE(64,*) ""
-!                CALL FLUSH(64)
+!                CALL neci_flush(64)
 !            ENDIF
 !
 !!Once graph is fully constructed, the next iteration can begin.
@@ -409,7 +409,7 @@ MODULE GraphMorph
 !            do while(i.lt.NDets)
 !
 !!                WRITE(6,*) i
-!!                CALL FLUSH(6)
+!!                CALL neci_flush(6)
 !                CALL GenSymExcitIt2(RootDet,NEl,G1,nBasis,nBasisMax,.FALSE.,nExcit,nJ,iExcit,0,nStore,exFlag)
 !                IF(nJ(1).eq.0) THEN
 !!In the next sweep, look at the next determinant being the root
@@ -738,9 +738,9 @@ MODULE GraphMorph
 !        type(timer), save :: proc_timerInit
 !        INTEGER :: iGetExcitLevel,IC,MatFlag
 !        INTEGER , ALLOCATABLE :: iPath(:,:)
-!        REAL*8 , ALLOCATABLE :: Xij(:,:)
+!        real(dp) , ALLOCATABLE :: Xij(:,:)
 !#if defined(POINTER8)
-!        INTEGER*8 :: ExcitGen(0:NDets)
+!        integer(int64) :: ExcitGen(0:NDets)
 !#else
 !        INTEGER :: ExcitGen(0:NDets)
 !#endif
@@ -748,7 +748,7 @@ MODULE GraphMorph
 !        HElement_t , ALLOCATABLE :: Rhoij(:,:),Hijs(:)
 !        HElement_t :: rh
 !        INTEGER , ALLOCATABLE :: nExcit(:)
-!        REAL*8 :: PGen,OldImport
+!        real(dp) :: PGen,OldImport
 !        CHARACTER(len=*), PARAMETER :: this_routine='ConstructInitialGraph'
 !        
 !        proc_timerInit%timer_name='ConsInitGraph'
@@ -1044,7 +1044,7 @@ MODULE GraphMorph
 !        INTEGER :: AttemptDet(NEl),IndexofDetsFrom(NoMoveDets),ierr,Tries,NoVerts
 !        LOGICAL :: Remove,Attach,SameDet
 !        HElement_t :: rh
-!        REAL*8 :: r,Ran2
+!        real(dp) :: r,Ran2
 !        CHARACTER(len=*), PARAMETER :: this_routine='MoveDets'
 !
 !        proc_timerMove%timer_name='MoveDets'
@@ -1178,7 +1178,7 @@ MODULE GraphMorph
 !            do j=2,NDets
 !                WRITE(6,*) Eigenvector(j)
 !            enddo
-!            CALL FLUSH(6)
+!            CALL neci_flush(6)
 !            STOP 'Error in trying to pick a determinant to move'
 !        ELSE
 !!            WRITE(6,*) "Determinants which have been removed are: "
@@ -1190,7 +1190,7 @@ MODULE GraphMorph
 !!        do j=1,NoMoveDets
 !!            WRITE(6,*) MoveDetsFromPaths(j,:)
 !!        enddo
-!!        CALL FLUSH(6)
+!!        CALL neci_flush(6)
 !
 !        
 !!Now need to find a determinant from the excitations space to attach
@@ -1360,7 +1360,7 @@ MODULE GraphMorph
 !        INTEGER :: ierr,i,j,k,NoVerts,AttemptDet(NEl),GrowGraphTag,IC,dist,Rej_SameDet
 !        INTEGER :: Success,Failure,OrigDets,ExcitDets,Tries,iGetExcitLevel,IC1,IC2,IndexRemoved
 !        INTEGER , ALLOCATABLE :: GrowGraph(:,:)
-!        REAL*8 :: r,Ran2,Sumdetsprob,RootofNum,NormFactor
+!        real(dp) :: r,Ran2,Sumdetsprob,RootofNum,NormFactor
 !        LOGICAL :: Attach,OriginalPicked,SameDet
 !        HElement_t :: rh
 !        CHARACTER(len=*), PARAMETER :: this_routine='PickNewDets'
@@ -1640,7 +1640,7 @@ MODULE GraphMorph
 !                enddo
 !                NoVerts=NoVerts+1
 !!                WRITE(6,"A,I5") "Vertex Added - ",NoVerts
-!!                CALL FLUSH(6)
+!!                CALL neci_flush(6)
 !
 !                Success=Success+1
 !                IF(OriginalPicked) THEN
@@ -1709,7 +1709,7 @@ MODULE GraphMorph
 !    SUBROUTINE NormaliseVectorSep()
 !        IMPLICIT NONE
 !        HElement_t :: Norm1,Norm2
-!        REAL*8 :: RootofNum
+!        real(dp) :: RootofNum
 !        INTEGER :: i
 !        type(timer), save :: proc_timerNorm 
 !        
@@ -1767,8 +1767,8 @@ MODULE GraphMorph
 !    SUBROUTINE NormaliseVector()
 !        IMPLICIT NONE
 !        INTEGER :: i
-!        REAL*8 :: Stay,Move,RootofNum
-!        REAL*8 :: Norm,Norm1,Norm2
+!        real(dp) :: Stay,Move,RootofNum
+!        real(dp) :: Norm,Norm1,Norm2
 !
 !!The bias towards the determinants already in the graph is given by the largest eigenvector, multiplied by its eigenvalue.
 !!Since we no longer need the largest eigenvector, we can multiply its elements by its eigenvalue
@@ -1852,7 +1852,7 @@ MODULE GraphMorph
 !        PStay=Stay
 !        WRITE(6,*) "Probability of staying at original determinants: ", Stay
 !!        WRITE(6,*) "Probability of Moving: ", Move
-!!        CALL FLUSH(6)
+!!        CALL neci_flush(6)
 !!        WRITE(6,*) "Total Probability: ", Stay+Move
 !!        WRITE(6,*) "Normalisation constant for propagation vector: ", Norm
 !
@@ -1917,7 +1917,7 @@ MODULE GraphMorph
 !        USE Determinants , only : GetHElement2
 !        IMPLICIT NONE
 !        HElement_t :: rh
-!        REAL*8 :: Prob
+!        real(dp) :: Prob
 !        type(timer), save :: proc_timerConns
 !        INTEGER :: attempts,NoExcitsCurr,Noatt
 !        INTEGER :: ierr,i,j,DetCurr(NEl),nJ(NEl),nStore(6),iMaxExcit,nExcitMemLen
@@ -2190,15 +2190,15 @@ MODULE GraphMorph
 !        IMPLICIT NONE
 !        CHARACTER(len=*), PARAMETER :: this_routine='DiagGraphLanc'
 !        INTEGER , ALLOCATABLE :: Lab(:),NRow(:),ISCR(:),Index(:)
-!        REAL*8 , ALLOCATABLE :: Mat(:),CK(:,:),CKN(:,:), temp(:)
-!        REAL*8 , ALLOCATABLE :: A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:)
-!        REAL*8 , ALLOCATABLE :: Work2(:),WH(:),V2(:,:),W(:)
+!        real(dp) , ALLOCATABLE :: Mat(:),CK(:,:),CKN(:,:), temp(:)
+!        real(dp) , ALLOCATABLE :: A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:)
+!        real(dp) , ALLOCATABLE :: Work2(:),WH(:),V2(:,:),W(:)
 !        INTEGER :: LabTag,ATag,MatTag,NRowTag,VTag,WTTag
 !        INTEGER :: AMTag,BMTag,TTag,SCRTag,ISCRTag,IndexTag,WHTag
 !        INTEGER :: Work2Tag,V2Tag,WTag,CKTag,CKNTag
 !        INTEGER :: ierr,LenMat,i,j,ICMax,RowElems
 !        type(timer), save :: proc_timerLanc 
-!        REAL*8 :: SumVec,LancVar
+!        real(dp) :: SumVec,LancVar
 !        INTEGER :: NCycle,NBlock,NKry1,LScr,LIScr
 !        LOGICAL :: TSeeded
 !
@@ -2387,9 +2387,9 @@ MODULE GraphMorph
 !!Lanczos iterative diagonalisation routine
 !        IF(THDiag) THEN
 !!If using Hamiltonian matrix in the diagonliser, we want the smallest eigenvalues, not the largest
-!            CALL NECI_FRSBLKH(NDets,ICMax,NEval,Mat,Lab,CK,CKN,NKry,NKry1,NBlock,NRow,LScr,LIScr,A,W,V,AM,BM,T,WT,SCR,ISCR,Index,WH,Work2,V2,NCycle,B2L,.false.,.false.,TSeeded)
+!            CALL NECI_FRSBLKH(NDets,ICMax,NEval,Mat,Lab,CK,CKN,NKry,NKry1,NBlock,NRow,LScr,LIScr,A,W,V,AM,BM,T,WT,SCR,ISCR,Index,WH,Work2,V2,NCycle,B2L,.false.,.false.,TSeeded,.true.)
 !        ELSE
-!            CALL NECI_FRSBLKH(NDets,ICMax,NEval,Mat,Lab,CK,CKN,NKry,NKry1,NBlock,NRow,LScr,LIScr,A,W,V,AM,BM,T,WT,SCR,ISCR,Index,WH,Work2,V2,NCycle,B2L,.false.,.true.,TSeeded)
+!            CALL NECI_FRSBLKH(NDets,ICMax,NEval,Mat,Lab,CK,CKN,NKry,NKry1,NBlock,NRow,LScr,LIScr,A,W,V,AM,BM,T,WT,SCR,ISCR,Index,WH,Work2,V2,NCycle,B2L,.false.,.true.,TSeeded,.true.)
 !        ENDIF
 !!Mulitply eigenvalues through by -1 to ensure they are positive - no longer needed
 !!        CALL DSCAL(NEval,-1.D0,W,1)
@@ -2531,9 +2531,9 @@ MODULE GraphMorph
 !    SUBROUTINE CompressMatrix(Mat,Lab,NRow,LenMat,ICMax)
 !        IMPLICIT NONE
 !        INTEGER :: LenMat,i,j
-!        REAL*8 :: Mat(LenMat)
+!        real(dp) :: Mat(LenMat)
 !        INTEGER :: Lab(LenMat),NRow(NDets),LabElem,RowElems,ICMax,SumElems,lenrow
-!!        REAL*8 :: Mat(NDets,ICMax)
+!!        real(dp) :: Mat(NDets,ICMax)
 !!        INTEGER :: Lab(NDets,ICMax),NRow(NDets),LabElem,RowElems,ICMax,SumElems
 !
 !!This compression is how Alex uses the Lanczos diagonaliser - however, it seems to be used in a different way
@@ -2599,7 +2599,7 @@ MODULE GraphMorph
 !        IMPLICIT NONE
 !        type(timer), save :: proc_timerDiag
 !        INTEGER :: Info,ierr,i
-!        REAL*8 , ALLOCATABLE :: Work(:),Eigenvalues(:)
+!        real(dp) , ALLOCATABLE :: Work(:),Eigenvalues(:)
 !        INTEGER :: WorkTag,EigenvaluesTag,j
 !        CHARACTER(len=*), PARAMETER :: this_routine='DiagGraphMorph'
 !
@@ -2722,7 +2722,7 @@ END MODULE GraphMorph
 !LOGICAL FUNCTION ConnectGraph(Matrix,Dimen,NEl)
 !    IMPLICIT NONE
 !    INTEGER :: NotConnected(NEl,Dimen),NEl,Dimen
-!    REAL*8 :: Matrix
+!    real(dp) :: Matrix
 !    LOGICAL :: ConnectGraph
 !
 !    j=0
@@ -2733,9 +2733,10 @@ END MODULE GraphMorph
 !            NotConnected(1,j)=i
 !        ENDIF
 
-REAL*8 FUNCTION RootofNum(Num,Root)
-    REAL*8 :: Root
-    REAL*8 :: Num
+FUNCTION RootofNum(Num,Root)
+    use constants, only: dp
+    real(dp) :: Root
+    real(dp) :: Num,RootofNum
     IF(Num.lt.1.D-16) THEN
         RootofNum=0.D0
     ELSE
@@ -2747,7 +2748,7 @@ END FUNCTION RootofNum
 !Tests determinants are the same - requires the same ordering of orbitals in them
 LOGICAL FUNCTION SameDet(nI,nJ,NEl)
     IMPLICIT NONE
-    INTEGER :: nI(NEl),nJ(NEl),NEl,i
+    INTEGER :: NEl,nI(NEl),nJ(NEl),i
     SameDet=.true.
     do i=1,NEl
         IF(nI(i).ne.nJ(i)) THEN

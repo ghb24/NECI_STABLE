@@ -1,9 +1,10 @@
 C.. A stub containing dummy functions in CPMD, which will appear on linking appropriately.
 
       SUBROUTINE INITFINDXI(I,J,K,L,UMATEL,gen2ints)
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER I,J,K,L
-         REAL*8 UMATEL
+         real(dp) UMATEL
          logical gen2ints
 
          ! Make warnings go away
@@ -11,14 +12,27 @@ C.. A stub containing dummy functions in CPMD, which will appear on linking appr
          UMATEL=0.D0
       END
 
-      SUBROUTINE CPMDANTISYMINTEL 
+      SUBROUTINE CPMDANTISYMINTEL(G1,UMat2D,HarInt,NStates) 
+         use constants, only: dp
+         use SystemData, only: BasisFN
          IMPLICIT NONE
+         type(BasisFN) :: G1(*)
+         complex(dp) :: HarInt(*)
+         integer :: nStates
+         HElement_t :: UMat2D(*)
+         !eliminate warnings
+         G1(1)=G1(1)
+         nStates=nStates
+         UMat2D(1)=UMat2D(1)
+         HarInt(1)=HarInt(1)
+         call stop_all("CPMDANTISYMINTEL","Entering stub routine.")
       END SUBROUTINE
 
       SUBROUTINE CPMDGETOCC(ISTATE,OCC)
+         use constants, only: dp
          IMPLICIT NONE
 C         INCLUDE 'elct.inc'
-         REAL*8 OCC
+         real(dp) OCC
          INTEGER ISTATE
 C         COMMON /ELCT/ F
 C         OCC=F(ISTATE)
@@ -27,10 +41,11 @@ C         OCC=F(ISTATE)
       END
       
       SUBROUTINE CPMDGEN1EINTS(INTS,XIS)
+         use constants, only: dp
          use CPMDData, only: nStates
          IMPLICIT NONE
-         REAL*8 INTS(NSTATES,NSTATES)
-         REAL*8 XIS
+         real(dp) INTS(NSTATES,NSTATES)
+         real(dp) XIS
          INTS=0.d0
          xis=xis
       END
@@ -44,9 +59,10 @@ C         OCC=F(ISTATE)
       end subroutine GetKPInd
 
       subroutine CalcHarPIInts(HarInt,nStates)
+         use constants, only: dp
          implicit none
          integer  nStates
-         complex*16 HarInt(nStates,nStates)
+         complex(dp) HarInt(nStates,nStates)
 
          ! Eliminate Warnings
          HarInt=HarInt; nStates=nStates

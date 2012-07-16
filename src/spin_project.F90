@@ -1,31 +1,93 @@
 #include "macros.h"
 module spin_project
-    use SystemData, only: LMS, STOT, nel, nbasis
+    use SystemData, only: LMS, STOT, nel, nbasis, tHPHF
     use CalcData, only: tau, tTruncInitiator
     use SymExcitDataMod, only: scratchsize
     use bit_reps, only: NIfD, NIfTot, extract_sign, flag_is_initiator, &
                         flag_make_initiator, test_flag, set_flag, &
                         flag_parent_initiator
     use csf, only: csf_get_yamas, get_num_csfs, csf_coeff, random_spin_permute
-    use constants, only: dp, bits_n_int, lenof_sign, n_int, end_n_int, int32
+    use constants, only: dp, bits_n_int, lenof_sign, n_int, end_n_int, int32,sizeof_int
     use FciMCData, only: TotWalkers, CurrentDets, fcimc_iter_data, &
-                         yama_global, excit_gen_store_type
+                         yama_global, excit_gen_store_type, &
+                         fcimc_excit_gen_store
     use DeterminantData, only: write_det, get_lexicographic
     use dSFMT_interface, only: genrand_real2_dSFMT
     use util_mod, only: choose, binary_search
+    use DetBitOps, only: IsAllowedHPHF, count_open_orbs
 
     implicit none
 
     logical :: tSpinProject, spin_proj_stochastic_yama
     logical :: spin_proj_spawn_initiators, spin_proj_no_death
+    logical :: disable_spin_proj_varyshift
     integer :: spin_proj_interval, spin_proj_cutoff, spin_proj_iter_count
+    integer :: spin_proj_nopen_max
     real(dp) :: spin_proj_gamma
     real(dp), target :: spin_proj_shift
 
     ! Store the data from iterations
     type(fcimc_iter_data), target :: iter_data_spin_proj
 
+    ! For spin projection, pre-calculate and store the Yamanouchi
+    ! symbols --> don't need to re-calculate them all the time.
+    type yama_storage_type
+        integer, allocatable :: yamas(:,:)
+        integer :: nyama
+    end type
+    type(yama_storage_type), allocatable, target :: y_storage(:)
+    
 contains
+
+    subroutine init_yama_store ()
+
+        ! Calculate all of  the allowed Yamanouchi symbols with the given 
+        ! values of S, Ms for all allowed unpaired electrons.
+
+        integer :: nopen, ncsf
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = 'init_yama_store'
+#endif
+
+        ! Just in case...
+        ASSERT(STOT == LMS)
+
+        ! Allocate the storage super-object.
+        ! TODO: This could be a shared memory object with jiggling of bounds.
+        allocate(y_storage(LMS:spin_proj_nopen_max))
+
+        ! Loop over all (allowed) numbers of unpaired electrons
+        do nopen = LMS, spin_proj_nopen_max, 2
+
+            ! Obtain all of the csfs
+            ncsf = get_num_csfs (nopen, STOT)
+            y_storage(nopen)%nyama = ncsf
+            allocate(y_storage(nopen)%yamas(ncsf, nopen))
+
+            if (ncsf > 0 .and. nopen > 0) then
+                call csf_get_yamas (nopen, STOT, y_storage(nopen)%yamas, ncsf)
+            endif
+        enddo
+
+    end subroutine
+
+    subroutine clean_yama_store ()
+
+        integer :: i
+
+        if (allocated(y_storage)) then
+
+            do i = lbound(y_storage,1), ubound(y_storage, 1)
+                if (allocated(y_storage(i)%yamas)) &
+                    deallocate(y_storage(i)%yamas)
+            enddo
+
+            deallocate(y_storage)
+
+        endif
+
+    end subroutine
+
 
     subroutine test_spin_proj (nI, ilutI)
 
@@ -33,10 +95,10 @@ contains
         integer(n_int), intent(in) :: ilutI(0:nIfTot)
 
         integer :: dorder_i(nel), dorder_j(nel), open_el(nel)
-        integer :: nopen, i, nup, orb, count_dets, ndet, pos
+        integer :: nopen, i, nup, orb, orb2, count_dets, ndet, pos
         integer(n_int) :: iluttmp(0:niftot)
         integer, dimension(lenof_sign) :: sgnI, sgnJ
-        real*8 :: tot_cpt, elem
+        real(dp) :: tot_cpt, elem
 
         ! Extract the dorder for det nI
         nopen = 0
@@ -64,7 +126,7 @@ contains
 
         if (nopen /= 0) then
             ! How many dets are there to choose from
-            ndet = choose (nopen, nup)
+            ndet = int(choose (nopen, nup),sizeof_int)
 
             ! initialise iluttmp
             iluttmp = ilutI
@@ -88,8 +150,9 @@ contains
                     else
                         orb = get_beta(open_el(i))
                     endif
+                    orb2 = ab_pair(orb)
                     set_orb(iluttmp, orb)
-                    clr_orb(iluttmp, ab_pair(orb))
+                    clr_orb(iluttmp, orb2)
                 enddo
 
                 pos = binary_search (CurrentDets(:,1:TotWalkers), iLutTmp, &
@@ -163,13 +226,13 @@ contains
         elem_i = csf_coeff (yama, dorder_i, nopen)
 
         ! How many dets are there to choose from
-        ndet = choose (nopen, nup)
+        ndet = int(choose (nopen, nup),sizeof_int)
 
         ! Construct the format string
         write(fmt_num, '(i6)') nopen
         fmt_str = '(a,'//trim(adjustl(fmt_num))//'i1," - ")'
 
-        print*, 'ELEM I', elem_i
+        !print*, 'ELEM I', elem_i
 
         ! Obtain a list of possible determinants
         count_dets = 0
@@ -179,8 +242,8 @@ contains
         tot_wgt_2 = 0
         tot_sum_2 = 0
         call get_lexicographic (dorder_j, nopen, nup)
-        print*, '     |J>            <J|Y><Y|I>             <J|Y>        &
-                &     sum_Y <J|Y><Y|I>'
+        !print*, '     |J>            <J|Y><Y|I>             <J|Y>        &
+        !        &     sum_Y <J|Y><Y|I>'
         do while (dorder_j(1) /= -1)
 
             count_dets = count_dets + 1
@@ -201,8 +264,8 @@ contains
             call get_lexicographic (dorder_j, nopen, nup)
         enddo
 
-        print*, 'total amplitude: ', tot_wgt, tot_sum
-        print*, 'total amplitude squared: ', tot_wgt_2, tot_sum_2
+!        print*, 'total amplitude: ', tot_wgt, tot_sum
+!        print*, 'total amplitude squared: ', tot_wgt_2, tot_sum_2
 
         ASSERT(count_dets /= ndet)
 
@@ -223,13 +286,15 @@ contains
         !     nopen              - The number of unpaired electrons
 
         integer, intent(in) :: nopen, dorder_i(nopen), dorder_j(nopen)
-        integer :: yamas (get_num_csfs(nopen, STOT), nopen)
+        integer, pointer :: yamas(:,:)
         integer :: i, ncsf, ind
         real(dp) :: ret, r
 
         ! Generate the list of CSFs
-        ncsf = ubound(yamas, 1)
-        call csf_get_yamas (nopen, STOT, yamas, ncsf)
+        !ncsf = ubound(yamas, 1)
+        !call csf_get_yamas (nopen, STOT, yamas, ncsf)
+        ncsf = y_storage(nopen)%nyama
+        yamas => y_storage(nopen)%yamas
 
         if (spin_proj_stochastic_yama) then
             r = genrand_real2_dSFMT()
@@ -256,27 +321,31 @@ contains
         ! self element, so the sum is simplied.
 
         integer, intent(in) :: nopen, dorder(nopen)
-        integer :: yamas (get_num_csfs(nopen, STOT), nopen)
+        integer, pointer :: yamas(:,:)
         integer :: i, ncsf, ind
         real(dp) :: ret, tmp, r
 
         ! Generate the list of CSFs
-        ncsf = ubound(yamas, 1)
-        call csf_get_yamas (nopen, STOT, yamas, ncsf)
+        !ncsf = ubound(yamas, 1)
+        !call csf_get_yamas (nopen, STOT, yamas, ncsf)
+        ncsf = y_storage(nopen)%nyama
+        yamas => y_storage(nopen)%yamas
 
-        if (spin_proj_stochastic_yama) then
-            r = genrand_real2_dSFMT()
-            ind = int(ncsf * r) + 1
-            tmp = csf_coeff (yamas(ind, :), dorder, nopen)
+        ! We cannot use stochastic yama here - otherwise we may end up with
+        ! a 0 on the bottom of the term in get_spawn_helement
+        !if (spin_proj_stochastic_yama) then
+        !    r = genrand_real2_dSFMT()
+        !    ind = int(ncsf * r) + 1
+        !    tmp = csf_coeff (yamas(ind, :), dorder, nopen)
 
-            ret = ncsf * (tmp * tmp)
-        else
+        !    ret = ncsf * (tmp * tmp)
+        !else
             ret = 0
             do i = 1, ncsf
                 tmp = csf_coeff (yamas(i, :), dorder, nopen)
                 ret = ret + (tmp * tmp)
             enddo
-        endif
+        !endif
         
     end function
     
@@ -294,60 +363,33 @@ contains
         integer, intent(in) :: ic, ex(2,2)
         logical, intent(in) :: tParity
         HElement_t, intent(in) :: HElGen
-        HElement_t :: hel
+        HElement_t :: hel, tmp
         
-        integer :: dorder_i(nel), dorder_j(nel), nopen, nopen2, i, iUnused
+        integer :: iUnused
         integer(n_int) :: iUnused2
         logical :: lUnused
+        integer, pointer :: dorder_i(:), dorder_j(:)
 #ifdef __DEBUG
         character(*), parameter :: this_routine = 'get_spawn_helement_spin_proj'
 #endif
-        ! nJ contains a list of the unpaired electrons in ilutJ
-        do i = 1, nel
-            if (nJ(i) == -1) exit
-            if (is_alpha(nJ(i))) then
-                dorder_j(i) = 0
-            else
-                dorder_j(i) = 1
-            endif
-        enddo
-        nopen = i - 1
-
-        ! We need the dorder for nI, which we don't have as easily...
-        ! This is duplacated from generate_excit_spin_proj. Do we need to
-        ! preserve nI? If not, we can just pass it in.
-        ! TODO: make this be passed  from generate...not recalculated.
-        !       or even, can we pointerise the extraction?
-        nopen2 = 0
-        i = 1
-        do while (i <= nel)
-            if (nopen2 >= nopen) exit
-            if (is_beta(nI(i)) .and. i < nel) then
-                if (is_in_pair(nI(i), nI(i+1))) then
-                    i = i + 2
-                    cycle
-                endif
-            endif
-
-            nopen2 = nopen2 + 1
-            if (is_alpha(nI(i))) then
-                dorder_i(nopen2) = 0
-            else
-                dorder_i(nopen2) = 1
-            endif
-
-            i = i + 1
-        enddo
-        ASSERT(nopen == nopen2)
 
         ! We invert the sign of the returned element, so that the
         ! the attempt_create routine creates walkers of the correct sign.
-        hel = csf_spin_project_elem (dorder_i, dorder_j, nopen)
+        hel = csf_spin_project_elem (fcimc_excit_gen_store%dorder_i, &
+                                     fcimc_excit_gen_store%dorder_j, &
+                                     fcimc_excit_gen_store%nopen)
         hel = - hel * spin_proj_gamma / tau
 
         ! If we are not permitting death, modify this
         if (spin_proj_no_death) &
-            hel = hel / csf_spin_project_elem_self (dorder_i, nopen)
+            hel = hel / &
+                csf_spin_project_elem_self (fcimc_excit_gen_store%dorder_i, &
+                                            fcimc_excit_gen_store%nopen)
+
+        if (tHPHF) then
+            ASSERT(count_open_orbs(ilutI) /= 0)
+            hel = 2 * hel
+        endif
 
         ! Avoid warnings
         lUnused = tParity; iUnused = IC; iUnused = ex(1,1)
@@ -379,9 +421,11 @@ contains
 
         integer :: nopen, nchoose, i
         integer :: nTmp(nel), iUnused
+        integer :: open_orbs(nel), open_pos(nel), orb2
         integer, dimension(lenof_sign) :: sgn_tmp
         character(*), parameter :: this_routine = 'generate_excit_spin_proj'
 
+        ! Only consider determinants with a significant (specified) weight.
         call extract_sign (iLutI, sgn_tmp)
         if (sum(abs(sgn_tmp(1:lenof_sign))) < spin_proj_cutoff) then
             nJ(1) = 0
@@ -406,39 +450,65 @@ contains
                 endif
             endif
 
+            ! We have another unpaired electron
             nopen = nopen + 1
-            nJ(nopen) = nI(i)
+            open_orbs(nopen) = nI(i)
+            open_pos(nopen) = i
+
+            ! Is it alpha/beta?
+            if (is_alpha(nI(i))) then
+                fcimc_excit_gen_store%dorder_i(nopen) = 0
+            else
+                fcimc_excit_gen_store%dorder_i(nopen) = 1
+            endif
+
+            ! Loop
             i = i + 1
         enddo
+        fcimc_excit_gen_store%nopen = nopen
 
         ! If we know that there are no possible excitations to be made
-        if (nopen == STOT) then
+        if (nopen == STOT .or. nopen > spin_proj_nopen_max .or. &
+            (tHPHF .and. nopen == 2)) then
             nJ(1) = 0
             return
         endif
 
-        nTmp(1:nopen) = nJ(1:nopen)
+        nTmp(1:nopen) = open_orbs(1:nopen)
         do while (.true.)
-            nchoose = random_spin_permute (nJ(1:nopen), LMS)
+            nchoose = random_spin_permute (nTmp(1:nopen), LMS)
 
             ! Removable for speed?
             if (nchoose == -1) &
                 call stop_all (this_routine, "All possible cases here should &
                                              &have been excluded above")
 
+            ! In HPHF, a determinant is allowed if its last e- is alpha
+            ! TODO: Is this definition general with > 64 orbitals?
+            if (tHPHF) then
+                if (is_beta(nTmp(nopen))) cycle
+            endif
+
             ! If we have found our target, exit the loop
-            if (.not.all(nJ(1:nopen) == nTmp(1:nopen))) exit
+            if (.not.all(open_orbs(1:nopen) == nTmp(1:nopen))) exit
         enddo
 
         ! Change the spin structure of nI (only the unpaired elecs)
         ilutJ = ilutI
+        nJ = nI
         do i = 1, nopen
-            set_orb(ilutJ, nJ(i))
-            clr_orb(ilutJ, ab_pair(nJ(i)))
-        enddo
+            orb2 = ab_pair(nTmp(i))
+            set_orb(ilutJ, nTmp(i))
+            clr_orb(ilutJ, orb2)
+            nJ(open_pos(i)) = nTmp(i)
 
-        ! Mark the end of the unpaired electrons section.
-        if (nopen < nel) nJ(nopen + 1) = -1
+            ! Construct the dorder --> used in spawn_helement
+            if (is_alpha(nTmp(i))) then
+                fcimc_excit_gen_store%dorder_j(i) = 0
+            else
+                fcimc_excit_gen_store%dorder_j(i) = 1
+            endif
+        enddo
 
         ! If we are in initiator mode, then we may want to make all of the
         ! children into initiators as well
@@ -447,8 +517,8 @@ contains
                 ! We always want our particles to survive.
                 call set_flag (ilutJ, flag_parent_initiator(i))
             
-                ! If we are spawning from an initiator, we may want to make the
-                ! target also an initiator.
+                ! If we are spawning from an initiator, we may want to make
+                ! the ! target also an initiator.
                 if (spin_proj_spawn_initiators .and. &
                     test_flag(ilutI, flag_is_initiator(i))) then
                     call set_flag (ilutJ, flag_make_initiator(i))
@@ -459,7 +529,11 @@ contains
         ! Generation probability, -1 as we exclude the starting det above.
         ! Invert sign so that a positive overlap element spawns walkers with
         ! the same sign
-        pGen = 1_dp / real(nchoose - 1, dp)
+        if (tHPHF) then
+            pGen = 2_dp / real(nchoose - 2, dp)
+        else
+            pGen = 1_dp / real(nchoose - 1, dp)
+        endif
 
         ! Protect against compiler warnings
         ex(1,1) = ex(1,1); IC = IC; iUnused = exFlag; tParity = tParity
@@ -475,7 +549,7 @@ contains
         integer, dimension(lenof_sign) :: ndie
 
         real(dp) :: elem, r, rat, rUnused
-        integer :: dorder(nel), i, nopen
+        integer :: i
 
         ! If we are not allowing death, or we are below the cutoff for 
         ! consideration, then the particle cannot die
@@ -485,28 +559,8 @@ contains
             return
         endif
 
-        ! Extract the dorder for determinant nI
-        nopen = 0
-        i = 1
-        do while (i <= nel)
-            if (is_beta(nI(i)) .and. i < nel) then
-                if (is_in_pair(nI(i), nI(i+1))) then
-                    i = i + 2
-                    cycle
-                endif
-            endif
-
-            nopen = nopen + 1
-            if (is_alpha(nI(i))) then
-                dorder(nopen) = 0
-            else
-                dorder(nopen) = 1
-            endif
-
-            i = i + 1
-        enddo
-
-        if (nopen == STOT) then
+        if (fcimc_excit_gen_store%nopen == STOT .or. &
+            fcimc_excit_gen_store%nopen > spin_proj_nopen_max) then
             ndie = 0
             return
         endif
@@ -514,7 +568,9 @@ contains
         ! Subtract the crurrent value of the shift and multiply by
         ! delta_gamma. If there are multiple particles, scale the
         ! probability.
-        elem = csf_spin_project_elem_self (dorder, nopen)
+        elem = csf_spin_project_elem_self (fcimc_excit_gen_store%dorder_i, &
+                                           fcimc_excit_gen_store%nopen)
+        if (tHPHF) elem = 2 * elem
         elem = elem - 1 + spin_proj_shift
         elem = - elem * spin_proj_gamma
 
@@ -535,6 +591,56 @@ contains
 
     end function attempt_die_spin_proj
 
+
+    subroutine generate_excit_hamil_proj (nI, iLutI, nJ, iLutJ, exFlag, IC, &
+                                         ex, tParity, pGen, HElGen, store)
+
+        integer, intent(in) :: nI(nel)
+        integer(kind=n_int), intent(in) :: iLutI(0:niftot)
+        integer, intent(in) :: exFlag
+        integer, intent(out) :: nJ(nel) 
+        integer(kind=n_int), intent(out) :: iLutJ(0:niftot)
+        integer, intent(out) :: ic, ex(2,2)
+        real(dp), intent(out) :: pGen
+        logical, intent(out) :: tParity
+        HElement_t, intent(out) :: HElGen
+        type(excit_gen_store_type), intent(inout), target :: store
+
+        integer :: nopen
+        character(*), parameter :: this_routine = 'generate_excit_hamil_proj'
+
+        !Remove warnings
+        nJ(:)=0
+        iLutJ(:)=0
+        ic=0
+        ex(:,:)=0
+        pGen=0.0_dp
+        HElGen=0.0_dp
+        tParity=.true.
+
+        ! Unpaired electron/Ms properties.
+        !nopen = count_open_orbs (ilutI)
+        !nup = (nopen + LMS) / 2
+        !ndets = int(choose(nopen, nup))
+
+        !if (ndets == 0) then
+        !    nJ(1) = 0
+        !    return
+        !endif
+
+
+        !! n.b. exclude current determinant...
+
+        !! Generation probability
+        !pGen = real(1, dp) / (ndets - 1)
+
+
+
+
+
+
+
+    end subroutine
 
 
 end module

@@ -1,19 +1,22 @@
 ! lenrec is the number of auxiliary basis functions
 SUBROUTINE InitDFBasis(nBasisMax,Len)
          use SystemData , only : tStoreSpinOrbs
-         use record_handler
-         use constants, only: dp
+!         use record_handler
+         use constants, only: dp,sp
          use UMatCache
          implicit none
          integer nBasisMax(5,*),Len
          character(*), parameter :: C_file='SAV_D____a'
          character(3) file_status
-         integer info,lenrec,nrec
+         integer(sp) info
+         integer lenrec,nrec
          integer nBasis
+         character(*), parameter :: this_routine='InitDFBasis'
 
          file_status= 'ADD'
-         call init_record_handler(C_file,file_status,info)
-         call query_record_handler(C_file,info,file_status,lenrec,nrec,.TRUE.)
+         call stop_all(this_routine,"Reading in of SITUS DF files depreciated")
+!         call init_record_handler(C_file,file_status,info)
+!         call query_record_handler(C_file,info,file_status,lenrec,nrec,.TRUE.)
 !.. lenrec is the number of auxiliary basis functions
 !.. nrec is the number of pairs of orbitals.
          nBasisPairs=nrec
@@ -36,10 +39,11 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
 !.. Also will read in one-electron integrals
 !.. Requires various modules from SITUS for the file reading
       SUBROUTINE ReadDF2EIntegrals(nBasis,nOrbUsed)
-         use precision
-         use record_handler
+!         use precision
+!         use record_handler
          use global_utilities
          use UMatCache
+         use constants, only: dp,sp
          implicit none
          character(*), parameter :: C_file='SAV_D____a'
          character(*), parameter :: I_file='SAV_T____a'
@@ -47,15 +51,18 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          character(*), parameter :: nolabel='        '
          character(3) file_status
          character(*), parameter :: t_r='ReadDF2EIntegrals'
-         integer info,i,j,k
-         real*8 r
+         integer(sp) info
+         integer i,j,k
+         real(dp) r
          integer nBasis,nOrbUsed,ierr
+         character(*), parameter :: this_routine='ReadDF2EIntegrals'
 
+         call stop_all(this_routine,"Reading in of SITUS DF files depreciated")
          WRITE(6,*) "Opening Density fitting matrix files"
          file_status= 'ADD'
 !.. We've already got C_file open
-         call init_record_handler(I_file,file_status,info,printinfo=.TRUE.)
-         call init_record_handler(S_file,file_status,info,printinfo=.TRUE.)
+!         call init_record_handler(I_file,file_status,info,printinfo=.TRUE.)
+!         call init_record_handler(S_file,file_status,info,printinfo=.TRUE.)
 !.. lenrec is the number of auxiliary basis functions
 !.. nrec is the number of pairs of orbitals.
          WRITE(6,*) "Basis Size:", nBasis/2
@@ -69,15 +76,15 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          Allocate(DFFitInts(nAuxBasis,nAuxBasis),STAT=ierr)
          call LogMemAlloc("DFFitInts",nAuxBasis*nAuxBasis,8,t_r,tagDFFitInts,ierr)
          do i=1,nBasisPairs
-            call read_record(C_file,i,nolabel,DFCoeffs(:,i),info)
-            call read_record(I_file,i,nolabel,DFInts(:,i),info)
+!            call read_record(C_file,i,nolabel,DFCoeffs(:,i),info)
+!            call read_record(I_file,i,nolabel,DFInts(:,i),info)
          enddo
          do i=1,nAuxBasis
-            call read_record(S_file,i,nolabel,DFFitInts(:,i),info)
+!            call read_record(S_file,i,nolabel,DFFitInts(:,i),info)
          enddo
-         call leave_record_handler(C_file,info)
-         call leave_record_handler(I_file,info)
-         call leave_record_handler(S_file,info)
+!         call leave_record_handler(C_file,info)
+!         call leave_record_handler(I_file,info)
+!         call leave_record_handler(S_file,info)
 
          select case(iDFMethod)
          case(0)
@@ -147,7 +154,9 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          integer a,b,c,d
          integer i,j,GetDFIndex
          integer x,y
-         real*8 res
+         real(dp) res
+         character(*), parameter :: this_routine='GetDF2EInt'
+         
          res=0.D0
          x=GetDFIndex(a,c)
          y=GetDFIndex(b,d)
@@ -198,9 +207,10 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          endif
       END 
       SUBROUTINE ReadDalton2EIntegrals(nBasis,UMat2D,tUMat2D)
+         use constants, only: dp,sp
          implicit none
          integer nBasis,i,j,k,ilast
-         real*8 val,UMat2D(nBasis,nBasis)
+         real(dp) val,UMat2D(nBasis,nBasis)
          logical tUMat2D
          tUMat2D=.false.
          open(11,file='HONEEL',status='unknown')
@@ -252,7 +262,7 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          use sym_mod
          implicit none
          integer nBasis,i,j
-         real*8 val,ECore
+         real(dp) val,ECore
          type(BasisFN) G1(nBasis)
          open(11,file='HONEEL',status='unknown')
          i=1
@@ -288,12 +298,13 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          enddo
       END
       SUBROUTINE InitDaltonBasis(Arr,Brr,G1,nBasis)
+         use constants, only: dp
          use SystemData, only: Symmetry,BasisFN,BasisFNSize,NullBasisFn
          use SymData , only : tAbelian
          use sym_mod
          implicit none
          integer nBasis,Brr(nBasis),i,j
-         real*8 Arr(nBasis,2),val
+         real(dp) Arr(nBasis,2),val
          type(BasisFN) G1(nBasis)
          tAbelian=.true.
          open(11,file='HONEEL',status='unknown')
@@ -329,7 +340,7 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          integer a,b,c,d
          integer i,GetDFIndex
          integer x,y,j
-         real*8 res,res1,res2,res3
+         real(dp) res,res1,res2,res3
          res=0.D0
          x=GetDFIndex(a,c)
          y=GetDFIndex(b,d)
@@ -353,7 +364,7 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          integer a,b,c,d
          integer i,GetDFIndex
          integer x,y,j
-         real*8 res,res1,res2,res3
+         real(dp) res,res1,res2,res3
          res=0.D0
          x=GetDFIndex(a,c)
          y=GetDFIndex(b,d)
@@ -370,15 +381,17 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
 !         WRITE(6,*) "D2",a,b,c,d,res,res1,res2,res3
       END
       SUBROUTINE DFCalcInvFitInts(dPower)
-         use constants, only: dp
+         use constants, only: dp,sp
          use UMatCache
          use global_utilities
+         use MemoryManager, only: TagIntType
          implicit none
-         Real*8,Pointer :: M(:,:) !(nAuxBasis,nAuxBasis)
-         Real*8 Eigenvalues(nAuxBasis),r,dPower
-         Real*8 Work(3*nAuxBasis)
-         integer Workl,info
-         integer, save :: tagM=0
+         real(dp),Pointer :: M(:,:) !(nAuxBasis,nAuxBasis)
+         real(dp) Eigenvalues(nAuxBasis),r,dPower
+         real(dp) Work(3*nAuxBasis)
+         integer Workl
+         integer(sp) info
+         integer(TagIntType), save :: tagM=0
          type(timer), save :: proc_timer
          character(*), parameter :: t_r='DFCalcInvFitInts'
          Integer i,j,ierr,k,iMinEigv

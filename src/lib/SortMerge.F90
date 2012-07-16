@@ -15,22 +15,26 @@
 ! matrix elements for the elements it is merging into the main list.
 ! The list1 will be binary searched to find insertion points. Generally, if list2 > list1/2,
 ! a linear search would be quicker.
+!nlist1 = TotWalkersNew
+!nlist2 = ValidSpawned
+!list2 = SpawnedParts(:,1:nlist2)
     SUBROUTINE MergeListswH(nlist1,nlist2,list2)
         USE FciMCParMOD , only : Hii,CurrentDets,CurrentH
-        use SystemData, only: nel, tHPHF
+        use SystemData, only: nel, tHPHF,tMomInv
         use bit_reps, only: NIfTot, NIfDBO, decode_bit_det
         USE Determinants , only : get_helement
         use DetBitOps, only: DetBitEQ
-        use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
+        use hphf_integrals, only: hphf_diag_helement
+        use MI_integrals, only: MI_diag_helement
         USE CalcData , only : tTruncInitiator
         USE HElem
         use constants, only: dp,n_int
         IMPLICIT NONE
-        INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
         INTEGER :: nlisto,nlist1,nlist2,i
+        INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
         INTEGER :: ips
         HElement_t :: HDiagTemp
-        REAL*8 :: HDiag
+        real(dp) :: HDiag
         INTEGER :: nJ(NEl),j
 !.................................................................
 !..starting from the end of the list, expand list1 to accomodate
@@ -66,10 +70,12 @@
            call decode_bit_det (nJ, list2(:,i))
            if (tHPHF) then
                HDiagTemp = hphf_diag_helement (nJ, list2(:,i))
+           elseif(tMomInv) then
+               HDiagTemp = MI_diag_helement(nJ,list2(:,i))
            else
                HDiagTemp = get_helement (nJ, nJ, 0)
            endif
-           HDiag=(REAL(HDiagTemp,8))-Hii
+           HDiag=(REAL(HDiagTemp,dp))-Hii
            CurrentH(ips+i-1)=HDiag
 ! Next element to be inserted must be smaller than DetCurr, so must be inserted
 ! at (at most) at ips-1.
@@ -92,8 +98,8 @@
         USE HElem
         use constants, only : n_int
         IMPLICIT NONE
-        INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
         INTEGER :: nlisto,nlist1,nlist2,i
+        INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
         INTEGER :: ips
         INTEGER :: j
 !        LOGICAL :: tbin
@@ -156,9 +162,11 @@
         use DetBitOps, only: DetBitLT
         USE FciMCParMOD , only : CurrentDets
         use constants, only: n_int
-        IMPLICIT NONE
-        INTEGER(KIND=n_int) :: n,DetCurr(0:NIfTot)!,list(0:NIFTot,n)
-        INTEGER :: nlo,nup,i,ipos,ncurr,CompPart
+        implicit none
+        integer(n_int), intent(in) :: DetCurr(0:NifTot)
+        integer, intent(in) :: n
+        integer, intent(out) :: ipos
+        integer :: nlo, nup, i, ncurr, CompPart
 !        logical :: tbin
 !        if(.not.tbin) goto 200
 !.......................................................................
@@ -227,15 +235,15 @@
         endif
         goto 100
 !...........................................................................
-        continue
+!        continue
 !..simple linear search. At the moment, you cannot get here.
-        do i=1,n
-           if(DetBitLT(CurrentDets(0:NIfTot,i),DetCurr(:),NIfDBO).ne.1) then 
-             ipos=i
-             return
-           endif
-        enddo
-        ipos=n+1
+!        do i=1,n
+!           if(DetBitLT(CurrentDets(0:NIfTot,i),DetCurr(:),NIfDBO).ne.1) then 
+!             ipos=i
+!             return
+!           endif
+!        enddo
+!        ipos=n+1
     END SUBROUTINE Search
 !..............................................................................
 !..find the position in list such that 
@@ -247,8 +255,8 @@
         use DetBitOps, only: DetBitLT
         use constants, only: n_int
         IMPLICIT NONE
-        INTEGER(KIND=n_int) :: DetCurr(0:NIfTot),list(0:NIfTot,n)
         INTEGER :: nlo,nup,i,ipos,ncurr,CompPart,n
+        INTEGER(KIND=n_int) :: DetCurr(0:NIfTot),list(0:NIfTot,n)
 !        logical :: tbin
 !        if(.not.tbin) goto 200
 !.......................................................................
@@ -313,15 +321,15 @@
         endif
         goto 100
 !...........................................................................
-        continue
-!..simple linear search. At the moment, you cannot get here.
-        do i=1,n
-           if(DetBitLT(list(:,i),DetCurr(:),NIfDBO).ne.1) then 
-             ipos=i
-             return
-           endif
-        enddo
-        ipos=n+1
+!        continue
+!!..simple linear search. At the moment, you cannot get here.
+!        do i=1,n
+!           if(DetBitLT(list(:,i),DetCurr(:),NIfDBO).ne.1) then 
+!             ipos=i
+!             return
+!           endif
+!        enddo
+!        ipos=n+1
     END SUBROUTINE Searchgen
 
 

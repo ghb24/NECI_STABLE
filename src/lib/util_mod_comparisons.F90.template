@@ -1,11 +1,13 @@
 [int]
 type = integer(kind=int32)
+conditional_enable = !defined(SX)
 
 [int64]
 type = integer(kind=int64)
 
 [real]
 type = real(kind=sp)
+conditional_enable = !defined(SX)
 
 [doub]
 type = real(kind=dp)
@@ -13,7 +15,7 @@ type = real(kind=dp)
 [sym]
 type = type(Symmetry)
 
-[sympairprod]
+[spp]
 type = type(SymPairProd)
 
 =========================

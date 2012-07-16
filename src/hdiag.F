@@ -1,7 +1,9 @@
+
+
 !Diagonalize a compressed hamiltonian (in HAMIL), returning eigenvalues in W and eigenvectors in CK.
-       SUBROUTINE HDIAG(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,
+       SUBROUTINE HDIAG_neci(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,
      &                     NBLOCKSTARTS,NBLOCKS)
-         use constants, only: dp!,n_int
+         use constants, only: dp,int32!,n_int
          use SystemData, only: BasisFN
          use global_utilities
          use HElem, only: HElement_t_size
@@ -15,13 +17,15 @@
 !         INTEGER(n_int) :: TempBitRep(0:NIfTot),BitRepHF(0:NIfTot)
          INTEGER NDET
          INTEGER NROW(NDET),LAB(*)
-         HElement_t  HAMIL(*),CK(NDET,NDET),WORK2,WORK
+         HElement_t HAMIL(*),CK(NDET,NDET),WORK2(3*NDET),WORK
 !         HElement_t CopyCK(NDET,NDET)
-         REAL*8 W(NDET)
-         INTEGER I,J,IND,INDZ,INFO,NBS!,nopen,k,Excit
+         real(dp) W(NDET)
+         INTEGER I,J,IND,INDZ,NBS!,nopen,k,Excit
+         INTEGER(int32) INFO
          INTEGER NBLOCKS,NBLOCKSTARTS(NBLOCKS+1)
          type(timer), save :: proc_timer
-         REAL*8 GSEN
+         real(dp) GSEN
+         character(len=*), parameter :: t_r="HDIAG_neci"
          proc_timer%timer_name='HDIAG     '
          call set_timer(proc_timer)
          GSEN=1.D100
@@ -44,7 +48,10 @@ C.. Now we fill the RIJ array
              !ensure hermitian
              do i=1,ndet
                  do j=1,i-1
-                     CK(i,j)=CONJG(CMPLX(CK(j,i)))
+#ifdef __CMPLX
+                     !To avoid compiler warnings
+                     CK(i,j)=CONJG(CMPLX(CK(j,i),kind=kind(0.0_dp)))
+#endif
                  enddo
              enddo
          ENDIF
@@ -69,11 +76,19 @@ C.. Diagonalize
          DO I=1,NBLOCKS
             NBS=NBLOCKSTARTS(I)
             IF(HElement_t_size.EQ.1) THEN
+#ifndef __CMPLX 
                CALL DSYEV('V','U',NBLOCKSTARTS(I+1)-NBS,CK(NBS,NBS),
      &            NDET,W(NBS),WORK2,3*NDET,INFO)
+#else
+               call stop_all(t_r,"This block for real calcs only")
+#endif
             ELSE
+#ifdef __CMPLX
                  CALL ZHEEV('V','U',NBLOCKSTARTS(I+1)-NBS,CK(NBS,NBS),
      &            NDET,W(NBS),WORK,4*NDET,WORK2,INFO)
+#else
+                 call stop_all(t_r,"This block for complex calcs only")
+#endif
             ENDIF
             IF(INFO.NE.0) THEN
                WRITE(6,*) 'DYSEV error: ',INFO
@@ -122,10 +137,10 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          IMPLICIT NONE
          INTEGER NDET,i,j,NExcit,bin,nbins
          HElement_t Vecs(NDET,NDET),HMAT(NDET,NDET),KMAT(NDET,NDET)
-         REAL*8 Vals(NDET),S(NDET,NDET+1),SSUM
-         REAL*8 MinS,MaxS,RangeBins
+         real(dp) Vals(NDET),S(NDET,NDET+1),SSUM
+         real(dp) MinS,MaxS,RangeBins
          INTEGER , ALLOCATABLE :: SHist(:,:)
-         REAL*8 , ALLOCATABLE :: RangeHist(:)
+         real(dp) , ALLOCATABLE :: RangeHist(:)
 
 !Vals(1) contains ground state
 !Check that eigenvectors are correct by multiplying matrix by first eigenvector
@@ -272,22 +287,24 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          use global_utilities
          use Determinants, only: get_helement
          use sym_mod
-         use constants, only: dp
+         use constants, only: dp,int32
+         use MemoryManager, only: TagIntType
          IMPLICIT NONE
          INTEGER NDET,NEL,NBLOCKS,NBLOCKSTARTS(NBLOCKS),NMRKS(NEL,NDET)
          INTEGER nBasisMax(5,*),NBASIS
          TYPE(BasisFN) G1(*)
-         INTEGER I_P,BRR(*),INFO
-         REAL*8  BETA
+         INTEGER I_P,BRR(*)
+         INTEGER(int32) INFO
+         real(dp)  BETA
          LOGICAL TWARN
-         REAL*8  DNORM
-         REAL*8  CALCDLWDB,ARR(NBASIS)
+         real(dp)  DNORM
+         real(dp)  CALCDLWDB,ARR(NBASIS)
          
          INTEGER I,NBLKMAX,NBLK,J,K,NBS,III,IFDET,L
-         REAL*8 EXEN,GSEN,FLRI,FLSI,GSEN2
-         REAL*8, ALLOCATABLE :: CK(:),W(:),WORK(:)
-         integer, save :: tagCK=0,tagW=0,tagWORK=0
-         REAL*8 ELOWEST,GOFE(NBASIS),EBIAS
+         real(dp) EXEN,GSEN,FLRI,FLSI,GSEN2
+         real(dp), ALLOCATABLE :: CK(:),W(:),WORK(:)
+         integer(TagIntType), save :: tagCK=0,tagW=0,tagWORK=0
+         real(dp) ELOWEST,GOFE(NBASIS),EBIAS
          INTEGER GELOWEST,IDEG
          type(timer), save :: proc_timer
          TYPE(BasisFN) BLOCKSYM(NBLOCKS)

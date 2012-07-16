@@ -1,6 +1,7 @@
 module CalcData
 
-    use constants, only: dp
+    use constants, only: dp,int64
+    use MemoryManager, only: TagIntType
     implicit none
 
     save
@@ -24,7 +25,11 @@ LOGICAL :: tCheckHighestPop,tRestartHighPop,tChangeProjEDet
 LOGICAL :: tRotoAnnihil,tRegenDiagHEls,tSpawnAsDet,tFindGroundDet
 LOGICAL :: tTruncCAS,tTruncInitiator,tDelayTruncInit,tAddtoInitiator    !Truncation the FCIMC excitation space by CAS
 LOGICAL :: tInitIncDoubs,tWalkContGrow,tAnnihilatebyRange,tRetestAddtoInit
-logical :: tReadPopsRestart, tReadPopsChangeRef
+logical :: tReadPopsRestart, tReadPopsChangeRef, tInstGrowthRate
+
+logical :: tStartCAS    !Start FCIMC dynamic with walkers distributed according to CAS diag.
+logical :: tPopsMapping !Map popsfile from smaller basis onto larger basis
+logical :: tShiftonHFPop    !Adjust shift in order to keep the population on HF constant, rather than total pop.
 
 ! Base hash values only on spatial orbitals
 ! --> All dets with same spatial structure on the same processor.
@@ -48,40 +53,46 @@ INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits,IterTruncInit,InitiatorWalk
 INTEGER :: NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp,iFullSpaceIter
 INTEGER :: IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets,iDetGroup
 INTEGER :: CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
-INTEGER :: InitWalkers,NMCyc,StepsSft,CLMax
+INTEGER :: NMCyc,StepsSft,CLMax
 INTEGER :: NEquilSteps,InitialPart
 INTEGER :: OccCASorbs,VirtCASorbs,iAnnInterval
 integer :: iPopsFileNoRead, iPopsFileNoWrite,iWeightPopRead,iRestartWalkNum
-INTEGER *8 :: MaxNoatHF,HFPopThresh
+integer :: MaxWalkerBloom   !Max number of walkers allowed in one bloom before reducing tau
+INTEGER(int64) :: MaxNoatHF,HFPopThresh,InitWalkers
 
-REAL*8 :: g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
-REAL*8 :: G_VMC_EXCITWEIGHT(10),G_VMC_EXCITWEIGHTS(6,10)
-REAL*8 :: BETAP,RHOEPSILON,DBETA,STARCONV,GraphBias
-REAL*8 :: GrowGraphsExpo,Tau,SftDamp,ScaleWalkers
-REAL*8 :: GrowMaxFactor,CullFactor,PRet,FracLargerDet
-REAL*8 :: MemoryFacPart,MemoryFacAnnihil
-REAL*8 :: MemoryFacSpawn,SinglesBias,TauFactor,StepsSftImag
+integer :: iReadWalkersRoot !The number of walkers to read in on the head node in each batch during a popsread
+
+real(dp) :: g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
+real(dp) :: G_VMC_EXCITWEIGHT(10),G_VMC_EXCITWEIGHTS(6,10)
+real(dp) :: BETAP,RHOEPSILON,DBETA,STARCONV,GraphBias
+real(dp) :: GrowGraphsExpo,Tau,SftDamp,ScaleWalkers
+real(dp) :: GrowMaxFactor,CullFactor,PRet,FracLargerDet
+real(dp) :: MemoryFacPart,MemoryFacAnnihil
+real(dp) :: MemoryFacSpawn,SinglesBias,TauFactor,StepsSftImag
 
 real(dp) :: MemoryFacInit
 
 real(dp), target :: DiagSft
 
-REAL*8 :: GraphEpsilon
-REAL*8 :: PGenEpsilon
+real(dp) :: GraphEpsilon
+real(dp) :: PGenEpsilon
+real(dp) :: TargetGrowRate
+integer(int64) :: TargetGrowRateWalk    !Number of walkers before targetgrowrate kicks in
+integer(int64) :: iExitWalkers  !Exit criterion, based on total walker number
 
 
 !// additional from NECI.F
 INTEGER, Allocatable :: MCDet(:)
-INTEGER :: tagMCDet=0
-REAL*8 :: RHOEPS ! calculated from RHOEPSILON
+INTEGER(TagIntType) :: tagMCDet=0
+real(dp) :: RHOEPS ! calculated from RHOEPSILON
 
 !// set if we include no triple-excitations as the 3rd vertex in 3+ vertex graphs.
 LOGICAL :: lNoTriples
 
-LOGICAL tFCIMCSerial
-
 LOGICAL tUseProcsAsNodes  !Set if we treat each processor as its own node.
 INTEGER iLogicalNodeSize  !An alternative to the above, create logical nodes of at most this size.
                           ! 0 means use physical nodes.
+
+logical :: tContinueAfterMP2 ! UEG option only
 
 end module CalcData

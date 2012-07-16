@@ -1,22 +1,23 @@
 module CCMCData
-   use constants, only: dp,n_int,end_n_int
+   use constants, only: dp,n_int,end_n_int,lenof_sign
    implicit none
    save
-   real*8   dT1SqCuml
+   real(dp)   dT1SqCuml
    logical  tExactCluster  ! Go through all combinations of excitors to make all clusters
    logical  tExactSpawn    ! For each cluster, go through all connected dets, and spawn there
    integer  nSpawnings     ! The number of spawning events per cluster if not tExactSpawn
    integer  nClustSelections !The number of cluster selections per cycle
-   real*8   dClustSelectionRatio !The number of cluster selections per excitor (if nClustSelections==-1)
+   real(dp)   dClustSelectionRatio !The number of cluster selections per excitor (if nClustSelections==-1)
    logical  tCCMCFCI       ! Run CCMC code without excitation clusters, recovering the FCIMC result
    logical  tAmplitudes    ! Use real numbers to indicate the amplitudes rather than stochastically sampling
-   real*8   dInitAmplitude ! Specify the initial amplitude for use in CCMC amplitude calculations.
-   real*8   dProbSelNewExcitor !The probability that the cluster selection algorithm terminates after each addition of an excitor.
+   real(dp)   dInitAmplitude ! Specify the initial amplitude for use in CCMC amplitude calculations.
+   real(dp)   dProbSelNewExcitor !The probability that the cluster selection algorithm terminates after each addition of an excitor.
    LOGICAL  tSpawnProp     ! Set if we use spawning proportional to the cluster amplitude rather than equally
 
    LOGICAL  tCCBuffer      ! Buffer the CC Amplitudes - this is useful when there are many cluster selections which lead to the same collapsed det. It creates a combined amplitude of the det first and spawns from that.
    LOGICAL  tExactEnergy   ! Do we calculate projected energy exactly rather than through sampling?
    LOGICAL  tSharedExcitors !Do we use shared memory for the excitor list?
+   LOGICAL  tCCNoCuml        ! Do we use a new algorithm which doesn't create a cumulative amplitude list
    
 
 !This contains information as to a chosen Cluster
@@ -26,26 +27,26 @@ TYPE Cluster
    INTEGER(KIND=n_int), allocatable :: iLutDetCurr(:)             !(0:NIfTot) The determinant made from collapsing this cluster in bit representation
    INTEGER, allocatable :: DetCurr(:)                 !(nEl) The determinant made from collapsing this cluster.
    INTEGER  iSize
-   INTEGER  iSgn                                      !The sign of the determinant after collapsing the cluster
+   INTEGER,dimension(lenof_sign) :: iSgn                                      !The sign of the determinant after collapsing the cluster
    INTEGER iExcitLevel                                !The excitation level of the resultant det
 
    INTEGER initFlag                                   !Zero if this cluster is an initiator, or 1 if it isn't
-   REAL*8   dAbsAmplitude
+   real(dp)   dAbsAmplitude
 ! dAbsAmplitude is the product of the coefficients of the excitors with the relevant normalizations.
 ! i.e. abs ( N0  (tI/N0) (tJ/N0) ... )
-   REAL*8   dSelectionProb
+   real(dp)   dSelectionProb
 ! dSelectionProb is the probability that the cluster was selected
    
-   REAL*8 dSelectionNorm
+   real(dp) dSelectionNorm
 
 
 
 !The following are old
-   REAL*8   dProbNorm
+   real(dp)   dProbNorm
 ! dProbNorm is the prob that a cluster in this level would've been chosen had they been equally weighted
-   REAL*8   dClusterProb
+   real(dp)   dClusterProb
 !dClusterProb is the Probability of having chosen this cluster excitor (normalized such that <1/dClusterProb> = 1)
-   REAL*8   dClusterNorm                           
+   real(dp)   dClusterNorm                           
 !  dClusterNorm is the probability that this cluster was chosen, given the level had already been selected.  This includes multiple selections of the same excitor as well as combinations of excitors which produce a 0 sign.
 END TYPE Cluster
 
@@ -54,12 +55,12 @@ TYPE ClustSelector
    LOGICAL tFull     !Set if we are to generate all possible clusters
    INTEGER iMaxSize  !The maximum size of a cluster
    INTEGER nSelects  !If we're stochastically sampling the cluster space, this is the number of samples we take
-   REAL*8 dRatio     !If tDynamic then dRatio is the ratio of selections to excitors
-   REAL*8 dProbSelNewExcitor  !The probability that we quit at every stage of selecting a new excitor for a cluster  
+   real(dp) dRatio     !If tDynamic then dRatio is the ratio of selections to excitors
+   real(dp) dProbSelNewExcitor  !The probability that we quit at every stage of selecting a new excitor for a cluster  
    INTEGER iRefPos   !The Location in teh amplitude list of the reference det
    LOGICAL tDynamic  !If set, we choose as many clusters as there are excitors.
    LOGICAL tInitiators !Set if we are using initiators
-   REAL*8 dInitiatorThresh !Threshold for creating intiator cluster
+   real(dp) dInitiatorThresh !Threshold for creating intiator cluster
    TYPE(Cluster) C
 
 END TYPE ClustSelector
@@ -79,15 +80,15 @@ TYPE Spawner
    INTEGER(KIND=n_int), allocatable :: iLutnJ(:)       !The det from which to spawn
    INTEGER iExcitLevel                     !The excitation level of the resultant det from the composite cluster
    HElement_t       :: HIJ
-   REAL*8               :: dProbSpawn      !Prob that we spawned here (including the number of spawning events)
+   real(dp)               :: dProbSpawn      !Prob that we spawned here (including the number of spawning events)
    INTEGER              :: ExcitMat(2,2)   !Internal data corresponding to the excitation matrix of the last generated det.
    INTEGER              :: ExFlag
 END TYPE Spawner 
 
 TYPE CCTransitionLog
-   REAL*8, allocatable :: dProbTransition(:,:,:,:) !(2,2,nClust,nClust)
-   REAL*8, allocatable :: dProbClust(:,:)  !(2,nClust)
-   REAL*8, allocatable :: dProbUniqClust(:,:)  !(2,-1:nClust)
+   real(dp), allocatable :: dProbTransition(:,:,:,:) !(2,2,nClust,nClust)
+   real(dp), allocatable :: dProbClust(:,:)  !(2,nClust)
+   real(dp), allocatable :: dProbUniqClust(:,:)  !(2,-1:nClust)
    INTEGER nExcitors    !Number of excitors
    INTEGER nMaxSize     !Largest cluster Size
    INTEGER MaxIndex     !Last possible index of a cluster (nClust)
@@ -287,7 +288,7 @@ END SUBROUTINE AddBitExcitor
 
 !Write a Cluster.
    SUBROUTINE WriteCluster(iUnit,C,lTerm)
-      use FCIMCParMod, only: iLutHF
+      use FCIMCData, only: iLutHF
       IMPLICIT NONE
       TYPE(Cluster) C
       INTEGER i

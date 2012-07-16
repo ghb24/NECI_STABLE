@@ -4,22 +4,25 @@ C.. Method of evaluating the Coulomb integrals
 C  ========================================================              
       SUBROUTINE INITFOU2D(NMESHX,CK,NMAX,
      &     A,TALPHA,ALPHA,OMEGA,ZIA)
-      IMPLICIT REAL*8(A-H,O-Z)
-      COMPLEX*16 CK(NMESHX,NMESHX,NMESHX)
-      COMPLEX*16 ZIA(-NMESHX/2:NMESHX/2,NMAX,NMAX) 
-      REAL*8 A(3)
-      real*4 t1,t2,t3,t(2),etime
+      use constants, only: dp,sp
+!      IMPLICIT real(dp)(A-H,O-Z)
+      IMPLICIT NONE
+      integer :: NMESHX,NMAX
+      complex(dp) CK(NMESHX,NMESHX,NMESHX)
+      complex(dp) ZIA(-NMESHX/2:NMESHX/2,NMAX,NMAX) 
+      real(dp) A(3),OMEGA,ALPHA
+      real(sp) t1,t2,t3,t(2),neci_etime
       LOGICAL TALPHA
-      DATA IFIRST/0/
-      SAVE IFIRST 
+      INTEGER, SAVE :: IFIRST=0
+!      SAVE IFIRST 
 C..
       IF(IFIRST.EQ.1) RETURN 
       IFIRST=1
 C..      
-      T1 = etime(t)
+      T1 = neci_etime(t)
       CALL GEN_CK_FFT2D(NMESHX,CK,A,TALPHA,ALPHA,OMEGA)
       CALL GEN_ZIA(NMESHX,NMAX,ZIA)
-      T2 = etime(t)
+      T2 = neci_etime(t)
       T3=(T2-T1)
       WRITE(6,*) 'V0=',CK(NMESHX/2+1,NMESHX/2+1,NMESHX/2+1)
       WRITE(6,*) ' TIME FOR INITIALISATION:',T3/1000.
@@ -28,7 +31,9 @@ C..
       END
 C =========================================================
       SUBROUTINE GEN_CK_FFT2D(N,DIST,A,TALPHA,ALPHA,OMEGA)
-      IMPLICIT REAL*8(A-H,O-Z)
+!      IMPLICIT real(dp)(A-H,O-Z)
+      use constants, only: dp,pi,int64
+      IMPLICIT NONE
 #if !defined(__alpha) || !defined(__SGI)
       !INTEGER FFTW_R2HC
       !PARAMETER (FFTW_R2HC=0)
@@ -95,32 +100,41 @@ C =========================================================
       !INTEGER FFTW_NO_SIMD
       !PARAMETER (FFTW_NO_SIMD=131072)
 #endif
-      COMPLEX*16 DIST(-N/2:N/2-1,-N/2:N/2-1,-N/2:N/2-1)
-      INTEGER*8 PLAN
-      REAL*8 A(3) 
+      integer :: i,j,k,n,n1,n2,n3,la1,la2
+      complex(dp) DIST(-N/2:N/2-1,-N/2:N/2-1,-N/2:N/2-1)
+      integer(int64) PLAN
+      real(dp) A(3),x,y,z,aux,r,ALPHA,ALPHA2,OMEGA,OMEGAP
       LOGICAL TALPHA
-      COMPLEX*16 D(-N/2:N/2-1,-N/2:N/2-1)
+      complex(dp) D(-N/2:N/2-1,-N/2:N/2-1)
+      real(dp) :: HSTEPX,HSTEPY,HSTEPZ,gx,gy,gz,SUM,G,DERF
+      character(len=*), parameter :: t_r="GEN_CK_FFT2D"
 C..
-      PI=ACOS(-1.D0)
+!      PI=ACOS(-1.D0)
       ALPHA2=ALPHA*ALPHA
 C..
       HSTEPX=2.D0*A(1)/N
       HSTEPY=2.D0*A(2)/N
       HSTEPZ=0
+
+#if defined(NAGF95) || defined(__GFORTRAN__)
+      call stop_all(t_r,"No ERF in NAG?")
+#endif
     
 C..
       DO I=-N/2,N/2-1
         DO J=-N/2,N/2-1
 c          DO K=-N/2,N/2-1
             K=0
-            X=DFLOAT(I)*HSTEPX
-            Y=DFLOAT(J)*HSTEPY
-            Z=DFLOAT(K)*HSTEPZ
+            X=real(I,dp)*HSTEPX
+            Y=real(J,dp)*HSTEPY
+            Z=real(K,dp)*HSTEPZ
             AUX=X*X+Y*Y+Z*Z
             IF(AUX.NE.0.D0) THEN
               IF(TALPHA) THEN 
                 R=SQRT(AUX) 
+#if !defined(NAGF95) && !defined(__GFORTRAN__)                
                 AUX=1.D0/R*(-1)**(I+J)*DERF(R/ALPHA)
+#endif
               ELSE
                 AUX=1.D0/SQRT(AUX)*(-1)**(I+J)
               ENDIF
@@ -128,10 +142,10 @@ c          DO K=-N/2,N/2-1
               IF(TALPHA) THEN 
                 AUX=(2.D0/SQRT(PI)/ALPHA)*(-1)**(I+J)
               ELSE
-                AUX=DFLOAT(N/2)*(-1)**(I+J)
+                AUX=real(N/2,dp)*(-1)**(I+J)
               ENDIF
             ENDIF
-            D(I,J)=DCMPLX(AUX,0.D0)
+            D(I,J)=CMPLX(AUX,0.D0,dp)
 c            write(16,'(3i3,2e19.8)') i,j,k,d(i,j)
 
 c          ENDDO
@@ -160,6 +174,7 @@ C..FORWARD TRANSFORM
       N1=N
       N2=N
       N3=N
+#ifndef DISABLE_FFTW
 C      CALL DFFTW_PLAN_DFT_3D(PLAN,N1,N2,N3,DIST,
 C     &  DIST,
 C     &  FFTW_FORWARD,FFTW_ESTIMATE)
@@ -176,13 +191,16 @@ c     &  FFTW_FORWARD,FFTW_ESTIMATE)
 c      call dfftw_print_plan(plan)
       CALL DFFTW_EXECUTE(PLAN)
       CALL DFFTW_DESTROY_PLAN(PLAN)
+#else
+      call stop_all("gen_ck_fft2d","FFTW disabled")
+#endif
 #endif
 C..Shift origin and normalise 
       DO I=-N/2,N/2-1
         DO J=-N/2,N/2-1
 C          DO K=-N/2,N/2-1
             K=0
-            DIST(I,J,0)=DIST(I,J,0)*(-1)**(i+j+k)/dfloat(n1*n2)
+            DIST(I,J,0)=DIST(I,J,0)*(-1)**(i+j+k)/real(n1*n2,dp)
 C/dfloat(n1*n2)
 C          enddo
         enddo
@@ -202,14 +220,16 @@ C..PI*K/A(3)
               G=SQRT(GX*GX+GY*GY+GZ*GZ)
               IF(G.NE.0.D0) THEN 
 c sum=2 Pi * erf(a G/2)/G/omegap
+#if !defined(NAGF95) && !defined(__GFORTRAN__)                
                 SUM=2.D0*PI*DERF(ALPHA*G/2)/OMEGAP/G
+#endif
 C                AUX=EXP(-G2*ALPHA2/4.D0)
 C                SUM=4.D0*PI*(1.D0-AUX)/OMEGAP/G2
               ELSE
                  SUM=ALPHA/(SQRT(PI)*OMEGAP)
 C                SUM=PI*ALPHA2/OMEGAP 
               ENDIF
-              DIST(I,J,K)=DIST(I,J,K)+DCMPLX(SUM,0.D0)
+              DIST(I,J,K)=DIST(I,J,K)+CMPLX(SUM,0.D0,dp)
 C            ENDDO
           ENDDO
         ENDDO

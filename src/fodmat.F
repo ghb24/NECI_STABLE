@@ -1,19 +1,23 @@
       SUBROUTINE FODMAT(NEL,NHG,NDET,NEVAL,ISTATE,
      &    NMRKS,G1,CK,NMAXX,NMAXY,NMAXZ,SUMA)
+      use constants, only: dp
       use SystemData, only: BasisFN
       use global_utilities
-      IMPLICIT REAL*8 (A-H,O-Z)
-      REAL*8, ALLOCATABLE :: FODM(:,:),Z(:,:),W(:)
+      use MemoryManager, only: TagIntType
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
+      real(dp), ALLOCATABLE :: FODM(:,:),Z(:,:),W(:)
 C..Diagonalisation vectors
-      REAL*8, ALLOCATABLE :: WORK(:)
-      REAL*8, ALLOCATABLE :: IWORK(:),IFAIL(:)
-      integer, save :: tagFODM=0,tagZ=0,tagW=0
-      integer, save :: tagWORK=0
-      integer, save :: tagIWORK=0,tagIFAIL=0
-
-      DIMENSION CK(NDET,NEVAL),NMRKS(NEL,*)
-      DIMENSION N1E(NHG),N2E(NHG)
-      DIMENSION SUMA(NMAXX,NMAXY,NMAXZ)
+      real(dp), ALLOCATABLE :: WORK(:)
+      real(dp), ALLOCATABLE :: IWORK(:),IFAIL(:)
+      integer(TagIntType), save :: tagFODM=0,tagZ=0,tagW=0
+      integer(TagIntType), save :: tagWORK=0
+      integer(TagIntType), save :: tagIWORK=0,tagIFAIL=0
+      integer :: NEl,NHG,NDET,NEVAL,ISTATE,NMAXX,NMAXY,NMAXZ
+      REAL(dp) :: CK(NDET,NEVAL),SUM
+      INTEGER :: N1E(NHG),N2E(NHG),IG,JG,IN,ID,ID1,ID2,I,J,K,INFO
+      INTEGER :: M,IPTOT,IFLAG,ND2,ND1,IQ,NMRKS(NEL,*)
+      REAL(dp) :: SUMA(NMAXX,NMAXY,NMAXZ),EPS,D,SUMC,ABSTOL,VL,VU
       TYPE(BASISFN) G1(NHG)
       character(*),parameter :: this_routine='FODMAT'
 C..
@@ -68,7 +72,7 @@ C..   we have the single excitation from i
                  CALL LINEUP(NEL,NMRKS(1:NEL,ID1),NMRKS(1:NEL,ID2),
      &                NHG,N1E,N2E,IFLAG,IPTOT)
                  IF(ND1.EQ.IG.AND.ND2.EQ.JG) THEN 
-                    SUM=SUM+DFLOAT(IPTOT)*
+                    SUM=SUM + REAL(IPTOT,dp)*
      &                   CK(ID1,ISTATE)*CK(ID2,ISTATE)
                  ENDIF
  200             CONTINUE
@@ -180,9 +184,11 @@ C..<Phi_k|Psi>
       END
 C ==---------------------------------------------------------------------==
       SUBROUTINE WHCH(NMRKS,NEL,ID1,ID2,ND1,ND2)
-      IMPLICIT REAL*8 (A-H,O-Z)
-C.. 
-      DIMENSION NMRKS(NEL,*)
+      use constants, only: dp
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
+      INTEGER :: ND1,ND2,ID1,ID2,NEL,IQ,I,J,K
+      INTEGER :: NMRKS(NEL,*)
 C..ID1 and ID2 are the labels of the determinants under investigation 
 C..ND1 and ND2 are the labels of orbitals they differ by
 C..Compare NDET1 to NDET2

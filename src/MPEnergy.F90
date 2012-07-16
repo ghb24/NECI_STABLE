@@ -6,7 +6,7 @@ SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
    INTEGER iV,nEl,nBasis,iMaxOrder
    HElement_t Hij(0:iV,0:iV)
    HElement_t V(1:iV,1:iV)
-   REAL*8 Arr(nBasis,2)
+   real(dp) Arr(nBasis,2)
    INTEGER iPath(nEl,0:iV)
    LOGICAL tLog,tLogged
    INTEGER i,j
@@ -90,10 +90,10 @@ END
 SUBROUTINE CalcVij(Hij,Vij,Fi,E1,iV)
    use constants, only: dp
    IMPLICIT NONE
+   INTEGER iV,i,j
    HElement_t Hij(1:iV+1,1:iV+1)
    HElement_t Vij(1:iV,1:iV)
    HElement_t Fi(1:iV),E1
-   INTEGER iV,i,j
    DO i=1,iV
       DO j=1,iV
          Vij(i,j)=Hij(i,j)
@@ -110,26 +110,27 @@ END
          use CalcData , only : TLADDER
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
+         INTEGER NEL,NBASIS
          HElement_t HIJS(0:2)
-         REAL*8 ARR(NBASIS,2)
-         INTEGER IPATH(NEL,0:2),NEL,NBASIS
+         real(dp) ARR(NBASIS,2)
+         INTEGER IPATH(NEL,0:2)
          INTEGER NI(NEL),NJ(NEL)
-         REAL*8 MP2E
-         REAL*8 DENOM,CONTR
+         real(dp) MP2E
+         real(dp) DENOM,CONTR
          INTEGER I,J,S
          LOGICAL TLOG
-         LOGICAL ISCSF
+         LOGICAL iscsf_old
 
 
 !.. If we have CSFs, unCSF the elecs
-         IF(ISCSF(IPATH(1,0),NEL)) THEN
+         IF(iscsf_old(IPATH(1,0),NEL)) THEN
             DO I=1,NEL
                CALL GETUNCSFELEC(IPATH(I,0),NI(I),S)
             ENDDO
          ELSE
             CALL NECI_ICOPY(NEL,IPATH(1,0),1,NI,1)
          ENDIF
-         IF(ISCSF(IPATH(1,1),NEL)) THEN
+         IF(iscsf_old(IPATH(1,1),NEL)) THEN
             DO I=1,NEL
                CALL GETUNCSFELEC(IPATH(I,1),NJ(I),S)
             ENDDO
@@ -184,7 +185,7 @@ END
       END
 
       Subroutine ModMPDiagElement(hEl,nI,nJ,nEl)
-         use Integrals, only : GetUMatEl
+         use Integrals_neci, only : GetUMatEl
          use constants, only: dp
          use SystemData, only: BasisFN
          implicit none

@@ -1,11 +1,12 @@
 C.. Factor a polynomial of order ORDER into complex roots ZROOTS
       SUBROUTINE FACTORPOLY(COEFFS,ORDER,ZROOTS)
+         use constants, only : dp
 C.. Use Newton-Raphson to find roots and then divide them out one by one
 C         IMPLICIT NONE
          INTEGER ORDER,IROOTS,WORDER,I
-         REAL*8 COEFFS(0:ORDER)
-         REAL*8 C(0:ORDER),POLY(0:2),REM(0:2)
-         COMPLEX*16 ZROOTS(ORDER),ZROOT
+         real(dp) COEFFS(0:ORDER)
+         real(dp) C(0:ORDER),POLY(0:2),REM(0:2)
+         complex(dp) ZROOTS(ORDER),ZROOT
          LOGICAL LCOMPLEX
          LCOMPLEX=.FALSE.
          DO I=0,ORDER
@@ -23,7 +24,7 @@ C               CALL FINDROOTFD(C,WORDER,XROOT)
 C               ZROOT=DCMPLX(XROOT,0.D0)
 C            ENDIF
             IROOTS=IROOTS+1
-            IF(DIMAG(ZROOT).EQ.0.D0) THEN
+            IF(AIMAG(ZROOT).EQ.0.D0) THEN
 C.. a real root
                ZROOTS(IROOTS)=ZROOT
                POLY(0)=-DBLE(ZROOT)
@@ -33,9 +34,9 @@ C.. a real root
 C.. we have a complex root, so we use its conjugate as well
                ZROOTS(IROOTS)=ZROOT
                IROOTS=IROOTS+1
-               ZROOTS(IROOTS)=DCMPLX(DBLE(ZROOT),-DIMAG(ZROOT))
+               ZROOTS(IROOTS)=CMPLX(DBLE(ZROOT),-AIMAG(ZROOT),kind=dp)
 C.. we divide out the product of ZROOT and ZROOT*
-               POLY(0)=DBLE(ZROOT)*DBLE(ZROOT)+DIMAG(ZROOT)*DIMAG(ZROOT)
+               POLY(0)=DBLE(ZROOT)*DBLE(ZROOT)+AIMAG(ZROOT)*AIMAG(ZROOT)
                POLY(1)=-2.D0*DBLE(ZROOT)
                POLY(2)=1.D0
                CALL POLYDIV(C,WORDER,POLY,2,REM)
@@ -57,10 +58,11 @@ C.. All should be well now
 C.. Divide POLY1 of order ORDER1 by POLY2 of order ORDER2, placing the
 C,, result in POLY1, and the remainder in REM (of order ORDER2-1)
       SUBROUTINE POLYDIV(POLY1,ORDER1,POLY2,ORDER2,REM)
+         use constants, only : dp
          IMPLICIT NONE
          INTEGER ORDER1,ORDER2
-         REAL*8 POLY1(0:ORDER1),POLY2(0:ORDER2),REM(0:ORDER2-1)
-         REAL*8 T
+         real(dp) POLY1(0:ORDER1),POLY2(0:ORDER2),REM(0:ORDER2-1)
+         real(dp) T
          INTEGER I,J
          
          DO I=ORDER1,ORDER2,-1
@@ -87,10 +89,11 @@ C.. Use Newton Raphson to find a root
 C.. if LCOMPLEX we start in the complex plane.
 C.. if we need to go to the complex plane, we set LCOMPLEX
       SUBROUTINE FINDROOT(WCOEFFS,WORDER,ZROOT,LCOMPLEX)
+         use constants, only : dp
          IMPLICIT NONE
          INTEGER WORDER
-         REAL*8 WCOEFFS(0:WORDER),MAG,MAG2,REPS
-         COMPLEX*16 ZROOT,ZEPS,Z1,Z2,Z3,ZOR,Z4
+         real(dp) WCOEFFS(0:WORDER),MAG,MAG2,REPS
+         complex(dp) ZROOT,ZEPS,Z1,Z2,Z3,ZOR,Z4
          INTEGER ICOUNT,I
          LOGICAL LCOMPLEX,TBIS
          IF(LCOMPLEX) THEN
@@ -103,7 +106,7 @@ C.. the NR method.  we start quite far away.
          REPS=1.D-14
          ICOUNT=0
          CALL POLYVALUE(WCOEFFS,WORDER,ZROOT,ZEPS)
-         MAG=SQRT(DBLE(ZEPS)*DBLE(ZEPS)+DIMAG(ZEPS)*DIMAG(ZEPS))
+         MAG=SQRT(DBLE(ZEPS)*DBLE(ZEPS)+AIMAG(ZEPS)*AIMAG(ZEPS))
          Z2=(0.1D0,0.D0)
 C         WRITE(6,*) "POLY=",(WCOEFFS(I),I=0,WORDER)
          DO WHILE (MAG.GT.REPS)
@@ -129,12 +132,12 @@ C.. save the deriv for next time
 C            WRITE(6,*) "VALUE=",ZEPS
                ZEPS=ZEPS/Z1
                Z4=ZEPS/Z1            
-            IF (SQRT(DBLE(ZEPS)**2+DIMAG(ZEPS)**2).GT.1.D2) THEN
+            IF (SQRT(DBLE(ZEPS)**2+AIMAG(ZEPS)**2).GT.1.D2) THEN
 C.. the deriv is too close to zero.  use bisection
                ZEPS=ZROOT-ZOR
                TBIS=.TRUE.
             ENDIF
-C            IF (SQRT(DBLE(Z1)**2+DIMAG(Z1)**2).LT.1.D-2
+C            IF (SQRT(DBLE(Z1)**2+AIMAG(Z1)**2).LT.1.D-2
 C     &            .AND.ICOUNT.GE.60) Z3=Z3*Z1 
 C            WRITE(6,*) ICOUNT,ZROOT,ZEPS
             ZOR=ZROOT
@@ -146,8 +149,8 @@ C.. so we aid convergence by only going by ZEPS/2
             IF(TBIS) ZROOT=ZROOT+ZEPS/2.D0
             CALL POLYVALUE(WCOEFFS,WORDER,ZROOT,ZEPS)
             Z3=ZEPS
-            IF(DIMAG(Z3).NE.0.D0) THEN
-               MAG=SQRT(DBLE(Z3)*DBLE(Z3)+DIMAG(Z3)*DIMAG(Z3))
+            IF(AIMAG(Z3).NE.0.D0) THEN
+               MAG=SQRT(DBLE(Z3)*DBLE(Z3)+AIMAG(Z3)*AIMAG(Z3))
             ELSE
                MAG=ABS(DBLE(Z3))
             ENDIF
@@ -158,7 +161,7 @@ C.. Check to see if just the real version is better than the complex
          CALL POLYVALUE(WCOEFFS,WORDER,Z3,Z1)
          CALL POLYVALUE(WCOEFFS,WORDER,ZROOT,Z2)
          MAG=ABS(DBLE(Z1))
-         MAG2=SQRT(DBLE(Z2)*DBLE(Z2)+DIMAG(Z2)*DIMAG(Z2))
+         MAG2=SQRT(DBLE(Z2)*DBLE(Z2)+AIMAG(Z2)*AIMAG(Z2))
 C         WRITE(6,*) MAG,MAG2
          IF(MAG.LT.MAG2) ZROOT=Z3         
 C         WRITE(6,*) "ROOT=",ZROOT,"ICOUNT=",ICOUNT,MAG,MAG2         
@@ -167,10 +170,11 @@ C         WRITE(6,*) "ROOT=",ZROOT,"ICOUNT=",ICOUNT,MAG,MAG2
 
 C.. return the value of the polynomial at Z
       SUBROUTINE POLYVALUE(WCOEFFS,WORDER,Z,ZRET)
+         use constants, only : dp
          IMPLICIT NONE
          INTEGER WORDER,I
-         REAL*8 WCOEFFS(0:WORDER)
-         COMPLEX*16 Z,ZRET
+         real(dp) WCOEFFS(0:WORDER)
+         complex(dp) Z,ZRET
          ZRET=(0.D0,0.D0)
          DO I=WORDER,0,-1
             ZRET=ZRET*Z+WCOEFFS(I)
@@ -180,10 +184,11 @@ C.. return the value of the polynomial at Z
 
 C.. return the value of the polynomial at Z
       SUBROUTINE POLYVALUER(WCOEFFS,WORDER,X,XRET)
+         use constants, only : dp
          IMPLICIT NONE
          INTEGER WORDER,I
-         REAL*8 WCOEFFS(0:WORDER)
-         REAL*8 X,XRET
+         real(dp) WCOEFFS(0:WORDER)
+         real(dp) X,XRET
          XRET=0.D0
          DO I=WORDER,0,-1
             XRET=XRET*X+WCOEFFS(I)
@@ -193,10 +198,11 @@ C.. return the value of the polynomial at Z
 
 C.. return the derivative of the polynomial at Z
       SUBROUTINE POLYDERIV(WCOEFFS,WORDER,Z,ZRET)
+         use constants, only : dp
          IMPLICIT NONE
          INTEGER WORDER,I
-         REAL*8 WCOEFFS(0:WORDER)
-         COMPLEX*16 Z,ZRET
+         real(dp) WCOEFFS(0:WORDER)
+         complex(dp) Z,ZRET
          ZRET=(0.D0,0.D0)
          DO I=WORDER,1,-1
             ZRET=ZRET*Z+WCOEFFS(I)*I
@@ -205,10 +211,11 @@ C.. return the derivative of the polynomial at Z
       END
 C.. return the derivative of the polynomial at Z
       SUBROUTINE POLYNDERIV(WCOEFFS,WORDER,Z,ZRET,N)
+         use constants, only : dp
          IMPLICIT NONE
          INTEGER WORDER,I,N,K
-         REAL*8 WCOEFFS(0:WORDER),D
-         COMPLEX*16 Z,ZRET
+         real(dp) WCOEFFS(0:WORDER),D
+         complex(dp) Z,ZRET
          ZRET=(0.D0,0.D0)
          DO I=WORDER,1,-1
             D=1.D0
@@ -222,10 +229,11 @@ C.. return the derivative of the polynomial at Z
 C.. False descent root finding - only suitable for odd order polys
 C.. if we need to go to the complex plane, we set LCOMPLEX
       SUBROUTINE FINDROOTFD(WCOEFFS,WORDER,XROOT)
+         use constants, only : dp
          IMPLICIT NONE
          INTEGER WORDER
-         REAL*8 WCOEFFS(0:WORDER),MAG
-         REAL*8 XROOT,XEPS,X1,X2,X3,X4,X5,A,B
+         real(dp) WCOEFFS(0:WORDER),MAG
+         real(dp) XROOT,XEPS,X1,X2,X3,X4,X5,A,B
          INTEGER ICOUNT,I
 C.. Choose the bracket to be big
          A=-2
@@ -279,11 +287,12 @@ C.. and substitute = z= z0+z'
 C.. to create a new polynomial in z' 
 C.. coeffs x'_n = Sum_i(x_i z0^i Binomial[i,n])/z0^n
       SUBROUTINE CREATEAUXPOLY(WCOEFFS,WORDER,Z0,ZACOEFFS)
+         use constants, only : dp
          INTEGER WORDER
-         REAL*8 WCOEFFS(0:WORDER)
-         COMPLEX*16 ZACOEFFS(0:WORDER)
+         real(dp) WCOEFFS(0:WORDER)
+         complex(dp) ZACOEFFS(0:WORDER)
          INTEGER I,J
-         REAL*8 CFACT
+         real(dp) CFACT
          DO I=0,WORDER
             ZACOEFFS(I)=(0.D0,0.D0)
          ENDDO
@@ -299,10 +308,11 @@ C.. coeffs x'_n = Sum_i(x_i z0^i Binomial[i,n])/z0^n
       END
 
       SUBROUTINE POLYVALUEC(ZCOEFFS,WORDER,Z,ZRET)
+         use constants, only : dp
          IMPLICIT NONE
          INTEGER WORDER,I
-         COMPLEX*16 ZCOEFFS(0:WORDER)
-         COMPLEX*16 Z,ZRET
+         complex(dp) ZCOEFFS(0:WORDER)
+         complex(dp) Z,ZRET
          ZRET=(0.D0,0.D0)
          DO I=WORDER,0,-1
             ZRET=ZRET*Z+ZCOEFFS(I)

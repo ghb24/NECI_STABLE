@@ -2,21 +2,23 @@
 
 ! A new implementation file for csfs
 module csf
+    use constants, only: sizeof_int
     use systemdata, only: nel, brr, ecore, alat, nmsh, nbasismax, G1, nbasis,&
-                          LMS, iSpinSkip, STOT, ECore
+                          LMS, iSpinSkip, STOT, ECore, modk_offdiag
     use memorymanager, only: LogMemAlloc, LogMemDealloc
     use integralsdata, only: umat, fck, nmax
     use constants, only: dp, n_int, lenof_sign
     use dSFMT_interface, only: genrand_real2_dSFMT
     use sltcnd_mod, only: sltcnd, sltcnd_2
     use DetBitOps, only: EncodeBitDet, FindBitExcitLevel, count_open_orbs, &
-                         get_bit_open_unique_ind, FindSpatialBitExcitLevel
+                         get_bit_open_unique_ind, FindSpatialBitExcitLevel, &
+                         DetBitEq
     use CalcData, only: InitiatorWalkNo
     use OneEInts, only: GetTMatEl
-    use Integrals, only: GetUMatEl
+    use Integrals_neci, only: GetUMatEl
     use UMatCache, only: gtID
     use csf_data
-    use timing
+    use timing_neci
     use util_mod, only: swap, choose
     use bit_reps, only: NIfD, NIfTot, NIfY, extract_sign
 
@@ -90,7 +92,11 @@ contains
         if ( (.not. bCSF(1)) .and. (.not. bCSF(2)) ) then
             ! Once again, pass things through better
             hel_ret = sltcnd (nI, iLutI, iLutJ, IC)
-            if (IC == 0) hel_ret = hel_ret + ECore
+            if (IC == 0) then
+                hel_ret = hel_ret + ECore
+            else if (modk_offdiag) then
+                hel_ret = -abs(hel_ret)
+            end if
             return
         endif
 
@@ -153,6 +159,13 @@ contains
             hel_ret = get_csf_helement_det (nJ, iLutI, nopen, nclosed, nup, &
                                             ndets)
         endif
+
+        if (modk_offdiag) then
+            if (IC /= 0 .or. .not. DetBitEq(ilutI, ilutJ)) then
+                hel_ret = -abs(hel_ret)
+            end if
+        end if
+
     end function
 
     function get_csf_helement_local (nI, nJ, iLutI, iLutJ, nopen, nclosed, &
@@ -172,7 +185,7 @@ contains
 
         ! Working arrays. Sizes calculated in calling function.
         integer :: yama1(nopen(1)), yama2(nopen(2))
-        real*8 :: coeffs1(ndets(1)), coeffs2(ndets(2))
+        real(dp) :: coeffs1(ndets(1)), coeffs2(ndets(2))
         integer :: dets1(nel, ndets(1)), dets2(nel, ndets(2))
         integer(kind=n_int) :: ilut1(0:NIfTot,ndets(1)), ilut2(0:NIfTot,ndets(2))
         integer :: det_sum(ndets(1))
@@ -300,7 +313,7 @@ contains
 
         ! Working arrays. Sizes calculated in calling function.
         integer :: yama(nopen(1))
-        real*8 :: coeffs(ndets(1))
+        real(dp) :: coeffs(ndets(1))
         integer :: dets(nel, ndets(1))
         integer(kind=n_int) :: ilut(0:NIfTot,ndets(1))
 
@@ -351,7 +364,7 @@ contains
 
         integer, intent(in) :: nI(nel)
         integer, intent(in) :: nopen, nclosed, nup, ndets
-        real*8, intent(in) :: coeffs1(ndets), coeffs2(ndets)
+        real(dp), intent(in) :: coeffs1(ndets), coeffs2(ndets)
         integer, intent(in) :: dets1(nel,ndets)
         integer, intent(in) :: det_sum(ndets)
         logical, intent(in) :: bEqual
@@ -359,7 +372,7 @@ contains
 
         integer :: nK(nel), id(nel), ex(2,2), elecs(2)
         integer :: ndown, idX, idN, ids, det, indj, i, j
-        real*8 :: diag_coeff
+        real(dp) :: diag_coeff
         HElement_t :: hel, hel2
 
         ! TODO: bEqual
@@ -512,7 +525,7 @@ contains
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(in) :: nup(2), ndets(2)
         integer, intent(in) :: yama1(nopen(1)), yama2(nopen(2))
-        real*8, intent(out) :: coeffs1(ndets(1)), coeffs2(ndets(2))
+        real(dp), intent(out) :: coeffs1(ndets(1)), coeffs2(ndets(2))
         integer, intent(inout) :: dets1(nel, ndets(1)), dets2(nel, ndets(2))
         HElement_t :: hel_ret, hel, sum1, umatel(2)
 
@@ -877,7 +890,7 @@ contains
             if (pos > nopen) exit
         !    write (6, '(i5)', advance='no') pos
 
-            det_pos = det_pos + choose(pos-1, i)
+            det_pos = det_pos + int(choose(pos-1, i),sizeof_int)
         enddo
     end function
 
@@ -914,8 +927,8 @@ contains
     ! TODO: comment
 
         use constants, only: bits_n_int
-        integer, intent(in) :: det(nopen), perm(2)
         integer, intent(in) :: ndets, nopen, deti
+        integer, intent(in) :: det(nopen), perm(2)
         integer, intent(in) :: det_sum(ndets)
         integer :: pos
 
@@ -1110,7 +1123,7 @@ contains
         integer npos, csf, ncsf, ncsf_next
 
         ! Empty Yamanouchi symbol of nopen == 0.
-        if (nopen == 0) return
+        if (nopen == 0 .or. ncsf_max == 0) return
 
         ! Walk through tree. Start at elec == nopen, and walk back through
         ! tree taking all possible routes (branch at every point where there
@@ -1153,7 +1166,8 @@ contains
         if (det .eq. 1) then
             csf_alpha_beta = ior(csf_alpha_beta, 1)
         else
-            csf_alpha_beta = iand(csf_alpha_beta,Z'fffffffe')
+!            csf_alpha_beta = iand(csf_alpha_beta,Z'fffffffe')
+            csf_alpha_beta = iand(csf_alpha_beta,-2)
         endif
         csf_alpha_beta = csf_alpha_beta + 1
     end function
@@ -1164,9 +1178,9 @@ contains
         ! This assumes that the passed yama array is the correct size, if
         ! it is too small, then the symbol will be truncated.
 
-        integer, intent(in), dimension(:) :: nI(nel)
+        integer, intent(in) :: nI(nel)
         integer, intent(in) :: nopen
-        integer, intent(out), dimension(:) :: yama(nopen)
+        integer, intent(out) :: yama(nopen)
         integer i, nclosed
 
         nclosed = nel - nopen
@@ -1313,7 +1327,7 @@ contains
         if ((nopen < 0) .or. (mod(nOpen+S, 2) /= 0))then
             ncsf = 0
         else
-            ncsf = (2*S + 2) * choose(nOpen, (nOpen+S)/2)
+            ncsf = (2*S + 2) * int(choose(nOpen, (nOpen+S)/2),sizeof_int)
             ncsf = ncsf / (nOpen + S + 2)
         endif
     end function
@@ -1336,7 +1350,7 @@ contains
 
         integer :: nopen, nup, nchoose, pos, i
         integer :: choice(ubound(spins,1)), perm(ubound(spins,1))
-        real*8 :: r
+        real(dp) :: r
 
         ! How many alpha elecs do we have. If fewer than half, permute betas.
         nopen = ubound(spins, 1)
@@ -1350,7 +1364,7 @@ contains
         ! Select nchoose positions at random, and place them at the end.
         do i = 1, nchoose
             r = genrand_real2_dSFMT()
-            pos = int(real(nopen-i+1,8)*r) + 1
+            pos = int(real(nopen-i+1,dp)*r) + 1
 
             if (pos /= nopen-i+1) then
                 call swap(choice(nopen-i+1), choice(pos))
@@ -1372,7 +1386,7 @@ contains
         spins = csf_alpha_beta(spins, perm)
 
         ! How many dets were there to choose from?
-        no_dets = choose(nopen, nchoose)
+        no_dets = int(choose(nopen, nchoose),sizeof_int)
 
     end function
 
@@ -1467,7 +1481,7 @@ contains
         logical, intent(in) :: tForceChange
 
         integer :: yamas (0:get_num_csfs(nopen, S), nopen), num
-        real*8 :: r
+        real(dp) :: r
 
         if (nopen == 0) then
             ncsf = 0
@@ -1564,7 +1578,7 @@ contains
         num_S = (nopen+2)/2
     end function
 
-    real*8 pure function csf_coeff (csf, dorder, nopen)
+    real(dp) pure function csf_coeff (csf, dorder, nopen)
 
         ! Calculate the coefficients for each determinant contained in the
         ! CSF. These are calculated as the product of Clebsch-Gordon coeffs.
@@ -1582,7 +1596,7 @@ contains
         integer, intent(in), dimension(:) :: csf, dorder
         integer, intent(in) :: nopen
 
-        real*8 :: S, M, scur, mcur, clb
+        real(dp) :: S, M, scur, mcur, clb
         integer :: i
 
         S=0
@@ -1603,8 +1617,8 @@ contains
     ! The Clebsch-Gordon coefficient with total spin S, projected
     ! component of spin M, with state with spin change 
     ! spin=(+/-)0.5 and projected spin change sig=(+/-)0.5
-    real*8 pure function clbgrdn(S,M,spin,sig)
-        real*8, intent(in) :: S, M, spin, sig
+    real(dp) pure function clbgrdn(S,M,spin,sig)
+        real(dp), intent(in) :: S, M, spin, sig
         !if (abs(spin).ne.0.5) then
         !    call stop_all ("clbgrdn","Spin incorrect")
         !endif
@@ -1695,6 +1709,45 @@ contains
         s_final = nopen_min
 
     end function
+
+    subroutine extract_dorder (nI, dorder, nopen)
+
+        ! Return the dorder and the number of unpaired electrons in a
+        ! determinant
+        !
+        ! In:  nI     - integer, ordered representation of det
+        ! Out: dorder - Ordered list of alpha/beta for unpaired electrons.
+        !               alpha == 0, beta == 1
+        !      nopen  - Number of unpaired electrons in nI
+
+        integer, intent(in) :: nI(nel)
+        integer, intent(out) :: dorder(nel), nopen
+
+        integer :: i
+
+        nopen = 0
+        i = 1
+        do while (i <= nel)
+            if (is_beta(nI(i)) .and. i < nel) then
+                if (is_in_pair(nI(i), nI(i+1))) then
+                    i = i + 2
+                    cycle
+                endif
+            endif
+
+            nopen = nopen + 1
+            if (is_alpha(nI(i))) then
+                dorder(nopen) = 0
+            else
+                dorder(nopen) = 1
+            endif
+
+            i = i + 1
+        enddo
+
+    end subroutine
+
+
 
 end module
 

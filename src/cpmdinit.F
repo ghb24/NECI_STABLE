@@ -9,9 +9,9 @@
          use CPMDData, only: nStates,NKPTrans,nKPS,nRotOp
          use sym_mod
          IMPLICIT NONE
-         INTEGER nBasisMax(5,*), BRR(LEN),LEN
+         INTEGER LEN,nBasisMax(5,*), BRR(LEN)
          TYPE(BASISFN) G1(LEN)
-         REAL*8 ARR(LEN,2)
+         real(dp) ARR(LEN,2)
          INTEGER I,J
          TYPE(Symmetry) iDecomp
          LOGICAL ALL1D
@@ -122,7 +122,7 @@ C.. group
          IMPLICIT NONE
          INTEGER NBASIS
          type(BasisFn) G1(*)
-         REAL*8 ARR(NBASIS,2)
+         real(dp) ARR(NBASIS,2)
          CALL GENSYMREPS(G1,NBASIS,ARR,DEGENTOL)
       END
 
@@ -206,7 +206,7 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          use constants, only: dp
          use CPMDData, only: nStates,PIInt,EIonIon,EigenValues,tagPIInt
          use SystemData, only: BasisFN
-         use Integrals, only: GetUMatEl
+         use Integrals_neci, only: GetUMatEl
          USE UMatCache, only: nstatesumat=>nstates,tUMAT2D
          USE UMatCache, only: SetUmatTrans,SetUMatCacheFlag,SetupUMat2D,
      &                        SetupUMatCache
@@ -215,6 +215,7 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          use global_utilities
          use sort_mod
          use sym_mod
+         use MemoryManager, only: TagIntType
          IMPLICIT NONE
          INTEGER NHG
          HElement_t CPMD1EINT(NSTATES,NSTATES)
@@ -223,17 +224,17 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          HElement_t TOT
 
          TYPE(BASISFN) G1(NHG)
-         REAL*8 ECORE
+         real(dp) ECORE
          INTEGER NEL
-         REAL*8 DIAGTMAT(NSTATES)
+         real(dp) DIAGTMAT(NSTATES)
          INTEGER STATEORDER(NSTATES)
          LOGICAL TORDER
          INTEGER BRR(NSTATES*2),NLOCK
-         REAL*8 ARR(NSTATES*2,2)
-         complex*16,allocatable,save :: HarInt(:,:)
+         real(dp) ARR(NSTATES*2,2)
+         complex(dp),allocatable,save :: HarInt(:,:)
          INTEGER iCacheFlag
          ! For ZHEEV (eigenvalues of FockMatrix).
-         integer :: tagHarInt=0
+         integer(TagIntType) :: tagHarInt=0
          character(*), parameter :: this_routine='CPMDINIT2INDINT'
          proc_timer%timer_name='CPMDINIT2I'
          call set_timer(proc_timer)
@@ -259,7 +260,7 @@ C.. If we're freezing we allocate a small cache first to store the <ij|kj> integ
             CALL SETUPUMATCACHE(NSTATESUSED,NSTATESUSED.NE.NSTATES)
          ENDIF
          CALL CPMDGEN1EINTS(NStatesUsed,G1,CPMD1EINT)
-         CALL N_MEMORY_CHECK()
+!         CALL N_MEMORY_CHECK()
          OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
          IF(.NOT.BTEST(iCacheFlag,1)) THEN
 !Don't initialize the cache if it's already there
@@ -295,7 +296,7 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
 !                      FockMat(I,J)=FockMat(I,J)+Eigenvalues(I)
                   END IF
                   TOT=TOT-CPMD1EINT(I,J)
-                  TOT=TOT-(HarInt(i,j))
+                  TOT=TOT-real(HarInt(i,j),dp)
 !                  FockMat(i,j)=FockMat(i,j)-dcmplx(CPMD1EInt(I,J))
                   IF (tCPMDSymTMat) THEN
                       TMATSYM(TMatInd(II+1,JJ+1))=TOT ! Indexing needs to be compatiable with TMatInd.
@@ -303,8 +304,8 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
                       TMAT2D(II,JJ)=TOT
                       TMAT2D(II+1,JJ+1)=TOT
 #ifdef __CMPLX
-                      TMAT2D(JJ,II)=dconjg(TOT)
-                      TMAT2D(JJ+1,II+1)=dconjg(TOT)
+                      TMAT2D(JJ,II)=conjg(TOT)
+                      TMAT2D(JJ+1,II+1)=conjg(TOT)
 #else
                       TMAT2D(JJ,II)=(TOT)
                       TMAT2D(JJ+1,II+1)=(TOT)
@@ -332,7 +333,7 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
 !                          FockMat(i,j)=FockMat(i,j)-F*dcmplx(U)/2
 !                      end if
 !                  end do
-!                 FockMat(j,i)=dconjg(FockMat(i,j))
+!                 FockMat(j,i)=conjg(FockMat(i,j))
 
                ENDIF
 

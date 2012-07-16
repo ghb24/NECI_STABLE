@@ -1,12 +1,17 @@
       SUBROUTINE XCHOLES(EVEC,PSIR,IX,IY,IZ,G1,SITAB,NMAX,NMSH,
      &    NHG,RHO,XCHOLE,SPAC,RS,ALAT,OMEGA,NMRKS,NDET,NEL,NEVAL)
-      IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION EVEC(NDET,NEVAL),PSIR(-NMSH:NMSH)
-      DIMENSION RHO(NMSH,NMSH,NMSH),XCHOLE(NMSH,NMSH,NMSH)
-      DIMENSION SITAB(NMSH,NMAX),ALAT(3)
-      DIMENSION NMRKS(NEL,*)
-      INTEGER G1(5,NHG)
-      CHARACTER FILENM*50,CHART*20
+!      IMPLICIT real(dp) (A-H,O-Z)
+      use constants, only: dp
+      IMPLICIT NONE
+      INTEGER :: NEL,NMSH,NMAX,NEVAL,NDET,NHG
+      real(dp) :: EVEC(NDET,NEVAL),PSIR(-NMSH:NMSH)
+      real(dp) :: RHO(NMSH,NMSH,NMSH),XCHOLE(NMSH,NMSH,NMSH)
+      real(dp) :: SITAB(NMSH,NMAX),ALAT(3),RS,OMEGA,SPAC
+      integer :: NMRKS(NEL,*)
+      INTEGER G1(5,NHG),LEN
+      CHARACTER(50) :: FILENM
+      CHARACTER(50) :: CHART
+      integer :: NC,II,IY,IZ,IX
 C..
       WRITE(6,*) 
      & '       ==--------------------------------------------------== '
@@ -64,8 +69,10 @@ C..
       END
 C ==---------------------------------------------------------------------==
       SUBROUTINE GET_FILENM(L1,FILENM1,II,I,J,K,FILENM,LEN)
+      IMPLICIT NONE
       CHARACTER FILENM1*50,FILEAD1*1,FILEAD2*2,FILEAD3*3,
      &       FILE3*3,FILENM*50,FILENM2*8
+      integer :: LEN,I,J,K,II,L1
       WRITE(FILE3,'(3I1)') I,J,K
       FILENM2=FILENM1(1:L1)//FILE3//'.'
       IF(II.LT.9) THEN
@@ -86,8 +93,11 @@ C ==---------------------------------------------------------------------==
 C ==---------------------------------------------------------------------==
       SUBROUTINE WRITE_LINE(NC,FILENM,FUNC,IBEG,IEND,IX,IY,IZ,
      &       SPAC,RS)
-      IMPLICIT REAL*8(A-H,O-Z)
-      DIMENSION FUNC(IBEG:IEND)
+!      IMPLICIT real(dp)(A-H,O-Z)
+      use constants, only: dp
+      IMPLICIT NONE
+      integer :: IBEG,IEND,IX,IY,IZ,NC,I
+      real(dp) :: FUNC(IBEG:IEND),SPAC,RS,RS3
       CHARACTER FILENM*50
 C..
       RS3=RS*RS*RS
@@ -107,9 +117,13 @@ C..
       END
 C ==---------------------------------------------------------------------==
       SUBROUTINE PLANARAV(RHO,NMESHX,DLINE,I,J,K,SPAC,ALAT)
-      IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION RHO(NMESHX,NMESHX,NMESHX)
-      DIMENSION DLINE(NMESHX),ALAT(3)
+!      IMPLICIT real(dp) (A-H,O-Z)
+      use constants, only: dp
+      IMPLICIT NONE
+      integer :: NMESHX,I,J,K,IX,IY,IZ
+      real(dp) :: RHO(NMESHX,NMESHX,NMESHX)
+      real(dp) :: DLINE(NMESHX),ALAT(3)
+      real(dp) :: spac,SUM
 C..
       DLINE=0.d0
       IF(I.EQ.0.AND.J.EQ.0.AND.K.EQ.1) THEN
@@ -121,7 +135,7 @@ C..
                   SUM=SUM+RHO(IX,IY,IZ)
                ENDDO
             ENDDO
-            DLINE(IZ)=SUM/DFLOAT(NMESHX*NMESHX)
+            DLINE(IZ)=SUM/real(NMESHX*NMESHX,dp)
          ENDDO
       ELSEIF(I.EQ.1.AND.J.EQ.0.AND.K.EQ.0) THEN
          SPAC=ALAT(1)/NMESHX
@@ -132,7 +146,7 @@ C..
                   SUM=SUM+RHO(IX,IY,IZ)
                ENDDO
             ENDDO
-            DLINE(IX)=SUM/DFLOAT(NMESHX*NMESHX)
+            DLINE(IX)=SUM/real(NMESHX*NMESHX,dp)
          ENDDO
       ELSEIF(I.EQ.0.AND.J.EQ.1.AND.K.EQ.0) THEN
          SPAC=ALAT(1)/NMESHX
@@ -143,7 +157,7 @@ C..
                   SUM=SUM+RHO(IX,IY,IZ)
                ENDDO
             ENDDO
-            DLINE(IY)=SUM/DFLOAT(NMESHX*NMESHX)
+            DLINE(IY)=SUM/real(NMESHX*NMESHX,dp)
          ENDDO
       ELSE
          WRITE(6,*) ' AVERAGING DIRECTION NOT PROGRAMMED!!'

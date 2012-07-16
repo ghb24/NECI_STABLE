@@ -1,8 +1,10 @@
 SUBROUTINE OrthoNormx(n,m,a)
+  use constants, only: dp,sp
    implicit none
-   REAL*8 :: work(n),tau(n),a(m,n)
-   INTEGER :: i, j, k,n,m,lda,lwork,info
-   REAL*8 , ALLOCATABLE :: aTa(:,:)
+   INTEGER :: i, j, k,n,m,lda,lwork
+   real(dp) :: work(n),tau(n),a(m,n)
+   INTEGER(sp) info
+   real(dp) , ALLOCATABLE :: aTa(:,:)
 
 !Input the number of vectors, n, the dimensionality of the space, m, and the matrix of vectors, a(m,n). 
 !a is returned as n orthonormal vectors.
@@ -67,14 +69,15 @@ END SUBROUTINE OrthoNormx
 !MAT is NxN and is returned as an orthogal matrix
 !R1 and R2 are NxN workspaces
       SUBROUTINE LOWDIN_ORTH(MAT,N,R1,R2,WORK)
-         use constants, only: dp
+         use constants, only: dp,sp
          use HElem
          IMPLICIT NONE
          INTEGER N
          HElement_t MAT(N,N),R1(N,N),R2(N,N)
-         REAL*8 L(N),LL,RWORK(3*N)
+         real(dp) L(N),LL,RWORK(3*N)
          HElement_t WORK(3*N)
-         INTEGER INFO,I,J
+         INTEGER I,J
+         integer(sp) info
 !R=MAT
 !S= R1=1.D0 * R * RT + 0.D0*R1
          IF(HElement_t_size.EQ.1) THEN
@@ -126,7 +129,7 @@ END SUBROUTINE OrthoNormx
          IMPLICIT NONE
          INTEGER LEN
          HElement_t MAT(LEN,LEN),DOT
-         REAL*8 NORM,SNORM
+         real(dp) NORM,SNORM
          INTEGER I,J,K
          DO I=1,LEN
 ! First dot with all lower vectors, and remove their components

@@ -1,28 +1,37 @@
 #include "macros.h"
 
 MODULE Logging
-
-    use input
-    use MemoryManager, only: LogMemAlloc, LogMemDealloc
+            
+    use constants, only: dp,int64
+    use input_neci
+    use MemoryManager, only: LogMemAlloc, LogMemDealloc,TagIntType
     use SystemData, only: nel, LMS, nbasis, tHistSpinDist, nI_spindist, &
                           hist_spin_dist_iter
     use constants, only: n_int, size_n_int, bits_n_int
     use bit_rep_data, only: NIfTot, NIfD
     use DetBitOps, only: EncodeBitDet
     use hist_data, only: iNoBins, tHistSpawn, BinRange
+    use errors, only: Errordebug 
 
     IMPLICIT NONE
     Save
 
-    INTEGER ILOGGING,ILOGGINGDef,iGlobalTimerLevel,nPrintTimer,G_VMC_LOGCOUNT
-    INTEGER HFLOGLEVEL,iWritePopsEvery,StartPrintOrbOcc
+    INTEGER :: iDiagSubspaceIter
+    LOGICAL :: tDiagWalkerSubspace
+    INTEGER ILOGGING,ILOGGINGDef
+    INTEGER :: iGlobalTimerLevel=40
+    INTEGER nPrintTimer,G_VMC_LOGCOUNT
+    INTEGER HFLOGLEVEL,iWritePopsEvery,StartPrintOrbOcc,StartPrintDoubsUEG
     INTEGER PreVarLogging,WavevectorPrint,NoHistBins,HistInitPopsIter
-    REAL*8 MaxHistE,OffDiagMax,OffDiagBinRange
-    LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn,tPrintPopsDefault
-    LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tIncrementPops,tROHistogramAll,tROHistER,tROHistSingExc,tRoHistOneElInts
+    real(dp) MaxHistE,OffDiagMax,OffDiagBinRange,PopsfileTimer
+    LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn
+    LOGICAL tPrintPopsDefault
+    LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tIncrementPops,tROHistogramAll,tROHistER,tROHistSingExc
+    LOGICAL tRoHistOneElInts, tPrintInitiators
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump
-    LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking,tTruncDumpbyVal
-    LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit
+    LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
+    LOGICAL tTruncDumpbyVal
+    LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit,tPrintDoubsUEG
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps,IterShiftBlock
     INTEGER CCMCDebug  !CCMC Debugging Level 0-6.  Default 0
     INTEGER FCIMCDebug !FciMC Debugging Level 0-6.  Default 0
@@ -31,12 +40,26 @@ MODULE Logging
     LOGICAL tCCMCLogUniq !Do we log only unique clusters
     LOGICAL tSaveBlocking !Do not overwrite blocking files
     INTEGER iWriteBlockingEvery !How often to write out blocking files
-    INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs,NoTruncOrbsTag,TruncEvaluesTag,iWriteHamilEvery,OrbOccsTag,HistInitPopsTag,AllHistInitPopsTag
+    INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs,iWriteHamilEvery
+    INTEGER(TagIntType)  OrbOccsTag,HistInitPopsTag,AllHistInitPopsTag,NoTruncOrbsTag,TruncEvaluesTag
     INTEGER , ALLOCATABLE :: NoTruncOrbs(:),HistInitPops(:,:),AllHistInitPops(:,:)
-    REAL*8 , ALLOCATABLE :: TruncEvalues(:),OrbOccs(:)
+    real(dp) , ALLOCATABLE :: TruncEvalues(:),OrbOccs(:),DoubsUEG(:,:,:,:),DoubsUEGLookup(:)
+    LOGICAL, ALLOCATABLE :: DoubsUEGStore(:,:,:)
     LOGICAL :: tBlockEveryIteration
     LOGICAL tLogDets       ! Write out the DETS and SymDETS files.
     LOGICAL tLogComplexPops     ! Write out complex walker information 
+    LOGICAL tMCOutput
+    logical :: tSplitProjEHist,tSplitProjEHistG,tSplitProjEHistK3
+    integer :: iProjEBins
+
+    logical :: tCalcInstantS2, tCalcInstSCpts, tCalcInstantS2Init
+    integer :: instant_s2_multiplier, instant_s2_multiplier_init
+    integer :: iHighPopWrite
+
+    !Just do a blocking analysis on previous data
+    logical :: tJustBlocking
+    integer :: iBlockEquilShift,iBlockEquilProjE
+    logical :: tDiagAllSpaceEver,tCalcVariationalEnergy
 
     contains
 
@@ -46,6 +69,21 @@ MODULE Logging
       use default_sets
       implicit none
 
+      tPrintInitiators = .false.
+      tDiagAllSpaceEver = .false.
+      tCalcVariationalEnergy = .false.
+      tJustBlocking = .false.
+      iBlockEquilShift = 0
+      iBlockEquilProjE = 0
+      ErrorDebug = 0
+      iHighPopWrite = 15    !How many highest weighted determinants to write out at the end of an FCIQMC calc.
+      tDiagWalkerSubspace = .false.
+      iDiagSubspaceIter = 1
+      tSplitProjEHist = .false.
+      tSplitProjEHistG = .false.
+      tSplitProjEHistK3 = .false.
+      PopsfileTimer=0.D0
+      tMCOutput=.true.
       tLogComplexPops=.false.
       iWriteBlockingEvery=1000
       tSaveBlocking=.false.
@@ -94,6 +132,8 @@ MODULE Logging
       tPrintFCIMCPsi=.false.
       tCalcFCIMCPsi=.false.
       NHistEquilSteps=0
+      tPrintDoubsUEG=.false.
+      StartPrintDoubsUEG=0
       tPrintOrbOcc=.false.
       StartPrintOrbOcc=0
       tPrintOrbOccInit=.false.
@@ -114,6 +154,11 @@ MODULE Logging
       HistInitPopsIter=100000
       hist_spin_dist_iter = 1000
       tLogDets=.false.
+      tCalcInstantS2 = .false.
+      tCalcInstantS2Init = .false.
+      tCalcInstSCpts = .false.
+      instant_s2_multiplier = 1
+      instant_s2_multiplier_init = 1
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -144,6 +189,39 @@ MODULE Logging
         call readu(w)
         select case(w)
 
+        case("REBLOCKSHIFT")
+            !Abort all other calculations, and just block data again with given equilibration time (in iterations)
+            tJustBlocking = .true.
+            call readi(iBlockEquilShift)
+        case("REBLOCKPROJE")
+            !Abort all other calculations, and just block data again with given equilibration time (in iterations)
+            tJustBlocking = .true.
+            call readi(iBlockEquilProjE)
+        case("HIGHLYPOPWRITE")
+            !At the end of an FCIMC calculation, how many highly populated determinants should we write out?
+            call readi(iHighPopWrite)
+        case("DIAGWALKERSUBSPACE")
+            !Diagonalise walker subspaces every iDiagSubspaceIter iterations
+            tDiagWalkerSubspace = .true.
+            call readi(iDiagSubspaceIter)
+        case("DIAGALLSPACEEVER")
+            !Diagonalise all space ever visited in the fciqmc dynamic. This will be written out each time HistSpawn is
+            tDiagAllSpaceEver=.true.
+        case("CALCVARIATIONALENERGY")
+            !Calculate the variational energy of the FCIQMC dynamic each time Histspawn is calculated
+            tCalcVariationalEnergy=.true.
+        case("SPLITPROJE")
+            !Partition contribution from doubles, and write them out
+            tSplitProjEHist=.true.
+        case("SPLITPROJE-G")
+            !Partition contribution from doubles, and write them out; bin according to g
+            tSplitProjEHistG=.true.
+        case("SPLITPROJE-K3")
+            !Partition contribution from doubles, and write them out; bin according to k3
+            tSplitProjEHistK3=.true.
+        case("NOMCOUTPUT")
+            !No output to stdout from the fcimc or ccmc iterations
+            tMCOutput=.false.
         case("LOGCOMPLEXWALKERS")
             !This means that the complex walker populations are now logged.
             tLogComplexPops=.true.
@@ -188,7 +266,8 @@ MODULE Logging
             call readi(IterStartBlocking)
 
         case("SHIFTBLOCKINGSTARTITER")
-!This keyword can be used if we want to start the blocking error analysis of the shift at a particular iteration after the shift begins to change.            
+!This keyword can be used if we want to start the blocking error analysis of the shift at a particular 
+!iteration after the shift begins to change.            
             call readi(IterShiftBlock)
 
         case("BLOCKINGSTARTHFPOP")            
@@ -223,7 +302,8 @@ MODULE Logging
             enddo
 
         case("MULTTRUNCROFCIDUMP")
-!This option allows us to specify multiple truncations, so that one calculation will print out multiple ROFCIDUMP files with different
+!This option allows us to specify multiple truncations, so that one calculation will print out multiple 
+!ROFCIDUMP files with different
 !levels of truncation - prevents us from having to do multiple identical CISD calculations to get the different truncations.
             tTruncRODump=.true.
             call readi(NoDumpTruncs)
@@ -235,7 +315,8 @@ MODULE Logging
             enddo
 
         case("MULTTRUNCVALROFCIDUMP")     
-!This option allows us to specify particular cutoffs values for the eigenvalues - and print out multiply ROFCIDUMP files with orbitals
+!This option allows us to specify particular cutoffs values for the eigenvalues - and print out multiply 
+!ROFCIDUMP files with orbitals
 !with eigenvalues below these removed.
             tTruncRODump=.true.
             tTruncDumpbyVal=.true.
@@ -248,9 +329,12 @@ MODULE Logging
             enddo
 
         case("WRITETRANSFORMMAT")
-!This option writes out the transformation matrix used to convert the HF orbitals into the natural orbitals.  This can then be read into
-!QChem to produce the natural orbital cube files and then visualise them using VMD.  Note : Currently, because of Fortran 90's weird dealings
-!with writing and reading binary - this option is only compatible with QChem if the code is compiled using PGI - this will be fixed at 
+!This option writes out the transformation matrix used to convert the HF orbitals into the natural orbitals.  
+!This can then be read into
+!QChem to produce the natural orbital cube files and then visualise them using VMD.  Note : Currently, 
+!because of Fortran 90's weird dealings
+!with writing and reading binary - this option is only compatible with QChem if the code is compiled using 
+!PGI - this will be fixed at 
 !some stage.  Also - QChem INTDUMP files must be used to be compatible.  
             tWriteTransMat=.true.
 
@@ -378,7 +462,8 @@ MODULE Logging
 
         case("PRINTTRICONNECTIONS")
 !This option takes each generated pair of determinant and excitation and finds 3rd determinant to make up a triangular connection.
-!The product of the three connecting elements are then histogrammed in two separate files. In one, the triangular connections that combine 
+!The product of the three connecting elements are then histogrammed in two separate files. 
+!In one, the triangular connections that combine 
 !to be sign coherent are recorded, and in the other, those which are sign incoherent.
             CALL Stop_All(t_r,"PRINTTRICONNECTIONS option depreciated")
 !            call readf(TriConMax)
@@ -386,7 +471,8 @@ MODULE Logging
 !            tPrintTriConnections=.true.
 
         case("HISTTRICONNELEMENTS")
-!This keyword takes the above triangles of connected determinants and histograms each connecting element that contributes to the triangle.
+!This keyword takes the above triangles of connected determinants and histograms each connecting 
+!element that contributes to the triangle.
 !It then prints these according to whether they are single or double connecting elements.
 !It also prints a histogram and the average size of the Hjk elements (regardless of whether or not they are zero).
             CALL Stop_All(t_r,"HISTTRICONNELEMENTS option depreciated")
@@ -396,20 +482,26 @@ MODULE Logging
 !            tHistTriConHEls=.true.
 
         case("PRINTHELACCEPTSTATS")
-!This keyword prints out an extra file that keeps track of the H elements involved in spawning attempts that are accepted or not accepted.
+!This keyword prints out an extra file that keeps track of the H elements involved in spawning attempts 
+!that are accepted or not accepted.
 !It prints out the average H elements where spawning is accepted and the average where it is not accepted.
             CALL Stop_All(t_r,"PRINTHELACCEPTSTATS option depreciated")
 !            tPrintHElAccept=.true.
 
         case("PRINTSPINCOUPHELS")
-!This option prints out the number of positive and negative (and their sums) H elements connecting two spin coupled determinants.            
+!This option prints out the number of positive and negative (and their sums) H elements connecting two spin coupled determinants.
             tPrintSpinCoupHEl=.true.
 
         case("HISTINITIATORPOPS")
-!This option prints out a file (at every HistInitPopsIter iteration) containing the natural log of the populations of the initiator determinants 
+!This option prints out a file (at every HistInitPopsIter iteration) containing the 
+!natural log of the populations of the initiator determinants 
 !and the number with this population. The range of populations histogrammed goes from ln(N_add) -> ln(1,000,000) with 50,000 bins.
             tHistInitPops=.true.
             call readi(HistInitPopsIter)
+
+        case("WRITEINITIATORS")
+! Requires a popsfile to be written out.  Writes out the initiator populations. 
+            tPrintInitiators = .true.
         
         case("AUTOCORR")
 !This is a Parallel FCIMC option - it will calculate the largest weight MP1 determinants and histogramm them
@@ -436,17 +528,21 @@ MODULE Logging
                 OffDiagMax=-OffDiagMax
             ENDIF
         case("HISTSPAWN")
-!This option will histogram the spawned wavevector, averaged over all previous iterations. It scales horrifically and can only be done for small systems
-!which can be diagonalized. It requires a diagonalization initially to work. It can write out the average wavevector every iWriteHistEvery.
+!This option will histogram the spawned wavevector, averaged over all previous iterations. 
+!It scales horrifically and can only be done for small systems
+!which can be diagonalized. It requires a diagonalization initially to work. 
+!It can write out the average wavevector every iWriteHistEvery.
             tHistSpawn=.true.
             IF(item.lt.nitems) call readi(iWriteHistEvery)
         case("HISTHAMIL")
-!This option will histogram the spawned hamiltonian, averaged over all previous iterations. It scales horrifically and can only be done for small systems
+!This option will histogram the spawned hamiltonian, averaged over all previous iterations. It scales horrifically 
+!and can only be done for small systems
 !which can be diagonalized. It will write out the hamiltonian every iWriteHamilEvery.
             tHistHamil=.true.
             IF(item.lt.nitems) call readi(iWriteHamilEvery)
         case("BLOCKEVERYITER")
-!This will block the projected energy every iteration with the aim of achieving accurate error estimates. However, this does require a small amount of additional communication.
+!This will block the projected energy every iteration with the aim of achieving accurate error estimates. 
+!However, this does require a small amount of additional communication.
             tBlockEveryIteration=.true.
         case("PRINTFCIMCPSI")
             tPrintFCIMCPsi=.true.
@@ -455,10 +551,16 @@ MODULE Logging
 !This option sets the histogramming to only be done after the specified number of iterations.            
             call readi(NHistEquilSteps)
         case("PRINTORBOCCS")
-!This option initiates the above histogramming of determinant populations and then at the end of the spawning uses these to find the normalised  
+!This option initiates the above histogramming of determinant populations and then at the end of the 
+!spawning uses these to find the normalised  
 !contribution of each orbital to the total wavefunction.  
             tPrintOrbOcc=.true.
             IF(item.lt.nitems) call readi(StartPrintOrbOcc)
+        case("PRINTDOUBSUEG")
+!This option initiates the above histogramming of doubles for the UEG
+!            if (.not.tUEG) call stop_all("Logging","Printdoubs doesn't work with systems other than UEG")
+            tPrintDoubsUEG=.true.
+            IF(item.lt.nitems) call readi(StartPrintDoubsUEG)
         case("PRINTORBOCCSINIT")
 !This option initiates the above histogramming of determinant populations and then at the end of the spawning uses these to find the normalised  
 !contribution of each orbital to the total wavefunction.  
@@ -473,11 +575,15 @@ MODULE Logging
 ! passes that many.
             TPopsFile=.true.
             IF(item.lt.nitems) THEN
-                tPrintPopsDefault=.false.
                 call readi(iWritePopsEvery)
                 IF(iWritePopsEvery.lt.0) THEN
 !If a negative argument is supplied to iWritePopsEvery, then the POPSFILE will never be written out, even at the end of a simulation.
+!If it is exactly zero, this will be the same as without any argument, and a
+!popsfile will only be written out in the instance of a clean exit
                     TPopsFile=.false.
+                    tPrintPopsDefault=.false.
+                ELSEIF(iWritePopsEvery.gt.0) THEN
+                    tPrintPopsDefault=.false.
                 ENDIF
             ENDIF
         case("REDUCEDPOPSFILE")
@@ -485,8 +591,11 @@ MODULE Logging
             TPopsFile=.true.
             call readi(iWritePopsEvery)
             call readi(iPopsPartEvery)
+        case("POPSFILETIMER")
+            call readf(PopsfileTimer)   !Write out a POPSFILE every "PopsfileTimer" hours.
         case("BINARYPOPS")
-!This means that the popsfile (full or reduced) will now be written out in binary format. This should now take up less space, and be written quicker.
+!This means that the popsfile (full or reduced) will now be written out in binary format. 
+!This should now take up less space, and be written quicker.
             tBinPops=.true.
         case("INCREMENTPOPS")
 ! Don't overwrite existing POPSFILES.
@@ -495,8 +604,11 @@ MODULE Logging
 !CCMC debugging level. Takes an integer 0-6
             call readi(CCMCDebug)
         case("FCIMCDEBUG")
-!CCMC debugging level. Takes an integer 0-6
+!FCIQMC debugging level. Takes an integer 0-6
             call readi(FCIMCDebug)
+        case("ERRORDEBUG")
+!Error analysus debugging level. Takes an integer 0-6
+            call readi(ErrorDebug)
         case("CCMCLOGTRANSITIONS")
             tCCMCLogTransitions=.true.
             do while(item.lt.nitems)
@@ -617,6 +729,37 @@ MODULE Logging
             tLogDets=.true.
         case("DETERMINANTS")
             tLogDets=.true.
+
+        case ("INSTANT-S2-FULL")
+            ! Calculate an instantaneous value for S^2, and output it to the
+            ! relevant column in the FCIMCStats file.
+            !
+            ! The second parameter is a multiplier such that we only calculate
+            ! S^2 once for every n update cycles (it must be on an update
+            ! cycle such that norm_psi_squared is correct)
+            tCalcInstantS2 = .true.
+            if (item < nitems) &
+                call readi (instant_s2_multiplier)
+
+        case ("INSTANT-S2-INIT")
+            ! Calculate an instantaneous value ofr S^2 considering only the
+            ! initiators, and output it to the relevant column in the
+            ! FCIMCStats file.
+            !
+            ! The second parameter is a multiplier such that we only calculate
+            ! S^2 once for every n update cycles (it must be an update
+            ! cycle such that norm_psi_squared is correct).
+            tCalcInstantS2Init = .true.
+            if (item < nitems) &
+                call readi (instant_s2_multiplier_init)
+
+        case ("INSTANT-S-CPTS")
+            ! Calculate components of the wavefunction with each value of S.
+            ! n.b. This is NOT quantitatively correct.
+            !      --> Only of QUALITATIVE utility.
+            tCalcInstSCpts = .true.
+
+
         case("ENDLOG")
             exit logging
         case default

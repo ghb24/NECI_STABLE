@@ -4,7 +4,7 @@
 MODULE FciMCLoggingMod
 
     USE Global_utilities
-    USE Parallel
+    USE Parallel_neci
     USE Logging , only : tSaveBlocking,tBlockEveryIteration,HistInitPops,HistInitPopsTag,AllHistInitPops,AllHistInitPopsTag
     use SystemData, only: NEl
     use bit_reps, only: NIfTot, NIfDBO
@@ -13,17 +13,20 @@ MODULE FciMCLoggingMod
     USE CalcData , only : NMCyc,StepsSft
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel
     use constants, only: dp,n_int
+    use MemoryManager, only: TagIntType
 
     IMPLICIT NONE
     save
 
-    REAL*8 :: NoNotAccept,NoAccept,TotHElNotAccept,TotHElAccept,MaxHElNotAccept,MinHElAccept
-    REAL*8 :: NoPosSpinCoup,NoNegSpinCoup,SumPosSpinCoup,SumNegSpinCoup,SumHFCon,SumSpinCon,InitBinMin,InitBinIter,InitBinMax
+    real(dp) :: NoNotAccept,NoAccept,TotHElNotAccept,TotHElAccept,MaxHElNotAccept,MinHElAccept
+    real(dp) :: NoPosSpinCoup,NoNegSpinCoup,SumPosSpinCoup,SumNegSpinCoup,SumHFCon,SumSpinCon,InitBinMin,InitBinIter,InitBinMax
 
-    REAL*8 , ALLOCATABLE :: CurrBlockSum(:),BlockSum(:),BlockSqrdSum(:)
-    REAL*8 , ALLOCATABLE :: CurrShiftBlockSum(:),ShiftBlockSum(:),ShiftBlockSqrdSum(:)
-    INTEGER :: CurrBlockSumTag,BlockSumTag,BlockSqrdSumTag,TotNoBlockSizes,StartBlockIter
-    INTEGER :: CurrShiftBlockSumTag,ShiftBlockSumTag,ShiftBlockSqrdSumTag,TotNoShiftBlockSizes,StartShiftBlockIter
+    real(dp) , ALLOCATABLE :: CurrBlockSum(:),BlockSum(:),BlockSqrdSum(:)
+    real(dp) , ALLOCATABLE :: CurrShiftBlockSum(:),ShiftBlockSum(:),ShiftBlockSqrdSum(:)
+    INTEGER(TagIntType) :: CurrBlockSumTag,BlockSumTag,BlockSqrdSumTag
+    INTEGER :: TotNoBlockSizes,StartBlockIter
+    INTEGER(TagIntType) :: CurrShiftBlockSumTag,ShiftBlockSumTag,ShiftBlockSqrdSumTag
+    INTEGER :: TotNoShiftBlockSizes,StartShiftBlockIter
 
 
 
@@ -159,7 +162,7 @@ MODULE FciMCLoggingMod
 
     SUBROUTINE SumInErrorContrib(Iter,AllENumCyc,AllHFCyc)
         INTEGER :: i,Iter,NoContrib
-        REAL*8 :: AllENumCyc,AllHFCyc
+        real(dp) :: AllENumCyc,AllHFCyc
 
 ! First we need to find out what number contribution to the blocking this is.
         IF(tBlockEveryIteration) THEN
@@ -194,7 +197,7 @@ MODULE FciMCLoggingMod
 
     SUBROUTINE SumInShiftErrorContrib(Iter,DiagSft)
         INTEGER :: i,Iter,NoContrib
-        REAL*8 :: DiagSft
+        real(dp) :: DiagSft
 
 ! First we need to find out what number contribution to the blocking this is.
         NoContrib=((Iter-StartShiftBlockIter)/StepsSft)+1
@@ -226,7 +229,7 @@ MODULE FciMCLoggingMod
     SUBROUTINE PrintBlocking(Iter)
         use util_mod, only: get_free_unit
         INTEGER :: i,NoBlocks,Iter,NoBlockSizes,NoContrib, iunit
-        REAL*8 :: MeanEn,MeanEnSqrd,StandardDev,Error,ErrorinError
+        real(dp) :: MeanEn,MeanEnSqrd,StandardDev,Error,ErrorinError
         CHARACTER(len=30) :: abstr
 
 !First find out how many blocks would have been formed with the number of iterations actually performed. 
@@ -254,7 +257,8 @@ MODULE FciMCLoggingMod
         ENDIF
 
         WRITE(iunit,'(I4,A,I4)') NoBlockSizes,' blocks were formed with sizes from 1 to ',(2**(NoBlockSizes))
-        WRITE(iunit,'(3A16,5A20)') '1.Block No.','2.Block Size  ','3.No. of Blocks','4.Mean E','5.Mean E^2','6.SD','7.Error','8.ErrorinError'
+        WRITE(iunit,'(3A16,5A20)') '1.Block No.','2.Block Size  ','3.No. of Blocks','4.Mean E', &
+            '5.Mean E^2','6.SD','7.Error','8.ErrorinError'
 
         do i=0,NoBlockSizes-1
             
@@ -291,7 +295,7 @@ MODULE FciMCLoggingMod
     SUBROUTINE PrintShiftBlocking(Iter)
         use util_mod, only: get_free_unit
         INTEGER :: i,NoBlocks,Iter,NoBlockSizes,NoContrib,iunit
-        REAL*8 :: MeanShift,MeanShiftSqrd,StandardDev,Error,ErrorinError
+        real(dp) :: MeanShift,MeanShiftSqrd,StandardDev,Error,ErrorinError
 
 !First find out how many blocks would have been formed with the number of iterations actually performed. 
 
@@ -304,7 +308,8 @@ MODULE FciMCLoggingMod
         iunit = get_free_unit()
         OPEN(iunit,file='SHIFTBLOCKINGANALYSIS',status='unknown')
         WRITE(iunit,'(I4,A,I4)') NoBlockSizes,' blocks were formed with sizes from 1 to ',(2**(NoBlockSizes))
-        WRITE(iunit,'(3A16,5A20)') '1.Block No.','2.Block Size  ','3.No. of Blocks','4.Mean Shift','5.Mean Shift^2','6.SD','7.Error','8.ErrorinError'
+        WRITE(iunit,'(3A16,5A20)') '1.Block No.','2.Block Size  ','3.No. of Blocks','4.Mean Shift', &
+            '5.Mean Shift^2','6.SD','7.Error','8.ErrorinError'
 
         do i=0,NoBlockSizes-1
             
@@ -420,18 +425,14 @@ MODULE FciMCLoggingMod
         use util_mod, only: get_free_unit
         CHARACTER(len=21) :: abstr
         INTEGER :: i,Iter,error, iunit
-        REAL*8 :: InitBinCurr
+        real(dp) :: InitBinCurr
 
 !This will open a file called InitPops-"Iter" on unit number 17.
         abstr=''
         write(abstr,'(I12)') Iter
         abstr='InitPops-'//adjustl(abstr)
 
-#ifdef PARALLEL
-        CALL MPI_Reduce(HistInitPops,AllHistInitPops,2*25000,MPI_INTEGER,MPI_SUM,0,MPI_COMM_WORLD,error)
-#else        
-        AllHistInitPops(:,:)=HistInitPops(:,:)
-#endif
+        call MPIReduce(HistInitPops,MPI_SUM,AllHistInitPops)
 
         IF(iProcIndex.eq.0) THEN
             iunit = get_free_unit()
@@ -439,13 +440,15 @@ MODULE FciMCLoggingMod
 
             InitBinCurr=(-1)*InitBinMax            
             do i=25000,1,-1
-                IF(AllHistInitPops(1,i).ne.0) WRITE(iunit,'(F20.10,2I20)') InitBinCurr,(-1)*(NINT(EXP(ABS(InitBinCurr)))),AllHistInitPops(1,i)
+                IF(AllHistInitPops(1,i).ne.0) WRITE(iunit,'(F20.10,2I20)') &
+                InitBinCurr,(-1)*(NINT(EXP(ABS(InitBinCurr)))),AllHistInitPops(1,i)
                 InitBinCurr=InitBinCurr+InitBinIter
             enddo
 
             InitBinCurr=InitBinMin
             do i=1,25000
-                IF(AllHistInitPops(2,i).ne.0) WRITE(iunit,'(F20.10,2I20)') InitBinCurr,NINT(EXP(InitBinCurr)),AllHistInitPops(2,i)
+                IF(AllHistInitPops(2,i).ne.0) WRITE(iunit,'(F20.10,2I20)') &
+                InitBinCurr,NINT(EXP(InitBinCurr)),AllHistInitPops(2,i)
                 InitBinCurr=InitBinCurr+InitBinIter
             enddo
  
@@ -466,7 +469,7 @@ MODULE FciMCLoggingMod
 !        WRITE(6,*) 'DetCurr',DetCurr
 !        WRITE(6,*) 'nJ',nJ
 !        WRITE(6,*) 'iLutnJ',iLutnJ
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 !        stop
 
         ! Need to find the H element between the current determinant and that which we're trying to spawn on.
@@ -489,7 +492,7 @@ MODULE FciMCLoggingMod
 
     SUBROUTINE PrintSpawnAttemptStats(Iteration)
         use util_mod, only: get_free_unit
-        REAL*8 :: AllStats(4),AcceptStats(4),AllMaxHElNotAccept(1:nProcessors),AllMinHElAccept(1:nProcessors)
+        real(dp) :: AllStats(4),AcceptStats(4),AllMaxHElNotAccept(1:nProcessors),AllMinHElAccept(1:nProcessors)
         INTEGER :: i,error,Iteration, iunit
 
         ! Need to distribute the max and min values to all processors, but only if it has changed.        
@@ -501,24 +504,13 @@ MODULE FciMCLoggingMod
         AllMaxHElNotAccept(:)=0.D0
         AllMinHElAccept(:)=0.D0
 
-!        WRITE(6,*) 'MinHElAccept',MinHElAccept
-        CALL FLUSH(6)
-!        CALL MPI_Barrier(MPI_COMM_WORLD,error)
-
-#ifdef PARALLEL
-        CALL MPI_Reduce(AcceptStats,AllStats,4,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Gather(MaxHElNotAccept,1,MPI_DOUBLE_PRECISION,AllMaxHElNotAccept(1:nProcessors),1,MPI_DOUBLE_PRECISION,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Gather(MinHElAccept,1,MPI_DOUBLE_PRECISION,AllMinHElAccept(1:nProcessors),1,MPI_DOUBLE_PRECISION,Root,MPI_COMM_WORLD,error)
-#else
-        AllStats=AcceptStats
-        AllMaxHElNotAccept=MaxHElNotAccept
-        AllMinHElAccept=MinHElAccept
-#endif        
-
+        call MPIReduce(AcceptStats,MPI_Sum,AllStats)
+        call MPIGather(MaxHElNotAccept,AllMaxHElNotAccept(1:nProcessors),error)
+        call MPIGather(MinHElAccept,AllMinHElAccept(1:nProcessors),error)
 
         IF(iProcIndex.eq.Root) THEN 
 !            WRITE(6,*) 'AllMinHElAccept',AllMinHElAccept
-            CALL FLUSH(6)
+            CALL neci_flush(6)
             MaxHElNotAccept=ABS(AllMaxHElNotAccept(1))
             do i=2,nProcessors
                 IF(ABS(AllMaxHElNotAccept(i)).gt.ABS(MaxHElNotAccept)) MaxHElNotAccept=ABS(AllMaxHElNotAccept(i))
@@ -533,13 +525,15 @@ MODULE FciMCLoggingMod
                     ENDIF
                 enddo
                 do i=1,nProcessors
-                    IF((AllMinHElAccept(i).ne.0.D0).and.(ABS(AllMinHElAccept(i)).lt.ABS(MinHElAccept))) MinHElAccept=ABS(AllMinHElAccept(i))
+                    IF((AllMinHElAccept(i).ne.0.D0).and.(ABS(AllMinHElAccept(i)).lt.ABS(MinHElAccept))) &
+                    MinHElAccept=ABS(AllMinHElAccept(i))
                 enddo
             ENDIF
 
             iunit = get_free_unit()
             open(iunit,file="SpawnAttemptStats",status="unknown")
-            WRITE(iunit,'(I10,2F20.1,5F20.6)') Iteration,AllStats(3),AllStats(4),AllStats(3)/AllStats(4),AllStats(1)/AllStats(3),AllStats(2)/AllStats(4),MaxHElNotAccept,MinHElAccept
+            WRITE(iunit,'(I10,2F20.1,5F20.6)') Iteration,AllStats(3),AllStats(4), &
+            AllStats(3)/AllStats(4),AllStats(1)/AllStats(3),AllStats(2)/AllStats(4),MaxHElNotAccept,MinHElAccept
             close(iunit)
         ENDIF
 

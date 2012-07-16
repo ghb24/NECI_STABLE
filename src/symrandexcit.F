@@ -5,24 +5,20 @@
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SystemData, only: nEl,G1, nBasis,nBasisMax
+         use constants, only: dp,sizeof_int
          use SystemData, only: Arr,nMax,tAssumeSizeExcitgen
          use IntegralsData, only: UMat
          use SymData, only: SymClassSize,nSymPairProds,nSymLabels
          use legacy_data, only: irat
          IMPLICIT NONE
          INTEGER NI(NEL)
-         POINTER (IP_DSTORE,DSTORE)
-         INTEGER DSTORE(*)
+         INTEGER,pointer :: DSTORE(:)
          INTEGER EXCITMAT(2,2)
          LOGICAL TPARITY
-         INTEGER NMEM(*),NJ(NEL),IC,ICOUNT
+         INTEGER,target :: NMEM(*)
+         integer NJ(NEL),IC,ICOUNT
          INTEGER ISEED,Pos1,Pos2,Pos3
-         REAL*8 PGEN
-#ifdef POINTER8
-         INTEGER*8 LOC
-#else
-         INTEGER LOC
-#endif
+         real(dp) PGEN
 
          IF(tAssumeSizeExcitgen) THEN
 !Excitgen is set up differently...
@@ -36,7 +32,7 @@
 ! DSTORE(1)      -   SymClassSize*NEL         CLASSES
 ! DSTORE(NEL*SymClassSize+1)                     ILUT
 
-             IP_DSTORE=LOC(NMEM(3))
+            DSTORE=>NMEM(3:NEL*SymClassSize+4)
              Pos1=SymClassSize*NEL+nBasis/32+4
              Pos2=SymClassSize*NEL+nBasis/32+4+15*nSymPairProds+
      &             10*nSymLabels
@@ -64,7 +60,9 @@ C..   STORE(5)    -  ...         SYMPRODIND
 C..   DSTORE(1)   -  DSTORE(NEL*SymClassSize) CLASSES
 C..   DSTORE(NEL*SymClassSize+1) - ...       ILUT
 C.. Actually generate a det
-            IP_DSTORE=LOC(NMEM(NMEM(1)))
+            DSTORE=>NMEM(NMEM(1):NMEM(1)+
+     &                SymClassSize*NEL+(nBasis/32)+1
+     &                     +SymmetrySize*(NEL*NEL+1))  !Point to DSTORE
 !         CALL SYMGENRANDEXCITIT(NI,NEL,NMEM(NMEM(2)),NMEM(6),DSTORE(1),
 !     &         NMEM(NMEM(5)),DSTORE(SymClassSize*NEL+1),NMEM(NMEM(4)),
 !     &         NMEM(7),NMEM(8),NMEM(9),NMEM(10),NMEM(11),NMEM(12),
@@ -92,20 +90,16 @@ C.. This version is based on GenRandSymExcitIt2, but does not need values it ext
          use IntegralsData, only: UMat
          use SymData, only: SymClassSize,nSymPairProds,nSymLabels
          use legacy_data, only: irat
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER NI(NEL)
-         POINTER (IP_DSTORE,DSTORE)
-         INTEGER DSTORE(*)
+         INTEGER, pointer :: DSTORE(:)
          INTEGER EXCITMAT(2,2)
          LOGICAL TPARITY
-         INTEGER NMEM(*),NJ(NEL),IC,ICOUNT
+         INTEGER,target :: NMEM(*)
+         integer  NJ(NEL),IC,ICOUNT
          INTEGER ISEED,Pos1,Pos2,Pos3
-         REAL*8 PGEN
-#ifdef POINTER8
-         INTEGER*8 LOC
-#else
-         INTEGER LOC
-#endif
+         real(dp) PGEN
          IF(tAssumeSizeExcitgen) THEN
 !Excitgen is set up differently...
 ! 1         NEXCIT
@@ -118,7 +112,7 @@ C.. This version is based on GenRandSymExcitIt2, but does not need values it ext
 ! DSTORE(1)      -   SymClassSize*NEL         CLASSES
 ! DSTORE(NEL*SymClassSize+1)                     ILUT
 
-             IP_DSTORE=LOC(NMEM(3))
+             DSTORE=>NMEM(3:NEL*SymClassSize+4)
              Pos1=SymClassSize*NEL+nBasis/32+4
              Pos2=SymClassSize*NEL+nBasis/32+4+15*nSymPairProds+
      &             10*nSymLabels
@@ -146,7 +140,9 @@ C..   STORE(5)    -  ...         SYMPRODIND
 C..   DSTORE(1)   -  DSTORE(NEL*SymClassSize) CLASSES
 C..   DSTORE(NEL*SymClassSize+1) - ...       ILUT
 C.. Actually generate a det
-            IP_DSTORE=LOC(NMEM(NMEM(1)))
+            DSTORE=>NMEM(NMEM(1):NMEM(1)+
+     &                SymClassSize*NEL+(nBasis/32)+1
+     &                     +SymmetrySize*(NEL*NEL+1))  !Point to DSTORE
 !         CALL SYMGENRANDEXCITIT(NI,NEL,NMEM(NMEM(2)),NMEM(6),DSTORE(1),
 !     &         NMEM(NMEM(5)),DSTORE(SymClassSize*NEL+1),NMEM(NMEM(4)),
 !     &         NMEM(7),NMEM(8),NMEM(9),NMEM(10),NMEM(11),NMEM(12),
@@ -168,23 +164,19 @@ C..   use GenRandSymExcitIt3
       SUBROUTINE GENRANDSYMEXCITIT2(NI,NEL,
      &         NMEM,NJ,ISEED,ICOUNT,PGEN)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,nBasis
          use SymData, only: SymClassSize
          use legacy_data, only: irat
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER NEL,NI(NEL)
-         POINTER (IP_DSTORE,DSTORE)
-         INTEGER DSTORE(*)
+         INTEGER,pointer :: DSTORE(:)
          INTEGER EXCITMAT(2,2)
-         INTEGER NMEM(*),NJ(NEL),ICOUNT,IC
+         INTEGER,target :: NMEM(*)
+         integer NJ(NEL),ICOUNT,IC
          LOGICAL TPARITY
-#ifdef POINTER8
-         INTEGER*8 LOC
-#else
-         INTEGER LOC
-#endif
          INTEGER ISEED
-         REAL*8 PGEN
+         real(dp) PGEN
 C.. The second setup.  Now NMEM is allocated, we store all the info
 C.. NMEM is as follows:
 C..   1           -  5           STORE(1:5)
@@ -200,7 +192,9 @@ C..   STORE(5)    -  ...         SYMPRODIND
 C..   DSTORE(1)   -  DSTORE(NEL*SymClassSize) CLASSES
 C..   DSTORE(NEL*SymClassSize+1) - ...       ILUT
 C.. Actually generate a det
-         IP_DSTORE=LOC(NMEM(NMEM(1)))
+            DSTORE=>NMEM(NMEM(1):NMEM(1)+
+     &                SymClassSize*NEL+(nBasis/32)+1
+     &                     +SymmetrySize*(NEL*NEL+1))  !Point to DSTORE
 !         CALL SYMGENRANDEXCITIT(NI,NEL,NMEM(NMEM(2)),NMEM(6),DSTORE(1),
 !     &         NMEM(NMEM(5)),DSTORE(SymClassSize*NEL+1),NMEM(NMEM(4)),
 !     &         NMEM(7),NMEM(8),NMEM(9),NMEM(10),NMEM(11),NMEM(12),
@@ -217,7 +211,7 @@ C.. Actually generate a det
      &               SYMPRODIND,ILUT,ORBPAIRS,IEXCIT,ISPN,IFROM,ITO,    &
      &               I,J,K,L,ITOTAL,ISEED,                              &
      &               NK,IC,NBASISMAX,ARR,NBASIS,PGEN)      
-      use constants, only: dp
+      use constants, only: dp,sizeof_int
       USE symexcit2
       use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
       use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
@@ -225,7 +219,8 @@ C.. Actually generate a det
       use Determinants, only: write_det
       IMPLICIT NONE
       INTEGER NBASIS
-      INTEGER NEL,NI(NEL),EXCITTYPES(5,NEXCITTYPES),NEXCITTYPES
+      INTEGER NEXCITTYPES
+      INTEGER NEL,NI(NEL),EXCITTYPES(5,NEXCITTYPES)
       
       INTEGER I,J,K,L
       INTEGER NK(NEL)
@@ -238,19 +233,18 @@ C.. Actually generate a det
 
       INTEGER ORBPAIRS(2,*)
       INTEGER ILUT(0:*),ITOTAL,ISEED
-      INTEGER SYMPRODIND(2,3,0:*)
+      INTEGER SYMPRODIND(2,3,1:*)
       INTEGER IC,ICOUNT
-      REAL*8 RAN2
+      real(dp) RAN2
       LOGICAL ISVALIDDET
       INTEGER nBasisMax(5,*)
-      REAL*8 RCOUNT
-      REAL*8 PGEN
-      TYPE(ExcitWeight) ews(*)
-      POINTER (IP_ExcitWeight,ews)
-      REAL*8 ARR(NBASIS,2)
+      real(dp) RCOUNT
+      real(dp) PGEN
+      TYPE(ExcitWeight),pointer :: ews(:)
+      real(dp) ARR(NBASIS,2)
 !.. First generate a random excitation 
       PGEN=1.D0/ITOTAL
-      I=ITOTAL*RAN2(ISEED)
+      I=int(ITOTAL*RAN2(ISEED),sizeof_int)
       IEXCIT=1
       DO WHILE(EXCITTYPES(5,IEXCIT).LE.I)
          I=I-EXCITTYPES(5,IEXCIT)
@@ -294,7 +288,7 @@ C.. Actually generate a det
                ENDIF
                I=I+1
             ENDDO
-            ICOUNT=ICOUNT*RAN2(ISEED)
+            ICOUNT=int(ICOUNT*RAN2(ISEED),sizeof_int)
          ENDDO ot
 !.. NI(I) is now the orbital to excite
 ! Now go through the list of possible excitations of it
@@ -342,7 +336,7 @@ C.. Actually generate a det
                ENDIF
                K=K+1
             ENDDO
-            ICOUNT=ICOUNT*RAN2(ISEED)
+            ICOUNT=int(ICOUNT*RAN2(ISEED),sizeof_int)
          ENDDO
       ELSE
 !.. a double excitation
@@ -361,8 +355,7 @@ C.. Actually generate a det
 !.. SYMPRODIND(2,ISPN,I) contains the number of such elements
          pGen=(0.D0+ExcitTypes(5,iExcit))/iTotal !pGen is the prob of choosing iExcit
 !  Allocate memory to store all weights and excitations in this category
-         CALL N_MEMORY(IP_ExcitWeight,ExcitWeightSize*
-     &      SYMPRODIND(2,ISPN,IFROM),'ExcitWeigh')
+         allocate(ews(SYMPRODIND(2,ISPN,IFROM)))
          CALL EnumExcitFromWeights(EXCITTYPES(1,IEXCIT),ews,OrbPairs,
      &      SymProdInd,
      &      RCOUNT,ICOUNT,ARR,NBASIS)
@@ -380,12 +373,11 @@ C.. Actually generate a det
          
 !  pGen is the prob of choosing a specific FROM (given having chosen iExcit proportional to the number of excitations in each iExcit)
 !           times the prob of choosing iExcit
-         CALL N_FREEM(IP_ExcitWeight)
+         deallocate(ews)
 
 
 !  Allocate memory to store all weights and excitations in this category
-         CALL N_MEMORY(IP_ExcitWeight,ExcitWeightSize*
-     &      EXCITTYPES(5,IEXCIT)/SYMPRODIND(2,ISPN,IFROM),'ExcitWeigh')
+         allocate(ews(EXCITTYPES(5,IEXCIT)/SYMPRODIND(2,ISPN,IFROM)))
 
 !.. Now go through the list of virtual pairs, excluding those with orbitals in NI 
 !.. SYMPAIRPRODS(1:NSYMPAIRPRODS) contains the list of all SYMPRODs available, the number of pairs of
@@ -436,130 +428,21 @@ C.. Actually generate a det
 !         CALL NECI_SORTI(NEL,NK)
          CALL FindExcitDet(ExcitMat,NK,2,TParity)
          IC=2
-         CALL N_FREEM(IP_ExcitWeight)
+         deallocate(ews)
          RETURN
       ENDIF
       END 
 
-!== SymGenRandExcitIt2
-!== Based on SymGenRandExcitIt, but modular, and capable of acceleration
-!== for abelian symmetry groups, where lists of symmetry pairs needn't be
-!== stored.
-
-      SUBROUTINE SymGenRandExcitIt2(NI,NEL,EXCITTYPES,                  &
-     &               CLASSES,                                           &
-     &               SYMPRODIND,ILUT,ORBPAIRS,iTotal,ISEED,             &
-     &               NK,IC,PGEN,EXCITMAT,TPARITY)      
-         USE symexcit2
-         use CalcData, only: ExcitFuncs
-         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,nBasis
-         use SymData, only: SymClass,SymLabelCounts,SymLabelList
-         use SymData, only: tAbelianFastExcitgen
-         use SymData, only: tStoreStateList
-         use SystemData, only: tNoRenormRandExcits
-         IMPLICIT NONE
-         INTEGER nEl,nI(nEl)
-         INTEGER I
-         INTEGER iSpn,iFrom,iTo
-         INTEGER iC
-         REAL*8 pGen
-         INTEGER ILUT(0:*),ExcitMat(2,2)
-         LOGICAL TPARITY
-         TYPE(SymClass) CLASSES(*)
-         INTEGER ExcitTypes(5,*)
-         INTEGER iExcit
-         INTEGER OrbPairs(2,*)
-         INTEGER iTotal
-         INTEGER SymProdInd(2,3,0:*)
-         INTEGER nK(nEl)
-         INTEGER iSeed
-         REAL*8 RAN2   
-!.. irst generate a random excitation 
-
-         PGEN=1.D0/ITOTAL
-!         I=ITOTAL
-!         IEXCIT=1
-!         DO WHILE(I.GT.0.AND.EXCITTYPES(5,IEXCIT).LE.I)
-!            I=I-EXCITTYPES(5,IEXCIT)
-!            WRITE(6,"(A,7I5)") "SE",IEXCIT,
-!     &                   EXCITTYPES(1,IEXCIT),
-!     &                   EXCITTYPES(3,IEXCIT),
-!     &                   EXCITTYPES(4,IEXCIT),
-!     &                   EXCITTYPES(2,IEXCIT),
-!     &                   EXCITTYPES(5,IEXCIT),I
-!            IEXCIT=IEXCIT+1
-!         ENDDO
-         I=ITOTAL*RAN2(ISEED)
-!.. Now work out which Excitation Type it's in.
-         IEXCIT=1
-         DO WHILE(I.GT.0.AND.EXCITTYPES(5,IEXCIT).LE.I)
-            I=I-EXCITTYPES(5,IEXCIT)
-            IEXCIT=IEXCIT+1
-         ENDDO
-!         WRITE(6,*) "Excit:",iExcit
-!..   iExcit is the Excitation Type
-         IF(EXCITTYPES(1,IEXCIT).EQ.1) THEN
-!.. It's a single
-            ISPN=EXCITTYPES(2,IEXCIT)-2
-            IFROM=CLASSES(EXCITTYPES(3,IEXCIT))%SymLab
-            ITO=EXCITTYPES(4,IEXCIT)
-            IF(tNoRenormRandExcits) THEN
-!There is no excitation weighting - we do not need to enumerate all excitations
-                Call SymGenRandExcitIt2_Single_GetFrom_NoWeight(iSeed,
-     &                  nEl,iSpn,iFrom,I,nI)
-                Call SymGenRandExcitIt2_Single_GetTo_NoWeight(iSeed,nI,
-     &                  nEl,I,iSpn,iTo,nK,ExcitMat,TParity)
-            ELSE
-!We have an excitation weighting - enumerate all excitations to get normalisation
-                Call SymGenRandExcitIt2_Single_GetFrom(iSeed,nI,nEl,
-     &                  iSpn,iFrom,I)
-                Call SymGenRandExcitIt2_Single_GetTo(iSeed,nI,nEl,I,
-     &                  iSpn,iTo,nK,ExcitMat,TParity)
-            ENDIF
-!.. Indicate we're a single
-            iC=1
-         ELSE
-!..  A double
-!.. We store each excitation type as:
-!.. 1   TYPE (single=1, double=2)
-!.. 2   SPIN (for single, 1=beta, 2=alpha.  For double, 1=beta/beta; 2=alpha/beta; 3=alpha/alpha;)
-!.. 3   FROM (for single, I in CLASSES(I); for double, I in SYMPRODS(I) )
-!.. 4   TO   (for single, J in SymLabels(J); for double, J in SYMPAIRPRODS(J) )
-!.. 5  COUNT (Total number of excitations in this category)
-            ISPN=EXCITTYPES(2,IEXCIT)
-            IFROM=EXCITTYPES(3,IEXCIT)
-            ITO=EXCITTYPES(4,IEXCIT)
-            IF(tStoreStateList.and.tNoRenormRandExcits) THEN
-!There is no excitation weighting - we do not need to enumerate all excitations in the class
-!However, currently, we do need a list of state pairs.
-                Call SymGenRandExcitIt2_Double_GetFrom_NoWeight(iSeed,
-     &               iSpn,iFrom,SymProdInd,I,nI,OrbPairs)
-
-                Call SymGenRandExcitIt2_Double_GetTo_NoWeight(iSeed,
-     &               nI,ExcitTypes,iExcit,OrbPairs,SymProdInd,iSpn,
-     &               iFrom,iLUT,I,nK,ExcitMat,TParity)
-            ELSE
-                Call SymGenRandExcitIt2_Double_GetFrom(iSeed,ExcitTypes,
-     &         iExcit,iSpn, iFrom, OrbPairs, SymProdInd, iTotal, I,pGen)
-
-               Call SymGenRandExcitIt2_Double_GetTo(iSeed,nI,ExcitTypes,
-     &          iExcit,OrbPairs, SymProdInd,iSpn,iFrom,iLUT, I,nK,pGen,
-     &          ExcitMat,TParity)
-            ENDIF
-!.. Indicate we're a double.
-            iC=2
-         ENDIF
-      End Subroutine SymGenRandExcitIt2
 
 !Return the index of orbital to excit within nI into I. i.e. nI(I) will be excited.
 !In the case where we have no weighting, the can be done very simply
 !iSpn is -1 for alpha and 0 for beta.
 !iFrom is the symmetry label of the electron to pick.
 !I is the returned orbital to excite
-      Subroutine SymGenRandExcitIt2_Single_GetFrom_NoWeight(iSeed,
+      Subroutine SymGenRandExcitIt2_Sing_GF_NoW(iSeed,
      &       nEl,iSpn,iFrom,I,nI)
          use SymData, only: SymClass,SymLabelCounts,SymLabelList
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER iSeed
          INTEGER nEl,nI(nEl)
@@ -569,7 +452,7 @@ C.. Actually generate a det
          INTEGER SpinOrb
          INTEGER J,OrbChosen,nOrbs
          LOGICAL InvalidOrb
-         REAL*8 RAN2   
+         real(dp) RAN2   
 
 !Algorithm is to simply keep drawing orbitals of the required symmetry at random, until we
 !pick one which is in NI.
@@ -610,12 +493,13 @@ C.. Actually generate a det
 
         enddo
 
-      End Subroutine SymGenRandExcitIt2_Single_GetFrom_NoWeight
+      End Subroutine SymGenRandExcitIt2_Sing_GF_NoW
 
 !Return the index of orbital to excit within nI into I. i.e. nI(I) will be excited.
-      Subroutine SymGenRandExcitIt2_Single_GetFrom(iSeed,nI,nEl,iSpn,
+      Subroutine SymGenRandExcitIt2_Sing_GF(iSeed,nI,nEl,iSpn,
      &       iFrom,I)
          use SymData, only: SymClass,SymLabelCounts,SymLabelList
+         use constants, only: dp,sizeof_int
          IMPLICIT NONE
          INTEGER iSeed
          INTEGER nEl,nI(nEl)
@@ -626,7 +510,7 @@ C.. Actually generate a det
          INTEGER iFromSL
          INTEGER J,K
          LOGICAL L1
-         REAL*8 RAN2   
+         real(dp) RAN2   
          ICOUNT=0
 !  K is a loop variable.  We go through the loop once to count the number of possible excitations
 !  We then pick a random number up to that number, and choose that excitation
@@ -659,17 +543,18 @@ C.. Actually generate a det
                ENDIF
                I=I+1
             ENDDO
-            ICOUNT=ICOUNT*RAN2(ISEED)
+            ICOUNT=int(ICOUNT*RAN2(ISEED),sizeof_int)
          ENDDO ot
 !.. NI(I) is now the orbital to excite
-      End Subroutine SymGenRandExcitIt2_Single_GetFrom
+      End Subroutine SymGenRandExcitIt2_Sing_GF
 
 !.. Locate an orbital to excite to, and create the excitation, copying it back to nI.
 !..  I is the index in NI to excite from.
 ! This is for the case that there is no excitation weighting
-      Subroutine SymGenRandExcitIt2_Single_GetTo_NoWeight(iSeed,nI,nEl,
+      Subroutine SymGenRandExcitIt2_Sing_GT_NoW(iSeed,nI,nEl,
      &              I,iSpn,iTo,nK,ExcitMat,TParity)
       use SymData, only: SymClass,SymLabelCounts,SymLabelList
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER iSeed
          INTEGER nEl,nI(nEl)
@@ -679,7 +564,7 @@ C.. Actually generate a det
          INTEGER J,State
          INTEGER NK(nEl)
          LOGICAL InDi,TParity
-         REAL*8 RAN2   
+         real(dp) RAN2   
 
 !Number of states with allowed symmetry is given by SymLabelCounts(2,Sym)
 !Draw an orbital at random from this number, and find its related orbital, given at index SymLabelCounts(1,Sym)+(DrawnOrb-1)
@@ -732,7 +617,7 @@ C.. Actually generate a det
 
         enddo
 
-      End Subroutine SymGenRandExcitIt2_Single_GetTo_NoWeight
+      End Subroutine SymGenRandExcitIt2_Sing_GT_NoW
 
 
 !.. Locate an orbital to excite to, and create the excitation, copying it back to nI.
@@ -741,6 +626,7 @@ C.. Actually generate a det
      &   iTo,nK,ExcitMat,TParity)
       use SymData, only: SymClass,SymLabelCounts,SymLabelList
         use Determinants, only: write_det
+         use constants, only: dp,sizeof_int
          IMPLICIT NONE
          INTEGER iSeed
          INTEGER nEl,nI(nEl)
@@ -754,7 +640,7 @@ C.. Actually generate a det
          LOGICAL L2, lTmp
       
          LOGICAL IsValidDet
-         REAL*8 RAN2   
+         real(dp) RAN2   
 ! Now go through the list of possible excitations of it
          ICOUNT=0
 !  J is a loop variable.  We go through the loop once to count the number of possible excitations
@@ -810,7 +696,7 @@ C.. Actually generate a det
                ENDIF
                K=K+1
             ENDDO
-            ICOUNT=ICOUNT*RAN2(ISEED)
+            ICOUNT=int(ICOUNT*RAN2(ISEED),sizeof_int)
          ENDDO
       End Subroutine SymGenRandExcitIt2_Single_GetTo
 
@@ -821,18 +707,19 @@ C.. Actually generate a det
 !.. iFrom is the symmetry label of the orbital pair to choose
 !.. OrbPairs is the list of all occupied pairs, ordered by symmetry and spin.
 !.. iTotal is the total number of excitations.
-      Subroutine SymGenRandExcitIt2_Double_GetFrom_NoWeight(iSeed,
+      Subroutine SymGenRandExcitIt2_Doub_GF_NoW(iSeed,
      &       iSpn, iFrom,
      &       SymProdInd,I,nI,OrbPairs)
          use SystemData , only: NEl
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER iSeed,nI(NEl)
          INTEGER iSpn
          INTEGER iFrom,OrbPairs(2,*)
-         INTEGER SymProdInd(2,3,0:*)
+         INTEGER SymProdInd(2,3,1:*)
          INTEGER I,k,j
          LOGICAL found
-         REAL*8 RAN2
+         real(dp) RAN2
 !!.. SYMPRODIND(1,ISPN,I)+1 contains the index of the first element of spin ISPN of sym
 !!.. SYMPRODS(I) in ORBPAIRS
 !!.. SYMPRODIND(2,ISPN,I) contains the number of such elements
@@ -864,10 +751,10 @@ C.. Actually generate a det
 !          WRITE(6,*) "i,j = ",OrbPairs(1,I+SymProdInd(1,iSpn,iFrom)),
 !     &          OrbPairs(2,I+SymProdInd(1,iSpn,iFrom))
 
-      End Subroutine SymGenRandExcitIt2_Double_GetFrom_NoWeight
+      End Subroutine SymGenRandExcitIt2_Doub_GF_NoW
 
 
-      Subroutine SymGenRandExcitIt2_Double_GetFrom(iSeed,ExcitTypes,
+      Subroutine SymGenRandExcitIt2_Doub_GF(iSeed,ExcitTypes,
      &       iExcit,iSpn, iFrom,
      &      OrbPairs, SymProdInd, iTotal, 
      &      I, pGen)
@@ -875,6 +762,7 @@ C.. Actually generate a det
          use SystemData, only: G1, nBasis, nBasisMax
          use SystemData, only: Arr
          use IntegralsData, only: UMat
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER iSeed
          INTEGER iSpn
@@ -883,15 +771,14 @@ C.. Actually generate a det
          INTEGER iExcit
          INTEGER OrbPairs(2,*)
          INTEGER iTotal
-         INTEGER SymProdInd(2,3,0:*)
+         INTEGER SymProdInd(2,3,1:*)
          INTEGER I
-         REAL*8 pGen
+         real(dp) pGen
          
-         REAL*8 rCount
-         TYPE(ExcitWeight) ews(*)
-         POINTER (IP_ExcitWeight,ews)
+         real(dp) rCount
+         TYPE(ExcitWeight),pointer :: ews(:)
          INTEGER iCount
-         REAL*8 RAN2
+         real(dp) RAN2
 
 !         WRITE(6,*) "IEXCIT: ",IExcit
 !         WRITE(6,*) "ExcitTypes2",ExcitTypes(2,1:4)
@@ -913,8 +800,7 @@ C.. Actually generate a det
 !.. SYMPRODIND(2,ISPN,I) contains the number of such elements
          pGen=(0.D0+ExcitTypes(5,iExcit))/iTotal !pGen is the prob of choosing iExcit
 !  Allocate memory to store all weights and excitations in this category
-         CALL N_MEMORY(IP_ExcitWeight,ExcitWeightSize*
-     &      SYMPRODIND(2,ISPN,IFROM),'ExcitWeigh')
+         allocate(ews(SYMPRODIND(2,ISPN,IFROM)))
          CALL EnumExcitFromWeights(EXCITTYPES(1,IEXCIT),ews,OrbPairs,
      &      SymProdInd,
      &      RCOUNT,ICOUNT,ARR,NBASIS)
@@ -936,31 +822,32 @@ C.. Actually generate a det
          
 !  pGen is the prob of choosing a specific FROM (given having chosen iExcit proportional to the number of excitations in each iExcit)
 !           times the prob of choosing iExcit
-         CALL  N_FREEM(IP_ExcitWeight)
-      End Subroutine SymGenRandExcitIt2_Double_GetFrom
+         deallocate(ews)
+      End Subroutine SymGenRandExcitIt2_Doub_GF
       
 !This is a routine to pick an allowed virtual pair of orbitals to excite to.
 !There is no weighting function, so it simply 
-      Subroutine SymGenRandExcitIt2_Double_GetTo_NoWeight(iSeed,nI,
+      Subroutine SymGenRandExcitIt2_Doub_GT_NoW(iSeed,nI,
      &      ExcitTypes,iExcit,OrbPairs, SymProdInd,iSpn,iFrom,iLUT,
      &      I,nK,ExcitMat,TParity)
          use SystemData, only: nEl
          use SymData, only: tAbelianFastExcitgen
          use SymData, only: SymPairProds,SymStatePairs
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER iSeed
          INTEGER nI(nEl)
          INTEGER ExcitTypes(5,*)
          INTEGER iExcit,ExcitMat(2,2)
          INTEGER OrbPairs(2,*)
-         INTEGER SymProdInd(2,3,0:*)
+         INTEGER SymProdInd(2,3,1:*)
          INTEGER iSpn,iFrom,iTo,FinalA,FinalB
          INTEGER iLUT(0:*)
          INTEGER I,StatePair,Index1,Orb1,Orb2,Orb1Alpha,Orb1Beta
          INTEGER NK(nEl),Orb2Alpha,Orb2Beta,OrbAlpha,OrbBeta
          LOGICAL :: NotSelectedPair,Check1,Check2,TParity
          INTEGER J
-         REAL*8 RAN2
+         real(dp) RAN2
 
          iTo=ExcitTypes(4,iExcit)   !This is the symmetry of the virtual pair type
 
@@ -1111,7 +998,7 @@ C.. Actually generate a det
 !             STOP "INVALID DET SYMGENRANDEXCITIT DOUBLE"
 !         ENDIF
 
-      End Subroutine SymGenRandExcitIt2_Double_GetTo_NoWeight
+      End Subroutine SymGenRandExcitIt2_Doub_GT_NoW
 
       Subroutine SymGenRandExcitIt2_Double_GetTo(iSeed,nI,ExcitTypes,
      &      iExcit,OrbPairs, SymProdInd,iSpn,iFrom,iLUT,
@@ -1120,6 +1007,7 @@ C.. Actually generate a det
          use SystemData, only: G1, nBasis, nBasisMax
          use SystemData, only: Arr,nEl
          use IntegralsData, only: UMat
+         use constants, only: dp
          IMPLICIT NONE
          LOGICAL TParity
          INTEGER iSeed
@@ -1127,21 +1015,19 @@ C.. Actually generate a det
          INTEGER ExcitTypes(5,*)
          INTEGER iExcit,ExcitMat(2,2)
          INTEGER OrbPairs(2,*)
-         INTEGER SymProdInd(2,3,0:*)
+         INTEGER SymProdInd(2,3,1:*)
          INTEGER iSpn,iFrom
          INTEGER iLUT(0:*)
          INTEGER I
-         REAL*8 pGen
+         real(dp) pGen
          INTEGER NK(nEl) 
-         TYPE(ExcitWeight) ews(*)
-         POINTER (IP_ExcitWeight,ews)
-         REAL*8 rCount
+         TYPE(ExcitWeight),pointer :: ews(:)
+         real(dp) rCount
          INTEGER iCount
          INTEGER K,J
-         REAL*8 RAN2
+         real(dp) RAN2
 !  Allocate memory to store all weights and excitations in this category
-         CALL N_MEMORY(IP_ExcitWeight,ExcitWeightSize*
-     &      EXCITTYPES(5,IEXCIT)/SYMPRODIND(2,ISPN,IFROM),'ExcitWeigh')
+         allocate(ews(EXCITTYPES(5,IEXCIT)/SYMPRODIND(2,ISPN,IFROM)))
 !         WRITE(6,*)EXCITTYPES(5,IEXCIT)/SYMPRODIND(2,ISPN,IFROM),
 !     &         EXCITTYPES(5,IEXCIT),SYMPRODIND(2,ISPN,IFROM)
 !.. Now go through the list of virtual pairs, ng those with orbitals in NI 
@@ -1197,7 +1083,7 @@ C.. Actually generate a det
 !         WRITE(6,*) ExcitMat
          CALL FindExcitDet(ExcitMat,NK,2,TParity)
 !         Call WriteDet(6,nK,nEl,.true.)
-         CALL  N_FREEM(IP_ExcitWeight)
+         deallocate(ews)
 !         WRiTE(6,*) "ENd GetTo"
          RETURN
       End Subroutine SymGenRandExcitIt2_Double_GetTo

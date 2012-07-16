@@ -100,19 +100,27 @@ WRITE(6,*) ""
 
 !TotWalkersOld is the number of walkers last time the shift was changed
 IF(TProjEMP2) THEN
-    WRITE(6,*) "       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        Proj.MP2      NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx  MinEx MaxEx"
-    WRITE(fcimcstats_unit,*) "#       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        Proj.MP2      NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx  MinEx MaxEx"
-    WRITE(fcimcstats_unit,"(I12,G15.6,I7,G15.6,I10,3I7,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,   &
-    &          ProjectionE,ProjectionMP2,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
-    WRITE(6,"(I12,G15.6,I7,G15.6,I10,3I7,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,    &
-    &          ProjectionE,ProjectionMP2,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
+    WRITE(6,*) "       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        " &
+        & //"Proj.MP2      NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx  MinEx MaxEx"
+    WRITE(fcimcstats_unit,*) "#       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   " &
+        & //"Proj.E        Proj.MP2      NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx  MinEx MaxEx"
+    WRITE(fcimcstats_unit,"(I12,G15.6,I7,G15.6,I10,3I7,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft, &
+    &       TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,   &
+    &       ProjectionE,ProjectionMP2,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
+    WRITE(6,"(I12,G15.6,I7,G15.6,I10,3I7,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld, &
+    &       GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,    &
+    &       ProjectionE,ProjectionMP2,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
 ELSE
-    WRITE(6,*) "       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx     MinEx MaxEx"
-    WRITE(fcimcstats_unit,*) "#      Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx     MinEx MaxEx"
-    WRITE(fcimcstats_unit,"(I12,G15.6,I7,G15.6,I10,3I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,   &
-    &          ProjectionE,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
-    WRITE(6,"(I12,G15.6,I7,G15.6,I10,3I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,    &
-    &          ProjectionE,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
+    WRITE(6,*) "       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        " &
+    & //"NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx     MinEx MaxEx"
+    WRITE(fcimcstats_unit,*) "#      Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   " &
+    & //"Proj.E        NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx     MinEx MaxEx"
+    WRITE(fcimcstats_unit,"(I12,G15.6,I7,G15.6,I10,3I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft, &
+    &           TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,   &
+    &           ProjectionE,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
+    WRITE(6,"(I12,G15.6,I7,G15.6,I10,3I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld, &
+    &           GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,    &
+    &           ProjectionE,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
 ENDIF
 
 !Start MC simulation...
@@ -1041,7 +1049,8 @@ SUBROUTINE PerformFCIMCyc()
 !GrowRate is the sum of the individual grow rates for each uninterrupted growth sequence, multiplied by the fraction of the cycle which was spent on it
             IF(TSignShift) THEN
                 GrowRate=((CullInfo(1,3)+0.D0)/(StepsSft+0.D0))*(ABS(CullInfo(1,1)+0.D0))/(ABS(TotSignOld+0.D0))
-                GrowRate=GrowRate+(((StepsSft-CullInfo(1,3))+0.D0)/(StepsSft+0.D0))*((ABS(TotSign)+0.D0)/(ABS(CullInfo(1,2))+0.D0))
+                GrowRate=GrowRate+(((StepsSft-CullInfo(1,3))+0.D0)/(StepsSft+0.D0))* &
+                &   ((ABS(TotSign)+0.D0)/(ABS(CullInfo(1,2))+0.D0))
 
             ELSE
                 GrowRate=((CullInfo(1,3)+0.D0)/(StepsSft+0.D0))*((CullInfo(1,1)+0.D0)/(TotWalkersOld+0.D0))
@@ -1058,7 +1067,8 @@ SUBROUTINE PerformFCIMCyc()
 
 !This is needed since the steps between culling is stored cumulatively
                     GrowthSteps=CullInfo(j,3)-CullInfo(j-1,3)
-                    GrowRate=GrowRate+((GrowthSteps+0.D0)/(StepsSft+0.D0))*((ABS(CullInfo(j,1))+0.D0)/(ABS(CullInfo(j-1,2))+0.D0))
+                    GrowRate=GrowRate+((GrowthSteps+0.D0)/(StepsSft+0.D0))* &
+                    &   ((ABS(CullInfo(j,1))+0.D0)/(ABS(CullInfo(j-1,2))+0.D0))
 
                 enddo
 
@@ -1101,14 +1111,18 @@ SUBROUTINE PerformFCIMCyc()
 
 !Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers...
         IF(TProjEMP2) THEN
-            WRITE(fcimcstats_unit,"(I12,G15.6,I7,G15.6,I10,3I7,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,ProjectionE,  &
+            WRITE(fcimcstats_unit,"(I12,G15.6,I7,G15.6,I10,3I7,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft, &
+            &   TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,ProjectionE,  &
      &         ProjectionMP2,NoatHF,NoatDoubs,AvSign,AccRat,AvConnection,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
-            WRITE(6,"(I12,G15.6,I7,G15.6,I10,3I7,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,ProjectionE,   &
+            WRITE(6,"(I12,G15.6,I7,G15.6,I10,3I7,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft, &
+            &    TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,ProjectionE,   &
      &         ProjectionMP2,NoatHF,NoatDoubs,AvSign,AccRat,AvConnection,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
         ELSE
-            WRITE(fcimcstats_unit,"(I12,G15.6,I7,G15.6,I10,3I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,ProjectionE,  &
+            WRITE(fcimcstats_unit,"(I12,G15.6,I7,G15.6,I10,3I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft, &
+            &  TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,ProjectionE,  &
      &         NoatHF,NoatDoubs,AvSign,AccRat,AvConnection,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
-            WRITE(6,"(I12,G15.6,I7,G15.6,I10,3I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,ProjectionE,   &
+            WRITE(6,"(I12,G15.6,I7,G15.6,I10,3I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld, &
+            &   GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,ProjectionE,   &
      &         NoatHF,NoatDoubs,AvSign,AccRat,AvConnection,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
         ENDIF
 !        WRITE(6,*) SumHOverlapMP2,SumOverlapMP2
@@ -1218,7 +1232,8 @@ SUBROUTINE PerformFCIMCyc()
                 IF(Bin.le.0) THEN
                     CALL Stop_All("SumEContrib","Trying to access a zero or negative bin number")
                 ELSEIF(Bin.gt.NoHistBins) THEN
-                    WRITE(6,*) "Trying to histogram to for a determinant higher in energy than MaxHistE. Think about increasing this to recover all data.",Bin
+                    WRITE(6,*) "Trying to histogram to for a determinant higher in energy than MaxHistE. " &
+                    & //"Think about increasing this to recover all data.",Bin
                 ELSE
                     EHistBins(ExcitLevel,Bin)=EHistBins(ExcitLevel,Bin)+1
                 ENDIF
@@ -1856,7 +1871,8 @@ SUBROUTINE PerformFCIMCyc()
         IF(TStartSinglePart) THEN
             TSinglePartPhase=.true.
             IF(TReadPops) THEN
-                CALL WARNING("InitFciMCCalc","Cannot read in POPSFILE as well as starting with a single particle: ignoring StartSinglePart.")
+                CALL WARNING("InitFciMCCalc","Cannot read in POPSFILE as well as starting with a " &
+                & //"single particle: ignoring StartSinglePart.")
                 tSinglePartPhase = .false.
                 tStartSinglePart = .false.
             ENDIF
@@ -1881,10 +1897,11 @@ SUBROUTINE PerformFCIMCyc()
             ENDIF
             WRITE(6,*) "Excitation levels w.r.t. HF restricted to level: ",ICILevel
             WRITE(6,*) "!!!  WARNING !!!"
-            WRITE(6,*) "!!! Average connecting hamiltonian matrix element data will not be correct for truncated spaces !!!"
+            WRITE(6,*) "!!! Average connecting hamiltonian matrix element data will not be correct for truncated spaces!"
         ENDIF
         IF(TUnbiasPGeninProjE) THEN
-            WRITE(6,*) "Acceptance probability will not be unbiased for generation probability. Instead, walker contributions to the projected energy will be the unbiasing stage..."
+            WRITE(6,*) "Acceptance probability will not be unbiased for generation probability. Instead, walker " &
+            & //"contributions to the projected energy will be the unbiasing stage..."
             WRITE(6,*) "WARNING - THIS IS AN EXPERIMENTAL OPTION!"
         ENDIF
 
@@ -1913,7 +1930,8 @@ SUBROUTINE PerformFCIMCyc()
             MaxWalkers=NINT(MemoryFacPart*InitWalkers)
         
             IF(TStartSinglePart) THEN
-                WRITE(6,"(A,F9.3,A,I9)") "Initial number of particles set to 1, and shift will be held at ",DiagSft," until particle number gets to ",InitWalkers
+                WRITE(6,"(A,F9.3,A,I9)") "Initial number of particles set to 1, and shift will be held at ",DiagSft, &
+                &   " until particle number gets to ",InitWalkers
             ELSE
                 WRITE(6,*) "Initial number of walkers chosen to be: ", InitWalkers
             ENDIF
@@ -2080,7 +2098,8 @@ SUBROUTINE PerformFCIMCyc()
         
         IF(TWriteDetE) THEN
 !If this logging option is on, then we want to write out the energies of the determinants
-            WRITE(6,"(A,I6,A,F10.2)") "Histogramming determinant energies by excitation level in ",NoHistBins," bins, with a maximum energy of ",MaxHistE
+            WRITE(6,"(A,I6,A,F10.2)") "Histogramming determinant energies by excitation level in ",NoHistBins, &
+            &   " bins, with a maximum energy of ",MaxHistE
 
             ALLOCATE(EHistBins(NEl,NoHistBins),stat=ierr)
             CALL LogMemAlloc('EHistBins',NoHistBins*NEl,8,this_routine,EHistBinsTag)
@@ -2154,7 +2173,8 @@ SUBROUTINE PerformFCIMCyc()
 !Set the maximum number of walkers allowed
         MaxWalkers=NINT(MemoryFacPart*InitWalkers)
         
-        WRITE(6,"(A,I10,A)") "Initial number of particles set to ",InitWalkers," distributed according to the MP1 wavefunction. Shift will start at the MP2 energy."
+        WRITE(6,"(A,I10,A)") "Initial number of particles set to ",InitWalkers, &
+        &   " distributed according to the MP1 wavefunction. Shift will start at the MP2 energy."
         WRITE(6,*) "Damping parameter for Diag Shift set to: ", SftDamp
         WRITE(6,*) "Maximum storage capability of walkers is: ", MaxWalkers
 
@@ -2303,7 +2323,8 @@ SUBROUTINE PerformFCIMCyc()
 
         enddo
 
-        WRITE(6,"(A,I9,A,I9,A)") "Out of ",InitWalkers," initial walkers allocated, ",WalkersonHF," of them are situated on the HF determinant."
+        WRITE(6,"(A,I9,A,I9,A)") "Out of ",InitWalkers," initial walkers allocated, ",WalkersonHF, &
+        &   " of them are situated on the HF determinant."
         NoatHF=WalkersonHF
         NoatDoubs=InitWalkers-WalkersonHF
 
@@ -2317,7 +2338,8 @@ SUBROUTINE PerformFCIMCyc()
         DEALLOCATE(MP1Hij)
         CALL LogMemDealloc(this_routine,MP1HijTag)
 
-        WRITE(6,"(A,F14.6,A)") "Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,dp)/1048576.D0," Mb"
+        WRITE(6,"(A,F14.6,A)") "Initial memory (without excitgens) consists of : ", &
+        &   REAL(MemoryAlloc,dp)/1048576.D0," Mb"
         WRITE(6,*) "Initial memory allocation sucessful..."
         CALL FLUSH(6)
 

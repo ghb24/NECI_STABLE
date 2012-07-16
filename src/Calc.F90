@@ -7,31 +7,36 @@ MODULE Calc
                             spin_proj_gamma, spin_proj_shift, &
                             spin_proj_cutoff, spin_proj_stochastic_yama, &
                             spin_proj_spawn_initiators, spin_proj_no_death, &
-                            spin_proj_iter_count
+                            spin_proj_iter_count, spin_proj_nopen_max, &
+                            disable_spin_proj_varyshift
     use default_sets
     use Determinants, only: iActiveBasis, SpecDet, tSpecDet, nActiveSpace, &
                             tDefineDet
     use DetCalc, only: iObs, jObs, kObs, tCorr, tRhoOfR, tFodM, DETINV, &
-                       icilevel, nCycle, tBlock, tCalcHMat, tEnergy, tRead, &
+                       icilevel, tBlock, tCalcHMat, tEnergy, tRead, &
                        tFindDets
-    use DetCalcData, only: B2L, nKry, nEval, nBlk
+    use DetCalcData, only: B2L, nKry, nEval, nBlk, nCycle
     use IntegralsData, only: tNeedsVirts
     use CCMCData, only: dInitAmplitude, dProbSelNewExcitor, nSpawnings, &
                         tSpawnProp, nClustSelections, tExactEnergy,     &
                         dClustSelectionRatio,tSharedExcitors
-    use FciMCData, only: proje_linear_comb, proje_ref_det_init
+    use FciMCData, only: proje_update_comb,proje_linear_comb, proje_ref_det_init,tTimeExit,MaxTimeExit, &
+                         InputDiagSft,tSearchTau,proje_spatial,nWalkerHashes,tHashWalkerList,HashLengthFrac
 
     implicit none
 
 contains
 
     subroutine SetCalcDefaults()
+          use FciMCData, only: hash_shift
         
         ! Set defaults for Calc data items.
 
         ! Values for old parameters.
         ! These have no input options to change the defaults, but are used in
         ! the code.
+          TargetGrowRateWalk=500000
+          TargetGrowRate=0.D0
           InitialPart=1
           TRHOOFR = .false.
           TCORR = .false.
@@ -43,8 +48,26 @@ contains
           TRHOIJ = .false.
           TBEGRAPH = .false.
 
+          if (Nov11) then
+              tInstGrowthRate=.true.
+          else
+              tInstGrowthRate = .false.
+          end if
 
 !       Calc defaults 
+          tHashWalkerList=.false.
+          HashLengthFrac=0.0_dp
+          nWalkerHashes=0
+          iExitWalkers=-1
+          FracLargerDet=1.2
+          iReadWalkersRoot=0 
+          tShiftonHFPop=.false.
+          MaxWalkerBloom=-1
+          tSearchTau=.true.
+          InputDiagSft=0.D0
+          tPopsMapping=.false.
+          tTimeExit=.false.
+          MaxTimeExit=0.D0
           tMaxBloom=.false.
           iRestartWalkNum=0
           iWeightPopRead=0
@@ -52,6 +75,7 @@ contains
           StepsSftImag=0.D0
           TauFactor=0.D0
           tStartMP1=.false.
+          tStartCAS=.false.
           iAnnInterval=1
           tTruncCAS=.false.
           iFullSpaceIter=0
@@ -211,7 +235,6 @@ contains
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
 
           lNoTriples=.false.
-          tFCIMCSerial=.false.  !If set we force the parallel version to run the serial code.
           tReadPopsChangeRef = .false.
           tReadPopsRestart = .false.
           iLogicalNodeSize = 0 !Meaning use the physical node size
@@ -231,6 +254,8 @@ contains
           spin_proj_shift = 0
           spin_proj_cutoff = 0
           spin_proj_iter_count = 1
+          spin_proj_nopen_max = -1
+          disable_spin_proj_varyshift = .false.
           tUseProcsAsNodes=.false.
 
           tSpawnSpatialInit = .false.
@@ -239,13 +264,17 @@ contains
           tTruncNOpen = .false.
 
           proje_linear_comb = .false.
+      proje_update_comb = .false.
+          proje_spatial = .false.
+          hash_shift=0
+          tContinueAfterMP2=.false.
       
         end subroutine SetCalcDefaults
 
 
 
         SUBROUTINE CalcReadInput()
-          USE input
+          USE input_neci
           Use Determinants, only : iActiveBasis, SpecDet, tagSpecDet, tSpecDet, nActiveSpace
           Use Determinants, only : tDefineDet, DefDet, tagDefDet
           use SystemData, only : Beta,nEl
@@ -256,8 +285,9 @@ contains
           use UMatCache, only: gen2CPMDInts
           use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings,tSpawnProp,nClustSelections
           use CCMCData, only: tExactEnergy,tSharedExcitors
+          use FciMCData, only: hash_shift
           use global_utilities
-          use Parallel, only : nProcessors
+          use Parallel_neci, only : nProcessors
           use Logging, only: tLogDets
           IMPLICIT NONE
           LOGICAL eof
@@ -758,11 +788,16 @@ contains
                 call geti(iMaxExcitLevel)
             case("INITWALKERS")
 !For FCIMC, this is the number of walkers to start with
-                call geti(InitWalkers)
+                call getiLong(InitWalkers)
             case("TOTALWALKERS")
 !This is now input as the total number, rather than the number per processor, and it is changed to the number per processor here.
-                call geti(InitWalkers)
-                InitWalkers=NINT(REAL(InitWalkers)/REAL(nProcessors))
+                call getiLong(InitWalkers)
+                InitWalkers=NINT(REAL(InitWalkers)/REAL(nProcessors),int64)
+            case("TIME")
+                !Input the desired runtime (in MINUTES) before exiting out of the MC.
+                call getf(MaxTimeExit)
+                MaxTimeExit=MaxTimeExit*60.0_dp    !Change straightaway so that MaxTimeExit corresponds to SECONDS!
+                tTimeExit=.true.
             case("MAXNOATHF")
 !If the number of walkers at the HF determinant reaches this number, the shift is allowed to change. (This is the total number across all processors).                
 !If a second integer is present, this determinants the threshhold for the HF population.  If the HF population drops below MaxNoatHF-HFPopThresh, the
@@ -784,6 +819,8 @@ contains
             case("NSPAWNINGS")
 !For Amplitude CCMC the number of spawnings for each cluster.
                 call geti(nSpawnings)
+            case("HASH_SHIFT")
+                call geti(hash_shift)
             case("NCLUSTSELECTIONS")
 !For Particle CCMC the number of  cluster.
                 call geti(nClustSelections)
@@ -803,30 +840,61 @@ contains
             case("DIAGSHIFT")
 !For FCIMC, this is the amount extra the diagonal elements will be shifted. This is proportional to the deathrate of walkers on the determinant
                 call getf(DiagSft)
+                InputDiagSft = DiagSft
             case("TAUFACTOR")
 !For FCIMC, this is the factor by which 1/(HF connectivity) will be multiplied by to give the timestep for the calculation.
+                tSearchTau=.false.  !Tau is set, so don't search for it.
                 call getf(TauFactor)
             case("TAU")
 !For FCIMC, this can be considered the timestep of the simulation. It is a constant which will increase/decrease the rate of spawning/death for a given iteration.
+                tSearchTau=.false.  !Tau is set, so don't search for it.
                 call getf(Tau)
+            case("MAXWALKERBLOOM")
+                !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.
+                call geti(MaxWalkerBloom)
             case("SHIFTDAMP")
 !For FCIMC, this is the damping parameter with respect to the update in the DiagSft value for a given number of MC cycles.
                 call getf(SftDamp)
+            case("LINSCALEFCIMCALGO")
+                !Use the linear scaling FCIMC algorithm
+                !Instead of the absolute length of the hash table, read in the fraction of initwalkers that it wants to be.
+!                call geti(nWalkerHashes)
+                tHashWalkerList=.true.
+                if(item.lt.nitems) then
+                    call getf(HashLengthFrac)
+                else
+                    HashLengthFrac=0.7
+                endif
             case("STEPSSHIFTIMAG")
 !For FCIMC, this is the amount of imaginary time which will elapse between updates of the shift.
                 call getf(StepsSftImag)
             case("STEPSSHIFT")
 !For FCIMC, this is the number of steps taken before the Diag shift is updated
                 call geti(StepsSft)
+            case("EXITWALKERS")
+!For FCIMC, this is an exit criterion based on the total number of walkers in the system.
+                call getiLong(iExitWalkers)
+            case("TARGETGROWRATE")
+!For FCIMC, this is the target growth rate once in vary shift mode.
+                call getf(TargetGrowRate)
+                call getiLong(TargetGrowRateWalk)
             case("READPOPS")
 !For FCIMC, this indicates that the initial walker configuration will be read in from the file POPSFILE, which must be present.
 !DiagSft and InitWalkers will be overwritten with the values in that file.
                 TReadPops=.true.
+                tStartSinglePart=.false.
                 if (item.lt.nitems) then
                     call readi(iPopsFileNoRead)
                     iPopsFileNoWrite = iPopsFileNoRead
                     iPopsFileNoRead = -iPopsFileNoRead-1
                 end if
+            case("WALKERREADBATCH")
+                !The number of walkers to read in on the head node in each batch during a popsread
+                call readi(iReadWalkersRoot)
+            case("POPSFILEMAPPING")
+!This indicates that we will be mapping a popsfile from a smaller basis calculation, into a bigger basis calculation.
+!Requires a "mapping" file.
+                tPopsMapping=.true.
             case("READPOPSTHRESH")
 !When reading in a popsfile, this will only save the determinant, if the number of particles on this determinant is greater than iWeightPopRead.
                 tReadPops=.true.
@@ -858,10 +926,33 @@ contains
             case("BINCANCEL")
 !This is a seperate method to cancel down to find the residual walkers from a list, involving binning the walkers into their determinants. This has to refer to the whole space, and so is much slower.
                 TBinCancel=.true.
+            case("REFSHIFT")
+!With this, the shift is changed in order to keep the population on the reference determinant fixed, rather than the total population.
+                tShiftonHFPop=.true.
             case("STARTMP1")
 !For FCIMC, this has an initial configuration of walkers which is proportional to the MP1 wavefunction
 !                CALL Stop_All(t_r,"STARTMP1 option depreciated")
                 TStartMP1=.true.
+                TStartSinglePart=.false.
+                if(item.lt.nitems) then
+                    !Allow us to specify a desired number of particles to start with, so that the shift doesn't
+                    !change dramatically to start with.
+                    call geti(InitialPart)
+                endif
+            case("CONTINUEAFTERMP2")
+                tContinueAfterMP2=.true.
+            case("STARTCAS")
+!For FCIMC, this has an initial configuration of walkers which is proportional to the MP1 wavefunction
+!                CALL Stop_All(t_r,"STARTMP1 option depreciated")
+                TStartCAS=.true.
+                TStartSinglePart=.false.
+                call geti(OccCASOrbs)  !Number of electrons in CAS 
+                call geti(VirtCASOrbs)  !Number of virtual spin-orbitals in CAS
+                if(item.lt.nitems) then
+                    !Allow us to specify a desired number of particles to start with, so that the shift doesn't
+                    !change dramatically to start with.
+                    call geti(InitialPart)
+                endif
             case("GROWMAXFACTOR")
 !For FCIMC, this is the factor to which the initial number of particles is allowed to go before it is culled
                 call getf(GrowMaxFactor)
@@ -938,12 +1029,30 @@ contains
                 IF(item.lt.nitems) then
                     call Getf(FracLargerDet)
                 ENDIF
+                
+            case("AVGROWTHRATE")
+
+                ! This option will average the growth rate over the update 
+                ! cycle when updating the shift.
+
+                if (item < nitems) then
+                    call readu(w)
+                    select case(w)
+                    case("OFF")
+                        tInstGrowthRate = .true.
+                    case default
+                        tInstGrowthRate = .false.
+                    end select
+                else
+                    tInstGrowthRate = .false.
+                end if
 
             case("PROJE-SPATIAL")
                 ! Calculate the projected energy by projection onto a linear
                 ! combination of determinants, specified by a particular 
                 ! spatial determinant.
                 proje_linear_comb = .true.
+                proje_spatial = .true.
                 if (.not. allocated(proje_ref_det_init)) &
                     allocate(proje_ref_det_init(nel))
                 proje_ref_det_init = 0
@@ -952,7 +1061,10 @@ contains
                     call geti(proje_ref_det_init(i))
                     i = i+1
                 enddo
-
+            case("PROJE-LINEAR-COMB")
+                ! Calculate the projected energy by projection onto a linear
+                ! combination of determinants.
+                proje_linear_comb = .true.
             case("RESTARTLARGEPOP")
                 tCheckHighestPop=.true.
                 tRestartHighPop=.true.
@@ -1256,6 +1368,14 @@ contains
                 ! selecting that symbol stochastically.
                 spin_proj_stochastic_yama = .true.
 
+            case("SPIN-PROJECT-NOPEN-LIMIT")
+                ! Determine the largest number of unpaired electrons a
+                ! determinant may have for us to apply spin projectino to it.
+                !
+                ! --> Attempt to reduce the exponential scaling of the
+                !     projection sum.
+                call geti (spin_proj_nopen_max)
+
             case("SPIN-PROJECT-SPAWN-INITIATORS")
                 ! If TRUNCINITIATOR is set, then ensure that all children of
                 ! initiators created by spin projection are made into
@@ -1275,6 +1395,21 @@ contains
                 ! How many times should the spin projection step be applied 
                 ! on each occasion it gets called? (default 1)
                 call geti (spin_proj_iter_count)
+
+            case("SPIN-PROJECT-VARYSHIFT-OFF")
+                ! When VARYSHIFT is enabled, turn spin projection off.
+                ! TODO: Should this be made default?
+                if (item < nitems) then
+                    call readu(w)
+                    select case(w)
+                    case("OFF")
+                        disable_spin_proj_varyshift = .false.
+                    case default
+                        disable_spin_proj_varyshift = .true.
+                    end select
+                else
+                    disable_spin_proj_varyshift = .true.
+                endif
 
             case("ALLOW-SPATIAL-INIT-SPAWNS")
                 ! If a determinant is an initiator, all spawns to other dets
@@ -1313,16 +1448,17 @@ contains
         Subroutine CalcInit()
           use constants, only: dp
           use SystemData, only: G1, Alat, Beta, BRR, ECore, LMS, nBasis, nBasisMax, STot,tCSF,nMsh,nEl
-          use SystemData, only: tUEG,nOccAlpha,nOccBeta,ElecPairs,tExactSizeSpace,tMCSizeSpace,MaxABPairs
+          use SystemData, only: tUEG,nOccAlpha,nOccBeta,ElecPairs,tExactSizeSpace,tMCSizeSpace,MaxABPairs,tMCSizeTruncSpace
           use IntegralsData, only: FCK, CST, nMax, UMat
           use IntegralsData, only: HFEDelta, HFMix, NHFIt, tHFCalc
           Use Determinants, only: FDet, tSpecDet, SpecDet, get_helement
           Use DetCalc, only: DetInv, nDet, tRead
           Use DetCalcData, only:  ICILevel
-          use hilbert_space_size, only: FindSymSizeofSpace, FindSymSizeofTruncSpace, FindSymMCSizeofSpace
+          use hilbert_space_size, only: FindSymSizeofSpace, FindSymSizeofTruncSpace 
+          use hilbert_space_size, only: FindSymMCSizeofSpace, FindSymMCSizeExcitLevel
           use global_utilities
           
-          REAL*8 CalcT, CalcT2, GetRhoEps
+          real(dp) CalcT, CalcT2, GetRhoEps
           
           
           INTEGER I, IC,J
@@ -1409,9 +1545,13 @@ contains
               ELSE
                   CALL FindSymSizeofTruncSpace(6)
               ENDIF
-          ELSEIF(tMCSizeSpace) THEN
+          endif
+          IF(tMCSizeSpace) THEN
               CALL FindSymMCSizeofSpace(6) 
           ENDIF
+          if(tMCSizeTruncSpace) then
+              CALL FindSymMCSizeExcitLevel(6)
+          endif
 
           IF(TMCDET) THEN
 !C.. Generate the determinant from which we start the MC
@@ -1438,7 +1578,7 @@ contains
 !C.. If we're using rhos,
              RHOEPS=GETRHOEPS(RHOEPSILON,BETA,NEL,BRR,I_P)
 
-             WRITE(6,*) "RHOEPS:",RHOEPS
+!             WRITE(6,*) "RHOEPS:",RHOEPS
           ELSE
 !C.. we're acutally diagonalizing H's, so we just leave RHOEPS as RHOEPSILON
              RHOEPS=RHOEPSILON
@@ -1450,9 +1590,12 @@ contains
     
         Subroutine CalcDoCalc()
           use SystemData, only: Alat, Arr,Brr, Beta, ECore, G1, LMS, LMS2, nBasis,NMSH, nBasisMax
-          use SystemData, only: SymRestrict, tCSFOLD, tParity, tSpn, ALat, Beta
+          use SystemData, only: SymRestrict, tCSFOLD, tParity, tSpn, ALat, Beta,tMolpro,tMolproMimic
           use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,BasisFN,BasisFNSize,BasisFNSizeB,nEl
           Use DetCalcData, only : nDet, nEval, nmrks, w
+          USE FciMCParMod , only : FciMCPar
+          USE CCMC, only: CCMCStandalone,CCMCStandaloneParticle
+          use CCMCData, only: tAmplitudes
           use DetCalc, only: CK, DetInv, tEnergy, tRead
           Use Determinants, only: FDet, nActiveBasis, SpecDet, tSpecDet
           use IntegralsData, only: FCK, NMAX, UMat, FCK
@@ -1463,9 +1606,9 @@ contains
           use sym_mod
 
 !Calls
-!          REAL*8 DMonteCarlo2
+!          real(dp) DMonteCarlo2
 !Local Vars
-          REAL*8 EN
+          real(dp) EN,WeightDum,EnerDum
           integer iSeed,iunit
           iSeed=7 
 
@@ -1489,66 +1632,82 @@ contains
 !     &               NBASISMAX,G1,nBasis,BRR,NMSH,FCK,NMAX,ALAT,UMAT,             &
 !     &               NTAY,RHOEPS,NWHTAY,ECORE)
 !             ENDIF
-             WRITE(6,*) "Calculating ",NPATHS," W_Is..."
-             iunit =get_free_unit()
-             IF(BTEST(ILOGGING,1)) THEN
-                IF(I_HMAX.EQ.-10) THEN
-                   OPEN(iunit,FILE="MCSUMMARY",STATUS="UNKNOWN")
-                   WRITE(iunit,*) "Calculating ",NPATHS," W_Is..."
-                   CLOSE(iunit)
-                ELSE
-                   OPEN(iunit,FILE="MCPATHS",STATUS="UNKNOWN")
-                   WRITE(iunit,*) "Calculating ",NPATHS," W_Is..."
-                   CLOSE(iunit)
-                ENDIF
-             ENDIF
-             IF(NTAY(1).GT.0) THEN
-                WRITE(6,*) "Using list of determinants."
-                WRITE(6,*) "Using approx RHOs generated on the fly,NTAY=",NTAY(1)
-!C.. we haven't calculated the energy, so we're calculating the weights
-!C.. with approx RHOs
-                IF(TENERGY) THEN
-!C.. If we've generated a list of dets
-!C.. Instead of NMAX, we put ARR
-                     CALL CALCRHOPII2(BETA,I_P,I_HMAX,I_VMAX,NEL,NDET,               &
-     &                 NBASISMAX,G1,nBasis,BRR,NMSH,FCK,ARR,ALAT,UMAT,NTAY,          &
-     &                 RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,           &
-     &                 DETINV,TSPECDET,SPECDET)
-!                      WRITE(6,*) "Out Here 2"
-!                      CALL FLUSH(6)
-                ELSE
-                   IF(TCSFOLD) THEN
-                      IF(.NOT.TSPECDET) THEN
-                         WRITE(6,*) "SPECDET not specified. Using Fermi determinant ONLY"
-                         TSPECDET=.TRUE.
-                         CALL NECI_ICOPY(NEL,FDET,1,SPECDET,1)
+
+             if(tFCIMC) then
+                 call FciMCPar(WeightDum,EnerDum)
+
+                 if((.not.tMolpro).and.(.not.tMolproMimic)) WRITE(6,*) "Summed approx E(Beta)=",EnerDum
+             elseif(tCCMC) then
+                  if(tAmplitudes) THEN
+                     CALL CCMCStandAlone(WeightDum,EnerDum)
+                  else
+                     CALL CCMCStandaloneParticle(WeightDum,EnerDum)
+                  endif
+                  WRITE(6,*) "Summed approx E(Beta)=",EnerDum
+             else
+
+
+                 WRITE(6,*) "Calculating ",NPATHS," W_Is..."
+                 iunit =get_free_unit()
+                 IF(BTEST(ILOGGING,1)) THEN
+                    IF(I_HMAX.EQ.-10) THEN
+                       OPEN(iunit,FILE="MCSUMMARY",STATUS="UNKNOWN")
+                       WRITE(iunit,*) "Calculating ",NPATHS," W_Is..."
+                       CLOSE(iunit)
+                    ELSE
+                       OPEN(iunit,FILE="MCPATHS",STATUS="UNKNOWN")
+                       WRITE(iunit,*) "Calculating ",NPATHS," W_Is..."
+                       CLOSE(iunit)
+                    ENDIF
+                 ENDIF
+                 IF(NTAY(1).GT.0) THEN
+                    WRITE(6,*) "Using list of determinants."
+                    WRITE(6,*) "Using approx RHOs generated on the fly,NTAY=",NTAY(1)
+    !C.. we haven't calculated the energy, so we're calculating the weights
+    !C.. with approx RHOs
+                    IF(TENERGY) THEN
+    !C.. If we've generated a list of dets
+    !C.. Instead of NMAX, we put ARR
+                         CALL CALCRHOPII2(BETA,I_P,I_HMAX,I_VMAX,NEL,NDET,               &
+         &                 NBASISMAX,G1,nBasis,BRR,NMSH,FCK,ARR,ALAT,UMAT,NTAY,          &
+         &                 RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,           &
+         &                 DETINV,TSPECDET,SPECDET)
+    !                      WRITE(6,*) "Out Here 2"
+    !                      CALL neci_flush(6)
+                    ELSE
+                       IF(TCSFOLD) THEN
+                          IF(.NOT.TSPECDET) THEN
+                             WRITE(6,*) "SPECDET not specified. Using Fermi determinant ONLY"
+                             TSPECDET=.TRUE.
+                             CALL NECI_ICOPY(NEL,FDET,1,SPECDET,1)
+                          ENDIF
+                       ENDIF
+                      IF(TPARITY) THEN
+                          WRITE(6,*) "Using symmetry restriction:"
+                          CALL WRITEALLSYM(6,SymRestrict,.TRUE.)
                       ENDIF
-                   ENDIF
-!C.. Instead of NMAX we have ARR
-                  IF(TPARITY) THEN
-                      WRITE(6,*) "Using symmetry restriction:"
-                      CALL WRITEALLSYM(6,SymRestrict,.TRUE.)
-                  ENDIF
-                  IF(TSPN) THEN
-                      WRITE(6,*) "Using spin restriction:",LMS
-                  ENDIF
-                  CALL CALCRHOPII3(BETA,I_P,I_HMAX,I_VMAX,NEL,                         &
-     &               NBASISMAX,G1,nBasis,BRR,NMSH,FCK,ARR,ALAT,UMAT,NTAY,              &
-     &               RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,               &
-     &               DETINV,TSPN,LMS2,TPARITY,SymRestrict,TSPECDET,SPECDET,            &
-     &               nActiveBasis)
-                ENDIF
-             ELSE
-                 WRITE(6,*) "Invalid combination of NTAY and TENERGY.  No NPATHS calculated"
-                 WRITE(6,*) "NTAY: ",NTAY(1)," TENERGY: ",TENERGY
-             ENDIF
-          ENDIF
+                      IF(TSPN) THEN
+                          WRITE(6,*) "Using spin restriction:",LMS
+                      ENDIF
+    !C.. Instead of NMAX we have ARR 
+                      CALL CALCRHOPII3(BETA,I_P,I_HMAX,I_VMAX,NEL,                         &
+         &               NBASISMAX,G1,nBasis,BRR,NMSH,FCK,ARR,ALAT,UMAT,NTAY,              &
+         &               RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,               &
+         &               DETINV,TSPN,LMS2,TPARITY,SymRestrict,TSPECDET,SPECDET,            &
+         &               nActiveBasis)
+                    ENDIF
+                 ELSE
+                     WRITE(6,*) "Invalid combination of NTAY and TENERGY.  No NPATHS calculated"
+                     WRITE(6,*) "NTAY: ",NTAY(1)," TENERGY: ",TENERGY
+                 ENDIF
+              ENDIF
+          endif
           IF(TMONTE.and..not.tMP2Standalone) THEN
 !             DBRAT=0.01
 !             DBETA=DBRAT*BETA
              WRITE(6,*) "I_HMAX:",I_HMAX
              WRITE(6,*) "Calculating MC Energy..."
-             CALL FLUSH(6)
+             CALL neci_flush(6)
              IF(NTAY(1).GT.0) THEN
                 WRITE(6,*) "Using approx RHOs generated on the fly, NTAY=",NTAY(1)
 !C.. NMAX is now ARR
@@ -1590,18 +1749,18 @@ contains
           Use util_mod, only: get_free_unit
           Use DetCalc, only: tFindDets
           use sym_mod
-          real*8 flri, flsi
-          REAL*8 En, ExEn, GSEn
-          REAL*8 RH
+          real(dp) flri, flsi
+          real(dp) En, ExEn, GSEn
+          real(dp) RH
           INTEGER iDeg, III, iunit
           Type(BasisFN) iSym
           LOGICAL tWarn
           
-          REAL*8 CalcMCEn, CalcDLWDB, DoExMC
+          real(dp) CalcMCEn, CalcDLWDB, DoExMC
             
           IF(TENERGY.and.(.not.tFindDets)) THEN
              RHOEPS=RHOEPSILON*EXP(-BETA*(W(1))/I_P)
-            WRITE(6,*) "RHOEPS:",RHOEPS
+!            WRITE(6,*) "RHOEPS:",RHOEPS
              IF(TREAD) THEN
                 EXEN=CALCMCEN(NEVAL,W,BETA)
                 WRITE(6,"(A,F19.5)") "EXACT E(BETA)=",EXEN
@@ -1624,7 +1783,8 @@ contains
                       ENDIF
                    ENDIF
                    IF(.NOT.TREAD) THEN
-                   CALL CALCRHO2(NMRKS(1,III),NMRKS(1,III),BETA,I_P,NEL, NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,1,0,ECORE)
+                   CALL CALCRHO2(NMRKS(1,III),NMRKS(1,III),BETA,I_P,NEL, NBASISMAX,G1,NBASIS,BRR,NMSH, &
+                    FCK,NMAX,ALAT,UMAT,RH,1,0,ECORE)
 !C                   WRITE(6,*) RH
                    FLRI=LOG(RH)
                    FLSI=FLSI-I_P*FLRI
@@ -1679,11 +1839,12 @@ contains
 !C..          UMAT=NDET
 !C..          ALAT=NMRKS
 !C..          NMAX=ARR
-              CALL CALCRHOPII2(BETA,I_P,I_HMAX,I_VMAX,NEL,NDET,                        &
-     &               NBASISMAX,G1,nBasis,BRR,NEVAL,W,CK,ARR,NMRKS,NDET,NTAY,           &
-     &                RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,           &
-     &                DETINV,TSPECDET,SPECDET)
-
+!              CALL CALCRHOPII2(BETA,I_P,I_HMAX,I_VMAX,NEL,NDET,                        &
+!     &               NBASISMAX,G1,nBasis,BRR,NEVAL,W,CK,ARR,NMRKS,NDET,NTAY,           &
+!     &                RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,           &
+!     &                DETINV,TSPECDET,SPECDET)
+!a
+              call stop_all("DoExactVertexCalc","DoExactVertexCalc non-functional.")
           endif
             
         End Subroutine DoExactVertexCalc
@@ -1703,12 +1864,12 @@ contains
 
 
       subroutine inpgetmethod(I_HMAX,NWHTAY,I_V)
-         use input
+         use input_neci
          use UMatCache , only : TSTARSTORE
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
          use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,tCCMC
-         use CalcData , only : TRhoElems,TReturnPathMC, tFCIMCSerial,tUseProcsAsNodes
-         use CCMCData, only: tExactCluster,tCCMCFCI,tAmplitudes,tExactSpawn,tCCBuffer
+         use CalcData , only : TRhoElems,TReturnPathMC, tUseProcsAsNodes
+         use CCMCData, only: tExactCluster,tCCMCFCI,tAmplitudes,tExactSpawn,tCCBuffer,tCCNoCuml
          use Logging, only: tCalcFCIMCPsi
          implicit none
          integer I_HMAX,NWHTAY,I_V
@@ -1732,8 +1893,6 @@ contains
                       case("RESUMFCIMC")
 !                          TResumFCIMC=.true.
                           CALL Stop_All("inpgetmethod","MCDIFFUSION option depreciated")
-                      case("SERIAL")
-                          tFCIMCSerial=.true.
                       case default
                           call report("Keyword error with "//trim(w),.true.)
                       endselect
@@ -1748,6 +1907,7 @@ contains
                   tCCMCFCI=.false.
                   tAmplitudes=.false.
                   tCCBuffer=.false.
+                  tCCNoCuml=.false.
                   do while(item.lt.nitems)
                     call readu(w)
                     select case(w)
@@ -1766,6 +1926,8 @@ contains
                        tCCMCFCI=.true.
                     case("BUFFER")
                         tCCBuffer=.true.
+                    case("NOCUML")
+                       tCCNoCuml=.true.
                     case default
                        call report("Keyword error with "//trim(w),.true.)
                     end select
@@ -1911,7 +2073,7 @@ contains
 
 
       subroutine inpgetexcitations(NWHTAY,w)
-         use input
+         use input_neci
          IMPLICIT NONE
          INTEGER NWHTAY
          CHARACTER(LEN=16) w
@@ -1932,185 +2094,11 @@ contains
          end select
       end subroutine inpgetexcitations
 
-! Calculate 'PATHS' using on-the-fly generated determinants
-!  Determinants are generated by GENNEXTDET according to the various symmetry specifications given by the use
-!  nActiveBasis will restrict the space of generated determinants to excitations from and to a given set of
-!  basis functions
-      SUBROUTINE CALCRHOPII3(BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
-     &            RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,DETINV,TSPN,LMS,TPARITY,SymRestrict,     &
-     &            TSPECDET,SPECDET,nActiveBasis)
-         use constants, only: dp
-         use global_utilities
-         use util_mod, only: get_free_unit, NECI_ICOPY
-         use SystemData, only: BasisFN,BasisFNSize
-         use legacy_data, only: irat
-         use CalcData, only: tFCIMC
-         use gnd_work_type
-         use Determinants, only: write_det
-         use mcpaths, only: mcpathsr3
-         use sym_mod
-         IMPLICIT NONE
-         INTEGER I_HMAX,NEL,NBASIS,I_VMAX
-         INTEGER,ALLOCATABLE :: LSTE(:,:,:) !(NEL,NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)??!!
-         INTEGER,ALLOCATABLE :: ICE(:,:)  !(NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)??!!
-         HElement_t  UMAT(*)
-         HElement_t,allocatable  :: RIJLIST(:,:)
-         integer,save :: tagRIJList=0,tagLSTE=0,tagICE=0
-         REAL*8 BETA,ALAT(3),RHOEPS
-         COMPLEX*16 FCK(*)
-         INTEGER NPATHS,NI(NEL),I_P,nBasisMax(5,*)
-         INTEGER Work(GNDWorkSize+2*NEL)
-         TYPE(BASISFN) G1(*)
-         INTEGER BRR(*),NMSH,NMAX,NTAY(2),ILOGGING
-         INTEGER III,NWHTAY(3,I_VMAX),IMAX,ILMAX,LMS
-         TYPE(BasisFN) ISYM,SymRestrict
-         LOGICAL TSPN,TPARITY,TSYM
-         REAL*8 DBETA,ECORE
-         real(dp) WLRI,WLSI,WLRI1,WLRI2,WLSI1,WLSI2,DLWDB
-         real(dp) TOT,WLRI0,WLSI0,WINORM,HElP,NORM
-         LOGICAL TNPDERIV,TDONE,TFIRST
-         INTEGER DETINV
-         INTEGER ISTART,IEND,IDEG,iunit
-         LOGICAL TSPECDET,TLOG
-         INTEGER SPECDET(NEL)
-         real(dp) DLWDB2,DLWDB3,DLWDB4,TOT2
-         INTEGER nActiveBasis(2)
-         type(timer), save :: proc_timer
-         character(len=*), parameter :: thisroutine='CALCRHOPII3'
-         TLOG=BTEST(ILOGGING,1)
-         HElP=(I_P)
-         TSYM=.TRUE.
-         TOT=0.D0
-         TOT2=0.D0
-         NORM=0.D0
-         IMAX=I_HMAX
-         IF(I_VMAX.GT.IMAX) IMAX=I_VMAX
-         proc_timer%timer_name=thisroutine
-         call set_timer(proc_timer)
-         WRITE(6,*) "Entering CALCRHOPII3..."
-!         ILMAX=NDET
-!.. We don't need to store lists for I_HMAX=-8
-         ILMAX=(NBASIS-NEL)**2*NEL*NEL/4
-         IF((I_HMAX.GE.-10.AND.I_HMAX.LE.-7).OR.I_HMAX.LE.-12) ILMAX=1
-         allocate(LSTE(NEL,0:ILMAX,0:IMAX))
-         call LogMemAlloc('LSTE',size(LSTE),4/IRAT,thisroutine,tagLSTE)
-         allocate(ICE(0:ILMAX,0:IMAX))
-         call LogMemAlloc('ICE',size(ICE),4/IRAT,thisroutine,tagICE)
-         allocate(RIJList(0:ILMAX,0:IMAX*2))
-         call LogMemAlloc('RIJList',(1+ILMAX)*IMAX*2,8,thisroutine, tagRIJList)
-!:         CALL PRINT_MEMORY()
-         IF(I_VMAX.NE.0) THEN
-            WRITE(6,*) "Using Vertex approximation.  I_VMAX=",I_VMAX
-            IF(I_HMAX.EQ.0) WRITE(6,*) "I_HMAX=0.  Summing all I_HMAX up to P using contour"
-            IF(I_HMAX.GT.0) WRITE(6,*) "I_HMAX=",I_HMAX
-         ELSEIF(I_HMAX.NE.0) THEN
-            WRITE(6,*) "Using hop-restricted paths. I_HMAX:",I_HMAX
-         ELSE
-            WRITE(6,*) "I_HMAX=I_VMAX=0. Using rho diagonalisation."
-         ENDIF
-         IF(TLOG) THEN
-           iunit = get_free_unit()
-            IF(I_HMAX.EQ.-10) THEN
-               OPEN(iunit,FILE="MCSUMMARY",STATUS="UNKNOWN")
-               WRITE(iunit,*) "Calculating ",NPATHS," W_Is..."
-               CLOSE(iunit)
-            ELSE
-               OPEN(iunit,FILE="MCPATHS",STATUS="UNKNOWN")
-               WRITE(iunit,*) "Calculating ",NPATHS," W_Is..."
-               CLOSE(iunit)
-            ENDIF
-            OPEN(iunit,FILE='RHOPII',STATUS='UNKNOWN')
-         ENDIF
-         IF(DETINV.NE.0) THEN
-            ISTART=ABS(DETINV)
-            IEND=ABS(DETINV)
-         ELSEIF(TSPECDET) THEN
-            WRITE(6,*) "Calculating vertex series for specific det:"
-            call write_det (6, specdet, .true.) 
-            ISTART=-1
-            IEND=1
-         ELSE
-            ISTART=1
-            IEND=NPATHS
-         ENDIF
-
-         III=0
-         TDONE=.FALSE.
-         TFIRST=.TRUE.
-         IF(.NOT.TSPECDET) THEN
-            CALL GENNEXTDET(NEL,NBASIS,BRR,NBASISMAX,G1,TSPN,LMS,TPARITY,SymRestrict,ISYM,NI,.TRUE.,TDONE,WORK,nActiveBasis)
-         ENDIF
-         DO WHILE(III.NE.IEND.AND..NOT.TDONE)
-          III=III+1
-          IF(TSPECDET) THEN
-             TDONE=.FALSE.
-             CALL NECI_ICOPY(NEL,SPECDET,1,NI,1)
-             IDEG=1
-          ELSE
-             CALL GENNEXTDET(NEL,NBASIS,BRR,NBASISMAX,G1,TSPN,LMS,TPARITY,SymRestrict,ISYM,NI,.FALSE.,TDONE,WORK,nActiveBasis)
-             CALL GETSYMDEGEN(ISYM,NBASISMAX,IDEG)
-          ENDIF
-          IF(III.GE.ISTART.AND..NOT.TDONE) THEN
-            IF(NPATHS.EQ.1.AND..NOT.TSPECDET.AND..NOT.TFCIMC) &
-                call write_det (6, nI, .true.) 
-            CALL MCPATHSR3(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
-     &         RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,WLRI,WLSI,DBETA,DLWDB2)
-            IF(TLOG) THEN
-               WRITE(iunit,"(I12)",advance='no') III
-               call write_det (iunit, NI, .false.)
-               WRITE(iunit,"(3G25.16)",advance='no') EXP(WLSI+HElP*WLRI),WLRI*HElP,WLSI
-            ENDIF
-            IF(TFIRST) THEN
-               TFIRST=.FALSE.
-               WLRI0=WLRI
-               WLSI0=WLSI
-            ENDIF  
-            IF(TNPDERIV) THEN
-!.. if we're calculating the derivatives too
-               CALL MCPATHSR3(NI,BETA+DBETA,I_P,I_HMAX, I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,  &
-     &            NMAX,ALAT,UMAT,NTAY,RHOEPS,LSTE,ICE,RIJLIST,NWHTAY, ILOGGING,ECORE,ILMAX,WLRI1,WLSI1,DBETA,DLWDB3)
-               CALL MCPATHSR3(NI,BETA-DBETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,   &
-     &            NMAX,ALAT,UMAT,NTAY,RHOEPS,LSTE,ICE,RIJLIST,NWHTAY, ILOGGING,ECORE,ILMAX,WLRI2,WLSI2,DBETA,DLWDB4)
-               DLWDB=-(HElP*(WLRI1-WLRI2)+(WLSI1-WLSI2))/(2*DBETA)
-            ELSE
-               DLWDB=DLWDB2
-            ENDIF
-!.. we calculate the energy with weightings normalized to the weight of
-!.. the Fermi determinant, otherwise the numbers blow up
-            WINORM=EXP(HElP*(WLRI-WLRI0)+(WLSI-WLSI0))
-            NORM=NORM+(IDEG)*WINORM
-            TOT=TOT+(IDEG)*WINORM*DLWDB
-            IF(TLOG) WRITE(iunit,"(G25.16,I5)") DLWDB,IDEG
-            IF(DETINV.EQ.III) THEN
-               IF(TLOG) CALL FLUSH(iunit)
-               WRITE(6,*) "Investigating det ",DETINV
-               CALL FLUSH(6)
-               CALL WIRD_SUBSET(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,ECORE)
-            ENDIF
-           ELSE
-! Correct for overcounting
-               III=III-1
-           ENDIF
-          ENDDO
-         IF(TLOG) CLOSE(iunit)
-         IF(TFIRST) THEN
-            WRITE(6,*) "*** NO determinants found to calculate***"
-         ELSE
-            WRITE(6,*) "Total ",III," determinants summed."
-         ENDIF
-         WRITE(6,*) "Summed approx E(Beta)=",TOT/NORM
-         deallocate(RIJList,LSTE,ICE)
-         call LogMemDealloc(thisroutine,tagRIJList)
-         call LogMemDealloc(thisroutine,tagLSTE)
-         call LogMemDealloc(thisroutine,tagICE)
-         call halt_timer(proc_timer)
-         RETURN
-      END SUBROUTINE CALCRHOPII3  
 
 
 
 ! Given an input RHOEPSILON, create Fermi det D out of lowest orbitals and get RHOEPS (which is rhoepsilon * exp(-(beta/P)<D|H|D>
-      REAL*8 FUNCTION GETRHOEPS(RHOEPSILON,BETA,NEL,BRR,I_P)
+      FUNCTION GETRHOEPS(RHOEPSILON,BETA,NEL,BRR,I_P)
          Use Determinants, only: get_helement, write_det
          use constants, only: dp
          use SystemData, only: BasisFN
@@ -2118,7 +2106,7 @@ contains
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I,I_P
          INTEGER BRR(*)
-         REAL*8 RHOEPSILON,BETA
+         real(dp) RHOEPSILON,BETA,GETRHOEPS
          HElement_t BP, tmp
          DO I=1,NEL
             NI(I)=BRR(I)
@@ -2133,16 +2121,16 @@ contains
 
 
 ! Calculate the kinetic energy of the UEG (this differs from CALCT by including the constant CST
-      REAL*8 FUNCTION CALCT2(NI,NEL,G1,ALAT,CST)
+      FUNCTION CALCT2(NI,NEL,G1,ALAT,CST)
          use constants, only: dp
          use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I,J
          TYPE(BasisFN) G1(*)
-         REAL*8 ALAT(4),CST,TMAT
-         LOGICAL ISCSF
+         real(dp) ALAT(4),CST,TMAT,CALCT2
+         LOGICAL ISCSF_old
          CALCT2=0.D0
-         IF(ISCSF(NI,NEL)) RETURN
+         IF(iscsf_old(NI,NEL)) RETURN
          DO J=1,NEL
             I=NI(J)
            TMAT=((ALAT(1)**2)*((G1(I)%K(1)**2)/(ALAT(1)**2)+   &

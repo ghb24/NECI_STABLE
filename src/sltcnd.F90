@@ -1,7 +1,7 @@
 #include "macros.h"
 
 module sltcnd_mod
-    use SystemData, only: nel, nBasisMax, tExch, FCOUL, G1, ALAT
+    use SystemData, only: nel, nBasisMax, tExch, G1, ALAT
     use SystemData, only: nBasis!, iSpinSkip
     ! HACK - We use nBasisMax(2,3) here rather than iSpinSkip, as it appears
     !        to be more reliably set (see for example test H2O_RI)
@@ -13,10 +13,10 @@ module sltcnd_mod
     use UMatCache, only: GTID
     use IntegralsData, only: UMAT, ptr_getumatel
     use OneEInts, only: GetTMatEl
-    use Integrals, only: get_umat_el
+    use Integrals_neci, only: get_umat_el
     use DetBitOps, only: count_open_orbs, FindBitExcitLevel
     use csf_data, only: csf_sort_det_block
-    use timing
+    use timing_neci
     use bit_reps, only: NIfTot
     implicit none
 
@@ -167,6 +167,99 @@ contains
 
     end function
 
+    function CalcFockOrbEnergy (Orb,HFDet) result(hel)
+        ! This calculates the orbital fock energy from
+        ! the one- and two- electron integrals. This
+        ! requires a knowledge of the HF determinant.
+        !In: Orbital (Spin orbital notation)
+        !In: HFDet (HF Determinant)
+        integer, intent(in) :: HFDet(nel),Orb
+        integer :: idHF(NEl),idOrb,j,idN
+        HElement_t :: hel_sing,hel
+
+        !GetTMATEl works with spin orbitals
+        hel_sing = GetTMATEl(Orb,Orb)
+        
+        ! Obtain the spatial rather than spin indices if required
+        idOrb = gtID(Orb)
+        idHF = gtID(HFDet)
+        
+        ! Sum in the two electron contributions. 
+        hel = (0)
+        do j=1,nel
+            idN = idHF(j)
+            hel = hel + get_umat_el (ptr_getumatel, idOrb, idN, &
+                                               idOrb, idN)
+        enddo
+                
+        ! Exchange contribution only considered if tExch set.
+        ! This is only separated from the above loop to keep "if (tExch)" out
+        ! of the tight loop for efficiency.
+        do j=1,nel
+            ! Exchange contribution is zero if I,J are alpha/beta
+            if (G1(Orb)%Ms == G1(HFDet(j))%Ms) then
+                idN = idHF(j)
+                hel = hel - get_umat_el (ptr_getumatel, idOrb, &
+                                      idN, idN, idOrb)
+            endif
+        enddo
+        hel = hel + hel_sing
+
+    end function CalcFockOrbEnergy 
+
+    function SumFock (nI,HFDet) result(hel)
+
+        ! This just calculates the sum of the Fock energies
+        ! by considering the one-electron integrals and
+        ! the double-counting contribution
+        ! to the diagonal matrix elements. This is subtracted from 
+        ! the sum of the fock energies to calculate diagonal
+        ! matrix elements, or added to the sum of the 1-electron
+        ! integrals. The HF determinant needs to be supplied.
+
+        integer , intent(in) :: nI(nel),HFDet(nel)
+        HElement_t :: hel,hel_doub,hel_tmp,hel_sing
+        integer :: i,j,idN,idX,id(nel),idHF(NEl)
+        
+        !Obtain the 1e terms
+        hel_sing = sum(GetTMATEl(nI, nI))
+
+        ! Obtain the spatial rather than spin indices if required
+        id = gtID(nI)
+        idHF = gtID(HFDet)
+
+        ! Sum in the two electron contributions. Use max(id...) as we cannot
+        ! guarantee that if j>i then nI(j)>nI(i).
+        hel_doub = (0)
+        hel_tmp = (0)
+        do i=1,nel
+            do j=1,nel
+                idX = id(i)
+                idN = idHF(j)
+                hel_doub = hel_doub + get_umat_el (ptr_getumatel, idX, idN, &
+                                                   idX, idN)
+            enddo
+        enddo
+                
+        ! Exchange contribution only considered if tExch set.
+        ! This is only separated from the above loop to keep "if (tExch)" out
+        ! of the tight loop for efficiency.
+        if (tExch) then
+            do i=1,nel
+                do j=1,nel
+                    ! Exchange contribution is zero if I,J are alpha/beta
+                    if (G1(nI(i))%Ms == G1(HFDet(j))%Ms) then
+                        idX = id(i)
+                        idN = idHF(j)
+                        hel_tmp = hel_tmp - get_umat_el (ptr_getumatel, idX, &
+                                              idN, idN, idX)
+                    endif
+                enddo
+            enddo
+        endif
+        hel = hel_doub + hel_tmp + hel_sing
+
+    end function SumFock
 
     function sltcnd_0 (nI) result(hel)
 
@@ -182,6 +275,7 @@ contains
 
         ! Obtain the spatial rather than spin indices if required
         id = gtID(nI)
+!        write(6,'(A,4I4)') "****",id(:)
 
         ! Sum in the two electron contributions. Use max(id...) as we cannot
         ! guarantee that if j>i then nI(j)>nI(i).
@@ -193,6 +287,7 @@ contains
                 idN = min(id(i), id(j))
                 hel_doub = hel_doub + get_umat_el (ptr_getumatel, idN, idX, &
                                                    idN, idX)
+!                write(6,'(4I4,G20.10)') idN,idX,idN,idX,get_umat_el (ptr_getumatel,idN,idX,idN,idX)
             enddo
         enddo
                 
@@ -208,14 +303,13 @@ contains
                         idN = min(id(i), id(j))
                         hel_tmp = hel_tmp - get_umat_el (ptr_getumatel, idN, &
                                               idX, idX, idN)
+!                write(6,'(4I4,G20.10)') idN,idX,idX,idN,get_umat_el (ptr_getumatel,idN,idX,idX,idN)
                     endif
                 enddo
             enddo
         endif
-        hel_doub = hel_doub + hel_tmp
+        hel = hel_doub + hel_tmp + hel_sing
 
-        ! If we are scaling the coulomb interaction, do so here.
-        hel = hel_sing + (hel_doub * (FCOUL))
     end function sltcnd_0
 
     function sltcnd_1 (nI, ex, tSign) result(hel)
@@ -263,7 +357,7 @@ contains
         ! consider the non-diagonal part of the kinetic energy -
         ! <psi_a|T|psi_a'> where a, a' are the only basis fns that differ in
         ! nI, nJ
-        hel = (hel*(FCOUL)) + GetTMATEl(ex(1), ex(2))
+        hel = hel + GetTMATEl(ex(1), ex(2))
 
         if (tSign) hel = -hel
     end function sltcnd_1

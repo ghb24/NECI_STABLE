@@ -246,11 +246,11 @@ C.. is put in SSYM
       END
 
 C.. test if NCI is a CSF
-      LOGICAL FUNCTION ISCSF(NCI,NEL)
+      LOGICAL FUNCTION iscsf_old(NCI,NEL)
          use legacy_data, only: CSF_NBSTART
          IMPLICIT NONE
          INTEGER NEL,NCI(NEL)
-         ISCSF=NCI(NEL).GE.CSF_NBSTART
+         iscsf_old=NCI(NEL).GE.CSF_NBSTART
       END
 
       SUBROUTINE GETNEXTSYMCSF(NEL,NBASIS,NBASISMAX,
@@ -667,7 +667,7 @@ C.. maxNDET is the maximum number of CSFs that can be stored in NMRKS
      &            TSPN,SFORCE,SZFORCE,TCHKEX,ICLIST,IC,NDCH,maxNDET)
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
-         INTEGER NI(NEL),NEL,NOPEN,NCLOSED
+         INTEGER NEL,NI(NEL),NOPEN,NCLOSED
          INTEGER NMRKS(NEL,*),NDET
          LOGICAL TCOUNT,TSPN
          INTEGER SFORCE,SZFORCE
@@ -856,6 +856,7 @@ C.. Get the Hamiltonian Element between two CSFs
          Use Determinants, only: get_helement
          use SystemData, only: BasisFN
          use global_utilities
+         use MemoryManager, only: TagIntType
          IMPLICIT NONE
          INTEGER NEL,NCI(NEL),NCJ(NEL)
          HElement_t TOTSUM,SUM2,HEL
@@ -866,10 +867,11 @@ C.. Get the Hamiltonian Element between two CSFs
          INTEGER SO1(NEL),SO2(NEL)
          INTEGER I,J
          type(timer), save :: proc_timer
-         REAL*8 COEFF1,COEFF2
-         REAL*8,allocatable :: COEFFLIST2(:)
-         integer,save :: tagLISTD1=0,tagLISTD2=0,tagDOLISTD1=0
-         integer,save :: tagDOLISTD2=0,tagCOEFFLIST2=0
+         real(dp) COEFF1,COEFF2
+         real(dp),allocatable :: COEFFLIST2(:)
+         integer(TagIntType),save :: tagLISTD1=0,tagLISTD2=0
+         integer(TagIntType),save :: tagDOLISTD1=0
+         integer(TagIntType),save :: tagDOLISTD2=0,tagCOEFFLIST2=0
          character(*), parameter :: this_routine='CSFGETHELEMENT'
          
          LOGICAL CSFCHKSPINSYM
@@ -961,11 +963,12 @@ C.. This is a product of Clebsch-Gordon coefficients
 C.. (and is independent of which spatial orbitals SORDER and DORDER
 C..  refer to as long as they are always ordered)
       SUBROUTINE CSFGETDETCOEFF(SORDER,DORDER,NOPEN,COEFF)
+         use constants, only: dp
          IMPLICIT NONE
-         REAL*8 COEFF,CG
+         real(dp) COEFF,CG
          INTEGER NOPEN,SORDER(NOPEN),DORDER(NOPEN)
          INTEGER I,SCUR,MCUR
-         REAL*8 S,M
+         real(dp) S,M
          COEFF=1.D0
          S=0.D0
          M=0.D0
@@ -989,11 +992,12 @@ C.. projected spin change MN_=(+/-)1/2
 C.. For SN_=+1/2 set SN=1, and for SN_=-1/2 set SN=0
 C.. For MN_=+1/2 set MN=1, and for MN_=-1/2 set MN=0
       SUBROUTINE GETCLEBSCHGORDON(S,M,SN,MN,COEFF)
+         use constants, only: dp
          IMPLICIT NONE
-         REAL*8 S,M,COEFF
+         real(dp) S,M,COEFF
          INTEGER SN,MN
 
-         REAL*8 MN_
+         real(dp) MN_
          MN_=MN-0.5D0
          IF(SN.EQ.0) THEN
             COEFF=-2.D0*MN_*SQRT((S+1-2*MN_*M)/(2*S+2))
@@ -1155,7 +1159,7 @@ C..   method of creating this CSF - 1 is a + and 0 is a -.
          use legacy_data, only: CSF_NBSTART
          use Determinants, only: write_det
          IMPLICIT NONE
-         INTEGER NCI(NEL),NEL,ICLOSED(NEL),NCLOSED
+         INTEGER NEL,NCI(NEL),ICLOSED(NEL),NCLOSED
          INTEGER IOPEN(NEL),NOPEN,SZ,S,SORDER(NEL)
          
          INTEGER I,J,K

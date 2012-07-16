@@ -19,27 +19,27 @@
 #define get_spin(orb) (1+iand(orb,1))
 
 ! Is the specified orbital part of a doubly occupied pair?
-#define IsDoub(ilut,orb) (IsOcc(ilut,orb) .and. IsOcc(ilut,ab_pair(orb)))
+#define IsDoub(ilut,orb) (IsOcc(ilut,orb).and.IsOcc(ilut,ab_pair(orb)))
 
 ! Are the two orbitals specified (may be the same orbital) from the same
 ! spatial orbital?
 #define is_in_pair(orb1,orb2) (ibclr(orb1-1,0) == ibclr(orb2-1,0))
 
 ! Set or clear orbitals in a bit representation
-#define ilut_int(orb) ((orb - 1) / bits_n_int)
-#define ilut_off(orb) mod(orb-1, bits_n_int)
-#define set_orb(ilut, orb) ilut(ilut_int(orb)) = ibset(ilut(ilut_int(orb)), ilut_off(orb))
-#define clr_orb(ilut, orb) ilut(ilut_int(orb)) = ibclr(ilut(ilut_int(orb)), ilut_off(orb))
+#define ilut_int(orb) ((orb-1)/bits_n_int)
+#define ilut_off(orb) mod(orb-1,bits_n_int)
+#define set_orb(ilut, orb) ilut(ilut_int(orb))=ibset(ilut(ilut_int(orb)),ilut_off(orb))
+#define clr_orb(ilut, orb) ilut(ilut_int(orb))=ibclr(ilut(ilut_int(orb)),ilut_off(orb))
 
 ! Useful for fixing things. Requires this_routine to be defined
 #ifdef __DEBUG
 #define ASSERT(x) \
 if (.not. (x)) then; \
-	call stop_all (this_routine, "Assertation failed: "//"x"); \
+ call stop_all (this_routine, "Assertation failed: "//"x"); \
 endif
 #define ASSERTROOT(x) \
 if ((iProcIndex.eq.Root).and.(.not. (x))) then; \
-	call stop_all (this_routine, "Assertation failed: "//"x"); \
+ call stop_all (this_routine, "Assertation failed: "//"x"); \
 endif
 ! Do some debugging if X>=Y
 #define IFDEBUG(PrintLevel,ThisLevel) if (PrintLevel>=ThisLevel)
@@ -68,4 +68,38 @@ endif
 #else
 #define ARR_RE_OR_CPLX(arr) real(arr(1), dp)
 #define ARR_ABS(arr) abs(arr(1))
+#endif
+
+
+
+! Define types for C pointers to work between various compilers with
+! differing levels of brokenness.
+#if defined(__PATHSCALE__) || defined(__ISO_C_HACK) || defined(__OPEN64__)
+#define loc_neci loc
+#ifdef POINTER8
+#define c_ptr_t integer(int64)
+#else
+#define c_ptr_t integer(int32)
+#endif
+#elif defined(__GFORTRAN__)
+#define c_ptr_t type(c_ptr)
+#define loc_neci g_loc
+#else
+#define c_ptr_t type(c_ptr)
+#define loc_neci c_loc
+#endif
+
+! ***** HACK *****
+! gfortran was playing up using a parameter defined to equal C_NULL_PTR
+! --> use pre-processor defines instead!
+#ifdef CBINDMPI
+#if defined(__PATHSCALE__) || defined(__ISO_C_HACK) || defined(__OPEN64__)
+#ifdef POINTER8
+#define MPI_IN_PLACE (0_int64)
+#else
+#define MPI_IN_PLACE (0_int32)
+#endif
+#else
+#define MPI_IN_PLACE (C_NULL_PTR)
+#endif
 #endif

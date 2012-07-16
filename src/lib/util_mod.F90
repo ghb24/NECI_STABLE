@@ -1,8 +1,18 @@
 module util_mod
     use util_mod_comparisons
     use util_mod_cpts
-    use constants, only: dp, lenof_sign
+    use constants, only: dp, lenof_sign,sizeof_int
+    use iso_c_hack
     implicit none
+
+    interface
+        pure function strlen_wrap (str) result(len) bind(c)
+            use iso_c_hack
+            implicit none
+            character(c_char), intent(in) :: str(*)
+            integer(c_int) :: len
+        end function
+    end interface
 
     ! sds: It would be nice to use a proper private/public interface here,
     !      BUT PGI throws a wobbly on using the public definition on
@@ -12,29 +22,54 @@ module util_mod
 
 !    public :: swap, arr_lt, arr_gt, operator(.arrlt.), operator(.arrgt.)
 !    public :: factrl, choose, int_fmt, binary_search
-!    public :: append_ext, get_unique_filename, get_nan, isnan
-    
+!    public :: append_ext, get_unique_filename, get_nan, isnan_neci
+
 contains
+
+    subroutine print_cstr (str) bind(c, name='print_cstr')
+
+        ! Write a string outputted by calling fort_printf in C.
+        ! --> Ensure that it is redirected to the same place as the normal
+        !     STDOUT within fortran.
+
+        character(c_char), intent(in) :: str(*)
+        integer :: l, i
+
+        l = strlen_wrap(str)
+        call print_cstr_local (str, l)
+
+    end subroutine
+
+    subroutine print_cstr_local (str, l)
+
+        character(c_char), intent(in) :: str(*)
+        integer, intent(in) :: l
+        character(len=l) :: tmp_s
+
+        tmp_s = transfer(str(1:l), tmp_s)
+        write(6, '(a)', advance='no') tmp_s
+
+    end subroutine
 
 !routine to calculation the absolute magnitude of a complex integer variable (to nearest integer)
     pure integer function abs_int_sign(wsign)
         integer, dimension(lenof_sign), intent(in) :: wsign
 
         if(lenof_sign.eq.1) then
-            abs_int_sign=wsign(1)
+            abs_int_sign=abs(wsign(1))
         else
-            abs_int_sign=nint(sqrt(real(wsign(1),dp)**2+real(wsign(2),dp)**2),int32)
+            abs_int_sign=nint(sqrt(real(wsign(1),dp)**2+real(wsign(lenof_sign),dp)**2),sizeof_int)
         endif
     end function abs_int_sign
 
-!routine to calculation the absolute magnitude of a complex integer*8 variable (to nearest integer)
+!routine to calculation the absolute magnitude of a complex integer(int64) variable (to nearest integer)
     pure integer(kind=int64) function abs_int8_sign(wsign)
         integer(kind=int64), dimension(lenof_sign), intent(in) :: wsign
 
         if(lenof_sign.eq.1) then
-            abs_int8_sign=wsign(1)
+            abs_int8_sign=abs(wsign(1))
         else
-            abs_int8_sign=nint(sqrt(real(wsign(1),dp)**2+real(wsign(2),dp)**2),int64)
+            abs_int8_sign=nint(sqrt(real(wsign(1),dp)**2+real(wsign(lenof_sign),dp)**2),int64)
         endif
     end function abs_int8_sign
 
@@ -49,9 +84,9 @@ contains
          ! In:
          !    N: number of elements in A.
          !    A: vector to be copied.
-         !    IA: increment between elements to be copied in A.  
+         !    IA: increment between elements to be copied in A.
          !        IA=1 for continuous data blocks.
-         !    IB: increment between elements to be copied to in B.  
+         !    IB: increment between elements to be copied to in B.
          !        IB=1 for continuous data blocks.
          ! Out:
          !    B: result vector.
@@ -62,13 +97,13 @@ contains
          INTEGER, INTENT(OUT) :: B(IB*N)
 !        Variables
          INTEGER I,IAX,IBX
-     
+
          DO I=1,N
            IAX=(I-1)*IA + 1
            IBX=(I-1)*IB + 1
            B(IBX) = A(IAX)
          ENDDO
-     
+
          RETURN
       END SUBROUTINE NECI_ICOPY
 
@@ -85,17 +120,17 @@ contains
 
     ! If all of the compilers supported ieee_arithmetic
     ! --> could use ieee_is_nan (r)
-    elemental logical function isnan (r)
+    elemental logical function isnan_neci (r)
         real(dp), intent(in) :: r
 
         if ( (r == 0) .and. (r * 1 == 1) ) then
-            isnan = .true.
+            isnan_neci = .true.
         else
-            isnan = .false.
+            isnan_neci = .false.
         endif
     end function
 
-    elemental real*8 function factrl (n)
+    elemental real(dp) function factrl (n)
 
         ! Return the factorial on n, i.e. n!
         ! This is not done in the most efficient way possible (i.e. use with
@@ -112,8 +147,8 @@ contains
         enddo
     end function factrl
 
-    elemental real*8 function choose (n, r)
-        
+    elemental real(dp) function choose (n, r)
+
         ! Return the binomail coefficient nCr
 
         integer, intent(in) :: n, r
@@ -137,7 +172,7 @@ contains
     end function choose
 
 !--- Comparison of subarrays ---
-    
+
     logical pure function det_int_arr_gt (a, b, len)
         use constants, only: n_int
 
@@ -151,7 +186,7 @@ contains
         !NOTE: These will sort by the bit-string integer length, n_int.
         !Therefore, these may be 32 or 64 bit integers and should
         !only be used as such.
-    
+
         integer(kind=n_int), intent(in), dimension(:) :: a, b
         integer, intent(in), optional :: len
 
@@ -180,7 +215,7 @@ contains
             endif
         endif
     end function det_int_arr_gt
-        
+
 
     logical pure function det_int_arr_eq (a, b, len)
         use constants, only: n_int
@@ -197,7 +232,7 @@ contains
 
         integer(kind=n_int), intent(in), dimension(:) :: a, b
         integer, intent(in), optional :: len
-        
+
         integer llen, i
 
         ! Obtain the lengths of the arrays if a bound is not specified.
@@ -304,14 +339,14 @@ contains
                 lo = pos + 1
             endif
         enddo
-        
+
         ! Return the converged value.
         pos = hi
 
     end function
 
-    ! NOTE: This can only be used for binary searching determinant bit 
-    !       strings now. We can template it if it wants to be more general 
+    ! NOTE: This can only be used for binary searching determinant bit
+    !       strings now. We can template it if it wants to be more general
     !       in the future if needed.
     function binary_search (arr, val, cf_len) &
                                  result(pos)
@@ -321,7 +356,7 @@ contains
         integer(kind=n_int), intent(in) :: val(:)
         integer, intent(in), optional :: cf_len
         integer :: data_lo, data_hi, val_lo, val_hi
-        integer :: pos, len
+        integer :: pos
 
         integer :: hi, lo
 
@@ -350,8 +385,6 @@ contains
         ! Narrow the search range down in steps.
         do while (hi /= lo)
             pos = int(real(hi + lo) / 2)
-!>>>!            write(6,*) 'pos', pos, lo, hi
-!>>>!            call flush(6)
 
             if (all(arr(data_lo:data_hi,pos) == val(val_lo:val_hi))) then
                 exit
@@ -373,7 +406,7 @@ contains
             endif
         enddo
 
-        ! If we have narrowed down to one position, and it is not the item, 
+        ! If we have narrowed down to one position, and it is not the item,
         ! then return -pos to indicate that the item is not present, but that
         ! this is the location it should be in.
         if (hi == lo) then
@@ -404,8 +437,11 @@ contains
        !    record_length: size of record in units of the compiler's
        !    choice.
        integer, intent(in) :: bytes
-       inquire(iolength=record_length) bytes
-       record_length = (bytes/4)*record_length 
+       integer :: record_length_loc
+       inquire(iolength=record_length_loc) bytes
+!       record_length = (bytes/4)*record_length
+       record_length = (bytes/sizeof_int)*int(record_length_loc,sizeof_int)
+! 8 indicates 8-byte words I think
     end function record_length
 
     subroutine append_ext(stem, n, s)
@@ -505,3 +541,173 @@ contains
     end function get_free_unit
 
 end module
+
+!Hacks for compiler specific system calls.
+
+    integer function neci_iargc()
+        implicit none
+#if defined(CBINDMPI) && !defined(MOLPRO)
+        interface
+            function c_argc () result(ret) bind(c)
+                use iso_c_hack
+                integer(c_int) :: ret
+            end function
+        end interface
+        neci_iargc = c_argc()
+#elif defined(MOLPRO_f2003)
+        integer command_argument_count
+        neci_iargc=command_argument_count()
+#elif defined(MOLPRO)
+        integer iargc
+        neci_iargc=iargc()
+#else
+        integer :: command_argument_count
+        neci_iargc = command_argument_count ()
+#endif
+    end function
+
+
+
+    subroutine neci_getarg (i, str)
+
+#ifdef NAGF95
+        use f90_unix_env, only: getarg
+#endif
+        use constants
+        use iso_c_hack
+        use util_mod
+        implicit none
+        integer, intent(in) :: i
+        character(len=*), intent(out) :: str
+
+#if defined(__OPEN64__) || defined(__PATHSCALE__)
+        integer(int32) :: j
+#else
+        integer :: j
+#endif
+
+#if defined(CBINDMPI) && !defined(MOLPRO)
+        ! Define interfaces that we need
+        interface
+            pure function c_getarg_len (i) result(ret) bind(c)
+                use iso_c_hack
+                integer(c_int), intent(in), value :: i
+                integer(c_int) :: ret
+            end function
+            pure subroutine c_getarg (i, str) bind(c)
+                use iso_c_hack
+                integer(c_int), intent(in), value :: i
+                character(c_char), intent(out) :: str
+            end subroutine
+        end interface
+        character(len=c_getarg_len(int(i, c_int))) :: str2
+
+        call c_getarg (int(i, c_int), str2)
+
+        str = str2
+
+#elif defined NAGF95
+        call getarg(i, str)
+#elif defined(MOLPRO) && !defined(MOLPRO_f2003)
+        call getarg(i, str)
+#elif defined(__OPEN64__) || defined(__PATHSCALE__)
+        j = i
+        call get_command_argument (j, str)
+#else
+        call get_command_argument (i, str)
+#endif
+
+    end subroutine neci_getarg
+
+
+    subroutine neci_flush(un)
+#ifdef NAGF95
+    USe f90_unix, only: flush
+    use constants, only: int32
+#endif
+    implicit none
+    integer, intent(in) :: un
+#ifdef NAGF95
+    integer(kind=int32) :: dummy
+#endif
+#ifdef BLUEGENE_HACKS
+        call flush_(un)
+#else
+#ifdef NAGF95
+        dummy=un
+        call flush(dummy)
+#else
+        call flush(un)
+#endif
+#endif
+    end subroutine neci_flush
+
+
+    function neci_etime(time) result(ret)
+      use constants, only: sp
+      real(sp) :: ret
+      real(sp) :: time(2)
+      call cpu_time(ret)
+      time(1) = ret
+      time(2) = real(0.0,sp)
+    end function neci_etime
+
+    integer function neci_system(str)
+#ifdef NAGF95
+    Use f90_unix_proc, only: system
+#endif
+        character(*), intent(in) :: str
+#ifndef NAGF95
+        integer :: system
+        neci_system=system(str)
+#else
+        call system(str)
+        neci_system=0
+#endif
+    end function neci_system
+
+! Hacks for the IBM compilers on BlueGenes.
+! --> The compiler intrinsics are provided as flush_, etime_, sleep_ etc.
+! --> We need to either change the names used in the code, or provide wrappers
+#ifdef BLUEGENE_HACKS
+! I presume that the function cpu_time will work here?
+! If not, simply add BLUEGENE_HACKS to the neci_etime above.
+!    function etime (t) result(ret)
+!        implicit none
+!        real(4) :: t(2), etime_, ret
+!        ret = etime_(t)
+!    end function
+    function hostnm (nm) result(ret)
+        implicit none
+        integer :: ret, hostnm_
+        character(8) :: nm
+        ret = hostnm_(nm)
+    end function
+
+#endif
+
+#ifdef CRAY_ETIME
+
+    function etime (tarr) result (tret)
+        implicit none
+        real(4) :: tarr(2), tret, second
+
+        tret = second()
+        tarr = tret
+    end function
+
+#endif
+
+#ifdef __GFORTRAN__
+    function g_loc (var) result(addr)
+
+        use iso_c_binding
+
+        integer, target :: var
+        type(c_ptr) :: addr
+        
+        addr = c_loc(var)
+
+    end function
+#endif
+

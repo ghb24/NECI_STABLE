@@ -5,15 +5,15 @@ ld = mpif90
 ldflags = -m64
 compiler = GCC-f95-on-LINUX
 cpp = cpp -C -traditional
-cppflags = -D__Linux -DPOINTER8 -DPARALLEL -D__INT64
-libs = -L ~/lib/fftw-3.1.2/lib -lfftw3 -llapack -lblas -lstdc++ -lrt
+cppflags = -D__Linux -DPOINTER8 -DPARALLEL -D__INT64 -D__SHARED_MEM -D__GFORTRAN__ -DDISABLE_FFTW
+libs = -lacml -lstdc++ -lrt
 module_flag = -J
 
 [dbg]
-fflags = -fcray-pointer -ffree-line-length-none -g -m64 -I/usr/local/shared/suse-11.1/x86_64/openmpi-1.3.1-gnu/lib
-cflags = -g -m64
+fflags = -g -m64 -fbacktrace -fdefault-real-8 -Waggregate-return -Waliasing -Wampersand -Wcharacter-truncation -Wintrinsics-std -Wno-tabs -Wsurprising -Wunderflow -fdefault-integer-8 -fmax-identifier-length=31 -ffree-line-length-0
+cflags = -g -m64 -Waddress -Wcast-align -Wchar-subscripts -Wcomment -Wformat -Wimplicit -Wimplicit-int -Wimplicit-function-declaration -Wmain -Wmissing-braces -Wmultichar -Wnested-externs -Wparentheses -Wpointer-arith -Wpointer-sign -Wreturn-type -Wsequence-point -Wsign-compare -Wstrict-aliasing -Wstrict-overflow=1 -Wswitch -Wtrigraphs -Wuninitialized -Wunknown-pragmas -Wunused-function -Wunused-label -Wunused-value -Wunused-variable -Wvolatile-register-var -DZLIB
 f90flags = -fbounds-check
 
 [opt]
-fflags = -fcray-pointer -ffree-line-length-none -O4 -m64 -I/usr/local/shared/suse-11.1/x86_64/openmpi-1.3.1-gnu/lib
-cflags = -O -m64
+fflags = -O4 -m64 -fdefault-real-8 -Waggregate-return -Waliasing -Wampersand -Wcharacter-truncation -Wintrinsics-std -Wno-tabs -Wsurprising -Wunderflow -fdefault-integer-8 -fmax-identifier-length=31 
+cflags = -O -m64 -Waddress -Wcast-align -Wchar-subscripts -Wcomment -Wformat -Wimplicit -Wimplicit-int -Wimplicit-function-declaration -Wmain -Wmissing-braces -Wmultichar -Wnested-externs -Wparentheses -Wpointer-arith -Wpointer-sign -Wreturn-type -Wsequence-point -Wsign-compare -Wstrict-aliasing -Wstrict-overflow=1 -Wswitch -Wtrigraphs -Wuninitialized -Wunknown-pragmas -Wunused-function -Wunused-label -Wunused-value -Wunused-variable -Wvolatile-register-var -DZLIB

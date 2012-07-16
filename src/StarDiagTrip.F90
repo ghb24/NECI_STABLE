@@ -24,13 +24,13 @@
 !      INTEGER :: TripsInfoTag=0
 !
 !!Incase we want to do a complete diagonalisation of the triples star
-!      REAL*8 , ALLOCATABLE :: ExcitMat(:,:)
-!      REAL*8 , ALLOCATABLE :: HamMat(:)
+!      real(dp) , ALLOCATABLE :: ExcitMat(:,:)
+!      real(dp) , ALLOCATABLE :: HamMat(:)
 !      INTEGER :: ExcitMatTag=0,HamMatTag=0
 !
 !!Vals and first element of the eigenvectors from the prediagonalised excited stars
-!      REAL*8 , ALLOCATABLE :: Vals(:)
-!      REAL*8 , ALLOCATABLE :: Vecs(:)
+!      real(dp) , ALLOCATABLE :: Vals(:)
+!      real(dp) , ALLOCATABLE :: Vecs(:)
 !      INTEGER :: ValsTag=0,VecsTag=0
 !      
 !      HElement_t :: rhii
@@ -50,9 +50,9 @@
 !        USE StarDiagMod , only : GetValsnVecs
 !        IMPLICIT NONE
 !        CHARACTER(len=*), PARAMETER :: this_routine='StarDiagTrips'
-!        REAL*8 , ALLOCATABLE :: TempDiags(:),Work(:),Vals2(:)
+!        real(dp) , ALLOCATABLE :: TempDiags(:),Work(:),Vals2(:)
 !        INTEGER :: TempDiagsTag=0,WorkTag=0,Vals2Tag=0
-!        REAL*8 :: Energy
+!        real(dp) :: Energy
         real(dp) :: Weight,Energyxw
 !        HElement_t :: rh,rhjj,rhij,Norm,OffDiagNorm,Hij,rhjk
 !        INTEGER , ALLOCATABLE :: nExcit(:),nExcit2(:)
@@ -292,7 +292,7 @@
 !!Next, we need to diagonalise this excited star matrix. ALL eigenvalues, and the first element of all the eigenvectors needed...bummer...
 !                IF(.NOT.BTEST(Meth,0)) THEN
 !!This will diagonalise each excited star fully - v. slow - order N^3
-!!For some annoying reason, DiagRhos needs to be of type real*8...
+!!For some annoying reason, DiagRhos needs to be of type real(dp)...
 !                    
 !                    ALLOCATE(TempDiags(i+1),stat=ierr)
 !                    CALL LogMemAlloc('TempDiags',i+1,8,this_routine,TempDiagsTag)

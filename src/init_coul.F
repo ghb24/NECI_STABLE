@@ -4,22 +4,25 @@ C.. Method of evaluating the Coulomb integrals
 C  ========================================================              
       SUBROUTINE INITFOU(NMESHX,CK,NMAX,
      &     A,TALPHA,ALPHA,OMEGA,ZIA)
-      IMPLICIT REAL*8(A-H,O-Z)
-      COMPLEX*16 CK(NMESHX,NMESHX,NMESHX)
-      COMPLEX*16 ZIA(-NMESHX/2:NMESHX/2,NMAX,NMAX) 
-      REAL*8 A(3)
-      real*4 etime,t(2),t1,t2
+!      IMPLICIT real(dp)(A-H,O-Z)
+      use constants, only: dp,int64,sp
+      IMPLICIT NONE
+      integer :: NMESHX,NMAX
+      complex(dp) CK(NMESHX,NMESHX,NMESHX)
+      complex(dp) ZIA(-NMESHX/2:NMESHX/2,NMAX,NMAX) 
+      real(dp) :: ALPHA,OMEGA
+      real(dp) A(3),t3
+      real(sp) t(2),t1,t2,neci_etime
       LOGICAL TALPHA
-      DATA IFIRST/0/
-      SAVE IFIRST 
+      INTEGER , SAVE :: IFIRST=0
 C..
       IF(IFIRST.EQ.1) RETURN 
       IFIRST=1
 C..      
-      T1 = etime(t)
+      T1 = neci_etime(t)
       CALL GEN_CK_FFT(NMESHX,CK,A,TALPHA,ALPHA,OMEGA)
       CALL GEN_ZIA(NMESHX,NMAX,ZIA)
-      T2 = etime(t)
+      T2 = neci_etime(t)
       T3=(T2-T1)
       WRITE(6,*) 'V0=',CK(NMESHX/2,NMESHX/2,NMESHX/2)
       WRITE(6,*) ' TIME FOR INITIALISATION:',T3/1000.
@@ -28,7 +31,10 @@ C..
       END
 C =========================================================
       SUBROUTINE GEN_CK_FFT(N,DIST,A,TALPHA,ALPHA,OMEGA)
-      IMPLICIT REAL*8(A-H,O-Z)
+!      IMPLICIT real(dp)(A-H,O-Z)
+      use constants, only: dp,int64,pi
+
+      IMPLICIT NONE
 #if !defined(__alpha) || !defined(__SGI) 
       !INTEGER FFTW_R2HC
       !PARAMETER (FFTW_R2HC=0)
@@ -95,29 +101,37 @@ C =========================================================
       !INTEGER FFTW_NO_SIMD
       !PARAMETER (FFTW_NO_SIMD=131072)
 #endif
-      COMPLEX*16 DIST(-N/2:N/2-1,-N/2:N/2-1,-N/2:N/2-1)
-      INTEGER*8 PLAN
-      REAL*8 A(3) 
+      integer :: N,I,J,K,N1,N2,N3
+      complex(dp) DIST(-N/2:N/2-1,-N/2:N/2-1,-N/2:N/2-1)
+      integer(int64) PLAN
+      real(dp) A(3),ALPHA2,ALPHA,HSTEPX,HSTEPY,HSTEPZ,DERF
+      real(dp) :: X,Y,Z,AUX,SUM,G2,GX,GY,GZ,OMEGA,OMEGAP,R
       LOGICAL TALPHA
+      character(len=*), parameter :: t_r="GEN_CK_FFT"
 C..
-      PI=ACOS(-1.D0)
+!      PI=ACOS(-1.D0)
       ALPHA2=ALPHA*ALPHA
 C..
       HSTEPX=2.D0*A(1)/N
       HSTEPY=2.D0*A(2)/N
       HSTEPZ=2.D0*A(3)/N
 C..
+#if defined(NAGF95) || defined(__GFORTRAN__)
+      call stop_all(t_r,"No ERF in NAG/GFortran?")
+#endif
       DO I=-N/2,N/2-1
         DO J=-N/2,N/2-1
           DO K=-N/2,N/2-1
-            X=DFLOAT(I)*HSTEPX
-            Y=DFLOAT(J)*HSTEPY
-            Z=DFLOAT(K)*HSTEPZ
+            X=real(I,dp)*HSTEPX
+            Y=real(J,dp)*HSTEPY
+            Z=real(K,dp)*HSTEPZ
             AUX=X*X+Y*Y+Z*Z
             IF(AUX.NE.0.D0) THEN
               IF(TALPHA) THEN 
                 R=SQRT(AUX) 
+#if !defined(NAGF95) && !defined(__GFORTRAN__)                
                 AUX=1.D0/R*(-1)**(I+J+K)*DERF(R/ALPHA)
+#endif                
               ELSE
                 AUX=1.D0/SQRT(AUX)*(-1)**(I+J+K)
               ENDIF
@@ -125,10 +139,10 @@ C..
               IF(TALPHA) THEN 
                 AUX=2.D0/SQRT(PI)/ALPHA
               ELSE
-                AUX=DFLOAT(N/2)*(-1)**(I+J+K)
+                AUX=real(N/2,dp)*(-1)**(I+J+K)
               ENDIF
             ENDIF
-            DIST(I,J,K)=DCMPLX(AUX,0.D0)
+            DIST(I,J,K)=CMPLX(AUX,0.D0,dp)
 c            write(16,'(3i3,2e19.8)') i,j,k,dist(i,j,k)
           ENDDO
         ENDDO
@@ -156,17 +170,21 @@ C..FORWARD TRANSFORM
       N1=N
       N2=N
       N3=N
+#ifndef DISABLE_FFTW
       CALL DFFTW_PLAN_DFT_3D(PLAN,N1,N2,N3,DIST,
      &  DIST,
      &  FFTW_FORWARD,FFTW_ESTIMATE)
       CALL DFFTW_EXECUTE(PLAN)
       CALL DFFTW_DESTROY_PLAN(PLAN)
+#else
+      call stop_all("gen_ck_fft","FFTW disabled")
+#endif
 #endif
 C..Shift origin and normalise 
       DO I=-N/2,N/2-1
         DO J=-N/2,N/2-1
           DO K=-N/2,N/2-1
-            DIST(I,J,K)=DIST(I,J,K)*(-1)**(i+j+k)/dfloat(n1*n2*n3)
+            DIST(I,J,K)=DIST(I,J,K)*(-1)**(i+j+k)/real(n1*n2*n3,dp)
           enddo
         enddo
       enddo      
@@ -181,12 +199,12 @@ C..the short-range correction for alpha
               GZ=PI*K/A(3)
               G2=GX*GX+GY*GY+GZ*GZ
               IF(G2.NE.0.D0) THEN 
-                AUX=EXP(-G2*ALPHA2/4.D0)
+!                AUX=EXP(-G2*ALPHA2/4.D0)
                 SUM=4.D0*PI*(1.D0-AUX)/OMEGAP/G2
               ELSE
                 SUM=PI*ALPHA2/OMEGAP 
               ENDIF
-              DIST(I,J,K)=DIST(I,J,K)+DCMPLX(SUM,0.D0)
+              DIST(I,J,K)=DIST(I,J,K)+CMPLX(SUM,0.D0,dp)
             ENDDO
           ENDDO
         ENDDO
@@ -222,8 +240,11 @@ c      stop
       END
 C ============================================================
       SUBROUTINE GEN_ZIA(KMAX,NMAX,ZIA)
-      IMPLICIT REAL*8(A-H,O-Z)
-      COMPLEX*16 ZIA(-KMAX/2:KMAX/2,NMAX,NMAX),ZIO
+!      IMPLICIT real(dp)(A-H,O-Z)
+      use constants, only: dp
+      IMPLICIT NONE
+      integer :: K,N,M,KMAX,NMAX
+      complex(dp) ZIA(-KMAX/2:KMAX/2,NMAX,NMAX),ZIO
       DO K=-KMAX/2,KMAX/2
         DO N=1,NMAX
           DO M=1,NMAX
@@ -235,18 +256,21 @@ C ============================================================
       RETURN
       END
       FUNCTION ZIO(K)
-      IMPLICIT REAL*8(A-H,O-Z)
-      COMPLEX*16 ZIO
-      DATA IFIRST/0/ 
-      SAVE PI,IFIRST
-      IF(IFIRST.EQ.0) THEN 
-        PI=ACOS(-1.D0)
-        IFIRST=1
-      ENDIF
+!      IMPLICIT real(dp)(A-H,O-Z)
+      use constants, only : dp,pi
+      IMPLICIT NONE
+      complex(dp) ZIO
+!      INTEGER , DATA , SAVE :: IFIRST/0/ 
+!      real(dp) :: SAVE PI
+      INTEGER :: K
+!      IF(IFIRST.EQ.0) THEN 
+!        PI=ACOS(-1.D0)
+!        IFIRST=1
+!      ENDIF
       IF(K.EQ.0) THEN 
         ZIO=(1.D0,0.D0)
       ELSE
-        ZIO=DCMPLX(0.D0,-((-1.D0)**K-1.D0)/(DFLOAT(K)*PI))
+        ZIO=CMPLX(0.D0,-((-1.D0)**K-1.D0)/(REAL(K,dp)*PI),dp)
       ENDIF
       RETURN
       END

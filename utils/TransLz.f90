@@ -13,6 +13,8 @@ PROGRAM TransLz
     LOGICAL , ALLOCATABLE :: FlipSign(:)
     COMPLEX*16 :: CompZ,alpha1Coeff,alpha2Coeff,beta1Coeff,beta2Coeff,gamma1Coeff,gamma2Coeff,Delta1Coeff,Delta2Coeff
     INTEGER :: alpha1,alpha2,beta1,beta2,gamma1,gamma2,delta1,delta2,SymLTot,Degen
+    LOGICAL :: tNoSym
+    INTEGER :: iSyms
     NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ
 
     UHF=.false.
@@ -47,81 +49,6 @@ PROGRAM TransLz
         READ(*,*) tDiatomic
     ENDIF
 
-!Now create arrays to deal with Lz data.
-!    SymLTot=0
-!    do i=1,NORB
-!        IF(SymL(i).gt.SymLTot) THEN
-!            SymLTot=SymL(i)
-!        ENDIF
-!    enddo
-!    SymLTot=SymLTot+1   !Add one, since we want the NUMBER of angular momentum states, not the maximum, and they will always start with zero (the S state)
-!
-!!There are SymLTot different angular momentum states.
-!    ALLOCATE(SymLCounts(0:SymLTot,2),stat=ierr)
-!    SymLCounts(:,:)=0
-!    ALLOCATE(SymLList(NORB),stat=ierr)
-!    SymLList(:)=0
-!    ALLOCATE(IND(0:SymLTot-1),stat=ierr)
-!    IND(0:SymLTot-1)=0
-!
-!    do i=1,NORB
-!!SymLCounts(i,1) therefore stores the number of orbitals with angular momentum i
-!        SymLCounts(SymL(i),1)=SymLCounts(SymL(i),1)+1
-!    enddo
-!
-!    SymLCounts(0,2)=1
-!    do i=1,SymLTot
-!!SymLCounts(i,2) stores the starting index in SymLList of the states with an L quantum number of i
-!        SymLCounts(i,2)=SymLCounts(i-1,2)+SymLCounts(i-1,1)
-!    enddo
-!
-!    IF((SymLCounts(SymLTot,2)-1).ne.NORB) THEN
-!        WRITE(6,*) SymLCounts(:,1)
-!        WRITE(6,*) "***"
-!        WRITE(6,*) SymLCounts(:,2)
-!        STOP 'Error setting up the L symmetry'
-!    ENDIF
-!
-!    do i=1,NORB
-!!Now set up SymLList which will list the orbitals by L state
-!        SymLList(SymLCounts(SymL(i),2)+IND(SymL(i)))=i
-!        IND(SymL(i))=IND(SymL(i))+1
-!    enddo
-!
-!    do i=1,SymLTot
-!!Check that we have pure orbitals, and the correct number of Lz orbitals
-!        MlDegen=2*i+1
-!        IF(mod(SymLCounts(i,1),MlDegen).ne.0) THEN
-!            STOP 'We do not have pure L functions here'
-!        ENDIF
-!    enddo
-    
-
-!Now we need to set up the Lz symmetry for the states.
-!The states are read in with Lz symmetry running from 0 -> 2L
-!We want them to be written as Ml quantum numbers, i.e. from -L -> +L
-!For L=1 (p states), x = 0, y = 1, z = 2.
-!Otherwise, the Lz states are in the correct order, but we need to subtract L from them.
-
-!    do i=1,NORB
-!        IF(SymL(i).eq.0) CYCLE     !S-states will always have an Ml of 0
-!        IF(SymL(i).eq.1) THEN
-!!P-state - special case... order is x, y, z
-!            IF(SymLz(i).eq.0) THEN
-!!The first one is a px orbital - Ml = 1
-!                SymLz(i)=1
-!            ELSEIF(SymLz(i).eq.1) THEN
-!                SymLz(i)=-1 !py orbital: Ml=-1
-!            ELSEIF(SymLz(i).eq.2) THEN
-!                SymLz(i)=0  !pz orbital: Ml=0
-!            ELSE
-!                STOP 'Error with P orbitals'
-!            ENDIF
-!        ELSE
-!!We have higher angular momentum states than p-functions. Simply subtract L from the Lz value.
-!            SymLz(i)=SymLz(i)-SymL(i)
-!        ENDIF
-!    enddo
 
     tPairbyEnergy=.false.
 !Check that Lz orbitals are written out in the correct order
@@ -468,24 +395,52 @@ PROGRAM TransLz
 !Integrals have now been read in - now to transform them to complex integrals.
     CLOSE(8)
 
+!First, calculate whether we are a heteronuclear diatomic or homonuclear
+!If heteronuclear - will have 4 (1 -> 4 in qchem) irreps - remove all symmetry info
+!If homo - will have 8 (1 -> 8 in qchem) irreps - then keep the inversion symmetry - reduce to Ci point group.
+!    TestSym(:)=.false.
 !    do i=1,NORB
-!        WRITE(6,*) TMAT(:,i)
+!        TestSym(ORBSYM(i))=.true.
 !    enddo
-
-!Reduce symmetry from D2h to C2h
+!    iSyms=0
+!    do i=1,8
+!        if(TestSym(i)) then
+!            iSyms=iSyms+1
+!        endif
+!    enddo
+!    if((iSyms.ne.4).and.(iSyms.ne.8)) then
+!        STOP 'Neither 4 or 8 irreps - neither D2h or C2v point group detected. Error.'
+!    endif
+    iSyms=0
+    tNoSym=.false.
     do i=1,NORB
-        IF((ORBSYM(i).eq.7).or.(ORBSYM(i).eq.8)) THEN
-            ORBSYM(i)=4
-        ELSEIF((ORBSYM(i).eq.3).or.(ORBSYM(i).eq.4)) THEN
-            ORBSYM(i)=3
-        ELSEIF((ORBSYM(i).eq.5).or.(ORBSYM(i).eq.6)) THEN
-            ORBSYM(i)=2
-        ELSEIF(ORBSYM(i).eq.2) THEN
-            ORBSYM(i)=1
-        ELSEIF(ORBSYM(i).eq.0) THEN
-            WRITE(6,*) "WARNING - Not all symmetries found"
-        ENDIF
+        if(ORBSYM(i).gt.iSyms) then
+            iSyms=ORBSYM(i)
+        elseif(ORBSYM(i).eq.0) then
+            tNoSym=.true.
+        endif
     enddo
+
+    if((iSyms.le.4).or.tNoSym) then
+        !Heteronuclear - Remove all sym - all calculated in Lz and now redundant, and can't keep +/- sym (unless kept in dets)
+        if(tNoSym) then
+            write(6,'(a)') "Symmetry irreps missing - removing all symmetry"
+        else
+            write(6,'(a)') "Heteronuclear molecule detected - removing all redundant point group symmetry"
+        endif
+        ORBSYM(:)=0
+    elseif(iSyms.gt.4) then
+        !Keep inversion symmetry. **** In qchem **** (i.e. not molpro), this irreps 1 -> 4 (g) and 5 -> 8 (u)
+        write(6,'(a)') "Homonuclear molecule detected - reducing point group of molecule to Ci (keeping only inversion)"
+        do i=1,NORB
+            if(ORBSYM(i).ge.5) then
+                ORBSYM(i) = 2
+            else
+                ORBSYM(i) = 1
+            endif
+        enddo
+    endif
+
 
 
     OPEN(8,FILE='PUREHARMINTDUMP',STATUS='UNKNOWN',FORM='FORMATTED')

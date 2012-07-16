@@ -1,4 +1,5 @@
 module MemoryManager
+use constants , only : sizeof_int,dp 
 
 ! JSS.  Memory book-keeping routines.  Contains a few elements of the initialisation, 
 ! output and structure of the memory_manager module from CamCASP (formerly SITUS), 
@@ -72,8 +73,11 @@ public :: MemoryLeft, MemoryUsed,MaxMemory,li,LookupPointer,PrintMemory
 public :: CachingMemLog 
 ! Routines that need to be accessible.
 public :: InitMemoryManager,LogMemAlloc,LogMemDealloc,LeaveMemoryManager
+public :: TagIntType
 
 
+
+integer, parameter :: TagIntType = sizeof_int   !This is for CPMD which needs to know what type of integer to pass as a tag
 ! Configuration.
 integer, parameter :: MaxLen = 5000 ! size of memory log (max number of arrays
                                     ! that can be logged at any one time if 
@@ -87,7 +91,7 @@ logical, save :: MemUnitsBytes = .true. ! If true, then output object size in by
 
 logical, save :: err_output = .true. ! Print error messages.
 
-integer, parameter :: li = selected_int_kind(18) !ints between +-10^18
+integer, parameter :: li = selected_int_kind(15) !ints between +-10^18
 integer, parameter :: lr = selected_real_kind(1,18) !reals between +-10^18
 
 type MemLogEl
@@ -140,7 +144,11 @@ contains
     integer(li), intent(in), optional :: MemSize
     logical, intent(in), optional :: print_err
     integer(li) :: MaxMemBytes
+#ifdef MOLPRO
+    integer(li), parameter :: MaxMemLimit=8192   !It would be nice to get this straight from molpro.
+#else
     integer(li), parameter :: MaxMemLimit=MAXMEM ! Obtained via CPP in the makefile. MAXMEM in MB.
+#endif
 
 
     if (present(MemSize)) then
@@ -160,7 +168,7 @@ contains
         if (MaxMemBytes.le.0) then
             if (err_output) then
                 write (6,*) 'Illegal maximum memory value passed to memorymanager.'
-                write (6,*) 'MaxMemgbytes = ',dfloat(MaxMemBytes)/(1024**2)
+                write (6,*) 'MaxMemgbytes = ',real(MaxMemBytes,dp)/(1024**2)
                 write (6,*) 'Setting maximum memory available to 1GB.'
             end if
             MaxMemBytes=1024**3
@@ -180,7 +188,9 @@ contains
 !       Deal with debug options at a later date.
 !       debug = gmemdebug
 
-        write (6,'(a33,f8.1,a3)') ' Memory Manager initialised with ',dfloat(MaxMemBytes)/(1024**2),' MB'
+#ifndef MOLPRO
+        write (6,'(a33,f8.1,a3)') ' Memory Manager initialised with ',real(MaxMemBytes,dp)/(1024**2),' MB'
+#endif
     end if
 
     return
@@ -209,7 +219,7 @@ contains
     character(len=*),intent(in) :: ObjectName,AllocRoutine
     integer, intent(in) :: ObjectSize
     integer, intent(in) :: ElementSize
-    integer, intent(out) :: tag
+    integer(TagIntType), intent(out) :: tag
     integer, intent(in), optional :: err
     integer, intent(inout), optional :: nCalls
  
@@ -289,7 +299,7 @@ contains
     implicit none
 
     character(len=*), intent(in) :: DeallocRoutine
-    integer, intent(inout) :: tag
+    integer(TagIntType), intent(inout) :: tag
     integer, intent(in), optional :: err
     integer :: i,ismallloc(1)
     character(len=25) :: ObjectName
@@ -379,7 +389,6 @@ contains
     ! Call this to print out the largest memory allocations.
     ! If debug flag is on, then the full memory log is dumped to file.
 
-    use common_routines, only: getunit
     implicit none
 
     integer :: iunit,iobjloc(1),iobj,i
@@ -441,7 +450,8 @@ contains
 
     if (debug) then
         ! Dump entire memory log to file.
-        call getunit(iunit)
+        iunit=93
+!        call get_free_unit(iunit)  !Avoid circular dependancies - hack.
         open(unit=iunit,file=memoryfile,form='formatted',status='unknown')
         call PrintMemory(.true.,iunit)
         close(iunit)
@@ -511,8 +521,8 @@ contains
     write (iunit,*)
     write (iunit,*) '================================================================'
     write (iunit,*) 'Memory usage'
-    write (iunit,'(a34,f9.1)') ' Maximum memory defined is (MB) : ',real(MaxMemory,lr)/1024**2
-    write (iunit,'(a34,f9.1)') ' Maximum memory used is    (MB) : ',real(MaxMemoryUsed,lr)/1024**2
+    write (iunit,'(a34,f9.1)') ' Maximum memory defined is (MB) : ',real(MaxMemory,lr)/1024.0_dp**2.0_dp
+    write (iunit,'(a34,f9.1)') ' Maximum memory used is    (MB) : ',real(MaxMemoryUsed,lr)/1024.0_dp**2.0_dp
     if (nWarn.gt.0) then
         write (iunit,*)'Maximum memory exceeded ',nWarn,' times.'
     endif
@@ -522,7 +532,7 @@ contains
         write (iunit,*) ''
     end if
     write (iunit,*) 'Name              Allocated in       Deallocated in         Size'
-    write (iunit,*) '----------------------------------------------------------------'
+    write (iunit,*) '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - '
     return
     end subroutine WriteMemLogHeader
 
@@ -538,10 +548,10 @@ contains
     if (MemUnitsBytes) then
         if (MemSize.gt.1024**2) then
             ! output in MB.
-            write (iunit,fmt1) dfloat(MemSize)/1024**2,'MB'
+            write (iunit,fmt1) real(MemSize,dp)/1024**2,'MB'
         else if (MemSize.gt.1024) then
             ! output in KB.
-            write (iunit,fmt1) dfloat(MemSize)/1024,'KB'
+            write (iunit,fmt1) real(MemSize,dp)/1024,'KB'
         else
             ! output in bytes.
             write (iunit,fmt2) MemSize,'B'

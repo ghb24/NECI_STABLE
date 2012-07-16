@@ -6,14 +6,15 @@ ldflags = -Bstatic
 compiler = INTEL-ifort9-on-LINUX
 cpp = cpp -C -traditional
 cppflags = -D__Linux -DPOINTER8 -DHAVE_SSE2 -D__INT64
-libs = -L ~/src/lib/fftw-3.1.2/lib -L ~/lib/fftw-3.1.2/lib -lfftw3  -lacml -cxxlib -lrt
+libs = -lfftw3  -lacml -cxxlib -lrt
 module_flag = -module
 
 [dbg]
-fflags = -r8 -g
-cflags = -g -C
-f90flags = -check bounds
+fflags = -r8 -g -i8 -pc64 -auto -vec-report0 -warn nousage
+cflags = -g -C -ftz -vec-report0 -DZLIB
+f90flags = -check bounds -stand f03
 
 [opt]
-fflags = -r8 -O3 
-cflags = -O
+fflags = -r8 -O3 -i8 -pc64 -auto -vec-report0 -warn nousage
+cflags = -O -ftz -vec-report0 -DZLIB
+f90flags = -stand f03

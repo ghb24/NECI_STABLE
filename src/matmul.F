@@ -1,10 +1,13 @@
       SUBROUTINE MY_HPSI(NDET,NEVAL,NROW,LAB,HAMIL,CK,CKN,
      &                      TLargest)
       use global_utilities
-      IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION HAMIL(*),CKN(NDET,NEVAL)
+      use constants, only : dp
+!      IMPLICIT real(dp) (A-H,O-Z)
+      IMPLICIT NONE
+      integer :: NEVAL,NDET,I,J,K,L,IBEG
+      real(dp) :: HAMIL(*),CKN(NDET,NEVAL)
       INTEGER LAB(*),NROW(NDET)
-      DIMENSION CK(NDET,NEVAL)
+      real(dp) :: CK(NDET,NEVAL),AUX
       LOGICAL :: TLargest
       type(timer), save :: proc_timer
 C ==-----------------------------------------------------------------==
@@ -12,7 +15,7 @@ C ==-----------------------------------------------------------------==
       call set_timer(proc_timer)
 C ==-----------------------------------------------------------------==
 C..Run over rows
-      CKN=0.d0
+      CKN=0.0_dp
       DO I=1,NDET
 C..Run over columns
          IF(I.EQ.1) THEN 
@@ -36,7 +39,7 @@ C..
 C..Need to do the following mult. by -1 so that eigenvalues are calc. in
 C..ascending order
       IF(.NOT.TLargest) THEN
-          CALL DSCAL(NEVAL*NDET,-1.D0,CKN,1)
+          CALL DSCAL(NEVAL*NDET,-1.0_dp,CKN,1)
       ENDIF
 c      DO I=1,NEVAL
 c        DO J=1,NDET
@@ -50,8 +53,11 @@ C ==-----------------------------------------------------------------==
       END
 C ==-----------------------------------------------------------------==
       SUBROUTINE TST_MATMUL(NDET,NEVAL,HTEMP,CK,CKN)
-      IMPLICIT REAL*8 (A-H,O-Z)
-      REAL*8 HTEMP(NDET,NDET),CK(NDET,NEVAL),CKN(NDET,NEVAL)
+!      IMPLICIT real(dp) (A-H,O-Z)
+      use constants, only : dp
+      IMPLICIT NONE
+      integer :: NDET,NEVAL
+      real(dp) HTEMP(NDET,NDET),CK(NDET,NEVAL),CKN(NDET,NEVAL)
 C..
       CALL DGEMM('N','N',NDET,NEVAL,NDET,1.D0,HTEMP,NDET,
      &    CK,NDET,1.D0,CKN,NDET)
