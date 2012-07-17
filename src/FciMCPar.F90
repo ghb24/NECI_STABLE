@@ -263,7 +263,7 @@ MODULE FciMCParMod
                         endif
                     endif
                     if (tPrintWarn) then
-                        write (iout, bloom_warn_string, advance='no') abs(iPartBloom)
+                        write (iout, bloom_warn_string, advance='no') int(abs(iPartBloom))
                         if (iPartBloom > 0.0_dp) then
                             write (iout, '("double excit.")')
                         else
@@ -858,10 +858,12 @@ MODULE FciMCParMod
         integer :: VecSlot, j, p, error,i, k
         integer :: DetCurr(nel), nJ(nel), nullnJ(nel), FlagsCurr, parent_flags
         integer, dimension(lenof_sign) :: SignCurr, child
+        integer(int64), dimension(lenof_sign) :: SignCurr64, child64
         real(dp), dimension(lenof_sign) :: realchild
         integer(kind=n_int) :: iLutnJ(0:niftot), iLutCurr(0:nIfd+1)
         integer :: IC, walkExcitLevel, nullwalkExcitLevel, ex(2,2), TotWalkersNew, part_type
         integer(int64) :: tot_parts_tmp(lenof_sign)
+        integer(int64) :: sgn64(lenof_sign)
         logical :: tParity
         real(dp) :: prob, HDiagCurr, StaticFlux
         HElement_t :: HDiagTemp,HElGen
@@ -929,7 +931,8 @@ MODULE FciMCParMod
                          proje_ref_iluts(:,i), NIfD+1)
                     if (pos > 0) then
                         call extract_sign (CurrentDets(:,pos), sgn)
-                        RealSign=transfer(sgn,RealSign)
+                        sgn64=int(sgn,int64)
+                        RealSign=transfer(sgn64,RealSign)
                         delta = ARR_RE_OR_CPLX(RealSign) * proje_ref_coeffs(i)
                         cyc_proje_denominator = cyc_proje_denominator + delta
                         sum_proje_denominator = sum_proje_denominator + delta
@@ -989,8 +992,9 @@ MODULE FciMCParMod
                 if (tTruncInitiator) call CalcParentFlag (j, VecSlot, &
                                                           parent_flags, WalkExcitLevel)
             endif
-            
-            RealSignCurr(:)=transfer(SignCurr(:), RealSignCurr(:))
+           
+            SignCurr64=Int(SignCurr,int64)
+            RealSignCurr(:)=transfer(SignCurr64(:), RealSignCurr(:))
 
             if(tHashWalkerList) then
                 !Test here as to whether this is a "hole" or not...
@@ -1139,7 +1143,7 @@ MODULE FciMCParMod
             
             ! DEBUG
             ! if (VecSlot > j) call stop_all (this_routine, 'vecslot > j')
-            
+           
             call walker_death (attempt_die, iter_data, DetCurr, &
                                CurrentDets(:,j), HDiagCurr, RealSignCurr, VecSlot, j, WalkExcitLevel)
         enddo ! Loop over determinants.
@@ -1403,6 +1407,7 @@ MODULE FciMCParMod
         integer, intent(in) :: j, VecSlot
         integer, intent(out) :: parent_flags
         integer, dimension(lenof_sign) :: CurrentSign
+        integer(int64), dimension(lenof_sign) :: CurrentSign64
         integer, intent(in), optional :: ExcitLevel
         real(dp), dimension(lenof_sign) :: RealCurrentSign
         integer :: part_type
@@ -1410,9 +1415,9 @@ MODULE FciMCParMod
 
         call extract_sign (CurrentDets(:,j), CurrentSign)
 
-        RealCurrentSign(1)=transfer(CurrentSign(1), RealCurrentSign(1))
+        CurrentSign64=Int(CurrentSign,int64)
 
-       ! WRITE(6,*) "CurrentSign, RealCurrentSign", CurrentSign, RealCurrentSign
+        RealCurrentSign(1)=transfer(CurrentSign64(1), RealCurrentSign(1))
 
         tcurr_initiator = .false.
         do part_type=1,lenof_sign
@@ -1675,7 +1680,7 @@ MODULE FciMCParMod
         ! What message should we display for a particle bloom?
         if (tAddToInitiator) then
             bloom_warn_string = '("Bloom of more than n_add: &
-                                &A max of ", i8, &
+                                &In excess of ", i8, &
                                 &" particles created from ")'
         else
             ! Use this variable to store the bloom cutoff level.
@@ -1878,6 +1883,7 @@ MODULE FciMCParMod
         integer :: extracreate, iUnused
         integer :: TargetExcitLevel
         logical :: tRealSpawning
+        integer(int64), dimension(lenof_sign) :: child64
         HElement_t :: rh
 #ifdef __CMPLX
         ! Avoid compiler warnings when compiling the real version.
@@ -2046,7 +2052,7 @@ MODULE FciMCParMod
                      endif
                  endif
 
-                child(1)=transfer(realchild(1), child(1))
+                child64(1)=transfer(realchild(1), child64(1))
             else
                 rat = tau * abs(rh / prob) * abs(walkerweight)
                 if(tSearchTau) then
@@ -2069,8 +2075,10 @@ MODULE FciMCParMod
                     child(1) = -extraCreate*nint(sign(1.0_dp, walkerweight*real(rh,dp)))
                 endif
                 realchild=real(child(1),dp)
-                child(1)=transfer(realchild, child(1))
+                child64(1)=transfer(realchild, child64(1))
             endif
+
+            child=child64
 
             ! Avoid compiler warnings
             iUnused = part_type
@@ -2328,12 +2336,16 @@ MODULE FciMCParMod
         type(fcimc_iter_data), intent(inout) :: iter_data
         real(dp), dimension(lenof_sign) :: iDie
         integer, dimension(lenof_sign) :: CopySign
+        integer(int64), dimension(lenof_sign) :: CopySign64
         real(dp), dimension(lenof_sign) :: RealCopySign
         integer, dimension(lenof_sign) :: NullSign
+        integer(int64), dimension(lenof_sign) :: NullSign64
         integer, intent(in) :: walkExcitLevel
         character(len=*), parameter :: t_r="walker_death"
 
-        NullSign(:)=transfer(0.0_dp, NullSign(:))
+        NullSign64(:)=transfer(0.0_dp, NullSign64(:))
+
+        NullSign(:)=NullSign64(:)
 
         ! Do particles on determinant die? iDie can be both +ve (deaths), or
         ! -ve (births, if shift > 0)
@@ -2356,7 +2368,9 @@ MODULE FciMCParMod
         ! Calculate new number of signed particles on the det.
         RealCopySign = RealwSign - (iDie * sign(1.0_dp, RealwSign))
 
-        CopySign=transfer(RealCopySign, CopySign)
+        CopySign64=transfer(RealCopySign, CopySign64)
+
+        CopySign=CopySign64
 
         ! Normally slot particles back into main array at position vecslot.
         ! This will normally increment with j, except when a particle dies
@@ -2439,7 +2453,8 @@ MODULE FciMCParMod
                 if(test_flag(iLutCurr,flag_is_initiator(lenof_sign))) NoAddedInitiators=NoAddedInitiators-1
                 RealCopySign(lenof_sign)=0.0
             endif
-            CopySign=transfer(RealCopySign, CopySign)
+            CopySign64=transfer(RealCopySign, CopySign64)
+            CopySign=CopySign64
             if((RealCopySign(1).ne.0).or.(RealCopySign(lenof_sign).ne.0)) then
                 !These could have both been aborted for being antiparitlces
                 !Here, some survive - put them back in the list
@@ -3186,6 +3201,8 @@ MODULE FciMCParMod
 !                              &value.')
                 write(iout,"(A)") "All particles have died. Restarting."
 
+                call stop_all("","")
+
                 tRestart=.true.
             else
                 tRestart=.false.
@@ -3853,13 +3870,16 @@ MODULE FciMCParMod
     SUBROUTINE FlipSign()
         INTEGER :: i
         INTEGER, DIMENSION(lenof_sign) :: TempSign, TempSignNew
+        INTEGER(int64), DIMENSION(lenof_sign) :: TempSign64, TempSignNew64
         REAL(dp), DIMENSION(lenof_sign) :: RealTempSign, RealTempSignNew
 
         do i=1,TotWalkers
             call extract_sign(CurrentDets(:,i),TempSign)
-            RealTempSign=transfer(TempSign,RealTempSign)
+            TempSign64=int(TempSign,int64)
+            RealTempSign=transfer(TempSign64,RealTempSign)
             RealTempSignNew(1)=-RealTempSign(1)
-            TempSignNew=transfer(RealTempSignNew, TempSignnew)
+            TempSignNew64=transfer(RealTempSignNew, TempSignnew64)
+            TempSignNew=TempSignNew64
             call encode_sign(CurrentDets(:,i),TempSignnew)
         enddo
         
@@ -6309,11 +6329,13 @@ MODULE FciMCParMod
         INTEGER :: ierr,iunithead,DetHash,Slot,MemTemp
         LOGICAL :: formpops,binpops
         INTEGER :: error,MemoryAlloc,PopsVersion,j,iLookup,WalkerListSize
+        INTEGER(int64), DIMENSION(lenof_sign) :: InitialSign64
         INTEGER, DIMENSION(lenof_sign) :: InitialSign
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
         integer :: ReadBatch    !This parameter determines the length of the array to batch read in walkers from a popsfile
         integer :: PopBlockingIter
         real(dp) :: Gap,ExpectedMemWalk,read_tau
+        real(dp), dimension(lenof_sign) :: RealInitialPart
         !Variables from popsfile header...
         logical :: tPop64Bit,tPopHPHF,tPopLz
         integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
@@ -6572,23 +6594,26 @@ MODULE FciMCParMod
                         ! Obtain the initial sign
                         InitialSign = 0
                         if (tStartSinglePart) then
-                            InitialSign(1) = transfer(real(InitialPart,dp),InitialSign(1))
+                            RealInitialPart=real(InitialPart,dp)
+                            
+                            InitialSign64(1) = transfer(RealInitialPart,InitialSign64(1))
                             TotParts = real(InitialPart,dp)
                             TotPartsOld = real(InitialPart,dp)
                         else
-                            InitialSign(1) = transfer(real(InitWalkers,dp),InitialSign(1))
+                            InitialSign64(1) = transfer(real(InitWalkers,dp),InitialSign64(1))
                             TotParts = real(InitWalkers,dp)
                             TotPartsOld = real(InitWalkers,dp)
                         endif
-                        call encode_sign (CurrentDets(:,1), InitialSign)
+                         InitialSign=InitialSign64
+                         call encode_sign (CurrentDets(:,1), InitialSign)
 
                         ! set initial values for global control variables.
                         TotWalkers = 1
                         TotWalkersOld = 1
-                        NoatHF = InitialSign
+                        NoatHF = real(InitialPart,dp)
 
                     ELSE
-                        NoatHF = 0
+                        NoatHF = 0.D0
                         TotWalkers = 0
                         TotWalkersOld = 0
                     ENDIF
@@ -8132,6 +8157,7 @@ MODULE FciMCParMod
         use Logging, only: iHighPopWrite
         use sort_mod
         integer, dimension(lenof_sign) :: SignCurr,LowSign
+        integer(int64), dimension(lenof_sign) :: SignCurr64, LowSign64
         real(dp), dimension(lenof_sign) :: RealSignCurr,RealLowSign
         integer :: ierr,i,j,counter,ExcitLev
         real(dp) :: SmallestSign,SignCurrReal,HighSign,reduce_in(1:2),reduce_out(1:2),Norm,AllNorm
@@ -8152,7 +8178,8 @@ MODULE FciMCParMod
         do i=1,TotWalkers
 !            write(iout,*) "Smallest sign is: ",SmallestSign
             call extract_sign(CurrentDets(:,i),SignCurr)
-            RealSignCurr=transfeR(SignCurr, RealSignCurR)
+            SignCurr64=int(SignCurr,int64)
+            RealSignCurr=transfer(SignCurr64, RealSignCurR)
             !            write(iout,*) "***",i,SignCurr,CurrentDets(0:NIfDBO,i)
 
             if(lenof_sign.eq.1) then
@@ -8175,7 +8202,8 @@ MODULE FciMCParMod
 
                 !Now extract the smallest sign
                 call extract_sign(LargestWalkers(:,1),LowSign)
-                RealLowSign=transfer(LowSign, RealLowSign)
+                LowSign64=Int(LowSign,int64)
+                RealLowSign=transfer(LowSign64, RealLowSign)
                 if(lenof_sign.eq.1) then
                     SmallestSign=real(abs(RealLowSign(1)),dp)
                 else
@@ -8204,8 +8232,9 @@ MODULE FciMCParMod
         do i=1,iHighPopWrite
 
             call extract_sign(LargestWalkers(:,iHighPopWrite),SignCurr)
-            
-            RealSignCurr=transfer(SignCurr, RealSignCurr)
+           
+            SignCurr64=int(SignCurr,int64)
+            RealSignCurr=transfer(SignCurr64, RealSignCurr)
 
             if(lenof_sign.eq.1) then
                 HighSign=real(abs(RealSignCurr(1)),dp)
@@ -8241,7 +8270,8 @@ MODULE FciMCParMod
             do i=1,iHighPopWrite
                 !How many non-zero determinants do we actually have?
                 call extract_sign(GlobalLargestWalkers(:,i),SignCurr)
-                RealSignCurr=transfer(SignCurr, RealSignCurr)
+                SignCurr64=int(SignCurr,int64)
+                RealSignCurr=transfer(SignCurr64, RealSignCurr)
                 if(lenof_sign.eq.1) then
                     HighSign=real(abs(RealSignCurr(1)),dp)
                 else
@@ -8279,7 +8309,8 @@ MODULE FciMCParMod
                 Excitlev=FindBitExcitLevel(iLutRef,GlobalLargestWalkers(:,i),nEl)
                 write(iout,"(I5)",advance='no') Excitlev
                 call extract_sign(GlobalLargestWalkers(:,i),SignCurr)
-                RealSignCurr=transfer(SignCurr,RealSignCurr)
+                SignCurr64=int(SignCurr,int64)
+                RealSignCurr=transfer(SignCurr64,RealSignCurr)
                 do j=1,lenof_sign
                     write(iout,"(G16.7)",advance='no') RealSignCurr(j)
                 enddo
