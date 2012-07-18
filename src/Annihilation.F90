@@ -23,7 +23,7 @@ MODULE AnnihilationMod
                         extract_part_sign, copy_flag
     use csf_data, only: csf_orbital_mask
     use hist_data, only: tHistSpawn, HistMinInd2
-    use Logging , only : tHF_S_D_Ref, IterRDMonFly, tHF_S_D
+    use Logging , only : tHF_S_D_Ref, tHF_S_D
     IMPLICIT NONE
 
     contains
@@ -417,13 +417,21 @@ MODULE AnnihilationMod
                     ! If the compressed Dj is at position VecInd in SpawnedParts, then Spawned_Parents_Index(1,VecInd) 
                     ! is the starting point of it's parents (Di) in Spawned_Parents, and there are 
                     ! Spawned_Parents_Index(2,VecInd) entries corresponding to this Dj.
-                    Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = SpawnedParts(NIfTot+1:NIfTot+NIfDBO+2,BeginningBlockDet)
-                    ! The first NIfDBO of the Spawned_Parents entry is the parent determinant, the NIfDBO + 1 entry is the biased Ci.
-                    ! Parent_Array_Ind keeps track of the position in Spawned_Parents.
-                    Spawned_Parents_Index(1,VecInd) = Parent_Array_Ind
-                    Spawned_Parents_Index(2,VecInd) = 1
-                    ! In this case there is only one instance of Dj - so therefore only 1 parent Di.
-                    Parent_Array_Ind = Parent_Array_Ind + 1
+                    if(.not.(DetBitZero(SpawnedParts(NIfTot+1:NIfTot+NIfDBO+1,BeginningBlockDet),NIfDBO))) then
+                        ! If the parent determinant is null, the contribution to the RDM is zero.  
+                        ! No point in doing anything more with it.
+
+                        Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = SpawnedParts(NIfTot+1:NIfTot+NIfDBO+2,BeginningBlockDet)
+                        ! The first NIfDBO of the Spawned_Parents entry is the parent determinant, the NIfDBO + 1 entry is the biased Ci.
+                        ! Parent_Array_Ind keeps track of the position in Spawned_Parents.
+                        Spawned_Parents_Index(1,VecInd) = Parent_Array_Ind
+                        Spawned_Parents_Index(2,VecInd) = 1
+                        ! In this case there is only one instance of Dj - so therefore only 1 parent Di.
+                        Parent_Array_Ind = Parent_Array_Ind + 1
+                    else
+                        Spawned_Parents_Index(1,VecInd) = Parent_Array_Ind
+                        Spawned_Parents_Index(2,VecInd) = 0
+                    endif
                     call extract_sign (SpawnedParts(:,BeginningBlockDet), temp_sign)
                     if(temp_sign(1).eq.0) then
                         Spawned_Parts_Zero = Spawned_Parts_Zero + 1
@@ -541,6 +549,7 @@ MODULE AnnihilationMod
 !            WRITE(6,*) SpawnedParts(:,i)
 !        enddo
 !
+
 !        WRITE(6,*) 'Spawned Parents'
 !        do i = 1, No_Spawned_Parents
 !            WRITE(6,*) Spawned_Parents(:,i)
@@ -729,6 +738,9 @@ MODULE AnnihilationMod
 !In the main list, we change the 'sign' element of the array to zero. 
 !These will be deleted at the end of the total annihilation step.
     SUBROUTINE AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew, iter_data)
+        use CalcData , only : InitiatorWalkNo
+        use Logging , only : tInitiatorRDM
+        use nElRDMMod , only : DiDj_Found_FillRDM
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer, intent(inout) :: TotWalkersNew
         integer, intent(inout) :: ValidSpawned 
@@ -861,7 +873,12 @@ MODULE AnnihilationMod
                         if((ExcitLevel.le.4).and.(ExcitLevel.ne.0)) &
                             CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
                     elseif(.not.DetBitEQ(iLutHF_True,CurrentDets(:,PartInd),NIfDBO)) then
-                        CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
+                        if(tInitiatorRDM) then
+                            if(abs(CurrentH(2,PartInd)).gt.real(InitiatorWalkNo,dp)) &
+                                CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
+                        else
+                            CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
+                        endif
                     endif
                 endif
 
@@ -1320,9 +1337,9 @@ MODULE AnnihilationMod
         use util_mod, only: abs_int_sign
         use SystemData, only: tHPHF, tRef_Not_HF
         use bit_reps, only: NIfD
-        use CalcData , only : tCheckHighestPop, NMCyc
-        use Logging , only : tRDMonFly, tExplicitAllRDM
-        use nElRDMMod , only : Add_RDM_HFConnections_HPHF, Add_RDM_HFConnections_Norm
+        use CalcData , only : tCheckHighestPop, NMCyc, InitiatorWalkNo
+        use Logging , only : tRDMonFly, tExplicitAllRDM, tInitiatorRDM
+        use nElRDMMod , only : det_removed_fill_diag_rdm 
         INTEGER, intent(in) :: ValidSpawned
         integer, intent(inout) :: TotWalkersNew
         INTEGER :: i,DetsMerged,nJ(NEl),part_type, ExcitLevelCurr
@@ -1349,20 +1366,8 @@ MODULE AnnihilationMod
 
                 IF(IsUnoccDet(CurrentSign)) THEN
                     DetsMerged=DetsMerged+1
-                    if(tFillingStochRDMonFly.and.(Iter.ne.NMCyc)) then
-                        call decode_bit_det (nJ,CurrentDets(:,i))
-                        call fill_rdm_diag_2 (CurrentDets(:,i), CurrentH(1:NCurrH,i), nJ) 
-                        if(tRef_Not_HF) then
-                            ExcitLevelCurr = FindBitExcitLevel (iLutHF_true, CurrentDets(:,i), 2)
-                        else
-                            ExcitLevelCurr = FindBitExcitLevel (iLutRef, CurrentDets(:,i), 2)
-                        endif
-                        if(tHPHF) then
-                            call Add_RDM_HFConnections_HPHF(CurrentDets(:,i),nJ,CurrentH(2,i),ExcitLevelCurr,CurrentH(3,i))   
-                        else
-                            call Add_RDM_HFConnections_Norm(CurrentDets(:,i),nJ,CurrentH(2,i),ExcitLevelCurr,CurrentH(3,i))   
-                        endif
-                    endif
+                    if(tFillingStochRDMonFly) &
+                        call det_removed_fill_diag_rdm(CurrentDets(:,i), CurrentH(1:NCurrH,i))
                     IF(tTruncInitiator) THEN
                         do part_type=1,lenof_sign
                             if (test_flag(CurrentDets(:,i),flag_parent_initiator(part_type))) then

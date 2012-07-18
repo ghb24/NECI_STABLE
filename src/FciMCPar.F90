@@ -66,7 +66,7 @@ MODULE FciMCParMod
                        tRDMonFly, IterRDMonFly, tSpawnGhostChild, &
                        GhostFac, GhostThresh,RDMExcitLevel, RDMEnergyIter, &
                        tChangeVarsRDM, tExplicitAllRDM, tHF_Ref_Explicit, &
-                       tHF_S_D_Ref, tHF_S_D,                    &
+                       tHF_S_D_Ref, tHF_S_D, tInitiatorRDM,    &
                        tDiagWalkerSubspace, iDiagSubspaceIter, &
                        tCalcInstantS2Init, instant_s2_multiplier_init, &
                        tJustBlocking, iBlockEquilShift, iBlockEquilProjE
@@ -121,7 +121,8 @@ MODULE FciMCParMod
                          DeAlloc_Alloc_SpawnedParts, &
                          Fill_Spin_Coupled_RDM, zero_rdms, &
                          Add_RDM_HFConnections_Null, Add_RDM_HFConnections_Norm, &
-                         Add_RDM_HFConnections_HPHF, Add_RDM_HFConnections_HF_S_D
+                         Add_RDM_HFConnections_HPHF, Add_RDM_HFConnections_HF_S_D, &
+                         fill_rdm_softexit, fill_diag_and_explicit_rdm
 
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
@@ -331,6 +332,8 @@ MODULE FciMCParMod
                 CALL ChangeVars(tSingBiasChange,tSoftExitFound,tWritePopsFound)
                 IF(tSoftExitFound) THEN
                     TIncrement=.false.
+                    if(tFillingStochRDMonFly) & 
+                        call fill_rdm_softexit(TotWalkers)
                     EXIT
                 ENDIF
                 IF(tTimeExit.and.(TotalTime8.ge.MaxTimeExit)) THEN
@@ -794,8 +797,8 @@ MODULE FciMCParMod
         use, intrinsic :: iso_c_binding
         implicit none
         interface
-            subroutine Add_RDM_HFConnections(iLutJ,nJ,AvSignJ,walkExcitLevel,IterRDMStartI)
-                use constants , only : n_int, lenof_sign, dp
+            subroutine Add_RDM_HFConnections(iLutJ,nJ,AvSignJ,walkExcitLevel,IterRDM)
+                USE constants , only : n_int, dp
                 use SystemData , only : NEl
                 use bit_reps , only : NIfTot
                 use FciMCData , only : AvNoatHF, iLutHF_True
@@ -805,11 +808,10 @@ MODULE FciMCParMod
                 implicit none
                 integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
                 integer , intent(in) :: nJ(NEl)
-                real(dp) , intent(in) :: AvSignJ, IterRDMStartI
+                real(dp) , intent(in) :: AvSignJ, IterRDM
                 integer , intent(in) :: walkExcitLevel
                 integer(kind=n_int) :: SpinCoupDet(0:niftot)
                 integer :: nSpinCoup(NEl), HPHFExcitLevel
-                real(dp) :: IterRDM
             end subroutine
         end interface
 
@@ -954,8 +956,8 @@ MODULE FciMCParMod
                 real(dp) , intent(out) :: IterRDMStartI, AvSignI
                 type(excit_gen_store_type), intent(inout), optional :: Store
             end subroutine
-            subroutine Add_RDM_HFConnections(iLutJ,nJ,AvSignJ,walkExcitLevel,IterRDMStartI)
-                use constants , only : n_int, lenof_sign, dp
+            subroutine Add_RDM_HFConnections(iLutJ,nJ,AvSignJ,walkExcitLevel,IterRDM)
+                USE constants , only : n_int, dp
                 use SystemData , only : NEl
                 use bit_reps , only : NIfTot
                 use FciMCData , only : AvNoatHF, iLutHF_True
@@ -965,11 +967,10 @@ MODULE FciMCParMod
                 implicit none
                 integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
                 integer , intent(in) :: nJ(NEl)
-                real(dp) , intent(in) :: AvSignJ, IterRDMStartI
+                real(dp) , intent(in) :: AvSignJ, IterRDM
                 integer , intent(in) :: walkExcitLevel
                 integer(kind=n_int) :: SpinCoupDet(0:niftot)
                 integer :: nSpinCoup(NEl), HPHFExcitLevel
-                real(dp) :: IterRDM
             end subroutine
         end interface
         
@@ -983,13 +984,13 @@ MODULE FciMCParMod
         integer(kind=n_int) :: iLutnJ(0:niftot)
         integer :: IC, walkExcitLevel, walkExcitLevel_toHF, ex(2,2), TotWalkersNew, part_type
         integer(int64) :: tot_parts_tmp(lenof_sign)
-        logical :: tParity, tSuccess
+        logical :: tParity, tSuccess, tFill_RDM
         real(dp) :: prob, HDiagCurr, TempTotParts, Di_Sign_Temp
         real(dp) :: AvSignCurr, IterRDMStartCurr, RDMBiasFacCurr
         HElement_t :: HDiagTemp,HElGen
         character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
         HElement_t :: delta
-        integer :: proc, pos, sgn(lenof_sign)
+        integer :: proc, pos, sgn(lenof_sign), IterLastRDMFill
 
         call set_timer(Walker_Time,30)
 
@@ -1074,6 +1075,17 @@ MODULE FciMCParMod
 
         IFDEBUG(FCIMCDebug,3) write(iout,"(A,I12)") "Walker list length: ",TotWalkers
         IFDEBUG(FCIMCDebug,3) write(iout,"(A)") "TW: Walker  Det"
+
+        tFill_RDM = .false.
+        if(tFillingStochRDMonFly) then
+            if(mod((Iter - IterRDMStart + 1),RDMEnergyIter).eq.0) then 
+                tFill_RDM = .true.
+                IterLastRDMFill = RDMEnergyIter
+            elseif(Iter.eq.NMCyc) then
+                tFill_RDM = .true.
+                IterLastRDMFill = mod((Iter - IterRDMStart + 1),RDMEnergyIter)
+            endif
+        endif
 
         do j=1,TotWalkers
             ! N.B. j indicates the number of determinants, not the number
@@ -1279,10 +1291,9 @@ MODULE FciMCParMod
                                CurrentDets(:,j), HDiagCurr, SignCurr, &
                                AvSignCurr, IterRDMStartCurr, VecSlot, j)
 
-            if(tFillingStochRDMonFly.and.(Iter.eq.NMCyc)) then 
-                call fill_rdm_diag_2 (CurrentDets(:,VecSlot-1), CurrentH(1:NCurrH,VecSlot-1), DetCurr) 
-                call Add_RDM_HFConnections(CurrentDets(:,j),DetCurr,AvSignCurr,walkExcitLevel_toHF,CurrentH(3,VecSlot-1))   
-            endif
+            if(tFill_RDM) &                           
+                call fill_diag_and_explicit_rdm(CurrentDets(:,VecSlot-1), DetCurr, &
+                                        CurrentH(1:NCurrH,VecSlot-1), walkExcitLevel_toHF, IterLastRDMFill)  
 
         enddo ! Loop over determinants.
         IFDEBUGTHEN(FCIMCDebug,2) 
@@ -1310,7 +1321,7 @@ MODULE FciMCParMod
         ! Print bloom/memory warnings
         call end_iteration_print_warn (totWalkersNew)
         call halt_timer (walker_time)
-        
+
         ! For the direct annihilation algorithm. The newly spawned 
         ! walkers should be in a seperate array (SpawnedParts) and the other 
         ! list should be ordered.
@@ -1467,46 +1478,56 @@ MODULE FciMCParMod
             !The parent is NIfDBO integers long, and stored in the second part of the SpawnedParts array 
             !from NIfTot+1 -> NIfTot+1 + NIfDBO.
 
-            ! But first we want to check if this Di.Dj pair has already been accounted for.
-            ! This means searching the Dj's that have already been spawned from this Di, to make sure 
-            ! the new Di being spawned on here is not the same.
+            if(RDMBiasFacCurr.eq.0.0_dp) then
+                ! If RDMBiasFacCurr is exactly zero, any contribution from Ci.Cj will be zero 
+                ! so it is not worth carrying on. 
+                ! This happens when we are only using initiators for the RDM, and Di is a non-initiator.
 
-            ! Store parent, unless we find this Dj has already been spawned on.
-            tRDMStoreParent = .true.
-
-            ! Run through the walkers that have already been spawned from this particular Di.
-            ! If this is the first to be spawned from Di, TempSpawnedPartsInd will be zero, so we 
-            ! just wont run over anything.
-            do j = 1,TempSpawnedPartsInd
-                if(DetBitEQ(iLutJ(0:NIfDBO),TempSpawnedParts(0:NIfDBO,j),NIfDBO)) then
-                    ! If this Dj is found, we do not want to store the parent with this spawned walker.
-                    tRDMStoreParent = .false.
-                    EXIT
-                endif
-            enddo
-
-            if(tRDMStoreParent) then
-                ! This is a new Dj that has been spawned from this Di.
-                ! We want to store it in the temporary list of spawned parts which have come from this Di.
-                if(WalkerNumber.ne.abs(SignI(1))) then
-                    ! Don't bother storing these if we're on the last walker, or if we only have one 
-                    ! walker on Di.
-                    TempSpawnedPartsInd = TempSpawnedPartsInd + 1
-                    TempSpawnedParts(0:NIfDBO,TempSpawnedPartsInd) = iLutJ(0:NIfDBO)
-                endif
-
-                ! We also want to make sure the parent Di is stored with this Dj.
-                SpawnedParts(niftot+1:niftot+nifdbo+1, ValidSpawnedList(proc)) = iLutI(0:nifdbo) 
-
-                !We also need to carry with the child (and the parent), the sign of the parent.
-                !In actual fact this is the sign of the parent divided by the probability of generating 
-                !that pair Di and Dj, to account for the 
-                !fact that Di and Dj are not always added to the RDM, but only when Di spawns on Dj.
-                !This RDMBiasFacCurr factor is turned into an integer to pass around to the relevant processors.
-                SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)) = &
-                    transfer(RDMBiasFacCurr,SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)))
-            else
                 SpawnedParts(niftot+1:niftot+nifdbo+2, ValidSpawnedList(proc)) = 0
+
+            else
+
+                ! First we want to check if this Di.Dj pair has already been accounted for.
+                ! This means searching the Dj's that have already been spawned from this Di, to make sure 
+                ! the new Di being spawned on here is not the same.
+
+                ! Store parent, unless we find this Dj has already been spawned on.
+                tRDMStoreParent = .true.
+
+                ! Run through the walkers that have already been spawned from this particular Di.
+                ! If this is the first to be spawned from Di, TempSpawnedPartsInd will be zero, so we 
+                ! just wont run over anything.
+                do j = 1,TempSpawnedPartsInd
+                    if(DetBitEQ(iLutJ(0:NIfDBO),TempSpawnedParts(0:NIfDBO,j),NIfDBO)) then
+                        ! If this Dj is found, we do not want to store the parent with this spawned walker.
+                        tRDMStoreParent = .false.
+                        EXIT
+                    endif
+                enddo
+
+                if(tRDMStoreParent) then
+                    ! This is a new Dj that has been spawned from this Di.
+                    ! We want to store it in the temporary list of spawned parts which have come from this Di.
+                    if(WalkerNumber.ne.abs(SignI(1))) then
+                        ! Don't bother storing these if we're on the last walker, or if we only have one 
+                        ! walker on Di.
+                        TempSpawnedPartsInd = TempSpawnedPartsInd + 1
+                        TempSpawnedParts(0:NIfDBO,TempSpawnedPartsInd) = iLutJ(0:NIfDBO)
+                    endif
+
+                    ! We also want to make sure the parent Di is stored with this Dj.
+                    SpawnedParts(niftot+1:niftot+nifdbo+1, ValidSpawnedList(proc)) = iLutI(0:nifdbo) 
+
+                    !We also need to carry with the child (and the parent), the sign of the parent.
+                    !In actual fact this is the sign of the parent divided by the probability of generating 
+                    !that pair Di and Dj, to account for the 
+                    !fact that Di and Dj are not always added to the RDM, but only when Di spawns on Dj.
+                    !This RDMBiasFacCurr factor is turned into an integer to pass around to the relevant processors.
+                    SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)) = &
+                        transfer(RDMBiasFacCurr,SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)))
+                else
+                    SpawnedParts(niftot+1:niftot+nifdbo+2, ValidSpawnedList(proc)) = 0
+                endif
             endif
         ENDIF
 
@@ -2362,7 +2383,19 @@ MODULE FciMCParMod
                 p_notlist_rdmfac = ( 1.D0 - prob ) + ( prob * (1.D0 - p_spawn_rdmfac) )
 
                 ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i]
-                RDMBiasFacCurr = AvSignCurr / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp))) ) )   
+                if(tInitiatorRDM) then
+                    if(abs(AvSignCurr).gt.real(InitiatorWalkNo,dp)) then
+                        ! The Di is an initiator (on average) - keep passing around its sign until we 
+                        ! know if the Dj is an initiator.
+                        RDMBiasFacCurr = AvSignCurr / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp))) ) )   
+                    else
+                        ! The determinant we are spawning from is not an initiator (on average) 
+                        ! - do not want to add this Di.Dj contribution into the RDM.
+                        RDMBiasFacCurr = 0.0_dp
+                    endif
+                else
+                    RDMBiasFacCurr = AvSignCurr / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp))) ) )   
+                endif
             endif
         else
             RDMBiasFacCurr = 0.0_dp

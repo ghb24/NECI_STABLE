@@ -33,7 +33,7 @@ MODULE Logging
     LOGICAL tTruncDumpbyVal, tChangeVarsRDM, tPrintRODump, tSpawnGhostChild, tno_RDMs_to_read, tReadRDMs
     LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit,tPrintDoubsUEG, tWriteMultRDMs
     LOGICAL tHF_S_D_Ref, tHF_S_D, tHF_Ref_Explicit, tExplicitAllRDM, twrite_normalised_RDMs, twrite_RDMs_to_read 
-    LOGICAL tNoNOTransform, tPrint1RDM, tPrintInitiators
+    LOGICAL tNoNOTransform, tPrint1RDM, tPrintInitiators, tInitiatorRDM
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps,IterShiftBlock
     INTEGER IterRDMonFly, RDMExcitLevel, RDMEnergyIter, IterWriteRDMs 
     real(dp) GhostThresh, GhostFac
@@ -182,6 +182,7 @@ MODULE Logging
       tReadRDMs = .false.
       IterWriteRDMs = 10000
       tWriteMultRDMs = .false.
+      tInitiatorRDM = .false.
       tDumpForcesInfo = .false.
       tPrintLagrangian = .false.
       instant_s2_multiplier_init = 1
@@ -616,6 +617,11 @@ MODULE Logging
 ! Write out the normalised, hermitian RDMs every IterWriteRDMs iterations.  
             tWriteMultRDMs = .true.
             call readi(IterWriteRDMs)
+
+        case("INITIATORRDM")
+! Use only the determinants that are (on average) initiators to calculate the RDMs.
+            tInitiatorRDM = .true.
+
 
         case("DUMPFORCESINFO")
 ! Using the finalised 2RDM, calculate the Lagrangian X used for the calculation of the forces, and dump all these in Molpro-friendly format
