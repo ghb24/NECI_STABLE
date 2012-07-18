@@ -43,17 +43,19 @@ MODULE FciMCData
       integer :: max_inits
       integer(TagIntType) :: CurrentInitTag=0
 
-      INTEGER :: NoAbortedInCAS,NoAbortedOutCAS,NoInCAS,NoOutCAS,HighPopNeg,HighPopPos,MaxInitPopNeg,MaxInitPopPos
+      INTEGER :: NoAbortedInCAS,NoAbortedOutCAS,NoInCAS,NoOutCAS, HighPopNeg, HighPopPos
+      REAL(dp) :: MaxInitPopNeg,MaxInitPopPos
 
     real(dp) :: NoAborted, AllNoAborted, AllNoAbortedOld
     real(dp) :: NoRemoved, AllNoRemoved, AllNoRemovedOld
     integer(int64) :: NoAddedInitiators, NoInitDets, NoNonInitDets
-    integer(int64) :: NoInitWalk, NoNonInitWalk
+    real(dp) :: NoInitWalk, NoNonInitWalk
     integer(int64) :: NoExtraInitDoubs, InitRemoved
     integer :: no_spatial_init_dets
 
     integer(int64) :: AllNoAddedInitiators, AllNoInitDets
-    integer(int64) :: AllNoNonInitDets, AllNoInitWalk, AllNoNonInitWalk
+    integer(int64) :: AllNoNonInitDets
+    real(dp) :: AllNoInitWalk, AllNoNonInitWalk
     integer(int64) :: AllNoExtraInitDoubs, AllInitRemoved
     integer(int64) :: AllGrowRateAbort
 

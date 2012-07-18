@@ -883,8 +883,8 @@ MODULE FciMCParMod
             ENDIF
             tTruncInitiator=.true.
         ENDIF
-        MaxInitPopPos=0
-        MaxInitPopNeg=0
+        MaxInitPopPos=0.0
+        MaxInitPopNeg=0.0
         HighPopNeg=1
         HighPopPos=1
         parent_flags=0
@@ -1108,7 +1108,7 @@ MODULE FciMCParMod
                         ! in order to decide whether to do a stochastic integer
                         ! spawning or real spawning onto it
                         ! This may be slowing things down...
-                        call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
+                        if(tRealCoeffByExcitLevel)  call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
                         
                         child = attempt_create (get_spawn_helement, DetCurr, &
                                             CurrentDets(:,j), RealSignCurr, &
@@ -1461,13 +1461,13 @@ MODULE FciMCParMod
             ! Update counters as required.
             if (parent_init) then
                 NoInitDets = NoInitDets + 1
-                NoInitWalk = NoInitWalk + abs(ceiling(RealCurrentSign(part_type),dp))
+                NoInitWalk = NoInitWalk + abs(RealCurrentSign(part_type))
 
                ! WRITE(6,*) "RealCurrentSign(part_type), ceiling(RealCurrentSign(part_type)",&
                !                         RealCurrentSign(part_type), ceiling(RealCurrentSign(part_type),dp)
             else
                 NoNonInitDets = NoNonInitDets + 1
-                NoNonInitWalk = NoNonInitWalk + abs(ceiling(RealCurrentSign(part_type)))
+                NoNonInitWalk = NoNonInitWalk + abs(RealCurrentSign(part_type))
             endif
 
             ! Update the parent flag as required.
@@ -1485,23 +1485,24 @@ MODULE FciMCParMod
 
         if ((tHistInitPops .and. mod(iter, histInitPopsIter) == 0) &
             .or. tPrintHighPop) then
-             call HistInitPopulations (ceiling(RealCurrentSign(1)), VecSlot)
+             call HistInitPopulations (RealCurrentSign(1), VecSlot)
         endif
 
     end subroutine CalcParentFlag
 
 
-    SUBROUTINE HistInitPopulations(SignCurr,VecSlot)
+    SUBROUTINE HistInitPopulations(RealSignCurr,VecSlot)
         USE FciMCLoggingMOD, only : InitBinMin,InitBinIter
-        INTEGER , INTENT(IN) :: VecSlot,SignCurr
+        INTEGER , INTENT(IN) :: VecSlot
+        REAL(dp), INTENT(IN) :: RealSignCurr
         INTEGER :: InitBinNo
 
-        IF(ABS(SignCurr).gt.InitiatorWalkNo) THEN
+        IF(ABS(RealSignCurr).gt.InitiatorWalkNo) THEN
 !Just summing in those determinants which are initiators. 
 
 !Need to figure out which bin to put them in though.
-            IF(SignCurr.lt.0) THEN
-                InitBinNo=(FLOOR(((log(REAL(ABS(SignCurr))))-InitBinMin)/InitBinIter))+1
+            IF(RealSignCurr.lt.0.0_dp) THEN
+                InitBinNo=(FLOOR(((log(ABS(RealSignCurr)))-InitBinMin)/InitBinIter))+1
                 IF((InitBinNo.ge.1).and.(InitBinNo.le.25000)) THEN
                     HistInitPops(1,InitBinNo)=HistInitPops(1,InitBinNo)+1
                 ELSE
@@ -1509,7 +1510,7 @@ MODULE FciMCParMod
                 ENDIF
 
             ELSE
-                InitBinNo=(FLOOR(((log(REAL(SignCurr)))-InitBinMin)/InitBinIter))+1
+                InitBinNo=(FLOOR(((log(RealSignCurr))-InitBinMin)/InitBinIter))+1
 
                 IF((InitBinNo.ge.1).and.(InitBinNo.le.25000)) THEN
                     HistInitPops(2,InitBinNo)=HistInitPops(2,InitBinNo)+1
@@ -1519,12 +1520,12 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
-        IF(SignCurr.lt.MaxInitPopNeg) THEN
-            MaxInitPopNeg=SignCurr
+        IF(RealSignCurr.lt.MaxInitPopNeg) THEN
+            MaxInitPopNeg=RealSignCurr
             HighPopNeg=VecSlot
         ENDIF
-        IF(SignCurr.gt.MaxInitPopPos) THEN
-            MaxInitPopPos=SignCurr
+        IF(RealSignCurr.gt.MaxInitPopPos) THEN
+            MaxInitPopPos=RealSignCurr
             HighPopPos=VecSlot
         ENDIF
 
@@ -2017,12 +2018,12 @@ MODULE FciMCParMod
             !We are dealing with real particles always here.
             tRealSpawning=.false. !default
             
-            if (tRealCoeffByExcitLevel) then
+            if (tAllRealCoeff) then
+                tRealSpawning=.true.
+            elseif (tRealCoeffByExcitLevel) then
                 TargetExcitLevel = FindBitExcitLevel (iLutRef, iLutnJ, max_calc_ex_level)
                 if (TargetExcitLevel .le. RealCoeffExcitThresh) tRealSpawning=.true.
             endif
-
-            if (tAllRealCoeff) tRealSpawning=.true.
 
             walkerweight=sign(1.0_dp, realwSign(1))
 
@@ -3449,19 +3450,18 @@ MODULE FciMCParMod
         ! Integer summations required for the initiator method
         if (tTruncInitiator) then
             call MPISum ((/NoAddedInitiators, NoInitDets, &
-                           NoNonInitDets, NoInitWalk, NoNonInitWalk, &
-                           NoExtraInitdoubs, InitRemoved/),&
-                          int64_tmp(1:7))
+                           NoNonInitDets, NoExtraInitdoubs, InitRemoved/),&
+                          int64_tmp(1:5))
             AllNoAddedInitiators = int64_tmp(1)
             AllNoInitDets = int64_tmp(2)
             AllNoNonInitDets = int64_tmp(3)
-            AllNoInitWalk = int64_tmp(4)
-            AllNoNonInitWalk = int64_tmp(5)
-            AllNoExtraInitDoubs = int64_tmp(6)
-            AllInitRemoved = int64_tmp(7)
+            AllNoExtraInitDoubs = int64_tmp(4)
+            AllInitRemoved = int64_tmp(5)
 
             call MPIReduce(NoAborted, MPI_SUM, AllNoAborted)
             call MPIReduce(NoRemoved, MPI_SUM, AllNoRemoved)
+            call MPIReduce(NoNonInitWalk, MPI_SUM, AllNoNonInitWalk)
+            call MPIReduce(NoInitWalk, MPI_SUM, AllNoInitWalk)
         endif
 
         ! 64bit integers
@@ -3753,8 +3753,8 @@ MODULE FciMCParMod
 
         NoInitDets = 0
         NoNonInitDets = 0
-        NoInitWalk = 0
-        NoNonInitWalk = 0
+        NoInitWalk = 0.0_dp
+        NoNonInitWalk = 0.0_dp
         InitRemoved = 0
 
         NoAborted = 0.0_dp
@@ -4101,7 +4101,7 @@ MODULE FciMCParMod
 #endif
 
             if (tTruncInitiator .or. tDelayTruncInit) then
-               write(initiatorstats_unit,"(I12,4G16.7,5I20,2G16.7)")&
+               write(initiatorstats_unit,"(I12,4G16.7,3I20,4G16.7)")&
                    Iter + PreviousCycles, sum(AllTotParts), &
                    AllAnnihilated, AllNoDied, AllNoBorn, AllTotWalkers,&
                    AllNoInitDets, AllNoNonInitDets, AllNoInitWalk, &
@@ -4799,8 +4799,8 @@ MODULE FciMCParMod
         NoAddedInitiators=0
         NoInitDets=0
         NoNonInitDets=0
-        NoInitWalk=0
-        NoNonInitWalk=0
+        NoInitWalk=0.0_dp
+        NoNonInitWalk=0.0_dp
         NoExtraInitDoubs=0
         InitRemoved=0
         TotImagTime=0.D0
@@ -4833,8 +4833,8 @@ MODULE FciMCParMod
         AllNoAddedInitiators=0
         AllNoInitDets=0
         AllNoNonInitDets=0
-        AllNoInitWalk=0
-        AllNoNonInitWalk=0
+        AllNoInitWalk=0.0_dp
+        AllNoNonInitWalk=0.0_dp
         AllNoExtraInitDoubs=0
         AllInitRemoved=0
         AllMaxSpawnProb=0.0_dp
@@ -6672,8 +6672,8 @@ MODULE FciMCParMod
             CALL InitHistInitPops()
         ENDIF
         tPrintHighPop=.false.
-        MaxInitPopPos=0
-        MaxInitPopNeg=0
+        MaxInitPopPos=0.0
+        MaxInitPopNeg=0.0
 
         IF(MaxNoatHF.eq.0) THEN
             MaxNoatHF=InitWalkers*nNodes
