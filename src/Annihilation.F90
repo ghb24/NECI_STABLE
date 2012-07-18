@@ -180,6 +180,7 @@ MODULE AnnihilationMod
         call halt_timer(Compress_time)
 
 !        WRITE(6,*) "List compressed",MaxIndex,TotWalkersNew
+
 !Binary search the main list and copy accross/annihilate determinants which are found.
 !This will also remove the found determinants from the spawnedparts lists.
         CALL AnnihilateSpawnedParts(MaxIndex,TotWalkersNew, iter_data)  
@@ -194,8 +195,7 @@ MODULE AnnihilationMod
             CALL InsertRemoveParts(MaxIndex,TotWalkersNew)
         endif
         CALL halt_timer(Sort_Time)
-       
-        call neci_flush(6)
+        
     END SUBROUTINE DirectAnnihilation
 
 !This routine is used for sending the determinants to the correct processors. 
@@ -326,7 +326,6 @@ MODULE AnnihilationMod
         INTEGER :: VecInd,ValidSpawned,DetsMerged,i,BeginningBlockDet,FirstInitIndex,CurrentBlockDet
         integer :: EndBlockDet, part_type, StartCycleInit, cum_count, j
         INTEGER, DIMENSION(lenof_sign) :: SpawnedSign,Temp_Sign
-        INTEGER(int64), DIMENSION(lenof_sign) :: SpawnedSign64,Temp_Sign64
         REAL(dp), DIMENSION(lenof_sign) :: RealSpawnedSign,RealTemp_Sign
         LOGICAL :: tSuc, tInc
         INTEGER(Kind=n_int) , POINTER :: PointTemp(:,:)
@@ -406,10 +405,8 @@ MODULE AnnihilationMod
                             if (tHistSpawn) then
                                 call extract_sign (SpawnedParts(:,i), SpawnedSign)
                                 call extract_sign (SpawnedParts(:,BeginningBlockDet), temp_sign)
-                                SpawnedSign64=int(SpawnedSign,int64)
-                                temp_Sign64=int(temp_Sign,int64)
-                                RealSpawnedSign(:)=transfer(SpawnedSign64(:), RealSpawnedSign(:))
-                                Realtemp_sign(:)=transfer(temp_Sign64(:), Realtemp_sign(:))
+                                RealSpawnedSign(:)=transfer(SpawnedSign(:), RealSpawnedSign(:))
+                                Realtemp_sign(:)=transfer(temp_Sign(:), Realtemp_sign(:))
                                 call HistAnnihilEvent(SpawnedParts, RealSpawnedSign, Realtemp_sign, part_type)
                             endif
                             call FindResidualParticle (cum_det, SpawnedParts(:,i), cum_count, part_type, iter_data)
@@ -432,10 +429,8 @@ MODULE AnnihilationMod
                         if (tHistSpawn) then
                             call extract_sign (SpawnedParts(:,i), SpawnedSign)
                             call extract_sign (SpawnedParts(:,BeginningBlockDet), temp_sign)
-                            SpawnedSign64=int(SpawnedSign,int64)
-                            temp_Sign64=int(temp_Sign,int64)
-                            RealSpawnedSign(:)=transfer(SpawnedSign64(:), RealSpawnedSign(:))
-                            Realtemp_sign(:)=transfer(temp_Sign64(:), Realtemp_sign(:))
+                            RealSpawnedSign(:)=transfer(SpawnedSign(:), RealSpawnedSign(:))
+                            Realtemp_sign(:)=transfer(temp_Sign(:), Realtemp_sign(:))
                             call HistAnnihilEvent (SpawnedParts, RealSpawnedSign, Realtemp_sign, part_type)
                         endif
                         call FindResidualParticle (cum_det, SpawnedParts(:,i), cum_count, part_type, iter_data)
@@ -446,8 +441,7 @@ MODULE AnnihilationMod
 
             ! Copy details into the final array
             call extract_sign (cum_det, temp_sign)
-            temp_Sign64=int(temp_Sign,int64)
-            Realtemp_sign(:)=transfer(temp_Sign64(:), Realtemp_sign(:))
+            Realtemp_sign(:)=transfer(temp_Sign(:), Realtemp_sign(:))
             if (sum(abs(Realtemp_sign)) > 0.0_dp) then
                 ! Transfer all ino into the other array.
                 SpawnedParts2(:,VecInd) = cum_det
@@ -546,16 +540,12 @@ MODULE AnnihilationMod
         integer, intent(in) :: part_type
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer :: new_sgn, cum_sgn, updated_sign
-        integer(int64) :: new_sgn64, cum_sgn64, updated_sign64
         real(dp) :: realnew_sgn, realcum_sgn, sgn_prod
 
         ! Obtain the signs and sign product. Ignore new particle if zero.
         new_sgn = extract_part_sign (new_det, part_type)
         if (new_sgn == 0) return
         cum_sgn = extract_part_sign (cum_det, part_type)
-        
-        new_sgn64=int(new_sgn,int64)
-        cum_Sgn64=int(cum_Sgn,int64)
         
         Realnew_sgn=transfer(new_sgn, Realnew_sgn)
         Realcum_sgn=transfer(cum_sgn, Realcum_sgn)
@@ -620,8 +610,7 @@ MODULE AnnihilationMod
         endif
 
         ! Update the cumulative sign count
-        updated_sign64=transfer(Realcum_sgn+Realnew_sgn, updated_sign64)
-        updated_sign=updated_sign64
+        updated_sign=transfer(Realcum_sgn+Realnew_sgn, updated_sign)
         call encode_part_sign (cum_det, updated_sign, part_type)
 
     end subroutine FindResidualParticle
@@ -639,7 +628,6 @@ MODULE AnnihilationMod
         integer, intent(inout) :: ValidSpawned 
         INTEGER :: MinInd,PartInd,i,j,ToRemove,DetsMerged,PartIndex
         INTEGER, DIMENSION(lenof_sign) :: CurrentSign,SpawnedSign,SignTemp
-        INTEGER(int64), DIMENSION(lenof_sign) :: CurrentSign64,SpawnedSign64,SignTemp64
         REAL(dp), DIMENSION(lenof_sign) :: SignProd,RealCurrentSign,RealSpawnedSign,RealSignTemp, NewRealSignTemp
         REAL(dp) :: pRemove, r
         INTEGER :: ExcitLevel,nJ(NEl),DetHash,FinalVal,clash
@@ -650,9 +638,9 @@ MODULE AnnihilationMod
         character(len=*), parameter :: this_routine="AnnihilateSpawnedParts"
 
         do j=1, lenof_sign
-            nullpartcomplex(j)=0
+            nullpartcomplex(j)=transfer(0.0_dp, nullpartcomplex(j))
         enddo
-        nullpart=0
+        nullpart=transfer(0.0_dp, nullpart)
 
         if(.not.bNodeRoot) return  !Only node roots to do this.
 
@@ -743,16 +731,13 @@ MODULE AnnihilationMod
 !                WRITE(6,'(3I20,A,3I20)') SpawnedParts(:,i),' equals ',CurrentDets(:,PartInd)
                 call extract_sign(CurrentDets(:,PartInd),CurrentSign)
                 call extract_sign(SpawnedParts(:,i),SpawnedSign)
-                SpawnedSign64=int(SpawnedSign, int64)
-                CurrentSign64=int(CurrentSign, int64)
-                RealCurrentSign(:)=transfer(CurrentSign64(:),RealCurrentSign(:))
-                RealSpawnedSign(:)=transfer(SpawnedSign64(:),RealSpawnedSign(:))
+                RealCurrentSign(:)=transfer(CurrentSign(:),RealCurrentSign(:))
+                RealSpawnedSign(:)=transfer(SpawnedSign(:),RealSpawnedSign(:))
                 SignProd=RealCurrentSign*RealSpawnedSign
 
                 !Transfer across
                 RealSignTemp=RealSpawnedSign+RealCurrentSign
-                SignTemp64=transfer(RealSignTemp,SignTemp64)
-                SignTemp=SignTemp64
+                SignTemp=transfer(RealSignTemp,SignTemp)
                 call encode_sign(CurrentDets(:,PartInd),SignTemp)
                 call encode_sign(SpawnedParts(:,i),nullpartcomplex)
                 ToRemove=ToRemove+1
@@ -797,8 +782,7 @@ MODULE AnnihilationMod
 
                         if(tHashWalkerList) then
                             call extract_sign (CurrentDets(:,PartInd), SignTemp)
-                            SignTemp64=int(signTemp,int64)
-                            RealSignTemp=transfer(SignTemp64,RealSignTemp)
+                            RealSignTemp=transfer(SignTemp,RealSignTemp)
                             if (IsUnoccDet(RealSignTemp)) then
                                 !All walkers in this main list have been annihilated away
                                 !Remove it from the hash index array so that no others find it (it is impossible to have
@@ -864,8 +848,7 @@ MODULE AnnihilationMod
                 !
                 ! If flag_make_initiator is set, then obviously these are allowed to survive
                 call extract_sign (SpawnedParts(:,i), SignTemp)
-                SignTemp64=int(SignTemp,int64)
-                RealSignTemp=transfer(SignTemp64,RealSignTemp)
+                RealSignTemp=transfer(SignTemp,RealSignTemp)
                 do j = 1, lenof_sign
                     if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(j)) .and. &
                         .not. test_flag (SpawnedParts(:,i), flag_make_initiator(j))) then
@@ -886,8 +869,7 @@ MODULE AnnihilationMod
                         NoAborted = NoAborted + abs(RealSignTemp(j))
                         iter_data%naborted(j) = iter_data%naborted(j) + abs(int(RealSignTemp(j)))
                         RealSignTemp(j) = 0.0_dp
-                        SignTemp64(j)=transfer(RealSignTemp(j), SignTemp64(j))
-                        SignTemp(j)=SignTemp64(j)
+                        SignTemp(j)=transfer(RealSignTemp(j), SignTemp(j))
                         call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
                     endif
                     if ((abs(RealSignTemp(j)).gt.0.0) .and. (abs(RealSignTemp(j)).lt.1.0)) then
@@ -898,13 +880,11 @@ MODULE AnnihilationMod
                             !Remove this walker
                             NoRemoved = NoRemoved + abs(RealSignTemp(j))
                             RealSignTemp(j) = 0.0_dp
-                            SignTemp64(j)=transfer(RealSignTemp(j), SignTemp64(j))
-                            SignTemp(j)=SignTemp64(j)
+                            SignTemp(j)=transfer(RealSignTemp(j), SignTemp(j))
                             call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
                         elseif (tEnhanceRemainder) then
                             NewRealSignTemp(j)=Sign(1.0_dp,RealSignTemp(j))
-                            SignTemp64(j)=transfer(NewRealSignTemp(j), SignTemp64(j))
-                            SignTemp(j)=SignTemp64(j)
+                            SignTemp(j)=transfer(NewRealSignTemp(j), SignTemp(j))
                             call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
                         endif
                     endif
@@ -923,8 +903,7 @@ MODULE AnnihilationMod
                 ! Determinant in newly spawned list is not found in currentdets
                 ! If coeff <1, apply removal criterion
                 call extract_sign (SpawnedParts(:,i), SignTemp)
-                SignTemp64=int(SignTemp,int64)
-                RealSignTemp=transfer(SignTemp64,RealSignTemp)
+                RealSignTemp=transfer(SignTemp,RealSignTemp)
                 do j = 1, lenof_sign
                     if ((abs(RealSignTemp(j)).gt.0.0) .and. (abs(RealSignTemp(j)).lt.1.0)) then
                         !We remove this walker with probability 1-RealSignTemp
@@ -934,13 +913,11 @@ MODULE AnnihilationMod
                             !Remove this walker
                             NoRemoved = NoRemoved + abs(RealSignTemp(j))
                             RealSignTemp(j) = 0.0_dp
-                            SignTemp64(j)=transfer(RealSignTemp(j), SignTemp64(j))
-                            SignTemp(j)=SignTemp64(j)
+                            SignTemp(j)=transfer(RealSignTemp(j), SignTemp(j))
                             call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
                         elseif (tEnhanceRemainder) then
                             NewRealSignTemp(j)=Sign(1.0_dp,RealSignTemp(j))
-                            SignTemp64(j)=transfer(NewRealSignTemp(j), SignTemp64(j))
-                            SignTemp(j)=SignTemp64(j)
+                            SignTemp(j)=transfer(NewRealSignTemp(j), SignTemp(j))
                             call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
                         endif
                     endif
@@ -981,8 +958,7 @@ MODULE AnnihilationMod
                 do i=1,ValidSpawned
 !We want to move all the elements above this point down to 'fill in' the annihilated determinant.
                     call extract_sign(SpawnedParts(:,i),SignTemp)
-                    SignTemp64=int(SignTemp,int64)
-                    RealSignTemp=transfer(SignTemp64, RealSignTemp)
+                    RealSignTemp=transfer(SignTemp, RealSignTemp)
                     IF(IsUnoccDet(RealSignTemp)) THEN
                         DetsMerged=DetsMerged+1
                     ELSE
@@ -1154,7 +1130,6 @@ MODULE AnnihilationMod
         integer, intent(in) :: TotWalkersNew
         INTEGER :: i,part_type,AnnihilatedDet
         INTEGER, DIMENSION(lenof_sign) :: CurrentSign,SpawnedSign
-        INTEGER(int64), DIMENSION(lenof_sign) :: CurrentSign64,SpawnedSign64
         REAL(dp), DIMENSION(lenof_sign) :: RealCurrentSign,RealSpawnedSign
         character(*), parameter :: t_r = 'CalcHashTableStats'
 
@@ -1166,8 +1141,7 @@ MODULE AnnihilationMod
         IF(TotWalkersNew.gt.0) THEN
             do i=1,TotWalkersNew
                 call extract_sign(CurrentDets(:,i),CurrentSign)
-                CurrentSign64=int(CurrentSign, int64)
-                RealCurrentSign=transfer(CurrentSign64, RealCurrentSign)
+                RealCurrentSign=transfer(CurrentSign, RealCurrentSign)
                 IF(IsUnoccDet(RealCurrentSign)) then
                     AnnihilatedDet=AnnihilatedDet+1 
                     IF(tTruncInitiator) THEN
@@ -1253,7 +1227,6 @@ MODULE AnnihilationMod
         integer, intent(inout) :: TotWalkersNew
         INTEGER :: i,DetsMerged,nJ(NEl),part_type,j
         INTEGER, DIMENSION(lenof_sign) :: CurrentSign,SpawnedSign
-        INTEGER(int64), DIMENSION(lenof_sign) :: CurrentSign64,SpawnedSign64
         REAL(dp), DIMENSION(lenof_sign) :: RealCurrentSign,RealSpawnedSign,NewRealCurrentSign
         real(dp) :: HDiag, pRemove, r
         LOGICAL :: TestClosedShellDet
@@ -1272,8 +1245,7 @@ MODULE AnnihilationMod
         IF(TotWalkersNew.gt.0) THEN
             do i=1,TotWalkersNew
                 call extract_sign(CurrentDets(:,i),CurrentSign)
-                CurrentSign64=int(CurrentSign, int64)
-                RealCurrentSign(:)=transfer(CurrentSign64(:), RealCurrentSign(:))
+                RealCurrentSign(:)=transfer(CurrentSign(:), RealCurrentSign(:))
                 do j=1, lenof_sign
                     if ((abs(RealCurrentSign(j)).gt.0.0) .and. (abs(RealCurrentSign(j)).lt.1.0)) then
                         !We remove this walker with probability 1-RealSignTemp
@@ -1283,14 +1255,12 @@ MODULE AnnihilationMod
                             !Remove this walker
                             NoRemoved = NoRemoved + abs(RealCurrentSign(j))
                             RealCurrentSign(j) = 0.0_dp
-                            CurrentSign64(j)=transfer(RealCurrentSign(j), CurrentSign64(j))
-                            CurrentSign(j)=CurrentSign64(j)
+                            CurrentSign(j)=transfer(RealCurrentSign(j), CurrentSign(j))
                             call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
                         elseif (tEnhanceRemainder) then
                             NewRealCurrentSign(j)=Sign(1.0_dp,RealCurrentSign(j))
                             RealCurrentSign(j)=NewRealCurrentSign(j)
-                            CurrentSign64(j)=transfer(RealCurrentSign(j), CurrentSign64(j))
-                            CurrentSign(j)=CurrentSign64(j)
+                            CurrentSign(j)=transfer(NewRealCurrentSign(j), CurrentSign(j))
                             call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
                         endif
                     endif
@@ -1344,15 +1314,13 @@ MODULE AnnihilationMod
 
         IF(ValidSpawned.gt.0) THEN
             call extract_sign(SpawnedParts(:,1),SpawnedSign)
-            SpawnedSign64=int(SpawnedSign, int64)
-            RealSpawnedSign(:)=transfer(SpawnedSign64(:), RealSpawnedSign(:))
+            RealSpawnedSign(:)=transfer(SpawnedSign(:), RealSpawnedSign(:))
             TotParts=TotParts+abs(RealSpawnedSign)
             norm_psi_squared = norm_psi_squared + sum(RealSpawnedSign**2)
         ENDIF
         do i=2,ValidSpawned
             call extract_sign(SpawnedParts(:,i),SpawnedSign)
-            SpawnedSign64=int(SpawnedSign, int64)
-            RealSpawnedSign(:)=transfer(SpawnedSign64(:), RealSpawnedSign(:))
+            RealSpawnedSign(:)=transfer(SpawnedSign(:), RealSpawnedSign(:))
             TotParts=TotParts+abs(RealSpawnedSign)
             norm_psi_squared = norm_psi_squared + sum(RealSpawnedSign**2)
         enddo
