@@ -4967,8 +4967,8 @@ MODULE FciMCParMod
                 MaxAllowedSpawnProb = real(MaxWalkerBloom,dp)
             endif
 
-            if(.not.(tReadPops.and.tWalkContGrow)) then
-                write(iout,"(A,f10.5)") "Will search for optimal timestep &
+            if(.not.(tReadPops.and..not.tWalkContGrow)) then
+                write(iout,"(A,f10.5)") "Will dynamically update timestep &
                            &to limit spawning probability to: ", &
                            MaxAllowedSpawnProb
             endif
@@ -5187,7 +5187,7 @@ MODULE FciMCParMod
             else
                 CALL GenExcitations3(ProjEDet,iLutRef,nJ,exflag,Ex_saved,tParity,tAllExcitFound)
                 IF(tAllExcitFound) EXIT
-                Ex = Ex_saved
+                Ex(:,:) = Ex_saved(:,:)
                 if(Ex(2,2).eq.0) then
                     ic=1
                 else
@@ -5204,8 +5204,10 @@ MODULE FciMCParMod
                         !Have to recalculate the excitation matrix.
                         ic = FindBitExcitLevel(iLutnJ, iLutRef, 2)
                         ex(:,:) = 0
-                        ex(1,1) = ic
-                        call GetBitExcitation(iLutRef,iLutnJ,Ex,tParity)
+                        if(ic.le.2) then
+                            ex(1,1) = ic
+                            call GetBitExcitation(iLutRef,iLutnJ,Ex,tParity)
+                        endif
                     endif
                 endif
                 hel = hphf_off_diag_helement_norm(ProjEDet,nJ,iLutRef,iLutnJ)
@@ -5237,8 +5239,10 @@ MODULE FciMCParMod
             if(tHPHF) then
                 ic = FindBitExcitLevel(iLutnJ, iLutRef, 2)
                 ex2(:,:) = 0
-                ex2(1,1) = ic
-                call GetBitExcitation(iLutnJ,iLutRef,Ex2,tSign)
+                if(ic.le.2) then
+                    ex2(1,1) = ic
+                    call GetBitExcitation(iLutnJ,iLutRef,Ex2,tSign)
+                endif
                 call CalcPGenHPHF(nJ,iLutnJ,ProjEDet,iLutRef,ex2,store2%ClassCountOcc,    &
                             store2%ClassCountUnocc,pDoubles,pGen,tSameFunc)
             else

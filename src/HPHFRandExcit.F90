@@ -358,9 +358,12 @@ MODULE HPHFRandExcitMod
 !iLutnI (nI) is returned as this determinant, with iLutSym (nJ) being the other.
 !If tCalciLutSym is false, iLutSym will be calculated from iLutnI. Otherwise, it won't.
     SUBROUTINE ReturnAlphaOpenDet(nI,nJ,iLutnI,iLutSym,tCalciLutSym,tCalcnISym,tSwapped)
-        INTEGER(KIND=n_int) :: iLutSym(0:NIfTot),iLutnI(0:NIfTot),iLutTemp(0:NIfTot)
-        INTEGER :: i,nTemp(NEl),nJ(NEl),nI(NEl)
-        LOGICAL :: tCalciLutSym,tCalcnISym,tSwapped
+        INTEGER(KIND=n_int), intent(inout) :: iLutSym(0:NIfTot),iLutnI(0:NIfTot)
+        integer(kind=n_int) :: iLutTemp(0:NIfTot)
+        INTEGER :: i,nTemp(NEl)
+        integer, intent(inout) :: nJ(NEl),nI(NEl)
+        LOGICAL, intent(in) :: tCalciLutSym,tCalcnISym
+        logical, intent(out) :: tSwapped
 
         IF(tCalciLutSym) THEN
             CALL FindExcitBitDetSym(iLutnI,iLutSym)
