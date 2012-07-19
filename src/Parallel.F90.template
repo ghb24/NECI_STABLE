@@ -1537,8 +1537,9 @@ contains
         write(6,"(A)") "***                                                              ***"
         write(6,"(A)") "*** FCIQMC module run in parallel, but molpro not compiled with  ***"
         write(6,"(A)") "*** MPI. FCIQMC module cannot support compilation with Global    ***"
-        write(6,"(A)") "*** Arrays, and so will now run in serial mode instead.          ***"
-        write(6,"(A)") "*** Recompilation of molpro with MPI2 module recommended.        ***"
+        write(6,"(A)") "*** Arrays with TCGMSG, and so will now run in serial mode       ***" 
+        write(6,"(A)") "*** instead. Recompilation of molpro with linking to MPI module  ***" 
+        write(6,"(A)") "*** recommended.                                                 ***"
         write(6,"(A)") "***                                                              ***"
         write(6,"(A)") "********************************************************************"
 #endif
