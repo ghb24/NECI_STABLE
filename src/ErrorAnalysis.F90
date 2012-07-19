@@ -591,7 +591,7 @@ module errors
         write(6,"(A,I12)") "Number of data points found in file: ",datapoints
         write(6,"(A,I12)") "Number of useable data points: ",validdata
 
-        if(validdata.le.0) then
+        if(validdata.le.1) then
             write(6,"(A)") "No valid datapoints found in file. Exiting error analysis."
             tFailRead = .true.
             return
