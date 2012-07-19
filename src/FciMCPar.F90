@@ -317,7 +317,7 @@ MODULE FciMCParMod
                     EXIT
                 ENDIF
                 IF (proje_update_comb) CALL update_linear_comb_coeffs()
-                IF((iExitWalkers.ne.-1).and.(sum(AllTotParts).gt.iExitWalkers)) THEN
+                IF((iExitWalkers.ne.-1.0).and.(sum(AllTotParts).gt.iExitWalkers)) THEN
                     !Exit criterion based on total walker number met.
                     write(iout,"(A,I15)") "Total walker population exceeds that given by &
                         &EXITWALKERS criteria - exiting...",sum(AllTotParts)
@@ -3501,7 +3501,7 @@ MODULE FciMCParMod
         call MPIReduce (TotWalkersTemp, MPI_MIN, MinWalkersProc)
 
         ! We need the total number on the HF and SumWalkersCyc to be valid on
-        ! ALL processors (n.b. one of these is 32bit, the other 64)
+        ! ALL processors (Both double precision reals)
         call MPISumAll (NoatHF, AllNoatHF)
         call MPISumAll (SumWalkersCyc, AllSumWalkersCyc)
 
@@ -3573,7 +3573,7 @@ MODULE FciMCParMod
             else
 !Instead attempt to calculate the average growth over every iteration
 !over the update cycle
-                AllGrowRate = (real(AllSumWalkersCyc,dp)/real(StepsSft,dp)) &
+                AllGrowRate = (AllSumWalkersCyc/real(StepsSft,dp)) &
                                 /OldAllAvWalkersCyc
             endif
 
@@ -3781,7 +3781,7 @@ MODULE FciMCParMod
         ! Zero all of the variables which accumulate for each iteration.
 
         IterTime = 0.0
-        SumWalkersCyc = 0
+        SumWalkersCyc = 0.0
         Annihilated = 0
         Acceptances = 0
         NoBorn = 0
@@ -3810,7 +3810,7 @@ MODULE FciMCParMod
         OldAllHFCyc = AllHFCyc/real(StepsSft,dp)
         !OldAllAvWalkersCyc gives the average number of walkers per iteration in the last update cycle
         
-        OldAllAvWalkersCyc = real(AllSumWalkersCyc,dp)/real(StepsSft,dp)
+        OldAllAvWalkersCyc = AllSumWalkersCyc/real(StepsSft,dp)
 
         ! Also the cumulative global variables
         AllTotWalkersOld = AllTotWalkers
@@ -4818,7 +4818,7 @@ MODULE FciMCParMod
         AllGrowRate=0.D0
         AllGrowRateAbort=0
 !        AllMeanExcitLevel=0.D0
-        AllSumWalkersCyc=0
+        AllSumWalkersCyc=0.0
         AllAvSign=0.D0
         AllAvSignHFD=0.D0
         AllNoBorn=0.0_dp
@@ -6318,7 +6318,7 @@ MODULE FciMCParMod
         integer(int64) :: iPopAllTotWalkers
         integer :: i
         real(dp) :: PopDiagSft
-        integer(int64) , dimension(lenof_sign) :: PopSumNoatHF
+        real(dp) , dimension(lenof_sign) :: PopSumNoatHF
         HElement_t :: PopAllSumENum
 
         if(tReadPops.and..not.tPopsAlreadyRead) then
@@ -6489,7 +6489,7 @@ MODULE FciMCParMod
                 AllTotPartsOld=AllTotParts
                 call MPISumAll(NoatHF,AllNoatHF)
                 OldAllNoatHF=AllNoatHF
-                OldAllAvWalkersCyc=real(sum(AllTotParts),dp)
+                OldAllAvWalkersCyc=sum(AllTotParts)
                 if(lenof_sign.eq.1) then
                     OldAllHFCyc = real(AllNoatHF(1),dp)
                 else
@@ -6710,7 +6710,8 @@ MODULE FciMCParMod
         use sym_mod , only : Getsym, writesym
         use MomInv, only: IsAllowedMI 
         type(BasisFN) :: CASSym
-        integer :: i,j,ierr,nEval,NKRY1,NBLOCK,LSCR,LISCR,DetIndex,iNode,NoWalkers,nBlocks,nBlockStarts(2)
+        integer :: i,j,ierr,nEval,NKRY1,NBLOCK,LSCR,LISCR,DetIndex,iNode,nBlocks,nBlockStarts(2), ExcitLevel
+        real(dp) :: NoWalkers
         integer :: CASSpinBasisSize,elec,nCASDet,ICMax,GC,LenHamil,iInit,nHPHFCAS,Slot,DetHash
         integer , allocatable :: CASBrr(:),CASDet(:),CASFullDets(:,:),nRow(:),Lab(:),ISCR(:),INDEX(:)
         integer , pointer :: CASDetList(:,:) => null()
@@ -7011,7 +7012,7 @@ MODULE FciMCParMod
 
         !Now generate all excitations again, creating the required number of walkers on each one.
         DetIndex=1
-        NoatHF(1)=0
+        NoatHF(1)=0.0
         TotParts=0.0
         do i=1,nCASDet
             if(tHPHF) then
@@ -7025,18 +7026,25 @@ MODULE FciMCParMod
             if(iProcIndex.eq.iNode) then
                 !Number parts on this det = PartFac*Amplitude
                 amp=CK(i,1)*PartFac
-                NoWalkers=int(amp)
-                rat=amp-real(NoWalkers,dp)
-                r=genrand_real2_dSFMT()
-                if(abs(rat).gt.r) then
-                    if(amp.lt.0.D0) then
-                        NoWalkers=NoWalkers-1
-                    else
-                        NoWalkers=NoWalkers+1
+                
+                if (tRealCoeffByExcitLevel) ExcitLevel=FindBitExcitLevel(iLutnJ, iLutRef, nEl)
+                if (tAllRealCoeff .or. &
+                    & (tRealCoeffByExcitLevel.and.(ExcitLevel.le.RealCoeffExcitThresh))) then
+                    NoWalkers=amp
+                else
+                    NoWalkers=int(amp)
+                    rat=amp-real(NoWalkers,dp)
+                    r=genrand_real2_dSFMT()
+                    if(abs(rat).gt.r) then
+                        if(amp.lt.0.D0) then
+                            NoWalkers=NoWalkers-1
+                        else
+                            NoWalkers=NoWalkers+1
+                        endif
                     endif
                 endif
 
-                if(NoWalkers.ne.0) then
+                if(NoWalkers.ne.0.0) then
                     call EncodeBitDet(CASFullDets(:,i),iLutnJ)
                     if(DetBitEQ(iLutnJ,iLutRef,NIfDBO)) then
                         !Check if this determinant is reference determinant, so we can count number on hf.
@@ -7044,7 +7052,7 @@ MODULE FciMCParMod
                     endif
                     call encode_det(CurrentDets(:,DetIndex),iLutnJ)
                     call clear_all_flags(CurrentDets(:,DetIndex))
-                    temp_sign(1)=NoWalkers
+                    temp_sign(1)=transfer(NoWalkers, temp_sign(1))
                     call encode_sign(CurrentDets(:,DetIndex),temp_sign)
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
@@ -7092,7 +7100,7 @@ MODULE FciMCParMod
         OldAllHFCyc = real(AllNoatHF(1),dp)
         AllTotWalkersOld=AllTotWalkers
         AllTotPartsOld=AllTotParts
-        OldAllAvWalkersCyc=real(sum(AllTotParts),dp)
+        OldAllAvWalkersCyc=sum(AllTotParts)
         iter_data_fciqmc%tot_parts_old = AllTotPartsOld
         AllNoAbortedOld=0.0_dp
 
@@ -7109,9 +7117,11 @@ MODULE FciMCParMod
         use CalcData , only : InitialPart
         real(dp) :: TotMP1Weight,amp,MP2Energy,PartFac,H0tmp,rat,r
         HElement_t :: hel,HDiagtemp
-        integer :: iExcits,exflag,Ex(2,2),nJ(NEl),ic,DetIndex,iNode,NoWalkers,iInit,Slot,DetHash
+        integer :: iExcits,exflag,Ex(2,2),nJ(NEl),ic,DetIndex,iNode,iInit,Slot,DetHash
         integer(n_int) :: iLutnJ(0:NIfTot)
+        real(dp) :: NoWalkers
         integer, dimension(lenof_sign) :: temp_sign
+        integer :: ExcitLevel
         logical :: tAllExcitsFound,tParity
         character(len=*), parameter :: this_routine="InitFCIMC_MP1"
 
@@ -7257,23 +7267,29 @@ MODULE FciMCParMod
                 H0tmp=Fii-H0tmp
                 !No parts on this det = PartFac*Amplitude
                 amp=(hel/H0tmp)*PartFac
-                NoWalkers=int(amp)
-                rat=amp-real(NoWalkers,dp)
-
-                r=genrand_real2_dSFMT()
-                if(abs(rat).gt.r) then
-                    if(amp.lt.0.D0) then
-                        NoWalkers=NoWalkers-1
-                    else
-                        NoWalkers=NoWalkers+1
+                
+                if (tRealCoeffByExcitLevel) ExcitLevel=FindBitExcitLevel(iLutnJ, iLutRef, nEl)
+                if (tAllRealCoeff .or. &
+                    & (tRealCoeffByExcitLevel.and.(ExcitLevel.le.RealCoeffExcitThresh))) then
+                    NoWalkers=amp
+                else
+                    NoWalkers=int(amp)
+                    rat=amp-real(NoWalkers,dp)
+                    r=genrand_real2_dSFMT()
+                    if(abs(rat).gt.r) then
+                        if(amp.lt.0.D0) then
+                            NoWalkers=NoWalkers-1
+                        else
+                            NoWalkers=NoWalkers+1
+                        endif
                     endif
                 endif
-
-                if(NoWalkers.ne.0) then
+                
+                if(NoWalkers.ne.0.0) then
                     call EncodeBitDet(nJ,iLutnJ)
                     call encode_det(CurrentDets(:,DetIndex),iLutnJ)
                     call clear_all_flags(CurrentDets(:,DetIndex))
-                    temp_sign(1)=NoWalkers
+                    temp_sign(1)=transfer(NoWalkers, temp_sign(1))
                     call encode_sign(CurrentDets(:,DetIndex),temp_sign)
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
@@ -7309,15 +7325,19 @@ MODULE FciMCParMod
 
         !Now for the walkers on the HF det
         if(iHFProc.eq.iProcIndex) then
-            NoWalkers=int(PartFac)  !This will always be positive
-            rat=PartFac-real(NoWalkers,dp)
-            if(rat.lt.0.D0) call stop_all(this_routine,"Should not have negative weight on HF")
-            r=genrand_real2_dSFMT()
-            if(abs(rat).gt.r) NoWalkers=NoWalkers+1
+            if (tAllRealCoeff .or. tRealCoeffByExcitLevel) then
+                    NoWalkers=PartFac
+            else
+                NoWalkers=int(PartFac)
+                rat=PartFac-real(NoWalkers,dp)
+                if(rat.lt.0.D0) call stop_all(this_routine,"Should not have negative weight on HF")
+                r=genrand_real2_dSFMT()
+                if(abs(rat).gt.r) NoWalkers=NoWalkers+1
+            endif
             if(NoWalkers.ne.0) then
                 call encode_det(CurrentDets(:,DetIndex),iLutHF)
                 call clear_all_flags(CurrentDets(:,DetIndex))
-                temp_sign(1)=NoWalkers
+                temp_sign(1)=transfer(NoWalkers, temp_sign(1))
                 call encode_sign(CurrentDets(:,DetIndex),temp_sign)
                 if(tTruncInitiator) then
                     !Set initiator flag (always for HF)
@@ -7358,10 +7378,10 @@ MODULE FciMCParMod
         call mpisumall(NoatHF,AllNoatHF)
         call mpisumall(TotWalkers,AllTotWalkers)
         OldAllNoatHF=AllNoatHF
-        OldAllHFCyc = real(AllNoatHF(1),dp)
+        OldAllHFCyc=AllNoatHF(1)
         AllTotWalkersOld=AllTotWalkers
         AllTotPartsOld=AllTotParts
-        OldAllAvWalkersCyc=real(sum(AllTotParts),dp)
+        OldAllAvWalkersCyc=sum(AllTotParts)
         iter_data_fciqmc%tot_parts_old = AllTotPartsOld
         AllNoAbortedOld=0.0_dp
 
@@ -7799,6 +7819,7 @@ MODULE FciMCParMod
         implicit none
         integer :: i,iSubspaceSize,ierr,iSubspaceSizeFull
         integer, dimension(lenof_sign) :: CurrentSign
+        real(dp), dimension(lenof_sign) :: RealCurrentSign
         integer, allocatable :: ExpandedWalkerDets(:,:)
         integer(TagIntType) :: ExpandedWalkTag=0
         real(dp) :: GroundEFull,GroundEInit,CreateNan,ProjGroundEFull,ProjGroundEInit
@@ -7814,7 +7835,8 @@ MODULE FciMCParMod
             iSubspaceSize = 0
             do i=1,TotWalkers
                 call extract_sign(CurrentDets(:,i),CurrentSign)
-                if((abs(CurrentSign(1)) > InitiatorWalkNo) .or. &
+                RealCurrentSign=Transfer(CurrentSign, RealCurrentSign)
+                if((abs(RealCurrentSign(1)) > InitiatorWalkNo) .or. &
                         (DetBitEQ(CurrentDets(:,i),iLutHF,NIfDBO))) then
                     !Is allowed initiator. Add to subspace.
                     iSubspaceSize = iSubspaceSize + 1
@@ -7828,7 +7850,8 @@ MODULE FciMCParMod
             iSubspaceSize = 0
             do i=1,TotWalkers
                 call extract_sign(CurrentDets(:,i),CurrentSign)
-                if((abs(CurrentSign(1)) > InitiatorWalkNo) .or. &
+                RealCurrentSign=Transfer(CurrentSign, RealCurrentSign)
+                if((abs(RealCurrentSign(1)) > InitiatorWalkNo) .or. &
                         (DetBitEQ(CurrentDets(:,i),iLutHF,NIfDBO))) then
                     !Is allowed initiator. Add to subspace.
                     iSubspaceSize = iSubspaceSize + 1

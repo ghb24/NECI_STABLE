@@ -884,7 +884,7 @@ MODULE CCMC
 !***Birth/death processes finished. Tidy up and then annihilate.
 
 !SumWalkersCyc calculates the total number of walkers over an update cycle on each process
-        SumWalkersCyc=SumWalkersCyc+(INT(TotParts(1),int64))
+        SumWalkersCyc=SumWalkersCyc+TotParts(1)
 !        WRITE(6,*) "Born, Die: ",NoBorn, NoDied
 
 

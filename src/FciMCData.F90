@@ -104,7 +104,7 @@ MODULE FciMCData
       real(dp), dimension(lenof_sign) :: SumNoatHF !This is the sum over all previous cycles of the number of particles at the HF determinant
       real(dp) :: AvSign           !This is the average sign of the particles on each node
       real(dp) :: AvSignHFD        !This is the average sign of the particles at HF or Double excitations on each node
-      INTEGER(KIND=int64) :: SumWalkersCyc    !This is the sum of all walkers over an update cycle on each processor
+      real(dp) :: SumWalkersCyc    !This is the sum of all walkers over an update cycle on each processor
       Real(dp) :: Annihilated      !This is the number annihilated on one processor
       REAL(dp), DIMENSION(lenof_sign) :: NoatHF           !This is the instantaneous number of particles at the HF determinant
       REAL(dp) :: NoatDoubs
@@ -133,7 +133,7 @@ MODULE FciMCData
       integer(int64) :: AllTotWalkers, AllTotWalkersOld
       real(dp), dimension(lenof_sign) :: AllTotParts, AllTotPartsOld
       real(dp), dimension(lenof_sign) :: AllSumNoatHF
-      INTEGER(KIND=int64) :: AllSumWalkersCyc
+      real(dp) :: AllSumWalkersCyc
       real(dp) :: OldAllAvWalkersCyc    !This is the average number of walkers each iteration over the previous update cycle
       REAL(dp) :: AllAnnihilated
       REAL(dp) :: AllNoAtDoubs
