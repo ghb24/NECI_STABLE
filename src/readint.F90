@@ -15,14 +15,15 @@ contains
          integer, intent(in) :: NEL
          integer SYMLZ(1000)
          integer(int64) :: ORBSYM(1000)
-         INTEGER NORB,NELEC,MS2,ISYM,i,SYML(1000), iunit
+         INTEGER NORB,NELEC,MS2,ISYM,i,SYML(1000), iunit,iuhf
          LOGICAL exists,UHF
          CHARACTER(len=3) :: fmat
-         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
+         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          UHF=.FALSE.
          fmat='NO'
          PROPBITLEN = 0
          NPROP = 0
+         IUHF = 0
          IF(iProcIndex.eq.0) THEN
              iunit = get_free_unit()
              IF(TBIN) THEN
@@ -182,12 +183,13 @@ contains
          INTEGER ISYMNUM,ISNMAX,SYMMAX,SYMLZ(1000)
          INTEGER NORB,NELEC,MS2,ISYM,ISPINS,ISPN,SYML(1000)
          integer(int64) ORBSYM(1000)
-         INTEGER nPairs,iErr,MaxnSlot,MaxIndex
+         INTEGER nPairs,iErr,MaxnSlot,MaxIndex,IUHF
          INTEGER , ALLOCATABLE :: MaxSlots(:)
          character(len=*), parameter :: t_r='GETFCIBASIS'
          LOGICAL TBIN,UHF
-         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
+         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          UHF=.FALSE.
+         IUHF=0
          IF(iProcIndex.eq.0) THEN
              iunit = get_free_unit()
              IF(TBIN) THEN
@@ -209,6 +211,7 @@ contains
          CALL MPIBCast(SYML,1000)
          CALL MPIBCast(SYMLZ,1000)
          CALL MPIBCast(ISYM,1)
+         CALL MPIBCast(IUHF,1)
          CALL MPIBCast(UHF,1)
          CALL MPIBCast(PROPBITLEN,1)
          CALL MPIBCast(NPROP,3)
@@ -546,13 +549,14 @@ contains
          integer(int64) ORBSYM(1000)
          LOGICAL LWRITE,UHF
          INTEGER ISPINS,ISPN,ierr,SYMLZ(1000)!,IDI,IDJ,IDK,IDL
-         INTEGER UMatSize,TMatSize
+         INTEGER UMatSize,TMatSize,IUHF
          INTEGER , ALLOCATABLE :: CacheInd(:)
          character(len=*), parameter :: t_r='READFCIINT'
          real(dp) :: diff
-         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
+         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          LWRITE=.FALSE.
          UHF=.FALSE.
+         IUHF=0
          ZeroedInt=0
          NonZeroInt=0
          
@@ -569,6 +573,7 @@ contains
          CALL MPIBCast(SYML,1000)
          CALL MPIBCast(SYMLZ,1000)
          CALL MPIBCast(ISYM,1)
+         CALL MPIBCast(IUHF,1)
          CALL MPIBCast(UHF,1)
          CALL MPIBCast(PROPBITLEN,1)
          CALL MPIBCast(NPROP,3)
