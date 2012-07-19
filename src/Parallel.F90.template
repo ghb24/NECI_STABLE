@@ -1406,6 +1406,7 @@ contains
     subroutine MPIInit (tExternal)
 #ifdef MOLPRO
         USE molpro_options, only : molpro_helper_server
+        integer(MPIArg) :: iglobal_worker_comm
 #endif
 
         ! Determine the number of processors, and fork each off to its own 
@@ -1430,7 +1431,7 @@ contains
         CommGlobal = iglobal_worker_comm()
         if(molpro_helper_server) then
             write(6,"(A)") "***********************************************************"
-            call warning_neci(MPIInit,"FCIQMC module run in parallel, but --no-helper-server &
+            call warning_neci(t_r,"FCIQMC module run in parallel, but --no-helper-server &
                   &option not invoked on command line. This is highly recommended, since one &
                   &processor is now entirely idle. Recommend rerunning with this command line argument.")
             write(6,"(A)") "***********************************************************"
@@ -1524,7 +1525,7 @@ contains
 
 #if defined(_MOLCAS_MPP_) && ( defined(GA_TCGMSG) || defined(GA_TCGMSG5) )
         write(6,"(A)") "***********************************************************"
-        call warning_neci(MPIInit,"FCIQMC module run in parallel, but not compiled with MPI2. &
+        call warning_neci(t_r,"FCIQMC module run in parallel, but not compiled with MPI2. &
                 &FCIQMC module cannot support compilation with Global Arrays, and so will now &
                 &run in serial mode instead. Recompilation with MPI2 module recommended.")
         write(6,"(A)") "***********************************************************"
