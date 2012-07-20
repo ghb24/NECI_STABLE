@@ -56,7 +56,7 @@ MODULE PopsfileMod
         integer :: PopBlockingIter
         integer(int64) :: iPopAllTotWalkers
         real(dp) :: PopDiagSft,read_tau
-        integer(int64) , dimension(lenof_sign) :: PopSumNoatHF
+        real(dp) , dimension(lenof_sign) :: PopSumNoatHF
         integer, intent(in) :: DetsLen
         INTEGER(kind=n_int), intent(out) :: Dets(0:nIfTot,DetsLen)
         HElement_t :: PopAllSumENum
@@ -398,7 +398,7 @@ MODULE PopsfileMod
         integer , intent(in) :: PopBlockingIter
         integer(int64) , intent(in) :: iPopAllTotWalkers
         real(dp) , intent(in) :: PopDiagSft,read_tau
-        integer(int64) , dimension(lenof_sign) , intent(in) :: PopSumNoatHF
+        real(dp) , dimension(lenof_sign) , intent(in) :: PopSumNoatHF
         HElement_t , intent(in) :: PopAllSumENum
         integer , intent(out) :: WalkerListSize
         character(len=*) , parameter :: this_routine='CheckPopsParams'
@@ -504,7 +504,7 @@ MODULE PopsfileMod
         integer , intent(out) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
         integer(int64) , intent(out) :: iPopAllTotWalkers
         real(dp) , intent(out) :: PopDiagSft
-        integer(int64) , dimension(lenof_sign) , intent(out) :: PopSumNoatHF
+        real(dp) , dimension(lenof_sign) , intent(out) :: PopSumNoatHF
         HElement_t , intent(out) :: PopAllSumENum
         character(len=24) :: junk,junk2,junk3,junk4,junk5
         integer :: PopsVersion
@@ -555,7 +555,7 @@ MODULE PopsfileMod
         integer , intent(out) :: PopBlockingIter
         integer(int64) , intent(out) :: iPopAllTotWalkers
         real(dp) , intent(out) :: PopDiagSft,read_tau
-        integer(int64) , dimension(lenof_sign) , intent(out) :: PopSumNoatHF
+        real(dp) , dimension(lenof_sign) , intent(out) :: PopSumNoatHF
         HElement_t , intent(out) :: PopAllSumENum
         integer :: PopsVersion
         !Variables for the namelist

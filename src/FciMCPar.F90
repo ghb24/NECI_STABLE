@@ -6320,7 +6320,7 @@ MODULE FciMCParMod
         integer(int64) :: iPopAllTotWalkers
         integer :: i
         real(dp) :: PopDiagSft
-        integer(int64) , dimension(lenof_sign) :: PopSumNoatHF
+        real(dp) , dimension(lenof_sign) :: PopSumNoatHF
         HElement_t :: PopAllSumENum
 
         if(tReadPops.and..not.tPopsAlreadyRead) then
