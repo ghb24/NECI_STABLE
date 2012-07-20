@@ -449,27 +449,27 @@ MODULE FciMCParMod
         !call MPIBCast(tNoShiftValue)
         !Weight=(0.D0)
         !Energyxw=(ProjectionE+Hii)
-       ! 
-       ! iroot=1
-       ! CALL GetSym(ProjEDet,NEl,G1,NBasisMax,RefSym)
-       ! isymh=int(RefSym%Sym%S,sizeof_int)+1
+        
+        !iroot=1
+        !CALL GetSym(ProjEDet,NEl,G1,NBasisMax,RefSym)
+        !isymh=int(RefSym%Sym%S,sizeof_int)+1
         !write (iout,10101) iroot,isymh
-!10101   format(//'RESULTS FOR STATE',i2,'.',i1/'====================='/)
+!10101   !format(//'RESULTS FOR STATE',i2,'.',i1/'====================='/)
         !write (iout,'('' Current reference energy'',T52,F19.12)') Hii 
         !if(tNoProjEValue) then
         !    write (iout,'('' Projected correlation energy'',T52,F19.12)') ProjectionE
-         !   write (iout,"(A)") " No automatic errorbar obtained for projected energy"
-       ! else
-       !     write (iout,'('' Projected correlation energy'',T52,F19.12)') mean_ProjE_re
+        !    write (iout,"(A)") " No automatic errorbar obtained for projected energy"
+        !else
+        !    write (iout,'('' Projected correlation energy'',T52,F19.12)') mean_ProjE_re
         !    write (iout,'('' Estimated error in Projected correlation energy'',T52,F19.12)') ProjE_Err_re
-         !   if(lenof_sign.eq.2) then
-         !       write (iout,'('' Projected imaginary energy'',T52,F19.12)') mean_ProjE_im
-         !       write (iout,'('' Estimated error in Projected imaginary energy'',T52,F19.12)') ProjE_Err_im
-          !  endif
+        !    if(lenof_sign.eq.2) then
+        !        write (iout,'('' Projected imaginary energy'',T52,F19.12)') mean_ProjE_im
+        !        write (iout,'('' Estimated error in Projected imaginary energy'',T52,F19.12)') ProjE_Err_im
+        !    endif
         !endif
         !if(.not.tNoShiftValue) then
         !    write (iout,'('' Shift correlation energy'',T52,F19.12)') mean_Shift
-         !   write (iout,'('' Estimated error in shift correlation energy'',T52,F19.12)') shift_err
+        !    write (iout,'('' Estimated error in shift correlation energy'',T52,F19.12)') shift_err
         !else
         !    write(6,"(A)") " No reliable averaged shift correlation energy could be obtained automatically"
         !endif
@@ -488,12 +488,12 @@ MODULE FciMCParMod
         !            & //"within approximate errorbars: EDiff = ",EnergyDiff
         !    endif
         !    if(ProjE_Err_re.lt.shift_err) then
-         !       BestEnergy = mean_ProjE_re + Hii
-         !       BestErr = ProjE_Err_re
-         !   else
-         !       BestEnergy = mean_shift + Hii
-         !       BestErr = shift_err
-         !   endif
+        !        BestEnergy = mean_ProjE_re + Hii
+        !        BestErr = ProjE_Err_re
+        !    else
+        !        BestEnergy = mean_shift + Hii
+        !        BestErr = shift_err
+        !    endif
         !elseif(tNoShiftValue) then
         !BestEnergy = mean_ProjE_re + Hii
         !    BestErr = ProjE_Err_re

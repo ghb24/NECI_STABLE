@@ -2921,7 +2921,7 @@ SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
       integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
       integer(int64) :: iPopAllTotWalkers
       real(dp) :: PopDiagSft,read_tau
-      integer(int64) , dimension(lenof_sign) :: PopSumNoatHF
+      real(dp) , dimension(lenof_sign) :: PopSumNoatHF
       integer nMaxAmpl,nAmpl,PopBlockingIter
       integer(int64) , dimension(lenof_sign) :: CurrParts
       real(dp) , dimension(lenof_sign) :: RealCurrParts
