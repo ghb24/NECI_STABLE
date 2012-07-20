@@ -1285,7 +1285,7 @@ contains
 
         call MPI_Recv (val_out, int(BuffSize, MPIArg), &
                 %(mpitype)s, &
-                int(Source, MPIArg), int(Tag, MPIArg), MPI_COMM_WORLD, &
+                int(Source, MPIArg), int(Tag, MPIArg), CommGlobal, &
                 cbind_loc(stat), err)
         ierr = err
 #else
@@ -1314,7 +1314,7 @@ contains
 
         call MPI_Send (val_in, int(BuffSize, MPIArg), &
                 %(mpitype)s, &
-                int(Dest, MPIArg), int(Tag, MPIArg), MPI_COMM_WORLD, err)
+                int(Dest, MPIArg), int(Tag, MPIArg), CommGlobal, err)
         ierr = err
 #else
         ierr = 0
@@ -1404,6 +1404,10 @@ supermodule Parallel
 contains
 
     subroutine MPIInit (tExternal)
+#ifdef MOLPRO
+        USE molpro_options, only : molpro_helper_server
+        integer(MPIArg) :: iglobal_worker_comm
+#endif
 
         ! Determine the number of processors, and fork each off to its own 
         ! NodeFile output file
@@ -1413,7 +1417,6 @@ contains
         ! have to initialise our own.
 
         logical, intent(in) :: tExternal
-        
         integer(MPIArg) :: iProcInd, nProcess, ierr
         integer :: a, g
         character(len=20) NodeFile
@@ -1422,7 +1425,27 @@ contains
 
 #ifdef PARALLEL
         nNodes = 0  !Indicate we haven't setup nodes yet
+
+#ifdef MOLPRO
+!Obtain the communicator for MOLPRO
+        CommGlobal = iglobal_worker_comm()
+        if(molpro_helper_server) then
+            write(6,"(A)") "********************************************************************"
+            write(6,"(A)") "***************************  WARNING  ******************************"
+            write(6,"(A)") "********************************************************************"
+            write(6,"(A)") "***                                                              ***"
+            write(6,"(A)") "*** FCIQMC module run in parallel, but --no-helper-server option ***"
+            write(6,"(A)") "*** not invoked on command line. This is highly recommended when ***"
+            write(6,"(A)") "*** running with more than one MPI thread, since one processor   ***"
+            write(6,"(A)") "*** is now entirely idle. If running with multiple processes,    ***"
+            write(6,"(A)") "*** recommend re-running with '--no-helper-server' command line  ***"
+            write(6,"(A)") "*** option.                                                      ***"
+            write(6,"(A)") "***                                                              ***"
+            write(6,"(A)") "********************************************************************"
+        endif
+#else
         CommGlobal = MPI_COMM_WORLD
+#endif
         if (.not.initialised) then
             
             if(tExternal) then
@@ -1437,12 +1460,12 @@ contains
 #endif
             endif
 
-            call MPI_Comm_rank (MPI_COMM_WORLD, iProcInd, ierr)
+            call MPI_Comm_rank (CommGlobal, iProcInd, ierr)
             iProcIndex = iProcInd
             if (ierr /= MPI_SUCCESS) &
                 call stop_all (t_r, 'MPI Error. Terminating.')
 
-            call MPI_Comm_size (MPI_COMM_WORLD, nProcess, ierr)
+            call MPI_Comm_size (CommGlobal, nProcess, ierr)
             nProcessors = nProcess
             if (ierr /= MPI_SUCCESS) &
                 call stop_all (t_r, 'MPI Error. Terminating.')
@@ -1501,11 +1524,26 @@ contains
 #ifndef CBINDMPI
             ! Don't bother with this if using c bindings (probably
             ! should though)
-            call MPI_ERRHANDLER_SET(MPI_COMM_WORLD,MPI_ERRORS_RETURN,ierr)
+            call MPI_ERRHANDLER_SET(CommGlobal,MPI_ERRORS_RETURN,ierr)
 #endif
         end if
 
 #else 
+
+#if defined(_MOLCAS_MPP_) && ( defined(GA_TCGMSG) || defined(GA_TCGMSG5) )
+        write(6,"(A)") "********************************************************************"
+        write(6,"(A)") "***************************  WARNING  ******************************"
+        write(6,"(A)") "********************************************************************"
+        write(6,"(A)") "***                                                              ***"
+        write(6,"(A)") "*** FCIQMC module run in parallel, but molpro not compiled with  ***"
+        write(6,"(A)") "*** MPI. FCIQMC module cannot support compilation with Global    ***"
+        write(6,"(A)") "*** Arrays with TCGMSG, and so will now run in serial mode       ***" 
+        write(6,"(A)") "*** instead. Recompilation of molpro with linking to MPI module  ***" 
+        write(6,"(A)") "*** recommended.                                                 ***"
+        write(6,"(A)") "***                                                              ***"
+        write(6,"(A)") "********************************************************************"
+#endif
+
        ! Dummy set up for serial work.
        iProcIndex = 0
        nProcessors = 1
@@ -1796,7 +1834,7 @@ contains
         ! errorcode: Error returned to invoking environment.
         ! ierror: error status (of abort: was abort successful?)
         ! Currently neither are analysed.
-        call MPI_Abort (MPI_COMM_WORLD, error_code, ierr)
+        call MPI_Abort (CommGlobal, error_code, ierr)
 #endif
 
         write(6,*) error_str
