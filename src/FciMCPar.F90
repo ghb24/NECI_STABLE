@@ -1102,12 +1102,9 @@ MODULE FciMCParMod
                     
                     ! If a valid excitation, see if we should spawn children.
                     if (.not. IsNullDet(nJ)) then
-                        ! Encode the bit representation if it isn't already.
-                        ! Would normally only do this if child .ne. 0
-                        ! but we need to know the excitation level of iLutnJ
-                        ! in order to decide whether to do a stochastic integer
-                        ! spawning or real spawning onto it
-                        ! This may be slowing things down...
+                        ! If we're using excitation level to define a partly
+                        ! real space, we need to know the excitation level
+                        ! and therefore bit rep of nJ at this stage
                         if(tRealCoeffByExcitLevel)  call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
                         
                         child = attempt_create (get_spawn_helement, DetCurr, &
@@ -1121,7 +1118,12 @@ MODULE FciMCParMod
 
                     ! Children have been chosen to be spawned.
                     if (any(realchild /= 0.0)) then
+                        
                         NumSpawnedEntries=NumSpawnedEntries+1
+                        
+                        !Encode child if not done already
+                        if(.not.tRealCoeffByExcitLevel)  call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
+                        
                         ! We know we want to create a particle of this type.
                         call new_child_stats (iter_data, CurrentDets(:,j), &
                                               nJ, iLutnJ, ic, walkExcitLevel,&
@@ -1195,8 +1197,8 @@ MODULE FciMCParMod
 
         ! SumWalkersCyc calculates the total number of walkers over an update
         ! cycle on each process.
-        SumWalkersCyc = SumWalkersCyc + sum(TotParts)
 
+        SumWalkersCyc = SumWalkersCyc + sum(TotParts)
         ! Write initiator histograms if on the correct iteration.
         ! Why is this done here - before annihilation!
         if ((tHistInitPops .and. mod(iter, HistInitPopsIter) == 0) &
@@ -3505,7 +3507,7 @@ MODULE FciMCParMod
         call MPISumAll (NoatHF, AllNoatHF)
         call MPISumAll (SumWalkersCyc, AllSumWalkersCyc)
 
-!        WRITE(iout,*) "***",iter_data%update_growth_tot,AllTotParts-AllTotPartsOld
+        !        WRITE(iout,*) "***",iter_data%update_growth_tot,AllTotParts-AllTotPartsOld
 
         if(tSearchTau) then
             call MPISumAll(MaxSpawnProb,AllMaxSpawnProb)
