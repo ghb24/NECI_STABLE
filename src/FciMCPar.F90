@@ -4341,11 +4341,9 @@ MODULE FciMCParMod
             CALL Stop_All(t_r,"CountBits FAIL")
         ENDIF
 
-        IF(tCheckHighestPop) THEN
-            ALLOCATE(HighestPopDet(0:NIfTot),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All(t_r,"Cannot allocate memory for HighestPopDet")
-            HighestPopDet(:)=0
-        ENDIF
+        ALLOCATE(HighestPopDet(0:NIfTot),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All(t_r,"Cannot allocate memory for HighestPopDet")
+        HighestPopDet(:)=0
 
 !Check that the symmetry routines have set the symmetry up correctly...
         tSuccess=.true.
