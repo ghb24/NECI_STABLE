@@ -435,87 +435,86 @@ MODULE FciMCParMod
         end if
        
         !Automatic error analysis
-        !call error_analysis(tSinglePartPhase,iBlockingIter,mean_ProjE_re,ProjE_Err_re,  &
-        !    mean_ProjE_im,ProjE_Err_im,mean_Shift,Shift_Err,tNoProjEValue,tNoShiftValue)
+        call error_analysis(tSinglePartPhase,iBlockingIter,mean_ProjE_re,ProjE_Err_re,  &
+            mean_ProjE_im,ProjE_Err_im,mean_Shift,Shift_Err,tNoProjEValue,tNoShiftValue)
 
-        !call MPIBCast(ProjectionE)
-        !call MPIBCast(mean_ProjE_re)
-        !call MPIBCast(ProjE_Err_re)
-        !call MPIBCast(mean_ProjE_im)
-        !call MPIBCast(ProjE_Err_im)
-        !call MPIBCast(mean_Shift)
-        !call MPIBCast(Shift_Err)
-        !call MPIBCast(tNoProjEValue)
-        !call MPIBCast(tNoShiftValue)
-        !Weight=(0.D0)
-        !Energyxw=(ProjectionE+Hii)
+        call MPIBCast(ProjectionE)
+        call MPIBCast(mean_ProjE_re)
+        call MPIBCast(ProjE_Err_re)
+        call MPIBCast(mean_ProjE_im)
+        call MPIBCast(ProjE_Err_im)
+        call MPIBCast(mean_Shift)
+        call MPIBCast(Shift_Err)
+        call MPIBCast(tNoProjEValue)
+        call MPIBCast(tNoShiftValue)
+        Weight=(0.D0)
+        Energyxw=(ProjectionE+Hii)
         
-        !iroot=1
-        !CALL GetSym(ProjEDet,NEl,G1,NBasisMax,RefSym)
-        !isymh=int(RefSym%Sym%S,sizeof_int)+1
-        !write (iout,10101) iroot,isymh
-!10101   !format(//'RESULTS FOR STATE',i2,'.',i1/'====================='/)
-        !write (iout,'('' Current reference energy'',T52,F19.12)') Hii 
-        !if(tNoProjEValue) then
-        !    write (iout,'('' Projected correlation energy'',T52,F19.12)') ProjectionE
-        !    write (iout,"(A)") " No automatic errorbar obtained for projected energy"
-        !else
-        !    write (iout,'('' Projected correlation energy'',T52,F19.12)') mean_ProjE_re
-        !    write (iout,'('' Estimated error in Projected correlation energy'',T52,F19.12)') ProjE_Err_re
-        !    if(lenof_sign.eq.2) then
-        !        write (iout,'('' Projected imaginary energy'',T52,F19.12)') mean_ProjE_im
-        !        write (iout,'('' Estimated error in Projected imaginary energy'',T52,F19.12)') ProjE_Err_im
-        !    endif
-        !endif
-        !if(.not.tNoShiftValue) then
-        !    write (iout,'('' Shift correlation energy'',T52,F19.12)') mean_Shift
-        !    write (iout,'('' Estimated error in shift correlation energy'',T52,F19.12)') shift_err
-        !else
-        !    write(6,"(A)") " No reliable averaged shift correlation energy could be obtained automatically"
-        !endif
-        !if((.not.tNoProjEValue).and.(.not.tNoShiftValue)) then
-        !   Do shift and projected energy agree?
-        !    write(iout,"(A)")
-        !    EnergyDiff = abs(mean_Shift-mean_ProjE_re)
-        !    if(EnergyDiff.le.sqrt(shift_err**2+ProjE_Err_re**2)) then
-        !        write(iout,"(A,F15.8)") " Projected and shift energy estimates agree " &
-        !            & //"within errorbars: EDiff = ",EnergyDiff
-        !    elseif(EnergyDiff.le.sqrt((max(shift_err,ProjE_Err_re)*2)**2+min(shift_err,ProjE_Err_re)**2)) then
-        !        write(iout,"(A,F15.8)") " Projected and shift energy estimates agree to within " &
-        !            & //"two sigma of largest error: EDiff = ",EnergyDiff
-        !    else
-        !        write(iout,"(A,F15.8)") " Projected and shift energy estimates do not agree to " &
-        !            & //"within approximate errorbars: EDiff = ",EnergyDiff
-        !    endif
-        !    if(ProjE_Err_re.lt.shift_err) then
-        !        BestEnergy = mean_ProjE_re + Hii
-        !        BestErr = ProjE_Err_re
-        !    else
-        !        BestEnergy = mean_shift + Hii
-        !        BestErr = shift_err
-        !    endif
-        !elseif(tNoShiftValue) then
-        !BestEnergy = mean_ProjE_re + Hii
-        !    BestErr = ProjE_Err_re
-        !elseif(tNoProjEValue) then
-        !    BestEnergy = mean_shift + Hii
-        !    BestErr = shift_err 
-        !else
-        !    BestEnergy = ProjectionE+Hii
-        !    BestErr = 0.0_dp
-        !endif
-        !write(iout,"(A)")
-        !if(tNoProjEValue) then
-        !    write(iout,"(A,F20.8)") " Total projected energy ",ProjectionE+Hii
-        !else
-        !    write(iout,"(A,F20.8,A,G15.6)") " Total projected energy ", &
-        !        mean_ProjE_re+Hii," +/- ",ProjE_Err_re
-        !endif
-        !if(.not.tNoShiftValue) then
-        !    write(iout,"(A,F20.8,A,G15.6)") " Total shift energy     ", &
-        !        mean_shift+Hii," +/- ",shift_err
-        !endif
-
+        iroot=1
+        CALL GetSym(ProjEDet,NEl,G1,NBasisMax,RefSym)
+        isymh=int(RefSym%Sym%S,sizeof_int)+1
+        write (iout,10101) iroot,isymh
+10101   format(//'RESULTS FOR STATE',i2,'.',i1/'====================='/)
+        write (iout,'('' Current reference energy'',T52,F19.12)') Hii 
+        if(tNoProjEValue) then
+            write (iout,'('' Projected correlation energy'',T52,F19.12)') ProjectionE
+            write (iout,"(A)") " No automatic errorbar obtained for projected energy"
+        else
+            write (iout,'('' Projected correlation energy'',T52,F19.12)') mean_ProjE_re
+            write (iout,'('' Estimated error in Projected correlation energy'',T52,F19.12)') ProjE_Err_re
+            if(lenof_sign.eq.2) then
+                write (iout,'('' Projected imaginary energy'',T52,F19.12)') mean_ProjE_im
+                write (iout,'('' Estimated error in Projected imaginary energy'',T52,F19.12)') ProjE_Err_im
+            endif
+        endif
+        if(.not.tNoShiftValue) then
+            write (iout,'('' Shift correlation energy'',T52,F19.12)') mean_Shift
+            write (iout,'('' Estimated error in shift correlation energy'',T52,F19.12)') shift_err
+        else
+            write(6,"(A)") " No reliable averaged shift correlation energy could be obtained automatically"
+        endif
+        if((.not.tNoProjEValue).and.(.not.tNoShiftValue)) then
+           !Do shift and projected energy agree?
+            write(iout,"(A)")
+            EnergyDiff = abs(mean_Shift-mean_ProjE_re)
+            if(EnergyDiff.le.sqrt(shift_err**2+ProjE_Err_re**2)) then
+                write(iout,"(A,F15.8)") " Projected and shift energy estimates agree " &
+                    & //"within errorbars: EDiff = ",EnergyDiff
+            elseif(EnergyDiff.le.sqrt((max(shift_err,ProjE_Err_re)*2)**2+min(shift_err,ProjE_Err_re)**2)) then
+                write(iout,"(A,F15.8)") " Projected and shift energy estimates agree to within " &
+                    & //"two sigma of largest error: EDiff = ",EnergyDiff
+            else
+                write(iout,"(A,F15.8)") " Projected and shift energy estimates do not agree to " &
+                    & //"within approximate errorbars: EDiff = ",EnergyDiff
+            endif
+            if(ProjE_Err_re.lt.shift_err) then
+                BestEnergy = mean_ProjE_re + Hii
+                BestErr = ProjE_Err_re
+            else
+                BestEnergy = mean_shift + Hii
+                BestErr = shift_err
+            endif
+        elseif(tNoShiftValue) then
+        BestEnergy = mean_ProjE_re + Hii
+            BestErr = ProjE_Err_re
+        elseif(tNoProjEValue) then
+            BestEnergy = mean_shift + Hii
+            BestErr = shift_err 
+        else
+            BestEnergy = ProjectionE+Hii
+            BestErr = 0.0_dp
+        endif
+        write(iout,"(A)")
+        if(tNoProjEValue) then
+            write(iout,"(A,F20.8)") " Total projected energy ",ProjectionE+Hii
+        else
+            write(iout,"(A,F20.8,A,G15.6)") " Total projected energy ", &
+                mean_ProjE_re+Hii," +/- ",ProjE_Err_re
+        endif
+        if(.not.tNoShiftValue) then
+            write(iout,"(A,F20.8,A,G15.6)") " Total shift energy     ", &
+                mean_shift+Hii," +/- ",shift_err
+        endif
 #ifdef MOLPRO
         call output_result('FCIQMC','ENERGY',BestEnergy,iroot,isymh)
         call output_result('FCIQMC','ERROR',BestErr,iroot,isymh)

@@ -389,7 +389,7 @@ module errors
         real(dp) :: denom,renum,imnum,normhf,norm_psi,curr_S2,Avshift,dud,tote
         real(dp) :: curr_S2_init,AbsProjE
         integer(int64) :: TotDets,iters,imwalkers,validdata,datapoints
-        integer, dimension(lenof_sign) :: insthf
+        real(dp), dimension(lenof_sign) :: insthf
         
         !Open file (FCIMCStats or FCIQMCStats)
         iunit = get_free_unit()
@@ -582,8 +582,8 @@ module errors
                         norm_psi, &
                         curr_S2
                 else
-                    read(iunit,"(I12,G16.7,I10,G16.7,I13,3I15,3G17.9,2I10,&
-                                          &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9)") &
+                    read(iunit,"(I12,G16.7,3G16.7,3G16.7,5G17.9,&
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5, 11G17.9)") &
                         Iters, &
                         shift, &
                         change, &
@@ -638,7 +638,6 @@ module errors
                     pophf_data(i) = denom
                     shift_data(i) = shift
                 endif
-
             else
                 !Just read it again without the advance=no to move onto the next line
                 read(iunit,"(A)",iostat=eof) readline
