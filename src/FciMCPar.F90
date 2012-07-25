@@ -3504,7 +3504,7 @@ MODULE FciMCParMod
         call MPIReduce(NuMMerged, MPI_SUM, AllNumMerged)
         call MPIReduce(TotWalkersToSpawn, MPI_SUM, AllTotWalkersToSpawn)
         if (lenof_sign == 1) then
-            AllHFCyc = real(RealAllHFCyc(1), dp)
+            AllHFCyc = RealAllHFCyc(1)
         else
 #ifdef __CMPLX
             AllHFCyc = cmplx(RealAllHFCyc(1),RealAllHFCyc(2), dp)
@@ -3920,7 +3920,7 @@ MODULE FciMCParMod
         do i=1,TotWalkers
             call extract_sign(CurrentDets(:,i),TempSign)
             RealTempSign=transfer(TempSign,RealTempSign)
-            RealTempSignNew(1)=-RealTempSign(1)
+            RealTempSignNew(:)=-RealTempSign(:)
             TempSignNew=transfer(RealTempSignNew, TempSignnew)
             call encode_sign(CurrentDets(:,i),TempSignnew)
         enddo
@@ -4036,8 +4036,8 @@ MODULE FciMCParMod
         if (iProcIndex == root) then
 
 #ifdef __CMPLX
-            write(fcimcstats_unit,"(I12,G16.7,2I10,2I12,7G17.9,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9,4I13)") &
+            write(fcimcstats_unit,"(I12,5G16.7,7G17.9,&
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,7G17.9,3I13)") &
                 Iter + PreviousCycles, &                !1.
                 DiagSft, &                              !2.
                 AllTotParts(1) - AllTotPartsOld(1), &   !3.
@@ -4062,20 +4062,21 @@ MODULE FciMCParMod
                 real((AllHFCyc * conjg(AllHFCyc)),dp), &     !24     |n0|^2  This is the denominator for both calcs
                 real((AllENumCyc * conjg(AllHFCyc)),dp), &   !22.    Re[\sum njH0j] x Re[n0] + Im[\sum njH0j] x Im[n0]   No div by StepsSft
                 aimag(AllENumCyc * conjg(AllHFCyc)), &       !23.    Im[\sum njH0j] x Re[n0] - Re[\sum njH0j] x Im[n0]   since no physicality
-                sqrt(float(sum(AllNoatHF**2))) / norm_psi, &
-                norm_psi, &
-                curr_S2, &
-                AllNumSpawnedEntries, &
-                AllNumMerged, &
-                AllZeroMatrixElem
+                sqrt(float(sum(AllNoatHF**2))) / norm_psi, & !24
+                norm_psi, &                                  !25
+                curr_S2, &                                   !26
+                AllNumSpawnedEntries, &                      !27
+                AllNumMerged, &                              !28
+                AllZeroMatrixElem                            !29
 
             if(tMCOutput) then
-                write (iout, "(I12,G16.7,2I10,2I12,7G17.9,G13.5,I12,G13.5)") &
+                write (iout, "(I12,13G16.7,I12,G13.5)") &
                     Iter + PreviousCycles, &
                     DiagSft, &
                     AllTotParts(1) - AllTotPartsOld(1), &
                     AllTotParts(2) - AllTotPartsOld(2), &
-                    AllTotParts(1), AllTotParts(2), &
+                    AllTotParts(1), &
+                    AllTotParts(2), &
                     real(ProjectionE, dp), &
                     aimag(ProjectionE), &
                     real(proje_iter, dp), &
@@ -4143,8 +4144,7 @@ MODULE FciMCParMod
                 AllZeroMatrixElem
 
             if(tMCOutput) then
-                write (iout, "(I12,G16.7,3G16.7,3G16.7,5G17.9,G13.5,I12,&
-                          &G13.5)") &
+                write (iout, "(I12,13G16.7,I12,G13.5)") &
                     Iter + PreviousCycles, &
                     DiagSft, &
                     sum(AllTotParts) - sum(AllTotPartsOld), &
@@ -4173,7 +4173,7 @@ MODULE FciMCParMod
             endif
 
             if (tLogComplexPops) then
-                write (complexstats_unit,"(I12,3G16.7,3I12)") &
+                write (complexstats_unit,"(I12,6G16.7)") &
                     Iter + PreviousCycles, DiagSft, DiagSftRe, DiagSftIm, &
                     sum(AllTotParts), AllTotParts(1), AllTotParts(lenof_sign)
             endif
@@ -5980,7 +5980,7 @@ MODULE FciMCParMod
         type(lexicographic_store) :: store
         integer(n_int) :: ilut_init(0:NIfTot), ilut_tmp(0:NIfTot)
         integer :: nopen, nup, pos, sgn(lenof_sign), nfound
-        real(dp) :: norm
+        real(dp) :: norm, realsgn(lenof_sign)
         character(*), parameter :: t_r = 'setup_linear_comb'
 
         write(iout,*) 'Initialising projection onto linear combination of &
@@ -6026,7 +6026,8 @@ MODULE FciMCParMod
                                     NIfD+1)
                 if (pos > 0) then
                     call extract_sign(CurrentDets(:,pos), sgn)
-                    proje_ref_coeffs(nfound) = sgn(1)
+                    realsgn=transfer(sgn,realsgn)
+                    proje_ref_coeffs(nfound) = realsgn(1)
                 endif
 
                 call get_lexicographic_dets (ilut_init, store, ilut_tmp)
@@ -6048,7 +6049,7 @@ MODULE FciMCParMod
     subroutine update_linear_comb_coeffs ()
 
         integer :: i, pos, sgn(lenof_sign),nfound,ierr
-        real(dp) :: norm,reduce_in(1:2),reduce_out(1:2)
+        real(dp) :: norm,reduce_in(1:2),reduce_out(1:2), realsgn(lenof_sign)
 
         if(nproje_sum>1) then
            if(proje_spatial) then
@@ -6059,7 +6060,8 @@ MODULE FciMCParMod
                       proje_ref_iluts(:,i), NIfD+1)
                  if (pos > 0) then
                     call extract_sign (CurrentDets(:,pos), sgn)
-                    proje_ref_coeffs(i) = sgn(1)
+                    realsgn=transfer(sgn,realsgn)
+                    proje_ref_coeffs(i) = realsgn(1)
                  endif
               enddo
               
@@ -6081,9 +6083,10 @@ MODULE FciMCParMod
               
               do pos=1,TotWalkers
                  call extract_sign(CurrentDets(:,pos),sgn)
-                 if(abs(sgn(1))>abs(proje_ref_coeffs(nproje_sum))) then
+                 realsgn=transfer(sgn,realsgn)
+                 if(abs(realsgn(1))>abs(proje_ref_coeffs(nproje_sum))) then
                     inner: do nfound=1,nproje_sum
-                       if(abs(sgn(1))>abs(proje_ref_coeffs(nfound))) then
+                       if(abs(realsgn(1))>abs(proje_ref_coeffs(nfound))) then
                           proje_ref_coeffs((nfound+1):nproje_sum)=proje_ref_coeffs((nfound):(nproje_sum-1))
                           proje_ref_iluts(0:NIfTot,(nfound+1):nproje_sum)=proje_ref_iluts(0:NIfTot,(nfound):(nproje_sum-1))
                           proje_ref_coeffs(nfound)=sgn(1)
