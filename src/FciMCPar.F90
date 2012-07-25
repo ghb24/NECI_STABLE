@@ -209,6 +209,11 @@ MODULE FciMCParMod
             if(iProcIndex.eq.root) s_start=neci_etime(tstart)
 
             if (tCCMC) then
+                if (tAllRealCoeff .or. tRealCoeffByExcitLevel) &
+                    call stop_all("FciMCPar", "Continuous spawning not yet set up to work &
+                    & with CCMC.  Attention will be required in a number of routines, &
+                    & including AttemptCreatePar and PerformCCMCCycParInt")
+
                 CALL PerformCCMCCycPar()
             else
                 if (.not. (tSpinProject .and. spin_proj_interval == -1)) then
@@ -1310,7 +1315,7 @@ MODULE FciMCParMod
             parent_init=test_flag(SpawnedParts(:,ValidSpawnedList(proc)),flag_parent_initiator(part_type))
             !Assign this flag to all spawned children
             do j=1,lenof_sign
-                if(child(j).ne.0) then
+                if(realchild(j).ne.0) then
                     call set_flag(SpawnedParts(:,ValidSpawnedList(proc)),flag_parent_initiator(j),parent_init)
                 endif
             enddo
@@ -1409,9 +1414,7 @@ MODULE FciMCParMod
 
         call extract_sign (CurrentDets(:,j), CurrentSign)
 
-        RealCurrentSign(1)=transfer(CurrentSign(1), RealCurrentSign(1))
-
-       ! WRITE(6,*) "CurrentSign, RealCurrentSign", CurrentSign, RealCurrentSign
+        RealCurrentSign=transfer(CurrentSign, RealCurrentSign)
 
         tcurr_initiator = .false.
         do part_type=1,lenof_sign
@@ -1463,9 +1466,6 @@ MODULE FciMCParMod
             if (parent_init) then
                 NoInitDets = NoInitDets + 1
                 NoInitWalk = NoInitWalk + abs(RealCurrentSign(part_type))
-
-               ! WRITE(6,*) "RealCurrentSign(part_type), ceiling(RealCurrentSign(part_type)",&
-               !                         RealCurrentSign(part_type), ceiling(RealCurrentSign(part_type),dp)
             else
                 NoNonInitDets = NoNonInitDets + 1
                 NoNonInitWalk = NoNonInitWalk + abs(RealCurrentSign(part_type))
@@ -1538,8 +1538,10 @@ MODULE FciMCParMod
 !Found the highest population on each processor, need to find out which of these has the highest of all.
         INTEGER(KIND=n_int) :: DetPos(0:NIfTot),DetNeg(0:NIfTot)
         INTEGER :: TotWalkersNew,ProcBCastNeg,ProcBCastPos
-        integer(int32) :: HighPopInNeg(2),HighPopInPos(2),HighPopoutNeg(2),HighPopoutPos(2)
+        !integer(int32) :: HighPopInNeg(2),HighPopInPos(2),HighPopoutNeg(2),HighPopoutPos(2)
+        real(dp) :: HighPopInNeg(2),HighPopInPos(2),HighPopoutNeg(2),HighPopoutPos(2)
         INTEGER, DIMENSION(lenof_sign) :: TempSign
+        REAL(dp), DIMENSION(lenof_sign) :: RealTempSign
 
 !        WRITE(iout,*) 'HighPopPos',HighPopPos
 !        WRITE(iout,*) 'CurrentSign(HighPopPos)',CurrentSign(HighPopPos)
@@ -1549,36 +1551,40 @@ MODULE FciMCParMod
         ELSE
             TempSign(:)=0
         ENDIF
-        HighPopInNeg(1)=int(TempSign(1),int32)
-        HighPopInNeg(2)=int(iProcIndex,int32)
 
-        CALL MPIAllReduceDatatype(HighPopinNeg,1,MPI_MINLOC,MPI_2INTEGER,HighPopoutNeg)
+        RealTempSign=transfer(TempSign, RealTempSign)
+
+        HighPopInNeg(1)=RealTempSign(1)
+        HighPopInNeg(2)=real(iProcIndex,dp)
+
+        CALL MPIAllReduceDatatype(HighPopinNeg,1,MPI_MINLOC,MPI_2DOUBLE_PRECISION,HighPopoutNeg)
 
         IF(TotWalkersNew.gt.0) THEN
             call extract_sign(CurrentDets(:,HighPopPos),TempSign)
         ELSE
             TempSign(:)=0
         ENDIF
-        HighPopInPos(1)=int(TempSign(1),int32)
-        HighPopInPos(2)=int(iProcIndex,int32)
+        
+        RealTempSign=transfer(TempSign, RealTempSign)
+        
+        HighPopInPos(1)=RealTempSign(1)
+        HighPopInPos(2)=real(iProcIndex,dp)
 
-        CALL MPIAllReduceDatatype(HighPopinPos,1,MPI_MAXLOC,MPI_2INTEGER,HighPopoutPos)
+        CALL MPIAllReduceDatatype(HighPopinPos,1,MPI_MAXLOC,MPI_2DOUBLE_PRECISION,HighPopoutPos)
 
         ! Now, on all processors, HighPopoutPos(1) is the highest positive 
         ! population, and HighPopoutNeg(1) is the highest negative population.
         ! HighPopoutPos(2) is the processor the highest population came from.
 
-        IF(iProcIndex.eq.HighPopOutNeg(2)) DetNeg(:)=CurrentDets(:,HighPopNeg)
-        IF(iProcIndex.eq.HighPopOutPos(2)) DetPos(:)=CurrentDets(:,HighPopPos)
+        IF(real(iProcIndex,dp).eq.HighPopOutNeg(2)) DetNeg(:)=CurrentDets(:,HighPopNeg)
+        IF(real(iProcIndex,dp).eq.HighPopOutPos(2)) DetPos(:)=CurrentDets(:,HighPopPos)
 
         ! This is a horrible hack, because the process argument should be of 
         ! type 'integer' - whatever that is, but the highpopoutneg is 
         ! explicitly an int(4), so that it works with MPI_2INTEGER. Because
         ! of the explicit interfaces, we need to do this.
-        ProcBCastNeg=HighPopOutNeg(2)
-        ProcBCastPos=HighPopOutPos(2)
-        CALL MPIBcast(DetNeg,NIfTot+1,ProcBCastNeg)
-        CALL MPIBcast(DetPos,NIfTot+1,ProcBCastPos)
+        CALL MPIBcast(DetNeg,NIfTot+1,int(HighPopOutNeg(2)))
+        CALL MPIBcast(DetPos,NIfTot+1,int(HighPopOutPos(2)))
 
         if (iProcIndex == 0) then
             write (iout, '(a, i10, a)') 'The most highly populated determinant &
@@ -1881,7 +1887,7 @@ MODULE FciMCParMod
         HElement_t :: rh
 #ifdef __CMPLX
         ! Avoid compiler warnings when compiling the real version.
-        integer :: i
+        integer :: i, component, child_type
         real(dp) :: MatEl
 #endif
 
@@ -1913,51 +1919,75 @@ MODULE FciMCParMod
             IF(part_type.eq.1) THEN
                 !Real parent particle
 
-                !First spawn from real part of matrix element
-                !Attempt spawning
-                rat = tau * abs(real(rh,dp) / prob)
-                if(tSearchTau) then
-                    if(MaxSpawnProb.lt.rat) MaxSpawnProb = rat
-                endif
+                do component=1,2
+                    !First spawn from real part of matrix element
+                    !Then attempt to spawn with the imaginary part of the matrix element
 
-                ! If probability > 1, then we just create multiple children at the
-                ! chosen determinant.
-                extraCreate = int(rat)
-                rat = rat - real(extraCreate, dp)
+                    tRealSpawning=.false. !default
+                
+                    if (tAllRealCoeff) then
+                        tRealSpawning=.true.
+                    elseif (tRealCoeffByExcitLevel) then
+                        TargetExcitLevel = FindBitExcitLevel (iLutRef, iLutnJ, max_calc_ex_level)
+                        if (TargetExcitLevel .le. RealCoeffExcitThresh) tRealSpawning=.true.
+                    endif
 
-                ! Stochastically choose whether to create or not.
-                r = genrand_real2_dSFMT ()
-                if (rat > r) then
-                    !Create child
-                    child(1) = -nint(sign(1.0_dp, wsign(1)*real(rh,dp)))  !Will return +- one depending on the desired sign of the stochastically created child.
-                    child(1) = child(1) + sign(extraCreate, child(1))
-                elseif(extraCreate.ne.0) then
-                    !Just return if any extra particles created
-                    child(1) = -extraCreate*nint(sign(1.0_dp, wsign(1)*real(rh,dp)))
-                endif
+                    walkerweight=sign(1.0_dp, realwSign(1))
 
-                !Now attempt spawning from im part of matrix element
-                !Attempt spawning
-                rat = tau * abs(aimag(rh) / prob)
-                if(tSearchTau) then
-                    if(MaxSpawnProb.lt.rat) MaxSpawnProb = rat
-                endif
+                    if (component.eq.1) then
+                        MatEl=real(rh,dp) !Real part
+                    else
+                        MatEl=aimag(rh,dp) !Imag part
+                    endif
 
-                ! If probability > 1, then we just create multiple children at the
-                ! chosen determinant.
-                extraCreate = int(rat)
-                rat = rat - real(extraCreate, dp)
+                    if (tRealSpawning) then
+                        !Continuous Spawning
+                        !Simply add in the acceptance probability into the coefficient
+                        realchild(component)=-tau*(MatEl/prob)*walkerweight
+                        
+                        if(tSearchTau) then
+                            if(MaxSpawnProb.lt.rat) MaxSpawnProb = rat
+                        endif
 
-                ! Stochastically choose whether to create or not.
-                r = genrand_real2_dSFMT ()
-                if (rat > r) then
-                    !Create child
-                    child(2) = -nint(sign(1.0_dp, wsign(1)*aimag(rh)))  !Will return +- one depending on the desired sign of the stochastically created child.
-                    child(2) = child(2) + sign(extraCreate, child(2))
-                elseif(extraCreate.ne.0) then
-                    !Just return if any extra particles created
-                    child(2) = -extraCreate*nint(sign(1.0_dp, wsign(1)*aimag(rh)))
-                endif
+                        if (tRealSpawnCutoff .and. (abs(realchild(component)).lt.RealSpawnCutoff)) then
+                             !We don't want to bother spawning negligible coefficients everytime
+                             pSpawn=abs(realchild(component))/RealSpawnCutoff
+                             r = genrand_real2_dSFMT ()
+                             if (pSpawn > r) then
+                                 !Keep this walker, and set equal to RealSpawnCutoff
+                                 realchild(component)=sign(RealSpawnCutoff, -tau*(MatEl/prob)*walkerweight)
+                             else
+                                 !Remove this walker -- do not spawn small coeff this time
+                                 realchild(component)=0.d0
+                             endif
+                         endif
+
+                        child(component)=transfer(realchild(component), child(component))
+                    else
+                        rat = tau * abs(MatEl / prob) * abs(walkerweight)
+                        if(tSearchTau) then
+                            if(MaxSpawnProb.lt.rat) MaxSpawnProb = rat
+                        endif
+
+                        ! If probability > 1, then we just create multiple children at the
+                        ! chosen determinant.
+                        extraCreate = int(rat)
+                        rat = rat - real(extraCreate, dp)
+
+                        ! Stochastically choose whether to create or not.
+                        r = genrand_real2_dSFMT ()
+                        if (rat > r) then
+                            !Create child
+                            child(component) = -nint(sign(1.0_dp, walkerweight*MatEl))
+                            child(component) = child(component) + sign(extraCreate, child(component))
+                        elseif(extraCreate.ne.0) then
+                            !Just return if any extra particles created
+                            child(component) = -extraCreate*nint(sign(1.0_dp, walkerweight*MatEl))
+                        endif
+                        realchild=real(child(component),dp)
+                        child(component)=transfer(realchild, child(component))
+                    endif
+                enddo
 
             ELSE
                 !Imaginary parent particle - rules are slightly different...
@@ -1965,54 +1995,78 @@ MODULE FciMCParMod
                 !Attempt to spawn IMAG walkers with prob -REAL(Hij)/P
                 !We want to use the imaginary part of the matrix element to create real walkers
                 !We want to use the real part of the matrix element to create imaginary walkers
-                rat = tau * abs(aimag(rh) / prob)
-                if(tSearchTau) then
-                    if(MaxSpawnProb.lt.rat) MaxSpawnProb = rat
-                endif
-
-                ! If probability > 1, then we just create multiple children at the
-                ! chosen determinant.
-                extraCreate = int(rat)
-                rat = rat - real(extraCreate, dp)
-
-                ! Stochastically choose whether to create or not.
-                r = genrand_real2_dSFMT ()
-                !Prob = +AIMAG(Hij)/P to create real children
-                if (rat > r) then
-                    !Create child
-                    child(1) = nint(sign(1.0_dp, wsign(2)*aimag(rh)))  !Will return +- one depending on the desired sign of the stochastically created child.
-                    child(1) = child(1) + sign(extraCreate, child(1))
-                elseif(extraCreate.ne.0) then
-                    !Just return if any extra particles created
-                    child(1) = extraCreate*nint(sign(1.0_dp, wsign(2)*aimag(rh)))
-                endif
                 
-                !Now spawning from real part of matrix element
-                !We want to use the real part of the matrix element to create imaginary walkers
+                do component=1,2
+                    !Considering the real part of the matrix element first (which makes imag child)
+                   
+                    tRealSpawning=.false. !default
+                
+                    if (tAllRealCoeff) then
+                        tRealSpawning=.true.
+                    elseif (tRealCoeffByExcitLevel) then
+                        TargetExcitLevel = FindBitExcitLevel (iLutRef, iLutnJ, max_calc_ex_level)
+                        if (TargetExcitLevel .le. RealCoeffExcitThresh) tRealSpawning=.true.
+                    endif
 
-                !Attempt spawning
-                rat = tau * abs(real(rh,dp) / prob)
-                if(tSearchTau) then
-                    if(MaxSpawnProb.lt.rat) MaxSpawnProb = rat
-                endif
+                    if (component.eq.1) then
+                        MatEl=real(rh,dp) !Real part
+                        child_type=2
+                        walkerweight=sign(1.0_dp, realwSign(2))
+                    else
+                        MatEl=aimag(rh,dp) !Imag part
+                        child_type=1
+                        walkerweight=sign(1.0_dp, -realwSign(2)) 
+                        !These walkers have the *opposite* sign to normal
+                    endif
 
-                ! If probability > 1, then we just create multiple children at the
-                ! chosen determinant.
-                extraCreate = int(rat)
-                rat = rat - real(extraCreate, dp)
+                    if (tRealSpawning) then
+                        !Continuous Spawning
+                        !Simply add in the acceptance probability into the coefficient
+                        realchild(child_type)=-tau*(MatEl/prob)*walkerweight
+                        
+                        if(tSearchTau) then
+                            if(MaxSpawnProb.lt.rat) MaxSpawnProb = rat
+                        endif
 
-                ! Stochastically choose whether to create or not.
-                r = genrand_real2_dSFMT ()
-                !Prob = -REAL(Hij)/P to create imaginary children
-                if (rat > r) then
-                    !Create child
-                    child(2) = -nint(sign(1.0_dp, wsign(2)*real(rh,dp)))  !Will return +- one depending on the desired sign of the stochastically created child.
-                    child(2) = child(2) + sign(extraCreate, child(2))
-                elseif(extraCreate.ne.0) then
-                    !Just return if any extra particles created
-                    child(2) = -extraCreate*nint(sign(1.0_dp, wsign(2)*real(rh,dp)))
-                endif
+                        if (tRealSpawnCutoff .and. (abs(realchild(child_type)).lt.RealSpawnCutoff)) then
+                             !We don't want to bother spawning negligible coefficients everytime
+                             pSpawn=abs(realchild(child_type))/RealSpawnCutoff
+                             r = genrand_real2_dSFMT ()
+                             if (pSpawn > r) then
+                                 !Keep this walker, and set equal to RealSpawnCutoff
+                                 realchild(child_type)=sign(RealSpawnCutoff, -tau*(MatEl/prob)*walkerweight)
+                             else
+                                 !Remove this walker -- do not spawn small coeff this time
+                                 realchild(child_type)=0.d0
+                             endif
+                         endif
 
+                        child(child_type)=transfer(realchild(child_type), child(child_type))
+                    else
+                        rat = tau * abs(MatEl / prob) * abs(walkerweight)
+                        if(tSearchTau) then
+                            if(MaxSpawnProb.lt.rat) MaxSpawnProb = rat
+                        endif
+
+                        ! If probability > 1, then we just create multiple children at the
+                        ! chosen determinant.
+                        extraCreate = int(rat)
+                        rat = rat - real(extraCreate, dp)
+
+                        ! Stochastically choose whether to create or not.
+                        r = genrand_real2_dSFMT ()
+                        if (rat > r) then
+                            !Create child
+                            child(child_type) = -nint(sign(1.0_dp, walkerweight*MatEl))
+                            child(child_type) = child(child_type) + sign(extraCreate, child(child_type))
+                        elseif(extraCreate.ne.0) then
+                            !Just return if any extra particles created
+                            child(child_type) = -extraCreate*nint(sign(1.0_dp, walkerweight*MatEl))
+                        endif
+                        realchild=real(child(child_type),dp)
+                        child(child_type)=transfer(realchild, child(child_type))
+                    endif
+                enddo
             ENDIF   ! Type of parent
 
 #else
@@ -2088,14 +2142,14 @@ MODULE FciMCParMod
     ! probability Prob. It returns zero if we are not going to create a child,
     ! or -1/+1 if we are to create a child, giving the sign of the new
     ! particle
-    INTEGER FUNCTION AttemptCreatePar(DetCurr,iLutCurr,WSign,nJ,iLutnJ,Prob,IC,Ex,tParity)
+    INTEGER FUNCTION AttemptCreatePar(DetCurr,iLutCurr,RealWSign,nJ,iLutnJ,Prob,IC,Ex,tParity)
         use GenRandSymExcitNUMod , only : GenRandSymExcitBiased
         use Logging, only : CCMCDebug
         INTEGER :: DetCurr(NEl),nJ(NEl),IC,ExtraCreate,Ex(2,2),Bin
         INTEGER(KIND=n_int) :: iLutCurr(0:NIfTot),iLutnJ(0:NIfTot)
         LOGICAL :: tParity
-        real(dp) :: Prob,r,rat
-        integer, dimension(lenof_sign), intent(in) :: wSign
+        real(dp) :: Prob,r,rat, RealAttemptCreatePar
+        real(dp), dimension(lenof_sign), intent(in) :: RealwSign
         HElement_t :: rh
 
         IF(tMCExcits) THEN
@@ -2184,7 +2238,7 @@ MODULE FciMCParMod
 !            ENDIF
 
 !Child is created - what sign is it?
-            IF(WSign(1).gt.0) THEN
+            IF(RealWSign(1).gt.0) THEN
 !Parent particle is positive
                 IF(real(rh).gt.0.D0) THEN
                     AttemptCreatePar=-1     !-ve walker created
@@ -2206,7 +2260,7 @@ MODULE FciMCParMod
 !            IF(Iter.eq.18925) THEN
 !                WRITE(iout,*) "Not Created",rh,rat
 !            ENDIF
-            AttemptCreatePar=0
+            AttemptCreatePar=0.0
         ENDIF
 
         IF(ExtraCreate.ne.0) THEN
@@ -2220,7 +2274,7 @@ MODULE FciMCParMod
                 AttemptCreatePar=AttemptCreatePar+ExtraCreate
             ELSEIF(AttemptCreatePar.eq.0) THEN
 !No particles were stochastically created, but some particles are still definatly created - we need to determinant their sign...
-                IF(WSign(1).gt.0) THEN
+                IF(RealWSign(1).gt.0) THEN
                     IF(real(rh).gt.0.D0) THEN
                         AttemptCreatePar=-ExtraCreate    !Additional particles are negative
                     ELSE
@@ -2235,6 +2289,9 @@ MODULE FciMCParMod
                 ENDIF
             ENDIF
         ENDIF
+
+        RealAttemptCreatePar=real(AttemptCreatePar,dp)
+        AttemptCreatePar=transfer(RealAttemptCreatePar, AttemptCreatePar)
 
         
 !We know we want to create a particle. Return the bit-representation of this particle (if we have not already got it)
@@ -2262,26 +2319,26 @@ MODULE FciMCParMod
             ENDIF
             IF(IC.eq.1) THEN
                 SinglesAttemptHist(Bin)=SinglesAttemptHist(Bin)+(Tau/Prob)
-                IF(AttemptCreatePar.ne.0) THEN
-                    SinglesHist(Bin)=SinglesHist(Bin)+real(abs(AttemptCreatePar),dp)
+                IF(RealAttemptCreatePar.ne.0) THEN
+                    SinglesHist(Bin)=SinglesHist(Bin)+abs(RealAttemptCreatePar)
                     IF(BRR(Ex(1,1)).le.NEl) THEN
                         IF(BRR(Ex(2,1)).le.NEl) THEN
-                            SinglesHistOccOcc(Bin)=SinglesHistOccOcc(Bin)+real(abs(AttemptCreatePar),dp)
+                            SinglesHistOccOcc(Bin)=SinglesHistOccOcc(Bin)+abs(RealAttemptCreatePar)
                         ELSE
-                            SinglesHistOccVirt(Bin)=SinglesHistOccVirt(Bin)+real(abs(AttemptCreatePar),dp)
+                            SinglesHistOccVirt(Bin)=SinglesHistOccVirt(Bin)+abs(RealAttemptCreatePar)
                         ENDIF
                     ELSE
                         IF(BRR(Ex(2,1)).le.NEl) THEN
-                            SinglesHistVirtOcc(Bin)=SinglesHistVirtOcc(Bin)+real(abs(AttemptCreatePar),dp)
+                            SinglesHistVirtOcc(Bin)=SinglesHistVirtOcc(Bin)+abs(RealAttemptCreatePar)
                         ELSE
-                            SinglesHistVirtVirt(Bin)=SinglesHistVirtVirt(Bin)+real(abs(AttemptCreatePar),dp)
+                            SinglesHistVirtVirt(Bin)=SinglesHistVirtVirt(Bin)+abs(RealAttemptCreatePar)
                         ENDIF
                     ENDIF
                 ENDIF
             ELSEIF(IC.eq.2) THEN
                 DoublesAttemptHist(Bin)=DoublesAttemptHist(Bin)+(Tau/Prob)
-                IF(AttemptCreatePar.ne.0) THEN
-                    DoublesHist(Bin)=DoublesHist(Bin)+real(abs(AttemptCreatePar),dp)
+                IF(RealAttemptCreatePar.ne.0) THEN
+                    DoublesHist(Bin)=DoublesHist(Bin)+abs(RealAttemptCreatePar)
                 ENDIF
             ENDIF
 
@@ -2295,9 +2352,9 @@ MODULE FciMCParMod
                 CALL Stop_All("AttemptCreatePar","Histogramming energies higher than the arrays can cope with. "&
                 & //"Increase iNoBins or BinRange")
             ENDIF
-            IF(AttemptCreatePar.ne.0) THEN
-                SpawnHist(Bin)=SpawnHist(Bin)+real(abs(AttemptCreatePar),dp)
-!                WRITE(iout,*) "Get Here!", real(abs(AttemptCreatePar),dp),Bin
+            IF(RealAttemptCreatePar.ne.0) THEN
+                SpawnHist(Bin)=SpawnHist(Bin)+abs(RealAttemptCreatePar)
+!                WRITE(iout,*) "Get Here!", abs(RealAttemptCreatePar),Bin
             ENDIF
             AttemptHist(Bin)=AttemptHist(Bin)+(Tau/Prob)
         ENDIF
@@ -2425,14 +2482,14 @@ MODULE FciMCParMod
 #else
         !In complex case, fill slot if either real or imaginary particle still there.
         IF((RealCopySign(1).ne.0).or.(RealCopySign(2).ne.0)) THEN
-            if(tTruncInitiator.and.(sign(1,RealCopySign(1)).ne.sign(1,RealwSign(1)))) then
+            if(tTruncInitiator.and.(sign(1.0,RealCopySign(1)).ne.sign(1.0,RealwSign(1)))) then
                 !Remove the real anti-particle
                 NoAborted=NoAborted+abs(RealCopySign(1))
                 iter_data%naborted(1) = iter_data%naborted(1) + abs(int(RealCopySign(1)))
                 if(test_flag(iLutCurr,flag_is_initiator(1))) NoAddedInitiators=NoAddedInitiators-1
                 RealCopySign(1)=0.0
             endif
-            if(tTruncInitiator.and.(sign(1,RealCopySign(lenof_sign)).ne.sign(1,RealwSign(lenof_sign)))) then
+            if(tTruncInitiator.and.(sign(1.0,RealCopySign(lenof_sign)).ne.sign(1.0,RealwSign(lenof_sign)))) then
                 !Remove the imaginary anti-particle
                 NoAborted=NoAborted+abs(RealCopySign(lenof_sign))
                 iter_data%naborted(lenof_sign) = iter_data%naborted(lenof_sign) + abs(int(RealCopySign(lenof_sign)))
@@ -2512,7 +2569,9 @@ MODULE FciMCParMod
         endif
 
         if ((tRealCoeffByExcitLevel .and. (WalkExcitLevel .le. RealCoeffExcitThresh)).or. tAllRealCoeff) then
-            ndie(1)=fac*abs(realwSign(1))
+            do i=1, lenof_sign
+                ndie(i)=fac*abs(realwSign(i))
+            enddo
         else
             do i=1,lenof_sign
                 ! Subtract the current value of the shift, and multiply by tau.
@@ -3236,7 +3295,8 @@ MODULE FciMCParMod
 
     subroutine population_check ()
         use HPHFRandExcitMod, only: ReturnAlphaOpenDet
-        integer :: pop_highest, proc_highest, pop_change
+        integer :: pop_highest, proc_highest
+        real(dp) :: pop_change
         integer :: det(nel), i, error
         integer(int32) :: int_tmp(2)
         logical :: tSwapped
@@ -3251,14 +3311,17 @@ MODULE FciMCParMod
             pop_highest = int_tmp(1)
             proc_highest = int_tmp(2)
 
+            ! NB: the use if int(iHighestPop) obviously introduces a small amount of error
+            ! by ignoring the fractional population here
+
             ! How many walkers do we need to switch dets?
-            pop_change = int(FracLargerDet * real(abs_int_sign(int(AllNoAtHF)), dp))
+            pop_change = FracLargerDet * abs_int_sign(AllNoAtHF)
 !            write(iout,*) "***",AllNoAtHF,FracLargerDet,pop_change, pop_highest,proc_highest
             if (pop_change < pop_highest .and. pop_highest > 50) then
 
                 ! Write out info!
                     root_print 'Highest weighted determinant not reference &
-                               &det: ', pop_highest, abs_int_sign(int(AllNoAtHF))
+                               &det: ', pop_highest, abs_int_sign(AllNoAtHF)
                     
 
                 ! Are we changing the reference determinant?
@@ -3473,7 +3536,7 @@ MODULE FciMCParMod
         call MPIReduce(norm_psi_squared,MPI_SUM,all_norm_psi_squared)
         call MPIReduce(Totparts,MPI_SUM,AllTotParts)
         call MPIReduce(tot_parts_new,MPI_SUM,tot_parts_new_all)
-        norm_psi = sqrt(real(norm_psi_squared, dp))
+        norm_psi = sqrt(all_norm_psi_squared)
         call MPIReduce(SumNoatHF, MPI_SUM, AllSumNoAtHF)
         ! HElement_t values (Calculates the energy by summing all on HF and 
         ! doubles)
@@ -3614,7 +3677,7 @@ MODULE FciMCParMod
                     tot_walkers = InitWalkers
                 endif
                 if ( (sum(AllTotParts) > tot_walkers) .or. &
-                     (abs_int_sign(int(AllNoatHF)) > MaxNoatHF)) then
+                     (abs_int_sign(AllNoatHF) > MaxNoatHF)) then
 !                     WRITE(iout,*) "AllTotParts: ",AllTotParts(1),AllTotParts(2),tot_walkers
                     write (iout, '(a,i13,a)') 'Exiting the single particle growth phase on iteration: ',iter + PreviousCycles, &
                                  ' - Shift can now change'
@@ -3631,7 +3694,7 @@ MODULE FciMCParMod
                         tSpawn_Only_Init=.false.
                     endif
                 endif
-            elseif (abs_int_sign(int(AllNoatHF)) < (MaxNoatHF - HFPopThresh)) then
+            elseif (abs_int_sign(AllNoatHF) < (MaxNoatHF - HFPopThresh)) then
                 write (iout, '(a,i13,a)') 'No at HF has fallen too low - reentering the &
                              &single particle growth phase on iteration',iter + PreviousCycles,' - particle number &
                              &may grow again.'
@@ -3697,8 +3760,8 @@ MODULE FciMCParMod
             endif
 
             ! Calculate the instantaneous 'shift' from the HF population
-            HFShift = -1.d0 / real(abs_int_sign(int(AllNoatHF)), dp) * &
-                              (real(abs_int_sign(int(AllNoatHF)) - abs_int_sign(int(OldAllNoatHF)), dp) / &
+            HFShift = -1.d0 / abs_int_sign(AllNoatHF) * &
+                              (abs_int_sign(AllNoatHF) - abs_int_sign(OldAllNoatHF) / &
                               (Tau * real(StepsSft, dp)))
             InstShift = -1.d0 / sum(AllTotParts) * &
                         ((sum(AllTotParts) - sum(AllTotPartsOld)) / &

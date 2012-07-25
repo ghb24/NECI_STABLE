@@ -164,6 +164,7 @@ MODULE CCMC
 
         !Changes to allow compatibility with the new packaged walkers.
         INTEGER, DIMENSION(lenof_sign) :: TempSign,TempSign2,TempSign3
+        REAL(dp), DIMENSION(lenof_sign) :: RealTempSign,RealTempSign2,RealTempSign3
         !Unused variable for interface
         HElement_t :: HElGen
         nClusters=0
@@ -227,7 +228,8 @@ MODULE CCMC
             iHFDet=-1
         else
             call extract_sign(CurrentDets(:,iHFDet),TempSign)
-            HFcount=abs(TempSign(1))
+            RealTempSign=transfer(TempSign, RealTempSign)
+            HFcount=abs(RealTempSign(1))
         endif
 
         allocate(iKillDetIndices(2,int(TotParts(1))*2))
@@ -238,7 +240,8 @@ MODULE CCMC
          write(6,*) "Particle list"
          do j=1,TotWalkers
             call extract_sign(CurrentDets(:,j),TempSign)
-            write(6,'(i7)',advance='no') TempSign(1)
+            RealTempSign=transfer(TempSign, RealTempSign)
+            write(6,'(i7)',advance='no') RealTempSign(1)
             call WriteBitEx(6,iLutHF,CurrentDets(:,j),.true.)
 !            do l=0,nIfD
 !               Write(6,'(i)', advance='no') CurrentDets(l,j)
@@ -252,7 +255,8 @@ MODULE CCMC
         do j=1,TotWalkers
 !#if 0
           call extract_sign(CurrentDets(:,j),TempSign)
-          iSgn(1)=TempSign(1)
+          RealTempSign=transfer(TempSign, RealTempSign)
+          RealiSgn(1)=RealTempSign(1)
           IFDEBUG(iDebug,5) WRITE(6,*) "Iteration ",Iter,':',j
 ! Deal with T_1^2
           WalkExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j), 2)
@@ -261,13 +265,15 @@ MODULE CCMC
                WalkExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,l), 2)
                if(WalkExcitLevel.eq.1) then
                   call extract_sign(CurrentDets(:,l),TempSign2)
-                  iSgn(1)=iSgn(1)*TempSign2(1)
+                  RealTempSign2=transfer(TempSign2, RealTempSign2)
+                  RealiSgn(1)=RealiSgn(1)*RealTempSign2(1)
                   iLutnI(:)=CurrentDets(:,j)
+                  iSgn=transfer(RealiSgn, iSgn)
                   call AddBitExcitor(iLutnI,CurrentDets(:,l),iLutHF,iSgn(1))
-                  if(iSgn(1).ne.0) then
+                  if(RealiSgn(1).ne.0) then
                      call decode_bit_det (DetCurr, iLutnI)
                      Htmp = get_helement (HFDet, DetCurr, iLutHF, iLutnI)
-                     dT1Sq=dT1Sq+(Real(Htmp,dp)*iSgn(1))
+                     dT1Sq=dT1Sq+(Real(Htmp,dp)*RealiSgn(1))
                      !WRITE(6,'(A,I,2G)', advance='no') 'T1',iSgn,real(Htmp,dp),dT1Sq
                      !call WriteBitEx(6,iLutHF,CurrentDets(:,j),.false.)
                      !call WriteBitEx(6,iLutHF,CurrentDets(:,l),.false.)
@@ -283,7 +289,7 @@ MODULE CCMC
 !          endif
 !#endif
 !Go through all particles on the current walker det
-          do l=1,abs(TempSign(1))    !  abs(CurrentSign(j))
+          do l=1,abs(int(realTempSign(1)))    !  abs(CurrentSign(j))
             iCumlExcits=iCumlExcits+1
             if(j.eq.iHFDet) then
                iMaxEx=1
@@ -322,15 +328,15 @@ MODULE CCMC
 
 
                call extract_sign(CurrentDets(:,j),TempSign2)
+               RealTempSign2=transfer(TempSign2, RealTempSign2)
                if(iExcitor.eq.1) then  !Deal with all excitors singly
                   IFDEBUG(iDebug,5) write(6,*) 'Plain old excitor.'
 !just select the single excitor
                   iLutnI(:)=CurrentDets(:,j)
-                  iSgn(1)=sign(1,TempSign2(1))  ! sign(1,CurrentSign(j))
+                  realiSgn(1)=sign(1.0_dp,RealTempSign2(1))  ! sign(1,CurrentSign(j))
                   dClusterProb=1 
                   dProbNorm=1
                   iCompositeSize=0
-                  realiSgn(1)=transfer(iSgn(1), RealiSgn(1))
                   call decode_bit_det (DetCurr, iLutnI)
 !Also take into account the contributions from the dets in the list
                   HDiagCurr=CurrentH(j)
@@ -364,7 +370,7 @@ MODULE CCMC
                   SelectedExcitors(:,1)=CurrentDets(:,j)
 
 !We keep track of the number of ways we could've generated this composite
-                  dNGenComposite=abs(TempSign2(1))  ! abs(CurrentSign(j))
+                  dNGenComposite=abs(RealTempSign2(1))  ! abs(CurrentSign(j))
 
 
                   if(tExactCluster) then  !Each time we're here, generate another cluster, up to all of them.
@@ -372,7 +378,7 @@ MODULE CCMC
 !Setup the exact cluster if we need to 
 !Pretend we've just finished a single excitor
                         iCurrentCompositeSize=1
-                        iLeftHere(1)=abs(TempSign2(1))-1    ! abs(CurrentSign(j))-1
+                        iLeftHere(1)=abs(RealTempSign2(1))-1    ! abs(CurrentSign(j))-1
                      endif
                      IFDEBUG(iDebug,6) then
                        WRITE(6,*) "EXACT CLUSTER IN"
@@ -415,7 +421,8 @@ MODULE CCMC
                            if (SelectedExcitorIndices(i).gt.TotWalkers) cycle
                            !Hooray - we've got an allowed excitor
                            call extract_sign(CurrentDets(:,SelectedExcitorIndices(i)),TempSign3)
-                           iLeftHere(i)=abs(TempSign3(1))-1
+                           RealTempSign3=transfer(TempSign3, RealTempSign3)
+                           iLeftHere(i)=abs(RealTempSign3(1))-1
 !                           iLeftHere(i)=abs(CurrentSign(SelectedExcitorIndices(i)))-1
                            SelectedExcitors(:,i)=CurrentDets(:,SelectedExcitorIndices(i))
                            exit
@@ -452,7 +459,8 @@ MODULE CCMC
                               endif
                               !Hooray - we've got an allowed excitor
                               call extract_sign(CurrentDets(:,SelectedExcitorIndices(k)),TempSign3)
-                              iLeftHere(k)=abs(TempSign3(1))-1
+                              RealTempSign3=transfer(TempSign3, RealTempSign3)
+                              iLeftHere(k)=abs(RealTempSign3(1))-1
 !                              iLeftHere(k)=abs(CurrentSign(SelectedExcitorIndices(k)))-1
                               SelectedExcitors(:,k)=CurrentDets(:,SelectedExcitorIndices(k))
                            endif
@@ -517,14 +525,16 @@ MODULE CCMC
                            k=1+floor(r*(TotWalkers-1))    !This selects a unique excitor (which may be multiply populated)
                            if(k.ge.iHFDet) k=k+1          !We're not allowed to select the HF det
                            call extract_sign(CurrentDets(:,k),TempSign3)
-                           if(TempSign3(1).eq.0) k=0
+                           RealTempSign3=transfer(TempSign3, RealTempSign3)
+                           if(RealTempSign3(1).eq.0) k=0
                            ! if(CurrentSign(k).eq.0) k=0
                         enddo
                         call extract_sign(CurrentDets(:,k),TempSign3)
+                        RealTempSign3=transfer(TempSign3, RealTempSign3)
                         ! For each new excit added to the composite, we 
                         ! multiply up to count the number of ways we could've
                         ! generated it.
-                        dNGenComposite=dNGenComposite*abs(TempSign3(1))  
+                        dNGenComposite=dNGenComposite*abs(RealTempSign3(1))  
                         ! dNGenComposite=dNGenComposite*abs(CurrentSign(k))
                         ! For each new excit added to the composite, we 
                         ! multiply up to count the number of ways we could've
@@ -532,7 +542,7 @@ MODULE CCMC
                         IFDEBUG(iDebug,6) Write(6,*) "Selected excitor",k
                         SelectedExcitorIndices(i)=k
                         SelectedExcitors(:,i)=CurrentDets(:,k)
-                        dClusterProb=(dClusterProb*abs(TempSign3(1)))/((TotParts(1)-HFcount))
+                        dClusterProb=(dClusterProb*abs(RealTempSign3(1)))/((TotParts(1)-HFcount))
 
 !Account for intermediate Normalization
                         dProbNorm=dProbNorm*HFCount
@@ -540,7 +550,7 @@ MODULE CCMC
 !Account for possible orderings of selection
                         dProbNorm=dProbNorm*i
                         IFDEBUG(iDebug,6) WRITE(6,*) "TotParts,HFCount:",TotParts(1),HFcount
-                        IFDEBUG(iDebug,6) write(6,*) "Prob ",i,": ",(abs(TempSign3(1))+0.d0)/(TotParts(1)-HFcount), &
+                        IFDEBUG(iDebug,6) write(6,*) "Prob ",i,": ",(abs(RealTempSign3(1))+0.d0)/(TotParts(1)-HFcount), &
                             " Cuml:", dClusterProb
                      enddo
                      IFDEBUG(iDebug,6) WRITE(6,*) 'prob out of sel routine.',dProbNumExcit
@@ -558,7 +568,8 @@ MODULE CCMC
                      WRITE(6,*) " Excitors in composite:", iCompositeSize
                      do i=1,iCompositeSize
                         call extract_sign(CurrentDets(:,SelectedExcitorIndices(i)),TempSign3)
-                        write(6,'(I2)',advance='no') sign(1,TempSign3(1))
+                        RealTempSign3=transfer(TempSign3, RealTempSign3)
+                        write(6,'(I2)',advance='no') sign(1.0_dp,RealTempSign3(1))
                         call WriteBitEx(6,iLutHF,SelectedExcitors(:,i),.true.)
                      enddo
                      Write(6,"(A,G25.17)") "   Level chosen Prob      : ",dProbNumExcit
@@ -571,14 +582,17 @@ MODULE CCMC
                   dClusterProbs=dClusterProbs+1/dClusterProb
                   iLutnI(:)=CurrentDets(:,j)
                   call extract_sign(CurrentDets(:,j),TempSign3)
-                  iSgn(1)=sign(1,TempSign3(1)) !The sign of the first excitor
+                  RealTempSign3=transfer(TempSign3, RealTempSign3)
+                  RealiSgn(1)=sign(1.0_dp,RealTempSign3(1)) !The sign of the first excitor
                   ! iSgn(1)=sign(1,CurrentSign(j)) !The sign of the first excitor
                   do i=2,iCompositeSize 
                      call extract_sign(CurrentDets(:,SelectedExcitorIndices(i)),TempSign3)
-                     iSgn(1)=iSgn(1)*sign(1,TempSign3(1))
+                      RealTempSign3=transfer(TempSign3, RealTempSign3)
+                     RealiSgn(1)=RealiSgn(1)*sign(1.0_dp,RealTempSign3(1))
                      ! iSgn(1)=iSgn(1)*sign(1,CurrentSign(SelectedExcitorIndices(i)))
+                     iSgn=transfer(RealiSgn, iSgn)
                      call AddBitExcitor(iLutnI,SelectedExcitors(:,i),iLutHF,iSgn(1))
-                     IFDEBUG(iDebug,4) Write(6,*) "Results of addition ",i, "Sign ",iSgn(1),':'
+                     IFDEBUG(iDebug,4) Write(6,*) "Results of addition ",i, "Sign ",RealiSgn(1),':'
                      if(iSgn(1).eq.0) exit
                      IFDEBUG(iDebug,4) call WriteBitEx(6,iLutHF,iLutnI,.true.)
                   enddo
@@ -586,7 +600,7 @@ MODULE CCMC
                   if(iSgn(1).eq.0) cycle
                endif
 
-               IF(iSgn(1)/=0.and.iDebug.gt.4) then
+               IF(RealiSgn(1)/=0.and.iDebug.gt.4) then
                   WRITE(6,*) "Chosen det/excitor is:"
                   WRITE(6,"(A)",advance="no") "  "
                   call WriteBitDet(6,iLutnI,.true.)
@@ -632,13 +646,13 @@ MODULE CCMC
                   IF(TTruncSpace) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
                       IF(CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)) THEN
-                          Child=AttemptCreatePar(DetCurr,iLutnI,iSgn,nJ,iLutnJ,Prob,IC,Ex,tParity)
+                          Child=AttemptCreatePar(DetCurr,iLutnI,RealiSgn,nJ,iLutnJ,Prob,IC,Ex,tParity)
                       ELSE
                           Child=0
                       ENDIF
                   ELSE
 !SD Space is not truncated - allow attempted spawn as usual
-                      Child=AttemptCreatePar(DetCurr,iLutnI,iSgn,nJ,iLutnJ,Prob,IC,Ex,tParity)
+                      Child=AttemptCreatePar(DetCurr,iLutnI,RealiSgn,nJ,iLutnJ,Prob,IC,Ex,tParity)
                   ENDIF
 
                   IFDEBUGTHEN(iDebug,3)

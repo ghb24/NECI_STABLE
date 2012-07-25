@@ -52,13 +52,15 @@ contains
     end subroutine
 
 !routine to calculation the absolute magnitude of a complex integer variable (to nearest integer)
-    pure integer function abs_int_sign(wsign)
-        integer, dimension(lenof_sign), intent(in) :: wsign
+    pure real(dp) function abs_int_sign(Realwsign)
+        real(dp), dimension(lenof_sign), intent(in) :: realwsign
 
         if(lenof_sign.eq.1) then
-            abs_int_sign=abs(wsign(1))
+            abs_int_sign=abs(Realwsign(1))
         else
-            abs_int_sign=nint(sqrt(real(wsign(1),dp)**2+real(wsign(lenof_sign),dp)**2),sizeof_int)
+            abs_int_sign=real(int(sqrt(Realwsign(1)**2+realwsign(lenof_sign)**2)),dp)
+            !The integerisation here is an approximation, but one that is used in the integer algorithm, so is retained
+            !in this real version of the algorithm
         endif
     end function abs_int_sign
 
