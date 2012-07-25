@@ -7094,7 +7094,8 @@ MODULE FciMCParMod
         endif
 
         !First, calculate the total weight - TotMP1Weight
-        TotMP1Weight=1.D0
+        mp2energy=0.0_dp
+        TotMP1Weight=1.0_dp
         iExcits=0
         tAllExcitsFound=.false.
         if(tUEG) then
