@@ -1271,8 +1271,18 @@ MODULE FciMCParMod
         logical :: parent_init
 
         proc = DetermineDetNode(nJ,0)    ! 0 -> nNodes-1)
+
         ! We need to include any flags set both from the parent and from the
-        ! spawning steps
+        ! spawning steps. No we don't! - ghb
+        ! This is highly highly yucky and needs cleaning up.
+        ! Potentially, ilutJ can be given the flag of its parent in 
+        ! FindExcitBitDet routine. I don't think it should be.
+        ! To make things more confusing, this only happens for non-HPHF/CSF 
+        ! runs.
+        ! Things are even more confusing given the fact that CCMC is using this routine
+        ! Who know whether they require the flag there or not...
+        !TODO: CLEAN THIS UP. Make it clear, and transparent, with one way to change the
+        ! flag. Otherwise, this will trip many people up in the future.
         flags = ior(parent_flags, extract_flags(ilutJ))
 
         call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ, &
