@@ -112,17 +112,12 @@ MODULE FciMCParMod
     use symrandexcit3, only: gen_rand_excit3, test_sym_excit3
     use errors, only: error_analysis
     use nElRDMMod, only: FinaliseRDM,Fill_ExplicitRDM_this_Iter,calc_energy_from_rdm, &
-                         fill_hist_explicitrdm_this_iter, &
-                         fill_diag_rdm, fill_sings_rdm, fill_doubs_rdm, &
-                         Add_RDM_From_IJ_Pair, tCalc_RDMEnergy, &
-                         extract_bit_rep_rdm_diag_norm, &
-                         extract_bit_rep_rdm_diag_hf_s_d, &
-                         extract_bit_rep_rdm_diag_no_rdm, DeallocateRDM,&
-                         DeAlloc_Alloc_SpawnedParts, &
-                         Fill_Spin_Coupled_RDM, zero_rdms, &
-                         Add_RDM_HFConnections_Null, Add_RDM_HFConnections_Norm, &
-                         Add_RDM_HFConnections_HPHF, Add_RDM_HFConnections_HF_S_D, &
-                         fill_rdm_softexit, fill_diag_and_explicit_rdm
+                         fill_hist_explicitrdm_this_iter, tCalc_RDMEnergy, &
+                         extract_bit_rep_avsign_norm, &
+                         extract_bit_rep_avsign_hf_s_d, &
+                         extract_bit_rep_avsign_no_rdm, DeallocateRDM,&
+                         DeAlloc_Alloc_SpawnedParts, zero_rdms, &
+                         fill_rdm_softexit, fill_rdm_diag_and_explicit_currdet 
 
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
@@ -240,8 +235,7 @@ MODULE FciMCParMod
                                            ptr_new_child_stats, &
                                            ptr_attempt_die, &
                                            ptr_iter_data, &
-                                           ptr_extract_bit_rep_rdm_diag, &
-                                           ptr_add_rdm_hfconnections)
+                                           ptr_extract_bit_rep_avsign) 
                 endif
             endif
 
@@ -257,8 +251,7 @@ MODULE FciMCParMod
                                            new_child_stats_normal, &
                                            attempt_die_spin_proj, &
                                            iter_data_spin_proj, &
-                                           extract_bit_rep_rdm_diag_no_rdm, &
-                                           add_rdm_hfconnections_null)
+                                           extract_bit_rep_avsign_no_rdm) 
                 enddo
             endif
 
@@ -332,8 +325,9 @@ MODULE FciMCParMod
                 CALL ChangeVars(tSingBiasChange,tSoftExitFound,tWritePopsFound)
                 IF(tSoftExitFound) THEN
                     TIncrement=.false.
-                    if(tFillingStochRDMonFly) & 
-                        call fill_rdm_softexit(TotWalkers)
+                    ! The diagonal elements of the RDM will not have been calculated (as we didn't know 
+                    ! it was the last iteration), so this must be done now.
+                    if(tFillingStochRDMonFly) call fill_rdm_softexit(TotWalkers)
                     EXIT
                 ENDIF
                 IF(tTimeExit.and.(TotalTime8.ge.MaxTimeExit)) THEN
@@ -389,11 +383,14 @@ MODULE FciMCParMod
                 CALL WriteHamilHistogram()
             ENDIF
             IF(tRDMonFly.and.(.not.tSinglePartPhase)) THEN
+                ! If we wish to calculate the energy, have started accumulating the RDMs, 
+                ! and this is an iteration where the energy should be calculated, do so.
                 if( tCalc_RDMEnergy .and. ((Iter - VaryShiftIter).gt.IterRDMonFly) &
                     .and. (mod((Iter - IterRDMStart)+1,RDMEnergyIter).eq.0) ) &
                         CALL Calc_Energy_from_RDM(Norm_2RDM)  
             ENDIF
             if(tChangeVarsRDM) then
+                ! Decided during the CHANGEVARS that the RDMs should be calculated.
                 call InitRDM() 
                 tRDMonFly = .true.
                 tChangeVarsRDM = .false.
@@ -769,11 +766,11 @@ MODULE FciMCParMod
         call assign_data (ptr_iter_data, data_struct)
     end subroutine
 
-    subroutine set_extract_bit_rep_rdm_diag(extract_bit_rep_rdm_diag)
+    subroutine set_extract_bit_rep_avsign(extract_bit_rep_avsign)
         use, intrinsic :: iso_c_binding
         implicit none
         interface
-            subroutine extract_bit_rep_rdm_diag(iLutnI, CurrH_I, nI, SignI, &
+            subroutine extract_bit_rep_avsign(iLutnI, CurrH_I, nI, SignI, &
                                                 FlagsI, IterRDMStartI, AvSignI, Store)
                 use constants , only : dp, n_int, lenof_sign
                 use SystemData , only : NEl
@@ -790,32 +787,7 @@ MODULE FciMCParMod
             end subroutine
         end interface
 
-        call assign_proc (ptr_extract_bit_rep_rdm_diag, extract_bit_rep_rdm_diag)
-    end subroutine
-
-    subroutine set_add_rdm_hfconnections(add_rdm_hfconnections)
-        use, intrinsic :: iso_c_binding
-        implicit none
-        interface
-            subroutine Add_RDM_HFConnections(iLutJ,nJ,AvSignJ,walkExcitLevel,IterRDM)
-                USE constants , only : n_int, dp
-                use SystemData , only : NEl
-                use bit_reps , only : NIfTot
-                use FciMCData , only : AvNoatHF, iLutHF_True
-                use hphf_integrals , only : hphf_sign
-                use HPHFRandExcitMod , only : FindExcitBitDetSym
-                use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
-                implicit none
-                integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
-                integer , intent(in) :: nJ(NEl)
-                real(dp) , intent(in) :: AvSignJ, IterRDM
-                integer , intent(in) :: walkExcitLevel
-                integer(kind=n_int) :: SpinCoupDet(0:niftot)
-                integer :: nSpinCoup(NEl), HPHFExcitLevel
-            end subroutine
-        end interface
-
-        call assign_proc (ptr_add_rdm_hfconnections, add_rdm_hfconnections)
+        call assign_proc (ptr_extract_bit_rep_avsign, extract_bit_rep_avsign)
     end subroutine
 
     ! This is the heart of FCIMC, where the MC Cycles are performed.
@@ -825,8 +797,7 @@ MODULE FciMCParMod
     subroutine PerformFCIMCycPar(generate_excitation, attempt_create, &
                                  get_spawn_helement, encode_child, &
                                  new_child_stats, attempt_die, &
-                                 iter_data, extract_bit_rep_rdm_diag, &
-                                 add_rdm_hfconnections)
+                                 iter_data, extract_bit_rep_avsign)
         
          use sym_mod
          use IntegralsData, only : Nfrozen
@@ -941,7 +912,7 @@ MODULE FciMCParMod
                 real(dp), intent(in) :: Kii
                 integer, dimension(lenof_sign) :: ndie
             end function
-            subroutine extract_bit_rep_rdm_diag(iLutnI, CurrH_I, nI, SignI, &
+            subroutine extract_bit_rep_avsign(iLutnI, CurrH_I, nI, SignI, &
                                                     FlagsI, IterRDMStartI, AvSignI, Store)
                 use constants , only : dp, n_int, lenof_sign
                 use SystemData , only : NEl
@@ -955,22 +926,6 @@ MODULE FciMCParMod
                 integer, dimension(lenof_sign), intent(out) :: SignI
                 real(dp) , intent(out) :: IterRDMStartI, AvSignI
                 type(excit_gen_store_type), intent(inout), optional :: Store
-            end subroutine
-            subroutine Add_RDM_HFConnections(iLutJ,nJ,AvSignJ,walkExcitLevel,IterRDM)
-                USE constants , only : n_int, dp
-                use SystemData , only : NEl
-                use bit_reps , only : NIfTot
-                use FciMCData , only : AvNoatHF, iLutHF_True
-                use hphf_integrals , only : hphf_sign
-                use HPHFRandExcitMod , only : FindExcitBitDetSym
-                use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
-                implicit none
-                integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
-                integer , intent(in) :: nJ(NEl)
-                real(dp) , intent(in) :: AvSignJ, IterRDM
-                integer , intent(in) :: walkExcitLevel
-                integer(kind=n_int) :: SpinCoupDet(0:niftot)
-                integer :: nSpinCoup(NEl), HPHFExcitLevel
             end subroutine
         end interface
         
@@ -1076,12 +1031,20 @@ MODULE FciMCParMod
         IFDEBUG(FCIMCDebug,3) write(iout,"(A,I12)") "Walker list length: ",TotWalkers
         IFDEBUG(FCIMCDebug,3) write(iout,"(A)") "TW: Walker  Det"
 
+        ! This block decides whether or not to calculate the contribution to the RDMs from 
+        ! the diagonal elements (and explicit connections to the HF) for each occupied determinant. 
+        ! For efficiency, this is only done on the final iteration, or one where the RDM energy is 
+        ! being printed.
         tFill_RDM = .false.
         if(tFillingStochRDMonFly) then
             if(mod((Iter - IterRDMStart + 1),RDMEnergyIter).eq.0) then 
+                ! RDM energy is being printed, calculate the diagonal elements for 
+                ! the last RDMEnergyIter iterations.
                 tFill_RDM = .true.
                 IterLastRDMFill = RDMEnergyIter
             elseif(Iter.eq.NMCyc) then
+                ! Last iteration, calculate the diagonal element for the iterations 
+                ! since the last time they were included.
                 tFill_RDM = .true.
                 IterLastRDMFill = mod((Iter - IterRDMStart + 1),RDMEnergyIter)
             endif
@@ -1115,10 +1078,12 @@ MODULE FciMCParMod
             else                                      
                 ! If we're not calculating the RDM (or we're calculating some HFSD combination of the 
                 ! RDM) this just extracts info from the bit representation like normal.
-                ! Otherwise, it extracts the Curr info, and at the same time, adds in the RDM 
-                ! contribution to the diagonal terms.
+                ! IterRDMStartCurr and AvSignCurr just come out as 1.0_dp.  
+                ! Otherwise, it extracts the Curr info, and calculates the iteration this determinant 
+                ! became occupied (IterRDMStartCurr) and the average population during that time 
+                ! (AvSignCurr).
 
-                call extract_bit_rep_rdm_diag (CurrentDets(:,j), CurrentH(1:NCurrH,j), &
+                call extract_bit_rep_avsign (CurrentDets(:,j), CurrentH(1:NCurrH,j), &
                                             DetCurr, SignCurr, FlagsCurr, IterRDMStartCurr, &
                                             AvSignCurr, fcimc_excit_gen_store)
 
@@ -1213,7 +1178,6 @@ MODULE FciMCParMod
 !            ! If we're filling the RDM, this calculates the explicitly connected singles and doubles.
 !            ! Or in the case of HFSD (or some combination of this), it calculates the 
 !            ! diagonal elements too - as we need the walkExcitlevel for the diagonal elements as well.
-!            call Add_RDM_HFConnections(CurrentDets(:,j),DetCurr,AvSignCurr,walkExcitLevel_toHF)   
             TempSpawnedPartsInd = 0
 
             ! Loop over the 'type' of particle. 
@@ -1291,9 +1255,18 @@ MODULE FciMCParMod
                                CurrentDets(:,j), HDiagCurr, SignCurr, &
                                AvSignCurr, IterRDMStartCurr, VecSlot, j)
 
-            if(tFill_RDM) &                           
-                call fill_diag_and_explicit_rdm(CurrentDets(:,VecSlot-1), DetCurr, &
-                                        CurrentH(1:NCurrH,VecSlot-1), walkExcitLevel_toHF, IterLastRDMFill)  
+            if(tFill_RDM) then 
+                ! If tFill_RDM is true, this is an iteration where the diagonal 
+                ! RDM elements are calculated, along with the contributions from 
+                ! connections to the (true) HF determinant.
+
+                if((abs(CurrentH(2,VecSlot-1)).gt.real(InitiatorWalkNo,dp)).or.(.not.tInitiatorRDM)) & 
+                ! If we are only using initiators to calculate the RDMs, only add in the diagonal and 
+                ! explicit contributions if the average population is greater than n_a = InitiatorWalkNo.
+ 
+                    call fill_rdm_diag_and_explicit_currdet(CurrentDets(:,VecSlot-1), DetCurr, &
+                            CurrentH(1:NCurrH,VecSlot-1), walkExcitLevel_toHF, IterLastRDMFill)  
+            endif
 
         enddo ! Loop over determinants.
         IFDEBUGTHEN(FCIMCDebug,2) 
@@ -1474,7 +1447,7 @@ MODULE FciMCParMod
         IF(tFillingStochRDMonFly) THEN                            
             !We are spawning from iLutI to SpawnedParts(:,ValidSpawnedList(proc)).
             !We want to store the parent (D_i) with the spawned child (D_j) so that we can
-            !add in Di.Dj to the RDM later on.
+            !add in Ci.Cj to the RDM later on.
             !The parent is NIfDBO integers long, and stored in the second part of the SpawnedParts array 
             !from NIfTot+1 -> NIfTot+1 + NIfDBO.
 
@@ -1490,11 +1463,13 @@ MODULE FciMCParMod
                 ! First we want to check if this Di.Dj pair has already been accounted for.
                 ! This means searching the Dj's that have already been spawned from this Di, to make sure 
                 ! the new Di being spawned on here is not the same.
+                ! The Dj children spawned by the current Di are being stored in the array TempSpawnedParts, 
+                ! so that the reaccurance of a Di.Dj pair may be monitored.
 
-                ! Store parent, unless we find this Dj has already been spawned on.
+                ! Store the Di parent with the spawned child, unless we find this Dj has already been spawned on.
                 tRDMStoreParent = .true.
 
-                ! Run through the walkers that have already been spawned from this particular Di.
+                ! Run through the Dj walkers that have already been spawned from this particular Di.
                 ! If this is the first to be spawned from Di, TempSpawnedPartsInd will be zero, so we 
                 ! just wont run over anything.
                 do j = 1,TempSpawnedPartsInd
@@ -1518,14 +1493,18 @@ MODULE FciMCParMod
                     ! We also want to make sure the parent Di is stored with this Dj.
                     SpawnedParts(niftot+1:niftot+nifdbo+1, ValidSpawnedList(proc)) = iLutI(0:nifdbo) 
 
-                    !We also need to carry with the child (and the parent), the sign of the parent.
-                    !In actual fact this is the sign of the parent divided by the probability of generating 
-                    !that pair Di and Dj, to account for the 
-                    !fact that Di and Dj are not always added to the RDM, but only when Di spawns on Dj.
-                    !This RDMBiasFacCurr factor is turned into an integer to pass around to the relevant processors.
+                    ! We need to carry with the child (and the parent), the sign of the parent.
+                    ! In actual fact this is the sign of the parent divided by the probability of generating 
+                    ! that pair Di and Dj, to account for the 
+                    ! fact that Di and Dj are not always added to the RDM, but only when Di spawns on Dj.
+                    ! This RDMBiasFacCurr factor is turned into an integer to pass around to the relevant processors.
                     SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)) = &
                         transfer(RDMBiasFacCurr,SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)))
                 else
+                    ! This Di has already spawned on this Dj - don't store the Di parent with this child, 
+                    ! so that the pair is not double counted.  
+                    ! We are using the probability that Di spawns onto Dj *at least once*, so we don't want to 
+                    ! double count this pair.
                     SpawnedParts(niftot+1:niftot+nifdbo+2, ValidSpawnedList(proc)) = 0
                 endif
             endif
@@ -1623,25 +1602,25 @@ MODULE FciMCParMod
     end subroutine end_iteration_print_warn 
 
     subroutine check_start_rdm()
+! This routine checks if we should start filling the RDMs - and does so if we should.        
         implicit none
 
         IF((.not.tSinglePartPhase).and.((Iter - VaryShiftIter).eq.(IterRDMonFly+1))) THEN
+        ! IterRDMonFly is the number of iterations after the shift has changed that we want 
+        ! to fill the RDMs.  If this many iterations have passed, start accumulating the RDMs! 
             IterRDMStart = Iter
             IterRDM_HF = Iter
             !We have reached the iteration where we want to start filling the RDM.
             if(tExplicitAllRDM) then
+                ! Explicitly calculating all connections - expensive...
                 tFillingExplicRDMonFly = .true.
                 if(tHistSpawn) NHistEquilSteps = Iter
             else
+                ! Stochastically calculating the off diagonal RDM elements.
                 if(tHF_S_D.or.tHF_S_D_Ref.or.tHF_Ref_Explicit) then
-                    call set_extract_bit_rep_rdm_diag(extract_bit_rep_rdm_diag_hf_s_d)
-                    call set_add_rdm_hfconnections(add_rdm_hfconnections_hf_s_d)
-                elseif(tHPHF) then
-                    call set_extract_bit_rep_rdm_diag(extract_bit_rep_rdm_diag_norm)
-                    call set_add_rdm_hfconnections(add_rdm_hfconnections_hphf)
+                    call set_extract_bit_rep_avsign(extract_bit_rep_avsign_hf_s_d)
                 else
-                    call set_extract_bit_rep_rdm_diag(extract_bit_rep_rdm_diag_norm)
-                    call set_add_rdm_hfconnections(add_rdm_hfconnections_norm)
+                    call set_extract_bit_rep_avsign(extract_bit_rep_avsign_norm)
                 endif
                 if(.not.tHF_Ref_Explicit) then
                     !By default - we will do a stochastic calculation of the RDM.
@@ -1958,9 +1937,7 @@ MODULE FciMCParMod
 
         call set_fcimc_iter_data (iter_data_fciqmc)
 
-        call set_extract_bit_rep_rdm_diag(extract_bit_rep_rdm_diag_no_rdm)
-
-        call set_add_rdm_hfconnections(add_rdm_hfconnections_null)
+        call set_extract_bit_rep_avsign(extract_bit_rep_avsign_no_rdm)
 
     end subroutine
 
@@ -2309,97 +2286,101 @@ MODULE FciMCParMod
             ! Avoid compiler warnings
             iUnused = part_type
 
-        if(tFillingStochRDMonFly) then
-            if(tSpawnGhostChild) then
+            if(tFillingStochRDMonFly) then
+                if(tSpawnGhostChild) then
 
-                ! We eventually turn this real bias factor into an integer to be passed around 
-                ! with the spawned children and their parents - this only works with 64 bit at the mo.
-                if(n_int.eq.4) CALL Stop_All('attempt_create_normal', &
-                                'the bias factor currently does not work with 32 bit integers.')
+                    ! We eventually turn this real bias factor into an integer to be passed around 
+                    ! with the spawned children and their parents - this only works with 64 bit at the mo.
+                    if(n_int.eq.4) CALL Stop_All('attempt_create_normal', &
+                                    'the bias factor currently does not work with 32 bit integers.')
 
-                ! Otherwise calculate the 'sign' of Di we are eventually going to add in as Di.Dj.                                
-                ! Because we only add in Di.Dj when we successfully spawn from Di.Dj, we need to unbias (scale up) 
-                ! Di by the probability of this happening.
-                ! We need the probability that the determinant i, with population n_i, will spawn on j.
-                ! We only consider one instance of a pair Di,Dj, so just want the probability of any of the n_i 
-                ! walkers spawning at least once on Dj.
-                ! P_successful_spawn(j | i)[n_i] =  1 - P_not_spawn(j | i)[n_i]
-                ! P_not_spawn(j | i )[n_i] is the probability of none of the n_i walkers spawning on j from i.
-                ! This requires either not generating j, or generating j and not succesfully spawning, n_i times.
-                ! P_not_spawn(j | i )[n_i] = [(1 - P_gen(j | i)) + ( P_gen( j | i ) * (1 - P_spawn(j | i))]^n_i
+                    ! Otherwise calculate the 'sign' of Di we are eventually going to add in as Di.Dj.                                
+                    ! Because we only add in Di.Dj when we successfully spawn from Di.Dj, we need to unbias (scale up) 
+                    ! Di by the probability of this happening.
+                    ! We need the probability that the determinant i, with population n_i, will spawn on j.
+                    ! We only consider one instance of a pair Di,Dj, so just want the probability of any of the n_i 
+                    ! walkers spawning at least once on Dj.
+                    ! P_successful_spawn(j | i)[n_i] =  1 - P_not_spawn(j | i)[n_i]
+                    ! P_not_spawn(j | i )[n_i] is the probability of none of the n_i walkers spawning on j from i.
+                    ! This requires either not generating j, or generating j and not succesfully spawning, n_i times.
+                    ! P_not_spawn(j | i )[n_i] = [(1 - P_gen(j | i)) + ( P_gen( j | i ) * (1 - P_spawn(j | i))]^n_i
 
-                tGhostChild = .false.
-                if(extraCreate.ne.0) then
-                    ! This is the special case whereby if P_spawn(j | i) > 1, then we will definitely spawn from i -> j.
-                    ! I.e. the pair Di,Dj will definitely be in the SpawnedParts list.
-                    ! We don't care about multiple spawns - if it's in the list, it gets added in regardless of 
-                    ! the number spawned - so if P_spawn(j | i) > 1, we treat it as = 1.
-                    p_spawn_rdmfac = 1.D0
-                elseif(rat.lt.GhostThresh) then
-                    ! If we're spawning 'ghost' children, we give DiDj pairs with small H elements a chance 
-                    ! to contribute to the RDM, while still not spawning children.
-                    p_spawn_rdmfac = rat*GhostFac
-                    if ((child(1).eq.0).and.((rat*GhostFac) .gt. r)) then
-                        tGhostChild = .true.
+                    tGhostChild = .false.
+                    if(extraCreate.ne.0) then
+                        ! This is the special case whereby if P_spawn(j | i) > 1, then we will definitely spawn from i -> j.
+                        ! I.e. the pair Di,Dj will definitely be in the SpawnedParts list.
+                        ! We don't care about multiple spawns - if it's in the list, it gets added in regardless of 
+                        ! the number spawned - so if P_spawn(j | i) > 1, we treat it as = 1.
+                        p_spawn_rdmfac = 1.D0
+                    elseif(rat.lt.GhostThresh) then
+                        ! If we're spawning 'ghost' children, we give DiDj pairs with small H elements a chance 
+                        ! to contribute to the RDM, while still not spawning children.
+                        ! The probability of spawning is scaled up by a chosen GhostFac (from input file), 
+                        ! and if a spawn occurs with this new probability, the child determinant is stored, but with 
+                        ! no actual chilidren.
+                        p_spawn_rdmfac = rat*GhostFac
+                        if ((child(1).eq.0).and.((rat*GhostFac) .gt. r)) then
+                            tGhostChild = .true.
+                        else
+                            tGhostChild = .false.
+                        endif
                     else
-                        tGhostChild = .false.
+                        p_spawn_rdmfac = rat
                     endif
-                else
-                    p_spawn_rdmfac = rat
-                endif
-                p_notlist_rdmfac = ( 1.D0 - prob ) + ( prob * (1.D0 - p_spawn_rdmfac) )
+                    p_notlist_rdmfac = ( 1.D0 - prob ) + ( prob * (1.D0 - p_spawn_rdmfac) )
 
-                ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i]
-                RDMBiasFacCurr = AvSignCurr / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp))) ) )   
-
-            elseif(child(1).ne.0) then
-
-                ! We eventually turn this real bias factor into an integer to be passed around 
-                ! with the spawned children and their parents - this only works with 64 bit at the mo.
-                if(n_int.eq.4) CALL Stop_All('attempt_create_normal', &
-                                'the bias factor currently does not work with 32 bit integers.')
-
-                ! Otherwise calculate the 'sign' of Di we are eventually going to add in as Di.Dj.                                
-                ! Because we only add in Di.Dj when we successfully spawn from Di.Dj, we need to unbias (scale up) 
-                ! Di by the probability of this happening.
-                ! We need the probability that the determinant i, with population n_i, will spawn on j.
-                ! We only consider one instance of a pair Di,Dj, so just want the probability of any of the n_i 
-                ! walkers spawning at least once on Dj.
-                ! P_successful_spawn(j | i)[n_i] =  1 - P_not_spawn(j | i)[n_i]
-                ! P_not_spawn(j | i )[n_i] is the probability of none of the n_i walkers spawning on j from i.
-                ! This requires either not generating j, or generating j and not succesfully spawning, n_i times.
-                ! P_not_spawn(j | i )[n_i] = [(1 - P_gen(j | i)) + ( P_gen( j | i ) * (1 - P_spawn(j | i))]^n_i
-
-                tGhostChild = .false.
-                if(extraCreate.ne.0) then
-                    ! This is the special case whereby if P_spawn(j | i) > 1, then we will definitely spawn from i -> j.
-                    ! I.e. the pair Di,Dj will definitely be in the SpawnedParts list.
-                    ! We don't care about multiple spawns - if it's in the list, it gets added in regardless of 
-                    ! the number spawned - so if P_spawn(j | i) > 1, we treat it as = 1.
-                    p_spawn_rdmfac = 1.D0
-                else
-                    p_spawn_rdmfac = rat
-                endif
-                p_notlist_rdmfac = ( 1.D0 - prob ) + ( prob * (1.D0 - p_spawn_rdmfac) )
-
-                ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i]
-                if(tInitiatorRDM) then
-                    if(abs(AvSignCurr).gt.real(InitiatorWalkNo,dp)) then
-                        ! The Di is an initiator (on average) - keep passing around its sign until we 
-                        ! know if the Dj is an initiator.
-                        RDMBiasFacCurr = AvSignCurr / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp))) ) )   
-                    else
-                        ! The determinant we are spawning from is not an initiator (on average) 
-                        ! - do not want to add this Di.Dj contribution into the RDM.
-                        RDMBiasFacCurr = 0.0_dp
-                    endif
-                else
+                    ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i]
                     RDMBiasFacCurr = AvSignCurr / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp))) ) )   
+
+                elseif(child(1).ne.0) then
+
+                    ! We eventually turn this real bias factor into an integer to be passed around 
+                    ! with the spawned children and their parents - this only works with 64 bit at the mo.
+                    if(n_int.eq.4) CALL Stop_All('attempt_create_normal', &
+                                    'the bias factor currently does not work with 32 bit integers.')
+
+                    ! Otherwise calculate the 'sign' of Di we are eventually going to add in as Di.Dj.                                
+                    ! Because we only add in Di.Dj when we successfully spawn from Di.Dj, we need to unbias (scale up) 
+                    ! Di by the probability of this happening.
+                    ! We need the probability that the determinant i, with population n_i, will spawn on j.
+                    ! We only consider one instance of a pair Di,Dj, so just want the probability of any of the n_i 
+                    ! walkers spawning at least once on Dj.
+                    ! P_successful_spawn(j | i)[n_i] =  1 - P_not_spawn(j | i)[n_i]
+                    ! P_not_spawn(j | i )[n_i] is the probability of none of the n_i walkers spawning on j from i.
+                    ! This requires either not generating j, or generating j and not succesfully spawning, n_i times.
+                    ! P_not_spawn(j | i )[n_i] = [(1 - P_gen(j | i)) + ( P_gen( j | i ) * (1 - P_spawn(j | i))]^n_i
+
+                    tGhostChild = .false.
+                    if(extraCreate.ne.0) then
+                        ! This is the special case whereby if P_spawn(j | i) > 1, then we will definitely spawn from i -> j.
+                        ! I.e. the pair Di,Dj will definitely be in the SpawnedParts list.
+                        ! We don't care about multiple spawns - if it's in the list, it gets added in regardless of 
+                        ! the number spawned - so if P_spawn(j | i) > 1, we treat it as = 1.
+                        p_spawn_rdmfac = 1.D0
+                    else
+                        p_spawn_rdmfac = rat
+                    endif
+                    p_notlist_rdmfac = ( 1.D0 - prob ) + ( prob * (1.D0 - p_spawn_rdmfac) )
+
+                    ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i]
+                    if(tInitiatorRDM) then
+                        if(abs(AvSignCurr).gt.real(InitiatorWalkNo,dp)) then
+                            ! The Di is an initiator (on average) - keep passing around its sign until we 
+                            ! know if the Dj is an initiator.
+                            RDMBiasFacCurr = AvSignCurr / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp))) ) )   
+                        else
+                            ! The determinant we are spawning from is not an initiator (on average) 
+                            ! - do not want to add this Di.Dj contribution into the RDM.
+                            RDMBiasFacCurr = 0.0_dp
+                        endif
+                    else
+                        RDMBiasFacCurr = AvSignCurr / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp))) ) )   
+                    endif
                 endif
+            else
+                ! Not filling the RDM stochastically, bias is zero.
+                RDMBiasFacCurr = 0.0_dp
             endif
-        else
-            RDMBiasFacCurr = 0.0_dp
-        endif
 
 #endif
         ! Avoid compiler warnings
@@ -2741,7 +2722,7 @@ MODULE FciMCParMod
                 ! If we're stochastically filling the RDMs, we want to keep determinants even if 
                 ! their walkers have all died.
                 ! This is because we're using the sign of each determinant before death.
-                ! But if the walker is removed from the list altogether, this is lost too.
+                ! But if the walker is removed from the list altogether, this would be lost too.
                 if(tHashWalkerList) then
                     call encode_sign(CurrentDets(:,DetPosition),CopySign)
                     CurrentH(2,DetPosition) = wAvSign
@@ -4117,6 +4098,7 @@ MODULE FciMCParMod
                     Prev_AvNoatHF = AvNoatHF
                     AvNoatHF = ( (real((Iter - IterRDM_HF),dp) * Prev_AvNoatHF) &
                         + real(InstNoatHF(1),dp) ) / real((Iter - IterRDM_HF) + 1,dp)
+
                 endif
             endif
         endif
@@ -4207,7 +4189,7 @@ MODULE FciMCParMod
             call extract_sign(CurrentDets(:,i),TempSign)
             TempSign(1)=-TempSign(1)
             call encode_sign(CurrentDets(:,i),TempSign)
-            if(tFillingStochRDMonFly) CurrentH(2,i) = -CurrentH(2,i)
+            if(tFillingStochRDMonFly) CurrentH(2,i) = -CurrentH(2,i)    ! Flip average signs too
         enddo
 
 !Reverse the flag for whether the sign of the particles has been flipped so the ACF can be correctly calculated
@@ -6754,6 +6736,8 @@ MODULE FciMCParMod
 
             IF(.not.tRegenDiagHEls) THEN
                 if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
+                    ! If calculating the RDMs stochastically, need to include the average sign and the 
+                    ! iteration it became occupied in the CurrentH array (with the Hii elements).
                     ALLOCATE(WalkVecH(3,MaxWalkersPart),stat=ierr)
                     CALL LogMemAlloc('WalkVecH',3*MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
                     WalkVecH(:,:)=0.d0
@@ -6774,8 +6758,8 @@ MODULE FciMCParMod
             ENDIF
 
             if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
-!Allocate memory to hold walkers spawned from one determinant at a time.
-!Walkers are temporarily stored here, so we can check if we're spawning onto the same Dj multiple times.
+                !Allocate memory to hold walkers spawned from one determinant at a time.
+                !Walkers are temporarily stored here, so we can check if we're spawning onto the same Dj multiple times.
                 ALLOCATE(TempSpawnedParts(0:NIfDBO,20000),stat=ierr)
                 CALL LogMemAlloc('TempSpawnedParts',20000*(NIfDBO+1),size_n_int,this_routine,TempSpawnedPartsTag,ierr)
                 TempSpawnedParts(0:NIfDBO,1:20000)=0
