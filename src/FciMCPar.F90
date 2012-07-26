@@ -175,6 +175,10 @@ MODULE FciMCParMod
         call InitFCIMCCalcPar()
         call init_fcimc_fn_pointers () 
 
+        if(n_int.eq.4) CALL Stop_All('Setup Parameters', &
+                'Use of RealCoefficients does not work with 32 bit integers due to the use &
+                & of the transfer operation from dp reals to 64 bit integers.')
+        
         if(tHistSpawn) then 
             Tot_Unique_Dets_Unit = get_free_unit()
             OPEN(Tot_Unique_Dets_Unit,FILE='TOTUNIQUEDETS',STATUS='UNKNOWN')
