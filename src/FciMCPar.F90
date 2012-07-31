@@ -7135,7 +7135,7 @@ MODULE FciMCParMod
         use SymExcitDataMod, only: kPointToBasisFn
         use SystemData, only: ElecPairs,NMAXX,NMAXY,NMAXZ,OrbECutOff,tGCutoff,GCutoff, &
                                 tMP2UEGRestrict,kiRestrict,kiMsRestrict,kjRestrict,kjMsRestrict, &
-                                Madelung,tMadelung,tUEGFreeze,FreezeCutoff
+                                Madelung,tMadelung,tUEGFreeze,FreezeCutoff, kvec, tUEG2
         use GenRandSymExcitNUMod, only: FindNewDet
         use Determinants, only: GetH0Element4, get_helement_excit
         integer :: Ki(3),Kj(3),Ka(3),LowLoop,HighLoop,X,i,Elec1Ind,Elec2Ind,K,Orbi,Orbj
@@ -7168,6 +7168,12 @@ MODULE FciMCParMod
             Orbj=HFDet(Elec2Ind)
             Ki=G1(Orbi)%k
             Kj=G1(Orbj)%k
+            !=======================================
+            if (tUEG2) then
+                Ki=kvec(Orbi, 1:3)
+                Kj=kvec(Orbj, 1:3)
+            end if
+            !=======================================
             if (tUEGFreeze) then
                 ki2=ki(1)**2+ki(2)**2+ki(3)**2
                 kj2=kj(1)**2+kj(2)**2+kj(3)**2
@@ -7215,6 +7221,11 @@ MODULE FciMCParMod
                     if(IsOcc(iLutHF,a_loc)) cycle
 
                     Ka=G1(a_loc)%k
+                    !=======================================
+                    if (tUEG2) then
+                        Ka=kvec(a_loc, 1:3)
+                    end if
+                    !=======================================
 
                     !Find k labels of b
                     kx=Ki(1)+Kj(1)-Ka(1)
@@ -7268,6 +7279,11 @@ MODULE FciMCParMod
                     if(IsOcc(iLutHF,a_loc)) cycle
 
                     Ka=G1(a_loc)%k
+                    !=======================================
+                    if (tUEG2) then
+                        Ka=kvec(a_loc, 1:3)
+                    end if
+                    !=======================================
 
                     !Find k labels of b
                     kx=Ki(1)+Kj(1)-Ka(1)

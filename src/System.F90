@@ -350,7 +350,8 @@ MODULE System
             tNoBrillouin=.true.
             tBrillouinsDefault=.false.
         case("UHF")
-! This keyword is required if we are doing an open shell calculation but do not want to include singles in the energy calculations.            
+! This keyword is required if we are doing an open shell calculation 
+! but do not want to include singles in the energy calculations.            
             tUHF=.true.
         case("RS")
             call getf(FUEGRS)
@@ -422,8 +423,8 @@ MODULE System
             call geti(NMAXZ)
 
        ! Options for the type of the reciprocal lattice (eg sc, fcc, bcc)
-        case("RECIP_LATTICE_TYPE")
-            call readl(recip_lattice_type) 
+        case("REAL_LATTICE_TYPE")
+            call readl(real_lattice_type) 
        ! Options for the dimension (1, 2, or 3)
          case("DIMENSION")
             call geti(dimen)       
@@ -675,18 +676,23 @@ MODULE System
 ! This sets the orbital rotation to minimise the sum_i_j <ij|ji> terms where both i and j are virtual spatial orbitals.  
 
         case("SHAKE")
-! This will use the shake algorithm to iteratively enforce orthonormalisation on the rotation coefficients calculated in the ROTATEORBS
-! routine.  It finds a force matrix which moves the coefficients at a tangent to the constraint surface, from here, a normalisation
-! will require just a small adjustment to ensure complete orthonormalisation, but not majorly affecting the new coefficients.
+! This will use the shake algorithm to iteratively enforce orthonormalisation
+!  on the rotation coefficients calculated in the ROTATEORBS
+! routine.  It finds a force matrix which moves the coefficients at a tangent 
+! to the constraint surface, from here, a normalisation
+! will require just a small adjustment to ensure complete orthonormalisation, 
+! but not majorly affecting the new coefficients.
             tShake=.true.
             IF(item.lt.nitems) THEN
                call getf(ShakeConverged)
             ENDIF
 
         case("SHAKEAPPROX")
-! This turns on the shake approximation algorithm.  To be used if the matrix inversion required in the full shake algorithm cannot 
+! This turns on the shake approximation algorithm.  
+! To be used if the matrix inversion required in the full shake algorithm cannot 
 ! be performed.
-! The approximation applies the iterative scheme to find lambda, to each constraint in succession, rather than simultaneously.
+! The approximation applies the iterative scheme to find lambda, 
+! to each constraint in succession, rather than simultaneously.
             tShake=.false.
             tShakeApprox=.true.
         
@@ -702,21 +708,22 @@ MODULE System
 ! significantly different position.
             tShakeDelay=.true.
             call Geti(ShakeStart)
-
         case("LAGRANGE")
-! This will use a non-iterative lagrange multiplier for each component of each rotated vector in the rotateorbs routines in order to 
+! This will use a non-iterative lagrange multiplier for each component of each rotated vector 
+! in the rotateorbs routines in order to 
 ! attempt to maintain orthogonality. This currently does not seem to work too well!
             tShake=.false.
             tLagrange=.true.
 
         case("SEPARATEOCCVIRT")
-! This option applies to the orbital rotation.  If present, the virtual and occuppied orbitals are localised separately.  This has the 
-! advantage of keeping the HF reference determinant the same.
+! This option applies to the orbital rotation.  
+! If present, the virtual and occuppied orbitals are localised separately.  
+! This has the  advantage of keeping the HF reference determinant the same.
             tSeparateOccVirt=.true.
 
         case("ROTATEOCCONLY")
-! This option applies to orbital rotation.  It separates the orbitals into occupied and virtual, and rotates the occupied while keeping the 
-! virtual as the HF.
+! This option applies to orbital rotation.  It separates the orbitals into occupied and virtual, 
+! and rotates the occupied while keeping the virtual as the HF.
             tSeparateOccVirt=.true.
             tRotateOccOnly=.true.
 
@@ -726,7 +733,8 @@ MODULE System
             tRotateVirtOnly=.true.
 
         case("ROITERATION")
-! Specifying this keyword overwrites the convergence limit from the ROTATEORBS line, and instead runs the orbital rotation for as many
+! Specifying this keyword overwrites the convergence limit from the ROTATEORBS line, 
+! and instead runs the orbital rotation for as many
 ! iterations as chosen on this line.
             tROIteration=.true.
             call Geti(ROIterMax)
@@ -735,8 +743,10 @@ MODULE System
             tMaxHLGap=.true.
 
         case("ROTATEDORBS")
-! This is a flag which is to be included if the FCIDUMP being read in is one containing rotated orbitals.  The only difference is that the 
-! H elements for single excitations are no longer 0 (as for HF), and walkers on singly excited determinants must be included in the energy 
+! This is a flag which is to be included if the FCIDUMP being read in is one containing rotated orbitals.  
+! The only difference is that the 
+! H elements for single excitations are no longer 0 (as for HF),
+! and walkers on singly excited determinants must be included in the energy 
 ! calculations.
             tRotatedOrbs=.true.
             tNoBrillouin=.true.
@@ -748,12 +758,14 @@ MODULE System
             tSpinOrbs=.true.
 
         case("READINTRANSMAT")
-! This sets the rotation routine to read in a transformation matrix (coefft1) given by the file TRANSFORMMAT, and use the transformation 
+! This sets the rotation routine to read in a transformation matrix (coefft1) given by the file TRANSFORMMAT, 
+! and use the transformation 
 ! routine and print rofcidump routines to transform the orbitals and print out a new dump file.
             tReadInCoeff=.true.
 
         case("USEMP2VDM")
-! Once in the rotation routine, the MP2 variational density matrix is calculated, and this is used to transform the orbitals and print and 
+! Once in the rotation routine, the MP2 variational density matrix is calculated, 
+! and this is used to transform the orbitals and print and 
 ! new FCIDUMP file.
             tUseMP2VarDenMat=.true.
             tSeparateOccVirt=.true.
@@ -761,8 +773,10 @@ MODULE System
             tShake=.false.
 
         case("USECINATORBS")            
-! This rotation option is slightly different, it first requires a spawning calculation from which the amplitudes of the wavefunction are 
-! obtained.  From here, the one electron reduced density matrix is calculated, and the eigenvectors of this are used to rotate the HF orbitals.
+! This rotation option is slightly different, it first requires a spawning calculation 
+! from which the amplitudes of the wavefunction are 
+! obtained.  From here, the one electron reduced density matrix is calculated, and the eigenvectors
+!  of this are used to rotate the HF orbitals.
 ! A new ROFCIDUMP file is then produced in the new natural orbitals.
             tFindCINatOrbs=.true.
             tShake=.false.
@@ -774,9 +788,12 @@ MODULE System
 
         case("NORODUMP")
             tNoRODump=.true.
-! This is to do with the calculation of the MP2 or CI natural orbitals.  This should be used if we want the transformation matrix of the              
-! natural orbitals to be found, but no ROFCIDUMP file to be printed (i.e. the integrals don't need to be transformed).  This is so that at the end 
-! of a calculation, we may get the one body reduced density matrix from the wavefunction we've found, and then use the MOTRANSFORM file printed to 
+! This is to do with the calculation of the MP2 or CI natural orbitals.  
+! This should be used if we want the transformation matrix of the              
+! natural orbitals to be found, but no ROFCIDUMP file to be printed (i.e. the integrals don't need to be transformed).  
+! This is so that at the end 
+! of a calculation, we may get the one body reduced density matrix from the wavefunction we've found, 
+! and then use the MOTRANSFORM file printed to 
 ! visualise the natural orbitals with large occupation numbers.
 
         case("RANLUXLEV")
@@ -796,7 +813,8 @@ MODULE System
             CALL GetiLong(CalcDetPrint)
 
         case("CALCMCSIZESPACE")
-!This option will approximate the exact size of the symmetry allowed space of determinants by MC. The variance on the value will decrease as 1/N_steps
+!This option will approximate the exact size of the symmetry allowed space of determinants by MC. 
+! The variance on the value will decrease as 1/N_steps
             tMCSizeSpace=.true.
             CALL GetiLong(CalcDetCycles)
             CALL GetiLong(CalcDetPrint)
@@ -832,7 +850,8 @@ MODULE System
                 end select
             enddo
         case("SPAWNLISTDETS")
-!This option will mean that a file called SpawnOnlyDets will be read in, and only these determinants will be allowed to be spawned at.
+!This option will mean that a file called SpawnOnlyDets will be read in, 
+! and only these determinants will be allowed to be spawned at.
             CALL Stop_All("ReadSysInp","SPAWNLISTDETS option depreciated")
 !            tListDets=.true.
         case("UMATEPSILON")
@@ -848,7 +867,8 @@ MODULE System
           tOneElecDiag=.true.   !One electron integrals diagonal
         case("ROHF")
 !This is an option for open-shell systems to specify that the integrals are *restricted* open-shell integrals.
-!This will save memory (around a factor of 16) for the integral storage, but the FCIDUMP file should be the same as before (ie in UHF form).
+!This will save memory (around a factor of 16) for the integral storage,
+!  but the FCIDUMP file should be the same as before (ie in UHF form).
             tROHF=.true.
             tNoBrillouin=.true.
             tBrillouinsDefault=.false.
@@ -927,6 +947,7 @@ MODULE System
       integer :: AllocateStatus
       real(dp), parameter :: EulersConst = 0.5772156649015328606065120900824024d0
       real(dp) :: calc_madelung
+      real(dp) :: calc_madelung_1D
 
 !      write (6,*)
 !      call TimeTag()
@@ -1144,11 +1165,6 @@ MODULE System
               call CalcCell
           end if 
 
-          if(Madelung .lt. 0.0d0) then
-             Madelung=calc_madelung()
-          end if 
-
-
           TTILT=.FALSE.
           ALAT=0.0d0   !shouldn't be used in the UEG2 part...
           NMAX=MAX(NMAXX,NMAXY,NMAXZ)
@@ -1167,7 +1183,7 @@ MODULE System
           WRITE(6,'(A,I5)') '  NMAXZ : ' , NMAXZ
           WRITE(6,'(A,I5)') '  NMSH : ' , NMSH 
           WRITE(6,*) " Wigner-Seitz radius Rs=",RS
-          WRITE(6,*) " Fermi vector kF=",FKF
+          WRITE(6,*) " Fermi vector kF^2=",FKF**2
           WRITE(6,*) " Fermi Energy EF=",FKF*FKF/2
           write(6,*) " Unscaled fermi vector kF=", FKF/k_lattice_constant
           WRITE(6,*) " Unscaled Fermi Energy nmax**2=",(FKF*FKF/2)/(0.5*(2*PI/ALAT(5))**2)         
@@ -1204,8 +1220,6 @@ MODULE System
           LEN=(2*NMAXX+1)*(2*NMAXY+1)*(2*NMAXZ+1)*((NBASISMAX(4,2)-NBASISMAX(4,1))/2+1)
 !C.. UEG
           NBASISMAX(3,3)=-1
-
-!C..         (.NOT.TREADINT)
 
 !C.. we actually store twice as much in arr as we need.
 !C.. the ARR(1:LEN,1) are the energies of the orbitals ordered according to
@@ -1295,7 +1309,7 @@ MODULE System
                       ENDDO
                   ENDDO
               ENDDO
-              if( maxval(G1%K(1)) .ge. NMAXX)  WRITE(6,*) 'ERROR IN CELL CALCULATION! ' 
+              if(real_lattice_type == 'sc' .AND. maxval(G1%K(1)) .ge. NMAXX)  WRITE(6,*) 'ERROR IN CELL CALCULATION! ' 
        
 !C..Check to see if all's well
               WRITE(6,*) ' NUMBER OF BASIS FUNCTIONS : ' , IG 
@@ -1306,9 +1320,15 @@ MODULE System
               IG=0
               DO I=1, NBASIS      
                   IG=IG+1
-                  kvec(IG, 1)=lattice_vectors(1,1)*G1(IG)%K(1)+lattice_vectors(2,1)*G1(IG)%K(2)+lattice_vectors(3,1)*G1(IG)%K(3)
-                  kvec(IG, 2)=lattice_vectors(1,2)*G1(IG)%K(1)+lattice_vectors(2,2)*G1(IG)%K(2)+lattice_vectors(3,2)*G1(IG)%K(3)
-                  kvec(IG, 3)=lattice_vectors(1,3)*G1(IG)%K(1)+lattice_vectors(2,3)*G1(IG)%K(2)+lattice_vectors(3,3)*G1(IG)%K(3)
+                  kvec(IG, 1)=  k_lattice_vectors(1,1)*G1(IG)%K(1) &
+                                      +k_lattice_vectors(2,1)*G1(IG)%K(2)&
+                                      +k_lattice_vectors(3,1)*G1(IG)%K(3) 
+                  kvec(IG, 2)=  k_lattice_vectors(1,2)*G1(IG)%K(1)&
+                                      +k_lattice_vectors(2,2)*G1(IG)%K(2)&
+                                      +k_lattice_vectors(3,2)*G1(IG)%K(3)
+                  kvec(IG, 3)=  k_lattice_vectors(1,3)*G1(IG)%K(1)&
+                                      +k_lattice_vectors(2,3)*G1(IG)%K(2)&
+                                      +k_lattice_vectors(3,3)*G1(IG)%K(3)
               ENDDO
 
               IF(LEN.NE.IG) THEN
@@ -1362,10 +1382,12 @@ MODULE System
               CALL DCOPY(NBASIS,ARR(1,1),1,ARR(1,2),1)
           ENDIF
 !      WRITE(6,*) THFNOORDER, " THFNOORDER"
+
           if(.not.tMolpro) then
           !If we are calling from molpro, we write the basis later (after reordering)
               CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
           endif
+
           IF(NEL.GT.NBASIS) STOP 'MORE ELECTRONS THAN BASIS FUNCTIONS'
           CALL neci_flush(6)    
 
@@ -1406,7 +1428,13 @@ MODULE System
           if (TAU .lt. 0.0d0) then
               call  CalcTau
           end if  
-              
+      
+          if(tMadelung .AND. Madelung == 0.0d0 .AND. dimen ==3) then
+             Madelung=calc_madelung()
+!           else if(tMadelung .AND. Madelung == 0.0d0 .AND. dimen ==1) then
+!              Madelung=calc_madelung_1D()
+          end if 
+
       return 
       endif  !UEG2
 ! ======================================================
@@ -1502,11 +1530,11 @@ MODULE System
 !      ALAT(4)=2*BOX*(BOA*COA)**(1/3.D0)
           
           IF(THUB) THEN
-             WRITE(6,*) ' X-LENGTH OF HUBBARD CHAIN:',(NMAXX)
-             WRITE(6,*) ' Y-LENGTH OF HUBBARD CHAIN:',(NMAXY)
-             WRITE(6,*) ' Z-LENGTH OF HUBBARD CHAIN:',(NMAXZ)
+             WRITE(6,*) ' X-LENGTH OF HUBBARD CHAIN:', NMAXX
+             WRITE(6,*) ' Y-LENGTH OF HUBBARD CHAIN:', NMAXY
+             WRITE(6,*) ' Z-LENGTH OF HUBBARD CHAIN:', NMAXZ
              WRITE(6,*) ' Periodic Boundary Conditions:',TPBC
-             WRITE(6,*) ' Real space basis:',TREAL
+!              WRITE(6,*) ' Real space basis:',TREAL
              IF(TTILT.AND.THUB) THEN
                 OMEGA=real(NMAXX,dp)*NMAXY*(ITILTX*ITILTX+ITILTY*ITILTY)
              ELSE
@@ -1823,7 +1851,7 @@ END MODULE System
 
 SUBROUTINE WRITEBASIS(NUNIT,G1,NHG,ARR,BRR)
   ! Write out the current basis to unit nUnit
-  use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,Unscaled_LatConst_square , lattice_vectors
+  use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,Unscaled_LatConst_square , k_lattice_vectors
   use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, nel, tUEG2
   use DeterminantData, only: fdet
   use sym_mod, only: writesym
@@ -1844,9 +1872,15 @@ SUBROUTINE WRITEBASIS(NUNIT,G1,NHG,ARR,BRR)
 
       DO I=1,NHG
 !     kvectors in cartesian coordinates                
-          kvecX=lattice_vectors(1,1)*G1(BRR(I))%K(1)+lattice_vectors(2,1)* G1(BRR(I))%K(2)+lattice_vectors(3,1)*G1(BRR(I))%K(3)
-          kvecY=lattice_vectors(1,2)*G1(BRR(I))%K(1)+lattice_vectors(2,2)* G1(BRR(I))%K(2)+lattice_vectors(3,2)*G1(BRR(I))%K(3)
-          kvecZ=lattice_vectors(1,3)*G1(BRR(I))%K(1)+lattice_vectors(2,3)* G1(BRR(I))%K(2)+lattice_vectors(3,3)*G1(BRR(I))%K(3)
+          kvecX=  k_lattice_vectors(1,1)*G1(BRR(I))%K(1) &
+                      +k_lattice_vectors(2,1)* G1(BRR(I))%K(2) &
+                      +k_lattice_vectors(3,1)*G1(BRR(I))%K(3)
+          kvecY=  k_lattice_vectors(1,2)*G1(BRR(I))%K(1) &
+                      +k_lattice_vectors(2,2)* G1(BRR(I))%K(2) &
+                      +k_lattice_vectors(3,2)*G1(BRR(I))%K(3)
+          kvecZ=  k_lattice_vectors(1,3)*G1(BRR(I))%K(1) &
+                      +k_lattice_vectors(2,3)* G1(BRR(I))%K(2) &
+                      +k_lattice_vectors(3,3)*G1(BRR(I))%K(3)
 
           unscaled_energy=((kvecX)**2+(kvecY)**2+(kvecZ)**2)*Unscaled_LatConst_square
     
@@ -1984,7 +2018,7 @@ END subroutine ORDERBASIS
 !dUnscaledEnergy gives the energy without reference to box size and without any offset.
 SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,Energy,dUnscaledEnergy)        
    
-   use SystemData, only: tUEG2, lattice_vectors, k_lattice_constant, Unscaled_LatConst_square
+   use SystemData, only: tUEG2, k_lattice_vectors, k_lattice_constant, Unscaled_LatConst_square
    use constants, only: Pi, Pi2, THIRD
    use constants, only: dp
    IMPLICIT NONE
@@ -1996,9 +2030,9 @@ SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,Energy,dUnsc
    !==================================
    if (tUEG2) then
       ! kvectors in cartesian coordinates                
-      kvecX=lattice_vectors(1,1)*I+lattice_vectors(2,1)*J+lattice_vectors(3,1)*K
-      kvecY=lattice_vectors(1,2)*I+lattice_vectors(2,2)*J+lattice_vectors(3,2)*K
-      kvecZ=lattice_vectors(1,3)*I+lattice_vectors(2,3)*J+lattice_vectors(3,3)*K
+      kvecX=k_lattice_vectors(1,1)*I+k_lattice_vectors(2,1)*J+k_lattice_vectors(3,1)*K
+      kvecY=k_lattice_vectors(1,2)*I+k_lattice_vectors(2,2)*J+k_lattice_vectors(3,2)*K
+      kvecZ=k_lattice_vectors(1,3)*I+k_lattice_vectors(2,3)*J+k_lattice_vectors(3,3)*K
 
        IF(tUEGTrueEnergies) then
            if(tUEGOffset) then
@@ -2055,38 +2089,38 @@ SUBROUTINE LatticeInit(RS, FKF)
         RS=(3.D0*OMEGA/(4.D0*PI*NEL))**THIRD  
         FKF=(9*PI/4)**THIRD/RS
     ! define  lattice vectors and lattice constant in reciprocal space
-        if (recip_lattice_type == "sc") then
+        if (real_lattice_type == "sc") then
             k_lattice_constant = 2.0d0*PI/OMEGA**THIRD
             Unscaled_LatConst_square=1.0d0
-            lattice_vectors(1,1:3) = (/1, 0, 0 /)
-            lattice_vectors(2,1:3) = (/0, 1, 0 /)
-            lattice_vectors(3,1:3) = (/0, 0, 1 /)
-        else if (recip_lattice_type == "fcc") then
+            k_lattice_vectors(1,1:3) = (/1, 0, 0 /)
+            k_lattice_vectors(2,1:3) = (/0, 1, 0 /)
+            k_lattice_vectors(3,1:3) = (/0, 0, 1 /)
+        else if (real_lattice_type == "bcc") then
             k_lattice_constant = 2.0d0*PI/(2.0d0*OMEGA)**THIRD
             Unscaled_LatConst_square=1.0d0/(2.0d0**(2.0d0/3.0d0))
-            lattice_vectors(1,1:3) = (/0.0d0, 1.0d0, 1.0d0 /)
-            lattice_vectors(2,1:3) = (/1.0d0, 0.0d0, 1.0d0 /)
-            lattice_vectors(3,1:3) = (/1.0d0, 1.0d0, 0.0d0 /)    
-        else if (recip_lattice_type == "bcc") then
+            k_lattice_vectors(1,1:3) = (/0.0d0, 1.0d0, 1.0d0 /)
+            k_lattice_vectors(2,1:3) = (/1.0d0, 0.0d0, 1.0d0 /)
+            k_lattice_vectors(3,1:3) = (/1.0d0, 1.0d0, 0.0d0 /)    
+        else if (real_lattice_type == "fcc") then
             k_lattice_constant =2.0d0*PI/(4.0d0*OMEGA)**THIRD
             Unscaled_LatConst_square=1.0d0/(4.0d0**(2.0d0/3.0d0))
-            lattice_vectors(1,1:3) = (/-1.0d0, 1.0d0, 1.0d0 /)
-            lattice_vectors(2,1:3) = (/1.0d0, -1.0d0, 1.0d0 /)
-            lattice_vectors(3,1:3) = (/1.0d0, 1.0d0, -1.0d0 /) 
+            k_lattice_vectors(1,1:3) = (/-1.0d0, 1.0d0, 1.0d0 /)
+            k_lattice_vectors(2,1:3) = (/1.0d0, -1.0d0, 1.0d0 /)
+            k_lattice_vectors(3,1:3) = (/1.0d0, 1.0d0, -1.0d0 /) 
         else
             write(6,'(A)')  'lattice type not valid'
         end if             
     else if (dimen==2) then !2D
         write(6,'(A)') ' NMAXZ=0 : 2D calculation'
         OMEGA=PI*FUEGRS**2*NEL
-        RS=(OMEGA/(4.D0*PI*NEL))**(1.0d0/2.0d0) 
+        RS=(OMEGA/(PI*NEL))**(1.0d0/2.0d0) 
         FKF=sqrt(2.0d0)/RS
         ! define  lattice vectors and lattice constant in reciprocal space
         k_lattice_constant = 2.0d0*PI/OMEGA**(1.0d0/2.0d0)
         Unscaled_LatConst_square=1.0d0
-        lattice_vectors(1,1:3) = (/1, 0, 0 /)
-        lattice_vectors(2,1:3) = (/0, 1, 0 /)
-        lattice_vectors(3,1:3) = (/0, 0, 0 /)  
+        k_lattice_vectors(1,1:3) = (/1, 0, 0 /)
+        k_lattice_vectors(2,1:3) = (/0, 1, 0 /)
+        k_lattice_vectors(3,1:3) = (/0, 0, 0 /)  
     else if (dimen==1) then !1D
         write(6,'(A)') ' NMAXZ=0,  NMAXY=0 : 1D calculation'
         OMEGA=2.0d0*FUEGRS*NEL
@@ -2095,9 +2129,9 @@ SUBROUTINE LatticeInit(RS, FKF)
         ! define  lattice vectors and lattice constant in reciprocal space
         Unscaled_LatConst_square =1.0d0
         k_lattice_constant = 2.0d0*PI/OMEGA
-        lattice_vectors(1,1:3) = (/1, 0, 0 /)
-        lattice_vectors(2,1:3) = (/0, 0, 0 /)
-        lattice_vectors(3,1:3) = (/0, 0, 0 /)  
+        k_lattice_vectors(1,1:3) = (/1, 0, 0 /)
+        k_lattice_vectors(2,1:3) = (/0, 0, 0 /)
+        k_lattice_vectors(3,1:3) = (/0, 0, 0 /)  
     else 
         write(6,'(A)') 'Problem with dimension! ' 
     endif
@@ -2116,11 +2150,11 @@ SUBROUTINE CalcCell
     integer :: ii, jj, kk, EE
     logical :: under_cutoff
 
-    if (recip_lattice_type == "sc") then
+    if (real_lattice_type == "sc" .OR. dimen .lt. 3) then
         NMAXX=int(sqrt(orbEcutoff))+1
         if(dimen .gt. 1) NMAXY=int(sqrt(orbEcutoff))+1
         if(dimen .gt. 2) NMAXZ=int(sqrt(orbEcutoff))+1
-    else if (recip_lattice_type == "fcc" .or. recip_lattice_type == "bcc") then
+    else if (real_lattice_type == "bcc" .or. real_lattice_type == "fcc") then
         ! calculate needed cell size
         ii = 0  ! ii is always positiv. jj varies from -ii to ii, kk from -|jj| to |jj|
         under_cutoff = .true.
@@ -2131,9 +2165,9 @@ SUBROUTINE CalcCell
                 kk = -abs(jj)
                 do while (abs(kk) .le. abs(jj) .and. .not. under_cutoff)!until E < cutoff is found or kk=jj
                     !calculate unscaled energy for ii, jj, kk
-                    EE =(lattice_vectors(1,1)*ii+lattice_vectors(2,1)*jj+lattice_vectors(3,1)*kk)**2
-                    EE =EE +(lattice_vectors(1,2)*ii+lattice_vectors(2,2)*jj+lattice_vectors(3,2)*kk)**2
-                    EE =EE +(lattice_vectors(1,3)*ii+lattice_vectors(2,3)*jj+lattice_vectors(3,3)*kk)**2  
+                    EE =(k_lattice_vectors(1,1)*ii+k_lattice_vectors(2,1)*jj+k_lattice_vectors(3,1)*kk)**2
+                    EE =EE +(k_lattice_vectors(1,2)*ii+k_lattice_vectors(2,2)*jj+k_lattice_vectors(3,2)*kk)**2
+                    EE =EE +(k_lattice_vectors(1,3)*ii+k_lattice_vectors(2,3)*jj+k_lattice_vectors(3,3)*kk)**2  
                     if ( (EE*Unscaled_LatConst_square) .le. orbEcutoff) under_cutoff = .true.
                     kk=kk+1
                 end do
@@ -2141,9 +2175,9 @@ SUBROUTINE CalcCell
             end do
             ii = ii+1
         end do 
-        NMAXX=ii-1
-        if(dimen .gt. 1) NMAXY=ii-1
-        if(dimen .gt. 2) NMAXZ=ii-1
+        NMAXX=ii!-1
+        NMAXY=ii!-1
+        NMAXZ=ii!-1
     end if ! lattice type
     return
 
@@ -2172,7 +2206,6 @@ SUBROUTINE CalcTau
 
     else if (dimen ==2) then !2D
         TAU = (k_lattice_constant * OMEGA)/(2.0d0*PI)  !Hij_min**-1
-        TAU = OMEGA/ (-2.0d0*log(1.0d0/(2.0d0*sqrt(orbEcutoff)))) 
         if (tTruncInitiator) TAU = TAU*InitiatorWalkNo
         if (tHPHF) TAU = TAU /sqrt(2.0d0)
         TAU = 0.9d0*TAU*4.0d0/(NEL*(NEL-1))/(NBASIS-NEL)
@@ -2201,9 +2234,6 @@ SUBROUTINE CalcTau
     return
 END SUBROUTINE CalcTau
 
-
-
-
 double precision  function calc_madelung()
 
     use constants
@@ -2218,34 +2248,36 @@ double precision  function calc_madelung()
     real(dp)  :: k2,ek2,recipsum2
     real(dp) :: t1, modr,er2,realsum2
     real(dp)  :: term2,term4
-    integer :: t_lattice_vectors(3, 3)
-    real(dp) :: t_lattice_constant
+    integer :: r_lattice_vectors(3, 3)
+    real(dp) :: r_lattice_constant
     real(dp) :: kvecX, kvecY, kvecZ
     real(dp) :: tvecX, tvecY, tvecZ
     real(dp) ::  inacc_madelung, temp_sum 
-    real(dp) :: error_function_c
+    real(dp) :: error_function_c, error_function, k2max
     integer :: jj
+    real(dp) :: xx, yy, zz
 
     inacc_madelung = 1.0d-15 ! Cannot be set lower than 1.0d-15
 
+    !-------------------------------   3D lattice   -----------------------------------------
     if(dimen==3) then ! 3D
 
         kappa=2.8d0/OMEGA**(1.0d0/3.0d0)
-        if (recip_lattice_type == "sc") then
-            t_lattice_constant = OMEGA**THIRD
-            t_lattice_vectors(1,1:3) = (/1, 0, 0 /)
-            t_lattice_vectors(2,1:3) = (/0, 1, 0 /)
-            t_lattice_vectors(3,1:3) = (/0, 0, 1 /)
-        else if (recip_lattice_type == "fcc") then
-            t_lattice_constant =0.5d0*(2.0d0*OMEGA)**THIRD
-            t_lattice_vectors(1,1:3) = (/-1.0d0, 1.0d0, 1.0d0 /)
-            t_lattice_vectors(2,1:3) = (/1.0d0, -1.0d0, 1.0d0 /)
-            t_lattice_vectors(3,1:3) = (/1.0d0, 1.0d0, -1.0d0 /) 
-        else if (recip_lattice_type == "bcc") then
-            t_lattice_constant =0.5d0*(4.0d0*OMEGA)**THIRD
-            t_lattice_vectors(1,1:3) = (/0.0d0, 1.0d0, 1.0d0 /)
-            t_lattice_vectors(2,1:3) = (/1.0d0, 0.0d0, 1.0d0 /)
-            t_lattice_vectors(3,1:3) = (/1.0d0, 1.0d0, 0.0d0 /)   
+        if (real_lattice_type == "sc") then
+            r_lattice_constant = OMEGA**THIRD
+            r_lattice_vectors(1,1:3) = (/1, 0, 0 /)
+            r_lattice_vectors(2,1:3) = (/0, 1, 0 /)
+            r_lattice_vectors(3,1:3) = (/0, 0, 1 /)
+        else if (real_lattice_type == "fcc") then
+            r_lattice_constant =0.5d0*(2.0d0*OMEGA)**THIRD
+            r_lattice_vectors(1,1:3) = (/-1.0d0, 1.0d0, 1.0d0 /)
+            r_lattice_vectors(2,1:3) = (/1.0d0, -1.0d0, 1.0d0 /)
+            r_lattice_vectors(3,1:3) = (/1.0d0, 1.0d0, -1.0d0 /) 
+        else if (real_lattice_type == "bcc") then
+            r_lattice_constant =0.5d0*(4.0d0*OMEGA)**THIRD
+            r_lattice_vectors(1,1:3) = (/0.0d0, 1.0d0, 1.0d0 /)
+            r_lattice_vectors(2,1:3) = (/1.0d0, 0.0d0, 1.0d0 /)
+            r_lattice_vectors(3,1:3) = (/1.0d0, 1.0d0, 0.0d0 /)   
         else
             write(6,'(A)')  'lattice type not valid'
         end if             
@@ -2253,23 +2285,25 @@ double precision  function calc_madelung()
         term2=-pi/(kappa**2.0d0*OMEGA)
     !     write(6,*) term2, "term2"
         term4=-2.0d0*kappa/sqrt(pi)
-        write(6,*) term4, "term4"
+!         write(6,*) term4, "term4"
 
         recipsum2=0.0d0
         temp_sum = 0.0d0
+        k2max =0.0d0
         i4 =1
-        do while (temp_sum*(1.0d0+inacc_madelung) .le. recipsum2)
+        do while(temp_sum*(1.0d0+inacc_madelung) .le. recipsum2)
             temp_sum = recipsum2
             recipsum2 =0.0d0      
             do i1=-i4,i4
                 do i2=-i4,i4
                     do i3=-i4, i4
-                        kvecX=lattice_vectors(1,1)*i1+lattice_vectors(2,1)*i2+lattice_vectors(3,1)*i3
-                        kvecY=lattice_vectors(1,2)*i1+lattice_vectors(2,2)*i2+lattice_vectors(3,2)*i3
-                        kvecZ=lattice_vectors(1,3)*i1+lattice_vectors(2,3)*i2+lattice_vectors(3,3)*i3
+                        kvecX=k_lattice_vectors(1,1)*i1+k_lattice_vectors(2,1)*i2+k_lattice_vectors(3,1)*i3
+                        kvecY=k_lattice_vectors(1,2)*i1+k_lattice_vectors(2,2)*i2+k_lattice_vectors(3,2)*i3
+                        kvecZ=k_lattice_vectors(1,3)*i1+k_lattice_vectors(2,3)*i2+k_lattice_vectors(3,3)*i3
                         n2=kvecX**2+kvecY**2+kvecZ**2
                         k2=(k_lattice_constant/2.0d0/PI)**2.0d0*n2
                         ek2=(1.0d0/OMEGA)*(1.0d0/(pi*k2))*exp(-pi**2.0d0*k2/kappa**2.0d0)
+                        if( n2 .gt. k2max) k2max = n2
                         if (n2.ne.0) then
     !                         write(6,*) k2,ek2 ! for testing
                             recipsum2=recipsum2+ek2
@@ -2278,7 +2312,7 @@ double precision  function calc_madelung()
                 enddo
             enddo
             i4 = i4+1
-            write(6,*) "i4 recipsum2", i4-1, recipsum2 
+!             write(6,*) "i4 kmax^2", i4-1, k2max*k_lattice_constant**2 
         enddo
             
         realsum2=0.0d0
@@ -2290,11 +2324,11 @@ double precision  function calc_madelung()
             do i1=-i4,i4
                 do i2=-i4,i4
                     do i3=-i4,i4
-                        tvecX=t_lattice_vectors(1,1)*i1+t_lattice_vectors(2,1)*i2+t_lattice_vectors(3,1)*i3
-                        tvecY=t_lattice_vectors(1,2)*i1+t_lattice_vectors(2,2)*i2+t_lattice_vectors(3,2)*i3
-                        tvecZ=t_lattice_vectors(1,3)*i1+t_lattice_vectors(2,3)*i2+t_lattice_vectors(3,3)*i3
+                        tvecX=r_lattice_vectors(1,1)*i1+r_lattice_vectors(2,1)*i2+r_lattice_vectors(3,1)*i3
+                        tvecY=r_lattice_vectors(1,2)*i1+r_lattice_vectors(2,2)*i2+r_lattice_vectors(3,2)*i3
+                        tvecZ=r_lattice_vectors(1,3)*i1+r_lattice_vectors(2,3)*i2+r_lattice_vectors(3,3)*i3
                         n2=tvecX**2+tvecY**2+tvecZ**2
-                        t1 =t_lattice_constant*sqrt(dble(n2))
+                        t1 =r_lattice_constant*sqrt(dble(n2))
                         if (t1.ne.0.0d0) then
                             er2=error_function_c(kappa*t1)/t1
                             realsum2=realsum2+er2
@@ -2302,132 +2336,211 @@ double precision  function calc_madelung()
                     enddo
                 enddo
             enddo
-            write(6,*) 'i4, realsum2' , i4, realsum2
+!             write(6,*) 'i4, realsum2' , i4, realsum2
             i4 = i4+1
         enddo
       ! write(6,*) "real space", realsum2
 
+    !-------------------------------   2D lattice   -----------------------------------------
     else if (dimen==2) then !2D
 
-    kappa = 2.4d0/sqrt(OMEGA)
-    t_lattice_vectors(1, 1:3) = (/ 1.0d0, 0.0d0, 0.0d0/)
-    t_lattice_vectors(2, 1:3) = (/ 1.0d0, 1.0d0, 0.0d0/)
-    t_lattice_constant = sqrt(OMEGA)
+!         stop_all(this_routine,"Madelung not implemented in 2D!")
+        kappa = 2.4d0/sqrt(OMEGA)
+        r_lattice_vectors(1, 1:3) = (/ 1.0d0, 0.0d0, 0.0d0/)
+        r_lattice_vectors(2, 1:3) = (/ 0.0d0, 1.0d0, 0.0d0/)
+        r_lattice_constant = sqrt(OMEGA)
 
-    term2 = -2.0d0*kappa/sqrt(PI)
-    term4 = -sqrt(PI)/(OMEGA*kappa)
+        term2 = -2.0d0*kappa/sqrt(PI)
+        term4 = -sqrt(PI)/(OMEGA*kappa)
 
-    !reciprocal sum
-    do i4 = 1, 10
-        recipsum2 = 0.0d0
-        do i1 = -i4, i4
-              do i2 = -i4, i4
-                  kvecX = lattice_vectors(1, 1) *i1 + lattice_vectors(2, 1)*i2
-                  kvecY = lattice_vectors(1, 2) *i1 + lattice_vectors(2, 2)*i2
-                  k2 = (kvecX**2+kvecY**2)*k_lattice_constant**2
-                  if (k2 .ne. 0.0d0) then
-                      ek2= PI/(2.0d0*OMEGA)*error_function_c(sqrt(k2)/(2.0d0*kappa))
-                      recipsum2 = recipsum2+ek2
-                  end if
-              end do
+        !reciprocal sum
+        k2max = 0.0d0
+        do i4 = 1, 18
+            recipsum2 = 0.0d0
+            do i1 = -i4, i4
+                  do i2 = -i4, i4
+                      kvecX = k_lattice_vectors(1, 1) *i1 +k_lattice_vectors(2, 1)*i2
+                      kvecY = k_lattice_vectors(1, 2) *i1 + k_lattice_vectors(2, 2)*i2
+                      k2 = (kvecX**2+kvecY**2)*k_lattice_constant**2
+                      if (k2 .ne. 0.0d0) then
+                          ek2= 2.0d0*PI/OMEGA*error_function_c(sqrt(k2)/(2.0d0*kappa))/sqrt(k2)
+                          recipsum2 = recipsum2+ek2
+                          if(k2 .gt. k2max) k2max = k2
+                      end if
+                  end do
+            end do
+            write(6, *) 'recipsum', recipsum2, i4
         end do
-    end do
 
-    !real space sum
-    do i4 = 1, 10
-        realsum2 = 0.0d0
-        do i1 = -i4, i4
-              do i2 = -i4, i4
-                  tvecX = t_lattice_vectors(1, 1) *i1 + t_lattice_vectors(2, 1)*i2
-                  tvecY = t_lattice_vectors(1, 2) *i1 +t_lattice_vectors(2, 2)*i2
-                  t1 = sqrt(kvecX**2+kvecY**2)*t_lattice_constant
-                  if (t1 .ne. 0.0d0) then
-                      er2= error_function_c(kappa*t1)/t1
-                      realsum2 = realsum2+er2
-                  end if
-              end do
+        !real space sum
+        do i4 = 1, 13
+            realsum2 = 0.0d0
+            do i1 = -i4, i4
+                  do i2 = -i4, i4
+                      tvecX = r_lattice_vectors(1, 1) *i1 + r_lattice_vectors(2, 1)*i2
+                      tvecY = r_lattice_vectors(1, 2) *i1 +r_lattice_vectors(2, 2)*i2
+                      t1 = sqrt(tvecX**2+tvecY**2)*r_lattice_constant
+                      if (t1 .ne. 0.0d0) then
+                          er2= error_function_c(kappa*t1)/t1
+                          realsum2 = realsum2+er2
+                      end if
+                  end do
+            end do
+            write(6, *) 'realsum', realsum2
         end do
-    end do
 
+!============================================
+!                       testing
+!       jj =20
+!       zz= 10.0d0**(-1.0d0*jj)
+!       yy = 10.0d0**(-1.0d0*jj)
+!       xx =10.0d0**(-1.0d0*jj)
+!       term2 =- error_function(kappa*sqrt(xx**2+yy**2+zz**2))/sqrt(xx**2+yy**2+zz**2)
+!       term4 = - PI/OMEGA*(error_function(zz*kappa)+exp(-kappa**2 * zz**2)/sqrt(kappa**2*PI))
+! 
+!         !reciprocal sum
+!       k2max = 0.0d0
+!         do i4 = 1, 18
+!             recipsum2 = 0.0d0
+!             do i1 = -i4, i4
+!                   do i2 = -i4, i4
+!                       kvecX = k_lattice_vectors(1, 1) *i1 +k_lattice_vectors(2, 1)*i2
+!                       kvecY = k_lattice_vectors(1, 2) *i1 + k_lattice_vectors(2, 2)*i2
+!                       k2 = (kvecX**2+kvecY**2)*k_lattice_constant**2
+!                       if (k2 .ne. 0.0d0) then
+!                           ek2= PI/OMEGA/sqrt(k2)*(exp(zz*sqrt(k2))*error_function_c(sqrt(k2)/(2.0d0*kappa)+zz*kappa)&
+!                           +exp(-zz*sqrt(k2))*error_function_c(sqrt(k2)/(2.0d0*kappa)-zz*kappa))
+!                           recipsum2 = recipsum2+ek2
+!                           if(k2 .gt. k2max) k2max = k2
+!                       end if
+!                   end do
+!             end do
+!         end do
+!         write(6, *) 'recipsum test', recipsum2/4.0d0, jj
+!         !real space sum
+!         do i4 = 1, 13
+!             realsum2 = 0.0d0
+!             do i1 = -i4, i4
+!                   do i2 = -i4, i4
+!                       tvecX = r_lattice_vectors(1, 1) *i1 + r_lattice_vectors(2, 1)*i2+xx
+!                       tvecY = r_lattice_vectors(1, 2) *i1 +r_lattice_vectors(2, 2)*i2+yy
+!                       t1 = sqrt(tvecX**2+tvecY**2)*r_lattice_constant
+!                       if (t1 .ne. 0.0d0) then
+!                           er2= error_function_c(kappa*t1)/t1
+!                           realsum2 = realsum2+er2
+!                       end if
+!                   end do
+!             end do
+!         end do
+!             write(6, *) 'realsumtest', realsum2, xx, yy, r_lattice_vectors(1, 1)
+! 
 
-
+!===================================================
 
 ! !     do jj = 1, 40 
-!         kappa=2.4d0/sqrt(OMEGA)!*jj/20.0d0
-!         t_lattice_constant = sqrt(OMEGA)
-!         t_lattice_vectors(1,1:3) = (/1, 0, 0 /)
-!         t_lattice_vectors(2,1:3) = (/0, 1, 0 /)
-! 
-!         term2=-sqrt(pi)/OMEGA/kappa
-!         term4=-2.0d0*kappa/sqrt(PI)
-! 
-!         recipsum2=0.0d0
-!         temp_sum = 0.0d0
-!         i4 =1
-!         do while (temp_sum*(1.0d0+inacc_madelung) .le. recipsum2)
-!             temp_sum = recipsum2
-!             recipsum2 =0.0d0      
-!             do i1=-i4,i4
-!                 do i2=-i4,i4
-!                     kvecX=lattice_vectors(1,1)*i1+lattice_vectors(2,1)*i2
-!                     kvecY=lattice_vectors(1,2)*i1+lattice_vectors(2,2)*i2
-!                     n2=kvecX**2+kvecY**2
-!                     if (n2.ne.0) then
-!                         k2=(k_lattice_constant)**2.0d0*n2
-!                         ek2=(PI/2.0d0/OMEGA)*error_function_c(sqrt(k2)/(2.0d0*kappa))/sqrt(k2)
-! !                       write(6,*) k2, sqrt(k2)/2.0d0/kappa, erf(real(sqrt(k2)/2.0d0/kappa, c_double)) ! for testing
-!                         recipsum2=recipsum2+ek2
-!                     end if
-!                 enddo
-!             enddo
-!             i4 = i4+1
-! !             write(6,*) "i4 recipsum2", i4-1, recipsum2 
-!         enddo
-! 
-!         realsum2=0.0d0
-!         temp_sum = 0.0d0
-!         i4 =1 
-!         do while (temp_sum*(1.0d0+inacc_madelung) .le. realsum2)
-!             temp_sum = realsum2
-!             realsum2=0.0d0
-!             do i1=-i4,i4
-!                 do i2=-i4,i4
-!                     tvecX=t_lattice_vectors(1,1)*i1+t_lattice_vectors(2,1)*i2
-!                     tvecY=t_lattice_vectors(1,2)*i1+t_lattice_vectors(2,2)*i2
-!                     n2=tvecX**2+tvecY**2
-!                     if (n2 .ne. 0) then
-!                         t1 =t_lattice_constant*sqrt(dble(n2))
-!                         er2=error_function_c(kappa*t1)/t1
-!                         realsum2=realsum2+er2
-!                     endif
-!                 enddo
-!             enddo
-! !             write(6,*) 'i4, realsum2' , i4, realsum2
-!             i4 = i4+1
-!         enddo
-! !       write(6,*) "real space", realsum2
-! 
-! !         write (6,'(7F19.9)') kappa, term2, term4, recipsum2, realsum2, realsum2+recipsum2+term2+term4
-! 
-! !     end do !jj
+        kappa=2.4d0/sqrt(OMEGA)!*jj/20.0d0
+        r_lattice_constant = sqrt(OMEGA)
+        r_lattice_vectors(1,1:3) = (/1, 0, 0 /)
+        r_lattice_vectors(2,1:3) = (/0, 1, 0 /)
+
+        term2=-sqrt(pi)/OMEGA/kappa
+        term4=-2.0d0*kappa/sqrt(PI)
+
+        recipsum2=0.0d0
+        temp_sum = 0.0d0
+        i4 =1
+        do while (temp_sum*(1.0d0+inacc_madelung) .le. recipsum2)
+            temp_sum = recipsum2
+            recipsum2 =0.0d0      
+            do i1=-i4,i4
+                do i2=-i4,i4
+                    kvecX=k_lattice_vectors(1,1)*i1+k_lattice_vectors(2,1)*i2
+                    kvecY=k_lattice_vectors(1,2)*i1+k_lattice_vectors(2,2)*i2
+                    n2=kvecX**2+kvecY**2
+                    if (n2.ne.0) then
+                        k2=(k_lattice_constant)**2.0d0*n2
+                        ek2=2.0d0*PI/OMEGA*error_function_c(sqrt(k2)/(2.0d0*kappa))/sqrt(k2)
+!                       write(6,*) k2, sqrt(k2)/2.0d0/kappa, erf(real(sqrt(k2)/2.0d0/kappa, c_double)) ! for testing
+                        recipsum2=recipsum2+ek2
+                    end if
+                enddo
+            enddo
+            i4 = i4+1
+!             write(6,*) "i4 recipsum2", i4-1, recipsum2 
+        enddo
+
+        realsum2=0.0d0
+        temp_sum = 0.0d0
+        i4 =1 
+        do while (temp_sum*(1.0d0+inacc_madelung) .le. realsum2)
+            temp_sum = realsum2
+            realsum2=0.0d0
+            do i1=-i4,i4
+                do i2=-i4,i4
+                    tvecX=r_lattice_vectors(1,1)*i1+r_lattice_vectors(2,1)*i2
+                    tvecY=r_lattice_vectors(1,2)*i1+r_lattice_vectors(2,2)*i2
+                    n2=tvecX**2+tvecY**2
+                    if (n2 .ne. 0) then
+                        t1 =r_lattice_constant*sqrt(dble(n2))
+                        er2=error_function_c(kappa*t1)/t1
+                        realsum2=realsum2+er2
+                    endif
+                enddo
+            enddo
+!             write(6,*) 'i4, realsum2' , i4, realsum2
+            i4 = i4+1
+        enddo
+!       write(6,*) "real space", realsum2
+
+!         write (6,'(7F19.9)') kappa, term2, term4, recipsum2, realsum2, realsum2+recipsum2+term2+term4
+
+!     end do !jj
+    !-------------------------------   1D lattice   -----------------------------------------
     else if (dimen==1) then !1D
-        t_lattice_constant = OMEGA
-        t_lattice_vectors(1,1:3) = (/1, 0, 0 /)
-        t_lattice_vectors(2,1:3) = (/0, 0, 0 /)
-        t_lattice_vectors(3,1:3) = (/0, 0, 0 /)  
+!         stop_all(this_routine,"Madelung not implemented in 1D!")
+        r_lattice_constant = OMEGA
+        r_lattice_vectors(1,1:3) = (/1, 0, 0 /)
+        r_lattice_vectors(2,1:3) = (/0, 0, 0 /)
+        r_lattice_vectors(3,1:3) = (/0, 0, 0 /)  
+    !----------------------------------------------------------------------------------------
     else 
-        write(6,'(A)') 'Problem with dimension! ' 
+!         stop_all(this_routine,"Problem with dimension!")
     endif
 
+
+    !-------------------------------   output   -----------------------------------------
     calc_madelung=realsum2+recipsum2+term2+term4
     write(6,*) "Calculating Madelung Constant - Fraser et al. PRB 53 4 1814"
     write(6,*) "kappa taken from CASINO manual to be", kappa
- write(6,*) '*************************  Madelung  *****************************************'
- write(6,*) calc_madelung
-end function     
+    write(6,*) "k2_max", k2max, k2max*k_lattice_constant**2
+    write(6,*) "omega", OMEGA
+    write(6, *) "klatticeconstant", k_lattice_constant
+    write(6, *) "rlatticeconstant", r_lattice_constant
+    write(6,*) '*************************  Madelung  *****************************************'
+    write(6,*) calc_madelung
 
+    return
+end function     
 double precision  function error_function_c(argument)
 
+    use constants, only: dp
+    use, intrinsic :: iso_c_binding
+    implicit none 
+  
+    double precision :: argument
+
+     interface
+         real(c_double) pure function erfc_lm(x) bind(c, name='erfc')
+             import :: c_double
+             real(c_double), intent(in), value :: x
+         end function erfc_lm
+     end interface
+
+     error_function_c = erfc_lm(real(argument, c_double))
+end function error_function_c
+
+double precision  function error_function(argument)
+    
     use constants, only: dp
     use, intrinsic :: iso_c_binding
     implicit none 
@@ -2439,11 +2552,93 @@ double precision  function error_function_c(argument)
              import :: c_double
              real(c_double), intent(in), value :: x
          end function erf_lm
-         real(c_double) pure function erfc_lm(x) bind(c, name='erfc')
-             import :: c_double
-             real(c_double), intent(in), value :: x
-         end function erfc_lm
      end interface
+     error_function= erf_lm(real(argument, c_double))
+end function error_function
 
-     error_function_c = erfc_lm(real(argument, c_double))
-end function error_function_c
+
+! double precision  function calc_madelung_1D()
+! 
+!     use constants, only: dp
+!     use SystemData, only: OMEGA
+!     implicit none
+! 
+!     integer :: Mad_M, Mad_mm, Mad_i
+!     real(dp) :: Madelung_W, Madelung_xi
+!     real(dp) ::  Mad_p, Mad_H
+!     real(dp) :: temp_sum
+! 
+!     ! accuracy,  1 .le. mm .le. 5
+!     Mad_mm = 3
+!     do Mad_M = 1, 9
+!     Mad_p = OMEGA*(Mad_M+0.5d0)
+!     Mad_H = log(2.0d0*Mad_p)
+!     temp_sum = 0.0d0
+!     write(6,*) 'M, H , p', Mad_M, Mad_H, Mad_p
+!     do Mad_i = -Mad_M, Mad_M
+!          if (Mad_i .ne. 0) then
+!             temp_sum = temp_sum +1.0d0/(Mad_i*OMEGA)-1.0d0/OMEGA*(2.0d0*Mad_H-2.0d0*log(OMEGA)) &
+!                                                       +2.0d0*Madelung_xi(Mad_M, Mad_mm)
+! !             write(6,*) 'i', Mad_i,  temp_sum
+! !             write(6,*) '1. Term', 1.0d0/(Mad_i*OMEGA)
+! !             write(6,*) '2. Term',-1.0d0/OMEGA*(2.0d0*Mad_H-2.0d0*log(OMEGA)) 
+! !             write(6,*) '3. Term', 2.0d0*Madelung_xi(Mad_M, Mad_mm)
+!          end if 
+!     end do ! Mad_i
+! ! write(6,*) temp_sum, Mad_M
+!   end do ! M
+! 
+!     calc_madelung_1D =temp_sum
+!     write(6, *) '===================== Madelung 1D ==========================='
+!     write(6, *)   calc_madelung_1D
+!     return
+! end function calc_madelung_1D
+! 
+! !caculates the W's for the 1D Madelung constant recursively
+! recursive function Madelung_W( Mad_n, Mad_p) result(Mad_W)
+!     
+!     use constants, only: dp
+!     implicit none 
+! 
+!     real(dp) ::Mad_W
+!     integer, intent( in ) :: Mad_n
+!     real(dp), intent( in ) ::  Mad_p
+! 
+!     if ( Mad_n .le. 0 ) then
+!         Mad_W = 1.0d0/Mad_p
+!     else
+!          Mad_W = (-(2.0d0*Mad_n+1)*Mad_p*Madelung_W( Mad_n -1,  Mad_p)  &
+!                           -Mad_n**2*Madelung_W( Mad_n -2,  Mad_p))  &
+!                             /(Mad_p**2)
+!     end if
+! end function Madelung_W
+! 
+!  function Madelung_xi(Mad_M, Mad_mm) result(Mad_xi)
+!     
+!     use SystemData, only: OMEGA
+!     use constants, only: dp
+!     implicit none 
+! 
+!     real(dp) ::Mad_xi
+!     integer, intent(in) :: Mad_M, Mad_mm
+!     real(dp):: Mad_p
+!     real(dp) :: Madelung_W
+!     real(dp) :: Mad_E(5)
+!     integer :: ii, mm
+! 
+!   !E_i = D_i *(0.5**(2*i-1)-1)
+!    Mad_E(1) = (0.5d0-1.0d0)/12.0d0
+!    Mad_E(2) =-(0.5d0**3 -1.0d0)/720.0d0
+!    Mad_E(3) =(0.5d0**5 -1.0d0)/30240.0d0
+!    Mad_E(4) =-(0.5d0**7 -1.0d0)/1209600.0d0
+!    Mad_E(5) =(0.5d0**9 -1.0d0)/47900160.0d0
+! 
+!    Mad_p = OMEGA*(Mad_M+0.5d0)
+!    Mad_xi =0.0d0
+!    do ii = 1, Mad_mm
+!         Mad_xi = Mad_xi - Mad_E(ii)*OMEGA**(2.0d0*ii-1.0d0)*Madelung_W(2*ii-1, Mad_p)
+!    end do !mm
+! 
+! end function Madelung_xi
+
+

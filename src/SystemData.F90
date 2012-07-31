@@ -98,8 +98,8 @@ logical :: tUEGFreeze ! Freeze core electrons for the UEG, a crude hack for this
 real(dp) :: FreezeCutoff
 
 ! Inputs for the UEG2
-character(len=3) :: recip_lattice_type ! type of reciprocal lattice (eg. fcc, sc, bcc, hcp)
-real(dp) :: lattice_vectors(3,3)
+character(len=3) :: real_lattice_type ! type of reciprocal lattice (eg. fcc, sc, bcc, hcp)
+real(dp) :: k_lattice_vectors(3,3)
 real(dp) :: k_lattice_constant
 real(dp) :: Unscaled_LatConst_square
 real(dp), allocatable :: kvec(:,:)
