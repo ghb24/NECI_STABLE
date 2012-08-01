@@ -1418,7 +1418,7 @@ contains
 
         logical, intent(in) :: tExternal
         integer(MPIArg) :: iProcInd, nProcess, ierr
-        integer :: a, g
+        integer :: a, g,MolpComm
         character(len=20) NodeFile
         logical, save :: initialised=.false.
         character(*), parameter :: t_r = 'MPIInit'
@@ -1438,7 +1438,7 @@ contains
         !SIMON - can you add a call to set comm_vec[0] = MolpComm please!
 
         !This just sets CommGlobal to zero
-        CommGlobal = MPI_COMM_WOLRD
+        CommGlobal = MPI_COMM_WORLD
 
         if(molpro_helper_server) then
             write(6,"(A)") "********************************************************************"
