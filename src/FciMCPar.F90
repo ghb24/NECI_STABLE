@@ -1271,8 +1271,18 @@ MODULE FciMCParMod
         logical :: parent_init
 
         proc = DetermineDetNode(nJ,0)    ! 0 -> nNodes-1)
+
         ! We need to include any flags set both from the parent and from the
-        ! spawning steps
+        ! spawning steps. No we don't! - ghb
+        ! This is highly highly yucky and needs cleaning up.
+        ! Potentially, ilutJ can be given the flag of its parent in 
+        ! FindExcitBitDet routine. I don't think it should be.
+        ! To make things more confusing, this only happens for non-HPHF/CSF 
+        ! runs.
+        ! Things are even more confusing given the fact that CCMC is using this routine
+        ! Who know whether they require the flag there or not...
+        !TODO: CLEAN THIS UP. Make it clear, and transparent, with one way to change the
+        ! flag. Otherwise, this will trip many people up in the future.
         flags = ior(parent_flags, extract_flags(ilutJ))
 
         call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ, &
@@ -4341,11 +4351,9 @@ MODULE FciMCParMod
             CALL Stop_All(t_r,"CountBits FAIL")
         ENDIF
 
-        IF(tCheckHighestPop) THEN
-            ALLOCATE(HighestPopDet(0:NIfTot),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All(t_r,"Cannot allocate memory for HighestPopDet")
-            HighestPopDet(:)=0
-        ENDIF
+        ALLOCATE(HighestPopDet(0:NIfTot),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All(t_r,"Cannot allocate memory for HighestPopDet")
+        HighestPopDet(:)=0
 
 !Check that the symmetry routines have set the symmetry up correctly...
         tSuccess=.true.
@@ -7096,7 +7104,8 @@ MODULE FciMCParMod
         endif
 
         !First, calculate the total weight - TotMP1Weight
-        TotMP1Weight=1.D0
+        mp2energy=0.0_dp
+        TotMP1Weight=1.0_dp
         iExcits=0
         tAllExcitsFound=.false.
         if(tUEG) then
