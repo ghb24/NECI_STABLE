@@ -1435,11 +1435,6 @@ contains
 !to be a subset of MPI_COMM_WORLD, then we have to somehow set comm_vec[0] to be
 !MolpComm, since CommGlobal is now just an index to comm_vec.
 
-        !SIMON - can you add a call to set comm_vec[0] = MolpComm please!
-
-        !This just sets CommGlobal to zero
-        CommGlobal = MPI_COMM_WORLD
-
         if(molpro_helper_server) then
             write(6,"(A)") "********************************************************************"
             write(6,"(A)") "***************************  WARNING  ******************************"
