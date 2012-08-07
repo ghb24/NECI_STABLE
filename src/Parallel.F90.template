@@ -1426,11 +1426,17 @@ contains
 #ifdef PARALLEL
         nNodes = 0  !Indicate we haven't setup nodes yet
 
+#ifdef CBINDMPI
+        ! Just to ensure our constants are nicely initialised
+        MPI_COMM_WORLD = mpicommworld_c2f()
+#endif
+
 #ifdef MOLPRO
 !Obtain the communicator for MOLPRO
         MolpComm = iglobal_worker_comm()
 
 #ifdef CBINDMPI
+
 !This will generally always be true. However, if we want to set the communicator
 !to be a subset of MPI_COMM_WORLD, then we have to somehow set comm_vec[0] to be
 !MolpComm, since CommGlobal is now just an index to comm_vec.
