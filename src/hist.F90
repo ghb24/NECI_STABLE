@@ -10,6 +10,7 @@ module hist
     use DetBitOps, only: count_open_orbs, EncodeBitDet, spatial_bit_det, &
                          DetBitEq, count_open_orbs, TestClosedShellDet, &
                          CalcOpenOrbs, IsAllowedHPHF
+    use hash , only : DetermineDetNode                     
     use CalcData, only: tFCIMC, tTruncInitiator
     use DetCalcData, only: FCIDetIndex, det
     use FciMCData, only: tFlippedSign, TotWalkers, CurrentDets, iter, &
@@ -25,7 +26,6 @@ module hist
     use csf, only: get_num_csfs, csf_coeff, csf_get_yamas, write_yama, &
                    extract_dorder
 !    use AnnihilationMod, only: DetermineDetNode
-    use HashMod, only: DetermineDetNode
     use hist_data
     use timing_neci
     use Determinants, only: write_det

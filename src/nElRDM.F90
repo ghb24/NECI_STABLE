@@ -55,6 +55,7 @@ MODULE nElRDMMod
                                     SymLabelCounts2_rot,SymLabelList2_rot, &
                                     SymLabelListInv_rot,NoOrbs, SpatOrbs
         USE util_mod , only : get_free_unit
+        use hash , only : DetermineDetNode
         IMPLICIT NONE
         INTEGER , ALLOCATABLE :: Sing_InitExcSlots(:),Sing_ExcList(:)
         INTEGER , ALLOCATABLE :: Doub_InitExcSlots(:),Doub_ExcList(:)
@@ -868,16 +869,16 @@ MODULE nElRDMMod
 
         call extract_bit_rep (iLutnI, nI, SignI, FlagsI, Store)
 
-        if(tHF_Ref_Explicit) then
-            IterRDMStartI = 0.0_dp
-            AvSignI = real(SignI(1),dp)
-
-        else
+!        if(tHF_Ref_Explicit) then
+!            IterRDMStartI = 0.0_dp
+!            AvSignI = real(SignI(1),dp)
+!
+!        else
             IterRDMStartI = CurrH_I(3)
             IF(IterRDMStartI.eq.0.0_dp) IterRDMStartI = real(Iter, dp)
             AvSignI = ( ((real(Iter,dp) - IterRDMStartI) * CurrH_I(2)) &
                         + real(SignI(1),dp) ) / ( real(Iter,dp) - IterRDMStartI + 1.0_dp )
-        endif
+!        endif
 
     end subroutine extract_bit_rep_avsign_hf_s_d
 
@@ -1830,7 +1831,6 @@ MODULE nElRDMMod
 ! and puts them in the SingExcDjs array according to that processor.
         USE DetBitOps , only : EncodeBitDet
 !        USE AnnihilationMod , only : DetermineDetNode
-        USE HashMod , only : DetermineDetNode
         USE SymExcit3 , only : GenExcitations3
         USE RotateOrbsData , only : SymLabelListInv_rot
         USE bit_reps , only : extract_bit_rep
@@ -1950,7 +1950,6 @@ MODULE nElRDMMod
 ! and puts them in the SingExcDjs array according to that processor.
         USE DetBitOps , only : EncodeBitDet
 !        USE AnnihilationMod , only : DetermineDetNode
-        USE HashMod , only : DetermineDetNode
         USE SymExcit3 , only : GenExcitations3
         USE RotateOrbsData , only : SymLabelListInv_rot
         USE bit_reps , only : extract_bit_rep

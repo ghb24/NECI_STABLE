@@ -88,6 +88,7 @@ MODULE FciMCParMod
     use DetBitops, only: EncodeBitDet, DetBitEQ, DetBitLT, FindExcitBitDet, &
                          FindBitExcitLevel, countbits, TestClosedShellDet, &
                          FindSpatialBitExcitLevel, IsAllowedHPHF
+    use hash , only : DetermineDetNode                     
     use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask, get_csf_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
@@ -4086,11 +4087,11 @@ MODULE FciMCParMod
 
         if(tFillingStochRDMonFly.or.(tHF_Ref_Explicit)) then
             call MPISumAll_inplace (InstNoatHF)
-            if(tHF_Ref_Explicit) then
-                ! There are no probabilities involved in the HF ref calc, 
-                ! so we can just use the instantaneous populations. 
-                AvNoatHF = real(InstNoatHF(1),dp)
-            else
+!            if(tHF_Ref_Explicit) then
+!                ! There are no probabilities involved in the HF ref calc, 
+!                ! so we can just use the instantaneous populations. 
+!                AvNoatHF = real(InstNoatHF(1),dp)
+!            else
                 if(InstNoatHF(1).eq.0) then
                     IterRDM_HF = Iter + 1 
                     AvNoatHF = 0.0_dp
@@ -4100,7 +4101,7 @@ MODULE FciMCParMod
                         + real(InstNoatHF(1),dp) ) / real((Iter - IterRDM_HF) + 1,dp)
 
                 endif
-            endif
+!            endif
         endif
         HFInd = 0            
 
@@ -6735,7 +6736,7 @@ MODULE FciMCParMod
             MemoryAlloc=(NIfTot+1)*MaxWalkersPart*size_n_int    !Memory Allocated in bytes
 
             IF(.not.tRegenDiagHEls) THEN
-                if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
+                if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
                     ! If calculating the RDMs stochastically, need to include the average sign and the 
                     ! iteration it became occupied in the CurrentH array (with the Hii elements).
                     ALLOCATE(WalkVecH(3,MaxWalkersPart),stat=ierr)

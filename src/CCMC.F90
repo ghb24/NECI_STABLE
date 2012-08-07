@@ -94,6 +94,7 @@ MODULE CCMC
       Use Logging, only: CCMCDebug
       use bit_reps, only: decode_bit_det
       use FciMCData, only: fcimc_excit_gen_store
+      use hash, only: DetermineDetNode
         IMPLICIT NONE
         INTEGER :: VecSlot,i,j,k,l,CopySign
         INTEGER :: nJ(NEl),IC,DetCurr(NEl)
@@ -2784,7 +2785,7 @@ END SUBROUTINE CCMCStandaloneParticle
 subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
       use SystemData, only : nEl
 !      use AnnihilationMod, only: DetermineDetNode
-      use HashMod, only: DetermineDetNode
+      use hash, only: DetermineDetNode
       use bit_reps, only: decode_bit_det, set_flag
       use bit_rep_data, only: flag_parent_initiator
       use CCMCData, only: tSharedExcitors

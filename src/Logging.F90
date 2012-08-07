@@ -568,7 +568,8 @@ MODULE Logging
             tExplicitAllRDM = .true.
 
         case("HFREFRDMEXPLICIT")
-!Uses the HF as a reference and explicitly calculates the RDM to find the energy - should be same as projected energy. 
+!Uses the HF as a reference and explicitly calculates the RDM to find the energy - should be same as projected energy, 
+!when printing out every shift update.
             tHF_Ref_Explicit = .true.
 
         case("HFSDRDM")

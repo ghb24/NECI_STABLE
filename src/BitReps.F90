@@ -669,7 +669,6 @@ contains
         endif
     end subroutine decode_bit_det_bitwise
 
-
 !    subroutine init_excitations()
 !        ! Allocate and initialise data in excit_mask.
 !        use basis, only: bit_lookup, nbasis, basis_length

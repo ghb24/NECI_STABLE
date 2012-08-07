@@ -1,14 +1,16 @@
-MODULE HashMod
+#include "macros.h"
 
-    use SystemData , only : NEl, nBasis, tCSF
+module hash
+
     use FciMCData , only : hash_iter, hash_shift, RandomHash
-    use csf , only : csf_orbital_mask
     use Parallel_neci , only : nNodes
     use constants , only : int64
-    IMPLICIT NONE
+    use csf_data, only: csf_orbital_mask
+    use Systemdata, only: nel, tCSF, nBasis
 
-    contains      
+    implicit none
 
+    contains
 
     pure function DetermineDetNode (nI, iIterOffset) result(node)
 
@@ -19,6 +21,7 @@ MODULE HashMod
         ! In:  iIterOffset - Offset this iteration by this amount
         ! Out: proc - The (0-based) processor index.
 
+        implicit none
         integer, intent(in) :: nI(nel)
         integer, intent(in) :: iIterOffset
         integer :: node
@@ -56,5 +59,7 @@ MODULE HashMod
 
     end function
 
+      
+end module hash
 
-END MODULE HashMod
+
