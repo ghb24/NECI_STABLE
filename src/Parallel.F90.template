@@ -1426,47 +1426,6 @@ contains
 #ifdef PARALLEL
         nNodes = 0  !Indicate we haven't setup nodes yet
 
-#ifdef CBINDMPI
-        ! Just to ensure our constants are nicely initialised
-        MPI_COMM_WORLD = mpicommworld_c2f()
-#endif
-
-#ifdef MOLPRO
-!Obtain the communicator for MOLPRO
-        MolpComm = iglobal_worker_comm()
-
-#ifdef CBINDMPI
-
-!This will generally always be true. However, if we want to set the communicator
-!to be a subset of MPI_COMM_WORLD, then we have to somehow set comm_vec[0] to be
-!MolpComm, since CommGlobal is now just an index to comm_vec.
-
-        if(molpro_helper_server) then
-            write(6,"(A)") "********************************************************************"
-            write(6,"(A)") "***************************  WARNING  ******************************"
-            write(6,"(A)") "********************************************************************"
-            write(6,"(A)") "***                                                              ***"
-            write(6,"(A)") "*** FCIQMC module run in parallel, but --no-helper-server option ***"
-            write(6,"(A)") "*** not invoked on command line. This is highly recommended when ***"
-            write(6,"(A)") "*** running with more than one MPI thread, since one processor   ***"
-            write(6,"(A)") "*** is now entirely idle. If running with multiple processes,    ***"
-            write(6,"(A)") "*** recommend re-running with '--no-helper-server' command line  ***"
-            write(6,"(A)") "*** option.                                                      ***"
-            write(6,"(A)") "***                                                              ***"
-            write(6,"(A)") "********************************************************************"
-        endif
-
-#else
-!If for some reason we are not using the MPI.h bindings, then can could just set CommGlobal
-!to be the required communicator
-        CommGlobal = int(MolpComm,MPIArg)
-#endif
-
-#else
-        !If we are using the C bindings, this just sets it to 0
-        CommGlobal = MPI_COMM_WORLD
-#endif
-
         if (.not.initialised) then
             
             if(tExternal) then
@@ -1480,6 +1439,37 @@ contains
                     call stop_all (t_r, 'MPI Error. Terminating.')
 #endif
             endif
+
+#ifdef CBINDMPI
+            ! Extract the value of MPI_COMM_WORLD from the C-bindings.
+            ! It doesn't have to be zero (c.f. gfortran w/ openmpi).
+            MPI_COMM_WORLD = mpicommworld_c2f()
+#endif
+
+#ifdef MOLPRO
+            ! Obtain the communicator for MOLPRO
+            MolpComm = iglobal_worker_comm()
+            CommGlobal = int(MolpComm, MPIArg)
+#ifdef CBINDMPI
+            if(molpro_helper_server) then
+                write(6,"(A)") "********************************************************************"
+                write(6,"(A)") "***************************  WARNING  ******************************"
+                write(6,"(A)") "********************************************************************"
+                write(6,"(A)") "***                                                              ***"
+                write(6,"(A)") "*** FCIQMC module run in parallel, but --no-helper-server option ***"
+                write(6,"(A)") "*** not invoked on command line. This is highly recommended when ***"
+                write(6,"(A)") "*** running with more than one MPI thread, since one processor   ***"
+                write(6,"(A)") "*** is now entirely idle. If running with multiple processes,    ***"
+                write(6,"(A)") "*** recommend re-running with '--no-helper-server' command line  ***"
+                write(6,"(A)") "*** option.                                                      ***"
+                write(6,"(A)") "***                                                              ***"
+                write(6,"(A)") "********************************************************************"
+            endif
+#endif
+#else
+            ! If we are using the C bindings, this just sets it to 0
+            CommGlobal = MPI_COMM_WORLD
+#endif
 
             call MPI_Comm_rank (CommGlobal, iProcInd, ierr)
             iProcIndex = iProcInd
