@@ -14,6 +14,12 @@ module util_mod
         end function
     end interface
 
+    interface abs_sign
+        module procedure abs_int4_sign
+        module procedure abs_int8_sign
+        module procedure abs_real_sign
+    end interface
+
     ! sds: It would be nice to use a proper private/public interface here,
     !      BUT PGI throws a wobbly on using the public definition on
     !      a new declared operator. --> "Empty Operator" errors!
@@ -51,18 +57,20 @@ contains
 
     end subroutine
 
-!routine to calculation the absolute magnitude of a complex integer variable (to nearest integer)
-    pure real(dp) function abs_int_sign(Realwsign)
-        real(dp), dimension(lenof_sign), intent(in) :: realwsign
+    ! routine to calculation the absolute magnitude of a complex integer 
+    ! variable (to nearest integer)
+    pure real(dp) function abs_int4_sign(sgn)
+        integer(int32), intent(in) :: sgn(lenof_sign)
 
         if(lenof_sign.eq.1) then
-            abs_int_sign=abs(Realwsign(1))
+            abs_int4_sign = abs(sgn(1))
         else
-            abs_int_sign=real(int(sqrt(Realwsign(1)**2+realwsign(lenof_sign)**2)),dp)
-            !The integerisation here is an approximation, but one that is used in the integer algorithm, so is retained
-            !in this real version of the algorithm
+            abs_int4_sign = real(int(sqrt(real(sgn(1),dp)**2 + real(sgn(lenof_sign),dp)**2)), dp)
+            ! The integerisation here is an approximation, but one that is 
+            ! used in the integer algorithm, so is retained in this real 
+            ! version of the algorithm
         endif
-    end function abs_int_sign
+    end function abs_int4_sign
 
 !routine to calculation the absolute magnitude of a complex integer(int64) variable (to nearest integer)
     pure integer(kind=int64) function abs_int8_sign(wsign)
@@ -74,6 +82,16 @@ contains
             abs_int8_sign=nint(sqrt(real(wsign(1),dp)**2+real(wsign(lenof_sign),dp)**2),int64)
         endif
     end function abs_int8_sign
+
+    pure real(dp) function abs_real_sign (sgn)
+        real(dp), intent(in) :: sgn(lenof_sign)
+
+        if (lenof_sign == 1) then
+            abs_real_sign = abs(sgn(1))
+        else
+            abs_real_sign = real(nint(sqrt(sum(sgn ** 2))), dp)
+        end if
+    end function
 
 !--- Array utilities ---
 

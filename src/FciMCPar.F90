@@ -90,7 +90,7 @@ MODULE FciMCParMod
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
     use MI_integrals
-    use util_mod, only: choose, abs_int_sign, abs_int8_sign, binary_search
+    use util_mod, only: choose, abs_sign, abs_int8_sign, binary_search
     use constants, only: dp, int64, n_int, lenof_sign, sizeof_int
     use soft_exit, only: ChangeVars 
     use FciMCLoggingMod, only: FinaliseBlocking, FinaliseShiftBlocking, &
@@ -1941,7 +1941,7 @@ MODULE FciMCParMod
                     if (component.eq.1) then
                         MatEl=real(rh,dp) !Real part
                     else
-                        MatEl=aimag(rh,dp) !Imag part
+                        MatEl=real(aimag(rh),dp) !Imag part
                     endif
 
                     if (tRealSpawning) then
@@ -2017,7 +2017,7 @@ MODULE FciMCParMod
                         child_type=2
                         walkerweight=sign(1.0_dp, realwSign(2))
                     else
-                        MatEl=aimag(rh,dp) !Imag part
+                        MatEl=real(aimag(rh),dp) !Imag part
                         child_type=1
                         walkerweight=sign(1.0_dp, -realwSign(2)) 
                         !These walkers have the *opposite* sign to normal
@@ -2394,7 +2394,11 @@ MODULE FciMCParMod
         integer, intent(in) :: walkExcitLevel
         character(len=*), parameter :: t_r="walker_death"
 
-        NullSign(:)=transfer(0.0_dp, NullSign(:))
+#ifdef __CMPLX
+        NullSign = transfer((/0.0_dp, 0.0_dp/), NullSign)
+#else
+        NullSign = transfer(0.0_dp, NullSign)
+#endif
 
         ! Do particles on determinant die? iDie can be both +ve (deaths), or
         ! -ve (births, if shift > 0)
@@ -3070,9 +3074,14 @@ MODULE FciMCParMod
                     norm1=norm1+(AllAvAnnihil(1,i)**2)+(AllAvAnnihil(lenof_sign,i)**2)
                 ENDIF
                 IF(lenof_sign.eq.1) THEN
-                    WRITE(io1,"(I13,6G25.16,I13,G25.16)") i,AllHistogram(1,i),norm,AllInstHist(1,i),AllInstAnnihil(1,i),AllAvAnnihil(1,i),norm1,FinalPop, BeforeNormHist(i)
+                    WRITE(io1,"(I13,6G25.16,I13,G25.16)") i, &
+                          AllHistogram(1,i), norm, AllInstHist(1,i), &
+                          AllInstAnnihil(1,i), AllAvAnnihil(1,i), norm1, &
+                          FinalPop, BeforeNormHist(i)
                 ELSE
-                    WRITE(io1,"(I13,6G25.16)") i,AllHistogram(1,i),norm,AllInstHist(1,i),AllInstAnnihil(1,i),AllAvAnnihil(1,i),norm1
+                    WRITE(io1,"(I13,6G25.16)") i, AllHistogram(1,i), norm, &
+                          AllInstHist(1,i), AllInstAnnihil(1,i), &
+                          AllAvAnnihil(1,i), norm1
                 ENDIF
                 IF(AllHistogram(1,i).ne.0.D0) Tot_No_Unique_Dets = Tot_No_Unique_Dets + 1
             enddo
@@ -3319,13 +3328,13 @@ MODULE FciMCParMod
             ! by ignoring the fractional population here
 
             ! How many walkers do we need to switch dets?
-            pop_change = FracLargerDet * abs_int_sign(AllNoAtHF)
+            pop_change = FracLargerDet * abs_sign(AllNoAtHF)
 !            write(iout,*) "***",AllNoAtHF,FracLargerDet,pop_change, pop_highest,proc_highest
             if (pop_change < pop_highest .and. pop_highest > 50) then
 
                 ! Write out info!
                     root_print 'Highest weighted determinant not reference &
-                               &det: ', pop_highest, abs_int_sign(AllNoAtHF)
+                               &det: ', pop_highest, abs_sign(AllNoAtHF)
                     
 
                 ! Are we changing the reference determinant?
@@ -3681,7 +3690,7 @@ MODULE FciMCParMod
                     tot_walkers = InitWalkers
                 endif
                 if ( (sum(AllTotParts) > tot_walkers) .or. &
-                     (abs_int_sign(AllNoatHF) > MaxNoatHF)) then
+                     (abs_sign(AllNoatHF) > MaxNoatHF)) then
 !                     WRITE(iout,*) "AllTotParts: ",AllTotParts(1),AllTotParts(2),tot_walkers
                     write (iout, '(a,i13,a)') 'Exiting the single particle growth phase on iteration: ',iter + PreviousCycles, &
                                  ' - Shift can now change'
@@ -3698,7 +3707,7 @@ MODULE FciMCParMod
                         tSpawn_Only_Init=.false.
                     endif
                 endif
-            elseif (abs_int_sign(AllNoatHF) < (MaxNoatHF - HFPopThresh)) then
+            elseif (abs_sign(AllNoatHF) < (MaxNoatHF - HFPopThresh)) then
                 write (iout, '(a,i13,a)') 'No at HF has fallen too low - reentering the &
                              &single particle growth phase on iteration',iter + PreviousCycles,' - particle number &
                              &may grow again.'
@@ -3764,8 +3773,8 @@ MODULE FciMCParMod
             endif
 
             ! Calculate the instantaneous 'shift' from the HF population
-            HFShift = -1.d0 / abs_int_sign(AllNoatHF) * &
-                              (abs_int_sign(AllNoatHF) - abs_int_sign(OldAllNoatHF) / &
+            HFShift = -1.d0 / abs_sign(AllNoatHF) * &
+                              (abs_sign(AllNoatHF) - abs_sign(OldAllNoatHF) / &
                               (Tau * real(StepsSft, dp)))
             InstShift = -1.d0 / sum(AllTotParts) * &
                         ((sum(AllTotParts) - sum(AllTotPartsOld)) / &
@@ -4066,7 +4075,7 @@ MODULE FciMCParMod
                 real((AllHFCyc * conjg(AllHFCyc)),dp), &     !24     |n0|^2  This is the denominator for both calcs
                 real((AllENumCyc * conjg(AllHFCyc)),dp), &   !22.    Re[\sum njH0j] x Re[n0] + Im[\sum njH0j] x Im[n0]   No div by StepsSft
                 aimag(AllENumCyc * conjg(AllHFCyc)), &       !23.    Im[\sum njH0j] x Re[n0] - Re[\sum njH0j] x Im[n0]   since no physicality
-                sqrt(float(sum(AllNoatHF**2))) / norm_psi, & !24
+                sqrt(sum(AllNoatHF**2)) / norm_psi, & !24
                 norm_psi, &                                  !25
                 curr_S2, &                                   !26
                 AllNumSpawnedEntries, &                      !27
