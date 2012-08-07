@@ -4753,6 +4753,7 @@ MODULE FciMCParMod
         VaryShiftCycles=0
         AvDiagSft=0.D0
         SumDiagSft=0.D0
+        SumWalkersCyc=0
         SumDiagSftAbort=0.D0
         AvDiagSftAbort=0.D0
         NoAborted=0
