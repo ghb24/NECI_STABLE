@@ -53,6 +53,11 @@ void c_getarg (int i, char * str)
 	strcpy(str, g_argv[i]);
 }
 
+MPI_Fint mpicommworld_c2f ()
+{
+	return MPI_Comm_c2f(MPI_COMM_WORLD);
+}
+
 
 //
 // The MPI specification has several constants and specific datatypes
