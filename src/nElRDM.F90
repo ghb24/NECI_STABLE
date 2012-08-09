@@ -782,11 +782,6 @@ MODULE nElRDMMod
 
     end subroutine DeAlloc_Alloc_SpawnedParts
 
-
-! The following extract_bit_rep_avsign routines both extract the bit representation 
-! of the current determinant, and calculate the average sign since this determinant became 
-! occupied. 
-
     subroutine extract_bit_rep_avsign_no_rdm(iLutnI, CurrH_I, nI, SignI, &
                                                 FlagsI, IterRDMStartI, AvSignI, Store)
 ! This is just the standard extract_bit_rep routine for when we're not calculating the RDMs.    
@@ -812,6 +807,9 @@ MODULE nElRDMMod
 
     subroutine extract_bit_rep_avsign_norm(iLutnI, CurrH_I, nI, SignI, &
                                                 FlagsI, IterRDMStartI, AvSignI, Store)
+! The following extract_bit_rep_avsign routine extracts the bit representation 
+! of the current determinant, and calculate the average sign since this determinant became 
+! occupied. 
 ! This is called for each determinant in the occupied list at the beginning of its FCIQMC cycle. 
 ! It is used if we're calculating the RDMs with or without HPHF. 
 ! Input:    iLutnI (bit rep of current determinant).
@@ -850,40 +848,7 @@ MODULE nElRDMMod
 
     end subroutine extract_bit_rep_avsign_norm
 
-    subroutine extract_bit_rep_avsign_hf_s_d(iLutnI, CurrH_I, nI, SignI, FlagsI, IterRDMStartI, AvSignI, Store)
-! This routine is used when we're doing some truncated RDM calculation.    
-! In this case, all the diagonal elements are calculated later on.
-! Here we just need to calculate the average sign and extract the info as usual.
-        use constants , only : dp, n_int, lenof_sign
-        use SystemData , only : NEl
-        use bit_reps , only : NIfTot, extract_bit_rep 
-        use FciMCData , only : excit_gen_store_type, NCurrH
-        use DetBitOps , only : TestClosedShellDet
-        implicit none
-        integer(n_int), intent(in) :: iLutnI(0:nIfTot)
-        real(dp) , intent(in) :: CurrH_I(NCurrH)
-        integer, intent(out) :: nI(nel), FlagsI
-        integer, dimension(lenof_sign), intent(out) :: SignI
-        real(dp) , intent(out) :: IterRDMStartI, AvSignI
-        type(excit_gen_store_type), intent(inout), optional :: Store
-
-        call extract_bit_rep (iLutnI, nI, SignI, FlagsI, Store)
-
-!        if(tHF_Ref_Explicit) then
-!            IterRDMStartI = 0.0_dp
-!            AvSignI = real(SignI(1),dp)
-!
-!        else
-            IterRDMStartI = CurrH_I(3)
-            IF(IterRDMStartI.eq.0.0_dp) IterRDMStartI = real(Iter, dp)
-            AvSignI = ( ((real(Iter,dp) - IterRDMStartI) * CurrH_I(2)) &
-                        + real(SignI(1),dp) ) / ( real(Iter,dp) - IterRDMStartI + 1.0_dp )
-!        endif
-
-    end subroutine extract_bit_rep_avsign_hf_s_d
-
-
-    subroutine fill_rdm_diag_and_explicit_currdet(iLutnI, nI, CurrH_I, ExcitLevelI, IterLastRDMFill) 
+    subroutine fill_rdm_diag_and_explicit_currdet_norm(iLutnI, nI, CurrH_I, ExcitLevelI, IterLastRDMFill) 
 ! This routine calculates the diagonal RDM contribution, and explicit connections to the HF, from the 
 ! current determinant. 
 ! Each determinant (iLutnI/nI), has Hii element CurrH_I(1), average 
@@ -892,6 +857,10 @@ MODULE nElRDMMod
 ! (often the frequency of the RDM energy calculation). 
 ! We need to multiply the RDM contributions by either this, or the number of iterations 
 ! the determinant has been occupied, which ever is fewer.
+        use constants , only : dp, n_int
+        use SystemData , only : NEl
+        use bit_reps , only : NIfTot 
+        use FciMCData , only : NCurrH
         use DetBitOps , only : TestClosedShellDet
         use hphf_integrals , only : hphf_sign
         use HPHFRandExcitMod , only : FindExcitBitDetSym
@@ -952,7 +921,42 @@ MODULE nElRDMMod
 
         endif
 
-    end subroutine fill_rdm_diag_and_explicit_currdet
+    end subroutine fill_rdm_diag_and_explicit_currdet_norm
+
+    subroutine fill_rdm_diag_and_explicit_currdet_hfsd(iLutnI, nI, CurrH_I, ExcitLevelI, IterLastRDMFill) 
+! This routine calculates the diagonal RDM contribution, and explicit connections to the HF, from the 
+! current determinant. 
+! Each determinant (iLutnI/nI), has Hii element CurrH_I(1), average 
+! population CurrH_I(2), and has been occupied since iteration CurrH_I(3).
+! IterLastRDMFill is the number of iterations since the last time the RDM contributions were added in 
+! (often the frequency of the RDM energy calculation). 
+! We need to multiply the RDM contributions by either this, or the number of iterations 
+! the determinant has been occupied, which ever is fewer.
+        use constants , only : dp, n_int
+        use SystemData , only : NEl
+        use bit_reps , only : NIfTot 
+        use FciMCData , only : NCurrH
+        use DetBitOps , only : TestClosedShellDet
+        use hphf_integrals , only : hphf_sign
+        use HPHFRandExcitMod , only : FindExcitBitDetSym
+        use DetBitOps , only : FindBitExcitLevel
+        implicit none
+        integer(n_int), intent(in) :: iLutnI(0:nIfTot)
+        real(dp) , intent(in) :: CurrH_I(NCurrH)
+        integer, intent(in) :: nI(nel), ExcitLevelI, IterLastRDMFill
+        real(dp) :: IterDetOcc, IterRDM
+        integer(n_int) :: SpinCoupDet(0:nIfTot)
+        integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel
+
+        ! This is the number of iterations this determinant has been occupied.
+        IterDetOcc = real(Iter,dp) - CurrH_I(3) + 1.0_dp
+
+        ! IterRDM is then the number of iterations we want to multiply the contributions by.
+        IterRDM = min(IterDetOcc,real(IterLastRDMFill,dp))
+
+        call Add_RDM_HFConnections_HF_S_D(iLutnI, nI, CurrH_I(2), ExcitLevelI, IterRDM)
+
+    end subroutine fill_rdm_diag_and_explicit_currdet_hfsd
 
     subroutine fill_rdm_softexit(nDets)
 ! This routine is called if a softexit command is used.  
@@ -991,8 +995,14 @@ MODULE nElRDMMod
 
                     call decode_bit_det (nI, CurrentDets(:,i))
 
-                    call fill_rdm_diag_and_explicit_currdet(CurrentDets(:,i), nI, CurrentH(:,i), &
+
+                    if(tHF_Ref_Explicit.or.tHF_S_D.or.tHF_S_D_Ref) then
+                        call fill_rdm_diag_and_explicit_currdet_hfsd(CurrentDets(:,i), nI, CurrentH(:,i), &
                                                                         ExcitLevel, IterLastRDMFill)
+                    else
+                        call fill_rdm_diag_and_explicit_currdet_norm(CurrentDets(:,i), nI, CurrentH(:,i), &
+                                                                        ExcitLevel, IterLastRDMFill)
+                    endif
                     
                 endif
 
@@ -1031,7 +1041,13 @@ MODULE nElRDMMod
                     ExcitLevel = FindBitExcitLevel (iLutRef, iLutnI, 2)
                 endif
 
-                call fill_rdm_diag_and_explicit_currdet(iLutnI, nI, CurrH_I, ExcitLevel, IterLastRDMFill) 
+                if(tHF_Ref_Explicit.or.tHF_S_D.or.tHF_S_D_Ref) then
+                    call fill_rdm_diag_and_explicit_currdet_hfsd(iLutnI, nI, CurrH_I, &
+                                                            ExcitLevel, IterLastRDMFill)
+                else
+                    call fill_rdm_diag_and_explicit_currdet_norm(iLutnI, nI, CurrH_I, &
+                                                            ExcitLevel, IterLastRDMFill)
+                endif
 
             endif
 
@@ -1150,10 +1166,10 @@ MODULE nElRDMMod
         ! In all of these cases the HF is a diagonal element.
         if(walkExcitLevel.eq.0) then
 
-            call Fill_Diag_RDM(nJ, AvSignJ)
-            AccumRDMNorm = AccumRDMNorm + (AvSignJ * AvSignJ)
-            AccumRDMNorm_Inst = AccumRDMNorm_Inst + (AvSignJ * AvSignJ)
-
+            call Fill_Diag_RDM(nJ, AvSignJ, IterRDM)
+            AccumRDMNorm = AccumRDMNorm + (AvSignJ * AvSignJ * IterRDM)
+            AccumRDMNorm_Inst = AccumRDMNorm_Inst + (AvSignJ * AvSignJ * IterRDM)
+    
             if(AvSignJ.ne.AvNoatHF) then
                 write(6,*) 'AvSignJ',AvSignJ
                 write(6,*) 'HF Sign',AvNoatHF
@@ -1173,14 +1189,14 @@ MODULE nElRDMMod
                     ! add in the elements of this connection as well - symmetrically 
                     ! because no probabilities are involved.
                     call Fill_Spin_Coupled_RDM_v2(iLutHF_True,iLutJ,HFDet_True,nJ,&
-                                AvNoatHF,AvSignJ,.false.)
+                                AvNoatHF,AvSignJ * IterRDM,.false.)
 
                 else
 
                     ! The singles and doubles are connected and explicitly calculated 
                     ! - but not symmetrically.
                     call Add_RDM_From_IJ_Pair(HFDet_True, nJ, AvNoatHF, &
-                                                AvSignJ,.false.)
+                                                AvSignJ * IterRDM,.false.)
 
                 endif
 
@@ -1188,11 +1204,11 @@ MODULE nElRDMMod
                 ! For the HF,S,D symmetric case, and the HF,S,D reference, the S and D
                 ! are diagonal terms too.
                 ! These options are not set up for HPHF.
-                call Fill_Diag_RDM(nJ, AvSignJ)
-                AccumRDMNorm = AccumRDMNorm + (AvSignJ * AvSignJ)
-                AccumRDMNorm_Inst = AccumRDMNorm_Inst + (AvSignJ * AvSignJ)
+                call Fill_Diag_RDM(nJ, AvSignJ, IterRDM)
+                AccumRDMNorm = AccumRDMNorm + (AvSignJ * AvSignJ * IterRDM)
+                AccumRDMNorm_Inst = AccumRDMNorm_Inst + (AvSignJ * AvSignJ * IterRDM)
 
-                call Add_RDM_From_IJ_Pair(HFDet_True,nJ,AvNoatHF,AvSignJ,.true.)
+                call Add_RDM_From_IJ_Pair(HFDet_True,nJ,AvNoatHF,AvSignJ * IterRDM,.true.)
 
             endif
 

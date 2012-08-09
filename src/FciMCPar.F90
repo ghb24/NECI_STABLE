@@ -115,10 +115,10 @@ MODULE FciMCParMod
     use nElRDMMod, only: FinaliseRDM,Fill_ExplicitRDM_this_Iter,calc_energy_from_rdm, &
                          fill_hist_explicitrdm_this_iter, tCalc_RDMEnergy, &
                          extract_bit_rep_avsign_norm, &
-                         extract_bit_rep_avsign_hf_s_d, &
                          extract_bit_rep_avsign_no_rdm, DeallocateRDM,&
                          DeAlloc_Alloc_SpawnedParts, zero_rdms, &
-                         fill_rdm_softexit, fill_rdm_diag_and_explicit_currdet 
+                         fill_rdm_softexit, fill_rdm_diag_and_explicit_currdet_norm, &
+                         fill_rdm_diag_and_explicit_currdet_hfsd
 
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
@@ -228,7 +228,7 @@ MODULE FciMCParMod
                 CALL PerformCCMCCycPar()
             else
                 if (.not. (tSpinProject .and. spin_proj_interval == -1)) then
-                    call sub_dispatcher_9 (PerformFciMCycPar, &
+                    call sub_dispatcher_10 (PerformFciMCycPar, &
                                            ptr_excit_generator, &
                                            ptr_attempt_create, &
                                            ptr_get_spawn_helement, &
@@ -236,7 +236,8 @@ MODULE FciMCParMod
                                            ptr_new_child_stats, &
                                            ptr_attempt_die, &
                                            ptr_iter_data, &
-                                           ptr_extract_bit_rep_avsign) 
+                                           ptr_extract_bit_rep_avsign, &
+                                           ptr_fill_rdm_diag_and_explicit_currdet) 
                 endif
             endif
 
@@ -252,7 +253,8 @@ MODULE FciMCParMod
                                            new_child_stats_normal, &
                                            attempt_die_spin_proj, &
                                            iter_data_spin_proj, &
-                                           extract_bit_rep_avsign_no_rdm) 
+                                           extract_bit_rep_avsign_no_rdm, &
+                                           fill_rdm_diag_and_explicit_currdet_norm) 
                 enddo
             endif
 
@@ -791,6 +793,34 @@ MODULE FciMCParMod
         call assign_proc (ptr_extract_bit_rep_avsign, extract_bit_rep_avsign)
     end subroutine
 
+    subroutine set_fill_rdm_diag_and_explicit_currdet(fill_rdm_diag_and_explicit_currdet)
+        use, intrinsic :: iso_c_binding
+        implicit none
+        interface
+            subroutine fill_rdm_diag_and_explicit_currdet(iLutnI, nI, & 
+                                        CurrH_I, ExcitLevelI, IterLastRDMFill) 
+                use constants , only : dp, n_int
+                use SystemData , only : NEl
+                use bit_reps , only : NIfTot 
+                use FciMCData , only : NCurrH
+                use DetBitOps , only : TestClosedShellDet
+                use hphf_integrals , only : hphf_sign
+                use HPHFRandExcitMod , only : FindExcitBitDetSym
+                use DetBitOps , only : FindBitExcitLevel
+                implicit none
+                integer(n_int), intent(in) :: iLutnI(0:nIfTot)
+                real(dp) , intent(in) :: CurrH_I(NCurrH)
+                integer, intent(in) :: nI(nel), ExcitLevelI, IterLastRDMFill
+                real(dp) :: IterDetOcc, IterRDM
+                integer(n_int) :: SpinCoupDet(0:nIfTot)
+                integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel
+            end subroutine
+        end interface
+
+        call assign_proc (ptr_fill_rdm_diag_and_explicit_currdet, &
+                                        fill_rdm_diag_and_explicit_currdet)
+    end subroutine
+
     ! This is the heart of FCIMC, where the MC Cycles are performed.
     !
     ! Note: This should only be called indirectly:
@@ -798,7 +828,8 @@ MODULE FciMCParMod
     subroutine PerformFCIMCycPar(generate_excitation, attempt_create, &
                                  get_spawn_helement, encode_child, &
                                  new_child_stats, attempt_die, &
-                                 iter_data, extract_bit_rep_avsign)
+                                 iter_data, extract_bit_rep_avsign, &
+                                 fill_rdm_diag_and_explicit_currdet)
         
          use sym_mod
          use IntegralsData, only : Nfrozen
@@ -928,6 +959,25 @@ MODULE FciMCParMod
                 real(dp) , intent(out) :: IterRDMStartI, AvSignI
                 type(excit_gen_store_type), intent(inout), optional :: Store
             end subroutine
+            subroutine fill_rdm_diag_and_explicit_currdet(iLutnI, nI, &
+                                        CurrH_I, ExcitLevelI, IterLastRDMFill) 
+                use constants , only : dp, n_int
+                use SystemData , only : NEl
+                use bit_reps , only : NIfTot 
+                use FciMCData , only : NCurrH
+                use DetBitOps , only : TestClosedShellDet
+                use hphf_integrals , only : hphf_sign
+                use HPHFRandExcitMod , only : FindExcitBitDetSym
+                use DetBitOps , only : FindBitExcitLevel
+                implicit none
+                integer(n_int), intent(in) :: iLutnI(0:nIfTot)
+                real(dp) , intent(in) :: CurrH_I(NCurrH)
+                integer, intent(in) :: nI(nel), ExcitLevelI, IterLastRDMFill
+                real(dp) :: IterDetOcc, IterRDM
+                integer(n_int) :: SpinCoupDet(0:nIfTot)
+                integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel
+            end subroutine
+
         end interface
         
         ! Iteration specific data
@@ -1264,7 +1314,6 @@ MODULE FciMCParMod
                 if((abs(CurrentH(2,VecSlot-1)).gt.real(InitiatorWalkNo,dp)).or.(.not.tInitiatorRDM)) & 
                 ! If we are only using initiators to calculate the RDMs, only add in the diagonal and 
                 ! explicit contributions if the average population is greater than n_a = InitiatorWalkNo.
- 
                     call fill_rdm_diag_and_explicit_currdet(CurrentDets(:,VecSlot-1), DetCurr, &
                             CurrentH(1:NCurrH,VecSlot-1), walkExcitLevel_toHF, IterLastRDMFill)  
             endif
@@ -1445,7 +1494,7 @@ MODULE FciMCParMod
         call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ, &
                             child, flags)
 
-        IF(tFillingStochRDMonFly) THEN                            
+        IF(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) THEN                            
             !We are spawning from iLutI to SpawnedParts(:,ValidSpawnedList(proc)).
             !We want to store the parent (D_i) with the spawned child (D_j) so that we can
             !add in Ci.Cj to the RDM later on.
@@ -1617,21 +1666,14 @@ MODULE FciMCParMod
                 tFillingExplicRDMonFly = .true.
                 if(tHistSpawn) NHistEquilSteps = Iter
             else
-                ! Stochastically calculating the off diagonal RDM elements.
-                if(tHF_S_D.or.tHF_S_D_Ref.or.tHF_Ref_Explicit) then
-                    call set_extract_bit_rep_avsign(extract_bit_rep_avsign_hf_s_d)
-                else
-                    call set_extract_bit_rep_avsign(extract_bit_rep_avsign_norm)
-                endif
-                if(.not.tHF_Ref_Explicit) then
-                    !By default - we will do a stochastic calculation of the RDM.
-                    tFillingStochRDMonFly = .true.
-                    !The SpawnedParts array now needs to carry both the spawned parts Dj, and also it's 
-                    !parent Di (and it's sign, Ci). - We deallocate it and reallocate it with the larger size.
-                    call DeAlloc_Alloc_SpawnedParts()
-                    !Don't need any of this if we're just doing HF_Ref_Explicit calculation.
-                    !This is all done in the add_rdm_hfconnections routine.
-                endif
+                call set_extract_bit_rep_avsign(extract_bit_rep_avsign_norm)
+                !By default - we will do a stochastic calculation of the RDM.
+                tFillingStochRDMonFly = .true.
+                if(.not.tHF_Ref_Explicit) call DeAlloc_Alloc_SpawnedParts()
+                !The SpawnedParts array now needs to carry both the spawned parts Dj, and also it's 
+                !parent Di (and it's sign, Ci). - We deallocate it and reallocate it with the larger size.
+                !Don't need any of this if we're just doing HF_Ref_Explicit calculation.
+                !This is all done in the add_rdm_hfconnections routine.
             endif
             if(RDMExcitLevel.eq.1) then
                 WRITE(6,'(A)') 'Calculating the 1 electron density matrix on the fly.'
@@ -1939,6 +1981,12 @@ MODULE FciMCParMod
         call set_fcimc_iter_data (iter_data_fciqmc)
 
         call set_extract_bit_rep_avsign(extract_bit_rep_avsign_no_rdm)
+
+        if(tHF_Ref_Explicit.or.tHF_S_D.or.tHF_S_D_Ref) then
+            call set_fill_rdm_diag_and_explicit_currdet(fill_rdm_diag_and_explicit_currdet_hfsd)
+        else
+            call set_fill_rdm_diag_and_explicit_currdet(fill_rdm_diag_and_explicit_currdet_norm)
+        endif
 
     end subroutine
 
@@ -2287,7 +2335,7 @@ MODULE FciMCParMod
             ! Avoid compiler warnings
             iUnused = part_type
 
-            if(tFillingStochRDMonFly) then
+            if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) then
                 if(tSpawnGhostChild) then
 
                     ! We eventually turn this real bias factor into an integer to be passed around 
@@ -4085,23 +4133,16 @@ MODULE FciMCParMod
         iter_data%nannihil = 0
         iter_data%naborted = 0
 
-        if(tFillingStochRDMonFly.or.(tHF_Ref_Explicit)) then
+        if(tFillingStochRDMonFly) then
             call MPISumAll_inplace (InstNoatHF)
-!            if(tHF_Ref_Explicit) then
-!                ! There are no probabilities involved in the HF ref calc, 
-!                ! so we can just use the instantaneous populations. 
-!                AvNoatHF = real(InstNoatHF(1),dp)
-!            else
-                if(InstNoatHF(1).eq.0) then
-                    IterRDM_HF = Iter + 1 
-                    AvNoatHF = 0.0_dp
-                else
-                    Prev_AvNoatHF = AvNoatHF
-                    AvNoatHF = ( (real((Iter - IterRDM_HF),dp) * Prev_AvNoatHF) &
-                        + real(InstNoatHF(1),dp) ) / real((Iter - IterRDM_HF) + 1,dp)
-
-                endif
-!            endif
+            if(InstNoatHF(1).eq.0) then
+                IterRDM_HF = Iter + 1 
+                AvNoatHF = 0.0_dp
+            else
+                Prev_AvNoatHF = AvNoatHF
+                AvNoatHF = ( (real((Iter - IterRDM_HF),dp) * Prev_AvNoatHF) &
+                    + real(InstNoatHF(1),dp) ) / real((Iter - IterRDM_HF) + 1,dp)
+            endif
         endif
         HFInd = 0            
 
@@ -6761,6 +6802,8 @@ MODULE FciMCParMod
             if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
                 !Allocate memory to hold walkers spawned from one determinant at a time.
                 !Walkers are temporarily stored here, so we can check if we're spawning onto the same Dj multiple times.
+                !If only using connections to the HF (tHF_Ref_Explicit), no stochastic RDM construction is done, and this 
+                !is not necessary.
                 ALLOCATE(TempSpawnedParts(0:NIfDBO,20000),stat=ierr)
                 CALL LogMemAlloc('TempSpawnedParts',20000*(NIfDBO+1),size_n_int,this_routine,TempSpawnedPartsTag,ierr)
                 TempSpawnedParts(0:NIfDBO,1:20000)=0

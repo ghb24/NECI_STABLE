@@ -23,7 +23,7 @@ MODULE AnnihilationMod
                         extract_part_sign, copy_flag
     use csf_data, only: csf_orbital_mask
     use hist_data, only: tHistSpawn, HistMinInd2
-    use Logging , only : tHF_S_D_Ref, tHF_S_D
+    use Logging , only : tHF_S_D_Ref, tHF_S_D, tHF_Ref_Explicit
     IMPLICIT NONE
 
     contains
@@ -268,7 +268,7 @@ MODULE AnnihilationMod
             recvdisps(i)=recvdisps(i-1)+recvcounts(i-1)
         enddo
         MaxIndex=recvdisps(nProcessors)+recvcounts(nProcessors)
-        IF(tFillingStochRDMonFly) THEN            
+        IF(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) THEN            
             ! When we are filling the RDM, the SpawnedParts array contains 
             ! | Dj (0:NIfTot) | Di (0:NIfDBO) | Ci (1) | 
             ! All this needs to be passed around to the processor where Dj will be stored if 
@@ -408,7 +408,7 @@ MODULE AnnihilationMod
                 !               explicitly searching the list.
                 SpawnedParts2(:,VecInd)=SpawnedParts(:,BeginningBlockDet)   !Transfer all info to the other array
 
-                IF(tFillingStochRDMonFly) THEN
+                IF(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) THEN
                     ! SpawnedParts contains the determinants spawned on (Dj), and it's parent (Di) plus it's sign (Cj).
                     ! As in | Dj | Di | Ci |
                     ! We then compress multiple occurances of Dj, but these may have come from different parents, and 
@@ -446,7 +446,7 @@ MODULE AnnihilationMod
             ! Reset the cumulative determinant
             cum_det = 0
             cum_det (0:nifdbo) = SpawnedParts(0:nifdbo, BeginningBlockDet)
-            IF(tFillingStochRDMonFly) THEN
+            IF(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) THEN
                 ! This is the first Dj determinant - set the index for the beginning of where 
                 ! the parents for this Dj can be found in Spawned_Parents.
                 Spawned_Parents_Index(1,VecInd) = Parent_Array_Ind
@@ -507,7 +507,7 @@ MODULE AnnihilationMod
             ! Copy details into the final array
             call extract_sign (cum_det, temp_sign)
 
-            if ((sum(abs(temp_sign)) > 0).or.tFillingStochRDMonFly) then
+            if ((sum(abs(temp_sign)) > 0).or.(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit))) then
                 ! Transfer all info into the other array.
                 ! Usually this is only done if the final sign on the compressed Dj is not equal to zero.
                 ! But in the case of the stochastic RDM, we are concerned with the sign of Dj in the CurrentDets 
@@ -533,7 +533,7 @@ MODULE AnnihilationMod
 
         enddo   
 
-        IF(tFillingStochRDMonFly) No_Spawned_Parents = Parent_Array_Ind - 1
+        IF(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) No_Spawned_Parents = Parent_Array_Ind - 1
         ValidSpawned=ValidSpawned-DetsMerged    !This is the new number of unique spawned determinants on the processor
         IF(ValidSpawned.ne.(VecInd-1)) THEN
             CALL Stop_All(this_routine,"Error in compression of spawned list")
@@ -719,7 +719,7 @@ MODULE AnnihilationMod
 
         ! Obviously only add the parent determinant into the parent array if it is 
         ! actually being stored - and is therefore not zero.
-        if(tFillingStochRDMonFly.and.&
+        if((tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)).and.&
             (.not.DetBitZero(new_det(NIfTot+1:NIfTot+NIfDBO+1),NIfDBO))) then
             ! No matter what the final sign is, always want to add any Di stored in 
             ! SpawnedParts to the parent array.
@@ -854,7 +854,7 @@ MODULE AnnihilationMod
                 ! If the SpawnedPart is found in the CurrentDets list, it means that the Dj has a non-zero 
                 ! cj - and therefore the Di.Dj pair will have a non-zero ci.cj to contribute to the RDM.
                 ! The index i tells us where to look in the parent array, for the Di's to go with this Dj.
-                if(tFillingStochRDMonFly) then
+                if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) then
                     ! In all cases, we've already symmetrically added in 
                     ! connections to the HF, so we don't want to re add any pair 
                     ! containing the HF.
@@ -1368,6 +1368,7 @@ MODULE AnnihilationMod
                     DetsMerged=DetsMerged+1
                     if(tFillingStochRDMonFly) &
                         call det_removed_fill_diag_rdm(CurrentDets(:,i), CurrentH(1:NCurrH,i))
+ 
                     IF(tTruncInitiator) THEN
                         do part_type=1,lenof_sign
                             if (test_flag(CurrentDets(:,i),flag_parent_initiator(part_type))) then
