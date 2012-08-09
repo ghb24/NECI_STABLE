@@ -27,7 +27,7 @@ MODULE Logging
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn
     LOGICAL tPrintPopsDefault
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tIncrementPops,tROHistogramAll,tROHistER,tROHistSingExc
-    LOGICAL tRoHistOneElInts
+    LOGICAL tRoHistOneElInts, tPrintInitiators
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
     LOGICAL tTruncDumpbyVal
@@ -59,6 +59,7 @@ MODULE Logging
     !Just do a blocking analysis on previous data
     logical :: tJustBlocking
     integer :: iBlockEquilShift,iBlockEquilProjE
+    logical :: tDiagAllSpaceEver,tCalcVariationalEnergy
 
     contains
 
@@ -68,6 +69,9 @@ MODULE Logging
       use default_sets
       implicit none
 
+      tPrintInitiators = .false.
+      tDiagAllSpaceEver = .false.
+      tCalcVariationalEnergy = .false.
       tJustBlocking = .false.
       iBlockEquilShift = 0
       iBlockEquilProjE = 0
@@ -200,6 +204,12 @@ MODULE Logging
             !Diagonalise walker subspaces every iDiagSubspaceIter iterations
             tDiagWalkerSubspace = .true.
             call readi(iDiagSubspaceIter)
+        case("DIAGALLSPACEEVER")
+            !Diagonalise all space ever visited in the fciqmc dynamic. This will be written out each time HistSpawn is
+            tDiagAllSpaceEver=.true.
+        case("CALCVARIATIONALENERGY")
+            !Calculate the variational energy of the FCIQMC dynamic each time Histspawn is calculated
+            tCalcVariationalEnergy=.true.
         case("SPLITPROJE")
             !Partition contribution from doubles, and write them out
             tSplitProjEHist=.true.
@@ -488,6 +498,10 @@ MODULE Logging
 !and the number with this population. The range of populations histogrammed goes from ln(N_add) -> ln(1,000,000) with 50,000 bins.
             tHistInitPops=.true.
             call readi(HistInitPopsIter)
+
+        case("WRITEINITIATORS")
+! Requires a popsfile to be written out.  Writes out the initiator populations. 
+            tPrintInitiators = .true.
         
         case("AUTOCORR")
 !This is a Parallel FCIMC option - it will calculate the largest weight MP1 determinants and histogramm them

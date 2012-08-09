@@ -2,7 +2,7 @@ module MI_integrals
     use constants, only: dp,n_int
     use MomInv, only: IsBitMomSelfInv, InvertMomDet, ReturnMomAllowedDet, InvertMomBitDet 
     use MomInv, only: IsMomSelfInv, CalcMomAllowedBitDet
-    use SystemData, only: NEl, G1, nBasis, tAntisym_MI, Ecore
+    use SystemData, only: NEl, G1, nBasis, tAntisym_MI, Ecore, modk_offdiag
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel
     use sltcnd_mod, only: sltcnd, sltcnd_excit
     use bit_reps, only: NIfD, NIfTot, NIfDBO, decode_bit_det
@@ -45,6 +45,9 @@ module MI_integrals
         HElement_t , intent(in) :: HElGen
 
         hel = MI_off_diag_helement_norm (nI, nJ, iLutI, iLutJ)
+
+        if (IC /= 0 .and. modk_offdiag) &
+            hel = -abs(hel)
 
         ! Avoid warnings
         iUnused = IC; iUnused = ex(1,1); lUnused = tParity

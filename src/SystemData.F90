@@ -193,6 +193,9 @@ LOGICAL :: tSymIgnoreEnergies
     integer :: hist_spin_dist_iter
     integer, allocatable :: nI_spindist(:)
 
+    ! Should we use |K| for FCIQMC?
+    logical :: modk_offdiag
+
 ! Operators for type(symmetry)
 interface assignment (=)
     module procedure SymAssign

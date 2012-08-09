@@ -7,7 +7,8 @@ MODULE HPHFRandExcitMod
 ![ P(i->a) + P(i->b) + P(j->a) + P(j->b) ]/2
 !We therefore need to find the excitation matrix between the determinant which wasn't excited and the determinant which was created.
 
-    use SystemData, only: nel, tCSF, Alat, G1, nbasis, nbasismax, nmsh, arr, tOddS_HPHF
+    use SystemData, only: nel, tCSF, Alat, G1, nbasis, nbasismax, nmsh, arr, &
+                          tOddS_HPHF, modk_offdiag
     use IntegralsData, only: UMat, fck, nMax
     use SymData, only: nSymLabels
     use dSFMT_interface, only : genrand_real2_dSFMT
@@ -182,6 +183,7 @@ MODULE HPHFRandExcitMod
                         HEl=MatEl*SQRT(2.D0)
                     endif
                 ENDIF
+                if (IC /= 0 .and. modk_offdiag) hel = -abs(hel)
             ENDIF
         ELSE
 !Open shell excitation - could we have generated the spin-coupled determinant instead?
@@ -282,6 +284,7 @@ MODULE HPHFRandExcitMod
                         HEl=MatEl
                     
                     ENDIF   !Endif from open/closed shell det
+                    if (IC /= 0 .and. modk_offdiag) hel = -abs(hel)
 
                 ENDIF   !Endif want to generate matrix element
 
@@ -321,6 +324,7 @@ MODULE HPHFRandExcitMod
                     ENDIF
 
                     HEl=MatEl
+                    if (IC /= 0 .and. modk_offdiag) hel = -abs(hel)
                         
                 ENDIF
 
@@ -354,9 +358,12 @@ MODULE HPHFRandExcitMod
 !iLutnI (nI) is returned as this determinant, with iLutSym (nJ) being the other.
 !If tCalciLutSym is false, iLutSym will be calculated from iLutnI. Otherwise, it won't.
     SUBROUTINE ReturnAlphaOpenDet(nI,nJ,iLutnI,iLutSym,tCalciLutSym,tCalcnISym,tSwapped)
-        INTEGER(KIND=n_int) :: iLutSym(0:NIfTot),iLutnI(0:NIfTot),iLutTemp(0:NIfTot)
-        INTEGER :: i,nTemp(NEl),nJ(NEl),nI(NEl)
-        LOGICAL :: tCalciLutSym,tCalcnISym,tSwapped
+        INTEGER(KIND=n_int), intent(inout) :: iLutSym(0:NIfTot),iLutnI(0:NIfTot)
+        integer(kind=n_int) :: iLutTemp(0:NIfTot)
+        INTEGER :: i,nTemp(NEl)
+        integer, intent(inout) :: nJ(NEl),nI(NEl)
+        LOGICAL, intent(in) :: tCalciLutSym,tCalcnISym
+        logical, intent(out) :: tSwapped
 
         IF(tCalciLutSym) THEN
             CALL FindExcitBitDetSym(iLutnI,iLutSym)
