@@ -4686,7 +4686,7 @@ MODULE FciMCParMod
 
         IF(LMS.ne.0) THEN
             IF(tNoBrillouin.or.(tHub.and.tReal).or.tRotatedOrbs) THEN
-                WRITE(iout,*) "High spin calculation with single excitations also used to calculate energy."
+                WRITE(iout,*) "No brillouin theorem assumed. Single excitations also used to calculate projected energy."
             ELSEIF(tUHF) THEN
                 WRITE(iout,*) "High spin calculation - but single excitations will *NOT* be used to calculate energy as "&
                 & //"this is an unrestricted calculation."
