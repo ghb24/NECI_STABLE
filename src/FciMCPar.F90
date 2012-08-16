@@ -1266,7 +1266,7 @@ MODULE FciMCParMod
         
         ! Count the number of children born
         NoBorn = NoBorn + sum(abs(realchild))
-        iter_data%nborn = iter_data%nborn + abs(int(realchild))
+        iter_data%nborn = iter_data%nborn + abs(realchild)
 
         if (ic == 1) SpawnFromSing = SpawnFromSing + sum(abs(realchild))
 
@@ -2407,11 +2407,11 @@ MODULE FciMCParMod
         endif
 
         ! Update death counter
-        iter_data%ndied = iter_data%ndied + min(int(iDie), abs(int(realwSign)))
+        iter_data%ndied = iter_data%ndied + min(iDie, abs(realwSign))
         NoDied = NoDied + sum(min(iDie, abs(realwSign)))
 
         ! Count any antiparticles
-        iter_data%nborn = iter_data%nborn + max(int(iDie - abs(realwSign)), 0)
+        iter_data%nborn = iter_data%nborn + max(iDie - abs(realwSign), 0.0_dp)
         NoBorn = NoBorn + sum(max(iDie - abs(realwSign), 0.0_dp))
 
         ! Calculate new number of signed particles on the det.
@@ -2431,7 +2431,7 @@ MODULE FciMCParMod
                 !Abort creation of antiparticles if using initiator
 !                WRITE(iout,*) "Creating Antiparticles"
                 NoAborted=NoAborted+abs(RealCopySign(1)) 
-                iter_data%naborted(1) = iter_data%naborted(1) + abs(int(RealCopySign(1)))
+                iter_data%naborted(1) = iter_data%naborted(1) + abs(RealCopySign(1))
                 if(test_flag(iLutCurr,flag_is_initiator(1))) then
                     NoAddedInitiators=NoAddedInitiators-1
                     if (tSpawnSpatialInit) &
@@ -2489,14 +2489,14 @@ MODULE FciMCParMod
             if(tTruncInitiator.and.(sign(1.0,RealCopySign(1)).ne.sign(1.0,RealwSign(1)))) then
                 !Remove the real anti-particle
                 NoAborted=NoAborted+abs(RealCopySign(1))
-                iter_data%naborted(1) = iter_data%naborted(1) + abs(int(RealCopySign(1)))
-                if(test_flag(iLutCurr,flag_is_initiator(1))) NoAddedInitiators=NoAddedInitiators-1
+                iter_data%naborted(1) = iter_data%naborted(1) + abs(RealCopySign(1)))
+                if(test_flag(iLutCurr,flag_is_initiator(1))) NoAddedInitiators=NoAddednitiators-1
                 RealCopySign(1)=0.0
             endif
             if(tTruncInitiator.and.(sign(1.0,RealCopySign(lenof_sign)).ne.sign(1.0,RealwSign(lenof_sign)))) then
                 !Remove the imaginary anti-particle
                 NoAborted=NoAborted+abs(RealCopySign(lenof_sign))
-                iter_data%naborted(lenof_sign) = iter_data%naborted(lenof_sign) + abs(int(RealCopySign(lenof_sign)))
+                iter_data%naborted(lenof_sign) = iter_data%naborted(lenof_sign) + abs(RealCopySign(lenof_sign))
                 if(test_flag(iLutCurr,flag_is_initiator(lenof_sign))) NoAddedInitiators=NoAddedInitiators-1
                 RealCopySign(lenof_sign)=0.0
             endif
@@ -3493,11 +3493,9 @@ MODULE FciMCParMod
         real(dp) :: all_norm_psi_squared
     
         ! Communicate the integers needing summation
-        call MPIReduce ((/SpawnFromSing, iter_data%update_growth/), &
-                          MPI_SUM, int_tmp)
-        AllSpawnFromSing = int_tmp(1)
-        iter_data%update_growth_tot = int_tmp(2:1+lenof_sign)
-       
+
+        call MPIReduce(SpawnFromSing, MPI_SUM, AllSpawnFromSing)
+        call MPIReduce(iter_data%update_growth, MPI_SUM, iter_data%update_growth_tot)
         call MPIReduce(NoBorn, MPI_SUM, AllNoBorn)
         call MPIReduce(NoDied, MPI_SUM, AllNoDied)
         call MPIReduce(HFCyc, MPI_SUM, RealAllHFCyc)
@@ -3594,7 +3592,7 @@ MODULE FciMCParMod
 #ifdef __DEBUG
         !Write this 'ASSERTROOT' out explicitly to avoid line lengths problems
         if ((iProcIndex == root) .and. .not. tSpinProject .and. &
-         (.not.all(iter_data%update_growth_tot.eq.int(AllTotParts)-int(AllTotPartsOld)))) then
+         (.not.all(iter_data%update_growth_tot.eq.(AllTotParts)-(AllTotPartsOld)))) then
             write(iout,*) "update_growth: ",iter_data%update_growth_tot
             write(iout,*) "AllTotParts: ",AllTotParts
             write(iout,*) "AllTotPartsOld: ", AllTotPartsOld
@@ -3833,10 +3831,10 @@ MODULE FciMCParMod
         NoatDoubs = 0.0_dp
         TotWalkersToSpawn=0
 
-        iter_data%nborn = 0
-        iter_data%ndied = 0
-        iter_data%nannihil = 0
-        iter_data%naborted = 0
+        iter_data%nborn = 0.0
+        iter_data%ndied = 0.0
+        iter_data%nannihil = 0.0
+        iter_data%naborted = 0.0
 
     end subroutine
 
@@ -3887,9 +3885,9 @@ MODULE FciMCParMod
 
 
         ! Reset the counters
-        iter_data%update_growth = 0
+        iter_data%update_growth = 0.0
         iter_data%update_iters = 0
-        iter_data%tot_parts_old = int(tot_parts_new_all)
+        iter_data%tot_parts_old = tot_parts_new_all
 
         ! Reset the linear combination coefficients
         ! TODO: Need to rethink how/when this is done. This is just for tests
@@ -4908,7 +4906,7 @@ MODULE FciMCParMod
         AllMaxSpawnProb=0.0_dp
 
         ! Initialise the fciqmc counters
-        iter_data_fciqmc%update_growth = 0
+        iter_data_fciqmc%update_growth = 0.0
         iter_data_fciqmc%update_iters = 0
  
         IF(tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC).or.tHistHamil) THEN
@@ -6571,7 +6569,7 @@ MODULE FciMCParMod
                 endif
 
                 AllNoAbortedOld=0.0_dp
-                iter_data_fciqmc%tot_parts_old = int(AllTotParts)
+                iter_data_fciqmc%tot_parts_old = AllTotParts
 
                 ! Calculate the projected energy for this iteration.
                 if (any(AllSumNoatHF /= 0.0)) &
@@ -6679,7 +6677,7 @@ MODULE FciMCParMod
                             AllNoatHF(1)=InitialPart
                             AllTotWalkers = 1
                             AllTotWalkersOld = 1
-                            iter_data_fciqmc%tot_parts_old(1) = InitialPart
+                            iter_data_fciqmc%tot_parts_old(1) = real(InitialPart,dp)
                             AllTotParts(1)=InitialPart
                             AllTotPartsOld(1)=InitialPart
                             AllNoAbortedOld=0.0_dp
@@ -6689,7 +6687,7 @@ MODULE FciMCParMod
                         IF(iProcIndex.eq.Root) THEN
                             AllTotWalkers = 1
                             AllTotWalkersOld = 1
-                            iter_data_fciqmc%tot_parts_old(1) = InitWalkers
+                            iter_data_fciqmc%tot_parts_old(1) = real(InitWalkers,dp)
                             AllTotParts(1)=InitWalkers
                             AllTotPartsOld(1)=InitWalkers
                             AllNoAbortedOld=0.0_dp
