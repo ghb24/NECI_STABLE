@@ -277,12 +277,12 @@ MODULE FciMCData
       ! Store data from one fcimc iteration
       !  --> We can deal with different types of iteration separately
       type fcimc_iter_data
-          integer, dimension(lenof_sign) :: nborn
-          integer, dimension(lenof_sign) :: ndied
-          integer, dimension(lenof_sign) :: nannihil
-          integer, dimension(lenof_sign) :: naborted
-          integer, dimension(lenof_sign) :: update_growth, update_growth_tot
-          integer(int64), dimension(lenof_sign) :: tot_parts_old
+          real(dp), dimension(lenof_sign) :: nborn
+          real(dp), dimension(lenof_sign) :: ndied
+          real(dp), dimension(lenof_sign) :: nannihil
+          real(dp), dimension(lenof_sign) :: naborted
+          real(dp), dimension(lenof_sign) :: update_growth, update_growth_tot
+          real(dp), dimension(lenof_sign) :: tot_parts_old
           integer :: update_iters
       end type
       

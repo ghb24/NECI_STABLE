@@ -1258,10 +1258,10 @@ MODULE FciMCParMod
         ! Write out some debugging information if asked
         IFDEBUG(FCIMCDebug,3) then
 #ifdef __CMPLX
-            write(iout,"(A,2I4,A)", advance='no') &
+            write(iout,"(A,2f10.5,A)", advance='no') &
                                "Creating ", realchild(1), realchild(2), " particles: "
 #else
-            write(iout,"(A,I4,A)",advance='no') &
+            write(iout,"(A,f10.5,A)",advance='no') &
                                          "Creating ", realchild(1), " particles: "
 #endif
             write(iout,"(A,2I4,A)",advance='no') &
@@ -1272,7 +1272,7 @@ MODULE FciMCParMod
         
         ! Count the number of children born
         NoBorn = NoBorn + sum(abs(realchild))
-        iter_data%nborn = iter_data%nborn + abs(int(realchild))
+        iter_data%nborn = iter_data%nborn + abs(realchild)
 
         if (ic == 1) SpawnFromSing = SpawnFromSing + sum(abs(realchild))
 
@@ -2422,15 +2422,15 @@ MODULE FciMCParMod
 !        IF(iDie.ne.0) WRITE(iout,*) "Death: ",iDie
        
         IFDEBUG(FCIMCDebug,3) then 
-            if(sum(abs(iDie)).ne.0) write(iout,"(A,2I4)") "Death: ",iDie(:)
+            if(sum(abs(iDie)).ne.0) write(iout,"(A,2f10.5)") "Death: ",iDie(:)
         endif
 
         ! Update death counter
-        iter_data%ndied = iter_data%ndied + min(int(iDie), abs(int(realwSign)))
+        iter_data%ndied = iter_data%ndied + min(iDie, abs(realwSign))
         NoDied = NoDied + sum(min(iDie, abs(realwSign)))
 
         ! Count any antiparticles
-        iter_data%nborn = iter_data%nborn + max(int(iDie - abs(realwSign)), 0)
+        iter_data%nborn = iter_data%nborn + max(iDie - abs(realwSign), 0.0_dp)
         NoBorn = NoBorn + sum(max(iDie - abs(realwSign), 0.0_dp))
 
         ! Calculate new number of signed particles on the det.
@@ -2450,7 +2450,7 @@ MODULE FciMCParMod
                 !Abort creation of antiparticles if using initiator
 !                WRITE(iout,*) "Creating Antiparticles"
                 NoAborted=NoAborted+abs(RealCopySign(1)) 
-                iter_data%naborted(1) = iter_data%naborted(1) + abs(int(RealCopySign(1)))
+                iter_data%naborted(1) = iter_data%naborted(1) + abs(RealCopySign(1))
                 if(test_flag(iLutCurr,flag_is_initiator(1))) then
                     NoAddedInitiators=NoAddedInitiators-1
                     if (tSpawnSpatialInit) &
@@ -2508,14 +2508,15 @@ MODULE FciMCParMod
             if(tTruncInitiator.and.(sign(1.0,RealCopySign(1)).ne.sign(1.0,RealwSign(1)))) then
                 !Remove the real anti-particle
                 NoAborted=NoAborted+abs(RealCopySign(1))
-                iter_data%naborted(1) = iter_data%naborted(1) + abs(int(RealCopySign(1)))
-                if(test_flag(iLutCurr,flag_is_initiator(1))) NoAddedInitiators=NoAddedInitiators-1
+                iter_data%naborted(1) = iter_data%naborted(1) + abs(RealCopySign(1))
+                if(test_flag(iLutCurr,flag_is_initiator(1))) &
+                    NoAddedInitiators=NoAddedInitiators-1
                 RealCopySign(1)=0.0
             endif
             if(tTruncInitiator.and.(sign(1.0,RealCopySign(lenof_sign)).ne.sign(1.0,RealwSign(lenof_sign)))) then
                 !Remove the imaginary anti-particle
                 NoAborted=NoAborted+abs(RealCopySign(lenof_sign))
-                iter_data%naborted(lenof_sign) = iter_data%naborted(lenof_sign) + abs(int(RealCopySign(lenof_sign)))
+                iter_data%naborted(lenof_sign) = iter_data%naborted(lenof_sign) + abs(RealCopySign(lenof_sign))
                 if(test_flag(iLutCurr,flag_is_initiator(lenof_sign))) NoAddedInitiators=NoAddedInitiators-1
                 RealCopySign(lenof_sign)=0.0
             endif
@@ -3542,11 +3543,9 @@ MODULE FciMCParMod
         real(dp) :: all_norm_psi_squared
     
         ! Communicate the integers needing summation
-        call MPIReduce ((/SpawnFromSing, iter_data%update_growth/), &
-                          MPI_SUM, int_tmp)
-        AllSpawnFromSing = int_tmp(1)
-        iter_data%update_growth_tot = int_tmp(2:1+lenof_sign)
-       
+
+        call MPIReduce(SpawnFromSing, MPI_SUM, AllSpawnFromSing)
+        call MPIReduce(iter_data%update_growth, MPI_SUM, iter_data%update_growth_tot)
         call MPIReduce(NoBorn, MPI_SUM, AllNoBorn)
         call MPIReduce(NoDied, MPI_SUM, AllNoDied)
         call MPIReduce(HFCyc, MPI_SUM, RealAllHFCyc)
@@ -3643,7 +3642,7 @@ MODULE FciMCParMod
 #ifdef __DEBUG
         !Write this 'ASSERTROOT' out explicitly to avoid line lengths problems
         if ((iProcIndex == root) .and. .not. tSpinProject .and. &
-         (.not.all(iter_data%update_growth_tot.eq.int(AllTotParts)-int(AllTotPartsOld)))) then
+         (.not.all(iter_data%update_growth_tot.eq.(AllTotParts)-(AllTotPartsOld)))) then
             write(iout,*) "update_growth: ",iter_data%update_growth_tot
             write(iout,*) "AllTotParts: ",AllTotParts
             write(iout,*) "AllTotPartsOld: ", AllTotPartsOld
@@ -3882,10 +3881,10 @@ MODULE FciMCParMod
         NoatDoubs = 0.0_dp
         TotWalkersToSpawn=0
 
-        iter_data%nborn = 0
-        iter_data%ndied = 0
-        iter_data%nannihil = 0
-        iter_data%naborted = 0
+        iter_data%nborn = 0.0
+        iter_data%ndied = 0.0
+        iter_data%nannihil = 0.0
+        iter_data%naborted = 0.0
 
     end subroutine
 
@@ -3936,9 +3935,9 @@ MODULE FciMCParMod
 
 
         ! Reset the counters
-        iter_data%update_growth = 0
+        iter_data%update_growth = 0.0
         iter_data%update_iters = 0
-        iter_data%tot_parts_old = int(tot_parts_new_all)
+        iter_data%tot_parts_old = tot_parts_new_all
 
         ! Reset the linear combination coefficients
         ! TODO: Need to rethink how/when this is done. This is just for tests
@@ -4993,7 +4992,7 @@ MODULE FciMCParMod
         AllMaxSpawnProb=0.0_dp
 
         ! Initialise the fciqmc counters
-        iter_data_fciqmc%update_growth = 0
+        iter_data_fciqmc%update_growth = 0.0
         iter_data_fciqmc%update_iters = 0
  
         IF(tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC).or.tHistHamil) THEN
@@ -6679,7 +6678,7 @@ MODULE FciMCParMod
                 endif
 
                 AllNoAbortedOld=0.0_dp
-                iter_data_fciqmc%tot_parts_old = int(AllTotParts)
+                iter_data_fciqmc%tot_parts_old = AllTotParts
 
                 ! Calculate the projected energy for this iteration.
                 if (any(AllSumNoatHF /= 0.0)) &
@@ -6787,7 +6786,7 @@ MODULE FciMCParMod
                             AllNoatHF(1)=InitialPart
                             AllTotWalkers = 1
                             AllTotWalkersOld = 1
-                            iter_data_fciqmc%tot_parts_old(1) = InitialPart
+                            iter_data_fciqmc%tot_parts_old(1) = real(InitialPart,dp)
                             AllTotParts(1)=InitialPart
                             AllTotPartsOld(1)=InitialPart
                             AllNoAbortedOld=0.0_dp
@@ -6797,7 +6796,7 @@ MODULE FciMCParMod
                         IF(iProcIndex.eq.Root) THEN
                             AllTotWalkers = 1
                             AllTotWalkersOld = 1
-                            iter_data_fciqmc%tot_parts_old(1) = InitWalkers
+                            iter_data_fciqmc%tot_parts_old(1) = real(InitWalkers,dp)
                             AllTotParts(1)=InitWalkers
                             AllTotPartsOld(1)=InitWalkers
                             AllNoAbortedOld=0.0_dp
@@ -8346,14 +8345,14 @@ MODULE FciMCParMod
         LargestWalkers(:,:)=0
 
         SmallestSign=0.0_dp !Real, so can deal with complex amplitudes
-        SmallestPos=1
+        SmallestPos = 1
         Norm=0.0_dp
         !Run through all walkers on process
         do i=1,TotWalkers
 !            write(iout,*) "Smallest sign is: ",SmallestSign
             call extract_sign(CurrentDets(:,i),SignCurr)
             RealSignCurr=transfeR(SignCurr, RealSignCurR)
-            !            write(iout,*) "***",i,SignCurr,CurrentDets(0:NIfDBO,i)
+!            write(iout,*) "***",i,SignCurr,CurrentDets(0:NIfDBO,i)
 
             if(lenof_sign.eq.1) then
                 SignCurrReal=real(abs(RealSignCurr(1)),dp)
@@ -8364,46 +8363,34 @@ MODULE FciMCParMod
 
             !Is this determinant more populated than the smallest  !!first in the list (which is always the smallest)
             if(SignCurrReal.gt.SmallestSign) then
-                LargestWalkers(:,SmallestPos)=CurrentDets(:,i)
+                LargestWalkers(:,SmallestPos) = CurrentDets(:,i)
 
-                !Instead of resorting, just find new smallest sign and position
+                ! Instead of resorting, just find new smallest sign and
+                ! position.
                 call extract_sign(LargestWalkers(:,1),LowSign)
-                RealLowSign=transfer(LowSign, RealLowSign)
+                RealLowSign = transfer(LowSign, RealLowSign)
                 if(lenof_sign.eq.1) then
                     SmallestSign=real(abs(RealLowSign(1)),dp)
                 else
                     SmallestSign=sqrt(real(RealLowSign(1),dp)**2+real(RealLowSign(lenof_sign),dp)**2)
                 endif
-                SmallestPos=1
+                SmallestPos = 1
                 do j=2,iHighPopWrite
-                    !ExtractSign
-                    if(SmallestSign.lt.1.0e-7_dp) exit
-                    call extract_sign(LargestWalkers(:,j),LowSign)
-                    if(lenof_sign.eq.1) then
-                        SignCurrReal=real(abs(LowSign(1)),dp)
+                    ! ExtractSign
+                    if (SmallestSign < 1.0e-7_dp) exit
+                    call extract_sign(LargestWalkers(:,j), LowSign)
+                    RealLowSign = transfer(LowSign, RealLowSign)
+                    if (lenof_sign == 1) then
+                        SignCurrReal = real(abs(RealLowSign(1)), dp)
                     else
-                        SignCurrReal=sqrt(real(LowSign(1),dp)**2+real(LowSign(lenof_sign),dp)**2)
-                    endif
-                    if(SignCurrReal.lt.SmallestSign) then
+                        SignCurrReal = sqrt(real(RealLowSign(1),dp)**2 + real(RealLowSign(lenof_sign),dp)**2)
+                    end if
+                    if (SignCurrReal < SmallestSign) then
                         SmallestPos = j
                         SmallestSign = SignCurrReal
-                    endif
-                enddo
+                    end if
+                end do
 
-!                !Now need to recalculate the list - resort LargestWalkers list by sign
-!!                write(iout,*) "New large weight found. Entering sort: "
-!                call sort(LargestWalkers(:,1:iHighPopWrite), sign_lt, sign_gt)
-!!                do j=1,iHighPopWrite
-!!                    write(iout,*) "Sorted: ",j,LargestWalkers(:,j)
-!!                enddo
-!
-!                !Now extract the smallest sign
-!                call extract_sign(LargestWalkers(:,1),LowSign)
-!                if(lenof_sign.eq.1) then
-!                    SmallestSign=real(abs(LowSign(1)),dp)
-!                else
-!                    SmallestSign=sqrt(real(LowSign(1),dp)**2+real(LowSign(lenof_sign),dp)**2)
-!                endif
             endif
         enddo
         call MpiSum(norm,allnorm)
@@ -8427,31 +8414,25 @@ MODULE FciMCParMod
 
         do i=1,iHighPopWrite
 
-            !Find highest sign on each processor. Since all lists are sorted, this is just the first nonzero value
+            ! Find highest sign on each processor. Since all lists are
+            ! sorted, this is just teh first nonzero value.
             do j=iHighPopWrite,1,-1
-                call extract_sign(LargestWalkers(:,j),SignCurr)
-            
-                RealSignCurr=transfer(SignCurr, RealSignCurr)
+                call extract_sign (LargestWalkers(:,j), SignCurr)
+                if (any(LargestWalkers(:,j) /= 0)) then
+                    
+                    RealSignCurr = transfer(SignCurr, RealSignCurr)
 
-                if(lenof_sign.eq.1) then
-                    HighSign=abs(RealSignCurr(1))
-                else
-                    HighSign=sqrt(RealSignCurr(1)**2+RealSignCurr(lenof_sign)**2)
-                endif
-                if(HighSign.gt.1.0e-7_dp) then
-                    !We have the largest sign
+                    if (lenof_sign == 1) then
+                        HighSign = abs(RealSignCurr(1))
+                    else
+                        HighSign = sqrt(RealSignCurr(1)**2 + RealSignCurr(lenof_sign)**2)
+                    end if
+
+                    ! We have the largest sign
                     HighPos = j
                     exit
-                endif
-            enddo
-
-!            call extract_sign(LargestWalkers(:,iHighPopWrite),SignCurr)
-!
-!            if(lenof_sign.eq.1) then
-!                HighSign=real(abs(SignCurr(1)),dp)
-!            else
-!                HighSign=sqrt(real(SignCurr(1),dp)**2+real(SignCurr(lenof_sign),dp)**2)
-!            endif
+                end if
+            end do
             reduce_in=(/ HighSign,real(iProcIndex,dp) /)
             call MPIAllReduceDatatype(reduce_in,1,MPI_MAXLOC,MPI_2DOUBLE_PRECISION,reduce_out)
             !Now, reduce_out(2) has the process of the largest weighted determinant - broadcast it!
@@ -8487,7 +8468,7 @@ MODULE FciMCParMod
                 else
                     HighSign=sqrt(real(RealSignCurr(1),dp)**2+real(RealSignCurr(lenof_sign),dp)**2)
                 endif
-                if(HighSign.gt.1.D-7) counter=counter+1
+                if(HighSign > 1.0e-7) counter=counter+1
             enddo
 
 

@@ -606,7 +606,7 @@ MODULE AnnihilationMod
         if (sgn_prod < 0.0_dp) then
             Annihilated = Annihilated + 2*min(abs(Realcum_sgn), abs(Realnew_sgn))
             iter_data%nannihil(part_type) = iter_data%nannihil(part_type)&
-                + 2 * min(abs(int(Realcum_sgn)), abs(int(Realnew_sgn)))
+                + 2 * min(abs(Realcum_sgn), abs(Realnew_sgn))
         endif
 
         ! Update the cumulative sign count
@@ -749,7 +749,7 @@ MODULE AnnihilationMod
                         ! opposite sign to annihilate with
                         Annihilated=Annihilated+2*(min(abs(RealCurrentSign(j)),abs(RealSpawnedSign(j))))
                         iter_data%nannihil(j) = iter_data%nannihil(j) + &
-                                           2*(min(abs(int(RealCurrentSign(j))), abs(int(RealSpawnedSign(j)))))
+                                           2*(min(abs(RealCurrentSign(j)), abs(RealSpawnedSign(j))))
 
                         IF(tTruncInitiator) THEN
                             ! If we are doing an initiator calculation - then if the walkers that
@@ -869,7 +869,7 @@ MODULE AnnihilationMod
 
                         ! Walkers came from outside initiator space.
                         NoAborted = NoAborted + abs(RealSignTemp(j))
-                        iter_data%naborted(j) = iter_data%naborted(j) + abs(int(RealSignTemp(j)))
+                        iter_data%naborted(j) = iter_data%naborted(j) + abs(RealSignTemp(j))
                         RealSignTemp(j) = 0.0_dp
                         SignTemp(j)=transfer(RealSignTemp(j), SignTemp(j))
                         call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
