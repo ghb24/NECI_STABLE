@@ -83,6 +83,7 @@ MODULE FciMCParMod
     USE FciMCData
     USE AnnihilationMod
     use PopsfileMod
+    use sort_mod
     use DetBitops, only: EncodeBitDet, DetBitEQ, DetBitLT, FindExcitBitDet, &
                          FindBitExcitLevel, countbits, TestClosedShellDet, &
                          FindSpatialBitExcitLevel, IsAllowedHPHF
@@ -8227,10 +8228,9 @@ MODULE FciMCParMod
     SUBROUTINE PrintHighPops()
         use DetBitOps, only : sign_lt,sign_gt
         use Logging, only: iHighPopWrite
-        use sort_mod
         integer, dimension(lenof_sign) :: SignCurr,LowSign
         real(dp), dimension(lenof_sign) :: RealSignCurr,RealLowSign
-        integer :: ierr,i,j,counter,ExcitLev
+        integer :: ierr,i,j,counter,ExcitLev,SmallestPos,HighPos
         real(dp) :: SmallestSign,SignCurrReal,HighSign,reduce_in(1:2),reduce_out(1:2),Norm,AllNorm
         integer(n_int) , allocatable :: LargestWalkers(:,:)
         integer(n_int) , allocatable :: GlobalLargestWalkers(:,:)
@@ -8244,13 +8244,14 @@ MODULE FciMCParMod
         LargestWalkers(:,:)=0
 
         SmallestSign=0.0_dp !Real, so can deal with complex amplitudes
+        SmallestPos = 1
         Norm=0.0_dp
         !Run through all walkers on process
         do i=1,TotWalkers
 !            write(iout,*) "Smallest sign is: ",SmallestSign
             call extract_sign(CurrentDets(:,i),SignCurr)
             RealSignCurr=transfeR(SignCurr, RealSignCurR)
-            !            write(iout,*) "***",i,SignCurr,CurrentDets(0:NIfDBO,i)
+!            write(iout,*) "***",i,SignCurr,CurrentDets(0:NIfDBO,i)
 
             if(lenof_sign.eq.1) then
                 SignCurrReal=real(abs(RealSignCurr(1)),dp)
@@ -8261,28 +8262,40 @@ MODULE FciMCParMod
 
             !Is this determinant more populated than the first in the list (which is always the smallest)
             if(SignCurrReal.gt.SmallestSign) then
-                LargestWalkers(:,1)=CurrentDets(:,i)
+                LargestWalkers(:,SmallestPos) = CurrentDets(:,i)
 
-                !Now need to recalculate the list - resort LargestWalkers list by sign
-!                write(iout,*) "New large weight found. Entering sort: "
-                call sort(LargestWalkers(:,1:iHighPopWrite), sign_lt, sign_gt)
-!                do j=1,iHighPopWrite
-!                    write(iout,*) "Sorted: ",j,LargestWalkers(:,j)
-!                enddo
-
-                !Now extract the smallest sign
+                ! Instead of resorting, just find new smallest sign and
+                ! position.
                 call extract_sign(LargestWalkers(:,1),LowSign)
-                RealLowSign=transfer(LowSign, RealLowSign)
+                RealLowSign = transfer(LowSign, RealLowSign)
                 if(lenof_sign.eq.1) then
                     SmallestSign=real(abs(RealLowSign(1)),dp)
                 else
                     SmallestSign=sqrt(real(RealLowSign(1),dp)**2+real(RealLowSign(lenof_sign),dp)**2)
                 endif
+                SmallestPos = 1
+                do j=2,iHighPopWrite
+                    ! ExtractSign
+                    if (SmallestSign < 1.0e-7_dp) exit
+                    call extract_sign(LargestWalkers(:,j), LowSign)
+                    RealLowSign = transfer(LowSign, RealLowSign)
+                    if (lenof_sign == 1) then
+                        SignCurrReal = real(abs(RealLowSign(1)), dp)
+                    else
+                        SignCurrReal = sqrt(real(RealLowSign(1),dp)**2 + real(RealLowSign(lenof_sign),dp)**2)
+                    end if
+                    if (SignCurrReal < SmallestSign) then
+                        SmallestPos = j
+                        SmallestSign = SignCurrReal
+                    end if
+                end do
+
             endif
         enddo
         call MpiSum(norm,allnorm)
         norm=sqrt(allnorm)
 
+        call sort(LargestWalkers(:,1:iHighPopWrite), sign_lt, sign_gt)
 !        write(iout,*) "Highest weighted dets on this process:"
 !        do i=1,iHighPopWrite
 !            write(iout,*) LargestWalkers(:,i)
@@ -8300,20 +8313,30 @@ MODULE FciMCParMod
 
         do i=1,iHighPopWrite
 
-            call extract_sign(LargestWalkers(:,iHighPopWrite),SignCurr)
-            
-            RealSignCurr=transfer(SignCurr, RealSignCurr)
+            ! Find highest sign on each processor. Since all lists are
+            ! sorted, this is just teh first nonzero value.
+            do j=iHighPopWrite,1,-1
+                call extract_sign (LargestWalkers(:,j), SignCurr)
+                if (any(LargestWalkers(:,j) /= 0)) then
+                    
+                    RealSignCurr = transfer(SignCurr, RealSignCurr)
 
-            if(lenof_sign.eq.1) then
-                HighSign=real(abs(RealSignCurr(1)),dp)
-            else
-                HighSign=sqrt(real(RealSignCurr(1),dp)**2+real(RealSignCurr(lenof_sign),dp)**2)
-            endif
+                    if (lenof_sign == 1) then
+                        HighSign = abs(RealSignCurr(1))
+                    else
+                        HighSign = sqrt(RealSignCurr(1)**2 + RealSignCurr(lenof_sign)**2)
+                    end if
+
+                    ! We have the largest sign
+                    HighPos = j
+                    exit
+                end if
+            end do
             reduce_in=(/ HighSign,real(iProcIndex,dp) /)
             call MPIAllReduceDatatype(reduce_in,1,MPI_MAXLOC,MPI_2DOUBLE_PRECISION,reduce_out)
             !Now, reduce_out(2) has the process of the largest weighted determinant - broadcast it!
             if(iProcIndex.eq.nint(reduce_out(2))) then
-                HighestDet(0:NIfTot) = LargestWalkers(:,iHighPopWrite)
+                HighestDet(0:NIfTot) = LargestWalkers(:,HighPos)
             else
                 HighestDet(0:NIfTot) = 0
             endif
@@ -8325,9 +8348,9 @@ MODULE FciMCParMod
 
             !Now delete this highest determinant from the list on the corresponding processor
             if(iProcIndex.eq.nint(reduce_out(2))) then
-                LargestWalkers(:,iHighPopWrite) = 0
-                !Resort
-                call sort(LargestWalkers(:,1:iHighPopWrite), sign_lt, sign_gt)
+                LargestWalkers(:,HighPos) = 0
+                !No need to resort any more
+!                call sort(LargestWalkers(:,1:iHighPopWrite), sign_lt, sign_gt)
             endif
         enddo
 
@@ -8344,7 +8367,7 @@ MODULE FciMCParMod
                 else
                     HighSign=sqrt(real(RealSignCurr(1),dp)**2+real(RealSignCurr(lenof_sign),dp)**2)
                 endif
-                if(HighSign.gt.1.D-7) counter=counter+1
+                if(HighSign > 1.0e-7) counter=counter+1
             enddo
 
 
