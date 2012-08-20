@@ -1252,10 +1252,10 @@ MODULE FciMCParMod
         ! Write out some debugging information if asked
         IFDEBUG(FCIMCDebug,3) then
 #ifdef __CMPLX
-            write(iout,"(A,2I4,A)", advance='no') &
+            write(iout,"(A,2f10.5,A)", advance='no') &
                                "Creating ", realchild(1), realchild(2), " particles: "
 #else
-            write(iout,"(A,I4,A)",advance='no') &
+            write(iout,"(A,f10.5,A)",advance='no') &
                                          "Creating ", realchild(1), " particles: "
 #endif
             write(iout,"(A,2I4,A)",advance='no') &
@@ -1941,7 +1941,7 @@ MODULE FciMCParMod
                     if (component.eq.1) then
                         MatEl=real(rh,dp) !Real part
                     else
-                        MatEl=aimag(rh,dp) !Imag part
+                        MatEl=real(aimag(rh),dp) !Imag part
                     endif
 
                     if (tRealSpawning) then
@@ -2017,7 +2017,7 @@ MODULE FciMCParMod
                         child_type=2
                         walkerweight=sign(1.0_dp, realwSign(2))
                     else
-                        MatEl=aimag(rh,dp) !Imag part
+                        MatEl=real(aimag(rh),dp) !Imag part
                         child_type=1
                         walkerweight=sign(1.0_dp, -realwSign(2)) 
                         !These walkers have the *opposite* sign to normal
@@ -2394,7 +2394,11 @@ MODULE FciMCParMod
         integer, intent(in) :: walkExcitLevel
         character(len=*), parameter :: t_r="walker_death"
 
-        NullSign(:)=transfer(0.0_dp, NullSign(:))
+#ifdef __CMPLX
+        NullSign = transfer((/0.0_dp,0.0_dp/), NullSign)
+#else
+        NullSign = transfer(0.0_dp, NullSign)
+#endif
 
         ! Do particles on determinant die? iDie can be both +ve (deaths), or
         ! -ve (births, if shift > 0)
@@ -2403,7 +2407,7 @@ MODULE FciMCParMod
 !        IF(iDie.ne.0) WRITE(iout,*) "Death: ",iDie
        
         IFDEBUG(FCIMCDebug,3) then 
-            if(sum(abs(iDie)).ne.0) write(iout,"(A,2I4)") "Death: ",iDie(:)
+            if(sum(abs(iDie)).ne.0) write(iout,"(A,2f10.5)") "Death: ",iDie(:)
         endif
 
         ! Update death counter
@@ -2489,8 +2493,9 @@ MODULE FciMCParMod
             if(tTruncInitiator.and.(sign(1.0,RealCopySign(1)).ne.sign(1.0,RealwSign(1)))) then
                 !Remove the real anti-particle
                 NoAborted=NoAborted+abs(RealCopySign(1))
-                iter_data%naborted(1) = iter_data%naborted(1) + abs(RealCopySign(1)))
-                if(test_flag(iLutCurr,flag_is_initiator(1))) NoAddedInitiators=NoAddednitiators-1
+                iter_data%naborted(1) = iter_data%naborted(1) + abs(RealCopySign(1))
+                if(test_flag(iLutCurr,flag_is_initiator(1))) &
+                    NoAddedInitiators=NoAddedInitiators-1
                 RealCopySign(1)=0.0
             endif
             if(tTruncInitiator.and.(sign(1.0,RealCopySign(lenof_sign)).ne.sign(1.0,RealwSign(lenof_sign)))) then
@@ -3070,7 +3075,9 @@ MODULE FciMCParMod
                     norm1=norm1+(AllAvAnnihil(1,i)**2)+(AllAvAnnihil(lenof_sign,i)**2)
                 ENDIF
                 IF(lenof_sign.eq.1) THEN
-                    WRITE(io1,"(I13,6G25.16,I13,G25.16)") i,AllHistogram(1,i),norm,AllInstHist(1,i),AllInstAnnihil(1,i),AllAvAnnihil(1,i),norm1,FinalPop, BeforeNormHist(i)
+                    WRITE(io1,"(I13,6G25.16,I13,G25.16)") i, AllHistogram(1,i), norm, &
+                                     AllInstHist(1,i), AllInstAnnihil(1,i), &
+                                     AllAvAnnihil(1,i), norm1, FinalPop, BeforeNormHist(i)
                 ELSE
                     WRITE(io1,"(I13,6G25.16)") i,AllHistogram(1,i),norm,AllInstHist(1,i),AllInstAnnihil(1,i),AllAvAnnihil(1,i),norm1
                 ENDIF
@@ -4064,7 +4071,7 @@ MODULE FciMCParMod
                 real((AllHFCyc * conjg(AllHFCyc)),dp), &     !24     |n0|^2  This is the denominator for both calcs
                 real((AllENumCyc * conjg(AllHFCyc)),dp), &   !22.    Re[\sum njH0j] x Re[n0] + Im[\sum njH0j] x Im[n0]   No div by StepsSft
                 aimag(AllENumCyc * conjg(AllHFCyc)), &       !23.    Im[\sum njH0j] x Re[n0] - Re[\sum njH0j] x Im[n0]   since no physicality
-                sqrt(float(sum(AllNoatHF**2))) / norm_psi, & !24
+                sqrt(sum(AllNoatHF**2)) / norm_psi, & !24
                 norm_psi, &                                  !25
                 curr_S2, &                                   !26
                 AllNumSpawnedEntries, &                      !27

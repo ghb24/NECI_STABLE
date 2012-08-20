@@ -773,7 +773,8 @@ MODULE AnnihilationMod
                                     ! of sign.
                                     if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(j))) then
                                         NoAborted = NoAborted + abs(RealSpawnedSign(j)) - abs(RealCurrentSign(j))
-                                        iter_data%naborted(j) = iter_data%naborted(j) + abs(RealSpawnedSign(j)) - abs(RealCurrentSign(j))
+                                        iter_data%naborted(j) = iter_data%naborted(j) &
+                                                              + abs(RealSpawnedSign(j)) - abs(RealCurrentSign(j))
                                         call encode_part_sign (CurrentDets(:,PartInd), nullpart, j)
                                     endif
                                 endif
