@@ -91,7 +91,7 @@ MODULE FciMCParMod
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
     use MI_integrals
-    use util_mod, only: choose, abs_int_sign, abs_int8_sign, binary_search
+    use util_mod
     use constants, only: dp, int64, n_int, lenof_sign, sizeof_int
     use soft_exit, only: ChangeVars 
     use FciMCLoggingMod, only: FinaliseBlocking, FinaliseShiftBlocking, &
@@ -1014,9 +1014,9 @@ MODULE FciMCParMod
             !Debug output.
             IFDEBUGTHEN(FCIMCDebug,3)
                 if(lenof_sign.eq.2) then
-                    write(iout,"(A,I10,2I7,I5)",advance='no') "TW:", j,SignCurr,FlagsCurr
+                    write(iout,"(A,I10,2f12.5,I5)",advance='no') "TW:", j,RealSignCurr,FlagsCurr
                 else
-                    write(iout,"(A,I10,I7,I5)",advance='no') "TW:", j,SignCurr,FlagsCurr
+                    write(iout,"(A,I10,f12.5,I5)",advance='no') "TW:", j,RealSignCurr,FlagsCurr
                 endif
                 call WriteBitDet(iout,CurrentDets(:,j),.true.)
                 call neci_flush(iout) 
@@ -1868,6 +1868,7 @@ MODULE FciMCParMod
         integer, dimension(lenof_sign) :: child
         real(dp), dimension(lenof_sign) :: realchild
         HElement_t , intent(in) :: HElGen
+        character(*), parameter :: this_routine = 'attempt_create_normal'
 
         interface
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
@@ -1885,8 +1886,8 @@ MODULE FciMCParMod
             end function
         end interface
         
-        real(dp) :: rat, r, walkerweight, pSpawn
-        integer :: extracreate, iUnused
+        real(dp) :: rat, r, walkerweight, pSpawn, nSpawn
+        integer :: extracreate, iUnused, tgt_cpt
         integer :: TargetExcitLevel
         logical :: tRealSpawning
         HElement_t :: rh
@@ -1914,225 +1915,152 @@ MODULE FciMCParMod
                                  tParity, HElGen)
 
         if (rh .eq.0.0) ZeroMatrixElem=ZeroMatrixElem+1
+        write(6,*) 'p,rh', prob, rh
+
+        ! Are we doing real spawning?
+        tRealSpawning = .false.
+        if (tAllRealCoeff) then
+            tRealSpawning = .true.
+        elseif (tRealCoeffByExcitLevel) then
+            TargetExcitLevel = FindBitExcitLevel (iLutRef, iLutnJ)
+            if (TargetExcitLevel <= RealCoeffExcitThresh) &
+                tRealSpawning = .true.
+        endif
+
 #ifdef __CMPLX
 
-!We actually want to calculate Hji - take the complex conjugate, rather than swap around DetCurr and nJ.
-            rh = CONJG(rh)
+        ! We actually want to calculate Hji - take the complex conjugate, 
+        ! rather than swap around DetCurr and nJ.
+        rh = CONJG(rh)
 
-            !We are dealing with spawning from real and imaginary elements, and assume
-            !that rh is complex
-            IF(part_type.eq.1) THEN
-                !Real parent particle
+        ! We are dealing with spawning from real and imaginary elements, and 
+        ! assume that rh is complex
+        if (part_type == 1) then
 
-                do component=1,2
-                    !First spawn from real part of matrix element
-                    !Then attempt to spawn with the imaginary part of the matrix element
+            !!!!! Real parent particle !!!!!
+            walkerweight = sign(1.0_dp, RealwSign(1))
 
-                    tRealSpawning=.false. !default
-                
-                    if (tAllRealCoeff) then
-                        tRealSpawning=.true.
-                    elseif (tRealCoeffByExcitLevel) then
-                        TargetExcitLevel = FindBitExcitLevel (iLutRef, iLutnJ, max_calc_ex_level)
-                        if (TargetExcitLevel .le. RealCoeffExcitThresh) tRealSpawning=.true.
+            ! First spawn from real part of matrix element, then attempt to
+            ! spawn with the imaginary part of the matrix element.
+            do component = 1, 2
+
+                ! Get the correct part of the matrix element
+                if (component == 1) then
+                    MatEl = real(rh, dp)
+                else
+                    MatEl = real(aimag(rh), dp)
+                end if
+
+                if (tRealSpawning) then
+                    call stop_all(this_routine, 'Not Yet Implemented')
+                else
+                    ! How many children should we spawn?
+                    nSpawn = - tau * MatEl * walkerweight / prob
+                    if (tSearchTau) then
+                        if (MaxSpawnProb < abs(nSpawn)) &
+                            MaxSpawnProb = abs(nSpawn)
                     endif
 
-                    walkerweight=sign(1.0_dp, realwSign(1))
+                    ! And round this to an integer in the usual way
+                    realchild(component) = real(stochastic_round (nSpawn), dp)
+!                    write(6,*) 'realchild 1', component, realchild(component)
 
-                    if (component.eq.1) then
-                        MatEl=real(rh,dp) !Real part
-                    else
-                        MatEl=real(aimag(rh),dp) !Imag part
+                    ! HACK: We are abusing the child variable to store the
+                    !       bit-representation of the realchild variable.
+                    child(component) = transfer(realchild(component), &
+                                                child(component))
+                endif
+            enddo
+
+        else
+            ! Imaginary parent particle - rules are slightly different...
+            ! Attempt to spawn REAL walkers with prob +AIMAG(Hij)/P
+            ! Attempt to spawn IMAG walkers with prob -REAL(Hij)/P
+
+            !!!!! Imaginary parent particle !!!!!
+            walkerweight = sign(1.0_dp, realwSign(2))
+            
+            do tgt_cpt = 1, 2
+
+                component = 3 - tgt_cpt
+                if (component == 1) then
+                    MatEl = real(rh, dp)
+                else
+                    MatEl = real(aimag(rh), dp)
+                    walkerweight = -walkerweight ! n.b. *opposite* to normal
+                end if
+
+                if (tRealSpawning) then
+                    call stop_all(this_routine, 'Not Yet Implemented')
+                else
+                    nSpawn = - tau * MatEl * walkerweight / prob
+                    if (tSearchTau) then
+                        if (MaxSpawnProb < abs(nSpawn)) &
+                            MaxSpawnProb = abs(nSpawn)
                     endif
 
-                    if (tRealSpawning) then
-                        !Continuous Spawning
-                        !Simply add in the acceptance probability into the coefficient
-                        realchild(component)=-tau*(MatEl/prob)*walkerweight
-                        
-                        if(tSearchTau) then
-                            if(MaxSpawnProb.lt.rat) MaxSpawnProb = rat
-                        endif
+                    ! And round this to an integer in the usual way.
+                    realchild(tgt_cpt) = real(stochastic_round (nSpawn), dp)
+!                    write(6,*) 'realchild 2', component, tgt_cpt, realchild(tgt_cpt)
 
-                        if (tRealSpawnCutoff .and. (abs(realchild(component)).lt.RealSpawnCutoff)) then
-                             !We don't want to bother spawning negligible coefficients everytime
-                             pSpawn=abs(realchild(component))/RealSpawnCutoff
-                             r = genrand_real2_dSFMT ()
-                             if (pSpawn > r) then
-                                 !Keep this walker, and set equal to RealSpawnCutoff
-                                 realchild(component)=sign(RealSpawnCutoff, -tau*(MatEl/prob)*walkerweight)
-                             else
-                                 !Remove this walker -- do not spawn small coeff this time
-                                 realchild(component)=0.d0
-                             endif
-                         endif
-
-                        child(component)=transfer(realchild(component), child(component))
-                    else
-                        rat = tau * abs(MatEl / prob) * abs(walkerweight)
-                        if(tSearchTau) then
-                            if(MaxSpawnProb.lt.rat) MaxSpawnProb = rat
-                        endif
-
-                        ! If probability > 1, then we just create multiple children at the
-                        ! chosen determinant.
-                        extraCreate = int(rat)
-                        rat = rat - real(extraCreate, dp)
-
-                        ! Stochastically choose whether to create or not.
-                        r = genrand_real2_dSFMT ()
-                        if (rat > r) then
-                            !Create child
-                            child(component) = -nint(sign(1.0_dp, walkerweight*MatEl))
-                            child(component) = child(component) + sign(extraCreate, child(component))
-                        elseif(extraCreate.ne.0) then
-                            !Just return if any extra particles created
-                            child(component) = -extraCreate*nint(sign(1.0_dp, walkerweight*MatEl))
-                        endif
-                        realchild=real(child(component),dp)
-                        child(component)=transfer(realchild, child(component))
-                    endif
-                enddo
-
-            ELSE
-                !Imaginary parent particle - rules are slightly different...
-                !Attempt to spawn REAL walkers with prob +AIMAG(Hij)/P
-                !Attempt to spawn IMAG walkers with prob -REAL(Hij)/P
-                !We want to use the imaginary part of the matrix element to create real walkers
-                !We want to use the real part of the matrix element to create imaginary walkers
-                
-                do component=1,2
-                    !Considering the real part of the matrix element first (which makes imag child)
-                   
-                    tRealSpawning=.false. !default
-                
-                    if (tAllRealCoeff) then
-                        tRealSpawning=.true.
-                    elseif (tRealCoeffByExcitLevel) then
-                        TargetExcitLevel = FindBitExcitLevel (iLutRef, iLutnJ, max_calc_ex_level)
-                        if (TargetExcitLevel .le. RealCoeffExcitThresh) tRealSpawning=.true.
-                    endif
-
-                    if (component.eq.1) then
-                        MatEl=real(rh,dp) !Real part
-                        child_type=2
-                        walkerweight=sign(1.0_dp, realwSign(2))
-                    else
-                        MatEl=real(aimag(rh),dp) !Imag part
-                        child_type=1
-                        walkerweight=sign(1.0_dp, -realwSign(2)) 
-                        !These walkers have the *opposite* sign to normal
-                    endif
-
-                    if (tRealSpawning) then
-                        !Continuous Spawning
-                        !Simply add in the acceptance probability into the coefficient
-                        realchild(child_type)=-tau*(MatEl/prob)*walkerweight
-                        
-                        if(tSearchTau) then
-                            if(MaxSpawnProb.lt.rat) MaxSpawnProb = rat
-                        endif
-
-                        if (tRealSpawnCutoff .and. (abs(realchild(child_type)).lt.RealSpawnCutoff)) then
-                             !We don't want to bother spawning negligible coefficients everytime
-                             pSpawn=abs(realchild(child_type))/RealSpawnCutoff
-                             r = genrand_real2_dSFMT ()
-                             if (pSpawn > r) then
-                                 !Keep this walker, and set equal to RealSpawnCutoff
-                                 realchild(child_type)=sign(RealSpawnCutoff, -tau*(MatEl/prob)*walkerweight)
-                             else
-                                 !Remove this walker -- do not spawn small coeff this time
-                                 realchild(child_type)=0.d0
-                             endif
-                         endif
-
-                        child(child_type)=transfer(realchild(child_type), child(child_type))
-                    else
-                        rat = tau * abs(MatEl / prob) * abs(walkerweight)
-                        if(tSearchTau) then
-                            if(MaxSpawnProb.lt.rat) MaxSpawnProb = rat
-                        endif
-
-                        ! If probability > 1, then we just create multiple children at the
-                        ! chosen determinant.
-                        extraCreate = int(rat)
-                        rat = rat - real(extraCreate, dp)
-
-                        ! Stochastically choose whether to create or not.
-                        r = genrand_real2_dSFMT ()
-                        if (rat > r) then
-                            !Create child
-                            child(child_type) = -nint(sign(1.0_dp, walkerweight*MatEl))
-                            child(child_type) = child(child_type) + sign(extraCreate, child(child_type))
-                        elseif(extraCreate.ne.0) then
-                            !Just return if any extra particles created
-                            child(child_type) = -extraCreate*nint(sign(1.0_dp, walkerweight*MatEl))
-                        endif
-                        realchild=real(child(child_type),dp)
-                        child(child_type)=transfer(realchild, child(child_type))
-                    endif
-                enddo
-            ENDIF   ! Type of parent
+                    ! HACK: We are abusing the child variable to store the
+                    !       bit-representation of the realchild variable.
+                    child(tgt_cpt) = transfer(realchild(tgt_cpt), &
+                                              child(tgt_cpt))
+                endif
+            enddo
+        ENDIF   ! Type of parent
 
 #else
-            !We are dealing with real particles always here.
-            tRealSpawning=.false. !default
-            
-            if (tAllRealCoeff) then
-                tRealSpawning=.true.
-            elseif (tRealCoeffByExcitLevel) then
-                TargetExcitLevel = FindBitExcitLevel (iLutRef, iLutnJ, max_calc_ex_level)
-                if (TargetExcitLevel .le. RealCoeffExcitThresh) tRealSpawning=.true.
-            endif
 
-            walkerweight=sign(1.0_dp, realwSign(1))
+        walkerweight=sign(1.0_dp, realwSign(1))
 
-            if (tRealSpawning) then
-                !Continuous Spawning
-                !Simply add in the acceptance probability into the coefficient
-                realchild(1)=-tau*(rh/prob)*walkerweight
+        if (tRealSpawning) then
+            !Continuous Spawning
+            !Simply add in the acceptance probability into the coefficient
+            realchild(1)=-tau*(rh/prob)*walkerweight
 
-                if (tRealSpawnCutoff .and. (abs(realchild(1)).lt.RealSpawnCutoff)) then
-                     !We don't want to bother spawning negligible coefficients everytime
-                     pSpawn=abs(realchild(1))/RealSpawnCutoff
-                     r = genrand_real2_dSFMT ()
-                     if (pSpawn > r) then
-                         !Keep this walker, and set equal to RealSpawnCutoff
-                         realchild(1)=sign(RealSpawnCutoff, -tau*(rh/prob)*walkerweight)
-                     else
-                         !Remove this walker -- do not spawn small coeff this time
-                         realchild(1)=0.d0
-                     endif
+            if (tRealSpawnCutoff .and. (abs(realchild(1)).lt.RealSpawnCutoff)) then
+                 !We don't want to bother spawning negligible coefficients everytime
+                 pSpawn=abs(realchild(1))/RealSpawnCutoff
+                 r = genrand_real2_dSFMT ()
+                 if (pSpawn > r) then
+                     !Keep this walker, and set equal to RealSpawnCutoff
+                     realchild(1)=sign(RealSpawnCutoff, -tau*(rh/prob)*walkerweight)
+                 else
+                     !Remove this walker -- do not spawn small coeff this time
+                     realchild(1)=0.d0
                  endif
+             endif
 
-                child(1)=transfer(realchild(1), child(1))
-            else
-                rat = tau * abs(rh / prob) * abs(walkerweight)
-                if(tSearchTau) then
-                    if(MaxSpawnProb.lt.rat) MaxSpawnProb = rat
-                endif
-
-                ! If probability > 1, then we just create multiple children at the
-                ! chosen determinant.
-                extraCreate = int(rat)
-                rat = rat - real(extraCreate, dp)
-
-                ! Stochastically choose whether to create or not.
-                r = genrand_real2_dSFMT ()
-                if (rat > r) then
-                    !Create child
-                    child(1) = -nint(sign(1.0_dp, walkerweight*real(rh,dp)))
-                    child(1) = child(1) + sign(extraCreate, child(1))
-                elseif(extraCreate.ne.0) then
-                    !Just return if any extra particles created
-                    child(1) = -extraCreate*nint(sign(1.0_dp, walkerweight*real(rh,dp)))
-                endif
-                realchild=real(child(1),dp)
-                child(1)=transfer(realchild, child(1))
+            child(1)=transfer(realchild(1), child(1))
+        else
+            rat = tau * abs(rh / prob) * abs(walkerweight)
+            if(tSearchTau) then
+                if(MaxSpawnProb.lt.rat) MaxSpawnProb = rat
             endif
 
-            ! Avoid compiler warnings
-            iUnused = part_type
+            ! If probability > 1, then we just create multiple children at the
+            ! chosen determinant.
+            extraCreate = int(rat)
+            rat = rat - real(extraCreate, dp)
+
+            ! Stochastically choose whether to create or not.
+            r = genrand_real2_dSFMT ()
+            if (rat > r) then
+                !Create child
+                child(1) = -nint(sign(1.0_dp, walkerweight*real(rh,dp)))
+                child(1) = child(1) + sign(extraCreate, child(1))
+            elseif(extraCreate.ne.0) then
+                !Just return if any extra particles created
+                child(1) = -extraCreate*nint(sign(1.0_dp, walkerweight*real(rh,dp)))
+            endif
+            realchild=real(child(1),dp)
+            child(1)=transfer(realchild, child(1))
+        endif
+
+        ! Avoid compiler warnings
+        iUnused = part_type
 
 #endif
         ! Avoid compiler warnings
@@ -4047,7 +3975,7 @@ MODULE FciMCParMod
 
 #ifdef __CMPLX
             write(fcimcstats_unit,"(I12,5G16.7,7G17.9,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,7G17.9,3I13)") &
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9,3I13)") &
                 Iter + PreviousCycles, &                !1.
                 DiagSft, &                              !2.
                 AllTotParts(1) - AllTotPartsOld(1), &   !3.
@@ -4069,15 +3997,15 @@ MODULE FciMCParMod
                 TotImagTime, &                               !19.
                 HFShift, &                                   !20.
                 InstShift, &                                 !21.
-                real((AllHFCyc * conjg(AllHFCyc)),dp), &     !24     |n0|^2  This is the denominator for both calcs
-                real((AllENumCyc * conjg(AllHFCyc)),dp), &   !22.    Re[\sum njH0j] x Re[n0] + Im[\sum njH0j] x Im[n0]   No div by StepsSft
-                aimag(AllENumCyc * conjg(AllHFCyc)), &       !23.    Im[\sum njH0j] x Re[n0] - Re[\sum njH0j] x Im[n0]   since no physicality
-                sqrt(sum(AllNoatHF**2)) / norm_psi, & !24
-                norm_psi, &                                  !25
-                curr_S2, &                                   !26
-                AllNumSpawnedEntries, &                      !27
-                AllNumMerged, &                              !28
-                AllZeroMatrixElem                            !29
+                real((AllHFCyc * conjg(AllHFCyc)),dp), &     !22     |n0|^2  This is the denominator for both calcs
+                real((AllENumCyc * conjg(AllHFCyc)),dp), &   !23.    Re[\sum njH0j] x Re[n0] + Im[\sum njH0j] x Im[n0]   No div by StepsSft
+                aimag(AllENumCyc * conjg(AllHFCyc)), &       !24.    Im[\sum njH0j] x Re[n0] - Re[\sum njH0j] x Im[n0]   since no physicality
+                sqrt(sum(AllNoatHF**2)) / norm_psi, & !25
+                norm_psi, &                           !26
+                curr_S2, &                            !27
+                AllNumSpawnedEntries, &               !28
+                AllNumMerged, &                       !29
+                AllZeroMatrixElem                     !230
 
             if(tMCOutput) then
                 write (iout, "(I12,13G16.7,I12,G13.5)") &

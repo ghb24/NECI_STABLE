@@ -2,6 +2,7 @@ module util_mod
     use util_mod_comparisons
     use util_mod_cpts
     use constants, only: dp, lenof_sign,sizeof_int
+    use dSFMT_interface, only: genrand_real2_dSFMT
     use iso_c_hack
     implicit none
 
@@ -25,6 +26,31 @@ module util_mod
 !    public :: append_ext, get_unique_filename, get_nan, isnan_neci
 
 contains
+
+    function stochastic_round (r) result(i)
+
+        ! Stochastically round the supplied real value to an integer. This is
+        ! the primary method of introducing the monte-carlo nature of spawning
+        ! or death into the algorithm.
+        ! --> Probably nicer to use a centralised implementation than a bunch
+        !     of hacked-in ones all over the place...
+        !
+        ! Unfortunately, we cannot make this pure, as we would need to have
+        ! a mutable variable in genrand_real2_dSFMT...
+
+        real(dp), intent(in) :: r
+        integer :: i
+        real(dp) :: res
+
+        i = int(r)
+        res = r - real(i, dp)
+
+        if (res /= 0) then
+            if (abs(res) > genrand_real2_dSFMT()) &
+                i = i + nint(sign(1.0_dp, r))
+        end if
+
+    end function
 
     subroutine print_cstr (str) bind(c, name='print_cstr')
 
