@@ -1897,7 +1897,8 @@ MODULE FciMCParMod
         real(dp) :: MatEl
 #endif
 
-        child(:) = 0
+        ! Just in case
+        realchild = 0
 
         ! If we are generating multiple excitations, then the probability of
         ! spawning on them must be reduced by the number of excitations
@@ -1915,7 +1916,7 @@ MODULE FciMCParMod
                                  tParity, HElGen)
 
         if (rh .eq.0.0) ZeroMatrixElem=ZeroMatrixElem+1
-        write(6,*) 'p,rh', prob, rh
+!        write(6,*) 'p,rh', prob, rh
 
         ! Are we doing real spawning?
         tRealSpawning = .false.
@@ -1933,84 +1934,43 @@ MODULE FciMCParMod
         ! rather than swap around DetCurr and nJ.
         rh = CONJG(rh)
 
-        ! We are dealing with spawning from real and imaginary elements, and 
-        ! assume that rh is complex
-        if (part_type == 1) then
+        ! Get the relevant weight from the particle
+        walkerweight = sign(1.0_dp, RealwSign(part_type))
 
-            !!!!! Real parent particle !!!!!
-            walkerweight = sign(1.0_dp, RealwSign(1))
+        ! Spawn to real and imaginary particles. Note that spawning from
+        ! imaginary parent particles has slightly different rules:
+        !       - Attempt to spawn REAL walkers with prob +AIMAG(Hij)/P
+        !       - Attempt to spawn IMAG walkers with prob -REAL(Hij)/P
+        do tgt_cpt = 1, 2
 
-            ! First spawn from real part of matrix element, then attempt to
-            ! spawn with the imaginary part of the matrix element.
-            do component = 1, 2
+            ! For spawning from imaginary particles, we cross-match the 
+            ! real/imaginary matrix-elements/target-particles.
+            component = tgt_cpt
+            if (part_type == 2) component = 3 - tgt_cpt
 
-                ! Get the correct part of the matrix element
-                if (component == 1) then
-                    MatEl = real(rh, dp)
-                else
-                    MatEl = real(aimag(rh), dp)
-                end if
+            ! Get the correct part of the matrix element
+            if (component == 1) then
+                MatEl = real(rh, dp)
+            else
+                MatEl = real(aimag(rh), dp)
+                ! n.b. In this case, spawning is of opposite sign.
+                if (part_type == 2) walkerweight = -walkerweight
+            end if
 
-                if (tRealSpawning) then
-                    call stop_all(this_routine, 'Not Yet Implemented')
-                else
-                    ! How many children should we spawn?
-                    nSpawn = - tau * MatEl * walkerweight / prob
-                    if (tSearchTau) then
-                        if (MaxSpawnProb < abs(nSpawn)) &
-                            MaxSpawnProb = abs(nSpawn)
-                    endif
-
-                    ! And round this to an integer in the usual way
-                    realchild(component) = real(stochastic_round (nSpawn), dp)
-!                    write(6,*) 'realchild 1', component, realchild(component)
-
-                    ! HACK: We are abusing the child variable to store the
-                    !       bit-representation of the realchild variable.
-                    child(component) = transfer(realchild(component), &
-                                                child(component))
+            if (tRealSpawning) then
+                call stop_all(this_routine, 'Not Yet Implemented')
+            else
+                ! How many children should we spawn?
+                nSpawn = - tau * MatEl * walkerweight / prob
+                if (tSearchTau) then
+                    if (MaxSpawnProb < abs(nSpawn)) &
+                        MaxSpawnProb = abs(nSpawn)
                 endif
-            enddo
 
-        else
-            ! Imaginary parent particle - rules are slightly different...
-            ! Attempt to spawn REAL walkers with prob +AIMAG(Hij)/P
-            ! Attempt to spawn IMAG walkers with prob -REAL(Hij)/P
-
-            !!!!! Imaginary parent particle !!!!!
-            walkerweight = sign(1.0_dp, realwSign(2))
-            
-            do tgt_cpt = 1, 2
-
-                component = 3 - tgt_cpt
-                if (component == 1) then
-                    MatEl = real(rh, dp)
-                else
-                    MatEl = real(aimag(rh), dp)
-                    walkerweight = -walkerweight ! n.b. *opposite* to normal
-                end if
-
-                if (tRealSpawning) then
-                    call stop_all(this_routine, 'Not Yet Implemented')
-                else
-                    nSpawn = - tau * MatEl * walkerweight / prob
-                    if (tSearchTau) then
-                        if (MaxSpawnProb < abs(nSpawn)) &
-                            MaxSpawnProb = abs(nSpawn)
-                    endif
-
-                    ! And round this to an integer in the usual way.
-                    realchild(tgt_cpt) = real(stochastic_round (nSpawn), dp)
-!                    write(6,*) 'realchild 2', component, tgt_cpt, realchild(tgt_cpt)
-
-                    ! HACK: We are abusing the child variable to store the
-                    !       bit-representation of the realchild variable.
-                    child(tgt_cpt) = transfer(realchild(tgt_cpt), &
-                                              child(tgt_cpt))
-                endif
-            enddo
-        ENDIF   ! Type of parent
-
+                ! And round this to an integer in the usual way
+                realchild(tgt_cpt) = real(stochastic_round (nSpawn), dp)
+            endif
+        enddo
 #else
 
         walkerweight=sign(1.0_dp, realwSign(1))
@@ -2056,13 +2016,17 @@ MODULE FciMCParMod
                 child(1) = -extraCreate*nint(sign(1.0_dp, walkerweight*real(rh,dp)))
             endif
             realchild=real(child(1),dp)
-            child(1)=transfer(realchild, child(1))
         endif
 
         ! Avoid compiler warnings
         iUnused = part_type
 
 #endif
+
+        ! HACK: We are abusing the child variable to store the
+        !       bit-representation of the realchild variable.
+        child = transfer(realchild, child)
+
         ! Avoid compiler warnings
         iUnused = walkExcitLevel
 
