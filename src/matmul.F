@@ -15,7 +15,7 @@ C ==-----------------------------------------------------------------==
       call set_timer(proc_timer)
 C ==-----------------------------------------------------------------==
 C..Run over rows
-      CKN=0.d0
+      CKN=0.0_dp
       DO I=1,NDET
 C..Run over columns
          IF(I.EQ.1) THEN 
@@ -39,7 +39,7 @@ C..
 C..Need to do the following mult. by -1 so that eigenvalues are calc. in
 C..ascending order
       IF(.NOT.TLargest) THEN
-          CALL DSCAL(NEVAL*NDET,-1.D0,CKN,1)
+          CALL DSCAL(NEVAL*NDET,-1.0_dp,CKN,1)
       ENDIF
 c      DO I=1,NEVAL
 c        DO J=1,NDET

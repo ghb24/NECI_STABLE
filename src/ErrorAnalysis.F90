@@ -3,6 +3,7 @@ module errors
     use constants, only: dp, int64,lenof_sign
     use Parallel_neci, only: iProcIndex,Root
     use util_mod, only: get_free_unit
+    use CalcData, only: SftDamp
     implicit none
     real(dp), allocatable :: numerator_data(:)
     real(dp), allocatable :: imnumerator_data(:)
@@ -10,7 +11,7 @@ module errors
     real(dp), allocatable :: shift_data(:)
     integer :: Errordebug
     logical :: tGivenEquilibrium
-    real(dp) :: Shift_Start, ProjE_Start
+    integer :: Shift_Start, ProjE_Start
     integer :: relaxation_time_shift, relaxation_time_proje
 
     contains
@@ -66,8 +67,8 @@ module errors
 
         tNoProjEValue = .false.
         tNoShiftValue = .false.
-        if(tSingPartPhase.and.(.not.tGivenEquilibrium)) then
-            write(6,"(A)") "Calculation has not entered constant growth phase. Error analysis therefore not performed."
+        if((tSingPartPhase.and.(.not.tGivenEquilibrium)).or.(SftDamp.lt.1.0e-7_dp)) then
+            write(6,"(A)") "Calculation has not entered variable shift phase. Error analysis therefore not performed."
             write(6,"(A)") "Direct reblocking of instantaneous energy possible, but this would contain finite sampling bias."
             tNoProjEValue = .true.
             tNoShiftValue = .true.
@@ -360,7 +361,7 @@ module errors
             eie_array(i+1)=eie
             if(tPrint) write(iunit,*) size(that), mean, error, eie
         enddo
-        call check_reblocking_for_monotonic_increase(error_array,tPrint,iValue)
+        call check_reblock_monotonic_inc(error_array,tPrint,iValue)
         call find_max_error(error_array,final_error,which_element)
         corrlength=blocklength**(which_element-1)
         if(errordebug.gt.0) then
@@ -423,7 +424,7 @@ module errors
                 if(lenof_sign.eq.2) then
                     !complex fcimcstats
                     read(iunit,"(I12,G16.7,2I10,2I12,4G17.9,3I10,&
-                                          &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9)") &
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9)",iostat=eof) &
                         iters, &                !1.
                         shift, &                              !2.
                         change, &   !3.
@@ -448,7 +449,7 @@ module errors
                         denom     !24     |n0|^2  This is the denominator for both calcs
                 else
                     read(iunit,"(I12,G16.7,I10,G16.7,I13,3I15,3G17.9,2I10,&
-                                          &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9)") &
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9)",iostat=eof) &
                         Iters, &
                         shift, &
                         change, &
@@ -477,27 +478,35 @@ module errors
 
 !                read(iunit,*,iostat=eof) iters
                 if(eof.lt.0) then
-                    exit
+                    call stop_all(t_r,"Should not be at end of file")
                 elseif(eof.gt.0) then
-                    call stop_all(t_r,"Error reading FCIMCStats file")
-                endif
-                datapoints=datapoints+1
-                if(iters.gt.iShiftVary) then
-                    if(abs(denom).lt.1.0e-5_dp) then
-                        !Denominator gone to zero - wipe the stats
+!                    call stop_all(t_r,"Error reading FCIMCStats file")
+!I presume that this is because there is a difficulty reading in Nans or Infinities.
+!This will always (I presume) be because noatref -> 0, therefore we can safely wipe the stats
+                    if(iters.gt.iShiftVary) then
                         tRefToZero = .true.
                         validdata=0
                         iShiftVary = Iters + 1
-                    else
-                        validdata=validdata+1
+                    endif
+                else
+                    if(iters.gt.iShiftVary) then
+                        if(abs(denom).lt.1.0e-5_dp) then
+                            !Denominator gone to zero - wipe the stats
+                            tRefToZero = .true.
+                            validdata=0
+                            iShiftVary = Iters + 1
+                        else
+                            validdata=validdata+1
+                        endif
                     endif
                 endif
+                datapoints=datapoints+1
 
             else
                 !Just read it again without the advance=no to move onto the next line
                 read(iunit,"(A)",iostat=eof) readline
                 if(eof.lt.0) then
-                    exit
+                    call stop_all(t_r,"Should not be at end of file")
                 elseif(eof.gt.0) then
                     call stop_all(t_r,"Error reading FCIMCStats file")
                 endif
@@ -552,7 +561,7 @@ module errors
                 if(lenof_sign.eq.2) then
                     !complex fcimcstats
                     read(iunit,"(I12,G16.7,2I10,2I12,4G17.9,3I10,&
-                                          &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9)") &
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9)",iostat=eof) &
                         iters, &                !1.
                         shift, &                              !2.
                         change, &   !3.
@@ -582,7 +591,7 @@ module errors
                         curr_S2
                 else
                     read(iunit,"(I12,G16.7,I10,G16.7,I13,3I15,3G17.9,2I10,&
-                                          &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9)") &
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9)",iostat=eof) &
                         Iters, &
                         shift, &
                         change, &
@@ -615,9 +624,14 @@ module errors
                 endif
 
                 if(eof.lt.0) then
-                    exit
+                    call stop_all(t_r,"Should not be at end of file")
                 elseif(eof.gt.0) then
-                    call stop_all(t_r,"Error reading FCIMCStats file")
+!I presume that this is because there is a difficulty reading in Nans or Infinities.
+!This will always (I presume) be because noatref -> 0
+!Therefore, we should not be trying to store the stats, and we can ignore the error
+                    if(iters.gt.iShiftVary) then
+                        call stop_all(t_r,"This is not a valid data line - should not be trying to store")
+                    endif
                 endif
                 if(iters.gt.iShiftVary) then
                     i=i+1
@@ -642,7 +656,7 @@ module errors
                 !Just read it again without the advance=no to move onto the next line
                 read(iunit,"(A)",iostat=eof) readline
                 if(eof.lt.0) then
-                    exit
+                    call stop_all(t_r,"Should not be at end of file")
                 elseif(eof.gt.0) then
                     call stop_all(t_r,"Error reading FCIMCStats file")
                 endif
@@ -650,12 +664,13 @@ module errors
         enddo
 
         if(i.ne.validdata) then
-            call stop_all(t_r,"Data arrays not filled correctly")
+            call stop_all(t_r,"Data arrays not filled correctly 1")
         endif
 
         if(shift_data(validdata).eq.0.0_dp.or.pophf_data(validdata).eq.0.0_dp.or. &
             numerator_data(validdata).eq.0.0_dp) then
-            call stop_all(t_r,"Data arrays not filled correctly")
+            write(6,*) shift_data(validdata), pophf_data(validdata), numerator_data(validdata)
+            call stop_all(t_r,"Data arrays not filled correctly 2")
         endif
 
         close(iunit)
@@ -903,7 +918,7 @@ module errors
 
     end subroutine print_vector
 
-    subroutine check_reblocking_for_monotonic_increase(these_errors,tPrint,iValue)
+    subroutine check_reblock_monotonic_inc(these_errors,tPrint,iValue)
     ! One of the simplest checks on the errors for F&P blocking analysis
     ! is to look for a monotonic increase in errors
     ! which indicates no tail-off/plateauing.
@@ -920,7 +935,7 @@ module errors
         integer :: length
         integer :: i
         logical :: monotonic
-        character(len=*), parameter :: t_r='check_reblocking_for_monotonic_increase'
+        character(len=*), parameter :: t_r='check_reblock_monotonic_inc'
 
         monotonic=.true.
         length=size(these_errors)
@@ -964,7 +979,7 @@ module errors
             write(6,"(A)") "         BLOCKING files carefully"
         endif
 
-    end subroutine check_reblocking_for_monotonic_increase
+    end subroutine check_reblock_monotonic_inc
 
     subroutine find_max_error(these_errors,error,which_element)
     ! One of the simplest ways to choose the error in F+P reblocking

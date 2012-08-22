@@ -668,7 +668,6 @@ MODULE PopsfileMod
 !This routine will write out to a popsfile. It transfers all walkers to the 
 ! head node sequentially, so does not want to be called too often
     SUBROUTINE WriteToPopsfileParOneArr(Dets,nDets)
-        use constants, only: size_n_int,n_int
         use CalcData, only: iPopsFileNoWrite, InitiatorWalkNo
         use constants, only: size_n_int,n_int
         use MemoryManager, only: TagIntType
@@ -831,6 +830,15 @@ MODULE PopsfileMod
                     IF(mod(j,iPopsPartEvery).eq.0) THEN
                         WRITE(iunit) Dets(0:NIfTot,j)!,TempSign(:)
                     ENDIF
+                    if(tPrintInitiators.and.&
+                        (abs(TempSign(1)).gt.InitiatorWalkNo)) then
+                        ! Testing using the sign now, because after annihilation etc, 
+                        ! the current flag will not necessarily be correct.                                      
+                        call extract_bit_rep (Dets(:,j), TempDet, TempSign, &
+                                              TempFlags, fcimc_excit_gen_store)
+                        write(iunit_2,"(I30,A20)",advance='no') abs(TempSign(1)),''
+                        call write_det (iunit_2, TempDet, .true.)
+                    endif
                 enddo
             ELSE
                 do j=1,nDets
@@ -845,19 +853,17 @@ MODULE PopsfileMod
 !                        call extract_sign(Dets(:,j),TempSign)
 !                        WRITE(iunit,*) TempSign(:)
                     ENDIF
-                enddo
-            ENDIF
-            if(tPrintInitiators) then
-                do j = 1, nDets
-                    call extract_bit_rep (Dets(:,j), TempDet, TempSign, &
-                                      TempFlags, fcimc_excit_gen_store)
-!                    call extract_sign(Dets(:,j),TempSign)
-                    if(abs(TempSign(1)).gt.InitiatorWalkNo) then
+                    if(tPrintInitiators.and.&
+                        (abs(TempSign(1)).gt.InitiatorWalkNo)) then
+                        ! Testing using the sign now, because after annihilation etc, 
+                        ! the current flag will not necessarily be correct.                                      
+                        call extract_bit_rep (Dets(:,j), TempDet, TempSign, &
+                                              TempFlags, fcimc_excit_gen_store)
                         write(iunit_2,"(I30,A20)",advance='no') abs(TempSign(1)),''
                         call write_det (iunit_2, TempDet, .true.)
                     endif
                 enddo
-            endif
+            ENDIF
 
 !            WRITE(6,*) "Written out own walkers..."
 !            write(6,*) WalkersOnNodes
@@ -888,6 +894,15 @@ MODULE PopsfileMod
 !                            call extract_sign(Parts(:,j),TempSign)
                             WRITE(iunit) Parts(0:NIfTot,j)!,TempSign(:)
                         ENDIF
+                        if(tPrintInitiators.and.&
+                            (abs(TempSign(1)).gt.InitiatorWalkNo)) then
+                            ! Testing using the sign now, because after annihilation etc, 
+                            ! the current flag will not necessarily be correct.                                      
+                            call extract_bit_rep (Parts(:,j), TempDet, TempSign, &
+                                                  TempFlags, fcimc_excit_gen_store)
+                            write(iunit_2,"(I30,A20)",advance='no') abs(TempSign(1)),''
+                            call write_det (iunit_2, TempDet, .true.)
+                        endif
                     enddo
                 ELSE
                     do j=1,WalkersonNodes(i)
@@ -901,18 +916,17 @@ MODULE PopsfileMod
 !                            call extract_sign(Parts(:,j),TempSign)
 !                            WRITE(iunit,*) TempSign(:)
                         ENDIF
-                    enddo
-                ENDIF
-                if(tPrintInitiators) then
-                    do j = 1, WalkersonNodes(i)
-                        call extract_bit_rep (Parts(:,j), TempDet, TempSign, &
-                                      TempFlags, fcimc_excit_gen_store)
-                        if(abs(TempSign(1)).gt.InitiatorWalkNo) then
+                        if(tPrintInitiators.and.&
+                            (abs(TempSign(1)).gt.InitiatorWalkNo)) then
+                            ! Testing using the sign now, because after annihilation etc, 
+                            ! the current flag will not necessarily be correct.                                      
+                            call extract_bit_rep (Parts(:,j), TempDet, TempSign, &
+                                                  TempFlags, fcimc_excit_gen_store)
                             write(iunit_2,"(I30,A20)",advance='no') abs(TempSign(1)),''
                             call write_det (iunit_2, TempDet, .true.)
                         endif
                     enddo
-                endif
+                ENDIF
 
 !                WRITE(6,*) "Writted out walkers for processor ",i
 !                CALL neci_flush(6)

@@ -184,7 +184,7 @@ MODULE ReadInput_neci
         use IntegralsData, only: tDiagStarStars, tExcitStarsRootChange, &
                                  tRmRootExcitStarsRootChange, tLinRootChange
         use Logging, only: iLogging, tCalcFCIMCPsi, tHistSpawn, tHistHamil, &
-                           tCalcInstantS2
+                           tCalcInstantS2,tDiagAllSpaceEver, tCalcVariationalEnergy
         use DetCalc, only: tEnergy, tCalcHMat, tFindDets, tCompressDets
         USE input_neci
         use global_utilities
@@ -196,6 +196,16 @@ MODULE ReadInput_neci
         integer :: vv, kk, cc, ierr
         logical :: check
         character(*), parameter :: t_r='checkinput'
+
+        if(tDiagAllSpaceEver.and..not.tHistSpawn) then
+            call stop_all(t_r,"DIAGALLSPACEEVER requires HISTSPAWN option")
+        endif
+        if(tCalcVariationalEnergy.and..not.tHistSpawn) then
+            call stop_all(t_r,"CALCVARIATIONALENERGY requires HISTSPAWN option")
+        endif
+        if(tCalcVariationalEnergy.and..not.tEnergy) then
+            call stop_all(t_r,"CALCVARIATIONALENERGY requires initial FCI calculation")
+        endif
 
         if(tHashWalkerList) then
             nWalkerHashes=nint(HashLengthFrac*InitWalkers)
