@@ -2863,20 +2863,34 @@ MODULE GenRandSymExcitNUMod
 
         type(excit_gen_store_type), intent(inout) :: store
 
-        if (associated(store%ClassCountOcc)) &
+        if (associated(store%ClassCountOcc)) then
             deallocate(store%ClassCountOcc)
-        if (associated(store%ClassCountUnocc)) &
+            nullify(store%ClassCountOcc)
+        endif
+        if (associated(store%ClassCountUnocc)) then
             deallocate(store%ClassCountUnocc)
-        if (allocated(store%scratch3)) &
+            nullify(store%ClassCountUnocc)
+        endif
+        if (associated(store%scratch3)) then
             deallocate(store%scratch3)
-        if (allocated(store%occ_list)) &
+            nullify(store%scratch3)
+        endif
+        if (associated(store%occ_list)) then
             deallocate(store%occ_list)
-        if (allocated(store%virt_list)) &
+            nullify(store%occ_list)
+        endif
+        if (associated(store%virt_list)) then
             deallocate(store%virt_list)
-        if (allocated(store%dorder_i)) &
+            nullify(store%virt_list)
+        endif
+        if (associated(store%dorder_i)) then 
             deallocate(store%dorder_i)
-        if (allocated(store%dorder_j)) &
+            nullify(store%dorder_i)
+        endif
+        if (associated(store%dorder_j)) then
             deallocate(store%dorder_j)
+            nullify(store%dorder_j)
+        endif
 
     end subroutine
 
@@ -2993,6 +3007,7 @@ SUBROUTINE SpinOrbSymSetup()
     endif
 !SymInvLabel takes the label (0 -> nSymLabels-1) of a spin orbital, and returns the inverse symmetry label, suitable for
 !use in ClassCountInd.
+    if(allocated(SymInvLabel)) deallocate(SymInvLabel)
     Allocate(SymInvLabel(0:nSymLabels-1))
     SymInvLabel=-999
     do i=0,nSymLabels-1

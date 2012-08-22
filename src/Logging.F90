@@ -74,6 +74,7 @@ MODULE Logging
       use default_sets
       implicit none
 
+      tPrintInitiators = .false.
       tDiagAllSpaceEver = .false.
       tCalcVariationalEnergy = .false.
       tJustBlocking = .false.

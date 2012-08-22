@@ -311,6 +311,7 @@ contains
       end if
 
       write (io,'(/a65)') '================================================================'
+      
       write (io,'(a15/)') 'Timing report.'
       if (timer_error) write (io,'(a61/)') 'Timer encountered errors.  The following might be incorrect.'
       if (min(itimer,nobjs).gt.0) then
@@ -325,9 +326,11 @@ contains
               id=maxloc(sum_times)
               it=id(1)
               sum_times(it)=0.d0 ! Don't find this object again.
-              write (io,'(1X,a25,i9,3f10.2)') adjustl(timers(it)%timer_name),timers(it)%ncalls,  &
-                                             timers(it)%sum_time_cpu,timers(it)%sum_time_system,&
-                                             timers(it)%sum_time_cpu+timers(it)%sum_time_system
+              if(timers(it)%ncalls.gt.0) then
+                  write (io,'(1X,a25,i9,3f10.2)') adjustl(timers(it)%timer_name),timers(it)%ncalls,  &
+                                                 timers(it)%sum_time_cpu,timers(it)%sum_time_system,&
+                                                 timers(it)%sum_time_cpu+timers(it)%sum_time_system
+              endif
               total_cpu=total_cpu+timers(it)%sum_time_cpu
               total_system=total_system+timers(it)%sum_time_system
           end do

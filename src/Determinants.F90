@@ -3,7 +3,7 @@ MODULE Determinants
     use constants, only: dp, n_int, bits_n_int
     use SystemData, only: BasisFN, tCSF, nel, G1, Brr, ECore, ALat, NMSH, &
                           nBasis, nBasisMax, tStoreAsExcitations, tHPHFInts, &
-                          tCSF, tCPMD, tPickVirtUniform, LMS
+                          tCSF, tCPMD, tPickVirtUniform, LMS, modk_offdiag
     use IntegralsData, only: UMat, FCK, NMAX
     use csf, only: det_to_random_csf, iscsf, csf_orbital_mask, &
                    csf_yama_bit, CSFGetHelement
@@ -328,7 +328,12 @@ contains
         endif
 
         ! Add in ECore if for a diagonal element
-        if (IC == 0) hel = hel + (ECore)
+        if (IC == 0) then
+            hel = hel + (ECore)
+        else if (modk_offdiag) then
+            hel = -abs(hel)
+        end if
+
     end function
     
     function get_helement_normal (nI, nJ, iLutI, iLutJ, ICret) result(hel)
@@ -382,7 +387,11 @@ contains
         endif
 
         ! Add in ECore for a diagonal element
-        if (IC == 0) hel = hel + (ECore)
+        if (IC == 0) then
+            hel = hel + (ECore)
+        else if (modk_offdiag) then
+            hel = -abs(hel)
+        end if
 
         ! If requested, return IC
         if (present(ICret)) then
@@ -426,7 +435,12 @@ contains
 
         hel = sltcnd_excit (nI, IC, ExcitMat, tParity)
 
-        if (IC == 0)  hel = hel + (ECore)
+        if (IC == 0) then
+            hel = hel + (ECore)
+        else if (modk_offdiag) then
+            hel = -abs(hel)
+        end if
+
     end function get_helement_excit
 
     function get_helement_det_only (nI, nJ, iLutI, iLutJ, ic, ex, tParity, &
@@ -457,7 +471,11 @@ contains
 
         hel = sltcnd_excit (nI, IC, ex, tParity)
 
-        if (IC == 0) hel = hel + ECore
+        if (IC == 0) then
+            hel = hel + ECore
+        else if (modk_offdiag) then
+            hel = -abs(hel)
+        end if
     end function
 
 
@@ -528,7 +546,7 @@ contains
         integer(n_int) :: ilut_tmp(0:NIfTot)
 
         ! If we haven't initialised the generator, do that now.
-        if (.not. allocated(store%dorder)) then
+        if (.not. associated(store%dorder)) then
 
             ! Allocate dorder storage
             allocate(store%dorder(nel))
@@ -564,8 +582,10 @@ contains
 
         if (store%dorder(1) == -1) then
             deallocate(store%dorder)
+            nullify(store%dorder)
             !deallocate(store%open_indices)
             deallocate(store%open_orbs)
+            nullify(store%open_orbs)
             if (present(ilut_gen)) ilut_gen = 0
             !if (present(det)) det = 0
         else

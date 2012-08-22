@@ -684,6 +684,7 @@ MODULE PopsfileMod
         CHARACTER(len=*) , PARAMETER :: this_routine='WriteToPopsfileParOneArr'
         character(255) :: popsfile
         INTEGER, DIMENSION(lenof_sign) :: TempSign
+        integer :: excit_lev
 
         CALL MPIBarrier(error)  !sync
 !        WRITE(6,*) "Get Here",nDets
@@ -836,8 +837,10 @@ MODULE PopsfileMod
                         ! the current flag will not necessarily be correct.                                      
                         call extract_bit_rep (Dets(:,j), TempDet, TempSign, &
                                               TempFlags, fcimc_excit_gen_store)
+                        excit_lev=FindBitExcitLevel(iLutRef,Dets(:,j),nEl)
                         write(iunit_2,"(I30,A20)",advance='no') abs(TempSign(1)),''
-                        call write_det (iunit_2, TempDet, .true.)
+                        call write_det (iunit_2, TempDet, .false.)
+                        write(iunit_2,"(I10)") excit_lev
                     endif
                 enddo
             ELSE
@@ -859,8 +862,10 @@ MODULE PopsfileMod
                         ! the current flag will not necessarily be correct.                                      
                         call extract_bit_rep (Dets(:,j), TempDet, TempSign, &
                                               TempFlags, fcimc_excit_gen_store)
+                        excit_lev=FindBitExcitLevel(iLutRef,Dets(:,j),nEl)
                         write(iunit_2,"(I30,A20)",advance='no') abs(TempSign(1)),''
-                        call write_det (iunit_2, TempDet, .true.)
+                        call write_det (iunit_2, TempDet, .false.)
+                        write(iunit_2,"(I30)") excit_lev
                     endif
                 enddo
             ENDIF
@@ -900,8 +905,10 @@ MODULE PopsfileMod
                             ! the current flag will not necessarily be correct.                                      
                             call extract_bit_rep (Parts(:,j), TempDet, TempSign, &
                                                   TempFlags, fcimc_excit_gen_store)
+                            excit_lev=FindBitExcitLevel(iLutRef,Parts(:,j),nEl)
                             write(iunit_2,"(I30,A20)",advance='no') abs(TempSign(1)),''
-                            call write_det (iunit_2, TempDet, .true.)
+                            call write_det (iunit_2, TempDet, .false.)
+                            write(iunit_2,"(I10)") excit_lev
                         endif
                     enddo
                 ELSE
@@ -922,8 +929,10 @@ MODULE PopsfileMod
                             ! the current flag will not necessarily be correct.                                      
                             call extract_bit_rep (Parts(:,j), TempDet, TempSign, &
                                                   TempFlags, fcimc_excit_gen_store)
+                            excit_lev=FindBitExcitLevel(iLutRef,Parts(:,j),nEl)
                             write(iunit_2,"(I30,A20)",advance='no') abs(TempSign(1)),''
-                            call write_det (iunit_2, TempDet, .true.)
+                            call write_det (iunit_2, TempDet, .false.)
+                            write(iunit_2,"(I30)") excit_lev
                         endif
                     enddo
                 ENDIF

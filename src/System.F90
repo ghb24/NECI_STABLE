@@ -161,6 +161,7 @@ MODULE System
       tHFNoOrder=.false.
       tSymIgnoreEnergies=.false.
       tPickVirtUniform = .false.
+      modk_offdiag = .false.
 
 !Feb08 defaults:
       IF(Feb08) THEN
@@ -470,6 +471,8 @@ MODULE System
             if ( ISTATE /= 1 ) then
                 call report("Require ISTATE to be left set as 1",.true.)
             end if
+        case("MODK-OFFDIAG")
+            modk_offdiag = .true.
         case("FAST-EXCITGEN")
             tAbelianFastExcitGen=.true.
     ! tAbelianFastExcitGen is a temporary flag. 
