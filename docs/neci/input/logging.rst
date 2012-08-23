@@ -523,7 +523,7 @@ Types of calculation
     included stochastically.  Like **HFREFRDMEXPLICIT**, this matrix will not be hermitian and the energy not variational.  
     Cannot use **HPHF** with this type of calculation.
 
-**RDMGHOSTCHILD** 
+**RDMGHOSTCHILD** REMOVED 
     This option is discussed in my thesis, but has been removed because it is virtually never used, doesn't actually 
     work very well for most systems, and complicated the code a bit.  The version where it is removed was noted in the 
     logs if it needs to be put back in.

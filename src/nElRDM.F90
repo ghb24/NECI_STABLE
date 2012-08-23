@@ -3139,7 +3139,7 @@ MODULE nElRDMMod
 
         if(RDMExcitLevel.eq.1) then
 
-            call Finalise_1e_RDM()  
+            call Finalise_1e_RDM(Norm_1RDM)  
 
         else
             ! We always want to calculate one final RDM energy, whether or not we're 
@@ -3181,15 +3181,16 @@ MODULE nElRDMMod
                              tDumpForcesInfo
         implicit none
         integer :: i
-        real(dp), intent(out), optional :: Norm_1RDM
+        real(dp), intent(out) :: Norm_1RDM
         real(dp) :: Trace_1RDM, SumN_Rho_ii
 
+        Norm_1RDM = 0.0_dp
         AllAccumRDMNorm = 0.D0
         IF(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) &
             CALL MPIReduce(AccumRDMNorm,MPI_SUM,AllAccumRDMNorm)
 
         if(RDMExcitLevel.eq.1) CALL MPISum_inplace(NatOrbMat)
-        
+
         if(iProcIndex.eq.0) then 
 
             ! Find the normalisation.
@@ -3234,7 +3235,6 @@ MODULE nElRDMMod
 
         do i = 1, NoOrbs
             Trace_1RDM = Trace_1RDM + NatOrbMat(i,i)
-
         enddo
 
         IF(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) THEN
@@ -3274,6 +3274,7 @@ MODULE nElRDMMod
                     Rho_ii(i) = NatOrbMat(SymLabelListInv_rot(BRR_ID),SymLabelListInv_rot(BRR_ID)) * Norm_1RDM
                 endif
             endif
+    
             if(i.le.NEl) then
                 if(tStoreSpinOrbs) then
                     SumN_Rho_ii = SumN_Rho_ii + &
