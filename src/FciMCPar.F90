@@ -114,10 +114,10 @@ MODULE FciMCParMod
     use nElRDMMod, only: FinaliseRDM,Fill_ExplicitRDM_this_Iter,calc_energy_from_rdm, &
                          fill_hist_explicitrdm_this_iter, tCalc_RDMEnergy, &
                          extract_bit_rep_avsign_norm, &
-                         extract_bit_rep_avsign_no_rdm, DeallocateRDM,&
-                         DeAlloc_Alloc_SpawnedParts, zero_rdms, &
-                         fill_rdm_softexit, fill_rdm_diag_and_explicit_currdet_norm, &
-                         fill_rdm_diag_and_explicit_currdet_hfsd
+                         extract_bit_rep_avsign_no_rdm, &
+                         zero_rdms, fill_rdm_softexit, store_parent_with_spawned, &
+                         fill_rdm_diag_and_explicit_currdet_norm, &
+                         fill_rdm_diag_and_explicit_currdet_hfsd, calc_rdmbiasfac
 
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
@@ -1482,8 +1482,8 @@ MODULE FciMCParMod
         ! 'type' of the particle - i.e. real/imag
         integer, intent(in) :: part_type
         real(dp) , intent(in) , optional :: RDMBiasFacCurr
-        integer :: proc, flags, j, BiasFac
-        logical :: parent_init, tRDMStoreParent
+        integer :: proc, flags, j
+        logical :: parent_init
 
         proc = DetermineDetNode(nJ,0)    ! 0 -> nNodes-1)
 
@@ -1507,71 +1507,13 @@ MODULE FciMCParMod
         call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ, &
                             child, flags)
 
-        IF(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) THEN                            
-            !We are spawning from iLutI to SpawnedParts(:,ValidSpawnedList(proc)).
-            !We want to store the parent (D_i) with the spawned child (D_j) so that we can
-            !add in Ci.Cj to the RDM later on.
-            !The parent is NIfDBO integers long, and stored in the second part of the SpawnedParts array 
-            !from NIfTot+1 -> NIfTot+1 + NIfDBO.
-
-            if(RDMBiasFacCurr.eq.0.0_dp) then
-                ! If RDMBiasFacCurr is exactly zero, any contribution from Ci.Cj will be zero 
-                ! so it is not worth carrying on. 
-                ! This happens when we are only using initiators for the RDM, and Di is a non-initiator.
-
-                SpawnedParts(niftot+1:niftot+nifdbo+2, ValidSpawnedList(proc)) = 0
-
-            else
-
-                ! First we want to check if this Di.Dj pair has already been accounted for.
-                ! This means searching the Dj's that have already been spawned from this Di, to make sure 
-                ! the new Di being spawned on here is not the same.
-                ! The Dj children spawned by the current Di are being stored in the array TempSpawnedParts, 
-                ! so that the reaccurance of a Di.Dj pair may be monitored.
-
-                ! Store the Di parent with the spawned child, unless we find this Dj has already been spawned on.
-                tRDMStoreParent = .true.
-
-                ! Run through the Dj walkers that have already been spawned from this particular Di.
-                ! If this is the first to be spawned from Di, TempSpawnedPartsInd will be zero, so we 
-                ! just wont run over anything.
-                do j = 1,TempSpawnedPartsInd
-                    if(DetBitEQ(iLutJ(0:NIfDBO),TempSpawnedParts(0:NIfDBO,j),NIfDBO)) then
-                        ! If this Dj is found, we do not want to store the parent with this spawned walker.
-                        tRDMStoreParent = .false.
-                        EXIT
-                    endif
-                enddo
-
-                if(tRDMStoreParent) then
-                    ! This is a new Dj that has been spawned from this Di.
-                    ! We want to store it in the temporary list of spawned parts which have come from this Di.
-                    if(WalkerNumber.ne.abs(SignI(1))) then
-                        ! Don't bother storing these if we're on the last walker, or if we only have one 
-                        ! walker on Di.
-                        TempSpawnedPartsInd = TempSpawnedPartsInd + 1
-                        TempSpawnedParts(0:NIfDBO,TempSpawnedPartsInd) = iLutJ(0:NIfDBO)
-                    endif
-
-                    ! We also want to make sure the parent Di is stored with this Dj.
-                    SpawnedParts(niftot+1:niftot+nifdbo+1, ValidSpawnedList(proc)) = iLutI(0:nifdbo) 
-
-                    ! We need to carry with the child (and the parent), the sign of the parent.
-                    ! In actual fact this is the sign of the parent divided by the probability of generating 
-                    ! that pair Di and Dj, to account for the 
-                    ! fact that Di and Dj are not always added to the RDM, but only when Di spawns on Dj.
-                    ! This RDMBiasFacCurr factor is turned into an integer to pass around to the relevant processors.
-                    SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)) = &
-                        transfer(RDMBiasFacCurr,SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)))
-                else
-                    ! This Di has already spawned on this Dj - don't store the Di parent with this child, 
-                    ! so that the pair is not double counted.  
-                    ! We are using the probability that Di spawns onto Dj *at least once*, so we don't want to 
-                    ! double count this pair.
-                    SpawnedParts(niftot+1:niftot+nifdbo+2, ValidSpawnedList(proc)) = 0
-                endif
-            endif
-        ENDIF
+        IF(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) &
+                call store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, SignI, iLutJ, proc)
+        !We are spawning from iLutI to SpawnedParts(:,ValidSpawnedList(proc)).
+        !We want to store the parent (D_i) with the spawned child (D_j) so that we can
+        !add in Ci.Cj to the RDM later on.
+        !The parent is NIfDBO integers long, and stored in the second part of the SpawnedParts array 
+        !from NIfTot+1 -> NIfTot+1 + NIfDBO.
 
         IF(lenof_sign.eq.2) THEN
             !With complex walkers, things are a little more tricky.
@@ -1663,40 +1605,6 @@ MODULE FciMCParMod
         endif
 
     end subroutine end_iteration_print_warn 
-
-    subroutine check_start_rdm()
-! This routine checks if we should start filling the RDMs - and does so if we should.        
-        implicit none
-
-        IF((.not.tSinglePartPhase).and.((Iter - VaryShiftIter).eq.(IterRDMonFly+1))) THEN
-        ! IterRDMonFly is the number of iterations after the shift has changed that we want 
-        ! to fill the RDMs.  If this many iterations have passed, start accumulating the RDMs! 
-            IterRDMStart = Iter
-            IterRDM_HF = Iter
-            !We have reached the iteration where we want to start filling the RDM.
-            if(tExplicitAllRDM) then
-                ! Explicitly calculating all connections - expensive...
-                tFillingExplicRDMonFly = .true.
-                if(tHistSpawn) NHistEquilSteps = Iter
-            else
-                call set_extract_bit_rep_avsign(extract_bit_rep_avsign_norm)
-                !By default - we will do a stochastic calculation of the RDM.
-                tFillingStochRDMonFly = .true.
-                if(.not.tHF_Ref_Explicit) call DeAlloc_Alloc_SpawnedParts()
-                !The SpawnedParts array now needs to carry both the spawned parts Dj, and also it's 
-                !parent Di (and it's sign, Ci). - We deallocate it and reallocate it with the larger size.
-                !Don't need any of this if we're just doing HF_Ref_Explicit calculation.
-                !This is all done in the add_rdm_hfconnections routine.
-            endif
-            if(RDMExcitLevel.eq.1) then
-                WRITE(6,'(A)') 'Calculating the 1 electron density matrix on the fly.'
-            else
-                WRITE(6,'(A)') 'Calculating the 2 electron density matrix on the fly.'
-            endif
-            WRITE(6,'(A,I10)') 'Beginning to fill the RDMs during iteration',Iter
-        ENDIF
-
-    end subroutine check_start_rdm
 
     subroutine CalcParentFlag(j, VecSlot, parent_flags)
 !In the CurrentDets array, the flag at NIfTot refers to whether that determinant *itself* is an initiator or not.    
@@ -2152,7 +2060,6 @@ MODULE FciMCParMod
                                     wSign, nJ, iLutnJ, prob, HElGen, ic, ex, tparity,&
                                     walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr) result(child)
 
-        use nElRDMMod , only : calc_rdmbiasfac                                
         integer, intent(in) :: DetCurr(nel), nJ(nel)
         integer, intent(in) :: part_type    ! 1 = Real parent particle, 2 = Imag parent particle
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
@@ -5409,17 +5316,6 @@ MODULE FciMCParMod
             IF(StepsSft.eq.0) StepsSft=1
             WRITE(iout,*) "StepsShift set to: ",StepsSft
         ENDIF
-!        IF(tConstructNOs) THEN
-!            ! This is the option for constructing the natural orbitals 
-!            ! actually during a NECI calculation.  This is different (and 
-!            ! probably a lot more complicated and doesn't  currently work) 
-!            ! from the FINDCINATORBS option which finds the natural orbitals
-!            ! given a final wavefunction.
-!            ALLOCATE(OneRDM(nBasis,nBasis),stat=ierr)
-!            CALL LogMemAlloc('OneRDM',nBasis*nBasis,8,this_routine,OneRDMTag,ierr)
-!            OneRDM(:,:)=0.D0
-!        ENDIF
-
         ! Once Alex's CCMC/FCIMC unification project is finished, we can
         ! remove this. The problem is that ValidSpawnedList is now setup in
         ! InitFCIMCCalcPar - this is for compatibility with POPSFILE v.3,
@@ -5544,6 +5440,40 @@ MODULE FciMCParMod
 
     END SUBROUTINE SetupParameters
 
+    subroutine check_start_rdm()
+! This routine checks if we should start filling the RDMs - and does so if we should.        
+        use nElRDMMod , only : DeAlloc_Alloc_SpawnedParts
+        implicit none
+
+        IF((.not.tSinglePartPhase).and.((Iter - VaryShiftIter).eq.(IterRDMonFly+1))) THEN
+        ! IterRDMonFly is the number of iterations after the shift has changed that we want 
+        ! to fill the RDMs.  If this many iterations have passed, start accumulating the RDMs! 
+            IterRDMStart = Iter
+            IterRDM_HF = Iter
+            !We have reached the iteration where we want to start filling the RDM.
+            if(tExplicitAllRDM) then
+                ! Explicitly calculating all connections - expensive...
+                tFillingExplicRDMonFly = .true.
+                if(tHistSpawn) NHistEquilSteps = Iter
+            else
+                call set_extract_bit_rep_avsign(extract_bit_rep_avsign_norm)
+                !By default - we will do a stochastic calculation of the RDM.
+                tFillingStochRDMonFly = .true.
+                if(.not.tHF_Ref_Explicit) call DeAlloc_Alloc_SpawnedParts()
+                !The SpawnedParts array now needs to carry both the spawned parts Dj, and also it's 
+                !parent Di (and it's sign, Ci). - We deallocate it and reallocate it with the larger size.
+                !Don't need any of this if we're just doing HF_Ref_Explicit calculation.
+                !This is all done in the add_rdm_hfconnections routine.
+            endif
+            if(RDMExcitLevel.eq.1) then
+                WRITE(6,'(A)') 'Calculating the 1 electron density matrix on the fly.'
+            else
+                WRITE(6,'(A)') 'Calculating the 2 electron density matrix on the fly.'
+            endif
+            WRITE(6,'(A,I10)') 'Beginning to fill the RDMs during iteration',Iter
+        ENDIF
+
+    end subroutine check_start_rdm
 
     !Routine to find an upper bound to tau, by consideration of the singles and doubles connected
     !to the reference determinant

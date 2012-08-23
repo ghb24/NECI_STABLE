@@ -745,7 +745,6 @@ MODULE nElRDMMod
 
     END SUBROUTINE SetUpSymLabels_RDM
 
-
     subroutine DeAlloc_Alloc_SpawnedParts()
 ! When calculating the RDMs, we need to store the parent from which a child is spawned along with the 
 ! children in the spawned array.
@@ -1270,6 +1269,127 @@ MODULE nElRDMMod
 
     end subroutine calc_rdmbiasfac
 
+    subroutine store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, SignI, iLutJ, procJ)
+    !We are spawning from iLutI to SpawnedParts(:,ValidSpawnedList(proc)).
+    !This routine stores the parent (D_i) with the spawned child (D_j) so that we can
+    !add in Ci.Cj to the RDM later on.
+    !The parent is NIfDBO integers long, and stored in the second part of the SpawnedParts array 
+    !from NIfTot+1 -> NIfTot+1 + NIfDBO.
+        USE DetBitOps , only : DetBitEQ
+        use FciMCData, only: SpawnedParts, ValidSpawnedList, TempSpawnedPartsInd, TempSpawnedParts
+        implicit none
+        real(dp), intent(in) :: RDMBiasFacCurr
+        integer, intent(in) :: WalkerNumber, procJ
+        integer, dimension(lenof_sign), intent(in) :: SignI
+        integer(kind=n_int), intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
+        logical :: tRDMStoreParent
+        integer :: j
+
+
+        if(RDMBiasFacCurr.eq.0.0_dp) then
+            ! If RDMBiasFacCurr is exactly zero, any contribution from Ci.Cj will be zero 
+            ! so it is not worth carrying on. 
+            ! This happens when we are only using initiators for the RDM, and Di is a non-initiator.
+
+            SpawnedParts(niftot+1:niftot+nifdbo+2, ValidSpawnedList(procJ)) = 0
+
+        else
+
+            ! First we want to check if this Di.Dj pair has already been accounted for.
+            ! This means searching the Dj's that have already been spawned from this Di, to make sure 
+            ! the new Di being spawned on here is not the same.
+            ! The Dj children spawned by the current Di are being stored in the array TempSpawnedParts, 
+            ! so that the reaccurance of a Di.Dj pair may be monitored.
+
+            ! Store the Di parent with the spawned child, unless we find this Dj has already been spawned on.
+            tRDMStoreParent = .true.
+
+            ! Run through the Dj walkers that have already been spawned from this particular Di.
+            ! If this is the first to be spawned from Di, TempSpawnedPartsInd will be zero, so we 
+            ! just wont run over anything.
+            do j = 1,TempSpawnedPartsInd
+                if(DetBitEQ(iLutJ(0:NIfDBO),TempSpawnedParts(0:NIfDBO,j),NIfDBO)) then
+                    ! If this Dj is found, we do not want to store the parent with this spawned walker.
+                    tRDMStoreParent = .false.
+                    EXIT
+                endif
+            enddo
+
+            if(tRDMStoreParent) then
+                ! This is a new Dj that has been spawned from this Di.
+                ! We want to store it in the temporary list of spawned parts which have come from this Di.
+                if(WalkerNumber.ne.abs(SignI(1))) then
+                    ! Don't bother storing these if we're on the last walker, or if we only have one 
+                    ! walker on Di.
+                    TempSpawnedPartsInd = TempSpawnedPartsInd + 1
+                    TempSpawnedParts(0:NIfDBO,TempSpawnedPartsInd) = iLutJ(0:NIfDBO)
+                endif
+
+                ! We also want to make sure the parent Di is stored with this Dj.
+                SpawnedParts(niftot+1:niftot+nifdbo+1, ValidSpawnedList(procJ)) = iLutI(0:nifdbo) 
+
+                ! We need to carry with the child (and the parent), the sign of the parent.
+                ! In actual fact this is the sign of the parent divided by the probability of generating 
+                ! that pair Di and Dj, to account for the 
+                ! fact that Di and Dj are not always added to the RDM, but only when Di spawns on Dj.
+                ! This RDMBiasFacCurr factor is turned into an integer to pass around to the relevant processors.
+                SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(procJ)) = &
+                    transfer(RDMBiasFacCurr,SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(procJ)))
+            else
+                ! This Di has already spawned on this Dj - don't store the Di parent with this child, 
+                ! so that the pair is not double counted.  
+                ! We are using the probability that Di spawns onto Dj *at least once*, so we don't want to 
+                ! double count this pair.
+                SpawnedParts(niftot+1:niftot+nifdbo+2, ValidSpawnedList(procJ)) = 0
+            endif
+        endif
+
+    end subroutine store_parent_with_spawned
+
+
+    subroutine check_fillRDM_DiDj(Spawned_No,iLutJ,realSignJ)
+! The spawned parts contain the Dj's spawned by the Di's in CurrentDets.
+! If the SpawnedPart is found in the CurrentDets list, it means that the Dj has a non-zero 
+! cj - and therefore the Di.Dj pair will have a non-zero ci.cj to contribute to the RDM.
+! The index i tells us where to look in the parent array, for the Di's to go with this Dj.
+        use CalcData , only : InitiatorWalkNo
+        use Logging , only : tInitiatorRDM
+        USE DetBitOps , only : DetBitEQ, FindBitExcitLevel
+        use FciMCData , only : iLutHF_True
+        implicit none
+        integer , intent(in) :: Spawned_No
+        integer(kind=n_int) , intent(in) :: iLutJ(0:NIfTot)
+        real(dp) , intent(in) :: realSignJ
+        integer :: ExcitLevel
+    
+        ! In all cases, we've already symmetrically added in 
+        ! connections to the HF, so we don't want to re add any pair 
+        ! containing the HF.
+        if(tHF_S_D) then 
+            ! In the case of the HF S D matrix (symmetric), Di and Dj can both 
+            ! be the HF, singles or doubles.
+            ! This is the excitation level of Dj.
+            ExcitLevel = FindBitExcitLevel (iLutHF_True, iLutJ, 2)
+            if((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) &
+                CALL DiDj_Found_FillRDM(Spawned_No,iLutJ,realSignJ)
+        elseif(tHF_S_D_Ref) then
+            ! In the case of the HF and singles and doubles Ref, 
+            ! Di is only ever the HF, and Dj is 
+            ! anything connected - i.e. up to quadruples.
+            ExcitLevel = FindBitExcitLevel (iLutHf_True, iLutJ, 4)
+            if((ExcitLevel.le.4).and.(ExcitLevel.ne.0)) &
+                CALL DiDj_Found_FillRDM(Spawned_No,iLutJ,realSignJ)
+        elseif(.not.DetBitEQ(iLutHF_True,iLutJ,NIfDBO)) then
+            if(tInitiatorRDM) then
+                if(abs(realSignJ).gt.real(InitiatorWalkNo,dp)) &
+                    CALL DiDj_Found_FillRDM(Spawned_No,iLutJ,realSignJ)
+            else
+                CALL DiDj_Found_FillRDM(Spawned_No,iLutJ,realSignJ)
+            endif
+        endif
+
+    end subroutine check_fillRDM_DiDj
+ 
 
     SUBROUTINE DiDj_Found_FillRDM(Spawned_No,iLutJ,realSignJ)
 ! This routine is called when we have found a Di (or multiple Di's) spawning onto a Dj 

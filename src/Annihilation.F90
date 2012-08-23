@@ -23,7 +23,7 @@ MODULE AnnihilationMod
                         extract_part_sign, copy_flag
     use csf_data, only: csf_orbital_mask
     use hist_data, only: tHistSpawn, HistMinInd2
-    use Logging , only : tHF_S_D_Ref, tHF_S_D, tHF_Ref_Explicit
+    use Logging , only : tHF_Ref_Explicit
     IMPLICIT NONE
 
     contains
@@ -736,9 +736,7 @@ MODULE AnnihilationMod
 !In the main list, we change the 'sign' element of the array to zero. 
 !These will be deleted at the end of the total annihilation step.
     SUBROUTINE AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew, iter_data)
-        use CalcData , only : InitiatorWalkNo
-        use Logging , only : tInitiatorRDM
-        use nElRDMMod , only : DiDj_Found_FillRDM
+        use nElRDMMod , only : check_fillRDM_DiDj
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer, intent(inout) :: TotWalkersNew
         integer, intent(inout) :: ValidSpawned 
@@ -823,14 +821,6 @@ MODULE AnnihilationMod
 !            call WriteBitDet(6,SpawnedParts(:,i),.true.)
 !            call WriteBitDet(6,CurrentDets(:,PartInd),.true.)
 
-!            IF(tFillingRDMonFly) THEN
-!                WRITE(6,*) 'SpawnedParts(:,i)',SpawnedParts(:,i)
-!                WRITE(6,*) 'Parents of this part'
-!                do j = Spawned_Parents_Index(1,i),Spawned_Parents_Index(1,i)+Spawned_Parents_Index(2,i)-1
-!                    WRITE(6,*) Spawned_Parents(:,j)
-!                enddo
-!            ENDIF
-
 !            WRITE(6,*) 'i,SpawnedParts(:,i)',i,SpawnedParts(:,i)
 
             IF(tSuccess) THEN
@@ -852,33 +842,8 @@ MODULE AnnihilationMod
                 ! If the SpawnedPart is found in the CurrentDets list, it means that the Dj has a non-zero 
                 ! cj - and therefore the Di.Dj pair will have a non-zero ci.cj to contribute to the RDM.
                 ! The index i tells us where to look in the parent array, for the Di's to go with this Dj.
-                if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) then
-                    ! In all cases, we've already symmetrically added in 
-                    ! connections to the HF, so we don't want to re add any pair 
-                    ! containing the HF.
-                    if(tHF_S_D) then 
-                        ! In the case of the HF S D matrix (symmetric), Di and Dj can both 
-                        ! be the HF, singles or doubles.
-                        ! This is the excitation level of Dj.
-                        ExcitLevel = FindBitExcitLevel (iLutHF_True, CurrentDets(:,PartInd), 2)
-                        if((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) &
-                            CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
-                    elseif(tHF_S_D_Ref) then
-                        ! In the case of the HF and singles and doubles Ref, 
-                        ! Di is only ever the HF, and Dj is 
-                        ! anything connected - i.e. up to quadruples.
-                        ExcitLevel = FindBitExcitLevel (iLutHf_True, CurrentDets(:,PartInd), 4)
-                        if((ExcitLevel.le.4).and.(ExcitLevel.ne.0)) &
-                            CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
-                    elseif(.not.DetBitEQ(iLutHF_True,CurrentDets(:,PartInd),NIfDBO)) then
-                        if(tInitiatorRDM) then
-                            if(abs(CurrentH(2,PartInd)).gt.real(InitiatorWalkNo,dp)) &
-                                CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
-                        else
-                            CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
-                        endif
-                    endif
-                endif
+                if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) &
+                    call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
 
                 if(sum(abs(CurrentSign)) .ne. 0) then
                     !Transfer across
