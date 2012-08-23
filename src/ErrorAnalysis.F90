@@ -626,7 +626,9 @@ module errors
                 if(eof.lt.0) then
                     exit
                 elseif(eof.gt.0) then
-                    call stop_all(t_r,"Error reading FCIMCStats file")
+                    if (iters > iShiftVary) then
+                        call stop_all(t_r,"Error reading FCIMCStats file")
+                    endif
                 endif
                 if(iters.gt.iShiftVary) then
                     i=i+1
