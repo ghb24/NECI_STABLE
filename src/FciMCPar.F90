@@ -1122,7 +1122,7 @@ MODULE FciMCParMod
                                             tParity, walkExcitLevel,part_type, &
                                             realchild)
                     else
-                        realchild(part_type) = 0.0_dp
+                        realchild = 0.0_dp
                     endif
 
                     ! Children have been chosen to be spawned.
@@ -1916,7 +1916,7 @@ MODULE FciMCParMod
                                  tParity, HElGen)
 
         if (rh .eq.0.0) ZeroMatrixElem=ZeroMatrixElem+1
-!        write(6,*) 'p,rh', prob, rh
+        !write(6,*) 'p,rh', prob, rh
 
         ! Are we doing real spawning?
         tRealSpawning = .false.
@@ -1934,9 +1934,6 @@ MODULE FciMCParMod
         ! rather than swap around DetCurr and nJ.
         rh = CONJG(rh)
 
-        ! Get the relevant weight from the particle
-        walkerweight = sign(1.0_dp, RealwSign(part_type))
-
         ! Spawn to real and imaginary particles. Note that spawning from
         ! imaginary parent particles has slightly different rules:
         !       - Attempt to spawn REAL walkers with prob +AIMAG(Hij)/P
@@ -1949,6 +1946,7 @@ MODULE FciMCParMod
             if (part_type == 2) component = 3 - tgt_cpt
 
             ! Get the correct part of the matrix element
+            walkerweight = sign(1.0_dp, RealwSign(part_type))
             if (component == 1) then
                 MatEl = real(rh, dp)
             else
@@ -1957,66 +1955,59 @@ MODULE FciMCParMod
                 if (part_type == 2) walkerweight = -walkerweight
             end if
 
+            nSpawn = - tau * MatEl * walkerweight / prob
             if (tRealSpawning) then
-                call stop_all(this_routine, 'Not Yet Implemented')
+                ! Continuous spawning. Add in acceptance probabilities.
+                if (tRealSpawnCutoff .and. &
+                    abs(nSpawn) < RealSpawnCutoff) then
+
+                    nSpawn = RealSpawnCutoff &
+                           * stochastic_round (nSpawn / RealSpawnCutoff)
+                end if
             else
                 ! How many children should we spawn?
-                nSpawn = - tau * MatEl * walkerweight / prob
                 if (tSearchTau) then
                     if (MaxSpawnProb < abs(nSpawn)) &
                         MaxSpawnProb = abs(nSpawn)
                 endif
 
                 ! And round this to an integer in the usual way
-                realchild(tgt_cpt) = real(stochastic_round (nSpawn), dp)
+                ! HACK: To use the same number of random numbers for the tests.
+                if (nspawn == 0) r = genrand_real2_dSFMT()
+                nSpawn = real(stochastic_round (nSpawn), dp)
             endif
+
+            ! And create the parcticles
+            realchild(tgt_cpt) = nSpawn
         enddo
 #else
 
-        walkerweight=sign(1.0_dp, realwSign(1))
+        ! How many particles should we attempt to spawn?
+        walkerweight = sign(1.0_dp, realwSign(1))
+        nSpawn = -tau * rh * walkerweight / prob
 
         if (tRealSpawning) then
-            !Continuous Spawning
-            !Simply add in the acceptance probability into the coefficient
-            realchild(1)=-tau*(rh/prob)*walkerweight
+            ! Continuous Spawning. Simply add the acceptance probability into
+            ! the coefficient
 
-            if (tRealSpawnCutoff .and. (abs(realchild(1)).lt.RealSpawnCutoff)) then
-                 !We don't want to bother spawning negligible coefficients everytime
-                 pSpawn=abs(realchild(1))/RealSpawnCutoff
-                 r = genrand_real2_dSFMT ()
-                 if (pSpawn > r) then
-                     !Keep this walker, and set equal to RealSpawnCutoff
-                     realchild(1)=sign(RealSpawnCutoff, -tau*(rh/prob)*walkerweight)
-                 else
-                     !Remove this walker -- do not spawn small coeff this time
-                     realchild(1)=0.d0
-                 endif
-             endif
+            if (tRealSpawnCutoff .and. &
+                abs(nSpawn) < RealSpawnCutoff) then
 
-            child(1)=transfer(realchild(1), child(1))
+                nSpawn = RealSpawnCutoff &
+                       * stochastic_round (nSpawn / RealSpawnCutoff)
+            end if
         else
-            rat = tau * abs(rh / prob) * abs(walkerweight)
-            if(tSearchTau) then
-                if(MaxSpawnProb.lt.rat) MaxSpawnProb = rat
+            if (tSearchTau) then
+                if (MaxSpawnProb < abs(nSpawn)) MaxSpawnProb = abs(nSpawn)
             endif
 
-            ! If probability > 1, then we just create multiple children at the
-            ! chosen determinant.
-            extraCreate = int(rat)
-            rat = rat - real(extraCreate, dp)
-
-            ! Stochastically choose whether to create or not.
-            r = genrand_real2_dSFMT ()
-            if (rat > r) then
-                !Create child
-                child(1) = -nint(sign(1.0_dp, walkerweight*real(rh,dp)))
-                child(1) = child(1) + sign(extraCreate, child(1))
-            elseif(extraCreate.ne.0) then
-                !Just return if any extra particles created
-                child(1) = -extraCreate*nint(sign(1.0_dp, walkerweight*real(rh,dp)))
-            endif
-            realchild=real(child(1),dp)
+            ! Round this to an integer in the usual way
+            if (nspawn == 0) r = genrand_real2_dSFMT()
+            nSpawn = stochastic_round (nSpawn)
         endif
+
+        ! Create the particles
+        realchild(1) = nSpawn
 
         ! Avoid compiler warnings
         iUnused = part_type

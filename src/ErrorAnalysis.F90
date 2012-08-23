@@ -383,12 +383,12 @@ module errors
         logical :: exists,tRefToZero
         integer :: eof,comments,i,ierr
         integer :: iunit,WalkersDiffProc
-        real(dp) :: doubs,change,Ann,Died,Born, rewalkers
+        real(dp) :: doubs,change,Ann,Died,Born, rewalkers, imwalkers
         real(dp) :: shift,rate,reproje,improje,reinstproje,iminstproje
         real(dp) :: AccRat,IterTime,FracFromSing,TotImagTime,HFShift,InstShift
         real(dp) :: denom,renum,imnum,normhf,norm_psi,curr_S2,Avshift,dud,tote
         real(dp) :: curr_S2_init,AbsProjE
-        integer(int64) :: TotDets,iters,imwalkers,validdata,datapoints
+        integer(int64) :: iters,validdata,datapoints,totdets
         real(dp), dimension(lenof_sign) :: insthf
         
         !Open file (FCIMCStats or FCIQMCStats)
@@ -423,8 +423,8 @@ module errors
 
                 if(lenof_sign.eq.2) then
                     !complex fcimcstats
-                    read(iunit,"(I12,G16.7,2I10,2I12,4G17.9,3I10,&
-                                          &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9)") &
+                    read(iunit,"(I12,5G16.7,7G17.9,G13.5,I12,G13.5,G17.5,&
+                               &I13,G13.5,8G17.9,3I13)", iostat=eof) &
                         iters, &                !1.
                         shift, &                              !2.
                         change, &   !3.
@@ -449,7 +449,8 @@ module errors
                         denom     !24     |n0|^2  This is the denominator for both calcs
                 else
                     read(iunit,"(I12,G16.7,3G16.7,3G16.7,5G17.9,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5, 5G17.9)") &
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5, 5G17.9)", &
+                                  iostat=eof) &
                         Iters, &
                         shift, &
                         change, &
@@ -480,19 +481,25 @@ module errors
                 if(eof.lt.0) then
                     exit
                 elseif(eof.gt.0) then
-                    call stop_all(t_r,"Error reading FCIMCStats file")
-                endif
-                datapoints=datapoints+1
-                if(iters.gt.iShiftVary) then
-                    if(abs(denom).lt.1.0e-5_dp) then
-                        !Denominator gone to zero - wipe the stats
+                    !call stop_all(t_r,"Error reading FCIMCStats file")
+                    if (iters > iShiftVary) then
                         tRefToZero = .true.
                         validdata=0
                         iShiftVary = Iters + 1
-                    else
-                        validdata=validdata+1
-                    endif
+                    end if
+                else
+                    if(iters.gt.iShiftVary) then
+                        if(abs(denom).lt.1.0e-5_dp) then
+                            !Denominator gone to zero - wipe the stats
+                            tRefToZero = .true.
+                            validdata=0
+                            iShiftVary = Iters + 1
+                        else
+                            validdata=validdata+1
+                        endif
+                    end if
                 endif
+                datapoints=datapoints+1
 
             else
                 !Just read it again without the advance=no to move onto the next line
@@ -552,8 +559,8 @@ module errors
 
                 if(lenof_sign.eq.2) then
                     !complex fcimcstats
-                    read(iunit,"(I12,G16.7,2I10,2I12,4G17.9,3I10,&
-                                          &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9)") &
+                    read(iunit,"(I12,5G16.7,7G17.9,G13.5,I12,G13.5,G17.5,&
+                               &I13,G13.5,8G17.9,3I13)", iostat=eof) &
                         iters, &                !1.
                         shift, &                              !2.
                         change, &   !3.
@@ -583,7 +590,8 @@ module errors
                         curr_S2
                 else
                     read(iunit,"(I12,G16.7,3G16.7,3G16.7,5G17.9,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5, 11G17.9)") &
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5, 11G17.9)",&
+                                  iostat=eof) &
                         Iters, &
                         shift, &
                         change, &

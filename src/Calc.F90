@@ -244,11 +244,11 @@ contains
           tRealCoeffByExcitLevel=.false.
           RealCoeffExcitThresh=2
           tRealSpawnCutoff=.false.
-          RealSpawnCutoff=1D-5
+          RealSpawnCutoff=1.0e-5
 
 !Feb 08 default set.
           IF(Feb08) THEN
-              RhoEpsilon=1.D-08
+              RhoEpsilon=1.0e-8
           ENDIF
 
           ! Spin Projection defaults
