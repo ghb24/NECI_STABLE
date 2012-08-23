@@ -1217,6 +1217,60 @@ MODULE nElRDMMod
     end subroutine Add_RDM_HFConnections_HF_S_D
 
 
+    subroutine calc_rdmbiasfac(mult_child,rat_remain,p_gen,AvSignCurr,SignCurr,RDMBiasFacCurr)
+        use CalcData , only : InitiatorWalkNo
+        implicit none
+        integer, intent(in) :: mult_child
+        real(dp), intent(in) :: rat_remain, p_gen, AvSignCurr
+        integer, dimension(lenof_sign), intent(in) :: SignCurr
+        real(dp) , intent(out) :: RDMBiasFacCurr
+        real(dp) :: p_spawn_rdmfac, p_notlist_rdmfac
+
+        ! We eventually turn this real bias factor into an integer to be passed around 
+        ! with the spawned children and their parents - this only works with 64 bit at the mo.
+        if(n_int.eq.4) CALL Stop_All('attempt_create_normal', &
+                        'the bias factor currently does not work with 32 bit integers.')
+
+        ! Otherwise calculate the 'sign' of Di we are eventually going to add in as Di.Dj.                                
+        ! Because we only add in Di.Dj when we successfully spawn from Di.Dj, we need to unbias (scale up) 
+        ! Di by the probability of this happening.
+        ! We need the probability that the determinant i, with population n_i, will spawn on j.
+        ! We only consider one instance of a pair Di,Dj, so just want the probability of any of the n_i 
+        ! walkers spawning at least once on Dj.
+        ! P_successful_spawn(j | i)[n_i] =  1 - P_not_spawn(j | i)[n_i]
+        ! P_not_spawn(j | i )[n_i] is the probability of none of the n_i walkers spawning on j from i.
+        ! This requires either not generating j, or generating j and not succesfully spawning, n_i times.
+        ! P_not_spawn(j | i )[n_i] = [(1 - P_gen(j | i)) + ( P_gen( j | i ) * (1 - P_spawn(j | i))]^n_i
+
+        if(mult_child.ne.0) then
+            ! This is the special case whereby if P_spawn(j | i) > 1, then we will definitely spawn from i -> j.
+            ! I.e. the pair Di,Dj will definitely be in the SpawnedParts list.
+            ! We don't care about multiple spawns - if it's in the list, it gets added in regardless of 
+            ! the number spawned - so if P_spawn(j | i) > 1, we treat it as = 1.
+            p_spawn_rdmfac = 1.D0
+        else
+            p_spawn_rdmfac = rat_remain
+        endif
+        p_notlist_rdmfac = ( 1.D0 - p_gen ) + ( p_gen * (1.D0 - p_spawn_rdmfac) )
+
+        ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i]
+        if(tInitiatorRDM) then
+            if(abs(AvSignCurr).gt.real(InitiatorWalkNo,dp)) then
+                ! The Di is an initiator (on average) - keep passing around its sign until we 
+                ! know if the Dj is an initiator.
+                RDMBiasFacCurr = AvSignCurr / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(SignCurr(1),dp))) ) )   
+            else
+                ! The determinant we are spawning from is not an initiator (on average) 
+                ! - do not want to add this Di.Dj contribution into the RDM.
+                RDMBiasFacCurr = 0.0_dp
+            endif
+        else
+            RDMBiasFacCurr = AvSignCurr / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(SignCurr(1),dp))) ) )   
+        endif
+
+    end subroutine calc_rdmbiasfac
+
+
     SUBROUTINE DiDj_Found_FillRDM(Spawned_No,iLutJ,realSignJ)
 ! This routine is called when we have found a Di (or multiple Di's) spawning onto a Dj 
 ! with sign /= 0 (i.e. occupied).

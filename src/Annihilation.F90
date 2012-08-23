@@ -435,7 +435,6 @@ MODULE AnnihilationMod
                     call extract_sign (SpawnedParts(:,BeginningBlockDet), temp_sign)
                     if(temp_sign(1).eq.0) then
                         Spawned_Parts_Zero = Spawned_Parts_Zero + 1
-                        GhostSpawns = GhostSpawns + 1
                     endif
                 ENDIF
                 VecInd=VecInd+1
@@ -648,10 +647,9 @@ MODULE AnnihilationMod
 
         if (new_sgn == 0) then
             ! New sign is just an entry from SpawnedParts - this should only ever be zero
-            ! in the complex case, or if we're spawning ghost children.
+            ! in the complex case. 
             ! If it is 0 and we're not filling the RDM (and therefore filling up the 
             ! Spawned_Parents array), can just ignore the zero entry.
-            GhostSpawns = GhostSpawns + 1
             if(.not.tFillingStochRDMonFly) return
         endif
         cum_sgn = extract_part_sign (cum_det, part_type)

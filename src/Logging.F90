@@ -30,13 +30,12 @@ MODULE Logging
     LOGICAL tRoHistOneElInts
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump,tRDMonFly,tDiagRDM,tDo_Not_Calc_RDMEnergy
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
-    LOGICAL tTruncDumpbyVal, tChangeVarsRDM, tPrintRODump, tSpawnGhostChild, tno_RDMs_to_read, tReadRDMs
+    LOGICAL tTruncDumpbyVal, tChangeVarsRDM, tPrintRODump, tno_RDMs_to_read, tReadRDMs
     LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit,tPrintDoubsUEG, tWriteMultRDMs
     LOGICAL tHF_S_D_Ref, tHF_S_D, tHF_Ref_Explicit, tExplicitAllRDM, twrite_normalised_RDMs, twrite_RDMs_to_read 
     LOGICAL tNoNOTransform, tPrint1RDM, tPrintInitiators, tInitiatorRDM
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps,IterShiftBlock
     INTEGER IterRDMonFly, RDMExcitLevel, RDMEnergyIter, IterWriteRDMs 
-    real(dp) GhostThresh, GhostFac
     INTEGER CCMCDebug  !CCMC Debugging Level 0-6.  Default 0
     INTEGER FCIMCDebug !FciMC Debugging Level 0-6.  Default 0
 
@@ -177,9 +176,6 @@ MODULE Logging
       tHF_S_D_Ref = .false.
       tHF_S_D = .false.
       tHF_Ref_Explicit = .false.
-      tSpawnGhostChild = .false.
-      GhostThresh = 1.0E-5
-      GhostFac = 1.0
       twrite_normalised_RDMs = .true. 
       twrite_RDMs_to_read = .false.
       tno_RDMs_to_read = .false.
@@ -594,15 +590,6 @@ MODULE Logging
 ! Requires a popsfile to be written out.  Writes out the initiator populations. 
             tPrintInitiators = .true.
         
-        case("RDMGHOSTCHILD")
-! In this case, if the probability of spawning on a given Dj, generated from Di, is less than GhostThresh (a real), 
-! the probability is increased to the probability of spawning multiplied by GhostFac (also a real), and if the spawning 
-! would then be accepted, a 'ghost child' is created, i.e. child is still equal to zero, but the DiDj pair are put in the 
-! spawning array to later contribute to the reduced density matrices.
-            tSpawnGhostChild = .true.
-            call readf(GhostThresh)
-            call readf(GhostFac)
-
         case("WRITERDMSTOREAD")
 ! Writes out the unnormalised RDMs (in binary), so they can be read back in, and the calculations restarted at a later point.            
 ! This is also tied to the POPSFILE/BINARYPOPS keyword - so if we're writing a normal POPSFILE, we'll write this too, 

@@ -41,7 +41,7 @@ MODULE FciMCData
       INTEGER , ALLOCATABLE :: Spawned_Parents_Index(:,:)
       INTEGER :: Spawned_ParentsTag, Spawned_Parents_IndexTag
       REAL(dp) :: SumSigns, SumSpawns, AvNoatHF
-      LOGICAL :: tFillingStochRDMonFly, tFillingExplicRDMonFly, tGhostChild
+      LOGICAL :: tFillingStochRDMonFly, tFillingExplicRDMonFly
       integer :: Spawned_Parts_Zero, HFInd, NCurrH, IterRDMStart, IterRDM_HF
       integer, dimension(lenof_sign) :: InstNoatHf
 
@@ -56,14 +56,14 @@ MODULE FciMCData
       INTEGER :: NoAbortedInCAS,NoAbortedOutCAS,NoInCAS,NoOutCAS,HighPopNeg,HighPopPos,MaxInitPopNeg,MaxInitPopPos
 
     integer(int64) :: NoAborted, NoAddedInitiators, NoInitDets, NoNonInitDets
-    integer(int64) :: NoInitWalk, NoNonInitWalk, GhostSpawns
+    integer(int64) :: NoInitWalk, NoNonInitWalk
     integer(int64) :: NoExtraInitDoubs, InitRemoved
     integer :: no_spatial_init_dets
 
     integer(int64) :: AllNoAborted, AllNoAddedInitiators, AllNoInitDets
     integer(int64) :: AllNoNonInitDets, AllNoInitWalk, AllNoNonInitWalk
     integer(int64) :: AllNoExtraInitDoubs, AllInitRemoved
-    integer(int64) :: AllNoAbortedOld, AllGrowRateAbort, AllGhostSpawns
+    integer(int64) :: AllNoAbortedOld, AllGrowRateAbort
 
       LOGICAL :: tHFInitiator,tPrintHighPop, tcurr_initiator
       logical :: tHashWalkerList    !Option to store occupied determinant in a hash table

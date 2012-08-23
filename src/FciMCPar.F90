@@ -63,8 +63,7 @@ MODULE FciMCParMod
                        instant_s2_multiplier, tMCOutput, tSplitProjEHist, &
                        tSplitProjEHistG, tSplitProjEHistK3, iProjEBins, &
                        tDiagWalkerSubspace,iDiagSubspaceIter, &
-                       tRDMonFly, IterRDMonFly, tSpawnGhostChild, &
-                       GhostFac, GhostThresh,RDMExcitLevel, RDMEnergyIter, &
+                       tRDMonFly, IterRDMonFly,RDMExcitLevel, RDMEnergyIter, &
                        tChangeVarsRDM, tExplicitAllRDM, tHF_Ref_Explicit, &
                        tHF_S_D_Ref, tHF_S_D, tInitiatorRDM,    &
                        tDiagWalkerSubspace, iDiagSubspaceIter, &
@@ -1281,7 +1280,7 @@ MODULE FciMCParMod
                     endif
 
                     ! Children have been chosen to be spawned.
-                    if ((any(child /= 0)).or.tGhostChild) then
+                    if (any(child /= 0)) then
                         ! We know we want to create a particle of this type.
                         ! Encode the bit representation if it isn't already.
 
@@ -2153,6 +2152,7 @@ MODULE FciMCParMod
                                     wSign, nJ, iLutnJ, prob, HElGen, ic, ex, tparity,&
                                     walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr) result(child)
 
+        use nElRDMMod , only : calc_rdmbiasfac                                
         integer, intent(in) :: DetCurr(nel), nJ(nel)
         integer, intent(in) :: part_type    ! 1 = Real parent particle, 2 = Imag parent particle
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
@@ -2182,9 +2182,8 @@ MODULE FciMCParMod
             end function
         end interface
         
-        real(dp) :: rat, r, p_spawn_rdmfac, p_notlist_rdmfac
-        integer :: extracreate, iUnused,j
-        logical :: tpspawn_gt1
+        real(dp) :: rat, r
+        integer :: extracreate, iUnused
         HElement_t :: rh
 #ifdef __CMPLX
         ! Avoid compiler warnings when compiling the real version.
@@ -2349,96 +2348,11 @@ MODULE FciMCParMod
             ! Avoid compiler warnings
             iUnused = part_type
 
-            if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) then
-                if(tSpawnGhostChild) then
-
-                    ! We eventually turn this real bias factor into an integer to be passed around 
-                    ! with the spawned children and their parents - this only works with 64 bit at the mo.
-                    if(n_int.eq.4) CALL Stop_All('attempt_create_normal', &
-                                    'the bias factor currently does not work with 32 bit integers.')
-
-                    ! Otherwise calculate the 'sign' of Di we are eventually going to add in as Di.Dj.                                
-                    ! Because we only add in Di.Dj when we successfully spawn from Di.Dj, we need to unbias (scale up) 
-                    ! Di by the probability of this happening.
-                    ! We need the probability that the determinant i, with population n_i, will spawn on j.
-                    ! We only consider one instance of a pair Di,Dj, so just want the probability of any of the n_i 
-                    ! walkers spawning at least once on Dj.
-                    ! P_successful_spawn(j | i)[n_i] =  1 - P_not_spawn(j | i)[n_i]
-                    ! P_not_spawn(j | i )[n_i] is the probability of none of the n_i walkers spawning on j from i.
-                    ! This requires either not generating j, or generating j and not succesfully spawning, n_i times.
-                    ! P_not_spawn(j | i )[n_i] = [(1 - P_gen(j | i)) + ( P_gen( j | i ) * (1 - P_spawn(j | i))]^n_i
-
-                    tGhostChild = .false.
-                    if(extraCreate.ne.0) then
-                        ! This is the special case whereby if P_spawn(j | i) > 1, then we will definitely spawn from i -> j.
-                        ! I.e. the pair Di,Dj will definitely be in the SpawnedParts list.
-                        ! We don't care about multiple spawns - if it's in the list, it gets added in regardless of 
-                        ! the number spawned - so if P_spawn(j | i) > 1, we treat it as = 1.
-                        p_spawn_rdmfac = 1.D0
-                    elseif(rat.lt.GhostThresh) then
-                        ! If we're spawning 'ghost' children, we give DiDj pairs with small H elements a chance 
-                        ! to contribute to the RDM, while still not spawning children.
-                        ! The probability of spawning is scaled up by a chosen GhostFac (from input file), 
-                        ! and if a spawn occurs with this new probability, the child determinant is stored, but with 
-                        ! no actual chilidren.
-                        p_spawn_rdmfac = rat*GhostFac
-                        if ((child(1).eq.0).and.((rat*GhostFac) .gt. r)) then
-                            tGhostChild = .true.
-                        else
-                            tGhostChild = .false.
-                        endif
-                    else
-                        p_spawn_rdmfac = rat
-                    endif
-                    p_notlist_rdmfac = ( 1.D0 - prob ) + ( prob * (1.D0 - p_spawn_rdmfac) )
-
-                    ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i]
-                    RDMBiasFacCurr = AvSignCurr / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp))) ) )   
-
-                elseif(child(1).ne.0) then
-
-                    ! We eventually turn this real bias factor into an integer to be passed around 
-                    ! with the spawned children and their parents - this only works with 64 bit at the mo.
-                    if(n_int.eq.4) CALL Stop_All('attempt_create_normal', &
-                                    'the bias factor currently does not work with 32 bit integers.')
-
-                    ! Otherwise calculate the 'sign' of Di we are eventually going to add in as Di.Dj.                                
-                    ! Because we only add in Di.Dj when we successfully spawn from Di.Dj, we need to unbias (scale up) 
-                    ! Di by the probability of this happening.
-                    ! We need the probability that the determinant i, with population n_i, will spawn on j.
-                    ! We only consider one instance of a pair Di,Dj, so just want the probability of any of the n_i 
-                    ! walkers spawning at least once on Dj.
-                    ! P_successful_spawn(j | i)[n_i] =  1 - P_not_spawn(j | i)[n_i]
-                    ! P_not_spawn(j | i )[n_i] is the probability of none of the n_i walkers spawning on j from i.
-                    ! This requires either not generating j, or generating j and not succesfully spawning, n_i times.
-                    ! P_not_spawn(j | i )[n_i] = [(1 - P_gen(j | i)) + ( P_gen( j | i ) * (1 - P_spawn(j | i))]^n_i
-
-                    tGhostChild = .false.
-                    if(extraCreate.ne.0) then
-                        ! This is the special case whereby if P_spawn(j | i) > 1, then we will definitely spawn from i -> j.
-                        ! I.e. the pair Di,Dj will definitely be in the SpawnedParts list.
-                        ! We don't care about multiple spawns - if it's in the list, it gets added in regardless of 
-                        ! the number spawned - so if P_spawn(j | i) > 1, we treat it as = 1.
-                        p_spawn_rdmfac = 1.D0
-                    else
-                        p_spawn_rdmfac = rat
-                    endif
-                    p_notlist_rdmfac = ( 1.D0 - prob ) + ( prob * (1.D0 - p_spawn_rdmfac) )
-
-                    ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i]
-                    if(tInitiatorRDM) then
-                        if(abs(AvSignCurr).gt.real(InitiatorWalkNo,dp)) then
-                            ! The Di is an initiator (on average) - keep passing around its sign until we 
-                            ! know if the Dj is an initiator.
-                            RDMBiasFacCurr = AvSignCurr / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp))) ) )   
-                        else
-                            ! The determinant we are spawning from is not an initiator (on average) 
-                            ! - do not want to add this Di.Dj contribution into the RDM.
-                            RDMBiasFacCurr = 0.0_dp
-                        endif
-                    else
-                        RDMBiasFacCurr = AvSignCurr / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp))) ) )   
-                    endif
+            if(tFillingStochRDMonFly) then
+                if((child(1).ne.0).and.(.not.tHF_Ref_Explicit)) then
+                    call calc_rdmbiasfac(extraCreate, rat, prob, AvSignCurr, wSign, RDMBiasFacCurr) 
+                else
+                    RDMBiasFacCurr = 0.0_dp
                 endif
             else
                 ! Not filling the RDM stochastically, bias is zero.
@@ -3836,7 +3750,7 @@ MODULE FciMCParMod
         integer :: int_tmp(5+2*lenof_sign), proc, sgn(lenof_sign), pos, i
         HElement_t :: helem_tmp(3)
         HElement_t :: real_tmp(2)!*lenof_sign)
-        integer(int64) :: int64_tmp(9),TotWalkersTemp
+        integer(int64) :: int64_tmp(8),TotWalkersTemp
         type(fcimc_iter_data) :: iter_data
         integer(int64), dimension(lenof_sign), intent(in) :: tot_parts_new
         integer(int64), dimension(lenof_sign), intent(out) :: tot_parts_new_all
@@ -3864,8 +3778,8 @@ MODULE FciMCParMod
         if (tTruncInitiator) then
             call MPISum ((/NoAborted, NoAddedInitiators, NoInitDets, &
                            NoNonInitDets, NoInitWalk, NoNonInitWalk, &
-                           NoExtraInitdoubs, InitRemoved, GhostSpawns/),&
-                          int64_tmp(1:9))
+                           NoExtraInitdoubs, InitRemoved/),&
+                          int64_tmp(1:8))
             AllNoAborted = int64_tmp(1)
             AllNoAddedInitiators = int64_tmp(2)
             AllNoInitDets = int64_tmp(3)
@@ -3874,7 +3788,6 @@ MODULE FciMCParMod
             AllNoNonInitWalk = int64_tmp(6)
             AllNoExtraInitDoubs = int64_tmp(7)
             AllInitRemoved = int64_tmp(8)
-            AllGhostSpawns = int64_tmp(9)
         endif
 
         ! 64bit integers
@@ -4174,7 +4087,6 @@ MODULE FciMCParMod
         InitRemoved = 0
 
         NoAborted = 0
-        GhostSpawns = 0
 
         iter_data%nborn = 0
         iter_data%ndied = 0
@@ -4296,7 +4208,7 @@ MODULE FciMCParMod
             IF(tTruncInitiator.or.tDelayTruncInit) THEN
                 WRITE(initiatorstats_unit,"(A2,A10,11A20)") "# ","1.Step","2.TotWalk","3.Annihil","4.Died", &
                 & "5.Born","6.TotUniqDets",&
-&               "7.InitDets","8.NonInitDets","9.InitWalks","10.NonInitWalks","11.AbortedWalks","12.GhostSpawns"
+&               "7.InitDets","8.NonInitDets","9.InitWalks","10.NonInitWalks","11.AbortedWalks"
             ENDIF
             IF(tLogComplexPops) THEN
                 WRITE(complexstats_unit,"(A)") '#   1.Step  2.Shift     3.RealShift     4.ImShift   5.TotParts      " &
@@ -4518,7 +4430,7 @@ MODULE FciMCParMod
                    Iter + PreviousCycles, sum(AllTotParts), &
                    AllAnnihilated, AllNoDied, AllNoBorn, AllTotWalkers,&
                    AllNoInitDets, AllNoNonInitDets, AllNoInitWalk, &
-                   AllNoNonInitWalk,AllNoAborted,AllGhostSpawns
+                   AllNoNonInitWalk,AllNoAborted
             endif
 
             if (tLogComplexPops) then
@@ -5265,7 +5177,6 @@ MODULE FciMCParMod
         SumDiagSftAbort=0.D0
         AvDiagSftAbort=0.D0
         NoAborted=0
-        GhostSpawns = 0
         NoAddedInitiators=0
         NoInitDets=0
         NoNonInitDets=0
@@ -5299,7 +5210,6 @@ MODULE FciMCParMod
         AllHFCyc=0.D0
 !        AllDetsNorm=0.D0
         AllNoAborted=0
-        AllGhostSpawns = 0
         AllNoAddedInitiators=0
         AllNoInitDets=0
         AllNoNonInitDets=0
@@ -7225,7 +7135,6 @@ MODULE FciMCParMod
         tFillingStochRDMonFly = .false.      
         tFillingExplicRDMonFly = .false.      
         !One of these becomes true when we have reached the relevant iteration to begin filling the RDM.
-        tGhostChild = .false.
 
         !If the iteration specified to start filling the RDM has already been, want to 
         !start filling as soon as possible.
