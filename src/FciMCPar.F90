@@ -4758,9 +4758,9 @@ MODULE FciMCParMod
         ProjEDet = HFDet
 
         ALLOCATE(iLutHF_True(0:NIfTot),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutHF_True")
+        IF(ierr.ne.0) CALL Stop_All(t_r,"Cannot allocate memory for iLutHF_True")
         ALLOCATE(HFDet_True(NEl),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for HFDet_True")
+        IF(ierr.ne.0) CALL Stop_All(t_r,"Cannot allocate memory for HFDet_True")
 
         if(tRef_Not_HF) then
             do i = 1, NEl

@@ -554,41 +554,6 @@ contains
 
     end subroutine
 
-    subroutine decode_bit_det_rdm (nI, ilut, avsgn, sgnfac)
-
-        ! This is a routine to take a determinant in bit form and construct
-        ! the natural ordered Nel integer form of the det.
-        ! While doing so, it also adds in the diagonal contributions to 
-        ! the RDM.
-
-        integer, intent(out) :: nI(nel)
-        integer(n_int), intent(in) :: ilut(0:NIftot)
-        real(dp), intent(in) :: avsgn, sgnfac
-        integer :: nopen, i, j, k, val, elec, offset, pos
-        integer :: nI_prev(nel), prev
-
-        elec = 0
-        offset = 0
-        prev = 0
-        do i = 0, NIfD
-            do j = 0, bits_n_int - 1, 8
-                val = iand(ishft(ilut(i), -j), Z'FF')
-                do k = 1, decode_map_arr(0, val)
-                    elec = elec + 1
-                    nI(elec) = offset + decode_map_arr(k, val)
-                    call Fill_Diag_RDM_FromOrbs(nI(elec), nI_Prev(:), prev, avsgn, sgnfac)
-                    if (elec == nel) return ! exit
-                    prev = prev + 1
-                    nI_prev(prev) = nI(elec)
-                enddo
-!                    if (elec == nel) exit
-                offset = offset + 8
-            enddo
-!                if (elec == nel) exit
-        enddo
-
-    end subroutine
-
     subroutine decode_bit_det_bitwise (nI, iLut)
 
         ! This is a routine to take a determinant in bit form and construct 

@@ -152,7 +152,8 @@ MODULE SymExcit3
         INTEGER, intent(in) :: nI(NEl),exflag
         integer, intent(out) :: nJ(NEl)
         integer, intent(inout) :: ExcitMat3(2,2)
-        LOGICAL, intent(out) :: tAllExcitFound,tParity,ti_lt_a_only
+        LOGICAL, intent(out) :: tAllExcitFound,tParity
+        LOGICAL, intent(in) :: ti_lt_a_only
 
         IF(exflag.eq.2) THEN
 ! Just generate doubles            
