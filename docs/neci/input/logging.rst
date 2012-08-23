@@ -457,23 +457,27 @@ Reduced Density Matrix (RDM) Options
 Currently the 2-RDMs can only be calculated for closed shell systems.  However, calculation of the 1-RDM only, 
 and the following diagonalisation is set up for either open shell or closed shell systems.
 
-Also, for efficiency, the diagonal elements of the RDMs (and explicit connections to the HF determinant) 
-are only calculated when the energy or RDM itself is required, so either every time the energy is printed, 
-or at the very end of the calculation.  Therefore, for an expensive calculation, it is worth only 
-calculating the energy at the end, or only a few times throughout the calculation. 
+The theory behind the calculation of the RDMs can be found in my (Deidre's) thesis (Chapter 7).
+
+The only thing that differs significantly in the more recent code is that, for efficiency, the 
+diagonal elements of the RDMs (and explicit connections to the HF determinant) 
+are only calculated during the iteration whereby the energy or RDM itself is required.  This is either 
+every time the energy is printed, or at the very end of the calculation.  
+Therefore, for an expensive calculation, it is worth only 
+calculating the energy at the end, or only a few times throughout the calculation, to avoid the N^2 operation 
+required for each determinant to fill the diagonal RDM elements.
 
 The calculation of the diagonal elements is done by keeping track of the average walker populations of each 
 occupied determinant, and how long it has been occupied.  The diagonal element from Di is then calculated 
-as <Ci> x <Ci> x No. of iterations Di has been occupied, and this is included every time a determinant becomes 
+as <Ci> x <Ci> x [No. of iterations Di has been occupied], and this is included every time a determinant becomes 
 unoccupied, at the end of the calculation, or if the energy from the RDMs is to be calculated. 
 
-Because the average occupation is accumulated while the RDMs are being calculated (and not currently zero-ed), 
+Because the average occupation is accumulated while the RDMs are being calculated (and is not currently zero-ed), 
 calculations with the energy calculated at different frequencies will have very slightly different RDMs.  
 This difference appears to be too small to be a problem, but is noted here to avoid unnecessary debugging. 
 
 The average populations are also used for the stochastic elements, which are accumulated throughout the 
-calculation of the RDMs.  See my (Deidre's) thesis (Chapter 7) for further explanation of how and why this is done.
-
+calculation of the RDMs.  Further explanation of how and why this is done can be found in my thesis.
 
 **CALCRDMONFLY** [RDMExcitLevel] [RDMIterStart] [RDMEnergyIter]
     This is the main keyword for calculating the RDMs from an FCIQMC wavefunction.  It requires 3 integers.
@@ -519,12 +523,10 @@ Types of calculation
     included stochastically.  Like **HFREFRDMEXPLICIT**, this matrix will not be hermitian and the energy not variational.  
     Cannot use **HPHF** with this type of calculation.
 
-**RDMGHOSTCHILD** [GhostThresh] [GhostFac]
-    This option is to be used with any of the methods with stochastic construction of the RDMs.  In this case, if 
-    the probability of spawning on a given Dj, generated from Di, is less than GhostThresh (a real), the probability 
-    is increased to the probability of spawning multiplied by GhostFac (also a real).  If the spawning would then be 
-    accepted, a 'ghost child' is created, i.e. child is still equal to zero, but the DiDj pair are put in the 
-    spawning array to later contribute to the reduced density matrices.
+**RDMGHOSTCHILD** 
+    This option is discussed in my thesis, but has been removed because it is virtually never used, doesn't actually 
+    work very well for most systems, and complicated the code a bit.  The version where it is removed was noted in the 
+    logs if it needs to be put back in.
 
 Options referring to the 1-RDM.
 
