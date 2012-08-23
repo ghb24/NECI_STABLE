@@ -6173,7 +6173,7 @@ MODULE FciMCParMod
         else
 
             ! Sum in energy contribution
-            if (iter > NEquilSteps)  &
+            if (iter > NEquilSteps) &
                 SumENum = SumENum + (HOffDiag * ARR_RE_OR_CPLX(RealwSign)) / dProbFin
             
             ENumCyc = ENumCyc + (HOffDiag * ARR_RE_OR_CPLX(RealwSign)) / dProbFin

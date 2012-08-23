@@ -215,7 +215,7 @@ SUBROUTINE CalcClusterEnergy (tFCI,AL,iAmpList,nExcit,ExcitList,ExcitLevelIndex,
             else
                temp_sign(lenof_sign)=i
             endif
-            realtemp_sign=transfer(temp_sign, realtemp_sign)
+            realtemp_sign = temp_sign
              call SumEContrib(DetCurr,iC,realtemp_sign,ExcitList(:,j),dTmp,1/dAmp)
          endif
 ! Deal with T_1^2
@@ -266,7 +266,7 @@ SUBROUTINE CalcClusterEnergy (tFCI,AL,iAmpList,nExcit,ExcitList,ExcitLevelIndex,
 #else
                      temp_sign(1)=iSgn
 #endif
-                     realtemp_sign=transfer(temp_sign, realtemp_sign)
+                     realtemp_sign = temp_sign
                      call SumEContrib(DetCurr,2,realtemp_sign,iLutnI(:),dTmp,1/dAmp)
                   endif
                endif
