@@ -3493,15 +3493,20 @@ MODULE nElRDMMod
                                 ! find the hermiticity error in the final matrix (after all runs).
                                 if(tNormalise.and.((Ind1_aa.le.Ind2_aa).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
                                     
-                                    IF((abs((All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)-(All_aaaa_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
-                                        Max_Error_Hermiticity = abs((All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)-(All_aaaa_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))
+                                    IF((abs((All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                - (All_aaaa_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
+                                        Max_Error_Hermiticity = abs((All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                                    - (All_aaaa_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))
 
                                     Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
-                                                            abs((All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)-(All_aaaa_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))
+                                                            abs((All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                                    - (All_aaaa_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))
 
                                     Sum_Herm_Percent = Sum_Herm_Percent +   &
-                                                        ( abs((All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)-(All_aaaa_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM)) / &
-                                                        (abs((All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)+(All_aaaa_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM)) / 2.0_dp) )
+                                                        (abs((All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                                - (All_aaaa_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM)) / &
+                                                        (abs((All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                                + (All_aaaa_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM)) / 2.0_dp) )
                                     No_Herm_Elements = No_Herm_Elements + 1                                                        
 
                                     if(tmake_herm) then                                                            
@@ -3535,15 +3540,20 @@ MODULE nElRDMMod
                                 (All_abba_RDM(Ind2_aa,Ind1_aa).ne.0.0_dp) ) then
                                 if(tNormalise.and.((Ind1_aa.le.Ind2_aa).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
 
-                                    IF((abs((All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)-(All_abba_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
-                                        Max_Error_Hermiticity = abs((All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)-(All_abba_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))
+                                    IF((abs((All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                - (All_abba_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
+                                        Max_Error_Hermiticity = abs((All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                - (All_abba_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))
 
                                     Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
-                                                            abs((All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)-(All_abba_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))
+                                                            abs((All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                                    - (All_abba_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))
 
                                     Sum_Herm_Percent = Sum_Herm_Percent +   &
-                                                        ( abs((All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)-(All_abba_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM)) / &
-                                                        (abs((All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM)+(All_abba_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM)) / 2.0_dp) )
+                                                        (abs((All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                        - (All_abba_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM)) / &
+                                                        (abs((All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                        + (All_abba_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM)) / 2.0_dp) )
                                     No_Herm_Elements = No_Herm_Elements + 1                                                        
 
                                     if(tmake_herm) then                                                            
@@ -3572,15 +3582,20 @@ MODULE nElRDMMod
                         if( (All_abab_RDM(Ind1_ab,Ind2_ab).ne.0.0_dp).or.&
                             (All_abab_RDM(Ind2_ab,Ind1_ab).ne.0.0_dp) ) then
 
-                            IF((abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM)-(All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
-                                Max_Error_Hermiticity = abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM)-(All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM))
+                            IF((abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM) &
+                                        - (All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
+                                Max_Error_Hermiticity = abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM) &
+                                        - (All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM))
 
                             Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
-                                                    abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM)-(All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM))
+                                                    abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM) &
+                                                        - (All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM))
 
                             Sum_Herm_Percent = Sum_Herm_Percent +   &
-                                                ( abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM)-(All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM)) / &
-                                                (abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM)+(All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM)) / 2.0_dp) )
+                                                (abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM) &
+                                                    - (All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM)) / &
+                                                (abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM) &
+                                                    + (All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM)) / 2.0_dp) )
                             No_Herm_Elements = No_Herm_Elements + 1                                                        
 
                             if(tmake_herm) then                                                            
@@ -3616,9 +3631,12 @@ MODULE nElRDMMod
         close(abba_RDM_unit)
 
         if(tNormalise.and.(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref))) then
-            write(6,'(I15,F30.20,A20,A39)') Iter+PreviousCycles, Max_Error_Hermiticity, '( Iteration,',' MAX ABS ERROR IN HERMITICITY )'
-            write(6,'(I15,F30.20,A20,A39)') Iter+PreviousCycles, Sum_Error_Hermiticity, '( Iteration,',' SUM ABS ERROR IN HERMITICITY )'
-            write(6,'(I15,F30.20,A20,A51)') Iter+PreviousCycles, Sum_Herm_Percent/real(No_Herm_Elements,dp), '( Iteration,',' AVERAGE ABS PERCENTAGE HERMITICITY ERROR )'
+            write(6,'(I15,F30.20,A20,A39)') Iter+PreviousCycles, Max_Error_Hermiticity, &
+                                            '( Iteration,',' MAX ABS ERROR IN HERMITICITY )'
+            write(6,'(I15,F30.20,A20,A39)') Iter+PreviousCycles, Sum_Error_Hermiticity, &
+                                            '( Iteration,',' SUM ABS ERROR IN HERMITICITY )'
+            write(6,'(I15,F30.20,A20,A51)') Iter+PreviousCycles, Sum_Herm_Percent/real(No_Herm_Elements,dp), &
+                                            '( Iteration,',' AVERAGE ABS PERCENTAGE HERMITICITY ERROR )'
         endif
 
 !        Tot_Spin_Projection = Tot_Spin_Projection + (3.D0 * real(NEl,dp))
@@ -3843,7 +3861,7 @@ MODULE nElRDMMod
                                                     * REAL(TMAT2D(jSpin,iSpin),8) &
                                                     * (1.0_dp / real(NEl - 1,dp)) )
 
-                if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then                                                
+                if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then  
                     NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
                             NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
                                         + ( All_abab_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM &
@@ -3862,7 +3880,7 @@ MODULE nElRDMMod
                                             * REAL(TMAT2D(iSpin,jSpin),8) &
                                             * (1.0_dp / real(NEl - 1,dp)) )
 
-                if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then                                                
+                if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then 
                     NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
                             NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
                                         + ( All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
@@ -4109,7 +4127,8 @@ MODULE nElRDMMod
                         else
                             if(NatOrbMat(SymLabelListInv_rot(jSpat),i).ne.0.0_dp) then
                                 write(NatOrbs_unit,'(2I6,2G35.17)') j,NO_Number,&
-                                                        NatOrbMat(SymLabelListInv_rot(jSpat),i), Evalues(i)/Norm_Evalues
+                                                        NatOrbMat(SymLabelListInv_rot(jSpat),i), &
+                                                        Evalues(i)/Norm_Evalues
                                 tWrittenEvalue = .true.
                             endif
                         endif
@@ -5048,14 +5067,16 @@ MODULE nElRDMMod
                 PartInd=N
                 RETURN
             ELSEIF((Comp.eq.1).and.(i.ne.N)) THEN
-!The value of the determinant at N is LESS than the determinant we're looking for. Therefore, move the lower bound of the search up to N.
+!The value of the determinant at N is LESS than the determinant we're looking for. Therefore, move the lower 
+!bound of the search up to N.
 !However, if the lower bound is already equal to N then the two bounds are consecutive and we have failed...
                 i=N
             ELSEIF(i.eq.N) THEN
 
 
                 IF(i.eq.MaxInd-1) THEN
-!This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
+!This deals with the case where we are interested in the final/first entry in the list. Check the final 
+!entry of the list and leave
 !We need to check the last index.
                     Comp=DetBitLT(CurrentDets(:,i+1),iLut(:),NIfDBO)
                     IF(Comp.eq.0) THEN
@@ -5098,7 +5119,6 @@ MODULE nElRDMMod
         PartInd=MAX(MinInd,i-1)
 
     END SUBROUTINE BinSearchParts_rdm
-
 
 END MODULE nElRDMMod
 
