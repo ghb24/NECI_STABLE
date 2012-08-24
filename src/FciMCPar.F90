@@ -3624,18 +3624,18 @@ MODULE FciMCParMod
                     AvDiagSft = SumDiagSft / real(VaryShiftCycles, dp)
                 endif
 
-                ! Update DiagSftAbort for initiator algorithm
-                if (tTruncInitiator) then
-                    DiagSftAbort = DiagSftAbort - &
-                              (log(real(AllGrowRateAbort-TargetGrowRate, dp)) * SftDamp) / &
-                              (Tau * StepsSft)
-
-                    if (iter - VaryShiftIter >= nShiftEquilSteps) then
-                        SumDiagSftAbort = SumDiagSftAbort + DiagSftAbort
-                        AvDiagSftAbort = SumDiagSftAbort / &
-                                         real(VaryShiftCycles, dp)
-                    endif
-                endif
+!                ! Update DiagSftAbort for initiator algorithm
+!                if (tTruncInitiator) then
+!                    DiagSftAbort = DiagSftAbort - &
+!                              (log(real(AllGrowRateAbort-TargetGrowRate, dp)) * SftDamp) / &
+!                              (Tau * StepsSft)
+!
+!                    if (iter - VaryShiftIter >= nShiftEquilSteps) then
+!                        SumDiagSftAbort = SumDiagSftAbort + DiagSftAbort
+!                        AvDiagSftAbort = SumDiagSftAbort / &
+!                                         real(VaryShiftCycles, dp)
+!                    endif
+!                endif
             endif
 
             ! Calculate the instantaneous 'shift' from the HF population
@@ -4754,8 +4754,8 @@ MODULE FciMCParMod
         AvDiagSft=0.D0
         SumDiagSft=0.D0
         SumWalkersCyc=0
-        SumDiagSftAbort=0.D0
-        AvDiagSftAbort=0.D0
+!        SumDiagSftAbort=0.D0
+!        AvDiagSftAbort=0.D0
         NoAborted=0
         NoAddedInitiators=0
         NoInitDets=0
