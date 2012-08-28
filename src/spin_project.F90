@@ -98,7 +98,7 @@ contains
         integer :: dorder_i(nel), dorder_j(nel), open_el(nel)
         integer :: nopen, i, nup, orb, orb2, count_dets, ndet, pos
         integer(n_int) :: iluttmp(0:niftot)
-        integer, dimension(lenof_sign) :: sgnI, sgnJ
+        real(dp) :: sgnI(lenof_sign), sgnJ(lenof_sign)
         real(dp) :: tot_cpt, elem
 
         ! Extract the dorder for det nI
@@ -423,7 +423,7 @@ contains
         integer :: nopen, nchoose, i
         integer :: nTmp(nel), iUnused
         integer :: open_orbs(nel), open_pos(nel), orb2
-        integer, dimension(lenof_sign) :: sgn_tmp
+        real(dp) :: sgn_tmp(lenof_sign)
         character(*), parameter :: this_routine = 'generate_excit_spin_proj'
 
         ! Only consider determinants with a significant (specified) weight.

@@ -59,11 +59,13 @@ INTEGER :: NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp,iFullSpaceIter
 INTEGER :: IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets,iDetGroup
 INTEGER :: CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
 INTEGER :: NMCyc,StepsSft,CLMax
-INTEGER :: NEquilSteps,InitialPart
+INTEGER :: NEquilSteps
+real(dp) :: InitialPart
 INTEGER :: OccCASorbs,VirtCASorbs,iAnnInterval
 integer :: iPopsFileNoRead, iPopsFileNoWrite,iWeightPopRead,iRestartWalkNum
 integer :: MaxWalkerBloom   !Max number of walkers allowed in one bloom before reducing tau
-INTEGER(int64) :: MaxNoatHF,HFPopThresh,InitWalkers
+INTEGER(int64) :: HFPopThresh
+real(dp) :: InitWalkers, maxnoathf
 
 integer :: iReadWalkersRoot !The number of walkers to read in on the head node in each batch during a popsread
 
