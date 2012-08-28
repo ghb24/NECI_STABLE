@@ -1576,12 +1576,12 @@ MODULE FciMCParMod
         CALL MPIBcast(DetPos,NIfTot+1,int(HighPopOutPos(2)))
 
         if (iProcIndex == 0) then
-            write (iout, '(a, i10, a)') 'The most highly populated determinant &
+            write (iout, '(a, f12.5, a)') 'The most highly populated determinant &
                                   & with the opposite sign to the HF has ', &
                                   HighPopoutNeg(1), ' walkers.'
             call WriteBitDet (iout, DetNeg, .true.)
 
-            write (iout, '(a, i10, a9)') 'The most highly populated determinant &
+            write (iout, '(a, f12.5, a9)') 'The most highly populated determinant &
                                   & with the same sign as the HF has ', &
                                   HighPopoutPos(1), ' walkers.'
             call WriteBitDet (iout, DetPos, .true.)
