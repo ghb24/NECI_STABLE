@@ -6924,8 +6924,8 @@ MODULE FciMCParMod
             PartFac=(real(InitWalkers,dp)* real(nNodes,dp))/TotWeight
         else
             !Here, not all walkers allowed will be initialised to the CAS wavefunction.
-            write(iout,"(A,I15,A)") "Initialising ",InitialPart, " walkers according to the CAS distribution."
-            write(iout,"(A,I15)") "Shift will remain fixed until the walker population reaches ",InitWalkers*nNodes
+            write(iout,"(A,I15,A)") "Initialising ",int(InitialPart), " walkers according to the CAS distribution."
+            write(iout,"(A,I15)") "Shift will remain fixed until the walker population reaches ",int(InitWalkers*nNodes)
             !PartFac is the number of walkers that should reside on the HF determinant
             PartFac=real(InitialPart,dp)/TotWeight
             tSinglePartPhase=.true.
