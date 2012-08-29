@@ -3649,18 +3649,18 @@ MODULE FciMCParMod
                     AvDiagSft = SumDiagSft / real(VaryShiftCycles, dp)
                 endif
 
-                ! Update DiagSftAbort for initiator algorithm
-                if (tTruncInitiator) then
-                    DiagSftAbort = DiagSftAbort - &
-                              (log(real(AllGrowRateAbort-TargetGrowRate, dp)) * SftDamp) / &
-                              (Tau * StepsSft)
-
-                    if (iter - VaryShiftIter >= nShiftEquilSteps) then
-                        SumDiagSftAbort = SumDiagSftAbort + DiagSftAbort
-                        AvDiagSftAbort = SumDiagSftAbort / &
-                                         real(VaryShiftCycles, dp)
-                    endif
-                endif
+!                ! Update DiagSftAbort for initiator algorithm
+!                if (tTruncInitiator) then
+!                    DiagSftAbort = DiagSftAbort - &
+!                              (log(real(AllGrowRateAbort-TargetGrowRate, dp)) * SftDamp) / &
+!                              (Tau * StepsSft)
+!
+!                    if (iter - VaryShiftIter >= nShiftEquilSteps) then
+!                        SumDiagSftAbort = SumDiagSftAbort + DiagSftAbort
+!                        AvDiagSftAbort = SumDiagSftAbort / &
+!                                         real(VaryShiftCycles, dp)
+!                    endif
+!                endif
             endif
 
             ! Calculate the instantaneous 'shift' from the HF population
@@ -4724,7 +4724,7 @@ MODULE FciMCParMod
 
         IF(LMS.ne.0) THEN
             IF(tNoBrillouin.or.(tHub.and.tReal).or.tRotatedOrbs) THEN
-                WRITE(iout,*) "High spin calculation with single excitations also used to calculate energy."
+                WRITE(iout,*) "No brillouin theorem assumed. Single excitations also used to calculate projected energy."
             ELSEIF(tUHF) THEN
                 WRITE(iout,*) "High spin calculation - but single excitations will *NOT* be used to calculate energy as "&
                 & //"this is an unrestricted calculation."
@@ -4791,11 +4791,11 @@ MODULE FciMCParMod
         VaryShiftCycles=0
         AvDiagSft=0.D0
         SumDiagSft=0.D0
-        SumDiagSftAbort=0.0_dp
-        AvDiagSftAbort=0.0_dp
-        NoAborted=0.0_dp
-        NoRemoved=0.0_dp
+        NoAborted=0
+        NoRemoved=0
         SumWalkersCyc=0
+!        SumDiagSftAbort=0.D0
+!        AvDiagSftAbort=0.D0
         NoAddedInitiators=0
         NoInitDets=0
         NoNonInitDets=0
