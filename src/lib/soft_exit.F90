@@ -110,7 +110,8 @@ module soft_exit
                         tChangeProjEDet, tCheckHighestPopOnce, FracLargerDet,&
                         SinglesBias_value => SinglesBias, tau_value => tau, &
                         nmcyc_value => nmcyc, tTruncNOpen, trunc_nopen_max, &
-                        target_grow_rate => TargetGrowRate, tShiftonHFPop
+                        target_grow_rate => TargetGrowRate, tShiftonHFPop, &
+                        tAllRealCoeff, tRealSpawnCutoff
     use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
                              NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt
@@ -261,7 +262,7 @@ contains
         logical, intent(out) :: tSingBiasChange, tSoftExitFound
         logical, intent(out) :: tWritePopsFound
         integer :: i, proc, nmcyc_new, ios, pos, trunc_nop_new
-        integer, dimension(lenof_sign) :: hfsign
+        real(dp), dimension(lenof_sign) :: hfsign
         real(dp) :: hfScaleFactor
         character(len=100) :: w
 
@@ -675,7 +676,9 @@ contains
                                          iLutHF)
                     call extract_sign (CurrentDets(:,pos), hfsign)
                     do i = 1, lenof_sign
-                        hfsign(i) = nint(real(hfsign(i),dp) * hfScaleFactor,sizeof_int)
+                        hfsign(i) = hfsign(i) * hfScaleFactor
+                        if (.not. (tAllRealCoeff .or. tRealSpawnCutoff)) &
+                            hfsign = nint(hfsign)
                     enddo
                     call encode_sign (CurrentDets(:,pos), HFSign)
                 endif

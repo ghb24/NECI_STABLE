@@ -186,9 +186,10 @@ contains
         !     over those steps.
 
         integer, intent(in) :: iter, nsteps
-        integer :: fd, i, j, sgn(lenof_sign), ierr
+        integer :: fd, i, j, ierr
         integer(n_int) :: all_hist(0:NIfTot, ubound(hist_spin_dist, 2))
         real(dp) :: csf_contrib(lenof_sign, ubound(hist_csf_coeffs, 2))
+        real(dp) :: sgn(lenof_sign)
         character(22) :: fname, iterstr
 
         ! Collate the data on the head node.
@@ -282,14 +283,12 @@ contains
 
     end subroutine
 
-    subroutine test_add_hist_spin_dist_det (ilut, RealSign)
+    subroutine test_add_hist_spin_dist_det (ilut, Sign)
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer(n_int) :: ilut_tmp(0:NIfTot)
-        real(dp), dimension(lenof_sign), intent(in) :: RealSign
-        integer, dimension(lenof_sign) :: sgn_old
-        real(dp) :: realsignOld(lenof_sign)
-        integer, dimension(lenof_sign) :: new_sgn
+        real(dp), intent(in) :: Sign(lenof_sign)
+        real(dp) :: sgn_old(lenof_sign), new_sgn(lenof_sign)
         integer :: pos, i
 
         ! Should we add this ilut to the histogram?
@@ -308,19 +307,18 @@ contains
                                "Determinant not found in spin histogram list")
             endif
             call extract_sign (hist_spin_dist(:,pos), sgn_old)
-            RealSignOld=transfer(sgn_old, RealSignOld)
-            new_sgn=transfer(RealSignOld+RealSign, new_sgn)
+            new_sgn = sgn_old + sign
             call encode_sign(hist_spin_dist(:,pos), new_sgn)
         endif
 
     end subroutine
 
-    subroutine add_hist_spawn (ilut, Realsign, ExcitLevel, dProbFin)
+    subroutine add_hist_spawn (ilut, sign, ExcitLevel, dProbFin)
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: ExcitLevel
         real(dp), intent(in) :: dProbFin
-        real(dp), intent(in) :: Realsign(lenof_sign)
+        real(dp), intent(in) :: sign(lenof_sign)
 
         integer :: PartInd, open_orbs
         integer(n_int) :: ilut_sym(0:NIfTot)
@@ -347,7 +345,7 @@ contains
         endif
 
         if (tSuccess) then
-            delta = real(RealSign(:), dp) / dProbFin
+            delta = sign / dProbFin
 
             if (tHPHF) then
                 call FindExcitBitDetSym (ilut, ilut_sym)
@@ -376,7 +374,7 @@ contains
                                           PartInd, tSuccess)
                 endif
                 if (tSuccess) then
-                    delta = (real(realsign(:), dp) / sqrt(2.0)) / dProbFin
+                    delta = (sign / sqrt(2.0)) / dProbFin
 
                     call CalcOpenOrbs(ilut_sym, open_orbs)
                     if ((mod(open_orbs, 2) == 1) .neqv. tOddS_HPHF) &
@@ -399,13 +397,13 @@ contains
 
     end subroutine
 
-    subroutine add_hist_energies (ilut, RealSign, HDiag, ExcitLevel)
+    subroutine add_hist_energies (ilut, Sign, HDiag, ExcitLevel)
 
         ! This will histogram the energies of the particles, rather than the
         ! determinants themselves.
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
-        real(dp), dimension(lenof_sign), intent(in) :: RealSign
+        real(dp), dimension(lenof_sign), intent(in) :: Sign
         real(dp), intent(in) :: HDiag
         integer, intent(in) :: ExcitLevel
         integer :: bin
@@ -415,7 +413,7 @@ contains
         if (bin > iNoBins) &
             call stop_all (t_r, "Histogramming energies higher than the &
                          &arrays can cope with. Increase iNoBins or BinRange")
-        HistogramEnergy(bin) = HistogramEnergy(bin) + real(sum(abs(RealSign)),dp)
+        HistogramEnergy(bin) = HistogramEnergy(bin) + sum(abs(Sign))
 
     end subroutine
 
@@ -430,8 +428,9 @@ contains
         type(nopen_type), target :: y_storage(LMS:nel)
 
         integer :: nopen, ntot, S, ncsf, off, flg, j, k, epos
-        integer :: sgn(lenof_sign), dorder(nel), nI(nel)
+        integer :: dorder(nel), nI(nel)
         real(dp) :: coeff, S_coeffs(LMS:nel), norm, S2, S22
+        real(dp) :: sgn(lenof_sign)
 
         ! TODO: This bit could be done just once, couldn't it...
         !       We could store all the intermediates.
@@ -535,7 +534,8 @@ contains
 
         real(dp) :: spin_cpts (0:nel), norm
         integer :: j, nup, S, flg, ncsf, nopen
-        integer :: nI(nel), sgn(lenof_sign), dorder(nel)
+        integer :: nI(nel), dorder(nel)
+        real(dp) :: sgn(lenof_sign)
 
         ! Initially, have no component on any of the spins
         spin_cpts = 0
@@ -573,7 +573,8 @@ contains
 
         real(dp), intent(inout) :: spin_cpts(0:nel)
         integer, intent(in) :: ncsf, nopen, S
-        integer, intent(in) :: dorder(1:nopen), sgn(lenof_sign)
+        integer, intent(in) :: dorder(1:nopen)
+        real(dp), intent(in) :: sgn(lenof_sign)
         integer :: yamas(ncsf, nopen), y
         real(dp) :: coeff
 
@@ -600,12 +601,7 @@ contains
         !     would also then need to calculate the value of psi_squared
 
         real(dp) :: ssq
-        integer :: i, j, k, l, orb, orb2, pos, pair_sgn, nop_pairs
-        integer :: sgn_carry
-        integer(n_int) :: splus(0:nifd), sminus(0:nifd), detsym(0:nifd)
-        integer(n_int), pointer :: detcurr(:)
-        integer :: nI(nel), flg, sgn(lenof_sign), sgn2(lenof_sign)
-        integer :: lms_tmp
+        integer :: i, lms_tmp
         type(timer), save :: s2_timer
 
         ! TODO: Deal with HPHF. Should be fairly easy.
@@ -661,7 +657,7 @@ contains
         logical :: running, any_running
         real(dp) :: ssq
         integer :: max_per_proc, max_spawned
-        integer :: sgn1(lenof_sign), sgn2(lenof_sign)
+        real(dp) :: sgn1(lenof_sign), sgn2(lenof_sign)
 
 
         ! Could we pre-initialise all of these data structures
@@ -783,9 +779,10 @@ contains
         integer, parameter :: max_per_proc = 1000
         integer(n_int) :: recv_dets(0:NIfTot,max_per_proc)
         integer :: proc_dets, start_pos, nsend, i, lms_tmp, p
-        integer :: bcast_tmp(2), sgn_tmp(lenof_sign)
+        integer :: bcast_tmp(2)
+        real(dp) :: sgn_tmp(lenof_sign)
         type(timer), save :: s2_timer, s2_timer_init
-        integer(int64) :: ssq_sum, psi_squared
+        real(dp) :: ssq_sum, psi_squared
         logical, intent(in) :: only_init
 
 
@@ -909,8 +906,8 @@ contains
         logical, intent(in), optional :: only_init_
         integer(n_int) :: splus(0:NIfD), sminus(0:NIfD)
         integer(n_int) :: ilut_srch(0:NIfD), ilut_sym(0:NIfD)
-        integer :: sgn(lenof_sign), sgn2(lenof_sign), flg, nI(nel)
-        integer :: j, k, orb2, pos, sgn_hphf, orb_tmp
+        real(dp) :: sgn(lenof_sign), sgn2(lenof_sign), sgn_hphf
+        integer :: flg, nI(nel), j, k, orb2, pos, orb_tmp
         integer(int64) :: ssq
         logical :: only_init, inc
 
@@ -944,7 +941,7 @@ contains
                         set_orb(sminus, orb_tmp)
 
                         ! Adjust for the sign of the paired det in HPHF.
-                        sgn_hphf = 1
+                        sgn_hphf = 1.0
                         if (tHPHF) then
                             if (IsAllowedHPHF(sminus, ilut_sym)) then
                                 ilut_srch = sminus

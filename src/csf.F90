@@ -1667,8 +1667,8 @@ contains
         real(dp), intent(in), optional :: coeffs(:)
         integer :: s_final
 
-        integer :: i, sgn(lenof_sign), nopen, nopen_min
-        real(dp) :: threshold, c
+        integer :: i, nopen, nopen_min
+        real(dp) :: threshold, c, sgn(lenof_sign)
 
 
         ! If we are using sign values, then consider the cutoff value to be
