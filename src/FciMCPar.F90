@@ -1881,16 +1881,11 @@ MODULE FciMCParMod
             end function
         end interface
         
-        real(dp) :: rat, r, walkerweight, pSpawn, nSpawn
-        integer :: extracreate, iUnused, tgt_cpt
+        real(dp) :: rat, r, walkerweight, pSpawn, nSpawn, MatEl
+        integer :: extracreate, tgt_cpt, component, i, iUnused
         integer :: TargetExcitLevel
         logical :: tRealSpawning
         HElement_t :: rh
-#ifdef __CMPLX
-        ! Avoid compiler warnings when compiling the real version.
-        integer :: i, component, child_type
-        real(dp) :: MatEl
-#endif
 
         ! Just in case
         child = 0
@@ -1923,17 +1918,17 @@ MODULE FciMCParMod
                 tRealSpawning = .true.
         endif
 
-#ifdef __CMPLX
-
         ! We actually want to calculate Hji - take the complex conjugate, 
         ! rather than swap around DetCurr and nJ.
+#ifdef __CMPLX
         rh = CONJG(rh)
+#endif
 
         ! Spawn to real and imaginary particles. Note that spawning from
         ! imaginary parent particles has slightly different rules:
         !       - Attempt to spawn REAL walkers with prob +AIMAG(Hij)/P
         !       - Attempt to spawn IMAG walkers with prob -REAL(Hij)/P
-        do tgt_cpt = 1, 2
+        do tgt_cpt = 1, lenof_sign
 
             ! For spawning from imaginary particles, we cross-match the 
             ! real/imaginary matrix-elements/target-particles.
@@ -1945,7 +1940,9 @@ MODULE FciMCParMod
             if (component == 1) then
                 MatEl = real(rh, dp)
             else
+#ifdef __CMPLX
                 MatEl = real(aimag(rh), dp)
+#endif
                 ! n.b. In this case, spawning is of opposite sign.
                 if (part_type == 2) walkerweight = -walkerweight
             end if
@@ -1975,39 +1972,6 @@ MODULE FciMCParMod
             ! And create the parcticles
             child(tgt_cpt) = nSpawn
         enddo
-#else
-
-        ! How many particles should we attempt to spawn?
-        walkerweight = sign(1.0_dp, realwSign(1))
-        nSpawn = -tau * rh * walkerweight / prob
-
-        if (tRealSpawning) then
-            ! Continuous Spawning. Simply add the acceptance probability into
-            ! the coefficient
-
-            if (tRealSpawnCutoff .and. &
-                abs(nSpawn) < RealSpawnCutoff) then
-
-                nSpawn = RealSpawnCutoff &
-                       * stochastic_round (nSpawn / RealSpawnCutoff)
-            end if
-        else
-            if (tSearchTau) then
-                if (MaxSpawnProb < abs(nSpawn)) MaxSpawnProb = abs(nSpawn)
-            endif
-
-            ! Round this to an integer in the usual way
-            if (nspawn == 0) r = genrand_real2_dSFMT()
-            nSpawn = stochastic_round (nSpawn)
-        endif
-
-        ! Create the particles
-        child(1) = nSpawn
-
-        ! Avoid compiler warnings
-        iUnused = part_type
-
-#endif
 
         ! Avoid compiler warnings
         iUnused = walkExcitLevel
