@@ -179,6 +179,7 @@ MODULE AnnihilationMod
         call set_timer(Compress_time,20)
 
         CALL CompressSpawnedList(MaxIndex, iter_data)  
+
 !        if(bNodeRoot) call sort(SpawnedParts(:,1:MaxIndex), ilut_lt, ilut_gt)
         call halt_timer(Compress_time)
 
@@ -195,7 +196,7 @@ MODULE AnnihilationMod
 !Put the surviving particles in the main list, maintaining order of the main list (unless tHashWalkerList specified).
 !Now we insert the remaining newly-spawned particles back into the original list (keeping it sorted), 
 !and remove the annihilated particles from the main list.
-            CALL InsertRemoveParts(MaxIndex,TotWalkersNew)
+            CALL InsertRemoveParts(MaxIndex, TotWalkersNew, iter_data)
         endif
         CALL halt_timer(Sort_Time)
         
@@ -863,8 +864,13 @@ MODULE AnnihilationMod
                         if (pRemove .gt. r) then
                             !Remove this walker
                             NoRemoved = NoRemoved + abs(SignTemp(j))
+                            Annihilated = Annihilated + abs(SignTemp(j))
+                            iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
+                            SignTemp(j) = 0
                             call nullify_ilut_part (SpawnedParts(:,i), j)
                         elseif (tEnhanceRemainder) then
+                            NoBorn = NoBorn + 1.0_dp - abs(SignTemp(j))
+                            iter_data%nborn = iter_data%nborn + 1.0_dp - abs(SignTemp(j))
                             SignTemp(j) = sign(1.0_dp, SignTemp(j))
                             call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
                         endif
@@ -892,8 +898,13 @@ MODULE AnnihilationMod
                         if (pRemove .gt. r) then
                             !Remove this walker
                             NoRemoved = NoRemoved + abs(SignTemp(j))
+                            Annihilated = Annihilated + abs(SignTemp(j))
+                            iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
+                            SignTemp(j) = 0
                             call nullify_ilut_part (SpawnedParts(:,i), j)
                         elseif (tEnhanceRemainder) then
+                            NoBorn = NoBorn + 1.0_dp - abs(SignTemp(j))
+                            iter_data%nborn = iter_data%nborn + 1.0_dp - abs(SignTemp(j))
                             SignTemp(j) = sign(1.0_dp, SignTemp(j))
                             call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
                         endif
@@ -930,7 +941,8 @@ MODULE AnnihilationMod
 !Or, the removed indices could be found on the fly? This may have little benefit though if the memory isn't needed.
             IF(ToRemove.gt.0) THEN
 
-!Since reading and writing from the same array is slow, copy the information accross to the other spawned array, and just swap the pointers around after.
+!Since reading and writing from the same array is slow, copy the information
+!accross to the other spawned array, and just swap the pointers around after.
                 DetsMerged=0
                 do i=1,ValidSpawned
 !We want to move all the elements above this point down to 'fill in' the annihilated determinant.
@@ -1182,7 +1194,7 @@ MODULE AnnihilationMod
 !Binary searching can be used to speed up this transfer substantially.
 !The key feature which makes this work, is that it is impossible for the same determinant to be specified in both the spawned and main list at the end of
 !the annihilation process. Therefore we will not multiply specify determinants when we merge the lists.
-    SUBROUTINE InsertRemoveParts(ValidSpawned,TotWalkersNew)
+    SUBROUTINE InsertRemoveParts(ValidSpawned, TotWalkersNew, iter_data)
         use util_mod, only: abs_sign
         use SystemData, only: tHPHF
         use bit_reps, only: NIfD
@@ -1193,6 +1205,7 @@ MODULE AnnihilationMod
         real(dp) :: CurrentSign(lenof_sign), SpawnedSign(lenof_sign)
         real(dp) :: HDiag, pRemove, r
         LOGICAL :: TestClosedShellDet
+        type(fcimc_iter_data), intent(inout) :: iter_data
         character(*), parameter :: this_routine = 'InsertRemoveParts'
         HElement_t :: HDiagTemp
 
@@ -1216,9 +1229,16 @@ MODULE AnnihilationMod
                         if (pRemove .gt. r) then
                             !Remove this walker
                             NoRemoved = NoRemoved + abs(CurrentSign(j))
+                            Annihilated = Annihilated + abs(CurrentSign(j))
+                            iter_data%nannihil = iter_data%nannihil + abs(CurrentSign(j))
                             CurrentSign(j) = 0
                             call nullify_ilut_part (CurrentDets(:,i), j)
                         elseif (tEnhanceRemainder) then
+                            ! SDS: TODO: Account for the TotParts Changes
+                            ! Should we always do this here? Probably. Should
+
+                            NoBorn = NoBorn + 1.0_dp - abs(CurrentSign(j))
+                            iter_data%nborn = iter_data%nborn + 1.0_dp - abs(CurrentSign(j))
                             CurrentSign(j) = sign(1.0_dp, CurrentSign(j))
                             call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
                         endif
