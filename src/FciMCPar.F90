@@ -2662,7 +2662,7 @@ MODULE FciMCParMod
                     call encode_sign(CurrentDets(:,DetPosition),CopySign)
                 else
                     call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
-                    if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
+                    if (.not.tRegenDiagHEls) CurrentH(1,VecSlot) = Kii
                     VecSlot=VecSlot+1
                 endif
             else
