@@ -2767,7 +2767,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       call cpu_time(s_end)
       if(iProcIndex.eq.root) TotalTime8=real(s_end,dp)
       call MPIBCast(TotalTime8)    !TotalTime is local - broadcast to all procs
-      write(iout,*) TotalTime8,MaxTimeExit
+!      write(iout,*) TotalTime8,MaxTimeExit
 
       call ChangeVars(tSingBiasChange, tSoftExitFound, tWritePopsFound)
       Iter=Iter+1

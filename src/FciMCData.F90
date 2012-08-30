@@ -72,7 +72,7 @@ MODULE FciMCData
       !as free slots are used up for *newly spawned* walkers onto previously unoccupied determinants only
       integer :: iEndFreeSlot   !Position of last free slot, so after we exceed this, just add the the end of the main list.
  
-      real(dp) :: AvDiagSftAbort,SumDiagSftAbort,DiagSftAbort     !This is the average diagonal shift value since it started varying, and the sum of the shifts since it started varying, and
+!      real(dp) :: AvDiagSftAbort,SumDiagSftAbort,DiagSftAbort     !This is the average diagonal shift value since it started varying, and the sum of the shifts since it started varying, and
                                                                 !the instantaneous shift, including the number of aborted as though they had lived.
 
       real(dp) :: DiagSftRe,DiagSftIm     !For complex walkers - this is just for info - not used for population control.
