@@ -433,7 +433,7 @@ MODULE AnnihilationMod
                         Spawned_Parents_Index(2,VecInd) = 0
                     endif
                     call extract_sign (SpawnedParts(:,BeginningBlockDet), temp_sign)
-                    if(temp_sign(1).eq.0) then
+                    if(IsUnoccDet(temp_sign)) then
                         Spawned_Parts_Zero = Spawned_Parts_Zero + 1
                     endif
                 ENDIF
@@ -520,7 +520,7 @@ MODULE AnnihilationMod
                 ! Spawned_Parts_Zero is the number of spawned parts that are zero after compression 
                 ! of the spawned_parts list - and should have been 
                 ! removed from SpawnedParts if we weren't calculating the RDM. - need this for a check later.
-                if(temp_sign(1).eq.0) Spawned_Parts_Zero = Spawned_Parts_Zero + 1
+                if(IsUnoccDet(temp_sign)) Spawned_Parts_Zero = Spawned_Parts_Zero + 1
             else
                 ! All particles from block have been annihilated.
                 DetsMerged = DetsMerged + EndBlockDet - BeginningBlockDet + 1
@@ -984,7 +984,7 @@ MODULE AnnihilationMod
                             ! We've already counted the walkers where SpawnedSign become zero in the compress,
                             ! and in the merge, all that's left is those which get aborted which are counted here
                             ! only if the sign was not already zero (when it already would have been counted).
-                            if(SignTemp(j).ne.0) ToRemove = ToRemove + 1
+!                            if(SignTemp(j).ne.0) ToRemove = ToRemove + 1
                             SignTemp(j) = 0
                             call encode_part_sign (SpawnedParts(:,i), 0, j)
 
@@ -999,10 +999,10 @@ MODULE AnnihilationMod
                             endif
                         endif
                     enddo
-!                    if (IsUnoccDet(SignTemp)) then
-!                        ! All particle 'types' have been aborted
-!                        ToRemove = ToRemove + 1
-                    if(tHashWalkerList.and.(.not.IsUnoccDet(SignTemp))) then
+                    if (IsUnoccDet(SignTemp)) then
+                        ! All particle 'types' have been aborted
+                        ToRemove = ToRemove + 1
+                    elseif(tHashWalkerList) then
                         !Walkers have not been aborted, and so we should copy the determinant straight over to the main list
                         !We do not need to recompute the hash, since this should be the same one as was generated at the
                         !beginning of the loop
