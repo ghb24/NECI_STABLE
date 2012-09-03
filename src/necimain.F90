@@ -9,7 +9,7 @@
 
         write(6,*) 'STARTING NECI'
         ! Indicate not called by CPMD, VASP, Molpro
-        call NECICore (0, .false., .false., .false.)
+        call NECICore (0, .false., .false., .false.,' ',' ')
 
     end subroutine
 
@@ -22,7 +22,7 @@
         implicit none
         write(6,*) "STARTING NECI"
         ! Indicate not called by CPMD, VASP, Molpro
-        call NECICore(0,.False.,.False.,.false.)
+        call NECICore(0,.False.,.False.,.false.,' ',' ')
 
     end program NECI
 
