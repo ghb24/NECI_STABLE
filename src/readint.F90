@@ -1,5 +1,7 @@
 module read_fci
 
+    character(len=64) :: FCIDUMP_name
+
 contains
 
     SUBROUTINE INITFROMFCID(NEL,NBASISMAX,LEN,LMS,TBIN)
@@ -31,18 +33,18 @@ contains
                 IF(.not.exists) THEN
                     CALL Stop_All('InitFromFCID','FCISYM file does not exist')
                 ENDIF
-                INQUIRE(FILE='FCIDUMP',EXIST=exists,FORMATTED=fmat)
+                INQUIRE(FILE=FCIDUMP_name,EXIST=exists,FORMATTED=fmat)
                 IF(.not.exists) THEN
                     CALL Stop_All('INITFROMFCID','FCIDUMP file does not exist')
                 ENDIF
                 OPEN(iunit,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
                 READ(iunit,FCI)
              ELSE
-                INQUIRE(FILE='FCIDUMP',EXIST=exists,UNFORMATTED=fmat)
+                INQUIRE(FILE=FCIDUMP_name,EXIST=exists,UNFORMATTED=fmat)
                 IF(.not.exists) THEN
                     CALL Stop_All('InitFromFCID','FCIDUMP file does not exist')
                 ENDIF
-                OPEN(iunit,FILE='FCIDUMP',STATUS='OLD',FORM='FORMATTED')
+                OPEN(iunit,FILE=FCIDUMP_name,STATUS='OLD',FORM='FORMATTED')
                 READ(iunit,FCI)
              ENDIF
              CLOSE(iunit)
@@ -196,9 +198,9 @@ contains
                 OPEN(iunit,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
                 READ(iunit,FCI)
                 CLOSE(iunit)
-                OPEN(iunit,FILE='FCIDUMP',STATUS='OLD',FORM='UNFORMATTED')
+                OPEN(iunit,FILE=FCIDUMP_name,STATUS='OLD',FORM='UNFORMATTED')
              ELSE
-                OPEN(iunit,FILE='FCIDUMP',STATUS='OLD',FORM='FORMATTED')
+                OPEN(iunit,FILE=FCIDUMP_name,STATUS='OLD',FORM='FORMATTED')
                 READ(iunit,FCI)
              ENDIF
          ENDIF
@@ -562,7 +564,7 @@ contains
          
          IF(iProcIndex.eq.0) THEN
              iunit = get_free_unit()
-             OPEN(iunit,FILE='FCIDUMP',STATUS='OLD')
+             OPEN(iunit,FILE=FCIDUMP_name,STATUS='OLD')
              READ(iunit,FCI)
          ENDIF
 !Now broadcast these values to the other processors (the values are only read in on root)
@@ -870,7 +872,7 @@ contains
          !OPEN(iunit,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
          !READ(iunit,FCI)
          !CLOSE(iunit)
-         OPEN(iunit,FILE='FCIDUMP',STATUS='OLD',FORM='UNFORMATTED')
+         OPEN(iunit,FILE=FCIDUMP_name,STATUS='OLD',FORM='UNFORMATTED')
 
 
          MASK=(2**16)-1

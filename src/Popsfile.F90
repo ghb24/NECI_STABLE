@@ -1504,6 +1504,8 @@ MODULE PopsfileMod
         integer(n_int) :: ilut_largest(0:NIfTot)
         integer :: sign_largest
 
+        MemoryAlloc = 0
+
         IF(lenof_sign.ne.1) CALL Stop_All("ReadFromPopsfilePar","Popsfile does not work with complex walkers")
         
         PreviousCycles=0    !Zero previous cycles
