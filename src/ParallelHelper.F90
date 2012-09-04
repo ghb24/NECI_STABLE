@@ -421,7 +421,7 @@ subroutine mpibarrier_c (error) bind(c)
 
 #ifdef PARALLEL
     call MPIBarrier (ierr)
-    error = ierr
+    error = int(ierr,kind=kind(error))
 #else
     error = 0
 #endif

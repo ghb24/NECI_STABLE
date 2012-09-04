@@ -1456,6 +1456,7 @@ MODULE NatOrbsMod
         real(dp) :: SumEvalues
         
         io1 = get_free_unit()
+        NoOcc = NEl/2   !Is this correct in all cases?!
 
         OPEN(io1,FILE='EVALUES-PLOTRAT',status='unknown')
         IF(tStoreSpinOrbs) THEN
