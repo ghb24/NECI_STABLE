@@ -4534,6 +4534,7 @@ MODULE FciMCParMod
 
             SymFinal = int((G1(HFDet(nel))%Sym%S),sizeof_int)+1
 
+            tAlreadyOcc=.false.
             do i=SymLabelCounts(1,SymFinal),SymLabelCounts(1,SymFinal)+SymLabelCounts(2,SymFinal)-1
                 if(G1(HFDet(nel))%Ms.eq.-1) then
                     !Choose beta ones

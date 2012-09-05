@@ -28,9 +28,9 @@ MODULE Determinants
     save
 ! Set by Calc on input
       INTEGER nActiveSpace(2)
-        INTEGER, DIMENSION(:), POINTER :: SPECDET
-        INTEGER(TagIntType) :: tagSPECDET=0
-        Logical TSPECDET
+      INTEGER, DIMENSION(:), POINTER :: SPECDET => null()
+      INTEGER(TagIntType) :: tagSPECDET=0
+      Logical TSPECDET
 
 !nActiveBasis(1) is the lowest non-active orbital
 !nActiveBasis(2) is the highest active orbital.  There can be virtuals above this.
