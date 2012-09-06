@@ -116,8 +116,8 @@ MODULE FciMCParMod
                          extract_bit_rep_avsign_norm, &
                          extract_bit_rep_avsign_no_rdm, &
                          zero_rdms, fill_rdm_softexit, store_parent_with_spawned, &
-                         fill_rdm_diag_and_explicit_currdet_norm, &
-                         fill_rdm_diag_and_explicit_currdet_hfsd, calc_rdmbiasfac
+                         fill_rdm_diag_currdet_norm, &
+                         fill_rdm_diag_currdet_hfsd, calc_rdmbiasfac
 
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
@@ -231,7 +231,7 @@ MODULE FciMCParMod
                                            ptr_attempt_die, &
                                            ptr_iter_data, &
                                            ptr_extract_bit_rep_avsign, &
-                                           ptr_fill_rdm_diag_and_explicit_currdet) 
+                                           ptr_fill_rdm_diag_currdet) 
                 endif
             endif
 
@@ -248,7 +248,7 @@ MODULE FciMCParMod
                                            attempt_die_spin_proj, &
                                            iter_data_spin_proj, &
                                            extract_bit_rep_avsign_no_rdm, &
-                                           fill_rdm_diag_and_explicit_currdet_norm) 
+                                           fill_rdm_diag_currdet_norm) 
                 enddo
             endif
 
@@ -796,11 +796,11 @@ MODULE FciMCParMod
         call assign_proc (ptr_extract_bit_rep_avsign, extract_bit_rep_avsign)
     end subroutine
 
-    subroutine set_fill_rdm_diag_and_explicit_currdet(fill_rdm_diag_and_explicit_currdet)
+    subroutine set_fill_rdm_diag_currdet(fill_rdm_diag_currdet)
         use, intrinsic :: iso_c_binding
         implicit none
         interface
-            subroutine fill_rdm_diag_and_explicit_currdet(iLutnI, nI, & 
+            subroutine fill_rdm_diag_currdet(iLutnI, nI, & 
                                         CurrH_I, ExcitLevelI, IterLastRDMFill) 
                 use constants , only : dp, n_int
                 use SystemData , only : NEl
@@ -820,8 +820,8 @@ MODULE FciMCParMod
             end subroutine
         end interface
 
-        call assign_proc (ptr_fill_rdm_diag_and_explicit_currdet, &
-                                        fill_rdm_diag_and_explicit_currdet)
+        call assign_proc (ptr_fill_rdm_diag_currdet, &
+                                        fill_rdm_diag_currdet)
     end subroutine
 
     ! This is the heart of FCIMC, where the MC Cycles are performed.
@@ -832,7 +832,7 @@ MODULE FciMCParMod
                                  get_spawn_helement, encode_child, &
                                  new_child_stats, attempt_die, &
                                  iter_data, extract_bit_rep_avsign, &
-                                 fill_rdm_diag_and_explicit_currdet)
+                                 fill_rdm_diag_currdet)
         
          use sym_mod
          use IntegralsData, only : Nfrozen
@@ -962,7 +962,7 @@ MODULE FciMCParMod
                 real(dp) , intent(out) :: IterRDMStartI, AvSignI
                 type(excit_gen_store_type), intent(inout), optional :: Store
             end subroutine
-            subroutine fill_rdm_diag_and_explicit_currdet(iLutnI, nI, &
+            subroutine fill_rdm_diag_currdet(iLutnI, nI, &
                                         CurrH_I, ExcitLevelI, IterLastRDMFill) 
                 use constants , only : dp, n_int
                 use SystemData , only : NEl
@@ -1317,7 +1317,7 @@ MODULE FciMCParMod
                 if((abs(CurrentH(2,VecSlot-1)).gt.real(InitiatorWalkNo,dp)).or.(.not.tInitiatorRDM)) & 
                 ! If we are only using initiators to calculate the RDMs, only add in the diagonal and 
                 ! explicit contributions if the average population is greater than n_a = InitiatorWalkNo.
-                    call fill_rdm_diag_and_explicit_currdet(CurrentDets(:,VecSlot-1), DetCurr, &
+                    call fill_rdm_diag_currdet(CurrentDets(:,VecSlot-1), DetCurr, &
                             CurrentH(1:NCurrH,VecSlot-1), walkExcitLevel_toHF, IterLastRDMFill)  
             endif
 
@@ -1904,9 +1904,9 @@ MODULE FciMCParMod
         call set_extract_bit_rep_avsign(extract_bit_rep_avsign_no_rdm)
 
         if(tHF_Ref_Explicit.or.tHF_S_D.or.tHF_S_D_Ref) then
-            call set_fill_rdm_diag_and_explicit_currdet(fill_rdm_diag_and_explicit_currdet_hfsd)
+            call set_fill_rdm_diag_currdet(fill_rdm_diag_currdet_hfsd)
         else
-            call set_fill_rdm_diag_and_explicit_currdet(fill_rdm_diag_and_explicit_currdet_norm)
+            call set_fill_rdm_diag_currdet(fill_rdm_diag_currdet_norm)
         endif
 
     end subroutine

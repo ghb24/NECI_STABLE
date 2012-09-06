@@ -846,7 +846,7 @@ contains
                                &calculation of the density matrices.'
                     root_print 'However the iteration specified to start &
                                &filling has already been.'
-                    root_print 'Beginning to fill RDMs in the next iteration.'                               
+                    root_print 'Beginning to fill RDMs in the next iteration.'
                     IterRDMonFly_value = (Iter - VaryShiftIter) + 1
 
                 else
@@ -878,7 +878,7 @@ contains
                                    &calculation of the density matrices.'
                         root_print 'However the iteration specified to start &
                                    &filling has already been.'
-                        root_print 'Beginning to fill RDMs in the next iteration.'                               
+                        root_print 'Beginning to fill RDMs in the next iteration.'
                         IterRDMonFly_value = (Iter - VaryShiftIter) + 1
 
                     else

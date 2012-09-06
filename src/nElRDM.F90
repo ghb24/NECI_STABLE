@@ -847,7 +847,7 @@ MODULE nElRDMMod
 
     end subroutine extract_bit_rep_avsign_norm
 
-    subroutine fill_rdm_diag_and_explicit_currdet_norm(iLutnI, nI, CurrH_I, ExcitLevelI, IterLastRDMFill) 
+    subroutine fill_rdm_diag_currdet_norm(iLutnI, nI, CurrH_I, ExcitLevelI, IterLastRDMFill) 
 ! This routine calculates the diagonal RDM contribution, and explicit connections to the HF, from the 
 ! current determinant. 
 ! Each determinant (iLutnI/nI), has Hii element CurrH_I(1), average 
@@ -920,9 +920,9 @@ MODULE nElRDMMod
 
         endif
 
-    end subroutine fill_rdm_diag_and_explicit_currdet_norm
+    end subroutine fill_rdm_diag_currdet_norm
 
-    subroutine fill_rdm_diag_and_explicit_currdet_hfsd(iLutnI, nI, CurrH_I, ExcitLevelI, IterLastRDMFill) 
+    subroutine fill_rdm_diag_currdet_hfsd(iLutnI, nI, CurrH_I, ExcitLevelI, IterLastRDMFill) 
 ! This routine calculates the diagonal RDM contribution, and explicit connections to the HF, from the 
 ! current determinant. 
 ! Each determinant (iLutnI/nI), has Hii element CurrH_I(1), average 
@@ -955,7 +955,7 @@ MODULE nElRDMMod
 
         call Add_RDM_HFConnections_HF_S_D(iLutnI, nI, CurrH_I(2), ExcitLevelI, IterRDM)
 
-    end subroutine fill_rdm_diag_and_explicit_currdet_hfsd
+    end subroutine fill_rdm_diag_currdet_hfsd
 
     subroutine fill_rdm_softexit(nDets)
 ! This routine is called if a softexit command is used.  
@@ -996,10 +996,10 @@ MODULE nElRDMMod
 
 
                     if(tHF_Ref_Explicit.or.tHF_S_D.or.tHF_S_D_Ref) then
-                        call fill_rdm_diag_and_explicit_currdet_hfsd(CurrentDets(:,i), nI, CurrentH(:,i), &
+                        call fill_rdm_diag_currdet_hfsd(CurrentDets(:,i), nI, CurrentH(:,i), &
                                                                         ExcitLevel, IterLastRDMFill)
                     else
-                        call fill_rdm_diag_and_explicit_currdet_norm(CurrentDets(:,i), nI, CurrentH(:,i), &
+                        call fill_rdm_diag_currdet_norm(CurrentDets(:,i), nI, CurrentH(:,i), &
                                                                         ExcitLevel, IterLastRDMFill)
                     endif
                     
@@ -1041,10 +1041,10 @@ MODULE nElRDMMod
                 endif
 
                 if(tHF_Ref_Explicit.or.tHF_S_D.or.tHF_S_D_Ref) then
-                    call fill_rdm_diag_and_explicit_currdet_hfsd(iLutnI, nI, CurrH_I, &
+                    call fill_rdm_diag_currdet_hfsd(iLutnI, nI, CurrH_I, &
                                                             ExcitLevel, IterLastRDMFill)
                 else
-                    call fill_rdm_diag_and_explicit_currdet_norm(iLutnI, nI, CurrH_I, &
+                    call fill_rdm_diag_currdet_norm(iLutnI, nI, CurrH_I, &
                                                             ExcitLevel, IterLastRDMFill)
                 endif
 

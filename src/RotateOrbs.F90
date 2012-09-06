@@ -2657,7 +2657,9 @@ MODULE RotateOrbsMod
                 ELSE
                     SymM=INT(G1(SymLabelList2_rot(m)*2)%sym%S,4)
                 ENDIF
-                do z=SymLabelCounts2_rot(1,SymM+SymMin),(SymLabelCounts2_rot(1,SymM+SymMin)+SymLabelCounts2_rot(2,SymM+SymMin)-1)
+                do z=SymLabelCounts2_rot(1,SymM+SymMin), &
+                        (SymLabelCounts2_rot(1,SymM+SymMin) + &
+                            SymLabelCounts2_rot(2,SymM+SymMin)-1)
  
                     ! Find the force on a coefficient c(m,z). 
                     OffDiagForcemz=0.D0
@@ -2903,7 +2905,9 @@ MODULE RotateOrbsMod
                 m=SymLabelList2_rot(x)
 ! Symmetry requirement that z must be from the same irrep as m
                 SymM=INT(G1(m*2)%sym%S,4)
-                do y=SymLabelCounts2_rot(1,SymM+SymMin),(SymLabelCounts2_rot(1,SymM+SymMin)+SymLabelCounts2_rot(2,SymM+SymMin)-1)
+                do y=SymLabelCounts2_rot(1,SymM+SymMin), &
+                        (SymLabelCounts2_rot(1,SymM+SymMin) + &
+                            SymLabelCounts2_rot(2,SymM+SymMin)-1)
                     z=SymLabelList2_rot(y)
       
                     LambdaTerm1=0.D0
@@ -2983,7 +2987,9 @@ MODULE RotateOrbsMod
                 ENDIF
 
 ! Symmetry requirement that z must be from the same irrep as m
-                do z=SymLabelCounts2_rot(1,SymM+SymMin),(SymLabelCounts2_rot(1,SymM+SymMin)+SymLabelCounts2_rot(2,SymM+SymMin)-1)
+                do z=SymLabelCounts2_rot(1,SymM+SymMin), &
+                        (SymLabelCounts2_rot(1,SymM+SymMin) + &
+                            SymLabelCounts2_rot(2,SymM+SymMin)-1)
 !               
                     ! Only coeffs with sym of m and z the same have non-zero coeffs.    
                     NewCoeff=0.D0
@@ -3185,7 +3191,9 @@ MODULE RotateOrbsMod
                     ELSE
                         SymM=INT(G1(SymLabelList2_rot(m)*2)%sym%S,4)
                     ENDIF
-                    do a=SymLabelCounts2_rot(1,SymM+SymMin),(SymLabelCounts2_rot(1,SymM+SymMin)+SymLabelCounts2_rot(2,SymM+SymMin)-1)
+                    do a=SymLabelCounts2_rot(1,SymM+SymMin), &
+                            (SymLabelCounts2_rot(1,SymM+SymMin) + &
+                                SymLabelCounts2_rot(2,SymM+SymMin)-1)
                         do l=1,TotNoConstraints
                             Correction(a,m)=Correction(a,m)+(ShakeLambda(l)*DerivConstrT1(a,m,l)) 
                         enddo
@@ -3359,7 +3367,9 @@ MODULE RotateOrbsMod
                 ELSE
                     SymM=INT(G1(SymLabelList2_rot(m)*2)%sym%S,4)
                 ENDIF
-                do a=SymLabelCounts2_rot(1,SymM+SymMin),(SymLabelCounts2_rot(1,SymM+SymMin)+SymLabelCounts2_rot(2,SymM+SymMin)-1)
+                do a=SymLabelCounts2_rot(1,SymM+SymMin), &
+                        (SymLabelCounts2_rot(1,SymM+SymMin) + &
+                            SymLabelCounts2_rot(2,SymM+SymMin)-1)
 !               
                 ! FIND THE FORCE 
                     ! find the corrected force. (in the case where the uncorrected force is required, correction is set to 0.
