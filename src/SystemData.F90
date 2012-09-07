@@ -25,7 +25,7 @@ logical :: tImportanceSample, tERLocalization, tOffDiagMin, tFindCINatOrbs
 logical :: tNoRenormRandExcits, tAssumeSizeExcitgen, tCycleOrbs, tROIteration
 logical :: tShakeIter, tRotateOccOnly, tDoubExcMin, tUseHFOrbs, tRotateOrbs
 logical :: tNonUniRandExcits, tNoSymGenRandExcits, tLagrange, tShakeApprox
-logical :: tShake, tRotateVirtOnly, tMaxHLGap, tCacheFCIDUMPInts, tNoRODump
+logical :: tShake, tRotateVirtOnly, tMaxHLGap, tCacheFCIDUMPInts
 logical :: tKPntSym        !Are we using KPoint symmetry?
 logical :: tRotatedOrbsReal     !This means we are reading in a complex FCIDUMP, but all 
                                 !orbitals have been rotated to be real. This requires all
@@ -91,6 +91,7 @@ logical :: tMadelung ! turning on self-interaction term
 real(dp) :: Madelung ! variable storage for self-interaction term
 logical :: tUEGFreeze ! Freeze core electrons for the UEG, a crude hack for this to work-around freezing not working for UEG
 real(dp) :: FreezeCutoff
+logical :: tRef_Not_HF
 
 ! For the UEG, we damp the exchange interactions.
 !    0 means none

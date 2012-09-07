@@ -3,7 +3,7 @@ module bit_reps
     use SystemData, only: nel, tCSF, tTruncateCSF, nbasis, csf_trunc_level
     use CalcData, only: tTruncInitiator
     use csf_data, only: csf_yama_bit, csf_test_bit
-    use constants, only: lenof_sign, end_n_int, bits_n_int, n_int
+    use constants, only: lenof_sign, end_n_int, bits_n_int, n_int, dp
     use DetBitOps, only: count_open_orbs
     use bit_rep_data
     use SymExcitDataMod, only: excit_gen_store_type, tBuildOccVirtList, &
@@ -554,7 +554,6 @@ contains
 
     end subroutine
 
-
     subroutine decode_bit_det_bitwise (nI, iLut)
 
         ! This is a routine to take a determinant in bit form and construct 
@@ -634,7 +633,6 @@ contains
             enddo
         endif
     end subroutine decode_bit_det_bitwise
-
 
 !    subroutine init_excitations()
 !        ! Allocate and initialise data in excit_mask.

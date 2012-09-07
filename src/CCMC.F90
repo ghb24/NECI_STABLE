@@ -99,6 +99,7 @@ MODULE CCMC
       Use Logging, only: CCMCDebug
       use bit_reps, only: decode_bit_det
       use FciMCData, only: fcimc_excit_gen_store
+      use hash, only: DetermineDetNode
         IMPLICIT NONE
         INTEGER :: VecSlot,i,j,k,l,CopySign
         INTEGER :: nJ(NEl),IC,DetCurr(NEl)
@@ -336,7 +337,7 @@ MODULE CCMC
                   iCompositeSize=0
                   call decode_bit_det (DetCurr, iLutnI)
 !Also take into account the contributions from the dets in the list
-                  HDiagCurr=CurrentH(j)
+                  HDiagCurr=CurrentH(1,j)
                   if(tHistSpawn) then
                      WalkExcitLevel = FindBitExcitLevel(iLutHF, iLutnI, nel)
                   else
@@ -736,7 +737,7 @@ MODULE CCMC
                ELSE
                   dProbDecompose=1
                   iPartDie=j
-                  HDiagCurr=CurrentH(j)
+                  HDiagCurr=CurrentH(1,j)
                ENDIF 
                dProb=dClusterProb*dProbDecompose
 
@@ -755,7 +756,7 @@ MODULE CCMC
 !               CALL SumEContrib(DetCurr,WalkExcitLevel,iSgn,iLutnI,HDiagCurr,(dProb*dProbNorm))
 !HDiags are stored.
 !               if(iExcitor.eq.1) THEN
-!                  HDiagCurr=CurrentH(j)
+!                  HDiagCurr=CurrentH(1,j)
 
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
 !                  CALL SumEContrib(DetCurr,WalkExcitLevel,CurrentSign(j),CurrentDets(:,j),HDiagCurr,1.D0)
@@ -860,7 +861,7 @@ MODULE CCMC
             ENDIF
 
             ! HDiags are stored.
-            HDiagCurr=CurrentH(j)
+            HDiagCurr=CurrentH(1,j)
             call decode_bit_det (DetCurr, CurrentDets(:,j))
 
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
@@ -876,7 +877,7 @@ MODULE CCMC
                 call encode_sign(CurrentDets(:,VecSlot),TempSign3)
                 ! CurrentDets(:,VecSlot)=CurrentDets(:,j)
                 ! CurrentSign(VecSlot)=CopySign
-                CurrentH(VecSlot)=CurrentH(j)
+                CurrentH(1,VecSlot)=CurrentH(1,j)
                 VecSlot=VecSlot+1
             ENDIF   !To kill if
         enddo
@@ -1178,12 +1179,12 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
          S%dProbSpawn=S%dProbSpawn*S%nSpawnings
       endif
    ELSE
-!      WRITE(iout,*) tDone,S%dProbSpawn
-!      write(iout,*) S%ExcitMat,tParity
-!      Write(iout,*) "Getting Excitations"
-      CALL GenExcitations3(S%C%DetCurr,S%C%iLutDetCurr,S%nJ,S%exFlag,S%ExcitMat,tParity,tDone)
-!      call WriteDet(iout,S%nJ,nEl,.false.)
-!      WRITE(iout,*) tDone
+!      WRITE(6,*) tDone,S%dProbSpawn
+!      write(6,*) S%ExcitMat,tParity
+!      Write(6,*) "Getting Excitations"
+      CALL GenExcitations3(S%C%DetCurr,S%C%iLutDetCurr,S%nJ,S%exFlag,S%ExcitMat,tParity,tDone,.false.)
+!      call WriteDet(6,S%nJ,nEl,.false.)
+!      WRITE(6,*) tDone
       if(S%ExcitMat(1,2).eq.0) then
          S%iExcitLevel=1
       else
@@ -1722,7 +1723,7 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
    integer, dimension(lenof_sign) :: iSpawnAmp
    integer iDebug
 
-   real(dp) rat,r,prob
+   real(dp) rat,r,prob,RDMBias
    integer i
    integer IC
    integer part_type
@@ -1766,7 +1767,7 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
                               C%DetCurr,C%iLutDetCurr, &
                               C%iSgn,S%nJ,S%iLutnJ,prob,S%HIJ, &
                               S%iExcitLevel,S%ExcitMat,.false., & !.false. indicates we've dealt with parit
-                              S%iExcitLevel,part_type) 
+                              S%iExcitLevel,part_type,0.0_dp,RDMBias) 
 !   Here we convert nJ from a det back to an excitor.
    IC = FindBitExcitLevel(iLutHF, S%iLutnJ(:), nEl)
    iSpawnAmp=iSpawnAmp*ExcitToDetSign(iLutHF,S%iLutnJ,IC)
@@ -2801,7 +2802,8 @@ END SUBROUTINE CCMCStandaloneParticle
 
 subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
       use SystemData, only : nEl
-      use AnnihilationMod, only: DetermineDetNode
+!      use AnnihilationMod, only: DetermineDetNode
+      use hash, only: DetermineDetNode
       use bit_reps, only: decode_bit_det, set_flag
       use bit_rep_data, only: flag_parent_initiator
       use CCMCData, only: tSharedExcitors
