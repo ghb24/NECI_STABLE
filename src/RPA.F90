@@ -61,7 +61,7 @@ module RPA_Mod
         HDiagTemp=GetH0Element3(FDet)
         Fii=real(HDiagTemp,dp)
         do while(.true.)
-            call GenExcitations3(FDet,iLutHF,nJ,exflag,Ex,tParity,tAllExcitsFound)
+            call GenExcitations3(FDet,iLutHF,nJ,exflag,Ex,tParity,tAllExcitsFound,.false.)
             if(tAllExcitsFound) exit !All excits found
             if(Ex(1,2).eq.0) then
                 ic=1
