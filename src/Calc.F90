@@ -797,7 +797,7 @@ contains
             case("TIME")
                 !Input the desired runtime (in MINUTES) before exiting out of the MC.
                 call getf(MaxTimeExit)
-                MaxTimeExit=MaxTimeExit*60.D0    !Change straightaway so that MaxTimeExit corresponds to SECONDS!
+                MaxTimeExit=MaxTimeExit*60.0_dp    !Change straightaway so that MaxTimeExit corresponds to SECONDS!
                 tTimeExit=.true.
             case("MAXNOATHF")
 !If the number of walkers at the HF determinant reaches this number, the shift is allowed to change. (This is the total number across all processors).                

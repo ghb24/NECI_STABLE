@@ -1,5 +1,7 @@
 module read_fci
 
+    character(len=64) :: FCIDUMP_name
+
 contains
 
     SUBROUTINE INITFROMFCID(NEL,NBASISMAX,LEN,LMS,TBIN)
@@ -15,14 +17,15 @@ contains
          integer, intent(in) :: NEL
          integer SYMLZ(1000)
          integer(int64) :: ORBSYM(1000)
-         INTEGER NORB,NELEC,MS2,ISYM,i,SYML(1000), iunit
+         INTEGER NORB,NELEC,MS2,ISYM,i,SYML(1000), iunit,iuhf
          LOGICAL exists,UHF
          CHARACTER(len=3) :: fmat
-         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
+         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          UHF=.FALSE.
          fmat='NO'
          PROPBITLEN = 0
          NPROP = 0
+         IUHF = 0
          IF(iProcIndex.eq.0) THEN
              iunit = get_free_unit()
              IF(TBIN) THEN
@@ -30,18 +33,18 @@ contains
                 IF(.not.exists) THEN
                     CALL Stop_All('InitFromFCID','FCISYM file does not exist')
                 ENDIF
-                INQUIRE(FILE='FCIDUMP',EXIST=exists,FORMATTED=fmat)
+                INQUIRE(FILE=FCIDUMP_name,EXIST=exists,FORMATTED=fmat)
                 IF(.not.exists) THEN
                     CALL Stop_All('INITFROMFCID','FCIDUMP file does not exist')
                 ENDIF
                 OPEN(iunit,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
                 READ(iunit,FCI)
              ELSE
-                INQUIRE(FILE='FCIDUMP',EXIST=exists,UNFORMATTED=fmat)
+                INQUIRE(FILE=FCIDUMP_name,EXIST=exists,UNFORMATTED=fmat)
                 IF(.not.exists) THEN
                     CALL Stop_All('InitFromFCID','FCIDUMP file does not exist')
                 ENDIF
-                OPEN(iunit,FILE='FCIDUMP',STATUS='OLD',FORM='FORMATTED')
+                OPEN(iunit,FILE=FCIDUMP_name,STATUS='OLD',FORM='FORMATTED')
                 READ(iunit,FCI)
              ENDIF
              CLOSE(iunit)
@@ -182,21 +185,22 @@ contains
          INTEGER ISYMNUM,ISNMAX,SYMMAX,SYMLZ(1000)
          INTEGER NORB,NELEC,MS2,ISYM,ISPINS,ISPN,SYML(1000)
          integer(int64) ORBSYM(1000)
-         INTEGER nPairs,iErr,MaxnSlot,MaxIndex
+         INTEGER nPairs,iErr,MaxnSlot,MaxIndex,IUHF
          INTEGER , ALLOCATABLE :: MaxSlots(:)
          character(len=*), parameter :: t_r='GETFCIBASIS'
          LOGICAL TBIN,UHF
-         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
+         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          UHF=.FALSE.
+         IUHF=0
          IF(iProcIndex.eq.0) THEN
              iunit = get_free_unit()
              IF(TBIN) THEN
                 OPEN(iunit,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
                 READ(iunit,FCI)
                 CLOSE(iunit)
-                OPEN(iunit,FILE='FCIDUMP',STATUS='OLD',FORM='UNFORMATTED')
+                OPEN(iunit,FILE=FCIDUMP_name,STATUS='OLD',FORM='UNFORMATTED')
              ELSE
-                OPEN(iunit,FILE='FCIDUMP',STATUS='OLD',FORM='FORMATTED')
+                OPEN(iunit,FILE=FCIDUMP_name,STATUS='OLD',FORM='FORMATTED')
                 READ(iunit,FCI)
              ENDIF
          ENDIF
@@ -209,6 +213,7 @@ contains
          CALL MPIBCast(SYML,1000)
          CALL MPIBCast(SYMLZ,1000)
          CALL MPIBCast(ISYM,1)
+         CALL MPIBCast(IUHF,1)
          CALL MPIBCast(UHF,1)
          CALL MPIBCast(PROPBITLEN,1)
          CALL MPIBCast(NPROP,3)
@@ -546,19 +551,20 @@ contains
          integer(int64) ORBSYM(1000)
          LOGICAL LWRITE,UHF
          INTEGER ISPINS,ISPN,ierr,SYMLZ(1000)!,IDI,IDJ,IDK,IDL
-         INTEGER UMatSize,TMatSize
+         INTEGER UMatSize,TMatSize,IUHF
          INTEGER , ALLOCATABLE :: CacheInd(:)
          character(len=*), parameter :: t_r='READFCIINT'
          real(dp) :: diff
-         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
+         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          LWRITE=.FALSE.
          UHF=.FALSE.
+         IUHF=0
          ZeroedInt=0
          NonZeroInt=0
          
          IF(iProcIndex.eq.0) THEN
              iunit = get_free_unit()
-             OPEN(iunit,FILE='FCIDUMP',STATUS='OLD')
+             OPEN(iunit,FILE=FCIDUMP_name,STATUS='OLD')
              READ(iunit,FCI)
          ENDIF
 !Now broadcast these values to the other processors (the values are only read in on root)
@@ -569,6 +575,7 @@ contains
          CALL MPIBCast(SYML,1000)
          CALL MPIBCast(SYMLZ,1000)
          CALL MPIBCast(ISYM,1)
+         CALL MPIBCast(IUHF,1)
          CALL MPIBCast(UHF,1)
          CALL MPIBCast(PROPBITLEN,1)
          CALL MPIBCast(NPROP,3)
@@ -865,7 +872,7 @@ contains
          !OPEN(iunit,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
          !READ(iunit,FCI)
          !CLOSE(iunit)
-         OPEN(iunit,FILE='FCIDUMP',STATUS='OLD',FORM='UNFORMATTED')
+         OPEN(iunit,FILE=FCIDUMP_name,STATUS='OLD',FORM='UNFORMATTED')
 
 
          MASK=(2**16)-1

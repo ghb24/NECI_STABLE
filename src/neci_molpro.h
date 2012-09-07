@@ -12,7 +12,9 @@
 #define HElement_t real(dp)
 #endif
 
+/* Parallel compilation in molpro with MPI */
 #if defined(_MOLCAS_MPP_) && !defined(GA_TCGMSG) && !defined(GA_TCGMSG5)
+
 #define PARALLEL
 #define CBINDMPI
 

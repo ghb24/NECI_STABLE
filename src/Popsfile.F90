@@ -5,6 +5,7 @@ MODULE PopsfileMod
                         tReadPopsRestart, tRegenDiagHEls,InitWalkers, tReadPopsChangeRef, &
                         nShiftEquilSteps,iWeightPopRead,iPopsFileNoRead,tPopsMapping,Tau
     use DetBitOps, only: DetBitLT,FindBitExcitLevel,DetBitEQ
+    use hash , only : DetermineDetNode
     use Determinants, only : get_helement,write_det
     use hphf_integrals, only: hphf_diag_helement
     use MI_integrals, only: MI_diag_helement
@@ -12,9 +13,10 @@ MODULE PopsfileMod
     use FciMCData
     use bit_reps
     use Parallel_neci
-    use AnnihilationMod, only: DetermineDetNode,FindWalkerHash,EnlargeHashTable,IsUnoccDet
+!    use AnnihilationMod, only: DetermineDetNode,FindWalkerHash,EnlargeHashTable,IsUnoccDet
+    use AnnihilationMod, only: FindWalkerHash,EnlargeHashTable,IsUnoccDet
     USE Logging , only : iWritePopsEvery,tPopsFile,iPopsPartEvery,tBinPops
-    USE Logging , only : tPrintPopsDefault,tIncrementPops
+    USE Logging , only : tPrintPopsDefault,tIncrementPops, tPrintInitiators
     use sort_mod
     use util_mod, only: get_free_unit,get_unique_filename
 
@@ -126,6 +128,9 @@ MODULE PopsfileMod
             CALL LogMemAlloc('BatchRead',MaxSendIndex*(NIfTot+1),size_n_int,this_routine,BatchReadTag,ierr)
         endif
 
+        write(6,*) "ReadBatch: ",ReadBatch
+        write(6,*) "MaxSendIndex: ",MaxSendIndex
+
         CurrHF=0        !Number of HF walkers on each node.
         CurrParts=0     !Number of walkers on each node.
         CurrWalkers=0   !Number of determinants on each node.
@@ -190,6 +195,7 @@ MODULE PopsfileMod
         if(iProcIndex.eq.Root) close(iunit)
 
         !Test we have still got all determinants
+        write(6,*) "CurrWalkers: ",CurrWalkers
         TempCurrWalkers=int(CurrWalkers,int64)
         call MPISum(TempCurrWalkers,1,AllCurrWalkers)
         if(iProcIndex.eq.Root) then
@@ -232,7 +238,7 @@ MODULE PopsfileMod
                     call stop_all(this_routine,"HF already found, but shouldn't have")
                 endif
                 CurrHF=CurrHF+SignTemp 
-                IF(.not.tRegenDiagHEls) CurrentH(i)=0.D0
+                IF(.not.tRegenDiagHEls) CurrentH(1,i)=0.D0
             else
                 if(.not.tRegenDiagHEls) THEN
                 !Calculate diagonal matrix element
@@ -244,7 +250,7 @@ MODULE PopsfileMod
                     else
                         HElemTemp = get_helement (TempnI, TempnI, 0)
                     endif
-                    CurrentH(i)=REAL(HElemTemp,dp)-Hii
+                    CurrentH(1,i)=REAL(HElemTemp,dp)-Hii
                 endif
             endif
         enddo
@@ -662,7 +668,7 @@ MODULE PopsfileMod
 !This routine will write out to a popsfile. It transfers all walkers to the 
 ! head node sequentially, so does not want to be called too often
     SUBROUTINE WriteToPopsfileParOneArr(Dets,nDets)
-        use CalcData, only: iPopsFileNoWrite
+        use CalcData, only: iPopsFileNoWrite, InitiatorWalkNo
         use constants, only: size_n_int,n_int
         use MemoryManager, only: TagIntType
         integer(int64),intent(in) :: nDets !The number of occupied entries in Dets
@@ -673,11 +679,12 @@ MODULE PopsfileMod
         INTEGER :: Total,i,j,k
         INTEGER(KIND=n_int), ALLOCATABLE :: Parts(:,:)
         INTEGER(TagIntType) :: PartsTag=0
-        INTEGER :: nMaxDets
-        integer :: iunit
+        INTEGER :: nMaxDets, TempDet(0:NIfTot), TempFlags
+        integer :: iunit, iunit_2, Initiator_Count
         CHARACTER(len=*) , PARAMETER :: this_routine='WriteToPopsfileParOneArr'
         character(255) :: popsfile
         INTEGER, DIMENSION(lenof_sign) :: TempSign
+        integer :: excit_lev
 
         CALL MPIBarrier(error)  !sync
 !        WRITE(6,*) "Get Here",nDets
@@ -808,6 +815,11 @@ MODULE PopsfileMod
                 call get_unique_filename('POPSFILEBIN',tIncrementPops,.true.,iPopsFileNoWrite,popsfile)
                 OPEN(iunit,FILE=popsfile,Status='replace',form='unformatted')
             ENDIF
+            if(tPrintInitiators) then
+                iunit_2 = get_free_unit()
+                OPEN(iunit_2,FILE='INITIATORS',Status='UNKNOWN')
+                Initiator_Count = 0
+            endif
 
             IF(tBinPops) THEN
                 do j=1,nDets
@@ -819,6 +831,17 @@ MODULE PopsfileMod
                     IF(mod(j,iPopsPartEvery).eq.0) THEN
                         WRITE(iunit) Dets(0:NIfTot,j)!,TempSign(:)
                     ENDIF
+                    if(tPrintInitiators.and.&
+                        (abs(TempSign(1)).gt.InitiatorWalkNo)) then
+                        ! Testing using the sign now, because after annihilation etc, 
+                        ! the current flag will not necessarily be correct.                                      
+                        call extract_bit_rep (Dets(:,j), TempDet, TempSign, &
+                                              TempFlags, fcimc_excit_gen_store)
+                        excit_lev=FindBitExcitLevel(iLutRef,Dets(:,j),nEl)
+                        write(iunit_2,"(I30,A20)",advance='no') abs(TempSign(1)),''
+                        call write_det (iunit_2, TempDet, .false.)
+                        write(iunit_2,"(I10)") excit_lev
+                    endif
                 enddo
             ELSE
                 do j=1,nDets
@@ -833,8 +856,20 @@ MODULE PopsfileMod
 !                        call extract_sign(Dets(:,j),TempSign)
 !                        WRITE(iunit,*) TempSign(:)
                     ENDIF
+                    if(tPrintInitiators.and.&
+                        (abs(TempSign(1)).gt.InitiatorWalkNo)) then
+                        ! Testing using the sign now, because after annihilation etc, 
+                        ! the current flag will not necessarily be correct.                                      
+                        call extract_bit_rep (Dets(:,j), TempDet, TempSign, &
+                                              TempFlags, fcimc_excit_gen_store)
+                        excit_lev=FindBitExcitLevel(iLutRef,Dets(:,j),nEl)
+                        write(iunit_2,"(I30,A20)",advance='no') abs(TempSign(1)),''
+                        call write_det (iunit_2, TempDet, .false.)
+                        write(iunit_2,"(I30)") excit_lev
+                    endif
                 enddo
             ENDIF
+
 !            WRITE(6,*) "Written out own walkers..."
 !            write(6,*) WalkersOnNodes
 !            CALL neci_flush(6)
@@ -864,6 +899,17 @@ MODULE PopsfileMod
 !                            call extract_sign(Parts(:,j),TempSign)
                             WRITE(iunit) Parts(0:NIfTot,j)!,TempSign(:)
                         ENDIF
+                        if(tPrintInitiators.and.&
+                            (abs(TempSign(1)).gt.InitiatorWalkNo)) then
+                            ! Testing using the sign now, because after annihilation etc, 
+                            ! the current flag will not necessarily be correct.                                      
+                            call extract_bit_rep (Parts(:,j), TempDet, TempSign, &
+                                                  TempFlags, fcimc_excit_gen_store)
+                            excit_lev=FindBitExcitLevel(iLutRef,Parts(:,j),nEl)
+                            write(iunit_2,"(I30,A20)",advance='no') abs(TempSign(1)),''
+                            call write_det (iunit_2, TempDet, .false.)
+                            write(iunit_2,"(I10)") excit_lev
+                        endif
                     enddo
                 ELSE
                     do j=1,WalkersonNodes(i)
@@ -877,14 +923,27 @@ MODULE PopsfileMod
 !                            call extract_sign(Parts(:,j),TempSign)
 !                            WRITE(iunit,*) TempSign(:)
                         ENDIF
+                        if(tPrintInitiators.and.&
+                            (abs(TempSign(1)).gt.InitiatorWalkNo)) then
+                            ! Testing using the sign now, because after annihilation etc, 
+                            ! the current flag will not necessarily be correct.                                      
+                            call extract_bit_rep (Parts(:,j), TempDet, TempSign, &
+                                                  TempFlags, fcimc_excit_gen_store)
+                            excit_lev=FindBitExcitLevel(iLutRef,Parts(:,j),nEl)
+                            write(iunit_2,"(I30,A20)",advance='no') abs(TempSign(1)),''
+                            call write_det (iunit_2, TempDet, .false.)
+                            write(iunit_2,"(I30)") excit_lev
+                        endif
                     enddo
                 ENDIF
+
 !                WRITE(6,*) "Writted out walkers for processor ",i
 !                CALL neci_flush(6)
 
             enddo
 
             CLOSE(iunit)
+            if (tPrintInitiators) CLOSE(iunit_2)
 
 !Deallocate memory for temporary storage of information.
             DEALLOCATE(Parts)
@@ -909,7 +968,7 @@ MODULE PopsfileMod
 !This routine reads in particle configurations from a POPSFILE.
     SUBROUTINE ReadFromPopsfilePar()
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn,iWeightPopRead
-        use Logging, only: tZeroProjE
+        use Logging, only: tZeroProjE, tRDMonFly, tExplicitAllRDM, tHF_Ref_Explicit 
         use constants, only: size_n_int,bits_n_int
         LOGICAL :: exists,tBinRead
         INTEGER :: AvWalkers,WalkerstoReceive(nProcessors)
@@ -1143,14 +1202,36 @@ MODULE PopsfileMod
 
 !Need to now allocate other arrays
         IF(.not.tRegenDiagHEls) THEN
-            ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
-            CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
-            WalkVecH(:)=0.d0
-            MemoryAlloc=MemoryAlloc+8*MaxWalkersPart
+            if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
+                ALLOCATE(WalkVecH(3,MaxWalkersPart),stat=ierr)
+                CALL LogMemAlloc('WalkVecH',3*MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
+                WalkVecH(:,:)=0.d0
+                MemoryAlloc=MemoryAlloc+8*MaxWalkersPart*3
+                WRITE(6,"(A)") " The current signs before death will be store for use in the RDMs."
+                WRITE(6,"(A,F14.6,A)") " This requires ", REAL(MaxWalkersPart*8*3,dp)/1048576.D0," Mb/Processor"
+                NCurrH = 3
+            else
+                ALLOCATE(WalkVecH(1,MaxWalkersPart),stat=ierr)
+                CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
+                WalkVecH(:,:)=0.d0
+                MemoryAlloc=MemoryAlloc+8*MaxWalkersPart
+                NCurrH = 1
+            endif
         ELSE
-            WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ", &
-             & REAL(MaxWalkersPart*8,dp)/1048576.D0," Mb/Processor"
+            WRITE(6,"(A,F14.6,A)") " Diagonal H-Elements will not be stored. This will *save* ", &
+                & REAL(MaxWalkersPart*8,dp)/1048576.D0," Mb/Processor"
         ENDIF
+
+        if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
+!Allocate memory to hold walkers spawned from one determinant at a time.
+!Walkers are temporarily stored here, so we can check if we're spawning onto the same Dj multiple times.
+            ALLOCATE(TempSpawnedParts(0:NIfDBO,20000),stat=ierr)
+            CALL LogMemAlloc('TempSpawnedParts',20000*(NIfDBO+1),size_n_int,this_routine,TempSpawnedPartsTag,ierr)
+            TempSpawnedParts(0:NIfDBO,1:20000)=0
+            MemoryAlloc=MemoryAlloc + (NIfDBO+1)*20000*size_n_int    !Memory Allocated in bytes
+            WRITE(6,"(A)") " Allocating temporary array for walkers spawned from a particular Di."
+            WRITE(6,"(A,F14.6,A)") " This requires ", REAL(((NIfDBO+1)*20000*size_n_int),dp)/1048576.D0," Mb/Processor"
+        endif
 
         IF(.not.tRegenDiagHEls) THEN
             CurrentH=>WalkVecH
@@ -1383,7 +1464,7 @@ MODULE PopsfileMod
             call decode_bit_det (TempnI, currentDets(:,j))
             Excitlevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j), 2)
             IF(Excitlevel.eq.0) THEN
-                IF(.not.tRegenDiagHEls) CurrentH(j)=0.D0
+                IF(.not.tRegenDiagHEls) CurrentH(1,j)=0.D0
             ELSE
                 IF(.not.tRegenDiagHEls) THEN
                     if (tHPHF) then
@@ -1394,7 +1475,7 @@ MODULE PopsfileMod
                     else
                         HElemTemp = get_helement (TempnI, TempnI, 0)
                     endif
-                    CurrentH(j)=REAL(HElemTemp,dp)-Hii
+                    CurrentH(1,j)=REAL(HElemTemp,dp)-Hii
                 ENDIF
 
             ENDIF
@@ -1450,6 +1531,8 @@ MODULE PopsfileMod
         LOGICAL :: tPop64BitDets,tPopHPHF,tPopLz,tPopInitiator
         integer(n_int) :: ilut_largest(0:NIfTot)
         integer :: sign_largest
+
+        MemoryAlloc = 0
 
         IF(lenof_sign.ne.1) CALL Stop_All("ReadFromPopsfilePar","Popsfile does not work with complex walkers")
         
