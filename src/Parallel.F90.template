@@ -1137,15 +1137,15 @@ contains
         rptr = loc_neci(ret)
 #endif
 
-        DispsN = Disps &
-               * %(mpilen)s
-        LengthsN = Lengths &
-                 * %(mpilen)s
+        DispsN = int(Disps &
+         * %(mpilen)s,MPIArg)
+        LengthsN = int(Lengths &
+         * %(mpilen)s,MPIArg)
 
         call GetComm (Comm, Node, rt)
 
-        LengthIn = %(mpilen)s &
-                 * (ubound(v,%(ndim)s+1)-lbound(v,%(ndim)s+1)+1)
+        LengthIn = int(%(mpilen)s &
+         * (ubound(v,%(ndim)s+1)-lbound(v,%(ndim)s+1)+1),MPIArg)
         
         call MPI_GatherV (val_in, LengthIn, &
                 %(mpitype)s, &
