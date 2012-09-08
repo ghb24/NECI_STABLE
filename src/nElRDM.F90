@@ -26,7 +26,7 @@ MODULE nElRDMMod
 ! involved in the excitation.
 
 ! NOTE: There will be possible speed ups considering the fact that the 1RDM is symmetrical.
-! Can initially find all elements and average the two values pq and qp (more accurate??).
+! Can initially find all elements and average the two values pq and qp (more accurate?).
 ! But should put a condition into the excitaiton generator so that only single excitations with q > p 
 ! are generated.
 
@@ -2272,10 +2272,10 @@ MODULE nElRDMMod
         INTEGER(MPIArg) :: doub_recvcounts(nProcessors),doub_recvdisps(nProcessors)
 
         do i=0,nProcessors-1
-            sendcounts(i+1)=Sing_ExcList(i)-(NINT(OneEl_Gap*i)+1)
+            sendcounts(i+1)=int(Sing_ExcList(i)-(NINT(OneEl_Gap*i)+1),MPIArg)
 ! Sendcounts is the number of singly excited determinants we want to send for 
 ! each processor (but goes from 1, not 0).            
-            disps(i+1)=NINT(OneEl_Gap*i)
+            disps(i+1)=NINT(OneEl_Gap*i,MPIArg)
 ! and I think disps is the first slot for each processor - 1.            
         enddo
 
@@ -2296,10 +2296,10 @@ MODULE nElRDMMod
         MaxIndex=sing_recvdisps(nProcessors)+sing_recvcounts(nProcessors)
 ! But the actual number of integers we need to send is the calculated values * NIfTot+1.
         do i=1,nProcessors
-            sendcounts(i)=sendcounts(i)*(NIfTot+1)
-            disps(i)=disps(i)*(NIfTot+1)
-            sing_recvcounts(i)=sing_recvcounts(i)*(NIfTot+1)
-            sing_recvdisps(i)=sing_recvdisps(i)*(NIfTot+1)
+            sendcounts(i)=sendcounts(i)*(int(NIfTot+1,MPIArg))
+            disps(i)=disps(i)*(int(NIfTot+1,MPIArg))
+            sing_recvcounts(i)=sing_recvcounts(i)*(int(NIfTot+1,MPIArg))
+            sing_recvdisps(i)=sing_recvdisps(i)*(int(NIfTot+1,MPIArg))
         enddo
 #ifdef PARALLEL
         CALL MPIAlltoAllv(Sing_ExcDjs(:,1:MaxSendIndex),sendcounts,disps,&
@@ -2313,10 +2313,10 @@ MODULE nElRDMMod
 
         IF(RDMExcitLevel.ne.1) THEN
             do i=0,nProcessors-1
-                sendcounts(i+1)=Doub_ExcList(i)-(NINT(TwoEl_Gap*i)+1)
+                sendcounts(i+1)=int(Doub_ExcList(i)-(NINT(TwoEl_Gap*i)+1),MPIArg)
 ! Sendcounts is the number of singly excited determinants we want to send for 
 ! each processor (but goes from 1, not 0).            
-                disps(i+1)=NINT(TwoEl_Gap*i)
+                disps(i+1)=NINT(TwoEl_Gap*i,MPIArg)
 ! and I think disps is the first slot for each processor - 1.            
             enddo
 
@@ -2337,10 +2337,10 @@ MODULE nElRDMMod
             MaxIndex=doub_recvdisps(nProcessors)+doub_recvcounts(nProcessors)
 ! But the actual number of integers we need to send is the calculated values * NIfTot+1.
             do i=1,nProcessors
-                sendcounts(i)=sendcounts(i)*(NIfTot+1)
-                disps(i)=disps(i)*(NIfTot+1)
-                doub_recvcounts(i)=doub_recvcounts(i)*(NIfTot+1)
-                doub_recvdisps(i)=doub_recvdisps(i)*(NIfTot+1)
+                sendcounts(i)=sendcounts(i)*(int(NIfTot+1,MPIArg))
+                disps(i)=disps(i)*(int(NIfTot+1,MPIArg))
+                doub_recvcounts(i)=doub_recvcounts(i)*(int(NIfTot+1,MPIArg))
+                doub_recvdisps(i)=doub_recvdisps(i)*(int(NIfTot+1,MPIArg))
             enddo
 
 ! This is the main send of all the single excitations to the corresponding processors.        
@@ -2372,10 +2372,10 @@ MODULE nElRDMMod
         INTEGER(MPIArg) :: doub_recvcounts(nProcessors),doub_recvdisps(nProcessors)
 
         do i=0,nProcessors-1
-            sendcounts(i+1)=Sing_ExcList(i)-(NINT(OneEl_Gap*i)+1)
+            sendcounts(i+1)=int(Sing_ExcList(i)-(NINT(OneEl_Gap*i)+1),MPIArg)
 ! Sendcounts is the number of singly excited determinants we want to send for 
 ! each processor (but goes from 1, not 0).            
-            disps(i+1)=NINT(OneEl_Gap*i)
+            disps(i+1)=NINT(OneEl_Gap*i,MPIArg)
 ! and I think disps is the first slot for each processor - 1.            
         enddo
 
@@ -2396,10 +2396,10 @@ MODULE nElRDMMod
         MaxIndex=sing_recvdisps(nProcessors)+sing_recvcounts(nProcessors)
 ! But the actual number of integers we need to send is the calculated values * NIfTot+1.
         do i=1,nProcessors
-            sendcounts(i)=sendcounts(i)*(NIfTot+1)
-            disps(i)=disps(i)*(NIfTot+1)
-            sing_recvcounts(i)=sing_recvcounts(i)*(NIfTot+1)
-            sing_recvdisps(i)=sing_recvdisps(i)*(NIfTot+1)
+            sendcounts(i)=sendcounts(i)*(int(NIfTot+1,MPIArg))
+            disps(i)=disps(i)*(int(NIfTot+1,MPIArg))
+            sing_recvcounts(i)=sing_recvcounts(i)*(int(NIfTot+1,MPIArg))
+            sing_recvdisps(i)=sing_recvdisps(i)*(int(NIfTot+1,MPIArg))
         enddo
 #ifdef PARALLEL
         CALL MPIAlltoAllv(Sing_ExcDjs(:,1:MaxSendIndex),sendcounts,disps,&
@@ -2413,10 +2413,10 @@ MODULE nElRDMMod
 
         IF(RDMExcitLevel.ne.1) THEN            
             do i=0,nProcessors-1
-                sendcounts(i+1)=Doub_ExcList(i)-(NINT(TwoEl_Gap*i)+1)
+                sendcounts(i+1)=int(Doub_ExcList(i)-(NINT(TwoEl_Gap*i)+1),MPIArg)
 ! Sendcounts is the number of singly excited determinants we want to send for 
 ! each processor (but goes from 1, not 0).            
-                disps(i+1)=NINT(TwoEl_Gap*i)
+                disps(i+1)=NINT(TwoEl_Gap*i,MPIArg)
 ! and I think disps is the first slot for each processor - 1.            
             enddo
 
@@ -2437,10 +2437,10 @@ MODULE nElRDMMod
             MaxIndex=doub_recvdisps(nProcessors)+doub_recvcounts(nProcessors)
 ! But the actual number of integers we need to send is the calculated values * NIfTot+1.
             do i=1,nProcessors
-                sendcounts(i)=sendcounts(i)*(NIfTot+1)
-                disps(i)=disps(i)*(NIfTot+1)
-                doub_recvcounts(i)=doub_recvcounts(i)*(NIfTot+1)
-                doub_recvdisps(i)=doub_recvdisps(i)*(NIfTot+1)
+                sendcounts(i)=sendcounts(i)*(int(NIfTot+1,MPIArg))
+                disps(i)=disps(i)*(int(NIfTot+1,MPIArg))
+                doub_recvcounts(i)=doub_recvcounts(i)*(int(NIfTot+1,MPIArg))
+                doub_recvdisps(i)=doub_recvdisps(i)*(int(NIfTot+1,MPIArg))
             enddo
 
 ! This is the main send of all the single excitations to the corresponding processors.        
