@@ -2622,7 +2622,7 @@ MODULE FciMCParMod
             if(tTruncInitiator) then
                 ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
                 if(test_flag(iLutCurr,flag_is_initiator(1))) then
-                    NoAddedInitiators=NoAddedInitiators-1.D0
+                    NoAddedInitiators=NoAddedInitiators-1
                     if (tSpawnSpatialInit) call rm_initiator_list (ilutCurr)
                 endif
             endif
@@ -3984,7 +3984,7 @@ MODULE FciMCParMod
     subroutine rezero_iter_stats_each_iter (iter_data)
 
         type(fcimc_iter_data), intent(inout) :: iter_data
-        real*8 :: TempTotParts
+        real(dp) :: TempTotParts
         real(dp) :: Prev_AvNoatHF
 
         NoInitDets = 0
