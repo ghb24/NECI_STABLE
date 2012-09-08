@@ -2,6 +2,7 @@
 !TODO: Fix RPA from stability matrix
 !TODO: Add MP2 for comparison
 !TODO: Add symmetry information by using singles excitation generators (store excitations)? (Not urgent) 
+!TODO: Set Y to zero, and check that this gives the same energy as the Tamm-Dancoff approximation
 !Module to non-iteratively calculate the RPA energy under the quasi-boson approximation
 module RPA_Mod
     use SystemData, only: nel, nBasis, Arr, Brr
@@ -16,7 +17,7 @@ module RPA_Mod
     implicit none
 
     !input options
-    logical :: tStabilityAnalysis=.false.
+    logical :: tStabilityAnalysis=.true. 
 
     !global variables
     integer :: ov_space
@@ -32,23 +33,24 @@ module RPA_Mod
         implicit none
         integer :: ierr,i,j,m,n,ex(2,2),ex2(2,2),mi_ind,nj_ind
         integer :: StabilitySize,lWork,info,i_p,m_p,v,mp_ip_ind,ic
-        integer :: nJ(NEl),exflag
+        integer :: nJ(NEl),exflag,mu
         integer(n_int) :: iLutHF(0:NIfTot)
         real(dp), intent(out) :: Weight,Energy
         real(dp) :: Energy_stab,Temp_real,norm,Energy2,H0tmp,Fii
+        real(dp) :: X_norm,Y_norm
         HElement_t :: HDiagTemp,hel
         logical :: tAllExcitsFound,tParity
         real(dp), allocatable :: Stability(:,:),temp2(:,:),W2(:)
-        real(dp), allocatable :: W(:),Work(:),S_minhalf(:,:),temp(:,:)
-        real(dp), allocatable :: X_stab(:,:),Y_stab(:,:)
+        real(dp), allocatable :: W(:),Work(:),S_half(:,:),temp(:,:)
+        real(dp), allocatable :: X_stab(:,:),Y_stab(:,:),StabilityCopy(:,:)
         real(dp), allocatable :: X_chol(:,:),Y_chol(:,:)
         real(dp), allocatable :: AminB(:,:),AplusB(:,:),temp3(:,:)
         character(len=*), parameter :: t_r="RunRPA_QBA"
 
         write(6,"(A)")
-        write(6,"(A)") "*****************************************************************"
-        write(6,"(A)") "*   Entering RPA calculation with quasi-boson approximation...  *"
-        write(6,"(A)") "*****************************************************************"
+        write(6,"(A)") "********************************************************************"
+        write(6,"(A)") "*   Entering full RPA calculation within quasi-boson framework...  *"
+        write(6,"(A)") "********************************************************************"
         write(6,"(A)") 
         call neci_flush(6)
 
@@ -80,6 +82,7 @@ module RPA_Mod
 
         ov_space=(nBasis-NEl)*NEl
         virt_start=NEl+1
+        write(6,"(A,I8)") "1p-1h space is: ",ov_space
 
         allocate(A_mat(ov_space,ov_space),stat=ierr)
         allocate(B_mat(ov_space,ov_space),stat=ierr)
@@ -104,7 +107,7 @@ module RPA_Mod
                         mi_ind = ov_space_ind(m,i)
                         ex(1,1)=Brr(m)   !First index in integral
                         ex2(1,1)=Brr(m) 
-
+ 
                         A_mat(mi_ind,nj_ind) = sltcnd_2(ex,.false.)
                         B_mat(mi_ind,nj_ind) = sltcnd_2(ex2,.false.)
 
@@ -171,11 +174,14 @@ module RPA_Mod
 
             !Now diagonalize
             !Find optimal space
+            allocate(StabilityCopy(StabilitySize,StabilitySize))
+            StabilityCopy(:,:)=Stability(:,:)
             allocate(W(StabilitySize),stat=ierr)    !Eigenvalues of stability matrix
             allocate(Work(1))
             if(ierr.ne.0) call stop_all(t_r,"alloc err")
             W(:)=0.0_dp
             lWork=-1
+            info=0
             call dsyev('V','U',StabilitySize,Stability,StabilitySize,W,Work,lWork,info)
             if(info.ne.0) call stop_all(t_r,'workspace query failed')
             lwork=work(1)
@@ -194,15 +200,25 @@ module RPA_Mod
             write(6,"(A)") "Stability matrix positive definite. HF solution is minimum. RPA stable"
 
             !Now compute S^(1/2), and transform into original basis
-            allocate(S_minhalf(StabilitySize,StabilitySize))
-            S_minhalf(:,:)=0.0_dp
+            allocate(S_half(StabilitySize,StabilitySize))
+            S_half(:,:)=0.0_dp
             do i=1,StabilitySize
-                S_minhalf(i,i)=sqrt(W(i))
+                S_half(i,i)=sqrt(W(i))
             enddo
             allocate(temp(StabilitySize,StabilitySize))
-            call dgemm('n','n',StabilitySize,StabilitySize,StabilitySize,1.0_dp,Stability,StabilitySize,S_minhalf,StabilitySize,0.0_dp,temp,StabilitySize)
-            call dgemm('n','t',StabilitySize,StabilitySize,StabilitySize,1.0_dp,temp,StabilitySize,Stability,StabilitySize,0.0_dp,S_minhalf,StabilitySize)
-            !S_minhalf is now S^1/2 in the original basis
+            call dgemm('n','n',StabilitySize,StabilitySize,StabilitySize,1.0_dp,Stability,StabilitySize,S_half,StabilitySize,0.0_dp,temp,StabilitySize)
+            call dgemm('n','t',StabilitySize,StabilitySize,StabilitySize,1.0_dp,temp,StabilitySize,Stability,StabilitySize,0.0_dp,S_half,StabilitySize)
+            !S_half is now S^1/2 in the original basis
+
+            !Check this by squaring it.
+            call dgemm('n','t',StabilitySize,StabilitySize,StabilitySize,1.0_dp,S_half,StabilitySize,S_half,StabilitySize,0.0_dp,temp,StabilitySize)
+            do i=1,StabilitySize
+                do j=1,StabilitySize
+                    if(abs(StabilityCopy(i,j)-temp(i,j)).gt.1.0e-7) then
+                        call stop_all(t_r,'S^1/2 not calculated correctly in original basis')
+                    endif
+                enddo
+            enddo
 
             temp(:,:)=0.0_dp
             do i=1,ov_space
@@ -213,8 +229,8 @@ module RPA_Mod
             enddo
 
             allocate(temp2(StabilitySize,StabilitySize))
-            call dgemm('n','n',StabilitySize,StabilitySize,StabilitySize,1.0_dp,S_minhalf,StabilitySize,temp,StabilitySize,0.0_dp,temp2,StabilitySize)
-            call dgemm('n','n',StabilitySize,StabilitySize,StabilitySize,1.0_dp,temp2,StabilitySize,S_minhalf,StabilitySize,0.0_dp,temp,StabilitySize)
+            call dgemm('n','n',StabilitySize,StabilitySize,StabilitySize,1.0_dp,S_half,StabilitySize,temp,StabilitySize,0.0_dp,temp2,StabilitySize)
+            call dgemm('n','n',StabilitySize,StabilitySize,StabilitySize,1.0_dp,temp2,StabilitySize,S_half,StabilitySize,0.0_dp,temp,StabilitySize)
             !Now diagonalize temp = S^(1/2) (1 0 \\ 0 -1 ) S^(1/2)
 
             lWork=-1
@@ -244,38 +260,199 @@ module RPA_Mod
             !We actually have everything we need for the energy already now. However, calculate X and Y too.
             !Now construct (X Y) = S^(-1/2) (X~ Y~)
             !First get S^(-1/2) in the original basis
-            S_minhalf(:,:)=0.0_dp
+            S_half(:,:)=0.0_dp
             do i=1,StabilitySize
-                S_minhalf(i,i)=-sqrt(W(i))
+                S_half(i,i)=-sqrt(W(i))
             enddo
-            call dgemm('n','n',StabilitySize,StabilitySize,StabilitySize,1.0_dp,Stability,StabilitySize,S_minhalf,StabilitySize,0.0_dp,temp2,StabilitySize)
-            call dgemm('n','t',StabilitySize,StabilitySize,StabilitySize,1.0_dp,temp2,StabilitySize,Stability,StabilitySize,0.0_dp,S_minhalf,StabilitySize)
-            !S_minhalf is now S^(-1/2) in the original basis
+            call dgemm('n','n',StabilitySize,StabilitySize,StabilitySize,1.0_dp,Stability,StabilitySize,S_half,StabilitySize,0.0_dp,temp2,StabilitySize)
+            call dgemm('n','t',StabilitySize,StabilitySize,StabilitySize,1.0_dp,temp2,StabilitySize,Stability,StabilitySize,0.0_dp,S_half,StabilitySize)
+            !S_half is now S^(-1/2) in the original basis
 
             !Now multiply S^(-1/2) (X~ y~)
-            call dgemm('n','n',StabilitySize,StabilitySize,StabilitySize,1.0_dp,S_minhalf,StabilitySize,temp,StabilitySize,0.0_dp,temp2,StabilitySize)
+            call dgemm('n','n',StabilitySize,StabilitySize,StabilitySize,1.0_dp,S_half,StabilitySize,temp,StabilitySize,0.0_dp,temp2,StabilitySize)
 
-            !temp2 now runs over X, Y
+            !Check that eigenvectors are also paired.
+            !Rotations among degenerate sets will screw this up though
+!            do i=1,ov_space
+!                write(6,*) "Eigenvectors: ",i,StabilitySize-i+1,W2(i),W2(StabilitySize-i+1)
+!                do j=1,StabilitySize
+!                    write(6,*) j,temp2(j,i),temp2(j,StabilitySize-i+1)
+!                enddo
+!            enddo
+            
+!            call writematrix(temp2,'X Y // Y X',.true.)
+            !temp2 should now be a matrix of (Y X)
+!                                            (X Y)
+!           This is the other way round to normal, but due to the fact that our eigenvalues are ordered -ve -> +ve
+!           TODO: Are the signs of this matrix correct?
             allocate(X_stab(ov_space,ov_space)) !First index is (m,i) compound index. Second is the eigenvector index.
             allocate(Y_stab(ov_space,ov_space))
             X_stab(:,:)=0.0_dp
             Y_stab(:,:)=0.0_dp
-            !Put these into the X_stab and Y_stab arrays.
-            X_stab(1:ov_space,1:ov_space)=temp2(1:ov_space,1:ov_space)
-            Y_stab(1:ov_space,1:ov_space)=temp2(ov_space+1:StabilitySize,1:ov_space)
+            !Put the eigenvectors corresponding to *positive* eigenvalues into the X_stab and Y_stab arrays.
+            X_stab(1:ov_space,1:ov_space)=temp2(1:ov_space,ov_space+1:StabilitySize)
+            Y_stab(1:ov_space,1:ov_space)=-temp2(ov_space+1:StabilitySize,ov_space+1:StabilitySize)
             deallocate(temp2)
 
+            !Normalize the eigenvectors appropriately
+            do mu=1,ov_space
+                norm=0.0_dp
+                Y_norm = 0.0_dp
+                X_norm = 0.0_dp
+                do i=1,ov_space
+                    norm = norm + X_stab(i,mu)*X_stab(i,mu) - Y_stab(i,mu)*Y_stab(i,mu)
+                    Y_norm = Y_norm + Y_stab(i,mu)*Y_stab(i,mu)
+                    X_norm = X_norm + X_stab(i,mu)*X_stab(i,mu)
+                enddo
+                if(norm.le.0.0_dp) then 
+                    write(6,*) "Norm^2 for vector ",mu," is: ",norm
+                    call stop_all(t_r,'norm undefined')
+                endif
+                norm = sqrt(norm)
+                do i=1,ov_space
+                    X_stab(i,mu) = X_stab(i,mu)/norm
+                    Y_stab(i,mu) = Y_stab(i,mu)/norm
+                enddo
+                if(Y_norm.gt.X_norm/2.0_dp) then
+                    write(6,*) "Warning: hole amplitudes large for excitation: ",mu," Quasi-boson approximation breaking down."
+                    write(6,*) "Norm of X component: ",X_norm
+                    write(6,*) "Norm of Y component: ",Y_norm
+                endif
+            enddo
+!            call writematrix(X_stab,'X',.true.)
+
+            !Now check orthogonality 
+            call Check_XY_orthogonality(X_stab,Y_stab)
+            
 !            call writevector(W2,'Stab_eigenvalues')
 
-            !Now check orthogonality (normalization currently commented out)
-!            call Check_XY_orthogonality(X_stab,Y_stab)
+            !Now check that we satisfy the original RPA equations
+            !For the *positive* eigenvalue space (since we have extracted eigenvectors corresponding to this), check that:
+!           ( A B ) (X) = E_v(X )
+!           ( B A ) (Y)      (-Y)
+            deallocate(temp)
+            allocate(temp(StabilitySize,ov_space))
+            temp(1:ov_space,1:ov_space) = X_stab(:,:)
+            temp(ov_space+1:StabilitySize,1:ov_space) = Y_stab(:,:)
+            allocate(temp2(StabilitySize,ov_space))
+            call dgemm('n','n',StabilitySize,ov_space,StabilitySize,1.0_dp,StabilityCopy,StabilitySize,temp,    &
+                StabilitySize,0.0_dp,temp2,StabilitySize)
+            do i=1,ov_space
+                do j=1,ov_space
+                    if(abs(temp2(j,i)-(W2(i+ov_space)*X_stab(j,i))).gt.1.0e-6_dp) then
+                        write(6,*) i,j,temp2(j,i),(W2(i+ov_space)*X_stab(j,i)),W2(i+ov_space)
+                        call stop_all(t_r,"RPA equations not satisfied for positive frequencies in X matrix")
+                    endif
+                enddo
+            enddo
+            do i=1,ov_space
+                do j=1,ov_space
+                    if(abs(temp2(j+ov_space,i)-(-W2(i+ov_space)*Y_stab(j,i))).gt.1.0e-6_dp) then
+                        write(6,*) i,j,temp2(j+ov_space,i),(-W2(i+ov_space)*Y_stab(j,i)),-W2(i+ov_space)
+                        call stop_all(t_r,"RPA equations not satisfied for positive frequencies in Y matrix")
+                    endif
+                enddo
+            enddo
+            deallocate(temp,temp2)
 
-            !Now calculate energy, in two different ways
-!            call CalcRPAEnergy(Y_stab,W2,Energy_stab)
+            !Is is also satisfied the other way around?
+            !Check that we also satisfy (still for the *positive* eigenvalues):
+!           ( A B ) (Y) = -E_v(Y )
+!           ( B A ) (X)       (-X)
+            allocate(temp(StabilitySize,ov_space))
+            temp(1:ov_space,1:ov_space) = Y_stab(:,:)
+            temp(ov_space+1:StabilitySize,1:ov_space) = X_stab(:,:)
+            allocate(temp2(StabilitySize,ov_space))
+            call dgemm('n','n',StabilitySize,ov_space,StabilitySize,1.0_dp,StabilityCopy,StabilitySize,temp,    &
+                StabilitySize,0.0_dp,temp2,StabilitySize)
+            do i=1,ov_space
+                do j=1,ov_space
+                    if(abs(temp2(j,i)-(-W2(i+ov_space)*Y_stab(j,i))).gt.1.0e-6_dp) then
+                        call stop_all(t_r,"RPA equations not satisfied for negative frequencies in X matrix")
+                    endif
+                enddo
+            enddo
+            do i=1,ov_space
+                do j=1,ov_space
+                    if(abs(temp2(j+ov_space,i)-(W2(i+ov_space)*X_stab(j,i))).gt.1.0e-6_dp) then
+                        call stop_all(t_r,"RPA equations not satisfied for negative frequencies in Y matrix")
+                    endif
+                enddo
+            enddo
+            deallocate(temp,temp2)
 
-            Energy = Energy_stab
+            !TODO: Finally, check that we satisfy eq. 1 in the Scuseria paper for X and Y defined for positive eigenvalues...
+            do i=ov_space+1,StabilitySize
+                do j=1,StabilitySize
+                    StabilityCopy(i,j)=-StabilityCopy(i,j)
+                enddo
+            enddo
+            !Stability copy is now (A B // -B -A)
+            allocate(temp(StabilitySize,ov_space))
+            allocate(temp2(StabilitySize,ov_space))
+            temp=0.0_dp
+            temp(1:ov_space,1:ov_space) = X_stab(:,:)
+            temp(ov_space+1:StabilitySize,1:ov_space) = Y_stab(:,:)
+            call dgemm('n','n',StabilitySize,ov_space,StabilitySize,1.0_dp,StabilityCopy,StabilitySize,temp,    &
+                StabilitySize,0.0_dp,temp2,StabilitySize)
+            do i=1,ov_space
+                do j=1,ov_space
+                    if(abs(temp2(j,i)-(W2(i+ov_space)*X_stab(j,i))).gt.1.0e-7) then
+                        call stop_all("RPA equations not satisfied for X")
+                    endif
+                enddo
+            enddo
+            do i=1,ov_space
+                do j=ov_space+1,StabilitySize
+                    if(abs(temp2(j,i)-(W2(i+ov_space)*Y_stab(j-ov_space,i))).gt.1.0e-7) then
+                        call stop_all("RPA equations not satisfied for Y")
+                    endif
+                enddo
+            enddo
+            deallocate(temp,temp2)
 
-            deallocate(W2,W,temp)
+            !Now calculate energy, in two different ways:
+            !1. -1/2 Tr[A] + 1/2 sum_v E_v(positive)
+            Energy_stab=0.0_dp
+            do i=1,ov_space
+                Energy_stab = Energy_stab + W2(ov_space+i) - A_mat(i,i)
+            enddo
+            Energy_stab = Energy_stab/2.0_dp
+
+            write(6,*) "Full RPA energy from stability analysis (difference in sum of TDA and RPA excitation energies): ",  &
+                Energy_stab
+
+            Energy_stab = 0.0_dp
+            !E = 0.25 * Tr[BZ] where Z = Y X^-1
+
+            allocate(temp2(ov_space,ov_space))
+            temp2(:,:) = 0.0_dp
+            !Find X^-1 
+            call d_inv(X_stab,temp2)
+!            call writematrix(temp2,'X^-1',.true.)
+            allocate(temp(ov_space,ov_space))
+            !Find Z (temp)
+            call dgemm('n','n',ov_space,ov_space,ov_space,1.0_dp,Y_stab,ov_space,temp2,ov_space,0.0_dp,temp,ov_space)
+            !Find BZ (temp2)
+            call dgemm('n','n',ov_space,ov_space,ov_space,1.0_dp,B_mat,ov_space,temp,ov_space,0.0_dp,temp2,ov_space)
+            !Take trace of BZ
+            do i=1,ov_space
+                Energy_stab = Energy_stab + temp2(i,i)
+            enddo
+            Energy_stab = Energy_stab/4.0_dp
+            write(6,*) "Full RPA energy from stability analysis (Ring-CCD: 1/4 Tr[BZ]): ",Energy_stab
+
+            Energy_stab = 0.0_dp
+            do i=1,ov_space
+                Y_norm = 0.0_dp
+                do j=1,ov_space
+                    Y_norm = Y_norm + Y_stab(j,i)**2
+                enddo
+                Energy_stab = Energy_stab + W2(i)*Y_norm
+            enddo
+            write(6,*) "Full RPA energy from stability analysis (Y-matrix): ",Energy_stab
+                
+            deallocate(W2,W,temp,temp2,StabilityCopy)
 
         endif
 
@@ -587,41 +764,59 @@ module RPA_Mod
     subroutine Check_XY_orthogonality(X,Y)
         implicit none
         real(dp), intent(in) :: X(ov_space,ov_space),Y(ov_space,ov_space)
-        integer :: i,i_p,m,m_p,v,mi_ind,mp_ip_ind
+        integer :: i,i_p,m,m_p,v,mi_ind,mp_ip_ind,mu,mu_p
         real(dp) :: temp
         character(len=*), parameter :: t_r="Check_XY_orthogonality"
 
-        do i=1,nel
-            do i_p=1,nel
-                do m=virt_start,nBasis
-                    do m_p=virt_start,nBasis
-                        temp=0.0_dp
-                        mi_ind = ov_space_ind(m,i)
-                        mp_ip_ind = ov_space_ind(m_p,i_p)
-                        do v=1,ov_space
-                            temp=temp+(X(mi_ind,v)*X(mp_ip_ind,v)-Y(mi_ind,v)*Y(mp_ip_ind,v))
-                        enddo
-                        if((i.eq.i_p).and.(m.eq.m_p)) then
-                            !Diagonal component. Should = 1?
-                            if(abs(temp-1.0_dp).gt.1.0e-7_dp) then
-!                                write(6,*) i,i_p,m,m_p,temp
-!                                call stop_all(t_r,"X/Y eigenvectors not normalized")
-                            endif
-                        else
-                            !Orthogonality. Should = 0
-                            if(abs(temp).gt.1.0e-7_dp) then
-                                write(6,*) i,i_p,m,m_p,temp
-                                call stop_all(t_r,"X/Y eigenvectors not orthogonal")
-                            endif
-                        endif
-                    enddo
+        do mu=1,ov_space
+            do mu_p=1,ov_space
+                temp = 0.0_dp
+                do i=1,ov_space
+                    temp = temp + X(i,mu)*X(i,mu_p) - Y(i,mu)*Y(i,mu_p)
                 enddo
+                if((mu.eq.mu_p).and.((abs(temp)-1.0_dp).gt.1.0e-6)) then
+                    write(6,*) mu,mu_p,temp
+                    call writevector(X(:,mu),'X(:,mu)')
+                    call writevector(Y(:,mu),'Y(:,mu)')
+                    call stop_all(t_r,'X/Y not normalized')
+                elseif((mu.ne.mu_p).and.(abs(temp).gt.1.0e-6)) then
+                    write(6,*) mu,mu_p
+                    call stop_all(t_r,'X/Y not orthogonal')
+                endif
             enddo
         enddo
 
+!        do i=1,nel
+!            do i_p=1,nel
+!                do m=virt_start,nBasis
+!                    do m_p=virt_start,nBasis
+!                        temp=0.0_dp
+!                        mi_ind = ov_space_ind(m,i)
+!                        mp_ip_ind = ov_space_ind(m_p,i_p)
+!                        do v=1,ov_space
+!                            temp=temp+(X(mi_ind,v)*X(mp_ip_ind,v)-Y(mi_ind,v)*Y(mp_ip_ind,v))
+!                        enddo
+!                        if((i.eq.i_p).and.(m.eq.m_p)) then
+!                            !Diagonal component. Should = 1?
+!                            if(abs(temp-1.0_dp).gt.1.0e-7_dp) then
+!!                                write(6,*) i,i_p,m,m_p,temp
+!!                                call stop_all(t_r,"X/Y eigenvectors not normalized")
+!                            endif
+!                        else
+!                            !Orthogonality. Should = 0
+!                            if(abs(temp).gt.1.0e-7_dp) then
+!                                write(6,*) i,i_p,m,m_p,temp
+!                                call stop_all(t_r,"X/Y eigenvectors not orthogonal")
+!                            endif
+!                        endif
+!                    enddo
+!                enddo
+!            enddo
+!        enddo
+
     end subroutine Check_XY_orthogonality
 
-    !m is fast
+    !a is fast
     integer function ov_space_ind(a,i)
         implicit none
         integer, intent(in) :: i,a
