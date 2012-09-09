@@ -1785,7 +1785,7 @@ contains
             call MPIGroupIncl (Group, n, GroupProc, GroupNodesDum(i), ierr)
 
             GroupNodes = GroupNodesDum
-            CommNodesDum = CommNodes
+            CommNodesDum = int(CommNodes,MPIArg)
 
             ! Create the communicator
             call MPICommcreate (CommGlobal, GroupNodes(i), CommNodesDum(i),&
