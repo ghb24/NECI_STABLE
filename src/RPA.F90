@@ -173,11 +173,7 @@ module RPA_Mod
                     write(6,*) i,j,B_mat(i,j), B_mat(j,i),abs(B_mat(i,j)-B_mat(j,i))
                     call stop_all(t_r,"B not symmetric")
                 endif
-#ifdef __CMPLX
-!                if(abs(A_mat(i,j)-conjg(A_mat(j,i))).gt.1.0e-7_dp) then
-#else
                 if(abs(A_mat(i,j)-A_mat(j,i)).gt.1.0e-7_dp) then
-#endif
                     write(6,*) i,j,A_mat(i,j), A_mat(j,i),abs(A_mat(i,j)-A_mat(j,i))
                     
                     call stop_all(t_r,"A not hermitian")
