@@ -839,7 +839,28 @@ module RPA_Mod
         write(6,"(A)") "RPA calculation completed successfully"
         write(6,"(A)")
 
-        deallocate(A_mat,B_mat)
+        write(6,"(A)") "Calculating 1RDM..."
+        !Use 1994 paper from Ortiz on RPA gradients...
+!        allocate(RDM(nBasis,nBasis))
+!        RDM(:,:) = 0.0_dp
+!
+!        do j=1,nel
+!            ex(1,2)=Brr(j)   !Second index in integral
+!            ex2(2,2)=Brr(j)
+!            do n=virt_start,nBasis
+!                nj_ind = ov_space_ind(n,j)
+!                ex(2,2)=Brr(n)   !fourth index in integral
+!                ex2(1,2)=Brr(n)
+!        !First get occ,occ block
+!        do i=1,NEl
+!            i_ind = Brr(i)
+!            do j=1,NEl
+!                j_ind = Brr(j)
+!                do a=virt_start,nBasis
+!                    RDM(i,j) = RDM(i,j) - X_Chol( 
+!
+
+        deallocate(A_mat,B_mat,X_Chol,Y_Chol)
 
     end subroutine RunRPA_QBA
 
@@ -858,14 +879,13 @@ module RPA_Mod
         do i=1,msize
             matinv(i,i)=1.0_dp
         enddo  
-        info=-1
+        info=0 
         call dGETRF(msize,nsize,matdum,nsize,ipiv,info)
 !        IF (INFO /= 0) STOP 'Error with d_inv 1'
         if(info /= 0) then
             write(6,*) 'Warning from d_inv 1', info
             call stop_all("d_inv","Warning from d_inv 1")
         endif 
-        info=-1
         call dGETRS('n',msize,nsize,matdum,nsize,IPIV,matinv,msize,info)
         if(info.ne.0) call stop_all("d_inv",'Error with d_inv 2')
 
