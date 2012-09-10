@@ -246,6 +246,8 @@ contains
 #ifdef PARALLEL
         character(len=MPI_MAX_ERROR_STRING) :: s
 
+        l=0
+        e=0
         call MPI_Error_string (int(err, MPIArg), s, l, e)
 
         write(6,*) s
