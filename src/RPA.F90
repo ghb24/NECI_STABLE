@@ -1,11 +1,8 @@
 !TODO: Make sure everything has an ierr argument when allocating, and that everything is deallocated at end
-!TODO: Fix RPA from stability matrix
-!TODO: Add MP2 for comparison
 !TODO: Add symmetry information by using singles excitation generators (store excitations)? (Not urgent) 
-!TODO: Set Y to zero, and check that this gives the same energy as the Tamm-Dancoff approximation
 !Module to non-iteratively calculate the RPA energy under the quasi-boson approximation
 module RPA_Mod
-    use SystemData, only: nel, nBasis, Arr, Brr
+    use SystemData, only: nel, nBasis, Arr, Brr, G1
     use sltcnd_mod, only: sltcnd_2
     use constants, only: dp, int64, n_int
     use Determinants, only: get_helement, fDet
@@ -13,11 +10,15 @@ module RPA_Mod
     use Determinants, only: GetH0Element3
     use bit_reps, only: NIfTot
     use DetBitops, only: EncodeBitDet
+    use IntegralsData, only: ptr_getumatel
+    use Integrals_neci, only: get_umat_el
+    use UMatCache, only: GTID
 
     implicit none
 
     !input options
     logical :: tStabilityAnalysis=.true. 
+    logical :: tDirectRPA
 
     !global variables
     integer :: ov_space
@@ -33,12 +34,12 @@ module RPA_Mod
         implicit none
         integer :: ierr,i,j,m,n,ex(2,2),ex2(2,2),mi_ind,nj_ind
         integer :: StabilitySize,lWork,info,i_p,m_p,v,mp_ip_ind,ic
-        integer :: nJ(NEl),exflag,mu
+        integer :: nJ(NEl),exflag,mu,id(2,2)
         integer(n_int) :: iLutHF(0:NIfTot)
         real(dp), intent(out) :: Weight,Energy
         real(dp) :: Energy_stab,Temp_real,norm,Energy2,H0tmp,Fii
         real(dp) :: X_norm,Y_norm
-        HElement_t :: HDiagTemp,hel
+        HElement_t :: HDiagTemp,hel,hel1,hel2
         logical :: tAllExcitsFound,tParity
         real(dp), allocatable :: Stability(:,:),temp2(:,:),W2(:)
         real(dp), allocatable :: W(:),Work(:),S_half(:,:),temp(:,:)
@@ -48,9 +49,13 @@ module RPA_Mod
         character(len=*), parameter :: t_r="RunRPA_QBA"
 
         write(6,"(A)")
-        write(6,"(A)") "********************************************************************"
-        write(6,"(A)") "*   Entering full RPA calculation within quasi-boson framework...  *"
-        write(6,"(A)") "********************************************************************"
+        write(6,"(A)") "**************************************"
+        if(tDirectRPA) then
+        write(6,"(A)") "*   Entering DIRECT RPA calculation  *"
+        else
+        write(6,"(A)") "*   Entering FULL RPA calculation    *"
+        endif
+        write(6,"(A)") "**************************************"
         write(6,"(A)") 
         call neci_flush(6)
 
@@ -112,8 +117,39 @@ module RPA_Mod
                         ex(1,1)=Brr(m)   !First index in integral
                         ex2(1,1)=Brr(m) 
  
-                        A_mat(mi_ind,nj_ind) = sltcnd_2(ex,.false.)
-                        B_mat(mi_ind,nj_ind) = sltcnd_2(ex2,.false.)
+                        if(tDirectRPA) then
+                            !No exchange interactions
+                            ! Obtain spatial rather than spin indices if required
+                            id = gtID(ex)
+                            ! Only non-zero contributions if Ms preserved in each term (consider
+                            ! physical notation).
+                            if ( (G1(ex(1,1))%Ms == G1(ex(2,1))%Ms) .and.                   &
+                                 (G1(ex(1,2))%Ms == G1(ex(2,2))%Ms) ) then
+                                hel1 = get_umat_el (ptr_getumatel, id(1,1), id(1,2), id(2,1), &
+                                                    id(2,2))
+                            else
+                                hel1 = (0)
+                            endif
+                            A_mat(mi_ind,nj_ind) = real(hel1,dp)
+                            !Now for B matrix
+                            id = gtID(ex2)
+                            ! Only non-zero contributions if Ms preserved in each term (consider
+                            ! physical notation).
+                            if ( (G1(ex2(1,1))%Ms == G1(ex2(2,1))%Ms) .and. &
+                                 (G1(ex2(1,2))%Ms == G1(ex2(2,2))%Ms) ) then
+                                hel1 = get_umat_el (ptr_getumatel, id(1,1), id(1,2), id(2,1), &
+                                                    id(2,2))
+                            else
+                                hel1 = (0)
+                            endif
+                            B_mat(mi_ind,nj_ind) = real(hel1,dp)
+                        else
+                            !Full antisymmetrized integrals
+                            HEl1 = sltcnd_2(ex,.false.)
+                            HEl2 = sltcnd_2(ex2,.false.)
+                            A_mat(mi_ind,nj_ind) = real(HEl1,dp)           
+                            B_mat(mi_ind,nj_ind) = real(HEl2,dp)           
+                        endif
 
                     enddo
                 enddo
@@ -202,7 +238,9 @@ module RPA_Mod
                     call stop_all(t_r,"HF solution not stable. Not local minimum. Recompute HF.")
                 endif
             enddo
-            write(6,"(A)") "Stability matrix positive definite. HF solution is minimum. RPA stable"
+            if(.not.tdirectRPA) then
+                write(6,"(A)") "Stability matrix positive definite. HF solution is minimum. RPA stable"
+            endif
 
             !Now compute S^(1/2), and transform into original basis
             allocate(S_half(StabilitySize,StabilitySize))
@@ -424,8 +462,13 @@ module RPA_Mod
             enddo
             Energy_stab = Energy_stab/2.0_dp
 
-            write(6,"(A,G25.10)") "Full RPA energy from stability analysis (RPA-TDA excitation energies): ",  &
-                Energy_stab
+            if(tDirectRPA) then
+                write(6,"(A,G25.10)") "Direct RPA energy from stability analysis (plasmonic RPA-TDA excitation energies): ",  &
+                    Energy_stab
+            else
+                write(6,"(A,G25.10)") "Full RPA energy from stability analysis (plasmonic RPA-TDA excitation energies): ",  &
+                    Energy_stab
+            endif
 
             Energy_stab = 0.0_dp
             !E = 0.25 * Tr[BZ] where Z = Y X^-1
@@ -444,8 +487,12 @@ module RPA_Mod
             do i=1,ov_space
                 Energy_stab = Energy_stab + temp2(i,i)
             enddo
-            Energy_stab = Energy_stab/4.0_dp
-            write(6,"(A,G25.10)") "Full RPA energy from stability analysis (Ring-CCD: 1/4 Tr[BZ]): ",Energy_stab
+            Energy_stab = Energy_stab/2.0_dp
+            if(tDirectRPA) then
+                write(6,"(A,G25.10)") "Direct RPA energy from stability analysis (Ring-CCD: 1/2 Tr[BZ]): ",Energy_stab
+            else
+                write(6,"(A,G25.10)") "Full RPA energy from stability analysis (Ring-CCD: 1/2 Tr[BZ]): ",Energy_stab
+            endif
 
             Energy_stab = 0.0_dp
             do i=1,ov_space
@@ -455,7 +502,11 @@ module RPA_Mod
                 enddo
                 Energy_stab = Energy_stab - W2(i+ov_space)*Y_norm
             enddo
-            write(6,"(A,G25.10)") "Full RPA energy from stability analysis (Y-matrix): ",Energy_stab
+            if(tDirectRPA) then
+                write(6,"(A,G25.10)") "Direct RPA energy from stability analysis (Y-matrix): ",Energy_stab
+            else
+                write(6,"(A,G25.10)") "Full RPA energy from stability analysis (Y-matrix): ",Energy_stab
+            endif
                 
             deallocate(W2,W,temp,temp2,StabilityCopy,Stability)
 
@@ -748,8 +799,11 @@ module RPA_Mod
             norm = norm + sqrt(W(i))
         enddo
         Energy2 = Energy2 + norm/2.0_dp
-        write(6,"(A,G25.10)") "Full RPA energy (RPA-TDA excitation energies): ",Energy2-real(HDiagTemp,dp)
-        
+        if(tDirectRPA) then
+            write(6,"(A,G25.10)") "Direct RPA energy (plasmonic RPA-TDA excitation energies): ",Energy2-real(HDiagTemp,dp)
+        else
+            write(6,"(A,G25.10)") "Full RPA energy (plasmonic RPA-TDA excitation energies): ",Energy2-real(HDiagTemp,dp)
+        endif
         
         Energy = 0.0_dp
         allocate(temp(ov_space,ov_space))
@@ -761,8 +815,12 @@ module RPA_Mod
         do i=1,ov_space
             Energy = Energy + temp(i,i)
         enddo
-        Energy = Energy/4.0_dp
-        write(6,"(A,G25.10)") "Full RPA energy (Ring-CCD: 1/4 Tr[BZ]): ",Energy
+        Energy = Energy/2.0_dp
+        if(tDirectRPA) then
+            write(6,"(A,G25.10)") "Direct RPA energy (Ring-CCD: 1/2 Tr[BZ]): ",Energy
+        else
+            write(6,"(A,G25.10)") "Full RPA energy (Ring-CCD: 1/2 Tr[BZ]): ",Energy
+        endif
         deallocate(temp,temp2)
         
 
@@ -775,11 +833,17 @@ module RPA_Mod
             enddo
             Energy = Energy - norm*sqrt(W(v))
         enddo
-        write(6,"(A,G25.10)") "Full RPA energy (Y matrix): ",Energy-real(HDiagTemp,dp)
+        if(tDirectRPA) then
+            write(6,"(A,G25.10)") "Direct RPA energy (Y matrix): ",Energy-real(HDiagTemp,dp)
+        else
+            write(6,"(A,G25.10)") "Full RPA energy (Y matrix): ",Energy-real(HDiagTemp,dp)
+        endif
 
         write(6,"(A)")
         write(6,"(A)") "RPA calculation completed successfully"
         write(6,"(A)")
+
+        deallocate(A_mat,B_mat)
 
     end subroutine RunRPA_QBA
 
@@ -810,57 +874,6 @@ module RPA_Mod
         if(info.ne.0) call stop_all("d_inv",'Error with d_inv 2')
 
     END SUBROUTINE d_inv
-
-
-    subroutine CalcRPAEnergy(Y,W,nrg)
-        implicit none
-        real(dp) , intent(out) :: nrg
-        real(dp) , intent(in) :: Y(ov_space,ov_space*2),W(ov_space*2)
-        HElement_t :: HDiagTemp
-        real(dp) :: temp,nrg2,norm
-        integer :: i,v,m,mi_ind
-        character(len=*), parameter :: t_r="CalcRPAEnergy"
-
-        !Calculate energy first way...
-        !First sum in HF energy
-        HDiagTemp = get_helement(fDet, fDet, 0)
-        nrg = real(HDiagTemp,dp)
-
-        !Now include trace of A
-        temp = 0.0_dp
-        do i=1,ov_space
-            temp = temp - A_mat(i,i)
-        enddo
-        nrg = nrg + temp/2.0_dp
-
-        temp = 0.0_dp
-        do i=ov_space+1,ov_space*2
-            !Run over positive eigenvalue pairs
-            temp = temp + W(i)
-        enddo
-        nrg = nrg + temp/2.0_dp
-
-        !Now calculate the second way and check the same
-        nrg2 = real(HDiagTemp,dp)
-
-        do v=1,ov_space*2
-            norm=0.0_dp
-            do i=1,nel
-                do m=virt_start,nBasis
-                    mi_ind = ov_space_ind(m,i)
-                    norm = norm + (abs(Y(mi_ind,v)))**2.0_dp
-                enddo
-            enddo
-            nrg2 = nrg2 - norm*W(v)
-        enddo
-
-        if(abs(nrg-nrg2).gt.1.0e-7_dp) then
-            write(6,*) "nrg: ",nrg
-            write(6,*) "nrg2: ",nrg2
-            call warning_neci(t_r,"Two RPA energies don't match")
-        endif
-
-    end subroutine CalcRPAEnergy
 
 
     subroutine Check_XY_orthogonality(X,Y)

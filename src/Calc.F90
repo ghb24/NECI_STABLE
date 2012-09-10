@@ -1874,6 +1874,7 @@ contains
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
          use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,tCCMC
          use CalcData , only : TRhoElems,TReturnPathMC, tUseProcsAsNodes,tRPA_QBA
+         use RPA_Mod, only : tDirectRPA
          use CCMCData, only: tExactCluster,tCCMCFCI,tAmplitudes,tExactSpawn,tCCBuffer,tCCNoCuml
          use Logging, only: tCalcFCIMCPsi
          implicit none
@@ -1904,6 +1905,14 @@ contains
                    enddo
                case("RPA")
                   tRPA_QBA=.true.
+                  tDirectRPA=.false.
+                  do while(item.lt.nitems)
+                      call readu(w)
+                      select case(w)
+                      case("DIRECT")
+                          tDirectRPA=.true.
+                      endselect
+                  enddo
                case("CCMC")
                   !Piggy-back on the FCIMC code
                   I_HMAX=-21
