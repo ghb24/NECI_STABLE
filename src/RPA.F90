@@ -13,6 +13,7 @@ module RPA_Mod
     use IntegralsData, only: ptr_getumatel
     use Integrals_neci, only: get_umat_el
     use UMatCache, only: GTID
+    use util_mod, only: get_free_unit
 
     implicit none
 
@@ -27,6 +28,7 @@ module RPA_Mod
     !global arrays
     real(dp), allocatable :: A_mat(:,:)
     real(dp), allocatable :: B_mat(:,:)
+    real(dp), allocatable :: OccNumbers(:)
     
     contains
 
@@ -34,7 +36,7 @@ module RPA_Mod
         implicit none
         integer :: ierr,i,j,m,n,ex(2,2),ex2(2,2),mi_ind,nj_ind
         integer :: StabilitySize,lWork,info,i_p,m_p,v,mp_ip_ind,ic
-        integer :: nJ(NEl),exflag,mu,id(2,2)
+        integer :: nJ(NEl),exflag,mu,id(2,2),a,i_ind,iunit,ia_ind
         integer(n_int) :: iLutHF(0:NIfTot)
         real(dp), intent(out) :: Weight,Energy
         real(dp) :: Energy_stab,Temp_real,norm,Energy2,H0tmp,Fii
@@ -840,27 +842,44 @@ module RPA_Mod
         write(6,"(A)")
 
         write(6,"(A)") "Calculating 1RDM..."
-        !Use 1994 paper from Ortiz on RPA gradients...
-!        allocate(RDM(nBasis,nBasis))
-!        RDM(:,:) = 0.0_dp
-!
-!        do j=1,nel
-!            ex(1,2)=Brr(j)   !Second index in integral
-!            ex2(2,2)=Brr(j)
-!            do n=virt_start,nBasis
-!                nj_ind = ov_space_ind(n,j)
-!                ex(2,2)=Brr(n)   !fourth index in integral
-!                ex2(1,2)=Brr(n)
-!        !First get occ,occ block
-!        do i=1,NEl
-!            i_ind = Brr(i)
-!            do j=1,NEl
-!                j_ind = Brr(j)
-!                do a=virt_start,nBasis
-!                    RDM(i,j) = RDM(i,j) - X_Chol( 
-!
+        allocate(OccNumbers(nBasis))    !This is the GS 1RDM, which is diagonal in RPA
 
-        deallocate(A_mat,B_mat,X_Chol,Y_Chol)
+        OccNumbers(:) = 0.0_dp
+
+        !For occupied orbital: Gamma(i,i) = 1 - 1/2 \sum_{mu,a} |Y^{mu}_ia|^2
+        !For virtual orbital:  Gamma(a,a) =     1/2 \sum_{mu,i} |Y^{mu}_ia|^2
+
+        do i=1,nel
+            do mu=1,ov_space
+                do a=virt_start,nBasis
+                    ia_ind = ov_space_ind(a,i)
+                    OccNumbers(i) = OccNumbers(i) + 0.5_dp*abs(Y_Chol(ia_ind,mu))**2.0_dp
+                enddo
+            enddo
+            OccNumbers(i)=1.0_dp - OccNumbers(i)
+        enddo
+
+        do a=virt_start,nBasis
+            do mu=1,ov_space
+                do i=1,nel
+                    ia_ind = ov_space_ind(a,i)
+                    OccNumbers(a) = OccNumbers(a) + 0.5_dp*abs(Y_Chol(ia_ind,mu))**2.0_dp
+                enddo
+            enddo
+        enddo
+
+        write(6,"(A)") "Writing RPA occupation numbers to file: RPA_OccNumbers"
+        write(6,"(A)") ""
+        iunit = get_free_unit()
+        open(iunit,file='RPA_OccNumbers',status='unknown')
+        write(iunit,"(A)") "# Orbital(Energy_order)  Orbital   Fock eigenvalue   RPA_Occupation"
+        do i=1,nBasis
+            i_ind = Brr(i)
+            write(iunit,"(2I9,2G25.10)") i,i_ind,Arr(i_ind,2),OccNumbers(i)
+        enddo
+        close(iunit)
+
+        deallocate(A_mat,B_mat,X_Chol,Y_Chol,OccNumbers)
 
     end subroutine RunRPA_QBA
 
