@@ -26,6 +26,8 @@ LOGICAL :: tRotoAnnihil,tRegenDiagHEls,tSpawnAsDet,tFindGroundDet
 LOGICAL :: tTruncCAS,tTruncInitiator,tDelayTruncInit,tAddtoInitiator    !Truncation the FCIMC excitation space by CAS
 LOGICAL :: tInitIncDoubs,tWalkContGrow,tAnnihilatebyRange,tRetestAddtoInit
 logical :: tReadPopsRestart, tReadPopsChangeRef, tInstGrowthRate
+logical :: tRPA_QBA     !RPA calculation with QB approximation
+
 logical :: tStartCAS    !Start FCIMC dynamic with walkers distributed according to CAS diag.
 logical :: tPopsMapping !Map popsfile from smaller basis onto larger basis
 logical :: tShiftonHFPop    !Adjust shift in order to keep the population on HF constant, rather than total pop.
