@@ -111,6 +111,7 @@ contains
           GrowMaxFactor=5.D0
           CullFactor=2.D0
           TFCIMC=.false.
+          tRPA_QBA=.false.
           TCCMC=.false.
           TMCDets=.false.
           TBinCancel=.false.  
@@ -1594,6 +1595,7 @@ contains
           use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,BasisFN,BasisFNSize,BasisFNSizeB,nEl
           Use DetCalcData, only : nDet, nEval, nmrks, w
           USE FciMCParMod , only : FciMCPar
+          use RPA_Mod, only: RunRPA_QBA
           USE CCMC, only: CCMCStandalone,CCMCStandaloneParticle
           use CCMCData, only: tAmplitudes
           use DetCalc, only: CK, DetInv, tEnergy, tRead
@@ -1644,6 +1646,9 @@ contains
                      CALL CCMCStandaloneParticle(WeightDum,EnerDum)
                   endif
                   WRITE(6,*) "Summed approx E(Beta)=",EnerDum
+             elseif(tRPA_QBA) then
+                call RunRPA_QBA(WeightDum,EnerDum)
+                WRITE(6,*) "Summed approx E(Beta)=",EnerDum
              else
 
 
@@ -1868,7 +1873,8 @@ contains
          use UMatCache , only : TSTARSTORE
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
          use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,tCCMC
-         use CalcData , only : TRhoElems,TReturnPathMC, tUseProcsAsNodes
+         use CalcData , only : TRhoElems,TReturnPathMC, tUseProcsAsNodes,tRPA_QBA
+         use RPA_Mod, only : tDirectRPA
          use CCMCData, only: tExactCluster,tCCMCFCI,tAmplitudes,tExactSpawn,tCCBuffer,tCCNoCuml
          use Logging, only: tCalcFCIMCPsi
          implicit none
@@ -1897,6 +1903,16 @@ contains
                           call report("Keyword error with "//trim(w),.true.)
                       endselect
                    enddo
+               case("RPA")
+                  tRPA_QBA=.true.
+                  tDirectRPA=.false.
+                  do while(item.lt.nitems)
+                      call readu(w)
+                      select case(w)
+                      case("DIRECT")
+                          tDirectRPA=.true.
+                      endselect
+                  enddo
                case("CCMC")
                   !Piggy-back on the FCIMC code
                   I_HMAX=-21

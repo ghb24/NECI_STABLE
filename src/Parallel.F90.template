@@ -1850,6 +1850,7 @@ contains
         character(3) :: error_str
         integer(MPIArg) :: error_code, ierr
 
+        error_code=0
 #ifdef PARALLEL
 
         ! errorcode: Error returned to invoking environment.
