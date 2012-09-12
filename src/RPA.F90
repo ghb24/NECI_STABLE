@@ -247,12 +247,15 @@ module RPA_Mod
                 S_half(i,i)=sqrt(W(i))
             enddo
             allocate(temp(StabilitySize,StabilitySize))
-            call dgemm('n','n',StabilitySize,StabilitySize,StabilitySize,1.0_dp,Stability,StabilitySize,S_half,StabilitySize,0.0_dp,temp,StabilitySize)
-            call dgemm('n','t',StabilitySize,StabilitySize,StabilitySize,1.0_dp,temp,StabilitySize,Stability,StabilitySize,0.0_dp,S_half,StabilitySize)
+            call dgemm('n','n',StabilitySize,StabilitySize,StabilitySize,1.0_dp,Stability,StabilitySize,    &
+                S_half,StabilitySize,0.0_dp,temp,StabilitySize)
+            call dgemm('n','t',StabilitySize,StabilitySize,StabilitySize,1.0_dp,temp,StabilitySize,Stability,   &
+                StabilitySize,0.0_dp,S_half,StabilitySize)
             !S_half is now S^1/2 in the original basis
 
             !Check this by squaring it.
-            call dgemm('n','t',StabilitySize,StabilitySize,StabilitySize,1.0_dp,S_half,StabilitySize,S_half,StabilitySize,0.0_dp,temp,StabilitySize)
+            call dgemm('n','t',StabilitySize,StabilitySize,StabilitySize,1.0_dp,S_half,StabilitySize,S_half,    &
+                StabilitySize,0.0_dp,temp,StabilitySize)
             do i=1,StabilitySize
                 do j=1,StabilitySize
                     if(abs(StabilityCopy(i,j)-temp(i,j)).gt.1.0e-7) then
@@ -270,8 +273,10 @@ module RPA_Mod
             enddo
 
             allocate(temp2(StabilitySize,StabilitySize))
-            call dgemm('n','n',StabilitySize,StabilitySize,StabilitySize,1.0_dp,S_half,StabilitySize,temp,StabilitySize,0.0_dp,temp2,StabilitySize)
-            call dgemm('n','n',StabilitySize,StabilitySize,StabilitySize,1.0_dp,temp2,StabilitySize,S_half,StabilitySize,0.0_dp,temp,StabilitySize)
+            call dgemm('n','n',StabilitySize,StabilitySize,StabilitySize,1.0_dp,S_half,StabilitySize,temp,  &
+                StabilitySize,0.0_dp,temp2,StabilitySize)
+            call dgemm('n','n',StabilitySize,StabilitySize,StabilitySize,1.0_dp,temp2,StabilitySize,S_half, &
+                StabilitySize,0.0_dp,temp,StabilitySize)
             !Now diagonalize temp = S^(1/2) (1 0 \\ 0 -1 ) S^(1/2)
 
             lWork=-1
@@ -305,12 +310,15 @@ module RPA_Mod
             do i=1,StabilitySize
                 S_half(i,i)=-sqrt(W(i))
             enddo
-            call dgemm('n','n',StabilitySize,StabilitySize,StabilitySize,1.0_dp,Stability,StabilitySize,S_half,StabilitySize,0.0_dp,temp2,StabilitySize)
-            call dgemm('n','t',StabilitySize,StabilitySize,StabilitySize,1.0_dp,temp2,StabilitySize,Stability,StabilitySize,0.0_dp,S_half,StabilitySize)
+            call dgemm('n','n',StabilitySize,StabilitySize,StabilitySize,1.0_dp,Stability,StabilitySize,S_half, &
+                StabilitySize,0.0_dp,temp2,StabilitySize)
+            call dgemm('n','t',StabilitySize,StabilitySize,StabilitySize,1.0_dp,temp2,StabilitySize,Stability,  &
+                StabilitySize,0.0_dp,S_half,StabilitySize)
             !S_half is now S^(-1/2) in the original basis
 
             !Now multiply S^(-1/2) (X~ y~)
-            call dgemm('n','n',StabilitySize,StabilitySize,StabilitySize,1.0_dp,S_half,StabilitySize,temp,StabilitySize,0.0_dp,temp2,StabilitySize)
+            call dgemm('n','n',StabilitySize,StabilitySize,StabilitySize,1.0_dp,S_half,StabilitySize,temp,  &
+                StabilitySize,0.0_dp,temp2,StabilitySize)
 
             !Check that eigenvectors are also paired.
             !Rotations among degenerate sets will screw this up though
@@ -355,7 +363,8 @@ module RPA_Mod
                     Y_stab(i,mu) = Y_stab(i,mu)/norm
                 enddo
                 if(Y_norm.gt.X_norm/2.0_dp) then
-                    write(6,*) "Warning: hole amplitudes large for excitation: ",mu," Quasi-boson approximation breaking down."
+                    write(6,*) "Warning: hole amplitudes large for excitation: ",mu,    &
+                        " Quasi-boson approximation breaking down."
                     write(6,*) "Norm of X component: ",X_norm
                     write(6,*) "Norm of Y component: ",Y_norm
                 endif
@@ -461,7 +470,7 @@ module RPA_Mod
             Energy_stab = Energy_stab/2.0_dp
 
             if(tDirectRPA) then
-                write(6,"(A,G25.10)") "Direct RPA energy from stability analysis (plasmonic RPA-TDA excitation energies): ",  &
+                write(6,"(A,G25.10)") "Direct RPA energy from stability analysis (plasmonic RPA-TDA excitation energies): ", &
                     Energy_stab
             else
                 write(6,"(A,G25.10)") "Full RPA energy from stability analysis (plasmonic RPA-TDA excitation energies): ",  &
@@ -798,9 +807,11 @@ module RPA_Mod
         enddo
         Energy2 = Energy2 + norm/2.0_dp
         if(tDirectRPA) then
-            write(6,"(A,G25.10)") "Direct RPA energy (plasmonic RPA-TDA excitation energies): ",Energy2-real(HDiagTemp,dp)
+            write(6,"(A,G25.10)") "Direct RPA energy (plasmonic RPA-TDA excitation energies): ",    &
+                Energy2-real(HDiagTemp,dp)
         else
-            write(6,"(A,G25.10)") "Full RPA energy (plasmonic RPA-TDA excitation energies): ",Energy2-real(HDiagTemp,dp)
+            write(6,"(A,G25.10)") "Full RPA energy (plasmonic RPA-TDA excitation energies): ",  &
+                Energy2-real(HDiagTemp,dp)
         endif
         
         Energy = 0.0_dp
