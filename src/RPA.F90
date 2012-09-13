@@ -223,7 +223,7 @@ module RPA_Mod
             info=0
             call dsyev('V','U',StabilitySize,Stability,StabilitySize,W,Work,lWork,info)
             if(info.ne.0) call stop_all(t_r,'workspace query failed')
-            lwork=work(1)
+            lwork=int(work(1))+1
             deallocate(work)
             allocate(work(lwork))
             call dsyev('V','U',StabilitySize,Stability,StabilitySize,W,Work,lwork,info)
@@ -285,7 +285,7 @@ module RPA_Mod
             W2(:)=0.0_dp
             call dsyev('V','U',StabilitySize,temp,StabilitySize,W2,Work,lWork,info)
             if(info.ne.0) call stop_all(t_r,'workspace query failed')
-            lwork=work(1)
+            lwork=int(work(1))+1
             deallocate(work)
             allocate(work(lwork))
             call dsyev('V','U',StabilitySize,temp,StabilitySize,W2,Work,lwork,info)
@@ -553,7 +553,7 @@ module RPA_Mod
             W(:)=0.0_dp
             call dsyev('V','U',ov_space,temp,ov_space,W,Work,lWork,info)
             if(info.ne.0) call stop_all(t_r,'workspace query failed')
-            lwork=work(1)
+            lwork=int(work(1))+1
             deallocate(work)
             allocate(work(lwork))
             call dsyev('V','U',ov_space,temp,ov_space,W,Work,lWork,info)
@@ -622,7 +622,7 @@ module RPA_Mod
         W(:)=0.0_dp
         call dsyev('V','U',ov_space,AplusB,ov_space,W,Work,lWork,info)
         if(info.ne.0) call stop_all(t_r,'workspace query failed')
-        lwork=work(1)
+        lwork=int(work(1))+1
         deallocate(work)
         allocate(work(lwork))
         call dsyev('V','U',ov_space,AplusB,ov_space,W,Work,lWork,info)
