@@ -448,14 +448,14 @@ module RPA_Mod
             do i=1,ov_space
                 do j=1,ov_space
                     if(abs(temp2(j,i)-(W2(i+ov_space)*X_stab(j,i))).gt.1.0e-7) then
-                        call stop_all("RPA equations not satisfied for X")
+                        call stop_all(t_r,"RPA equations not satisfied for X")
                     endif
                 enddo
             enddo
             do i=1,ov_space
                 do j=ov_space+1,StabilitySize
                     if(abs(temp2(j,i)-(W2(i+ov_space)*Y_stab(j-ov_space,i))).gt.1.0e-7) then
-                        call stop_all("RPA equations not satisfied for Y")
+                        call stop_all(t_r,"RPA equations not satisfied for Y")
                     endif
                 enddo
             enddo
@@ -780,14 +780,14 @@ module RPA_Mod
         do i=1,ov_space
             do j=1,ov_space
                 if(abs(temp2(j,i)-(sqrt(W(i))*X_Chol(j,i))).gt.1.0e-7) then
-                    call stop_all("RPA equations not satisfied for X")
+                    call stop_all(t_r,"RPA equations not satisfied for X")
                 endif
             enddo
         enddo
         do i=1,ov_space
             do j=ov_space+1,StabilitySize
                 if(abs(temp2(j,i)-(sqrt(W(i))*Y_Chol(j-ov_space,i))).gt.1.0e-7) then
-                    call stop_all("RPA equations not satisfied for Y")
+                    call stop_all(t_r,"RPA equations not satisfied for Y")
                 endif
             enddo
         enddo
