@@ -837,9 +837,9 @@ CONTAINS
                     OPEN(iunit,FILE='SymDETS',STATUS='UNKNOWN')
 
                     do i=1,Det
-                        WRITE(iunit,"(2I13)",advance='no') i,temp(i)
+                        WRITE(iunit,"(2I17)",advance='no') i,temp(i)
                         do j=0,NIfDBO
-                           WRITE(iunit,"(I13)",advance='no') FCIDets(j,i)
+                           WRITE(iunit,"(I17)",advance='no') FCIDets(j,i)
                         enddo
                         WRITE(iunit,"(A,G25.16,A)",advance='no') " ",FCIGS(i),"  "
                         Call WriteBitDet(iunit,FCIDets(:,i),.true.)
