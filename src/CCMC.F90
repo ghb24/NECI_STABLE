@@ -224,7 +224,7 @@ MODULE CCMC
 ! As the number of walkers in the HF reference det is the normalization, we loop
 ! over each walker there and use it a number of times
 ! We take the number of walkers as the number of samples to begin with.
-        TotWalkersNew=TotWalkers
+        TotWalkersNew=int(TotWalkers,sizeof_int)
         CALL BinSearchParts(iLutHF, 1, TotWalkersNew, iHFDet,tSuccess)
         if(.not.tSuccess) then
             WRITE(iout,*) "WARNING: Cannot find HF det in particle list"
@@ -241,7 +241,7 @@ MODULE CCMC
          write(iout,*) "HF det"
          call WriteBitDet(iout,iLutHF,.true.)
          write(iout,*) "Particle list"
-         do j=1,TotWalkers
+         do j=1,int(TotWalkers,sizeof_int)
             call extract_sign(CurrentDets(:,j),TempSign)
             write(iout,'(i7)',advance='no') TempSign(1)
             call WriteBitEx(iout,iLutHF,CurrentDets(:,j),.true.)
@@ -252,9 +252,9 @@ MODULE CCMC
          enddo
         endif
 !TotRealWalkers gets updated with the number of non-zero walkers at each stage.
-        TotRealWalkers=TotWalkers
+        TotRealWalkers=int(TotWalkers,sizeof_int)
         iCumlExcits=0
-        do j=1,TotWalkers
+        do j=1,int(TotWalkers,sizeof_int)
 !#if 0
           call extract_sign(CurrentDets(:,j),TempSign)
           iSgn(1)=TempSign(1)
@@ -262,7 +262,7 @@ MODULE CCMC
 ! Deal with T_1^2
           WalkExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j), 2)
           if(WalkExcitLevel.eq.1) then
-            do l=j,TotWalkers
+            do l=j,int(TotWalkers,sizeof_int)
                WalkExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,l), 2)
                if(WalkExcitLevel.eq.1) then
                   call extract_sign(CurrentDets(:,l),TempSign2)
@@ -303,7 +303,7 @@ MODULE CCMC
                   ENDIF
                   iMaxExTemp=1
                   iMaxEx=0
-                  k=TotParts(1)-iCumlExcits  !iCumlExcits includes this det.
+                  k=int(TotParts(1),sizeof_int)-iCumlExcits  !iCumlExcits includes this det.
                   if(j.lt.iHFDet) k=k-HFcount
 !Count the number of allowed composites - this allows for all numbers of composites
                   IFDEBUG(iDebug,6) WRITE(iout,*) "Counting Excitations:  Level,#, Cuml"
@@ -357,7 +357,7 @@ MODULE CCMC
                      nMaxSelExcitors=nEl
                   ENDIF
             
-                  if(nMaxSelExcitors.gt.(TotWalkers-1)) nMaxSelExcitors=TotWalkers-1
+                  if(nMaxSelExcitors.gt.(TotWalkers-1)) nMaxSelExcitors=int(TotWalkers,sizeof_int)-1
                   IFDEBUG(iDebug,5) write(iout,*) "Max excitors can be selected.", nMaxSelExcitors
                   if(nMaxSelExcitors.lt.2) exit  !If we can't choose a new excit, we leave the loop
                   dClusterProb=1           !prob of these excitors given this number of excitors goes here
@@ -846,7 +846,7 @@ MODULE CCMC
 !Now traverse the list of walkers, removing walkers which have nothing remaining on them
 !VecSlot indicates the next free position in NewDets
        VecSlot=1
-       do j=1,TotWalkers
+       do j=1,int(TotWalkers,sizeof_int)
             ! Do a look over all walkers to accumulate stats, and kill if 
             ! necessary. Also, we want to find out the excitation level of 
             ! the determinant - we only need to find out if its connected or 
@@ -2449,7 +2449,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    else
       iMaxAmpLevel=nEl
    endif
-   nMaxAmpl=InitWalkers
+   nMaxAmpl=int(InitWalkers,sizeof_int)
    WalkerScale=1
 ! Setup Memory
 #ifndef __SHARED_MEM
@@ -2944,7 +2944,7 @@ SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
          WRITE(iout,*) "Reading in initial particle configuration from *OLD* POPSFILES..."
          CurrParts(1)=nMaxAmpl 
          call ReadFromPopsfileOnly(DetList,CurrParts(1))
-         nAmpl=CurrParts(1)
+         nAmpl=int(CurrParts(1),sizeof_int)
       else
          call open_pops_head(iunithead,formpops,binpops)
          if(PopsVersion.eq.3) then 
@@ -2965,7 +2965,7 @@ SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
 
          if(iProcIndex.eq.root) close(iunithead)
          call ReadFromPopsfile(iPopAllTotWalkers,ReadBatch,TotWalkers,CurrParts,NoatHF,DetList,nMaxAmpl)
-         nAmpl=TotWalkers
+         nAmpl=int(TotWalkers,sizeof_int)
          dNorm=NoatHF(1)
       endif
 

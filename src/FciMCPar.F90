@@ -1104,7 +1104,7 @@ MODULE FciMCParMod
             endif
         endif
 
-        do j=1,TotWalkers
+        do j=1,int(TotWalkers,sizeof_int)
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.
 
@@ -1332,7 +1332,7 @@ MODULE FciMCParMod
         if(tHashWalkerList) then
             !With this algorithm, the determinants do not move, and therefore TotWalkersNew is simply equal
             !to TotWalkers
-            TotWalkersNew=TotWalkers
+            TotWalkersNew=int(TotWalkers,sizeof_int)
         else
             ! Since VecSlot holds the next vacant slot in the array, TotWalkers
             ! should be one less than this. TotWalkersNew is now the number of particles
@@ -3460,7 +3460,7 @@ MODULE FciMCParMod
             if(.not.tCCMC) then
                ! Check how balanced the load on each processor is (even though
                ! we cannot load balance with direct annihilation).
-               WalkersDiffProc = MaxWalkersProc - MinWalkersProc
+               WalkersDiffProc = int(MaxWalkersProc - MinWalkersProc,sizeof_int)
                mean_walkers = AllTotWalkers / real(nNodes,dp)
                if (WalkersDiffProc > nint(mean_walkers / 10.d0) .and. &
                    sum(AllTotParts) > real(nNodes * 500, dp)) then
@@ -3585,7 +3585,7 @@ MODULE FciMCParMod
                     ! new reference det.
                     write (iout,*) 'Regenerating the stored diagonal HElements &
                                 &for all walkers.'
-                    do i = 1, Totwalkers
+                    do i = 1, int(Totwalkers,sizeof_int)
                         call decode_bit_det (det, CurrentDets(:,i))
                         if (tHPHF) then
                             h_tmp = hphf_diag_helement (det, CurrentDets(:,i))
@@ -4094,7 +4094,7 @@ MODULE FciMCParMod
         INTEGER :: i
         INTEGER, DIMENSION(lenof_sign) :: TempSign
 
-        do i=1,TotWalkers
+        do i=1,int(TotWalkers,sizeof_int)
             call extract_sign(CurrentDets(:,i),TempSign)
             TempSign(1)=-TempSign(1)
             call encode_sign(CurrentDets(:,i),TempSign)
@@ -6347,7 +6347,7 @@ MODULE FciMCParMod
               proje_ref_dets=0
               proje_ref_iluts=0
               
-              do pos=1,TotWalkers
+              do pos=1,int(TotWalkers,sizeof_int)
                  call extract_sign(CurrentDets(:,pos),sgn)
                  if(abs(sgn(1))>abs(proje_ref_coeffs(nproje_sum))) then
                     inner: do nfound=1,nproje_sum
@@ -6704,7 +6704,7 @@ MODULE FciMCParMod
 
                 if(iProcIndex.eq.root) close(iunithead)
             else
-                WalkerListSize=InitWalkers
+                WalkerListSize=int(InitWalkers,sizeof_int)
             endif
 
             MaxWalkersPart=NINT(MemoryFacPart*WalkerListSize)
@@ -6938,7 +6938,7 @@ MODULE FciMCParMod
                         if (tStartSinglePart) then
                             InitialSign(1) = InitialPart
                         else
-                            InitialSign(1) = InitWalkers
+                            InitialSign(1) = int(InitWalkers,sizeof_int)
                         endif
                         call encode_sign (CurrentDets(:,1), InitialSign)
 
@@ -8194,7 +8194,7 @@ MODULE FciMCParMod
             write(iout,'(A)') 'Diagonalising initator subspace...'
 
             iSubspaceSize = 0
-            do i=1,TotWalkers
+            do i=1,int(TotWalkers,sizeof_int)
                 call extract_sign(CurrentDets(:,i),CurrentSign)
                 if((abs(CurrentSign(1)) > InitiatorWalkNo) .or. &
                         (DetBitEQ(CurrentDets(:,i),iLutHF,NIfDBO))) then
@@ -8208,7 +8208,7 @@ MODULE FciMCParMod
             call LogMemAlloc('ExpandedWalkerDets',NEl*iSubspaceSize,4,t_r,ExpandedWalkTag,ierr)
 
             iSubspaceSize = 0
-            do i=1,TotWalkers
+            do i=1,int(TotWalkers,sizeof_int)
                 call extract_sign(CurrentDets(:,i),CurrentSign)
                 if((abs(CurrentSign(1)) > InitiatorWalkNo) .or. &
                         (DetBitEQ(CurrentDets(:,i),iLutHF,NIfDBO))) then
@@ -8529,7 +8529,7 @@ MODULE FciMCParMod
         SmallestPos=1
         Norm=0.0_dp
         !Run through all walkers on process
-        do i=1,TotWalkers
+        do i=1,int(TotWalkers,sizeof_int)
 !            write(iout,*) "Smallest sign is: ",SmallestSign
             call extract_sign(CurrentDets(:,i),SignCurr)
 

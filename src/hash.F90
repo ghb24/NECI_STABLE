@@ -4,7 +4,7 @@ module hash
 
     use FciMCData , only : hash_iter, hash_shift, RandomHash
     use Parallel_neci , only : nNodes
-    use constants , only : int64
+    use constants , only : int64,sizeof_int
     use csf_data, only: csf_orbital_mask
     use Systemdata, only: nel, tCSF, nBasis
 
@@ -55,7 +55,7 @@ module hash
                         (RandomHash(mod(nI(i)+offset-1,int(nBasis,int64))+1) * i)
             enddo
         endif
-        node = abs(mod(acc, int(nNodes, int64)))
+        node = int(abs(mod(acc, int(nNodes, int64))),sizeof_int)
 
     end function
 
