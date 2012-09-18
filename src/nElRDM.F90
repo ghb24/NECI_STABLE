@@ -980,7 +980,7 @@ MODULE nElRDMMod
             IterLastRDMFill = mod((Iter - IterRDMStart + 1),RDMEnergyIter)
 
             ! Run over all determinants in the occupied (CurrentDets) list.
-            do i = 1, nDets
+            do i = 1, int(nDets,sizeof_int)
 
                 ! If we are only using initiators to calculate the RDMs, only add in the diagonal and 
                 ! explicit contributions if the average population is greater than n_add = InitiatorWalkNo.
@@ -1811,7 +1811,7 @@ MODULE nElRDMMod
 
         CALL set_timer(nElRDM_Time,30)
 
-        do i=1,MaxTotWalkers
+        do i=1,int(MaxTotWalkers,sizeof_int)
 
 ! But if the actual number of determinants on this processor is less than the number 
 ! we're running through, feed in 0 determinants and 0 sign.

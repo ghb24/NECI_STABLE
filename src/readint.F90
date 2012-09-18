@@ -170,7 +170,7 @@ contains
          use UMatCache, only: GetCacheIndexStates,GTID
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
          use Parallel_neci
-         use constants, only: dp
+         use constants, only: dp,sizeof_int
          use util_mod, only: get_free_unit
          IMPLICIT NONE
          integer, intent(in) :: LEN
@@ -307,13 +307,13 @@ contains
                 
                 !IND contains all the indices in an integer(int64) - use mask of 16bit to extract them
 2               READ(iunit,END=99) Z,IND
-                L=iand(IND,MASK)
+                L=int(iand(IND,MASK),sizeof_int)
                 IND=Ishft(IND,-16)
-                K=iand(IND,MASK)
+                K=int(iand(IND,MASK),sizeof_int)
                 IND=Ishft(IND,-16)
-                J=iand(IND,MASK)
+                J=int(iand(IND,MASK),sizeof_int)
                 IND=Ishft(IND,-16)
-                I=iand(IND,MASK)
+                I=int(iand(IND,MASK),sizeof_int)
 
 !                I=Index(I)
 !                J=Index(J)
@@ -477,7 +477,7 @@ contains
                 G1(ISPINS*I-ISPN+1)%k(2)=0
                 G1(ISPINS*I-ISPN+1)%k(3)=0
                 G1(ISPINS*I-ISPN+1)%Ms=-MOD(ISPINS*I-ISPN+1,2)*2+1
-                IF(SYMMAX.lt.ORBSYM(I)) SYMMAX=ORBSYM(I)
+                IF(SYMMAX.lt.ORBSYM(I)) SYMMAX=int(ORBSYM(I),sizeof_int)
                 IF(abs(SYMLZ(I)).gt.iMaxLz) iMaxLz=abs(SYMLZ(I))
             ENDDO
          ENDDO
@@ -852,7 +852,7 @@ contains
 
       !This is a copy of the routine above, but now for reading in binary files of integrals
       SUBROUTINE READFCIINTBIN(UMAT,ECORE)
-         use constants, only: dp,int64
+         use constants, only: dp,int64,sizeof_int
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          USE UMatCache , only : UMatInd,UMAT2D,TUMAT2D
@@ -878,13 +878,13 @@ contains
          MASK=(2**16)-1
          !IND contains all the indices in an integer(int64) - use mask of 16bit to extract them
 101      READ(iunit,END=199) Z,IND
-         L=iand(IND,MASK)
+         L=int(iand(IND,MASK),sizeof_int)
          IND=Ishft(IND,-16)
-         K=iand(IND,MASK)
+         K=int(iand(IND,MASK),sizeof_int)
          IND=Ishft(IND,-16)
-         J=iand(IND,MASK)
+         J=int(iand(IND,MASK),sizeof_int)
          IND=Ishft(IND,-16)
-         I=iand(IND,MASK)
+         I=int(iand(IND,MASK),sizeof_int)
 !         I=Index(I)
 !         J=Index(J)
 !         K=Index(K)

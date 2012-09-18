@@ -1474,7 +1474,7 @@ MODULE AnnihilationMod
 !                        (RandomHash(mod(nI(i)+offset-1,int(nBasis,int64))+1) * i)
             enddo
         endif
-        hashInd = int(abs(mod(hash, int(nWalkerHashes, int64))),sizeof_int)+1_int64
+        hashInd = int(abs(mod(hash, int(nWalkerHashes, int64))),sizeof_int)+1
     end function FindWalkerHash
 
     
