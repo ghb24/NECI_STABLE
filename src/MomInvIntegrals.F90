@@ -1,5 +1,5 @@
 module MI_integrals
-    use constants, only: dp,n_int
+    use constants, only: dp,n_int,sizeof_int
     use MomInv, only: IsBitMomSelfInv, InvertMomDet, ReturnMomAllowedDet, InvertMomBitDet 
     use MomInv, only: IsMomSelfInv, CalcMomAllowedBitDet
     use SystemData, only: NEl, G1, nBasis, tAntisym_MI, Ecore, modk_offdiag
@@ -30,7 +30,8 @@ module MI_integrals
 
         ! Avoid warnings
         iUnused = IC; iUnused = ex(1,1); iUnused = nI(1); iUnused = nJ(1)
-        iUnused = iLutI(0); iUnused = iLutJ(0); lUnused = tParity
+        iUnused = int(iLutI(0),sizeof_int); iUnused = int(iLutJ(0),sizeof_int)
+        lUnused = tParity
 
     end function MI_spawn_sign
 

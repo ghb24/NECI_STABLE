@@ -2442,7 +2442,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !Use a MC sampling technique to find the eigenvector correesponding to the smallest eigenvalue.
 !List now contains diagonal hamiltonian matrix elements-Hii in the ExcitInfo(i,0), rather than rho elements.
       SUBROUTINE StarDiagMC(NList,List,ILMax,SI,DLWDB,MaxDiag)
-         use constants, only: dp,int32
+         use constants, only: dp,int32,sizeof_int
          use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
          use CalcData , only : TReadPops,ScaleWalkers,TBinCancel, iPopsFileNoRead, iPopsFileNoWrite
          USE Logging , only : TPopsFile,TCalcWavevector,WavevectorPrint, tIncrementPops
@@ -2594,7 +2594,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          ENDIF
 
 !Set the maximum number of walkers allowed
-         MaxWalkers=1000*InitWalkers
+         MaxWalkers=int(1000*InitWalkers,sizeof_int)
 
 !Allocate memory to hold walkers
          ALLOCATE(WalkVec(MaxWalkers),stat=ierr)
@@ -2605,16 +2605,16 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          IF(TReadPops) THEN
              IF((ABS(ScaleWalkers-1.D0)).lt.1.D-8) THEN
 !Read in walker positions
-                 do i=1,InitWalkers
+                 do i=1,int(InitWalkers,sizeof_int)
                      READ(17,*) WalkVec(i)%Det,WalkVec(i)%WSign
                  enddo
              ELSE
 !Read in walker positions - we will scale these later...
-                 do i=1,InitWalkers
+                 do i=1,int(InitWalkers,sizeof_int)
                      READ(17,*) WalkVec2(i)%Det,WalkVec2(i)%WSign
                  enddo
                  WRITE(6,*) "Scaling number of walkers by: ",ScaleWalkers
-                 ReadWalkers=InitWalkers
+                 ReadWalkers=int(InitWalkers,sizeof_int)
                  InitWalkers=0
                  ! First, count the total number of initial walkers on each 
                  ! determinant - sort into list
@@ -2642,7 +2642,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
                  enddo
                  WRITE(6,*) "Total number of walkers is now: ",InitWalkers
 !Set the new maximum number of walkers allowed
-                 MaxWalkers=100*InitWalkers
+                 MaxWalkers=int(100*InitWalkers,sizeof_int)
 
 !Deallocate old memory block for WalkVec
                  DEALLOCATE(WalkVec)
@@ -2706,8 +2706,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 
 !Setup initial trial walker position - already they are all set to be at HF to start (with positive sign)
 !TotWalkers contains the number of current walkers at each step
-         TotWalkers=InitWalkers
-         TotWalkersOld=InitWalkers
+         TotWalkers=int(InitWalkers,sizeof_int)
+         TotWalkersOld=int(InitWalkers,sizeof_int)
 
          IF(TCalcWavevector) THEN
 !If we want to write out first few

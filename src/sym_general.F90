@@ -70,9 +70,9 @@ contains
         integer :: ind
 
         if(tFixLz) then
-            ind = 2 * nSymLabels * (Mom + iMaxLz) + (2 * Sym + Spin)
+            ind = int(2 * nSymLabels * (Mom + iMaxLz) + (2 * Sym + Spin),sizeof_int)
         else
-            ind = 2 * Sym + Spin
+            ind = int(2 * Sym + Spin,sizeof_int)
         endif
 
         if(tNoSymGenRandExcits) then
