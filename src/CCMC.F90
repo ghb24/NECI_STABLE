@@ -104,7 +104,7 @@ MODULE CCMC
         real(dp) :: Prob,rat,HDiagCurr,r
         INTEGER :: WalkExcitLevel,Proc
         INTEGER :: TotWalkersNew,Ex(2,2)
-        LOGICAL :: tParity
+        !LOGICAL :: tParity
         
 ! We select up to nEl excitors at a time and store them here
         INTEGER(KIND=n_int) :: SelectedExcitors(0:NIfTot,nEl)     
