@@ -104,7 +104,7 @@ MODULE CCMC
         real(dp) :: Prob,rat,HDiagCurr,r
         INTEGER :: WalkExcitLevel,Proc
         INTEGER :: TotWalkersNew,Ex(2,2)
-        !LOGICAL :: tParity
+        LOGICAL :: tParity
         
 ! We select up to nEl excitors at a time and store them here
         INTEGER(KIND=n_int) :: SelectedExcitors(0:NIfTot,nEl)     
@@ -2317,6 +2317,8 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
 END SUBROUTINE CCMCStandalone
 
 SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
+   use soft_exit, only: ChangeVars
+   use PopsfileMod, only: ReadFromPopsfileOnly, WriteToPopsfileParOneArr
    Use global_utilities
    use SystemData, only: nEl
    use CCMCData, only: tCCMCFCI,dInitAmplitude,dProbSelNewExcitor,tExactCluster,tExactSpawn,nSpawnings,tCCBuffer
@@ -2348,7 +2350,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use shared_alloc, only: shared_allocate_iluts, shared_deallocate
    use CalcData, only: tAddToInitiator,InitiatorWalkNo,tTruncInitiator
    use bit_reps, only: encode_sign,extract_sign
-   use FciMCParMod, only: ChangeVars,WriteToPopsFileParOneArr ,tReadPops,ReadFromPopsfileOnly
+   use FciMCParMod, only: tReadPops
    use FciMCData, only: SpawnedParts,ValidSpawnedList,InitialSpawnedSlots
    use FciMCData, only: hash_shift, hash_iter !For cycle-dependent hashes
    use FciMCData, only: tTimeExit,MaxTimeExit !For TIME command

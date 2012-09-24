@@ -13,11 +13,11 @@ MODULE FciMCParMod
                           LzTot, tUEG, tLatticeGens, tCSF, G1, Arr, &
                           tNoBrillouin, tKPntSym, tPickVirtUniform, &
                           tMomInv,tMolpro
-    use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY, decode_bit_det, &
+    use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY, &
                         encode_bit_rep, encode_det, extract_bit_rep, &
                         test_flag, set_flag, extract_flags, &
                         flag_is_initiator, clear_all_flags,&
-                        extract_sign, nOffSgn
+                        extract_sign, nOffSgn, count_open_orbs
     use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
                         OccCASorbs, VirtCASorbs, tFindGroundDet, NEquilSteps,&
                         tReadPops, tRegenDiagHEls, iFullSpaceIter, MaxNoAtHF,&
@@ -31,10 +31,11 @@ MODULE FciMCParMod
                         iRestartWalkNum, tRestartHighPop, FracLargerDet, &
                         tChangeProjEDet, tCheckHighestPop, tSpawnSpatialInit,&
                         MemoryFacInit, tMaxBloom, tTruncNOpen, tFCIMC, &
-                        trunc_nopen_max, tSpawn_Only_Init, tSpawn_Only_Init_Grow, &
+                        trunc_nopen_max, tSpawn_Only_Init, RealSpawnCutoff, &
                         TargetGrowRate, TargetGrowRateWalk, tShiftonHFPop, &
                         tContinueAfterMP2,iExitWalkers,MemoryFacPart, &
-                        tAllRealCoeff, tRealCoeffByExcitLevel, RealCoeffExcitThresh, &
+                        tAllRealCoeff, tRealCoeffByExcitLevel, tPopsMapping, &
+                        tSpawn_Only_Init_Grow, RealCoeffExcitThresh, &
                         tRealSpawnCutoff, RealSpawnCutoff
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
@@ -48,7 +49,9 @@ MODULE FciMCParMod
                                     ScratchSize1, ScratchSize2, ScratchSize3,&
                                     init_excit_gen_store,clean_excit_gen_store
     use GenRandSymExcitCSF, only: gen_csf_excit
-    use IntegralsData , only : fck,NMax,UMat,tPartFreezeCore,NPartFrozen,NHolesFrozen,tPartFreezeVirt,NVirtPartFrozen,NElVirtFrozen
+    use IntegralsData, only: fck, NMax, UMat, tPartFreezeCore, NPartFrozen, &
+                             NHolesFrozen, tPartFreezeVirt, NVirtPartFrozen, &
+                             NElVirtFrozen
     use Logging, only: iWritePopsEvery, TPopsFile, iPopsPartEvery, tBinPops, &
                        iWriteHistEvery, tHistEnergies, FCIMCDebug, &
                        IterShiftBlock, AllHistInitPops, BinRange, iNoBins, &
@@ -84,7 +87,10 @@ MODULE FciMCParMod
     USE Parallel_neci
     USE FciMCData
     USE AnnihilationMod
-    use PopsfileMod
+    use PopsfileMod, only: FindPopsfileVersion, WriteToPopsfileParOneArr, &
+                           ReadFromPopsfilePar, open_pops_head, &
+                           ReadPopsHeadV3, ReadPopsHeadV4, ReadFromPopsfile, &
+                           CheckPopsParams
     use sort_mod
     use DetBitops, only: EncodeBitDet, DetBitEQ, DetBitLT, FindExcitBitDet, &
                          FindBitExcitLevel, countbits, TestClosedShellDet, &
