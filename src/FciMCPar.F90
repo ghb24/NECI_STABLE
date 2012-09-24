@@ -1950,6 +1950,7 @@ MODULE FciMCParMod
             nSpawn = - tau * MatEl * walkerweight / prob
             if (tRealSpawning) then
                 ! Continuous spawning. Add in acceptance probabilities.
+                
                 if (tRealSpawnCutoff .and. &
                     abs(nSpawn) < RealSpawnCutoff) then
 
