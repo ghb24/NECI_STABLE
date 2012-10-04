@@ -5723,13 +5723,13 @@ MODULe nElRDMMod
    !physical notation (e.g. All_aaaa_RDM etc).
 
    !To convert from spin to spatial orbitals, we need to apply the following:
-   !D_pr,qs = D_pr,qs(aaaa) + D_pr,qs(bbbb) + D_pr,qs(abab) + D_pr,qs(abba) (Eq. ***)
+   !D_pr,qs = D_pr,qs(aaaa) + D_pr,qs(bbbb) + D_pr,qs(abab) + D_pr,qs(baba) (Eq. ***)
 
    !We note now the following quirks of the All_aaaa_RDM-type arrays for the manner in
    !which they store these components
    !    1. In most cases the current RDMs store the *sum* of the spin-inverted terms
    !         - ie, All_aaaa_RDM(pr,qs) contains the sum of the aaaa and bbbb contributions
-   !    2. When a=c and b=d, there is only one contribution generated in NECI
+   !    2. When p=r and q=s, there is only one contribution generated in NECI
    !         - ie, All_abab_RDM(pp,qq) contains only one of the two identical abab and baba contributions
    !         - Terms of this kind but be explicitly multiplied by two to satisfy Eq. *** above
    !         - This is stored in the "Mult_Factor"
