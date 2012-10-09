@@ -985,7 +985,7 @@ MODULE AnnihilationMod
                             ! We've already counted the walkers where SpawnedSign become zero in the compress,
                             ! and in the merge, all that's left is those which get aborted which are counted here
                             ! only if the sign was not already zero (when it already would have been counted).
-!                            if(SignTemp(j).ne.0) ToRemove = ToRemove + 1
+                            if(SignTemp(j).ne.0) ToRemove = ToRemove + 1
                             SignTemp(j) = 0
                             call encode_part_sign (SpawnedParts(:,i), 0, j)
 
@@ -1002,7 +1002,9 @@ MODULE AnnihilationMod
                     enddo
                     if (IsUnoccDet(SignTemp)) then
                         ! All particle 'types' have been aborted
-                        ToRemove = ToRemove + 1
+!                        ToRemove = ToRemove + 1
+!                        This zero sign has already been taken into account in Spawned_Parts_Zero, if it was zero
+!                        directly after the compress, or ~20 lines above, if it only became zero in this routine.
                     elseif(tHashWalkerList) then
                         !Walkers have not been aborted, and so we should copy the determinant straight over to the main list
                         !We do not need to recompute the hash, since this should be the same one as was generated at the
