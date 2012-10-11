@@ -744,7 +744,7 @@ MODULE AnnihilationMod
         INTEGER, DIMENSION(lenof_sign) :: SignProd,CurrentSign,SpawnedSign,SignTemp
         INTEGER :: ExcitLevel, nJ(NEl),DetHash,FinalVal,clash,walkExcitLevel, dettemp(NEl)
         INTEGER(KIND=n_int) , POINTER :: PointTemp(:,:)
-        LOGICAL :: tSuccess,tSuc
+        LOGICAL :: tSuccess,tSuc,tPrevOcc
         character(len=*), parameter :: this_routine="AnnihilateSpawnedParts"
 
         if(.not.bNodeRoot) return  !Only node roots to do this.
@@ -963,6 +963,11 @@ MODULE AnnihilationMod
                     !
                     ! If flag_make_initiator is set, then obviously these are allowed to survive
                     call extract_sign (SpawnedParts(:,i), SignTemp)
+
+                    !If we abort these particles, we'll still need to add them to ToRemove
+                    tPrevOcc=.false.
+                    if (.not. IsUnoccDet(SignTemp)) tPrevOcc=.true.   
+                        
                     do j = 1, lenof_sign
                         if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(j)) .and. &
                             .not. test_flag (SpawnedParts(:,i), flag_make_initiator(j))) then
@@ -1000,9 +1005,11 @@ MODULE AnnihilationMod
                             endif
                         endif
                     enddo
-                    if (IsUnoccDet(SignTemp)) then
+                    if (IsUnoccDet(SignTemp) .and. tPrevOcc) then
                         ! All particle 'types' have been aborted
-                        ToRemove = ToRemove + 1
+!                        The zero sign has already been taken into account in Spawned_Parts_Zero, if it was zero
+!                        directly after the compress. Only add in here if not already taken care of there.
+                         ToRemove = ToRemove + 1
                     elseif(tHashWalkerList) then
                         !Walkers have not been aborted, and so we should copy the determinant straight over to the main list
                         !We do not need to recompute the hash, since this should be the same one as was generated at the
