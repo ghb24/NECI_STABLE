@@ -1333,13 +1333,22 @@ MODULE AnnihilationMod
             do i=1,TotWalkersNew
                 call extract_sign(CurrentDets(:,i),CurrentSign)
 
-                if(i.eq.HFInd) InstNoatHF = CurrentSign
+                if(i.eq.HFInd)  InstNoatHF = CurrentSign
 
                 IF(IsUnoccDet(CurrentSign)) THEN
                     DetsMerged=DetsMerged+1
                     if(tFillingStochRDMonFly) &
                         call det_removed_fill_diag_rdm(CurrentDets(:,i), CurrentH(1:NCurrH,i))
- 
+                    if(i.eq.HFInd) then
+                        !We have to do this such that AvNoAtHF matches up with AvSign.
+                        !AvSign is extracted from CurrentH, and if the HFDet is unoccupied
+                        !at this moment during annihilation, it's CurrentH entry is removed
+                        !and the averaging information in it is lost.
+                        !In some cases (a successful spawning event) a CurrentH entry will
+                        !be recreated, but with AvSign 0, so we must match this here.
+                        AvNoAtHF=0.0_dp 
+                        IterRDM_HF = Iter + 1 
+                    endif
                     IF(tTruncInitiator) THEN
                         do part_type=1,lenof_sign
                             if (test_flag(CurrentDets(:,i),flag_parent_initiator(part_type))) then
