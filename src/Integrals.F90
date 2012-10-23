@@ -1614,8 +1614,11 @@ contains
                     call construct_ijab_one (i, j, k, l, vasp_int(1,0))
                     call construct_ijab_one (i, l, k, j, vasp_int(1,1))
                 end if
+#ifdef __CMPLX
+                !cpp to avoid gfortran compiler warnings
                 UElems(0) = vasp_int(1,0)
                 UElems(1) = vasp_int(1,1)
+#endif
                 ! TODO: This bit seems broken. Why hel = ? twice
                 !       Why not iand(iType, 0)
                 hel = UElems(0)

@@ -1,5 +1,5 @@
 module mcpaths
-    use util_mod, only: isnan
+    use util_mod, only: isnan_neci
 contains
 
 !C.. Calculate RHO^(P)_II without having a stored H matrix
@@ -29,12 +29,13 @@ contains
          USE GraphMorph , only : MorphGraph
          USE StarDiagTripMod , only : StarDiagTrips
          USE FciMCParMod , only : FciMCPar
+         use RPA_Mod, only : RunRPA_QBA 
          USE ReturnPathMCMod , only : ReturnPathMC
          USE NODEDIAG , only : fMCPR3StarNodes
          use CalcData , only : G_VMC_FAC,CUR_VERT,g_MultiWeight,         &
      &          TMPTHEORY,TMCDIRECTSUM,TDIAGNODES,TGraphMorph,           &
      &          calcp_logweight,TFCIMC,TReturnPathMC
-         use CalcData, only: tCCMC
+         use CalcData, only: tCCMC,tRPA_QBA
          use CalcData, only: TStarTrips
          USE Logging , only : G_VMC_LOGCOUNT
          USE CCMC, only: CCMCStandalone,CCMCStandaloneParticle
@@ -44,7 +45,7 @@ contains
          use mcpathshdiag, only: fmcpr3b2
          use mcpathsismc, only: mcpathsr4, fmcpr4b,fmcpr4c
          use sym_mod, only: getsym
-         use util_mod, only: isnan, NECI_ICOPY
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          TYPE(BasisFN) :: G1(*),KSYM
          INTEGER I_VMAX,NEL,NBASIS
@@ -221,6 +222,9 @@ contains
                ELSEIF(TReturnPathMC) THEN
 !A MC simulation involving replicating particles, constrained to returning paths is run
                     CALL ReturnPathMC(F(I_V),DLWDB2)
+               elseif(tRPA_QBA) then
+!RPA calculation using the quasi-boson approximation
+                    call RunRPA_QBA(F(I_V),DLWDB2)
                ELSE
 !C.. This code generates a star consisting of all the two-vertex terms,
 !C.. forcing them to be disconnected. - this uses new excitation generators
@@ -336,7 +340,7 @@ contains
                 WRITE(11,"(I12,2G25.16,F19.7,I12,2G25.12)") I_V,F(I_V),TOTAL,NTIME-OTIME,L,STD,DLWDB2
                CALL neci_flush(11)
             ENDIF
-            IF(ISNAN(TOTAL)) THEN
+            IF(ISNAN_neci(TOTAL)) THEN
 !C.. save all log files
                ITIME=neci_etime(tarr)
                CALL neci_flush(11)
@@ -419,7 +423,8 @@ contains
          USE ReturnPathMCMod , only : ReturnPathMC
          use CalcData , only : TMPTHEORY,TDIAGNODES,TGraphMorph
          use CalcData, only : calcp_logweight,TFCIMC,TReturnPathMC
-         use CalcData, only: TStarTrips
+         use CalcData, only: TStarTrips,tRPA_QBA
+         use RPA_Mod, only: RunRPA_QBA 
          use global_utilities
          use mcpathsdata, only: EGP
          use mcpathshdiag, only: fmcpr3b2
@@ -435,7 +440,8 @@ contains
          INTEGER I_P,I_HMAX,BRR(*),NMSH,NMAX
          INTEGER NTAY(2),NWHTAY(3,I_VMAX),ILOGGING,I,I_V
          type(timer), save :: proc_timer,proc_timer2
-         INTEGER L,LT,ITIME
+         INTEGER L,LT
+         real(sp) ITIME(2)
          real(dp) BETA,ECORE
          real(sp) tarr(2),neci_etime
          real(dp) WLRI,WLSI
@@ -629,6 +635,9 @@ contains
                ELSEIF(TReturnPathMC) THEN
 !A MC simulation involving replicating particles, constrained to returning paths is run
                     CALL ReturnPathMC(F(I_V),DLWDB2)
+               elseif(tRPA_QBA) then
+!RPA calculation using the quasi-boson approximation
+                    call RunRPA_QBA(F(I_V),DLWDB2)
                ELSE
 !C.. This code generates a star consisting of all the two-vertex terms,
 !C.. forcing them to be disconnected. - this uses new excitation generators
@@ -653,12 +662,12 @@ contains
                WRITE(11,*)
                CALL neci_flush(11)
             ENDIF
-            IF(ISNAN(TOTAL)) THEN
+            IF(ISNAN_neci(TOTAL)) THEN
 !C.. save all log files
-               ITIME=neci_etime(tarr)
+               iTIME=neci_etime(tarr)
                CALL neci_flush(11)
-!               CALL LOGNAN(NI,NEL,BETA,ITIME)
-               WRITE(6,*) "WARNING: nan found at time",ITIME
+!               CALL LOGNAN(NI,NEL,BETA,iTIME)
+               WRITE(6,*) "WARNING: nan found at time",iTIME
                WRITE(6,"(A)",advance='no') "  nan det="
                call write_det (6, NI, .true.)
             ENDIF

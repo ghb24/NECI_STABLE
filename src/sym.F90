@@ -213,7 +213,7 @@ contains
 !   we don't have symmetry, so fake it.
                    SymClasses((I+1)/2)=1
                 ELSE
-              SymClasses((I+1)/2)=G1(I)%Sym%s+1
+              SymClasses((I+1)/2)=int(G1(I)%Sym%s,sizeof_int)+1
                 ENDIF
              ENDDO
 !   list the symmetry string of each sym label
@@ -1099,7 +1099,7 @@ contains
 !,. First check norm of this state
          CNORM=0
          DO J=1,NROT
-            CNORM=CNORM+CHARS(J)*CHARS(J)
+            CNORM=CNORM+real(CHARS(J)*CHARS(J),dp)
          ENDDO
          DO I=1,NSYM
             TOT=0
@@ -1113,7 +1113,7 @@ contains
 !   Calculate the normalization of the state I which matches (if it's an irrep, this will be 1)
                NORM=0
                DO J=1,NROT
-                  NORM=NORM+CONJG(IRREPCHARS(J,I))*IRREPCHARS(J,I)
+                  NORM=NORM+real(CONJG(IRREPCHARS(J,I))*IRREPCHARS(J,I),dp)
                ENDDO
 !               WRITE(6,*) "IRREP ",I,(TOT+0.D0)/NORM
                DIFF=ABS(TOT-NINT(ABS(TOT/NORM))*NORM)
@@ -1132,7 +1132,7 @@ contains
 !                  WRITE(6,*) I,DIFF,TOT,TOT/NORM
                   DO J=1,NROT
                      CHARS(J)=CHARS(J)-(IRREPCHARS(J,I)*TOT)/NORM
-                     CNORM=CNORM+CONJG(CHARS(J))*CHARS(J)
+                     CNORM=CNORM+real(CONJG(CHARS(J))*CHARS(J),dp)
                   ENDDO
 !                  CALL WRITECHARS(6,IRREPCHARS(1,I),NROT,"DIRREP")
 !                  CALL WRITECHARS(6,CHARS,NROT,"DCHARS")
@@ -1166,7 +1166,7 @@ contains
 !,. First check norm of this state
          CNORM=0
          DO J=1,NROT
-            CNORM=CNORM+CONJG(CHARS(J))*CHARS(J)
+            CNORM=CNORM+real(CONJG(CHARS(J))*CHARS(J),dp)
          ENDDO
          DO I=1,NIRREPS
             TOT=0
@@ -1177,7 +1177,7 @@ contains
 !   Calculate the normalization of the state I which matches (if it's an irrep, this will be 1)
                NORM=0
                DO J=1,NROT
-                  NORM=NORM+CONJG(IRREPCHARS(J,I))*IRREPCHARS(J,I)
+                  NORM=NORM+real(CONJG(IRREPCHARS(J,I))*IRREPCHARS(J,I),dp)
                ENDDO
 !               WRITE(6,*) "IRREP ",I,(TOT+0.D0)/NORM
 !                CALL WRITECHARS(6,CHARS,NROT,"REP   ")
@@ -1196,7 +1196,7 @@ contains
                   CNORM=0
                   DO J=1,NROT
                      CHARS(J)=CHARS(J)-(IRREPCHARS(J,I)*TOT)/NORM
-                     CNORM=CNORM+CONJG(CHARS(J))*CHARS(J)
+                     CNORM=CNORM+real(CONJG(CHARS(J))*CHARS(J),dp)
                   ENDDO
                ENDIF
             ENDIF
@@ -1957,10 +1957,10 @@ contains
       integer(int64) Isym
       integer  AbelSym(3)
 !RShift
-      AbelSym(3)=IShft(Isym,-(PropBitLen*2))
+      AbelSym(3)=int(IShft(Isym,-(PropBitLen*2)),sizeof_int)
 !RShift
-      AbelSym(2)=Iand(IShft(ISym,-PropBitLen),2_int64**PropBitLen-1)
-      AbelSym(1)=Iand(Isym,2_int64**PropBitLen-1)
+      AbelSym(2)=int(Iand(IShft(ISym,-PropBitLen),2_int64**PropBitLen-1),sizeof_int)
+      AbelSym(1)=int(Iand(Isym,2_int64**PropBitLen-1),sizeof_int)
       return
       end subroutine DecomposeAbelianSym
 
@@ -2066,7 +2066,7 @@ contains
         do i=1,Nirrep
             basirrep=SYMLABELCOUNTS(2,i)
             iSize=iSize+(basirrep*(basirrep+1))/2
-            SYMLABELINTSCUM(i)=iSize
+            SYMLABELINTSCUM(i)=int(iSize,sizeof_int)
             IF(i.eq.1) THEN
                 SYMLABELCOUNTSCUM(i)=0
             ELSE

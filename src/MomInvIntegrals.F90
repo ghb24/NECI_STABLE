@@ -1,8 +1,8 @@
 module MI_integrals
-    use constants, only: dp,n_int
+    use constants, only: dp,n_int,sizeof_int
     use MomInv, only: IsBitMomSelfInv, InvertMomDet, ReturnMomAllowedDet, InvertMomBitDet 
     use MomInv, only: IsMomSelfInv, CalcMomAllowedBitDet
-    use SystemData, only: NEl, G1, nBasis, tAntisym_MI, Ecore
+    use SystemData, only: NEl, G1, nBasis, tAntisym_MI, Ecore, modk_offdiag
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel
     use sltcnd_mod, only: sltcnd, sltcnd_excit
     use bit_reps, only: NIfD, NIfTot, NIfDBO, decode_bit_det
@@ -30,7 +30,8 @@ module MI_integrals
 
         ! Avoid warnings
         iUnused = IC; iUnused = ex(1,1); iUnused = nI(1); iUnused = nJ(1)
-        iUnused = iLutI(0); iUnused = iLutJ(0); lUnused = tParity
+        iUnused = int(iLutI(0),sizeof_int); iUnused = int(iLutJ(0),sizeof_int)
+        lUnused = tParity
 
     end function MI_spawn_sign
 
@@ -45,6 +46,9 @@ module MI_integrals
         HElement_t , intent(in) :: HElGen
 
         hel = MI_off_diag_helement_norm (nI, nJ, iLutI, iLutJ)
+
+        if (IC /= 0 .and. modk_offdiag) &
+            hel = -abs(hel)
 
         ! Avoid warnings
         iUnused = IC; iUnused = ex(1,1); lUnused = tParity

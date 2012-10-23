@@ -63,6 +63,7 @@ C.. change the spin
             ENDIF
             CALL HUB_PBC(NQN,NBASISMAX)
 !            IT=IFINDBASISFN(NQN,G1,NBASIS)
+            IT=0
             IF(IT.EQ.0) THEN 
                L=.TRUE.
             ELSE
@@ -84,8 +85,11 @@ C.. if we've more electrons to change, we go round again
       END
 
       SUBROUTINE HUB_PBC(NQN, NBASISMAX)
+         use constants, only: dp,sizeof_int
+         IMPLICIT NONE
          INTEGER NQN(5), nBasisMax(5,*)
-         INTEGER MPN,MMN,IQN,NMAXX
+         INTEGER MPN,MMN,IQN,NMAXX,MX,MY,I,J,KX,KY,NMINX
+         real(dp) :: XX,YY,AX,AY
          LOGICAL TALLOW
          IF(NBASISMAX(1,3).EQ.0) THEN
 C.. PBC non-tilted
@@ -104,33 +108,33 @@ C.. PBC tilted
                AX=NBASISMAX(1,4)
                AY=NBASISMAX(2,4)
 C.. (XX,YY) is the position of the bottom right corner of the unit cell
-               XX=((AX+AY)/2.D0)*NMAXX
-               YY=((AY-AX)/2.D0)*NMAXX
-               MX=XX*AX+YY*AY
-               MY=XX*AY-YY*AX
+               XX=((AX+AY)/2.D0)*real(NMAXX,dp)
+               YY=((AY-AX)/2.D0)*real(NMAXX,dp)
+               MX=int(XX*AX+YY*AY,sizeof_int)
+               MY=int(XX*AY-YY*AX,sizeof_int)
                I=NQN(1)
                J=NQN(2)
-               KX=I*AX+J*AY
-               KY=I*AY-J*AX
+               KX=int(real(I,dp)*AX+real(J,dp)*AY,sizeof_int)
+               KY=int(real(I,dp)*AY-real(J,dp)*AX,sizeof_int)
                IF(KX.GT.MX) THEN
                   TALLOW=.FALSE.
-                  NQN(1)=NQN(1)-AX*NMAXX
-                  NQN(2)=NQN(2)-AY*NMAXX
+                  NQN(1)=NQN(1)-int(AX*real(NMAXX,dp),sizeof_int)
+                  NQN(2)=NQN(2)-int(AY*real(NMAXX,dp),sizeof_int)
                ENDIF
                IF(KY.GT.MY) THEN
                   TALLOW=.FALSE.
-                  NQN(1)=NQN(1)-AY*NMAXX
-                  NQN(2)=NQN(2)+AX*NMAXX
+                  NQN(1)=NQN(1)-int(AY*real(NMAXX,dp),sizeof_int)
+                  NQN(2)=NQN(2)+int(AX*real(NMAXX,dp),sizeof_int)
                ENDIF
                IF(KX.LE.-MX) THEN
                   TALLOW=.FALSE.
-                  NQN(1)=NQN(1)+AX*NMAXX
-                  NQN(2)=NQN(2)+AY*NMAXX
+                  NQN(1)=NQN(1)+int(AX*real(NMAXX,dp),sizeof_int)
+                  NQN(2)=NQN(2)+int(AY*real(NMAXX,dp),sizeof_int)
                ENDIF
                IF(KY.LE.-MY) THEN
                   TALLOW=.FALSE.
-                  NQN(1)=NQN(1)+AY*NMAXX
-                  NQN(2)=NQN(2)-AX*NMAXX
+                  NQN(1)=NQN(1)+int(AY*real(NMAXX,dp),sizeof_int)
+                  NQN(2)=NQN(2)-int(AX*real(NMAXX,dp),sizeof_int)
                ENDIF
             ENDDO
          ELSEIF(NBASISMAX(1,3).EQ.3) THEN
@@ -170,6 +174,7 @@ C.. we need to keep on doing this until we make a valid choice
 C.. We keep spin fixed here.
         call stop_all('GENNEWDET3',
      &         'G1 variable needs to be made into a BasisFN.')
+         IT=0
          DO WHILE(L)
             L=.FALSE.
             IEL=INT(RAN2(ISEED)*NEL)+1

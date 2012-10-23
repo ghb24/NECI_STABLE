@@ -34,7 +34,7 @@ module util_mod
 
 !    public :: swap, arr_lt, arr_gt, operator(.arrlt.), operator(.arrgt.)
 !    public :: factrl, choose, int_fmt, binary_search
-!    public :: append_ext, get_unique_filename, get_nan, isnan
+!    public :: append_ext, get_unique_filename, get_nan, isnan_neci
 
 contains
 
@@ -132,13 +132,13 @@ contains
 
     ! If all of the compilers supported ieee_arithmetic
     ! --> could use ieee_is_nan (r)
-    elemental logical function isnan (r)
+    elemental logical function isnan_neci (r)
         real(dp), intent(in) :: r
 
         if ( (r == 0) .and. (r * 1 == 1) ) then
-            isnan = .true.
+            isnan_neci = .true.
         else
-            isnan = .false.
+            isnan_neci = .false.
         endif
     end function
 
@@ -661,7 +661,7 @@ end module
       real(sp) :: time(2)
       call cpu_time(ret)
       time(1) = ret
-      time(2) = 0
+      time(2) = real(0.0,sp)
     end function neci_etime
 
     integer function neci_system(str)

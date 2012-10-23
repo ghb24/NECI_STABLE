@@ -162,6 +162,12 @@ mpitype=MPI_INTEGER8
 #define val_out Ret
 #endif
 
+!#ifdef CBINDMPI
+!#define cbind_loc loc_neci
+!#else
+!#define cbind_loc 
+!#endif
+
 
 
 
@@ -267,6 +273,7 @@ module Parallel_neci
             c_ptr_t, intent(in), value :: sbuf, rbuf
             integer(MPIArg), intent(in) :: scnts(*), sdispl(*)
             integer(MPIArg), intent(in) :: rcnts(*), rdispl(*)
+!            c_ptr_t, intent(in), value :: scnts, sdispl, rcnts, rdispl
             integer(c_int), intent(in), value :: stype, rtype, comm
             integer(c_int), intent(out) :: ierr
         end subroutine
@@ -280,6 +287,7 @@ module Parallel_neci
             integer(c_int), intent(in), value :: comm, rt
             integer(MPIArg), intent(in) :: displs(*)
             integer(MPIArg), intent(in) :: rcnts(*)
+!            c_ptr_t, intent(in), value :: displs, rcnts
             integer(c_int), intent(out) :: ierr
         end subroutine
         subroutine MPI_Allgather (sbuf, scnt, stype, rbuf, rcnt, rtype, &
@@ -302,6 +310,7 @@ module Parallel_neci
             integer(c_int), intent(in), value :: comm, rt
             integer(MPIArg), intent(in) :: scnts(*)
             integer(MPIArg), intent(in) :: displs(*)
+!            c_ptr_t, intent(in), value :: scnts, displs
             integer(c_int), intent(out) :: ierr
         end subroutine
         subroutine MPI_Scatter (sbuf, scnt, stype, rbuf, rcnt, rtype, rt, &
@@ -320,6 +329,7 @@ module Parallel_neci
             c_ptr_t, intent(in), value :: buf
             integer(c_int), intent(in), value :: cnt, dtype, src, tag, comm
             integer(c_int), intent(inout) :: stat(*)
+!            c_ptr_t, intent(in), value :: stat
             integer(c_int), intent(out) :: ierr
         end subroutine
         subroutine MPI_Send (buf, cnt, dtype, src, tag, comm, ierr) &
@@ -934,9 +944,13 @@ contains
 
         call GetComm (Comm, Node)
 
-        call MPI_Alltoallv (val_in, SendSizes, SendOffsets, &
+!        call MPI_Alltoallv (val_in, cbind_loc(SendSizes), &
+        call MPI_Alltoallv (val_in, SendSizes, &
+                SendOffsets, &
                 %(mpitype)s, &
-                val_out, RecvSizes, RecvOffsets, &
+                val_out, &
+                RecvSizes, &
+                RecvOffsets, &
                 %(mpitype)s, &
                 comm, err)
         ierr = err
@@ -1123,15 +1137,15 @@ contains
         rptr = loc_neci(ret)
 #endif
 
-        DispsN = Disps &
-               * %(mpilen)s
-        LengthsN = Lengths &
-                 * %(mpilen)s
+        DispsN = int(Disps &
+         * %(mpilen)s,MPIArg)
+        LengthsN = int(Lengths &
+         * %(mpilen)s,MPIArg)
 
         call GetComm (Comm, Node, rt)
 
-        LengthIn = %(mpilen)s &
-                 * (ubound(v,%(ndim)s+1)-lbound(v,%(ndim)s+1)+1)
+        LengthIn = int(%(mpilen)s &
+         * (ubound(v,%(ndim)s+1)-lbound(v,%(ndim)s+1)+1),MPIArg)
         
         call MPI_GatherV (val_in, LengthIn, &
                 %(mpitype)s, &
@@ -1279,7 +1293,7 @@ contains
 
         call MPI_Recv (val_out, int(BuffSize, MPIArg), &
                 %(mpitype)s, &
-                int(Source, MPIArg), int(Tag, MPIArg), MPI_COMM_WORLD, &
+                int(Source, MPIArg), int(Tag, MPIArg), CommGlobal, &
                 stat, err)
         ierr = err
 #else
@@ -1308,7 +1322,7 @@ contains
 
         call MPI_Send (val_in, int(BuffSize, MPIArg), &
                 %(mpitype)s, &
-                int(Dest, MPIArg), int(Tag, MPIArg), MPI_COMM_WORLD, err)
+                int(Dest, MPIArg), int(Tag, MPIArg), CommGlobal, err)
         ierr = err
 #else
         ierr = 0
@@ -1398,6 +1412,10 @@ supermodule Parallel
 contains
 
     subroutine MPIInit (tExternal)
+#ifdef MOLPRO
+        USE molpro_options, only : molpro_helper_server
+        integer :: iglobal_worker_comm
+#endif
 
         ! Determine the number of processors, and fork each off to its own 
         ! NodeFile output file
@@ -1407,16 +1425,15 @@ contains
         ! have to initialise our own.
 
         logical, intent(in) :: tExternal
-        
         integer(MPIArg) :: iProcInd, nProcess, ierr
-        integer :: a, g
+        integer :: a, g,MolpComm
         character(len=20) NodeFile
         logical, save :: initialised=.false.
         character(*), parameter :: t_r = 'MPIInit'
 
 #ifdef PARALLEL
         nNodes = 0  !Indicate we haven't setup nodes yet
-        CommGlobal = MPI_COMM_WORLD
+
         if (.not.initialised) then
             
             if(tExternal) then
@@ -1431,17 +1448,50 @@ contains
 #endif
             endif
 
-            call MPI_Comm_rank (MPI_COMM_WORLD, iProcInd, ierr)
+#ifdef CBINDMPI
+            ! Extract the value of MPI_COMM_WORLD from the C-bindings.
+            ! It doesn't have to be zero (c.f. gfortran w/ openmpi).
+            MPI_COMM_WORLD = mpicommworld_c2f()
+#endif
+
+#ifdef MOLPRO
+            ! Obtain the communicator for MOLPRO
+            MolpComm = iglobal_worker_comm()
+            CommGlobal = int(MolpComm, MPIArg)
+#else
+            ! If we are using the C bindings, this just sets it to 0
+            CommGlobal = MPI_COMM_WORLD
+#endif
+
+            call MPI_Comm_rank (CommGlobal, iProcInd, ierr)
             iProcIndex = iProcInd
             if (ierr /= MPI_SUCCESS) &
                 call stop_all (t_r, 'MPI Error. Terminating.')
 
-            call MPI_Comm_size (MPI_COMM_WORLD, nProcess, ierr)
+            call MPI_Comm_size (CommGlobal, nProcess, ierr)
             nProcessors = nProcess
             if (ierr /= MPI_SUCCESS) &
                 call stop_all (t_r, 'MPI Error. Terminating.')
             write(6,*) 'Number of processors: ', nProcessors
 
+#ifdef MOLPRO
+#ifdef CBINDMPI
+            if(molpro_helper_server.and.(nProcessors.gt.1)) then
+                write(6,"(A)") "********************************************************************"
+                write(6,"(A)") "***************************  WARNING  ******************************"
+                write(6,"(A)") "********************************************************************"
+                write(6,"(A)") "***                                                              ***"
+                write(6,"(A)") "*** FCIQMC module run in parallel, but --no-helper-server option ***"
+                write(6,"(A)") "*** not invoked on command line. This is highly recommended when ***"
+                write(6,"(A)") "*** running with more than one MPI thread, since one processor   ***"
+                write(6,"(A)") "*** is now entirely idle. If running with multiple processes,    ***"
+                write(6,"(A)") "*** recommend re-running with '--no-helper-server' command line  ***"
+                write(6,"(A)") "*** option.                                                      ***"
+                write(6,"(A)") "***                                                              ***"
+                write(6,"(A)") "********************************************************************"
+            endif
+#endif
+#endif
 
             if(tExternal) then
                 write(6,*) "NECI Processor ",iProcIndex+1,'/',nProcessors
@@ -1495,11 +1545,26 @@ contains
 #ifndef CBINDMPI
             ! Don't bother with this if using c bindings (probably
             ! should though)
-            call MPI_ERRHANDLER_SET(MPI_COMM_WORLD,MPI_ERRORS_RETURN,ierr)
+            call MPI_ERRHANDLER_SET(CommGlobal,MPI_ERRORS_RETURN,ierr)
 #endif
         end if
 
 #else 
+
+#if defined(_MOLCAS_MPP_) && ( defined(GA_TCGMSG) || defined(GA_TCGMSG5) )
+        write(6,"(A)") "********************************************************************"
+        write(6,"(A)") "***************************  WARNING  ******************************"
+        write(6,"(A)") "********************************************************************"
+        write(6,"(A)") "***                                                              ***"
+        write(6,"(A)") "*** FCIQMC module run in parallel, but molpro not compiled with  ***"
+        write(6,"(A)") "*** MPI. FCIQMC module cannot support compilation with Global    ***"
+        write(6,"(A)") "*** Arrays with TCGMSG, and so will now run in serial mode       ***" 
+        write(6,"(A)") "*** instead. Recompilation of molpro with linking to MPI module  ***" 
+        write(6,"(A)") "*** recommended.                                                 ***"
+        write(6,"(A)") "***                                                              ***"
+        write(6,"(A)") "********************************************************************"
+#endif
+
        ! Dummy set up for serial work.
        iProcIndex = 0
        nProcessors = 1
@@ -1720,7 +1785,7 @@ contains
             call MPIGroupIncl (Group, n, GroupProc, GroupNodesDum(i), ierr)
 
             GroupNodes = GroupNodesDum
-            CommNodesDum = CommNodes
+            CommNodesDum = int(CommNodes,MPIArg)
 
             ! Create the communicator
             call MPICommcreate (CommGlobal, GroupNodes(i), CommNodesDum(i),&
@@ -1785,12 +1850,13 @@ contains
         character(3) :: error_str
         integer(MPIArg) :: error_code, ierr
 
+        error_code=0
 #ifdef PARALLEL
 
         ! errorcode: Error returned to invoking environment.
         ! ierror: error status (of abort: was abort successful?)
         ! Currently neither are analysed.
-        call MPI_Abort (MPI_COMM_WORLD, error_code, ierr)
+        call MPI_Abort (CommGlobal, error_code, ierr)
 #endif
 
         write(6,*) error_str

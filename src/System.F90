@@ -26,6 +26,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tReadFreeFormat=.false.
       tMolproMimic=.false.
       tAntisym_MI=.false.
       tMomInv=.false.
@@ -150,7 +151,6 @@ MODULE System
       tUseMP2VarDenMat=.false.
       tUseHFOrbs=.false.
       tFindCINatOrbs=.false.
-      tNoRODump=.false.
       DiagWeight=1.D0
       OffDiagWeight=1.D0
       OneElWeight=1.D0
@@ -162,6 +162,7 @@ MODULE System
       tHFNoOrder=.false.
       tSymIgnoreEnergies=.false.
       tPickVirtUniform = .false.
+      modk_offdiag = .false.
 
 !Feb08 defaults:
       IF(Feb08) THEN
@@ -334,6 +335,8 @@ MODULE System
             IF(tHub) THEN
                 CALL Stop_All("SysReadInput","Cannot turn off symmetry with the hubbard model.")
             ENDIF
+        case("FREEFORMAT")
+            tReadFreeFormat = .true.
         case("SYM")
             TPARITY = .true.
             do I = 1,4
@@ -480,6 +483,8 @@ MODULE System
             if ( ISTATE /= 1 ) then
                 call report("Require ISTATE to be left set as 1",.true.)
             end if
+        case("MODK-OFFDIAG")
+            modk_offdiag = .true.
         case("FAST-EXCITGEN")
             tAbelianFastExcitGen=.true.
     ! tAbelianFastExcitGen is a temporary flag. 
@@ -785,16 +790,6 @@ MODULE System
             tUseHFOrbs=.true.
             tShake=.false.
             tSeparateOccVirt=.true.
-
-        case("NORODUMP")
-            tNoRODump=.true.
-! This is to do with the calculation of the MP2 or CI natural orbitals.  
-! This should be used if we want the transformation matrix of the              
-! natural orbitals to be found, but no ROFCIDUMP file to be printed (i.e. the integrals don't need to be transformed).  
-! This is so that at the end 
-! of a calculation, we may get the one body reduced density matrix from the wavefunction we've found, 
-! and then use the MOTRANSFORM file printed to 
-! visualise the natural orbitals with large occupation numbers.
 
         case("RANLUXLEV")
 !This is the level of quality for the random number generator. Values go from 1 -> 4. 3 is default.

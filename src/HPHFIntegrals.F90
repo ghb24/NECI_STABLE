@@ -1,7 +1,7 @@
 module hphf_integrals
-    use constants, only: dp,n_int
+    use constants, only: dp,n_int,sizeof_int
     use SystemData, only: NEl, nBasisMax, G1, nBasis, Brr, tHub, ECore, &
-                          ALat, NMSH, tOddS_HPHF
+                          ALat, NMSH, tOddS_HPHF, modk_offdiag
     use IntegralsData, only: UMat,FCK,NMAX
     use HPHFRandExcitMod, only: FindDetSpinSym, FindExcitBitDetSym
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel, &
@@ -32,7 +32,8 @@ module hphf_integrals
 
         ! Avoid warnings
         iUnused = IC; iUnused = ex(1,1); iUnused = nI(1); iUnused = nJ(1)
-        iUnused = iLutI(0); iUnused = iLutJ(0); lUnused = tParity
+        iUnused = int(iLutI(0),sizeof_int); iUnused = int(iLutJ(0),sizeof_int)
+        lUnused = tParity
 
     end function
 
@@ -48,6 +49,9 @@ module hphf_integrals
         HElement_t , intent(in) :: HElGen
 
         hel = hphf_off_diag_helement_norm (nI, nJ, iLutI, iLutJ)
+
+        if (IC /= 0 .and. modk_offdiag) &
+            hel = -abs(hel)
 
         ! Avoid warnings
         iUnused = IC; iUnused = ex(1,1); lUnused = tParity

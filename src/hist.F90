@@ -10,6 +10,7 @@ module hist
     use DetBitOps, only: count_open_orbs, EncodeBitDet, spatial_bit_det, &
                          DetBitEq, count_open_orbs, TestClosedShellDet, &
                          CalcOpenOrbs, IsAllowedHPHF
+    use hash , only : DetermineDetNode                     
     use CalcData, only: tFCIMC, tTruncInitiator
     use DetCalcData, only: FCIDetIndex, det
     use FciMCData, only: tFlippedSign, TotWalkers, CurrentDets, iter, &
@@ -24,7 +25,7 @@ module hist
     use parallel_neci
     use csf, only: get_num_csfs, csf_coeff, csf_get_yamas, write_yama, &
                    extract_dorder
-    use AnnihilationMod, only: DetermineDetNode
+!    use AnnihilationMod, only: DetermineDetNode
     use hist_data
     use timing_neci
     use Determinants, only: write_det
@@ -212,7 +213,7 @@ contains
                 call extract_sign (all_hist(:,i), sgn)
 
                 ! Output to file
-                write(fd, *) all_hist(0:NIfD, i), float(sgn)/nsteps
+                write(fd, *) all_hist(0:NIfD, i), dble(sgn)/nsteps
                 
                 ! Add csf contribs
                 do j = 1, ubound(csf_contrib, 2)
@@ -394,6 +395,34 @@ contains
 
     end subroutine
 
+    subroutine find_hist_coeff_explicit (ilut, ExcitLevel, PartInd, tSuccess)
+
+        implicit none
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer, intent(in) :: ExcitLevel
+        integer, intent(out) :: PartInd
+        logical , intent(out) :: tSuccess
+
+        integer :: open_orbs
+        integer(n_int) :: ilut_sym(0:NIfTot)
+        real(dp) :: delta(lenof_sign)
+        character(*), parameter :: t_r = 'add_hist_spawn'
+
+        tSuccess = .false.
+        if (ExcitLevel == nel) then
+            call BinSearchParts2 (ilut,  FCIDetIndex(ExcitLevel), det, PartInd,&
+                                  tSuccess)
+        elseif (ExcitLevel == 0) then
+            PartInd = 1
+            tSuccess = .true.
+        else
+            call BinSearchParts2 (ilut, FCIDetIndex(ExcitLevel), &
+                                  FCIDetIndex(ExcitLevel+1)-1, PartInd, &
+                                  tSuccess)
+        endif
+
+    end subroutine
+
     subroutine add_hist_energies (ilut, sgn, HDiag)
 
         ! This will histogram the energies of the particles, rather than the
@@ -463,7 +492,7 @@ contains
             enddo
         enddo
 
-        do j = 1, TotWalkers
+        do j = 1, int(TotWalkers,sizeof_int)
 
             ! Extract the current walker
             call extract_bit_rep (CurrentDets(:,j), nI, sgn, flg)
@@ -534,7 +563,7 @@ contains
         ! Initially, have no component on any of the spins
         spin_cpts = 0
 
-        do j = 1, TotWalkers
+        do j = 1, int(TotWalkers,sizeof_int)
 
             ! Extract the current walker
             call extract_bit_rep (CurrentDets(:,j), nI, sgn, flg)
@@ -609,7 +638,7 @@ contains
         call set_timer (s2_timer)
 
         ssq = 0
-        do i = 1, TotWalkers
+        do i = 1, int(TotWalkers,sizeof_int)
             ssq = ssq + ssquared_contrib (CurrentDets(:,i))
         enddo
 
@@ -727,14 +756,14 @@ contains
 
             call MPIAlltoAll (send_count, 1, recv_count, 1, ierr)
 
-            send_off = (proc_pos_init - 1) * (NIfTot + 1)
+            send_off = int((proc_pos_init - 1) * (NIfTot + 1),MPIArg)
             recv_off(1) = 0
             do i = 2, nProcessors
-                recv_off(i) = recv_off(i - 1) + recv_count(i - 1)
+                recv_off(i) = recv_off(i - 1) + int(recv_count(i - 1),MPIArg)
             enddo
-            recv_off = recv_off * (NIfTot + 1)
-            send_data = send_count * (NIfTot + 1)
-            recv_data = recv_count * (NIfTot + 1)
+            recv_off = recv_off * int(NIfTot + 1,MPIArg)
+            send_data = int(send_count * (NIfTot + 1),MPIArg)
+            recv_data = int(recv_count * (NIfTot + 1),MPIArg)
 
             call MPIAlltoAllv (det_list, send_data, send_off, &
                                recv_dets, recv_data, recv_off, ierr)
@@ -796,7 +825,7 @@ contains
         do p = 0, nProcessors-1
 
             ! How many dets are on processor p
-            proc_dets = TotWalkers
+            proc_dets = int(TotWalkers,sizeof_int)
             call MPIBcast (proc_dets, iProcIndex == p)
 
             ! Send the dets around bit by bit
@@ -807,7 +836,7 @@ contains
                     ! Loop over walkers and only add initiators to bcast list
                     nsend = 0
                     if (p == iProcIndex) then
-                        do i = start_pos, TotWalkers
+                        do i = start_pos, int(TotWalkers,sizeof_int)
                             ! Break up the list into correctly sized chunks
                             if (nsend == max_per_proc) exit
 

@@ -1,6 +1,6 @@
 module mcpathsismc
-    use constants, only: dp,int64,sp
-    use util_mod, only: NECI_ICOPY,isnan
+    use constants, only: dp,int64,sp,sizeof_int
+    use util_mod, only: NECI_ICOPY,isnan_neci
    contains
 !C.. Calculate RHO^(P)_II without having a stored H matrix
 !C.. SAMPLE over distinct nodes, e.g. IJKLI, with paths up to I_HMAX
@@ -297,12 +297,12 @@ module mcpathsismc
                          IF(G_VMC_FAC.GT.0) THEN
                            DO WHILE(I_VCUR.LT.1.OR.I_VCUR.GT.I_VMAX)
                               R=RAN2(ISEED)
-                              I_VCUR=I_VMAX+1+LOG(R)/LOG(G_VMC_FAC)
+                              I_VCUR=I_VMAX+1+int(LOG(R)/LOG(G_VMC_FAC),sizeof_int)
                            ENDDO
                            PFAC=G_VMC_FAC**(I_VCUR-1)
                          ELSEIF(G_VMC_FAC.EQ.0) THEN
                            R=RAN2(ISEED)
-                           I_VCUR=R*(I_VMAX-1)+2
+                           I_VCUR=int(R*real(I_VMAX-1,dp)+2.0_dp,sizeof_int)
                            PFAC=1.D0/(I_VMAX-1)
                          ELSE
                            DO WHILE(I_VCUR.LT.1.OR.I_VCUR.GT.I_VMAX)
@@ -370,7 +370,7 @@ module mcpathsismc
                          IF(TSEQ) THEN
                            I_VCUR=1
 !.. The last graph was a 1-vertex gestalt.  See how many 1->1 transitions we are likely to generate in a row
-                           LP=LOG(1-RAN2(ISEED))/LOG(1-G_VMC_FAC)
+                           LP=int(LOG(1.0_dp-RAN2(ISEED))/LOG(1.0_dp-G_VMC_FAC),sizeof_int)
                            IF(LP.GT.0) THEN
                               IGV=1
                               I_OVCUR=1
@@ -405,7 +405,7 @@ module mcpathsismc
                               PGR=PREJ*(1.D0-G_VMC_FAC)
                            ENDIF
 !C.. L is the number of strings of rejections (i.e. of V's we add
-                           LP=LOG((1-RAN2(ISEED)))/LOG(PGR)
+                           LP=int(LOG((1.0_dp-RAN2(ISEED)))/LOG(PGR),sizeof_int)
 !C                           WRITE(6,*) "V->V",PREJ,L,I_OVCUR,DLWDB2
                            IF(LP.GT.0) THEN
                               CALL AddGraph(MCSt,LP,I_OVCUR,FF,              &
@@ -538,7 +538,7 @@ module mcpathsismc
               ENDIF
             ENDIF
             CALL neci_flush(11)
-!            IF(ISNAN(F(I_V))) THEN
+!            IF(ISNAN_neci(F(I_V))) THEN
 !C.. save all log files
 !               ITIME=neci_etime(tarr)
 !               CALL neci_flush(11)
@@ -769,8 +769,8 @@ module mcpathsismc
      &    STOP "Cannot handle more than double excitations."
          IF(IEXLEVEL.LT.2) IEXL2=IEXLEVEL
          IF(IEXLEVEL.EQ.2) THEN
-            IEX=RAN2(ISEED)*(NBASIS-NEL)*NEL*                  &
-     &         (1+(NBASIS-NEL-1)*(NEL-1)/4.D0)
+            IEX=int(RAN2(ISEED)*real((NBASIS-NEL)*NEL)*                     &
+     &         (1.0_dp+real((NBASIS-NEL-1)*(NEL-1),dp)/4.0_dp),sizeof_int)
             IF(IEX.LT.(NBASIS-NEL)*NEL) THEN
                IEXL2=1
             ELSE
@@ -1454,7 +1454,7 @@ module mcpathsismc
          real(dp) RAN2
          BR=.TRUE.
          DO WHILE(BR)
-            IEL=RAN2(ISEED)*NEL+1
+            IEL=int(RAN2(ISEED)*real(NEL+1,dp),sizeof_int)
             IF(G1(NI(IEL))%Ms.EQ.NSPIN.AND.IEL.NE.IEX) BR=.FALSE.
          ENDDO
          IEX=IEL
@@ -1470,7 +1470,7 @@ module mcpathsismc
          real(dp) RAN2
          BR=.TRUE.
          DO WHILE(BR)
-            IEL=RAN2(ISEED)*NBASIS+1
+            IEL=int(RAN2(ISEED)*real(NBASIS+1,dp),sizeof_int)
             IF(G1(IEL)%Ms.EQ.NSPIN) THEN
                BR=.FALSE.
                IF(IEX1.EQ.IEL) BR=.TRUE.
@@ -1610,7 +1610,7 @@ module mcpathsismc
             PR=(OPROB/RHX)*ABS((WEIGHT/OWEIGHT))
 !            WRITE(40,"(5G)",advance='no') OPROB,RH,(WEIGHT), (OWEIGHT),PR
             IF(RHX.EQ.0.D0.OR..NOT.abs(OWEIGHT).gt.0.D0) PR=0.D0
-            IF(isnan(WEIGHT)) THEN
+            IF(isnan_neci(WEIGHT)) THEN
                 WRITE(60,*) WEIGHT,ETILDE,RHX
                 CALL WRITEPATH(60,IPATH,I_V,NEL,.FALSE.)
                 CALL WRITERHOMAT(60,RHOIJ,I_V,.TRUE.)

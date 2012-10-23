@@ -1,6 +1,6 @@
 
 MODULE UMatCache
-    use constants, only: dp
+    use constants, only: dp,sizeof_int
     use SystemData , only : TSTARSTORE, tROHF,tStoreSpinOrbs
     use util_mod, only: swap
     use sort_mod
@@ -21,8 +21,8 @@ MODULE UMatCache
 ! UMatLabels, and the values in UMatCache.
 ! nStates is the maximum number of states stored in the cache (which may not be all the states if there are frozen virtuals).
 
-      HElement_t, Pointer :: UMatCacheData(:,:,:) !(0:nTypes-1,nSlots,nPairs)
-      INTEGER, Pointer :: UMatLabels(:,:) !(nSlots,nPairs)
+      HElement_t, Pointer :: UMatCacheData(:,:,:) => null() !(0:nTypes-1,nSlots,nPairs)
+      INTEGER, Pointer :: UMatLabels(:,:) => null() !(nSlots,nPairs)
       INTEGER :: nSlots, nPairs, nTypes
       INTEGER :: nStates
 
@@ -46,14 +46,14 @@ MODULE UMatCache
 !     UMAT2D : Stores the integrals of the form <ij|ij> and <ij|ji>
 !     <ij|ij> is stored in the upper diagaonal, <ij|ji> in the
 !     off-diagonal elements of the lower triangle.
-      HElement_t, Pointer :: UMat2D(:,:) !(nStates,nStates)
+      HElement_t, Pointer :: UMat2D(:,:) => null() !(nStates,nStates)
       LOGICAL :: tUMat2D
 
 ! This vector stores the energy ordering for each spatial orbital, which is the inverse of the BRR vector
 ! This is needed for the memory saving star indexing system.
 ! E.g. Element 4 will give the the order in the energy of element 4
-     INTEGER, DIMENSION(:), POINTER :: INVBRR
-     INTEGER, DIMENSION(:), POINTER :: INVBRR2
+     INTEGER, DIMENSION(:), POINTER :: INVBRR => null()
+     INTEGER, DIMENSION(:), POINTER :: INVBRR2 => null()
 
 !NOCC is number of occupied spatial orbitals - needed for test in UMATInd, thought would be quicker than passing it in each time.
 !Freezetransfer is a temporary measure to tell UMATIND when the freezing of orbitals is occuring.
@@ -84,16 +84,16 @@ MODULE UMatCache
 
 ! Some various translation tables to convert between different orderings of states.
       LOGICAL :: tTransGTID, tTransFindx
-      INTEGER, Pointer :: TransTable(:) !(NSTATES)
-      INTEGER, Pointer :: InvTransTable(:) !(NSTATES)
+      INTEGER, Pointer :: TransTable(:) => null() !(NSTATES)
+      INTEGER, Pointer :: InvTransTable(:) => null() !(NSTATES)
 
 ! Density fitting cache information: for generating integrals on the fly from density fitting.
       integer nAuxBasis,nBasisPairs
       logical tDFInts
-      real(dp),Pointer :: DFCoeffs(:,:) !(nAuxBasis,nBasisPairs)
-      real(dp),Pointer :: DFInts(:,:) !(nAuxBasis,nBasisPairs)
-      real(dp),Pointer :: DFFitInts(:,:) !(nAuxBasis,nAuxBasis)
-      real(dp),Pointer :: DFInvFitInts(:,:) !(nAuxBasis,nAuxBasis)
+      real(dp),Pointer :: DFCoeffs(:,:) => null() !(nAuxBasis,nBasisPairs)
+      real(dp),Pointer :: DFInts(:,:) => null() !(nAuxBasis,nBasisPairs)
+      real(dp),Pointer :: DFFitInts(:,:) => null() !(nAuxBasis,nAuxBasis)
+      real(dp),Pointer :: DFInvFitInts(:,:) => null() !(nAuxBasis,nAuxBasis)
       INTEGER iDFMethod
 !Some possible DFMethods sums over P, Q implied.  All precontracted to run in order(X) except DFOVERLAP2NDORD
 ! 0 - no DF
@@ -470,7 +470,7 @@ MODULE UMatCache
             ELSE
                IF(nMemInit.NE.0) THEN
                   WRITE(6,*) "Allocating ",nMemInit,"Mb for UMatCache+Labels."
-                  nSlotsInit=(nMemInit*1048576/8)/(nPairs*(nTypes*HElement_t_size+1.D0/irat))
+                  nSlotsInit=nint((nMemInit*1048576/8)/(nPairs*(nTypes*HElement_t_size+1.D0/irat)),sizeof_int)
                ENDIF
                NSLOTS=MIN(NPAIRS, NSLOTSINIT)
                tSmallUMat=.FALSE.
@@ -652,7 +652,9 @@ MODULE UMatCache
             WRITE(6,*) NHITS, " hits"
             WRITE(6,*) NMISSES, " misses"
             WRITE(6,*) iCacheOvCount, " overwrites"
-            WRITE(6,"(F6.2,A)") (NHITS/(NHITS+NMISSES+0.D0))*100,"% success"
+            if(NHITS+NMISSES.gt.0) then
+                WRITE(6,"(F6.2,A)") (NHITS/(NHITS+NMISSES+0.D0))*100,"% success"
+            endif
          ENDIF
       END SUBROUTINE WriteUMatCacheStats
 
@@ -844,7 +846,7 @@ MODULE UMatCache
          ! Reverse of GetCacheIndex.
          IMPLICIT NONE
          INTEGER I,J,IND
-         J=SQRT(2.0*IND)
+         J=int(SQRT(2.0*IND))
          IF(J*(J+1)/2.LT.IND) J=J+1
          I=IND-J*(J-1)/2
       END SUBROUTINE GetCacheIndexStates

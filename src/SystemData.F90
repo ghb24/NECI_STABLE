@@ -7,12 +7,6 @@ implicit none
 
 save
 
-! Why is so little of this commented.  'tis horrific.  AJWT.
-! Agree.
-! But...
-! I blame the original authors for setting the precedent... JSS
-! ;-)
-
 logical :: tMolpro  !True if the code has been called from Molpro
 logical :: tMolproMimic !True if the code is being run from standalone neci, but designed to mimic the runtime 
                         !behaviour of molpro
@@ -31,13 +25,14 @@ logical :: tImportanceSample, tERLocalization, tOffDiagMin, tFindCINatOrbs
 logical :: tNoRenormRandExcits, tAssumeSizeExcitgen, tCycleOrbs, tROIteration
 logical :: tShakeIter, tRotateOccOnly, tDoubExcMin, tUseHFOrbs, tRotateOrbs
 logical :: tNonUniRandExcits, tNoSymGenRandExcits, tLagrange, tShakeApprox
-logical :: tShake, tRotateVirtOnly, tMaxHLGap, tCacheFCIDUMPInts, tNoRODump
+logical :: tShake, tRotateVirtOnly, tMaxHLGap, tCacheFCIDUMPInts
 logical :: tKPntSym        !Are we using KPoint symmetry?
 logical :: tRotatedOrbsReal     !This means we are reading in a complex FCIDUMP, but all 
                                 !orbitals have been rotated to be real. This requires all
                                 !kpoints to be at the gamma point or BZ boundary.
                                 !At the reading in, the integrals will be converted to reals,
                                 !but kpoint symmetry can still be used.
+logical :: tReadFreeFormat
 
 logical :: tRIIntegrals   ! Read in RI 2-e integrals from RIDUMP file
 logical :: tStoreSpinOrbs ! This is set when the orbitals are stored in 
@@ -96,6 +91,7 @@ logical :: tMadelung ! turning on self-interaction term
 real(dp) :: Madelung ! variable storage for self-interaction term
 logical :: tUEGFreeze ! Freeze core electrons for the UEG, a crude hack for this to work-around freezing not working for UEG
 real(dp) :: FreezeCutoff
+logical :: tRef_Not_HF
 
 ! Inputs for the UEG2
 character(len=3) :: real_lattice_type ! type of reciprocal lattice (eg. fcc, sc, bcc, hcp)
@@ -206,6 +202,9 @@ LOGICAL :: tSymIgnoreEnergies
     integer(n_int), allocatable :: ilut_spindist(:)
     integer :: hist_spin_dist_iter
     integer, allocatable :: nI_spindist(:)
+
+    ! Should we use |K| for FCIQMC?
+    logical :: modk_offdiag
 
 ! Operators for type(symmetry)
 interface assignment (=)

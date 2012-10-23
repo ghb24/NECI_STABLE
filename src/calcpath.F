@@ -25,6 +25,7 @@ C.. RHOII2 is constructed to contain the RHOII for each point in the path
          INTEGER I_HIND
          CHARACTER(*), PARAMETER :: t_r="CALCPATHS"
 
+         CALCPATHS = 0.0_dp !initialisation
          proc_timer%timer_name='CALCPATHS '
          call set_timer(proc_timer,50)
 C.. If we're using the contour integral trick to sum all possible graphs with the given vertices
@@ -167,7 +168,7 @@ C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
          RETURN
       END
       SUBROUTINE CLASSPATHS(RHOC,HC,WEIGHT,RHOIJ,I_V,ICLASS)
-         use constants, only: dp
+         use constants, only: dp,sizeof_int
          use legacy_data, only: CALCP_N, CALCP_NT, CALCP_SUM, CALCP_HSUM
          IMPLICIT NONE
          INTEGER I_V
@@ -183,7 +184,7 @@ C.. allow for subtractions
      &      CALL CLASSPATH(RHOIJ,I_V,ICLASS)
 C            WRITE(56,*) ICLASS,RHOC
 C            WRITE(32,*) I_V,ICLASS,RHOC
-            ILG=LOG(ABS(RHOC))/LOG(10.D0)
+            ILG=int(LOG(ABS(RHOC))/LOG(10.D0),sizeof_int)
             IF(ILG.GE.0) THEN
                ILG=1
             ELSEIF(ILG.LT.-15) THEN

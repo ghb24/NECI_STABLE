@@ -4,6 +4,7 @@ subroutine VaspSystemInit(ArrLEN)
    use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,NullBasisFn
    use vasp_interface
    use SymData, only: nRot,PropBitLen,tAbelian,nProp,KPntSym,tagKPntSym
+   use constants, only: dp,sizeof_int
    implicit none
    integer :: ArrLEN
    integer :: i,ik
@@ -20,7 +21,7 @@ subroutine VaspSystemInit(ArrLEN)
    call LogMemAlloc('KPntSym',3*nKP,4,this_routine,tagKPntSym)
    do ik=1,nKP
       do i=1,3
-         KPntSym(i,ik)=kpnts(i,ik)*nProp(i)
+         KPntSym(i,ik)=int(kpnts(i,ik)*real(nProp(i),dp),sizeof_int)
       end do
    end do
 
@@ -53,12 +54,20 @@ subroutine VASPInitIntegrals(nOrbUsed,ECore,tOrder)
 
    call SetupUMatCache(nStatesUsed,NSTATESUSED.NE.NSTATES)
 
+#ifdef __CMPLX
    HarXCSum=cmplx(0.d0,0.d0,dp)
+#else
+   HarXCSum=0.0_dp
+#endif
    write (6,*) "Calculating TMAT"
    open(10,file='TMAT',status='unknown')
    do I=1,nStatesUsed
       ! Subtract out the double counting. Assume closed-shell.
+#ifdef __CMPLX
       HarXC=cmplx(0.d0,0.d0,dp)
+#else
+      HarXC=0.0_dp
+#endif
       do J=1,nEl/2
          if (I.ne.J) then
             A=min(I,J)

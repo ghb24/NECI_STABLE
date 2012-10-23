@@ -111,6 +111,7 @@ contains
           GrowMaxFactor=5.D0
           CullFactor=2.D0
           TFCIMC=.false.
+          tRPA_QBA=.false.
           TCCMC=.false.
           TMCDets=.false.
           TBinCancel=.false.  
@@ -807,7 +808,7 @@ contains
             case("TIME")
                 !Input the desired runtime (in MINUTES) before exiting out of the MC.
                 call getf(MaxTimeExit)
-                MaxTimeExit=MaxTimeExit*60.D0    !Change straightaway so that MaxTimeExit corresponds to SECONDS!
+                MaxTimeExit=MaxTimeExit*60.0_dp    !Change straightaway so that MaxTimeExit corresponds to SECONDS!
                 tTimeExit=.true.
             case("MAXNOATHF")
 !If the number of walkers at the HF determinant reaches this number, the shift is allowed to change. (This is the total number across all processors).                
@@ -893,6 +894,7 @@ contains
 !For FCIMC, this indicates that the initial walker configuration will be read in from the file POPSFILE, which must be present.
 !DiagSft and InitWalkers will be overwritten with the values in that file.
                 TReadPops=.true.
+                tStartSinglePart=.false.
                 if (item.lt.nitems) then
                     call readi(iPopsFileNoRead)
                     iPopsFileNoWrite = iPopsFileNoRead
@@ -1608,6 +1610,7 @@ contains
           use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,BasisFN,BasisFNSize,BasisFNSizeB,nEl
           Use DetCalcData, only : nDet, nEval, nmrks, w
           USE FciMCParMod , only : FciMCPar
+          use RPA_Mod, only: RunRPA_QBA
           USE CCMC, only: CCMCStandalone,CCMCStandaloneParticle
           use CCMCData, only: tAmplitudes
           use DetCalc, only: CK, DetInv, tEnergy, tRead
@@ -1650,7 +1653,7 @@ contains
              if(tFCIMC) then
                  call FciMCPar(WeightDum,EnerDum)
 
-                 if((.not.tMolpro).or.tMolproMimic) WRITE(6,*) "Summed approx E(Beta)=",EnerDum
+                 if((.not.tMolpro).and.(.not.tMolproMimic)) WRITE(6,*) "Summed approx E(Beta)=",EnerDum
              elseif(tCCMC) then
                   if(tAmplitudes) THEN
                      CALL CCMCStandAlone(WeightDum,EnerDum)
@@ -1658,6 +1661,9 @@ contains
                      CALL CCMCStandaloneParticle(WeightDum,EnerDum)
                   endif
                   WRITE(6,*) "Summed approx E(Beta)=",EnerDum
+             elseif(tRPA_QBA) then
+                call RunRPA_QBA(WeightDum,EnerDum)
+                WRITE(6,*) "Summed approx E(Beta)=",EnerDum
              else
 
 
@@ -1882,7 +1888,8 @@ contains
          use UMatCache , only : TSTARSTORE
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
          use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,tCCMC
-         use CalcData , only : TRhoElems,TReturnPathMC, tUseProcsAsNodes
+         use CalcData , only : TRhoElems,TReturnPathMC, tUseProcsAsNodes,tRPA_QBA
+         use RPA_Mod, only : tDirectRPA
          use CCMCData, only: tExactCluster,tCCMCFCI,tAmplitudes,tExactSpawn,tCCBuffer,tCCNoCuml
          use Logging, only: tCalcFCIMCPsi
          implicit none
@@ -1911,6 +1918,16 @@ contains
                           call report("Keyword error with "//trim(w),.true.)
                       endselect
                    enddo
+               case("RPA")
+                  tRPA_QBA=.true.
+                  tDirectRPA=.false.
+                  do while(item.lt.nitems)
+                      call readu(w)
+                      select case(w)
+                      case("DIRECT")
+                          tDirectRPA=.true.
+                      endselect
+                  enddo
                case("CCMC")
                   !Piggy-back on the FCIMC code
                   I_HMAX=-21

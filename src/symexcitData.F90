@@ -39,12 +39,12 @@ MODULE SymExcitDataMod
         !     a store object being used in that way.
         integer, pointer :: ClassCountOcc(:) => null()
         integer, pointer :: ClassCountUnocc(:) => null()
-        integer, allocatable :: scratch3(:)
-        integer, allocatable :: occ_list(:,:)
-        integer, allocatable :: virt_list(:,:)
+        integer, pointer :: scratch3(:) => null()
+        integer, pointer :: occ_list(:,:) => null()
+        integer, pointer :: virt_list(:,:) => null()
         logical :: tFilled
-        integer, allocatable :: dorder_i (:)
-        integer, allocatable :: dorder_j (:)
+        integer, pointer :: dorder_i (:) => null()
+        integer, pointer :: dorder_j (:) => null()
         integer :: nopen
     end type
 

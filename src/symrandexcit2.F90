@@ -31,7 +31,7 @@ MODULE GenRandSymExcitNUMod
                           tNoSymGenRandExcits, Arr, nMax, tCycleOrbs, &
                           nOccAlpha, nOccBeta, ElecPairs, MaxABPairs, &
                           tKPntSym, lzTot, tNoBrillouin, tUseBrillouin
-    use FciMCData, only: pDoubles, iter, excit_gen_store_type
+    use FciMCData, only: pDoubles, iter, excit_gen_store_type, iluthf
     use Parallel_neci
     use IntegralsData, only: UMat
     use Determinants, only: get_helement, write_det
@@ -42,8 +42,9 @@ MODULE GenRandSymExcitNUMod
     use DetBitOps, only: FindExcitBitDet, EncodeBitDet
     use sltcnd_mod, only: sltcnd_1
     use constants, only: dp, n_int, bits_n_int
-    use bit_reps, only: NIfTot
+    use bit_reps, only: NIfTot, nifdbo
     use sym_mod, only: mompbcsym, GetLz
+    use detbitops , only : detbiteq
     use timing_neci
     use sym_general_mod
     use spin_project, only: tSpinProject
@@ -78,6 +79,7 @@ MODULE GenRandSymExcitNUMod
 
         ! Just in case
         ilutnJ(0) = -1
+        HElGen = 0.0_dp
 
         IF((tUEG.and.tLatticeGens) .or. (tHub.and.tLatticeGens)) THEN
             call CreateExcitLattice(nI,iLut,nJ,tParity,ExcitMat,pGen)
@@ -222,6 +224,11 @@ MODULE GenRandSymExcitNUMod
         IF(IC.eq.2) THEN
             CALL CreateDoubExcit(nI,nJ,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
         ELSE
+
+!            IF(nI(3).eq.3) THEN
+!                write(6,*) 'creating single, pdoub',pDoubNew
+!            ENDIF
+ 
             CALL CreateSingleExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
 !            IF(pGen.eq.-1.D0) THEN
 !NOTE: ghb24 5/6/09 Cannot choose to create double instead, 
@@ -1221,6 +1228,8 @@ MODULE GenRandSymExcitNUMod
         real(dp) :: r,pGen
         LOGICAL :: tParity
 
+           
+
         CALL CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2,nI)
         IF(ElecsWNoExcits.eq.NEl) THEN
 !There are no single excitations from this determinant - return a null excitation
@@ -1382,6 +1391,7 @@ MODULE GenRandSymExcitNUMod
         ENDIF
 
         nJ(:)=nI(:)
+        ExcitMat(:,:) = 0
 !ExcitMat wants to be the index in nI of the orbital to excite from, but returns the actual orbitals.
         ExcitMat(1,1)=Eleci
         ExcitMat(2,1)=Orb
@@ -3006,20 +3016,34 @@ MODULE GenRandSymExcitNUMod
 
         type(excit_gen_store_type), intent(inout) :: store
 
-        if (associated(store%ClassCountOcc)) &
+        if (associated(store%ClassCountOcc)) then
             deallocate(store%ClassCountOcc)
-        if (associated(store%ClassCountUnocc)) &
+            nullify(store%ClassCountOcc)
+        endif
+        if (associated(store%ClassCountUnocc)) then
             deallocate(store%ClassCountUnocc)
-        if (allocated(store%scratch3)) &
+            nullify(store%ClassCountUnocc)
+        endif
+        if (associated(store%scratch3)) then
             deallocate(store%scratch3)
-        if (allocated(store%occ_list)) &
+            nullify(store%scratch3)
+        endif
+        if (associated(store%occ_list)) then
             deallocate(store%occ_list)
-        if (allocated(store%virt_list)) &
+            nullify(store%occ_list)
+        endif
+        if (associated(store%virt_list)) then
             deallocate(store%virt_list)
-        if (allocated(store%dorder_i)) &
+            nullify(store%virt_list)
+        endif
+        if (associated(store%dorder_i)) then 
             deallocate(store%dorder_i)
-        if (allocated(store%dorder_j)) &
+            nullify(store%dorder_i)
+        endif
+        if (associated(store%dorder_j)) then
             deallocate(store%dorder_j)
+            nullify(store%dorder_j)
+        endif
 
     end subroutine
 
@@ -3138,6 +3162,7 @@ SUBROUTINE SpinOrbSymSetup()
     endif
 !SymInvLabel takes the label (0 -> nSymLabels-1) of a spin orbital, and returns the inverse symmetry label, suitable for
 !use in ClassCountInd.
+    if(allocated(SymInvLabel)) deallocate(SymInvLabel)
     Allocate(SymInvLabel(0:nSymLabels-1))
     SymInvLabel=-999
     do i=0,nSymLabels-1
