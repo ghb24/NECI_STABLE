@@ -2145,7 +2145,8 @@ MODULE GenRandSymExcitNUMod
 
             ! Check that the correct kb has been found -- can be commented out later
             DO i=1,3
-                IF ( (int(kvec(nI(Elec2Ind), i))+int(kvec(nI(Elec1Ind), i))-int(kvec(Hole1BasisNum, i))-int(kvec(Hole2BasisNum, i)) ) .ne. 0) THEN
+                IF ( (int(kvec(nI(Elec2Ind), i))+int(kvec(nI(Elec1Ind), i))    &
+                      -int(kvec(Hole1BasisNum, i))-int(kvec(Hole2BasisNum, i)) ) .ne. 0) THEN
                     WRITE(6,*) "Tried to excite " 
                     WRITE(6,*) "ki ", ki 
                     WRITE(6,*) "kj ", kj
