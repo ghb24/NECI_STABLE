@@ -5,8 +5,13 @@ ld = mpif90
 ldflags = -m64
 compiler = GCC-f95-on-LINUX
 cpp = cpp -C -traditional
+<<<<<<< HEAD
+cppflags = -D__Linux -DPOINTER8 -DPARALLEL -D__INT64 -D__SHARED_MEM -D__GFORTRAN__
+libs = -lacml -lstdc++ -lrt -lfftw3 -lm
+=======
 cppflags = -D__Linux -DPOINTER8 -DPARALLEL -D__INT64 -D__SHARED_MEM -D__GFORTRAN__ -DDISABLE_FFTW
 libs = -lacml -lstdc++ -lrt
+>>>>>>> master
 module_flag = -J
 
 [dbg]
