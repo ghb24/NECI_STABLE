@@ -6,7 +6,7 @@ cc = cc
 ld = /opt/ibmcmp/xlf/8.1/bin/xlf90
 cpp = cpp -C -traditional
 cppflags =  -D__Linux 
-libs = -L ~/lib/fftw-3.1.2/lib -lfftw3 -L /usr/local/shared/acml/4.0/gfortran64/lib -llapack -lblas /usr/lib/gcc/i686-pcygwin/3.4.4/libg2c.a  -lrt
+libs = -L ~/lib/fftw-3.1.2/lib -lfftw3 -L /usr/local/shared/acml/4.0/gfortran64/lib -llapack -lblas /usr/lib/gcc/i686-pcygwin/3.4.4/libg2c.a  -lrt -lm
 
 [dbg]
 fflags = -g

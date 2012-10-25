@@ -6,7 +6,7 @@ ldflags =
 compiler = INTEL-ifort9-on-LINUX
 cpp = cpp -C -traditional
 cppflags = -D__Linux -DPOINTER8 -DPARALLEL -DHAVE_SSE2 -D__INT64
-libs = -lfftw3 -lacml -lstdc++
+libs = -lfftw3 -lacml -lstdc++ -lm
 module_flag = -J
 
 [dbg]

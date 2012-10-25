@@ -296,6 +296,7 @@ contains
           CHARACTER(*),PARAMETER :: t_r='CalcReadInput'
           INTEGER :: l,i,ierr
           INTEGER :: tempMaxNoatHF,tempHFPopThresh
+          logical :: tExitNow
 
           calc: do
             call read_line(eof)
@@ -383,7 +384,8 @@ contains
                 if(I_HMAX.ne.0) call report("METHOD already set",.true.)
                 I_HMAX=-10
                 I_VMAX=1
-                methods: do
+                tExitNow = .false.
+                do while (.not. tExitNow)
                    call read_line(eof)
                    if (eof) then
                       call report("Incomplete input file",.true.)
@@ -391,24 +393,24 @@ contains
                    call readu(w)
                    select case(trim(w))
                    case("METHOD")
-                      I_VMAX=I_VMAX+1
+                     I_VMAX=I_VMAX+1
                       NWHTAY(3,I_VMAX)=I_VMAX
                      call inpgetmethod(NWHTAY(1,I_VMAX),NWHTAY(2,I_VMAX),&
      &                I_VMAX)
-                   case("EXCITATIONS")
-                      call readu(w)
-                      call inpgetexcitations(NWHTAY(2,I_VMAX),w)
-                   case("CYCLES")
-                      call readi(NWHTAY(2,I_VMAX))
-                      if ( NWHTAY(1,I_VMAX).ne. -7.and.                  &
-     &                     NWHTAY(1,I_VMAX).ne.-19 ) then
-                         call report(trim(w)//" only valid for MC "      &
-     &                    //"method",.true.)
-                      end if
-                   case("VERTICES")
-                      call geti(NWHTAY(3,I_VMAX))
-                   case("MULTIMCWEIGHT")
-                      call getf(g_MultiWeight(I_VMAX))
+                    case("EXCITATIONS")
+                       call readu(w)
+                       call inpgetexcitations(NWHTAY(2,I_VMAX),w)
+                     case("CYCLES")
+                        call readi(NWHTAY(2,I_VMAX))
+                        if ( NWHTAY(1,I_VMAX).ne. -7.and.                  &
+       &                     NWHTAY(1,I_VMAX).ne.-19 ) then
+                           call report(trim(w)//" only valid for MC "      &
+       &                    //"method",.true.)
+                       end if
+                     case("VERTICES")
+                        call geti(NWHTAY(3,I_VMAX))
+                     case("MULTIMCWEIGHT")
+                        call getf(g_MultiWeight(I_VMAX))
                    case("CALCVAR")
                        if ( NWHTAY(1,I_VMAX).NE.-20 ) then
                            call report("Keyword "//trim(w)//"            &
@@ -416,17 +418,23 @@ contains
                        else
                       TVARCALC(I_VMAX)=.true.
                        end if
-                      
-                   case("ENDMETHODS")
-                      exit methods
-                   case default
-                      call report ("Keyword "//trim(w)//" not recognized",.true.)
-                   end select
-                end do methods
-            
+
+                    case("ENDMETHODS")
+                       tExitNow = .true.
+
+                    case default
+                        write(6,*) 'REPORT' // trim(w)
+                       !call report ("Keyword "//trim(w)//" not recognized",.true.)
+                    end select
+ 
+                end do
+
+                       
             case("METHOD")
+
                 if(I_HMAX.ne.0) call report("METHOD already set",.true.)
                 call inpgetmethod(I_HMAX,NWHTAY(1,1),0)
+
             case("CYCLES")
                 call readi(NWHTAY(1,1))
                 if ( I_HMAX .ne. -7.and.                              &
@@ -540,6 +548,8 @@ contains
                 ENDDO
                 EXCITFUNCS(3)=.true.
             case("EXCITWEIGHTING")
+                           write(6,*) '---------------->excitweighting'
+                             call neci_flush(6)  
                 call readf(g_VMC_ExcitWeights(1,1))
                 call readf(g_VMC_ExcitWeights(2,1))
                 call readf(G_VMC_EXCITWEIGHT(1))
@@ -551,7 +561,8 @@ contains
                   ENDIF
                 ENDDO
                 EXCITFUNCS(1)=.true.
-            case("STEPEXCITWEIGHTING")
+
+             case("STEPEXCITWEIGHTING")
 !This excitation weighting involves a step function between the virtual and occupied electon manifold (i.e. step is at the chemical potential)
 !When choosing an electron to move, the probability of selecting it is 1 if the electron is in the virtual manifold
 !and (g_VMC_ExcitWeights(1,1) if in the virtual manifold. When choosing where to excite to, the situation is reversed, and the probability of selecting it is
@@ -1428,7 +1439,9 @@ contains
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)
             end select
+
           end do calc
+
           IF((.not.TReadPops).and.(ScaleWalkers.ne.1.D0)) THEN
               call report("Can only specify to scale walkers if READPOPS is set",.true.)
           ENDIF
@@ -1441,6 +1454,7 @@ contains
           ! <ij|ab> and never need <ib|aj> for double excitations.  We do need
           ! them if we're doing a complete diagonalisation.
           gen2CPMDInts=MAXVAL(NWHTAY(3,:)).ge.3.or.TEnergy
+
 
         END SUBROUTINE CalcReadInput
 
@@ -1518,6 +1532,7 @@ contains
              HDiagTemp = get_helement(fDet, fDet, 0)
              WRITE(6,*) '<D0|H|D0>=',HDiagTemp
              WRITE(6,*) '<D0|T|D0>=',CALCT(FDET,NEL)
+          
              IF(TUEG) THEN
 !  The actual KE rather than the one-electron part of the Hamiltonian
                 WRITE(6,*) 'Kinetic=',CALCT2(FDET,NEL,G1,ALAT,CST)
@@ -2139,14 +2154,27 @@ contains
 ! Calculate the kinetic energy of the UEG (this differs from CALCT by including the constant CST
       FUNCTION CALCT2(NI,NEL,G1,ALAT,CST)
          use constants, only: dp
-         use SystemData, only: BasisFN
+         use SystemData, only: BasisFN, kvec, k_lattice_constant, TUEG2
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I,J
          TYPE(BasisFN) G1(*)
          real(dp) ALAT(4),CST,TMAT,CALCT2
          LOGICAL ISCSF_old
+
          CALCT2=0.D0
          IF(iscsf_old(NI,NEL)) RETURN
+
+         !===============================
+         if (TUEG2) then
+            DO J=1,NEL
+                 I=NI(J)
+                 TMAT=kvec(I, 1)**2+kvec(I, 2)**2+kvec(I, 3)**2
+                 TMAT=0.5d0*TMAT*k_lattice_constant**2
+                 CALCT2=CALCT2+TMAT
+            ENDDO
+            return
+        end if ! TUEG2
+         !===============================
          DO J=1,NEL
             I=NI(J)
            TMAT=((ALAT(1)**2)*((G1(I)%K(1)**2)/(ALAT(1)**2)+   &
