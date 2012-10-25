@@ -12,7 +12,7 @@ MODULE FciMCParMod
                           tReal, tRotatedOrbs, tFindCINatOrbs, tFixLz, &
                           LzTot, tUEG, tLatticeGens, tCSF, G1, Arr, &
                           tNoBrillouin, tKPntSym, tPickVirtUniform, &
-                          tMomInv, tRef_Not_HF, tMolpro
+                          tMomInv, tRef_Not_HF, tMolpro, tSemiStochastic
     use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY, decode_bit_det, &
                         encode_bit_rep, encode_det, extract_bit_rep, &
                         test_flag, set_flag, extract_flags, &
@@ -118,6 +118,7 @@ MODULE FciMCParMod
                          zero_rdms, fill_rdm_softexit, store_parent_with_spawned, &
                          fill_rdm_diag_currdet_norm, &
                          fill_rdm_diag_currdet_hfsd, calc_rdmbiasfac
+    use semi_stochastic, only: init_semi_stochastic
 
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
@@ -184,6 +185,8 @@ MODULE FciMCParMod
         call SetupParameters()
         call InitFCIMCCalcPar()
         call init_fcimc_fn_pointers () 
+
+        if (tSemiStochastic) call init_semi_stochastic()
 
         ! Initial output
         call WriteFciMCStatsHeader()

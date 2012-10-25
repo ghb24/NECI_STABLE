@@ -68,6 +68,15 @@ logical :: tCSF           ! Use CSFs
 logical :: tTruncateCSF   ! Use determinants not CSFs for nopen > 
                           ! csf_trunc_level
 
+logical :: tSemiStochastic ! Performing a semi-stochastic simulation if true.
+
+! Options regarding splitting the space into core and non-core elements. Needed, for example when performing a
+! semi-stochastic simulation, to specify the deterministic space.
+logical :: tSemiStochastoc ! Split the space into core and non-core elements.
+logical :: tCSFCore ! Use CSFs for the core states.
+logical :: tDeterminantCore ! Use determinants for the core states.
+real(dp), allocatable, dimension(:,:) :: core_hamiltonian ! The core Hamiltonian is stored in this array for the whole simulation.
+
 ! Calculate size of FCI determinant space using MC
 logical :: tMCSizeSpace,tMCSizeTruncSpace
 integer :: iMCCalcTruncLev

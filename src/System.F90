@@ -76,6 +76,9 @@ MODULE System
       TCSFOLD = .false.
       csf_trunc_level = 0
       tTruncateCSF = .false.
+      tSemiStochastic = .false.
+      tCSFCore = .false.
+      tDeterminantCore = .false.
       STOT=0
       TPARITY = .false.
       IParity(:)=0
@@ -327,6 +330,12 @@ MODULE System
                STOT=0
             endif
             TCSFOLD = .true.
+        case("SEMI-STOCHASTIC")
+            tSemiStochastic = .true.
+        case("CSF-CORE")
+            tCSFCore = .true.
+        case("DETERMINANT-CORE")
+            tDeterminantCore = .true.
         case("SYMIGNOREENERGIES")
             tSymIgnoreEnergies=.true.
         case("NOSYMMETRY")
