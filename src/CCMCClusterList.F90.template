@@ -208,7 +208,7 @@ SUBROUTINE CalcClusterEnergy (tFCI,AL,iAmpList,nExcit,ExcitList,ExcitLevelIndex,
          i=i*ExcitToDetSign(iLutHF,ExcitList(:,j),iC)
          if (iProcIndex.eq.root) then
             temp_sign=0
-            ASSERT(.not.(lenof_sign == 1 .and. amp(1) /= 0))
+            ASSERT(lenof_sign == 1 .and. amp(1) /= 0)
             if(amp(1).ne.0) then
                temp_sign(1)=i
             else
@@ -328,7 +328,7 @@ SUBROUTINE CalcClusterEnergyUnsrt (tFCI,AL,iAmpList,nExcit,ExcitList,iRefPos,dNo
       if(dAmp.ne.0.d0) then
          if (iProcIndex.eq.root) then
             temp_sign=0
-            ASSERT(.not.(lenof_sign == 1 .and. amp(1) /= 0))
+            ASSERT(lenof_sign == 1 .and. amp(1) /= 0)
             if(amp(1).ne.0) then
                temp_sign(1)=i
             else

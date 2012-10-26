@@ -6,7 +6,7 @@ ldflags = -Bstatic
 compiler = INTEL-ifort9-on-LINUX
 cpp = cpp -C -traditional
 cppflags = -D__Linux -DPOINTER8 -DHAVE_SSE2 -D__INT64 -D__SHARED_MEM
-libs = -L ~/local/lib/lapack-3.1.1/ -L ~/local/lib/fftw-3.2/64/ifort/lib -lfftw3 -llapack -lblas -cxxlib -lrt
+libs = -L ~/local/lib/lapack-3.1.1/ -L ~/local/lib/fftw-3.2/64/ifort/lib -lfftw3 -llapack -lblas -cxxlib -lrt -lm
 module_flag = -module
 
 [dbg]
