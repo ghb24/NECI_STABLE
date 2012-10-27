@@ -2221,6 +2221,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use FciMCParMod, only: ChangeVars,WriteToPopsFileParOneArr ,tReadPops,ReadFromPopsfileOnly
    use FciMCData, only: SpawnedParts,ValidSpawnedList,InitialSpawnedSlots
    use FciMCData, only: hash_shift, hash_iter !For cycle-dependent hashes
+   use CalcData, only: MemoryFacPart
    IMPLICIT NONE
    real(dp) Weight,EnergyxW
    CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandaloneParticle'
@@ -2312,7 +2313,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    else
       iMaxAmpLevel=nEl
    endif
-   nMaxAmpl=InitWalkers
+   nMaxAmpl=InitWalkers*MemoryFacPart
    WalkerScale=1
 ! Setup Memory
 #ifndef __SHARED_MEM

@@ -536,7 +536,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,
             dCurAmpl=GetAmpl(AL,k,iCurAmpList)
             CS%%C%%SelectedExcitorIndices(i)=k
             CS%%C%%SelectedExcitors(:,i)=Dets(:,k)
-            CS%%C%%dAbsAmplitude=CS%%C%%dAbsAmplitude*abs(dCurAmpl)/abs(dNorm)  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
+            CS%%C%%dAbsAmplitude=CS%%C%%dAbsAmplitude*abs(dCurAmpl)/abs(dNorm) !Accumulate the amplitude
             if(CS%%tInitiators.and.abs(dCurAmpl)<CS%%dInitiatorThresh) then
                !This won't be an initiator
                call clr_flag(ilutFlag,flag_parent_initiator(1))
