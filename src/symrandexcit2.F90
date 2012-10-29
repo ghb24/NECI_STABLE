@@ -61,6 +61,10 @@ MODULE GenRandSymExcitNUMod
         integer :: norb_sym
         integer :: sym_prod
         integer :: npairs
+        integer :: ms_combination
+        integer :: ms_num_combinations
+        integer :: total_ms
+        integer :: ms_1, ms_2
         logical :: gen_singles
     end type
 
@@ -2975,7 +2979,7 @@ MODULE GenRandSymExcitNUMod
 
     end subroutine enumerate_all_single_excitations
 
-!    subroutine enumerate_all_double_excitations(ilutI, nI, ilut_ret, gen_store)
+    subroutine enumerate_all_double_excitations(ilutI, nI, ilut_ret, gen_store)
 
         ! This subroutine generates all possible double excitations from a given determinant,
         ! within symmetry and spin restrictions. It will output a single determinant each time
@@ -2988,124 +2992,136 @@ MODULE GenRandSymExcitNUMod
         ! should be set to -1 to initialise, and will return
         ! this once generation is complete.
 
-!        integer(n_int), intent(in) :: ilutI(0:NIfTot)
-!        integer(n_int), intent(inout) :: ilut_ret(0:NIfTot)
-!        integer, intent(in) :: nI(nel)
-!        type(spat_excit_t), intent(inout), target :: gen_store
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer(n_int), intent(inout) :: ilut_ret(0:NIfTot)
+        integer, intent(in) :: nI(nel)
+        type(spat_excit_t), intent(inout), target :: gen_store
 
-!        integer, pointer :: i, j, orb1, ind1, norb_sym, sym_ind1
-!        integer :: orbI, total_ms, ms_combination, ms_num_combinations
+        integer, pointer :: i, j, orb1, ind1, norb_sym, sym_ind1
+        integer, pointer :: ms_combination, orb2, ind2, sym1, sym2
+        integer, pointer :: count1, count2, npairs, sym_ind2, sym_prod
+        integer, pointer :: ms_num_combinations, total_ms, ms_1, ms_2
+        integer :: orbI, e1, e2, i1, i2, orb1a, orb2a, orbJ
 
         ! Map the local variables onto the store
-!        i => gen_store%i;                j => gen_store%j
-!        orb1 => gen_store%orb1;          orb2 => gen_store%orb2
-!        ind1 => gen_store%ind1;          ind2 => gen_store%ind2
-!        sym1 => gen_store%sym1;          sym2 => gen_store%sym2
-!        count1 => gen_store%count1;      count2 => gen_store%count2
-!        sym_ind1 => gen_store%sym_ind1;  sym_ind2 => gen_store%sym_ind2
-!        norb_sym => gen_store%norb_sym
-!        sym_prod => gen_store%sym_prod
-!        npairs => gen_store%npairs
+        i => gen_store%i;                j => gen_store%j
+        orb1 => gen_store%orb1;          orb2 => gen_store%orb2
+        ind1 => gen_store%ind1;          ind2 => gen_store%ind2
+        sym1 => gen_store%sym1;          sym2 => gen_store%sym2
+        count1 => gen_store%count1;      count2 => gen_store%count2
+        sym_ind1 => gen_store%sym_ind1;  sym_ind2 => gen_store%sym_ind2
+        norb_sym => gen_store%norb_sym;  ms_combination => gen_store%ms_&
+                                                              &combination
+        sym_prod => gen_store%sym_prod;  npairs => gen_store%npairs
+        total_ms => gen_store%total_ms;  ms_num_combinations => gen_store%&
+                                                       &ms_num_combinations
+        ms_1 => gen_store%ms_1;          ms_2 => gen_store%ms_2
 
         ! Initialise the generator.
-!        if (ilut_ret(0) == -1) then
-!            i = 1
-!            j = 0
-!        endif
+        if (ilut_ret(0) == -1) then
+            sym1 = -1
+            i = 1
+            j = 0
+            ms_combination = 1
+        endif
 
-!        npairs = nel * (nel - 1) / 2
-!        do i = i, npairs
+        npairs = nel * (nel - 1) / 2
+        do i = i, npairs
 
-!            if (sym1 == -1) then
+            if (sym1 == -1) then
                 ! Pick electrons uniformly
-!                e1 = ceiling((1.0 + sqrt(real(1 + 8*i))) / 2)
-!                e2 = i - ((e1 - 1) * (e1 - 2)) / 2
-!                orb1 = nI(e1);    orb1a = ab_pair(orb1)
-!                orb2 = nI(e2);    orb2a = ab_pair(orb2)
+                e1 = ceiling((1.0 + sqrt(real(1 + 8*i))) / 2)
+                e2 = i - ((e1 - 1) * (e1 - 2)) / 2
+                orb1 = nI(e1);
+                orb2 = nI(e2);
 
-!                sym_prod = ieor(G1(orb1)%Sym%S, G1(orb2)%Sym%S)
-!                total_ms = G1(orb1)%Ms + G1(orb2)%Ms
+                sym_prod = ieor(G1(orb1)%Sym%S, G1(orb2)%Sym%S)
+                total_ms = G1(orb1)%Ms + G1(orb2)%Ms
                 ! If total_ms = -2 or +2 then both spins have to be beta
                 ! or both alpha respectively, so there is only one combination
                 ! to consider. If total_ms = 0 then the spins excited to can
                 ! be (alpha, beta) or (beta, alpha). This formula maps -2, 0
                 ! and +2 to the values 1, 2 and 1, as required.
-!                ms_num_combinations = (2-abs(total_ms))/2 + 1
+                ms_num_combinations = (2-abs(total_ms))/2 + 1
 
-!                sym1 = 0
-!            end if
+                sym1 = 0
+            end if
 
-!            do sym1 = sym1, nSymLabels - 1
+            do sym1 = sym1, nSymLabels - 1
 
-!                if (j == 0) then
-                    ! Generate the paired symmetry without double counting
-!                    sym2 = ieor(sym_prod, sym1)
-!                    if (sym2 < sym1) cycle
+                ! If total_ms = 0, loop over both possibilities
+                do ms_combination = ms_combination, ms_num_combinations
 
-                    ! Symmetry indices
-!                    sym_ind1 = ClassCountInd(1, sym1, 0)
-!                    sym_ind2 = ClassCountInd(1, sym2, 0)
-!                    ind1 = SymLabelCounts2(1, sym_ind1)
-!                    ind2 = SymLabelCounts2(1, sym_ind2)
-!                    count1 = OrbClasscount(sym_ind1)
-!                    count2 = OrbClasscount(sym_ind2)
-!                    norb_sym = count1 * count2
-!                end if
+                    if (j == 0) then
+                        ! Set the Ms values (1=alpha, 2=beta) for both electrons.
+                        if (total_ms == -2) then
+                            ms_1 = 2
+                            ms_2 = 2
+                        else if (total_ms == 2) then
+                            ms_1 = 1
+                            ms_2 = 1
+                        else
+                            ms_1 = ms_combination ! 1 or 2.
+                            ms_2 = 3 - ms_combination ! 2 or 1.
+                        end if
+                        ! Generate the paired symmetry.
+                        sym2 = ieor(sym_prod, sym1)
+                        ! Don't overcount.
+                        if (sym2 < sym1) cycle
 
-!                j = j + 1
-!                do j = j, norb_sym
+                        ! Symmetry indices, now including Ms values.
+                        sym_ind1 = ClassCountInd(ms_1, sym1, 0)
+                        sym_ind2 = ClassCountInd(ms_2, sym2, 0)
+                        ind1 = SymLabelCounts2(1, sym_ind1)
+                        ind2 = SymLabelCounts2(1, sym_ind2)
+                        count1 = OrbClasscount(sym_ind1)
+                        count2 = OrbClasscount(sym_ind2)
+                        norb_sym = count1 * count2
+                    end if
 
-                    ! Direct mapping to orbitals
-!                    i1 = mod(j-1, count1)
-!                    i2 = floor(real(j-1)/count1)
-!                    orbI = SymLabelList2(ind1 + i1)
-!                    orbJ = SymLabelList2(ind2 + i2)
+                    j = j + 1
+                    do j = j, norb_sym
 
-                    ! If the two symmetries are the same, only generate 
-                    ! each pair one way around...
-!                    if (sym1 == sym2 .and. orbJ < orbI) cycle
+                        ! Direct mapping to orbitals.
+                        i1 = mod(j-1, count1)
+                        i2 = floor(real(j-1)/count1)
+                        orbI = SymLabelList2(ind1 + i1)
+                        orbJ = SymLabelList2(ind2 + i2)
 
-                    ! We don't want to put two electrons into the same
-                    ! spin orbital...
-!                    if (orbI == orbJ) orbJ = ab_pair(orbJ)
+                        ! If the two symmetries are the same (not including Ms),
+                        ! only generate each pair one way around.
+                        if (sym1 == sym2 .and. orbJ < orbI) cycle
 
-                    ! Exclude excitations to the source
-!                    if (is_in_pair(orbI, orb1) .or. &
-!                        is_in_pair(orbI, orb2)) cycle
-!                    if (is_in_pair(orbJ, orb1) .or. &
-!                        is_in_pair(orbJ, orb2)) cycle
+                        ! We don't want to put two electrons into the same
+                        ! spin orbital.
+                        if (orbI == orbJ) cycle
 
-                    ! Cannot excite to doubly occupied orbitals.
-!                    if (IsOcc(ilutI, orbI)) then
-!                        orbI = ab_pair(orbI)
-!                        if (IsOcc(ilutI, orbI) .or. &
-!                            is_in_pair(orbI, orbJ)) cycle
-!                    end if
-!                    if (IsOcc(ilutI, orbJ)) then
-!                        orbJ = ab_pair(orbJ)
-!                        if (IsOcc(ilutI, orbJ) .or. &
-!                            is_in_pair(orbI, orbJ)) cycle
-!                    end if
+                        ! Cannot excite to occupied orbitals.
+                        if (IsOcc(ilutI, orbI)) cycle
+                        if (IsOcc(ilutI, orbJ)) cycle
 
-                    ! Now we can generate the determinant, and interrupt
-                    ! the loop
-!                    ilut_ret = ilutI
-!                    clr_orb(ilut_ret, orb1)
-!                    clr_orb(ilut_ret, orb2)
-!                    set_orb(ilut_ret, orbI)
-!                    set_orb(ilut_ret, orbJ)
-!                    return
-!                end do
-!                j = 0 ! Break loop
+                        ! Now we can generate the determinant, and interrupt
+                        ! the loop.
+                        ilut_ret = ilutI
+                        clr_orb(ilut_ret, orb1)
+                        clr_orb(ilut_ret, orb2)
+                        set_orb(ilut_ret, orbI)
+                        set_orb(ilut_ret, orbJ)
+                        return
+                    end do
+                    j = 0
 
-!            end do
-!            sym1 = -1 ! Break loop
+                end do
+                ms_combination = 1
 
-!        end do
+            end do
+            sym1 = -1
 
-!        ilut_ret(0) = -1
+        end do
 
-!    end subroutine enumerate_all_double_excitations
+        ilut_ret(0) = -1
+
+    end subroutine enumerate_all_double_excitations
 
 END MODULE GenRandSymExcitNUMod
 

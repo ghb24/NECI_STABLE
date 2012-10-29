@@ -76,6 +76,8 @@ logical :: tSemiStochastoc ! Split the space into core and non-core elements.
 logical :: tCSFCore ! Use CSFs for the core states.
 logical :: tDeterminantCore ! Use determinants for the core states.
 real(dp), allocatable, dimension(:,:) :: core_hamiltonian ! The core Hamiltonian is stored in this array for the whole simulation.
+real(dp), allocatable, dimension(:) :: det_vector ! This stores all the amplitudes of the psips in the deterministic space.
+real(dp), allocatable, dimension(:) :: result_det_vector ! This stored the amplitudes of det-vector after mulitplication by core_hamiltonian
 
 ! Calculate size of FCI determinant space using MC
 logical :: tMCSizeSpace,tMCSizeTruncSpace
