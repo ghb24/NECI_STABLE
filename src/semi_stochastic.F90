@@ -3,13 +3,17 @@
 module semi_stochastic
 
     use bit_reps, only: NIfTot, decode_bit_det_bitwise
+    use CalcData, only: tRegenDiagHEls
     use constants
-    use FciMCData, only: HFDet, ilutHF, iHFProc
+    use detBitOps, only: ilut_lt, ilut_gt
+    use Determinants, only: get_helement
+    use FciMCData, only: HFDet, ilutHF, iHFProc, Hii, CurrentDets
     use GenRandSymExcitNUMod, only: enumerate_all_single_excitations, &
                                     enumerate_all_double_excitations, spat_excit_t
     use hash , only : DetermineDetNode
+    use hphf_integrals, only: hphf_diag_helement
     use Parallel_neci, only: iProcIndex
-    use SystemData, only: nel, det_vector, result_det_vector
+    use SystemData, only: nel, det_vector, result_det_vector, tHPHF
 
     implicit none
 
@@ -24,12 +28,21 @@ contains
 
         type(spat_excit_t), target :: gen_store
         integer :: i, nI(nel)
-        integer(n_int) :: ilut(0:NIfTot)
+        integer(n_int) :: ilut(0:NIfTot), flags
         integer :: det_vector_size, result_det_vector_size
+        Element_t :: HDiag
 
         result_det_vector_size = 0
-        ! Initialise as 1 to count the Hartree-Fock determinant.
+        ! Initialise as 1 to count the Hartree-Fock determinant (Note the Hartree-Fock
+        ! determinant has already been added to the main list as usual in the subroutine
+        ! InitFCIMCCalcPar).
+        use constants , on
         det_vector_size = 1
+
+        ! Create the flag to specify that the basis function is in the deterministic 
+        ! space.
+        flags = 0
+        flags = ibset(flags,flag_deterministic)
 
         ! If the Hartree-Fock determinant is on this processor.
         if (iProcIndex == iHFProc) result_det_vector_size = 1 
@@ -70,10 +83,29 @@ contains
                                                          result_det_vector_size, nI)
         end do
 
+        ! Sort the list of basis states so that it is correctly ordered in an predefined
+        ! order which is always kept throughout the simulation.
+        call sort(CurrentDets(:,1:result_vector_size), ilut_lt, ilut_gt)
+
         ! Now that we know the total size of det_vector and result_det_vector, allocate
         ! them.
         allocate(det_vector(det_vector_size))
         allocate(result_det_vector(result_det_vector_size))
+
+        det_vector = 0.0_dp
+        result_det_vector = 0.0_dp
+
+        ! Calculate the Hamiltonian diagonal matrix elements if we are storing them.
+        if(.not.tRegenDiagHEls) then
+            do i = 1, result_vector_size
+                if (tHPHF) then
+                    HDiag = hphf_diag_helement (nI,ilut)
+                else
+                    HDiag = get_helement (nI, nI, 0)
+                endif
+                CurrentH(1,i)=real(HDiag,dp)-Hii
+            end do
+        end if
 
     end subroutine init_semi_stochastic
 
@@ -102,7 +134,10 @@ contains
         ! If this determinant belongs to this processor, increase the vector size and
         ! add it to the spawned list.        
         vector_size = vector_size + 1
-        if (proc == iProcIndex) result_vector_size = result_vector_size + 1
+        if (proc == iProcIndex) then
+            result_vector_size = result_vector_size + 1
+            call encode_bit_rep(CurrentDets(:, result_vector_size), iLutJ, 0, flags)
+        end if
 
     end subroutine add_basis_fn_to_list
 
