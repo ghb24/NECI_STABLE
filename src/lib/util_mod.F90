@@ -552,6 +552,53 @@ contains
 
     end function get_free_unit
 
+    function error_function_c(argument) result (res)
+
+        use constants, only: dp
+        use iso_c_hack
+        implicit none 
+      
+        real(dp), intent(in) :: argument
+        real(dp) :: res
+
+        !interface
+        !    pure function erfc_lm(x) bind(c, name='erfc') result (ret)
+        !        use iso_c_hack
+        !        implicit none
+        !        real(c_double) :: ret
+        !            real(c_double), intent(in), value :: x
+        !    end function erfc_lm
+        !!end interface
+
+        !res = erfc_lm(real(argument, c_double))
+        res = erfc (real(argument, c_double))
+    end function error_function_c
+
+
+
+    function error_function(argument) result(res)
+        
+        use constants, only: dp
+        use iso_c_hack
+        implicit none 
+      
+        real(dp), intent(in) :: argument
+        real(dp) :: res
+
+!        interface
+!                pure function erf_lm(x) bind(c, name='erf') result(ret)
+!                use iso_c_hack
+!                implicit none
+!                real(c_double) :: ret
+!                real(c_double), intent(in), value :: x
+!            end function erf_lm
+!        end interface
+!        res = erf_lm(real(argument, c_double))
+        res = erf(real(argument, c_double))
+
+    end function error_function
+
+
 end module
 
 !Hacks for compiler specific system calls.
