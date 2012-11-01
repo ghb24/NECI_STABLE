@@ -2234,6 +2234,7 @@ double precision  function calc_madelung()
     use constants
     use iso_c_hack
     use SystemData
+    use util_mod, only: error_function, error_function_c
 
     implicit none
 
@@ -2248,7 +2249,7 @@ double precision  function calc_madelung()
     real(dp) :: kvecX, kvecY, kvecZ
     real(dp) :: tvecX, tvecY, tvecZ
     real(dp) ::  inacc_madelung, temp_sum 
-    real(dp) :: error_function_c, error_function, k2max
+    real(dp) :: k2max
     integer :: jj
     real(dp) :: xx, yy, zz
 
@@ -2358,7 +2359,7 @@ double precision  function calc_madelung()
                       kvecY = k_lattice_vectors(1, 2) *i1 + k_lattice_vectors(2, 2)*i2
                       k2 = (kvecX**2+kvecY**2)*k_lattice_constant**2
                       if (k2 .ne. 0.0d0) then
-                          ek2= 2.0d0*PI/OMEGA*error_function_c(sqrt(k2)/(2.0d0*kappa))/sqrt(k2)
+                          ek2= 2.0d0*PI/OMEGA*error_function_c(sqrt(k2)/(2.0_dp*kappa))/sqrt(k2)
                           recipsum2 = recipsum2+ek2
                           if(k2 .gt. k2max) k2max = k2
                       end if
@@ -2454,7 +2455,7 @@ double precision  function calc_madelung()
                     n2=kvecX**2+kvecY**2
                     if (n2.ne.0) then
                         k2=(k_lattice_constant)**2.0d0*n2
-                        ek2=2.0d0*PI/OMEGA*error_function_c(sqrt(k2)/(2.0d0*kappa))/sqrt(k2)
+                        ek2=2.0d0*PI/OMEGA*error_function_c(sqrt(k2)/(2.0_dp*kappa))/sqrt(k2)
 !                       write(6,*) k2, sqrt(k2)/2.0d0/kappa, erf(real(sqrt(k2)/2.0d0/kappa, c_double)) ! for testing
                         recipsum2=recipsum2+ek2
                     end if
@@ -2516,40 +2517,6 @@ double precision  function calc_madelung()
 
     return
 end function     
-double precision  function error_function_c(argument)
-
-    use constants, only: dp
-    use, intrinsic :: iso_c_binding
-    implicit none 
-  
-    double precision :: argument
-
-     interface
-         real(c_double) pure function erfc_lm(x) bind(c, name='erfc')
-             import :: c_double
-             real(c_double), intent(in), value :: x
-         end function erfc_lm
-     end interface
-
-     error_function_c = erfc_lm(real(argument, c_double))
-end function error_function_c
-
-double precision  function error_function(argument)
-    
-    use constants, only: dp
-    use, intrinsic :: iso_c_binding
-    implicit none 
-  
-    double precision :: argument
-
-     interface
-         real(c_double) pure function erf_lm(x) bind(c, name='erf')
-             import :: c_double
-             real(c_double), intent(in), value :: x
-         end function erf_lm
-     end interface
-     error_function= erf_lm(real(argument, c_double))
-end function error_function
 
 
 ! double precision  function calc_madelung_1D()
