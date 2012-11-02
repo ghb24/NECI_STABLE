@@ -2104,9 +2104,9 @@ MODULE GenRandSymExcitNUMod
         if (tUEG2) then
 
             ! kb is now uniquely defined
-            ki=int(kvec(nI(Elec1Ind),1:3))
-            kj=int(kvec(nI(Elec2Ind),1:3))
-            ka=int(kvec(Hole1BasisNum,1:3))
+            ki=kvec(nI(Elec1Ind),1:3)
+            kj=kvec(nI(Elec2Ind),1:3)
+            ka=kvec(Hole1BasisNum,1:3)
             kb=ki+kj-ka
 
             ! Find the spin of b
@@ -2145,8 +2145,8 @@ MODULE GenRandSymExcitNUMod
 
             ! Check that the correct kb has been found -- can be commented out later
             DO i=1,3
-                IF ( (int(kvec(nI(Elec2Ind), i))+int(kvec(nI(Elec1Ind), i))    &
-                      -int(kvec(Hole1BasisNum, i))-int(kvec(Hole2BasisNum, i)) ) .ne. 0) THEN
+                IF ( (kvec(nI(Elec2Ind), i)+kvec(nI(Elec1Ind), i)   &
+                      -kvec(Hole1BasisNum, i)-kvec(Hole2BasisNum, i)) .ne. 0) THEN
                     WRITE(6,*) "Tried to excite " 
                     WRITE(6,*) "ki ", ki 
                     WRITE(6,*) "kj ", kj
@@ -3377,28 +3377,28 @@ SUBROUTINE SpinOrbSymSetup()
         kmaxZ=0
 
         do i=1,nBasis 
-            IF( int(kvec(i, 1)) .gt. kmaxX) kmaxX=int(kvec(i, 1))
-            IF( int(kvec(i, 1)) .lt. kminX) kminX=int(kvec(i, 1))
-            IF( int(kvec(i, 2)) .gt. kmaxY) kmaxY=int(kvec(i, 2))
-            IF( int(kvec(i, 2)) .lt. kminY) kminY=int(kvec(i, 2))
-            IF( int(kvec(i, 3)) .gt. kmaxZ) kmaxZ=int(kvec(i, 3))
-            IF( int(kvec(i, 3)) .lt. kminZ) kminZ=int(kvec(i, 3))
+            IF( kvec(i, 1) .gt. kmaxX) kmaxX=kvec(i, 1)
+            IF( kvec(i, 1) .lt. kminX) kminX=kvec(i, 1)
+            IF( kvec(i, 2) .gt. kmaxY) kmaxY=kvec(i, 2)
+            IF( kvec(i, 2) .lt. kminY) kminY=kvec(i, 2)
+            IF( kvec(i, 3) .gt. kmaxZ) kmaxZ=kvec(i, 3)
+            IF( kvec(i, 3) .lt. kminZ) kminZ=kvec(i, 3)
         enddo
 
         ALLOCATE(kPointToBasisFn(kminX:kmaxX,kminY:kmaxY,kminZ:kmaxZ,2))
         kPointToBasisFn=-1 !Init to invalid
         do i=1,nBasis
             iSpinIndex=(G1(i)%Ms+1)/2+1 ! iSpinIndex equals 1 for a beta spin (ms=-1), and 2 for an alpha spin (ms=1)
-            kPointToBasisFn(int(kvec(i, 1)), int(kvec(i, 2)), int(kvec(i, 3)), iSpinIndex)=i
+            kPointToBasisFn(kvec(i, 1),kvec(i, 2), kvec(i, 3), iSpinIndex)=i
         enddo
 
         kTotal(1)=0
         kTotal(2)=0
         kTotal(3)=0
         do j=1,NEl
-            kTotal(1)=kTotal(1)+int(kvec(FDet(j), 1))
-            kTotal(2)=kTotal(2)+int(kvec(FDet(j), 2))
-            kTotal(3)=kTotal(3)+int(kvec(FDet(j), 3))
+            kTotal(1)=kTotal(1)+kvec(FDet(j), 1)
+            kTotal(2)=kTotal(2)+kvec(FDet(j), 2)
+            kTotal(3)=kTotal(3)+kvec(FDet(j), 3)
         enddo
         write(6,*) "Total momentum is", kTotal
 
