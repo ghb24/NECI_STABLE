@@ -34,7 +34,8 @@ module bit_rep_data
     ! Flags which we can store
     integer, parameter :: flag_is_initiator(2) = (/0,1/), &
                           flag_parent_initiator(2) = (/0,1/), & ! n.b. the same
-                          flag_make_initiator(2) = (/2,3/)
+                          flag_make_initiator(2) = (/2,3/), &
+                          flag_deterministic = 4
 
 contains
 

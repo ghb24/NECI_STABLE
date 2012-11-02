@@ -327,4 +327,12 @@ MODULE FciMCData
       real(dp), allocatable :: ENumCycHistG(:),AllENumCycHistG(:),ENumCycHistK3(:),AllENumCycHistK3(:)
       integer :: unit_splitprojEHistG,unit_splitprojEHistK3
 
+      ! Semi-stochastic data.
+      real(dp), allocatable, dimension(:,:) :: core_hamiltonian ! The core Hamiltonian is stored in this array for the whole simulation.
+      real(dp), allocatable, dimension(:) :: det_vector ! This stores all the amplitudes of the psips in the deterministic space.
+      real(dp), allocatable, dimension(:) :: result_det_vector ! This stores the amplitudes of det_vector after mulitplication by core_hamiltonian.
+      integer, allocatable, dimension(:) :: deterministic_proc_sizes
+      integer, allocatable, dimension(:) :: deterministic_proc_indices
+      integer :: det_space_size
+
 END MODULE FciMCData

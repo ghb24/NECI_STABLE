@@ -17,7 +17,7 @@ MODULE FciMCParMod
                         encode_bit_rep, encode_det, extract_bit_rep, &
                         test_flag, set_flag, extract_flags, &
                         flag_is_initiator, clear_all_flags,&
-                        extract_sign, nOffSgn
+                        extract_sign, nOffSgn, flag_deterministic
     use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
                         OccCASorbs, VirtCASorbs, tFindGroundDet, NEquilSteps,&
                         tReadPops, tRegenDiagHEls, iFullSpaceIter, MaxNoAtHF,&
@@ -6931,6 +6931,10 @@ MODULE FciMCParMod
                             if (tSpawnSpatialInit) &
                                 call add_initiator_list (CurrentDets(:,1))
                         endif
+
+                        ! If running a semi-stochastic simulation, set flag to specify the Hartree-Fock is in the
+                        ! deterministic space.
+                        if (tSemiStochastic) call set_flag (CurrentDets(:,1), flag_deterministic)
 
                         ! HF energy is equal to 0 (by definition)
                         if (.not. tRegenDiagHEls) CurrentH(1,1) = 0

@@ -1,6 +1,7 @@
 module bit_reps
     use FciMCData, only: CurrentDets, WalkVecDets, MaxWalkersPart
-    use SystemData, only: nel, tCSF, tTruncateCSF, nbasis, csf_trunc_level
+    use SystemData, only: nel, tCSF, tTruncateCSF, nbasis, csf_trunc_level, &
+                          tSemiStochastic
     use CalcData, only: tTruncInitiator
     use csf_data, only: csf_yama_bit, csf_test_bit
     use constants, only: lenof_sign, end_n_int, bits_n_int, n_int, dp,sizeof_int
@@ -174,7 +175,7 @@ contains
         NIfDBO = NIfD + NIfY
 
         ! Integers for flags
-        if (tTruncInitiator) then
+        if (tTruncInitiator .or. tSemiStochastic) then
             !If there are other options which require flags, then this criteria must be extended.
             !However, do not increase this value from one, since we should only need max one integer
             !for flags, and this is hardcoded in elsewhere.
