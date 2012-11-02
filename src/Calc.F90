@@ -2168,7 +2168,7 @@ contains
          if (TUEG2) then
             DO J=1,NEL
                  I=NI(J)
-                 TMAT=kvec(I, 1)**2+kvec(I, 2)**2+kvec(I, 3)**2
+                 TMAT=real(kvec(I, 1)**2+kvec(I, 2)**2+kvec(I, 3)**2, dp)
                  TMAT=0.5d0*TMAT*k_lattice_constant**2
                  CALCT2=CALCT2+TMAT
             ENDDO
