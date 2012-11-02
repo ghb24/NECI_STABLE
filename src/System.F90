@@ -937,7 +937,7 @@ MODULE System
 ! Called functions
       TYPE(BasisFN) FrzSym
       logical kallowed
-      integer dUnscaledE
+      real(dp) dUnscaledE
       real(dp), allocatable :: arr_tmp(:,:)
       integer, allocatable :: brr_tmp(:)
 !     UEG2
@@ -1166,30 +1166,30 @@ MODULE System
           NMAX=MAX(NMAXX,NMAXY,NMAXZ)
           NNR=NMSH*NMSH*NMSH
 
-          WRITE(6,'(A)') '  *** In UEG2 ***  ' 
-          WRITE(6,'(A)') '  *** UNIFORM ELECTRON GAS CALCULATION ***  ' 
-          WRITE(6,'(A,F20.16)') '  Electron Gas Rs set to ',FUEGRS
+          WRITE(6,'(A)') " *** In UEG2 ***  " 
+          WRITE(6,'(A)') " *** UNIFORM ELECTRON GAS CALCULATION ***  " 
+          WRITE(6,'(A,F20.16)') " Electron Gas Rs set to ",FUEGRS
           IF(TPARITY) THEN
-             WRITE(6,*) ' MOMENTUM : ',(IPARITY(I),I=1,3)
+             WRITE(6,*) " MOMENTUM : ",(IPARITY(I),I=1,3)
           ENDIF
-          WRITE(6,'(A,I5)') '  Dimension : ' , Dimen
-          WRITE(6,*) '  Reciprocal lattice constant : ' ,  k_lattice_constant
-          WRITE(6,'(A,I5)') '  NMAXX : ' , NMAXX
-          WRITE(6,'(A,I5)') '  NMAXY : ' , NMAXY
-          WRITE(6,'(A,I5)') '  NMAXZ : ' , NMAXZ
-          WRITE(6,'(A,I5)') '  NMSH : ' , NMSH 
-          WRITE(6,*) " Wigner-Seitz radius Rs=",RS
-          WRITE(6,*) " Fermi vector kF^2=",FKF**2
-          WRITE(6,*) " Fermi Energy EF=",FKF*FKF/2
-          write(6,*) " Unscaled fermi vector kF=", FKF/k_lattice_constant
-          WRITE(6,*) " Unscaled Fermi Energy nmax**2=",(FKF*FKF/2)/(0.5*(2*PI/ALAT(5))**2)         
-          IF(OrbECutoff.ne.1e-20) WRITE(6,*) " Orbital Energy Cutoff:",OrbECutoff
-          WRITE(6,'(1X,A,F19.5)') '  VOLUME : ' , OMEGA
-          WRITE(6,*) ' TALPHA : ' , TALPHA
-          WRITE(6,'(1X,A,F19.5)') '  ALPHA : ' , ALPHA
+          WRITE(6,'(A,I5)') " Dimension : " , Dimen
+          WRITE(6,'(A,F20.16)') " Reciprocal lattice constant : " ,  k_lattice_constant
+          WRITE(6,'(A,I5)') " NMAXX : " , NMAXX
+          WRITE(6,'(A,I5)') " NMAXY : " , NMAXY
+          WRITE(6,'(A,I5)') " NMAXZ : " , NMAXZ
+          WRITE(6,'(A,I5)') " NMSH : " , NMSH 
+          WRITE(6,'(A,F20.16)') " Wigner-Seitz radius Rs=",RS
+          WRITE(6,'(A,F20.16)') " Fermi vector kF^2=",FKF**2
+          WRITE(6,'(A,F20.16)') " Fermi Energy EF=",FKF*FKF/2
+          write(6,'(A,F20.16)') " Unscaled fermi vector kF=", FKF/k_lattice_constant
+          WRITE(6,'(A,F20.16)') " Unscaled Fermi Energy nmax**2=",(FKF*FKF/2)/(0.5*(2*PI/ALAT(5))**2)         
+          IF(OrbECutoff.ne.1e-20) WRITE(6,'(A,F20.16)') " Orbital Energy Cutoff:",OrbECutoff
+          WRITE(6,'(1X,A,F19.5)') " VOLUME : ", OMEGA
+          WRITE(6,'(A,F20.16)') " TALPHA : " , TALPHA
+          WRITE(6,'(1X,A,F19.5)') " ALPHA : " , ALPHA
           ALPHA=(OMEGA)**THIRD*ALPHA
-          WRITE(6,'(1X,A,F19.5)') '  SCALED ALPHA : ' , ALPHA
-          WRITE(6,*) 'Madelung constant: ',  Madelung
+          WRITE(6,'(1X,A,F19.5)') " SCALED ALPHA : " , ALPHA
+          WRITE(6,'(A,F20.16)') " Madelung constant: ",  Madelung
 
 !C..
 !C..Calculate number of basis functions
@@ -2288,7 +2288,7 @@ SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,Energy,dUnsc
    INTEGER I,J,K
    real(dp) ALat(3),k_offset(3),Energy,E
    LOGICAL tUEGOffset, tUEGTrueEnergies
-   INTEGER dUnscaledEnergy
+   real(dp) ::  dUnscaledEnergy
    integer :: kvecX, kvecY, kvecZ
    !==================================
    if (tUEG2) then
