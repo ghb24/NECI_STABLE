@@ -103,7 +103,7 @@ C.. As our roots are close to 1, so are possible minima which will throw
 C.. the NR method.  we start quite far away.
             ZROOT=(1.01_dp,0.0_dp)
          ENDIF
-         REPS=1.D-14
+         REPS=1.0e-14_dp_dp
          ICOUNT=0
          CALL POLYVALUE(WCOEFFS,WORDER,ZROOT,ZEPS)
          MAG=SQRT(DBLE(ZEPS)*DBLE(ZEPS)+AIMAG(ZEPS)*AIMAG(ZEPS))

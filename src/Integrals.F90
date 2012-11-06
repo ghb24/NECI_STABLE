@@ -94,7 +94,7 @@ contains
       TQuadVecMax=.false.
       TQuadValMax=.false.
       TDISCONODES=.FALSE.
-      NRCONV=1.D-13
+      NRCONV=1.0e-13_dp_dp
       RFCONV=1.D-8
       NRSTEPSMAX=50
       TQUADRHO=.false.

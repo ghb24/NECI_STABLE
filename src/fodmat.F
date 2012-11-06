@@ -106,7 +106,7 @@ C..Natural orbitals and occupation numbers
       Z=0.0_dp
       W=0.0_dp
 C..
-      ABSTOL=1.D-15
+      ABSTOL=1.0e-15_dp_dp
       CALL DSYEVX('V','A','L',NHG,FODM,NHG,VL,VU,1,NHG,ABSTOL,M,
      &    W,Z,NHG,WORK,8*NHG,IWORK,IFAIL,INFO)
       IF(INFO.GT.0) THEN
@@ -124,7 +124,7 @@ C..
         SUMC=0.0_dp
         DO J=1,NHG
           SUMC=SUMC+Z(J,I)*Z(J,I)
-          IF(ABS(Z(J,I)).GT.1.D-12) THEN
+          IF(ABS(Z(J,I)).GT.1.0e-12_dp_dp) THEN
             WRITE(10,'(I7,1X,5(I7,1X),E19.6)') J,(G1(J)%K(K),K=1,5),
      &         Z(J,I)
           ENDIF

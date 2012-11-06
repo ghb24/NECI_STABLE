@@ -73,7 +73,7 @@ C..
 C            CALL SLTCND(NEL,NBASISMAX,NHG,
 C     &     NMRKS(1:NEL,KI),NMRKS(1:NEL,KJ),G1,IC,NMSH,
 C     &     FCK,NMAX,ALAT,UMAT,TOTSUM)
-            IF(ABS(TOTSUM).LT.1.D-10) TOTSUM=0.0_dp
+            IF(ABS(TOTSUM).LT.1.0e-10_dp_dp) TOTSUM=0.0_dp
             IF(TOTSUM.NE.0.0_dp.OR.KI.EQ.KJ) THEN
                GC=GC+1
 C..   Stores the number of non-zero elements in each row

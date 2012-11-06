@@ -319,7 +319,7 @@
 
 !Diagonal elements of star graph are simply eigenvalues - add to ExcitInfo
         DO i=1,novirt
-            IF(WLIST(i).gt.1.D-09) THEN
+            IF(WLIST(i).gt.1.0e-9_dp_dp) THEN
                 ExcitInfoElems=ExcitInfoElems+1
                 EXCITINFO(ExcitInfoElems,0)=WLIST(i)
                 

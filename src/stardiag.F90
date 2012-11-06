@@ -1084,7 +1084,7 @@
 !Take 'Linepoints' points along the change in rho_jj to calculate the gradient of the line for each eigenvalue, and the first element of the eigenvectors.
 !Only two points are strictly needed, but 'Linepoints' will be taken so that the validity of the linear approximation can be calculated.
 !Assign largest diagonal multiplicative constant to simply be the original star graph, i.e. rho_ii/rho_ii is the root
-            IF((ABS(REAL(ExcitInfo(0,0),dp)-1.0_dp)).gt.1.D-07) THEN
+            IF((ABS(REAL(ExcitInfo(0,0),dp)-1.0_dp)).gt.1.0e-7_dp_dp) THEN
                 STOP 'First element of original star matrix should equal 1.0_dp'
             ENDIF
             LineRhoValues(1)=1.0_dp
@@ -1136,7 +1136,7 @@
             enddo
 
 !LineRhoValues(LinePoints) should be the same as ExcitInfo(iExcit,0)
-!            IF(ABS(LineRhoValues(LinePoints)-(ExcitInfo(iExcit,0))).gt.1.D-09) THEN
+!            IF(ABS(LineRhoValues(LinePoints)-(ExcitInfo(iExcit,0))).gt.1.0e-9_dp_dp) THEN
 !                STOP 'LineRhoValues(LinePoints) should be the same as the lowest rho_jj value'
 !            ENDIF
             IF(.NOT.BTEST(NWHTAY,0)) THEN
@@ -1373,7 +1373,7 @@
             ALLOCATE(LineRhoValues(LinePoints))
 
 !Assign largest diagonal multiplicative constant to simply be the original star graph, i.e. rho_ii/rho_ii is the root
-            IF((ABS(REAL(ExcitInfo(0,0),dp)-1.0_dp)).gt.1.D-07) THEN
+            IF((ABS(REAL(ExcitInfo(0,0),dp)-1.0_dp)).gt.1.0e-7_dp_dp) THEN
                 STOP 'First element of original star matrix should equal 1.0_dp'
             ENDIF
             LineRhoValues(1)=1.0_dp
@@ -1388,7 +1388,7 @@
             enddo
 
 !LineRhoValues(LinePoints) should be the same as ExcitInfo(iExcit,0)
-            IF(ABS(LineRhoValues(LinePoints)-REAL(ExcitInfo(iExcit,0),dp)).gt.1.D-07) THEN
+            IF(ABS(LineRhoValues(LinePoints)-REAL(ExcitInfo(iExcit,0),dp)).gt.1.0e-7_dp_dp) THEN
                 STOP 'LineRhoValues(LinePoints) should be the same as the lowest rho_jj value'
             ENDIF
 
@@ -1699,10 +1699,10 @@
 
                 enddo
 
-                IF(TVal.and.(ValMax.lt.1.D-09)) STOP 'Error in collecting maximum values'
+                IF(TVal.and.(ValMax.lt.1.0e-9_dp_dp)) STOP 'Error in collecting maximum values'
                 
 !Put largest values into ExcitInfo2
-                IF((TQuadValMax.or.TQuadVecMax).and.(ValMax.gt.1.D-09).and.TVal) THEN
+                IF((TQuadValMax.or.TQuadVecMax).and.(ValMax.gt.1.0e-9_dp_dp).and.TVal) THEN
                     ExcitInfo2(NextVertex,0)=(ValMax)
                     ExcitInfo2(NextVertex,1)=(VecMax)
                     ExcitInfo2(NextVertex,2)=(HMax)
@@ -3361,7 +3361,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !            RR=1.0_dp
 !            IF(I.LT.NLIST) RR=(WLIST(I)-LIST(I+1,0))
 !            write(6,"(I,3G)") I-1,WLIST(I),LIST(I+1,0),RR
-!            IF(abs(RR).gt.1.d-10)  WRITE(6,*) 1/(RIJMAT((I-1)*NLIST+1)**2),RIJMAT((I-1)*NLIST+1)**2
+!            IF(abs(RR).gt.1.0e-10_dp_dp)  WRITE(6,*) 1/(RIJMAT((I-1)*NLIST+1)**2),RIJMAT((I-1)*NLIST+1)**2
 !         ENDDO
          DO I=0,NLIST-1
             SI=SI+RIJMAT(I*NLIST+1)*RIJMAT(I*NLIST+1)*(WLIST(I+1)**I_P)
@@ -3474,7 +3474,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
             RR=1.0_dp
             IF(I.LT.NROOTS) RR=(ROOTS(I))-LIST(NLIST-NROOTS+I,0)
 !            write(6,"(I,3G)") I,ROOTS(I),LIST(NLIST-NROOTS+I,0),RR
-            IF(ROOTS(I).EQ.LIST(NLIST-NROOTS+I-1,0).OR..NOT.abs(RR).gt.1.d-13) THEN
+            IF(ROOTS(I).EQ.LIST(NLIST-NROOTS+I-1,0).OR..NOT.abs(RR).gt.1.0e-13_dp_dp) THEN
 !.. If we're in a degenerate set of eigenvectors, we calculate things a
 !.. little differently
 !.. k is the vertex which the degeneracies couple to

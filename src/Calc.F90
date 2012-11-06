@@ -41,7 +41,7 @@ contains
           TRHOOFR = .false.
           TCORR = .false.
           TFODM = .false.
-          B2L = 1.D-13
+          B2L = 1.0e-13_dp_dp
           TMC = .false.
           NHISTBOXES = 0
           TREADRHO = .false.
@@ -242,7 +242,7 @@ contains
 
 !Feb 08 default set.
           IF(Feb08) THEN
-              RhoEpsilon=1.D-08
+              RhoEpsilon=1.0e-8_dp_dp
           ENDIF
 
           ! Spin Projection defaults

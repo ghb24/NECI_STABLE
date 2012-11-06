@@ -20,7 +20,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
                   ENDDO
                ENDDO
                TMAT2D2(I,J)=SUM1
-               IF(ABS(SUM1).GT.1.D-10) WRITE(10,*) I,J,TMAT2D2(I,J)
+               IF(ABS(SUM1).GT.1.0e-10_dp_dp) WRITE(10,*) I,J,TMAT2D2(I,J)
             ENDDO
          ENDDO
          CLOSE(10)
@@ -217,7 +217,7 @@ C..Symmetries not needed by UMatInd
 !              UMAT2(C,D,A,B)=SUM1
 !              UMAT2(B,A,D,C)=SUM1
 !              UMAT2(D,C,B,A)=SUM1
-               IF(ABS(SUM1).GT.1.D-10)
+               IF(ABS(SUM1).GT.1.0e-10_dp_dp)
      &          WRITE(10,'(4I7,F19.9)') A,B,C,D,SUM1
              ENDIF
             ENDDO

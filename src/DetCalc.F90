@@ -1343,7 +1343,7 @@ END MODULE DetCalc
         ENDIF
         S=0.0_dp
         DO I=1,NDET
-         IF(abs(CG(I,J)).gt.1.D-15) THEN
+         IF(abs(CG(I,J)).gt.1.0e-15_dp_dp) THEN
             DO IEL=1,NEL
                WRITE(iunit,"(I3,I3,2I3,2X)",advance='no') (G1(NM(1,IEL))%K(L),L=1,5)
             ENDDO
