@@ -600,7 +600,7 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
 C/RII
                DO J=1,I_V
 #ifdef __CMPLX
-                  T=HIJS2(J)*RIJMAT(J,I)*DCONJG(RIJMAT(1,I))
+                  T=HIJS2(J)*RIJMAT(J,I)*conjg(RIJMAT(1,I))
 #else
                   T=HIJS2(J)*RIJMAT(J,I)*(RIJMAT(1,I))
 #endif
@@ -762,7 +762,7 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                   DO J=1,I_V
                      S=SS
 #ifdef __CMPLX
-                     S=S*RIJMAT(J,I)*DCONJG(RIJMAT(1,I))
+                     S=S*RIJMAT(J,I)*conjg(RIJMAT(1,I))
 #else
                      S=S*RIJMAT(J,I)*(RIJMAT(1,I))
 #endif
@@ -896,7 +896,7 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                   DO J=1,I_V
                      S=SS
 #ifdef __CMPLX
-                     S=S*RIJMAT(J,I)*DCONJG(RIJMAT(1,I))
+                     S=S*RIJMAT(J,I)*conjg(RIJMAT(1,I))
 #else
                      S=S*RIJMAT(J,I)*(RIJMAT(1,I))
 #endif
@@ -1015,7 +1015,7 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
 C/RII
                DO J=1,I_V
 #ifdef __CMPLX
-                  T=HIJS2(J)*RIJMAT(J,I)*DCONJG(RIJMAT(1,I))
+                  T=HIJS2(J)*RIJMAT(J,I)*conjg(RIJMAT(1,I))
 #else
                   T=HIJS2(J)*RIJMAT(J,I)*(RIJMAT(1,I))
 #endif
