@@ -103,9 +103,9 @@ contains
       THFBASIS=.false.
       THFCALC = .false.
       nHFit=0
-      HFMix=0.d0
-      HFEDelta=0.d0
-      HFCDelta=0.d0
+      HFMix=0.0_dp
+      HFEDelta=0.0_dp
+      HFCDelta=0.0_dp
       IHFMETHOD = 1
       TRHF=.true.
       TReadTUMat=.false.
@@ -121,7 +121,7 @@ contains
       tPartFreezeCore=.false.
       tPartFreezeVirt=.false.
       OrbOrder(:,:)=0
-      OrbOrder2(:)=0.d0
+      OrbOrder2(:)=0.0_dp
       nSlotsInit=1024
       nMemInit=0
       iDumpCacheFlag=0
@@ -532,7 +532,7 @@ contains
          call shared_allocate ("umat", umat, (/UMatInt/))
          !Allocate(UMat(UMatInt), stat=ierr)
          LogAlloc(ierr, 'UMat', UMatInt,HElement_t_SizeB, tagUMat)
-         if (iprocindex == 0) UMat = 0.d0
+         if (iprocindex == 0) UMat = 0.0_dp
          CALL SETUPUMAT2D_DF()
          IF(TBIN) THEN
              CALL READFCIINTBIN(UMAT,ECORE)
@@ -555,7 +555,7 @@ contains
          call shared_allocate ("umat", umat, (/UMatInt/))
          !Allocate(UMat(UMatInt), stat=ierr)
          LogAlloc(ierr, 'UMat', UMatInt,HElement_t_SizeB, tagUMat)
-         if (iprocindex == 0) UMat = 0.d0
+         if (iprocindex == 0) UMat = 0.0_dp
 !nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF/ROHF
          CALL SetupTMAT(nBasis,iSpinSkip,TMATINT)
          IF(TBIN) THEN
@@ -577,7 +577,7 @@ contains
                   call shared_allocate ("umat", umat, (/UMatInt/))
                   !Allocate(UMat(UMatInt), stat=ierr)
                   LogAlloc(ierr, 'UMat', UMatInt,HElement_t_SizeB, tagUMat)
-                  UMat = 0.d0
+                  UMat = 0.0_dp
                   WRITE(6,*) "Size of UMat is: ",UMATINT
                   CALL CALCUMATHUBREAL(NBASIS,UHUB,UMAT)
                ELSEIF(THUB.AND..NOT.TPBC) THEN
@@ -588,7 +588,7 @@ contains
                   call shared_allocate ("umat", umat, (/UMatInt/))
                   !Allocate(UMat(UMatInt), stat=ierr)
                   LogAlloc(ierr, 'UMat', UMatInt,HElement_t_SizeB, tagUMat)
-                  UMat = 0.d0
+                  UMat = 0.0_dp
     !!C.. Non-periodic hubbard (mom space)
                   call gen_coul_hubnpbc
                ELSE
@@ -629,7 +629,7 @@ contains
                call shared_allocate ("umat", umat, (/UMatInt/))
                !Allocate(UMat(UMatInt), stat=ierr)
                LogAlloc(ierr, 'UMat', UMatInt,HElement_t_SizeB, tagUMat)
-               UMat = 0.d0
+               UMat = 0.0_dp
                CALL GEN_COUL(NBASISMAX,nBasis,G1,NMSH,NMAX,FCK,UMAT,ZIA)
                deallocate(ZIA)
                LogDealloc(tagZIA)
@@ -645,12 +645,12 @@ contains
 !         CALL N_MEMORY_CHECK()
     !!C.. we need to generate TMAT - Now setup in individual routines
          !CALL N_MEMORY(IP_TMAT,HElement_t_size*nBasis*nBasis,'TMAT')
-         !TMAT=(0.d0)
+         !TMAT=(0.0_dp)
          IF(THUB) THEN
             CALL CALCTMATHUB(NBASIS,NBASISMAX,BHUB,TTILT,G1,TREAL,TPBC)
          ELSE
     !!C..Cube multiplier
-             CST=PI*PI/(2.D0*ALAT(1)*ALAT(1))
+             CST=PI*PI/(2.0_dp*ALAT(1)*ALAT(1))
     !!C.. the UEG has k=2pi n/L rather than pi n/L, so we need to multiply the
     !!C.. KE up by 4
             IF(NBASISMAX(1,1).LE.0) CST=CST*4
@@ -710,7 +710,7 @@ contains
 
       nHG=nBasis
             
-      CHEMPOT=(ARR(NEL,1)+ARR(NEL+1,1))/2.D0
+      CHEMPOT=(ARR(NEL,1)+ARR(NEL+1,1))/2.0_dp
 !      WRITE(6,*) "Chemical Potential: ",CHEMPOT
       IF(NTFROZEN.LT.0) THEN
          WRITE(6,*) "NTFROZEN<0.  Leaving ", -NTFROZEN," unfrozen virtuals."
@@ -740,13 +740,13 @@ contains
          NBASIS=NBASIS-NFROZEN-NTFROZEN-NFROZENIN-NTFROZENIN
 !!C.. We need to transform some integrals
          !CALL N_MEMORY(IP_TMAT2,HElement_t_size*(NBASIS)**2,'TMAT2')
-         !TMAT2=(0.d0)
+         !TMAT2=(0.0_dp)
          IF(NBASISMAX(1,3).GE.0.AND.ISPINSKIP.NE.0) THEN
             CALL GetUMatSize(nBasis,(nEl-NFROZEN-NFROZENIN),UMATINT)
             call shared_allocate ("umat2", umat2, (/UMatInt/))
             !Allocate(UMat2(UMatInt), stat=ierr)
             LogAlloc(ierr, 'UMat2', UMatInt,HElement_t_SizeB, tagUMat2)
-            UMAT2 = 0.d0
+            UMAT2 = 0.0_dp
          ELSE
 !!C.. we don't precompute 4-e integrals, so don't allocate a large UMAT
             call shared_allocate ("umat2", umat2, (/1/))

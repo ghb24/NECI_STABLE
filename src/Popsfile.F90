@@ -238,7 +238,7 @@ MODULE PopsfileMod
                     call stop_all(this_routine,"HF already found, but shouldn't have")
                 endif
                 CurrHF=CurrHF+SignTemp 
-                IF(.not.tRegenDiagHEls) CurrentH(1,i)=0.D0
+                IF(.not.tRegenDiagHEls) CurrentH(1,i)=0.0_dp
             else
                 if(.not.tRegenDiagHEls) THEN
                 !Calculate diagonal matrix element
@@ -437,7 +437,7 @@ MODULE PopsfileMod
             DiagSft=PopDiagSft
         ENDIF
 
-        if(PopDiagSft.eq.0.D0) then
+        if(PopDiagSft.eq.0.0_dp) then
             !If the popsfile has a shift of zero, continue letting the population grow
             tWalkContGrow=.true.
             DiagSft=PopDiagSft
@@ -464,7 +464,7 @@ MODULE PopsfileMod
         IF(TZeroProjE) THEN
             !Reset energy estimator
             WRITE(6,*) "Resetting projected energy counters to zero..."
-            AllSumENum=0.D0
+            AllSumENum=0.0_dp
             AllSumNoatHF = 0
         ENDIF
         if(read_tau.eq.0.0_dp) then
@@ -959,7 +959,7 @@ MODULE PopsfileMod
 
 !Reset the values of the global variables
         AllSumNoatHF = 0
-        AllSumENum=0.D0
+        AllSumENum=0.0_dp
         AllTotWalkers=0
         RETURN
 
@@ -994,10 +994,10 @@ MODULE PopsfileMod
         IF(lenof_sign.ne.1) CALL Stop_All("ReadFromPopsfilePar","Popsfile V.2 does not work with complex walkers")
         
         PreviousCycles=0    !Zero previous cycles
-        SumENum=0.D0
+        SumENum=0.0_dp
         TotParts=0
         SumNoatHF=0
-        DiagSft=0.D0
+        DiagSft=0.0_dp
         Tag=124             !Set Tag
         
         call get_unique_filename('POPSFILE',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
@@ -1071,7 +1071,7 @@ MODULE PopsfileMod
             DiagSft=DiagSftTemp
         ENDIF
 
-        IF(DiagSftTemp.eq.0.D0) THEN
+        IF(DiagSftTemp.eq.0.0_dp) THEN
             tWalkContGrow=.true.
             DiagSft=DiagSftTemp
         ENDIF
@@ -1096,7 +1096,7 @@ MODULE PopsfileMod
             IF(TZeroProjE) THEN
 !Reset energy estimator
                 WRITE(6,*) "Resetting projected energy counters to zero..."
-                AllSumENum=0.D0
+                AllSumENum=0.0_dp
                 AllSumNoatHF = 0
             ENDIF
 
@@ -1136,7 +1136,7 @@ MODULE PopsfileMod
             ProjectionE=AllSumENum/real(AllSumNoatHF(1),dp)
                 
 !Reset the global variables
-            AllSumENum=0.D0
+            AllSumENum=0.0_dp
             AllSumNoatHF = 0
 
         ENDIF
@@ -1157,7 +1157,7 @@ MODULE PopsfileMod
         CALL MPIScatter(WalkerstoReceive,TempInitWalkers,error)
         CALL MPIScatter(NodeSumNoatHF,SumNoatHF(1),error)
 
-        IF(MemoryFacPart.le.1.D0) THEN
+        IF(MemoryFacPart.le.1.0_dp) THEN
             WRITE(6,*) 'MemoryFacPart must be larger than 1.0 when reading in a POPSFILE - increasing it to 1.50.'
             MemoryFacPart=1.50
         ENDIF
@@ -1206,21 +1206,21 @@ MODULE PopsfileMod
             if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
                 ALLOCATE(WalkVecH(3,MaxWalkersPart),stat=ierr)
                 CALL LogMemAlloc('WalkVecH',3*MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
-                WalkVecH(:,:)=0.d0
+                WalkVecH(:,:)=0.0_dp
                 MemoryAlloc=MemoryAlloc+8*MaxWalkersPart*3
                 WRITE(6,"(A)") " The current signs before death will be store for use in the RDMs."
-                WRITE(6,"(A,F14.6,A)") " This requires ", REAL(MaxWalkersPart*8*3,dp)/1048576.D0," Mb/Processor"
+                WRITE(6,"(A,F14.6,A)") " This requires ", REAL(MaxWalkersPart*8*3,dp)/1048576.0_dp," Mb/Processor"
                 NCurrH = 3
             else
                 ALLOCATE(WalkVecH(1,MaxWalkersPart),stat=ierr)
                 CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
-                WalkVecH(:,:)=0.d0
+                WalkVecH(:,:)=0.0_dp
                 MemoryAlloc=MemoryAlloc+8*MaxWalkersPart
                 NCurrH = 1
             endif
         ELSE
             WRITE(6,"(A,F14.6,A)") " Diagonal H-Elements will not be stored. This will *save* ", &
-                & REAL(MaxWalkersPart*8,dp)/1048576.D0," Mb/Processor"
+                & REAL(MaxWalkersPart*8,dp)/1048576.0_dp," Mb/Processor"
         ENDIF
 
         if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
@@ -1231,7 +1231,7 @@ MODULE PopsfileMod
             TempSpawnedParts(0:NIfDBO,1:20000)=0
             MemoryAlloc=MemoryAlloc + (NIfDBO+1)*20000*size_n_int    !Memory Allocated in bytes
             WRITE(6,"(A)") " Allocating temporary array for walkers spawned from a particular Di."
-            WRITE(6,"(A,F14.6,A)") " This requires ", REAL(((NIfDBO+1)*20000*size_n_int),dp)/1048576.D0," Mb/Processor"
+            WRITE(6,"(A,F14.6,A)") " This requires ", REAL(((NIfDBO+1)*20000*size_n_int),dp)/1048576.0_dp," Mb/Processor"
         endif
 
         IF(.not.tRegenDiagHEls) THEN
@@ -1421,7 +1421,7 @@ MODULE PopsfileMod
         ENDIF
             
         WRITE(6,*) "Initial Diagonal Shift (ECorr guess) is now: ",DiagSft
-        WRITE(6,"(A,F14.6,A)") " Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,dp)/1048576.D0," Mb"
+        WRITE(6,"(A,F14.6,A)") " Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,dp)/1048576.0_dp," Mb"
         WRITE(6,*) "Initial memory allocation successful..."
         WRITE(6,*) "Excitgens will be regenerated when they are needed..."
         CALL neci_flush(6)
@@ -1465,7 +1465,7 @@ MODULE PopsfileMod
             call decode_bit_det (TempnI, currentDets(:,j))
             Excitlevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j), 2)
             IF(Excitlevel.eq.0) THEN
-                IF(.not.tRegenDiagHEls) CurrentH(1,j)=0.D0
+                IF(.not.tRegenDiagHEls) CurrentH(1,j)=0.0_dp
             ELSE
                 IF(.not.tRegenDiagHEls) THEN
                     if (tHPHF) then
@@ -1538,10 +1538,10 @@ MODULE PopsfileMod
         IF(lenof_sign.ne.1) CALL Stop_All("ReadFromPopsfilePar","Popsfile does not work with complex walkers")
         
         PreviousCycles=0    !Zero previous cycles
-        SumENum=0.D0
+        SumENum=0.0_dp
         TotParts=0
         SumNoatHF=0
-        DiagSft=0.D0
+        DiagSft=0.0_dp
         Tag=124             !Set Tag
         
         call get_unique_filename('POPSFILE',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
@@ -1614,7 +1614,7 @@ MODULE PopsfileMod
             DiagSft=DiagSftTemp
         ENDIF
 
-        IF(DiagSftTemp.eq.0.D0) THEN
+        IF(DiagSftTemp.eq.0.0_dp) THEN
             tWalkContGrow=.true.
             DiagSft=DiagSftTemp
         ENDIF
@@ -1639,7 +1639,7 @@ MODULE PopsfileMod
             IF(TZeroProjE) THEN
 !Reset energy estimator
                 WRITE(6,*) "Resetting projected energy counters to zero..."
-                AllSumENum=0.D0
+                AllSumENum=0.0_dp
                 AllSumNoatHF = 0
             ENDIF
 
@@ -1656,7 +1656,7 @@ MODULE PopsfileMod
             ProjectionE=AllSumENum/real(AllSumNoatHF(1),dp)
                 
 !Reset the global variables
-            AllSumENum=0.D0
+            AllSumENum=0.0_dp
             AllSumNoatHF = 0
 
         ENDIF
@@ -1675,7 +1675,7 @@ MODULE PopsfileMod
 !Scatter the number of walkers each node will receive to TempInitWalkers, 
 ! and the SumNoatHF for each node which is distributed approximatly equally
 
-        IF(MemoryFacPart.le.1.D0) THEN
+        IF(MemoryFacPart.le.1.0_dp) THEN
             WRITE(6,*) 'MemoryFacPart must be larger than 1.0 when reading in a POPSFILE - increasing it to 1.50.'
             MemoryFacPart=1.50
         ENDIF
@@ -1864,7 +1864,7 @@ MODULE PopsfileMod
         ENDIF
             
         WRITE(6,*) "Initial Diagonal Shift (ECorr guess) is now: ",DiagSft
-        WRITE(6,"(A,F14.6,A)") " Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,dp)/1048576.D0," Mb"
+        WRITE(6,"(A,F14.6,A)") " Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,dp)/1048576.0_dp," Mb"
         WRITE(6,*) "Initial memory allocation successful..."
         WRITE(6,*) "Excitgens will be regenerated when they are needed..."
         CALL neci_flush(6)

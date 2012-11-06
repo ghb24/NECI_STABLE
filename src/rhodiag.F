@@ -31,7 +31,7 @@
          character(*),parameter :: thisroutine='WIRHODIAG'
          proc_timer%timer_name=thisroutine
          call set_timer(proc_timer)
-         HDMAX=5000.D0
+         HDMAX=5000.0_dp
          RHRATMAX=EXP(-BETA*HDMAX/I_P)
 
 C.. Get how much mem we need
@@ -115,7 +115,7 @@ C.. Diagonalize
          deallocate(WORK)
          call LogMemDealloc(thisroutine,tagWORK)
 C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
-         SI=0.D0
+         SI=0.0_dp
 C.. divide through by highest eigenvalue to stop things blowing up
          DO I=0,NLIST-1
             SI=SI+RIJMAT(I*NLIST+1)*RIJMAT(I*NLIST+1)
@@ -182,7 +182,7 @@ C         ENDDO
          character(*),parameter :: thisroutine='WIRHODIAG'
          proc_timer%timer_name=thisroutine
          call set_timer(proc_timer)
-         HDMAX=5000.D0
+         HDMAX=5000.0_dp
          RHRATMAX=EXP(-BETA*HDMAX/I_P)
 
 C.. Get how much mem we need
@@ -244,8 +244,8 @@ C.. List all the dets
             ENDDO
             WRITE(36,*)
          ENDIF
-         SN=0.D0
-         SNC=0.D0
+         SN=0.0_dp
+         SNC=0.0_dp
          DO I=1,NLIST
             CALL CALCRHO2(LSTE(1,I),LSTE(1,I),BETA,I_P,NEL,
      &              G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
@@ -267,9 +267,9 @@ C.. Initiate with the first IPLEN dets
             LACC=.TRUE.
             SNO=SN
 C            IF(IPLEN.EQ.0) THEN
-C               SN=1.D0
+C               SN=1.0_dp
 C            ELSE
-               SN=0.D0
+               SN=0.0_dp
 C            ENDIF
             DO WHILE(LACC)
                NCOUNT=NCOUNT+1
@@ -322,7 +322,7 @@ C.. Diagonalize
                   STOP
                ENDIF
 C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
-               SI=0.D0
+               SI=0.0_dp
 C.. divide through by highest eigenvalue to stop things blowing up
                DO I=0,NLIST-1
                   SI=SI+RIJMAT(I*NLIST+1)*RIJMAT(I*NLIST+1)
@@ -367,7 +367,7 @@ C            WRITE(37,*) SN
             SNC=SNC+SN
             WRITE(37,"(I4,3G25.16,I5)") IPLEN+1,SN,SNC,SNN,NCOUNT
             IF(NLMAX.GT.10) CALL neci_flush(37)
-C            IF(IPLEN.EQ.NLMAX-1) WRITE(37,*) IPLEN+1,0.D0, SNN
+C            IF(IPLEN.EQ.NLMAX-1) WRITE(37,*) IPLEN+1,0.0_dp, SNN
          ENDDO
          deallocate(WLIST,RIJMAT,LSTE,RJJLIST,WORK)
          call LogMemDealloc(thisroutine,tagWORK)
@@ -432,18 +432,18 @@ C         CLOSE(36)
 C.. Diagonalize
          proc_timer%timer_name='RHODIAG_CP'
          call set_timer(proc_timer)
-         RIJMAT(1:I_V,1:I_V)=0.d0
+         RIJMAT(1:I_V,1:I_V)=0.0_dp
          DO I=1,I_V
             DO J=I,I_V
-               RIJMAT(I,J)=RHOIJ(I-1,J-1)+0.D0
-               RIJMAT(I,J)=RIJMAT(I,J)+0.D0
+               RIJMAT(I,J)=RHOIJ(I-1,J-1)+0.0_dp
+               RIJMAT(I,J)=RIJMAT(I,J)+0.0_dp
                SI=RHOIJ(I-1,J-1)
             ENDDO
          ENDDO
-C         RIJMAT(1,1)=1.D0
-C         RIJMAT(1,2)=1.D0
-C         RIJMAT(2,1)=1.D0
-C         RIJMAT(2,2)=1.D0
+C         RIJMAT(1,1)=1.0_dp
+C         RIJMAT(1,2)=1.0_dp
+C         RIJMAT(2,1)=1.0_dp
+C         RIJMAT(2,2)=1.0_dp
 C         WRITE(6,*) ((RIJMAT(I,J),J=1,I_V),I=1,I_V)
          CALL DSYEV('V','U',I_V,RIJMAT(1,1),I_V,
      &            WLIST(1),WORK(1),3*I_V,INFO)
@@ -454,7 +454,7 @@ C         WRITE(6,*) (WLIST(I),I=1,I_V)
             STOP
          ENDIF
 C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
-         SI=0.D0
+         SI=0.0_dp
 C.. divide through by RHOII^P
          DO I=1,I_V
             SI=SI+RIJMAT(1,I)*RIJMAT(1,I)
@@ -507,7 +507,7 @@ C.. do we subtract out lower vertices here or later?
 ! Optimise the 1V case
          IF(I_V.EQ.1) THEN
             DLWDB=HIJ(1,1)
-            HDIAG_CPPRES=1.D0
+            HDIAG_CPPRES=1.0_dp
             RETURN
          ENDIF
          R=HIJ(1,1)
@@ -518,8 +518,8 @@ C.. Diagonalize
 C         WRITE(6,*) "...",I_V,IMISS
          proc_timer%timer_name='HDIAG_CPP '
          call set_timer(proc_timer,55)
-         RIJMAT(1:I_V,1:I_V)=(0.d0)
-         DLWDB=0.D0
+         RIJMAT(1:I_V,1:I_V)=(0.0_dp)
+         DLWDB=0.0_dp
          II=0
          DO I=1,I_V+1
             IF(I.NE.IMISS) THEN
@@ -534,14 +534,14 @@ C         WRITE(6,*) "...",I_V,IMISS
                HIJS2(II)=HIJS(I)
             ENDIF
          ENDDO
-         SI=0.D0
+         SI=0.0_dp
 C.. Now subtract out the smaller submatrices first
 C.. In order to count the subsets only once, we need to only
 C.. remove up to IMISS 
          IF(TSUB) THEN
             DO I=2,IMISS-1
 CIMISS-1
-               DD2=0.D0
+               DD2=0.0_dp
                SI=SI-HDIAG_CPP(RIJMAT,I_P,I_V-1,I,TSUB,
      &            BETA,DD2,HIJS2)
                DLWDB=DLWDB-DD2
@@ -557,8 +557,8 @@ CIMISS-1
 C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
 C.. now calculate exp(-beta lambda) for each eigenvalue, with the 
 C.. appropriate projection onto the root
-            SI2=0.D0
-            DLWT=0.D0
+            SI2=0.0_dp
+            DLWT=0.0_dp
             DO I=1,I_V
 C            WRITE(6,*) WLIST(I),RIJMAT(1,I)
                R=HIJ(1,1)
@@ -586,8 +586,8 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
 C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
 C.. now calculate exp(-beta lambda) for each eigenvalue, with the 
 C.. appropriate projection onto the root
-            SI2=0.D0
-            DLWT=0.D0
+            SI2=0.0_dp
+            DLWT=0.0_dp
             DO I=1,I_V
 C            WRITE(6,*) WLIST(I),RIJMAT(1,I)
                S=abs(RIJMAT(1,I))**2
@@ -642,9 +642,9 @@ C.. do we subtract out lower vertices here or later?
          IF(I_V.EQ.1) THEN
             DLWDB=HIJS(1)
             if(tLogWeight) then
-               RHODIAG_CPPRES=0.d0
+               RHODIAG_CPPRES=0.0_dp
             else
-               RHODIAG_CPPRES=1.D0
+               RHODIAG_CPPRES=1.0_dp
             ENDIF
             RETURN
          ENDIF
@@ -653,8 +653,8 @@ C.. Diagonalize
 C         WRITE(6,*) "...",I_V,IMISS
          proc_timer%timer_name='RHODIAG_C2'
          call set_timer(proc_timer,55)
-         RIJMAT(1:I_V,1:I_V)=(0.d0)
-         IF(DBETA.NE.0.D0) DLWDB=0.D0
+         RIJMAT(1:I_V,1:I_V)=(0.0_dp)
+         IF(DBETA.NE.0.0_dp) DLWDB=0.0_dp
          II=0
          DO I=1,I_V+1
             IF(I.NE.IMISS) THEN
@@ -669,13 +669,13 @@ C         WRITE(6,*) "...",I_V,IMISS
                HIJS2(II)=HIJS(I)
             ENDIF
          ENDDO
-         SI=0.D0
+         SI=0.0_dp
 C.. Now subtract out the smaller submatrices first
 C.. In order to count the subsets only once, we need to only
 C.. remove up to IMISS 
          IF(TSUB) THEN
             DO I=2,IMISS-1
-               DD2=0.D0
+               DD2=0.0_dp
                IF(tLogWeight) THEN
 ! we return e~' instead of w' E~'
 ! e~'[G]=e~[G]-sum_{g in G} e~'[g]
@@ -684,7 +684,7 @@ C.. remove up to IMISS
 !  where g is this graph missing out vertex I.
                 SI=SI-RHODIAG_CPP(RIJMAT,I_P,I_V-1,I,TSUB,
      &            DBETA,DD2,HIJS2,tLogWeight)
-                IF(DBETA.NE.0.D0) DLWDB=DLWDB-DD2
+                IF(DBETA.NE.0.0_dp) DLWDB=DLWDB-DD2
                ELSE
 ! we return w' E~'
 ! w'[G]E~'[G]=w[G]E~[G]-sum_{g in G} w'[g] E~'[g]
@@ -693,7 +693,7 @@ C.. remove up to IMISS
 !   done recursively, this makes w'[G]E~'[G]
                 SI=SI-RHODIAG_CPP(RIJMAT,I_P,I_V-1,I,TSUB,
      &            DBETA,DD2,HIJS2,tLogWeight)
-                IF(DBETA.NE.0.D0) DLWDB=DLWDB-DD2
+                IF(DBETA.NE.0.0_dp) DLWDB=DLWDB-DD2
                ENDIF
 C            WRITE(6,*) "SI=",SI
             ENDDO
@@ -708,8 +708,8 @@ C         WRITE(6,*) I_V
             ENDIF
 C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
 C.. divide through by RHOII^P
-            DLWT=0.D0
-            SI2=0.D0
+            DLWT=0.0_dp
+            SI2=0.0_dp
             DO I=1,I_V
 C               WRITE(6,*) WLIST(I),RIJMAT(1,I)
                R=(RII)
@@ -717,7 +717,7 @@ C               WRITE(6,*) WLIST(I),RIJMAT(1,I)
                S=R
                SS=S*RIJMAT(1,I)*RIJMAT(1,I)
                SI2=SI2+SS
-               IF(DBETA.NE.0.D0) THEN
+               IF(DBETA.NE.0.0_dp) THEN
 C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                   DO J=1,I_V
                      S2=S*RIJMAT(J,I)*RIJMAT(1,I)
@@ -750,14 +750,14 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
             ENDIF
 C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
 C.. divide through by RHOII^P
-            SI2=0.D0
-            DLWT=0.D0
+            SI2=0.0_dp
+            DLWT=0.0_dp
             DO I=1,I_V
                R=(RII)
                SS=((WLIST(I)/R)**I_P)
                SS2=abs(RIJMAT(1,I))**2
                SI2=SI2+SS*SS2
-               IF(DBETA.NE.0.D0) THEN
+               IF(DBETA.NE.0.0_dp) THEN
 C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                   DO J=1,I_V
                      S=SS
@@ -826,7 +826,7 @@ C.. do we subtract out lower vertices here or later?
          IF(I_V.EQ.1) THEN
             RII=HIJS(1)
             DLWDB=DLWDB-RII
-            RHODIAG_CPPS2VS=-1.D0
+            RHODIAG_CPPS2VS=-1.0_dp
             RETURN
          ENDIF
          RII=RHOIJ(1,1)
@@ -834,13 +834,13 @@ C.. Diagonalize
 C         WRITE(6,*) "...",I_V,IMISS
          proc_timer%timer_name='RHODIAG_C2'
          call set_timer(proc_timer,55)
-         RIJMAT(1:I_V,1:I_V)=(0.d0)
+         RIJMAT(1:I_V,1:I_V)=(0.0_dp)
          DO J=1,I_V
             RIJMAT(1,J)=RHOIJ(1,J)
             RIJMAT(J,J)=RHOIJ(J,J)
             HIJS2(J)=HIJS(J)
          ENDDO
-         SI=0.D0
+         SI=0.0_dp
 !  No need to deal with small submatrices
          IF(HElement_t_size.EQ.1) THEN
             CALL DSYEV('V','U',I_V,RIJMAT,I_V,
@@ -851,8 +851,8 @@ C         WRITE(6,*) "...",I_V,IMISS
             ENDIF
 C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
 C.. divide through by RHOII^P
-            DLWT=0.D0
-            SI2=0.D0
+            DLWT=0.0_dp
+            SI2=0.0_dp
             DO I=1,I_V
 C               WRITE(6,*) WLIST(I),RIJMAT(1,I)
                R=(RII)
@@ -860,7 +860,7 @@ C               WRITE(6,*) WLIST(I),RIJMAT(1,I)
                S=R
                SS=S*RIJMAT(1,I)*RIJMAT(1,I)
                SI2=SI2+SS
-               IF(DBETA.NE.0.D0) THEN
+               IF(DBETA.NE.0.0_dp) THEN
 C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                   DO J=1,I_V
                      S2=S*RIJMAT(J,I)*RIJMAT(1,I)
@@ -884,14 +884,14 @@ C            WRITE(6,*) I_V,DLWDB
             ENDIF
 C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
 C.. divide through by RHOII^P
-            SI2=0.D0
-            DLWT=0.D0
+            SI2=0.0_dp
+            DLWT=0.0_dp
             DO I=1,I_V
                R=(RII)
                SS=((WLIST(I)/R)**I_P)
                SS2=abs(RIJMAT(1,I))**2
                SI2=SI2+SS*SS2
-               IF(DBETA.NE.0.D0) THEN
+               IF(DBETA.NE.0.0_dp) THEN
 C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                   DO J=1,I_V
                      S=SS
@@ -940,7 +940,7 @@ C.. do we subtract out lower vertices here or later?
          IF(I_V.EQ.1) THEN
             RII=HIJ(1,1)
             DLWDB=DLWDB-RII
-            HDIAG_CPPS2VS=-1.D0
+            HDIAG_CPPS2VS=-1.0_dp
             RETURN
          ENDIF
          R=HIJ(1,1)
@@ -951,14 +951,14 @@ C.. Diagonalize
 C         WRITE(6,*) "...",I_V,IMISS
          proc_timer%timer_name='HDIAG_CPP '
          call set_timer(proc_timer,55)
-         RIJMAT(1:I_V,1:I_V)=(0.d0)
+         RIJMAT(1:I_V,1:I_V)=(0.0_dp)
          II=0
          DO I=1,I_V
             RIJMAT(I,J)=HIJ(I,J)
             RIJMAT(J,J)=HIJ(J,J)
             HIJS2(I)=HIJS(I)
          ENDDO
-         SI=0.D0
+         SI=0.0_dp
 C.. Now subtract out the smaller submatrices first
 C.. In order to count the subsets only once, we need to only
 C.. remove up to IMISS 
@@ -972,8 +972,8 @@ C.. remove up to IMISS
 C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
 C.. now calculate exp(-beta lambda) for each eigenvalue, with the 
 C.. appropriate projection onto the root
-            SI2=0.D0
-            DLWT=0.D0
+            SI2=0.0_dp
+            DLWT=0.0_dp
             DO I=1,I_V
 C            WRITE(6,*) WLIST(I),RIJMAT(1,I)
                R=HIJ(1,1)
@@ -1001,8 +1001,8 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
 C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
 C.. now calculate exp(-beta lambda) for each eigenvalue, with the 
 C.. appropriate projection onto the root
-            SI2=0.D0
-            DLWT=0.D0
+            SI2=0.0_dp
+            DLWT=0.0_dp
             DO I=1,I_V
 C            WRITE(6,*) WLIST(I),RIJMAT(1,I)
                S=abs(RIJMAT(1,I))**2

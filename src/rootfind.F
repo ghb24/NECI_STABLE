@@ -23,13 +23,13 @@
          
          WRITE(66,*) "Z     STARVAL     PRODVAL    PRODVALALL"
          DO WHILE(Z.LE.HIGHZ)
-            STAR=0.D0
+            STAR=0.0_dp
             DO I=1,N
                 STAR=STAR+abs(B(I))**2/(Z-(A(I)))
             ENDDO
-            STARPROD=0.D0
+            STARPROD=0.0_dp
             DO I=1,N
-                PROD=0.D0
+                PROD=0.0_dp
                 DO J=1,N
                     IF(J.eq.I) CYCLE
 !                    WRITE(97,*) I,J
@@ -37,9 +37,9 @@
                 ENDDO
                 STARPROD=STARPROD+abs(B(I))**2/(Z-(A(I))-PROD)
             ENDDO
-            STARPROD2=0.D0
+            STARPROD2=0.0_dp
             DO I=1,N
-                PROD2=0.D0
+                PROD2=0.0_dp
                 DO J=1,N
                     PROD2=PROD2+ 
      &                        abs(B(J))**2/(Z-((A(I))*(A(J))))
@@ -97,7 +97,7 @@ C.. The value at XHIGH is always bigger than at XLOW
          DO WHILE(I.GT.0)
              
 !            WRITE(76,*),I,A(I+NMIN),B(I+NMIN)
-            VAL=1.D0
+            VAL=1.0_dp
             J=0
             K=0
             LOWPOLE=.true.
@@ -117,12 +117,12 @@ C.. The value at XHIGH is always bigger than at XLOW
                         X=XLOW+DELTA
 !                        WRITE(55,*) "ATTEMPTED XLOW = ",X
                         CALL CALCSTARPOLYVALUE(N,A,B,X,VAL)
-                        IF(VAL.gt.0.D0) THEN
+                        IF(VAL.gt.0.0_dp) THEN
                             XLOW=X
                             VALLOW=VAL
                             LOWPOLE=.false.
                         ELSE
-                            DELTA=DELTA/10.D0
+                            DELTA=DELTA/10.0_dp
                             XHIGH=X
                             VALHIGH=VAL
                             HIGHPOLE=.false.
@@ -137,24 +137,24 @@ C.. The value at XHIGH is always bigger than at XLOW
 !                        WRITE(55,*) "ATTEMPTED XHIGH = ",X
                         CALL CALCSTARPOLYVALUE(N,A,B,X,VAL)
 !                        WRITE(55,*) "VALUE GIVEN IS ", VAL
-                        IF(VAL.lt.0.D0) THEN
+                        IF(VAL.lt.0.0_dp) THEN
                             XHIGH=X
                             VALHIGH=VAL
                             HIGHPOLE=.false.
                         ELSE
-                            DELTA=DELTA/10.D0
+                            DELTA=DELTA/10.0_dp
                             XLOW=X
                             VALLOW=VAL
                             LOWPOLE=.false.
                         ENDIF
                     ENDIF
                 ELSE
-!                    X=(XLOW+XHIGH)/2.D0
+!                    X=(XLOW+XHIGH)/2.0_dp
                     !Experience says root normally closer to higher pole, so do decasector search...
                     X=XHIGH-(0.01*(XHIGH-XLOW))
 !                    WRITE(55,*) "Decasection X = ", X
                     CALL CALCSTARPOLYVALUE(N,A,B,X,VAL)
-                    IF(VAL.GT.0.D0) THEN
+                    IF(VAL.GT.0.0_dp) THEN
                         XLOW=X
                         VALLOW=VAL
                         LOWPOLE=.false.
@@ -198,10 +198,10 @@ C.. The value at XHIGH is always bigger than at XLOW
 !                CALL CALCSTARPOLYVALUE(N,A,B,X,VAL)
 !                J=J+1
 !               WRITE(76,"(4G23.15)") XLOW,XHIGH,X,VAL
-!               IF(VAL.GT.0.D0) THEN
+!               IF(VAL.GT.0.0_dp) THEN
 !                  XLOW=X
 !                  VALLOW=VAL
-!               ELSEIF(VAL.LT.0.D0) THEN
+!               ELSEIF(VAL.LT.0.0_dp) THEN
 !                  XHIGH=X
 !                  VALHIGH=VAL
 !               ELSE
@@ -211,7 +211,7 @@ C.. The value at XHIGH is always bigger than at XLOW
 !            ENDDO
 C.. Now polish off with some Newton Raphson
             J=0
-            OX=0.D0
+            OX=0.0_dp
 !            WRITE(76,*) "PreRoot found: ",X,A(NMIN+I),B(NMIN+I)
             !VAL is value of polynomial whose root we want,ie VAL=0 - X is root, OX old root
 
@@ -241,11 +241,11 @@ C.. Now polish off with some Newton Raphson
 !                       X=XHIGH-(0.5*(XHIGH-XLOW))
 !                       WRITE(55,*) "NEW X = ", X
                         CALL CALCSTARPOLYVALUE(N,A,B,X,VAL)
-                        IF(VAL.GT.0.D0) THEN
+                        IF(VAL.GT.0.0_dp) THEN
                             XLOW=X
                             VALLOW=VAL
                         ENDIF
-                        IF(VAL.LT.0.D0) THEN
+                        IF(VAL.LT.0.0_dp) THEN
                             XHIGH=X
                             VALHIGH=VAL
                         ENDIF
@@ -278,10 +278,10 @@ C.. Now polish off with some Newton Raphson
 !                      WRITE(55,*) "NEW RF X = ", X
                       CALL CALCSTARPOLYVALUE(N,A,B,X,VAL)
 !                      WRITE(55,*) "NEW VAL = ", VAL
-                      IF(VAL.GT.0.D0) THEN
+                      IF(VAL.GT.0.0_dp) THEN
                           XLOW=X
                           VALLOW=VAL
-                      ELSEIF(VAL.LT.0.D0) THEN
+                      ELSEIF(VAL.LT.0.0_dp) THEN
                           XHIGH=X
                           VALHIGH=VAL
                       ENDIF
@@ -292,10 +292,10 @@ C.. Now polish off with some Newton Raphson
                       ENDIF
                  
                  ELSE
-                    IF(VAL.GT.0.D0) THEN
+                    IF(VAL.GT.0.0_dp) THEN
                         XLOW=X
                         VALLOW=VAL
-                    ELSEIF(VAL.LT.0.D0) THEN
+                    ELSEIF(VAL.LT.0.0_dp) THEN
                         XHIGH=X
                         VALHIGH=VAL
                     ENDIF
@@ -329,7 +329,7 @@ C               WRITE(6,*),I,A(I),B(I)
             XHIGH=(A(NMIN+I))
             I=I-1
             IF(I.EQ.1) THEN
-               XLOW=-1.D0
+               XLOW=-1.0_dp
             ELSE
                XLOW=(A(NMIN+I))
             ENDIF
@@ -358,7 +358,7 @@ C               WRITE(6,*),I,A(I),B(I)
          HElement_t A(0:N),B(0:N)
          real(dp) X,VAL
          INTEGER I
-         VAL=-1.D0
+         VAL=-1.0_dp
          DO I=1,N
             VAL=VAL-abs(B(I))**2/((X-(A(I)))**2)
          ENDDO
@@ -405,7 +405,7 @@ C               WRITE(6,*) IROOT,"Min:",SMIN,XVLOW
                VAL=XVLOW*XVHIGH
                IF(ABS(VAL).EQ.VAL) THEN
 C.. Definitely no roots to be found.  give up
-                  X=0.D0
+                  X=0.0_dp
                   IMODE=0
                ELSE
 C.. There should be two roots
@@ -418,11 +418,11 @@ C.. There should be two roots
             OXLOW=XLOW
             OXHIGH=XHIGH
             DO WHILE(IMODE.GT.0)
-             VAL=1.D0
+             VAL=1.0_dp
 C            WRITE(6,*) "HIGH:", XHIGH,XVHIGH
 C            WRITE(6,*) "LOW :", XLOW,XVLOW
              DO WHILE(ABS(VAL).GT.1.D-9.AND.ABS(XLOW-XHIGH).GT.1.D-12)
-               X=(XLOW+XHIGH)/2.D0
+               X=(XLOW+XHIGH)/2.0_dp
                CALL CALCSTARPOLYVALUE2(N,A,B,X,NR,VAL,.FALSE.)
 C               WRITE(6,"(4G19.12)") XLOW,XHIGH,X,VAL
                IF(VAL.GT.0) THEN
@@ -448,8 +448,8 @@ C               WRITE(6,"(4G19.12)") XLOW,XHIGH,X,VAL
              ENDDO
 C.. Now polish off with some Newton Raphson
             J=0
-            IF(X.EQ.0.D0) J=11
-            OX=0.D0
+            IF(X.EQ.0.0_dp) J=11
+            OX=0.0_dp
             DO WHILE(ABS(VAL).GT.3.D-13.AND.J.LT.10
      &         .AND.ABS(X-OX).GT.1.D-13)
                CALL CALCSTARPOLYVALUE2(N,A,B,X,NR,VAL,.FALSE.)
@@ -488,7 +488,7 @@ C.. one more root to find
             ENDDO
              DO WHILE(I.GT.0.AND.ABS(A(I)-A(I-1)).LT.1.D-9)
                I=I-1
-               ROOTS(IROOT)=0.D0
+               ROOTS(IROOT)=0.0_dp
 C..A(I)
 C               WRITE(6,*) "Root found2:",IROOT,A(I)
 C               IROOT=IROOT-1
@@ -497,13 +497,13 @@ C               WRITE(6,*),I,A(I),B(I)
             XHIGH=A(I)
             I=I-1
             IF(I.EQ.0) THEN
-               XLOW=-1.D0
+               XLOW=-1.0_dp
             ELSE
                XLOW=A(I)
             ENDIF
          ENDDO
          DO I=IROOT,0,-1
-            ROOTS(I)=0.D0
+            ROOTS(I)=0.0_dp
          ENDDO
          IRMIN=IROOT+1
          RETURN
@@ -519,12 +519,12 @@ C               WRITE(6,*),I,A(I),B(I)
          INTEGER I
          LOGICAL TABOVE
          VAL=A(0)-X
-         OV=0.D0
+         OV=0.0_dp
          DO I=1,N
             VAL=VAL+NR(I)*B(I)*B(I)/(X-A(I))
             IF(X.EQ.A(I)) OV=OV+NR(I)*B(I)*B(I)
          ENDDO
-         IF(OV.NE.0.D0) THEN 
+         IF(OV.NE.0.0_dp) THEN 
 C.. We're actually on a root.
 C. if above, it then x-a >0, so just the sign of OV
 C            VAL=1.D10*OV   
@@ -536,7 +536,7 @@ C            IF(.NOT.TABOVE) VAL=-VAL
             ENDIF
             X2=X+DX
             DO WHILE (X2.EQ.X)
-               DX=DX*2.D0
+               DX=DX*2.0_dp
                X2=X+DX
             ENDDO
             VAL=A(0)-X2
@@ -553,7 +553,7 @@ C            IF(.NOT.TABOVE) VAL=-VAL
          real(dp) A(0:N),B(0:N),X,VAL
          INTEGER NR(0:N)
          INTEGER I
-         VAL=-1.D0
+         VAL=-1.0_dp
          DO I=1,N
             VAL=VAL-NR(I)*B(I)*B(I)/((X-A(I))**2)
          ENDDO
@@ -566,7 +566,7 @@ C            IF(.NOT.TABOVE) VAL=-VAL
          real(dp) A(0:N),B(0:N),X,VAL
          INTEGER NR(0:N)
          INTEGER I
-         VAL=0.D0
+         VAL=0.0_dp
          DO I=1,N
             VAL=VAL+2*NR(I)*B(I)*B(I)/((X-A(I))**3)
          ENDDO
@@ -584,9 +584,9 @@ C            IF(.NOT.TABOVE) VAL=-VAL
          XLOW=XL
          CALL CALCSTARPOLYDERIV2(N,A,B,XHIGH*0.99999999_dp,NR,XVHIGH)
          CALL CALCSTARPOLYDERIV2(N,A,B,XLOW *1.00000001_dp,NR,XVLOW)
-         VAL=1.D0
+         VAL=1.0_dp
          DO WHILE(ABS(VAL).GT.1.D-9.AND.ABS(XLOW-XHIGH).GT.1.D-12)
-            X=(XLOW+XHIGH)/2.D0
+            X=(XLOW+XHIGH)/2.0_dp
             CALL CALCSTARPOLYDERIV2(N,A,B,X,NR,VAL)
             IF(VAL.GT.0) THEN
                IF(XVLOW.GT.0) THEN
@@ -611,7 +611,7 @@ C            IF(.NOT.TABOVE) VAL=-VAL
          ENDDO
 C.. Now polish off with some Newton Raphson
          J=0
-         OX=0.D0
+         OX=0.0_dp
          DO WHILE(ABS(VAL).GT.1.D-13.AND.J.LT.10
      &      .AND.ABS(X-OX).GT.1.D-13)
             CALL CALCSTARPOLYDERIV2(N,A,B,X,NR,VAL)
@@ -621,6 +621,6 @@ C.. Now polish off with some Newton Raphson
             J=J+1
          ENDDO
          ROOT=X
-         IF(X.LT.XL.OR.X.GT.XH) ROOT=(XHIGH+XLOW)/2.D0
+         IF(X.LT.XL.OR.X.GT.XH) ROOT=(XHIGH+XLOW)/2.0_dp
          RETURN
       END

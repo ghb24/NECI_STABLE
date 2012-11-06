@@ -470,7 +470,7 @@ MODULE UMatCache
             ELSE
                IF(nMemInit.NE.0) THEN
                   WRITE(6,*) "Allocating ",nMemInit,"Mb for UMatCache+Labels."
-                  nSlotsInit=nint((nMemInit*1048576/8)/(nPairs*(nTypes*HElement_t_size+1.D0/irat)),sizeof_int)
+                  nSlotsInit=nint((nMemInit*1048576/8)/(nPairs*(nTypes*HElement_t_size+1.0_dp/irat)),sizeof_int)
                ENDIF
                NSLOTS=MIN(NPAIRS, NSLOTSINIT)
                tSmallUMat=.FALSE.
@@ -489,7 +489,7 @@ MODULE UMatCache
             Memory=(REAL(nTypes*nSlots,dp)*nPairs*8.0_dp*HElement_t_size+nSlots*nPairs*4.0_dp)*9.536743316e-7_dp
             WRITE(6,"(A,G20.10,A)") "Total memory allocated for storage of integrals in cache is: ",Memory,"Mb/Processor"
 
-            UMatCacheData=(0.d0)
+            UMatCacheData=(0.0_dp)
             UMATLABELS(1:nSlots,1:nPairs)=0
 !If tSmallUMat is set here, and have set tCacheFCIDUMPInts, then we need to read in the <ik|u|jk> integrals from the FCIDUMP file, then disperse them using the
 !FillUMatCache routine. Otherwise, we need to read in all the integrals.
@@ -653,7 +653,7 @@ MODULE UMatCache
             WRITE(6,*) NMISSES, " misses"
             WRITE(6,*) iCacheOvCount, " overwrites"
             if(NHITS+NMISSES.gt.0) then
-                WRITE(6,"(F6.2,A)") (NHITS/(NHITS+NMISSES+0.D0))*100,"% success"
+                WRITE(6,"(F6.2,A)") (NHITS/(NHITS+NMISSES+0.0_dp))*100,"% success"
             endif
          ENDIF
       END SUBROUTINE WriteUMatCacheStats
@@ -880,7 +880,7 @@ MODULE UMatCache
 
          Allocate(NUMat2D(NewBasis/iSS,NewBasis/iSS),STAT=ierr)
          call LogMemAlloc('UMat2D',(NewBasis/iSS)**2,8*HElement_t_size,thisroutine,tagNUMat2D,ierr)
-         NUMat2D(:,:)=(0.D0)
+         NUMat2D(:,:)=(0.0_dp)
          DO i=1,OldBasis/2
             IF(OrbTrans(i*2).NE.0) THEN
                 DO j=1,OldBasis/2
@@ -1052,7 +1052,7 @@ MODULE UMatCache
               CALL Stop_All("CacheFCIDUMP","Overwriting UMATLABELS")
           ENDIF
           UMATLABELS(CacheInd(A),A)=B
-          IF(REAL(UMatCacheData(nTypes-1,CacheInd(A),A)).ne.0.D0) THEN
+          IF(REAL(UMatCacheData(nTypes-1,CacheInd(A),A)).ne.0.0_dp) THEN
               CALL Stop_All("CacheFCIDUMP","Overwriting when trying to fill cache.")
           ENDIF
           UMatCacheData(nTypes-1,CacheInd(A),A)=Z

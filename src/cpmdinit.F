@@ -51,7 +51,7 @@ C.. set ISPINSKIP=0, to tell the SCRs that there's no UMAT
            else
                CALL DECOMPOSEREP(SYMLABELCHARS(1,SymClasses(I)),IDECOMP)
            end if
-            IF(ABS(SYMLABELCHARS(1,SymClasses(I))-1.D0).GE.1.D-6)
+            IF(ABS(SYMLABELCHARS(1,SymClasses(I))-1.0_dp).GE.1.D-6)
      &          ALL1D=.FALSE.
             G1(I*2-1)%SYM=IDECOMP
             G1(I*2)%SYM=IDECOMP
@@ -148,7 +148,7 @@ C.. group
          allocate(SymLabelChars(nRot,nSymLabels))
          call LogMemAlloc('SymLabelChars',nSymLabels*nRot*2,16,
      &                                    this_routine,tagSymLabelChars)
-         SYMLABELCHARS=0.d0
+         SYMLABELCHARS=0.0_dp
          allocate(SymLabels(nSymLabels))
          call LogMemAlloc('SymLabels',nSymLabels,4,this_routine,
      &                                                     tagSymLabels)
@@ -162,7 +162,7 @@ C.. rotational labels.  We will need to compare each pair of t&r labels
 C.. with a stored list.
             WRITE(6,*) "Using space group representation."
             DO I=1,NSTATES
-               IF(SYMLABELCHARS(1,ROT_LABEL(I)).EQ.(0.D0,0.D0)) THEN
+               IF(SYMLABELCHARS(1,ROT_LABEL(I)).EQ.(0.0_dp,0.0_dp)) THEN
 C.. we've found an uninitialized symlabel - fill it
                   DO J=1,NROT
 C.. Indices need to be inverted so cannot straight ICOPY
@@ -175,7 +175,7 @@ C.. Indices need to be inverted so cannot straight ICOPY
 C.. point group
             WRITE(6,*) "Using point group representation."
             DO I=1,NSTATES
-               IF(SYMLABELCHARS(1,ROT_LABEL(I)).EQ.(0.D0,0.D0)) THEN
+               IF(SYMLABELCHARS(1,ROT_LABEL(I)).EQ.(0.0_dp,0.0_dp)) THEN
 C.. we've found an uninitialized symlabel - fill it
                   DO J=1,NROT
 C.. Indices need to be inverted so cannot straight ICOPY
@@ -280,7 +280,7 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
 !      = \epsilon_i \delta_ij - \sum_k <ik|kj>
 ! where h^{KS}_ij = < i | -1/2 \nabla^2 + v_ext + v_har + v_xc | j >
 ! and h^{KS}_ii = \epsilon_i
-!         FockMat(:,:)=dcmplx(0.d0,0.d0)
+!         FockMat(:,:)=dcmplx(0.0_dp,0.0_dp)
 
          WRITE(6,*) "Calculating TMAT"
          DO I=1,NSTATESUSED
@@ -290,9 +290,9 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
 
                IF(LCHKSYM(G1(II),G1(JJ))) THEN
 
-                  TOT=0.D0
+                  TOT=0.0_dp
                   IF(I.EQ.J) THEN
-                      TOT=TOT+(EIGENVALUES(I)+PIInt(I)/2.d0)
+                      TOT=TOT+(EIGENVALUES(I)+PIInt(I)/2.0_dp)
 !                      FockMat(I,J)=FockMat(I,J)+Eigenvalues(I)
                   END IF
                   TOT=TOT-CPMD1EINT(I,J)

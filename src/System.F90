@@ -53,7 +53,7 @@ MODULE System
       tHPHF=.false.
       tMaxHLGap=.false.
       tUMatEps=.false.
-      UMatEps=0.D0
+      UMatEps=0.0_dp
       tExactSizeSpace=.false.
       iRanLuxLev=3      !This is the default level of quality for the random number generator.
       tNoSymGenRandExcits=.false.
@@ -86,14 +86,14 @@ MODULE System
       NMAXY = 0
       NMAXZ = 0
       NMSH=32
-      BOX=1.d0
-      BOA=1.d0
-      COA=1.d0
+      BOX=1.0_dp
+      BOA=1.0_dp
+      COA=1.0_dp
       TUSEBRILLOUIN=.false. 
       tUHF=.false.
-      FUEGRS=0.D0
+      FUEGRS=0.0_dp
       iPeriodicDampingType=0
-      fRc=0.D0
+      fRc=0.0_dp
       TEXCH=.true.
       UHUB = 4
       BHUB = -1
@@ -109,7 +109,7 @@ MODULE System
       gCutoff=1e20 ! This shouldn't be used
       tgCutoff=.false.
       tMadelung=.false.
-      Madelung=0.D0
+      Madelung=0.0_dp
       tUEGFreeze=.false.
       FreezeCutoff=1e20 ! This shouldn't be used
       tMP2UEGRestrict=.false.
@@ -153,10 +153,10 @@ MODULE System
       tUseMP2VarDenMat=.false.
       tUseHFOrbs=.false.
       tFindCINatOrbs=.false.
-      DiagWeight=1.D0
-      OffDiagWeight=1.D0
-      OneElWeight=1.D0
-      OrbEnMaxAlpha=1.D0
+      DiagWeight=1.0_dp
+      OffDiagWeight=1.0_dp
+      OneElWeight=1.0_dp
+      OrbEnMaxAlpha=1.0_dp
       MaxMinFac=1
       DiagMaxMinFac=-1
       OneElMaxMinFac=1
@@ -172,7 +172,7 @@ MODULE System
       ENDIF
 
 ! Coulomb damping function currently removed.
-!      FCOULDAMPBETA=-1.D0
+!      FCOULDAMPBETA=-1.0_dp
 !      COULDAMPORB=0
         
     end subroutine SetSysDefaults
@@ -450,8 +450,8 @@ MODULE System
                call getf(BOA)
                call getf(COA)
             else
-               BOA=1.D0
-               COA=1.D0
+               BOA=1.0_dp
+               COA=1.0_dp
             endif
         case("U")
             call getf(UHUB)
@@ -654,7 +654,7 @@ MODULE System
             IF(item.lt.nitems) THEN
                 call Getf(OrbEnMaxAlpha)
             ELSE
-                OrbEnMaxAlpha=1.D0
+                OrbEnMaxAlpha=1.0_dp
             ENDIF
 ! This sets the orbital rotation to find the coefficients which maximise the one particle orbital energies.
 ! i.e maximise the fock energies, epsilon_i = <i|h|i> + sum_j [<ij||ij>].
@@ -899,7 +899,7 @@ MODULE System
             &        call report("Must specify CELL "                          &
             &        //"- the number of basis functions in each dim.",         &
             &        .true.)
-            if(.NOT.THUB.AND.BOX.EQ.0.D0)                                &
+            if(.NOT.THUB.AND.BOX.EQ.0.0_dp)                                &
             &        call report("Must specify BOX size.",.true.)
             if(TTILT.AND..NOT.THUB)                                      &
             &        call report("TILT can only be specified with HUBBARD.",.true.)
@@ -950,7 +950,7 @@ MODULE System
 !      if (.not.TCPMD) call Envir()
 !      write (6,*)
 
-      ECORE=0.D0
+      ECORE=0.0_dp
       
 ! //AJWT TBR
 !      IFDET=0
@@ -1229,7 +1229,7 @@ MODULE System
           LogAlloc(ierr,'Arr',2*LEN,8,tagArr)
           ! // TBR
           !      IP_ARRSTORE=IP_ARR
-          ARR=0.d0
+          ARR=0.0_dp
           Allocate(Brr(LEN),STAT=ierr)
           LogAlloc(ierr,'Brr',LEN,4,tagBrr)
           BRR(1:LEN)=0
@@ -1416,7 +1416,7 @@ MODULE System
 
       !// TBR
       !      WRITE(6,*) ' ETRIAL : ',ETRIAL
-      !      IF(FCOUL.NE.1.D0)  WRITE(6,*) "WARNING: FCOUL is not 1.D0. FCOUL=",FCOUL
+      !      IF(FCOUL.NE.1.0_dp)  WRITE(6,*) "WARNING: FCOUL is not 1.0_dp. FCOUL=",FCOUL
           IF(FCOULDAMPBETA.GT.0) WRITE(6,*) "FCOUL Damping.  Beta ",FCOULDAMPBETA," Mu ",FCOULDAMPMU
           call halt_timer(proc_timer)
 
@@ -1446,13 +1446,13 @@ MODULE System
                  nBasisMax(2,3) = 1
                  tStoreSpinOrbs = .true.
              end if
-             IF(FUEGRS.NE.0.D0) THEN
+             IF(FUEGRS.NE.0.0_dp) THEN
                 WRITE(6,'(A,F20.16)') '  Electron Gas Rs set to ',FUEGRS
                 OMEGA=BOX*BOX*BOX*BOA*COA
 !C.. required density is (3/(4 pi rs^3))
 !C.. need omega to be (NEL* 4 pi rs^3 / 3)
 !C.. need box to be (NEL*4 pi/(3 BOA COA))^(1/3) rs
-                BOX=(NEL*4.D0*PI/(3.D0*BOA*COA))**(1.D0/3.D0)
+                BOX=(NEL*4.0_dp*PI/(3.0_dp*BOA*COA))**(1.0_dp/3.0_dp)
                 BOX=BOX*FUEGRS
                 WRITE(6,'(A, F20.16)') "  Resetting box size to ", BOX
              ENDIF
@@ -1523,7 +1523,7 @@ MODULE System
           ELSE
              ALAT(4)=fRc
           ENDIF
-!      ALAT(4)=2*BOX*(BOA*COA)**(1/3.D0)
+!      ALAT(4)=2*BOX*(BOA*COA)**(1/3.0_dp)
           
           IF(THUB) THEN
              WRITE(6,*) ' X-LENGTH OF HUBBARD CHAIN:', NMAXX
@@ -1536,10 +1536,10 @@ MODULE System
              ELSE
                 OMEGA=real(NMAXX,dp)*(NMAXY)*(NMAXZ)
              ENDIF
-             RS=1.D0
+             RS=1.0_dp
           ELSE
              OMEGA=ALAT(1)*ALAT(2)*ALAT(3)
-             RS=(3.D0*OMEGA/(4.D0*PI*NEL))**THIRD
+             RS=(3.0_dp*OMEGA/(4.0_dp*PI*NEL))**THIRD
              ALAT(5)=RS
              IF(iPeriodicDampingType.NE.0) THEN
                 IF(iPeriodicDampingType.EQ.1) THEN
@@ -1625,7 +1625,7 @@ MODULE System
       LogAlloc(ierr,'Arr',2*LEN,8,tagArr)
 ! // TBR
 !      IP_ARRSTORE=IP_ARR
-      ARR=0.d0
+      ARR=0.0_dp
       Allocate(Brr(LEN),STAT=ierr)
       LogAlloc(ierr,'Brr',LEN,4,tagBrr)
       BRR(1:LEN)=0
@@ -1805,7 +1805,7 @@ MODULE System
 
 !// TBR
 !      WRITE(6,*) ' ETRIAL : ',ETRIAL
-!      IF(FCOUL.NE.1.D0)  WRITE(6,*) "WARNING: FCOUL is not 1.D0. FCOUL=",FCOUL
+!      IF(FCOUL.NE.1.0_dp)  WRITE(6,*) "WARNING: FCOUL is not 1.0_dp. FCOUL=",FCOUL
       IF(FCOULDAMPBETA.GT.0) WRITE(6,*) "FCOUL Damping.  Beta ",FCOULDAMPBETA," Mu ",FCOULDAMPMU
       call halt_timer(proc_timer)
     End Subroutine SysInit
@@ -1891,7 +1891,7 @@ SUBROUTINE LatticeInit(RS, FKF)
     else if (dimen==1) then !1D
         write(6,'(A)') ' NMAXZ=0,  NMAXY=0 : 1D calculation'
         OMEGA=2.0_dp*FUEGRS*NEL
-        RS=OMEGA/(2.D0*NEL) 
+        RS=OMEGA/(2.0_dp*NEL) 
         FKF=(PI/2.0_dp)/RS  !for spin polarised simulation
         ! define  lattice vectors and lattice constant in reciprocal space
         Unscaled_LatConst_square =1.0_dp

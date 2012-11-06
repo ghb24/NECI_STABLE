@@ -183,7 +183,7 @@ contains
 !C..This fix is to stop floating overflow as taking the factorial of (nBasis.GT.170) crashes
 !C  using the old FACTRL routine.
          NDET=1
-         DNDET=1.D0
+         DNDET=1.0_dp
          DO I=0,NEL-1
             NDET=(NDET*(nBasis-I))/(I+1)
             DNDET=(DNDET*real(nBasis-I,dp))/real(I+1,dp)
@@ -633,7 +633,7 @@ END MODULE Determinants
          if(tStoreAsExcitations.and.nI(1).eq.-1) then
 !The excitation storage starts with -1.  The next number is the excitation level,L .  
 !Next is the parity of the permutation required to lineup occupied->excited.  Then follows a list of the indexes of the L occupied orbitals within the HFDET, and then L virtual spinorbitals.
-            hEl=0.d0
+            hEl=0.0_dp
             do i=4,nI(2)+4-1
                hEl=hEl-(Arr(nI(i),2))
             enddo
@@ -908,7 +908,7 @@ END MODULE Determinants
          INTEGER NEL,NI(NEL),I
          LOGICAL ISCSF_old
          real(dp) :: CALCT
-         CALCT=0.D0
+         CALCT=0.0_dp
          IF(ISCSF_old(NI,NEL)) RETURN
          DO I=1,NEL
             CALCT=CALCT+GetTMATEl(NI(I),NI(I))

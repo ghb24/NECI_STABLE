@@ -46,7 +46,7 @@ MODULE SymExcit2
 !.. SYMPRODS(I) in ORBPAIRS
 !.. SYMPRODIND(2,ISPN,I) contains the number of such elements
          iCount=0
-         Norm=0.D0
+         Norm=0.0_dp
          DO I=1,SYMPRODIND(2,iSpn,iFrom)
             iFromIndex=I+SymProdInd(1,iSpn,iFrom)
             CALL AddExcitFromWeight(                                    &
@@ -194,7 +194,7 @@ MODULE SymExcit2
          real(dp) Arr(nBasis,2)
          !No weighting
          IF(EXCITFUNCS(10)) THEN
-            Weight=1.D0
+            Weight=1.0_dp
          !Exponential weighting
          ELSEIF(EXCITFUNCS(1)) THEN
             Weight=EXP((Arr(I,2)+Arr(J,2))*g_VMC_ExcitWeights(1,CUR_VERT))
@@ -205,32 +205,32 @@ MODULE SymExcit2
             IF(Arr(I,2).lt.CHEMPOT) THEN
                 Weight=g_VMC_ExcitWeights(1,CUR_VERT)
             ELSE
-                Weight=1.D0
+                Weight=1.0_dp
             ENDIF
 !Then J...
             IF(Arr(J,2).lt.CHEMPOT) THEN
                 Weight=Weight+g_VMC_ExcitWeights(1,CUR_VERT)
             ELSE
-                Weight=Weight+1.D0
+                Weight=Weight+1.0_dp
             ENDIF
          ELSEIF(EXCITFUNCS(4)) THEN
-            IF((Arr(I,2)+Arr(J,2)).GT.(2.D0*CHEMPOT)) Weight=1.D0
-            IF((Arr(I,2)+Arr(J,2)).LE.(2.D0*CHEMPOT)) THEN
-                Weight=(1.D0/((-(Arr(I,2)+Arr(J,2))+(2.D0*CHEMPOT)+1.D0)**g_VMC_ExcitWeights(1,CUR_VERT)))
+            IF((Arr(I,2)+Arr(J,2)).GT.(2.0_dp*CHEMPOT)) Weight=1.0_dp
+            IF((Arr(I,2)+Arr(J,2)).LE.(2.0_dp*CHEMPOT)) THEN
+                Weight=(1.0_dp/((-(Arr(I,2)+Arr(J,2))+(2.0_dp*CHEMPOT)+1.0_dp)**g_VMC_ExcitWeights(1,CUR_VERT)))
             ENDIF
          !CHEMPOT-TWOFROM
          ELSEIF(EXCITFUNCS(5)) THEN
-            IF((Arr(I,2)+Arr(J,2)).GT.(2.D0*CHEMPOT)) THEN
-                Weight=(1.D0/(((Arr(I,2)+Arr(J,2))-(2.D0*CHEMPOT)+1.D0)**g_VMC_ExcitWeights(2,CUR_VERT)))
+            IF((Arr(I,2)+Arr(J,2)).GT.(2.0_dp*CHEMPOT)) THEN
+                Weight=(1.0_dp/(((Arr(I,2)+Arr(J,2))-(2.0_dp*CHEMPOT)+1.0_dp)**g_VMC_ExcitWeights(2,CUR_VERT)))
             ENDIF
-            IF((Arr(I,2)+Arr(J,2)).LE.(2.D0*CHEMPOT)) THEN
-                Weight=(1.D0/((-(Arr(I,2)+Arr(J,2))+(2.D0*CHEMPOT)+1.D0)**g_VMC_ExcitWeights(1,CUR_VERT)))
+            IF((Arr(I,2)+Arr(J,2)).LE.(2.0_dp*CHEMPOT)) THEN
+                Weight=(1.0_dp/((-(Arr(I,2)+Arr(J,2))+(2.0_dp*CHEMPOT)+1.0_dp)**g_VMC_ExcitWeights(1,CUR_VERT)))
             ENDIF
          !PolyExcitWeighting (for both real & virtual orbs)
          ELSEIF(EXCITFUNCS(3)) THEN
-            IF((Arr(I,2)+Arr(J,2)).GT.g_VMC_ExcitWeights(1,CUR_VERT)) Weight=1.D0
+            IF((Arr(I,2)+Arr(J,2)).GT.g_VMC_ExcitWeights(1,CUR_VERT)) Weight=1.0_dp
             IF((Arr(I,2)+Arr(J,2)).LE.g_VMC_ExcitWeights(1,CUR_VERT)) THEN
-                Weight=(1.D0/((-(Arr(I,2)+Arr(J,2))+g_VMC_ExcitWeights(1,CUR_VERT)+1.D0)**g_VMC_ExcitWeights(2,CUR_VERT)))
+                Weight=(1.0_dp/((-(Arr(I,2)+Arr(J,2))+g_VMC_ExcitWeights(1,CUR_VERT)+1.0_dp)**g_VMC_ExcitWeights(2,CUR_VERT)))
             ENDIF
          ENDIF
 !         write(83,"(4G25.16)") (Arr(I,2)+Arr(J,2)), g_VMC_ExcitWeights(1,CUR_VERT), g_VMC_ExcitWeights(2,CUR_VERT), Weight
@@ -253,8 +253,8 @@ MODULE SymExcit2
          real(dp) WEIGHT,W2
          HElement_t W
          real(dp) Arr(nBasis,2)
-         IF(G_VMC_EXCITWEIGHT(CUR_VERT).EQ.0.D0) THEN
-            WEIGHT=1.D0
+         IF(G_VMC_EXCITWEIGHT(CUR_VERT).EQ.0.0_dp) THEN
+            WEIGHT=1.0_dp
          ELSE
 !            proc_timer%timer_name='UMATELWT'
 !            call set_timer(proc_timer)
@@ -265,14 +265,14 @@ MODULE SymExcit2
             IDL = GTID(L)
             W=GetUMatEl(IDI,IDJ,IDK,IDL)
             IF(TUPOWER) THEN
-                WEIGHT=1.D0+(abs(W))**(G_VMC_EXCITWEIGHT(CUR_VERT))
+                WEIGHT=1.0_dp+(abs(W))**(G_VMC_EXCITWEIGHT(CUR_VERT))
             ELSE
                 WEIGHT=EXP(abs(W)*G_VMC_EXCITWEIGHT(CUR_VERT))
             ENDIF
 !            call halt_timer(proc_timer)
          ENDIF
          IF(.not.EXCITFUNCS(10)) THEN
-             IF((EXCITFUNCS(1)).and.(g_VMC_ExcitWeights(3,CUR_VERT).NE.0.D0)) THEN
+             IF((EXCITFUNCS(1)).and.(g_VMC_ExcitWeights(3,CUR_VERT).NE.0.0_dp)) THEN
                 W2=ABS(((Arr(I,2)+Arr(J,2))-(Arr(K,2)+Arr(L,2))))
                 IF(ABS(W2).LT.1.D-2) W2=1.D-2
                 Weight=Weight*W2**g_VMC_ExcitWeights(3,CUR_VERT)
@@ -283,32 +283,32 @@ MODULE SymExcit2
                  IF(Arr(K,2).gt.CHEMPOT) THEN
                      W2=g_VMC_ExcitWeights(2,CUR_VERT)
                  ELSE
-                     W2=1.D0
+                     W2=1.0_dp
                  ENDIF
                  IF(Arr(L,2).gt.CHEMPOT) THEN
                      W2=W2+g_VMC_ExcitWeights(2,CUR_VERT)
                  ELSE
-                     W2=W2+1.D0
+                     W2=W2+1.0_dp
                  ENDIF
                  Weight=Weight*W2
 !chempotweighting - using a chemical potential cut-off
              ELSEIF(EXCITFUNCS(4)) THEN
-                 IF((Arr(K,2)+Arr(L,2)).LT.(CHEMPOT*2.D0)) Weight=Weight
-                 IF((Arr(K,2)+Arr(L,2)).GE.(CHEMPOT*2.D0)) THEN
-                    Weight=Weight*(1.D0/(((Arr(K,2)+Arr(L,2))-(2.D0*CHEMPOT)+1.D0)**g_VMC_ExcitWeights(2,CUR_VERT)))
+                 IF((Arr(K,2)+Arr(L,2)).LT.(CHEMPOT*2.0_dp)) Weight=Weight
+                 IF((Arr(K,2)+Arr(L,2)).GE.(CHEMPOT*2.0_dp)) THEN
+                    Weight=Weight*(1.0_dp/(((Arr(K,2)+Arr(L,2))-(2.0_dp*CHEMPOT)+1.0_dp)**g_VMC_ExcitWeights(2,CUR_VERT)))
                  ENDIF
 !CHEMPOT-TWOFROM
              ELSEIF(EXCITFUNCS(5)) THEN
-                 IF((Arr(K,2)+Arr(L,2)).LT.(CHEMPOT*2.D0)) Weight=Weight
-                 IF((Arr(K,2)+Arr(L,2)).GE.(CHEMPOT*2.D0)) THEN
-                     Weight=Weight*(1.D0/(((Arr(K,2)+Arr(L,2))-(2.D0*CHEMPOT)+1.D0)**g_VMC_ExcitWeights(3,CUR_VERT)))
+                 IF((Arr(K,2)+Arr(L,2)).LT.(CHEMPOT*2.0_dp)) Weight=Weight
+                 IF((Arr(K,2)+Arr(L,2)).GE.(CHEMPOT*2.0_dp)) THEN
+                     Weight=Weight*(1.0_dp/(((Arr(K,2)+Arr(L,2))-(2.0_dp*CHEMPOT)+1.0_dp)**g_VMC_ExcitWeights(3,CUR_VERT)))
                  ENDIF
 !PolyExcitWeighting
              ELSEIF(EXCITFUNCS(2)) THEN
                  IF((Arr(K,2)+Arr(L,2)).LT.g_VMC_ExcitWeights(2,CUR_VERT)) Weight=Weight
                  IF((Arr(K,2)+Arr(L,2)).GE.g_VMC_ExcitWeights(2,CUR_VERT)) THEN
-                     Weight=Weight*(1.D0/(((Arr(K,2)+Arr(L,2))-                         &
-                     & g_VMC_ExcitWeights(2,CUR_VERT)+1.D0)**g_VMC_ExcitWeights(3,CUR_VERT)))
+                     Weight=Weight*(1.0_dp/(((Arr(K,2)+Arr(L,2))-                         &
+                     & g_VMC_ExcitWeights(2,CUR_VERT)+1.0_dp)**g_VMC_ExcitWeights(3,CUR_VERT)))
                  ENDIF
              ENDIF
          ENDIF
@@ -361,11 +361,11 @@ MODULE SymExcit2
 !  See if we have a single
          IF(iExcit(1,2).EQ.0) THEN
             if(isUHFDet(nI,nEl)) then
-               pGen=0.D0      !HF -> single has 0 prob
+               pGen=0.0_dp      !HF -> single has 0 prob
             ELSE
 !  The UHF det isn't set if Brillouin's Theorem is disabled, and we end up here.
 !  NB we can still generate the HF det from a single excitation, and that would end up here.
-               pGen=1.D0/iTotal
+               pGen=1.0_dp/iTotal
             ENDIF
             RETURN
          ENDIF
@@ -393,7 +393,7 @@ MODULE SymExcit2
          ENDDO
 !.. K is now the excitation
          iExcitType=K
-         pGen=(ExcitTypes(5,iExcitType)+0.D0)/iTotal  ! pGen is the prob of choosing excit iExcitType
+         pGen=(ExcitTypes(5,iExcitType)+0.0_dp)/iTotal  ! pGen is the prob of choosing excit iExcitType
 
 
 !.. We've worked out what class the IFROM was.  Now work out which member of the class it is
@@ -402,7 +402,7 @@ MODULE SymExcit2
          allocate(ews(nFromPairs))
          call LogMemAlloc('ExcitWGEPI',nFromPairs,8*ExcitWeightSize,thisroutine,tagEWS)
          iCount=0
-         Norm=0.D0
+         Norm=0.0_dp
          CALL EnumExcitFromWeights(ExcitTypes(1,iExcitType),ews,OrbPairs,SymProdInd,Norm,iCount,Arr,nBasis)
          pGen=pGen/Norm    ! divide through by the Norm of the FROMs
          DO I=1,nFromPairs
@@ -422,7 +422,7 @@ MODULE SymExcit2
          allocate(ews(nToPairs))
          call LogMemAlloc('ExcitWGEPI',nToPairs,8*ExcitWeightSize,thisroutine,tagEWS)
          iCount=0
-         Norm=0.D0
+         Norm=0.0_dp
          CALL EnumExcitWeights(ExcitTypes(1,iExcitType),iFromIndex,iLUT,ews,OrbPairs,SymProdInd,Norm,iCount,nBasisMax,Arr,nBasis)
 !.. Find the (a,b) pair
 !.. The prob of all possible excitations in this iTo 

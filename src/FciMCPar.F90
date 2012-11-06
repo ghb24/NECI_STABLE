@@ -208,8 +208,8 @@ MODULE FciMCParMod
         tIncrement = .true.
         Iter=1
 
-        SumSigns = 0.D0
-        SumSpawns = 0.D0
+        SumSigns = 0.0_dp
+        SumSpawns = 0.0_dp
 
         do while (Iter <= NMCyc .or. NMCyc == -1)
 !Main iteration loop...
@@ -353,7 +353,7 @@ MODULE FciMCParMod
                     CALL CalcApproxpDoubles()
                 ENDIF
 
-                if((PopsfileTimer.gt.0.D0).and.((iPopsTimers*PopsfileTimer).lt.(TotalTime8/3600.D0))) then
+                if((PopsfileTimer.gt.0.0_dp).and.((iPopsTimers*PopsfileTimer).lt.(TotalTime8/3600.0_dp))) then
                     !Write out a POPSFILE every PopsfileTimer hours
                     if(iProcIndex.eq.Root) then
                         write(iout,"(A,F7.3,A)") "Writing out a popsfile after ",iPopsTimers*PopsfileTimer, " hours..."
@@ -485,7 +485,7 @@ MODULE FciMCParMod
         call MPIBCast(Shift_Err)
         call MPIBCast(tNoProjEValue)
         call MPIBCast(tNoShiftValue)
-        Weight=(0.D0)
+        Weight=(0.0_dp)
         Energyxw=(ProjectionE+Hii)
         
         iroot=1
@@ -1011,7 +1011,7 @@ MODULE FciMCParMod
             IF(Iter.eq.IterTruncInit) THEN
                 ! Why do this? Why not just get all procs to do division?
                 IF(iProcIndex.eq.root) THEN
-                    Tau=Tau/10.D0
+                    Tau=Tau/10.0_dp
                     WRITE(iout,'(A,F10.5)') 'Beginning truncated initiator calculation and reducing timestep by " &
                         &//"a factor of 10. New tau is : ',Tau
                 ENDIF
@@ -2348,7 +2348,7 @@ MODULE FciMCParMod
         ENDIF
         IF(CCMCDebug.gt.5) WRITE(iout,*) "Connection H-element to spawnee:",rh
 !        CALL IsSymAllowedExcit(DetCurr,nJ,IC,Ex,SymAllowed) 
-!        IF((.not.SymAllowed).and.(abs(rh).gt.0.D0)) THEN
+!        IF((.not.SymAllowed).and.(abs(rh).gt.0.0_dp)) THEN
 !            WRITE(17,*) rh
 !        ENDIF
 
@@ -2381,7 +2381,7 @@ MODULE FciMCParMod
 !Child is created - what sign is it?
             IF(WSign(1).gt.0) THEN
 !Parent particle is positive
-                IF(real(rh).gt.0.D0) THEN
+                IF(real(rh).gt.0.0_dp) THEN
                     AttemptCreatePar=-1     !-ve walker created
                 ELSE
                     AttemptCreatePar=1      !+ve walker created
@@ -2389,7 +2389,7 @@ MODULE FciMCParMod
 
             ELSE
 !Parent particle is negative
-                IF(real(rh).gt.0.D0) THEN
+                IF(real(rh).gt.0.0_dp) THEN
                     AttemptCreatePar=1      !+ve walker created
                 ELSE
                     AttemptCreatePar=-1     !-ve walker created
@@ -2416,13 +2416,13 @@ MODULE FciMCParMod
             ELSEIF(AttemptCreatePar.eq.0) THEN
 !No particles were stochastically created, but some particles are still definatly created - we need to determinant their sign...
                 IF(WSign(1).gt.0) THEN
-                    IF(real(rh).gt.0.D0) THEN
+                    IF(real(rh).gt.0.0_dp) THEN
                         AttemptCreatePar=-ExtraCreate    !Additional particles are negative
                     ELSE
                         AttemptCreatePar=ExtraCreate       !Additional particles are positive
                     ENDIF
                 ELSE
-                    IF(real(rh).gt.0.D0) THEN
+                    IF(real(rh).gt.0.0_dp) THEN
                         AttemptCreatePar=ExtraCreate
                     ELSE
                         AttemptCreatePar=-ExtraCreate
@@ -2718,8 +2718,8 @@ MODULE FciMCParMod
 
         fac = tau * (Kii-DiagSft)
 
-        if(fac.gt.1.D0) then
-            if(fac.gt.2.D0) then
+        if(fac.gt.1.0_dp) then
+            if(fac.gt.2.0_dp) then
                 call stop_all("attempt_die_normal","Death probability > 2: Algorithm unstable. Reduce timestep.")
             else
                 write(iout,"(A,F20.10)") "** WARNING ** Death probability > 1: Creating Antiparticles. "&
@@ -2839,17 +2839,17 @@ MODULE FciMCParMod
         real(dp) :: Norm,EnergyBin
 
         IF(iProcIndex.eq.Root) THEN
-            AllHistogramEnergy(:)=0.D0
-            AllAttemptHist(:)=0.D0
-            AllSpawnHist(:)=0.D0
-            AllDoublesHist(:)=0.D0
-            AllDoublesAttemptHist(:)=0.D0
-            AllSinglesHist(:)=0.D0
-            AllSinglesAttemptHist(:)=0.D0
-            AllSinglesHistOccOcc(:)=0.D0
-            AllSinglesHistOccVirt(:)=0.D0
-            AllSinglesHistVirtOcc(:)=0.D0
-            AllSinglesHistVirtVirt(:)=0.D0
+            AllHistogramEnergy(:)=0.0_dp
+            AllAttemptHist(:)=0.0_dp
+            AllSpawnHist(:)=0.0_dp
+            AllDoublesHist(:)=0.0_dp
+            AllDoublesAttemptHist(:)=0.0_dp
+            AllSinglesHist(:)=0.0_dp
+            AllSinglesAttemptHist(:)=0.0_dp
+            AllSinglesHistOccOcc(:)=0.0_dp
+            AllSinglesHistOccVirt(:)=0.0_dp
+            AllSinglesHistVirtOcc(:)=0.0_dp
+            AllSinglesHistVirtVirt(:)=0.0_dp
         ENDIF
         CALL MPIReduce(HistogramEnergy,MPI_SUM,AllHistogramEnergy)
         CALL MPIReduce(AttemptHist,MPI_SUM,AllAttemptHist)
@@ -2874,7 +2874,7 @@ MODULE FciMCParMod
             do i=1,iOffDiagNoBins
                 AllDoublesAttemptHist(i)=AllDoublesAttemptHist(i)/Norm
             enddo
-            Norm=0.D0
+            Norm=0.0_dp
             do i=1,iOffDiagNoBins
                 Norm=Norm+AllSinglesHist(i)
             enddo
@@ -2883,28 +2883,28 @@ MODULE FciMCParMod
                 AllSinglesHist(i)=AllSinglesHist(i)/Norm
             enddo
  
-!            Norm=0.D0
+!            Norm=0.0_dp
 !            do i=1,iOffDiagNoBins
 !                Norm=Norm+AllSinglesHistOccOcc(i)
 !            enddo
             do i=1,iOffDiagNoBins
                 AllSinglesHistOccOcc(i)=AllSinglesHistOccOcc(i)/Norm
             enddo
-!            Norm=0.D0
+!            Norm=0.0_dp
 !            do i=1,iOffDiagNoBins
 !                Norm=Norm+AllSinglesHistOccVirt(i)
 !            enddo
             do i=1,iOffDiagNoBins
                 AllSinglesHistOccVirt(i)=AllSinglesHistOccVirt(i)/Norm
             enddo
-!            Norm=0.D0
+!            Norm=0.0_dp
 !            do i=1,iOffDiagNoBins
 !                Norm=Norm+AllSinglesHistVirtOcc(i)
 !            enddo
             do i=1,iOffDiagNoBins
                 AllSinglesHistVirtOcc(i)=AllSinglesHistVirtOcc(i)/Norm
             enddo
-!            Norm=0.D0
+!            Norm=0.0_dp
 !            do i=1,iOffDiagNoBins
 !                Norm=Norm+AllSinglesHistVirtVirt(i)
 !            enddo
@@ -2920,11 +2920,11 @@ MODULE FciMCParMod
             io(3) = get_free_unit()
             OPEN(io(3),FILE='SPAWNENERGYHIST',STATUS='UNKNOWN')
 
-            EnergyBin=BinRange/2.D0
+            EnergyBin=BinRange/2.0_dp
             do i=1,iNoBins
-                IF(AllHistogramEnergy(i).gt.0.D0) WRITE(io(1),*) EnergyBin, AllHistogramEnergy(i)
-                IF(AllAttemptHist(i).gt.0.D0) WRITE(io(2),*) EnergyBin, AllAttemptHist(i)
-                IF(AllSpawnHist(i).gt.0.D0) WRITE(io(3),*) EnergyBin, AllSpawnHist(i)
+                IF(AllHistogramEnergy(i).gt.0.0_dp) WRITE(io(1),*) EnergyBin, AllHistogramEnergy(i)
+                IF(AllAttemptHist(i).gt.0.0_dp) WRITE(io(2),*) EnergyBin, AllAttemptHist(i)
+                IF(AllSpawnHist(i).gt.0.0_dp) WRITE(io(3),*) EnergyBin, AllSpawnHist(i)
                 EnergyBin=EnergyBin+BinRange
             enddo
             CLOSE(io(1))
@@ -2944,16 +2944,16 @@ MODULE FciMCParMod
             io(8) = get_free_unit()
             OPEN(io(8),FILE='SINGLESHISTVIRTVIRT',STATUS='UNKNOWN')
 
-            EnergyBin=-OffDiagMax+OffDiagBinRange/2.D0
+            EnergyBin=-OffDiagMax+OffDiagBinRange/2.0_dp
             do i=1,iOffDiagNoBins
-                IF(AllSinglesHist(i).gt.0.D0) WRITE(io(1),*) EnergyBin, AllSinglesHist(i)
-                IF(AllSinglesAttemptHist(i).gt.0.D0) WRITE(io(2),*) EnergyBin, AllSinglesAttemptHist(i)
-                IF(AllDoublesHist(i).gt.0.D0) WRITE(io(3),*) EnergyBin, AllDoublesHist(i)
-                IF(AllDoublesAttemptHist(i).gt.0.D0) WRITE(io(4),*) EnergyBin, AllDoublesAttemptHist(i)
-                IF(AllSinglesHistOccOcc(i).gt.0.D0) WRITE(io(5),*) EnergyBin, AllSinglesHistOccOcc(i)
-                IF(AllSinglesHistOccVirt(i).gt.0.D0) WRITE(io(6),*) EnergyBin, AllSinglesHistOccVirt(i)
-                IF(AllSinglesHistVirtOcc(i).gt.0.D0) WRITE(io(7),*) EnergyBin, AllSinglesHistVirtOcc(i)
-                IF(AllSinglesHistVirtVirt(i).gt.0.D0) WRITE(io(8),*) EnergyBin, AllSinglesHistVirtVirt(i)
+                IF(AllSinglesHist(i).gt.0.0_dp) WRITE(io(1),*) EnergyBin, AllSinglesHist(i)
+                IF(AllSinglesAttemptHist(i).gt.0.0_dp) WRITE(io(2),*) EnergyBin, AllSinglesAttemptHist(i)
+                IF(AllDoublesHist(i).gt.0.0_dp) WRITE(io(3),*) EnergyBin, AllDoublesHist(i)
+                IF(AllDoublesAttemptHist(i).gt.0.0_dp) WRITE(io(4),*) EnergyBin, AllDoublesAttemptHist(i)
+                IF(AllSinglesHistOccOcc(i).gt.0.0_dp) WRITE(io(5),*) EnergyBin, AllSinglesHistOccOcc(i)
+                IF(AllSinglesHistOccVirt(i).gt.0.0_dp) WRITE(io(6),*) EnergyBin, AllSinglesHistOccVirt(i)
+                IF(AllSinglesHistVirtOcc(i).gt.0.0_dp) WRITE(io(7),*) EnergyBin, AllSinglesHistVirtOcc(i)
+                IF(AllSinglesHistVirtVirt(i).gt.0.0_dp) WRITE(io(8),*) EnergyBin, AllSinglesHistVirtVirt(i)
                 EnergyBin=EnergyBin+OffDiagBinRange
 !                WRITE(6,*) i
             enddo
@@ -3019,7 +3019,7 @@ MODULE FciMCParMod
         real(dp) :: norm,norm1
 
         CALL MPISumAll(Histogram,AllHistogram)
-        norm1=0.D0
+        norm1=0.0_dp
         do i=1,Det
             IF(lenof_sign.eq.1) THEN
                 norm1=norm1+AllHistogram(1,i)**2
@@ -3048,7 +3048,7 @@ MODULE FciMCParMod
                 
                 OPEN(iunit,FILE='FCIMCPsi',STATUS='UNKNOWN')
 
-                norm=0.D0
+                norm=0.0_dp
                 do i=1,Det
                     IF(lenof_sign.eq.1) THEN
                         norm=norm+AllHistogram(1,i)**2
@@ -3303,8 +3303,8 @@ MODULE FciMCParMod
         ENDIF
 
         IF(iProcIndex.eq.0) THEN
-            AllHistHamil(:,:)=0.D0
-            AllAvHistHamil(:,:)=0.D0
+            AllHistHamil(:,:)=0.0_dp
+            AllAvHistHamil(:,:)=0.0_dp
         ENDIF
 
         CALL MPIReduce(HistHamil,MPI_SUM,AllHistHamil)
@@ -3322,7 +3322,7 @@ MODULE FciMCParMod
             enddo
             CLOSE(iunit)
         ENDIF
-        HistHamil(:,:)=0.D0
+        HistHamil(:,:)=0.0_dp
 
     END SUBROUTINE WriteHamilHistogram
 
@@ -3466,7 +3466,7 @@ MODULE FciMCParMod
                ! we cannot load balance with direct annihilation).
                WalkersDiffProc = int(MaxWalkersProc - MinWalkersProc,sizeof_int)
                mean_walkers = AllTotWalkers / real(nNodes,dp)
-               if (WalkersDiffProc > nint(mean_walkers / 10.d0) .and. &
+               if (WalkersDiffProc > nint(mean_walkers / 10.0_dp) .and. &
                    sum(AllTotParts) > real(nNodes * 500, dp)) then
                    root_write (iout, '(a, i13,a,2i11)') &
                        'Potential load-imbalance on iter ',iter + PreviousCycles,' Min/Max determinants on node: ', &
@@ -3859,9 +3859,9 @@ MODULE FciMCParMod
                     VaryShiftIter = Iter
                     iBlockingIter = Iter + PreviousCycles
                     tSinglePartPhase = .false.
-                    if(TargetGrowRate.ne.0.D0) then
+                    if(TargetGrowRate.ne.0.0_dp) then
                         write(iout,"(A)") "Setting target growth rate to 1."
-                        TargetGrowRate=0.D0
+                        TargetGrowRate=0.0_dp
                     endif
                     if(tSpawn_Only_Init.and.tSpawn_Only_Init_Grow) then
                         !Remove the restriction that only initiators can spawn.
@@ -3879,11 +3879,11 @@ MODULE FciMCParMod
 
             ! How should the shift change for the entire ensemble of walkers 
             ! over all processors.
-            if ((.not. tSinglePartPhase).or.(TargetGrowRate.ne.0.D0)) then
+            if ((.not. tSinglePartPhase).or.(TargetGrowRate.ne.0.0_dp)) then
 
-                !In case we want to continue growing, TargetGrowRate > 0.D0
+                !In case we want to continue growing, TargetGrowRate > 0.0_dp
                 ! New shift value
-                if(TargetGrowRate.ne.0.D0) then
+                if(TargetGrowRate.ne.0.0_dp) then
                     if(sum(AllTotParts).gt.TargetGrowRateWalk) then
                         !Only allow targetgrowrate to kick in once we have > TargetGrowRateWalk walkers.
                         DiagSft = DiagSft - (log(AllGrowRate-TargetGrowRate) * SftDamp) / &
@@ -3934,10 +3934,10 @@ MODULE FciMCParMod
             endif
 
             ! Calculate the instantaneous 'shift' from the HF population
-            HFShift = -1.d0 / real(abs_int_sign(AllNoatHF), dp) * &
+            HFShift = -1.0_dp / real(abs_int_sign(AllNoatHF), dp) * &
                               (real(abs_int_sign(AllNoatHF) - abs_int_sign(OldAllNoatHF), dp) / &
                               (Tau * real(StepsSft, dp)))
-            InstShift = -1.d0 / sum(AllTotParts) * &
+            InstShift = -1.0_dp / sum(AllTotParts) * &
                         ((sum(AllTotParts) - sum(AllTotPartsOld)) / &
                          (Tau * real(StepsSft, dp)))
 
@@ -3978,7 +3978,7 @@ MODULE FciMCParMod
         call MPIBcast (VaryShiftIter)
         call MPIBcast (DiagSft)
         if(.not.tSinglePartPhase) then
-            TargetGrowRate=0.D0
+            TargetGrowRate=0.0_dp
             tSearchTau=.false.
         endif
 
@@ -4303,7 +4303,7 @@ MODULE FciMCParMod
                 FracFromSing, &
                 WalkersDiffProc, &
                 TotImagTime, &
-                0.D0, &
+                0.0_dp, &
                 HFShift, &
                 InstShift, &
                 proje_iter + Hii, &
@@ -4995,7 +4995,7 @@ MODULE FciMCParMod
             ELSE
                 TempHii = get_helement (HighEDet, HighEDet, 0)
             ENDIF
-            UpperTau = 1.D0/REAL(TempHii-Hii,dp)
+            UpperTau = 1.0_dp/REAL(TempHii-Hii,dp)
 !            WRITE(iout,"(A,G25.15)") "Highest energy determinant is (approximately): ",REAL(TempHii,dp)
 !            WRITE(iout,"(A,F25.15)") "This means tau should be no more than about ",UpperTau
 !            WRITE(iout,*) "Highest energy determinant is: ", HighEDet(:)
@@ -5057,10 +5057,10 @@ MODULE FciMCParMod
         iPopsTimers=1   !Number of timed popsfiles written out
         iBlockingIter=0
         IterTime=0.0
-        ProjectionE=0.D0
-        AvSign=0.D0
-        AvSignHFD=0.D0
-        SumENum=0.D0
+        ProjectionE=0.0_dp
+        AvSign=0.0_dp
+        AvSignHFD=0.0_dp
+        SumENum=0.0_dp
         SumNoatHF=0
         NoatHF=0
         InstNoatHF=0
@@ -5073,7 +5073,7 @@ MODULE FciMCParMod
         SpawnFromSing=0
         NoDied=0
         HFCyc=0
-        ENumCyc=0.D0
+        ENumCyc=0.0_dp
         if(tSplitProjEHist) then
             if(tSplitProjEHistG) then
                 ENumCycHistG(:)=0.0_dp
@@ -5083,11 +5083,11 @@ MODULE FciMCParMod
             endif
         endif
         VaryShiftCycles=0
-        AvDiagSft=0.D0
-        SumDiagSft=0.D0
+        AvDiagSft=0.0_dp
+        SumDiagSft=0.0_dp
         SumWalkersCyc=0
-!        SumDiagSftAbort=0.D0
-!        AvDiagSftAbort=0.D0
+!        SumDiagSftAbort=0.0_dp
+!        AvDiagSftAbort=0.0_dp
         NoAborted=0
         NoAddedInitiators=0
         NoInitDets=0
@@ -5096,31 +5096,31 @@ MODULE FciMCParMod
         NoNonInitWalk=0
         NoExtraInitDoubs=0
         InitRemoved=0
-        TotImagTime=0.D0
-        DiagSftRe=0.D0
-        DiagSftIm=0.D0
+        TotImagTime=0.0_dp
+        DiagSftRe=0.0_dp
+        DiagSftIm=0.0_dp
         sum_proje_denominator = 0
         cyc_proje_denominator = 0
         MaxSpawnProb = 0.0_dp
 
 !Also reinitialise the global variables - should not necessarily need to do this...
-        AllSumENum=0.D0
+        AllSumENum=0.0_dp
         AllNoatHF=0
         AllNoatDoubs=0
         AllSumNoatHF = 0
-        AllGrowRate=0.D0
+        AllGrowRate=0.0_dp
         AllGrowRateAbort=0
-!        AllMeanExcitLevel=0.D0
+!        AllMeanExcitLevel=0.0_dp
         AllSumWalkersCyc=0
-        AllAvSign=0.D0
-        AllAvSignHFD=0.D0
+        AllAvSign=0.0_dp
+        AllAvSignHFD=0.0_dp
         AllNoBorn=0
         AllSpawnFromSing=0
         AllNoDied=0
         AllAnnihilated=0
-        AllENumCyc=0.D0
-        AllHFCyc=0.D0
-!        AllDetsNorm=0.D0
+        AllENumCyc=0.0_dp
+        AllHFCyc=0.0_dp
+!        AllDetsNorm=0.0_dp
         AllNoAborted=0
         AllNoAddedInitiators=0
         AllNoInitDets=0
@@ -5151,17 +5151,17 @@ MODULE FciMCParMod
                 WRITE(iout,*) "Histogramming total Hamiltonian, with Dets=", Det
                 ALLOCATE(HistHamil(1:det,1:det),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays") 
-                HistHamil(:,:)=0.D0
+                HistHamil(:,:)=0.0_dp
                 ALLOCATE(AvHistHamil(1:det,1:det),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays")
-                AvHistHamil(:,:)=0.D0
+                AvHistHamil(:,:)=0.0_dp
                 IF(iProcIndex.eq.0) THEN
                     ALLOCATE(AllHistHamil(1:det,1:det),stat=ierr)
                     IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays")
-                    AllHistHamil(:,:)=0.D0
+                    AllHistHamil(:,:)=0.0_dp
                     ALLOCATE(AllAvHistHamil(1:det,1:det),stat=ierr)
                     IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays")
-                    AllAvHistHamil(:,:)=0.D0
+                    AllAvHistHamil(:,:)=0.0_dp
                 ENDIF
             ELSE
                 WRITE(iout,*) "Histogramming spawning wavevector, with Dets=", Det
@@ -5169,7 +5169,7 @@ MODULE FciMCParMod
                 IF(ierr.ne.0) THEN
                     CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays ")
                 ENDIF
-                Histogram(:,:)=0.D0
+                Histogram(:,:)=0.0_dp
                 ALLOCATE(AllHistogram(1:lenof_sign,1:det),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays")
             ENDIF
@@ -5178,17 +5178,17 @@ MODULE FciMCParMod
                 IF(ierr.ne.0) THEN
                     CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays")
                 ENDIF
-                InstHist(:,:)=0.D0
+                InstHist(:,:)=0.0_dp
                 ALLOCATE(AvAnnihil(1:lenof_sign,1:det),stat=ierr)
                 IF(ierr.ne.0) THEN
                     CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays")
                 ENDIF
-                AvAnnihil(:,:)=0.D0
+                AvAnnihil(:,:)=0.0_dp
                 ALLOCATE(InstAnnihil(1:lenof_sign,1:det),stat=ierr)
                 IF(ierr.ne.0) THEN
                     CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays")
                 ENDIF
-                InstAnnihil(:,:)=0.D0
+                InstAnnihil(:,:)=0.0_dp
             ENDIF
 
             IF(iProcIndex.eq.0) THEN
@@ -5215,7 +5215,7 @@ MODULE FciMCParMod
         ELSEIF(tHistEnergies) THEN
             WRITE(iout,*) "Histogramming the energies of the particles, with iNoBins=",iNoBins, " and BinRange=", BinRange
             WRITE(iout,*) "Histogramming spawning events from ",-OffDiagMax, " with BinRange = ", OffDiagBinRange
-            iOffDiagNoBins=INT((2.D0*OffDiagMax)/OffDiagBinRange)+1
+            iOffDiagNoBins=INT((2.0_dp*OffDiagMax)/OffDiagBinRange)+1
             WRITE(iout,*) "This gives ",iOffDiagNoBins," bins to histogram the off-diagonal matrix elements."
             ALLOCATE(HistogramEnergy(1:iNoBins))
             ALLOCATE(AttemptHist(1:iNoBins))
@@ -5228,17 +5228,17 @@ MODULE FciMCParMod
             ALLOCATE(SinglesHistVirtVirt(1:iOffDiagNoBins))
             ALLOCATE(DoublesHist(1:iOffDiagNoBins))
             ALLOCATE(DoublesAttemptHist(1:iOffDiagNoBins))
-            HistogramEnergy(:)=0.D0
-            AttemptHist(:)=0.D0
-            SpawnHist(:)=0.D0
-            SinglesHist(:)=0.D0
-            SinglesAttemptHist(:)=0.D0
-            SinglesHistOccOcc(:)=0.D0
-            SinglesHistOccVirt(:)=0.D0
-            SinglesHistVirtOcc(:)=0.D0
-            SinglesHistVirtVirt(:)=0.D0
-            DoublesHist(:)=0.D0
-            DoublesAttemptHist(:)=0.D0
+            HistogramEnergy(:)=0.0_dp
+            AttemptHist(:)=0.0_dp
+            SpawnHist(:)=0.0_dp
+            SinglesHist(:)=0.0_dp
+            SinglesAttemptHist(:)=0.0_dp
+            SinglesHistOccOcc(:)=0.0_dp
+            SinglesHistOccVirt(:)=0.0_dp
+            SinglesHistVirtOcc(:)=0.0_dp
+            SinglesHistVirtVirt(:)=0.0_dp
+            DoublesHist(:)=0.0_dp
+            DoublesAttemptHist(:)=0.0_dp
             IF(iProcIndex.eq.Root) THEN
                 ALLOCATE(AllHistogramEnergy(1:iNoBins))
                 ALLOCATE(AllAttemptHist(1:iNoBins))
@@ -5280,7 +5280,7 @@ MODULE FciMCParMod
         ENDIF
 !        WRITE(iout,*) "Non-uniform excitation generators in use."
         CALL CalcApproxpDoubles()
-        IF(TauFactor.ne.0.D0) THEN
+        IF(TauFactor.ne.0.0_dp) THEN
             WRITE(iout,*) "TauFactor detected. Resetting Tau based on connectivity of: ",HFConn
             Tau=TauFactor/REAL(HFConn,dp)
             WRITE(iout,*) "Timestep set to: ",Tau
@@ -5315,7 +5315,7 @@ MODULE FciMCParMod
             endif
         endif
 
-        IF(StepsSftImag.ne.0.D0) THEN
+        IF(StepsSftImag.ne.0.0_dp) THEN
             WRITE(iout,*) "StepsShiftImag detected. Resetting StepsShift."
             StepsSft=NINT(StepsSftImag/Tau)
             IF(StepsSft.eq.0) StepsSft=1
@@ -5431,8 +5431,8 @@ MODULE FciMCParMod
                     &unpaired electrons.")') trunc_nopen_max
         endif
 
-!        SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.D0)
-!        TotDets=1.D0
+!        SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.0_dp)
+!        TotDets=1.0_dp
 !        do i=1,NEl
 !            ExcitLevPop=int((Choose(NEl,i)*Choose(nBasis-NEl,i))/SymFactor,int64)
 !            if(ExcitLevPop.lt.0) cycle  !int overflow
@@ -6026,12 +6026,12 @@ MODULE FciMCParMod
             IF(tReal) THEN
                 WRITE(iout,*) "Since we are using a real-space hubbard model, only single excitations are connected &
                 &   and will be generated."
-                pDoubles=0.D0
+                pDoubles=0.0_dp
                 RETURN
             ELSE
                 WRITE(iout,*) "Since we are using a momentum-space hubbard model/UEG, only double excitaitons &
      &                          are connected and will be generated."
-                pDoubles=1.D0
+                pDoubles=1.0_dp
                 RETURN
             ENDIF
         elseif(tNoSingExcits) then
@@ -6085,7 +6085,7 @@ MODULE FciMCParMod
         WRITE(iout,"(I7,A,I7,A)") NDoub, " double excitations, and ",NSing, &
             " single excitations found from reference. This will be used to calculate pDoubles."
 
-        IF(SinglesBias.ne.1.D0) THEN
+        IF(SinglesBias.ne.1.0_dp) THEN
             WRITE(iout,*) "Singles Bias detected. Multiplying single excitation connectivity of HF determinant by ", &
                 SinglesBias," to determine pDoubles."
         ENDIF
@@ -6120,7 +6120,7 @@ MODULE FciMCParMod
                    ((real(nSing,dp)*SinglesBias) + real(nDoub,dp))
         endif
 
-        IF(SinglesBias.ne.1.D0) THEN
+        IF(SinglesBias.ne.1.0_dp) THEN
             write (iout, '("pDoubles set to ", f14.6, &
                        &" rather than (without bias): ", f14.6)') &
                        pDoubles, real(nDoub,dp) / real(iTotal,dp)
@@ -6736,21 +6736,21 @@ MODULE FciMCParMod
                     ! iteration it became occupied in the CurrentH array (with the Hii elements).
                     ALLOCATE(WalkVecH(3,MaxWalkersPart),stat=ierr)
                     CALL LogMemAlloc('WalkVecH',3*MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
-                    WalkVecH(:,:)=0.d0
+                    WalkVecH(:,:)=0.0_dp
                     MemoryAlloc=MemoryAlloc+8*MaxWalkersPart*3
                     WRITE(6,"(A)") " The current signs before death will be store for use in the RDMs."
-                    WRITE(6,"(A,F14.6,A)") " This requires ", REAL(MaxWalkersPart*8*2,dp)/1048576.D0," Mb/Processor"
+                    WRITE(6,"(A,F14.6,A)") " This requires ", REAL(MaxWalkersPart*8*2,dp)/1048576.0_dp," Mb/Processor"
                     NCurrH = 3
                 else
                     ALLOCATE(WalkVecH(1,MaxWalkersPart),stat=ierr)
                     CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
-                    WalkVecH(:,:)=0.d0
+                    WalkVecH(:,:)=0.0_dp
                     MemoryAlloc=MemoryAlloc+8*MaxWalkersPart
                     NCurrH = 1
                 endif
             ELSE
                 WRITE(iout,"(A,F14.6,A)") " Diagonal H-Elements will not be stored. This will *save* ", &
-                    & REAL(MaxWalkersPart*8,dp)/1048576.D0," Mb/Processor"
+                    & REAL(MaxWalkersPart*8,dp)/1048576.0_dp," Mb/Processor"
             ENDIF
 
             if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
@@ -6763,7 +6763,7 @@ MODULE FciMCParMod
                 TempSpawnedParts(0:NIfDBO,1:20000)=0
                 MemoryAlloc=MemoryAlloc + (NIfDBO+1)*20000*size_n_int    !Memory Allocated in bytes
                 WRITE(6,"(A)") " Allocating temporary array for walkers spawned from a particular Di."
-                WRITE(6,"(A,F14.6,A)") " This requires ", REAL(((NIfDBO+1)*20000*size_n_int),dp)/1048576.D0," Mb/Processor"
+                WRITE(6,"(A,F14.6,A)") " This requires ", REAL(((NIfDBO+1)*20000*size_n_int),dp)/1048576.0_dp," Mb/Processor"
             endif
             
             WRITE(iout,"(A,I12,A)") "Spawning vectors allowing for a total of ",MaxSpawned, &
@@ -6998,7 +6998,7 @@ MODULE FciMCParMod
             endif  
         
             WRITE(iout,"(A,F14.6,A)") " Initial memory (without excitgens + temp arrays) consists of : ", &
-                & REAL(MemoryAlloc,dp)/1048576.D0," Mb/Processor"
+                & REAL(MemoryAlloc,dp)/1048576.0_dp," Mb/Processor"
             WRITE(iout,*) "Only one array of memory to store main particle list allocated..."
             WRITE(iout,*) "Initial memory allocation sucessful..."
             CALL neci_flush(iout)
@@ -7021,12 +7021,12 @@ MODULE FciMCParMod
         IF(tPrintOrbOcc) THEN
             ALLOCATE(OrbOccs(nBasis),stat=ierr)
             CALL LogMemAlloc('OrbOccs',nBasis,8,this_routine,OrbOccsTag,ierr)
-            OrbOccs(:)=0.D0
+            OrbOccs(:)=0.0_dp
         ENDIF
 
         IF(tPrintDoubsUEG) THEN
             ALLOCATE(DoubsUEG(NEl,NEl,nBasis,4),stat=ierr)
-            DoubsUEG(:,:,:,:)=0.D0
+            DoubsUEG(:,:,:,:)=0.0_dp
             ALLOCATE(DoubsUEGLookup(nBasis),stat=ierr)
             DoubsUEGLookup(:)=0
             ALLOCATE(DoubsUEGStore(NEl,NEl,nBasis),stat=ierr)
@@ -7203,9 +7203,9 @@ MODULE FciMCParMod
         endif
         write(iout,"(A,I4,A)") "Calculating lowest ",nEval," eigenstates of CAS Hamiltonian..."
         Allocate(Ck(nCASDet,nEval),stat=ierr)
-        Ck=0.D0
+        Ck=0.0_dp
         Allocate(W(nEval),stat=ierr)    !Eigenvalues
-        W=0.D0
+        W=0.0_dp
         if(ierr.ne.0) call stop_all(this_routine,"Error allocating")
         
         write(iout,*) "Calculating hamiltonian..."
@@ -7223,7 +7223,7 @@ MODULE FciMCParMod
         write(iout,*) "Allocating memory for hamiltonian: ",LenHamil*2
         Allocate(Hamil(LenHamil),stat=ierr)
         if(ierr.ne.0) call stop_all(this_routine,"Error allocating Hamil")
-        Hamil=0.D0
+        Hamil=0.0_dp
         Allocate(Lab(LenHamil),stat=ierr)
         if(ierr.ne.0) call stop_all(this_routine,"Error allocating Lab")
         Lab=0
@@ -7247,25 +7247,25 @@ MODULE FciMCParMod
             LISCR=6*NBLOCK*NKRY
             ALLOCATE(A_Arr(NEVAL,NEVAL),stat=ierr)
             CALL LogMemAlloc('A_Arr',NEVAL**2,8,this_routine,ATag,ierr)
-            A_Arr=0.d0
+            A_Arr=0.0_dp
             ALLOCATE(V(nCASDet*NBLOCK*NKRY1),stat=ierr)
             CALL LogMemAlloc('V',nCASDet*NBLOCK*NKRY1,8,this_routine,VTag,ierr)
-            V=0.d0
+            V=0.0_dp
             ALLOCATE(AM(NBLOCK*NBLOCK*NKRY1),stat=ierr)
             CALL LogMemAlloc('AM',NBLOCK*NBLOCK*NKRY1,8,this_routine,AMTag,ierr)
-            AM=0.d0
+            AM=0.0_dp
             ALLOCATE(BM(NBLOCK*NBLOCK*NKRY),stat=ierr)
             CALL LogMemAlloc('BM',NBLOCK*NBLOCK*NKRY,8,this_routine,BMTag,ierr)
-            BM=0.d0
+            BM=0.0_dp
             ALLOCATE(T(3*NBLOCK*NKRY*NBLOCK*NKRY),stat=ierr)
             CALL LogMemAlloc('T',3*NBLOCK*NKRY*NBLOCK*NKRY,8,this_routine,TTag,ierr)
-            T=0.d0
+            T=0.0_dp
             ALLOCATE(WT(NBLOCK*NKRY),stat=ierr)
             CALL LogMemAlloc('WT',NBLOCK*NKRY,8,this_routine,WTTag,ierr)
-            WT=0.d0
+            WT=0.0_dp
             ALLOCATE(SCR(LScr),stat=ierr)
             CALL LogMemAlloc('SCR',LScr,8,this_routine,SCRTag,ierr)
-            SCR=0.d0
+            SCR=0.0_dp
             ALLOCATE(ISCR(LIScr),stat=ierr)
             CALL LogMemAlloc('IScr',LIScr,4,this_routine,IScrTag,ierr)
             ISCR(1:LISCR)=0
@@ -7274,21 +7274,21 @@ MODULE FciMCParMod
             INDEX(1:NEVAL)=0
             ALLOCATE(WH(nCASDet),stat=ierr)
             CALL LogMemAlloc('WH',nCASDet,8,this_routine,WHTag,ierr)
-            WH=0.d0
+            WH=0.0_dp
             ALLOCATE(WORK2(3*nCASDet),stat=ierr)
             CALL LogMemAlloc('WORK2',3*nCASDet,8,this_routine,WORK2Tag,ierr)
-            WORK2=0.d0
+            WORK2=0.0_dp
             ALLOCATE(V2(nCASDet,NEVAL),stat=ierr)
             CALL LogMemAlloc('V2',nCASDet*NEVAL,8,this_routine,V2Tag,ierr)
-            V2=0.d0
+            V2=0.0_dp
             Allocate(CkN(nCASDet,nEval), stat=ierr)
-            CkN=0.D0
+            CkN=0.0_dp
     !C..Lanczos iterative diagonalising routine
             CALL NECI_FRSBLKH(nCASDet,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A_Arr,W,V,AM,BM,T,WT, &
          &  SCR,ISCR,INDEX,NCYCLE,B2L,.false.,.false.,.false.,.true.)
     !Multiply all eigenvalues by -1.
-            CALL DSCAL(NEVAL,-1.D0,W,1)
-            if(CK(1,1).lt.0.D0) then
+            CALL DSCAL(NEVAL,-1.0_dp,W,1)
+            if(CK(1,1).lt.0.0_dp) then
                 do i=1,nCASDet
                     CK(i,1)=-CK(i,1)
                 enddo
@@ -7329,7 +7329,7 @@ MODULE FciMCParMod
             write(iout,*) i,W(i),W(i)-CASRefEnergy
         enddo
 
-        TotWeight=0.D0
+        TotWeight=0.0_dp
         nHPHFCAS=0
         do i=1,nCASDet
             if(tHPHF) then
@@ -7339,9 +7339,9 @@ MODULE FciMCParMod
                     nHPHFCAS=nHPHFCAS+1
                     if(.not.TestClosedShellDet(iLutnJ)) then
                         !Open shell. Weight is sqrt(2) of det weight.
-                        TotWeight=TotWeight+(abs(CK(i,1))*sqrt(2.D0))
+                        TotWeight=TotWeight+(abs(CK(i,1))*sqrt(2.0_dp))
                         !Return this new weight to the CK array, so that we do not need to do this a second time.
-                        CK(i,1)=CK(i,1)*sqrt(2.D0)
+                        CK(i,1)=CK(i,1)*sqrt(2.0_dp)
                     else
                         !Closed Shell
                         TotWeight=TotWeight+abs(CK(i,1))
@@ -7354,9 +7354,9 @@ MODULE FciMCParMod
                     nHPHFCAS=nHPHFCAS+1
                     if(.not.IsAllowedMI(CASFullDets(:,i),iLutnJ)) then
                         !Momentum-coupled. Weight is sqrt(2) of det weight.
-                        TotWeight=TotWeight+(abs(CK(i,1))*sqrt(2.D0))
+                        TotWeight=TotWeight+(abs(CK(i,1))*sqrt(2.0_dp))
                         !Return this new weight to the CK array, so that we do not need to do this a second time.
-                        CK(i,1)=CK(i,1)*sqrt(2.D0)
+                        CK(i,1)=CK(i,1)*sqrt(2.0_dp)
                     else
                         !Closed Shell
                         TotWeight=TotWeight+abs(CK(i,1))
@@ -7408,7 +7408,7 @@ MODULE FciMCParMod
                 rat=amp-real(NoWalkers,dp)
                 r=genrand_real2_dSFMT()
                 if(abs(rat).gt.r) then
-                    if(amp.lt.0.D0) then
+                    if(amp.lt.0.0_dp) then
                         NoWalkers=NoWalkers-1
                     else
                         NoWalkers=NoWalkers+1
@@ -7641,7 +7641,7 @@ MODULE FciMCParMod
 
                 r=genrand_real2_dSFMT()
                 if(abs(rat).gt.r) then
-                    if(amp.lt.0.D0) then
+                    if(amp.lt.0.0_dp) then
                         NoWalkers=NoWalkers-1
                     else
                         NoWalkers=NoWalkers+1
@@ -7690,7 +7690,7 @@ MODULE FciMCParMod
         if(iHFProc.eq.iProcIndex) then
             NoWalkers=int(PartFac)  !This will always be positive
             rat=PartFac-real(NoWalkers,dp)
-            if(rat.lt.0.D0) call stop_all(this_routine,"Should not have negative weight on HF")
+            if(rat.lt.0.0_dp) call stop_all(this_routine,"Should not have negative weight on HF")
             r=genrand_real2_dSFMT()
             if(abs(rat).gt.r) NoWalkers=NoWalkers+1
             if(NoWalkers.ne.0) then
@@ -7703,7 +7703,7 @@ MODULE FciMCParMod
                     call set_flag(CurrentDets(:,DetIndex),flag_is_initiator(1))
                     call set_flag(CurrentDets(:,DetIndex),flag_is_initiator(2))
                 endif
-                if(.not.tRegenDiagHEls) CurrentH(1,DetIndex)=0.D0
+                if(.not.tRegenDiagHEls) CurrentH(1,DetIndex)=0.0_dp
                 if(tHashWalkerList) then
                     !Now need to index HF. Note that this is *not* slot 1 now, though this shouldn't be a problem. 
                     DetHash=FindWalkerHash(HFDet)  !Find det hash position
@@ -7775,7 +7775,7 @@ MODULE FciMCParMod
         do i=LowLoop,HighLoop   !Looping over electron pairs on this processor
 
             X=ElecPairs-i
-            K=INT((SQRT(8.D0*REAL(X,dp)+1.D0)-1.D0)/2.D0)
+            K=INT((SQRT(8.0_dp*REAL(X,dp)+1.0_dp)-1.0_dp)/2.0_dp)
             Elec1Ind=NEl-1-K
             Elec2Ind=NEl-X+((K*(K+1))/2)
             Orbi=HFDet(Elec1Ind)
@@ -7945,7 +7945,7 @@ MODULE FciMCParMod
         enddo
 
 !        write(iout,*) "mp2: ",mp2
-        mp2all=0.D0
+        mp2all=0.0_dp
         
         !Sum contributions across nodes.
         call MPISumAll(mp2,mp2all)
@@ -8243,7 +8243,7 @@ MODULE FciMCParMod
                 call LanczosFindGroundE(ExpandedWalkerDets,iSubspaceSize,GroundEInit,ProjGroundEInit,.true.)
                 write(iout,'(A,G25.10)') 'Ground state energy of initiator walker subspace = ',GroundEInit
             else
-                CreateNan=-1.D0
+                CreateNan=-1.0_dp
                 write(iout,'(A,G25.10)') 'Ground state energy of initiator walker subspace = ',sqrt(CreateNan)
             endif
 
@@ -8319,11 +8319,11 @@ MODULE FciMCParMod
 !C..
         Allocate(Ck(DetLen,nEval), stat=ierr)
         call LogMemAlloc('CK',DetLen*nEval, 8,t_r, tagCK,ierr)
-        CK=(0.d0)
+        CK=(0.0_dp)
 !C..
         allocate(W(nEval), stat=ierr)
         call LogMemAlloc('W', nEval,8,t_r,tagW,ierr)
-        W=0.d0
+        W=0.0_dp
 !        write(iout,*) "Calculating H matrix"
 !C..We need to measure HAMIL and LAB first 
         allocate(NROW(DetLen),stat=ierr)
@@ -8339,7 +8339,7 @@ MODULE FciMCParMod
         LENHAMIL=GC
         Allocate(Hamil(LenHamil), stat=ierr)
         call LogMemAlloc('HAMIL', LenHamil, 8, t_r,tagHamil,ierr)
-        HAMIL=(0.d0)
+        HAMIL=(0.0_dp)
 !C..
         ALLOCATE(LAB(LENHAMIL),stat=ierr)
         CALL LogMemAlloc('LAB',LenHamil,4,t_r,LabTag,ierr)
@@ -8353,7 +8353,7 @@ MODULE FciMCParMod
 
             Allocate(CkN(DetLen,nEval), stat=ierr)
             call LogMemAlloc('CKN',DetLen*nEval, 8,t_r, tagCKN,ierr)
-            CKN=(0.d0)
+            CKN=(0.0_dp)
 
             NKRY1=NKRY+1
             NBLOCK=MIN(NEVAL,NBLK)
@@ -8365,33 +8365,33 @@ MODULE FciMCParMod
 
             ALLOCATE(A_Arr(NEVAL,NEVAL),stat=ierr)
             CALL LogMemAlloc('A_Arr',NEVAL**2,8,t_r,ATag,ierr)
-            A_Arr=0.d0
+            A_Arr=0.0_dp
     !C..
     !C,, W is now allocated with CK
     !C..
             ALLOCATE(V(DetLen*NBLOCK*NKRY1),stat=ierr)
             CALL LogMemAlloc('V',DetLen*NBLOCK*NKRY1,8,t_r,VTag,ierr)
-            V=0.d0
+            V=0.0_dp
     !C..   
             ALLOCATE(AM(NBLOCK*NBLOCK*NKRY1),stat=ierr)
             CALL LogMemAlloc('AM',NBLOCK*NBLOCK*NKRY1,8,t_r,AMTag,ierr)
-            AM=0.d0
+            AM=0.0_dp
     !C..
             ALLOCATE(BM(NBLOCK*NBLOCK*NKRY),stat=ierr)
             CALL LogMemAlloc('BM',NBLOCK*NBLOCK*NKRY,8,t_r,BMTag,ierr)
-            BM=0.d0
+            BM=0.0_dp
     !C..
             ALLOCATE(T(3*NBLOCK*NKRY*NBLOCK*NKRY),stat=ierr)
             CALL LogMemAlloc('T',3*NBLOCK*NKRY*NBLOCK*NKRY,8,t_r,TTag,ierr)
-            T=0.d0
+            T=0.0_dp
     !C..
             ALLOCATE(WT(NBLOCK*NKRY),stat=ierr)
             CALL LogMemAlloc('WT',NBLOCK*NKRY,8,t_r,WTTag,ierr)
-            WT=0.d0
+            WT=0.0_dp
     !C..
             ALLOCATE(SCR(LScr),stat=ierr)
             CALL LogMemAlloc('SCR',LScr,8,t_r,SCRTag,ierr)
-            SCR=0.d0
+            SCR=0.0_dp
             ALLOCATE(ISCR(LIScr),stat=ierr)
             CALL LogMemAlloc('IScr',LIScr,4,t_r,IScrTag,ierr)
             ISCR(1:LISCR)=0
@@ -8401,19 +8401,19 @@ MODULE FciMCParMod
     !C..
             ALLOCATE(WH(DetLen),stat=ierr)
             CALL LogMemAlloc('WH',DetLen,8,t_r,WHTag,ierr)
-            WH=0.d0
+            WH=0.0_dp
             ALLOCATE(WORK2(3*DetLen),stat=ierr)
             CALL LogMemAlloc('WORK2',3*DetLen,8,t_r,WORK2Tag,ierr)
-            WORK2=0.d0
+            WORK2=0.0_dp
             ALLOCATE(V2(DetLen,NEVAL),stat=ierr)
             CALL LogMemAlloc('V2',DetLen*NEVAL,8,t_r,V2Tag,ierr)
-            V2=0.d0
+            V2=0.0_dp
     !C..Lanczos iterative diagonalising routine
             CALL NECI_FRSBLKH(DetLen,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A_Arr,W,V,AM,BM,T,WT, &
              &  SCR,ISCR,INDEX,NCYCLE,B2L,.true.,.false.,.false.,.false.)
 
             !Eigenvalues may come out wrong sign - multiply by -1
-            if(W(1).gt.0.D0) then
+            if(W(1).gt.0.0_dp) then
                 GroundE = -W(1)
             else
                 GroundE = W(1)
@@ -8449,7 +8449,7 @@ MODULE FciMCParMod
 
         !Calculate proje.
         nDoubles = 0
-        Num = 0.D0
+        Num = 0.0_dp
         do i=1,DetLen
             ExcitLev = iGetExcitLevel(HFDet,Dets(:,i),NEl)
             if((ExcitLev.eq.1).or.(ExcitLev.eq.2)) then

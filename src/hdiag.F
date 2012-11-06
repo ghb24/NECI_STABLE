@@ -31,7 +31,7 @@
          GSEN=1.D100
          DO I=1,NDET
             DO J=1,NDET
-               CK(I,J)=0.D0
+               CK(I,J)=0.0_dp
             ENDDO
          ENDDO
 C.. Now we fill the RIJ array
@@ -144,8 +144,8 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
 
 !Vals(1) contains ground state
 !Check that eigenvectors are correct by multiplying matrix by first eigenvector
-!         TrialEigenvec=0.d0
-!         Norm=(0.D0)
+!         TrialEigenvec=0.0_dp
+!         Norm=(0.0_dp)
 !         do i=1,NDET
 !             do j=1,NDET
 !                 TrialEigenvec(i)=TrialEigenvec(i)+HMAT(i,j)*Vecs(j,1)
@@ -160,7 +160,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
 !         enddo
 
 !Create the k matrix...
-         KMAT=(0.d0)
+         KMAT=(0.0_dp)
          DO i=1,NDET
              KMAT(i,i)=Vals(1)
          ENDDO
@@ -193,7 +193,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
 
 !Run through determinants in graph
          NBins=100
-         S=0.d0
+         S=0.0_dp
          MinS=100.0
          MaxS=-100.0
          WRITE(11,*) "# Det   SijSum     MinS    MaxS"
@@ -204,16 +204,16 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
              do j=1,NDET
 !We only want excitations, so remove the diagonal contribution
                  IF(i.eq.j) CYCLE
-                 IF(abs(KMAT(i,j)).gt.0.D0) NExcit=NExcit+1
+                 IF(abs(KMAT(i,j)).gt.0.0_dp) NExcit=NExcit+1
              enddo
 
 !             IF(NExcit.lt.1) STOP 'ERROR IN COUNTING EXCITS'
 
              do j=1,NDET
                  IF(i.eq.j) CYCLE
-                 IF(abs(KMAT(i,j)).gt.0.D0) THEN
+                 IF(abs(KMAT(i,j)).gt.0.0_dp) THEN
 !For each excitation of each determinant i, find its contribution to the change of expansion coefficient
-                     S(i,j)=((KMAT(i,i)/(NExcit+0.D0))*Vecs(i,1))+
+                     S(i,j)=((KMAT(i,i)/(NExcit+0.0_dp))*Vecs(i,1))+
      &                        ((KMAT(i,j))*Vecs(j,1))
                      IF(S(i,j).lt.MinS) MinS=S(i,j)
                      IF(S(i,j).gt.MaxS) MaxS=S(i,j)
@@ -221,7 +221,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
              enddo
 
 !Sum all the changes of the expansion coefficient for a given i due to the excitations j
-             SSUM=0.D0
+             SSUM=0.0_dp
              do j=1,NDET
                  SSUM=SSUM+S(i,j)
              enddo
@@ -232,12 +232,12 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
 
          enddo
 
-         RangeBins=(MaxS-MinS)/(NBins+0.D0)
+         RangeBins=(MaxS-MinS)/(NBins+0.0_dp)
 
          ALLOCATE(SHist(NDET,NBins))
          SHist(1:nDet,1:NBins)=0
          ALLOCATE(RangeHist(NBins+1))
-         RangeHist=0.d0
+         RangeHist=0.0_dp
 
          RangeHist(1)=MinS
          do i=2,NBins
@@ -251,7 +251,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
 
              do j=1,NDET
                  IF(i.eq.j) CYCLE
-                 IF(abs(KMAT(i,j)).gt.0.D0) THEN
+                 IF(abs(KMAT(i,j)).gt.0.0_dp) THEN
 !j is excitation of i - find which bin the overlap goes into
                      Bin=1
                      do while(S(i,j).ge.RangeHist(Bin+1))
@@ -266,7 +266,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          enddo
 
          do i=1,NBins
-            WRITE(9,"(G20.12)",advance='no') (MinS+((i-1.D0)*RangeBins))
+            WRITE(9,"(G20.12)",advance='no') (MinS+((i-1.0_dp)*RangeBins))
      &                                    +(RangeBins/2.0)
             do j=1,NDET
                 WRITE(9,"(I8)",advance='no') SHist(j,i)
@@ -327,11 +327,11 @@ C.. Now allocate memory
          allocate(WORK(3*NBLKMAX))
          call LogMemAlloc('WORK',3*NBLKMAX,8,this_routine,tagWORK)
 C.. Go through the blocks forming the hamil matrix
-         EXEN=0.D0
-         DNORM=0.D0
-         EBIAS=0.D0
+         EXEN=0.0_dp
+         DNORM=0.0_dp
+         EBIAS=0.0_dp
          DO J=1,NBASIS
-            GOFE(J)=0.D0
+            GOFE(J)=0.0_dp
          ENDDO
          OPEN(14,FILE='RHOPIIex',STATUS='UNKNOWN')
          OPEN(15,FILE='ENERGIES',STATUS='UNKNOWN')
@@ -359,7 +359,7 @@ C.. Now work out exact wi etc.
 !               CALL WRITEDET(15,NMRKS(1,NBS+III-1),NEL,.FALSE.)
                WRITE(15,"(F19.11,I5)") W(III),IDEG
 
-               IF(ABS(W(III)/ELOWEST-1.D0).LT.1.D-6) THEN
+               IF(ABS(W(III)/ELOWEST-1.0_dp).LT.1.D-6) THEN
                   GELOWEST=GELOWEST+IDEG
                ELSEIF(W(III).LT.ELOWEST) THEN
 C.. if we're going to change ELOWEST, and there was a previous ELOWEST,

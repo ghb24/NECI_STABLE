@@ -70,10 +70,10 @@ module MomInvRandExcit
                 ELSE
                     !Mom coupled -> Self-inv
                     if(tAntisym_MI) then
-                        HEl=0.D0
+                        HEl=0.0_dp
                     else
                         MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
-                        HEl=MatEl*SQRT(2.D0)
+                        HEl=MatEl*SQRT(2.0_dp)
                     endif
                 ENDIF
                 if (ic /= 0 .and. modk_offdiag) hel = -abs(hel)
@@ -114,7 +114,7 @@ module MomInvRandExcit
                         !Self-inv det -> Momentum paired func : Want to sum in SQRT(2)* Hij
                         if(tAntisym_MI) then
                             !Must be zero matrix element
-                            HEl=0.D0
+                            HEl=0.0_dp
                         else
                             !Could actually use either of these - they should be the same?!
                             IF(tSwapped) THEN
@@ -123,7 +123,7 @@ module MomInvRandExcit
                                 MatEl = sltcnd_excit (nI, IC, ExcitMat, &
                                                       tSignOrig)
                             ENDIF
-                            HEl=MatEl*SQRT(2.D0)
+                            HEl=MatEl*SQRT(2.0_dp)
                         endif
                     ELSE     !MI function -> MI function
 
@@ -170,7 +170,7 @@ module MomInvRandExcit
 !We have generated the same MI function. MatEl wants to be zero.
                 nJ(1)=0
                 IF(tGenMatHEl) THEN
-                    HEl=0.D0
+                    HEl=0.0_dp
                 ENDIF
 
             ELSE    !MI func to MI func, but with no cross-connection.
@@ -320,7 +320,7 @@ module MomInvRandExcit
 !                    call construct_class_counts(nI,CC_ia,CCU_ia)
 !                    call CalcNonUniPGen(nI,Ex_ia,IC_ia,CC_ia,CCU_ia,0.9_8,pGen_ia)
 !                else
-!                    pGen_ia=0.D0
+!                    pGen_ia=0.0_dp
 !                endif
 !                if(IC_ib.le.2) then
 !                    Ex_ib=0
@@ -329,7 +329,7 @@ module MomInvRandExcit
 !                    call construct_class_counts(nI,CC_ib,CCU_ib)
 !                    call CalcNonUniPGen(nI,Ex_ib,IC_ib,CC_ib,CCU_ib,0.9_8,pGen_ib)
 !                else
-!                    pGen_ib=0.D0
+!                    pGen_ib=0.0_dp
 !                endif
 !                if(IC_ja.le.2) then
 !                    Ex_ja=0
@@ -338,7 +338,7 @@ module MomInvRandExcit
 !                    call construct_class_counts(nI2,CC_ja,CCU_ja)
 !                    call CalcNonUniPGen(nI,Ex_ja,IC_ja,CC_ja,CCU_ja,0.9_8,pGen_ja)
 !                else
-!                    pGen_ja=0.D0
+!                    pGen_ja=0.0_dp
 !                endif
 !                if(IC_jb.le.2) then
 !                    Ex_jb=0
@@ -347,7 +347,7 @@ module MomInvRandExcit
 !                    call construct_class_counts(nI2,CC_jb,CCU_jb)
 !                    call CalcNonUniPGen(nI2,Ex_jb,IC_jb,CC_jb,CCU_jb,0.9_8,pGen_jb)
 !                else
-!                    pGen_jb=0.D0
+!                    pGen_jb=0.0_dp
 !                endif
 !                
 !                if(abs(PGen_ia-PGen_jb).gt.1.D-7) then
@@ -397,7 +397,7 @@ module MomInvRandExcit
 !                    call construct_class_counts(nI,CC_ia,CCU_ia)
 !                    call CalcNonUniPGen(nI,Ex_ia,IC_ia,CC_ia,CCU_ia,0.9_8,pGen_ia)
 !                else
-!                    pGen_ia=0.D0
+!                    pGen_ia=0.0_dp
 !                endif
 !                if(IC_ib.le.2) then
 !                    Ex_ib=0
@@ -406,7 +406,7 @@ module MomInvRandExcit
 !                    call construct_class_counts(nI,CC_ib,CCU_ib)
 !                    call CalcNonUniPGen(nI,Ex_ib,IC_ib,CC_ib,CCU_ib,0.9_8,pGen_ib)
 !                else
-!                    pGen_ib=0.D0
+!                    pGen_ib=0.0_dp
 !                endif
 !                
 !                if(abs(PGen_ia-PGen_ib).gt.1.D-7) then

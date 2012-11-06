@@ -20,17 +20,17 @@ C..
 C..
       IF(IFIRST.EQ.0) THEN
         IFIRST=1
-        SITAB=0.d0
+        SITAB=0.0_dp
         CALL GEN_SITAB(NMAX,NMSH,SITAB)
       ENDIF
 C..
       allocate(CFS(NDET))
       call LogMemAlloc('CFS',NDET,8,'NECI_RHOOFR',tagCFS)
-      CFS=0.d0
+      CFS=0.0_dp
       CALL DCOPY(NDET,CK(1,1),1,CFS,1)
 C..
-      AUX=0.d0
-      RHO=0.d0
+      AUX=0.0_dp
+      RHO=0.0_dp
 C..
       DO KI=1,NDET
         IF(ABS(CFS(KI)).LT.EPS) GOTO 300
@@ -62,10 +62,10 @@ C..If determinants differ by more than 1 spin orbital IC < (NEL-1)
         ENDDO
 300   CONTINUE
       ENDDO
-      CST=1.D0/OMEGA
+      CST=1.0_dp/OMEGA
       CALL DSCAL(NMSH*NMSH*NMSH,CST,RHO,1)
 C..Calculate integral of RHO 
-      SUM=0.D0
+      SUM=0.0_dp
       DO K=1,NMSH-1
         DO J=1,NMSH-1
           DO I=1,NMSH-1
@@ -102,12 +102,12 @@ C..
       ND1=0
       ND2=0
 C..
-      AUXX=0.d0
-      AUXY=0.d0
-      AUXZ=0.d0
+      AUXX=0.0_dp
+      AUXY=0.0_dp
+      AUXZ=0.0_dp
 C..
       IF(IC.EQ.(NEL-1)) THEN
-        AUX=0.d0
+        AUX=0.0_dp
 C..The determinants differ by ONE spin orbital
         ND1=0
         ND2=0
@@ -161,11 +161,11 @@ C..
             ENDDO
           ENDDO
         ELSE
-          AUX=0.d0
+          AUX=0.0_dp
           RETURN
         ENDIF
       ELSEIF(IC.EQ.NEL) THEN
-        AUX=0.d0
+        AUX=0.0_dp
 C..Differ by none
         DO K=1,NMSH-1
           DO IK=1,NEL
@@ -191,7 +191,7 @@ C..
           ENDDO
         ENDDO
       ELSE
-        AUX=0.d0
+        AUX=0.0_dp
         RETURN
       ENDIF
 C..
@@ -206,11 +206,11 @@ C ==---------------------------------------------------------==
       integer :: NMSH,NMAX,I,J
       real(dp) :: SITAB(NMSH,NMAX),X
 C..
-!      PI=ACOS(-1.D0)
+!      PI=ACOS(-1.0_dp)
       DO I=1,NMAX
         DO J=1,NMSH
           X=real(J,dp)/real(NMSH,dp)
-          SITAB(J,I)=SIN(PI*I*X)*SQRT(2.D0)
+          SITAB(J,I)=SIN(PI*I*X)*SQRT(2.0_dp)
         ENDDO
       ENDDO
       RETURN

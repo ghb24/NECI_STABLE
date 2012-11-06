@@ -119,10 +119,10 @@ MODULE GenRandSymExcitNUMod
             ENDIF
         ELSEIF(ExFlag.eq.2) THEN
             IC=2
-            pDoubNew=1.D0
+            pDoubNew=1.0_dp
         ELSEIF(ExFlag.eq.1) THEN
             IC=1
-            pDoubNew=0.D0
+            pDoubNew=0.0_dp
         ELSE
             CALL Stop_All(this_routine,"Error in choosing excitations to create.")
         ENDIF
@@ -135,13 +135,13 @@ MODULE GenRandSymExcitNUMod
                                     store%ClassCountUnocc, ILUT, ExcitMat, &
                                     tParity, pGen)
 
-!            IF(pGen.eq.-1.D0) THEN
+!            IF(pGen.eq.-1.0_dp) THEN
 !NOTE: ghb24 5/6/09 Cannot choose to create double instead, since you could have chosen a double first and it would have a different pGen.
 !                IF((ExFlag.ne.3).or.tHPHF) THEN
 !If using HPHF wavefunctions, then we do not want to do this, since it will affect the generation probabilities calculated using CalcNonUniPGens.
 !                    CALL Stop_All("GenRandSymExcitNU","Found determinant with no singles, but can only have got here from single. Should never be in this position! (or HPHF is on and this will screw with pGens)")
 !                ENDIF
-!                pDoubNew=1.D0
+!                pDoubNew=1.0_dp
 !                IC=2
 !                CALL CreateDoubExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
 !            ENDIF
@@ -213,10 +213,10 @@ MODULE GenRandSymExcitNUMod
             ENDIF
         ELSEIF(ExFlag.eq.2) THEN
             IC=2
-            pDoubNew=1.D0
+            pDoubNew=1.0_dp
         ELSEIF(ExFlag.eq.1) THEN
             IC=1
-            pDoubNew=0.D0
+            pDoubNew=0.0_dp
         ELSE
             CALL Stop_All(this_routine,"Error in choosing excitations to create.")
         ENDIF
@@ -230,13 +230,13 @@ MODULE GenRandSymExcitNUMod
 !            ENDIF
  
             CALL CreateSingleExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
-!            IF(pGen.eq.-1.D0) THEN
+!            IF(pGen.eq.-1.0_dp) THEN
 !NOTE: ghb24 5/6/09 Cannot choose to create double instead, 
 ! since you could have chosen a double first and it would have a different pGen.
 !                IF(ExFlag.ne.3) THEN
 !                    CALL Stop_All("GenRandSymExcitNU","Found determinant with no singles, but can only have got here from single. Should never be in this position!")
 !                ENDIF
-!                pDoubNew=1.D0
+!                pDoubNew=1.0_dp
 !                IC=2
 !                CALL CreateDoubExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
 !            ENDIF
@@ -344,9 +344,9 @@ MODULE GenRandSymExcitNUMod
         INTEGER, INTENT(IN) :: ForbiddenOrbs,NExcitA,NExcitB,NExcitOtherWay
         real(dp) , INTENT(OUT) :: pGen!,PabGivenij
 
-!        PabGivenij=(1.D0/real((NExcitA-ForbiddenOrbs),dp))*((1.D0/real(NExcitB,dp))+(1.D0/real(NExcitOtherWay,dp)))
-!        pGen=pDoubNew*(1.D0/real(ElecPairs,dp))*PabGivenij
-        pGen=pDoubNew*((1.D0/real(NExcitB,dp))+(1.D0/real(NExcitOtherWay,dp)))/(REAL((ElecPairs*(NExcitA-ForbiddenOrbs)),dp))
+!        PabGivenij=(1.0_dp/real((NExcitA-ForbiddenOrbs),dp))*((1.0_dp/real(NExcitB,dp))+(1.0_dp/real(NExcitOtherWay,dp)))
+!        pGen=pDoubNew*(1.0_dp/real(ElecPairs,dp))*PabGivenij
+        pGen=pDoubNew*((1.0_dp/real(NExcitB,dp))+(1.0_dp/real(NExcitOtherWay,dp)))/(REAL((ElecPairs*(NExcitA-ForbiddenOrbs)),dp))
 
     END SUBROUTINE FindDoubleProb
 
@@ -1136,7 +1136,7 @@ MODULE GenRandSymExcitNUMod
 !X is number of elements at positions larger than ind
         X=ElecPairs-Ind
 !K is the number of complete rows after the element ind
-        K=INT((SQRT(8.D0*REAL(X,dp)+1.D0)-1.D0)/2.D0)
+        K=INT((SQRT(8.0_dp*REAL(X,dp)+1.0_dp)-1.0_dp)/2.0_dp)
         Elec1Ind=NEl-1-K
         Elec2Ind=NEl-X+((K*(K+1))/2)
 
@@ -1211,7 +1211,7 @@ MODULE GenRandSymExcitNUMod
 !        IF(ElecsWNoExcits.eq.NEl) THEN
 !!There are no single excitations from this determinant at all. This means the probability to create a double excitation = 1
 !!Then we will create a double excitation instead.
-!            pDoubNew=1.D0
+!            pDoubNew=1.0_dp
 !            RETURN
 !        ENDIF
 !
@@ -1405,8 +1405,8 @@ MODULE GenRandSymExcitNUMod
 
 !Now we need to find the probability of creating this excitation.
 !This is: P_single x P(i) x P(a|i) x N/(N-ElecsWNoExcits)
-!        pGen=(1.D0-pDoubNew)*(1.D0/real(NEl,dp))*(1.D0/real(NExcit,dp))*((real(NEl,dp))/(real((NEl-ElecsWNoExcits),dp)))
-        pGen=(1.D0-pDoubNew)/(REAL((NExcit*(NEl-ElecsWNoExcits)),dp))
+!        pGen=(1.0_dp-pDoubNew)*(1.0_dp/real(NEl,dp))*(1.0_dp/real(NExcit,dp))*((real(NEl,dp))/(real((NEl-ElecsWNoExcits),dp)))
+        pGen=(1.0_dp-pDoubNew)/(REAL((NExcit*(NEl-ElecsWNoExcits)),dp))
 
 !        WRITE(6,*) "ElecsWNoExcits: ",ElecsWNoExcits
 
@@ -1493,8 +1493,8 @@ MODULE GenRandSymExcitNUMod
 !Now we need to find the probability of creating this excitation.
 !This is: P_single x P(i) x P(a|i) x N/(N-ElecsWNoExcits)
 !Prob of generating a single is 1-pDoub
-!            pGen=(1.D0-pDoub)*(1.D0/real(NEl,dp))*(1.D0/real(NExcitA,dp))*((real(NEl,dp))/(real((NEl-ElecsWNoExcits),dp)))
-            pGen=(1.D0-pDoub)/(REAL((NExcitA*(NEl-ElecsWNoExcits)),dp))
+!            pGen=(1.0_dp-pDoub)*(1.0_dp/real(NEl,dp))*(1.0_dp/real(NExcitA,dp))*((real(NEl,dp))/(real((NEl-ElecsWNoExcits),dp)))
+            pGen=(1.0_dp-pDoub)/(REAL((NExcitA*(NEl-ElecsWNoExcits)),dp))
 
         ELSE
 !Prob of generating a double excitation.
@@ -1583,9 +1583,9 @@ MODULE GenRandSymExcitNUMod
                 NExcitOtherWay=NExcitOtherWay-1     !The same goes for the probabilities the other way round.
             ENDIF
 
-!            PabGivenij=(1.D0/real((NExcitA-ForbiddenOrbs),dp))*((1.D0/real(NExcitB,dp))+(1.D0/real(NExcitOtherWay,dp)))
-!            pGen=pDoub*(1.D0/real(ElecPairs,dp))*PabGivenij
-            pGen=pDoub*((1.D0/real(NExcitB,dp))+(1.D0/real(NExcitOtherWay,dp)))/(REAL((ElecPairs*(NExcitA-ForbiddenOrbs)),dp))
+!            PabGivenij=(1.0_dp/real((NExcitA-ForbiddenOrbs),dp))*((1.0_dp/real(NExcitB,dp))+(1.0_dp/real(NExcitOtherWay,dp)))
+!            pGen=pDoub*(1.0_dp/real(ElecPairs,dp))*PabGivenij
+            pGen=pDoub*((1.0_dp/real(NExcitB,dp))+(1.0_dp/real(NExcitOtherWay,dp)))/(REAL((ElecPairs*(NExcitA-ForbiddenOrbs)),dp))
 !            WRITE(6,*) "***",pDoubNew,NExcitB,NExcitOtherWay,ElecPairs,NExcitA,ForbiddenOrbs,ElecSym,iSpn,SymA,SymB
 
         ENDIF
@@ -1649,7 +1649,7 @@ MODULE GenRandSymExcitNUMod
         IF(ExFlag.eq.3) THEN
 !Choose whether to generate a double or single excitation. Prob of generating a double is given by pDoub.
             pDoubNew=pDoub
-            IF(pDoubNew.gt.1.D0) CALL Stop_All(this_routine,"pDoub is greater than 1")
+            IF(pDoubNew.gt.1.0_dp) CALL Stop_All(this_routine,"pDoub is greater than 1")
 
             r = genrand_real2_dSFMT()
             IF(r.lt.pDoubNew) THEN
@@ -1660,10 +1660,10 @@ MODULE GenRandSymExcitNUMod
             ENDIF
         ELSEIF(ExFlag.eq.2) THEN
             IC=2
-            pDoubNew=1.D0
+            pDoubNew=1.0_dp
         ELSEIF(ExFlag.eq.1) THEN
             IC=1
-            pDoubNew=0.D0
+            pDoubNew=0.0_dp
         ELSE
             CALL Stop_All(this_routine,"Error in choosing excitations to create.")
         ENDIF
@@ -1678,7 +1678,7 @@ MODULE GenRandSymExcitNUMod
                 CALL Stop_All(this_routine,"Found determinant with no singles. " &
                 & // "Turn symmetry off, or fix code (see non-biased code).")
 !                ENDIF
-!                pDoubNew=1.D0
+!                pDoubNew=1.0_dp
 !                IC=2
 !                CALL CreateDoubExcitBiased(nI,nJ,ILUT,ExcitMat,tParity,nParts,WSign,Tau,iCreate)
             ENDIF
@@ -1774,7 +1774,7 @@ MODULE GenRandSymExcitNUMod
         EndSymState=SymLabelCounts2(1,Ind)+SymLabelCounts2(2,Ind)-1
 
         VecInd=1
-        NormProb=0.D0
+        NormProb=0.0_dp
 
        do j=SymLabelCounts2(1,Ind),EndSymState
 
@@ -1812,7 +1812,7 @@ MODULE GenRandSymExcitNUMod
         ENDIF
 
 !We now have to find out how many children to spawn, based on the value of normprob.
-        rat=Tau*NormProb*REAL((NEl-ElecsWNoExcits)*nParts,dp)/(1.D0-PDoubNew)
+        rat=Tau*NormProb*REAL((NEl-ElecsWNoExcits)*nParts,dp)/(1.0_dp-PDoubNew)
         iCreate=INT(rat)
         rat=rat-REAL(iCreate)
         r = genrand_real2_dSFMT()
@@ -1827,7 +1827,7 @@ MODULE GenRandSymExcitNUMod
             r=r*NormProb
 
             i=0
-            do while(r.gt.0.D0)
+            do while(r.gt.0.0_dp)
                 i=i+1
                 r=r-SpawnProb(i)
             enddo
@@ -1854,11 +1854,11 @@ MODULE GenRandSymExcitNUMod
 
             IF(WSign.gt.0) THEN
                 !Parent particle is positive
-                IF(real(rh).gt.0.D0) THEN
+                IF(real(rh).gt.0.0_dp) THEN
                     iCreate=-iCreate     !-ve walker created
                 ENDIF
             ELSE
-                IF(real(rh).lt.0.D0) THEN
+                IF(real(rh).lt.0.0_dp) THEN
                     iCreate=-iCreate    !-ve walkers created
                 ENDIF
             ENDIF
@@ -1895,11 +1895,11 @@ MODULE GenRandSymExcitNUMod
 
             IF(WSign.gt.0) THEN
                 !Parent particle is positive
-                IF(real(rh).gt.0.D0) THEN
+                IF(real(rh).gt.0.0_dp) THEN
                     iCreate=-iCreate     !-ve walker created
                 ENDIF
             ELSE
-                IF(real(rh).lt.0.D0) THEN
+                IF(real(rh).lt.0.0_dp) THEN
                     iCreate=-iCreate    !-ve walkers created
                 ENDIF
             ENDIF
@@ -1925,7 +1925,7 @@ MODULE GenRandSymExcitNUMod
         Spini=G1(nI(Elec1Ind))%Ms
         Spinj=G1(nI(Elec2Ind))%Ms
         VecInd=1
-        NormProb=0.D0
+        NormProb=0.0_dp
 
         do i=1,nBasis
 !Run through all a orbitals
@@ -2008,7 +2008,7 @@ MODULE GenRandSymExcitNUMod
                 IF( Spini.EQ.aspn.and.Spinj.eq.bspn) THEN
                     Hel=GETUMATEL(SpatOrbi,SpatOrbj,SpatOrba,j)
                 ELSE
-                    Hel=(0.D0)
+                    Hel=(0.0_dp)
                 ENDIF
                 IF(Spini.EQ.bspn.and.Spinj.EQ.aspn) THEN
                     Hel=Hel-GETUMATEL(SpatOrbi,SpatOrbj,j,SpatOrba)
@@ -2048,7 +2048,7 @@ MODULE GenRandSymExcitNUMod
             r=r*NormProb
 
             i=0
-            do while(r.gt.0.D0)
+            do while(r.gt.0.0_dp)
                 i=i+1
                 r=r-SpawnProb(i)
             enddo
@@ -2570,19 +2570,19 @@ MODULE GenRandSymExcitNUMod
         jSpin=G1(Ex(1,2))%Ms
         IF (iSpin.eq.-1) THEN ! i is a beta spin
             IF (jSpin.eq.-1) THEN ! ij is beta/beta
-                pAIJ=1.D0/(nBasis/2-nOccBeta)
+                pAIJ=1.0_dp/(nBasis/2-nOccBeta)
             ELSE !ij is alpha/beta
-                pAIJ=1.D0/(nBasis-Nel)
+                pAIJ=1.0_dp/(nBasis-Nel)
             ENDIF
         ELSE ! i is an alpha spin
             IF (jSpin.eq.1) THEN ! ij is alpha/alpha
-                pAIJ=1.D0/(nBasis/2-nOccAlpha)
+                pAIJ=1.0_dp/(nBasis/2-nOccAlpha)
             ELSE
-                pAIJ=1.D0/(nBasis-Nel)
+                pAIJ=1.0_dp/(nBasis-Nel)
             ENDIF
         ENDIF
         ! Note, p(b|ij)=p(a|ij) for this system
-        pGen=(2.D0/(NEl*(NEl-1)))*2.D0*pAIJ
+        pGen=(2.0_dp/(NEl*(NEl-1)))*2.0_dp*pAIJ
 
     END SUBROUTINE CalcPGenLattice
 
@@ -2776,10 +2776,10 @@ MODULE GenRandSymExcitNUMod
         store%ClassCountOcc = 0
         store%ClassCountUnocc = 0
 
-        AverageContrib=0.D0
-        AllAverageContrib=0.D0
+        AverageContrib=0.0_dp
+        AllAverageContrib=0.0_dp
         ForbiddenIter=0
-    !    pDoub=1.D0
+    !    pDoub=1.0_dp
     !    IF(iProcIndex.eq.0) OPEN(9,FILE="AvContrib",STATUS="UNKNOWN")
 
         test_timer%timer_name = 'test_symrandexcit2'
@@ -2847,7 +2847,7 @@ MODULE GenRandSymExcitNUMod
             ENDIF
             !============================================
 
-            AverageContrib=AverageContrib+1.D0/pGen
+            AverageContrib=AverageContrib+1.0_dp/pGen
 
     !        CALL EncodeBitDet(nJ,iLutnJ)
     !        IF(IC.eq.1) THEN
@@ -2858,7 +2858,7 @@ MODULE GenRandSymExcitNUMod
     !        ENDIF
 
             IF(IC.eq.1) THEN
-                SinglesHist(ExcitMat(1,1),ExcitMat(2,1))=SinglesHist(ExcitMat(1,1),ExcitMat(2,1))+(1.D0/pGen)
+                SinglesHist(ExcitMat(1,1),ExcitMat(2,1))=SinglesHist(ExcitMat(1,1),ExcitMat(2,1))+(1.0_dp/pGen)
                 SinglesCount(ExcitMat(1,1), ExcitMat(2,1)) = &
                     SinglesCount(ExcitMat(1,1), ExcitMat(2,1)) + 1
     !            SinglesNum(ExcitMat(1,1),ExcitMat(2,1))=SinglesNum(ExcitMat(1,1),ExcitMat(2,1))+1
@@ -2878,12 +2878,12 @@ MODULE GenRandSymExcitNUMod
                     Ind3=ExcitMat(2,1)
                     Ind4=ExcitMat(2,2)
                 ENDIF
-                DoublesHist(Ind1,Ind2,Ind3,Ind4)=DoublesHist(Ind1,Ind2,Ind3,Ind4)+(1.D0/pGen)
+                DoublesHist(Ind1,Ind2,Ind3,Ind4)=DoublesHist(Ind1,Ind2,Ind3,Ind4)+(1.0_dp/pGen)
                 DoublesCount(ind1,ind2,ind3,ind4) = &
                 DoublesCount(ind1,ind2,ind3,ind4) + 1
             ENDIF
             !        IF(mod(i,iWriteEvery).eq.0) THEN
-            !            AllAverageContrib=0.D0
+            !            AllAverageContrib=0.0_dp
             !#ifdef PARALLEL
             !            CALL MPI_AllReduce(AverageContrib,AllAverageContrib,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
             !#else            
@@ -2923,7 +2923,7 @@ MODULE GenRandSymExcitNUMod
                 do j=i+1,nBasis
                     do k=1,nBasis-1
                         do l=k+1,nBasis
-                            IF(AllDoublesHist(i,j,k,l).gt.0.D0) THEN
+                            IF(AllDoublesHist(i,j,k,l).gt.0.0_dp) THEN
                                 !                        DoublesHist(i,j,k,l)=DoublesHist(i,j,k,l)/real(Iterations,8)
                                 DetNum=DetNum+1
                                 ExcitMat(1,1)=i
@@ -2953,7 +2953,7 @@ MODULE GenRandSymExcitNUMod
             DetNumS=0
             do i=1,nBasis
                 do j=1,nBasis
-                    IF(AllSinglesHist(i,j).gt.0.D0) THEN
+                    IF(AllSinglesHist(i,j).gt.0.0_dp) THEN
                         DetNumS=DetNumS+1
                         ExcitMat(1,1)=i
                         ExcitMat(2,1)=j

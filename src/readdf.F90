@@ -22,7 +22,7 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          nrec=0
          lenrec=0
          nBasisPairs=nrec
-         nBasis=int(dsqrt(nBasisPairs*2.D0))
+         nBasis=int(dsqrt(nBasisPairs*2.0_dp))
          nAuxBasis=lenrec
          WRITE(6,*) "DALTON/SITUS basis.", nBasis, " basis functions."
          nBasisMax(1:5,1:3)=0
@@ -159,7 +159,7 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          real(dp) res
          character(*), parameter :: this_routine='GetDF2EInt'
          
-         res=0.D0
+         res=0.0_dp
          x=GetDFIndex(a,c)
          y=GetDFIndex(b,d)
 !         write(6,"(7I4)") a,b,c,d,x,y,iDFMethod
@@ -268,7 +268,7 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          type(BasisFN) G1(nBasis)
          open(11,file='HONEEL',status='unknown')
          i=1
-         !TMat=0.d0
+         !TMat=0.0_dp
          G1(1:nBasis)=NullBasisFn
          do while(i.ne.0)
             read(11,*) i,j,val
@@ -343,7 +343,7 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          integer i,GetDFIndex
          integer x,y,j
          real(dp) res,res1,res2,res3
-         res=0.D0
+         res=0.0_dp
          x=GetDFIndex(a,c)
          y=GetDFIndex(b,d)
 !  (ab|u|cd)=sum_PQ (ab|P)(P|u|Q)(Q|cd)
@@ -367,7 +367,7 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          integer i,GetDFIndex
          integer x,y,j
          real(dp) res,res1,res2,res3
-         res=0.D0
+         res=0.0_dp
          x=GetDFIndex(a,c)
          y=GetDFIndex(b,d)
 !  (ab|u|cd)=sum_PQ (ab|u|P)[(P|u|Q)^-1](Q|u|cd)
@@ -401,7 +401,7 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          call set_timer(proc_timer)
          Allocate(M(nAuxBasis,nAuxBasis),STAT=ierr)
          call LogMemAlloc("M-DFInvFitInts",nAuxBasis*nAuxBasis,8,t_r,tagM,ierr)
-         M=0.d0
+         M=0.0_dp
          do i=1,nAuxBasis
             do j=1,i
                M(i,j)=DFFitInts(i,j)

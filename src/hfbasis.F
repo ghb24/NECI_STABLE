@@ -12,7 +12,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          OPEN(10,FILE='TMAT2',STATUS='UNKNOWN')
          DO I=1,NORBUSED
             DO J=1,NORBUSED
-               SUM1=0.D0
+               SUM1=0.0_dp
                DO A=1,NBASIS
                   DO B=1,NBASIS
                     SUM1=SUM1+HFBASIS(I,A)*HFBASIS(J,B)*
@@ -152,7 +152,7 @@ C.. Thus the sum1 A+C must be even, as must B+D
           DO J=1,NHG/ISS
            DO K=1,NHG/ISS
             DO L=1,NHG/ISS
-             SUM1=0.D0
+             SUM1=0.0_dp
              DO I=1,NHG
               ID1 = GTID(I)
               SUM1=SUM1+HFBASIS(A,I)
@@ -169,7 +169,7 @@ C.. Thus the sum1 A+C must be even, as must B+D
           DO B=1,NORBUSED
            DO K=1,NHG/ISS
             DO L=1,NHG/ISS
-             SUM1=0.D0
+             SUM1=0.0_dp
              DO J=1,NHG
               ID2 = GTID(J)
               SUM1=SUM1+HFBASIS(B,J)
@@ -186,7 +186,7 @@ C.. Thus the sum1 A+C must be even, as must B+D
           DO B=1,NORBUSED
            DO C=1,NORBUSED
             DO L=1,NHG/ISS
-             SUM1=0.D0
+             SUM1=0.0_dp
              DO K=1,NHG
               ID3 = GTID(K)
               SUM1=SUM1+HFBASIS(C,K)
@@ -198,15 +198,15 @@ C.. Thus the sum1 A+C must be even, as must B+D
            ENDDO
           ENDDO
          ENDDO
-         UMAT2(1:nBasis**4)=0.d0
+         UMAT2(1:nBasis**4)=0.0_dp
          WRITE(6,*) "Index 4..."
          DO A=1,NORBUSED
           DO B=1,NORBUSED
            DO C=1,NORBUSED
             DO D=1,NORBUSED
              LSPN=(MOD(A+C,2).EQ.0).AND.(MOD(B+D,2).EQ.0)
-             IF(LSPN.AND.UMAT2(UMatInd(A,B,C,D,0,0)).EQ.0.D0) THEN
-              SUM1=0.D0
+             IF(LSPN.AND.UMAT2(UMatInd(A,B,C,D,0,0)).EQ.0.0_dp) THEN
+              SUM1=0.0_dp
               DO L=1,NHG
                ID4 = GTID(L)
                SUM1=SUM1+HFBASIS(D,L)
@@ -332,8 +332,8 @@ C         IF(TRHF) NSPINS=1
          call LogMemAlloc('HFES',NSBASIS*NSPINS,8,this_routine,tagHFES)
 C.. Generate initial HFBASIS vectors as the energy ordered single
 C.. particle basis fns, separated into up and down blocks
-         FMAT=(0.d0)
-         DMAT=(0.d0)
+         FMAT=(0.0_dp)
+         DMAT=(0.0_dp)
          IF(IHFMETHOD.EQ.0.OR.IHFMETHOD.EQ.-1) THEN
             CALL UHFSCF(NBASIS,G1,BRR,ECORE,
      &         HFE,HFBASIS,NHFIT,NEL,MS,FMAT,DMAT,ODMAT,WORK,
@@ -441,7 +441,7 @@ C         EDELTA=1.D-8
 C.. Construct the Density Matrix
          CALL GENDMAT(NSPINS,NSBASIS,NELS,FMAT,DMAT,.FALSE.)
 C.. See how much our density matrix has changed from last time
-         RMSD=0.D0
+         RMSD=0.0_dp
          DO ISPN=1,NSPINS
             DO I=1,NSBASIS 
                DO J=1,NSBASIS
@@ -491,7 +491,7 @@ C.. Now add back in some of our original F matrix
       IF(BTEST(ILOGGING,11))
      &   CALL WRITEHFPSIALL(NBASIS,FMAT,HFES,G1,NSPINS,NSBASIS,.FALSE.) 
 C.. We write out HFMAT  
-      HFBASIS=(0.d0)
+      HFBASIS=(0.0_dp)
          DO I=1,NSBASIS
             DO ISPN=1,NSPINS
               K=(I-1)*NSPINS+ISPN
@@ -524,7 +524,7 @@ C.. Construct the Density Matrix
          DO ISPN=1,NSPINS
             DO I=1,NSBASIS
                DO J=I,NSBASIS
-                  TOT=0.D0
+                  TOT=0.0_dp
 C.. Sum over occupied orbitals for our spin
                   DO K=1,NELS(ISPN)
 C.. eigenvector N is in FMAT(i,N,ISPN), where i is the component of the
@@ -569,12 +569,12 @@ C.. vector
          INTEGER I,J,K,L,ISPN,ISPN2,ID1,ID2,ID3,ID4
          real(dp) RHFMUL
 C         IF(TRHF) THEN
-C            RHFMUL=2.D0
+C            RHFMUL=2.0_dp
 C         ELSE
-            RHFMUL=1.D0
+            RHFMUL=1.0_dp
 C         ENDIF
 C.. Construct the Fock Matrix
-         FMAT=(0.d0)
+         FMAT=(0.0_dp)
 C. <ui|F|uj>=tij+Sum_kl(Dkl <ui uk|U|uj ul>-s<ui uk|U|ul uj>) where s=1 if i,k same spin
          DO ISPN=1,NSPINS
             DO I=1,NSBASIS
@@ -639,7 +639,7 @@ C.. Now sum in the alpha and beta block of u matrix
          INTEGER ISPN,I,J,K         
 
 C.. First calculate the HF energy double counting contrib
-         TOT=0.D0
+         TOT=0.0_dp
          DO ISPN=1,NSPINS
             DO J=1,NSBASIS
                DO K=1,NSBASIS
@@ -671,15 +671,15 @@ C.. vector
      &      CALL NECI_WRITE_MATRIX("EIGVAL",1,NSBASIS,HFES(1,ISPN))
          ENDDO
 C.. now calculate the sum of the occupied Fock orbitals
-         TOT2=0.D0
+         TOT2=0.0_dp
          DO ISPN=1,NSPINS
             DO I=1,NELS(ISPN)
                TOT2=TOT2+(HFES(I,ISPN))
             ENDDO
          ENDDO
 C.. subtract out the double counting term, and add in the core energy
-!         WRITE(6,*) "ECUR=",TOT2-TOT/(2.D0)+(ECORE)
-         ECUR=(TOT2)-(TOT)/2.D0+ECORE
+!         WRITE(6,*) "ECUR=",TOT2-TOT/(2.0_dp)+(ECORE)
+         ECUR=(TOT2)-(TOT)/2.0_dp+ECORE
          RETURN
       END
       SUBROUTINE WRITEHFPSIALL(NBASIS,FMAT,HFES,G1,NSPINS,NSBASIS,
@@ -752,7 +752,7 @@ C.. vector unless transposed
          ISEED=1007
          irand=1
          R=RAN2(irand)
-         FMAT=(0.d0)
+         FMAT=(0.0_dp)
          WRITE(6,*) "Generating HF Guess..."
          NEL=0
          DO IS=1,NSPINS
@@ -770,9 +770,9 @@ C.. vector unless transposed
                ENDDO
                NELR=(BRR(IREAL)-1)/NSPINS+1
                IF(TRANS) THEN
-                  FMAT(I,NELR,ISPN)=(1.D0)
+                  FMAT(I,NELR,ISPN)=(1.0_dp)
                ELSE
-                  FMAT(NELR,I,ISPN)=(1.D0)
+                  FMAT(NELR,I,ISPN)=(1.0_dp)
                ENDIF
                IF(I.LE.NELS(IS)) THEN
                   WRITE(6,"(I4,A)",advance='no') BRR(IREAL),","
@@ -860,7 +860,7 @@ C.. vector unless transposed
             DO I=1,N
                DO J=1,N
                   FMAT(I,J,ISPN)=(FMIX)*FMAT(I,J,ISPN)
-     &               +(1.D0-FMIX)*OFMAT(I,J,ISPN)
+     &               +(1.0_dp-FMIX)*OFMAT(I,J,ISPN)
                ENDDO
             ENDDO
             IF(N.LT.3) THEN
@@ -898,12 +898,12 @@ C.. R = F F'T as F and F' are orthogonal matrices
          DO ISPN=1,NSPINS
 
 
-C.. Work out R = R1=1.D0 * F * F'T + 0.D0*R1
-            CALL DGEMM('N','T',N,N,N,1.D0,FMAT(1,1,ISPN),N,
-     &            OFMAT(1,1,ISPN),N,0.D0,R1,N)
+C.. Work out R = R1=1.0_dp * F * F'T + 0.0_dp*R1
+            CALL DGEMM('N','T',N,N,N,1.0_dp,FMAT(1,1,ISPN),N,
+     &            OFMAT(1,1,ISPN),N,0.0_dp,R1,N)
 C.. now let P=R1=R-I
             DO I=1,N
-               R1(I,I)=R1(I,I)-1.D0
+               R1(I,I)=R1(I,I)-1.0_dp
             ENDDO
 C.. R^a = I+aP(I+(a-1)/2 P(I+ (a-2)/3 P (I+...) ) ) F'
 C.. Let FMAT be the accumulator
@@ -911,13 +911,13 @@ C.. Let FMAT be the accumulator
 C.. Go up to 2nd order taylor
             DO J=1,0,-1
 C.. Set R2=I
-               R2=0.d0
+               R2=0.0_dp
                DO I=1,N
-                   R2(I,I)=1.d0
+                   R2(I,I)=1.0_dp
                END DO
-C.. Work out R2=(a-J)/(J+1.D0) * R1 * FMAT + 1.D0*R2.  a=FMIX
-               CALL DGEMM('N','N',N,N,N,(FMIX-J)/(J+1.D0),
-     &            R1,N,FMAT(1,1,ISPN),N,1.D0,R2,N)
+C.. Work out R2=(a-J)/(J+1.0_dp) * R1 * FMAT + 1.0_dp*R2.  a=FMIX
+               CALL DGEMM('N','N',N,N,N,(FMIX-J)/(J+1.0_dp),
+     &            R1,N,FMAT(1,1,ISPN),N,1.0_dp,R2,N)
                CALL DCOPY(N*N,R2,1,FMAT(1,1,ISPN),1)
             ENDDO
 C.. Now reorthoganalise, as this is just an approximation    
@@ -993,7 +993,7 @@ C.. Cij - i corresponds to rows and new basis functions, phi_i
 C..       j corresponds to columns and old basis functions, u_j
 C.. phi_i=sum_j=1,M cij u_j
          
-C         VMAT=0.d0
+C         VMAT=0.0_dp
          IF(TREADHF) THEN
            CALL  READHFFMAT(NBASIS,CMAT,HFES,G1,NSPINS,NSBASIS,.TRUE.)
          ELSE
@@ -1069,13 +1069,13 @@ C              R1 = CMAT(:,:,ISPN) + 0.1_dp*VMAT(:,:,ISPN)
 C.. Remove the projection of the "force" already in the direction of
 C.. the coefficients
             DO ISPN=1,NSPINS
-              R1=0.d0
+              R1=0.0_dp
               DO I=1,NELS(ISPN)
-               TOT=0.D0
+               TOT=0.0_dp
                DO J=1,NSBASIS
                   TOT=TOT+DEDCIJ(I,J,ISPN)*CMAT(I,J,ISPN)
                ENDDO
-               TOT2=0.D0
+               TOT2=0.0_dp
                DO J=1,NSBASIS
                   R1(I,J)=DEDCIJ(I,J,ISPN)-TOT*CMAT(I,J,ISPN)
                   TOT2=TOT2+R1(I,J)**2
@@ -1097,7 +1097,7 @@ C              WRITE(6,*)
 C              WRITE(6,*)
               CALL LOWDIN_ORTH(CMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
             ENDDO
-            RMSD=0.D0
+            RMSD=0.0_dp
             DO ISPN=1,NSPINS
                DO I=1,NSBASIS 
                   DO J=1,NSBASIS
@@ -1141,7 +1141,7 @@ C.. calculate the orbital energies every time
          DO ISPN=1,NSPINS
             DO I=1,NSBASIS
                NELEX=(I-1)*NSPINS+1+ISPN-1
-               EN=0.D0
+               EN=0.0_dp
                CALL GETTRTMATEL(NELEX,NELEX,CMAT,NSBASIS,
      &               NSPINS,EN)
                HFES(I,ISPN)=EN
@@ -1154,7 +1154,7 @@ C.. we're not allowed to count the current electron again
      &                     CMAT,NSBASIS,NSPINS,EN)
                         
 C                        HFES(I,ISPN)=HFES(I,ISPN)+EN
-                        EN=0.D0
+                        EN=0.0_dp
                         IF(ISPN.EQ.JSPN)
      &                     CALL GETTRUMATEL(NELEX,NELEX2,NELEX2,NELEX,
      &                        CMAT,NSBASIS,NSPINS,EN)
@@ -1174,21 +1174,21 @@ C                        HFES(I,ISPN)=HFES(I,ISPN)-EN
 C.. Now re-order the orbitals
 C.. although we don't actually use this info
          DO ISPN=1,NSPINS
-            R1=0.d0
+            R1=0.0_dp
             DO I=1,NSBASIS
 C.. If R1(2,1) is occupied, then postmultiplying C by R1 moves
 C.. column 2 in C to column 1.
 C.. INORDER(1,ISPN) is the old index of the lowest energy orb
                R1(I,INORDER(I,ISPN))=1
             ENDDO
-C.. Work out R2=1.D0 CMAT*R1+ 0.D0*R2
-            CALL DGEMM('N','N',NSBASIS,NSBASIS,NSBASIS,1.D0,
+C.. Work out R2=1.0_dp CMAT*R1+ 0.0_dp*R2
+            CALL DGEMM('N','N',NSBASIS,NSBASIS,NSBASIS,1.0_dp,
      &            R1,NSBASIS,CMAT(1,1,ISPN),NSBASIS,
-     &            0.D0,R2,NSBASIS)
+     &            0.0_dp,R2,NSBASIS)
 C            CALL DCOPY(NSBASIS*NSBASIS,R2,1,CMAT(1,1,ISPN),1)
-            CALL DGEMM('N','N',NSBASIS,NSBASIS,NSBASIS,1.D0,
+            CALL DGEMM('N','N',NSBASIS,NSBASIS,NSBASIS,1.0_dp,
      &            R1,NSBASIS,OCMAT(1,1,ISPN),NSBASIS,
-     &            0.D0,R2,NSBASIS)
+     &            0.0_dp,R2,NSBASIS)
 C            CALL DCOPY(NSBASIS*NSBASIS,R2,1,OCMAT(1,1,ISPN),1)
          ENDDO            
  
@@ -1214,7 +1214,7 @@ C     &               INORDER(I,ISPN)
       IF(BTEST(ILOGGING,11))
      &   CALL WRITEHFPSIALL(NBASIS,CMAT,HFES,G1,NSPINS,NSBASIS,.TRUE.) 
 C.. We write out HFMAT  
-      HFBASIS=0.d0
+      HFBASIS=0.0_dp
          DO I=1,NSBASIS
             DO ISPN=1,NSPINS
               K=(I-1)*NSPINS+ISPN
@@ -1248,7 +1248,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          INTEGER I,J,K,L,M,ISPN
          INTEGER NELEX,NELNEW,IPOSO,IPOSN,ISGNCH
          real(dp) ECUR,SCRRES,GETHELEMENT2T,TOT
-            DEDCIJ=0.d0
+            DEDCIJ=0.0_dp
             iposo = 0
             iposn = 0
             DO ISPN=1,NSPINS
@@ -1322,7 +1322,7 @@ C.. TOT now contains dE/dcij, so we store this
 C.. We calculate dE/dcij as
 C.. dE/dc_kf = 2(Sum_a c_ka <a|h|f> 
 C.. +Sum_j Sum_abc c_ja c_kb c_jc (<af|U|cb>-<af|U|bc>+<ab|U|cf>-<ab|U|fc>)) 
-         DEDCIJ=0.d0
+         DEDCIJ=0.0_dp
          DO KSPN=1,NSPINS
 C.. K is an HF orbital
             DO K=1,NELS(KSPN)
@@ -1330,7 +1330,7 @@ C.. F is the basis orbital
                DO F=1,NSBASIS
 C.. TMAT ID
                   IDF=(F-1)*NSPINS+1+KSPN-1
-                  TOT=0.D0
+                  TOT=0.0_dp
 C.. deal with the one-electron integrals first
                   DO A=1,NSBASIS
                      IDA=(A-1)*NSPINS+1+KSPN-1
@@ -1345,12 +1345,12 @@ C.. UMAT ID
 C.. Here A and C correspond to J and B corresponds to K
                      DO A=1,NSBASIS
                         IDA = GTID((A-1)*NSPINS+1+JSPN-1)
-                        TOT1=0.D0
+                        TOT1=0.0_dp
                         DO B=1,NSBASIS
                            IDB = GTID((B-1)*NSPINS+1+KSPN-1)
-                           TOT1B=0.D0
+                           TOT1B=0.0_dp
                            DO C=1,NSBASIS
-                              TOT2=0.D0
+                              TOT2=0.0_dp
                               IDC = GTID((C-1)*NSPINS+1+JSPN-1)
                               TOT2=TOT2+UMAT(UMatInd(IDA,IDF,IDC,IDB
      &                                       ,0,0))
@@ -1431,7 +1431,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
              if (ICUR < NEL) then
                 if (FDET(ICUR+1) == I) ICUR = ICUR+1
             endif
-            MX=0.D0
+            MX=0.0_dp
             IBF=0
             DO J=1,NBASIS
                IF(ABS(HFBASIS(I,J)).GT.MX) THEN

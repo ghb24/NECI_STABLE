@@ -274,7 +274,7 @@ contains
          !For Molpro, ISPINS should always be 2, and therefore NORB is spatial, and len is spin orbtials
          IF(LEN.NE.ISPINS*NORB) STOP 'LEN .NE. NORB in GETFCIBASIS'
          G1(1:LEN)=NullBasisFn
-         ARR=0.d0
+         ARR=0.0_dp
 
 !If we are reading in and cacheing the FCIDUMP integrals, we need to know the maximum number j,l pairs of
 !integrals for a given i,k pair. (Or in chemical notation, the maximum number of k,l pairs for a given i,j pair.)
@@ -614,7 +614,7 @@ contains
                  iSpinType=0
              endif
              IF(.not.TSTARSTORE) THEN
-                 TMAT2D(:,:)=(0.D0)
+                 TMAT2D(:,:)=(0.0_dp)
              ENDIF
              ! Can't use * as need to be backward compatible with existing 
              ! FCIDUMP files, some of which have more than 100 basis
@@ -777,7 +777,7 @@ contains
                     IF(tUMatEps) THEN
 !We have an epsilon cutoff for the size of the two-electron integrals - UMatEps
                         IF(abs(Z).lt.UMatEps) THEN
-                            UMAT(UMatInd(I,K,J,L,0,0))=0.D0
+                            UMAT(UMatInd(I,K,J,L,0,0))=0.0_dp
                             ZeroedInt=ZeroedInt+1
                         ELSE
                             UMAT(UMatInd(I,K,J,L,0,0))=Z

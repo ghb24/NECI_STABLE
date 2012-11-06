@@ -74,7 +74,7 @@ C!!! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       integer , PARAMETER :: MAXLEV=4, LXDFLT=3
       integer , save :: NDSKIP(0:MAXLEV)
       integer , save :: NEXT(24)
-      real(dp) , PARAMETER :: TWOP12=4096.D0
+      real(dp) , PARAMETER :: TWOP12=4096.0_dp
       integer , parameter :: IGIGA=1000000000,JSDFLT=314159265
       integer , PARAMETER :: ITWO24=2**24, ICONS=2147483563
       integer , SAVE :: I24, J24, LUXLEV

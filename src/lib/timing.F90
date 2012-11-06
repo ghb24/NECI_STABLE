@@ -319,13 +319,13 @@ contains
           write (io,'(a65)') 'Procedure                    Calls       CPU    system     total'
           write (io,'(a65)') '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - '
           
-          total_cpu=0.d0
-          total_system=0.d0
+          total_cpu=0.0_dp
+          total_system=0.0_dp
           do i=1,min(itimer,nobjs)
               ! Find i-th most expensive procedure.
               id=maxloc(sum_times)
               it=id(1)
-              sum_times(it)=0.d0 ! Don't find this object again.
+              sum_times(it)=0.0_dp ! Don't find this object again.
               if(timers(it)%ncalls.gt.0) then
                   write (io,'(1X,a25,i9,3f10.2)') adjustl(timers(it)%timer_name),timers(it)%ncalls,  &
                                                  timers(it)%sum_time_cpu,timers(it)%sum_time_system,&

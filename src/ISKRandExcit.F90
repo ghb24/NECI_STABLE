@@ -76,7 +76,7 @@ MODULE ISKRandExcit
             if(tSame_ISK) then
                 !We have created the same ISK - return null ISK
                 nJ(1)=0
-                if(tGenMatHEl) HEl=0.D0
+                if(tGenMatHEl) HEl=0.0_dp
             elseif(tCrossConnected) then
                 !The cross-term is connected. Calculate the probability that we created this det instead (in same ISK)
                 CALL CalcNonUniPGen(nI, CrossEx, CrossIC, &
@@ -573,8 +573,8 @@ MODULE ISKRandExcit
 
         ALLOCATE(Weights(iUniqueHPHF))
         ALLOCATE(AllWeights(iUniqueHPHF))
-        AllWeights(:)=0.D0
-        Weights(:)=0.D0
+        AllWeights(:)=0.0_dp
+        Weights(:)=0.0_dp
         store%tFilled = .false.
 
         write(6,*) "Generating ISK random excitations..."
@@ -599,7 +599,7 @@ MODULE ISKRandExcit
                 CALL Stop_All("TestGenRandISKExcit","Cannot find excitation in list of allowed excitations")
             ENDIF
 
-            Weights(PartInd)=Weights(PartInd)+(1.D0/pGen)
+            Weights(PartInd)=Weights(PartInd)+(1.0_dp/pGen)
              
 !Check excitation
 !            CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
@@ -617,7 +617,7 @@ MODULE ISKRandExcit
             Die=.false.
             do i=1,iUniqueHPHF
                 AllWeights(i)=AllWeights(i)/(real(Iterations,dp)*real(nNodes,dp))
-                IF(abs(AllWeights(i)-1.D0).gt.0.1) THEN
+                IF(abs(AllWeights(i)-1.0_dp).gt.0.1) THEN
                     WRITE(6,*) "Error here!",i
                     Die=.true.
                 ENDIF

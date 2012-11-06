@@ -6,7 +6,7 @@ C.. Best for small H
          implicit none
          integer :: i,i_h,i_p
          real(dp) :: FNCR
-         FNCR=1.D0
+         FNCR=1.0_dp
          DO I=0,I_H-1
             FNCR=FNCR*(I_P-I)/(I+1)
          ENDDO
@@ -20,7 +20,7 @@ C.. Best for small H
 !         IMPLICIT real(dp)(A-H,O-Z)
 !         IMPLICIT LOGICAL(L)
          LSAME2=.FALSE.
-         IF((ABS((A/B)-1.D0).LT.1.D-10).OR.
+         IF((ABS((A/B)-1.0_dp).LT.1.D-10).OR.
      &      ABS(A-B).LT.1.D-10) LSAME2=.TRUE.
 C         IF(LSAME2) WRITE(10,*) "LSAME2",A,B,LSAME2
          RETURN
@@ -45,7 +45,7 @@ C.. Or if we have the whole RHO, it's quicker to look closer to its beginning
          J=IJ
       ENDIF
 C      IF(I.GT.0) THEN
-      GETRHOELEMENT=0.D0
+      GETRHOELEMENT=0.0_dp
       INDXROW=RHOIJROWS(I)
       IMAX=RHOIJROWS(I+1)-1
       DO K=INDXROW,IMAX
@@ -58,6 +58,6 @@ C      IF(I.GT.0) THEN
 C      ELSE
 C         JK=1
 C      ENDIF
-      GETRHOELEMENT=0.D0
+      GETRHOELEMENT=0.0_dp
       RETURN
       END
