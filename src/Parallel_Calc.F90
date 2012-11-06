@@ -524,7 +524,7 @@ subroutine Get2vWeightEnergy(dE1,dE2,dU,dBeta,dw,dEt)
    dw=abs(dD)**2*dEx
    dEt=dE1*abs(dD)**2*dEx
 #ifdef __CMPLX
-   dEt=dEt+dU*dD*dconjg(dD2)*dEx
+   dEt=dEt+dU*dD*conjg(dD2)*dEx
 #else
    dEt=dEt+dU*dD*(dD2)*dEx
 #endif
@@ -539,8 +539,8 @@ subroutine Get2vWeightEnergy(dE1,dE2,dU,dBeta,dw,dEt)
 !  Instead we just swap dD2 and dD around
    dTmp=dD
 #ifdef __CMPLX
-   dD=dconjg(dD2)
-   dD2=-dconjg(dTmp)
+   dD=conjg(dD2)
+   dD2=-conjg(dTmp)
 #else
    dD=(dD2)
    dD2=-(dTmp)
@@ -550,7 +550,7 @@ subroutine Get2vWeightEnergy(dE1,dE2,dU,dBeta,dw,dEt)
 !   write(6,*) dEm,dD,dD2,dw,dEx
    dEt=dEt+(dE1*abs(dD)**2*dEx)
 #ifdef __CMPLX
-   dEt=dEt+dU*dD*dconjg(dD2)*dEx
+   dEt=dEt+dU*dD*conjg(dD2)*dEx
 #else
    dEt=dEt+dU*dD*(dD2)*dEx
 #endif

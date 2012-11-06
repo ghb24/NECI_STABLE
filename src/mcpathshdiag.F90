@@ -366,7 +366,7 @@ module mcpathshdiag
                      TFAIL=.TRUE.
                   ENDIF
 #ifdef __CMPLX
-                  HIJ(I_VIND+1,IEXFROM)=DCONJG(RH)
+                  HIJ(I_VIND+1,IEXFROM)=conjg(RH)
 #else
                   HIJ(I_VIND+1,IEXFROM)=(RH)
 #endif
@@ -387,7 +387,7 @@ module mcpathshdiag
                      rh = get_helement(iPath(:, iI), nJ)
                      IF(.NOT.(abs(RH).GE.RHOEPS)) RH=0.D0
 #ifdef __CMPLX
-                     HIJ(I_VIND+1,II)=DCONJG(RH)
+                     HIJ(I_VIND+1,II)=conjg(RH)
 #else
                      HIJ(I_VIND+1,II)=(RH)
 #endif

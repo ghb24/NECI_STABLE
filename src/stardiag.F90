@@ -3537,7 +3537,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !                  WRITE(6,*) LIST(1,2),SQRT(1/NORM)
                   DO J=1,NLIST-1
 #if __CMPLX
-                     DLWDB2=DLWDB2+LIST(J,2)*(DCONJG(LIST(J,1))/((ROOTS(I))-LIST(J,0)))
+                     DLWDB2=DLWDB2+LIST(J,2)*(conjg(LIST(J,1))/((ROOTS(I))-LIST(J,0)))
 #else
                      DLWDB2=DLWDB2+LIST(J,2)*((LIST(J,1))/((ROOTS(I))-LIST(J,0)))
 #endif
@@ -3740,7 +3740,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !  |v_{lj}|^2 is the amount of the original j there is in each of the new eigenvectors l.
                ExcitInfo(iExcit+i-1,0)=WList(i)
 #ifdef __CMPLX
-               rh=sqrt((StarMat(1,i)*DCONJG(StarMat(1,I))))
+               rh=sqrt((StarMat(1,i)*conjg(StarMat(1,I))))
 #else
                rh=sqrt((StarMat(1,i)*(StarMat(1,I))))
 #endif

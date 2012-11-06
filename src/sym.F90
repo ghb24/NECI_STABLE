@@ -178,7 +178,7 @@ contains
          character(*), parameter :: this_routine='GenMolPSymTable'
 
          TAbelian=.true.
-         nSymGen=INT(DLOG(NSYMMAX+0.D0)/DLOG(2.D0)+.4)
+         nSymGen=INT(log(NSYMMAX+0.D0)/log(2.D0)+.4)
          WRITE(6,"(A,I3,A)") "  Generating abelian symmetry table with",&
             nSymGen, " generators" 
          WRITE(6,'(A,'//int_fmt(nSymMax)//')')                          &

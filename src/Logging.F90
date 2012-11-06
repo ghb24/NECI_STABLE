@@ -892,7 +892,7 @@ MODULE Logging
             tCalcInstSCpts = .true.
 
 
-        case("ENDLOG")
+        case("ENlog")
             exit logging
         case default
            CALL report("Logging keyword "//trim(w)//" not recognised",.true.)

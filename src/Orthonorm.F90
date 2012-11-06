@@ -138,7 +138,7 @@ END SUBROUTINE OrthoNormx
                NORM=0.D0
                DO K=1,LEN
 #ifdef __CMPLX
-                  DOT=DOT+DCONJG(MAT(K,J))*MAT(K,I)
+                  DOT=DOT+conjg(MAT(K,J))*MAT(K,I)
 #else
                   DOT=DOT+(MAT(K,J))*MAT(K,I)
 #endif

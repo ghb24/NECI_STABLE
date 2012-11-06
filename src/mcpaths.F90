@@ -950,7 +950,7 @@ contains
 !C.. see if it's worth going further
                RHOIJ(IVLEVEL,I_VIND+1)=RH
 #ifdef __CMPLX
-               RHOIJ(I_VIND+1,IVLEVEL)=DCONJG(RH)
+               RHOIJ(I_VIND+1,IVLEVEL)=conjg(RH)
 #else
                RHOIJ(I_VIND+1,IVLEVEL)=(RH)
 #endif
@@ -978,7 +978,7 @@ contains
 
 
 #ifdef __CMPLX
-                        RHOIJ(I_VIND+1,II)=DCONJG(RH)
+                        RHOIJ(I_VIND+1,II)=conjg(RH)
 #else
                         RHOIJ(I_VIND+1,II)=(RH)
 #endif
@@ -1371,7 +1371,7 @@ contains
                      TFAIL=.TRUE.
                   ENDIF
 #ifdef __CMPLX
-                  RHOIJ(I_VIND+1,IEXFROM)=DCONJG(RH)
+                  RHOIJ(I_VIND+1,IEXFROM)=conjg(RH)
 #else
                   RHOIJ(I_VIND+1,IEXFROM)=(RH)
 #endif
@@ -1388,7 +1388,7 @@ contains
      &                   ALAT,UMAT,RH,NTAY,-1,ECORE)
                      IF(.NOT.(abs(RH).GE.RHOEPS)) RH=0.D0
 #ifdef __CMPLX
-                     RHOIJ(I_VIND+1,II)=DCONJG(RH)
+                     RHOIJ(I_VIND+1,II)=conjg(RH)
 #else
                      RHOIJ(I_VIND+1,II)=(RH)
 #endif
