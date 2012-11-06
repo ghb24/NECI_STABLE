@@ -102,7 +102,7 @@ C.. The value at XHIGH is always bigger than at XLOW
             K=0
             LOWPOLE=.true.
             HIGHPOLE=.true.
-            DELTA=1.0e-13_dp_dp
+            DELTA=1.0e-13_dp
             INITHIGH=XHIGH
             INITLOW=XLOW
 !            WRITE(55,*) "***NEW ROOT***",I
@@ -190,7 +190,7 @@ C.. The value at XHIGH is always bigger than at XLOW
 !            WRITE(55,*) "***RF starting..."
 !  Now, do some regula falsi, which has faster convergence than bisection, but still stable...
 !            J=0
-!            DO WHILE(ABS(VAL).GT.1.0e-9_dp_dp.AND.ABS(XLOW-XHIGH).GT.RFCONV)
+!            DO WHILE(ABS(VAL).GT.1.0e-9_dp.AND.ABS(XLOW-XHIGH).GT.RFCONV)
 !                X=(-(VALHIGH*(XLOW-XHIGH))/(VALLOW-VALHIGH))+XHIGH
 !                WRITE(55,*) J,VALHIGH,VALLOW,X
 !                WRITE(55,*) XHIGH,XLOW
@@ -230,7 +230,7 @@ C.. Now polish off with some Newton Raphson
 !          WRITE(55,*) "**DERIV TOO SMALL/LARGE - calculating using RF**"
 !                K=0
                  IF((I.ne.1).and.(I.ne.NROOTS)) THEN
-                     DO WHILE((ABS(DERIV).lt.1.0e-13_dp_dp).or.
+                     DO WHILE((ABS(DERIV).lt.1.0e-13_dp).or.
      &                       (ABS(DERIV).gt.1.D+18))
 !                       WRITE(55,*) "DERIVATIVE UOB",K,DERIV
 !                       WRITE(55,*) "VALHIGH/LOW = ",VALHIGH,VALLOW
@@ -320,7 +320,8 @@ C.. Now polish off with some Newton Raphson
             ROOTS(I)=X
 !            WRITE(76,*) "Root found: ",X
             DO WHILE(I.GT.0.AND.
-     &          ABS(REAL(A(NMIN+I),dp)-REAL(A(NMIN+I-1),dp)).LT.1.0e-9_dp_dp)
+     &          ABS(REAL(A(NMIN+I),dp)-REAL(A(NMIN+I-1),dp))
+     &          .LT.1.0e-9_dp)
                I=I-1
                ROOTS(I)=(A(NMIN+I))
 C               WRITE(6,*),I,A(I),B(I)
@@ -421,7 +422,8 @@ C.. There should be two roots
              VAL=1.0_dp
 C            WRITE(6,*) "HIGH:", XHIGH,XVHIGH
 C            WRITE(6,*) "LOW :", XLOW,XVLOW
-             DO WHILE(ABS(VAL).GT.1.0e-9_dp_dp.AND.ABS(XLOW-XHIGH).GT.1.0e-12_dp_dp)
+             DO WHILE(ABS(VAL).GT.1.0e-9_dp.AND.ABS(XLOW-XHIGH)
+     &                 .GT.1.0e-12_dp)
                X=(XLOW+XHIGH)/2.0_dp
                CALL CALCSTARPOLYVALUE2(N,A,B,X,NR,VAL,.FALSE.)
 C               WRITE(6,"(4G19.12)") XLOW,XHIGH,X,VAL
@@ -450,8 +452,8 @@ C.. Now polish off with some Newton Raphson
             J=0
             IF(X.EQ.0.0_dp) J=11
             OX=0.0_dp
-            DO WHILE(ABS(VAL).GT.3.0e-13_dp_dp.AND.J.LT.10
-     &         .AND.ABS(X-OX).GT.1.0e-13_dp_dp)
+            DO WHILE(ABS(VAL).GT.3.0e-13_dp.AND.J.LT.10
+     &         .AND.ABS(X-OX).GT.1.0e-13_dp)
                CALL CALCSTARPOLYVALUE2(N,A,B,X,NR,VAL,.FALSE.)
                CALL CALCSTARPOLYDERIV2(N,A,B,X,NR,DERIV)
 C               WRITE(6,*) X,VAL
@@ -486,7 +488,7 @@ C.. one more root to find
                CALL CALCSTARPOLYVALUE2(N,A,B,XLOW,NR,XVLOW,.TRUE.)
              ENDIF
             ENDDO
-             DO WHILE(I.GT.0.AND.ABS(A(I)-A(I-1)).LT.1.0e-9_dp_dp)
+             DO WHILE(I.GT.0.AND.ABS(A(I)-A(I-1)).LT.1.0e-9_dp)
                I=I-1
                ROOTS(IROOT)=0.0_dp
 C..A(I)
@@ -530,9 +532,9 @@ C. if above, it then x-a >0, so just the sign of OV
 C            VAL=1.D10*OV   
 C            IF(.NOT.TABOVE) VAL=-VAL
             IF(TABOVE) THEN
-               DX=1.0e-16_dp_dp
+               DX=1.0e-16_dp
             ELSE
-               DX=-1.0e-16_dp_dp
+               DX=-1.0e-16_dp
             ENDIF
             X2=X+DX
             DO WHILE (X2.EQ.X)
@@ -585,7 +587,8 @@ C            IF(.NOT.TABOVE) VAL=-VAL
          CALL CALCSTARPOLYDERIV2(N,A,B,XHIGH*0.99999999_dp,NR,XVHIGH)
          CALL CALCSTARPOLYDERIV2(N,A,B,XLOW *1.00000001_dp,NR,XVLOW)
          VAL=1.0_dp
-         DO WHILE(ABS(VAL).GT.1.0e-9_dp_dp.AND.ABS(XLOW-XHIGH).GT.1.0e-12_dp_dp)
+         DO WHILE(ABS(VAL).GT.1.0e-9_dp.AND.ABS(XLOW-XHIGH)
+     &            .GT.1.0e-12_dp)
             X=(XLOW+XHIGH)/2.0_dp
             CALL CALCSTARPOLYDERIV2(N,A,B,X,NR,VAL)
             IF(VAL.GT.0) THEN
@@ -612,8 +615,8 @@ C            IF(.NOT.TABOVE) VAL=-VAL
 C.. Now polish off with some Newton Raphson
          J=0
          OX=0.0_dp
-         DO WHILE(ABS(VAL).GT.1.0e-13_dp_dp.AND.J.LT.10
-     &      .AND.ABS(X-OX).GT.1.0e-13_dp_dp)
+         DO WHILE(ABS(VAL).GT.1.0e-13_dp.AND.J.LT.10
+     &      .AND.ABS(X-OX).GT.1.0e-13_dp)
             CALL CALCSTARPOLYDERIV2(N,A,B,X,NR,VAL)
             CALL CALCSTARPOLYDERIV3(N,A,B,X,NR,DERIV)
             OX=X

@@ -578,8 +578,8 @@ C.. calculates B=A**N where B and A are LxL matrices
          DO WHILE(N2.NE.0)
             LM=BTEST(N2,0)
             N2=N2/2
-            CALL DGEMM('N','N',L,L,L,1.0_dp,C(1,1,S),L,C(1,1,S),L,0.0_dp,
-     &         C(1,1,1-S),L)
+            CALL DGEMM('N','N',L,L,L,1.0_dp,C(1,1,S),L,C(1,1,S),L,
+     &        0.0_dp, C(1,1,1-S),L)
             S=1-S
             IF(LM) THEN
                CALL DGEMM('N','N',L,L,L,1.0_dp,C(1,1,S),L,B,L,0.0_dp,

@@ -1044,7 +1044,7 @@ MODULE UMatCache
 
 !Store the integral in a contiguous fashion. A is the index for the i,k pair
           IF(UMATLABELS(CacheInd(A),A).ne.0) THEN
-              IF((abs(REAL(UMatCacheData(nTypes-1,CacheInd(A),A),dp)-Z)).gt.1.0e-7_dp_dp) THEN
+              IF((abs(REAL(UMatCacheData(nTypes-1,CacheInd(A),A),dp)-Z)).gt.1.0e-7_dp) THEN
                   WRITE(6,*) i,j,k,l,z,UMatCacheData(nTypes-1,CacheInd(A),A)
                   CALL Stop_All("CacheFCIDUMP","Same integral cached in same place with different value")
               ENDIF

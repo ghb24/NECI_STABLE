@@ -15,7 +15,7 @@ C..
       integer :: NMRKS(NEL,*)
       real(dp) :: RHO(NMSH,NMSH,NMSH),AUX(NMSH,NMSH,NMSH)
       real(dp) :: SITAB(NMSH,NMAX),ALAT(3),RS,SUM,OMEGA,CST,CF
-      REAL(dp) :: EPS=1.0e-8_dp_dp
+      REAL(dp) :: EPS=1.0e-8_dp
       real(dp) , SAVE :: IFIRST=0
 C..
       IF(IFIRST.EQ.0) THEN

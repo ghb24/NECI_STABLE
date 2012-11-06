@@ -3223,7 +3223,7 @@ SUBROUTINE SpinOrbSymSetup()
             do j=1,nBasis
                 if((SpinOrbSymLabel(j).eq.InvSym).and.(mod(i,2).eq.mod(j,2))) then
                     !This orbital is the right symmetry - is it the inverse orbital? Check Energy.
-                    if((abs(OrbEnergy-Arr(j,2))).lt.1.0e-7_dp_dp) then
+                    if((abs(OrbEnergy-Arr(j,2))).lt.1.0e-7_dp) then
                         !Assume that this is the inverse orbital.
                         KPntInvSymOrb(i)=j
                         exit

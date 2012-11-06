@@ -713,7 +713,7 @@ MODULE GraphMorph
 !
 !        MeanExcit=MeanExcit/(i-1)
 !
-!        IF((ABS(MeanExcit-2.0_dp)).gt.1.0e-8_dp_dp) THEN
+!        IF((ABS(MeanExcit-2.0_dp)).gt.1.0e-8_dp) THEN
 !            WRITE(6,*) "Error generating initial star graph"
 !            STOP 'Error generating initial star graph'
 !        ENDIF
@@ -880,8 +880,8 @@ MODULE GraphMorph
 !!                            ENDIF
 !!                        enddo
 !!                        IF(.not.connected) THEN
-!!                            Rhoij(i-1,1)=(1.0e-20_dp_dp)
-!!                            Rhoij(1,i-1)=(1.0e-20_dp_dp)
+!!                            Rhoij(i-1,1)=(1.0e-20_dp)
+!!                            Rhoij(1,i-1)=(1.0e-20_dp)
 !!                        ENDIF
 !!                    enddo
 !!                enddo
@@ -1726,7 +1726,7 @@ MODULE GraphMorph
 !        Norm1=(0.0_dp)
 !
 !        do i=2,NDets
-!!            IF(ABS(Eigenvector(i)).lt.1.0e-17_dp_dp) THEN
+!!            IF(ABS(Eigenvector(i)).lt.1.0e-17_dp) THEN
 !!                WRITE(6,*) "For determinant ", i, ", connection is ", Eigenvector(i)
 !!                STOP 'Numerical errors likely to arise due to such small connection'
 !!            ENDIF
@@ -2311,7 +2311,7 @@ MODULE GraphMorph
 !                NEval=NDets
 !            ENDIF
 !        ENDIF
-!!        B2L=1.0e-25_dp_dp
+!!        B2L=1.0e-25_dp
 !!        NBlk=4
 !!        NKry=8
 !        NCycle=200
@@ -2475,7 +2475,7 @@ MODULE GraphMorph
 !!        DEALLOCATE(temp)
 !!        WRITE(6,*) "The variance of the eigenvector components is: ", LancVar/NDets
 !
-!!        IF((ABS(SumVec-1.0_dp)).gt.1.0e-8_dp_dp) THEN
+!!        IF((ABS(SumVec-1.0_dp)).gt.1.0e-8_dp) THEN
 !!            WRITE(6,*) "Eigenvector NOT NORMALISED!",SumVec
 !!        ENDIF
 !        IF(ReturntoTMoveDets) THEN
@@ -2737,7 +2737,7 @@ FUNCTION RootofNum(Num,Root)
     use constants, only: dp
     real(dp) :: Root
     real(dp) :: Num,RootofNum
-    IF(Num.lt.1.0e-16_dp_dp) THEN
+    IF(Num.lt.1.0e-16_dp) THEN
         RootofNum=0.0_dp
     ELSE
         RootofNum=EXP(LOG(Num)/Root)

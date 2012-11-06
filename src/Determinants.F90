@@ -752,7 +752,7 @@ END MODULE Determinants
          nLeft=1+nUp
          IF(nDown.NE.0.AND.nUp.NE.0) WRITE(6,*) "Including ",-nDown,",",nUp," extra degenerate sets in active space."
          DO WHILE (nLeft.GT.0.AND.I.LT.nBasis)
-            DO WHILE (I.LT.nBasis.AND.ABS(ARR(I)-ARR(I-1)).LT.1.0e-5_dp_dp)
+            DO WHILE (I.LT.nBasis.AND.ABS(ARR(I)-ARR(I-1)).LT.1.0e-5_dp)
                I=I+1
             ENDDO
             nLeft=nLeft-1
@@ -774,7 +774,7 @@ END MODULE Determinants
          nLeft=nDown
          Do WHILE(nLeft.GT.0.AND.I.Gt.0)
       
-            DO WHILE (I.GT.0.AND.ABS(ARR(I)-ARR(I+1)).LT.1.0e-5_dp_dp)
+            DO WHILE (I.GT.0.AND.ABS(ARR(I)-ARR(I+1)).LT.1.0e-5_dp)
                I=I-1
             ENDDO
             nLeft=nLeft-1

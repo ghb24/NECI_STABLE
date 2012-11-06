@@ -179,7 +179,7 @@ C.. neighbour distance (removing poles which are within a distance EPS)
          SUMI=0.0_dp
 
 C.. two poles are the same if they are within EPS of each other
-         EPS=1.0e-6_dp_dp
+         EPS=1.0e-6_dp
 C.. in fact, all that needs to be done is to take a contour around all
 C.. poles which are similarly close to each other - we do this by
 C.. computing their mean, and taking a radius which is at least as large

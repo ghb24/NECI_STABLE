@@ -20,8 +20,8 @@ C.. Best for small H
 !         IMPLICIT real(dp)(A-H,O-Z)
 !         IMPLICIT LOGICAL(L)
          LSAME2=.FALSE.
-         IF((ABS((A/B)-1.0_dp).LT.1.0e-10_dp_dp).OR.
-     &      ABS(A-B).LT.1.0e-10_dp_dp) LSAME2=.TRUE.
+         IF((ABS((A/B)-1.0_dp).LT.1.0e-10_dp).OR.
+     &      ABS(A-B).LT.1.0e-10_dp) LSAME2=.TRUE.
 C         IF(LSAME2) WRITE(10,*) "LSAME2",A,B,LSAME2
          RETURN
       END

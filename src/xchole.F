@@ -25,7 +25,7 @@ C..Cube arrays
       integer :: IXD,IYD,IZD
 C..
 !      PI=ACOS(-1.0_dp)
-      EPS=1.0e-6_dp_dp
+      EPS=1.0e-6_dp
 C..
       IF(RHO(IOBS,JOBS,KOBS).EQ.0.0_dp) THEN
         STOP ' !!! DENSITY AT REFERENCE POSITION IS ZERO !!! '
@@ -81,7 +81,8 @@ C..This is an integral over the second order density matrix
               CHKRHO=CHKRHO+2.0_dp*XCHOLE(IX,IY,IZ) 
 C..This is the EXCHANGE-CORRELATION hole n_xc(r,r')
               XCHOLE(IX,IY,IZ)=
-     &          2.0_dp*XCHOLE(IX,IY,IZ)/RHO(IOBS,JOBS,KOBS)-RHO(IX,IY,IZ)
+     &          2.0_dp*XCHOLE(IX,IY,IZ)/RHO(IOBS,JOBS,KOBS)
+     &          -RHO(IX,IY,IZ)
             ENDDO
           ENDDO
         ENDDO

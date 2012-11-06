@@ -199,7 +199,7 @@ module mcpathsismc
                ITREE=1
                DLWDBSQ=0.0_dp
                PFAC=G_VMC_PI
-               WMIN=1.0e-8_dp_dp
+               WMIN=1.0e-8_dp
                IF(I_HMAX.LT.-12.AND.I_HMAX.GT.-19) THEN
 !C.. Setup the first graph for memory MC
                   OWEIGHT=1.0_dp

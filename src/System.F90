@@ -1356,7 +1356,7 @@ MODULE System
               WRITE(6,'(A)') "****** USING Lz SYMMETRY *******"
               WRITE(6,'(A,I5)') "Pure spherical harmonics with complex orbitals used to constrain Lz to: ",LzTot
               WRITE(6,*) "Due to the breaking of the Ml degeneracy, the fock energies are slightly wrong, "&
-              &//"on order of 1.0e-4_dp_dp - do not use for MP2!"
+              &//"on order of 1.0e-4_dp - do not use for MP2!"
               if(nsymlabels.gt.4) then
                   call stop_all(this_routine,"D2h point group detected. Incompatable with Lz symmetry conserving "&
                   &//"orbitals. Have you transformed these orbitals into spherical harmonics correctly?!")
@@ -1403,7 +1403,7 @@ MODULE System
               CALL GENCPMDSYMREPS(G1,NBASIS,ARR,1.e-5_dp)
           ELSEIF(tVASP) THEN
       !C.. If VASP-based calculation, then we've generated the symmetry table earlier,
-      !C.. but we still need the sym reps table. DEGENTOL=1.0e-6_dp_dp. CHECK w/AJWT.
+      !C.. but we still need the sym reps table. DEGENTOL=1.0e-6_dp. CHECK w/AJWT.
               CALL GENSYMREPS(G1,NBASIS,ARR,1.e-6_dp)
           ELSEIF(THUB.AND..NOT.TREAL) THEN
               CALL GenHubMomIrrepsSymTable(G1,nBasis,nBasisMax)
@@ -1738,7 +1738,7 @@ MODULE System
           WRITE(6,'(A)') "****** USING Lz SYMMETRY *******"
           WRITE(6,'(A,I5)') "Pure spherical harmonics with complex orbitals used to constrain Lz to: ",LzTot
           WRITE(6,*) "Due to the breaking of the Ml degeneracy, the fock energies are slightly wrong, "&
-          &//"on order of 1.0e-4_dp_dp - do not use for MP2!"
+          &//"on order of 1.0e-4_dp - do not use for MP2!"
           if(nsymlabels.gt.4) then
               call stop_all(this_routine,"D2h point group detected. Incompatable with Lz symmetry conserving "&
               &//"orbitals. Have you transformed these orbitals into spherical harmonics correctly?!")
@@ -1787,7 +1787,7 @@ MODULE System
          CALL GENCPMDSYMREPS(G1,NBASIS,ARR,1.e-5_dp)
       ELSEIF(tVASP) THEN
 !C.. If VASP-based calculation, then we've generated the symmetry table earlier,
-!C.. but we still need the sym reps table. DEGENTOL=1.0e-6_dp_dp. CHECK w/AJWT.
+!C.. but we still need the sym reps table. DEGENTOL=1.0e-6_dp. CHECK w/AJWT.
          CALL GENSYMREPS(G1,NBASIS,ARR,1.e-6_dp)
       ELSEIF(THUB.AND..NOT.TREAL) THEN
          CALL GenHubMomIrrepsSymTable(G1,nBasis,nBasisMax)
@@ -2253,7 +2253,7 @@ SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
      J=1+ISPIN
      ITOT=2
      DO I=3+ISPIN,NBASIS,2
-        IF(ABS(ARR(I,1)-OEN).GT.1.0e-4_dp_dp) THEN
+        IF(ABS(ARR(I,1)-OEN).GT.1.0e-4_dp) THEN
 !.. We don't have degenerate orbitals
 !.. First deal with the last set of degenerate orbitals
 !.. We sort them into order of BRR

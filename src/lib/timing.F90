@@ -39,7 +39,7 @@ module timing_neci
 != See the individual routines for more information.
 ! ========================================================================
 
-use constants, only: sp 
+use constants
 implicit none
 save
 

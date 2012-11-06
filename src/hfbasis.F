@@ -20,7 +20,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
                   ENDDO
                ENDDO
                TMAT2D2(I,J)=SUM1
-               IF(ABS(SUM1).GT.1.0e-10_dp_dp) WRITE(10,*) I,J,TMAT2D2(I,J)
+               IF(ABS(SUM1).GT.1.0e-10_dp) WRITE(10,*) I,J,TMAT2D2(I,J)
             ENDDO
          ENDDO
          CLOSE(10)
@@ -159,7 +159,7 @@ C.. Thus the sum1 A+C must be even, as must B+D
      &               *UMAT(UMatInd(ID1,J,K,L,0,0))
              ENDDO
              UMATT(UMatInd(J,K,L,A,0,0))=SUM1
-!             IF(ABS(SUM1).GT.1.0e-9_dp_dp) WRITE(6,*) J,K,L,A,SUM1
+!             IF(ABS(SUM1).GT.1.0e-9_dp) WRITE(6,*) J,K,L,A,SUM1
             ENDDO
            ENDDO
           ENDDO
@@ -176,7 +176,7 @@ C.. Thus the sum1 A+C must be even, as must B+D
      &               *UMATT(UMatInd(ID2,K,L,A,0,0))
              ENDDO
              UMAT2(UMatInd(K,L,A,B,0,0))=SUM1
-!             IF(ABS(SUM1).GT.1.0e-9_dp_dp) WRITE(6,*) K,L,A,B,SUM1
+!             IF(ABS(SUM1).GT.1.0e-9_dp) WRITE(6,*) K,L,A,B,SUM1
             ENDDO
            ENDDO
           ENDDO
@@ -193,7 +193,7 @@ C.. Thus the sum1 A+C must be even, as must B+D
      &               *UMAT2(UMatInd(ID3,L,A,B,0,0))
              ENDDO
              UMATT(UMatInd(L,A,B,C,0,0))=SUM1
-!             IF(ABS(SUM1).GT.1.0e-9_dp_dp) WRITE(6,*) L,A,B,C,SUM1
+!             IF(ABS(SUM1).GT.1.0e-9_dp) WRITE(6,*) L,A,B,C,SUM1
             ENDDO
            ENDDO
           ENDDO
@@ -217,7 +217,7 @@ C..Symmetries not needed by UMatInd
 !              UMAT2(C,D,A,B)=SUM1
 !              UMAT2(B,A,D,C)=SUM1
 !              UMAT2(D,C,B,A)=SUM1
-               IF(ABS(SUM1).GT.1.0e-10_dp_dp)
+               IF(ABS(SUM1).GT.1.0e-10_dp)
      &          WRITE(10,'(4I7,F19.9)') A,B,C,D,SUM1
              ENDIF
             ENDDO
@@ -392,7 +392,7 @@ C.. Unrestricted HF SCF code
          INTEGER HFDET(*)
          INTEGER ILOGGING
          F=HFMIX
-C         EDELTA=1.0e-8_dp_dp
+C         EDELTA=1.0e-8_dp
          ELAST=1.D20
          WRITE(6,*) "Performing Hartree-Fock SCF diagonalisation..."
          IF(IHFMETHOD.EQ.-1) THEN
@@ -1087,7 +1087,7 @@ C                  R1(I,J)=R1(I,J)/TOT2
               ENDDO
               MIX=-HFMIX
 C/ABS(ECUR)
-C              IF(ABS(ECUR).LT.1.0e-4_dp_dp) MIX=HFMIX
+C              IF(ABS(ECUR).LT.1.0e-4_dp) MIX=HFMIX
               IF(IHFIT.GT.NHFIT) BR=.FALSE.
               R2 = CMAT(:,:,ISPN) + R1
               CALL DCOPY(NSBASIS*NSBASIS,R2,1,CMAT(1,1,ISPN),1)
@@ -1460,7 +1460,7 @@ C.. ascending order
 C         G1(3,BRR(1))=J
          ITOT=1
          DO I=2,NBASIS
-            IF(ABS(ARR(I,1)-OEN).GT.1.0e-4_dp_dp) THEN
+            IF(ABS(ARR(I,1)-OEN).GT.1.0e-4_dp) THEN
 C.. We don't have degenerate orbitals
 C.. First deal with the last set of degenerate orbitals
 C.. We sort them into order of BRR

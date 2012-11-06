@@ -700,7 +700,8 @@ C..Put T is form suitable for banded matrix diagonalisation
       ENDIF
 C        CALL DSBEV('V','U',IN,N,T,IN,WT,T(1,2),IN,SCR,INFO)
       CALL DSBEVX('V','I','U',IN,N,T,IN,T(1,1,2),IN,1.0_dp,1.0_dp,
-     &     IN-N+1,IN,1.0e-10_dp_dp,MEVAL,WT,T(1,1,3),IN,SCR,ISCR,IFAIL,INFO)
+     &     IN-N+1,IN,1.0e-10_dp,MEVAL,WT,T(1,1,3),IN,SCR,
+     &     ISCR,IFAIL,INFO)
       IF(MEVAL.LT.N) THEN 
         WRITE(6,*) ' WARNING| DSBEVX RETURNED MEVAL < N',MEVAL,N
       ENDIF

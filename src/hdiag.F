@@ -266,8 +266,8 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          enddo
 
          do i=1,NBins
-            WRITE(9,"(G20.12)",advance='no') (MinS+((i-1.0_dp)*RangeBins))
-     &                                    +(RangeBins/2.0)
+            WRITE(9,"(G20.12)",advance='no') 
+     &                     (MinS+((i-1.0_dp)*RangeBins))+(RangeBins/2.0)
             do j=1,NDET
                 WRITE(9,"(I8)",advance='no') SHist(j,i)
             enddo
@@ -359,7 +359,7 @@ C.. Now work out exact wi etc.
 !               CALL WRITEDET(15,NMRKS(1,NBS+III-1),NEL,.FALSE.)
                WRITE(15,"(F19.11,I5)") W(III),IDEG
 
-               IF(ABS(W(III)/ELOWEST-1.0_dp).LT.1.0e-6_dp_dp) THEN
+               IF(ABS(W(III)/ELOWEST-1.0_dp).LT.1.0e-6_dp) THEN
                   GELOWEST=GELOWEST+IDEG
                ELSEIF(W(III).LT.ELOWEST) THEN
 C.. if we're going to change ELOWEST, and there was a previous ELOWEST,
@@ -395,7 +395,7 @@ C                  ELOWEST=W(III)
                        GOFE(L)=GOFE(L)
      &                   +IDEG*(CK((III-1)*NBLK+J)**2)*EXP(-W(III)*BETA)
 C                        IF(L.EQ.9.AND.
-C     &                  ABS(CK((III-1)*NBLK+J)).GT.1.0e-5_dp_dp) THEN
+C     &                  ABS(CK((III-1)*NBLK+J)).GT.1.0e-5_dp) THEN
 C         WRITE(6,*) NBS+III-1,J,CK((III-1)*NBLK+J),W(III),
 C     &         (CK((III-1)*NBLK+J)**2)*EXP(-W(III)*BETA)
 C                        ENDIF

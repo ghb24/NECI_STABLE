@@ -1,7 +1,7 @@
 
       FUNCTION CALCPATHS(IPATH,RHOII,RHOIJ,I_V,
      &      I_HMAX,I_P,NWHTAY,NEL,I_VMAX,ILOGGING)
-         use constants, only: dp
+         use constants
          use global_utilities
          IMPLICIT NONE
          real(dp) CALCPATHS
@@ -168,7 +168,7 @@ C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
          RETURN
       END
       SUBROUTINE CLASSPATHS(RHOC,HC,WEIGHT,RHOIJ,I_V,ICLASS)
-         use constants, only: dp,sizeof_int
+         use constants
          use legacy_data, only: CALCP_N, CALCP_NT, CALCP_SUM, CALCP_HSUM
          IMPLICIT NONE
          INTEGER I_V
@@ -209,7 +209,7 @@ C            WRITE(32,*) I_V,ICLASS,RHOC
             CALCP_HSUM(ICLASS)=CALCP_HSUM(ICLASS)+HC
       END
       SUBROUTINE CLASSPATH(RHOIJ,N,ICLASS)
-        use constants, only: dp,int64
+        use constants
          INTEGER I,J,N,ICLASS
          HElement_t RHOIJ(0:N,0:N)
          ICLASS=0
@@ -251,7 +251,7 @@ C            WRITE(32,*) I_V,ICLASS,RHOC
          use legacy_data, only: CALCP_N, CALCP_NT, CALCP_SUM, CALCP_HSUM
          CALCP_N=0
          CALCP_N=0
-         CALCP_SUM=0.0_dp
-         CALCP_HSUM=0.0_dp
+         CALCP_SUM=0
+         CALCP_HSUM=0
       END
 

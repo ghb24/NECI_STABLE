@@ -50,7 +50,7 @@ C..Symmetries
 !              UMAT(ID3,ID4,ID1,ID2)=SUM
 !              UMAT(ID2,ID1,ID4,ID3)=SUM
 !              UMAT(ID4,ID3,ID2,ID1)=SUM
-              IF(SUM.LE.1.0e-10_dp_dp) GOTO 100 
+              IF(SUM.LE.1.0e-10_dp) GOTO 100 
               WRITE(10,'(4I7,F19.9)') ID1,ID2,ID3,ID4,SUM
 100           CONTINUE
             ENDDO

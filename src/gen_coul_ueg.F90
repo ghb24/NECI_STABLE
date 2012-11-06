@@ -70,7 +70,7 @@ contains
                         ! Indices are internally reordered such that:
                         ! i >= k, j >= l, (i,k) >= (j,l)
                         UMAT(UMatInd(id1, id2, id3, id3, 0, 0)) = sum
-                        if (abs(sum) > 1.0e-10_dp_dp) &
+                        if (abs(sum) > 1.0e-10_dp) &
                             write (10, '(4i7,f19.9)') id1, id2, id3, id4, sum
                     enddo
                 enddo
@@ -170,7 +170,7 @@ contains
                                             * uHub / (omega**2)
                                 enddo
                                 write(41,"(2I3)",advance='no') c, d
-                                if (abs(real(s) - sum) > 1.0e-7_dp_dp) then
+                                if (abs(real(s) - sum) > 1.0e-7_dp) then
                                     write (41,*) sum, s
                                 else
                                     write (41,*) sum, sum
@@ -215,7 +215,7 @@ contains
                         ! Indices are internally ! reordered such that:
                         !i >= k, j >= l, (i,k) >= (j,l)
                         UMAT(UMatInd(id1, id2, id3, id4, 0, 0)) = sum
-                        if (abs(sum) > 1.0e-10_dp_dp) &
+                        if (abs(sum) > 1.0e-10_dp) &
                             write (10, '(4i7,f19.9)') id1, id2, id3, id4, sum
                     enddo
                 enddo

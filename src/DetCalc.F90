@@ -734,7 +734,7 @@ CONTAINS
 !                SelfInvUnit = get_free_unit()
 !                open(SelfInvUnit,file='SelfInvDet',status='unknown')
 !                do i=1,Det
-!                    if(abs(FCIGS(i)).lt.1.0e-8_dp_dp) cycle
+!                    if(abs(FCIGS(i)).lt.1.0e-8_dp) cycle
 !                    !Ignore if self-inverse
 !                    if(IsBitMomSelfInv(FCIDets(:,i))) then
 !                        call decode_bit_det(TempnI,FCIDets(:,i))
@@ -816,7 +816,7 @@ CONTAINS
 !!                            WRITE(23,"(A,2I14,3G20.10,I5,2G20.10)") "Closed ",FCIDets(0:NIfD,i),iLutSym(:),FCIGS(i),FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs,MatEl,MatEl2
 !!                        WRITE(23,"(A,2I14,3G20.10,I5)") "Closed ",FCIDets(0:NIfD,i),iLutSym(:),FCIGS(i),FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs
 !                    ELSE
-!                        IF(abs(FCIGS(i)).gt.1.0e-5_dp_dp) THEN 
+!                        IF(abs(FCIGS(i)).gt.1.0e-5_dp) THEN 
 !!Find Hi0 element
 !                            CALL DecodeBitDet(nK,FCIDets(0:NIfDBO,i))
 !!                            CALL DecodeBitDet(nJ,FCIDets(0:NIfDBO,j))
@@ -1231,7 +1231,7 @@ END MODULE DetCalc
             R=R*EXP(-(W(IK)-W(1))*BETA/I_P)
             RHII=RHII+R
          ENDDO
-         IF(NEVAL.NE.NDET.AND.EXP(-(W(NEVAL)-W(1))*BETA/I_P).GT.1.0e-2_dp_dp) THEN
+         IF(NEVAL.NE.NDET.AND.EXP(-(W(NEVAL)-W(1))*BETA/I_P).GT.1.0e-2_dp) THEN
 !.. If we don't have all our eigenvectors and we think our sum has not
 !.. converged, we print a warning the first time.
 !.. we cannot calculate a proper RHII so we just guess at 1
@@ -1343,7 +1343,7 @@ END MODULE DetCalc
         ENDIF
         S=0.0_dp
         DO I=1,NDET
-         IF(abs(CG(I,J)).gt.1.0e-15_dp_dp) THEN
+         IF(abs(CG(I,J)).gt.1.0e-15_dp) THEN
             DO IEL=1,NEL
                WRITE(iunit,"(I3,I3,2I3,2X)",advance='no') (G1(NM(1,IEL))%K(L),L=1,5)
             ENDDO

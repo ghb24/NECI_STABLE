@@ -25,6 +25,7 @@ module ClusterList
    use Determinants, only: get_helement, write_det, write_det_len
    use constants, only: dp, int32, n_int
    use bit_rep_data, only: NIfDBO,NIfD,NIfTot
+   use bit_reps, only: extract_flags
    use CCMCData, only: ExcitToDetSign,AddBitExcitor
    use Parallel_neci
    use AmpList
@@ -667,7 +668,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,
       endif
    endif
    if(CS%%tInitiators) then
-      CS%%C%%initFlag=int(ilutFlag(NOffFlag),sizeof_int)
+      CS%%C%%initFlag = extract_flags(ilutFlag)
    else
       CS%%C%%initFlag=0
    endif

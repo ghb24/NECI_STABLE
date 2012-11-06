@@ -41,7 +41,7 @@ contains
           TRHOOFR = .false.
           TCORR = .false.
           TFODM = .false.
-          B2L = 1.0e-13_dp_dp
+          B2L = 1.0e-13_dp
           TMC = .false.
           NHISTBOXES = 0
           TREADRHO = .false.
@@ -208,13 +208,13 @@ contains
           TSPECDET = .false.
           TTROT=.true.
           BETA = 1000
-          BETAP=1.0e-4_dp_dp
+          BETAP=1.0e-4_dp
           TBETAP=.false.
-          RHOEPSILON=1.0e-6_dp_dp
+          RHOEPSILON=1.0e-6_dp
           DBETA=-1.0_dp
           GraphEpsilon=0
           PGenEpsilon=0
-          StarConv=1.0e-3_dp_dp
+          StarConv=1.0e-3_dp
           calcp_sub2vstar=.false.
           calcp_logweight=.false.
           TENPT=.false.
@@ -242,7 +242,7 @@ contains
 
 !Feb 08 default set.
           IF(Feb08) THEN
-              RhoEpsilon=1.0e-8_dp_dp
+              RhoEpsilon=1.0e-8_dp
           ENDIF
 
           ! Spin Projection defaults
@@ -1884,6 +1884,7 @@ contains
 
 
       subroutine inpgetmethod(I_HMAX,NWHTAY,I_V)
+         use constants
          use input_neci
          use UMatCache , only : TSTARSTORE
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY

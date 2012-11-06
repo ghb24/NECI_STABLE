@@ -3748,7 +3748,7 @@ MODULE FciMCParMod
 
         if(tSearchTau) then
             call MPISumAll(MaxSpawnProb,AllMaxSpawnProb)
-!            if((AllMaxSpawnProb-MaxAllowedSpawnProb).gt.1.0e-5_dp_dp) then
+!            if((AllMaxSpawnProb-MaxAllowedSpawnProb).gt.1.0e-5_dp) then
             if((AllMaxSpawnProb/MaxAllowedSpawnProb).gt.1.02) then
                 !Reduce tau, so that the maximum spawning probability is reduced.
                 tau = tau * (MaxAllowedSpawnProb/AllMaxSpawnProb)
@@ -7235,7 +7235,7 @@ MODULE FciMCParMod
         !Turn back on HPHF integrals if needed.
         if(tHPHF) tHPHFInts=.true.
 
-        if(abs(CASRefEnergy-Hii).gt.1.0e-7_dp_dp) then
+        if(abs(CASRefEnergy-Hii).gt.1.0e-7_dp) then
             call stop_all(this_routine,"CAS reference energy does not match reference energy of full space")
         endif
 
@@ -8495,7 +8495,7 @@ MODULE FciMCParMod
                 Norm = Norm + CK(i,1)**2.0_dp
             enddo
             Norm = sqrt(Norm)
-            if(abs(Norm-1.0_dp).gt.1.0e-7_dp_dp) then
+            if(abs(Norm-1.0_dp).gt.1.0e-7_dp) then
                 write(iout,*) "***",norm
                 call warning_neci(t_r,"Normalisation not correct for diagonalised wavefunction!")
             endif
@@ -8683,7 +8683,7 @@ MODULE FciMCParMod
                 else
                     HighSign=sqrt(real(SignCurr(1),dp)**2+real(SignCurr(lenof_sign),dp)**2)
                 endif
-                if(HighSign.gt.1.0e-7_dp_dp) counter=counter+1
+                if(HighSign.gt.1.0e-7_dp) counter=counter+1
             enddo
 
 

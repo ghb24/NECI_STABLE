@@ -22,7 +22,7 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          nrec=0
          lenrec=0
          nBasisPairs=nrec
-         nBasis=int(dsqrt(nBasisPairs*2.0_dp))
+         nBasis=int(sqrt(nBasisPairs*2.0_dp))
          nAuxBasis=lenrec
          WRITE(6,*) "DALTON/SITUS basis.", nBasis, " basis functions."
          nBasisMax(1:5,1:3)=0
