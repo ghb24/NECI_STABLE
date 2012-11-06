@@ -304,10 +304,10 @@ module MomInvRandExcit
 !                Hel_ja=get_helement(nI2,nJ,IC_ja,iLutnI2,iLutnJ)
 !                Hel_jb=get_helement(nI2,nJ2,IC_jb,iLutnI2,iLutnJ2)
 !
-!                if(abs(HEl_ia-HEl_jb).gt.1.D-7) then
+!                if(abs(HEl_ia-HEl_jb).gt.1.0e-7_dp_dp) then
 !                    call stop_all(t_r,"Matrix element ia .ne. jb")
 !                endif
-!                if(abs(HEl_ib-HEl_ja).gt.1.D-7) then
+!                if(abs(HEl_ib-HEl_ja).gt.1.0e-7_dp_dp) then
 !                    call stop_all(t_r,"Matrix element ib .ne. ja")
 !                endif
 !
@@ -350,10 +350,10 @@ module MomInvRandExcit
 !                    pGen_jb=0.0_dp
 !                endif
 !                
-!                if(abs(PGen_ia-PGen_jb).gt.1.D-7) then
+!                if(abs(PGen_ia-PGen_jb).gt.1.0e-7_dp_dp) then
 !                    call stop_all(t_r,"PGen ia .ne. jb")
 !                endif
-!                if(abs(PGen_ib-PGen_ja).gt.1.D-7) then
+!                if(abs(PGen_ib-PGen_ja).gt.1.0e-7_dp_dp) then
 !                    call stop_all(t_r,"PGen ib .ne. ja")
 !                endif
 !
@@ -384,7 +384,7 @@ module MomInvRandExcit
 !                Hel_ia=get_helement(nI,nJ,IC_ia,iLutnI,iLutnJ)
 !                Hel_ib=get_helement(nI,nJ2,IC_ib,iLutnI,iLutnJ2)
 !
-!                if(abs(HEl_ia-HEl_ib).gt.1.D-7) then
+!                if(abs(HEl_ia-HEl_ib).gt.1.0e-7_dp_dp) then
 !                    call stop_all(t_r,"Matrix element ia .ne. ib")
 !                endif
 !
@@ -409,7 +409,7 @@ module MomInvRandExcit
 !                    pGen_ib=0.0_dp
 !                endif
 !                
-!                if(abs(PGen_ia-PGen_ib).gt.1.D-7) then
+!                if(abs(PGen_ia-PGen_ib).gt.1.0e-7_dp_dp) then
 !                    call stop_all(t_r,"PGen ia .ne. ib")
 !                endif
 !

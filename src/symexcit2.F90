@@ -274,7 +274,7 @@ MODULE SymExcit2
          IF(.not.EXCITFUNCS(10)) THEN
              IF((EXCITFUNCS(1)).and.(g_VMC_ExcitWeights(3,CUR_VERT).NE.0.0_dp)) THEN
                 W2=ABS(((Arr(I,2)+Arr(J,2))-(Arr(K,2)+Arr(L,2))))
-                IF(ABS(W2).LT.1.D-2) W2=1.D-2
+                IF(ABS(W2).LT.1.0e-2_dp_dp) W2=1.0e-2_dp_dp
                 Weight=Weight*W2**g_VMC_ExcitWeights(3,CUR_VERT)
              ELSEIF(EXCITFUNCS(1)) THEN
                 Weight=Weight*EXP(-(Arr(K,2)+Arr(L,2))*g_VMC_ExcitWeights(2,CUR_VERT))

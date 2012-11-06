@@ -41,7 +41,7 @@ C.. we divide out the product of ZROOT and ZROOT*
                POLY(2)=1.0_dp
                CALL POLYDIV(C,WORDER,POLY,2,REM)
             ENDIF
-            IF(ABS(REM(0)).GT.1.D-5) THEN
+            IF(ABS(REM(0)).GT.1.0e-5_dp_dp) THEN
                WRITE(6,*) 'POLYNOMIAL FACTORIZATION FAILED'
                WRITE(6,*) "POLY=",(COEFFS(I),I=0,ORDER)
    
@@ -137,7 +137,7 @@ C.. the deriv is too close to zero.  use bisection
                ZEPS=ZROOT-ZOR
                TBIS=.TRUE.
             ENDIF
-C            IF (SQRT(DBLE(Z1)**2+AIMAG(Z1)**2).LT.1.D-2
+C            IF (SQRT(DBLE(Z1)**2+AIMAG(Z1)**2).LT.1.0e-2_dp_dp
 C     &            .AND.ICOUNT.GE.60) Z3=Z3*Z1 
 C            WRITE(6,*) ICOUNT,ZROOT,ZEPS
             ZOR=ZROOT
@@ -255,7 +255,7 @@ C.. Choose the bracket to be big
          ICOUNT=0
          MAG=1.0_dp;
 C         WRITE(6,*) "POLY=",(WCOEFFS(I),I=0,WORDER)
-         DO WHILE (MAG.GT.1.D-9)
+         DO WHILE (MAG.GT.1.0e-9_dp_dp)
             ICOUNT=ICOUNT+1
             IF(ICOUNT.EQ.200) THEN
                WRITE(6,*) "POLY=",(WCOEFFS(I),I=0,WORDER)

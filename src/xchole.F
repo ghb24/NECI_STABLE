@@ -25,7 +25,7 @@ C..Cube arrays
       integer :: IXD,IYD,IZD
 C..
 !      PI=ACOS(-1.0_dp)
-      EPS=1.D-6
+      EPS=1.0e-6_dp_dp
 C..
       IF(RHO(IOBS,JOBS,KOBS).EQ.0.0_dp) THEN
         STOP ' !!! DENSITY AT REFERENCE POSITION IS ZERO !!! '

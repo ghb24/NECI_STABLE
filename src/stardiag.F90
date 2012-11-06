@@ -2603,7 +2603,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          CALL LogMemAlloc('WalkVec2',MaxWalkers,5,this_routine,WalkVec2Tag,ierr)
 
          IF(TReadPops) THEN
-             IF((ABS(ScaleWalkers-1.0_dp)).lt.1.D-8) THEN
+             IF((ABS(ScaleWalkers-1.0_dp)).lt.1.0e-8_dp_dp) THEN
 !Read in walker positions
                  do i=1,int(InitWalkers,sizeof_int)
                      READ(17,*) WalkVec(i)%Det,WalkVec(i)%WSign
@@ -3441,12 +3441,12 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !  Take into account the cumulative values as we go down the list, not just the absolute value of the rest
             i=nRoots-1
             si=1
-            do while (i.gt.0.and.abs((nRoots-i)*(List(i,0)**I_P)/si).ge.1.d-2)
+            do while (i.gt.0.and.abs((nRoots-i)*(List(i,0)**I_P)/si).ge.1.0e-2_dp_dp)
                Si=SI+List(i,0)**I_P
                i=i-1
             enddo
             nRoots=nRoots-1-i
-            write(6,*) nRoots+1, " needed for method 2 convergence 1.d-3."
+            write(6,*) nRoots+1, " needed for method 2 convergence 1.0e-3_dp_dp."
             nRoots=nRoots+1
          endif
 
@@ -3520,7 +3520,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
                ENDIF
                
 !               write(6,*) NORM,RPN
-               IF(.not.lWarned.and.RPN/SI.LT.1.d-4) then
+               IF(.not.lWarned.and.RPN/SI.LT.1.0e-4_dp_dp) then
                   lWarned=.true.
 !!!                  WRITE(6,*) "Root ",NROOTS-I," has low contribution."
 !!!                  WRITE(6,*) "SI=",SI

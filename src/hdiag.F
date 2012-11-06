@@ -359,7 +359,7 @@ C.. Now work out exact wi etc.
 !               CALL WRITEDET(15,NMRKS(1,NBS+III-1),NEL,.FALSE.)
                WRITE(15,"(F19.11,I5)") W(III),IDEG
 
-               IF(ABS(W(III)/ELOWEST-1.0_dp).LT.1.D-6) THEN
+               IF(ABS(W(III)/ELOWEST-1.0_dp).LT.1.0e-6_dp_dp) THEN
                   GELOWEST=GELOWEST+IDEG
                ELSEIF(W(III).LT.ELOWEST) THEN
 C.. if we're going to change ELOWEST, and there was a previous ELOWEST,
@@ -395,7 +395,7 @@ C                  ELOWEST=W(III)
                        GOFE(L)=GOFE(L)
      &                   +IDEG*(CK((III-1)*NBLK+J)**2)*EXP(-W(III)*BETA)
 C                        IF(L.EQ.9.AND.
-C     &                  ABS(CK((III-1)*NBLK+J)).GT.1.D-5) THEN
+C     &                  ABS(CK((III-1)*NBLK+J)).GT.1.0e-5_dp_dp) THEN
 C         WRITE(6,*) NBS+III-1,J,CK((III-1)*NBLK+J),W(III),
 C     &         (CK((III-1)*NBLK+J)**2)*EXP(-W(III)*BETA)
 C                        ENDIF

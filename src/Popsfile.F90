@@ -487,7 +487,7 @@ MODULE PopsfileMod
                 write(6,"(A)") "Using timestep specified in POPSFILE, although continuing to dynamically adjust to optimise this"
             else
                 !Tau specified. if it is different, write this here.
-                if(abs(read_tau-Tau).gt.1.D-5) then
+                if(abs(read_tau-Tau).gt.1.0e-5_dp_dp) then
                     call warning_neci(this_routine,"Timestep specified in input file is different to that in the popsfile.")
                     write(6,"(A,F12.8)") "Old timestep: ",read_tau
                     write(6,"(A,F12.8)") "New timestep: ",tau

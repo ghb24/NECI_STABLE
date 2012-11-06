@@ -95,7 +95,7 @@ contains
       TQuadValMax=.false.
       TDISCONODES=.FALSE.
       NRCONV=1.0e-13_dp_dp
-      RFCONV=1.D-8
+      RFCONV=1.0e-8_dp_dp
       NRSTEPSMAX=50
       TQUADRHO=.false.
       TEXPRHO=.false.
@@ -430,7 +430,7 @@ contains
 !I_VMAX.EQ.1.AND..NOT.TENERGY.AND.
       IF(.not.tNeedsVirts.and.NTFROZEN.EQ.0) THEN
          WRITE(6,*) "MaxVertices=1 and NTFROZEN=0."
-         IF(ABS(ARR(NEL,1)-ARR(NEL+1,1)).GT.1.d-3) THEN
+         IF(ABS(ARR(NEL,1)-ARR(NEL+1,1)).GT.1.0e-3_dp_dp) THEN
            WRITE(6,*) "NEL spinorbitals completely fills up degenerate set."
            WRITE(6,*) "Only calculating vertex sum, so freezing all virtuals."
            NTFROZEN=NBASIS-NEL
@@ -549,7 +549,7 @@ contains
 !nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF/ROHF
          CALL GetUMatSize(nBasis,nEl,UMATINT)
 !         WRITE(6,*) "UMatSize: ",UMATINT
-         UMatMem=REAL(UMatInt,dp)*REAL(HElement_t_sizeB,dp)*(9.536743164D-7)
+         UMatMem=REAL(UMatInt,dp)*REAL(HElement_t_sizeB,dp)*(9.536743164e-7_dp)
          WRITE(6,"(A,G20.10,A)") "Memory required for integral storage: ",UMatMem, " Mb/Shared Memory"
          call neci_flush(6)
          call shared_allocate ("umat", umat, (/UMatInt/))
@@ -871,39 +871,39 @@ contains
 
 !!C.. Just check to see if we're not in the middle of a degenerate set with the same sym
        IF(NFROZEN.GT.0) THEN
-          IF(ABS(ARR(NFROZEN,1)-ARR(NFROZEN+1,1)).LT.1.D-6.AND.       &
+          IF(ABS(ARR(NFROZEN,1)-ARR(NFROZEN+1,1)).LT.1.0e-6_dp_dp.AND.       &
    &        G1(BRR(NFROZEN))%SYM%s.EQ.G1(BRR(NFROZEN+1))%SYM%s) THEN
              STOP "Cannot freeze in the middle of a degenerate set"
-          ELSE IF (ABS(ARR(NFROZEN,1)-ARR(NFROZEN+1,1)).LT.1.D-6) THEN
+          ELSE IF (ABS(ARR(NFROZEN,1)-ARR(NFROZEN+1,1)).LT.1.0e-6_dp_dp) THEN
              write (6,'(a)') 'WARNING: Freezing in the middle of a degenerate set.'
              write (6,'(a)') 'This should only be done for debugging purposes.'
           ENDIF
        ENDIF
        IF(NTFROZEN.GT.0) THEN
-          IF(ABS(ARR(NHG-NTFROZEN,1)-ARR(NHG-NTFROZEN+1,1)).LT.1.D-6  &
+          IF(ABS(ARR(NHG-NTFROZEN,1)-ARR(NHG-NTFROZEN+1,1)).LT.1.0e-6_dp_dp  &
    &         .AND.G1(BRR(NHG-NTFROZEN))%SYM%s                         &
    &               .EQ.G1(BRR(NHG-NTFROZEN+1))%SYM%s) THEN
              STOP "Cannot freeze in the middle of a degenerate virtual set"
-          ELSE IF (ABS(ARR(NHG-NTFROZEN,1)-ARR(NHG-NTFROZEN+1,1)).LT.1.D-6) THEN
+          ELSE IF (ABS(ARR(NHG-NTFROZEN,1)-ARR(NHG-NTFROZEN+1,1)).LT.1.0e-6_dp_dp) THEN
              write (6,'(a)') 'WARNING: Freezing in the middle of a degenerate set.'
              write (6,'(a)') 'This should only be done for debugging purposes.'
           ENDIF
        ENDIF
        IF(NFROZENIN.GT.0) THEN
-          IF(ABS(ARR(NEL-NFROZENIN,1)-ARR(NEL-NFROZENIN+1,1)).LT.1.D-6.AND.       &
+          IF(ABS(ARR(NEL-NFROZENIN,1)-ARR(NEL-NFROZENIN+1,1)).LT.1.0e-6_dp_dp.AND.       &
    &        G1(BRR(NEL-NFROZENIN))%SYM%s.EQ.G1(BRR(NEL-NFROZENIN+1))%SYM%s) THEN
              STOP "Cannot freeze in the middle of a degenerate set"
-          ELSE IF (ABS(ARR(NEL-NFROZENIN,1)-ARR(NEL-NFROZENIN+1,1)).LT.1.D-6) THEN
+          ELSE IF (ABS(ARR(NEL-NFROZENIN,1)-ARR(NEL-NFROZENIN+1,1)).LT.1.0e-6_dp_dp) THEN
              write (6,'(a)') 'WARNING: Freezing in the middle of a degenerate set.'
              write (6,'(a)') 'This should only be done for debugging purposes.'
           ENDIF
        ENDIF
        IF(NTFROZENIN.GT.0) THEN
-          IF(ABS(ARR(NEL+NTFROZENIN,1)-ARR(NEL+NTFROZENIN+1,1)).LT.1.D-6  &
+          IF(ABS(ARR(NEL+NTFROZENIN,1)-ARR(NEL+NTFROZENIN+1,1)).LT.1.0e-6_dp_dp  &
    &         .AND.G1(BRR(NEL+NTFROZENIN))%SYM%s                         &
    &               .EQ.G1(BRR(NEL+NTFROZENIN+1))%SYM%s) THEN
              STOP "Cannot freeze in the middle of a degenerate virtual set"
-          ELSE IF (ABS(ARR(NEL+NTFROZENIN,1)-ARR(NEL+NTFROZENIN+1,1)).LT.1.D-6) THEN
+          ELSE IF (ABS(ARR(NEL+NTFROZENIN,1)-ARR(NEL+NTFROZENIN+1,1)).LT.1.0e-6_dp_dp) THEN
              write (6,'(a)') 'WARNING: Freezing in the middle of a degenerate set.'
              write (6,'(a)') 'This should only be done for debugging purposes.'
           ENDIF
@@ -1131,7 +1131,7 @@ contains
                                  if(IPB.eq.JPB) then
                                      TMAT2D2(IPB,1)=TMAT2D2(IPB,1)+GETUMATEL(IDA,IDI,IDA,IDJ)
                                  else
-                                     if(abs(GETUMATEL(IDA,IDI,IDA,IDJ)).gt.1.D-8) then
+                                     if(abs(GETUMATEL(IDA,IDI,IDA,IDJ)).gt.1.0e-8_dp_dp) then
                                          call stop_all("","Error here in freezing for UEG")
                                      endif
                                  endif
@@ -1152,7 +1152,7 @@ contains
                                       TMAT2D2(IPB,1)=GetNEWTMATEl(IPB,JPB)              &
    &                                  -GETUMATEL(IDA,IDI,IDJ,IDA)
                                   else
-                                      if(abs(GETUMATEL(IDA,IDI,IDJ,IDA)).gt.1.D-8) then
+                                      if(abs(GETUMATEL(IDA,IDI,IDJ,IDA)).gt.1.0e-8_dp_dp) then
                                          call stop_all("","Error here in freezing for UEG")
                                       endif
                                   endif
@@ -1180,7 +1180,7 @@ contains
                                   if(IPB.eq.JPB) then
                                      TMAT2D2(IPB,1)=TMAT2D2(IPB,1)+GETUMATEL(IDA,IDI,IDA,IDJ)
                                  else
-                                     if(abs(GETUMATEL(IDA,IDI,IDA,IDJ)).gt.1.D-8) then
+                                     if(abs(GETUMATEL(IDA,IDI,IDA,IDJ)).gt.1.0e-8_dp_dp) then
                                          call stop_all("","Error here in freezing for UEG")
                                      endif
                                  endif
@@ -1202,7 +1202,7 @@ contains
                                      TMAT2D2(IPB,1)=GetNEWTMATEl(IPB,JPB)              &
    &                                 -GETUMATEL(IDA,IDI,IDJ,IDA)
                                   else
-                                      if(abs(GETUMATEL(IDA,IDI,IDJ,IDA)).gt.1.D-8) then
+                                      if(abs(GETUMATEL(IDA,IDI,IDJ,IDA)).gt.1.0e-8_dp_dp) then
                                          call stop_all("","Error here in freezing for UEG")
                                       endif
                                   endif
@@ -1215,7 +1215,7 @@ contains
                        ENDIF
                     ENDDO
 !             WRITE(6,*) "T",TMAT(IB,JB),I,J,TMAT2(IPB,JPB)
-!          IF(abs(TMAT(IPB,JPB)).gt.1.D-9) WRITE(16,*) I,J,TMAT2(IPB,JPB)
+!          IF(abs(TMAT(IPB,JPB)).gt.1.0e-9_dp_dp) WRITE(16,*) I,J,TMAT2(IPB,JPB)
                  ENDDO
              ENDDO
           ENDDO  

@@ -358,11 +358,11 @@ contains
                     !Still need to read in integrals as complex numbers - this FCIDUMP will be from VASP.
                     READ(iunit,*,END=99) CompInt,I,J,K,L
                     Z=real(CompInt,dp)
-                    if(abs(aimag(CompInt)).gt.1.D-7) then
+                    if(abs(aimag(CompInt)).gt.1.0e-7_dp_dp) then
                         write(6,*) "Using the *real* neci compiled code, however non-zero imaginary parts of integrals found"
                         write(6,*) "If all k-points are at Gamma or BZ boundary, orbitals should be able to be rotated to be real"
                         write(6,*) "Check this is the case, or rerun in complex mode to handle complex integrals."
-                        call stop_all("GETFCIBASIS","Real orbitals indicated, but imaginary part of integrals larger than 1.D-7")
+                        call stop_all("GETFCIBASIS","Real orbitals indicated, but imaginary part of integrals larger than 1.0e-7_dp_dp")
                     endif
                 else
                     if(tMolpro.or.tReadFreeFormat) then
@@ -633,8 +633,8 @@ contains
                  !Still need to read in integrals as complex numbers - this FCIDUMP will be from VASP.
                  READ(iunit,*,END=199) CompInt,I,J,K,L
                  Z=real(CompInt,dp)
-                 if(abs(aimag(CompInt)).gt.1.D-7) then
-                     call stop_all("READFCIINT","Real orbitals indicated, but imaginary part of integrals larger than 1.D-7")
+                 if(abs(aimag(CompInt)).gt.1.0e-7_dp_dp) then
+                     call stop_all("READFCIINT","Real orbitals indicated, but imaginary part of integrals larger than 1.0e-7_dp_dp")
                  endif
              else
                  if(tMolpro.or.tReadFreeFormat) then
@@ -712,7 +712,7 @@ contains
                         ! Have read in T_ij.  Check it's consistent with T_ji
                         ! (if T_ji has been read in).
                        diff = abs(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)-Z)
-                       IF(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1) /= 0.0_dp .and. diff > 1.d-7) then
+                       IF(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1) /= 0.0_dp .and. diff > 1.0e-7_dp_dp) then
                             WRITE(6,*) i,j,Z,TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)
                             CALL Stop_All("ReadFCIInt","Error filling TMAT - different values for same orbitals")
                        ENDIF

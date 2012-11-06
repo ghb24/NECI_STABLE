@@ -157,7 +157,7 @@ MODULE HPHFRandExcitMod
             
 !Test!
 !        CALL CalcNonUniPGen(ExcitMat,IC,ClassCount2,ClassCountUnocc2,pDoub,pGen2)
-!        IF(abs(pGen-pGen2).gt.1.D-7) THEN
+!        IF(abs(pGen-pGen2).gt.1.0e-7_dp_dp) THEN
 !            WRITE(6,*) "*******, PGens Incorrect"
 !            CALL Stop_All("ouvbou","OUBOU")
 !        ENDIF
@@ -334,7 +334,7 @@ MODULE HPHFRandExcitMod
         ENDIF
 
 !        CALL HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl2)
-!        IF((MatEl2-MatEl).gt.1.D-7) THEN
+!        IF((MatEl2-MatEl).gt.1.0e-7_dp_dp) THEN
 !            WRITE(6,*) MatEl2,MatEl
 !            CALL Stop_All("ikb","Error in getting correct HEl - 2")
 !        ENDIF

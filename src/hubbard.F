@@ -407,7 +407,7 @@ C.. now work out which reps are degenerate and label them
          J=0
          
          DO I=1,NBASIS
-            IF(I.GT.1.AND.ABS(ARR(I)-ARR(I-1)).LT.1.D-5) THEN
+            IF(I.GT.1.AND.ABS(ARR(I)-ARR(I-1)).LT.1.0e-5_dp_dp) THEN
 C.. we have the same degenerate rep as the previous entry
                SYMREPS(2,J)=SYMREPS(2,J)+1
             ELSE

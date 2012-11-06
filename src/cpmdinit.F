@@ -51,7 +51,7 @@ C.. set ISPINSKIP=0, to tell the SCRs that there's no UMAT
            else
                CALL DECOMPOSEREP(SYMLABELCHARS(1,SymClasses(I)),IDECOMP)
            end if
-            IF(ABS(SYMLABELCHARS(1,SymClasses(I))-1.0_dp).GE.1.D-6)
+            IF(ABS(SYMLABELCHARS(1,SymClasses(I))-1.0_dp).GE.1.0e-6_dp_dp)
      &          ALL1D=.FALSE.
             G1(I*2-1)%SYM=IDECOMP
             G1(I*2)%SYM=IDECOMP
@@ -320,7 +320,7 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
                   ! Subtract exchange integrals from Fock matrix.
 !                 do K=1,nStates
 !                     call CPMDGetOcc(K,F) ! F is the occupation number of state K.
-!                      if (F.gt.1.d-5) then
+!                      if (F.gt.1.0e-5_dp_dp) then
 !                          ! Get exchange integral <ik|kj>
 !                          if (K.gt.nStatesUsed) then
 !                              write (6,"(a,i4,a,f10.6)") 

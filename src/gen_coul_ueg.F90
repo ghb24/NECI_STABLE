@@ -170,7 +170,7 @@ contains
                                             * uHub / (omega**2)
                                 enddo
                                 write(41,"(2I3)",advance='no') c, d
-                                if (abs(real(s) - sum) > 1.d-7) then
+                                if (abs(real(s) - sum) > 1.0e-7_dp_dp) then
                                     write (41,*) sum, s
                                 else
                                     write (41,*) sum, sum

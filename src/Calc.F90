@@ -208,13 +208,13 @@ contains
           TSPECDET = .false.
           TTROT=.true.
           BETA = 1000
-          BETAP=1.D-4
+          BETAP=1.0e-4_dp_dp
           TBETAP=.false.
-          RHOEPSILON=1.D-6
+          RHOEPSILON=1.0e-6_dp_dp
           DBETA=-1.0_dp
           GraphEpsilon=0
           PGenEpsilon=0
-          StarConv=1.d-3
+          StarConv=1.0e-3_dp_dp
           calcp_sub2vstar=.false.
           calcp_logweight=.false.
           TENPT=.false.

@@ -23,7 +23,7 @@ C..Diagonalisation vectors
 C..
       WRITE(6,'(1X,A)') '*** NATURAL ORBITAL EVALUATION ***'
       WRITE(6,'(2X,A)') 'FILE ./NATURAL BEING UPDATED'
-      EPS=1.D-8 
+      EPS=1.0e-8_dp_dp 
 C..
       allocate(FODM(NHG,NHG))
       call LogMemAlloc('FODM',NHG**2,8,this_routine,tagFODM)

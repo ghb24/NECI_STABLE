@@ -342,7 +342,7 @@ MODULE ReadInput_neci
         endif
   
         !Ensure beta is set.
-        if (beta < 1.d-6 .and. .not. tMP2Standalone) then
+        if (beta < 1.0e-6_dp_dp .and. .not. tMP2Standalone) then
             call report("No beta value provided.", .true.)
         endif
         

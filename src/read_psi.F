@@ -104,7 +104,7 @@ C..
       WRITE(10,*) BOX,BOA,COA
       DO I=1,NEVAL
         DO J=1,NDET
-          IF(abs(CK(J,I)).gt. 1.D-2) THEN
+          IF(abs(CK(J,I)).gt. 1.0e-2_dp_dp) THEN
             WRITE(10,"(2I5)",advance='no') I,J
             WRITE(10,*) CK(J,I),ABS(CK(J,I))
          ENDIF
