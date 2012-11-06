@@ -193,7 +193,7 @@ C.. form a loop of length I_V.  If not it will probably hang.
          TLOG2=BTEST(ILOGGING,3)
 C.. First decide what MC move - either change the moving vertex or
 C.. move the moving vertex.
-         IF(RAN2(ISEED).LT.0.25D0) THEN
+         IF(RAN2(ISEED).LT.0.25_dp) THEN
 C.. Our move just involves changing which vertex we move 1 in 4 times
             CALL GENNEWVMOVE(I_V,I_VMOVE,IADJ,ADJ,LCANMOVE,ISEED)
             FMCPR5=VALUE

@@ -248,7 +248,7 @@ C ============================================================
       DO K=-KMAX/2,KMAX/2
         DO N=1,NMAX
           DO M=1,NMAX
-            ZIA(K,N,M)=0.25D0*(ZIO(N-M+K)+ZIO(-N+M+K)
+            ZIA(K,N,M)=0.25_dp*(ZIO(N-M+K)+ZIO(-N+M+K)
      &           -ZIO(N+M+K)-ZIO(-N-M+K))
           ENDDO
         ENDDO

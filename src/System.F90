@@ -942,7 +942,7 @@ MODULE System
       integer, allocatable :: brr_tmp(:)
 !     UEG2
       integer :: AllocateStatus
-      real(dp), parameter :: EulersConst = 0.5772156649015328606065120900824024d0
+      real(dp), parameter :: EulersConst = 0.5772156649015328606065120900824024_dp
 
 
 !      write (6,*)

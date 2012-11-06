@@ -748,7 +748,7 @@ C.. Working space
          INTEGER HFDET(*),NEL
 C.. eigenvector N is in FMAT(i,N,ISPN), where i is the component of the
 C.. vector unless transposed
-         PI=3.141592653589793D0
+         PI=3.141592653589793_dp
          ISEED=1007
          irand=1
          R=RAN2(irand)
@@ -1439,7 +1439,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
                   IBF=J
                ENDIF
             ENDDO
-            IF(I.EQ.FDET(ICUR).AND.MX.LT.0.95D0) THEN
+            IF(I.EQ.FDET(ICUR).AND.MX.LT.0.95_dp) THEN
 C.. The largest element isn't big enough, so we abort
                WRITE(6,*) "Largest coeff of HF basis fn ",I," is ",MX
                WRITE(6,*) "Aborting ORDERBASISHF"

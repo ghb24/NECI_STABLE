@@ -276,7 +276,7 @@ contains
         endif
         ! if (T) then
             OUT = real(CK(2*GD(1),2*GD(2),2*GD(3)))
-            ! OUT=4*3.1415926535D0/(GD(1)*GD(1)+GD(2)*GD(2)+GD(3)*GD(3))
+            ! OUT=4*3.1415926535_dp/(GD(1)*GD(1)+GD(2)*GD(2)+GD(3)*GD(3))
         !else
         !    OUT = 0.0_dp
         !endif
@@ -352,7 +352,7 @@ contains
         integer :: i, j, k, l, a, b, c, iss, aneu
         real(dp) :: G, G2
         logical :: tCoulomb, tExchange          
-        real(dp), parameter :: EulersConst = 0.5772156649015328606065120900824024d0
+        real(dp), parameter :: EulersConst = 0.5772156649015328606065120900824024_dp
         character(*), parameter :: this_routine = 'get_ueg_umat_el'
 
         !==================================================      
