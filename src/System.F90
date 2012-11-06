@@ -1153,7 +1153,7 @@ MODULE System
 
           ! engergy cutoff not given -> set to 2* Fermi vector
           if(.not. torbEcutoff) then
-              orbEcutoff =(2.0d0*FKF/k_lattice_constant)**2.0d0 
+              orbEcutoff =(2.0_dp*FKF/k_lattice_constant)**2.0_dp 
               torbEcutoff = .true.
           end if
           ! if cell size not given
@@ -1162,7 +1162,7 @@ MODULE System
           end if 
 
           TTILT=.FALSE.
-          ALAT=0.0d0   !shouldn't be used in the UEG2 part...
+          ALAT=0.0_dp   !shouldn't be used in the UEG2 part...
           NMAX=MAX(NMAXX,NMAXY,NMAXZ)
           NNR=NMSH*NMSH*NMSH
 
@@ -1421,11 +1421,11 @@ MODULE System
           call halt_timer(proc_timer)
 
           !calculate tau if not given
-          if (TAU .lt. 0.0d0) then
+          if (TAU .lt. 0.0_dp) then
               call  CalcTau
           end if  
       
-          if(tMadelung .AND. Madelung == 0.0d0 .AND. dimen ==3) then
+          if(tMadelung .AND. Madelung == 0.0_dp .AND. dimen ==3) then
              Madelung=calc_madelung()
           else
                   call stop_all (this_routine, "Calculation of Madelung constant works in 3D only!")
@@ -1951,38 +1951,38 @@ SUBROUTINE CalcTau
     !Detemines tau for a given lattice type
 
     if(dimen == 3) then ! 3D
-        TAU = (k_lattice_constant**2* OMEGA) / (4.0d0*PI) !Hij_min**-1
+        TAU = (k_lattice_constant**2* OMEGA) / (4.0_dp*PI) !Hij_min**-1
         if (tTruncInitiator) TAU = TAU*InitiatorWalkNo
-        if (tHPHF) TAU = TAU /sqrt(2.0d0)
-        TAU = 0.9d0*TAU*4.0d0/(NEL*(NEL-1))/(NBASIS-NEL)
+        if (tHPHF) TAU = TAU /sqrt(2.0_dp)
+        TAU = 0.9_dp*TAU*4.0_dp/(NEL*(NEL-1))/(NBASIS-NEL)
         if (TAU .gt. k_lattice_constant**(-2)/OrbEcutoff) then 
-            TAU= 1.0d0/(k_lattice_constant**(2)*OrbEcutoff)  !using Hii 
+            TAU= 1.0_dp/(k_lattice_constant**(2)*OrbEcutoff)  !using Hii 
             write(6,*) '***************** Tau set by using Hii *******************************'
-            !write(6,*) 1.0d0/((2.0d0*PI/Omega**third)**2*orbEcutoff)
+            !write(6,*) 1.0_dp/((2.0_dp*PI/Omega**third)**2*orbEcutoff)
         else
             write(6,*) 'Tau set by using Hji'
         end if
 
     else if (dimen ==2) then !2D
-        TAU = (k_lattice_constant * OMEGA)/(2.0d0*PI)  !Hij_min**-1
+        TAU = (k_lattice_constant * OMEGA)/(2.0_dp*PI)  !Hij_min**-1
         if (tTruncInitiator) TAU = TAU*InitiatorWalkNo
-        if (tHPHF) TAU = TAU /sqrt(2.0d0)
-        TAU = 0.9d0*TAU*4.0d0/(NEL*(NEL-1))/(NBASIS-NEL)
+        if (tHPHF) TAU = TAU /sqrt(2.0_dp)
+        TAU = 0.9_dp*TAU*4.0_dp/(NEL*(NEL-1))/(NBASIS-NEL)
         if (TAU .gt. k_lattice_constant**(-2)/OrbEcutoff) then 
             !!!!!!!! NOT WORKING YET!!!!!!!
-            TAU= 1.0d0/(k_lattice_constant**(2)*OrbEcutoff)  !using Hii 
+            TAU= 1.0_dp/(k_lattice_constant**(2)*OrbEcutoff)  !using Hii 
             write(6,*) '***************** Tau set by using Hii *******************************'
         else
             write(6,*) 'Tau set by using Hji'
         end if
 
     else if (dimen ==1) then !1D
-        TAU = OMEGA/ (-2.0d0*log(1.0d0/(2.0d0*sqrt(orbEcutoff)))) 
+        TAU = OMEGA/ (-2.0_dp*log(1.0_dp/(2.0_dp*sqrt(orbEcutoff)))) 
         if (tTruncInitiator) TAU = TAU*InitiatorWalkNo
-        if (tHPHF) TAU = TAU /sqrt(2.0d0)
-        TAU = 0.9d0*TAU*4.0d0/(NEL*(NEL-1))/(NBASIS-NEL)
-        if (TAU .gt. 0.9d0* 1.0d0/(0.5d0*(k_lattice_constant)**2*NEL*OrbEcutoff))  then 
-            TAU=0.9d0* 1.0d0/(0.5d0*(k_lattice_constant)**2*NEL*OrbEcutoff)   !using Hii 
+        if (tHPHF) TAU = TAU /sqrt(2.0_dp)
+        TAU = 0.9_dp*TAU*4.0_dp/(NEL*(NEL-1))/(NBASIS-NEL)
+        if (TAU .gt. 0.9_dp* 1.0_dp/(0.5_dp*(k_lattice_constant)**2*NEL*OrbEcutoff))  then 
+            TAU=0.9_dp* 1.0_dp/(0.5_dp*(k_lattice_constant)**2*NEL*OrbEcutoff)   !using Hii 
             write(6,*) '***************** Tau set by using Hii *******************************'
         else
             write(6,*) 'Tau set by using Hji'
@@ -2303,7 +2303,7 @@ SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,Energy,dUnsc
            else
               E=(kvecX)**2+(kvecY)**2+(kvecZ)**2
            endif
-           Energy=0.5d0*E*k_lattice_constant**2
+           Energy=0.5_dp*E*k_lattice_constant**2
            dUnscaledEnergy=Unscaled_LatConst_square*((kvecX)**2+(kvecY)**2+(kvecZ)**2)
        ELSE
            Energy=Unscaled_LatConst_square*((kvecX)**2+(kvecY)**2+(kvecZ)**2)

@@ -220,7 +220,7 @@ C.. half the distance to the closest pole
 C/(2*I_P)
 C.. If this calculated distance is closer than the furthest pole which
 C.. wish to count in this integral, we increase the distance
-               IF(DM.LT.DISTMAX) DM=DISTMAX*1.1D0
+               IF(DM.LT.DISTMAX) DM=DISTMAX*1.1_dp
 C.. do the contour integral
                IF(TAUXPOLY) THEN
                   CALL CREATEAUXPOLY(ZSD2(1),IPOLES,

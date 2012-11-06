@@ -1502,8 +1502,8 @@ contains
             NORM=AX*AX+AY*AY
             R1=(AX*K1(1)+AY*K1(2))/NORM
             R2=(AX*K1(2)-AY*K1(1))/NORM
-            R1=R1/LENX+0.5D0
-            R2=R2/LENY+0.5D0
+            R1=R1/LENX+0.5_dp
+            R2=R2/LENY+0.5_dp
 !   R1 is now in terms of the shifted extended unit cell.  We want 0<R1<=1
 !   R2 is now in terms of the shifted extended unit cell.  We want 0<=R2<1
 !   T1 and T2 will be the vectors to translate the point K1 back into our cell
@@ -1527,8 +1527,8 @@ contains
             IF(R1.GT.1.D0.OR.R1.LE.0.D0) R1=R1-T1
             IF(R2.GE.1.D0.OR.R2.LT.0.D0) R2=R2-T2
 !   Now convert back to the the Coords in the extended brillouin zone (ish)
-            R1=(R1-0.5D0)*LENX
-            R2=(R2-0.5D0)*LENY
+            R1=(R1-0.5_dp)*LENX
+            R2=(R2-0.5_dp)*LENY
 !   Now K1 is defined as the re-scaled (R1,R2) vector
             K1(1)=NINT(R1*AX-R2*AY)
             K1(2)=NINT(R1*AY+R2*AX)

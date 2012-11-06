@@ -125,7 +125,7 @@ contains
           Tau=0.D0
           InitWalkers=3000
           dInitAmplitude=1.d0
-          dProbSelNewExcitor=0.7d0
+          dProbSelNewExcitor=0.7_dp
           nSpawnings=1
           nClustSelections=1
           dClustSelectionRatio=1
@@ -2169,7 +2169,7 @@ contains
             DO J=1,NEL
                  I=NI(J)
                  TMAT=real(kvec(I, 1)**2+kvec(I, 2)**2+kvec(I, 3)**2, dp)
-                 TMAT=0.5d0*TMAT*k_lattice_constant**2
+                 TMAT=0.5_dp*TMAT*k_lattice_constant**2
                  CALCT2=CALCT2+TMAT
             ENDDO
             return

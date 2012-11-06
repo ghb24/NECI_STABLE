@@ -1920,7 +1920,7 @@ SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
               K_REAL=real(kvec(I, 1:3)+K_OFFSET, dp)
               temp=K_REAL(1)**2+K_REAL(2)**2+K_REAL(3)**2
               ! TMAT is diagonal for the UEG
-              TMAT2D(I,1)=0.5d0*temp*k_lattice_constant**2
+              TMAT2D(I,1)=0.5_dp*temp*k_lattice_constant**2
               WRITE(iunit,*) I,I,TMAT2D(I,1)
           ENDDO
       CLOSE(iunit)

@@ -110,7 +110,7 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          endif
          select case(iDFMethod)
          case(3)
-            call DFCalcInvFitInts(0.5D0)
+            call DFCalcInvFitInts(0.5_dp)
             WRITE(6,*) "Calculating B matrix" 
             do i=1,nBasisPairs
                do j=1,nAuxBasis
@@ -123,7 +123,7 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
             enddo
 !DFInts now contains B_ij,P = sum_Q (ij|Q)[(Q|u|P)^1/2]
          case(4)
-            call DFCalcInvFitInts(-0.5D0)
+            call DFCalcInvFitInts(-0.5_dp)
             WRITE(6,*) "Calculating B matrix" 
             do i=1,nBasisPairs
                do j=1,nAuxBasis

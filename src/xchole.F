@@ -71,7 +71,7 @@ C..
       ENDDO
 C..Evaluates exchange-correlation hole
       CST=1.D0/(OMEGA*OMEGA)
-      CALL DSCAL(NMSH*NMSH*NMSH,0.5D0*CST,XCHOLE,1)
+      CALL DSCAL(NMSH*NMSH*NMSH,0.5_dp*CST,XCHOLE,1)
       IF(TCOMPLETE) THEN
         CHKRHO=0.D0
         DO IZ=1,NMSH

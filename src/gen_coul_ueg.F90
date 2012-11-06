@@ -389,18 +389,18 @@ contains
                     G2 = (a *k_lattice_constant)**2 +(b *k_lattice_constant)**2 + (c *k_lattice_constant)**2         
                     ! check dimension
                     if(dimen == 3) then ! 3D
-                        hel = (4.0d0*PI) / (G2 * OMEGA)
+                        hel = (4.0_dp*PI) / (G2 * OMEGA)
                     else if (dimen ==2) then !2D
-                        hel = (2.0d0*PI) / (sqrt(G2) * OMEGA)
+                        hel = (2.0_dp*PI) / (sqrt(G2) * OMEGA)
                     else if (dimen ==1) then !1D
-                        hel = (-log(G2/4.0d0) - 2.0d0*EulersConst)/OMEGA
+                        hel = (-log(G2/4.0_dp) - 2.0_dp*EulersConst)/OMEGA
                     endif
                 else  ! <ii|ii>
                     hel = 0
                 endif  !Coulomb
 
             else  !no energy conservation
-                hel = 0.0d0
+                hel = 0.0_dp
             endif
             return
         end if   !UEG2

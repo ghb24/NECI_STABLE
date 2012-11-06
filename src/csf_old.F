@@ -975,8 +975,8 @@ C..  refer to as long as they are always ordered)
          DO I=1,NOPEN
             SCUR=SORDER(I)
             MCUR=DORDER(I)
-            S=S+SCUR-0.5D0
-            M=M+MCUR-0.5D0
+            S=S+SCUR-0.5_dp
+            M=M+MCUR-0.5_dp
             CALL GETCLEBSCHGORDON(S,M,SCUR,MCUR,CG)
 !            WRITE(6,"(F6.3,A)",advance='no') CG,"*"
             COEFF=COEFF*CG
@@ -998,7 +998,7 @@ C.. For MN_=+1/2 set MN=1, and for MN_=-1/2 set MN=0
          INTEGER SN,MN
 
          real(dp) MN_
-         MN_=MN-0.5D0
+         MN_=MN-0.5_dp
          IF(SN.EQ.0) THEN
             COEFF=-2.D0*MN_*SQRT((S+1-2*MN_*M)/(2*S+2))
          ELSEIF(SN.EQ.1) THEN

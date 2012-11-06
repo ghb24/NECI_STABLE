@@ -235,10 +235,10 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
          do i=1,nEl
             do j=1,nEl
 !Coulomb term
-               hEl=hEl-(0.5d0)*GetUMatEl(IDHF(i),IDJ(j),IDHF(i),IDJ(j))
+               hEl=hEl-(0.5_dp)*GetUMatEl(IDHF(i),IDJ(j),IDHF(i),IDJ(j))
                if(G1(nHFDet(i))%Ms.eq.G1(nJ(j))%Ms) then
 !Exchange term
-                  hEl=hEl+(0.5d0)*GetUMatEl(IDHF(i),IDJ(j),IDJ(j),IDHF(i))
+                  hEl=hEl+(0.5_dp)*GetUMatEl(IDHF(i),IDJ(j),IDJ(j),IDHF(i))
                endif
             enddo
          enddo

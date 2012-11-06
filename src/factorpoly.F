@@ -97,7 +97,7 @@ C.. if we need to go to the complex plane, we set LCOMPLEX
          INTEGER ICOUNT,I
          LOGICAL LCOMPLEX,TBIS
          IF(LCOMPLEX) THEN
-            ZROOT=(1.D0,0.1D0)
+            ZROOT=(1.D0,0.1_dp)
          ELSE
 C.. As our roots are close to 1, so are possible minima which will throw 
 C.. the NR method.  we start quite far away.
@@ -107,7 +107,7 @@ C.. the NR method.  we start quite far away.
          ICOUNT=0
          CALL POLYVALUE(WCOEFFS,WORDER,ZROOT,ZEPS)
          MAG=SQRT(DBLE(ZEPS)*DBLE(ZEPS)+AIMAG(ZEPS)*AIMAG(ZEPS))
-         Z2=(0.1D0,0.D0)
+         Z2=(0.1_dp,0.D0)
 C         WRITE(6,*) "POLY=",(WCOEFFS(I),I=0,WORDER)
          DO WHILE (MAG.GT.REPS)
             ICOUNT=ICOUNT+1

@@ -708,7 +708,7 @@
                 ExcitInfo(i-1,2)=tmp(3)
             enddo
             
-            IF(.not.abs(ExcitInfo(iExcit,0)).gt.0.1d0) STOP 'Reordering incorrect'
+            IF(.not.abs(ExcitInfo(iExcit,0)).gt.0.1_dp) STOP 'Reordering incorrect'
             WRITE(6,*) "Minimum rho_jj is :", ExcitInfo(iExcit,0)
 
 ! Ensures that all determinants are non-degenerate - useful for testing

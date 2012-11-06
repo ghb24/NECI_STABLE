@@ -1064,7 +1064,7 @@ C              WRITE(6,*) ((DEDCIJ(I,J,ISPN),I=1,NSBASIS),J=1,NSBASIS)
 C.. modify the velocity.
 C              R1 = VMAT(:,:,ISPN) + MIX*DEDCIJ(:,:,ISPN)
 C              CALL DCOPY(NSBASIS*NSBASIS,R1,1,VMAT(1,1,ISPN),1)
-C              R1 = CMAT(:,:,ISPN) + 0.1D0*VMAT(:,:,ISPN)
+C              R1 = CMAT(:,:,ISPN) + 0.1_dp*VMAT(:,:,ISPN)
 
 C.. Remove the projection of the "force" already in the direction of
 C.. the coefficients

@@ -108,7 +108,7 @@ END SUBROUTINE OrthoNormx
 ! Now let R2=L^(-1/2) (U R) = L^(-1/2) R2
 ! row I is multiplied by (L(I))^(-1/2)
          DO I=1,N
-            LL=L(I)**(-0.5D0)
+            LL=L(I)**(-0.5_dp)
             DO J=1,N
                R2(I,J)=R2(I,J)*(LL)
             ENDDO
