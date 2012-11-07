@@ -187,7 +187,8 @@ MODULE ReadInput_neci
                            tCalcInstantS2, tDiagAllSpaceEver, &
                            tCalcVariationalEnergy, tCalcInstantS2Init
         use DetCalc, only: tEnergy, tCalcHMat, tFindDets, tCompressDets
-        USE input_neci
+        use input_neci
+        use constants
         use global_utilities
         use spin_project, only: tSpinProject, spin_proj_nopen_max
         use FciMCData, only: nWalkerHashes,HashLengthFrac,tHashWalkerList
@@ -342,7 +343,7 @@ MODULE ReadInput_neci
         endif
   
         !Ensure beta is set.
-        if (beta < 1.d-6 .and. .not. tMP2Standalone) then
+        if (beta < 1.0e-6_dp .and. .not. tMP2Standalone) then
             call report("No beta value provided.", .true.)
         endif
         

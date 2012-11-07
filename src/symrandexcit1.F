@@ -36,7 +36,7 @@
          real(dp) RAN2   
 !.. irst generate a random excitation 
 
-         PGEN=1.D0/ITOTAL
+         PGEN=1.0_dp/ITOTAL
 !         I=ITOTAL
 !         IEXCIT=1
 !         DO WHILE(I.GT.0.AND.EXCITTYPES(5,IEXCIT).LE.I)

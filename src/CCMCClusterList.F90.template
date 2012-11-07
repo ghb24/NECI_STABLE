@@ -25,6 +25,7 @@ module ClusterList
    use Determinants, only: get_helement, write_det, write_det_len
    use constants, only: dp, int32, n_int
    use bit_rep_data, only: NIfDBO,NIfD,NIfTot
+   use bit_reps, only: extract_flags
    use CCMCData, only: ExcitToDetSign,AddBitExcitor
    use Parallel_neci
    use AmpList
@@ -204,7 +205,7 @@ SUBROUTINE CalcClusterEnergy (tFCI,AL,iAmpList,nExcit,ExcitList,ExcitLevelIndex,
       amp=GetAmpl(AL,j,iAmpList)
       if(any(amp.lt.0)) i=-1
       dAmp=sum(abs(amp))/dNorm
-      if(dAmp.ne.0.d0) then
+      if(dAmp.ne.0.0_dp) then
          i=i*ExcitToDetSign(iLutHF,ExcitList(:,j),iC)
          if (iProcIndex.eq.root) then
             temp_sign=0
@@ -241,7 +242,7 @@ SUBROUTINE CalcClusterEnergy (tFCI,AL,iAmpList,nExcit,ExcitList,ExcitLevelIndex,
                endif
                iLutnI(:)=ExcitList(:,j)
                call AddBitExcitor(iLutnI,ExcitList(:,l),iLutHF,iSgn)
-               if(iSgn.ne.0.and.dAmp.ne.0.d0) then
+               if(iSgn.ne.0.and.dAmp.ne.0.0_dp) then
                   iSgn=iSgn*ExcitToDetSign(iLutHF,iLutnI,2)
                   CALL Decode_Bit_Det(DetCurr,iLutnI)
                   Htmp = get_helement (HFDet, DetCurr, iLutHF, iLutnI)
@@ -272,7 +273,7 @@ SUBROUTINE CalcClusterEnergy (tFCI,AL,iAmpList,nExcit,ExcitList,ExcitLevelIndex,
       endif
    enddo
 !   write(6,*) "T1Sq:",dT1Sq
-   ProjE=ENumCyc/(HFCyc(1)+0.d0)
+   ProjE=ENumCyc/(HFCyc(1)+0.0_dp)
 END SUBROUTINE !CalcClusterEnergy
 
 !This runs over all singles and doubles in the list of excitors and calls SumEContrib for them appropriately to give the projected energy.  The excitor list need not be sorted.
@@ -325,7 +326,7 @@ SUBROUTINE CalcClusterEnergyUnsrt (tFCI,AL,iAmpList,nExcit,ExcitList,iRefPos,dNo
       amp=GetAmpl(AL,j,iAmpList)
       if(any(amp.lt.0)) i=-1
       dAmp=sum(abs(amp))/dNorm
-      if(dAmp.ne.0.d0) then
+      if(dAmp.ne.0.0_dp) then
          if (iProcIndex.eq.root) then
             temp_sign=0
             ASSERT(lenof_sign == 1 .and. amp(1) /= 0)
@@ -355,7 +356,7 @@ SUBROUTINE CalcClusterEnergyUnsrt (tFCI,AL,iAmpList,nExcit,ExcitList,iRefPos,dNo
                endif
                iLutnI(:)=ExcitList(:,j)
                call AddBitExcitor(iLutnI,ExcitList(:,l),iLutHF,iSgn)
-               if(iSgn.ne.0.and.dAmp.ne.0.d0) then
+               if(iSgn.ne.0.and.dAmp.ne.0.0_dp) then
                   CALL Decode_Bit_Det(DetCurr,iLutnI)
                   Htmp = get_helement (HFDet, DetCurr, iLutHF, iLutnI)
                   dAmp=dAmp/(dNorm**2)
@@ -380,7 +381,7 @@ SUBROUTINE CalcClusterEnergyUnsrt (tFCI,AL,iAmpList,nExcit,ExcitList,iRefPos,dNo
       endif
    enddo
 !   write(6,*) "T1Sq:",dT1Sq
-   ProjE=ENumCyc/(HFCyc(1)+0.d0)
+   ProjE=ENumCyc/(HFCyc(1)+0.0_dp)
 END SUBROUTINE !CalcClusterEnergyUnsrt
 
 
@@ -667,7 +668,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,
       endif
    endif
    if(CS%%tInitiators) then
-      CS%%C%%initFlag=int(ilutFlag(NOffFlag),sizeof_int)
+      CS%%C%%initFlag = extract_flags(ilutFlag)
    else
       CS%%C%%initFlag=0
    endif

@@ -109,7 +109,7 @@ contains
                  call MPIReduce(TotalAttempts,MPI_SUM,TotalAttemptsAll)
                  call MPIReduce(ExcitBin(0:iExcitLevTest),MPI_SUM,ExcitBinAll(0:iExcitLevTest))
 
-                 SymSpace=0.D0
+                 SymSpace=0.0_dp
                  Frac=REAL(AcceptAll,dp)/REAL(TotalAttemptsAll,dp)  !Fraction of the 'full' space which is symmetry allowed
                  do j=0,iExcitLevTest
 !                     write(6,*) REAL(ExcitBinAll(j),dp),REAL(AcceptAll,dp),Frac,FullSpace,ExcitLevBias(j)
@@ -139,7 +139,7 @@ contains
          call MPIReduce(TotalAttempts,MPI_SUM,TotalAttemptsAll)
          call MPIReduce(ExcitBin(0:iExcitLevTest),MPI_SUM,ExcitBinAll(0:iExcitLevTest))
 
-         SymSpace=0.D0
+         SymSpace=0.0_dp
          Frac=REAL(AcceptAll,dp)/REAL(TotalAttemptsAll,dp)  !Fraction of the 'full' space which is symmetry allowed
          do j=0,iExcitLevTest
 !             write(6,*) REAL(ExcitBinAll(j),dp),REAL(AcceptAll,dp),Frac,FullSpace,ExcitLevBias(j)
@@ -182,7 +182,7 @@ contains
              IF(ExcitLev.eq.iExcitLevTest) then
                  RETURN   !Prob of accepting = 1
              else
-                 pAcc=1.D0/(Choose(NEl-ExcitLev,iExcitLevTest-ExcitLev))
+                 pAcc=1.0_dp/(Choose(NEl-ExcitLev,iExcitLevTest-ExcitLev))
                  r = genrand_real2_dSFMT()
                  if(r.le.pAcc) exit
              endif
@@ -792,7 +792,7 @@ contains
          Limb(6)=min(nOccBeta,ClassCounts(2,6))
          Lima(7)=min(nOccAlpha,ClassCounts(1,7))
          Limb(7)=min(nOccBeta,ClassCounts(2,7))
-         Space=0.D0
+         Space=0.0_dp
 
 !         WRITE(6,*) ClassCounts(:)
 !         WRITE(6,*) "***"
@@ -868,7 +868,7 @@ contains
 
                 IF((NAlph.eq.NOccAlpha).and.(NBet.eq.NOccBeta)) THEN
 
-                    SpaceGrow=1.D0
+                    SpaceGrow=1.0_dp
                     SpaceGrow=SpaceGrow*Choose(ClassCounts(1,0),a0)
                     SpaceGrow=SpaceGrow*Choose(ClassCounts(2,0),b0)
                     SpaceGrow=SpaceGrow*Choose(ClassCounts(1,1),a1)
@@ -970,10 +970,10 @@ contains
          IF(mod((ClassCountsOcc(i)+ClassCountsVirt(i)),2).ne.0) THEN
              STOP 'Error counting determinants'
          ENDIF
-         ClassCountsOccMax(i)=CEILING(REAL(ClassCountsOcc(i))/2.D0)
-         ClassCountsVirtMax(i)=CEILING(REAL(ClassCountsVirt(i))/2.D0)
-         ClassCountsOcc(i)=FLOOR(REAL(ClassCountsOcc(i))/2.D0)
-         ClassCountsVirt(i)=FLOOR(REAL(ClassCountsVirt(i))/2.D0)
+         ClassCountsOccMax(i)=CEILING(REAL(ClassCountsOcc(i))/2.0_dp)
+         ClassCountsVirtMax(i)=CEILING(REAL(ClassCountsVirt(i))/2.0_dp)
+         ClassCountsOcc(i)=FLOOR(REAL(ClassCountsOcc(i))/2.0_dp)
+         ClassCountsVirt(i)=FLOOR(REAL(ClassCountsVirt(i))/2.0_dp)
          
 !         ClassCounts(i)=ClassCounts(i)/2
          enddo
@@ -994,7 +994,7 @@ contains
              enddo
          ENDIF
  
-         Space=0.D0
+         Space=0.0_dp
 
 !Loop over each irrep twice, once for alpha electrons and once for beta.
 !a0 is the number of alpha electrons in symmetry 0.
@@ -1135,7 +1135,7 @@ contains
 
                 ELSE
 
-                SpaceGrow=1.D0
+                SpaceGrow=1.0_dp
                 SpaceGrow=SpaceGrow*Choose(ClassCountsOcc(0),a0o)
                 SpaceGrow=SpaceGrow*Choose(ClassCountsOccMax(0),b0o)
                 SpaceGrow=SpaceGrow*Choose(ClassCountsVirt(0),a0v)

@@ -5,7 +5,7 @@ size=8
 
 [doub]
 type1=real(dp)
-unity=1.d0
+unity=1.0_dp
 size=8
 
 ===================

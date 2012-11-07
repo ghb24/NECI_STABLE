@@ -53,7 +53,7 @@ MODULE System
       tHPHF=.false.
       tMaxHLGap=.false.
       tUMatEps=.false.
-      UMatEps=0.D0
+      UMatEps=0.0_dp
       tExactSizeSpace=.false.
       iRanLuxLev=3      !This is the default level of quality for the random number generator.
       tNoSymGenRandExcits=.false.
@@ -86,14 +86,14 @@ MODULE System
       NMAXY = 0
       NMAXZ = 0
       NMSH=32
-      BOX=1.d0
-      BOA=1.d0
-      COA=1.d0
+      BOX=1.0_dp
+      BOA=1.0_dp
+      COA=1.0_dp
       TUSEBRILLOUIN=.false. 
       tUHF=.false.
-      FUEGRS=0.D0
+      FUEGRS=0.0_dp
       iPeriodicDampingType=0
-      fRc=0.D0
+      fRc=0.0_dp
       TEXCH=.true.
       UHUB = 4
       BHUB = -1
@@ -109,7 +109,7 @@ MODULE System
       gCutoff=1e20 ! This shouldn't be used
       tgCutoff=.false.
       tMadelung=.false.
-      Madelung=0.D0
+      Madelung=0.0_dp
       tUEGFreeze=.false.
       FreezeCutoff=1e20 ! This shouldn't be used
       tMP2UEGRestrict=.false.
@@ -153,10 +153,10 @@ MODULE System
       tUseMP2VarDenMat=.false.
       tUseHFOrbs=.false.
       tFindCINatOrbs=.false.
-      DiagWeight=1.D0
-      OffDiagWeight=1.D0
-      OneElWeight=1.D0
-      OrbEnMaxAlpha=1.D0
+      DiagWeight=1.0_dp
+      OffDiagWeight=1.0_dp
+      OneElWeight=1.0_dp
+      OrbEnMaxAlpha=1.0_dp
       MaxMinFac=1
       DiagMaxMinFac=-1
       OneElMaxMinFac=1
@@ -172,7 +172,7 @@ MODULE System
       ENDIF
 
 ! Coulomb damping function currently removed.
-!      FCOULDAMPBETA=-1.D0
+!      FCOULDAMPBETA=-1.0_dp
 !      COULDAMPORB=0
         
     end subroutine SetSysDefaults
@@ -450,8 +450,8 @@ MODULE System
                call getf(BOA)
                call getf(COA)
             else
-               BOA=1.D0
-               COA=1.D0
+               BOA=1.0_dp
+               COA=1.0_dp
             endif
         case("U")
             call getf(UHUB)
@@ -654,7 +654,7 @@ MODULE System
             IF(item.lt.nitems) THEN
                 call Getf(OrbEnMaxAlpha)
             ELSE
-                OrbEnMaxAlpha=1.D0
+                OrbEnMaxAlpha=1.0_dp
             ENDIF
 ! This sets the orbital rotation to find the coefficients which maximise the one particle orbital energies.
 ! i.e maximise the fock energies, epsilon_i = <i|h|i> + sum_j [<ij||ij>].
@@ -899,7 +899,7 @@ MODULE System
             &        call report("Must specify CELL "                          &
             &        //"- the number of basis functions in each dim.",         &
             &        .true.)
-            if(.NOT.THUB.AND.BOX.EQ.0.D0)                                &
+            if(.NOT.THUB.AND.BOX.EQ.0.0_dp)                                &
             &        call report("Must specify BOX size.",.true.)
             if(TTILT.AND..NOT.THUB)                                      &
             &        call report("TILT can only be specified with HUBBARD.",.true.)
@@ -942,7 +942,7 @@ MODULE System
       integer, allocatable :: brr_tmp(:)
 !     UEG2
       integer :: AllocateStatus
-      real(dp), parameter :: EulersConst = 0.5772156649015328606065120900824024d0
+      real(dp), parameter :: EulersConst = 0.5772156649015328606065120900824024_dp
 
 
 !      write (6,*)
@@ -950,7 +950,7 @@ MODULE System
 !      if (.not.TCPMD) call Envir()
 !      write (6,*)
 
-      ECORE=0.D0
+      ECORE=0.0_dp
       
 ! //AJWT TBR
 !      IFDET=0
@@ -1153,7 +1153,7 @@ MODULE System
 
           ! engergy cutoff not given -> set to 2* Fermi vector
           if(.not. torbEcutoff) then
-              orbEcutoff =(2.0d0*FKF/k_lattice_constant)**2.0d0 
+              orbEcutoff =(2.0_dp*FKF/k_lattice_constant)**2.0_dp 
               torbEcutoff = .true.
           end if
           ! if cell size not given
@@ -1162,7 +1162,7 @@ MODULE System
           end if 
 
           TTILT=.FALSE.
-          ALAT=0.0d0   !shouldn't be used in the UEG2 part...
+          ALAT=0.0_dp   !shouldn't be used in the UEG2 part...
           NMAX=MAX(NMAXX,NMAXY,NMAXZ)
           NNR=NMSH*NMSH*NMSH
 
@@ -1229,7 +1229,7 @@ MODULE System
           LogAlloc(ierr,'Arr',2*LEN,8,tagArr)
           ! // TBR
           !      IP_ARRSTORE=IP_ARR
-          ARR=0.d0
+          ARR=0.0_dp
           Allocate(Brr(LEN),STAT=ierr)
           LogAlloc(ierr,'Brr',LEN,4,tagBrr)
           BRR(1:LEN)=0
@@ -1356,7 +1356,7 @@ MODULE System
               WRITE(6,'(A)') "****** USING Lz SYMMETRY *******"
               WRITE(6,'(A,I5)') "Pure spherical harmonics with complex orbitals used to constrain Lz to: ",LzTot
               WRITE(6,*) "Due to the breaking of the Ml degeneracy, the fock energies are slightly wrong, "&
-              &//"on order of 1.D-4 - do not use for MP2!"
+              &//"on order of 1.0e-4_dp - do not use for MP2!"
               if(nsymlabels.gt.4) then
                   call stop_all(this_routine,"D2h point group detected. Incompatable with Lz symmetry conserving "&
                   &//"orbitals. Have you transformed these orbitals into spherical harmonics correctly?!")
@@ -1403,7 +1403,7 @@ MODULE System
               CALL GENCPMDSYMREPS(G1,NBASIS,ARR,1.e-5_dp)
           ELSEIF(tVASP) THEN
       !C.. If VASP-based calculation, then we've generated the symmetry table earlier,
-      !C.. but we still need the sym reps table. DEGENTOL=1.d-6. CHECK w/AJWT.
+      !C.. but we still need the sym reps table. DEGENTOL=1.0e-6_dp. CHECK w/AJWT.
               CALL GENSYMREPS(G1,NBASIS,ARR,1.e-6_dp)
           ELSEIF(THUB.AND..NOT.TREAL) THEN
               CALL GenHubMomIrrepsSymTable(G1,nBasis,nBasisMax)
@@ -1416,16 +1416,16 @@ MODULE System
 
       !// TBR
       !      WRITE(6,*) ' ETRIAL : ',ETRIAL
-      !      IF(FCOUL.NE.1.D0)  WRITE(6,*) "WARNING: FCOUL is not 1.D0. FCOUL=",FCOUL
+      !      IF(FCOUL.NE.1.0_dp)  WRITE(6,*) "WARNING: FCOUL is not 1.0_dp. FCOUL=",FCOUL
           IF(FCOULDAMPBETA.GT.0) WRITE(6,*) "FCOUL Damping.  Beta ",FCOULDAMPBETA," Mu ",FCOULDAMPMU
           call halt_timer(proc_timer)
 
           !calculate tau if not given
-          if (TAU .lt. 0.0d0) then
+          if (TAU .lt. 0.0_dp) then
               call  CalcTau
           end if  
       
-          if(tMadelung .AND. Madelung == 0.0d0 .AND. dimen ==3) then
+          if(tMadelung .AND. Madelung == 0.0_dp .AND. dimen ==3) then
              Madelung=calc_madelung()
           else
                   call stop_all (this_routine, "Calculation of Madelung constant works in 3D only!")
@@ -1446,13 +1446,13 @@ MODULE System
                  nBasisMax(2,3) = 1
                  tStoreSpinOrbs = .true.
              end if
-             IF(FUEGRS.NE.0.D0) THEN
+             IF(FUEGRS.NE.0.0_dp) THEN
                 WRITE(6,'(A,F20.16)') '  Electron Gas Rs set to ',FUEGRS
                 OMEGA=BOX*BOX*BOX*BOA*COA
 !C.. required density is (3/(4 pi rs^3))
 !C.. need omega to be (NEL* 4 pi rs^3 / 3)
 !C.. need box to be (NEL*4 pi/(3 BOA COA))^(1/3) rs
-                BOX=(NEL*4.D0*PI/(3.D0*BOA*COA))**(1.D0/3.D0)
+                BOX=(NEL*4.0_dp*PI/(3.0_dp*BOA*COA))**(1.0_dp/3.0_dp)
                 BOX=BOX*FUEGRS
                 WRITE(6,'(A, F20.16)') "  Resetting box size to ", BOX
              ENDIF
@@ -1523,7 +1523,7 @@ MODULE System
           ELSE
              ALAT(4)=fRc
           ENDIF
-!      ALAT(4)=2*BOX*(BOA*COA)**(1/3.D0)
+!      ALAT(4)=2*BOX*(BOA*COA)**(1/3.0_dp)
           
           IF(THUB) THEN
              WRITE(6,*) ' X-LENGTH OF HUBBARD CHAIN:', NMAXX
@@ -1536,10 +1536,10 @@ MODULE System
              ELSE
                 OMEGA=real(NMAXX,dp)*(NMAXY)*(NMAXZ)
              ENDIF
-             RS=1.D0
+             RS=1.0_dp
           ELSE
              OMEGA=ALAT(1)*ALAT(2)*ALAT(3)
-             RS=(3.D0*OMEGA/(4.D0*PI*NEL))**THIRD
+             RS=(3.0_dp*OMEGA/(4.0_dp*PI*NEL))**THIRD
              ALAT(5)=RS
              IF(iPeriodicDampingType.NE.0) THEN
                 IF(iPeriodicDampingType.EQ.1) THEN
@@ -1625,7 +1625,7 @@ MODULE System
       LogAlloc(ierr,'Arr',2*LEN,8,tagArr)
 ! // TBR
 !      IP_ARRSTORE=IP_ARR
-      ARR=0.d0
+      ARR=0.0_dp
       Allocate(Brr(LEN),STAT=ierr)
       LogAlloc(ierr,'Brr',LEN,4,tagBrr)
       BRR(1:LEN)=0
@@ -1738,7 +1738,7 @@ MODULE System
           WRITE(6,'(A)') "****** USING Lz SYMMETRY *******"
           WRITE(6,'(A,I5)') "Pure spherical harmonics with complex orbitals used to constrain Lz to: ",LzTot
           WRITE(6,*) "Due to the breaking of the Ml degeneracy, the fock energies are slightly wrong, "&
-          &//"on order of 1.D-4 - do not use for MP2!"
+          &//"on order of 1.0e-4_dp - do not use for MP2!"
           if(nsymlabels.gt.4) then
               call stop_all(this_routine,"D2h point group detected. Incompatable with Lz symmetry conserving "&
               &//"orbitals. Have you transformed these orbitals into spherical harmonics correctly?!")
@@ -1787,7 +1787,7 @@ MODULE System
          CALL GENCPMDSYMREPS(G1,NBASIS,ARR,1.e-5_dp)
       ELSEIF(tVASP) THEN
 !C.. If VASP-based calculation, then we've generated the symmetry table earlier,
-!C.. but we still need the sym reps table. DEGENTOL=1.d-6. CHECK w/AJWT.
+!C.. but we still need the sym reps table. DEGENTOL=1.0e-6_dp. CHECK w/AJWT.
          CALL GENSYMREPS(G1,NBASIS,ARR,1.e-6_dp)
       ELSEIF(THUB.AND..NOT.TREAL) THEN
          CALL GenHubMomIrrepsSymTable(G1,nBasis,nBasisMax)
@@ -1805,7 +1805,7 @@ MODULE System
 
 !// TBR
 !      WRITE(6,*) ' ETRIAL : ',ETRIAL
-!      IF(FCOUL.NE.1.D0)  WRITE(6,*) "WARNING: FCOUL is not 1.D0. FCOUL=",FCOUL
+!      IF(FCOUL.NE.1.0_dp)  WRITE(6,*) "WARNING: FCOUL is not 1.0_dp. FCOUL=",FCOUL
       IF(FCOULDAMPBETA.GT.0) WRITE(6,*) "FCOUL Damping.  Beta ",FCOULDAMPBETA," Mu ",FCOULDAMPMU
       call halt_timer(proc_timer)
     End Subroutine SysInit
@@ -1891,7 +1891,7 @@ SUBROUTINE LatticeInit(RS, FKF)
     else if (dimen==1) then !1D
         write(6,'(A)') ' NMAXZ=0,  NMAXY=0 : 1D calculation'
         OMEGA=2.0_dp*FUEGRS*NEL
-        RS=OMEGA/(2.D0*NEL) 
+        RS=OMEGA/(2.0_dp*NEL) 
         FKF=(PI/2.0_dp)/RS  !for spin polarised simulation
         ! define  lattice vectors and lattice constant in reciprocal space
         Unscaled_LatConst_square =1.0_dp
@@ -1951,38 +1951,38 @@ SUBROUTINE CalcTau
     !Detemines tau for a given lattice type
 
     if(dimen == 3) then ! 3D
-        TAU = (k_lattice_constant**2* OMEGA) / (4.0d0*PI) !Hij_min**-1
+        TAU = (k_lattice_constant**2* OMEGA) / (4.0_dp*PI) !Hij_min**-1
         if (tTruncInitiator) TAU = TAU*InitiatorWalkNo
-        if (tHPHF) TAU = TAU /sqrt(2.0d0)
-        TAU = 0.9d0*TAU*4.0d0/(NEL*(NEL-1))/(NBASIS-NEL)
+        if (tHPHF) TAU = TAU /sqrt(2.0_dp)
+        TAU = 0.9_dp*TAU*4.0_dp/(NEL*(NEL-1))/(NBASIS-NEL)
         if (TAU .gt. k_lattice_constant**(-2)/OrbEcutoff) then 
-            TAU= 1.0d0/(k_lattice_constant**(2)*OrbEcutoff)  !using Hii 
+            TAU= 1.0_dp/(k_lattice_constant**(2)*OrbEcutoff)  !using Hii 
             write(6,*) '***************** Tau set by using Hii *******************************'
-            !write(6,*) 1.0d0/((2.0d0*PI/Omega**third)**2*orbEcutoff)
+            !write(6,*) 1.0_dp/((2.0_dp*PI/Omega**third)**2*orbEcutoff)
         else
             write(6,*) 'Tau set by using Hji'
         end if
 
     else if (dimen ==2) then !2D
-        TAU = (k_lattice_constant * OMEGA)/(2.0d0*PI)  !Hij_min**-1
+        TAU = (k_lattice_constant * OMEGA)/(2.0_dp*PI)  !Hij_min**-1
         if (tTruncInitiator) TAU = TAU*InitiatorWalkNo
-        if (tHPHF) TAU = TAU /sqrt(2.0d0)
-        TAU = 0.9d0*TAU*4.0d0/(NEL*(NEL-1))/(NBASIS-NEL)
+        if (tHPHF) TAU = TAU /sqrt(2.0_dp)
+        TAU = 0.9_dp*TAU*4.0_dp/(NEL*(NEL-1))/(NBASIS-NEL)
         if (TAU .gt. k_lattice_constant**(-2)/OrbEcutoff) then 
             !!!!!!!! NOT WORKING YET!!!!!!!
-            TAU= 1.0d0/(k_lattice_constant**(2)*OrbEcutoff)  !using Hii 
+            TAU= 1.0_dp/(k_lattice_constant**(2)*OrbEcutoff)  !using Hii 
             write(6,*) '***************** Tau set by using Hii *******************************'
         else
             write(6,*) 'Tau set by using Hji'
         end if
 
     else if (dimen ==1) then !1D
-        TAU = OMEGA/ (-2.0d0*log(1.0d0/(2.0d0*sqrt(orbEcutoff)))) 
+        TAU = OMEGA/ (-2.0_dp*log(1.0_dp/(2.0_dp*sqrt(orbEcutoff)))) 
         if (tTruncInitiator) TAU = TAU*InitiatorWalkNo
-        if (tHPHF) TAU = TAU /sqrt(2.0d0)
-        TAU = 0.9d0*TAU*4.0d0/(NEL*(NEL-1))/(NBASIS-NEL)
-        if (TAU .gt. 0.9d0* 1.0d0/(0.5d0*(k_lattice_constant)**2*NEL*OrbEcutoff))  then 
-            TAU=0.9d0* 1.0d0/(0.5d0*(k_lattice_constant)**2*NEL*OrbEcutoff)   !using Hii 
+        if (tHPHF) TAU = TAU /sqrt(2.0_dp)
+        TAU = 0.9_dp*TAU*4.0_dp/(NEL*(NEL-1))/(NBASIS-NEL)
+        if (TAU .gt. 0.9_dp* 1.0_dp/(0.5_dp*(k_lattice_constant)**2*NEL*OrbEcutoff))  then 
+            TAU=0.9_dp* 1.0_dp/(0.5_dp*(k_lattice_constant)**2*NEL*OrbEcutoff)   !using Hii 
             write(6,*) '***************** Tau set by using Hii *******************************'
         else
             write(6,*) 'Tau set by using Hji'
@@ -2253,7 +2253,7 @@ SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
      J=1+ISPIN
      ITOT=2
      DO I=3+ISPIN,NBASIS,2
-        IF(ABS(ARR(I,1)-OEN).GT.1.D-4) THEN
+        IF(ABS(ARR(I,1)-OEN).GT.1.0e-4_dp) THEN
 !.. We don't have degenerate orbitals
 !.. First deal with the last set of degenerate orbitals
 !.. We sort them into order of BRR
@@ -2303,7 +2303,7 @@ SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,Energy,dUnsc
            else
               E=(kvecX)**2+(kvecY)**2+(kvecZ)**2
            endif
-           Energy=0.5d0*E*k_lattice_constant**2
+           Energy=0.5_dp*E*k_lattice_constant**2
            dUnscaledEnergy=Unscaled_LatConst_square*((kvecX)**2+(kvecY)**2+(kvecZ)**2)
        ELSE
            Energy=Unscaled_LatConst_square*((kvecX)**2+(kvecY)**2+(kvecZ)**2)
