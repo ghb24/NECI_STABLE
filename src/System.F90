@@ -333,7 +333,14 @@ MODULE System
         case("SEMI-STOCHASTIC")
             tSemiStochastic = .true.
         case("CSF-CORE")
+            if(item.lt.nitems) then
+               call geti(STOT)
+            else
+               STOT=0
+            endif
             tCSFCore = .true.
+            tCSF = .true.
+            LMS = STOT
         case("DETERMINANT-CORE")
             tDeterminantCore = .true.
         case("SYMIGNOREENERGIES")

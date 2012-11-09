@@ -2,22 +2,24 @@
 
 module semi_stochastic
 
-    use bit_rep_data, only: flag_deterministic
-    use bit_reps, only: NIfD, NIfTot, decode_bit_det_bitwise, encode_bit_rep
+    use bit_rep_data, only: flag_deterministic, nIfDBO, nOffY, nIfY, nOffFlag, &
+                            deterministic_mask
+    use bit_reps, only: NIfD, NIfTot, decode_bit_det, encode_bit_rep
     use CalcData, only: tRegenDiagHEls
+    use csf, only: csf_get_yamas, get_num_csfs, get_csf_bit_yama, csf_apply_yama
+    use csf_data, only: iscsf, csf_orbital_mask
     use constants
-    use detBitOps, only: ilut_lt, ilut_gt
+    use DetBitOps, only: ilut_lt, ilut_gt, count_open_orbs
     use Determinants, only: get_helement
+    use enumerate_excitations
     use FciMCData, only: HFDet, ilutHF, iHFProc, Hii, CurrentDets, CurrentH, &
                          deterministic_proc_sizes, deterministic_proc_indices, &
                          det_vector, result_det_vector, core_hamiltonian
-    use GenRandSymExcitNUMod, only: enumerate_all_single_excitations, &
-                                    enumerate_all_double_excitations, spat_excit_t
     use hash , only : DetermineDetNode
     use hphf_integrals, only: hphf_diag_helement
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIBarrier
     use sort_mod, only: sort
-    use SystemData, only: nel, tHPHF
+    use SystemData, only: nel, tHPHF, tCSFCore, tDeterminantCore, Stot, lms
 
     implicit none
 
@@ -30,17 +32,14 @@ contains
         ! storing the resulting Hamiltonian matrix elements. The lists which will store
         ! the psip vectors in the deterministic space are also allocated.
 
-        type(spat_excit_t), target :: gen_store
         integer :: i, j, col_index, iproc, IC
         integer :: nI(nel), nJ(nel)
-        integer(n_int) :: ilut(0:NIfTot)
         integer(n_int), allocatable, dimension(:,:) :: temp_store
         integer :: det_space_size, ierr
-        integer :: no_zero, no_not_zero
-        real :: fraction_zero
 
-        no_zero = 0
-        no_not_zero = 0
+        ! Initialise the deterministic mask.
+        deterministic_mask = 0
+        deterministic_mask = ibset(deterministic_mask, flag_deterministic)
 
         allocate(deterministic_proc_sizes(0:nProcessors-1))
         allocate(deterministic_proc_indices(0:nProcessors-1))
@@ -51,37 +50,17 @@ contains
         ! added to the main list as usual in the subroutine InitFCIMCCalcPar).
         deterministic_proc_sizes(iHFProc) = 1
 
-        ! This condition tells the enumerating subroutines to initialise the loop.
-        ilut(0) = -1
-
-        ! Find the first single excitation.
-        call enumerate_all_single_excitations (ilutHF, HFDet, ilut, gen_store)
-        ! Subroutine to add this state to the spawned list if on this processor.
-        call add_basis_state_to_list(ilut, nI)
-
-        ! When no more basis functions are found, this value if returned and the loop
-        ! is exited.
-        do while(ilut(0) /= -1)
-            call enumerate_all_single_excitations (ilutHF, HFDet, ilut, gen_store)
-
-            ! If a determinant is returned (if we did not find the final one last time.)
-            if (ilut(0) /= -1) call add_basis_state_to_list(ilut, nI)
-        end do
-
-        ! Now generate the double excitations...
-
-        ilut(0) = -1
-        ! The first double excitation.
-        call enumerate_all_double_excitations (ilutHF, HFDet, ilut, gen_store)
-        call add_basis_state_to_list(ilut, nI)
-
-        do while(ilut(0) /= -1)
-            call enumerate_all_double_excitations (ilutHF, HFDet, ilut, gen_store)
-
-            if (ilut(0) /= -1) call add_basis_state_to_list(ilut, nI)
-        end do
-
-        ! All excitations have now been generated.
+        ! The following subroutines call the enumerating subroutines to create all excitations
+        ! and add these states to the main list, CurrentDets, on the correct processor. As
+        ! they do this, they count the size of the deterministic space on each processor.
+        if (tDeterminantCore) then
+            call generate_determinants()
+        else if (tCSFCore) then
+            call generate_csfs()
+        else
+            call stop_all("init_semi_stochastic", "The nature of the core basis functions &
+                             &has not been specified.")
+        end if
 
         ! We now know the size of the deterministic space on each processor, so now find
         ! the total size of the space and also allocate vectors to store psip amplitudes
@@ -105,8 +84,6 @@ contains
             end if
         end do
 
-        !write(6,*) deterministic_proc_indices
-
         ! Sort the list of basis states so that it is correctly ordered in the predefined
         ! order which is always kept throughout the simulation.
         call sort(CurrentDets(:,1:deterministic_proc_sizes(iProcIndex)), ilut_lt, ilut_gt)
@@ -114,11 +91,6 @@ contains
         ! temp_store is storage space for bitstrings so that the Hamiltonian matrix
         ! elements can be calculated.
         allocate(temp_store(0:NIfTot, maxval(deterministic_proc_sizes)))
-
-        !write (6,*) iHFProc
-        !write (6,*) "size = ", deterministic_proc_sizes(iProcIndex)
-        !write (6,*) "proc = ", iProcIndex
-        !write (6,*) "no procs = ", nProcessors
 
         ! Calcuation of the Hamiltonian matrix elements to be stored. Loop over each
         ! processor in order and broadcast the sorted vector of bitstrings from the
@@ -133,69 +105,160 @@ contains
             ! Perform the broadcasting to other all other processors.
             call MPIBCast(temp_store, size(temp_store), iproc)
 
-            !write (6,*) "iproc = ", iproc, "temp_store = ", temp_store(2,:)
-            !write (6,*) ""
-
             ! The index of the column before the first column of the block of the
             ! Hamiltonian currently being calculated.
             col_index = deterministic_proc_indices(iproc)
-
-            call MPIBarrier(ierr)
 
             ! Loop over all the elements in the block of the Hamiltonian corresponding
             ! to these two prcoessors.
             do i = 1, deterministic_proc_sizes(iProcIndex)
                 do j = 1, deterministic_proc_sizes(iproc)
-                    !write (6,*) iprocIndex, iproc, i, j
-                    !call neci_flush(6)
 
                     ! Get nI form of the basis functions.
-                    call decode_bit_det_bitwise(nI, CurrentDets(:, i))
-                    call decode_bit_det_bitwise(nJ, temp_store(:, j))
+                    call decode_bit_det(nI, CurrentDets(:, i))
+                    call decode_bit_det(nJ, temp_store(:, j))
 
                     ! If on the diagonal of the Hamiltonian.
                     if ((iprocIndex == iproc) .and. (i == j)) then
                         core_hamiltonian(i, col_index + j) = &
-                                             get_helement(nI, nJ, 0) - Hii
+                                             get_helement(nI, nJ, 0)
                         ! We calculate and store CurrentH at this point for ease.
                         if (.not.tRegenDiagHEls) CurrentH(1,i) = &
-                                             core_hamiltonian(i, col_index + j)
+                                             core_hamiltonian(i, col_index + j) - Hii
                     else
                         core_hamiltonian(i, col_index + j) = &
                                          get_helement(nI, nJ, CurrentDets(:, i), &
                                                             temp_store(:, j))
                     end if
 
-                    !if (abs(core_hamiltonian(i, col_index + j)) > 0.0_dp) then
-                    !    no_not_zero = no_not_zero + 1
-                    !else
-                    !    no_zero = no_zero + 1
-                    !end if
-
                 end do
             end do
 
         end do
 
-        !fraction_zero = real(no_zero)/real(no_zero + no_not_zero)
-
         call MPIBarrier(ierr)
-
-        !write (6,*) "Fraction zero = ", fraction_zero
-        !call neci_flush(6)
 
         deallocate(temp_store)
 
-        !do i = 1, deterministic_proc_sizes(iProcIndex)
-        !    write(6,*) core_hamiltonian(i,:)
-        !    write(6,*) ""
-        !end do
-
-        !call stop_all("here","here")
+        call stop_all("here","here")
 
     end subroutine init_semi_stochastic
 
-    subroutine add_basis_state_to_list(ilut, nI)
+    subroutine generate_determinants()
+
+        type(excit_store), target :: gen_store
+        integer(n_int) :: ilut(0:NIfTot)
+        integer :: nI(nel)
+
+        ! This condition tells the enumerating subroutines to initialise the loop.
+        ilut(0) = -1
+
+        ! Find the first single excitation.
+        call enumerate_all_single_excitations (ilutHF, HFDet, ilut, gen_store)
+        ! Subroutine to add this state to the spawned list if on this processor.
+        call add_basis_state_to_list(ilut)
+
+        ! When no more basis functions are found, this value is returned and the loop
+        ! is exited.
+        do while(ilut(0) /= -1)
+            call enumerate_all_single_excitations (ilutHF, HFDet, ilut, gen_store)
+
+            ! If a determinant is returned (if we did not find the final one last time.)
+            if (ilut(0) /= -1) call add_basis_state_to_list(ilut)
+        end do
+
+        ! Now generate the double excitations...
+
+        ilut(0) = -1
+        ! The first double excitation.
+        call enumerate_all_double_excitations (ilutHF, HFDet, ilut, gen_store)
+        call add_basis_state_to_list(ilut)
+
+        do while(ilut(0) /= -1)
+            call enumerate_all_double_excitations (ilutHF, HFDet, ilut, gen_store)
+
+            if (ilut(0) /= -1) call add_basis_state_to_list(ilut)
+        end do
+
+    end subroutine generate_determinants
+
+    subroutine generate_csfs()
+
+        type(excit_store), target :: gen_store
+        integer(n_int) :: ilutHF_loc(0:NIfTot), ilut(0:NIfTot)
+        integer :: HFDet_loc(nel), nI(nel)
+        integer :: exflag, n_open, i
+        integer :: num_csfs, max_num_csfs
+        integer, allocatable, dimension(:,:) :: yama_symbols
+        logical :: first_loop
+
+        ! Setting the first two bits of this flag tells the generating subroutine to
+        ! generate both single and double spatial excitations.
+        exflag = 0
+        exflag = ibset(exflag, 0)
+        exflag = ibset(exflag, 1)
+
+        ! For Stot /= 0, the HF state will be a CSF. For the purpose of
+        ! generating all spatial orbitals, we just want a determinant, so use a
+        ! state without the CSF information.
+        HFdet_loc = iand(HFDet, csf_orbital_mask)
+        ilutHF_loc = ilutHF
+        ilutHF_loc(NOffY) = 0
+
+        ! Can't possibly have more open orbitals than nel.
+        ! TODO: Check that num_csfs *always* increases with n_open.
+        max_num_csfs = get_num_csfs(nel, Stot)
+
+        ! Use max_num_csfs to allocate the array of Yamanouchi symbols to be large enough.
+        allocate(yama_symbols(max_num_csfs, nel))
+        yama_symbols = 0
+
+        ! Ensure ilut(0) \= -1 so that the loop can be entered.
+        ilut(0) = 0
+        first_loop = .true.
+        do while (ilut(0) /= -1)
+
+            if (first_loop) then
+                ilut(0) = -1
+                first_loop = .false.
+            end if
+
+            ! Generate the next spatial excitation (orbital configuration).
+            call enumerate_spatial_excitations(ilutHF_loc, HFDet_loc, ilut, exflag, gen_store)
+
+            if (ilut(0) == -1) exit
+
+            ! Find the nI representation.
+            call decode_bit_det(nI, ilut)
+
+            ! Find the number of open orbitals.
+            n_open = count_open_orbs(ilut)
+            ! Find the number of CSFs (and hence Yamanouchi symbols) with this value of Stot for
+            ! this orbital configuration.
+            num_csfs = get_num_csfs(n_open, Stot)
+
+            ! Enumerate the list of all possible Yamanouchi symbols for this orbital
+            ! configuration.
+            call csf_get_yamas(n_open, Stot, yama_symbols(1:num_csfs,1:n_open), num_csfs)
+
+            ! Loop over all Yamanouchi symbols.
+            do i = 1, num_csfs
+                ! If n_open = 0 then we just have a determinant.
+                if (n_open > 0) then
+                    ! Encode the Yamanouchi symbol in nI representation.
+                    call csf_apply_yama(nI, yama_symbols(i,1:n_open))
+                    ! Encode the Yamanouchi symbol in the ilut representation.
+                    call get_csf_bit_yama(nI, ilut(nOffY:nOffY+nIfY-1))
+                end if
+                ! Finally add the CSF to the CurrentDets list.
+                call add_basis_state_to_list(ilut, nI)
+            end do
+
+        end do
+
+    end subroutine generate_csfs
+
+    subroutine add_basis_state_to_list(ilut, nI_in)
 
         ! This subroutine, called from init_semi_stochastic, takes a bitstring, finds
         ! the nI representation, decides if the basis state lives on this processor
@@ -203,10 +266,11 @@ contains
         ! being calculated.
 
         ! In: ilut - The determinant in a bitstring form.
-        ! Out: nI - The list of occupied orbitals in an array.
+        ! In (optional) : nI_in - A list of the occupied orbitals in the determinant.
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
-        integer, intent(out) :: nI(nel)
+        integer, optional :: nI_in(nel)
+        integer :: nI(nel)
         integer(n_int) :: flags
         integer :: proc, sgn(lenof_sign)
 
@@ -216,14 +280,21 @@ contains
         flags = ibset(flags,flag_deterministic)
 
         ! Find the nI representation of determinant.
-        call decode_bit_det_bitwise(nI, ilut)
+        if (present(nI_in)) then
+            nI = nI_in
+        else
+            call decode_bit_det(nI, ilut)
+        end if
+
         ! Find the processor which this state belongs to.
         proc = DetermineDetNode(nI,0)
+
         ! Increase the size of the deterministic space on the correct processor.
         deterministic_proc_sizes(proc) = deterministic_proc_sizes(proc) + 1
+
         ! If this determinant belongs to this processor, add it to the main list.
         if (proc == iProcIndex) call encode_bit_rep(CurrentDets(:, &
-                                 deterministic_proc_sizes(iProcIndex)), ilut, sgn, flags)
+                       deterministic_proc_sizes(iProcIndex)), ilut(0:nIfDBO), sgn, flags)
 
     end subroutine add_basis_state_to_list
 

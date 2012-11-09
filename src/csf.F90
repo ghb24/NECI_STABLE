@@ -1498,8 +1498,12 @@ contains
 
         ! Pick and apply a random one
         do while (.true.)
-            r = genrand_real2_dSFMT()
-            num = int(r*ncsf) + 1
+            if (ncsf == 1) then
+                num = 1
+            else
+                r = genrand_real2_dSFMT()
+                num = int(r*ncsf) + 1
+            end if
             if ((.not.tForceChange) .or. (ncsf<2) .or. &
                 any(yamas(num,:) /= yamas(0,:))) then
 

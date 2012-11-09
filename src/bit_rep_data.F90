@@ -37,6 +37,11 @@ module bit_rep_data
                           flag_make_initiator(2) = (/2,3/), &
                           flag_deterministic = 4
 
+    ! Bit mask with all bits unset except for bit 4, corresponding to the
+    ! deterministic flag. This is used in ilut_lt and ilut_gt to order the
+    ! states such that deterministic states are at the top of the sorted list.
+    integer(n_int) :: deterministic_mask
+
 contains
 
     pure function test_flag (ilut, flg) result(bSet)

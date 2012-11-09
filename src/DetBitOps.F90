@@ -5,10 +5,12 @@ module DetBitOps
     ! A collection of useful operations to perform on the bit-representation
     ! of determinants.
 
-    use Systemdata, only: nel, tCSF, tTruncateCSF, csf_trunc_level
+    use Systemdata, only: nel, tCSF, tTruncateCSF, csf_trunc_level, &
+                          tSemiStochastic
     use CalcData, only: tTruncInitiator
     use bit_rep_data, only: NIfY, NIfTot, NIfD, NOffFlag, NIfFlag, &
-                            test_flag, flag_is_initiator,NIfDBO,NOffSgn
+                            test_flag, flag_is_initiator,NIfDBO,NOffSgn, &
+                            deterministic_mask
     use csf_data, only: iscsf, csf_yama_bit, csf_orbital_mask, csf_test_bit
     use constants, only: n_int,bits_n_int,end_n_int,dp,lenof_sign,sizeof_int
 
@@ -461,37 +463,56 @@ module DetBitOps
 
         ! A slightly subtler sort than DetBitLt.
         ! Sort the iluts integer by integer, up to the determinant. 
-        ! Ignore flag and sign differences.
+        ! It also ensures that states in the deterministic space will be placed
+        ! at the top of the list (and so are the 'smallest'), only relevant when
+        ! using the semi-stochastic approach.
+        ! Ignore sign differences.
 
         integer(n_int), intent(in) :: iLutI(0:), iLutJ(0:)
+        integer(n_int) :: det_flag_I, det_flag_J
         integer :: i
-        logical :: bLt
+        logical :: bLt, compare_det_flags
 
-        ! Sort by the first item first ...
-        do i = 0, NIfDBO    !   NOffFlag - 1
-            if (iLutI(i) /= iLutJ(i)) exit
-        enddo
-
-        !! Make the comparison
-!        if (i >= NOffFlag) then
-        if (i > NIfDBO) then
-            bLt = .false.
-!            if (tTruncInitiator) then
-!                !if initiator, sort first by real flag, the imaginary.
-!                if (test_flag(ilutI, flag_is_initiator(1)) .and. &
-!                    .not. test_flag(ilutJ, flag_is_initiator(1))) then
-!                        !I<J if real i is initiator, and j is not
-!                        bLt = .true.
-!                elseif((test_flag(ilutI, flag_is_initiator(1)).eqv. test_flag(ilutJ, flag_is_initiator(1))) &
-!                    .and.(test_flag(ilutI, flag_is_initiator(2))).and..not.test_flag(ilutJ, flag_is_initiator(2))) then
-!                        !if real flags the same, I<J if imaginary i is initiator and j is not.
-!                        bLt = .true.
-!                endif
-!
-!            endif
+        if (tSemiStochastic) then
+            det_flag_I = iand(deterministic_mask, iLutI(nOffFlag))
+            det_flag_J = iand(deterministic_mask, iLutJ(nOffFlag))
+            compare_det_flags = .not. (det_flag_I .eq. det_flag_J)
         else
-            bLt = ilutI(i) < ilutJ(i)
-        endif
+            compare_det_flags = .false.
+        end if
+
+        if (compare_det_flags) then
+            ! If only one state is in the deterministic space, then the state which
+            ! is in the deterministic space should be higher in the list, so
+            ! should be 'less than' the state not in the deterministic space.
+            bLt = det_flag_I > det_flag_J
+        else
+            ! Sort by the first item first ...
+            do i = 0, NIfDBO    !   NOffFlag - 1
+                if (iLutI(i) /= iLutJ(i)) exit
+            enddo
+
+            !! Make the comparison
+!            if (i >= NOffFlag) then
+            if (i > NIfDBO) then
+                bLt = .false.
+!                if (tTruncInitiator) then
+!                    !if initiator, sort first by real flag, the imaginary.
+!                    if (test_flag(ilutI, flag_is_initiator(1)) .and. &
+!                        .not. test_flag(ilutJ, flag_is_initiator(1))) then
+!                            !I<J if real i is initiator, and j is not
+!                            bLt = .true.
+!                    elseif((test_flag(ilutI, flag_is_initiator(1)).eqv. test_flag(ilutJ, flag_is_initiator(1))) &
+!                        .and.(test_flag(ilutI, flag_is_initiator(2))).and..not.test_flag(ilutJ, flag_is_initiator(2))) then
+!                            !if real flags the same, I<J if imaginary i is initiator and j is not.
+!                            bLt = .true.
+!                    endif
+!
+!                endif
+            else
+                bLt = ilutI(i) < ilutJ(i)
+            endif
+        end if
 
     end function
 
@@ -499,40 +520,56 @@ module DetBitOps
 !        use util_mod, only: operator(.arrgt.)
 
         ! A slightly subtler sort than DetBitGt.
-        ! Sort the iluts integer by integer. If we get to the flags, and they
-        ! are occupied, then sort initiators as 'less than' non-initiators
-        !
-        ! --> Initiators appear earlier in a list than non-initiators
+        ! Sort the iluts integer by integer, up to the determinant.
+        ! It also ensures that states in the deterministic space will be placed
+        ! at the top of the list (and so are the 'smallest'), only relevant when
+        ! using the semi-stochastic approach.
+        ! Ignore sign differences.        
 
         integer(n_int), intent(in) :: iLutI(0:), iLutJ(0:)
+        integer(n_int) :: det_flag_I, det_flag_J
         integer :: i
-        logical :: bGt
-
+        logical :: bGt, compare_det_flags
 
         !bGt = iLutI .arrgt. iLutJ
-        
-        ! Sort by the first item first ...
-        do i = 0, NIfDBO    !   NOffFlag - 1
-            if (ilutI(i) /= iLutJ(i)) exit
-        enddo
 
-        ! Make the comparison
-!        if (i >= NOffFlag) then
-        if (i > NIfDBO) then
-            bGt = .false.
-!            if (tTruncInitiator) then
-!                if (.not. test_flag(ilutI, flag_is_initiator(1)) .and. &
-!                    test_flag(ilutJ, flag_is_initiator(1))) then
-!                    bGt = .true.
-!                elseif ((test_flag(ilutI, flag_is_initiator(1)) .eqv. test_flag(ilutJ, flag_is_initiator(1))) &
-!                    .and. (.not. test_flag(ilutI, flag_is_initiator(2)).and.test_flag(ilutJ, flag_is_initiator(2)))) then
-!                    !If real flags same, sort by imaginary flags.
-!                    bGt = .true.
-!                endif
-!            endif
+        if (tSemiStochastic) then
+            det_flag_I = iand(deterministic_mask, iLutI(nOffFlag))
+            det_flag_J = iand(deterministic_mask, iLutJ(nOffFlag))
+            compare_det_flags = .not. (det_flag_I .eq. det_flag_J)
         else
-            bGt = ilutI(i) > ilutJ(i)
-        endif
+            compare_det_flags = .false.
+        end if
+
+        if (compare_det_flags) then
+            ! If only one state is in the deterministic space, then the state which
+            ! is not in the deterministic space should be lower in the list, so
+            ! should be 'greater than' the state not in the deterministic space.
+            bGt = det_flag_I < det_flag_J
+        else
+            ! Sort by the first item first ...
+            do i = 0, NIfDBO    !   NOffFlag - 1
+                if (ilutI(i) /= iLutJ(i)) exit
+            enddo
+
+            ! Make the comparison
+!           if (i >= NOffFlag) then
+            if (i > NIfDBO) then
+                bGt = .false.
+!               if (tTruncInitiator) then
+!                   if (.not. test_flag(ilutI, flag_is_initiator(1)) .and. &
+!                       test_flag(ilutJ, flag_is_initiator(1))) then
+!                       bGt = .true.
+!                   elseif ((test_flag(ilutI, flag_is_initiator(1)) .eqv. test_flag(ilutJ, flag_is_initiator(1))) &
+!                       .and. (.not. test_flag(ilutI, flag_is_initiator(2)).and.test_flag(ilutJ, flag_is_initiator(2)))) then
+!                       !If real flags same, sort by imaginary flags.
+!                       bGt = .true.
+!                   endif
+!               endif
+            else
+                bGt = ilutI(i) > ilutJ(i)
+            endif
+        end if
 
     end function
 

@@ -1525,17 +1525,24 @@ contains
           ENDIF
 
 ! Find out the number of alpha and beta electrons. For restricted calculations, these should be the same.
-          nOccAlpha=0
-          nOccBeta=0
-          do i=1,NEl
-              CALL GETUNCSFELEC(FDET(I),J,IC)
-              IF(G1(J)%Ms.eq.1) THEN
-!Orbital is an alpha orbital
-                 nOccAlpha=nOccAlpha+1
-              ELSE
-                 nOccBeta=nOccBeta+1
-              ENDIF
-          enddo
+write(6,*) 'FDET', fdet
+call neci_flush(6)
+          if (tCSF) then
+              nOccAlpha = (nel / 2) + LMS 
+              nOccBeta =  (nel / 2) - LMS
+          else
+              nOccAlpha=0
+              nOccBeta=0
+              do i=1,NEl
+                  CALL GETUNCSFELEC(FDET(I),J,IC)
+                  IF(G1(J)%Ms.eq.1) THEN
+                      ! Orbital is an alpha orbital
+                     nOccAlpha=nOccAlpha+1
+                  ELSE
+                     nOccBeta=nOccBeta+1
+                  ENDIF
+              enddo
+          end if
           WRITE(6,"(A,I5,A,I5,A)") " FDet has ",nOccAlpha," alpha electrons, and ",nOccBeta," beta electrons."
           ElecPairs=(NEl*(NEl-1))/2
           MaxABPairs=(nBasis*(nBasis-1)/2)

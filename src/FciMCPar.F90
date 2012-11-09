@@ -17,7 +17,8 @@ MODULE FciMCParMod
                         encode_bit_rep, encode_det, extract_bit_rep, &
                         test_flag, set_flag, extract_flags, &
                         flag_is_initiator, clear_all_flags,&
-                        extract_sign, nOffSgn, flag_deterministic
+                        extract_sign, nOffSgn, flag_deterministic, &
+                        deterministic_mask
     use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
                         OccCASorbs, VirtCASorbs, tFindGroundDet, NEquilSteps,&
                         tReadPops, tRegenDiagHEls, iFullSpaceIter, MaxNoAtHF,&
@@ -185,8 +186,6 @@ MODULE FciMCParMod
         call SetupParameters()
         call InitFCIMCCalcPar()
         call init_fcimc_fn_pointers () 
-
-        if (tSemiStochastic) call init_semi_stochastic()
 
         ! Initial output
         call WriteFciMCStatsHeader()
@@ -4671,7 +4670,10 @@ MODULE FciMCParMod
             ENDIF
         enddo
         CALL LargestBitSet(iLutHF,NIfD,LargestOrb)
-        IF(LargestOrb.ne.HFDet(NEl)) THEN
+        IF(LargestOrb .ne. iand(HFDet(NEl), csf_orbital_mask)) THEN
+            write(6,*) 'ilut HF', ilutHF
+            write(6,*) 'largest orb', largestorb
+            write(6,*) 'HFDet', iand(hfdet, csf_orbital_mask)
             CALL Stop_All(t_r,"LargestBitSet FAIL")
         ENDIF
         nBits = CountBits(iLutHF, NIfD, NEl)
@@ -4741,13 +4743,13 @@ MODULE FciMCParMod
         ! random excitation generator, we also want to use the NoSpinSym full
         ! excitation generators if they are needed. 
 
-        CALL GetSym(HFDet,NEl,G1,NBasisMax,HFSym)
+        CALL GetSym(iand(HFDet, csf_orbital_mask),NEl,G1,NBasisMax,HFSym)
         
         Sym_Psi=INT(HFSym%Sym%S,sizeof_int)  !Store the symmetry of the wavefunction for later
         WRITE(iout,"(A,I10)") "Symmetry of reference determinant is: ",INT(HFSym%Sym%S,sizeof_int)
         SymHF=0
         do i=1,NEl
-            SymHF=IEOR(SymHF,G1(HFDet(i))%Sym%S)
+            SymHF=IEOR(SymHF,G1(iand(HFDet(i), csf_orbital_mask))%Sym%S)
         enddo
         WRITE(iout,"(A,I10)") "Symmetry of reference determinant from spin orbital symmetry info is: ",SymHF
         if(SymHF.ne.HFSym%Sym%S) then
@@ -4804,7 +4806,7 @@ MODULE FciMCParMod
         IF(.not.tKPntSym) THEN
 !Count all possible excitations - put into HFConn
 !TODO: Get CountExcitations3 working with tKPntSym
-            CALL CountExcitations3(HFDet,exflag,nSingles,nDoubles)
+            CALL CountExcitations3(iand(HFDet, csf_orbital_mask),exflag,nSingles,nDoubles)
         ELSE
             !use Alex's old excitation generators to enumerate all excitations.
             CALL CountExcitsOld(HFDet,exflag,nSingles,nDoubles)
@@ -4973,10 +4975,10 @@ MODULE FciMCParMod
             !We require calculation of the sum of fock eigenvalues,
             !without knowing them - calculate from the full 1e matrix elements
             !of full hamiltonian removing two electron terms.
-            TempHii=GetH0Element4(HFDet,HFDet)
+            TempHii=GetH0Element4(iand(HFDet, csf_orbital_mask),iand(HFDet, csf_orbital_mask))
         else
             !Know fock eigenvalues, so just use these.
-            TempHii=GetH0Element3(HFDet)
+            TempHii=GetH0Element3(iand(HFDet, csf_orbital_mask))
         endif
         Fii=REAL(TempHii,dp)
 
@@ -6012,6 +6014,12 @@ MODULE FciMCParMod
         character(*), parameter :: this_routine = 'CalcApproxpDoubles'
         logical :: TempUseBrill
 
+        integer :: hfdet_loc(nel)
+
+        ! A quick hack. Count excitations as though we were a determinant.
+        ! We could fix this later...
+        hfdet_loc = iand(hfdet, csf_orbital_mask)
+
         ! TODO: A better approximation for ncsf.
         if (tCSF) then
             ncsf = 10
@@ -6056,16 +6064,16 @@ MODULE FciMCParMod
 
             iMaxExcit=0
             nStore(1:6)=0
-            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
+            CALL GenSymExcitIt2(HFDet_loc,NEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
             ALLOCATE(EXCITGEN(nExcitMemLen(1)),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All(this_routine,"Problem allocating excitation generator")
             EXCITGEN(:)=0
-            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,.TRUE.,EXCITGEN,nJ,iMaxExcit,nStore,exFlag)
+            CALL GenSymExcitIt2(HFDet_loc,NEl,G1,nBasis,.TRUE.,EXCITGEN,nJ,iMaxExcit,nStore,exFlag)
         !    CALL GetSymExcitCount(EXCITGEN,DetConn)
             excitcount=0
 
         lp2: do while(.true.)
-                CALL GenSymExcitIt2(HFDet,nEl,G1,nBasis,.false.,EXCITGEN,nJ,iExcit,nStore,exFlag)
+                CALL GenSymExcitIt2(HFDet_loc,nEl,G1,nBasis,.false.,EXCITGEN,nJ,iExcit,nStore,exFlag)
                 IF(nJ(1).eq.0) exit lp2
                 IF(iExcit.eq.1) THEN
                     nSing=nSing+1
@@ -6077,7 +6085,7 @@ MODULE FciMCParMod
             enddo lp2
             tUseBrillouin=TempUseBrill
         ELSE
-            CALL CountExcitations3(HFDet,exflag,nSing,nDoub)
+            CALL CountExcitations3(HFDet_loc,exflag,nSing,nDoub)
         ENDIF
         iTotal=nSing + nDoub + ncsf
 
@@ -7079,6 +7087,12 @@ MODULE FciMCParMod
         if(tRDMonFly) then
             if(.not.tSinglePartPhase) VaryShiftIter = 0
         endif
+
+        ! Perform all semi-stochastic initialisation. This includes generating all the states in the
+        ! deterministic space, finding their processors, ordering them, inserting them into
+        ! CurrentDets, calculating and storing all Hamiltonian matrix elements and initalising all
+        ! arrays required to store and distribute the vectors in the deterministic space later.
+        if (tSemiStochastic) call init_semi_stochastic()
 
     end subroutine InitFCIMCCalcPar
 
