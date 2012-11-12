@@ -39,18 +39,18 @@ MODULE HFCalc
             ! These need to be changed for use with complex code.
             allocate(HFBasis(nBasis*nBasis))
             call LogMemAlloc('HFBASIS',nBasis*nBasis,HElement_t_size*8,this_routine,tagHFBasis)
-            HFBASIS=(0.d0)
+            HFBASIS=(0.0_dp)
 !C.. Allocate an array to store the HF Energies
             allocate(HFE(nBasis))
             call LogMemAlloc('HFE',nBasis,HElement_t_size*8,this_routine,tagHFE)
-            HFE=(0.d0)
+            HFE=(0.0_dp)
             IF(THFORDER.AND..NOT.THFBASIS) THEN
 !C.. If we're not using HF, but just calculating the HF order
 !C.. We generate the HF energies (this has no mixing or randomisation, so should jsut
 !C.. re-order the orbitals and give us some energy)
 !C.. HF basis is NOT using the LMS value set in the input
-              CALL CALCHFBASIS(NBASIS,NBASISMAX,G1,BRR,ECORE,UMAT,HFE,HFBASIS,1,NEL,LMSBASIS,1.D0,HFEDELTA, &
-                HFCDELTA,.TRUE.,0,TREADHF,0.D0,FDET,ILOGGING)
+              CALL CALCHFBASIS(NBASIS,NBASISMAX,G1,BRR,ECORE,UMAT,HFE,HFBASIS,1,NEL,LMSBASIS,1.0_dp,HFEDELTA, &
+                HFCDELTA,.TRUE.,0,TREADHF,0.0_dp,FDET,ILOGGING)
                CALL ORDERBASISHF(ARR,BRR,HFE,HFBASIS,NBASIS,FDET,NEL)
             ELSEIF(THFCALC) THEN
               CALL CALCHFBASIS(NBASIS,NBASISMAX,G1,BRR,ECORE,UMAT,HFE,HFBASIS,NHFIT,NEL,LMS,HFMIX,HFEDELTA, &
@@ -93,7 +93,7 @@ MODULE HFCalc
                call shared_allocate ("umat2", umat2, (/UMatInt/))
                !Allocate(UMat2(UMatInt), stat=ierr)
                LogAlloc(ierr,'UMAT2', UMatInt, HElement_t_SizeB, tagUMat2)
-               UMAT2 = 0.d0
+               UMAT2 = 0.0_dp
 !C.. We need to pass the TMAT to CALCHFUMAT as TMAT is no longer diagona
 !C.. This also modified G1, ARR, BRR
                IF(TREADTUMAT) THEN

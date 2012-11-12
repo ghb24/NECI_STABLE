@@ -13,11 +13,11 @@ C.. unit circle into I_POINTS
          P=I_P
          DTHETA=2*PI/I_POINTS
          DZ=EXP(ZI*DTHETA)
-         THETA=0.D0
-         Z=(0.D0,0.D0)
+         THETA=0.0_dp
+         Z=(0.0_dp,0.0_dp)
          Z=Z+R
 C         WRITE(6,*),DTHETA,DZ
-         ZS=(0.D0,0.D0)
+         ZS=(0.0_dp,0.0_dp)
          DO I=1,I_POINTS/2
 C.. Calculate an even point
 C            WRITE(6,*),Z
@@ -39,8 +39,8 @@ C         WRITE(6,*),Z
 C.. Now do the last point, f2n
          CALL ZPRIMITIVE(XIS,I_H,P,Z,R,THETA,ZRET)
          ZS=ZS+ZRET
-         ZS=ZS*DTHETA/3.D0
-         ZS=ZS/(2.D0*PI*ZI)
+         ZS=ZS*DTHETA/3.0_dp
+         ZS=ZS/(2.0_dp*PI*ZI)
          SUM=DBLE(ZS)
          SUMI=AIMAG(ZS)
       END
@@ -56,7 +56,7 @@ C.. NB P is no longer integer, but is REAL
          real(dp) R,THETA
          ZI=(0,1)
          ZREIT=R*EXP(ZI*THETA)
-         ZRET=R*ZI*EXP(ZI*THETA)*(((ZREIT)**P)-1.D0)
+         ZRET=R*ZI*EXP(ZI*THETA)*(((ZREIT)**P)-1.0_dp)
          ZRET=ZRET/(ZREIT-1)
          DO I=1,I_H
             ZRET=ZRET/(Z-XIS(I))
@@ -88,11 +88,11 @@ C.. NB P is no longer integer, but is REAL
          complex(dp) Z,ZI,ZMZ0,ZRET,ZR
          LOGICAL LSAME2
          ZI=(0,1)
-         IF(LSAME2(Z,1.D0)) THEN
+         IF(LSAME2(Z,1.0_dp)) THEN
             WRITE(25,*) P,(Z**P-1)/(Z-1)
             ZRET=ZRET*ZI*ZMZ0*P
          ELSE
-            ZR=ZI*ZMZ0*(((Z)**P)-1.D0)
+            ZR=ZI*ZMZ0*(((Z)**P)-1.0_dp)
             ZRET=ZRET*ZR/(Z-1)
          ENDIF
          RETURN
@@ -117,12 +117,12 @@ C.. unit circle into I_POINTS
          P=I_P
          DTHETA=2*PI/I_POINTS
          DZ=EXP(ZI*DTHETA)
-         THETA=0.D0
-         Z=(0.D0,0.D0)
+         THETA=0.0_dp
+         Z=(0.0_dp,0.0_dp)
          Z=Z+R
          Z2=Z0+Z
 C         WRITE(6,*),DTHETA,DZ
-         ZS=(0.D0,0.D0)
+         ZS=(0.0_dp,0.0_dp)
          DO I=1,I_POINTS/2
 C.. Calculate an even point
 C            WRITE(6,*),Z
@@ -147,8 +147,8 @@ C         WRITE(6,*),Z
 C.. Now do the last point, f2n
 !         CALL ZSFUN(ZSD1,ZSD2,P,Z2,R,THETA,Z,ZRET)
 !         ZS=ZS+ZRET
-         ZS=ZS*DTHETA/3.D0
-         ZS=ZS/(2.D0*PI*ZI)
+         ZS=ZS*DTHETA/3.0_dp
+         ZS=ZS/(2.0_dp*PI*ZI)
          SUM=DBLE(ZS)
          SUMI=AIMAG(ZS)
 C         WRITE(6,*) SUM,SUMI
@@ -175,11 +175,11 @@ C.. neighbour distance (removing poles which are within a distance EPS)
          complex(dp) ZD,Z0
          character(*), parameter :: t_r="ZSUM3"
       
-         SUM=0.D0
-         SUMI=0.D0
+         SUM=0.0_dp
+         SUMI=0.0_dp
 
 C.. two poles are the same if they are within EPS of each other
-         EPS=1.D-6
+         EPS=1.0e-6_dp
 C.. in fact, all that needs to be done is to take a contour around all
 C.. poles which are similarly close to each other - we do this by
 C.. computing their mean, and taking a radius which is at least as large
@@ -194,7 +194,7 @@ C.. mark all the poles as to be processed
             IF(LPOLES(I)) THEN
                Z0=ZPOLES(I)
                DISTMIN=1.D100
-               DISTMAX=0.D0
+               DISTMAX=0.0_dp
                ICOUNT=1
                DO J=1,IPOLES
                   IF(I.NE.J) THEN
@@ -216,11 +216,11 @@ C.. we have the distance to the closest pole.  Divide it by P
                DM=DISTMIN/(10*I_P)
 C.. if we go too small, we might not be on our pole, so we just take
 C.. half the distance to the closest pole
-               IF(DM.LT.1D-8) DM=DISTMIN/2.D0
+               IF(DM.LT.1D-8) DM=DISTMIN/2.0_dp
 C/(2*I_P)
 C.. If this calculated distance is closer than the furthest pole which
 C.. wish to count in this integral, we increase the distance
-               IF(DM.LT.DISTMAX) DM=DISTMAX*1.1D0
+               IF(DM.LT.DISTMAX) DM=DISTMAX*1.1_dp
 C.. do the contour integral
                IF(TAUXPOLY) THEN
                   CALL CREATEAUXPOLY(ZSD2(1),IPOLES,

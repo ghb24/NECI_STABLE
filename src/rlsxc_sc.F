@@ -12,7 +12,7 @@
       real(dp) :: U1KIR1,U2KJR2,U1KJR1,U2KIR2,U1
       integer :: IOBS,JOBS,KOBS
 C..
-      AUXC=0.d0
+      AUXC=0.0_dp
       DO KI=1,NEL-1
         DO KJ=KI+1,NEL
 C..

@@ -15,7 +15,7 @@ C..Cube array
       real(dp) :: U1ND22R1,U1ND21R1,U1ND12R1,U1ND11R1,U1
 
 C..Zero ND1 and ND2
-      AUXC=0.d0
+      AUXC=0.0_dp
       ND1(1:2)=0
       ND2(1:2)=0
 C..IQ ensures that only two differences are recorded
@@ -52,7 +52,7 @@ C..This routine compares NDET2 to NDET1
 C.. 
       IDS(1:4)=0
       CALL GENKRON2(G1,NHG,ND1,ND2,IDS)
-      AUXC=0.d0
+      AUXC=0.0_dp
 C..
 C..electron in orbital ND1(1) at position R1Z, 0 
       U1ND11R1=U1(ND1(1),NMAX,NMSH,NHG,G1,SITAB,IOBS,JOBS,KOBS)

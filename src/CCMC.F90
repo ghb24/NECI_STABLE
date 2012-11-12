@@ -59,7 +59,7 @@ MODULE CCMC
 !Stochastically choose whether to die or not
         r = genrand_real2_dSFMT() 
         IF(abs(rat).gt.r) THEN
-            IF(rat.ge.0.D0) THEN
+            IF(rat.ge.0.0_dp) THEN
 !Depends whether we are trying to kill or give birth to particles.
                 iKill=iKill+1
             ELSE
@@ -544,7 +544,7 @@ MODULE CCMC
 !Account for possible orderings of selection
                         dProbNorm=dProbNorm*i
                         IFDEBUG(iDebug,6) WRITE(iout,*) "TotParts,HFCount:",TotParts(1),HFcount
-                        IFDEBUG(iDebug,6) write(iout,*) "Prob ",i,": ",(abs(TempSign3(1))+0.d0)/(TotParts(1)-HFcount), &
+                        IFDEBUG(iDebug,6) write(iout,*) "Prob ",i,": ",(abs(TempSign3(1))+0.0_dp)/(TotParts(1)-HFcount), &
                             " Cuml:", dClusterProb
                      enddo
                      IFDEBUG(iDebug,6) WRITE(iout,*) 'prob out of sel routine.',dProbNumExcit
@@ -759,7 +759,7 @@ MODULE CCMC
 !                  HDiagCurr=CurrentH(1,j)
 
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
-!                  CALL SumEContrib(DetCurr,WalkExcitLevel,CurrentSign(j),CurrentDets(:,j),HDiagCurr,1.D0)
+!                  CALL SumEContrib(DetCurr,WalkExcitLevel,CurrentSign(j),CurrentDets(:,j),HDiagCurr,1.0_dp)
 !               endif
 
 
@@ -869,7 +869,7 @@ MODULE CCMC
             call extract_sign(CurrentDets(:,j),TempSign3)
             iSgn(1)=TempSign3(1)
             !   iSgn(1)=CurrentSign(j)
-!            CALL SumEContrib(DetCurr,WalkExcitLevel,iSgn,CurrentDets(:,j),HDiagCurr,1.d0)
+!            CALL SumEContrib(DetCurr,WalkExcitLevel,iSgn,CurrentDets(:,j),HDiagCurr,1.0_dp)
             ! CopySign=CurrentSign(j)
             CopySign=TempSign3(1)
             IF(CopySign.ne.0.or.WalkExcitLevel.eq.0) THEN
@@ -905,7 +905,7 @@ MODULE CCMC
         ENDIF
 
 
-        rat=(TotWalkersNew+0.D0)/(MaxWalkersPart+0.D0)
+        rat=(TotWalkersNew+0.0_dp)/(MaxWalkersPart+0.0_dp)
         IF(rat.gt.0.95) THEN
             WRITE(iout,*) "*WARNING* - Number of particles/determinants has increased to over 95% of MaxWalkersPart"
             CALL neci_flush(6)
@@ -915,14 +915,14 @@ MODULE CCMC
         ! getting to the end of their allotted space.
         IF(nProcessors.gt.1) THEN
             do i=0,nProcessors-1
-                rat=(ValidSpawnedList(i)-InitialSpawnedSlots(i))/(InitialSpawnedSlots(1)+0.D0)
+                rat=(ValidSpawnedList(i)-InitialSpawnedSlots(i))/(InitialSpawnedSlots(1)+0.0_dp)
                 IF(rat.gt.0.95) THEN
                     WRITE(iout,*) "*WARNING* - Highest processor spawned particles has reached over 95% of MaxSpawned"
                     CALL neci_flush(6)
                 ENDIF
             enddo
         ELSE
-            rat=(ValidSpawnedList(0)+0.D0)/(MaxSpawned+0.D0)
+            rat=(ValidSpawnedList(0)+0.0_dp)/(MaxSpawned+0.0_dp)
             IF(rat.gt.0.9) THEN
                 WRITE(iout,*) "*WARNING* - Number of spawned particles has reached over 90% of MaxSpawned"
                 CALL neci_flush(6)
@@ -1360,8 +1360,8 @@ SUBROUTINE ResetSpawner(S,C,nSpawn)
    S%nSpawnings=nSpawn
    if(S%tFull) then
 !      call CountExcitations3(C%DetCurr,exFlag,nS,nD)
-      S%dProbSpawn=1.D0
-!      S%dProbSpawn=1.D0/(nD+nS)
+      S%dProbSpawn=1.0_dp
+!      S%dProbSpawn=1.0_dp/(nD+nS)
    endif
    S%exFlag=3
 END SUBROUTINE ResetSpawner
@@ -1441,7 +1441,7 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
                dAmp=Amplitude(j)*Amplitude(l)
                iLutnI(:)=ExcitList(:,j)
                call AddBitExcitor(iLutnI,ExcitList(:,l),iLutHF,iSgn)
-               if(iSgn.ne.0.and.dAmp.ne.0.d0) then
+               if(iSgn.ne.0.and.dAmp.ne.0.0_dp) then
                   CALL BinSearchParts3(iLutnI,ExcitList,nExcit,ExcitLevelIndex(2),ExcitLevelIndex(3)-1,PartIndex,tSuc)
                   dAmp=dAmp/Amplitude(1)
                   if(tSuc) then
@@ -2316,7 +2316,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    if(tCCBuffer) then
       call DeAllocateAmplitudeList(ALBuffer)
    endif
-   Weight=0.D0
+   Weight=0.0_dp
    Energyxw=ProjectionE+Hii
    call halt_timer(CCMC_time)
 END SUBROUTINE CCMCStandalone
@@ -2795,7 +2795,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    else
       deallocate(DetList)
    endif 
-   Weight=0.D0
+   Weight=0.0_dp
    Energyxw=ProjectionE+Hii
    call halt_timer(CCMC_time)
 END SUBROUTINE CCMCStandaloneParticle
