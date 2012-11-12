@@ -1427,8 +1427,8 @@ MODULE System
       
           if(tMadelung .AND. Madelung == 0.0_dp .AND. dimen ==3) then
              Madelung=calc_madelung()
-          else
-                  call stop_all (this_routine, "Calculation of Madelung constant works in 3D only!")
+          else if (tMadelung .AND. Madelung == 0.0_dp .AND. dimen .ne. 3) then
+              call stop_all (this_routine, "Calculation of Madelung constant works in 3D only!")
           end if 
 
       return 
