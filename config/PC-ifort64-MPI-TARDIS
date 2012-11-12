@@ -6,7 +6,7 @@ ldflags = -i-dynamic
 compiler = INTEL-ifort9-on-LINUX
 cpp = cpp -C -traditional
 cppflags = -D__Linux -DPOINTER8 -DPARALLEL -DHAVE_SSE2 -D__INT64 -D__SHARED_MEM -DDISABLE_FFTW
-libs = -lacml -cxxlib -lrt
+libs = -lacml -cxxlib -lrt -lm
 module_flag = -module
 
 [dbg]

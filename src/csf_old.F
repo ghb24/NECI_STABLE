@@ -263,7 +263,7 @@ C.. test if NCI is a CSF
          INTEGER NEL,NBASIS,NBASISMAX(*)
          INTEGER NMRKS(NEL,1),NDET
          type(BasisFN) G1(*)
-         LOGICAL TCOUNT,TSPN,TPARITY
+         LOGICAL TCOUNT,TSPN
          INTEGER LMS,IFDET
          TYPE(BASISFN) IPARITY
 
@@ -335,7 +335,7 @@ C.. we'll deal with spin in the CSF generation
                CALL GETSYM(NI,NEL,G1,NBASISMAX,KSYM)
 C.. remove Ms value, as this is dealt with in csfgencsfs
                KSYM%MS=0
-               IF(.NOT.TPARITY.OR.LCHKSYM(ISYM,KSYM))
+               IF(LCHKSYM(ISYM,KSYM))
 C.. go and create a set of CSFs from these electrons
 !   Warning: code divergence has meant this hasn't been tested in a long
 !   time.  At the very least, the number of arguments is wrong. (JSS)

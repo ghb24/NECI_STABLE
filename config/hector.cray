@@ -4,6 +4,7 @@ cc = g++
 ld = ftn
 ldflags = -m64
 libs = -lacml -lstdc++ -lrt
+
 cpp = cpp -C -traditional
 cppflags =  -D__Linux -DPOINTER8 -DPARALLEL -D__INT64 -DHAVE_SSE2 -D__SHARED_MEM -DCRAY_ETIME -DDISABLE_FFTW
 compiler = pathf95-on-LINUX

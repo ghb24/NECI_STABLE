@@ -96,6 +96,7 @@ MODULE CCMC
       Use Logging, only: CCMCDebug
       use bit_reps, only: decode_bit_det
       use FciMCData, only: fcimc_excit_gen_store
+      use hash, only: DetermineDetNode
         IMPLICIT NONE
         INTEGER :: VecSlot,i,j,k,l,CopySign
         INTEGER :: nJ(NEl),IC,DetCurr(NEl)
@@ -218,7 +219,7 @@ MODULE CCMC
 ! As the number of walkers in the HF reference det is the normalization, we loop
 ! over each walker there and use it a number of times
 ! We take the number of walkers as the number of samples to begin with.
-        TotWalkersNew=TotWalkers
+        TotWalkersNew=int(TotWalkers,sizeof_int)
         CALL BinSearchParts(iLutHF, 1, TotWalkersNew, iHFDet,tSuccess)
         if(.not.tSuccess) then
             WRITE(iout,*) "WARNING: Cannot find HF det in particle list"
@@ -235,7 +236,7 @@ MODULE CCMC
          write(iout,*) "HF det"
          call WriteBitDet(iout,iLutHF,.true.)
          write(iout,*) "Particle list"
-         do j=1,TotWalkers
+         do j=1,int(TotWalkers,sizeof_int)
             call extract_sign(CurrentDets(:,j),TempSign)
             write(6,'(f12.4)',advance='no') TempSign(1)
             call WriteBitEx(iout,iLutHF,CurrentDets(:,j),.true.)
@@ -246,9 +247,9 @@ MODULE CCMC
          enddo
         endif
 !TotRealWalkers gets updated with the number of non-zero walkers at each stage.
-        TotRealWalkers=TotWalkers
+        TotRealWalkers=int(TotWalkers,sizeof_int)
         iCumlExcits=0
-        do j=1,TotWalkers
+        do j=1,int(TotWalkers,sizeof_int)
 !#if 0
           call extract_sign(CurrentDets(:,j),TempSign)
           iSgn(1) = TempSign(1)
@@ -256,7 +257,7 @@ MODULE CCMC
 ! Deal with T_1^2
           WalkExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j), 2)
           if(WalkExcitLevel.eq.1) then
-            do l=j,TotWalkers
+            do l=j,int(TotWalkers,sizeof_int)
                WalkExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,l), 2)
                if(WalkExcitLevel.eq.1) then
                   call extract_sign(CurrentDets(:,l),TempSign2)
@@ -297,7 +298,7 @@ MODULE CCMC
                   ENDIF
                   iMaxExTemp=1
                   iMaxEx=0
-                  k=TotParts(1)-iCumlExcits  !iCumlExcits includes this det.
+                  k=int(TotParts(1),sizeof_int)-iCumlExcits  !iCumlExcits includes this det.
                   if(j.lt.iHFDet) k=k-HFcount
 !Count the number of allowed composites - this allows for all numbers of composites
                   IFDEBUG(iDebug,6) WRITE(iout,*) "Counting Excitations:  Level,#, Cuml"
@@ -331,7 +332,7 @@ MODULE CCMC
                   iCompositeSize=0
                   call decode_bit_det (DetCurr, iLutnI)
 !Also take into account the contributions from the dets in the list
-                  HDiagCurr=CurrentH(j)
+                  HDiagCurr=CurrentH(1,j)
                   if(tHistSpawn) then
                      WalkExcitLevel = FindBitExcitLevel(iLutHF, iLutnI, nel)
                   else
@@ -351,7 +352,7 @@ MODULE CCMC
                      nMaxSelExcitors=nEl
                   ENDIF
             
-                  if(nMaxSelExcitors.gt.(TotWalkers-1)) nMaxSelExcitors=TotWalkers-1
+                  if(nMaxSelExcitors.gt.(TotWalkers-1)) nMaxSelExcitors=int(TotWalkers,sizeof_int)-1
                   IFDEBUG(iDebug,5) write(iout,*) "Max excitors can be selected.", nMaxSelExcitors
                   if(nMaxSelExcitors.lt.2) exit  !If we can't choose a new excit, we leave the loop
                   dClusterProb=1           !prob of these excitors given this number of excitors goes here
@@ -731,7 +732,7 @@ MODULE CCMC
                ELSE
                   dProbDecompose=1
                   iPartDie=j
-                  HDiagCurr=CurrentH(j)
+                  HDiagCurr=CurrentH(1,j)
                ENDIF 
                dProb=dClusterProb*dProbDecompose
 
@@ -750,7 +751,7 @@ MODULE CCMC
 !               CALL SumEContrib(DetCurr,WalkExcitLevel,iSgn,iLutnI,HDiagCurr,(dProb*dProbNorm))
 !HDiags are stored.
 !               if(iExcitor.eq.1) THEN
-!                  HDiagCurr=CurrentH(j)
+!                  HDiagCurr=CurrentH(1,j)
 
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
 !                  CALL SumEContrib(DetCurr,WalkExcitLevel,CurrentSign(j),CurrentDets(:,j),HDiagCurr,1.D0)
@@ -840,7 +841,7 @@ MODULE CCMC
 !Now traverse the list of walkers, removing walkers which have nothing remaining on them
 !VecSlot indicates the next free position in NewDets
        VecSlot=1
-       do j=1,TotWalkers
+       do j=1,int(TotWalkers,sizeof_int)
             ! Do a look over all walkers to accumulate stats, and kill if 
             ! necessary. Also, we want to find out the excitation level of 
             ! the determinant - we only need to find out if its connected or 
@@ -855,7 +856,7 @@ MODULE CCMC
             ENDIF
 
             ! HDiags are stored.
-            HDiagCurr=CurrentH(j)
+            HDiagCurr=CurrentH(1,j)
             call decode_bit_det (DetCurr, CurrentDets(:,j))
 
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
@@ -871,7 +872,7 @@ MODULE CCMC
                 call encode_sign(CurrentDets(:,VecSlot),TempSign3)
                 ! CurrentDets(:,VecSlot)=CurrentDets(:,j)
                 ! CurrentSign(VecSlot)=CopySign
-                CurrentH(VecSlot)=CurrentH(j)
+                CurrentH(1,VecSlot)=CurrentH(1,j)
                 VecSlot=VecSlot+1
             ENDIF   !To kill if
         enddo
@@ -1173,12 +1174,12 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
          S%dProbSpawn=S%dProbSpawn*S%nSpawnings
       endif
    ELSE
-!      WRITE(iout,*) tDone,S%dProbSpawn
-!      write(iout,*) S%ExcitMat,tParity
-!      Write(iout,*) "Getting Excitations"
-      CALL GenExcitations3(S%C%DetCurr,S%C%iLutDetCurr,S%nJ,S%exFlag,S%ExcitMat,tParity,tDone)
-!      call WriteDet(iout,S%nJ,nEl,.false.)
-!      WRITE(iout,*) tDone
+!      WRITE(6,*) tDone,S%dProbSpawn
+!      write(6,*) S%ExcitMat,tParity
+!      Write(6,*) "Getting Excitations"
+      CALL GenExcitations3(S%C%DetCurr,S%C%iLutDetCurr,S%nJ,S%exFlag,S%ExcitMat,tParity,tDone,.false.)
+!      call WriteDet(6,S%nJ,nEl,.false.)
+!      WRITE(6,*) tDone
       if(S%ExcitMat(1,2).eq.0) then
          S%iExcitLevel=1
       else
@@ -1717,7 +1718,7 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
    real(dp) :: iSpawnAmp(lenof_sign), TempSign(lenof_sign), child(lenof_sign)
    integer iDebug
 
-   real(dp) rat,r,prob
+   real(dp) rat,r,prob,RDMBias
    integer i
    integer IC
    integer part_type
@@ -1763,7 +1764,7 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
                               C%DetCurr,C%iLutDetCurr, &
                               TempSign,S%nJ,S%iLutnJ,prob,S%HIJ, &
                               S%iExcitLevel,S%ExcitMat,.false., & !.false. indicates we've dealt with parit
-                              S%iExcitLevel,part_type)
+                              S%iExcitLevel,part_type,0.0_dp,RDMBias) 
 !   Here we convert nJ from a det back to an excitor.
    IC = FindBitExcitLevel(iLutHF, S%iLutnJ(:), nEl)
    iSpawnAmp=iSpawnAmp*ExcitToDetSign(iLutHF,S%iLutnJ,IC)
@@ -2446,7 +2447,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    else
       iMaxAmpLevel=nEl
    endif
-   nMaxAmpl=InitWalkers
+   nMaxAmpl=int(InitWalkers,sizeof_int)
    WalkerScale=1
 ! Setup Memory
 #ifndef __SHARED_MEM
@@ -2801,7 +2802,8 @@ END SUBROUTINE CCMCStandaloneParticle
 
 subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
       use SystemData, only : nEl
-      use AnnihilationMod, only: DetermineDetNode
+!      use AnnihilationMod, only: DetermineDetNode
+      use hash, only: DetermineDetNode
       use bit_reps, only: decode_bit_det, set_flag
       use bit_rep_data, only: flag_parent_initiator
       use CCMCData, only: tSharedExcitors
@@ -2941,7 +2943,7 @@ SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
          WRITE(iout,*) "Reading in initial particle configuration from *OLD* POPSFILES..."
          CurrParts(1)=nMaxAmpl
          call ReadFromPopsfileOnly(DetList, CurrParts(1))
-         nAmpl=int(CurrParts(1))
+         nAmpl=int(CurrParts(1),sizeof_int)
       else
          call open_pops_head(iunithead,formpops,binpops)
          if(PopsVersion.eq.3) then 
@@ -2961,11 +2963,10 @@ SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
                PopBlockingIter)
 
          if(iProcIndex.eq.root) close(iunithead)
-         
          tmp_dp = CurrParts
          call ReadFromPopsfile(iPopAllTotWalkers,ReadBatch,TotWalkers,tmp_dp,NoatHF,DetList,nMaxAmpl)
          CurrParts = tmp_dp
-         nAmpl=TotWalkers
+         nAmpl=int(TotWalkers,sizeof_int)
          dNorm=NoatHF(1)
       endif
 

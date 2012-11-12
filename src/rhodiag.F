@@ -934,6 +934,8 @@ C.. do we subtract out lower vertices here or later?
          real(dp) HDiag_CPPS2VS
          real(dp) R,S,DLWDB
          real(dp) RII
+         call stop_all('HDIAG_CPPS2VS','Routine depreciated')
+         j=1
 ! Optimise the 1V case
          IF(I_V.EQ.1) THEN
             RII=HIJ(1,1)

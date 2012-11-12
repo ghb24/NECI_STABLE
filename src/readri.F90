@@ -15,8 +15,8 @@ subroutine InitRIBasis(nBasisMax,Len)
    READ(29,rec=1) nAb
    READ(29,rec=2) nB
    write(6,*) nAb,nB
-   nAuxBasis=nAb
-   nBasis=nB
+   nAuxBasis=int(nAb,sizeof_int)
+   nBasis=int(nB,sizeof_int)
    WRITE(6,*) "Q-Chem auxiliary basis", nAuxBasis, " basis functions:", nBasis
    nBasisMax(1:5,1:3)=0
    Len=2*nBasis 

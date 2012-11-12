@@ -1137,15 +1137,15 @@ contains
         rptr = loc_neci(ret)
 #endif
 
-        DispsN = Disps &
-               * %(mpilen)s
-        LengthsN = Lengths &
-                 * %(mpilen)s
+        DispsN = int(Disps &
+         * %(mpilen)s,MPIArg)
+        LengthsN = int(Lengths &
+         * %(mpilen)s,MPIArg)
 
         call GetComm (Comm, Node, rt)
 
-        LengthIn = %(mpilen)s &
-                 * (ubound(v,%(ndim)s+1)-lbound(v,%(ndim)s+1)+1)
+        LengthIn = int(%(mpilen)s &
+         * (ubound(v,%(ndim)s+1)-lbound(v,%(ndim)s+1)+1),MPIArg)
         
         call MPI_GatherV (val_in, LengthIn, &
                 %(mpitype)s, &
@@ -1785,7 +1785,7 @@ contains
             call MPIGroupIncl (Group, n, GroupProc, GroupNodesDum(i), ierr)
 
             GroupNodes = GroupNodesDum
-            CommNodesDum = CommNodes
+            CommNodesDum = int(CommNodes,MPIArg)
 
             ! Create the communicator
             call MPICommcreate (CommGlobal, GroupNodes(i), CommNodesDum(i),&
@@ -1850,6 +1850,7 @@ contains
         character(3) :: error_str
         integer(MPIArg) :: error_code, ierr
 
+        error_code=0
 #ifdef PARALLEL
 
         ! errorcode: Error returned to invoking environment.

@@ -8,7 +8,7 @@ f90flags = -m64 -fcray-pointer -ffree-line-length-none
 cc = g++
 ld = gfortran
 ldflags = -m64
-libs = -framework Accelerate -lstdc++
+libs = -framework Accelerate -lstdc++ -lm
 module_flag = -J
 
 [dbg]

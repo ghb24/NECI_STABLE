@@ -137,7 +137,7 @@ c            WRITE(6,*) I_V,F(I_V),TOTAL,get_total_time(proc_timer2),L,LT
             IF(ISNAN_neci(F(I_V))) THEN
 C.. save all log files
                ITIME=neci_etime(tarr)
-               CALL FLUSH(11)
+               CALL neci_flush(11)
                CALL LOGNAN(NI,NEL,BETA,ITIME)
                WRITE(6,*) "WARNING: nan found at time",ITIME
                WRITE(6,"(A)",advance='no') "  nan det=("

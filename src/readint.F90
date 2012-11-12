@@ -1,5 +1,7 @@
 module read_fci
 
+    character(len=64) :: FCIDUMP_name
+
 contains
 
     SUBROUTINE INITFROMFCID(NEL,NBASISMAX,LEN,LMS,TBIN)
@@ -31,18 +33,18 @@ contains
                 IF(.not.exists) THEN
                     CALL Stop_All('InitFromFCID','FCISYM file does not exist')
                 ENDIF
-                INQUIRE(FILE='FCIDUMP',EXIST=exists,FORMATTED=fmat)
+                INQUIRE(FILE=FCIDUMP_name,EXIST=exists,FORMATTED=fmat)
                 IF(.not.exists) THEN
                     CALL Stop_All('INITFROMFCID','FCIDUMP file does not exist')
                 ENDIF
                 OPEN(iunit,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
                 READ(iunit,FCI)
              ELSE
-                INQUIRE(FILE='FCIDUMP',EXIST=exists,UNFORMATTED=fmat)
+                INQUIRE(FILE=FCIDUMP_name,EXIST=exists,UNFORMATTED=fmat)
                 IF(.not.exists) THEN
                     CALL Stop_All('InitFromFCID','FCIDUMP file does not exist')
                 ENDIF
-                OPEN(iunit,FILE='FCIDUMP',STATUS='OLD',FORM='FORMATTED')
+                OPEN(iunit,FILE=FCIDUMP_name,STATUS='OLD',FORM='FORMATTED')
                 READ(iunit,FCI)
              ENDIF
              CLOSE(iunit)
@@ -168,7 +170,7 @@ contains
          use UMatCache, only: GetCacheIndexStates,GTID
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
          use Parallel_neci
-         use constants, only: dp
+         use constants, only: dp,sizeof_int
          use util_mod, only: get_free_unit
          IMPLICIT NONE
          integer, intent(in) :: LEN
@@ -196,9 +198,9 @@ contains
                 OPEN(iunit,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
                 READ(iunit,FCI)
                 CLOSE(iunit)
-                OPEN(iunit,FILE='FCIDUMP',STATUS='OLD',FORM='UNFORMATTED')
+                OPEN(iunit,FILE=FCIDUMP_name,STATUS='OLD',FORM='UNFORMATTED')
              ELSE
-                OPEN(iunit,FILE='FCIDUMP',STATUS='OLD',FORM='FORMATTED')
+                OPEN(iunit,FILE=FCIDUMP_name,STATUS='OLD',FORM='FORMATTED')
                 READ(iunit,FCI)
              ENDIF
          ENDIF
@@ -305,13 +307,13 @@ contains
                 
                 !IND contains all the indices in an integer(int64) - use mask of 16bit to extract them
 2               READ(iunit,END=99) Z,IND
-                L=iand(IND,MASK)
+                L=int(iand(IND,MASK),sizeof_int)
                 IND=Ishft(IND,-16)
-                K=iand(IND,MASK)
+                K=int(iand(IND,MASK),sizeof_int)
                 IND=Ishft(IND,-16)
-                J=iand(IND,MASK)
+                J=int(iand(IND,MASK),sizeof_int)
                 IND=Ishft(IND,-16)
-                I=iand(IND,MASK)
+                I=int(iand(IND,MASK),sizeof_int)
 
 !                I=Index(I)
 !                J=Index(J)
@@ -475,7 +477,7 @@ contains
                 G1(ISPINS*I-ISPN+1)%k(2)=0
                 G1(ISPINS*I-ISPN+1)%k(3)=0
                 G1(ISPINS*I-ISPN+1)%Ms=-MOD(ISPINS*I-ISPN+1,2)*2+1
-                IF(SYMMAX.lt.ORBSYM(I)) SYMMAX=ORBSYM(I)
+                IF(SYMMAX.lt.ORBSYM(I)) SYMMAX=int(ORBSYM(I),sizeof_int)
                 IF(abs(SYMLZ(I)).gt.iMaxLz) iMaxLz=abs(SYMLZ(I))
             ENDDO
          ENDDO
@@ -562,7 +564,7 @@ contains
          
          IF(iProcIndex.eq.0) THEN
              iunit = get_free_unit()
-             OPEN(iunit,FILE='FCIDUMP',STATUS='OLD')
+             OPEN(iunit,FILE=FCIDUMP_name,STATUS='OLD')
              READ(iunit,FCI)
          ENDIF
 !Now broadcast these values to the other processors (the values are only read in on root)
@@ -850,7 +852,7 @@ contains
 
       !This is a copy of the routine above, but now for reading in binary files of integrals
       SUBROUTINE READFCIINTBIN(UMAT,ECORE)
-         use constants, only: dp,int64
+         use constants, only: dp,int64,sizeof_int
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          USE UMatCache , only : UMatInd,UMAT2D,TUMAT2D
@@ -870,19 +872,19 @@ contains
          !OPEN(iunit,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
          !READ(iunit,FCI)
          !CLOSE(iunit)
-         OPEN(iunit,FILE='FCIDUMP',STATUS='OLD',FORM='UNFORMATTED')
+         OPEN(iunit,FILE=FCIDUMP_name,STATUS='OLD',FORM='UNFORMATTED')
 
 
          MASK=(2**16)-1
          !IND contains all the indices in an integer(int64) - use mask of 16bit to extract them
 101      READ(iunit,END=199) Z,IND
-         L=iand(IND,MASK)
+         L=int(iand(IND,MASK),sizeof_int)
          IND=Ishft(IND,-16)
-         K=iand(IND,MASK)
+         K=int(iand(IND,MASK),sizeof_int)
          IND=Ishft(IND,-16)
-         J=iand(IND,MASK)
+         J=int(iand(IND,MASK),sizeof_int)
          IND=Ishft(IND,-16)
-         I=iand(IND,MASK)
+         I=int(iand(IND,MASK),sizeof_int)
 !         I=Index(I)
 !         J=Index(J)
 !         K=Index(K)

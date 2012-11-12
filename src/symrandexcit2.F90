@@ -31,7 +31,7 @@ MODULE GenRandSymExcitNUMod
                           tNoSymGenRandExcits, Arr, nMax, tCycleOrbs, &
                           nOccAlpha, nOccBeta, ElecPairs, MaxABPairs, &
                           tKPntSym, lzTot, tNoBrillouin, tUseBrillouin
-    use FciMCData, only: pDoubles, iter, excit_gen_store_type
+    use FciMCData, only: pDoubles, iter, excit_gen_store_type, iluthf
     use Parallel_neci
     use IntegralsData, only: UMat
     use Determinants, only: get_helement, write_det
@@ -42,8 +42,9 @@ MODULE GenRandSymExcitNUMod
     use DetBitOps, only: FindExcitBitDet, EncodeBitDet
     use sltcnd_mod, only: sltcnd_1
     use constants, only: dp, n_int, bits_n_int
-    use bit_reps, only: NIfTot
+    use bit_reps, only: NIfTot, nifdbo
     use sym_mod, only: mompbcsym, GetLz
+    use detbitops , only : detbiteq
     use timing_neci
     use sym_general_mod
     use spin_project, only: tSpinProject
@@ -223,9 +224,15 @@ MODULE GenRandSymExcitNUMod
         IF(IC.eq.2) THEN
             CALL CreateDoubExcit(nI,nJ,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
         ELSE
+
+!            IF(nI(3).eq.3) THEN
+!                write(6,*) 'creating single, pdoub',pDoubNew
+!            ENDIF
+ 
             CALL CreateSingleExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
 !            IF(pGen.eq.-1.D0) THEN
-!NOTE: ghb24 5/6/09 Cannot choose to create double instead, since you could have chosen a double first and it would have a different pGen.
+!NOTE: ghb24 5/6/09 Cannot choose to create double instead, 
+! since you could have chosen a double first and it would have a different pGen.
 !                IF(ExFlag.ne.3) THEN
 !                    CALL Stop_All("GenRandSymExcitNU","Found determinant with no singles, but can only have got here from single. Should never be in this position!")
 !                ENDIF
@@ -258,17 +265,22 @@ MODULE GenRandSymExcitNUMod
 
 !        IF(Counter.eq.6) WRITE(6,*) "Elec1Ind,Elec2Ind,SymProduct,iSpn",Elec1Ind,Elec2Ind,SymProduct,iSpn
 
-!This routine finds the number of orbitals which are allowed by spin, but not part of any spatial symmetry allowed unoccupied pairs.
-!This number is needed for the correct normalisation of the probability of drawing any given A orbital since these can be chucked and redrawn.
+!This routine finds the number of orbitals which are allowed by spin, 
+! but not part of any spatial symmetry allowed unoccupied pairs.
+!This number is needed for the correct normalisation of the probability of drawing 
+! any given A orbital since these can be chucked and redrawn.
         IF(tNoSymGenRandExcits) THEN
             CALL FindNumForbiddenOrbsNoSym(ForbiddenOrbs,ClassCountUnocc2,iSpn)
         ELSE
             CALL FindNumForbiddenOrbs(ForbiddenOrbs,ClassCountUnocc2,SymProduct,iSpn,SumMl)
         ENDIF
 
-!Now we have to pick the first unoccupied orbital. If an orbital is not present in any allowed pairs, it is chucked and a new one drawn.
-!The number NExcit is the number of unoccupied orbitals that the orbital was chosen from (including symmetry-forbidden orbital pairs)
-!Arguments:     NExcit = Number of possible spin-allowed unoccupied spinorbitals, including forbidden orbs (these will be chucked)
+!Now we have to pick the first unoccupied orbital. If an orbital is not present in any allowed pairs, 
+! it is chucked and a new one drawn.
+!The number NExcit is the number of unoccupied orbitals that the orbital was chosen from 
+! (including symmetry-forbidden orbital pairs) Arguments:    
+!  NExcit = Number of possible spin-allowed unoccupied spinorbitals, 
+! including forbidden orbs (these will be chucked)
 !               SpinOrbA = Spin of the chosen spin-orbital. 1 is alpha, -1 is beta.
 !               OrbA = Index of the chosen spinorbital
 !               SymB = Symmetry required of the second unoccupied spinorbital, so that sym(A) x sym(B) = SymProduct
@@ -288,9 +300,12 @@ MODULE GenRandSymExcitNUMod
 
 !This routine will pick an unoccupied orbital at random from a specified spin and symmetry class.
 !There should definitely be a possible spinorbital, since A was chosen so that there was one.
-!We have to make sure with alpha/alpha or beta/beta pairs and when SymProduct=0, that we don't choose the same unoccupied orbital.
-!If we do this, then we should chuck and redraw, since there should definitely be another allowed spinorbital in the class.
-!We return the number of allowed B's for the A we picked in NExcitB, however we also need to know the number of allowed A's if we
+!We have to make sure with alpha/alpha or beta/beta pairs and when SymProduct=0, 
+! that we don't choose the same unoccupied orbital.
+!If we do this, then we should chuck and redraw, 
+! since there should definitely be another allowed spinorbital in the class.
+!We return the number of allowed B's for the A we picked in NExcitB, 
+! however we also need to know the number of allowed A's if we
 !had picked B first. This will be returned in NExcitOtherWay.
         CALL PickBOrb(nI,iSpn,ILUT,ClassCountUnocc2,SpinOrbA,OrbA,SymA,OrbB,SymB,NExcitB,MlA,MlB,NExcitOtherWay)
 
@@ -314,7 +329,6 @@ MODULE GenRandSymExcitNUMod
         nJ(:)=nI(:)
         CALL FindExcitDet(ExcitMat,nJ,2,tParity)
 
-
         ! SDS: Remove this test for now. Breaks some of the CCMC code,
         !      which CAN generate invalid dets, and throws them away
         !      elsewhere.
@@ -327,7 +341,8 @@ MODULE GenRandSymExcitNUMod
 
     END SUBROUTINE FindNewDet
 
-!This routine finds the probability of creating the excitation. See the header of the file for more information on how this works.
+!This routine finds the probability of creating the excitation. 
+! See the header of the file for more information on how this works.
     SUBROUTINE FindDoubleProb(ForbiddenOrbs,NExcitA,NExcitB,NExcitOtherWay,pGen)
         INTEGER, INTENT(IN) :: ForbiddenOrbs,NExcitA,NExcitB,NExcitOtherWay
         real(dp) , INTENT(OUT) :: pGen!,PabGivenij
@@ -347,14 +362,17 @@ MODULE GenRandSymExcitNUMod
         integer :: norbs, i, z, ind, ChosenUnocc, attempts, SpinOrbB
         real(dp) :: r
 
-!We want to calculate the number of possible B's given the symmetry and spin it has to be since we have already picked A.
-!We have calculated in NExcit the number of orbitals available for B given A, but we also need to know the number of orbitals to choose from for A IF
+!We want to calculate the number of possible B's given the symmetry 
+! and spin it has to be since we have already picked A.
+!We have calculated in NExcit the number of orbitals available for B given A, 
+! but we also need to know the number of orbitals to choose from for A IF
 !we had picked B first.
         ind = 0
         IF(iSpn.eq.2) THEN
 !If iSpn=2, then we want to find a spinorbital of the opposite spin of SpinOrbA
             IF(SpinOrbA.eq.-1) THEN
-!We have already picked a beta orbital, so now we want to pick an alpha orbital. Find out how many of these there are.
+!We have already picked a beta orbital, so now we want to pick an alpha orbital. 
+! Find out how many of these there are.
                 NExcit=ClassCountUnocc2(ClassCountInd(1,SymB,MlB))
 !                WRITE(6,*) "NExcit",NExcit
                 NExcitOtherWay=ClassCountUnocc2(ClassCountInd(2,SymA,MlA))
@@ -381,7 +399,8 @@ MODULE GenRandSymExcitNUMod
 
         IF((iSpn.ne.2).and.(SymA.eq.SymB).and.(MlA.eq.MlB)) THEN
 !In this case, we need to check that we do not pick the same orbital as OrbA. If we do this, then we need to redraw.
-!Only when SymProduct=0 will the classes of a and b be the same, and the spins will be different if iSpn=2, so this is the only possibility of a clash.
+!Only when SymProduct=0 will the classes of a and b be the same, and the spins will be different if iSpn=2,
+!  so this is the only possibility of a clash.
             NExcit=NExcit-1     !Subtract 1 from the number of possible orbitals since we cannot choose orbital A.
             NExcitOtherWay=NExcitOtherWay-1     !The same goes for the probabilities the other way round.
         ENDIF
@@ -391,9 +410,12 @@ MODULE GenRandSymExcitNUMod
 !All orbitals with the specified symmetry and spin should be allowed unless it is OrbA. There will be NExcit of these. Pick one at random.
 !Check that orbital is not in ILUT and is not = OrbA (Although this can only happen in the circumstance indicated earlier).
 !Now we need to choose the final unoccupied orbital.
-!There are two ways to do this. We can either choose the orbital we want out of the NExcit possible unoccupied orbitals.
-!It would then be necessary to cycle through all orbitals of that symmetry and spin, only counting the unoccupied ones to find the correct determinant.
-!Alternatively, we could pick orbitals at random and redraw until we find an allowed one. This would probably be preferable for larger systems.
+!There are two ways to do this.
+!  We can either choose the orbital we want out of the NExcit possible unoccupied orbitals.
+!It would then be necessary to cycle through all orbitals of that symmetry and spin, 
+! only counting the unoccupied ones to find the correct determinant.
+!Alternatively, we could pick orbitals at random and redraw until we find an allowed one. 
+! This would probably be preferable for larger systems.
         IF(tCycleOrbs) THEN
 ! METHOD 1 (Run though all orbitals in symmetry class with needed spin to find allowed one out of NExcit)
 ! ==========================
@@ -490,7 +512,8 @@ MODULE GenRandSymExcitNUMod
 
     END SUBROUTINE PickBOrb
 
-!This routine does the same as the FindNumForbiddenOrbs routine, but is optimised for when there are no spatial symmetry considerations.    
+!This routine does the same as the FindNumForbiddenOrbs routine, 
+! but is optimised for when there are no spatial symmetry considerations.    
     SUBROUTINE FindNumForbiddenOrbsNoSym(ForbiddenOrbs,ClassCountUnocc2,iSpn)
         integer, intent(in) :: ClassCountUnocc2(ScratchSize), iSpn
         integer, intent(out) :: ForbiddenOrbs
@@ -523,9 +546,12 @@ MODULE GenRandSymExcitNUMod
 
     END SUBROUTINE FindNumForbiddenOrbsNoSym
 
-!This routine finds the number of orbitals which are allowed by spin, but not part of any spatial symmetry allowed unoccupied pairs.
-!This number is needed for the correct normalisation of the probability of drawing any given A orbital since these can be chucked and redrawn.
-!For Lz symmetry, it is generally quicker to count the allowed orbitals, and subtract from all possible ones, rather than directly counting
+!This routine finds the number of orbitals which are allowed by spin, 
+! but not part of any spatial symmetry allowed unoccupied pairs.
+!This number is needed for the correct normalisation of the probability of 
+! drawing any given A orbital since these can be chucked and redrawn.
+!For Lz symmetry, it is generally quicker to count the allowed orbitals, and subtract from all possible ones,
+!  rather than directly counting
 !the forbidden ones. 
     SUBROUTINE FindNumForbiddenOrbs(ForbiddenOrbs,ClassCountUnocc2,SymProduct,iSpn,SumMl)
         integer, intent(in) :: ClassCountUnocc2(ScratchSize)
@@ -1205,6 +1231,8 @@ MODULE GenRandSymExcitNUMod
         real(dp) :: r,pGen
         LOGICAL :: tParity
 
+           
+
         CALL CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2,nI)
         IF(ElecsWNoExcits.eq.NEl) THEN
 !There are no single excitations from this determinant - return a null excitation
@@ -1366,6 +1394,7 @@ MODULE GenRandSymExcitNUMod
         ENDIF
 
         nJ(:)=nI(:)
+        ExcitMat(:,:) = 0
 !ExcitMat wants to be the index in nI of the orbital to excite from, but returns the actual orbitals.
         ExcitMat(1,1)=Eleci
         ExcitMat(2,1)=Orb
@@ -2040,7 +2069,7 @@ MODULE GenRandSymExcitNUMod
 ! For a given ij pair in the UEG or Hubbard model, this generates ab as a double excitation efficiently.
 ! This takes into account the momentum conservation rule, i.e. that kb=ki+ki-ka(+G).
     SUBROUTINE CreateDoubExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn)
-        Use SystemData , only : NMAXX,NMAXY,NMAXZ,tOrbECutoff,OrbECutoff
+        Use SystemData , only : NMAXX,NMAXY,NMAXZ,tOrbECutoff,OrbECutoff, kvec, TUEG2
         use sym_mod, only: mompbcsym
 
         INTEGER :: i,nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,iSpn,kb_ms
@@ -2073,11 +2102,89 @@ MODULE GenRandSymExcitNUMod
             CALL Stop_All("CreateDoubExcitLattice","Incorrect basis function generated") 
         ENDIF
 
+
+        !=============================================
+        if (tUEG2) then
+
+            ! kb is now uniquely defined
+            ki=int(kvec(nI(Elec1Ind),1:3))
+            kj=int(kvec(nI(Elec2Ind),1:3))
+            ka=int(kvec(Hole1BasisNum,1:3))
+            kb=ki+kj-ka
+
+            ! Find the spin of b
+            IF(iSpn.eq.2)THEN ! alpha/beta required, therefore b has to be opposite spin to a
+                kb_ms=1-((G1(Hole1BasisNum)%Ms+1)/2)*2
+            ELSE ! b is the same spin as a
+                kb_ms=G1(Hole1BasisNum)%Ms
+            ENDIF
+
+            ! Is kb allowed by the size of the space?
+            tAllowedExcit=.true.
+            TestEnergyB=kb(1)**2+kb(2)**2+kb(3)**2
+            IF(tOrbECutoff.and.(TestEnergyB.gt.OrbECutoff)) tAllowedExcit=.false.
+            IF(.not.tAllowedExcit) THEN
+                nJ(1)=0
+                RETURN
+            ENDIF
+            iSpinIndex=(kb_ms+1)/2+1
+            Hole2BasisNum=kPointToBasisFn(kb(1),kb(2),kb(3),iSpinIndex)
+            
+            IF(Hole2BasisNum==-1.or.Hole1BasisNum.eq.Hole2BasisNum) THEN
+                nJ(1)=0 
+                RETURN
+            ENDIF
+
+            ! Is b occupied?
+            IF(BTEST(iLutnI((Hole2BasisNum-1)/bits_n_int),MOD(Hole2BasisNum-1,bits_n_int))) THEN
+            !Orbital is in nI. Reject.
+                tAllowedExcit=.false.
+            ENDIF
+            
+            IF(.not.tAllowedExcit) THEN
+                nJ(1)=0
+                RETURN
+            ENDIF
+
+            ! Check that the correct kb has been found -- can be commented out later
+            DO i=1,3
+                IF ( (int(kvec(nI(Elec2Ind), i))+int(kvec(nI(Elec1Ind), i))    &
+                      -int(kvec(Hole1BasisNum, i))-int(kvec(Hole2BasisNum, i)) ) .ne. 0) THEN
+                    WRITE(6,*) "Tried to excite " 
+                    WRITE(6,*) "ki ", ki 
+                    WRITE(6,*) "kj ", kj
+                    WRITE(6,*) "ka ", ka
+                    WRITE(6,*) "kb should be ", kb
+                    WRITE(6,*) "but found as ",  kvec(Hole2BasisNum, 1:3)
+                    CALL Stop_All("CreateDoubExcitLattice", "Wrong b found")
+                ENDIF
+            ENDDO
+
+            ! Find the new determinant
+            CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,Hole1BasisNum,Hole2BasisNum,ExcitMat,tParity)     
+
+            !Calculate generation probabilities
+            IF (iSpn.eq.2) THEN
+                pAIJ=1.0_dp/(nBasis-Nel)
+            ELSEIF (iSpn.eq.1) THEN
+                pAIJ=1.0_dp/(nBasis/2-nOccBeta)
+            ELSE
+                !iSpn = 3
+                pAIJ=1.0_dp/(nBasis/2-nOccAlpha)
+            ENDIF
+            ! Note, p(b|ij)=p(a|ij) for this system
+
+            pGen=2.0_dp/(NEl*(NEl-1))*2.0_dp*pAIJ
+
+            return
+        end if
+        !=============================================
+
         ! kb is now uniquely defined
-        ki=G1(nI(Elec1Ind))%k
-        kj=G1(nI(Elec2Ind))%k
-        ka=G1(Hole1BasisNum)%k
-        kb=ki+kj-ka
+            ki=G1(nI(Elec1Ind))%k
+            kj=G1(nI(Elec2Ind))%k
+            ka=G1(Hole1BasisNum)%k
+            kb=ki+kj-ka
 
         ! Find the spin of b
         IF(iSpn.eq.2)THEN ! alpha/beta required, therefore b has to be opposite spin to a
@@ -2213,7 +2320,7 @@ MODULE GenRandSymExcitNUMod
     ! For UEG there is a more sophisticated algorithm that allows more ijab choices to be rejected before going back to the main
     ! code.
     SUBROUTINE CreateExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen)
-        Use SystemData , only : NMAXX,NMAXY,NMAXZ
+        Use SystemData , only : NMAXX,NMAXY,NMAXZ, tUEG2, kvec
 
         INTEGER :: i,j ! Loop variables
         INTEGER :: Elec1, Elec2
@@ -2261,6 +2368,12 @@ MODULE GenRandSymExcitNUMod
             ! Find the upper and lower ranges of kx, ky and kz from the point of view of electron i
             ki=G1(nI(Elec1Ind))%k
             kj=G1(nI(Elec2Ind))%k
+            !================================================
+            if (tUEG2) then
+            ki=kvec(nI(Elec1Ind), 1:3)
+            kj=kvec(nI(Elec2Ind), 1:3)
+            end if
+            !================================================
             KaXLowerLimit=MAX(-NMAXX,ki(1)-(NMAXX-kj(1)))
             KaXUpperLimit=MIN(NMAXX,ki(1)+(NMAXX+kj(1)))
             KaXRange=KaXUpperLimit-KaXLowerLimit+1
@@ -2288,6 +2401,11 @@ MODULE GenRandSymExcitNUMod
             DO i=1,NEl
                 IF(G1(nI(i))%Ms.ne.G1(nI(Elec1Ind))%Ms) CYCLE
                 kTrial=G1(nI(i))%k
+                !================================================
+                if (tUEG2) then
+                    kTrial=kvec(nI(i), 1:3)
+                end if
+                !================================================
                 IF(kTrial(1).lt.KaXLowerLimit) CYCLE
                 IF(kTrial(1).gt.KaXUpperLimit) CYCLE
                 IF(kTrial(2).lt.KaYLowerLimit) CYCLE
@@ -2307,6 +2425,11 @@ MODULE GenRandSymExcitNUMod
             DO i=1,NEl
                 IF(G1(nI(i))%Ms.ne.G1(nI(Elec2Ind))%Ms) CYCLE
                 kTrial=ki+kj-G1(nI(i))%k
+                !================================================
+                if (tUEG2) then
+                    kTrial=ki+kj-kvec(nI(i), 1:3)
+                end if
+                !================================================
                 IF(kTrial(1).lt.KaXLowerLimit) CYCLE
                 IF(kTrial(1).gt.KaXUpperLimit) CYCLE
                 IF(kTrial(2).lt.KaYLowerLimit) CYCLE
@@ -2469,6 +2592,7 @@ MODULE GenRandSymExcitNUMod
     FUNCTION IsMomentumAllowed(nJ)
 
         use sym_mod, only: mompbcsym
+        use SystemData, only:kvec, tUEG2
         
         LOGICAL :: IsMomentumAllowed ! Returns whether the determinant is momentum allowed for  
                                     ! UEG and Hubbard models
@@ -2477,6 +2601,24 @@ MODULE GenRandSymExcitNUMod
 
         IsMomentumAllowed=.false.
 
+        !====================================================
+        if(tUEG2) then
+            ! The momentum constraint for UEG: every determinant must have a total momentum
+            ! which is equal.
+            kx=0
+            ky=0
+            kz=0
+            do i=1,NEl
+                kx=kx+kvec(nJ(i), 1)
+                ky=ky+kvec(nJ(i), 2)
+                kz=kz+kvec(nJ(i), 3)
+            enddo
+            IF(kx.eq.kTotal(1).and.ky.eq.kTotal(2).and.kz.eq.kTotal(3)) THEN
+                IsMomentumAllowed=.true.
+            ENDIF
+            return
+        end if
+        !====================================================
         ! The momentum constraint for UEG: every determinant must have a total momentum
         ! which is equal.
         IF(tUEG) THEN
@@ -2518,6 +2660,8 @@ MODULE GenRandSymExcitNUMod
     !the excitation. This means that all excitations should be 0 or 1 after enough iterations. It will then count the excitations and compare the number to the
     !number of excitations generated using the full enumeration excitation generation. This can be done for both doubles and singles, or one of them.
     SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag)
+
+        use SystemData, only: tUEG2, kvec
         IMPLICIT NONE
         INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),kx,ky,kz,ktrial(3)
         real(dp) :: pDoub,pGen,AverageContrib,AllAverageContrib
@@ -2662,7 +2806,7 @@ MODULE GenRandSymExcitNUMod
             ENDIF
             ! This is implemented for the old excitation generators, that could only handle momentum conservation under
             ! zero momentum conditions
-            IF(tUEG.and.(.not.tLatticeGens)) THEN
+            IF(tUEG.and.(.not.tLatticeGens) .and. (.not. tUEG2) )THEN
                 kx=0
                 ky=0
                 kz=0
@@ -2689,6 +2833,23 @@ MODULE GenRandSymExcitNUMod
                     CYCLE
                 ENDIF
             ENDIF
+
+            !============================================
+            IF(tUEG2.and.(.not.tLatticeGens) ) THEN
+                kx=0
+                ky=0
+                kz=0
+                do j=1,NEl
+                    kx=kx+kvec(nJ(j), 1)
+                    ky=ky+kvec(nJ(j), 2)
+                    kz=kz+kvec(nJ(j), 3)
+                enddo
+                IF(.not.(kx.eq.0.and.ky.eq.0.and.kz.eq.0)) THEN
+                    CYCLE
+                ENDIF
+            ENDIF
+            !============================================
+
             AverageContrib=AverageContrib+1.D0/pGen
 
     !        CALL EncodeBitDet(nJ,iLutnJ)
@@ -2906,11 +3067,13 @@ SUBROUTINE SpinOrbSymSetup()
     use SymData, only: SymLabelList,SymLabelCounts,SymConjTab,SymLabels
     use SystemData , only : NMAXZ,tFixLz,iMaxLz,nBasis,tUEG,tKPntSym,G1,tHub,nBasisMax,NEl
     use SystemData , only : Symmetry,tHPHF,tSpn,tISKFuncs,Arr,tNoSymGenRandExcits, Elecpairs
-    use SystemData , only : MaxABPairs
+    use SystemData , only : MaxABPairs, tUEG2, kvec
     use Determinants, only : FDet
     use sym_mod, only: mompbcsym,SymProd
     use constants, only: dp
+
     IMPLICIT NONE
+
     INTEGER :: i,j,k,SymInd,Lab
     INTEGER :: Spin,ierr,OrbSym,InvSym
     real(dp) :: OrbEnergy
@@ -2919,7 +3082,7 @@ SUBROUTINE SpinOrbSymSetup()
     INTEGER :: kmaxX,kmaxY,kminX,kminY,kminZ,kmaxz,iSpinIndex,ktrial(3)
     type(Symmetry) :: SymProduct, SymI, SymJ
     character(len=*), parameter :: this_routine='SpinOrbSymSetup'
-    
+
     ElecPairs=(NEl*(NEl-1))/2
     MaxABPairs=(nBasis*(nBasis-1)/2)
 !    WRITE(6,*) "SETTING UP SYMMETRY!!",nBasis,elecpairs
@@ -3206,6 +3369,46 @@ SUBROUTINE SpinOrbSymSetup()
         enddo
     ENDIF
     
+
+    !======================================================
+    if (tUEG2) then
+        kmaxX=0
+        kminX=0
+        kmaxY=0
+        kminY=0
+        kminZ=0
+        kmaxZ=0
+
+        do i=1,nBasis 
+            IF( int(kvec(i, 1)) .gt. kmaxX) kmaxX=int(kvec(i, 1))
+            IF( int(kvec(i, 1)) .lt. kminX) kminX=int(kvec(i, 1))
+            IF( int(kvec(i, 2)) .gt. kmaxY) kmaxY=int(kvec(i, 2))
+            IF( int(kvec(i, 2)) .lt. kminY) kminY=int(kvec(i, 2))
+            IF( int(kvec(i, 3)) .gt. kmaxZ) kmaxZ=int(kvec(i, 3))
+            IF( int(kvec(i, 3)) .lt. kminZ) kminZ=int(kvec(i, 3))
+        enddo
+
+        ALLOCATE(kPointToBasisFn(kminX:kmaxX,kminY:kmaxY,kminZ:kmaxZ,2))
+        kPointToBasisFn=-1 !Init to invalid
+        do i=1,nBasis
+            iSpinIndex=(G1(i)%Ms+1)/2+1 ! iSpinIndex equals 1 for a beta spin (ms=-1), and 2 for an alpha spin (ms=1)
+            kPointToBasisFn(int(kvec(i, 1)), int(kvec(i, 2)), int(kvec(i, 3)), iSpinIndex)=i
+        enddo
+
+        kTotal(1)=0
+        kTotal(2)=0
+        kTotal(3)=0
+        do j=1,NEl
+            kTotal(1)=kTotal(1)+int(kvec(FDet(j), 1))
+            kTotal(2)=kTotal(2)+int(kvec(FDet(j), 2))
+            kTotal(3)=kTotal(3)+int(kvec(FDet(j), 3))
+        enddo
+        write(6,*) "Total momentum is", kTotal
+
+        return
+    end if
+    !======================================================
+
     ! This makes a 3D lookup table kPointToBasisFn(kx,ky,kz,ms_index) which gives the orbital number for a given kx, ky, kz and ms_index
     IF(tUEG)THEN
         kmaxX=0
@@ -3214,6 +3417,7 @@ SUBROUTINE SpinOrbSymSetup()
         kminY=0
         kminZ=0
         kmaxZ=0
+
         do i=1,nBasis 
             IF(G1(i)%k(1).gt.kmaxX) kmaxX=G1(i)%k(1)
             IF(G1(i)%k(1).lt.kminX) kminX=G1(i)%k(1)

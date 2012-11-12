@@ -246,6 +246,8 @@ contains
 #ifdef PARALLEL
         character(len=MPI_MAX_ERROR_STRING) :: s
 
+        l=0
+        e=0
         call MPI_Error_string (int(err, MPIArg), s, l, e)
 
         write(6,*) s
@@ -421,7 +423,7 @@ subroutine mpibarrier_c (error) bind(c)
 
 #ifdef PARALLEL
     call MPIBarrier (ierr)
-    error = ierr
+    error = int(ierr,kind=kind(error))
 #else
     error = 0
 #endif

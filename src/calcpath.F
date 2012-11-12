@@ -25,6 +25,7 @@ C.. RHOII2 is constructed to contain the RHOII for each point in the path
          INTEGER I_HIND
          CHARACTER(*), PARAMETER :: t_r="CALCPATHS"
 
+         CALCPATHS = 0.0_dp !initialisation
          proc_timer%timer_name='CALCPATHS '
          call set_timer(proc_timer,50)
 C.. If we're using the contour integral trick to sum all possible graphs with the given vertices

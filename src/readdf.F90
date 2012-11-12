@@ -19,6 +19,8 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
 !         call query_record_handler(C_file,info,file_status,lenrec,nrec,.TRUE.)
 !.. lenrec is the number of auxiliary basis functions
 !.. nrec is the number of pairs of orbitals.
+         nrec=0
+         lenrec=0
          nBasisPairs=nrec
          nBasis=int(dsqrt(nBasisPairs*2.D0))
          nAuxBasis=lenrec

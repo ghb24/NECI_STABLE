@@ -13,8 +13,12 @@ MODULE RotateOrbsData
 
 ! These are the labelling arrays which allow us to separate the occupied and virtual orbitals, mix all together, use spin or spatial 
 ! orbitals and maitain symmetry etc.
-    INTEGER , ALLOCATABLE :: SymLabelList2(:),SymLabelCounts2(:,:),SymLabelListInv(:),SymLabelList3(:),SymOrbs(:)
-    INTEGER(TagIntType)  :: SymLabelList2Tag,SymLabelCounts2Tag,SymLabelListInvTag,SymLabelList3Tag,SymOrbsTag,EvaluesTruncTag
+    INTEGER , ALLOCATABLE :: SymLabelList2_rot(:),SymLabelCounts2_rot(:,:), &
+                             SymLabelListInv_rot(:),SymLabelList3_rot(:), &
+                             SymOrbs_rot(:)
+    INTEGER(TagIntType)  :: SymLabelList2_rotTag,SymLabelCounts2_rotTag, &
+                            SymLabelListInv_rotTag,SymLabelList3_rotTag, &
+                            SymOrbs_rotTag,EvaluesTruncTag
     real(dp) , ALLOCATABLE :: EvaluesTrunc(:)
 
 ! NoOrbs is either nBasis or SpatOrbs depending on whether we are using spin or spatial orbitals.    
@@ -24,6 +28,9 @@ MODULE RotateOrbsData
     ! unit to write the TRANSFORM file to.
     integer :: transform_unit
 
-    TYPE(timer) :: FillOneRDM_Time,FillMP2VDM_Time,DiagNatOrbMat_Time,OrderCoeff_Time,FillCoeff_Time
+    TYPE(timer) :: FillOneRDM_Time,FillMP2VDM_Time,DiagNatOrbMat_Time, &
+                   OrderCoeff_Time,FillCoeff_Time
+
+    LOGICAL :: tTurnStoreSpinOff
 
 END MODULE RotateOrbsData

@@ -91,7 +91,7 @@ contains
          ! dSFMT does not initialise itself if not already initialised.
          call dSFMT_init(5489)
 
-         do i=1,CalcDetCycles
+         do i=1,int(CalcDetCycles,sizeof_int)
 
              !Create a random determinant up to excitation level iExcitLevTest from FDetiLut
              !Returns det (iLut) and its excitation level, ExcitLevel, and the number of attempts

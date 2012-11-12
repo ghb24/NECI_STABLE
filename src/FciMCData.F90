@@ -25,18 +25,28 @@ MODULE FciMCData
       integer :: Tot_Unique_Dets_Unit 
 
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: WalkVecDets(:,:)                !Contains determinant list
-      REAL(KIND=dp) , ALLOCATABLE , TARGET :: WalkVecH(:)                    !Diagonal hamiltonian element
+      REAL(KIND=dp) , ALLOCATABLE , TARGET :: WalkVecH(:,:)                    !Diagonal hamiltonian element
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVec(:,:),SpawnVec2(:,:)
 
-    
       INTEGER(TagIntType) :: WalkVecDetsTag=0
       INTEGER(TagIntType) :: WalkVecHTag=0
       INTEGER(TagIntType) :: SpawnVecTag=0,SpawnVec2Tag=0
 
 !Pointers to point at the correct arrays for use
       INTEGER(KIND=n_int) , POINTER :: CurrentDets(:,:)
-      real(dp) , POINTER :: CurrentH(:)
+      real(dp) , POINTER :: CurrentH(:,:)
       INTEGER(KIND=n_int) , POINTER :: SpawnedParts(:,:),SpawnedParts2(:,:)
+
+      INTEGER(KIND=n_int) , ALLOCATABLE :: Spawned_Parents(:,:)
+      INTEGER , ALLOCATABLE :: Spawned_Parents_Index(:,:)
+      INTEGER :: Spawned_ParentsTag, Spawned_Parents_IndexTag
+      REAL(dp) :: SumSigns, SumSpawns, AvNoatHF
+      LOGICAL :: tFillingStochRDMonFly, tFillingExplicRDMonFly
+      integer :: Spawned_Parts_Zero, HFInd, NCurrH, IterRDMStart, IterRDM_HF
+      integer, dimension(lenof_sign) :: InstNoatHf
+
+      INTEGER(KIND=n_int) , ALLOCATABLE :: TempSpawnedParts(:,:)
+      INTEGER :: TempSpawnedPartsTag, TempSpawnedPartsInd
 
       ! Be able to store a list of the current initiators
       integer(n_int), allocatable :: CurrentInits(:,:)
@@ -71,7 +81,7 @@ MODULE FciMCData
 
       real(dp) :: DiagSftRe,DiagSftIm     !For complex walkers - this is just for info - not used for population control.
     
-      INTEGER , ALLOCATABLE :: HFDet(:)       !This will store the HF determinant
+      INTEGER , ALLOCATABLE :: HFDet(:), HFDet_True(:)       !This will store the HF determinant
       INTEGER(TagIntType) :: HFDetTag=0
 
       INTEGER :: MaxWalkersPart,PreviousNMCyc,Iter,NoComps,MaxWalkersAnnihil
@@ -80,6 +90,7 @@ MODULE FciMCData
       real(dp) :: norm_psi_squared
       real(dp) :: norm_psi
       INTEGER :: exFlag=3
+      real(dp) :: AccumRDMNorm, AccumRDMNorm_Inst, AllAccumRDMNorm
       
       !Hash tables to point to the correct determinants in CurrentDets
       integer , allocatable , target :: HashIndexArr2(:,:),HashIndexArr1(:,:)
@@ -185,7 +196,7 @@ MODULE FciMCData
       integer :: nSingles, nDoubles
       
       ! Bit representation of the HF determinant
-      integer(kind=n_int), allocatable :: iLutHF(:)
+      integer(kind=n_int), allocatable :: iLutHF(:), iLutHF_True(:)
     
       REAL(KIND=sp) :: IterTime
     
@@ -306,6 +317,8 @@ MODULE FciMCData
       type(c_ptr) :: ptr_encode_child
       type(c_ptr) :: ptr_attempt_die
       type(c_ptr) :: ptr_iter_data
+      type(c_ptr) :: ptr_extract_bit_rep_avsign
+      type(c_ptr) :: ptr_fill_rdm_diag_currdet
 
       integer :: yama_global (4)
 

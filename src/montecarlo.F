@@ -63,6 +63,7 @@ C.. change the spin
             ENDIF
             CALL HUB_PBC(NQN,NBASISMAX)
 !            IT=IFINDBASISFN(NQN,G1,NBASIS)
+            IT=0
             IF(IT.EQ.0) THEN 
                L=.TRUE.
             ELSE
@@ -173,6 +174,7 @@ C.. we need to keep on doing this until we make a valid choice
 C.. We keep spin fixed here.
         call stop_all('GENNEWDET3',
      &         'G1 variable needs to be made into a BasisFN.')
+         IT=0
          DO WHILE(L)
             L=.FALSE.
             IEL=INT(RAN2(ISEED)*NEL)+1

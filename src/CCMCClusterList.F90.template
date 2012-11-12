@@ -208,7 +208,7 @@ SUBROUTINE CalcClusterEnergy (tFCI,AL,iAmpList,nExcit,ExcitList,ExcitLevelIndex,
          i=i*ExcitToDetSign(iLutHF,ExcitList(:,j),iC)
          if (iProcIndex.eq.root) then
             temp_sign=0
-            !ASSERT(.not.(lenof_sign == 1 .and. amp(1) /= 0))
+            ASSERT(lenof_sign == 1 .and. amp(1) /= 0)
             if(amp(1).ne.0) then
                temp_sign(1)=i
             else
@@ -330,7 +330,7 @@ SUBROUTINE CalcClusterEnergyUnsrt (tFCI,AL,iAmpList,nExcit,ExcitList,iRefPos,dNo
       if(dAmp.ne.0.d0) then
          if (iProcIndex.eq.root) then
             temp_sign=0
-            ASSERT(.not.(lenof_sign == 1 .and. amp(1) /= 0))
+            ASSERT(lenof_sign == 1 .and. amp(1) /= 0)
             if(amp(1).ne.0) then
                temp_sign(1)=i
             else
@@ -671,7 +671,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,
       endif
    endif
    if(CS%%tInitiators) then
-      CS%%C%%initFlag=ilutFlag(NOffFlag)
+      CS%%C%%initFlag=int(ilutFlag(NOffFlag),sizeof_int)
    else
       CS%%C%%initFlag=0
    endif
@@ -846,8 +846,8 @@ subroutine CalcTotals (iNumExcitors, dTotAbsAmpl, dNorm, AL, iAmpList, nAmpl,&
       TotWalkers=0
    endif
    if(iProcIndex==root) then
-      iter_data_ccmc%%update_growth=iter_data_ccmc%%update_growth+TotParts-iOldTotParts
-      iOldTotParts=TotParts
+      iter_data_ccmc%%update_growth=iter_data_ccmc%%update_growth+int(TotParts-iOldTotParts,sizeof_int)
+      iOldTotParts=int(TotParts,sizeof_int)
    else
       iter_data_ccmc%%update_growth=0
       iOldTotParts=0

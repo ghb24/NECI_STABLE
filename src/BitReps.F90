@@ -3,7 +3,7 @@ module bit_reps
     use SystemData, only: nel, tCSF, tTruncateCSF, nbasis, csf_trunc_level
     use CalcData, only: tTruncInitiator
     use csf_data, only: csf_yama_bit, csf_test_bit
-    use constants
+    use constants, only: lenof_sign, end_n_int, bits_n_int, n_int, dp,sizeof_int
     use DetBitOps, only: count_open_orbs
     use bit_rep_data
     use SymExcitDataMod, only: excit_gen_store_type, tBuildOccVirtList, &
@@ -212,10 +212,11 @@ contains
             call decode_bit_det (nI, ilut)
         endif
 
-        sgn = iLut(NOffSgn:NOffSgn+lenof_sign-1)
+        sgn = int(iLut(NOffSgn:NOffSgn+lenof_sign-1),sizeof_int)
         real_sgn = transfer(sgn, real_sgn)
+        
         IF(NifFlag.eq.1) THEN
-            flags = iLut(NOffFlag)
+            flags = int(iLut(NOffFlag),sizeof_int)
         ELSE
             flags = 0
         ENDIF
@@ -227,8 +228,9 @@ contains
         integer :: sgn(lenof_sign)
         real(dp), intent(out) :: real_sgn(lenof_sign)
 
-        sgn = iLut(NOffSgn:NOffSgn+lenof_sign-1)
+        sgn = int(iLut(NOffSgn:NOffSgn+lenof_sign-1),sizeof_int)
         real_sgn = transfer(sgn, real_sgn)
+
     end subroutine extract_sign
 
     function extract_flags (iLut)
@@ -236,7 +238,7 @@ contains
         integer :: extract_flags
 
         IF(NIfFlag.eq.1) THEN
-            extract_flags = iLut(NOffFlag)
+            extract_flags = int(iLut(NOffFlag),sizeof_int)
         ELSE
             extract_flags = 0
         ENDIF
@@ -250,7 +252,7 @@ contains
         integer :: sgn
         real(dp) :: real_sgn
 
-        sgn = ilut(nOffSgn + part_type - 1)
+        sgn = int(ilut(nOffSgn + part_type - 1),sizeof_int)
         real_sgn = transfer(sgn, real_sgn)
 
     end function
@@ -573,7 +575,7 @@ contains
             do i = 0, NIfD
                 do j = 0, bits_n_int - 1, 8
 !                    val = iand(ishft(ilut(i), -j), Z'FF')
-                    val = iand(ishft(ilut(i), -j), int(255,n_int))
+                    val = int(iand(ishft(ilut(i), -j), int(255,n_int)),sizeof_int)
                     do k = 1, decode_map_arr(0, val)
                         elec = elec + 1
                         nI(elec) = offset + decode_map_arr(k, val)
@@ -595,7 +597,6 @@ contains
         endif
 
     end subroutine
-
 
     subroutine decode_bit_det_bitwise (nI, iLut)
 
@@ -676,7 +677,6 @@ contains
             enddo
         endif
     end subroutine decode_bit_det_bitwise
-
 
 !    subroutine init_excitations()
 !        ! Allocate and initialise data in excit_mask.

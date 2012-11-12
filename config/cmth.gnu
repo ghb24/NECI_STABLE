@@ -6,7 +6,7 @@ ldflags =
 compiler = GCC-f95-on-LINUX
 cpp = cpp -C -traditional
 cppflags = -D__Linux -DPOINTER8 -DHAVE_SSE2 -D__INT64
-libs = -lfftw3 -lacml -lstdc++ -lrt
+libs = -lfftw3 -lacml -lstdc++ -lrt -lm
 module_flag = -J
 
 [dbg]

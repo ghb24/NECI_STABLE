@@ -7,6 +7,7 @@ MODULE PopsfileMod
                         tReadPopsRestart, tRegenDiagHEls,InitWalkers, tReadPopsChangeRef, &
                         nShiftEquilSteps,iWeightPopRead,iPopsFileNoRead,tPopsMapping,Tau
     use DetBitOps, only: DetBitLT,FindBitExcitLevel,DetBitEQ
+    use hash , only : DetermineDetNode
     use Determinants, only : get_helement,write_det
     use hphf_integrals, only: hphf_diag_helement
     use MI_integrals, only: MI_diag_helement
@@ -14,7 +15,8 @@ MODULE PopsfileMod
     use FciMCData
     use bit_reps
     use Parallel_neci
-    use AnnihilationMod, only: DetermineDetNode,FindWalkerHash,EnlargeHashTable
+!    use AnnihilationMod, only: DetermineDetNode,FindWalkerHash,EnlargeHashTable,IsUnoccDet
+    use AnnihilationMod, only: FindWalkerHash,EnlargeHashTable,IsUnoccDet
     USE Logging , only : iWritePopsEvery,tPopsFile,iPopsPartEvery,tBinPops
     USE Logging , only : tPrintPopsDefault,tIncrementPops, tPrintInitiators
     use sort_mod
@@ -130,6 +132,9 @@ MODULE PopsfileMod
 
         CurrHF=0.0_dp        !Number of HF walkers on each node.
         CurrParts=0.0     !Number of walkers on each node.
+        write(6,*) "ReadBatch: ",ReadBatch
+        write(6,*) "MaxSendIndex: ",MaxSendIndex
+
         CurrWalkers=0   !Number of determinants on each node.
         nBatches=0      !Number of batches of walkers it takes to distribute popsfile.
         Det=1
@@ -192,6 +197,7 @@ MODULE PopsfileMod
         if(iProcIndex.eq.Root) close(iunit)
 
         !Test we have still got all determinants
+        write(6,*) "CurrWalkers: ",CurrWalkers
         TempCurrWalkers=int(CurrWalkers,int64)
         call MPISum(TempCurrWalkers,1,AllCurrWalkers)
         if(iProcIndex.eq.Root) then
@@ -233,8 +239,8 @@ MODULE PopsfileMod
                 if(CurrHF(1).ne.0) then
                     call stop_all(this_routine,"HF already found, but shouldn't have")
                 endif
-                CurrHF=CurrHF+real(SignTemp,dp)
-                IF(.not.tRegenDiagHEls) CurrentH(i)=0.D0
+                CurrHF=CurrHF+SignTemp 
+                IF(.not.tRegenDiagHEls) CurrentH(1,i)=0.D0
             else
                 if(.not.tRegenDiagHEls) THEN
                 !Calculate diagonal matrix element
@@ -246,7 +252,7 @@ MODULE PopsfileMod
                     else
                         HElemTemp = get_helement (TempnI, TempnI, 0)
                     endif
-                    CurrentH(i)=REAL(HElemTemp,dp)-Hii
+                    CurrentH(1,i)=REAL(HElemTemp,dp)-Hii
                 endif
             endif
         enddo
@@ -443,7 +449,7 @@ MODULE PopsfileMod
             tSinglePartPhase=.true.
             !If continuing to grow, ensure we can allocate enough memory for what we hope to get the walker population to,
             !rather than the average number of determinants in the popsfile.
-            WalkerListSize=nint(max(initwalkers,real(iPopAllTotWalkers,dp)/real(nNodes,dp)))
+            WalkerListSize=int(max(initwalkers,NINT(real(iPopAllTotWalkers,dp)/real(nNodes,dp),int64)),sizeof_int)
         else
             tSinglePartPhase=.false.
             WalkerListSize=NINT(real(iPopAllTotWalkers,dp)/real(nNodes,dp))
@@ -704,7 +710,7 @@ MODULE PopsfileMod
 !necessarily contiguous any more, we have to calculate Alltotwalkers seperately.
         if(tHashwalkerlist) then
             Writeoutdet=0
-            do i=1,nDets
+            do i=1,int(nDets,sizeof_int)
                 call extract_sign(Dets(:,i),TempSign)
                 if(.not.IsUnoccDet(TempSign)) then
                     !Count this det in AllTotWalkers
@@ -818,7 +824,7 @@ MODULE PopsfileMod
             endif
 
             IF(tBinPops) THEN
-                do j=1,nDets
+                do j=1,int(nDets,sizeof_int)
 !First write out walkers on head node
 !                    write(6,*) j,nDets
 !                    call flush(6)
@@ -840,7 +846,7 @@ MODULE PopsfileMod
                     endif
                 enddo
             ELSE
-                do j=1,nDets
+                do j=1,int(nDets,sizeof_int)
 !First write out walkers on head node
                     call extract_sign(Dets(:,j),TempSign)
                     if(IsUnoccDet(TempSign)) cycle
@@ -871,7 +877,7 @@ MODULE PopsfileMod
 !            CALL neci_flush(6)
 
 !Now, we copy the head nodes data to a new array...
-            nMaxDets=maxval(WalkersOnNodes)
+            nMaxDets=int(maxval(WalkersOnNodes),sizeof_int)
             ALLOCATE(Parts(0:NIfTot,nMaxDets),stat=error)
             CALL LogMemAlloc('Parts',int(nMaxDets,int32)*(NIfTot+1),size_n_int,this_routine,PartsTag,error)
 
@@ -879,14 +885,14 @@ MODULE PopsfileMod
 !We can overwrite the head nodes information, since we have now stored it elsewhere.
             do i=1,nNodes-1
 !Run through all other processors...receive the data...
-                j=WalkersonNodes(i)*(NIfTot+1)
+                j=int(WalkersonNodes(i),sizeof_int)*(NIfTot+1)
                 CALL MPIRecv(Parts(0:NIfTot,1:WalkersonNodes(i)),j,NodeRoots(i),Tag,error)
 !                WRITE(6,*) "Recieved walkers for processor ",i,WalkersOnNodes(i)
 !                CALL neci_flush(6)
                 
 !Then write it out...
                 IF(tBinPops) THEN
-                    do j=1,WalkersonNodes(i)
+                    do j=1,int(WalkersonNodes(i),sizeof_int)
 !                        write(6,*) j,WalkersonNodes(i)
 !                        call flush(6)
                         call extract_sign(Parts(:,j),TempSign)
@@ -908,7 +914,7 @@ MODULE PopsfileMod
                         endif
                     enddo
                 ELSE
-                    do j=1,WalkersonNodes(i)
+                    do j=1,int(WalkersonNodes(i),sizeof_int)
                         call extract_sign(Parts(:,j),TempSign)
                         if(IsUnoccDet(TempSign)) cycle
                         IF(mod(j,iPopsPartEvery).eq.0) THEN
@@ -947,7 +953,7 @@ MODULE PopsfileMod
 
         ELSEIF(bNodeRoot) THEN
 !All other processors need to send their data to root...
-            j=nDets*(NIfTot+1)
+            j=int(nDets,sizeof_int)*(NIfTot+1)
             CALL MPISend(Dets(0:NIfTot,1:nDets),j,root,Tag,error)
 !            WRITE(6,*) "Have sent info to head node..."
 !            CALL neci_flush(6)
@@ -964,11 +970,12 @@ MODULE PopsfileMod
 !This routine reads in particle configurations from a POPSFILE.
     SUBROUTINE ReadFromPopsfilePar()
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn,iWeightPopRead
-        use Logging, only: tZeroProjE
+        use Logging, only: tZeroProjE, tRDMonFly, tExplicitAllRDM, tHF_Ref_Explicit 
         use constants, only: size_n_int,bits_n_int
         LOGICAL :: exists,tBinRead
-        INTEGER :: AvWalkers,WalkerstoReceive(nProcessors)
         Real(dp) :: NodeSumNoatHF(nProcessors)
+        INTEGER :: WalkerstoReceive(nProcessors)
+        integer(int64) :: AvWalkers
         integer(int64) :: TempTotParts(lenof_sign),TempCurrWalkers
         INTEGER :: TempInitWalkers,error,i,j,l,total,ierr,MemoryAlloc,Tag,Proc,CurrWalkers,ii
         INTEGER , DIMENSION(lenof_sign) :: TempSign
@@ -1097,14 +1104,14 @@ MODULE PopsfileMod
             ENDIF
 
 !Need to calculate the number of walkers each node will receive...
-            AvWalkers=NINT(AllTotWalkers/real(nProcessors,dp))
+            AvWalkers=NINT(AllTotWalkers/real(nProcessors,dp),int64)
 
 !Divide up the walkers to receive for each node
             do i=1,nProcessors-1
-                WalkerstoReceive(i)=AvWalkers
+                WalkerstoReceive(i)=int(AvWalkers,sizeof_int)
             enddo
 !The last processor takes the 'remainder'
-            WalkerstoReceive(nProcessors)=AllTotWalkers-(AvWalkers*(nProcessors-1))
+            WalkerstoReceive(nProcessors)=int(AllTotWalkers-(AvWalkers*(nProcessors-1)),sizeof_int)
 
 !Quick check to ensure we have all walkers accounted for
             total=0
@@ -1123,7 +1130,7 @@ MODULE PopsfileMod
                 TSinglePartPhase=.true.
             ENDIF
             SumENum=AllSumENum/REAL(nProcessors,dp)     !Divide up the SumENum over all processors
-            AvSumNoatHF = AllSumNoatHF(1)/nProcessors !This is the average Sumnoathf
+            AvSumNoatHF = int(AllSumNoatHF(1)/nProcessors,sizeof_int) !This is the average Sumnoathf
             do i=1,nProcessors-1
                 NodeSumNoatHF(i)=real(INT(AvSumNoatHF,int64),dp)
             enddo
@@ -1199,14 +1206,36 @@ MODULE PopsfileMod
 
 !Need to now allocate other arrays
         IF(.not.tRegenDiagHEls) THEN
-            ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
-            CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
-            WalkVecH(:)=0.d0
-            MemoryAlloc=MemoryAlloc+8*MaxWalkersPart
+            if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
+                ALLOCATE(WalkVecH(3,MaxWalkersPart),stat=ierr)
+                CALL LogMemAlloc('WalkVecH',3*MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
+                WalkVecH(:,:)=0.d0
+                MemoryAlloc=MemoryAlloc+8*MaxWalkersPart*3
+                WRITE(6,"(A)") " The current signs before death will be store for use in the RDMs."
+                WRITE(6,"(A,F14.6,A)") " This requires ", REAL(MaxWalkersPart*8*3,dp)/1048576.D0," Mb/Processor"
+                NCurrH = 3
+            else
+                ALLOCATE(WalkVecH(1,MaxWalkersPart),stat=ierr)
+                CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
+                WalkVecH(:,:)=0.d0
+                MemoryAlloc=MemoryAlloc+8*MaxWalkersPart
+                NCurrH = 1
+            endif
         ELSE
-            WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ", &
-             & REAL(MaxWalkersPart*8,dp)/1048576.D0," Mb/Processor"
+            WRITE(6,"(A,F14.6,A)") " Diagonal H-Elements will not be stored. This will *save* ", &
+                & REAL(MaxWalkersPart*8,dp)/1048576.D0," Mb/Processor"
         ENDIF
+
+        if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
+!Allocate memory to hold walkers spawned from one determinant at a time.
+!Walkers are temporarily stored here, so we can check if we're spawning onto the same Dj multiple times.
+            ALLOCATE(TempSpawnedParts(0:NIfDBO,20000),stat=ierr)
+            CALL LogMemAlloc('TempSpawnedParts',20000*(NIfDBO+1),size_n_int,this_routine,TempSpawnedPartsTag,ierr)
+            TempSpawnedParts(0:NIfDBO,1:20000)=0
+            MemoryAlloc=MemoryAlloc + (NIfDBO+1)*20000*size_n_int    !Memory Allocated in bytes
+            WRITE(6,"(A)") " Allocating temporary array for walkers spawned from a particular Di."
+            WRITE(6,"(A,F14.6,A)") " This requires ", REAL(((NIfDBO+1)*20000*size_n_int),dp)/1048576.D0," Mb/Processor"
+        endif
 
         IF(.not.tRegenDiagHEls) THEN
             CurrentH=>WalkVecH
@@ -1248,7 +1277,7 @@ MODULE PopsfileMod
         CurrWalkers=0
         sign_largest = 0
         ilut_largest = 0
-        do i=1,AllTotWalkers
+        do i=1,int(AllTotWalkers,sizeof_int)
             iLutTemp(:)=0
             IF(PopsVersion.ne.1) THEN
                 IF(tBinRead) THEN
@@ -1436,11 +1465,11 @@ MODULE PopsfileMod
 
 !Now find out the data needed for the particles which have been read in...
         TotParts=0
-        do j=1,TotWalkers
+        do j=1,int(TotWalkers,sizeof_int)
             call decode_bit_det (TempnI, currentDets(:,j))
             Excitlevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j), 2)
             IF(Excitlevel.eq.0) THEN
-                IF(.not.tRegenDiagHEls) CurrentH(j)=0.D0
+                IF(.not.tRegenDiagHEls) CurrentH(1,j)=0.D0
             ELSE
                 IF(.not.tRegenDiagHEls) THEN
                     if (tHPHF) then
@@ -1451,7 +1480,7 @@ MODULE PopsfileMod
                     else
                         HElemTemp = get_helement (TempnI, TempnI, 0)
                     endif
-                    CurrentH(j)=REAL(HElemTemp,dp)-Hii
+                    CurrentH(1,j)=REAL(HElemTemp,dp)-Hii
                 ENDIF
 
             ENDIF
@@ -1509,6 +1538,8 @@ MODULE PopsfileMod
         LOGICAL :: tPop64BitDets,tPopHPHF,tPopLz,tPopInitiator
         integer(n_int) :: ilut_largest(0:NIfTot)
         real(dp) :: sign_largest
+
+        MemoryAlloc = 0
 
         IF(lenof_sign.ne.1) CALL Stop_All("ReadFromPopsfilePar","Popsfile does not work with complex walkers")
         
@@ -1626,7 +1657,7 @@ MODULE PopsfileMod
                 TSinglePartPhase=.true.
             ENDIF
             SumENum=AllSumENum/REAL(nProcessors,dp)     !Divide up the SumENum over all processors
-            AvSumNoatHF = AllSumNoatHF(1)/nProcessors !This is the average Sumnoathf
+            AvSumNoatHF = int(AllSumNoatHF(1),sizeof_int)/nProcessors !This is the average Sumnoathf
 
             ProjectionE=AllSumENum/real(AllSumNoatHF(1),dp)
                 
@@ -1696,7 +1727,7 @@ MODULE PopsfileMod
         sign_largest = 0
         ilut_largest = 0
         write(6,*) "Reading in ", AllTotWalkers, " walkers"
-        do i=1,AllTotWalkers
+        do i=1,int(AllTotWalkers,sizeof_int)
             iLutTemp(:)=0
             IF(PopsVersion.ne.1) THEN
                 IF(tBinRead) THEN
@@ -1847,7 +1878,7 @@ MODULE PopsfileMod
 
 !Now find out the data needed for the particles which have been read in...
         TotParts=0
-        do j=1,nDets
+        do j=1,int(nDets,sizeof_int)
             call extract_sign(Dets(:,j),RealTempSign)
             TotParts=TotParts+abs(RealTempSign(1))
         enddo

@@ -1,6 +1,6 @@
 #include "macros.h"
 module errors
-    use constants, only: dp, int64,lenof_sign
+    use constants, only: dp, int64,lenof_sign,sizeof_int
     use Parallel_neci, only: iProcIndex,Root
     use util_mod, only: get_free_unit
     use CalcData, only: SftDamp
@@ -554,16 +554,16 @@ module errors
                     ! Therefore we can safely wipe the stats.
                     if (iters > iShiftVary) then
                         tRefToZero = .true.
-                        ValidData = 0
-                        iShiftVary = Iters + 1
-                    end if
+                        validdata=0
+                        iShiftVary = int(Iters,sizeof_int) + 1
+                    endif
                 else
                     if(iters.gt.iShiftVary) then
                         if(abs(denom).lt.1.0e-5_dp) then
                             !Denominator gone to zero - wipe the stats
                             tRefToZero = .true.
                             validdata=0
-                            iShiftVary = Iters + 1
+                            iShiftVary = int(Iters,sizeof_int) + 1
                         else
                             validdata=validdata+1
                         endif

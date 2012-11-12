@@ -213,7 +213,7 @@ contains
 !   we don't have symmetry, so fake it.
                    SymClasses((I+1)/2)=1
                 ELSE
-              SymClasses((I+1)/2)=G1(I)%Sym%s+1
+              SymClasses((I+1)/2)=int(G1(I)%Sym%s,sizeof_int)+1
                 ENDIF
              ENDDO
 !   list the symmetry string of each sym label
@@ -1957,10 +1957,10 @@ contains
       integer(int64) Isym
       integer  AbelSym(3)
 !RShift
-      AbelSym(3)=IShft(Isym,-(PropBitLen*2))
+      AbelSym(3)=int(IShft(Isym,-(PropBitLen*2)),sizeof_int)
 !RShift
-      AbelSym(2)=Iand(IShft(ISym,-PropBitLen),2_int64**PropBitLen-1)
-      AbelSym(1)=Iand(Isym,2_int64**PropBitLen-1)
+      AbelSym(2)=int(Iand(IShft(ISym,-PropBitLen),2_int64**PropBitLen-1),sizeof_int)
+      AbelSym(1)=int(Iand(Isym,2_int64**PropBitLen-1),sizeof_int)
       return
       end subroutine DecomposeAbelianSym
 
@@ -2066,7 +2066,7 @@ contains
         do i=1,Nirrep
             basirrep=SYMLABELCOUNTS(2,i)
             iSize=iSize+(basirrep*(basirrep+1))/2
-            SYMLABELINTSCUM(i)=iSize
+            SYMLABELINTSCUM(i)=int(iSize,sizeof_int)
             IF(i.eq.1) THEN
                 SYMLABELCOUNTSCUM(i)=0
             ELSE
