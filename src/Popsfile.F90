@@ -16,7 +16,7 @@ MODULE PopsfileMod
     use bit_reps
     use Parallel_neci
 !    use AnnihilationMod, only: DetermineDetNode,FindWalkerHash,EnlargeHashTable,IsUnoccDet
-    use AnnihilationMod, only: FindWalkerHash,EnlargeHashTable,IsUnoccDet
+    use AnnihilationMod, only: FindWalkerHash,EnlargeHashTable
     USE Logging , only : iWritePopsEvery,tPopsFile,iPopsPartEvery,tBinPops
     USE Logging , only : tPrintPopsDefault,tIncrementPops, tPrintInitiators
     use sort_mod
@@ -449,7 +449,7 @@ MODULE PopsfileMod
             tSinglePartPhase=.true.
             !If continuing to grow, ensure we can allocate enough memory for what we hope to get the walker population to,
             !rather than the average number of determinants in the popsfile.
-            WalkerListSize=int(max(initwalkers,NINT(real(iPopAllTotWalkers,dp)/real(nNodes,dp),int64)),sizeof_int)
+            WalkerListSize=int(max(int(initwalkers,int64),NINT(real(iPopAllTotWalkers,dp)/real(nNodes,dp),int64)),sizeof_int)
         else
             tSinglePartPhase=.false.
             WalkerListSize=NINT(real(iPopAllTotWalkers,dp)/real(nNodes,dp))

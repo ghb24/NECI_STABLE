@@ -105,7 +105,7 @@ MODULE FciMCParMod
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
     use MI_integrals
     use util_mod
-    use constants, only: dp, int64, n_int, lenof_sign, sizeof_int
+    use constants, only: dp, int64, n_int, lenof_sign, sizeof_int, null_part
     use soft_exit, only: ChangeVars 
     use FciMCLoggingMod, only: FinaliseBlocking, FinaliseShiftBlocking, &
                                PrintShiftBlocking, PrintBlocking, &
@@ -811,7 +811,7 @@ MODULE FciMCParMod
                 integer(n_int), intent(in) :: iLutnI(0:nIfTot)
                 real(dp) , intent(in) :: CurrH_I(NCurrH)
                 integer, intent(out) :: nI(nel), FlagsI
-                integer, dimension(lenof_sign), intent(out) :: SignI
+                real(dp), dimension(lenof_sign), intent(out) :: SignI
                 real(dp) , intent(out) :: IterRDMStartI, AvSignI
                 type(excit_gen_store_type), intent(inout), optional :: Store
             end subroutine
@@ -983,7 +983,7 @@ MODULE FciMCParMod
                 integer(n_int), intent(in) :: iLutnI(0:nIfTot)
                 real(dp) , intent(in) :: CurrH_I(NCurrH)
                 integer, intent(out) :: nI(nel), FlagsI
-                integer, dimension(lenof_sign), intent(out) :: SignI
+                real(dp), dimension(lenof_sign), intent(out) :: SignI
                 real(dp) , intent(out) :: IterRDMStartI, AvSignI
                 type(excit_gen_store_type), intent(inout), optional :: Store
             end subroutine
@@ -1141,7 +1141,7 @@ MODULE FciMCParMod
 
                 ! TODO: Ensure that the HF determinant has its flags setup
                 !       correctly at the start of a run.
-                call CalcParentFlag (j, VecSlot, parent_flags, walkExcitLevel)
+                call CalcParentFlag (j, VecSlot, parent_flags)
 
                 ! If we are only spawning from initiators, we don't need to do this decoding
                 ! if CurrentDet is a non-initiator otherwise it is necessary either way.
@@ -1336,7 +1336,8 @@ MODULE FciMCParMod
                         call create_particle (nJ, iLutnJ, child, &
                                               parent_flags, part_type,& 
                                               CurrentDets(:,j),SignCurr,p,&
-                                              RDMBiasFacCurr)
+                                              RDMBiasFacCurr, WalkersToSpawn, &
+                                              NoMCExcits)
                                               ! RDMBiasFacCurr is only used if we're 
                                               ! doing an RDM calculation.
 
@@ -1348,7 +1349,7 @@ MODULE FciMCParMod
             
             ! DEBUG
             ! if (VecSlot > j) call stop_all (this_routine, 'vecslot > j')
-            
+          
             call walker_death (attempt_die, iter_data, DetCurr, &
                                CurrentDets(:,j), HDiagCurr, SignCurr, &
                                AvSignCurr, IterRDMStartCurr, VecSlot, j, WalkExcitLevel)
@@ -1383,7 +1384,7 @@ MODULE FciMCParMod
             ! in the main array, before annihilation
             TotWalkersNew = VecSlot - 1
         endif
-
+            
         ! Update the statistics for the end of an iteration.
         ! Why is this done here - before annihilation!
         call end_iter_stats(TotWalkersNew)
@@ -1507,9 +1508,9 @@ MODULE FciMCParMod
         iUnused = iLutI(0); iUnused = iLutJ(0)
 
     end subroutine
-                        
+
     subroutine create_particle (nJ, iLutJ, child, parent_flags, part_type, iLutI, SignI, &
-                                                WalkerNumber, RDMBiasFacCurr)
+                                WalkerNumber, RDMBiasFacCurr, WalkersToSpawn, NoMCExcits)
 
         ! Create a child in the spawned particles arrays. We spawn particles
         ! into a separate array, but non-contiguously. The processor that the
@@ -1521,9 +1522,11 @@ MODULE FciMCParMod
         integer(kind=n_int), intent(in) :: iLutJ(0:niftot)
         real(dp), dimension(lenof_sign), intent(in) :: child
         integer(kind=n_int), intent(in), optional :: iLutI(0:niftot)
-        integer, dimension(lenof_sign), intent(in), optional :: SignI
+        real(dp), dimension(lenof_sign), intent(in), optional :: SignI
         integer, intent(in) :: parent_flags
         integer, intent(in), optional :: WalkerNumber
+        integer, intent(in), optional :: WalkersToSpawn
+        integer, intent(in), optional :: NoMCExcits
         ! 'type' of the particle - i.e. real/imag
         integer, intent(in) :: part_type
         real(dp) , intent(in) , optional :: RDMBiasFacCurr
@@ -1553,7 +1556,7 @@ MODULE FciMCParMod
                             child, flags)
 
         IF(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) &
-                call store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, SignI, iLutJ, proc)
+                call store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, WalkersToSpawn*NoMCExcits, iLutJ, proc)
         !We are spawning from iLutI to SpawnedParts(:,ValidSpawnedList(proc)).
         !We want to store the parent (D_i) with the spawned child (D_j) so that we can
         !add in Ci.Cj to the RDM later on.
@@ -1578,6 +1581,7 @@ MODULE FciMCParMod
         ENDIF
 
         ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
+        
         ! Sum the number of created children to use in acceptance ratio.
         acceptances = acceptances + sum(abs(child))
     end subroutine
@@ -1661,7 +1665,6 @@ MODULE FciMCParMod
         integer, intent(in) :: j, VecSlot
         integer, intent(out) :: parent_flags
         real(dp), dimension(lenof_sign) :: CurrentSign
-        integer, intent(in), optional :: ExcitLevel
         integer :: part_type
         logical :: tDetinCAS, parent_init
 
@@ -2233,7 +2236,7 @@ MODULE FciMCParMod
 
             if(tFillingStochRDMonFly) then
                 if((child(1).ne.0).and.(.not.tHF_Ref_Explicit)) then
-                    call calc_rdmbiasfac(extraCreate, rat, prob, AvSignCurr, wSign, RDMBiasFacCurr) 
+                    call calc_rdmbiasfac(extraCreate, rat, prob, AvSignCurr, realwSign, RDMBiasFacCurr) 
                 else
                     RDMBiasFacCurr = 0.0_dp
                 endif
@@ -2306,7 +2309,8 @@ MODULE FciMCParMod
             ENDIF
         elseif(tMomInv) then
 
-            write(iout,*) "AttemptCreatePar is a depreciated routine, and is not compatible with MomInv - use attempt_create_normal"
+            write(iout,*) "AttemptCreatePar is a depreciated routine, and is not compatible &
+                                    & with MomInv - use attempt_create_normal"
             call stop_all("AttemptCreatePar","This is a depreciated routine.")
         ELSE
 !Normal determinant spawn
@@ -2521,7 +2525,6 @@ MODULE FciMCParMod
         NoBorn = NoBorn + sum(max(iDie - abs(realwSign), 0.0_dp))
 
         ! Calculate new number of signed particles on the det.
-<<<<<<< HEAD
         CopySign = RealwSign - (iDie * sign(1.0_dp, RealwSign))
 
         ! In the initiator approximation, abort any anti-particles.
@@ -2563,6 +2566,7 @@ MODULE FciMCParMod
                     CurrentH(2,VecSlot) = wAvSign
                     CurrentH(3,VecSlot) = IterRDMStartCurr
                 endif
+                Vecslot = Vecslot + 1
             endif
         else
             !All walkers died
@@ -2597,7 +2601,7 @@ MODULE FciMCParMod
                 iEndFreeSlot=iEndFreeSlot+1
                 FreeSlot(iEndFreeSlot)=DetPosition
                 !Encode a null det to be picked up
-                call encode_sign(CurrentDets(:,DetPosition),NullSign)
+                call encode_sign(CurrentDets(:,DetPosition),null_part)
             endif
         endif
 
@@ -3948,13 +3952,13 @@ MODULE FciMCParMod
 
         if(tFillingStochRDMonFly) then
             call MPISumAll_inplace (InstNoatHF)
-            if(InstNoatHF(1).eq.0) then
+            if(InstNoatHF(1).eq.0.0) then
                 IterRDM_HF = Iter + 1 
                 AvNoatHF = 0.0_dp
             else
                 Prev_AvNoatHF = AvNoatHF
                 AvNoatHF = ( (real((Iter - IterRDM_HF),dp) * Prev_AvNoatHF) &
-                    + real(InstNoatHF(1),dp) ) / real((Iter - IterRDM_HF) + 1,dp)
+                    + InstNoatHF(1) ) / real((Iter - IterRDM_HF) + 1,dp)
             endif
         endif
         HFInd = 0            
@@ -6651,10 +6655,11 @@ MODULE FciMCParMod
                             PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot)
                     read_tau=0.0_dp !Indicate that this was not read in.
                 elseif(PopsVersion.eq.4) then
-                    call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                            iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                            PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
-                    !The only difference between 3 & 4 is just that 4 reads in via a namelist, so that we can add more details whenever we want.
+                    call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel,&
+                          iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+                          PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
+                    !The only difference between 3 & 4 is just that 4 reads in via a namelist, 
+                    !so that we can add more details whenever we want.
                 else
                     call stop_all(this_routine,"Popsfile version invalid")
                 endif

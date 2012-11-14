@@ -793,7 +793,7 @@ MODULE nElRDMMod
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         real(dp) , intent(in) :: CurrH_I(NCurrH)
         integer, intent(out) :: nI(nel), FlagsI
-        integer, dimension(lenof_sign), intent(out) :: SignI
+        real(dp), dimension(lenof_sign), intent(out) :: SignI
         real(dp) , intent(out) :: IterRDMStartI, AvSignI
         type(excit_gen_store_type), intent(inout), optional :: Store
 
@@ -826,7 +826,7 @@ MODULE nElRDMMod
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         real(dp) , intent(in) :: CurrH_I(NCurrH)
         integer, intent(out) :: nI(nel), FlagsI
-        integer, dimension(lenof_sign), intent(out) :: SignI
+        real(dp), dimension(lenof_sign), intent(out) :: SignI
         real(dp) , intent(out) :: IterRDMStartI, AvSignI
         type(excit_gen_store_type), intent(inout), optional :: Store
 
@@ -843,7 +843,7 @@ MODULE nElRDMMod
         ! This just comes out as the current population (SignI) if this is the first 
         ! time the determinant has become occupied.
         AvSignI = ( ((real(Iter,dp) - IterRDMStartI) * CurrH_I(2)) &
-                        + real(SignI(1),dp) ) / ( real(Iter,dp) - IterRDMStartI + 1.0_dp )
+                        + SignI(1) ) / ( real(Iter,dp) - IterRDMStartI + 1.0_dp )
 
     end subroutine extract_bit_rep_avsign_norm
 
@@ -1221,7 +1221,7 @@ MODULE nElRDMMod
         implicit none
         integer, intent(in) :: mult_child
         real(dp), intent(in) :: rat_remain, p_gen, AvSignCurr
-        integer, dimension(lenof_sign), intent(in) :: SignCurr
+        real(dp), dimension(lenof_sign), intent(in) :: SignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
         real(dp) :: p_spawn_rdmfac, p_notlist_rdmfac
 
@@ -1257,19 +1257,19 @@ MODULE nElRDMMod
             if(abs(AvSignCurr).gt.real(InitiatorWalkNo,dp)) then
                 ! The Di is an initiator (on average) - keep passing around its sign until we 
                 ! know if the Dj is an initiator.
-                RDMBiasFacCurr = AvSignCurr / abs( 1.0_dp - ( p_notlist_rdmfac ** (abs(real(SignCurr(1),dp))) ) )   
+                RDMBiasFacCurr = AvSignCurr / abs( 1.0_dp - ( p_notlist_rdmfac ** (abs(SignCurr(1))) ) )   
             else
                 ! The determinant we are spawning from is not an initiator (on average) 
                 ! - do not want to add this Di.Dj contribution into the RDM.
                 RDMBiasFacCurr = 0.0_dp
             endif
         else
-            RDMBiasFacCurr = AvSignCurr / abs( 1.0_dp - ( p_notlist_rdmfac ** (abs(real(SignCurr(1),dp))) ) )   
+            RDMBiasFacCurr = AvSignCurr / abs( 1.0_dp - ( p_notlist_rdmfac ** (abs(SignCurr(1))) ) )   
         endif
 
     end subroutine calc_rdmbiasfac
 
-    subroutine store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, SignI, iLutJ, procJ)
+    subroutine store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, DetSpawningAttempts, iLutJ, procJ)
     !We are spawning from iLutI to SpawnedParts(:,ValidSpawnedList(proc)).
     !This routine stores the parent (D_i) with the spawned child (D_j) so that we can
     !add in Ci.Cj to the RDM later on.
@@ -1280,7 +1280,7 @@ MODULE nElRDMMod
         implicit none
         real(dp), intent(in) :: RDMBiasFacCurr
         integer, intent(in) :: WalkerNumber, procJ
-        integer, dimension(lenof_sign), intent(in) :: SignI
+        integer, intent(in) :: DetSpawningAttempts
         integer(kind=n_int), intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
         logical :: tRDMStoreParent
         integer :: j
@@ -1318,7 +1318,7 @@ MODULE nElRDMMod
             if(tRDMStoreParent) then
                 ! This is a new Dj that has been spawned from this Di.
                 ! We want to store it in the temporary list of spawned parts which have come from this Di.
-                if(WalkerNumber.ne.abs(SignI(1))) then
+                if(WalkerNumber.ne.DetSpawningAttempts) then
                     ! Don't bother storing these if we're on the last walker, or if we only have one 
                     ! walker on Di.
                     TempSpawnedPartsInd = TempSpawnedPartsInd + 1
@@ -1843,7 +1843,7 @@ MODULE nElRDMMod
         INTEGER :: i,error
         REAL(dp) :: TempTotParts, NormalisationTemp, Sum_Coeffs
         LOGICAL :: blank_det
-        INTEGER, DIMENSION(lenof_sign) :: TempSign
+        REAL(dp), DIMENSION(lenof_sign) :: TempSign
 
 ! Run through the current determinants.
 ! Find the max number of determinants on a processor - all need to run through this 
@@ -1911,7 +1911,7 @@ MODULE nElRDMMod
                 blank_det=.false.
             ENDIF
 
-            TempSign(1) = i
+            TempSign(1) = real(i,dp)
             call encode_sign(iLutnI,TempSign)
 
             CALL Add_Hist_ExplicitRDM_Contrib(iLutnI,blank_det)
@@ -2027,7 +2027,7 @@ MODULE nElRDMMod
         implicit none
         INTEGER(kind=n_int) , INTENT(IN) :: iLutnI(0:NIfTot)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
-        INTEGER, dimension(lenof_sign) :: SignDi, SignDi2
+        REAL(dp), dimension(lenof_sign) :: SignDi, SignDi2
         INTEGER :: ExcitMat3(2,2),nI(NEl),nJ(NEl),Proc,FlagsDi,a,b,CountTemp
         LOGICAL :: tParity,tAllExcitFound
 
@@ -2148,12 +2148,14 @@ MODULE nElRDMMod
         INTEGER(kind=n_int) , INTENT(IN) :: iLutnI(0:NIfTot)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: HistPos
+        REAL(dp), dimension(lenof_sign) :: RealHistPos
         INTEGER :: ExcitMat3(2,2),nI(NEl),nJ(NEl),Proc,FlagsDi,a,b,CountTemp
         LOGICAL :: tParity,tAllExcitFound
         real(dp) :: realSignDi
 
-        call extract_bit_rep (iLutnI, nI, HistPos, FlagsDi)
+        call extract_bit_rep (iLutnI, nI, RealHistPos, FlagsDi)
 ! Unfortunately uses the decoded determinant - might want to look at this.        
+        HistPos=int(RealHistPos)
 
         realSignDi = AllHistogram(1,HistPos(1))/norm
         
@@ -2470,7 +2472,7 @@ MODULE nElRDMMod
         implicit none
         INTEGER(MPIArg), INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
-        INTEGER, dimension(lenof_sign) :: SignDi,SignDj, SignDi2,SignDj2
+        REAL(dp), dimension(lenof_sign) :: SignDi,SignDj, SignDi2,SignDj2
         INTEGER :: PartInd
         INTEGER :: i,j,NoDets,StartDets
         INTEGER :: nI(NEl),nJ(NEl),Ex(2,2),FlagsDi,FlagsDj
@@ -2544,7 +2546,7 @@ MODULE nElRDMMod
         implicit none
         INTEGER(MPIArg), INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
-        INTEGER, dimension(lenof_sign) :: SignDi,SignDj, SignDi2, SignDj2
+        REAL(dp), dimension(lenof_sign) :: SignDi,SignDj, SignDi2, SignDj2
         INTEGER :: PartInd
         INTEGER :: i,j,NoDets,StartDets
         INTEGER :: nI(NEl),nJ(NEl),Ex(2,2),FlagsDi,FlagsDj
@@ -2626,6 +2628,7 @@ MODULE nElRDMMod
         INTEGER(MPIArg), INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: HistPos
+        REAL(dp), dimension(lenof_sign) :: RealHistPos
         INTEGER :: PartInd, ExcitLevel
         INTEGER :: i,j,NoDets,StartDets
         INTEGER :: nI(NEl),nJ(NEl),Ex(2,2),FlagsDi,FlagsDj
@@ -2642,7 +2645,9 @@ MODULE nElRDMMod
             StartDets=(recvdisps(i)/(NIfTot+1))+1
 
             IF(NoDets.gt.1) THEN
-                call extract_bit_rep (Sing_ExcDjs2(:,StartDets), nI, HistPos, FlagsDi)
+                call extract_bit_rep (Sing_ExcDjs2(:,StartDets), nI, RealHistPos, FlagsDi)
+
+                HistPos=int(RealHistPos)
 
                 realSignDi = AllHistogram(1,HistPos(1))/norm
 
@@ -2710,6 +2715,7 @@ MODULE nElRDMMod
         INTEGER(MPIArg), INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: HistPos
+        REAL(dp), dimension(lenof_sign) :: RealHistPos
         INTEGER :: PartInd, ExcitLevel
         INTEGER :: i,j,NoDets,StartDets
         INTEGER :: nI(NEl),nJ(NEl),Ex(2,2),FlagsDi,FlagsDj
@@ -2728,7 +2734,9 @@ MODULE nElRDMMod
             StartDets=(recvdisps(i)/(NIfTot+1))+1
 
             IF(NoDets.gt.1) THEN
-                call extract_bit_rep (Doub_ExcDjs2(:,StartDets), nI, HistPos, FlagsDi)
+                call extract_bit_rep (Doub_ExcDjs2(:,StartDets), nI, RealHistPos, FlagsDi)
+
+                HistPos=int(RealHistPos)
 
                 realSignDi = AllHistogram(1,HistPos(1))/norm
 

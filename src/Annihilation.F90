@@ -420,8 +420,8 @@ MODULE AnnihilationMod
                         ! No point in doing anything more with it.
 
                         Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = SpawnedParts(NIfTot+1:NIfTot+NIfDBO+2,BeginningBlockDet)
-                        ! The first NIfDBO of the Spawned_Parents entry is the parent determinant, the NIfDBO + 1 entry is the biased Ci.
-                        ! Parent_Array_Ind keeps track of the position in Spawned_Parents.
+                        ! The first NIfDBO of the Spawned_Parents entry is the parent determinant, the NIfDBO + 1 entry 
+                        ! is the biased Ci. Parent_Array_Ind keeps track of the position in Spawned_Parents.
                         Spawned_Parents_Index(1,VecInd) = Parent_Array_Ind
                         Spawned_Parents_Index(2,VecInd) = 1
                         ! In this case there is only one instance of Dj - so therefore only 1 parent Di.
@@ -897,7 +897,7 @@ MODULE AnnihilationMod
                                             NoAborted = NoAborted + abs(SpawnedSign(j)) - abs(CurrentSign(j))
                                             iter_data%naborted(j) = iter_data%naborted(j) + &
                                                                     abs(SpawnedSign(j)) - abs(CurrentSign(j))
-                                            call encode_part_sign (CurrentDets(:,PartInd), 0, j)
+                                            call encode_part_sign (CurrentDets(:,PartInd), 0.0_dp , j)
                                         endif
                                     endif
                                 endif
@@ -1103,7 +1103,8 @@ MODULE AnnihilationMod
 
         if(.not.tHashWalkerList) then
 
-!Now we have to remove the annihilated particles from the spawned list. They will be removed from the main list at the end of the annihilation process.
+!Now we have to remove the annihilated particles from the spawned list. 
+!They will be removed from the main list at the end of the annihilation process.
 !It may actually be easier to just move the annihilated particles to the end of the list and resort the list?
 !Or, the removed indices could be found on the fly? This may have little benefit though if the memory isn't needed.
             IF((ToRemove+Spawned_Parts_Zero).gt.0) THEN
@@ -1264,7 +1265,6 @@ MODULE AnnihilationMod
 
     end subroutine EnlargeHashTable
 
-    
     SUBROUTINE CalcHashTableStats(TotWalkersNew)
         use util_mod, only: abs_sign
         use CalcData , only : tCheckHighestPop
@@ -1295,7 +1295,6 @@ MODULE AnnihilationMod
                     ENDIF
                 ELSE
 !We want to move all the elements above this point down to 'fill in' the annihilated determinant.
-                    !WRITE(6,*) "TotPartsOld, RealCurrentSign, Totparts", Totparts, abs(RealCurrentSign), TotParts+abs(RealCurrentSign) 
                     TotParts=TotParts+abs(CurrentSign)
                     norm_psi_squared = norm_psi_squared + sum(CurrentSign**2)
                     IF(tCheckHighestPop) THEN
@@ -1355,12 +1354,12 @@ MODULE AnnihilationMod
     end subroutine RemoveDetHashIndex
 
     
-!This routine will run through the total list of particles (TotWalkersNew in CurrentDets with sign CurrentSign) and the list of newly-spawned but
-!non annihilated particles (ValidSpawned in SpawnedParts and SpawnedSign) and move the new particles into the correct place in the new list,
-!while removing the particles with sign = 0 from CurrentDets. 
+!This routine will run through the total list of particles (TotWalkersNew in CurrentDets with sign CurrentSign) and the list of 
+!newly-spawned but non annihilated particles (ValidSpawned in SpawnedParts and SpawnedSign) and move the new particles into the
+!correct place in the new list, while removing the particles with sign = 0 from CurrentDets. 
 !Binary searching can be used to speed up this transfer substantially.
-!The key feature which makes this work, is that it is impossible for the same determinant to be specified in both the spawned and main list at the end of
-!the annihilation process. Therefore we will not multiply specify determinants when we merge the lists.
+!The key feature which makes this work, is that it is impossible for the same determinant to be specified in both the spawned 
+!and main list at the end of the annihilation process. Therefore we won't multiply specify determinants when we merge the lists.
     SUBROUTINE InsertRemoveParts(ValidSpawned, TotWalkersNew, iter_data)
         use util_mod, only: abs_sign
         use SystemData, only: tHPHF, tRef_Not_HF
@@ -1387,7 +1386,7 @@ MODULE AnnihilationMod
         norm_psi_squared = 0.0
         DetsMerged=0
         iHighestPop=0
-        InstNoatHF = 0
+        InstNoatHF = 0.0
         IF(TotWalkersNew.gt.0) THEN
             do i=1,TotWalkersNew
                 call extract_sign(CurrentDets(:,i),CurrentSign)
@@ -1659,15 +1658,16 @@ MODULE AnnihilationMod
                 PartInd=N
                 RETURN
             ELSEIF((Comp.eq.1).and.(i.ne.N)) THEN
-!The value of the determinant at N is LESS than the determinant we're looking for. Therefore, move the lower bound of the search up to N.
-!However, if the lower bound is already equal to N then the two bounds are consecutive and we have failed...
+!The value of the determinant at N is LESS than the determinant we're looking for. Therefore, move the lower
+!bound of the search up to N.  However, if the lower bound is already equal to N then the two bounds are 
+!consecutive and we have failed...
                 i=N
             ELSEIF(i.eq.N) THEN
 
 
                 IF(i.eq.MaxInd-1) THEN
-!This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
-!We need to check the last index.
+!This deals with the case where we are interested in the final/first entry in the list. Check the final entry 
+!of the list and leave.  We need to check the last index.
                     Comp=DetBitLT(CurrentDets(:,i+1),iLut(:),NIfDBO)
                     IF(Comp.eq.0) THEN
                         tSuccess=.true.
