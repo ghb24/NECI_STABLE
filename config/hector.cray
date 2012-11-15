@@ -17,7 +17,7 @@ ldflags = -g -Bstatic
 f90flags = -ffortran-bounds-check -N255
 
 [opt]
-fflags = -O3 -e m
+fflags = -O3 -e m -s integer64
 f90flags = -N255
 cflags = -O3 -h noexceptions
 ldflags = -O3

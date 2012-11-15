@@ -196,14 +196,15 @@ contains
          
     end subroutine
 
-    subroutine extract_bit_rep (ilut, nI, sgn, flags, store)
+    subroutine extract_bit_rep (ilut, nI, real_sgn, flags, store)
         
         ! Extract useful terms out of the bit-representation of a walker
 
         integer(n_int), intent(in) :: ilut(0:nIfTot)
         integer, intent(out) :: nI(nel), flags
-        integer, dimension(lenof_sign), intent(out) :: sgn
         type(excit_gen_store_type), intent(inout), optional :: store
+        real(dp), intent(out) :: real_sgn(lenof_sign)
+        integer :: sgn(lenof_sign)
 
         if (tBuildOccVirtList .and. present(store)) then
             call decode_bit_det_lists (nI, ilut, store)
@@ -212,6 +213,8 @@ contains
         endif
 
         sgn = int(iLut(NOffSgn:NOffSgn+lenof_sign-1),sizeof_int)
+        real_sgn = transfer(sgn, real_sgn)
+        
         IF(NifFlag.eq.1) THEN
             flags = int(iLut(NOffFlag),sizeof_int)
         ELSE
@@ -220,11 +223,14 @@ contains
 
     end subroutine extract_bit_rep
 
-    pure subroutine extract_sign (ilut,sgn)
+    pure subroutine extract_sign (ilut,real_sgn)
         integer(n_int), intent(in) :: ilut(0:nIfTot)
-        integer, dimension(lenof_sign), intent(out) :: sgn
+        integer :: sgn(lenof_sign)
+        real(dp), intent(out) :: real_sgn(lenof_sign)
 
         sgn = int(iLut(NOffSgn:NOffSgn+lenof_sign-1),sizeof_int)
+        real_sgn = transfer(sgn, real_sgn)
+
     end subroutine extract_sign
 
     function extract_flags (iLut)
@@ -239,23 +245,27 @@ contains
 
     end function extract_flags
 
-    function extract_part_sign (ilut, part_type) result(sgn)
+    function extract_part_sign (ilut, part_type) result(real_sgn)
 
         integer(n_int), intent(in) :: ilut(0:niftot)
         integer, intent(in) :: part_type
         integer :: sgn
+        real(dp) :: real_sgn
 
         sgn = int(ilut(nOffSgn + part_type - 1),sizeof_int)
+        real_sgn = transfer(sgn, real_sgn)
 
     end function
 
-    subroutine encode_bit_rep (ilut, Det, sgn, flag)
+    subroutine encode_bit_rep (ilut, Det, real_sgn, flag)
         integer(n_int), intent(out) :: ilut(0:nIfTot)
-        integer, dimension(lenof_sign), intent(in) :: sgn
+        real(dp), intent(in) :: real_sgn(lenof_sign)
         integer(n_int), intent(in) :: Det(0:NIfDBO)
         integer, intent(in) :: flag
+        integer :: sgn(lenoF_sign)
         
         iLut(0:NIfDBO) = Det
+        sgn = transfer(real_sgn, sgn)
         iLut(NOffSgn:NOffSgn+NIfSgn-1) = sgn
         IF(NIfFlag.eq.1) THEN
             iLut(NOffFlag) = int(flag,n_int)
@@ -285,29 +295,53 @@ contains
 
     end subroutine clear_all_flags
 
-    subroutine encode_sign (ilut, sgn)
+    subroutine encode_sign (ilut, real_sgn)
 
         ! Add new sign information to a packaged walker.
 
         integer(n_int), intent(inout) :: ilut(0:nIfTot)
-        integer, dimension(lenof_sign), intent(in) :: sgn
+        real(dp), intent(in) :: real_sgn(lenof_sign)
+        integer :: sgn(lenof_sign)
 
+        sgn = transfer(real_sgn, sgn)
         iLut(NOffSgn:NOffSgn+NIfSgn-1) = sgn
 
     end subroutine encode_sign
 
-    subroutine encode_part_sign (ilut, sgn, part_type)
+    subroutine encode_part_sign (ilut, real_sgn, part_type)
 !This routine is like encode_sign, but it only encodes either the
 !real OR imaginary sign of the walker, while leaving the other
 !sign untouched. part_type=1 indicates real and part_type=2 imaginary.
 !The sign argument is now a simple integer, rather than of dimension(lenof_sign).
         integer(n_int), intent(inout) :: ilut(0:NIfTot)
-        integer, intent(in) :: sgn, part_type
+        integer, intent(in) :: part_type
+        real(dp), intent(in) :: real_sgn
+        integer :: sgn
 
+        sgn = transfer(real_sgn, sgn)
         iLut(NOffSgn+part_type-1) = sgn
 
     end subroutine encode_part_sign
+
+
+    subroutine nullify_ilut (ilut)
         
+        ! Sets the sign of a determinant to equal zero.
+        integer(n_int), intent(inout) :: ilut(0:NIfTot)
+        iLut(NOffSgn:NOffSgn+NIfSgn-1) = transfer(0.0_dp, 0_n_int)
+
+    end subroutine
+
+    subroutine nullify_ilut_part (ilut, part_type)
+
+        ! Sets the sign of the walkers of the specified particle type on
+        ! a determinant to equal zero.
+        integer(n_int), intent(inout) :: ilut(0:NIfTot)
+        integer, intent(in) :: part_type
+        iLut(NOffSgn+part_type-1) = transfer(0.0_dp, 0_n_int)
+
+    end subroutine
+
 
     subroutine set_flag_general (ilut, flg, state)
 
@@ -469,6 +503,8 @@ contains
         ! This is a routine to take a determinant in bit form and construct
         ! the natural ordered Nel integer form of the det.
         ! If CSFs are enabled, transfer the Yamanouchi symbol as well.
+    
+        use FciMCData, only: blank_det
 
         integer(n_int), intent(in) :: ilut(0:NIftot)
         integer, intent(out) :: nI(nel)
@@ -477,6 +513,7 @@ contains
 
         ! We need to use the CSF decoding routine if CSFs are enabled, and 
         ! we are below a truncation limit if set.
+
         bIsCsf = .false.
         if (tCSF) then
             if (tTruncateCSF) then
@@ -550,6 +587,13 @@ contains
 !                if (elec == nel) exit
             enddo
 
+            if((elec .ne. nel).and.(.not. blank_det)) then
+                WRITE(6,*) "elec, nel", elec, nel
+                WRITE(6,*) "positions assigned", elec
+                WRITE(6,*) "iLut", iLut(:)
+                WRITE(6,*) "nI", nI(:)
+                call stop_all("decode_bit_dets", "Not the right number of electrons")
+            endif
         endif
 
     end subroutine

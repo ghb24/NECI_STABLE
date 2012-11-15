@@ -329,12 +329,15 @@ MODULE GenRandSymExcitNUMod
         nJ(:)=nI(:)
         CALL FindExcitDet(ExcitMat,nJ,2,tParity)
 
-#ifdef __DEBUG
-!These are useful (but O[N]) operations to test the determinant generated.
-!  If there are any problems with then
+        ! SDS: Remove this test for now. Breaks some of the CCMC code,
+        !      which CAN generate invalid dets, and throws them away
+        !      elsewhere.
+
+!#ifdef __DEBUG
+!These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
 !excitations, I recommend uncommenting these tests to check the results.
-        CALL IsSymAllowedExcit(nI,nJ,2,ExcitMat)
-#endif
+!        CALL IsSymAllowedExcit(nI,nJ,2,ExcitMat)
+!#endif
 
     END SUBROUTINE FindNewDet
 

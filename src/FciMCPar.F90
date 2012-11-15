@@ -649,7 +649,7 @@ MODULE FciMCParMod
         use iso_c_hack
         implicit none
         interface
-            function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
+            function attempt_create (get_spawn_helement, nI, iLutI, RealwSign, &
                                      nJ, iLutJ, prob, HElGen, ic, ex, tPar, exLevel, &
                                      part_type, AvSignCurr, RDMBiasFacCurr) result(child)
                 use SystemData, only: nel
@@ -660,7 +660,7 @@ MODULE FciMCParMod
                 integer(kind=n_int), intent(in) :: iLutI(0:nIfTot)
                 integer(kind=n_int), intent(inout) :: iLutJ(0:nIfTot)
                 integer, intent(in) :: ic, ex(2,2), exLevel
-                real(dp), dimension(lenof_sign), intent(in) :: wSign
+                real(dp), dimension(lenof_sign), intent(in) :: RealwSign
                 logical, intent(in) :: tPar
                 real(dp), intent(inout) :: prob
                 real(dp), dimension(lenof_sign) :: child      
@@ -2107,7 +2107,7 @@ MODULE FciMCParMod
     end function
 
     function attempt_create_normal (get_spawn_helement, DetCurr, iLutCurr, &
-                                    wSign, nJ, iLutnJ, prob, HElGen, ic, ex, tparity,&
+                                    RealwSign, nJ, iLutnJ, prob, HElGen, ic, ex, tparity,&
                                     walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr) result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel)
@@ -2115,14 +2115,15 @@ MODULE FciMCParMod
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
         integer, intent(in) :: ic, ex(2,2), walkExcitLevel
-        real(dp), dimension(lenof_sign), intent(in) :: wSign
+        real(dp), dimension(lenof_sign), intent(in) :: RealwSign
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
+        real(dp), dimension(lenof_sign) :: child
         real(dp) , intent(in) :: AvSignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
-        real(dp), dimension(lenof_sign) :: child
         HElement_t , intent(in) :: HElGen
         real(dp) :: pSpawn
+        character(*), parameter :: this_routine = 'attempt_create_normal'
         interface
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
                                          tParity, HElGen) result (hel)
@@ -2166,115 +2167,63 @@ MODULE FciMCParMod
         rh = get_spawn_helement (DetCurr, nJ, iLutCurr, iLutnJ, ic, ex, &
                                  tParity, HElGen)
 
-        !print*, 'p,rh', prob, rh
+        if (rh .eq.0.0) ZeroMatrixElem=ZeroMatrixElem+1
+        !write(6,*) 'p,rh', prob, rh
+
+        ! Are we doing real spawning?
+        tRealSpawning = .false.
+        if (tAllRealCoeff) then
+            tRealSpawning = .true.
+        elseif (tRealCoeffByExcitLevel) then
+            TargetExcitLevel = FindBitExcitLevel (iLutRef, iLutnJ)
+            if (TargetExcitLevel <= RealCoeffExcitThresh) &
+                tRealSpawning = .true.
+        endif
+
+        ! We actually want to calculate Hji - take the complex conjugate, 
+        ! rather than swap around DetCurr and nJ.
 #ifdef __CMPLX
+        rh = CONJG(rh)
+#endif
 
-!We actually want to calculate Hji - take the complex conjugate, rather than swap around DetCurr and nJ.
-            rh = CONJG(rh)
+        ! Spawn to real and imaginary particles. Note that spawning from
+        ! imaginary parent particles has slightly different rules:
+        !       - Attempt to spawn REAL walkers with prob +AIMAG(Hij)/P
+        !       - Attempt to spawn IMAG walkers with prob -REAL(Hij)/P
+        do tgt_cpt = 1, lenof_sign
 
-            !We are dealing with spawning from real and imaginary elements, and assume
-            !that rh is complex
-            IF(part_type.eq.1) THEN
-                !Real parent particle
+            ! For spawning from imaginary particles, we cross-match the 
+            ! real/imaginary matrix-elements/target-particles.
+            component = tgt_cpt
+            if (part_type == 2) component = 3 - tgt_cpt
 
-                !First spawn from real part of matrix element
-                !Attempt spawning
-                rat = tau * abs(real(rh,dp) / prob)
-                if(tSearchTau) then
-                    if(MaxSpawnProb.lt.rat) MaxSpawnProb = rat
-                endif
+            ! Get the correct part of the matrix element
+            walkerweight = sign(1.0_dp, RealwSign(part_type))
+            if (component == 1) then
+                MatEl = real(rh, dp)
+            else
+#ifdef __CMPLX
+                MatEl = real(aimag(rh), dp)
+#endif
+                ! n.b. In this case, spawning is of opposite sign.
+                if (part_type == 2) walkerweight = -walkerweight
+            end if
 
-                ! If probability > 1, then we just create multiple children at the
-                ! chosen determinant.
-                extraCreate = int(rat)
-                rat = rat - real(extraCreate, dp)
-
-                ! Stochastically choose whether to create or not.
-                r = genrand_real2_dSFMT ()
-                if (rat > r) then
-                    !Create child
-                    child(1) = -nint(sign(1.0_dp, wsign(1)*real(rh,dp)))  !Will return +- one depending on the desired sign of the stochastically created child.
-                    child(1) = child(1) + sign(extraCreate, child(1))
-                elseif(extraCreate.ne.0) then
-                    !Just return if any extra particles created
-                    child(1) = -extraCreate*nint(sign(1.0_dp, wsign(1)*real(rh,dp)))
-                endif
-
-                !Now attempt spawning from im part of matrix element
-                !Attempt spawning
-                rat = tau * abs(aimag(rh) / prob)
-                if(tSearchTau) then
-                    if(MaxSpawnProb.lt.rat) MaxSpawnProb = rat
-                endif
-
-                ! If probability > 1, then we just create multiple children at the
-                ! chosen determinant.
-                extraCreate = int(rat)
-                rat = rat - real(extraCreate, dp)
-
-                ! Stochastically choose whether to create or not.
-                r = genrand_real2_dSFMT ()
-                if (rat > r) then
-                    !Create child
-                    child(2) = -nint(sign(1.0_dp, wsign(1)*aimag(rh)))  !Will return +- one depending on the desired sign of the stochastically created child.
-                    child(2) = child(2) + sign(extraCreate, child(2))
-                elseif(extraCreate.ne.0) then
-                    !Just return if any extra particles created
-                    child(2) = -extraCreate*nint(sign(1.0_dp, wsign(1)*aimag(rh)))
-                endif
-
-            ELSE
-                !Imaginary parent particle - rules are slightly different...
-                !Attempt to spawn REAL walkers with prob +AIMAG(Hij)/P
-                !Attempt to spawn IMAG walkers with prob -REAL(Hij)/P
-                !We want to use the imaginary part of the matrix element to create real walkers
-                !We want to use the real part of the matrix element to create imaginary walkers
-                rat = tau * abs(aimag(rh) / prob)
-                if(tSearchTau) then
-                    if(MaxSpawnProb.lt.rat) MaxSpawnProb = rat
-                endif
-
-                ! If probability > 1, then we just create multiple children at the
-                ! chosen determinant.
-                extraCreate = int(rat)
-                rat = rat - real(extraCreate, dp)
-
-                ! Stochastically choose whether to create or not.
-                r = genrand_real2_dSFMT ()
-                !Prob = +AIMAG(Hij)/P to create real children
-                if (rat > r) then
-                    !Create child
-                    child(1) = nint(sign(1.0_dp, wsign(2)*aimag(rh)))  !Will return +- one depending on the desired sign of the stochastically created child.
-                    child(1) = child(1) + sign(extraCreate, child(1))
-                elseif(extraCreate.ne.0) then
-                    !Just return if any extra particles created
-                    child(1) = extraCreate*nint(sign(1.0_dp, wsign(2)*aimag(rh)))
-                endif
+            nSpawn = - tau * MatEl * walkerweight / prob
+            if (tRealSpawning) then
+                ! Continuous spawning. Add in acceptance probabilities.
                 
-                !Now spawning from real part of matrix element
-                !We want to use the real part of the matrix element to create imaginary walkers
+                if (tRealSpawnCutoff .and. &
+                    abs(nSpawn) < RealSpawnCutoff) then
 
-                !Attempt spawning
-                rat = tau * abs(real(rh,dp) / prob)
-                if(tSearchTau) then
-                    if(MaxSpawnProb.lt.rat) MaxSpawnProb = rat
-                endif
-
-                ! If probability > 1, then we just create multiple children at the
-                ! chosen determinant.
-                extraCreate = int(rat)
-                rat = rat - real(extraCreate, dp)
-
-                ! Stochastically choose whether to create or not.
-                r = genrand_real2_dSFMT ()
-                !Prob = -REAL(Hij)/P to create imaginary children
-                if (rat > r) then
-                    !Create child
-                    child(2) = -nint(sign(1.0_dp, wsign(2)*real(rh,dp)))  !Will return +- one depending on the desired sign of the stochastically created child.
-                    child(2) = child(2) + sign(extraCreate, child(2))
-                elseif(extraCreate.ne.0) then
-                    !Just return if any extra particles created
-                    child(2) = -extraCreate*nint(sign(1.0_dp, wsign(2)*real(rh,dp)))
+                    nSpawn = RealSpawnCutoff &
+                           * stochastic_round (nSpawn / RealSpawnCutoff)
+                end if
+            else
+                ! How many children should we spawn?
+                if (tSearchTau) then
+                    if (MaxSpawnProb < abs(nSpawn)) &
+                        MaxSpawnProb = abs(nSpawn)
                 endif
 
             ENDIF   ! Type of parent
@@ -2337,7 +2286,7 @@ MODULE FciMCParMod
 
             if(tFillingStochRDMonFly) then
                 if((child(1).ne.0).and.(.not.tHF_Ref_Explicit)) then
-                    call calc_rdmbiasfac(extraCreate, rat, prob, AvSignCurr, wSign, RDMBiasFacCurr) 
+                    call calc_rdmbiasfac(extraCreate, rat, prob, AvSignCurr, realwSign, RDMBiasFacCurr) 
                 else
                     RDMBiasFacCurr = 0.0_dp
                 endif
@@ -2347,7 +2296,6 @@ MODULE FciMCParMod
             endif
 
 #endif
-         
     end function
 
 
@@ -2611,9 +2559,9 @@ MODULE FciMCParMod
         iDie = attempt_die (DetCurr, Kii, realwSign, WalkExcitLevel)
 
 !        IF(iDie.ne.0) WRITE(iout,*) "Death: ",iDie
-        
+       
         IFDEBUG(FCIMCDebug,3) then 
-            if(sum(abs(iDie)).ne.0) write(iout,"(A,2I4)") "Death: ",iDie(:)
+            if(sum(abs(iDie)).ne.0) write(iout,"(A,2f10.5)") "Death: ",iDie(:)
         endif
 
         ! Update death counter
@@ -2628,14 +2576,11 @@ MODULE FciMCParMod
         CopySign = RealwSign - (iDie * sign(1.0_dp, RealwSign))
 
         
-
-        !TO WORRY ABOUT!
+        !DMC: TO WORRY ABOUT!
 
         !Test - testsuite, RDM still work, both still work with Linscalealgo (all in debug)
         !Null particle not kept if antiparticles aborted.
         !When are the null particles removed?
-
-
 
 
         ! Normally slot particles back into main array at position vecslot.
@@ -2664,27 +2609,15 @@ MODULE FciMCParMod
                     !Encode a null det to be picked up
                     call encode_sign(CurrentDets(:,DetPosition),NullSign)
                 endif
-            ELSE
-                !Normally we will go in this block. Some may have died,
-                !but putting det back with new sign overall
-                if(tHashWalkerList) then
-                    !Here, determinants always stay in the same place
-                    !Therefore, only need to encode sign, and not to worry about helement or anything else
-                    call encode_sign(CurrentDets(:,DetPosition),CopySign)
-                    if (tFillingStochRDMonFly) then
-                        CurrentH(2,DetPosition) = wAvSign
-                        CurrentH(3,DetPosition) = IterRDMStartCurr
-                    endif
-                else
-                    call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
-                    if(.not.tRegenDiagHEls) CurrentH(1,VecSlot) = Kii
-                    if (tFillingStochRDMonFly) then
-                        CurrentH(2,VecSlot) = wAvSign
-                        CurrentH(3,VecSlot) = IterRDMStartCurr
-                    endif
-                    VecSlot = VecSlot + 1
+            else
+                call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
+                if(.not.tRegenDiagHEls) CurrentH(1,VecSlot) = Kii
+                if (tFillingStochRDMonFly) then
+                    CurrentH(2,VecSlot) = wAvSign
+                    CurrentH(3,VecSlot) = IterRDMStartCurr
                 endif
-            ENDIF
+                Vecslot = Vecslot + 1
+            endif
         else
             !All walkers died
             if(tFillingStochRDMonFly) then
@@ -2718,64 +2651,12 @@ MODULE FciMCParMod
                 iEndFreeSlot=iEndFreeSlot+1
                 FreeSlot(iEndFreeSlot)=DetPosition
                 !Encode a null det to be picked up
-                call encode_sign(CurrentDets(:,DetPosition),NullSign)
+                call encode_sign(CurrentDets(:,DetPosition),null_part)
             endif
         endif
-#else
-        !In complex case, fill slot if either real or imaginary particle still there.
-        IF((CopySign(1).ne.0).or.(CopySign(2).ne.0)) THEN
-            if(tTruncInitiator.and.(sign(1,CopySign(1)).ne.sign(1,wSign(1)))) then
-                !Remove the real anti-particle
-                NoAborted=NoAborted+abs(CopySign(1))
-                iter_data%naborted(1) = iter_data%naborted(1) + abs(CopySign(1))
-                if(test_flag(iLutCurr,flag_is_initiator(1))) NoAddedInitiators=NoAddedInitiators-1
-                CopySign(1)=0
-            endif
-            if(tTruncInitiator.and.(sign(1,CopySign(lenof_sign)).ne.sign(1,wSign(lenof_sign)))) then
-                !Remove the imaginary anti-particle
-                NoAborted=NoAborted+abs(CopySign(lenof_sign))
-                iter_data%naborted(lenof_sign) = iter_data%naborted(lenof_sign) + abs(CopySign(lenof_sign))
-                if(test_flag(iLutCurr,flag_is_initiator(lenof_sign))) NoAddedInitiators=NoAddedInitiators-1
-                CopySign(lenof_sign)=0
-            endif
-            if((CopySign(1).ne.0).or.(CopySign(lenof_sign).ne.0)) then
-                !These could have both been aborted for being antiparitlces
-                !Here, some survive - put them back in the list
-                if(tHashWalkerList) then
-                    !Here, determinants always stay in the same place
-                    !Therefore, only need to encode sign, and not to worry about helement or anything else
-                    call encode_sign(CurrentDets(:,DetPosition),CopySign)
-                else
-                    call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
-                    if (.not.tRegenDiagHEls) CurrentH(1,VecSlot) = Kii
-                    VecSlot=VecSlot+1
-                endif
-            else
-                !All walkers have been aborted
-                if(tHashWalkerList) then
-                    !Remove the determinant from the indexing list
-                    call RemoveDetHashIndex(DetCurr,DetPosition)
-                    !Add to the "freeslot" list
-                    iEndFreeSlot=iEndFreeSlot+1
-                    FreeSlot(iEndFreeSlot)=DetPosition
-                    !Encode a null det to be picked up
-                    call encode_sign(CurrentDets(:,DetPosition),NullSign)
-                endif
-            endif
-        ELSEIF(tHashWalkerList) then
-            !Remove the determinant from the indexing list
-            call RemoveDetHashIndex(DetCurr,DetPosition)
-            !Add to the "freeslot" list
-            iEndFreeSlot=iEndFreeSlot+1
-            FreeSlot(iEndFreeSlot)=DetPosition
-            !Encode a null det to be picked up
-            call encode_sign(CurrentDets(:,DetPosition),NullSign)
-        ENDIF
-#endif            
+
 
     end subroutine
-
-
 
     function attempt_die_normal (DetCurr, Kii, realwSign, WalkExcitLevel) result(ndie)
         

@@ -289,6 +289,11 @@ type1 = integer(kind=int64), dimension(:)
 type2 = integer(kind=int32)
 conditional_enable = !defined(SX)
 
+[a_i64_d_d]
+type1 = integer(kind=int64), dimension(:)
+type2 = real(kind=dp)
+conditional_enable = !defined(SX)
+
 [a_i64_i64_d]
 type1 = integer(kind=int64), dimension(:)
 type2 = integer(kind=int64)

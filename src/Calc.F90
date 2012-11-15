@@ -240,9 +240,16 @@ contains
           tReadPopsRestart = .false.
           iLogicalNodeSize = 0 !Meaning use the physical node size
 
+          tAllRealCoeff=.false.
+          tEnhanceRemainder=.true.
+          tRealCoeffByExcitLevel=.false.
+          RealCoeffExcitThresh=2
+          tRealSpawnCutoff=.false.
+          RealSpawnCutoff=1.0e-5
+
 !Feb 08 default set.
           IF(Feb08) THEN
-              RhoEpsilon=1.D-08
+              RhoEpsilon=1.0e-8
           ENDIF
 
           ! Spin Projection defaults
@@ -800,10 +807,10 @@ contains
                 call geti(iMaxExcitLevel)
             case("INITWALKERS")
 !For FCIMC, this is the number of walkers to start with
-                call getiLong(InitWalkers)
+                call getf(InitWalkers)
             case("TOTALWALKERS")
 !This is now input as the total number, rather than the number per processor, and it is changed to the number per processor here.
-                call getiLong(InitWalkers)
+                call getf(InitWalkers)
                 InitWalkers=NINT(REAL(InitWalkers)/REAL(nProcessors),int64)
             case("TIME")
                 !Input the desired runtime (in MINUTES) before exiting out of the MC.
@@ -949,7 +956,7 @@ contains
                 if(item.lt.nitems) then
                     !Allow us to specify a desired number of particles to start with, so that the shift doesn't
                     !change dramatically to start with.
-                    call geti(InitialPart)
+                    call getf(InitialPart)
                 endif
             case("CONTINUEAFTERMP2")
                 tContinueAfterMP2=.true.
@@ -963,7 +970,7 @@ contains
                 if(item.lt.nitems) then
                     !Allow us to specify a desired number of particles to start with, so that the shift doesn't
                     !change dramatically to start with.
-                    call geti(InitialPart)
+                    call getf(InitialPart)
                 endif
             case("GROWMAXFACTOR")
 !For FCIMC, this is the factor to which the initial number of particles is allowed to go before it is culled
@@ -1098,7 +1105,7 @@ contains
                 TStartSinglePart=.true.
                 IF(item.lt.nitems) THEN
                     !If an optional integer keyword is added, then InitialPart will indicate the number of particles to start at the HF determinant.
-                    call readi(InitialPart)
+                    call readf(InitialPart)
                     if (InitialPart < 0) then
                         ! Turn StartSinglePart off.
                         tStartSinglePart = .false.
@@ -1434,6 +1441,22 @@ contains
                 ! unpaired electrons.
                 tTruncNOpen = .true.
                 call geti (trunc_nopen_max)
+
+            case("ALLREALCOEFF")
+                tAllRealCoeff=.true.
+                !Turn on continuous spawning/death
+                !Kill populations n<1 with probability 1-n
+            case("REALCOEFFBYEXCITLEVEL")
+                tRealCoeffByExcitLevel=.true.
+                call readi(RealCoeffExcitThresh)
+            case("KEEPWALKSMALL")
+                tEnhanceRemainder=.false.
+                !When we do the removal step with AllRealCoeff, on the occasions where these pops are *not* removed,
+                !Keep their population the same, rather than resetting as a value of 1 (which is technically correct)
+                !This "bug" produced initiator-like (no plateau) behaviour, so is of interest
+            case("REALSPAWNCUTOFF")
+                tRealSpawnCutoff=.true.
+                call Getf(RealSpawnCutoff)
 
             case default
                 call report("Keyword "                                &

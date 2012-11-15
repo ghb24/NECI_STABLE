@@ -1,3 +1,5 @@
+#include "macros.h"
+
 MODULE PopsfileMod
 
     use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin,tMomInv
@@ -14,7 +16,7 @@ MODULE PopsfileMod
     use bit_reps
     use Parallel_neci
 !    use AnnihilationMod, only: DetermineDetNode,FindWalkerHash,EnlargeHashTable,IsUnoccDet
-    use AnnihilationMod, only: FindWalkerHash,EnlargeHashTable,IsUnoccDet
+    use AnnihilationMod, only: FindWalkerHash,EnlargeHashTable
     USE Logging , only : iWritePopsEvery,tPopsFile,iPopsPartEvery,tBinPops
     USE Logging , only : tPrintPopsDefault,tIncrementPops, tPrintInitiators
     use sort_mod
@@ -33,8 +35,8 @@ MODULE PopsfileMod
         integer(int64) , intent(in) :: EndPopsList  !Number of entries in the POPSFILE.
         integer , intent(in) :: ReadBatch       !Size of the batch of determinants to read in in one go.
         integer(int64) , intent(out) :: CurrWalkers64    !Number of determinants which end up on a given processor.
-        integer(int64) , dimension(lenof_sign) , intent(out) :: CurrParts
-        integer , dimension(lenof_sign) , intent(out) :: CurrHF
+        real(dp), intent(out) :: CurrHF(lenof_sign)
+        real(dp) :: CurrParts(lenof_sign)
         integer :: CurrWalkers,Slot,nJ(nel)
         integer :: iunit,i,j,ierr,PopsInitialSlots(0:nNodes-1)
         INTEGER(TagIntType) :: BatchReadTag=0
@@ -46,7 +48,7 @@ MODULE PopsfileMod
         integer(n_int) :: WalkerTemp(0:NIfTot)
         integer(int64) :: Det,AllCurrWalkers,TempCurrWalkers
         logical :: FormPops,BinPops,tReadAllPops,tStoreDet
-        integer , dimension(lenof_sign) :: SignTemp
+        real(dp) , dimension(lenof_sign) :: SignTemp
         integer :: TempNI(NEl),nBatches,PopsVersion
         character(len=*) , parameter :: this_routine='ReadFromPopsfile'
         HElement_t :: HElemTemp
@@ -57,7 +59,7 @@ MODULE PopsfileMod
         integer :: PopBlockingIter
         integer(int64) :: iPopAllTotWalkers
         real(dp) :: PopDiagSft,read_tau
-        integer(int64) , dimension(lenof_sign) :: PopSumNoatHF
+        real(dp) , dimension(lenof_sign) :: PopSumNoatHF
         integer, intent(in) :: DetsLen
         INTEGER(kind=n_int), intent(out) :: Dets(0:nIfTot,DetsLen)
         HElement_t :: PopAllSumENum
@@ -128,11 +130,11 @@ MODULE PopsfileMod
             CALL LogMemAlloc('BatchRead',MaxSendIndex*(NIfTot+1),size_n_int,this_routine,BatchReadTag,ierr)
         endif
 
+        CurrHF=0.0_dp        !Number of HF walkers on each node.
+        CurrParts=0.0     !Number of walkers on each node.
         write(6,*) "ReadBatch: ",ReadBatch
         write(6,*) "MaxSendIndex: ",MaxSendIndex
 
-        CurrHF=0        !Number of HF walkers on each node.
-        CurrParts=0     !Number of walkers on each node.
         CurrWalkers=0   !Number of determinants on each node.
         nBatches=0      !Number of batches of walkers it takes to distribute popsfile.
         Det=1
@@ -280,7 +282,7 @@ MODULE PopsfileMod
         integer(n_int) :: WalkerToMap(0:MappingNIfD),WalkerTemp2(0:NIfTot)
         integer :: elec,i,j
         logical :: tStoreDet
-        integer , dimension(lenof_sign) :: SignTemp
+        real(dp), dimension(lenof_sign) :: SignTemp
 
         tStoreDet=.false.
         do while(.not.tStoreDet)
@@ -402,7 +404,7 @@ MODULE PopsfileMod
         integer , intent(in) :: PopBlockingIter
         integer(int64) , intent(in) :: iPopAllTotWalkers
         real(dp) , intent(in) :: PopDiagSft,read_tau
-        integer(int64) , dimension(lenof_sign) , intent(in) :: PopSumNoatHF
+        real(dp) , dimension(lenof_sign) , intent(in) :: PopSumNoatHF
         HElement_t , intent(in) :: PopAllSumENum
         integer , intent(out) :: WalkerListSize
         character(len=*) , parameter :: this_routine='CheckPopsParams'
@@ -447,7 +449,7 @@ MODULE PopsfileMod
             tSinglePartPhase=.true.
             !If continuing to grow, ensure we can allocate enough memory for what we hope to get the walker population to,
             !rather than the average number of determinants in the popsfile.
-            WalkerListSize=int(max(initwalkers,NINT(real(iPopAllTotWalkers,dp)/real(nNodes,dp),int64)),sizeof_int)
+            WalkerListSize=int(max(int(initwalkers,int64),NINT(real(iPopAllTotWalkers,dp)/real(nNodes,dp),int64)),sizeof_int)
         else
             tSinglePartPhase=.false.
             WalkerListSize=NINT(real(iPopAllTotWalkers,dp)/real(nNodes,dp))
@@ -508,7 +510,7 @@ MODULE PopsfileMod
         integer , intent(out) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
         integer(int64) , intent(out) :: iPopAllTotWalkers
         real(dp) , intent(out) :: PopDiagSft
-        integer(int64) , dimension(lenof_sign) , intent(out) :: PopSumNoatHF
+        real(dp) , dimension(lenof_sign) , intent(out) :: PopSumNoatHF
         HElement_t , intent(out) :: PopAllSumENum
         character(len=24) :: junk,junk2,junk3,junk4,junk5
         integer :: PopsVersion
@@ -559,7 +561,7 @@ MODULE PopsfileMod
         integer , intent(out) :: PopBlockingIter
         integer(int64) , intent(out) :: iPopAllTotWalkers
         real(dp) , intent(out) :: PopDiagSft,read_tau
-        integer(int64) , dimension(lenof_sign) , intent(out) :: PopSumNoatHF
+        real(dp) , dimension(lenof_sign) , intent(out) :: PopSumNoatHF
         HElement_t , intent(out) :: PopAllSumENum
         integer :: PopsVersion
         !Variables for the namelist
@@ -683,7 +685,7 @@ MODULE PopsfileMod
         integer :: iunit, iunit_2, Initiator_Count
         CHARACTER(len=*) , PARAMETER :: this_routine='WriteToPopsfileParOneArr'
         character(255) :: popsfile
-        INTEGER, DIMENSION(lenof_sign) :: TempSign
+        real(dp) :: TempSign(lenof_sign)
         integer :: excit_lev
 
         CALL MPIBarrier(error)  !sync
@@ -971,12 +973,13 @@ MODULE PopsfileMod
         use Logging, only: tZeroProjE, tRDMonFly, tExplicitAllRDM, tHF_Ref_Explicit 
         use constants, only: size_n_int,bits_n_int
         LOGICAL :: exists,tBinRead
+        Real(dp) :: NodeSumNoatHF(nProcessors)
         INTEGER :: WalkerstoReceive(nProcessors)
         integer(int64) :: AvWalkers
-        integer(int64) :: NodeSumNoatHF(nProcessors)
         integer(int64) :: TempTotParts(lenof_sign),TempCurrWalkers
         INTEGER :: TempInitWalkers,error,i,j,l,total,ierr,MemoryAlloc,Tag,Proc,CurrWalkers,ii
         INTEGER , DIMENSION(lenof_sign) :: TempSign
+        real(dp) :: RealTempSign(lenof_sign)
         integer(int64) :: iLutTemp64(0:nBasis/64+1)
         INTEGER :: iLutTemp32(0:nBasis/32+1)
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
@@ -989,14 +992,14 @@ MODULE PopsfileMod
         character(len=24) :: junk,junk2,junk3,junk4
         LOGICAL :: tPop64BitDets,tPopHPHF,tPopLz,tPopInitiator
         integer(n_int) :: ilut_largest(0:NIfTot)
-        integer :: sign_largest
+        real(dp) :: sign_largest
 
         IF(lenof_sign.ne.1) CALL Stop_All("ReadFromPopsfilePar","Popsfile V.2 does not work with complex walkers")
         
         PreviousCycles=0    !Zero previous cycles
         SumENum=0.D0
         TotParts=0
-        SumNoatHF=0
+        SumNoatHF=0.0_dp
         DiagSft=0.D0
         Tag=124             !Set Tag
         
@@ -1129,9 +1132,9 @@ MODULE PopsfileMod
             SumENum=AllSumENum/REAL(nProcessors,dp)     !Divide up the SumENum over all processors
             AvSumNoatHF = int(AllSumNoatHF(1)/nProcessors,sizeof_int) !This is the average Sumnoathf
             do i=1,nProcessors-1
-                NodeSumNoatHF(i)=INT(AvSumNoatHF,int64)
+                NodeSumNoatHF(i)=real(INT(AvSumNoatHF,int64),dp)
             enddo
-            NodeSumNoatHF(nProcessors)=AllSumNoatHF(1)-INT((AvSumNoatHF*(nProcessors-1)),int64)
+            NodeSumNoatHF(nProcessors)=real(AllSumNoatHF(1)-INT((AvSumNoatHF*(nProcessors-1)),int64),dp)
 
             ProjectionE=AllSumENum/real(AllSumNoatHF(1),dp)
                 
@@ -1298,6 +1301,7 @@ MODULE PopsfileMod
                     READ(iunit,*) iLutTemp32(0:NIfWriteOut),TempSign
                 ENDIF
             ENDIF
+            RealTempSign = transfer(TempSign, RealTempSign)
 
 #ifdef __INT64
             if (.not.tPop64BitDets) then
@@ -1338,16 +1342,16 @@ MODULE PopsfileMod
 #endif
             call decode_bit_det (TempnI, iLutTemp)
             Proc = DetermineDetNode(TempnI,0)
-            IF((Proc.eq.iNodeIndex).and.(abs(TempSign(1)).ge.iWeightPopRead)) THEN
+            IF((Proc.eq.iNodeIndex).and.(abs(RealTempSign(1)).ge.iWeightPopRead)) THEN
                 CurrWalkers=CurrWalkers+1
                 !Do not need to send a flag here...
-                call encode_bit_rep(CurrentDets(:,CurrWalkers),iLutTemp(0:NIfDBO),TempSign,0) 
+                call encode_bit_rep(CurrentDets(:,CurrWalkers),iLutTemp(0:NIfDBO),RealTempSign,0) 
                 !TODO: Add flag for complex walkers to read in both
             ENDIF
 
             ! Keep track of what the most highly weighted determinant is
-            if (abs(TempSign(1)) > sign_largest) then
-                sign_largest = abs(TempSign(1))
+            if (abs(RealTempSign(1)) > sign_largest) then
+                sign_largest = abs(RealTempSign(1))
                 ilut_largest = iLutTemp
             endif
         enddo
@@ -1383,18 +1387,18 @@ MODULE PopsfileMod
             FracPart=ScaleWalkers-REAL(IntegerPart)
 
             do l=1,CurrWalkers
-                call extract_sign(CurrentDets(:,l),TempSign)
-                TempSign=TempSign*IntegerPart
+                call extract_sign(CurrentDets(:,l),RealTempSign)
+                RealTempSign=RealTempSign*IntegerPart
                 r = genrand_real2_dSFMT() 
                 IF(r.lt.FracPart) THEN
 !Stochastically create another particle
-                    IF(TempSign(1).lt.0) THEN
-                        TempSign(1)=TempSign(1)-1
+                    IF(RealTempSign(1).lt.0) THEN
+                        RealTempSign(1)=RealTempSign(1)-1
                     ELSE
-                        TempSign(1)=TempSign(1)+1
+                        RealTempSign(1)=RealTempSign(1)+1
                     ENDIF
                 ENDIF
-                call encode_sign(CurrentDets(:,l),TempSign)
+                call encode_sign(CurrentDets(:,l),RealTempSign)
             enddo
 
             InitWalkers=NINT(InitWalkers*ScaleWalkers)  !New (average) number of initial particles for culling criteria
@@ -1480,8 +1484,8 @@ MODULE PopsfileMod
                 ENDIF
 
             ENDIF
-            call extract_sign(CurrentDets(:,j),TempSign)
-            TotParts=TotParts+abs(TempSign(1))
+            call extract_sign(CurrentDets(:,j),RealTempSign)
+            TotParts=TotParts+abs(RealTempSign(1))
 
         enddo
 
@@ -1516,9 +1520,11 @@ MODULE PopsfileMod
         integer(int64),intent(inout) :: nDets !The number of occupied entries in Dets
         integer(kind=n_int),intent(out) :: Dets(0:nIfTot,1:nDets)
         LOGICAL :: exists,tBinRead
-        integer(int64) :: TempTotParts(lenof_sign),TempCurrWalkers
+        integer(int64) :: TempCurrWalkers
+        REAL(dp) :: TempTotParts(lenof_sign)
         INTEGER :: TempInitWalkers,error,i,j,l,total,ierr,MemoryAlloc,Tag,Proc,CurrWalkers,ii
         INTEGER , DIMENSION(lenof_sign) :: TempSign
+        REAL(dp) , DIMENSION(lenof_sign) :: RealTempSign
         integer(int64) :: iLutTemp64(0:nBasis/64+1)
         INTEGER :: iLutTemp32(0:nBasis/32+1)
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
@@ -1531,7 +1537,7 @@ MODULE PopsfileMod
         character(len=24) :: junk,junk2,junk3,junk4
         LOGICAL :: tPop64BitDets,tPopHPHF,tPopLz,tPopInitiator
         integer(n_int) :: ilut_largest(0:NIfTot)
-        integer :: sign_largest
+        real(dp) :: sign_largest
 
         MemoryAlloc = 0
 
@@ -1540,7 +1546,7 @@ MODULE PopsfileMod
         PreviousCycles=0    !Zero previous cycles
         SumENum=0.D0
         TotParts=0
-        SumNoatHF=0
+        SumNoatHF=0.0_dp
         DiagSft=0.D0
         Tag=124             !Set Tag
         
@@ -1745,6 +1751,7 @@ MODULE PopsfileMod
                     READ(iunit,*) iLutTemp32(0:NIfWriteOut),TempSign
                 ENDIF
             ENDIF
+            RealTempSign = transfer(TempSign, RealTempSign)
 
 #ifdef __INT64
             if (.not.tPop64BitDets) then
@@ -1785,16 +1792,16 @@ MODULE PopsfileMod
 #endif
             call decode_bit_det (TempnI, iLutTemp)
             Proc=0  !DetermineDetNode(TempnI)   !This wants to return a value between 0 -> nProcessors-1
-            IF((Proc.eq.iProcIndex).and.(abs(TempSign(1)).ge.iWeightPopRead)) THEN
+            IF((Proc.eq.iProcIndex).and.(abs(RealTempSign(1)).ge.iWeightPopRead)) THEN
                 CurrWalkers=CurrWalkers+1
                 !Do not need to send a flag here...
-                call encode_bit_rep(Dets(:,CurrWalkers),iLutTemp(0:NIfDBO),TempSign,0)
+                call encode_bit_rep(Dets(:,CurrWalkers),iLutTemp(0:NIfDBO),RealTempSign,0)
                 !TODO: Add flag for complex walkers to read in both
             ENDIF
 
             ! Keep track of what the most highly weighted determinant is
-            if (abs(TempSign(1)) > sign_largest) then
-                sign_largest = abs(TempSign(1))
+            if (abs(RealTempSign(1)) > sign_largest) then
+                sign_largest = abs(RealTempSign(1))
                 ilut_largest = iLutTemp
             endif
         enddo
@@ -1830,18 +1837,18 @@ MODULE PopsfileMod
             FracPart=ScaleWalkers-REAL(IntegerPart)
 
             do l=1,CurrWalkers
-                call extract_sign(Dets(:,l),TempSign)
-                TempSign=TempSign*IntegerPart
+                call extract_sign(Dets(:,l),RealTempSign)
+                RealTempSign=TempSign*IntegerPart
                 r = genrand_real2_dSFMT() 
                 IF(r.lt.FracPart) THEN
 !Stochastically create another particle
-                    IF(TempSign(1).lt.0) THEN
-                        TempSign(1)=TempSign(1)-1
+                    IF(RealTempSign(1).lt.0) THEN
+                        RealTempSign(1)=RealTempSign(1)-1
                     ELSE
-                        TempSign(1)=TempSign(1)+1
+                        RealTempSign(1)=RealTempSign(1)+1
                     ENDIF
                 ENDIF
-                call encode_sign(Dets(:,l),TempSign)
+                call encode_sign(Dets(:,l),RealTempSign)
             enddo
 
             InitWalkers=NINT(InitWalkers*ScaleWalkers)  !New (average) number of initial particles for culling criteria
@@ -1872,8 +1879,8 @@ MODULE PopsfileMod
 !Now find out the data needed for the particles which have been read in...
         TotParts=0
         do j=1,int(nDets,sizeof_int)
-            call extract_sign(Dets(:,j),TempSign)
-            TotParts=TotParts+abs(TempSign(1))
+            call extract_sign(Dets(:,j),RealTempSign)
+            TotParts=TotParts+abs(RealTempSign(1))
         enddo
 
         TempTotParts=TotParts
