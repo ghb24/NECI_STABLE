@@ -9018,15 +9018,22 @@ end function FindProjEBins
 integer function FindSplitProjEBinG(Ex)
                        
     use Logging, only : tSplitProjEHist,tSplitProjEHistG,tSplitProjEHistK3
-    use SystemData, only : G1
+    use SystemData, only : G1 , kvec , tUEG2
 
     integer :: ki(3),kj(3),ka(3),kb(3)
     integer, intent(in) :: Ex(2,2)
 
-    ki=G1(Ex(1,1))%k
-    ka=G1(Ex(2,1))%k
-    kj=G1(Ex(1,2))%k
-    kb=G1(Ex(2,2))%k
+    if (.not.tUEG2) then
+        ki=G1(Ex(1,1))%k
+        ka=G1(Ex(2,1))%k
+        kj=G1(Ex(1,2))%k
+        kb=G1(Ex(2,2))%k
+    else 
+        ki=kvec(Ex(1,1),:)
+        ka=kvec(Ex(2,1),:)
+        kj=kvec(Ex(1,2),:)
+        kb=kvec(Ex(2,2),:)
+    endif 
     
     if (tSplitProjEHistG) then ! <k1 k2 || k3 k4 > is included if the min
                                ! out of k1-k3 or k1-k4 are within g-cutoff
@@ -9041,19 +9048,31 @@ end function FindSplitProjEBinG
 integer function FindSplitProjEBinK3(Ex)
                        
     use Logging, only : tSplitProjEHist,tSplitProjEHistG,tSplitProjEHistK3
-    use SystemData, only : G1
+    use SystemData, only : G1 , kvec , tUEG2 ,OrbECutOff
 
     integer :: ki(3),kj(3),ka(3),kb(3)
     integer, intent(in) :: Ex(2,2)
 
-    ki=G1(Ex(1,1))%k
-    ka=G1(Ex(2,1))%k
-    kj=G1(Ex(1,2))%k
-    kb=G1(Ex(2,2))%k
+    if (.not.tUEG2) then
+        ki=G1(Ex(1,1))%k
+        ka=G1(Ex(2,1))%k
+        kj=G1(Ex(1,2))%k
+        kb=G1(Ex(2,2))%k
+    else 
+        ki=kvec(Ex(1,1),:)
+        ka=kvec(Ex(2,1),:)
+        kj=kvec(Ex(1,2),:)
+        kb=kvec(Ex(2,2),:)
+    endif 
     
     if (tSplitProjEHistK3) then ! <k1 k2 || k3 k4> is included only if
                                 ! both k3 and k4 are within the e-cutoff
         FindSplitProjEBinK3=max(ka(1)**2+ka(2)**2+ka(3)**2,kb(1)**2+kb(2)**2+kb(3)**2)
+        if (FindSplitProjEBinK3 .gt. OrbECutOff) then
+            write(6,*) "ka",ka
+            write(6,*) "kb",kb
+            call stop_all("FindSplitProjEBinK3","Shouldn't find an orbital with a larger energy than cutoff")
+        endif
     else
         call stop_all("FindSplitProjEBinK3","Shouldn't be called without HistK3 being on")
     endif
