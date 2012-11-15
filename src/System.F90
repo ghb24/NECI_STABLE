@@ -1185,7 +1185,7 @@ MODULE System
           WRITE(6,'(A,F20.16)') " Unscaled Fermi Energy nmax**2=",(FKF*FKF/2)/(0.5*(2*PI/ALAT(5))**2)         
           IF(OrbECutoff.ne.1e-20) WRITE(6,'(A,F20.16)') " Orbital Energy Cutoff:",OrbECutoff
           WRITE(6,'(1X,A,F19.5)') " VOLUME : ", OMEGA
-          WRITE(6,'(A,F20.16)') " TALPHA : " , TALPHA
+          WRITE(6,*) " TALPHA : " , TALPHA
           WRITE(6,'(1X,A,F19.5)') " ALPHA : " , ALPHA
           ALPHA=(OMEGA)**THIRD*ALPHA
           WRITE(6,'(1X,A,F19.5)') " SCALED ALPHA : " , ALPHA
