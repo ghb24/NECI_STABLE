@@ -1171,6 +1171,7 @@ MODULE System
           IF(TPARITY) THEN
               WRITE(6,*) ' MOMENTUM : ',(IPARITY(I),I=1,3)
           ENDIF
+
            WRITE(6,'(A,I5)') '  Dimension : ' , Dimen
            WRITE(6,*) '  Reciprocal lattice constant : ' ,  k_lattice_constant
            WRITE(6,'(A,I5)') '  NMAXX : ' , NMAXX
@@ -1186,6 +1187,7 @@ MODULE System
            WRITE(6,'(1X,A,F19.5)') '  VOLUME : ' , OMEGA
            WRITE(6,*) ' TALPHA : ' , TALPHA
            WRITE(6,'(1X,A,F19.5)') '  ALPHA : ' , ALPHA
+
           ALPHA=(OMEGA)**THIRD*ALPHA
            WRITE(6,'(1X,A,F19.5)') '  SCALED ALPHA : ' , ALPHA
            WRITE(6,*) 'Madelung constant: ',  Madelung
