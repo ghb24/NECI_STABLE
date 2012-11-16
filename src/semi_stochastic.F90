@@ -281,9 +281,10 @@ contains
         integer, optional :: nI_in(nel)
         integer :: nI(nel)
         integer(n_int) :: flags
-        integer :: proc, sgn(lenof_sign)
+        integer :: proc
+        real(dp) :: sgn(lenof_sign)
 
-        sgn = 0
+        sgn = 0.0_dp
         ! Flag to specify that these basis states are in the deterministic space.
         flags = 0
         flags = ibset(flags,flag_deterministic)
