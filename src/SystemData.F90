@@ -68,8 +68,8 @@ logical :: tCSF           ! Use CSFs
 logical :: tTruncateCSF   ! Use determinants not CSFs for nopen > 
                           ! csf_trunc_level
 
+! Options relating to the semi-stochastic code.
 logical :: tSemiStochastic ! Performing a semi-stochastic simulation if true.
-
 ! Options regarding splitting the space into core and non-core elements. Needed, for example when performing a
 ! semi-stochastic simulation, to specify the deterministic space.
 logical :: tCSFCore ! Use CSFs for the core states.

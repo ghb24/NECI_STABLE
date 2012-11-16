@@ -32,10 +32,8 @@ contains
         ! storing the resulting Hamiltonian matrix elements. The lists which will store
         ! the psip vectors in the deterministic space are also allocated.
 
-        integer :: i, j, col_index, iproc, IC
-        integer :: nI(nel), nJ(nel)
-        integer(n_int), allocatable, dimension(:,:) :: temp_store
-        integer :: det_space_size, ierr
+        integer :: i, j, IC
+        integer :: det_space_size
 
         ! Initialise the deterministic mask.
         deterministic_mask = 0
@@ -87,6 +85,19 @@ contains
         ! Sort the list of basis states so that it is correctly ordered in the predefined
         ! order which is always kept throughout the simulation.
         call sort(CurrentDets(:,1:deterministic_proc_sizes(iProcIndex)), ilut_lt, ilut_gt)
+
+        ! Calculate and store the deterministic Hamiltonian.
+        call calculate_det_hamiltonian_normal()
+
+        call stop_all("here","here")
+
+    end subroutine init_semi_stochastic
+
+    subroutine calculate_det_hamiltonian_normal()
+
+        integer :: i, j, iproc, col_index, ierr
+        integer :: nI(nel), nJ(nel)
+        integer(n_int), allocatable, dimension(:,:) :: temp_store
 
         ! temp_store is storage space for bitstrings so that the Hamiltonian matrix
         ! elements can be calculated.
@@ -140,9 +151,7 @@ contains
 
         deallocate(temp_store)
 
-        call stop_all("here","here")
-
-    end subroutine init_semi_stochastic
+    end subroutine calculate_det_hamiltonian_normal
 
     subroutine generate_determinants()
 
