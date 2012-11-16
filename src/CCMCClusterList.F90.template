@@ -171,13 +171,13 @@ SUBROUTINE CalcClusterEnergy (tFCI,AL,iAmpList,nExcit,ExcitList,ExcitLevelIndex,
    INTEGER nExcit
    INTEGER(kind=n_int) ExcitList(0:nIfTot,nExcit)
    INTEGER ExcitLevelIndex(0:nEl+1)
-   real(dp) dNorm
-   real(dp) ProjE
+   real(dp) :: dNorm, ProjE, iSgn
    INTEGER iDebug
    integer iRefPos
    integer, dimension(lenof_sign) :: temp_sign
+   real(dp), dimension(lenof_sign) :: realtemp_sign
 
-   INTEGER iC,i,j,l,iSgn
+   INTEGER iC,i,j,l
    real(dp) dT1Sq,dAmp,dTmp
    INTEGER DetCurr(nEl)
    HElement_t HTmp
@@ -208,13 +208,14 @@ SUBROUTINE CalcClusterEnergy (tFCI,AL,iAmpList,nExcit,ExcitList,ExcitLevelIndex,
          i=i*ExcitToDetSign(iLutHF,ExcitList(:,j),iC)
          if (iProcIndex.eq.root) then
             temp_sign=0
-            ASSERT(.not.(lenof_sign == 1 .and. amp(1) /= 0))
+            ASSERT(lenof_sign == 1 .and. amp(1) /= 0)
             if(amp(1).ne.0) then
                temp_sign(1)=i
             else
                temp_sign(lenof_sign)=i
             endif
-             call SumEContrib(DetCurr,iC,temp_sign,ExcitList(:,j),dTmp,1/dAmp)
+            realtemp_sign = temp_sign
+             call SumEContrib(DetCurr,iC,realtemp_sign,ExcitList(:,j),dTmp,1/dAmp)
          endif
 ! Deal with T_1^2
          IFDEBUGTHEN(iDebug,4)
@@ -264,7 +265,8 @@ SUBROUTINE CalcClusterEnergy (tFCI,AL,iAmpList,nExcit,ExcitList,ExcitLevelIndex,
 #else
                      temp_sign(1)=iSgn
 #endif
-                     call SumEContrib(DetCurr,2,temp_sign,iLutnI(:),dTmp,1/dAmp)
+                     realtemp_sign = temp_sign
+                     call SumEContrib(DetCurr,2,realtemp_sign,iLutnI(:),dTmp,1/dAmp)
                   endif
                endif
             enddo
@@ -299,12 +301,12 @@ SUBROUTINE CalcClusterEnergyUnsrt (tFCI,AL,iAmpList,nExcit,ExcitList,iRefPos,dNo
    integer iAmpList
    INTEGER nExcit
    INTEGER(kind=n_int) ExcitList(0:nIfTot,nExcit)
-   real(dp) dNorm
-   real(dp) ProjE
+   real(dp) dNorm, ProjE, iSgn
    INTEGER iRefPos
    INTEGER, DIMENSION(lenof_sign) :: temp_sign
+   real(dp), dimension(lenof_sign) :: realtemp_sign
 
-   INTEGER iC,i,j,l,iSgn,iC2
+   INTEGER iC,i,j,l,iC2
    real(dp) dT1Sq,dAmp,dTmp
    INTEGER DetCurr(nEl)
    HElement_t HTmp
@@ -328,13 +330,14 @@ SUBROUTINE CalcClusterEnergyUnsrt (tFCI,AL,iAmpList,nExcit,ExcitList,iRefPos,dNo
       if(dAmp.ne.0.d0) then
          if (iProcIndex.eq.root) then
             temp_sign=0
-            ASSERT(.not.(lenof_sign == 1 .and. amp(1) /= 0))
+            ASSERT(lenof_sign == 1 .and. amp(1) /= 0)
             if(amp(1).ne.0) then
                temp_sign(1)=i
             else
                temp_sign(lenof_sign)=i
             endif
-            call SumEContrib(DetCurr,iC,temp_sign,ExcitList(:,j),dTmp,1/dAmp)
+            realtemp_sign=transfer(temp_sign, realtemp_sign)
+            call SumEContrib(DetCurr,iC,realtemp_sign,ExcitList(:,j),dTmp,1/dAmp)
          endif
 ! Deal with T_1^2
          if(iC.eq.1.and..not.tFCI) then
@@ -372,7 +375,8 @@ SUBROUTINE CalcClusterEnergyUnsrt (tFCI,AL,iAmpList,nExcit,ExcitList,iRefPos,dNo
 #else
                      temp_sign(1)=iSgn
 #endif
-                     call SumEContrib(DetCurr,2,temp_sign,iLutnI(:),dTmp,1/dAmp)
+                     realtemp_sign=transfer(temp_sign, realtemp_sign)
+                     call SumEContrib(DetCurr,2,realtemp_sign,iLutnI(:),dTmp,1/dAmp)
                   endif
                endif
             enddo
@@ -700,14 +704,10 @@ SUBROUTINE CollapseCluster (C,iLutHF,AL,iAmpList,nDet,iDebug,tExToDet)
    TYPE(Cluster) C
    INTEGER(KIND=n_int) :: iLutHF(0:nIfTot)
    type(AmplitudeList_%(name)s), intent(in) :: AL
-   INTEGER iAmpList
-   INTEGER nDet
-   INTEGER iDebug
-   LOGICAL tExToDet
+   integer :: iAmpList, nDet, iDebug, i
+   real(dp) :: iSgn
+   logical :: tExToDet, IsImag
    %(type1)s, dimension(lenof_sign) :: amp
-
-   INTEGER i,iSgn
-   LOGICAL IsImag
 
    ! Avoid compile warnings outside debug mode
    iDebug = iDebug
@@ -763,21 +763,17 @@ SUBROUTINE CollapseCluster (C,iLutHF,AL,iAmpList,nDet,iDebug,tExToDet)
 END SUBROUTINE !CollapseCluster
 
 !Calculate the total cluster amplitude as well as the magnitude of the e^T.
-subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,dNorm,AL,iAmpList,nAmpl,dTol,WalkerScale,iRefPos,iOldTotParts,iDebug)
+subroutine CalcTotals (iNumExcitors, dTotAbsAmpl, dNorm, AL, iAmpList, nAmpl,&
+                       dTol, WalkerScale, iRefPos, iOldTotParts, iDebug)
    use Parallel_neci, only: iProcIndex
    use CCMCData, only: tCCMCFCI
    use FciMCData, only: TotParts,TotWalkers,NoatHF,NoatDoubs, iter_data_ccmc
    use timing_neci
    implicit none
-   integer iNumExcitors,nAmpl
-   real(dp) dTotAbsAmpl,dTol
-   real(dp) dNorm
+   integer :: iNumExcitors, nAmpl
+   real(dp) :: dTotAbsAmpl, dTol, dNorm, WalkerScale, iOldTotParts(lenof_sign)
    type(AmplitudeList_%(name)s), intent(in) :: AL
-   integer iAmpList
-   integer iDebug
-   real(dp) WalkerScale
-   integer iRefPos
-   integer, dimension(lenof_sign) :: iOldTotParts
+   integer :: iAmpList, iDebug, iRefPos
 
    integer i,j,ierr
    real(dp) dPsiTotAbsAmpl,dTmp

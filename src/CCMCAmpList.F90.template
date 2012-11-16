@@ -246,7 +246,7 @@ subroutine WriteExcitorList_btrp(iUnit,AL,iAmpList,Dets,offset,nDet,dTol,Title)
    use FciMCData, only: iLutHF
    use bit_reps, only: extract_sign,extract_flags
    use bit_rep_data, only: nIfTot
-   use constants, only: lenof_sign
+   use constants
    IMPLICIT NONE
    INTEGER iUnit,nDet
    Type(AmplitudeList_btrp) AL
@@ -255,7 +255,7 @@ subroutine WriteExcitorList_btrp(iUnit,AL,iAmpList,Dets,offset,nDet,dTol,Title)
    integer dTol
    CHARACTER(len=*) Title
    INTEGER j,offset
-   INTEGER, dimension(lenof_sign) :: Amp
+   real(dp) :: amp(lenof_sign)
    write(6,*) Title
    do j=1,nDet
       call extract_sign(AL%BitReps(:,j),Amp)
@@ -276,18 +276,16 @@ pure function GetAmpl_btrp(AL,iIndex,iAmpList) result(r)
    use constants, only: lenof_sign
    type(AmplitudeList_btrp), intent(in) :: AL
    INTEGER, intent(in) ::  iAmpList,iIndex
-   integer,dimension(lenof_sign) :: r
+   real(dp) :: r(lenof_sign)
    call extract_sign(AL%BitReps(:,iIndex),r)
-   return 
 end function !GetAmpl
 
 subroutine SetAmpl_btrp(AL,iIndex,iAmpList,r)
    use bit_reps, only: encode_sign
    type(AmplitudeList_btrp), intent(inout) :: AL
    INTEGER, intent(in) ::  iAmpList,iIndex
-   integer,dimension(lenof_sign) :: r
+   real(dp), intent(in) :: r(lenof_sign)
    call encode_sign(AL%BitReps(:,iIndex),r)
-   return 
 end subroutine !SetAmpl
 
 end supermodule

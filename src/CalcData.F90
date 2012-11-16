@@ -26,8 +26,13 @@ LOGICAL :: tRotoAnnihil,tRegenDiagHEls,tSpawnAsDet,tFindGroundDet
 LOGICAL :: tTruncCAS,tTruncInitiator,tDelayTruncInit,tAddtoInitiator    !Truncation the FCIMC excitation space by CAS
 LOGICAL :: tInitIncDoubs,tWalkContGrow,tAnnihilatebyRange,tRetestAddtoInit
 logical :: tReadPopsRestart, tReadPopsChangeRef, tInstGrowthRate
+logical :: tAllRealCoeff
+logical :: tRealSpawnCutoff
+logical :: tRealCoeffByExcitLevel
+integer :: RealCoeffExcitThresh
+real(dp) :: RealSpawnCutoff
+logical :: tEnhanceRemainder
 logical :: tRPA_QBA     !RPA calculation with QB approximation
-
 logical :: tStartCAS    !Start FCIMC dynamic with walkers distributed according to CAS diag.
 logical :: tPopsMapping !Map popsfile from smaller basis onto larger basis
 logical :: tShiftonHFPop    !Adjust shift in order to keep the population on HF constant, rather than total pop.
@@ -55,11 +60,13 @@ INTEGER :: NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp,iFullSpaceIter
 INTEGER :: IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets,iDetGroup
 INTEGER :: CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
 INTEGER :: NMCyc,StepsSft,CLMax
-INTEGER :: NEquilSteps,InitialPart
+INTEGER :: NEquilSteps
+real(dp) :: InitialPart
 INTEGER :: OccCASorbs,VirtCASorbs,iAnnInterval
 integer :: iPopsFileNoRead, iPopsFileNoWrite,iWeightPopRead,iRestartWalkNum
 integer :: MaxWalkerBloom   !Max number of walkers allowed in one bloom before reducing tau
-INTEGER(int64) :: MaxNoatHF,HFPopThresh,InitWalkers
+INTEGER(int64) :: HFPopThresh
+real(dp) :: InitWalkers, maxnoathf
 
 integer :: iReadWalkersRoot !The number of walkers to read in on the head node in each batch during a popsread
 

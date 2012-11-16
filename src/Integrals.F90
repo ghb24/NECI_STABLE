@@ -1893,23 +1893,49 @@ END MODULE Integrals_neci
 
 SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
   use constants, only: dp
-  use SystemData, only: BasisFN, k_offset, iPeriodicDampingType
+  use SystemData, only: BasisFN, k_offset, iPeriodicDampingType, kvec, k_lattice_constant
   USE OneEInts, only : SetupTMAT,TMAT2D,TSTARSTORE
   use util_mod, only: get_free_unit
+  use SystemData, only: tUEG2
   IMPLICIT NONE
   INTEGER NBASIS
   TYPE(BASISFN) G1(NBASIS)
-  real(dp) ALAT(4),CST,K_REAL(3)
+  real(dp) ALAT(4),CST,K_REAL(3), temp
   INTEGER I
   INTEGER iSIZE, iunit
   real(dp) OMEGA
   LOGICAL TPERIODIC
   real(dp), PARAMETER :: PI=3.1415926535897932384626433832795029D0
+
+!=================================================
+  if (tUEG2) then
+  
+      IF(TPERIODIC) WRITE(6,*) "Periodic UEG"
+      iunit = get_free_unit()
+
+      OPEN(iunit,FILE='TMAT',STATUS='UNKNOWN')
+          IF(TSTARSTORE) STOP 'Cannot use TSTARSTORE with UEG'
+          CALL SetupTMAT(NBASIS,2,iSIZE)
+          DO I=1,NBASIS
+              !K_OFFSET in cartesian coordinates
+              K_REAL=kvec(I, 1:3)+K_OFFSET
+              temp=K_REAL(1)**2+K_REAL(2)**2+K_REAL(3)**2
+              ! TMAT is diagonal for the UEG
+              TMAT2D(I,1)=0.5d0*temp*k_lattice_constant**2
+              WRITE(iunit,*) I,I,TMAT2D(I,1)
+          ENDDO
+      CLOSE(iunit)
+          
+      RETURN
+  end if ! tUEG2
+!=================================================
+
   IF(TPERIODIC) WRITE(6,*) "Periodic UEG"
   iunit = get_free_unit()
   OPEN(iunit,FILE='TMAT',STATUS='UNKNOWN')
   IF(TSTARSTORE) STOP 'Cannot use TSTARSTORE with UEG'
   CALL SetupTMAT(NBASIS,2,iSIZE)
+
   DO I=1,NBASIS
     K_REAL=G1(I)%K+K_OFFSET
     TMAT2D(I,1)=((ALAT(1)**2)*((K_REAL(1)**2)/(ALAT(1)**2)+        &

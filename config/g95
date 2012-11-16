@@ -6,7 +6,7 @@ ldflags = -m64
 compiler = G95-on-LINUX
 cpp = cpp -C -traditional
 cppflags = -D__Linux -DPOINTER8 -D__INT64 -DDISABLE_FFTW -D__G95__
-libs = -lacml -L /usr/lib/gcc/x86_64-linux-gnu/4.4/ -lstdc++ -lrt 
+libs = -lacml -L /usr/lib/gcc/x86_64-linux-gnu/4.4/ -lstdc++ -lrt -lm
 module_flag = -fmod=
 
 [dbg]

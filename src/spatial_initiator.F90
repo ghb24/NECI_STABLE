@@ -2,7 +2,7 @@
 
 module spatial_initiator
 
-    use constants, only: n_int, lenof_sign
+    use constants
     use bit_reps, only: NIfDBO, NIfTot, NIfD, extract_part_sign, &
                         encode_part_sign, encode_bit_rep
     use DetBitOps, only: MaskAlpha, MaskBeta, spatial_bit_det
@@ -23,7 +23,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:nIfTot)
         integer(n_int), dimension(0:NIfD) :: alpha, beta, a_sft, b_sft
         integer(n_int) :: spat(0:NIfTot)
-        integer, dimension(lenof_sign) :: sgn
+        real(dp) :: sgn(lenof_sign)
         integer :: flag, pos
         
         ! Obtain standard spatial representation
@@ -63,7 +63,8 @@ contains
         integer(n_int), intent(in) :: ilut(0:nIfTot)
         integer(n_int), dimension(0:NIfD) :: alpha, beta, a_sft, b_sft
         integer(n_int) :: spat(0:NIfTot)
-        integer :: pos, sgn
+        real(dp) :: sgn
+        integer :: pos
         character(*), parameter :: this_routine = 'rm_initiator_list'
 
         ! Obtain standard spatial representation

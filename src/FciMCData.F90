@@ -43,7 +43,7 @@ MODULE FciMCData
       REAL(dp) :: SumSigns, SumSpawns, AvNoatHF
       LOGICAL :: tFillingStochRDMonFly, tFillingExplicRDMonFly
       integer :: Spawned_Parts_Zero, HFInd, NCurrH, IterRDMStart, IterRDM_HF
-      integer, dimension(lenof_sign) :: InstNoatHf
+      real(dp), dimension(lenof_sign) :: InstNoatHf
 
       INTEGER(KIND=n_int) , ALLOCATABLE :: TempSpawnedParts(:,:)
       INTEGER :: TempSpawnedPartsTag, TempSpawnedPartsInd
@@ -53,17 +53,21 @@ MODULE FciMCData
       integer :: max_inits
       integer(TagIntType) :: CurrentInitTag=0
 
-      INTEGER :: NoAbortedInCAS,NoAbortedOutCAS,NoInCAS,NoOutCAS,HighPopNeg,HighPopPos,MaxInitPopNeg,MaxInitPopPos
+      INTEGER :: NoAbortedInCAS,NoAbortedOutCAS,NoInCAS,NoOutCAS, HighPopNeg, HighPopPos
+      REAL(dp) :: MaxInitPopNeg,MaxInitPopPos
 
-    integer(int64) :: NoAborted, NoAddedInitiators, NoInitDets, NoNonInitDets
-    integer(int64) :: NoInitWalk, NoNonInitWalk
+    real(dp) :: NoAborted, AllNoAborted, AllNoAbortedOld
+    real(dp) :: NoRemoved, AllNoRemoved, AllNoRemovedOld
+    integer(int64) :: NoAddedInitiators, NoInitDets, NoNonInitDets
+    real(dp) :: NoInitWalk, NoNonInitWalk
     integer(int64) :: NoExtraInitDoubs, InitRemoved
     integer :: no_spatial_init_dets
 
-    integer(int64) :: AllNoAborted, AllNoAddedInitiators, AllNoInitDets
-    integer(int64) :: AllNoNonInitDets, AllNoInitWalk, AllNoNonInitWalk
+    integer(int64) :: AllNoAddedInitiators, AllNoInitDets
+    integer(int64) :: AllNoNonInitDets
+    real(dp) :: AllNoInitWalk, AllNoNonInitWalk
     integer(int64) :: AllNoExtraInitDoubs, AllInitRemoved
-    integer(int64) :: AllNoAbortedOld, AllGrowRateAbort
+    integer(int64) :: AllGrowRateAbort
 
       LOGICAL :: tHFInitiator,tPrintHighPop, tcurr_initiator
       logical :: tHashWalkerList    !Option to store occupied determinant in a hash table
@@ -82,8 +86,8 @@ MODULE FciMCData
 
       INTEGER :: MaxWalkersPart,PreviousNMCyc,Iter,NoComps,MaxWalkersAnnihil
       integer(int64) :: TotWalkers, TotWalkersOld
-      integer(int64), dimension(lenof_sign) :: TotParts, TotPartsOld
-      integer(int64) :: norm_psi_squared
+      real(dp), dimension(lenof_sign) :: TotParts, TotPartsOld
+      real(dp) :: norm_psi_squared
       real(dp) :: norm_psi
       INTEGER :: exFlag=3
       real(dp) :: AccumRDMNorm, AccumRDMNorm_Inst, AllAccumRDMNorm
@@ -108,20 +112,20 @@ MODULE FciMCData
       ! The magnitude of each contribution is taken before it is summed in
       HElement_t :: AbsProjE
 
-      integer(int64), dimension(lenof_sign) :: SumNoatHF      !This is the sum over all previous cycles of the number of particles at the HF determinant
+      real(dp), dimension(lenof_sign) :: SumNoatHF !This is the sum over all previous cycles of the number of particles at the HF determinant
       real(dp) :: AvSign           !This is the average sign of the particles on each node
       real(dp) :: AvSignHFD        !This is the average sign of the particles at HF or Double excitations on each node
-      INTEGER(KIND=int64) :: SumWalkersCyc    !This is the sum of all walkers over an update cycle on each processor
-      INTEGER :: Annihilated      !This is the number annihilated on one processor
-      INTEGER, DIMENSION(lenof_sign) :: NoatHF           !This is the instantaneous number of particles at the HF determinant
-      INTEGER :: NoatDoubs
+      real(dp) :: SumWalkersCyc    !This is the sum of all walkers over an update cycle on each processor
+      Real(dp) :: Annihilated      !This is the number annihilated on one processor
+      REAL(dp), DIMENSION(lenof_sign) :: NoatHF           !This is the instantaneous number of particles at the HF determinant
+      REAL(dp) :: NoatDoubs
       INTEGER :: Acceptances      !This is the number of accepted spawns - this is only calculated per node.
       real(dp) :: AccRat            !Acceptance ratio for each node over the update cycle
       INTEGER :: PreviousCycles   !This is just for the head node, so that it can store the number of previous cycles when reading from POPSFILE
-      INTEGER :: NoBorn,NoDied
+      REAL(dp) :: NoBorn,NoDied
       INTEGER :: SpawnFromSing  !These will output the number of particles in the last update cycle which have been spawned by a single excitation.
       INTEGER :: AllSpawnFromSing
-      INTEGER, DIMENSION(lenof_sign) :: HFCyc            !This is the number of HF*sign particles on a given processor over the course of the update cycle
+      REAL(dp), DIMENSION(lenof_sign) :: HFCyc            !This is the number of HF*sign particles on a given processor over the course of the update cycle
       HElement_t :: AllHFCyc          !This is the sum of HF*sign particles over all processors over the course of the update cycle
       HElement_t :: OldAllHFCyc       !This is the old *average* (not sum) of HF*sign over all procs over previous update cycle
       HElement_t :: ENumCyc           !This is the sum of doubles*sign*Hij on a given processor over the course of the update cycle
@@ -132,23 +136,25 @@ MODULE FciMCData
       ! The projected energy over the current update cycle.
       HElement_t :: ProjECyc
 
-      integer :: iPartBloom   ! The maximum number of children spawned from a
+      real(dp) :: iPartBloom   ! The maximum number of children spawned from a
                               ! single excitation. Used to calculate blooms.
 
 !These are the global variables, calculated on the root processor, from the values above
       real(dp) :: AllGrowRate
       integer(int64) :: AllTotWalkers, AllTotWalkersOld
-      integer(int64), dimension(lenof_sign) :: AllTotParts, AllTotPartsOld
-      integer(int64), dimension(lenof_sign) :: AllSumNoatHF
-      INTEGER(KIND=int64) :: AllSumWalkersCyc
+      real(dp), dimension(lenof_sign) :: AllTotParts, AllTotPartsOld
+      real(dp), dimension(lenof_sign) :: AllSumNoatHF
+      real(dp) :: AllSumWalkersCyc
       real(dp) :: OldAllAvWalkersCyc    !This is the average number of walkers each iteration over the previous update cycle
-      INTEGER :: AllAnnihilated,AllNoatDoubs
-      INTEGER, DIMENSION(lenof_sign) :: AllNoatHF
+      REAL(dp) :: AllAnnihilated
+      REAL(dp) :: AllNoAtDoubs
+      REAl(dp), DIMENSION(lenof_sign) :: AllNoatHF
       HElement_t :: sum_proje_denominator, &
                         cyc_proje_denominator, all_cyc_proje_denominator, &
                         all_sum_proje_denominator
       real(dp) :: AllAvSign,AllAvSignHFD
-      INTEGER :: AllNoBorn,AllNoDied,MaxSpawned
+      INTEGER :: MaxSpawned
+      REAL(dp) :: AllNoBorn,AllNoDied
 
       HElement_t :: AllSumENum
   
@@ -233,18 +239,29 @@ MODULE FciMCData
 
       real(dp) :: HFShift     !A 'shift'-like value for the total energy which is taken from the growth of walkers on the HF determinant.
       real(dp) :: InstShift   !An instantaneous value for the shift from the growth of walkers.
-      INTEGER, DIMENSION(lenof_sign) :: OldAllNoatHF
+      REAL(dp), DIMENSION(lenof_sign) :: OldAllNoatHF
 
       INTEGER :: iHFProc    !Processor index for HF determinant
 
       !This data is for calculating the highest population determinant, and potentially restarting the calculation based on this determinant, or changing the determiant which the energy is calculated from.
       INTEGER :: iHighestPop
+      INTEGER :: QuadDetsEst !Estimate of the number of symmetry allowed determinants at excit level 4
+      INTEGER :: DoubDetsEst !Estimate of the number of symmetry allowed determinants at excit level 2
       INTEGER , ALLOCATABLE :: ProjEDet(:)
       INTEGER(KIND=n_int) , ALLOCATABLE :: HighestPopDet(:),iLutRef(:)
       INTEGER(n_int) , ALLOCATABLE :: iLutRefFlip(:)     !If we are using HPHF and projecting onto an open-shell determinant, then it is useful
                                                         !to store the spin-coupled determinant, so we can calculate projection onto both.
       INTEGER , ALLOCATABLE :: RefDetFlip(:)
       LOGICAL :: tSpinCoupProjE
+      
+      !Extra data recorded for using RealCoefficients
+      !These are largely diagnostic (except WalkersToSpawn), so could be removed
+      !Once we're happy with the implementation of the algorithm
+      INTEGER :: NumSpawnedEntries, AllNumSpawnedEntries
+      INTEGER :: ZeroMatrixElem, AllZeroMatrixelem
+      INTEGER :: NumMerged, AllNumMerged
+      INTEGER :: WalkersToSpawn, TotWalkersToSpawn, AllTotWalkersToSpawn
+      LOGICAL :: blank_det
 
       ! Store data about all processors for calculating load balancing
       integer(int64) :: MaxWalkersProc, MinWalkersProc
@@ -271,12 +288,12 @@ MODULE FciMCData
       ! Store data from one fcimc iteration
       !  --> We can deal with different types of iteration separately
       type fcimc_iter_data
-          integer, dimension(lenof_sign) :: nborn
-          integer, dimension(lenof_sign) :: ndied
-          integer, dimension(lenof_sign) :: nannihil
-          integer, dimension(lenof_sign) :: naborted
-          integer, dimension(lenof_sign) :: update_growth, update_growth_tot
-          integer(int64), dimension(lenof_sign) :: tot_parts_old
+          real(dp), dimension(lenof_sign) :: nborn
+          real(dp), dimension(lenof_sign) :: ndied
+          real(dp), dimension(lenof_sign) :: nannihil
+          real(dp), dimension(lenof_sign) :: naborted
+          real(dp), dimension(lenof_sign) :: update_growth, update_growth_tot
+          real(dp), dimension(lenof_sign) :: tot_parts_old
           integer :: update_iters
       end type
       

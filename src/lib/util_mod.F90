@@ -2,6 +2,7 @@ module util_mod
     use util_mod_comparisons
     use util_mod_cpts
     use constants, only: dp, lenof_sign,sizeof_int
+    use dSFMT_interface, only: genrand_real2_dSFMT
     use iso_c_hack
     implicit none
 
@@ -12,6 +13,24 @@ module util_mod
             character(c_char), intent(in) :: str(*)
             integer(c_int) :: len
         end function
+        pure function erf (x) result(e) bind(c)
+            use iso_c_hack
+            implicit none
+            real(c_double), intent(in) :: x
+            real(c_double) :: e
+        end function
+        pure function erfc (x) result(ec) bind(c)
+            use iso_c_hack
+            implicit none
+            real(c_double), intent(in) :: x
+            real(c_double) :: ec
+        end function
+    end interface
+
+    interface abs_sign
+        module procedure abs_int4_sign
+        module procedure abs_int8_sign
+        module procedure abs_real_sign
     end interface
 
     ! sds: It would be nice to use a proper private/public interface here,
@@ -25,6 +44,31 @@ module util_mod
 !    public :: append_ext, get_unique_filename, get_nan, isnan_neci
 
 contains
+
+    function stochastic_round (r) result(i)
+
+        ! Stochastically round the supplied real value to an integer. This is
+        ! the primary method of introducing the monte-carlo nature of spawning
+        ! or death into the algorithm.
+        ! --> Probably nicer to use a centralised implementation than a bunch
+        !     of hacked-in ones all over the place...
+        !
+        ! Unfortunately, we cannot make this pure, as we would need to have
+        ! a mutable variable in genrand_real2_dSFMT...
+
+        real(dp), intent(in) :: r
+        integer :: i
+        real(dp) :: res
+
+        i = int(r)
+        res = r - real(i, dp)
+
+        if (res /= 0) then
+            if (abs(res) > genrand_real2_dSFMT()) &
+                i = i + nint(sign(1.0_dp, r))
+        end if
+
+    end function
 
     subroutine print_cstr (str) bind(c, name='print_cstr')
 
@@ -51,16 +95,20 @@ contains
 
     end subroutine
 
-!routine to calculation the absolute magnitude of a complex integer variable (to nearest integer)
-    pure integer function abs_int_sign(wsign)
-        integer, dimension(lenof_sign), intent(in) :: wsign
+    ! routine to calculation the absolute magnitude of a complex integer 
+    ! variable (to nearest integer)
+    pure real(dp) function abs_int4_sign(sgn)
+        integer(int32), intent(in) :: sgn(lenof_sign)
 
         if(lenof_sign.eq.1) then
-            abs_int_sign=abs(wsign(1))
+            abs_int4_sign = abs(sgn(1))
         else
-            abs_int_sign=nint(sqrt(real(wsign(1),dp)**2+real(wsign(lenof_sign),dp)**2),sizeof_int)
+            abs_int4_sign = real(int(sqrt(real(sgn(1),dp)**2 + real(sgn(lenof_sign),dp)**2)), dp)
+            ! The integerisation here is an approximation, but one that is 
+            ! used in the integer algorithm, so is retained in this real 
+            ! version of the algorithm
         endif
-    end function abs_int_sign
+    end function abs_int4_sign
 
 !routine to calculation the absolute magnitude of a complex integer(int64) variable (to nearest integer)
     pure integer(kind=int64) function abs_int8_sign(wsign)
@@ -72,6 +120,16 @@ contains
             abs_int8_sign=nint(sqrt(real(wsign(1),dp)**2+real(wsign(lenof_sign),dp)**2),int64)
         endif
     end function abs_int8_sign
+
+    pure real(dp) function abs_real_sign (sgn)
+        real(dp), intent(in) :: sgn(lenof_sign)
+
+        if (lenof_sign == 1) then
+            abs_real_sign = abs(sgn(1))
+        else
+            abs_real_sign = real(nint(sqrt(sum(sgn ** 2))), dp)
+        end if
+    end function
 
 !--- Array utilities ---
 
@@ -364,7 +422,6 @@ contains
         lo = lbound(arr,2)
         hi = ubound(arr,2)
 
-!>>>!        write(6,*) 'hi, lo', hi, lo
         ! Account for poor usage (i.e. array len == 0)
         if (hi < lo) then
             pos = -lo
@@ -539,6 +596,53 @@ contains
         if (i == max_unit+1) call stop_all('get_free_unit','Cannot find a free unit below max_unit.')
 
     end function get_free_unit
+
+    function error_function_c(argument) result (res)
+
+        use constants, only: dp
+        use iso_c_hack
+        implicit none 
+      
+        real(dp), intent(in) :: argument
+        real(dp) :: res
+
+        !interface
+        !    pure function erfc_lm(x) bind(c, name='erfc') result (ret)
+        !        use iso_c_hack
+        !        implicit none
+        !        real(c_double) :: ret
+        !            real(c_double), intent(in), value :: x
+        !    end function erfc_lm
+        !!end interface
+
+        !res = erfc_lm(real(argument, c_double))
+        res = erfc (real(argument, c_double))
+    end function error_function_c
+
+
+
+    function error_function(argument) result(res)
+        
+        use constants, only: dp
+        use iso_c_hack
+        implicit none 
+      
+        real(dp), intent(in) :: argument
+        real(dp) :: res
+
+!        interface
+!                pure function erf_lm(x) bind(c, name='erf') result(ret)
+!                use iso_c_hack
+!                implicit none
+!                real(c_double) :: ret
+!                real(c_double), intent(in), value :: x
+!            end function erf_lm
+!        end interface
+!        res = erf_lm(real(argument, c_double))
+        res = erf(real(argument, c_double))
+
+    end function error_function
+
 
 end module
 

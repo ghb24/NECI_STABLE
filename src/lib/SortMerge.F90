@@ -380,10 +380,10 @@
         use bit_reps, only: extract_sign, encode_flags, set_flag, test_flag, &
                             flag_is_initiator, flag_make_initiator, clr_flag,&
                             NIfTot, NIfDBO
-        use constants, only: n_int,lenof_sign
+        use constants
         implicit none
         INTEGER(KIND=n_int), INTENT(INOUT) :: DetCurr(0:NIfTot)
-        INTEGER, DIMENSION(lenof_sign) :: SignCurr
+        real(dp) :: SignCurr(lenof_sign)
         INTEGER :: CurrExcitLevel
         INTEGER :: part_type
         LOGICAL :: tDetInCAS, is_init

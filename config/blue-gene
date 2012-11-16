@@ -11,7 +11,7 @@ ldflags =
 compiler = IBM Blue Gene compilers
 cpp = cpp -P -C -traditional
 cppflags = -D__Linux -DPOINTER8 -DPARALLEL -D__INT64 -DBLUEGENE_HACKS -DDISABLE_FFTW -D__SHARED_MEM
-libs =  -L /bgsys/drivers/V1R4M2_200_2010-100508P/ppc/gnu-linux/powerpc-bgp-linux/lib/ -L /bgsys/local/lib/math -L /bgsys/ibm_essl/sles10/prod/opt/ibmmath/lib/ -L /bgsys/ibm_compilers/sles10/prod/opt/ibmcmp/vacpp/bg/9.0/lib -ltmglib_bgp -lcblas_bgp -llapack_bgp -libmc++ -lstdc++ -lrt -lesslbg -lxl -lxlopt
+libs =  -L /bgsys/drivers/V1R4M2_200_2010-100508P/ppc/gnu-linux/powerpc-bgp-linux/lib/ -L /bgsys/local/lib/math -L /bgsys/ibm_essl/sles10/prod/opt/ibmmath/lib/ -L /bgsys/ibm_compilers/sles10/prod/opt/ibmcmp/vacpp/bg/9.0/lib -ltmglib_bgp -lcblas_bgp -llapack_bgp -libmc++ -lstdc++ -lrt -lesslbg -lxl -lxlopt -lm
 module_flag = -qmoddir=
 
 [dbg]

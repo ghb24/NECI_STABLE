@@ -403,58 +403,62 @@ module DetBitOps
     end function DetBitEQ
 
     pure function sign_lt (ilutI, ilutJ) result (bLt)
-        ! This is a comparison function between two bit strings of length 0:NIfTot, and will return
-        ! true if absolute value of the sign of ilutI is less than ilutJ
+
+        ! This is a comparison function between two bit strings of length 
+        ! 0:NIfTot, and will return true if absolute value of the sign of 
+        ! ilutI is less than ilutJ
+
         integer(n_int), intent(in) :: iLutI(0:), iLutJ(0:)
         logical :: bLt
-        integer, dimension(lenof_sign) :: SignI, SignJ
+        integer :: SignI(lenof_sign), SignJ(lenof_sign)
+        real(dp) :: RealSignI(lenof_sign), RealSignJ(lenof_sign)
         real(dp) :: WeightI,WeightJ
 
+        ! Extract the sign. Ensure that we convert to a real, as the integers
+        ! themselves mean nothing.
         SignI = int(iLutI(NOffSgn:NOffSgn+lenof_sign-1),sizeof_int)
         SignJ = int(iLutJ(NOffSgn:NOffSgn+lenof_sign-1),sizeof_int)
+        RealSignI = transfer(SignI, RealSignI)
+        RealSignJ = transfer(SignJ, RealSignJ)
 
-        if(lenof_sign.eq.1) then
-            if(abs(SignI(1)).lt.abs(SignJ(1))) then
-                bLt = .true.
-            else
-                bLt = .false.
-            endif
+        if(lenof_sign == 1) then
+            bLt = abs(RealSignI(1)) < abs(RealSignJ(1))
         else
-            WeightI=sqrt(real(SignI(1),dp)**2+real(SignI(lenof_sign),dp)**2)
-            WeightJ=sqrt(real(SignJ(1),dp)**2+real(SignJ(lenof_sign),dp)**2)
-            if(WeightI.lt.WeightJ) then
-                bLt = .true.
-            else
-                bLt = .false.
-            endif
+            WeightI = sqrt(real(RealSignI(1), dp)**2 + &
+                           real(RealSignI(lenof_sign), dp)**2)
+            WeightJ = sqrt(real(RealSignJ(1), dp)**2 + &
+                           real(RealSignJ(lenof_sign), dp)**2)
+
+            bLt = WeightI < WeightJ
         endif
     end function sign_lt
 
     pure function sign_gt (ilutI, ilutJ) result (bGt)
-        ! This is a comparison function between two bit strings of length 0:NIfTot, and will return
-        ! true if the abs sign of ilutI is greater than ilutJ
+
+        ! This is a comparison function between two bit strings of length 
+        ! 0:NIfTot, and will return true if the abs sign of ilutI is greater
+        ! than ilutJ
+
         integer(n_int), intent(in) :: iLutI(0:), iLutJ(0:)
         logical :: bGt
-        integer, dimension(lenof_sign) :: SignI, SignJ
-        real(dp) :: WeightI,WeightJ
+        integer :: SignI(lenof_sign), SignJ(lenof_sign)
+        real(dp) :: RealSignI(lenof_sign), RealSignJ(lenof_sign)
+        real(dp) :: WeightI, WeightJ
 
         SignI = int(iLutI(NOffSgn:NOffSgn+lenof_sign-1),sizeof_int)
         SignJ = int(iLutJ(NOffSgn:NOffSgn+lenof_sign-1),sizeof_int)
+        RealSignI = transfer(SignI, RealSignI)
+        RealSignJ = transfer(SignJ, RealSignJ)
 
-        if(lenof_sign.eq.1) then
-            if(abs(SignI(1)).gt.abs(SignJ(1))) then
-                bGt = .true.
-            else
-                bGt = .false.
-            endif
+        if(lenof_sign == 1) then
+            bGt = abs(RealSignI(1)) > abs(RealSignJ(1))
         else
-            WeightI=sqrt(real(SignI(1),dp)**2+real(SignI(lenof_sign),dp)**2)
-            WeightJ=sqrt(real(SignJ(1),dp)**2+real(SignJ(lenof_sign),dp)**2)
-            if(WeightI.gt.WeightJ) then
-                bGt = .true.
-            else
-                bGt = .false.
-            endif
+            WeightI = sqrt(real(RealSignI(1), dp)**2 + &
+                           real(RealSignI(lenof_sign), dp)**2)
+            WeightJ = sqrt(real(RealSignJ(1), dp)**2 + &
+                           real(SignJ(lenof_sign), dp)**2)
+
+            bGt = WeightI > WeightJ
         endif
     end function sign_gt
 

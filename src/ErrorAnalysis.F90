@@ -451,13 +451,14 @@ module errors
         character(len=*), parameter :: t_r="read_fcimcstats"
         logical :: exists,tRefToZero
         integer :: eof,comments,i,ierr
-        integer :: iunit,doubs,WalkersDiffProc,change,Ann,Died,Born
+        integer :: iunit,WalkersDiffProc
+        real(dp) :: doubs,change,Ann,Died,Born, rewalkers, imwalkers
         real(dp) :: shift,rate,reproje,improje,reinstproje,iminstproje
         real(dp) :: AccRat,IterTime,FracFromSing,TotImagTime,HFShift,InstShift
         real(dp) :: denom,renum,imnum,normhf,norm_psi,curr_S2,Avshift,dud,tote
         real(dp) :: curr_S2_init,AbsProjE
-        integer(int64) :: TotDets,iters,rewalkers,imwalkers,validdata,datapoints
-        integer, dimension(lenof_sign) :: insthf
+        integer(int64) :: iters,validdata,datapoints,totdets
+        real(dp), dimension(lenof_sign) :: insthf
         
         !Open file (FCIMCStats or FCIQMCStats)
         iunit = get_free_unit()
@@ -491,8 +492,8 @@ module errors
 
                 if(lenof_sign.eq.2) then
                     !complex fcimcstats
-                    read(iunit,"(I12,G16.7,2I10,2I12,4G17.9,3I10,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9)",iostat=eof) &
+                    read(iunit, "(i12,5g16.7,7g17.9,g13.5,i12,g13.5,g17.5,&
+                                 &i13,g13.5,8g17.9,3i13)", iostat=eof) &
                         iters, &                !1.
                         shift, &                              !2.
                         change, &   !3.
@@ -516,8 +517,8 @@ module errors
                         InstShift, &                                 !21.
                         denom     !24     |n0|^2  This is the denominator for both calcs
                 else
-                    read(iunit,"(I12,G16.7,I10,G16.7,I13,3I15,3G17.9,2I10,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9)",iostat=eof) &
+                    read(iunit,"(i12,7g16.7,5g17.9,g13.5,i12,g13.5,g17.5,i13,&
+                                &g13.5,5g17.9)", iostat=eof) &
                         Iters, &
                         shift, &
                         change, &
@@ -548,10 +549,10 @@ module errors
                 if(eof.lt.0) then
                     call stop_all(t_r,"Should not be at end of file")
                 elseif(eof.gt.0) then
-!                    call stop_all(t_r,"Error reading FCIMCStats file")
-!I presume that this is because there is a difficulty reading in Nans or Infinities.
-!This will always (I presume) be because noatref -> 0, therefore we can safely wipe the stats
-                    if(iters.gt.iShiftVary) then
+                    ! This is normally due to a difficulty reading NaN or 
+                    ! Infinity. Assume that this occurs when NoAtRef --> 0.
+                    ! Therefore we can safely wipe the stats.
+                    if (iters > iShiftVary) then
                         tRefToZero = .true.
                         validdata=0
                         iShiftVary = int(Iters,sizeof_int) + 1
@@ -566,7 +567,7 @@ module errors
                         else
                             validdata=validdata+1
                         endif
-                    endif
+                    end if
                 endif
                 datapoints=datapoints+1
 
@@ -627,9 +628,9 @@ module errors
                 !Valid data on line
 
                 if(lenof_sign.eq.2) then
-                    !complex fcimcstats
-                    read(iunit,"(I12,G16.7,2I10,2I12,4G17.9,3I10,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9)",iostat=eof) &
+                    ! complex fcimcstats
+                    read(iunit,"(i12,5g16.7,7g17.9,g13.5,i12,g13.5,g17.5,i13,&
+                                &g13.5,8g17.9,3i13)", iostat=eof) &
                         iters, &                !1.
                         shift, &                              !2.
                         change, &   !3.
@@ -658,8 +659,8 @@ module errors
                         norm_psi, &
                         curr_S2
                 else
-                    read(iunit,"(I12,G16.7,I10,G16.7,I13,3I15,3G17.9,2I10,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9)",iostat=eof) &
+                    read(iunit,"(i12,7g16.7,5g17.9,g13.5,i12,g13.5,g17.5,&
+                                &i13,g13.5,11g17.9)", iostat=eof) &
                         Iters, &
                         shift, &
                         change, &
@@ -694,12 +695,13 @@ module errors
                 if(eof.lt.0) then
                     call stop_all(t_r,"Should not be at end of file")
                 elseif(eof.gt.0) then
-!I presume that this is because there is a difficulty reading in Nans or Infinities.
-!This will always (I presume) be because noatref -> 0
-!Therefore, we should not be trying to store the stats, and we can ignore the error
-                    if(iters.gt.iShiftVary) then
-                        call stop_all(t_r,"This is not a valid data line - should not be trying to store")
-                    endif
+                    ! This is normally due to a difficulty reading NaN or 
+                    ! Infinity. Assume that this occurs when NoAtRef --> 0.
+                    ! Therefore, we should not be trying to store the stats,
+                    ! and can ignore the error.
+                    if (iters > iShiftVary) &
+                        call stop_all (t_r, "This is not a valid data line - &
+                                            &should not be trying to store")
                 endif
                 if(iters.gt.iShiftVary) then
                     i=i+1
@@ -719,7 +721,6 @@ module errors
                     pophf_data(i) = denom
                     shift_data(i) = shift
                 endif
-
             else
                 !Just read it again without the advance=no to move onto the next line
                 read(iunit,"(A)",iostat=eof) readline
