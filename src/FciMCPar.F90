@@ -3723,9 +3723,11 @@ MODULE FciMCParMod
 
         if(tSplitProjEHist) then
             if(tSplitProjEHistG) then
+                AllENumCycHistG=0.0_dp
                 call MPISum(ENumCycHistG,AllENumCycHistG)
             endif
             if(tSplitProjEHistK3) then
+                AllENumCycHistK3=0.0_dp
                 call MPISum(ENumCycHistK3,AllENumCycHistK3)
             endif
         endif
@@ -4510,11 +4512,11 @@ MODULE FciMCParMod
             if(tSplitProjEHist) then
                 if(tSplitProjEHistG) then
                     unit_splitprojEHistG = get_free_unit()
-                    open(unit_splitprojEHistG,file='SPLITPROJE',status='unknown')
+                    open(unit_splitprojEHistG,file='SPLITPROJE',status='unknown',recl=1500000)
                 endif
                 if(tSplitProjEHistK3) then
                     unit_splitprojEHistK3 = get_free_unit()
-                    open(unit_splitprojEHistK3,file='SPLITPROJE_K3',status='unknown')
+                    open(unit_splitprojEHistK3,file='SPLITPROJE_K3',status='unknown',recl=1500000)
                 endif
             endif
         ENDIF
