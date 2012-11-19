@@ -39,7 +39,7 @@ module bit_rep_data
     
     ! IMPORTANT
     integer, parameter :: num_flags = 5, &
-                          flag_bit_offset = bits_int - num_flags
+                          flag_bit_offset = bits_n_int - num_flags
     integer(n_int), parameter :: sign_mask = ishft(not(0_n_int), -num_flags), &
                                  flags_mask = not(sign_mask), &
                                  sign_neg_mask = ibset(sign_mask, &
