@@ -1,6 +1,6 @@
 module bit_rep_data
 
-    use constants, only: n_int, bits_n_int
+    use constants
 
     implicit none
 
@@ -34,7 +34,18 @@ module bit_rep_data
     ! Flags which we can store
     integer, parameter :: flag_is_initiator(2) = (/0,1/), &
                           flag_parent_initiator(2) = (/0,1/), & ! n.b. the same
-                          flag_make_initiator(2) = (/2,3/)
+                          flag_make_initiator(2) = (/2,3/), &
+                          flag_negative_sign = 4
+    
+    ! IMPORTANT
+    integer, parameter :: num_flags = 5, &
+                          flag_bit_offset = bits_n_int - num_flags
+    integer(n_int), parameter :: sign_mask = ishft(not(0_n_int), -num_flags), &
+                                 flags_mask = not(sign_mask), &
+                                 sign_neg_mask = ibset(sign_mask, &
+                                          flag_bit_offset + flag_negative_sign)
+                          
+
 
 contains
 
@@ -57,7 +68,7 @@ contains
 !        off = mod(flg, bits_n_int)
 
 !        bSet = btest(ilut(ind), off)
-        bSet = btest(ilut(NOffFlag), flg)
+        bSet = btest(ilut(NOffFlag), flg + flag_bit_offset)
 
     end function test_flag
 

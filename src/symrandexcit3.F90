@@ -558,10 +558,10 @@ lp2: do while(.true.)
     store%scratch3 = 0
     call decode_bit_det_lists (nI, ilut, store)
 
-    AverageContrib=0.D0
-    AllAverageContrib=0.D0
+    AverageContrib=0.0_dp
+    AllAverageContrib=0.0_dp
     ForbiddenIter=0
-!    pDoub=1.D0
+!    pDoub=1.0_dp
 !    IF(iProcIndex.eq.0) OPEN(9,FILE="AvContrib",STATUS="UNKNOWN")
 
     test_timer%timer_name = 'test_symrandexcit3'
@@ -614,7 +614,7 @@ lp2: do while(.true.)
                 CYCLE
             ENDIF
         ENDIF
-        AverageContrib=AverageContrib+1.D0/pGen
+        AverageContrib=AverageContrib+1.0_dp/pGen
 
 !        CALL EncodeBitDet(nJ,iLutnJ)
 !        IF(IC.eq.1) THEN
@@ -625,7 +625,7 @@ lp2: do while(.true.)
 !        ENDIF
 
         IF(IC.eq.1) THEN
-            SinglesHist(ExcitMat(1,1),ExcitMat(2,1))=SinglesHist(ExcitMat(1,1),ExcitMat(2,1))+(1.D0/pGen)
+            SinglesHist(ExcitMat(1,1),ExcitMat(2,1))=SinglesHist(ExcitMat(1,1),ExcitMat(2,1))+(1.0_dp/pGen)
             SinglesCount(ExcitMat(1,1), ExcitMat(2,1)) = &
                 SinglesCount(ExcitMat(1,1), ExcitMat(2,1)) + 1
 !            SinglesNum(ExcitMat(1,1),ExcitMat(2,1))=SinglesNum(ExcitMat(1,1),ExcitMat(2,1))+1
@@ -645,12 +645,12 @@ lp2: do while(.true.)
                 Ind3=ExcitMat(2,1)
                 Ind4=ExcitMat(2,2)
             ENDIF
-            DoublesHist(Ind1,Ind2,Ind3,Ind4)=DoublesHist(Ind1,Ind2,Ind3,Ind4)+(1.D0/pGen)
+            DoublesHist(Ind1,Ind2,Ind3,Ind4)=DoublesHist(Ind1,Ind2,Ind3,Ind4)+(1.0_dp/pGen)
             DoublesCount(ind1,ind2,ind3,ind4) = &
                 DoublesCount(ind1,ind2,ind3,ind4) + 1
         ENDIF
 !        IF(mod(i,iWriteEvery).eq.0) THEN
-!            AllAverageContrib=0.D0
+!            AllAverageContrib=0.0_dp
 !#ifdef PARALLEL
 !            CALL MPI_AllReduce(AverageContrib,AllAverageContrib,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
 !#else            
@@ -693,7 +693,7 @@ lp2: do while(.true.)
             do j=i+1,nBasis
                 do k=1,nBasis-1
                     do l=k+1,nBasis
-                        IF(AllDoublesHist(i,j,k,l).gt.0.D0) THEN
+                        IF(AllDoublesHist(i,j,k,l).gt.0.0_dp) THEN
     !                        DoublesHist(i,j,k,l)=DoublesHist(i,j,k,l)/real(Iterations,8)
                             DetNum=DetNum+1
                             ExcitMat(1,1)=i
@@ -723,7 +723,7 @@ lp2: do while(.true.)
         DetNumS=0
         do i=1,nBasis
             do j=1,nBasis
-                IF(AllSinglesHist(i,j).gt.0.D0) THEN
+                IF(AllSinglesHist(i,j).gt.0.0_dp) THEN
                     DetNumS=DetNumS+1
                     ExcitMat(1,1)=i
                     ExcitMat(2,1)=j

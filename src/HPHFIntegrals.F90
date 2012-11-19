@@ -93,25 +93,25 @@ module hphf_integrals
         if (TestClosedShellDet(iLutnI)) then
             if(tOddS_HPHF) then
                 !For odd S states, all matrix elements to CS determinants should be 0
-                hel = 0.D0
+                hel = 0.0_dp
             elseif (.not. TestClosedShellDet(iLutnJ)) then
                 ! Closed shell --> Open shell, <X|H|Y> = 1/sqrt(2) [Hia + Hib]
                 ! or with minus if iLutnJ has an odd number of spin orbitals.
                 ! OTHERWISE Closed shell -> closed shell. Both the alpha and 
                 ! beta of the same orbital have been moved to the same new 
                 ! orbital. The matrix element is the same as before.
-                hel = hel * (sqrt(2.d0))
+                hel = hel * (sqrt(2.0_dp))
             endif
         else
             if (TestClosedShellDet(iLutnJ)) then
                 if(tOddS_HPHF) then
                     !For odd S states, all matrix elements to CS determinants should be 0
-                    hel = 0.D0
+                    hel = 0.0_dp
                 else
                     ! Open shell -> Closed shell. If one of
                     ! the determinants is connected, then the other is connected 
                     ! with the same IC & matrix element
-                    hel = hel * sqrt(2.d0)
+                    hel = hel * sqrt(2.0_dp)
                 endif
             else
                 ! Open shell -> Open shell. Find the spin pair of nJ.

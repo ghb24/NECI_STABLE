@@ -97,7 +97,6 @@ logical :: tRef_Not_HF
 character(len=3) :: real_lattice_type ! type of reciprocal lattice (eg. fcc, sc, bcc, hcp)
 integer :: k_lattice_vectors(3,3)
 real(dp) :: k_lattice_constant
-real(dp) :: Unscaled_LatConst_square
 integer, allocatable :: kvec(:,:)
 integer ::  Highest_orb_index
 integer :: dimen
