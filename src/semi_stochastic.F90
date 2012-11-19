@@ -14,10 +14,12 @@ module semi_stochastic
     use enumerate_excitations
     use FciMCData, only: HFDet, ilutHF, iHFProc, Hii, CurrentDets, CurrentH, &
                          deterministic_proc_sizes, deterministic_proc_indices, &
-                         det_vector, result_det_vector, core_hamiltonian
+                         full_det_vector, partial_det_vector, core_hamiltonian, &
+                         det_space_size
     use hash , only : DetermineDetNode
     use hphf_integrals, only: hphf_diag_helement
-    use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIBarrier
+    use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIBarrier, &
+                             MPIAllGatherV, MPI_SUCCESS
     use sort_mod, only: sort
     use SystemData, only: nel, tHPHF, tCSFCore, tDeterminantCore, Stot, lms
 
@@ -33,7 +35,6 @@ contains
         ! the psip vectors in the deterministic space are also allocated.
 
         integer :: i, j, IC
-        integer :: det_space_size
 
         ! Initialise the deterministic mask.
         deterministic_mask = 0
@@ -64,11 +65,11 @@ contains
         ! the total size of the space and also allocate vectors to store psip amplitudes
         ! and the deterministic Hamiltonian.
         det_space_size = sum(deterministic_proc_sizes)
-        allocate(det_vector(deterministic_proc_sizes(iProcIndex)))
-        allocate(result_det_vector(det_space_size))
+        allocate(full_det_vector(det_space_size))
+        allocate(partial_det_vector(deterministic_proc_sizes(iProcIndex)))
         allocate(core_hamiltonian(deterministic_proc_sizes(iProcIndex), det_space_size))
-        det_vector = 0.0_dp
-        result_det_vector = 0.0_dp
+        full_det_vector = 0.0_dp
+        partial_det_vector = 0.0_dp
 
         ! Calculate the indices in the full vector at which the various processors take
         ! over, relative to the first index position in the vector (ie, the first value
@@ -88,8 +89,6 @@ contains
 
         ! Calculate and store the deterministic Hamiltonian.
         call calculate_det_hamiltonian_normal()
-
-        call stop_all("here","here")
 
     end subroutine init_semi_stochastic
 
@@ -307,5 +306,40 @@ contains
                        deterministic_proc_sizes(iProcIndex)), ilut(0:nIfDBO), sgn, flags)
 
     end subroutine add_basis_state_to_list
+
+    subroutine deterministic_projection()
+
+        ! This subroutine gathers together the partial_det_vectors from each processor so
+        ! that the full vector for the whole deterministic space is stored on each processor.
+        ! It then performs the deterministic multiplication of the projector on this full vector.
+
+        call MPIAllGatherV(partial_det_vector, full_det_vector, deterministic_proc_sizes, &
+                            deterministic_proc_indices)
+
+        ! This function performs y := alpha*A*x + beta*y
+        ! N specifies not to use the transpose of A.
+        ! deterministic_proc_sizes(iProcIndex) is the number of rows in A.
+        ! det_space-size is the number of columns of A.
+        ! alpha = 1.0_dp.
+        ! A = core_hamiltonian.
+        ! deterministic_proc_sizes(iProcIndex) is the first dimension of A.
+        ! input x = full_det_vector.
+        ! 1 is the increment of the elements of x.
+        ! beta = 0.0_dp.
+        ! output y = partial_det_vector.
+        ! 1 is the incremenet of the elements of y.
+        call dgemv('N', &
+                   deterministic_proc_sizes(iProcIndex), &
+                   det_space_size, &
+                   1.0_dp, &
+                   core_hamiltonian, &
+                   deterministic_proc_sizes(iProcIndex), &
+                   full_det_vector, &
+                   1, &
+                   0.0_dp, &
+                   partial_det_vector, &
+                   1)
+
+    end subroutine deterministic_projection
 
 end module semi_stochastic

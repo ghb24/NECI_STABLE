@@ -132,7 +132,7 @@ MODULE FciMCParMod
                          zero_rdms, fill_rdm_softexit, store_parent_with_spawned, &
                          fill_rdm_diag_currdet_norm, &
                          fill_rdm_diag_currdet_hfsd, calc_rdmbiasfac
-    use semi_stochastic, only: init_semi_stochastic
+    use semi_stochastic, only: init_semi_stochastic, deterministic_projection
 
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
@@ -1138,6 +1138,16 @@ MODULE FciMCParMod
             ! excite from the first particle on a determinant).
             fcimc_excit_gen_store%tFilled = .false.
 
+            ! If this state is in the deterministic space.
+            if (test_flag(CurrentDets(:,j), flag_deterministic)) then
+               call extract_sign (CurrentDets(:,j), SignCurr)
+               ! Add this amplitude to the deterministic vector.
+               partial_det_vector(j) =  SignCurr(1)
+               ! The deterministic states are always kept in CurrentDets, even when
+               ! the amplitude is zero. Hence we must check if we should skip this state.
+               if (.not.(abs(SignCurr(1)) > 0.0_dp)) cycle
+            end if
+
             if (tSpawn_Only_Init) then
                 call extract_sign (CurrentDets(:,j), SignCurr)
 
@@ -1386,6 +1396,10 @@ MODULE FciMCParMod
             ! in the main array, before annihilation
             TotWalkersNew = VecSlot - 1
         endif
+
+        ! For semi-stochastic calculations only: Gather together the parts of the deterministic vector stored
+        ! on each processor, and then perform the multiplication of the exact projector on this vector.
+        if (tSemiStochastic) call deterministic_projection()
             
         ! Update the statistics for the end of an iteration.
         ! Why is this done here - before annihilation!

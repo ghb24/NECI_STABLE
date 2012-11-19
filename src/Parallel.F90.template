@@ -215,6 +215,10 @@ module Parallel_neci
         module procedure MPIAllGather_auto_%(name)s
     end interface
 
+    interface MPIAllGatherV
+        module procedure MPIAllGatherV_auto_%(name)s
+    end interface
+
     interface MPIGather
         module procedure MPIGather_len_%(name)s
         module procedure MPIGather_auto_%(name)s
@@ -298,6 +302,17 @@ module Parallel_neci
             c_ptr_t, intent(in), value :: sbuf, rbuf
             integer(c_int), intent(in), value :: scnt, stype, rcnt, rtype
             integer(c_int), intent(in), value :: comm
+            integer(c_int), intent(out) :: ierr
+        end subroutine
+        subroutine MPI_AllgatherV (sbuf, scnt, stype, rbuf, rcnt, displs, &
+                                  rtype, comm, ierr) &
+                               bind(c, name='mpi_allgatherv_wrap')
+            use iso_c_hack
+            use constants
+            c_ptr_t, intent(in), value :: sbuf, rbuf
+            integer(c_int), intent(in), value :: scnt, stype, rcnt, rtype
+            integer(c_int), intent(in), value :: comm
+            integer(MPIArg), intent(in) :: displs(*)
             integer(c_int), intent(out) :: ierr
         end subroutine
         subroutine MPI_ScatterV (sbuf, scnts, displs, stype, rbuf, rcnt, &
@@ -1033,6 +1048,56 @@ contains
         ierr = 0
 #endif
     end subroutine
+
+
+    subroutine MPIAllGatherV_auto (v, ret, Lengths, Disps, Node)
+
+        %(type1)s, intent(in), target :: v(:)
+        %(type1)s, intent(inout), target :: ret(:)
+        integer(MPIArg), intent(in) :: Disps(:), Lengths(:)
+        type(CommI), intent(in), optional :: Node
+        integer(MPIArg) :: Comm, ierr
+        character(*), parameter :: t_r = 'MPIAllGatherV'
+
+        ! The displacements multiplied up by other array dims
+        integer(MPIArg) :: dispsN(ubound(Disps,1)-lbound(Disps,1)+1)
+        integer(MPIArg) :: lengthsN(ubound(Lengths,1)-lbound(Lengths,1)+1)
+        integer(MPIArg) :: LengthIn
+
+#ifdef PARALLEL
+#ifdef CBINDMPI
+#ifdef __GFORTRAN__
+        type(c_ptr) :: g_loc
+#endif
+        c_ptr_t :: vptr, rptr
+        vptr = loc_neci(v)
+        rptr = loc_neci(ret)
+#endif
+
+        DispsN = int(Disps &
+         * %(mpilen)s,MPIArg)
+        LengthsN = int(Lengths &
+         * %(mpilen)s,MPIArg)
+
+        call GetComm (Comm, Node)
+
+        LengthIn = int(%(mpilen)s &
+         * (ubound(v,%(ndim)s+1)-lbound(v,%(ndim)s+1)+1),MPIArg)
+        
+        call MPI_AllGatherV (val_in, LengthIn, &
+                %(mpitype)s, &
+                val_out, lengthsN, dispsN, &
+                %(mpitype)s, &
+                comm, ierr)
+
+        if (ierr /= MPI_SUCCESS) &
+                        call stop_all (t_r, 'MPI Error. Terminating.')
+#else
+        ret(Disps(1):Disps(1)+Lengths(1)) = v(:)
+        ierr = 0
+#endif
+    end subroutine
+
 
 
 

@@ -5,6 +5,7 @@ MODULE FciMCData
       use SymExcitDataMod, only: excit_gen_store_type
       use MemoryManager, only: TagIntType
       use global_utilities         
+      use Parallel_neci, only: MPIArg
 
       implicit none
       save
@@ -346,10 +347,14 @@ MODULE FciMCData
 
       ! Semi-stochastic data.
       real(dp), allocatable, dimension(:,:) :: core_hamiltonian ! The core Hamiltonian is stored in this array for the whole simulation.
-      real(dp), allocatable, dimension(:) :: det_vector ! This stores all the amplitudes of the psips in the deterministic space.
-      real(dp), allocatable, dimension(:) :: result_det_vector ! This stores the amplitudes of det_vector after mulitplication by core_hamiltonian.
-      integer, allocatable, dimension(:) :: deterministic_proc_sizes
-      integer, allocatable, dimension(:) :: deterministic_proc_indices
-      integer :: det_space_size
+      real(dp), allocatable, dimension(:) :: full_det_vector ! This stores all the amplitudes of the psips in the deterministic space.
+
+      ! This vector has the size of the part of the deterministic space stored on *this* processor only. It is therefore used to store
+      ! the deterministic vector on this processor, before it is combined to give the whole vector, which is stored in full_det_vector.
+      ! Later in the iteration, it is also used to store the result of the multiplication by core_hamiltonian on full_det_vector.
+      real(dp), allocatable, dimension(:) :: partial_det_vector
+      integer(MPIArg), allocatable, dimension(:) :: deterministic_proc_sizes
+      integer(MPIArg), allocatable, dimension(:) :: deterministic_proc_indices
+      integer(MPIArg) :: det_space_size
 
 END MODULE FciMCData
