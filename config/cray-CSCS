@@ -3,10 +3,10 @@ fc = ftn
 cc = g++
 ld = ftn
 ldflags = -m64
-libs = -lfftw3 -lstdc++ -lrt
+libs = -lstdc++ -lrt
 
 cpp = cpp -C -traditional
-cppflags =  -D__Linux -DPOINTER8 -DPARALLEL -D__PATHSCALE__ -D__INT64 -DHAVE_SSE2 -D__SHARED_MEM -DCRAY_ETIME
+cppflags =  -D__Linux -DPOINTER8 -DPARALLEL -D__PATHSCALE__ -D__INT64 -DHAVE_SSE2 -D__SHARED_MEM -DCRAY_ETIME -DDISABLE_FFTW
 compiler = pathf95-on-LINUX
 module_flag = -J
 
