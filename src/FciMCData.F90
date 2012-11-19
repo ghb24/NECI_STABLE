@@ -346,7 +346,8 @@ MODULE FciMCData
       integer :: unit_splitprojEHistG,unit_splitprojEHistK3
 
       ! Semi-stochastic data.
-      real(dp), allocatable, dimension(:,:) :: core_hamiltonian ! The core Hamiltonian is stored in this array for the whole simulation.
+      ! The core Hamiltonian (with the Hartree-Fock energy removed from the diagonal) is stored in this array for the whole simulation.
+      real(dp), allocatable, dimension(:,:) :: core_hamiltonian 
       real(dp), allocatable, dimension(:) :: full_det_vector ! This stores all the amplitudes of the psips in the deterministic space.
 
       ! This vector has the size of the part of the deterministic space stored on *this* processor only. It is therefore used to store

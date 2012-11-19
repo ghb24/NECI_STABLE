@@ -5,7 +5,7 @@ module semi_stochastic
     use bit_rep_data, only: flag_deterministic, nIfDBO, nOffY, nIfY, nOffFlag, &
                             deterministic_mask
     use bit_reps, only: NIfD, NIfTot, decode_bit_det, encode_bit_rep
-    use CalcData, only: tRegenDiagHEls
+    use CalcData, only: tRegenDiagHEls, tau
     use csf, only: csf_get_yamas, get_num_csfs, get_csf_bit_yama, csf_apply_yama
     use csf_data, only: iscsf, csf_orbital_mask
     use constants
@@ -15,11 +15,11 @@ module semi_stochastic
     use FciMCData, only: HFDet, ilutHF, iHFProc, Hii, CurrentDets, CurrentH, &
                          deterministic_proc_sizes, deterministic_proc_indices, &
                          full_det_vector, partial_det_vector, core_hamiltonian, &
-                         det_space_size
+                         det_space_size, InstShift
     use hash , only : DetermineDetNode
     use hphf_integrals, only: hphf_diag_helement
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIBarrier, &
-                             MPIAllGatherV, MPI_SUCCESS
+                             MPIAllGatherV
     use sort_mod, only: sort
     use SystemData, only: nel, tHPHF, tCSFCore, tDeterminantCore, Stot, lms
 
@@ -131,7 +131,7 @@ contains
                     ! If on the diagonal of the Hamiltonian.
                     if ((iprocIndex == iproc) .and. (i == j)) then
                         core_hamiltonian(i, col_index + j) = &
-                                             get_helement(nI, nJ, 0)
+                                             get_helement(nI, nJ, 0) - Hii
                         ! We calculate and store CurrentH at this point for ease.
                         if (.not.tRegenDiagHEls) CurrentH(1,i) = &
                                              core_hamiltonian(i, col_index + j) - Hii
@@ -320,7 +320,7 @@ contains
         ! N specifies not to use the transpose of A.
         ! deterministic_proc_sizes(iProcIndex) is the number of rows in A.
         ! det_space-size is the number of columns of A.
-        ! alpha = 1.0_dp.
+        ! alpha = -1.0_dp.
         ! A = core_hamiltonian.
         ! deterministic_proc_sizes(iProcIndex) is the first dimension of A.
         ! input x = full_det_vector.
@@ -331,7 +331,7 @@ contains
         call dgemv('N', &
                    deterministic_proc_sizes(iProcIndex), &
                    det_space_size, &
-                   1.0_dp, &
+                   -1.0_dp, &
                    core_hamiltonian, &
                    deterministic_proc_sizes(iProcIndex), &
                    full_det_vector, &
@@ -339,6 +339,14 @@ contains
                    0.0_dp, &
                    partial_det_vector, &
                    1)
+
+        ! Now add shift*full_det_vector, to account for the shift, not stored in core_hamiltonian.
+        partial_det_vector = partial_det_vector + &
+             InstShift * full_det_vector(deterministic_proc_indices(iProcIndex)+1:&
+             deterministic_proc_indices(iProcIndex)+deterministic_proc_sizes(iProcIndex))
+
+        ! Now multiply the vector by tau to get the final projected vector.
+        partial_det_vector = partial_det_vector * tau
 
     end subroutine deterministic_projection
 
