@@ -150,7 +150,6 @@ MODULE PopsfileMod
                 do while(Det.le.EndPopsList)
 
 !                    write(6,*) Det,EndPopsList
-                    call neci_flush(6)
                     !Read the next entry, and store the walker in WalkerTemp and TempnI
                     call read_popsfile_det(iunit,Det,BinPops,WalkerTemp,TempnI)
 
