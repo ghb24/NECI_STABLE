@@ -289,16 +289,26 @@ MODULE PopsfileMod
             if (.not. tPopsMapping) then
                 ! All basis parameters match --> Read in directly.
                 if (BinPops) then
-                    read(iunit) WalkerTemp(0:NIfD), sgn, flg
+                    read(iunit) WalkerTemp(0:NIfD), sgn
+                    if (tUseFlags) read(iunit) flg
                 else
-                    read(iunit,*) WalkerTemp(0:NIfD), sgn, flg
+                    if (tUseFlags) then
+                        read(iunit,*) WalkerTemp(0:NIfD), sgn, flg
+                    else
+                        read(iunit,*) WalkerTemp(0:NIfD), sgn
+                    end if
                 end if
             else
                 ! we are mapping from a smaller to larger basis.
                 if (BinPops) then
-                    read(iunit) WalkerToMap(0:MappingNIfD), sgn, flg
+                    read(iunit) WalkerToMap(0:MappingNIfD), sgn
+                    if (tUseFlags) read(iunit) flg
                 else
-                    read(iunit,*) WalkerToMap(0:MappingNIfD), sgn, flg
+                    if (tUseFlags) then
+                        read(iunit,*) WalkerToMap(0:MappingNIfD), sgn, flg
+                    else
+                        read(iunit,*) WalkerToMap(0:MappingNIfD), sgn
+                    end if
                 end if
 
                 ! Decode to natural ordered integers, and then re-encode to
@@ -320,7 +330,7 @@ outer_map:      do i = 0, MappingNIfD
 
             ! Store the sign and flag information in the determinant.
             call encode_sign (WalkerTemp, sgn)
-            call encode_flags (WalkerTemp, flg)
+            if (tUseFlags) call encode_flags (WalkerTemp, flg)
 
             ! Increment the determinant counter
             det = det + 1
@@ -904,7 +914,8 @@ outer_map:      do i = 0, MappingNIfD
 #ifdef __INT64
                 tmp_flag = extract_flags(det)
                 if (tBinPops) then
-                    write(iunit) det(0:NIfD), int(sgn, n_int), int(flg, n_int)
+                    write(iunit) det(0:NIfD), int(sgn, n_int)
+                    if (tUseFlags) write(iunit) int(flg, n_int)
                 else
                     do k = 0, NIfD
                         write(iunit, '(i24)', advance='no') det(k)
@@ -912,7 +923,7 @@ outer_map:      do i = 0, MappingNIfD
                     do k = 1, lenof_sign
                         write(iunit, '(i24)', advance='no') sgn(k)
                     end do
-                    write(iunit, '(i24)') flg
+                    if (tUseFlags) write(iunit, '(i24)') flg
                 end if
 #else
                 if (tBinPops) then
