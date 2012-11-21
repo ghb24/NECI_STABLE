@@ -1529,7 +1529,7 @@ contains
 
                     write(6,*) "outfile=", NodeFile
                     close(6, status="keep")
-                    open(6, file=NodeFile)
+                    open(6, file=NodeFile, recl=8192)
                     write(6,*) "Processor ", iProcIndex+1, '/', nProcessors, &
                                ' on local output.'
                 endif
