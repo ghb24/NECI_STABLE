@@ -1,9 +1,11 @@
 MODULE PopsfileMod
 
     use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin,tMomInv
-    use CalcData, only: tTruncInitiator,DiagSft,tWalkContGrow,nEquilSteps,ScaleWalkers, &
-                        tReadPopsRestart, tRegenDiagHEls,InitWalkers, tReadPopsChangeRef, &
-                        nShiftEquilSteps,iWeightPopRead,iPopsFileNoRead,tPopsMapping,Tau
+    use CalcData, only: tTruncInitiator, DiagSft, tWalkContGrow, nEquilSteps, &
+                        ScaleWalkers, tReadPopsRestart, tRegenDiagHEls, &
+                        InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
+                        iWeightPopRead, iPopsFileNoRead, tPopsMapping, Tau, &
+                        InitiatorWalkNo
     use DetBitOps, only: DetBitLT,FindBitExcitLevel,DetBitEQ
     use hash , only : DetermineDetNode
     use Determinants, only : get_helement,write_det
@@ -278,62 +280,76 @@ MODULE PopsfileMod
         integer(n_int), intent(out) :: WalkerTemp(0:NIfTot)
         integer , intent(out) :: nI(NEl)
         integer(n_int) :: WalkerToMap(0:MappingNIfD),WalkerTemp2(0:NIfTot)
-        integer :: elec,i,j
+        integer :: elec, sgn(lenof_sign), flg, i, j
         logical :: tStoreDet
-        integer , dimension(lenof_sign) :: SignTemp
 
         tStoreDet=.false.
         do while(.not.tStoreDet)
-!           write(6,*) "reading entry: ",Det
-            if(.not.tPopsMapping) then
-                !Read in determinant - all basis parameters match
-                if(BinPops) then
-                    read(iunit) WalkerTemp(:)
+
+            if (.not. tPopsMapping) then
+                ! All basis parameters match --> Read in directly.
+                if (BinPops) then
+                    read(iunit) WalkerTemp(0:NIfD), sgn
+                    if (tUseFlags) read(iunit) flg
                 else
-                    read(iunit,*) WalkerTemp(:)
-                endif
+                    if (tUseFlags) then
+                        read(iunit,*) WalkerTemp(0:NIfD), sgn, flg
+                    else
+                        read(iunit,*) WalkerTemp(0:NIfD), sgn
+                    end if
+                end if
             else
-                !We are mapping from a smaller basis to a larger basis.
-
-                if(BinPops) then
-                    read(iunit) WalkerToMap(0:MappingNIfD),WalkerTemp(NOffSgn:NIfTot)
+                ! we are mapping from a smaller to larger basis.
+                if (BinPops) then
+                    read(iunit) WalkerToMap(0:MappingNIfD), sgn
+                    if (tUseFlags) read(iunit) flg
                 else
-                    read(iunit,*) WalkerToMap(0:MappingNIfD),WalkerTemp(NOffSgn:NIfTot)
-                endif
+                    if (tUseFlags) then
+                        read(iunit,*) WalkerToMap(0:MappingNIfD), sgn, flg
+                    else
+                        read(iunit,*) WalkerToMap(0:MappingNIfD), sgn
+                    end if
+                end if
 
-                !Decode to natural ordered integers, the re-encode in new basis.
-                elec=0
-                do i=0,MappingNIfD
-                    do j=0,end_n_int
-                        if(btest(WalkerToMap(i),j)) then
-                            elec=elec+1
-                            nI(elec)=PopsMapping((i*bits_n_int)+(j+1))
-                            if(elec.eq.NEl) exit
-                        endif
-                    enddo
-                    if(elec.eq.NEl) exit
-                enddo
-                !We now have the determinant in the new basis. Encode to bit rep.
-                call EncodeBitDet(nI,WalkerTemp2)
-                WalkerTemp(0:NIfD)=WalkerTemp2(0:NIfD)
+                ! Decode to natural ordered integers, and then re-encode to
+                ! the new representation.
+                elec = 0
+outer_map:      do i = 0, MappingNIfD
+                    do j = 0, end_n_int
+                        if (btest(WalkerToMap(i), j)) then
+                            elec = elec + 1
+                            nI(elec) = PopsMapping((i * bits_n_int) + (j + 1))
+                            if (elec == nel) exit outer_map
+                        end if
+                    end do
+                end do outer_map
 
-            endif
-            Det=Det+1
+                ! Encode this new determinant.
+                call EncodeBitDet(nI, WalkerTemp)
+            end if
 
-            !Do we actually want to store these walkers - is the weight large enough?
-            if(iWeightPopRead.ne.0) then
-                call extract_sign(WalkerTemp(:),SignTemp)
-                do i=1,lenof_sign
-                    if(SignTemp(i).ge.iWeightPopRead) then
-                        tStoreDet=.true.
+            ! Store the sign and flag information in the determinant.
+            call encode_sign (WalkerTemp, sgn)
+            if (tUseFlags) call encode_flags (WalkerTemp, flg)
+
+            ! Increment the determinant counter
+            det = det + 1
+
+            ! Test if we actually want to store this walker...
+            if (iWeightPopRead /= 0) then
+                do i = 1, lenof_sign
+                    if (sgn(i) >= iWeightPopRead) then
+                        tStoreDet = .true.
                         exit
-                    endif
-                enddo
+                    end if
+                end do
             else
-                tStoreDet=.true.
-            endif
+                tStoreDet = .true.
+            end if
         enddo
-        if(.not.tPopsMapping) then
+
+        ! Decode the determinant as required if not using mapping
+        if (.not. tPopsMapping) then
             call decode_bit_det (nI, WalkerTemp)
         endif
 
@@ -668,7 +684,7 @@ MODULE PopsfileMod
 !This routine will write out to a popsfile. It transfers all walkers to the 
 ! head node sequentially, so does not want to be called too often
     SUBROUTINE WriteToPopsfileParOneArr(Dets,nDets)
-        use CalcData, only: iPopsFileNoWrite, InitiatorWalkNo
+        use CalcData, only: iPopsFileNoWrite
         use constants, only: size_n_int,n_int
         use MemoryManager, only: TagIntType
         integer(int64),intent(in) :: nDets !The number of occupied entries in Dets
@@ -684,7 +700,6 @@ MODULE PopsfileMod
         CHARACTER(len=*) , PARAMETER :: this_routine='WriteToPopsfileParOneArr'
         character(255) :: popsfile
         INTEGER, DIMENSION(lenof_sign) :: TempSign
-        integer :: excit_lev
 
         CALL MPIBarrier(error)  !sync
 !        WRITE(6,*) "Get Here",nDets
@@ -821,54 +836,10 @@ MODULE PopsfileMod
                 Initiator_Count = 0
             endif
 
-            IF(tBinPops) THEN
-                do j=1,int(nDets,sizeof_int)
-!First write out walkers on head node
-!                    write(6,*) j,nDets
-!                    call flush(6)
-                    call extract_sign(Dets(:,j),TempSign)
-                    if(IsUnoccDet(TempSign)) cycle
-                    IF(mod(j,iPopsPartEvery).eq.0) THEN
-                        WRITE(iunit) Dets(0:NIfTot,j)!,TempSign(:)
-                    ENDIF
-                    if(tPrintInitiators.and.&
-                        (abs(TempSign(1)).gt.InitiatorWalkNo)) then
-                        ! Testing using the sign now, because after annihilation etc, 
-                        ! the current flag will not necessarily be correct.                                      
-                        call extract_bit_rep (Dets(:,j), TempDet, TempSign, &
-                                              TempFlags, fcimc_excit_gen_store)
-                        excit_lev=FindBitExcitLevel(iLutRef,Dets(:,j),nEl)
-                        write(iunit_2,"(I30,A20)",advance='no') abs(TempSign(1)),''
-                        call write_det (iunit_2, TempDet, .false.)
-                        write(iunit_2,"(I10)") excit_lev
-                    endif
-                enddo
-            ELSE
-                do j=1,int(nDets,sizeof_int)
-!First write out walkers on head node
-                    call extract_sign(Dets(:,j),TempSign)
-                    if(IsUnoccDet(TempSign)) cycle
-                    IF(mod(j,iPopsPartEvery).eq.0) THEN
-                        do k=0,NIfTot-1
-                            WRITE(iunit,"(I24)",advance='no') Dets(k,j)
-                        enddo
-                        WRITE(iunit,"(I24)") Dets(NIfTot,j)
-!                        call extract_sign(Dets(:,j),TempSign)
-!                        WRITE(iunit,*) TempSign(:)
-                    ENDIF
-                    if(tPrintInitiators.and.&
-                        (abs(TempSign(1)).gt.InitiatorWalkNo)) then
-                        ! Testing using the sign now, because after annihilation etc, 
-                        ! the current flag will not necessarily be correct.                                      
-                        call extract_bit_rep (Dets(:,j), TempDet, TempSign, &
-                                              TempFlags, fcimc_excit_gen_store)
-                        excit_lev=FindBitExcitLevel(iLutRef,Dets(:,j),nEl)
-                        write(iunit_2,"(I30,A20)",advance='no') abs(TempSign(1)),''
-                        call write_det (iunit_2, TempDet, .false.)
-                        write(iunit_2,"(I30)") excit_lev
-                    endif
-                enddo
-            ENDIF
+            ! Write out the dets from this node.
+            do j = 1, int(ndets, sizeof_int)
+                call write_pops_det (iunit, iunit_2, Dets(:,j), j)
+            end do
 
 !            WRITE(6,*) "Written out own walkers..."
 !            write(6,*) WalkersOnNodes
@@ -888,54 +859,10 @@ MODULE PopsfileMod
 !                WRITE(6,*) "Recieved walkers for processor ",i,WalkersOnNodes(i)
 !                CALL neci_flush(6)
                 
-!Then write it out...
-                IF(tBinPops) THEN
-                    do j=1,int(WalkersonNodes(i),sizeof_int)
-!                        write(6,*) j,WalkersonNodes(i)
-!                        call flush(6)
-                        call extract_sign(Parts(:,j),TempSign)
-                        if(IsUnoccDet(TempSign)) cycle
-                        IF(mod(j,iPopsPartEvery).eq.0) THEN
-!                            call extract_sign(Parts(:,j),TempSign)
-                            WRITE(iunit) Parts(0:NIfTot,j)!,TempSign(:)
-                        ENDIF
-                        if(tPrintInitiators.and.&
-                            (abs(TempSign(1)).gt.InitiatorWalkNo)) then
-                            ! Testing using the sign now, because after annihilation etc, 
-                            ! the current flag will not necessarily be correct.                                      
-                            call extract_bit_rep (Parts(:,j), TempDet, TempSign, &
-                                                  TempFlags, fcimc_excit_gen_store)
-                            excit_lev=FindBitExcitLevel(iLutRef,Parts(:,j),nEl)
-                            write(iunit_2,"(I30,A20)",advance='no') abs(TempSign(1)),''
-                            call write_det (iunit_2, TempDet, .false.)
-                            write(iunit_2,"(I10)") excit_lev
-                        endif
-                    enddo
-                ELSE
-                    do j=1,int(WalkersonNodes(i),sizeof_int)
-                        call extract_sign(Parts(:,j),TempSign)
-                        if(IsUnoccDet(TempSign)) cycle
-                        IF(mod(j,iPopsPartEvery).eq.0) THEN
-                            do k=0,NIfTot-1
-                                WRITE(iunit,"(I24)",advance='no') Parts(k,j)
-                            enddo
-                            WRITE(iunit,"(I24)") Parts(NIfTot,j)
-!                            call extract_sign(Parts(:,j),TempSign)
-!                            WRITE(iunit,*) TempSign(:)
-                        ENDIF
-                        if(tPrintInitiators.and.&
-                            (abs(TempSign(1)).gt.InitiatorWalkNo)) then
-                            ! Testing using the sign now, because after annihilation etc, 
-                            ! the current flag will not necessarily be correct.                                      
-                            call extract_bit_rep (Parts(:,j), TempDet, TempSign, &
-                                                  TempFlags, fcimc_excit_gen_store)
-                            excit_lev=FindBitExcitLevel(iLutRef,Parts(:,j),nEl)
-                            write(iunit_2,"(I30,A20)",advance='no') abs(TempSign(1)),''
-                            call write_det (iunit_2, TempDet, .false.)
-                            write(iunit_2,"(I30)") excit_lev
-                        endif
-                    enddo
-                ENDIF
+                ! Then write it out...
+                do j = 1, int(WalkersonNodes(i), sizeof_int)
+                    call write_pops_det(iunit, iunit_2, Parts(:,j), j)
+                end do
 
 !                WRITE(6,*) "Writted out walkers for processor ",i
 !                CALL neci_flush(6)
@@ -964,6 +891,67 @@ MODULE PopsfileMod
         RETURN
 
     END SUBROUTINE WriteToPopsfileParOneArr
+
+
+    subroutine write_pops_det (iunit, iunit_2, det, j)
+
+        ! Output a particle to a popsfile in format acceptable for popsfile v4
+
+        integer, intent(in) :: iunit, iunit_2
+        integer(n_int), intent(in) :: det(0:NIfTot)
+        integer :: sgn(lenof_sign), flg, j, k, tmp_flag, ex_level
+
+        ! Note, we don't want to bother outputting empty particles
+        call extract_sign(det, sgn)
+        if (.not. IsUnoccDet(sgn)) then
+
+            ! If we are using a reduced
+            if (mod(j, iPopsPartEvery) == 0) then
+
+                ! Write output in the desired format. If __INT64, we are 
+                ! including the flag information with the signs in storage in
+                ! memory --> need to extract these before outputting them.
+#ifdef __INT64
+                tmp_flag = extract_flags(det)
+                if (tBinPops) then
+                    write(iunit) det(0:NIfD), int(sgn, n_int)
+                    if (tUseFlags) write(iunit) int(flg, n_int)
+                else
+                    do k = 0, NIfD
+                        write(iunit, '(i24)', advance='no') det(k)
+                    end do
+                    do k = 1, lenof_sign
+                        write(iunit, '(i24)', advance='no') sgn(k)
+                    end do
+                    if (tUseFlags) write(iunit, '(i24)') flg
+                end if
+#else
+                if (tBinPops) then
+                    write(iunit) det(0:NIfTot)
+                else
+                    do k = 0, NIfTot - 1
+                        write(iunit, '(i24)', advance='no') det(k)
+                    end do
+                    write(iunit, '(i24)') det(NIfTot)
+                end if
+#endif
+
+                if (tPrintInitiators .and. abs(sgn(1)) > InitiatorWalkNo) then
+                    ! Testing using the sign now, because after annihilation
+                    ! the current flag will not necessarily be correct.
+                    ex_level = FindBitExcitLevel(ilutRef, det, nel)
+                    write(iunit_2, '(i30,a20)', advance='no') abs(sgn(1)), ''
+                    call write_det (iunit_2, det, .false.)
+                    write(iunit_2, '(i30)') ex_level
+
+                end if
+            end if
+        end if
+
+    end subroutine
+
+
+
 
 !This routine reads in particle configurations from a POPSFILE.
     SUBROUTINE ReadFromPopsfilePar()

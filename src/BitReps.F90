@@ -173,6 +173,12 @@ contains
         ! The number of integers used for sorting / other bit manipulations
         NIfDBO = NIfD + NIfY
 
+        ! Do we have any flags to store?
+        if (tTruncInitiator) then
+            tUseFlags = .true.
+        else
+            tUseFlags = .false.
+        end if
 
         ! If we are using 64-bit integers, we can put the flags into the same
         ! integers as the signs, as there is plenty of redundancy. This avoids
@@ -182,7 +188,7 @@ contains
         NIfFlag = 0
         NOffFlag = NOffSgn
 #else
-        if (tTruncInitiator) then
+        if (tUseFlags) then
             ! If there are other options which require flags, then this 
             ! criteria must be extended. However, do not increase this value 
             ! from one, since we should only need max one integer for flags, !
