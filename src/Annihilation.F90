@@ -1,17 +1,17 @@
 #include "macros.h"
 !This module is to be used for various types of walker MC annihilation in serial and parallel.
 MODULE AnnihilationMod
-    use SystemData , only : NEl, tHPHF, nBasis, tCSF
+    use SystemData , only : NEl, tHPHF, nBasis, tCSF, tSemiStochastic
     use CalcData , only : TRegenExcitgens,tRegenDiagHEls, tEnhanceRemainder
     USE DetCalcData , only : Det,FCIDetIndex
     USE Parallel_neci
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE FciMCData
     use DetBitOps, only: DetBitEQ, DetBitLT, FindBitExcitLevel, ilut_lt, &
-                         ilut_gt, DetBitZero
+                         ilut_gt, ilut_lt_determ, ilut_gt_determ, DetBitZero
     use spatial_initiator, only: add_initiator_list, rm_initiator_list, &
                                  is_spatial_init
-    use CalcData , only : tTruncInitiator, tSpawnSpatialInit
+    use CalcData , only : tTruncInitiator, tSpawnSpatialInit, tSortDetermToTop
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use sort_mod
@@ -184,6 +184,11 @@ MODULE AnnihilationMod
         call halt_timer(Compress_time)
 
 !        WRITE(6,*) "List compressed",MaxIndex,TotWalkersNew
+
+         ! If the semi-stochastic approach is being used then the following routine performs the
+         ! annihilation of the deterministic states. These states are subsequently skipped in the
+         ! AnnihilateSpawnedParts routine.
+         if (tSemiStochastic) call deterministic_annihilation()
 
 !Binary search the main list and copy accross/annihilate determinants which are found.
 !This will also remove the found determinants from the spawnedparts lists.
@@ -360,7 +365,14 @@ MODULE AnnihilationMod
 
         Sort_time%timer_name='Compress Sort interface'
         call set_timer(Sort_time,20)
-        call sort(SpawnedParts(:,1:ValidSpawned), ilut_lt, ilut_gt)
+
+        ! If tSortDetermToTop is ture then we use a sorting routine which moves all deterministic states
+        ! to the top of the list, for optimisation elsewhere.
+        if (tSortDetermToTop) then
+            call sort(SpawnedParts(:,1:ValidSpawned), ilut_lt_determ, ilut_gt_determ)
+        else
+            call sort(SpawnedParts(:,1:ValidSpawned), ilut_lt, ilut_gt)
+        end if
         
         CALL halt_timer(Sort_time)
 
@@ -435,6 +447,13 @@ MODULE AnnihilationMod
                         Spawned_Parts_Zero = Spawned_Parts_Zero + 1
                     endif
                 ENDIF
+
+                ! If this is a deterministic state then update the value of index_of_first_non_det, which we eventually
+                ! want to store the index of the first non-deterministic state in the space.
+                ! Note, this is only used if tSortDetermToTop is true. If not true then the deterministic flag won't have
+                ! been set.
+                if (test_flag(SpawnedParts(:,BeginningBlockDet), flag_deterministic)) index_of_first_non_det = VecInd + 1
+
                 VecInd=VecInd+1
                 BeginningBlockDet=CurrentBlockDet           !Move onto the next block of determinants
                 CYCLE   !Skip the rest of this block
@@ -511,6 +530,13 @@ MODULE AnnihilationMod
                 ! array - not the newly spawned sign.  We still want to check if Dj has a non-zero Cj in Current Dets - 
                 ! so we need to carry this Dj through to the stage of checking CurrentDets regardless of the sign here. 
                 ! Also getting rid of them here would make the biased sign of Ci slightly wrong.
+
+                ! If this is a deterministic state then update the value of index_of_first_non_det, which we eventually
+                ! want to store the index of the first non-deterministic state in the space.
+                ! Note, this is only used if tSortDetermToTop is true. If not true then the deterministic flag won't have
+                ! been set.
+                if (test_flag(cum_det(0:NIfTot), flag_deterministic)) index_of_first_non_det = VecInd + 1
+
                 SpawnedParts2(0:NIfTot,VecInd) = cum_det(0:NIfTot)
                 VecInd = VecInd + 1
                 DetsMerged = DetsMerged + EndBlockDet - BeginningBlockDet
@@ -728,6 +754,69 @@ MODULE AnnihilationMod
 
     end subroutine FindResidualParticle
 
+
+    subroutine deterministic_annihilation()
+
+    ! Logic: We have two sets of psips spawned onto the deterministic states. Firstly, those which
+    ! are stored in the vector partial_determ_vector, which comes from the deterministic projection.
+    ! Secondly, some of the states in the SpawnedParts, spawned from outside of the deterministic
+    ! space, may also be in the deterministic space. *All* of the psips spawned onto the
+    ! deterministic space are kept, even if they are not spawned from initiators. We therefore
+    ! can simply move all of the states from both lists into the main list.
+
+    ! partial_determ_vector is already in the same order as the the states in the main list (note
+    ! that *all* deterministic states are always kept in the main list, even if they have zero
+    ! weight). It is straightforward therefore to loop through these states and add in the
+    ! correct weights.
+
+    ! There are two ways that the annihilation of the SpawnedParts psips can occur, depending on
+    ! the deterministic states being used. If it can be checked quickly if a state is in the
+    ! deterministic space then the deterministic flag is already set in SpawnedParts and the
+    ! ordering of the states is defined so that all the deterministic states are at the top of
+    ! the list (tSortDetermToTop is true). In this case, index_of_first_non_det denotes the index
+    ! in SpawnedParts of the first non-deterministic state, and therefore index_of_first_non_det-1
+    ! is the index of the last deterministic state. Hence, we only need to perform a binary search
+    ! over these states in the main list, and can skip these states out in AnnihilateSpawnedParts
+    ! as an optimisation, as in that routine we the only deal with non-deterministic state.
+
+    ! If the deterministic states are not sorted to the top (if tSortDetermToTop is false), then
+    ! this optimisation is not possible, so we simply check in AnnihilateSpawnedParts if each
+    ! state is deterministic.
+
+    integer :: i, SpawnedSign, MinInd, MaxInd, PartInd
+    logical :: tSuccess
+
+    ! First, copy across the weights from partial_determ_vector:
+    do i = 1, deterministic_proc_sizes(iProcIndex)
+        call extract_sign(CurrentDets(:, index_of_determ_states(i)), CurrentSign)
+        SpawnedSign = partial_determ_vector(i)
+        call encode_sign(CurrentDets(:, index_of_determ_states(i)), SpawnedSign + CurrentSign)
+    end do
+
+    ! Second, *if* the dtereministic states are sorted to the top, copy across the weights from
+    ! SpawnedParts to CurrentDets here:
+
+    if (tSortDetermToTop) then
+        ! We only need to search the deterministic part of CurrentDets.
+        MinInd = 1
+        MaxInd = deterministic_proc_sizes(iProcIndex)
+        do i = 1, index_of_first_non_det-1
+            ! Search the CurrentDets list for this state.
+            call BinSearchParts(SpawnedParts(:, i), MinInd, MaxInd, PartInd, tSuccess)
+            if (tSuccess) then
+                call extract_sign(CurrentDets(:, PartInd), CurrentSign)
+                call extract_sign(SpawnedParts(:, i), SpawnedSign)
+                call encode_sign(CurrentDets(:, PartInd), SpawnedSign + CurrentSign)
+            else
+                ! All deterministic states should be kept in CurrentDets always, so if this search
+                ! does not return a state then something has gone badly wrong!
+                call stop_all("deterministic_annihilation","Deterministic state not found in main list.")
+            end if
+        end do
+    end if
+
+    end subroutine
+
     
 !In this routine, we want to search through the list of spawned particles. For each spawned particle, 
 !we binary search the list of particles on the processor
@@ -756,10 +845,29 @@ MODULE AnnihilationMod
 !        write(6,*) "Entering AnnihilateSpawnedParts"
 !        call flush(6)
 
+         ! If we are performing a semi-stochastic simulation *where the deterministic states
+         ! are sorted to the top*, then annihilation in the deterministic space has already
+         ! been taken care of. Therefore we should only loop over the non-deterministic states.
+         ! In this case, index_of_first_non_det gives the index of the first state in SpawnedParts
+         ! which is not in the deterministic space, and therefore the first state to loop over. If
+         ! not performing a semi-stochastic simulation then we want to loop over all states, so
+         ! simply set this to 1.
+         if (.not. tSortDetermToTop) index_of_first_non_det = 1
+
 !MinInd indicates the minimum bound of the main array in which the particle can be found.
 !Since the spawnedparts arrays are ordered in the same fashion as the main array, 
 !we can find the particle position in the main array by only searching a subset.
-        MinInd=1
+
+        ! As noted above, if we are performing a semi-stochastic simulation with tSortDetermToTop
+        ! true, then the deterministic states have been taken care of. So, we only need to perform the
+        ! binary search over the non-deterministic states, so set MinInd to ignore deterministic states.
+        if (tSortDetermToTop) then
+            MinInd = deterministic_proc_sizes(iProcIndex) + 1
+        else
+            MinInd = 1
+        end if
+
+
         IF(tHistSpawn) HistMinInd2(1:NEl)=FCIDetIndex(1:NEl)
         ToRemove=0  !The number of particles to annihilate
 !        WRITE(6,*) "Annihilating between ",ValidSpawned, " spawned particles and ",TotWalkersNew," original particles..."

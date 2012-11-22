@@ -5,7 +5,7 @@ module semi_stochastic
     use bit_rep_data, only: flag_deterministic, nIfDBO, nOffY, nIfY, nOffFlag, &
                             deterministic_mask
     use bit_reps, only: NIfD, NIfTot, decode_bit_det, encode_bit_rep
-    use CalcData, only: tRegenDiagHEls, tau
+    use CalcData, only: tRegenDiagHEls, tau, tSortDetermToTop
     use csf, only: csf_get_yamas, get_num_csfs, get_csf_bit_yama, csf_apply_yama
     use csf_data, only: iscsf, csf_orbital_mask
     use constants
@@ -14,8 +14,8 @@ module semi_stochastic
     use enumerate_excitations
     use FciMCData, only: HFDet, ilutHF, iHFProc, Hii, CurrentDets, CurrentH, &
                          deterministic_proc_sizes, deterministic_proc_indices, &
-                         full_det_vector, partial_det_vector, core_hamiltonian, &
-                         det_space_size, InstShift
+                         full_determ_vector, partial_determ_vector, core_hamiltonian, &
+                         determ_space_size, InstShift, TotWalkers, TotWalkersOld
     use hash , only : DetermineDetNode
     use hphf_integrals, only: hphf_diag_helement
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIBarrier, &
@@ -53,8 +53,10 @@ contains
         ! and add these states to the main list, CurrentDets, on the correct processor. As
         ! they do this, they count the size of the deterministic space on each processor.
         if (tDeterminantCore) then
+            tSortDetermToTop = .true.
             call generate_determinants()
         else if (tCSFCore) then
+            tSortDetermToTop = .true.
             call generate_csfs()
         else
             call stop_all("init_semi_stochastic", "The nature of the core basis functions &
@@ -64,12 +66,15 @@ contains
         ! We now know the size of the deterministic space on each processor, so now find
         ! the total size of the space and also allocate vectors to store psip amplitudes
         ! and the deterministic Hamiltonian.
-        det_space_size = sum(deterministic_proc_sizes)
-        allocate(full_det_vector(det_space_size))
-        allocate(partial_det_vector(deterministic_proc_sizes(iProcIndex)))
-        allocate(core_hamiltonian(deterministic_proc_sizes(iProcIndex), det_space_size))
-        full_det_vector = 0.0_dp
-        partial_det_vector = 0.0_dp
+        determ_space_size = sum(deterministic_proc_sizes)
+        allocate(full_determ_vector(determ_space_size))
+        allocate(partial_determ_vector(deterministic_proc_sizes(iProcIndex)))
+        allocate(core_hamiltonian(deterministic_proc_sizes(iProcIndex), determ_space_size))
+        full_determ_vector = 0.0_dp
+        partial_determ_vector = 0.0_dp
+
+        TotWalkers = int(deterministic_proc_sizes(iProcIndex), int64)
+        TotWalkersOld = int(deterministic_proc_sizes(iProcIndex), int64)
 
         ! Calculate the indices in the full vector at which the various processors take
         ! over, relative to the first index position in the vector (ie, the first value
@@ -309,44 +314,44 @@ contains
 
     subroutine deterministic_projection()
 
-        ! This subroutine gathers together the partial_det_vectors from each processor so
+        ! This subroutine gathers together the partial_determ_vectors from each processor so
         ! that the full vector for the whole deterministic space is stored on each processor.
         ! It then performs the deterministic multiplication of the projector on this full vector.
 
-        call MPIAllGatherV(partial_det_vector, full_det_vector, deterministic_proc_sizes, &
+        call MPIAllGatherV(partial_determ_vector, full_determ_vector, deterministic_proc_sizes, &
                             deterministic_proc_indices)
 
         ! This function performs y := alpha*A*x + beta*y
         ! N specifies not to use the transpose of A.
         ! deterministic_proc_sizes(iProcIndex) is the number of rows in A.
-        ! det_space-size is the number of columns of A.
+        ! determ_space_size is the number of columns of A.
         ! alpha = -1.0_dp.
         ! A = core_hamiltonian.
         ! deterministic_proc_sizes(iProcIndex) is the first dimension of A.
-        ! input x = full_det_vector.
+        ! input x = full_determ_vector.
         ! 1 is the increment of the elements of x.
         ! beta = 0.0_dp.
-        ! output y = partial_det_vector.
+        ! output y = partial_determ_vector.
         ! 1 is the incremenet of the elements of y.
         call dgemv('N', &
                    deterministic_proc_sizes(iProcIndex), &
-                   det_space_size, &
+                   determ_space_size, &
                    -1.0_dp, &
                    core_hamiltonian, &
                    deterministic_proc_sizes(iProcIndex), &
-                   full_det_vector, &
+                   full_determ_vector, &
                    1, &
                    0.0_dp, &
-                   partial_det_vector, &
+                   partial_determ_vector, &
                    1)
 
-        ! Now add shift*full_det_vector, to account for the shift, not stored in core_hamiltonian.
-        partial_det_vector = partial_det_vector + &
-             InstShift * full_det_vector(deterministic_proc_indices(iProcIndex)+1:&
+        ! Now add shift*full_determ_vector, to account for the shift, not stored in core_hamiltonian.
+        partial_determ_vector = partial_determ_vector + &
+             InstShift * full_determ_vector(deterministic_proc_indices(iProcIndex)+1:&
              deterministic_proc_indices(iProcIndex)+deterministic_proc_sizes(iProcIndex))
 
         ! Now multiply the vector by tau to get the final projected vector.
-        partial_det_vector = partial_det_vector * tau
+        partial_determ_vector = partial_determ_vector * tau
 
     end subroutine deterministic_projection
 

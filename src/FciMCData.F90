@@ -346,16 +346,25 @@ MODULE FciMCData
       integer :: unit_splitprojEHistG,unit_splitprojEHistK3
 
       ! Semi-stochastic data.
+
       ! The core Hamiltonian (with the Hartree-Fock energy removed from the diagonal) is stored in this array for the whole simulation.
       real(dp), allocatable, dimension(:,:) :: core_hamiltonian 
-      real(dp), allocatable, dimension(:) :: full_det_vector ! This stores all the amplitudes of the psips in the deterministic space.
+      real(dp), allocatable, dimension(:) :: full_determ_vector ! This stores all the amplitudes of the psips in the deterministic space.
 
       ! This vector has the size of the part of the deterministic space stored on *this* processor only. It is therefore used to store
-      ! the deterministic vector on this processor, before it is combined to give the whole vector, which is stored in full_det_vector.
-      ! Later in the iteration, it is also used to store the result of the multiplication by core_hamiltonian on full_det_vector.
-      real(dp), allocatable, dimension(:) :: partial_det_vector
+      ! the deterministic vector on this processor, before it is combined to give the whole vector, which is stored in full_determ_vector.
+      ! Later in the iteration, it is also used to store the result of the multiplication by core_hamiltonian on full_determ_vector.
+      real(dp), allocatable, dimension(:) :: partial_determ_vector
       integer(MPIArg), allocatable, dimension(:) :: deterministic_proc_sizes
       integer(MPIArg), allocatable, dimension(:) :: deterministic_proc_indices
-      integer(MPIArg) :: det_space_size
+      integer(MPIArg) :: determ_space_size
+
+      ! This vector will store the indicies of the deterministic states in CurrentDets. This is worked out in the main loop.
+      integer, allocatable, dimension(:) :: indices_of_determ_states
+
+      ! This integer is used in the Annnihilation routines. It denotes the index of the first non deterministic state in the spawned list
+      ! (once this list has been compressed). This is used to skip over performing certain annihilation routines on the deterministic
+      ! state, which are not removed from the list.
+      integer :: index_of_first_non_determ
 
 END MODULE FciMCData
