@@ -17,8 +17,7 @@ MODULE FciMCParMod
                         encode_bit_rep, encode_det, extract_bit_rep, &
                         test_flag, set_flag, extract_flags, &
                         flag_is_initiator, clear_all_flags,&
-                        extract_sign, nOffSgn, flag_deterministic, &
-                        deterministic_mask
+                        extract_sign, nOffSgn, flag_deterministic
     use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
                         OccCASorbs, VirtCASorbs, tFindGroundDet, NEquilSteps,&
                         tReadPops, tRegenDiagHEls, iFullSpaceIter, MaxNoAtHF,&
@@ -1197,7 +1196,7 @@ MODULE FciMCParMod
 
                 if (tTruncInitiator) call CalcParentFlag (j, VecSlot, parent_flags)
 
-            endif                                                          
+            endif
 
             if(tHashWalkerList) then
                 !Test here as to whether this is a "hole" or not...
@@ -1597,6 +1596,10 @@ MODULE FciMCParMod
 
         call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ, &
                             child, flags)
+
+        ! If the parent has its deterministic flag set then set the flag on the child to specify this.
+        if (btest(parent_flags, flag_deterministic)) &
+            call set_flag(SpawnedParts(:,ValidSpawnedList(proc)), flag_determ_parent)
 
         IF(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) &
                 call store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, WalkersToSpawn*NoMCExcits, iLutJ, proc)

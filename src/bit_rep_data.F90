@@ -36,6 +36,7 @@ module bit_rep_data
                           flag_parent_initiator(2) = (/0,1/), & ! n.b. the same
                           flag_make_initiator(2) = (/2,3/), &
                           flag_deterministic = 4
+                          flag_determ_parent = 5
 
     ! Bit mask with all bits unset except for bit 4, corresponding to the
     ! deterministic flag. This is used in ilut_lt and ilut_gt to order the

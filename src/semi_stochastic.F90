@@ -3,8 +3,8 @@
 module semi_stochastic
 
     use bit_rep_data, only: flag_deterministic, nIfDBO, nOffY, nIfY, nOffFlag, &
-                            deterministic_mask
-    use bit_reps, only: NIfD, NIfTot, decode_bit_det, encode_bit_rep
+                            deterministic_mask, determ_parent_mask
+    use bit_reps, only: NIfD, NIfTot, decode_bit_det, encode_bit_rep, set_flag
     use CalcData, only: tRegenDiagHEls, tau, tSortDetermToTop
     use csf, only: csf_get_yamas, get_num_csfs, get_csf_bit_yama, csf_apply_yama
     use csf_data, only: iscsf, csf_orbital_mask
@@ -36,9 +36,11 @@ contains
 
         integer :: i, j, IC
 
-        ! Initialise the deterministic mask.
+        ! Initialise the deterministic masks.
         deterministic_mask = 0
+        determ_parent_mask = 0
         deterministic_mask = ibset(deterministic_mask, flag_deterministic)
+        determ_parent_mask = ibset(determ_parent_mask, flag_determ_parent)
 
         allocate(deterministic_proc_sizes(0:nProcessors-1))
         allocate(deterministic_proc_indices(0:nProcessors-1))
@@ -291,7 +293,8 @@ contains
         sgn = 0.0_dp
         ! Flag to specify that these basis states are in the deterministic space.
         flags = 0
-        flags = ibset(flags,flag_deterministic)
+        flags = ibset(flags, flag_deterministic)
+        flags = ibset(flags, flag_is_initiator(1))
 
         ! Find the nI representation of determinant.
         if (present(nI_in)) then
