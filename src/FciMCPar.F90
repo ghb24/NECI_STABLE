@@ -3914,7 +3914,7 @@ MODULE FciMCParMod
         !        WRITE(iout,*) "***",iter_data%update_growth_tot,AllTotParts-AllTotPartsOld
 
         if(tSearchTau) then
-            call MPISumAll(MaxSpawnProb,AllMaxSpawnProb)
+            call MPIAllReduce (MaxSpawnProb, MPI_MAX, AllMaxSpawnProb)
 !            if((AllMaxSpawnProb-MaxAllowedSpawnProb).gt.1.D-5) then
             if((AllMaxSpawnProb/MaxAllowedSpawnProb).gt.1.02) then
                 !Reduce tau, so that the maximum spawning probability is reduced.
