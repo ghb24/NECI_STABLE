@@ -1019,8 +1019,9 @@ MODULE AnnihilationMod
                             if (pRemove .gt. r) then
                                 !Remove this walker
                                 NoRemoved = NoRemoved + abs(SignTemp(j))
-                                Annihilated = Annihilated + abs(SignTemp(j))
-                                iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
+                                !Annihilated = Annihilated + abs(SignTemp(j))
+                                !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
+                                iter_data%nremoved = iter_data%nremoved + abs(SignTemp(j))
                                 SignTemp(j) = 0
                                 call nullify_ilut_part (SpawnedParts(:,i), j)
                             elseif (tEnhanceRemainder) then
@@ -1061,8 +1062,9 @@ MODULE AnnihilationMod
                             if (pRemove .gt. r) then
                                 !Remove this walker
                                 NoRemoved = NoRemoved + abs(SignTemp(j))
-                                Annihilated = Annihilated + abs(SignTemp(j))
-                                iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
+                                !Annihilated = Annihilated + abs(SignTemp(j))
+                                !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
+                                iter_data%nremoved = iter_data%nremoved + abs(SignTemp(j))
                                 SignTemp(j) = 0
                                 call nullify_ilut_part (SpawnedParts(:,i), j)
                             elseif (tEnhanceRemainder) then
@@ -1398,8 +1400,9 @@ MODULE AnnihilationMod
                         if (pRemove .gt. r) then
                             !Remove this walker
                             NoRemoved = NoRemoved + abs(CurrentSign(j))
-                            Annihilated = Annihilated + abs(CurrentSign(j))
-                            iter_data%nannihil = iter_data%nannihil + abs(CurrentSign(j))
+                            !Annihilated = Annihilated + abs(CurrentSign(j))
+                            !iter_data%nannihil = iter_data%nannihil + abs(CurrentSign(j))
+                            iter_data%nremoved = iter_data%nremoved + abs(CurrentSign(j))
                             CurrentSign(j) = 0
                             call nullify_ilut_part (CurrentDets(:,i), j)
                         elseif (tEnhanceRemainder) then

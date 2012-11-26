@@ -1409,7 +1409,7 @@ MODULE FciMCParMod
         ! Update iteration data
         iter_data%update_growth = iter_data%update_growth + iter_data%nborn &
                                 - iter_data%ndied - iter_data%nannihil &
-                                - iter_data%naborted
+                                - iter_data%naborted - iter_data%nremoved
         iter_data%update_iters = iter_data%update_iters + 1
 
         ! This routine will take the CurrentDets and search the array to find all single and double 
@@ -3686,7 +3686,7 @@ MODULE FciMCParMod
         !        WRITE(iout,*) "***",iter_data%update_growth_tot,AllTotParts-AllTotPartsOld
 
         if(tSearchTau) then
-            call MPISumAll(MaxSpawnProb,AllMaxSpawnProb)
+            call MPIAllReduce(MaxSpawnProb,MPI_MAX, AllMaxSpawnProb)
 !            if((AllMaxSpawnProb-MaxAllowedSpawnProb).gt.1.D-5) then
             if((AllMaxSpawnProb/MaxAllowedSpawnProb).gt.1.02) then
                 !Reduce tau, so that the maximum spawning probability is reduced.

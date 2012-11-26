@@ -292,6 +292,7 @@ MODULE FciMCData
           real(dp), dimension(lenof_sign) :: ndied
           real(dp), dimension(lenof_sign) :: nannihil
           real(dp), dimension(lenof_sign) :: naborted
+          real(dp), dimension(lenof_sign) :: nremoved
           real(dp), dimension(lenof_sign) :: update_growth, update_growth_tot
           real(dp), dimension(lenof_sign) :: tot_parts_old
           integer :: update_iters
