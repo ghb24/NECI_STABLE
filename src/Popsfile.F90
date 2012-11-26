@@ -923,7 +923,8 @@ outer_map:      do i = 0, MappingNIfD
                     do k = 1, lenof_sign
                         write(iunit, '(i24)', advance='no') sgn(k)
                     end do
-                    if (tUseFlags) write(iunit, '(i24)') flg
+                    if (tUseFlags) write(iunit, '(i24)', advance='no') flg
+                    write(iunit, *)
                 end if
 #else
                 if (tBinPops) then
