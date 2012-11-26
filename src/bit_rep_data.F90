@@ -32,6 +32,7 @@ module bit_rep_data
     integer :: nIfSgn   ! Number of integers used for signs
 
     ! Flags which we can store
+    logical :: tUseflags
     integer, parameter :: flag_is_initiator(2) = (/0,1/), &
                           flag_parent_initiator(2) = (/0,1/), & ! n.b. the same
                           flag_make_initiator(2) = (/2,3/), &
