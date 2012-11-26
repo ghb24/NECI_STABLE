@@ -411,8 +411,8 @@ MODULE AnnihilationMod
 
             do while(CurrentBlockDet.le.ValidSpawned)
                 if(.not.(DetBitEQ(SpawnedParts(0:NIfTot,BeginningBlockDet),SpawnedParts(0:NIfTot,CurrentBlockDet),NIfDBO)) &
-                    .and. (test_flag(SpawnedParts(:0:NIfTot,BeginningBlockDet), flag_determ_parent) .eq. &
-                           test_flag(SpawnedParts(0:NIfTot,CurrentBlockDet), flag_determ_parent)) exit
+                    .and. (test_flag(SpawnedParts(:0:NIfTot,BeginningBlockDet), flag_determ_parent) .eqv. &
+                           test_flag(SpawnedParts(0:NIfTot,CurrentBlockDet), flag_determ_parent))) exit
                 ! Loop over walkers on the same determinant in SpawnedParts.
                 ! Also, seperate out states which are and aren't spawned from the deterministic space.
                 ! (Ignore the options relating to these deterministic flags if not concerned with the
@@ -533,7 +533,8 @@ MODULE AnnihilationMod
 
             ! If the the states in this block have the determ_parent flag set (either all will or all won't) then
             ! set this flag on cum_det.
-            if (test_flag(SpawnedParts(:,BeginningBlockDet), flag_determ_parent) set_flag(cum_det, flag_determ_parent)
+            if (test_flag(SpawnedParts(:,BeginningBlockDet), flag_determ_parent)) &
+                call set_flag(cum_det, flag_determ_parent)
 
             ! Copy details into the final array
             call extract_sign (cum_det, temp_sign)
@@ -797,14 +798,15 @@ MODULE AnnihilationMod
     ! this optimisation is not possible, so we simply check in AnnihilateSpawnedParts if each
     ! state is deterministic.
 
-    integer :: i, SpawnedSign, MinInd, MaxInd, PartInd
+    integer :: i, MinInd, MaxInd, PartInd
+    real(dp), dimension(lenof_sign) :: SpawnedSign, CurrentSign
     logical :: tSuccess
 
     ! First, copy across the weights from partial_determ_vector:
     do i = 1, deterministic_proc_sizes(iProcIndex)
-        call extract_sign(CurrentDets(:, index_of_determ_states(i)), CurrentSign)
+        call extract_sign(CurrentDets(:, indices_of_determ_states(i)), CurrentSign)
         SpawnedSign = partial_determ_vector(i)
-        call encode_sign(CurrentDets(:, index_of_determ_states(i)), SpawnedSign + CurrentSign)
+        call encode_sign(CurrentDets(:, indices_of_determ_states(i)), SpawnedSign + CurrentSign)
     end do
 
     ! Second, *if* the dtereministic states are sorted to the top, copy across the weights from
@@ -872,7 +874,7 @@ MODULE AnnihilationMod
         if (.not. tSortDetermToTop) then
             index_of_first_non_determ = 1
         else
-            ToRemove = index_of_dirst_non_determ - 1
+            ToRemove = index_of_first_non_determ - 1
         end if
 
 !MinInd indicates the minimum bound of the main array in which the particle can be found.
@@ -1605,7 +1607,7 @@ MODULE AnnihilationMod
                 
                 if(i.eq.HFInd)  InstNoatHF = CurrentSign
 
-                IF(IsUnoccDet(CurrentSign) .and. (.not. test_flag(CurrentDets(:,i), flag_deterministic)) THEN
+                IF(IsUnoccDet(CurrentSign) .and. (.not. test_flag(CurrentDets(:,i), flag_deterministic))) THEN
                     DetsMerged=DetsMerged+1
                     if(tFillingStochRDMonFly) &
                         call det_removed_fill_diag_rdm(CurrentDets(:,i), CurrentH(1:NCurrH,i))

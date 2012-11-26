@@ -35,13 +35,15 @@ module bit_rep_data
     integer, parameter :: flag_is_initiator(2) = (/0,1/), &
                           flag_parent_initiator(2) = (/0,1/), & ! n.b. the same
                           flag_make_initiator(2) = (/2,3/), &
-                          flag_deterministic = 4
+                          flag_deterministic = 4, &
                           flag_determ_parent = 5
 
     ! Bit mask with all bits unset except for bit 4, corresponding to the
-    ! deterministic flag. This is used in ilut_lt and ilut_gt to order the
-    ! states such that deterministic states are at the top of the sorted list.
+    ! deterministic flag. This is used in ilut_lt_determ and ilut_gt_determ.
     integer(n_int) :: deterministic_mask
+    ! Same as deterministic_mask but for bit 5, corresponding to the
+    ! determ_parent flag.
+    integer(n_int) :: determ_parent_mask
 
 contains
 

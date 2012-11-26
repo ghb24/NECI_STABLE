@@ -7,10 +7,10 @@ module DetBitOps
 
     use Systemdata, only: nel, tCSF, tTruncateCSF, csf_trunc_level, &
                           tSemiStochastic
-    use CalcData, only: tTruncInitiator
+    use CalcData, only: tTruncInitiator, tSortDetermToTop
     use bit_rep_data, only: NIfY, NIfTot, NIfD, NOffFlag, NIfFlag, &
                             test_flag, flag_is_initiator,NIfDBO,NOffSgn, &
-                            deterministic_mask
+                            deterministic_mask, determ_parent_mask
     use csf_data, only: iscsf, csf_yama_bit, csf_orbital_mask, csf_test_bit
     use constants, only: n_int,bits_n_int,end_n_int,dp,lenof_sign,sizeof_int
 
@@ -629,7 +629,6 @@ module DetBitOps
         else
             bGt = ilutI(i) > ilutJ(i)
         endif
-    end if
 
     end function
 

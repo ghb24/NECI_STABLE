@@ -131,7 +131,8 @@ MODULE FciMCParMod
                          zero_rdms, fill_rdm_softexit, store_parent_with_spawned, &
                          fill_rdm_diag_currdet_norm, &
                          fill_rdm_diag_currdet_hfsd, calc_rdmbiasfac
-    use semi_stochastic, only: init_semi_stochastic, deterministic_projection
+    use semi_stochastic, only: init_semi_stochastic, deterministic_projection, &
+                               check_if_in_determ_space
 
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
@@ -1020,7 +1021,7 @@ MODULE FciMCParMod
         integer :: IC, walkExcitLevel, walkExcitLevel_toHF, ex(2,2), TotWalkersNew
         integer :: part_type, nullwalkExcitLevel
         integer(int64) :: tot_parts_tmp(lenof_sign)
-        logical :: tParity, tSuccess, tFill_RDM
+        logical :: tParity, tSuccess, tFill_RDM, tInDetermSpace
         real(dp) :: prob, HDiagCurr, TempTotParts, Di_Sign_Temp
         real(dp) :: AvSignCurr, IterRDMStartCurr, RDMBiasFacCurr
         HElement_t :: HDiagTemp,HElGen
@@ -1066,6 +1067,9 @@ MODULE FciMCParMod
 
         ! Index for counting deterministic states.
         determ_index = 1
+        ! For cases when tSortDetermToTop is false, make sure tInDetermSpace is always false
+        ! (since we don't check if a state is in the deterministic space here in this case.)
+        tInDetermSpace = .false.
         
         call rezero_iter_stats_each_iter (iter_data)
 
@@ -1144,8 +1148,8 @@ MODULE FciMCParMod
             ! If this state is in the deterministic space.
             if (test_flag(CurrentDets(:,j), flag_deterministic)) then
                 ! Store the index of this state, for use in annihilation later. Note, we
-                ! use VecInd, *not* j, as VecInd stores the new index after death.
-                indicies_of_determ_states(determ_index) = VecInd
+                ! use VecSlot, *not* j, as VecSlot stores the new index after death.
+                indices_of_determ_states(determ_index) = VecSlot
                 determ_index = determ_index + 1
 
                 call extract_sign (CurrentDets(:,j), SignCurr)
@@ -1332,10 +1336,27 @@ MODULE FciMCParMod
                     
                     ! If a valid excitation, see if we should spawn children.
                     if (.not. IsNullDet(nJ)) then
-                        ! If we're using excitation level to define a partly
-                        ! real space, we need to know the excitation level
-                        ! and therefore bit rep of nJ at this stage
-                        if(tRealCoeffByExcitLevel)  call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
+                        ! If we're using excitation level to define a partly real space, we need
+                        ! to know the excitation level and therefore bit rep of nJ at this stage.
+                        ! Also, for the semi-stochastic case, if sorting deterministic states to
+                        ! the top then we find the bit rep so that we can check quickly if a state
+                        ! is in the deterministic space.
+                        if(tRealCoeffByExcitLevel .or. tSortDetermToTop) &
+                            call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
+
+                        ! For the semi-stochastic case when we are sorting deterministic states
+                        ! to the top of the list, if spawning occurs from the deterministic
+                        ! space to the deterministic space, abort it now. If the spawning occurs
+                        ! from the stochastic space to the deterministic space, then we will set
+                        ! the flag to specify that the new state is in the deterministic space.
+                        if (tSemiStochastic .and. tSortDetermToTop) then
+                            call check_if_in_determ_space(ilutnJ, tInDetermSpace)
+                            if (test_flag(CurrentDets(:,j), flag_deterministic)) then
+                                if (tInDetermSpace) cycle
+                            else
+                                if (tInDetermSpace) call set_flag(iLutnJ, flag_deterministic)
+                            end if
+                        end if
                         
                         child = attempt_create (get_spawn_helement, DetCurr, &
                                             CurrentDets(:,j), SignCurr, &
@@ -1355,9 +1376,9 @@ MODULE FciMCParMod
                         NumSpawnedEntries=NumSpawnedEntries+1
                         
                         !Encode child if not done already
-                        if(.not.tRealCoeffByExcitLevel) &
+                        if(.not. (tRealCoeffByExcitLevel .or. tSortDetermToTop)) &
                             call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
-                        
+
                         ! We know we want to create a particle of this type.
                         call new_child_stats (iter_data, CurrentDets(:,j), &
                                               nJ, iLutnJ, ic, walkExcitLevel,&

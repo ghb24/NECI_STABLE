@@ -3,13 +3,14 @@
 module semi_stochastic
 
     use bit_rep_data, only: flag_deterministic, nIfDBO, nOffY, nIfY, nOffFlag, &
-                            deterministic_mask, determ_parent_mask
+                            flag_determ_parent, deterministic_mask, determ_parent_mask, &
+                            flag_is_initiator
     use bit_reps, only: NIfD, NIfTot, decode_bit_det, encode_bit_rep, set_flag
     use CalcData, only: tRegenDiagHEls, tau, tSortDetermToTop
     use csf, only: csf_get_yamas, get_num_csfs, get_csf_bit_yama, csf_apply_yama
     use csf_data, only: iscsf, csf_orbital_mask
     use constants
-    use DetBitOps, only: ilut_lt, ilut_gt, count_open_orbs
+    use DetBitOps, only: ilut_lt, ilut_gt, count_open_orbs, FindBitExcitLevel
     use Determinants, only: get_helement
     use enumerate_excitations
     use FciMCData, only: HFDet, ilutHF, iHFProc, Hii, CurrentDets, CurrentH, &
@@ -314,6 +315,31 @@ contains
                        deterministic_proc_sizes(iProcIndex)), ilut(0:nIfDBO), sgn, flags)
 
     end subroutine add_basis_state_to_list
+
+    subroutine check_if_in_determ_space(ilut, tInDetermSpace)
+
+        ! This subroutine takes in a state in its bitstring representation and finds out
+        ! whether it is in the deterministic space or not.
+
+        ! In: ilut - The state that we will check, in a bitstring form.
+        ! Out: tInDetermSpace - This will be set to true if the state (ilut) is in the
+        !                       deterministic space, and false if not.
+
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        logical, intent(out) :: tInDetermSpace
+        integer :: IC
+
+        tInDetermSpace = .false.
+
+        if (tDeterminantCore) then
+            IC = FindBitExcitLevel(ilut, ilutHF)
+            if (IC <= 2) tInDetermSpace = .true.
+        else if (tCSFCore) then
+            IC = FindBitExcitLevel(ilut, ilutHF)
+            if (IC <= 2) tInDetermSpace = .true.
+        end if
+
+    end subroutine check_if_in_determ_space
 
     subroutine deterministic_projection()
 
