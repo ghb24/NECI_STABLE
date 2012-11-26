@@ -942,7 +942,7 @@ outer_map:      do i = 0, MappingNIfD
                     ! the current flag will not necessarily be correct.
                     ex_level = FindBitExcitLevel(ilutRef, det, nel)
                     write(iunit_2, '(i30,a20)', advance='no') abs(sgn(1)), ''
-                    call write_det (iunit_2, det, .false.)
+                    call writebitdet (iunit_2, det, .false.)
                     write(iunit_2, '(i30)') ex_level
 
                 end if
