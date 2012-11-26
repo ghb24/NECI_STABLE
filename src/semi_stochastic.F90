@@ -16,7 +16,8 @@ module semi_stochastic
     use FciMCData, only: HFDet, ilutHF, iHFProc, Hii, CurrentDets, CurrentH, &
                          deterministic_proc_sizes, deterministic_proc_indices, &
                          full_determ_vector, partial_determ_vector, core_hamiltonian, &
-                         determ_space_size, InstShift, TotWalkers, TotWalkersOld
+                         determ_space_size, InstShift, TotWalkers, TotWalkersOld, &
+                         indices_of_determ_states
     use hash , only : DetermineDetNode
     use hphf_integrals, only: hphf_diag_helement
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIBarrier, &
@@ -75,6 +76,10 @@ contains
         allocate(core_hamiltonian(deterministic_proc_sizes(iProcIndex), determ_space_size))
         full_determ_vector = 0.0_dp
         partial_determ_vector = 0.0_dp
+
+        ! Also allocate the vector to store the positions of the deterministic states in
+        ! CurrentDets
+        allocate(indices_of_determ_states(deterministic_proc_sizes(iProcIndex)))
 
         TotWalkers = int(deterministic_proc_sizes(iProcIndex), int64)
         TotWalkersOld = int(deterministic_proc_sizes(iProcIndex), int64)

@@ -410,9 +410,11 @@ MODULE AnnihilationMod
             CurrentBlockDet=BeginningBlockDet+1
 
             do while(CurrentBlockDet.le.ValidSpawned)
-                if(.not.(DetBitEQ(SpawnedParts(0:NIfTot,BeginningBlockDet),SpawnedParts(0:NIfTot,CurrentBlockDet),NIfDBO)) &
-                    .and. (test_flag(SpawnedParts(:0:NIfTot,BeginningBlockDet), flag_determ_parent) .eqv. &
-                           test_flag(SpawnedParts(0:NIfTot,CurrentBlockDet), flag_determ_parent))) exit
+                if(.not.(DetBitEQ(SpawnedParts(0:NIfTot,BeginningBlockDet),SpawnedParts(0:NIfTot,CurrentBlockDet),NIfDBO))) exit
+                if (tSemiStochastic) then
+                    if (.not. (test_flag(SpawnedParts(:0:NIfTot,BeginningBlockDet), flag_determ_parent) .eqv. &
+                               test_flag(SpawnedParts(0:NIfTot,CurrentBlockDet), flag_determ_parent))) exit
+                end if
                 ! Loop over walkers on the same determinant in SpawnedParts.
                 ! Also, seperate out states which are and aren't spawned from the deterministic space.
                 ! (Ignore the options relating to these deterministic flags if not concerned with the
@@ -463,7 +465,10 @@ MODULE AnnihilationMod
                 ! want to store the index of the first non-deterministic state in the space.
                 ! Note, this is only used if tSortDetermToTop is true. If not true then the deterministic flag won't have
                 ! been set.
-                if (test_flag(SpawnedParts(:,BeginningBlockDet), flag_deterministic)) index_of_first_non_determ = VecInd + 1
+                if (tSemiStochastic) then
+                    if (test_flag(SpawnedParts(:,BeginningBlockDet), flag_deterministic)) &
+                                                    index_of_first_non_determ = VecInd + 1
+                end if
 
                 VecInd=VecInd+1
                 BeginningBlockDet=CurrentBlockDet           !Move onto the next block of determinants
@@ -533,8 +538,10 @@ MODULE AnnihilationMod
 
             ! If the the states in this block have the determ_parent flag set (either all will or all won't) then
             ! set this flag on cum_det.
-            if (test_flag(SpawnedParts(:,BeginningBlockDet), flag_determ_parent)) &
-                call set_flag(cum_det, flag_determ_parent)
+            if (tSemiStochastic) then
+                if (test_flag(SpawnedParts(:,BeginningBlockDet), flag_determ_parent)) &
+                    call set_flag(cum_det, flag_determ_parent)
+            end if
 
             ! Copy details into the final array
             call extract_sign (cum_det, temp_sign)
@@ -551,7 +558,9 @@ MODULE AnnihilationMod
                 ! want to store the index of the first non-deterministic state in the space.
                 ! Note, this is only used if tSortDetermToTop is true. If not true then the deterministic flag won't have
                 ! been set.
-                if (test_flag(cum_det(0:NIfTot), flag_deterministic)) index_of_first_non_determ = VecInd + 1
+                if (tSemiStochastic) then
+                    if (test_flag(cum_det(0:NIfTot), flag_deterministic)) index_of_first_non_determ = VecInd + 1
+                end if
 
                 SpawnedParts2(0:NIfTot,VecInd) = cum_det(0:NIfTot)
                 VecInd = VecInd + 1
@@ -1011,21 +1020,23 @@ MODULE AnnihilationMod
 
                 ! This relates to the deterministic space. In this case, the spawning is not
                 ! affected by any the initiator statuses, so simply cycle afterwards.
-                if (test_flag(CurrentDets(:,PartInd), flag_deterministic)) then
-                    ! If the state is in the deterministic space.
-                    if (test_flag(SpawnedParts(:,i), flag_determ_parent)) then
-                        ! If it was also spawned from the deterministic space, then abort it.
-                        call encode_sign(SpawnedParts(:,i),null_part)
-                        ToRemove = ToRemove + 1
-                    else
-                        ! If it is spawned from outside the deterministic space, then allow it.
-                        call extract_sign(CurrentDets(:, PartInd), CurrentSign)
-                        call extract_sign(SpawnedParts(:, i), SpawnedSign)
-                        call encode_sign(CurrentDets(:, PartInd), SpawnedSign + CurrentSign)
-                        call encode_sign(SpawnedParts(:,i),null_part)
-                        ToRemove = ToRemove + 1
+                if (tSemiStochastic) then
+                    if (test_flag(CurrentDets(:,PartInd), flag_deterministic)) then
+                        ! If the state is in the deterministic space.
+                        if (test_flag(SpawnedParts(:,i), flag_determ_parent)) then
+                            ! If it was also spawned from the deterministic space, then abort it.
+                            call encode_sign(SpawnedParts(:,i),null_part)
+                            ToRemove = ToRemove + 1
+                        else
+                            ! If it is spawned from outside the deterministic space, then allow it.
+                            call extract_sign(CurrentDets(:, PartInd), CurrentSign)
+                            call extract_sign(SpawnedParts(:, i), SpawnedSign)
+                            call encode_sign(CurrentDets(:, PartInd), SpawnedSign + CurrentSign)
+                            call encode_sign(SpawnedParts(:,i),null_part)
+                            ToRemove = ToRemove + 1
+                        end if
+                        cycle
                     end if
-                    cycle
                 end if
 
                 call extract_sign(CurrentDets(:,PartInd),CurrentSign)
@@ -1561,13 +1572,17 @@ MODULE AnnihilationMod
         real(dp) :: CurrentSign(lenof_sign), SpawnedSign(lenof_sign)
         real(dp) :: HDiag, pRemove, r
         INTEGER :: i,DetsMerged,nJ(NEl),part_type, ExcitLevelCurr, j
-        LOGICAL :: TestClosedShellDet
+        LOGICAL :: TestClosedShellDet, tIsStateDeterm
         type(fcimc_iter_data), intent(inout) :: iter_data
         character(*), parameter :: this_routine = 'InsertRemoveParts'
         HElement_t :: HDiagTemp
 
 !It appears that the rest of this routine isn't thread-safe if ValidSpawned is zero.
         
+    ! This logical is only used for the semi-stochastic code. If true then we don't
+    ! try to remove the state.
+    tIsStateDeterm = .false.
+
     if(.not.bNodeRoot) return
 !Annihilated determinants first are removed from the main array (zero sign). 
 !Surely we only need to perform this loop if the number of annihilated particles > 0?
@@ -1579,8 +1594,9 @@ MODULE AnnihilationMod
         IF(TotWalkersNew.gt.0) THEN
             do i=1,TotWalkersNew
                 call extract_sign(CurrentDets(:,i),CurrentSign)
+                if (tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,i), flag_deterministic)
                 do j=1, lenof_sign
-                    if (.not. test_flag(CurrentDets(:,i), flag_deterministic)) then
+                    if (.not. tIsStateDeterm) then
                         if ((abs(CurrentSign(j)).gt.0.0) .and. (abs(CurrentSign(j)).lt.1.0)) then
                             !We remove this walker with probability 1-RealSignTemp
                             pRemove=1-abs(CurrentSign(j))
@@ -1607,7 +1623,7 @@ MODULE AnnihilationMod
                 
                 if(i.eq.HFInd)  InstNoatHF = CurrentSign
 
-                IF(IsUnoccDet(CurrentSign) .and. (.not. test_flag(CurrentDets(:,i), flag_deterministic))) THEN
+                IF(IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) THEN
                     DetsMerged=DetsMerged+1
                     if(tFillingStochRDMonFly) &
                         call det_removed_fill_diag_rdm(CurrentDets(:,i), CurrentH(1:NCurrH,i))

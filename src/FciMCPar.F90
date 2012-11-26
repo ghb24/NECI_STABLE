@@ -1146,28 +1146,29 @@ MODULE FciMCParMod
             fcimc_excit_gen_store%tFilled = .false.
 
             ! If this state is in the deterministic space.
-            if (test_flag(CurrentDets(:,j), flag_deterministic)) then
-                ! Store the index of this state, for use in annihilation later. Note, we
-                ! use VecSlot, *not* j, as VecSlot stores the new index after death.
-                indices_of_determ_states(determ_index) = VecSlot
-                determ_index = determ_index + 1
+            if (tSemiStochastic) then
+                if (test_flag(CurrentDets(:,j), flag_deterministic)) then
+                    ! Store the index of this state, for use in annihilation later. Note, we
+                    ! use VecSlot, *not* j, as VecSlot stores the new index after death.
+                    indices_of_determ_states(determ_index) = VecSlot
+                    determ_index = determ_index + 1
 
-                call extract_sign (CurrentDets(:,j), SignCurr)
-                ! Add this amplitude to the deterministic vector.
-                partial_determ_vector(j) =  SignCurr(1)
+                    call extract_sign (CurrentDets(:,j), SignCurr)
+                    ! Add this amplitude to the deterministic vector.
+                    partial_determ_vector(j) =  SignCurr(1)
 
-                ! The deterministic states are always kept in CurrentDets, even when
-                ! the amplitude is zero. Hence we must check if the amplitude is zero,
-                ! and if so, skip the state.
-                if (.not.(abs(SignCurr(1)) > 0.0_dp)) then
-                    VecSlot = VecSlot + 1
-                    cycle
-                end if
+                    ! The deterministic states are always kept in CurrentDets, even when
+                    ! the amplitude is zero. Hence we must check if the amplitude is zero,
+                    ! and if so, skip the state.
+                    if (.not.(abs(SignCurr(1)) > 0.0_dp)) then
+                        VecSlot = VecSlot + 1
+                        cycle
+                    end if
                  
-                ! Also, if we are on the Hartree-Fock and we are including all doubles
-                ! in the deterministic space then all states that the HF can spawn onto
-                ! are in the deterministic space, so skip this state too.
-
+                    ! Also, if we are on the Hartree-Fock and we are including all doubles
+                    ! in the deterministic space then all states that the HF can spawn onto
+                    ! are in the deterministic space, so skip this state too.
+                end if
             end if
 
             if (tSpawn_Only_Init) then
@@ -1401,16 +1402,22 @@ MODULE FciMCParMod
             ! DEBUG
             ! if (VecSlot > j) call stop_all (this_routine, 'vecslot > j')
 
-            ! If we are performing a semi-stochastic simulation and this state is in the
-            ! deterministic space, then the death step is performed deterministically later.
-            if (.not. test_flag(CurrentDets(:,j), flag_deterministic)) then
-                call walker_death (attempt_die, iter_data, DetCurr, &
-                                   CurrentDets(:,j), HDiagCurr, SignCurr, &
-                                   AvSignCurr, IterRDMStartCurr, VecSlot, j, WalkExcitLevel)
+            if (tSemiStochastic) then
+                ! If we are performing a semi-stochastic simulation and this state is in the
+                ! deterministic space, then the death step is performed deterministically later.
+                if (.not. test_flag(CurrentDets(:,j), flag_deterministic)) then
+                    call walker_death (attempt_die, iter_data, DetCurr, &
+                                       CurrentDets(:,j), HDiagCurr, SignCurr, &
+                                       AvSignCurr, IterRDMStartCurr, VecSlot, j, WalkExcitLevel)
+                else
+                    ! We never overwrite the deterministic states, so move the next spawning slot
+                    ! in CurrentDets to the next state.
+                    VecSlot = VecSlot + 1
+                end if
             else
-                ! We never overwrite the deterministic states, so move the next spawning slot
-                ! in CurrentDets to the next state.
-                VecSlot = VecSlot + 1
+                call walker_death (attempt_die, iter_data, DetCurr, &
+                CurrentDets(:,j), HDiagCurr, SignCurr, &
+                AvSignCurr, IterRDMStartCurr, VecSlot, j, WalkExcitLevel)
             end if
 
             if(tFill_RDM) then 
