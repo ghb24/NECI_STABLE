@@ -30,7 +30,7 @@ logical :: tAllRealCoeff
 logical :: tRealSpawnCutoff
 logical :: tRealCoeffByExcitLevel
 integer :: RealCoeffExcitThresh
-real(dp) :: RealSpawnCutoff
+real(dp) :: RealSpawnCutoff, OccupiedThresh
 logical :: tEnhanceRemainder
 logical :: tRPA_QBA     !RPA calculation with QB approximation
 logical :: tStartCAS    !Start FCIMC dynamic with walkers distributed according to CAS diag.

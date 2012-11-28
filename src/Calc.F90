@@ -246,6 +246,7 @@ contains
           RealCoeffExcitThresh=2
           tRealSpawnCutoff=.false.
           RealSpawnCutoff=1.0e-5
+          OccupiedThresh=1.0_dp
 
 !Feb 08 default set.
           IF(Feb08) THEN
@@ -1453,10 +1454,12 @@ contains
                 tEnhanceRemainder=.false.
                 !When we do the removal step with AllRealCoeff, on the occasions where these pops are *not* removed,
                 !Keep their population the same, rather than resetting as a value of 1 (which is technically correct)
-                !This "bug" produced initiator-like (no plateau) behaviour, so is of interest
+                !This "bug" produced initiator-like (no plateau) behaviour, so may be of interest
             case("REALSPAWNCUTOFF")
                 tRealSpawnCutoff=.true.
                 call Getf(RealSpawnCutoff)
+            case("SETOCCUPIEDTHRESH")
+                call Getf(OccupiedThresh)
 
             case default
                 call report("Keyword "                                &
