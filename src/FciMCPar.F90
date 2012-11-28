@@ -2209,6 +2209,12 @@ MODULE FciMCParMod
             end if
 
             nSpawn = - tau * MatEl * walkerweight / prob
+            
+            if (tSearchTau) then
+                if (MaxSpawnProb < abs(nSpawn)) &
+                    MaxSpawnProb = abs(nSpawn)
+            endif
+            
             if (tRealSpawning) then
                 ! Continuous spawning. Add in acceptance probabilities.
                 
@@ -2220,10 +2226,6 @@ MODULE FciMCParMod
                 end if
             else
                 ! How many children should we spawn?
-                if (tSearchTau) then
-                    if (MaxSpawnProb < abs(nSpawn)) &
-                        MaxSpawnProb = abs(nSpawn)
-                endif
 
                 ! And round this to an integer in the usual way
                 ! HACK: To use the same number of random numbers for the tests.
