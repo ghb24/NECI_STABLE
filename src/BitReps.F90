@@ -358,7 +358,7 @@ contains
 
 #ifdef __INT64
         ! Ensure that we don't trample on flags (which have already been set).
-        ilut(NOffSgn) = ior(iand(flags_mask, ilut(NOffSgn)), abs(sgn(1)))
+        ilut(NOffSgn) = ior(iand(flags_mask, ilut(NOffSgn)), int(abs(sgn(1)),n_int))
         call set_flag(ilut, flag_negative_sign, sgn(1) < 0)
         if (lenof_sign == 2) then
             ilut(NOffSgn+1) = sgn(lenof_sign)
@@ -379,7 +379,7 @@ contains
 
 #ifdef __INT64
         if (part_type == 1) then
-            ilut(NOffSgn) = ior(iand(flags_mask, ilut(NOffSgn)), abs(sgn))
+            ilut(NOffSgn) = ior(iand(flags_mask, ilut(NOffSgn)), int(abs(sgn),n_int))
             call set_flag(ilut, flag_negative_sign, sgn < 0)
         else
             iLut(NOffSgn+1) = sgn
