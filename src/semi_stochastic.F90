@@ -6,7 +6,7 @@ module semi_stochastic
                             flag_determ_parent, deterministic_mask, determ_parent_mask, &
                             flag_is_initiator
     use bit_reps, only: NIfD, NIfTot, decode_bit_det, encode_bit_rep, set_flag
-    use CalcData, only: tRegenDiagHEls, tau, tSortDetermToTop
+    use CalcData, only: tRegenDiagHEls, tau, tSortDetermToTop, tTruncInitiator, DiagSft
     use csf, only: csf_get_yamas, get_num_csfs, get_csf_bit_yama, csf_apply_yama
     use csf_data, only: iscsf, csf_orbital_mask
     use constants
@@ -16,7 +16,7 @@ module semi_stochastic
     use FciMCData, only: HFDet, ilutHF, iHFProc, Hii, CurrentDets, CurrentH, &
                          deterministic_proc_sizes, deterministic_proc_indices, &
                          full_determ_vector, partial_determ_vector, core_hamiltonian, &
-                         determ_space_size, InstShift, TotWalkers, TotWalkersOld, &
+                         determ_space_size, TotWalkers, TotWalkersOld, &
                          indices_of_determ_states
     use hash , only : DetermineDetNode
     use hphf_integrals, only: hphf_diag_helement
@@ -57,10 +57,10 @@ contains
         ! and add these states to the main list, CurrentDets, on the correct processor. As
         ! they do this, they count the size of the deterministic space on each processor.
         if (tDeterminantCore) then
-            tSortDetermToTop = .true.
+            tSortDetermToTop = .false.
             call generate_determinants()
         else if (tCSFCore) then
-            tSortDetermToTop = .true.
+            tSortDetermToTop = .false.
             call generate_csfs()
         else
             call stop_all("init_semi_stochastic", "The nature of the core basis functions &
@@ -110,6 +110,7 @@ contains
         integer :: i, j, iproc, col_index, ierr
         integer :: nI(nel), nJ(nel)
         integer(n_int), allocatable, dimension(:,:) :: temp_store
+        real(dp), allocatable, dimension(:,:) :: test_hamiltonian
 
         ! temp_store is storage space for bitstrings so that the Hamiltonian matrix
         ! elements can be calculated.
@@ -142,7 +143,7 @@ contains
                     call decode_bit_det(nJ, temp_store(:, j))
 
                     ! If on the diagonal of the Hamiltonian.
-                    if ((iprocIndex == iproc) .and. (i == j)) then
+                    if ((iProcIndex == iproc) .and. (i == j)) then
                         core_hamiltonian(i, col_index + j) = &
                                              get_helement(nI, nJ, 0) - Hii
                         ! We calculate and store CurrentH at this point for ease.
@@ -300,7 +301,10 @@ contains
         ! Flag to specify that these basis states are in the deterministic space.
         flags = 0
         flags = ibset(flags, flag_deterministic)
-        flags = ibset(flags, flag_is_initiator(1))
+        if (tTruncInitiator) then
+            flags = ibset(flags, flag_is_initiator(1))
+            flags = ibset(flags, flag_is_initiator(2))
+        end if
 
         ! Find the nI representation of determinant.
         if (present(nI_in)) then
@@ -352,6 +356,8 @@ contains
         ! that the full vector for the whole deterministic space is stored on each processor.
         ! It then performs the deterministic multiplication of the projector on this full vector.
 
+        integer :: i, info
+
         call MPIAllGatherV(partial_determ_vector, full_determ_vector, deterministic_proc_sizes, &
                             deterministic_proc_indices)
 
@@ -381,7 +387,7 @@ contains
 
         ! Now add shift*full_determ_vector, to account for the shift, not stored in core_hamiltonian.
         partial_determ_vector = partial_determ_vector + &
-             InstShift * full_determ_vector(deterministic_proc_indices(iProcIndex)+1:&
+           DiagSft * full_determ_vector(deterministic_proc_indices(iProcIndex)+1:&
              deterministic_proc_indices(iProcIndex)+deterministic_proc_sizes(iProcIndex))
 
         ! Now multiply the vector by tau to get the final projected vector.

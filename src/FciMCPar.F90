@@ -1136,6 +1136,12 @@ MODULE FciMCParMod
             endif
         endif
 
+        !print *, "CurrentDets:"
+        !do j = 1, TotWalkers
+        !    print *, CurrentDets(:,j)
+        !end do
+        !print *,
+
         do j=1,int(TotWalkers,sizeof_int)
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.
@@ -1151,11 +1157,12 @@ MODULE FciMCParMod
                     ! Store the index of this state, for use in annihilation later. Note, we
                     ! use VecSlot, *not* j, as VecSlot stores the new index after death.
                     indices_of_determ_states(determ_index) = VecSlot
-                    determ_index = determ_index + 1
 
                     call extract_sign (CurrentDets(:,j), SignCurr)
                     ! Add this amplitude to the deterministic vector.
-                    partial_determ_vector(j) =  SignCurr(1)
+                    partial_determ_vector(determ_index) =  SignCurr(1)
+
+                    determ_index = determ_index + 1
 
                     ! The deterministic states are always kept in CurrentDets, even when
                     ! the amplitude is zero. Hence we must check if the amplitude is zero,
@@ -1339,26 +1346,36 @@ MODULE FciMCParMod
                     if (.not. IsNullDet(nJ)) then
                         ! If we're using excitation level to define a partly real space, we need
                         ! to know the excitation level and therefore bit rep of nJ at this stage.
-                        ! Also, for the semi-stochastic case, if sorting deterministic states to
-                        ! the top then we find the bit rep so that we can check quickly if a state
-                        ! is in the deterministic space.
-                        if(tRealCoeffByExcitLevel .or. tSortDetermToTop) &
+                        ! Also, find the bit rep here for the semi-stochastic case.
+                        if(tRealCoeffByExcitLevel .or. tSemiStochastic) &
                             call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
 
-                        ! For the semi-stochastic case when we are sorting deterministic states
-                        ! to the top of the list, if spawning occurs from the deterministic
-                        ! space to the deterministic space, abort it now. If the spawning occurs
-                        ! from the stochastic space to the deterministic space, then we will set
-                        ! the flag to specify that the new state is in the deterministic space.
-                        if (tSemiStochastic .and. tSortDetermToTop) then
-                            call check_if_in_determ_space(ilutnJ, tInDetermSpace)
-                            if (test_flag(CurrentDets(:,j), flag_deterministic)) then
-                                if (tInDetermSpace) cycle
+                        ! Temporary fix: FindExcitBitDet copies the flags of the parent onto the
+                        ! child, which causes semi-stochastic simulations to crash. Should it copy
+                        ! these flags? There are comments questioning this in create_particle, too.
+                        if (tSemiStochastic) iLutnJ(nOffFlag) = 0
+                        
+                        if (tSemiStochastic) then
+                            if (tSortDetermToTop) then
+                                ! For the case where we are sorting deterministic states to the top
+                                ! of the list, if spawning occurs from the deterministic space to the
+                                ! deterministic space, abort it now. If the spawning occurs from the
+                                ! stochastic space to the deterministic space, then we will set the 
+                                ! flag to specify that the new state is in the deterministic space.
+                                call check_if_in_determ_space(ilutnJ, tInDetermSpace)
+                                if (test_flag(CurrentDets(:,j), flag_deterministic)) then
+                                    if (tInDetermSpace) cycle
+                                else
+                                    if (tInDetermSpace) call set_flag(iLutnJ, flag_deterministic)
+                                end if
                             else
-                                if (tInDetermSpace) call set_flag(iLutnJ, flag_deterministic)
+                                ! If the psip being spawned is spawned from the deterministic space,
+                                ! then set the corresponding flag to specify this.
+                                if (test_flag(CurrentDets(:,j), flag_deterministic)) &
+                                    call set_flag(iLutnJ, flag_determ_parent)
                             end if
                         end if
-                        
+
                         child = attempt_create (get_spawn_helement, DetCurr, &
                                             CurrentDets(:,j), SignCurr, &
                                             nJ,iLutnJ, Prob, HElGen, IC, ex, &
@@ -1377,7 +1394,7 @@ MODULE FciMCParMod
                         NumSpawnedEntries=NumSpawnedEntries+1
                         
                         !Encode child if not done already
-                        if(.not. (tRealCoeffByExcitLevel .or. tSortDetermToTop)) &
+                        if(.not. (tRealCoeffByExcitLevel .or. tSemiStochastic)) &
                             call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
 
                         ! We know we want to create a particle of this type.
@@ -1625,10 +1642,6 @@ MODULE FciMCParMod
         call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ, &
                             child, flags)
 
-        ! If the parent has its deterministic flag set then set the flag on the child to specify this.
-        if (btest(parent_flags, flag_deterministic)) &
-            call set_flag(SpawnedParts(:,ValidSpawnedList(proc)), flag_determ_parent)
-
         IF(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) &
                 call store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, WalkersToSpawn*NoMCExcits, iLutJ, proc)
         !We are spawning from iLutI to SpawnedParts(:,ValidSpawnedList(proc)).
@@ -1773,10 +1786,11 @@ MODULE FciMCParMod
                     if (tTruncCAS) &
                         tDetInCas = TestIfDetInCASBit (CurrentDets(0:NIfD,j))
                    
-                    ! If det. in fixed initiator space, or is the HF det, it 
-                    ! must remain an initiator.
+                    ! If det. in fixed initiator space, or is the HF det, or it
+                    ! is in the deterministic space, then it must remain an initiator.
                     if (.not. tDetInCas .and. &
                         .not. (DetBitEQ(CurrentDets(:,j), iLutHF, NIfDBO)) &
+                        .and. .not. test_flag(CurrentDets(:,j), flag_deterministic) &
                         .and. abs(CurrentSign(part_type)) <= InitiatorWalkNo &
                         .and. .not. test_flag(CurrentDets(:,j), &
                         flag_make_initiator(part_type))) then
@@ -1811,6 +1825,11 @@ MODULE FciMCParMod
 
         ! Store this flag for use in the spawning routines...
         parent_flags = extract_flags (CurrentDets(:,j))
+
+        ! We don't want the deterministic flag to be set in parent_flags, as this
+        ! would set the same flag in the child in create_particle, which we don't
+        ! want in general.
+        parent_flags = ibclr(parent_flags, flag_deterministic)
 
         if ((tHistInitPops .and. mod(iter, histInitPopsIter) == 0) &
             .or. tPrintHighPop) then
@@ -3936,17 +3955,17 @@ MODULE FciMCParMod
         endif
 
         
-#ifdef __DEBUG
-        !Write this 'ASSERTROOT' out explicitly to avoid line lengths problems
-        if ((iProcIndex == root) .and. .not. tSpinProject .and. &
-         all(abs(iter_data%update_growth_tot-((AllTotParts)-(AllTotPartsOld))) > 1.0e-7)) then
-            write(iout,*) "update_growth: ",iter_data%update_growth_tot
-            write(iout,*) "AllTotParts: ",AllTotParts
-            write(iout,*) "AllTotPartsOld: ", AllTotPartsOld
-            call stop_all (this_routine, &
-                "Assertation failed: all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld)")
-        endif
-#endif
+!#ifdef __DEBUG
+!        !Write this 'ASSERTROOT' out explicitly to avoid line lengths problems
+!        if ((iProcIndex == root) .and. .not. tSpinProject .and. &
+!         all(abs(iter_data%update_growth_tot-((AllTotParts)-(AllTotPartsOld))) > 1.0e-7)) then
+!            write(iout,*) "update_growth: ",iter_data%update_growth_tot
+!            write(iout,*) "AllTotParts: ",AllTotParts
+!            write(iout,*) "AllTotPartsOld: ", AllTotPartsOld
+!            call stop_all (this_routine, &
+!                "Assertation failed: all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld)")
+!        endif
+!#endif
     
     end subroutine collate_iter_data
 

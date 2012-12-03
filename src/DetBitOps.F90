@@ -462,11 +462,14 @@ module DetBitOps
         endif
     end function sign_gt
 
-    pure function ilut_lt_determ (ilutI, ilutJ) result (bLt)
+    pure function ilut_lt (ilutI, ilutJ) result (bLt)
 
-        ! This sorting algorithm is used for semi-stochastic simulations.
-        ! In this case, if tSortDetermToTop is true then we want to sort all
-        ! the deterministic states to the top of the list.
+        ! This sorting function returns true if iLutI is less than iLutJ,
+        ! else it returns false. For non-semi-stochastic simulations, this is
+        ! decided by comparing the integers that the bitstring represent.
+
+        ! For semi-stochastic simulations if tSortDetermToTop is true then we
+        ! want to sort all the deterministic states to the top of the list.
         ! If it is not true then (for the SpawnedParts list) we need to seperate
         ! the states which have deterministic parents from those which don't.
         ! This is so that the psips with deterministic parents can be aborted
@@ -478,21 +481,25 @@ module DetBitOps
         integer :: i
         logical :: bLt, compare_det_flags
 
-        if (tSortDetermToTop) then
-            det_flag_I = iand(deterministic_mask, iLutI(nOffFlag))
-            det_flag_J = iand(deterministic_mask, iLutJ(nOffFlag))
-            compare_det_flags = .not. (det_flag_I .eq. det_flag_J)
-        else
-            det_flag_I = iand(determ_parent_mask, iLutI(nOffFlag))
-            det_flag_J = iand(determ_parent_mask, iLutJ(nOffFlag))
-            compare_det_flags = .not. (det_flag_I .eq. det_flag_J)
+        compare_det_flags = .false.
+
+        if (tSemiStochastic) then
+            if (tSortDetermToTop) then
+                det_flag_I = iand(deterministic_mask, iLutI(nOffFlag))
+                det_flag_J = iand(deterministic_mask, iLutJ(nOffFlag))
+                compare_det_flags = .not. (det_flag_I .eq. det_flag_J)
+            else
+                det_flag_I = iand(determ_parent_mask, iLutI(nOffFlag))
+                det_flag_J = iand(determ_parent_mask, iLutJ(nOffFlag))
+                compare_det_flags = .not. (det_flag_I .eq. det_flag_J)
+            end if
         end if
 
         if (compare_det_flags .and. tSortDetermToTop) then
             ! If only one state is in the deterministic space, then the state which
             ! is in the deterministic space should be higher in the list, so
             ! should be 'less than' the state not in the deterministic space.
-            bLt = det_flag_I < det_flag_J
+            bLt = det_flag_I > det_flag_J
         else
             do i = 0, NIfDBO
                 if (iLutI(i) /= iLutJ(i)) exit
@@ -500,8 +507,8 @@ module DetBitOps
 
             if (i > NIfDBO) then
                 ! If the states themselves are the same.
-                if (.not. tSortDetermToTop) then
-                    bLt = det_flag_I < det_flag_J
+                if (compare_det_flags .and. (.not. tSortDetermToTop)) then
+                    bLt = det_flag_I > det_flag_J
                 else
                     bLt = .false.
                 end if
@@ -512,11 +519,14 @@ module DetBitOps
 
     end function
 
-    pure function ilut_gt_determ (iLutI, iLutJ) result(bGt)
+    pure function ilut_gt (iLutI, iLutJ) result(bGt)
 
-        ! This sorting algorithm is used for semi-stochastic simulations.
-        ! In this case, if tSortDetermToTop is true then we want to sort all
-        ! the deterministic states to the top of the list.
+        ! This sorting function returns true if iLutI is greater than iLutJ,
+        ! else it returns false. For non-semi-stochastic simulations, this is
+        ! decided by comparing the integers that the bitstring represent.
+
+        ! For semi-stochastic simulations if tSortDetermToTop is true then we
+        ! want to sort all the deterministic states to the top of the list.
         ! If it is not true then (for the SpawnedParts list) we need to seperate
         ! the states which have deterministic parents from those which don't.
         ! This is so that the psips with deterministic parents can be aborted
@@ -528,21 +538,25 @@ module DetBitOps
         integer :: i
         logical :: bGt, compare_det_flags
 
-        if (tSortDetermToTop) then
-            det_flag_I = iand(deterministic_mask, iLutI(nOffFlag))
-            det_flag_J = iand(deterministic_mask, iLutJ(nOffFlag))
-            compare_det_flags = .not. (det_flag_I .eq. det_flag_J)
-        else
-            det_flag_I = iand(determ_parent_mask, iLutI(nOffFlag))
-            det_flag_J = iand(determ_parent_mask, iLutJ(nOffFlag))
-            compare_det_flags = .not. (det_flag_I .eq. det_flag_J)
+        compare_det_flags = .false.
+
+        if (tSemiStochastic) then
+            if (tSortDetermToTop) then
+                det_flag_I = iand(deterministic_mask, iLutI(nOffFlag))
+                det_flag_J = iand(deterministic_mask, iLutJ(nOffFlag))
+                compare_det_flags = .not. (det_flag_I .eq. det_flag_J)
+            else
+                det_flag_I = iand(determ_parent_mask, iLutI(nOffFlag))
+                det_flag_J = iand(determ_parent_mask, iLutJ(nOffFlag))
+                compare_det_flags = .not. (det_flag_I .eq. det_flag_J)
+            end if
         end if
 
         if (compare_det_flags .and. tSortDetermToTop) then
             ! If only one state is in the deterministic space, then the state which
             ! is not in the deterministic space should be lower in the list, so
             ! should be 'greater than' the state not in the deterministic space.
-            bGt = det_flag_I > det_flag_J
+            bGt = det_flag_I < det_flag_J
         else
             do i = 0, NIfDBO
                 if (ilutI(i) /= iLutJ(i)) exit
@@ -550,8 +564,8 @@ module DetBitOps
 
             if (i > NIfDBO) then
                 ! If the states themselves are the same.
-                if (.not. tSortDetermToTop) then
-                    bGt = det_flag_I > det_flag_J
+                if (compare_det_flags .and. (.not. tSortDetermToTop)) then
+                    bGt = det_flag_I < det_flag_J
                 else
                     bGt = .false.
                 end if
@@ -559,76 +573,6 @@ module DetBitOps
                 bGt = ilutI(i) > ilutJ(i)
             endif
         end if
-
-    end function
-
-    pure function ilut_lt (ilutI, ilutJ) result (bLt)
-!        use util_mod, only: operator(.arrlt.)
-
-        ! A slightly subtler sort than DetBitLt.
-        ! Sort the iluts integer by integer, up to the determinant. 
-        ! It also ensures that states in the deterministic space will be placed
-        ! at the top of the list (and so are the 'smallest'), only relevant when
-        ! using the semi-stochastic approach.
-        ! Ignore sign differences.
-
-        integer(n_int), intent(in) :: iLutI(0:), iLutJ(0:)
-        integer(n_int) :: det_flag_I, det_flag_J
-        integer :: i
-        logical :: bLt
-
-        ! Sort by the first item first ...
-        do i = 0, NIfDBO    !   NOffFlag - 1
-            if (iLutI(i) /= iLutJ(i)) exit
-        enddo
-
-        if (i > NIfDBO) then
-            bLt = .false.
-        else
-                bLt = ilutI(i) < ilutJ(i)
-        endif
-
-    end function
-
-    pure function ilut_gt (iLutI, iLutJ) result(bGt)
-!        use util_mod, only: operator(.arrgt.)
-
-        ! A slightly subtler sort than DetBitGt.
-        ! Sort the iluts integer by integer, up to the determinant.
-        ! It also ensures that states in the deterministic space will be placed
-        ! at the top of the list (and so are the 'smallest'), only relevant when
-        ! using the semi-stochastic approach.
-        ! Ignore sign differences.        
-
-        integer(n_int), intent(in) :: iLutI(0:), iLutJ(0:)
-        integer(n_int) :: det_flag_I, det_flag_J
-        integer :: i
-        logical :: bGt
-
-        !bGt = iLutI .arrgt. iLutJ
-
-        ! Sort by the first item first ...
-        do i = 0, NIfDBO    !   NOffFlag - 1
-            if (ilutI(i) /= iLutJ(i)) exit
-        enddo
-
-        ! Make the comparison
-!       if (i >= NOffFlag) then
-        if (i > NIfDBO) then
-            bGt = .false.
-!           if (tTruncInitiator) then
-!               if (.not. test_flag(ilutI, flag_is_initiator(1)) .and. &
-!                   test_flag(ilutJ, flag_is_initiator(1))) then
-!                   bGt = .true.
-!               elseif ((test_flag(ilutI, flag_is_initiator(1)) .eqv. test_flag(ilutJ, flag_is_initiator(1))) &
-!                   .and. (.not. test_flag(ilutI, flag_is_initiator(2)).and.test_flag(ilutJ, flag_is_initiator(2)))) then
-!                   !If real flags same, sort by imaginary flags.
-!                   bGt = .true.
-!               endif
-!           endif
-        else
-            bGt = ilutI(i) > ilutJ(i)
-        endif
 
     end function
 
@@ -657,41 +601,94 @@ module DetBitOps
         DetBitZero=.true.
     end function DetBitZero
 
-
     ! This will return 1 if iLutI is "less" than iLutJ, 0 if the determinants
     ! are identical, or -1 if iLutI is "more" than iLutJ
-    pure integer function DetBitLT(iLutI,iLutJ,nLast)
+    pure integer function DetBitLT(iLutI,iLutJ,nLast,use_flags_opt)
         integer, intent(in), optional :: nLast
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        logical, intent(in), optional :: use_flags_opt
         integer :: i, lnLast
+        integer :: det_flag_I, det_flag_J
+        logical :: compare_det_flags, use_flags
 
-        !First, compare first integers
-        IF(iLutI(0).lt.iLutJ(0)) THEN
-            DetBitLT=1
-        ELSEIF(iLutI(0).eq.iLutJ(0)) THEN
-            ! If the integers are the same, then cycle through the rest of 
-            ! the integers until we find a difference.
-            ! If we don't want to consider all the integers, specify nLast
-            if (present(nLast)) then
-                lnLast = nLast
+        compare_det_flags = .false.
+
+        if (tSemiStochastic) then
+            ! By default, compare these flags. However, there are some cases in the
+            ! the semi-stochastic code where we don't want to.
+            if (present(use_flags_opt)) then
+                use_flags = use_flags_opt
             else
-                lnLast = NIfDBO
-            endif
+                use_flags = .true.
+            end if
 
-            do i=1,lnLast
-                IF(iLutI(i).lt.iLutJ(i)) THEN
-                    DetBitLT=1
-                    RETURN
-                ELSEIF(iLutI(i).gt.iLutJ(i)) THEN
-                    DetBitLT=-1
-                    RETURN
-                ENDIF
-            enddo
-            DetBitLT=0
-        ELSE
-            DetBitLT=-1
-        ENDIF
+            if (use_flags) then
+                if (tSortDetermToTop) then
+                    det_flag_I = iand(deterministic_mask, iLutI(nOffFlag))
+                    det_flag_J = iand(deterministic_mask, iLutJ(nOffFlag))
+                    compare_det_flags = .not. (det_flag_I .eq. det_flag_J)
+                else
+                    det_flag_I = iand(determ_parent_mask, iLutI(nOffFlag))
+                    det_flag_J = iand(determ_parent_mask, iLutJ(nOffFlag))
+                    compare_det_flags = .not. (det_flag_I .eq. det_flag_J)
+                end if
+            end if
+        end if
+
+        if (compare_det_flags .and. tSortDetermToTop) then
+            ! If only one state is in the deterministic space, then the state which
+            ! is in the deterministic space should be higher in the list, so
+            ! should be 'less than' the state not in the deterministic space.
+            if (det_flag_I > det_flag_J) then
+                DetBitLT = 1
+                return
+            else
+                DetBitLT = -1
+                return
+            end if
+        else
+            !First, compare first integers
+            IF(iLutI(0).lt.iLutJ(0)) THEN
+                DetBitLT=1
+            ELSEIF(iLutI(0).eq.iLutJ(0)) THEN
+                ! If the integers are the same, then cycle through the rest of 
+                ! the integers until we find a difference.
+                ! If we don't want to consider all the integers, specify nLast
+                if (present(nLast)) then
+                    lnLast = nLast
+                else
+                    lnLast = NIfDBO
+                endif
+                do i=1,lnLast
+                    IF(iLutI(i).lt.iLutJ(i)) THEN
+                        DetBitLT=1
+                        RETURN
+                    ELSEIF(iLutI(i).gt.iLutJ(i)) THEN
+                        DetBitLT=-1
+                        RETURN
+                    ENDIF
+                enddo
+                
+                ! If we get to this point then the states themselves are the same.
+
+                if (compare_det_flags .and. (.not. tSortDetermToTop)) then
+                    if (det_flag_I > det_flag_J) then
+                        DetBitLT = 1
+                        return
+                    else
+                        DetBitLT = -1
+                        return
+                    end if
+                end if
+
+                DetBitLT=0
+            ELSE
+                DetBitLT=-1
+            ENDIF
+        end if
+
     END FUNCTION DetBitLT
+    
 
     ! This will return 1 if iLutI is "less" than iLutJ, or -1 if iLutI is 
     ! "more" than iLutJ.  If these are identical, this routine looks at 

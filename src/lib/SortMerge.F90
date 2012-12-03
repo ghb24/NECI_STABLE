@@ -37,6 +37,7 @@
         HElement_t :: HDiagTemp
         real(dp) :: HDiag
         INTEGER :: nJ(NEl),j
+
 !.................................................................
 !..starting from the end of the list, expand list1 to accomodate
 !.. elements of list2
