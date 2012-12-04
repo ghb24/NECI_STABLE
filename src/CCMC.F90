@@ -20,7 +20,7 @@ MODULE CCMC
                          exFlag
     use CalcData, only: StepsSft
     use hist_data, only: tHistSpawn, HistMinInd
-    use SystemData, only: tHPHF
+    use SystemData, only: tHPHF, nel
     use Determinants, only: get_helement
     use DetCalcData, only: FCIDetIndex, ICILevel
     use Logging, only: CCMCDebug, tCalcFCIMCPsi
@@ -58,7 +58,6 @@ MODULE CCMC
     ! dProb is an extra probability factor the death probability is 
     ! multiplied by 
     INTEGER FUNCTION AttemptDieProbPar(Kii,WSign,dProb)
-        use SystemData, only: nEl
         use CalcData , only : DiagSft,Tau
         use FciMCData
         use FciMCParMod, only: TestifDETinCAS
@@ -1154,7 +1153,6 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
    use FciMCData, only: pDoubles, tTruncSpace
    use SymExcitDataMod, only: excit_gen_store_type
    use FciMCParMod, only: CheckAllowedTruncSpawn
-   use SystemData, only : nEl
    use GenRandSymExcitNUMod , only : gen_rand_excit, scratchsize
    use SymExcit3, only: GenExcitations3
    use DetBitOps, only: FindExcitBitDet
