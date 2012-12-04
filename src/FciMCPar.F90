@@ -781,18 +781,18 @@ MODULE FciMCParMod
         implicit none
         interface
             subroutine extract_bit_rep_avsign(iLutnI, CurrH_I, nI, SignI, &
-                                                FlagsI, IterRDMStartI, AvSignI, Store)
-                use constants , only : dp, n_int, lenof_sign
-                use SystemData , only : NEl
-                use bit_reps , only : NIfTot, extract_bit_rep
-                use FciMCData , only : excit_gen_store_type, NCurrH
-                use DetBitOps , only : TestClosedShellDet
+                                              FlagsI, IterRDMStartI, AvSignI, &
+                                              Store)
+                use constants
+                use SystemData, only: nel
+                use bit_reps, only: NIfTot
+                use FciMCData, only : excit_gen_store_type, NCurrH
                 implicit none
                 integer(n_int), intent(in) :: iLutnI(0:nIfTot)
-                real(dp) , intent(in) :: CurrH_I(NCurrH)
+                real(dp), intent(in) :: CurrH_I(NCurrH)
+                real(dp), intent(out) :: IterRDMStartI, AvSignI
                 integer, intent(out) :: nI(nel), FlagsI
                 integer, dimension(lenof_sign), intent(out) :: SignI
-                real(dp) , intent(out) :: IterRDMStartI, AvSignI
                 type(excit_gen_store_type), intent(inout), optional :: Store
             end subroutine
         end interface
@@ -804,19 +804,15 @@ MODULE FciMCParMod
         use, intrinsic :: iso_c_binding
         implicit none
         interface
-            subroutine fill_rdm_diag_currdet(iLutnI, nI, & 
-                                        CurrH_I, ExcitLevelI, IterLastRDMFill) 
-                use constants , only : dp, n_int
-                use SystemData , only : NEl
-                use bit_reps , only : NIfTot 
-                use FciMCData , only : NCurrH
-                use DetBitOps , only : TestClosedShellDet
-                use hphf_integrals , only : hphf_sign
-                use HPHFRandExcitMod , only : FindExcitBitDetSym
-                use DetBitOps , only : FindBitExcitLevel
+            subroutine fill_rdm_diag_currdet (iLutnI, nI, CurrH_I, &
+                                              ExcitLevelI, IterLastRDMFill) 
+                use constants
+                use SystemData, only: nel
+                use bit_reps, only: NIfTot 
+                use FciMCData, only: NCurrH
                 implicit none
                 integer(n_int), intent(in) :: iLutnI(0:nIfTot)
-                real(dp) , intent(in) :: CurrH_I(NCurrH)
+                real(dp), intent(in) :: CurrH_I(NCurrH)
                 integer, intent(in) :: nI(nel), ExcitLevelI, IterLastRDMFill
                 real(dp) :: IterDetOcc, IterRDM
                 integer(n_int) :: SpinCoupDet(0:nIfTot)
@@ -951,13 +947,13 @@ MODULE FciMCParMod
                 real(dp), intent(in) :: Kii
                 integer, dimension(lenof_sign) :: ndie
             end function
-            subroutine extract_bit_rep_avsign(iLutnI, CurrH_I, nI, SignI, &
-                                                    FlagsI, IterRDMStartI, AvSignI, Store)
-                use constants , only : dp, n_int, lenof_sign
-                use SystemData , only : NEl
-                use bit_reps , only : NIfTot, extract_bit_rep 
-                use FciMCData , only : excit_gen_store_type, NCurrH
-                use DetBitOps , only : TestClosedShellDet
+            subroutine extract_bit_rep_avsign (iLutnI, CurrH_I, nI, SignI, &
+                                               FlagsI, IterRDMStartI, &
+                                               AvSignI, Store)
+                use constants
+                use SystemData, only: nel
+                use bit_reps, only: NIfTot
+                use FciMCData, only: excit_gen_store_type, NCurrH
                 implicit none
                 integer(n_int), intent(in) :: iLutnI(0:nIfTot)
                 real(dp) , intent(in) :: CurrH_I(NCurrH)
@@ -966,16 +962,12 @@ MODULE FciMCParMod
                 real(dp) , intent(out) :: IterRDMStartI, AvSignI
                 type(excit_gen_store_type), intent(inout), optional :: Store
             end subroutine
-            subroutine fill_rdm_diag_currdet(iLutnI, nI, &
-                                        CurrH_I, ExcitLevelI, IterLastRDMFill) 
-                use constants , only : dp, n_int
-                use SystemData , only : NEl
-                use bit_reps , only : NIfTot 
-                use FciMCData , only : NCurrH
-                use DetBitOps , only : TestClosedShellDet
-                use hphf_integrals , only : hphf_sign
-                use HPHFRandExcitMod , only : FindExcitBitDetSym
-                use DetBitOps , only : FindBitExcitLevel
+            subroutine fill_rdm_diag_currdet (iLutnI, nI, CurrH_I, &
+                                              ExcitLevelI, IterLastRDMFill) 
+                use constants
+                use SystemData, only: nel
+                use bit_reps, only: NIfTot 
+                use FciMCData, only: NCurrH
                 implicit none
                 integer(n_int), intent(in) :: iLutnI(0:nIfTot)
                 real(dp) , intent(in) :: CurrH_I(NCurrH)
