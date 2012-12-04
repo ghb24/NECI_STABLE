@@ -1,14 +1,35 @@
 MODULE CCMC
     use Determinants, only: get_helement, write_det, write_det_len
     use sort_mod
-    use constants, only: dp, int64, n_int, end_n_int,lenof_sign, int32
-    use CCMCData, only: ExcitToDetSign,AddBitExcitor
+    use constants
+    use CCMCData
     use ClusterList
-    use bit_rep_data, only: NIfDBO,NIfTot
-    use bit_reps, only: encode_det
-    use FciMCData, only: iter_data_ccmc
-    use FciMCParMod, only: calculate_new_shift_wrapper
+    use bit_rep_data, only: NIfDBO, NIfTot
+    use bit_reps, only: encode_det, extract_sign, encode_sign
     use Parallel_neci
+    use DetBitOps, only: FindBitExcitLevel, FindExcitBitDet
+    use FciMCParMod, only: calculate_new_shift_wrapper, AttemptCreatePar, &
+                           CheckAllowedTruncSpawn, SumEContrib
+    use FciMCData, only: iter, tDebug, TotWalkers, NoatHF, Noatdoubs, &
+                         MaxIndex, TotParts, Walker_time, iPartBloom, &
+                         ValidSpawnedList, InitialSpawnedSlots, ilutHF, &
+                         CurrentDets, iter_data_ccmc, fcimc_excit_gen_store, &
+                         tTruncSpace, CurrentH, NoBorn, SpawnedParts, NoDied,&
+                         Annihil_Time, Hii, ENumCyc, Acceptances, MaxSpawned,&
+                         HFDet, SumWalkersCyc, SpawnFromSing, MaxWalkersPart,&
+                         exFlag
+    use CalcData, only: StepsSft
+    use hist_data, only: tHistSpawn, HistMinInd
+    use SystemData, only: tHPHF
+    use Determinants, only: get_helement
+    use DetCalcData, only: FCIDetIndex, ICILevel
+    use Logging, only: CCMCDebug, tCalcFCIMCPsi
+    use GenRandSymExcitNUMod, only: gen_rand_excit
+    use dSFMT_interface, only: genrand_real2_dSFMT
+    use AnnihilationMod, only: BinSearchParts, DirectAnnihilation
+    use Timing_neci, only: set_timer, halt_timer
+    use bit_reps, only: decode_bit_det
+    use hash, only: DetermineDetNode
    IMPLICIT NONE
 #ifdef MOLPRO
     include "common/tapes"
@@ -94,13 +115,6 @@ MODULE CCMC
     ! Next we annihilate.
 
     SUBROUTINE PerformCCMCCycParInt()
-      USe FCIMCParMod
-      use CCMCData
-      Use Logging, only: CCMCDebug
-      use bit_reps, only: decode_bit_det
-      use FciMCData, only: fcimc_excit_gen_store
-      use hash, only: DetermineDetNode
-        IMPLICIT NONE
         INTEGER :: VecSlot,i,j,k,l,CopySign
         INTEGER :: nJ(NEl),IC,DetCurr(NEl)
         INTEGER, DIMENSION(lenof_sign) :: Child
