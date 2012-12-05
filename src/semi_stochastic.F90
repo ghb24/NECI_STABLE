@@ -57,10 +57,10 @@ contains
         ! and add these states to the main list, CurrentDets, on the correct processor. As
         ! they do this, they count the size of the deterministic space on each processor.
         if (tDeterminantCore) then
-            tSortDetermToTop = .false.
+            tSortDetermToTop = .true.
             call generate_determinants()
         else if (tCSFCore) then
-            tSortDetermToTop = .false.
+            tSortDetermToTop = .true.
             call generate_csfs()
         else
             call stop_all("init_semi_stochastic", "The nature of the core basis functions &

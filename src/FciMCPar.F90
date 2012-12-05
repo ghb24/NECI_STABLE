@@ -1368,12 +1368,11 @@ MODULE FciMCParMod
                                 else
                                     if (tInDetermSpace) call set_flag(iLutnJ, flag_deterministic)
                                 end if
-                            else
+                            end if
                                 ! If the psip being spawned is spawned from the deterministic space,
                                 ! then set the corresponding flag to specify this.
                                 if (test_flag(CurrentDets(:,j), flag_deterministic)) &
                                     call set_flag(iLutnJ, flag_determ_parent)
-                            end if
                         end if
 
                         child = attempt_create (get_spawn_helement, DetCurr, &
