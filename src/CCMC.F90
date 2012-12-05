@@ -1,14 +1,35 @@
 MODULE CCMC
     use Determinants, only: get_helement, write_det, write_det_len
     use sort_mod
-    use constants, only: dp, int64, n_int, end_n_int,lenof_sign, int32
-    use CCMCData, only: ExcitToDetSign,AddBitExcitor
+    use constants
+    use CCMCData
     use ClusterList
-    use bit_rep_data, only: NIfDBO,NIfTot
-    use bit_reps, only: encode_det
-    use FciMCData, only: iter_data_ccmc
-    use FciMCParMod, only: calculate_new_shift_wrapper
+    use bit_rep_data, only: NIfDBO, NIfTot
+    use bit_reps, only: encode_det, extract_sign, encode_sign
     use Parallel_neci
+    use DetBitOps, only: FindBitExcitLevel, FindExcitBitDet
+    use FciMCParMod, only: calculate_new_shift_wrapper, AttemptCreatePar, &
+                           CheckAllowedTruncSpawn, SumEContrib
+    use FciMCData, only: iter, tDebug, TotWalkers, NoatHF, Noatdoubs, &
+                         MaxIndex, TotParts, Walker_time, iPartBloom, &
+                         ValidSpawnedList, InitialSpawnedSlots, ilutHF, &
+                         CurrentDets, iter_data_ccmc, fcimc_excit_gen_store, &
+                         tTruncSpace, CurrentH, NoBorn, SpawnedParts, NoDied,&
+                         Annihil_Time, Hii, ENumCyc, Acceptances, MaxSpawned,&
+                         HFDet, SumWalkersCyc, SpawnFromSing, MaxWalkersPart,&
+                         exFlag
+    use CalcData, only: StepsSft
+    use hist_data, only: tHistSpawn, HistMinInd
+    use SystemData, only: tHPHF, nel
+    use Determinants, only: get_helement
+    use DetCalcData, only: FCIDetIndex, ICILevel
+    use Logging, only: CCMCDebug, tCalcFCIMCPsi
+    use GenRandSymExcitNUMod, only: gen_rand_excit
+    use dSFMT_interface, only: genrand_real2_dSFMT
+    use AnnihilationMod, only: BinSearchParts, DirectAnnihilation
+    use Timing_neci, only: set_timer, halt_timer
+    use bit_reps, only: decode_bit_det
+    use hash, only: DetermineDetNode
    IMPLICIT NONE
 #ifdef MOLPRO
     include "common/tapes"
@@ -36,8 +57,7 @@ MODULE CCMC
     ! |WSign| > 1 and the probability of a death will be multiplied by |WSign|
     ! dProb is an extra probability factor the death probability is 
     ! multiplied by 
-    real(dp) FUNCTION AttemptDieProbPar(Kii,WSign,dProb)
-        use SystemData, only: nEl
+    real(dp) function AttemptDieProbPar (Kii,WSign,dProb)
         use CalcData , only : DiagSft,Tau
         use FciMCData
         use FciMCParMod, only: TestifDETinCAS
@@ -58,7 +78,7 @@ MODULE CCMC
 !Stochastically choose whether to die or not
         r = genrand_real2_dSFMT() 
         IF(abs(rat).gt.r) THEN
-            IF(rat.ge.0.D0) THEN
+            IF(rat.ge.0.0_dp) THEN
 !Depends whether we are trying to kill or give birth to particles.
                 iKill=iKill+1
             ELSE
@@ -91,13 +111,6 @@ MODULE CCMC
     ! Next we annihilate.
 
     SUBROUTINE PerformCCMCCycParInt()
-      USe FCIMCParMod
-      use CCMCData
-      Use Logging, only: CCMCDebug
-      use bit_reps, only: decode_bit_det
-      use FciMCData, only: fcimc_excit_gen_store
-      use hash, only: DetermineDetNode
-        IMPLICIT NONE
         INTEGER :: VecSlot,i,j,k,l,CopySign
         INTEGER :: nJ(NEl),IC,DetCurr(NEl)
         real(dp) :: child(lenof_sign)
@@ -754,7 +767,7 @@ MODULE CCMC
 !                  HDiagCurr=CurrentH(1,j)
 
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
-!                  CALL SumEContrib(DetCurr,WalkExcitLevel,CurrentSign(j),CurrentDets(:,j),HDiagCurr,1.D0)
+!                  CALL SumEContrib(DetCurr,WalkExcitLevel,CurrentSign(j),CurrentDets(:,j),HDiagCurr,1.0_dp)
 !               endif
 
 
@@ -864,7 +877,7 @@ MODULE CCMC
             call extract_sign(CurrentDets(:,j),TempSign3)
             iSgn(1)=TempSign3(1)
             !   iSgn(1)=CurrentSign(j)
-!            CALL SumEContrib(DetCurr,WalkExcitLevel,iSgn,CurrentDets(:,j),HDiagCurr,1.d0)
+!            CALL SumEContrib(DetCurr,WalkExcitLevel,iSgn,CurrentDets(:,j),HDiagCurr,1.0_dp)
             ! CopySign=CurrentSign(j)
             CopySign=TempSign3(1)
             IF(CopySign.ne.0.or.WalkExcitLevel.eq.0) THEN
@@ -900,7 +913,7 @@ MODULE CCMC
         ENDIF
 
 
-        rat=(TotWalkersNew+0.D0)/(MaxWalkersPart+0.D0)
+        rat=(TotWalkersNew+0.0_dp)/(MaxWalkersPart+0.0_dp)
         IF(rat.gt.0.95) THEN
             WRITE(iout,*) "*WARNING* - Number of particles/determinants has increased to over 95% of MaxWalkersPart"
             CALL neci_flush(6)
@@ -910,14 +923,14 @@ MODULE CCMC
         ! getting to the end of their allotted space.
         IF(nProcessors.gt.1) THEN
             do i=0,nProcessors-1
-                rat=(ValidSpawnedList(i)-InitialSpawnedSlots(i))/(InitialSpawnedSlots(1)+0.D0)
+                rat=(ValidSpawnedList(i)-InitialSpawnedSlots(i))/(InitialSpawnedSlots(1)+0.0_dp)
                 IF(rat.gt.0.95) THEN
                     WRITE(iout,*) "*WARNING* - Highest processor spawned particles has reached over 95% of MaxSpawned"
                     CALL neci_flush(6)
                 ENDIF
             enddo
         ELSE
-            rat=(ValidSpawnedList(0)+0.D0)/(MaxSpawned+0.D0)
+            rat=(ValidSpawnedList(0)+0.0_dp)/(MaxSpawned+0.0_dp)
             IF(rat.gt.0.9) THEN
                 WRITE(iout,*) "*WARNING* - Number of spawned particles has reached over 90% of MaxSpawned"
                 CALL neci_flush(6)
@@ -1135,7 +1148,6 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
    use FciMCData, only: pDoubles, tTruncSpace
    use SymExcitDataMod, only: excit_gen_store_type
    use FciMCParMod, only: CheckAllowedTruncSpawn
-   use SystemData, only : nEl
    use GenRandSymExcitNUMod , only : gen_rand_excit, scratchsize
    use SymExcit3, only: GenExcitations3
    use DetBitOps, only: FindExcitBitDet
@@ -1355,8 +1367,8 @@ SUBROUTINE ResetSpawner(S,C,nSpawn)
    S%nSpawnings=nSpawn
    if(S%tFull) then
 !      call CountExcitations3(C%DetCurr,exFlag,nS,nD)
-      S%dProbSpawn=1.D0
-!      S%dProbSpawn=1.D0/(nD+nS)
+      S%dProbSpawn=1.0_dp
+!      S%dProbSpawn=1.0_dp/(nD+nS)
    endif
    S%exFlag=3
 END SUBROUTINE ResetSpawner
@@ -1436,7 +1448,7 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
                dAmp=Amplitude(j)*Amplitude(l)
                iLutnI(:)=ExcitList(:,j)
                call AddBitExcitor(iLutnI,ExcitList(:,l),iLutHF,iSgn)
-               if(iSgn.ne.0.and.dAmp.ne.0.d0) then
+               if(iSgn.ne.0.and.dAmp.ne.0.0_dp) then
                   CALL BinSearchParts3(iLutnI,ExcitList,nExcit,ExcitLevelIndex(2),ExcitLevelIndex(3)-1,PartIndex,tSuc)
                   dAmp=dAmp/Amplitude(1)
                   if(tSuc) then
@@ -2312,7 +2324,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    if(tCCBuffer) then
       call DeAllocateAmplitudeList(ALBuffer)
    endif
-   Weight=0.D0
+   Weight=0.0_dp
    Energyxw=ProjectionE+Hii
    call halt_timer(CCMC_time)
 END SUBROUTINE CCMCStandalone
@@ -2795,7 +2807,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    else
       deallocate(DetList)
    endif 
-   Weight=0.D0
+   Weight=0.0_dp
    Energyxw=ProjectionE+Hii
    call halt_timer(CCMC_time)
 END SUBROUTINE CCMCStandaloneParticle
@@ -2874,7 +2886,7 @@ subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
             iNext=1
             do i=0,nCores-1
                p=(Ends(i)-Starts(i))+1
-               DetList(:,iNext:iNext+p)=DetList(:,Starts(i):Ends(i))  !This is potentially overlapping, but is allowed in Fortran90+
+               DetList(:,iNext:iNext+p-1)=DetList(:,Starts(i):Ends(i))  !This is potentially overlapping, but is allowed in Fortran90+
                iNext=iNext+int(p,MPIArg)
             enddo
             nAmpl=iNext-1

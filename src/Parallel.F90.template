@@ -1529,7 +1529,7 @@ contains
 
                     write(6,*) "outfile=", NodeFile
                     close(6, status="keep")
-                    open(6, file=NodeFile)
+                    open(6, file=NodeFile, recl=8192)
                     write(6,*) "Processor ", iProcIndex+1, '/', nProcessors, &
                                ' on local output.'
                 endif
@@ -1887,9 +1887,9 @@ contains
 
 #ifdef PARALLEL
         ! Invert X=n(n-1)/2
-        nCur = ((nProcessors+1-iProcIndex)*nEl*(nEl-1.d0)/nProcessors)
+        nCur = ((nProcessors+1-iProcIndex)*nEl*(nEl-1.0_dp)/nProcessors)
 
-        nCur = nEl+1-(1+sqrt(1.d0+4*nCur))/2
+        nCur = nEl+1-(1+sqrt(1.0_dp+4*nCur))/2
         ! Hitting smack bang on an integer causes problems
         if (ceiling(nCur) == floor(nCur)) &
             nCur=nCur-1e-6
@@ -1898,8 +1898,8 @@ contains
         if (iProcIndex == 1) &
             iMinElec=1
 
-        nCur = ((nProcessors-iProcIndex)*nEl*(nEl-1.d0)/nProcessors)
-        nCur = nEl+1-(1+sqrt(1.d0+4*nCur))/2
+        nCur = ((nProcessors-iProcIndex)*nEl*(nEl-1.0_dp)/nProcessors)
+        nCur = nEl+1-(1+sqrt(1.0_dp+4*nCur))/2
 
         ! Hitting smack bang on an integer causes problems
         if (ceiling(nCur) == floor(nCur)) &

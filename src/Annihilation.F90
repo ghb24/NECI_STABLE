@@ -1531,7 +1531,7 @@ MODULE AnnihilationMod
 !We want to calculate the diagonal hamiltonian matrix element for the new particle to be merged.
                     if (DetBitEQ(CurrentDets(:,i), iLutRef, NIfDBO)) then
 !We know we are at HF - HDiag=0
-                        HDiag=0.D0
+                        HDiag=0.0_dp
                         call extract_sign(CurrentDets(:,i),InstNoatHF)
                     else
                         call decode_bit_det (nJ, CurrentDets(:,i))

@@ -15,7 +15,7 @@ C=========================================================
       complex(dp) CK(-N/2:N/2-1,-N/2:N/2-1,-N/2:N/2-1)
       real(dp) :: SUM1,OUT
 
-      SUM1=0.D0
+      SUM1=0.0_dp
       CALL VCOULFOU(N,G1,G2,G1P,G2P,SUM1,CK,NMAX,ZIA)
       OUT=SUM1*(2**6)
       RETURN
@@ -36,8 +36,8 @@ C =============================================================
       complex(dp) CAUX,CAUX1,CAUX2,CAUX3,ZZERO
       real(dp) :: SUM
 C..Sum over k
-      SUM=0.D0
-      ZZERO=(0.D0,0.D0)
+      SUM=0.0_dp
+      ZZERO=(0.0_dp,0.0_dp)
       DO K=-N/2,N/2-1
         CAUX1=ZIA(K,G1(3),G1P(3))*CONJG(ZIA(K,G2(3),G2P(3)))
         IF(CAUX1.EQ.ZZERO) GOTO 100

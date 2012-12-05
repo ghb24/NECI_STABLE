@@ -58,9 +58,9 @@ MODULE MCStat
             TYPE(MCStats) MCS
             INTEGER iV
             real(dp) wAvgWeighting,wAvgWeightedValue,wAvgDelta
-            wAvgWeighting=MCS%wWeighting(iV)/(0.D0+MCS%nGraphs(iV))
-            wAvgWeightedValue=MCS%wRefValue*wAvgWeighting+MCS%wWeightedDelta(iV)/(0.D0+MCS%nGraphs(iV))
-            wAvgDelta=MCS%wDelta(iV)/(0.D0+MCS%nGraphs(iV))
+            wAvgWeighting=MCS%wWeighting(iV)/(0.0_dp+MCS%nGraphs(iV))
+            wAvgWeightedValue=MCS%wRefValue*wAvgWeighting+MCS%wWeightedDelta(iV)/(0.0_dp+MCS%nGraphs(iV))
+            wAvgDelta=MCS%wDelta(iV)/(0.0_dp+MCS%nGraphs(iV))
          END subroutine
 !  The constructor
          SUBROUTINE CreateBlockStats(BS,iBlocks)
@@ -72,9 +72,9 @@ MODULE MCStat
             ALLOCATE(BS%wCurBlock(0:iBlocks))
             ALLOCATE(BS%wBlockSum(0:iBlocks))
             ALLOCATE(BS%wBlockSumSq(0:iBlocks))
-            BS%wCurBlock=(0.D0)
-            BS%wBlockSum=(0.D0)
-            BS%wBlockSumSq=(0.D0)
+            BS%wCurBlock=(0.0_dp)
+            BS%wBlockSum=(0.0_dp)
+            BS%wBlockSumSq=(0.0_dp)
             BS%iBlocks=iBlocks
             !Histogram setup
             BS%bucketCount = 250
@@ -93,7 +93,7 @@ MODULE MCStat
             TYPE(BlockStatsCov) BSC
             INTEGER iBlocks
             ALLOCATE(BSC%wBlockSum(0:iBlocks))
-            BSC%wBlockSum=(0.D0)
+            BSC%wBlockSum=(0.0_dp)
             BSC%iBlocks=iBlocks
          END subroutine
          SUBROUTINE DestroyBlockStatsCov(BSC)
@@ -114,7 +114,7 @@ MODULE MCStat
             INTEGER iBlocks
             real(dp) wRefValue, wRefWeight
             iBlocks=iMaxCycles
-!LOG(iMaxCycles+0.D0)/LOG(2.D0)+1
+!LOG(iMaxCycles+0.0_dp)/LOG(2.0_dp)+1
             MCS%iVMax=iV
             i=1
             CALL CreateBlockStats(MCS%BlockDeltaSign,iBlocks)
@@ -133,20 +133,20 @@ MODULE MCStat
             ALLOCATE(MCS%wDeltaSq(0:iV))
             ALLOCATE(MCS%wWeightedDelta(0:iV))
             ALLOCATE(MCS%wWeightedDeltaSq(0:iV))
-            MCS%wWeighting=(0.D0)
-            MCS%wWeightingSq=(0.D0)
-            MCS%wGraphWeight=(0.D0)
-            MCS%wGraphWeightSq=(0.D0)
-            MCS%wDelta=(0.D0)
-            MCS%wWeightedDelta=(0.D0)
-            MCS%wDeltaSq=(0.D0)
-            MCS%wWeightedDeltaSq=(0.D0)
+            MCS%wWeighting=(0.0_dp)
+            MCS%wWeightingSq=(0.0_dp)
+            MCS%wGraphWeight=(0.0_dp)
+            MCS%wGraphWeightSq=(0.0_dp)
+            MCS%wDelta=(0.0_dp)
+            MCS%wWeightedDelta=(0.0_dp)
+            MCS%wDeltaSq=(0.0_dp)
+            MCS%wWeightedDeltaSq=(0.0_dp)
             ALLOCATE(MCS%wTrees(0:iV))
             ALLOCATE(MCS%wNonTreesPos(0:iV))
             ALLOCATE(MCS%wNonTreesNeg(0:iV))
-            MCS%wTrees=(0.D0)
-            MCS%wNonTreesPos=(0.D0)
-            MCS%wNonTreesneg=(0.D0)
+            MCS%wTrees=(0.0_dp)
+            MCS%wNonTreesPos=(0.0_dp)
+            MCS%wNonTreesneg=(0.0_dp)
             ALLOCATE(MCS%nGraphs(0:iV))
             ALLOCATE(MCS%nNonTreesNeg(0:iV))
             ALLOCATE(MCS%nNonTreesPos(0:iV))
@@ -157,7 +157,7 @@ MODULE MCStat
             MCS%nTrees=0
             MCS%iSeqLen=0
             MCS%nSeqs=0
-            MCS%fSeqLenSq=0.D0
+            MCS%fSeqLenSq=0.0_dp
             MCS%wRefValue=wRefValue
             MCS%wRefWeight=wRefWeight
          END subroutine
@@ -205,7 +205,7 @@ MODULE MCStat
                tNewSeq=.FALSE.
             ELSE
                M%nSeqs=M%nSeqs+1
-               M%fSeqLenSq=M%fSeqLenSq+(M%iSeqLen+0.D0)**2
+               M%fSeqLenSq=M%fSeqLenSq+(M%iSeqLen+0.0_dp)**2
                tNewSeq=.TRUE.
             ENDIF
             IF(tNewSeq) THEN
@@ -216,7 +216,7 @@ MODULE MCStat
                 ave2=M%wWeighting(0)/M%nGraphs(0)
                !bot is Wref + running average of the weighting - wRefWeight is the running sum of weights over all previous vertex levels
                bot=M%wRefWeight+ave2
-!               std2=sqrt(1.D0-ave2*ave2)
+!               std2=sqrt(1.0_dp-ave2*ave2)
 !               cc=std1/ave1+std2/ave2
                CALL CalcStDev(M,cc)
                hh=ave1/ave2
@@ -258,7 +258,7 @@ MODULE MCStat
                CALL AddN(M%nTrees,iV,nTimes) 
                CALL AddW(M%wTrees,iV,nTimes,wGraphWeight)
             ELSE
-               IF(wGraphWeight.GT.0.D0) THEN
+               IF(wGraphWeight.GT.0.0_dp) THEN
                   CALL AddN(M%nNonTreesPos,iV,nTimes)
                   CALL AddW(M%wNonTreesPos,iV,nTimes,wGraphWeight)
                ELSE
@@ -318,8 +318,8 @@ MODULE MCStat
             blockAvg=M%wBlockSum(i)/nBlocks
             blockVar=M%wBlockSumSq(i)/nBlocks-blockAvg**2
 !This /(nBlocks-1) comes from Flyvbjerg's paper, and is because we are working out the best estimator of the stdev,not the actual stdev.
-            blockError=SQRT(ABS(blockVar/(nBlocks-1.D0)))
-            blockErrorError=blockError/SQRT(ABS(2.D0*(nBlocks-1.D0)))
+            blockError=SQRT(ABS(blockVar/(nBlocks-1.0_dp)))
+            blockErrorError=blockError/SQRT(ABS(2.0_dp*(nBlocks-1.0_dp)))
             WRITE(iUnit,"(I7,4G25.16)") i,blockError,blockErrorError,blockAvg,blockVar
          ENDDO
       END subroutine
@@ -355,7 +355,7 @@ MODULE MCStat
          jj=(weightDeltaAvg/weightAvg)**2
          kk=weightDeltaVar/weightDeltaAvg**2+weightVar/weightAvg**2-2*coVar/(weightAvg*weightDeltaAvg)
          estimatedVar=jj*kk
-         estimatedError=Sqrt(Abs(estimatedVar/(nBlocks-1.D0)))
+         estimatedError=Sqrt(Abs(estimatedVar/(nBlocks-1.0_dp)))
       End subroutine
 
       SUBROUTINE WriteBlockStatsII(iUnit,MCStat)
@@ -378,7 +378,7 @@ MODULE MCStat
             ratioError=Sqrt(ratioVar/(nBlocks-1))
             !Write to 'blocking' file:
             Write(iUnit, "(I3, 3G25.16)") i, ratioAvg, ratioError, estimatedError
-            !ee=/(SQRT(ABS(2.D0*(nBlocks-1.D0))))
+            !ee=/(SQRT(ABS(2.0_dp*(nBlocks-1.0_dp))))
          ENDDO
       END subroutine
 
@@ -488,8 +488,8 @@ MODULE MCStat
                no=nGraphs-nTimes !number of graphs before this cycle
                nc=MOD(no,iBlockSize) !number of samples currently in wCurBlock
 ! If we don't already have a sum for this block size, get it from the stats
-               IF(.NOT.abs(BS%wCurBlock(i)).gt.0.D0.AND.no.LT.iBlockSize) BS%wCurBlock(i)=(wValTotS)-(nTimes)*wS
-               IF(.NOT.abs(BDS%wCurBlock(i)).gt.0.D0.AND.no.LT.iBlockSize) BDS%wCurBlock(i)=(wValTotDS)-(nTimes)*wDS
+               IF(.NOT.abs(BS%wCurBlock(i)).gt.0.0_dp.AND.no.LT.iBlockSize) BS%wCurBlock(i)=(wValTotS)-(nTimes)*wS
+               IF(.NOT.abs(BDS%wCurBlock(i)).gt.0.0_dp.AND.no.LT.iBlockSize) BDS%wCurBlock(i)=(wValTotDS)-(nTimes)*wDS
                IF(nc+nt.GE.iBlockSize.AND.nc.NE.0) THEN
 !  Add enough from the new set to fill the old to nn, and send to BlockSum
                   bbS=(wS*(iBlockSize-nc)+BS%wCurBlock(i))/(iBlockSize)
@@ -508,8 +508,8 @@ MODULE MCStat
                       Call AddToHistogram(BDS, bbDS, i, 1)
                   EndIf
                   nt=nt-(iBlockSize-nc)
-                  BS%wCurBlock(i)=0.D0
-                  BDS%wCurBlock(i)=0.D0
+                  BS%wCurBlock(i)=0.0_dp
+                  BDS%wCurBlock(i)=0.0_dp
               ENDIF
 !  Now add in all blocks of length nn from the remainder
                bbS=(Int(nt/iBlockSize))*wS !there are nn lots of wVal - but we want the average
@@ -581,7 +581,7 @@ MODULE MCStat
          INTEGER iUnit
          real(dp) rStDev
          real(dp) iC
-         iC=M%nGraphs(0)+0.D0
+         iC=M%nGraphs(0)+0.0_dp
          CALL CalcStDev(M,rStDev)
          WRITE(iUnit,"(I3,I10,11G25.16,I10,G25.16)") 0,M%nGraphs(0),                         &
      &                   M%wWeighting(0)/iC,                                             &
@@ -589,10 +589,10 @@ MODULE MCStat
      &                   M%wDelta(0)/iC,                                                       &
      &                   M%wWeightedDelta(0)/M%wWeighting(0),                                   &
      &                   M%wDeltaSq(0)/iC,                                          &
-     &                   (M%iAccTot+0.D0)/M%nGraphs(0),                              &
-     &                   (M%nTrees(0)+0.D0)/M%nGraphs(0),                            &
-     &                   (M%nNonTreesPos(0)+0.D0)/M%nGraphs(0),                      &
-     &                   (M%nNonTreesNeg(0)+0.D0)/M%nGraphs(0),                      &
+     &                   (M%iAccTot+0.0_dp)/M%nGraphs(0),                              &
+     &                   (M%nTrees(0)+0.0_dp)/M%nGraphs(0),                            &
+     &                   (M%nNonTreesPos(0)+0.0_dp)/M%nGraphs(0),                      &
+     &                   (M%nNonTreesNeg(0)+0.0_dp)/M%nGraphs(0),                      &
      &                   (M%wWeightedDelta(0)/iC),                                         &
      &                   M%wRefValue,                                            &
      &                   M%nSeqs,                                                   &
@@ -628,7 +628,7 @@ MODULE MCStat
 !            WRITE(6,*) "UV, SUV2,%",uv,suv2, suv2/(uv*uv)
          
             v=M%wWeighting(0)/n
-            sv2=1.D0-v*v
+            sv2=1.0_dp-v*v
             sv2=sv2/nind
 !            WRITE(6,*) "V, SV2,%", v, sv2, sv2/(v*v)
 
@@ -679,7 +679,7 @@ MODULE MCStat
                WRITE(iUnit,STR2) "ACC->",J,(M%nAcc(I,J),I=1,M%iVMax)
             ENDDO
             WRITE(iUnit,*) "Sequences: ",M%nSeqs
-            fAveSeqLen=(M%nGraphs(0)+0.D0)/M%nSeqs
+            fAveSeqLen=(M%nGraphs(0)+0.0_dp)/M%nSeqs
             WRITE(iUnit,*) "Seq Len: ",fAveSeqLen,"+-",SQRT((M%fSeqLenSq/M%nSeqs)-fAveSeqLen**2)
          END subroutine
 
@@ -712,7 +712,7 @@ MODULE MCStat
                WRITE(iUnit,STR2) "ACC->",J,(M%nAcc(I,J),I=1,M%iVMax)
             ENDDO
             WRITE(iUnit,*) "Sequences: ",M%nSeqs
-            fAveSeqLen=(M%nGraphs(0)+0.D0)/M%nSeqs
+            fAveSeqLen=(M%nGraphs(0)+0.0_dp)/M%nSeqs
             WRITE(iUnit,*) "Seq Len: ",fAveSeqLen,"+-",SQRT((M%fSeqLenSq/M%nSeqs)-fAveSeqLen**2)
          END subroutine
          SUBROUTINE AddWS(w,wSq,iV,nTimes,wV)
@@ -720,7 +720,7 @@ MODULE MCStat
             real(dp) :: w(0:iV),wSq(0:iV)
             real(dp) wV,t
             integer(int64) nTimes
-            t=nTimes+0.D0
+            t=nTimes+0.0_dp
             t=t*wV
             w(0)=w(0)+t
             w(iV)=w(iV)+t
@@ -733,7 +733,7 @@ MODULE MCStat
             real(dp) :: w(0:iV)
             real(dp) wV,t
             integer(int64) nTimes
-            t=nTimes+0.D0
+            t=nTimes+0.0_dp
             t=t*wV
             w(0)=w(0)+t
             w(iV)=w(iV)+t

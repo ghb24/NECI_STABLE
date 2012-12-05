@@ -141,17 +141,17 @@
 !Allocate Memory for ExcitInfo
       ALLOCATE(EXCITINFO(0:totexcits,0:2),stat=ierr)
       CALL LogMemAlloc("EXCITINFO",3*(totexcits+1),8,t_r,tagEXCITINFO,iErr)
-      EXCITINFO=(0.d0)
+      EXCITINFO=(0.0_dp)
       
 !Calculate rho_ii and H_ii, and put into ExcitInfo. Again, we divide all rho elements through by rho_ii (Therefore rho_ii element=1)
       CALL CalcRho2(nI,nI,Beta,i_P,nEl,G1,nBasis,nMsh,fck,nMax,ALat,UMat,rhii,nTay,0,ECore)
       ExcitInfo(0,2) = get_helement (nI, nI, 0)
-      EXCITINFO(0,0)=1.D0
-      EXCITINFO(0,1)=1.D0
+      EXCITINFO(0,0)=1.0_dp
+      EXCITINFO(0,1)=1.0_dp
 
 !Go through all ij pairs, create the node matrix and diagonalise, then add elements to ExcitInfo.
       ExcitInfoElems=0
-      totlinks=0.D0
+      totlinks=0.0_dp
       crosslinks=0
       do i=1,noij
           IF(ABCOUNTER(i).eq.0) CYCLE
@@ -218,7 +218,7 @@
 !Array to store rho elements of node - this is the matrix to be diagonalised.
         ALLOCATE(NODERHOMAT(novirt*novirt),stat=ierr)
         CALL LogMemAlloc("NODERHOMAT",novirt*novirt,8,t_r,tagNODERHOMAT,iErr)
-        NODERHOMAT=0.d0
+        NODERHOMAT=0.0_dp
 
 !First deal with diagonal elements
         do i=1,novirt
@@ -239,7 +239,7 @@
                 nJ(:)=FULLPATHS(:,i)
                 nK(:)=FULLPATHS(:,j)
                 IF(TDISCONODES) THEN
-                    rh=(0.D0)
+                    rh=(0.0_dp)
                 ELSE
                     CALL CalcRho2(nJ,nK,Beta,i_P,nEl,G1,nBasis,nMsh,fck,nMax,ALat,UMat,rh,nTay,2,ECore)
                 ENDIF
@@ -319,7 +319,7 @@
 
 !Diagonal elements of star graph are simply eigenvalues - add to ExcitInfo
         DO i=1,novirt
-            IF(WLIST(i).gt.1.D-09) THEN
+            IF(WLIST(i).gt.1.0e-9_dp) THEN
                 ExcitInfoElems=ExcitInfoElems+1
                 EXCITINFO(ExcitInfoElems,0)=WLIST(i)
                 

@@ -47,9 +47,9 @@
          TLOG=BTEST(ILOGGING,1)
          HElP=(I_P)
          TSYM=.TRUE.
-         TOT=0.D0
-         TOT2=0.D0
-         NORM=0.D0
+         TOT=0.0_dp
+         TOT2=0.0_dp
+         NORM=0.0_dp
          IMAX=I_HMAX
          IF(I_VMAX.GT.IMAX) IMAX=I_VMAX
          proc_timer%timer_name=thisroutine

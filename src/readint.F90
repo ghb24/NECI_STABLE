@@ -274,7 +274,7 @@ contains
          !For Molpro, ISPINS should always be 2, and therefore NORB is spatial, and len is spin orbtials
          IF(LEN.NE.ISPINS*NORB) STOP 'LEN .NE. NORB in GETFCIBASIS'
          G1(1:LEN)=NullBasisFn
-         ARR=0.d0
+         ARR=0.0_dp
 
 !If we are reading in and cacheing the FCIDUMP integrals, we need to know the maximum number j,l pairs of
 !integrals for a given i,k pair. (Or in chemical notation, the maximum number of k,l pairs for a given i,j pair.)
@@ -358,11 +358,18 @@ contains
                     !Still need to read in integrals as complex numbers - this FCIDUMP will be from VASP.
                     READ(iunit,*,END=99) CompInt,I,J,K,L
                     Z=real(CompInt,dp)
-                    if(abs(aimag(CompInt)).gt.1.D-7) then
-                        write(6,*) "Using the *real* neci compiled code, however non-zero imaginary parts of integrals found"
-                        write(6,*) "If all k-points are at Gamma or BZ boundary, orbitals should be able to be rotated to be real"
-                        write(6,*) "Check this is the case, or rerun in complex mode to handle complex integrals."
-                        call stop_all("GETFCIBASIS","Real orbitals indicated, but imaginary part of integrals larger than 1.D-7")
+                    if(abs(aimag(CompInt)).gt.1.0e-7_dp) then
+                        write(6,*) "Using the *real* neci compiled code, &
+                                   &however non-zero imaginary parts of &
+                                   &integrals found"
+                        write(6,*) "If all k-points are at Gamma or BZ &
+                                   &boundary, orbitals should be able to be &
+                                   &rotated to be real"
+                        write(6,*) "Check this is the case, or rerun in &
+                                   &complex mode to handle complex integrals."
+                        call stop_all("GETFCIBASIS", "Real orbitals indicated,&
+                                      & but imaginary part of integrals larger&
+                                      & than 1.0e-7_dp")
                     endif
                 else
                     if(tMolpro.or.tReadFreeFormat) then
@@ -614,7 +621,7 @@ contains
                  iSpinType=0
              endif
              IF(.not.TSTARSTORE) THEN
-                 TMAT2D(:,:)=(0.D0)
+                 TMAT2D(:,:)=(0.0_dp)
              ENDIF
              ! Can't use * as need to be backward compatible with existing 
              ! FCIDUMP files, some of which have more than 100 basis
@@ -633,8 +640,8 @@ contains
                  !Still need to read in integrals as complex numbers - this FCIDUMP will be from VASP.
                  READ(iunit,*,END=199) CompInt,I,J,K,L
                  Z=real(CompInt,dp)
-                 if(abs(aimag(CompInt)).gt.1.D-7) then
-                     call stop_all("READFCIINT","Real orbitals indicated, but imaginary part of integrals larger than 1.D-7")
+                 if(abs(aimag(CompInt)).gt.1.0e-7_dp) then
+                     call stop_all("READFCIINT","Real orbitals indicated, but imaginary part of integrals larger than 1.0e-7_dp")
                  endif
              else
                  if(tMolpro.or.tReadFreeFormat) then
@@ -712,7 +719,7 @@ contains
                         ! Have read in T_ij.  Check it's consistent with T_ji
                         ! (if T_ji has been read in).
                        diff = abs(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)-Z)
-                       IF(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1) /= 0.0d0 .and. diff > 1.d-7) then
+                       IF(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1) /= 0.0_dp .and. diff > 1.0e-7_dp) then
                             WRITE(6,*) i,j,Z,TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)
                             CALL Stop_All("ReadFCIInt","Error filling TMAT - different values for same orbitals")
                        ENDIF
@@ -777,7 +784,7 @@ contains
                     IF(tUMatEps) THEN
 !We have an epsilon cutoff for the size of the two-electron integrals - UMatEps
                         IF(abs(Z).lt.UMatEps) THEN
-                            UMAT(UMatInd(I,K,J,L,0,0))=0.D0
+                            UMAT(UMatInd(I,K,J,L,0,0))=0.0_dp
                             ZeroedInt=ZeroedInt+1
                         ELSE
                             UMAT(UMatInd(I,K,J,L,0,0))=Z

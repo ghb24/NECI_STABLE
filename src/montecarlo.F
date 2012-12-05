@@ -108,8 +108,8 @@ C.. PBC tilted
                AX=NBASISMAX(1,4)
                AY=NBASISMAX(2,4)
 C.. (XX,YY) is the position of the bottom right corner of the unit cell
-               XX=((AX+AY)/2.D0)*real(NMAXX,dp)
-               YY=((AY-AX)/2.D0)*real(NMAXX,dp)
+               XX=((AX+AY)/2.0_dp)*real(NMAXX,dp)
+               YY=((AY-AX)/2.0_dp)*real(NMAXX,dp)
                MX=int(XX*AX+YY*AY,sizeof_int)
                MY=int(XX*AY-YY*AX,sizeof_int)
                I=NQN(1)
@@ -185,8 +185,8 @@ C.. 1/4 prob of changing the spin
             ELSE
 C.. change the energy level.  Have an exponential distribution of
 C.. distance
-               RN=0.D0
-               DO WHILE(RN.EQ.0.D0)
+               RN=0.0_dp
+               DO WHILE(RN.EQ.0.0_dp)
                   RN=RAN2(ISEED)
                ENDDO
                IDIST=0
