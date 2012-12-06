@@ -48,14 +48,14 @@ subroutine VASPInitIntegrals(nOrbUsed,ECore,tOrder)
    proc_timer%timer_name='VASPInitInts'
    call set_timer(proc_timer)
    ! ECore=EIonIon???
-   ECore=0.d0
+   ECore=0.0_dp
    write (6,*) 'Core Energy: ',ECORE
    nStatesUsed=nOrbUsed/2
 
    call SetupUMatCache(nStatesUsed,NSTATESUSED.NE.NSTATES)
 
 #ifdef __CMPLX
-   HarXCSum=cmplx(0.d0,0.d0,dp)
+   HarXCSum=cmplx(0.0_dp,0.0_dp,dp)
 #else
    HarXCSum=0.0_dp
 #endif
@@ -64,7 +64,7 @@ subroutine VASPInitIntegrals(nOrbUsed,ECore,tOrder)
    do I=1,nStatesUsed
       ! Subtract out the double counting. Assume closed-shell.
 #ifdef __CMPLX
-      HarXC=cmplx(0.d0,0.d0,dp)
+      HarXC=cmplx(0.0_dp,0.0_dp,dp)
 #else
       HarXC=0.0_dp
 #endif

@@ -41,12 +41,12 @@ SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
    E1=E1-Fi(1)
    CALL CalcVij(Hij,V,Fi,E1,iV)
    DO iOrder=2,iMaxOrder
-      MPE=0.D0
+      MPE=0.0_dp
       SELECT CASE(iV)
       CASE(2)
          IF(iOrder.EQ.2) MPE=MPE+V(1,2)*V(2,1)/(Fi(1)-Fi(2))
-         IF(iOrder.EQ.3) MPE=MPE+V(1,2)*V(2,2)*V(2,1)/((Fi(1)-Fi(2))**2.D0)
-         IF(iOrder.EQ.4) MPE=MPE+V(1,2)*V(2,1)*(-V(2,1)*V(1,2)+V(2,2)**2.D0)/((Fi(1)-Fi(2))**3.D0)
+         IF(iOrder.EQ.3) MPE=MPE+V(1,2)*V(2,2)*V(2,1)/((Fi(1)-Fi(2))**2.0_dp)
+         IF(iOrder.EQ.4) MPE=MPE+V(1,2)*V(2,1)*(-V(2,1)*V(1,2)+V(2,2)**2.0_dp)/((Fi(1)-Fi(2))**3.0_dp)
       CASE(3)
          IF(iOrder.EQ.3) MPE=MPE+(V(1,2)*V(2,3)*V(3,1)+V(1,3)*V(3,2)*V(2,1)) &
                                              /((Fi(1)-Fi(2))*(Fi(1)-Fi(3)))
@@ -72,7 +72,7 @@ SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
       END SELECT
       E=MPE
       MPEs(iOrder)=MPEs(iOrder)+E
-      IF(TLOG.AND. ABS(E) .GT. 1.D-9) THEN
+      IF(TLOG.AND. ABS(E) .GT. 1.0e-9_dp) THEN
          IF(iOrder.EQ.2) CALL WRITEPATH(13,IPATH,2,NEL,.FALSE.)
          WRITE(13,"(G25.16)",advance='no') E
          tLogged=.TRUE.
@@ -142,7 +142,7 @@ END
 !.. First find which orbitals have been excited
          I=1
          J=1
-         DENOM=0.D0
+         DENOM=0.0_dp
          DO WHILE (I.LE.NEL.OR.J.LE.NEL)
 !            WRITE(13,*) I,J,NI(I),NJ(J)
             IF(J.GT.NEL) THEN
@@ -175,7 +175,7 @@ END
             DENOM=DENOM+abs(HIJS(1))**2
          ENDIF
          CONTR=abs(HIJS(1))**2/DENOM
-         IF(TLOG.AND.CONTR.GT.1.D-9) THEN
+         IF(TLOG.AND.CONTR.GT.1.0e-9_dp) THEN
             CALL WRITEPATH(13,IPATH,2,NEL,.FALSE.)
             WRITE(13,"(G25.16)",advance='no') -CONTR
             WRITE(13,*) HIJS(1),DENOM
@@ -206,6 +206,6 @@ END
             if(mod(ex2(2,1)+ex2(2,2),2).eq.0)                                                         &
      &         hEl=hEl-GetUMatEl(ex(2,1),ex(2,2),ex(2,2),ex(2,1))
          else
-            hEl=0.d0
+            hEl=0.0_dp
          endif
       End Subroutine

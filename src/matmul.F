@@ -43,7 +43,7 @@ C..ascending order
       ENDIF
 c      DO I=1,NEVAL
 c        DO J=1,NDET
-c          CKN(J,I)=-1.D0*CKN(J,I)
+c          CKN(J,I)=-1.0_dp*CKN(J,I)
 c        ENDDO
 c      ENDDO
 C ==-----------------------------------------------------------------==
@@ -59,8 +59,8 @@ C ==-----------------------------------------------------------------==
       integer :: NDET,NEVAL
       real(dp) HTEMP(NDET,NDET),CK(NDET,NEVAL),CKN(NDET,NEVAL)
 C..
-      CALL DGEMM('N','N',NDET,NEVAL,NDET,1.D0,HTEMP,NDET,
-     &    CK,NDET,1.D0,CKN,NDET)
+      CALL DGEMM('N','N',NDET,NEVAL,NDET,1.0_dp,HTEMP,NDET,
+     &    CK,NDET,1.0_dp,CKN,NDET)
 C      DO I=1,NDET
 C         DO K=1,NEVAL
 C            WRITE(6,*) CKN(I,K)
@@ -68,7 +68,7 @@ C         ENDDO
 C      ENDDO 
 C      DO I=1,NDET
 C        DO J=1,NDET
-C          IF(HTEMP(I,J).NE.0.D0) THEN
+C          IF(HTEMP(I,J).NE.0.0_dp) THEN
 C            WRITE(6,*) HTEMP(I,J),I,J
 C          ENDIF
 C        ENDDO

@@ -70,7 +70,7 @@ contains
                         ! Indices are internally reordered such that:
                         ! i >= k, j >= l, (i,k) >= (j,l)
                         UMAT(UMatInd(id1, id2, id3, id3, 0, 0)) = sum
-                        if (abs(sum) > 1.D-10) &
+                        if (abs(sum) > 1.0e-10_dp) &
                             write (10, '(4i7,f19.9)') id1, id2, id3, id4, sum
                     enddo
                 enddo
@@ -170,7 +170,7 @@ contains
                                             * uHub / (omega**2)
                                 enddo
                                 write(41,"(2I3)",advance='no') c, d
-                                if (abs(real(s) - sum) > 1.d-7) then
+                                if (abs(real(s) - sum) > 1.0e-7_dp) then
                                     write (41,*) sum, s
                                 else
                                     write (41,*) sum, sum
@@ -215,7 +215,7 @@ contains
                         ! Indices are internally ! reordered such that:
                         !i >= k, j >= l, (i,k) >= (j,l)
                         UMAT(UMatInd(id1, id2, id3, id4, 0, 0)) = sum
-                        if (abs(sum) > 1.d-10) &
+                        if (abs(sum) > 1.0e-10_dp) &
                             write (10, '(4i7,f19.9)') id1, id2, id3, id4, sum
                     enddo
                 enddo
@@ -276,7 +276,7 @@ contains
         endif
         ! if (T) then
             OUT = real(CK(2*GD(1),2*GD(2),2*GD(3)))
-            ! OUT=4*3.1415926535D0/(GD(1)*GD(1)+GD(2)*GD(2)+GD(3)*GD(3))
+            ! OUT=4*3.1415926535_dp/(GD(1)*GD(1)+GD(2)*GD(2)+GD(3)*GD(3))
         !else
         !    OUT = 0.0_dp
         !endif
@@ -352,7 +352,7 @@ contains
         integer :: i, j, k, l, a, b, c, iss, aneu
         real(dp) :: G, G2
         logical :: tCoulomb, tExchange          
-        real(dp), parameter :: EulersConst = 0.5772156649015328606065120900824024d0
+        real(dp), parameter :: EulersConst = 0.5772156649015328606065120900824024_dp
         character(*), parameter :: this_routine = 'get_ueg_umat_el'
 
         !==================================================      
@@ -389,18 +389,18 @@ contains
                     G2 = (a *k_lattice_constant)**2 +(b *k_lattice_constant)**2 + (c *k_lattice_constant)**2         
                     ! check dimension
                     if(dimen == 3) then ! 3D
-                        hel = (4.0d0*PI) / (G2 * OMEGA)
+                        hel = (4.0_dp*PI) / (G2 * OMEGA)
                     else if (dimen ==2) then !2D
-                        hel = (2.0d0*PI) / (sqrt(G2) * OMEGA)
+                        hel = (2.0_dp*PI) / (sqrt(G2) * OMEGA)
                     else if (dimen ==1) then !1D
-                        hel = (-log(G2/4.0d0) - 2.0d0*EulersConst)/OMEGA
+                        hel = (-log(G2/4.0_dp) - 2.0_dp*EulersConst)/OMEGA
                     endif
                 else  ! <ii|ii>
                     hel = 0
                 endif  !Coulomb
 
             else  !no energy conservation
-                hel = 0.0d0
+                hel = 0.0_dp
             endif
             return
         end if   !UEG2

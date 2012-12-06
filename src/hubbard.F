@@ -41,7 +41,7 @@ C..Returned in sum
       AX=NBASISMAX(1,4)
       AY=NBASISMAX(2,4)
       IF(TREAL) THEN
-         TOTSUM=0.D0
+         TOTSUM=0.0_dp
       ELSE
        IF(TTILT) THEN
 CCCC.. NBASISMAX goes from -NMAXX+1 to MAXX so LX=2MAXX
@@ -53,7 +53,7 @@ CCCC.. NBASISMAX goes from -NMAXX+1 to MAXX so LX=2MAXX
          IF(LY.GT.1) TOTSUM=TOTSUM+COS(2*PI*J/(LY))
          IF(LZ.GT.1) TOTSUM=TOTSUM+COS(2*PI*K/(LZ))
        ENDIF
-       TOTSUM=TOTSUM*2.D0*BHUB
+       TOTSUM=TOTSUM*2.0_dp*BHUB
       ENDIF
       RETURN
       END
@@ -91,8 +91,8 @@ CCCC.. NBASISMAX goes from -NMAXX+1 to MAXX so LX=2MAXX
 C         IF(LY.GT.1) TOTSUM=TOTSUM+COS(PI*J/(LY+1))
 C         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
       ENDIF
-      TOTSUM=TOTSUM*2.D0*BHUB
-      IF(TREAL) TOTSUM=0.D0
+      TOTSUM=TOTSUM*2.0_dp*BHUB
+      IF(TREAL) TOTSUM=0.0_dp
       RETURN
       END
 
@@ -113,7 +113,7 @@ C         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
          IF(iProcIndex.eq.0) OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
          IF(TSTARSTORE) STOP 'Using TSTARSTORE with HUB?!'
          CALL SetupTMAT(NBASIS,2,iSize)
-         TOTSUM=0.D0
+         TOTSUM=0.0_dp
          LX=NBASISMAX(1,2)-NBASISMAX(1,1)
          LY=NBASISMAX(2,2)-NBASISMAX(2,1)
          LZ=NBASISMAX(3,2)-NBASISMAX(3,1)
@@ -254,13 +254,13 @@ C.. Not periodic boundaries
             NBASISMAX(1,3)=3
          ENDIF
          NBASISMAX(1,2)=int(real(NMAXX,dp)*                          
-     &          (real(ITILTX+ITILTY,dp)/2.D0),sizeof_int)
+     &          (real(ITILTX+ITILTY,dp)/2.0_dp),sizeof_int)
          NBASISMAX(1,1)=-NBASISMAX(1,2)
 C+1-MOD(NMAXX,2)
          IF(NMAXY.NE.NMAXX)
      &      STOP 'CANNOT HANDLE NON-SQUARE TILTED HUBBARD'
          NBASISMAX(2,2)=int(real(NMAXX,dp)*        
-     &          (real(ITILTY+ITILTX)/2.D0),sizeof_int)
+     &          (real(ITILTY+ITILTX)/2.0_dp),sizeof_int)
          NBASISMAX(2,1)=-NBASISMAX(2,2)
 C+1-MOD(NMAXX,2)
          IF(NMAXZ.GT.1) STOP 'CANNOT HANDLE TILTED 3D HUBBARD'
@@ -407,7 +407,7 @@ C.. now work out which reps are degenerate and label them
          J=0
          
          DO I=1,NBASIS
-            IF(I.GT.1.AND.ABS(ARR(I)-ARR(I-1)).LT.1.D-5) THEN
+            IF(I.GT.1.AND.ABS(ARR(I)-ARR(I-1)).LT.1.0e-5_dp) THEN
 C.. we have the same degenerate rep as the previous entry
                SYMREPS(2,J)=SYMREPS(2,J)+1
             ELSE
@@ -444,8 +444,8 @@ C.. we have a new rep
                 AX=NBASISMAX(1,4)
                 AY=NBASISMAX(2,4)
       !.. (XX,YY) is the position of the bottom right corner of the unit cell
-                XX=((AX+AY)/2.D0)*NMAXX
-                YY=((AY-AX)/2.D0)*NMAXX
+                XX=((AX+AY)/2.0_dp)*NMAXX
+                YY=((AY-AX)/2.0_dp)*NMAXX
                 MX=XX*AX+YY*AY
                 MY=XX*AY-YY*AX
                 I=G(1)

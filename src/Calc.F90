@@ -36,12 +36,12 @@ contains
         ! These have no input options to change the defaults, but are used in
         ! the code.
           TargetGrowRateWalk=500000
-          TargetGrowRate=0.D0
+          TargetGrowRate=0.0_dp
           InitialPart=1
           TRHOOFR = .false.
           TCORR = .false.
           TFODM = .false.
-          B2L = 1.D-13
+          B2L = 1.0e-13_dp
           TMC = .false.
           NHISTBOXES = 0
           TREADRHO = .false.
@@ -64,16 +64,16 @@ contains
           tShiftonHFPop=.false.
           MaxWalkerBloom=-1
           tSearchTau=.true.
-          InputDiagSft=0.D0
+          InputDiagSft=0.0_dp
           tPopsMapping=.false.
           tTimeExit=.false.
-          MaxTimeExit=0.D0
+          MaxTimeExit=0.0_dp
           tMaxBloom=.false.
           iRestartWalkNum=0
           iWeightPopRead=0
           tCheckHighestPop=.false.
-          StepsSftImag=0.D0
-          TauFactor=0.D0
+          StepsSftImag=0.0_dp
+          TauFactor=0.0_dp
           tStartMP1=.false.
           tStartCAS=.false.
           iAnnInterval=1
@@ -81,7 +81,7 @@ contains
           iFullSpaceIter=0
           iDetGroup=2
           tFindDets=.false.
-          SinglesBias=1.D0
+          SinglesBias=1.0_dp
           tFindGroundDet=.false.
           tSpawnAsDet=.false.
           tDirectAnnihil=.true.
@@ -91,8 +91,8 @@ contains
           VirtCASorbs=0
           TUnbiasPGeninProjE=.false.
           TRegenExcitgens=.false.
-          MemoryFacPart=10.D0
-          MemoryFacAnnihil=10.D0
+          MemoryFacPart=10.0_dp
+          MemoryFacAnnihil=10.0_dp
           MemoryFacSpawn=0.5
           MemoryFacInit = 0.3
           TStartSinglePart=.true.
@@ -105,27 +105,27 @@ contains
           TRhoElems=.false.
           TReturnPathMC=.false.
           CLMax=NEl
-          PRet=1.D0
+          PRet=1.0_dp
           TNoAnnihil=.false.
           TFullUnbias=.false.
-          GrowMaxFactor=5.D0
-          CullFactor=2.D0
+          GrowMaxFactor=5.0_dp
+          CullFactor=2.0_dp
           TFCIMC=.false.
           tRPA_QBA=.false.
           TCCMC=.false.
           TMCDets=.false.
           TBinCancel=.false.  
-          ScaleWalkers=1.D0
+          ScaleWalkers=1.0_dp
           TReadPops=.false.
           iPopsFileNoRead = 0
           iPopsFileNoWrite = 0
           tWalkContGrow=.false.
           StepsSft=100
           SftDamp=10.0
-          Tau=0.D0
+          Tau=0.0_dp
           InitWalkers=3000
-          dInitAmplitude=1.d0
-          dProbSelNewExcitor=0.7d0
+          dInitAmplitude=1.0_dp
+          dProbSelNewExcitor=0.7_dp
           nSpawnings=1
           nClustSelections=1
           dClustSelectionRatio=1
@@ -133,11 +133,11 @@ contains
           tSharedExcitors=.false.
           tSpawnProp=.false.
           NMCyc = -1
-          DiagSft=0.D0
+          DiagSft=0.0_dp
           HApp=1
           TMCStar=.false.
           THDiag=.false.
-          GrowGraphsExpo=2.D0
+          GrowGraphsExpo=2.0_dp
           TGrowInitGraph=.false.
           NoMCExcits=1
           TMCExcits=.false.
@@ -190,8 +190,8 @@ contains
           G_VMC_SEED = -7
           G_VMC_FAC = 16
           TUPOWER=.false.
-          G_VMC_EXCITWEIGHT(:)=0.D0
-          G_VMC_EXCITWEIGHTS(:,:)=0.D0
+          G_VMC_EXCITWEIGHT(:)=0.0_dp
+          G_VMC_EXCITWEIGHTS(:,:)=0.0_dp
           EXCITFUNCS(:)=.false.
           EXCITFUNCS(10)=.true.
           NPaths = 1
@@ -208,13 +208,13 @@ contains
           TSPECDET = .false.
           TTROT=.true.
           BETA = 1000
-          BETAP=1.D-4
+          BETAP=1.0e-4_dp
           TBETAP=.false.
-          RHOEPSILON=1.D-6
-          DBETA=-1.D0
+          RHOEPSILON=1.0e-6_dp
+          DBETA=-1.0_dp
           GraphEpsilon=0
           PGenEpsilon=0
-          StarConv=1.d-3
+          StarConv=1.0e-3_dp
           calcp_sub2vstar=.false.
           calcp_logweight=.false.
           TENPT=.false.
@@ -242,14 +242,16 @@ contains
 
           tAllRealCoeff=.false.
           tEnhanceRemainder=.true.
+          tUseRealCoeffs = .false.
           tRealCoeffByExcitLevel=.false.
           RealCoeffExcitThresh=2
           tRealSpawnCutoff=.false.
           RealSpawnCutoff=1.0e-5
+          OccupiedThresh=1.0_dp
 
 !Feb 08 default set.
           IF(Feb08) THEN
-              RhoEpsilon=1.0e-8
+              RhoEpsilon=1.0e-8_dp
           ENDIF
 
           ! Spin Projection defaults
@@ -1444,19 +1446,23 @@ contains
 
             case("ALLREALCOEFF")
                 tAllRealCoeff=.true.
+                tUseRealCoeffs = .true.
                 !Turn on continuous spawning/death
                 !Kill populations n<1 with probability 1-n
             case("REALCOEFFBYEXCITLEVEL")
                 tRealCoeffByExcitLevel=.true.
+                tUseRealCoeffs = .true.
                 call readi(RealCoeffExcitThresh)
             case("KEEPWALKSMALL")
                 tEnhanceRemainder=.false.
                 !When we do the removal step with AllRealCoeff, on the occasions where these pops are *not* removed,
                 !Keep their population the same, rather than resetting as a value of 1 (which is technically correct)
-                !This "bug" produced initiator-like (no plateau) behaviour, so is of interest
+                !This "bug" produced initiator-like (no plateau) behaviour, so may be of interest
             case("REALSPAWNCUTOFF")
                 tRealSpawnCutoff=.true.
                 call Getf(RealSpawnCutoff)
+            case("SETOCCUPIEDTHRESH")
+                call Getf(OccupiedThresh)
 
             case default
                 call report("Keyword "                                &
@@ -1465,7 +1471,7 @@ contains
 
           end do calc
 
-          IF((.not.TReadPops).and.(ScaleWalkers.ne.1.D0)) THEN
+          IF((.not.TReadPops).and.(ScaleWalkers.ne.1.0_dp)) THEN
               call report("Can only specify to scale walkers if READPOPS is set",.true.)
           ENDIF
 
@@ -1845,7 +1851,7 @@ contains
         
           IF(TMONTE.AND.TENERGY.AND.NTAY(1).EQ.-1) THEN
              WRITE(6,*) "Calculating Exact MC Energy..."
-             EN=DOEXMC(NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,0.D0,IMCSTEPS,G1,NMRKS,NEL,NBASISMAX,nBasis,BRR,IEQSTEPS)
+             EN=DOEXMC(NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,0.0_dp,IMCSTEPS,G1,NMRKS,NEL,NBASISMAX,nBasis,BRR,IEQSTEPS)
           ENDIF
           IF(TBEGRAPH) THEN
              STOP 'BEGRAPH not implemented'
@@ -1907,6 +1913,7 @@ contains
 
 
       subroutine inpgetmethod(I_HMAX,NWHTAY,I_V)
+         use constants
          use input_neci
          use UMatCache , only : TSTARSTORE
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
@@ -2025,7 +2032,7 @@ contains
                        I_HMAX = -19
                    end select
                   tMCDirectSum=.FALSE.
-                  IF(I_V.GT.0) g_MultiWeight(I_V)=1.D0
+                  IF(I_V.GT.0) g_MultiWeight(I_V)=1.0_dp
                case("MCDIRECT")
                   I_HMAX = -7
                   tMCDirectSum=.TRUE.
@@ -2034,11 +2041,11 @@ contains
                    case("HDIAG")
                        I_HMAX = -19
                    end select
-                  G_VMC_FAC=0.D0
+                  G_VMC_FAC=0.0_dp
                case("MCMP")
                   tMCDirectSum=.TRUE.
                   I_HMAX = -19
-                  G_VMC_FAC=0.D0
+                  G_VMC_FAC=0.0_dp
                   TMPTHEORY=.TRUE.
                case("GRAPHMORPH")
                    TGraphMorph=.true.
@@ -2184,15 +2191,15 @@ contains
          real(dp) ALAT(4),CST,TMAT,CALCT2
          LOGICAL ISCSF_old
 
-         CALCT2=0.D0
+         CALCT2=0.0_dp
          IF(iscsf_old(NI,NEL)) RETURN
 
          !===============================
          if (TUEG2) then
             DO J=1,NEL
                  I=NI(J)
-                 TMAT=kvec(I, 1)**2+kvec(I, 2)**2+kvec(I, 3)**2
-                 TMAT=0.5d0*TMAT*k_lattice_constant**2
+                 TMAT=real(kvec(I, 1)**2+kvec(I, 2)**2+kvec(I, 3)**2, dp)
+                 TMAT=0.5_dp*TMAT*k_lattice_constant**2
                  CALCT2=CALCT2+TMAT
             ENDDO
             return

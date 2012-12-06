@@ -14,7 +14,7 @@ C.. ETRIAL, but ETRIAL not longer has a function
          INTEGER IGETEXCITLEVEL
          real(dp) BTRANS(*),GETHELEMENT2T
          IC=IC2
-         GETHELEMENT2T=0.D0
+         GETHELEMENT2T=0.0_dp
          IF(IC.LT.0) IC=IGETEXCITLEVEL(NI,NJ,NEL)
 C.. if we differ by more than 2 spin orbital, then the hamiltonian
 Celement is 0         
@@ -50,9 +50,9 @@ C..Need to get the determinants in the form of max. coincidence
       N2E(1:NHG)=0
 C..Also returns the sign change IPTOT
       CALL LINEUP(NEL,NDET1,NDET2,NHG,N1E,N2E,IFLAG,IPTOT)
-      TOTSUM=0.D0
+      TOTSUM=0.0_dp
 C..We now check to see which Slater-Condon rule to apply
-      COULCOUPLE=1.D0
+      COULCOUPLE=1.0_dp
       IF(IC.EQ.(NEL-2)) THEN
 C..Differ by two 
         CALL SCR2T(NEL,NDET1,NDET2,
@@ -74,7 +74,7 @@ C            TOTSUM=TOTSUM-NEL*REAL(FCK(0,0,0))/2
 
 C         ENDIF
       ELSE
-        TOTSUM=0.D0
+        TOTSUM=0.0_dp
         RETURN
       ENDIF
       TOTSUM=TOTSUM*real(IPTOT,dp)
@@ -98,11 +98,11 @@ C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
 
 C.. Basis transformation matrix.  
          real(dp) BTRANS(NSBASIS,NSBASIS,NSPINS)
-         PI=ACOS(-1.D0)
+         PI=ACOS(-1.0_dp)
 C..This is the Slater-Condon rule when the two determinants are the
 C*SAME*
-         SUM1=0.D0
-         SUM2=0.D0
+         SUM1=0.0_dp
+         SUM2=0.0_dp
 C..We must first do the one electron integrals
          DO I=1,NEL
 C.. we extract the KEs from TMAT
@@ -203,7 +203,7 @@ C         ID2 = GTID(ND2)
 C..
 C      CALL CHK(G(4,ND1),G(4,ND2),IDS)
 C..
-         SUM2=0.D0
+         SUM2=0.0_dp
          DO I=1,NEL-1
 C.. non-transformed version
 C        SUM2=SUM2+(UMAT(ID1,ID(I),ID2,ID(I))*DFLOAT(IDS)-
@@ -247,7 +247,7 @@ C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
          real(dp) COULCOUPLE,TOTSUM,SUM2,TRUMAT
          real(dp) BTRANS(NSBASIS,NSBASIS,NSPINS)
          INTEGER I,J,K,IQ
-         TOTSUM=0.D0
+         TOTSUM=0.0_dp
 C..Here we zero ND1 and ND2
          DO I=1,2
             ND1(I)=0
@@ -295,7 +295,7 @@ C      CALL GENKRON(G1,NBASISMAX,ND1,ND2,IDS)
 C..N'>N'-1 and N>N-1 *See Levine for rule 3*
 C      TOTSUM=UMAT(ID1,ID2,ID3,ID4)*DFLOAT(IDS(1)*IDS(2))-
 C     &      UMAT(ID1,ID2,ID4,ID3)*DFLOAT(IDS(3)*IDS(4))
-C      IF(TOTSUM.NE.0.D0) CALL CHK_MS(NDET1,NDET2,NBASISMAX,
+C      IF(TOTSUM.NE.0.0_dp) CALL CHK_MS(NDET1,NDET2,NBASISMAX,
 C     &   NEL,3,G)
       
          CALL GETTRUMATEL(ND1(2),ND1(1),ND2(2),ND2(1),
@@ -337,21 +337,21 @@ C..  matrix
          CE=(C-1)/NSPINS+1
          DE=(D-1)/NSPINS+1
          IF(ASPN.NE.CSPN.AND.BSPN.NE.DSPN) THEN
-            TOTSUM=0.D0
+            TOTSUM=0.0_dp
             RETURN
          ENDIF
-         TOTSUM=0.D0
+         TOTSUM=0.0_dp
          DO I=1,NSBASIS
 C.. We have to generate the normal basis number corresponding to I
 C.. and then from it get the ID within UMAT
             IDI = GTID((I-1)*NSPINS+1+ASPN-1)
-            SUM1=0.D0
+            SUM1=0.0_dp
             DO J=1,NSBASIS
                IDJ = GTID((J-1)*NSPINS+1+BSPN-1)
-               SUM2=0.D0
+               SUM2=0.0_dp
                DO K=1,NSBASIS
                   IDK = GTID((K-1)*NSPINS+1+CSPN-1)
-                  SUM3=0.D0
+                  SUM3=0.0_dp
                   DO L=1,NSBASIS
                      IDL = GTID((L-1)*NSPINS+1+DSPN-1)
                      SUM3=SUM3+(BTRANS(DE,L,DSPN))*
@@ -387,14 +387,14 @@ C..  matrix
          AE=(A-1)/NSPINS+1
          CE=(C-1)/NSPINS+1
          IF(ASPN.NE.CSPN) THEN
-            TOTSUM=0.D0
+            TOTSUM=0.0_dp
             RETURN
          ENDIF
-         TOTSUM=0.D0
+         TOTSUM=0.0_dp
          DO I=1,NSBASIS
 C.. We have to generate the normal basis number corresponding to I
             IDI=(I-1)*NSPINS+1+ASPN-1
-            SUM2=0.D0
+            SUM2=0.0_dp
             DO K=1,NSBASIS
                IDK=(K-1)*NSPINS+1+CSPN-1
                SUM2=SUM2+BTRANS(CE,K,CSPN)*
