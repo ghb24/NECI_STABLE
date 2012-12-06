@@ -6,24 +6,28 @@ module semi_stochastic
                             flag_determ_parent, deterministic_mask, determ_parent_mask, &
                             flag_is_initiator
     use bit_reps, only: NIfD, NIfTot, decode_bit_det, encode_bit_rep, set_flag
-    use CalcData, only: tRegenDiagHEls, tau, tSortDetermToTop, tTruncInitiator, DiagSft
+    use CalcData, only: tRegenDiagHEls, tau, tSortDetermToTop, tTruncInitiator, DiagSft, &
+                        occCASorbs, virtCASorbs
     use csf, only: csf_get_yamas, get_num_csfs, get_csf_bit_yama, csf_apply_yama
     use csf_data, only: iscsf, csf_orbital_mask
     use constants
-    use DetBitOps, only: ilut_lt, ilut_gt, count_open_orbs, FindBitExcitLevel
+    use DetBitOps, only: ilut_lt, ilut_gt, count_open_orbs, FindBitExcitLevel, DetBitLT, &
+                         count_set_bits
     use Determinants, only: get_helement
     use enumerate_excitations
     use FciMCData, only: HFDet, ilutHF, iHFProc, Hii, CurrentDets, CurrentH, &
                          deterministic_proc_sizes, deterministic_proc_indices, &
                          full_determ_vector, partial_determ_vector, core_hamiltonian, &
                          determ_space_size, TotWalkers, TotWalkersOld, &
-                         indices_of_determ_states
+                         indices_of_determ_states, ProjEDet
     use hash , only : DetermineDetNode
     use hphf_integrals, only: hphf_diag_helement
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIBarrier, &
                              MPIAllGatherV
     use sort_mod, only: sort
-    use SystemData, only: nel, tHPHF, tCSFCore, tDeterminantCore, Stot, lms
+    use sym_mod, only: getsym
+    use SystemData, only: nel, tHPHF, tCSFCore, tDeterminantCore, tCASCore, Stot, lms, &
+                          BasisFN, nBasisMax, BRR, tSpn, cas_bitmask, cas_not_bitmask
 
     implicit none
 
@@ -62,6 +66,9 @@ contains
         else if (tCSFCore) then
             tSortDetermToTop = .true.
             call generate_csfs()
+        else if (tCASCore) then
+            tSortDetermToTop = .true.
+            call generate_cas()
         else
             call stop_all("init_semi_stochastic", "The nature of the core basis functions &
                              &has not been specified.")
@@ -77,8 +84,13 @@ contains
         full_determ_vector = 0.0_dp
         partial_determ_vector = 0.0_dp
 
+        ! Write space sizes to screen.
+        write(6,*), "Total size of deterministic space:", determ_space_size
+        write(6,*), "Size of deterministic space on this processor:", &
+                    deterministic_proc_sizes(iProcIndex)
+
         ! Also allocate the vector to store the positions of the deterministic states in
-        ! CurrentDets
+        ! CurrentDets.
         allocate(indices_of_determ_states(deterministic_proc_sizes(iProcIndex)))
 
         TotWalkers = int(deterministic_proc_sizes(iProcIndex), int64)
@@ -280,6 +292,81 @@ contains
 
     end subroutine generate_csfs
 
+    subroutine generate_cas()
+
+        type(BasisFN) :: CASSym
+        integer(n_int) ::ilut(0:NIfTot)
+        integer :: CASSpinBasisSize, elec, nCASDet, i, j, comp
+        integer, allocatable :: CASBrr(:), CASRef(:)
+        integer, pointer :: CASDets(:,:) => null()
+
+        ! This option should be true, as it tells the subroutine gndts to only consider states
+        ! with an Ms value in the correct spin subspace.
+        if (.not. tSpn) call stop_all("generate_cas", "tSpn is not set to true.")
+
+        CASSpinBasisSize = OccCASorbs + VirtCASorbs
+        allocate(CASBrr(1:CASSpinBasisSize))
+        allocate(CASRef(1:OccCasOrbs))
+        do i = 1, CASSpinBasisSize
+            ! Run through the cas space, and create an array which will map these orbtials to the
+            ! orbitals they actually represent.
+            ! i.e. CASBRR(1) will store the lowest energy orbital in the CAS space and
+            ! CASBRR(CASSpinBasisSize) will store the highest energy orbital in the CAS space.
+            CASBrr(i) = BRR(i + (NEl - OccCasorbs))
+        end do
+
+        ! Create a bit mask which has 1's in the bits which represent active orbitals and 0's in
+        ! all other orbitals.
+        allocate(cas_bitmask(0:NIfD))
+        allocate(cas_not_bitmask(0:NIfD))
+        cas_bitmask = 0
+        do i = 1, CASSpinBasisSize
+            set_orb(cas_bitmask, CASBRR(i))
+        end do
+        cas_not_bitmask = not(cas_bitmask)
+
+        elec = 1
+        do i = NEl-OccCasOrbs+1, NEl
+            ! CASRef(elec) will store the orbital number of the electron elec in the reference
+            ! state, HFDet. elec runs from 1 to the number of electrons in the active space.
+            CASRef(elec) = HFDet(i)
+            elec = elec + 1
+        end do
+
+        call GetSym(CASRef, OccCASOrbs, G1, nBasisMax, CASSym)
+
+        ! First, generate all excitations so we know how many there are, to allocate the arrays.
+        call gndts(OccCASorbs, CASSpinBasisSize, CASBrr, nBasisMax, CASDets, &
+                              .true., G1, tSpn, LMS, .true., CASSym, nCASDet, CASRef)
+
+        if (nCASDet == 0) call stop_all("generate_cas","No CAS determinants found.")
+
+        allocate(CASDets(OccCASorbs, nCASDet))
+        CASDets(:,:) = 0
+
+        ! Now fill up CASDets...
+        call gndts(OccCASorbs, CASSpinBasisSize, CASBrr, nBasisMax, CASDets, &
+                              .false., G1, tSpn, LMS, .true., CASSym, nCASDet, CASRef)
+
+        do i = 1, nCASDet
+            ! First, create the bitstring representing this state:
+            ! Start from the HF determinant and apply cas_not_bitmask to clear all active space
+            ! orbitals.
+            ilut(0:NifD) = iand(ilutHF(0:NifD), cas_not_bitmask)
+            ! Then loop through the occupied orbitals in the CAS space, stored in CASDets(:,i),
+            ! and set the corresponding bits.
+            do j = 1, OccCASorbs
+                set_orb(ilut, CASDets(j,i))
+            end do
+            ! The function gndts always outputs the reference state. This is already included, so
+            ! we want to cycle when we get to this state.
+            comp = DetBitLT(ilut, ilutHF, NIfD, .false.)
+            if (comp == 0) cycle
+            call add_basis_state_to_list(ilut)
+        end do
+
+    end subroutine generate_cas
+
     subroutine add_basis_state_to_list(ilut, nI_in)
 
         ! This subroutine, called from init_semi_stochastic, takes a bitstring, finds
@@ -335,8 +422,9 @@ contains
         !                       deterministic space, and false if not.
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer(n_int) :: ilut_temp1(0:NIfD), ilut_temp2(0:NIfD)
         logical, intent(out) :: tInDetermSpace
-        integer :: IC
+        integer :: IC, bits_set
 
         tInDetermSpace = .false.
 
@@ -346,6 +434,21 @@ contains
         else if (tCSFCore) then
             IC = FindBitExcitLevel(ilut, ilutHF)
             if (IC <= 2) tInDetermSpace = .true.
+        else if (tCASCore) then
+            ilut_temp1 = iand(cas_not_bitmask, ilut(0:NIfD))
+            ilut_temp2 = iand(ilut_temp1, ilutHF(0:NIfD))
+            bits_set = sum(count_set_bits(ilut_temp2))
+            if (bits_set /= Nel - occCASorbs) then
+                tInDetermSpace = .false.
+                return
+            end if
+            ilut_temp2 = iand(ilut_temp1, not(ilutHF(0:NIfD)))
+            bits_set = sum(count_set_bits(ilut_temp2))
+            if (bits_set /= 0) then
+                tInDetermSpace = .false.
+                return
+            end if
+            tInDetermSpace = .true.
         end if
 
     end subroutine check_if_in_determ_space

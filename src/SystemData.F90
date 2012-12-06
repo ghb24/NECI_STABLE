@@ -74,6 +74,11 @@ logical :: tSemiStochastic ! Performing a semi-stochastic simulation if true.
 ! semi-stochastic simulation, to specify the deterministic space.
 logical :: tCSFCore ! Use CSFs for the core states.
 logical :: tDeterminantCore ! Use determinants for the core states.
+logical :: tCASCore ! Use Determinants where orbitals within an active space can differ from the Hartree-Fock for core states.
+! cas_bitmask has all bits that refer to the active space set, and all other bits unset.
+! cas_not_bitmask is simply the result after the not operation is applied to cas_bitmask.
+integer, allocatable, dimension(:) :: cas_bitmask
+integer, allocatable, dimension(:) :: cas_not_bitmask
 
 ! Calculate size of FCI determinant space using MC
 logical :: tMCSizeSpace,tMCSizeTruncSpace

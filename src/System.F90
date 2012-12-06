@@ -2,7 +2,8 @@
 MODULE System
 
     use SystemData
-    use CalcData, only: tRotoAnnihil, TAU, tTruncInitiator, InitiatorWalkNo
+    use CalcData, only: tRotoAnnihil, TAU, tTruncInitiator, InitiatorWalkNo, &
+                        occCASorbs, virtCASorbs
     use sort_mod
     use SymExcitDataMod, only: tBuildOccVirtList
     use constants, only: dp,int64
@@ -80,6 +81,7 @@ MODULE System
       tSemiStochastic = .false.
       tCSFCore = .false.
       tDeterminantCore = .false.
+      tCASCore = .false.
       STOT=0
       TPARITY = .false.
       IParity(:)=0
@@ -342,6 +344,11 @@ MODULE System
             tCSFCore = .true.
             tCSF = .true.
             LMS = STOT
+        case("CAS-CORE")
+            tCASCore = .true.
+            tSpn = .true.
+            call geti(OccCASOrbs)  !Number of electrons in CAS 
+            call geti(VirtCASOrbs)  !Number of virtual spin-orbitals in CAS
         case("DETERMINANT-CORE")
             tDeterminantCore = .true.
         case("SYMIGNOREENERGIES")
