@@ -2582,7 +2582,12 @@ MODULE GenRandSymExcitNUMod
             ENDIF
         ENDIF
         ! Note, p(b|ij)=p(a|ij) for this system
-        pGen=(2.0_dp/(NEl*(NEl-1)))*2.0_dp*pAIJ
+        if (tUEG) then
+            pGen=2.0_dp/(NEl*(NEl-1))*2.0_dp*pAIJ
+        else ! i.e. if hubbard model, use modified probabilities
+            ! hubbard model can't spawn alpha/alpha and beta/beta type excitations
+            pGen=1.0_dp/(nOccAlpha*nOccBeta)*2.0_dp*pAIJ
+        endif
 
     END SUBROUTINE CalcPGenLattice
 
