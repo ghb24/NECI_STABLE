@@ -4,14 +4,15 @@
 module csf
     use constants, only: sizeof_int
     use systemdata, only: nel, brr, ecore, alat, nmsh, nbasismax, G1, nbasis,&
-                          LMS, iSpinSkip, STOT, ECore
+                          LMS, iSpinSkip, STOT, ECore, modk_offdiag
     use memorymanager, only: LogMemAlloc, LogMemDealloc
     use integralsdata, only: umat, fck, nmax
     use constants, only: dp, n_int, lenof_sign
     use dSFMT_interface, only: genrand_real2_dSFMT
     use sltcnd_mod, only: sltcnd, sltcnd_2
     use DetBitOps, only: EncodeBitDet, FindBitExcitLevel, count_open_orbs, &
-                         get_bit_open_unique_ind, FindSpatialBitExcitLevel
+                         get_bit_open_unique_ind, FindSpatialBitExcitLevel, &
+                         DetBitEq
     use CalcData, only: InitiatorWalkNo
     use OneEInts, only: GetTMatEl
     use Integrals_neci, only: GetUMatEl
@@ -91,7 +92,11 @@ contains
         if ( (.not. bCSF(1)) .and. (.not. bCSF(2)) ) then
             ! Once again, pass things through better
             hel_ret = sltcnd (nI, iLutI, iLutJ, IC)
-            if (IC == 0) hel_ret = hel_ret + ECore
+            if (IC == 0) then
+                hel_ret = hel_ret + ECore
+            else if (modk_offdiag) then
+                hel_ret = -abs(hel_ret)
+            end if
             return
         endif
 
@@ -154,6 +159,13 @@ contains
             hel_ret = get_csf_helement_det (nJ, iLutI, nopen, nclosed, nup, &
                                             ndets)
         endif
+
+        if (modk_offdiag) then
+            if (IC /= 0 .or. .not. DetBitEq(ilutI, ilutJ)) then
+                hel_ret = -abs(hel_ret)
+            end if
+        end if
+
     end function
 
     function get_csf_helement_local (nI, nJ, iLutI, iLutJ, nopen, nclosed, &

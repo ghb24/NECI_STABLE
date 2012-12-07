@@ -23,7 +23,7 @@ MODULE AnnihilationMod
                         extract_part_sign, copy_flag
     use csf_data, only: csf_orbital_mask
     use hist_data, only: tHistSpawn, HistMinInd2
-    use Logging , only : tHF_S_D_Ref, IterRDMonFly, tHF_S_D
+    use Logging , only : tHF_Ref_Explicit
     IMPLICIT NONE
 
     contains
@@ -268,7 +268,7 @@ MODULE AnnihilationMod
             recvdisps(i)=recvdisps(i-1)+recvcounts(i-1)
         enddo
         MaxIndex=recvdisps(nProcessors)+recvcounts(nProcessors)
-        IF(tFillingStochRDMonFly) THEN            
+        IF(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) THEN            
             ! When we are filling the RDM, the SpawnedParts array contains 
             ! | Dj (0:NIfTot) | Di (0:NIfDBO) | Ci (1) | 
             ! All this needs to be passed around to the processor where Dj will be stored if 
@@ -408,7 +408,7 @@ MODULE AnnihilationMod
                 !               explicitly searching the list.
                 SpawnedParts2(:,VecInd)=SpawnedParts(:,BeginningBlockDet)   !Transfer all info to the other array
 
-                IF(tFillingStochRDMonFly) THEN
+                IF(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) THEN
                     ! SpawnedParts contains the determinants spawned on (Dj), and it's parent (Di) plus it's sign (Cj).
                     ! As in | Dj | Di | Ci |
                     ! We then compress multiple occurances of Dj, but these may have come from different parents, and 
@@ -417,17 +417,24 @@ MODULE AnnihilationMod
                     ! If the compressed Dj is at position VecInd in SpawnedParts, then Spawned_Parents_Index(1,VecInd) 
                     ! is the starting point of it's parents (Di) in Spawned_Parents, and there are 
                     ! Spawned_Parents_Index(2,VecInd) entries corresponding to this Dj.
-                    Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = SpawnedParts(NIfTot+1:NIfTot+NIfDBO+2,BeginningBlockDet)
-                    ! The first NIfDBO of the Spawned_Parents entry is the parent determinant, the NIfDBO + 1 entry is the biased Ci.
-                    ! Parent_Array_Ind keeps track of the position in Spawned_Parents.
-                    Spawned_Parents_Index(1,VecInd) = Parent_Array_Ind
-                    Spawned_Parents_Index(2,VecInd) = 1
-                    ! In this case there is only one instance of Dj - so therefore only 1 parent Di.
-                    Parent_Array_Ind = Parent_Array_Ind + 1
+                    if(.not.(DetBitZero(SpawnedParts(NIfTot+1:NIfTot+NIfDBO+1,BeginningBlockDet),NIfDBO))) then
+                        ! If the parent determinant is null, the contribution to the RDM is zero.  
+                        ! No point in doing anything more with it.
+
+                        Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = SpawnedParts(NIfTot+1:NIfTot+NIfDBO+2,BeginningBlockDet)
+                        ! The first NIfDBO of the Spawned_Parents entry is the parent determinant, the NIfDBO + 1 entry is the biased Ci.
+                        ! Parent_Array_Ind keeps track of the position in Spawned_Parents.
+                        Spawned_Parents_Index(1,VecInd) = Parent_Array_Ind
+                        Spawned_Parents_Index(2,VecInd) = 1
+                        ! In this case there is only one instance of Dj - so therefore only 1 parent Di.
+                        Parent_Array_Ind = Parent_Array_Ind + 1
+                    else
+                        Spawned_Parents_Index(1,VecInd) = Parent_Array_Ind
+                        Spawned_Parents_Index(2,VecInd) = 0
+                    endif
                     call extract_sign (SpawnedParts(:,BeginningBlockDet), temp_sign)
-                    if(temp_sign(1).eq.0) then
+                    if(IsUnoccDet(temp_sign)) then
                         Spawned_Parts_Zero = Spawned_Parts_Zero + 1
-                        GhostSpawns = GhostSpawns + 1
                     endif
                 ENDIF
                 VecInd=VecInd+1
@@ -438,7 +445,7 @@ MODULE AnnihilationMod
             ! Reset the cumulative determinant
             cum_det = 0
             cum_det (0:nifdbo) = SpawnedParts(0:nifdbo, BeginningBlockDet)
-            IF(tFillingStochRDMonFly) THEN
+            IF(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) THEN
                 ! This is the first Dj determinant - set the index for the beginning of where 
                 ! the parents for this Dj can be found in Spawned_Parents.
                 Spawned_Parents_Index(1,VecInd) = Parent_Array_Ind
@@ -499,7 +506,7 @@ MODULE AnnihilationMod
             ! Copy details into the final array
             call extract_sign (cum_det, temp_sign)
 
-            if ((sum(abs(temp_sign)) > 0).or.tFillingStochRDMonFly) then
+            if ((sum(abs(temp_sign)) > 0).or.(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit))) then
                 ! Transfer all info into the other array.
                 ! Usually this is only done if the final sign on the compressed Dj is not equal to zero.
                 ! But in the case of the stochastic RDM, we are concerned with the sign of Dj in the CurrentDets 
@@ -513,7 +520,7 @@ MODULE AnnihilationMod
                 ! Spawned_Parts_Zero is the number of spawned parts that are zero after compression 
                 ! of the spawned_parts list - and should have been 
                 ! removed from SpawnedParts if we weren't calculating the RDM. - need this for a check later.
-                if(temp_sign(1).eq.0) Spawned_Parts_Zero = Spawned_Parts_Zero + 1
+                if(IsUnoccDet(temp_sign)) Spawned_Parts_Zero = Spawned_Parts_Zero + 1
             else
                 ! All particles from block have been annihilated.
                 DetsMerged = DetsMerged + EndBlockDet - BeginningBlockDet + 1
@@ -525,7 +532,7 @@ MODULE AnnihilationMod
 
         enddo   
 
-        IF(tFillingStochRDMonFly) No_Spawned_Parents = Parent_Array_Ind - 1
+        IF(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) No_Spawned_Parents = Parent_Array_Ind - 1
         ValidSpawned=ValidSpawned-DetsMerged    !This is the new number of unique spawned determinants on the processor
         IF(ValidSpawned.ne.(VecInd-1)) THEN
             CALL Stop_All(this_routine,"Error in compression of spawned list")
@@ -541,6 +548,7 @@ MODULE AnnihilationMod
 !            WRITE(6,*) SpawnedParts(:,i)
 !        enddo
 !
+
 !        WRITE(6,*) 'Spawned Parents'
 !        do i = 1, No_Spawned_Parents
 !            WRITE(6,*) Spawned_Parents(:,i)
@@ -639,10 +647,9 @@ MODULE AnnihilationMod
 
         if (new_sgn == 0) then
             ! New sign is just an entry from SpawnedParts - this should only ever be zero
-            ! in the complex case, or if we're spawning ghost children.
+            ! in the complex case. 
             ! If it is 0 and we're not filling the RDM (and therefore filling up the 
             ! Spawned_Parents array), can just ignore the zero entry.
-            GhostSpawns = GhostSpawns + 1
             if(.not.tFillingStochRDMonFly) return
         endif
         cum_sgn = extract_part_sign (cum_det, part_type)
@@ -710,7 +717,7 @@ MODULE AnnihilationMod
 
         ! Obviously only add the parent determinant into the parent array if it is 
         ! actually being stored - and is therefore not zero.
-        if(tFillingStochRDMonFly.and.&
+        if((tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)).and.&
             (.not.DetBitZero(new_det(NIfTot+1:NIfTot+NIfDBO+1),NIfDBO))) then
             ! No matter what the final sign is, always want to add any Di stored in 
             ! SpawnedParts to the parent array.
@@ -729,6 +736,7 @@ MODULE AnnihilationMod
 !In the main list, we change the 'sign' element of the array to zero. 
 !These will be deleted at the end of the total annihilation step.
     SUBROUTINE AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew, iter_data)
+        use nElRDMMod , only : check_fillRDM_DiDj
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer, intent(inout) :: TotWalkersNew
         integer, intent(inout) :: ValidSpawned 
@@ -736,7 +744,7 @@ MODULE AnnihilationMod
         INTEGER, DIMENSION(lenof_sign) :: SignProd,CurrentSign,SpawnedSign,SignTemp
         INTEGER :: ExcitLevel, nJ(NEl),DetHash,FinalVal,clash,walkExcitLevel, dettemp(NEl)
         INTEGER(KIND=n_int) , POINTER :: PointTemp(:,:)
-        LOGICAL :: tSuccess,tSuc
+        LOGICAL :: tSuccess,tSuc,tPrevOcc
         character(len=*), parameter :: this_routine="AnnihilateSpawnedParts"
 
         if(.not.bNodeRoot) return  !Only node roots to do this.
@@ -813,14 +821,6 @@ MODULE AnnihilationMod
 !            call WriteBitDet(6,SpawnedParts(:,i),.true.)
 !            call WriteBitDet(6,CurrentDets(:,PartInd),.true.)
 
-!            IF(tFillingRDMonFly) THEN
-!                WRITE(6,*) 'SpawnedParts(:,i)',SpawnedParts(:,i)
-!                WRITE(6,*) 'Parents of this part'
-!                do j = Spawned_Parents_Index(1,i),Spawned_Parents_Index(1,i)+Spawned_Parents_Index(2,i)-1
-!                    WRITE(6,*) Spawned_Parents(:,j)
-!                enddo
-!            ENDIF
-
 !            WRITE(6,*) 'i,SpawnedParts(:,i)',i,SpawnedParts(:,i)
 
             IF(tSuccess) THEN
@@ -842,28 +842,8 @@ MODULE AnnihilationMod
                 ! If the SpawnedPart is found in the CurrentDets list, it means that the Dj has a non-zero 
                 ! cj - and therefore the Di.Dj pair will have a non-zero ci.cj to contribute to the RDM.
                 ! The index i tells us where to look in the parent array, for the Di's to go with this Dj.
-                if(tFillingStochRDMonFly) then
-                    ! In all cases, we've already symmetrically added in 
-                    ! connections to the HF, so we don't want to re add any pair 
-                    ! containing the HF.
-                    if(tHF_S_D) then 
-                        ! In the case of the HF S D matrix (symmetric), Di and Dj can both 
-                        ! be the HF, singles or doubles.
-                        ! This is the excitation level of Dj.
-                        ExcitLevel = FindBitExcitLevel (iLutHF_True, CurrentDets(:,PartInd), 2)
-                        if((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) &
-                            CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
-                    elseif(tHF_S_D_Ref) then
-                        ! In the case of the HF and singles and doubles Ref, 
-                        ! Di is only ever the HF, and Dj is 
-                        ! anything connected - i.e. up to quadruples.
-                        ExcitLevel = FindBitExcitLevel (iLutHf_True, CurrentDets(:,PartInd), 4)
-                        if((ExcitLevel.le.4).and.(ExcitLevel.ne.0)) &
-                            CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
-                    elseif(.not.DetBitEQ(iLutHF_True,CurrentDets(:,PartInd),NIfDBO)) then
-                        CALL DiDj_Found_FillRDM(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
-                    endif
-                endif
+                if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) &
+                    call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
 
                 if(sum(abs(CurrentSign)) .ne. 0) then
                     !Transfer across
@@ -907,7 +887,8 @@ MODULE AnnihilationMod
                                         ! of sign.
                                         if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(j))) then
                                             NoAborted = NoAborted + abs(SpawnedSign(j)) - abs(CurrentSign(j))
-                                            iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j)) - abs(CurrentSign(j))
+                                            iter_data%naborted(j) = iter_data%naborted(j) + &
+                                                                    abs(SpawnedSign(j)) - abs(CurrentSign(j))
                                             call encode_part_sign (CurrentDets(:,PartInd), 0, j)
                                         endif
                                     endif
@@ -982,6 +963,11 @@ MODULE AnnihilationMod
                     !
                     ! If flag_make_initiator is set, then obviously these are allowed to survive
                     call extract_sign (SpawnedParts(:,i), SignTemp)
+
+                    !If we abort these particles, we'll still need to add them to ToRemove
+                    tPrevOcc=.false.
+                    if (.not. IsUnoccDet(SignTemp)) tPrevOcc=.true.   
+                        
                     do j = 1, lenof_sign
                         if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(j)) .and. &
                             .not. test_flag (SpawnedParts(:,i), flag_make_initiator(j))) then
@@ -1004,7 +990,7 @@ MODULE AnnihilationMod
                             ! We've already counted the walkers where SpawnedSign become zero in the compress,
                             ! and in the merge, all that's left is those which get aborted which are counted here
                             ! only if the sign was not already zero (when it already would have been counted).
-                            if(SignTemp(j).ne.0) ToRemove = ToRemove + 1
+!                            if(SignTemp(j).ne.0) ToRemove = ToRemove + 1
                             SignTemp(j) = 0
                             call encode_part_sign (SpawnedParts(:,i), 0, j)
 
@@ -1019,10 +1005,12 @@ MODULE AnnihilationMod
                             endif
                         endif
                     enddo
-!                    if (IsUnoccDet(SignTemp)) then
-!                        ! All particle 'types' have been aborted
-!                        ToRemove = ToRemove + 1
-                    if(tHashWalkerList.and.(.not.IsUnoccDet(SignTemp))) then
+                    if (IsUnoccDet(SignTemp) .and. tPrevOcc) then
+                        ! All particle 'types' have been aborted
+!                        The zero sign has already been taken into account in Spawned_Parts_Zero, if it was zero
+!                        directly after the compress. Only add in here if not already taken care of there.
+                         ToRemove = ToRemove + 1
+                    elseif(tHashWalkerList) then
                         !Walkers have not been aborted, and so we should copy the determinant straight over to the main list
                         !We do not need to recompute the hash, since this should be the same one as was generated at the
                         !beginning of the loop
@@ -1318,13 +1306,14 @@ MODULE AnnihilationMod
 !the annihilation process. Therefore we will not multiply specify determinants when we merge the lists.
     SUBROUTINE InsertRemoveParts(ValidSpawned,TotWalkersNew)
         use util_mod, only: abs_int_sign
-        use SystemData, only: tHPHF
+        use SystemData, only: tHPHF, tRef_Not_HF
         use bit_reps, only: NIfD
-        use CalcData , only : tCheckHighestPop
-        use Logging , only : tRDMonFly, tExplicitAllRDM
+        use CalcData , only : tCheckHighestPop, NMCyc, InitiatorWalkNo
+        use Logging , only : tRDMonFly, tExplicitAllRDM, tInitiatorRDM
+        use nElRDMMod , only : det_removed_fill_diag_rdm 
         INTEGER, intent(in) :: ValidSpawned
         integer, intent(inout) :: TotWalkersNew
-        INTEGER :: i,DetsMerged,nJ(NEl),part_type
+        INTEGER :: i,DetsMerged,nJ(NEl),part_type, ExcitLevelCurr
         INTEGER, DIMENSION(lenof_sign) :: CurrentSign,SpawnedSign
         real(dp) :: HDiag
         LOGICAL :: TestClosedShellDet
@@ -1344,10 +1333,22 @@ MODULE AnnihilationMod
             do i=1,TotWalkersNew
                 call extract_sign(CurrentDets(:,i),CurrentSign)
 
-                if(i.eq.HFInd) InstNoatHF = CurrentSign
+                if(i.eq.HFInd)  InstNoatHF = CurrentSign
 
                 IF(IsUnoccDet(CurrentSign)) THEN
                     DetsMerged=DetsMerged+1
+                    if(tFillingStochRDMonFly) &
+                        call det_removed_fill_diag_rdm(CurrentDets(:,i), CurrentH(1:NCurrH,i))
+                    if(i.eq.HFInd) then
+                        !We have to do this such that AvNoAtHF matches up with AvSign.
+                        !AvSign is extracted from CurrentH, and if the HFDet is unoccupied
+                        !at this moment during annihilation, it's CurrentH entry is removed
+                        !and the averaging information in it is lost.
+                        !In some cases (a successful spawning event) a CurrentH entry will
+                        !be recreated, but with AvSign 0, so we must match this here.
+                        AvNoAtHF=0.0_dp 
+                        IterRDM_HF = Iter + 1 
+                    endif
                     IF(tTruncInitiator) THEN
                         do part_type=1,lenof_sign
                             if (test_flag(CurrentDets(:,i),flag_parent_initiator(part_type))) then
@@ -1444,7 +1445,7 @@ MODULE AnnihilationMod
 !We want to calculate the diagonal hamiltonian matrix element for the new particle to be merged.
                     if (DetBitEQ(CurrentDets(:,i), iLutRef, NIfDBO)) then
 !We know we are at HF - HDiag=0
-                        HDiag=0.D0
+                        HDiag=0.0_dp
                         call extract_sign(CurrentDets(:,i),InstNoatHF)
                     else
                         call decode_bit_det (nJ, CurrentDets(:,i))
@@ -1489,59 +1490,9 @@ MODULE AnnihilationMod
 !                        (RandomHash(mod(nI(i)+offset-1,int(nBasis,int64))+1) * i)
             enddo
         endif
-        hashInd = int(abs(mod(hash, int(nWalkerHashes, int64))),sizeof_int)+1_int64
+        hashInd = int(abs(mod(hash, int(nWalkerHashes, int64))),sizeof_int)+1
     end function FindWalkerHash
 
-
-    !pure function DetermineDetNode (nI, iIterOffset) result(node)
-    function DetermineDetNode (nI, iIterOffset) result(node)
-
-        ! Depending on the Hash, determine which node determinant nI
-        ! belongs to in the DirectAnnihilation scheme. NB FCIMC has each processor as a separate logical node.
-        !
-        ! In:  nI   - Integer ordered list for the determinant
-        ! In:  iIterOffset - Offset this iteration by this amount
-        ! Out: proc - The (0-based) processor index.
-
-        use FciMCData, only : Iter
-
-        integer, intent(in) :: nI(nel)
-        integer, intent(in) :: iIterOffset
-        integer :: node
-        
-        integer :: i
-        integer(int64) :: acc
-        integer(int64) :: offset
-
-!sum(nI) ensures that a random number is generated for each different nI, which is then added to the iteration,
-!  and the result shifted.  Consequently, the less significant bits (but not the least, as these have been shifted away)
-!  for each nI will change on average once per 2^hash_shift iterations, but the change spread throughout the different iters.
-        if (hash_iter>0) then  !generate a hash to work out an offset.  Probably very inefficient
-           acc = 0
-           do i = 1, nel
-               acc = (1099511628211_int64 * acc) + &
-                       (RandomHash(mod(iand(nI(i), csf_orbital_mask)-1,nBasis)+1) * i)
-           enddo
-           offset=ishft(abs(ishft(acc+hash_iter+iIterOffset, -hash_shift) ),-4)
-        else
-           offset=0
-        endif
-        acc = 0
-        if(tCSF) then
-            do i = 1, nel
-                acc = (1099511628211_int64 * acc) + &
-                        (RandomHash(mod(iand(nI(i), csf_orbital_mask)+offset-1,int(nBasis,int64))+1) * i)
-            enddo
-        else
-            do i = 1, nel
-                acc = (1099511628211_int64 * acc) + &
-                        (RandomHash(mod(nI(i)+offset-1,int(nBasis,int64))+1) * i)
-            enddo
-        endif
-        node = abs(mod(acc, int(nNodes, int64)))
-
-    end function
-    
     FUNCTION CreateHash(DetCurr)
         INTEGER :: DetCurr(NEl),i
         INTEGER(KIND=int64) :: CreateHash
@@ -1674,3 +1625,5 @@ MODULE AnnihilationMod
     END SUBROUTINE BinSearchParts
     
 END MODULE AnnihilationMod
+
+

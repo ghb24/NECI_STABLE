@@ -12,6 +12,18 @@ module util_mod
             character(c_char), intent(in) :: str(*)
             integer(c_int) :: len
         end function
+        pure function erf_local (x) result(e) bind(c, name='erf')
+            use iso_c_hack
+            implicit none
+            real(c_double), intent(in) :: x
+            real(c_double) :: e
+        end function
+        pure function erfc_local (x) result(ec) bind(c, name='erfc')
+            use iso_c_hack
+            implicit none
+            real(c_double), intent(in) :: x
+            real(c_double) :: ec
+        end function
     end interface
 
     ! sds: It would be nice to use a proper private/public interface here,
@@ -539,6 +551,53 @@ contains
         if (i == max_unit+1) call stop_all('get_free_unit','Cannot find a free unit below max_unit.')
 
     end function get_free_unit
+
+    function error_function_c(argument) result (res)
+
+        use constants, only: dp
+        use iso_c_hack
+        implicit none 
+      
+        real(dp), intent(in) :: argument
+        real(dp) :: res
+
+        !interface
+        !    pure function erfc_lm(x) bind(c, name='erfc') result (ret)
+        !        use iso_c_hack
+        !        implicit none
+        !        real(c_double) :: ret
+        !            real(c_double), intent(in), value :: x
+        !    end function erfc_lm
+        !!end interface
+
+        !res = erfc_lm(real(argument, c_double))
+        res = erfc_local (real(argument, c_double))
+    end function error_function_c
+
+
+
+    function error_function(argument) result(res)
+        
+        use constants, only: dp
+        use iso_c_hack
+        implicit none 
+      
+        real(dp), intent(in) :: argument
+        real(dp) :: res
+
+!        interface
+!                pure function erf_lm(x) bind(c, name='erf') result(ret)
+!                use iso_c_hack
+!                implicit none
+!                real(c_double) :: ret
+!                real(c_double), intent(in), value :: x
+!            end function erf_lm
+!        end interface
+!        res = erf_lm(real(argument, c_double))
+        res = erf_local(real(argument, c_double))
+
+    end function error_function
+
 
 end module
 

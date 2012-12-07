@@ -156,12 +156,61 @@ type2 = real(dp), dimension(:)
 [i64_a_c]
 type2 = complex(dp), dimension(:)
 
+[i_d_d]
+type1 = integer(kind=int32)
+type2 = real(kind=dp)
+type3 = real(kind=dp)
+arr3_prefix = 
+extra_arrs = arr2, arr3,
+conditional_enable = !defined(SX)
+
+[i64_d_d]
+type1 = integer(kind=int64)
+type2 = real(kind=dp)
+type3 = real(kind=dp)
+conditional_enable = !defined(SX)
+
+[i_a_i_d_i]
+type1 = integer(kind=int32)
+type2 = integer(kind=int32), dimension(:)
+type3 = real(kind=dp)
+type4 = integer(kind=int32)
+arr4_prefix = 
+extra_arrs = arr2, arr3, arr4,
+conditional_enable = !defined(SX)
+
+[i64_a_i64_d_i64]
+type1 = integer(kind=int64)
+type2 = integer(kind=int64), dimension(:)
+type3 = real(kind=dp)
+type4 = integer(kind=int64)
+conditional_enable = !defined(SX)
+
+[i_a_i64_d_i]
+type1 = integer(kind=int32)
+type2 = integer(kind=int64), dimension(:)
+type3 = real(kind=dp)
+type4 = integer(kind=int32)
+conditional_enable = !defined(SX)
+
+[i64_a_i_d_i64]
+type1 = integer(kind=int64)
+type2 = integer(kind=int32), dimension(:)
+type3 = real(kind=dp)
+type4 = integer(kind=int64)
+conditional_enable = !defined(SX)
+
 ###############################################
 ########## Sort by integer array ##############
 ###############################################
 [a_i_a_i]
 type1 = integer(kind=int32), dimension(:)
 type2 = integer(kind=int32), dimension(:)
+extra_arrs = arr2,
+arr3_prefix = ! 
+arr4_prefix = !
+type3 = !
+type4 = !
 op_gt = .arrgt.
 op_lt = .arrlt.
 conditional_enable = !defined(SX)
@@ -321,12 +370,44 @@ type3 = integer(kind=int32)
 type4 = integer(kind=int32)
 conditional_enable = !defined(SX)
 
+[a_i64_i_d_i]
+type1 = integer(kind=int64), dimension(:)
+type2 = integer(kind=int32)
+type3 = real(kind=dp)
+type4 = integer(kind=int32)
+op_gt = .arrgt.
+op_lt = .arrlt.
+conditional_enable = !defined(SX)
+
+[a_i64_i64_d_i64]
+type1 = integer(kind=int64), dimension(:)
+type2 = integer(kind=int64)
+type3 = real(kind=dp)
+type4 = integer(kind=int64)
+conditional_enable = !defined(SX)
+
+[a_i_i_d_i]
+type1 = integer(kind=int32), dimension(:)
+type2 = integer(kind=int32)
+type3 = real(kind=dp)
+type4 = integer(kind=int32)
+conditional_enable = !defined(SX)
+
+[a_i_i64_d_i64]
+type1 = integer(kind=int32), dimension(:)
+type2 = integer(kind=int64)
+type3 = real(kind=dp)
+type4 = integer(kind=int64)
+conditional_enable = !defined(SX)
+
 [i64_i64_i_i_i]
 type1 = integer(kind=int64)
 type2 = integer(kind=int64)
 type3 = integer(kind=int32)
 type4 = integer(kind=int32)
 type5 = integer(kind=int32)
+op_gt = >
+op_lt = <
 arr5_prefix = 
 extra_arrs = arr2, arr3, arr4, arr5,
 conditional_enable = !defined(SX)

@@ -3,7 +3,7 @@ MODULE Determinants
     use constants, only: dp, n_int, bits_n_int
     use SystemData, only: BasisFN, tCSF, nel, G1, Brr, ECore, ALat, NMSH, &
                           nBasis, nBasisMax, tStoreAsExcitations, tHPHFInts, &
-                          tCSF, tCPMD, tPickVirtUniform, LMS
+                          tCSF, tCPMD, tPickVirtUniform, LMS, modk_offdiag
     use IntegralsData, only: UMat, FCK, NMAX
     use csf, only: det_to_random_csf, iscsf, csf_orbital_mask, &
                    csf_yama_bit, CSFGetHelement
@@ -28,9 +28,9 @@ MODULE Determinants
     save
 ! Set by Calc on input
       INTEGER nActiveSpace(2)
-        INTEGER, DIMENSION(:), POINTER :: SPECDET
-        INTEGER(TagIntType) :: tagSPECDET=0
-        Logical TSPECDET
+      INTEGER, DIMENSION(:), POINTER :: SPECDET => null()
+      INTEGER(TagIntType) :: tagSPECDET=0
+      Logical TSPECDET
 
 !nActiveBasis(1) is the lowest non-active orbital
 !nActiveBasis(2) is the highest active orbital.  There can be virtuals above this.
@@ -183,7 +183,7 @@ contains
 !C..This fix is to stop floating overflow as taking the factorial of (nBasis.GT.170) crashes
 !C  using the old FACTRL routine.
          NDET=1
-         DNDET=1.D0
+         DNDET=1.0_dp
          DO I=0,NEL-1
             NDET=(NDET*(nBasis-I))/(I+1)
             DNDET=(DNDET*real(nBasis-I,dp))/real(I+1,dp)
@@ -328,7 +328,12 @@ contains
         endif
 
         ! Add in ECore if for a diagonal element
-        if (IC == 0) hel = hel + (ECore)
+        if (IC == 0) then
+            hel = hel + (ECore)
+        else if (modk_offdiag) then
+            hel = -abs(hel)
+        end if
+
     end function
     
     function get_helement_normal (nI, nJ, iLutI, iLutJ, ICret) result(hel)
@@ -382,7 +387,11 @@ contains
         endif
 
         ! Add in ECore for a diagonal element
-        if (IC == 0) hel = hel + (ECore)
+        if (IC == 0) then
+            hel = hel + (ECore)
+        else if (modk_offdiag) then
+            hel = -abs(hel)
+        end if
 
         ! If requested, return IC
         if (present(ICret)) then
@@ -426,7 +435,12 @@ contains
 
         hel = sltcnd_excit (nI, IC, ExcitMat, tParity)
 
-        if (IC == 0)  hel = hel + (ECore)
+        if (IC == 0) then
+            hel = hel + (ECore)
+        else if (modk_offdiag) then
+            hel = -abs(hel)
+        end if
+
     end function get_helement_excit
 
     function get_helement_det_only (nI, nJ, iLutI, iLutJ, ic, ex, tParity, &
@@ -457,7 +471,11 @@ contains
 
         hel = sltcnd_excit (nI, IC, ex, tParity)
 
-        if (IC == 0) hel = hel + ECore
+        if (IC == 0) then
+            hel = hel + ECore
+        else if (modk_offdiag) then
+            hel = -abs(hel)
+        end if
     end function
 
 
@@ -528,7 +546,7 @@ contains
         integer(n_int) :: ilut_tmp(0:NIfTot)
 
         ! If we haven't initialised the generator, do that now.
-        if (.not. allocated(store%dorder)) then
+        if (.not. associated(store%dorder)) then
 
             ! Allocate dorder storage
             allocate(store%dorder(nel))
@@ -564,8 +582,10 @@ contains
 
         if (store%dorder(1) == -1) then
             deallocate(store%dorder)
+            nullify(store%dorder)
             !deallocate(store%open_indices)
             deallocate(store%open_orbs)
+            nullify(store%open_orbs)
             if (present(ilut_gen)) ilut_gen = 0
             !if (present(det)) det = 0
         else
@@ -613,7 +633,7 @@ END MODULE Determinants
          if(tStoreAsExcitations.and.nI(1).eq.-1) then
 !The excitation storage starts with -1.  The next number is the excitation level,L .  
 !Next is the parity of the permutation required to lineup occupied->excited.  Then follows a list of the indexes of the L occupied orbitals within the HFDET, and then L virtual spinorbitals.
-            hEl=0.d0
+            hEl=0.0_dp
             do i=4,nI(2)+4-1
                hEl=hEl-(Arr(nI(i),2))
             enddo
@@ -732,7 +752,7 @@ END MODULE Determinants
          nLeft=1+nUp
          IF(nDown.NE.0.AND.nUp.NE.0) WRITE(6,*) "Including ",-nDown,",",nUp," extra degenerate sets in active space."
          DO WHILE (nLeft.GT.0.AND.I.LT.nBasis)
-            DO WHILE (I.LT.nBasis.AND.ABS(ARR(I)-ARR(I-1)).LT.1.d-5)
+            DO WHILE (I.LT.nBasis.AND.ABS(ARR(I)-ARR(I-1)).LT.1.0e-5_dp)
                I=I+1
             ENDDO
             nLeft=nLeft-1
@@ -754,7 +774,7 @@ END MODULE Determinants
          nLeft=nDown
          Do WHILE(nLeft.GT.0.AND.I.Gt.0)
       
-            DO WHILE (I.GT.0.AND.ABS(ARR(I)-ARR(I+1)).LT.1.d-5)
+            DO WHILE (I.GT.0.AND.ABS(ARR(I)-ARR(I+1)).LT.1.0e-5_dp)
                I=I-1
             ENDDO
             nLeft=nLeft-1
@@ -888,7 +908,7 @@ END MODULE Determinants
          INTEGER NEL,NI(NEL),I
          LOGICAL ISCSF_old
          real(dp) :: CALCT
-         CALCT=0.D0
+         CALCT=0.0_dp
          IF(ISCSF_old(NI,NEL)) RETURN
          DO I=1,NEL
             CALCT=CALCT+GetTMATEl(NI(I),NI(I))

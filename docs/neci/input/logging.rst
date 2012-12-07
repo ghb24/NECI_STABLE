@@ -454,24 +454,48 @@ Rotate Orbs Options
 Reduced Density Matrix (RDM) Options
 -------------------------------------
 
-Currently the 2-RDMs can only be calculated for closed shell systems.  However, calculation of the 1-RDM only, 
-and the following diagonalisation is set up for either open shell or closed shell systems.
+Currently the 2-RDMs can only be calculated for closed shell systems.  However, calculation and 
+diagonalisation of only the 1-RDM is set up for either open shell or closed shell systems.
+
+The theory behind the calculation of the RDMs can be found in my (Deidre's) thesis (Chapter 7).
+
+The only thing that differs significantly in the more recent code is that, for efficiency, the 
+diagonal elements of the RDMs (and explicit connections to the HF determinant) 
+are only calculated during the iteration whereby the energy or RDM itself is required.  
+This is either every time the energy is printed, or at the very end of the calculation.  
+Therefore, for an expensive calculation, it is worth only 
+calculating the energy at the end, or only a few times throughout the calculation, to avoid the N^2 operation 
+required for each determinant to fill the diagonal RDM elements.
+
+The calculation of the diagonal elements is done by keeping track of the average walker populations of each 
+occupied determinant, and how long it has been occupied.  The diagonal element from Di is then calculated 
+as <Ni> x <Ni> x [No. of iterations Di has been occupied], and this is included every time a determinant becomes 
+unoccupied, at the end of the calculation, or if the energy from the RDMs is to be calculated. 
+
+Because the average occupation is accumulated while the RDMs are being calculated (and is not currently zero-ed 
+unless a determinant becomes unoccupied), calculations with the energy calculated at different frequencies will 
+have very slightly different RDMs.  
+This difference appears to be too small to be a problem, but is noted here to avoid unnecessary debugging. 
+
+The average populations are also used for the stochastic elements, which are accumulated throughout the 
+calculation of the RDMs.  Further explanation of how and why this is done can be found in my thesis.
 
 **CALCRDMONFLY** [RDMExcitLevel] [RDMIterStart] [RDMEnergyIter]
     This is the main keyword for calculating the RDMs from an FCIQMC wavefunction.  It requires 3 integers.
     The first refers to the type of RDMs to calculate.  A value of 1 will calculate only the 1-RDM.  Any other 
     value will calculate the 2-RDM (which contains the information of the 1-RDM).  The second integer 
     is the number of iterations after the shift has begun to change that we want to begin filling the RDMs.  
-    Finally, if the 2-RDMs are being calculated, the RDM energy will be automatically be obtained at the 
+    Finally, if the 2-RDMs are being calculated, the RDM energy will be automatically obtained at the 
     end of the calculation.  The 3rd integer refers to how often (every RDMEnergyIter iterations) we want 
-    to calculate and print the energy during the calculation.  This will be ignored if only calculating the 1-RDM. 
+    to additionally calculate and print the energy during the calculation.  This will be ignored if only 
+    calculating the 1-RDM. 
     Clearly making RDMEnergyIter very large will mean the energy is only calculated with a softexit, or this can 
     also be achieved by using **CALCRDMENERGY** OFF.
 
     The RDM energy is one measure of the accuracy of the RDMs.  Also printed by default are the maximum error in the 
     hermiticity (2-RDM(i,j;a,b) - 2-RDM(a,b;i,j)) and the sum of the absolute errors.  
 
-Types of calculation
+Types of RDM calculations
 
     Using the above keyword, a stochastic RDM calculation on the entire space will be performed, but with 
     the single and double connections to the HF included explicitly.  The type of calculation can be 
@@ -483,12 +507,13 @@ Types of calculation
     expensive and can only be done for very small systems.  Cannot use **HPHF** with this type of calculation.
 
     If **HISTSPAWN** is also present in the Logging block, the wavefunction will be histogrammed from the same 
-    iteration we begin to fill the RDMs, and the RDMs constructed using these histogrammed coefficients.
+    iteration we begin to fill the RDMs, and the RDMs will be constructed using these histogrammed coefficients.
 
 **HFREFRDMEXPLICIT**
     This effectively calculates the matrix leading to the projected energy.  It considers the HF as a reference 
     and explicitly considers all connections to it (in one direction only - so the matrix is not hermitian).  This 
-    will clearly not give a variational energy. 
+    will clearly not give a variational energy.  If this RDM was calculated using the instantaneous occupations 
+    (rather than the occupied average), the energy printed at every iteration would be the same as Eproj.
 
 **HFSDRDM**
     This calculates the RDM amongst the HF and single and double excitations only.  The connections to the HF will 
@@ -501,12 +526,10 @@ Types of calculation
     included stochastically.  Like **HFREFRDMEXPLICIT**, this matrix will not be hermitian and the energy not variational.  
     Cannot use **HPHF** with this type of calculation.
 
-**RDMGHOSTCHILD** [GhostThresh] [GhostFac]
-    This option is to be used with any of the methods with stochastic construction of the RDMs.  In this case, if 
-    the probability of spawning on a given Dj, generated from Di, is less than GhostThresh (a real), the probability 
-    is increased to the probability of spawning multiplied by GhostFac (also a real).  If the spawning would then be 
-    accepted, a 'ghost child' is created, i.e. child is still equal to zero, but the DiDj pair are put in the 
-    spawning array to later contribute to the reduced density matrices.
+**RDMGHOSTCHILD** REMOVED 
+    This option is discussed in my thesis, but has been removed because it is virtually never used, doesn't actually 
+    work very well for most systems, and complicated the code a bit.  The version where it is removed was noted in the 
+    logs if it needs to be put back in.
 
 Options referring to the 1-RDM.
 

@@ -263,7 +263,7 @@ C.. test if NCI is a CSF
          INTEGER NEL,NBASIS,NBASISMAX(*)
          INTEGER NMRKS(NEL,1),NDET
          type(BasisFN) G1(*)
-         LOGICAL TCOUNT,TSPN,TPARITY
+         LOGICAL TCOUNT,TSPN
          INTEGER LMS,IFDET
          TYPE(BASISFN) IPARITY
 
@@ -335,7 +335,7 @@ C.. we'll deal with spin in the CSF generation
                CALL GETSYM(NI,NEL,G1,NBASISMAX,KSYM)
 C.. remove Ms value, as this is dealt with in csfgencsfs
                KSYM%MS=0
-               IF(.NOT.TPARITY.OR.LCHKSYM(ISYM,KSYM))
+               IF(LCHKSYM(ISYM,KSYM))
 C.. go and create a set of CSFs from these electrons
 !   Warning: code divergence has meant this hasn't been tested in a long
 !   time.  At the very least, the number of arguments is wrong. (JSS)
@@ -877,7 +877,7 @@ C.. Get the Hamiltonian Element between two CSFs
          LOGICAL CSFCHKSPINSYM
          IF(.NOT.CSFCHKSPINSYM(NCI,NCJ,NEL)) THEN
 C.. If the Ms or S values differ, we return 0.
-            TOTSUM=0.D0
+            TOTSUM=0.0_dp
             RETURN
          ENDIF
 C.. The SORDERS for dets 1 and 2
@@ -928,11 +928,11 @@ C.. NOPEN has number of open electrons, and NDETS has #open dets
 !            CALL WRITEDET(6,LISTD2(1,I),NEL,.FALSE.)
 !            WRITE(6,*) COEFF2
 !         ENDDO
-         TOTSUM=0.D0
+         TOTSUM=0.0_dp
          DO I=1,NDETS1
             CALL CSFGETDETCOEFF(SO1,DOLISTD1((I-1)*NOPEN1+1),NOPEN1,
      &         COEFF1)
-            SUM2=0.D0
+            SUM2=0.0_dp
             DO J=1,NDETS2
                IF(I.EQ.1) THEN
                   CALL CSFGETDETCOEFF(SO2,DOLISTD2((J-1)*NOPEN2+1),
@@ -969,18 +969,18 @@ C..  refer to as long as they are always ordered)
          INTEGER NOPEN,SORDER(NOPEN),DORDER(NOPEN)
          INTEGER I,SCUR,MCUR
          real(dp) S,M
-         COEFF=1.D0
-         S=0.D0
-         M=0.D0
+         COEFF=1.0_dp
+         S=0.0_dp
+         M=0.0_dp
          DO I=1,NOPEN
             SCUR=SORDER(I)
             MCUR=DORDER(I)
-            S=S+SCUR-0.5D0
-            M=M+MCUR-0.5D0
+            S=S+SCUR-0.5_dp
+            M=M+MCUR-0.5_dp
             CALL GETCLEBSCHGORDON(S,M,SCUR,MCUR,CG)
 !            WRITE(6,"(F6.3,A)",advance='no') CG,"*"
             COEFF=COEFF*CG
-            IF(COEFF.EQ.0.D0) EXIT
+            IF(COEFF.EQ.0.0_dp) EXIT
          ENDDO
          RETURN
       END
@@ -998,13 +998,13 @@ C.. For MN_=+1/2 set MN=1, and for MN_=-1/2 set MN=0
          INTEGER SN,MN
 
          real(dp) MN_
-         MN_=MN-0.5D0
+         MN_=MN-0.5_dp
          IF(SN.EQ.0) THEN
-            COEFF=-2.D0*MN_*SQRT((S+1-2*MN_*M)/(2*S+2))
+            COEFF=-2.0_dp*MN_*SQRT((S+1-2*MN_*M)/(2*S+2))
          ELSEIF(SN.EQ.1) THEN
             COEFF=SQRT((S+2*MN_*M)/(2*S))
          ELSE
-            COEFF=0.D0
+            COEFF=0.0_dp
          ENDIF
       END
 

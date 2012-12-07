@@ -63,11 +63,9 @@ MODULE FciMCParMod
                        instant_s2_multiplier, tMCOutput, tSplitProjEHist, &
                        tSplitProjEHistG, tSplitProjEHistK3, iProjEBins, &
                        tDiagWalkerSubspace,iDiagSubspaceIter, &
-                       tCalcInstantS2Init, instant_s2_multiplier_init, &
-                       tRDMonFly, IterRDMonFly, tSpawnGhostChild, &
-                       GhostFac, GhostThresh,RDMExcitLevel, RDMEnergyIter, &
+                       tRDMonFly, IterRDMonFly,RDMExcitLevel, RDMEnergyIter, &
                        tChangeVarsRDM, tExplicitAllRDM, tHF_Ref_Explicit, &
-                       tHF_S_D_Ref, tHF_S_D,                    &
+                       tHF_S_D_Ref, tHF_S_D, tInitiatorRDM,    &
                        tDiagWalkerSubspace, iDiagSubspaceIter, &
                        tCalcInstantS2Init, instant_s2_multiplier_init, &
                        tJustBlocking, iBlockEquilShift, iBlockEquilProjE
@@ -89,6 +87,7 @@ MODULE FciMCParMod
     use DetBitops, only: EncodeBitDet, DetBitEQ, DetBitLT, FindExcitBitDet, &
                          FindBitExcitLevel, countbits, TestClosedShellDet, &
                          FindSpatialBitExcitLevel, IsAllowedHPHF
+    use hash , only : DetermineDetNode                     
     use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask, get_csf_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
@@ -113,15 +112,12 @@ MODULE FciMCParMod
     use symrandexcit3, only: gen_rand_excit3, test_sym_excit3
     use errors, only: error_analysis
     use nElRDMMod, only: FinaliseRDM,Fill_ExplicitRDM_this_Iter,calc_energy_from_rdm, &
-                         fill_hist_explicitrdm_this_iter, &
-                         fill_diag_rdm, fill_sings_rdm, fill_doubs_rdm, &
-                         Add_RDM_From_IJ_Pair, tCalc_RDMEnergy, &
-                         extract_bit_rep_rdm_diag_norm, extract_bit_rep_rdm_diag_hphf, &
-                         extract_bit_rep_rdm_diag_hf_s_d, &
-                         extract_bit_rep_rdm_diag_no_rdm, DeallocateRDM,&
-                         DeAlloc_Alloc_SpawnedParts, Add_RDM_HFConnections_Null, &
-                         Add_RDM_HFConnections_HPHF, Add_RDM_HFConnections_HF_S_D, &
-                         Add_RDM_HFConnections_Norm, Fill_Spin_Coupled_RDM, zero_rdms 
+                         fill_hist_explicitrdm_this_iter, tCalc_RDMEnergy, &
+                         extract_bit_rep_avsign_norm, &
+                         extract_bit_rep_avsign_no_rdm, &
+                         zero_rdms, fill_rdm_softexit, store_parent_with_spawned, &
+                         fill_rdm_diag_currdet_norm, &
+                         fill_rdm_diag_currdet_hfsd, calc_rdmbiasfac
 
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
@@ -141,6 +137,7 @@ MODULE FciMCParMod
         use util_mod, only: get_free_unit
         use nElRDMMod, only: InitRDM
         use sym_mod, only: getsym
+        use SystemData, only: tUEG2
 #ifdef MOLPRO
         use outputResult
         integer :: nv,ityp(1)
@@ -188,11 +185,6 @@ MODULE FciMCParMod
         call InitFCIMCCalcPar()
         call init_fcimc_fn_pointers () 
 
-        if(tHistSpawn) then 
-            Tot_Unique_Dets_Unit = get_free_unit()
-            OPEN(Tot_Unique_Dets_Unit,FILE='TOTUNIQUEDETS',STATUS='UNKNOWN')
-        endif
-
         ! Initial output
         call WriteFciMCStatsHeader()
         ! Prepend a # to the initial status line so analysis doesn't pick up
@@ -215,8 +207,8 @@ MODULE FciMCParMod
         tIncrement = .true.
         Iter=1
 
-        SumSigns = 0.D0
-        SumSpawns = 0.D0
+        SumSigns = 0.0_dp
+        SumSpawns = 0.0_dp
 
         do while (Iter <= NMCyc .or. NMCyc == -1)
 !Main iteration loop...
@@ -230,7 +222,7 @@ MODULE FciMCParMod
                 CALL PerformCCMCCycPar()
             else
                 if (.not. (tSpinProject .and. spin_proj_interval == -1)) then
-                    call sub_dispatcher_9 (PerformFciMCycPar, &
+                    call sub_dispatcher_10 (PerformFciMCycPar, &
                                            ptr_excit_generator, &
                                            ptr_attempt_create, &
                                            ptr_get_spawn_helement, &
@@ -238,8 +230,8 @@ MODULE FciMCParMod
                                            ptr_new_child_stats, &
                                            ptr_attempt_die, &
                                            ptr_iter_data, &
-                                           ptr_extract_bit_rep_rdm_diag, &
-                                           ptr_add_rdm_hfconnections)
+                                           ptr_extract_bit_rep_avsign, &
+                                           ptr_fill_rdm_diag_currdet) 
                 endif
             endif
 
@@ -255,8 +247,8 @@ MODULE FciMCParMod
                                            new_child_stats_normal, &
                                            attempt_die_spin_proj, &
                                            iter_data_spin_proj, &
-                                           extract_bit_rep_rdm_diag_no_rdm, &
-                                           add_rdm_hfconnections_null)
+                                           extract_bit_rep_avsign_no_rdm, &
+                                           fill_rdm_diag_currdet_norm) 
                 enddo
             endif
 
@@ -290,6 +282,9 @@ MODULE FciMCParMod
                             write (iout, '("double excit.")')
                         else
                             write (iout, '("single excit.")')
+                        endif
+                        if (tUEG2) then
+                            call stop_all("FCIMCPar","Should never bloom in UEG2")
                         endif
                     endif
                     iPartBloom = 0 ! Max number spawned from an excitation
@@ -330,6 +325,9 @@ MODULE FciMCParMod
                 CALL ChangeVars(tSingBiasChange,tSoftExitFound,tWritePopsFound)
                 IF(tSoftExitFound) THEN
                     TIncrement=.false.
+                    ! The diagonal elements of the RDM will not have been calculated (as we didn't know 
+                    ! it was the last iteration), so this must be done now.
+                    if(tFillingStochRDMonFly) call fill_rdm_softexit(TotWalkers)
                     EXIT
                 ENDIF
                 IF(tTimeExit.and.(TotalTime8.ge.MaxTimeExit)) THEN
@@ -354,7 +352,7 @@ MODULE FciMCParMod
                     CALL CalcApproxpDoubles()
                 ENDIF
 
-                if((PopsfileTimer.gt.0.D0).and.((iPopsTimers*PopsfileTimer).lt.(TotalTime8/3600.D0))) then
+                if((PopsfileTimer.gt.0.0_dp).and.((iPopsTimers*PopsfileTimer).lt.(TotalTime8/3600.0_dp))) then
                     !Write out a POPSFILE every PopsfileTimer hours
                     if(iProcIndex.eq.Root) then
                         write(iout,"(A,F7.3,A)") "Writing out a popsfile after ",iPopsTimers*PopsfileTimer, " hours..."
@@ -385,11 +383,14 @@ MODULE FciMCParMod
                 CALL WriteHamilHistogram()
             ENDIF
             IF(tRDMonFly.and.(.not.tSinglePartPhase)) THEN
+                ! If we wish to calculate the energy, have started accumulating the RDMs, 
+                ! and this is an iteration where the energy should be calculated, do so.
                 if( tCalc_RDMEnergy .and. ((Iter - VaryShiftIter).gt.IterRDMonFly) &
                     .and. (mod((Iter - IterRDMStart)+1,RDMEnergyIter).eq.0) ) &
                         CALL Calc_Energy_from_RDM(Norm_2RDM)  
             ENDIF
             if(tChangeVarsRDM) then
+                ! Decided during the CHANGEVARS that the RDMs should be calculated.
                 call InitRDM() 
                 tRDMonFly = .true.
                 tChangeVarsRDM = .false.
@@ -484,7 +485,7 @@ MODULE FciMCParMod
         call MPIBCast(Shift_Err)
         call MPIBCast(tNoProjEValue)
         call MPIBCast(tNoShiftValue)
-        Weight=(0.D0)
+        Weight=(0.0_dp)
         Energyxw=(ProjectionE+Hii)
         
         iroot=1
@@ -532,10 +533,10 @@ MODULE FciMCParMod
                 BestEnergy = mean_shift + Hii
                 BestErr = shift_err
             endif
-        elseif(tNoShiftValue) then
+        elseif(tNoShiftValue.and.(.not.tNoProjEValue)) then
             BestEnergy = mean_ProjE_re + Hii
             BestErr = ProjE_Err_re
-        elseif(tNoProjEValue) then
+        elseif(tNoProjEValue.and.(.not.tNoShiftValue)) then
             BestEnergy = mean_shift + Hii
             BestErr = shift_err 
         else
@@ -556,17 +557,26 @@ MODULE FciMCParMod
 
 #ifdef MOLPRO
         call output_result('FCIQMC','ENERGY',BestEnergy,iroot,isymh)
-        call output_result('FCIQMC','ERROR',BestErr,iroot,isymh)
         if (iroot.eq.1) call clearvar('ENERGY')
         ityp(1)=1
         call setvar('ENERGY',BestEnergy,'AU',ityp,1,nv,iroot)
-        call setvar('ERROR',BestErr,'AU',ityp,1,nv,iroot)
         do i=10,2,-1
             gesnam(i)=gesnam(i-1)
             energ(i)=energ(i-1)
         enddo
         gesnam(i) = 'FCIQMC'
         energ(i) = get_scalar("ENERGY")
+        if(.not.(tNoShiftValue.and.tNoProjEValue)) then
+            call output_result('FCIQMC','FCIQMC_ERR',BestErr,iroot,isymh)
+            if (iroot.eq.1) call clearvar('FCIQMC_ERR')
+            call setvar('FCIQMC_ERR',BestErr,'AU',ityp,1,nv,iroot)
+!            do i=10,2,-1
+!                gesnam(i)=gesnam(i-1)
+!                energ(i)=energ(i-1)
+!            enddo
+!            gesnam(i) = 'FCIQMC_ERR'
+!            energ(i) = get_scalar("FCIQMC_ERR")
+        endif
 #endif
         write(iout,"(/)")
  
@@ -766,53 +776,52 @@ MODULE FciMCParMod
         call assign_data (ptr_iter_data, data_struct)
     end subroutine
 
-    subroutine set_extract_bit_rep_rdm_diag(extract_bit_rep_rdm_diag)
+    subroutine set_extract_bit_rep_avsign(extract_bit_rep_avsign)
         use, intrinsic :: iso_c_binding
         implicit none
         interface
-            subroutine extract_bit_rep_rdm_diag(iLutnI, CurrH_I, nI, SignI, &
-                                                FlagsI, IterRDMStartI, AvSignI, Store)
-                use constants , only : dp, n_int, lenof_sign
-                use SystemData , only : NEl
-                use bit_reps , only : NIfTot, extract_bit_rep, extract_bit_rep_rdm
-                use FciMCData , only : excit_gen_store_type, NCurrH
-                use DetBitOps , only : TestClosedShellDet
+            subroutine extract_bit_rep_avsign(iLutnI, CurrH_I, nI, SignI, &
+                                              FlagsI, IterRDMStartI, AvSignI, &
+                                              Store)
+                use constants
+                use SystemData, only: nel
+                use bit_reps, only: NIfTot
+                use FciMCData, only : excit_gen_store_type, NCurrH
                 implicit none
                 integer(n_int), intent(in) :: iLutnI(0:nIfTot)
-                real(dp) , intent(in) :: CurrH_I(NCurrH)
+                real(dp), intent(in) :: CurrH_I(NCurrH)
+                real(dp), intent(out) :: IterRDMStartI, AvSignI
                 integer, intent(out) :: nI(nel), FlagsI
                 integer, dimension(lenof_sign), intent(out) :: SignI
-                real(dp) , intent(out) :: IterRDMStartI, AvSignI
                 type(excit_gen_store_type), intent(inout), optional :: Store
             end subroutine
         end interface
 
-        call assign_proc (ptr_extract_bit_rep_rdm_diag, extract_bit_rep_rdm_diag)
+        call assign_proc (ptr_extract_bit_rep_avsign, extract_bit_rep_avsign)
     end subroutine
 
-    subroutine set_add_rdm_hfconnections(add_rdm_hfconnections)
+    subroutine set_fill_rdm_diag_currdet(fill_rdm_diag_currdet)
         use, intrinsic :: iso_c_binding
         implicit none
         interface
-            subroutine Add_RDM_HFConnections(iLutJ,nJ,AvSignJ,walkExcitLevel)
-                use constants , only : n_int, lenof_sign, dp
-                use SystemData , only : NEl
-                use bit_reps , only : NIfTot
-                use FciMCData , only : HFDet
-                use hphf_integrals , only : hphf_sign
-                use HPHFRandExcitMod , only : FindExcitBitDetSym
-                use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
+            subroutine fill_rdm_diag_currdet (iLutnI, nI, CurrH_I, &
+                                              ExcitLevelI, IterLastRDMFill) 
+                use constants
+                use SystemData, only: nel
+                use bit_reps, only: NIfTot 
+                use FciMCData, only: NCurrH
                 implicit none
-                integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
-                integer , intent(in) :: nJ(NEl)
-                real(dp) , intent(in) :: AvSignJ
-                integer , intent(in) :: walkExcitLevel
-                integer(kind=n_int) :: SpinCoupDet(0:niftot)
-                integer :: nSpinCoup(NEl), HPHFExcitLevel
+                integer(n_int), intent(in) :: iLutnI(0:nIfTot)
+                real(dp), intent(in) :: CurrH_I(NCurrH)
+                integer, intent(in) :: nI(nel), ExcitLevelI, IterLastRDMFill
+                real(dp) :: IterDetOcc, IterRDM
+                integer(n_int) :: SpinCoupDet(0:nIfTot)
+                integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel
             end subroutine
         end interface
 
-        call assign_proc (ptr_add_rdm_hfconnections, add_rdm_hfconnections)
+        call assign_proc (ptr_fill_rdm_diag_currdet, &
+                                        fill_rdm_diag_currdet)
     end subroutine
 
     ! This is the heart of FCIMC, where the MC Cycles are performed.
@@ -822,8 +831,8 @@ MODULE FciMCParMod
     subroutine PerformFCIMCycPar(generate_excitation, attempt_create, &
                                  get_spawn_helement, encode_child, &
                                  new_child_stats, attempt_die, &
-                                 iter_data, extract_bit_rep_rdm_diag, &
-                                 add_rdm_hfconnections)
+                                 iter_data, extract_bit_rep_avsign, &
+                                 fill_rdm_diag_currdet)
         
          use sym_mod
          use IntegralsData, only : Nfrozen
@@ -938,13 +947,13 @@ MODULE FciMCParMod
                 real(dp), intent(in) :: Kii
                 integer, dimension(lenof_sign) :: ndie
             end function
-            subroutine extract_bit_rep_rdm_diag(iLutnI, CurrH_I, nI, SignI, &
-                                                    FlagsI, IterRDMStartI, AvSignI, Store)
-                use constants , only : dp, n_int, lenof_sign
-                use SystemData , only : NEl
-                use bit_reps , only : NIfTot, extract_bit_rep, extract_bit_rep_rdm
-                use FciMCData , only : excit_gen_store_type, NCurrH
-                use DetBitOps , only : TestClosedShellDet
+            subroutine extract_bit_rep_avsign (iLutnI, CurrH_I, nI, SignI, &
+                                               FlagsI, IterRDMStartI, &
+                                               AvSignI, Store)
+                use constants
+                use SystemData, only: nel
+                use bit_reps, only: NIfTot
+                use FciMCData, only: excit_gen_store_type, NCurrH
                 implicit none
                 integer(n_int), intent(in) :: iLutnI(0:nIfTot)
                 real(dp) , intent(in) :: CurrH_I(NCurrH)
@@ -953,22 +962,21 @@ MODULE FciMCParMod
                 real(dp) , intent(out) :: IterRDMStartI, AvSignI
                 type(excit_gen_store_type), intent(inout), optional :: Store
             end subroutine
-            subroutine Add_RDM_HFConnections(iLutJ,nJ,AvSignJ,walkExcitLevel)
-                use constants , only : n_int, lenof_sign, dp
-                use SystemData , only : NEl
-                use bit_reps , only : NIfTot
-                use FciMCData , only : HFDet
-                use hphf_integrals , only : hphf_sign
-                use HPHFRandExcitMod , only : FindExcitBitDetSym
-                use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
+            subroutine fill_rdm_diag_currdet (iLutnI, nI, CurrH_I, &
+                                              ExcitLevelI, IterLastRDMFill) 
+                use constants
+                use SystemData, only: nel
+                use bit_reps, only: NIfTot 
+                use FciMCData, only: NCurrH
                 implicit none
-                integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
-                integer , intent(in) :: nJ(NEl)
-                real(dp) , intent(in) :: AvSignJ
-                integer , intent(in) :: walkExcitLevel
-                integer(kind=n_int) :: SpinCoupDet(0:niftot)
-                integer :: nSpinCoup(NEl), HPHFExcitLevel
+                integer(n_int), intent(in) :: iLutnI(0:nIfTot)
+                real(dp) , intent(in) :: CurrH_I(NCurrH)
+                integer, intent(in) :: nI(nel), ExcitLevelI, IterLastRDMFill
+                real(dp) :: IterDetOcc, IterRDM
+                integer(n_int) :: SpinCoupDet(0:nIfTot)
+                integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel
             end subroutine
+
         end interface
         
         ! Iteration specific data
@@ -981,13 +989,13 @@ MODULE FciMCParMod
         integer(kind=n_int) :: iLutnJ(0:niftot)
         integer :: IC, walkExcitLevel, walkExcitLevel_toHF, ex(2,2), TotWalkersNew, part_type
         integer(int64) :: tot_parts_tmp(lenof_sign)
-        logical :: tParity, tSuccess
+        logical :: tParity, tSuccess, tFill_RDM
         real(dp) :: prob, HDiagCurr, TempTotParts, Di_Sign_Temp
         real(dp) :: AvSignCurr, IterRDMStartCurr, RDMBiasFacCurr
         HElement_t :: HDiagTemp,HElGen
         character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
         HElement_t :: delta
-        integer :: proc, pos, sgn(lenof_sign)
+        integer :: proc, pos, sgn(lenof_sign), IterLastRDMFill
 
         call set_timer(Walker_Time,30)
 
@@ -995,7 +1003,7 @@ MODULE FciMCParMod
             IF(Iter.eq.IterTruncInit) THEN
                 ! Why do this? Why not just get all procs to do division?
                 IF(iProcIndex.eq.root) THEN
-                    Tau=Tau/10.D0
+                    Tau=Tau/10.0_dp
                     WRITE(iout,'(A,F10.5)') 'Beginning truncated initiator calculation and reducing timestep by " &
                         &//"a factor of 10. New tau is : ',Tau
                 ENDIF
@@ -1072,7 +1080,27 @@ MODULE FciMCParMod
 
         IFDEBUG(FCIMCDebug,3) write(iout,"(A,I12)") "Walker list length: ",TotWalkers
         IFDEBUG(FCIMCDebug,3) write(iout,"(A)") "TW: Walker  Det"
-        do j=1,TotWalkers
+
+        ! This block decides whether or not to calculate the contribution to the RDMs from 
+        ! the diagonal elements (and explicit connections to the HF) for each occupied determinant. 
+        ! For efficiency, this is only done on the final iteration, or one where the RDM energy is 
+        ! being printed.
+        tFill_RDM = .false.
+        if(tFillingStochRDMonFly) then
+            if(mod((Iter - IterRDMStart + 1),RDMEnergyIter).eq.0) then 
+                ! RDM energy is being printed, calculate the diagonal elements for 
+                ! the last RDMEnergyIter iterations.
+                tFill_RDM = .true.
+                IterLastRDMFill = RDMEnergyIter
+            elseif(Iter.eq.NMCyc) then
+                ! Last iteration, calculate the diagonal element for the iterations 
+                ! since the last time they were included.
+                tFill_RDM = .true.
+                IterLastRDMFill = mod((Iter - IterRDMStart + 1),RDMEnergyIter)
+            endif
+        endif
+
+        do j=1,int(TotWalkers,sizeof_int)
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.
 
@@ -1100,10 +1128,12 @@ MODULE FciMCParMod
             else                                      
                 ! If we're not calculating the RDM (or we're calculating some HFSD combination of the 
                 ! RDM) this just extracts info from the bit representation like normal.
-                ! Otherwise, it extracts the Curr info, and at the same time, adds in the RDM 
-                ! contribution to the diagonal terms.
+                ! IterRDMStartCurr and AvSignCurr just come out as 1.0_dp.  
+                ! Otherwise, it extracts the Curr info, and calculates the iteration this determinant 
+                ! became occupied (IterRDMStartCurr) and the average population during that time 
+                ! (AvSignCurr).
 
-                call extract_bit_rep_rdm_diag (CurrentDets(:,j), CurrentH(1:NCurrH,j), &
+                call extract_bit_rep_avsign (CurrentDets(:,j), CurrentH(1:NCurrH,j), &
                                             DetCurr, SignCurr, FlagsCurr, IterRDMStartCurr, &
                                             AvSignCurr, fcimc_excit_gen_store)
 
@@ -1122,7 +1152,6 @@ MODULE FciMCParMod
                     cycle
                 endif
             endif
-
 
             !Debug output.
             IFDEBUGTHEN(FCIMCDebug,3)
@@ -1151,7 +1180,7 @@ MODULE FciMCParMod
             else
                 walkExcitLevel_toHF = walkExcitLevel
             endif
-            if(walkExcitLevel_toHF.eq.0) HFInd = VecSlot                                                
+            if(walkExcitLevel_toHF.eq.0) HFInd = VecSlot     
             IFDEBUGTHEN(FCIMCDebug,1)
                 if(j.gt.1) then
                     if(DetBitEQ(CurrentDets(:,j-1),CurrentDets(:,j),NIfDBO)) then
@@ -1196,10 +1225,9 @@ MODULE FciMCParMod
             call SumEContrib (DetCurr, WalkExcitLevel, SignCurr, &
                               CurrentDets(:,j), HDiagCurr, 1.0_dp)
 
-            ! If we're filling the RDM, this calculates the explicitly connected singles and doubles.
-            ! Or in the case of HFSD (or some combination of this), it calculates the 
-            ! diagonal elements too - as we need the walkExcitlevel for the diagonal elements as well.
-            call Add_RDM_HFConnections(CurrentDets(:,j),DetCurr,AvSignCurr,walkExcitLevel_toHF)   
+!            ! If we're filling the RDM, this calculates the explicitly connected singles and doubles.
+!            ! Or in the case of HFSD (or some combination of this), it calculates the 
+!            ! diagonal elements too - as we need the walkExcitlevel for the diagonal elements as well.
             TempSpawnedPartsInd = 0
 
             ! Loop over the 'type' of particle. 
@@ -1248,7 +1276,7 @@ MODULE FciMCParMod
                     endif
 
                     ! Children have been chosen to be spawned.
-                    if ((any(child /= 0)).or.tGhostChild) then
+                    if (any(child /= 0)) then
                         ! We know we want to create a particle of this type.
                         ! Encode the bit representation if it isn't already.
 
@@ -1277,6 +1305,18 @@ MODULE FciMCParMod
                                CurrentDets(:,j), HDiagCurr, SignCurr, &
                                AvSignCurr, IterRDMStartCurr, VecSlot, j)
 
+            if(tFill_RDM) then 
+                ! If tFill_RDM is true, this is an iteration where the diagonal 
+                ! RDM elements are calculated, along with the contributions from 
+                ! connections to the (true) HF determinant.
+
+                if((abs(CurrentH(2,VecSlot-1)).gt.real(InitiatorWalkNo,dp)).or.(.not.tInitiatorRDM)) & 
+                ! If we are only using initiators to calculate the RDMs, only add in the diagonal and 
+                ! explicit contributions if the average population is greater than n_a = InitiatorWalkNo.
+                    call fill_rdm_diag_currdet(CurrentDets(:,VecSlot-1), DetCurr, &
+                            CurrentH(1:NCurrH,VecSlot-1), walkExcitLevel_toHF, IterLastRDMFill)  
+            endif
+
         enddo ! Loop over determinants.
         IFDEBUGTHEN(FCIMCDebug,2) 
             write(iout,*) 'Finished loop over determinants'
@@ -1288,7 +1328,7 @@ MODULE FciMCParMod
         if(tHashWalkerList) then
             !With this algorithm, the determinants do not move, and therefore TotWalkersNew is simply equal
             !to TotWalkers
-            TotWalkersNew=TotWalkers
+            TotWalkersNew=int(TotWalkers,sizeof_int)
         else
             ! Since VecSlot holds the next vacant slot in the array, TotWalkers
             ! should be one less than this. TotWalkersNew is now the number of particles
@@ -1303,7 +1343,7 @@ MODULE FciMCParMod
         ! Print bloom/memory warnings
         call end_iteration_print_warn (totWalkersNew)
         call halt_timer (walker_time)
-        
+
         ! For the direct annihilation algorithm. The newly spawned 
         ! walkers should be in a seperate array (SpawnedParts) and the other 
         ! list should be ordered.
@@ -1438,12 +1478,22 @@ MODULE FciMCParMod
         ! 'type' of the particle - i.e. real/imag
         integer, intent(in) :: part_type
         real(dp) , intent(in) , optional :: RDMBiasFacCurr
-        integer :: proc, flags, j, BiasFac
-        logical :: parent_init, tRDMStoreParent
+        integer :: proc, flags, j
+        logical :: parent_init
 
         proc = DetermineDetNode(nJ,0)    ! 0 -> nNodes-1)
+
         ! We need to include any flags set both from the parent and from the
-        ! spawning steps
+        ! spawning steps. No we don't! - ghb
+        ! This is highly highly yucky and needs cleaning up.
+        ! Potentially, ilutJ can be given the flag of its parent in 
+        ! FindExcitBitDet routine. I don't think it should be.
+        ! To make things more confusing, this only happens for non-HPHF/CSF 
+        ! runs.
+        ! Things are even more confusing given the fact that CCMC is using this routine
+        ! Who know whether they require the flag there or not...
+        !TODO: CLEAN THIS UP. Make it clear, and transparent, with one way to change the
+        ! flag. Otherwise, this will trip many people up in the future.
         flags = ior(parent_flags, extract_flags(ilutJ))
 
 !        WRITE(6,*) 'Encoding',iLutJ
@@ -1453,55 +1503,13 @@ MODULE FciMCParMod
         call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ, &
                             child, flags)
 
-        IF(tFillingStochRDMonFly) THEN                            
-            !We are spawning from iLutI to SpawnedParts(:,ValidSpawnedList(proc)).
-            !We want to store the parent (D_i) with the spawned child (D_j) so that we can
-            !add in Di.Dj to the RDM later on.
-            !The parent is NIfDBO integers long, and stored in the second part of the SpawnedParts array 
-            !from NIfTot+1 -> NIfTot+1 + NIfDBO.
-
-            ! But first we want to check if this Di.Dj pair has already been accounted for.
-            ! This means searching the Dj's that have already been spawned from this Di, to make sure 
-            ! the new Di being spawned on here is not the same.
-
-            ! Store parent, unless we find this Dj has already been spawned on.
-            tRDMStoreParent = .true.
-
-            ! Run through the walkers that have already been spawned from this particular Di.
-            ! If this is the first to be spawned from Di, TempSpawnedPartsInd will be zero, so we 
-            ! just wont run over anything.
-            do j = 1,TempSpawnedPartsInd
-                if(DetBitEQ(iLutJ(0:NIfDBO),TempSpawnedParts(0:NIfDBO,j),NIfDBO)) then
-                    ! If this Dj is found, we do not want to store the parent with this spawned walker.
-                    tRDMStoreParent = .false.
-                    EXIT
-                endif
-            enddo
-
-            if(tRDMStoreParent) then
-                ! This is a new Dj that has been spawned from this Di.
-                ! We want to store it in the temporary list of spawned parts which have come from this Di.
-                if(WalkerNumber.ne.abs(SignI(1))) then
-                    ! Don't bother storing these if we're on the last walker, or if we only have one 
-                    ! walker on Di.
-                    TempSpawnedPartsInd = TempSpawnedPartsInd + 1
-                    TempSpawnedParts(0:NIfDBO,TempSpawnedPartsInd) = iLutJ(0:NIfDBO)
-                endif
-
-                ! We also want to make sure the parent Di is stored with this Dj.
-                SpawnedParts(niftot+1:niftot+nifdbo+1, ValidSpawnedList(proc)) = iLutI(0:nifdbo) 
-
-                !We also need to carry with the child (and the parent), the sign of the parent.
-                !In actual fact this is the sign of the parent divided by the probability of generating 
-                !that pair Di and Dj, to account for the 
-                !fact that Di and Dj are not always added to the RDM, but only when Di spawns on Dj.
-                !This RDMBiasFacCurr factor is turned into an integer to pass around to the relevant processors.
-                SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)) = &
-                    transfer(RDMBiasFacCurr,SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(proc)))
-            else
-                SpawnedParts(niftot+1:niftot+nifdbo+2, ValidSpawnedList(proc)) = 0
-            endif
-        ENDIF
+        IF(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) &
+                call store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, SignI, iLutJ, proc)
+        !We are spawning from iLutI to SpawnedParts(:,ValidSpawnedList(proc)).
+        !We want to store the parent (D_i) with the spawned child (D_j) so that we can
+        !add in Ci.Cj to the RDM later on.
+        !The parent is NIfDBO integers long, and stored in the second part of the SpawnedParts array 
+        !from NIfTot+1 -> NIfTot+1 + NIfDBO.
 
         IF(lenof_sign.eq.2) THEN
             !With complex walkers, things are a little more tricky.
@@ -1593,47 +1601,6 @@ MODULE FciMCParMod
         endif
 
     end subroutine end_iteration_print_warn 
-
-    subroutine check_start_rdm()
-        implicit none
-
-        IF((.not.tSinglePartPhase).and.((Iter - VaryShiftIter).eq.(IterRDMonFly+1))) THEN
-            IterRDMStart = Iter
-            IterRDM_HF = Iter
-            !We have reached the iteration where we want to start filling the RDM.
-            if(tExplicitAllRDM) then
-                tFillingExplicRDMonFly = .true.
-                if(tHistSpawn) NHistEquilSteps = Iter
-            else
-                if(tHF_S_D.or.tHF_S_D_Ref.or.tHF_Ref_Explicit) then
-                    call set_extract_bit_rep_rdm_diag(extract_bit_rep_rdm_diag_hf_s_d)
-                    call set_add_rdm_hfconnections(add_rdm_hfconnections_hf_s_d)
-                elseif(tHPHF) then
-                    call set_extract_bit_rep_rdm_diag(extract_bit_rep_rdm_diag_hphf)
-                    call set_add_rdm_hfconnections(add_rdm_hfconnections_hphf)
-                else
-                    call set_extract_bit_rep_rdm_diag(extract_bit_rep_rdm_diag_norm)
-                    call set_add_rdm_hfconnections(add_rdm_hfconnections_norm)
-                endif
-                if(.not.tHF_Ref_Explicit) then
-                    !By default - we will do a stochastic calculation of the RDM.
-                    tFillingStochRDMonFly = .true.
-                    !The SpawnedParts array now needs to carry both the spawned parts Dj, and also it's 
-                    !parent Di (and it's sign, Ci). - We deallocate it and reallocate it with the larger size.
-                    call DeAlloc_Alloc_SpawnedParts()
-                    !Don't need any of this if we're just doing HF_Ref_Explicit calculation.
-                    !This is all done in the add_rdm_hfconnections routine.
-                endif
-            endif
-            if(RDMExcitLevel.eq.1) then
-                WRITE(6,'(A)') 'Calculating the 1 electron density matrix on the fly.'
-            else
-                WRITE(6,'(A)') 'Calculating the 2 electron density matrix on the fly.'
-            endif
-            WRITE(6,'(A,I10)') 'Beginning to fill the RDMs during iteration',Iter
-        ENDIF
-
-    end subroutine check_start_rdm
 
     subroutine CalcParentFlag(j, VecSlot, parent_flags)
 !In the CurrentDets array, the flag at NIfTot refers to whether that determinant *itself* is an initiator or not.    
@@ -1930,9 +1897,13 @@ MODULE FciMCParMod
 
         call set_fcimc_iter_data (iter_data_fciqmc)
 
-        call set_extract_bit_rep_rdm_diag(extract_bit_rep_rdm_diag_no_rdm)
+        call set_extract_bit_rep_avsign(extract_bit_rep_avsign_no_rdm)
 
-        call set_add_rdm_hfconnections(add_rdm_hfconnections_null)
+        if(tHF_Ref_Explicit.or.tHF_S_D.or.tHF_S_D_Ref) then
+            call set_fill_rdm_diag_currdet(fill_rdm_diag_currdet_hfsd)
+        else
+            call set_fill_rdm_diag_currdet(fill_rdm_diag_currdet_norm)
+        endif
 
     end subroutine
 
@@ -2114,9 +2085,8 @@ MODULE FciMCParMod
             end function
         end interface
         
-        real(dp) :: rat, r, p_spawn_rdmfac, p_notlist_rdmfac
-        integer :: extracreate, iUnused,j
-        logical :: tpspawn_gt1
+        real(dp) :: rat, r
+        integer :: extracreate, iUnused
         HElement_t :: rh
 #ifdef __CMPLX
         ! Avoid compiler warnings when compiling the real version.
@@ -2281,85 +2251,16 @@ MODULE FciMCParMod
             ! Avoid compiler warnings
             iUnused = part_type
 
-        if(tFillingStochRDMonFly) then
-            if(tSpawnGhostChild) then
-
-                ! We eventually turn this real bias factor into an integer to be passed around 
-                ! with the spawned children and their parents - this only works with 64 bit at the mo.
-                if(n_int.eq.4) CALL Stop_All('attempt_create_normal', &
-                                'the bias factor currently does not work with 32 bit integers.')
-
-                ! Otherwise calculate the 'sign' of Di we are eventually going to add in as Di.Dj.                                
-                ! Because we only add in Di.Dj when we successfully spawn from Di.Dj, we need to unbias (scale up) 
-                ! Di by the probability of this happening.
-                ! We need the probability that the determinant i, with population n_i, will spawn on j.
-                ! We only consider one instance of a pair Di,Dj, so just want the probability of any of the n_i 
-                ! walkers spawning at least once on Dj.
-                ! P_successful_spawn(j | i)[n_i] =  1 - P_not_spawn(j | i)[n_i]
-                ! P_not_spawn(j | i )[n_i] is the probability of none of the n_i walkers spawning on j from i.
-                ! This requires either not generating j, or generating j and not succesfully spawning, n_i times.
-                ! P_not_spawn(j | i )[n_i] = [(1 - P_gen(j | i)) + ( P_gen( j | i ) * (1 - P_spawn(j | i))]^n_i
-
-                tGhostChild = .false.
-                if(extraCreate.ne.0) then
-                    ! This is the special case whereby if P_spawn(j | i) > 1, then we will definitely spawn from i -> j.
-                    ! I.e. the pair Di,Dj will definitely be in the SpawnedParts list.
-                    ! We don't care about multiple spawns - if it's in the list, it gets added in regardless of 
-                    ! the number spawned - so if P_spawn(j | i) > 1, we treat it as = 1.
-                    p_spawn_rdmfac = 1.D0
-                elseif(rat.lt.GhostThresh) then
-                    ! If we're spawning 'ghost' children, we give DiDj pairs with small H elements a chance 
-                    ! to contribute to the RDM, while still not spawning children.
-                    p_spawn_rdmfac = rat*GhostFac
-                    if ((child(1).eq.0).and.((rat*GhostFac) .gt. r)) then
-                        tGhostChild = .true.
-                    else
-                        tGhostChild = .false.
-                    endif
+            if(tFillingStochRDMonFly) then
+                if((child(1).ne.0).and.(.not.tHF_Ref_Explicit)) then
+                    call calc_rdmbiasfac(extraCreate, rat, prob, AvSignCurr, wSign, RDMBiasFacCurr) 
                 else
-                    p_spawn_rdmfac = rat
+                    RDMBiasFacCurr = 0.0_dp
                 endif
-                p_notlist_rdmfac = ( 1.D0 - prob ) + ( prob * (1.D0 - p_spawn_rdmfac) )
-
-                ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i]
-                RDMBiasFacCurr = AvSignCurr / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp))) ) )   
-
-            elseif(child(1).ne.0) then
-
-                ! We eventually turn this real bias factor into an integer to be passed around 
-                ! with the spawned children and their parents - this only works with 64 bit at the mo.
-                if(n_int.eq.4) CALL Stop_All('attempt_create_normal', &
-                                'the bias factor currently does not work with 32 bit integers.')
-
-                ! Otherwise calculate the 'sign' of Di we are eventually going to add in as Di.Dj.                                
-                ! Because we only add in Di.Dj when we successfully spawn from Di.Dj, we need to unbias (scale up) 
-                ! Di by the probability of this happening.
-                ! We need the probability that the determinant i, with population n_i, will spawn on j.
-                ! We only consider one instance of a pair Di,Dj, so just want the probability of any of the n_i 
-                ! walkers spawning at least once on Dj.
-                ! P_successful_spawn(j | i)[n_i] =  1 - P_not_spawn(j | i)[n_i]
-                ! P_not_spawn(j | i )[n_i] is the probability of none of the n_i walkers spawning on j from i.
-                ! This requires either not generating j, or generating j and not succesfully spawning, n_i times.
-                ! P_not_spawn(j | i )[n_i] = [(1 - P_gen(j | i)) + ( P_gen( j | i ) * (1 - P_spawn(j | i))]^n_i
-
-                tGhostChild = .false.
-                if(extraCreate.ne.0) then
-                    ! This is the special case whereby if P_spawn(j | i) > 1, then we will definitely spawn from i -> j.
-                    ! I.e. the pair Di,Dj will definitely be in the SpawnedParts list.
-                    ! We don't care about multiple spawns - if it's in the list, it gets added in regardless of 
-                    ! the number spawned - so if P_spawn(j | i) > 1, we treat it as = 1.
-                    p_spawn_rdmfac = 1.D0
-                else
-                    p_spawn_rdmfac = rat
-                endif
-                p_notlist_rdmfac = ( 1.D0 - prob ) + ( prob * (1.D0 - p_spawn_rdmfac) )
-
-                ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i]
-                RDMBiasFacCurr = AvSignCurr / abs( 1.D0 - ( p_notlist_rdmfac ** (abs(real(wSign(1),dp))) ) )   
+            else
+                ! Not filling the RDM stochastically, bias is zero.
+                RDMBiasFacCurr = 0.0_dp
             endif
-        else
-            RDMBiasFacCurr = 0.0_dp
-        endif
 
 #endif
         ! Avoid compiler warnings
@@ -2439,7 +2340,7 @@ MODULE FciMCParMod
         ENDIF
         IF(CCMCDebug.gt.5) WRITE(iout,*) "Connection H-element to spawnee:",rh
 !        CALL IsSymAllowedExcit(DetCurr,nJ,IC,Ex,SymAllowed) 
-!        IF((.not.SymAllowed).and.(abs(rh).gt.0.D0)) THEN
+!        IF((.not.SymAllowed).and.(abs(rh).gt.0.0_dp)) THEN
 !            WRITE(17,*) rh
 !        ENDIF
 
@@ -2472,7 +2373,7 @@ MODULE FciMCParMod
 !Child is created - what sign is it?
             IF(WSign(1).gt.0) THEN
 !Parent particle is positive
-                IF(real(rh).gt.0.D0) THEN
+                IF(real(rh).gt.0.0_dp) THEN
                     AttemptCreatePar=-1     !-ve walker created
                 ELSE
                     AttemptCreatePar=1      !+ve walker created
@@ -2480,7 +2381,7 @@ MODULE FciMCParMod
 
             ELSE
 !Parent particle is negative
-                IF(real(rh).gt.0.D0) THEN
+                IF(real(rh).gt.0.0_dp) THEN
                     AttemptCreatePar=1      !+ve walker created
                 ELSE
                     AttemptCreatePar=-1     !-ve walker created
@@ -2507,13 +2408,13 @@ MODULE FciMCParMod
             ELSEIF(AttemptCreatePar.eq.0) THEN
 !No particles were stochastically created, but some particles are still definatly created - we need to determinant their sign...
                 IF(WSign(1).gt.0) THEN
-                    IF(real(rh).gt.0.D0) THEN
+                    IF(real(rh).gt.0.0_dp) THEN
                         AttemptCreatePar=-ExtraCreate    !Additional particles are negative
                     ELSE
                         AttemptCreatePar=ExtraCreate       !Additional particles are positive
                     ENDIF
                 ELSE
-                    IF(real(rh).gt.0.D0) THEN
+                    IF(real(rh).gt.0.0_dp) THEN
                         AttemptCreatePar=ExtraCreate
                     ELSE
                         AttemptCreatePar=-ExtraCreate
@@ -2701,7 +2602,7 @@ MODULE FciMCParMod
                 ! If we're stochastically filling the RDMs, we want to keep determinants even if 
                 ! their walkers have all died.
                 ! This is because we're using the sign of each determinant before death.
-                ! But if the walker is removed from the list altogether, this is lost too.
+                ! But if the walker is removed from the list altogether, this would be lost too.
                 if(tHashWalkerList) then
                     call encode_sign(CurrentDets(:,DetPosition),CopySign)
                     CurrentH(2,DetPosition) = wAvSign
@@ -2717,7 +2618,7 @@ MODULE FciMCParMod
             if(tTruncInitiator) then
                 ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
                 if(test_flag(iLutCurr,flag_is_initiator(1))) then
-                    NoAddedInitiators=NoAddedInitiators-1.D0
+                    NoAddedInitiators=NoAddedInitiators-1
                     if (tSpawnSpatialInit) call rm_initiator_list (ilutCurr)
                 endif
             endif
@@ -2757,7 +2658,7 @@ MODULE FciMCParMod
                     call encode_sign(CurrentDets(:,DetPosition),CopySign)
                 else
                     call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
-                    if (.not.tRegenDiagHEls) CurrentH(VecSlot) = Kii
+                    if (.not.tRegenDiagHEls) CurrentH(1,VecSlot) = Kii
                     VecSlot=VecSlot+1
                 endif
             else
@@ -2809,8 +2710,8 @@ MODULE FciMCParMod
 
         fac = tau * (Kii-DiagSft)
 
-        if(fac.gt.1.D0) then
-            if(fac.gt.2.D0) then
+        if(fac.gt.1.0_dp) then
+            if(fac.gt.2.0_dp) then
                 call stop_all("attempt_die_normal","Death probability > 2: Algorithm unstable. Reduce timestep.")
             else
                 write(iout,"(A,F20.10)") "** WARNING ** Death probability > 1: Creating Antiparticles. "&
@@ -2930,17 +2831,17 @@ MODULE FciMCParMod
         real(dp) :: Norm,EnergyBin
 
         IF(iProcIndex.eq.Root) THEN
-            AllHistogramEnergy(:)=0.D0
-            AllAttemptHist(:)=0.D0
-            AllSpawnHist(:)=0.D0
-            AllDoublesHist(:)=0.D0
-            AllDoublesAttemptHist(:)=0.D0
-            AllSinglesHist(:)=0.D0
-            AllSinglesAttemptHist(:)=0.D0
-            AllSinglesHistOccOcc(:)=0.D0
-            AllSinglesHistOccVirt(:)=0.D0
-            AllSinglesHistVirtOcc(:)=0.D0
-            AllSinglesHistVirtVirt(:)=0.D0
+            AllHistogramEnergy(:)=0.0_dp
+            AllAttemptHist(:)=0.0_dp
+            AllSpawnHist(:)=0.0_dp
+            AllDoublesHist(:)=0.0_dp
+            AllDoublesAttemptHist(:)=0.0_dp
+            AllSinglesHist(:)=0.0_dp
+            AllSinglesAttemptHist(:)=0.0_dp
+            AllSinglesHistOccOcc(:)=0.0_dp
+            AllSinglesHistOccVirt(:)=0.0_dp
+            AllSinglesHistVirtOcc(:)=0.0_dp
+            AllSinglesHistVirtVirt(:)=0.0_dp
         ENDIF
         CALL MPIReduce(HistogramEnergy,MPI_SUM,AllHistogramEnergy)
         CALL MPIReduce(AttemptHist,MPI_SUM,AllAttemptHist)
@@ -2965,7 +2866,7 @@ MODULE FciMCParMod
             do i=1,iOffDiagNoBins
                 AllDoublesAttemptHist(i)=AllDoublesAttemptHist(i)/Norm
             enddo
-            Norm=0.D0
+            Norm=0.0_dp
             do i=1,iOffDiagNoBins
                 Norm=Norm+AllSinglesHist(i)
             enddo
@@ -2974,28 +2875,28 @@ MODULE FciMCParMod
                 AllSinglesHist(i)=AllSinglesHist(i)/Norm
             enddo
  
-!            Norm=0.D0
+!            Norm=0.0_dp
 !            do i=1,iOffDiagNoBins
 !                Norm=Norm+AllSinglesHistOccOcc(i)
 !            enddo
             do i=1,iOffDiagNoBins
                 AllSinglesHistOccOcc(i)=AllSinglesHistOccOcc(i)/Norm
             enddo
-!            Norm=0.D0
+!            Norm=0.0_dp
 !            do i=1,iOffDiagNoBins
 !                Norm=Norm+AllSinglesHistOccVirt(i)
 !            enddo
             do i=1,iOffDiagNoBins
                 AllSinglesHistOccVirt(i)=AllSinglesHistOccVirt(i)/Norm
             enddo
-!            Norm=0.D0
+!            Norm=0.0_dp
 !            do i=1,iOffDiagNoBins
 !                Norm=Norm+AllSinglesHistVirtOcc(i)
 !            enddo
             do i=1,iOffDiagNoBins
                 AllSinglesHistVirtOcc(i)=AllSinglesHistVirtOcc(i)/Norm
             enddo
-!            Norm=0.D0
+!            Norm=0.0_dp
 !            do i=1,iOffDiagNoBins
 !                Norm=Norm+AllSinglesHistVirtVirt(i)
 !            enddo
@@ -3011,11 +2912,11 @@ MODULE FciMCParMod
             io(3) = get_free_unit()
             OPEN(io(3),FILE='SPAWNENERGYHIST',STATUS='UNKNOWN')
 
-            EnergyBin=BinRange/2.D0
+            EnergyBin=BinRange/2.0_dp
             do i=1,iNoBins
-                IF(AllHistogramEnergy(i).gt.0.D0) WRITE(io(1),*) EnergyBin, AllHistogramEnergy(i)
-                IF(AllAttemptHist(i).gt.0.D0) WRITE(io(2),*) EnergyBin, AllAttemptHist(i)
-                IF(AllSpawnHist(i).gt.0.D0) WRITE(io(3),*) EnergyBin, AllSpawnHist(i)
+                IF(AllHistogramEnergy(i).gt.0.0_dp) WRITE(io(1),*) EnergyBin, AllHistogramEnergy(i)
+                IF(AllAttemptHist(i).gt.0.0_dp) WRITE(io(2),*) EnergyBin, AllAttemptHist(i)
+                IF(AllSpawnHist(i).gt.0.0_dp) WRITE(io(3),*) EnergyBin, AllSpawnHist(i)
                 EnergyBin=EnergyBin+BinRange
             enddo
             CLOSE(io(1))
@@ -3035,16 +2936,16 @@ MODULE FciMCParMod
             io(8) = get_free_unit()
             OPEN(io(8),FILE='SINGLESHISTVIRTVIRT',STATUS='UNKNOWN')
 
-            EnergyBin=-OffDiagMax+OffDiagBinRange/2.D0
+            EnergyBin=-OffDiagMax+OffDiagBinRange/2.0_dp
             do i=1,iOffDiagNoBins
-                IF(AllSinglesHist(i).gt.0.D0) WRITE(io(1),*) EnergyBin, AllSinglesHist(i)
-                IF(AllSinglesAttemptHist(i).gt.0.D0) WRITE(io(2),*) EnergyBin, AllSinglesAttemptHist(i)
-                IF(AllDoublesHist(i).gt.0.D0) WRITE(io(3),*) EnergyBin, AllDoublesHist(i)
-                IF(AllDoublesAttemptHist(i).gt.0.D0) WRITE(io(4),*) EnergyBin, AllDoublesAttemptHist(i)
-                IF(AllSinglesHistOccOcc(i).gt.0.D0) WRITE(io(5),*) EnergyBin, AllSinglesHistOccOcc(i)
-                IF(AllSinglesHistOccVirt(i).gt.0.D0) WRITE(io(6),*) EnergyBin, AllSinglesHistOccVirt(i)
-                IF(AllSinglesHistVirtOcc(i).gt.0.D0) WRITE(io(7),*) EnergyBin, AllSinglesHistVirtOcc(i)
-                IF(AllSinglesHistVirtVirt(i).gt.0.D0) WRITE(io(8),*) EnergyBin, AllSinglesHistVirtVirt(i)
+                IF(AllSinglesHist(i).gt.0.0_dp) WRITE(io(1),*) EnergyBin, AllSinglesHist(i)
+                IF(AllSinglesAttemptHist(i).gt.0.0_dp) WRITE(io(2),*) EnergyBin, AllSinglesAttemptHist(i)
+                IF(AllDoublesHist(i).gt.0.0_dp) WRITE(io(3),*) EnergyBin, AllDoublesHist(i)
+                IF(AllDoublesAttemptHist(i).gt.0.0_dp) WRITE(io(4),*) EnergyBin, AllDoublesAttemptHist(i)
+                IF(AllSinglesHistOccOcc(i).gt.0.0_dp) WRITE(io(5),*) EnergyBin, AllSinglesHistOccOcc(i)
+                IF(AllSinglesHistOccVirt(i).gt.0.0_dp) WRITE(io(6),*) EnergyBin, AllSinglesHistOccVirt(i)
+                IF(AllSinglesHistVirtOcc(i).gt.0.0_dp) WRITE(io(7),*) EnergyBin, AllSinglesHistVirtOcc(i)
+                IF(AllSinglesHistVirtVirt(i).gt.0.0_dp) WRITE(io(8),*) EnergyBin, AllSinglesHistVirtVirt(i)
                 EnergyBin=EnergyBin+OffDiagBinRange
 !                WRITE(6,*) i
             enddo
@@ -3110,7 +3011,7 @@ MODULE FciMCParMod
         real(dp) :: norm,norm1
 
         CALL MPISumAll(Histogram,AllHistogram)
-        norm1=0.D0
+        norm1=0.0_dp
         do i=1,Det
             IF(lenof_sign.eq.1) THEN
                 norm1=norm1+AllHistogram(1,i)**2
@@ -3139,7 +3040,7 @@ MODULE FciMCParMod
                 
                 OPEN(iunit,FILE='FCIMCPsi',STATUS='UNKNOWN')
 
-                norm=0.D0
+                norm=0.0_dp
                 do i=1,Det
                     IF(lenof_sign.eq.1) THEN
                         norm=norm+AllHistogram(1,i)**2
@@ -3163,16 +3064,21 @@ MODULE FciMCParMod
 
     END SUBROUTINE PrintFCIMCPsi
 
-
-
 !This routine will write out the average wavevector from the spawning run up until now.
     SUBROUTINE WriteHistogram()
         use SystemData , only : BasisFN
         use util_mod, only: get_free_unit
-        INTEGER :: i,IterRead, io1, io2, io3, Tot_No_Unique_Dets
-        real(dp) :: norm,norm1,norm2,norm3,ShiftRead,AllERead,NumParts
+        use DetCalcData, only: Lab,NRow,Hamil,FCIDets,ReIndex
+        use Logging, only: tDiagAllSpaceEver,tCalcVariationalEnergy
+        use sort_mod
+        INTEGER :: i,IterRead, io1, io2, io3, Tot_No_Unique_Dets,ierr,val
+        real(dp) :: norm,norm1,norm2,norm3,ShiftRead,AllERead,NumParts,DDOT
+        real(dp) :: AvVarEnergy, VarEnergy, GroundE_Ever, ProjGroundE
+        real(dp) , allocatable :: CKN(:),HOrderedHist(:),HOrderedInstHist(:)
+        integer , allocatable :: ExpandedWalkerDets(:,:)
         CHARACTER(len=22) :: abstr,abstr2
         LOGICAL :: exists
+        character(len=*), parameter :: t_r='WriteHistogram'
 
 !This will open a file called SpawnHist-"Iter" on unit number 17.
         abstr=''
@@ -3184,10 +3090,10 @@ MODULE FciMCParMod
         ENDIF
 
         IF(iProcIndex.eq.0) THEN
-            AllHistogram(:,:)=0.D0
-            AllInstHist(:,:)=0.D0
-            AllAvAnnihil(:,:)=0.D0
-            AllInstAnnihil(:,:)=0.D0
+            AllHistogram(:,:)=0.0_dp
+            AllInstHist(:,:)=0.0_dp
+            AllAvAnnihil(:,:)=0.0_dp
+            AllInstAnnihil(:,:)=0.0_dp
         ENDIF
 
         CALL MPIReduce(Histogram,MPI_SUM,AllHistogram)
@@ -3197,16 +3103,10 @@ MODULE FciMCParMod
         
         IF(iProcIndex.eq.0) THEN
 
-!            IF(.not.associated(NMRKS)) THEN
-!                CALL Stop_All("WriteHistogram","A Full Diagonalization is &
-!                              &required in the same calculation before &
-!                              &histogramming can occur.")
-!            ENDIF
-
-            norm=0.D0
-            norm1=0.D0
-            norm2=0.D0
-            norm3=0.D0
+            norm=0.0_dp
+            norm1=0.0_dp
+            norm2=0.0_dp
+            norm3=0.0_dp
             do i=1,Det
                 IF(lenof_sign.eq.1) THEN
                     norm=norm+AllHistogram(1,i)**2
@@ -3229,10 +3129,10 @@ MODULE FciMCParMod
                 IF(lenof_sign.eq.1) THEN
                     AllHistogram(1,i)=AllHistogram(1,i)/norm
                     AllInstHist(1,i)=AllInstHist(1,i)/norm1
-                    IF(norm2.ne.0.D0) THEN
+                    IF(norm2.ne.0.0_dp) THEN
                         AllInstAnnihil(1,i)=AllInstAnnihil(1,i)/norm2
                     ENDIF
-                    IF(norm3.ne.0.D0) THEN
+                    IF(norm3.ne.0.0_dp) THEN
                         AllAvAnnihil(1,i)=AllAvAnnihil(1,i)/norm3
                     ENDIF
                 ELSE
@@ -3240,11 +3140,11 @@ MODULE FciMCParMod
                     AllHistogram(lenof_sign,i)=AllHistogram(lenof_sign,i)/norm
                     AllInstHist(1,i)=AllInstHist(1,i)/norm1
                     AllInstHist(lenof_sign,i)=AllInstHist(lenof_sign,i)/norm1
-                    IF(norm2.ne.0.D0) THEN
+                    IF(norm2.ne.0.0_dp) THEN
                         AllInstAnnihil(1,i)=AllInstAnnihil(1,i)/norm2
                         AllInstAnnihil(lenof_sign,i)=AllInstAnnihil(lenof_sign,i)/norm2
                     ENDIF
-                    IF(norm3.ne.0.D0) THEN
+                    IF(norm3.ne.0.0_dp) THEN
                         AllAvAnnihil(1,i)=AllAvAnnihil(1,i)/norm3
                         AllAvAnnihil(lenof_sign,i)=AllAvAnnihil(lenof_sign,i)/norm3
                     ENDIF
@@ -3273,7 +3173,7 @@ MODULE FciMCParMod
                     WRITE(io2,"(I13,3G25.16)") IterRead,ShiftRead,AllERead,NumParts
                 enddo
 99              CONTINUE
-                IF(AllHFCyc.eq.0.D0) THEN
+                IF(AllHFCyc.eq.0.0_dp) THEN
                     WRITE(io2,"(I13,3G25.16)") Iter,DiagSft,AllERead,SUM(AllTotPartsOld)
                 ELSE
                     WRITE(io2,"(I13,3G25.16)") Iter,DiagSft,AllENumCyc/AllHFCyc,SUM(AllTotPartsOld)
@@ -3288,8 +3188,8 @@ MODULE FciMCParMod
             ENDIF
 
 
-            norm=0.D0
-            norm1=0.D0
+            norm=0.0_dp
+            norm1=0.0_dp
             Tot_No_Unique_Dets = 0
             do i=1,Det
                 IF(lenof_sign.eq.1) THEN
@@ -3304,42 +3204,77 @@ MODULE FciMCParMod
                 ELSE
                     WRITE(io1,"(I13,6G25.16)") i,AllHistogram(1,i),norm,AllInstHist(1,i),AllInstAnnihil(1,i),AllAvAnnihil(1,i),norm1
                 ENDIF
-                IF(AllHistogram(1,i).ne.0.D0) Tot_No_Unique_Dets = Tot_No_Unique_Dets + 1
+                IF(AllHistogram(1,i).ne.0.0_dp) Tot_No_Unique_Dets = Tot_No_Unique_Dets + 1
             enddo
-            write(Tot_Unique_Dets_Unit,"(2A20)") Iter, Tot_No_Unique_Dets
+            if(tCalcVariationalEnergy) then
+                !Calculate the variational FCIMC energy
 
+                !Check that Det eq NDet
+                if(Det.ne.NDet) call stop_all(t_r,'Error')
+                allocate(CKN(1:Det))
+                CKN = 0.0_dp
+                !We need to reorder the vectors so that they are in the same order as the hamiltonian
+                allocate(HOrderedHist(1:Det))
+                HOrderedHist(:) = AllHistogram(1,:)
+                allocate(HOrderedInstHist(1:Det))
+                HOrderedInstHist(:) = AllInstHist(1,:)
+                call sort(ReIndex(1:Det),HOrderedHist(1:Det),HOrderedInstHist(1:Det))
 
-!            do i=1,Maxdet
-!                bits=0
-!                do j=0,nbasis-1
-!                    IF(BTEST(i,j)) THEN
-!                        Bits=Bits+1
-!                    ENDIF
-!                enddo
-!                IF(Bits.eq.NEl) THEN
-!
-!                    do j=1,ndet
-!                        CALL EncodeBitDet(NMRKS(:,j),iLut)
-!                        IF(iLut(0).eq.i) THEN
-!                            CALL GETSYM(NMRKS(1,j),NEL,G1,NBASISMAX,ISYM)
-!                            IF(ISym%Sym%S.eq.0) THEN
-!                                Det=Det+1
-!                                WRITE(io1,"(3I12)",advance='no') Det,iLut(0)
-!                                HEL=GetHElement3(NMRKS(:,j),NMRKS(:,j),0)
-!                                norm=norm+(AllHistogram(i))**2
-!                                norm1=norm1+(AllInstHist(i))**2
-!                                WRITE(io1,"(5G25.16)") REAL(HEL,8),AllHistogram(i),norm,AllInstHist(i),norm1
-!                            ENDIF
-!                            EXIT
-!                        ENDIF
-!                    ENDDO
-!                ENDIF
-!
-!            ENDDO
+!                write(6,*) ReIndex(1:10)    !Must be in increasing order
+!                write(6,*) HOrderedHist(:)
+
+                call my_hpsi(Det,1,NROW,LAB,HAMIL,HOrderedHist,CKN,.true.)
+                AvVarEnergy = DDOT(Det,HOrderedHist,1,CKN,1)
+                
+                CKN = 0.0_dp
+                call my_hpsi(Det,1,NROW,LAB,HAMIL,HOrderedInstHist,CKN,.true.)
+                VarEnergy = DDOT(Det,HOrderedInstHist,1,CKN,1)
+
+                deallocate(CKN)
+                deallocate(HOrderedHist,HOrderedInstHist)
+                if(tDiagAllSpaceEver) then
+
+                    allocate(ExpandedWalkerDets(NEl,Tot_No_Unique_Dets),stat=ierr)
+                    val=1
+                    do i=1,Det
+                        if(AllHistogram(1,i).ne.0.0_dp) then
+                            call decode_bit_det(ExpandedWalkerDets(:,val),FCIDets(0:NIfTot,i))
+                            val=val+1
+                        endif
+                    enddo
+                    if((val-1).ne.Tot_No_Unique_Dets) call stop_all(t_r,'Wrong counting')
+
+                    call LanczosFindGroundE(ExpandedWalkerDets,Tot_No_Unique_Dets,GroundE_Ever,ProjGroundE,.true.)
+                    if(abs(GroundE_Ever-ProjGroundE).gt.1.0e-7_dp) call stop_all(t_r,'Why do these not agree?!')
+                    write(Tot_Unique_Dets_Unit,"(2I14,3G25.15)") Iter,Tot_No_Unique_Dets,AvVarEnergy,VarEnergy,GroundE_Ever
+                else
+                    write(Tot_Unique_Dets_Unit,"(2I14,2G25.15)") Iter,Tot_No_Unique_Dets,AvVarEnergy,VarEnergy
+                endif
+            else
+                if(tDiagAllSpaceEver) then
+
+                    allocate(ExpandedWalkerDets(NEl,Tot_No_Unique_Dets),stat=ierr)
+                    val=1
+                    do i=1,Det
+                        if(AllHistogram(1,i).ne.0.0_dp) then
+                            call decode_bit_det(ExpandedWalkerDets(:,val),FCIDets(0:NIfTot,i))
+                            val=val+1
+                        endif
+                    enddo
+                    if((val-1).ne.Tot_No_Unique_Dets) call stop_all(t_r,'Wrong counting')
+
+                    call LanczosFindGroundE(ExpandedWalkerDets,Tot_No_Unique_Dets,GroundE_Ever,ProjGroundE,.true.)
+                    if(abs(GroundE_Ever-ProjGroundE).gt.1.0e-7_dp) call stop_all(t_r,'Why do these not agree?!')
+                    write(Tot_Unique_Dets_Unit,"(2I14,3G25.15)") Iter,Tot_No_Unique_Dets,GroundE_Ever
+                else
+                    write(Tot_Unique_Dets_Unit,"(2I14)") Iter, Tot_No_Unique_Dets
+                endif
+            endif
+
             CLOSE(io1)
         ENDIF
-        InstHist(:,:)=0.D0
-        InstAnnihil(:,:)=0.D0
+        InstHist(:,:)=0.0_dp
+        InstAnnihil(:,:)=0.0_dp
 
     END SUBROUTINE WriteHistogram
 
@@ -3360,8 +3295,8 @@ MODULE FciMCParMod
         ENDIF
 
         IF(iProcIndex.eq.0) THEN
-            AllHistHamil(:,:)=0.D0
-            AllAvHistHamil(:,:)=0.D0
+            AllHistHamil(:,:)=0.0_dp
+            AllAvHistHamil(:,:)=0.0_dp
         ENDIF
 
         CALL MPIReduce(HistHamil,MPI_SUM,AllHistHamil)
@@ -3379,7 +3314,7 @@ MODULE FciMCParMod
             enddo
             CLOSE(iunit)
         ENDIF
-        HistHamil(:,:)=0.D0
+        HistHamil(:,:)=0.0_dp
 
     END SUBROUTINE WriteHamilHistogram
 
@@ -3521,9 +3456,9 @@ MODULE FciMCParMod
             if(.not.tCCMC) then
                ! Check how balanced the load on each processor is (even though
                ! we cannot load balance with direct annihilation).
-               WalkersDiffProc = MaxWalkersProc - MinWalkersProc
+               WalkersDiffProc = int(MaxWalkersProc - MinWalkersProc,sizeof_int)
                mean_walkers = AllTotWalkers / real(nNodes,dp)
-               if (WalkersDiffProc > nint(mean_walkers / 10.d0) .and. &
+               if (WalkersDiffProc > nint(mean_walkers / 10.0_dp) .and. &
                    sum(AllTotParts) > real(nNodes * 500, dp)) then
                    root_write (iout, '(a, i13,a,2i11)') &
                        'Potential load-imbalance on iter ',iter + PreviousCycles,' Min/Max determinants on node: ', &
@@ -3646,7 +3581,7 @@ MODULE FciMCParMod
                     ! new reference det.
                     write (iout,*) 'Regenerating the stored diagonal HElements &
                                 &for all walkers.'
-                    do i = 1, Totwalkers
+                    do i = 1, int(Totwalkers,sizeof_int)
                         call decode_bit_det (det, CurrentDets(:,i))
                         if (tHPHF) then
                             h_tmp = hphf_diag_helement (det, CurrentDets(:,i))
@@ -3718,7 +3653,7 @@ MODULE FciMCParMod
         integer :: int_tmp(5+2*lenof_sign), proc, sgn(lenof_sign), pos, i
         HElement_t :: helem_tmp(3)
         HElement_t :: real_tmp(2)!*lenof_sign)
-        integer(int64) :: int64_tmp(9),TotWalkersTemp
+        integer(int64) :: int64_tmp(8),TotWalkersTemp
         type(fcimc_iter_data) :: iter_data
         integer(int64), dimension(lenof_sign), intent(in) :: tot_parts_new
         integer(int64), dimension(lenof_sign), intent(out) :: tot_parts_new_all
@@ -3746,8 +3681,8 @@ MODULE FciMCParMod
         if (tTruncInitiator) then
             call MPISum ((/NoAborted, NoAddedInitiators, NoInitDets, &
                            NoNonInitDets, NoInitWalk, NoNonInitWalk, &
-                           NoExtraInitdoubs, InitRemoved, GhostSpawns/),&
-                          int64_tmp(1:9))
+                           NoExtraInitdoubs, InitRemoved/),&
+                          int64_tmp(1:8))
             AllNoAborted = int64_tmp(1)
             AllNoAddedInitiators = int64_tmp(2)
             AllNoInitDets = int64_tmp(3)
@@ -3756,7 +3691,6 @@ MODULE FciMCParMod
             AllNoNonInitWalk = int64_tmp(6)
             AllNoExtraInitDoubs = int64_tmp(7)
             AllInitRemoved = int64_tmp(8)
-            AllGhostSpawns = int64_tmp(9)
         endif
 
         ! 64bit integers
@@ -3781,9 +3715,11 @@ MODULE FciMCParMod
 
         if(tSplitProjEHist) then
             if(tSplitProjEHistG) then
+                AllENumCycHistG=0.0_dp
                 call MPISum(ENumCycHistG,AllENumCycHistG)
             endif
             if(tSplitProjEHistK3) then
+                AllENumCycHistK3=0.0_dp
                 call MPISum(ENumCycHistK3,AllENumCycHistK3)
             endif
         endif
@@ -3805,8 +3741,8 @@ MODULE FciMCParMod
 !        WRITE(iout,*) "***",iter_data%update_growth_tot,AllTotParts-AllTotPartsOld
 
         if(tSearchTau) then
-            call MPISumAll(MaxSpawnProb,AllMaxSpawnProb)
-!            if((AllMaxSpawnProb-MaxAllowedSpawnProb).gt.1.D-5) then
+            call MPIAllReduce (MaxSpawnProb, MPI_MAX, AllMaxSpawnProb)
+!            if((AllMaxSpawnProb-MaxAllowedSpawnProb).gt.1.0e-5_dp) then
             if((AllMaxSpawnProb/MaxAllowedSpawnProb).gt.1.02) then
                 !Reduce tau, so that the maximum spawning probability is reduced.
                 tau = tau * (MaxAllowedSpawnProb/AllMaxSpawnProb)
@@ -3917,9 +3853,9 @@ MODULE FciMCParMod
                     VaryShiftIter = Iter
                     iBlockingIter = Iter + PreviousCycles
                     tSinglePartPhase = .false.
-                    if(TargetGrowRate.ne.0.D0) then
+                    if(TargetGrowRate.ne.0.0_dp) then
                         write(iout,"(A)") "Setting target growth rate to 1."
-                        TargetGrowRate=0.D0
+                        TargetGrowRate=0.0_dp
                     endif
                     if(tSpawn_Only_Init.and.tSpawn_Only_Init_Grow) then
                         !Remove the restriction that only initiators can spawn.
@@ -3937,11 +3873,11 @@ MODULE FciMCParMod
 
             ! How should the shift change for the entire ensemble of walkers 
             ! over all processors.
-            if ((.not. tSinglePartPhase).or.(TargetGrowRate.ne.0.D0)) then
+            if ((.not. tSinglePartPhase).or.(TargetGrowRate.ne.0.0_dp)) then
 
-                !In case we want to continue growing, TargetGrowRate > 0.D0
+                !In case we want to continue growing, TargetGrowRate > 0.0_dp
                 ! New shift value
-                if(TargetGrowRate.ne.0.D0) then
+                if(TargetGrowRate.ne.0.0_dp) then
                     if(sum(AllTotParts).gt.TargetGrowRateWalk) then
                         !Only allow targetgrowrate to kick in once we have > TargetGrowRateWalk walkers.
                         DiagSft = DiagSft - (log(AllGrowRate-TargetGrowRate) * SftDamp) / &
@@ -3977,25 +3913,25 @@ MODULE FciMCParMod
                     AvDiagSft = SumDiagSft / real(VaryShiftCycles, dp)
                 endif
 
-                ! Update DiagSftAbort for initiator algorithm
-                if (tTruncInitiator) then
-                    DiagSftAbort = DiagSftAbort - &
-                              (log(real(AllGrowRateAbort-TargetGrowRate, dp)) * SftDamp) / &
-                              (Tau * StepsSft)
-
-                    if (iter - VaryShiftIter >= nShiftEquilSteps) then
-                        SumDiagSftAbort = SumDiagSftAbort + DiagSftAbort
-                        AvDiagSftAbort = SumDiagSftAbort / &
-                                         real(VaryShiftCycles, dp)
-                    endif
-                endif
+!                ! Update DiagSftAbort for initiator algorithm
+!                if (tTruncInitiator) then
+!                    DiagSftAbort = DiagSftAbort - &
+!                              (log(real(AllGrowRateAbort-TargetGrowRate, dp)) * SftDamp) / &
+!                              (Tau * StepsSft)
+!
+!                    if (iter - VaryShiftIter >= nShiftEquilSteps) then
+!                        SumDiagSftAbort = SumDiagSftAbort + DiagSftAbort
+!                        AvDiagSftAbort = SumDiagSftAbort / &
+!                                         real(VaryShiftCycles, dp)
+!                    endif
+!                endif
             endif
 
             ! Calculate the instantaneous 'shift' from the HF population
-            HFShift = -1.d0 / real(abs_int_sign(AllNoatHF), dp) * &
+            HFShift = -1.0_dp / real(abs_int_sign(AllNoatHF), dp) * &
                               (real(abs_int_sign(AllNoatHF) - abs_int_sign(OldAllNoatHF), dp) / &
                               (Tau * real(StepsSft, dp)))
-            InstShift = -1.d0 / sum(AllTotParts) * &
+            InstShift = -1.0_dp / sum(AllTotParts) * &
                         ((sum(AllTotParts) - sum(AllTotPartsOld)) / &
                          (Tau * real(StepsSft, dp)))
 
@@ -4036,7 +3972,7 @@ MODULE FciMCParMod
         call MPIBcast (VaryShiftIter)
         call MPIBcast (DiagSft)
         if(.not.tSinglePartPhase) then
-            TargetGrowRate=0.D0
+            TargetGrowRate=0.0_dp
             tSearchTau=.false.
         endif
 
@@ -4046,7 +3982,7 @@ MODULE FciMCParMod
     subroutine rezero_iter_stats_each_iter (iter_data)
 
         type(fcimc_iter_data), intent(inout) :: iter_data
-        real*8 :: TempTotParts
+        real(dp) :: TempTotParts
         real(dp) :: Prev_AvNoatHF
 
         NoInitDets = 0
@@ -4056,28 +3992,21 @@ MODULE FciMCParMod
         InitRemoved = 0
 
         NoAborted = 0
-        GhostSpawns = 0
 
         iter_data%nborn = 0
         iter_data%ndied = 0
         iter_data%nannihil = 0
         iter_data%naborted = 0
 
-        if(tFillingStochRDMonFly.or.(tHF_Ref_Explicit)) then
+        if(tFillingStochRDMonFly) then
             call MPISumAll_inplace (InstNoatHF)
-            if(tHF_Ref_Explicit) then
-                ! There are no probabilities involved in the HF ref calc, 
-                ! so we can just use the instantaneous populations. 
-                AvNoatHF = real(InstNoatHF(1),dp)
+            if(InstNoatHF(1).eq.0) then
+                IterRDM_HF = Iter + 1 
+                AvNoatHF = 0.0_dp
             else
-                if(InstNoatHF(1).eq.0) then
-                    IterRDM_HF = Iter + 1 
-                    AvNoatHF = 0.0_dp
-                else
-                    Prev_AvNoatHF = AvNoatHF
-                    AvNoatHF = ( (real((Iter - IterRDM_HF),dp) * Prev_AvNoatHF) &
-                        + real(InstNoatHF(1),dp) ) / real((Iter - IterRDM_HF) + 1,dp)
-                endif
+                Prev_AvNoatHF = AvNoatHF
+                AvNoatHF = ( (real((Iter - IterRDM_HF),dp) * Prev_AvNoatHF) &
+                    + real(InstNoatHF(1),dp) ) / real((Iter - IterRDM_HF) + 1,dp)
             endif
         endif
         HFInd = 0            
@@ -4163,11 +4092,11 @@ MODULE FciMCParMod
         INTEGER :: i
         INTEGER, DIMENSION(lenof_sign) :: TempSign
 
-        do i=1,TotWalkers
+        do i=1,int(TotWalkers,sizeof_int)
             call extract_sign(CurrentDets(:,i),TempSign)
             TempSign(1)=-TempSign(1)
             call encode_sign(CurrentDets(:,i),TempSign)
-            if(tFillingStochRDMonFly) CurrentH(2,i) = -CurrentH(2,i)
+            if(tFillingStochRDMonFly) CurrentH(2,i) = -CurrentH(2,i)    ! Flip average signs too
         enddo
 
 !Reverse the flag for whether the sign of the particles has been flipped so the ACF can be correctly calculated
@@ -4184,7 +4113,7 @@ MODULE FciMCParMod
             IF(tTruncInitiator.or.tDelayTruncInit) THEN
                 WRITE(initiatorstats_unit,"(A2,A10,11A20)") "# ","1.Step","2.TotWalk","3.Annihil","4.Died", &
                 & "5.Born","6.TotUniqDets",&
-&               "7.InitDets","8.NonInitDets","9.InitWalks","10.NonInitWalks","11.AbortedWalks","12.GhostSpawns"
+&               "7.InitDets","8.NonInitDets","9.InitWalks","10.NonInitWalks","11.AbortedWalks"
             ENDIF
             IF(tLogComplexPops) THEN
                 WRITE(complexstats_unit,"(A)") '#   1.Step  2.Shift     3.RealShift     4.ImShift   5.TotParts      " &
@@ -4368,7 +4297,7 @@ MODULE FciMCParMod
                 FracFromSing, &
                 WalkersDiffProc, &
                 TotImagTime, &
-                0.D0, &
+                0.0_dp, &
                 HFShift, &
                 InstShift, &
                 proje_iter + Hii, &
@@ -4406,7 +4335,7 @@ MODULE FciMCParMod
                    Iter + PreviousCycles, sum(AllTotParts), &
                    AllAnnihilated, AllNoDied, AllNoBorn, AllTotWalkers,&
                    AllNoInitDets, AllNoNonInitDets, AllNoInitWalk, &
-                   AllNoNonInitWalk,AllNoAborted,AllGhostSpawns
+                   AllNoNonInitWalk,AllNoAborted
             endif
 
             if (tLogComplexPops) then
@@ -4486,7 +4415,7 @@ MODULE FciMCParMod
 
     SUBROUTINE SetupParameters()
         use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts,tRotateOrbs,tROHF,tFindCINatOrbs,nOccBeta,nOccAlpha,tUHF
-        use SystemData, only : tBrillouinsDefault,ECore,tNoSingExcits
+        use SystemData, only : tBrillouinsDefault,ECore,tNoSingExcits,tOddS_HPHF
         USE dSFMT_interface , only : dSFMT_init
         use CalcData, only: G_VMC_Seed, &
                             MemoryFacPart, MemoryFacAnnihil, TauFactor, &
@@ -4494,7 +4423,8 @@ MODULE FciMCParMod
                             MaxWalkerBloom
         use Determinants , only : GetH0Element3,GetH0Element4
         use SymData , only : SymLabelList,SymLabelCounts,TwoCycleSymGens
-        use Logging , only : tTruncRODump
+        use DeterminantData , only : write_det
+        use Logging , only : tTruncRODump,tCalcVariationalEnergy,tDiagAllSpaceEver
         use DetCalcData, only : NMRKS,tagNMRKS,FCIDets
         use SymExcit3, only : CountExcitations3 
         use constants, only: bits_n_int
@@ -4503,15 +4433,15 @@ MODULE FciMCParMod
         use sym_mod
         use HElem
         INTEGER :: ierr,i,j,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate
-        INTEGER :: HFConn,LargestOrb,nBits,HighEDet(NEl)
+        INTEGER :: HFConn,LargestOrb,nBits,HighEDet(NEl),orb
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
         HElement_t :: TempHii
         TYPE(BasisFn) HFSym
         real(dp) :: TotDets,SymFactor,r,Gap,UpperTau
-        CHARACTER(len=*), PARAMETER :: this_routine='SetupParameters'
+        CHARACTER(len=*), PARAMETER :: t_r='SetupParameters'
         CHARACTER(len=12) :: abstr
-        LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped
-        INTEGER :: HFLz,ChosenOrb,KPnt(3), step,FindProjEBins
+        LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped,tAlreadyOcc
+        INTEGER :: HFLz,ChosenOrb,KPnt(3), step,FindProjEBins,SymFinal
         integer(int64) :: ExcitLevPop,SymHF
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
@@ -4574,32 +4504,71 @@ MODULE FciMCParMod
             if(tSplitProjEHist) then
                 if(tSplitProjEHistG) then
                     unit_splitprojEHistG = get_free_unit()
-                    open(unit_splitprojEHistG,file='SPLITPROJE',status='unknown')
+                    open(unit_splitprojEHistG,file='SPLITPROJE',status='unknown',recl=1500000)
                 endif
                 if(tSplitProjEHistK3) then
                     unit_splitprojEHistK3 = get_free_unit()
-                    open(unit_splitprojEHistK3,file='SPLITPROJE_K3',status='unknown')
+                    open(unit_splitprojEHistK3,file='SPLITPROJE_K3',status='unknown',recl=1500000)
                 endif
             endif
         ENDIF
 
 !Store information specifically for the HF determinant
         ALLOCATE(HFDet(NEl),stat=ierr)
-        CALL LogMemAlloc('HFDet',NEl,4,this_routine,HFDetTag)
+        CALL LogMemAlloc('HFDet',NEl,4,t_r,HFDetTag)
         ALLOCATE(iLutHF(0:NIfTot),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutHF")
+        IF(ierr.ne.0) CALL Stop_All(t_r,"Cannot allocate memory for iLutHF")
 
         do i=1,NEl
             HFDet(i)=FDet(i)
         enddo
         CALL EncodeBitDet(HFDet,iLutHF)
 
+        if(tHPHF.and.TestClosedShellDet(iLutHF).and.tOddS_HPHF.and.TwoCycleSymGens) then
+            !This is not a compatible reference function.
+            !Create single excitation of the correct symmetry
+            !Use this as the reference.
+            write(6,"(A)") "Converging to ODD S eigenstate"
+
+            SymFinal = int((G1(HFDet(nel))%Sym%S),sizeof_int)+1
+
+            tAlreadyOcc=.false.
+            do i=SymLabelCounts(1,SymFinal),SymLabelCounts(1,SymFinal)+SymLabelCounts(2,SymFinal)-1
+                if(G1(HFDet(nel))%Ms.eq.-1) then
+                    !Choose beta ones
+                    orb=(2*SymLabelList(i))-1
+                else
+                    orb=(2*SymLabelList(i))
+                endif
+                tAlreadyOcc=.false.
+                do j=1,nel
+                    if(orb.eq.HFDet(j)) then
+                        tAlreadyOcc=.true.
+                        exit
+                    endif
+                enddo
+                if(.not.tAlreadyOcc) then
+                    HFDet(nel) = orb
+                    call sort(HFDet)
+                    exit
+                endif
+            enddo
+            if(tAlreadyOcc)     &
+                call stop_all(t_r,"Cannot automatically detect open-shell determinant for reference to use with odd S")
+            call EncodeBitDet(HFDet,iLutHF)
+            if(TestClosedShellDet(iLutHF))  &
+                call stop_all(t_r,"Fail to create open-shell determinant for reference to use with odd S")
+            write(6,*) "Reference determinant changed to the open-shell:"
+            call write_det(iout,HFDet,.true.)
+        endif
+
         !iLutRef is the reference determinant for the projected energy.
         !Initially, it is chosen to be the same as the inputted reference determinant
         ALLOCATE(iLutRef(0:NIfTot),stat=ierr)
         ALLOCATE(ProjEDet(NEl),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutRef")
 
+        IF(ierr.ne.0) CALL Stop_All(t_r,"Cannot allocate memory for iLutRef")
+        
         ! The reference / projected energy determinants are the same as the
         ! HF determinant.
         ! TODO: Make these pointers rather than copies?
@@ -4607,9 +4576,9 @@ MODULE FciMCParMod
         ProjEDet = HFDet
 
         ALLOCATE(iLutHF_True(0:NIfTot),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for iLutHF_True")
+        IF(ierr.ne.0) CALL Stop_All(t_r,"Cannot allocate memory for iLutHF_True")
         ALLOCATE(HFDet_True(NEl),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for HFDet_True")
+        IF(ierr.ne.0) CALL Stop_All(t_r,"Cannot allocate memory for HFDet_True")
 
         if(tRef_Not_HF) then
             do i = 1, NEl
@@ -4641,7 +4610,7 @@ MODULE FciMCParMod
                 tSpinCoupProjE=.false.
             endif
             if(tMomInv) then
-                call stop_all(this_routine,"Cannot currently have MomInv and HPHF functions. If this is important, bug ghb")
+                call stop_all(t_r,"Cannot currently have MomInv and HPHF functions. If this is important, bug ghb")
             endif
         elseif(tMomInv) then
             if(tAntisym_MI) then
@@ -4693,23 +4662,21 @@ MODULE FciMCParMod
             IF(HFDetTest(i).ne.HFDet(i)) THEN
                 WRITE(iout,*) "HFDet: ",HFDet(:)
                 WRITE(iout,*) "HFDetTest: ",HFDetTest(:)
-                CALL Stop_All(this_routine,"HF Determinant incorrectly decoded.")
+                CALL Stop_All(t_r,"HF Determinant incorrectly decoded.")
             ENDIF
         enddo
         CALL LargestBitSet(iLutHF,NIfD,LargestOrb)
         IF(LargestOrb.ne.HFDet(NEl)) THEN
-            CALL Stop_All(this_routine,"LargestBitSet FAIL")
+            CALL Stop_All(t_r,"LargestBitSet FAIL")
         ENDIF
         nBits = CountBits(iLutHF, NIfD, NEl)
         IF(nBits.ne.NEl) THEN
-            CALL Stop_All(this_routine,"CountBits FAIL")
+            CALL Stop_All(t_r,"CountBits FAIL")
         ENDIF
 
-        IF(tCheckHighestPop) THEN
-            ALLOCATE(HighestPopDet(0:NIfTot),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All(this_routine,"Cannot allocate memory for HighestPopDet")
-            HighestPopDet(:)=0
-        ENDIF
+        ALLOCATE(HighestPopDet(0:NIfTot),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All(t_r,"Cannot allocate memory for HighestPopDet")
+        HighestPopDet(:)=0
 
 !Check that the symmetry routines have set the symmetry up correctly...
         tSuccess=.true.
@@ -4780,7 +4747,7 @@ MODULE FciMCParMod
         WRITE(iout,"(A,I10)") "Symmetry of reference determinant from spin orbital symmetry info is: ",SymHF
         if(SymHF.ne.HFSym%Sym%S) then
             !When is this allowed to happen?! Comment!!
-            call warning_neci(this_routine,"Inconsistency in the symmetry arrays. Beware.")
+            call warning_neci(t_r,"Inconsistency in the symmetry arrays. Beware.")
         endif
         IF(tKPntSym) THEN
             CALL DecomposeAbelianSym(HFSym%Sym%S,KPnt)
@@ -4849,7 +4816,7 @@ MODULE FciMCParMod
             if(tMolpro) then
                 if((NMCyc.eq.-1).and.(.not.tTimeExit)) then
                     !No iteration number, or TIME option has been specified.
-                    call warning_neci(this_routine,          &
+                    call warning_neci(t_r,          &
                     "No iteration number specified. Only running for 100 iterations initially. Change with ITERATIONS option.")
                     NMCyc=100   !Only run for 100 iterations.
                 elseif(tTimeExit.and.(NMCyc.eq.-1)) then
@@ -4859,7 +4826,7 @@ MODULE FciMCParMod
                 elseif((.not.tTimeExit).and.(NMCyc.gt.0)) then
                     write(iout,"(A,I15,A)") "Running FCIQMC for ",NMCyc," iterations."
                 else
-                    call stop_all(this_routine,"Iteration number/Time unknown for simulation - contact ghb")
+                    call stop_all(t_r,"Iteration number/Time unknown for simulation - contact ghb")
                 endif
             endif
         else
@@ -4872,7 +4839,7 @@ MODULE FciMCParMod
         ! --> Create a random mapping for the orbitals 
         ALLOCATE(RandomHash(nBasis),stat=ierr)
         IF(ierr.ne.0) THEN
-            CALL Stop_All(this_routine,"Error in allocating RandomHash")
+            CALL Stop_All(t_r,"Error in allocating RandomHash")
         ENDIF
         RandomHash(:)=0
         if(tHashWalkerList) then
@@ -4880,7 +4847,7 @@ MODULE FciMCParMod
             !correlations between the two
             ALLOCATE(RandomHash2(nBasis),stat=ierr)
             IF(ierr.ne.0) THEN
-                CALL Stop_All(this_routine,"Error in allocating RandomHash2")
+                CALL Stop_All(t_r,"Error in allocating RandomHash2")
             ENDIF
             RandomHash2(:)=0
         endif
@@ -4949,20 +4916,20 @@ MODULE FciMCParMod
             endif
             do i=1,nBasis
                 IF((RandomHash(i).eq.0).or.(RandomHash(i).gt.nBasis*1000)) THEN
-                    CALL Stop_All(this_routine,"Random Hash incorrectly calculated")
+                    CALL Stop_All(t_r,"Random Hash incorrectly calculated")
                 ENDIF
                 if(tHashWalkerList) then
                     IF((RandomHash2(i).eq.0).or.(RandomHash2(i).gt.nBasis*1000)) THEN
-                        CALL Stop_All(this_routine,"Random Hash 2 incorrectly calculated")
+                        CALL Stop_All(t_r,"Random Hash 2 incorrectly calculated")
                     ENDIF
                 endif
                 do j = i+step, nBasis, step
                     IF(RandomHash(i).eq.RandomHash(j)) THEN
-                        CALL Stop_All(this_routine,"Random Hash incorrectly calculated")
+                        CALL Stop_All(t_r,"Random Hash incorrectly calculated")
                     ENDIF
                     if(tHashWalkerList) then
                         IF(RandomHash2(i).eq.RandomHash2(j)) THEN
-                            CALL Stop_All(this_routine,"Random Hash 2 incorrectly calculated")
+                            CALL Stop_All(t_r,"Random Hash 2 incorrectly calculated")
                         ENDIF
                     endif
                 enddo
@@ -5022,7 +4989,7 @@ MODULE FciMCParMod
             ELSE
                 TempHii = get_helement (HighEDet, HighEDet, 0)
             ENDIF
-            UpperTau = 1.D0/REAL(TempHii-Hii,dp)
+            UpperTau = 1.0_dp/REAL(TempHii-Hii,dp)
 !            WRITE(iout,"(A,G25.15)") "Highest energy determinant is (approximately): ",REAL(TempHii,dp)
 !            WRITE(iout,"(A,F25.15)") "This means tau should be no more than about ",UpperTau
 !            WRITE(iout,*) "Highest energy determinant is: ", HighEDet(:)
@@ -5043,7 +5010,7 @@ MODULE FciMCParMod
 
         IF(LMS.ne.0) THEN
             IF(tNoBrillouin.or.(tHub.and.tReal).or.tRotatedOrbs) THEN
-                WRITE(iout,*) "High spin calculation with single excitations also used to calculate energy."
+                WRITE(iout,*) "No brillouin theorem assumed. Single excitations also used to calculate projected energy."
             ELSEIF(tUHF) THEN
                 WRITE(iout,*) "High spin calculation - but single excitations will *NOT* be used to calculate energy as "&
                 & //"this is an unrestricted calculation."
@@ -5054,7 +5021,7 @@ MODULE FciMCParMod
             ENDIF
 !            tRotatedOrbs=.true.
 !        ELSEIF(LMS.ne.0) THEN
-!            CALL Stop_All(this_routine,"Ms not equal to zero, but tSpn is false. Error here")
+!            CALL Stop_All(t_r,"Ms not equal to zero, but tSpn is false. Error here")
         ENDIF
 
         if(tSplitProjEHist) then
@@ -5084,10 +5051,10 @@ MODULE FciMCParMod
         iPopsTimers=1   !Number of timed popsfiles written out
         iBlockingIter=0
         IterTime=0.0
-        ProjectionE=0.D0
-        AvSign=0.D0
-        AvSignHFD=0.D0
-        SumENum=0.D0
+        ProjectionE=0.0_dp
+        AvSign=0.0_dp
+        AvSignHFD=0.0_dp
+        SumENum=0.0_dp
         SumNoatHF=0
         NoatHF=0
         InstNoatHF=0
@@ -5100,7 +5067,7 @@ MODULE FciMCParMod
         SpawnFromSing=0
         NoDied=0
         HFCyc=0
-        ENumCyc=0.D0
+        ENumCyc=0.0_dp
         if(tSplitProjEHist) then
             if(tSplitProjEHistG) then
                 ENumCycHistG(:)=0.0_dp
@@ -5110,12 +5077,12 @@ MODULE FciMCParMod
             endif
         endif
         VaryShiftCycles=0
-        AvDiagSft=0.D0
-        SumDiagSft=0.D0
-        SumDiagSftAbort=0.D0
-        AvDiagSftAbort=0.D0
+        AvDiagSft=0.0_dp
+        SumDiagSft=0.0_dp
+        SumWalkersCyc=0
+!        SumDiagSftAbort=0.0_dp
+!        AvDiagSftAbort=0.0_dp
         NoAborted=0
-        GhostSpawns = 0
         NoAddedInitiators=0
         NoInitDets=0
         NoNonInitDets=0
@@ -5123,33 +5090,32 @@ MODULE FciMCParMod
         NoNonInitWalk=0
         NoExtraInitDoubs=0
         InitRemoved=0
-        TotImagTime=0.D0
-        DiagSftRe=0.D0
-        DiagSftIm=0.D0
+        TotImagTime=0.0_dp
+        DiagSftRe=0.0_dp
+        DiagSftIm=0.0_dp
         sum_proje_denominator = 0
         cyc_proje_denominator = 0
         MaxSpawnProb = 0.0_dp
 
 !Also reinitialise the global variables - should not necessarily need to do this...
-        AllSumENum=0.D0
+        AllSumENum=0.0_dp
         AllNoatHF=0
         AllNoatDoubs=0
         AllSumNoatHF = 0
-        AllGrowRate=0.D0
+        AllGrowRate=0.0_dp
         AllGrowRateAbort=0
-!        AllMeanExcitLevel=0.D0
+!        AllMeanExcitLevel=0.0_dp
         AllSumWalkersCyc=0
-        AllAvSign=0.D0
-        AllAvSignHFD=0.D0
+        AllAvSign=0.0_dp
+        AllAvSignHFD=0.0_dp
         AllNoBorn=0
         AllSpawnFromSing=0
         AllNoDied=0
         AllAnnihilated=0
-        AllENumCyc=0.D0
-        AllHFCyc=0.D0
-!        AllDetsNorm=0.D0
+        AllENumCyc=0.0_dp
+        AllHFCyc=0.0_dp
+!        AllDetsNorm=0.0_dp
         AllNoAborted=0
-        AllGhostSpawns = 0
         AllNoAddedInitiators=0
         AllNoInitDets=0
         AllNoNonInitDets=0
@@ -5172,24 +5138,24 @@ MODULE FciMCParMod
             enddo
 
             IF(.not.allocated(FCIDets)) THEN
-                CALL Stop_All(this_routine,"A Full Diagonalization is required before histogramming can occur.")
+                CALL Stop_All(t_r,"A Full Diagonalization is required before histogramming can occur.")
             ENDIF
 
             IF(tHistHamil) THEN
                 WRITE(iout,*) "Histogramming total Hamiltonian, with Dets=", Det
                 ALLOCATE(HistHamil(1:det,1:det),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays") 
-                HistHamil(:,:)=0.D0
+                HistHamil(:,:)=0.0_dp
                 ALLOCATE(AvHistHamil(1:det,1:det),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays")
-                AvHistHamil(:,:)=0.D0
+                AvHistHamil(:,:)=0.0_dp
                 IF(iProcIndex.eq.0) THEN
                     ALLOCATE(AllHistHamil(1:det,1:det),stat=ierr)
                     IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays")
-                    AllHistHamil(:,:)=0.D0
+                    AllHistHamil(:,:)=0.0_dp
                     ALLOCATE(AllAvHistHamil(1:det,1:det),stat=ierr)
                     IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays")
-                    AllAvHistHamil(:,:)=0.D0
+                    AllAvHistHamil(:,:)=0.0_dp
                 ENDIF
             ELSE
                 WRITE(iout,*) "Histogramming spawning wavevector, with Dets=", Det
@@ -5197,7 +5163,7 @@ MODULE FciMCParMod
                 IF(ierr.ne.0) THEN
                     CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays ")
                 ENDIF
-                Histogram(:,:)=0.D0
+                Histogram(:,:)=0.0_dp
                 ALLOCATE(AllHistogram(1:lenof_sign,1:det),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays")
             ENDIF
@@ -5206,21 +5172,32 @@ MODULE FciMCParMod
                 IF(ierr.ne.0) THEN
                     CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays")
                 ENDIF
-                InstHist(:,:)=0.D0
+                InstHist(:,:)=0.0_dp
                 ALLOCATE(AvAnnihil(1:lenof_sign,1:det),stat=ierr)
                 IF(ierr.ne.0) THEN
                     CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays")
                 ENDIF
-                AvAnnihil(:,:)=0.D0
+                AvAnnihil(:,:)=0.0_dp
                 ALLOCATE(InstAnnihil(1:lenof_sign,1:det),stat=ierr)
                 IF(ierr.ne.0) THEN
                     CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays")
                 ENDIF
-                InstAnnihil(:,:)=0.D0
+                InstAnnihil(:,:)=0.0_dp
             ENDIF
 
             IF(iProcIndex.eq.0) THEN
                 IF(tHistSpawn) THEN
+                    Tot_Unique_Dets_Unit = get_free_unit()
+                    OPEN(Tot_Unique_Dets_Unit,FILE='TOTUNIQUEDETS',STATUS='UNKNOWN')
+                    if(tCalcVariationalEnergy.and.tDiagAllSpaceEver) then
+                        write(Tot_Unique_Dets_Unit,"(A)") "# Iter  UniqueDetsEver  AvVarEnergy   InstVarEnergy   GroundE_Ever"
+                    elseif(tCalcVariationalEnergy) then
+                        write(Tot_Unique_Dets_Unit,"(A)") "# Iter  UniqueDetsEver  AvVarEnergy   InstVarEnergy"
+                    elseif(tDiagAllSpaceEver) then
+                        write(Tot_Unique_Dets_Unit,"(A)") "# Iter  UniqueDetsEver  GroundE_Ever"
+                    else
+                        write(Tot_Unique_Dets_Unit,"(A)") "# Iter  UniqueDetsEver"
+                    endif
                     ALLOCATE(AllInstHist(1:lenof_sign,1:det),stat=ierr)
                     ALLOCATE(AllInstAnnihil(1:lenof_sign,1:det),stat=ierr)
                     ALLOCATE(AllAvAnnihil(1:lenof_sign,1:det),stat=ierr)
@@ -5232,7 +5209,7 @@ MODULE FciMCParMod
         ELSEIF(tHistEnergies) THEN
             WRITE(iout,*) "Histogramming the energies of the particles, with iNoBins=",iNoBins, " and BinRange=", BinRange
             WRITE(iout,*) "Histogramming spawning events from ",-OffDiagMax, " with BinRange = ", OffDiagBinRange
-            iOffDiagNoBins=INT((2.D0*OffDiagMax)/OffDiagBinRange)+1
+            iOffDiagNoBins=INT((2.0_dp*OffDiagMax)/OffDiagBinRange)+1
             WRITE(iout,*) "This gives ",iOffDiagNoBins," bins to histogram the off-diagonal matrix elements."
             ALLOCATE(HistogramEnergy(1:iNoBins))
             ALLOCATE(AttemptHist(1:iNoBins))
@@ -5245,17 +5222,17 @@ MODULE FciMCParMod
             ALLOCATE(SinglesHistVirtVirt(1:iOffDiagNoBins))
             ALLOCATE(DoublesHist(1:iOffDiagNoBins))
             ALLOCATE(DoublesAttemptHist(1:iOffDiagNoBins))
-            HistogramEnergy(:)=0.D0
-            AttemptHist(:)=0.D0
-            SpawnHist(:)=0.D0
-            SinglesHist(:)=0.D0
-            SinglesAttemptHist(:)=0.D0
-            SinglesHistOccOcc(:)=0.D0
-            SinglesHistOccVirt(:)=0.D0
-            SinglesHistVirtOcc(:)=0.D0
-            SinglesHistVirtVirt(:)=0.D0
-            DoublesHist(:)=0.D0
-            DoublesAttemptHist(:)=0.D0
+            HistogramEnergy(:)=0.0_dp
+            AttemptHist(:)=0.0_dp
+            SpawnHist(:)=0.0_dp
+            SinglesHist(:)=0.0_dp
+            SinglesAttemptHist(:)=0.0_dp
+            SinglesHistOccOcc(:)=0.0_dp
+            SinglesHistOccVirt(:)=0.0_dp
+            SinglesHistVirtOcc(:)=0.0_dp
+            SinglesHistVirtVirt(:)=0.0_dp
+            DoublesHist(:)=0.0_dp
+            DoublesAttemptHist(:)=0.0_dp
             IF(iProcIndex.eq.Root) THEN
                 ALLOCATE(AllHistogramEnergy(1:iNoBins))
                 ALLOCATE(AllAttemptHist(1:iNoBins))
@@ -5271,7 +5248,7 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
-        if(tDiagWalkerSubspace) then
+        if((iProcIndex.eq.Root).and.tDiagWalkerSubspace) then
             write(iout,'(A,I9,A)') "Diagonalising walker subspace every ",iDiagSubspaceIter," iterations"
             unitWalkerDiag = get_free_unit()
             open(unitWalkerDiag,file='WalkerSubspaceDiag',status='unknown')
@@ -5297,7 +5274,7 @@ MODULE FciMCParMod
         ENDIF
 !        WRITE(iout,*) "Non-uniform excitation generators in use."
         CALL CalcApproxpDoubles()
-        IF(TauFactor.ne.0.D0) THEN
+        IF(TauFactor.ne.0.0_dp) THEN
             WRITE(iout,*) "TauFactor detected. Resetting Tau based on connectivity of: ",HFConn
             Tau=TauFactor/REAL(HFConn,dp)
             WRITE(iout,*) "Timestep set to: ",Tau
@@ -5325,30 +5302,19 @@ MODULE FciMCParMod
                 MaxAllowedSpawnProb = real(MaxWalkerBloom,dp)
             endif
 
-            if(.not.(tReadPops.and.tWalkContGrow)) then
-                write(iout,"(A,f10.5)") "Will search for optimal timestep &
+            if(.not.(tReadPops.and..not.tWalkContGrow)) then
+                write(iout,"(A,f10.5)") "Will dynamically update timestep &
                            &to limit spawning probability to: ", &
                            MaxAllowedSpawnProb
             endif
         endif
 
-        IF(StepsSftImag.ne.0.D0) THEN
+        IF(StepsSftImag.ne.0.0_dp) THEN
             WRITE(iout,*) "StepsShiftImag detected. Resetting StepsShift."
             StepsSft=NINT(StepsSftImag/Tau)
             IF(StepsSft.eq.0) StepsSft=1
             WRITE(iout,*) "StepsShift set to: ",StepsSft
         ENDIF
-!        IF(tConstructNOs) THEN
-!            ! This is the option for constructing the natural orbitals 
-!            ! actually during a NECI calculation.  This is different (and 
-!            ! probably a lot more complicated and doesn't  currently work) 
-!            ! from the FINDCINATORBS option which finds the natural orbitals
-!            ! given a final wavefunction.
-!            ALLOCATE(OneRDM(nBasis,nBasis),stat=ierr)
-!            CALL LogMemAlloc('OneRDM',nBasis*nBasis,8,this_routine,OneRDMTag,ierr)
-!            OneRDM(:,:)=0.D0
-!        ENDIF
-
         ! Once Alex's CCMC/FCIMC unification project is finished, we can
         ! remove this. The problem is that ValidSpawnedList is now setup in
         ! InitFCIMCCalcPar - this is for compatibility with POPSFILE v.3,
@@ -5361,13 +5327,13 @@ MODULE FciMCParMod
 
         IF(TPopsFile) THEN
             IF(mod(iWritePopsEvery,StepsSft).ne.0) then
-                CALL Warning_neci(this_routine,"POPSFILE writeout should be a multiple of the update cycle length.")
+                CALL Warning_neci(t_r,"POPSFILE writeout should be a multiple of the update cycle length.")
             endif
         ENDIF
 
         if (TReadPops) then
             if (tStartSinglePart .and. .not. tReadPopsRestart) then
-                call warning_neci(this_routine, &
+                call warning_neci(t_r, &
                                "ReadPOPS cannot work with StartSinglePart: ignoring StartSinglePart")
                 tStartSinglePart = .false.
             end if
@@ -5459,8 +5425,8 @@ MODULE FciMCParMod
                     &unpaired electrons.")') trunc_nopen_max
         endif
 
-!        SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.D0)
-!        TotDets=1.D0
+!        SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.0_dp)
+!        TotDets=1.0_dp
 !        do i=1,NEl
 !            ExcitLevPop=int((Choose(NEl,i)*Choose(nBasis-NEl,i))/SymFactor,int64)
 !            if(ExcitLevPop.lt.0) cycle  !int overflow
@@ -5473,6 +5439,40 @@ MODULE FciMCParMod
 
     END SUBROUTINE SetupParameters
 
+    subroutine check_start_rdm()
+! This routine checks if we should start filling the RDMs - and does so if we should.        
+        use nElRDMMod , only : DeAlloc_Alloc_SpawnedParts
+        implicit none
+
+        IF((.not.tSinglePartPhase).and.((Iter - VaryShiftIter).eq.(IterRDMonFly+1))) THEN
+        ! IterRDMonFly is the number of iterations after the shift has changed that we want 
+        ! to fill the RDMs.  If this many iterations have passed, start accumulating the RDMs! 
+            IterRDMStart = Iter
+            IterRDM_HF = Iter
+            !We have reached the iteration where we want to start filling the RDM.
+            if(tExplicitAllRDM) then
+                ! Explicitly calculating all connections - expensive...
+                tFillingExplicRDMonFly = .true.
+                if(tHistSpawn) NHistEquilSteps = Iter
+            else
+                call set_extract_bit_rep_avsign(extract_bit_rep_avsign_norm)
+                !By default - we will do a stochastic calculation of the RDM.
+                tFillingStochRDMonFly = .true.
+                if(.not.tHF_Ref_Explicit) call DeAlloc_Alloc_SpawnedParts()
+                !The SpawnedParts array now needs to carry both the spawned parts Dj, and also it's 
+                !parent Di (and it's sign, Ci). - We deallocate it and reallocate it with the larger size.
+                !Don't need any of this if we're just doing HF_Ref_Explicit calculation.
+                !This is all done in the add_rdm_hfconnections routine.
+            endif
+            if(RDMExcitLevel.eq.1) then
+                WRITE(6,'(A)') 'Calculating the 1 electron density matrix on the fly.'
+            else
+                WRITE(6,'(A)') 'Calculating the 2 electron density matrix on the fly.'
+            endif
+            WRITE(6,'(A,I10)') 'Beginning to fill the RDMs during iteration',Iter
+        ENDIF
+
+    end subroutine check_start_rdm
 
     !Routine to find an upper bound to tau, by consideration of the singles and doubles connected
     !to the reference determinant
@@ -5490,7 +5490,7 @@ MODULE FciMCParMod
         integer, allocatable :: Excitgen(:)
         real(dp) :: nAddFac,MagHel,pGen,pGenFac
         HElement_t :: hel
-        integer :: ic,nJ(nel),nJ2(nel),ierr,iExcit
+        integer :: ic,nJ(nel),nJ2(nel),ierr,iExcit,ex_saved(2,2)
         integer(kind=n_int) :: iLutnJ(0:niftot),iLutnJ2(0:niftot)
 
         if(tCSF.or.tMomInv) call stop_all(t_r,"TauSearching needs fixing to work with CSFs or MI funcs")
@@ -5510,7 +5510,7 @@ MODULE FciMCParMod
 
         Tau = 1000.0_dp
         tAllExcitFound=.false.
-        Ex(:,:)=0
+        Ex_saved(:,:)=0
         exflag=3
         tSameFunc=.false.
         call init_excit_gen_store(store)
@@ -5543,8 +5543,9 @@ MODULE FciMCParMod
                 Ex(1,1)=FindBitExcitlevel(iLutnJ,iLutRef,2)
                 call GetExcitation(ProjEDet,nJ,Nel,ex,tParity)
             else
-                CALL GenExcitations3(ProjEDet,iLutRef,nJ,exflag,Ex,tParity,tAllExcitFound,.false.)
+                CALL GenExcitations3(ProjEDet,iLutRef,nJ,exflag,Ex_saved,tParity,tAllExcitFound,.false.)
                 IF(tAllExcitFound) EXIT
+                Ex(:,:) = Ex_saved(:,:)
                 if(Ex(2,2).eq.0) then
                     ic=1
                 else
@@ -5557,6 +5558,15 @@ MODULE FciMCParMod
             if(tHPHF) then
                 if(.not.TestClosedShellDet(iLutnJ)) then
                     CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.true.,.true.,tSwapped)
+                    if(tSwapped) then
+                        !Have to recalculate the excitation matrix.
+                        ic = FindBitExcitLevel(iLutnJ, iLutRef, 2)
+                        ex(:,:) = 0
+                        if(ic.le.2) then
+                            ex(1,1) = ic
+                            call GetBitExcitation(iLutRef,iLutnJ,Ex,tParity)
+                        endif
+                    endif
                 endif
                 hel = hphf_off_diag_helement_norm(ProjEDet,nJ,iLutRef,iLutnJ)
             else
@@ -5587,8 +5597,10 @@ MODULE FciMCParMod
             if(tHPHF) then
                 ic = FindBitExcitLevel(iLutnJ, iLutRef, 2)
                 ex2(:,:) = 0
-                ex2(1,1) = ic
-                call GetBitExcitation(iLutnJ,iLutRef,Ex2,tSign)
+                if(ic.le.2) then
+                    ex2(1,1) = ic
+                    call GetBitExcitation(iLutnJ,iLutRef,Ex2,tSign)
+                endif
                 call CalcPGenHPHF(nJ,iLutnJ,ProjEDet,iLutRef,ex2,store2%ClassCountOcc,    &
                             store2%ClassCountUnocc,pDoubles,pGen,tSameFunc)
             else
@@ -6008,12 +6020,12 @@ MODULE FciMCParMod
             IF(tReal) THEN
                 WRITE(iout,*) "Since we are using a real-space hubbard model, only single excitations are connected &
                 &   and will be generated."
-                pDoubles=0.D0
+                pDoubles=0.0_dp
                 RETURN
             ELSE
                 WRITE(iout,*) "Since we are using a momentum-space hubbard model/UEG, only double excitaitons &
      &                          are connected and will be generated."
-                pDoubles=1.D0
+                pDoubles=1.0_dp
                 RETURN
             ENDIF
         elseif(tNoSingExcits) then
@@ -6067,7 +6079,7 @@ MODULE FciMCParMod
         WRITE(iout,"(I7,A,I7,A)") NDoub, " double excitations, and ",NSing, &
             " single excitations found from reference. This will be used to calculate pDoubles."
 
-        IF(SinglesBias.ne.1.D0) THEN
+        IF(SinglesBias.ne.1.0_dp) THEN
             WRITE(iout,*) "Singles Bias detected. Multiplying single excitation connectivity of HF determinant by ", &
                 SinglesBias," to determine pDoubles."
         ENDIF
@@ -6102,7 +6114,7 @@ MODULE FciMCParMod
                    ((real(nSing,dp)*SinglesBias) + real(nDoub,dp))
         endif
 
-        IF(SinglesBias.ne.1.D0) THEN
+        IF(SinglesBias.ne.1.0_dp) THEN
             write (iout, '("pDoubles set to ", f14.6, &
                        &" rather than (without bias): ", f14.6)') &
                        pDoubles, real(nDoub,dp) / real(iTotal,dp)
@@ -6333,7 +6345,7 @@ MODULE FciMCParMod
               proje_ref_dets=0
               proje_ref_iluts=0
               
-              do pos=1,TotWalkers
+              do pos=1,int(TotWalkers,sizeof_int)
                  call extract_sign(CurrentDets(:,pos),sgn)
                  if(abs(sgn(1))>abs(proje_ref_coeffs(nproje_sum))) then
                     inner: do nfound=1,nproje_sum
@@ -6690,7 +6702,7 @@ MODULE FciMCParMod
 
                 if(iProcIndex.eq.root) close(iunithead)
             else
-                WalkerListSize=InitWalkers
+                WalkerListSize=int(InitWalkers,sizeof_int)
             endif
 
             MaxWalkersPart=NINT(MemoryFacPart*WalkerListSize)
@@ -6713,35 +6725,39 @@ MODULE FciMCParMod
             MemoryAlloc=(NIfTot+1)*MaxWalkersPart*size_n_int    !Memory Allocated in bytes
 
             IF(.not.tRegenDiagHEls) THEN
-                if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
+                if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
+                    ! If calculating the RDMs stochastically, need to include the average sign and the 
+                    ! iteration it became occupied in the CurrentH array (with the Hii elements).
                     ALLOCATE(WalkVecH(3,MaxWalkersPart),stat=ierr)
                     CALL LogMemAlloc('WalkVecH',3*MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
-                    WalkVecH(:,:)=0.d0
+                    WalkVecH(:,:)=0.0_dp
                     MemoryAlloc=MemoryAlloc+8*MaxWalkersPart*3
                     WRITE(6,"(A)") " The current signs before death will be store for use in the RDMs."
-                    WRITE(6,"(A,F14.6,A)") " This requires ", REAL(MaxWalkersPart*8*2,dp)/1048576.D0," Mb/Processor"
+                    WRITE(6,"(A,F14.6,A)") " This requires ", REAL(MaxWalkersPart*8*2,dp)/1048576.0_dp," Mb/Processor"
                     NCurrH = 3
                 else
                     ALLOCATE(WalkVecH(1,MaxWalkersPart),stat=ierr)
                     CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
-                    WalkVecH(:,:)=0.d0
+                    WalkVecH(:,:)=0.0_dp
                     MemoryAlloc=MemoryAlloc+8*MaxWalkersPart
                     NCurrH = 1
                 endif
             ELSE
                 WRITE(iout,"(A,F14.6,A)") " Diagonal H-Elements will not be stored. This will *save* ", &
-                    & REAL(MaxWalkersPart*8,dp)/1048576.D0," Mb/Processor"
+                    & REAL(MaxWalkersPart*8,dp)/1048576.0_dp," Mb/Processor"
             ENDIF
 
             if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
-!Allocate memory to hold walkers spawned from one determinant at a time.
-!Walkers are temporarily stored here, so we can check if we're spawning onto the same Dj multiple times.
+                !Allocate memory to hold walkers spawned from one determinant at a time.
+                !Walkers are temporarily stored here, so we can check if we're spawning onto the same Dj multiple times.
+                !If only using connections to the HF (tHF_Ref_Explicit), no stochastic RDM construction is done, and this 
+                !is not necessary.
                 ALLOCATE(TempSpawnedParts(0:NIfDBO,20000),stat=ierr)
                 CALL LogMemAlloc('TempSpawnedParts',20000*(NIfDBO+1),size_n_int,this_routine,TempSpawnedPartsTag,ierr)
                 TempSpawnedParts(0:NIfDBO,1:20000)=0
                 MemoryAlloc=MemoryAlloc + (NIfDBO+1)*20000*size_n_int    !Memory Allocated in bytes
                 WRITE(6,"(A)") " Allocating temporary array for walkers spawned from a particular Di."
-                WRITE(6,"(A,F14.6,A)") " This requires ", REAL(((NIfDBO+1)*20000*size_n_int),dp)/1048576.D0," Mb/Processor"
+                WRITE(6,"(A,F14.6,A)") " This requires ", REAL(((NIfDBO+1)*20000*size_n_int),dp)/1048576.0_dp," Mb/Processor"
             endif
             
             WRITE(iout,"(A,I12,A)") "Spawning vectors allowing for a total of ",MaxSpawned, &
@@ -6920,7 +6936,7 @@ MODULE FciMCParMod
                         if (tStartSinglePart) then
                             InitialSign(1) = InitialPart
                         else
-                            InitialSign(1) = InitWalkers
+                            InitialSign(1) = int(InitWalkers,sizeof_int)
                         endif
                         call encode_sign (CurrentDets(:,1), InitialSign)
 
@@ -6976,7 +6992,7 @@ MODULE FciMCParMod
             endif  
         
             WRITE(iout,"(A,F14.6,A)") " Initial memory (without excitgens + temp arrays) consists of : ", &
-                & REAL(MemoryAlloc,dp)/1048576.D0," Mb/Processor"
+                & REAL(MemoryAlloc,dp)/1048576.0_dp," Mb/Processor"
             WRITE(iout,*) "Only one array of memory to store main particle list allocated..."
             WRITE(iout,*) "Initial memory allocation sucessful..."
             CALL neci_flush(iout)
@@ -6999,12 +7015,12 @@ MODULE FciMCParMod
         IF(tPrintOrbOcc) THEN
             ALLOCATE(OrbOccs(nBasis),stat=ierr)
             CALL LogMemAlloc('OrbOccs',nBasis,8,this_routine,OrbOccsTag,ierr)
-            OrbOccs(:)=0.D0
+            OrbOccs(:)=0.0_dp
         ENDIF
 
         IF(tPrintDoubsUEG) THEN
             ALLOCATE(DoubsUEG(NEl,NEl,nBasis,4),stat=ierr)
-            DoubsUEG(:,:,:,:)=0.D0
+            DoubsUEG(:,:,:,:)=0.0_dp
             ALLOCATE(DoubsUEGLookup(nBasis),stat=ierr)
             DoubsUEGLookup(:)=0
             ALLOCATE(DoubsUEGStore(NEl,NEl,nBasis),stat=ierr)
@@ -7048,7 +7064,6 @@ MODULE FciMCParMod
         tFillingStochRDMonFly = .false.      
         tFillingExplicRDMonFly = .false.      
         !One of these becomes true when we have reached the relevant iteration to begin filling the RDM.
-        tGhostChild = .false.
 
         !If the iteration specified to start filling the RDM has already been, want to 
         !start filling as soon as possible.
@@ -7182,9 +7197,9 @@ MODULE FciMCParMod
         endif
         write(iout,"(A,I4,A)") "Calculating lowest ",nEval," eigenstates of CAS Hamiltonian..."
         Allocate(Ck(nCASDet,nEval),stat=ierr)
-        Ck=0.D0
+        Ck=0.0_dp
         Allocate(W(nEval),stat=ierr)    !Eigenvalues
-        W=0.D0
+        W=0.0_dp
         if(ierr.ne.0) call stop_all(this_routine,"Error allocating")
         
         write(iout,*) "Calculating hamiltonian..."
@@ -7202,7 +7217,7 @@ MODULE FciMCParMod
         write(iout,*) "Allocating memory for hamiltonian: ",LenHamil*2
         Allocate(Hamil(LenHamil),stat=ierr)
         if(ierr.ne.0) call stop_all(this_routine,"Error allocating Hamil")
-        Hamil=0.D0
+        Hamil=0.0_dp
         Allocate(Lab(LenHamil),stat=ierr)
         if(ierr.ne.0) call stop_all(this_routine,"Error allocating Lab")
         Lab=0
@@ -7214,7 +7229,7 @@ MODULE FciMCParMod
         !Turn back on HPHF integrals if needed.
         if(tHPHF) tHPHFInts=.true.
 
-        if(abs(CASRefEnergy-Hii).gt.1.D-7) then
+        if(abs(CASRefEnergy-Hii).gt.1.0e-7_dp) then
             call stop_all(this_routine,"CAS reference energy does not match reference energy of full space")
         endif
 
@@ -7226,25 +7241,25 @@ MODULE FciMCParMod
             LISCR=6*NBLOCK*NKRY
             ALLOCATE(A_Arr(NEVAL,NEVAL),stat=ierr)
             CALL LogMemAlloc('A_Arr',NEVAL**2,8,this_routine,ATag,ierr)
-            A_Arr=0.d0
+            A_Arr=0.0_dp
             ALLOCATE(V(nCASDet*NBLOCK*NKRY1),stat=ierr)
             CALL LogMemAlloc('V',nCASDet*NBLOCK*NKRY1,8,this_routine,VTag,ierr)
-            V=0.d0
+            V=0.0_dp
             ALLOCATE(AM(NBLOCK*NBLOCK*NKRY1),stat=ierr)
             CALL LogMemAlloc('AM',NBLOCK*NBLOCK*NKRY1,8,this_routine,AMTag,ierr)
-            AM=0.d0
+            AM=0.0_dp
             ALLOCATE(BM(NBLOCK*NBLOCK*NKRY),stat=ierr)
             CALL LogMemAlloc('BM',NBLOCK*NBLOCK*NKRY,8,this_routine,BMTag,ierr)
-            BM=0.d0
+            BM=0.0_dp
             ALLOCATE(T(3*NBLOCK*NKRY*NBLOCK*NKRY),stat=ierr)
             CALL LogMemAlloc('T',3*NBLOCK*NKRY*NBLOCK*NKRY,8,this_routine,TTag,ierr)
-            T=0.d0
+            T=0.0_dp
             ALLOCATE(WT(NBLOCK*NKRY),stat=ierr)
             CALL LogMemAlloc('WT',NBLOCK*NKRY,8,this_routine,WTTag,ierr)
-            WT=0.d0
+            WT=0.0_dp
             ALLOCATE(SCR(LScr),stat=ierr)
             CALL LogMemAlloc('SCR',LScr,8,this_routine,SCRTag,ierr)
-            SCR=0.d0
+            SCR=0.0_dp
             ALLOCATE(ISCR(LIScr),stat=ierr)
             CALL LogMemAlloc('IScr',LIScr,4,this_routine,IScrTag,ierr)
             ISCR(1:LISCR)=0
@@ -7253,21 +7268,21 @@ MODULE FciMCParMod
             INDEX(1:NEVAL)=0
             ALLOCATE(WH(nCASDet),stat=ierr)
             CALL LogMemAlloc('WH',nCASDet,8,this_routine,WHTag,ierr)
-            WH=0.d0
+            WH=0.0_dp
             ALLOCATE(WORK2(3*nCASDet),stat=ierr)
             CALL LogMemAlloc('WORK2',3*nCASDet,8,this_routine,WORK2Tag,ierr)
-            WORK2=0.d0
+            WORK2=0.0_dp
             ALLOCATE(V2(nCASDet,NEVAL),stat=ierr)
             CALL LogMemAlloc('V2',nCASDet*NEVAL,8,this_routine,V2Tag,ierr)
-            V2=0.d0
+            V2=0.0_dp
             Allocate(CkN(nCASDet,nEval), stat=ierr)
-            CkN=0.D0
+            CkN=0.0_dp
     !C..Lanczos iterative diagonalising routine
             CALL NECI_FRSBLKH(nCASDet,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A_Arr,W,V,AM,BM,T,WT, &
          &  SCR,ISCR,INDEX,NCYCLE,B2L,.false.,.false.,.false.,.true.)
     !Multiply all eigenvalues by -1.
-            CALL DSCAL(NEVAL,-1.D0,W,1)
-            if(CK(1,1).lt.0.D0) then
+            CALL DSCAL(NEVAL,-1.0_dp,W,1)
+            if(CK(1,1).lt.0.0_dp) then
                 do i=1,nCASDet
                     CK(i,1)=-CK(i,1)
                 enddo
@@ -7308,7 +7323,7 @@ MODULE FciMCParMod
             write(iout,*) i,W(i),W(i)-CASRefEnergy
         enddo
 
-        TotWeight=0.D0
+        TotWeight=0.0_dp
         nHPHFCAS=0
         do i=1,nCASDet
             if(tHPHF) then
@@ -7318,9 +7333,9 @@ MODULE FciMCParMod
                     nHPHFCAS=nHPHFCAS+1
                     if(.not.TestClosedShellDet(iLutnJ)) then
                         !Open shell. Weight is sqrt(2) of det weight.
-                        TotWeight=TotWeight+(abs(CK(i,1))*sqrt(2.D0))
+                        TotWeight=TotWeight+(abs(CK(i,1))*sqrt(2.0_dp))
                         !Return this new weight to the CK array, so that we do not need to do this a second time.
-                        CK(i,1)=CK(i,1)*sqrt(2.D0)
+                        CK(i,1)=CK(i,1)*sqrt(2.0_dp)
                     else
                         !Closed Shell
                         TotWeight=TotWeight+abs(CK(i,1))
@@ -7333,9 +7348,9 @@ MODULE FciMCParMod
                     nHPHFCAS=nHPHFCAS+1
                     if(.not.IsAllowedMI(CASFullDets(:,i),iLutnJ)) then
                         !Momentum-coupled. Weight is sqrt(2) of det weight.
-                        TotWeight=TotWeight+(abs(CK(i,1))*sqrt(2.D0))
+                        TotWeight=TotWeight+(abs(CK(i,1))*sqrt(2.0_dp))
                         !Return this new weight to the CK array, so that we do not need to do this a second time.
-                        CK(i,1)=CK(i,1)*sqrt(2.D0)
+                        CK(i,1)=CK(i,1)*sqrt(2.0_dp)
                     else
                         !Closed Shell
                         TotWeight=TotWeight+abs(CK(i,1))
@@ -7387,7 +7402,7 @@ MODULE FciMCParMod
                 rat=amp-real(NoWalkers,dp)
                 r=genrand_real2_dSFMT()
                 if(abs(rat).gt.r) then
-                    if(amp.lt.0.D0) then
+                    if(amp.lt.0.0_dp) then
                         NoWalkers=NoWalkers-1
                     else
                         NoWalkers=NoWalkers+1
@@ -7491,7 +7506,8 @@ MODULE FciMCParMod
         endif
 
         !First, calculate the total weight - TotMP1Weight
-        TotMP1Weight=1.D0
+        mp2energy=0.0_dp
+        TotMP1Weight=1.0_dp
         iExcits=0
         tAllExcitsFound=.false.
         if(tUEG) then
@@ -7619,7 +7635,7 @@ MODULE FciMCParMod
 
                 r=genrand_real2_dSFMT()
                 if(abs(rat).gt.r) then
-                    if(amp.lt.0.D0) then
+                    if(amp.lt.0.0_dp) then
                         NoWalkers=NoWalkers-1
                     else
                         NoWalkers=NoWalkers+1
@@ -7668,7 +7684,7 @@ MODULE FciMCParMod
         if(iHFProc.eq.iProcIndex) then
             NoWalkers=int(PartFac)  !This will always be positive
             rat=PartFac-real(NoWalkers,dp)
-            if(rat.lt.0.D0) call stop_all(this_routine,"Should not have negative weight on HF")
+            if(rat.lt.0.0_dp) call stop_all(this_routine,"Should not have negative weight on HF")
             r=genrand_real2_dSFMT()
             if(abs(rat).gt.r) NoWalkers=NoWalkers+1
             if(NoWalkers.ne.0) then
@@ -7681,7 +7697,7 @@ MODULE FciMCParMod
                     call set_flag(CurrentDets(:,DetIndex),flag_is_initiator(1))
                     call set_flag(CurrentDets(:,DetIndex),flag_is_initiator(2))
                 endif
-                if(.not.tRegenDiagHEls) CurrentH(1,DetIndex)=0.D0
+                if(.not.tRegenDiagHEls) CurrentH(1,DetIndex)=0.0_dp
                 if(tHashWalkerList) then
                     !Now need to index HF. Note that this is *not* slot 1 now, though this shouldn't be a problem. 
                     DetHash=FindWalkerHash(HFDet)  !Find det hash position
@@ -7727,7 +7743,7 @@ MODULE FciMCParMod
         use SymExcitDataMod, only: kPointToBasisFn
         use SystemData, only: ElecPairs,NMAXX,NMAXY,NMAXZ,OrbECutOff,tGCutoff,GCutoff, &
                                 tMP2UEGRestrict,kiRestrict,kiMsRestrict,kjRestrict,kjMsRestrict, &
-                                Madelung,tMadelung,tUEGFreeze,FreezeCutoff
+                                Madelung,tMadelung,tUEGFreeze,FreezeCutoff, kvec, tUEG2
         use GenRandSymExcitNUMod, only: FindNewDet
         use Determinants, only: GetH0Element4, get_helement_excit
         integer :: Ki(3),Kj(3),Ka(3),LowLoop,HighLoop,X,i,Elec1Ind,Elec2Ind,K,Orbi,Orbj
@@ -7753,13 +7769,19 @@ MODULE FciMCParMod
         do i=LowLoop,HighLoop   !Looping over electron pairs on this processor
 
             X=ElecPairs-i
-            K=INT((SQRT(8.D0*REAL(X,dp)+1.D0)-1.D0)/2.D0)
+            K=INT((SQRT(8.0_dp*REAL(X,dp)+1.0_dp)-1.0_dp)/2.0_dp)
             Elec1Ind=NEl-1-K
             Elec2Ind=NEl-X+((K*(K+1))/2)
             Orbi=HFDet(Elec1Ind)
             Orbj=HFDet(Elec2Ind)
             Ki=G1(Orbi)%k
             Kj=G1(Orbj)%k
+            !=======================================
+            if (tUEG2) then
+                Ki=kvec(Orbi, 1:3)
+                Kj=kvec(Orbj, 1:3)
+            end if
+            !=======================================
             if (tUEGFreeze) then
                 ki2=ki(1)**2+ki(2)**2+ki(3)**2
                 kj2=kj(1)**2+kj(2)**2+kj(3)**2
@@ -7807,6 +7829,11 @@ MODULE FciMCParMod
                     if(IsOcc(iLutHF,a_loc)) cycle
 
                     Ka=G1(a_loc)%k
+                    !=======================================
+                    if (tUEG2) then
+                        Ka=kvec(a_loc, 1:3)
+                    end if
+                    !=======================================
 
                     !Find k labels of b
                     kx=Ki(1)+Kj(1)-Ka(1)
@@ -7860,6 +7887,11 @@ MODULE FciMCParMod
                     if(IsOcc(iLutHF,a_loc)) cycle
 
                     Ka=G1(a_loc)%k
+                    !=======================================
+                    if (tUEG2) then
+                        Ka=kvec(a_loc, 1:3)
+                    end if
+                    !=======================================
 
                     !Find k labels of b
                     kx=Ki(1)+Kj(1)-Ka(1)
@@ -7907,7 +7939,7 @@ MODULE FciMCParMod
         enddo
 
 !        write(iout,*) "mp2: ",mp2
-        mp2all=0.D0
+        mp2all=0.0_dp
         
         !Sum contributions across nodes.
         call MPISumAll(mp2,mp2all)
@@ -8176,7 +8208,7 @@ MODULE FciMCParMod
             write(iout,'(A)') 'Diagonalising initator subspace...'
 
             iSubspaceSize = 0
-            do i=1,TotWalkers
+            do i=1,int(TotWalkers,sizeof_int)
                 call extract_sign(CurrentDets(:,i),CurrentSign)
                 if((abs(CurrentSign(1)) > InitiatorWalkNo) .or. &
                         (DetBitEQ(CurrentDets(:,i),iLutHF,NIfDBO))) then
@@ -8190,7 +8222,7 @@ MODULE FciMCParMod
             call LogMemAlloc('ExpandedWalkerDets',NEl*iSubspaceSize,4,t_r,ExpandedWalkTag,ierr)
 
             iSubspaceSize = 0
-            do i=1,TotWalkers
+            do i=1,int(TotWalkers,sizeof_int)
                 call extract_sign(CurrentDets(:,i),CurrentSign)
                 if((abs(CurrentSign(1)) > InitiatorWalkNo) .or. &
                         (DetBitEQ(CurrentDets(:,i),iLutHF,NIfDBO))) then
@@ -8205,7 +8237,7 @@ MODULE FciMCParMod
                 call LanczosFindGroundE(ExpandedWalkerDets,iSubspaceSize,GroundEInit,ProjGroundEInit,.true.)
                 write(iout,'(A,G25.10)') 'Ground state energy of initiator walker subspace = ',GroundEInit
             else
-                CreateNan=-1.D0
+                CreateNan=-1.0_dp
                 write(iout,'(A,G25.10)') 'Ground state energy of initiator walker subspace = ',sqrt(CreateNan)
             endif
 
@@ -8281,11 +8313,11 @@ MODULE FciMCParMod
 !C..
         Allocate(Ck(DetLen,nEval), stat=ierr)
         call LogMemAlloc('CK',DetLen*nEval, 8,t_r, tagCK,ierr)
-        CK=(0.d0)
+        CK=(0.0_dp)
 !C..
         allocate(W(nEval), stat=ierr)
         call LogMemAlloc('W', nEval,8,t_r,tagW,ierr)
-        W=0.d0
+        W=0.0_dp
 !        write(iout,*) "Calculating H matrix"
 !C..We need to measure HAMIL and LAB first 
         allocate(NROW(DetLen),stat=ierr)
@@ -8301,7 +8333,7 @@ MODULE FciMCParMod
         LENHAMIL=GC
         Allocate(Hamil(LenHamil), stat=ierr)
         call LogMemAlloc('HAMIL', LenHamil, 8, t_r,tagHamil,ierr)
-        HAMIL=(0.d0)
+        HAMIL=(0.0_dp)
 !C..
         ALLOCATE(LAB(LENHAMIL),stat=ierr)
         CALL LogMemAlloc('LAB',LenHamil,4,t_r,LabTag,ierr)
@@ -8315,7 +8347,7 @@ MODULE FciMCParMod
 
             Allocate(CkN(DetLen,nEval), stat=ierr)
             call LogMemAlloc('CKN',DetLen*nEval, 8,t_r, tagCKN,ierr)
-            CKN=(0.d0)
+            CKN=(0.0_dp)
 
             NKRY1=NKRY+1
             NBLOCK=MIN(NEVAL,NBLK)
@@ -8327,33 +8359,33 @@ MODULE FciMCParMod
 
             ALLOCATE(A_Arr(NEVAL,NEVAL),stat=ierr)
             CALL LogMemAlloc('A_Arr',NEVAL**2,8,t_r,ATag,ierr)
-            A_Arr=0.d0
+            A_Arr=0.0_dp
     !C..
     !C,, W is now allocated with CK
     !C..
             ALLOCATE(V(DetLen*NBLOCK*NKRY1),stat=ierr)
             CALL LogMemAlloc('V',DetLen*NBLOCK*NKRY1,8,t_r,VTag,ierr)
-            V=0.d0
+            V=0.0_dp
     !C..   
             ALLOCATE(AM(NBLOCK*NBLOCK*NKRY1),stat=ierr)
             CALL LogMemAlloc('AM',NBLOCK*NBLOCK*NKRY1,8,t_r,AMTag,ierr)
-            AM=0.d0
+            AM=0.0_dp
     !C..
             ALLOCATE(BM(NBLOCK*NBLOCK*NKRY),stat=ierr)
             CALL LogMemAlloc('BM',NBLOCK*NBLOCK*NKRY,8,t_r,BMTag,ierr)
-            BM=0.d0
+            BM=0.0_dp
     !C..
             ALLOCATE(T(3*NBLOCK*NKRY*NBLOCK*NKRY),stat=ierr)
             CALL LogMemAlloc('T',3*NBLOCK*NKRY*NBLOCK*NKRY,8,t_r,TTag,ierr)
-            T=0.d0
+            T=0.0_dp
     !C..
             ALLOCATE(WT(NBLOCK*NKRY),stat=ierr)
             CALL LogMemAlloc('WT',NBLOCK*NKRY,8,t_r,WTTag,ierr)
-            WT=0.d0
+            WT=0.0_dp
     !C..
             ALLOCATE(SCR(LScr),stat=ierr)
             CALL LogMemAlloc('SCR',LScr,8,t_r,SCRTag,ierr)
-            SCR=0.d0
+            SCR=0.0_dp
             ALLOCATE(ISCR(LIScr),stat=ierr)
             CALL LogMemAlloc('IScr',LIScr,4,t_r,IScrTag,ierr)
             ISCR(1:LISCR)=0
@@ -8363,19 +8395,19 @@ MODULE FciMCParMod
     !C..
             ALLOCATE(WH(DetLen),stat=ierr)
             CALL LogMemAlloc('WH',DetLen,8,t_r,WHTag,ierr)
-            WH=0.d0
+            WH=0.0_dp
             ALLOCATE(WORK2(3*DetLen),stat=ierr)
             CALL LogMemAlloc('WORK2',3*DetLen,8,t_r,WORK2Tag,ierr)
-            WORK2=0.d0
+            WORK2=0.0_dp
             ALLOCATE(V2(DetLen,NEVAL),stat=ierr)
             CALL LogMemAlloc('V2',DetLen*NEVAL,8,t_r,V2Tag,ierr)
-            V2=0.d0
+            V2=0.0_dp
     !C..Lanczos iterative diagonalising routine
             CALL NECI_FRSBLKH(DetLen,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A_Arr,W,V,AM,BM,T,WT, &
              &  SCR,ISCR,INDEX,NCYCLE,B2L,.true.,.false.,.false.,.false.)
 
             !Eigenvalues may come out wrong sign - multiply by -1
-            if(W(1).gt.0.D0) then
+            if(W(1).gt.0.0_dp) then
                 GroundE = -W(1)
             else
                 GroundE = W(1)
@@ -8411,7 +8443,7 @@ MODULE FciMCParMod
 
         !Calculate proje.
         nDoubles = 0
-        Num = 0.D0
+        Num = 0.0_dp
         do i=1,DetLen
             ExcitLev = iGetExcitLevel(HFDet,Dets(:,i),NEl)
             if((ExcitLev.eq.1).or.(ExcitLev.eq.2)) then
@@ -8457,7 +8489,7 @@ MODULE FciMCParMod
                 Norm = Norm + CK(i,1)**2.0_dp
             enddo
             Norm = sqrt(Norm)
-            if(abs(Norm-1.0_dp).gt.1.D-7) then
+            if(abs(Norm-1.0_dp).gt.1.0e-7_dp) then
                 write(iout,*) "***",norm
                 call warning_neci(t_r,"Normalisation not correct for diagonalised wavefunction!")
             endif
@@ -8511,7 +8543,7 @@ MODULE FciMCParMod
         SmallestPos=1
         Norm=0.0_dp
         !Run through all walkers on process
-        do i=1,TotWalkers
+        do i=1,int(TotWalkers,sizeof_int)
 !            write(iout,*) "Smallest sign is: ",SmallestSign
             call extract_sign(CurrentDets(:,i),SignCurr)
 
@@ -8645,7 +8677,7 @@ MODULE FciMCParMod
                 else
                     HighSign=sqrt(real(SignCurr(1),dp)**2+real(SignCurr(lenof_sign),dp)**2)
                 endif
-                if(HighSign.gt.1.D-7) counter=counter+1
+                if(HighSign.gt.1.0e-7_dp) counter=counter+1
             enddo
 
 
@@ -8729,14 +8761,17 @@ MODULE FciMCParMod
         use outputResult
         integer :: nv,ityp(1)
 #endif
-        implicit none
         real(dp) :: mean_ProjE_re,mean_ProjE_im,mean_Shift
         real(dp) :: ProjE_Err_re,ProjE_Err_im,Shift_Err
         logical :: tNoProjEValue,tNoShiftValue
-        integer :: iroot,isymh
+        integer :: iroot,isymh,i
         TYPE(BasisFn) RefSym
         HElement_t :: h_tmp
         real(dp) :: Hii,BestEnergy,EnergyDiff
+#ifdef MOLPRO
+        real(dp) :: get_scalar
+        include "common/molen"
+#endif
 
         !Automatic error analysis
         call error_analysis(tSinglePartPhase,iBlockingIter,mean_ProjE_re,ProjE_Err_re,  &
@@ -8804,7 +8839,7 @@ MODULE FciMCParMod
             mean_shift+Hii," +/- ",shift_err
 
 #ifdef MOLPRO
-        call output_result('FCIQMC','Energy',BestEnergy,iroot,isymh)
+        call output_result('FCIQMC','ENERGY',BestEnergy,iroot,isymh)
         if (iroot.eq.1) call clearvar('ENERGY')
         ityp(1)=1
         call setvar('ENERGY',BestEnergy,'AU',ityp,1,nv,iroot)
@@ -8814,6 +8849,9 @@ MODULE FciMCParMod
         enddo
         gesnam(i) = 'FCIQMC'
         energ(i) = get_scalar("ENERGY")
+        call output_result('FCIQMC','FCIQMC_ERR',min(ProjE_Err_re,shift_err),iroot,isymh)
+        if (iroot.eq.1) call clearvar('FCIQMC_ERR')
+        call setvar('FCIQMC_ERR',min(ProjE_Err_re,shift_err),'AU',ityp,1,nv,iroot)
 #endif
         write(iout,"(/)")
 
@@ -8821,36 +8859,36 @@ MODULE FciMCParMod
 
 END MODULE FciMCParMod
 
-    ! This routine will change the reference determinant to DetCurr. It will 
-    ! also re-zero all the energy estimators, since they now correspond to
-    ! projection onto a different determinant.
-    SUBROUTINE ChangeRefDet(DetCurr)
-        use FciMCParMod
-        use SystemData , only : NEl
-        IMPLICIT NONE
-        INTEGER :: DetCurr(NEl),i
+! This routine will change the reference determinant to DetCurr. It will 
+! also re-zero all the energy estimators, since they now correspond to
+! projection onto a different determinant.
+SUBROUTINE ChangeRefDet(DetCurr)
+    use FciMCParMod
+    use SystemData , only : NEl
+    IMPLICIT NONE
+    INTEGER :: DetCurr(NEl),i
 
-        do i=1,NEl
-            FDet(i)=DetCurr(i)
-        enddo
+    do i=1,NEl
+        FDet(i)=DetCurr(i)
+    enddo
 
-        WRITE(iout,"(A)") "*** Changing the reference determinant ***"
-        WRITE(iout,"(A)") "Switching reference and zeroing energy counters - restarting simulation"
+    WRITE(iout,"(A)") "*** Changing the reference determinant ***"
+    WRITE(iout,"(A)") "Switching reference and zeroing energy counters - restarting simulation"
 !        
 !Initialise variables for calculation on each node
-        Iter=1
-        CALL DeallocFCIMCMemPar()
-        IF(iProcIndex.eq.Root) THEN
-            CLOSE(fcimcstats_unit)
-            IF(tTruncInitiator.or.tDelayTruncInit) CLOSE(initiatorstats_unit)
-            IF(tLogComplexPops) CLOSE(complexstats_unit)
-        ENDIF
-        IF(TDebug) CLOSE(11)
-        CALL SetupParameters()
-        CALL InitFCIMCCalcPar()
+    Iter=1
+    CALL DeallocFCIMCMemPar()
+    IF(iProcIndex.eq.Root) THEN
+        CLOSE(fcimcstats_unit)
+        IF(tTruncInitiator.or.tDelayTruncInit) CLOSE(initiatorstats_unit)
+        IF(tLogComplexPops) CLOSE(complexstats_unit)
+    ENDIF
+    IF(TDebug) CLOSE(11)
+    CALL SetupParameters()
+    CALL InitFCIMCCalcPar()
 
-    END SUBROUTINE ChangeRefDet
-            
+END SUBROUTINE ChangeRefDet
+        
 
 ! This is the same as BinSearchParts1, but this time, it searches though the 
 ! full list of determinants created by the full diagonalizer when the 
@@ -8974,15 +9012,22 @@ end function FindProjEBins
 integer function FindSplitProjEBinG(Ex)
                        
     use Logging, only : tSplitProjEHist,tSplitProjEHistG,tSplitProjEHistK3
-    use SystemData, only : G1
+    use SystemData, only : G1 , kvec , tUEG2
 
     integer :: ki(3),kj(3),ka(3),kb(3)
     integer, intent(in) :: Ex(2,2)
 
-    ki=G1(Ex(1,1))%k
-    ka=G1(Ex(2,1))%k
-    kj=G1(Ex(1,2))%k
-    kb=G1(Ex(2,2))%k
+    if (.not.tUEG2) then
+        ki=G1(Ex(1,1))%k
+        ka=G1(Ex(2,1))%k
+        kj=G1(Ex(1,2))%k
+        kb=G1(Ex(2,2))%k
+    else 
+        ki=kvec(Ex(1,1),:)
+        ka=kvec(Ex(2,1),:)
+        kj=kvec(Ex(1,2),:)
+        kb=kvec(Ex(2,2),:)
+    endif 
     
     if (tSplitProjEHistG) then ! <k1 k2 || k3 k4 > is included if the min
                                ! out of k1-k3 or k1-k4 are within g-cutoff
@@ -8997,19 +9042,31 @@ end function FindSplitProjEBinG
 integer function FindSplitProjEBinK3(Ex)
                        
     use Logging, only : tSplitProjEHist,tSplitProjEHistG,tSplitProjEHistK3
-    use SystemData, only : G1
+    use SystemData, only : G1 , kvec , tUEG2 ,OrbECutOff
 
     integer :: ki(3),kj(3),ka(3),kb(3)
     integer, intent(in) :: Ex(2,2)
 
-    ki=G1(Ex(1,1))%k
-    ka=G1(Ex(2,1))%k
-    kj=G1(Ex(1,2))%k
-    kb=G1(Ex(2,2))%k
+    if (.not.tUEG2) then
+        ki=G1(Ex(1,1))%k
+        ka=G1(Ex(2,1))%k
+        kj=G1(Ex(1,2))%k
+        kb=G1(Ex(2,2))%k
+    else 
+        ki=kvec(Ex(1,1),:)
+        ka=kvec(Ex(2,1),:)
+        kj=kvec(Ex(1,2),:)
+        kb=kvec(Ex(2,2),:)
+    endif 
     
     if (tSplitProjEHistK3) then ! <k1 k2 || k3 k4> is included only if
                                 ! both k3 and k4 are within the e-cutoff
         FindSplitProjEBinK3=max(ka(1)**2+ka(2)**2+ka(3)**2,kb(1)**2+kb(2)**2+kb(3)**2)
+        if (FindSplitProjEBinK3 .gt. OrbECutOff) then
+            write(6,*) "ka",ka
+            write(6,*) "kb",kb
+            call stop_all("FindSplitProjEBinK3","Shouldn't find an orbital with a larger energy than cutoff")
+        endif
     else
         call stop_all("FindSplitProjEBinK3","Shouldn't be called without HistK3 being on")
     endif

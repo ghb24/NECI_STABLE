@@ -77,7 +77,7 @@ subroutine sub_dispatcher_1 (fn, arg1)
     call fn(arg1)
 end subroutine
 
-subroutine sub_dispatcher_9 (fn, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9)
+subroutine sub_dispatcher_10 (fn, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9)
     use iso_c_hack
     implicit none
 

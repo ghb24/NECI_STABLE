@@ -6,7 +6,7 @@ ldflags = -i-dynamic -L $(LD_LIBRARY_PATH)
 compiler = INTEL-ifort9-on-LINUX
 cpp = cpp -C -traditional
 cppflags = -D__Linux -DPOINTER8 -DPARALLEL -DHAVE_SSE2 -D__INT64 -D__SHARED_MEM -DCBINDMPI
-libs = -lfftw3 -lacml -lrt -lifcore -lifport
+libs = -lfftw3 -lacml -lrt -lifcore -lifport -lm
 module_flag = -module
 
 [dbg]

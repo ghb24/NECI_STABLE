@@ -10,6 +10,7 @@ module hist
     use DetBitOps, only: count_open_orbs, EncodeBitDet, spatial_bit_det, &
                          DetBitEq, count_open_orbs, TestClosedShellDet, &
                          CalcOpenOrbs, IsAllowedHPHF
+    use hash , only : DetermineDetNode                     
     use CalcData, only: tFCIMC, tTruncInitiator
     use DetCalcData, only: FCIDetIndex, det
     use FciMCData, only: tFlippedSign, TotWalkers, CurrentDets, iter, &
@@ -24,7 +25,7 @@ module hist
     use parallel_neci
     use csf, only: get_num_csfs, csf_coeff, csf_get_yamas, write_yama, &
                    extract_dorder
-    use AnnihilationMod, only: DetermineDetNode
+!    use AnnihilationMod, only: DetermineDetNode
     use hist_data
     use timing_neci
     use Determinants, only: write_det
@@ -491,7 +492,7 @@ contains
             enddo
         enddo
 
-        do j = 1, TotWalkers
+        do j = 1, int(TotWalkers,sizeof_int)
 
             ! Extract the current walker
             call extract_bit_rep (CurrentDets(:,j), nI, sgn, flg)
@@ -562,7 +563,7 @@ contains
         ! Initially, have no component on any of the spins
         spin_cpts = 0
 
-        do j = 1, TotWalkers
+        do j = 1, int(TotWalkers,sizeof_int)
 
             ! Extract the current walker
             call extract_bit_rep (CurrentDets(:,j), nI, sgn, flg)
@@ -637,7 +638,7 @@ contains
         call set_timer (s2_timer)
 
         ssq = 0
-        do i = 1, TotWalkers
+        do i = 1, int(TotWalkers,sizeof_int)
             ssq = ssq + ssquared_contrib (CurrentDets(:,i))
         enddo
 
@@ -824,7 +825,7 @@ contains
         do p = 0, nProcessors-1
 
             ! How many dets are on processor p
-            proc_dets = TotWalkers
+            proc_dets = int(TotWalkers,sizeof_int)
             call MPIBcast (proc_dets, iProcIndex == p)
 
             ! Send the dets around bit by bit
@@ -835,7 +836,7 @@ contains
                     ! Loop over walkers and only add initiators to bcast list
                     nsend = 0
                     if (p == iProcIndex) then
-                        do i = start_pos, TotWalkers
+                        do i = start_pos, int(TotWalkers,sizeof_int)
                             ! Break up the list into correctly sized chunks
                             if (nsend == max_per_proc) exit
 

@@ -53,6 +53,11 @@ void c_getarg (int i, char * str)
 	strcpy(str, g_argv[i]);
 }
 
+MPI_Fint mpicommworld_c2f ()
+{
+	return MPI_Comm_c2f(MPI_COMM_WORLD);
+}
+
 
 //
 // The MPI specification has several constants and specific datatypes
@@ -85,23 +90,6 @@ const MPI_Op op_map[] = {MPI_SUM,
                          MPI_MINLOC,
                          MPI_MAXLOC};
 
-//
-// A comm list.
-// This is initialised so that the first value is MPI_COMM_WORLD (i.e. the
-// default communicator).
-typedef std::vector<MPI_Comm> comm_vec_t;
-comm_vec_t new_comm_vec () {
-	comm_vec_t v;
-	v.push_back(MPI_COMM_WORLD);
-	return v;
-}
-comm_vec_t comm_vec = new_comm_vec();
-
-//
-// A group list
-typedef std::vector<MPI_Group> group_vec_t;
-group_vec_t group_vec;
-
 
 //
 // Wrapper for MPI_INIT
@@ -121,92 +109,79 @@ void mpi_finalize_wrap (int * ierr)
 
 //
 // Wrapper for MPI_Abort
-void mpi_abort_wrap (int comm, int err, int * ierr)
+void mpi_abort_wrap (MPI_Fint comm, int err, int * ierr)
 {
-    *ierr = MPI_Abort (comm_vec[comm], err);
+    *ierr = MPI_Abort (MPI_Comm_f2c(comm), err);
 }
 
 
 //
 // Wrapper for MPI_Barrier
-void mpi_barrier_wrap (int comm, int * ierr)
+void mpi_barrier_wrap (MPI_Fint comm, int * ierr)
 {
-    *ierr = MPI_Barrier (comm_vec[comm]);
+    *ierr = MPI_Barrier (MPI_Comm_f2c(comm));
 }
 
 
 //
 // Wrapper for MPI_Comm_rank
-void mpi_comm_rank_wrap (int comm, int * rank, int * ierr)
+void mpi_comm_rank_wrap (MPI_Fint comm, int * rank, int * ierr)
 {
-    *ierr = MPI_Comm_rank (comm_vec[comm], rank);
+    *ierr = MPI_Comm_rank (MPI_Comm_f2c(comm), rank);
 }
 
 
 //
 // Wrapper for MPI_Comm_size
-void mpi_comm_size_wrap (int comm, int * size, int * ierr)
+void mpi_comm_size_wrap (MPI_Fint comm, int * size, int * ierr)
 {
-    *ierr = MPI_Comm_size (comm_vec[comm], size);
+    *ierr = MPI_Comm_size (MPI_Comm_f2c(comm), size);
 }
 
 
 //
 // Wrapper for MPI_Comm_group
-void mpi_comm_group_wrap (int comm, int * group, int * ierr)
+void mpi_comm_group_wrap (MPI_Fint comm, MPI_Fint * group, int * ierr)
 {
 	// Get the comm handle
-	MPI_Comm comm_handle = comm_vec[comm];
+	MPI_Comm comm_handle = MPI_Comm_f2c(comm);
 
 	// Call the MPI routine
 	MPI_Group grp_handle;
 	*ierr = MPI_Comm_group (comm_handle, &grp_handle);
 
-	// We need to return an integer, so store group in a vector and return
-	// its index. See if it is already in there first...
-	// n.b. Don't use an iterator, as we actually want the index...
-	for (size_t i = 0; i < group_vec.size(); ++i) {
-		if (group_vec[i] == grp_handle) {
-			*group = i;
-			return;
-		}
-	}
-
-	// Not in the list, so we need to append it
-	group_vec.push_back(grp_handle);
-	*group = group_vec.size() - 1;
+	// And convert into an integer we can push back to fortran
+	*group = MPI_Group_c2f(grp_handle);
 }
 
 
 //
 // Wrapper for MPI_Comm_create
-void mpi_comm_create_wrap (int comm, int group, int * ncomm, int * ierr)
+void mpi_comm_create_wrap (MPI_Fint comm, MPI_Fint group, MPI_Fint * ncomm, int * ierr)
 {
-	MPI_Comm comm_handle = comm_vec[comm];
-	MPI_Group grp_handle = group_vec[group];
+	MPI_Comm comm_handle = MPI_Comm_f2c(comm);
+	MPI_Group grp_handle = MPI_Group_f2c(group);
 	MPI_Comm new_comm;
 
 	*ierr = MPI_Comm_create (comm_handle, grp_handle, &new_comm);
 
-	// Add this comm to the list, and return its index
-	comm_vec.push_back(new_comm);
-	*ncomm = comm_vec.size() - 1;
+	// And convert to an integer to push back to fortran
+	*ncomm = MPI_Comm_c2f(new_comm);
 }
 
 
 //
 // Wrapper for MPI_Group_incl
-void mpi_group_incl_wrap (int group, int n, int * ranks, int * ogroup,
-                          int * ierr)
+void mpi_group_incl_wrap (MPI_Fint group, int n, int * ranks, 
+		                  MPI_Fint * ogroup, int * ierr)
 {
-	MPI_Group grp_handle = group_vec[group];
+	MPI_Group grp_handle = MPI_Group_f2c(group);
 	MPI_Group new_group;
 
 	*ierr = MPI_Group_incl (grp_handle, n, ranks, &new_group);
 
-	// Add this group to the list, and return its index
-	group_vec.push_back (new_group);
-	*ogroup = group_vec.size() - 1;
+	// And convert to an integer fortran will understand
+	*ogroup = MPI_Group_c2f(new_group);
 }
 
 
@@ -221,42 +196,43 @@ void mpi_error_string_wrap (int err, char * str, int * len, int * ierr)
 //
 // Wrapper for MPI_Reduce
 void mpi_reduce_wrap (void * sbuf, void * rbuf, int count, int dtype,
-                      int op, int root, int comm, int * ierr)
+                      int op, int root, MPI_Fint comm, int * ierr)
 {
 
     *ierr = MPI_Reduce (sbuf ? sbuf : MPI_IN_PLACE,
                         rbuf ? rbuf : MPI_IN_PLACE, count, dtype_map[dtype],
-                        op_map[op], root, comm_vec[comm]);
+                        op_map[op], root, MPI_Comm_f2c(comm));
 }
 
 
 //
 // Wrapper for MPI_Allreduce
 void mpi_allreduce_wrap (double * sbuf, double * rbuf, int count, int dtype,
-                         int op, int comm, int * ierr)
+                         int op, MPI_Fint comm, int * ierr)
 {
     *ierr = MPI_Allreduce (sbuf ? sbuf : MPI_IN_PLACE,
                            rbuf ? rbuf : MPI_IN_PLACE, count,
-                           dtype_map[dtype], op_map[op], comm_vec[comm]);
+                           dtype_map[dtype], op_map[op], MPI_Comm_f2c(comm));
 }
 
 
 //
 // Wrapper for MPI_Bcast
-void mpi_bcast_wrap (void * buf, int count, int dtype, int root, int comm,
-                     int * ierr)
+void mpi_bcast_wrap (void * buf, int count, int dtype, int root, 
+                     MPI_Fint comm, int * ierr)
 {
-    *ierr = MPI_Bcast (buf, count, dtype_map[dtype], root, comm_vec[comm]);
+    *ierr = MPI_Bcast (buf, count, dtype_map[dtype], root, 
+	                   MPI_Comm_f2c(comm));
 }
 
 
 //
 // Wrapper for MPI_Alltoall
 void mpi_alltoall_wrap (void * sbuf, int scount, int stype, void * rbuf,
-                        int rcount, int rtype, int comm, int * ierr)
+                        int rcount, int rtype, MPI_Fint comm, int * ierr)
 {
     *ierr = MPI_Alltoall (sbuf, scount, dtype_map[stype], rbuf, rcount,
-                          dtype_map[rtype], comm_vec[comm]);
+                          dtype_map[rtype], MPI_Comm_f2c(comm));
 }
 
 
@@ -264,20 +240,22 @@ void mpi_alltoall_wrap (void * sbuf, int scount, int stype, void * rbuf,
 // Wrapper for MPI_AlltoallV
 void mpi_alltoallv_wrap (void * sbuf, int * scount, int * sdispl, int stype,
                          void * rbuf, int * rcount, int * rdispl, int rtype,
-                         int comm, int * ierr)
+                         MPI_Fint comm, int * ierr)
 {
     *ierr = MPI_Alltoallv (sbuf, scount, sdispl, dtype_map[stype], rbuf,
-                           rcount, rdispl, dtype_map[rtype], comm_vec[comm]);
+                           rcount, rdispl, dtype_map[rtype], 
+						   MPI_Comm_f2c(comm));
 }
 
 
 //
 // Wrapper for MPI_Gather
 void mpi_gather_wrap (void * sbuf, int scount, int stype, void * rbuf,
-                      int rcount, int rtype, int root, int comm, int * ierr)
+                      int rcount, int rtype, int root, MPI_Fint comm, 
+					  int * ierr)
 {
     *ierr = MPI_Gather (sbuf, scount, dtype_map[stype], rbuf, rcount,
-                        dtype_map[rtype], root, comm_vec[comm]);
+                        dtype_map[rtype], root, MPI_Comm_f2c(comm));
 }
 
 
@@ -285,19 +263,19 @@ void mpi_gather_wrap (void * sbuf, int scount, int stype, void * rbuf,
 // Wrapper for MPI_GatherV
 void mpi_gatherv_wrap (void * sbuf, int scount, int stype, void * rbuf,
                       int * rcount, int * displs, int rtype, int root,
-                      int comm, int * ierr)
+                      MPI_Fint comm, int * ierr)
 {
     *ierr = MPI_Gatherv (sbuf, scount, dtype_map[stype], rbuf, rcount,
-                         displs, dtype_map[rtype], root, comm_vec[comm]);
+                         displs, dtype_map[rtype], root, MPI_Comm_f2c(comm));
 }
 
 
 // Wrapper for MPI_Allgather
 void mpi_allgather_wrap (void * sbuf, int scount, int stype, void * rbuf,
-                         int rcount, int rtype, int comm, int * ierr)
+                         int rcount, int rtype, MPI_Fint comm, int * ierr)
 {
     *ierr = MPI_Allgather (sbuf, scount, dtype_map[stype], rbuf, rcount,
-                           dtype_map[rtype], comm_vec[comm]);
+                           dtype_map[rtype], MPI_Comm_f2c(comm));
 }
 
 
@@ -305,41 +283,42 @@ void mpi_allgather_wrap (void * sbuf, int scount, int stype, void * rbuf,
 // Wrapper for MPI_ScatterV
 void mpi_scatterv_wrap (void * sbuf, int * scount, int * displs, int stype,
                         void * rbuf, int rcount, int rtype, int root,
-                        int comm, int * ierr)
+                        MPI_Fint comm, int * ierr)
 {
     *ierr = MPI_Scatterv (sbuf, scount, displs, dtype_map[stype], rbuf,
-                          rcount, dtype_map[rtype], root, comm_vec[comm]);
+                          rcount, dtype_map[rtype], root, MPI_Comm_f2c(comm));
 }
 
 
 //
 // Wrapper for MPI_Scatter
 void mpi_scatter_wrap (void * sbuf, int scount, int stype, void * rbuf,
-		               int rcount, int rtype, int root, int comm, int * ierr)
+		               int rcount, int rtype, int root, MPI_Fint comm,
+					   int * ierr)
 {
     *ierr = MPI_Scatter (sbuf, scount, dtype_map[stype], rbuf,
-                          rcount, dtype_map[rtype], root, comm_vec[comm]);
+                         rcount, dtype_map[rtype], root, MPI_Comm_f2c(comm));
 }
 
 
 //
 // Wrapper for MPI_Send
 void mpi_send_wrap (void * buf, int count, int dtype, int dest, int tag,
-                    int comm, int * ierr)
+                    MPI_Fint comm, int * ierr)
 {
     *ierr = MPI_Send (buf, count, dtype_map[dtype], dest, tag,
-                      comm_vec[comm]);
+                      MPI_Comm_f2c(comm));
 }
 
 
 //
 // Wrapper for MPI_Recv
 void mpi_recv_wrap (void * buf, int count, int dtype, int src, int tag,
-                    int comm, int * stat_ignore, int * ierr)
+                    MPI_Fint comm, int * stat_ignore, int * ierr)
 {
     MPI_Status stat;
     *ierr = MPI_Recv (buf, count, dtype_map[dtype], src, tag,
-                      comm_vec[comm], &stat); // comm
+                      MPI_Comm_f2c(comm), &stat);
 }
 
 

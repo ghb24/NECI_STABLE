@@ -32,7 +32,7 @@ MODULE ReadInput_neci
 !        Integer :: iargc
 !#endif
     !  INPUT/OUTPUT params
-        Character(len=255)  cFilename    !Input  filename or "" if we check arg list or stdin
+        Character(len=64)  cFilename    !Input  filename or "" if we check arg list or stdin
         Integer             ios         !Output 0 if no error or nonzero iostat if error
 
         Character(len=255)  cInp         !temp storage for command line params
@@ -170,7 +170,7 @@ MODULE ReadInput_neci
 
         use SystemData, only: nel, tStarStore, tUseBrillouin, beta, &
                               tFindCINatOrbs, tNoRenormRandExcits, LMS, STOT,&
-                              tCSF, tSpn
+                              tCSF, tSpn, tUHF
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
@@ -184,9 +184,11 @@ MODULE ReadInput_neci
         use IntegralsData, only: tDiagStarStars, tExcitStarsRootChange, &
                                  tRmRootExcitStarsRootChange, tLinRootChange
         use Logging, only: iLogging, tCalcFCIMCPsi, tHistSpawn, tHistHamil, &
-                           tCalcInstantS2
+                           tCalcInstantS2, tDiagAllSpaceEver, &
+                           tCalcVariationalEnergy, tCalcInstantS2Init
         use DetCalc, only: tEnergy, tCalcHMat, tFindDets, tCompressDets
-        USE input_neci
+        use input_neci
+        use constants
         use global_utilities
         use spin_project, only: tSpinProject, spin_proj_nopen_max
         use FciMCData, only: nWalkerHashes,HashLengthFrac,tHashWalkerList
@@ -196,6 +198,16 @@ MODULE ReadInput_neci
         integer :: vv, kk, cc, ierr
         logical :: check
         character(*), parameter :: t_r='checkinput'
+
+        if(tDiagAllSpaceEver.and..not.tHistSpawn) then
+            call stop_all(t_r,"DIAGALLSPACEEVER requires HISTSPAWN option")
+        endif
+        if(tCalcVariationalEnergy.and..not.tHistSpawn) then
+            call stop_all(t_r,"CALCVARIATIONALENERGY requires HISTSPAWN option")
+        endif
+        if(tCalcVariationalEnergy.and..not.tEnergy) then
+            call stop_all(t_r,"CALCVARIATIONALENERGY requires initial FCI calculation")
+        endif
 
         if(tHashWalkerList) then
             nWalkerHashes=nint(HashLengthFrac*InitWalkers)
@@ -331,7 +343,7 @@ MODULE ReadInput_neci
         endif
   
         !Ensure beta is set.
-        if (beta < 1.d-6 .and. .not. tMP2Standalone) then
+        if (beta < 1.0e-6_dp .and. .not. tMP2Standalone) then
             call report("No beta value provided.", .true.)
         endif
         
@@ -384,14 +396,12 @@ MODULE ReadInput_neci
                                     & (SPATIAL-ONLY-HASH)")
         endif
   
-        if (tCalcInstantS2) then
-!            if (.not. tSpatialOnlyHash) &
-!                call stop_all (t_r, "Calculating the instantaneous value of &
-!                                   &S^2 in each iterataion requires spatial-&
-!                                   &only hash to be used (SPATIAL-ONLY-HASH)")
-!            else
-                write(6,*) 'Enabling calculation of instantaneous S^2 each &
-                           &iteration.'
+        if (tCalcInstantS2 .or. tCalcInstantS2Init) then
+            if (tUHF) &
+                call stop_all (t_r, 'Cannot calculate instantaneous values of&
+                              & S^2 with UF enabled.')
+            write(6,*) 'Enabling calculation of instantaneous S^2 each &
+                       &iteration.'
         endif
 
     end subroutine checkinput

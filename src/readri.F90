@@ -15,8 +15,8 @@ subroutine InitRIBasis(nBasisMax,Len)
    READ(29,rec=1) nAb
    READ(29,rec=2) nB
    write(6,*) nAb,nB
-   nAuxBasis=nAb
-   nBasis=nB
+   nAuxBasis=int(nAb,sizeof_int)
+   nBasis=int(nB,sizeof_int)
    WRITE(6,*) "Q-Chem auxiliary basis", nAuxBasis, " basis functions:", nBasis
    nBasisMax(1:5,1:3)=0
    Len=2*nBasis 
@@ -39,7 +39,7 @@ SUBROUTINE GetRI2EInt(a,b,c,d,res)
    integer i,GetDFIndex
    integer x,y
    real(dp) res
-   res=0.D0
+   res=0.0_dp
    x=GetDFIndex(a,c)
    y=GetDFIndex(b,d)
 ! DFOVERLAP        1 - (ij|u|ab)= (ij|u|P)(P|ab)

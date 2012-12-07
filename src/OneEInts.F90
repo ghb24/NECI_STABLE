@@ -196,7 +196,7 @@ contains
         else
             if(tOneElecDiag) then
                 if(i.ne.j) then
-                    ret = 0.D0
+                    ret = 0.0_dp
                 else
                     ret = TMat2D(i,1)
                 endif
@@ -230,7 +230,7 @@ contains
         ELSE
             if(tOneElecDiag) then
                 if(I.ne.J) then
-                    GetNEWTMATEl=0.D0
+                    GetNEWTMATEl=0.0_dp
                 else
                     GetNewTMATEl=TMAT2D2(I,1)
                 endif
@@ -452,7 +452,7 @@ contains
             
             Allocate(TMATSYM(-1:iSize),STAT=ierr)
             Call LogMemAlloc('TMATSym',iSize+2,HElement_t_size*8,thisroutine,tagTMATSYM,ierr)
-            TMATSYM=(0.d0)
+            TMATSYM=(0.0_dp)
 
         ELSE
 
@@ -461,14 +461,14 @@ contains
                 iSize=nBasis
                 Allocate(TMAT2D(nBasis,1),STAT=ierr)
                 call LogMemAlloc('TMAT2D',nBasis,HElement_t_size*8,thisroutine,tagTMat2D)
-                TMAT2D=(0.d0)
+                TMAT2D=(0.0_dp)
             else
                 ! Using a square array to hold <i|h|j> (incl. elements which are
                 ! zero by symmetry).
                 iSize=nBasis*nBasis
                 Allocate(TMAT2D(nBasis,nBasis),STAT=ierr)
                 call LogMemAlloc('TMAT2D',nBasis*nBasis,HElement_t_size*8,thisroutine,tagTMat2D)
-                TMAT2D=(0.d0)
+                TMAT2D=(0.0_dp)
             endif
         
         ENDIF
@@ -568,7 +568,7 @@ contains
             
             Allocate(TMATSYM2(-1:iSize),STAT=ierr)
             CALL LogMemAlloc('TMatSym2',iSize+2,HElement_t_size*8,thisroutine,tagTMATSYM2,ierr)
-            TMATSYM2=(0.d0)
+            TMATSYM2=(0.0_dp)
 
         ELSE
 
@@ -577,14 +577,14 @@ contains
                 iSize=nBasisFRZ
                 Allocate(TMAT2D2(nBasisFRZ,1),STAT=ierr)
                 call LogMemAlloc('TMAT2D2',nBasisFRZ,HElement_t_size*8,thisroutine,tagTMat2D2)
-                TMAT2D2=(0.d0)
+                TMAT2D2=(0.0_dp)
             else
                 ! Using a square array to hold <i|h|j> (incl. elements which are
                 ! zero by symmetry).
                 iSize=nBasisFRZ*nBasisFRZ
                 Allocate(TMAT2D2(nBasisFRZ,nBasisFRZ),STAT=ierr)
                 call LogMemAlloc('TMAT2D2',nBasisFRZ*nBasisFRZ,HElement_t_size*8,thisroutine,tagTMat2D2)
-                TMAT2D2=(0.d0)
+                TMAT2D2=(0.0_dp)
             endif
         
         ENDIF

@@ -148,9 +148,12 @@ MODULE SymExcit3
 ! If tParity is true, two orbitals need to be switched in order to better represent the excitation, therefore a 
 ! negative sign must be included when finding the H element.
 ! When there are no more symmetry allowed excitations, tAllExcitFound becomes true.
-        INTEGER(KIND=n_int) :: iLut(0:NIfTot)
-        INTEGER :: nJ(NEl),ExcitMat3(2,2),exflag,nI(NEl)
-        LOGICAL :: tAllExcitFound,tParity,ti_lt_a_only
+        INTEGER(KIND=n_int), intent(in) :: iLut(0:NIfTot)
+        INTEGER, intent(in) :: nI(NEl),exflag
+        integer, intent(out) :: nJ(NEl)
+        integer, intent(inout) :: ExcitMat3(2,2)
+        LOGICAL, intent(out) :: tAllExcitFound,tParity
+        LOGICAL, intent(in) :: ti_lt_a_only
 
         IF(exflag.eq.2) THEN
 ! Just generate doubles            

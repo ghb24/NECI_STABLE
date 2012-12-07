@@ -66,9 +66,9 @@ C.. Set the first node to I_I
          RHOIJ(0,0)=RH
          IADJ(0,0)=1
          WLRI=LOG(RHOII(0))
-         TOTAL=1.D0
+         TOTAL=1.0_dp
          IF(TLOG) WRITE(11,"(I12,2G25.16,F19.7,2I12)") 
-     &         1,TOTAL,TOTAL,0.D0,1,1
+     &         1,TOTAL,TOTAL,0.0_dp,1,1
 c         WRITE(6,*) 0,TOTAL,TOTAL,0
 C.. I_V is the number of vertices in the path
          DO I_V=2,I_VMAX
@@ -78,8 +78,8 @@ C.. I_V is the number of vertices in the path
             L=0
             LT=0
             BTABLE(0)=0
-            F(I_V)=0.D0
-            FSQ(I_V)=0.D0
+            F(I_V)=0.0_dp
+            FSQ(I_V)=0.0_dp
             ISEED=7
 C.. I_VMOVE=0 indicates we need to generate a valid path.
             CALL GENVALIDPATH(BETA,I_P,IPATH,I_V,NEL,
@@ -87,7 +87,7 @@ C.. I_VMOVE=0 indicates we need to generate a valid path.
      &         RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,
      &         ECORE,ISEED,I_VMOVE,NVALUE,IADJ,ADJ,LCANMOVE,
      &         FMCPR4WFUNC,FMCPR4VFUNC,WEIGHT)
-            IF(WEIGHT.GT.0.D0) THEN
+            IF(WEIGHT.GT.0.0_dp) THEN
             DO ICOUNT=1,NWHTAY
                OVALUE=NVALUE
                NVALUE=
@@ -107,7 +107,7 @@ C.. I_VMOVE=0 indicates we need to generate a valid path.
      &         RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,
      &         ECORE,ISEED,I_VMOVE,NVALUE,IADJ,ADJ,LCANMOVE,
      &         FMCPR4UFUNC,FMCPR4WFUNC,WEIGHT)
-            RNORM=0.D0
+            RNORM=0.0_dp
             DO ICOUNT=1,NWHTAY
                OVALUE=NVALUE
                NVALUE=
@@ -125,7 +125,7 @@ C            WRITE(6,*) F(I_V),F(I_V)*RNORM*ND,RNORM,ND,RNORM*ND
             F(I_V)=F(I_V)*RNORM
             FSQ(I_V)=FSQ(I_V)*RNORM*RNORM
             ELSE
-               F(I_V)=0.D0
+               F(I_V)=0.0_dp
             ENDIF
             call halt_timer(proc_timer2)
             TOTAL=TOTAL+F(I_V)
@@ -193,7 +193,7 @@ C.. form a loop of length I_V.  If not it will probably hang.
          TLOG2=BTEST(ILOGGING,3)
 C.. First decide what MC move - either change the moving vertex or
 C.. move the moving vertex.
-         IF(RAN2(ISEED).LT.0.25D0) THEN
+         IF(RAN2(ISEED).LT.0.25_dp) THEN
 C.. Our move just involves changing which vertex we move 1 in 4 times
             CALL GENNEWVMOVE(I_V,I_VMOVE,IADJ,ADJ,LCANMOVE,ISEED)
             FMCPR5=VALUE
@@ -220,7 +220,7 @@ C.. We now must calculate the weight of the new move
      &            I_P,NWHTAY,NEL,ILOGGING,I_NVMOVE)
             RAT=NWEIGHT*NADJ/(WEIGHT*ADJ)
 C.. Check for acceptance
-            IF(RAT.GE.1.D0) THEN
+            IF(RAT.GE.1.0_dp) THEN
                LACC=.TRUE.
             ELSE
                IF(RAN2(ISEED).LE.RAT) LACC=.TRUE.
@@ -368,7 +368,7 @@ C.. Now generate all the RHOIJ elements for this new node
                ICE=0
             ENDIF
             NADJ=NADJ+ICE
-            IF(ABS(RH).LE.RHOEPS) RH=0.D0
+            IF(ABS(RH).LE.RHOEPS) RH=0.0_dp
             NIADJ(I_NVMOVE,J)=ICE
             NIADJ(J,I_NVMOVE)=ICE
             NRHOIJ(I_NVMOVE,J)=RH
@@ -572,17 +572,17 @@ C.. calculates B=A**N where B and A are LxL matrices
          ELSE
             B(1:L,1:L)=0
             DO I=1,L
-               B(I,I)=1.D0
+               B(I,I)=1.0_dp
             ENDDO
          ENDIF
          DO WHILE(N2.NE.0)
             LM=BTEST(N2,0)
             N2=N2/2
-            CALL DGEMM('N','N',L,L,L,1.D0,C(1,1,S),L,C(1,1,S),L,0.D0,
-     &         C(1,1,1-S),L)
+            CALL DGEMM('N','N',L,L,L,1.0_dp,C(1,1,S),L,C(1,1,S),L,
+     &        0.0_dp, C(1,1,1-S),L)
             S=1-S
             IF(LM) THEN
-               CALL DGEMM('N','N',L,L,L,1.D0,C(1,1,S),L,B,L,0.D0,
+               CALL DGEMM('N','N',L,L,L,1.0_dp,C(1,1,S),L,B,L,0.0_dp,
      &            C(1,1,1-S),L)
                CALL DCOPY(L*L,C(1,1,1-S),1,B,1)
             ENDIF
@@ -603,11 +603,11 @@ C.. calculates B=A**N where B and A are LxL matrices
          ELSEIF(I_V.EQ.3) THEN
             NL=N*E*(8*(N+E-2)+(N-1)*(E-1)*(12*(N+E-2)+
      &         (N-2)*(N-3)+(E-2)*(E-3)+
-     &         (N-2)*(E-2)*(16 +4*(N+E-6)+(N-3)*(E-3))))/16.D0
+     &         (N-2)*(E-2)*(16 +4*(N+E-6)+(N-3)*(E-3))))/16.0_dp
          ELSEIF(NBASIS.GT.30) THEN
             NL=(FNCR(NBASIS,NEL)**I_V)/FACTRL(I_V)
          ELSE
-            NL=1.D0
+            NL=1.0_dp
             NL2=NEL*(NBASIS-NEL)
      &         +(NBASIS-NEL)*(NBASIS-NEL-1)*NEL*(NEL-1)/4
             DO I=2,I_V
@@ -653,15 +653,15 @@ C.. calculates B=A**N where B and A are LxL matrices
          real(dp) RHOII(0:I_V),RHOIJ(0:I_V,0:I_V),FMCPR4WFUNC
          INTEGER I,J
          LOGICAL L
-         FMCPR4WFUNC=1.D0
+         FMCPR4WFUNC=1.0_dp
          DO I=0,I_V-1
             L=.FALSE.
             DO J=0,I_V-1
                IF(I.NE.J) THEN
-                  IF(ABS(RHOIJ(I,J)).GT.0.D0) L=.TRUE.
+                  IF(ABS(RHOIJ(I,J)).GT.0.0_dp) L=.TRUE.
                ENDIF
             ENDDO
-            IF(.NOT.L) FMCPR4WFUNC=0.D0
+            IF(.NOT.L) FMCPR4WFUNC=0.0_dp
          ENDDO
 
          ! Avoid warnings
@@ -689,7 +689,7 @@ C.. calculates B=A**N where B and A are LxL matrices
          INTEGER NEL,I_V,I_HMAX,I_P,IPATH(NEL,0:I_V),ILOGGING
          INTEGER NWHTAY
          real(dp) RHOII(0:I_V),RHOIJ(0:I_V,0:I_V),FMCPR4UFUNC
-         FMCPR4UFUNC=1.D0
+         FMCPR4UFUNC=1.0_dp
 
          ! Avoid warnings
          ipath=ipath; rhoii(0)=rhoii(0); i_v=i_v; i_hmax=i_hmax

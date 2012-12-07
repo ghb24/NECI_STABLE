@@ -19,7 +19,7 @@ C..Cube array
 C..
       TMP1(1:NEL)=0
       TMP2(1:NEL)=0
-      AUXC=0.d0
+      AUXC=0.0_dp
 C..Compare NDET1 to NDET2
       IQ=0
       DO I=1,NEL

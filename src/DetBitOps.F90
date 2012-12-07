@@ -10,7 +10,7 @@ module DetBitOps
     use bit_rep_data, only: NIfY, NIfTot, NIfD, NOffFlag, NIfFlag, &
                             test_flag, flag_is_initiator,NIfDBO,NOffSgn
     use csf_data, only: iscsf, csf_yama_bit, csf_orbital_mask, csf_test_bit
-    use constants, only: n_int,bits_n_int,end_n_int,dp,lenof_sign
+    use constants, only: n_int,bits_n_int,end_n_int,dp,lenof_sign,sizeof_int
 
     implicit none
 
@@ -150,7 +150,7 @@ module DetBitOps
         tmp = a - iand(ishft(a,-1), m1)
         tmp = iand(tmp, m2) + iand(ishft(tmp,-2), m2)
         tmp = iand(tmp, m3) + iand(ishft(tmp,-4), m3)
-        nbits = ishft(tmp*m4, -56)
+        nbits = int(ishft(tmp*m4, -56),sizeof_int)
 #else
         integer(n_int), parameter :: m1 = 1431655765_n_int    !Z'55555555'
         integer(n_int), parameter :: m2 = 858993459_n_int     !Z'33333333'
@@ -408,8 +408,8 @@ module DetBitOps
         integer, dimension(lenof_sign) :: SignI, SignJ
         real(dp) :: WeightI,WeightJ
 
-        SignI = iLutI(NOffSgn:NOffSgn+lenof_sign-1)
-        SignJ = iLutJ(NOffSgn:NOffSgn+lenof_sign-1)
+        SignI = int(iLutI(NOffSgn:NOffSgn+lenof_sign-1),sizeof_int)
+        SignJ = int(iLutJ(NOffSgn:NOffSgn+lenof_sign-1),sizeof_int)
 
         if(lenof_sign.eq.1) then
             if(abs(SignI(1)).lt.abs(SignJ(1))) then
@@ -436,8 +436,8 @@ module DetBitOps
         integer, dimension(lenof_sign) :: SignI, SignJ
         real(dp) :: WeightI,WeightJ
 
-        SignI = iLutI(NOffSgn:NOffSgn+lenof_sign-1)
-        SignJ = iLutJ(NOffSgn:NOffSgn+lenof_sign-1)
+        SignI = int(iLutI(NOffSgn:NOffSgn+lenof_sign-1),sizeof_int)
+        SignJ = int(iLutJ(NOffSgn:NOffSgn+lenof_sign-1),sizeof_int)
 
         if(lenof_sign.eq.1) then
             if(abs(SignI(1)).gt.abs(SignJ(1))) then
