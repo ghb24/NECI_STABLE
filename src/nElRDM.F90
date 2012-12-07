@@ -4096,8 +4096,8 @@ MODULe nElRDMMod
             enddo
 
             ! Output the hermiticity errors.
-            write(6,'(A29,F30.20)') ' MAX ABS ERROR IN Lagrangian HERMITICITY', Max_Error_Hermiticity
-            write(6,'(A29,F30.20)') ' SUM ABS ERROR IN Lagrangian HERMITICITY', Sum_Error_Hermiticity
+            write(6,'(A40,F30.20)') ' MAX ABS ERROR IN Lagrangian HERMITICITY', Max_Error_Hermiticity
+            write(6,'(A40,F30.20)') ' SUM ABS ERROR IN Lagrangian HERMITICITY', Sum_Error_Hermiticity
 
         endif
 
@@ -5425,9 +5425,6 @@ MODULe nElRDMMod
 
         SymmetryPacked2RDM(:)=0.D0
         SymmetryPacked1RDM(:)=0.D0
-
-        WRITE(6,*) "Norm_1RDM", Norm_1RDM
-        WRITE(6,*) "Norm_2RDM", Norm_2RDM
 
         do i=1, SpatOrbs  !run over spatial orbitals, ALL ELECTRON ONLY
             do j=1,  i    ! i .ge. j
