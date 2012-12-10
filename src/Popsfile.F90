@@ -202,9 +202,6 @@ r_loop: do while(.not.tReadAllPops)
                         call stop_all (this_routine, "Too few determinants &
                                       &found.")
                     end if
-                    call extract_sign(walkertemp, sgn)
-                    call writebitdet(6, walkertemp, .false.)
-                    write(6,*) 'DET', det, sgn, ftell(iunit)
 
                     proc = DetermineDetNode (TempnI,0)
                     if (tSplitPops) then
@@ -841,7 +838,6 @@ outer_map:      do i = 0, MappingNIfD
         INTEGER, DIMENSION(lenof_sign) :: TempSign
         character(1024) :: out_tmp
         character(12) :: num_tmp
-        integer :: nTmp(nel)
 
         CALL MPIBarrier(error)  !sync
 !        WRITE(6,*) "Get Here",nDets
