@@ -65,6 +65,9 @@ MODULE Logging
     integer :: iBlockEquilShift,iBlockEquilProjE
     logical :: tDiagAllSpaceEver,tCalcVariationalEnergy
 
+    ! Do we want to split the popsfile up into multiple bits?
+    logical :: tSplitPops
+
     contains
 
     subroutine SetLogDefaults()
@@ -186,6 +189,8 @@ MODULE Logging
       tDumpForcesInfo = .false.
       tPrintLagrangian = .false.
       instant_s2_multiplier_init = 1
+
+      tSplitPops = .false.
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -890,6 +895,14 @@ MODULE Logging
             ! n.b. This is NOT quantitatively correct.
             !      --> Only of QUALITATIVE utility.
             tCalcInstSCpts = .true.
+
+        case ("SPLIT-POPS")
+            ! Do we want to split a popfile up into multiple parts which are
+            ! output on each of the nodes, and need to be combined/split-up and
+            ! distributed to the nodes on our (sequential) time rather than
+            ! on multi-processor time?
+            tSplitPops = .true.
+            tBinPops = .true.
 
 
         case("ENDLOG")

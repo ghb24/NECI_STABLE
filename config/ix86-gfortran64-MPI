@@ -2,7 +2,7 @@
 fc = mpif90
 cc = mpic++
 ld = mpif90
-ldflags = -m64
+ldflags = -m64 -rdynamic
 compiler = GCC-f95-on-LINUX
 cpp = cpp -C -traditional
 cppflags = -D__Linux -DPOINTER8 -DPARALLEL -D__INT64 -D__SHARED_MEM -DDISABLE_FFTW -D__GFORTRAN__
