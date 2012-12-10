@@ -60,9 +60,7 @@ class fort_readwrite:
 
 		# We have to write the length in blocks at the start and end.
 		length = len(buf)
-		print "buflen", length
 		tmp = struct.pack("@I", length)
-		print 'tmplen', len(tmp)
 
 		# Write the header, then the data, then the footer
 		self.f.write(tmp)
@@ -105,10 +103,6 @@ class fort_readwrite:
 
 	def __exit__ (self, type, value, traceback):
 
-		print 'type', type
-		print 'val', value
-		print 'traceback', traceback
-		print self.f
 		self.close()
 
 
@@ -286,12 +280,13 @@ def split_pops (nprocs):
 			print "Opened"
 			print "Read length: %d" % readlen
 
-			unpack_str = "@" + ((nifd + 1) * "Q" if bits == 64 else "L") + "q"
+			unpack_str = "@" + ((nifd + 1) * "Q" if bits == 64 else "L")
 			print "Unpack str |%s|" % unpack_str
 
 			# Use a nifty sentinel value for iter, to read until there
 			# is no more data!
-			for cnt, data in enumerate(iter(lambda: f.read(readlen), None)):
+			totwalkers = 0
+			for data in iter(lambda: f.read(readlen), None):
 
 				# Check that we have the right data length
 				if len(data) != readlen:
@@ -299,18 +294,14 @@ def split_pops (nprocs):
 					sys.exit(-1)
 
 				# Decode the determinant
-				ilut_s = struct.unpack_from(unpack_str, data)
-				ilut = ilut_s[0:nifd+1]
-				sgn = ilut_s[-1]
+				ilut = struct.unpack_from(unpack_str, data)
 				node = determine_det_node(ilut_to_ni(ilut, bits), random_hash, nprocs, bits)
-
-				print ilut_to_ni(ilut, bits), node, sgn
 
 				# Write the determinant back out to the relevant output file.
 				outfiles[node].write(data)
-				totwalkers = cnt + 1
+				totwalkers += 1
 
-			print "TOTWALKERS", totwalkers
+			print "Total number of occupied determinants: %d" % totwalkers
 
 
 			
