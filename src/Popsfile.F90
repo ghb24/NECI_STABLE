@@ -202,11 +202,17 @@ r_loop: do while(.not.tReadAllPops)
                         call stop_all (this_routine, "Too few determinants &
                                       &found.")
                     end if
+                    call extract_sign(walkertemp, sgn)
+                    call writebitdet(6, walkertemp, .false.)
+                    write(6,*) 'DET', det, sgn, ftell(iunit)
 
                     proc = DetermineDetNode (TempnI,0)
                     if (tSplitPops) then
                         CurrWalkers = CurrWalkers + 1
                         CurrentDets(:,CurrWalkers) = WalkerTemp
+                        if (proc /= iProcIndex) &
+                            call stop_all (this_routine, "Determinant in the &
+                                           &wrong Split POPSFILE")
                     else
                         ! Store the found determinant in the temporary list, 
                         ! and if we have filled up the slot in the list then
@@ -382,12 +388,11 @@ r_loop: do while(.not.tStoreDet)
             if (.not. tPopsMapping) then
                 ! All basis parameters match --> Read in directly.
                 if (BinPops) then
-                    read(iunit, iostat=stat) WalkerTemp(0:NIfD), sgn
-                    if (stat < 0) then
-                        tEOF = .true. ! End of file reached
-                        exit r_loop
+                    if (tUseFlags) then
+                        read(iunit, iostat=stat) WalkerTemp(0:NIfD), sgn, flg
+                    else
+                        read(iunit, iostat=stat) WalkerTemp(0:NIfD), sgn
                     end if
-                    if (tUseFlags) read(iunit, iostat=stat) flg
                 else
                     if (tUseFlags) then
                         read(iunit,*, iostat=stat) WalkerTemp(0:NIfD), sgn, flg
@@ -548,9 +553,24 @@ outer_map:      do i = 0, MappingNIfD
         endif
         if(PopNIfY.ne.NIfY) call stop_all(this_routine,"Popsfile NIfY and calculated NIfY not same")
         if(PopNIfSgn.ne.NIfSgn) call stop_all(this_routine,"Popsfile NIfSgn and calculated NIfSgn not same")
-        if(PopNIfFlag.ne.NIfFlag) call stop_all(this_routine,"Popsfile NIfFlag and calculated NIfFlag not same")
+
+        ! This test is no longer needed. NIfFlag depends on how we represent
+        ! the flags in memory, PopsNIfFlag depends on tUseFlags. The are 
+        ! allowed to differ.
+!        if(PopNIfFlag.ne.NIfFlag) call stop_all(this_routine,"Popsfile NIfFlag and calculated NIfFlag not same")
         if(.not.tPopsMapping) then
-            if(PopNIfTot.ne.NIfTot) call stop_all(this_routine,"Popsfile NIfTot and calculated NIfTot not same")
+            if (tUseFlags .and. NIfFlag == 0) then
+                if (PopNIFTot /= NIfTot + 1) &
+                    call stop_all(this_routine, "Popsfile NIfTot and &
+                                 &calculated NIfTot don't match.")
+            else
+                if (PopNIfTot /= NIfTot) &
+                    call stop_all(this_routine,"Popsfile NIfTot and calculated&
+                                               & NIfTot not same")
+            end if
+
+
+
         else
             MappingNIfTot=PopNIfTot
         endif
@@ -686,6 +706,7 @@ outer_map:      do i = 0, MappingNIfD
         integer(int64) , dimension(lenof_sign) , intent(out) :: PopSumNoatHF
         HElement_t , intent(out) :: PopAllSumENum
         integer :: PopsVersion
+        integer :: PopRandomHash(nbasis)
         !Variables for the namelist
         logical :: Pop64Bit,PopHPHF,PopLz
         integer :: PopLensign,PopNEl,PopCyc,PopiBlockingIter
@@ -693,7 +714,7 @@ outer_map:      do i = 0, MappingNIfD
         real(dp) :: PopSft,PopTau
         HElement_t :: PopSumENum
         namelist /POPSHEAD/ Pop64Bit,PopHPHF,PopLz,PopLensign,PopNEl,PopTotwalk,PopSft,PopSumNoatHF,PopSumENum, &
-                    PopCyc,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,PopTau,PopiBlockingIter
+                    PopCyc,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,PopTau,PopiBlockingIter,PopRandomHash
 
         PopsVersion=FindPopsfileVersion(iunithead)
         if(PopsVersion.ne.4) call stop_all("ReadPopsfileHeadv4","Wrong popsfile version for this routine.")
@@ -813,13 +834,14 @@ outer_map:      do i = 0, MappingNIfD
         INTEGER :: Total,i,j,k
         INTEGER(KIND=n_int), ALLOCATABLE :: Parts(:,:)
         INTEGER(TagIntType) :: PartsTag=0
-        INTEGER :: nMaxDets, TempDet(0:NIfTot), TempFlags
-        integer :: iunit, iunit_2, Initiator_Count
+        integer :: nMaxDets, TempDet(0:NIfTot), TempFlags, pops_niftot
+        integer :: iunit, iunit_2, Initiator_Count, pops_nifflag
         CHARACTER(len=*) , PARAMETER :: this_routine='WriteToPopsfileParOneArr'
         character(255) :: popsfile
         INTEGER, DIMENSION(lenof_sign) :: TempSign
         character(1024) :: out_tmp
         character(12) :: num_tmp
+        integer :: nTmp(nel)
 
         CALL MPIBarrier(error)  !sync
 !        WRITE(6,*) "Get Here",nDets
@@ -897,6 +919,16 @@ outer_map:      do i = 0, MappingNIfD
                                          iPopsFileNoWrite, popsfile)
             end if
 
+            ! If the popsfile uses flags, but we have combined the
+            ! representation of flags in memory, then the representation in
+            ! the popsfile is one unit longer than in memory.
+            pops_niftot = NIfTot
+            pops_nifflag = NIfFlag
+            if (tUseFlags .and. NIfFlag == 0) then
+                pops_niftot = pops_niftot + 1
+                pops_nifflag = 1
+            end if
+
             ! Output the header information.
             iunit = get_free_unit()
             open(iunit, file=popsfile, status='replace')
@@ -913,9 +945,17 @@ outer_map:      do i = 0, MappingNIfD
                 'PopCyc=', Iter+PreviousCycles, ',PopNIfD=', NIfD, &
                 ',PopNIfY=', NIfY, ',PopNIfSgn=' ,NIfSgn, ','
             write(iunit, '(a,i2,a,i2,a,f18.12,a)') &
-                'PopNIfFlag=', NIfFlag, ',PopNIfTot=', NIfTot, ',PopTau=', &
-                Tau, ','
+                'PopNIfFlag=', pops_nifflag, ',PopNIfTot=', pops_niftot, &
+                ',PopTau=', Tau, ','
             write(iunit, '(a,i16)') 'PopiBlockingIter=', iBlockingIter
+
+            ! Store the random hash in the header to allow later processing
+            write(iunit, '(a)', advance='no') "PopRandomHash= "
+            do i = 1, nbasis
+                write(iunit,'(i12,",")', advance='no') RandomHash(i)
+            end do
+            write(iunit, *)
+
             write(iunit, '(a5)') '&END'
 
         end if
@@ -1040,8 +1080,15 @@ outer_map:      do i = 0, MappingNIfD
 #ifdef __INT64
                 tmp_flag = extract_flags(det)
                 if (tBinPops) then
-                    write(iunit) det(0:NIfD), int(sgn, n_int)
-                    if (tUseFlags) write(iunit) int(flg, n_int)
+                    ! All write statements MUST be on the same line, or we end
+                    ! up with multiple records.
+                    ! TODO: For POPSFILE V5 --> stream output.
+                    if (tUseFlags) then
+                        write(iunit) det(0:NIfD), int(sgn, n_int), &
+                                                                int(flg, n_int)
+                    else
+                        write(iunit) det(0:NIfD), int(sgn, n_int)
+                    end if
                 else
                     do k = 0, NIfD
                         write(iunit, '(i24)', advance='no') det(k)
