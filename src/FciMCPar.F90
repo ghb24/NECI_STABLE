@@ -6827,20 +6827,29 @@ MODULE FciMCParMod
                                  ierr)
             endif
 
-!If we have a popsfile, read the walkers in now.
+            !
+            ! If we have a popsfile, read the walkers in now.
             if(tReadPops.and..not.tPopsAlreadyRead) then
 
                 if(iReadWalkersRoot.eq.0) then
-                    ReadBatch=MaxSpawned    !ReadBatch is the number of walkers to read in from the popsfile at one time.
-                                        !The larger it is, the fewer communications will be needed to scatter the particles.
-                                        !By default, the new array (which is only created on the root processors) is the
-                                        !same length as the spawning arrays.
+
+                    ! ReadBatch is the number of walkers to read in from the 
+                    ! popsfile at one time. The larger it is, the fewer
+                    ! communictions will be needed to scatter the particles.
+                    !
+                    ! By default, the new array (which is only created on the 
+                    ! root processors) is the same length as the spawning 
+                    ! arrays.
+                    ReadBatch=MaxSpawned
                 else
                     ReadBatch = iReadWalkersRoot
                 endif
 
-                !TotWalkers and TotParts are returned as the dets and parts on each processor.
-                call ReadFromPopsfile(iPopAllTotWalkers,ReadBatch,TotWalkers,TotParts,NoatHF,CurrentDets,MaxWalkersPart)
+                ! TotWalkers and TotParts are returned as the dets and parts 
+                ! on each processor.
+                call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, &
+                                      TotWalkers ,TotParts, NoatHF, &
+                                      CurrentDets, MaxWalkersPart)
 
                 !Setup global variables
                 TotWalkersOld=TotWalkers

@@ -2,7 +2,7 @@
 fc = gfortran
 cc = mpicxx
 ld = mpicxx
-ldflags = -m64
+ldflags = -m64 -rdynamic
 compiler = GCC-f95-on-LINUX
 cpp = cpp -C -traditional
 cppflags = -D__Linux -DPOINTER8 -DPARALLEL -D__INT64 -D__SHARED_MEM -DCBINDMPI -D__GFORTRAN__ 

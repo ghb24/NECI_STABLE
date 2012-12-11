@@ -2,7 +2,7 @@
 fc = gfortran
 cc = g++
 ld = gfortran
-ldflags = -m32
+ldflags = -m32 -rdynamic
 compiler = GCC-f95-on-LINUX
 cpp = cpp -C -traditional
 cppflags = -D__Linux -D__INT64 -D__GFORTRAN__
