@@ -272,7 +272,7 @@ contains
           tTruncNOpen = .false.
 
           proje_linear_comb = .false.
-      proje_update_comb = .false.
+          proje_update_comb = .false.
           proje_spatial = .false.
           hash_shift=0
           tContinueAfterMP2=.false.

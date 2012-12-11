@@ -1136,7 +1136,7 @@ MODULE FciMCParMod
             endif
         endif
 
-        !print *, "CurrentDets:"
+        !print *, "CurrentDets before:"
         !do j = 1, TotWalkers
         !    print *, CurrentDets(:,j)
         !end do
@@ -1172,9 +1172,6 @@ MODULE FciMCParMod
                         cycle
                     end if
                  
-                    ! Also, if we are on the Hartree-Fock and we are including all doubles
-                    ! in the deterministic space then all states that the HF can spawn onto
-                    ! are in the deterministic space, so skip this state too.
                 end if
             end if
 
@@ -1369,10 +1366,10 @@ MODULE FciMCParMod
                                     if (tInDetermSpace) call set_flag(iLutnJ, flag_deterministic)
                                 end if
                             end if
-                                ! If the psip being spawned is spawned from the deterministic space,
-                                ! then set the corresponding flag to specify this.
-                                if (test_flag(CurrentDets(:,j), flag_deterministic)) &
-                                    call set_flag(iLutnJ, flag_determ_parent)
+                            ! If the psip being spawned is spawned from the deterministic space,
+                            ! then set the corresponding flag to specify this.
+                            if (test_flag(CurrentDets(:,j), flag_deterministic)) &
+                            call set_flag(iLutnJ, flag_determ_parent)
                         end if
 
                         child = attempt_create (get_spawn_helement, DetCurr, &

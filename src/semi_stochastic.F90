@@ -26,8 +26,9 @@ module semi_stochastic
                              MPIAllGatherV
     use sort_mod, only: sort
     use sym_mod, only: getsym
-    use SystemData, only: nel, tHPHF, tCSFCore, tDeterminantCore, tCASCore, Stot, lms, &
-                          BasisFN, nBasisMax, BRR, tSpn, cas_bitmask, cas_not_bitmask
+    use SystemData, only: nel, tHPHF, tCSFCore, tDeterminantCore, tDoublesCore, tCASCore, &
+                          Stot, lms, BasisFN, nBasisMax, BRR, tSpn, cas_bitmask, &
+                          cas_not_bitmask
 
     implicit none
 
@@ -62,16 +63,18 @@ contains
         ! they do this, they count the size of the deterministic space on each processor.
         if (tDeterminantCore) then
             tSortDetermToTop = .true.
-            call generate_determinants()
+            if (tDoublesCore) then
+                call generate_sing_doub_determinants()
+            else if (tCASCore) then
+                call generate_cas()
+            end if
         else if (tCSFCore) then
             tSortDetermToTop = .true.
-            call generate_csfs()
-        else if (tCASCore) then
-            tSortDetermToTop = .true.
-            call generate_cas()
-        else
-            call stop_all("init_semi_stochastic", "The nature of the core basis functions &
-                             &has not been specified.")
+            if (tDoublesCore) then
+                call generate_sing_doub_csfs()
+            else if (tCASCore) then
+                call generate_cas()
+            end if
         end if
 
         ! We now know the size of the deterministic space on each processor, so now find
@@ -85,8 +88,8 @@ contains
         partial_determ_vector = 0.0_dp
 
         ! Write space sizes to screen.
-        write(6,*), "Total size of deterministic space:", determ_space_size
-        write(6,*), "Size of deterministic space on this processor:", &
+        write(6,*) "Total size of deterministic space:", determ_space_size
+        write(6,*) "Size of deterministic space on this processor:", &
                     deterministic_proc_sizes(iProcIndex)
 
         ! Also allocate the vector to store the positions of the deterministic states in
@@ -178,7 +181,7 @@ contains
 
     end subroutine calculate_det_hamiltonian_normal
 
-    subroutine generate_determinants()
+    subroutine generate_sing_doub_determinants()
 
         type(excit_store), target :: gen_store
         integer(n_int) :: ilut(0:NIfTot)
@@ -214,16 +217,14 @@ contains
             if (ilut(0) /= -1) call add_basis_state_to_list(ilut)
         end do
 
-    end subroutine generate_determinants
+    end subroutine generate_sing_doub_determinants
 
-    subroutine generate_csfs()
+    subroutine generate_sing_doub_csfs()
 
         type(excit_store), target :: gen_store
         integer(n_int) :: ilutHF_loc(0:NIfTot), ilut(0:NIfTot)
         integer :: HFDet_loc(nel), nI(nel)
-        integer :: exflag, n_open, i
-        integer :: num_csfs, max_num_csfs
-        integer, allocatable, dimension(:,:) :: yama_symbols
+        integer :: exflag
         logical :: first_loop
 
         ! Setting the first two bits of this flag tells the generating subroutine to
@@ -238,14 +239,6 @@ contains
         HFdet_loc = iand(HFDet, csf_orbital_mask)
         ilutHF_loc = ilutHF
         ilutHF_loc(NOffY) = 0
-
-        ! Can't possibly have more open orbitals than nel.
-        ! TODO: Check that num_csfs *always* increases with n_open.
-        max_num_csfs = get_num_csfs(nel, Stot)
-
-        ! Use max_num_csfs to allocate the array of Yamanouchi symbols to be large enough.
-        allocate(yama_symbols(max_num_csfs, nel))
-        yama_symbols = 0
 
         ! Ensure ilut(0) \= -1 so that the loop can be entered.
         ilut(0) = 0
@@ -265,38 +258,19 @@ contains
             ! Find the nI representation.
             call decode_bit_det(nI, ilut)
 
-            ! Find the number of open orbitals.
-            n_open = count_open_orbs(ilut)
-            ! Find the number of CSFs (and hence Yamanouchi symbols) with this value of Stot for
-            ! this orbital configuration.
-            num_csfs = get_num_csfs(n_open, Stot)
-
-            ! Enumerate the list of all possible Yamanouchi symbols for this orbital
-            ! configuration.
-            call csf_get_yamas(n_open, Stot, yama_symbols(1:num_csfs,1:n_open), num_csfs)
-
-            ! Loop over all Yamanouchi symbols.
-            do i = 1, num_csfs
-                ! If n_open = 0 then we just have a determinant.
-                if (n_open > 0) then
-                    ! Encode the Yamanouchi symbol in nI representation.
-                    call csf_apply_yama(nI, yama_symbols(i,1:n_open))
-                    ! Encode the Yamanouchi symbol in the ilut representation.
-                    call get_csf_bit_yama(nI, ilut(nOffY:nOffY+nIfY-1))
-                end if
-                ! Finally add the CSF to the CurrentDets list.
-                call add_basis_state_to_list(ilut, nI)
-            end do
+            call generate_all_csfs_from_orb_config(ilut, nI)
 
         end do
 
-    end subroutine generate_csfs
+    end subroutine generate_sing_doub_csfs
 
     subroutine generate_cas()
 
         type(BasisFN) :: CASSym
-        integer(n_int) ::ilut(0:NIfTot)
-        integer :: CASSpinBasisSize, elec, nCASDet, i, j, comp
+        integer(n_int) :: ilut(0:NIfTot)
+        integer(n_int), allocatable, dimension(:,:) :: ilut_store
+        integer :: HFdet_loc(nel)
+        integer :: num_active_orbs, elec, nCASDet, i, j, counter, comp
         integer, allocatable :: CASBrr(:), CASRef(:)
         integer, pointer :: CASDets(:,:) => null()
 
@@ -304,15 +278,16 @@ contains
         ! with an Ms value in the correct spin subspace.
         if (.not. tSpn) call stop_all("generate_cas", "tSpn is not set to true.")
 
-        CASSpinBasisSize = OccCASorbs + VirtCASorbs
-        allocate(CASBrr(1:CASSpinBasisSize))
+        ! The total number of orbitals in the active space:
+        num_active_orbs = OccCASorbs + VirtCASorbs
+        allocate(CASBrr(1:num_active_orbs))
         allocate(CASRef(1:OccCasOrbs))
-        do i = 1, CASSpinBasisSize
+        do i = 1, num_active_orbs
             ! Run through the cas space, and create an array which will map these orbtials to the
             ! orbitals they actually represent.
             ! i.e. CASBRR(1) will store the lowest energy orbital in the CAS space and
-            ! CASBRR(CASSpinBasisSize) will store the highest energy orbital in the CAS space.
-            CASBrr(i) = BRR(i + (NEl - OccCasorbs))
+            ! CASBRR(num_active_orbs) will store the highest energy orbital in the CAS space.
+            CASBrr(i) = BRR(i + (nel - OccCasorbs))
         end do
 
         ! Create a bit mask which has 1's in the bits which represent active orbitals and 0's in
@@ -320,52 +295,168 @@ contains
         allocate(cas_bitmask(0:NIfD))
         allocate(cas_not_bitmask(0:NIfD))
         cas_bitmask = 0
-        do i = 1, CASSpinBasisSize
+        do i = 1, num_active_orbs
             set_orb(cas_bitmask, CASBRR(i))
         end do
+        ! Create a bit mask which has 0's in the bits which represent active orbitals and 1's in
+        ! all other orbitals.
         cas_not_bitmask = not(cas_bitmask)
 
+        ! For Stot /= 0, the HF state will be a CSF. For the purpose of
+        ! generating all spatial orbitals, we just want a determinant, so use a
+        ! state without the CSF information.
+        HFdet_loc = iand(HFDet, csf_orbital_mask)
+        print *, "HFDet:", HFDet
+        print *, "HFDet_loc:", HFdet_loc
+
         elec = 1
-        do i = NEl-OccCasOrbs+1, NEl
+        do i = nel-OccCasOrbs+1, nel
             ! CASRef(elec) will store the orbital number of the electron elec in the reference
             ! state, HFDet. elec runs from 1 to the number of electrons in the active space.
-            CASRef(elec) = HFDet(i)
+            CASRef(elec) = HFDet_loc(i)
             elec = elec + 1
         end do
 
         call GetSym(CASRef, OccCASOrbs, G1, nBasisMax, CASSym)
 
         ! First, generate all excitations so we know how many there are, to allocate the arrays.
-        call gndts(OccCASorbs, CASSpinBasisSize, CASBrr, nBasisMax, CASDets, &
+        call gndts(OccCASorbs, num_active_orbs, CASBrr, nBasisMax, CASDets, &
                               .true., G1, tSpn, LMS, .true., CASSym, nCASDet, CASRef)
 
         if (nCASDet == 0) call stop_all("generate_cas","No CAS determinants found.")
 
+        ! Now allocate the array CASDets. CASDets(:,i) will store the orbitals in the active space
+        ! which are occupied in the i'th determinant generated.
         allocate(CASDets(OccCASorbs, nCASDet))
         CASDets(:,:) = 0
 
+        if (tCASCore) then
+            allocate(ilut_store(nCASDet-1, 0:NIfTot))
+            ilut_store = 0
+            counter = 1
+        end if
+
         ! Now fill up CASDets...
-        call gndts(OccCASorbs, CASSpinBasisSize, CASBrr, nBasisMax, CASDets, &
+        call gndts(OccCASorbs, num_active_orbs, CASBrr, nBasisMax, CASDets, &
                               .false., G1, tSpn, LMS, .true., CASSym, nCASDet, CASRef)
 
         do i = 1, nCASDet
+
             ! First, create the bitstring representing this state:
             ! Start from the HF determinant and apply cas_not_bitmask to clear all active space
             ! orbitals.
-            ilut(0:NifD) = iand(ilutHF(0:NifD), cas_not_bitmask)
-            ! Then loop through the occupied orbitals in the CAS space, stored in CASDets(:,i),
+            ilut(0:NIfD) = iand(ilutHF(0:NIfD), cas_not_bitmask)
+            ! Then loop through the occupied orbitals in the active space, stored in CASDets(:,i),
             ! and set the corresponding bits.
             do j = 1, OccCASorbs
                 set_orb(ilut, CASDets(j,i))
             end do
+
             ! The function gndts always outputs the reference state. This is already included, so
-            ! we want to cycle when we get to this state.
+            ! we want to cycle when we get to this state to ignore it.
+            ! comp will be 0 if ilut and ilutHF are the same.
             comp = DetBitLT(ilut, ilutHF, NIfD, .false.)
             if (comp == 0) cycle
-            call add_basis_state_to_list(ilut)
+
+            if (tDeterminantCore) then
+                ! Now that we have fully generated the determinant, add it to the main list.
+                call add_basis_state_to_list(ilut)
+            else if (tCSFCore) then
+                ilut_store(counter, 0:NifD) = ilut(0:NifD)
+                counter = counter + 1
+            end if
+
         end do
 
+        if (tCASCore) call create_CAS_csfs(ilut_store, nCASDet-1)
+
     end subroutine generate_cas
+
+    subroutine create_CAS_csfs(ilut_store, num_dets)
+
+        integer, intent(in) :: num_dets
+        integer(n_int), intent(inout) :: ilut_store(num_dets, 0:NIfTot)
+        integer(n_int) :: ilut(0:NIfTot)
+        integer :: nI(nel)
+        integer :: i, j, comp
+        integer :: orb1, orb2
+
+        do i = 1, num_dets
+
+            nI = 0
+            ilut = ilut_store(i,:)
+            call decode_bit_det(nI, ilut)
+            nI = iand(nI, csf_orbital_mask)
+            print *, "nI:", nI
+            print *, "ilut:", ilut
+
+            do j = 1, nel
+                orb1 = nI(j)
+                orb2 = ab_pair(orb1)
+
+                if (is_alpha(orb1) .and. IsNotOcc(ilut, orb2) ) then
+                    print *, "here!"
+                    clr_orb(ilut, orb1)
+                    set_orb(ilut, orb2)
+                end if
+            end do
+
+        end do
+
+        call sort(ilut_store(:,:), ilut_lt, ilut_gt)
+
+        do i = 1, num_dets
+            if (i > 1) then
+                comp = DetBitLT(ilut_store(i,:), ilut_store(i-1,:), NIfD, .false.)
+                if (comp == 0) cycle
+            end if
+
+            call decode_bit_det(nI, ilut_store(i,:))
+
+            call generate_all_csfs_from_orb_config(ilut_store(i,:), nI)
+        end do
+
+    end subroutine create_CAS_csfs
+
+    subroutine generate_all_csfs_from_orb_config(ilut, nI)
+
+        integer(n_int), intent(inout) :: ilut(0:NIfTot)
+        integer, intent(inout) :: nI(nel)
+        integer :: i, n_open, num_csfs, max_num_csfs
+        integer, allocatable, dimension(:,:) :: yama_symbols
+
+        ! Can't possibly have more open orbitals than nel.
+        ! TODO: Check that num_csfs *always* increases with n_open.
+        max_num_csfs = get_num_csfs(nel, Stot)
+
+        ! Use max_num_csfs to allocate the array of Yamanouchi symbols to be large enough.
+        allocate(yama_symbols(max_num_csfs, nel))
+        yama_symbols = 0
+
+        ! Find the number of open orbitals.
+        n_open = count_open_orbs(ilut)
+        ! Find the number of CSFs (and hence Yamanouchi symbols) with this value of Stot for
+        ! this orbital configuration.
+        num_csfs = get_num_csfs(n_open, Stot)
+
+        ! Enumerate the list of all possible Yamanouchi symbols for this orbital
+        ! configuration.
+        call csf_get_yamas(n_open, Stot, yama_symbols(1:num_csfs,1:n_open), num_csfs)
+
+        ! Loop over all Yamanouchi symbols.
+        do i = 1, num_csfs
+            ! If n_open = 0 then we just have a determinant.
+            if (n_open > 0) then
+                ! Encode the Yamanouchi symbol in nI representation.
+                call csf_apply_yama(nI, yama_symbols(i,1:n_open))
+                ! Encode the Yamanouchi symbol in the ilut representation.
+                call get_csf_bit_yama(nI, ilut(nOffY:nOffY+nIfY-1))
+            end if
+            ! Finally add the CSF to the CurrentDets list.
+            call add_basis_state_to_list(ilut, nI)
+        end do
+
+    end subroutine generate_all_csfs_from_orb_config
 
     subroutine add_basis_state_to_list(ilut, nI_in)
 
@@ -428,26 +519,34 @@ contains
 
         tInDetermSpace = .false.
 
-        if (tDeterminantCore) then
-            IC = FindBitExcitLevel(ilut, ilutHF)
-            if (IC <= 2) tInDetermSpace = .true.
-        else if (tCSFCore) then
-            IC = FindBitExcitLevel(ilut, ilutHF)
-            if (IC <= 2) tInDetermSpace = .true.
+        if (tDoublesCore) then
+            if (tDeterminantCore) then
+                IC = FindBitExcitLevel(ilut, ilutHF)
+                if (IC <= 2) tInDetermSpace = .true.
+            else if (tCSFCore) then
+                IC = FindBitExcitLevel(ilut, ilutHF)
+                if (IC <= 2) tInDetermSpace = .true.
+            end if
         else if (tCASCore) then
+            ! The state ilut, but with all active space orbitals unoccupied.
             ilut_temp1 = iand(cas_not_bitmask, ilut(0:NIfD))
+
+            ! The state ilut, but with all active space orbitals and all orbitals not occupied
+            ! in the HF determinant unoccupied.
             ilut_temp2 = iand(ilut_temp1, ilutHF(0:NIfD))
+            ! All these orbitals should be occupied if the state is in the deterministic space.
             bits_set = sum(count_set_bits(ilut_temp2))
-            if (bits_set /= Nel - occCASorbs) then
-                tInDetermSpace = .false.
-                return
-            end if
+            if (bits_set /= nel - occCASorbs) return
+
+            ! The state ilut, but with all active space orbitals and all orbitals in the HF
+            ! determinant unoccupied.
             ilut_temp2 = iand(ilut_temp1, not(ilutHF(0:NIfD)))
+            ! All these orbitals should be unoccupied if the state is in the deterministic space.
             bits_set = sum(count_set_bits(ilut_temp2))
-            if (bits_set /= 0) then
-                tInDetermSpace = .false.
-                return
-            end if
+            if (bits_set /= 0) return
+
+            ! If both of the above occupation criteria are met, then the state is in the
+            ! deterministic space.
             tInDetermSpace = .true.
         end if
 

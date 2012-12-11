@@ -81,6 +81,7 @@ MODULE System
       tSemiStochastic = .false.
       tCSFCore = .false.
       tDeterminantCore = .false.
+      tDoublesCore = .false.
       tCASCore = .false.
       STOT=0
       TPARITY = .false.
@@ -344,6 +345,8 @@ MODULE System
             tCSFCore = .true.
             tCSF = .true.
             LMS = STOT
+        case("DOUBLES-CORE")
+            tDoublesCore = .true.
         case("CAS-CORE")
             tCASCore = .true.
             tSpn = .true.
