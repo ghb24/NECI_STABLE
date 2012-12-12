@@ -3951,17 +3951,17 @@ MODULE FciMCParMod
         endif
 
         
-!#ifdef __DEBUG
-!        !Write this 'ASSERTROOT' out explicitly to avoid line lengths problems
-!        if ((iProcIndex == root) .and. .not. tSpinProject .and. &
-!         all(abs(iter_data%update_growth_tot-((AllTotParts)-(AllTotPartsOld))) > 1.0e-7)) then
-!            write(iout,*) "update_growth: ",iter_data%update_growth_tot
-!            write(iout,*) "AllTotParts: ",AllTotParts
-!            write(iout,*) "AllTotPartsOld: ", AllTotPartsOld
-!            call stop_all (this_routine, &
-!                "Assertation failed: all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld)")
-!        endif
-!#endif
+#ifdef __DEBUG
+        !Write this 'ASSERTROOT' out explicitly to avoid line lengths problems
+        if ((iProcIndex == root) .and. .not. tSpinProject .and. &
+         all(abs(iter_data%update_growth_tot-((AllTotParts)-(AllTotPartsOld))) > 1.0e-7)) then
+            write(iout,*) "update_growth: ",iter_data%update_growth_tot
+            write(iout,*) "AllTotParts: ",AllTotParts
+            write(iout,*) "AllTotPartsOld: ", AllTotPartsOld
+            call stop_all (this_routine, &
+                "Assertation failed: all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld)")
+        endif
+#endif
     
     end subroutine collate_iter_data
 
