@@ -189,7 +189,7 @@ MODULE AnnihilationMod
          ! If the semi-stochastic approach is being used then the following routine performs the
          ! annihilation of the deterministic states. These states are subsequently skipped in the
          ! AnnihilateSpawnedParts routine.
-         if (tSemiStochastic) call deterministic_annihilation()
+         if (tSemiStochastic) call deterministic_annihilation(iter_data)
 
 !Binary search the main list and copy accross/annihilate determinants which are found.
 !This will also remove the found determinants from the spawnedparts lists.
@@ -781,7 +781,7 @@ MODULE AnnihilationMod
 
     end subroutine FindResidualParticle
 
-    subroutine deterministic_annihilation()
+    subroutine deterministic_annihilation(iter_data)
 
         ! A general explanation of this routine, and also the changes made in other annihilation
         ! routines for the semi-stochastic code:
@@ -823,8 +823,9 @@ MODULE AnnihilationMod
         ! space are allowed, and if any of the psips spawned on a site are from the deterministic space
         ! then the spawning is always allowed.
 
+        type(fcimc_iter_data), intent(inout) :: iter_data
         integer :: i, MinInd, MaxInd, PartInd
-        real(dp), dimension(lenof_sign) :: SpawnedSign, CurrentSign
+        real(dp), dimension(lenof_sign) :: SpawnedSign, CurrentSign, SignProd
         logical :: tSuccess
 
         ! First, copy across the weights from partial_determ_vector:
@@ -832,6 +833,14 @@ MODULE AnnihilationMod
             call extract_sign(CurrentDets(:, indices_of_determ_states(i)), CurrentSign)
             SpawnedSign = partial_determ_vector(i)
             call encode_sign(CurrentDets(:, indices_of_determ_states(i)), SpawnedSign + CurrentSign)
+
+            ! Update stats:
+            ! Number born:
+            iter_data%nborn(1) = iter_data%nborn(1) + abs(SpawnedSign(1))
+            ! Number annihilated:
+            SignProd = CurrentSign*SpawnedSign
+            if (SignProd(1) < 0.0_dp) iter_data%nannihil(1) = iter_data%nannihil(1) + &
+                2*(min(abs(CurrentSign(1)), abs(SpawnedSign(1))))
         end do
 
         ! Second, *if* the deterministic states are sorted to the top, copy across the weights from
@@ -849,6 +858,11 @@ MODULE AnnihilationMod
                     call extract_sign(SpawnedParts(:, i), SpawnedSign)
                     call encode_sign(CurrentDets(:, PartInd), SpawnedSign + CurrentSign)
                     call encode_sign(SpawnedParts(:, i), null_part)
+
+                    ! Update stats:
+                    SignProd = CurrentSign*SpawnedSign
+                    if (SignProd(1) < 0.0_dp) iter_data%nannihil(1) = iter_data%nannihil(1) + &
+                        2*(min(abs(CurrentSign(1)), abs(SpawnedSign(1))))
                 else
                     ! All deterministic states should be kept in CurrentDets always, so if this search
                     ! does not return a state then something has gone badly wrong!
@@ -1017,9 +1031,14 @@ MODULE AnnihilationMod
                         ! If this state is in the deterministic space then abort it, as it was also spawned
                         ! from the deterministic space. Then simply move onto the next state in SpawnedParts,
                         ! even if it is the same state.
+                        call extract_sign(SpawnedParts(:, i), SpawnedSign)
                         call encode_sign(SpawnedParts(:, i), null_part)
                         ToRemove = ToRemove + 1
                         MinInd = PartInd
+
+                        ! Update stats:
+                        iter_data%naborted(1) = iter_data%naborted(1) + abs(SpawnedSign(1))
+
                         cycle
                     else
                         if (comp == 0) then
@@ -1032,6 +1051,12 @@ MODULE AnnihilationMod
                             call encode_sign(SpawnedParts(:, i+1), null_part)
                             ToRemove = ToRemove + 1
                             tSkip = .true.
+
+                            ! Update stats:
+                            SignProd = SpawnedSign*SignTemp
+                            if (SignProd(1) < 0.0_dp) iter_data%nannihil(1) = iter_data%nannihil(1) + &
+                                2*(min(abs(SpawnedSign(1)), abs(SignTemp(1))))
+
                             if (IsUnoccDet(SpawnedSign + SignTemp)) then
                                 ! If no amplitude remaining after the states are merged.
                                 MinInd = PartInd
@@ -1069,6 +1094,12 @@ MODULE AnnihilationMod
                         call encode_sign(SpawnedParts(:,i),null_part)
                         ToRemove = ToRemove + 1
                         MinInd = PartInd
+
+                        ! Update stats:
+                        SignProd = CurrentSign*SpawnedSign
+                        if (SignProd(1) < 0.0_dp) iter_data%nannihil(1) = iter_data%nannihil(1) + &
+                            2*(min(abs(CurrentSign(1)), abs(SpawnedSign(1))))
+
                         cycle
                     end if
                 end if

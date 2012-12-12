@@ -103,6 +103,9 @@ contains
         endif
         sym = SpinOrbSymLabel(orb)
         mom = G1(orb)%Ml
+        
+        ! To avoid cray compiler bug!
+        if (spin == 2) spin = 2
 
         ! Calculate index as usual
         ind = ClassCountInd (spin, sym, mom)
