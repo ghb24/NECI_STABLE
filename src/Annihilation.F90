@@ -416,7 +416,7 @@ MODULE AnnihilationMod
             do while(CurrentBlockDet.le.ValidSpawned)
                 if(.not.(DetBitEQ(SpawnedParts(0:NIfTot,BeginningBlockDet),SpawnedParts(0:NIfTot,CurrentBlockDet),NIfDBO))) exit
                 if (tSemiStochastic .and. (.not. tSortDetermToTop)) then
-                    if (.not. (test_flag(SpawnedParts(:0:NIfTot,BeginningBlockDet), flag_determ_parent) .eqv. &
+                    if (.not. (test_flag(SpawnedParts(0:NIfTot,BeginningBlockDet), flag_determ_parent) .eqv. &
                                test_flag(SpawnedParts(0:NIfTot,CurrentBlockDet), flag_determ_parent))) exit
                 end if
                 ! Loop over walkers on the same determinant in SpawnedParts.
