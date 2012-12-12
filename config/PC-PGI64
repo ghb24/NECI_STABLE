@@ -5,7 +5,6 @@ cc = pgCC
 ccd = g++
 cpp = cpp -C -traditional
 cppflags =  -D__Linux -DPOINTER8 -DHAVE_SSE2 -D__INT64 -D__PGI
-ldflags = -rdynamic
 ld = pgf90
 libs = -L ~/src/lib/fftw-3.1.2/lib -L ~/lib/fftw-3.1.2/lib -lfftw3 -llapack -lblas -pgcpplibs -lrt -lm
 module_flag = -module

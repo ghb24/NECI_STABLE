@@ -704,7 +704,7 @@ outer_map:      do i = 0, MappingNIfD
         real(dp) , dimension(lenof_sign) , intent(out) :: PopSumNoatHF
         HElement_t , intent(out) :: PopAllSumENum
         integer :: PopsVersion
-        integer :: PopRandomHash(nbasis)
+        integer :: PopRandomHash(100)
         !Variables for the namelist
         logical :: Pop64Bit,PopHPHF,PopLz
         integer :: PopLensign,PopNEl,PopCyc,PopiBlockingIter
