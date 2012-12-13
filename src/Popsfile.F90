@@ -1061,7 +1061,7 @@ outer_map:      do i = 0, MappingNIfD
 
         integer, intent(in) :: iunit, iunit_2
         integer(n_int), intent(in) :: det(0:NIfTot)
-        integer :: sgn(lenof_sign), flg, j, k, tmp_flag, ex_level
+        integer :: sgn(lenof_sign), flg, j, k, ex_level
 
         ! Note, we don't want to bother outputting empty particles
         call extract_sign(det, sgn)
@@ -1074,7 +1074,7 @@ outer_map:      do i = 0, MappingNIfD
                 ! including the flag information with the signs in storage in
                 ! memory --> need to extract these before outputting them.
 #ifdef __INT64
-                tmp_flag = extract_flags(det)
+                flg = extract_flags(det)
                 if (tBinPops) then
                     ! All write statements MUST be on the same line, or we end
                     ! up with multiple records.
