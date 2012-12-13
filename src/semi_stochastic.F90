@@ -274,7 +274,7 @@ contains
         integer, allocatable :: CASBrr(:), CASRef(:)
         integer, pointer :: CASDets(:,:) => null()
 
-        ! This option should be true, as it tells the subroutine gndts to only consider states
+        ! This option should be true. It tells the subroutine gndts to only consider states
         ! with an Ms value in the correct spin subspace.
         if (.not. tSpn) call stop_all("generate_cas", "tSpn is not set to true.")
 
@@ -302,12 +302,9 @@ contains
         ! all other orbitals.
         cas_not_bitmask = not(cas_bitmask)
 
-        ! For Stot /= 0, the HF state will be a CSF. For the purpose of
-        ! generating all spatial orbitals, we just want a determinant, so use a
-        ! state without the CSF information.
+        ! For Stot /= 0, the HF state will be a CSF. For the purpose of generating all spatial
+        ! orbitals, we just want a determinant, so use a state without the CSF information.
         HFdet_loc = iand(HFDet, csf_orbital_mask)
-        print *, "HFDet:", HFDet
-        print *, "HFDet_loc:", HFdet_loc
 
         elec = 1
         do i = nel-OccCasOrbs+1, nel
@@ -341,7 +338,6 @@ contains
                               .false., G1, tSpn, LMS, .true., CASSym, nCASDet, CASRef)
 
         do i = 1, nCASDet
-
             ! First, create the bitstring representing this state:
             ! Start from the HF determinant and apply cas_not_bitmask to clear all active space
             ! orbitals.
@@ -368,7 +364,7 @@ contains
 
         end do
 
-        if (tCASCore) call create_CAS_csfs(ilut_store, nCASDet-1)
+        if (tCSFCore) call create_CAS_csfs(ilut_store, nCASDet-1)
 
     end subroutine generate_cas
 
