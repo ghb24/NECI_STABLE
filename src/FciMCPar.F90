@@ -119,6 +119,8 @@ MODULE FciMCParMod
                          fill_rdm_diag_currdet_norm, &
                          fill_rdm_diag_currdet_hfsd, calc_rdmbiasfac
 
+    use gndts_mod, only: gndts
+
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
 #endif
@@ -7092,8 +7094,10 @@ MODULE FciMCParMod
         use sym_mod , only : Getsym, writesym
         use MomInv, only: IsAllowedMI 
         type(BasisFN) :: CASSym
-        integer :: i,j,ierr,nEval,NKRY1,NBLOCK,LSCR,LISCR,DetIndex,iNode,NoWalkers,nBlocks,nBlockStarts(2)
-        integer :: CASSpinBasisSize,elec,nCASDet,ICMax,GC,LenHamil,iInit,nHPHFCAS,Slot,DetHash
+        integer :: i, j, ierr, nEval, NKRY1, NBLOCK, LSCR, LISCR, DetIndex
+        integer :: iNode, NoWalkers, nBlocks, nBlockStarts(2), DetHash, Slot
+        integer :: CASSpinBasisSize, elec, nCASDet, ICMax, GC, LenHamil, iInit
+        integer :: nHPHFCAS, Slot, DetHash, iCasDet
         integer , allocatable :: CASBrr(:),CASDet(:),CASFullDets(:,:),nRow(:),Lab(:),ISCR(:),INDEX(:)
         integer , pointer :: CASDetList(:,:) => null()
         integer(n_int) :: iLutnJ(0:NIfTot)
@@ -7159,6 +7163,7 @@ MODULE FciMCParMod
         if(tFixLz) then
             write(iout,*) "Ml of CAS determinants: ",CASSym%Ml
         endif
+        call neci_flush(iout)
 
         if(CASSym%Ml.ne.LzTot) call stop_all(this_routine,"Ml of CAS ref det does not match Ml of full reference det")
         if(CASSym%Ms.ne.0) call stop_all(this_routine,"CAS diagonalisation can only work with closed shell CAS spaces initially")
@@ -7167,7 +7172,7 @@ MODULE FciMCParMod
         endif
 
         !First, we need to generate all the excitations.
-        call gndts(OccCASorbs,CASSpinBasisSize,CASBrr,nBasisMax,CASDetList,.true.,G1,tSpn,LMS,.true.,CASSym,nCASDet,CASDet)
+        call gndts(OccCASorbs,CASSpinBasisSize,CASBrr,nBasisMax,CASDetList,.true.,G1,tSpn,LMS,.true.,CASSym,nCASDet,iCASDet)
 
         if(nCASDet.eq.0) call stop_all(this_routine,"No CAS determinants found.")
         write(iout,*) "Number of symmetry allowed CAS determinants found to be: ",nCASDet
@@ -7176,7 +7181,9 @@ MODULE FciMCParMod
         CASDetList(:,:)=0
 
         !Now fill up CASDetList...
-        call gndts(OccCASorbs,CASSpinBasisSize,CASBrr,nBasisMax,CASDetList,.false.,G1,tSpn,LMS,.true.,CASSym,nCASDet,CASDet)
+        call gndts (OccCASorbs, CASSpinBasisSize, CASBrr, nBasisMax, &
+                    CASDetList, .false., G1, tSpn, LMS, .true., CASSym, &
+                    nCASDet, iCASDet)
 
         !We have a complication here. If we calculate the hamiltonian from these CAS determinants, then we are not
         !including the mean-field generated from the other occupied orbitals. We need to either 'freeze' the occupied
