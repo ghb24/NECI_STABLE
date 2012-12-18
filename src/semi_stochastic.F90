@@ -20,15 +20,17 @@ module semi_stochastic
                          full_determ_vector, partial_determ_vector, core_hamiltonian, &
                          determ_space_size, TotWalkers, TotWalkersOld, &
                          indices_of_determ_states, ProjEDet
-    use hash , only : DetermineDetNode
+    use hash , only: DetermineDetNode
     use hphf_integrals, only: hphf_diag_helement
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIBarrier, &
                              MPIAllGatherV
     use sort_mod, only: sort
     use sym_mod, only: getsym
     use SystemData, only: nel, tHPHF, tCSFCore, tDeterminantCore, tDoublesCore, tCASCore, &
-                          Stot, lms, BasisFN, nBasisMax, BRR, tSpn, cas_bitmask, &
-                          cas_not_bitmask
+                          tOptimisedCore, Stot, lms, BasisFN, nBasisMax, BRR, tSpn, &
+                          cas_bitmask, cas_not_bitmask, num_det_generation_loops, &
+                          determ_space_cutoff_amp, determ_space_cutoff_num, tAmplitudeCutoff, &
+                          determ_ground_state
 
     implicit none
 
@@ -75,6 +77,9 @@ contains
             else if (tCASCore) then
                 call generate_cas()
             end if
+        else if (tOptimisedCore) then
+            tSortDetermToTop = .false.
+            call generate_optimised_core()
         end if
 
         ! We now know the size of the deterministic space on each processor, so now find
@@ -180,6 +185,275 @@ contains
         deallocate(temp_store)
 
     end subroutine calculate_det_hamiltonian_normal
+
+    subroutine generate_optimised_core()
+
+        ! This routine generates a deterministic space by diagonalising a small fraction
+        ! of the whole space, and choosing the basis states with the largest weights in
+        ! the ground state for the deterministic states. This therefore aims to find
+        ! some of the basis states with the largest weights in the true ground state.
+
+        ! More specifically, we start with the Hartree-Fock state, and generate a first
+        ! space by finding all states connected to it. We then find the ground state of
+        ! the Hamiltonian in this space. Using this ground state, we pick out the basis
+        ! states with the largest amplitudes (up to some user-specified criteria), and
+        ! define these basis states as our new space. We then find all states connected
+        ! to the states in this space, and diagonalise the Hamiltonian in this new space
+        ! and again pick out the basis states with the largest weights. This process is
+        ! iterated for as many time as the user requests.
+
+        type(excit_store), target :: gen_store
+        integer(n_int), allocatable, dimension(:,:) :: ilut_store_old, ilut_store_new
+        integer(n_int) :: ilut(0:NIfTot)
+        integer :: nI(nel), nJ(nel)
+        real(dp), allocatable, dimension(:,:) :: hamiltonian
+        real(dp), allocatable, dimension(:) :: work
+        integer :: lwork, info
+        integer :: counter, i, j, k
+        integer :: old_num_det_states, new_num_det_states, comp
+        logical :: connected, first_loop
+
+        ! First, allocate the stores of ilut's that will hold these deterministic states.
+        ! For now, assume that we won't have a deterministic space of more than one
+        ! million states. Could make this user-specified later.
+        ! ilut_store_old will store the states in the previously generated deterministic
+        ! space from which we want to find all connected states.
+        allocate(ilut_store_old(0:NIfTot, 1000000))
+        allocate(ilut_store_new(0:NIfTot, 1000000))
+        ilut_store_old = 0
+        ilut_store_new = 0
+
+        ! Put the Hartree-Fock state in the old list first.
+        ilut_store_old(0:NIfTot, 1) = ilutHF(0:NIfTot)
+        ! Also put it in the new list, as it is connected to itself.
+        ilut_store_new(0:NIfTot, 1) = ilutHF(0:NIfTot)
+
+        counter = 1
+
+        ! old_num_det_states will hold the number of deterministic states in the current
+        ! space. This is just 1 for now, with only the Hartree-Fock.
+        old_num_det_states = 1
+
+        ! Now we start the iterating loop. Find all states which are either a single or
+        ! double connection to each state in the old ilut store, and then see if they
+        ! have a non-zero Hamiltonian matrix element with any state in the old
+        ! ilut store:
+
+        ! Over the total number of iterations.
+        do i = 1, num_det_generation_loops
+
+            write(6,*) "Iteration:", i
+            call neci_flush(6)
+
+            ! Over all the states in the old ilut store.
+            do j = 1, old_num_det_states
+
+                call decode_bit_det(nI, ilut_store_old(:,j))
+
+                ! First, the singles:
+
+                ! Ensure ilut(0) \= -1 so that the loop can be entered.
+                ilut(0) = 0
+                first_loop = .true.
+
+                ! When no more basis functions are found, this value is returned and the
+                ! loop is exited.
+                do while(ilut(0) /= -1)
+
+                    ! The first time the enumerating subroutine is called, setting ilut(0)
+                    ! to -1 tells it to  initialise everything first.
+                    if (first_loop) then
+                        ilut(0) = -1
+                        first_loop = .false.
+                    end if
+
+                    ! Find the next state.
+                    call enumerate_all_single_excitations (ilut_store_old(:,j), nI, ilut, &
+                                                                                 gen_store)
+
+                    ! If a new state was not found.
+                    if (ilut(0) == -1) exit
+
+                    ! Check if any of the states in the old space is connected to the state
+                    ! just generated. If so, this function adds one to counter and adds the
+                    ! generated state to the new ilut store.
+                    call check_if_connected_to_old_space(ilut_store_old, nI, ilut, &
+                                                     old_num_det_states, counter, connected)
+                    if (connected) ilut_store_new(0:NIfD, counter) = ilut(0:NIfD)
+
+                end do
+
+                ! Now for the doubles:
+
+                ilut(0) = 0
+                first_loop = .true.
+
+                do while(ilut(0) /= -1)
+
+                    if (first_loop) then
+                        ilut(0) = -1
+                        first_loop = .false.
+                    end if
+
+                    call enumerate_all_double_excitations (ilut_store_old(:,j), nI, ilut, &
+                                                                                 gen_store)
+
+                    call check_if_connected_to_old_space(ilut_store_old, nI, ilut, &
+                                                    old_num_det_states, counter, connected)
+                    if (connected) ilut_store_new(0:NIfD, counter) = ilut(0:NIfD)
+
+                end do
+
+            end do
+
+
+            ! By this point we should have all states connected to the states in the old ilut
+            ! store now stored in ilut_store_new, and the number of such states is counter.
+            new_num_det_states = counter
+            counter = 1
+
+            ! Perform annihilation-like steps to remove repeated states.
+            call sort(ilut_store_new(:, 1:new_num_det_states), ilut_lt, ilut_gt)
+
+            do j = 2, new_num_det_states
+                comp = DetBitLT(ilut_store_new(:, j-1), ilut_store_new(:, j), NIfD, .false.)
+                if (comp /= 0) then
+                    counter = counter + 1
+                    ilut_store_new(:, counter) = ilut_store_new(:, j)
+                end if
+            end do
+
+            ! After deleting any states which are in the new ilut store twice, the new total
+            ! number of states in ilut_store_new.
+            new_num_det_states = counter
+
+            write(6,*) new_num_det_states, "states found. Constructing Hamiltonian..."
+            call neci_flush(6)
+
+            allocate(hamiltonian(new_num_det_states, new_num_det_states))
+            allocate(determ_ground_state(new_num_det_states))
+            hamiltonian = 0.0_dp
+            determ_ground_state = 0.0_dp
+
+            do j = 1, new_num_det_states
+
+                ! Get nI form of the basis functions.
+                call decode_bit_det(nI, ilut_store_new(:, j))
+
+                do k = j, new_num_det_states
+
+                    call decode_bit_det(nJ, ilut_store_new(:, k))
+
+                    ! If on the diagonal of the Hamiltonian.
+                    if (j == k) then
+                        hamiltonian(j, k) = get_helement(nI, nJ, 0)
+                    else
+                        hamiltonian(j, k) = get_helement(nI, nJ, ilut_store_new(:, j), &
+                                                                 ilut_store_new(:, k))
+                        hamiltonian(k, j) = hamiltonian(j, k)
+                    end if
+
+                end do
+
+            end do
+
+            ! Allocate work space for the diagonaliser, dsyev.
+            lwork = max(1,3*new_num_det_states-1)
+            allocate(work(lwork))
+
+            write (6,*) "Performing diagonalisation..."
+            call neci_flush(6)
+
+            ! Now that the Hamiltonian is generated, we can finally diagonalise it:
+            call dsyev('V', 'U', new_num_det_states, hamiltonian, new_num_det_states, &
+                       determ_ground_state, work, lwork, info)
+
+            determ_ground_state = hamiltonian(:,1)
+
+            write(6,*) "Diagonalisation complete."
+            call neci_flush(6)
+
+            ! Hamiltonian now stores the eigenvectors. determ_ground_state(:) stores the
+            ! ground-state eigenvector.
+
+            if (tAmplitudeCutoff) then
+                counter = 0
+                do j = 1, new_num_det_states
+                    if (abs(determ_ground_state(j)) > determ_space_cutoff_amp(i)) then
+                        counter = counter + 1
+                        ilut_store_old(:, counter) = ilut_store_new(:, j)
+                        ilut_store_new(:, counter) = ilut_store_old(:, counter)
+                    end if
+                end do
+            else
+                do j = 1, new_num_det_states
+                    ilut_store_new(NOffFlag, j) = j
+                end do
+
+                call sort(ilut_store_new(:, 1:new_num_det_states), ilut_lt_eigen, &
+                                                                        ilut_gt_eigen)
+                do j = 1, determ_space_cutoff_num(i)
+                    ilut_store_old(:,j) = ilut_store_new(:,j)
+                end do
+
+                counter = determ_space_cutoff_num(i)
+            end if
+
+            old_num_det_states = counter
+
+            write(6,*) old_num_det_states, "states kept."
+            call neci_flush(6)
+
+            deallocate(work)
+            deallocate(hamiltonian)
+            deallocate(determ_ground_state)
+
+        end do
+
+        do i = 1, old_num_det_states
+            comp = DetBitLT(ilut_store_old(:, i), ilutHF, NIfD, .false.)
+            if (comp == 0) cycle
+            call add_basis_state_to_list(ilut_store_old(:, i))
+        end do
+
+        deallocate(ilut_store_old)
+        deallocate(ilut_store_new)
+
+    end subroutine generate_optimised_core
+
+    subroutine check_if_connected_to_old_space(ilut_store_old, nI, ilut, num_det_states, &
+                                                                         counter, connected)
+
+        ! This subroutine loops over all states in the old space and see if any of them is
+        ! connected to the state just generated. If so, it also adds one to counter.
+
+        integer(n_int), intent(in) :: ilut_store_old(0:NIfTot, 1000000)
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer, intent(inout) :: num_det_states, counter
+        logical, intent(inout) :: connected
+        integer :: nJ(nel)
+        real(dp) :: matrix_element
+        integer :: i
+
+        connected = .false.
+
+        ! Loop over all states in the old space and see if any of them is connected
+        ! to the state just generated.
+        do i = 1, num_det_states
+            call decode_bit_det(nJ, ilut_store_old(0:NIfD, i))
+
+            matrix_element = get_helement(nI, nJ, ilut, ilut_store_old(0:NIfD, i))
+
+            ! If true, then this state should be added to the new ilut store.
+            if (abs(matrix_element) > 0.0_dp) then
+                counter = counter + 1 
+                connected = .true.
+                return
+            end if
+        end do
+
+    end subroutine check_if_connected_to_old_space
 
     subroutine generate_sing_doub_determinants()
 
@@ -391,7 +665,6 @@ contains
                 orb2 = ab_pair(orb1)
 
                 if (is_alpha(orb1) .and. IsNotOcc(ilut, orb2) ) then
-                    print *, "here!"
                     clr_orb(ilut, orb1)
                     set_orb(ilut, orb2)
                 end if
@@ -453,6 +726,40 @@ contains
         end do
 
     end subroutine generate_all_csfs_from_orb_config
+
+    pure function ilut_lt_eigen(ilutI, ilutJ) result (bLt)
+
+        integer(n_int), intent(in) :: ilutI(0:), ilutJ(0:)
+        logical :: bLt
+
+        bLt = .false.
+        
+        if (ilutI(NOffFlag) == 0) then
+            bLt = .true.
+            return
+        end if
+
+        bLt = abs(determ_ground_state(ilutI(NOffFlag))) > &
+                 abs(determ_ground_state(ilutJ(NOffFlag)))
+
+    end function
+
+    pure function ilut_gt_eigen(ilutI, ilutJ) result (bGt)
+
+        integer(n_int), intent(in) :: ilutI(0:), ilutJ(0:)
+        logical :: bGt
+
+        bGt = .false.
+
+        if (ilutI(NOffFlag) == 0) then
+            bGt = .true.
+            return
+        end if
+
+        bGt = abs(determ_ground_state(ilutI(NOffFlag))) < &
+                 abs(determ_ground_state(ilutJ(NOffFlag)))
+
+    end function
 
     subroutine add_basis_state_to_list(ilut, nI_in)
 

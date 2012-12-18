@@ -74,12 +74,29 @@ logical :: tSemiStochastic ! Performing a semi-stochastic simulation if true.
 ! semi-stochastic simulation, to specify the deterministic space.
 logical :: tCSFCore ! Use CSFs for the core states.
 logical :: tDeterminantCore ! Use determinants for the core states.
+logical :: tOptimisedCore ! Generate an optimised deterministic space by diagonalising part of the space.
 logical :: tDoublesCore ! Use single and double excitations for the core states.
 logical :: tCASCore ! Use Determinants where orbitals within an active space can differ from the Hartree-Fock for core states.
 ! cas_bitmask has all bits that refer to the active space set, and all other bits unset.
 ! cas_not_bitmask is simply the result after the not operation is applied to cas_bitmask.
 integer, allocatable, dimension(:) :: cas_bitmask
 integer, allocatable, dimension(:) :: cas_not_bitmask
+! When using tOptimisedCore, this specifies the minimum amplitude that a basis state should have in the ground state
+! (of the deterministic space generated) in order to be kept in the next deterministic space. The first component
+! refers to the first iteration, the second component to the second iteration...
+real, allocatable, dimension(:) :: determ_space_cutoff_amp
+! When using tOptimisedCore, this specifies how many basis states (of the deterministic space generated) should be kept
+! in the next deterministic space. The first component refers to the first iteration, the second component to the second
+! iteration... i.e. if determ_space_cutoff_num(1) = 5 then in the first iteration, the 5 basis states with the largest
+! amplitudes in the ground state are kept.
+integer, allocatable, dimension(:) :: determ_space_cutoff_num
+! If this logical is true, then the cutoff criterion is done using the amplitude. If false, it is done using a fixed number.
+logical :: tAmplitudeCutoff
+! When using the optimised core option for semi-stochastic simulations, this option specifies how many iterations of
+! the generation procedure should be performed.
+integer :: num_det_generation_loops
+! Vector to store the exact ground state within a deterministic space, sometimes useful during initialisation.
+real(dp), allocatable, dimension(:) :: determ_ground_state
 
 ! Calculate size of FCI determinant space using MC
 logical :: tMCSizeSpace,tMCSizeTruncSpace

@@ -83,6 +83,9 @@ MODULE System
       tDeterminantCore = .false.
       tDoublesCore = .false.
       tCASCore = .false.
+      tOptimisedCore = .false.
+      num_det_generation_loops = 1
+      tAmplitudeCutoff = .false.
       STOT=0
       TPARITY = .false.
       IParity(:)=0
@@ -354,6 +357,23 @@ MODULE System
             call geti(VirtCASOrbs)  !Number of virtual spin-orbitals in CAS
         case("DETERMINANT-CORE")
             tDeterminantCore = .true.
+        case("OPTIMISED-CORE")
+            tOptimisedCore = .true.
+        case("OPTIMISED-CORE-CUTOFF-AMP")
+            tAmplitudeCutoff = .true.
+            num_det_generation_loops = nitems - 1
+            allocate(determ_space_cutoff_amp(num_det_generation_loops))
+            do I = 1, num_det_generation_loops
+                call getf(determ_space_cutoff_amp(I))
+            end do
+        case("OPTIMISED-CORE-CUTOFF-NUM")
+            tAmplitudeCutoff = .false.
+            num_det_generation_loops = nitems - 1
+            allocate(determ_space_cutoff_num(num_det_generation_loops))
+            do I = 1, num_det_generation_loops
+                call geti(determ_space_cutoff_num(I))
+            end do
+            print *, determ_space_cutoff_num
         case("SYMIGNOREENERGIES")
             tSymIgnoreEnergies=.true.
         case("NOSYMMETRY")
