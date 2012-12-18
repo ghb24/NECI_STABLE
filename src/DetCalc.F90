@@ -5,6 +5,7 @@ MODULE DetCalc
         use sort_mod
         use DetCalcData
         use MemoryManager, only: TagIntType
+        use gndts_mod, only: gndts
         
     IMPLICIT NONE
      save
