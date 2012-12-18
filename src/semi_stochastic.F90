@@ -7,7 +7,7 @@ module semi_stochastic
                             flag_is_initiator
     use bit_reps, only: NIfD, NIfTot, decode_bit_det, encode_bit_rep, set_flag
     use CalcData, only: tRegenDiagHEls, tau, tSortDetermToTop, tTruncInitiator, DiagSft, &
-                        occCASorbs, virtCASorbs
+                        occCASorbs, virtCASorbs, tStartCAS
     use csf, only: csf_get_yamas, get_num_csfs, get_csf_bit_yama, csf_apply_yama
     use csf_data, only: iscsf, csf_orbital_mask
     use constants
@@ -22,15 +22,14 @@ module semi_stochastic
                          indices_of_determ_states, ProjEDet
     use hash , only: DetermineDetNode
     use hphf_integrals, only: hphf_diag_helement
-    use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIBarrier, &
-                             MPIAllGatherV
+    use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIBarrier, MPIArg, &
+                             MPIAllGatherV, MPIAllGather
     use sort_mod, only: sort
     use sym_mod, only: getsym
     use SystemData, only: nel, tHPHF, tCSFCore, tDeterminantCore, tDoublesCore, tCASCore, &
                           tOptimisedCore, Stot, lms, BasisFN, nBasisMax, BRR, tSpn, &
                           cas_bitmask, cas_not_bitmask, num_det_generation_loops, &
-                          determ_space_cutoff_amp, determ_space_cutoff_num, tAmplitudeCutoff, &
-                          determ_ground_state
+                          determ_space_cutoff_amp, determ_space_cutoff_num, tAmplitudeCutoff
 
     implicit none
 
@@ -43,7 +42,7 @@ contains
         ! storing the resulting Hamiltonian matrix elements. The lists which will store
         ! the psip vectors in the deterministic space are also allocated.
 
-        integer :: i, j, IC
+        integer :: i, j, IC, ierr
 
         ! Initialise the deterministic masks.
         deterministic_mask = 0
@@ -63,7 +62,14 @@ contains
         ! The following subroutines call the enumerating subroutines to create all excitations
         ! and add these states to the main list, CurrentDets, on the correct processor. As
         ! they do this, they count the size of the deterministic space on each processor.
-        if (tDeterminantCore) then
+        if (tStartCAS) then
+            do i = 1, TotWalkers
+                call set_flag(CurrentDets(:, i), flag_deterministic)
+                call set_flag(CurrentDets(:, i), flag_is_initiator(1))
+                call set_flag(CurrentDets(:, i), flag_is_initiator(2))
+            end do
+            call MPIAllGather(int(TotWalkers, MPIArg), deterministic_proc_sizes, ierr)
+        else if (tDeterminantCore) then
             tSortDetermToTop = .true.
             if (tDoublesCore) then
                 call generate_sing_doub_determinants()
@@ -207,7 +213,7 @@ contains
         integer(n_int) :: ilut(0:NIfTot)
         integer :: nI(nel), nJ(nel)
         real(dp), allocatable, dimension(:,:) :: hamiltonian
-        real(dp), allocatable, dimension(:) :: work
+        real(dp), allocatable, dimension(:) :: determ_ground_state, work
         integer :: lwork, info
         integer :: counter, i, j, k
         integer :: old_num_det_states, new_num_det_states, comp
@@ -378,8 +384,9 @@ contains
             ! Hamiltonian now stores the eigenvectors.
 
             ! Note that on output of dsyev, determ_ground_state actually holds the eigenvalues.
-            ! But we don't need these so overwrite them with the ground-state eigenvalue.
-            determ_ground_state = hamiltonian(:,1)
+            ! But we don't need these so overwrite them with the amplitudes of the ground-state
+            ! eigenstate.
+            determ_ground_state = abs(hamiltonian(:,1))
 
             write(6,*) "Diagonalisation complete."
             call neci_flush(6)
@@ -387,32 +394,25 @@ contains
             ! Now decide which states to keep for the next iteration. There are two ways of
             ! doing this, as decided by the user. Either all basis states with an amplitude
             ! in the ground state greater than a given value are kept (tAmplitudeCutoff =
-            ! .true., or a number of states to keep is specified and we pick the states with
+            ! .true.), or a number of states to keep is specified and we pick the states with
             ! the biggest amplitudes (tAmplitudeCutoff = .false.).
             if (tAmplitudeCutoff) then
                 counter = 0
                 do j = 1, new_num_det_states
-                    if (abs(determ_ground_state(j)) > determ_space_cutoff_amp(i)) then
+                    if (determ_ground_state(j) > determ_space_cutoff_amp(i)) then
                         counter = counter + 1
                         ilut_store_old(:, counter) = ilut_store_new(:, j)
                         ilut_store_new(:, counter) = ilut_store_old(:, counter)
                     end if
                 end do
             else
-                ! Use the flag to specify the current position of the state in ilut_store_new.
-                ! This is used in the sorting routine.
-                do j = 1, new_num_det_states
-                    ilut_store_new(NOffFlag, j) = j
-                end do
-
                 ! Sort the list in order of the amplitude of the states in the ground state,
-                ! from largest to smallest.
-                call sort(ilut_store_new(:, 1:new_num_det_states), ilut_lt_eigen, &
-                                                                        ilut_gt_eigen)
+                ! from smallest to largest.
+                call sort(determ_ground_state(:), ilut_store_new(:, 1:new_num_det_states))
 
-                ! Nowkeep the top determ_space_cutoff_num(i) states from this list.
+                ! Now keep the bottom determ_space_cutoff_num(i) states from this list.
                 do j = 1, determ_space_cutoff_num(i)
-                    ilut_store_old(:,j) = ilut_store_new(:,j)
+                    ilut_store_old(:,j) = ilut_store_new(:, new_num_det_states-j+1)
                 end do
 
                 ! Set counter to this value so that all other states are not kept.
@@ -471,7 +471,8 @@ contains
 
             matrix_element = get_helement(nI, nJ, ilut, ilut_store_old(0:NIfD, i))
 
-            ! If true, then this state should be added to the new ilut store.
+            ! If true, then this state should be added to the new ilut store, so
+            ! return connected as true.
             if (abs(matrix_element) > 0.0_dp) then
                 counter = counter + 1 
                 connected = .true.
@@ -690,7 +691,7 @@ contains
                 orb1 = nI(j)
                 orb2 = ab_pair(orb1)
 
-                if (is_alpha(orb1) .and. IsNotOcc(ilut, orb2) ) then
+                if (is_alpha(orb1) .and. IsNotOcc(ilut, orb2)) then
                     clr_orb(ilut, orb1)
                     set_orb(ilut, orb2)
                 end if
@@ -752,40 +753,6 @@ contains
         end do
 
     end subroutine generate_all_csfs_from_orb_config
-
-    pure function ilut_lt_eigen(ilutI, ilutJ) result (bLt)
-
-        integer(n_int), intent(in) :: ilutI(0:), ilutJ(0:)
-        logical :: bLt
-
-        bLt = .false.
-        
-        if (ilutI(NOffFlag) == 0) then
-            bLt = .true.
-            return
-        end if
-
-        bLt = abs(determ_ground_state(ilutI(NOffFlag))) > &
-                 abs(determ_ground_state(ilutJ(NOffFlag)))
-
-    end function
-
-    pure function ilut_gt_eigen(ilutI, ilutJ) result (bGt)
-
-        integer(n_int), intent(in) :: ilutI(0:), ilutJ(0:)
-        logical :: bGt
-
-        bGt = .false.
-
-        if (ilutI(NOffFlag) == 0) then
-            bGt = .true.
-            return
-        end if
-
-        bGt = abs(determ_ground_state(ilutI(NOffFlag))) < &
-                 abs(determ_ground_state(ilutJ(NOffFlag)))
-
-    end function
 
     subroutine add_basis_state_to_list(ilut, nI_in)
 

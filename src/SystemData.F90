@@ -95,8 +95,6 @@ logical :: tAmplitudeCutoff
 ! When using the optimised core option for semi-stochastic simulations, this option specifies how many iterations of
 ! the generation procedure should be performed.
 integer :: num_det_generation_loops
-! Vector to store the exact ground state within a deterministic space, sometimes useful during initialisation.
-real(dp), allocatable, dimension(:) :: determ_ground_state
 
 ! Calculate size of FCI determinant space using MC
 logical :: tMCSizeSpace,tMCSizeTruncSpace
