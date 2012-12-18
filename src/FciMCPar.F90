@@ -7097,7 +7097,7 @@ MODULE FciMCParMod
         integer :: i, j, ierr, nEval, NKRY1, NBLOCK, LSCR, LISCR, DetIndex
         integer :: iNode, NoWalkers, nBlocks, nBlockStarts(2), DetHash, Slot
         integer :: CASSpinBasisSize, elec, nCASDet, ICMax, GC, LenHamil, iInit
-        integer :: nHPHFCAS, Slot, DetHash, iCasDet
+        integer :: nHPHFCAS, iCasDet
         integer , allocatable :: CASBrr(:),CASDet(:),CASFullDets(:,:),nRow(:),Lab(:),ISCR(:),INDEX(:)
         integer , pointer :: CASDetList(:,:) => null()
         integer(n_int) :: iLutnJ(0:NIfTot)
