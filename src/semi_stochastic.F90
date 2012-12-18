@@ -235,7 +235,7 @@ contains
         old_num_det_states = 1
 
         ! Now we start the iterating loop. Find all states which are either a single or
-        ! double connection to each state in the old ilut store, and then see if they
+        ! double excitation from each state in the old ilut store, and then see if they
         ! have a non-zero Hamiltonian matrix element with any state in the old
         ! ilut store:
 
@@ -275,8 +275,9 @@ contains
                     if (ilut(0) == -1) exit
 
                     ! Check if any of the states in the old space is connected to the state
-                    ! just generated. If so, this function adds one to counter and adds the
-                    ! generated state to the new ilut store.
+                    ! just generated. If so, this function adds one to counter and returns
+                    ! the value true for the logical connected. In this case, this state
+                    ! is then added to the new ilut store.
                     call check_if_connected_to_old_space(ilut_store_old, nI, ilut, &
                                                      old_num_det_states, counter, connected)
                     if (connected) ilut_store_new(0:NIfD, counter) = ilut(0:NIfD)
@@ -298,6 +299,8 @@ contains
                     call enumerate_all_double_excitations (ilut_store_old(:,j), nI, ilut, &
                                                                                  gen_store)
 
+                    if (ilut(0) == -1) exit
+
                     call check_if_connected_to_old_space(ilut_store_old, nI, ilut, &
                                                     old_num_det_states, counter, connected)
                     if (connected) ilut_store_new(0:NIfD, counter) = ilut(0:NIfD)
@@ -306,17 +309,20 @@ contains
 
             end do
 
-
             ! By this point we should have all states connected to the states in the old ilut
             ! store now stored in ilut_store_new, and the number of such states is counter.
             new_num_det_states = counter
+            ! So we can use counter again.
             counter = 1
 
-            ! Perform annihilation-like steps to remove repeated states.
+            ! Perform annihilation-like steps to remove repeated states: First sort the list so
+            ! that repeated states are next to each other in the list.
             call sort(ilut_store_new(:, 1:new_num_det_states), ilut_lt, ilut_gt)
 
             do j = 2, new_num_det_states
                 comp = DetBitLT(ilut_store_new(:, j-1), ilut_store_new(:, j), NIfD, .false.)
+                ! If this state and the previous one were identical, don't add this state to the
+                ! list so that repeats aren't included.
                 if (comp /= 0) then
                     counter = counter + 1
                     ilut_store_new(:, counter) = ilut_store_new(:, j)
@@ -324,7 +330,7 @@ contains
             end do
 
             ! After deleting any states which are in the new ilut store twice, the new total
-            ! number of states in ilut_store_new.
+            ! number of states in ilut_store_new is again given by counter.
             new_num_det_states = counter
 
             write(6,*) new_num_det_states, "states found. Constructing Hamiltonian..."
@@ -335,9 +341,10 @@ contains
             hamiltonian = 0.0_dp
             determ_ground_state = 0.0_dp
 
+            ! Calculate the Hamiltonian matrix in the newly generated deterministic space.
             do j = 1, new_num_det_states
 
-                ! Get nI form of the basis functions.
+                ! Get nI form of the basis function.
                 call decode_bit_det(nI, ilut_store_new(:, j))
 
                 do k = j, new_num_det_states
@@ -368,14 +375,20 @@ contains
             call dsyev('V', 'U', new_num_det_states, hamiltonian, new_num_det_states, &
                        determ_ground_state, work, lwork, info)
 
+            ! Hamiltonian now stores the eigenvectors.
+
+            ! Note that on output of dsyev, determ_ground_state actually holds the eigenvalues.
+            ! But we don't need these so overwrite them with the ground-state eigenvalue.
             determ_ground_state = hamiltonian(:,1)
 
             write(6,*) "Diagonalisation complete."
             call neci_flush(6)
 
-            ! Hamiltonian now stores the eigenvectors. determ_ground_state(:) stores the
-            ! ground-state eigenvector.
-
+            ! Now decide which states to keep for the next iteration. There are two ways of
+            ! doing this, as decided by the user. Either all basis states with an amplitude
+            ! in the ground state greater than a given value are kept (tAmplitudeCutoff =
+            ! .true., or a number of states to keep is specified and we pick the states with
+            ! the biggest amplitudes (tAmplitudeCutoff = .false.).
             if (tAmplitudeCutoff) then
                 counter = 0
                 do j = 1, new_num_det_states
@@ -386,20 +399,32 @@ contains
                     end if
                 end do
             else
+                ! Use the flag to specify the current position of the state in ilut_store_new.
+                ! This is used in the sorting routine.
                 do j = 1, new_num_det_states
                     ilut_store_new(NOffFlag, j) = j
                 end do
 
+                ! Sort the list in order of the amplitude of the states in the ground state,
+                ! from largest to smallest.
                 call sort(ilut_store_new(:, 1:new_num_det_states), ilut_lt_eigen, &
                                                                         ilut_gt_eigen)
+
+                ! Nowkeep the top determ_space_cutoff_num(i) states from this list.
                 do j = 1, determ_space_cutoff_num(i)
                     ilut_store_old(:,j) = ilut_store_new(:,j)
                 end do
 
+                ! Set counter to this value so that all other states are not kept.
                 counter = determ_space_cutoff_num(i)
             end if
 
             old_num_det_states = counter
+
+            ! Note, we keep counter the same so that these states are automatically included in
+            ! ilut_store_new in the next iteration. This is because when the next state is
+            ! added to the list, counter will be increased by one and the new state added at
+            ! this position, *not* overwriting the old states.
 
             write(6,*) old_num_det_states, "states kept."
             call neci_flush(6)
@@ -410,6 +435,7 @@ contains
 
         end do
 
+        ! At this point, all iterations have finished, so add these basis states to CurrentDets.
         do i = 1, old_num_det_states
             comp = DetBitLT(ilut_store_old(:, i), ilutHF, NIfD, .false.)
             if (comp == 0) cycle
