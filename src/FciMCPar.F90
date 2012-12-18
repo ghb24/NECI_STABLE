@@ -3983,6 +3983,7 @@ MODULE FciMCParMod
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         real(dp) :: TempTotParts
+        integer, dimension(lenof_sign) :: AllInstNoatHF
         real(dp) :: Prev_AvNoatHF
 
         NoInitDets = 0
@@ -3999,7 +4000,8 @@ MODULE FciMCParMod
         iter_data%naborted = 0
 
         if(tFillingStochRDMonFly) then
-            call MPISumAll_inplace (InstNoatHF)
+            call MPISumAll (InstNoatHF,AllInstNoatHF)
+            InstNoatHF = AllInstNoatHF
             if(InstNoatHF(1).eq.0) then
                 IterRDM_HF = Iter + 1 
                 AvNoatHF = 0.0_dp
