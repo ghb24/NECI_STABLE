@@ -20,8 +20,7 @@ MODULE PopsfileMod
     use bit_reps
     use constants
     use Parallel_neci
-!    use AnnihilationMod, only: DetermineDetNode,FindWalkerHash,EnlargeHashTable,IsUnoccDet
-    use AnnihilationMod, only: FindWalkerHash,EnlargeHashTable,IsUnoccDet
+    use AnnihilationMod, only: FindWalkerHash,EnlargeHashTable
     use Logging, only: iWritePopsEvery, tPopsFile, iPopsPartEvery, tBinPops, &
                        tPrintPopsDefault, tIncrementPops, tPrintInitiators, &
                        tSplitPops, tZeroProjE, tRDMonFly, tExplicitAllRDM, &
@@ -375,6 +374,7 @@ r_loop: do while(.not.tReadAllPops)
         integer(int64) , intent(inout) :: Det
         integer(n_int), intent(out) :: WalkerTemp(0:NIfTot)
         integer(n_int) :: WalkerToMap(0:MappingNIfD), WalkerTemp2(0:NIfTot)
+        integer(n_int) :: sgn_read(lenof_sign), flg_read
         integer :: elec, sgn(lenof_sign), flg, i, j, stat
         logical :: tStoreDet, tEOF
 
@@ -386,15 +386,17 @@ r_loop: do while(.not.tStoreDet)
                 ! All basis parameters match --> Read in directly.
                 if (BinPops) then
                     if (tUseFlags) then
-                        read(iunit, iostat=stat) WalkerTemp(0:NIfD), sgn, flg
+                        read(iunit, iostat=stat) WalkerTemp(0:NIfD), sgn_read,&
+                                                 flg_read
                     else
-                        read(iunit, iostat=stat) WalkerTemp(0:NIfD), sgn
+                        read(iunit, iostat=stat) WalkerTemp(0:NIfD), sgn_read
                     end if
                 else
                     if (tUseFlags) then
-                        read(iunit,*, iostat=stat) WalkerTemp(0:NIfD), sgn, flg
+                        read(iunit,*, iostat=stat) WalkerTemp(0:NIfD), &
+                                                   sgn_read, flg_read
                     else
-                        read(iunit,*, iostat=stat) WalkerTemp(0:NIfD), sgn
+                        read(iunit,*, iostat=stat) WalkerTemp(0:NIfD), sgn_read
                     end if
                 end if
                 if (stat < 0) then
@@ -404,16 +406,20 @@ r_loop: do while(.not.tStoreDet)
             else
                 ! we are mapping from a smaller to larger basis.
                 if (BinPops) then
-                    read(iunit, iostat=stat) WalkerToMap(0:MappingNIfD), sgn
-                    if (stat < 0) exit r_loop
-                    if (tUseFlags) read(iunit, iostat=stat) flg
+                    if (tUseFlags) then
+                        read(iunit, iostat=stat) WalkerToMap(0:MappingNIfD), &
+                                                 sgn_read, flg_read
+                    else
+                        read(iunit, iostat=stat) WalkerToMap(0:MappingNIfD), &
+                                                 sgn_read
+                    end if
                 else
                     if (tUseFlags) then
                         read(iunit,*, iostat=stat) WalkerToMap(0:MappingNIfD),&
-                                                   sgn, flg
+                                                   sgn_read, flg_read
                     else
                         read(iunit,*, iostat=stat) WalkerToMap(0:MappingNIfD),&
-                                                   sgn
+                                                   sgn_read
                     end if
                 end if
                 if (stat < 0) then
@@ -439,6 +445,8 @@ outer_map:      do i = 0, MappingNIfD
             end if
 
             ! Store the sign and flag information in the determinant.
+            sgn = sgn_read 
+            flg = flg_read
             call encode_sign (WalkerTemp, sgn)
             if (tUseFlags) call encode_flags (WalkerTemp, flg)
 

@@ -46,7 +46,7 @@ contains
         call gndts_r (nel, nhg, brr, nBasisMax, nMrks, tCount, G1, tSpn, LMS, &
                       tparity, SymRestrict, ii, iElecs, iSpins, 1, kJ)
         IFDet = 1
-    end
+    end subroutine
 
     ! The recursive routine in GNDTS.  IELEC is the current electron
     recursive subroutine gndts_r (nel, nhg, brr, nBasisMax, nMrks, tCount, &
@@ -102,7 +102,7 @@ contains
             ENDIF
         ENDDO    
 
-    end
+    end subroutine
 
 end module
 

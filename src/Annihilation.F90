@@ -1198,20 +1198,6 @@ MODULE AnnihilationMod
 
     end subroutine EnlargeHashTable
 
-    PURE LOGICAL FUNCTION IsUnoccDet(CurrentSign)
-        INTEGER, DIMENSION(lenof_sign), INTENT(IN) :: CurrentSign
-
-        IF(lenof_sign.eq.1) THEN
-            IsUnoccDet=CurrentSign(1).eq.0
-        ELSE
-            IF((CurrentSign(1).eq.0).and.(CurrentSign(lenof_sign).eq.0)) THEN
-                IsUnoccDet=.true.
-            ELSE
-                IsUnoccDet=.false.
-            ENDIF
-        ENDIF
-    END FUNCTION IsUnoccDet
-    
     
     SUBROUTINE CalcHashTableStats(TotWalkersNew)
         use util_mod, only: abs_int_sign
