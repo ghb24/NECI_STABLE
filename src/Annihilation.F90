@@ -1267,6 +1267,7 @@ MODULE AnnihilationMod
 
     end subroutine EnlargeHashTable
 
+    
     SUBROUTINE CalcHashTableStats(TotWalkersNew)
         use util_mod, only: abs_sign
         use CalcData , only : tCheckHighestPop

@@ -2351,7 +2351,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    Use Logging, only: CCMCDebug,tCCMCLogTransitions,tCCMCLogUniq
    USE Logging , only : tHistSpawn,iWriteHistEvery,tPopsFile
    USE DetCalcData , only : ICILevel
-   use CalcData, only: InitWalkers,NEquilSteps
+   use CalcData, only: InitWalkers, NEquilSteps, tReadPops
    use FciMCParMod, only: WriteFciMCStats, WriteFciMCStatsHeader
    USE dSFMT_interface , only : genrand_real2_dSFMT
    use CalcData, only: MemoryFacSpawn
@@ -2363,7 +2363,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use shared_alloc, only: shared_allocate_iluts, shared_deallocate
    use CalcData, only: tAddToInitiator,InitiatorWalkNo,tTruncInitiator
    use bit_reps, only: encode_sign,extract_sign
-   use FciMCParMod, only: tReadPops
+   use FciMCParMod, only: tReadPops, ChangeVars
+   use PopsFileMod, only: WriteToPopsFileParOneArr, ReadFromPopsfileOnly
    use FciMCData, only: SpawnedParts,ValidSpawnedList,InitialSpawnedSlots
    use FciMCData, only: hash_shift, hash_iter !For cycle-dependent hashes
    use FciMCData, only: tTimeExit,MaxTimeExit !For TIME command
