@@ -12,12 +12,13 @@ MODULE FciMCParMod
                           tReal, tRotatedOrbs, tFindCINatOrbs, tFixLz, &
                           LzTot, tUEG, tLatticeGens, tCSF, G1, Arr, &
                           tNoBrillouin, tKPntSym, tPickVirtUniform, &
-                          tMomInv, tRef_Not_HF, tMolpro
+                          tMomInv, tRef_Not_HF, tMolpro, tAntiSym_MI
     use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY, decode_bit_det, &
                         encode_bit_rep, encode_det, extract_bit_rep, &
                         test_flag, set_flag, extract_flags, &
                         flag_is_initiator, clear_all_flags,&
-                        extract_sign, nOffSgn
+                        extract_sign, nOffSgn, flag_make_initiator, &
+                        flag_parent_initiator, encode_sign
     use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
                         OccCASorbs, VirtCASorbs, tFindGroundDet, NEquilSteps,&
                         tReadPops, tRegenDiagHEls, iFullSpaceIter, MaxNoAtHF,&
@@ -31,11 +32,13 @@ MODULE FciMCParMod
                         iRestartWalkNum, tRestartHighPop, FracLargerDet, &
                         tChangeProjEDet, tCheckHighestPop, tSpawnSpatialInit,&
                         MemoryFacInit, tMaxBloom, tTruncNOpen, tFCIMC, &
-                        trunc_nopen_max, tSpawn_Only_Init, tSpawn_Only_Init_Grow, &
+                        trunc_nopen_max, tSpawn_Only_Init, tPopsMapping, &
                         TargetGrowRate, TargetGrowRateWalk, tShiftonHFPop, &
-                        tContinueAfterMP2,iExitWalkers
+                        tContinueAfterMP2, iExitWalkers, tSpawn_Only_Init_Grow
+    use spatial_initiator, only: add_initiator_list, rm_initiator_list
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
+    use MomInv, only: IsMomSelfInv, CalcMomAllowedBitDet
     use Determinants, only: FDet, get_helement, write_det, &
                             get_helement_det_only, lexicographic_store, &
                             get_lexicographic_dets, DefDet
@@ -45,7 +48,9 @@ MODULE FciMCParMod
                                     ScratchSize1, ScratchSize2, ScratchSize3,&
                                     init_excit_gen_store,clean_excit_gen_store
     use GenRandSymExcitCSF, only: gen_csf_excit
-    use IntegralsData , only : fck,NMax,UMat,tPartFreezeCore,NPartFrozen,NHolesFrozen,tPartFreezeVirt,NVirtPartFrozen,NElVirtFrozen
+    use IntegralsData, only: fck, NMax, UMat, tPartFreezeCore, NPartFrozen, &
+                             NHolesFrozen, tPartFreezeVirt, NVirtPartFrozen, &
+                             NElVirtFrozen
     use Logging, only: iWritePopsEvery, TPopsFile, iPopsPartEvery, tBinPops, &
                        iWriteHistEvery, tHistEnergies, FCIMCDebug, &
                        IterShiftBlock, AllHistInitPops, BinRange, iNoBins, &
@@ -78,20 +83,27 @@ MODULE FciMCParMod
                     InstHist, HistMinInd, project_spins, calc_s_squared, &
                     project_spin_csfs, calc_s_squared_multi, &
                     calc_s_squared_star
+    use hist_data, only: HistMinInd2
     USE SymData , only : nSymLabels, Sym_Psi
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE Parallel_neci
     USE FciMCData
-    USE AnnihilationMod
-    use PopsfileMod
+    USE AnnihilationMod, only: DirectAnnihilation, FindWalkerHash, &
+                               RemoveDetHashIndex, EnlargeHashTable
+    use PopsfileMod, only: ReadFromPopsfilePar, FindPopsfileVersion, &
+                           WriteToPopsFileParOneArr, open_pops_head, &
+                           readpopsheadv3, readpopsheadv4, CheckPopsParams, &
+                           ReadFromPopsFile
     use DetBitops, only: EncodeBitDet, DetBitEQ, DetBitLT, FindExcitBitDet, &
                          FindBitExcitLevel, countbits, TestClosedShellDet, &
-                         FindSpatialBitExcitLevel, IsAllowedHPHF
+                         FindSpatialBitExcitLevel, IsAllowedHPHF, &
+                         count_open_orbs
     use hash , only : DetermineDetNode                     
     use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask, get_csf_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
-    use MI_integrals
+    use MI_integrals, only: MI_diag_helement, MI_spawn_sign, &
+                            MI_off_diag_helement_spawn, MI_off_diag_helement
     use util_mod, only: choose, abs_int_sign, abs_int8_sign, binary_search
     use constants, only: dp, int64, n_int, lenof_sign, sizeof_int
     use soft_exit, only: ChangeVars 
@@ -118,6 +130,9 @@ MODULE FciMCParMod
                          zero_rdms, fill_rdm_softexit, store_parent_with_spawned, &
                          fill_rdm_diag_currdet_norm, &
                          fill_rdm_diag_currdet_hfsd, calc_rdmbiasfac
+
+    use gndts_mod, only: gndts
+    use sort_mod
 
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
@@ -2327,7 +2342,9 @@ MODULE FciMCParMod
             ENDIF
         elseif(tMomInv) then
 
-            write(iout,*) "AttemptCreatePar is a depreciated routine, and is not compatible with MomInv - use attempt_create_normal"
+            write(iout,*) "AttemptCreatePar is a depreciated routine, and is &
+                          &not compatible with MomInv - use &
+                          &attempt_create_normal"
             call stop_all("AttemptCreatePar","This is a depreciated routine.")
         ELSE
 !Normal determinant spawn
@@ -6691,7 +6708,9 @@ MODULE FciMCParMod
                     call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                             iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                             PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
-                    !The only difference between 3 & 4 is just that 4 reads in via a namelist, so that we can add more details whenever we want.
+                    ! The only difference between 3 & 4 is just that 4 reads 
+                    ! in via a namelist, so that we can add more details 
+                    ! whenever we want.
                 else
                     call stop_all(this_routine,"Popsfile version invalid")
                 endif
@@ -6827,20 +6846,29 @@ MODULE FciMCParMod
                                  ierr)
             endif
 
-!If we have a popsfile, read the walkers in now.
+            !
+            ! If we have a popsfile, read the walkers in now.
             if(tReadPops.and..not.tPopsAlreadyRead) then
 
                 if(iReadWalkersRoot.eq.0) then
-                    ReadBatch=MaxSpawned    !ReadBatch is the number of walkers to read in from the popsfile at one time.
-                                        !The larger it is, the fewer communications will be needed to scatter the particles.
-                                        !By default, the new array (which is only created on the root processors) is the
-                                        !same length as the spawning arrays.
+
+                    ! ReadBatch is the number of walkers to read in from the 
+                    ! popsfile at one time. The larger it is, the fewer
+                    ! communictions will be needed to scatter the particles.
+                    !
+                    ! By default, the new array (which is only created on the 
+                    ! root processors) is the same length as the spawning 
+                    ! arrays.
+                    ReadBatch=MaxSpawned
                 else
                     ReadBatch = iReadWalkersRoot
                 endif
 
-                !TotWalkers and TotParts are returned as the dets and parts on each processor.
-                call ReadFromPopsfile(iPopAllTotWalkers,ReadBatch,TotWalkers,TotParts,NoatHF,CurrentDets,MaxWalkersPart)
+                ! TotWalkers and TotParts are returned as the dets and parts 
+                ! on each processor.
+                call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, &
+                                      TotWalkers ,TotParts, NoatHF, &
+                                      CurrentDets, MaxWalkersPart)
 
                 !Setup global variables
                 TotWalkersOld=TotWalkers
@@ -7083,8 +7111,10 @@ MODULE FciMCParMod
         use sym_mod , only : Getsym, writesym
         use MomInv, only: IsAllowedMI 
         type(BasisFN) :: CASSym
-        integer :: i,j,ierr,nEval,NKRY1,NBLOCK,LSCR,LISCR,DetIndex,iNode,NoWalkers,nBlocks,nBlockStarts(2)
-        integer :: CASSpinBasisSize,elec,nCASDet,ICMax,GC,LenHamil,iInit,nHPHFCAS,Slot,DetHash
+        integer :: i, j, ierr, nEval, NKRY1, NBLOCK, LSCR, LISCR, DetIndex
+        integer :: iNode, NoWalkers, nBlocks, nBlockStarts(2), DetHash, Slot
+        integer :: CASSpinBasisSize, elec, nCASDet, ICMax, GC, LenHamil, iInit
+        integer :: nHPHFCAS, iCasDet
         integer , allocatable :: CASBrr(:),CASDet(:),CASFullDets(:,:),nRow(:),Lab(:),ISCR(:),INDEX(:)
         integer , pointer :: CASDetList(:,:) => null()
         integer(n_int) :: iLutnJ(0:NIfTot)
@@ -7150,6 +7180,7 @@ MODULE FciMCParMod
         if(tFixLz) then
             write(iout,*) "Ml of CAS determinants: ",CASSym%Ml
         endif
+        call neci_flush(iout)
 
         if(CASSym%Ml.ne.LzTot) call stop_all(this_routine,"Ml of CAS ref det does not match Ml of full reference det")
         if(CASSym%Ms.ne.0) call stop_all(this_routine,"CAS diagonalisation can only work with closed shell CAS spaces initially")
@@ -7158,7 +7189,7 @@ MODULE FciMCParMod
         endif
 
         !First, we need to generate all the excitations.
-        call gndts(OccCASorbs,CASSpinBasisSize,CASBrr,nBasisMax,CASDetList,.true.,G1,tSpn,LMS,.true.,CASSym,nCASDet,CASDet)
+        call gndts(OccCASorbs,CASSpinBasisSize,CASBrr,nBasisMax,CASDetList,.true.,G1,tSpn,LMS,.true.,CASSym,nCASDet,iCASDet)
 
         if(nCASDet.eq.0) call stop_all(this_routine,"No CAS determinants found.")
         write(iout,*) "Number of symmetry allowed CAS determinants found to be: ",nCASDet
@@ -7167,7 +7198,9 @@ MODULE FciMCParMod
         CASDetList(:,:)=0
 
         !Now fill up CASDetList...
-        call gndts(OccCASorbs,CASSpinBasisSize,CASBrr,nBasisMax,CASDetList,.false.,G1,tSpn,LMS,.true.,CASSym,nCASDet,CASDet)
+        call gndts (OccCASorbs, CASSpinBasisSize, CASBrr, nBasisMax, &
+                    CASDetList, .false., G1, tSpn, LMS, .true., CASSym, &
+                    nCASDet, iCASDet)
 
         !We have a complication here. If we calculate the hamiltonian from these CAS determinants, then we are not
         !including the mean-field generated from the other occupied orbitals. We need to either 'freeze' the occupied
@@ -8863,8 +8896,15 @@ END MODULE FciMCParMod
 ! also re-zero all the energy estimators, since they now correspond to
 ! projection onto a different determinant.
 SUBROUTINE ChangeRefDet(DetCurr)
-    use FciMCParMod
-    use SystemData , only : NEl
+    use FciMCParMod, only: DeallocFCIMCMemPar, SetupParameters, &
+                           InitFCIMCCalcPar, iout
+    use DeterminantData, only: FDet
+    use FciMCData, only: initiatorstats_unit, tDebug, iter, fcimcstats_unit, &
+                         complexstats_unit
+    use CalcData, only: tTruncInitiator, tDelayTruncInit
+    use SystemData, only: NEl
+    use Logging, only: tLogComplexPops
+    use Parallel_neci, only: iProcIndex, root
     IMPLICIT NONE
     INTEGER :: DetCurr(NEl),i
 

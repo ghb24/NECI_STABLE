@@ -7,7 +7,7 @@ f77flags = -m64 -fcray-pointer
 f90flags = -m64 -fcray-pointer -ffree-line-length-none
 cc = g++
 ld = gfortran
-ldflags = -m64
+ldflags = -m64 -rdynamic
 libs = -framework Accelerate -lstdc++ -lm
 module_flag = -J
 

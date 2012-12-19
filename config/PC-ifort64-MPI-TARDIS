@@ -2,7 +2,7 @@
 fc = mpif90
 cc = mpicxx
 ld = mpif90
-ldflags = -i-dynamic
+ldflags = -i-dynamic -rdynamic
 compiler = INTEL-ifort9-on-LINUX
 cpp = cpp -C -traditional
 cppflags = -D__Linux -DPOINTER8 -DPARALLEL -DHAVE_SSE2 -D__INT64 -D__SHARED_MEM -DDISABLE_FFTW

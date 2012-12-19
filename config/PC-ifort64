@@ -2,7 +2,7 @@
 fc = ifort
 cc = icpc
 ld = ifort
-ldflags = -Bstatic
+ldflags = -Bstatic -rdynamic
 compiler = INTEL-ifort9-on-LINUX
 cpp = cpp -C -traditional
 cppflags = -D__Linux -DPOINTER8 -DHAVE_SSE2 -D__INT64

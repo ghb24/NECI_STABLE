@@ -2,7 +2,7 @@
 fc = ifort
 cc = mpicxx
 ld = mpicxx
-ldflags = -i-dynamic -L $(LD_LIBRARY_PATH)
+ldflags = -i-dynamic -L $(LD_LIBRARY_PATH) -rdynamic
 compiler = INTEL-ifort9-on-LINUX
 cpp = cpp -C -traditional
 cppflags = -D__Linux -DPOINTER8 -DPARALLEL -DHAVE_SSE2 -D__INT64 -D__SHARED_MEM -DCBINDMPI
