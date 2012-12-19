@@ -111,7 +111,8 @@ MODULE FciMCParMod
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
     use MI_integrals, only: MI_diag_helement, MI_spawn_sign, &
                             MI_off_diag_helement_spawn, MI_off_diag_helement
-    use util_mod, only: choose, abs_int_sign, abs_int8_sign, binary_search
+    use util_mod, only: choose, abs_sign, binary_search, get_free_unit, &
+                        stochastic_round
     use constants
     use soft_exit, only: ChangeVars 
     use FciMCLoggingMod, only: FinaliseBlocking, FinaliseShiftBlocking, &
@@ -7069,13 +7070,14 @@ MODULE FciMCParMod
         use CalcData, only: InitialPart
         use DeterminantData, only : write_det,write_det_len 
         use DetCalcData, only : NKRY,NBLK,B2L,nCycle
+        use DetBitOps, only: FindBitExcitLevel
         use sym_mod , only : Getsym, writesym
         use MomInv, only: IsAllowedMI 
         type(BasisFN) :: CASSym
         integer :: i, j, ierr, nEval, NKRY1, NBLOCK, LSCR, LISCR, DetIndex
         integer :: iNode, nBlocks, nBlockStarts(2), DetHash, Slot
         integer :: CASSpinBasisSize, elec, nCASDet, ICMax, GC, LenHamil, iInit
-        integer :: nHPHFCAS, iCasDet
+        integer :: nHPHFCAS, iCasDet, ExcitLevel
         real(dp) :: NoWalkers
         integer , allocatable :: CASBrr(:),CASDet(:),CASFullDets(:,:),nRow(:),Lab(:),ISCR(:),INDEX(:)
         integer , pointer :: CASDetList(:,:) => null()

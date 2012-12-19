@@ -377,7 +377,6 @@ r_loop: do while(.not.tReadAllPops)
         integer :: elec, flg, i, j, stat
         real(dp) :: sgn(lenof_sign)
         integer(n_int) :: flg_read
-        integer :: elec, flg, i, j, stat
         logical :: tStoreDet, tEOF
 
         tStoreDet=.false.
