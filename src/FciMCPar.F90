@@ -6276,6 +6276,7 @@ MODULE FciMCParMod
             allocate(proje_ref_dets(nel, nproje_sum))
             allocate(proje_ref_iluts(0:NIfTot, nproje_sum))
             allocate(proje_ref_coeffs(nproje_sum))
+            allocate(All_proje_ref_coeffs(nproje_sum))
             proje_ref_coeffs = 0
 
             ! Get all the dets
@@ -6304,7 +6305,9 @@ MODULE FciMCParMod
                 call stop_all (t_r, 'Incorrect number of determinants found')
 
             ! Get the total number of walkers on each site
-            call MPISumAll_inplace (proje_ref_coeffs)
+            call MPISumAll(proje_ref_coeffs, All_proje_ref_coeffs)
+            proje_ref_coeffs=All_proje_ref_coeffs
+            
             norm = sqrt(sum(proje_ref_coeffs**2))
             if (norm == 0) norm = 1
             proje_ref_coeffs = proje_ref_coeffs / norm
@@ -6317,6 +6320,8 @@ MODULE FciMCParMod
 
         integer :: i, pos, sgn(lenof_sign),nfound,ierr
         real(dp) :: norm,reduce_in(1:2),reduce_out(1:2)
+                
+        allocate(All_proje_ref_coeffs(nproje_sum))
 
         if(nproje_sum>1) then
            if(proje_spatial) then
@@ -6331,7 +6336,9 @@ MODULE FciMCParMod
                  endif
               enddo
               
-              call MPISumAll_inplace (proje_ref_coeffs)
+              call MPISumAll(proje_ref_coeffs, All_proje_ref_coeffs)
+              proje_ref_coeffs=All_proje_ref_coeffs
+              
               norm = sqrt(sum(proje_ref_coeffs**2))
               if (norm == 0) norm = 1
               proje_ref_coeffs = proje_ref_coeffs / norm
@@ -6398,6 +6405,8 @@ MODULE FciMCParMod
             deallocate(proje_ref_iluts)
         if (allocated(proje_ref_coeffs)) &
             deallocate(proje_ref_coeffs)
+        if (allocated(All_proje_ref_coeffs)) &
+            deallocate(All_proje_ref_coeffs)
 
     end subroutine clean_linear_comb
 

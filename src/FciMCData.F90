@@ -260,6 +260,7 @@ MODULE FciMCData
       integer :: nproje_sum
       integer, allocatable :: proje_ref_dets(:,:), proje_ref_det_init(:)
       real(dp), allocatable :: proje_ref_coeffs(:)
+      real(dp), allocatable :: All_proje_ref_coeffs(:)
       integer(TagIntType) :: tag_ref_iluts = 0, tag_ref_dets = 0, tag_ref_coeffs = 0
       real(dp) :: proje_denominator_cyc(lenof_sign)
       real(dp) :: proje_denominator_sum(lenof_sign)

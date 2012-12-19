@@ -1842,7 +1842,7 @@ MODULe nElRDMMod
         INTEGER(int64) , INTENT(IN) :: TotWalkers
         INTEGER(kind=n_int) :: iLutnI(0:NIfTot)
         INTEGER :: i,error
-        REAL(dp) :: TempTotParts, NormalisationTemp, Sum_Coeffs
+        REAL(dp) :: TempTotParts, NormalisationTemp, Sum_Coeffs,AllNode_norm
         LOGICAL :: blank_det
         INTEGER, DIMENSION(lenof_sign) :: TempSign
 
@@ -1897,7 +1897,8 @@ MODULe nElRDMMod
             norm=SQRT(norm)
         endif
 
-        CALL MPISumAll_inplace(norm)
+        CALL MPISumAll(norm,allNode_norm)
+        norm=allNode_norm
  
         do i=1,Det
 
@@ -3188,16 +3189,26 @@ MODULe nElRDMMod
         use Logging , only : twrite_RDMs_to_read, twrite_normalised_RDMs, &
                              tDumpForcesInfo
         implicit none
-        integer :: i
+        integer :: i, ierr
         real(dp), intent(out) :: Norm_1RDM
         real(dp) :: Trace_1RDM, SumN_Rho_ii
+        real(dp), allocatable :: AllNode_NatOrbMat(:,:)
 
         Norm_1RDM = 0.0_dp
         AllAccumRDMNorm = 0.0_dp
         IF(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) &
             CALL MPIReduce(AccumRDMNorm,MPI_SUM,AllAccumRDMNorm)
 
-        if(RDMExcitLevel.eq.1) CALL MPISum_inplace(NatOrbMat)
+        if(RDMExcitLevel.eq.1) then
+
+            ALLOCATE(AllNode_NatOrbMat(NoOrbs,NoOrbs),stat=ierr)
+            
+            CALL MPISumAll(NatOrbMat,AllNode_NatOrbMat)
+            NatOrbMat=AllNode_NatOrbMat
+            
+            DEALLOCATE(AllNode_NatOrbMat)
+
+        endif
 
         if(iProcIndex.eq.0) then 
 
@@ -3411,6 +3422,11 @@ MODULe nElRDMMod
         real(dp) , intent(out) :: Norm_2RDM_Inst, Norm_2RDM
         real(dp) :: AllAccumRDMNorm_Inst
         logical :: tmake_herm
+        real(dp), allocatable :: AllNodes_aaaa_RDM(:,:)
+        real(dp), allocatable :: AllNodes_abab_RDM(:,:)
+        real(dp), allocatable :: AllNodes_abba_RDM(:,:)
+        integer :: ierr
+
 !        real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity
 
         ! If Iter = 0, this means we have just read in the TwoRDM_POPS_a*** matrices into All_a***_RDM, and 
@@ -3418,10 +3434,26 @@ MODULe nElRDMMod
         ! Don't need to do all this stuff here, because a***_RDM will be empty.
         if(Iter.ne.0) then
 
-            ! All the arrays are summed into the one on processor 0.
-            CALL MPISum_inplace(aaaa_RDM(:,:))
-            CALL MPISum_inplace(abab_RDM(:,:))
-            CALL MPISum_inplace(abba_RDM(:,:))
+            ALLOCATE(AllNodes_aaaa_RDM(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
+            ALLOCATE(AllNodes_abba_RDM(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
+            ALLOCATE(AllNodes_abab_RDM(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
+
+            CALL MPISumAll(aaaa_RDM(:,:),AllNodes_aaaa_RDM(:,:))
+            aaaa_RDM(:,:) = AllNodes_aaaa_RDM(:,:)
+
+            CALL MPISumAll(abab_RDM(:,:),AllNodes_abab_RDM(:,:))
+            abab_RDM(:,:) = AllNodes_abab_RDM(:,:)
+
+            CALL MPISumAll(abba_RDM(:,:),AllNodes_abba_RDM(:,:))
+            abba_RDM(:,:) = AllNodes_abba_RDM(:,:)
+
+            DEALLOCATE(AllNodes_aaaa_RDM)
+            DEALLOCATE(AllNodes_abab_RDM)
+            DEALLOCATE(AllNodes_abba_RDM)
+
+            !CALL MPISum_inplace(aaaa_RDM(:,:))
+            !CALL MPISum_inplace(abab_RDM(:,:))
+            !CALL MPISum_inplace(abba_RDM(:,:))
 
             ! The TwoElRDM on the root is now the sum of all 'instantaneous' RDMs (summed over 
             ! the energy update cycle).
