@@ -969,6 +969,90 @@ module DetBitOps
 
     end subroutine
 
+
+    pure function get_single_parity (ilut, src, tgt) result(par)
+
+        ! Find the relative parity of two determinants, where one is ilut
+        ! and the other is a single excitation of ilut where orbital src is
+        ! swapped with orbital tgt.
+
+        integer, intent(in) :: src, tgt
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+
+        integer(n_int) :: tmp(0:NIfD), mask(0:NIfD)
+        integer :: min_orb, max_orb, par, min_int, max_int, cnt
+        integer :: min_in_int, max_in_int
+
+        ! We just want to count the orbitals between these two limits.
+        min_orb = (min(src, tgt) + 1) - 1
+        max_orb = (max(src, tgt) - 1)
+
+        ! Which integers of the bit representation are involved?
+        min_int = int(min_orb / bits_n_int)
+        max_int = int(max_orb / bits_n_int)
+
+        ! Where in the integer do the revelant bits sit?
+        min_in_int = mod(min_orb, bits_n_int)
+        max_in_int = mod(max_orb, bits_n_int)
+
+        ! Generate a mask so as to only count the occupied orbitals
+        ! between where we started and the end.
+        mask(0:min_int-1) = 0
+        mask(min_int:max_int) = not(0_n_int)
+        mask(max_int+1:NIfD) = 0
+        mask(min_int) = &
+            iand(mask(min_int), ishft(not(0_n_int), min_in_int))
+        mask(max_int) = &
+            iand(mask(max_int), not(ishft(not(0_n_int), max_in_int)))
+
+        ! Count the number of occupied orbitals between the source and tgt
+        ! orbitals.
+        cnt = CountBits(iand(mask, ilut(0:NIfD)), NIfD)
+
+        ! Get the parity from this information.
+        if (btest(cnt, 0)) then
+            par = -1
+        else
+            par = 1
+        end if
+
+    end function
+
+    function get_double_parity (ilut, src, tgt) result(par)
+
+        ! Find the relative parity of two determinants, where one is ilut
+        ! and the other is a single excitation of ilut where orbital src is
+        ! swapped with orbital tgt.
+
+        integer, intent(in) :: src(2), tgt(2)
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+
+        integer(n_int) :: tmp(0:NIfD), mask(0:NIfD)
+        integer :: min_orb, max_orb, par, min_int, max_int, cnt
+        integer :: min_in_int, max_in_int
+
+
+        if (all(tgt > maxval(src)) .or. all(tgt < minval(src))) then
+
+            ! The source and target orbitals don't overlap
+            par = get_single_parity (ilut, src(1), src(2)) * &
+                  get_single_parity (ilut, tgt(1), tgt(2))
+
+        !elseif ((minval(src) < minval(tgt)) .eqv. &
+        !                                 (maxval(src) > maxval(tgt))) then
+        else
+
+            ! All categories of overlapping src and target orbitals are the 
+            ! same.
+            par = get_single_parity (ilut, minval(src), minval(tgt)) * &
+                  get_single_parity (ilut, maxval(src), maxval(tgt))
+
+        end if
+
+
+    end function
+
+
 end module
 
     pure subroutine GetBitExcitation(iLutnI,iLutnJ,Ex,tSign)
