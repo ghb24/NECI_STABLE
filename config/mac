@@ -1,6 +1,6 @@
 [main]
 cpp = cpp -P -C -traditional 
-cppflags = -D__Linux -DLAPACK -DFFT_DEFAULT -DPOINTER8 -D__INT64 -DDISABLE_FFTW
+cppflags = -D__Linux -DLAPACK -DFFT_DEFAULT -DPOINTER8 -D__INT64 
 compiler = GCC-f95-on-LINUX
 fc = gfortran
 f77flags = -m64 -fcray-pointer
@@ -8,12 +8,12 @@ f90flags = -m64 -fcray-pointer -ffree-line-length-none
 cc = g++
 ld = gfortran
 ldflags = -m64
-libs = -framework Accelerate -lstdc++
+libs = -framework Accelerate -lstdc++ -lfftw3
 module_flag = -J
 
 [dbg]
 cflags = -m64 -g
-fflags = -g
+fflags = -g -check bounds
 
 [opt]
 cflags = -m64 -O3
