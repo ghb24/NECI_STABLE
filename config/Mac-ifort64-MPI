@@ -6,8 +6,8 @@ cc = mpic++
 cpp = /usr/bin/cpp -C -traditional
 cppflags = -D__Linux -DPOINTER8 -DPARALLEL -D__INT64 -D__SHARED_MEM
 ld = ifort 
-ldflags = -Bstatic
-libs = -L /Library/Frameworks/Intel_MKL.framework/Versions/9.1.026/lib/em64t/ -lmkl  -lmkl_lapack -L ~/local/lib/ -lfftw3 -cxxlib  -lrt
+ldflags = -Bstatic -rdynamic
+libs = -L /Library/Frameworks/Intel_MKL.framework/Versions/9.1.026/lib/em64t/ -lmkl  -lmkl_lapack -L ~/local/lib/ -lfftw3 -cxxlib  -lrt -lm
 
 [dbg]
 fflags = -g

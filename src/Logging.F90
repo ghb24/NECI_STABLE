@@ -65,6 +65,9 @@ MODULE Logging
     integer :: iBlockEquilShift,iBlockEquilProjE
     logical :: tDiagAllSpaceEver,tCalcVariationalEnergy
 
+    ! Do we want to split the popsfile up into multiple bits?
+    logical :: tSplitPops
+
     contains
 
     subroutine SetLogDefaults()
@@ -86,13 +89,13 @@ MODULE Logging
       tSplitProjEHist = .false.
       tSplitProjEHistG = .false.
       tSplitProjEHistK3 = .false.
-      PopsfileTimer=0.D0
+      PopsfileTimer=0.0_dp
       tMCOutput=.true.
       tLogComplexPops=.false.
       iWriteBlockingEvery=1000
       tSaveBlocking=.false.
       OffDiagBinRange=0.001
-      OffDiagMax=1.D0
+      OffDiagMax=1.0_dp
       BinRange=0.001
       iNoBins=100000
       tHistEnergies=.false.
@@ -102,7 +105,7 @@ MODULE Logging
       iWriteHistEvery=-1
       NoACDets(:)=0
       TAutoCorr=.false.
-      MaxHistE=50.D0
+      MaxHistE=50.0_dp
       NoHistBins=200
       iWritePopsEvery=100000
       TCalcWavevector=.false.
@@ -186,6 +189,8 @@ MODULE Logging
       tDumpForcesInfo = .false.
       tPrintLagrangian = .false.
       instant_s2_multiplier_init = 1
+
+      tSplitPops = .false.
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -350,7 +355,7 @@ MODULE Logging
             call readi(NoDumpTruncs)
             ALLOCATE(TruncEvalues(NoDumpTruncs),stat=ierr)
             CALL LogMemAlloc('TruncEvalues',NoDumpTruncs,8,'Logging',TruncEvaluesTag,ierr)
-            TruncEvalues(:)=0.D0
+            TruncEvalues(:)=0.0_dp
             do i=1,NoDumpTruncs
                 call readf(TruncEvalues(i))
             enddo
@@ -656,7 +661,7 @@ MODULE Logging
             call readi(iNoBins)
             call readf(OffDiagBinRange)
             call readf(OffDiagMax)
-            IF(OffDiagMax.lt.0.D0) THEN
+            IF(OffDiagMax.lt.0.0_dp) THEN
                 OffDiagMax=-OffDiagMax
             ENDIF
         case("HISTSPAWN")
@@ -890,6 +895,14 @@ MODULE Logging
             ! n.b. This is NOT quantitatively correct.
             !      --> Only of QUALITATIVE utility.
             tCalcInstSCpts = .true.
+
+        case ("SPLIT-POPS")
+            ! Do we want to split a popfile up into multiple parts which are
+            ! output on each of the nodes, and need to be combined/split-up and
+            ! distributed to the nodes on our (sequential) time rather than
+            ! on multi-processor time?
+            tSplitPops = .true.
+            tBinPops = .true.
 
 
         case("ENDLOG")

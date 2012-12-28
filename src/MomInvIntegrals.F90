@@ -79,7 +79,7 @@ module MI_integrals
             ! Do not allow a 'diagonal' matrix element. The problem is 
             ! that the HPHF excitation generator can generate the same HPHF 
             ! function. We do not want to allow spawns here.
-            hel = (0.D0)
+            hel = (0.0_dp)
             return
         endif
         
@@ -87,24 +87,24 @@ module MI_integrals
         if (IsMomSelfInv(nI,iLutnI)) then
             if(tAntisym_MI) then
                 !Self-inverse MI functions should have no couplings if dets antisymmetric
-                hel = 0.D0
+                hel = 0.0_dp
             elseif (.not. IsMomSelfInv(nJ,iLutnJ)) then
                 ! SelfInv MI --> Mom-paired MI, <X|H|Y> = 1/sqrt(2) [Hia + Hib]
                 ! OTHERWISE Closed shell -> closed shell. Both the alpha and 
                 ! beta of the same orbital have been moved to the same new 
                 ! orbital. The matrix element is the same as before.
-                hel = hel * (sqrt(2.d0))
+                hel = hel * (sqrt(2.0_dp))
             endif
         else
             if (IsMomSelfInv(nJ,iLutnJ)) then
                 if(tAntisym_MI) then
                     !Self-inverse MI functions should have no couplings if dets antisymmetric
-                    hel = 0.D0
+                    hel = 0.0_dp
                 else
                     ! Mom-paired MI -> SelfInv MI. If one of
                     ! the determinants is connected, then the other is connected 
                     ! with the same IC & matrix element
-                    hel = hel * sqrt(2.d0)
+                    hel = hel * sqrt(2.0_dp)
                 endif
             else
                 ! Mom-paired MI -> Mom-paired MI. Find the momentum coupled det of nJ.

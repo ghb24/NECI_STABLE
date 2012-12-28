@@ -109,11 +109,11 @@ C =========================================================
       real(dp) :: HSTEPX,HSTEPY,HSTEPZ,gx,gy,gz,SUM,G,DERF
       character(len=*), parameter :: t_r="GEN_CK_FFT2D"
 C..
-!      PI=ACOS(-1.D0)
+!      PI=ACOS(-1.0_dp)
       ALPHA2=ALPHA*ALPHA
 C..
-      HSTEPX=2.D0*A(1)/N
-      HSTEPY=2.D0*A(2)/N
+      HSTEPX=2.0_dp*A(1)/N
+      HSTEPY=2.0_dp*A(2)/N
       HSTEPZ=0
 
 #if defined(NAGF95) || defined(__GFORTRAN__)
@@ -129,23 +129,23 @@ c          DO K=-N/2,N/2-1
             Y=real(J,dp)*HSTEPY
             Z=real(K,dp)*HSTEPZ
             AUX=X*X+Y*Y+Z*Z
-            IF(AUX.NE.0.D0) THEN
+            IF(AUX.NE.0.0_dp) THEN
               IF(TALPHA) THEN 
                 R=SQRT(AUX) 
 #if !defined(NAGF95) && !defined(__GFORTRAN__)                
-                AUX=1.D0/R*(-1)**(I+J)*DERF(R/ALPHA)
+                AUX=1.0_dp/R*(-1)**(I+J)*DERF(R/ALPHA)
 #endif
               ELSE
-                AUX=1.D0/SQRT(AUX)*(-1)**(I+J)
+                AUX=1.0_dp/SQRT(AUX)*(-1)**(I+J)
               ENDIF
             ELSE
               IF(TALPHA) THEN 
-                AUX=(2.D0/SQRT(PI)/ALPHA)*(-1)**(I+J)
+                AUX=(2.0_dp/SQRT(PI)/ALPHA)*(-1)**(I+J)
               ELSE
                 AUX=real(N/2,dp)*(-1)**(I+J)
               ENDIF
             ENDIF
-            D(I,J)=CMPLX(AUX,0.D0,dp)
+            D(I,J)=CMPLX(AUX,0.0_dp,dp)
 c            write(16,'(3i3,2e19.8)') i,j,k,d(i,j)
 
 c          ENDDO
@@ -208,7 +208,7 @@ C          enddo
 C..the short-range correction for alpha 
       IF(TALPHA) THEN 
 
-       OMEGAP=4.D0*OMEGA  
+       OMEGAP=4.0_dp*OMEGA  
         DO I=-N/2,N/2-1
           DO J=-N/2,N/2-1
 C           DO K=-N/2,N/2-1
@@ -218,18 +218,18 @@ C           DO K=-N/2,N/2-1
               GZ=0
 C..PI*K/A(3)
               G=SQRT(GX*GX+GY*GY+GZ*GZ)
-              IF(G.NE.0.D0) THEN 
+              IF(G.NE.0.0_dp) THEN 
 c sum=2 Pi * erf(a G/2)/G/omegap
 #if !defined(NAGF95) && !defined(__GFORTRAN__)                
-                SUM=2.D0*PI*DERF(ALPHA*G/2)/OMEGAP/G
+                SUM=2.0_dp*PI*DERF(ALPHA*G/2)/OMEGAP/G
 #endif
-C                AUX=EXP(-G2*ALPHA2/4.D0)
-C                SUM=4.D0*PI*(1.D0-AUX)/OMEGAP/G2
+C                AUX=EXP(-G2*ALPHA2/4.0_dp)
+C                SUM=4.0_dp*PI*(1.0_dp-AUX)/OMEGAP/G2
               ELSE
                  SUM=ALPHA/(SQRT(PI)*OMEGAP)
 C                SUM=PI*ALPHA2/OMEGAP 
               ENDIF
-              DIST(I,J,K)=DIST(I,J,K)+CMPLX(SUM,0.D0,dp)
+              DIST(I,J,K)=DIST(I,J,K)+CMPLX(SUM,0.0_dp,dp)
 C            ENDDO
           ENDDO
         ENDDO
@@ -240,22 +240,22 @@ C.test fft
 C       X=  0.2
 C       Y=  0.9
 C       Z=  0.0
-C       UIMAG=DCMPLX(0.D0,1.D0)
-C       CSUM=DCMPLX(0.D0,0.D0)
+C       UIMAG=DCMPLX(0.0_dp,1.0_dp)
+C       CSUM=DCMPLX(0.0_dp,0.0_dp)
 C       DO I=-N/2,N/2-1
 C         DO J=-N/2,N/2-1
 C             k=0
 C             GX=PI*I
 C             GY=PI*J
 C             GZ=PI*K
-C             CDOT=DCMPLX(0.D0,GX*X+GY*Y+GZ*Z)
+C             CDOT=DCMPLX(0.0_dp,GX*X+GY*Y+GZ*Z)
 C             CAUX= EXP(CDOT)*DIST(I,J,K)
 C             CSUM=CSUM+CAUX
 C               write(6,'(3i3,2e19.8)') i,j,k,dist(i,j,k)
 C         enddo
 C       enddo
 C       sum=sqrt(real(csum)**2+dimag(csum)**2)
-C       write(6,*) X,csum,1.D0/sqrt(x*x*a(1)**2+y*y*a(2)**2)
+C       write(6,*) X,csum,1.0_dp/sqrt(x*x*a(1)**2+y*y*a(2)**2)
 C       stop
       RETURN
       END

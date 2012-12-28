@@ -2,11 +2,11 @@
 fc = mpif90
 cc = mpic++
 ld = mpif90
-ldflags = -L $(LD_LIBRARY_PATH)
+ldflags = -L $(LD_LIBRARY_PATH) -rdynamic
 compiler = INTEL-ifort9-on-LINUX
 cpp = cpp -C -traditional
 cppflags = -D__Linux -DHAVE_SSE2 -D__INT64 -DPARALLEL -D__SHARED_MEM
-libs = -L ~/src/lib/fftw-3.1.2/lib -L ~/lib/fftw-3.1.2/lib -lfftw3  -lmkl_lapack -lmkl_ia32 -lguide -lpthread  -cxxlib -lrt
+libs = -L ~/src/lib/fftw-3.1.2/lib -L ~/lib/fftw-3.1.2/lib -lfftw3  -lmkl_lapack -lmkl_ia32 -lguide -lpthread  -cxxlib -lrt -lm
 module_flag = -module
 
 [dbg]

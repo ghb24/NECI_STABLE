@@ -2,11 +2,11 @@
 fc = f95
 cc = g++
 ld = f95
-ldflags = 
+ldflags =  -rdynamic
 compiler = GCC-f95-on-LINUX
 cpp = cpp -C -traditional
 cppflags = -D__Linux -DPOINTER8 -D__INT64 -DMOLPRO
-libs = -llapack -lblas -lstdc++ -lrt -lfftw3
+libs = -llapack -lblas -lstdc++ -lrt -lfftw3 -lm
 module_flag = -I
 
 [dbg]
