@@ -1154,13 +1154,6 @@ MODULE FciMCParMod
                 if (tTruncInitiator) call CalcParentFlag (j, VecSlot, parent_flags)
 
             endif                                                          
-            if (countbits(CurrentDets(:,j), 0) /= 8) then
-                write(6,*) '===================================='
-                write(6,*) 'Walker', j
-                call write_det(6, detcurr, .true.)
-                call stop_all("INVALID DET", "FOUND")
-            end if
-
 
             if(tHashWalkerList) then
                 !Test here as to whether this is a "hole" or not...
