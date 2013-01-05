@@ -19,12 +19,10 @@ module hphf_integrals
 
 ! NB AJWT has also cannibalized this for CCMC where he just passes in the HElGen.
     function hphf_spawn_sign (nI, nJ, iLutI, iLutJ, ic, ex, &
-                                  tParity, HElGen) result (hel)
-        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
+                                  parity, HElGen) result (hel)
+        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2), parity
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
-        logical, intent(in) :: tParity
         integer :: iUnused
-        logical :: lUnused
         HElement_t :: hel
         HElement_t, intent(in) :: HElGen
 
@@ -33,18 +31,16 @@ module hphf_integrals
         ! Avoid warnings
         iUnused = IC; iUnused = ex(1,1); iUnused = nI(1); iUnused = nJ(1)
         iUnused = int(iLutI(0),sizeof_int); iUnused = int(iLutJ(0),sizeof_int)
-        lUnused = tParity
+        iUnused = parity
 
     end function
 
     ! TODO: comment as to why!
     function hphf_off_diag_helement_spawn (nI, nJ, iLutI, iLutJ, ic, ex, &
-                                           tParity, HElGen) result (hel)
-        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
+                                           parity, HElGen) result (hel)
+        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2), parity
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
-        logical, intent(in) :: tParity
         integer :: iUnused
-        logical :: lUnused
         HElement_t :: hel
         HElement_t , intent(in) :: HElGen
 
@@ -54,7 +50,7 @@ module hphf_integrals
             hel = -abs(hel)
 
         ! Avoid warnings
-        iUnused = IC; iUnused = ex(1,1); lUnused = tParity
+        iUnused = IC; iUnused = ex(1,1); iUnused = parity
 
     end function
 
@@ -76,7 +72,7 @@ module hphf_integrals
         integer(kind=n_int) :: iLutnI2(0:NIfTot)
         integer :: ExcitLevel, OpenOrbsI, OpenOrbsJ, Ex(2,2)
         HElement_t :: MatEl2
-        logical :: tSign
+        integer :: parity
 
         ! Avoid warnings
         iUnused = nJ(1)
@@ -131,9 +127,9 @@ module hphf_integrals
                     ! antisymmetric if it is even.
                     call CalcOpenOrbs(iLutnI,OpenOrbsI)
                     Ex(1,1)=ExcitLevel
-                    call GetBitExcitation(iLutnI2,iLutnJ,Ex,tSign)
+                    call GetBitExcitation(iLutnI2,iLutnJ,Ex,parity)
 
-                    MatEl2 = sltcnd_excit (nI2, ExcitLevel, Ex, tSign)
+                    MatEl2 = sltcnd_excit (nI2, ExcitLevel, Ex, parity)
 
                     if(tOddS_HPHF) then
                         if (((mod(OpenOrbsI,2) == 1).and.(mod(OpenOrbsJ,2) == 1))&
