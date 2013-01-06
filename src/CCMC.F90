@@ -1168,7 +1168,6 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
    LOGICAL tDone
 
     ! unused
-    integer(kind=n_int) :: iLutnJ(0:nifTot)
     type(excit_gen_store_type) :: store
     HElement_t :: HElGen
 
@@ -1187,7 +1186,7 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
           ! multiple times. There will be a time saving if we can store the 
           ! excitation generators temporarily.
          store%tFilled = S%iIndex.gt.1
-         call gen_rand_excit (S%C%DetCurr, S%C%iLutDetCurr, S%nJ, iLutnJ, &
+         call gen_rand_excit (S%C%DetCurr, S%C%iLutDetCurr, S%nJ, S%iLutnJ, &
                               S%exFlag, S%iExcitLevel, S%ExcitMat, parity, &
                               S%dProbSpawn, HElGen, store)
 
@@ -1220,8 +1219,11 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
       IFDEBUG(iDebug,5) WRITE(iout,*) " GetNextSpawner",S%iIndex
 
       ! gen_rand_Excit doesn't ensure that nJ is ordered
-      if (.not. IsNullDet(S%nJ)) call decode_bit_det (S%nJ, ilutnJ)
-      ! CALL FindExcitBitDet(S%C%iLutDetCurr,S%iLutnJ,S%iExcitLevel,S%ExcitMat)
+      if (.not. S%tFull) then
+          call decode_bit_det (S%nJ, S%ilutnJ)
+      else
+          CALL FindExcitBitDet(S%C%iLutDetCurr,S%iLutnJ,S%iExcitLevel,S%ExcitMat)
+      end if
 
       IFDEBUG(iDebug,5) then
           WRITE(iout,*) "  Random excited det level ",S%iExcitLevel
@@ -1783,9 +1785,6 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
 ! so prob is
    prob=(S%dProbSpawn*C%dProbNorm*C%dClusterNorm)/C%dAbsAmplitude
  
-   write(6,*) 'ATTEMPT SPAWN'
-   call write_det(6, C%DetCurr, .true.)
-   call write_det(6, S%nJ, .true.)
    iSpawnAmp=attempt_create_normal(hphf_spawn_sign,  & !this version of the get_spawn_helement just uses the passed-in version
                               C%DetCurr,C%iLutDetCurr, &
                               C%iSgn,S%nJ,S%iLutnJ,prob,S%HIJ, &
