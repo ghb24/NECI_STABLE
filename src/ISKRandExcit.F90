@@ -18,7 +18,7 @@ MODULE ISKRandExcit
     use FciMCData, only: pDoubles, excit_gen_store_type
     use constants, only: dp,n_int,bits_n_int
     use HElem
-    use bit_reps, only: NIfD, NIfDBO, NIfTot
+    use bit_reps, only: NIfD, NIfDBO, NIfTot, decode_bit_det
     use SymExcitDataMod, only: SpinOrbSymLabel,SymTableLabels,SymInvLabel, &
                                KPntInvSymOrb
     IMPLICIT NONE
@@ -38,9 +38,9 @@ MODULE ISKRandExcit
         real(dp), intent(out) :: pGen
         HElement_t, intent(out) :: HEl
         character(*), parameter :: this_routine='gen_ISK_excit'
-        logical :: tSwapped,tSame_ISK,tCrossConnected,tSignCross
+        logical :: tSwapped,tSame_ISK,tCrossConnected
         integer(n_int) :: iLutnJSym(0:NIfTot)
-        integer :: nJSym(NEl), CrossIC, CrossEx(2,2), parity_orig
+        integer :: nJSym(NEl), CrossIC, CrossEx(2,2), parity_orig, parity_cross
         real(dp) :: pGen2
 
         !First, generate a random excitation from the determinant which is given in the argument
@@ -48,8 +48,10 @@ MODULE ISKRandExcit
                              parity_orig, pGen, HEl, store)
         if(IsNullDet(nJ)) return    !No excitation created
 
-!Create bit representation of excitation - iLutnJ
-        call FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat)
+       ! gen_rand_Excit doesn't ensure that nJ is ordered
+       call decode_bit_det (nJ, ilutnJ)
+       !Create bit representation of excitation - iLutnJ
+       !call FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat)
 
         if(is_self_inverse(nJ,iLutnJ)) then
 !There is only one way which we could have generated the excitation nJ since it has no determinant partner.
@@ -67,9 +69,9 @@ MODULE ISKRandExcit
 !inverse determinant of the excitation.
             if(tSwapped) then
                 !We have swapped the excitation, so that iLutnJ now contains the cross determinant
-                call ISK_cross_det_conn(iLutnI,iLutnJ,tSame_ISK,tCrossConnected,CrossIC,CrossEx,tSignCross)
+                call ISK_cross_det_conn(iLutnI,iLutnJ,tSame_ISK,tCrossConnected,CrossIC,CrossEx,parity_cross)
             else
-                call ISK_cross_det_conn(iLutnI,iLutnJSym,tSame_ISK,tCrossConnected,CrossIC,CrossEx,tSignCross)
+                call ISK_cross_det_conn(iLutnI,iLutnJSym,tSame_ISK,tCrossConnected,CrossIC,CrossEx,parity_cross)
             endif
 
             if(tSame_ISK) then
@@ -114,11 +116,11 @@ MODULE ISKRandExcit
     !Return whether the ISKs are actually the same
     !If the cross term is found to exist, return the excitation matrix and parity of the excitation
     !TODO: Optimisation - do we need to calculate the excitation matrix, or can we just pass it in?
-    subroutine ISK_cross_det_conn(iLutnI,iLutnJSym,tSame_ISK,tcross_conn,CrossIC,ExCross,tExSign)
+    subroutine ISK_cross_det_conn(iLutnI,iLutnJSym,tSame_ISK,tcross_conn,CrossIC,ExCross,ex_parity)
         integer(n_int), intent(in) :: iLutnI(0:NIfTot),iLutnJSym(0:NIfTot)
-        logical, intent(out) :: tcross_conn,tSame_ISK,tExSign
+        logical, intent(out) :: tcross_conn,tSame_ISK
         integer, intent(out) :: ExCross(2,2),CrossIC
-        integer :: SymB,ijSymProd
+        integer :: SymB, ijSymProd, ex_parity
 
         tSame_ISK=.false.   !Is the ISK generated actually the one we started with?
 
@@ -143,7 +145,7 @@ MODULE ISKRandExcit
         !cross-term is allowed by excitation level. Is it allowed by momentum conservation?
         !calculate excitation matrix
         ExCross(1,1)=CrossIC
-        call GetBitExcitation(iLutnI,iLutnJSym,ExCross,tExSign)
+        call GetBitExcitation(iLutnI,iLutnJSym,ExCross, ex_parity)
         !i = ex(1,1)
         !j = ex(1,2)
         if(CrossIC.eq.1) then

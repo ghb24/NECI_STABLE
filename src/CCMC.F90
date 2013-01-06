@@ -631,7 +631,11 @@ MODULE CCMC
                                     fcimc_excit_gen_store)
                if(.not.IsNullDet(nJ)) then  !Check it hasn't given us a null determinant as it couldn't find one in a sensible time.
 !We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
-                  IF(.not.tHPHF) CALL FindExcitBitDet(iLutnI,iLutnJ,IC,Ex)
+
+                  ! gen_rand_Excit doesn't ensure that nJ is ordered
+                  call decode_bit_det (nJ, ilutnJ)
+                  !IF(.not.tHPHF) CALL FindExcitBitDet(iLutnI,iLutnJ,IC,Ex)
+
                   IFDEBUGTHEN(iDebug,5)
                       WRITE(iout,*) "  Random excited det level ",iC
                       WRITE(iout,"(A)",advance="no") "   "
@@ -1186,6 +1190,7 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
          call gen_rand_excit (S%C%DetCurr, S%C%iLutDetCurr, S%nJ, iLutnJ, &
                               S%exFlag, S%iExcitLevel, S%ExcitMat, parity, &
                               S%dProbSpawn, HElGen, store)
+
          GetNextSpawner=.true.
          S%dProbSpawn=S%dProbSpawn*S%nSpawnings
       endif
@@ -1213,7 +1218,11 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
 !We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
       S%bValid=.true.
       IFDEBUG(iDebug,5) WRITE(iout,*) " GetNextSpawner",S%iIndex
-      CALL FindExcitBitDet(S%C%iLutDetCurr,S%iLutnJ,S%iExcitLevel,S%ExcitMat)
+
+      ! gen_rand_Excit doesn't ensure that nJ is ordered
+      if (.not. IsNullDet(S%nJ)) call decode_bit_det (S%nJ, ilutnJ)
+      ! CALL FindExcitBitDet(S%C%iLutDetCurr,S%iLutnJ,S%iExcitLevel,S%ExcitMat)
+
       IFDEBUG(iDebug,5) then
           WRITE(iout,*) "  Random excited det level ",S%iExcitLevel
           write(iout,"(A)",advance="no") "   "
@@ -1774,6 +1783,9 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
 ! so prob is
    prob=(S%dProbSpawn*C%dProbNorm*C%dClusterNorm)/C%dAbsAmplitude
  
+   write(6,*) 'ATTEMPT SPAWN'
+   call write_det(6, C%DetCurr, .true.)
+   call write_det(6, S%nJ, .true.)
    iSpawnAmp=attempt_create_normal(hphf_spawn_sign,  & !this version of the get_spawn_helement just uses the passed-in version
                               C%DetCurr,C%iLutDetCurr, &
                               C%iSgn,S%nJ,S%iLutnJ,prob,S%HIJ, &

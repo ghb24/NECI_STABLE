@@ -5499,7 +5499,7 @@ MODULE FciMCParMod
         use HPHF_integrals, only: hphf_off_diag_helement_norm
         implicit none
         type(excit_gen_store_type) :: store, store2
-        logical :: tAllExcitFound,tSameFunc,tSwapped,tSign
+        logical :: tAllExcitFound,tSameFunc,tSwapped
         character(len=*), parameter :: t_r="FindMaxTauDoubs"
         integer :: ex(2,2), ex2(2,2), exflag, iMaxExcit, nStore(6)
         integer :: nExcitMemLen(1), parity
@@ -5615,7 +5615,7 @@ MODULE FciMCParMod
                 ex2(:,:) = 0
                 if(ic.le.2) then
                     ex2(1,1) = ic
-                    call GetBitExcitation(iLutnJ,iLutRef,Ex2,tSign)
+                    call GetBitExcitation(iLutnJ,iLutRef,Ex2,parity)
                 endif
                 call CalcPGenHPHF(nJ,iLutnJ,ProjEDet,iLutRef,ex2,store2%ClassCountOcc,    &
                             store2%ClassCountUnocc,pDoubles,pGen,tSameFunc)
@@ -6437,7 +6437,7 @@ MODULE FciMCParMod
         HElement_t :: HDoubDiag
         integer :: DoubEx(2,2),DoubEx2(2,2),kDoub(3) ! For histogramming UEG doubles
         integer :: ExMat(2,2),FindSplitProjEBinG,FindSplitProjEBinK3
-        logical :: tDoubParity,tDoubParity2,tSign ! As above
+        integer :: doub_parity, doub_parity2, parity ! As above
 
         ! Are we performing a linear sum over various determinants?
         ! TODO: If we use this, function pointer it.
@@ -6530,10 +6530,10 @@ MODULE FciMCParMod
         if(tSplitProjEHist.and.ExcitLevel_local == 2) then
 
             !Calc excitation matrix
-            !call GetBitExcitation(iLutRef,ilut,ExMat,tSign)
+            !call GetBitExcitation(iLutRef,ilut,ExMat,parity)
             ExMat(:,:)=0
             ExMat(1,1)=2
-            call GetExcitation (ProjEDet,nI,NEl,ExMat,tSign)
+            call GetExcitation (ProjEDet,nI,NEl,ExMat,parity)
             if (tSplitProjEHistG) then 
                 ProjEBin=FindSplitProjEBinG(ExMat)+1
                 
@@ -6602,15 +6602,15 @@ MODULE FciMCParMod
                 if (ExcitLevel.eq.2) then
                     DoubEx2=0
                     DoubEx2(1,1)=2
-                    call GetExcitation (ProjEDet,nI,NEl,DoubEx2,tDoubParity2)
+                    call GetExcitation (ProjEDet,nI,NEl,DoubEx2,doub_parity2)
                     DoubEx=0
                     DoubEx(1,1)=2
-                    call GetBitExcitation(iLutRef,ilut,DoubEx,tDoubParity)
+                    call GetBitExcitation(iLutRef,ilut,DoubEx,Doub_Parity)
                     if (DoubEx2(1,1).ne.DoubEx(1,1) &
                         .or. DoubEx2(1,2).ne.DoubEx(1,2) &
                         .or. DoubEx2(2,2).ne.DoubEx(2,2) &
                         .or. DoubEx2(2,1).ne.DoubEx(2,1) &
-                        .or. tDoubParity.neqv.tDoubParity2) then
+                        .or. doub_parity /= doub_parity2) then
                         call stop_all("SumEContrib","GetBitExcitation doesn't agree with GetExcitation")
                     endif
                     iUEG1=0

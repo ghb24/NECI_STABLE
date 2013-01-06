@@ -975,10 +975,9 @@ END MODULE Determinants
          integer(kind=n_int) :: iLutRef(0:nIfTot),iLutnI(0:nIfTot)
          integer Ex(2,nEl)
          logical lTerm
-         logical tSign
-         INTEGER iEl,I
+         integer :: iEl, i, parity
          EX(1,1)=nEl  !Indicate the length of EX
-         CALL GetBitExcitation(iLutRef,iLutnI,Ex,tSign)
+         CALL GetBitExcitation(iLutRef,iLutnI,Ex,parity)
          WRITE(NUNIT,"(A)",advance='no') "("
 ! First the excit from
          DO I=1,NEL
@@ -986,7 +985,7 @@ END MODULE Determinants
             if(iEl.eq.0) EXIT
             WRITE(NUNIT,"(I5,A)",advance='no') IEL,","
          ENDDO
-         IF(tSign) THEN
+         if (parity == -1) then
             WRITE(NUNIT,"(A)",advance='no') ")->-("
          ELSE
             WRITE(NUNIT,"(A)",advance='no') ")->+("

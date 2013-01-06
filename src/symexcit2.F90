@@ -328,8 +328,7 @@ MODULE SymExcit2
          use sym_mod
          use global_utilities
          IMPLICIT NONE
-         INTEGER iExcit(2,2)
-         LOGICAL L
+         INTEGER iExcit(2,2), iDummy
          INTEGER nEl,nI(nEl),nJ(nEl),nBasis
          INTEGER iFrom,iFromIndex,iTo
          TYPE(BasisFn) G1(nBasis)
@@ -350,7 +349,7 @@ MODULE SymExcit2
          LOGICAL IsUHFDet
          character(*), parameter :: thisroutine='GenExcitProbInternal'
          iExcit(1,1)=2
-         CALL GETEXCITATION(nI,nJ,nEl,iExcit,L)
+         CALL GETEXCITATION(nI,nJ,nEl,iExcit,iDummy)
 !EXCIT(1,*) are the ij... in NI, and EXCIT(2,*) the ab... in NJ
          IF(iExcit(1,1).LE.0) THEN
 ! More than a double excitation, so not allowed
@@ -446,13 +445,12 @@ MODULE SymExcit2
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB, nel
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
-         INTEGER iExcit(2,2)
-         LOGICAL L
+         INTEGER iExcit(2,2), iDummy
          INTEGER nI(nEl),nJ(nEl)
          LOGICAL tIsConnectedDet
          LOGICAL IsUHFDet
          iExcit(1,1)=2
-         CALL GETEXCITATION(nI,nJ,nEl,iExcit,L)
+         CALL GETEXCITATION(nI,nJ,nEl,iExcit,iDummy)
 !EXCIT(1,*) are the ij... in NI, and EXCIT(2,*) the ab... in NJ
          IF(iExcit(1,1).LE.0) THEN
 ! More than a double excitation, so not allowed
