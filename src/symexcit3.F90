@@ -5,7 +5,7 @@ MODULE SymExcit3
 ! are truncating (or freezing) orbitals in such a way as to remove different alpha symm irreps from the beta.
 
     use SystemData, only: NEl, G1, nBasis, tNoSymGenRandExcits
-    use bit_reps, only: NIfTot
+    use bit_reps, only: NIfTot, decode_bit_det
     use constants, only: n_int
     USE GenRandSymExcitNUMod, only: SymLabelList2,SymLabelCounts2,ClassCountInd,ScratchSize
     use SymExcitDataMod, only: SpinOrbSymLabel
@@ -619,6 +619,9 @@ MODULE SymExcit3
         if(tDoubleExcitFound.and.(.not.tAllExcitFound)) then
             call make_excit (nI, ilut, nJ, ilut_tmp, (/Elec1Ind,Elec2Ind/), &
                              (/Orba, Orbb/), ExcitMat3, parity)
+            ! Not ideal to do this here, but I don't really know how this all
+            ! works, so I can't tweak it not to need ordered dets.
+            call decode_bit_det (nJ, ilut_tmp)
 !        else
 !            write(6,*) "Exiting loop with all excitations found: ",tAllExcitFound
         endif
