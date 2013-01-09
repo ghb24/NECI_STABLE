@@ -16,7 +16,7 @@ module MomInvRandExcit
     
     
     subroutine gen_MI_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                               tParity, pGen, HEl, store)
+                               parity_unused, pGen, HEl, store)
 
         ! Generate an MI excitation using only one of the determinants in 
         ! the source MI function.
@@ -35,29 +35,30 @@ module MomInvRandExcit
         integer, intent(out) :: nJ(nel)
         integer(kind=n_int), intent(out) :: iLutnJ(0:niftot)
         integer, intent(out) :: IC, ExcitMat(2,2)
-        logical, intent(out) :: tParity ! Not used
+        integer, intent(out) :: parity_unused ! Not used
         real(dp), intent(out) :: pGen
         HElement_t, intent(out) :: HEl
         type(excit_gen_store_type), intent(inout), target :: store
 
         integer(kind=n_int) :: iLutnJ2(0:niftot)
-        integer :: nJ2(nel), ex2(2,2), excitLevel 
+        integer :: nJ2(nel), ex2(2,2), excitLevel, parity, parity_orig
         real(dp) :: pGen2
         HElement_t :: MatEl, MatEl2
-        logical :: TestClosedShellDet, tSign, tSignOrig
+        logical :: TestClosedShellDet
         logical :: tSwapped
         character(len=*) , parameter :: t_r='gen_MI_excit'
 
         ! Avoid warnings
-        tParity = .false.
+        parity_unused = 1
 
         call gen_rand_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                             tSignOrig, pGen, HEl, store)
+                             parity_orig, pGen, HEl, store)
 
 !Create excitation of uniquely chosen determinant in this HPHF function.
         IF(IsNullDet(nJ)) RETURN
-!Create bit representation of excitation - iLutnJ
-        CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat)
+
+        ! gen_rand_Excit doesn't ensure that nJ is ordered
+        call decode_bit_det (nJ, ilutnJ)
             
         IF(IsMomSelfInv(nJ,iLutnJ)) THEN
 !There is only one way which we could have generated the excitation nJ since it has no momentum-partner. 
@@ -66,13 +67,13 @@ module MomInvRandExcit
 !Generate matrix element -> MI function to closed shell det.
                 IF(IsMomSelfInv(nI,iLutnI)) THEN
                     !Self-inv -> Self-inv
-                    HEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
+                    HEl = sltcnd_excit (nI, IC, ExcitMat, parity_orig)
                 ELSE
                     !Mom coupled -> Self-inv
                     if(tAntisym_MI) then
                         HEl=0.0_dp
                     else
-                        MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
+                        MatEl = sltcnd_excit (nI, IC, ExcitMat, parity_orig)
                         HEl=MatEl*SQRT(2.0_dp)
                     endif
                 ENDIF
@@ -98,9 +99,9 @@ module MomInvRandExcit
                 Ex2(1,1)=ExcitLevel
 
                 IF(tSwapped) THEN
-                    CALL GetBitExcitation(iLutnI,iLutnJ,Ex2,tSign)
+                    CALL GetBitExcitation(iLutnI,iLutnJ,Ex2,parity)
                 ELSE
-                    CALL GetBitExcitation(iLutnI,iLutnJ2,Ex2,tSign)
+                    CALL GetBitExcitation(iLutnI,iLutnJ2,Ex2,parity)
                 ENDIF
                 !Calc probability of generating it
                 CALL CalcNonUniPGen(nI, Ex2, ExcitLevel, store%ClassCountOcc,&
@@ -118,10 +119,10 @@ module MomInvRandExcit
                         else
                             !Could actually use either of these - they should be the same?!
                             IF(tSwapped) THEN
-                                MatEl = sltcnd_excit (nI, IC, Ex2, tSign)
+                                MatEl = sltcnd_excit (nI, IC, Ex2, parity)
                             ELSE
                                 MatEl = sltcnd_excit (nI, IC, ExcitMat, &
-                                                      tSignOrig)
+                                                      parity_orig)
                             ENDIF
                             HEl=MatEl*SQRT(2.0_dp)
                         endif
@@ -130,10 +131,10 @@ module MomInvRandExcit
 !First find nI -> nJ. If nJ has swapped, then this will be different.
                         IF(tSwapped) THEN
                             MatEl = sltcnd_excit (nI, ExcitLevel, Ex2, &
-                                                  tSign)
+                                                  parity)
                         ELSE
                             MatEl = sltcnd_excit (nI, IC, ExcitMat, &
-                                                  tSignOrig)
+                                                  parity_orig)
                         ENDIF
 
                         !now nI2 -> nJ - cross term present
@@ -145,11 +146,11 @@ module MomInvRandExcit
                             IF(tSwapped) THEN
 !                                IF((OpenOrbsJ+OpenOrbsI).eq.3) tSignOrig=.not.tSignOrig  !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
                                 MatEl2 = sltcnd_excit (nI, IC, ExcitMat, &
-                                                       tSignOrig)
+                                                       parity_orig)
                             ELSE
 !                                IF((OpenOrbsJ+OpenOrbsI).eq.3) tSign=.not.tSign     !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
                                 MatEl2 = sltcnd_excit (nI,  ExcitLevel, &
-                                                       Ex2, tSign)
+                                                       Ex2, parity)
                             ENDIF
 
                             if(tAntisym_MI) then
@@ -178,10 +179,10 @@ module MomInvRandExcit
                 IF(tGenMatHEl) THEN
 !iLutnI MUST be an MI func here, since otherwise it would have been connected to iLutnJ2. Also, we know the cross connection (i.e. MatEl2 = 0)
                     IF(tSwapped) THEN
-                        if(tAntisym_MI) tSignOrig=.not.tSignOrig
-                        MatEl = sltcnd_excit(nI,  IC, ExcitMat, tSignOrig)
+                        if(tAntisym_MI) parity_orig = -parity_orig
+                        MatEl = sltcnd_excit(nI,  IC, ExcitMat, parity_orig)
                     ELSE
-                        MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
+                        MatEl = sltcnd_excit (nI, IC, ExcitMat, parity_orig)
                     ENDIF
 
                     HEl=MatEl
@@ -316,7 +317,7 @@ module MomInvRandExcit
 !                if(IC_ia.le.2) then
 !                    Ex_ia=0
 !                    Ex_ia(1,1)=IC_ia
-!                    call GetBitExcitation(iLutnI,iLutnJ,Ex_ia,tSign)
+!                    call GetBitExcitation(iLutnI,iLutnJ,Ex_ia,parity)
 !                    call construct_class_counts(nI,CC_ia,CCU_ia)
 !                    call CalcNonUniPGen(nI,Ex_ia,IC_ia,CC_ia,CCU_ia,0.9_8,pGen_ia)
 !                else
@@ -325,7 +326,7 @@ module MomInvRandExcit
 !                if(IC_ib.le.2) then
 !                    Ex_ib=0
 !                    Ex_ib(1,1)=IC_ib
-!                    call GetBitExcitation(iLutnI,iLutnJ2,Ex_ib,tSign)
+!                    call GetBitExcitation(iLutnI,iLutnJ2,Ex_ib,parity)
 !                    call construct_class_counts(nI,CC_ib,CCU_ib)
 !                    call CalcNonUniPGen(nI,Ex_ib,IC_ib,CC_ib,CCU_ib,0.9_8,pGen_ib)
 !                else
@@ -334,7 +335,7 @@ module MomInvRandExcit
 !                if(IC_ja.le.2) then
 !                    Ex_ja=0
 !                    Ex_ja(1,1)=IC_ja
-!                    call GetBitExcitation(iLutnI2,iLutnJ,Ex_ja,tSign)
+!                    call GetBitExcitation(iLutnI2,iLutnJ,Ex_ja,parity)
 !                    call construct_class_counts(nI2,CC_ja,CCU_ja)
 !                    call CalcNonUniPGen(nI,Ex_ja,IC_ja,CC_ja,CCU_ja,0.9_8,pGen_ja)
 !                else
@@ -343,7 +344,7 @@ module MomInvRandExcit
 !                if(IC_jb.le.2) then
 !                    Ex_jb=0
 !                    Ex_jb(1,1)=IC_jb
-!                    call GetBitExcitation(iLutnI2,iLutnJ2,Ex_jb,tSign)
+!                    call GetBitExcitation(iLutnI2,iLutnJ2,Ex_jb,parity)
 !                    call construct_class_counts(nI2,CC_jb,CCU_jb)
 !                    call CalcNonUniPGen(nI2,Ex_jb,IC_jb,CC_jb,CCU_jb,0.9_8,pGen_jb)
 !                else
@@ -393,7 +394,7 @@ module MomInvRandExcit
 !                if(IC_ia.le.2) then
 !                    Ex_ia=0
 !                    Ex_ia(1,1)=IC_ia
-!                    call GetBitExcitation(iLutnI,iLutnJ,Ex_ia,tSign)
+!                    call GetBitExcitation(iLutnI,iLutnJ,Ex_ia,parity)
 !                    call construct_class_counts(nI,CC_ia,CCU_ia)
 !                    call CalcNonUniPGen(nI,Ex_ia,IC_ia,CC_ia,CCU_ia,0.9_8,pGen_ia)
 !                else
@@ -402,7 +403,7 @@ module MomInvRandExcit
 !                if(IC_ib.le.2) then
 !                    Ex_ib=0
 !                    Ex_ib(1,1)=IC_ib
-!                    call GetBitExcitation(iLutnI,iLutnJ2,Ex_ib,tSign)
+!                    call GetBitExcitation(iLutnI,iLutnJ2,Ex_ib,parity)
 !                    call construct_class_counts(nI,CC_ib,CCU_ib)
 !                    call CalcNonUniPGen(nI,Ex_ib,IC_ib,CC_ib,CCU_ib,0.9_8,pGen_ib)
 !                else

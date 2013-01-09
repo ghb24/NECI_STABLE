@@ -1078,8 +1078,8 @@ contains
 !C.. the amount of memory used to store it)
          TYPE(EGP) LOCTAB(:)
          TYPE(EGP) LOCTAB2(I_V)
-         LOGICAL TFAIL,TNEXT,T
-         INTEGER L,LT,IVLEVEL,IEXFROM,IVLMAX,IVLMIN
+         LOGICAL TFAIL,TNEXT
+         INTEGER L,LT,IVLEVEL,IEXFROM,IVLMAX,IVLMIN, par
          INTEGER ICMPDETS
          INTEGER IC
          INTEGER DUMMY(0:I_V)
@@ -1437,7 +1437,7 @@ contains
                    IF(IAND(NWHTAY,8).NE.0.AND.I_VIND.LT.(I_V-2)) THEN
                      IF(ICIL.EQ.0) THEN
                         EX(1,1)=2
-                        CALL GETEXCITATION(IPATH(1,IEXFROM),NJ,NEL,EX,T)
+                        CALL GETEXCITATION(IPATH(1,IEXFROM),NJ,NEL,EX,par)
 !C                        WRITE(10,*) EX(1,1),EX(1,2),EX(2,1),EX(2,2)
                         ICILMAX=2
                         IF(EX(1,2).NE.0) ICILMAX=ICILMAX+1
@@ -1567,15 +1567,15 @@ end module mcpaths
          IMPLICIT NONE
          INTEGER I_V,NEL
          INTEGER NUNIT,IPATH(NEL,0:I_V)
-         LOGICAL LTERM,T
-         INTEGER J,K,EX(2,2)
+         LOGICAL LTERM
+         INTEGER J,K,EX(2,2), par
 !C.. First determine the excitation
          WRITE(NUNIT,"(A)",advance='no') "["
          DO J=1,I_V-1
             DO K=0,I_V-2
                EX(1,1)=2
 !C               WRITE(6,*) J,K
-               CALL GETEXCITATION(IPATH(1,K),IPATH(1,J),NEL,EX,T)
+               CALL GETEXCITATION(IPATH(1,K),IPATH(1,J),NEL,EX,par)
 !C               WRITE(6,*) J,K
                IF(EX(1,1).GE.0) EXIT
             ENDDO

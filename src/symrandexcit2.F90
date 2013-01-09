@@ -39,10 +39,11 @@ MODULE GenRandSymExcitNUMod
                        SymLabelCounts
     use dSFMT_interface , only : genrand_real2_dSFMT
     use SymExcitDataMod 
-    use DetBitOps, only: FindExcitBitDet, EncodeBitDet
+    use DetBitOps, only: FindExcitBitDet, EncodeBitDet, get_single_parity, &
+                         get_double_parity
     use sltcnd_mod, only: sltcnd_1
     use constants, only: dp, n_int, bits_n_int
-    use bit_reps, only: NIfTot, nifdbo
+    use bit_reps, only: NIfTot, nifdbo, NIfD
     use sym_mod, only: mompbcsym, GetLz
     use detbitops , only : detbiteq
     use timing_neci
@@ -54,7 +55,7 @@ MODULE GenRandSymExcitNUMod
     contains
 
     subroutine gen_rand_excit (nI, ilut, nJ, ilutnJ, exFlag, IC, ExcitMat, &
-                               tParity, pGen, HElGen, store)
+                               parity, pGen, HElGen, store)
 
         ! This routine is the same as GenRandSymexcitNu, but you can pass in 
         ! the class count arrays so that they do not have to be recalculated 
@@ -66,7 +67,7 @@ MODULE GenRandSymExcitNUMod
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: iLut(0:niftot)
         integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
-        logical, intent(out) :: tParity
+        integer, intent(out) :: parity
         real(dp), intent(out) :: pgen
         type(excit_gen_store_type), intent(inout), target :: store
 
@@ -82,7 +83,7 @@ MODULE GenRandSymExcitNUMod
         HElGen = 0.0_dp
 
         IF((tUEG.and.tLatticeGens) .or. (tHub.and.tLatticeGens)) THEN
-            call CreateExcitLattice(nI,iLut,nJ,tParity,ExcitMat,pGen)
+            call CreateExcitLattice(nI,iLut,nJ,ilutnJ,parity,ExcitMat,pGen)
             IC=2
             RETURN
         ENDIF       
@@ -128,12 +129,13 @@ MODULE GenRandSymExcitNUMod
         ENDIF
 
         IF(IC.eq.2) THEN
-            CALL CreateDoubExcit (nI, nJ, store%ClassCountUnocc, ILUT, &
-                                  ExcitMat, tParity, pGen)
+            call CreateDoubExcit (nI, nJ, store%ClassCountUnocc, ilut, &
+                                  ilutnJ,&
+                                  ExcitMat, parity, pGen)
         ELSE
-            CALL CreateSingleExcit (nI, nJ, store%ClassCountOcc, &
-                                    store%ClassCountUnocc, ILUT, ExcitMat, &
-                                    tParity, pGen)
+            call CreateSingleExcit (nI, nJ, store%ClassCountOcc, &
+                                    store%ClassCountUnocc, ilut, ilutnJ, &
+                                    ExcitMat, parity, pGen)
 
 !            IF(pGen.eq.-1.0_dp) THEN
 !NOTE: ghb24 5/6/09 Cannot choose to create double instead, since you could have chosen a double first and it would have a different pGen.
@@ -143,19 +145,19 @@ MODULE GenRandSymExcitNUMod
 !                ENDIF
 !                pDoubNew=1.0_dp
 !                IC=2
-!                CALL CreateDoubExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
+!                CALL CreateDoubExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,parity,pGen)
 !            ENDIF
 
         ENDIF
 
     end subroutine
 
-    SUBROUTINE GenRandSymExcitNU(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
+    SUBROUTINE GenRandSymExcitNU(nI,iLut,nJ,pDoub,IC,ExcitMat,parity,exFlag,pGen)
         INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),exFlag
         INTEGER :: ClassCount2(ScratchSize)
         INTEGER :: ClassCountUnocc2(ScratchSize)
-        INTEGER(KIND=n_int) :: ILUT(0:NIfTot)
-        LOGICAL :: tParity
+        integer(n_int) :: ilut(0:NIfTot), ilutJ(0:NIfTot)
+        integer :: parity
         real(dp) :: pDoub,pGen,r
         CHARACTER(*), PARAMETER :: this_routine='GenRandSymExcitNU'
 
@@ -177,7 +179,7 @@ MODULE GenRandSymExcitNUMod
         IF(.not.TwoCycleSymGens) THEN
 !Currently only available for molecular systems, or without using symmetry.
             IF((tUEG.and.tLatticeGens) .or. (tHub.and.tLatticeGens)) THEN
-                call CreateExcitLattice(nI,iLut,nJ,tParity,ExcitMat,pGen)
+                call CreateExcitLattice(nI,iLut,nJ,ilutJ,parity,ExcitMat,pGen)
                 IC=2
                 RETURN
             ENDIF       
@@ -222,14 +224,16 @@ MODULE GenRandSymExcitNUMod
         ENDIF
 
         IF(IC.eq.2) THEN
-            CALL CreateDoubExcit(nI,nJ,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
+            call CreateDoubExcit (nI, nJ, ClassCountUnocc2, ilut, ilutJ, &
+                                  ExcitMat, parity, pGen)
         ELSE
 
 !            IF(nI(3).eq.3) THEN
 !                write(6,*) 'creating single, pdoub',pDoubNew
 !            ENDIF
  
-            CALL CreateSingleExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
+            call CreateSingleExcit (nI, nJ, ClassCount2, ClassCountUnocc2, &
+                                    ilut, ilutJ, ExcitMat, parity, pGen)
 !            IF(pGen.eq.-1.0_dp) THEN
 !NOTE: ghb24 5/6/09 Cannot choose to create double instead, 
 ! since you could have chosen a double first and it would have a different pGen.
@@ -238,7 +242,7 @@ MODULE GenRandSymExcitNUMod
 !                ENDIF
 !                pDoubNew=1.0_dp
 !                IC=2
-!                CALL CreateDoubExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
+!                CALL CreateDoubExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,parity,pGen)
 !            ENDIF
 
         ENDIF
@@ -246,13 +250,15 @@ MODULE GenRandSymExcitNUMod
 
     END SUBROUTINE GenRandSymExcitNU
 
-    SUBROUTINE CreateDoubExcit(nI,nJ,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
+    subroutine CreateDoubExcit (nI, nJ, ClassCountUnocc2, ilut, ilutJ, &
+                                ExcitMat, parity, pGen)
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: nJ(nel), ExcitMat(2,2)
         integer, intent(in) :: ClassCountUnocc2(ScratchSize)
         integer(n_int), intent(in) :: iLut(0:NIfTot)
+        integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         real(dp), intent(out) :: pGen
-        logical, intent(out) :: tParity
+        integer, intent(out) :: parity
 
         integer :: nExcitOtherWay, orbB, nExcitB, SpinOrbA, OrbA, SymA, SymB
         integer :: nExcitA, sumMl, mlA, mlB, iSpn, Elec1Ind, Elec2Ind
@@ -309,25 +315,11 @@ MODULE GenRandSymExcitNUMod
 !had picked B first. This will be returned in NExcitOtherWay.
         CALL PickBOrb(nI,iSpn,ILUT,ClassCountUnocc2,SpinOrbA,OrbA,SymA,OrbB,SymB,NExcitB,MlA,MlB,NExcitOtherWay)
 
-        CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,OrbA,OrbB,ExcitMat,tParity)
+        ! Generate the new ilut, nJ and parity.
+        call make_excit (nI, ilut, nJ, ilutJ, (/elec1ind,elec2ind/), &
+                         (/orbA, orbB/), ExcitMat, parity)
 
         CALL FindDoubleProb(ForbiddenOrbs,NExcitA,NExcitB,NExcitOtherWay,pGen)
-
-    END SUBROUTINE CreateDoubExcit
-
-!This routine creates the final determinant.
-    SUBROUTINE FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,OrbA,OrbB,ExcitMat,tParity)
-        integer, intent(in) :: nI(nel), Elec1Ind, Elec2Ind, OrbA, OrbB
-        integer, intent(out) :: ExcitMat(2,2), nJ(nel)
-        logical, intent(out) :: tParity
-
-!First construct ExcitMat
-        ExcitMat(1,1)=Elec1Ind
-        ExcitMat(2,1)=OrbA
-        ExcitMat(1,2)=Elec2Ind
-        ExcitMat(2,2)=OrbB
-        nJ(:)=nI(:)
-        CALL FindExcitDet(ExcitMat,nJ,2,tParity)
 
 #ifdef __DEBUG
 !These are useful (but O[N]) operations to test the determinant generated.
@@ -336,7 +328,49 @@ MODULE GenRandSymExcitNUMod
         CALL IsSymAllowedExcit(nI,nJ,2,ExcitMat)
 #endif
 
-    END SUBROUTINE FindNewDet
+    END SUBROUTINE CreateDoubExcit
+
+
+    subroutine make_excit (nI, ilutI, nJ, ilutJ, elecs, tgts, ex, parity)
+
+        ! Take an excitation matrix and source electron-choices and target
+        ! orbitals, and generate the excitation. (ex == Excitation Matrix)
+
+        integer, intent(in) :: nI(nel), elecs(:), tgts(:)
+        integer, intent(out) :: ex(:,:), parity, nJ(nel)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer(n_int), intent(out) :: ilutJ(0:NIfTot)
+        character(*), parameter :: this_routine = 'make_excit'
+        integer :: i
+
+        ! Put the source electron numbers and the target orbitals in place.
+        ! ex(1,1:ubound(elecs,1)) = elecs
+        ex(1,1:ubound(elecs,1)) = nI(elecs)
+        ex(2,1:ubound(tgts,1)) = tgts
+
+        ! Get the parity of the excitation
+        if (ubound(elecs, 1) == 2) then
+            parity = get_double_parity(ilutI, nI(elecs), tgts)
+        else
+            ASSERT(ubound(elecs, 1) == 1)
+            parity = get_single_parity(ilutI, nI(elecs(1)), tgts(1))
+        end if
+
+        ! Generate the new ilut and natural ordered determinant
+        ! N.B this generated determinant is NOT sorted.
+        nJ = nI
+        ilutJ(0:NIfD) = ilutI(0:NIfD)
+        ilutJ(NIfD+1:) = 0
+        do i = 1, ubound(elecs, 1)
+            clr_orb(ilutJ, nI(elecs(i)))
+            set_orb(ilutJ, tgts(i))
+            nJ(elecs(i)) = tgts(i)
+        end do
+
+    end subroutine
+
+
+
 
 !This routine finds the probability of creating the excitation. 
 ! See the header of the file for more information on how this works.
@@ -1218,17 +1252,21 @@ MODULE GenRandSymExcitNUMod
     END SUBROUTINE CheckIfSingleExcits
         
 
-    SUBROUTINE CreateSingleExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
-        INTEGER :: ElecsWNoExcits,i,Attempts,nOrbs,z,Orb
-        INTEGER :: Eleci,ElecSym,nI(NEl),nJ(NEl),NExcit,iSpn,ChosenUnocc
-        INTEGER :: ExcitMat(2,2)
-        INTEGER :: ClassCount2(ScratchSize)
-        INTEGER :: ClassCountUnocc2(ScratchSize),ElecK,SymIndex
-        INTEGER(KIND=n_int) :: ILUT(0:NIfTot)
-        real(dp) :: r,pGen
-        LOGICAL :: tParity
+    subroutine CreateSingleExcit (nI, nJ, ClassCount2, ClassCountUnocc2, &
+                                  ilut, ilutJ, ExcitMat, parity, pGen)
 
-           
+        integer, intent(in) :: nI(nel)
+        integer, intent(in) :: ClassCount2(ScratchSize)
+        integer, intent(in) :: ClassCountUnocc2(ScratchSize)
+        integer, intent(out) :: ExcitMat(2,2), parity, nJ(nel)
+        integer(n_int), intent(in) :: ilut(0:niftot)
+        integer(n_int), intent(out) :: ilutJ(0:niftot)
+        real(dp), intent(out) :: pGen
+
+        INTEGER :: ElecsWNoExcits,i,Attempts,nOrbs,z,Orb
+        INTEGER :: Eleci,ElecSym,NExcit,iSpn,ChosenUnocc
+        INTEGER :: ElecK,SymIndex
+        real(dp) :: r
 
         CALL CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2,nI)
         IF(ElecsWNoExcits.eq.NEl) THEN
@@ -1390,12 +1428,10 @@ MODULE GenRandSymExcitNUMod
 
         ENDIF
 
-        nJ(:)=nI(:)
-        ExcitMat(:,:) = 0
-!ExcitMat wants to be the index in nI of the orbital to excite from, but returns the actual orbitals.
-        ExcitMat(1,1)=Eleci
-        ExcitMat(2,1)=Orb
-        CALL FindExcitDet(ExcitMat,nJ,1,TParity)
+        ! Generate the updated ilut, natural integer, Excitation matrix and 
+        ! parity parts of the representation.
+        call make_excit (nI, ilut, nJ, ilutJ, (/eleci/), (/orb/), ExcitMat, &
+                         parity)
 
 #ifdef __DEBUG
 !These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
@@ -1618,10 +1654,13 @@ MODULE GenRandSymExcitNUMod
 !spawning algorithm, since a stochastic choice as to whether the particle is accepted or not is also done within the routine.
 !Because of this, tau is needed for the timestep of the simulation, and iCreate is returned as the number of children to create
 !on the determinant. If this is zero, then no childred are to be created.
-    SUBROUTINE GenRandSymExcitBiased(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,nParts,WSign,tau,iCreate)
+    subroutine GenRandSymExcitBiased (nI, iLut, nJ, pDoub, IC, &
+                                      ExcitMat, parity, exFlag, nParts, &
+                                      wSign, tau, iCreate)
+
         INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),exFlag,iCreate,nParts,WSign,ElecsWNoExcits
-        INTEGER(KIND=n_int) :: ILUT(0:NIfTot)
-        LOGICAL :: tParity
+        INTEGER(KIND=n_int) :: ILUT(0:NIfTot), ilutJ(0:NIfTot)
+        integer :: parity
         real(dp) :: pDoub,r,tau
         CHARACTER(*), PARAMETER :: this_routine='GenRandSymExcitBiased'
 
@@ -1669,9 +1708,9 @@ MODULE GenRandSymExcitNUMod
         ENDIF
 
         IF(IC.eq.2) THEN
-            CALL CreateDoubExcitBiased(nI,nJ,ILUT,ExcitMat,tParity,nParts,WSign,Tau,iCreate)
+            CALL CreateDoubExcitBiased(nI,nJ,ILUT,ilutJ,ExcitMat,Parity,nParts,WSign,Tau,iCreate)
         ELSE
-            CALL CreateSingleExcitBiased(nI,nJ,iLut,ExcitMat,tParity,ElecsWNoExcits,nParts,WSign,Tau,iCreate)
+            CALL CreateSingleExcitBiased(nI,nJ,iLut,ilutJ, excitMat,parity,ElecsWNoExcits,nParts,WSign,Tau,iCreate)
             IF(ElecsWNoExcits.eq.NEl) THEN
 !                IF(ExFlag.ne.3) THEN
 !Should not be changing pDoub since it won't affect all doubles generation equally.
@@ -1680,21 +1719,25 @@ MODULE GenRandSymExcitNUMod
 !                ENDIF
 !                pDoubNew=1.0_dp
 !                IC=2
-!                CALL CreateDoubExcitBiased(nI,nJ,ILUT,ExcitMat,tParity,nParts,WSign,Tau,iCreate)
+!                CALL CreateDoubExcitBiased(nI,nJ,ILUT,ExcitMat,parity,nParts,WSign,Tau,iCreate)
             ENDIF
 
         ENDIF
 
     END SUBROUTINE GenRandSymExcitBiased
 
-    SUBROUTINE CreateSingleExcitBiased(nI,nJ,iLut,ExcitMat,tParity,ElecsWNoExcits,nParts,WSign,Tau,iCreate)
+    subroutine CreateSingleExcitBiased (nI, nJ, iLut, ilutJ, ExcitMat, &
+                                        parity, ElecsWNoExcits, nParts, &
+                                        WSign, Tau, iCreate)
+
         INTEGER :: ClassCount2(ScratchSize),i,Attempts,OrbA
         INTEGER :: ClassCountUnocc2(ScratchSize),Ind
         INTEGER :: ElecsWNoExcits,nParts,WSign,iCreate,nI(NEl),nJ(NEl)
-        INTEGER(KIND=n_int) :: iLut(0:NIfTot)
+        integer(n_int), intent(in) :: iLut(0:NIfTot)
+        integer(n_int), intent(out) :: ilutJ(0:NIfTot)
+        integer, intent(out) :: parity
         INTEGER :: ExcitMat(2,2),SpawnOrb(nBasis),Eleci,ElecSym,NExcit,VecInd,ispn,EndSymState,j
         real(dp) :: Tau,SpawnProb(nBasis),NormProb,r,rat
-        LOGICAL :: tParity
         HElement_t :: rh
 
 !First, we need to do an O[N] operation to find the number of occupied alpha electrons, number of occupied beta electrons
@@ -1786,14 +1829,13 @@ MODULE GenRandSymExcitNUMod
 !                OrbA=SymLabelList(1,j)
 !            ENDIF
 
-            IF(BTEST(ILUT((OrbA-1)/bits_n_int),MOD((OrbA-1),bits_n_int))) THEN
-!Orbital is in nI...not an unoccupied orbital
-                CYCLE
-            ENDIF
+            ! If orbital is occupied in the det, we can't excite to it...
+            if (IsOcc(ilut, orbA)) &
+                cycle
 
 !Now we want to find the information about this excitation
             ExcitMat(2,1)=OrbA
-            rh = sltcnd_1 (nI, ExcitMat, .false.)
+            rh = sltcnd_1 (nI, ExcitMat, 1)
         
             SpawnProb(VecInd)=abs(REAL(rh,dp))
             SpawnOrb(VecInd)=OrbA
@@ -1837,12 +1879,11 @@ MODULE GenRandSymExcitNUMod
 
             OrbA=SpawnOrb(i)
 
-!We now know that we want to create iCreate particles, from orbitals nI(Eleci) -> OrbA.
-            nJ(:)=nI(:)
-!ExcitMat wants to be the index in nI of the orbital to excite from, but returns the actual orbitals.
-            ExcitMat(1,1)=Eleci
-            ExcitMat(2,1)=OrbA
-            CALL FindExcitDet(ExcitMat,nJ,1,TParity)
+
+            ! And create the excitation.
+            call make_excit (nI, ilut, nJ, ilutJ, (/eleci/), (/orbA/), &
+                             ExcitMat, parity)
+
 
 !These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
 !excitations, I recommend uncommenting these tests to check the results.
@@ -1850,7 +1891,7 @@ MODULE GenRandSymExcitNUMod
 
 !Once we have the definitive determinant, we also want to find out what sign the particles we want to create are.
 !iCreate is initially positive, so its sign can change depending on the sign of the connection and of the parent particle(s)
-            rh = get_helement (nI, nJ, 1, ExcitMat, tParity)
+            rh = get_helement (nI, nJ, 1, ExcitMat, parity)
 
             IF(WSign.gt.0) THEN
                 !Parent particle is positive
@@ -1868,12 +1909,15 @@ MODULE GenRandSymExcitNUMod
     END SUBROUTINE CreateSingleExcitBiased
         
 
-    SUBROUTINE CreateDoubExcitBiased(nI,nJ,iLut,ExcitMat,tParity,nParts,WSign,Tau,iCreate)
+    subroutine CreateDoubExcitBiased (nI, nJ, iLut, ilutJ, ExcitMat, parity, &
+                                      nParts, WSign, Tau, iCreate)
+
         INTEGER :: nI(NEl),nJ(NEl),ExcitMat(2,2),iCreate,iSpn,OrbA,OrbB,SymProduct
-        INTEGER(KIND=n_int) :: iLut(0:NIfTot)
+        integer(n_int), intent(in) :: iLut(0:NIfTot)
+        integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         INTEGER :: Elec1Ind,Elec2Ind,nParts,WSign,SumMl
         HElement_t :: rh
-        LOGICAL :: tParity
+        integer, intent(out) :: parity
         real(dp) :: Tau
 
 !First, we need to pick an unbiased distinct electron pair.
@@ -1887,11 +1931,12 @@ MODULE GenRandSymExcitNUMod
 
 !We now know that we want to create iCreate particles, from orbitals nI(Elec1/2Ind) -> OrbA + OrbB.
         IF(iCreate.gt.0) THEN
-            CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,OrbA,OrbB,ExcitMat,tParity)
+            call make_excit (nI, ilut, nJ, ilutJ, (/Elec1Ind, Elec2Ind/), &
+                             (/orbA, orbB/), ExcitMat, parity)
 
 !Once we have the definitive determinant, we also want to find out what sign the particles we want to create are.
 !iCreate is initially positive, so its sign can change depending on the sign of the connection and of the parent particle(s)
-            rh = get_helement (nI, nJ, 2, ExcitMat, tParity)
+            rh = get_helement (nI, nJ, 2, ExcitMat, parity)
 
             IF(WSign.gt.0) THEN
                 !Parent particle is positive
@@ -2065,14 +2110,17 @@ MODULE GenRandSymExcitNUMod
 
 ! For a given ij pair in the UEG or Hubbard model, this generates ab as a double excitation efficiently.
 ! This takes into account the momentum conservation rule, i.e. that kb=ki+ki-ka(+G).
-    SUBROUTINE CreateDoubExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn)
+    subroutine CreateDoubExcitLattice (nI, iLutnI, nJ, ilutJ, parity, ExcitMat,&
+                                       pGen, Elec1Ind, Elec2Ind, iSpn)
         Use SystemData , only : NMAXX,NMAXY,NMAXZ,tOrbECutoff,OrbECutoff, kvec, TUEG2
         use sym_mod, only: mompbcsym
 
         INTEGER :: i,nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,iSpn,kb_ms
-        INTEGER(KIND=n_int) :: iLutnI(0:NIfTot)
+        INTEGER(n_int), intent(in) :: iLutnI(0:NIfTot)
+        integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         INTEGER :: ChosenUnocc,Hole1BasisNum,Hole2BasisNum,ki(3),kj(3),ka(3),kb(3),ExcitMat(2,2),iSpinIndex,TestEnergyB
-        LOGICAL :: tAllowedExcit,tParity
+        integer, intent(out) :: parity
+        LOGICAL :: tAllowedExcit
         real(dp) :: r,pGen,pAIJ
        
         ! This chooses an a of the correct spin, excluding occupied orbitals
@@ -2158,7 +2206,9 @@ MODULE GenRandSymExcitNUMod
             ENDDO
 
             ! Find the new determinant
-            CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,Hole1BasisNum,Hole2BasisNum,ExcitMat,tParity)     
+            call make_excit (nI, ilutnI, nJ, ilutJ, (/Elec1Ind,Elec2Ind/), &
+                             (/Hole1BasisNum,Hole2BasisNum/), ExcitMat, &
+                             parity)
 
             !Calculate generation probabilities
             IF (iSpn.eq.2) THEN
@@ -2283,8 +2333,9 @@ MODULE GenRandSymExcitNUMod
 
         ENDIF
 
-        ! Find the new determinant
-        CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,Hole1BasisNum,Hole2BasisNum,ExcitMat,tParity)
+        ! Find the new determinant.
+        call make_excit (nI, ilutnI, nJ, ilutJ, (/Elec1Ind, Elec2Ind/), &
+                         (/Hole1BasisNum, Hole2BasisNum/), ExcitMat, parity)
                 
         IF(tHub) THEN
             ! Debug to test the resultant determinant
@@ -2316,16 +2367,18 @@ MODULE GenRandSymExcitNUMod
     ! each ab is picked for that ij pair with equal probability.
     ! For UEG there is a more sophisticated algorithm that allows more ijab choices to be rejected before going back to the main
     ! code.
-    SUBROUTINE CreateExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen)
+    SUBROUTINE CreateExcitLattice(nI,iLutnI,nJ,ilutJ,parity,ExcitMat,pGen)
         Use SystemData , only : NMAXX,NMAXY,NMAXZ, tUEG2, kvec
 
         INTEGER :: i,j ! Loop variables
         INTEGER :: Elec1, Elec2
+        integer, intent(out) :: parity
+        integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ExcitMat(2,2),iSpn
         INTEGER(KIND=n_int) :: iLutnI(0:NIfTot)
         INTEGER :: ki(3),kj(3),kTrial(3),iElecInExcitRange,iExcludedKFromElec1,iAllowedExcites
         INTEGER :: KaXLowerLimit,KaXUpperLimit,KaXRange,KaYLowerLimit,KaYUpperLimit,KaYRange,KaZLowerLimit,KaZUpperLimit,KaZRange
-        LOGICAL :: tParity,tDoubleCount,tExtraPoint
+        LOGICAL :: tDoubleCount,tExtraPoint
         real(dp) :: r(2),pGen,pAIJ
         INTEGER, ALLOCATABLE :: Excludedk(:,:)
 
@@ -2463,7 +2516,7 @@ MODULE GenRandSymExcitNUMod
                 write(6,*) "Allowed Excitations", iAllowedExcites
                 CALL Stop_All("CreateExcitLattice","Failure to generate a valid excitation from an electron pair combination")
             ENDIF
-            CALL CreateDoubExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn)
+            CALL CreateDoubExcitLattice(nI,iLutnI,nJ,ilutJ,parity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn)
             IF (.not.tNoFailAb) RETURN 
             IF (nJ(1).ne.0) EXIT ! i.e. if we are using the NoFail algorithm only exit on successful nJ(1)!=0
         ENDDO
@@ -2488,13 +2541,12 @@ MODULE GenRandSymExcitNUMod
     ! Attempt at an excitation generator that calculates pgen on the fly
     ! Based around a very simple generation algorithm: find unique i, j, a, b, then reject
     ! Currently not working
-    SUBROUTINE CreateExcitLattice2(nI,iLutnI,nJ,tParity,ExcitMat,pGen)
+    SUBROUTINE CreateExcitLattice2(nI,iLutnI,nJ,parity,ExcitMat,pGen)
         Use SystemData , only : NMAXX,NMAXY,NMAXZ
 
-        INTEGER :: Elec1, Elec2, Hole1, Hole2,ms_sum
+        INTEGER :: Elec1, Elec2, Hole1, Hole2,ms_sum, parity
         INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ExcitMat(2,2),rejections
-        INTEGER(KIND=n_int) :: iLutnI(0:NIfTot)
-        LOGICAL :: tParity
+        INTEGER(KIND=n_int) :: iLutnI(0:NIfTot), ilutJ(0:NIfTot)
         real(dp) :: r(4),pGen
         
 
@@ -2538,7 +2590,8 @@ MODULE GenRandSymExcitNUMod
             ms_sum=G1(Elec1)%Ms+G1(Elec2)%Ms-G1(Hole1)%Ms-G1(Hole2)%Ms
             IF (ms_sum.ne.0) CYCLE
             
-            CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,Hole1,Hole2,ExcitMat,tParity)
+            call make_excit (nI, ilutnI, nJ, ilutJ, (/Elec1Ind,Elec2Ind/), &
+                             (/Hole1,Hole2/), ExcitMat, parity)
 
             ! k-point symmetry
             IF(.not.(IsMomentumAllowed(nJ)))THEN
@@ -2669,7 +2722,8 @@ MODULE GenRandSymExcitNUMod
         real(dp) :: pDoub,pGen,AverageContrib,AllAverageContrib
         INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot),iLut(0:NIfTot)
         INTEGER :: iExcit
-        LOGICAL :: tParity,IsMomAllowedDet,test
+        LOGICAL :: IsMomAllowedDet,test
+        integer :: parity
 
         ! Accumulator arrays. These need to be allocated on the heap, or we
         ! get a segfault by overflowing the stack using ifort
@@ -2798,7 +2852,7 @@ MODULE GenRandSymExcitNUMod
             ENDIF
 
             call gen_rand_excit (nI, iLut, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                                 tParity, pGen, HElGen, store)
+                                 parity, pGen, HElGen, store)
             IF(nJ(1).eq.0) THEN
     !            ForbiddenIter=ForbiddenIter+1
                 CYCLE
@@ -3517,20 +3571,22 @@ SUBROUTINE IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
     INTEGER :: IC,ExcitMat(2,2),nI(NEl),nJ(NEl),ExcitLevel,iGetExcitLevel
     INTEGER :: KOcc,KUnocc,SymprodnJ,SymprodnI,i
     integer(n_int) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot)
+    character(*), parameter :: this_routine = 'IsSymAllowedExcit'
 
      Excitlevel=iGetExcitLevel(nI,nJ,NEl)
      IF(Excitlevel.ne.IC) THEN
          WRITE(6,*) "Have not created a correct excitation"
         call write_det (6, nI, .true.)
         call write_det (6, nJ, .true.)
-        STOP "Have not created a correct excitation"
+        call stop_all (this_routine, "Have not created a correct excitation")
      ENDIF
-     IF(.NOT.ISVALIDDET(nJ,NEL)) THEN
-         WRITE(6,*) "INVALID DET"
-         call write_det (6, nI, .true.)
-         call write_det (6, nJ, .true.)
-         STOP "INVALID DET"
-     ENDIF
+     ! We no longer need the determinants to be ordered.
+     !IF(.NOT.ISVALIDDET(nJ,NEL)) THEN
+     !    WRITE(6,*) "INVALID DET"
+     !    call write_det (6, nI, .true.)
+     !    call write_det (6, nJ, .true.)
+     !    call stop_all (this_routine, "INVALID DET")
+     !ENDIF
 
      SymprodnI=0
      SymprodnJ=0
