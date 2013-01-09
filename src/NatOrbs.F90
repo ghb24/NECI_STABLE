@@ -401,8 +401,7 @@ MODULE NatOrbsMod
 ! AllHistogram contains the final (normalised) amplitude of the determinant - with sign.
         IMPLICIT NONE
         INTEGER :: excit,i,j,Starti,Endi,Startj,Endj,ExcitLevel,Ex(2,1),Orbi,Orbj,nJ(NEl),Orbk,k,nI(NEl),MaxExcit
-        INTEGER :: Spins
-        LOGICAL :: tSign
+        INTEGER :: Spins, parity
         real(dp) :: SignDet
 
 ! Density matrix    = D_pq = < Psi | a_q+ a_p | Psi > 
@@ -517,7 +516,7 @@ MODULE NatOrbsMod
                         Ex(:,:)=0
                         Ex(1,1)=ExcitLevel
 
-                        CALL GetBitExcitation(FCIDets(:,i),FCIDets(:,j),Ex,tSign)
+                        CALL GetBitExcitation(FCIDets(:,i),FCIDets(:,j),Ex,parity)
                         ! Gives the orbitals involved in the excitation Ex(1,1) 
                         ! in i -> Ex(2,1) in j (in spin orbitals).
 
@@ -531,11 +530,7 @@ MODULE NatOrbsMod
                             Orbj=SymLabelListInv_rot(CEILING(REAL(Ex(2,1))/2.0_dp))
                             Spins=2
                         ENDIF
-                        IF(tSign) THEN
-                            SignDet=(-1.0_dp)
-                        ELSE
-                            SignDet=1.0_dp
-                        ENDIF
+                        SignDet = real(parity, dp)
 
                         NatOrbMat(Orbi,Orbj)=NatOrbMat(Orbi,Orbj) &
                                                 + (SignDet*AllHistogram(1,i)*AllHistogram(1,j))

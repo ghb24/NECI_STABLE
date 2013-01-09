@@ -20,7 +20,8 @@ module symrandexcit3
     use dSFMT_interface, only: genrand_real2_dSFMT
     use GenRandSymExcitNUMod, only: RandExcitSymLabelProd, ClassCountInd, &
                                     CreateSingleExcit, CreateExcitLattice, &
-                                    init_excit_gen_store,clean_excit_gen_store
+                                    init_excit_gen_store,clean_excit_gen_store,&
+                                    make_excit
     use FciMCData, only: pDoubles, iter, excit_gen_store_type
     use bit_reps, only: niftot, decode_bit_det_lists
     use constants, only: dp, n_int, bits_n_int
@@ -32,7 +33,7 @@ module symrandexcit3
 contains
 
     subroutine gen_rand_excit3 (nI, ilutI, nJ, ilutJ, exFlag, IC, ExcitMat, &
-                                tParity, pGen, HElGen, store)
+                                parity, pGen, HElGen, store)
 
         ! This generator _requires_ store to have already been filled. This
         ! involves calling decode_bit_det_lists.
@@ -41,7 +42,7 @@ contains
         integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
         integer(n_int), intent(out) :: ilutJ(0:niftot)
-        logical, intent(out) :: tParity
+        integer, intent(out) :: parity
         real(dp), intent(out) :: pgen
         HElement_t, intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
@@ -56,7 +57,8 @@ contains
         ! UEG and Hubbard interjection for now
         ! TODO: This should be made into its own fn-pointered case.
         if ((tUEG .and. tLatticeGens) .or. (tHub .and. tLatticeGens)) then
-            call CreateExcitLattice (nI, iLutI, nJ, tParity, ExcitMat, pGen)
+            call CreateExcitLattice (nI, iLutI, nJ, ilutJ, parity, ExcitMat, &
+                                     pGen)
             IC = 2
             return
         endif
@@ -86,10 +88,10 @@ ASSERT(exFlag<=3.and.exFlag>=1)
 
         ! Call the actual single/double excitation generators.
         if (IC == 2) then
-            pGen = gen_double (nI, nJ, iLutI, ExcitMat, tParity, &
+            pGen = gen_double (nI, nJ, iLutI, ilutJ, ExcitMat, parity, &
                                store%ClassCountUnocc, store%virt_list)
         else
-            pGen = gen_single (nI, nJ, ilutI, ExcitMat, tParity, &
+            pGen = gen_single (nI, nJ, ilutI, ilutJ, ExcitMat, parity, &
                                store%ClassCountOcc, store%ClassCountUnocc, &
                                store%scratch3, store%occ_list, &
                                store%virt_list)
@@ -98,7 +100,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
     end subroutine
 
 
-    function gen_double (nI, nJ, iLutI, ExcitMat, tParity, CCUnocc, &
+    function gen_double (nI, nJ, iLutI, ilutJ, ExcitMat, parity, CCUnocc, &
                          virt_list) result(pGen)
 
         integer, intent(in) :: nI(nel)
@@ -106,8 +108,8 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         integer, intent(in) :: CCUnocc(ScratchSize)
         integer, intent(in) :: virt_list(:,:)
         integer(n_int), intent(in) :: iLutI(0:niftot)
-        integer, intent(out) :: ExcitMat(2,2)
-        logical, intent(out) :: tParity
+        integer(n_int), intent(out) :: ilutJ(0:NifTot)
+        integer, intent(out) :: ExcitMat(2,2), parity
         real(dp) :: pGen
 
         real(dp) :: pElecs
@@ -141,7 +143,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
                               virt_list)
 
         ! Generate the final determinant.
-        call create_excit_det2 (nI, nJ, tParity, ExcitMat, elecs, orbs)
+        call make_excit (nI, ilutI, nJ, ilutJ, elecs, orbs, ExcitMat, parity)
        
         ! Return the final probability
         pGen = pDoubNew / real(ElecPairs * tot_pairs, dp)
@@ -309,21 +311,6 @@ ASSERT(exFlag<=3.and.exFlag>=1)
     end subroutine
 
 
-    subroutine create_excit_det2 (nI, nJ, tParity, ExcitMat, elecs, orbs)
-
-        integer, intent(in) :: nI(nel), elecs(2), orbs(2)
-        integer, intent(out) :: nJ(nel), ExcitMat(2,2)
-        logical, intent(out) :: tParity
-
-        ExcitMat(1,:) = elecs
-        ExcitMat(2,:) = orbs
-        nJ = nI
-
-        ! TODO FindExcitDet (excit.F) is not modularised/interfaced yet
-        call FindExcitDet(ExcitMat, nJ, 2, tParity)
-
-    end subroutine
-
     subroutine construct_class_counts (nI, CCOcc, CCUnocc, pair_list)
 
         ! Return two arrays of length ScratchSize, containing information on
@@ -358,13 +345,14 @@ ASSERT(exFlag<=3.and.exFlag>=1)
 
     end subroutine
 
-    function gen_single (nI, nJ, iLutI, ExcitMat,  tParity, CCOcc, CCUnocc, &
-                         pair_list, occ_list, virt_list) result(pGen)
+    function gen_single (nI, nJ, iLutI, ilutJ, ExcitMat, parity, CCOcc, &
+                         CCUnocc, pair_list, occ_list, virt_list) result(pGen)
 
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:niftot)
+        integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         integer, intent(out) :: nJ(nel), ExcitMat(2,2)
-        logical, intent(out) :: tParity
+        integer, intent(out) :: parity
         integer, intent(in) :: CCOcc(ScratchSize), CCUnocc(ScratchSize)
         integer, intent(out) :: pair_list(ScratchSize)
         integer, intent(in) :: occ_list(:,:), virt_list(:,:)
@@ -409,14 +397,11 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         src = mod(rint - 1, CCOcc(ind)) + 1
         tgt = floor((real(rint,dp) - 1) / CCOcc(ind)) + 1
 
-        ! Find the index of the src orbital in the list and the target orbital
-        ! (the tgt'th vacant orbital in the given symmetry)
-        ExcitMat(1,1) = occ_list(src, ind)
-        ExcitMat(2,1) = virt_list(tgt, ind)
-
-        ! Generate the new determinant
-        nJ = nI
-        call FindExcitDet (ExcitMat, nJ, 1, tParity)
+        ! Generate the excitation
+        ! The index of the src orbital, and the value of the target orbital
+        ! are in the list (the tgt'th vacant orbital in the given symmetry).
+        call make_excit (nI, ilutI, nJ, ilutJ, (/occ_list(src, ind)/), &
+                         (/virt_list(tgt, ind)/), ExcitMat, parity)
 
 #ifdef __DEBUG
         ! For debugging purposes only (O[N] operation).
@@ -445,8 +430,8 @@ ASSERT(exFlag<=3.and.exFlag>=1)
     INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),kx,ky,kz,ktrial(3)
     real(dp) :: pDoub,pGen,AverageContrib,AllAverageContrib
     INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot),iLut(0:NIfTot)
-    INTEGER :: iExcit
-    LOGICAL :: tParity,IsMomAllowedDet,test
+    INTEGER :: iExcit, parity
+    LOGICAL :: IsMomAllowedDet,test
     
     ! Accumulator arrays. These need to be allocated on the heap, or we
     ! get a segfault by overflowing the stack using ifort
@@ -577,7 +562,7 @@ lp2: do while(.true.)
         ENDIF
 
         call gen_rand_excit3 (nI, iLut, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                             tParity, pGen, HElGen, store)
+                              parity, pGen, HElGen, store)
         IF(nJ(1).eq.0) THEN
 !            ForbiddenIter=ForbiddenIter+1
             CYCLE

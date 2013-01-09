@@ -3620,8 +3620,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !.. LIST(J,1) = RHOIJ
 !.. LIST(J,2) = HIJ
 
-         INTEGER nJ(nEl),iEx(2,2),nK(nEl)
-         LOGICAL tDummy
+         INTEGER nJ(nEl),iEx(2,2),nK(nEl), iDummy
          HElement_t StarMat(5,5),rh,rhii
          integer i,iExcit,iExc
 
@@ -3634,7 +3633,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          iEx(1,1)=2
 !.. Get the orbitals which are excited in going from I to J
 !.. IEX(1,*) are in I, and IEX(2,*) are in J
-         CALL GetExcitation(nI,nJ,nEl,iEx,tDummy)
+         CALL GetExcitation(nI,nJ,nEl,iEx,iDummy)
          IF(iEx(1,1).GT.0.AND.iEx(1,2).GT.0) THEn
 !  We've got a double excitation
             StarMat(1,1)=ExcitInfo(iExcit,0)
