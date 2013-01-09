@@ -69,8 +69,8 @@ module mcpathshdiag
          INTEGER, pointer :: CURGEN(:)
          TYPE(EGP) LOCTAB(:)
          TYPE(EGP) LOCTAB2(I_V)
-         LOGICAL TFAIL,TNEXT,T
-         INTEGER L,LT,IVLEVEL,IEXFROM,IVLMAX,IVLMIN
+         LOGICAL TFAIL,TNEXT
+         INTEGER L,LT,IVLEVEL,IEXFROM,IVLMAX,IVLMIN, par
          INTEGER ICMPDETS
          INTEGER IC
          INTEGER DUMMY(0:I_V)
@@ -424,7 +424,7 @@ module mcpathshdiag
                    IF(IAND(NWHTAY,8).NE.0.AND.I_VIND.LT.(I_V-2)) THEN
                      IF(ICIL.EQ.0) THEN
                         EX(1,1)=2
-                        CALL GETEXCITATION(IPATH(1,IEXFROM),NJ,NEL,EX,T)
+                        CALL GETEXCITATION(IPATH(1,IEXFROM),NJ,NEL,EX,par)
                         ICILMAX=2
                         IF(EX(1,2).NE.0) ICILMAX=ICILMAX+1
                      ENDIF
@@ -517,8 +517,7 @@ end module
          real(dp) Energyfromold
          real(dp) totWeight,avWeight
          real(dp) Weight
-         LOGICAL T
-         INTEGER g
+         INTEGER g, par
          DATA g/0/
          DATA totWeight/0.0_dp/
 !         DATA Energytoold/0.0_dp/
@@ -526,7 +525,7 @@ end module
          SAVE g,Energyfromold,totWeight
          OPEN(56,FILE="WEIGHTDATA",STATUS="UNKNOWN")
          EX(1,1)=2
-         Call GetEXCITATION(IPATH(1:NEL,0),IPATH(1:NEL,1),NEL,EX,T)
+         Call GetEXCITATION(IPATH(1:NEL,0),IPATH(1:NEL,1),NEL,EX,par)
          If(Ex(1,2).eq.0) Then !we have a single excitation
 !             Write(56, "5G25.16") Weight, Arr(EX(1,1),2), 0,
 !     &                                 Arr(EX(2,1),2), 0
@@ -564,8 +563,8 @@ end module
          INTEGER EXCITLEV
          real(dp) Weight,DLWDB2
          HElement_t ME
-         LOGICAL AREDETSEXCITS,CONNECT23, T
-         integer c
+         LOGICAL AREDETSEXCITS,CONNECT23
+         integer c, par
          integer(int64) SINGLE,DOUBLE,histogram(-20:3)
          SAVE c,SINGLE,DOUBLE,histogram
          DATA histogram/24*0/
@@ -577,7 +576,7 @@ end module
          IF(I_V.eq.2) THEN
             EX(1,1)=2
             OPEN(56,FILE="GRAPHSTATS",STATUS="UNKNOWN")
-            CALL GetEXCITATION(IPATH(1:NEL,0),IPATH(1:NEL,1),NEL,EX,T)
+            CALL GetEXCITATION(IPATH(1:NEL,0),IPATH(1:NEL,1),NEL,EX,par)
          
             IF((EX(1,2).eq.0).and.(Weight.gt.0.0_dp)) THEN
 !               Energy=Arr(Ex(1,1),2)
@@ -618,7 +617,7 @@ end module
                 EX(1,1)=2
                 
                 IF(CONNECT23) THEN  !Nodes 2&3 connected
-                    CALL GetEXCITATION(IPATH(1:NEL,1),IPATH(1:NEL,2),NEL,EX,T)
+                    CALL GetEXCITATION(IPATH(1:NEL,1),IPATH(1:NEL,2),NEL,EX,par)
                     IF(EX(1,2).ne.0) THEN
                         DOUBLE=DOUBLE+1
                         ISS=NBASISMAX(2,3)
@@ -665,7 +664,7 @@ end module
                     ENDIF
                 ELSE    !We have a class 6 graph where nodes 2&3 are disconnected
 
-                    CALL GetEXCITATION(IPATH(1:NEL,0),IPATH(1:NEL,2),NEL,EX,T)
+                    CALL GetEXCITATION(IPATH(1:NEL,0),IPATH(1:NEL,2),NEL,EX,par)
                     IF(EX(1,2).eq.0) THEN
                         STOP 'Should not be single excits here'
                     ELSE

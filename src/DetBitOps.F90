@@ -257,7 +257,7 @@ module DetBitOps
     pure subroutine get_bit_excitmat (ilutI, iLutJ, ex, IC)
         
         ! Obatin the excitation matrix between two determinants from their bit
-        ! representation without calculating tSign --> a bit quicker.
+        ! representation without calculating parity --> a bit quicker.
         !
         ! In:    iLutI, iLutJ - Bit representations of determinants I,J
         ! InOut: IC           - Specify max IC before bailing, and return
@@ -973,9 +973,93 @@ module DetBitOps
 
     end subroutine
 
+
+    pure function get_single_parity (ilut, src, tgt) result(par)
+
+        ! Find the relative parity of two determinants, where one is ilut
+        ! and the other is a single excitation of ilut where orbital src is
+        ! swapped with orbital tgt.
+
+        integer, intent(in) :: src, tgt
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+
+        integer(n_int) :: tmp(0:NIfD), mask(0:NIfD)
+        integer :: min_orb, max_orb, par, min_int, max_int, cnt
+        integer :: min_in_int, max_in_int
+
+        ! We just want to count the orbitals between these two limits.
+        min_orb = (min(src, tgt) + 1) - 1
+        max_orb = (max(src, tgt) - 1)
+
+        ! Which integers of the bit representation are involved?
+        min_int = int(min_orb / bits_n_int)
+        max_int = int(max_orb / bits_n_int)
+
+        ! Where in the integer do the revelant bits sit?
+        min_in_int = mod(min_orb, bits_n_int)
+        max_in_int = mod(max_orb, bits_n_int)
+
+        ! Generate a mask so as to only count the occupied orbitals
+        ! between where we started and the end.
+        mask(0:min_int-1) = 0
+        mask(min_int:max_int) = not(0_n_int)
+        mask(max_int+1:NIfD) = 0
+        mask(min_int) = &
+            iand(mask(min_int), ishft(not(0_n_int), min_in_int))
+        mask(max_int) = &
+            iand(mask(max_int), not(ishft(not(0_n_int), max_in_int)))
+
+        ! Count the number of occupied orbitals between the source and tgt
+        ! orbitals.
+        cnt = CountBits(iand(mask, ilut(0:NIfD)), NIfD)
+
+        ! Get the parity from this information.
+        if (btest(cnt, 0)) then
+            par = -1
+        else
+            par = 1
+        end if
+
+    end function
+
+    function get_double_parity (ilut, src, tgt) result(par)
+
+        ! Find the relative parity of two determinants, where one is ilut
+        ! and the other is a single excitation of ilut where orbital src is
+        ! swapped with orbital tgt.
+
+        integer, intent(in) :: src(2), tgt(2)
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+
+        integer(n_int) :: tmp(0:NIfD), mask(0:NIfD)
+        integer :: min_orb, max_orb, par, min_int, max_int, cnt
+        integer :: min_in_int, max_in_int
+
+
+        if (all(tgt > maxval(src)) .or. all(tgt < minval(src))) then
+
+            ! The source and target orbitals don't overlap
+            par = get_single_parity (ilut, src(1), src(2)) * &
+                  get_single_parity (ilut, tgt(1), tgt(2))
+
+        !elseif ((minval(src) < minval(tgt)) .eqv. &
+        !                                 (maxval(src) > maxval(tgt))) then
+        else
+
+            ! All categories of overlapping src and target orbitals are the 
+            ! same.
+            par = get_single_parity (ilut, minval(src), minval(tgt)) * &
+                  get_single_parity (ilut, maxval(src), maxval(tgt))
+
+        end if
+
+
+    end function
+
+
 end module
 
-    pure subroutine GetBitExcitation(iLutnI,iLutnJ,Ex,tSign)
+    pure subroutine GetBitExcitation(iLutnI,iLutnJ,Ex,parity)
 
         ! A port from hfq. The first of many...
         ! JSS.
@@ -991,9 +1075,9 @@ end module
         !    Ex(2,max_excit): contains the excitation connected iLutnI to
         !        iLutnJ.  Ex(1,i) is the i-th orbital excited from and Ex(2,i)
         !        is the corresponding orbital excited to.
-        !    tSign:
-        !        True if an odd number of permutations is required to line up
-        !        the determinants.
+        !    parity:
+        !        -1 if an odd number of permutations is required to line up
+        !        the determinants, +1 otherwise
 
         use SystemData, only: nel
         use bit_rep_data, only: NIfD
@@ -1002,11 +1086,11 @@ end module
         implicit none
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfD), iLutnJ(0:NIfD)
         integer, intent(inout) :: Ex(2,*)
-        logical, intent(out) :: tSign
+        integer, intent(out) :: parity
         integer :: i, j, iexcit1, iexcit2, perm, iel1, iel2, shift, max_excit
         logical :: testI, testJ
 
-        tSign=.true.
+        parity = 1
         max_excit = Ex(1,1)
         Ex(:,:max_excit) = 0
 
@@ -1075,8 +1159,8 @@ end module
                 if (iexcit1 == max_excit .and. iexcit2 == max_excit) exit
             end do
 
-            ! It seems that this test is faster than btest(perm,0)!
-            tSign = mod(perm,2) == 1
+            ! Extract the parity. even --> +1, odd --> -1
+            parity = 1 - (2 * mod(perm, 2))
 
             if (iexcit1<max_excit) then
                 Ex(:,iexcit1+1) = 0 ! Indicate we've ended the excitation.

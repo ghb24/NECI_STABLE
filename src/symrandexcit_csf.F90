@@ -16,18 +16,19 @@ module GenRandSymExcitCSF
     use GenRandSymExcitNUMod, only: ClassCountInd, gen_rand_excit, &
                                     init_excit_gen_store,clean_excit_gen_store
     use DetBitOps, only: EncodeBitDet, is_canonical_ms_order, &
-                         shift_det_bit_singles_to_beta, count_open_orbs
+                         shift_det_bit_singles_to_beta, count_open_orbs, &
+                         CountBits
     use Determinants, only: write_det
     use Parallel_neci
     use constants, only: n_int, bits_n_int
-    use bit_reps, only: NIfTot,NIfD
+    use bit_reps, only: NIfTot, NIfD, decode_bit_det
     use sym_general_mod, only: CCIndS
     implicit none
 
 contains
 
     subroutine gen_csf_excit (nI, iLut, nJ, ilutnJ, exFlag, IC, &
-                              excitMat, tParity, pGen, HElGen, store)
+                              excitMat, parity, pGen, HElGen, store)
 
         ! Generate an excitation from a CSF at random, as specified by exFlag,
         ! and return the Excitation matrix and the probability of generating
@@ -45,9 +46,9 @@ contains
         !                  which are singles, doubles or unoccupied
 
         integer, intent(in)    :: nI(nel), exFlag
-        integer(kind=n_int), intent(in)    :: iLut(0:NIfTot)
+        integer(n_int), intent(in)    :: iLut(0:NIfTot)
         integer, intent(out)   :: nJ(nel), IC, ExcitMat(2,2)
-        logical, intent(out)   :: tParity
+        integer, intent(out)   :: parity
         real(dp),  intent(out)   :: pGen
         type(excit_gen_store_type), intent(inout), target :: store
 
@@ -87,13 +88,17 @@ contains
                     exTmp = 3
             end select
             call gen_rand_excit (nI, iLut, nJ, iLutnJ, exTmp, IC, ExcitMat, &
-                                 tParity, pGen, HElGen, store)
+                                 parity, pGen, HElGen, store)
+            call decode_bit_det (nJ, ilutnJ)
 
             ! If we have fallen back below the truncation level, then
             ! regenerate a CSF (pick Yamanouchi symbol at random).
-            call EncodeBitDet(nJ, iLutnJ)
             nopen = count_open_orbs(iLutnJ)
             if (nopen <= csf_trunc_level) then
+
+                ! det_to_random_csf works on decoded version.
+                ! TODO: Really should shift it to work on bit det, 
+                !       for efficiencies sake.
                 ncsf = det_to_random_csf (nJ)
 
                 ! This is probably not the most efficient way to do this in
@@ -109,9 +114,10 @@ contains
                 ! --> w00t!
                 pGen = pgen / ncsf
             endif
+
             return
         endif
-        tParity = .false.
+        parity = 1
 
         ! If the array is not already populated, perform an O[N] operation to
         ! find the number of occupied alpha/beta electrons, and number of
@@ -186,6 +192,7 @@ contains
         endselect
 
         if (.not. IsNullDet(nJ)) call EncodeBitDet (nJ, iLutnJ)
+
     end subroutine
 
     subroutine CSFCreateDoubleExcit (nI, nJ, CCDblS, CCSglS, CCUnS, iLut, &
@@ -1053,6 +1060,7 @@ contains
         nJ(1,:) = ibset(nJ(1,:), csf_test_bit)
 
         ! Apply a random Yamanouchi symbol.
+
         if (lnopen > 0) then
             if (present(yamas)) then
                 if (nopen2 /= lnopen) then
@@ -1137,7 +1145,6 @@ contains
                 
             ! Exciting to vacant orbital
             else
-                !>>>! print*, 'exciting to vacant', sralpha, exbeta
                 ! Create two singles, both of them are betas.
                 ! One is the remaining e- from the original double.
                 ins(1) = min(srbeta,exbeta)
@@ -1809,8 +1816,8 @@ contains
         character(*), parameter :: this_routine = 'TestGenRandSymCSFExcit'
         integer(kind=n_int) :: iLut(0:NIfTot)
         integer :: nJ(nel), ExcitMat(2,2), IC, nopen
-        integer :: i, j, k, l, ierr, nexcit, ind(4)
-        logical :: bTestList, tParity
+        integer :: i, j, k, l, ierr, nexcit, ind(4), parity
+        logical :: bTestList
         real(dp)  :: pGen, avContrib, avContribAll
         ! Store the generated excitations and if they have been generated.
         integer, allocatable, dimension(:,:) :: nK
@@ -1895,7 +1902,7 @@ contains
         do i=1,iterations
             ! Generate a random excitation
             call gen_csf_excit (nI, iLut, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                                tParity, pGen, HElGen, store)
+                                parity, pGen, HElGen, store)
 
             ! Only average etc. for an allowed transition
             if (nJ(1) /= 0) then
