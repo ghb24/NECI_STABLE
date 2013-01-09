@@ -118,7 +118,7 @@ MODULE CCMC
         real(dp) :: Prob,rat,HDiagCurr,r
         INTEGER :: WalkExcitLevel,Proc
         INTEGER :: TotWalkersNew,Ex(2,2)
-        LOGICAL :: tParity
+        integer :: parity
         
 ! We select up to nEl excitors at a time and store them here
         INTEGER(KIND=n_int) :: SelectedExcitors(0:NIfTot,nEl)     
@@ -1784,6 +1784,7 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
    TempSign=C%iSgn
    
    iSpawnAmp=attempt_create_normal(hphf_spawn_sign,  & !this version of the get_spawn_helement just uses the passed-in version
+                              C%DetCurr, C%iLutDetCurr, &
                               TempSign,S%nJ,S%iLutnJ,prob,S%HIJ, &
                               S%iExcitLevel,S%ExcitMat,1, & ! 1 --> Don't have - sign from parity.
                               S%iExcitLevel,part_type,0.0_dp,RDMBias) 

@@ -321,7 +321,13 @@ MODULE GenRandSymExcitNUMod
 
         CALL FindDoubleProb(ForbiddenOrbs,NExcitA,NExcitB,NExcitOtherWay,pGen)
 
-<<<<<<< HEAD
+!#ifdef __DEBUG
+!These are useful (but O[N]) operations to test the determinant generated.
+!  If there are any problems with then
+!excitations, I recommend uncommenting these tests to check the results.
+!        CALL IsSymAllowedExcit(nI,nJ,2,ExcitMat)
+!#endif
+
     END SUBROUTINE CreateDoubExcit
 
 !This routine creates the final determinant.
@@ -342,14 +348,8 @@ MODULE GenRandSymExcitNUMod
         !      which CAN generate invalid dets, and throws them away
         !      elsewhere.
 
-!#ifdef __DEBUG
-!These are useful (but O[N]) operations to test the determinant generated.
-!  If there are any problems with then
-!excitations, I recommend uncommenting these tests to check the results.
-!        CALL IsSymAllowedExcit(nI,nJ,2,ExcitMat)
-!#endif
 
-    END SUBROUTINE CreateDoubExcit
+    end subroutine FindNewDet
 
 
     subroutine make_excit (nI, ilutI, nJ, ilutJ, elecs, tgts, ex, parity)

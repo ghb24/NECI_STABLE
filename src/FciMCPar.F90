@@ -1303,11 +1303,6 @@ MODULE FciMCParMod
                     
                     ! If a valid excitation, see if we should spawn children.
                     if (.not. IsNullDet(nJ)) then
-                        ! If we're using excitation level to define a partly
-                        ! real space, we need to know the excitation level
-                        ! and therefore bit rep of nJ at this stage
-                        if(tRealCoeffByExcitLevel)  call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
-                        
                         child = attempt_create (get_spawn_helement, DetCurr, &
                                             CurrentDets(:,j), SignCurr, &
                                             nJ,iLutnJ, Prob, HElGen, IC, ex, &
@@ -1325,8 +1320,10 @@ MODULE FciMCParMod
                         
                         ! We know we want to create a particle of this type.
                         ! Decode the bit representation if it isn't already.
-                        if (.not. tRealCoeffByExcitLevel) &
-                            call decode_child (nJ, ilutnJ)
+                        ! n.b. we no longer need to have a separate step for
+                        !      decoding before attempt_create, as we already
+                        !      have the ilut after the excitation generator.
+                        call decode_child (nJ, ilutnJ)
 
                         call new_child_stats (iter_data, CurrentDets(:,j), &
                                               nJ, iLutnJ, ic, walkExcitLevel,&
@@ -7483,7 +7480,7 @@ MODULE FciMCParMod
         real(dp) :: TotMP1Weight,amp,MP2Energy,PartFac,H0tmp,rat,r
         HElement_t :: hel,HDiagtemp
         integer :: iExcits, exflag, Ex(2,2), nJ(NEl), ic, DetIndex, iNode
-        integer :: NoWalkers, iInit, Slot, DetHash, parity, ExcitLevel
+        integer :: iInit, Slot, DetHash, parity, ExcitLevel
         integer(n_int) :: iLutnJ(0:NIfTot)
         real(dp) :: NoWalkers, temp_sign(lenof_sign)
         logical :: tAllExcitsFound
