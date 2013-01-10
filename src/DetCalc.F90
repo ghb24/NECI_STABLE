@@ -72,17 +72,24 @@ CONTAINS
       ENDIF
 
 !Copied Specdet information from Calc.F, so if inspect is present, but no determinant/csf specified, it will still run.
-      IF(TCSFOLD.AND.TSPECDET) THEN
-         WRITE(6,*) "TSPECDET set.  SPECDET is"
-         call write_det (6, SPECDET, .true.)
-         CALL NECI_ICOPY(NEL,SPECDET,1,FDET,1)
-         CALL GETCSFFROMDET(FDET,SPECDET,NEL,STOT,LMS)
-         WRITE(6,*) "CSF with 2S=",STOT," and 2Sz=",LMS," now in SPECDET is"
-         call write_det (6, SPECDET, .true.)
-      ELSEIF(TSPECDET.AND.(.not.ISVALIDDET(SPECDET,NEL))) THEN
-         WRITE(6,*) "TSPECDET set, but invalid.  using FDET"
-!         tSpecDet=.false.
-         CALL NECI_ICOPY(NEL,FDET,1,SPECDET,1)
+      if(TSPECDET) then
+         if(TCSFOLD) then
+             WRITE(6,*) "TSPECDET set.  SPECDET is"
+             call write_det (6, SPECDET, .true.)
+             CALL NECI_ICOPY(NEL,SPECDET,1,FDET,1)
+             CALL GETCSFFROMDET(FDET,SPECDET,NEL,STOT,LMS)
+             WRITE(6,*) "CSF with 2S=",STOT," and 2Sz=",LMS," now in SPECDET is"
+             call write_det (6, SPECDET, .true.)
+         elseif(.not.associated(specdet)) then
+            !specdet not allocated. Allocate it and copy fdet
+             allocate(specdet(nel))
+             WRITE(6,*) "TSPECDET set, but not allocated.  using FDET"
+             CALL NECI_ICOPY(NEL,FDET,1,SPECDET,1)
+         elseif(.not.ISVALIDDET(SPECDET,NEL)) then
+             WRITE(6,*) "TSPECDET set, but invalid.  using FDET"
+!             tSpecDet=.false.
+             CALL NECI_ICOPY(NEL,FDET,1,SPECDET,1)
+         endif
       ELSEIF(TCSFOLD) THEN  !No help given on generating this CSF.  Let's just get a single one out of GNCSFs
          NDET=1
          CALL GNCSFS(NEL,nBasis,BRR,NBASISMAX,FDET,.FALSE.,G1,TSPN,LMS2,TPARITY, &
