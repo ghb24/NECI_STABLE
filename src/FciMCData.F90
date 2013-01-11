@@ -367,4 +367,8 @@ MODULE FciMCData
       ! state, which are not removed from the list.
       integer :: index_of_first_non_determ
 
+      ! This array stores the Hamiltonian matrix, or part of it, when performing a diagonalisation. It is currently only used for the
+      ! code for the Davidson method semi-stochastic method.
+      real(dp), allocatable, dimension(:,:) :: hamiltonian
+
 END MODULE FciMCData

@@ -208,11 +208,13 @@ contains
         ! and again pick out the basis states with the largest weights. This process is
         ! iterated for as many time as the user requests.
 
+        use davidson, only: perform_davidson, davidson_eigenvalue, davidson_eigenvector
+        use FciMCData, only: hamiltonian
+
         type(excit_store), target :: gen_store
         integer(n_int), allocatable, dimension(:,:) :: ilut_store_old, ilut_store_new
         integer(n_int) :: ilut(0:NIfTot)
         integer :: nI(nel), nJ(nel)
-        real(dp), allocatable, dimension(:,:) :: hamiltonian
         real(dp), allocatable, dimension(:) :: determ_ground_state, work
         integer :: lwork, info
         integer :: counter, i, j, k
@@ -377,16 +379,19 @@ contains
             write (6,*) "Performing diagonalisation..."
             call neci_flush(6)
 
+            call perform_davidson()
+
             ! Now that the Hamiltonian is generated, we can finally diagonalise it:
-            call dsyev('V', 'U', new_num_det_states, hamiltonian, new_num_det_states, &
-                       determ_ground_state, work, lwork, info)
+            !call dsyev('V', 'U', new_num_det_states, hamiltonian, new_num_det_states, &
+            !           determ_ground_state, work, lwork, info)
 
             ! Hamiltonian now stores the eigenvectors.
 
             ! Note that on output of dsyev, determ_ground_state actually holds the eigenvalues.
             ! But we don't need these so overwrite them with the amplitudes of the ground-state
             ! eigenstate.
-            determ_ground_state = abs(hamiltonian(:,1))
+            !determ_ground_state = abs(hamiltonian(:,1))
+            determ_ground_state = abs(davidson_eigenvector)
 
             write(6,*) "Diagonalisation complete."
             call neci_flush(6)
