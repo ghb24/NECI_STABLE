@@ -345,6 +345,23 @@ MODULE FciMCData
       real(dp), allocatable :: ENumCycHistG(:),AllENumCycHistG(:),ENumCycHistK3(:),AllENumCycHistK3(:)
       integer :: unit_splitprojEHistG,unit_splitprojEHistK3
 
+      ! This is a type which allows a sparse matrix to be stored in a form which takes advantage of its sparse nature. To define such a
+      ! matrix, a vector of type sparse_matrix_info is allocated. Each component of this vector refers to one row of the corresponding
+      ! matrix. elements stores all nonzero elements matrix elements and positions store the corresponding columns of this elements, in
+      ! the same order.
+      type sparse_matrix_info
+          real(dp), allocatable, dimension(:) :: elements
+          integer, allocatable, dimension(:) :: positions
+          integer :: num_elements
+      end type sparse_matrix_info
+
+      ! This array stores the Hamiltonian matrix, or part of it, when performing a diagonalisation. It is currently only used for the
+      ! code for the Davidson method and semi-stochastic method.
+      real(dp), allocatable, dimension(:,:) :: hamiltonian
+
+      type(sparse_matrix_info), allocatable, dimension(:) :: sparse_hamil
+      real(dp), allocatable, dimension(:) :: hamil_diag
+
       ! Semi-stochastic data.
 
       ! The core Hamiltonian (with the Hartree-Fock energy removed from the diagonal) is stored in this array for the whole simulation.
@@ -366,9 +383,5 @@ MODULE FciMCData
       ! (once this list has been compressed). This is used to skip over performing certain annihilation routines on the deterministic
       ! state, which are not removed from the list.
       integer :: index_of_first_non_determ
-
-      ! This array stores the Hamiltonian matrix, or part of it, when performing a diagonalisation. It is currently only used for the
-      ! code for the Davidson method semi-stochastic method.
-      real(dp), allocatable, dimension(:,:) :: hamiltonian
 
 END MODULE FciMCData

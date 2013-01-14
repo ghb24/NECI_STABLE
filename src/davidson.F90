@@ -5,12 +5,17 @@ module davidson
 ! http://web.mit.edu/bolin/www/Project-Report-18.335J.pdf
 
 use constants
-use FciMCData, only: hamiltonian
+use FciMCData, only: hamiltonian, sparse_matrix_info, sparse_hamil, hamil_diag
 
 implicit none
 
 integer :: max_num_davidson_iters = 50
 real(dp) :: residual_norm_target = 0.0000001
+
+! If this is true then the Hamiltonian is must be stored in a sparse form, using
+! the sparse_matrix_info type (see the FciMCData module). This is then assumed
+! in all the Hamiltonian matrix calls.
+logical :: sparse_multiply = .false.
 
 ! The dimension of the vector space we are working in, as determined by the number
 ! of rows and columns in the Hamiltonian matrix.
@@ -40,12 +45,15 @@ real(dp) :: davidson_eigenvalue
 
     contains
 
-    subroutine perform_davidson()
+    subroutine perform_davidson(sparse)
 
         ! This subroutine performs the main loop for the algorithm, from which each of the
         ! induvidual steps are called.
 
+        logical, intent(in) :: sparse
         integer :: i
+
+        if (sparse) sparse_multiply = .true.
 
         call init_davidson()
 
@@ -72,6 +80,9 @@ real(dp) :: davidson_eigenvalue
     end subroutine perform_davidson
 
     subroutine init_davidson()
+    
+        use Determinants, only: get_helement
+        use FciMCData, only: HFDet
 
         ! This subroutine initialises the Davdison method by allocating the necessary arrays,
         ! defining the initial basis vector and projected Hamiltonian, and setting an initial
@@ -79,7 +90,11 @@ real(dp) :: davidson_eigenvalue
         ! which is needed to expand the space.
 
         ! The space size is determined by the size of the Hamiltonian matrix:
-        space_size = size(hamiltonian, 1)
+        if (sparse_multiply) then
+            space_size = size(sparse_hamil, 1)
+        else
+            space_size = size(hamiltonian, 1)
+        end if
 
         ! Allocate the necessary arrays:
         allocate(basis_vectors(space_size, max_num_davidson_iters))
@@ -100,11 +115,11 @@ real(dp) :: davidson_eigenvalue
         ! Choose the Hartree-Fock state as the initial guess at the ground state, too.
         davidson_eigenvector(1) = 1.0_dp
         ! Fill in the projected Hamiltonian so far.
-        projected_hamil(1,1) = hamiltonian(1,1)
+        projected_hamil(1,1) = get_helement(HFDet, HFDet, 0)
         ! Take the initial eigenvalue to be the Hartree-Fock energy minus some small
         ! amount. This value cannot be exactly the Hartree-Fock energy, as this will
         ! result in dividing by zero in the subspace expansion step.
-        davidson_eigenvalue = hamiltonian(1,1)-0.001
+        davidson_eigenvalue = get_helement(HFDet, HFDet, 0) - 0.001
 
         ! Calculate the corresponding residual:
         call calculate_residual()
@@ -122,7 +137,7 @@ real(dp) :: davidson_eigenvalue
         ! where D is the diagonal of the Hamiltonian matrix, E is the eigenvalue previously
         ! calculated, I is the identity matrix and r is the residual.
         do i = 1, space_size
-            basis_vectors(i, basis_index) = residual(i)/(hamiltonian(i,i) - davidson_eigenvalue)
+            basis_vectors(i, basis_index) = residual(i)/(hamil_diag(i) - davidson_eigenvalue)
         end do
 
         ! This step then maskes the new basis vector orthogonal to all other basis vectors, by doing
@@ -284,6 +299,19 @@ real(dp) :: davidson_eigenvalue
         real(dp), intent(in) :: input_vector(space_size)
         real(dp), intent(out) :: output_vector(space_size)
 
+        if (sparse_multiply) then
+            call multiply_hamil_and_vector_sparse(input_vector, output_vector)
+        else if (.not. sparse_multiply) then
+            call multiply_hamil_and_vector_naive(input_vector, output_vector)
+        end if
+
+    end subroutine multiply_hamil_and_vector
+
+    subroutine multiply_hamil_and_vector_naive(input_vector, output_vector)
+
+        real(dp), intent(in) :: input_vector(space_size)
+        real(dp), intent(out) :: output_vector(space_size)
+
         ! This function performs y := alpha*a*x + beta*y
         ! N specifies not to use the transpose of a.
         ! space_size is the number of rows in a.
@@ -308,7 +336,25 @@ real(dp) :: davidson_eigenvalue
                    output_vector, &
                    1)
 
-    end subroutine multiply_hamil_and_vector
+    end subroutine multiply_hamil_and_vector_naive
+
+    subroutine multiply_hamil_and_vector_sparse(input_vector, output_vector)
+
+        real(dp), intent(in) :: input_vector(space_size)
+        real(dp), intent(out) :: output_vector(space_size)
+        integer :: i, j
+
+        output_vector = 0.0_dp
+
+        do i = 1, space_size
+            do j = 1, sparse_hamil(i)%num_elements
+                output_vector(i) = output_vector(i) + &
+                    sparse_hamil(i)%elements(j) * &
+                    input_vector(sparse_hamil(i)%positions(j))
+            end do
+        end do
+
+    end subroutine multiply_hamil_and_vector_sparse
 
     subroutine end_davidson()
 

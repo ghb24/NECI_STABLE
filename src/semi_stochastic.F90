@@ -209,14 +209,14 @@ contains
         ! iterated for as many time as the user requests.
 
         use davidson, only: perform_davidson, davidson_eigenvalue, davidson_eigenvector
-        use FciMCData, only: hamiltonian
+        use FciMCData, only: hamiltonian, sparse_matrix_info, sparse_hamil, hamil_diag
 
         type(excit_store), target :: gen_store
         integer(n_int), allocatable, dimension(:,:) :: ilut_store_old, ilut_store_new
         integer(n_int) :: ilut(0:NIfTot)
         integer :: nI(nel), nJ(nel)
-        real(dp), allocatable, dimension(:) :: determ_ground_state, work
-        integer :: lwork, info
+        real(dp), allocatable, dimension(:) :: determ_ground_state, hamiltonian_row
+        integer, allocatable, dimension(:) :: sparse_diag_positions, sparse_row_sizes, indices
         integer :: counter, i, j, k
         integer :: old_num_det_states, new_num_det_states, comp
         logical :: connected, first_loop
@@ -344,16 +344,27 @@ contains
             write(6,*) new_num_det_states, "states found. Constructing Hamiltonian..."
             call neci_flush(6)
 
-            allocate(hamiltonian(new_num_det_states, new_num_det_states))
+            allocate(hamiltonian_row(new_num_det_states))
+            allocate(hamil_diag(new_num_det_states))
+            allocate(sparse_hamil(new_num_det_states))
             allocate(determ_ground_state(new_num_det_states))
-            hamiltonian = 0.0_dp
+            allocate(sparse_row_sizes(new_num_det_states))
+            allocate(sparse_diag_positions(new_num_det_states))
+            allocate(indices(new_num_det_states))
+            hamiltonian_row = 0.0_dp
             determ_ground_state = 0.0_dp
+            ! Set each element to one to count the digonal elements straight away.
+            sparse_row_sizes = 1
 
-            ! Calculate the Hamiltonian matrix in the newly generated deterministic space.
+            ! In the following, the Hamiltonian for the new deterministic space is generated in a
+            ! form which takes advantage of its sparse nature (see the type sparse_matrix_info in
+            ! the FciMCData module).
             do j = 1, new_num_det_states
 
                 ! Get nI form of the basis function.
                 call decode_bit_det(nI, ilut_store_new(:, j))
+
+                sparse_diag_positions(j) = sparse_row_sizes(j)
 
                 do k = j, new_num_det_states
 
@@ -361,36 +372,70 @@ contains
 
                     ! If on the diagonal of the Hamiltonian.
                     if (j == k) then
-                        hamiltonian(j, k) = get_helement(nI, nJ, 0)
+                        hamiltonian_row(k) = get_helement(nI, nJ, 0)
+                        hamil_diag(k) = hamiltonian_row(k)
                     else
-                        hamiltonian(j, k) = get_helement(nI, nJ, ilut_store_new(:, j), &
+                        hamiltonian_row(k) = get_helement(nI, nJ, ilut_store_new(:, j), &
                                                                  ilut_store_new(:, k))
-                        hamiltonian(k, j) = hamiltonian(j, k)
+                        if (abs(hamiltonian_row(k)) >= 0.0_dp) then
+                            sparse_row_sizes(j) = sparse_row_sizes(j) + 1
+                            sparse_row_sizes(k) = sparse_row_sizes(k) + 1
+                        end if
                     end if
+
+                end do
+
+                ! Now we know the number of non-zero elements in this row of the Hamiltonian, so
+                ! allocate it.
+                allocate(sparse_hamil(j)%elements(sparse_row_sizes(j)))
+                allocate(sparse_hamil(j)%positions(sparse_row_sizes(j)))
+                sparse_hamil(j)%elements = 0.0_dp
+                sparse_hamil(j)%positions = 0
+                sparse_hamil(j)%num_elements = sparse_row_sizes(j)
+
+                ! Now fill in all matrix elements beyond and including the diagonal, as these are
+                ! stored in hamiltonian_row.
+                counter = sparse_diag_positions(j)
+                do k = j, new_num_det_states
+                    if (abs(hamiltonian_row(k)) >= 0.0_dp) then
+                        sparse_hamil(j)%positions(counter) = k
+                        sparse_hamil(j)%elements(counter) = hamiltonian_row(k)
+                        counter = counter + 1
+                    end if
+                end do
+
+            end do
+
+            ! At this point, sparse_hamil has been allocated with the correct sizes, but only the
+            ! matrix elements in above and including the diagonal have been filled in. Now we must
+            ! fill in the other elements. To do this, cycle through every element above the
+            ! diagonal and fill in every corresponding elements below it:
+            indices = 1
+            do j = 1, new_num_det_states
+            
+                do k = sparse_diag_positions(j) + 1, sparse_row_sizes(j)
+
+                    sparse_hamil(sparse_hamil(j)%positions(k))%&
+                        &positions(indices(sparse_hamil(j)%positions(k))) = j
+                    sparse_hamil(sparse_hamil(j)%positions(k))%&
+                        &elements(indices(sparse_hamil(j)%positions(k))) = sparse_hamil(j)%elements(k)
+
+                    indices(sparse_hamil(j)%positions(k)) = indices(sparse_hamil(j)%positions(k))+ 1
 
                 end do
 
             end do
 
-            ! Allocate work space for the diagonaliser, dsyev.
-            lwork = max(1,3*new_num_det_states-1)
-            allocate(work(lwork))
+            ! The Hamiltonian generation is now finished.
 
             write (6,*) "Performing diagonalisation..."
             call neci_flush(6)
 
-            call perform_davidson()
-
             ! Now that the Hamiltonian is generated, we can finally diagonalise it:
-            !call dsyev('V', 'U', new_num_det_states, hamiltonian, new_num_det_states, &
-            !           determ_ground_state, work, lwork, info)
+            call perform_davidson(.true.)
 
-            ! Hamiltonian now stores the eigenvectors.
+            ! davidson_eigenvector now stores the ground state eigenvector.
 
-            ! Note that on output of dsyev, determ_ground_state actually holds the eigenvalues.
-            ! But we don't need these so overwrite them with the amplitudes of the ground-state
-            ! eigenstate.
-            !determ_ground_state = abs(hamiltonian(:,1))
             determ_ground_state = abs(davidson_eigenvector)
 
             write(6,*) "Diagonalisation complete."
@@ -434,9 +479,13 @@ contains
             write(6,*) old_num_det_states, "states kept."
             call neci_flush(6)
 
-            deallocate(work)
-            deallocate(hamiltonian)
+            deallocate(sparse_hamil)
+            deallocate(hamil_diag)
+            deallocate(hamiltonian_row)
             deallocate(determ_ground_state)
+            deallocate(sparse_row_sizes)
+            deallocate(sparse_diag_positions)
+            deallocate(indices)
 
         end do
 
