@@ -1086,31 +1086,24 @@ module DetBitOps
         ! first determinant, so use this count as the loop variable.
         do iel1 = 1, nel
 
+            ! Does the next target orbital get inserted before this one?
+            do while (sort_tgt(iexcit2) < det(iel1))
+                iel2 = iel2 + 1
+                iexcit2 = iexcit2 + 1
+                perm = perm - iel2
+            end do
+
             ! Have we reached one of the electrons being excited?
             if (iel1 == sort_src(iexcit1)) then
+                ! This electron is only in the src determinant.
                 iexcit1 = iexcit1 + 1
                 perm = perm - iel1
-
-                ! Does this excitation get (immediately) replaced?
-                do while (sort_tgt(iexcit2) < det(iel1))
-                    iel2 = iel2 + 1
-                    iexcit2 = iexcit2 + 1
-                    perm = perm - iel2
-                end do
-
             else
-
-                ! Does the next target orbital get inserted before this one?
-                do while (sort_tgt(iexcit2) < det(iel1))
-                    iel2 = iel2 + 1
-                    iexcit2 = iexcit2 + 1
-                    perm = perm - iel2
-                end do
-
                 ! This electron is in both dets.
                 iel2 = iel2 + 1
             end if
 
+            ! Once we are done, bail out.
             if (iexcit1 == 3 .and. iexcit2 == 3) exit
 
         end do
