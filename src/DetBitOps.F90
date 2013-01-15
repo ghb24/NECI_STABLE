@@ -1248,7 +1248,7 @@ end module
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfD), iLutnJ(0:NIfD)
         integer, intent(inout) :: Ex(2,*)
         integer, intent(out) :: parity
-        integer :: i, j, iexcit1, iexcit2, perm, iel1, iel2, shift, max_excit
+        integer :: i, j, iexcit1, iexcit2, perm, iel1, iel2, max_excit
         logical :: testI, testJ
 
         parity = 1
@@ -1288,7 +1288,11 @@ end module
             ! minimal number for the determinants to align, this is irrelevant
             ! as the Slater--Condon rules only care about whether the number of
             ! permutations are odd or even.
-            shift = nel - max_excit
+
+            ! n.b. We don't need to include shift or iexcit in the perm
+            !      calculation, as is it symmetric as iexcit reaches the same
+            !      maximum value for both src and target iluts
+            !shift = nel - max_excit
 
             do i = 0, NIfD
                 if (iLutnI(i) == iLutnJ(i)) cycle
@@ -1305,14 +1309,16 @@ end module
                             ! occupied in iLutnI but not in iLutnJ
                             iexcit1 = iexcit1 + 1
                             Ex(1,iexcit1) = i*bits_n_int+j+1
-                            perm = perm + (shift - iel1 + iexcit1)
+                            !perm = perm + (shift - iel1 + iexcit1)
+                            perm = perm + iel1
                         end if
                     else
                         if (testJ) then
                             ! occupied in iLutnI but not in iLutnJ
                             iexcit2 = iexcit2 + 1
                             Ex(2,iexcit2) = i*bits_n_int+j+1
-                            perm = perm + (shift - iel2 + iexcit2)
+                            !perm = perm + (shift - iel2 + iexcit2)
+                            perm = perm + iel2
                         end if
                     end if
                     if (iexcit1 == max_excit .and. iexcit2 == max_excit) exit
