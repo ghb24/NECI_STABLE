@@ -89,12 +89,20 @@ real(dp) :: davidson_eigenvalue
         ! guess at the ground state eigenvalue. It also calculates the corresponding residual
         ! which is needed to expand the space.
 
-        ! The space size is determined by the size of the Hamiltonian matrix:
-        if (sparse_multiply) then
-            space_size = size(sparse_hamil, 1)
-        else
-            space_size = size(hamiltonian, 1)
+        integer :: i, HFindex
+
+        ! If not using the sparse storage of the Hamiltonian, allocate the Hamiltonian diagonal.
+        if (.not. allocated(hamil_diag)) then
+            allocate(hamil_diag(size(hamiltonian,1)))
+            do i = 1, size(hamiltonian,1)
+                hamil_diag(i) = hamiltonian(i,i)
+            end do
         end if
+
+        HFindex = maxloc(abs(hamil_diag),1)
+
+        ! The space size is determined by the size of the Hamiltonian matrix:
+        space_size = size(hamil_diag)
 
         ! Allocate the necessary arrays:
         allocate(basis_vectors(space_size, max_num_davidson_iters))
@@ -111,15 +119,16 @@ real(dp) :: davidson_eigenvalue
         residual = 0.0_dp
 
         ! For the initial basis vector, choose the Hartree-Fock state:
-        basis_vectors(1,1) = 1.0_dp
+        basis_vectors(HFindex, 1) = 1.0_dp
         ! Choose the Hartree-Fock state as the initial guess at the ground state, too.
-        davidson_eigenvector(1) = 1.0_dp
+        davidson_eigenvector(HFindex) = 1.0_dp
+
         ! Fill in the projected Hamiltonian so far.
-        projected_hamil(1,1) = get_helement(HFDet, HFDet, 0)
+        projected_hamil(1,1) = hamil_diag(HFindex)
         ! Take the initial eigenvalue to be the Hartree-Fock energy minus some small
         ! amount. This value cannot be exactly the Hartree-Fock energy, as this will
         ! result in dividing by zero in the subspace expansion step.
-        davidson_eigenvalue = get_helement(HFDet, HFDet, 0) - 0.001
+        davidson_eigenvalue = hamil_diag(1) - 0.001
 
         ! Calculate the corresponding residual:
         call calculate_residual()

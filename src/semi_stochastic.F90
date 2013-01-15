@@ -351,7 +351,6 @@ contains
             allocate(sparse_row_sizes(new_num_det_states))
             allocate(sparse_diag_positions(new_num_det_states))
             allocate(indices(new_num_det_states))
-            hamiltonian_row = 0.0_dp
             determ_ground_state = 0.0_dp
             ! Set each element to one to count the digonal elements straight away.
             sparse_row_sizes = 1
@@ -360,6 +359,8 @@ contains
             ! form which takes advantage of its sparse nature (see the type sparse_matrix_info in
             ! the FciMCData module).
             do j = 1, new_num_det_states
+
+                hamiltonian_row = 0.0_dp
 
                 ! Get nI form of the basis function.
                 call decode_bit_det(nI, ilut_store_new(:, j))
@@ -377,7 +378,7 @@ contains
                     else
                         hamiltonian_row(k) = get_helement(nI, nJ, ilut_store_new(:, j), &
                                                                  ilut_store_new(:, k))
-                        if (abs(hamiltonian_row(k)) >= 0.0_dp) then
+                        if (abs(hamiltonian_row(k)) > 0.0_dp) then
                             sparse_row_sizes(j) = sparse_row_sizes(j) + 1
                             sparse_row_sizes(k) = sparse_row_sizes(k) + 1
                         end if
@@ -397,7 +398,7 @@ contains
                 ! stored in hamiltonian_row.
                 counter = sparse_diag_positions(j)
                 do k = j, new_num_det_states
-                    if (abs(hamiltonian_row(k)) >= 0.0_dp) then
+                    if (abs(hamiltonian_row(k)) > 0.0_dp) then
                         sparse_hamil(j)%positions(counter) = k
                         sparse_hamil(j)%elements(counter) = hamiltonian_row(k)
                         counter = counter + 1
