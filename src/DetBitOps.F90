@@ -1060,7 +1060,7 @@ module DetBitOps
         integer, intent(in) :: src_ind(2), tgt(2), det(nel)
         integer :: par, sort_tgt(3), sort_src(3)
 
-        integer :: iel1, iel2, iexcit1, iexcit2, perm
+        integer :: iel1, iel2, iexcit1, iexcit2, perm, start
 
         ! Sorted sources
         ! The THIRD values in these are so that we get the correct result from
@@ -1082,9 +1082,16 @@ module DetBitOps
         iel2 = 0
         perm = 0
 
+        ! We only have to start where the determinants start to differ.
+        if (sort_tgt(1) < det(sort_src(1))) then
+            start = 1
+        else
+            start = sort_src(1)
+        end if
+
         ! Loop over the electrons, Obviously, all the electrons are in the
         ! first determinant, so use this count as the loop variable.
-        do iel1 = 1, nel
+        do iel1 = start, nel
 
             ! Does the next target orbital get inserted before this one?
             do while (sort_tgt(iexcit2) < det(iel1))
