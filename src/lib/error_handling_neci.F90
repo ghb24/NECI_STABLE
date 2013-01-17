@@ -31,7 +31,7 @@ subroutine stop_all (sub_name, error_msg)
     implicit none
 
     interface
-        subroutine print_backtrace () bind(c)
+        subroutine print_backtrace_neci () bind(c)
         end subroutine
     end interface
 
@@ -50,7 +50,7 @@ subroutine stop_all (sub_name, error_msg)
     write (6,'(a11)') 'EXITING...'
     call neci_flush (6)
 
-    call print_backtrace()
+    call print_backtrace_neci()
 
     call cleanup_shared_alloc()
 #ifdef PARALLEL
