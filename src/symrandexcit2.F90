@@ -49,6 +49,7 @@ MODULE GenRandSymExcitNUMod
     use timing_neci
     use sym_general_mod
     use spin_project, only: tSpinProject
+    use get_excit, only: make_single, make_double
     IMPLICIT NONE
 !    INTEGER , SAVE :: Counter=0
 
@@ -262,7 +263,7 @@ MODULE GenRandSymExcitNUMod
 
         integer :: nExcitOtherWay, orbB, nExcitB, SpinOrbA, OrbA, SymA, SymB
         integer :: nExcitA, sumMl, mlA, mlB, iSpn, Elec1Ind, Elec2Ind
-        integer :: SymProduct, ForbiddenOrbs
+        integer :: SymProduct, ForbiddenOrbs, par2
         logical :: tAOrbFail
 
 !First, we need to pick an unbiased distinct electron pair.
@@ -316,8 +317,8 @@ MODULE GenRandSymExcitNUMod
         CALL PickBOrb(nI,iSpn,ILUT,ClassCountUnocc2,SpinOrbA,OrbA,SymA,OrbB,SymB,NExcitB,MlA,MlB,NExcitOtherWay)
 
         ! Generate the new ilut, nJ and parity.
-        call make_excit (nI, ilut, nJ, ilutJ, (/elec1ind,elec2ind/), &
-                         (/orbA, orbB/), ExcitMat, parity)
+        call make_double (nI, ilut, nJ, ilutJ, elec1ind, elec2ind, orbA, &
+                          orbB, ExcitMat, parity)
 
         CALL FindDoubleProb(ForbiddenOrbs,NExcitA,NExcitB,NExcitOtherWay,pGen)
 
@@ -331,7 +332,7 @@ MODULE GenRandSymExcitNUMod
     END SUBROUTINE CreateDoubExcit
 
 
-    pure subroutine make_excit (nI, ilutI, nJ, ilutJ, elecs, tgts, ex, parity)
+    subroutine make_excit (nI, ilutI, nJ, ilutJ, elecs, tgts, ex, parity)
 
         ! Take an excitation matrix and source electron-choices and target
         ! orbitals, and generate the excitation. (ex == Excitation Matrix)
@@ -344,15 +345,16 @@ MODULE GenRandSymExcitNUMod
         integer :: i
 
         ! Put the source electron numbers and the target orbitals in place.
-        ex(1,1:ubound(elecs,1)) = nI(elecs)
+        !ex(1,1:ubound(elecs,1)) = nI(elecs)
+        ex(1,1:ubound(elecs,1)) = elecs
         ex(2,1:ubound(tgts,1)) = tgts
 
-        ! Get the parity of the excitation
-        if (ubound(elecs, 1) == 2) then
-            parity = get_double_parity_det (nI, elecs, tgts)
-        else
-            parity = get_single_parity_det (nI, elecs(1), tgts(1))
-        end if
+!        ! Get the parity of the excitation
+!        if (ubound(elecs, 1) == 2) then
+!            parity = get_double_parity_det (nI, elecs, tgts)
+!        else
+!            parity = get_single_parity_det (nI, elecs(1), tgts(1))
+!        end if
 
         ! Generate the new ilut and natural ordered determinant
         ! N.B this generated determinant is NOT sorted.
@@ -362,8 +364,10 @@ MODULE GenRandSymExcitNUMod
         do i = 1, ubound(elecs, 1)
             clr_orb(ilutJ, nI(elecs(i)))
             set_orb(ilutJ, tgts(i))
-            nJ(elecs(i)) = tgts(i)
+!            nJ(elecs(i)) = tgts(i)
         end do
+
+        call FindExcitDet(ex, nJ, ubound(elecs, 1), parity)
 
 
     end subroutine
@@ -1429,8 +1433,7 @@ MODULE GenRandSymExcitNUMod
 
         ! Generate the updated ilut, natural integer, Excitation matrix and 
         ! parity parts of the representation.
-        call make_excit (nI, ilut, nJ, ilutJ, (/eleci/), (/orb/), ExcitMat, &
-                         parity)
+        call make_single (nI, ilut, nJ, ilutJ, eleci, orb, ExcitMat, parity)
 
 #ifdef __DEBUG
 !These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
@@ -1880,9 +1883,8 @@ MODULE GenRandSymExcitNUMod
 
 
             ! And create the excitation.
-            call make_excit (nI, ilut, nJ, ilutJ, (/eleci/), (/orbA/), &
-                             ExcitMat, parity)
-
+            nJ = nI
+            call make_single (nI, ilut, nJ, ilutJ, eleci, orbA, ExcitMat, parity)
 
 !These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
 !excitations, I recommend uncommenting these tests to check the results.
@@ -1930,8 +1932,15 @@ MODULE GenRandSymExcitNUMod
 
 !We now know that we want to create iCreate particles, from orbitals nI(Elec1/2Ind) -> OrbA + OrbB.
         IF(iCreate.gt.0) THEN
-            call make_excit (nI, ilut, nJ, ilutJ, (/Elec1Ind, Elec2Ind/), &
-                             (/orbA, orbB/), ExcitMat, parity)
+            ExcitMat(1,1) = elec1ind
+            ExcitMat(1,2) = elec2ind
+            ExcitMat(2,1) = orbA
+            ExcitMat(2,2) = orbB
+            nJ = nI
+            call FindExcitDet (Excitmat, nJ, 2, parity)
+            
+            !call make_excit (nI, ilut, nJ, ilutJ, (/Elec1Ind, Elec2Ind/), &
+            !                 (/orbA, orbB/), ExcitMat, parity)
 
 !Once we have the definitive determinant, we also want to find out what sign the particles we want to create are.
 !iCreate is initially positive, so its sign can change depending on the sign of the connection and of the parent particle(s)
@@ -2205,9 +2214,15 @@ MODULE GenRandSymExcitNUMod
             ENDDO
 
             ! Find the new determinant
-            call make_excit (nI, ilutnI, nJ, ilutJ, (/Elec1Ind,Elec2Ind/), &
-                             (/Hole1BasisNum,Hole2BasisNum/), ExcitMat, &
-                             parity)
+            ExcitMat(1,1) = elec1ind
+            ExcitMat(1,2) = elec2ind
+            ExcitMat(2,1) = Hole1BasisNum
+            ExcitMat(2,2) = Hole2BasisNum
+            nJ = nI
+            call FindExcitDet (Excitmat, nJ, 2, parity)
+            !call make_excit (nI, ilutnI, nJ, ilutJ, (/Elec1Ind,Elec2Ind/), &
+            !                 (/Hole1BasisNum,Hole2BasisNum/), ExcitMat, &
+            !                 parity)
 
             !Calculate generation probabilities
             IF (iSpn.eq.2) THEN
@@ -2333,8 +2348,14 @@ MODULE GenRandSymExcitNUMod
         ENDIF
 
         ! Find the new determinant.
-        call make_excit (nI, ilutnI, nJ, ilutJ, (/Elec1Ind, Elec2Ind/), &
-                         (/Hole1BasisNum, Hole2BasisNum/), ExcitMat, parity)
+        ExcitMat(1,1) = elec1ind
+        ExcitMat(1,2) = elec2ind
+        ExcitMat(2,1) = Hole1BasisNum
+        ExcitMat(2,2) = Hole2BasisNum
+        nJ = nI
+        call FindExcitDet (Excitmat, nJ, 2, parity)
+        !call make_excit (nI, ilutnI, nJ, ilutJ, (/Elec1Ind, Elec2Ind/), &
+        !                 (/Hole1BasisNum, Hole2BasisNum/), ExcitMat, parity)
                 
         IF(tHub) THEN
             ! Debug to test the resultant determinant
@@ -2589,8 +2610,14 @@ MODULE GenRandSymExcitNUMod
             ms_sum=G1(Elec1)%Ms+G1(Elec2)%Ms-G1(Hole1)%Ms-G1(Hole2)%Ms
             IF (ms_sum.ne.0) CYCLE
             
-            call make_excit (nI, ilutnI, nJ, ilutJ, (/Elec1Ind,Elec2Ind/), &
-                             (/Hole1,Hole2/), ExcitMat, parity)
+            ExcitMat(1,1) = elec1ind
+            ExcitMat(1,2) = elec2ind
+            ExcitMat(2,1) = Hole1
+            ExcitMat(2,2) = Hole2
+            nJ = nI
+            call FindExcitDet (Excitmat, nJ, 2, parity)
+!            call make_excit (nI, ilutnI, nJ, ilutJ, (/Elec1Ind,Elec2Ind/), &
+!                             (/Hole1,Hole2/), ExcitMat, parity)
 
             ! k-point symmetry
             IF(.not.(IsMomentumAllowed(nJ)))THEN

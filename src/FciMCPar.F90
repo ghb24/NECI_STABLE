@@ -1294,7 +1294,10 @@ MODULE FciMCParMod
                         ! We know we want to create a particle of this type.
                         ! Encode the bit representation if it isn't already.
 
-                        call decode_child (nJ, ilutnJ)
+                        !call decode_child (nJ, ilutnJ)
+!                        call EncodeBitDet(nJ, ilutnJ)
+                        call FindExcitBitDet (CurrentDets(:,j), ilutnJ, &
+                                              ic, ex)
 
                         call new_child_stats (iter_data, CurrentDets(:,j), &
                                               nJ, iLutnJ, ic, walkExcitLevel,&
