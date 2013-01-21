@@ -62,9 +62,6 @@ contains
 
         current_element = 1
 
-        write(6,*) "here"
-        call neci_flush(6)
-
     end subroutine dSFMT_init
 
     function genrand_real2_dSFMT() result(r)

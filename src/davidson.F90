@@ -70,6 +70,7 @@ real(dp) :: davidson_eigenvalue
             call calculate_residual_norm()
 
             print *, "iteration:", i, "residual norm:", residual_norm
+            call neci_flush(6)
             ! If the solution is sufficiently converged then exit the loop.
             if (residual_norm < residual_norm_target) exit
             

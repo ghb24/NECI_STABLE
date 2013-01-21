@@ -1492,6 +1492,7 @@ MODULE FciMCParMod
         iter_data%update_growth = iter_data%update_growth + iter_data%nborn &
                                 - iter_data%ndied - iter_data%nannihil &
                                 - iter_data%naborted
+        call neci_flush(6)
         iter_data%update_iters = iter_data%update_iters + 1
 
         ! This routine will take the CurrentDets and search the array to find all single and double 
@@ -3954,7 +3955,7 @@ MODULE FciMCParMod
 #ifdef __DEBUG
         !Write this 'ASSERTROOT' out explicitly to avoid line lengths problems
         if ((iProcIndex == root) .and. .not. tSpinProject .and. &
-         all(abs(iter_data%update_growth_tot-((AllTotParts)-(AllTotPartsOld))) > 1.0e-7)) then
+         all(abs(iter_data%update_growth_tot-((AllTotParts)-(AllTotPartsOld))) > 1.0e-6)) then
             write(iout,*) "update_growth: ",iter_data%update_growth_tot
             write(iout,*) "AllTotParts: ",AllTotParts
             write(iout,*) "AllTotPartsOld: ", AllTotPartsOld
@@ -4263,7 +4264,7 @@ MODULE FciMCParMod
 
 
         ! Reset the counters
-        iter_data%update_growth = 0.0
+        iter_data%update_growth = 0.0_dp
         iter_data%update_iters = 0
         iter_data%tot_parts_old = tot_parts_new_all
 
@@ -5342,7 +5343,7 @@ MODULE FciMCParMod
         AllMaxSpawnProb=0.0_dp
 
         ! Initialise the fciqmc counters
-        iter_data_fciqmc%update_growth = 0.0
+        iter_data_fciqmc%update_growth = 0.0_dp
         iter_data_fciqmc%update_iters = 0
  
         IF(tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC).or.tHistHamil) THEN

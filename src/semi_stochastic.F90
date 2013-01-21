@@ -12,7 +12,8 @@ module semi_stochastic
     use csf_data, only: iscsf, csf_orbital_mask
     use constants
     use DetBitOps, only: ilut_lt, ilut_gt, count_open_orbs, FindBitExcitLevel, DetBitLT, &
-                         count_set_bits
+                         count_set_bits, IsAllowedHPHF
+    use DeterminantData, only: write_det
     use Determinants, only: get_helement
     use enumerate_excitations
     use FciMCData, only: HFDet, ilutHF, iHFProc, Hii, CurrentDets, CurrentH, &
@@ -21,7 +22,7 @@ module semi_stochastic
                          determ_space_size, TotWalkers, TotWalkersOld, &
                          indices_of_determ_states, ProjEDet
     use hash , only: DetermineDetNode
-    use hphf_integrals, only: hphf_diag_helement
+    use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIBarrier, MPIArg, &
                              MPIAllGatherV, MPIAllGather
     use sort_mod, only: sort
@@ -43,6 +44,7 @@ contains
         ! the psip vectors in the deterministic space are also allocated.
 
         integer :: i, j, IC, ierr
+        integer :: nI(nel)
 
         ! Initialise the deterministic masks.
         deterministic_mask = 0
@@ -129,6 +131,13 @@ contains
         ! Calculate and store the deterministic Hamiltonian.
         call calculate_det_hamiltonian_normal()
 
+        !print *, "Deterministic states:"
+        !do i = 1, deterministic_proc_sizes(iProcIndex)
+        !    call decode_bit_det(nI, CurrentDets(:, i))
+        !    print *, CurrentDets(:,i)
+        !    call write_det(6, nI, .true.)
+        !end do
+
     end subroutine init_semi_stochastic
 
     subroutine calculate_det_hamiltonian_normal()
@@ -170,15 +179,25 @@ contains
 
                     ! If on the diagonal of the Hamiltonian.
                     if ((iProcIndex == iproc) .and. (i == j)) then
-                        core_hamiltonian(i, col_index + j) = &
-                                             get_helement(nI, nJ, 0) - Hii
+                        if (tHPHF) then
+                            core_hamiltonian(i, col_index + j) = &
+                                hphf_diag_helement(nI, CurrentDets(:,i)) - Hii
+                        else
+                            core_hamiltonian(i, col_index + j) = &
+                                get_helement(nI, nJ, 0) - Hii
+                        end if
                         ! We calculate and store CurrentH at this point for ease.
                         if (.not.tRegenDiagHEls) CurrentH(1,i) = &
-                                             core_hamiltonian(i, col_index + j) - Hii
+                                             core_hamiltonian(i, col_index + j)
                     else
-                        core_hamiltonian(i, col_index + j) = &
-                                         get_helement(nI, nJ, CurrentDets(:, i), &
-                                                            temp_store(:, j))
+                        if (tHPHF) then
+                            core_hamiltonian(i, col_index + j) = &
+                                hphf_off_diag_helement(nI, nJ, CurrentDets(:,i), &
+                                temp_store(:,j))
+                        else
+                            core_hamiltonian(i, col_index + j) = &
+                                get_helement(nI, nJ, CurrentDets(:, i), temp_store(:, j))
+                        end if
                     end if
 
                 end do
@@ -344,6 +363,8 @@ contains
             write(6,*) new_num_det_states, "states found. Constructing Hamiltonian..."
             call neci_flush(6)
 
+            ! Allocate arrays needed for the Hamiltonian construction and for finding the ground
+            ! state
             allocate(hamiltonian_row(new_num_det_states))
             allocate(hamil_diag(new_num_det_states))
             allocate(sparse_hamil(new_num_det_states))
@@ -365,6 +386,10 @@ contains
                 ! Get nI form of the basis function.
                 call decode_bit_det(nI, ilut_store_new(:, j))
 
+                ! sparse_diag_positions(j) stores the number of non-zero elements in row j of the
+                ! Hamiltonian, up to and including the diagonal element.
+                ! sparse_row_sizes stores this number currently as all non-zero elements before
+                ! the diagonal have been counted, as the Hamiltonian is symmetric.
                 sparse_diag_positions(j) = sparse_row_sizes(j)
 
                 do k = j, new_num_det_states
@@ -379,6 +404,7 @@ contains
                         hamiltonian_row(k) = get_helement(nI, nJ, ilut_store_new(:, j), &
                                                                  ilut_store_new(:, k))
                         if (abs(hamiltonian_row(k)) > 0.0_dp) then
+                            ! If element is nonzero, update the following sizes.
                             sparse_row_sizes(j) = sparse_row_sizes(j) + 1
                             sparse_row_sizes(k) = sparse_row_sizes(k) + 1
                         end if
@@ -410,10 +436,9 @@ contains
             ! At this point, sparse_hamil has been allocated with the correct sizes, but only the
             ! matrix elements in above and including the diagonal have been filled in. Now we must
             ! fill in the other elements. To do this, cycle through every element above the
-            ! diagonal and fill in every corresponding elements below it:
+            ! diagonal and fill in every corresponding element below it:
             indices = 1
             do j = 1, new_num_det_states
-            
                 do k = sparse_diag_positions(j) + 1, sparse_row_sizes(j)
 
                     sparse_hamil(sparse_hamil(j)%positions(k))%&
@@ -424,7 +449,6 @@ contains
                     indices(sparse_hamil(j)%positions(k)) = indices(sparse_hamil(j)%positions(k))+ 1
 
                 end do
-
             end do
 
             ! The Hamiltonian generation is now finished.
@@ -432,7 +456,7 @@ contains
             write (6,*) "Performing diagonalisation..."
             call neci_flush(6)
 
-            ! Now that the Hamiltonian is generated, we can finally diagonalise it:
+            ! Now that the Hamiltonian is generated, we can finally find the ground state of it:
             call perform_davidson(.true.)
 
             ! davidson_eigenvector now stores the ground state eigenvector.
@@ -582,6 +606,9 @@ contains
         integer :: HFDet_loc(nel), nI(nel)
         integer :: exflag
         logical :: first_loop
+
+        if (tFixLz) call stop_all("generate_sing_doub_csfs", "The CSF generating routine &
+            &does not work when Lz symmetry is applied.")
 
         ! Setting the first two bits of this flag tells the generating subroutine to
         ! generate both single and double spatial excitations.
@@ -825,6 +852,11 @@ contains
         integer(n_int) :: flags
         integer :: proc
         real(dp) :: sgn(lenof_sign)
+
+        ! If using HPHFs then only allow the correct HPHFs to be added to the list.
+        if (tHPHF) then
+            if (.not. IsAllowedHPHF(ilut)) return
+        end if
 
         sgn = 0.0_dp
         ! Flag to specify that these basis states are in the deterministic space.

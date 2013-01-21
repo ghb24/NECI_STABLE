@@ -12,7 +12,7 @@ module enumerate_excitations
     use SymData, only: nSymLabels
     use SymExcitDataMod
     use sym_general_mod
-    use SystemData, only: nel, G1
+    use SystemData, only: nel, G1, tFixLz
 
     implicit none
 
@@ -29,10 +29,10 @@ module enumerate_excitations
         integer :: norb_sym
         integer :: sym_prod
         integer :: npairs
-        integer :: ms_combination
-        integer :: ms_num_combinations
-        integer :: total_ms
-        integer :: ms_1, ms_2
+        integer :: ms_combination, ml_combination
+        integer :: ms_num_combinations, ml_num_combinations
+        integer :: total_ms, total_ml
+        integer :: ms_1, ms_2, ml_1, ml_2
         logical :: gen_singles
     end type
     
@@ -57,7 +57,7 @@ contains
         type(excit_store), intent(inout), target :: gen_store
 
         integer, pointer :: i, j, orb1, ind1, norb_sym, sym_ind1
-        integer :: orbI, ms_1_2
+        integer :: orbI, ms_1_2, ml_1
 
         ! Map the local variables onto the store.
         i => gen_store%i;                j => gen_store%j
@@ -79,8 +79,13 @@ contains
                 orb1 = nI(i)
                 ! This gets Ms such that beta is represented by 1 and
                 ! alpha by 2, as required.
+                if (tFixLz) then
+                    ml_1 = G1(orb1)%Ml
+                else
+                    ml_1 = 0
+                end if
                 ms_1_2 = 1 + iand(1, orb1)
-                sym_ind1 = ClassCountInd(ms_1_2, G1(orb1)%Sym%S, 0)
+                sym_ind1 = ClassCountInd(ms_1_2, G1(orb1)%Sym%S, ml_1)
                 ind1 = SymLabelCounts2(1, sym_ind1)
                 norb_sym = OrbClasscount(sym_ind1)
             end if
@@ -128,7 +133,11 @@ contains
         integer, pointer :: ms_combination, orb2, ind2, sym1, sym2
         integer, pointer :: count1, count2, npairs, sym_ind2, sym_prod
         integer, pointer :: ms_num_combinations, total_ms, ms_1, ms_2
-        integer :: orbI, e1, e2, i1, i2, orb1a, orb2a, orbJ
+        integer, pointer :: ms_combination_number, ml_combination_number
+        integer, pointer :: ml_1, ml_2, total_ml, ml_num_combinations
+        integer, pointer :: ml_combination
+        integer :: min_ml, max_ml
+        integer :: orbI, e1, e2, i1, i2, orb1a, orb2a, orbJ, lz_1, lz_2
 
         ! Map the local variables onto the store
         i => gen_store%i;                j => gen_store%j
@@ -143,6 +152,10 @@ contains
         total_ms => gen_store%total_ms;  ms_num_combinations => gen_store%&
                                                        &ms_num_combinations
         ms_1 => gen_store%ms_1;          ms_2 => gen_store%ms_2
+        total_ml => gen_store%total_ml;  ml_num_combinations => gen_store%&
+                                                       &ml_num_combinations
+        ml_1 => gen_store%ml_1;          ml_2 => gen_store%ml_2
+        ml_combination => gen_store%ml_combination
 
         ! Initialise the generator.
         if (ilut_ret(0) == -1) then
@@ -150,7 +163,13 @@ contains
             i = 1
             j = 0
             ms_combination = 1
+            ml_combination = 1
         endif
+
+        if (tFixLz) then
+            min_ml = minval(G1(:)%Ml)
+            max_ml = maxval(G1(:)%Ml)
+        end if
 
         npairs = nel * (nel - 1) / 2
         do i = i, npairs
@@ -164,79 +183,105 @@ contains
 
                 sym_prod = ieor(G1(orb1)%Sym%S, G1(orb2)%Sym%S)
                 total_ms = G1(orb1)%Ms + G1(orb2)%Ms
-                ! If total_ms = -2 or +2 then both spins have to be beta
-                ! or both alpha respectively, so there is only one combination
-                ! to consider. If total_ms = 0 then the spins excited to can
-                ! be (alpha, beta) or (beta, alpha). This formula maps -2, 0
-                ! and +2 to the values 1, 2 and 1, as required.
-                ms_num_combinations = (2-abs(total_ms))/2 + 1
+
+                ! Find the number of different pairs of ms values that two electrons
+                ! can have such that their total ms value is total_ms:
+                call find_number_summation_possibilities(total_ms, -1, 1, &
+                    ms_num_combinations, .true.)
+
+                ! If applying Lz symmetry, find the number of pairs of ml values so
+                ! that the total ml value is total_ml, as for ms above.
+                if (tFixLz) then
+                    total_ml = G1(orb1)%Ml + G1(orb2)%Ml
+                    call find_number_summation_possibilities(total_ml, min_ml,&
+                        max_ml, ml_num_combinations, .false.)
+                else
+                    ml_num_combinations = 1
+                end if
 
                 sym1 = 0
             end if
 
             do sym1 = sym1, nSymLabels - 1
 
-                ! If total_ms = 0, loop over both possibilities
+                ! Generate the paired symmetry.
+                sym2 = ieor(sym_prod, sym1)
+                ! Don't overcount.
+                if (sym2 < sym1) cycle
+
                 do ms_combination = ms_combination, ms_num_combinations
 
-                    if (j == 0) then
-                        ! Set the Ms values (1=alpha, 2=beta) for both electrons.
-                        if (total_ms == -2) then
-                            ms_1 = 2
-                            ms_2 = 2
-                        else if (total_ms == 2) then
-                            ms_1 = 1
-                            ms_2 = 1
-                        else
-                            ms_1 = ms_combination ! 1 or 2.
-                            ms_2 = 3 - ms_combination ! 2 or 1.
+                    do ml_combination = ml_combination, ml_num_combinations
+
+                        ! If on the first loop of both this loop and the parent loop.
+                        if (j == 0) then
+
+                            ! Find the next pair of ms values that add up to total_ms.
+                            call find_next_summation_pair(total_ms, -1, 1, ms_combination, &
+                                .true., ms_1, ms_2)
+
+                            ! Convert the ms values from +1 and -1 to 1 and 2 for alpha and
+                            ! beta, respectively. This is required for ClassCoundInd.
+                            ms_1 = (-ms_1+3)/2
+                            ms_2 = (-ms_2+3)/2
+
+                            ! If applying Lz symmetry, find the next pair of ml values that
+                            ! add up to total_ml.
+                            if (tFixLz) then
+                                call find_next_summation_pair(total_ml, min_ml, max_ml, &
+                                    ml_combination, .false., ml_1, ml_2)
+                            else
+                                ml_1 = 0
+                                ml_2 = 0
+                            end if
+
+                            ! Finally, find the symmetry index for this specific (ms, sym, ml)
+                            ! combination, for both electrons.
+                            sym_ind1 = ClassCountInd(ms_1, sym1, ml_1)
+                            sym_ind2 = ClassCountInd(ms_2, sym2, ml_2)
+                            ind1 = SymLabelCounts2(1, sym_ind1)
+                            ind2 = SymLabelCounts2(1, sym_ind2)
+                            count1 = OrbClasscount(sym_ind1)
+                            count2 = OrbClasscount(sym_ind2)
+                            ! The total number of pairs of orbitals with these symmetries.
+                            norb_sym = count1 * count2
                         end if
-                        ! Generate the paired symmetry.
-                        sym2 = ieor(sym_prod, sym1)
-                        ! Don't overcount.
-                        if (sym2 < sym1) cycle
 
-                        ! Symmetry indices, now including Ms values.
-                        sym_ind1 = ClassCountInd(ms_1, sym1, 0)
-                        sym_ind2 = ClassCountInd(ms_2, sym2, 0)
-                        ind1 = SymLabelCounts2(1, sym_ind1)
-                        ind2 = SymLabelCounts2(1, sym_ind2)
-                        count1 = OrbClasscount(sym_ind1)
-                        count2 = OrbClasscount(sym_ind2)
-                        norb_sym = count1 * count2
-                    end if
+                        j = j + 1
+                        ! Loop over all possble pairs of orbitals with the symmetries generated above.
+                        do j = j, norb_sym
 
-                    j = j + 1
-                    do j = j, norb_sym
+                            ! Direct mapping to orbitals.
+                            i1 = mod(j-1, count1)
+                            i2 = floor(real(j-1)/count1)
+                            orbI = SymLabelList2(ind1 + i1)
+                            orbJ = SymLabelList2(ind2 + i2)
 
-                        ! Direct mapping to orbitals.
-                        i1 = mod(j-1, count1)
-                        i2 = floor(real(j-1)/count1)
-                        orbI = SymLabelList2(ind1 + i1)
-                        orbJ = SymLabelList2(ind2 + i2)
+                            ! If the two symmetries are the same (not including Ml or Ms)
+                            ! only generate each pair one way around.
+                            if (sym1 == sym2 .and. orbJ < orbI) cycle
 
-                        ! If the two symmetries are the same (not including Ms),
-                        ! only generate each pair one way around.
-                        if (sym1 == sym2 .and. orbJ < orbI) cycle
+                            ! We don't want to put two electrons into the same
+                            ! spin orbital.
+                            if (orbI == orbJ) cycle
 
-                        ! We don't want to put two electrons into the same
-                        ! spin orbital.
-                        if (orbI == orbJ) cycle
+                            ! Cannot excite to occupied orbitals.
+                            if (IsOcc(ilutI, orbI)) cycle
+                            if (IsOcc(ilutI, orbJ)) cycle
 
-                        ! Cannot excite to occupied orbitals.
-                        if (IsOcc(ilutI, orbI)) cycle
-                        if (IsOcc(ilutI, orbJ)) cycle
+                            ! Now we can generate the determinant, and interrupt
+                            ! the loop.
+                            ilut_ret = ilutI
+                            clr_orb(ilut_ret, orb1)
+                            clr_orb(ilut_ret, orb2)
+                            set_orb(ilut_ret, orbI)
+                            set_orb(ilut_ret, orbJ)
+                            return
+                        end do
+                        j = 0
 
-                        ! Now we can generate the determinant, and interrupt
-                        ! the loop.
-                        ilut_ret = ilutI
-                        clr_orb(ilut_ret, orb1)
-                        clr_orb(ilut_ret, orb2)
-                        set_orb(ilut_ret, orbI)
-                        set_orb(ilut_ret, orbJ)
-                        return
                     end do
-                    j = 0
+                    ml_combination = 1
 
                 end do
                 ms_combination = 1
@@ -462,5 +507,79 @@ contains
         endif
 
     end subroutine enumerate_spatial_excitations
+
+    subroutine find_number_summation_possibilities(target_integer, min_integer, max_integer, &
+        num_pairs, ms_values)
+
+        ! This routine finds the number of pairs of integers which sum to some given
+        ! value, given that the two integers have a minimum and maximum size. If ms_values is
+        ! true then the only the integers corresponding to actual ms values are cycled through.
+
+        integer, intent(in) :: target_integer, min_integer, max_integer
+        logical, intent(in) :: ms_values
+        integer, intent(out) :: num_pairs
+        integer :: i, j
+        integer :: interval
+
+        num_pairs = 0
+
+        if (ms_values) then
+            interval = 2
+        else
+            interval = 1
+        end if
+
+        ! Loop over all values for the first integer.
+        do i = min_integer, max_integer, interval
+            ! Loop over all values for the second integer.
+            do j = min_integer, max_integer
+                ! If the two integers add up to the target value.
+                if ((i+j) == target_integer) num_pairs = num_pairs + 1
+            end do
+        end do
+
+    end subroutine find_number_summation_possibilities
+
+    subroutine find_next_summation_pair(target_integer, min_integer, max_integer, pair_number, &
+        ms_values, number_1, number_2)
+
+        ! This routine finds the next pair of numbers which add up to target_integer, given
+        ! the maximum and minimum values of the induvidual numbers are min_integer and
+        ! max_integer. pair_number specifies which generated pair should be returned.
+        ! If ms_values is true then the only the integers corresponding to actual ms values
+        ! are cycled through.
+
+        integer, intent(in) :: target_integer, min_integer, max_integer, pair_number
+        logical, intent(in) :: ms_values
+        integer, intent(out) :: number_1, number_2
+        integer :: i, j, counter
+        integer :: interval = 1
+
+        counter = 0
+
+        if (ms_values) then
+            interval = 2
+        else
+            interval = 1
+        end if
+
+        ! Loop over all values for the first integer.
+        do i = min_integer, max_integer, interval
+            ! Loop over all values for the second integer.
+            do j = min_integer, max_integer
+                ! If the two integers add up to the target value.
+                if ((i+j) == target_integer) then
+                    counter = counter+1
+                    ! If on the pair specified by the user.
+                    if (counter == pair_number) then
+                        number_1 = i
+                        number_2 = j
+                        return
+                    end if
+                end if
+            end do
+        end do
+
+    end subroutine find_next_summation_pair
 
 end module enumerate_excitations
