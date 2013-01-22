@@ -211,6 +211,111 @@ contains
 
     end subroutine calculate_det_hamiltonian_normal
 
+    subroutine calculate_sparse_hamiltonian(num_states, ilut_list)
+
+        use FciMCData, only: sparse_matrix_info, sparse_hamil, hamil_diag
+
+        integer, intent(in) :: num_states
+        integer(n_int), intent(in) :: ilut_list(0:NIfTot, num_states)
+        integer :: i, j, counter
+        integer :: nI(nel), nJ(nel)
+        real(dp), allocatable, dimension(:) :: hamiltonian_row
+        integer, allocatable, dimension(:) :: sparse_diag_positions, sparse_row_sizes, indices
+
+        ! Allocate arrays needed for the Hamiltonian construction and for finding the ground
+        ! state
+        allocate(hamiltonian_row(num_states))
+        allocate(hamil_diag(num_states))
+        allocate(sparse_hamil(num_states))
+        allocate(sparse_row_sizes(num_states))
+        allocate(sparse_diag_positions(num_states))
+        allocate(indices(num_states))
+
+        ! Set each element to one to count the digonal elements straight away.
+        sparse_row_sizes = 1
+
+        ! In the following, the Hamiltonian for the new deterministic space is generated in a
+        ! form which takes advantage of its sparse nature (see the type sparse_matrix_info in
+        ! the FciMCData module).
+        do i = 1, num_states
+
+            hamiltonian_row = 0.0_dp
+
+            ! Get nI form of the basis function.
+            call decode_bit_det(nI, ilut_list(:, i))
+
+            ! sparse_diag_positions(j) stores the number of non-zero elements in row j of the
+            ! Hamiltonian, up to and including the diagonal element.
+            ! sparse_row_sizes stores this number currently as all non-zero elements before
+            ! the diagonal have been counted, as the Hamiltonian is symmetric.
+            sparse_diag_positions(i) = sparse_row_sizes(i)
+
+            do j = i, num_states
+
+                call decode_bit_det(nJ, ilut_list(:, j))
+
+                ! If on the diagonal of the Hamiltonian.
+                if (i == j) then
+                    hamiltonian_row(j) = get_helement(nI, nJ, 0)
+                    hamil_diag(j) = hamiltonian_row(j)
+                else
+                    hamiltonian_row(j) = get_helement(nI, nJ, ilut_list(:, i), &
+                                                             ilut_list(:, j))
+                    if (abs(hamiltonian_row(j)) > 0.0_dp) then
+                        ! If element is nonzero, update the following sizes.
+                        sparse_row_sizes(i) = sparse_row_sizes(i) + 1
+                        sparse_row_sizes(j) = sparse_row_sizes(j) + 1
+                    end if
+                end if
+
+            end do
+
+            ! Now we know the number of non-zero elements in this row of the Hamiltonian, so
+            ! allocate it.
+            allocate(sparse_hamil(i)%elements(sparse_row_sizes(i)))
+            allocate(sparse_hamil(i)%positions(sparse_row_sizes(i)))
+            sparse_hamil(i)%elements = 0.0_dp
+            sparse_hamil(i)%positions = 0
+            sparse_hamil(i)%num_elements = sparse_row_sizes(i)
+
+            ! Now fill in all matrix elements beyond and including the diagonal, as these are
+            ! stored in hamiltonian_row.
+            counter = sparse_diag_positions(i)
+            do j = i, num_states
+                if (abs(hamiltonian_row(j)) > 0.0_dp) then
+                    sparse_hamil(i)%positions(counter) = j
+                    sparse_hamil(i)%elements(counter) = hamiltonian_row(j)
+                    counter = counter + 1
+                end if
+            end do
+
+        end do
+
+        ! At this point, sparse_hamil has been allocated with the correct sizes, but only the
+        ! matrix elements in above and including the diagonal have been filled in. Now we must
+        ! fill in the other elements. To do this, cycle through every element above the
+        ! diagonal and fill in every corresponding element below it:
+        indices = 1
+        do i = 1, num_states
+            do j = sparse_diag_positions(i) + 1, sparse_row_sizes(i)
+
+                sparse_hamil(sparse_hamil(i)%positions(j))%&
+                    &positions(indices(sparse_hamil(i)%positions(j))) = i
+                sparse_hamil(sparse_hamil(i)%positions(j))%&
+                    &elements(indices(sparse_hamil(i)%positions(j))) = sparse_hamil(i)%elements(j)
+
+                indices(sparse_hamil(i)%positions(j)) = indices(sparse_hamil(i)%positions(j))+ 1
+
+            end do
+        end do
+
+        deallocate(hamiltonian_row)
+        deallocate(sparse_row_sizes)
+        deallocate(sparse_diag_positions)
+        deallocate(indices)
+
+    end subroutine calculate_sparse_hamiltonian
+
     subroutine generate_optimised_core()
 
         ! This routine generates a deterministic space by diagonalising a small fraction
@@ -228,14 +333,13 @@ contains
         ! iterated for as many time as the user requests.
 
         use davidson, only: perform_davidson, davidson_eigenvalue, davidson_eigenvector
-        use FciMCData, only: hamiltonian, sparse_matrix_info, sparse_hamil, hamil_diag
+        use FciMCData, only: sparse_matrix_info, sparse_hamil, hamil_diag
 
         type(excit_store), target :: gen_store
         integer(n_int), allocatable, dimension(:,:) :: ilut_store_old, ilut_store_new
         integer(n_int) :: ilut(0:NIfTot)
-        integer :: nI(nel), nJ(nel)
-        real(dp), allocatable, dimension(:) :: determ_ground_state, hamiltonian_row
-        integer, allocatable, dimension(:) :: sparse_diag_positions, sparse_row_sizes, indices
+        integer :: nI(nel)
+        real(dp), allocatable, dimension(:) :: determ_ground_state
         integer :: counter, i, j, k
         integer :: old_num_det_states, new_num_det_states, comp
         logical :: connected, first_loop
@@ -363,95 +467,8 @@ contains
             write(6,*) new_num_det_states, "states found. Constructing Hamiltonian..."
             call neci_flush(6)
 
-            ! Allocate arrays needed for the Hamiltonian construction and for finding the ground
-            ! state
-            allocate(hamiltonian_row(new_num_det_states))
-            allocate(hamil_diag(new_num_det_states))
-            allocate(sparse_hamil(new_num_det_states))
-            allocate(determ_ground_state(new_num_det_states))
-            allocate(sparse_row_sizes(new_num_det_states))
-            allocate(sparse_diag_positions(new_num_det_states))
-            allocate(indices(new_num_det_states))
-            determ_ground_state = 0.0_dp
-            ! Set each element to one to count the digonal elements straight away.
-            sparse_row_sizes = 1
-
-            ! In the following, the Hamiltonian for the new deterministic space is generated in a
-            ! form which takes advantage of its sparse nature (see the type sparse_matrix_info in
-            ! the FciMCData module).
-            do j = 1, new_num_det_states
-
-                hamiltonian_row = 0.0_dp
-
-                ! Get nI form of the basis function.
-                call decode_bit_det(nI, ilut_store_new(:, j))
-
-                ! sparse_diag_positions(j) stores the number of non-zero elements in row j of the
-                ! Hamiltonian, up to and including the diagonal element.
-                ! sparse_row_sizes stores this number currently as all non-zero elements before
-                ! the diagonal have been counted, as the Hamiltonian is symmetric.
-                sparse_diag_positions(j) = sparse_row_sizes(j)
-
-                do k = j, new_num_det_states
-
-                    call decode_bit_det(nJ, ilut_store_new(:, k))
-
-                    ! If on the diagonal of the Hamiltonian.
-                    if (j == k) then
-                        hamiltonian_row(k) = get_helement(nI, nJ, 0)
-                        hamil_diag(k) = hamiltonian_row(k)
-                    else
-                        hamiltonian_row(k) = get_helement(nI, nJ, ilut_store_new(:, j), &
-                                                                 ilut_store_new(:, k))
-                        if (abs(hamiltonian_row(k)) > 0.0_dp) then
-                            ! If element is nonzero, update the following sizes.
-                            sparse_row_sizes(j) = sparse_row_sizes(j) + 1
-                            sparse_row_sizes(k) = sparse_row_sizes(k) + 1
-                        end if
-                    end if
-
-                end do
-
-                ! Now we know the number of non-zero elements in this row of the Hamiltonian, so
-                ! allocate it.
-                allocate(sparse_hamil(j)%elements(sparse_row_sizes(j)))
-                allocate(sparse_hamil(j)%positions(sparse_row_sizes(j)))
-                sparse_hamil(j)%elements = 0.0_dp
-                sparse_hamil(j)%positions = 0
-                sparse_hamil(j)%num_elements = sparse_row_sizes(j)
-
-                ! Now fill in all matrix elements beyond and including the diagonal, as these are
-                ! stored in hamiltonian_row.
-                counter = sparse_diag_positions(j)
-                do k = j, new_num_det_states
-                    if (abs(hamiltonian_row(k)) > 0.0_dp) then
-                        sparse_hamil(j)%positions(counter) = k
-                        sparse_hamil(j)%elements(counter) = hamiltonian_row(k)
-                        counter = counter + 1
-                    end if
-                end do
-
-            end do
-
-            ! At this point, sparse_hamil has been allocated with the correct sizes, but only the
-            ! matrix elements in above and including the diagonal have been filled in. Now we must
-            ! fill in the other elements. To do this, cycle through every element above the
-            ! diagonal and fill in every corresponding element below it:
-            indices = 1
-            do j = 1, new_num_det_states
-                do k = sparse_diag_positions(j) + 1, sparse_row_sizes(j)
-
-                    sparse_hamil(sparse_hamil(j)%positions(k))%&
-                        &positions(indices(sparse_hamil(j)%positions(k))) = j
-                    sparse_hamil(sparse_hamil(j)%positions(k))%&
-                        &elements(indices(sparse_hamil(j)%positions(k))) = sparse_hamil(j)%elements(k)
-
-                    indices(sparse_hamil(j)%positions(k)) = indices(sparse_hamil(j)%positions(k))+ 1
-
-                end do
-            end do
-
-            ! The Hamiltonian generation is now finished.
+            call calculate_sparse_hamiltonian(new_num_det_states, &
+                ilut_store_new(:,1:new_num_det_states))
 
             write (6,*) "Performing diagonalisation..."
             call neci_flush(6)
@@ -461,6 +478,7 @@ contains
 
             ! davidson_eigenvector now stores the ground state eigenvector.
 
+            allocate(determ_ground_state(new_num_det_states))
             determ_ground_state = abs(davidson_eigenvector)
 
             write(6,*) "Diagonalisation complete."
@@ -506,11 +524,7 @@ contains
 
             deallocate(sparse_hamil)
             deallocate(hamil_diag)
-            deallocate(hamiltonian_row)
             deallocate(determ_ground_state)
-            deallocate(sparse_row_sizes)
-            deallocate(sparse_diag_positions)
-            deallocate(indices)
 
         end do
 
@@ -518,7 +532,7 @@ contains
         do i = 1, old_num_det_states
             comp = DetBitLT(ilut_store_old(:, i), ilutHF, NIfD, .false.)
             if (comp == 0) cycle
-            call add_basis_state_to_list(ilut_store_old(:, i))
+            call add_basis_state_to_list(ilut_store_old(:, i), .true.)
         end do
 
         deallocate(ilut_store_old)
@@ -573,7 +587,7 @@ contains
         ! Find the first single excitation.
         call enumerate_all_single_excitations (ilutHF, HFDet, ilut, gen_store)
         ! Subroutine to add this state to the spawned list if on this processor.
-        call add_basis_state_to_list(ilut)
+        call add_basis_state_to_list(ilut, .true.)
 
         ! When no more basis functions are found, this value is returned and the loop
         ! is exited.
@@ -581,7 +595,7 @@ contains
             call enumerate_all_single_excitations (ilutHF, HFDet, ilut, gen_store)
 
             ! If a determinant is returned (if we did not find the final one last time.)
-            if (ilut(0) /= -1) call add_basis_state_to_list(ilut)
+            if (ilut(0) /= -1) call add_basis_state_to_list(ilut, .true.)
         end do
 
         ! Now generate the double excitations...
@@ -589,12 +603,12 @@ contains
         ilut(0) = -1
         ! The first double excitation.
         call enumerate_all_double_excitations (ilutHF, HFDet, ilut, gen_store)
-        call add_basis_state_to_list(ilut)
+        call add_basis_state_to_list(ilut, .true.)
 
         do while(ilut(0) /= -1)
             call enumerate_all_double_excitations (ilutHF, HFDet, ilut, gen_store)
 
-            if (ilut(0) /= -1) call add_basis_state_to_list(ilut)
+            if (ilut(0) /= -1) call add_basis_state_to_list(ilut, .true.)
         end do
 
     end subroutine generate_sing_doub_determinants
@@ -739,7 +753,7 @@ contains
 
             if (tDeterminantCore) then
                 ! Now that we have fully generated the determinant, add it to the main list.
-                call add_basis_state_to_list(ilut)
+                call add_basis_state_to_list(ilut, .true.)
             else if (tCSFCore) then
                 ilut_store(counter, 0:NifD) = ilut(0:NifD)
                 counter = counter + 1
@@ -831,12 +845,12 @@ contains
                 call get_csf_bit_yama(nI, ilut(nOffY:nOffY+nIfY-1))
             end if
             ! Finally add the CSF to the CurrentDets list.
-            call add_basis_state_to_list(ilut, nI)
+            call add_basis_state_to_list(ilut, .true., nI)
         end do
 
     end subroutine generate_all_csfs_from_orb_config
 
-    subroutine add_basis_state_to_list(ilut, nI_in)
+    subroutine add_basis_state_to_list(ilut, determ_space, nI_in)
 
         ! This subroutine, called from init_semi_stochastic, takes a bitstring, finds
         ! the nI representation, decides if the basis state lives on this processor
@@ -844,45 +858,59 @@ contains
         ! being calculated.
 
         ! In: ilut - The determinant in a bitstring form.
+        ! In: determ_space - If true then the routine was called to add the state to the
+        !     deterministic space. If false, then the routine was called to add the
+        !     state to the trial space.
         ! In (optional) : nI_in - A list of the occupied orbitals in the determinant.
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
+        logical, intent(in) :: determ_space
         integer, optional :: nI_in(nel)
         integer :: nI(nel)
         integer(n_int) :: flags
         integer :: proc
         real(dp) :: sgn(lenof_sign)
 
-        ! If using HPHFs then only allow the correct HPHFs to be added to the list.
-        if (tHPHF) then
-            if (.not. IsAllowedHPHF(ilut)) return
-        end if
+        if (determ_space) then
 
-        sgn = 0.0_dp
-        ! Flag to specify that these basis states are in the deterministic space.
-        flags = 0
-        flags = ibset(flags, flag_deterministic)
-        if (tTruncInitiator) then
-            flags = ibset(flags, flag_is_initiator(1))
-            flags = ibset(flags, flag_is_initiator(2))
-        end if
+            ! If using HPHFs then only allow the correct HPHFs to be added to the list.
+            if (tHPHF) then
+                if (.not. IsAllowedHPHF(ilut)) return
+            end if
 
-        ! Find the nI representation of determinant.
-        if (present(nI_in)) then
-            nI = nI_in
+            sgn = 0.0_dp
+            ! Flag to specify that these basis states are in the deterministic space.
+            flags = 0
+            flags = ibset(flags, flag_deterministic)
+            if (tTruncInitiator) then
+                flags = ibset(flags, flag_is_initiator(1))
+                flags = ibset(flags, flag_is_initiator(2))
+            end if
+
+            ! Find the nI representation of determinant.
+            if (present(nI_in)) then
+                nI = nI_in
+            else
+                call decode_bit_det(nI, ilut)
+            end if
+
+            ! Find the processor which this state belongs to.
+            proc = DetermineDetNode(nI,0)
+
+            ! Increase the size of the deterministic space on the correct processor.
+            deterministic_proc_sizes(proc) = deterministic_proc_sizes(proc) + 1
+
+            ! If this determinant belongs to this processor, add it to the main list.
+            if (proc == iProcIndex) call encode_bit_rep(CurrentDets(:, &
+                deterministic_proc_sizes(iProcIndex)), ilut(0:nIfDBO), sgn, flags)
+
         else
-            call decode_bit_det(nI, ilut)
+
+            if (tHPHF) then
+                if (.not. IsAllowedHPHF(ilut)) return
+            end if
+
         end if
-
-        ! Find the processor which this state belongs to.
-        proc = DetermineDetNode(nI,0)
-
-        ! Increase the size of the deterministic space on the correct processor.
-        deterministic_proc_sizes(proc) = deterministic_proc_sizes(proc) + 1
-
-        ! If this determinant belongs to this processor, add it to the main list.
-        if (proc == iProcIndex) call encode_bit_rep(CurrentDets(:, &
-                       deterministic_proc_sizes(iProcIndex)), ilut(0:nIfDBO), sgn, flags)
 
     end subroutine add_basis_state_to_list
 
