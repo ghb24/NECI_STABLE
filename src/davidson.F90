@@ -12,10 +12,11 @@ implicit none
 integer :: max_num_davidson_iters = 50
 real(dp) :: residual_norm_target = 0.0000001
 
-! If this is true then the Hamiltonian is must be stored in a sparse form, using
-! the sparse_matrix_info type (see the FciMCData module). This is then assumed
-! in all the Hamiltonian matrix calls.
-logical :: sparse_multiply = .false.
+integer :: hamil_type
+! The value of hamil_type specifies what form the Hamiltonian is stored in.
+! The following options are currently available:
+integer :: full_hamil_type = 1
+integer :: sparse_hamil_type = 2
 
 ! The dimension of the vector space we are working in, as determined by the number
 ! of rows and columns in the Hamiltonian matrix.
@@ -45,15 +46,15 @@ real(dp) :: davidson_eigenvalue
 
     contains
 
-    subroutine perform_davidson(sparse)
+    subroutine perform_davidson(input_hamil_type)
 
         ! This subroutine performs the main loop for the algorithm, from which each of the
         ! induvidual steps are called.
 
-        logical, intent(in) :: sparse
+        integer, intent(in) :: input_hamil_type
         integer :: i
 
-        if (sparse) sparse_multiply = .true.
+        hamil_type = input_hamil_type
 
         call init_davidson()
 
@@ -92,7 +93,7 @@ real(dp) :: davidson_eigenvalue
 
         integer :: i, HFindex
 
-        ! If not using the sparse storage of the Hamiltonian, allocate the Hamiltonian diagonal.
+        ! Allocate and define the Hamiltonian diagonal, if not done so already.
         if (.not. allocated(hamil_diag)) then
             allocate(hamil_diag(size(hamiltonian,1)))
             do i = 1, size(hamiltonian,1)
@@ -309,15 +310,15 @@ real(dp) :: davidson_eigenvalue
         real(dp), intent(in) :: input_vector(space_size)
         real(dp), intent(out) :: output_vector(space_size)
 
-        if (sparse_multiply) then
+        if (hamil_type == full_hamil_type) then
+            call multiply_hamil_and_vector_full(input_vector, output_vector)
+        else if (hamil_type == sparse_hamil_type) then
             call multiply_hamil_and_vector_sparse(input_vector, output_vector)
-        else if (.not. sparse_multiply) then
-            call multiply_hamil_and_vector_naive(input_vector, output_vector)
         end if
 
     end subroutine multiply_hamil_and_vector
 
-    subroutine multiply_hamil_and_vector_naive(input_vector, output_vector)
+    subroutine multiply_hamil_and_vector_full(input_vector, output_vector)
 
         real(dp), intent(in) :: input_vector(space_size)
         real(dp), intent(out) :: output_vector(space_size)
@@ -346,7 +347,7 @@ real(dp) :: davidson_eigenvalue
                    output_vector, &
                    1)
 
-    end subroutine multiply_hamil_and_vector_naive
+    end subroutine multiply_hamil_and_vector_full
 
     subroutine multiply_hamil_and_vector_sparse(input_vector, output_vector)
 

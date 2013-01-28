@@ -96,6 +96,9 @@ logical :: tAmplitudeCutoff
 ! the generation procedure should be performed.
 integer :: num_det_generation_loops
 
+! Options relating to the trial wavefunction.
+logical :: tDoublesTrial ! Use single and double exciations for the trial space.
+
 ! Calculate size of FCI determinant space using MC
 logical :: tMCSizeSpace,tMCSizeTruncSpace
 integer :: iMCCalcTruncLev

@@ -384,4 +384,24 @@ MODULE FciMCData
       ! state, which are not removed from the list.
       integer :: index_of_first_non_determ
 
+      ! Trial wavefunction data.
+
+      ! This list stores the iluts from which the trial wavefunction is formed, but only those that reside on this processor.
+      integer(n_int), allocatable, dimension(:,:) :: trial_vector_space
+      ! The number of states in the trial vector space.
+      integer :: trial_vector_space_size = 0
+      ! This list stores the iluts from which the trial wavefunction is formed, but only those that reside on this processor.
+      integer(n_int), allocatable, dimension(:,:) :: connected_space
+      ! The number of states in the space connected to (but not including) the trial vector space.
+      integer :: connected_space_size = 0
+
+      ! This vector stores the trial wavefunction itself.
+      real(dp), allocatable, dimension(:) :: trial_wavefunction
+      real(dp) :: trial_energy
+      ! This vector's elements store the quantity
+      ! \sum_j H_{ij} \psi^T_j,
+      ! where \psi is the trial wavefunction. These elements are stored only in the space of states which are connected to *but included in*
+      ! the trial vector space.
+      real(dp), allocatable, dimension(:) :: connected_space_vector
+
 END MODULE FciMCData

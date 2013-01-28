@@ -34,6 +34,12 @@ module semi_stochastic
 
     implicit none
 
+    ! Some of the following subroutines are used for generating both the trial space and the
+    ! deterministic space, but must be used slightly differently for each case. Hence, the
+    ! following integers may be input to these subroutines to tell them what to do.
+    integer :: called_from_semistoch = 1
+    integer :: called_from_trial = 2
+
 contains
 
     subroutine init_semi_stochastic()
@@ -74,20 +80,20 @@ contains
         else if (tDeterminantCore) then
             tSortDetermToTop = .true.
             if (tDoublesCore) then
-                call generate_sing_doub_determinants()
+                call generate_sing_doub_determinants(called_from_semistoch)
             else if (tCASCore) then
-                call generate_cas()
+                call generate_cas(called_from_semistoch)
             end if
         else if (tCSFCore) then
             tSortDetermToTop = .true.
             if (tDoublesCore) then
-                call generate_sing_doub_csfs()
+                call generate_sing_doub_csfs(called_from_semistoch)
             else if (tCASCore) then
-                call generate_cas()
+                call generate_cas(called_from_semistoch)
             end if
         else if (tOptimisedCore) then
             tSortDetermToTop = .false.
-            call generate_optimised_core()
+            call generate_optimised_core(called_from_semistoch)
         end if
 
         ! We now know the size of the deterministic space on each processor, so now find
@@ -316,7 +322,7 @@ contains
 
     end subroutine calculate_sparse_hamiltonian
 
-    subroutine generate_optimised_core()
+    subroutine generate_optimised_core(called_from)
 
         ! This routine generates a deterministic space by diagonalising a small fraction
         ! of the whole space, and choosing the basis states with the largest weights in
@@ -332,17 +338,20 @@ contains
         ! and again pick out the basis states with the largest weights. This process is
         ! iterated for as many time as the user requests.
 
-        use davidson, only: perform_davidson, davidson_eigenvalue, davidson_eigenvector
+        ! In: called_from - Integer to specify whether this routine was called from the
+        !     the semi-stochastic generation code or the trial vector generation code.
+
+        use davidson, only: perform_davidson, davidson_eigenvalue, davidson_eigenvector, &
+                            sparse_hamil_type
         use FciMCData, only: sparse_matrix_info, sparse_hamil, hamil_diag
 
-        type(excit_store), target :: gen_store
-        integer(n_int), allocatable, dimension(:,:) :: ilut_store_old, ilut_store_new
+        integer, intent(in) :: called_from
+        integer(n_int), allocatable, dimension(:,:) :: ilut_store_old, ilut_store_new, &
+            temp_space
         integer(n_int) :: ilut(0:NIfTot)
         integer :: nI(nel)
-        real(dp), allocatable, dimension(:) :: determ_ground_state
         integer :: counter, i, j, k
         integer :: old_num_det_states, new_num_det_states, comp
-        logical :: connected, first_loop
 
         ! First, allocate the stores of ilut's that will hold these deterministic states.
         ! For now, assume that we won't have a deterministic space of more than one
@@ -351,15 +360,15 @@ contains
         ! space from which we want to find all connected states.
         allocate(ilut_store_old(0:NIfTot, 1000000))
         allocate(ilut_store_new(0:NIfTot, 1000000))
+        allocate(temp_space(0:NIfTot, 1000000))
         ilut_store_old = 0
         ilut_store_new = 0
+        temp_space = 0
 
         ! Put the Hartree-Fock state in the old list first.
         ilut_store_old(0:NIfTot, 1) = ilutHF(0:NIfTot)
         ! Also put it in the new list, as it is connected to itself.
         ilut_store_new(0:NIfTot, 1) = ilutHF(0:NIfTot)
-
-        counter = 1
 
         ! old_num_det_states will hold the number of deterministic states in the current
         ! space. This is just 1 for now, with only the Hartree-Fock.
@@ -367,8 +376,7 @@ contains
 
         ! Now we start the iterating loop. Find all states which are either a single or
         ! double excitation from each state in the old ilut store, and then see if they
-        ! have a non-zero Hamiltonian matrix element with any state in the old
-        ! ilut store:
+        ! have a non-zero Hamiltonian matrix element with any state in the old ilut store:
 
         ! Over the total number of iterations.
         do i = 1, num_det_generation_loops
@@ -376,80 +384,21 @@ contains
             write(6,*) "Iteration:", i
             call neci_flush(6)
 
-            ! Over all the states in the old ilut store.
-            do j = 1, old_num_det_states
+            ! Find all states connected to the states in ilut_store_old.
+            call generate_connected_space(old_num_det_states, &
+                                          ilut_store_old(:, 1:old_num_det_states), &
+                                          new_num_det_states, temp_space(:, 1:1000000))
 
-                call decode_bit_det(nI, ilut_store_old(:,j))
+            ! Add these states to the ones already in the ilut stores.
+            ilut_store_new(:, old_num_det_states+1:old_num_det_states+new_num_det_states) = &
+                temp_space(:, 1:new_num_det_states)
 
-                ! First, the singles:
-
-                ! Ensure ilut(0) \= -1 so that the loop can be entered.
-                ilut(0) = 0
-                first_loop = .true.
-
-                ! When no more basis functions are found, this value is returned and the
-                ! loop is exited.
-                do while(ilut(0) /= -1)
-
-                    ! The first time the enumerating subroutine is called, setting ilut(0)
-                    ! to -1 tells it to  initialise everything first.
-                    if (first_loop) then
-                        ilut(0) = -1
-                        first_loop = .false.
-                    end if
-
-                    ! Find the next state.
-                    call enumerate_all_single_excitations (ilut_store_old(:,j), nI, ilut, &
-                                                                                 gen_store)
-
-                    ! If a new state was not found.
-                    if (ilut(0) == -1) exit
-
-                    ! Check if any of the states in the old space is connected to the state
-                    ! just generated. If so, this function adds one to counter and returns
-                    ! the value true for the logical connected. In this case, this state
-                    ! is then added to the new ilut store.
-                    call check_if_connected_to_old_space(ilut_store_old, nI, ilut, &
-                                                     old_num_det_states, counter, connected)
-                    if (connected) ilut_store_new(0:NIfD, counter) = ilut(0:NIfD)
-
-                end do
-
-                ! Now for the doubles:
-
-                ilut(0) = 0
-                first_loop = .true.
-
-                do while(ilut(0) /= -1)
-
-                    if (first_loop) then
-                        ilut(0) = -1
-                        first_loop = .false.
-                    end if
-
-                    call enumerate_all_double_excitations (ilut_store_old(:,j), nI, ilut, &
-                                                                                 gen_store)
-
-                    if (ilut(0) == -1) exit
-
-                    call check_if_connected_to_old_space(ilut_store_old, nI, ilut, &
-                                                    old_num_det_states, counter, connected)
-                    if (connected) ilut_store_new(0:NIfD, counter) = ilut(0:NIfD)
-
-                end do
-
-            end do
-
-            ! By this point we should have all states connected to the states in the old ilut
-            ! store now stored in ilut_store_new, and the number of such states is counter.
-            new_num_det_states = counter
-            ! So we can use counter again.
-            counter = 1
+            new_num_det_states = new_num_det_states + old_num_det_states
 
             ! Perform annihilation-like steps to remove repeated states: First sort the list so
             ! that repeated states are next to each other in the list.
             call sort(ilut_store_new(:, 1:new_num_det_states), ilut_lt, ilut_gt)
-
+            counter = 1
             do j = 2, new_num_det_states
                 comp = DetBitLT(ilut_store_new(:, j-1), ilut_store_new(:, j), NIfD, .false.)
                 ! If this state and the previous one were identical, don't add this state to the
@@ -474,12 +423,11 @@ contains
             call neci_flush(6)
 
             ! Now that the Hamiltonian is generated, we can finally find the ground state of it:
-            call perform_davidson(.true.)
+            call perform_davidson(sparse_hamil_type)
 
-            ! davidson_eigenvector now stores the ground state eigenvector.
-
-            allocate(determ_ground_state(new_num_det_states))
-            determ_ground_state = abs(davidson_eigenvector)
+            ! davidson_eigenvector now stores the ground state eigenvector. We want to use the
+            ! vector whose components are the absolute values of this state:
+            davidson_eigenvector = abs(davidson_eigenvector)
 
             write(6,*) "Diagonalisation complete."
             call neci_flush(6)
@@ -492,7 +440,7 @@ contains
             if (tAmplitudeCutoff) then
                 counter = 0
                 do j = 1, new_num_det_states
-                    if (determ_ground_state(j) > determ_space_cutoff_amp(i)) then
+                    if (davidson_eigenvector(j) > determ_space_cutoff_amp(i)) then
                         counter = counter + 1
                         ilut_store_old(:, counter) = ilut_store_new(:, j)
                         ilut_store_new(:, counter) = ilut_store_old(:, counter)
@@ -501,7 +449,7 @@ contains
             else
                 ! Sort the list in order of the amplitude of the states in the ground state,
                 ! from smallest to largest.
-                call sort(determ_ground_state(:), ilut_store_new(:, 1:new_num_det_states))
+                call sort(davidson_eigenvector(:), ilut_store_new(:, 1:new_num_det_states))
 
                 ! Now keep the bottom determ_space_cutoff_num(i) states from this list.
                 do j = 1, determ_space_cutoff_num(i)
@@ -514,17 +462,11 @@ contains
 
             old_num_det_states = counter
 
-            ! Note, we keep counter the same so that these states are automatically included in
-            ! ilut_store_new in the next iteration. This is because when the next state is
-            ! added to the list, counter will be increased by one and the new state added at
-            ! this position, *not* overwriting the old states.
-
             write(6,*) old_num_det_states, "states kept."
             call neci_flush(6)
 
             deallocate(sparse_hamil)
             deallocate(hamil_diag)
-            deallocate(determ_ground_state)
 
         end do
 
@@ -532,13 +474,94 @@ contains
         do i = 1, old_num_det_states
             comp = DetBitLT(ilut_store_old(:, i), ilutHF, NIfD, .false.)
             if (comp == 0) cycle
-            call add_basis_state_to_list(ilut_store_old(:, i), .true.)
+            call add_basis_state_to_list(ilut_store_old(:, i), called_from)
         end do
 
         deallocate(ilut_store_old)
         deallocate(ilut_store_new)
 
     end subroutine generate_optimised_core
+
+    subroutine generate_connected_space(original_space_size, original_space, connected_space_size, &
+        connected_space)
+
+        integer, intent(in) :: original_space_size
+        integer(n_int), intent(in) :: original_space(0:NIfTot, original_space_size)
+        integer, intent(out) :: connected_space_size
+        integer(n_int), intent(out) :: connected_space(0:NIfTot, 1000000)
+        integer(n_int) :: ilut(0:NIfTot)
+        integer :: nI(nel)
+        integer :: i, counter
+        logical :: first_loop, connected
+        type(excit_store), target :: gen_store
+
+        connected_space_size = 0
+
+        ! Over all the states in the original list:
+        do i = 1, original_space_size
+
+            call decode_bit_det(nI, original_space(:,i))
+
+            ! The singles:
+
+            ! Ensure ilut(0) \= -1 so that the loop can be entered.
+            ilut(0) = 0
+            first_loop = .true.
+
+            ! When no more basis functions are found, this value is returned and the
+            ! loop is exited.
+            do while(ilut(0) /= -1)
+
+                ! The first time the enumerating subroutine is called, setting ilut(0)
+                ! to -1 tells it to  initialise everything first.
+                if (first_loop) then
+                    ilut(0) = -1
+                    first_loop = .false.
+                end if
+
+                ! Find the next state.
+                call enumerate_all_single_excitations (original_space(:,i), nI, ilut, &
+                                                                             gen_store)
+
+                ! If a new state was not found.
+                if (ilut(0) == -1) exit
+
+                ! Check if any of the states in the old space is connected to the state
+                ! just generated. If so, this function returns the value true for the
+                ! logical connected. In this case, this state is then added to the new ilut
+                ! store.
+                call check_if_connected_to_old_space(original_space, nI, ilut, &
+                    original_space_size, connected_space_size, connected)
+                if (connected) connected_space(0:NIfD, connected_space_size) = ilut(0:NIfD)
+
+            end do
+
+            ! The doubles:
+
+            ilut(0) = 0
+            first_loop = .true.
+
+            do while(ilut(0) /= -1)
+
+                if (first_loop) then
+                    ilut(0) = -1
+                    first_loop = .false.
+                end if
+
+                call enumerate_all_double_excitations (original_space(:,i), nI, ilut, &
+                                                                             gen_store)
+
+                if (ilut(0) == -1) exit
+
+                call check_if_connected_to_old_space(original_space, nI, ilut, &
+                    original_space_size, connected_space_size, connected)
+                if (connected) connected_space(0:NIfD, connected_space_size) = ilut(0:NIfD)
+
+            end do
+
+        end do
+
+    end subroutine generate_connected_space
 
     subroutine check_if_connected_to_old_space(ilut_store_old, nI, ilut, num_det_states, &
                                                                          counter, connected)
@@ -549,7 +572,8 @@ contains
         integer(n_int), intent(in) :: ilut_store_old(0:NIfTot, 1000000)
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilut(0:NIfTot)
-        integer, intent(inout) :: num_det_states, counter
+        integer, intent(in) :: num_det_states
+        integer, intent(inout) :: counter
         logical, intent(inout) :: connected
         integer :: nJ(nel)
         real(dp) :: matrix_element
@@ -575,8 +599,12 @@ contains
 
     end subroutine check_if_connected_to_old_space
 
-    subroutine generate_sing_doub_determinants()
+    subroutine generate_sing_doub_determinants(called_from)
 
+        ! In: called_from - Integer to specify whether this routine was called from the
+        !     the semi-stochastic generation code or the trial vector generation code.
+
+        integer, intent(in) :: called_from
         type(excit_store), target :: gen_store
         integer(n_int) :: ilut(0:NIfTot)
         integer :: nI(nel)
@@ -587,7 +615,7 @@ contains
         ! Find the first single excitation.
         call enumerate_all_single_excitations (ilutHF, HFDet, ilut, gen_store)
         ! Subroutine to add this state to the spawned list if on this processor.
-        call add_basis_state_to_list(ilut, .true.)
+        call add_basis_state_to_list(ilut, called_from)
 
         ! When no more basis functions are found, this value is returned and the loop
         ! is exited.
@@ -595,7 +623,7 @@ contains
             call enumerate_all_single_excitations (ilutHF, HFDet, ilut, gen_store)
 
             ! If a determinant is returned (if we did not find the final one last time.)
-            if (ilut(0) /= -1) call add_basis_state_to_list(ilut, .true.)
+            if (ilut(0) /= -1) call add_basis_state_to_list(ilut, called_from)
         end do
 
         ! Now generate the double excitations...
@@ -603,18 +631,22 @@ contains
         ilut(0) = -1
         ! The first double excitation.
         call enumerate_all_double_excitations (ilutHF, HFDet, ilut, gen_store)
-        call add_basis_state_to_list(ilut, .true.)
+        call add_basis_state_to_list(ilut, called_from)
 
         do while(ilut(0) /= -1)
             call enumerate_all_double_excitations (ilutHF, HFDet, ilut, gen_store)
 
-            if (ilut(0) /= -1) call add_basis_state_to_list(ilut, .true.)
+            if (ilut(0) /= -1) call add_basis_state_to_list(ilut, called_from)
         end do
 
     end subroutine generate_sing_doub_determinants
 
-    subroutine generate_sing_doub_csfs()
+    subroutine generate_sing_doub_csfs(called_from)
 
+        ! In: called_from - Integer to specify whether this routine was called from the
+        !     the semi-stochastic generation code or the trial vector generation code.
+
+        integer, intent(in) :: called_from
         type(excit_store), target :: gen_store
         integer(n_int) :: ilutHF_loc(0:NIfTot), ilut(0:NIfTot)
         integer :: HFDet_loc(nel), nI(nel)
@@ -655,14 +687,18 @@ contains
             ! Find the nI representation.
             call decode_bit_det(nI, ilut)
 
-            call generate_all_csfs_from_orb_config(ilut, nI)
+            call generate_all_csfs_from_orb_config(ilut, nI, called_from)
 
         end do
 
     end subroutine generate_sing_doub_csfs
 
-    subroutine generate_cas()
+    subroutine generate_cas(called_from)
 
+        ! In: called_from - Integer to specify whether this routine was called from the
+        !     the semi-stochastic generation code or the trial vector generation code.
+
+        integer, intent(in) :: called_from
         type(BasisFN) :: CASSym
         integer(n_int) :: ilut(0:NIfTot)
         integer(n_int), allocatable, dimension(:,:) :: ilut_store
@@ -753,7 +789,7 @@ contains
 
             if (tDeterminantCore) then
                 ! Now that we have fully generated the determinant, add it to the main list.
-                call add_basis_state_to_list(ilut, .true.)
+                call add_basis_state_to_list(ilut, called_from)
             else if (tCSFCore) then
                 ilut_store(counter, 0:NifD) = ilut(0:NifD)
                 counter = counter + 1
@@ -761,14 +797,15 @@ contains
 
         end do
 
-        if (tCSFCore) call create_CAS_csfs(ilut_store, nCASDet-1)
+        if (tCSFCore) call create_CAS_csfs(ilut_store, nCASDet-1, called_from)
 
     end subroutine generate_cas
 
-    subroutine create_CAS_csfs(ilut_store, num_dets)
+    subroutine create_CAS_csfs(ilut_store, num_dets, called_from)
 
         integer, intent(in) :: num_dets
         integer(n_int), intent(inout) :: ilut_store(num_dets, 0:NIfTot)
+        integer, intent(in) :: called_from
         integer(n_int) :: ilut(0:NIfTot)
         integer :: nI(nel)
         integer :: i, j, comp
@@ -805,15 +842,16 @@ contains
 
             call decode_bit_det(nI, ilut_store(i,:))
 
-            call generate_all_csfs_from_orb_config(ilut_store(i,:), nI)
+            call generate_all_csfs_from_orb_config(ilut_store(i,:), nI, called_from)
         end do
 
     end subroutine create_CAS_csfs
 
-    subroutine generate_all_csfs_from_orb_config(ilut, nI)
+    subroutine generate_all_csfs_from_orb_config(ilut, nI, called_from)
 
         integer(n_int), intent(inout) :: ilut(0:NIfTot)
         integer, intent(inout) :: nI(nel)
+        integer, intent(in) :: called_from
         integer :: i, n_open, num_csfs, max_num_csfs
         integer, allocatable, dimension(:,:) :: yama_symbols
 
@@ -845,33 +883,38 @@ contains
                 call get_csf_bit_yama(nI, ilut(nOffY:nOffY+nIfY-1))
             end if
             ! Finally add the CSF to the CurrentDets list.
-            call add_basis_state_to_list(ilut, .true., nI)
+            call add_basis_state_to_list(ilut, called_from, nI)
         end do
 
     end subroutine generate_all_csfs_from_orb_config
 
-    subroutine add_basis_state_to_list(ilut, determ_space, nI_in)
+    subroutine add_basis_state_to_list(ilut, called_from, nI_in)
 
-        ! This subroutine, called from init_semi_stochastic, takes a bitstring, finds
-        ! the nI representation, decides if the basis state lives on this processor
-        ! and, if so, adds it to the spawned list. It also increases the vector sizes
-        ! being calculated.
+        ! This subroutine, when called from init_semi_stochastic, takes a bitstring,
+        ! finds the nI representation, decides if the basis state lives on this
+        ! processor and, if so, adds it to the spawned list. It also increases the
+        ! vector sizes being calculated.
+
+        ! When called from the trial wavefunction generation code, only the root
+        ! processor accesses this code, and each state is added to the list of iluts,
+        ! trial_vector_space on this one processor.
 
         ! In: ilut - The determinant in a bitstring form.
-        ! In: determ_space - If true then the routine was called to add the state to the
-        !     deterministic space. If false, then the routine was called to add the
-        !     state to the trial space.
+        ! In: called_from - Integer to specify which part of the code this routine was
+        !     called from, and hence which space this state should be added to.
         ! In (optional) : nI_in - A list of the occupied orbitals in the determinant.
 
+        use FciMCData, only: trial_vector_space, trial_vector_space_size
+
         integer(n_int), intent(in) :: ilut(0:NIfTot)
-        logical, intent(in) :: determ_space
+        integer, intent(in) :: called_from
         integer, optional :: nI_in(nel)
         integer :: nI(nel)
         integer(n_int) :: flags
         integer :: proc
         real(dp) :: sgn(lenof_sign)
 
-        if (determ_space) then
+        if (called_from == called_from_semistoch) then
 
             ! If using HPHFs then only allow the correct HPHFs to be added to the list.
             if (tHPHF) then
@@ -904,11 +947,15 @@ contains
             if (proc == iProcIndex) call encode_bit_rep(CurrentDets(:, &
                 deterministic_proc_sizes(iProcIndex)), ilut(0:nIfDBO), sgn, flags)
 
-        else
+        else if (called_from == called_from_trial) then
 
             if (tHPHF) then
                 if (.not. IsAllowedHPHF(ilut)) return
             end if
+
+            trial_vector_space_size = trial_vector_space_size + 1
+
+            trial_vector_space(trial_vector_space_size, 0:NIfTot) = ilut(0:NIfTot)
 
         end if
 
@@ -962,6 +1009,24 @@ contains
         end if
 
     end subroutine check_if_in_determ_space
+
+    subroutine find_determ_states_and_sort(ilut_list)
+
+        integer(n_int), intent(inout) :: ilut_list(:,:)
+        integer :: ilut_list_size
+        integer :: i
+        logical :: in_determ_space
+
+        ilut_list_size = size(ilut_list, 2)
+
+        do i = 1, ilut_list_size
+            call check_if_in_determ_space(ilut_list(0:NIfTot, i), in_determ_space)
+            if (in_determ_space) call set_flag(ilut_list(0:NIfTot, i), flag_deterministic)
+        end do
+
+        call sort(ilut_list, ilut_lt, ilut_gt)
+
+    end subroutine find_determ_states_and_sort
 
     subroutine deterministic_projection()
 
