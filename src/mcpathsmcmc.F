@@ -17,7 +17,7 @@ C.. This is an approach based on Markov Chains
      &               NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &               NWHTAY,ILOGGING,ECORE, WLRI,WLSI)
          use global_utilities
-         use util_mod, only: isnan_neci
+         use util_mod, only: isnan_neci, neci_etime
          use util_mod, only: NECI_ICOPY
          use constants, only: dp,sp
 !         IMPLICIT real(dp) (A-H,O-Z)
@@ -40,7 +40,7 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          LOGICAL LCANMOVE
          EXTERNAL FMCPR4WFUNC,FMCPR4VFUNC,FMCPR4UFUNC
          real(dp) RNORM,ND,STD,GETNLOOPS,FMCPR5,WLRI,ECORE
-         real(sp) itime,tarr(2),neci_etime
+         real(sp) itime,tarr(2)
          type(timer), save :: proc_timer
          type(timer), save :: proc_timer2
          proc_timer%timer_name='MCPATHSR5 '

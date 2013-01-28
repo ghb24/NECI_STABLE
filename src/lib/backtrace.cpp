@@ -4,7 +4,7 @@
 
 #define lenof(x) ((sizeof((x)))/(sizeof((x)[0])))
 
-extern "C" void print_backtrace ()
+extern "C" void print_backtrace_neci ()
 {
 	void * buf[30];
 	int n = backtrace (buf, lenof(buf));

@@ -113,7 +113,7 @@ MODULE FciMCParMod
     use MI_integrals, only: MI_diag_helement, MI_spawn_sign, &
                             MI_off_diag_helement_spawn, MI_off_diag_helement
     use util_mod, only: choose, abs_sign, binary_search, get_free_unit, &
-                        stochastic_round
+                        stochastic_round, neci_etime
     use constants
     use soft_exit, only: ChangeVars 
     use FciMCLoggingMod, only: FinaliseBlocking, FinaliseShiftBlocking, &
@@ -171,7 +171,7 @@ MODULE FciMCParMod
         real(dp) :: Weight, Energyxw,BestEnergy
         INTEGER :: error
         LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange,tPrintWarn
-        REAL(sp) :: s_start,s_end,tstart(2),tend(2),totaltime,neci_etime
+        REAL(sp) :: s_start,s_end,tstart(2),tend(2),totaltime
         real(dp) :: TotalTime8
         INTEGER(int64) :: MaxWalkers,MinWalkers
         real(dp) :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
@@ -369,6 +369,7 @@ MODULE FciMCParMod
                     !Is it time to exit yet?
                     write(iout,"(A,F8.2,A)") "Time limit reached for simulation of: ",MaxTimeExit/60.0," minutes - exiting..."
                     tIncrement=.false.
+                    if(tFillingStochRDMonFly) call fill_rdm_softexit(TotWalkers)
                     EXIT
                 ENDIF
                 IF (proje_update_comb) CALL update_linear_comb_coeffs()
