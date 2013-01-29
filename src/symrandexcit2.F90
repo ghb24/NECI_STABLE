@@ -322,7 +322,6 @@ MODULE GenRandSymExcitNUMod
         integer, intent(out) :: ExcitMat(2,2), nJ(nel)
         logical, intent(out) :: tParity
         integer(n_int), intent(in),optional :: ilut(0:NIfTot)
-        integer :: par
 
 !First construct ExcitMat
         ExcitMat(1,1)=Elec1Ind
@@ -331,22 +330,6 @@ MODULE GenRandSymExcitNUMod
         ExcitMat(2,2)=OrbB
         nJ(:)=nI(:)
         CALL FindExcitDet(ExcitMat,nJ,2,tParity)
-
-        if (present(ilut)) then
-            par = get_double_parity (ilut, (/nI(elec1ind),nI(elec2ind)/), &
-                                           (/orbA,orbB/))
-            if (tParity) then
-                if (par /= -1) then
-                    write(6,'(a,5i3,l2)') 'EX', excitmat, par, tparity
-                end if
-            else
-                if (par /= 1) then
-                    call write_det(6, nI, .true.)
-                    write(6,'(a,5i3,l2)') 'EX', excitmat, par, tparity
-                end if
-            endif
-        end if
-
 
 #ifdef __DEBUG
 !These are useful (but O[N]) operations to test the determinant generated.
@@ -1247,8 +1230,6 @@ MODULE GenRandSymExcitNUMod
         real(dp) :: r,pGen
         LOGICAL :: tParity
 
-        integer :: par
-           
 
         CALL CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2,nI)
         IF(ElecsWNoExcits.eq.NEl) THEN
@@ -1416,20 +1397,6 @@ MODULE GenRandSymExcitNUMod
         ExcitMat(1,1)=Eleci
         ExcitMat(2,1)=Orb
         CALL FindExcitDet(ExcitMat,nJ,1,TParity)
-
-        ! Test the new parity routine
-        par = get_single_parity (ilut, nI(Eleci), Orb)
-        if (tParity) then
-            if (par /= -1) then
-                call write_det(6, nI, .true.)
-                write(6,*) 'EX', excitmat, par, tparity
-            end if
-        else
-            if (par /= 1) then
-                call write_det(6, nI, .true.)
-                write(6,*) 'EX', excitmat, par, tparity
-            end if
-        endif
 
 #ifdef __DEBUG
 !These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
