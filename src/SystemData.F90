@@ -97,6 +97,7 @@ logical :: tAmplitudeCutoff
 integer :: num_det_generation_loops
 
 ! Options relating to the trial wavefunction.
+logical :: tTrialWavefunction ! Use a trial wavefunction-based energy estimator.
 logical :: tDoublesTrial ! Use single and double exciations for the trial space.
 
 ! Calculate size of FCI determinant space using MC

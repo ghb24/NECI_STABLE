@@ -110,6 +110,7 @@ contains
         write(6,*) "Total size of deterministic space:", determ_space_size
         write(6,*) "Size of deterministic space on this processor:", &
                     deterministic_proc_sizes(iProcIndex)
+        call neci_flush(6)
 
         ! Also allocate the vector to store the positions of the deterministic states in
         ! CurrentDets.
@@ -385,9 +386,13 @@ contains
             call neci_flush(6)
 
             ! Find all states connected to the states in ilut_store_old.
+            print *, "Generating connected space..."
+            call neci_flush(6)
             call generate_connected_space(old_num_det_states, &
                                           ilut_store_old(:, 1:old_num_det_states), &
                                           new_num_det_states, temp_space(:, 1:1000000))
+            print *, "Connected space generated."
+            call neci_flush(6)
 
             ! Add these states to the ones already in the ilut stores.
             ilut_store_new(:, old_num_det_states+1:old_num_det_states+new_num_det_states) = &
@@ -955,7 +960,7 @@ contains
 
             trial_vector_space_size = trial_vector_space_size + 1
 
-            trial_vector_space(trial_vector_space_size, 0:NIfTot) = ilut(0:NIfTot)
+            trial_vector_space(0:NIfTot, trial_vector_space_size) = ilut(0:NIfTot)
 
         end if
 
@@ -1010,14 +1015,12 @@ contains
 
     end subroutine check_if_in_determ_space
 
-    subroutine find_determ_states_and_sort(ilut_list)
+    subroutine find_determ_states_and_sort(ilut_list, ilut_list_size)
 
-        integer(n_int), intent(inout) :: ilut_list(:,:)
-        integer :: ilut_list_size
+        integer, intent(in) :: ilut_list_size
+        integer(n_int), intent(inout) :: ilut_list(0:NIfTot, ilut_list_size)
         integer :: i
         logical :: in_determ_space
-
-        ilut_list_size = size(ilut_list, 2)
 
         do i = 1, ilut_list_size
             call check_if_in_determ_space(ilut_list(0:NIfTot, i), in_determ_space)

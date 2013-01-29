@@ -1,12 +1,14 @@
 module trial_wavefunction_gen
 
     use bit_rep_data, only: NIfTot, NIfD
+    use bit_reps, only: encode_det
     use CalcData, only: tSortDetermToTop
     use davidson, only: perform_davidson, davidson_eigenvalue, davidson_eigenvector, &
                         sparse_hamil_type
+    use DeterminantData, only: write_det
     use FciMCData, only: trial_vector_space, trial_vector_space_size, connected_space, &
                          connected_space_size, trial_wavefunction, trial_energy, &
-                         connected_space_vector
+                         connected_space_vector, ilutHF
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBarrier
     use ParallelHelper, only: root
     use semi_stochastic
@@ -20,6 +22,7 @@ contains
 
         integer :: i, ierr, counter, comp, num_states_on_proc
         integer(n_int), allocatable, dimension(:,:) :: temp_space
+        integer :: nI(nel)
 
         ! Simply allocate the trial vector to have up to 1 million elements for now...
         allocate(trial_vector_space(0:NIfTot, 1000000))
@@ -27,13 +30,21 @@ contains
         trial_vector_space = 0
         connected_space = 0
 
+        ! Encode the Hartree-Fock state first.
+        call encode_det(trial_vector_space(:,1), ilutHF)
+        trial_vector_space_size = 1
+
         ! Generate the trial space and place the corresponding states in trial_vector_space.
         if (tDoublesTrial) then
             call generate_sing_doub_determinants(called_from_trial)
         end if
 
+        print *, "Calculating the Hamiltonian for the trial space..."
+        call neci_flush(6)
         call calculate_sparse_hamiltonian(trial_vector_space_size, &
             trial_vector_space(0:NIfTot, 1:trial_vector_space_size))
+        print *, "Hamiltonian calculated."
+        call neci_flush(6)
 
         call count_states_on_this_proc(num_states_on_proc, trial_vector_space_size, &
             trial_vector_space)
@@ -41,8 +52,12 @@ contains
         call sort(trial_vector_space(0:NIfTot, 1:trial_vector_space_size), ilut_lt, ilut_gt)
 
         ! Find the states connected to the trial space.
+        print *, "Generating the connected space..."
+        call neci_flush(6)
         call generate_connected_space(trial_vector_space_size, trial_vector_space, &
             connected_space_size, connected_space)
+        print *, "Connected space generated."
+        call neci_flush(6)
 
         ! Annihilation-like steps to remove repeated states.
         call sort(connected_space(0:NIfTot, 1:connected_space_size), ilut_lt, ilut_gt)
@@ -61,44 +76,62 @@ contains
 
         ! Now we want to remove states in the connected space which are also in the trial space:
         call remove_list_1_states_from_list_2(trial_vector_space, connected_space, &
-            connected_space_size)
+            trial_vector_space_size, connected_space_size)
 
         ! Remove all states in connected_space that do not belong to this processor.
         allocate(temp_space(0:NIfTot, connected_space_size))
         temp_space = connected_space(0:NIfTot, 1:connected_space_size)
         call remove_states_not_on_proc(temp_space, connected_space_size, .false.)
         deallocate(connected_space)
+        ! Reallocate connected_space with the new number of states, now that those states on
+        ! different processors have been removed.
         allocate(connected_space(0:NIfTot, connected_space_size))
+        connected_space = temp_space(0:NIfTot, 1:connected_space_size)
 
         ! Now the correct states in both the trial space and connected space have been fully
         ! generated. We want both lists to be sorted in the same order as CurrentDets, to use
-        ! binary searching later. If tSOrtDetermToTop is true, then deterministic states are
-        ! sorted to the top. Hence, we must find any deterministic states and sort them as such.
+        ! binary searching later. If tSortDetermToTop is true then deterministic states are
+        ! sorted to the top in CurrentDets. Hence, we must find any deterministic states and
+        ! sort them as such in the trial and connected spaces.
         if (tSortDetermToTop) then
-            call find_determ_states_and_sort(trial_vector_space)
-            call find_determ_states_and_sort(connected_space)
+            call find_determ_states_and_sort(trial_vector_space, trial_vector_space_size)
+            call find_determ_states_and_sort(connected_space, connected_space_size)
         end if
 
         ! Use the Davidson method to find the ground state of the trial space.
+        print *, "Calculating the ground state in the trial space..."
+        call neci_flush(6)
         call perform_davidson(sparse_hamil_type)
         allocate(trial_wavefunction(trial_vector_space_size))
         trial_wavefunction = davidson_eigenvector
         trial_energy = davidson_eigenvalue
-        deallocate(davidson_eigenvector)
 
+        print *, "Generating the vector \sum_j H_{ij} \psi^T_j..."
+        call neci_flush(6)
         call generate_connected_space_vector()
 
-        ! Remove all states in trial_vector_space that do not belong to this processor.
+        ! Remove all states in trial_vector_space that do not belong to this processor (and
+        ! move the amplitudes in trial_wavefunction at the same time).
         deallocate(temp_space)
         allocate(temp_space(0:NIfTot, trial_vector_space_size))
         temp_space = trial_vector_space(0:NIfTot, 1:trial_vector_space_size)
         call remove_states_not_on_proc(temp_space, trial_vector_space_size, .true.)
-        ! Reallocate trial_vector_space with the new number of states, now that those states on
-        ! different processors have been removed.
         deallocate(trial_vector_space)
         allocate(trial_vector_space(0:NIfTot, trial_vector_space_size))
+        trial_vector_space = temp_space(0:NIfTot, 1:trial_vector_space_size)
+
+        ! Finally, correct the size of trial_wavefunction, too. Use Davidson eigenvector as
+        ! temporary space.
+        davidson_eigenvector = trial_wavefunction
+        deallocate(trial_wavefunction)
+        allocate(trial_wavefunction(trial_vector_space_size))
+        trial_wavefunction = davidson_eigenvector(1:trial_vector_space_size)
+        deallocate(davidson_eigenvector)
 
         call MPIBarrier(ierr)
+
+        print *, "Size of the trial space on this processor:", trial_vector_space_size
+        print *, "Size of the connected space on this processor:", connected_space_size
 
     end subroutine init_trial_wavefunction
 
@@ -124,16 +157,13 @@ contains
 
     end subroutine count_states_on_this_proc
 
-    subroutine remove_states_not_on_proc(ilut_list, new_num_iluts, update_trial_vector)
+    subroutine remove_states_not_on_proc(ilut_list, ilut_list_size, update_trial_vector)
 
-        integer(n_int), intent(inout), dimension(:,:) :: ilut_list
-        integer, intent(out) :: new_num_iluts
+        integer, intent(inout) :: ilut_list_size
+        integer(n_int), intent(inout) :: ilut_list(0:NIfTot, ilut_list_size)
         logical, intent(in) :: update_trial_vector
-        integer :: ilut_list_size
         integer :: i, counter, proc
         integer :: nI(nel)
-
-        ilut_list_size = size(ilut_list, 2)
 
         counter = 0
         do i = 1, ilut_list_size
@@ -143,38 +173,37 @@ contains
             ! list so that repeats aren't included.
             if (proc == iProcIndex) then
                 counter = counter + 1
-                connected_space(:, counter) = connected_space(:, i)
+                ilut_list(:, counter) = ilut_list(:, i)
                 if (update_trial_vector) trial_wavefunction(counter) = trial_wavefunction(i)
             end if
         end do
 
-        new_num_iluts = counter
+        ilut_list_size = counter
 
     end subroutine remove_states_not_on_proc
 
-    subroutine remove_list_1_states_from_list_2(ilut_list_1, ilut_list_2, new_list_2_size)
+    subroutine remove_list_1_states_from_list_2(ilut_list_1, ilut_list_2, list_1_size, list_2_size)
 
         use util_mod, only: binary_search
 
-        integer(n_int), intent(in) :: ilut_list_1(:,:)
-        integer(n_int), intent(inout) :: ilut_list_2(:,:)
-        integer, intent(out) :: new_list_2_size
-        integer :: list_1_size, list_2_size
-        integer :: i, counter,pos
+        integer, intent(in) :: list_1_size
+        integer, intent(inout) :: list_2_size
+        integer(n_int), intent(in) :: ilut_list_1(0:NIfTot, list_1_size)
+        integer(n_int), intent(inout) :: ilut_list_2(0:NIfTot, list_2_size)
+        integer :: i, counter, pos, min_ind
 
-        list_1_size = size(ilut_list_1, 2)
-        list_2_size = size(ilut_list_2, 2)
-        pos = 1
+        min_ind = 1
 
         do i = 1, list_2_size
             ! Binary search ilut_list_1 to see if ilut_list_2(:,i) is in it.
-            pos = binary_search(ilut_list_1(:, pos:list_1_size), ilut_list_2(:,i), NifD+1)
+            pos = binary_search(ilut_list_1(:, min_ind:list_1_size), ilut_list_2(:,i), NifD+1)
             ! If it is in list 1, remove the state by setting it to 0.
             ! If it isn't in list 1 (pos < 0) then we can still search a smaller list next time.
             if (pos > 0) then
                 ilut_list_2(:,i) = 0
+                min_ind = min_ind + pos
             else
-                pos = -pos
+                min_ind = min_ind - pos - 1
             end if
         end do
 
@@ -188,7 +217,7 @@ contains
             end if
         end do
 
-     new_list_2_size = counter
+     list_2_size = counter
 
     end subroutine remove_list_1_states_from_list_2
 

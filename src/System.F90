@@ -86,6 +86,8 @@ MODULE System
       tOptimisedCore = .false.
       num_det_generation_loops = 1
       tAmplitudeCutoff = .false.
+      tTrialWavefunction = .false.
+      tDoublesTrial = .false.
       STOT=0
       TPARITY = .false.
       IParity(:)=0
@@ -374,6 +376,10 @@ MODULE System
                 call geti(determ_space_cutoff_num(I))
             end do
             print *, determ_space_cutoff_num
+        case("TRIAL-WAVEFUNCTION")
+            tTrialWavefunction = .true.
+        case("DOUBLES-TRIAL")
+            tDoublesTrial = .true.
         case("SYMIGNOREENERGIES")
             tSymIgnoreEnergies=.true.
         case("NOSYMMETRY")

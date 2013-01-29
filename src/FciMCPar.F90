@@ -12,7 +12,8 @@ MODULE FciMCParMod
                           tReal, tRotatedOrbs, tFindCINatOrbs, tFixLz, &
                           LzTot, tUEG, tLatticeGens, tCSF, G1, Arr, &
                           tNoBrillouin, tKPntSym, tPickVirtUniform, &
-                          tMomInv, tRef_Not_HF, tMolpro, tSemiStochastic
+                          tMomInv, tRef_Not_HF, tMolpro, tSemiStochastic, &
+                          tTrialWavefunction
     use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY, decode_bit_det, &
                         encode_bit_rep, encode_det, extract_bit_rep, &
                         test_flag, set_flag, extract_flags, &
@@ -133,6 +134,7 @@ MODULE FciMCParMod
                          fill_rdm_diag_currdet_hfsd, calc_rdmbiasfac
     use semi_stochastic, only: init_semi_stochastic, deterministic_projection, &
                                check_if_in_determ_space
+    use trial_wavefunction_gen, only: init_trial_wavefunction
 
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
@@ -7315,6 +7317,12 @@ MODULE FciMCParMod
         ! CurrentDets, calculating and storing all Hamiltonian matrix elements and initalising all
         ! arrays required to store and distribute the vectors in the deterministic space later.
         if (tSemiStochastic) call init_semi_stochastic()
+
+        ! Initialise the trial wavefunction information which can be used for the energy estimator.
+        ! This includes generating the trial space, generating the space connected to the trial space,
+        ! diagonalising the trial space to find the trial wavefunction and calculating the vector
+        ! in the connected space, required for the energy estimator.
+        if (tTrialWavefunction) call init_trial_wavefunction()
 
     end subroutine InitFCIMCCalcPar
 
