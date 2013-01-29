@@ -9,13 +9,12 @@ module get_excit
 
 contains
 
-    pure subroutine make_single (nI, ilutI, nJ, ilutJ, elec, tgt, ex, tParity)
+    pure subroutine make_single (nI, ilutI, nJ, elec, tgt, ex, tParity)
 
         integer, intent(in) :: nI(nel), elec, tgt
         integer, intent(out) :: ex(2,2), nJ(nel)
         logical, intent(out) :: tParity
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         character(*), parameter :: this_routine = 'make_excit'
         integer :: i, src
 

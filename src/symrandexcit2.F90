@@ -49,6 +49,7 @@ MODULE GenRandSymExcitNUMod
     use timing_neci
     use sym_general_mod
     use spin_project, only: tSpinProject
+    use get_excit, only: make_single, make_double
     IMPLICIT NONE
 !    INTEGER , SAVE :: Counter=0
 
@@ -1391,12 +1392,8 @@ MODULE GenRandSymExcitNUMod
 
         ENDIF
 
-        nJ(:)=nI(:)
-        ExcitMat(:,:) = 0
-!ExcitMat wants to be the index in nI of the orbital to excite from, but returns the actual orbitals.
-        ExcitMat(1,1)=Eleci
-        ExcitMat(2,1)=Orb
-        CALL FindExcitDet(ExcitMat,nJ,1,TParity)
+        ! Construct the new determinant, excitation matrix and parity
+        call make_single (nI, ilut, nJ, eleci, orb, ExcitMat, tParity)
 
 #ifdef __DEBUG
 !These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
@@ -1838,12 +1835,8 @@ MODULE GenRandSymExcitNUMod
 
             OrbA=SpawnOrb(i)
 
-!We now know that we want to create iCreate particles, from orbitals nI(Eleci) -> OrbA.
-            nJ(:)=nI(:)
-!ExcitMat wants to be the index in nI of the orbital to excite from, but returns the actual orbitals.
-            ExcitMat(1,1)=Eleci
-            ExcitMat(2,1)=OrbA
-            CALL FindExcitDet(ExcitMat,nJ,1,TParity)
+            ! Construct the new determinant, excitation matrix and parity
+            call make_single (nI, ilut, nJ, eleci, orbA, ExcitMat, tParity)
 
 !These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
 !excitations, I recommend uncommenting these tests to check the results.
