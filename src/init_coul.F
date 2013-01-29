@@ -6,13 +6,14 @@ C  ========================================================
      &     A,TALPHA,ALPHA,OMEGA,ZIA)
 !      IMPLICIT real(dp)(A-H,O-Z)
       use constants, only: dp,int64,sp
+      use util_mod, only: neci_etime
       IMPLICIT NONE
       integer :: NMESHX,NMAX
       complex(dp) CK(NMESHX,NMESHX,NMESHX)
       complex(dp) ZIA(-NMESHX/2:NMESHX/2,NMAX,NMAX) 
       real(dp) :: ALPHA,OMEGA
       real(dp) A(3),t3
-      real(sp) t(2),t1,t2,neci_etime
+      real(sp) t(2),t1,t2
       LOGICAL TALPHA
       INTEGER , SAVE :: IFIRST=0
 C..

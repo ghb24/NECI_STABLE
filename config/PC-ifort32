@@ -5,7 +5,7 @@ ld = ifort
 ldflags = -Bstatic -rdynamic
 compiler = INTEL-ifort9-on-LINUX
 cpp = cpp -C -traditional
-cppflags = -D__Linux -DHAVE_SSE2 -D__INT64
+cppflags = -D__Linux -DHAVE_SSE2 -D__INT64 -D__IFORT
 libs = -L ~/src/lib/fftw-3.1.2/lib -L ~/lib/fftw-3.1.2/lib -lfftw3  -lacml -cxxlib -lrt -lm
 module_flag = -module
 
