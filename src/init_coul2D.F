@@ -5,13 +5,14 @@ C  ========================================================
       SUBROUTINE INITFOU2D(NMESHX,CK,NMAX,
      &     A,TALPHA,ALPHA,OMEGA,ZIA)
       use constants, only: dp,sp
+      use util_mod, only: neci_etime
 !      IMPLICIT real(dp)(A-H,O-Z)
       IMPLICIT NONE
       integer :: NMESHX,NMAX
       complex(dp) CK(NMESHX,NMESHX,NMESHX)
       complex(dp) ZIA(-NMESHX/2:NMESHX/2,NMAX,NMAX) 
       real(dp) A(3),OMEGA,ALPHA
-      real(sp) t1,t2,t3,t(2),neci_etime
+      real(sp) t1,t2,t3,t(2)
       LOGICAL TALPHA
       INTEGER, SAVE :: IFIRST=0
 !      SAVE IFIRST 

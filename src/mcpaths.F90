@@ -1,5 +1,5 @@
 module mcpaths
-    use util_mod, only: isnan_neci
+    use util_mod, only: isnan_neci, neci_etime
 contains
 
 !C.. Calculate RHO^(P)_II without having a stored H matrix
@@ -55,7 +55,7 @@ contains
          INTEGER I_P,I_HMAX,BRR(*),NMSH,NMAX
          INTEGER NTAY(2),NWHTAY(3,I_VMAX),ILOGGING,I,I_V
          INTEGER L,LT,J
-         real(sp) otime,itime,tarr(2),neci_etime
+         real(sp) otime,itime,tarr(2)
          real(dp) BETA,ECORE
          real(dp) WLRI,WLSI
          HElement_t UMat(*),RH
@@ -443,7 +443,7 @@ contains
          INTEGER L,LT
          real(sp) ITIME(2)
          real(dp) BETA,ECORE
-         real(sp) tarr(2),neci_etime
+         real(sp) tarr(2)
          real(dp) WLRI,WLSI
          real(dp) F(2:I_VMAX)
          CHARACTER(40) STR
