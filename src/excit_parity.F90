@@ -60,14 +60,13 @@ contains
     end subroutine
 
 
-    subroutine make_double (nI, ilutI, nJ, ilutJ, elec1, elec2, tgt1, &
+    subroutine make_double (nI, ilutI, nJ, elec1, elec2, tgt1, &
                                  tgt2, ex, tParity)
 
         integer, intent(in) :: nI(nel), elec1, elec2, tgt1, tgt2
         integer, intent(out) :: ex(2,2), nJ(nel)
         logical, intent(out) :: tParity
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         character(*), parameter :: this_routine = 'make_excit'
         integer :: i, k, elecs(2), srcs(2), tgts(2), pos_moved
 
@@ -97,28 +96,38 @@ contains
             if (srcs(k) < tgts(k)) then
 
                 ! How far do we have to move the unaffected orbitals?
-                do i = elecs(k)+1, nel
-                    if (tgts(k) < nJ(i)) then
-                        nJ(i-1) = tgts(k)
-                        exit
-                    else
-                        nJ(i-1) = nJ(i)
-                    end if
-                end do
-                if (i == nel+1) nJ(nel) = tgts(k)
+                if (srcs(k) == nel) then
+                    i = nel+1
+                    nJ(nel) = tgts(k)
+                else
+                    do i = elecs(k)+1, nel
+                        if (tgts(k) < nJ(i)) then
+                            nJ(i-1) = tgts(k)
+                            exit
+                        else
+                            nJ(i-1) = nJ(i)
+                        end if
+                    end do
+                    if (i == nel+1) nJ(nel) = tgts(k)
+                end if
 
             else
 
                 ! How far do we have to move the unaffected orbitals?
-                do i = elecs(k)-1, 1, -1
-                    if (tgts(k) > nJ(i)) then
-                        nJ(i+1) = tgts(k)
-                        exit
-                    else
-                        nJ(i+1) = nJ(i)
-                    end if
-                end do
-                if (i == 0) nJ(1) = tgts(k)
+                if (srcs(k) == nel) then
+                    i = 0
+                    nJ(1) = tgts(k)
+                else
+                    do i = elecs(k)-1, 1, -1
+                        if (tgts(k) > nJ(i)) then
+                            nJ(i+1) = tgts(k)
+                            exit
+                        else
+                            nJ(i+1) = nJ(i)
+                        end if
+                    end do
+                    if (i == 0) nJ(1) = tgts(k)
+                end if
 
             end if
 

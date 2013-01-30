@@ -325,12 +325,14 @@ MODULE GenRandSymExcitNUMod
         integer(n_int), intent(in),optional :: ilut(0:NIfTot)
 
 !First construct ExcitMat
-        ExcitMat(1,1)=Elec1Ind
-        ExcitMat(2,1)=OrbA
-        ExcitMat(1,2)=Elec2Ind
-        ExcitMat(2,2)=OrbB
-        nJ(:)=nI(:)
-        CALL FindExcitDet(ExcitMat,nJ,2,tParity)
+        !ExcitMat(1,1)=Elec1Ind
+        !ExcitMat(2,1)=OrbA
+        !ExcitMat(1,2)=Elec2Ind
+        !ExcitMat(2,2)=OrbB
+        !nJ(:)=nI(:)
+        !CALL FindExcitDet(ExcitMat,nJ,2,tParity)
+        call make_double (ni, ilut, nj, elec1ind, elec2ind, orba, orbb, &
+                          excitmat, tparity)
 
 #ifdef __DEBUG
 !These are useful (but O[N]) operations to test the determinant generated.
