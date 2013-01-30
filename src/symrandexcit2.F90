@@ -311,37 +311,13 @@ MODULE GenRandSymExcitNUMod
 !had picked B first. This will be returned in NExcitOtherWay.
         CALL PickBOrb(nI,iSpn,ILUT,ClassCountUnocc2,SpinOrbA,OrbA,SymA,OrbB,SymB,NExcitB,MlA,MlB,NExcitOtherWay)
 
-        CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,OrbA,OrbB,ExcitMat,tParity,ilut)
+        call make_double (nI, nJ, elec1ind, elec2ind, orbA, orbB, &
+                          ExcitMat, tParity)
 
         CALL FindDoubleProb(ForbiddenOrbs,NExcitA,NExcitB,NExcitOtherWay,pGen)
 
     END SUBROUTINE CreateDoubExcit
 
-!This routine creates the final determinant.
-    SUBROUTINE FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,OrbA,OrbB,ExcitMat,tParity,ilut)
-        integer, intent(in) :: nI(nel), Elec1Ind, Elec2Ind, OrbA, OrbB
-        integer, intent(out) :: ExcitMat(2,2), nJ(nel)
-        logical, intent(out) :: tParity
-        integer(n_int), intent(in),optional :: ilut(0:NIfTot)
-
-!First construct ExcitMat
-        !ExcitMat(1,1)=Elec1Ind
-        !ExcitMat(2,1)=OrbA
-        !ExcitMat(1,2)=Elec2Ind
-        !ExcitMat(2,2)=OrbB
-        !nJ(:)=nI(:)
-        !CALL FindExcitDet(ExcitMat,nJ,2,tParity)
-        call make_double (ni, ilut, nj, elec1ind, elec2ind, orba, orbb, &
-                          excitmat, tparity)
-
-#ifdef __DEBUG
-!These are useful (but O[N]) operations to test the determinant generated.
-!  If there are any problems with then
-!excitations, I recommend uncommenting these tests to check the results.
-        CALL IsSymAllowedExcit(nI,nJ,2,ExcitMat)
-#endif
-
-    END SUBROUTINE FindNewDet
 
 !This routine finds the probability of creating the excitation. 
 ! See the header of the file for more information on how this works.
@@ -1395,7 +1371,7 @@ MODULE GenRandSymExcitNUMod
         ENDIF
 
         ! Construct the new determinant, excitation matrix and parity
-        call make_single (nI, ilut, nJ, eleci, orb, ExcitMat, tParity)
+        call make_single (nI, nJ, eleci, orb, ExcitMat, tParity)
 
 #ifdef __DEBUG
 !These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
@@ -1838,7 +1814,7 @@ MODULE GenRandSymExcitNUMod
             OrbA=SpawnOrb(i)
 
             ! Construct the new determinant, excitation matrix and parity
-            call make_single (nI, ilut, nJ, eleci, orbA, ExcitMat, tParity)
+            call make_single (nI, nJ, eleci, orbA, ExcitMat, tParity)
 
 !These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
 !excitations, I recommend uncommenting these tests to check the results.
@@ -1883,7 +1859,8 @@ MODULE GenRandSymExcitNUMod
 
 !We now know that we want to create iCreate particles, from orbitals nI(Elec1/2Ind) -> OrbA + OrbB.
         IF(iCreate.gt.0) THEN
-            CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,OrbA,OrbB,ExcitMat,tParity)
+            call make_double (nI, nJ, elec1ind, elec2ind, orbA, orbB, &
+                              ExcitMat, tParity)
 
 !Once we have the definitive determinant, we also want to find out what sign the particles we want to create are.
 !iCreate is initially positive, so its sign can change depending on the sign of the connection and of the parent particle(s)
@@ -2154,7 +2131,8 @@ MODULE GenRandSymExcitNUMod
             ENDDO
 
             ! Find the new determinant
-            CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,Hole1BasisNum,Hole2BasisNum,ExcitMat,tParity)     
+            call make_double (nI, nJ, elec1ind, elec2ind, Hole1BasisNum, &
+                              Hole2BasisNum, ExcitMat, tParity)
 
             !Calculate generation probabilities
             IF (iSpn.eq.2) THEN
@@ -2280,7 +2258,8 @@ MODULE GenRandSymExcitNUMod
         ENDIF
 
         ! Find the new determinant
-        CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,Hole1BasisNum,Hole2BasisNum,ExcitMat,tParity)
+        call make_double (nI, nJ, elec1ind, elec2ind, Hole1BasisNum, &
+                          Hole2BasisNum, ExcitMat, tParity)
                 
         IF(tHub) THEN
             ! Debug to test the resultant determinant
@@ -2534,7 +2513,8 @@ MODULE GenRandSymExcitNUMod
             ms_sum=G1(Elec1)%Ms+G1(Elec2)%Ms-G1(Hole1)%Ms-G1(Hole2)%Ms
             IF (ms_sum.ne.0) CYCLE
             
-            CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,Hole1,Hole2,ExcitMat,tParity)
+            call make_double (nI, nJ, elec1ind, elec2ind, Hole1, Hole2, &
+                              ExcitMat, tParity)
 
             ! k-point symmetry
             IF(.not.(IsMomentumAllowed(nJ)))THEN

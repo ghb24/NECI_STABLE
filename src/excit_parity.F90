@@ -9,12 +9,14 @@ module get_excit
 
 contains
 
-    pure subroutine make_single (nI, ilutI, nJ, elec, tgt, ex, tParity)
+#ifndef __DEBUG
+    pure &
+#endif
+    subroutine make_single (nI, nJ, elec, tgt, ex, tParity)
 
         integer, intent(in) :: nI(nel), elec, tgt
         integer, intent(out) :: ex(2,2), nJ(nel)
         logical, intent(out) :: tParity
-        integer(n_int), intent(in) :: ilutI(0:NIfTot)
         character(*), parameter :: this_routine = 'make_excit'
         integer :: i, src
 
@@ -57,16 +59,22 @@ contains
         ! Magic! Avoids conditional tests.
         tParity = .not. btest(elec - i, 0)
 
+#ifdef __DEBUG
+        ! This is a useful (but O[N]) check to test the generated determinant.
+        call IsSymAllowedExcit(nI, nJ, 2, ExcitMat)
+#endif
+
     end subroutine
 
 
-    subroutine make_double (nI, ilutI, nJ, elec1, elec2, tgt1, &
-                                 tgt2, ex, tParity)
+#ifndef __DEBUG
+    pure &
+#endif
+    subroutine make_double (nI, nJ, elec1, elec2, tgt1, tgt2, ex, tParity)
 
         integer, intent(in) :: nI(nel), elec1, elec2, tgt1, tgt2
         integer, intent(out) :: ex(2,2), nJ(nel)
         logical, intent(out) :: tParity
-        integer(n_int), intent(in) :: ilutI(0:NIfTot)
         character(*), parameter :: this_routine = 'make_excit'
         integer :: i, k, elecs(2), srcs(2), tgts(2), pos_moved
 
@@ -138,6 +146,11 @@ contains
 
         tParity = btest(pos_moved, 0)
 !        parity = 1 - 2 * modulo(pos_moved, 2)
+
+#ifdef __DEBUG
+        ! This is a useful (but O[N]) check to test the generated determinant.
+        call IsSymAllowedExcit(nI, nJ, 2, ExcitMat)
+#endif
 
     end subroutine
 
