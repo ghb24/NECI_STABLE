@@ -96,7 +96,7 @@ contains
             if (srcs(k) < tgts(k)) then
 
                 ! How far do we have to move the unaffected orbitals?
-                if (srcs(k) == nel) then
+                if (elecs(k) == nel) then
                     i = nel+1
                     nJ(nel) = tgts(k)
                 else
@@ -109,12 +109,13 @@ contains
                         end if
                     end do
                     if (i == nel+1) nJ(nel) = tgts(k)
+
                 end if
 
             else
 
                 ! How far do we have to move the unaffected orbitals?
-                if (srcs(k) == nel) then
+                if (elecs(k) == 1) then
                     i = 0
                     nJ(1) = tgts(k)
                 else
