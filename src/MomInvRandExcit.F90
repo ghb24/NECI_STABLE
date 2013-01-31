@@ -56,9 +56,8 @@ module MomInvRandExcit
 
 !Create excitation of uniquely chosen determinant in this HPHF function.
         IF(IsNullDet(nJ)) RETURN
-
-        ! gen_rand_Excit doesn't ensure that nJ is ordered
-        call decode_bit_det (nJ, ilutnJ)
+!Create bit representation of excitation - iLutnJ
+        CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat)
             
         IF(IsMomSelfInv(nJ,iLutnJ)) THEN
 !There is only one way which we could have generated the excitation nJ since it has no momentum-partner. 
@@ -317,7 +316,7 @@ module MomInvRandExcit
 !                if(IC_ia.le.2) then
 !                    Ex_ia=0
 !                    Ex_ia(1,1)=IC_ia
-!                    call GetBitExcitation(iLutnI,iLutnJ,Ex_ia,parity)
+!                    call GetBitExcitation(iLutnI,iLutnJ,Ex_ia,tSign)
 !                    call construct_class_counts(nI,CC_ia,CCU_ia)
 !                    call CalcNonUniPGen(nI,Ex_ia,IC_ia,CC_ia,CCU_ia,0.9_8,pGen_ia)
 !                else
@@ -326,7 +325,7 @@ module MomInvRandExcit
 !                if(IC_ib.le.2) then
 !                    Ex_ib=0
 !                    Ex_ib(1,1)=IC_ib
-!                    call GetBitExcitation(iLutnI,iLutnJ2,Ex_ib,parity)
+!                    call GetBitExcitation(iLutnI,iLutnJ2,Ex_ib,tSign)
 !                    call construct_class_counts(nI,CC_ib,CCU_ib)
 !                    call CalcNonUniPGen(nI,Ex_ib,IC_ib,CC_ib,CCU_ib,0.9_8,pGen_ib)
 !                else
@@ -335,7 +334,7 @@ module MomInvRandExcit
 !                if(IC_ja.le.2) then
 !                    Ex_ja=0
 !                    Ex_ja(1,1)=IC_ja
-!                    call GetBitExcitation(iLutnI2,iLutnJ,Ex_ja,parity)
+!                    call GetBitExcitation(iLutnI2,iLutnJ,Ex_ja,tSign)
 !                    call construct_class_counts(nI2,CC_ja,CCU_ja)
 !                    call CalcNonUniPGen(nI,Ex_ja,IC_ja,CC_ja,CCU_ja,0.9_8,pGen_ja)
 !                else
@@ -344,7 +343,7 @@ module MomInvRandExcit
 !                if(IC_jb.le.2) then
 !                    Ex_jb=0
 !                    Ex_jb(1,1)=IC_jb
-!                    call GetBitExcitation(iLutnI2,iLutnJ2,Ex_jb,parity)
+!                    call GetBitExcitation(iLutnI2,iLutnJ2,Ex_jb,tSign)
 !                    call construct_class_counts(nI2,CC_jb,CCU_jb)
 !                    call CalcNonUniPGen(nI2,Ex_jb,IC_jb,CC_jb,CCU_jb,0.9_8,pGen_jb)
 !                else
@@ -394,7 +393,7 @@ module MomInvRandExcit
 !                if(IC_ia.le.2) then
 !                    Ex_ia=0
 !                    Ex_ia(1,1)=IC_ia
-!                    call GetBitExcitation(iLutnI,iLutnJ,Ex_ia,parity)
+!                    call GetBitExcitation(iLutnI,iLutnJ,Ex_ia,tSign)
 !                    call construct_class_counts(nI,CC_ia,CCU_ia)
 !                    call CalcNonUniPGen(nI,Ex_ia,IC_ia,CC_ia,CCU_ia,0.9_8,pGen_ia)
 !                else
@@ -403,7 +402,7 @@ module MomInvRandExcit
 !                if(IC_ib.le.2) then
 !                    Ex_ib=0
 !                    Ex_ib(1,1)=IC_ib
-!                    call GetBitExcitation(iLutnI,iLutnJ2,Ex_ib,parity)
+!                    call GetBitExcitation(iLutnI,iLutnJ2,Ex_ib,tSign)
 !                    call construct_class_counts(nI,CC_ib,CCU_ib)
 !                    call CalcNonUniPGen(nI,Ex_ib,IC_ib,CC_ib,CCU_ib,0.9_8,pGen_ib)
 !                else

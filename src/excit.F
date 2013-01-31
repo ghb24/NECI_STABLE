@@ -168,7 +168,7 @@
 
 !         EX(:,:)=0
 !         EX(1,1)=IC
-!         CALL GETEXCITATION(NJ,NI,NEL,EX,parity)
+!         CALL GETEXCITATION(NJ,NI,NEL,EX,TSIGN)
 !         IF(TSIGN.ne.parity) THEN
 !                 WRITE(6,*) IC
 !                 WRITE(6,*) "ORIG: ",NJ(:)

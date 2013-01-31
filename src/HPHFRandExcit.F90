@@ -20,7 +20,7 @@ MODULE HPHFRandExcitMod
     use FciMCData, only: pDoubles, excit_gen_store_type
     use constants, only: dp,n_int
     use sltcnd_mod, only: sltcnd_excit
-    use bit_reps, only: NIfD, NIfDBO, NIfTot, decode_bit_det
+    use bit_reps, only: NIfD, NIfDBO, NIfTot
     use SymExcitDataMod, only: excit_gen_store_type
     use sort_mod
     use HElem
@@ -143,8 +143,6 @@ MODULE HPHFRandExcitMod
         ! Avoid warnings
         parity_out = 1
 
-        ! TODO: We should try and make HPHFs work without having to have
-        !       an ordered nJ.
         call gen_rand_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
                              parity_orig, pGen, HEl, store)
 
@@ -154,10 +152,8 @@ MODULE HPHFRandExcitMod
 
 !Create excitation of uniquely chosen determinant in this HPHF function.
         IF(IsNullDet(nJ)) RETURN
-        ! gen_rand_Excit doesn't ensure that nJ is ordered
-        call decode_bit_det (nJ, ilutnJ)
-        ! Create bit representation of excitation - iLutnJ
-        !CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat)
+!Create bit representation of excitation - iLutnJ
+        CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat)
             
 !Test!
 !        CALL CalcNonUniPGen(ExcitMat,IC,ClassCount2,ClassCountUnocc2,pDoub,pGen2)

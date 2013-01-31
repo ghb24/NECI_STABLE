@@ -18,7 +18,7 @@ SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
    MPE=ECore
    DO i=1,iV
 !      EX(1,1)=nEl
-!      CALL GetExcitation(iPath(1,0),iPath(i,0),nEl,EX,parity)
+!      CALL GetExcitation(iPath(1,0),iPath(i,0),nEl,EX,tSign)
       IF(tENPT) THEN
 !Use Epstein-Nesbet denominator
          Fi(i)=Hij(i-1,i-1)
@@ -191,9 +191,10 @@ END
          implicit none
          HElement_t hEl
          integer nEl,nI(nEl),nJ(nEl)
-         integer Ex(2,2),ex2(2,2), parity
+         integer Ex(2,2),ex2(2,2)
+         logical tSign
          Ex(1,1)=2
-         Call GetExcitation(nI,nJ,nEl,EX,parity)
+         Call GetExcitation(nI,nJ,nEl,EX,tSign)
          ex2=ex
          ex=ex+1
          ex=ex/2
