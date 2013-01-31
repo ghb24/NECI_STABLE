@@ -39,8 +39,7 @@ MODULE GenRandSymExcitNUMod
                        SymLabelCounts
     use dSFMT_interface , only : genrand_real2_dSFMT
     use SymExcitDataMod 
-    use DetBitOps, only: FindExcitBitDet, EncodeBitDet, get_single_parity, &
-                         get_double_parity
+    use DetBitOps, only: FindExcitBitDet, EncodeBitDet
     use sltcnd_mod, only: sltcnd_1
     use constants, only: dp, n_int, bits_n_int
     use bit_reps, only: NIfTot, nifdbo
@@ -310,19 +309,17 @@ MODULE GenRandSymExcitNUMod
 !had picked B first. This will be returned in NExcitOtherWay.
         CALL PickBOrb(nI,iSpn,ILUT,ClassCountUnocc2,SpinOrbA,OrbA,SymA,OrbB,SymB,NExcitB,MlA,MlB,NExcitOtherWay)
 
-        CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,OrbA,OrbB,ExcitMat,tParity,ilut)
+        CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,OrbA,OrbB,ExcitMat,tParity)
 
         CALL FindDoubleProb(ForbiddenOrbs,NExcitA,NExcitB,NExcitOtherWay,pGen)
 
     END SUBROUTINE CreateDoubExcit
 
 !This routine creates the final determinant.
-    SUBROUTINE FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,OrbA,OrbB,ExcitMat,tParity,ilut)
+    SUBROUTINE FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,OrbA,OrbB,ExcitMat,tParity)
         integer, intent(in) :: nI(nel), Elec1Ind, Elec2Ind, OrbA, OrbB
         integer, intent(out) :: ExcitMat(2,2), nJ(nel)
         logical, intent(out) :: tParity
-        integer(n_int), intent(in),optional :: ilut(0:NIfTot)
-        integer :: par
 
 !First construct ExcitMat
         ExcitMat(1,1)=Elec1Ind
@@ -331,22 +328,6 @@ MODULE GenRandSymExcitNUMod
         ExcitMat(2,2)=OrbB
         nJ(:)=nI(:)
         CALL FindExcitDet(ExcitMat,nJ,2,tParity)
-
-        if (present(ilut)) then
-            par = get_double_parity (ilut, (/nI(elec1ind),nI(elec2ind)/), &
-                                           (/orbA,orbB/))
-            if (tParity) then
-                if (par /= -1) then
-                    write(6,'(a,5i3,l2)') 'EX', excitmat, par, tparity
-                end if
-            else
-                if (par /= 1) then
-                    call write_det(6, nI, .true.)
-                    write(6,'(a,5i3,l2)') 'EX', excitmat, par, tparity
-                end if
-            endif
-        end if
-
 
 #ifdef __DEBUG
 !These are useful (but O[N]) operations to test the determinant generated.
@@ -1247,7 +1228,6 @@ MODULE GenRandSymExcitNUMod
         real(dp) :: r,pGen
         LOGICAL :: tParity
 
-        integer :: par
            
 
         CALL CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2,nI)
@@ -1416,20 +1396,6 @@ MODULE GenRandSymExcitNUMod
         ExcitMat(1,1)=Eleci
         ExcitMat(2,1)=Orb
         CALL FindExcitDet(ExcitMat,nJ,1,TParity)
-
-        ! Test the new parity routine
-        par = get_single_parity (ilut, nI(Eleci), Orb)
-        if (tParity) then
-            if (par /= -1) then
-                call write_det(6, nI, .true.)
-                write(6,*) 'EX', excitmat, par, tparity
-            end if
-        else
-            if (par /= 1) then
-                call write_det(6, nI, .true.)
-                write(6,*) 'EX', excitmat, par, tparity
-            end if
-        endif
 
 #ifdef __DEBUG
 !These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
