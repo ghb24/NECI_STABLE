@@ -9,9 +9,6 @@ module get_excit
 
 contains
 
-#ifndef __DEBUG
-    pure &
-#endif
     subroutine make_single (nI, nJ, elec, tgt, ex, tParity)
 
         integer, intent(in) :: nI(nel), elec, tgt
@@ -67,9 +64,6 @@ contains
     end subroutine
 
 
-#ifndef __DEBUG
-    pure &
-#endif
     subroutine make_double (nI, nJ, elec1, elec2, tgt1, tgt2, ex, tParity)
 
         integer, intent(in) :: nI(nel), elec1, elec2, tgt1, tgt2
