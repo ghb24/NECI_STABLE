@@ -1082,6 +1082,7 @@ end module
         implicit none
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfD), iLutnJ(0:NIfD)
         integer, intent(inout) :: Ex(2,*)
+        logical, intent(out) :: tSign
         integer :: i, j, iexcit1, iexcit2, perm, iel1, iel2, max_excit
         logical :: testI, testJ
 
