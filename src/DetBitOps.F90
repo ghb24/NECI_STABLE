@@ -257,7 +257,7 @@ module DetBitOps
     pure subroutine get_bit_excitmat (ilutI, iLutJ, ex, IC)
         
         ! Obatin the excitation matrix between two determinants from their bit
-        ! representation without calculating parity --> a bit quicker.
+        ! representation without calculating tSign --> a bit quicker.
         !
         ! In:    iLutI, iLutJ - Bit representations of determinants I,J
         ! InOut: IC           - Specify max IC before bailing, and return
@@ -1055,7 +1055,7 @@ module DetBitOps
 
 end module
 
-    pure subroutine GetBitExcitation(iLutnI,iLutnJ,Ex,parity)
+    pure subroutine GetBitExcitation(iLutnI,iLutnJ,Ex,tSign)
 
         ! A port from hfq. The first of many...
         ! JSS.
@@ -1071,9 +1071,9 @@ end module
         !    Ex(2,max_excit): contains the excitation connected iLutnI to
         !        iLutnJ.  Ex(1,i) is the i-th orbital excited from and Ex(2,i)
         !        is the corresponding orbital excited to.
-        !    parity:
-        !        -1 if an odd number of permutations is required to line up
-        !        the determinants, +1 otherwise
+        !    tSign:
+        !        True if an odd number of permutations is required to line up
+        !        the determinants.
 
         use SystemData, only: nel
         use bit_rep_data, only: NIfD
@@ -1082,11 +1082,10 @@ end module
         implicit none
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfD), iLutnJ(0:NIfD)
         integer, intent(inout) :: Ex(2,*)
-        integer, intent(out) :: parity
         integer :: i, j, iexcit1, iexcit2, perm, iel1, iel2, max_excit
         logical :: testI, testJ
 
-        parity = 1
+        tSign=.true.
         max_excit = Ex(1,1)
         Ex(:,:max_excit) = 0
 
@@ -1161,8 +1160,8 @@ end module
                 if (iexcit1 == max_excit .and. iexcit2 == max_excit) exit
             end do
 
-            ! Extract the parity. even --> +1, odd --> -1
-            parity = 1 - (2 * mod(perm, 2))
+            ! It seems that this test is faster than btest(perm,0)!
+            tSign = mod(perm,2) == 1
 
             if (iexcit1<max_excit) then
                 Ex(:,iexcit1+1) = 0 ! Indicate we've ended the excitation.

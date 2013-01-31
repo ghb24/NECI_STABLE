@@ -1404,7 +1404,7 @@ MODULE nElRDMMod
         real(dp) , intent(in) :: realSignJ
         integer :: i, j, nI(NEl), nJ(NEl), walkExcitLevel
         real(dp) :: realSignI
-        logical :: tDetAdded
+        logical :: tParity, tDetAdded
 
 ! Spawning from multiple parents, to iLutJ, which has SignJ.        
 
@@ -1554,6 +1554,7 @@ MODULE nElRDMMod
         integer(kind=n_int) :: iLutnI2(0:NIfTot),iLutnJ2(0:NIfTot)
         integer :: Ex(2,2), SpinCoupI_J_ExcLevel, nI2(NEl), nJ2(NEl)
         integer :: SignFacI, SignFacJ, I_J_ExcLevel
+        logical :: tParity
         real(dp) :: realSignFacI, realSignFacJ
 
 !First we flip the spin of both determinants, and store I' and J'.
@@ -1711,14 +1712,15 @@ MODULE nElRDMMod
         integer , intent(in) :: nI(NEl), nJ(NEl)
         real(dp) , intent(in) :: realSignI, realSignJ
         logical , intent(in) :: tFill_CiCj_Symm
-        integer :: Ex(2,2), j, parity
+        integer :: Ex(2,2),j
+        logical :: tParity
 
         Ex(:,:) = 0
         Ex(1,1) = 2         ! Maximum excitation level - we know they are connected by 
                             ! a double or single.
-        parity = 1
+        tParity = .false.
 
-        call GetExcitation(nI,nJ,NEl,Ex,parity)
+        call GetExcitation(nI,nJ,NEl,Ex,tParity)
 ! Ex(1,:) comes out as the orbital(s) excited from, i.e. i,j 
 ! Ex(2,:) comes out as the orbital(s) excited to, i.e. a,b.         
 
@@ -1728,7 +1730,7 @@ MODULE nElRDMMod
             WRITE(6,*) 'nI',nI
             WRITE(6,*) 'nJ',nJ
             WRITE(6,*) 'Ex(:,:)',Ex(1,1),Ex(1,2),Ex(2,1),Ex(2,2)
-            WRITE(6,*) 'parity', parity
+            WRITE(6,*) 'tParity',tParity
             WRITE(6,*) 'realSignI',realSignI
             WRITE(6,*) 'realSignJ',realSignJ
             write(6,*) '*'
@@ -1741,13 +1743,13 @@ MODULE nElRDMMod
 
             ! Di and Dj are separated by a single excitation.
             ! Add in the contribution from this pair into the 1- and 2-RDM.
-            call Fill_Sings_RDM(nI,Ex,parity,realSignI,realSignJ,tFill_CiCj_Symm)
+            call Fill_Sings_RDM(nI,Ex,tParity,realSignI,realSignJ,tFill_CiCj_Symm)
     
         elseif(RDMExcitLevel.ne.1) then
 
             ! Otherwise Di and Dj are connected by a double excitation.
             ! Add in this contribution to the 2-RDM (as long as we're calculating this obv).
-            call Fill_Doubs_RDM(Ex,parity,realSignI,realSignJ,tFill_CiCj_Symm)
+            call Fill_Doubs_RDM(Ex,tParity,realSignI,realSignJ,tFill_CiCj_Symm)
 
         endif
 
@@ -2026,9 +2028,8 @@ MODULE nElRDMMod
         INTEGER(kind=n_int) , INTENT(IN) :: iLutnI(0:NIfTot)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: SignDi, SignDi2
-        integer :: ExcitMat3(2,2), nI(NEl), nJ(NEl), Proc, FlagsDi
-        integer :: a, b, CountTemp, parity
-        logical :: tAllExcitFound
+        INTEGER :: ExcitMat3(2,2),nI(NEl),nJ(NEl),Proc,FlagsDi,a,b,CountTemp
+        LOGICAL :: tParity,tAllExcitFound
 
         call extract_bit_rep (iLutnI, nI, SignDi, FlagsDi)
 ! Unfortunately uses the decoded determinant - might want to look at this.        
@@ -2045,7 +2046,7 @@ MODULE nElRDMMod
         do while (.not.tAllExcitFound)
 !                write(6,*) 'generating singles'
 !                call neci_flush(6)
-            CALL GenExcitations3(nI,iLutnI,nJ,1,ExcitMat3(:,:),parity,&
+            CALL GenExcitations3(nI,iLutnI,nJ,1,ExcitMat3(:,:),tParity,&
                                                         tAllExcitFound,.true.)            
 ! Passed out of here is the singly excited determinant, nJ.
 ! Information such as the orbitals involved in the excitation and the parity is also found 
@@ -2091,7 +2092,7 @@ MODULE nElRDMMod
             do while (.not.tAllExcitFound)
 !                write(6,*) 'generating doubles'
 !                call neci_flush(6)
-                CALL GenExcitations3(nI,iLutnI,nJ,2,ExcitMat3(:,:),parity,&
+                CALL GenExcitations3(nI,iLutnI,nJ,2,ExcitMat3(:,:),tParity,&
                                                             tAllExcitFound,.true.)            
 ! Passed out of here is the doubly excited determinant, nJ.
 ! Information such as the orbitals involved in the excitation and the parity is 
@@ -2147,9 +2148,8 @@ MODULE nElRDMMod
         INTEGER(kind=n_int) , INTENT(IN) :: iLutnI(0:NIfTot)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: HistPos
-        integer :: ExcitMat3(2,2), nI(NEl), nJ(NEl), Proc, FlagsDi
-        integer :: a, b, CountTemp, parity
-        logical :: tAllExcitFound
+        INTEGER :: ExcitMat3(2,2),nI(NEl),nJ(NEl),Proc,FlagsDi,a,b,CountTemp
+        LOGICAL :: tParity,tAllExcitFound
         real(dp) :: realSignDi
 
         call extract_bit_rep (iLutnI, nI, HistPos, FlagsDi)
@@ -2169,7 +2169,7 @@ MODULE nElRDMMod
         do while (.not.tAllExcitFound)
 !                write(6,*) 'generating singles'
 !                call neci_flush(6)
-            CALL GenExcitations3(nI,iLutnI,nJ,1,ExcitMat3(:,:),parity,&
+            CALL GenExcitations3(nI,iLutnI,nJ,1,ExcitMat3(:,:),tParity,&
                                                         tAllExcitFound,.true.)            
 ! Passed out of here is the singly excited determinant, nJ.
 ! Information such as the orbitals involved in the excitation and the parity is also found 
@@ -2215,7 +2215,7 @@ MODULE nElRDMMod
             do while (.not.tAllExcitFound)
 !                write(6,*) 'generating doubles'
 !                call neci_flush(6)
-                CALL GenExcitations3(nI,iLutnI,nJ,2,ExcitMat3(:,:),parity,&
+                CALL GenExcitations3(nI,iLutnI,nJ,2,ExcitMat3(:,:),tParity,&
                                                             tAllExcitFound,.true.)            
 ! Passed out of here is the doubly excited determinant, nJ.
 ! Information such as the orbitals involved in the excitation and the parity is 
@@ -2471,9 +2471,10 @@ MODULE nElRDMMod
         INTEGER(MPIArg), INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: SignDi,SignDj, SignDi2,SignDj2
-        integer :: i, j, NoDets, StartDets, PartInd, parity
-        integer :: nI(NEl), nJ(NEl), Ex(2,2), FlagsDi, FlagsDj
-        logical :: tDetFound
+        INTEGER :: PartInd
+        INTEGER :: i,j,NoDets,StartDets
+        INTEGER :: nI(NEl),nJ(NEl),Ex(2,2),FlagsDi,FlagsDj
+        LOGICAL :: tDetFound,tParity
         REAL(dp) :: realSignDi, realSignDj
 
 ! Take each Dj, and binary search the CurrentDets to see if it is occupied.
@@ -2506,7 +2507,7 @@ MODULE nElRDMMod
 ! Ex(1,1) goes in as the max number of excitations - we know this is an excitation of 
 ! level RDMExcitLevel. 
                         Ex(1,1)=1
-                        parity = 1
+                        tParity = .false.
 
                         call extract_bit_rep (CurrentDets(:,PartInd), nJ, SignDj, FlagsDj)
 
@@ -2514,12 +2515,12 @@ MODULE nElRDMMod
 
 ! Ex(1,:) comes out as the orbital(s) excited from, Ex(2,:) comes out as the orbital(s) 
 ! excited to.    
-                        CALL GetExcitation(nI,nJ,NEl,Ex,parity)
+                        CALL GetExcitation(nI,nJ,NEl,Ex,tParity)
 
                         IF(Ex(1,1).le.0) CALL Stop_All('Sing_SearchOccDets',&
                                             'nJ is not the correct excitation of nI.')
 
-                        call Fill_Sings_RDM(nI,Ex,parity,realSignDi,realSignDj,.true.)
+                        call Fill_Sings_RDM(nI,Ex,tParity,realSignDi,realSignDj,.true.)
 
 ! No normalisation factor just yet - possibly need to revise.                    
                     ENDIF
@@ -2544,9 +2545,10 @@ MODULE nElRDMMod
         INTEGER(MPIArg), INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: SignDi,SignDj, SignDi2, SignDj2
-        integer :: i, j, NoDets, StartDets, PartInd, parity
-        integer :: nI(NEl), nJ(NEl), Ex(2,2), FlagsDi, FlagsDj
-        logical :: tDetFound
+        INTEGER :: PartInd
+        INTEGER :: i,j,NoDets,StartDets
+        INTEGER :: nI(NEl),nJ(NEl),Ex(2,2),FlagsDi,FlagsDj
+        LOGICAL :: tDetFound,tParity
         REAL(dp) :: realSignDi,realSignDj
 
 ! Take each Dj, and binary search the CurrentDets to see if it is occupied.
@@ -2584,7 +2586,7 @@ MODULE nElRDMMod
 ! Ex(1,1) goes in as the max number of excitations - we know this is an excitation of 
 ! level RDMExcitLevel. 
                         Ex(1,1)=2
-                        parity = 1
+                        tParity = .false.
 
                         call extract_bit_rep (CurrentDets(:,PartInd), nJ, SignDj, FlagsDj)
 
@@ -2592,12 +2594,12 @@ MODULE nElRDMMod
 
 ! Ex(1,:) comes out as the orbital(s) excited from, Ex(2,:) comes out as the orbital(s) 
 ! excited to. 
-                        CALL GetExcitation(nI,nJ,NEl,Ex,parity)
+                        CALL GetExcitation(nI,nJ,NEl,Ex,tParity)
 
                         IF(Ex(1,1).le.0) CALL Stop_All('SearchOccDets',&
                                             'nJ is not the correct excitation of nI.')
 
-                        call Fill_Doubs_RDM(Ex,parity,realSignDi,realSignDj,.true.)
+                        call Fill_Doubs_RDM(Ex,tParity,realSignDi,realSignDj,.true.)
                         
                         
                     ENDIF
@@ -2624,9 +2626,10 @@ MODULE nElRDMMod
         INTEGER(MPIArg), INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: HistPos
-        integer :: i, j, NoDets, StartDets, PartInd, ExcitLevel
-        integer :: nI(NEl), nJ(NEl), Ex(2,2), FlagsDi, FlagsDj, parity
-        logical :: tDetFound
+        INTEGER :: PartInd, ExcitLevel
+        INTEGER :: i,j,NoDets,StartDets
+        INTEGER :: nI(NEl),nJ(NEl),Ex(2,2),FlagsDi,FlagsDj
+        LOGICAL :: tDetFound,tParity
         REAL(dp) :: realSignDi, realSignDj
 
 ! Take each Dj, and binary search the CurrentDets to see if it is occupied.
@@ -2663,7 +2666,7 @@ MODULE nElRDMMod
 ! Ex(1,1) goes in as the max number of excitations - we know this is an excitation of 
 ! level RDMExcitLevel. 
                         Ex(1,1)=1
-                        parity = 1
+                        tParity = .false.
 
 !                        call extract_bit_rep (CurrentDets(:,PartInd), nJ, SignDj, FlagsDj)
 !                        realSignDj = real(SignDj(1))
@@ -2674,12 +2677,12 @@ MODULE nElRDMMod
 
 ! Ex(1,:) comes out as the orbital(s) excited from, Ex(2,:) comes out as the orbital(s) 
 ! excited to.    
-                        CALL GetExcitation(nI,nJ,NEl,Ex,parity)
+                        CALL GetExcitation(nI,nJ,NEl,Ex,tParity)
 
                         IF(Ex(1,1).le.0) CALL Stop_All('Sing_SearchOccDets',&
                                             'nJ is not the correct excitation of nI.')
 
-                        call Fill_Sings_RDM(nI,Ex,parity,realSignDi,realSignDj,.true.)
+                        call Fill_Sings_RDM(nI,Ex,tParity,realSignDi,realSignDj,.true.)
 
 ! No normalisation factor just yet - possibly need to revise.                    
                     ENDIF
@@ -2707,9 +2710,10 @@ MODULE nElRDMMod
         INTEGER(MPIArg), INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: HistPos
-        integer :: i, j, NoDets, StartDets,PartInd, ExcitLevel
-        integer :: nI(NEl), nJ(NEl), Ex(2,2), FlagsDi, FlagsDj, parity
-        logical :: tDetFound
+        INTEGER :: PartInd, ExcitLevel
+        INTEGER :: i,j,NoDets,StartDets
+        INTEGER :: nI(NEl),nJ(NEl),Ex(2,2),FlagsDi,FlagsDj
+        LOGICAL :: tDetFound,tParity
         REAL(dp) :: realSignDi,realSignDj
 
 ! Take each Dj, and binary search the CurrentDets to see if it is occupied.
@@ -2750,7 +2754,7 @@ MODULE nElRDMMod
 ! Ex(1,1) goes in as the max number of excitations - we know this is an excitation of 
 ! level RDMExcitLevel. 
                         Ex(1,1)=2
-                        parity = 1
+                        tParity = .false.
 
 !                        call extract_bit_rep (CurrentDets(:,PartInd), nJ, SignDj, FlagsDj)
 !                        realSignDj = real(SignDj(1))
@@ -2760,12 +2764,12 @@ MODULE nElRDMMod
 
 ! Ex(1,:) comes out as the orbital(s) excited from, Ex(2,:) comes out as the orbital(s) 
 ! excited to. 
-                        CALL GetExcitation(nI,nJ,NEl,Ex,parity)
+                        CALL GetExcitation(nI,nJ,NEl,Ex,tParity)
 
                         IF(Ex(1,1).le.0) CALL Stop_All('SearchOccDets',&
                                             'nJ is not the correct excitation of nI.')
 
-                        call Fill_Doubs_RDM(Ex,parity,realSignDi,realSignDj,.true.)
+                        call Fill_Doubs_RDM(Ex,tParity,realSignDi,realSignDj,.true.)
                         
                         
                     ENDIF
@@ -2845,21 +2849,26 @@ MODULE nElRDMMod
 
     end subroutine Fill_Diag_RDM
 
-    subroutine Fill_Sings_RDM(nI,Ex,parity,realSignDi,realSignDj,tFill_CiCj_Symm)
+    subroutine Fill_Sings_RDM(nI,Ex,tParity,realSignDi,realSignDj,tFill_CiCj_Symm)
 ! This routine adds in the contribution to the 1- and 2-RDM from determinants connected
 ! by a single excitation.
         implicit none
-        integer , intent(in) :: nI(NEl), Ex(2,2), parity
+        integer , intent(in) :: nI(NEl), Ex(2,2)
+        logical , intent(in) :: tParity
         real(dp) , intent(in) :: realSignDi, realSignDj
         logical , intent(in) :: tFill_CiCj_Symm
-        integer :: k, Indik, Indak, iSpat, aSpat, kSpat, iInd, aInd, parity2
+        integer :: k, Indik, Indak, iSpat, aSpat, kSpat, iInd, aInd
+        real(dp) :: ParityFactor, ParityFactor2
 
 !        WRITE(6,*) '* In singles'
 !        call neci_flush(6)
 !        WRITE(6,*) 'Ex(1,:)',Ex(1,:)
 !        WRITE(6,*) 'Ex(2,:)',Ex(2,:)
-!        WRITE(6,*) 'parity',parity
+!        WRITE(6,*) 'tParity',tParity
 !        WRITE(6,*) 'nI',nI
+
+        ParityFactor=1.0_dp
+        IF(tParity) ParityFactor=-1.0_dp
 
         if(RDMExcitLevel.eq.1) then
             ! SymLabelList2_rot(i), gives the orbital in position i
@@ -2876,11 +2885,11 @@ MODULE nElRDMMod
             Indak = SymLabelListInv_rot(aInd)    ! Position of a.
             
             ! Adding to 1-RDM(i,a), ci.cj effectively.
-            NatOrbMat( Indik , Indak ) = NatOrbMat( Indik , Indak ) + (parity * &
+            NatOrbMat( Indik , Indak ) = NatOrbMat( Indik , Indak ) + (ParityFactor * &
                                                              realSignDi * realSignDj )
 
             if(tFill_CiCj_Symm) then                                
-                NatOrbMat( Indak , Indik ) = NatOrbMat( Indak , Indik ) + (parity * &
+                NatOrbMat( Indak , Indik ) = NatOrbMat( Indak , Indik ) + (ParityFactor * &
                                                              realSignDi * realSignDj )
 
             endif
@@ -2908,10 +2917,10 @@ MODULE nElRDMMod
 
                         ! This could be either abab or abba, but in both cases, add into the abab.
                         ! Kind of pretent the abba is of the form abab.
-                        abab_RDM( Indik , Indak ) = abab_RDM( Indik , Indak ) + ( parity * &
+                        abab_RDM( Indik , Indak ) = abab_RDM( Indik , Indak ) + ( ParityFactor * &
                                                                          realSignDi * realSignDj )
                         if(tFill_CiCj_Symm) then
-                            abab_RDM( Indak , Indik ) = abab_RDM( Indak , Indik ) + ( parity * &
+                            abab_RDM( Indak , Indik ) = abab_RDM( Indak , Indik ) + ( ParityFactor * &
                                                                          realSignDi * realSignDj )
                         endif
 
@@ -2929,21 +2938,21 @@ MODULE nElRDMMod
                             ! I.e. we're adding these as nI(k),Ex(1,1) -> nI(k), Ex(2,1)
                             ! So if Ex(1,1) < nI(k), or Ex(2,1) < nI(k) then we need 
                             ! to switch the parity.
-                            parity2 = parity
+                            ParityFactor2 = ParityFactor
                             IF((Ex(1,1).lt.nI(k)).and.(Ex(2,1).gt.nI(k))) &
-                                                    Parity2 = -Parity
+                                                    ParityFactor2 = ParityFactor * (-1.0_dp)
                             IF((Ex(1,1).gt.nI(k)).and.(Ex(2,1).lt.nI(k))) &
-                                                    Parity2 = -Parity
+                                                    ParityFactor2 = ParityFactor * (-1.0_dp)
 
                             ! Ind doesn't include diagonal terms (when iSpat = jSpat).
                             Indik=( ( (max(iSpat,kSpat)-2) * (max(iSpat,kSpat)-1) ) / 2 ) + min(iSpat,kSpat)
                             Indak=( ( (max(aSpat,kSpat)-2) * (max(aSpat,kSpat)-1) ) / 2 ) + min(aSpat,kSpat)
 
-                            aaaa_RDM( Indik , Indak ) = aaaa_RDM( Indik , Indak ) + ( Parity2 * &
+                            aaaa_RDM( Indik , Indak ) = aaaa_RDM( Indik , Indak ) + ( ParityFactor2 * &
                                                                                  realSignDi * realSignDj )
 
                             if(tFill_CiCj_Symm) then
-                                aaaa_RDM( Indak , Indik ) = aaaa_RDM( Indak , Indik ) + ( Parity2 * &
+                                aaaa_RDM( Indak , Indik ) = aaaa_RDM( Indak , Indik ) + ( ParityFactor2 * &
                                                                                  realSignDi * realSignDj )
                             endif
 
@@ -2960,11 +2969,11 @@ MODULE nElRDMMod
                                 Indik=( ( (max(iSpat,kSpat)-1) * max(iSpat,kSpat) ) / 2 ) + min(iSpat,kSpat)
                                 Indak=( ( (max(aSpat,kSpat)-1) * max(aSpat,kSpat) ) / 2 ) + min(aSpat,kSpat)
 
-                                abab_RDM( Indik , Indak ) = abab_RDM( Indik , Indak ) + ( Parity * &
+                                abab_RDM( Indik , Indak ) = abab_RDM( Indik , Indak ) + ( ParityFactor * &
                                                                                  realSignDi * realSignDj )
 
                                 if(tFill_CiCj_Symm) then
-                                    abab_RDM( Indak , Indik ) = abab_RDM( Indak , Indik ) + ( Parity * &
+                                    abab_RDM( Indak , Indik ) = abab_RDM( Indak , Indik ) + ( ParityFactor * &
                                                                                  realSignDi * realSignDj )
                                 endif
 
@@ -2975,11 +2984,11 @@ MODULE nElRDMMod
                                 Indik=( ( (max(iSpat,kSpat)-2) * (max(iSpat,kSpat)-1) ) / 2 ) + min(iSpat,kSpat)
                                 Indak=( ( (max(aSpat,kSpat)-2) * (max(aSpat,kSpat)-1) ) / 2 ) + min(aSpat,kSpat)
 
-                                abba_RDM( Indik , Indak ) = abba_RDM( Indik , Indak ) - ( Parity * &
+                                abba_RDM( Indik , Indak ) = abba_RDM( Indik , Indak ) - ( ParityFactor * &
                                                                                  realSignDi * realSignDj )
 
                                 if(tFill_CiCj_Symm) then
-                                    abba_RDM( Indak , Indik ) = abba_RDM( Indak , Indik ) - ( Parity * &
+                                    abba_RDM( Indak , Indik ) = abba_RDM( Indak , Indik ) - ( ParityFactor * &
                                                                                  realSignDi * realSignDj )
                                 endif
 
@@ -2993,11 +3002,12 @@ MODULE nElRDMMod
 
     end subroutine Fill_Sings_RDM
 
-    subroutine Fill_Doubs_RDM(Ex,parity,realSignDi,realSignDj,tFill_CiCj_Symm)
+    subroutine Fill_Doubs_RDM(Ex,tParity,realSignDi,realSignDj,tFill_CiCj_Symm)
 ! This routine adds in the contribution to the 2-RDM from determinants connected
 ! by a double excitation.
         implicit none
-        integer , intent(in) :: Ex(2,2), parity
+        integer , intent(in) :: Ex(2,2)
+        logical , intent(in) :: tParity
         real(dp) , intent(in) :: realSignDi, realSignDj
         logical , intent(in) :: tFill_CiCj_Symm
         integer :: Indij, Indab, iSpat, jSpat, aSpat, bSpat
@@ -3005,13 +3015,14 @@ MODULE nElRDMMod
 
         ! Adding to elements Gamma(i,j,a,b)
 
-        ParityFactor = real(parity, dp)
+        ParityFactor=1.0_dp
+        IF(tParity) ParityFactor=-1.0_dp
 
 !        WRITE(6,*) '* In doubles'
 !        call neci_flush(6)
 !        WRITE(6,*) 'Ex(1,:)',Ex(1,:)
 !        WRITE(6,*) 'Ex(2,:)',Ex(2,:)
-!        WRITE(6,*) 'parity',parity
+!        WRITE(6,*) 'tParity',tParity
 !        WRITE(6,*) 'Adding realSignDi, realSignDj',realSignDi,realSignDj
 
         iSpat = gtID(Ex(1,1))

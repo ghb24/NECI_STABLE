@@ -297,7 +297,7 @@ MODULE FciMCData
       type(c_ptr) :: ptr_attempt_create
       type(c_ptr) :: ptr_get_spawn_helement
       type(c_ptr) :: ptr_new_child_stats
-      type(c_ptr) :: ptr_decode_child
+      type(c_ptr) :: ptr_encode_child
       type(c_ptr) :: ptr_attempt_die
       type(c_ptr) :: ptr_iter_data
       type(c_ptr) :: ptr_extract_bit_rep_avsign

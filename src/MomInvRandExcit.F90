@@ -16,7 +16,7 @@ module MomInvRandExcit
     
     
     subroutine gen_MI_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                               parity_unused, pGen, HEl, store)
+                               tParity, pGen, HEl, store)
 
         ! Generate an MI excitation using only one of the determinants in 
         ! the source MI function.
@@ -35,24 +35,24 @@ module MomInvRandExcit
         integer, intent(out) :: nJ(nel)
         integer(kind=n_int), intent(out) :: iLutnJ(0:niftot)
         integer, intent(out) :: IC, ExcitMat(2,2)
-        integer, intent(out) :: parity_unused ! Not used
+        logical, intent(out) :: tParity ! Not used
         real(dp), intent(out) :: pGen
         HElement_t, intent(out) :: HEl
         type(excit_gen_store_type), intent(inout), target :: store
 
         integer(kind=n_int) :: iLutnJ2(0:niftot)
-        integer :: nJ2(nel), ex2(2,2), excitLevel, parity, parity_orig
+        integer :: nJ2(nel), ex2(2,2), excitLevel 
         real(dp) :: pGen2
         HElement_t :: MatEl, MatEl2
-        logical :: TestClosedShellDet
+        logical :: TestClosedShellDet, tSign, tSignOrig
         logical :: tSwapped
         character(len=*) , parameter :: t_r='gen_MI_excit'
 
         ! Avoid warnings
-        parity_unused = 1
+        tParity = .false.
 
         call gen_rand_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                             parity_orig, pGen, HEl, store)
+                             tSignOrig, pGen, HEl, store)
 
 !Create excitation of uniquely chosen determinant in this HPHF function.
         IF(IsNullDet(nJ)) RETURN
@@ -66,13 +66,13 @@ module MomInvRandExcit
 !Generate matrix element -> MI function to closed shell det.
                 IF(IsMomSelfInv(nI,iLutnI)) THEN
                     !Self-inv -> Self-inv
-                    HEl = sltcnd_excit (nI, IC, ExcitMat, parity_orig)
+                    HEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
                 ELSE
                     !Mom coupled -> Self-inv
                     if(tAntisym_MI) then
                         HEl=0.0_dp
                     else
-                        MatEl = sltcnd_excit (nI, IC, ExcitMat, parity_orig)
+                        MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
                         HEl=MatEl*SQRT(2.0_dp)
                     endif
                 ENDIF
@@ -98,9 +98,9 @@ module MomInvRandExcit
                 Ex2(1,1)=ExcitLevel
 
                 IF(tSwapped) THEN
-                    CALL GetBitExcitation(iLutnI,iLutnJ,Ex2,parity)
+                    CALL GetBitExcitation(iLutnI,iLutnJ,Ex2,tSign)
                 ELSE
-                    CALL GetBitExcitation(iLutnI,iLutnJ2,Ex2,parity)
+                    CALL GetBitExcitation(iLutnI,iLutnJ2,Ex2,tSign)
                 ENDIF
                 !Calc probability of generating it
                 CALL CalcNonUniPGen(nI, Ex2, ExcitLevel, store%ClassCountOcc,&
@@ -118,10 +118,10 @@ module MomInvRandExcit
                         else
                             !Could actually use either of these - they should be the same?!
                             IF(tSwapped) THEN
-                                MatEl = sltcnd_excit (nI, IC, Ex2, parity)
+                                MatEl = sltcnd_excit (nI, IC, Ex2, tSign)
                             ELSE
                                 MatEl = sltcnd_excit (nI, IC, ExcitMat, &
-                                                      parity_orig)
+                                                      tSignOrig)
                             ENDIF
                             HEl=MatEl*SQRT(2.0_dp)
                         endif
@@ -130,10 +130,10 @@ module MomInvRandExcit
 !First find nI -> nJ. If nJ has swapped, then this will be different.
                         IF(tSwapped) THEN
                             MatEl = sltcnd_excit (nI, ExcitLevel, Ex2, &
-                                                  parity)
+                                                  tSign)
                         ELSE
                             MatEl = sltcnd_excit (nI, IC, ExcitMat, &
-                                                  parity_orig)
+                                                  tSignOrig)
                         ENDIF
 
                         !now nI2 -> nJ - cross term present
@@ -145,11 +145,11 @@ module MomInvRandExcit
                             IF(tSwapped) THEN
 !                                IF((OpenOrbsJ+OpenOrbsI).eq.3) tSignOrig=.not.tSignOrig  !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
                                 MatEl2 = sltcnd_excit (nI, IC, ExcitMat, &
-                                                       parity_orig)
+                                                       tSignOrig)
                             ELSE
 !                                IF((OpenOrbsJ+OpenOrbsI).eq.3) tSign=.not.tSign     !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
                                 MatEl2 = sltcnd_excit (nI,  ExcitLevel, &
-                                                       Ex2, parity)
+                                                       Ex2, tSign)
                             ENDIF
 
                             if(tAntisym_MI) then
@@ -178,10 +178,10 @@ module MomInvRandExcit
                 IF(tGenMatHEl) THEN
 !iLutnI MUST be an MI func here, since otherwise it would have been connected to iLutnJ2. Also, we know the cross connection (i.e. MatEl2 = 0)
                     IF(tSwapped) THEN
-                        if(tAntisym_MI) parity_orig = -parity_orig
-                        MatEl = sltcnd_excit(nI,  IC, ExcitMat, parity_orig)
+                        if(tAntisym_MI) tSignOrig=.not.tSignOrig
+                        MatEl = sltcnd_excit(nI,  IC, ExcitMat, tSignOrig)
                     ELSE
-                        MatEl = sltcnd_excit (nI, IC, ExcitMat, parity_orig)
+                        MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
                     ENDIF
 
                     HEl=MatEl

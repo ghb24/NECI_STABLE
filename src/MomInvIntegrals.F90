@@ -17,11 +17,12 @@ module MI_integrals
     contains
 
     function MI_spawn_sign (nI, nJ, iLutI, iLutJ, ic, ex, &
-                                  parity, HElGen) result (hel)
+                                  tParity, HElGen) result (hel)
         integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
-        integer, intent(in) :: parity
+        logical, intent(in) :: tParity
         integer :: iUnused
+        logical :: lUnused
         HElement_t :: hel
         HElement_t, intent(in) :: HElGen
 
@@ -30,16 +31,17 @@ module MI_integrals
         ! Avoid warnings
         iUnused = IC; iUnused = ex(1,1); iUnused = nI(1); iUnused = nJ(1)
         iUnused = int(iLutI(0),sizeof_int); iUnused = int(iLutJ(0),sizeof_int)
-        iUnused = parity
+        lUnused = tParity
 
     end function MI_spawn_sign
 
     function MI_off_diag_helement_spawn (nI, nJ, iLutI, iLutJ, ic, ex, &
-                                           parity, HElGen) result (hel)
+                                           tParity, HElGen) result (hel)
         integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
-        integer, intent(in) :: parity
+        logical, intent(in) :: tParity
         integer :: iUnused
+        logical :: lUnused
         HElement_t :: hel
         HElement_t , intent(in) :: HElGen
 
@@ -49,7 +51,7 @@ module MI_integrals
             hel = -abs(hel)
 
         ! Avoid warnings
-        iUnused = IC; iUnused = ex(1,1); iUnused = parity
+        iUnused = IC; iUnused = ex(1,1); lUnused = tParity
 
     end function MI_off_diag_helement_spawn
 
@@ -71,7 +73,7 @@ module MI_integrals
         integer(kind=n_int) :: iLutnI2(0:NIfTot)
         integer :: ExcitLevel, Ex(2,2)
         HElement_t :: MatEl2
-        integer :: parity
+        logical :: tSign
 
         if (DetBitEQ(iLutnI, iLutnJ, NIfDBO)) then
             ! Do not allow a 'diagonal' matrix element. The problem is 
@@ -115,10 +117,10 @@ module MI_integrals
                     
                     !Calculate cross-term matrix element
                     Ex(1,1)=ExcitLevel
-                    call GetBitExcitation(iLutnI2,iLutnJ,Ex,parity)
+                    call GetBitExcitation(iLutnI2,iLutnJ,Ex,tSign)
                     call decode_bit_det(nI2,iLutnI2)
 
-                    MatEl2 = sltcnd_excit (nI2, ExcitLevel, Ex, parity)
+                    MatEl2 = sltcnd_excit (nI2, ExcitLevel, Ex, tSign)
 
                     if(tAntisym_MI) then
                         hel = hel - MatEl2

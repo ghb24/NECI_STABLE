@@ -43,9 +43,9 @@ MODULE HPHFRandExcitMod
         real(dp), intent(in) :: pDoubles
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tSameFunc
-        logical :: tSwapped
+        logical :: tSign,tSwapped
         real(dp) :: pGen2
-        integer :: ic, parity
+        integer :: ic
         integer :: Ex2(2,2),nJ_loc(nel),nJ2(nel)
         integer(kind=n_int) :: iLutnJ_loc(0:niftot),iLutnJ2(0:niftot)
 
@@ -80,7 +80,7 @@ MODULE HPHFRandExcitMod
                     call CalcNonUnipGen(nI,ex,ic,ClassCount,ClassCountUnocc,pDoubles,pGen)
                 else
                     Ex2(1,1)=ic
-                    call GetBitExcitation(iLutnI,iLutnJ_loc,Ex2,parity)
+                    call GetBitExcitation(iLutnI,iLutnJ_loc,Ex2,tSign)
                     call CalcNonUnipGen(nI,Ex2,ic,ClassCount,ClassCountUnocc,pDoubles,pGen)
                 endif
             endif
@@ -97,7 +97,7 @@ MODULE HPHFRandExcitMod
                     call CalcNonUnipGen(nI,ex,ic,ClassCount,ClassCountUnocc,pDoubles,pGen2)
                 else
                     Ex2(1,1)=ic
-                    call GetBitExcitation(iLutnI,iLutnJ2,Ex2,parity)
+                    call GetBitExcitation(iLutnI,iLutnJ2,Ex2,tSign)
                     call CalcNonUnipGen(nI,Ex2,ic,ClassCount,ClassCountUnocc,pDoubles,pGen2)
                 endif
                 pGen = pGen + pGen2
@@ -107,7 +107,7 @@ MODULE HPHFRandExcitMod
     end subroutine CalcPGenHPHF
 
     subroutine gen_hphf_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                               parity_out, pGen, HEl, store)
+                               tParity, pGen, HEl, store)
 
         use FciMCData, only: tGenMatHEl
 
@@ -128,23 +128,23 @@ MODULE HPHFRandExcitMod
         integer, intent(out) :: nJ(nel)
         integer(kind=n_int), intent(out) :: iLutnJ(0:niftot)
         integer, intent(out) :: IC, ExcitMat(2,2)
-        integer, intent(out) :: parity_out ! Not used
+        logical, intent(out) :: tParity ! Not used
         real(dp), intent(out) :: pGen
         HElement_t, intent(out) :: HEl
         type(excit_gen_store_type), intent(inout), target :: store
 
         integer(kind=n_int) :: iLutnJ2(0:niftot)
         integer :: openOrbsI, openOrbsJ, nJ2(nel), ex2(2,2), excitLevel 
-        integer :: parity_orig, parity
         real(dp) :: pGen2
         HElement_t :: MatEl, MatEl2
+        logical :: tSign, tSignOrig
         logical :: tSwapped
 
         ! Avoid warnings
-        parity_out = 1
+        tParity = .false.
 
         call gen_rand_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                             parity_orig, pGen, HEl, store)
+                             tSignOrig, pGen, HEl, store)
 
 !        Count=Count+1
 !        WRITE(6,*) "COUNT: ",Count
@@ -171,7 +171,7 @@ MODULE HPHFRandExcitMod
                     if(tOddS_HPHF) then
                         call stop_all("gen_hphf_excit","Should not be at closed shell det with Odd S")
                     else
-                        HEl = sltcnd_excit (nI, IC, ExcitMat, parity_orig)
+                        HEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
                     endif
                 ELSE
                     !Open shell -> Closed Shell
@@ -179,7 +179,7 @@ MODULE HPHFRandExcitMod
                         !Odd S States cannot have CS components
                         HEl=0.0_dp
                     else
-                        MatEl = sltcnd_excit (nI, IC, ExcitMat, parity_orig)
+                        MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
                         HEl=MatEl*SQRT(2.0_dp)
                     endif
                 ENDIF
@@ -205,11 +205,11 @@ MODULE HPHFRandExcitMod
 !                CALL DecodeBitDet(nJ2,iLutnJ2)     !This could be done better !***!
 
                 IF(tSwapped) THEN
-!                    CALL GetExcitation(nI,nJ,NEl,Ex2,parity) !This could be done more efficiently... !***!
-                    CALL GetBitExcitation(iLutnI,iLutnJ,Ex2,parity)
+!                    CALL GetExcitation(nI,nJ,NEl,Ex2,tSign) !This could be done more efficiently... !***!
+                    CALL GetBitExcitation(iLutnI,iLutnJ,Ex2,tSign)
                 ELSE
-!                    CALL GetExcitation(nI,nJ2,NEl,Ex2,parity)
-                    CALL GetBitExcitation(iLutnI,iLutnJ2,Ex2,parity)
+!                    CALL GetExcitation(nI,nJ2,NEl,Ex2,tSign)
+                    CALL GetBitExcitation(iLutnI,iLutnJ2,Ex2,tSign)
                 ENDIF
                 CALL CalcNonUniPGen(nI, Ex2, ExcitLevel, store%ClassCountOcc,&
                                     store%ClassCountUnocc, pDoubles, pGen2)
@@ -224,10 +224,10 @@ MODULE HPHFRandExcitMod
                             HEl=0.0_dp
                         else
                             IF(tSwapped) THEN
-                                MatEl = sltcnd_excit (nI, IC, Ex2, parity)
+                                MatEl = sltcnd_excit (nI, IC, Ex2, tSign)
                             ELSE
                                 MatEl = sltcnd_excit (nI, IC, ExcitMat, &
-                                                      parity_orig)
+                                                      tSignOrig)
                             ENDIF
                             HEl=MatEl*SQRT(2.0_dp)
                         endif
@@ -236,10 +236,10 @@ MODULE HPHFRandExcitMod
 !First find nI -> nJ. If nJ has swapped, then this will be different.
                         IF(tSwapped) THEN
                             MatEl = sltcnd_excit (nI, ExcitLevel, Ex2, &
-                                                  parity)
+                                                  tSign)
                         ELSE
                             MatEl = sltcnd_excit (nI, IC, ExcitMat, &
-                                                  parity_orig)
+                                                  tSignOrig)
                         ENDIF
 
                         !now nI2 -> nJ (modelled as nI -> nJ2 with appropriate sign modifications)
@@ -254,24 +254,15 @@ MODULE HPHFRandExcitMod
                             CALL CalcOpenOrbs(iLutnI,OpenOrbsI)
 
                             IF(tSwapped) THEN
-
-                                ! i.e. J odd and I even, or vice versa, but
-                                ! since these can only be at max quads, then
-                                ! they can only have 1/2 open orbs.
-                                IF((OpenOrbsJ+OpenOrbsI).eq.3) &
-                                    parity_orig = -parity_orig
+                                IF((OpenOrbsJ+OpenOrbsI).eq.3) tSignOrig=.not.tSignOrig  !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
 
                                 MatEl2 = sltcnd_excit (nI, IC, ExcitMat, &
-                                                       parity_orig)
+                                                       tSignOrig)
                             ELSE
-                                ! i.e. J odd and I even or vice versa, but 
-                                ! since these can only be at max quads, then 
-                                ! they can only have 1/2 open orbs
-                                IF((OpenOrbsJ+OpenOrbsI).eq.3) &
-                                    parity = -parity
+                                IF((OpenOrbsJ+OpenOrbsI).eq.3) tSign=.not.tSign     !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
 
                                 MatEl2 = sltcnd_excit (nI,  ExcitLevel, &
-                                                       Ex2, parity)
+                                                       Ex2, tSign)
                             ENDIF
 
                             IF(tOddS_HPHF) THEN
@@ -319,17 +310,17 @@ MODULE HPHFRandExcitMod
                         IF(tOddS_HPHF) then
                             IF(mod(OpenOrbsJ,2).eq.0) THEN
     !                            WRITE(6,*) "Swapped parity"
-                                parity_orig = -parity_orig
+                                tSignOrig=.not.tSignOrig
                             ENDIF
                         ELSE
                             IF(mod(OpenOrbsJ,2).eq.1) THEN
     !                            WRITE(6,*) "Swapped parity"
-                                parity_orig = -parity_orig
+                                tSignOrig=.not.tSignOrig
                             ENDIF
                         ENDIF
-                        MatEl = sltcnd_excit(nI,  IC, ExcitMat, parity_orig)
+                        MatEl = sltcnd_excit(nI,  IC, ExcitMat, tSignOrig)
                     ELSE
-                        MatEl = sltcnd_excit (nI, IC, ExcitMat, parity_orig)
+                        MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
                     ENDIF
 
                     HEl=MatEl
@@ -514,8 +505,7 @@ MODULE HPHFRandExcitMod
 !        real(dp) , ALLOCATABLE :: Weights(:)
 !        INTEGER :: iMaxExcit,nStore(6),nExcitMemLen,j,k,l, iunit
 !        integer :: icunused, exunused(2,2), scratch3(scratchsize)
-!        integer :: parityunused
-!        logical :: tTmp
+!        logical :: tParityunused, tTmp
 !
 !        CALL EncodeBitDet(nI,iLutnI)
 !        CALL FindDetSpinSym(nI,nI2,NEl)
@@ -714,11 +704,11 @@ MODULE HPHFRandExcitMod
 !            tTmp = tGenMatHEl
 !            tGenMatHel = .false.
 !            call gen_hphf_excit (nI, iLutnI, nJ, iLutnJ, 3, icunused, &
-!                                 exunused, parityunused, pGen, &
+!                                 exunused, tparityunused, pGen, &
 !                                 tGenClassCountnI, ClassCount2, &
 !                                 ClassCountUnocc2, scratch3)
 !            tGenMatHel = tTmp
-!!            CALL GenRandSymExcitNU(nI,iLut,nJ,pDoub,IC,ExcitMat,Parity,exFlag,pGen)
+!!            CALL GenRandSymExcitNU(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
 !
 !!Search through the list of HPHF wavefunctions to find slot.
 !            CALL BinSearchListHPHF(iLutnJ,UniqueHPHFList(:,1:iUniqueHPHF),iUniqueHPHF,1,iUniqueHPHF,PartInd,Unique)

@@ -135,7 +135,7 @@ MODULE SymExcit3
 
 
 
-    SUBROUTINE GenExcitations3(nI,iLut,nJ,exflag,ExcitMat3,parity,tAllExcitFound,ti_lt_a_only)
+    SUBROUTINE GenExcitations3(nI,iLut,nJ,exflag,ExcitMat3,tParity,tAllExcitFound,ti_lt_a_only)
 ! This routine finds in turn, every possible excitation from determinant nI.
 ! The excited determinant is then returned as nJ.
 ! exflag indicates which excitations we want to find.  exflag=1 - only singles are returned, exflag=2 - only
@@ -145,26 +145,26 @@ MODULE SymExcit3
 ! After this, the routine reads in the ExcitMat and finds the next excitation after this.
 ! ExcitMat(1,*) are the orbitals in the determinant to vacate from nI (the i,j pair)
 ! ExcitMat(2,*) are the orbitals to occupy in nJ (the a,b pair) (not the index, but the actual orbital)
-! If parity == -1, two orbitals need to be switched in order to better represent the excitation, therefore a 
+! If tParity is true, two orbitals need to be switched in order to better represent the excitation, therefore a 
 ! negative sign must be included when finding the H element.
 ! When there are no more symmetry allowed excitations, tAllExcitFound becomes true.
         INTEGER(KIND=n_int), intent(in) :: iLut(0:NIfTot)
-        integer, intent(in) :: nI(NEl), exflag, parity
+        INTEGER, intent(in) :: nI(NEl),exflag
         integer, intent(out) :: nJ(NEl)
         integer, intent(inout) :: ExcitMat3(2,2)
-        LOGICAL, intent(out) :: tAllExcitFound
+        LOGICAL, intent(out) :: tAllExcitFound,tParity
         LOGICAL, intent(in) :: ti_lt_a_only
 
         IF(exflag.eq.2) THEN
 ! Just generate doubles            
 
-            CALL GenDoubleExcit(nI,iLut,nJ,ExcitMat3,parity,tAllExcitFound,ti_lt_a_only)
+            CALL GenDoubleExcit(nI,iLut,nJ,ExcitMat3,tParity,tAllExcitFound,ti_lt_a_only)
 
         
         ELSE 
 ! Generate singles, returning Orbi and Orba as non-zero, but keeping the others 0.        
 
-            CALL GenSingleExcit(nI,iLut,nJ,exflag,ExcitMat3,parity,tAllExcitFound,ti_lt_a_only)
+            CALL GenSingleExcit(nI,iLut,nJ,exflag,ExcitMat3,tParity,tAllExcitFound,ti_lt_a_only)
             
             ! When the last single is input, providing exflag is not 1, the first double is then found
             ! and from then on GenDoubleExcit is called.
@@ -184,7 +184,7 @@ MODULE SymExcit3
 
 
 
-    SUBROUTINE GenSingleExcit(nI,iLut,nJ,exflag,ExcitMat3,parity,tAllExcitFound,ti_lt_a_only)
+    SUBROUTINE GenSingleExcit(nI,iLut,nJ,exflag,ExcitMat3,tParity,tAllExcitFound,ti_lt_a_only)
 ! Despite being fed four indices, this routine finds single excitations.  Orbi -> Orba. (Orbj and Orbb remain 0).
 ! Feeding in 0 indices indicates it is the first excitation that needs to be found.
 ! The single excitation goes from orbital i to a, from determinant nI to nJ.
@@ -195,8 +195,8 @@ MODULE SymExcit3
         use constants, only: bits_n_int
         INTEGER :: nI(NEl),Orbi,Orba,Symi,nJ(NEl)
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
-        INTEGER :: NoOcc,ExcitMat3(2,2),exflag,SymInd,Spina, Mla, parity
-        LOGICAL :: tInitOrbsFound,tAllExcitFound,tEndaOrbs,ti_lt_a_only
+        INTEGER :: NoOcc,ExcitMat3(2,2),exflag,SymInd,Spina, Mla
+        LOGICAL :: tInitOrbsFound,tParity,tAllExcitFound,tEndaOrbs,ti_lt_a_only
         INTEGER , SAVE :: OrbiIndex,OrbaIndex,Spini,NewSym,Mli
 
 !        WRITE(6,*) 'Original Determinant',nI
@@ -252,7 +252,7 @@ MODULE SymExcit3
                 ELSE
                     IF(exflag.ne.1) THEN
                         ExcitMat3(:,:)=0
-                        CALL GenDoubleExcit(nI,iLut,nJ,ExcitMat3,parity,tAllExcitFound,ti_lt_a_only)
+                        CALL GenDoubleExcit(nI,iLut,nJ,ExcitMat3,tParity,tAllExcitFound,ti_lt_a_only)
                         exflag=2
                     ELSE
                         tAllExcitFound=.true.
@@ -277,7 +277,7 @@ MODULE SymExcit3
 ! If we've read in the last single, set orbi, orbj, orba, and orbb to 0 and call gendoubleexcit.        
                 IF(exflag.ne.1) THEN
                     ExcitMat3(:,:)=0
-                    CALL GenDoubleExcit(nI,iLut,nJ,ExcitMat3,parity,tAllExcitFound,ti_lt_a_only)
+                    CALL GenDoubleExcit(nI,iLut,nJ,ExcitMat3,tParity,tAllExcitFound,ti_lt_a_only)
                     exflag=2
                 ELSE
                     tAllExcitFound=.true.
@@ -351,26 +351,26 @@ MODULE SymExcit3
 
         enddo
 
-        IF((ExcitMat3(1,2).eq.0).and.(.not.tAllExcitFound)) CALL FindNewSingDet(nI,nJ,OrbiIndex,OrbA,ExcitMat3,parity)
+        IF((ExcitMat3(1,2).eq.0).and.(.not.tAllExcitFound)) CALL FindNewSingDet(nI,nJ,OrbiIndex,OrbA,ExcitMat3,tParity)
             
     ENDSUBROUTINE GenSingleExcit
 
 
 
-    SUBROUTINE GenDoubleExcit(nI,iLut,nJ,ExcitMat3,parity,tAllExcitFound,tij_lt_ab_only)
+    SUBROUTINE GenDoubleExcit(nI,iLut,nJ,ExcitMat3,tParity,tAllExcitFound,tij_lt_ab_only)
 ! This generates one by one, all possible double excitations.
 ! This involves a way of ordering the electron pairs i,j and a,b so that given an i,j and a,b we can find the next.
 ! The overall symmetry must also be maintained - i.e. if i and j are alpha and beta, a and b must be alpha and beta
 ! or vice versa.
         USE SystemData , only: ElecPairs, tFixLz, iMaxLz
-        USE GenRandSymExcitNUMod , only: PickElecPair, make_excit
+        USE GenRandSymExcitNUMod , only: PickElecPair,FindNewDet 
         use constants, only: bits_n_int
         INTEGER :: nI(NEl),Orbj,Orbi,Orba,Orbb,Syma,Symb,NewSym
-        INTEGER(KIND=n_int) :: iLut(0:NIfTot), ilut_tmp(0:NIfTot)
+        INTEGER(KIND=n_int) :: iLut(0:NIfTot)
         INTEGER :: Elec1Ind,Elec2Ind,SymProduct,iSpn,Spinb,nJ(NEl),ExcitMat3(2,2),SumMl
         INTEGER , SAVE :: ijInd,OrbaChosen,OrbbIndex,Spina,SymInd
-        LOGICAL :: tDoubleExcitFound,tFirsta,tFirstb,tNewij,tNewa,tAllExcitFound,tij_lt_ab_only
-        INTEGER :: Mli, Mla, Mlb, Indij, parity
+        LOGICAL :: tDoubleExcitFound,tFirsta,tFirstb,tNewij,tNewa,tAllExcitFound,tParity,tij_lt_ab_only
+        INTEGER :: Mli, Mla, Mlb, Indij
 
 !        write(6,*) "SymLabelCounts2: ",SymLabelCounts2(1,:)
 !        write(6,*) "SymLabelCounts2: ",SymLabelCounts2(2,:)
@@ -617,8 +617,7 @@ MODULE SymExcit3
         enddo lp
 
         if(tDoubleExcitFound.and.(.not.tAllExcitFound)) then
-            call make_excit (nI, ilut, nJ, ilut_tmp, (/Elec1Ind,Elec2Ind/), &
-                             (/Orba, Orbb/), ExcitMat3, parity)
+            CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,Orba,Orbb,ExcitMat3,tParity)
 !        else
 !            write(6,*) "Exiting loop with all excitations found: ",tAllExcitFound
         endif
@@ -636,9 +635,9 @@ MODULE SymExcit3
     ENDSUBROUTINE GenDoubleExcit
 
 !This routine creates the final determinant for a single excitation.
-    SUBROUTINE FindNewSingDet(nI,nJ,Elec1Ind,OrbA,ExcitMat3,parity)
+    SUBROUTINE FindNewSingDet(nI,nJ,Elec1Ind,OrbA,ExcitMat3,tParity)
         INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,OrbA,ExcitMat3(2,2)
-        integer :: parity
+        LOGICAL :: tParity
 
 !First construct ExcitMat3
         ExcitMat3(1,1)=Elec1Ind
@@ -646,7 +645,7 @@ MODULE SymExcit3
         ExcitMat3(1,2)=0
         ExcitMat3(2,2)=0
         nJ(:)=nI(:)
-        CALL FindExcitDet(ExcitMat3,nJ,1,parity)
+        CALL FindExcitDet(ExcitMat3,nJ,1,tParity)
 
     END SUBROUTINE FindNewSingDet
 

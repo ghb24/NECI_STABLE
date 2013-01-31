@@ -26,26 +26,27 @@ MODULE ISKRandExcit
     contains
 
     subroutine gen_ISK_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                              parity, pGen, HEl, store)
+                               tParity, pGen, HEl, store)
         use FciMCData, only: tGenMatHEl
         integer, intent(in) :: nI(nel) 
         integer(kind=n_int), intent(in) :: iLutnI(0:niftot)
         integer, intent(in) :: exFlag
         integer, intent(out) :: nJ(nel)
         integer(kind=n_int), intent(out) :: iLutnJ(0:niftot)
-        integer, intent(out) :: IC, ExcitMat(2,2), parity
+        integer, intent(out) :: IC, ExcitMat(2,2)
+        logical, intent(out) :: tParity ! Not used
         type(excit_gen_store_type), intent(inout), target :: store
         real(dp), intent(out) :: pGen
         HElement_t, intent(out) :: HEl
         character(*), parameter :: this_routine='gen_ISK_excit'
-        logical :: tSwapped,tSame_ISK,tCrossConnected,tSignCross
+        logical :: tSignOrig,tSwapped,tSame_ISK,tCrossConnected,tSignCross
         integer(n_int) :: iLutnJSym(0:NIfTot)
-        integer :: nJSym(NEl), CrossIC, CrossEx(2,2), parity_orig
+        integer :: nJSym(NEl),CrossIC,CrossEx(2,2)
         real(dp) :: pGen2
 
         !First, generate a random excitation from the determinant which is given in the argument
         call gen_rand_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                             parity_orig, pGen, HEl, store)
+                             tSignOrig, pGen, HEl, store)
         if(IsNullDet(nJ)) return    !No excitation created
 
 !Create bit representation of excitation - iLutnJ
@@ -105,7 +106,7 @@ MODULE ISKRandExcit
         endif
 
         ! Eliminate compiler warnings
-        parity = parity
+        tParity = tParity
 
     end subroutine gen_ISK_excit
 
@@ -352,8 +353,8 @@ MODULE ISKRandExcit
         INTEGER , ALLOCATABLE :: ExcitGen(:)
         real(dp) , ALLOCATABLE :: Weights(:),AllWeights(:)
         INTEGER :: iMaxExcit,nStore(6),nExcitMemLen(1),j,k,l, iunit
-        integer :: icunused, exunused(2,2), parityUnused
-        logical :: tTmp
+        integer :: icunused, exunused(2,2)
+        logical :: tParityunused, tTmp
         type(excit_gen_store_type) :: store
         HElement_t :: HEl
 
@@ -585,9 +586,9 @@ MODULE ISKRandExcit
 !            tTmp = tGenMatHEl
 !            tGenMatHel = .false.
             call gen_ISK_excit (nI, iLutnI, nJ, iLutnJ, 3, icunused, &
-                                 exunused, parityUnused, pGen, HEl, store)
+                                 exunused, tparityunused, pGen, HEl, store)
 !            tGenMatHel = tTmp
-!            CALL GenRandSymExcitNU(nI,iLut,nJ,pDoub,IC,ExcitMat,parity,exFlag,pGen)
+!            CALL GenRandSymExcitNU(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
 
 !Search through the list of HPHF wavefunctions to find slot.
             CALL BinSearchListHPHF(iLutnJ,UniqueHPHFList(:,1:iUniqueHPHF),iUniqueHPHF,1,iUniqueHPHF,PartInd,Unique)

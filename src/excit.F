@@ -20,12 +20,12 @@
 !The algorithm could be improved for double excitations by only searching through the
 !determinant once, reducing it from an O[2N] to O[N] operation, though would be a little
 !more fiddly...
-      SUBROUTINE FindExcitDet(ExcitMat,nI,IC,parity)
+      SUBROUTINE FindExcitDet(ExcitMat,nI,IC,TParity)
          use SystemData , only : NEl
          IMPLICIT NONE
          INTEGER :: ExcitMat(2,2),i,j,k,EX2(2,2)!,EX(2,2)
          INTEGER :: nI(NEl),IC,iPos,TempInd!,NJ(NEL)
-         integer :: parity
+         LOGICAL :: TParity
          
 !         WRITE(19,*) ExcitMat(:,:),nI
 !         IF((IC.gt.2).or.(IC.lt.0)) THEN
@@ -160,23 +160,19 @@
 !         WRITE(19,*) nI(:)
 !         WRITE(6,*) "***",ipos
 !If number of common orbitals moved is even, then parity is positive (false), otherwise, parity is negative (true).
-         if (btest(iPos, 0)) then
-             parity = -1
-         else
-             parity = 1
-         end if
+         TParity=BTEST(iPos,0)
 
 !         EX(:,:)=0
 !         EX(1,1)=IC
 !         CALL GETEXCITATION(NJ,NI,NEL,EX,TSIGN)
-!         IF(TSIGN.ne.parity) THEN
+!         IF(TSIGN.ne.TParity) THEN
 !                 WRITE(6,*) IC
 !                 WRITE(6,*) "ORIG: ",NJ(:)
 !                 WRITE(6,*) "NEW: ",NI(:)
 !                 WRITE(6,*) EX(1,:),EX(2,:)
 !                 WRITE(6,*) ExcitMat(1,:),ExcitMat(2,:)
 !                 WRITE(6,*) "TSIGN= ",TSIGN
-!                 WRITE(6,*) "parity,iPos= ",parity,ipos
+!                 WRITE(6,*) "TParity,iPos= ",TParity,ipos
 !             STOP 'Parities different'
 !         ENDIF
 !         do j=1,IC
@@ -254,12 +250,13 @@ C.. TSIGN is set to the parity of the permutations required to line up the orbit
 C..   TRUE means ODD.
 C.. If there are too many excitations to fit, then we put -excitlevel in EX(1,1) and EX(2,1)
 !  EX(1,1) is the max number of excitations (passed in as a parameter)
-      subroutine GetExcitation (nI, nJ, nel, ex, parity)
+      SUBROUTINE GETEXCITATION(NI,NJ,NEL,EX,TSIGN)
          IMPLICIT NONE
-         INTEGER NEL,NI(NEL),NJ(NEL),EX(2,*), parity
+         INTEGER NEL,NI(NEL),NJ(NEL),EX(2,*)
          INTEGER I,J,IPAR
          INTEGER IC1,IC2
          INTEGER iMaxExcit
+         LOGICAL TSIGN
          iMaxExcit=EX(1,1)
          EX(1:2,1:iMaxExcit)=0
          IC1=0
@@ -331,12 +328,8 @@ C.. we actually needed more space.  Just list the excitation counts (-ve)
             EX(1,1)=0
             EX(2,1)=0
          ENDIF
-
-         if (btest(ipar, 0)) then
-             parity = -1
-         else
-             parity = 1
-         end if
+         TSIGN=BTEST(IPAR,0)
+         RETURN
       END
 
 
