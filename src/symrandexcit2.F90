@@ -39,8 +39,8 @@ MODULE GenRandSymExcitNUMod
                        SymLabelCounts
     use dSFMT_interface , only : genrand_real2_dSFMT
     use SymExcitDataMod 
-    use DetBitOps, only: FindExcitBitDet, EncodeBitDet, &
-                         get_single_parity_det, get_double_parity_det
+    use DetBitOps, only: FindExcitBitDet, EncodeBitDet, get_single_parity, &
+                         get_double_parity
     use sltcnd_mod, only: sltcnd_1
     use constants, only: dp, n_int, bits_n_int
     use bit_reps, only: NIfTot, nifdbo, NIfD
@@ -331,7 +331,7 @@ MODULE GenRandSymExcitNUMod
     END SUBROUTINE CreateDoubExcit
 
 
-    pure subroutine make_excit (nI, ilutI, nJ, ilutJ, elecs, tgts, ex, parity)
+    subroutine make_excit (nI, ilutI, nJ, ilutJ, elecs, tgts, ex, parity)
 
         ! Take an excitation matrix and source electron-choices and target
         ! orbitals, and generate the excitation. (ex == Excitation Matrix)
@@ -344,14 +344,16 @@ MODULE GenRandSymExcitNUMod
         integer :: i
 
         ! Put the source electron numbers and the target orbitals in place.
+        ! ex(1,1:ubound(elecs,1)) = elecs
         ex(1,1:ubound(elecs,1)) = nI(elecs)
         ex(2,1:ubound(tgts,1)) = tgts
 
         ! Get the parity of the excitation
         if (ubound(elecs, 1) == 2) then
-            parity = get_double_parity_det (nI, elecs, tgts)
+            parity = get_double_parity(ilutI, nI(elecs), tgts)
         else
-            parity = get_single_parity_det (nI, elecs(1), tgts(1))
+            ASSERT(ubound(elecs, 1) == 1)
+            parity = get_single_parity(ilutI, nI(elecs(1)), tgts(1))
         end if
 
         ! Generate the new ilut and natural ordered determinant
@@ -364,7 +366,6 @@ MODULE GenRandSymExcitNUMod
             set_orb(ilutJ, tgts(i))
             nJ(elecs(i)) = tgts(i)
         end do
-
 
     end subroutine
 
