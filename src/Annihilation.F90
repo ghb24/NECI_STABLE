@@ -161,7 +161,7 @@ MODULE AnnihilationMod
 !MaxIndex is returned as the new number of newly-spawned particles on the processor. May have duplicates.
 !The particles are now stored in SpawnedParts2/SpawnedSign2.
 !        call WriteExcitorListP2(6,SpawnedParts,InitialSpawnedSlots,ValidSpawnedList,0,"Local")
-!        if(bNodeRoot)
+!        if(bNodeRoot) 
         CALL SendProcNewParts(MaxIndex,tSingleProc)
 
 !CompressSpawnedList works on SpawnedParts arrays, so swap the pointers around.
@@ -173,7 +173,7 @@ MODULE AnnihilationMod
 !This will also annihilate the newly spawned particles amongst themselves.
 !MaxIndex will change to reflect the final number of unique determinants in the newly-spawned list, 
 !and the particles will end up in the spawnedSign/SpawnedParts lists.
-        !WRITE(6,*) "Transferred",MaxIndex
+!        WRITE(6,*) "Transferred",MaxIndex
 
         Compress_time%timer_name='Compression interface'
         call set_timer(Compress_time,20)

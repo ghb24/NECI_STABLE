@@ -21,7 +21,6 @@ module csf
     use timing_neci
     use util_mod, only: swap, choose
     use bit_reps, only: NIfD, NIfTot, NIfY, extract_sign
-    use DeterminantData, only: write_det
 
     implicit none
 
@@ -60,30 +59,30 @@ contains
 
         ! These are needed just for the interface with get_csf_helement
         integer :: ic, ex(2,2)
-        integer :: parity
+        logical :: tParity
         HElement_t :: HElGen
 
         call EncodeBitDet (nI, iLutI)
         call EncodeBitDet (nJ, iLutJ)
-        hel_ret = get_csf_helement(nI, nJ, iLutI, iLutJ, ic, ex, parity, &
+        hel_ret = get_csf_helement(nI, nJ, iLutI, iLutJ, ic, ex, tParity, &
                                    HElGen)
     end function CSFGetHelement
 
     function get_csf_helement (nI, nJ, iLutI, iLutJ, notic, notex, &
-                               notParity, notHElGen) result (hel_ret)
+                               nottParity, notHElGen) result (hel_ret)
         integer, intent(in) :: nI(nel), nJ(nel)
         integer, intent(in) :: notic, notex(2,2)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
-        integer, intent(in) :: notParity
+        logical, intent(in) :: nottParity
         HElement_t :: hel_ret
         HElement_t , intent(in) :: notHElGen
 
         integer :: nopen(2), nclosed(2), nup(2), ndets(2), IC, i
         integer :: S(2), Ms(2), iUnused
-        logical :: bCSF(2), bBothCSF
+        logical :: bCSF(2), bBothCSF, tUnused
 
         ! Avoid compiler warnings
-        iUnused=notic; iUnused=notex(1,1); iUnused=notParity
+        iUnused=notic; iUnused=notex(1,1); tUnused=nottParity
 
         ! Are these both CSFs?
         bCSF(1) = iscsf(nI)
@@ -482,7 +481,7 @@ contains
                     ex(2,:) = ab_pair(ex(1,:))
 
                     ! We know this is a double spin-orbital excitation.
-                    hel = sltcnd_2 (ex, 1)
+                    hel = sltcnd_2 (ex, .false.)
 
                     hel_ret = hel_ret &
                               + hel*(coeffs1(det)*coeffs2(indj))&
@@ -533,7 +532,7 @@ contains
         integer :: nop_uniq(2), det, i, j, k, l, m, ex(2,2), &
                    uniq_id(4,2), ms1(ndets(1)), ms2(ndets(2)), &
                    nsign(2), tsign_id(4,2), id(2,2), &
-                   ex_ms_ind(2,2), ex_ms(2,2), parity
+                   ex_ms_ind(2,2), ex_ms(2,2)
 
         logical :: dets_change1(ndets(1)), dets_change2(ndets(2)), tSign, &
                    delta_tsign1(ndets(1)), delta_tsign2(ndets(2)), tSign_tmp
@@ -547,8 +546,7 @@ contains
         ! Get the excitation matrix, and more importantly the parity of the
         ! 'standard' excitation (i.e. all singles are beta).
         ex(1,1) = 2
-        call GetBitExcitation (iLutI, iLutJ, ex, parity)
-        tSign = (parity == -1)
+        call GetBitExcitation (iLutI, iLutJ, ex, tSign)
 
         ! Calculate all possible permutations to construct determinants
         ! (Where 0=alpha, 1=beta when generating NI, NJ below)

@@ -33,7 +33,8 @@ contains
         integer, intent(in) :: nI(nel), nJ(nel), IC
         HElement_t :: hel
 
-        integer :: ex(2,2), parity
+        integer :: ex(2,2)
+        logical :: tParity
 
         select case (IC)
         case (0)
@@ -43,14 +44,14 @@ contains
         case (1)
             ! The determinants differ by only one orbital
             ex(1,1) = IC
-            call GetExcitation (nI, nJ, nel, ex, parity)
-            hel = sltcnd_1 (nI, ex(:,1), parity)
+            call GetExcitation (nI, nJ, nel, ex, tParity)
+            hel = sltcnd_1 (nI, ex(:,1), tParity)
 
         case (2)
             ! The determinants differ by two orbitals
             ex(1,1) = IC
-            call GetExcitation (nI, nJ, nel, ex, parity)
-            hel = sltcnd_2 (ex, parity)
+            call GetExcitation (nI, nJ, nel, ex, tParity)
+            hel = sltcnd_2 (ex, tParity)
 
         case default
             ! The determinants differ by more than 2 orbitals
@@ -59,7 +60,7 @@ contains
     end function sltcnd_compat
 
 
-    HElement_t function sltcnd_excit (nI, IC, ex, parity)
+    HElement_t function sltcnd_excit (nI, IC, ex, tParity)
         
         ! Use the Slater-Condon Rules to evaluate the H-matrix element between
         ! two determinants, where the excitation matrix is already known.
@@ -67,16 +68,16 @@ contains
         ! In:  nI, nJ       - The determinants to evaluate
         !      IC           - The number of orbitals I,J differ by
         !      ex           - The excitation matrix
-        !      parity       - The parity of the excitation
+        !      tParity      - The parity of the excitation
         ! Ret: sltcnd_excit - The H matrix element
 
         integer, intent(in) :: nI(nel), IC
         integer, intent(in), optional :: ex(2,2)
-        integer, intent(in), optional :: parity
+        logical, intent(in), optional :: tParity
         character(*), parameter :: this_routine = 'sltcnd_excit'
 
-        if (IC /= 0 .and. .not. present(parity)) &
-            call stop_all (this_routine, "ex and parity must be provided to &
+        if (IC /= 0 .and. .not. present(tParity)) &
+            call stop_all (this_routine, "ex and tParity must be provided to &
                           &sltcnd_excit for all IC /= 0")
 
         select case (IC)
@@ -86,11 +87,11 @@ contains
 
         case (1)
             ! The determnants differ by only one orbital
-            sltcnd_excit = sltcnd_1 (nI, ex(:,1), parity)
+            sltcnd_excit = sltcnd_1 (nI, ex(:,1), tParity)
 
         case (2)
             ! The determinants differ by two orbitals
-            sltcnd_excit = sltcnd_2 (ex, parity)
+            sltcnd_excit = sltcnd_2 (ex, tParity)
 
         case default
             ! The determinants differ yb more than 2 orbitals
@@ -114,7 +115,7 @@ contains
         integer, intent(in) :: IC
         HElement_t :: hel
         integer :: ex(2,2)
-        integer :: parity
+        logical :: tSign
 
         select case (IC)
         case (0)
@@ -124,14 +125,14 @@ contains
         case (1)
             ! The determinants differ by only one orbital
             ex(1,1) = IC
-            call GetBitExcitation (iLutI, iLutJ, ex, parity)
-            hel = sltcnd_1 (nI, Ex(:,1), parity)
+            call GetBitExcitation (iLutI, iLutJ, ex, tSign)
+            hel = sltcnd_1 (nI, Ex(:,1), tSign)
 
         case (2)
             ! The determinants differ by two orbitals
             ex(1,1) = IC
-            call GetBitExcitation (iLutI, iLutJ, ex, parity)
-            hel = sltcnd_2 (ex, parity)
+            call GetBitExcitation (iLutI, iLutJ, ex, tSign)
+            hel = sltcnd_2 (ex, tSign)
 
         case default
             ! The determinants differ by more than two orbitals
@@ -311,14 +312,13 @@ contains
 
     end function sltcnd_0
 
-    function sltcnd_1 (nI, ex, parity) result(hel)
+    function sltcnd_1 (nI, ex, tSign) result(hel)
 
         ! Calculate the  by the Slater-Condon Rules when the two
         ! determinants differ by one orbital exactly.
 
         integer, intent(in) :: nI(nel), ex(2)
-        integer, intent(in) :: parity
-        character(*), parameter :: this_routine = 'sltcnd_1'
+        logical, intent(in) :: tSign
         HElement_t :: hel
         integer :: id_ex(2), id, i
 
@@ -359,48 +359,38 @@ contains
         ! nI, nJ
         hel = hel + GetTMATEl(ex(1), ex(2))
 
-        ! And apply the parity
-        ASSERT(abs(parity) == 1)
-        hel = hel * parity
-
+        if (tSign) hel = -hel
     end function sltcnd_1
     
-    function sltcnd_2 (ex, parity) result (hel)
+    function sltcnd_2 (ex, tSign) result (hel)
 
         ! Calculate the  by the Slater-Condon Rules when the two
         ! determinants differ by two orbitals exactly (the simplest case).
 
         integer, intent(in) :: ex(2,2)
-        integer, intent(in) :: parity
-        character(*), parameter :: this_routine = 'sltcnd_2'
+        logical, intent(in) :: tSign
         HElement_t :: hel
-        integer :: id(2,2), ex2(2,2)
+        integer :: id(2,2)
 
         ! Obtain spatial rather than spin indices if required
-        ! We regenerate a new excitation matrix so that the supplied one doesn't
-        ! have to be ordered.
-        ex2(1,1) = minval(ex(1,:));  ex2(1,2) = maxval(ex(1,:))
-        ex2(2,1) = minval(ex(2,:));  ex2(2,2) = maxval(ex(2,:))
-        id = gtID(ex2)
+        id = gtID(ex)
 
         ! Only non-zero contributions if Ms preserved in each term (consider
         ! physical notation).
-        if ( (G1(ex2(1,1))%Ms == G1(ex2(2,1))%Ms) .and. &
-             (G1(ex2(1,2))%Ms == G1(ex2(2,2))%Ms) ) then
+        if ( (G1(ex(1,1))%Ms == G1(ex(2,1))%Ms) .and. &
+             (G1(ex(1,2))%Ms == G1(ex(2,2))%Ms) ) then
              hel = get_umat_el (ptr_getumatel, id(1,1), id(1,2), id(2,1), &
                                 id(2,2))
         else
             hel = (0)
         endif
 
-        if ( (G1(ex2(1,1))%Ms == G1(ex2(2,2))%Ms) .and. &
-             (G1(ex2(1,2))%Ms == G1(ex2(2,1))%Ms) ) then
+        if ( (G1(ex(1,1))%Ms == G1(ex(2,2))%Ms) .and. &
+             (G1(ex(1,2))%Ms == G1(Ex(2,1))%Ms) ) then
              hel = hel - get_umat_el (ptr_getumatel, id(1,1), id(1,2), &
                                       id(2,2), id(2,1))
         endif
 
-        ASSERT(abs(parity) == 1)
-        hel = hel * parity
-
+        if (tSign) hel = -hel
     end function sltcnd_2
 end module

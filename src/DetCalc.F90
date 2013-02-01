@@ -831,7 +831,7 @@ CONTAINS
 !                            CALL HPHFGetOffDiagHElement(NMRKS(1:NEl,1),nK,MatEl)
 !                            CALL HPHFGetDiagHElement(nK,MatEl2)
 !!                            Ex(1,1)=NEl
-!!                            CALL GETEXCITATION(nJ,nK,NEl,Ex,parity)
+!!                            CALL GETEXCITATION(nJ,nK,NEl,Ex,TSign)
 !                            WRITE(23,"(A,3I14,3G20.10,I5,2G20.10)") "Open   ",i,FCIDets(0:NIfD,i),iLutSym(:),FCIGS(i),FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs,MatEl,MatEl2
 !                        ENDIF
 !                    ENDIF

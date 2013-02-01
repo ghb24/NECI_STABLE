@@ -57,7 +57,8 @@ subroutine ParMP2(nI)
    HElement_t :: dEarr(2)
    type(Symmetry) :: iSym1,iSym2
    type(Symmetry) :: iSym1Conj,iSym2Conj
-   integer :: ierr, parity
+   logical :: tSign
+   integer :: ierr
    integer(TagIntType) :: tag_Ex
    type(timer), save :: proc_timer
    character(*), parameter :: this_routine='ParMP2'
@@ -134,7 +135,7 @@ subroutine ParMP2(nI)
          ! MP2 theory refers to the unperturbed excited determinant
          ! => use GetH0Element3 rather than GetHElement3.
          Excit(1,1)=2
-         !call GetExcitation(nI,nJ,nEl,Excit,parity)
+         !call GetExcitation(nI,nJ,nEl,Excit,tSign)
          dE2=GetH0Element3(nJ)
          dU(1) = get_helement(nI, nJ, IC)
          !dU(1) = get_helement (nI, nJ, IC, Excit, tSign)
@@ -152,7 +153,7 @@ subroutine ParMP2(nI)
          ! Alternatively, calculate the energy of the excited determinant
          ! in reference to that of the reference determinant (i.e. setting dE1=0).
          Excit(1,1)=2
-         call GetExcitation(nI,nJ,nEl,Excit,parity)
+         call GetExcitation(nI,nJ,nEl,Excit,tSign)
 
          ! Assuming a restricted calculation.
 
