@@ -1111,9 +1111,9 @@ outer_map:      do i = 0, MappingNIfD
         ! Note, we don't want to bother outputting empty particles, or those
         ! with a weight which is lower than specified as the cutoff
         bWritten = .false.
-        call extract_sign(det, sgn)
+        call extract_sign(det, real_sgn)
         !if (.not. IsUnoccDet(sgn)) then
-        if (sum(abs(sgn)) > binarypops_min_weight) then
+        if (sum(abs(real_sgn)) > binarypops_min_weight) then
 
             ! If we are using a reduced
             if (mod(j, iPopsPartEvery) == 0) then

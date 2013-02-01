@@ -3516,10 +3516,10 @@ SUBROUTINE IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
 
      Excitlevel=iGetExcitLevel(nI,nJ,NEl)
      IF(Excitlevel.ne.IC) THEN
-         WRITE(6,*) "Have not created a correct excitation"
+         WRITE(6,*) "Have not created a correct excitation", ic
         call write_det (6, nI, .true.)
         call write_det (6, nJ, .true.)
-        STOP "Have not created a correct excitation"
+        call stop_all("IsSymAllowedExcit", "Have not created a correct excitation")
      ENDIF
      IF(.NOT.ISVALIDDET(nJ,NEL)) THEN
          WRITE(6,*) "INVALID DET"
