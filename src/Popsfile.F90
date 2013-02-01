@@ -24,7 +24,7 @@ MODULE PopsfileMod
     use Logging, only: iWritePopsEvery, tPopsFile, iPopsPartEvery, tBinPops, &
                        tPrintPopsDefault, tIncrementPops, tPrintInitiators, &
                        tSplitPops, tZeroProjE, tRDMonFly, tExplicitAllRDM, &
-                       tHF_Ref_Explicit
+                       tHF_Ref_Explicit, binarypops_min_weight
     use sort_mod
     use util_mod, only: get_free_unit,get_unique_filename
 
@@ -839,8 +839,8 @@ outer_map:      do i = 0, MappingNIfD
         INTEGER :: Total,i,j,k
         INTEGER(KIND=n_int), ALLOCATABLE :: Parts(:,:)
         INTEGER(TagIntType) :: PartsTag=0
-        integer :: nMaxDets, TempDet(0:NIfTot), TempFlags, pops_niftot
-        integer :: iunit, iunit_2, Initiator_Count, pops_nifflag
+        integer :: nMaxDets, TempDet(0:NIfTot), TempFlags
+        integer :: iunit, iunit_2, Initiator_Count, write_count
         CHARACTER(len=*) , PARAMETER :: this_routine='WriteToPopsfileParOneArr'
         character(255) :: popsfile
         INTEGER, DIMENSION(lenof_sign) :: TempSign
@@ -913,63 +913,24 @@ outer_map:      do i = 0, MappingNIfD
                     trim(adjustl(num_tmp))
             end if
 
-            ! If we are writing a binary popsfile, we need to write a header
-            ! to somewhere (preferably human readable).
-            if (tBinPops) then
-                call get_unique_filename('POPSFILEHEAD', tIncrementPops, &
-                                         .true., iPopsFileNoWrite, popsfile)
-            else
+            ! With a normal popsfile, the header is written at the start.
+            ! Thus we need to do that now.
+            if (.not. tBinPops) then
                 call get_unique_filename('POPSFILE', tIncrementPops, .true., &
                                          iPopsFileNoWrite, popsfile)
+                iunit = get_free_unit()
+                open(iunit, file=popsfile, status='replace')
+                call write_popsfile_header (iunit, AllTotWalkers)
             end if
-
-            ! If the popsfile uses flags, but we have combined the
-            ! representation of flags in memory, then the representation in
-            ! the popsfile is one unit longer than in memory.
-            pops_niftot = NIfTot
-            pops_nifflag = NIfFlag
-            if (tUseFlags .and. NIfFlag == 0) then
-                pops_niftot = pops_niftot + 1
-                pops_nifflag = 1
-            end if
-
-            ! Output the header information.
-            iunit = get_free_unit()
-            open(iunit, file=popsfile, status='replace')
-            write(iunit, "(A)") "# POPSFILE VERSION 4"
-            write(iunit, '("&POPSHEAD Pop64Bit=",l1)') build_64bit
-            write(iunit, '(a,l1,a,l1,a,i2,a,i3,a)') &
-                'PopHPHF=', tHPHF, ',PopLz=', tFixLz, ',PopLensign=', &
-                lenof_sign, ',PopNEl=', NEl, ','
-            write(iunit, '(a,i15,a,f18.12,a)') &
-                'PopTotwalk=', AllTotWalkers, ',PopSft=', DiagSft, ','
-            write(iunit, *) 'PopSumNoatHF=', AllSumNoatHF, ','
-            write(iunit, *) 'PopSumENum=', AllSumENum, ','
-            write(iunit, '(a,i16,a,i2,a,i2,a,i2,a)') &
-                'PopCyc=', Iter+PreviousCycles, ',PopNIfD=', NIfD, &
-                ',PopNIfY=', NIfY, ',PopNIfSgn=' ,NIfSgn, ','
-            write(iunit, '(a,i2,a,i2,a,f18.12,a)') &
-                'PopNIfFlag=', pops_nifflag, ',PopNIfTot=', pops_niftot, &
-                ',PopTau=', Tau, ','
-            write(iunit, '(a,i16)') 'PopiBlockingIter=', iBlockingIter
-
-            ! Store the random hash in the header to allow later processing
-            write(iunit, '(a)', advance='no') "PopRandomHash= "
-            do i = 1, nbasis
-                write(iunit,'(i12,",")', advance='no') RandomHash(i)
-            end do
-            write(iunit, *)
-
-            write(iunit, '(a5)') '&END'
 
         end if
 
+        write_count = 0
         if ((tSplitPops .and. bNodeRoot) .or. iProcIndex == root) then
 
             ! For a binary popsfile, the actual data is stored more
             ! compactly.
             if (tBinPops) then
-                if (iProcIndex == root) close(iunit)
                 if (tSplitPops) then
                     write(num_tmp, '(i12)') iProcIndex
                     out_tmp = 'POPSFILEBIN-' // trim(adjustl(num_tmp))
@@ -1002,7 +963,9 @@ outer_map:      do i = 0, MappingNIfD
             ! Write out the dets from this node (the head node, unless we
             ! are in split-pops mode.
             do j = 1, int(ndets, sizeof_int)
-                call write_pops_det (iunit, iunit_2, Dets(:,j), j)
+                ! Count the number of written particles
+                if (write_pops_det (iunit, iunit_2, Dets(:,j), j)) &
+                    write_count = write_count + 1
             end do
 
             if (.not. tSplitPops) then
@@ -1027,10 +990,11 @@ outer_map:      do i = 0, MappingNIfD
                     j = int(WalkersonNodes(i), sizeof_int) * (NIfTot+1)
                     call MPIRecv (Parts(:, 1:WalkersonNodes(i)), j, &
                                   NodeRoots(i), Tag, error)
-                
+
                     ! Then write it out in the same way as above.
                     do j = 1, int(WalkersonNodes(i), sizeof_int)
-                        call write_pops_det(iunit, iunit_2, Parts(:,j), j)
+                        if (write_pops_det(iunit, iunit_2, Parts(:,j), j)) &
+                            write_count = write_count + 1
                     end do
 
                 end do
@@ -1055,6 +1019,31 @@ outer_map:      do i = 0, MappingNIfD
 
         end if
 
+
+        ! With binary popsfiles, the header is written once the popsfiles
+        ! have been created, so that we can store the number of particles
+        ! actually written, rather than the total within the system.
+        if (tBinPops) then
+
+            ! Get a count of the number of particles written
+            call MPISum_inplace(write_count)
+            if (binarypops_min_weight == 0 .and. &
+                    write_count /= AllTotwalkers) then
+                write(6,*) 'WARNING: Number of particles written (', &
+                    write_count, ') does not equal AllTotWalkers (', &
+                    AllTotWalkers, ')'
+            end if
+
+            ! Now we need to actually write the header
+            if (iProcIndex == root) then
+                call get_unique_filename('POPSFILEHEAD', tIncrementPops, &
+                                         .true., iPopsFileNoWrite, popsfile)
+                iunit = get_free_unit()
+                open(iunit, file=popsfile, status='replace')
+                call write_popsfile_header (iunit, write_count)
+            end if
+        end if
+
         ! Reset some globals
         AllSumNoatHF = 0
         AllSumENum = 0
@@ -1062,21 +1051,73 @@ outer_map:      do i = 0, MappingNIfD
 
     end subroutine WriteToPopsfileParOneArr
 
+    subroutine write_popsfile_header (iunit, num_walkers)
 
-    subroutine write_pops_det (iunit, iunit_2, det, j)
+        ! Write the popsfile header into the file specified.
+
+        integer, intent(in) :: iunit, num_walkers
+        integer :: pops_niftot, pops_nifflag, i
+
+        ! If the popsfile uses flags, but we have combined the
+        ! representation of flags in memory, then the representation in
+        ! the popsfile is one unit longer than in memory.
+        pops_niftot = NIfTot
+        pops_nifflag = NIfFlag
+        if (tUseFlags .and. NIfFlag == 0) then
+            pops_niftot = pops_niftot + 1
+            pops_nifflag = 1
+        end if
+
+        write(iunit, '(a)') '# POPSFILE VERSION 4'
+        write(iunit, '("&POPSHEAD Pop64Bit=",l1)') build_64bit
+        write(iunit, '(a,l1,a,l1,a,i2,a,i3,a)') &
+            'PopHPHF=', tHPHF, ',PopLz=', tFixLz, ',PopLensign=', &
+            lenof_sign, ',PopNEl=', NEl, ','
+        write(iunit, '(a,i15,a,f18.12,a)') &
+            'PopTotwalk=', AllTotWalkers, ',PopSft=', DiagSft, ','
+        write(iunit, *) 'PopSumNoatHF=', AllSumNoatHF, ','
+        write(iunit, *) 'PopSumENum=', AllSumENum, ','
+        write(iunit, '(a,i16,a,i2,a,i2,a,i2,a)') &
+            'PopCyc=', Iter+PreviousCycles, ',PopNIfD=', NIfD, &
+            ',PopNIfY=', NIfY, ',PopNIfSgn=' ,NIfSgn, ','
+        write(iunit, '(a,i2,a,i2,a,f18.12,a)') &
+            'PopNIfFlag=', pops_nifflag, ',PopNIfTot=', pops_niftot, &
+            ',PopTau=', Tau, ','
+        write(iunit, '(a,i16)') 'PopiBlockingIter=', iBlockingIter
+
+        ! Store the random hash in the header to allow later processing
+        write(iunit, '(a)', advance='no') "PopRandomHash= "
+        do i = 1, nbasis
+            write(iunit,'(i12,",")', advance='no') RandomHash(i)
+        end do
+        write(iunit, *)
+
+        write(iunit, '(a5)') '&END'
+
+    end subroutine
+
+
+    function write_pops_det (iunit, iunit_2, det, j) result(bWritten)
 
         ! Output a particle to a popsfile in format acceptable for popsfile v4
 
         integer, intent(in) :: iunit, iunit_2
         integer(n_int), intent(in) :: det(0:NIfTot)
         integer :: sgn(lenof_sign), flg, j, k, ex_level
+        logical :: bWritten
 
-        ! Note, we don't want to bother outputting empty particles
+        ! Note, we don't want to bother outputting empty particles, or those
+        ! with a weight which is lower than specified as the cutoff
+        bWritten = .false.
         call extract_sign(det, sgn)
-        if (.not. IsUnoccDet(sgn)) then
+        !if (.not. IsUnoccDet(sgn)) then
+        if (sum(abs(sgn)) > binarypops_min_weight) then
 
             ! If we are using a reduced
             if (mod(j, iPopsPartEvery) == 0) then
+
+                ! We are including this particle now, so say so!
+                bWritten = .true.
 
                 ! Write output in the desired format. If __INT64, we are 
                 ! including the flag information with the signs in storage in
@@ -1126,7 +1167,7 @@ outer_map:      do i = 0, MappingNIfD
             end if
         end if
 
-    end subroutine
+    end function
 
 
 
@@ -1157,14 +1198,14 @@ outer_map:      do i = 0, MappingNIfD
         if (lenof_sign /= 1) &
             call Stop_All(this_routine, "Popsfile V.2 does not work with &
                                         &complex walkers")
-        
+
         PreviousCycles=0    !Zero previous cycles
         SumENum=0.0_dp
         TotParts=0
         SumNoatHF=0
         DiagSft=0.0_dp
         Tag=124             !Set Tag
-        
+
         call get_unique_filename('POPSFILE',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
         iunit = get_free_unit()
         INQUIRE(FILE=popsfile,EXIST=exists)
@@ -1284,7 +1325,7 @@ outer_map:      do i = 0, MappingNIfD
             if (total /= AllTotWalkers) then
                 CALL Stop_All("ReadFromPopsfilePar","All Walkers not accounted for when reading in from POPSFILE")
             endif
-            
+
 !InitWalkers needs to be reset for the culling criteria
             IF(.not.tWalkContGrow) THEN
 !Now, let the total space allocated for storing walkers which have been read in to be equal to the initwalkers from the input file.
@@ -1300,7 +1341,7 @@ outer_map:      do i = 0, MappingNIfD
             NodeSumNoatHF(nProcessors)=AllSumNoatHF(1)-INT((AvSumNoatHF*(nProcessors-1)),int64)
 
             ProjectionE=AllSumENum/real(AllSumNoatHF(1),dp)
-                
+
 !Reset the global variables
             AllSumENum=0.0_dp
             AllSumNoatHF = 0
@@ -1327,7 +1368,7 @@ outer_map:      do i = 0, MappingNIfD
             WRITE(6,*) 'MemoryFacPart must be larger than 1.0 when reading in a POPSFILE - increasing it to 1.50.'
             MemoryFacPart=1.50
         ENDIF
-        
+
 !Now we want to allocate memory on all nodes.
 !InitWalkers here is simply the average number of walkers per node, not actual
         MaxWalkersPart=NINT(MemoryFacPart*(NINT(InitWalkers*ScaleWalkers)))
@@ -1500,7 +1541,7 @@ outer_map:      do i = 0, MappingNIfD
             else
                 iLutTemp(0:NIfDBO)=iLutTemp32(0:NIfDBO)
             endif
-        
+
 #endif
             call decode_bit_det (TempnI, iLutTemp)
             Proc = DetermineDetNode(TempnI,0)
@@ -1585,7 +1626,7 @@ outer_map:      do i = 0, MappingNIfD
             ENDIF
 
         ENDIF
-            
+
         WRITE(6,*) "Initial Diagonal Shift (ECorr guess) is now: ",DiagSft
         WRITE(6,"(A,F14.6,A)") " Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,dp)/1048576.0_dp," Mb"
         WRITE(6,*) "Initial memory allocation successful..."
@@ -1596,7 +1637,7 @@ outer_map:      do i = 0, MappingNIfD
         ! weighted one in the file, do it here
         if (tReadPopsChangeRef .or. tReadPopsRestart) then
             if (.not. DetBitEq(ilut_largest, iLutRef, NIfDBO)) then
-                
+
                 ! Set new reference
                 iLutRef = ilut_largest
                 call decode_bit_det (ProjEDet, iLutRef)
@@ -1702,14 +1743,14 @@ outer_map:      do i = 0, MappingNIfD
         MemoryAlloc = 0
 
         IF(lenof_sign.ne.1) CALL Stop_All("ReadFromPopsfilePar","Popsfile does not work with complex walkers")
-        
+
         PreviousCycles=0    !Zero previous cycles
         SumENum=0.0_dp
         TotParts=0
         SumNoatHF=0
         DiagSft=0.0_dp
         Tag=124             !Set Tag
-        
+
         call get_unique_filename('POPSFILE',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
         iunit = get_free_unit()
         INQUIRE(FILE=popsfile,EXIST=exists)
@@ -1820,7 +1861,7 @@ outer_map:      do i = 0, MappingNIfD
             AvSumNoatHF = int(AllSumNoatHF(1),sizeof_int)/nProcessors !This is the average Sumnoathf
 
             ProjectionE=AllSumENum/real(AllSumNoatHF(1),dp)
-                
+
 !Reset the global variables
             AllSumENum=0.0_dp
             AllSumNoatHF = 0
@@ -1845,7 +1886,7 @@ outer_map:      do i = 0, MappingNIfD
             WRITE(6,*) 'MemoryFacPart must be larger than 1.0 when reading in a POPSFILE - increasing it to 1.50.'
             MemoryFacPart=1.50
         ENDIF
-        
+
         CALL MPIBarrier(error)  !Sync
 
         if(AllTotWalkers>nDets) CALL Stop_All(this_routine,'Not enough memory to read in POPSFILE.')
@@ -1947,7 +1988,7 @@ outer_map:      do i = 0, MappingNIfD
             else
                 iLutTemp(0:NIfDBO)=iLutTemp32(0:NIfDBO)
             endif
-        
+
 #endif
             call decode_bit_det (TempnI, iLutTemp)
             Proc=0  !DetermineDetNode(TempnI)   !This wants to return a value between 0 -> nProcessors-1
@@ -2028,7 +2069,7 @@ outer_map:      do i = 0, MappingNIfD
             ENDIF
 
         ENDIF
-            
+
         WRITE(6,*) "Initial Diagonal Shift (ECorr guess) is now: ",DiagSft
         WRITE(6,"(A,F14.6,A)") " Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,dp)/1048576.0_dp," Mb"
         WRITE(6,*) "Initial memory allocation successful..."
