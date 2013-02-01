@@ -58,7 +58,7 @@ contains
 
 #ifdef __DEBUG
         ! This is a useful (but O[N]) check to test the generated determinant.
-        call IsSymAllowedExcit(nI, nJ, 2, ExcitMat)
+        call IsSymAllowedExcit(nI, nJ, 2, ex)
 #endif
 
     end subroutine
@@ -73,7 +73,7 @@ contains
         integer :: i, k, elecs(2), srcs(2), tgts(2), pos_moved
 
         ! Get the source/target terms in order!
-        elecs = (/min(elec1, elec2), max(elec2, elec2)/)
+        elecs = (/min(elec1, elec2), max(elec1, elec2)/)
         tgts = (/min(tgt1, tgt2), max(tgt1, tgt2)/)
 
         ! Fill in the excitation matrix
@@ -143,7 +143,7 @@ contains
 
 #ifdef __DEBUG
         ! This is a useful (but O[N]) check to test the generated determinant.
-        call IsSymAllowedExcit(nI, nJ, 2, ExcitMat)
+        call IsSymAllowedExcit(nI, nJ, 2, ex)
 #endif
 
     end subroutine
