@@ -68,6 +68,10 @@ MODULE Logging
     ! Do we want to split the popsfile up into multiple bits?
     logical :: tSplitPops
 
+    ! What is the mininum weight on a determinant required for it to be
+    ! included in a binary pops file?
+    real(dp) :: binarypops_min_weight
+
     contains
 
     subroutine SetLogDefaults()
@@ -189,6 +193,7 @@ MODULE Logging
       tDumpForcesInfo = .false.
       tPrintLagrangian = .false.
       instant_s2_multiplier_init = 1
+      binarypops_min_weight = 0
 
       tSplitPops = .false.
 
@@ -730,10 +735,20 @@ MODULE Logging
             call readi(iPopsPartEvery)
         case("POPSFILETIMER")
             call readf(PopsfileTimer)   !Write out a POPSFILE every "PopsfileTimer" hours.
+
         case("BINARYPOPS")
-!This means that the popsfile (full or reduced) will now be written out in binary format. 
-!This should now take up less space, and be written quicker.
-            tBinPops=.true.
+            ! This means that the popsfile (full or reduced) will now be 
+            ! written out in binary format. This should now take up less 
+            ! space, and be written quicker.
+            !
+            ! By default, all particles are written into the popsfile. If 
+            ! a minimum weight is proveded, only those particles with at ]east
+            ! that weight are included.
+            tBinPops= .true.
+            if (item < nitems) then
+                call readf(binarypops_min_weight)
+            end if
+
         case("INCREMENTPOPS")
 ! Don't overwrite existing POPSFILES.
             tIncrementPops = .true.

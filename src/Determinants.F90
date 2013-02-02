@@ -374,7 +374,7 @@ contains
 
             ex(1,:) = nJ(4:5)
             ex(2,:) = nJ(6:7)
-            hel = sltcnd_2 (ex, 1)
+            hel = sltcnd_2 (ex, .false.)
         endif
 
         if (present(iLutJ)) then
@@ -400,7 +400,7 @@ contains
 
     end function get_helement_normal
 
-    function get_helement_excit (NI, NJ, IC, ExcitMat, parity) result(hel)
+    function get_helement_excit (NI, NJ, IC, ExcitMat, TParity) result(hel)
 
         ! Calculate the Hamiltonian Matrix Element for a given determinant (or
         ! csf), when we have the excitation matrix and parity of the
@@ -409,12 +409,12 @@ contains
         ! In:  nI, nJ       - The determinants to evaluate
         !      IC           - The number of orbitals I,J differ by
         !      ex           - The excitation matrix
-        !      parity       - The parity of the excitation
+        !      tParity      - The parity of the excitation
         ! Ret: hel          - The H matrix element
 
         integer, intent(in) :: nI(nel), nJ(nel), IC
         integer, intent(in) :: ExcitMat(2,2)
-        integer, intent(in) :: parity
+        logical, intent(in) :: tParity
         HElement_t :: hel
 
         character(*), parameter :: this_routine = 'get_helement_excit'
@@ -433,7 +433,7 @@ contains
                          &used if we know the number of excitations and the &
                          &excitation matrix")
 
-        hel = sltcnd_excit (nI, IC, ExcitMat, parity)
+        hel = sltcnd_excit (nI, IC, ExcitMat, tParity)
 
         if (IC == 0) then
             hel = hel + (ECore)
@@ -443,7 +443,7 @@ contains
 
     end function get_helement_excit
 
-    function get_helement_det_only (nI, nJ, iLutI, iLutJ, ic, ex, parity, &
+    function get_helement_det_only (nI, nJ, iLutI, iLutJ, ic, ex, tParity, &
                                     HElGen) result (hel)
         
         ! Calculate the Hamiltonian Matrix Element for a determinant as above.
@@ -455,13 +455,13 @@ contains
         !      iLutI, iLutJ - Bit representations (unused)
         !      ic           - The number of orbitals i,j differ by
         !      ex           - Excitation matrix
-        !      parity      - Parity of the excitation
+        !      tParity      - Parity of the excitation
         ! Ret: hel          - The H matrix element
 
         use constants, only: n_int
         integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
-        integer, intent(in) :: parity
+        logical, intent(in) :: tParity
         HElement_t :: hel
         HElement_t , intent(in) :: HElGen    !Not used - here for compatibility with other interfaces.
 
@@ -469,7 +469,7 @@ contains
         integer(n_int) :: iUnused; integer :: iUnused2
         iUnused=iLutJ(1); iUnused=iLutI(1); iUnused2=nJ(1)
 
-        hel = sltcnd_excit (nI, IC, ex, parity)
+        hel = sltcnd_excit (nI, IC, ex, tParity)
 
         if (IC == 0) then
             hel = hel + ECore
@@ -975,9 +975,10 @@ END MODULE Determinants
          integer(kind=n_int) :: iLutRef(0:nIfTot),iLutnI(0:nIfTot)
          integer Ex(2,nEl)
          logical lTerm
-         integer :: iEl, i, parity
+         logical tSign
+         INTEGER iEl,I
          EX(1,1)=nEl  !Indicate the length of EX
-         CALL GetBitExcitation(iLutRef,iLutnI,Ex,parity)
+         CALL GetBitExcitation(iLutRef,iLutnI,Ex,tSign)
          WRITE(NUNIT,"(A)",advance='no') "("
 ! First the excit from
          DO I=1,NEL
@@ -985,7 +986,7 @@ END MODULE Determinants
             if(iEl.eq.0) EXIT
             WRITE(NUNIT,"(I5,A)",advance='no') IEL,","
          ENDDO
-         if (parity == -1) then
+         IF(tSign) THEN
             WRITE(NUNIT,"(A)",advance='no') ")->-("
          ELSE
             WRITE(NUNIT,"(A)",advance='no') ")->+("

@@ -257,7 +257,7 @@ module DetBitOps
     pure subroutine get_bit_excitmat (ilutI, iLutJ, ex, IC)
         
         ! Obatin the excitation matrix between two determinants from their bit
-        ! representation without calculating parity --> a bit quicker.
+        ! representation without calculating tSign --> a bit quicker.
         !
         ! In:    iLutI, iLutJ - Bit representations of determinants I,J
         ! InOut: IC           - Specify max IC before bailing, and return
@@ -969,171 +969,6 @@ module DetBitOps
 
     end subroutine
 
-!    function bs_gt (arr, val) result(pos)
-!
-!        ! Find the position in a sorted array where an element would be inserted
-!        ! such that it would be greater than all of the elements to its
-!        ! left, and smaller than all the elements to its right.
-!
-!        ! The range is defined so that index lo-1 == immediately to the left of
-!        ! the 1st element, and so on.
-!
-!        integer, intent(in) :: val, arr(:)
-!        integer :: pos
-!
-!        integer :: hi, lo
-!
-!        ! The search range
-!        lo = lbound(arr, 1)
-!        hi = ubound(arr, 1)
-!
-!        ! Test if it fits in the range at all...
-!!        write(6,*) '================================='
-!!        write(6,*) val, arr
-!        if (hi == 0 .or. val < arr(lo)) then
-!            pos = lo - 1
-!            return
-!        end if
-!
-!        do while (hi /= lo)
-!            pos = int(real(hi + lo + 1) / 2)
-!!            write(6,*) 'H/L', hi, lo, pos
-!
-!            if (arr(pos) > val) then
-!                hi = pos - 1
-!            else
-!                lo = pos
-!            end if
-!!            if (hi < lo) &
-!!                call stop_all("bad", "val")
-!        end do
-!
-!        ! Return the converged value
-!        pos = hi
-!
-!    end function
-
-    pure function get_single_parity_det (det, src_ind, tgt) result(par)
-
-        ! This is a FAST way of doing this. YAY.
-        !
-        ! TODO: We could do a binary seach for this bit. It might be
-        !       EVEN FASTER.
-
-        integer, intent(in) :: src_ind, tgt, det(nel)
-        integer :: i, par, src, tgt_ind
-
-        src = det(src_ind)
-        if (src > tgt) then
-            do i = src_ind-1, 1, -1
-                if (tgt > det(i)) exit
-            end do
-            tgt_ind = i + 1
-
-        else
-
-            do i = src_ind+1, nel, 1
-                if (tgt < det(i)) exit
-            end do
-            tgt_ind = i - 1
-!            par = 1 - 2 * modulo(bs_gt(det(src_ind+1:), tgt), 2)
-
-        end if
-
-        ! Magic! Avoids conditional tests.
-        par = 1 - 2 * modulo(tgt_ind - src_ind, 2)
-
-
-    end function
-
-    pure function get_double_parity_det (det, src_ind, tgt) result(par)
-
-        ! Find the relative parity of a double excitation of this determinant.
-        ! 
-        ! This might be able to be done more 'magically', by using some funky
-        ! binary searching, which would be somewhat interesting.
-        !
-        ! This technique is based on JSS's analysis of general parities between
-        ! bit representations. It is somewhat exciting.
-        ! See GetBitExcitation for further explanation of what is going on.
-
-        integer, intent(in) :: src_ind(2), tgt(2), det(nel)
-        integer :: par, sort_tgt(3), sort_src(3)
-
-        integer :: iel1, iel2, iexcit1, iexcit2, perm, start
-
-        ! Sorted sources
-        ! The THIRD values in these are so that we get the correct result from
-        ! the comparisons later, without having to test if the index has
-        ! gone out of range.
-        sort_src(1) = minval(src_ind)
-        sort_src(2) = maxval(src_ind)
-        sort_src(3) = -1
-
-        ! Sorted targets
-        sort_tgt(1) = minval(tgt)
-        sort_tgt(2) = maxval(tgt)
-        sort_tgt(3) = 999999999
-
-        ! Some initial values
-        iexcit1 = 1
-        iexcit2 = 1
-        iel1 = 0
-        iel2 = 0
-        perm = 0
-
-        ! We only have to start where the determinants start to differ.
-        if (sort_tgt(1) < det(sort_src(1))) then
-            start = 1
-        else
-            start = sort_src(1)
-        end if
-
-        ! Loop over the electrons, Obviously, all the electrons are in the
-        ! first determinant, so use this count as the loop variable.
-        do iel1 = start, nel
-
-            ! Does the next target orbital get inserted before this one?
-            do while (sort_tgt(iexcit2) < det(iel1))
-                iel2 = iel2 + 1
-                iexcit2 = iexcit2 + 1
-                perm = perm - iel2
-            end do
-
-            ! Have we reached one of the electrons being excited?
-            if (iel1 == sort_src(iexcit1)) then
-                ! This electron is only in the src determinant.
-                iexcit1 = iexcit1 + 1
-                perm = perm - iel1
-            else
-                ! This electron is in both dets.
-                iel2 = iel2 + 1
-            end if
-
-            ! Once we are done, bail out.
-            if (iexcit1 == 3 .and. iexcit2 == 3) exit
-
-        end do
-
-        ! Deal with any target orbitals which are higher than any currently
-        ! occupied.
-        do while (iexcit2 < 3)
-            iel2 = iel2 + 1
-            iexcit2 = iexcit2 + 1
-            perm = perm - iel2
-        end do
-
-        ! Extract the parity. even --> +1, odd --> -1
-        par = 1 - (2 * modulo(perm, 2))
-
-    end function
-
-    !
-    ! The followig two functions are (sadly) no longer used. However I have
-    ! included them incase they become useful later. The calculate parities
-    ! for single/double exctiations from a given bit representation using only
-    ! whole array operations and bit counting.
-    !
 
     pure function get_single_parity (ilut, src, tgt) result(par)
 
@@ -1183,7 +1018,7 @@ module DetBitOps
 
     end function
 
-    pure function get_double_parity (ilut, src, tgt) result(par)
+    function get_double_parity (ilut, src, tgt) result(par)
 
         ! Find the relative parity of two determinants, where one is ilut
         ! and the other is a single excitation of ilut where orbital src is
@@ -1220,7 +1055,7 @@ module DetBitOps
 
 end module
 
-    subroutine GetBitExcitation(iLutnI,iLutnJ,Ex,parity)
+    pure subroutine GetBitExcitation(iLutnI,iLutnJ,Ex,tSign)
 
         ! A port from hfq. The first of many...
         ! JSS.
@@ -1236,9 +1071,9 @@ end module
         !    Ex(2,max_excit): contains the excitation connected iLutnI to
         !        iLutnJ.  Ex(1,i) is the i-th orbital excited from and Ex(2,i)
         !        is the corresponding orbital excited to.
-        !    parity:
-        !        -1 if an odd number of permutations is required to line up
-        !        the determinants, +1 otherwise
+        !    tSign:
+        !        True if an odd number of permutations is required to line up
+        !        the determinants.
 
         use SystemData, only: nel
         use bit_rep_data, only: NIfD
@@ -1247,11 +1082,11 @@ end module
         implicit none
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfD), iLutnJ(0:NIfD)
         integer, intent(inout) :: Ex(2,*)
-        integer, intent(out) :: parity
+        logical, intent(out) :: tSign
         integer :: i, j, iexcit1, iexcit2, perm, iel1, iel2, max_excit
         logical :: testI, testJ
 
-        parity = 1
+        tSign=.true.
         max_excit = Ex(1,1)
         Ex(:,:max_excit) = 0
 
@@ -1326,8 +1161,8 @@ end module
                 if (iexcit1 == max_excit .and. iexcit2 == max_excit) exit
             end do
 
-            ! Extract the parity. even --> +1, odd --> -1
-            parity = 1 - (2 * modulo(perm, 2))
+            ! It seems that this test is faster than btest(perm,0)!
+            tSign = mod(perm,2) == 1
 
             if (iexcit1<max_excit) then
                 Ex(:,iexcit1+1) = 0 ! Indicate we've ended the excitation.

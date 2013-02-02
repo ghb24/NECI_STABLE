@@ -460,9 +460,9 @@ MODULE FciMCLoggingMod
     END SUBROUTINE WriteInitPops
 
 
-    SUBROUTINE TrackSpawnAttempts(Child,DetCurr,nJ,IC,Ex,parity)
+    SUBROUTINE TrackSpawnAttempts(Child,DetCurr,nJ,IC,Ex,tParity)
         INTEGER :: Child,DetCurr(NEl),nJ(NEl),IC,Ex(2,2)
-        INTEGER :: parity
+        LOGICAL :: tParity
         HElement_t :: HEl
 
 !        WRITE(6,*) 'Child',Child
@@ -473,7 +473,7 @@ MODULE FciMCLoggingMod
 !        stop
 
         ! Need to find the H element between the current determinant and that which we're trying to spawn on.
-        HEl = get_helement_excit (DetCurr, nJ, IC, Ex, parity)
+        HEl = get_helement_excit (DetCurr, nJ, IC, Ex, tParity)
             
         IF(Child.eq.0) THEN
             ! Spawn not accepted.

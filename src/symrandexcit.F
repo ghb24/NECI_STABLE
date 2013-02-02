@@ -1,7 +1,7 @@
 !This wrapper also passes back the excitation matrix and parity of excitation permutation, so that matrix elements can be worked out simply between the original determinant
 !and the excitation.
       SUBROUTINE GenRandSymExcitIt4(NI,NMEM,NJ,ISEED,IC,PGEN,
-     &        ICOUNT,EXCITMAT,PARITY)
+     &        ICOUNT,EXCITMAT,TPARITY)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SystemData, only: nEl,G1, nBasis,nBasisMax
@@ -13,7 +13,8 @@
          IMPLICIT NONE
          INTEGER NI(NEL)
          INTEGER,pointer :: DSTORE(:)
-         INTEGER EXCITMAT(2,2), parity
+         INTEGER EXCITMAT(2,2)
+         LOGICAL TPARITY
          INTEGER,target :: NMEM(*)
          integer NJ(NEL),IC,ICOUNT
          INTEGER ISEED,Pos1,Pos2,Pos3
@@ -40,7 +41,7 @@
             
             CALL SymGenRandExcitIt2(NI,NEL,NMEM(Pos1),DSTORE(1),
      &         NMEM(Pos3),DSTORE(SymClassSize*NEL+1),NMEM(Pos2),
-     &         nMem(1),ISEED,NJ,IC,PGEN,EXCITMAT,PARITY)
+     &         nMem(1),ISEED,NJ,IC,PGEN,EXCITMAT,TPARITY)
             ICOUNT=NMEM(1)
 
          ELSE
@@ -69,7 +70,7 @@ C.. Actually generate a det
 !     &         G1,NBASISMAX,UMAT,ARR,NBASIS,PGEN)
             CALL SymGenRandExcitIt2(NI,NEL,NMEM(NMEM(2)),DSTORE(1),
      &         NMEM(NMEM(5)),DSTORE(SymClassSize*NEL+1),NMEM(NMEM(4)),
-     &         nMem(23),ISEED,NJ,IC,PGEN,EXCITMAT,PARITY)
+     &         nMem(23),ISEED,NJ,IC,PGEN,EXCITMAT,TPARITY)
             ICOUNT=NMEM(23)
          ENDIF
       END SUBROUTINE GenRandSymExcitIt4
@@ -93,7 +94,8 @@ C.. This version is based on GenRandSymExcitIt2, but does not need values it ext
          IMPLICIT NONE
          INTEGER NI(NEL)
          INTEGER, pointer :: DSTORE(:)
-         INTEGER EXCITMAT(2,2), parity
+         INTEGER EXCITMAT(2,2)
+         LOGICAL TPARITY
          INTEGER,target :: NMEM(*)
          integer  NJ(NEL),IC,ICOUNT
          INTEGER ISEED,Pos1,Pos2,Pos3
@@ -119,7 +121,7 @@ C.. This version is based on GenRandSymExcitIt2, but does not need values it ext
             
             CALL SymGenRandExcitIt2(NI,NEL,NMEM(Pos1),DSTORE(1),
      &         NMEM(Pos3),DSTORE(SymClassSize*NEL+1),NMEM(Pos2),
-     &         nMem(1),ISEED,NJ,IC,PGEN,EXCITMAT,PARITY)
+     &         nMem(1),ISEED,NJ,IC,PGEN,EXCITMAT,TPARITY)
             ICOUNT=NMEM(1)
 
          ELSE
@@ -148,7 +150,7 @@ C.. Actually generate a det
 !     &         G1,NBASISMAX,UMAT,ARR,NBASIS,PGEN)
             CALL SymGenRandExcitIt2(NI,NEL,NMEM(NMEM(2)),DSTORE(1),
      &         NMEM(NMEM(5)),DSTORE(SymClassSize*NEL+1),NMEM(NMEM(4)),
-     &         nMem(23),ISEED,NJ,IC,PGEN,EXCITMAT,PARITY)
+     &         nMem(23),ISEED,NJ,IC,PGEN,EXCITMAT,TPARITY)
             ICOUNT=NMEM(23)
          ENDIF
       END
@@ -169,9 +171,10 @@ C..   use GenRandSymExcitIt3
          IMPLICIT NONE
          INTEGER NEL,NI(NEL)
          INTEGER,pointer :: DSTORE(:)
-         INTEGER EXCITMAT(2,2), parity
+         INTEGER EXCITMAT(2,2)
          INTEGER,target :: NMEM(*)
          integer NJ(NEL),ICOUNT,IC
+         LOGICAL TPARITY
          INTEGER ISEED
          real(dp) PGEN
 C.. The second setup.  Now NMEM is allocated, we store all the info
@@ -199,7 +202,7 @@ C.. Actually generate a det
 !     &         G1,NBASISMAX,UMAT,ARR,NBASIS,PGEN)
          CALL SymGenRandExcitIt2(NI,NEL,NMEM(NMEM(2)),DSTORE(1),
      &         NMEM(NMEM(5)),DSTORE(SymClassSize*NEL+1),NMEM(NMEM(4)),
-     &         nMem(23),ISEED,NJ,IC,PGEN,EXCITMAT,PARITY)
+     &         nMem(23),ISEED,NJ,IC,PGEN,EXCITMAT,TPARITY)
          ICOUNT=NMEM(23)
 !         call writedet(6,nI,nEl,.true.)
       END
@@ -223,9 +226,9 @@ C.. Actually generate a det
       INTEGER NK(NEL)
       TYPE(SymClass) CLASSES(*)
       INTEGER IEXCIT
-      INTEGER IFROM,ITO,ISPN, parity
+      INTEGER IFROM,ITO,ISPN
       INTEGER IFROMSL,ITOSL,ExcitMat(2,2)
-      LOGICAL L1,L2
+      LOGICAL L1,L2,TParity
 !.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
 
       INTEGER ORBPAIRS(2,*)
@@ -311,7 +314,7 @@ C.. Actually generate a det
                      NK(1:NEL)=NI(1:NEL)
                      ExcitMat(1,1)=I
                      ExcitMat(2,1)=ITOSL
-                     CALL FindExcitDet(ExcitMat,NK,1,Parity)
+                     CALL FindExcitDet(ExcitMat,NK,1,TParity)
 !                     NK(I)=ITOSL
 !                     CALL NECI_SORTI(NEL,NK)
                      IF(.NOT.ISVALIDDET(NK,NEL)) THEN
@@ -423,7 +426,7 @@ C.. Actually generate a det
             ENDIF
          ENDDO
 !         CALL NECI_SORTI(NEL,NK)
-         CALL FindExcitDet(ExcitMat,NK,2,Parity)
+         CALL FindExcitDet(ExcitMat,NK,2,TParity)
          IC=2
          deallocate(ews)
          RETURN
@@ -549,7 +552,7 @@ C.. Actually generate a det
 !..  I is the index in NI to excite from.
 ! This is for the case that there is no excitation weighting
       Subroutine SymGenRandExcitIt2_Sing_GT_NoW(iSeed,nI,nEl,
-     &              I,iSpn,iTo,nK,ExcitMat,Parity)
+     &              I,iSpn,iTo,nK,ExcitMat,TParity)
       use SymData, only: SymClass,SymLabelCounts,SymLabelList
          use constants, only: dp
          IMPLICIT NONE
@@ -558,9 +561,9 @@ C.. Actually generate a det
          INTEGER I,ExcitMat(2,2)
          INTEGER iSpn,iTo
          INTEGER OrbChosen,norbs,spinorb
-         INTEGER J,State, parity
+         INTEGER J,State
          INTEGER NK(nEl)
-         LOGICAL InDi
+         LOGICAL InDi,TParity
          real(dp) RAN2   
 
 !Number of states with allowed symmetry is given by SymLabelCounts(2,Sym)
@@ -591,7 +594,7 @@ C.. Actually generate a det
                 NK(1:NEl)=NI(1:NEl)
                 ExcitMat(1,1)=I
                 ExcitMat(2,1)=SpinOrb
-                CALL FindExcitDet(ExcitMat,NK,1,Parity)
+                CALL FindExcitDet(ExcitMat,NK,1,TParity)
 !These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
 !excitations, I recommend uncommenting these tests to check the results.
 !                Excitlevel=iGetExcitLevel(NI,NK,NEL)
@@ -620,7 +623,7 @@ C.. Actually generate a det
 !.. Locate an orbital to excite to, and create the excitation, copying it back to nI.
 !..  I is the index in I to excite from.
       Subroutine SymGenRandExcitIt2_Single_GetTo(iSeed,nI,nEl,I,iSpn,
-     &   iTo,nK,ExcitMat,Parity)
+     &   iTo,nK,ExcitMat,TParity)
       use SymData, only: SymClass,SymLabelCounts,SymLabelList
         use Determinants, only: write_det
          use constants, only: dp,sizeof_int
@@ -628,7 +631,8 @@ C.. Actually generate a det
          INTEGER iSeed
          INTEGER nEl,nI(nEl)
          INTEGER I,ExcitMat(2,2)
-         INTEGER iSpn,iTo, parity
+         INTEGER iSpn,iTo
+         LOGICAL TParity
          INTEGER iCount
          INTEGER iToSL
          INTEGER J,K,L
@@ -673,7 +677,7 @@ C.. Actually generate a det
                      ExcitMat(2,1)=ITOSL
 !                     NK(I)=ITOSL
 !                     CALL NECI_SORTI(NEL,NK)
-                     CALL FindExcitDet(ExcitMat,NK,1,Parity)
+                     CALL FindExcitDet(ExcitMat,NK,1,TParity)
                      IF(.NOT.ISVALIDDET(NK,NEL)) THEN
             
                        WRITE(6,*) "INVALID DET SYMGENRANDEXCITIT SINGLE"
@@ -825,7 +829,7 @@ C.. Actually generate a det
 !There is no weighting function, so it simply 
       Subroutine SymGenRandExcitIt2_Doub_GT_NoW(iSeed,nI,
      &      ExcitTypes,iExcit,OrbPairs, SymProdInd,iSpn,iFrom,iLUT,
-     &      I,nK,ExcitMat,Parity)
+     &      I,nK,ExcitMat,TParity)
          use SystemData, only: nEl
          use SymData, only: tAbelianFastExcitgen
          use SymData, only: SymPairProds,SymStatePairs
@@ -840,8 +844,8 @@ C.. Actually generate a det
          INTEGER iSpn,iFrom,iTo,FinalA,FinalB
          INTEGER iLUT(0:*)
          INTEGER I,StatePair,Index1,Orb1,Orb2,Orb1Alpha,Orb1Beta
-         INTEGER NK(nEl),Orb2Alpha,Orb2Beta,OrbAlpha,OrbBeta,parity
-         LOGICAL :: NotSelectedPair,Check1,Check2
+         INTEGER NK(nEl),Orb2Alpha,Orb2Beta,OrbAlpha,OrbBeta
+         LOGICAL :: NotSelectedPair,Check1,Check2,TParity
          INTEGER J
          real(dp) RAN2
 
@@ -976,7 +980,7 @@ C.. Actually generate a det
                ExcitMat(2,2)=FinalB
             ENDIF
          ENDDO
-         CALL FindExcitDet(ExcitMat,NK,2,Parity)
+         CALL FindExcitDet(ExcitMat,NK,2,TParity)
 !These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
 !excitations, I recommend uncommenting these tests to check the results.
 !         Excitlevel=iGetExcitLevel(NI,NK,NEL)
@@ -998,14 +1002,15 @@ C.. Actually generate a det
 
       Subroutine SymGenRandExcitIt2_Double_GetTo(iSeed,nI,ExcitTypes,
      &      iExcit,OrbPairs, SymProdInd,iSpn,iFrom,iLUT,
-     &      I,nK, pGen,ExcitMat,Parity)
+     &      I,nK, pGen,ExcitMat,TParity)
          USE symexcit2
          use SystemData, only: G1, nBasis, nBasisMax
          use SystemData, only: Arr,nEl
          use IntegralsData, only: UMat
          use constants, only: dp
          IMPLICIT NONE
-         INTEGER iSeed, parity
+         LOGICAL TParity
+         INTEGER iSeed
          INTEGER nI(nEl)
          INTEGER ExcitTypes(5,*)
          INTEGER iExcit,ExcitMat(2,2)
@@ -1076,7 +1081,7 @@ C.. Actually generate a det
 !         CALL NECI_SORTI(NEL,NK)
 !         Call WriteDet(6,nK,nEl,.true.)
 !         WRITE(6,*) ExcitMat
-         CALL FindExcitDet(ExcitMat,NK,2,Parity)
+         CALL FindExcitDet(ExcitMat,NK,2,TParity)
 !         Call WriteDet(6,nK,nEl,.true.)
          deallocate(ews)
 !         WRiTE(6,*) "ENd GetTo"
