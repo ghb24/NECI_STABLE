@@ -1076,7 +1076,7 @@ outer_map:      do i = 0, MappingNIfD
             'PopHPHF=', tHPHF, ',PopLz=', tFixLz, ',PopLensign=', &
             lenof_sign, ',PopNEl=', NEl, ','
         write(iunit, '(a,i15,a,f18.12,a)') &
-            'PopTotwalk=', AllTotWalkers, ',PopSft=', DiagSft, ','
+            'PopTotwalk=', num_walkers, ',PopSft=', DiagSft, ','
         write(iunit, *) 'PopSumNoatHF=', AllSumNoatHF, ','
         write(iunit, *) 'PopSumENum=', AllSumENum, ','
         write(iunit, '(a,i16,a,i2,a,i2,a,i2,a)') &
