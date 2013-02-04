@@ -30,6 +30,8 @@ MODULE PopsfileMod
 
     implicit none
 
+    logical :: tRealPOPSfile
+
     contains
 
     !   V.3/4 POPSFILE ROUTINES   !
@@ -374,6 +376,7 @@ r_loop: do while(.not.tReadAllPops)
         integer(int64) , intent(inout) :: Det
         integer(n_int), intent(out) :: WalkerTemp(0:NIfTot)
         integer(n_int) :: WalkerToMap(0:MappingNIfD), WalkerTemp2(0:NIfTot)
+        integer(n_int) :: sgn_int(lenof_sign)
         integer :: elec, flg, i, j, stat
         real(dp) :: sgn(lenof_sign)
         integer(n_int) :: flg_read
@@ -384,44 +387,88 @@ r_loop: do while(.not.tReadAllPops)
 r_loop: do while(.not.tStoreDet)
 
             if (.not. tPopsMapping) then
+                !
                 ! All basis parameters match --> Read in directly.
-                if (BinPops) then
-                    if (tUseFlags) then
-                        read(iunit, iostat=stat) WalkerTemp(0:NIfD), sgn,&
-                                                 flg_read
+                if (tRealPOPSfile) then
+                    if (BinPops) then
+                        if (tUseFlags) then
+                            read(iunit, iostat=stat) WalkerTemp(0:NIfD), sgn,&
+                                                     flg_read
+                        else
+                            read(iunit, iostat=stat) WalkerTemp(0:NIfD), sgn
+                        end if
                     else
-                        read(iunit, iostat=stat) WalkerTemp(0:NIfD), sgn
+                        if (tUseFlags) then
+                            read(iunit,*, iostat=stat) WalkerTemp(0:NIfD), &
+                                                       sgn, flg_read
+                        else
+                            read(iunit,*, iostat=stat) WalkerTemp(0:NIfD), sgn
+                        end if
                     end if
                 else
-                    if (tUseFlags) then
-                        read(iunit,*, iostat=stat) WalkerTemp(0:NIfD), &
-                                                   sgn, flg_read
+                    if (BinPops) then
+                        if (tUseFlags) then
+                            read(iunit, iostat=stat) WalkerTemp(0:NIfD), &
+                                                     sgn_int, flg_read
+                        else
+                            read(iunit, iostat=stat) WalkerTemp(0:NIfD), &
+                                                     sgn_int
+                        end if
                     else
-                        read(iunit,*, iostat=stat) WalkerTemp(0:NIfD), sgn
+                        if (tUseFlags) then
+                            read(iunit,*, iostat=stat) WalkerTemp(0:NIfD), &
+                                                       sgn_int, flg_read
+                        else
+                            read(iunit,*, iostat=stat) WalkerTemp(0:NIfD), &
+                                                       sgn_int
+                        end if
                     end if
+                    sgn = sgn_int
                 end if
                 if (stat < 0) then
                     tEOF = .true. ! End of file reached.
                     exit r_loop
                 end if
             else
+                !
                 ! we are mapping from a smaller to larger basis.
-                if (BinPops) then
-                    if (tUseFlags) then
-                        read(iunit, iostat=stat) WalkerToMap(0:MappingNIfD), &
-                                                 sgn, flg_read
+                if (tRealPOPSfile) then
+                    if (BinPops) then
+                        if (tUseFlags) then
+                            read(iunit, iostat=stat) &
+                                WalkerToMap(0:MappingNIfD), sgn, flg_read
+                        else
+                            read(iunit, iostat=stat) &
+                                WalkerToMap(0:MappingNIfD), sgn
+                        end if
                     else
-                        read(iunit, iostat=stat) WalkerToMap(0:MappingNIfD), &
-                                                 sgn
+                        if (tUseFlags) then
+                            read(iunit,*, iostat=stat) &
+                                WalkerToMap(0:MappingNIfD), sgn, flg_read
+                        else
+                            read(iunit,*, iostat=stat) &
+                                WalkerToMap(0:MappingNIfD), sgn
+                        end if
                     end if
                 else
-                    if (tUseFlags) then
-                        read(iunit,*, iostat=stat) WalkerToMap(0:MappingNIfD),&
-                                                   sgn, flg_read
+                    if (BinPops) then
+                        if (tUseFlags) then
+                            read(iunit, iostat=stat) &
+                                WalkerToMap(0:MappingNIfD), sgn_int, flg_read
+                        else
+                            read(iunit, iostat=stat) &
+                                WalkerToMap(0:MappingNIfD), sgn_int
+                        end if
                     else
-                        read(iunit,*, iostat=stat) WalkerToMap(0:MappingNIfD),&
-                                                   sgn
+                        if (tUseFlags) then
+                            read(iunit,*, iostat=stat) &
+                                WalkerToMap(0:MappingNIfD), sgn_int, flg_read
+                        else
+                            read(iunit,*, iostat=stat) &
+                                WalkerToMap(0:MappingNIfD), sgn_int
+                        end if
                     end if
+                    sgn = sgn_int
                 end if
                 if (stat < 0) then
                     tEOF = .true. ! End of file reached
@@ -802,8 +849,12 @@ outer_map:      do i = 0, MappingNIfD
 !Return the version number of the popsfile
     integer function FindPopsfileVersion(iunithead)
         integer, intent(in) :: iunithead
-        logical :: formpops,binpops
+        logical :: formpops, binpops, tEOF
+        integer :: stat
         character(255) :: FirstLine
+
+        ! Default value
+        tRealPOPSfile = .true.
 
         if(iProcIndex.eq.root) then
             rewind(iunithead)
@@ -815,8 +866,39 @@ outer_map:      do i = 0, MappingNIfD
                 rewind(iunithead)
                 read(iunithead,*) FirstLine,FirstLine,FirstLine,FindPopsfileVersion
             endif
+
+            ! We need to be able to deal with popsfiles created with the 
+            ! (old) integer version of the code
+            ! --> No direct option was included for the output files to
+            !     indicate if they used integers or real coefficients
+            ! --> We need to take a (slight) guess...
+            if (FindPopsfileVersion == 4 .and. tBinPops) then
+                do while (.true.)
+                    ! Read until the end of the file.
+                    read(iunithead, '(a255)', iostat=stat) FirstLine
+                    if (stat < 0) exit
+
+                    ! If we have the line with PopSumNoatHF in it, check if
+                    ! the reported number is a real number. If it is, we know
+                    ! the popsfile was created by the realcoeff branch.
+                    if (index(FirstLine, 'PopSumNoatHF=') /= 0) then
+                        if (index(FirstLine, '.') /= 0) then
+                            tRealPOPSfile = .true.
+                        else
+                            tRealPOPSfile = .false.
+                        end if
+                        exit
+                    end if
+                end do
+
+                ! Rewind to allow normal reading of the header.
+                rewind(iunithead)
+                read(iunithead,*) FirstLine,FirstLine,FirstLine,FindPopsfileVersion
+            end if
+
         endif
         call MPIBCast(FindPopsfileVersion)
+        call MPIBcast(tRealPOPSfile)
 
     end function FindPopsfileVersion
 
