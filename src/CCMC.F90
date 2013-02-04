@@ -11,7 +11,7 @@ MODULE CCMC
     use FciMCParMod, only: calculate_new_shift_wrapper, AttemptCreatePar, &
                            CheckAllowedTruncSpawn, SumEContrib
     use FciMCData, only: iter, tDebug, TotWalkers, NoatHF, Noatdoubs, &
-                         MaxIndex, TotParts, Walker_time, iPartBloom, &
+                         MaxIndex, TotParts, Walker_time, &
                          ValidSpawnedList, InitialSpawnedSlots, ilutHF, &
                          CurrentDets, iter_data_ccmc, fcimc_excit_gen_store, &
                          tTruncSpace, CurrentH, NoBorn, SpawnedParts, NoDied,&
@@ -36,6 +36,7 @@ MODULE CCMC
 #else
     integer, parameter :: iout = 6
 #endif
+    integer :: iPartBloom
    CONTAINS
 
 #include "macros.h"
