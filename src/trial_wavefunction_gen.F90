@@ -5,10 +5,11 @@ module trial_wavefunction_gen
     use CalcData, only: tSortDetermToTop
     use davidson, only: perform_davidson, davidson_eigenvalue, davidson_eigenvector, &
                         sparse_hamil_type
+    use DetBitOps, only: FindBitExcitLevel
     use DeterminantData, only: write_det
     use FciMCData, only: trial_vector_space, trial_vector_space_size, connected_space, &
                          connected_space_size, trial_wavefunction, trial_energy, &
-                         connected_space_vector, ilutHF
+                         connected_space_vector, ilutHF, Hii
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBarrier
     use ParallelHelper, only: root
     use semi_stochastic
@@ -23,6 +24,7 @@ contains
         integer :: i, ierr, counter, comp, num_states_on_proc
         integer(n_int), allocatable, dimension(:,:) :: temp_space
         integer :: nI(nel)
+        integer :: excit
 
         ! Simply allocate the trial vector to have up to 1 million elements for now...
         allocate(trial_vector_space(0:NIfTot, 1000000))
@@ -39,17 +41,14 @@ contains
             call generate_sing_doub_determinants(called_from_trial)
         end if
 
+        call sort(trial_vector_space(0:NIfTot, 1:trial_vector_space_size), ilut_lt, ilut_gt)
+
         print *, "Calculating the Hamiltonian for the trial space..."
         call neci_flush(6)
         call calculate_sparse_hamiltonian(trial_vector_space_size, &
             trial_vector_space(0:NIfTot, 1:trial_vector_space_size))
         print *, "Hamiltonian calculated."
         call neci_flush(6)
-
-        call count_states_on_this_proc(num_states_on_proc, trial_vector_space_size, &
-            trial_vector_space)
-
-        call sort(trial_vector_space(0:NIfTot, 1:trial_vector_space_size), ilut_lt, ilut_gt)
 
         ! Find the states connected to the trial space.
         print *, "Generating the connected space..."
@@ -129,9 +128,6 @@ contains
         deallocate(davidson_eigenvector)
 
         call MPIBarrier(ierr)
-
-        print *, "Size of the trial space on this processor:", trial_vector_space_size
-        print *, "Size of the connected space on this processor:", connected_space_size
 
     end subroutine init_trial_wavefunction
 

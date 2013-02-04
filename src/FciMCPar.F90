@@ -99,7 +99,8 @@ MODULE FciMCParMod
     use sort_mod
     use DetBitops, only: EncodeBitDet, DetBitEQ, DetBitLT, FindExcitBitDet, &
                          FindBitExcitLevel, countbits, TestClosedShellDet, &
-                         FindSpatialBitExcitLevel, IsAllowedHPHF, count_open_orbs
+                         FindSpatialBitExcitLevel, IsAllowedHPHF, count_open_orbs, &
+                         ilut_gt
     use hash , only : DetermineDetNode                     
     use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask, get_csf_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
@@ -4144,7 +4145,8 @@ MODULE FciMCParMod
 
             ! Calculate the projected energy.
             if (any(AllSumNoatHF /= 0.0) .or. &
-                (proje_linear_comb .and. nproje_sum > 1)) then
+                (proje_linear_comb .and. nproje_sum > 1) .or. &
+                tTrialWavefunction) then
                 ProjectionE = (AllSumENum) / (all_sum_proje_denominator) 
 !                              ARR_RE_OR_CPLX(all_sum_proje_denominator)
                 proje_iter = (AllENumCyc) / (all_cyc_proje_denominator) 
@@ -4216,6 +4218,9 @@ MODULE FciMCParMod
             endif
         endif
         HFInd = 0            
+
+        min_trial_ind = 1
+        min_connected_ind = 1
 
     end subroutine
 
@@ -6649,13 +6654,57 @@ MODULE FciMCParMod
         integer :: DoubEx(2,2),DoubEx2(2,2),kDoub(3) ! For histogramming UEG doubles
         integer :: ExMat(2,2),FindSplitProjEBinG,FindSplitProjEBinK3
         logical :: tDoubParity,tDoubParity2,tSign ! As above
+        real(dp) :: current_contribution
+        integer :: comp
+        logical :: found
 
         ! Are we performing a linear sum over various determinants?
         ! TODO: If we use this, function pointer it.
 
         HOffDiag = 0
-        if (proje_linear_comb .and. nproje_sum > 1) then
-       if(proje_spatial) then
+
+        if (tTrialWavefunction) then
+
+            ! Search both the trial space and connected space to see if this state exists in either list.
+            ! First the trial space:
+            pos = binary_search_custom(trial_vector_space(:, min_trial_ind:trial_vector_space_size), &
+                ilut, NIfTot+1, ilut_gt)
+
+            if (pos > 0) then
+                ! This state is in the trial space. Add the contribution to the demoninator and update
+                ! min_trial_ind so that a shorter list is searched next time.
+                current_contribution = RealwSign(1)*trial_wavefunction(pos+min_trial_ind-1)
+                HFCyc = HFCyc + current_contribution
+
+                min_trial_ind = min_trial_ind + pos
+            else
+                ! The state is not in the trial space. Just update min_trial_ind accordingly.
+                min_trial_ind = min_trial_ind - pos - 1
+            end if
+
+            ! If pos > 0 then the state is in the trial space. A state cannot be in both the trial and connected
+            ! space, so, unless pos < 0, don't bother doing the following binary search.
+            if (pos < 0) then
+
+                pos = binary_search_custom(connected_space(:, min_connected_ind:connected_space_size), &
+                    ilut, NIfTot+1, ilut_gt)
+
+                if (pos > 0) then
+                    ! This state is in the connected space. Add the contribution to the numerator and update
+                    ! min_connected_ind.
+                    current_contribution = RealwSign(1)*connected_space_vector(pos+min_connected_ind-1)
+                    if (iter > NEquilSteps) SumENum = SumENum + current_contribution
+                    ENumCyc = ENumCyc + current_contribution
+                    ENumCycAbs = ENumCycAbs + abs(current_contribution)
+
+                    min_connected_ind = min_connected_ind + pos
+                else
+                    min_connected_ind = min_connected_ind - pos - 1
+                end if
+            end if
+
+        elseif (proje_linear_comb .and. nproje_sum > 1) then
+           if(proje_spatial) then
               spatial_ic = FindSpatialBitExcitLevel (ilut, proje_ref_iluts(:,1))
               if (spatial_ic <= 2) then
                  do i = 1, nproje_sum
@@ -6741,6 +6790,8 @@ MODULE FciMCParMod
 
         if(tSplitProjEHist.and.ExcitLevel_local == 2) then
 
+            call stop_all("here","here")
+
             !Calc excitation matrix
             !call GetBitExcitation(iLutRef,ilut,ExMat,tSign)
             ExMat(:,:)=0
@@ -6767,7 +6818,7 @@ MODULE FciMCParMod
             
             ENumCyc = ENumCyc + (HOffDiag * ARR_RE_OR_CPLX(RealwSign)) / dProbFin
             ENumCycAbs = ENumCycAbs + abs(HOffDiag * ARR_RE_OR_CPLX(RealwSign)) / dProbFin
-        else
+        elseif (.not. tTrialWavefunction) then
 
             ! Sum in energy contribution
             if (iter > NEquilSteps) &

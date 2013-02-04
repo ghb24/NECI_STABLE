@@ -422,6 +422,10 @@ contains
         lo = lbound(arr,2)
         hi = ubound(arr,2)
 
+        ! The search range
+        lo = lbound(arr,2)
+        hi = ubound(arr,2)
+
         ! Account for poor usage (i.e. array len == 0)
         if (hi < lo) then
             pos = -lo
@@ -476,7 +480,95 @@ contains
             endif
         endif
 
-    end function
+    end function binary_search
+
+    function binary_search_custom (arr, val, cf_len, custom_gt) &
+                                                     result(pos)
+        use bit_reps, only: NIfD
+        use constants, only: n_int
+        use DetBitOps, only: DetBitLt
+
+        interface
+            pure function custom_gt(a, b) result (ret)
+                use constants, only: n_int
+                logical :: ret
+                integer(kind=n_int), intent(in) :: a(:), b(:)
+            end function
+        end interface
+
+        integer(kind=n_int), intent(in) :: arr(:,:)
+        integer(kind=n_int), intent(in) :: val(:)
+        integer, intent(in), optional :: cf_len
+        integer :: data_lo, data_hi, val_lo, val_hi
+        integer :: pos
+
+        integer :: hi, lo
+
+        ! The search range
+        lo = lbound(arr,2)
+        hi = ubound(arr,2)
+
+        ! The search range
+        lo = lbound(arr,2)
+        hi = ubound(arr,2)
+
+        ! Account for poor usage (i.e. array len == 0)
+        if (hi < lo) then
+            pos = -lo
+            return
+        endif
+
+        ! Have we specified how much to look at?
+        data_lo = lbound(arr, 1)
+        val_lo = lbound(val, 1)
+        if (present(cf_len)) then
+            data_hi = data_lo + cf_len - 1
+            val_hi = val_lo + cf_len - 1
+        else
+            data_hi = ubound(arr, 1)
+            val_hi = ubound(val, 1)
+        endif
+
+        ! Narrow the search range down in steps.
+        do while (hi /= lo)
+            pos = int(real(hi + lo) / 2)
+
+            if (DetBitLT(arr(data_lo:data_hi,pos), val(val_lo:val_hi), &
+                    NIfD, .false.) == 0) then
+                exit
+            else if (custom_gt(val(val_lo:val_hi), arr(data_lo:data_hi,pos))) then
+                ! val is "greater" than arr(:len,pos).
+                ! The lowest position val can take is hence pos + 1 (i.e. if
+                ! val is greater than pos by smaller than pos + 1).
+                lo = pos + 1
+            else
+                ! arr(:,pos) is "greater" than val.
+                ! The highest position val can take is hence pos (i.e. if val is
+                ! smaller than pos but greater than pos - 1).  This is why
+                ! we differ slightly from a standard binary search (where lo
+                ! is set to be pos+1 and hi to be pos-1 accordingly), as
+                ! a standard binary search assumes that the element you are
+                ! searching for actually appears in the array being
+                ! searched...
+                hi = pos
+            endif
+        enddo
+
+        ! If we have narrowed down to one position, and it is not the item,
+        ! then return -pos to indicate that the item is not present, but that
+        ! this is the location it should be in.
+        if (hi == lo) then
+            if (DetBitLT(arr(data_lo:data_hi,hi), val(val_lo:val_hi), &
+                                    NIfD, .false.) == 0) then
+                pos = hi
+            else if (custom_gt(val(val_lo:val_hi), arr(data_lo:data_hi,hi))) then
+                pos = -hi - 1
+            else
+                pos = -hi
+            endif
+        endif
+
+    end function binary_search_custom
 
 !--- File utilities ---
 

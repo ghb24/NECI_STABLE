@@ -404,4 +404,9 @@ MODULE FciMCData
       ! the trial vector space.
       real(dp), allocatable, dimension(:) :: connected_space_vector
 
+      ! These indices specify the minimum index in the trial and connected spaces from which to search, when binary searching these
+      ! lists. This binary search is done when updating the contibutions to the energy estimate in FciMCPar.
+      integer :: min_trial_ind = 1
+      integer :: min_connected_ind = 1
+
 END MODULE FciMCData

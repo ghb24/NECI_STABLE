@@ -10,7 +10,7 @@ use FciMCData, only: hamiltonian, sparse_matrix_info, sparse_hamil, hamil_diag
 implicit none
 
 integer :: max_num_davidson_iters = 50
-real(dp) :: residual_norm_target = 0.0000001
+real(dp) :: residual_norm_target = 0.000000001
 
 integer :: hamil_type
 ! The value of hamil_type specifies what form the Hamiltonian is stored in.
@@ -78,6 +78,8 @@ real(dp) :: davidson_eigenvalue
         end do
 
         call end_davidson()
+
+        print *, "trial state:", davidson_eigenvector
 
     end subroutine perform_davidson
 
