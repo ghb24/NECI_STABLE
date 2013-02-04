@@ -305,11 +305,10 @@ MODULE FciMCParMod
                             end if
                         end if
                     end do
-
-                    ! Zero the accumulators
-                    bloom_sizes = 0
-                    bloom_count = 0
                 endif
+                ! Zero the accumulators
+                bloom_sizes = 0
+                bloom_count = 0
 
                 ! Calculate the a new value for the shift (amongst other
                 ! things). Generally, collate information from all processors,
