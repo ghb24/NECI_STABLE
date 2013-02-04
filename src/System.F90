@@ -281,7 +281,7 @@ MODULE System
       end select
       
       ! Now parse the rest of the system block.
-      system: do
+system: do
         call read_line(eof)
         if (eof) then
             call report("Incomplete input file",.true.)

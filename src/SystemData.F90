@@ -84,7 +84,7 @@ integer, allocatable, dimension(:) :: cas_not_bitmask
 ! When using tOptimisedCore, this specifies the minimum amplitude that a basis state should have in the ground state
 ! (of the deterministic space generated) in order to be kept in the next deterministic space. The first component
 ! refers to the first iteration, the second component to the second iteration...
-real, allocatable, dimension(:) :: determ_space_cutoff_amp
+real(dp), allocatable, dimension(:) :: determ_space_cutoff_amp
 ! When using tOptimisedCore, this specifies how many basis states (of the deterministic space generated) should be kept
 ! in the next deterministic space. The first component refers to the first iteration, the second component to the second
 ! iteration... i.e. if determ_space_cutoff_num(1) = 5 then in the first iteration, the 5 basis states with the largest
