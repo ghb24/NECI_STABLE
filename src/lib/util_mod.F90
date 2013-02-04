@@ -484,7 +484,7 @@ contains
 
     function binary_search_custom (arr, val, cf_len, custom_gt) &
                                                      result(pos)
-        use bit_reps, only: NIfD
+        !use bit_reps, only: NIfD
         use constants, only: n_int
         use DetBitOps, only: DetBitLt
 
@@ -534,7 +534,7 @@ contains
             pos = int(real(hi + lo) / 2)
 
             if (DetBitLT(arr(data_lo:data_hi,pos), val(val_lo:val_hi), &
-                    NIfD, .false.) == 0) then
+                    use_flags_opt = .false.) == 0) then
                 exit
             else if (custom_gt(val(val_lo:val_hi), arr(data_lo:data_hi,pos))) then
                 ! val is "greater" than arr(:len,pos).
@@ -559,7 +559,7 @@ contains
         ! this is the location it should be in.
         if (hi == lo) then
             if (DetBitLT(arr(data_lo:data_hi,hi), val(val_lo:val_hi), &
-                                    NIfD, .false.) == 0) then
+                    use_flags_opt = .false.) == 0) then
                 pos = hi
             else if (custom_gt(val(val_lo:val_hi), arr(data_lo:data_hi,hi))) then
                 pos = -hi - 1
