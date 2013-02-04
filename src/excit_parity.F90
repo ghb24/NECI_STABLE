@@ -58,7 +58,7 @@ contains
 
 #ifdef __DEBUG
         ! This is a useful (but O[N]) check to test the generated determinant.
-        call IsSymAllowedExcit(nI, nJ, 2, ex)
+        call IsSymAllowedExcit(nI, nJ, 1, ex)
 #endif
 
     end subroutine
