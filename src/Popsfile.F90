@@ -840,7 +840,8 @@ outer_map:      do i = 0, MappingNIfD
         INTEGER(KIND=n_int), ALLOCATABLE :: Parts(:,:)
         INTEGER(TagIntType) :: PartsTag=0
         integer :: nMaxDets, TempDet(0:NIfTot), TempFlags
-        integer :: iunit, iunit_2, Initiator_Count, write_count
+        integer :: iunit, iunit_2, Initiator_Count
+        integer(int64) :: write_count
         CHARACTER(len=*) , PARAMETER :: this_routine='WriteToPopsfileParOneArr'
         character(255) :: popsfile
         INTEGER, DIMENSION(lenof_sign) :: TempSign
@@ -1055,7 +1056,8 @@ outer_map:      do i = 0, MappingNIfD
 
         ! Write the popsfile header into the file specified.
 
-        integer, intent(in) :: iunit, num_walkers
+        integer, intent(in) :: iunit
+        integer(int64), intent(in) :: num_walkers
         integer :: pops_niftot, pops_nifflag, i
 
         ! If the popsfile uses flags, but we have combined the
@@ -1074,7 +1076,7 @@ outer_map:      do i = 0, MappingNIfD
             'PopHPHF=', tHPHF, ',PopLz=', tFixLz, ',PopLensign=', &
             lenof_sign, ',PopNEl=', NEl, ','
         write(iunit, '(a,i15,a,f18.12,a)') &
-            'PopTotwalk=', AllTotWalkers, ',PopSft=', DiagSft, ','
+            'PopTotwalk=', num_walkers, ',PopSft=', DiagSft, ','
         write(iunit, *) 'PopSumNoatHF=', AllSumNoatHF, ','
         write(iunit, *) 'PopSumENum=', AllSumENum, ','
         write(iunit, '(a,i16,a,i2,a,i2,a,i2,a)') &
