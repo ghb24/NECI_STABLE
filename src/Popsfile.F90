@@ -899,20 +899,31 @@ outer_map:      do i = 0, MappingNIfD
 
             ! Construct an output string to give feedback about what is 
             ! being done.
+            write(6,*)
+            write(6,'("*********************************")')
             write(out_tmp, '("Writing a ", i2, "-bit")') bits_n_int
             if (iPopsPartEvery /= 1) out_tmp = trim(out_tmp) // " reduced"
             out_tmp = trim(out_tmp) // " POPSFILE"
             if (tBinPops) out_tmp = trim(out_tmp) // "BIN"
             out_tmp = trim(out_tmp) // "..."
-            write(6, '(a)') out_tmp
+            write(6, '(a)') trim(adjustl(out_tmp))
 
             ! If we aren't outputting all of the walkers, indicate how many
             ! we are going to output.
-            if (iPopsPartEvery /= 1) then
-                write(num_tmp, '(i12)')
+            !if (iPopsPartEvery /= 1) then
+                write(num_tmp, '(i12)') AllTotWalkers
                 write(6, '("Writing a total of ",a," determinants.")') &
                     trim(adjustl(num_tmp))
+            !end if
+
+            ! If we are only outputting determinants with a certain weight
+            if (tBinPops .and. binarypops_min_weight /= 0) then
+                write(num_tmp, '(f12.3)') binarypops_min_weight
+                write(6, '("Only outputting determinants holding >= ",a,&
+                           &" walkers")') trim(adjustl(num_tmp))
             end if
+            write(6,'("*********************************")')
+            write(6,*)
 
             ! With a normal popsfile, the header is written at the start.
             ! Thus we need to do that now.
