@@ -168,7 +168,7 @@ MODULE FciMCParMod
         INTEGER(int64) :: MaxWalkers,MinWalkers
         real(dp) :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
         integer, dimension(lenof_sign) :: tmp_sgn
-        integer :: tmp_int(lenof_sign), i
+        integer :: tmp_int(lenof_sign), i, istart
         real(dp) :: grow_rate,EnergyDiff,Norm_2RDM
         TYPE(BasisFn) RefSym
         real(dp) :: mean_ProjE_re,mean_ProjE_im,mean_Shift
@@ -179,6 +179,10 @@ MODULE FciMCParMod
         real(dp) :: get_scalar
         include "common/molen"
 #endif
+
+        character(*), parameter :: this_routine = 'FciMCPar'
+        character(6), parameter :: excit_descriptor(0:2) = &
+                                        (/"IC0   ", "single", "double"/)
 
         if(tJustBlocking) then
             !Just reblock the current data, and do not perform an fcimc calculation
@@ -277,36 +281,34 @@ MODULE FciMCParMod
             
             if (mod(Iter, StepsSft) == 0) then
 
-                ! Has there been a particle bloom this update cycle?
-                if(iProcIndex.eq.Root) then
-                    if(tMaxBloom) then
-                        ! Only print out warnings if it is a larger bloom that has been experienced before.
-                        if(abs(iPartBloom) > iMaxBloom) then
-                            if(abs(iPartBloom) > InitiatorWalkNo) tPrintWarn=.true.
-                            iMaxBloom=abs(iPartBloom)
-                        else
-                            tPrintWarn=.false.
-                        endif
-                    else
-                        if(abs(iPartBloom) > InitiatorWalkNo) then
-                            tPrintWarn=.true.
-                        else
-                            tPrintWarn=.false.
-                        endif
-                    endif
-                    if (tPrintWarn) then
-                        write (iout, bloom_warn_string, advance='no') abs(iPartBloom)
-                        if (iPartBloom > 0) then
-                            write (iout, '("double excit.")')
-                        else
-                            write (iout, '("single excit.")')
-                        endif
-                        if (tUEG2) then
-                            call stop_all("FCIMCPar","Should never bloom in UEG2")
-                        endif
-                    endif
-                    iPartBloom = 0 ! Max number spawned from an excitation
+                ! Has there been a particle bloom this update cycle? Loop
+                ! through the spawned particle types, and output details.
+                ! If outputting only the biggest blooms to date, keep
+                ! track of that.
+                if (iProcIndex == Root) then
+                    istart = 1
+                   ! if (tSpinProjDets) istart = 0
+                    do i = istart, 2
+                        if (bloom_count(i) /= 0) then
+                            if (.not. tMaxBloom .or. &
+                                    bloom_sizes(i) > bloom_max(i)) then
+                                bloom_max(i) = bloom_sizes(i)
+
+                                write(iout, bloom_warn_string) &
+                                    trim(excit_descriptor(i)), bloom_sizes(i),&
+                                    bloom_count(i)
+
+                                if (tUEG2) &
+                                    call stop_all(this_routine, "Should never &
+                                                 &bloom in UEG2")
+
+                            end if
+                        end if
+                    end do
                 endif
+                ! Zero the accumulators
+                bloom_sizes = 0
+                bloom_count = 0
 
                 ! Calculate the a new value for the shift (amongst other
                 ! things). Generally, collate information from all processors,
@@ -1466,11 +1468,11 @@ MODULE FciMCParMod
 
         if (ic == 1) SpawnFromSing = SpawnFromSing + sum(abs(child))
 
-        if(iProcIndex.eq.Root) then
-            if (sum(abs(child)) > abs(iPartBloom)) then
-                iPartBloom = sign(sum(abs(child)), 2*ic - 3)
-            endif
-        endif
+        ! Count particle blooms, and their sources
+        if (sum(abs(child)) > INitiatorWalkNo) then
+            bloom_count(ic) = bloom_count(ic) + 1
+            bloom_sizes(ic) = max(real(sum(abs(child)), dp), bloom_sizes(ic))
+        end if
 
         ! Avoid compiler warnings
         iUnused = iLutI(0); iUnused = iLutJ(0); iUnused = walkExLevel
@@ -1892,17 +1894,17 @@ MODULE FciMCParMod
 
         ! What message should we display for a particle bloom?
         if (tAddToInitiator) then
-            bloom_warn_string = '("Bloom of more than n_add: &
-                                &A max of ", i8, &
-                                &" particles created from ")'
+            bloom_warn_string = '("Bloom of more than n_add on ", a, " excit: &
+                                &A max of ", f10.2, " particles created. ", &
+                                &i8, " blooms occurred.")'
         else
             ! Use this variable to store the bloom cutoff level.
             InitiatorWalkNo = 25
-            bloom_warn_string = '("Particle blooms of more than 25 in &
-                                &iteration ", i14, ": A max of ", i8, &
-                                &" particles created in one attempt from ")'
+            bloom_warn_string = '("Bloom of more than 25 on ", a, " excit: &
+                                &A max of ", f10.2, " particles created. ", &
+                                &i8, " blooms occurred.")'
         endif
-        iMaxBloom=0 !The largest bloom to date.
+        bloom_max = 0
 
         ! Perform the correct statistics on new child particles
         if (tHistHamil) then
@@ -3743,6 +3745,15 @@ MODULE FciMCParMod
                 call MPISum(ENumCycHistK3,AllENumCycHistK3)
             endif
         endif
+
+        ! Deal with particle blooms
+!        if (tSpinProjDets) then
+!            call MPISum(bloom_count(0:2), all_bloom_count(0:2))
+!            call MPIReduce_inplace(bloom_sizes(0:2), MPI_MAX)
+!        else
+            call MPISum(bloom_count(1:2), all_bloom_count(1:2))
+            call MPIReduce_inplace(bloom_sizes(1:2), MPI_MAX)
+!        end if
 
         ! real(dp) values
         call MPISum((/cyc_proje_denominator, sum_proje_denominator/),real_tmp)
