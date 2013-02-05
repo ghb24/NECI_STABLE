@@ -138,13 +138,6 @@ contains
         ! Calculate and store the deterministic Hamiltonian.
         call calculate_det_hamiltonian_normal()
 
-        print *, "Deterministic states:"
-        do i = 1, deterministic_proc_sizes(iProcIndex)
-            call decode_bit_det(nI, CurrentDets(:, i))
-            print *, CurrentDets(:,i)
-            call write_det(6, nI, .true.)
-        end do
-
     end subroutine init_semi_stochastic
 
     subroutine calculate_det_hamiltonian_normal()
