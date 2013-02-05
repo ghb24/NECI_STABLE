@@ -52,6 +52,10 @@ contains
         integer :: i, j, IC, ierr
         integer :: nI(nel)
 
+        write(6,*) ""
+        write(6,*) "Semi-stochastic initialisation:"
+        call neci_flush(6)
+
         ! Initialise the deterministic masks.
         deterministic_mask = 0
         determ_parent_mask = 0
@@ -70,6 +74,8 @@ contains
         ! The following subroutines call the enumerating subroutines to create all excitations
         ! and add these states to the main list, CurrentDets, on the correct processor. As
         ! they do this, they count the size of the deterministic space on each processor.
+        write(6,*) "Generating the deterministic space..."
+        call neci_flush(6)
         if (tStartCAS) then
             do i = 1, TotWalkers
                 call set_flag(CurrentDets(:, i), flag_deterministic)
@@ -136,7 +142,11 @@ contains
         call sort(CurrentDets(:,1:deterministic_proc_sizes(iProcIndex)), ilut_lt, ilut_gt)
 
         ! Calculate and store the deterministic Hamiltonian.
+        write(6,*) "Generating the Hamiltonian in the deterministic space..."
+        call neci_flush(6)
         call calculate_det_hamiltonian_normal()
+        write(6,*) "Deterministic Hamiltonian generated."
+        call neci_flush(6)
 
     end subroutine init_semi_stochastic
 

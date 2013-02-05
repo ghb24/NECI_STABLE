@@ -26,6 +26,9 @@ contains
         integer :: nI(nel)
         integer :: excit
 
+        write(6,*) ""
+        write (6,*) "Trial wavefunction initialisation:"
+
         ! Simply allocate the trial vector to have up to 1 million elements for now...
         allocate(trial_vector_space(0:NIfTot, 1000000))
         allocate(connected_space(0:NIfTot, 1000000))
