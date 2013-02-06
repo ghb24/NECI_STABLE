@@ -139,7 +139,7 @@ contains
         write(6,'(a38,1X,i8)') "Size of trial space on this processor:", trial_vector_space_size
         write(6,'(a30,1X,i8)') "Total size of connected space:", total_connected_space_size
         write(6,'(a42,1X,i8)') "Size of connected space on this processor:", connected_space_size
-        write(6,'(a37,1X,f12.8)') "Energy eigenvalue of the trial space:", trial_energy
+        write(6,'(a37,1X,f13.7)') "Energy eigenvalue of the trial space:", trial_energy
         write(6,'(a42)') "Trial wavefunction initialisation complete"
         call neci_flush(6)
 
