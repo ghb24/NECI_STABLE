@@ -36,13 +36,13 @@ module RPA_Mod
         implicit none
         integer :: ierr,i,j,m,n,ex(2,2),ex2(2,2),mi_ind,nj_ind
         integer :: StabilitySize,lWork,info,i_p,m_p,v,mp_ip_ind,ic
-        integer :: nJ(NEl),exflag,mu,id(2,2),a,i_ind,iunit,ia_ind,parity
+        integer :: nJ(NEl),exflag,mu,id(2,2),a,i_ind,iunit,ia_ind
         integer(n_int) :: iLutHF(0:NIfTot)
         real(dp), intent(out) :: Weight,Energy
         real(dp) :: Energy_stab,Temp_real,norm,Energy2,H0tmp,Fii
         real(dp) :: X_norm,Y_norm
         HElement_t :: HDiagTemp,hel,hel1,hel2
-        logical :: tAllExcitsFound
+        logical :: tAllExcitsFound,tParity
         real(dp), allocatable :: Stability(:,:),temp2(:,:),W2(:)
         real(dp), allocatable :: W(:),Work(:),S_half(:,:),temp(:,:)
         real(dp), allocatable :: X_stab(:,:),Y_stab(:,:),StabilityCopy(:,:)
@@ -74,14 +74,14 @@ module RPA_Mod
         HDiagTemp=GetH0Element3(FDet)
         Fii=real(HDiagTemp,dp)
         do while(.true.)
-            call GenExcitations3(FDet,iLutHF,nJ,exflag,Ex,parity,tAllExcitsFound,.false.)
+            call GenExcitations3(FDet,iLutHF,nJ,exflag,Ex,tParity,tAllExcitsFound,.false.)
             if(tAllExcitsFound) exit !All excits found
             if(Ex(1,2).eq.0) then
                 ic=1
             else
                 ic=2
             endif
-            hel=get_helement(FDet,nJ,ic,Ex,parity)
+            hel=get_helement(FDet,nJ,ic,Ex,tParity)
             H0tmp=getH0Element3(nJ)
             H0tmp=Fii-H0tmp
             Temp_real=Temp_real+(hel**2)/H0tmp
@@ -147,8 +147,8 @@ module RPA_Mod
                             B_mat(mi_ind,nj_ind) = real(hel1,dp)
                         else
                             !Full antisymmetrized integrals
-                            HEl1 = sltcnd_2(ex, 1)
-                            HEl2 = sltcnd_2(ex2, 1)
+                            HEl1 = sltcnd_2(ex,.false.)
+                            HEl2 = sltcnd_2(ex2,.false.)
                             A_mat(mi_ind,nj_ind) = real(HEl1,dp)           
                             B_mat(mi_ind,nj_ind) = real(HEl2,dp)           
                         endif

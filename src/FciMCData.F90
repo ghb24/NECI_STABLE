@@ -132,8 +132,8 @@ MODULE FciMCData
       ! The projected energy over the current update cycle.
       HElement_t :: ProjECyc
 
-      integer :: iPartBloom   ! The maximum number of children spawned from a
-                              ! single excitation. Used to calculate blooms.
+      real(dp) :: bloom_sizes(0:2), bloom_max(0:2)
+      integer :: bloom_count(0:2), all_bloom_count(0:2)
 
 !These are the global variables, calculated on the root processor, from the values above
       real(dp) :: AllGrowRate
@@ -297,7 +297,7 @@ MODULE FciMCData
       type(c_ptr) :: ptr_attempt_create
       type(c_ptr) :: ptr_get_spawn_helement
       type(c_ptr) :: ptr_new_child_stats
-      type(c_ptr) :: ptr_decode_child
+      type(c_ptr) :: ptr_encode_child
       type(c_ptr) :: ptr_attempt_die
       type(c_ptr) :: ptr_iter_data
       type(c_ptr) :: ptr_extract_bit_rep_avsign

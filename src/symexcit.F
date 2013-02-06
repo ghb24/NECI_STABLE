@@ -846,8 +846,8 @@ C.. And the doubles
          INTEGER ExcitMat(2,2)
          TYPE(Symmetry) SPP
          LOGICAL L1,L2
-         INTEGER ICC1,ICC2,ICC3,ICC4, parity
-         LOGICAL L1B,L1A,L2B,L2A
+         INTEGER ICC1,ICC2,ICC3,ICC4
+         LOGICAL L1B,L1A,L2B,L2A,TParity
 
          INTEGER ORBPAIRS(2,*)
          INTEGER ILUT(0:*)
@@ -911,7 +911,7 @@ C.. We've found a virtual into which we can excite our occupied orb.
 !Find the ordered excited determinant
                            ExcitMat(1,1)=I  !This is the position of the orbital to excite
                            ExcitMat(2,1)=ITOSL
-                           CALL FindExcitDet(ExcitMat,NK,1,Parity)
+                           CALL FindExcitDet(ExcitMat,NK,1,TParity)
 !                           NK(I)=ITOSL
 !                           CALL NECI_SORTI(NEL,NK)
                            ICOUNT=ICOUNT+1
@@ -995,7 +995,7 @@ C.. If both virtuals aren't the samem and neither are in NI, then allow
                               ENDIF
                            ENDDO
 C                           CALL WRITEDET(6,NK,NEL,.TRUE.)
-                           CALL FindExcitDet(ExcitMat,NK,2,Parity)
+                           CALL FindExcitDet(ExcitMat,NK,2,TParity)
 !                           CALL NECI_SORTI(NEL,NK)
                            ICOUNT=ICOUNT+1
                            ICLIST(ICOUNT)=2
@@ -1026,7 +1026,7 @@ C.. If neither virtuals are in NI, then allow
                               ENDIF
                            ENDDO
 C                           CALL WRITEDET(6,NK,NEL,.TRUE.)
-                           CALL FindExcitDet(ExcitMat,NK,2,Parity)
+                           CALL FindExcitDet(ExcitMat,NK,2,TParity)
 !                           CALL NECI_SORTI(NEL,NK)
                            ICOUNT=ICOUNT+1
                            ICLIST(ICOUNT)=2
@@ -1058,7 +1058,7 @@ C.. us the same excitation as previously), then allow
                            ENDDO
 C                           CALL WRITEDET(6,NK,NEL,.TRUE.)
 !                           CALL NECI_SORTI(NEL,NK)
-                           CALL FindExcitDet(ExcitMat,NK,2,Parity)
+                           CALL FindExcitDet(ExcitMat,NK,2,TParity)
                            ICOUNT=ICOUNT+1
                            ICLIST(ICOUNT)=2
 !                           CALL NECI_ICOPY(NEL,NK,1,LSTE(1,ICOUNT),1)
@@ -1089,7 +1089,7 @@ C.. If both virtuals aren't the samem and neither are in NI, then allow
                            ENDDO
 C                           CALL WRITEDET(6,NK,NEL,.TRUE.)
 !                           CALL NECI_SORTI(NEL,NK)
-                           CALL FindExcitDet(ExcitMat,NK,2,Parity)
+                           CALL FindExcitDet(ExcitMat,NK,2,TParity)
                            ICOUNT=ICOUNT+1
                            ICLIST(ICOUNT)=2
 !                           CALL NECI_ICOPY(NEL,NK,1,LSTE(1,ICOUNT),1)
@@ -1213,9 +1213,9 @@ C     &               NBASIS,NBASISMAX,CURGEN,IFRZ2)
       INTEGER IFROMSL,ITOSL
       TYPE(Symmetry) SPP
       LOGICAL L1,L2
-      INTEGER ICC(4), parity
+      INTEGER ICC(4)
 C.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
-      LOGICAL LS(2,2)
+      LOGICAL LS(2,2),TParity
 
       INTEGER ORBPAIRS(2,*)
       INTEGER ILUT(0:*)
@@ -1354,7 +1354,7 @@ C.. hoorah!  We've got an I in the det, and a K not in the det.  Create an excit
      &        WRITE(6,*) "[",NK(I),"->",ITOSL,"]"
                ExcitMat(1,1)=I
                ExcitMat(2,1)=ITOSL
-               CALL FindExcitDet(ExcitMat,NK,1,Parity)
+               CALL FindExcitDet(ExcitMat,NK,1,TParity)
 !               NK(I)=ITOSL
 !               CALL NECI_SORTI(NEL,NK)
                IC=1
@@ -1438,7 +1438,7 @@ C.. Now check for an excitation
                      ENDDO
 C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
 !                     CALL NECI_SORTI(NEL,NK)
-                     CALL FindExcitDet(ExcitMat,NK,2,Parity)
+                     CALL FindExcitDet(ExcitMat,NK,2,TParity)
                   ENDIF
                   IC=2
                   EXIT
@@ -1481,7 +1481,7 @@ C.. If neither virtuals are in NI, then allow
                         ENDIF
                      ENDDO
 C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
-                     CALL FindExcitDet(ExcitMat,NK,2,Parity)
+                     CALL FindExcitDet(ExcitMat,NK,2,TParity)
 !                     CALL NECI_SORTI(NEL,NK)
                    ENDIF
                    IC=2
@@ -1528,7 +1528,7 @@ C.. us the same excitation as previously), then allow
                      ENDDO
 C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
 !                     CALL NECI_SORTI(NEL,NK)
-                     CALL FindExcitDet(ExcitMat,NK,2,Parity)
+                     CALL FindExcitDet(ExcitMat,NK,2,TParity)
                    ENDIF
                    IC=2
                    EXIT
@@ -1573,7 +1573,7 @@ C.. If both virtuals aren't the samem and neither are in NI, then allow
                      ENDDO
 C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
 !                     CALL NECI_SORTI(NEL,NK)
-                     CALL FindExcitDet(ExcitMat,NK,2,Parity)
+                     CALL FindExcitDet(ExcitMat,NK,2,TParity)
                    ENDIF
                    IC=2
                    EXIT
@@ -1746,8 +1746,8 @@ C.. a double
          INTEGER ICC(4)
 
 
-         INTEGER IFROMSL,ITOSL, parity
-         LOGICAL L1,L2
+         INTEGER IFROMSL,ITOSL
+         LOGICAL L1,L2,TParity
 C.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
 
          INTEGER iC,ExcitMat(2,2)
@@ -1849,7 +1849,7 @@ C.. hoorah!  We've got an I in the det, and a K not in the det.  Create an excit
             ExcitMat(2,1)=ITOSL
 !            NK(I)=ITOSL
 !            CALL NECI_SORTI(NEL,NK)
-            CALL FindExcitDet(ExcitMat,NK,1,Parity)
+            CALL FindExcitDet(ExcitMat,NK,1,TParity)
             IC=1
          ENDIF
 C.. quit the do loop
@@ -2246,7 +2246,7 @@ C.. If both virtuals aren't the samem and neither are in NI, then allow
          INTEGER iFrom1,iFrom2
          INTEGER iTo1,iTo2,ExcitMat(2,2)
          INTEGER nEl,nI(nEl),nK(nEl)
-         LOGICAL tDebugPrint,Parity
+         LOGICAL tDebugPrint,TParity
          INTEGER J
          IF(tStoreAsExcitations) THEN
 !The excitation storage starts with -1.  The next number is the excitation level,L .  Next is the parity of the permutation required to lineup occupied->excited.  Then follows a list of the indexes of the L occupied orbitals within the HFDET, and then L virtual spinorbitals.
@@ -2280,7 +2280,7 @@ C.. If both virtuals aren't the samem and neither are in NI, then allow
             ENDDO
 C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
 !            CALL NECI_SORTI(NEL,NK)
-            CALL FindExcitDet(ExcitMat,NK,2,Parity)
+            CALL FindExcitDet(ExcitMat,NK,2,TParity)
          ENDIF
       End Subroutine SymGenExcitIt_MakeDouble
       

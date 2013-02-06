@@ -7,7 +7,7 @@
       SUBROUTINE SymGenRandExcitIt2(NI,NEL,EXCITTYPES,                  &
      &               CLASSES,                                           &
      &               SYMPRODIND,ILUT,ORBPAIRS,iTotal,ISEED,             &
-     &               NK,IC,PGEN,EXCITMAT,PARITY)      
+     &               NK,IC,PGEN,EXCITMAT,TPARITY)      
          use CalcData, only: ExcitFuncs
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          USE symexcit2
@@ -23,7 +23,8 @@
          INTEGER iSpn,iFrom,iTo
          INTEGER iC
          real(dp) pGen
-         INTEGER ILUT(0:*),ExcitMat(2,2), parity
+         INTEGER ILUT(0:*),ExcitMat(2,2)
+         LOGICAL TPARITY
          TYPE(SymClass) CLASSES(*)
          INTEGER ExcitTypes(5,*)
          INTEGER iExcit
@@ -67,13 +68,13 @@
                 Call SymGenRandExcitIt2_Sing_GF_NoW(iSeed,
      &                  nEl,iSpn,iFrom,I,nI)
                 Call SymGenRandExcitIt2_Sing_GT_NoW(iSeed,nI,
-     &                  nEl,I,iSpn,iTo,nK,ExcitMat,Parity)
+     &                  nEl,I,iSpn,iTo,nK,ExcitMat,TParity)
             ELSE
 !We have an excitation weighting - enumerate all excitations to get normalisation
                 Call SymGenRandExcitIt2_Sing_GF(iSeed,nI,nEl,
      &                  iSpn,iFrom,I)
                 Call SymGenRandExcitIt2_Single_GetTo(iSeed,nI,nEl,I,
-     &                  iSpn,iTo,nK,ExcitMat,Parity)
+     &                  iSpn,iTo,nK,ExcitMat,TParity)
             ENDIF
 !.. Indicate we're a single
             iC=1
@@ -96,14 +97,14 @@
 
                 Call SymGenRandExcitIt2_Doub_GT_NoW(iSeed,
      &               nI,ExcitTypes,iExcit,OrbPairs,SymProdInd,iSpn,
-     &               iFrom,iLUT,I,nK,ExcitMat,Parity)
+     &               iFrom,iLUT,I,nK,ExcitMat,TParity)
             ELSE
                 Call SymGenRandExcitIt2_Doub_GF(iSeed,ExcitTypes,
      &         iExcit,iSpn, iFrom, OrbPairs, SymProdInd, iTotal, I,pGen)
 
                Call SymGenRandExcitIt2_Double_GetTo(iSeed,nI,ExcitTypes,
      &          iExcit,OrbPairs, SymProdInd,iSpn,iFrom,iLUT, I,nK,pGen,
-     &          ExcitMat,Parity)
+     &          ExcitMat,TParity)
             ENDIF
 !.. Indicate we're a double.
             iC=2

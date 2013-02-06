@@ -11,7 +11,7 @@ MODULE CCMC
     use FciMCParMod, only: calculate_new_shift_wrapper, AttemptCreatePar, &
                            CheckAllowedTruncSpawn, SumEContrib
     use FciMCData, only: iter, tDebug, TotWalkers, NoatHF, Noatdoubs, &
-                         MaxIndex, TotParts, Walker_time, iPartBloom, &
+                         MaxIndex, TotParts, Walker_time, &
                          ValidSpawnedList, InitialSpawnedSlots, ilutHF, &
                          CurrentDets, iter_data_ccmc, fcimc_excit_gen_store, &
                          tTruncSpace, CurrentH, NoBorn, SpawnedParts, NoDied,&
@@ -36,6 +36,7 @@ MODULE CCMC
 #else
     integer, parameter :: iout = 6
 #endif
+    integer :: iPartBloom
    CONTAINS
 
 #include "macros.h"
@@ -120,7 +121,8 @@ MODULE CCMC
         INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot)
         real(dp) :: Prob,rat,HDiagCurr,r
         INTEGER :: iDie,WalkExcitLevel,Proc
-        INTEGER :: TotWalkersNew, Ex(2,2), parity
+        INTEGER :: TotWalkersNew,Ex(2,2)
+        LOGICAL :: tParity
         
 ! We select up to nEl excitors at a time and store them here
         INTEGER(KIND=n_int) :: SelectedExcitors(0:NIfTot,nEl)     
@@ -627,15 +629,11 @@ MODULE CCMC
 !This will only be a help if most determinants are multiply occupied.
 
                call gen_rand_excit (DetCurr, iLutnI, nJ, iLutnJ, exFlag, IC, &
-                                    Ex, parity, Prob, HElGen, &
+                                    Ex, tParity, Prob, HElGen, &
                                     fcimc_excit_gen_store)
                if(.not.IsNullDet(nJ)) then  !Check it hasn't given us a null determinant as it couldn't find one in a sensible time.
 !We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
-
-                  ! gen_rand_Excit doesn't ensure that nJ is ordered
-                  call decode_bit_det (nJ, ilutnJ)
-                  !IF(.not.tHPHF) CALL FindExcitBitDet(iLutnI,iLutnJ,IC,Ex)
-
+                  IF(.not.tHPHF) CALL FindExcitBitDet(iLutnI,iLutnJ,IC,Ex)
                   IFDEBUGTHEN(iDebug,5)
                       WRITE(iout,*) "  Random excited det level ",iC
                       WRITE(iout,"(A)",advance="no") "   "
@@ -652,13 +650,13 @@ MODULE CCMC
                   IF(TTruncSpace) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
                       IF(CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)) THEN
-                          Child=AttemptCreatePar(DetCurr,iLutnI,iSgn,nJ,iLutnJ,Prob,IC,Ex,parity)
+                          Child=AttemptCreatePar(DetCurr,iLutnI,iSgn,nJ,iLutnJ,Prob,IC,Ex,tParity)
                       ELSE
                           Child=0
                       ENDIF
                   ELSE
 !SD Space is not truncated - allow attempted spawn as usual
-                      Child=AttemptCreatePar(DetCurr,iLutnI,iSgn,nJ,iLutnJ,Prob,IC,Ex,parity)
+                      Child=AttemptCreatePar(DetCurr,iLutnI,iSgn,nJ,iLutnJ,Prob,IC,Ex,tParity)
                   ENDIF
 
                   IFDEBUGTHEN(iDebug,3)
@@ -1164,10 +1162,11 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
    INTEGER iDebug
 
    LOGICAL tFilled
-   integer :: parity
+   LOGICAL tParity
    LOGICAL tDone
 
     ! unused
+    integer(kind=n_int) :: iLutnJ(0:nifTot)
     type(excit_gen_store_type) :: store
     HElement_t :: HElGen
 
@@ -1186,18 +1185,17 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
           ! multiple times. There will be a time saving if we can store the 
           ! excitation generators temporarily.
          store%tFilled = S%iIndex.gt.1
-         call gen_rand_excit (S%C%DetCurr, S%C%iLutDetCurr, S%nJ, S%iLutnJ, &
-                              S%exFlag, S%iExcitLevel, S%ExcitMat, parity, &
+         call gen_rand_excit (S%C%DetCurr, S%C%iLutDetCurr, S%nJ, iLutnJ, &
+                              S%exFlag, S%iExcitLevel, S%ExcitMat, tParity, &
                               S%dProbSpawn, HElGen, store)
-
          GetNextSpawner=.true.
          S%dProbSpawn=S%dProbSpawn*S%nSpawnings
       endif
    ELSE
 !      WRITE(6,*) tDone,S%dProbSpawn
-!      write(6,*) S%ExcitMat,parity
+!      write(6,*) S%ExcitMat,tParity
 !      Write(6,*) "Getting Excitations"
-      CALL GenExcitations3(S%C%DetCurr,S%C%iLutDetCurr,S%nJ,S%exFlag,S%ExcitMat,parity,tDone,.false.)
+      CALL GenExcitations3(S%C%DetCurr,S%C%iLutDetCurr,S%nJ,S%exFlag,S%ExcitMat,tParity,tDone,.false.)
 !      call WriteDet(6,S%nJ,nEl,.false.)
 !      WRITE(6,*) tDone
       if(S%ExcitMat(1,2).eq.0) then
@@ -1206,7 +1204,7 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
          S%iExcitLevel=2
       endif 
 !      WRITE(iout,*) tDone,S%dProbSpawn
-!      write(iout,*) S%ExcitMat,parity
+!      write(iout,*) S%ExcitMat,tParity
       GetNextSpawner=.not.tDone
       if(tDone) S%nJ(1)=0
    ENDIF
@@ -1217,14 +1215,7 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
 !We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
       S%bValid=.true.
       IFDEBUG(iDebug,5) WRITE(iout,*) " GetNextSpawner",S%iIndex
-
-      ! gen_rand_Excit doesn't ensure that nJ is ordered
-      if (.not. S%tFull) then
-          call decode_bit_det (S%nJ, S%ilutnJ)
-      else
-          CALL FindExcitBitDet(S%C%iLutDetCurr,S%iLutnJ,S%iExcitLevel,S%ExcitMat)
-      end if
-
+      CALL FindExcitBitDet(S%C%iLutDetCurr,S%iLutnJ,S%iExcitLevel,S%ExcitMat)
       IFDEBUG(iDebug,5) then
           WRITE(iout,*) "  Random excited det level ",S%iExcitLevel
           write(iout,"(A)",advance="no") "   "
@@ -1239,14 +1230,14 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
           IF(CheckAllowedTruncSpawn(S%C%iExcitLevel,S%nJ,S%iLutnJ,S%iExcitLevel)) THEN
             S%HIJ = get_helement (S%C%DetCurr, S%nJ, S%iExcitLevel, &
-                                  S%ExcitMat, parity)
+                                  S%ExcitMat, tParity)
           ELSE
             S%HIJ=(0)
           ENDIF
       ELSE
 !SD Space is not truncated - allow attempted spawn as usual
             S%HIJ = get_helement (S%C%DetCurr, S%nJ, S%iExcitLevel, &
-                                        S%ExcitMat, parity)
+                                        S%ExcitMat, tParity)
       ENDIF
    ENDIF
 END FUNCTION GetNextSpawner
@@ -1788,7 +1779,7 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
    iSpawnAmp=attempt_create_normal(hphf_spawn_sign,  & !this version of the get_spawn_helement just uses the passed-in version
                               C%DetCurr,C%iLutDetCurr, &
                               C%iSgn,S%nJ,S%iLutnJ,prob,S%HIJ, &
-                              S%iExcitLevel,S%ExcitMat, 1, & !.false. indicates we've dealt with parit
+                              S%iExcitLevel,S%ExcitMat,.false., & !.false. indicates we've dealt with parit
                               S%iExcitLevel,part_type,0.0_dp,RDMBias) 
 !   Here we convert nJ from a det back to an excitor.
    IC = FindBitExcitLevel(iLutHF, S%iLutnJ(:), nEl)

@@ -350,7 +350,7 @@ contains
     end function
     
     function get_spawn_helement_spin_proj (nI, nJ, ilutI, ilutJ, ic, ex, &
-                                         parity, HElGen) result (hel)
+                                         tParity, HElGen) result (hel)
 
         ! Calculate ( - \delta_\gamma \sum_Y <J|Y><Y|I> ) / \delta_\tau
         !
@@ -360,12 +360,14 @@ contains
 
         integer, intent(in) :: nI(nel), nJ(nel)
         integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
-        integer, intent(in) :: ic, ex(2,2), parity
+        integer, intent(in) :: ic, ex(2,2)
+        logical, intent(in) :: tParity
         HElement_t, intent(in) :: HElGen
         HElement_t :: hel, tmp
         
         integer :: iUnused
         integer(n_int) :: iUnused2
+        logical :: lUnused
         integer, pointer :: dorder_i(:), dorder_j(:)
 #ifdef __DEBUG
         character(*), parameter :: this_routine = 'get_spawn_helement_spin_proj'
@@ -390,13 +392,13 @@ contains
         endif
 
         ! Avoid warnings
-        iUnused = parity; iUnused = IC; iUnused = ex(1,1)
+        lUnused = tParity; iUnused = IC; iUnused = ex(1,1)
         iUnused2 = iLutI(0); iUnused2 = iLutJ(0)
 
     end function get_spawn_helement_spin_proj
 
     subroutine generate_excit_spin_proj (nI, iLutI, nJ, iLutJ, exFlag, IC, &
-                                         ex, parity, pGen, HElGen, store)
+                                         ex, tParity, pGen, HElGen, store)
 
         ! This returns an excitation of the source determiant (iLutI).
         !
@@ -411,8 +413,9 @@ contains
         integer, intent(in) :: exFlag
         integer, intent(out) :: nJ(nel) 
         integer(kind=n_int), intent(out) :: iLutJ(0:niftot)
-        integer, intent(out) :: ic, ex(2,2), parity
+        integer, intent(out) :: ic, ex(2,2)
         real(dp), intent(out) :: pGen
+        logical, intent(out) :: tParity
         HElement_t, intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
 
@@ -533,7 +536,7 @@ contains
         endif
 
         ! Protect against compiler warnings
-        ex(1,1) = ex(1,1); IC = IC; iUnused = exFlag; parity = parity
+        ex(1,1) = ex(1,1); IC = IC; iUnused = exFlag; tParity = tParity
         HelGen = HelGen
 
     end subroutine generate_excit_spin_proj
@@ -590,15 +593,16 @@ contains
 
 
     subroutine generate_excit_hamil_proj (nI, iLutI, nJ, iLutJ, exFlag, IC, &
-                                         ex, parity, pGen, HElGen, store)
+                                         ex, tParity, pGen, HElGen, store)
 
         integer, intent(in) :: nI(nel)
         integer(kind=n_int), intent(in) :: iLutI(0:niftot)
         integer, intent(in) :: exFlag
         integer, intent(out) :: nJ(nel) 
         integer(kind=n_int), intent(out) :: iLutJ(0:niftot)
-        integer, intent(out) :: ic, ex(2,2), parity
+        integer, intent(out) :: ic, ex(2,2)
         real(dp), intent(out) :: pGen
+        logical, intent(out) :: tParity
         HElement_t, intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
 
@@ -612,7 +616,7 @@ contains
         ex(:,:)=0
         pGen=0.0_dp
         HElGen=0.0_dp
-        parity=1
+        tParity=.true.
 
         ! Unpaired electron/Ms properties.
         !nopen = count_open_orbs (ilutI)

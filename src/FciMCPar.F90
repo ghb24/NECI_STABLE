@@ -18,8 +18,7 @@ MODULE FciMCParMod
                         test_flag, set_flag, extract_flags, &
                         flag_is_initiator, clear_all_flags,&
                         extract_sign, nOffSgn, flag_make_initiator, &
-                        flag_parent_initiator, encode_sign, &
-                        decode_bit_det_chunks
+                        flag_parent_initiator, encode_sign
     use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
                         OccCASorbs, VirtCASorbs, tFindGroundDet, NEquilSteps,&
                         tReadPops, tRegenDiagHEls, iFullSpaceIter, MaxNoAtHF,&
@@ -135,6 +134,7 @@ MODULE FciMCParMod
 
     use gndts_mod, only: gndts
     use sort_mod
+    use get_excit, only: make_double
 
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
@@ -168,7 +168,7 @@ MODULE FciMCParMod
         INTEGER(int64) :: MaxWalkers,MinWalkers
         real(dp) :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
         integer, dimension(lenof_sign) :: tmp_sgn
-        integer :: tmp_int(lenof_sign), i
+        integer :: tmp_int(lenof_sign), i, istart
         real(dp) :: grow_rate,EnergyDiff,Norm_2RDM
         TYPE(BasisFn) RefSym
         real(dp) :: mean_ProjE_re,mean_ProjE_im,mean_Shift
@@ -179,6 +179,10 @@ MODULE FciMCParMod
         real(dp) :: get_scalar
         include "common/molen"
 #endif
+
+        character(*), parameter :: this_routine = 'FciMCPar'
+        character(6), parameter :: excit_descriptor(0:2) = &
+                                        (/"IC0   ", "single", "double"/)
 
         if(tJustBlocking) then
             !Just reblock the current data, and do not perform an fcimc calculation
@@ -230,7 +234,6 @@ MODULE FciMCParMod
 
         do while (Iter <= NMCyc .or. NMCyc == -1)
 !Main iteration loop...
-            IFDEBUG(FCIMCDebug, 2) write(6,*) 'Iter', iter
 !            WRITE(iout,*) 'Iter',Iter
 
             if(iProcIndex.eq.root) s_start=neci_etime(tstart)
@@ -245,7 +248,7 @@ MODULE FciMCParMod
                                            ptr_excit_generator, &
                                            ptr_attempt_create, &
                                            ptr_get_spawn_helement, &
-                                           ptr_decode_child, &
+                                           ptr_encode_child, &
                                            ptr_new_child_stats, &
                                            ptr_attempt_die, &
                                            ptr_iter_data, &
@@ -262,7 +265,7 @@ MODULE FciMCParMod
                     call PerformFciMCycPar (generate_excit_spin_proj, &
                                            attempt_create_normal, &
                                            get_spawn_helement_spin_proj, &
-                                           null_decode_child, &
+                                           null_encode_child, &
                                            new_child_stats_normal, &
                                            attempt_die_spin_proj, &
                                            iter_data_spin_proj, &
@@ -278,36 +281,34 @@ MODULE FciMCParMod
             
             if (mod(Iter, StepsSft) == 0) then
 
-                ! Has there been a particle bloom this update cycle?
-                if(iProcIndex.eq.Root) then
-                    if(tMaxBloom) then
-                        ! Only print out warnings if it is a larger bloom that has been experienced before.
-                        if(abs(iPartBloom) > iMaxBloom) then
-                            if(abs(iPartBloom) > InitiatorWalkNo) tPrintWarn=.true.
-                            iMaxBloom=abs(iPartBloom)
-                        else
-                            tPrintWarn=.false.
-                        endif
-                    else
-                        if(abs(iPartBloom) > InitiatorWalkNo) then
-                            tPrintWarn=.true.
-                        else
-                            tPrintWarn=.false.
-                        endif
-                    endif
-                    if (tPrintWarn) then
-                        write (iout, bloom_warn_string, advance='no') abs(iPartBloom)
-                        if (iPartBloom > 0) then
-                            write (iout, '("double excit.")')
-                        else
-                            write (iout, '("single excit.")')
-                        endif
-                        if (tUEG2) then
-                            call stop_all("FCIMCPar","Should never bloom in UEG2")
-                        endif
-                    endif
-                    iPartBloom = 0 ! Max number spawned from an excitation
+                ! Has there been a particle bloom this update cycle? Loop
+                ! through the spawned particle types, and output details.
+                ! If outputting only the biggest blooms to date, keep
+                ! track of that.
+                if (iProcIndex == Root) then
+                    istart = 1
+                   ! if (tSpinProjDets) istart = 0
+                    do i = istart, 2
+                        if (bloom_count(i) /= 0) then
+                            if (.not. tMaxBloom .or. &
+                                    bloom_sizes(i) > bloom_max(i)) then
+                                bloom_max(i) = bloom_sizes(i)
+
+                                write(iout, bloom_warn_string) &
+                                    trim(excit_descriptor(i)), bloom_sizes(i),&
+                                    bloom_count(i)
+
+                                if (tUEG2) &
+                                    call stop_all(this_routine, "Should never &
+                                                 &bloom in UEG2")
+
+                            end if
+                        end if
+                    end do
                 endif
+                ! Zero the accumulators
+                bloom_sizes = 0
+                bloom_count = 0
 
                 ! Calculate the a new value for the shift (amongst other
                 ! things). Generally, collate information from all processors,
@@ -619,7 +620,7 @@ MODULE FciMCParMod
         use iso_c_hack
         implicit none
         interface
-            subroutine gen (nI, iLutI, nJ, iLutJ, exFlag, IC, ex, parity, &
+            subroutine gen (nI, iLutI, nJ, iLutJ, exFlag, IC, ex, tParity, &
                             pGen, HEl, store)
 
                 use SystemData, only: nel
@@ -636,7 +637,7 @@ MODULE FciMCParMod
                 integer(kind=n_int), intent(out) :: iLutJ(0:niftot)
                 integer, intent(out) :: ic, ex(2,2)
                 real(dp), intent(out) :: pGen
-                integer, intent(out) :: parity
+                logical, intent(out) :: tParity
                 HElement_t, intent(out) :: HEl
                 type(excit_gen_store_type), intent(inout), target :: store
             end subroutine
@@ -650,7 +651,7 @@ MODULE FciMCParMod
         implicit none
         interface
             function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
-                                     nJ, iLutJ, prob, HElGen, ic, ex, par, exLevel, &
+                                     nJ, iLutJ, prob, HElGen, ic, ex, tPar, exLevel, &
                                      part_type, AvSignCurr, RDMBiasFacCurr) result(child)
                 use SystemData, only: nel
                 use bit_reps, only: niftot
@@ -661,7 +662,7 @@ MODULE FciMCParMod
                 integer(kind=n_int), intent(inout) :: iLutJ(0:nIfTot)
                 integer, intent(in) :: ic, ex(2,2), exLevel
                 integer, dimension(lenof_sign), intent(in) :: wSign
-                integer, intent(in) :: par
+                logical, intent(in) :: tPar
                 real(dp), intent(inout) :: prob
                 real(dp) , intent(in) :: AvSignCurr
                 real(dp) , intent(out) :: RDMBiasFacCurr
@@ -670,7 +671,7 @@ MODULE FciMCParMod
 
                 interface
                     function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
-                                                 ex, parity, HElGen) &
+                                                 ex, tParity, HElGen) &
                                                  result (hel)
                         use SystemData, only: nel
                         use bit_reps, only: niftot
@@ -679,7 +680,7 @@ MODULE FciMCParMod
                         integer, intent(in) :: nI(nel), nJ(nel)
                         integer(kind=n_int), intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
                         integer, intent(in) :: ic, ex(2,2)
-                        integer, intent(in) :: parity
+                        logical, intent(in) :: tParity
                         HElement_t, intent(in) :: HElGen
                         HElement_t :: hel
                     end function
@@ -695,7 +696,7 @@ MODULE FciMCParMod
         implicit none
         interface
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
-                                         ex, parity, HElGen) result (hel)
+                                         ex, tParity, HElGen) result (hel)
                 use SystemData, only: nel
                 use bit_reps, only: niftot
                 use constants, only: n_int,dp
@@ -703,7 +704,7 @@ MODULE FciMCParMod
                 integer, intent(in) :: nI(nel), nJ(nel)
                 integer(kind=n_int), intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
                 integer, intent(in) :: ic, ex(2,2)
-                integer, intent(in) :: Parity
+                logical, intent(in) :: tParity
                 HElement_t, intent(in) :: HElGen
                 HElement_t :: hel
             end function
@@ -712,35 +713,38 @@ MODULE FciMCParMod
         call assign_proc (ptr_get_spawn_helement, get_spawn_helement)
     end subroutine
 
-    subroutine set_decode_child (decode_child)
+    subroutine set_encode_child (encode_child)
         use iso_c_hack
         implicit none
         interface
-            subroutine decode_child (nI, ilut)
+            subroutine encode_child (ilutI, ilutJ, ic, ex)
                 use SystemData, only: nel
                 use bit_reps, only: niftot
                 use constants, only: n_int
                 implicit none
-                integer, intent(out) :: nI(nel)
-                integer(n_int), intent(in) :: ilut(0:NIftot)
+                integer(kind=n_int), intent(in) :: iLutI(0:nifTot)
+                integer, intent(in) :: ic, ex(2,2)
+                integer(kind=n_int), intent(inout) :: iLutJ(0:nIfTot)
             end subroutine
         end interface
     
-        call assign_proc (ptr_decode_child, decode_child)
+        call assign_proc (ptr_encode_child, encode_child)
     end subroutine
 
-    subroutine null_decode_child (nI, ilut)
+    subroutine null_encode_child (ilutI, ilutJ, ic, ex)
         use SystemData, only: nel
         use bit_reps, only: niftot
         use constants, only: n_int
         implicit none
-        integer, intent(out) :: nI(nel)
-        integer(n_int), intent(in) :: ilut(0:NIftot)
+        integer(kind=n_int), intent(in) :: ilutI(0:niftot)
+        integer, intent(in) :: ic, ex(2,2)
+        integer(kind=n_int), intent(inout) :: ilutj(0:niftot)
 
         ! Avoid compiler warnings
-        integer(n_int) :: iUnused
-        nI(1) = nI(1)
-        iUnused = ilut(0)
+        integer :: iUnused
+        integer(n_int) :: iUnused2
+        iLutJ(0) = iLutJ(0); iUnused = IC; iUnused = ex(2,2)
+        iUnused2 = iLutI(0)
     end subroutine
 
     subroutine set_new_child_stats (new_child_stats)
@@ -845,7 +849,7 @@ MODULE FciMCParMod
     ! Note: This should only be called indirectly:
     !       call fn_dispatcher_5 (PerformFCIMCycPar, ptr_...)
     subroutine PerformFCIMCycPar(generate_excitation, attempt_create, &
-                                 get_spawn_helement, decode_child, &
+                                 get_spawn_helement, encode_child, &
                                  new_child_stats, attempt_die, &
                                  iter_data, extract_bit_rep_avsign, &
                                  fill_rdm_diag_currdet)
@@ -863,7 +867,7 @@ MODULE FciMCParMod
         ! **********************************************************
         interface
             subroutine generate_excitation (nI, iLutI, nJ, iLutJ, &
-                             exFlag, IC, ex, parity, pGen, HEl, store)
+                             exFlag, IC, ex, tParity, pGen, HEl, store)
                 use SystemData, only: nel
                 use bit_reps, only: niftot
                 use GenRandSymExcitNUMod, only: scratchsize
@@ -877,12 +881,12 @@ MODULE FciMCParMod
                 integer(kind=n_int), intent(out) :: iLutJ(0:niftot)
                 integer, intent(out) :: ic, ex(2,2)
                 real(dp), intent(out) :: pGen
-                integer, intent(out) :: parity
+                logical, intent(out) :: tParity
                 HElement_t, intent(out) :: HEl
                 type(excit_gen_store_type), intent(inout), target :: store
             end subroutine
             function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
-                                     nJ, iLutJ, prob, HElGen, ic, ex, par, exLevel, &
+                                     nJ, iLutJ, prob, HElGen, ic, ex, tPar, exLevel, &
                                      part_type, AvSignCurr, RDMBiasFacCurr) result(child)
                 use systemdata, only: nel
                 use bit_reps, only: niftot
@@ -893,7 +897,7 @@ MODULE FciMCParMod
                 integer(kind=n_int), intent(inout) :: iLutJ(0:nIfTot)
                 integer, intent(in) :: ic, ex(2,2), exLevel
                 integer, dimension(lenof_sign), intent(in) :: wSign
-                integer, intent(in) :: par
+                logical, intent(in) :: tPar
                 real(dp), intent(inout) :: prob
                 real(dp) , intent(in) :: AvSignCurr
                 real(dp) , intent(out) :: RDMBiasFacCurr
@@ -902,7 +906,7 @@ MODULE FciMCParMod
 
                 interface
                     function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
-                                                 ex, parity, HElGen) &
+                                                 ex, tParity, HElGen) &
                                                  result (hel)
                         use systemdata, only: nel
                         use bit_reps, only: niftot
@@ -911,14 +915,14 @@ MODULE FciMCParMod
                         integer, intent(in) :: nI(nel), nJ(nel)
                         integer(kind=n_int), intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
                         integer, intent(in) :: ic, ex(2,2)
-                        integer, intent(in) :: parity
+                        logical, intent(in) :: tParity
                         HElement_t, intent(in) :: HElGen
                         HElement_t :: hel
                     end function
                 end interface
             end function
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
-                                         ex, parity, HElGen) &
+                                         ex, tParity, HElGen) &
                                          result (hel)
                 use systemdata, only: nel
                 use bit_reps, only: niftot
@@ -927,17 +931,18 @@ MODULE FciMCParMod
                 integer, intent(in) :: nI(nel), nJ(nel)
                 integer(kind=n_int), intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
                 integer, intent(in) :: ic, ex(2,2)
-                integer, intent(in) :: Parity
+                logical, intent(in) :: tParity
                 HElement_t, intent(in) :: HElGen
                 HElement_t :: hel
             end function
-            subroutine decode_child (nI, ilut)
+            subroutine encode_child (ilutI, ilutJ, ic, ex)
                 use systemdata, only: nel
                 use bit_reps, only: niftot
                 use constants, only: n_int
                 implicit none
-                integer, intent(out) :: nI(nel)
-                integer(n_int), intent(in) :: ilut(0:NIfTot)
+                integer(kind=n_int), intent(in) :: ilutI(0:niftot)
+                integer, intent(in) :: ic, ex(2,2)
+                integer(kind=n_int), intent(inout) :: iLutJ(0:nIfTot)
             end subroutine
             subroutine new_child_stats (iter_data, iLutI, nJ, iLutJ, ic, &
                                         walkExLevel, child, parent_flags, &
@@ -1002,10 +1007,9 @@ MODULE FciMCParMod
         integer :: DetCurr(nel), nJ(nel), FlagsCurr, parent_flags
         integer, dimension(lenof_sign) :: SignCurr, child
         integer(kind=n_int) :: iLutnJ(0:niftot)
-        integer :: IC, walkExcitLevel, walkExcitLevel_toHF, ex(2,2)
-        integer :: TotWalkersNew, part_type, parity
+        integer :: IC, walkExcitLevel, walkExcitLevel_toHF, ex(2,2), TotWalkersNew, part_type
         integer(int64) :: tot_parts_tmp(lenof_sign)
-        logical :: tSuccess, tFill_RDM
+        logical :: tParity, tSuccess, tFill_RDM
         real(dp) :: prob, HDiagCurr, TempTotParts, Di_Sign_Temp
         real(dp) :: AvSignCurr, IterRDMStartCurr, RDMBiasFacCurr
         HElement_t :: HDiagTemp,HElGen
@@ -1274,7 +1278,7 @@ MODULE FciMCParMod
 
                     ! Generate a (random) excitation
                     call generate_excitation (DetCurr, CurrentDets(:,j), nJ, &
-                                   ilutnJ, exFlag, IC, ex, parity, prob, &
+                                   ilutnJ, exFlag, IC, ex, tParity, prob, &
                                    HElGen, fcimc_excit_gen_store)
 
                     ! If a valid excitation, see if we should spawn children.
@@ -1282,7 +1286,7 @@ MODULE FciMCParMod
                         child = attempt_create (get_spawn_helement, DetCurr, &
                                             CurrentDets(:,j), SignCurr, &
                                             nJ,iLutnJ, Prob, HElGen, IC, ex, &
-                                            parity, walkExcitLevel,part_type, &
+                                            tParity, walkExcitLevel,part_type, &
                                             AvSignCurr,RDMBiasFacCurr)     
                                             ! Note these last two, AvSignCurr and 
                                             ! RDMBiasFacCurr are not used unless we're 
@@ -1296,7 +1300,7 @@ MODULE FciMCParMod
                         ! We know we want to create a particle of this type.
                         ! Encode the bit representation if it isn't already.
 
-                        call decode_child (nJ, ilutnJ)
+                        call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
 
                         call new_child_stats (iter_data, CurrentDets(:,j), &
                                               nJ, iLutnJ, ic, walkExcitLevel,&
@@ -1464,11 +1468,11 @@ MODULE FciMCParMod
 
         if (ic == 1) SpawnFromSing = SpawnFromSing + sum(abs(child))
 
-        if(iProcIndex.eq.Root) then
-            if (sum(abs(child)) > abs(iPartBloom)) then
-                iPartBloom = sign(sum(abs(child)), 2*ic - 3)
-            endif
-        endif
+        ! Count particle blooms, and their sources
+        if (sum(abs(child)) > INitiatorWalkNo) then
+            bloom_count(ic) = bloom_count(ic) + 1
+            bloom_sizes(ic) = max(real(sum(abs(child)), dp), bloom_sizes(ic))
+        end if
 
         ! Avoid compiler warnings
         iUnused = iLutI(0); iUnused = iLutJ(0); iUnused = walkExLevel
@@ -1498,6 +1502,7 @@ MODULE FciMCParMod
         logical :: parent_init
 
         proc = DetermineDetNode(nJ,0)    ! 0 -> nNodes-1)
+
         ! We need to include any flags set both from the parent and from the
         ! spawning steps. No we don't! - ghb
         ! This is highly highly yucky and needs cleaning up.
@@ -1882,24 +1887,24 @@ MODULE FciMCParMod
 
         ! Once we have generated the children, do we need to encode them?
         if (.not. (tCSF .or. tHPHF .or. tMomInv)) then
-            call set_decode_child (decode_bit_det_chunks)
+            call set_encode_child (FindExcitBitDet)
         else
-            call set_decode_child (null_decode_child)
+            call set_encode_child (null_encode_child)
         endif
 
         ! What message should we display for a particle bloom?
         if (tAddToInitiator) then
-            bloom_warn_string = '("Bloom of more than n_add: &
-                                &A max of ", i8, &
-                                &" particles created from ")'
+            bloom_warn_string = '("Bloom of more than n_add on ", a, " excit: &
+                                &A max of ", f10.2, " particles created. ", &
+                                &i8, " blooms occurred.")'
         else
             ! Use this variable to store the bloom cutoff level.
             InitiatorWalkNo = 25
-            bloom_warn_string = '("Particle blooms of more than 25 in &
-                                &iteration ", i14, ": A max of ", i8, &
-                                &" particles created in one attempt from ")'
+            bloom_warn_string = '("Bloom of more than 25 on ", a, " excit: &
+                                &A max of ", f10.2, " particles created. ", &
+                                &i8, " blooms occurred.")'
         endif
-        iMaxBloom=0 !The largest bloom to date.
+        bloom_max = 0
 
         ! Perform the correct statistics on new child particles
         if (tHistHamil) then
@@ -1970,14 +1975,14 @@ MODULE FciMCParMod
         
     function attempt_create_trunc_spawn (get_spawn_helement, DetCurr,&
                                          iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, &
-                                         ic, ex, parity, walkExcitLevel, part_type, &
+                                         ic, ex, tparity, walkExcitLevel, part_type, &
                                          AvSignCurr, RDMBiasFacCurr) result(child)
         integer, intent(in) :: DetCurr(nel), nJ(nel), part_type 
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
         integer, intent(in) :: ic, ex(2,2), walkExcitLevel
         integer, dimension(lenof_sign), intent(in) :: wSign
-        integer, intent(in) :: parity
+        logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
         real(dp) , intent(in) :: AvSignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
@@ -1986,7 +1991,7 @@ MODULE FciMCParMod
 
         interface
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
-                                         parity, HElGen) result (hel)
+                                         tParity, HElGen) result (hel)
                 use SystemData, only: nel
                 use bit_reps, only: niftot
                 use constants, only: dp,n_int
@@ -1994,7 +1999,7 @@ MODULE FciMCParMod
                 integer, intent(in) :: nI(nel), nJ(nel)
                 integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
                 integer, intent(in) :: ic, ex(2,2)
-                integer, intent(in) :: parity
+                logical, intent(in) :: tParity
                 HElement_t :: hel
                 HElement_t , intent(in) :: HElGen 
             end function
@@ -2003,14 +2008,14 @@ MODULE FciMCParMod
         if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
             child = attempt_create_normal (get_spawn_helement, DetCurr, &
                                iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
-                               parity, walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr)
+                               tParity, walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr)
         else
             child = 0
         endif
     end function
 
 !Decide whether to spawn a particle at nJ from DetCurr. (bit strings iLutnJ and iLutCurr respectively).  
-!  ic and ex specify the excitation of nJ from DetCurr, along with the sign change parity.
+!  ic and ex specify the excitation of nJ from DetCurr, along with the sign change tParity.
 !  part_type:           Is the parent real (1) or imaginary (2)
 !  wSign:               wSign gives the sign of the particle we are trying to spawn from
 !                          if part_type is 1, then it will only use wsign(1)
@@ -2025,7 +2030,7 @@ MODULE FciMCParMod
 !  child:      A lenof_sign array containing the particles spawned.
     function att_create_trunc_spawn_enc (get_spawn_helement, DetCurr,&
                                          iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, &
-                                         ic, ex, parity, walkExcitLevel, part_type, &
+                                         ic, ex, tparity, walkExcitLevel, part_type, &
                                          AvSignCurr,RDMBiasFacCurr) result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel), part_type 
@@ -2033,7 +2038,7 @@ MODULE FciMCParMod
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
         integer, intent(in) :: ic, ex(2,2), walkExcitLevel
         integer, dimension(lenof_sign), intent(in) :: wSign
-        integer, intent(in) :: parity
+        logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
         real(dp) , intent(in) :: AvSignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
@@ -2042,7 +2047,7 @@ MODULE FciMCParMod
 
         interface
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
-                                         parity, HElGen) result (hel)
+                                         tParity, HElGen) result (hel)
                 use SystemData, only: nel
                 use bit_reps, only: niftot
                 use constants, only: dp,n_int
@@ -2050,7 +2055,7 @@ MODULE FciMCParMod
                 integer, intent(in) :: nI(nel), nJ(nel)
                 integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
                 integer, intent(in) :: ic, ex(2,2)
-                integer, intent(in) :: parity
+                logical, intent(in) :: tParity
                 HElement_t, intent(in) :: HElGen
                 HElement_t :: hel
             end function
@@ -2060,7 +2065,7 @@ MODULE FciMCParMod
         if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
             child = attempt_create_normal (get_spawn_helement, DetCurr, &
                                iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
-                               parity, walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr)
+                               tParity, walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr)
         else
             child = 0
         endif
@@ -2068,7 +2073,7 @@ MODULE FciMCParMod
 
 
     function attempt_create_normal (get_spawn_helement, DetCurr, iLutCurr, &
-                                    wSign, nJ, iLutnJ, prob, HElGen, ic, ex, parity,&
+                                    wSign, nJ, iLutnJ, prob, HElGen, ic, ex, tparity,&
                                     walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr) result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel)
@@ -2077,7 +2082,7 @@ MODULE FciMCParMod
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
         integer, intent(in) :: ic, ex(2,2), walkExcitLevel
         integer, dimension(lenof_sign), intent(in) :: wSign
-        integer, intent(in) :: parity
+        logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
         real(dp) , intent(in) :: AvSignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
@@ -2086,7 +2091,7 @@ MODULE FciMCParMod
 
         interface
             function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
-                                         parity, HElGen) result (hel)
+                                         tParity, HElGen) result (hel)
                 use SystemData, only: nel
                 use bit_reps, only: niftot
                 use constants, only: dp,n_int
@@ -2094,7 +2099,7 @@ MODULE FciMCParMod
                 integer, intent(in) :: nI(nel), nJ(nel)
                 integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
                 integer, intent(in) :: ic, ex(2,2)
-                integer, intent(in) :: parity
+                logical, intent(in) :: tParity
                 HElement_t, intent(in) :: HElGen
                 HElement_t :: hel
             end function
@@ -2124,9 +2129,9 @@ MODULE FciMCParMod
         ! and returned in HElGen. In this case, get_spawn_helement simply
         ! returns HElGen, rather than recomputing the matrix element.
         rh = get_spawn_helement (DetCurr, nJ, iLutCurr, iLutnJ, ic, ex, &
-                                 parity, HElGen)
+                                 tParity, HElGen)
 
-        !write(6,*) 'p,rh', prob, rh
+        !print*, 'p,rh', prob, rh
 #ifdef __CMPLX
 
 !We actually want to calculate Hji - take the complex conjugate, rather than swap around DetCurr and nJ.
@@ -2290,12 +2295,12 @@ MODULE FciMCParMod
     ! probability Prob. It returns zero if we are not going to create a child,
     ! or -1/+1 if we are to create a child, giving the sign of the new
     ! particle
-    INTEGER FUNCTION AttemptCreatePar(DetCurr,iLutCurr,WSign,nJ,iLutnJ,Prob,IC,Ex,parity)
+    INTEGER FUNCTION AttemptCreatePar(DetCurr,iLutCurr,WSign,nJ,iLutnJ,Prob,IC,Ex,tParity)
         use GenRandSymExcitNUMod , only : GenRandSymExcitBiased
         use Logging, only : CCMCDebug
         INTEGER :: DetCurr(NEl),nJ(NEl),IC,ExtraCreate,Ex(2,2),Bin
         INTEGER(KIND=n_int) :: iLutCurr(0:NIfTot),iLutnJ(0:NIfTot)
-        integer :: parity
+        LOGICAL :: tParity
         real(dp) :: Prob,r,rat
         integer, dimension(lenof_sign), intent(in) :: wSign
         HElement_t :: rh
@@ -2349,7 +2354,7 @@ MODULE FciMCParMod
         ELSE
 !Normal determinant spawn
 
-            rh = get_helement (DetCurr, nJ, IC, Ex, parity)
+            rh = get_helement (DetCurr, nJ, IC, Ex, tParity)
             !WRITE(iout,*) rh
 
 !Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
@@ -2366,7 +2371,7 @@ MODULE FciMCParMod
 !            WRITE(iout,*) "DetCurr: ",DetCurr(:)
 !            WRITE(iout,*) "nJ: ",nJ(:)
 !            WRITE(iout,*) "EX: ",Ex(1,:),Ex(2,:)
-!            WRITE(iout,*) "parity: ",parity
+!            WRITE(iout,*) "tParity: ",tParity
 !            STOP
 !        ENDIF
 
@@ -3740,6 +3745,15 @@ MODULE FciMCParMod
                 call MPISum(ENumCycHistK3,AllENumCycHistK3)
             endif
         endif
+
+        ! Deal with particle blooms
+!        if (tSpinProjDets) then
+!            call MPISum(bloom_count(0:2), all_bloom_count(0:2))
+!            call MPIReduce_inplace(bloom_sizes(0:2), MPI_MAX)
+!        else
+            call MPISum(bloom_count(1:2), all_bloom_count(1:2))
+            call MPIReduce_inplace(bloom_sizes(1:2), MPI_MAX)
+!        end if
 
         ! real(dp) values
         call MPISum((/cyc_proje_denominator, sum_proje_denominator/),real_tmp)
@@ -5501,10 +5515,9 @@ MODULE FciMCParMod
         use HPHF_integrals, only: hphf_off_diag_helement_norm
         implicit none
         type(excit_gen_store_type) :: store, store2
-        logical :: tAllExcitFound,tSameFunc,tSwapped
+        logical :: tAllExcitFound,tParity,tSameFunc,tSwapped,tSign
         character(len=*), parameter :: t_r="FindMaxTauDoubs"
-        integer :: ex(2,2), ex2(2,2), exflag, iMaxExcit, nStore(6)
-        integer :: nExcitMemLen(1), parity
+        integer :: ex(2,2),ex2(2,2),exflag,iMaxExcit,nStore(6),nExcitMemLen(1)
         integer, allocatable :: Excitgen(:)
         real(dp) :: nAddFac,MagHel,pGen,pGenFac
         HElement_t :: hel
@@ -5555,13 +5568,13 @@ MODULE FciMCParMod
             if(tKPntSym) then
                 call GenSymExcitIt2(ProjEDet,nel,G1,nBasis,.false.,EXCITGEN,nJ,iExcit,nStore,exFlag)
                 if(nJ(1).eq.0) exit
-                !Calculate ic, parity and Ex
+                !Calculate ic, tParity and Ex
                 call EncodeBitDet (nJ, iLutnJ)
                 Ex(:,:)=0
                 Ex(1,1)=FindBitExcitlevel(iLutnJ,iLutRef,2)
-                call GetExcitation(ProjEDet,nJ,Nel,ex,parity)
+                call GetExcitation(ProjEDet,nJ,Nel,ex,tParity)
             else
-                CALL GenExcitations3(ProjEDet,iLutRef,nJ,exflag,Ex_saved,parity,tAllExcitFound,.false.)
+                CALL GenExcitations3(ProjEDet,iLutRef,nJ,exflag,Ex_saved,tParity,tAllExcitFound,.false.)
                 IF(tAllExcitFound) EXIT
                 Ex(:,:) = Ex_saved(:,:)
                 if(Ex(2,2).eq.0) then
@@ -5582,13 +5595,13 @@ MODULE FciMCParMod
                         ex(:,:) = 0
                         if(ic.le.2) then
                             ex(1,1) = ic
-                            call GetBitExcitation(iLutRef,iLutnJ,Ex,parity)
+                            call GetBitExcitation(iLutRef,iLutnJ,Ex,tParity)
                         endif
                     endif
                 endif
                 hel = hphf_off_diag_helement_norm(ProjEDet,nJ,iLutRef,iLutnJ)
             else
-                hel = get_helement(ProjEDet,nJ,ic,ex,parity)
+                hel = get_helement(ProjEDet,nJ,ic,ex,tParity)
             endif
 
             MagHel = abs(hel)
@@ -5617,7 +5630,7 @@ MODULE FciMCParMod
                 ex2(:,:) = 0
                 if(ic.le.2) then
                     ex2(1,1) = ic
-                    call GetBitExcitation(iLutnJ,iLutRef,Ex2,parity)
+                    call GetBitExcitation(iLutnJ,iLutRef,Ex2,tSign)
                 endif
                 call CalcPGenHPHF(nJ,iLutnJ,ProjEDet,iLutRef,ex2,store2%ClassCountOcc,    &
                             store2%ClassCountUnocc,pDoubles,pGen,tSameFunc)
@@ -6200,8 +6213,8 @@ MODULE FciMCParMod
     SUBROUTINE StoreDoubs()
         use SystemData , only : tUseBrillouin
         use SymExcit3 , only : CountExcitations3,GenExcitations3
-        integer :: nJ(NEl), ierr, VecSlot, nSingles, ExcitMat3(2,2), parity
-        logical :: tAllExcitFound
+        INTEGER :: nJ(NEl),ierr,VecSlot,nSingles,ExcitMat3(2,2)
+        LOGICAL :: tAllExcitFound,tParity
 
         IF(tUseBrillouin) THEN
             CALL Stop_All("StoreDoubs","Cannot have Brillouin theorem as now storing singles too...")
@@ -6224,7 +6237,7 @@ MODULE FciMCParMod
         exflag=3
 
         do while (.not.tAllExcitFound)
-            CALL GenExcitations3(HFDet,iLutHF,nJ,exflag,ExcitMat3,parity,tAllExcitFound,.false.)
+            CALL GenExcitations3(HFDet,iLutHF,nJ,exflag,ExcitMat3,tParity,tAllExcitFound,.false.)
             IF(tAllExcitFound) EXIT
             DoublesDets(1:NEl,VecSlot)=nJ(:)
             VecSlot=VecSlot+1
@@ -6439,7 +6452,7 @@ MODULE FciMCParMod
         HElement_t :: HDoubDiag
         integer :: DoubEx(2,2),DoubEx2(2,2),kDoub(3) ! For histogramming UEG doubles
         integer :: ExMat(2,2),FindSplitProjEBinG,FindSplitProjEBinK3
-        integer :: doub_parity, doub_parity2, parity ! As above
+        logical :: tDoubParity,tDoubParity2,tSign ! As above
 
         ! Are we performing a linear sum over various determinants?
         ! TODO: If we use this, function pointer it.
@@ -6532,10 +6545,10 @@ MODULE FciMCParMod
         if(tSplitProjEHist.and.ExcitLevel_local == 2) then
 
             !Calc excitation matrix
-            !call GetBitExcitation(iLutRef,ilut,ExMat,parity)
+            !call GetBitExcitation(iLutRef,ilut,ExMat,tSign)
             ExMat(:,:)=0
             ExMat(1,1)=2
-            call GetExcitation (ProjEDet,nI,NEl,ExMat,parity)
+            call GetExcitation (ProjEDet,nI,NEl,ExMat,tSign)
             if (tSplitProjEHistG) then 
                 ProjEBin=FindSplitProjEBinG(ExMat)+1
                 
@@ -6604,15 +6617,15 @@ MODULE FciMCParMod
                 if (ExcitLevel.eq.2) then
                     DoubEx2=0
                     DoubEx2(1,1)=2
-                    call GetExcitation (ProjEDet,nI,NEl,DoubEx2,doub_parity2)
+                    call GetExcitation (ProjEDet,nI,NEl,DoubEx2,tDoubParity2)
                     DoubEx=0
                     DoubEx(1,1)=2
-                    call GetBitExcitation(iLutRef,ilut,DoubEx,Doub_Parity)
+                    call GetBitExcitation(iLutRef,ilut,DoubEx,tDoubParity)
                     if (DoubEx2(1,1).ne.DoubEx(1,1) &
                         .or. DoubEx2(1,2).ne.DoubEx(1,2) &
                         .or. DoubEx2(2,2).ne.DoubEx(2,2) &
                         .or. DoubEx2(2,1).ne.DoubEx(2,1) &
-                        .or. doub_parity /= doub_parity2) then
+                        .or. tDoubParity.neqv.tDoubParity2) then
                         call stop_all("SumEContrib","GetBitExcitation doesn't agree with GetExcitation")
                     endif
                     iUEG1=0
@@ -7515,11 +7528,10 @@ MODULE FciMCParMod
         use CalcData , only : InitialPart
         real(dp) :: TotMP1Weight,amp,MP2Energy,PartFac,H0tmp,rat,r
         HElement_t :: hel,HDiagtemp
-        integer :: iExcits, exflag, Ex(2,2), nJ(NEl), ic, DetIndex, iNode
-        integer :: NoWalkers, iInit, Slot, DetHash, parity
+        integer :: iExcits,exflag,Ex(2,2),nJ(NEl),ic,DetIndex,iNode,NoWalkers,iInit,Slot,DetHash
         integer(n_int) :: iLutnJ(0:NIfTot)
         integer, dimension(lenof_sign) :: temp_sign
-        logical :: tAllExcitsFound
+        logical :: tAllExcitsFound,tParity
         character(len=*), parameter :: this_routine="InitFCIMC_MP1"
 
         if(lenof_sign.ne.1) call stop_all(this_routine,"StartMP1 currently does not work with complex walkers")
@@ -7552,7 +7564,7 @@ MODULE FciMCParMod
         endif
         Ex(:,:)=0
         do while(.true.)
-            call GenExcitations3(HFDet,iLutHF,nJ,exflag,Ex,parity,tAllExcitsFound,.false.)
+            call GenExcitations3(HFDet,iLutHF,nJ,exflag,Ex,tParity,tAllExcitsFound,.false.)
             if(tAllExcitsFound) exit !All excits found
             if(tHPHF) then
                 !Working in HPHF Space. Check whether determinant generated is an 'HPHF'
@@ -7577,7 +7589,7 @@ MODULE FciMCParMod
             elseif(tMomInv) then
                 hel=MI_off_diag_helement(HFDet,nJ,iLutHF,iLutnJ)
             else
-                hel=get_helement(HFDet,nJ,ic,Ex,parity)
+                hel=get_helement(HFDet,nJ,ic,Ex,tParity)
             endif
             if(tUEG) then
                 !This will calculate the MP2 energies without having to use the fock eigenvalues.
@@ -7631,7 +7643,7 @@ MODULE FciMCParMod
         endif
         Ex(:,:)=0
         do while(.true.)
-            call GenExcitations3(HFDet,iLutHF,nJ,exflag,Ex,parity,tAllExcitsFound,.false.)
+            call GenExcitations3(HFDet,iLutHF,nJ,exflag,Ex,tParity,tAllExcitsFound,.false.)
             if(tAllExcitsFound) exit !All excits found
             if(tHPHF) then
                 call EncodeBitDet(nJ,iLutnJ)
@@ -7653,7 +7665,7 @@ MODULE FciMCParMod
                 elseif(tMomInv) then
                     hel=MI_off_diag_helement(HFDet,nJ,iLutHF,iLutnJ)
                 else
-                    hel=get_helement(HFDet,nJ,ic,Ex,parity)
+                    hel=get_helement(HFDet,nJ,ic,Ex,tParity)
                 endif
                 if(tUEG) then
                     !This will calculate the MP2 energies without having to use the fock eigenvalues.
@@ -7779,14 +7791,12 @@ MODULE FciMCParMod
         use SystemData, only: ElecPairs,NMAXX,NMAXY,NMAXZ,OrbECutOff,tGCutoff,GCutoff, &
                                 tMP2UEGRestrict,kiRestrict,kiMsRestrict,kjRestrict,kjMsRestrict, &
                                 Madelung,tMadelung,tUEGFreeze,FreezeCutoff, kvec, tUEG2
-        use GenRandSymExcitNUMod, only: make_excit
         use Determinants, only: GetH0Element4, get_helement_excit
         integer :: Ki(3),Kj(3),Ka(3),LowLoop,HighLoop,X,i,Elec1Ind,Elec2Ind,K,Orbi,Orbj
         integer :: iSpn,FirstA,nJ(NEl),a_loc,Ex(2,2),kx,ky,kz,OrbB,FirstB
-        integer :: ki2, kj2, parity
-        logical :: tMom
+        integer :: ki2,kj2
+        logical :: tParity,tMom
         real(dp) :: Ranger,mp2,mp2all,length,length_g,length_g_2
-        integer(n_int) :: ilut_tmp(0:NIfTot)
         HElement_t :: hel,H0tmp
 
         !Divvy up the ij pairs
@@ -7901,11 +7911,10 @@ MODULE FciMCParMod
 
                     !Find det
 !                    write(iout,*) "OrbB: ",OrbB
-                    call make_excit (HFDet, ilutHF, nJ, ilut_tmp, &
-                                     (/Elec1Ind,Elec2Ind/), (/a_loc,orbB/), &
-                                     Ex, parity)
+                    call make_double (HFDet, nJ, elec1ind, elec2ind, a_loc, &
+                                      orbB, ex, tParity)
                     !Sum in mp2 contrib
-                    hel=get_helement_excit(HFDet,nJ,2,Ex,parity)
+                    hel=get_helement_excit(HFDet,nJ,2,Ex,tParity)
 
                     H0tmp=getH0Element4(nJ,HFDet)
                     H0tmp=Fii-H0tmp
@@ -7961,11 +7970,10 @@ MODULE FciMCParMod
 
 !                    write(iout,*) "OrbB: ",OrbB
                     !Find det
-                    call make_excit (HFDet, ilutHF, nJ, ilut_tmp, &
-                                     (/Elec1Ind,Elec2Ind/), (/a_loc,orbB/), &
-                                     Ex, parity)
+                    call make_double (HFDet, nJ, elec1ind, elec2ind, a_loc, &
+                                      orbB, ex, tParity)
                     !Sum in mp2 contrib
-                    hel=get_helement_excit(HFDet,nJ,2,Ex,parity)
+                    hel=get_helement_excit(HFDet,nJ,2,Ex,tParity)
                     H0tmp=getH0Element4(nJ,HFDet)
                     H0tmp=Fii-H0tmp
                     if(tMadelung) then
