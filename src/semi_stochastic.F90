@@ -7,7 +7,7 @@ module semi_stochastic
                             flag_is_initiator
     use bit_reps, only: NIfD, NIfTot, decode_bit_det, encode_bit_rep, set_flag
     use CalcData, only: tRegenDiagHEls, tau, tSortDetermToTop, tTruncInitiator, DiagSft, &
-                        occCASorbs, virtCASorbs, tStartCAS
+                        tStartCAS
     use csf, only: csf_get_yamas, get_num_csfs, get_csf_bit_yama, csf_apply_yama
     use csf_data, only: iscsf, csf_orbital_mask
     use constants
@@ -29,8 +29,12 @@ module semi_stochastic
     use sym_mod, only: getsym
     use SystemData, only: nel, tHPHF, tCSFCore, tDeterminantCore, tDoublesCore, tCASCore, &
                           tOptimisedCore, Stot, lms, BasisFN, nBasisMax, BRR, tSpn, &
-                          cas_bitmask, cas_not_bitmask, num_det_generation_loops, &
-                          determ_space_cutoff_amp, determ_space_cutoff_num, tAmplitudeCutoff
+                          cas_determ_bitmask, cas_determ_not_bitmask, &
+                          num_det_generation_loops, determ_space_cutoff_amp, &
+                          determ_space_cutoff_num, tDetermAmplitudeCutoff, &
+                          num_trial_generation_loops, trial_space_cutoff_amp, &
+                          trial_space_cutoff_num, tTrialAmplitudeCutoff, OccDetermCASOrbs, &
+                          VirtDetermCASOrbs, OccTrialCasOrbs, VirtTrialCasOrbs
 
     implicit none
 
@@ -52,8 +56,8 @@ contains
         integer :: i, j, IC, ierr
         integer :: nI(nel)
 
-        write(6,*) ""
-        write(6,*) "Semi-stochastic initialisation:"
+        write(6,'()')
+        write(6,'(a56)') "============ Semi-stochastic initialisation ============"
         call neci_flush(6)
 
         ! Initialise the deterministic masks.
@@ -74,7 +78,7 @@ contains
         ! The following subroutines call the enumerating subroutines to create all excitations
         ! and add these states to the main list, CurrentDets, on the correct processor. As
         ! they do this, they count the size of the deterministic space on each processor.
-        write(6,*) "Generating the deterministic space..."
+        write(6,'(a37)') "Generating the deterministic space..."
         call neci_flush(6)
         if (tStartCAS) then
             do i = 1, TotWalkers
@@ -113,8 +117,8 @@ contains
         partial_determ_vector = 0.0_dp
 
         ! Write space sizes to screen.
-        write(6,*) "Total size of deterministic space:", determ_space_size
-        write(6,*) "Size of deterministic space on this processor:", &
+        write(6,'(a34,1X,i8)') "Total size of deterministic space:", determ_space_size
+        write(6,'(a46,1X,i8)') "Size of deterministic space on this processor:", &
                     deterministic_proc_sizes(iProcIndex)
         call neci_flush(6)
 
@@ -142,10 +146,11 @@ contains
         call sort(CurrentDets(:,1:deterministic_proc_sizes(iProcIndex)), ilut_lt, ilut_gt)
 
         ! Calculate and store the deterministic Hamiltonian.
-        write(6,*) "Generating the Hamiltonian in the deterministic space..."
+        write(6,'(a56)') "Generating the Hamiltonian in the deterministic space..."
         call neci_flush(6)
         call calculate_det_hamiltonian_normal()
-        write(6,*) "Deterministic Hamiltonian generated."
+
+        write(6,'(a40)') "Semi-stochastic initialisation complete."
         call neci_flush(6)
 
     end subroutine init_semi_stochastic
@@ -356,8 +361,41 @@ contains
         integer :: nI(nel)
         integer :: counter, i, j, k
         integer :: old_num_det_states, new_num_det_states, comp
+        integer :: num_generation_loops, array_size
+        integer, allocatable, dimension(:) :: space_cutoff_num
+        real(dp), allocatable, dimension(:) :: space_cutoff_amp
+        logical :: tAmplitudeCutoff
 
-        ! First, allocate the stores of ilut's that will hold these deterministic states.
+        ! Use the correct set of parameters, depending this function was called from for
+        ! generating the deterministic space or the trial space:
+        if (called_from == called_from_semistoch) then
+            num_generation_loops = num_det_generation_loops
+            tAmplitudeCutoff = tDetermAmplitudeCutoff
+            if (tAmplitudeCutoff) then
+                array_size = size(determ_space_cutoff_amp,1)
+                allocate(space_cutoff_amp(array_size))
+                space_cutoff_amp = determ_space_cutoff_amp
+            else
+                array_size = size(determ_space_cutoff_num,1)
+                allocate(space_cutoff_num(array_size))
+                space_cutoff_num = determ_space_cutoff_num
+            end if
+
+        elseif (called_from == called_from_trial) then
+            num_generation_loops = num_trial_generation_loops
+            tAmplitudeCutoff = tTrialAmplitudeCutoff
+            if (tAmplitudeCutoff) then
+                array_size = size(trial_space_cutoff_amp,1)
+                allocate(space_cutoff_amp(array_size))
+                space_cutoff_amp = trial_space_cutoff_amp
+            else
+                array_size = size(trial_space_cutoff_num,1)
+                allocate(space_cutoff_num(array_size))
+                space_cutoff_num = trial_space_cutoff_num
+            end if
+        end if
+
+        ! Allocate the stores of ilut's that will hold these deterministic states.
         ! For now, assume that we won't have a deterministic space of more than one
         ! million states. Could make this user-specified later.
         ! ilut_store_old will store the states in the previously generated deterministic
@@ -383,18 +421,18 @@ contains
         ! have a non-zero Hamiltonian matrix element with any state in the old ilut store:
 
         ! Over the total number of iterations.
-        do i = 1, num_det_generation_loops
+        do i = 1, num_generation_loops
 
-            write(6,*) "Iteration:", i
+            write(6,'(a37,1X,i2)') "Optimised space generation: Iteration", i
             call neci_flush(6)
 
             ! Find all states connected to the states in ilut_store_old.
-            print *, "Generating connected space..."
+            write(6,'(a29)') "Generating connected space..."
             call neci_flush(6)
             call generate_connected_space(old_num_det_states, &
                                           ilut_store_old(:, 1:old_num_det_states), &
                                           new_num_det_states, temp_space(:, 1:1000000))
-            print *, "Connected space generated."
+            write(6,'(a26)') "Connected space generated."
             call neci_flush(6)
 
             ! Add these states to the ones already in the ilut stores.
@@ -421,24 +459,21 @@ contains
             ! number of states in ilut_store_new is again given by counter.
             new_num_det_states = counter
 
-            write(6,*) new_num_det_states, "states found. Constructing Hamiltonian..."
+            write(6,'(i8,1X,a41)') new_num_det_states, "states found. Constructing Hamiltonian..."
             call neci_flush(6)
 
             call calculate_sparse_hamiltonian(new_num_det_states, &
                 ilut_store_new(:,1:new_num_det_states))
 
-            write (6,*) "Performing diagonalisation..."
+            write (6,'(a29)') "Performing diagonalisation..."
             call neci_flush(6)
 
             ! Now that the Hamiltonian is generated, we can finally find the ground state of it:
-            call perform_davidson(sparse_hamil_type)
+            call perform_davidson(sparse_hamil_type, .false.)
 
             ! davidson_eigenvector now stores the ground state eigenvector. We want to use the
             ! vector whose components are the absolute values of this state:
             davidson_eigenvector = abs(davidson_eigenvector)
-
-            write(6,*) "Diagonalisation complete."
-            call neci_flush(6)
 
             ! Now decide which states to keep for the next iteration. There are two ways of
             ! doing this, as decided by the user. Either all basis states with an amplitude
@@ -448,7 +483,7 @@ contains
             if (tAmplitudeCutoff) then
                 counter = 0
                 do j = 1, new_num_det_states
-                    if (davidson_eigenvector(j) > determ_space_cutoff_amp(i)) then
+                    if (davidson_eigenvector(j) > space_cutoff_amp(i)) then
                         counter = counter + 1
                         ilut_store_old(:, counter) = ilut_store_new(:, j)
                         ilut_store_new(:, counter) = ilut_store_old(:, counter)
@@ -459,18 +494,18 @@ contains
                 ! from smallest to largest.
                 call sort(davidson_eigenvector(:), ilut_store_new(:, 1:new_num_det_states))
 
-                ! Now keep the bottom determ_space_cutoff_num(i) states from this list.
-                do j = 1, determ_space_cutoff_num(i)
+                ! Now keep the bottom space_cutoff_num(i) states from this list.
+                do j = 1, space_cutoff_num(i)
                     ilut_store_old(:,j) = ilut_store_new(:, new_num_det_states-j+1)
                 end do
 
                 ! Set counter to this value so that all other states are not kept.
-                counter = determ_space_cutoff_num(i)
+                counter = space_cutoff_num(i)
             end if
 
             old_num_det_states = counter
 
-            write(6,*) old_num_det_states, "states kept."
+            write(6,'(i8,1X,a12)') old_num_det_states, "states kept."
             call neci_flush(6)
 
             deallocate(sparse_hamil)
@@ -487,6 +522,8 @@ contains
 
         deallocate(ilut_store_old)
         deallocate(ilut_store_new)
+        if (allocated(space_cutoff_num)) deallocate(space_cutoff_num)
+        if (allocated(space_cutoff_amp)) deallocate(space_cutoff_amp)
 
     end subroutine generate_optimised_core
 
@@ -713,31 +750,39 @@ contains
         integer :: HFdet_loc(nel)
         integer :: num_active_orbs, elec, nCASDet, i, j, counter, comp
         integer, allocatable :: CASBrr(:), CASRef(:)
+        integer(n_int) :: cas_bitmask(0:NIfD), cas_not_bitmask(0:NIfD)
         integer, pointer :: CASDets(:,:) => null()
+        integer :: OccOrbs, VirtOrbs
+
+        if (called_from == called_from_semistoch) then
+            OccOrbs = OccDetermCASOrbs
+            VirtOrbs = VirtDetermCASOrbs
+        elseif (called_from == called_from_trial) then
+            OccOrbs = OccTrialCASOrbs
+            VirtOrbs = VirtTrialCASOrbs
+        end if
 
         ! This option should be true. It tells the subroutine gndts to only consider states
         ! with an Ms value in the correct spin subspace.
         if (.not. tSpn) call stop_all("generate_cas", "tSpn is not set to true.")
 
         ! The total number of orbitals in the active space:
-        num_active_orbs = OccCASorbs + VirtCASorbs
+        num_active_orbs = OccOrbs + VirtOrbs
         allocate(CASBrr(1:num_active_orbs))
-        allocate(CASRef(1:OccCasOrbs))
+        allocate(CASRef(1:OccOrbs))
         do i = 1, num_active_orbs
             ! Run through the cas space, and create an array which will map these orbtials to the
             ! orbitals they actually represent.
             ! i.e. CASBRR(1) will store the lowest energy orbital in the CAS space and
             ! CASBRR(num_active_orbs) will store the highest energy orbital in the CAS space.
-            CASBrr(i) = BRR(i + (nel - OccCasorbs))
+            CASBrr(i) = BRR(i + (nel - OccOrbs))
         end do
 
         ! Create a bit mask which has 1's in the bits which represent active orbitals and 0's in
         ! all other orbitals.
-        allocate(cas_bitmask(0:NIfD))
-        allocate(cas_not_bitmask(0:NIfD))
         cas_bitmask = 0
         do i = 1, num_active_orbs
-            set_orb(cas_bitmask, CASBRR(i))
+            set_orb(cas_bitmask, CASBrr(i))
         end do
         ! Create a bit mask which has 0's in the bits which represent active orbitals and 1's in
         ! all other orbitals.
@@ -748,24 +793,24 @@ contains
         HFdet_loc = iand(HFDet, csf_orbital_mask)
 
         elec = 1
-        do i = nel-OccCasOrbs+1, nel
+        do i = nel-OccOrbs+1, nel
             ! CASRef(elec) will store the orbital number of the electron elec in the reference
             ! state, HFDet. elec runs from 1 to the number of electrons in the active space.
             CASRef(elec) = HFDet_loc(i)
             elec = elec + 1
         end do
 
-        call GetSym(CASRef, OccCASOrbs, G1, nBasisMax, CASSym)
+        call GetSym(CASRef, OccOrbs, G1, nBasisMax, CASSym)
 
         ! First, generate all excitations so we know how many there are, to allocate the arrays.
-        call gndts(OccCASorbs, num_active_orbs, CASBrr, nBasisMax, CASDets, &
+        call gndts(OccOrbs, num_active_orbs, CASBrr, nBasisMax, CASDets, &
                               .true., G1, tSpn, LMS, .true., CASSym, nCASDet, CASRef)
 
         if (nCASDet == 0) call stop_all("generate_cas","No CAS determinants found.")
 
         ! Now allocate the array CASDets. CASDets(:,i) will store the orbitals in the active space
         ! which are occupied in the i'th determinant generated.
-        allocate(CASDets(OccCASorbs, nCASDet))
+        allocate(CASDets(OccOrbs, nCASDet))
         CASDets(:,:) = 0
 
         if (tCASCore) then
@@ -775,7 +820,7 @@ contains
         end if
 
         ! Now fill up CASDets...
-        call gndts(OccCASorbs, num_active_orbs, CASBrr, nBasisMax, CASDets, &
+        call gndts(OccOrbs, num_active_orbs, CASBrr, nBasisMax, CASDets, &
                               .false., G1, tSpn, LMS, .true., CASSym, nCASDet, CASRef)
 
         do i = 1, nCASDet
@@ -785,7 +830,7 @@ contains
             ilut(0:NIfD) = iand(ilutHF(0:NIfD), cas_not_bitmask)
             ! Then loop through the occupied orbitals in the active space, stored in CASDets(:,i),
             ! and set the corresponding bits.
-            do j = 1, OccCASorbs
+            do j = 1, OccOrbs
                 set_orb(ilut, CASDets(j,i))
             end do
 
@@ -806,6 +851,17 @@ contains
         end do
 
         if (tCSFCore) call create_CAS_csfs(ilut_store, nCASDet-1, called_from)
+
+        if (called_from == called_from_semistoch) then
+            allocate(cas_determ_bitmask(0:NIfD))
+            allocate(cas_determ_not_bitmask(0:NIfD))
+            cas_determ_bitmask = cas_bitmask
+            cas_determ_not_bitmask = cas_not_bitmask
+        end if
+
+        deallocate(CASDets)
+        deallocate(CASBrr)
+        deallocate(CASRef)
 
     end subroutine generate_cas
 
@@ -995,14 +1051,14 @@ contains
             end if
         else if (tCASCore) then
             ! The state ilut, but with all active space orbitals unoccupied.
-            ilut_temp1 = iand(cas_not_bitmask, ilut(0:NIfD))
+            ilut_temp1 = iand(cas_determ_not_bitmask, ilut(0:NIfD))
 
             ! The state ilut, but with all active space orbitals and all orbitals not occupied
             ! in the HF determinant unoccupied.
             ilut_temp2 = iand(ilut_temp1, ilutHF(0:NIfD))
             ! All these orbitals should be occupied if the state is in the deterministic space.
             bits_set = sum(count_set_bits(ilut_temp2))
-            if (bits_set /= nel - occCASorbs) return
+            if (bits_set /= nel - OccDetermCASOrbs) return
 
             ! The state ilut, but with all active space orbitals and all orbitals in the HF
             ! determinant unoccupied.

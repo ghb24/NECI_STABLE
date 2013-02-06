@@ -85,9 +85,13 @@ MODULE System
       tCASCore = .false.
       tOptimisedCore = .false.
       num_det_generation_loops = 1
-      tAmplitudeCutoff = .false.
+      tDetermAmplitudeCutoff = .false.
       tTrialWavefunction = .false.
       tDoublesTrial = .false.
+      tCASTrial = .false.
+      tOptimisedTrial =.false.
+      num_trial_generation_loops = 1
+      tTrialAmplitudeCutoff = .false.
       STOT=0
       TPARITY = .false.
       IParity(:)=0
@@ -355,31 +359,51 @@ MODULE System
         case("CAS-CORE")
             tCASCore = .true.
             tSpn = .true.
-            call geti(OccCASOrbs)  !Number of electrons in CAS 
-            call geti(VirtCASOrbs)  !Number of virtual spin-orbitals in CAS
+            call geti(OccDetermCASOrbs)  !Number of electrons in CAS 
+            call geti(VirtDetermCASOrbs)  !Number of virtual spin-orbitals in CAS
         case("DETERMINANT-CORE")
             tDeterminantCore = .true.
         case("OPTIMISED-CORE")
             tOptimisedCore = .true.
         case("OPTIMISED-CORE-CUTOFF-AMP")
-            tAmplitudeCutoff = .true.
+            tDetermAmplitudeCutoff = .true.
             num_det_generation_loops = nitems - 1
             allocate(determ_space_cutoff_amp(num_det_generation_loops))
             do I = 1, num_det_generation_loops
                 call getf(determ_space_cutoff_amp(I))
             end do
         case("OPTIMISED-CORE-CUTOFF-NUM")
-            tAmplitudeCutoff = .false.
+            tDetermAmplitudeCutoff = .false.
             num_det_generation_loops = nitems - 1
             allocate(determ_space_cutoff_num(num_det_generation_loops))
             do I = 1, num_det_generation_loops
                 call geti(determ_space_cutoff_num(I))
             end do
-            print *, determ_space_cutoff_num
         case("TRIAL-WAVEFUNCTION")
             tTrialWavefunction = .true.
         case("DOUBLES-TRIAL")
             tDoublesTrial = .true.
+        case("CAS-TRIAL")
+            tCASTrial = .true.
+            tSpn = .true.
+            call geti(OccTrialCASOrbs)  !Number of electrons in CAS 
+            call geti(VirtTrialCASOrbs)  !Number of virtual spin-orbitals in CAS
+        case("OPTIMISED-TRIAL")
+            tOptimisedTrial = .true.
+        case("OPTIMISED-TRIAL-CUTOFF-AMP")
+            tTrialAmplitudeCutoff = .true.
+            num_trial_generation_loops = nitems - 1
+            allocate(trial_space_cutoff_amp(num_trial_generation_loops))
+            do I = 1, num_trial_generation_loops
+                call getf(trial_space_cutoff_amp(I))
+            end do
+        case("OPTIMISED-TRIAL-CUTOFF-NUM")
+            tTrialAmplitudeCutoff = .false.
+            num_trial_generation_loops = nitems - 1
+            allocate(trial_space_cutoff_num(num_trial_generation_loops))
+            do I = 1, num_trial_generation_loops
+                call geti(trial_space_cutoff_num(I))
+            end do
         case("SYMIGNOREENERGIES")
             tSymIgnoreEnergies=.true.
         case("NOSYMMETRY")

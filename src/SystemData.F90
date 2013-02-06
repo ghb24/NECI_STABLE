@@ -77,21 +77,25 @@ logical :: tDeterminantCore ! Use determinants for the core states.
 logical :: tOptimisedCore ! Generate an optimised deterministic space by diagonalising part of the space.
 logical :: tDoublesCore ! Use single and double excitations for the core states.
 logical :: tCASCore ! Use Determinants where orbitals within an active space can differ from the Hartree-Fock for core states.
-! cas_bitmask has all bits that refer to the active space set, and all other bits unset.
-! cas_not_bitmask is simply the result after the not operation is applied to cas_bitmask.
-integer, allocatable, dimension(:) :: cas_bitmask
-integer, allocatable, dimension(:) :: cas_not_bitmask
+! cas_determ_bitmask has all bits that refer to the active space set, and all other bits unset.
+! cas_not_determ_bitmask is simply the result after the not operation is applied to cas_determ_bitmask.
+integer(n_int), allocatable, dimension(:) :: cas_determ_bitmask
+integer(n_int), allocatable, dimension(:) :: cas_determ_not_bitmask
+! When using a CAS deterministic space, these integers store the number of orbitals above and below the Fermi energy to
+! include in the CAS active space (the occupied and virtual orbitals).
+integer :: OccDetermCASOrbs
+integer :: VirtDetermCASOrbs
 ! When using tOptimisedCore, this specifies the minimum amplitude that a basis state should have in the ground state
 ! (of the deterministic space generated) in order to be kept in the next deterministic space. The first component
 ! refers to the first iteration, the second component to the second iteration...
-real, allocatable, dimension(:) :: determ_space_cutoff_amp
+real(dp), allocatable, dimension(:) :: determ_space_cutoff_amp
 ! When using tOptimisedCore, this specifies how many basis states (of the deterministic space generated) should be kept
 ! in the next deterministic space. The first component refers to the first iteration, the second component to the second
 ! iteration... i.e. if determ_space_cutoff_num(1) = 5 then in the first iteration, the 5 basis states with the largest
 ! amplitudes in the ground state are kept.
 integer, allocatable, dimension(:) :: determ_space_cutoff_num
 ! If this logical is true, then the cutoff criterion is done using the amplitude. If false, it is done using a fixed number.
-logical :: tAmplitudeCutoff
+logical :: tDetermAmplitudeCutoff
 ! When using the optimised core option for semi-stochastic simulations, this option specifies how many iterations of
 ! the generation procedure should be performed.
 integer :: num_det_generation_loops
@@ -99,6 +103,20 @@ integer :: num_det_generation_loops
 ! Options relating to the trial wavefunction.
 logical :: tTrialWavefunction ! Use a trial wavefunction-based energy estimator.
 logical :: tDoublesTrial ! Use single and double exciations for the trial space.
+logical :: tCASTrial ! Use a CAS space for the trial space.
+logical :: tOptimisedTrial ! Generate an optimised trial space by diagonalisaing part of the space.
+! As for determ_space_cutoff_amp and determ_space_cutoff_num above, but the following two quantities refer to the trial space
+! generation rather than the deterministic space generation.
+real(dp), allocatable, dimension(:) :: trial_space_cutoff_amp
+integer, allocatable, dimension(:) :: trial_space_cutoff_num
+! When using a CAS trial space, these integers store the number of orbitals above and below the Fermi energy to
+! include in the CAS active space (the occupied and virtual orbitals).
+integer :: OccTrialCASOrbs
+integer :: VirtTrialCASOrbs
+! If this logical is true, then the cutoff criterion is done using the amplitude. If false, it is done using a fixed number.
+logical :: tTrialAmplitudeCutoff
+! As for num_determ_generation_loops above, but here for the trial wavefunction generation.
+integer :: num_trial_generation_loops
 
 ! Calculate size of FCI determinant space using MC
 logical :: tMCSizeSpace,tMCSizeTruncSpace

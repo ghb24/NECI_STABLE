@@ -13,7 +13,7 @@ module trial_wavefunction_gen
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBarrier
     use ParallelHelper, only: root
     use semi_stochastic
-    use SystemData, only: nel, tDoublesTrial
+    use SystemData, only: nel, tDoublesTrial, tOptimisedTrial, tCASTrial
 
     implicit none
 
@@ -24,10 +24,10 @@ contains
         integer :: i, ierr, counter, comp, num_states_on_proc
         integer(n_int), allocatable, dimension(:,:) :: temp_space
         integer :: nI(nel)
-        integer :: excit
+        integer :: excit, total_trial_space_size, total_connected_space_size
 
-        write(6,*) ""
-        write (6,*) "Trial wavefunction initialisation:"
+        write(6,'()')
+        write(6,'(a56)') "=========== Trial wavefunction initialisation =========="
 
         ! Simply allocate the trial vector to have up to 1 million elements for now...
         allocate(trial_vector_space(0:NIfTot, 1000000))
@@ -42,24 +42,24 @@ contains
         ! Generate the trial space and place the corresponding states in trial_vector_space.
         if (tDoublesTrial) then
             call generate_sing_doub_determinants(called_from_trial)
+        elseif (tCASTrial) then
+            call generate_cas(called_from_trial)
+        elseif (tOptimisedTrial) then
+            call generate_optimised_core(called_from_trial)
         end if
 
         call sort(trial_vector_space(0:NIfTot, 1:trial_vector_space_size), ilut_lt, ilut_gt)
-
-        print *, "Calculating the Hamiltonian for the trial space..."
+        
+        write(6,'(a50)') "Calculating the Hamiltonian for the trial space..."
         call neci_flush(6)
         call calculate_sparse_hamiltonian(trial_vector_space_size, &
             trial_vector_space(0:NIfTot, 1:trial_vector_space_size))
-        print *, "Hamiltonian calculated."
-        call neci_flush(6)
 
         ! Find the states connected to the trial space.
-        print *, "Generating the connected space..."
+        write(6,'(a33)') "Generating the connected space..."
         call neci_flush(6)
         call generate_connected_space(trial_vector_space_size, trial_vector_space, &
             connected_space_size, connected_space)
-        print *, "Connected space generated."
-        call neci_flush(6)
 
         ! Annihilation-like steps to remove repeated states.
         call sort(connected_space(0:NIfTot, 1:connected_space_size), ilut_lt, ilut_gt)
@@ -79,6 +79,9 @@ contains
         ! Now we want to remove states in the connected space which are also in the trial space:
         call remove_list_1_states_from_list_2(trial_vector_space, connected_space, &
             trial_vector_space_size, connected_space_size)
+
+        total_trial_space_size = trial_vector_space_size
+        total_connected_space_size = connected_space_size
 
         ! Remove all states in connected_space that do not belong to this processor.
         allocate(temp_space(0:NIfTot, connected_space_size))
@@ -101,14 +104,14 @@ contains
         end if
 
         ! Use the Davidson method to find the ground state of the trial space.
-        print *, "Calculating the ground state in the trial space..."
+        write(6,'(a50)') "Calculating the ground state in the trial space..."
         call neci_flush(6)
-        call perform_davidson(sparse_hamil_type)
+        call perform_davidson(sparse_hamil_type, .false.)
         allocate(trial_wavefunction(trial_vector_space_size))
         trial_wavefunction = davidson_eigenvector
         trial_energy = davidson_eigenvalue
 
-        print *, "Generating the vector \sum_j H_{ij} \psi^T_j..."
+        write(6,'(a47)') "Generating the vector \sum_j H_{ij} \psi^T_j..."
         call neci_flush(6)
         call generate_connected_space_vector()
 
@@ -131,6 +134,14 @@ contains
         deallocate(davidson_eigenvector)
 
         call MPIBarrier(ierr)
+
+        write(6,'(a30,1X,i8)') "Total size of the trial space:", total_trial_space_size
+        write(6,'(a38,1X,i8)') "Size of trial space on this processor:", trial_vector_space_size
+        write(6,'(a30,1X,i8)') "Total size of connected space:", total_connected_space_size
+        write(6,'(a42,1X,i8)') "Size of connected space on this processor:", connected_space_size
+        write(6,'(a37,1X,f12.8)') "Energy eigenvalue of the trial space:", trial_energy
+        write(6,'(a42)') "Trial wavefunction initialisation complete"
+        call neci_flush(6)
 
     end subroutine init_trial_wavefunction
 

@@ -46,12 +46,10 @@ real(dp) :: davidson_eigenvalue
 
     contains
 
-    subroutine perform_davidson(input_hamil_type)
-
-        ! This subroutine performs the main loop for the algorithm, from which each of the
-        ! induvidual steps are called.
+    subroutine perform_davidson(input_hamil_type, print_info)
 
         integer, intent(in) :: input_hamil_type
+        logical, intent(in) :: print_info
         integer :: i
 
         hamil_type = input_hamil_type
@@ -70,16 +68,17 @@ real(dp) :: davidson_eigenvalue
 
             call calculate_residual_norm()
 
-            print *, "iteration:", i, "residual norm:", residual_norm
-            call neci_flush(6)
-            ! If the solution is sufficiently converged then exit the loop.
+            if (print_info) write(6,'(a19,1X,i2,5X,a14,1X,f12.10)') &
+                "Davidson iteration:", i-1, "residual norm:", residual_norm
+
             if (residual_norm < residual_norm_target) exit
             
         end do
 
-        call end_davidson()
+        if (print_info) write(6,'(a24,1X,f14.10)') &
+            "Final calculated energy:", davidson_eigenvalue
 
-        print *, "trial state:", davidson_eigenvector
+        call end_davidson()
 
     end subroutine perform_davidson
 
@@ -103,7 +102,7 @@ real(dp) :: davidson_eigenvalue
             end do
         end if
 
-        HFindex = maxloc(abs(hamil_diag),1)
+        HFindex = maxloc((-hamil_diag),1)
 
         ! The space size is determined by the size of the Hamiltonian matrix:
         space_size = size(hamil_diag)
@@ -121,6 +120,15 @@ real(dp) :: davidson_eigenvalue
         basis_vectors = 0.0_dp
         davidson_eigenvector = 0.0_dp
         residual = 0.0_dp
+
+        ! If there is only one state in the space being diagonalised:
+        if (space_size == 1) then
+            davidson_eigenvector(1) = 1.0_dp
+            davidson_eigenvalue = hamil_diag(1)
+            max_num_davidson_iters = 0
+            call neci_flush(6)
+            return
+        end if
 
         ! For the initial basis vector, choose the Hartree-Fock state:
         basis_vectors(HFindex, 1) = 1.0_dp
@@ -238,7 +246,6 @@ real(dp) :: davidson_eigenvalue
                        eigenvalue_list, work, lwork, info)
 
         davidson_eigenvalue = eigenvalue_list(1)
-        print *, davidson_eigenvalue
         ! The first column stores the ground state.
         eigenvector_proj = projected_hamil_scrap(:,1)
 
