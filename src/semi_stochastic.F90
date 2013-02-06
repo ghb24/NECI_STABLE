@@ -974,7 +974,7 @@ contains
         integer, intent(in) :: called_from
         integer, optional :: nI_in(nel)
         integer :: nI(nel)
-        integer(n_int) :: flags
+        integer :: flags
         integer :: proc
         real(dp) :: sgn(lenof_sign)
 
@@ -1008,7 +1008,7 @@ contains
             deterministic_proc_sizes(proc) = deterministic_proc_sizes(proc) + 1
 
             ! If this determinant belongs to this processor, add it to the main list.
-            if (proc == iProcIndex) call encode_bit_rep(CurrentDets(:, &
+            if (proc == iProcIndex) call encode_bit_rep(CurrentDets(0:NIfTot, &
                 deterministic_proc_sizes(iProcIndex)), ilut(0:nIfDBO), sgn, flags)
 
         else if (called_from == called_from_trial) then
