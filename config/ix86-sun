@@ -2,7 +2,7 @@
 fc = sunf90
 cc = sunCC
 ld = sunf90
-ldflags = -Bstatic
+ldflags = -Bstatic -rdynamic
 compiler = INTEL-ifort9-on-LINUX
 cpp = cpp -C -traditional
 cppflags = -D__Linux -DPOINTER8 -DHAVE_SSE2 -D__INT64 -DDISABLE_FFTW
