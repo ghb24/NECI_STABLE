@@ -1101,37 +1101,42 @@ contains
         call MPIAllGatherV(partial_determ_vector, full_determ_vector, deterministic_proc_sizes, &
                             deterministic_proc_indices)
 
-        ! This function performs y := alpha*A*x + beta*y
-        ! N specifies not to use the transpose of A.
-        ! deterministic_proc_sizes(iProcIndex) is the number of rows in A.
-        ! determ_space_size is the number of columns of A.
-        ! alpha = -1.0_dp.
-        ! A = core_hamiltonian.
-        ! deterministic_proc_sizes(iProcIndex) is the first dimension of A.
-        ! input x = full_determ_vector.
-        ! 1 is the increment of the elements of x.
-        ! beta = 0.0_dp.
-        ! output y = partial_determ_vector.
-        ! 1 is the incremenet of the elements of y.
-        call dgemv('N', &
-                   deterministic_proc_sizes(iProcIndex), &
-                   determ_space_size, &
-                   -1.0_dp, &
-                   core_hamiltonian, &
-                   deterministic_proc_sizes(iProcIndex), &
-                   full_determ_vector, &
-                   1, &
-                   0.0_dp, &
-                   partial_determ_vector, &
-                   1)
+        if (deterministic_proc_sizes(iProcIndex) >= 1) then
 
-        ! Now add shift*full_determ_vector, to account for the shift, not stored in core_hamiltonian.
-        partial_determ_vector = partial_determ_vector + &
-           DiagSft * full_determ_vector(deterministic_proc_indices(iProcIndex)+1:&
-             deterministic_proc_indices(iProcIndex)+deterministic_proc_sizes(iProcIndex))
+            ! This function performs y := alpha*A*x + beta*y
+            ! N specifies not to use the transpose of A.
+            ! deterministic_proc_sizes(iProcIndex) is the number of rows in A.
+            ! determ_space_size is the number of columns of A.
+            ! alpha = -1.0_dp.
+            ! A = core_hamiltonian.
+            ! deterministic_proc_sizes(iProcIndex) is the first dimension of A.
+            ! input x = full_determ_vector.
+            ! 1 is the increment of the elements of x.
+            ! beta = 0.0_dp.
+            ! output y = partial_determ_vector.
+            ! 1 is the incremenet of the elements of y.
+            call dgemv('N', &
+                       deterministic_proc_sizes(iProcIndex), &
+                       determ_space_size, &
+                       -1.0_dp, &
+                       core_hamiltonian, &
+                       deterministic_proc_sizes(iProcIndex), &
+                       full_determ_vector, &
+                       1, &
+                       0.0_dp, &
+                       partial_determ_vector, &
+                       1)
 
-        ! Now multiply the vector by tau to get the final projected vector.
-        partial_determ_vector = partial_determ_vector * tau
+            ! Now add shift*full_determ_vector, to account for the shift, not stored in
+            ! core_hamiltonian.
+            partial_determ_vector = partial_determ_vector + &
+               DiagSft * full_determ_vector(deterministic_proc_indices(iProcIndex)+1:&
+                 deterministic_proc_indices(iProcIndex)+deterministic_proc_sizes(iProcIndex))
+
+            ! Now multiply the vector by tau to get the final projected vector.
+            partial_determ_vector = partial_determ_vector * tau
+
+        end if
 
     end subroutine deterministic_projection
 
