@@ -982,7 +982,7 @@ contains
 
             ! If using HPHFs then only allow the correct HPHFs to be added to the list.
             if (tHPHF) then
-                if (.not. IsAllowedHPHF(ilut)) return
+                if (.not. IsAllowedHPHF(ilut(0:NIfD))) return
             end if
 
             sgn = 0.0_dp

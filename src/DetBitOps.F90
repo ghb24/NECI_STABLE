@@ -1036,7 +1036,7 @@ module DetBitOps
             bAllowed = .true.
         else
             call spin_sym_ilut (ilut, ilut_tmp)
-            if (DetBitLt(ilut, ilut_tmp, NIfD) > 0) then
+            if (DetBitLt(ilut, ilut_tmp, NIfD, .false.) > 0) then
                 bAllowed = .false.
             else
                 bAllowed = .true.
