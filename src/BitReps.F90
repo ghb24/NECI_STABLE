@@ -259,7 +259,8 @@ contains
         sgn = iLut(NOffSgn:NOffSgn+lenof_sign-1)
         real_sgn = transfer(sgn, real_sgn)
 #endif
-        flags = int(ishft(iLut(NOffFlag), -flag_bit_offset), sizeof_int)
+        if (tUseFlags) &
+            flags = int(ishft(iLut(NOffFlag), -flag_bit_offset), sizeof_int)
 
     end subroutine extract_bit_rep
 
@@ -291,7 +292,11 @@ contains
         integer(n_int), intent(in) :: ilut(0:nIfTot)
         integer :: flags
 
-        flags = int(ishft(ilut(NOffFlag), -flag_bit_offset), sizeof_int)
+        if (tUseFlags) then
+            flags = int(ishft(ilut(NOffFlag), -flag_bit_offset), sizeof_int)
+        else
+            flags = 0
+        end if
 
     end function extract_flags
 
@@ -397,7 +402,8 @@ contains
         integer(n_int), intent(inout) :: ilut(0:niftot)
 
         ! Ensure this doesn't clear the 'sign' flag.
-        ilut(NOffFlag) = iand(ilut(NOffFlag), sign_neg_mask)
+        if (tUseFlags) &
+            ilut(NOffFlag) = iand(ilut(NOffFlag), sign_neg_mask)
 
     end subroutine clear_all_flags
 
