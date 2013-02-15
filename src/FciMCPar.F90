@@ -3963,6 +3963,7 @@ MODULE FciMCParMod
         iter_data%ndied = 0.0
         iter_data%nannihil = 0.0
         iter_data%naborted = 0.0
+        iter_data%nremoved = 0.0
 
         if(tFillingStochRDMonFly) then
             call MPISumAll_inplace (InstNoatHF)
