@@ -53,7 +53,7 @@ contains
         ! storing the resulting Hamiltonian matrix elements. The lists which will store
         ! the psip vectors in the deterministic space are also allocated.
 
-        integer :: i, j, IC, ierr
+        integer :: i, j, IC, ierr, comp
         integer :: nI(nel)
 
         write(6,'()')
@@ -144,6 +144,20 @@ contains
         ! Sort the list of basis states so that it is correctly ordered in the predefined
         ! order which is always kept throughout the simulation.
         call sort(CurrentDets(:,1:deterministic_proc_sizes(iProcIndex)), ilut_lt, ilut_gt)
+
+        ! Do a check that no states are in the deterministic space twice. The list is sorted
+        ! already so simply check states next to each other in the list:
+        do i = 2, deterministic_proc_sizes(iProcIndex)
+            comp = DetBitLT(CurrentDets(:, i-1), CurrentDets(:, i), NIfD, .false.)
+            if (comp == 0) then
+                call decode_bit_det(nI, CurrentDets(:,i))
+                write(6,'(a18)') "State found twice:"
+                write(6,*) CurrentDets(:,i)
+                call write_det(6, nI, .true.)
+                call stop_all("init_semi_stochastic", &
+                    "The same state has been found twice in the deterministic space.")
+            end if
+        end do
 
         ! Calculate and store the deterministic Hamiltonian.
         write(6,'(a56)') "Generating the Hamiltonian in the deterministic space..."

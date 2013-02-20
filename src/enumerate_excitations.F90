@@ -451,7 +451,7 @@ contains
 
                         ! Direct mapping to orbitals
                         i1 = mod(j-1, count1)
-                        i2 = floor(real(j-1)/count1)
+                        i2 = (j-1-i1)/count1
                         orbI = SymLabelList2(ind1 + i1)
                         orbJ = SymLabelList2(ind2 + i2)
 
