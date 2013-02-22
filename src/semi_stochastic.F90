@@ -445,7 +445,7 @@ contains
             call neci_flush(6)
             call generate_connected_space(old_num_det_states, &
                                           ilut_store_old(:, 1:old_num_det_states), &
-                                          new_num_det_states, temp_space(:, 1:1000000))
+                                          new_num_det_states, temp_space(:, 1:1000000), 1000000)
             write(6,'(a26)') "Connected space generated."
             call neci_flush(6)
 
@@ -542,12 +542,13 @@ contains
     end subroutine generate_optimised_core
 
     subroutine generate_connected_space(original_space_size, original_space, connected_space_size, &
-        connected_space)
+        connected_space, storage_space_size)
 
         integer, intent(in) :: original_space_size
         integer(n_int), intent(in) :: original_space(0:NIfTot, original_space_size)
+        integer, intent(in) :: storage_space_size
         integer, intent(out) :: connected_space_size
-        integer(n_int), intent(out) :: connected_space(0:NIfTot, 1000000)
+        integer(n_int), intent(out) :: connected_space(0:NIfTot, storage_space_size)
         integer(n_int) :: ilut(0:NIfTot)
         integer :: nI(nel)
         integer :: i, counter
@@ -591,6 +592,9 @@ contains
                 ! store.
                 call check_if_connected_to_old_space(original_space, nI, ilut, &
                     original_space_size, connected_space_size, connected)
+                if (connected_space_size > storage_space_size) call stop_all&
+                    &("generate_connected_space","No space left in storage array for the next &
+                    & connected space state.")
                 if (connected) connected_space(0:NIfD, connected_space_size) = ilut(0:NIfD)
 
             end do
@@ -614,6 +618,9 @@ contains
 
                 call check_if_connected_to_old_space(original_space, nI, ilut, &
                     original_space_size, connected_space_size, connected)
+                if (connected_space_size > storage_space_size) call stop_all&
+                    &("generate_connected_space","No space left in storage array for the next &
+                    & connected space state.")
                 if (connected) connected_space(0:NIfD, connected_space_size) = ilut(0:NIfD)
 
             end do

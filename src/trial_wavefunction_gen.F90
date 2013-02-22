@@ -9,7 +9,7 @@ module trial_wavefunction_gen
     use DeterminantData, only: write_det
     use FciMCData, only: trial_vector_space, trial_vector_space_size, connected_space, &
                          connected_space_size, trial_wavefunction, trial_energy, &
-                         connected_space_vector, ilutHF, Hii
+                         connected_space_vector, ilutHF, Hii, nSingles, nDoubles
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBarrier
     use ParallelHelper, only: root
     use semi_stochastic
@@ -22,18 +22,17 @@ contains
     subroutine init_trial_wavefunction()
 
         integer :: i, ierr, counter, comp, num_states_on_proc
+        integer :: excit, total_trial_space_size, total_connected_space_size
+        integer :: connected_storage_space_size
         integer(n_int), allocatable, dimension(:,:) :: temp_space
         integer :: nI(nel)
-        integer :: excit, total_trial_space_size, total_connected_space_size
 
         write(6,'()')
         write(6,'(a56)') "=========== Trial wavefunction initialisation =========="
 
         ! Simply allocate the trial vector to have up to 1 million elements for now...
         allocate(trial_vector_space(0:NIfTot, 1000000))
-        allocate(connected_space(0:NIfTot, 1000000))
         trial_vector_space = 0
-        connected_space = 0
 
         ! Encode the Hartree-Fock state first.
         call encode_det(trial_vector_space(:,1), ilutHF)
@@ -55,11 +54,22 @@ contains
         call calculate_sparse_hamiltonian(trial_vector_space_size, &
             trial_vector_space(0:NIfTot, 1:trial_vector_space_size))
 
+        ! Now to allocate storage space for the connected space states, assume that each state
+        ! in the trial space has roughly the same number as connected states as the HF state
+        ! (nSingles+nDoubles).
+        connected_storage_space_size = trial_vector_space_size*(nSingles+nDoubles)
+        allocate(connected_space(0:NIfTot, connected_storage_space_size))
+        connected_space = 0
+
+        write(6,*) "connected_storage_space_size:", connected_storage_space_size
+
         ! Find the states connected to the trial space.
         write(6,'(a33)') "Generating the connected space..."
         call neci_flush(6)
         call generate_connected_space(trial_vector_space_size, trial_vector_space, &
-            connected_space_size, connected_space)
+            connected_space_size, connected_space, connected_storage_space_size)
+
+        write(6,*) "connected space size before annihilation:", connected_space_size
 
         ! Annihilation-like steps to remove repeated states.
         call sort(connected_space(0:NIfTot, 1:connected_space_size), ilut_lt, ilut_gt)
