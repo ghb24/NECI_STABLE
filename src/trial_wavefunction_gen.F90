@@ -61,15 +61,11 @@ contains
         allocate(connected_space(0:NIfTot, connected_storage_space_size))
         connected_space = 0
 
-        write(6,*) "connected_storage_space_size:", connected_storage_space_size
-
         ! Find the states connected to the trial space.
         write(6,'(a33)') "Generating the connected space..."
         call neci_flush(6)
         call generate_connected_space(trial_vector_space_size, trial_vector_space, &
             connected_space_size, connected_space, connected_storage_space_size)
-
-        write(6,*) "connected space size before annihilation:", connected_space_size
 
         ! Annihilation-like steps to remove repeated states.
         call sort(connected_space(0:NIfTot, 1:connected_space_size), ilut_lt, ilut_gt)
