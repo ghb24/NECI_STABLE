@@ -10,10 +10,11 @@ module trial_wavefunction_gen
     use FciMCData, only: trial_vector_space, trial_vector_space_size, connected_space, &
                          connected_space_size, trial_wavefunction, trial_energy, &
                          connected_space_vector, ilutHF, Hii, nSingles, nDoubles
+    use hphf_integrals, only: hphf_off_diag_helement
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBarrier
     use ParallelHelper, only: root
     use semi_stochastic
-    use SystemData, only: nel, tDoublesTrial, tOptimisedTrial, tCASTrial
+    use SystemData, only: nel, tDoublesTrial, tOptimisedTrial, tCASTrial, tHPHF
 
     implicit none
 
@@ -54,7 +55,7 @@ contains
         call calculate_sparse_hamiltonian(trial_vector_space_size, &
             trial_vector_space(0:NIfTot, 1:trial_vector_space_size))
 
-        ! Now to allocate storage space for the connected space states, assume that each state
+        ! To allocate storage space for the connected space states, assume that each state
         ! in the trial space has roughly the same number as connected states as the HF state
         ! (nSingles+nDoubles).
         connected_storage_space_size = trial_vector_space_size*(nSingles+nDoubles)
@@ -257,7 +258,11 @@ contains
                 call decode_bit_det(nJ, trial_vector_space(0:NIfTot, j))
                 ! Note that, because the connected and trial spaces do not contain any common
                 ! states, we never have diagonal Hamiltonian elements.
-                H_ij = get_helement(nI, nJ, connected_space(:,i), trial_vector_space(:,j))
+                if (.not. tHPHF) then
+                    H_ij = get_helement(nI, nJ, connected_space(:,i), trial_vector_space(:,j))
+                else
+                    H_ij = hphf_off_diag_helement(nI, nJ, connected_space(:,i), trial_vector_space(:,j))
+                end if
                 connected_space_vector(i) = connected_space_vector(i) + H_ij*trial_wavefunction(j)
             end do
         end do

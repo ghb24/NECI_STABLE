@@ -12,7 +12,7 @@ module semi_stochastic
     use csf_data, only: iscsf, csf_orbital_mask
     use constants
     use DetBitOps, only: ilut_lt, ilut_gt, count_open_orbs, FindBitExcitLevel, DetBitLT, &
-                         count_set_bits, IsAllowedHPHF
+                         count_set_bits, IsAllowedHPHF, DetBitEq
     use DeterminantData, only: write_det
     use Determinants, only: get_helement
     use enumerate_excitations
@@ -23,6 +23,7 @@ module semi_stochastic
                          indices_of_determ_states, ProjEDet
     use hash , only: DetermineDetNode
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
+    use HPHFRandExcitMod, only: TestClosedShellDet, FindExcitBitDetSym
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIBarrier, MPIArg, &
                              MPIAllGatherV, MPIAllGather
     use sort_mod, only: sort
@@ -285,11 +286,20 @@ contains
 
                 ! If on the diagonal of the Hamiltonian.
                 if (i == j) then
-                    hamiltonian_row(j) = get_helement(nI, nJ, 0)
+                    if (.not. tHPHF) then
+                        hamiltonian_row(j) = get_helement(nI, nJ, 0)
+                    else
+                        hamiltonian_row(j) = hphf_diag_helement(nI, ilut_list(:, i))
+                    end if
                     hamil_diag(j) = hamiltonian_row(j)
                 else
-                    hamiltonian_row(j) = get_helement(nI, nJ, ilut_list(:, i), &
-                                                             ilut_list(:, j))
+                    if (.not. tHPHF) then
+                        hamiltonian_row(j) = get_helement(nI, nJ, ilut_list(:, i), &
+                                                                 ilut_list(:, j))
+                    else
+                        hamiltonian_row(j) = hphf_off_diag_helement(nI, nJ, ilut_list(:, i), &
+                                                                           ilut_list(:, j))
+                    end if
                     if (abs(hamiltonian_row(j)) > 0.0_dp) then
                         ! If element is nonzero, update the following sizes.
                         sparse_row_sizes(i) = sparse_row_sizes(i) + 1
@@ -549,7 +559,8 @@ contains
         integer, intent(in) :: storage_space_size
         integer, intent(out) :: connected_space_size
         integer(n_int), intent(out) :: connected_space(0:NIfTot, storage_space_size)
-        integer(n_int) :: ilut(0:NIfTot)
+
+        integer(n_int) :: ilut(0:NIfTot), ilut_tmp(0:NIfTot)
         integer :: nI(nel)
         integer :: i, counter
         logical :: first_loop, connected
@@ -559,6 +570,20 @@ contains
 
         ! Over all the states in the original list:
         do i = 1, original_space_size
+
+            ! When using HPHFs, we want to find states connected to both determinants
+            ! making up the HPHFs. This means, every other iteration of this loop, we
+            ! should generate the other state in a given HPHF and find the states
+            ! connected to this state.
+            !if (.not. tHPHF) then
+            !    original_space_state = original_space(:,i) 
+            !else
+            !    if (mod(i,2) == 1) then
+            !        original_space_state = original_space(:,(i+1)/2)
+            !    else
+            !        call FindExcitBitDetSym(original_space(:,i/2), original_space_state)
+            !    end if
+            !end if
 
             call decode_bit_det(nI, original_space(:,i))
 
@@ -585,6 +610,15 @@ contains
 
                 ! If a new state was not found.
                 if (ilut(0) == -1) exit
+
+                ! If using HPHFs, and if this isn't the allowed state for this HPHF, find
+                ! the the allowed state and continue with this as ilut.
+                if (tHPHF .and. (.not. TestClosedShellDet(ilut))) then
+                    if (.not. IsAllowedHPHF(ilut(0:NIfD))) then
+                        ilut_tmp = ilut
+                        call FindExcitBitDetSym(ilut_tmp, ilut)
+                    end if
+                end if
 
                 ! Check if any of the states in the old space is connected to the state
                 ! just generated. If so, this function returns the value true for the
@@ -615,6 +649,15 @@ contains
                                                                              gen_store)
 
                 if (ilut(0) == -1) exit
+
+                ! If using HPHFs, and if this isn't the allowed state for this HPHF, find
+                ! the the allowed state and continue with this as ilut.
+                if (tHPHF .and. (.not. TestClosedShellDet(ilut))) then
+                    if (.not. IsAllowedHPHF(ilut(0:NIfD))) then
+                        ilut_tmp = ilut
+                        call FindExcitBitDetSym(ilut_tmp, ilut)
+                    end if
+                end if
 
                 call check_if_connected_to_old_space(original_space, nI, ilut, &
                     original_space_size, connected_space_size, connected)
@@ -650,9 +693,19 @@ contains
         ! Loop over all states in the old space and see if any of them is connected
         ! to the state just generated.
         do i = 1, num_det_states
+            ! If this is true then the state is *in* the old space. These states
+            ! aren't required in the defined space generated, so we can skip them
+            ! (although they can be included too, as most will be, and removed afterwards
+            ! with an annihilation-like step, for simplicity).
+            if (DetBitEQ(ilut, ilut_store_old(:, i), NIfDBO)) return
+
             call decode_bit_det(nJ, ilut_store_old(0:NIfD, i))
 
-            matrix_element = get_helement(nI, nJ, ilut, ilut_store_old(0:NIfD, i))
+            if (.not. tHPHF) then
+                matrix_element = get_helement(nI, nJ, ilut, ilut_store_old(:, i))
+            else
+                matrix_element = hphf_off_diag_helement(nI, nJ, ilut, ilut_store_old(:, i))
+            end if
 
             ! If true, then this state should be added to the new ilut store, so
             ! return connected as true.
