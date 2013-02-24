@@ -6667,8 +6667,7 @@ MODULE FciMCParMod
 
             ! Search both the trial space and connected space to see if this state exists in either list.
             ! First the trial space:
-            pos = binary_search_custom(trial_vector_space(:, min_trial_ind:trial_vector_space_size), &
-                ilut, NIfTot+1, ilut_gt)
+            pos = binary_search_custom(trial_space(:, min_trial_ind:trial_space_size), ilut, NIfTot+1, ilut_gt)
 
             if (pos > 0) then
                 ! This state is in the trial space. Add the contribution to the demoninator and update

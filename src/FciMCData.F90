@@ -387,9 +387,9 @@ MODULE FciMCData
       ! Trial wavefunction data.
 
       ! This list stores the iluts from which the trial wavefunction is formed, but only those that reside on this processor.
-      integer(n_int), allocatable, dimension(:,:) :: trial_vector_space
+      integer(n_int), allocatable, dimension(:,:) :: trial_space
       ! The number of states in the trial vector space.
-      integer :: trial_vector_space_size = 0
+      integer :: trial_space_size = 0
       ! This list stores the iluts from which the trial wavefunction is formed, but only those that reside on this processor.
       integer(n_int), allocatable, dimension(:,:) :: connected_space
       ! The number of states in the space connected to (but not including) the trial vector space.

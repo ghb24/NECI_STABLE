@@ -465,23 +465,7 @@ contains
 
             new_num_det_states = new_num_det_states + old_num_det_states
 
-            ! Perform annihilation-like steps to remove repeated states: First sort the list so
-            ! that repeated states are next to each other in the list.
-            call sort(ilut_store_new(:, 1:new_num_det_states), ilut_lt, ilut_gt)
-            counter = 1
-            do j = 2, new_num_det_states
-                comp = DetBitLT(ilut_store_new(:, j-1), ilut_store_new(:, j), NIfD, .false.)
-                ! If this state and the previous one were identical, don't add this state to the
-                ! list so that repeats aren't included.
-                if (comp /= 0) then
-                    counter = counter + 1
-                    ilut_store_new(:, counter) = ilut_store_new(:, j)
-                end if
-            end do
-
-            ! After deleting any states which are in the new ilut store twice, the new total
-            ! number of states in ilut_store_new is again given by counter.
-            new_num_det_states = counter
+            call remove_repeated_states(ilut_store_new, new_num_det_states)
 
             write(6,'(i8,1X,a41)') new_num_det_states, "states found. Constructing Hamiltonian..."
             call neci_flush(6)
@@ -717,6 +701,29 @@ contains
         end do
 
     end subroutine check_if_connected_to_old_space
+
+    subroutine remove_repeated_states(list, list_size)
+
+        integer, intent(inout) :: list_size
+        integer(n_int), intent(inout) :: list(0:NIfTot, list_size)
+        integer :: i, counter, comp
+
+        ! Annihilation-like steps to remove repeated states.
+        call sort(list(:, 1:list_size), ilut_lt, ilut_gt)
+        counter = 1
+        do i = 2, list_size
+            comp = DetBitLT(list(:, i-1), list(:, i), NIfD, .false.)
+            ! If this state and the previous one were identical, don't add this state to the
+            ! list so that repeats aren't included.
+            if (comp /= 0) then
+                counter = counter + 1
+                list(:, counter) = list(:, i)
+            end if
+        end do
+
+        list_size = counter
+
+    end subroutine remove_repeated_states
 
     subroutine generate_sing_doub_determinants(called_from)
 
@@ -1035,14 +1042,14 @@ contains
 
         ! When called from the trial wavefunction generation code, only the root
         ! processor accesses this code, and each state is added to the list of iluts,
-        ! trial_vector_space on this one processor.
+        ! trial_space on this one processor.
 
         ! In: ilut - The determinant in a bitstring form.
         ! In: called_from - Integer to specify which part of the code this routine was
         !     called from, and hence which space this state should be added to.
         ! In (optional) : nI_in - A list of the occupied orbitals in the determinant.
 
-        use FciMCData, only: trial_vector_space, trial_vector_space_size
+        use FciMCData, only: trial_space, trial_space_size
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: called_from
@@ -1091,9 +1098,9 @@ contains
                 if (.not. IsAllowedHPHF(ilut)) return
             end if
 
-            trial_vector_space_size = trial_vector_space_size + 1
+            trial_space_size = trial_space_size + 1
 
-            trial_vector_space(0:NIfTot, trial_vector_space_size) = ilut(0:NIfTot)
+            trial_space(0:NIfTot, trial_space_size) = ilut(0:NIfTot)
 
         end if
 
