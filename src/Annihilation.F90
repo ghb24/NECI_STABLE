@@ -12,6 +12,7 @@ MODULE AnnihilationMod
     use spatial_initiator, only: add_initiator_list, rm_initiator_list, &
                                  is_spatial_init
     use CalcData , only : tTruncInitiator, tSpawnSpatialInit, tSortDetermToTop
+    use DeterminantData, only: write_det
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use sort_mod
@@ -825,6 +826,7 @@ MODULE AnnihilationMod
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer :: i, MinInd, MaxInd, PartInd
+        integer :: nI(nel)
         real(dp), dimension(lenof_sign) :: SpawnedSign, CurrentSign, SignProd
         logical :: tSuccess
 
@@ -866,6 +868,10 @@ MODULE AnnihilationMod
                 else
                     ! All deterministic states should be kept in CurrentDets always, so if this search
                     ! does not return a state then something has gone badly wrong!
+                    write(6,*) "Deterministic state not found:"
+                    call decode_bit_det(nI, SpawnedParts(:, i))
+                    call write_det(6, nI, .true.)
+                    write(6,*) SpawnedParts(:, i)
                     call stop_all("deterministic_annihilation","Deterministic state not found in main list.")
                 end if
             end do
