@@ -31,7 +31,7 @@ C..temp
       integer :: LAB(M,ICMAX),NROW(M)
 C ==----------------------------------------------------------------==
       tDie2 = tDie
-      ReturnNan=-1.D0
+      ReturnNan=-1.0_dp
       tFail=.false.
 
 C..Initialise V0 
@@ -66,17 +66,17 @@ C      CALL DSYEV('V','U',M,H,M,WH,WORK2,3*M,INFO)
 C      WRITE(6,'(//14X,''Exact'',15X,''Lanczos'',10X,''Residual'')')
 C      DO I=1,N
 C        AUX=ABS(DDOT(M,V0(1,I),1,H(1,M-I+1),1))
-C        AUX=1.D0-AUX
+C        AUX=1.0_dp-AUX
 C        WRITE(6,'(6X,I3,2E19.11,2X,E10.3)') I,WH(M-I+1),W(I),AUX
 C      ENDDO
 C      T2 = neci_etime()
 C      T3=(T2-T1)
 C      WRITE(6,'(//5X,''TIME FOR EXACT DIAGONALISATION'',F10.2)')
-C     &       T3/1000.D0
+C     &       T3/1000.0_dp
 C      IF(PRINTOUT) THEN
 C          WRITE(6,'(//10X,''Neval'',15X,''Eigenvalue'')')
 C          DO I=1,N
-C              WRITE(6,'(10X,I3,15X,F19.11)') I,-1.D0*W(I)
+C              WRITE(6,'(10X,I3,15X,F19.11)') I,-1.0_dp*W(I)
 C          ENDDO
 C      ENDIF
 C ==----------------------------------------------------------------==
@@ -87,6 +87,7 @@ C ====================================================================
      &     NCYCLE,PRINTOUT,TLargest,tDie2,tFail)
       use constants, only: dp,sp
       use global_utilities
+      use util_mod, only: neci_etime
 !      IMPLICIT real(dp) (A-H,O-Z)
       IMPLICIT NONE
       LOGICAL :: PRINTOUT,TLargest,tDie2,tFail
@@ -100,7 +101,7 @@ C ====================================================================
       integer :: NCONV
       integer :: INDEX(N),NROW(M),LAB(M,ICMAX),INFO 
       type(timer), save :: proc_timer
-      real(sp) t1,t2,t3,tarr(2),neci_etime
+      real(sp) t1,t2,t3,tarr(2)
 C..temp
       real(dp) ::  H(*)
 C..temp
@@ -151,7 +152,7 @@ C=====================================================================
 C        CALL NECI_WRITE_MATRIX('   W:   ',N,1,W)
 C ====================================================================
 C..Residual: H(VY) - (VY)E and test for convergence
-        B2MAX=0.D0
+        B2MAX=0.0_dp
         B2MIN=1.D30
         NCURR=NCONV+1 
         DO J=NCURR,N
@@ -206,7 +207,7 @@ C ==------------------------------------------------------------------==
           if(tFail) return
 C ==------------------------------------------------------------------==
 C..V=[V_1 V_2.. V_L] Y' 
-          CALL DGEMM('N','N',M,NBLEFF,NBLK,1.D0,V,M,T,NBLK,0.D0,
+          CALL DGEMM('N','N',M,NBLEFF,NBLK,1.0_dp,V,M,T,NBLK,0.0_dp,
      &         V0(1,I),M)
 C==-------------------------------------------------------------------==
 C==  End of refinement over states                                    ==
@@ -241,7 +242,7 @@ C.. End of Lanczos diagonalisation
       T3=(T2-T1)
       IF(PRINTOUT) THEN
           WRITE(6,'(//5X,''TIME FOR LANCZOS DIAGONALISATION'',F10.2)')
-     &     T3/1000.D0
+     &     T3/1000.0_dp
       ENDIF
       call halt_timer(proc_timer)
 C     ================================================================  
@@ -296,9 +297,9 @@ C..N = NEVAL
           DO J=1,M 
 C            IF(J.EQ.NUN) THEN
 C              IF(I.EQ.1) THEN
-C                A(J,I)=1.D0
+C                A(J,I)=1.0_dp
 C              ELSE
-C               A(J,I)=0.D0
+C               A(J,I)=0.0_dp
 C              ENDIF
 C            ENDIF
             A(J,I)=RAN2(iseed)
@@ -439,8 +440,8 @@ C        CALL DSYEV('V','U',I*N,T,I*N,WT,SCR,LSCR,INFO)
 C        CALL NECI_REORDER(I*N,WT,T)
 C.. Compute error V_3 Y'', where Y'' is the last N rows of Y 
 C        CALL GETMAT('N',T,I*N,I*N,AM(1,1,I+1),N,N,I,1)
-C        CALL DGEMM('N','N',M,N,N,1.D0,V(1,1,I+1),M,AM(1,1,I+1),
-C     &       N,0.D0,SCR,M)
+C        CALL DGEMM('N','N',M,N,N,1.0_dp,V(1,1,I+1),M,AM(1,1,I+1),
+C     &       N,0.0_dp,SCR,M)
 C        DO J=1,N
 C          AUX=DNRM2(M,SCR(M*(J-1)+1),1)**2
 C          IF(AUX.LT.B2MIN) B2MIN=AUX
@@ -497,11 +498,11 @@ C..Compute residual
         CALL DAXPY(M,-W(I),V(1,I,1),1,V(1,I,2),1)
       ENDDO
 C..V2 B2=R  
-      BM=0.d0
+      BM=0.0_dp
       CALL NECI_MGS(M,N,V(1,1,2),M,BM(1,1,2),N,tDie2,tFail)
       if(tFail) return
 C..   Setup A_1=diag(w)
-      AM(:,:,1)=0.d0
+      AM(:,:,1)=0.0_dp
       DO I=1,N 
         AM(I,I,1)=W(I)
       ENDDO
@@ -539,10 +540,10 @@ C     ==--------------------------------------------------------------==
       IF(NP.LT.1) RETURN
       IF(N0.GT.0) THEN
 C..SMAT=CP.C0 
-        CALL DGEMM('T','N',NP,N0,M,1.D0,CP,M,C0,M,0.D0,SMAT,NP)
+        CALL DGEMM('T','N',NP,N0,M,1.0_dp,CP,M,C0,M,0.0_dp,SMAT,NP)
 C..CP -> CP-C0*SMAT
-        CALL DGEMM('N','T',M,NP,N0,-1.D0,C0,M,SMAT,NP,
-     *             1.D0,CP,M)
+        CALL DGEMM('N','T',M,NP,N0,-1.0_dp,C0,M,SMAT,NP,
+     *             1.0_dp,CP,M)
       ENDIF
       CALL NECI_MGS(M,NP,CP,M,SMAT,NP,tDie2,tFail)
       call halt_timer(proc_timer)
@@ -562,10 +563,10 @@ C..
         WRITE(6,*) 'N:',N
         STOP 'LSCR LT N '
       ENDIF
-      SCR(1:N)=0.d0
+      SCR(1:N)=0.0_dp
       DO J=1,N
         CALL DCOPY(N,A(1,J),1,SCR,1)
-        A(1:N,J)=0.d0
+        A(1:N,J)=0.0_dp
         IBEG=MAX(J-KD,1)
         DO I=IBEG,J
           A(1+KD+I-J,J)=SCR(I)
@@ -584,7 +585,7 @@ C =======================================================================
       type(timer), save :: proc_timer
       proc_timer%timer_name='      NECI_HSPI'
       call set_timer(proc_timer)
-      CALL DGEMM('N','N',M,N,M,1.D0,H,M,V0,M,0.D0,VS,M)
+      CALL DGEMM('N','N',M,N,M,1.0_dp,H,M,V0,M,0.0_dp,VS,M)
       call halt_timer(proc_timer)
       RETURN
       END 
@@ -599,7 +600,7 @@ C =======================================================================
       type(timer), save :: proc_timer
       proc_timer%timer_name='NECI_OVLAP'
       call set_timer(proc_timer)
-      CALL DGEMM('T','N',N,N,M,1.D0,V0,M,VS,M,0.D0,A,N)
+      CALL DGEMM('T','N',N,N,M,1.0_dp,V0,M,VS,M,0.0_dp,A,N)
       call halt_timer(proc_timer)
       RETURN
       END 
@@ -617,9 +618,9 @@ C..V_I = V_I - V_(I-1) A_(I-1)
       proc_timer%timer_name='    NECI_RSDBLK'
       call set_timer(proc_timer)
       IF(CHAR.EQ.'N') THEN 
-        CALL DGEMM('N','N',M,N,N,-1.D0,V1,M,A,N,1.D0,V2,M)
+        CALL DGEMM('N','N',M,N,N,-1.0_dp,V1,M,A,N,1.0_dp,V2,M)
       ELSEIF(CHAR.EQ.'T') THEN 
-        CALL DGEMM('N','T',M,N,N,-1.D0,V1,M,A,N,1.D0,V2,M)
+        CALL DGEMM('N','T',M,N,N,-1.0_dp,V1,M,A,N,1.0_dp,V2,M)
       ELSE
         STOP ' CHAR ILLEGAL IN NECI_RSDBLK ' 
       ENDIF
@@ -637,7 +638,7 @@ C =======================================================================
       type(timer), save :: proc_timer
       proc_timer%timer_name='    NECI_ROTATE'
       call set_timer(proc_timer)
-      CALL DGEMM('N','N',M,N,N,1.D0,V0,M,A,N,0.D0,SCR,M)
+      CALL DGEMM('N','N',M,N,N,1.0_dp,V0,M,A,N,0.0_dp,SCR,M)
       CALL DCOPY(M*N,SCR,1,V0,1)
       call halt_timer(proc_timer)
       RETURN 
@@ -660,7 +661,7 @@ C ==------------------------------------------------------------------==
       IF(M.EQ.N) THEN 
         CALL DSYEV('V','U',N,T,N,WT,SCR,LSCR,INFO)
       ELSE
-        CALL DSYEVX('V','I','U',M,T,M,1.D0,1.D0,M-N+1,M,0.D0,
+        CALL DSYEVX('V','I','U',M,T,M,1.0_dp,1.0_dp,M-N+1,M,0.0_dp,
      &       MEVAL,WT,T(1,1,2),M,SCR,LSCR,ISCR,IFAIL,INFO)
         IF(MEVAL.LT.N) THEN 
           WRITE(6,*) ' WARNING| DSYEVX RETURNED MEVAL < N',MEVAL,N
@@ -699,8 +700,9 @@ C..Put T is form suitable for banded matrix diagonalisation
         STOP ' LISCR TOO SMALL IN BANDM'
       ENDIF
 C        CALL DSBEV('V','U',IN,N,T,IN,WT,T(1,2),IN,SCR,INFO)
-      CALL DSBEVX('V','I','U',IN,N,T,IN,T(1,1,2),IN,1.D0,1.D0,
-     &     IN-N+1,IN,1.D-10,MEVAL,WT,T(1,1,3),IN,SCR,ISCR,IFAIL,INFO)
+      CALL DSBEVX('V','I','U',IN,N,T,IN,T(1,1,2),IN,1.0_dp,1.0_dp,
+     &     IN-N+1,IN,1.0e-10_dp,MEVAL,WT,T(1,1,3),IN,SCR,
+     &     ISCR,IFAIL,INFO)
       IF(MEVAL.LT.N) THEN 
         WRITE(6,*) ' WARNING| DSBEVX RETURNED MEVAL < N',MEVAL,N
       ENDIF
@@ -722,12 +724,12 @@ C =====================================================================
       proc_timer%timer_name='    PRJCNV'
       call set_timer(proc_timer)
 C..SMAT=V0^T.V 
-      CALL DGEMM('T','N',N0,NP,M,1.D0,V0,M,V,M,0.D0,SMAT,N0)
+      CALL DGEMM('T','N',N0,NP,M,1.0_dp,V0,M,V,M,0.0_dp,SMAT,N0)
 Cdeb      DO J=1,N0
 Cdeb        CALL DSCAL(NP,W(J),SMAT(J,1),N0)
 Cdeb      ENDDO
 C..   V -> V-V0*SMAT
-      CALL DGEMM('N','N',M,NP,N0,-1.D0,V0,M,SMAT,N0,1.D0,V,M)
+      CALL DGEMM('N','N',M,NP,N0,-1.0_dp,V0,M,SMAT,N0,1.0_dp,V,M)
       call halt_timer(proc_timer)
       RETURN 
       END 
@@ -752,10 +754,10 @@ C     ==--------------------------------------------------------------==
       proc_timer%timer_name='NECI_RGS'
       call set_timer(proc_timer)
       SMAT=0
-      CALL DSYRK('U','T',N,M,1.D0,CP,M,0.D0,SMAT,N)
+      CALL DSYRK('U','T',N,M,1.0_dp,CP,M,0.0_dp,SMAT,N)
       CALL NECI_UINV('U',SMAT,N,N,tDie2,tFail)
       if(tFail) return
-      CALL DTRMM('R','U','N','N',M,N,1.D0,SMAT,N,CP,M)
+      CALL DTRMM('R','U','N','N',M,N,1.0_dp,SMAT,N,CP,M)
       call halt_timer(proc_timer)
 C     ==--------------------------------------------------------------==
       RETURN

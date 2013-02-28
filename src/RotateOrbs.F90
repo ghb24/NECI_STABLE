@@ -1484,7 +1484,7 @@ MODULE RotateOrbsMod
             do i=1,NoOrbs
                 Norm=Norm+(CoeffT1(i,j)**2)
             enddo
-            IF(abs(Norm-1.0_dp).gt.1.D-7) THEN
+            IF(abs(Norm-1.0_dp).gt.1.0e-7_dp) THEN
                 CALL Stop_All("EquateDiagFock","Rotation Coefficients not normalized")
             ENDIF
         enddo
@@ -1498,7 +1498,7 @@ MODULE RotateOrbsMod
                 do k=1,NoOrbs
                     Norm=Norm+(CoeffT1(k,j)*CoeffT1(k,i))
                 enddo
-                IF(abs(Norm).gt.1.D-7) THEN
+                IF(abs(Norm).gt.1.0e-7_dp) THEN
                     WRITE(6,*) "COLUMNS: ",j,i
                     CALL Stop_All("EquateDiagFock","RotationCoefficients not orthogonal")
                 ENDIF

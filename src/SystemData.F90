@@ -145,10 +145,9 @@ logical :: tRef_Not_HF
 
 ! Inputs for the UEG2
 character(len=3) :: real_lattice_type ! type of reciprocal lattice (eg. fcc, sc, bcc, hcp)
-real(dp) :: k_lattice_vectors(3,3)
+integer :: k_lattice_vectors(3,3)
 real(dp) :: k_lattice_constant
-real(dp) :: Unscaled_LatConst_square
-real(dp), allocatable :: kvec(:,:)
+integer, allocatable :: kvec(:,:)
 integer ::  Highest_orb_index
 integer :: dimen
 

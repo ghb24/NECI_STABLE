@@ -9,6 +9,7 @@ MODULE SymExcit3
     use constants, only: n_int
     USE GenRandSymExcitNUMod, only: SymLabelList2,SymLabelCounts2,ClassCountInd,ScratchSize
     use SymExcitDataMod, only: SpinOrbSymLabel
+    use get_excit, only: make_double
     IMPLICIT NONE
 
 
@@ -363,7 +364,7 @@ MODULE SymExcit3
 ! The overall symmetry must also be maintained - i.e. if i and j are alpha and beta, a and b must be alpha and beta
 ! or vice versa.
         USE SystemData , only: ElecPairs, tFixLz, iMaxLz
-        USE GenRandSymExcitNUMod , only: PickElecPair,FindNewDet 
+        USE GenRandSymExcitNUMod , only: PickElecPair
         use constants, only: bits_n_int
         INTEGER :: nI(NEl),Orbj,Orbi,Orba,Orbb,Syma,Symb,NewSym
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
@@ -617,7 +618,8 @@ MODULE SymExcit3
         enddo lp
 
         if(tDoubleExcitFound.and.(.not.tAllExcitFound)) then
-            CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,Orba,Orbb,ExcitMat3,tParity)
+            call make_double (nI, nJ, elec1ind, elec2ind, orbA, orbB, &
+                              ExcitMat3, tParity)
 !        else
 !            write(6,*) "Exiting loop with all excitations found: ",tAllExcitFound
         endif

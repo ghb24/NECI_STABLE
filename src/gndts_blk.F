@@ -247,7 +247,7 @@ C.. Generate determinants with a given symmetry, given by KI, as GENSYMDETS
          DO I=NBF,NBASIS
 C.. We continue if we're not searching for a specific det, or if we've
 C.. yet to find a specific det.
-            IF(PP.EQ.0.D0.OR.NLIST.LT.NLMAX) THEN
+            IF(PP.EQ.0.0_dp.OR.NLIST.LT.NLMAX) THEN
                NJ(NELEC)=BRR(I)
                KJ2=KJ
 C.. Check if we've filled all the electrons
@@ -260,11 +260,11 @@ C.. Check if we've filled all the electrons
 C.. Check the connectivity
                    IF(ICE.GT.0.AND.ICE.LE.2) THEN
                      NLIST=NLIST+1
-                     IF(RP.NE.0.D0) THEN
+                     IF(RP.NE.0.0_dp) THEN
                         CALL CALCRHO2(NI,NN,BETA,I_P,NEL,
      &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &             RH2,NTAY,ICE,ECORE)
-                        IF(RP.GE.0.D0) THEN
+                        IF(RP.GE.0.0_dp) THEN
                            RN=RN+RH2**RP
                         ELSEIF(ABS(RH2).GT.RHOEPS) THEN
                            CALL CALCRHO2(NN,NN,BETA,I_P,NEL,
@@ -275,7 +275,7 @@ C.. Check the connectivity
                      ENDIF
                      IF(NLIST.LE.NLMAX) THEN
 C.. if there's space, we save it
-                        IF(PP.NE.0.D0) THEN
+                        IF(PP.NE.0.0_dp) THEN
                            IF(RN.GE.PP) THEN
                               CALL NECI_ICOPY(NEL,NN,1,LSTE(1,NLIST),1)
                            ELSE
@@ -304,9 +304,9 @@ C.. if ABS(RHO_IJ)<RHOEPS the weight is zero.
 C.. Otherwise if (RP<0) the weight is RHO_JJ**ABS(RP).
 C.. If RP>0, the weight is RHO_IJ**ABS(RP)
 C.. RN is returned as the total of the weights of all the dets (if
-C.. RP!=0.D0).  
+C.. RP!=0.0_dp).  
 C.. 
-C.. If PP>0.D0, then as RN is summed, if a det's contribution to RN
+C.. If PP>0.0_dp, then as RN is summed, if a det's contribution to RN
 C.. exceeds PP, then the procedure ends.
 C..
 C.. NLIST on input is set to the number of dets which can fit into 
@@ -334,7 +334,7 @@ C.. the first NLIST are stored.
          NJ(1:NEL)=0
          NLMAX=NLIST
          NLIST=0
-         RN=0.D0
+         RN=0.0_dp
          CALL GENSYMDETSSDN_R(NI,KI,NEL,G1,BRR,NBASIS,LSTE,NLIST,
      &                        NLMAX,NJ,KJ,1,1,NBASISMAX,
      &         BETA,I_P,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,ECORE,RN,RP,

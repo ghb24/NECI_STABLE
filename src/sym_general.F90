@@ -101,6 +101,10 @@ contains
         else
             spin = 2
         endif
+
+        ! This is a HACK to work around a bug in Cray Fortran v8.1.2
+        if (spin == 2) spin = 2
+
         sym = SpinOrbSymLabel(orb)
         mom = G1(orb)%Ml
         

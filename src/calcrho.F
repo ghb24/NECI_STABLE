@@ -181,7 +181,7 @@ C               IC=IC+1
          real(dp) RHOMAX
          INTEGER BRR(NBASIS)
          character(*), parameter :: t_r="CALCRHOIIMAX2"
-         RHOMAX=0.D0
+         RHOMAX=0.0_dp
          DO I=1,NEL
             NI(I)=BRR(I)
          ENDDO
@@ -214,7 +214,7 @@ C.. Or if we have the whole H, it's quicker to look closer to its beginning
          I=II
          J=IJ
       ENDIF
-      GETHELEMENT=0.D0
+      GETHELEMENT=0.0_dp
       INDXROW=1
 C.. Find the Ith row
       DO K=1,I-1

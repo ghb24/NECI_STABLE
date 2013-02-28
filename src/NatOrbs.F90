@@ -47,12 +47,12 @@ MODULE NatOrbsMod
         ALLOCATE(NatOrbMat(NoOrbs,NoOrbs),stat=ierr)
         CALL LogMemAlloc('NatOrbMat',NoOrbs**2,8,this_routine,NatOrbMatTag,ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,"Mem allocation for NatOrbMat failed.")
-        NatOrbMat(:,:)=0.D0
+        NatOrbMat(:,:)=0.0_dp
 
         ALLOCATE(Evalues(NoOrbs),stat=ierr)
         CALL LogMemAlloc('Evalues',NoOrbs,8,this_routine,EvaluesTag,ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,"Mem allocation for Evalues failed.")
-        Evalues(:)=0.D0
+        Evalues(:)=0.0_dp
 
 ! First need to fill the relevant matrix for calculating the type of natural orbitals we want.
         IF(tFindCINatOrbs) THEN
@@ -527,14 +527,14 @@ MODULE NatOrbsMod
                             Orbj=SymLabelListInv_rot(Ex(2,1))
                             Spins=1
                         ELSE
-                            Orbi=SymLabelListInv_rot(CEILING(REAL(Ex(1,1))/2.D0))
-                            Orbj=SymLabelListInv_rot(CEILING(REAL(Ex(2,1))/2.D0))
+                            Orbi=SymLabelListInv_rot(CEILING(REAL(Ex(1,1))/2.0_dp))
+                            Orbj=SymLabelListInv_rot(CEILING(REAL(Ex(2,1))/2.0_dp))
                             Spins=2
                         ENDIF
                         IF(tSign) THEN
-                            SignDet=(-1.D0)
+                            SignDet=(-1.0_dp)
                         ELSE
-                            SignDet=1.D0
+                            SignDet=1.0_dp
                         ENDIF
 
                         NatOrbMat(Orbi,Orbj)=NatOrbMat(Orbi,Orbj) &
@@ -543,17 +543,17 @@ MODULE NatOrbsMod
                                                 + (SignDet*AllHistogram(1,i)*AllHistogram(1,j))
 
                         ! AllHistogram are the normalised amplitudes of the determinants.
-!                        IF(((AllHistogram(i)*AllHistogram(j).ne.0.D0).and.&
+!                        IF(((AllHistogram(i)*AllHistogram(j).ne.0.0_dp).and.&
 !                            (INT(G1(SymLabelList2_rot(Orbi)*2)%sym%S,4).ne.&
 !                            INT(G1(SymLabelList2_rot(Orbj)*2)%sym%S,4)))&
 !                        &.or.(Ex(1,1).gt.(SpatOrbs*2)).or.(Ex(2,1).gt.(SpatOrbs*2))) THEN
 
-                        IF((AllHistogram(1,i)*AllHistogram(1,j).ne.0.D0).and. &
+                        IF((AllHistogram(1,i)*AllHistogram(1,j).ne.0.0_dp).and. &
                          (INT(G1(SymLabelList2_rot(Orbi)*Spins)%sym%S,4).ne.&
                          INT(G1(SymLabelList2_rot(Orbj)*Spins)%sym%S,4))) THEN
                             WRITE(6,*) 'ERROR in symmetries'
                             WRITE(6,*) 'Ex,',Ex(1,1),Ex(2,1)
-                            WRITE(6,*) CEILING(REAL(Ex(1,1)/2.D0)),CEILING(REAL(Ex(2,1)/2.D0))
+                            WRITE(6,*) CEILING(REAL(Ex(1,1)/2.0_dp)),CEILING(REAL(Ex(2,1)/2.0_dp))
                             WRITE(6,*) 'Orbi,',Orbi,'Orbj,',Orbj
                             WRITE(6,*) 'Sym(Orbi)',INT(G1(SymLabelList2_rot(Orbi)*Spins)%sym%S,4),'Sym(Orbj)', &
                                 INT(G1(SymLabelList2_rot(Orbj)*Spins)%sym%S,4)
@@ -574,7 +574,7 @@ MODULE NatOrbsMod
                             IF(tStoreSpinOrbs) THEN
                                 Orbk=SymLabelListInv_rot(nJ(k))
                             ELSE
-                                Orbk=SymLabelListInv_rot(CEILING(REAL(nJ(k))/2.D0))
+                                Orbk=SymLabelListInv_rot(CEILING(REAL(nJ(k))/2.0_dp))
                             ENDIF
                             NatOrbMat(Orbk,Orbk)=NatOrbMat(Orbk,Orbk)+(AllHistogram(1,j)**2)
 !                            NatOrbMat(Orbk,Orbk)=NatOrbMat(Orbk,Orbk)+(0.5 * (AllHistogram(j)**2))
@@ -671,7 +671,7 @@ MODULE NatOrbsMod
 
                     b=SymLabelList2_rot(b2)
 
-                    MP2VDMSum=0.D0
+                    MP2VDMSum=0.0_dp
 !                    WRITE(6,*) 'a',a,'b',b,'a2',a2,'b2',b2
 
                     ! when a and b beta, run over both alpha and beta virtual for c, then both alpha 
@@ -743,7 +743,7 @@ MODULE NatOrbsMod
                                                 HEl01=GETUMATEL(a,c,i,j)
                                                 HEl02=GETUMATEL(b,c,i,j)
                                                 MP2VDMSum=MP2VDMSum+&
-                                                    &(( (REAL(HEl01,dp)) * (2.D0*(REAL(HEl02,dp))) )/&
+                                                    &(( (REAL(HEl01,dp)) * (2.0_dp*(REAL(HEl02,dp))) )/&
                                                     &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) &
                                                     &* (ARR(2*i,2)+ARR(2*j,2)-ARR(2*b,2)-ARR(2*c,2)) ) )
 
@@ -754,15 +754,15 @@ MODULE NatOrbsMod
                                                     &(ARR(2*i,2)+ARR(2*j,2)-ARR(2*c,2)-ARR(2*b,2)) ) )
 
                                             ELSEIF(tStoreSpinOrbs) THEN
-                                                IF((ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2)).eq.0.D0) THEN
-                                                    IF((REAL(UMAT(UMatInd(a,c,i,j,0,0)),dp)).ne.0.D0) THEN
+                                                IF((ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2)).eq.0.0_dp) THEN
+                                                    IF((REAL(UMAT(UMatInd(a,c,i,j,0,0)),dp)).ne.0.0_dp) THEN
                                                         WRITE(6,*) i,j,a,c,REAL(UMAT(UMatInd(a,c,i,j,0,0)),dp)
                                                         CALL Stop_All(this_routine,"Dividing a non-zero by zero.")
                                                     ENDIF
                                                 ENDIF
                                                 MP2VDMSum=MP2VDMSum+&
                                                    (((REAL(UMAT(UMatInd(a,c,i,j,0,0)),dp)) & 
-                                                   * (2.D0*(REAL(UMAT(UMatInd(b,c,i,j,0,0)),dp))))/&
+                                                   * (2.0_dp*(REAL(UMAT(UMatInd(b,c,i,j,0,0)),dp))))/&
                                                    ( (ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2)) &
                                                    * (ARR(i,2)+ARR(j,2)-ARR(b,2)-ARR(c,2)) ) )
                                                 MP2VDMSum=MP2VDMSum-&
@@ -773,7 +773,7 @@ MODULE NatOrbsMod
                                             ELSE
                                                 MP2VDMSum=MP2VDMSum+&
                                                     (( (REAL(UMAT(UMatInd(a,c,i,j,0,0)),dp)) &
-                                                    * (2.D0*(REAL(UMAT(UMatInd(b,c,i,j,0,0)),dp))) )/&
+                                                    * (2.0_dp*(REAL(UMAT(UMatInd(b,c,i,j,0,0)),dp))) )/&
                                                     ((ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) &
                                                     * (ARR(2*i,2)+ARR(2*j,2)-ARR(2*b,2)-ARR(2*c,2))))
                                                MP2VDMSum=MP2VDMSum-&
@@ -854,26 +854,26 @@ MODULE NatOrbsMod
             IF(tRotateVirtOnly) THEN
                 do i=1,NoOcc
                     do j=1,SpatOrbs
-                        NatOrbMat(i+Prev,j+Prev)=0.D0
-                        NatOrbMat(j+Prev,i+Prev)=0.D0
-                        IF(i.eq.j) NatOrbMat(i+Prev,j+Prev)=1.D0
+                        NatOrbMat(i+Prev,j+Prev)=0.0_dp
+                        NatOrbMat(j+Prev,i+Prev)=0.0_dp
+                        IF(i.eq.j) NatOrbMat(i+Prev,j+Prev)=1.0_dp
                     enddo
-                    Evalues(i+Prev)=1.D0
+                    Evalues(i+Prev)=1.0_dp
                 enddo
             ELSEIF(tRotateOccOnly) THEN
                 do i=NoOcc+1,SpatOrbs
                     do j=1,SpatOrbs
-                        NatOrbMat(i+Prev,j+Prev)=0.D0
-                        NatOrbMat(j+Prev,i+Prev)=0.D0
-                        IF(i.eq.j) NatOrbMat(i+Prev,j+Prev)=1.D0
+                        NatOrbMat(i+Prev,j+Prev)=0.0_dp
+                        NatOrbMat(j+Prev,i+Prev)=0.0_dp
+                        IF(i.eq.j) NatOrbMat(i+Prev,j+Prev)=1.0_dp
                     enddo
-                    Evalues(i+Prev)=1.D0
+                    Evalues(i+Prev)=1.0_dp
                 enddo
             ELSEIF(tSeparateOccVirt) THEN
                 do i=1,NoOcc
                     do j=NoOcc+1,SpatOrbs
-                        NatOrbMat(i+Prev,j+Prev)=0.D0
-                        NatOrbMat(j+Prev,i+Prev)=0.D0
+                        NatOrbMat(i+Prev,j+Prev)=0.0_dp
+                        NatOrbMat(j+Prev,i+Prev)=0.0_dp
                     enddo
                 enddo
             ENDIF
@@ -899,7 +899,7 @@ MODULE NatOrbsMod
                                 CALL Stop_All(this_routine,'Non-zero NatOrbMat value between different symmetries.')
                             ENDIF
                         ENDIF
-                        NatOrbMat(i,j)=0.D0
+                        NatOrbMat(i,j)=0.0_dp
                     ENDIF
                 ELSE
 !                    WRITE(6,*) INT(G1(SymLabelList2_rot(i)*2)%sym%S,4),INT(G1(SymLabelList2_rot(j)*2)%sym%S,4),NatOrbMat(i,j)
@@ -917,13 +917,13 @@ MODULE NatOrbsMod
                                 CALL Stop_All(this_routine,'Non-zero NatOrbMat value between different symmetries.')
                             ENDIF
                         ENDIF
-                        NatOrbMat(i,j)=0.D0
+                        NatOrbMat(i,j)=0.0_dp
                     ENDIF
                 ENDIF
             enddo
         enddo
 
-        SumTrace=0.D0
+        SumTrace=0.0_dp
         do i=1,NoOrbs
             SumTrace=SumTrace+NatOrbMat(i,i)
         enddo
@@ -1045,7 +1045,7 @@ MODULE NatOrbsMod
                         ! The eigenvalue is the lone value, while the eigenvector is 1.
 
                         Evalues(SymStartInd+1)=NatOrbMat(SymStartInd+1,SymStartInd+1)
-                        NatOrbMat(SymStartInd+1,SymStartInd+1)=1.D0
+                        NatOrbMat(SymStartInd+1,SymStartInd+1)=1.0_dp
                         WRITE(6,*) '*****'
                         WRITE(6,*) 'Symmetry ',Sym,' has only one orbital.'
                         WRITE(6,*) 'Copying diagonal element ,',SymStartInd+1,'to NatOrbMat'
@@ -1059,11 +1059,11 @@ MODULE NatOrbsMod
         WRITE(6,*) 'Matrix diagonalised'
         CALL neci_flush(6)
 
-        SumDiagTrace=0.D0
+        SumDiagTrace=0.0_dp
         do i=1,NoOrbs
             SumDiagTrace=SumDiagTrace+Evalues(i)
         enddo
-        IF((ABS(SumDiagTrace-SumTrace)).gt.10.D0) THEN
+        IF((ABS(SumDiagTrace-SumTrace)).gt.10.0_dp) THEN
             WRITE(6,*) 'Sum of diagonal NatOrbMat elements : ',SumTrace
             WRITE(6,*) 'Sum of eigenvalues : ',SumDiagTrace
 !            CALL Stop_All(this_routine,'The trace of the 1RDM matrix before diagonalisation is 
@@ -1251,7 +1251,7 @@ MODULE NatOrbsMod
 
             ALLOCATE(EvaluesTrunc(NoOrbs-NoFrozenVirt),stat=ierr)
             CALL LogMemAlloc('EvaluesTrunc',NoOrbs-NoFrozenVirt,4,this_routine,EvaluesTruncTag,ierr)
-            EvaluesTrunc(:)=0.D0
+            EvaluesTrunc(:)=0.0_dp
 
             IF(tStoreSpinOrbs) THEN
                 NoRotAlphBet=SpatOrbs-(NoFrozenVirt/2)
@@ -1338,31 +1338,31 @@ MODULE NatOrbsMod
 !First nOccBeta, then nOccAlpha.
                 do i=1,(2*nOccBeta),2
                     k=1
-                    do while(OccEnergies(k).eq.0.D0)
+                    do while(OccEnergies(k).eq.0.0_dp)
                         k=k+2
                     enddo
                     do j=1,(2*nOccBeta),2
-                        IF((OccEnergies(j).lt.OccEnergies(k)).and.(OccEnergies(j).ne.0.D0)) k=j
+                        IF((OccEnergies(j).lt.OccEnergies(k)).and.(OccEnergies(j).ne.0.0_dp)) k=j
                     enddo
-                    l=CEILING(REAL(k)/2.D0)
+                    l=CEILING(REAL(k)/2.0_dp)
                     CoeffT1(:,i)=NatOrbMat(:,l)
                     EvaluesTrunc(i)=Evalues(l)
                     SymOrbs_rot(i)=SymOrbs_rotTemp(l)
-                    OccEnergies(k)=0.D0
+                    OccEnergies(k)=0.0_dp
                 enddo
                 do i=2,(2*nOccAlpha),2
                     k=2
-                    do while(OccEnergies(k).eq.0.D0)
+                    do while(OccEnergies(k).eq.0.0_dp)
                         k=k+2
                     enddo
                     do j=2,(2*nOccAlpha),2
-                        IF((OccEnergies(j).lt.OccEnergies(k)).and.(OccEnergies(j).ne.0.D0)) k=j
+                        IF((OccEnergies(j).lt.OccEnergies(k)).and.(OccEnergies(j).ne.0.0_dp)) k=j
                     enddo
                     l=(k/2)+SpatOrbs
                     CoeffT1(:,i)=NatOrbMat(:,l)
                     EvaluesTrunc(i)=Evalues(l)
                     SymOrbs_rot(i)=SymOrbs_rotTemp(l)
-                    OccEnergies(k)=0.D0
+                    OccEnergies(k)=0.0_dp
                 enddo
                 
 !Need to fill coeffT1 so that it goes alpha beta alpha beta.
@@ -1390,16 +1390,16 @@ MODULE NatOrbsMod
 
                 do i=1,NEl/2
                     k=1
-                    do while(OccEnergies(k).eq.0.D0)
+                    do while(OccEnergies(k).eq.0.0_dp)
                         k=k+1
                     enddo
                     do j=1,NEl/2
-                        IF((OccEnergies(j).lt.OccEnergies(k)).and.(OccEnergies(j).ne.0.D0)) k=j
+                        IF((OccEnergies(j).lt.OccEnergies(k)).and.(OccEnergies(j).ne.0.0_dp)) k=j
                     enddo
                     CoeffT1(:,i)=NatOrbMat(:,k)
                     EvaluesTrunc(i)=Evalues(k)
                     SymOrbs_rot(i)=SymOrbs_rotTemp(k)
-                    OccEnergies(k)=0.D0
+                    OccEnergies(k)=0.0_dp
                 enddo
 
                 do i=(NEl/2)+1,NoRotAlphBet
@@ -1542,7 +1542,7 @@ MODULE NatOrbsMod
         CLOSE(io1)
 
 !        OPEN(io2,FILE='EVALUES-plot',status='unknown')
-!        EvaluesCount(:,:)=0.D0
+!        EvaluesCount(:,:)=0.0_dp
 
 !        do x=1,NoSpinCyc
 
@@ -1562,14 +1562,14 @@ MODULE NatOrbsMod
 
 !            k=1
 !            EvaluesCount(k,1)=Evalues(1)
-!            EvaluesCount(k,2)=1.D0
+!            EvaluesCount(k,2)=1.0_dp
 !            do i=2,NoOrbs
 !                IF((ABS(Evalues(i)-Evalues(i-1))).ge.(1E-10)) THEN
 !                    k=k+1
 !                    EvaluesCount(k,1)=Evalues(i)
-!                    EvaluesCount(k,2)=1.D0
+!                    EvaluesCount(k,2)=1.0_dp
 !                ELSE
-!                    EvaluesCount(k,2)=EvaluesCount(k,2)+1.D0
+!                    EvaluesCount(k,2)=EvaluesCount(k,2)+1.0_dp
 !                ENDIF
 !            enddo
 !            NoEvalues=k
@@ -1596,9 +1596,9 @@ MODULE NatOrbsMod
 !            WRITE(6,*) Evalues(i)
 !        enddo
 
-        OrbEnergies(:)=0.D0
-        EvalueEnergies(:)=0.D0
-        SumEvalues=0.D0
+        OrbEnergies(:)=0.0_dp
+        EvalueEnergies(:)=0.0_dp
+        SumEvalues=0.0_dp
         do i=1,NoOrbs
             IF(tStoreSpinOrbs) THEN
                 SumEvalues=SumEvalues+Evalues(i)
@@ -1656,7 +1656,7 @@ MODULE NatOrbsMod
         real(dp) :: OccEnergies(1:NoRotOrbs)
         INTEGER :: i,a,b,NoOcc,x,Prev,k
 
-        OccEnergies(:)=0.D0
+        OccEnergies(:)=0.0_dp
         IF(tStoreSpinOrbs) THEN
             do x=1,2
                 IF(x.eq.1) THEN
@@ -1758,14 +1758,14 @@ MODULE NatOrbsMod
         INTEGER :: i,error, iunit
         LOGICAL :: tWarning
 
-        AllOrbOccs = 0.D0
+        AllOrbOccs = 0.0_dp
 
         call MPIReduce(OrbOccs,MPI_SUM,AllOrbOccs)
 
 ! Want to normalise the orbital contributions for convenience.        
         tWarning=.false.
         IF(iProcIndex.eq.0) THEN
-            Norm=0.D0
+            Norm=0.0_dp
             do i=1,nBasis
                 Norm=Norm+AllOrbOccs(i)
                 IF((AllOrbOccs(i).lt.0).or.(Norm.lt.0)) THEN
@@ -1773,7 +1773,7 @@ MODULE NatOrbsMod
                     tWarning=.true.
                 ENDIF
             enddo
-            IF(Norm.ne.0.D0) THEN
+            IF(Norm.ne.0.0_dp) THEN
                 do i=1,nBasis
                     AllOrbOccs(i)=AllOrbOccs(i)/Norm
                 enddo
@@ -1800,7 +1800,7 @@ MODULE NatOrbsMod
         INTEGER :: i,i2,i3,error, iunit
         LOGICAL :: tWarning
 
-        AllOrbOccs = 0.D0
+        AllOrbOccs = 0.0_dp
 
         call MPISum(OrbOccs,AllOrbOccs)
 !#ifdef PARALLEL
@@ -1814,7 +1814,7 @@ MODULE NatOrbsMod
         tWarning=.false.
         IF(iProcIndex.eq.0) THEN
 
-!            Norm=0.D0
+!            Norm=0.0_dp
 !            do i2=1,nEl
 !                do i3=1,nEl
 !                    do i=1,nBasis
@@ -1828,7 +1828,7 @@ MODULE NatOrbsMod
 !                    enddo
 !                enddo
 !            enddo
-!            IF(Norm.ne.0.D0) THEN
+!            IF(Norm.ne.0.0_dp) THEN
 !                do i2=1,nEl
 !                    do i3=1,nEl
 !                        do i=1,nBasis

@@ -24,6 +24,7 @@ real(dp), parameter ::  Root2 = 1.4142135623730950488016887242096980785696718753
 
 integer :: temp
 integer, parameter :: sizeof_int = kind(temp)   !Default integer size (not necessarily = no. bytes)
+integer, parameter :: bits_int = bit_size(temp)
 !potential hack for molpro, which seems to support a compiler which doesn't like the kind() intrinsic..?
 !integer, parameter :: sizeof_int = selected_int_kind(digits(huge(temp)))   !Default integer size (not necessarily = no. bytes)
 
@@ -53,11 +54,13 @@ integer, parameter :: MPIArg=int32
 
 ! Kind parameter for 64-bit integers.
 integer, parameter :: n_int=int64
+logical :: build_64bit = .true.
 
 #else
 
 ! Kind parameter for 32-bit integers.
 integer, parameter :: n_int=int32
+logical :: build_64bit = .false.
 
 #endif
 

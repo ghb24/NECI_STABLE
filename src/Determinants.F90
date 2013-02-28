@@ -183,7 +183,7 @@ contains
 !C..This fix is to stop floating overflow as taking the factorial of (nBasis.GT.170) crashes
 !C  using the old FACTRL routine.
          NDET=1
-         DNDET=1.D0
+         DNDET=1.0_dp
          DO I=0,NEL-1
             NDET=(NDET*(nBasis-I))/(I+1)
             DNDET=(DNDET*real(nBasis-I,dp))/real(I+1,dp)
@@ -633,7 +633,7 @@ END MODULE Determinants
          if(tStoreAsExcitations.and.nI(1).eq.-1) then
 !The excitation storage starts with -1.  The next number is the excitation level,L .  
 !Next is the parity of the permutation required to lineup occupied->excited.  Then follows a list of the indexes of the L occupied orbitals within the HFDET, and then L virtual spinorbitals.
-            hEl=0.d0
+            hEl=0.0_dp
             do i=4,nI(2)+4-1
                hEl=hEl-(Arr(nI(i),2))
             enddo
@@ -752,7 +752,7 @@ END MODULE Determinants
          nLeft=1+nUp
          IF(nDown.NE.0.AND.nUp.NE.0) WRITE(6,*) "Including ",-nDown,",",nUp," extra degenerate sets in active space."
          DO WHILE (nLeft.GT.0.AND.I.LT.nBasis)
-            DO WHILE (I.LT.nBasis.AND.ABS(ARR(I)-ARR(I-1)).LT.1.d-5)
+            DO WHILE (I.LT.nBasis.AND.ABS(ARR(I)-ARR(I-1)).LT.1.0e-5_dp)
                I=I+1
             ENDDO
             nLeft=nLeft-1
@@ -774,7 +774,7 @@ END MODULE Determinants
          nLeft=nDown
          Do WHILE(nLeft.GT.0.AND.I.Gt.0)
       
-            DO WHILE (I.GT.0.AND.ABS(ARR(I)-ARR(I+1)).LT.1.d-5)
+            DO WHILE (I.GT.0.AND.ABS(ARR(I)-ARR(I+1)).LT.1.0e-5_dp)
                I=I-1
             ENDDO
             nLeft=nLeft-1
@@ -908,7 +908,7 @@ END MODULE Determinants
          INTEGER NEL,NI(NEL),I
          LOGICAL ISCSF_old
          real(dp) :: CALCT
-         CALCT=0.D0
+         CALCT=0.0_dp
          IF(ISCSF_old(NI,NEL)) RETURN
          DO I=1,NEL
             CALCT=CALCT+GetTMATEl(NI(I),NI(I))

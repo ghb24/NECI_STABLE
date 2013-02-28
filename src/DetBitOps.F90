@@ -1062,6 +1062,90 @@ module DetBitOps
 
     end subroutine
 
+
+    pure function get_single_parity (ilut, src, tgt) result(par)
+
+        ! Find the relative parity of two determinants, where one is ilut
+        ! and the other is a single excitation of ilut where orbital src is
+        ! swapped with orbital tgt.
+
+        integer, intent(in) :: src, tgt
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+
+        integer(n_int) :: tmp(0:NIfD), mask(0:NIfD)
+        integer :: min_orb, max_orb, par, min_int, max_int, cnt
+        integer :: min_in_int, max_in_int
+
+        ! We just want to count the orbitals between these two limits.
+        min_orb = (min(src, tgt) + 1) - 1
+        max_orb = (max(src, tgt) - 1)
+
+        ! Which integers of the bit representation are involved?
+        min_int = int(min_orb / bits_n_int)
+        max_int = int(max_orb / bits_n_int)
+
+        ! Where in the integer do the revelant bits sit?
+        min_in_int = mod(min_orb, bits_n_int)
+        max_in_int = mod(max_orb, bits_n_int)
+
+        ! Generate a mask so as to only count the occupied orbitals
+        ! between where we started and the end.
+        mask(0:min_int-1) = 0
+        mask(min_int:max_int) = not(0_n_int)
+        mask(max_int+1:NIfD) = 0
+        mask(min_int) = &
+            iand(mask(min_int), ishft(not(0_n_int), min_in_int))
+        mask(max_int) = &
+            iand(mask(max_int), not(ishft(not(0_n_int), max_in_int)))
+
+        ! Count the number of occupied orbitals between the source and tgt
+        ! orbitals.
+        cnt = CountBits(iand(mask, ilut(0:NIfD)), NIfD)
+
+        ! Get the parity from this information.
+        if (btest(cnt, 0)) then
+            par = -1
+        else
+            par = 1
+        end if
+
+    end function
+
+    function get_double_parity (ilut, src, tgt) result(par)
+
+        ! Find the relative parity of two determinants, where one is ilut
+        ! and the other is a single excitation of ilut where orbital src is
+        ! swapped with orbital tgt.
+
+        integer, intent(in) :: src(2), tgt(2)
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+
+        integer(n_int) :: tmp(0:NIfD), mask(0:NIfD)
+        integer :: min_orb, max_orb, par, min_int, max_int, cnt
+        integer :: min_in_int, max_in_int
+
+
+        if (all(tgt > maxval(src)) .or. all(tgt < minval(src))) then
+
+            ! The source and target orbitals don't overlap
+            par = get_single_parity (ilut, src(1), src(2)) * &
+                  get_single_parity (ilut, tgt(1), tgt(2))
+
+        !elseif ((minval(src) < minval(tgt)) .eqv. &
+        !                                 (maxval(src) > maxval(tgt))) then
+        else
+
+            ! All categories of overlapping src and target orbitals are the 
+            ! same.
+            par = get_single_parity (ilut, minval(src), minval(tgt)) * &
+                  get_single_parity (ilut, maxval(src), maxval(tgt))
+
+        end if
+
+
+    end function
+
+
 end module
 
     pure subroutine GetBitExcitation(iLutnI,iLutnJ,Ex,tSign)
@@ -1092,7 +1176,7 @@ end module
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfD), iLutnJ(0:NIfD)
         integer, intent(inout) :: Ex(2,*)
         logical, intent(out) :: tSign
-        integer :: i, j, iexcit1, iexcit2, perm, iel1, iel2, shift, max_excit
+        integer :: i, j, iexcit1, iexcit2, perm, iel1, iel2, max_excit
         logical :: testI, testJ
 
         tSign=.true.
@@ -1132,7 +1216,11 @@ end module
             ! minimal number for the determinants to align, this is irrelevant
             ! as the Slater--Condon rules only care about whether the number of
             ! permutations are odd or even.
-            shift = nel - max_excit
+
+            ! n.b. We don't need to include shift or iexcit in the perm
+            !      calculation, as is it symmetric as iexcit reaches the same
+            !      maximum value for both src and target iluts
+            !shift = nel - max_excit
 
             do i = 0, NIfD
                 if (iLutnI(i) == iLutnJ(i)) cycle
@@ -1149,14 +1237,16 @@ end module
                             ! occupied in iLutnI but not in iLutnJ
                             iexcit1 = iexcit1 + 1
                             Ex(1,iexcit1) = i*bits_n_int+j+1
-                            perm = perm + (shift - iel1 + iexcit1)
+                            !perm = perm + (shift - iel1 + iexcit1)
+                            perm = perm + iel1
                         end if
                     else
                         if (testJ) then
                             ! occupied in iLutnI but not in iLutnJ
                             iexcit2 = iexcit2 + 1
                             Ex(2,iexcit2) = i*bits_n_int+j+1
-                            perm = perm + (shift - iel2 + iexcit2)
+                            !perm = perm + (shift - iel2 + iexcit2)
+                            perm = perm + iel2
                         end if
                     end if
                     if (iexcit1 == max_excit .and. iexcit2 == max_excit) exit

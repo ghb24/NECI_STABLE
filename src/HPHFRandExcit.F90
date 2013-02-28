@@ -157,7 +157,7 @@ MODULE HPHFRandExcitMod
             
 !Test!
 !        CALL CalcNonUniPGen(ExcitMat,IC,ClassCount2,ClassCountUnocc2,pDoub,pGen2)
-!        IF(abs(pGen-pGen2).gt.1.D-7) THEN
+!        IF(abs(pGen-pGen2).gt.1.0e-7_dp_dp) THEN
 !            WRITE(6,*) "*******, PGens Incorrect"
 !            CALL Stop_All("ouvbou","OUBOU")
 !        ENDIF
@@ -177,10 +177,10 @@ MODULE HPHFRandExcitMod
                     !Open shell -> Closed Shell
                     if(tOddS_HPHF) then
                         !Odd S States cannot have CS components
-                        HEl=0.D0
+                        HEl=0.0_dp
                     else
                         MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
-                        HEl=MatEl*SQRT(2.D0)
+                        HEl=MatEl*SQRT(2.0_dp)
                     endif
                 ENDIF
                 if (IC /= 0 .and. modk_offdiag) hel = -abs(hel)
@@ -221,7 +221,7 @@ MODULE HPHFRandExcitMod
                     IF(TestClosedShellDet(iLutnI)) THEN    !Closed shell -> Open shell : Want to sum in SQRT(2)* Hij
                         if(tOddS_HPHF) then
                             !Cannot have CS components
-                            HEl=0.D0
+                            HEl=0.0_dp
                         else
                             IF(tSwapped) THEN
                                 MatEl = sltcnd_excit (nI, IC, Ex2, tSign)
@@ -229,7 +229,7 @@ MODULE HPHFRandExcitMod
                                 MatEl = sltcnd_excit (nI, IC, ExcitMat, &
                                                       tSignOrig)
                             ENDIF
-                            HEl=MatEl*SQRT(2.D0)
+                            HEl=MatEl*SQRT(2.0_dp)
                         endif
                     ELSE     !Open shell -> Open shell
 
@@ -294,7 +294,7 @@ MODULE HPHFRandExcitMod
 !We have generated the same HPHF. MatEl wants to be zero.
                 nJ(1)=0
                 IF(tGenMatHEl) THEN
-                    HEl=0.D0
+                    HEl=0.0_dp
                 ENDIF
 
             ELSE    !Open-shell to Open-shell, but with no cross-connection.
@@ -334,7 +334,7 @@ MODULE HPHFRandExcitMod
         ENDIF
 
 !        CALL HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl2)
-!        IF((MatEl2-MatEl).gt.1.D-7) THEN
+!        IF((MatEl2-MatEl).gt.1.0e-7_dp_dp) THEN
 !            WRITE(6,*) MatEl2,MatEl
 !            CALL Stop_All("ikb","Error in getting correct HEl - 2")
 !        ENDIF
@@ -344,7 +344,7 @@ MODULE HPHFRandExcitMod
 !            write(6,*) "***"
 !            write(6,*) iLutnI
 !            write(6,*) "HEl: ",HEl
-!            if(HEl.ne.0.D0) call stop_all("gen_hphf_excit","WHY?!")
+!            if(HEl.ne.0.0_dp) call stop_all("gen_hphf_excit","WHY?!")
 !            call neci_flush(6)
 !        endif
 
@@ -693,7 +693,7 @@ MODULE HPHFRandExcitMod
 !        enddo
 !
 !        ALLOCATE(Weights(iUniqueHPHF))
-!        Weights(:)=0.D0
+!        Weights(:)=0.0_dp
 !        tGenClassCountnI=.false.
 !
 !        do i=1,Iterations
@@ -717,7 +717,7 @@ MODULE HPHFRandExcitMod
 !                CALL Stop_All("TestGenRandHPHFExcit","Cannot find excitation in list of allowed excitations")
 !            ENDIF
 !
-!            Weights(PartInd)=Weights(PartInd)+(1.D0/pGen)
+!            Weights(PartInd)=Weights(PartInd)+(1.0_dp/pGen)
 !             
 !!Check excitation
 !!            CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
@@ -731,7 +731,7 @@ MODULE HPHFRandExcitMod
 !        Die=.false.
 !        do i=1,iUniqueHPHF
 !            Weights(i)=Weights(i)/real(Iterations,8)
-!            IF(abs(Weights(i)-1.D0).gt.0.1) THEN
+!            IF(abs(Weights(i)-1.0_dp).gt.0.1) THEN
 !                WRITE(6,*) "Error here!"
 !                Die=.true.
 !            ENDIF

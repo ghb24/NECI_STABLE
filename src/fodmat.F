@@ -23,11 +23,11 @@ C..Diagonalisation vectors
 C..
       WRITE(6,'(1X,A)') '*** NATURAL ORBITAL EVALUATION ***'
       WRITE(6,'(2X,A)') 'FILE ./NATURAL BEING UPDATED'
-      EPS=1.D-8 
+      EPS=1.0e-8_dp 
 C..
       allocate(FODM(NHG,NHG))
       call LogMemAlloc('FODM',NHG**2,8,this_routine,tagFODM)
-      FODM=0.d0
+      FODM=0.0_dp
 C..
       N1E(1:NHG)=0
       N2E(1:NHG)=0
@@ -36,7 +36,7 @@ C..
         DO JG=IG,NHG    ! nprime (orbitals)
           IF(JG.EQ.IG) THEN
 C..
-            SUM=0.D0
+            SUM=0.0_dp
             DO ID=1,NDET
               IF(ABS(CK(ID,ISTATE)).LT.EPS) GOTO 100 
               DO IN=1,NEL
@@ -49,7 +49,7 @@ C..
             ENDDO
             FODM(JG,IG)=SUM
           ELSE
-            SUM=0.D0
+            SUM=0.0_dp
             DO ID1=1,NDET
               IF(ABS(CK(ID1,ISTATE)).LT.EPS) GOTO 300 
               DO ID2=1,NDET
@@ -99,14 +99,14 @@ C..Now diagonalise FODM
       call LogMemAlloc('Z',NHG**2,8,this_routine,tagZ)
       allocate(W(NHG))
       call LogMemAlloc('W',NHG,8,this_routine,tagW)
-      WORK=0.d0
+      WORK=0.0_dp
       IWORK(1:5*NHG)=0
       IFAIL(1:NHG)=0
 C..Natural orbitals and occupation numbers
-      Z=0.d0
-      W=0.d0
+      Z=0.0_dp
+      W=0.0_dp
 C..
-      ABSTOL=1.D-15
+      ABSTOL=1.0e-15_dp
       CALL DSYEVX('V','A','L',NHG,FODM,NHG,VL,VU,1,NHG,ABSTOL,M,
      &    W,Z,NHG,WORK,8*NHG,IWORK,IFAIL,INFO)
       IF(INFO.GT.0) THEN
@@ -121,10 +121,10 @@ C..
         WRITE(10,*) ' NATURAL ORBITAL NO. ' , I
         WRITE(10,'(F19.5)') W(I)
         WRITE(10,*) ' COEFFICIENT EXPANSION : ' 
-        SUMC=0.D0
+        SUMC=0.0_dp
         DO J=1,NHG
           SUMC=SUMC+Z(J,I)*Z(J,I)
-          IF(ABS(Z(J,I)).GT.1.D-12) THEN
+          IF(ABS(Z(J,I)).GT.1.0e-12_dp) THEN
             WRITE(10,'(I7,1X,5(I7,1X),E19.6)') J,(G1(J)%K(K),K=1,5),
      &         Z(J,I)
           ENDIF
@@ -132,7 +132,7 @@ C..
         WRITE(10,'(1X,A,F19.5)') ' SQUARE OF COEFFICIENTS : ' , SUMC
       ENDDO
 C..
-      SUM=0.D0
+      SUM=0.0_dp
       WRITE(6,'(1X,A,F19.5)') ' OCCUPATION NUMBERS : '
       DO I=NHG,1,-1   
         SUM=SUM+W(I)
@@ -142,9 +142,9 @@ C      WRITE(6,'(1X,A,F19.5)') ' TOTAL SUM: ' , SUM
       CLOSE(10)
 C.. Population analysis
       WRITE(6,*) ' POPULATION ANALYSIS OF THE NATURAL ORBITALS'
-      SUMA=0.d0
+      SUMA=0.0_dp
       DO I=1,NHG
-        D=0.D0
+        D=0.0_dp
         DO J=1,NHG
           D=D+Z(I,J)**2*W(J)
         ENDDO
@@ -162,7 +162,7 @@ C.. Population analysis
       ENDDO 
       WRITE(6,*) ' TOTAL ANGULAR-MOMENTUM DECOMPOSED POPULATION:'
       DO I=1,NMAXZ ! over nmaxz
-        SUM=0.D0
+        SUM=0.0_dp
         DO J=1,NMAXY ! over nmaxy
           DO K=1,NMAXX
             SUM=SUM+SUMA(K,J,I)

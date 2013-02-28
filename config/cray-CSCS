@@ -20,4 +20,4 @@ f90flags = -R bcdps -N255
 fflags = -O3 -s integer64 -e m
 f90flags = -N255
 cflags = -O -m64
-ldflags = -O3
+ldflags = -O3 -rdynamic

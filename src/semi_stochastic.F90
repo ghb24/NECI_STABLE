@@ -4,7 +4,7 @@ module semi_stochastic
 
     use bit_rep_data, only: flag_deterministic, nIfDBO, nOffY, nIfY, nOffFlag, &
                             flag_determ_parent, deterministic_mask, determ_parent_mask, &
-                            flag_is_initiator
+                            flag_is_initiator, flag_bit_offset, NOffSgn
     use bit_reps, only: NIfD, NIfTot, decode_bit_det, encode_bit_rep, set_flag
     use CalcData, only: tRegenDiagHEls, tau, tSortDetermToTop, tTruncInitiator, DiagSft, &
                         tStartCAS
@@ -21,6 +21,7 @@ module semi_stochastic
                          full_determ_vector, partial_determ_vector, core_hamiltonian, &
                          determ_space_size, TotWalkers, TotWalkersOld, &
                          indices_of_determ_states, ProjEDet
+    use gndts_mod, only: gndts
     use hash , only: DetermineDetNode
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use HPHFRandExcitMod, only: TestClosedShellDet, FindExcitBitDetSym
@@ -64,8 +65,8 @@ contains
         ! Initialise the deterministic masks.
         deterministic_mask = 0
         determ_parent_mask = 0
-        deterministic_mask = ibset(deterministic_mask, flag_deterministic)
-        determ_parent_mask = ibset(determ_parent_mask, flag_determ_parent)
+        deterministic_mask = ibset(deterministic_mask, flag_deterministic + flag_bit_offset)
+        determ_parent_mask = ibset(determ_parent_mask, flag_determ_parent + flag_bit_offset)
 
         allocate(deterministic_proc_sizes(0:nProcessors-1))
         allocate(deterministic_proc_indices(0:nProcessors-1))
@@ -833,7 +834,7 @@ contains
         integer, allocatable :: CASBrr(:), CASRef(:)
         integer(n_int) :: cas_bitmask(0:NIfD), cas_not_bitmask(0:NIfD)
         integer, pointer :: CASDets(:,:) => null()
-        integer :: OccOrbs, VirtOrbs
+        integer :: OccOrbs, VirtOrbs, iCASDet
 
         if (called_from == called_from_semistoch) then
             OccOrbs = OccDetermCASOrbs
@@ -885,7 +886,7 @@ contains
 
         ! First, generate all excitations so we know how many there are, to allocate the arrays.
         call gndts(OccOrbs, num_active_orbs, CASBrr, nBasisMax, CASDets, &
-                              .true., G1, tSpn, LMS, .true., CASSym, nCASDet, CASRef)
+                              .true., G1, tSpn, LMS, .true., CASSym, nCASDet, iCASDet)
 
         if (nCASDet == 0) call stop_all("generate_cas","No CAS determinants found.")
 
@@ -902,7 +903,7 @@ contains
 
         ! Now fill up CASDets...
         call gndts(OccOrbs, num_active_orbs, CASBrr, nBasisMax, CASDets, &
-                              .false., G1, tSpn, LMS, .true., CASSym, nCASDet, CASRef)
+                              .false., G1, tSpn, LMS, .true., CASSym, nCASDet, iCASDet)
 
         do i = 1, nCASDet
             ! First, create the bitstring representing this state:

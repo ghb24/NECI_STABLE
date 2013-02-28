@@ -81,7 +81,7 @@
            CurrentH(1,ips+i-1)=HDiag
            if(HDiag.eq.0.0_dp) &
                call extract_sign(CurrentDets(:,ips+i-1),InstNoatHF)
-           if(tFillingStochRDMonFly) CurrentH(2:3,ips+i-1) = 0.D0
+           if(tFillingStochRDMonFly) CurrentH(2:3,ips+i-1) = 0.0_dp
 ! Next element to be inserted must be smaller than DetCurr, so must be inserted
 ! at (at most) at ips-1.
 ! If nlisto=0 then all remaining elements in list2 must be inserted directly

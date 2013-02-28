@@ -2,7 +2,8 @@
 !This module is to be used for various types of walker MC annihilation in serial and parallel.
 MODULE AnnihilationMod
     use SystemData , only : NEl, tHPHF, nBasis, tCSF, tSemiStochastic
-    use CalcData , only : TRegenExcitgens,tRegenDiagHEls, tEnhanceRemainder
+    use CalcData , only : TRegenExcitgens,tRegenDiagHEls, tEnhanceRemainder, &
+                          tTruncInitiator, tSpawnSpatialInit, OccupiedThresh
     USE DetCalcData , only : Det,FCIDetIndex
     USE Parallel_neci
     USE dSFMT_interface , only : genrand_real2_dSFMT
@@ -360,7 +361,7 @@ MODULE AnnihilationMod
 
         !print *, "SpawnedParts before:"
         !do j = 1, ValidSpawned
-        !    print *, SpawnedParts(:,j)
+        !    print *, SpawnedParts(:,j), test_flag(SpawnedParts(:,j),flag_deterministic)
         !end do
         !print *,
 
@@ -902,7 +903,7 @@ MODULE AnnihilationMod
 
         !print *, "SpawnedParts after:"
         !do j = 1, ValidSpawned
-        !    print *, SpawnedParts(:,j)
+        !    print *, SpawnedParts(:,j), test_flag(SpawnedParts(:,j),flag_deterministic)
         !end do
         !print *,
 
@@ -1294,21 +1295,22 @@ MODULE AnnihilationMod
                                 FreeSlot(iEndFreeSlot)=PartInd
                             endif
                         endif
-                        if ((abs(SignTemp(j)).gt.0.0) .and. (abs(SignTemp(j)).lt.1.0)) then
+                        if ((abs(SignTemp(j)).gt.0.0) .and. (abs(SignTemp(j)).lt.OccupiedThresh)) then
                             !We remove this walker with probability 1-RealSignTemp
-                            pRemove=1-abs(SignTemp(j))
+                            pRemove=(OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
                             r = genrand_real2_dSFMT ()
                             if (pRemove .gt. r) then
                                 !Remove this walker
                                 NoRemoved = NoRemoved + abs(SignTemp(j))
-                                Annihilated = Annihilated + abs(SignTemp(j))
-                                iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
+                                !Annihilated = Annihilated + abs(SignTemp(j))
+                                !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
+                                iter_data%nremoved = iter_data%nremoved + abs(SignTemp(j))
                                 SignTemp(j) = 0
                                 call nullify_ilut_part (SpawnedParts(:,i), j)
                             elseif (tEnhanceRemainder) then
-                                NoBorn = NoBorn + 1.0_dp - abs(SignTemp(j))
-                                iter_data%nborn = iter_data%nborn + 1.0_dp - abs(SignTemp(j))
-                                SignTemp(j) = sign(1.0_dp, SignTemp(j))
+                                NoBorn = NoBorn + OccupiedThresh - abs(SignTemp(j))
+                                iter_data%nborn = iter_data%nborn + OccupiedThresh - abs(SignTemp(j))
+                                SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
                                 call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
                             endif
                         endif
@@ -1336,21 +1338,22 @@ MODULE AnnihilationMod
                     if (.not. IsUnoccDet(SignTemp)) tPrevOcc=.true.   
                     
                     do j = 1, lenof_sign
-                        if ((abs(SignTemp(j)).gt.0.0) .and. (abs(SignTemp(j)).lt.1.0)) then
+                        if ((abs(SignTemp(j)).gt.0.0) .and. (abs(SignTemp(j)).lt.OccupiedThresh)) then
                             !We remove this walker with probability 1-RealSignTemp
-                            pRemove=1-abs(SignTemp(j))
+                            pRemove=(OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
                             r = genrand_real2_dSFMT ()
                             if (pRemove .gt. r) then
                                 !Remove this walker
                                 NoRemoved = NoRemoved + abs(SignTemp(j))
-                                Annihilated = Annihilated + abs(SignTemp(j))
-                                iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
+                                !Annihilated = Annihilated + abs(SignTemp(j))
+                                !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
+                                iter_data%nremoved = iter_data%nremoved + abs(SignTemp(j))
                                 SignTemp(j) = 0
                                 call nullify_ilut_part (SpawnedParts(:,i), j)
                             elseif (tEnhanceRemainder) then
-                                NoBorn = NoBorn + 1.0_dp - abs(SignTemp(j))
-                                iter_data%nborn = iter_data%nborn + 1.0_dp - abs(SignTemp(j))
-                                SignTemp(j) = sign(1.0_dp, SignTemp(j))
+                                NoBorn = NoBorn + OccupiedThresh - abs(SignTemp(j))
+                                iter_data%nborn = iter_data%nborn + OccupiedThresh - abs(SignTemp(j))
+                                SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
                                 call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
                             endif
                         endif
@@ -1550,6 +1553,7 @@ MODULE AnnihilationMod
 
     end subroutine EnlargeHashTable
 
+    
     SUBROUTINE CalcHashTableStats(TotWalkersNew)
         use util_mod, only: abs_sign
         use CalcData , only : tCheckHighestPop
@@ -1682,24 +1686,24 @@ MODULE AnnihilationMod
                 if (tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,i), flag_deterministic)
                 do j=1, lenof_sign
                     if (.not. tIsStateDeterm) then
-                        if ((abs(CurrentSign(j)).gt.0.0) .and. (abs(CurrentSign(j)).lt.1.0)) then
+                        if ((abs(CurrentSign(j)).gt.0.0) .and. (abs(CurrentSign(j)).lt.OccupiedThresh)) then
                             !We remove this walker with probability 1-RealSignTemp
-                            pRemove=1-abs(CurrentSign(j))
+                            pRemove=(OccupiedThresh-abs(CurrentSign(j)))/OccupiedThresh
                             r = genrand_real2_dSFMT ()
                             if (pRemove .gt. r) then
                                 !Remove this walker
                                 NoRemoved = NoRemoved + abs(CurrentSign(j))
-                                Annihilated = Annihilated + abs(CurrentSign(j))
-                                iter_data%nannihil = iter_data%nannihil + abs(CurrentSign(j))
+                                !Annihilated = Annihilated + abs(CurrentSign(j))
+                                !iter_data%nannihil = iter_data%nannihil + abs(CurrentSign(j))
+                                iter_data%nremoved = iter_data%nremoved + abs(CurrentSign(j))
                                 CurrentSign(j) = 0
                                 call nullify_ilut_part (CurrentDets(:,i), j)
                             elseif (tEnhanceRemainder) then
                                 ! SDS: TODO: Account for the TotParts Changes
                                 ! Should we always do this here? Probably. Should
-
-                                NoBorn = NoBorn + 1.0_dp - abs(CurrentSign(j))
-                                iter_data%nborn = iter_data%nborn + 1.0_dp - abs(CurrentSign(j))
-                                CurrentSign(j) = sign(1.0_dp, CurrentSign(j))
+                                NoBorn = NoBorn + OccupiedThresh - abs(CurrentSign(j))
+                                iter_data%nborn = iter_data%nborn + OccupiedThresh - abs(CurrentSign(j))
+                                CurrentSign(j) = sign(OccupiedThresh, CurrentSign(j))
                                 call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
                             endif
                         endif
@@ -1821,7 +1825,7 @@ MODULE AnnihilationMod
 !We want to calculate the diagonal hamiltonian matrix element for the new particle to be merged.
                     if (DetBitEQ(CurrentDets(:,i), iLutRef, NIfDBO)) then
 !We know we are at HF - HDiag=0
-                        HDiag=0.D0
+                        HDiag=0.0_dp
                         call extract_sign(CurrentDets(:,i),InstNoatHF)
                     else
                         call decode_bit_det (nJ, CurrentDets(:,i))

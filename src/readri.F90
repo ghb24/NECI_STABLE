@@ -39,7 +39,7 @@ SUBROUTINE GetRI2EInt(a,b,c,d,res)
    integer i,GetDFIndex
    integer x,y
    real(dp) res
-   res=0.D0
+   res=0.0_dp
    x=GetDFIndex(a,c)
    y=GetDFIndex(b,d)
 ! DFOVERLAP        1 - (ij|u|ab)= (ij|u|P)(P|ab)

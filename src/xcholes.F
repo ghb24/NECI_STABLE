@@ -106,7 +106,7 @@ C..
       WRITE(10,'(A,3I3)') '#Observation point:',IX,IY,IZ
  100  CONTINUE
       DO I=IBEG,IEND
-        IF(FUNC(I).NE.0.D0.OR.IBEG.EQ.1.OR.IEND.EQ.1) THEN
+        IF(FUNC(I).NE.0.0_dp.OR.IBEG.EQ.1.OR.IEND.EQ.1) THEN
           WRITE(10,*) I*SPAC,FUNC(I)*RS3
         ENDIF
       ENDDO
@@ -125,10 +125,10 @@ C ==---------------------------------------------------------------------==
       real(dp) :: DLINE(NMESHX),ALAT(3)
       real(dp) :: spac,SUM
 C..
-      DLINE=0.d0
+      DLINE=0.0_dp
       IF(I.EQ.0.AND.J.EQ.0.AND.K.EQ.1) THEN
          DO IZ=1,NMESHX
-            SUM=0.D0
+            SUM=0.0_dp
             SPAC=ALAT(3)/NMESHX
             DO IY=1,NMESHX
                DO IX=1,NMESHX
@@ -140,7 +140,7 @@ C..
       ELSEIF(I.EQ.1.AND.J.EQ.0.AND.K.EQ.0) THEN
          SPAC=ALAT(1)/NMESHX
          DO IX=1,NMESHX
-            SUM=0.D0
+            SUM=0.0_dp
             DO IY=1,NMESHX
                DO IZ=1,NMESHX
                   SUM=SUM+RHO(IX,IY,IZ)
@@ -151,7 +151,7 @@ C..
       ELSEIF(I.EQ.0.AND.J.EQ.1.AND.K.EQ.0) THEN
          SPAC=ALAT(1)/NMESHX
          DO IY=1,NMESHX
-            SUM=0.D0
+            SUM=0.0_dp
             DO IZ=1,NMESHX
                DO IX=1,NMESHX
                   SUM=SUM+RHO(IX,IY,IZ)

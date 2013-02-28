@@ -1,9 +1,15 @@
 module util_mod
     use util_mod_comparisons
     use util_mod_cpts
-    use constants, only: dp, lenof_sign,sizeof_int
     use dSFMT_interface, only: genrand_real2_dSFMT
+    use constants
     use iso_c_hack
+
+    ! We want to use the builtin etime intrinsic with ifort to 
+    ! work around some broken behaviour.
+#ifdef __IFORT
+    use ifport, only: etime
+#endif
     implicit none
 
     interface
@@ -13,13 +19,13 @@ module util_mod
             character(c_char), intent(in) :: str(*)
             integer(c_int) :: len
         end function
-        pure function erf (x) result(e) bind(c)
+        pure function erf_local (x) result(e) bind(c, name='erf')
             use iso_c_hack
             implicit none
             real(c_double), intent(in) :: x
             real(c_double) :: e
         end function
-        pure function erfc (x) result(ec) bind(c)
+        pure function erfc_local (x) result(ec) bind(c, name='erfc')
             use iso_c_hack
             implicit none
             real(c_double), intent(in) :: x
@@ -708,7 +714,7 @@ contains
         !!end interface
 
         !res = erfc_lm(real(argument, c_double))
-        res = erfc (real(argument, c_double))
+        res = erfc_local (real(argument, c_double))
     end function error_function_c
 
 
@@ -731,9 +737,31 @@ contains
 !            end function erf_lm
 !        end interface
 !        res = erf_lm(real(argument, c_double))
-        res = erf(real(argument, c_double))
+        res = erf_local(real(argument, c_double))
 
     end function error_function
+
+
+
+    function neci_etime(time) result(ret)
+
+        ! Return elapsed time for timing and calculation ending purposes.
+
+        real(sp), intent(out) :: time(2)
+        real(sp) :: ret
+
+#ifdef __IFORT
+        ! Ifort defines etime directly in its compatibility modules. 
+        ! Avoid timing inaccuracies from using cpu_time on cerebro.
+        ret = etime(time)
+#else
+        ! Use Fortran95 timing intrinsic
+        call cpu_time(ret)
+        time(1) = ret
+        time(2) = real(0.0,sp)
+#endif
+
+    end function neci_etime
 
 
 end module
@@ -838,15 +866,6 @@ end module
 #endif
     end subroutine neci_flush
 
-
-    function neci_etime(time) result(ret)
-      use constants, only: sp
-      real(sp) :: ret
-      real(sp) :: time(2)
-      call cpu_time(ret)
-      time(1) = ret
-      time(2) = real(0.0,sp)
-    end function neci_etime
 
     integer function neci_system(str)
 #ifdef NAGF95

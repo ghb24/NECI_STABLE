@@ -2,7 +2,7 @@ module bit_reps
     use FciMCData, only: CurrentDets, WalkVecDets, MaxWalkersPart
     use SystemData, only: nel, tCSF, tTruncateCSF, nbasis, csf_trunc_level, &
                           tSemiStochastic, tCSFCore
-    use CalcData, only: tTruncInitiator
+    use CalcData, only: tTruncInitiator, tUseRealCoeffs
     use csf_data, only: csf_yama_bit, csf_test_bit
     use constants, only: lenof_sign, end_n_int, bits_n_int, n_int, dp,sizeof_int
     use DetBitOps, only: count_open_orbs
@@ -174,16 +174,44 @@ contains
         ! The number of integers used for sorting / other bit manipulations
         NIfDBO = NIfD + NIfY
 
-        ! Integers for flags
+        ! Do we have any flags to store?
         if (tTruncInitiator .or. tSemiStochastic) then
-            !If there are other options which require flags, then this criteria must be extended.
-            !However, do not increase this value from one, since we should only need max one integer
-            !for flags, and this is hardcoded in elsewhere.
+            tUseFlags = .true.
+        else
+            tUseFlags = .false.
+        end if
+
+#ifdef __INT64
+        ! If we are using 64-bit integers, we can put the flags into the same
+        ! integers as the signs, as there is plenty of redundancy. This avoids
+        ! using 1/3 of our communication to just say if we are spawning from
+        ! an initiator.
+        !
+        ! If we are storing real coefficient, then we can't combine signs and
+        ! flags at all :-S.
+        if (tUseRealCoeffs) then
+            if (tUseFlags) then
+                NIfFlag = 1
+            else
+                NIfFlag = 0
+            end if
+            NOffFlag = NOffSgn + NIfSgn
+        else
+            NIfFlag = 0
+            NOffFlag = NOffSgn
+        end if
+#else
+        if (tUseFlags) then
+            ! If there are other options which require flags, then this 
+            ! criteria must be extended. However, do not increase this value 
+            ! from one, since we should only need max one integer for flags, !
+            ! and this is hardcoded in elsewhere.
             NIfFlag = 1
         else
             NIfFlag = 0
         endif
         NOffFlag = NOffSgn + NIfSgn
+#endif
 
         ! N.B. Flags MUST be last!!!!!
         !      If we change this bit, then we need to adjust ilut_lt and 
@@ -205,7 +233,7 @@ contains
         integer, intent(out) :: nI(nel), flags
         type(excit_gen_store_type), intent(inout), optional :: store
         real(dp), intent(out) :: real_sgn(lenof_sign)
-        integer :: sgn(lenof_sign)
+        integer(n_int) :: sgn(lenof_sign)
 
         if (tBuildOccVirtList .and. present(store)) then
             call decode_bit_det_lists (nI, ilut, store)
@@ -213,36 +241,63 @@ contains
             call decode_bit_det (nI, ilut)
         endif
 
-        sgn = int(iLut(NOffSgn:NOffSgn+lenof_sign-1),sizeof_int)
+#ifdef __INT64
+        if (tUseRealCoeffs) then
+            ! Get the signs, and splat them onto the reals.
+            sgn = iLut(NOffSgn:NOffSgn+lenof_sign-1)
+            real_sgn = transfer(sgn, real_sgn)
+        else
+            ! We are actually only representing integers with our reals
+            ! --> If we store them as integers, we can still combine things.
+            sgn(1) = iand(ilut(NOffSgn), sign_mask)
+            if (test_flag(ilut, flag_negative_sign)) sgn(1) = -sgn(1)
+            if (lenof_sign == 2) then
+                sgn(lenof_sign) = ilut(NOffSgn+1)
+            end if
+            real_sgn = real(sgn, dp)
+        end if
+#else
+        sgn = iLut(NOffSgn:NOffSgn+lenof_sign-1)
         real_sgn = transfer(sgn, real_sgn)
-        
-        IF(NifFlag.eq.1) THEN
-            flags = int(iLut(NOffFlag),sizeof_int)
-        ELSE
-            flags = 0
-        ENDIF
+#endif
+        if (tUseFlags) &
+            flags = int(ishft(iLut(NOffFlag), -flag_bit_offset), sizeof_int)
 
     end subroutine extract_bit_rep
 
-    pure subroutine extract_sign (ilut,real_sgn)
+    pure subroutine extract_sign (ilut, real_sgn)
         integer(n_int), intent(in) :: ilut(0:nIfTot)
-        integer :: sgn(lenof_sign)
         real(dp), intent(out) :: real_sgn(lenof_sign)
+        integer(n_int) :: sgn(lenof_sign)
 
-        sgn = int(iLut(NOffSgn:NOffSgn+lenof_sign-1),sizeof_int)
+#ifdef __INT64
+        if (tUseRealCoeffs) then
+            sgn = ilut(NOffSgn:NOffSgn+lenof_sign-1)
+            real_sgn = transfer(sgn, real_sgn)
+        else
+            ! TODO: Should we inline the flag test
+            sgn(1) = int(iand(ilut(NOffSgn), sign_mask), sizeof_int)
+            if (test_flag(ilut, flag_negative_sign)) sgn(1) = -sgn(1)
+            if (lenof_sign == 2) then
+                sgn(lenof_sign) = int(ilut(NOffSgn+1), sizeof_int)
+            end if
+            real_sgn = real(sgn, dp)
+        end if
+#else
+        sgn = iLut(NOffSgn:NOffSgn+lenof_sign-1)
         real_sgn = transfer(sgn, real_sgn)
-
+#endif
     end subroutine extract_sign
 
-    function extract_flags (iLut)
+    function extract_flags (iLut) result(flags)
         integer(n_int), intent(in) :: ilut(0:nIfTot)
-        integer :: extract_flags
+        integer :: flags
 
-        IF(NIfFlag.eq.1) THEN
-            extract_flags = int(iLut(NOffFlag),sizeof_int)
-        ELSE
-            extract_flags = 0
-        ENDIF
+        if (tUseFlags) then
+            flags = int(ishft(ilut(NOffFlag), -flag_bit_offset), sizeof_int)
+        else
+            flags = 0
+        end if
 
     end function extract_flags
 
@@ -250,11 +305,26 @@ contains
 
         integer(n_int), intent(in) :: ilut(0:niftot)
         integer, intent(in) :: part_type
-        integer :: sgn
+        integer(n_int) :: sgn
         real(dp) :: real_sgn
 
-        sgn = int(ilut(nOffSgn + part_type - 1),sizeof_int)
+#ifdef __INT64
+        if (tUseRealCoeffs) then
+            sgn = ilut(nOffSgn + part_type - 1)
+            real_sgn = transfer(sgn, real_sgn)
+        else
+            if (part_type == 1) then
+                sgn = iand(ilut(NOffSgn), sign_mask)
+                if (test_flag(ilut, flag_negative_sign)) sgn = -sgn
+            else
+                sgn = ilut(NOffSgn+1)
+            end if
+            real_sgn = real(sgn, dp)
+        end if
+#else
+        sgn = ilut(nOffSgn + part_type - 1)
         real_sgn = transfer(sgn, real_sgn)
+#endif
 
     end function
 
@@ -263,14 +333,49 @@ contains
         real(dp), intent(in) :: real_sgn(lenof_sign)
         integer(n_int), intent(in) :: Det(0:NIfDBO)
         integer, intent(in) :: flag
-        integer :: sgn(lenoF_sign)
+        integer(n_int) :: sgn(lenof_sign)
+        integer :: flag_local
         
         iLut(0:NIfDBO) = Det
+        flag_local = flag
+
+#ifdef __INT64
+        if (tUseRealCoeffs) then
+            sgn = transfer(real_sgn, sgn)
+            ilut(NOffSgn:NOffSgn+NIfSgn-1) = sgn
+        else
+            ! In this encode step we don't have to worry about trampling on
+            ! existing flags, as we are about to set them below.
+            sgn(lenof_sign) = int(real_sgn(lenof_sign), dp)
+            sgn(1) = int(real_sgn(1), n_int)
+
+            ilut(NOffSgn) = abs(sgn(1))
+            if (sgn(1) < 0) then
+                flag_local = ibset(flag_local, flag_negative_sign)
+            else
+                flag_local = ibclr(flag_local, flag_negative_sign)
+            endif
+            if (lenof_sign == 2) &
+                ilut(NOffSgn+1) = sgn(lenof_sign)
+        end if
+#else
         sgn = transfer(real_sgn, sgn)
         iLut(NOffSgn:NOffSgn+NIfSgn-1) = sgn
-        IF(NIfFlag.eq.1) THEN
-            iLut(NOffFlag) = int(flag,n_int)
-        ENDIF
+#endif
+
+        ! We must make sure that we don't trample on sign data if we are
+        ! including both in the same integer.
+        !
+        ! We have ensured that the flags are correct INCLUDING the sign bit,
+        ! so we don't have to deal with that specially.
+#ifdef __INT64
+        if ((.not. tUseRealCoeffs) .or. tUseFlags) then
+#else
+        if (tUseFlags) then
+#endif
+            ilut(NOffFlag) = ior(iand(ilut(NOffFlag), sign_mask), &
+                                ishft(int(flag_local, n_int), flag_bit_offset))
+        end if
 
     end subroutine encode_bit_rep
 
@@ -281,7 +386,13 @@ contains
         integer(n_int), intent(inout) :: ilut(0:nIfTot)
         integer, intent(in) :: flag
 
-        iLut(NOffFlag) = flag
+        ! We must make sure that we don't trample on sign data if we are
+        ! including both in the same integer.
+        !
+        ! This includes not trampling on the sign bit stored with the flags.
+        iLut(NOffFlag) = ior(iand(ilut(NOffFlag), sign_neg_mask), &
+                             ishft(int(ibclr(flag,flag_negative_sign), n_int),&
+                                   flag_bit_offset))
 
     end subroutine encode_flags
 
@@ -291,8 +402,9 @@ contains
 
         integer(n_int), intent(inout) :: ilut(0:niftot)
 
-        if (NIfFlag > 0) &
-            iLut(NOffFlag:NOffFlag+NIfFlag-1) = 0
+        ! Ensure this doesn't clear the 'sign' flag.
+        if (tUseFlags) &
+            ilut(NOffFlag) = iand(ilut(NOffFlag), sign_neg_mask)
 
     end subroutine clear_all_flags
 
@@ -302,25 +414,62 @@ contains
 
         integer(n_int), intent(inout) :: ilut(0:nIfTot)
         real(dp), intent(in) :: real_sgn(lenof_sign)
-        integer :: sgn(lenof_sign)
+        integer(n_int) :: sgn(lenof_sign)
 
+#ifdef __INT64
+        if (tUseRealCoeffs) then
+            sgn = transfer(real_sgn, sgn)
+            ilut(NOffSgn:NOffSgn+NIfSgn-1) = sgn
+        else
+
+            sgn(lenof_sign) = int(real_sgn(lenof_sign), n_int)
+            sgn(1) = int(real_sgn(1), n_int)
+
+            ! Ensure that we don't trample on flags (which have already been 
+            ! set).
+            ilut(NOffSgn) = ior(iand(flags_mask, ilut(NOffSgn)), abs(sgn(1)))
+            call set_flag(ilut, flag_negative_sign, sgn(1) < 0)
+            if (lenof_sign == 2) &
+                ilut(NOffSgn+1) = sgn(lenof_sign)
+        end if
+#else
         sgn = transfer(real_sgn, sgn)
         iLut(NOffSgn:NOffSgn+NIfSgn-1) = sgn
+#endif
 
     end subroutine encode_sign
 
     subroutine encode_part_sign (ilut, real_sgn, part_type)
-!This routine is like encode_sign, but it only encodes either the
-!real OR imaginary sign of the walker, while leaving the other
-!sign untouched. part_type=1 indicates real and part_type=2 imaginary.
-!The sign argument is now a simple integer, rather than of dimension(lenof_sign).
+
+        ! Encode only the real OR imaginary component of the sign for the 
+        ! walker. Sign argument is now a scalar.
+        !
+        ! In:    real_sgn  - The new sign component
+        !        part_type - Update real/imaginary part. 1 ==> Re, 2 ==> Im
+        ! InOut:  ilut     - The bit representation to update
+
         integer(n_int), intent(inout) :: ilut(0:NIfTot)
         integer, intent(in) :: part_type
         real(dp), intent(in) :: real_sgn
-        integer :: sgn
+        integer(n_int) :: sgn
 
+#ifdef __INT64
+        if (tUseRealCoeffs) then
+            sgn = transfer(real_sgn, sgn)
+            ilut(NOffSgn+part_type-1) = sgn
+        else
+            sgn = int(real_sgn, n_int)
+            if (part_type == 1) then
+                ilut(NOffSgn) = ior(iand(flags_mask, ilut(NOffSgn)), abs(sgn))
+                call set_flag(ilut, flag_negative_sign, sgn < 0)
+            else
+                iLut(NOffSgn+1) = sgn
+            end if
+        end if
+#else
         sgn = transfer(real_sgn, sgn)
         iLut(NOffSgn+part_type-1) = sgn
+#endif
 
     end subroutine encode_part_sign
 
@@ -379,8 +528,9 @@ contains
 !        off = mod(flg, bits_n_int)
 !        ilut(ind) = ibset(ilut(ind), off)
         
-!This now assumes that we do not have more flags than bits in an integer.
-         ilut(NOffFlag) = ibset(ilut(NOffFlag),flg)
+        ! This now assumes that we do not have more flags than bits in an 
+        ! integer.
+        ilut(NOffFlag) = ibset(ilut(NOffFlag), flg + flag_bit_offset)
 
     end subroutine set_flag_single
 
@@ -415,7 +565,7 @@ contains
 !        ilut(ind) = ibclr(ilut(ind), off)
 
 !This now assumes that we do not have more flags than bits in an integer.
-        ilut(NOffFlag) = ibclr(ilut(NOffFlag),flg)
+        ilut(NOffFlag) = ibclr(ilut(NOffFlag), flg + flag_bit_offset)
 
     end subroutine clr_flag
 

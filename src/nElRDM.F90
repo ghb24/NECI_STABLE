@@ -2028,8 +2028,9 @@ MODULE nElRDMMod
         INTEGER(kind=n_int) , INTENT(IN) :: iLutnI(0:NIfTot)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         REAL(dp), dimension(lenof_sign) :: SignDi, SignDi2
-        INTEGER :: ExcitMat3(2,2),nI(NEl),nJ(NEl),Proc,FlagsDi,a,b,CountTemp
-        LOGICAL :: tParity,tAllExcitFound
+        integer :: ExcitMat3(2,2), nI(NEl), nJ(NEl), Proc, FlagsDi
+        integer :: a, b, CountTemp
+        logical :: tAllExcitFound, tParity
 
         call extract_bit_rep (iLutnI, nI, SignDi, FlagsDi)
 ! Unfortunately uses the decoded determinant - might want to look at this.        
@@ -2149,8 +2150,9 @@ MODULE nElRDMMod
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: HistPos
         REAL(dp), dimension(lenof_sign) :: RealHistPos
-        INTEGER :: ExcitMat3(2,2),nI(NEl),nJ(NEl),Proc,FlagsDi,a,b,CountTemp
-        LOGICAL :: tParity,tAllExcitFound
+        integer :: ExcitMat3(2,2), nI(NEl), nJ(NEl), Proc, FlagsDi
+        integer :: a, b, CountTemp
+        logical :: tAllExcitFound, tParity
         real(dp) :: realSignDi
 
         call extract_bit_rep (iLutnI, nI, RealHistPos, FlagsDi)
@@ -2473,10 +2475,9 @@ MODULE nElRDMMod
         INTEGER(MPIArg), INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         REAL(dp), dimension(lenof_sign) :: SignDi,SignDj, SignDi2,SignDj2
-        INTEGER :: PartInd
-        INTEGER :: i,j,NoDets,StartDets
-        INTEGER :: nI(NEl),nJ(NEl),Ex(2,2),FlagsDi,FlagsDj
-        LOGICAL :: tDetFound,tParity
+        integer :: i, j, NoDets, StartDets, PartInd
+        integer :: nI(NEl), nJ(NEl), Ex(2,2), FlagsDi, FlagsDj
+        logical :: tDetFound, tParity
         REAL(dp) :: realSignDi, realSignDj
 
 ! Take each Dj, and binary search the CurrentDets to see if it is occupied.
@@ -2547,10 +2548,9 @@ MODULE nElRDMMod
         INTEGER(MPIArg), INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         REAL(dp), dimension(lenof_sign) :: SignDi,SignDj, SignDi2, SignDj2
-        INTEGER :: PartInd
-        INTEGER :: i,j,NoDets,StartDets
-        INTEGER :: nI(NEl),nJ(NEl),Ex(2,2),FlagsDi,FlagsDj
-        LOGICAL :: tDetFound,tParity
+        integer :: i, j, NoDets, StartDets, PartInd
+        integer :: nI(NEl), nJ(NEl), Ex(2,2), FlagsDi, FlagsDj
+        logical :: tDetFound, tParity
         REAL(dp) :: realSignDi,realSignDj
 
 ! Take each Dj, and binary search the CurrentDets to see if it is occupied.
@@ -2629,10 +2629,10 @@ MODULE nElRDMMod
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: HistPos
         REAL(dp), dimension(lenof_sign) :: RealHistPos
-        INTEGER :: PartInd, ExcitLevel
-        INTEGER :: i,j,NoDets,StartDets
-        INTEGER :: nI(NEl),nJ(NEl),Ex(2,2),FlagsDi,FlagsDj
-        LOGICAL :: tDetFound,tParity
+
+        integer :: i, j, NoDets, StartDets, PartInd, ExcitLevel
+        integer :: nI(NEl), nJ(NEl), Ex(2,2), FlagsDi, FlagsDj
+        logical :: tDetFound, tParity
         REAL(dp) :: realSignDi, realSignDj
 
 ! Take each Dj, and binary search the CurrentDets to see if it is occupied.
@@ -2716,10 +2716,9 @@ MODULE nElRDMMod
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: HistPos
         REAL(dp), dimension(lenof_sign) :: RealHistPos
-        INTEGER :: PartInd, ExcitLevel
-        INTEGER :: i,j,NoDets,StartDets
-        INTEGER :: nI(NEl),nJ(NEl),Ex(2,2),FlagsDi,FlagsDj
-        LOGICAL :: tDetFound,tParity
+        integer :: i, j, NoDets, StartDets,PartInd, ExcitLevel
+        integer :: nI(NEl), nJ(NEl), Ex(2,2), FlagsDi, FlagsDj
+        logical :: tDetFound, tParity
         REAL(dp) :: realSignDi,realSignDj
 
 ! Take each Dj, and binary search the CurrentDets to see if it is occupied.
