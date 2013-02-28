@@ -608,7 +608,7 @@ module DetBitOps
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in), optional :: use_flags_opt
         integer :: i, lnLast
-        integer :: det_flag_I, det_flag_J
+        integer(kind=n_int) :: det_flag_I, det_flag_J
         logical :: compare_det_flags, use_flags
 
         compare_det_flags = .false.
