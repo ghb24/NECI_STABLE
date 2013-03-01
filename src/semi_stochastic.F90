@@ -12,7 +12,7 @@ module semi_stochastic
     use csf_data, only: iscsf, csf_orbital_mask
     use constants
     use DetBitOps, only: ilut_lt, ilut_gt, count_open_orbs, FindBitExcitLevel, DetBitLT, &
-                         count_set_bits, IsAllowedHPHF, DetBitEq
+                         count_set_bits, IsAllowedHPHF, DetBitEq, TestClosedShellDet
     use DeterminantData, only: write_det
     use Determinants, only: get_helement
     use enumerate_excitations
@@ -24,7 +24,7 @@ module semi_stochastic
     use gndts_mod, only: gndts
     use hash , only: DetermineDetNode
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
-    use HPHFRandExcitMod, only: TestClosedShellDet, FindExcitBitDetSym
+    use HPHFRandExcitMod, only: FindExcitBitDetSym
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIBarrier, MPIArg, &
                              MPIAllGatherV, MPIAllGather
     use sort_mod, only: sort
