@@ -417,12 +417,11 @@ contains
         use FciMCData, only: sparse_matrix_info, sparse_hamil, hamil_diag
 
         integer, intent(in) :: called_from
-        integer(n_int), allocatable, dimension(:,:) :: ilut_store_old, ilut_store_new, &
-            temp_space
+        integer(n_int), allocatable, dimension(:,:) :: ilut_store, temp_space
         integer(n_int) :: ilut(0:NIfTot)
         integer :: nI(nel)
         integer :: counter, i, j, k
-        integer :: old_num_det_states, new_num_det_states, comp
+        integer :: old_num_states, new_num_states, comp
         integer :: num_generation_loops, array_size
         integer, allocatable, dimension(:) :: space_cutoff_num
         real(dp), allocatable, dimension(:) :: space_cutoff_amp
@@ -460,23 +459,17 @@ contains
         ! Allocate the stores of ilut's that will hold these deterministic states.
         ! For now, assume that we won't have a deterministic space of more than one
         ! million states. Could make this user-specified later.
-        ! ilut_store_old will store the states in the previously generated deterministic
-        ! space from which we want to find all connected states.
-        allocate(ilut_store_old(0:NIfTot, 1000000))
-        allocate(ilut_store_new(0:NIfTot, 1000000))
+        allocate(ilut_store(0:NIfTot, 1000000))
         allocate(temp_space(0:NIfTot, 1000000))
-        ilut_store_old = 0
-        ilut_store_new = 0
+        ilut_store = 0
         temp_space = 0
 
         ! Put the Hartree-Fock state in the old list first.
-        ilut_store_old(0:NIfTot, 1) = ilutHF(0:NIfTot)
-        ! Also put it in the new list, as it is connected to itself.
-        ilut_store_new(0:NIfTot, 1) = ilutHF(0:NIfTot)
+        ilut_store(0:NIfTot, 1) = ilutHF(0:NIfTot)
 
-        ! old_num_det_states will hold the number of deterministic states in the current
+        ! old_num_states will hold the number of deterministic states in the current
         ! space. This is just 1 for now, with only the Hartree-Fock.
-        old_num_det_states = 1
+        old_num_states = 1
 
         ! Now we start the iterating loop. Find all states which are either a single or
         ! double excitation from each state in the old ilut store, and then see if they
@@ -488,28 +481,26 @@ contains
             write(6,'(a37,1X,i2)') "Optimised space generation: Iteration", i
             call neci_flush(6)
 
-            ! Find all states connected to the states in ilut_store_old.
+            ! Find all states connected to the states currently in ilut_store.
             write(6,'(a29)') "Generating connected space..."
             call neci_flush(6)
-            call generate_connected_space(old_num_det_states, &
-                                          ilut_store_old(:, 1:old_num_det_states), &
-                                          new_num_det_states, temp_space(:, 1:1000000), 1000000)
+            call generate_connected_space(old_num_states, ilut_store(:, 1:old_num_states), &
+                                          new_num_states, temp_space(:, 1:1000000), 1000000)
             write(6,'(a26)') "Connected space generated."
             call neci_flush(6)
 
             ! Add these states to the ones already in the ilut stores.
-            ilut_store_new(:, old_num_det_states+1:old_num_det_states+new_num_det_states) = &
-                temp_space(:, 1:new_num_det_states)
+            ilut_store(:, old_num_states+1:old_num_states+new_num_states) = &
+                temp_space(:, 1:new_num_states)
 
-            new_num_det_states = new_num_det_states + old_num_det_states
+            new_num_states = new_num_states + old_num_states
 
-            call remove_repeated_states(ilut_store_new, new_num_det_states)
+            call remove_repeated_states(ilut_store(:, 1:new_num_states), new_num_states)
 
-            write(6,'(i8,1X,a41)') new_num_det_states, "states found. Constructing Hamiltonian..."
+            write(6,'(i8,1X,a41)') new_num_states, "states found. Constructing Hamiltonian..."
             call neci_flush(6)
 
-            call calculate_sparse_hamiltonian(new_num_det_states, &
-                ilut_store_new(:,1:new_num_det_states))
+            call calculate_sparse_hamiltonian(new_num_states, ilut_store(:,1:new_num_states))
 
             write (6,'(a29)') "Performing diagonalisation..."
             call neci_flush(6)
@@ -520,6 +511,8 @@ contains
             ! davidson_eigenvector now stores the ground state eigenvector. We want to use the
             ! vector whose components are the absolute values of this state:
             davidson_eigenvector = abs(davidson_eigenvector)
+            ! Multiply by -1.0_dp so that the sort operation later is the right way around.
+            davidson_eigenvector = -1.0_dp*davidson_eigenvector
 
             ! Now decide which states to keep for the next iteration. There are two ways of
             ! doing this, as decided by the user. Either all basis states with an amplitude
@@ -528,30 +521,24 @@ contains
             ! the biggest amplitudes (tAmplitudeCutoff = .false.).
             if (tAmplitudeCutoff) then
                 counter = 0
-                do j = 1, new_num_det_states
+                do j = 1, new_num_states
                     if (davidson_eigenvector(j) > space_cutoff_amp(i)) then
                         counter = counter + 1
-                        ilut_store_old(:, counter) = ilut_store_new(:, j)
-                        ilut_store_new(:, counter) = ilut_store_old(:, counter)
+                        ilut_store(:, counter) = ilut_store(:, j)
                     end if
                 end do
+                old_num_states = counter
             else
                 ! Sort the list in order of the amplitude of the states in the ground state,
                 ! from smallest to largest.
-                call sort(davidson_eigenvector(:), ilut_store_new(:, 1:new_num_det_states))
+                call sort(davidson_eigenvector(:), ilut_store(:, 1:new_num_states))
 
-                ! Now keep the bottom space_cutoff_num(i) states from this list.
-                do j = 1, space_cutoff_num(i)
-                    ilut_store_old(:,j) = ilut_store_new(:, new_num_det_states-j+1)
-                end do
-
-                ! Set counter to this value so that all other states are not kept.
-                counter = space_cutoff_num(i)
+                ! Set old_num_states to specify the number of states which should be kept.
+                old_num_states = space_cutoff_num(i)
+                if (old_num_states > new_num_states) old_num_states = new_num_states
             end if
 
-            old_num_det_states = counter
-
-            write(6,'(i8,1X,a12)') old_num_det_states, "states kept."
+            write(6,'(i8,1X,a12)') old_num_states, "states kept."
             call neci_flush(6)
 
             deallocate(hamil_diag)
@@ -560,17 +547,16 @@ contains
         end do
 
         ! At this point, all iterations have finished, so add these basis states to SpawnedParts.
-        do i = 1, old_num_det_states
-            comp = DetBitLT(ilut_store_old(:, i), ilutHF, NIfD, .false.)
+        do i = 1, old_num_states
+            comp = DetBitLT(ilut_store(:, i), ilutHF, NIfD, .false.)
             if (comp == 0) cycle
-            call add_basis_state_to_list(ilut_store_old(:, i), called_from)
+            call add_basis_state_to_list(ilut_store(:, i), called_from)
         end do
 
-        deallocate(temp_space)
-        deallocate(ilut_store_old)
-        deallocate(ilut_store_new)
         if (allocated(space_cutoff_num)) deallocate(space_cutoff_num)
         if (allocated(space_cutoff_amp)) deallocate(space_cutoff_amp)
+        deallocate(temp_space)
+        deallocate(ilut_store)
 
     end subroutine generate_optimised_core
 
@@ -593,20 +579,6 @@ contains
 
         ! Over all the states in the original list:
         do i = 1, original_space_size
-
-            ! When using HPHFs, we want to find states connected to both determinants
-            ! making up the HPHFs. This means, every other iteration of this loop, we
-            ! should generate the other state in a given HPHF and find the states
-            ! connected to this state.
-            !if (.not. tHPHF) then
-            !    original_space_state = original_space(:,i) 
-            !else
-            !    if (mod(i,2) == 1) then
-            !        original_space_state = original_space(:,(i+1)/2)
-            !    else
-            !        call FindExcitBitDetSym(original_space(:,i/2), original_space_state)
-            !    end if
-            !end if
 
             call decode_bit_det(nI, original_space(:,i))
 
@@ -695,7 +667,7 @@ contains
 
     end subroutine generate_connected_space
 
-    subroutine check_if_connected_to_old_space(ilut_store_old, nI, ilut, num_det_states, &
+    subroutine check_if_connected_to_old_space(ilut_store_old, nI, ilut, num_states, &
                                                                          counter, connected)
 
         ! This subroutine loops over all states in the old space and see if any of them is
@@ -704,7 +676,7 @@ contains
         integer(n_int), intent(in) :: ilut_store_old(0:NIfTot, 1000000)
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilut(0:NIfTot)
-        integer, intent(in) :: num_det_states
+        integer, intent(in) :: num_states
         integer, intent(inout) :: counter
         logical, intent(inout) :: connected
         integer :: nJ(nel)
@@ -715,7 +687,7 @@ contains
 
         ! Loop over all states in the old space and see if any of them is connected
         ! to the state just generated.
-        do i = 1, num_det_states
+        do i = 1, num_states
             ! If this is true then the state is *in* the old space. These states
             ! aren't required in the defined space generated, so we can skip them
             ! (although they can be included too, as most will be, and removed afterwards
