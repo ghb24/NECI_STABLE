@@ -10,7 +10,8 @@ MODULE PopsfileMod
                         iWeightPopRead, iPopsFileNoRead, tPopsMapping, Tau, &
                         InitiatorWalkNo, MemoryFacPart, MemoryFacAnnihil, &
                         MemoryFacSpawn
-    use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet
+    use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
+                         ilut_lt, ilut_gt
     use hash , only : DetermineDetNode
     use Determinants, only : get_helement,write_det
     use hphf_integrals, only: hphf_diag_helement
@@ -321,7 +322,7 @@ r_loop: do while(.not.tReadAllPops)
             enddo
         else
             !Order the determinants on all the lists.
-            call sort (dets(:,1:CurrWalkers))
+            call sort (dets(:,1:CurrWalkers), ilut_lt, ilut_gt)
         endif
 
         !Run through all determinants on each node, and calculate the total number of walkers, and noathf

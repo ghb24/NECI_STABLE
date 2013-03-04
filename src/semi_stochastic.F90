@@ -7,7 +7,7 @@ module semi_stochastic
                             flag_is_initiator, flag_bit_offset, NOffSgn
     use bit_reps, only: NIfD, NIfTot, decode_bit_det, encode_bit_rep, set_flag
     use CalcData, only: tRegenDiagHEls, tau, tSortDetermToTop, tTruncInitiator, DiagSft, &
-                        tStartCAS
+                        tStartCAS, tReadPops
     use csf, only: csf_get_yamas, get_num_csfs, get_csf_bit_yama, csf_apply_yama
     use csf_data, only: iscsf, csf_orbital_mask
     use constants
@@ -20,7 +20,7 @@ module semi_stochastic
                          deterministic_proc_sizes, deterministic_proc_indices, &
                          full_determ_vector, partial_determ_vector, core_hamiltonian, &
                          determ_space_size, TotWalkers, TotWalkersOld, &
-                         indices_of_determ_states, ProjEDet
+                         indices_of_determ_states, ProjEDet, SpawnedParts
     use gndts_mod, only: gndts
     use hash , only: DetermineDetNode
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
@@ -62,20 +62,22 @@ contains
         write(6,'(a56)') "============ Semi-stochastic initialisation ============"
         call neci_flush(6)
 
-        ! Initialise the deterministic masks.
-        deterministic_mask = 0
-        determ_parent_mask = 0
-        deterministic_mask = ibset(deterministic_mask, flag_deterministic + flag_bit_offset)
-        determ_parent_mask = ibset(determ_parent_mask, flag_determ_parent + flag_bit_offset)
-
         allocate(deterministic_proc_sizes(0:nProcessors-1))
         allocate(deterministic_proc_indices(0:nProcessors-1))
         deterministic_proc_sizes = 0
         deterministic_proc_indices = 0
 
-        ! Count the Hartree-Fock determinant (The Hartree-Fock determinant has already been
-        ! added to the main list as usual in the subroutine InitFCIMCCalcPar).
+        ! Count the HF state and add it to SpawnedParts.
         deterministic_proc_sizes(iHFProc) = 1
+        if (.not. tReadPops) then
+            SpawnedParts(:,1) = CurrentDets(:,1)
+        else
+            if (iProcIndex == iHFProc) then
+                SpawnedParts(:,1) = 0
+                SpawnedParts(0:NIfTot,1) = ilutHF(0:NIfTot)
+                call set_flag(SpawnedParts(:,1), flag_deterministic)
+            end if
+        end if
 
         ! The following subroutines call the enumerating subroutines to create all excitations
         ! and add these states to the main list, CurrentDets, on the correct processor. As
@@ -91,17 +93,13 @@ contains
             call MPIAllGather(int(TotWalkers, MPIArg), deterministic_proc_sizes, ierr)
         else if (tDeterminantCore) then
             if (tDoublesCore) then
-                tSortDetermToTop = .true.
                 call generate_sing_doub_determinants(called_from_semistoch)
             else if (tCASCore) then
-                tSortDetermToTop = .true.
                 call generate_cas(called_from_semistoch)
             else if (tOptimisedCore) then
-                tSortDetermToTop = .false.
                 call generate_optimised_core(called_from_semistoch)
             end if
         else if (tCSFCore) then
-            tSortDetermToTop = .true.
             if (tDoublesCore) then
                 call generate_sing_doub_csfs(called_from_semistoch)
             else if (tCASCore) then
@@ -133,9 +131,6 @@ contains
         ! CurrentDets.
         allocate(indices_of_determ_states(deterministic_proc_sizes(iProcIndex)))
 
-        TotWalkers = int(deterministic_proc_sizes(iProcIndex), int64)
-        TotWalkersOld = int(deterministic_proc_sizes(iProcIndex), int64)
-
         ! Calculate the indices in the full vector at which the various processors take
         ! over, relative to the first index position in the vector (ie, the first value
         ! in this vector will be 0, *not* 1 - this is required for mpiallgatherv later).
@@ -150,16 +145,16 @@ contains
 
         ! Sort the list of basis states so that it is correctly ordered in the predefined
         ! order which is always kept throughout the simulation.
-        call sort(CurrentDets(:,1:deterministic_proc_sizes(iProcIndex)), ilut_lt, ilut_gt)
+        call sort(SpawnedParts(:,1:deterministic_proc_sizes(iProcIndex)), ilut_lt, ilut_gt)
 
         ! Do a check that no states are in the deterministic space twice. The list is sorted
         ! already so simply check states next to each other in the list:
         do i = 2, deterministic_proc_sizes(iProcIndex)
-            comp = DetBitLT(CurrentDets(:, i-1), CurrentDets(:, i), NIfD, .false.)
+            comp = DetBitLT(SpawnedParts(:, i-1), SpawnedParts(:, i), NIfD, .false.)
             if (comp == 0) then
-                call decode_bit_det(nI, CurrentDets(:,i))
+                call decode_bit_det(nI, SpawnedParts(:,i))
                 write(6,'(a18)') "State found twice:"
-                write(6,*) CurrentDets(:,i)
+                write(6,*) SpawnedParts(:,i)
                 call write_det(6, nI, .true.)
                 call stop_all("init_semi_stochastic", &
                     "The same state has been found twice in the deterministic space.")
@@ -170,6 +165,19 @@ contains
         write(6,'(a56)') "Generating the Hamiltonian in the deterministic space..."
         call neci_flush(6)
         call calculate_det_hamiltonian_normal()
+
+        ! If not reading from a popsfile, move the deterministic states to CurrentDets ready for
+        ! FCIQMC spawning to start. If reading from a popsfile then CurrenDets will have been
+        ! initialised already.
+        if (.not. tReadPops) then
+            CurrentDets(:,1:deterministic_proc_sizes(iProcIndex)) = &
+                SpawnedParts(:,1:deterministic_proc_sizes(iProcIndex))
+            SpawnedParts = 0
+            TotWalkers = int(deterministic_proc_sizes(iProcIndex), int64)
+            TotWalkersOld = int(deterministic_proc_sizes(iProcIndex), int64)
+        else
+            SpawnedParts = 0
+        end if
 
         write(6,'(a40)') "Semi-stochastic initialisation complete."
         call neci_flush(6)
@@ -195,7 +203,7 @@ contains
             ! If we are broadcasting from this processor next, transfer the bitstrings
             ! to the array temp_store.
             if (iproc == iProcIndex) temp_store(:,1:deterministic_proc_sizes(iproc)) = &
-                                      CurrentDets(:,1:deterministic_proc_sizes(iproc))
+                                      SpawnedParts(:,1:deterministic_proc_sizes(iproc))
 
             ! Perform the broadcasting to other all other processors.
             call MPIBCast(temp_store, size(temp_store), iproc)
@@ -210,14 +218,14 @@ contains
                 do j = 1, deterministic_proc_sizes(iproc)
 
                     ! Get nI form of the basis functions.
-                    call decode_bit_det(nI, CurrentDets(:, i))
+                    call decode_bit_det(nI, SpawnedParts(:, i))
                     call decode_bit_det(nJ, temp_store(:, j))
 
                     ! If on the diagonal of the Hamiltonian.
                     if ((iProcIndex == iproc) .and. (i == j)) then
                         if (tHPHF) then
                             core_hamiltonian(i, col_index + j) = &
-                                hphf_diag_helement(nI, CurrentDets(:,i)) - Hii
+                                hphf_diag_helement(nI, SpawnedParts(:,i)) - Hii
                         else
                             core_hamiltonian(i, col_index + j) = &
                                 get_helement(nI, nJ, 0) - Hii
@@ -228,11 +236,11 @@ contains
                     else
                         if (tHPHF) then
                             core_hamiltonian(i, col_index + j) = &
-                                hphf_off_diag_helement(nI, nJ, CurrentDets(:,i), &
+                                hphf_off_diag_helement(nI, nJ, SpawnedParts(:,i), &
                                 temp_store(:,j))
                         else
                             core_hamiltonian(i, col_index + j) = &
-                                get_helement(nI, nJ, CurrentDets(:, i), temp_store(:, j))
+                                get_helement(nI, nJ, SpawnedParts(:, i), temp_store(:, j))
                         end if
                     end if
 
@@ -360,6 +368,23 @@ contains
         deallocate(indices)
 
     end subroutine calculate_sparse_hamiltonian
+
+    subroutine deallocate_sparse_hamil()
+
+        use FciMCData, only: sparse_matrix_info, sparse_hamil, hamil_diag
+
+        integer :: sparse_hamil_size, i
+
+        sparse_hamil_size = size(sparse_hamil)
+
+        do i = sparse_hamil_size, 1, -1
+            deallocate(sparse_hamil(i)%elements)
+            deallocate(sparse_hamil(i)%positions)
+        end do
+
+        deallocate(sparse_hamil)
+
+    end subroutine deallocate_sparse_hamil
 
     subroutine generate_optimised_core(called_from)
 
@@ -522,12 +547,12 @@ contains
             write(6,'(i8,1X,a12)') old_num_det_states, "states kept."
             call neci_flush(6)
 
-            deallocate(sparse_hamil)
             deallocate(hamil_diag)
+            call deallocate_sparse_hamil()
 
         end do
 
-        ! At this point, all iterations have finished, so add these basis states to CurrentDets.
+        ! At this point, all iterations have finished, so add these basis states to SpawnedParts.
         do i = 1, old_num_det_states
             comp = DetBitLT(ilut_store_old(:, i), ilutHF, NIfD, .false.)
             if (comp == 0) cycle
@@ -1033,7 +1058,7 @@ contains
                 ! Encode the Yamanouchi symbol in the ilut representation.
                 call get_csf_bit_yama(nI, ilut(nOffY:nOffY+nIfY-1))
             end if
-            ! Finally add the CSF to the CurrentDets list.
+            ! Finally add the CSF to the SpawnedParts list.
             call add_basis_state_to_list(ilut, called_from, nI)
         end do
 
@@ -1095,7 +1120,7 @@ contains
             deterministic_proc_sizes(proc) = deterministic_proc_sizes(proc) + 1
 
             ! If this determinant belongs to this processor, add it to the main list.
-            if (proc == iProcIndex) call encode_bit_rep(CurrentDets(0:NIfTot, &
+            if (proc == iProcIndex) call encode_bit_rep(SpawnedParts(0:NIfTot, &
                 deterministic_proc_sizes(iProcIndex)), ilut(0:nIfDBO), sgn, flags)
 
         else if (called_from == called_from_trial) then

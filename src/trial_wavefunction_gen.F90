@@ -5,11 +5,12 @@ module trial_wavefunction_gen
     use CalcData, only: tSortDetermToTop
     use davidson, only: perform_davidson, davidson_eigenvalue, davidson_eigenvector, &
                         sparse_hamil_type
-    use DetBitOps, only: FindBitExcitLevel
+    use DetBitOps, only: FindBitExcitLevel, ilut_lt, ilut_gt
     use DeterminantData, only: write_det
     use FciMCData, only: trial_space, trial_space_size, connected_space, &
                          connected_space_size, trial_wavefunction, trial_energy, &
-                         connected_space_vector, ilutHF, Hii, nSingles, nDoubles
+                         connected_space_vector, ilutHF, Hii, nSingles, nDoubles, &
+                         hamil_diag
     use hphf_integrals, only: hphf_off_diag_helement
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBarrier, MPIAllToAll, MPISumAll, &
                              MPIAllToAllV, MPIArg
@@ -30,7 +31,6 @@ contains
         integer(MPIArg) :: senddisps(0:nProcessors-1), recvdisps(0:nProcessors-1)
         integer(n_int), allocatable, dimension(:,:) :: temp_space
         integer :: nI(nel)
-        integer :: old, new
 
         write(6,'()')
         write(6,'(a56)') "=========== Trial wavefunction initialisation =========="
@@ -153,6 +153,9 @@ contains
         allocate(trial_wavefunction(trial_space_size))
         trial_wavefunction = davidson_eigenvector(1:trial_space_size)
         deallocate(davidson_eigenvector)
+
+        deallocate(hamil_diag)
+        call deallocate_sparse_hamil()
 
         call MPIBarrier(ierr)
 

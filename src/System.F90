@@ -3,7 +3,7 @@ MODULE System
 
     use SystemData
     use CalcData, only: tRotoAnnihil, TAU, tTruncInitiator, InitiatorWalkNo, &
-                        occCASorbs, virtCASorbs
+                        occCASorbs, virtCASorbs, tSortDetermToTop
     use sort_mod
     use SymExcitDataMod, only: tBuildOccVirtList
     use constants, only: dp,int64, Pi, third
@@ -81,6 +81,7 @@ MODULE System
       csf_trunc_level = 0
       tTruncateCSF = .false.
       tSemiStochastic = .false.
+      tSortDetermToTop = .false.
       tCSFCore = .false.
       tDeterminantCore = .false.
       tDoublesCore = .false.
@@ -347,6 +348,8 @@ system: do
             TCSFOLD = .true.
         case("SEMI-STOCHASTIC")
             tSemiStochastic = .true.
+        case("DETERMINANT-CORE")
+            tDeterminantCore = .true.
         case("CSF-CORE")
             if(item.lt.nitems) then
                call geti(STOT)
@@ -357,15 +360,16 @@ system: do
             tCSF = .true.
             LMS = STOT
         case("DOUBLES-CORE")
+            tSortDetermToTop = .true.
             tDoublesCore = .true.
         case("CAS-CORE")
+            tSortDetermToTop = .true.
             tCASCore = .true.
             tSpn = .true.
             call geti(OccDetermCASOrbs)  !Number of electrons in CAS 
             call geti(VirtDetermCASOrbs)  !Number of virtual spin-orbitals in CAS
-        case("DETERMINANT-CORE")
-            tDeterminantCore = .true.
         case("OPTIMISED-CORE")
+            tSortDetermToTop = .false.
             tOptimisedCore = .true.
         case("OPTIMISED-CORE-CUTOFF-AMP")
             tDetermAmplitudeCutoff = .true.
