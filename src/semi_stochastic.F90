@@ -79,6 +79,13 @@ contains
             end if
         end if
 
+        if (.not. (tDeterminantCore .or. tCSFCore)) then
+            call warning_neci("init_semi_stochastic", "You have not selected to use either &
+                              &determinants or CSFs for the deterministic space. Determinants &
+                              &will be used.")
+            tDeterminantCore = .true.
+        end if
+
         ! The following subroutines call the enumerating subroutines to create all excitations
         ! and add these states to the main list, CurrentDets, on the correct processor. As
         ! they do this, they count the size of the deterministic space on each processor.
@@ -559,6 +566,7 @@ contains
             call add_basis_state_to_list(ilut_store_old(:, i), called_from)
         end do
 
+        deallocate(temp_space)
         deallocate(ilut_store_old)
         deallocate(ilut_store_new)
         if (allocated(space_cutoff_num)) deallocate(space_cutoff_num)
