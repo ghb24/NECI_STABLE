@@ -90,22 +90,27 @@ contains
             end do
             call MPIAllGather(int(TotWalkers, MPIArg), deterministic_proc_sizes, ierr)
         else if (tDeterminantCore) then
-            tSortDetermToTop = .true.
             if (tDoublesCore) then
+                tSortDetermToTop = .true.
                 call generate_sing_doub_determinants(called_from_semistoch)
             else if (tCASCore) then
+                tSortDetermToTop = .true.
                 call generate_cas(called_from_semistoch)
+            else if (tOptimisedCore) then
+                tSortDetermToTop = .false.
+                call generate_optimised_core(called_from_semistoch)
             end if
         else if (tCSFCore) then
             tSortDetermToTop = .true.
             if (tDoublesCore) then
                 call generate_sing_doub_csfs(called_from_semistoch)
             else if (tCASCore) then
-                call generate_cas(called_from_semistoch)
+                call stop_all("init_semi_stochastic", "CAS core space with CSFs is not &
+                              &currently implemented.")
+            else if (tOptimisedCore) then
+                call stop_all("init_semi_stochastic", "Optimised core space with CSFs is not &
+                              &currently implemented.")
             end if
-        else if (tOptimisedCore) then
-            tSortDetermToTop = .false.
-            call generate_optimised_core(called_from_semistoch)
         end if
 
         ! We now know the size of the deterministic space on each processor, so now find
