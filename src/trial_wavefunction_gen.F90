@@ -67,22 +67,29 @@ contains
         allocate(connected_space(0:NIfTot, connected_storage_space_size))
         connected_space = 0
         
-        call find_min_max_elements_on_proc(trial_space_size, min_element, max_element)
-        num_elements = max_element-min_element+1
+        call find_elements_on_proc(trial_space_size, min_element, max_element, num_elements)
 
-        ! Find the states connected to the trial space. This typically takes a long time, so
-        ! it is done in parallel by letting each processor find the states connected to a
-        ! portion of the trial space.
-        write(6,'(a33)') "Generating the connected space..."
-        call neci_flush(6)
-        call generate_connected_space(num_elements, trial_space(:, min_element:max_element), &
-                                      connected_space_size, connected_space, &
-                                      connected_storage_space_size)
+        if (num_elements > 0) then
 
-        call remove_repeated_states(connected_space, connected_space_size)
+            ! Find the states connected to the trial space. This typically takes a long time, so
+            ! it is done in parallel by letting each processor find the states connected to a
+            ! portion of the trial space.
+            write(6,'(a33)') "Generating the connected space..."
+            call neci_flush(6)
+            call generate_connected_space(num_elements, trial_space(:, min_element:max_element), &
+                                          connected_space_size, connected_space, &
+                                          connected_storage_space_size)
+            write(6,*) "connected_space_size:", connected_space_size
 
-        call sort_space_by_proc(connected_space(:, 1:connected_space_size), connected_space_size, &
-                                sendcounts)
+            call remove_repeated_states(connected_space, connected_space_size)
+
+            call sort_space_by_proc(connected_space(:, 1:connected_space_size), &
+                                    &connected_space_size, sendcounts)
+
+        else
+            connected_space_size = 0
+            sendcounts = 0
+        end if
 
         ! Send the connected states to their processors.
         ! sendcounts holds the number of states to send to other processors from this one.
@@ -264,23 +271,43 @@ contains
 
     end subroutine generate_connected_space_vector
 
-    subroutine find_min_max_elements_on_proc(list_length, min_element, max_element)
+    subroutine find_elements_on_proc(list_length, min_element, max_element, num_elements)
 
-        ! Split list_length into nProcessor parts. Not that this is not done based on any hash.
+        ! Split list_length into nProcessor parts. Note that this is not done based on any hash.
 
         integer, intent(in) :: list_length
-        integer, intent(out) :: min_element, max_element
-        integer :: floor_divided_list_length, mod_list_length
+        integer, intent(out) :: min_element, max_element, num_elements
+        integer :: floor_div_list_length, mod_list_length
+        integer :: num_elem_all_procs(0:nProcessors-1)
+        integer :: i
 
         mod_list_length = mod(list_length, nProcessors)
-        floor_divided_list_length = (list_length-mod_list_length)/nProcessors
+        floor_div_list_length = (list_length-mod_list_length)/nProcessors
 
-        min_element = floor_divided_list_length*iProcIndex + 1
-        max_element = floor_divided_list_length*(iProcIndex+1)
-        if ((iProcIndex-1) < mod_list_length .and. iProcIndex > 0) min_element = min_element + 1
-        if (iProcIndex < mod_list_length) max_element = max_element + 1
+        do i = 0, nProcessors-1
+            num_elem_all_procs(i) = floor_div_list_length
+            if (i < mod_list_length) num_elem_all_procs(i) = num_elem_all_procs(i) + 1
+        end do
 
-    end subroutine find_min_max_elements_on_proc
+        num_elements = num_elem_all_procs(iProcIndex)
+
+        if (num_elements == 0) then
+            if (iProcIndex == 0) call stop_all("find_elements_on_proc","There are no states &
+                                               &in the trial space.")
+            min_element = 0
+            max_element = 0
+            return
+        end if
+
+        if (iProcIndex == 0) then
+            min_element = 1
+            max_element = num_elements
+        else
+            min_element = sum(num_elem_all_procs(0:iProcIndex-1)) + 1
+            max_element = sum(num_elem_all_procs(0:iProcIndex))
+        end if
+
+    end subroutine find_elements_on_proc
 
     subroutine sort_space_by_proc(ilut_list, ilut_list_size, num_states_procs)
 
