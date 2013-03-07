@@ -63,7 +63,7 @@ contains
         ! in the trial space has roughly the same number as connected states as the HF state
         ! (nSingles+nDoubles). Also divide by the number of processors.
         connected_storage_space_size = &
-            ceiling(real(trial_space_size)/real(nProcessors))*(nSingles+nDoubles)
+            ceiling(1.2*real(trial_space_size)/real(nProcessors))*(nSingles+nDoubles)
         allocate(connected_space(0:NIfTot, connected_storage_space_size))
         connected_space = 0
         

@@ -3904,6 +3904,10 @@ MODULE FciMCParMod
             endif
         endif
 
+        if (tTrialWavefunction) then
+            call MPIAllReduce(trial_numerator, MPI_SUM, tot_trial_numerator)
+            call MPIAllReduce(trial_denom, MPI_SUM, tot_trial_denom)
+        end if
         
 #ifdef __DEBUG
         !Write this 'ASSERTROOT' out explicitly to avoid line lengths problems
@@ -4095,8 +4099,7 @@ MODULE FciMCParMod
 
             ! Calculate the projected energy.
             if (any(AllSumNoatHF /= 0.0) .or. &
-                (proje_linear_comb .and. nproje_sum > 1) .or. &
-                tTrialWavefunction) then
+                (proje_linear_comb .and. nproje_sum > 1)) then
                 ProjectionE = (AllSumENum) / (all_sum_proje_denominator) 
 !                              ARR_RE_OR_CPLX(all_sum_proje_denominator)
                 proje_iter = (AllENumCyc) / (all_cyc_proje_denominator) 
@@ -4194,6 +4197,8 @@ MODULE FciMCParMod
         ENumCycAbs = 0
         HFCyc = 0.0_dp
         cyc_proje_denominator=0
+        trial_numerator = 0.0_dp
+        trial_denom = 0.0_dp
         if(tSplitProjEHist) then
             if(tSplitProjEHistG) then
                 ENumCycHistG(:)=0.0_dp
@@ -4309,16 +4314,20 @@ MODULE FciMCParMod
                    &28.Inst S^2  29.SpawnedParts  30.MergedParts"
 #else
             if(tMCOutput) then
-                write(iout,"(A)") "       Step     Shift      WalkerCng    &
-                      &GrowRate       TotWalkers    Annihil    NoDied    &
-                      &NoBorn    Proj.E          Av.Shift     Proj.E.ThisCyc   &
-                      &NoatHF NoatDoubs      AccRat     UniqueDets     IterTime"
+                write(iout, "(A)", advance = 'no') "        Step    Shift           &
+                      &WalkerCng       GrowRate        TotWalkers      Annihil         &
+                      &NoDied          NoBorn          Proj.E          Av.Shift        &
+                      &Proj.E.Cyc"
+                if (tTrialWavefunction) write(iout, "(A)", advance = 'no') &
+                      "    Trial.E.Cyc "
+                write(iout, "(A)", advance = 'yes') "      NoatHF          NoatDoubs       &
+                &AccRat        UniqueDets   IterTime"
             endif
             write(fcimcstats_unit, "(a,i4,a,l1,a,l1,a,l1)") &
                   "# FCIMCStats VERSION 2 - REAL : NEl=", nel, &
                   " HPHF=", tHPHF, ' Lz=', tFixLz, &
                   ' Initiator=', tTruncInitiator
-            write(fcimcstats_unit, "(A)") &
+            write(fcimcstats_unit, "(A)", advance = 'no') &
                   "#     1.Step   2.Shift    3.WalkerCng  4.GrowRate     &
                   &5.TotWalkers  6.Annihil  7.NoDied  8.NoBorn  &
                   &9.Proj.E       10.Av.Shift 11.Proj.E.ThisCyc  12.NoatHF &
@@ -4328,6 +4337,12 @@ MODULE FciMCParMod
                   &23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE &
                   &26.HF weight    27.|Psi|     28.Inst S^2 29.Inst S^2 30.AbsProjE &
                   &31.SpawnedParts  32.MergedParts  33.WalkersToSpawn  34.ZeroMatrixElements"
+           if (tTrialWavefunction) then 
+                  write(fcimcstats_unit, "(A)", advance = 'yes') &
+                  "  35.TrialNumerator  36.TrialDenom  37.TrialOverlap"
+           else
+                  write(fcimcstats_unit, "()", advance = 'yes')
+           end if
 
            if(tSplitProjEHist) then
                if(tSplitProjEHistG) then
@@ -4371,6 +4386,12 @@ MODULE FciMCParMod
         endif
 
         if (iProcIndex == root) then
+
+        ! Becuase tot_trial_numerator/tot_trial_denom is the energy relative to the the trial
+        ! energy, add on this contribution to make it relative to the HF energy.
+        if (tTrialWavefunction) then
+            tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*(trial_energy-Hii))
+        end if
 
 #ifdef __CMPLX
             write(fcimcstats_unit,"(I12,5G16.7,7G17.9,&
@@ -4445,7 +4466,7 @@ MODULE FciMCParMod
             endif
             
             write(fcimcstats_unit,"(I12,G16.7,3G16.7,3G16.7,5G17.9,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9, 4I13)") &
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9, 4I13)", advance = 'no') &
                 Iter + PreviousCycles, &
                 DiagSft, &
                 sum(AllTotParts) - sum(AllTotPartsOld), &
@@ -4479,9 +4500,17 @@ MODULE FciMCParMod
                 AllNumMerged, &
                 AllTotWalkersToSpawn, &
                 AllZeroMatrixElem
+                if (tTrialWavefunction) then
+                    write(fcimcstats_unit, "(3G16.7)", advance = 'yes') &
+                    (tot_trial_numerator / StepsSft), &
+                    (tot_trial_denom / StepsSft), &
+                    abs((tot_trial_denom / (norm_psi*StepsSft)))
+                else
+                    write(fcimcstats_unit, "()", advance = 'yes')
+                end if
 
             if(tMCOutput) then
-                write (iout, "(I12,13G16.7,I12,G13.5)") &
+                write (iout, "(I12,10G16.7)", advance = 'no') &
                     Iter + PreviousCycles, &
                     DiagSft, &
                     sum(AllTotParts) - sum(AllTotPartsOld), &
@@ -4492,7 +4521,10 @@ MODULE FciMCParMod
                     AllNoBorn, &
                     ProjectionE, &
                     AvDiagSft, &
-                    proje_iter, &
+                    proje_iter
+                if (tTrialWavefunction) write(iout, "(G16.7)", advance = 'no') &
+                    (tot_trial_numerator/tot_trial_denom)
+                write (iout, "(3G16.7,I12,G13.5)", advance = 'yes') &
                     AllNoatHF, &
                     AllNoatDoubs, &
                     AccRat, &
@@ -6622,7 +6654,7 @@ MODULE FciMCParMod
                 ! This state is in the trial space. Add the contribution to the demoninator and update
                 ! min_trial_ind so that a shorter list is searched next time.
                 current_contribution = RealwSign(1)*trial_wavefunction(pos+min_trial_ind-1)
-                HFCyc = HFCyc + current_contribution
+                trial_denom = trial_denom + current_contribution
 
                 min_trial_ind = min_trial_ind + pos
             else
@@ -6641,17 +6673,16 @@ MODULE FciMCParMod
                     ! This state is in the connected space. Add the contribution to the numerator and update
                     ! min_connected_ind.
                     current_contribution = RealwSign(1)*connected_space_vector(pos+min_connected_ind-1)
-                    if (iter > NEquilSteps) SumENum = SumENum + current_contribution
-                    ENumCyc = ENumCyc + current_contribution
-                    ENumCycAbs = ENumCycAbs + abs(current_contribution)
+                    trial_numerator = trial_numerator + current_contribution
 
                     min_connected_ind = min_connected_ind + pos
                 else
                     min_connected_ind = min_connected_ind - pos - 1
                 end if
             end if
+        end if
 
-        elseif (proje_linear_comb .and. nproje_sum > 1) then
+        if (proje_linear_comb .and. nproje_sum > 1) then
            if(proje_spatial) then
               spatial_ic = FindSpatialBitExcitLevel (ilut, proje_ref_iluts(:,1))
               if (spatial_ic <= 2) then
@@ -6738,8 +6769,6 @@ MODULE FciMCParMod
 
         if(tSplitProjEHist.and.ExcitLevel_local == 2) then
 
-            call stop_all("here","here")
-
             !Calc excitation matrix
             !call GetBitExcitation(iLutRef,ilut,ExMat,tSign)
             ExMat(:,:)=0
@@ -6766,7 +6795,7 @@ MODULE FciMCParMod
             
             ENumCyc = ENumCyc + (HOffDiag * ARR_RE_OR_CPLX(RealwSign)) / dProbFin
             ENumCycAbs = ENumCycAbs + abs(HOffDiag * ARR_RE_OR_CPLX(RealwSign)) / dProbFin
-        elseif (.not. tTrialWavefunction) then
+        else
 
             ! Sum in energy contribution
             if (iter > NEquilSteps) &

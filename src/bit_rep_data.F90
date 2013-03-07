@@ -49,8 +49,10 @@ module bit_rep_data
                                           flag_bit_offset + flag_negative_sign)
 
     ! Bit masks with all bits unset except those corresponding to the flags in the names.
-    integer(n_int) :: deterministic_mask = ibset(0, flag_deterministic + flag_bit_offset)
-    integer(n_int) :: determ_parent_mask = ibset(0, flag_determ_parent + flag_bit_offset)
+    integer(n_int) :: deterministic_mask = ibset(0_n_int, &
+                                                 flag_deterministic + flag_bit_offset)
+    integer(n_int) :: determ_parent_mask = ibset(0_n_int, &
+                                                 flag_determ_parent + flag_bit_offset)
 
 contains
 
