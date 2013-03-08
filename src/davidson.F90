@@ -5,7 +5,9 @@ module davidson
 ! http://web.mit.edu/bolin/www/Project-Report-18.335J.pdf
 
 use constants
-use FciMCData, only: hamiltonian, sparse_matrix_info, sparse_hamil, hamil_diag
+use FciMCData, only: hamiltonian, sparse_matrix_info, sparse_hamil, hamil_diag, &
+                     DavidsonTag, HDiagTag
+use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
 
 implicit none
 
@@ -43,6 +45,8 @@ real(dp), allocatable, dimension(:) :: residual
 ! Hence it is a measure of how converged the solution is.
 real(dp) :: residual_norm
 real(dp) :: davidson_eigenvalue
+
+integer(TagIntType) :: ResidualTag
 
     contains
 
@@ -84,19 +88,21 @@ real(dp) :: davidson_eigenvalue
 
     subroutine init_davidson()
     
-        use Determinants, only: get_helement
-        use FciMCData, only: HFDet
-
         ! This subroutine initialises the Davdison method by allocating the necessary arrays,
         ! defining the initial basis vector and projected Hamiltonian, and setting an initial
         ! guess at the ground state eigenvalue. It also calculates the corresponding residual
         ! which is needed to expand the space.
 
-        integer :: i, HFindex
+        use Determinants, only: get_helement
+        use FciMCData, only: HFDet
+
+        integer :: i, HFindex, ierr
+        character (len=*), parameter :: this_routine = "init_davidson"
 
         ! Allocate and define the Hamiltonian diagonal, if not done so already.
         if (.not. allocated(hamil_diag)) then
-            allocate(hamil_diag(size(hamiltonian,1)))
+            allocate(hamil_diag(size(hamiltonian,1)), stat=ierr)
+            call LogMemAlloc("hamil_diag", size(hamiltonian,1), 8, this_routine, HDiagTag, ierr)
             do i = 1, size(hamiltonian,1)
                 hamil_diag(i) = hamiltonian(i,i)
             end do
@@ -113,9 +119,14 @@ real(dp) :: davidson_eigenvalue
         allocate(projected_hamil_scrap(1,1))
         ! If a davidson calculation has already been performed, this array might still be
         ! allocated, so check!
-        if (allocated(davidson_eigenvector)) deallocate(davidson_eigenvector)
-        allocate(davidson_eigenvector(space_size))
+        if (allocated(davidson_eigenvector)) then
+            deallocate(davidson_eigenvector, stat=ierr)
+            call LogMemDealloc(this_routine, DavidsonTag, ierr)
+        end if
+        allocate(davidson_eigenvector(space_size), stat=ierr)
+        call LogMemAlloc("davidson_eigenvector", space_size, 8, this_routine, DavidsonTag, ierr)
         allocate(residual(space_size))
+        call LogMemAlloc("residual", space_size, 8, this_routine, ResidualTag, ierr)
         projected_hamil = 0.0_dp
         basis_vectors = 0.0_dp
         davidson_eigenvector = 0.0_dp
@@ -378,12 +389,15 @@ real(dp) :: davidson_eigenvalue
 
     subroutine end_davidson()
 
+        integer :: ierr
+
         ! Deallocate all Davidson arrays. Note that the eigenvector is not deallocated
         ! so that it can be used later.
         deallocate(basis_vectors)
         deallocate(projected_hamil)
         deallocate(projected_hamil_scrap)
-        deallocate(residual)
+        deallocate(residual, stat=ierr)
+        call LogMemDealloc("end_davidson", ResidualTag, ierr)
 
     end subroutine end_davidson
 

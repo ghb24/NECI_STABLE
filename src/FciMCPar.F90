@@ -6666,13 +6666,13 @@ MODULE FciMCParMod
             ! space, so, unless pos < 0, don't bother doing the following binary search.
             if (pos < 0) then
 
-                pos = binary_search_custom(connected_space(:, min_connected_ind:connected_space_size), &
+                pos = binary_search_custom(con_space(:, min_connected_ind:con_space_size), &
                     ilut, NIfTot+1, ilut_gt)
 
                 if (pos > 0) then
                     ! This state is in the connected space. Add the contribution to the numerator and update
                     ! min_connected_ind.
-                    current_contribution = RealwSign(1)*connected_space_vector(pos+min_connected_ind-1)
+                    current_contribution = RealwSign(1)*con_space_vector(pos+min_connected_ind-1)
                     trial_numerator = trial_numerator + current_contribution
 
                     min_connected_ind = min_connected_ind + pos

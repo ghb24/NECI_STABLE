@@ -366,6 +366,9 @@ MODULE FciMCData
       type(sparse_matrix_info), allocatable, dimension(:) :: sparse_hamil
       real(dp), allocatable, dimension(:) :: hamil_diag
 
+      integer(TagIntType) :: HamTag, HDiagTag, DavidsonTag
+      integer(TagIntType), allocatable, dimension(:,:) :: SparseHamilTags
+
       ! Semi-stochastic data.
 
       ! The core Hamiltonian (with the Hartree-Fock energy removed from the diagonal) is stored in this array for the whole simulation.
@@ -395,9 +398,9 @@ MODULE FciMCData
       ! The number of states in the trial vector space.
       integer :: trial_space_size = 0
       ! This list stores the iluts from which the trial wavefunction is formed, but only those that reside on this processor.
-      integer(n_int), allocatable, dimension(:,:) :: connected_space
+      integer(n_int), allocatable, dimension(:,:) :: con_space
       ! The number of states in the space connected to (but not including) the trial vector space.
-      integer :: connected_space_size = 0
+      integer :: con_space_size = 0
 
       ! This vector stores the trial wavefunction itself.
       real(dp), allocatable, dimension(:) :: trial_wavefunction
@@ -406,11 +409,14 @@ MODULE FciMCData
       ! \sum_j H_{ij} \psi^T_j,
       ! where \psi is the trial wavefunction. These elements are stored only in the space of states which are connected to *but included in*
       ! the trial vector space.
-      real(dp), allocatable, dimension(:) :: connected_space_vector
+      real(dp), allocatable, dimension(:) :: con_space_vector
 
       ! These indices specify the minimum index in the trial and connected spaces from which to search, when binary searching these
       ! lists. This binary search is done when updating the contibutions to the energy estimate in FciMCPar.
       integer :: min_trial_ind = 1
       integer :: min_connected_ind = 1
+
+      ! Semi-stochastic and trial-wavefunction tags:
+      integer(TagIntType) :: TrialTag, ConTag, TrialWFTag, TempTag, CoreTag, FDetermTag, PDetermTag
 
 END MODULE FciMCData

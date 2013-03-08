@@ -20,11 +20,13 @@ module semi_stochastic
                          deterministic_proc_sizes, deterministic_proc_indices, &
                          full_determ_vector, partial_determ_vector, core_hamiltonian, &
                          determ_space_size, TotWalkers, TotWalkersOld, &
-                         indices_of_determ_states, ProjEDet, SpawnedParts
+                         indices_of_determ_states, ProjEDet, SpawnedParts, SparseHamilTags, &
+                         HDiagTag, CoreTag, FDetermTag, PDetermTag
     use gndts_mod, only: gndts
     use hash , only: DetermineDetNode
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use HPHFRandExcitMod, only: FindExcitBitDetSym
+    use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIBarrier, MPIArg, &
                              MPIAllGatherV, MPIAllGather
     use sort_mod, only: sort
@@ -57,6 +59,7 @@ contains
 
         integer :: i, j, IC, ierr, comp
         integer :: nI(nel)
+        character (len=*), parameter :: this_routine = "init_semi_stochastic"
 
         write(6,'()')
         write(6,'(a56)') "============ Semi-stochastic initialisation ============"
@@ -122,9 +125,15 @@ contains
         ! the total size of the space and also allocate vectors to store psip amplitudes
         ! and the deterministic Hamiltonian.
         determ_space_size = sum(deterministic_proc_sizes)
-        allocate(full_determ_vector(determ_space_size))
-        allocate(partial_determ_vector(deterministic_proc_sizes(iProcIndex)))
-        allocate(core_hamiltonian(deterministic_proc_sizes(iProcIndex), determ_space_size))
+        allocate(full_determ_vector(determ_space_size), stat=ierr)
+        call LogMemAlloc('full_determ_vector', int(determ_space_size,8), 8, this_routine, &
+                         FDetermTag, ierr)
+        allocate(partial_determ_vector(deterministic_proc_sizes(iProcIndex)), stat=ierr)
+        call LogMemAlloc('partial_determ_vector', int(deterministic_proc_sizes(iProcIndex),8), &
+                         8, this_routine, PDetermTag, ierr)
+        allocate(core_hamiltonian(deterministic_proc_sizes(iProcIndex), determ_space_size), stat=ierr)
+        call LogMemAlloc('core_hamiltonian', int(determ_space_size*&
+                         &deterministic_proc_sizes(iProcIndex),8), 8, this_routine, CoreTag, ierr)
         full_determ_vector = 0.0_dp
         partial_determ_vector = 0.0_dp
 
@@ -136,7 +145,9 @@ contains
 
         ! Also allocate the vector to store the positions of the deterministic states in
         ! CurrentDets.
-        allocate(indices_of_determ_states(deterministic_proc_sizes(iProcIndex)))
+        allocate(indices_of_determ_states(deterministic_proc_sizes(iProcIndex)), stat=ierr)
+        call LogMemAlloc('indices_of_determ_states', int(deterministic_proc_sizes(iProcIndex),8), &
+                         bytes_int, this_routine, FDetermTag, ierr)
 
         ! Calculate the indices in the full vector at which the various processors take
         ! over, relative to the first index position in the vector (ie, the first value
@@ -197,10 +208,14 @@ contains
         integer :: nI(nel), nJ(nel)
         integer(n_int), allocatable, dimension(:,:) :: temp_store
         real(dp), allocatable, dimension(:,:) :: test_hamiltonian
+        integer(TagIntType) :: TempStoreTag
+        character (len=*), parameter :: this_routine = "calculate_det_hamiltonian_normal"
 
         ! temp_store is storage space for bitstrings so that the Hamiltonian matrix
         ! elements can be calculated.
-        allocate(temp_store(0:NIfTot, maxval(deterministic_proc_sizes)))
+        allocate(temp_store(0:NIfTot, maxval(deterministic_proc_sizes)), stat=ierr)
+        call LogMemAlloc('temp_store', maxval(deterministic_proc_sizes)*(NIfTot+1), 8, &
+                         this_routine, TempStoreTag, ierr)
 
         ! Calcuation of the Hamiltonian matrix elements to be stored. Loop over each
         ! processor in order and broadcast the sorted vector of bitstrings from the
@@ -258,7 +273,8 @@ contains
 
         call MPIBarrier(ierr)
 
-        deallocate(temp_store)
+        deallocate(temp_store, stat=ierr)
+        call LogMemDealloc(this_routine, TempStoreTag, ierr)
 
     end subroutine calculate_det_hamiltonian_normal
 
@@ -268,19 +284,29 @@ contains
 
         integer, intent(in) :: num_states
         integer(n_int), intent(in) :: ilut_list(0:NIfTot, num_states)
-        integer :: i, j, counter
+        integer :: i, j, counter, ierr
         integer :: nI(nel), nJ(nel)
         real(dp), allocatable, dimension(:) :: hamiltonian_row
         integer, allocatable, dimension(:) :: sparse_diag_positions, sparse_row_sizes, indices
+        integer(TagIntType) :: HRTag, SRTag, SDTag, ITag
+        character (len=*), parameter :: this_routine = "calculate_sparse_hamiltonian"
 
         ! Allocate arrays needed for the Hamiltonian construction and for finding the ground
         ! state
-        allocate(hamiltonian_row(num_states))
-        allocate(hamil_diag(num_states))
         allocate(sparse_hamil(num_states))
-        allocate(sparse_row_sizes(num_states))
-        allocate(sparse_diag_positions(num_states))
-        allocate(indices(num_states))
+        allocate(hamiltonian_row(num_states), stat=ierr)
+        call LogMemAlloc('hamiltonian_row', num_states, 8, this_routine, HRTag, ierr)
+        allocate(hamil_diag(num_states), stat=ierr)
+        call LogMemAlloc('hamil_diag', num_states, 8, this_routine, HDiagTag, ierr)
+        allocate(sparse_row_sizes(num_states), stat=ierr)
+        call LogMemAlloc('sparse_row_sizes', num_states, bytes_int, this_routine, SRTag, ierr)
+        allocate(sparse_diag_positions(num_states), stat=ierr)
+        call LogMemAlloc('sparse_diag_positions', num_states, bytes_int, this_routine, SDTag, ierr)
+        allocate(indices(num_states), stat=ierr)
+        call LogMemAlloc('indices', num_states, bytes_int, this_routine, ITag, ierr)
+
+        ! Allocate the tags for the various rows of data in sparse_hamil.
+        allocate(SparseHamilTags(2, num_states))
 
         ! Set each element to one to count the digonal elements straight away.
         sparse_row_sizes = 1
@@ -332,8 +358,8 @@ contains
 
             ! Now we know the number of non-zero elements in this row of the Hamiltonian, so
             ! allocate it.
-            allocate(sparse_hamil(i)%elements(sparse_row_sizes(i)))
-            allocate(sparse_hamil(i)%positions(sparse_row_sizes(i)))
+            call allocate_sparse_hamil_row(i, sparse_row_sizes(i))
+
             sparse_hamil(i)%elements = 0.0_dp
             sparse_hamil(i)%positions = 0
             sparse_hamil(i)%num_elements = sparse_row_sizes(i)
@@ -369,26 +395,60 @@ contains
             end do
         end do
 
-        deallocate(hamiltonian_row)
-        deallocate(sparse_row_sizes)
-        deallocate(sparse_diag_positions)
-        deallocate(indices)
+        deallocate(hamiltonian_row, stat=ierr)
+        call LogMemDealloc(this_routine, HRTag, ierr)
+        deallocate(sparse_row_sizes, stat=ierr)
+        call LogMemDealloc(this_routine, SRTag, ierr)
+        deallocate(sparse_diag_positions, stat=ierr)
+        call LogMemDealloc(this_routine, SDTag, ierr)
+        deallocate(indices, stat=ierr)
+        call LogMemDealloc(this_routine, ITag, ierr)
 
     end subroutine calculate_sparse_hamiltonian
+
+    subroutine allocate_sparse_hamil_row(row, sparse_row_size)
+
+        use FciMCData, only: sparse_hamil
+
+        integer, intent(in) :: row, sparse_row_size
+        integer :: ierr
+        character (len=1024) :: string_row
+        character (len=1024) :: var_name
+        character (len=*), parameter :: this_routine = "allocate_sparse_hamil_row"
+
+        write (string_row, '(I10)') row
+
+        var_name = "sparse_hamil_"//trim(string_row)//"_elements"
+        allocate(sparse_hamil(row)%elements(sparse_row_size), stat=ierr)
+        call LogMemAlloc(var_name, sparse_row_size, 8, this_routine, &
+                         SparseHamilTags(1,row), ierr)
+
+        var_name = "sparse_hamil_"//trim(string_row)//"_positions"
+        allocate(sparse_hamil(row)%positions(sparse_row_size), stat=ierr)
+        call LogMemAlloc(var_name, sparse_row_size, bytes_int, this_routine, &
+                         SparseHamilTags(2,row), ierr)
+
+    end subroutine allocate_sparse_hamil_row
 
     subroutine deallocate_sparse_hamil()
 
         use FciMCData, only: sparse_matrix_info, sparse_hamil, hamil_diag
 
-        integer :: sparse_hamil_size, i
+        integer :: sparse_hamil_size, i, ierr
+        character (len=*), parameter :: this_routine = "allocate_sparse_hamil"
 
         sparse_hamil_size = size(sparse_hamil)
 
         do i = sparse_hamil_size, 1, -1
-            deallocate(sparse_hamil(i)%elements)
-            deallocate(sparse_hamil(i)%positions)
+
+            deallocate(sparse_hamil(i)%elements, stat=ierr)
+            call LogMemDealloc(this_routine, SparseHamilTags(1,i), ierr)
+
+            deallocate(sparse_hamil(i)%positions, stat=ierr)
+            call LogMemDealloc(this_routine, SparseHamilTags(2,i), ierr)
         end do
 
+        deallocate(SparseHamilTags)
         deallocate(sparse_hamil)
 
     end subroutine deallocate_sparse_hamil
@@ -420,12 +480,14 @@ contains
         integer(n_int), allocatable, dimension(:,:) :: ilut_store, temp_space
         integer(n_int) :: ilut(0:NIfTot)
         integer :: nI(nel)
-        integer :: counter, i, j, k
+        integer :: counter, i, j, k, ierr
         integer :: old_num_states, new_num_states, comp
         integer :: num_generation_loops, array_size
         integer, allocatable, dimension(:) :: space_cutoff_num
         real(dp), allocatable, dimension(:) :: space_cutoff_amp
         logical :: tAmplitudeCutoff
+        integer(TagIntType) :: IlutTag, TempTag
+        character (len=*), parameter :: this_routine = "generate_optimised_core"
 
         ! Use the correct set of parameters, depending this function was called from for
         ! generating the deterministic space or the trial space:
@@ -459,8 +521,12 @@ contains
         ! Allocate the stores of ilut's that will hold these deterministic states.
         ! For now, assume that we won't have a deterministic space of more than one
         ! million states. Could make this user-specified later.
-        allocate(ilut_store(0:NIfTot, 1000000))
-        allocate(temp_space(0:NIfTot, 1000000))
+        allocate(ilut_store(0:NIfTot, 1000000), stat=ierr)
+        call LogMemAlloc("ilut_store", 1000000*(NIfTot+1), size_n_int, this_routine, &
+                         IlutTag, ierr)
+        allocate(temp_space(0:NIfTot, 1000000), stat=ierr)
+        call LogMemAlloc("temp_store", 1000000*(NIfTot+1), size_n_int, this_routine, &
+                         TempTag, ierr)
         ilut_store = 0
         temp_space = 0
 
@@ -541,8 +607,9 @@ contains
             write(6,'(i8,1X,a12)') old_num_states, "states kept."
             call neci_flush(6)
 
-            deallocate(hamil_diag)
             call deallocate_sparse_hamil()
+            deallocate(hamil_diag, stat=ierr)
+            call LogMemDealloc(this_routine, HDiagTag, ierr)
 
         end do
 
@@ -555,8 +622,10 @@ contains
 
         if (allocated(space_cutoff_num)) deallocate(space_cutoff_num)
         if (allocated(space_cutoff_amp)) deallocate(space_cutoff_amp)
-        deallocate(temp_space)
-        deallocate(ilut_store)
+        deallocate(temp_space, stat=ierr)
+        call LogMemDealloc(this_routine, TempTag, ierr)
+        deallocate(ilut_store, stat=ierr)
+        call LogMemDealloc(this_routine, IlutTag, ierr)
 
     end subroutine generate_optimised_core
 
@@ -574,6 +643,7 @@ contains
         integer :: i, counter
         logical :: first_loop, connected
         type(excit_store), target :: gen_store
+        character (len=1024) :: storage_space_string
 
         connected_space_size = 0
 
@@ -621,9 +691,12 @@ contains
                 ! store.
                 call check_if_connected_to_old_space(original_space, nI, ilut, &
                     original_space_size, connected_space_size, connected)
-                if (connected_space_size > storage_space_size) call stop_all&
-                    &("generate_connected_space","No space left in storage array for the next &
-                    & connected space state.")
+                if (connected_space_size > storage_space_size) then
+                    write (storage_space_string, '(I10)') storage_space_size
+                    call stop_all("generate_connected_space","No space left in storage array &
+                    &for the next connected space state. "//trim(storage_space_string)//" &
+                    &elements were allocated and this number has been exceeded.")
+                end if
                 if (connected) connected_space(0:NIfD, connected_space_size) = ilut(0:NIfD)
 
             end do
@@ -656,9 +729,12 @@ contains
 
                 call check_if_connected_to_old_space(original_space, nI, ilut, &
                     original_space_size, connected_space_size, connected)
-                if (connected_space_size > storage_space_size) call stop_all&
-                    &("generate_connected_space","No space left in storage array for the next &
-                    & connected space state.")
+                if (connected_space_size > storage_space_size) then
+                    write (storage_space_string, '(I10)') storage_space_size
+                    call stop_all("generate_connected_space","No space left in storage array &
+                    &for the next connected space state. "//trim(storage_space_string)//" &
+                    &elements were allocated and this number has been exceeded.")
+                end if
                 if (connected) connected_space(0:NIfD, connected_space_size) = ilut(0:NIfD)
 
             end do
@@ -840,11 +916,13 @@ contains
         integer(n_int) :: ilut(0:NIfTot)
         integer(n_int), allocatable, dimension(:,:) :: ilut_store
         integer :: HFdet_loc(nel)
-        integer :: num_active_orbs, elec, nCASDet, i, j, counter, comp
+        integer :: num_active_orbs, elec, nCASDet, i, j, counter, comp, ierr
         integer, allocatable :: CASBrr(:), CASRef(:)
         integer(n_int) :: cas_bitmask(0:NIfD), cas_not_bitmask(0:NIfD)
         integer, pointer :: CASDets(:,:) => null()
         integer :: OccOrbs, VirtOrbs, iCASDet
+        integer(TagIntType) :: CASDetsTag, IlutTag
+        character (len=*), parameter :: this_routine = "generate_cas"
 
         if (called_from == called_from_semistoch) then
             OccOrbs = OccDetermCASOrbs
@@ -902,11 +980,14 @@ contains
 
         ! Now allocate the array CASDets. CASDets(:,i) will store the orbitals in the active space
         ! which are occupied in the i'th determinant generated.
-        allocate(CASDets(OccOrbs, nCASDet))
+        allocate(CASDets(OccOrbs, nCASDet), stat=ierr)
+        call LogMemAlloc("CASDets", OccOrbs*nCASDet, 8, this_routine, CASDetsTag, ierr)
         CASDets(:,:) = 0
 
         if (tCASCore) then
-            allocate(ilut_store(nCASDet-1, 0:NIfTot))
+            allocate(ilut_store(nCASDet-1, 0:NIfTot), stat=ierr)
+            call LogMemAlloc("ilut_store", (nCASDet-1)*(NIfTot+1), size_n_int, this_routine, &
+                             IlutTag, ierr)
             ilut_store = 0
             counter = 1
         end if
@@ -951,9 +1032,12 @@ contains
             cas_determ_not_bitmask = cas_not_bitmask
         end if
 
-        deallocate(CASDets)
         deallocate(CASBrr)
         deallocate(CASRef)
+        deallocate(CASDets, stat=ierr)
+        call LogMemDealloc(this_routine, CASDetsTag, ierr)
+        deallocate(ilut_store, stat=ierr)
+        call LogMemDealloc(this_routine, IlutTag, ierr)
 
     end subroutine generate_cas
 
