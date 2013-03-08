@@ -126,14 +126,14 @@ contains
         ! and the deterministic Hamiltonian.
         determ_space_size = sum(deterministic_proc_sizes)
         allocate(full_determ_vector(determ_space_size), stat=ierr)
-        call LogMemAlloc('full_determ_vector', int(determ_space_size,8), 8, this_routine, &
+        call LogMemAlloc('full_determ_vector', int(determ_space_size,sizeof_int), 8, this_routine, &
                          FDetermTag, ierr)
         allocate(partial_determ_vector(deterministic_proc_sizes(iProcIndex)), stat=ierr)
-        call LogMemAlloc('partial_determ_vector', int(deterministic_proc_sizes(iProcIndex),8), &
-                         8, this_routine, PDetermTag, ierr)
+        call LogMemAlloc('partial_determ_vector', int(deterministic_proc_sizes(iProcIndex), &
+                         sizeof_int), 8, this_routine, PDetermTag, ierr)
         allocate(core_hamiltonian(deterministic_proc_sizes(iProcIndex), determ_space_size), stat=ierr)
         call LogMemAlloc('core_hamiltonian', int(determ_space_size*&
-                         &deterministic_proc_sizes(iProcIndex),8), 8, this_routine, CoreTag, ierr)
+                         &deterministic_proc_sizes(iProcIndex),sizeof_int), 8, this_routine, CoreTag, ierr)
         full_determ_vector = 0.0_dp
         partial_determ_vector = 0.0_dp
 
@@ -146,8 +146,8 @@ contains
         ! Also allocate the vector to store the positions of the deterministic states in
         ! CurrentDets.
         allocate(indices_of_determ_states(deterministic_proc_sizes(iProcIndex)), stat=ierr)
-        call LogMemAlloc('indices_of_determ_states', int(deterministic_proc_sizes(iProcIndex),8), &
-                         bytes_int, this_routine, FDetermTag, ierr)
+        call LogMemAlloc('indices_of_determ_states', int(deterministic_proc_sizes(iProcIndex), &
+                         sizeof_int), bytes_int, this_routine, FDetermTag, ierr)
 
         ! Calculate the indices in the full vector at which the various processors take
         ! over, relative to the first index position in the vector (ie, the first value
