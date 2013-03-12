@@ -58,11 +58,10 @@ contains
         end if
 
         call sort(trial_space(0:NIfTot, 1:trial_space_size), ilut_lt, ilut_gt)
-        
-        write(6,'(a50)') "Calculating the Hamiltonian for the trial space..."
-        call neci_flush(6)
-        call calculate_sparse_hamiltonian(trial_space_size, &
-            trial_space(0:NIfTot, 1:trial_space_size))
+
+        allocate(trial_wavefunction(trial_space_size), stat=ierr)
+        call LogMemAlloc('trial_wavefunction', trial_space_size, 8, this_routine, &
+                         TrialWFTag, ierr)
 
         ! To allocate storage space for the connected space states, assume that each state
         ! in the trial space has roughly the same number as connected states as the HF state
@@ -145,13 +144,28 @@ contains
             call find_determ_states_and_sort(con_space, con_space_size)
         end if
 
-        write(6,'(a50)') "Calculating the ground state in the trial space..."
-        call neci_flush(6)
-        call perform_davidson(sparse_hamil_type, .false.)
-        allocate(trial_wavefunction(trial_space_size), stat=ierr)
-        call LogMemAlloc('trial_wavefunction', trial_space_size, 8, this_routine, TrialWFTag, ierr)
-        trial_wavefunction = davidson_eigenvector
-        trial_energy = davidson_eigenvalue
+        ! Only perform this on the root processor, due to memory demands.
+        if (iProcindex == root ) then
+            write(6,'(a50)') "Calculating the Hamiltonian for the trial space..."
+            call neci_flush(6)
+            call calculate_sparse_hamiltonian(trial_space_size, &
+                                              trial_space(0:NIfTot, 1:trial_space_size))
+
+            write(6,'(a50)') "Calculating the ground state in the trial space..."
+            call neci_flush(6)
+            call perform_davidson(sparse_hamil_type, .false.)
+
+            trial_wavefunction = davidson_eigenvector
+            trial_energy = davidson_eigenvalue
+
+            call deallocate_sparse_hamil()
+            deallocate(hamil_diag, stat=ierr)
+            call LogMemDealloc(this_routine, HDiagTag, ierr)
+        end if
+
+        call MPIBarrier(ierr)
+        call MPIBCast(trial_energy, 1, root)
+        call MPIBCast(trial_wavefunction, size(trial_wavefunction), root)
 
         write(6,'(a47)') "Generating the vector \sum_j H_{ij} \psi^T_j..."
         call neci_flush(6)
@@ -190,10 +204,7 @@ contains
         write(6,'(a42)') "Trial wavefunction initialisation complete"
         call neci_flush(6)
 
-        ! Deallocate various arrays.
-        call deallocate_sparse_hamil()
-        deallocate(hamil_diag, stat=ierr)
-        call LogMemDealloc(this_routine, HDiagTag, ierr)
+        ! Deallocate remaining arrays.
         deallocate(temp_space, stat=ierr)
         call LogMemDealloc(this_routine, TempTag, ierr)
         deallocate(davidson_eigenvector, stat=ierr)
