@@ -21,8 +21,8 @@ MODULE UMatCache
 ! UMatLabels, and the values in UMatCache.
 ! nStates is the maximum number of states stored in the cache (which may not be all the states if there are frozen virtuals).
 
-      HElement_t, Pointer :: UMatCacheData(:,:,:) !(0:nTypes-1,nSlots,nPairs)
-      INTEGER, Pointer :: UMatLabels(:,:) !(nSlots,nPairs)
+      HElement_t, Pointer :: UMatCacheData(:,:,:) => null() !(0:nTypes-1,nSlots,nPairs)
+      INTEGER, Pointer :: UMatLabels(:,:) => null() !(nSlots,nPairs)
       INTEGER :: nSlots, nPairs, nTypes
       INTEGER :: nStates
 
@@ -46,14 +46,14 @@ MODULE UMatCache
 !     UMAT2D : Stores the integrals of the form <ij|ij> and <ij|ji>
 !     <ij|ij> is stored in the upper diagaonal, <ij|ji> in the
 !     off-diagonal elements of the lower triangle.
-      HElement_t, Pointer :: UMat2D(:,:) !(nStates,nStates)
+      HElement_t, Pointer :: UMat2D(:,:) => null() !(nStates,nStates)
       LOGICAL :: tUMat2D
 
 ! This vector stores the energy ordering for each spatial orbital, which is the inverse of the BRR vector
 ! This is needed for the memory saving star indexing system.
 ! E.g. Element 4 will give the the order in the energy of element 4
-     INTEGER, DIMENSION(:), POINTER :: INVBRR
-     INTEGER, DIMENSION(:), POINTER :: INVBRR2
+     INTEGER, DIMENSION(:), POINTER :: INVBRR => null()
+     INTEGER, DIMENSION(:), POINTER :: INVBRR2 => null()
 
 !NOCC is number of occupied spatial orbitals - needed for test in UMATInd, thought would be quicker than passing it in each time.
 !Freezetransfer is a temporary measure to tell UMATIND when the freezing of orbitals is occuring.
@@ -84,16 +84,16 @@ MODULE UMatCache
 
 ! Some various translation tables to convert between different orderings of states.
       LOGICAL :: tTransGTID, tTransFindx
-      INTEGER, Pointer :: TransTable(:) !(NSTATES)
-      INTEGER, Pointer :: InvTransTable(:) !(NSTATES)
+      INTEGER, Pointer :: TransTable(:) => null() !(NSTATES)
+      INTEGER, Pointer :: InvTransTable(:) => null() !(NSTATES)
 
 ! Density fitting cache information: for generating integrals on the fly from density fitting.
       integer nAuxBasis,nBasisPairs
       logical tDFInts
-      real(dp),Pointer :: DFCoeffs(:,:) !(nAuxBasis,nBasisPairs)
-      real(dp),Pointer :: DFInts(:,:) !(nAuxBasis,nBasisPairs)
-      real(dp),Pointer :: DFFitInts(:,:) !(nAuxBasis,nAuxBasis)
-      real(dp),Pointer :: DFInvFitInts(:,:) !(nAuxBasis,nAuxBasis)
+      real(dp),Pointer :: DFCoeffs(:,:) => null() !(nAuxBasis,nBasisPairs)
+      real(dp),Pointer :: DFInts(:,:) => null() !(nAuxBasis,nBasisPairs)
+      real(dp),Pointer :: DFFitInts(:,:) => null() !(nAuxBasis,nAuxBasis)
+      real(dp),Pointer :: DFInvFitInts(:,:) => null() !(nAuxBasis,nAuxBasis)
       INTEGER iDFMethod
 !Some possible DFMethods sums over P, Q implied.  All precontracted to run in order(X) except DFOVERLAP2NDORD
 ! 0 - no DF
@@ -470,7 +470,7 @@ MODULE UMatCache
             ELSE
                IF(nMemInit.NE.0) THEN
                   WRITE(6,*) "Allocating ",nMemInit,"Mb for UMatCache+Labels."
-                  nSlotsInit=nint((nMemInit*1048576/8)/(nPairs*(nTypes*HElement_t_size+1.D0/irat)),sizeof_int)
+                  nSlotsInit=nint((nMemInit*1048576/8)/(nPairs*(nTypes*HElement_t_size+1.0_dp/irat)),sizeof_int)
                ENDIF
                NSLOTS=MIN(NPAIRS, NSLOTSINIT)
                tSmallUMat=.FALSE.
@@ -489,7 +489,7 @@ MODULE UMatCache
             Memory=(REAL(nTypes*nSlots,dp)*nPairs*8.0_dp*HElement_t_size+nSlots*nPairs*4.0_dp)*9.536743316e-7_dp
             WRITE(6,"(A,G20.10,A)") "Total memory allocated for storage of integrals in cache is: ",Memory,"Mb/Processor"
 
-            UMatCacheData=(0.d0)
+            UMatCacheData=(0.0_dp)
             UMATLABELS(1:nSlots,1:nPairs)=0
 !If tSmallUMat is set here, and have set tCacheFCIDUMPInts, then we need to read in the <ik|u|jk> integrals from the FCIDUMP file, then disperse them using the
 !FillUMatCache routine. Otherwise, we need to read in all the integrals.
@@ -652,7 +652,9 @@ MODULE UMatCache
             WRITE(6,*) NHITS, " hits"
             WRITE(6,*) NMISSES, " misses"
             WRITE(6,*) iCacheOvCount, " overwrites"
-            WRITE(6,"(F6.2,A)") (NHITS/(NHITS+NMISSES+0.D0))*100,"% success"
+            if(NHITS+NMISSES.gt.0) then
+                WRITE(6,"(F6.2,A)") (NHITS/(NHITS+NMISSES+0.0_dp))*100,"% success"
+            endif
          ENDIF
       END SUBROUTINE WriteUMatCacheStats
 
@@ -878,7 +880,7 @@ MODULE UMatCache
 
          Allocate(NUMat2D(NewBasis/iSS,NewBasis/iSS),STAT=ierr)
          call LogMemAlloc('UMat2D',(NewBasis/iSS)**2,8*HElement_t_size,thisroutine,tagNUMat2D,ierr)
-         NUMat2D(:,:)=(0.D0)
+         NUMat2D(:,:)=(0.0_dp)
          DO i=1,OldBasis/2
             IF(OrbTrans(i*2).NE.0) THEN
                 DO j=1,OldBasis/2
@@ -1042,7 +1044,7 @@ MODULE UMatCache
 
 !Store the integral in a contiguous fashion. A is the index for the i,k pair
           IF(UMATLABELS(CacheInd(A),A).ne.0) THEN
-              IF((abs(REAL(UMatCacheData(nTypes-1,CacheInd(A),A),dp)-Z)).gt.1.D-7) THEN
+              IF((abs(REAL(UMatCacheData(nTypes-1,CacheInd(A),A),dp)-Z)).gt.1.0e-7_dp) THEN
                   WRITE(6,*) i,j,k,l,z,UMatCacheData(nTypes-1,CacheInd(A),A)
                   CALL Stop_All("CacheFCIDUMP","Same integral cached in same place with different value")
               ENDIF
@@ -1050,7 +1052,7 @@ MODULE UMatCache
               CALL Stop_All("CacheFCIDUMP","Overwriting UMATLABELS")
           ENDIF
           UMATLABELS(CacheInd(A),A)=B
-          IF(REAL(UMatCacheData(nTypes-1,CacheInd(A),A)).ne.0.D0) THEN
+          IF(REAL(UMatCacheData(nTypes-1,CacheInd(A),A)).ne.0.0_dp) THEN
               CALL Stop_All("CacheFCIDUMP","Overwriting when trying to fill cache.")
           ENDIF
           UMatCacheData(nTypes-1,CacheInd(A),A)=Z

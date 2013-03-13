@@ -1,4 +1,4 @@
-Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local)
+Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,int_name,filename_in)
     != NECICore is the main outline of the NECI Program.
     != It provides a route for calling NECI when accessed as a library, rather
     != than as a standalone program.
@@ -11,6 +11,8 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local)
     !=                iCacheFlag=3: reuse and keep the cache.
     !=    tCPMD: True if doing a CPMD-based calculation.
     !=    tVASP: True if doing a VASP-based calculation.
+    !=    int_name is the name of the integral file to read in if necessary
+    !=    filename is the name of the input file to read in if necessary
 
     use ReadInput_neci, only : ReadInputMain
     use SystemData, only : tMolpro,tMolproMimic
@@ -19,6 +21,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local)
     use Calc, only: CalcDoCalc
     use CalcData, only: tUseProcsAsNodes
     use Parallel_neci, only: MPINodes, iProcIndex
+    use read_fci, only: FCIDUMP_name
 
     ! Utility modules.
     use global_utilities
@@ -27,10 +30,11 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local)
     Implicit none
     integer,intent(in) :: iCacheFlag
     logical,intent(in) :: tCPMD,tVASP,tMolpro_local
+    character(64), intent(in) :: filename_in,int_name
     type(timer), save :: proc_timer
     integer :: ios,iunit
     character(*), parameter :: this_routine = 'NECICore'
-    character(255) :: Filename
+    character(64) :: Filename
     logical :: toverride_input,tFCIDUMP_exist
     
     tMolpro = tMolpro_local
@@ -48,14 +52,16 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local)
 
 !   See ReadInputMain.  Causes the command line arguments to be checked for the input filename.
     if(tMolpro) then
+        FCIDUMP_name = adjustl(int_name)
         inquire(file="FCIQMC_input_override",exist=toverride_input)
         if(toverride_input) then
             Filename="FCIQMC_input_override"
         else
-            Filename="FCIQMC_input"
+            filename=filename_in
         endif
     else
-        Filename="" 
+        Filename='' 
+        FCIDUMP_name = 'FCIDUMP'
     endif
     ios=0
 
@@ -85,7 +91,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local)
             inquire(file='FCIDUMP',exist=tFCIDUMP_exist)
             if(tFCIDUMP_exist) then
                 iunit = get_free_unit()
-                open(iunit,file='FCIDUMP',status='old',form='formatted')
+                open(iunit,file=FCIDUMP_name,status='old',form='formatted')
                 close(iunit,status='delete')
             endif
         endif

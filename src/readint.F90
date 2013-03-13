@@ -1,5 +1,7 @@
 module read_fci
 
+    character(len=64) :: FCIDUMP_name
+
 contains
 
     SUBROUTINE INITFROMFCID(NEL,NBASISMAX,LEN,LMS,TBIN)
@@ -15,14 +17,15 @@ contains
          integer, intent(in) :: NEL
          integer SYMLZ(1000)
          integer(int64) :: ORBSYM(1000)
-         INTEGER NORB,NELEC,MS2,ISYM,i,SYML(1000), iunit
+         INTEGER NORB,NELEC,MS2,ISYM,i,SYML(1000), iunit,iuhf
          LOGICAL exists,UHF
          CHARACTER(len=3) :: fmat
-         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
+         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          UHF=.FALSE.
          fmat='NO'
          PROPBITLEN = 0
          NPROP = 0
+         IUHF = 0
          IF(iProcIndex.eq.0) THEN
              iunit = get_free_unit()
              IF(TBIN) THEN
@@ -30,18 +33,18 @@ contains
                 IF(.not.exists) THEN
                     CALL Stop_All('InitFromFCID','FCISYM file does not exist')
                 ENDIF
-                INQUIRE(FILE='FCIDUMP',EXIST=exists,FORMATTED=fmat)
+                INQUIRE(FILE=FCIDUMP_name,EXIST=exists,FORMATTED=fmat)
                 IF(.not.exists) THEN
                     CALL Stop_All('INITFROMFCID','FCIDUMP file does not exist')
                 ENDIF
                 OPEN(iunit,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
                 READ(iunit,FCI)
              ELSE
-                INQUIRE(FILE='FCIDUMP',EXIST=exists,UNFORMATTED=fmat)
+                INQUIRE(FILE=FCIDUMP_name,EXIST=exists,UNFORMATTED=fmat)
                 IF(.not.exists) THEN
                     CALL Stop_All('InitFromFCID','FCIDUMP file does not exist')
                 ENDIF
-                OPEN(iunit,FILE='FCIDUMP',STATUS='OLD',FORM='FORMATTED')
+                OPEN(iunit,FILE=FCIDUMP_name,STATUS='OLD',FORM='FORMATTED')
                 READ(iunit,FCI)
              ENDIF
              CLOSE(iunit)
@@ -167,7 +170,7 @@ contains
          use UMatCache, only: GetCacheIndexStates,GTID
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
          use Parallel_neci
-         use constants, only: dp
+         use constants, only: dp,sizeof_int
          use util_mod, only: get_free_unit
          IMPLICIT NONE
          integer, intent(in) :: LEN
@@ -182,21 +185,22 @@ contains
          INTEGER ISYMNUM,ISNMAX,SYMMAX,SYMLZ(1000)
          INTEGER NORB,NELEC,MS2,ISYM,ISPINS,ISPN,SYML(1000)
          integer(int64) ORBSYM(1000)
-         INTEGER nPairs,iErr,MaxnSlot,MaxIndex
+         INTEGER nPairs,iErr,MaxnSlot,MaxIndex,IUHF
          INTEGER , ALLOCATABLE :: MaxSlots(:)
          character(len=*), parameter :: t_r='GETFCIBASIS'
          LOGICAL TBIN,UHF
-         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
+         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          UHF=.FALSE.
+         IUHF=0
          IF(iProcIndex.eq.0) THEN
              iunit = get_free_unit()
              IF(TBIN) THEN
                 OPEN(iunit,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
                 READ(iunit,FCI)
                 CLOSE(iunit)
-                OPEN(iunit,FILE='FCIDUMP',STATUS='OLD',FORM='UNFORMATTED')
+                OPEN(iunit,FILE=FCIDUMP_name,STATUS='OLD',FORM='UNFORMATTED')
              ELSE
-                OPEN(iunit,FILE='FCIDUMP',STATUS='OLD',FORM='FORMATTED')
+                OPEN(iunit,FILE=FCIDUMP_name,STATUS='OLD',FORM='FORMATTED')
                 READ(iunit,FCI)
              ENDIF
          ENDIF
@@ -209,6 +213,7 @@ contains
          CALL MPIBCast(SYML,1000)
          CALL MPIBCast(SYMLZ,1000)
          CALL MPIBCast(ISYM,1)
+         CALL MPIBCast(IUHF,1)
          CALL MPIBCast(UHF,1)
          CALL MPIBCast(PROPBITLEN,1)
          CALL MPIBCast(NPROP,3)
@@ -269,7 +274,7 @@ contains
          !For Molpro, ISPINS should always be 2, and therefore NORB is spatial, and len is spin orbtials
          IF(LEN.NE.ISPINS*NORB) STOP 'LEN .NE. NORB in GETFCIBASIS'
          G1(1:LEN)=NullBasisFn
-         ARR=0.d0
+         ARR=0.0_dp
 
 !If we are reading in and cacheing the FCIDUMP integrals, we need to know the maximum number j,l pairs of
 !integrals for a given i,k pair. (Or in chemical notation, the maximum number of k,l pairs for a given i,j pair.)
@@ -302,13 +307,13 @@ contains
                 
                 !IND contains all the indices in an integer(int64) - use mask of 16bit to extract them
 2               READ(iunit,END=99) Z,IND
-                L=iand(IND,MASK)
+                L=int(iand(IND,MASK),sizeof_int)
                 IND=Ishft(IND,-16)
-                K=iand(IND,MASK)
+                K=int(iand(IND,MASK),sizeof_int)
                 IND=Ishft(IND,-16)
-                J=iand(IND,MASK)
+                J=int(iand(IND,MASK),sizeof_int)
                 IND=Ishft(IND,-16)
-                I=iand(IND,MASK)
+                I=int(iand(IND,MASK),sizeof_int)
 
 !                I=Index(I)
 !                J=Index(J)
@@ -353,11 +358,18 @@ contains
                     !Still need to read in integrals as complex numbers - this FCIDUMP will be from VASP.
                     READ(iunit,*,END=99) CompInt,I,J,K,L
                     Z=real(CompInt,dp)
-                    if(abs(aimag(CompInt)).gt.1.D-7) then
-                        write(6,*) "Using the *real* neci compiled code, however non-zero imaginary parts of integrals found"
-                        write(6,*) "If all k-points are at Gamma or BZ boundary, orbitals should be able to be rotated to be real"
-                        write(6,*) "Check this is the case, or rerun in complex mode to handle complex integrals."
-                        call stop_all("GETFCIBASIS","Real orbitals indicated, but imaginary part of integrals larger than 1.D-7")
+                    if(abs(aimag(CompInt)).gt.1.0e-7_dp) then
+                        write(6,*) "Using the *real* neci compiled code, &
+                                   &however non-zero imaginary parts of &
+                                   &integrals found"
+                        write(6,*) "If all k-points are at Gamma or BZ &
+                                   &boundary, orbitals should be able to be &
+                                   &rotated to be real"
+                        write(6,*) "Check this is the case, or rerun in &
+                                   &complex mode to handle complex integrals."
+                        call stop_all("GETFCIBASIS", "Real orbitals indicated,&
+                                      & but imaginary part of integrals larger&
+                                      & than 1.0e-7_dp")
                     endif
                 else
                     if(tMolpro.or.tReadFreeFormat) then
@@ -472,7 +484,7 @@ contains
                 G1(ISPINS*I-ISPN+1)%k(2)=0
                 G1(ISPINS*I-ISPN+1)%k(3)=0
                 G1(ISPINS*I-ISPN+1)%Ms=-MOD(ISPINS*I-ISPN+1,2)*2+1
-                IF(SYMMAX.lt.ORBSYM(I)) SYMMAX=ORBSYM(I)
+                IF(SYMMAX.lt.ORBSYM(I)) SYMMAX=int(ORBSYM(I),sizeof_int)
                 IF(abs(SYMLZ(I)).gt.iMaxLz) iMaxLz=abs(SYMLZ(I))
             ENDDO
          ENDDO
@@ -546,19 +558,20 @@ contains
          integer(int64) ORBSYM(1000)
          LOGICAL LWRITE,UHF
          INTEGER ISPINS,ISPN,ierr,SYMLZ(1000)!,IDI,IDJ,IDK,IDL
-         INTEGER UMatSize,TMatSize
+         INTEGER UMatSize,TMatSize,IUHF
          INTEGER , ALLOCATABLE :: CacheInd(:)
          character(len=*), parameter :: t_r='READFCIINT'
          real(dp) :: diff
-         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
+         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          LWRITE=.FALSE.
          UHF=.FALSE.
+         IUHF=0
          ZeroedInt=0
          NonZeroInt=0
          
          IF(iProcIndex.eq.0) THEN
              iunit = get_free_unit()
-             OPEN(iunit,FILE='FCIDUMP',STATUS='OLD')
+             OPEN(iunit,FILE=FCIDUMP_name,STATUS='OLD')
              READ(iunit,FCI)
          ENDIF
 !Now broadcast these values to the other processors (the values are only read in on root)
@@ -569,6 +582,7 @@ contains
          CALL MPIBCast(SYML,1000)
          CALL MPIBCast(SYMLZ,1000)
          CALL MPIBCast(ISYM,1)
+         CALL MPIBCast(IUHF,1)
          CALL MPIBCast(UHF,1)
          CALL MPIBCast(PROPBITLEN,1)
          CALL MPIBCast(NPROP,3)
@@ -607,7 +621,7 @@ contains
                  iSpinType=0
              endif
              IF(.not.TSTARSTORE) THEN
-                 TMAT2D(:,:)=(0.D0)
+                 TMAT2D(:,:)=(0.0_dp)
              ENDIF
              ! Can't use * as need to be backward compatible with existing 
              ! FCIDUMP files, some of which have more than 100 basis
@@ -626,8 +640,8 @@ contains
                  !Still need to read in integrals as complex numbers - this FCIDUMP will be from VASP.
                  READ(iunit,*,END=199) CompInt,I,J,K,L
                  Z=real(CompInt,dp)
-                 if(abs(aimag(CompInt)).gt.1.D-7) then
-                     call stop_all("READFCIINT","Real orbitals indicated, but imaginary part of integrals larger than 1.D-7")
+                 if(abs(aimag(CompInt)).gt.1.0e-7_dp) then
+                     call stop_all("READFCIINT","Real orbitals indicated, but imaginary part of integrals larger than 1.0e-7_dp")
                  endif
              else
                  if(tMolpro.or.tReadFreeFormat) then
@@ -705,7 +719,7 @@ contains
                         ! Have read in T_ij.  Check it's consistent with T_ji
                         ! (if T_ji has been read in).
                        diff = abs(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)-Z)
-                       IF(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1) /= 0.0d0 .and. diff > 1.d-7) then
+                       IF(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1) /= 0.0_dp .and. diff > 1.0e-7_dp) then
                             WRITE(6,*) i,j,Z,TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)
                             CALL Stop_All("ReadFCIInt","Error filling TMAT - different values for same orbitals")
                        ENDIF
@@ -770,7 +784,7 @@ contains
                     IF(tUMatEps) THEN
 !We have an epsilon cutoff for the size of the two-electron integrals - UMatEps
                         IF(abs(Z).lt.UMatEps) THEN
-                            UMAT(UMatInd(I,K,J,L,0,0))=0.D0
+                            UMAT(UMatInd(I,K,J,L,0,0))=0.0_dp
                             ZeroedInt=ZeroedInt+1
                         ELSE
                             UMAT(UMatInd(I,K,J,L,0,0))=Z
@@ -845,7 +859,7 @@ contains
 
       !This is a copy of the routine above, but now for reading in binary files of integrals
       SUBROUTINE READFCIINTBIN(UMAT,ECORE)
-         use constants, only: dp,int64
+         use constants, only: dp,int64,sizeof_int
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          USE UMatCache , only : UMatInd,UMAT2D,TUMAT2D
@@ -865,19 +879,19 @@ contains
          !OPEN(iunit,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
          !READ(iunit,FCI)
          !CLOSE(iunit)
-         OPEN(iunit,FILE='FCIDUMP',STATUS='OLD',FORM='UNFORMATTED')
+         OPEN(iunit,FILE=FCIDUMP_name,STATUS='OLD',FORM='UNFORMATTED')
 
 
          MASK=(2**16)-1
          !IND contains all the indices in an integer(int64) - use mask of 16bit to extract them
 101      READ(iunit,END=199) Z,IND
-         L=iand(IND,MASK)
+         L=int(iand(IND,MASK),sizeof_int)
          IND=Ishft(IND,-16)
-         K=iand(IND,MASK)
+         K=int(iand(IND,MASK),sizeof_int)
          IND=Ishft(IND,-16)
-         J=iand(IND,MASK)
+         J=int(iand(IND,MASK),sizeof_int)
          IND=Ishft(IND,-16)
-         I=iand(IND,MASK)
+         I=int(iand(IND,MASK),sizeof_int)
 !         I=Index(I)
 !         J=Index(J)
 !         K=Index(K)

@@ -36,12 +36,12 @@ contains
         ! These have no input options to change the defaults, but are used in
         ! the code.
           TargetGrowRateWalk=500000
-          TargetGrowRate=0.D0
+          TargetGrowRate=0.0_dp
           InitialPart=1
           TRHOOFR = .false.
           TCORR = .false.
           TFODM = .false.
-          B2L = 1.D-13
+          B2L = 1.0e-13_dp
           TMC = .false.
           NHISTBOXES = 0
           TREADRHO = .false.
@@ -64,16 +64,16 @@ contains
           tShiftonHFPop=.false.
           MaxWalkerBloom=-1
           tSearchTau=.true.
-          InputDiagSft=0.D0
+          InputDiagSft=0.0_dp
           tPopsMapping=.false.
           tTimeExit=.false.
-          MaxTimeExit=0.D0
+          MaxTimeExit=0.0_dp
           tMaxBloom=.false.
           iRestartWalkNum=0
           iWeightPopRead=0
           tCheckHighestPop=.false.
-          StepsSftImag=0.D0
-          TauFactor=0.D0
+          StepsSftImag=0.0_dp
+          TauFactor=0.0_dp
           tStartMP1=.false.
           tStartCAS=.false.
           iAnnInterval=1
@@ -81,7 +81,7 @@ contains
           iFullSpaceIter=0
           iDetGroup=2
           tFindDets=.false.
-          SinglesBias=1.D0
+          SinglesBias=1.0_dp
           tFindGroundDet=.false.
           tSpawnAsDet=.false.
           tDirectAnnihil=.true.
@@ -91,8 +91,8 @@ contains
           VirtCASorbs=0
           TUnbiasPGeninProjE=.false.
           TRegenExcitgens=.false.
-          MemoryFacPart=10.D0
-          MemoryFacAnnihil=10.D0
+          MemoryFacPart=10.0_dp
+          MemoryFacAnnihil=10.0_dp
           MemoryFacSpawn=0.5
           MemoryFacInit = 0.3
           TStartSinglePart=.true.
@@ -105,26 +105,27 @@ contains
           TRhoElems=.false.
           TReturnPathMC=.false.
           CLMax=NEl
-          PRet=1.D0
+          PRet=1.0_dp
           TNoAnnihil=.false.
           TFullUnbias=.false.
-          GrowMaxFactor=5.D0
-          CullFactor=2.D0
+          GrowMaxFactor=5.0_dp
+          CullFactor=2.0_dp
           TFCIMC=.false.
+          tRPA_QBA=.false.
           TCCMC=.false.
           TMCDets=.false.
           TBinCancel=.false.  
-          ScaleWalkers=1.D0
+          ScaleWalkers=1.0_dp
           TReadPops=.false.
           iPopsFileNoRead = 0
           iPopsFileNoWrite = 0
           tWalkContGrow=.false.
           StepsSft=100
           SftDamp=10.0
-          Tau=0.D0
+          Tau=0.0_dp
           InitWalkers=3000
-          dInitAmplitude=1.d0
-          dProbSelNewExcitor=0.7d0
+          dInitAmplitude=1.0_dp
+          dProbSelNewExcitor=0.7_dp
           nSpawnings=1
           nClustSelections=1
           dClustSelectionRatio=1
@@ -132,11 +133,11 @@ contains
           tSharedExcitors=.false.
           tSpawnProp=.false.
           NMCyc = -1
-          DiagSft=0.D0
+          DiagSft=0.0_dp
           HApp=1
           TMCStar=.false.
           THDiag=.false.
-          GrowGraphsExpo=2.D0
+          GrowGraphsExpo=2.0_dp
           TGrowInitGraph=.false.
           NoMCExcits=1
           TMCExcits=.false.
@@ -189,8 +190,8 @@ contains
           G_VMC_SEED = -7
           G_VMC_FAC = 16
           TUPOWER=.false.
-          G_VMC_EXCITWEIGHT(:)=0.D0
-          G_VMC_EXCITWEIGHTS(:,:)=0.D0
+          G_VMC_EXCITWEIGHT(:)=0.0_dp
+          G_VMC_EXCITWEIGHTS(:,:)=0.0_dp
           EXCITFUNCS(:)=.false.
           EXCITFUNCS(10)=.true.
           NPaths = 1
@@ -207,13 +208,13 @@ contains
           TSPECDET = .false.
           TTROT=.true.
           BETA = 1000
-          BETAP=1.D-4
+          BETAP=1.0e-4_dp
           TBETAP=.false.
-          RHOEPSILON=1.D-6
-          DBETA=-1.D0
+          RHOEPSILON=1.0e-6_dp
+          DBETA=-1.0_dp
           GraphEpsilon=0
           PGenEpsilon=0
-          StarConv=1.d-3
+          StarConv=1.0e-3_dp
           calcp_sub2vstar=.false.
           calcp_logweight=.false.
           TENPT=.false.
@@ -241,7 +242,7 @@ contains
 
 !Feb 08 default set.
           IF(Feb08) THEN
-              RhoEpsilon=1.D-08
+              RhoEpsilon=1.0e-8_dp
           ENDIF
 
           ! Spin Projection defaults
@@ -295,6 +296,7 @@ contains
           CHARACTER(*),PARAMETER :: t_r='CalcReadInput'
           INTEGER :: l,i,ierr
           INTEGER :: tempMaxNoatHF,tempHFPopThresh
+          logical :: tExitNow
 
           calc: do
             call read_line(eof)
@@ -382,7 +384,8 @@ contains
                 if(I_HMAX.ne.0) call report("METHOD already set",.true.)
                 I_HMAX=-10
                 I_VMAX=1
-                methods: do
+                tExitNow = .false.
+                do while (.not. tExitNow)
                    call read_line(eof)
                    if (eof) then
                       call report("Incomplete input file",.true.)
@@ -390,24 +393,24 @@ contains
                    call readu(w)
                    select case(trim(w))
                    case("METHOD")
-                      I_VMAX=I_VMAX+1
+                     I_VMAX=I_VMAX+1
                       NWHTAY(3,I_VMAX)=I_VMAX
                      call inpgetmethod(NWHTAY(1,I_VMAX),NWHTAY(2,I_VMAX),&
      &                I_VMAX)
-                   case("EXCITATIONS")
-                      call readu(w)
-                      call inpgetexcitations(NWHTAY(2,I_VMAX),w)
-                   case("CYCLES")
-                      call readi(NWHTAY(2,I_VMAX))
-                      if ( NWHTAY(1,I_VMAX).ne. -7.and.                  &
-     &                     NWHTAY(1,I_VMAX).ne.-19 ) then
-                         call report(trim(w)//" only valid for MC "      &
-     &                    //"method",.true.)
-                      end if
-                   case("VERTICES")
-                      call geti(NWHTAY(3,I_VMAX))
-                   case("MULTIMCWEIGHT")
-                      call getf(g_MultiWeight(I_VMAX))
+                    case("EXCITATIONS")
+                       call readu(w)
+                       call inpgetexcitations(NWHTAY(2,I_VMAX),w)
+                     case("CYCLES")
+                        call readi(NWHTAY(2,I_VMAX))
+                        if ( NWHTAY(1,I_VMAX).ne. -7.and.                  &
+       &                     NWHTAY(1,I_VMAX).ne.-19 ) then
+                           call report(trim(w)//" only valid for MC "      &
+       &                    //"method",.true.)
+                       end if
+                     case("VERTICES")
+                        call geti(NWHTAY(3,I_VMAX))
+                     case("MULTIMCWEIGHT")
+                        call getf(g_MultiWeight(I_VMAX))
                    case("CALCVAR")
                        if ( NWHTAY(1,I_VMAX).NE.-20 ) then
                            call report("Keyword "//trim(w)//"            &
@@ -415,17 +418,23 @@ contains
                        else
                       TVARCALC(I_VMAX)=.true.
                        end if
-                      
-                   case("ENDMETHODS")
-                      exit methods
-                   case default
-                      call report ("Keyword "//trim(w)//" not recognized",.true.)
-                   end select
-                end do methods
-            
+
+                    case("ENDMETHODS")
+                       tExitNow = .true.
+
+                    case default
+                        write(6,*) 'REPORT' // trim(w)
+                       !call report ("Keyword "//trim(w)//" not recognized",.true.)
+                    end select
+ 
+                end do
+
+                       
             case("METHOD")
+
                 if(I_HMAX.ne.0) call report("METHOD already set",.true.)
                 call inpgetmethod(I_HMAX,NWHTAY(1,1),0)
+
             case("CYCLES")
                 call readi(NWHTAY(1,1))
                 if ( I_HMAX .ne. -7.and.                              &
@@ -539,6 +548,8 @@ contains
                 ENDDO
                 EXCITFUNCS(3)=.true.
             case("EXCITWEIGHTING")
+                           write(6,*) '---------------->excitweighting'
+                             call neci_flush(6)  
                 call readf(g_VMC_ExcitWeights(1,1))
                 call readf(g_VMC_ExcitWeights(2,1))
                 call readf(G_VMC_EXCITWEIGHT(1))
@@ -550,7 +561,8 @@ contains
                   ENDIF
                 ENDDO
                 EXCITFUNCS(1)=.true.
-            case("STEPEXCITWEIGHTING")
+
+             case("STEPEXCITWEIGHTING")
 !This excitation weighting involves a step function between the virtual and occupied electon manifold (i.e. step is at the chemical potential)
 !When choosing an electron to move, the probability of selecting it is 1 if the electron is in the virtual manifold
 !and (g_VMC_ExcitWeights(1,1) if in the virtual manifold. When choosing where to excite to, the situation is reversed, and the probability of selecting it is
@@ -1427,8 +1439,10 @@ contains
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)
             end select
+
           end do calc
-          IF((.not.TReadPops).and.(ScaleWalkers.ne.1.D0)) THEN
+
+          IF((.not.TReadPops).and.(ScaleWalkers.ne.1.0_dp)) THEN
               call report("Can only specify to scale walkers if READPOPS is set",.true.)
           ENDIF
 
@@ -1440,6 +1454,7 @@ contains
           ! <ij|ab> and never need <ib|aj> for double excitations.  We do need
           ! them if we're doing a complete diagonalisation.
           gen2CPMDInts=MAXVAL(NWHTAY(3,:)).ge.3.or.TEnergy
+
 
         END SUBROUTINE CalcReadInput
 
@@ -1517,6 +1532,7 @@ contains
              HDiagTemp = get_helement(fDet, fDet, 0)
              WRITE(6,*) '<D0|H|D0>=',HDiagTemp
              WRITE(6,*) '<D0|T|D0>=',CALCT(FDET,NEL)
+          
              IF(TUEG) THEN
 !  The actual KE rather than the one-electron part of the Hamiltonian
                 WRITE(6,*) 'Kinetic=',CALCT2(FDET,NEL,G1,ALAT,CST)
@@ -1594,6 +1610,7 @@ contains
           use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,BasisFN,BasisFNSize,BasisFNSizeB,nEl
           Use DetCalcData, only : nDet, nEval, nmrks, w
           USE FciMCParMod , only : FciMCPar
+          use RPA_Mod, only: RunRPA_QBA
           USE CCMC, only: CCMCStandalone,CCMCStandaloneParticle
           use CCMCData, only: tAmplitudes
           use DetCalc, only: CK, DetInv, tEnergy, tRead
@@ -1644,6 +1661,9 @@ contains
                      CALL CCMCStandaloneParticle(WeightDum,EnerDum)
                   endif
                   WRITE(6,*) "Summed approx E(Beta)=",EnerDum
+             elseif(tRPA_QBA) then
+                call RunRPA_QBA(WeightDum,EnerDum)
+                WRITE(6,*) "Summed approx E(Beta)=",EnerDum
              else
 
 
@@ -1802,7 +1822,7 @@ contains
         
           IF(TMONTE.AND.TENERGY.AND.NTAY(1).EQ.-1) THEN
              WRITE(6,*) "Calculating Exact MC Energy..."
-             EN=DOEXMC(NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,0.D0,IMCSTEPS,G1,NMRKS,NEL,NBASISMAX,nBasis,BRR,IEQSTEPS)
+             EN=DOEXMC(NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,0.0_dp,IMCSTEPS,G1,NMRKS,NEL,NBASISMAX,nBasis,BRR,IEQSTEPS)
           ENDIF
           IF(TBEGRAPH) THEN
              STOP 'BEGRAPH not implemented'
@@ -1864,11 +1884,13 @@ contains
 
 
       subroutine inpgetmethod(I_HMAX,NWHTAY,I_V)
+         use constants
          use input_neci
          use UMatCache , only : TSTARSTORE
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
          use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,tCCMC
-         use CalcData , only : TRhoElems,TReturnPathMC, tUseProcsAsNodes
+         use CalcData , only : TRhoElems,TReturnPathMC, tUseProcsAsNodes,tRPA_QBA
+         use RPA_Mod, only : tDirectRPA
          use CCMCData, only: tExactCluster,tCCMCFCI,tAmplitudes,tExactSpawn,tCCBuffer,tCCNoCuml
          use Logging, only: tCalcFCIMCPsi
          implicit none
@@ -1897,6 +1919,16 @@ contains
                           call report("Keyword error with "//trim(w),.true.)
                       endselect
                    enddo
+               case("RPA")
+                  tRPA_QBA=.true.
+                  tDirectRPA=.false.
+                  do while(item.lt.nitems)
+                      call readu(w)
+                      select case(w)
+                      case("DIRECT")
+                          tDirectRPA=.true.
+                      endselect
+                  enddo
                case("CCMC")
                   !Piggy-back on the FCIMC code
                   I_HMAX=-21
@@ -1971,7 +2003,7 @@ contains
                        I_HMAX = -19
                    end select
                   tMCDirectSum=.FALSE.
-                  IF(I_V.GT.0) g_MultiWeight(I_V)=1.D0
+                  IF(I_V.GT.0) g_MultiWeight(I_V)=1.0_dp
                case("MCDIRECT")
                   I_HMAX = -7
                   tMCDirectSum=.TRUE.
@@ -1980,11 +2012,11 @@ contains
                    case("HDIAG")
                        I_HMAX = -19
                    end select
-                  G_VMC_FAC=0.D0
+                  G_VMC_FAC=0.0_dp
                case("MCMP")
                   tMCDirectSum=.TRUE.
                   I_HMAX = -19
-                  G_VMC_FAC=0.D0
+                  G_VMC_FAC=0.0_dp
                   TMPTHEORY=.TRUE.
                case("GRAPHMORPH")
                    TGraphMorph=.true.
@@ -2123,14 +2155,27 @@ contains
 ! Calculate the kinetic energy of the UEG (this differs from CALCT by including the constant CST
       FUNCTION CALCT2(NI,NEL,G1,ALAT,CST)
          use constants, only: dp
-         use SystemData, only: BasisFN
+         use SystemData, only: BasisFN, kvec, k_lattice_constant, TUEG2
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I,J
          TYPE(BasisFN) G1(*)
          real(dp) ALAT(4),CST,TMAT,CALCT2
          LOGICAL ISCSF_old
-         CALCT2=0.D0
+
+         CALCT2=0.0_dp
          IF(iscsf_old(NI,NEL)) RETURN
+
+         !===============================
+         if (TUEG2) then
+            DO J=1,NEL
+                 I=NI(J)
+                 TMAT=real(kvec(I, 1)**2+kvec(I, 2)**2+kvec(I, 3)**2, dp)
+                 TMAT=0.5_dp*TMAT*k_lattice_constant**2
+                 CALCT2=CALCT2+TMAT
+            ENDDO
+            return
+        end if ! TUEG2
+         !===============================
          DO J=1,NEL
             I=NI(J)
            TMAT=((ALAT(1)**2)*((G1(I)%K(1)**2)/(ALAT(1)**2)+   &

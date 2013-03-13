@@ -17,41 +17,48 @@ subroutine stop_all_c (sub_name, error_msg) bind(c)
 
 end subroutine
 
+subroutine stop_all (sub_name, error_msg)
 
-subroutine stop_all(sub_name,error_msg)
-!= Stop calculation due to an error.
-!= Exit with code 999.
-!=
-!= In:
-!=    sub_name:  calling subroutine name.
-!=    error_msg: error message.
+    ! Stop calculation due to an error. Exit with code 999?
+    !
+    ! In: sub_name    - Calling routine
+    !     error_msg   - Error message
 
-use shared_alloc, only: cleanup_shared_alloc
+    use shared_alloc, only: cleanup_shared_alloc
 #ifdef PARALLEL
-use Parallel_neci, only: iProcIndex,MPIStopAll
+    use Parallel_neci, only: iProcIndex, MPIStopAll
 #endif
-implicit none
-character(*), intent(in) :: sub_name,error_msg
+    implicit none
 
-! It seems that giving STOP a string is far more portable.
-! MPI_Abort requires an integer though.
-character(3), parameter :: error_str='999'
+    interface
+        subroutine print_backtrace_neci () bind(c)
+        end subroutine
+    end interface
 
-write (6,'(/a7)') 'ERROR.'
-write (6,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
-write (6,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
-write (6,'(a11)') 'EXITING...'
-CALL neci_flush(6)
+    character(*), intent(in) :: sub_name, error_msg
 
-call cleanup_shared_alloc()
+    ! It seems that giving STOP a string is far more portable.
+    ! MPI_Abort requires an integer though.
+    character(3), parameter :: error_str='999'
+
+    write (6,'(/a7)') 'ERROR.'
+    write (6,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
+    write (6,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
 #ifdef PARALLEL
-write (6,'(a12,15X,i3)') 'Processor: ',iProcIndex
-call MPIStopAll(error_str)
+    write (6,'(a12,15X,i3)') 'Processor: ',iProcIndex
+#endif
+    write (6,'(a11)') 'EXITING...'
+    call neci_flush (6)
+
+    call print_backtrace_neci()
+
+    call cleanup_shared_alloc()
+#ifdef PARALLEL
+    call MPIStopAll(error_str)
 #else
-stop '999'    
+    stop error_str
 #endif
 
-return
 end subroutine stop_all
 
 

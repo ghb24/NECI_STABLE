@@ -63,6 +63,7 @@ C.. change the spin
             ENDIF
             CALL HUB_PBC(NQN,NBASISMAX)
 !            IT=IFINDBASISFN(NQN,G1,NBASIS)
+            IT=0
             IF(IT.EQ.0) THEN 
                L=.TRUE.
             ELSE
@@ -107,8 +108,8 @@ C.. PBC tilted
                AX=NBASISMAX(1,4)
                AY=NBASISMAX(2,4)
 C.. (XX,YY) is the position of the bottom right corner of the unit cell
-               XX=((AX+AY)/2.D0)*real(NMAXX,dp)
-               YY=((AY-AX)/2.D0)*real(NMAXX,dp)
+               XX=((AX+AY)/2.0_dp)*real(NMAXX,dp)
+               YY=((AY-AX)/2.0_dp)*real(NMAXX,dp)
                MX=int(XX*AX+YY*AY,sizeof_int)
                MY=int(XX*AY-YY*AX,sizeof_int)
                I=NQN(1)
@@ -173,6 +174,7 @@ C.. we need to keep on doing this until we make a valid choice
 C.. We keep spin fixed here.
         call stop_all('GENNEWDET3',
      &         'G1 variable needs to be made into a BasisFN.')
+         IT=0
          DO WHILE(L)
             L=.FALSE.
             IEL=INT(RAN2(ISEED)*NEL)+1
@@ -183,8 +185,8 @@ C.. 1/4 prob of changing the spin
             ELSE
 C.. change the energy level.  Have an exponential distribution of
 C.. distance
-               RN=0.D0
-               DO WHILE(RN.EQ.0.D0)
+               RN=0.0_dp
+               DO WHILE(RN.EQ.0.0_dp)
                   RN=RAN2(ISEED)
                ENDDO
                IDIST=0

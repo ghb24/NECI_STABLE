@@ -14,7 +14,7 @@ module ParallelHelper
 
     ! These are not defined, if using MPI in C
     integer(MPIArg), parameter :: MPI_SUCCESS = 0
-    integer(MPIArg), parameter :: MPI_COMM_WORLD = 0
+    integer(MPIArg) :: MPI_COMM_WORLD
     integer, parameter :: MPI_STATUS_SIZE = 1
 
 ! ****** HACK ********
@@ -115,6 +115,11 @@ module ParallelHelper
             integer(c_int), intent(in), value :: comm, rt
             integer(c_int), intent(out) :: ierr
         end subroutine
+        function mpicommworld_c2f () result(cw) &
+            bind(c, name='mpicommworld_c2f')
+            use constants
+            integer(MPIArg) :: cw
+        end function
     end interface
 #endif
 
@@ -241,6 +246,8 @@ contains
 #ifdef PARALLEL
         character(len=MPI_MAX_ERROR_STRING) :: s
 
+        l=0
+        e=0
         call MPI_Error_string (int(err, MPIArg), s, l, e)
 
         write(6,*) s
@@ -416,7 +423,7 @@ subroutine mpibarrier_c (error) bind(c)
 
 #ifdef PARALLEL
     call MPIBarrier (ierr)
-    error = ierr
+    error = int(ierr,kind=kind(error))
 #else
     error = 0
 #endif

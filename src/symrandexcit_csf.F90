@@ -594,7 +594,7 @@ contains
         pGen = pGen * pElec
 
         ! Generate the symmetry product of these two electrons
-        symProd = ieor(G1(orbs(1))%Sym%S,G1(orbs(2))%Sym%S)
+        symProd = int(ieor(G1(orbs(1))%Sym%S,G1(orbs(2))%Sym%S),sizeof_int)
 
         ! Sum the Mls if required.
         if (tFixLz) sumMl = G1(orbs(1))%Ml + G1(orbs(2))%Ml
@@ -1385,7 +1385,7 @@ contains
             do while (elecA /= -1)
                 orbs(1) = iand(nI(elecA), csf_orbital_mask)
                 orbs(2) = iand(nI(elecB), csf_orbital_mask)
-                syms = G1(orbs)%Sym%S
+                syms = int(G1(orbs)%Sym%S,sizeof_int)
                 symProd = ieor(syms(1), syms(2))
                 sumMl = G1(orbs(1))%Ml + G1(orbs(2))%Ml
                 !paircount = paircount + 1
@@ -1610,7 +1610,7 @@ contains
                         call stop_all(this_routine, "Generated too many csfs")
                     orbs(1) = iand(nI(elecA), csf_orbital_mask)
                     orbs(2) = iand(nI(elecB), csf_orbital_mask)
-                    syms = G1(orbs)%Sym%S
+                    syms = int(G1(orbs)%Sym%S,sizeof_int)
                     symProd = ieor(syms(1), syms(2))
                     sumMl = G1(orbs(1))%Ml + G1(orbs(2))%Ml
 

@@ -6,6 +6,7 @@
 ! TODO: Use ilut_int/ilut_off here?
 #define IsOcc(ilut,orb) btest(ilut((orb-1)/bits_n_int), mod(orb-1,bits_n_int))
 #define IsNotOcc(ilut,orb) (.not.IsOcc(ilut,orb))
+#define IsUnoccDet(sgn) all(sgn==0)
 
 ! Is the specified orbital alpha or beta? Generate the appropriate pair.
 #define is_beta(orb) btest(orb, 0)
@@ -74,7 +75,7 @@ endif
 
 ! Define types for C pointers to work between various compilers with
 ! differing levels of brokenness.
-#if defined(__PATHSCALE__) || defined(__ISO_C_HACK) || defined(__OPEN64__)
+#if defined(__PATHSCALE__) || defined(__ISO_C_HACK) || defined(__OPEN64__) || defined(NAGF95)
 #define loc_neci loc
 #ifdef POINTER8
 #define c_ptr_t integer(int64)

@@ -7,8 +7,8 @@ f77flags = -m64 -fcray-pointer
 f90flags = -m64 -fcray-pointer -ffree-line-length-none
 cc = mpic++
 ld = mpif90
-ldflags = -m64
-libs = -L~/local/lib/fftw-3.2/64/gfortran/lib -lfftw3 -framework Accelerate -lstdc++
+ldflags = -m64 -rdynamic
+libs = -L~/local/lib/fftw-3.2/64/gfortran/lib -lfftw3 -framework Accelerate -lstdc++ -lm
 module_flag = -J
 
 [dbg]

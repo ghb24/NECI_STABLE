@@ -112,7 +112,7 @@ Module MomInv
                 endif
 
                 !Pairs should be (approximately) degenerate
-                if(abs(Arr(i,2)-Arr(MomInvSymOrb(i),2)).gt.2.D-4) then
+                if(abs(Arr(i,2)-Arr(MomInvSymOrb(i),2)).gt.2.0e-4_dp) then
                     call stop_all(t_r,"Ml pairs not degenerate")
                 endif
             enddo

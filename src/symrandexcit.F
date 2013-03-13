@@ -243,7 +243,7 @@ C.. Actually generate a det
       TYPE(ExcitWeight),pointer :: ews(:)
       real(dp) ARR(NBASIS,2)
 !.. First generate a random excitation 
-      PGEN=1.D0/ITOTAL
+      PGEN=1.0_dp/ITOTAL
       I=int(ITOTAL*RAN2(ISEED),sizeof_int)
       IEXCIT=1
       DO WHILE(EXCITTYPES(5,IEXCIT).LE.I)
@@ -353,7 +353,7 @@ C.. Actually generate a det
 !.. SYMPRODIND(1,ISPN,I)+1 contains the index of the first element of spin ISPN of sym
 !.. SYMPRODS(I) in ORBPAIRS
 !.. SYMPRODIND(2,ISPN,I) contains the number of such elements
-         pGen=(0.D0+ExcitTypes(5,iExcit))/iTotal !pGen is the prob of choosing iExcit
+         pGen=(0.0_dp+ExcitTypes(5,iExcit))/iTotal !pGen is the prob of choosing iExcit
 !  Allocate memory to store all weights and excitations in this category
          allocate(ews(SYMPRODIND(2,ISPN,IFROM)))
          CALL EnumExcitFromWeights(EXCITTYPES(1,IEXCIT),ews,OrbPairs,
@@ -364,7 +364,7 @@ C.. Actually generate a det
          rCount=rCount*RAN2(ISEED)
          I=0
 !  This is a little inefficient, and could perhaps be binary searched if cumulative weights were also stored
-         DO WHILE (rCount.GT.0.D0)
+         DO WHILE (rCount.GT.0.0_dp)
             I=I+1
             rCount=rCount-ews(I)%Weight
          ENDDO   
@@ -384,7 +384,7 @@ C.. Actually generate a det
 !.. states (listed in SymStatePairs), and the index of the start of this list
 !.. For a given (unique) SymPairProds(J)%Sym, I=SymPairProds(J)%Index.
 !.. [ SymStatePairs(1,I) , SymStatePairs(2,I) ] is the pair of states whose prod is of that symmetry.
-         RCOUNT=0.D0
+         RCOUNT=0.0_dp
          ICOUNT=0
 !  L is a loop variable.  We go through the loop once to count the number of possible excitations
 !  We then pick a random number up to that number, and choose that excitation
@@ -402,7 +402,7 @@ C.. Actually generate a det
          rCount=rCount*RAN2(ISEED)
          K=0
 !  This is a little inefficient, and could perhaps be binary searched if cumulative weights were also stored
-         DO WHILE (rCount.GT.0.D0)
+         DO WHILE (rCount.GT.0.0_dp)
             K=K+1
             rCount=rCount-ews(K)%Weight
          ENDDO   
@@ -798,7 +798,7 @@ C.. Actually generate a det
 !.. SYMPRODIND(1,ISPN,I)+1 contains the index of the first element of spin ISPN of sym
 !.. SYMPRODS(I) in ORBPAIRS
 !.. SYMPRODIND(2,ISPN,I) contains the number of such elements
-         pGen=(0.D0+ExcitTypes(5,iExcit))/iTotal !pGen is the prob of choosing iExcit
+         pGen=(0.0_dp+ExcitTypes(5,iExcit))/iTotal !pGen is the prob of choosing iExcit
 !  Allocate memory to store all weights and excitations in this category
          allocate(ews(SYMPRODIND(2,ISPN,IFROM)))
          CALL EnumExcitFromWeights(EXCITTYPES(1,IEXCIT),ews,OrbPairs,
@@ -809,7 +809,7 @@ C.. Actually generate a det
          rCount=rCount*RAN2(ISEED)
          I=0
 !  This is a little inefficient, and could perhaps be binary searched if cumulative weights were also stored
-         DO WHILE (rCount.GT.0.D0)
+         DO WHILE (rCount.GT.0.0_dp)
             I=I+1
             rCount=rCount-ews(I)%Weight
          ENDDO   
@@ -1035,7 +1035,7 @@ C.. Actually generate a det
 !.. states (listed in SymStatePairs), and the index of the start of this list
 !.. For a given (unique) SymPairProds(J)%Sym, I=SymPairProds(J)%Index.
 !.. [ SymStatePairs(1,I) , SymStatePairs(2,I) ] is the pair of states whose prod is of that symmetry.
-         RCOUNT=0.D0
+         RCOUNT=0.0_dp
          ICOUNT=0
 !  L is a loop variable.  We go through the loop once to count the number of possible excitations
 !  We then pick a random number up to that number, and choose that excitation
@@ -1054,7 +1054,7 @@ C.. Actually generate a det
          rCount=rCount*RAN2(ISEED)
          K=0
 !  This is a little inefficient, and could perhaps be binary searched if cumulative weights were also stored
-         DO WHILE (rCount.GT.0.D0)
+         DO WHILE (rCount.GT.0.0_dp)
             K=K+1
             rCount=rCount-ews(K)%Weight
          ENDDO 

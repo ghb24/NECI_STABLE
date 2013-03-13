@@ -2,8 +2,8 @@
 fc = ftn
 cc = CC
 ld = CC
-ldflags = -m64
-libs = -lfftw3 -lacml -lrt
+ldflags = -m64 -rdynamic
+libs = -lfftw3 -lacml -lrt -lm
 cpp = cpp -C -traditional
 cppflags =  -D__Linux -DPOINTER8 -DPARALLEL -D__PATHSCALE__ -D__INT64 -DCBINDMPI
 compiler = pathf95-on-LINUX

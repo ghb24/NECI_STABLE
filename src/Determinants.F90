@@ -28,9 +28,9 @@ MODULE Determinants
     save
 ! Set by Calc on input
       INTEGER nActiveSpace(2)
-        INTEGER, DIMENSION(:), POINTER :: SPECDET
-        INTEGER(TagIntType) :: tagSPECDET=0
-        Logical TSPECDET
+      INTEGER, DIMENSION(:), POINTER :: SPECDET => null()
+      INTEGER(TagIntType) :: tagSPECDET=0
+      Logical TSPECDET
 
 !nActiveBasis(1) is the lowest non-active orbital
 !nActiveBasis(2) is the highest active orbital.  There can be virtuals above this.
@@ -53,7 +53,8 @@ contains
 
     Subroutine DetPreFreezeInit()
         Use global_utilities
-        use SystemData, only : nEl, ECore, Arr, Brr, G1, nBasis, LMS, nBasisMax,tFixLz, tUEGSpecifyMomentum
+        use SystemData, only : nEl, ECore, Arr, Brr, G1, nBasis, LMS, nBasisMax,&
+                                tFixLz, tUEGSpecifyMomentum, tRef_Not_HF
         use SystemData, only : tMolpro
         use sym_mod
         use util_mod, only: NECI_ICOPY
@@ -70,12 +71,14 @@ contains
             do i=1,NEl
                 FDet(i)=DefDet(i)
             enddo
+            tRef_Not_HF = .true.
         ELSE
              CALL GENFDET(BRR,G1,NBASIS,LMS,NEL,FDET)
              IF(tUEGSpecifyMomentum) THEN
                 WRITE(6,*) 'Defining FDet according to a momentum input'
                 CALL ModifyMomentum(FDET)
             ENDIF
+            tRef_Not_HF = .false.
         ENDIF
 !      ENDIF
       WRITE(6,"(A)",advance='no') " Fermi det (D0):"
@@ -180,7 +183,7 @@ contains
 !C..This fix is to stop floating overflow as taking the factorial of (nBasis.GT.170) crashes
 !C  using the old FACTRL routine.
          NDET=1
-         DNDET=1.D0
+         DNDET=1.0_dp
          DO I=0,NEL-1
             NDET=(NDET*(nBasis-I))/(I+1)
             DNDET=(DNDET*real(nBasis-I,dp))/real(I+1,dp)
@@ -630,7 +633,7 @@ END MODULE Determinants
          if(tStoreAsExcitations.and.nI(1).eq.-1) then
 !The excitation storage starts with -1.  The next number is the excitation level,L .  
 !Next is the parity of the permutation required to lineup occupied->excited.  Then follows a list of the indexes of the L occupied orbitals within the HFDET, and then L virtual spinorbitals.
-            hEl=0.d0
+            hEl=0.0_dp
             do i=4,nI(2)+4-1
                hEl=hEl-(Arr(nI(i),2))
             enddo
@@ -749,7 +752,7 @@ END MODULE Determinants
          nLeft=1+nUp
          IF(nDown.NE.0.AND.nUp.NE.0) WRITE(6,*) "Including ",-nDown,",",nUp," extra degenerate sets in active space."
          DO WHILE (nLeft.GT.0.AND.I.LT.nBasis)
-            DO WHILE (I.LT.nBasis.AND.ABS(ARR(I)-ARR(I-1)).LT.1.d-5)
+            DO WHILE (I.LT.nBasis.AND.ABS(ARR(I)-ARR(I-1)).LT.1.0e-5_dp)
                I=I+1
             ENDDO
             nLeft=nLeft-1
@@ -771,7 +774,7 @@ END MODULE Determinants
          nLeft=nDown
          Do WHILE(nLeft.GT.0.AND.I.Gt.0)
       
-            DO WHILE (I.GT.0.AND.ABS(ARR(I)-ARR(I+1)).LT.1.d-5)
+            DO WHILE (I.GT.0.AND.ABS(ARR(I)-ARR(I+1)).LT.1.0e-5_dp)
                I=I-1
             ENDDO
             nLeft=nLeft-1
@@ -905,7 +908,7 @@ END MODULE Determinants
          INTEGER NEL,NI(NEL),I
          LOGICAL ISCSF_old
          real(dp) :: CALCT
-         CALCT=0.D0
+         CALCT=0.0_dp
          IF(ISCSF_old(NI,NEL)) RETURN
          DO I=1,NEL
             CALCT=CALCT+GetTMATEl(NI(I),NI(I))

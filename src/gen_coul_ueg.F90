@@ -70,7 +70,7 @@ contains
                         ! Indices are internally reordered such that:
                         ! i >= k, j >= l, (i,k) >= (j,l)
                         UMAT(UMatInd(id1, id2, id3, id3, 0, 0)) = sum
-                        if (abs(sum) > 1.D-10) &
+                        if (abs(sum) > 1.0e-10_dp) &
                             write (10, '(4i7,f19.9)') id1, id2, id3, id4, sum
                     enddo
                 enddo
@@ -170,7 +170,7 @@ contains
                                             * uHub / (omega**2)
                                 enddo
                                 write(41,"(2I3)",advance='no') c, d
-                                if (abs(real(s) - sum) > 1.d-7) then
+                                if (abs(real(s) - sum) > 1.0e-7_dp) then
                                     write (41,*) sum, s
                                 else
                                     write (41,*) sum, sum
@@ -215,7 +215,7 @@ contains
                         ! Indices are internally ! reordered such that:
                         !i >= k, j >= l, (i,k) >= (j,l)
                         UMAT(UMatInd(id1, id2, id3, id4, 0, 0)) = sum
-                        if (abs(sum) > 1.d-10) &
+                        if (abs(sum) > 1.0e-10_dp) &
                             write (10, '(4i7,f19.9)') id1, id2, id3, id4, sum
                     enddo
                 enddo
@@ -276,7 +276,7 @@ contains
         endif
         ! if (T) then
             OUT = real(CK(2*GD(1),2*GD(2),2*GD(3)))
-            ! OUT=4*3.1415926535D0/(GD(1)*GD(1)+GD(2)*GD(2)+GD(3)*GD(3))
+            ! OUT=4*3.1415926535_dp/(GD(1)*GD(1)+GD(2)*GD(2)+GD(3)*GD(3))
         !else
         !    OUT = 0.0_dp
         !endif
@@ -346,13 +346,66 @@ contains
 
     function get_ueg_umat_el (idi, idj, idk, idl) result(hel)
 
+        use SystemData, only: tUEG2, kvec, k_lattice_constant, dimen, Madelung
         integer, intent(in) :: idi, idj, idk, idl
         HElement_t :: hel
-        integer :: i, j, k, l, a, b, c, iss
+        integer :: i, j, k, l, a, b, c, iss, aneu
         real(dp) :: G, G2
-        logical :: tCoulomb, tExchange
+        logical :: tCoulomb, tExchange          
+        real(dp), parameter :: EulersConst = 0.5772156649015328606065120900824024_dp
         character(*), parameter :: this_routine = 'get_ueg_umat_el'
-        
+
+        !==================================================      
+        if (tUEG2) then
+
+            ! omit even numbers of idi if there is spin degeneracy
+            ISS = nBasisMax(2,3) ! ick
+            i = (idi - 1) * ISS + 1
+            j = (idj - 1) * ISS + 1
+            k = (idk - 1) * ISS + 1
+            l = (idl - 1) * ISS + 1
+
+            ! calucate unscaled momentum transfer
+            a = kvec(i,1) - kvec(k, 1)
+            b = kvec(i, 2) - kvec(k, 2)
+            c = kvec(i, 3) - kvec(k, 3)
+
+            ! Energy conservation
+            if ((kvec(l, 1) - kvec(j, 1) == a) .and. &
+            (kvec(l, 2) - kvec(j, 2) == b) .and. &
+            (kvec(l, 3) - kvec(j, 3) == c) ) then
+
+                ! no Coulomb (-> no divergency)
+                if ( (a /= 0) .or. (b /= 0) .or. (c /= 0) ) then
+                    ! Coulomb integrals are long-ranged, so calculated with 
+                    ! 4 pi/G**2.
+                    !AJWT <IJ|r_12^-1|KL> = v_(G_I-G_K) delta_((G_I-G_K)-(G_L-G_J)
+                    ! v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
+                    ! For Coulomb interactions <ij|ij> we have explicitly excluded
+                    ! the G=0 component as it is divergent.
+                    ! This is the equivalent of adding a positive uniform 
+                    ! background.
+                    !scaled momentum transfer
+                    G2 = (a *k_lattice_constant)**2 +(b *k_lattice_constant)**2 + (c *k_lattice_constant)**2         
+                    ! check dimension
+                    if(dimen == 3) then ! 3D
+                        hel = (4.0_dp*PI) / (G2 * OMEGA)
+                    else if (dimen ==2) then !2D
+                        hel = (2.0_dp*PI) / (sqrt(G2) * OMEGA)
+                    else if (dimen ==1) then !1D
+                        hel = (-log(G2/4.0_dp) - 2.0_dp*EulersConst)/OMEGA
+                    endif
+                else  ! <ii|ii>
+                    hel = 0
+                endif  !Coulomb
+
+            else  !no energy conservation
+                hel = 0.0_dp
+            endif
+            return
+        end if   !UEG2
+!==================================================
+
         ISS = nBasisMax(2,3) ! ick
 
         i = (idi - 1) * ISS + 1
@@ -362,6 +415,7 @@ contains
 
         tCoulomb = .false.
         tExchange = .false.
+
         if ( (i == k) .and. (j == l) ) tCoulomb = .true.
         if ( (i == l) .and. (j == k) ) tExchange = .true.
 
@@ -369,9 +423,13 @@ contains
         a = G1(i)%k(1) - G1(k)%k(1)
         b = G1(i)%k(2) - G1(k)%k(2)
         c = G1(i)%k(3) - G1(k)%k(3)
+
         if ( ((G1(l)%k(1) - G1(j)%k(1)) == a) .and. &
              ((G1(l)%k(2) - G1(j)%k(2)) == b) .and. &
              ((G1(l)%k(3) - G1(j)%k(3)) == c) ) then
+
+
+
             if ( (a /= 0) .or. (b /= 0) .or. (c /= 0) ) then
                 ! WRITE(6,*) "(",I,J,"|",K,L,")",A,B,C
                 ! Coulomb integrals are long-ranged, so calculated with 
@@ -389,7 +447,7 @@ contains
                 ! Sum is G^2 / 4 Pi*Pi
                 G = 2 * PI * sqrt(G2)
                 hel = (1.0_dp / PI) / (G2 * ALAT(1) * ALAT(2) * ALAT(3))
-                
+ 
                 ! Sum is now (4 Pi / G^2 ) / Omega
                 ! ALAT(4) is Rc, a cutoff length.
                 ! For Exchange integrals we calculate <ij|kl>cell with a 
@@ -424,6 +482,7 @@ contains
         else
             hel = 0
         endif
+
     end function
 
 end module

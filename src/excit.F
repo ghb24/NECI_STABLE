@@ -227,7 +227,8 @@ C.. The new node is connected to this node
 
       LOGICAL FUNCTION ISVALIDDET(DET,NEL)
          IMPLICIT NONE
-         INTEGER NEL,DET(NEL)
+         INTEGER, intent(in) :: NEL
+         integer, intent(in) :: DET(NEL)
          INTEGER I
          IF(DET(1).LT.1) THEN
             ISVALIDDET=.FALSE.

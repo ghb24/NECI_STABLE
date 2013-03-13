@@ -27,12 +27,15 @@ MODULE Logging
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn
     LOGICAL tPrintPopsDefault
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tIncrementPops,tROHistogramAll,tROHistER,tROHistSingExc
-    LOGICAL tRoHistOneElInts, tPrintInitiators
-    LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump
+    LOGICAL tRoHistOneElInts
+    LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump,tRDMonFly,tDiagRDM,tDo_Not_Calc_RDMEnergy
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
-    LOGICAL tTruncDumpbyVal
-    LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit,tPrintDoubsUEG
+    LOGICAL tTruncDumpbyVal, tChangeVarsRDM, tPrintRODump, tno_RDMs_to_read, tReadRDMs
+    LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit,tPrintDoubsUEG, tWriteMultRDMs
+    LOGICAL tHF_S_D_Ref, tHF_S_D, tHF_Ref_Explicit, tExplicitAllRDM, twrite_normalised_RDMs, twrite_RDMs_to_read 
+    LOGICAL tNoNOTransform, tPrint1RDM, tPrintInitiators, tInitiatorRDM
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps,IterShiftBlock
+    INTEGER IterRDMonFly, RDMExcitLevel, RDMEnergyIter, IterWriteRDMs 
     INTEGER CCMCDebug  !CCMC Debugging Level 0-6.  Default 0
     INTEGER FCIMCDebug !FciMC Debugging Level 0-6.  Default 0
 
@@ -51,6 +54,7 @@ MODULE Logging
     LOGICAL tMCOutput
     logical :: tSplitProjEHist,tSplitProjEHistG,tSplitProjEHistK3
     integer :: iProjEBins
+    logical :: tDumpForcesInfo, tPrintLagrangian  !Print out the 1RDM,2RDM and Lagrangian to file at the end of a run as long as 2RDM is calculated
 
     logical :: tCalcInstantS2, tCalcInstSCpts, tCalcInstantS2Init
     integer :: instant_s2_multiplier, instant_s2_multiplier_init
@@ -60,6 +64,13 @@ MODULE Logging
     logical :: tJustBlocking
     integer :: iBlockEquilShift,iBlockEquilProjE
     logical :: tDiagAllSpaceEver,tCalcVariationalEnergy
+
+    ! Do we want to split the popsfile up into multiple bits?
+    logical :: tSplitPops
+
+    ! What is the mininum weight on a determinant required for it to be
+    ! included in a binary pops file?
+    real(dp) :: binarypops_min_weight
 
     contains
 
@@ -82,13 +93,13 @@ MODULE Logging
       tSplitProjEHist = .false.
       tSplitProjEHistG = .false.
       tSplitProjEHistK3 = .false.
-      PopsfileTimer=0.D0
+      PopsfileTimer=0.0_dp
       tMCOutput=.true.
       tLogComplexPops=.false.
       iWriteBlockingEvery=1000
       tSaveBlocking=.false.
       OffDiagBinRange=0.001
-      OffDiagMax=1.D0
+      OffDiagMax=1.0_dp
       BinRange=0.001
       iNoBins=100000
       tHistEnergies=.false.
@@ -98,7 +109,7 @@ MODULE Logging
       iWriteHistEvery=-1
       NoACDets(:)=0
       TAutoCorr=.false.
-      MaxHistE=50.D0
+      MaxHistE=50.0_dp
       NoHistBins=200
       iWritePopsEvery=100000
       TCalcWavevector=.false.
@@ -158,7 +169,33 @@ MODULE Logging
       tCalcInstantS2Init = .false.
       tCalcInstSCpts = .false.
       instant_s2_multiplier = 1
+      tRDMonFly=.false.
+      tChangeVarsRDM = .false.
+      RDMEnergyIter=100
+      tDiagRDM=.false.
+      tPrint1RDM = .false.
+      tNoNOTransform = .false.
+      tPrintRODump=.false.
+      IterRDMonFly=0
+      RDMExcitLevel=1
+      tDo_Not_Calc_RDMEnergy = .false.
+      tExplicitAllRDM = .false.
+      tHF_S_D_Ref = .false.
+      tHF_S_D = .false.
+      tHF_Ref_Explicit = .false.
+      twrite_normalised_RDMs = .true. 
+      twrite_RDMs_to_read = .false.
+      tno_RDMs_to_read = .false.
+      tReadRDMs = .false.
+      IterWriteRDMs = 10000
+      tWriteMultRDMs = .false.
+      tInitiatorRDM = .false.
+      tDumpForcesInfo = .false.
+      tPrintLagrangian = .false.
       instant_s2_multiplier_init = 1
+      binarypops_min_weight = 0
+
+      tSplitPops = .false.
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -323,7 +360,7 @@ MODULE Logging
             call readi(NoDumpTruncs)
             ALLOCATE(TruncEvalues(NoDumpTruncs),stat=ierr)
             CALL LogMemAlloc('TruncEvalues',NoDumpTruncs,8,'Logging',TruncEvaluesTag,ierr)
-            TruncEvalues(:)=0.D0
+            TruncEvalues(:)=0.0_dp
             do i=1,NoDumpTruncs
                 call readf(TruncEvalues(i))
             enddo
@@ -499,10 +536,115 @@ MODULE Logging
             tHistInitPops=.true.
             call readi(HistInitPopsIter)
 
+        case("CALCRDMONFLY")
+!This keyword sets the calculation to calculate the reduced density matrix on the fly.  This starts at IterRDMonFly iterations after the shift changes.
+!If RDMExcitLevel = 1, only the 1 electron RDM is found, if RDMExcitLevel = 2, only the 2 electron RDM is found and if RDMExcitLevel = 3, both are found. 
+            tRDMonFly=.true.
+            call readi(RDMExcitLevel)
+            call readi(IterRDMonFly)
+            call readi(RDMEnergyIter)
+
+        case("DIAGFLYONERDM")
+!This sets the calculation to diagonalise the *1* electron reduced density matrix.   
+!The eigenvalues give the occupation numbers of the natural orbitals (eigenfunctions).
+            tDiagRDM=.true.
+
+        case("NONOTRANSFORM")
+! This tells the calc that we don't want to print the NO_TRANSFORM matrix.            
+! i.e. the diagonalisation is just done to get the correlation entropy.
+            tNoNOTransform = .true.
+
+        case("PRINTONERDM")
+! This prints the OneRDM, regardless of whether or not we are calculating just the 1-RDM, or the 2-RDM.            
+            tPrint1RDM = .true.
+
+        case("PRINTRODUMP")
+            tPrintRODump=.true.
+            tROFciDump = .true.
+! This is to do with the calculation of the MP2 or CI natural orbitals.  This should be used if we want the transformation matrix of the              
+! natural orbitals to be found, but no ROFCIDUMP file to be printed (i.e. the integrals don't need to be transformed).  This is so that at the end 
+! of a calculation, we may get the one body reduced density matrix from the wavefunction we've found, and then use the MOTRANSFORM file printed to 
+! visualise the natural orbitals with large occupation numbers.
+
+        case("CALCRDMENERGY")
+!This takes the 1 and 2 electron RDM and calculates the energy using the RDM expression.            
+!For this to be calculated, RDMExcitLevel must be = 3, so there is a check to make sure this is so if the CALCRDMENERGY keyword is present.
+            IF(item.lt.nitems) THEN
+                call readu(w)
+                select case(w)
+                    case("OFF")
+                        tDo_Not_Calc_RDMEnergy=.true.
+                end select
+            ELSE
+                tDo_Not_Calc_RDMEnergy=.false.
+            ENDIF
+
+        case("EXPLICITALLRDM")
+!Explicitly calculates all the elements of the RDM.            
+            tExplicitAllRDM = .true.
+
+        case("HFREFRDMEXPLICIT")
+!Uses the HF as a reference and explicitly calculates the RDM to find the energy - should be same as projected energy, 
+!when printing out every shift update.
+            tHF_Ref_Explicit = .true.
+
+        case("HFSDRDM")
+!Calculate the RDM for the HF, singles and doubles only - symmetrically.            
+            tHF_S_D = .true.
+
+        case("HFSDREFRDM")
+!Uses the HF, singles and doubles as a multiconfigurational reference and calculates the RDM to find the energy.            
+            tHF_S_D_Ref = .true.
+
         case("WRITEINITIATORS")
 ! Requires a popsfile to be written out.  Writes out the initiator populations. 
             tPrintInitiators = .true.
         
+        case("WRITERDMSTOREAD")
+! Writes out the unnormalised RDMs (in binary), so they can be read back in, and the calculations restarted at a later point.            
+! This is also tied to the POPSFILE/BINARYPOPS keyword - so if we're writing a normal POPSFILE, we'll write this too, 
+! unless **WRITERDMSTOREAD** OFF is used.
+            IF(item.lt.nitems) THEN
+                call readu(w)
+                select case(w)
+                    case("OFF")
+                        tno_RDMs_to_read = .true. 
+                        twrite_RDMs_to_read = .false. 
+                end select
+            ELSE
+                twrite_RDMs_to_read = .true. 
+                tno_RDMs_to_read = .false. 
+            ENDIF
+
+        case("NONORMRDMS")            
+! Does not print out the normalised (final) RDMs - to be used if you know the calculation will not be converged, and don't  
+! want to take up disk space.
+            twrite_normalised_RDMs = .false.
+
+        case("READRDMS")
+! Read in the RDMs from a previous calculation, and continue accumulating the RDMs from the very beginning of this restart.            
+            tReadRDMs = .true.
+
+        case("WRITERDMSEVERY")
+! Write out the normalised, hermitian RDMs every IterWriteRDMs iterations.  
+            tWriteMultRDMs = .true.
+            call readi(IterWriteRDMs)
+
+        case("INITIATORRDM")
+! Use only the determinants that are (on average) initiators to calculate the RDMs.
+            tInitiatorRDM = .true.
+
+
+        case("DUMPFORCESINFO")
+! Using the finalised 2RDM, calculate the Lagrangian X used for the calculation of the forces, and dump all these in Molpro-friendly format
+! Note that this currently requires calculation of *both* the 1 and 2 body RDMS (i.e. CALCRDMONFLY 3 .. ... )
+! I will eventually reorganise so it can work with just the calculation of the two body RDM.
+            tDumpForcesInfo = .true.
+        
+        case("PRINTLAGRANGIAN")
+            ! Print out the Lagrangian X to file (Only works in conjuction with DUMPFORCESINFO: otherwise, this option does nothing)
+            tPrintLagrangian = .true.
+
         case("AUTOCORR")
 !This is a Parallel FCIMC option - it will calculate the largest weight MP1 determinants and histogramm them
 !HF Determinant is always histogrammed. NoACDets(2) is number of doubles. NoACDets(3) is number of triples and NoACDets(4) is 
@@ -524,7 +666,7 @@ MODULE Logging
             call readi(iNoBins)
             call readf(OffDiagBinRange)
             call readf(OffDiagMax)
-            IF(OffDiagMax.lt.0.D0) THEN
+            IF(OffDiagMax.lt.0.0_dp) THEN
                 OffDiagMax=-OffDiagMax
             ENDIF
         case("HISTSPAWN")
@@ -593,10 +735,20 @@ MODULE Logging
             call readi(iPopsPartEvery)
         case("POPSFILETIMER")
             call readf(PopsfileTimer)   !Write out a POPSFILE every "PopsfileTimer" hours.
+
         case("BINARYPOPS")
-!This means that the popsfile (full or reduced) will now be written out in binary format. 
-!This should now take up less space, and be written quicker.
-            tBinPops=.true.
+            ! This means that the popsfile (full or reduced) will now be 
+            ! written out in binary format. This should now take up less 
+            ! space, and be written quicker.
+            !
+            ! By default, all particles are written into the popsfile. If 
+            ! a minimum weight is proveded, only those particles with at ]east
+            ! that weight are included.
+            tBinPops= .true.
+            if (item < nitems) then
+                call readf(binarypops_min_weight)
+            end if
+
         case("INCREMENTPOPS")
 ! Don't overwrite existing POPSFILES.
             tIncrementPops = .true.
@@ -758,6 +910,14 @@ MODULE Logging
             ! n.b. This is NOT quantitatively correct.
             !      --> Only of QUALITATIVE utility.
             tCalcInstSCpts = .true.
+
+        case ("SPLIT-POPS")
+            ! Do we want to split a popfile up into multiple parts which are
+            ! output on each of the nodes, and need to be combined/split-up and
+            ! distributed to the nodes on our (sequential) time rather than
+            ! on multi-processor time?
+            tSplitPops = .true.
+            tBinPops = .true.
 
 
         case("ENDLOG")

@@ -5,6 +5,7 @@ MODULE DetCalc
         use sort_mod
         use DetCalcData
         use MemoryManager, only: TagIntType
+        use gndts_mod, only: gndts
         
     IMPLICIT NONE
      save
@@ -71,17 +72,24 @@ CONTAINS
       ENDIF
 
 !Copied Specdet information from Calc.F, so if inspect is present, but no determinant/csf specified, it will still run.
-      IF(TCSFOLD.AND.TSPECDET) THEN
-         WRITE(6,*) "TSPECDET set.  SPECDET is"
-         call write_det (6, SPECDET, .true.)
-         CALL NECI_ICOPY(NEL,SPECDET,1,FDET,1)
-         CALL GETCSFFROMDET(FDET,SPECDET,NEL,STOT,LMS)
-         WRITE(6,*) "CSF with 2S=",STOT," and 2Sz=",LMS," now in SPECDET is"
-         call write_det (6, SPECDET, .true.)
-      ELSEIF(TSPECDET.AND.(.not.ISVALIDDET(SPECDET,NEL))) THEN
-         WRITE(6,*) "TSPECDET set, but invalid.  using FDET"
-!         tSpecDet=.false.
-         CALL NECI_ICOPY(NEL,FDET,1,SPECDET,1)
+      if(TSPECDET) then
+         if(TCSFOLD) then
+             WRITE(6,*) "TSPECDET set.  SPECDET is"
+             call write_det (6, SPECDET, .true.)
+             CALL NECI_ICOPY(NEL,SPECDET,1,FDET,1)
+             CALL GETCSFFROMDET(FDET,SPECDET,NEL,STOT,LMS)
+             WRITE(6,*) "CSF with 2S=",STOT," and 2Sz=",LMS," now in SPECDET is"
+             call write_det (6, SPECDET, .true.)
+         elseif(.not.associated(specdet)) then
+            !specdet not allocated. Allocate it and copy fdet
+             allocate(specdet(nel))
+             WRITE(6,*) "TSPECDET set, but not allocated.  using FDET"
+             CALL NECI_ICOPY(NEL,FDET,1,SPECDET,1)
+         elseif(.not.ISVALIDDET(SPECDET,NEL)) then
+             WRITE(6,*) "TSPECDET set, but invalid.  using FDET"
+!             tSpecDet=.false.
+             CALL NECI_ICOPY(NEL,FDET,1,SPECDET,1)
+         endif
       ELSEIF(TCSFOLD) THEN  !No help given on generating this CSF.  Let's just get a single one out of GNCSFs
          NDET=1
          CALL GNCSFS(NEL,nBasis,BRR,NBASISMAX,FDET,.FALSE.,G1,TSPN,LMS2,TPARITY, &
@@ -294,15 +302,15 @@ CONTAINS
             WRITE(6,*) "CK Size",NDET*NEVAL*HElement_t_size
             Allocate(CkN(nDet,nEval), stat=ierr)
             LogAlloc(ierr,'CKN',nDet*nEval, HElement_t_sizeB, tagCKN)
-            CKN=(0.d0)
+            CKN=(0.0_dp)
 !C..
             Allocate(Ck(nDet,nEval), stat=ierr)
             LogAlloc(ierr,'CK',nDet*nEval, HElement_t_sizeB, tagCK)
-            CK=(0.d0)
+            CK=(0.0_dp)
 !C..
             allocate(W(nEval), stat=ierr)
             LogAlloc(ierr, 'W', nEval,8,tagW)
-            W=0.d0
+            W=0.0_dp
          ENDIF
 !C..
          IF(TREAD) THEN
@@ -395,7 +403,7 @@ CONTAINS
          LENHAMIL=GC
          Allocate(Hamil(LenHamil), stat=ierr)
          LogAlloc(ierr, 'HAMIL', LenHamil, HElement_t_sizeB, tagHamil)
-         HAMIL=(0.d0)
+         HAMIL=(0.0_dp)
 !C..
          ALLOCATE(LAB(LENHAMIL),stat=ierr)
          CALL LogMemAlloc('LAB',LenHamil,4,this_routine,LabTag,ierr)
@@ -410,7 +418,7 @@ CONTAINS
              IF(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold ExpandedHamil")
              DO I=1,NDet
                 DO J=1,NDet
-                   ExpandedHamil(I,J)=0.D0
+                   ExpandedHamil(I,J)=0.0_dp
                 ENDDO
              ENDDO
              IND=1
@@ -495,33 +503,33 @@ CONTAINS
 
             ALLOCATE(A(NEVAL,NEVAL),stat=ierr)
             CALL LogMemAlloc('A',NEVAL**2,8,this_routine,ATag,ierr)
-            A=0.d0
+            A=0.0_dp
 !C..
 !C,, W is now allocated with CK
 !C..
             ALLOCATE(V(NDET*NBLOCK*NKRY1),stat=ierr)
             CALL LogMemAlloc('V',NDET*NBLOCK*NKRY1,8,this_routine,VTag,ierr)
-            V=0.d0
+            V=0.0_dp
 !C..   
             ALLOCATE(AM(NBLOCK*NBLOCK*NKRY1),stat=ierr)
             CALL LogMemAlloc('AM',NBLOCK*NBLOCK*NKRY1,8,this_routine,AMTag,ierr)
-            AM=0.d0
+            AM=0.0_dp
 !C..
             ALLOCATE(BM(NBLOCK*NBLOCK*NKRY),stat=ierr)
             CALL LogMemAlloc('BM',NBLOCK*NBLOCK*NKRY,8,this_routine,BMTag,ierr)
-            BM=0.d0
+            BM=0.0_dp
 !C..
             ALLOCATE(T(3*NBLOCK*NKRY*NBLOCK*NKRY),stat=ierr)
             CALL LogMemAlloc('T',3*NBLOCK*NKRY*NBLOCK*NKRY,8,this_routine,TTag,ierr)
-            T=0.d0
+            T=0.0_dp
 !C..
             ALLOCATE(WT(NBLOCK*NKRY),stat=ierr)
             CALL LogMemAlloc('WT',NBLOCK*NKRY,8,this_routine,WTTag,ierr)
-            WT=0.d0
+            WT=0.0_dp
 !C..
             ALLOCATE(SCR(LScr),stat=ierr)
             CALL LogMemAlloc('SCR',LScr,8,this_routine,SCRTag,ierr)
-            SCR=0.d0
+            SCR=0.0_dp
             ALLOCATE(ISCR(LIScr),stat=ierr)
             CALL LogMemAlloc('IScr',LIScr,4,this_routine,IScrTag,ierr)
             ISCR(1:LISCR)=0
@@ -531,19 +539,19 @@ CONTAINS
 !C..
             ALLOCATE(WH(NDET),stat=ierr)
             CALL LogMemAlloc('WH',NDET,8,this_routine,WHTag,ierr)
-            WH=0.d0
+            WH=0.0_dp
             ALLOCATE(WORK2(3*NDET),stat=ierr)
             CALL LogMemAlloc('WORK2',3*NDET,8,this_routine,WORK2Tag,ierr)
-            WORK2=0.d0
+            WORK2=0.0_dp
             ALLOCATE(V2(NDET,NEVAL),stat=ierr)
             CALL LogMemAlloc('V2',NDET*NEVAL,8,this_routine,V2Tag,ierr)
-            V2=0.d0
+            V2=0.0_dp
 !C..Lanczos iterative diagonalising routine
             CALL NECI_FRSBLKH(NDET,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT, &
      &  SCR,ISCR,INDEX,NCYCLE,B2L,.true.,.false.,.false.,.true.)
 
 !Multiply all eigenvalues by -1.
-            CALL DSCAL(NEVAL,-1.D0,W,1)
+            CALL DSCAL(NEVAL,-1.0_dp,W,1)
          ELSE
 !C.. We splice in a non-Lanczos diagonalisin routine if NBLOCK=0
             IF(NEVAL.NE.NDET) THEN
@@ -613,7 +621,7 @@ CONTAINS
             ENDIF
 !First, we want to count the number of determinants of the correct symmetry...
             Det=0
-            norm=0.D0
+            norm=0.0_dp
             do i=1,NDET
                 CALL GETSYM(NMRKS(:,i),NEL,G1,NBASISMAX,ISYM)
                 IF(ISym%Sym%S.eq.IHFSYM%Sym%S) THEN
@@ -734,7 +742,7 @@ CONTAINS
 !                SelfInvUnit = get_free_unit()
 !                open(SelfInvUnit,file='SelfInvDet',status='unknown')
 !                do i=1,Det
-!                    if(abs(FCIGS(i)).lt.1.D-8) cycle
+!                    if(abs(FCIGS(i)).lt.1.0e-8_dp) cycle
 !                    !Ignore if self-inverse
 !                    if(IsBitMomSelfInv(FCIDets(:,i))) then
 !                        call decode_bit_det(TempnI,FCIDets(:,i))
@@ -816,7 +824,7 @@ CONTAINS
 !!                            WRITE(23,"(A,2I14,3G20.10,I5,2G20.10)") "Closed ",FCIDets(0:NIfD,i),iLutSym(:),FCIGS(i),FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs,MatEl,MatEl2
 !!                        WRITE(23,"(A,2I14,3G20.10,I5)") "Closed ",FCIDets(0:NIfD,i),iLutSym(:),FCIGS(i),FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs
 !                    ELSE
-!                        IF(abs(FCIGS(i)).gt.1.D-5) THEN 
+!                        IF(abs(FCIGS(i)).gt.1.0e-5_dp) THEN 
 !!Find Hi0 element
 !                            CALL DecodeBitDet(nK,FCIDets(0:NIfDBO,i))
 !!                            CALL DecodeBitDet(nJ,FCIDets(0:NIfDBO,j))
@@ -837,9 +845,9 @@ CONTAINS
                     OPEN(iunit,FILE='SymDETS',STATUS='UNKNOWN')
 
                     do i=1,Det
-                        WRITE(iunit,"(2I13)",advance='no') i,temp(i)
+                        WRITE(iunit,"(2I17)",advance='no') i,temp(i)
                         do j=0,NIfDBO
-                           WRITE(iunit,"(I13)",advance='no') FCIDets(j,i)
+                           WRITE(iunit,"(I17)",advance='no') FCIDets(j,i)
                         enddo
                         WRITE(iunit,"(A,G25.16,A)",advance='no') " ",FCIGS(i),"  "
                         Call WriteBitDet(iunit,FCIDets(:,i),.true.)
@@ -883,7 +891,7 @@ CONTAINS
 !                 WRITE(6,*) "NMRKS not allocated"
 !                 CALL neci_flush(6)
 !             ENDIF
-!             norm=0.D0
+!             norm=0.0_dp
 !             OPEN(17,FILE='SymDETS',STATUS='UNKNOWN')
 !
 !             do i=1,MAXDET
@@ -922,7 +930,7 @@ CONTAINS
              CALL CFF_CHCK(NDET,NEVAL,NMRKS,NEL,G1,CK,TKE)
           ELSE
              DO I=1,NEVAL
-                TKE(I)=0.D0
+                TKE(I)=0.0_dp
              ENDDO 
           ENDIF
           IF(BTEST(ILOGGING,7)) CALL WRITE_PSI(BOX,BOA,COA,NDET,NEVAL,NBASISMAX,NEL,CK,W)
@@ -984,7 +992,7 @@ CONTAINS
 !C..
         ALLOCATE(DLINE(NMSH),stat=ierr)
         CALL LogMemAlloc('DLINE',NMSH,8,this_routine,DLINETag,ierr)
-        DLINE=0.d0
+        DLINE=0.0_dp
 !C..Calculate RHOOFR in certain directions
 !C..001
         CALL PLANARAV(RHO,NMSH,DLINE,0,0,1,SPAC,ALAT)
@@ -1001,12 +1009,12 @@ CONTAINS
           CALL LogMemAlloc('XCHOLE',NMSH**3,8,this_routine,XCHOLETag,ierr)
           ALLOCATE(PSIR(-NMSH:NMSH),stat=ierr)
           CALL LogMemAlloc('PSIR',2*NMSH+1,8,this_routine,PSIRTag,ierr)
-          PSIR=0.d0
+          PSIR=0.0_dp
 !C..
           IXD=1
           IYD=0
           IZD=0
-          SPAC=0.D0
+          SPAC=0.0_dp
           CALL GEN_XCHOLE(CK,PSIR,IOBS,JOBS,KOBS,G1,SITAB,NMAX,NMSH,nBasis,IXD,IYD,IZD,RHO,.TRUE.,XCHOLE, &
             SPAC,ALAT,OMEGA,NMRKS,NDET,NEVAL,NEL)
           CALL WRITE_RHO(10,'COMPXCHOLE',XCHOLE,NMSH,NMSH,NMSH,ALAT,.FALSE.,.TRUE.,RS)
@@ -1025,7 +1033,7 @@ CONTAINS
         WRITE(6,*) ' ISTATE : ' , ISTATE 
         ALLOCATE(SUMA(NMAXX,NMAXY,NMAXZ),stat=ierr)
         CALL LogMemAlloc('SUMA',NMAXX*NMAXY*NMAXZ,8,this_routine,SUMATag,ierr)
-        SUMA=0.d0
+        SUMA=0.0_dp
         CALL FODMAT(NEL,NBasis,NDET,NEVAL,ISTATE,NMRKS,G1,CK,NMAXX,NMAXY,NMAXZ,SUMA)
     End Subroutine CalcFoDM
 END MODULE DetCalc
@@ -1071,9 +1079,9 @@ END MODULE DetCalc
          INTEGER ISTART,IEND,iunit
          LOGICAL TSPECDET
          INTEGER SPECDET(NEL)
-         TOT=0.D0
-         NORM=0.D0
-         DLWDB2=0.D0
+         TOT=0.0_dp
+         NORM=0.0_dp
+         DLWDB2=0.0_dp
          IMAX=I_HMAX
          IF(I_VMAX.GT.IMAX) IMAX=I_VMAX
          proc_timer%timer_name='CLCRHOPII2'
@@ -1145,8 +1153,8 @@ END MODULE DetCalc
                WLRI0=WLRI
                WLSI0=WLSI
             else
-               WLRI0=0.d0
-               WLSI0=0.d0
+               WLRI0=0.0_dp
+               WLSI0=0.0_dp
             ENDIF  
 !            WRITE(6,*) "Before deriv"
             IF(TNPDERIV) THEN
@@ -1178,7 +1186,7 @@ END MODULE DetCalc
 !.. the Fermi determinant, otherwise the numbers blow up
             WINORM=EXP(I_P*(WLRI-WLRI0)+(WLSI-WLSI0))
             IF(tFCIMC) THEN
-                WINORM=1.D0
+                WINORM=1.0_dp
             ENDIF
             NORM=NORM+WINORM
             TOT=TOT+WINORM*(DLWDB)
@@ -1219,8 +1227,8 @@ END MODULE DetCalc
          real(dp) RHII,FLRI,FLSI,BETA,RH,R
          INTEGER I_P,I,IK
          LOGICAL TWARN
-         RH=0.D0
-         RHII=0.D0
+         RH=0.0_dp
+         RHII=0.0_dp
          TWARN=.FALSE.
 !.. We decompose ln(RHO^(P)_II) = p ln RHO_II + ln sI
 
@@ -1231,7 +1239,7 @@ END MODULE DetCalc
             R=R*EXP(-(W(IK)-W(1))*BETA/I_P)
             RHII=RHII+R
          ENDDO
-         IF(NEVAL.NE.NDET.AND.EXP(-(W(NEVAL)-W(1))*BETA/I_P).GT.1.D-2) THEN
+         IF(NEVAL.NE.NDET.AND.EXP(-(W(NEVAL)-W(1))*BETA/I_P).GT.1.0e-2_dp) THEN
 !.. If we don't have all our eigenvectors and we think our sum has not
 !.. converged, we print a warning the first time.
 !.. we cannot calculate a proper RHII so we just guess at 1
@@ -1240,8 +1248,8 @@ END MODULE DetCalc
              WRITE(6,*) ' Setting RHII=1'
             ENDIF
             TWARN=.TRUE.
-            RHII=1.D0
-            FLRI=0.D0
+            RHII=1.0_dp
+            FLRI=0.0_dp
          ELSE
 
 !.. and Log it
@@ -1267,8 +1275,8 @@ END MODULE DetCalc
          IMPLICIT NONE
          INTEGER NEVAL,IK
          real(dp)  W(NEVAL),BETA,DNORM,EN,CALCMCEN
-         EN=0.D0
-         DNORM=0.D0
+         EN=0.0_dp
+         DNORM=0.0_dp
          DO IK=1,NEVAL
             EN=EN+(W(IK))*EXP(-(W(IK)-W(1))*BETA)
             DNORM=DNORM+EXP(-(W(IK)-W(1))*BETA)
@@ -1284,8 +1292,8 @@ END MODULE DetCalc
          INTEGER NDET,NEVAL,IK,I
          HElement_t CK(NDET,NEVAL)
          real(dp)  W(NEVAL),BETA,DNORM,EN,CALCDLWDB
-         EN=0.D0
-         DNORM=0.D0
+         EN=0.0_dp
+         DNORM=0.0_dp
          DO IK=1,NEVAL
             EN=EN+abs(CK(I,IK))**2*(W(IK))*EXP(-(W(IK)-W(1))*BETA)
             DNORM=DNORM+abs(CK(I,IK))**2*EXP(-(W(IK)-W(1))*BETA)
@@ -1310,11 +1318,11 @@ END MODULE DetCalc
       INTEGER I,J,IN,IEL,L
 !..Calculate the expectation value of the kinetic energy
 !..<Psi|T|Psi>
-      PI=ACOS(-1.D0)
+      PI=ACOS(-1.0_dp)
       DO IN=1,NEVAL
-        TKE(IN)=0.D0
+        TKE(IN)=0.0_dp
         DO I=1,NDET
-          SUM1=0.D0
+          SUM1=0.0_dp
           DO J=1,NEL
             AUX=GetTMATEl(NM(J,I),NM(J,I))
 !((ALAT(1)**2)*((G1(1,NM(J,I))**2)/(ALAT(1)**2)+
@@ -1323,9 +1331,9 @@ END MODULE DetCalc
             SUM1=SUM1+(AUX)
           ENDDO
 !..Cube multiplier
-!          CST=PI*PI/(2.D0*ALAT(1)*ALAT(1))
+!          CST=PI*PI/(2.0_dp*ALAT(1)*ALAT(1))
 !.. Deal with the UEG
-!          IF(NBASISMAX(1,1).LE.0) CST=CST*4.D0
+!          IF(NBASISMAX(1,1).LE.0) CST=CST*4.0_dp
 !          SUM1=CST*SUM1 
           TKE(IN)=TKE(IN)+SUM1*abs(CG(I,IN))**2
         ENDDO
@@ -1341,9 +1349,9 @@ END MODULE DetCalc
         ELSE
           WRITE(iunit,*) ' COEFFICIENTS FOR EXCITED STATE NUMBER : ' , J
         ENDIF
-        S=0.D0
+        S=0.0_dp
         DO I=1,NDET
-         IF(abs(CG(I,J)).gt.1.D-15) THEN
+         IF(abs(CG(I,J)).gt.1.0e-15_dp) THEN
             DO IEL=1,NEL
                WRITE(iunit,"(I3,I3,2I3,2X)",advance='no') (G1(NM(1,IEL))%K(L),L=1,5)
             ENDDO

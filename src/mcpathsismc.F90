@@ -1,6 +1,6 @@
 module mcpathsismc
     use constants, only: dp,int64,sp,sizeof_int
-    use util_mod, only: NECI_ICOPY,isnan_neci
+    use util_mod, only: NECI_ICOPY,isnan_neci, neci_etime
    contains
 !C.. Calculate RHO^(P)_II without having a stored H matrix
 !C.. SAMPLE over distinct nodes, e.g. IJKLI, with paths up to I_HMAX
@@ -72,7 +72,7 @@ module mcpathsismc
          INTEGER IOV,IGV,IACC
          LOGICAL TSEQ,TBLOCKING
          real(dp) PREJ,PGR
-         REAL(sp) OTIME,NTIME,tarr(2),neci_etime
+         REAL(sp) OTIME,NTIME,tarr(2)
          integer(int64) LP
          HElement_t :: hel
 
@@ -103,23 +103,23 @@ module mcpathsismc
          WLRI=LOG(RHOII(0))
          hel = get_helement (nI, nI, 0)
          HIJS(0) = hel
-         TOTAL=1.D0
+         TOTAL=1.0_dp
 !C.. These variables have been passed in and represent the precalculated values for 1..I_VMIN-1 vertices
          DLWDBCORE=DLWDB
          WCORE=WLSI
          IF(TMPTHEORY) THEN
-            DLWDBCORE=0.D0
-            WCORE=0.D0
-            CALL Create(MCSt,I_VMAX,INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1),DLWDBCORE,WCore)
+            DLWDBCORE=0.0_dp
+            WCORE=0.0_dp
+            CALL Create(MCSt,I_VMAX,INT(LOG(0.0_dp+NWHTAY)/LOG(2.0_dp)+1),DLWDBCORE,WCore)
             WRITE(6,*) "MCPATHSR4 MP Theory"
          ElseIf(tMCDirectSum) Then
             IF(I_VMIN.NE.0) THEN
                 CALL Create(MCSt,I_VMIN,                    &
-     &          INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1),          &
+     &          INT(LOG(0.0_dp+NWHTAY)/LOG(2.0_dp)+1),          &
      &          DLWDBCORE/WCore,WCore)
             ELSE
                 CALL Create(MCSt,I_VMAX,                    &
-     &          INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1),          &
+     &          INT(LOG(0.0_dp+NWHTAY)/LOG(2.0_dp)+1),          &
      &          DLWDBCORE/WCore,WCore)
             ENDIF
             WRITE(6,*) "MCPATHSR4 Direct Sum"
@@ -128,22 +128,22 @@ module mcpathsismc
             !call neci_flush(6)
          ELSEIF(I_VMIN.NE.0) THEN
             CALL Create(MCSt,I_VMAX,                        &
-     &         INT(LOG(NWHTAY/(G_VMC_FAC**4))/LOG(2.D0)+1), &
+     &         INT(LOG(NWHTAY/(G_VMC_FAC**4))/LOG(2.0_dp)+1), &
      &      DLWDBCORE/WCORE,WCore)  
-            IF(G_VMC_FAC.GT.1.D0.OR.G_VMC_FAC.LT.-1.D0)     &
+            IF(G_VMC_FAC.GT.1.0_dp.OR.G_VMC_FAC.LT.-1.0_dp)     &
      &       STOP "Invalid MULTI MC BIAS"
             WRITE(6,*) "MCPATHSR4 MultiMC.  Bias=",G_VMC_FAC
          ELSE
             DLWDBCORE=HIJS(0)
             CALL Create(MCSt,I_VMAX,                        &
-     &         INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1),DLWDBCORE,WCore)
+     &         INT(LOG(0.0_dp+NWHTAY)/LOG(2.0_dp)+1),DLWDBCORE,WCore)
          ENDIF
-         IF(DBETA.LT.0.D0.AND.I_VMIN.EQ.0) THEN
+         IF(DBETA.LT.0.0_dp.AND.I_VMIN.EQ.0) THEN
             DLWDB=HIJS(0)
          ENDIF
          IF(TLOG.AND.I_VMIN.EQ.0)                           &
      &         WRITE(11,"(I12,2G25.16,F19.7,2I12,G25.12)")  &
-     &         1,TOTAL,TOTAL,0.D0,1,1,DLWDB
+     &         1,TOTAL,TOTAL,0.0_dp,1,1,DLWDB
 !C.. we're working in block space, so we work out our current symmetry.
          CALL GETSYM(NI,NEL,G1,NBASISMAX,KSYM)
          IF(I_HMAX.EQ.-3.OR.I_HMAX.EQ.-4) THEN
@@ -152,9 +152,9 @@ module mcpathsismc
             CALL GENRANDOMSPINEXCIT(NI,NEL,G1,NBASIS,NBASISMAX,IEXCITS,   &
      &      ISEED,INODE2)
          ELSE
-            TOTAL=0.D0
-            IF(DBETA.LT.0.D0.AND.I_VMIN.EQ.0) THEN
-               DLWDB=0.D0
+            TOTAL=0.0_dp
+            IF(DBETA.LT.0.0_dp.AND.I_VMIN.EQ.0) THEN
+               DLWDB=0.0_dp
             ENDIF
          ENDIF
          I_VM1=2
@@ -189,32 +189,32 @@ module mcpathsismc
             LT=0
             BTABLE(0)=0
             ISEED=G_VMC_SEED
-            SUMDLWDB=0.D0
+            SUMDLWDB=0.0_dp
             IF((I_HMAX.NE.-3.AND.I_HMAX.NE.-4).OR.I_V.LE.IEXCITS+1) THEN
 !C.. Do importance sampling with probabilities.  No norm needed
-               DLWDB3=0.D0
+               DLWDB3=0.0_dp
                IOCLS=0
                I_VCUR=1
                NTR=0
                ITREE=1
-               DLWDBSQ=0.D0
+               DLWDBSQ=0.0_dp
                PFAC=G_VMC_PI
-               WMIN=1.D-8
+               WMIN=1.0e-8_dp
                IF(I_HMAX.LT.-12.AND.I_HMAX.GT.-19) THEN
 !C.. Setup the first graph for memory MC
-                  OWEIGHT=1.D0
+                  OWEIGHT=1.0_dp
                   ODLWDB=HIJS(0)
 !C.. The VWEIGHTS hold the weights of the current vertices.
 !C.. These are currently set to (for 1) (rho_jj/rho_ii)**P
 !C.. and for 2 (rho_jj/rhoii)**-P
-                  VWEIGHTS(1,0)=1.D0
-                  VWEIGHTS(2,0)=1.D0
+                  VWEIGHTS(1,0)=1.0_dp
+                  VWEIGHTS(2,0)=1.0_dp
                   VWEIGHTS(1,1)=VWEIGHTS(1,0)
                   VWEIGHTS(2,1)=VWEIGHTS(2,0)
                   CALL NECI_ICOPY(NEL,IPATH(1,0),1,IPATH(1,I_VCUR),1)
                ELSE
-                  OWEIGHT=0.D0
-                  ODLWDB=0.D0
+                  OWEIGHT=0.0_dp
+                  ODLWDB=0.0_dp
                ENDIF
                IF(I_VMIN.NE.0) THEN
                   ODLWDB=DLWDBCORE
@@ -230,7 +230,7 @@ module mcpathsismc
 !               CALL neci_flush(6)
                DO ICOUNT=1,NWHTAY
 !C                  IF(ICOUNT.EQ.135) TST=1
-!C                  DLWDB2=0.D0
+!C                  DLWDB2=0.0_dp
                   IF(I_HMAX.EQ.-3) THEN
                      FF=FMCPR4B(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,       &
      &                  G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,            &
@@ -242,7 +242,7 @@ module mcpathsismc
      &                  RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,         &
      &                  ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS)
                   ElseIf(tMCDirectSum) Then
-                    oWeight=0.D0 !Ensure generated graph is "accepted"
+                    oWeight=0.0_dp !Ensure generated graph is "accepted"
                     IF(g_MultiWeight(0).NE.0) THEN
                      R=RAN2(ISEED)*g_MultiWeight(0)
                      I_VCUR=I_VMIN-1
@@ -303,7 +303,7 @@ module mcpathsismc
                          ELSEIF(G_VMC_FAC.EQ.0) THEN
                            R=RAN2(ISEED)
                            I_VCUR=int(R*real(I_VMAX-1,dp)+2.0_dp,sizeof_int)
-                           PFAC=1.D0/(I_VMAX-1)
+                           PFAC=1.0_dp/(I_VMAX-1)
                          ELSE
                            DO WHILE(I_VCUR.LT.1.OR.I_VCUR.GT.I_VMAX)
                               R=RAN2(ISEED)
@@ -326,7 +326,7 @@ module mcpathsismc
 !..   We're doing MC where we have either the gestalt 1..I_VMIN-1 vertex object
 !.. or graphs of size I_VMIN=I_VMAX
 
-                         IF(G_VMC_FAC.LE.0.D0) THEN
+                         IF(G_VMC_FAC.LE.0.0_dp) THEN
 !.. We're doing non-stochastic time MC but with a renormalized composite gestalt.
 !.. G_VMC_FAC is the prob of generating a non-gestalt.
                            IOV=I_OVCUR
@@ -377,9 +377,9 @@ module mcpathsismc
                               OWEIGHT=WCORE
                               ODLWDB=DLWDBCORE
                               DLWDB2=DLWDBCORE/WCORE
-                              OPROB=1.D0-ABS(G_VMC_FAC)
+                              OPROB=1.0_dp-ABS(G_VMC_FAC)
                               IOCLS=0
-                              FF=1.D0
+                              FF=1.0_dp
                               ITREE=1
                               CALL AddGraph(MCSt,LP,1,FF,DLWDB2/FF,     &
      &                              WCORE,0,ITREE,1,1,1,                &
@@ -397,12 +397,12 @@ module mcpathsismc
 !.. get in a row
                            IF(TVVDISALLOW) THEN
                               PREJ=((WCORE)/ABS((OWEIGHT)))*OPROB
-                              PREJ=1.D0-MIN(PREJ,1.D0)
-                              PGR=PREJ*(1.D0) !-G_VMC_FAC)
+                              PREJ=1.0_dp-MIN(PREJ,1.0_dp)
+                              PGR=PREJ*(1.0_dp) !-G_VMC_FAC)
                            ELSE
-                              PREJ=((WCORE)/ABS((OWEIGHT)))*OPROB/(1.D0-G_VMC_FAC)
-                              PREJ=1.D0-MIN(PREJ,1.D0)
-                              PGR=PREJ*(1.D0-G_VMC_FAC)
+                              PREJ=((WCORE)/ABS((OWEIGHT)))*OPROB/(1.0_dp-G_VMC_FAC)
+                              PREJ=1.0_dp-MIN(PREJ,1.0_dp)
+                              PGR=PREJ*(1.0_dp-G_VMC_FAC)
                            ENDIF
 !C.. L is the number of strings of rejections (i.e. of V's we add
                            LP=int(LOG((1.0_dp-RAN2(ISEED)))/LOG(PGR),sizeof_int)
@@ -419,7 +419,7 @@ module mcpathsismc
 !Either we've disallowed V->V' transitions or we generate a 1-v graph
                            IF(TVVDISALLOW.OR.                                &
      &   RAN2(ISEED)*(1-(1-G_VMC_FAC)*PREJ).GE.ABS(G_VMC_FAC)) THEN
-                              FF=1.D0
+                              FF=1.0_dp
                               IOV=I_OVCUR
                               I_OVCUR=1
                               IGV=1
@@ -436,7 +436,7 @@ module mcpathsismc
                               IF(TVVDISALLOW) THEN
                                  OPROB=1
                               ELSE
-                                 OPROB=1.D0-ABS(G_VMC_FAC)
+                                 OPROB=1.0_dp-ABS(G_VMC_FAC)
                               ENDIF
                               IOCLS=0
                               TSEQ=.FALSE.
@@ -611,7 +611,7 @@ module mcpathsismc
 !DLWDB has the  w E~ sum of past levels, and we add the w E~ of this level to it.
                DLWDB=DLWDB+DLWDB2
             ELSE
-               WLSI=1.D0 !weight of 1v graph
+               WLSI=1.0_dp !weight of 1v graph
                TOTAL=TOTAL+WLSI
                DLWDB=HIJS(0)
                DO I_V=I_VM1,I_VM2
@@ -625,7 +625,7 @@ module mcpathsismc
          ELSE
             Call GetStats(MCSt,0,TOTAL,DLWDB2,WLSI)
             DLWDB=DLWDB2
-            IF(TOTAL.LT.0.D0) THEN
+            IF(TOTAL.LT.0.0_dp) THEN
                TOTAL=-TOTAL
                DLWDB=-DLWDB
             ENDIF
@@ -696,8 +696,8 @@ module mcpathsismc
                   RHOIJ(I,J)=RH
                   RHOIJ(J,I)=RH
                ELSE
-                  RHOIJ(I,J)=0.D0
-                  RHOIJ(J,I)=0.D0
+                  RHOIJ(I,J)=0.0_dp
+                  RHOIJ(J,I)=0.0_dp
                ENDIF
             ENDDO   
             RHOII(I)=RHOIJ(I,I)
@@ -850,7 +850,7 @@ module mcpathsismc
 !C.. doesn't bother calculating the RHO_JJ.
 !C         CALL GENSYMDETSSDN(NI,KSYM,NEL,G1,BRR,NBASIS,0,
 !C     &         IC,NBASISMAX,
-!C     &      BETA,I_P,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,ECORE,X,RP,0.D0,
+!C     &      BETA,I_P,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,ECORE,X,RP,0.0_dp,
 !C     &      RHOEPS)
          CALL GENRANDOMSPINEXCIT(NI,NEL,G1,NBASIS,NBASISMAX,IC,         &
      &      ISEED,INODE2)
@@ -877,7 +877,7 @@ module mcpathsismc
 !C               NLIST=0
 !C               CALL GENSYMDETSSDN(INODE2,KSYM,NEL,G1,BRR,NBASIS,LSTE,
 !C     &            NLIST,NBASISMAX,BETA,I_P,NMSH,FCK,NMAX,
-!C     &            ALAT,UMAT,NTAY,ECORE,X,RP,0.D0,RHOEPS)
+!C     &            ALAT,UMAT,NTAY,ECORE,X,RP,0.0_dp,RHOEPS)
                CALL GENRANDOMSPINEXCIT(INODE,NEL,G1,NBASIS,NBASISMAX,IC,      &
      &            ISEED,INODE2)
 
@@ -893,19 +893,19 @@ module mcpathsismc
                DO I=0,I_VNEXT-1
                   ICE=IGETEXCITLEVEL(INODE,IPATH(1,I),NEL)
                   IF(ICE.LE.2) THEN
-                     XIJ(I_VNEXT,I)=1.D0/NLIST
+                     XIJ(I_VNEXT,I)=1.0_dp/NLIST
                      IF(ISUHFDET(IPATH(1,I),NEL)) THEN
                         IF(ICE.EQ.2) THEN
-                           XIJ(I,I_VNEXT)=1.D0/XIJ(I,I)
+                           XIJ(I,I_VNEXT)=1.0_dp/XIJ(I,I)
                         ELSE
-                           XIJ(I,I_VNEXT)=0.D0
+                           XIJ(I,I_VNEXT)=0.0_dp
                         ENDIF
                      ELSE
-                        XIJ(I,I_VNEXT)=1.D0/XIJ(I,I)
+                        XIJ(I,I_VNEXT)=1.0_dp/XIJ(I,I)
                      ENDIF   
                   ELSE
-                     XIJ(I_VNEXT,I)=0.D0
-                     XIJ(I,I_VNEXT)=0.D0
+                     XIJ(I_VNEXT,I)=0.0_dp
+                     XIJ(I,I_VNEXT)=0.0_dp
                   ENDIF
                   IF(I.EQ.0) THEN
                      hel = get_helement (nI, iNode)
@@ -918,8 +918,8 @@ module mcpathsismc
                      RHOIJ(I_VNEXT,I)=RH
                      RHOIJ(I,I_VNEXT)=RH
                   ELSE
-                     RHOIJ(I,I_VNEXT)=0.D0
-                     RHOIJ(I_VNEXT,I)=0.D0
+                     RHOIJ(I,I_VNEXT)=0.0_dp
+                     RHOIJ(I_VNEXT,I)=0.0_dp
                   ENDIF
                ENDDO
                I_VNEXT=I_VNEXT+1
@@ -927,7 +927,7 @@ module mcpathsismc
             ICOUNT=ICOUNT+1
             IF(ICOUNT.GT.500) THEN
 !C.. give up trying to find something to attach, and go home
-               FMCPR4B=0.D0
+               FMCPR4B=0.0_dp
                RETURN
             ENDIF
          ENDDO
@@ -950,13 +950,13 @@ module mcpathsismc
          FMCPR4B=CALCPATHS_N(RHOII,RHOIJ,I_V,I_HMAX,                       &
      &         I_P,RH*NWHTAY,DBETA,DLWDB,HIJS,ICLS)
          IF(TLOG) WRITE(10,"(3E25.16, I7)") FMCPR4B,RH,DLWDB,ICLS
-         IF(RH.GT.0.D0) THEN
+         IF(RH.GT.0.0_dp) THEN
 !C.. Unbias the sum 
             FMCPR4B=FMCPR4B/RH
             DLWDB=DLWDB/RH
          ELSE
-            FMCPR4B=0.D0
-            DLWDB=0.D0
+            FMCPR4B=0.0_dp
+            DLWDB=0.0_dp
          ENDIF
 !C         WRITE(35,*)
          RETURN
@@ -1006,7 +1006,7 @@ module mcpathsismc
          HElement_t :: hel
 !C.. we hard code RP as P/50, although this should be an empirical
 !C.. parameter.
-         RP=-I_P/50.D0
+         RP=-I_P/50.0_dp
 !C..I_P
          I_VNEXT=1
          CALL NECI_ICOPY(NEL,IPATH(1,0),1,INODE,1)
@@ -1015,13 +1015,13 @@ module mcpathsismc
 !C.. doesn't bother calculating the RHO_JJ.
          CALL GENSYMDETSSDN(NI,KSYM,NEL,G1,BRR,NBASIS,(/0/),             &
      &         IC,NBASISMAX,BETA,I_P,NMSH,FCK,NMAX,ALAT,             &
-     &         UMAT,NTAY,ECORE,X,RP,0.D0,RHOEPS)
+     &         UMAT,NTAY,ECORE,X,RP,0.0_dp,RHOEPS)
 !C.. Diagonal X elements contain the normalization of that node
 !C.. In this case that is the number of symmetric adjacent nodes
 
          XIJ(0,0)=X
-         IF(X.EQ.0.D0) THEN
-            FMCPR4C=0.D0
+         IF(X.EQ.0.0_dp) THEN
+            FMCPR4C=0.0_dp
             RETURN
          ENDIF       
 !C
@@ -1048,7 +1048,7 @@ module mcpathsismc
                NLIST=0
                CALL GENSYMDETSSDN(INODE,KSYM,NEL,G1,BRR,NBASIS,LSTE,          &
      &            NLIST,NBASISMAX,BETA,I_P,NMSH,FCK,NMAX,                     &
-     &            ALAT,UMAT,NTAY,ECORE,X,RP,0.D0,RHOEPS)
+     &            ALAT,UMAT,NTAY,ECORE,X,RP,0.0_dp,RHOEPS)
                XIJ(I_VNEXT,I_VNEXT)=X
 !C.. Update the rho and X (probability) matrices with this new node
                CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,                        &
@@ -1064,8 +1064,8 @@ module mcpathsismc
                   IF(ABS(RH).GT.RHOEPS) THEN
                      RHOIJ(I_VNEXT,I)=RH
                      RHOIJ(I,I_VNEXT)=RH
-!C                     XIJ(I_VNEXT,I)=1.D0/XIJ(I_VNEXT,I_VNEXT)
-!C                     XIJ(I,I_VNEXT)=1.D0/XIJ(I,I)
+!C                     XIJ(I_VNEXT,I)=1.0_dp/XIJ(I_VNEXT,I_VNEXT)
+!C                     XIJ(I,I_VNEXT)=1.0_dp/XIJ(I,I)
                      XIJ(I_VNEXT,I)=                                          &
      &                  RHOII(I)**ABS(RP)/XIJ(I_VNEXT,I_VNEXT)
                      XIJ(I,I_VNEXT)=                                          &
@@ -1075,11 +1075,11 @@ module mcpathsismc
                         HIJS(I_vNext) = hel
                      endif
                   ELSE
-                     RHOIJ(I,I_VNEXT)=0.D0
-                     RHOIJ(I_VNEXT,I)=0.D0
-                     XIJ(I_VNEXT,I)=0.D0
-                     XIJ(I,I_VNEXT)=0.D0
-                     IF(I.EQ.0) HIJS(I_VNEXT)=0.D0
+                     RHOIJ(I,I_VNEXT)=0.0_dp
+                     RHOIJ(I_VNEXT,I)=0.0_dp
+                     XIJ(I_VNEXT,I)=0.0_dp
+                     XIJ(I,I_VNEXT)=0.0_dp
+                     IF(I.EQ.0) HIJS(I_VNEXT)=0.0_dp
                   ENDIF
 !C                  IF(ICE.LE.2) THEN
 !C                     XIJ(I_VNEXT,I)=RHOII(I)**RP/X
@@ -1089,8 +1089,8 @@ module mcpathsismc
 !C                     XIJ(I_VNEXT,I)=RHOIJ(I,I_VNEXT)**RP/X
 !C                     XIJ(I,I_VNEXT)=RHOIJ(I,I_VNEXT)**RP/XIJ(I,I)
 !C                  ELSE
-!C                     XIJ(I_VNEXT,I)=0.D0
-!C                     XIJ(I,I_VNEXT)=0.D0
+!C                     XIJ(I_VNEXT,I)=0.0_dp
+!C                     XIJ(I,I_VNEXT)=0.0_dp
 !C                  ENDIF
                ENDDO
                I_VNEXT=I_VNEXT+1
@@ -1098,7 +1098,7 @@ module mcpathsismc
             ICOUNT=ICOUNT+1
             IF(ICOUNT.GT.500) THEN
 !C.. give up trying to find something to attach, and go home
-               FMCPR4C=0.D0
+               FMCPR4C=0.0_dp
                RETURN
             ENDIF
          ENDDO
@@ -1121,12 +1121,12 @@ module mcpathsismc
          FMCPR4C=CALCPATHS_N(RHOII,RHOIJ,I_V,I_HMAX,                       &
      &         I_P,RH*NWHTAY,DBETA,DLWDB,HIJS,ICLS)
          IF(TLOG) WRITE(10,"(3E25.16, I7)") FMCPR4C,RH,DLWDB,ICLS
-         IF(RH.GT.0.D0) THEN
+         IF(RH.GT.0.0_dp) THEN
 !C.. Unbias the sum 
             FMCPR4C=FMCPR4C/RH
             DLWDB=DLWDB/RH
          ELSE
-            FMCPR4C=0.D0
+            FMCPR4C=0.0_dp
          ENDIF
          RETURN
       END function fmcpr4c
@@ -1148,20 +1148,20 @@ module mcpathsismc
          IF(I_V.EQ.2) THEN
             GETPATHPROB2=XIJ(1,2)
          ELSEIF(I_V.EQ.3) THEN
-            IF(G_VMC_PI.EQ.-1.D0) THEN
+            IF(G_VMC_PI.EQ.-1.0_dp) THEN
                 PI=0.5
                 PJ=0.5
             ELSE
                 PI=G_VMC_PI
-                PJ=1.D0-PI
+                PJ=1.0_dp-PI
             ENDIF
             GETPATHPROB2= XIJ(1,2)*(PI*XIJ(1,3)+PJ*XIJ(2,3))/     &
      &                     (1-PI*XIJ(1,2)-PJ*XIJ(2,1))            &
      &                  +XIJ(1,3)*(PI*XIJ(1,2)+PJ*XIJ(3,2))/      &
      &                     (1-PI*XIJ(1,3)-PJ*XIJ(3,1))
 !C            IPATH(1)=1
-!C            RET=0.D0
-!C            CALL GETPP2_R(IPATH,XIJ,M,I_V,2,RET,1.D0,INV)
+!C            RET=0.0_dp
+!C            CALL GETPP2_R(IPATH,XIJ,M,I_V,2,RET,1.0_dp,INV)
 !C            WRITE(61,*) GETPATHPROB2,RET
 !C         ENDIF
          ELSE
@@ -1169,8 +1169,8 @@ module mcpathsismc
 !C.. permutations of jkl... and calculating appropriate inverse matrix
 !C.. elements
             IPATH(1)=1
-            M(1,1)=1.D0
-            RET=0.D0
+            M(1,1)=1.0_dp
+            RET=0.0_dp
 !C            STOP 'Cannot handle new path gen with IV_MAX>3'
             CALL GETPP2_R(IPATH,XIJ,M,I_V,2,RET,1.0_dp,INV)
             GETPATHPROB2=RET
@@ -1198,8 +1198,8 @@ module mcpathsismc
 !C.. permutations of jkl... and calculating appropriate inverse matrix
 !C.. elements
             IPATH(1)=1
-            M(1,1)=1.D0
-            RET=0.D0
+            M(1,1)=1.0_dp
+            RET=0.0_dp
             CALL GETPP_R(IPATH,XIJ,M,I_V,2,RET,1.0_dp)
             GETPATHPROB=RET
          ENDIF
@@ -1231,32 +1231,32 @@ module mcpathsismc
             IF(T) THEN
                IPATH(I_V)=J
 !C.. Create the prob matrix
-               IF(G_VMC_PI.eq.-1.D0) THEN
+               IF(G_VMC_PI.eq.-1.0_dp) THEN
                    DO I=1,I_V-1
-                    P(I)=1.D0/(I_V-1.D0)
+                    P(I)=1.0_dp/(I_V-1.0_dp)
                    ENDDO
                ELSE
                 IF(I_V.GT.2) THEN
                   P(1)=G_VMC_PI
                 ELSE
-                  P(1)=1.D0
+                  P(1)=1.0_dp
                 ENDIF
                 DO I=2,I_V-1
-                     P(I)=(1.D0-G_VMC_PI)/(I_V-2.D0)
+                     P(I)=(1.0_dp-G_VMC_PI)/(I_V-2.0_dp)
                 ENDDO
                ENDIF
-               P(I_V)=0.D0
+               P(I_V)=0.0_dp
 !C.. Create matrix M 
                DO I=1,I_V
                   DO K=1,I_V
-                     INV(I,K)=0.D0
+                     INV(I,K)=0.0_dp
                      DO L=1,I_V
                         IF(L.NE.K) INV(I,K)=INV(I,K)              &
      &                     -P(L)*XIJ(IPATH(L),IPATH(K))
                      ENDDO
-                     IF(I.EQ.I_V) INV(I,K)=0.D0
+                     IF(I.EQ.I_V) INV(I,K)=0.0_dp
                      IF(I.EQ.K) THEN
-                        INV(I,K)=1.D0+INV(I,K)
+                        INV(I,K)=1.0_dp+INV(I,K)
                      ENDIF
                   ENDDO
 !C                  WRITE(61,*) (INV(I,K),K=1,I_V)
@@ -1299,10 +1299,10 @@ module mcpathsismc
                   M(I,I_V)=-XIJ(IPATH(I),J)
                   M(I_V,I)=-XIJ(J,IPATH(I))
                ENDDO
-               M(I_V,I_V)=1.D0
+               M(I_V,I_V)=1.0_dp
                CALL DCOPY(I_VMAX**2,M,1,INV,1)
                DO I=1,I_V-1
-                  INV(I_V,I)=0.D0
+                  INV(I_V,I)=0.0_dp
                ENDDO
 !C.. Invert the matrix, and pass the multiplicative factor on.
                CALL DGETRF(I_V,I_V,INV,I_VMAX,IPIVOT,INFO)
@@ -1536,14 +1536,14 @@ module mcpathsismc
          real(dp) MPEs(2:i_VMax)
          
 !C.. Take a copy of the old path and rho matrix etc.
-         IF(OWEIGHT.ne.0.D0) THEN
+         IF(OWEIGHT.ne.0.0_dp) THEN
             CALL DCOPY(I_OVCUR+1,RHOII,1,ORHOII,1)
             CALL DCOPY((I_OVCUR+1)**2,RHOIJ,1,ORHOIJ,1)
             CALL DCOPY(I_OVCUR+1,HIJS,1,OHIJS,1)
             CALL DCOPY(I_OVCUR*I_OVCUR,XIJ,1,OXIJ,1)
             CALL NECI_ICOPY(NEL*(1+I_OVCUR),IPATH,1,OIPATH,1)
         ENDIF
-         IF(.not.abs(INWI).gt.0.D0) THEN
+         IF(.not.abs(INWI).gt.0.0_dp) THEN
 !.. Generate a new graph
             RHX=-1
             IC=0
@@ -1569,18 +1569,18 @@ module mcpathsismc
             ICLS=0
             IF(TMPTHEORY) THEN
 ! MP Theory requires HDIAG
-               MPEs=(0.d0)
+               MPEs=(0.0_dp)
                CALL AddMPEnergy(RHOIJ,i_V,i_vmax,NMAX,nBasis,              &
      &            iPath,nEl,.false.,ECORE,MPEs)
-               ETILDE=0.D0
+               ETILDE=0.0_dp
                DO I=2,I_VMAX
                   ETILDE=ETILDE+MPEs(I)
                ENDDO
-               WEIGHT=1.D0
+               WEIGHT=1.0_dp
             ELSE
 !C.. CALCPATHS gives us the contribution of the path
                WEIGHT=CALCPATHS_N(RHOII,RHOIJ,I_V,I_HMAX,                  &
-     &            I_P,0.D0,DBETA,ETILDE,HIJS,ICLS)
+     &            I_P,0.0_dp,DBETA,ETILDE,HIJS,ICLS)
             ENDIF
          ELSE
 !C.. we use the gestalt
@@ -1590,7 +1590,7 @@ module mcpathsismc
             ETILDE=DLWDB
          ENDIF
 !C.. Now do an accept/reject
-         IF(.NOT.abs(OWEIGHT).gt.0.D0) THEN
+         IF(.NOT.abs(OWEIGHT).gt.0.0_dp) THEN
 !C.. this is the first time round, so we automatically accept the new
 !C.. configuration
             OETILDE=ETILDE
@@ -1609,7 +1609,7 @@ module mcpathsismc
 
             PR=(OPROB/RHX)*ABS((WEIGHT/OWEIGHT))
 !            WRITE(40,"(5G)",advance='no') OPROB,RH,(WEIGHT), (OWEIGHT),PR
-            IF(RHX.EQ.0.D0.OR..NOT.abs(OWEIGHT).gt.0.D0) PR=0.D0
+            IF(RHX.EQ.0.0_dp.OR..NOT.abs(OWEIGHT).gt.0.0_dp) PR=0.0_dp
             IF(isnan_neci(WEIGHT)) THEN
                 WRITE(60,*) WEIGHT,ETILDE,RHX
                 CALL WRITEPATH(60,IPATH,I_V,NEL,.FALSE.)
@@ -1627,7 +1627,7 @@ module mcpathsismc
 !            CALL WRITEPATHEX(40,IPATH,I_V,NEL,.FALSE.)
 !            WRITE(40,*) IACC
          ENDIF
-         CALL CLASSPATHS(FMCPR4D2,DLWDB,1.D0,RHOIJ,                              &
+         CALL CLASSPATHS(FMCPR4D2,DLWDB,1.0_dp,RHOIJ,                              &
      &            I_V,ICLS)
 ! If we're writing graphs, we write here before acceptance/rejectance
          IF(BTEST(ILOGGING,2)) THEN
@@ -1668,18 +1668,18 @@ module mcpathsismc
          IF(TMPTHEORY.AND..NOT.tMCDirectSum) THEN
             DLWDB=ETILDE/(OPROB)
             FMCPR4D2=OPROB
-         ELSEIF(tMCDirectSum.AND.RHX.GT.0.D0.AND.                          &
-     &                                   (abs(WEIGHT).gt.0.D0)) THEN
+         ELSEIF(tMCDirectSum.AND.RHX.GT.0.0_dp.AND.                          &
+     &                                   (abs(WEIGHT).gt.0.0_dp)) THEN
 !C.. Unbias the sum 
             DLWDB=ETILDE/WEIGHT
             FMCPR4D2=WEIGHT/WEIGHT
-         ELSEIF(RHX.GT.0.D0.AND.abs(WEIGHT).gt.0.D0) THEN
+         ELSEIF(RHX.GT.0.0_dp.AND.abs(WEIGHT).gt.0.0_dp) THEN
 !C.. Unbias the sum 
             DLWDB=ETILDE/(ABS((WEIGHT)))
             FMCPR4D2=WEIGHT/(ABS((WEIGHT)))
          ELSE
-            FMCPR4D2=0.D0
-            DLWDB=0.D0
+            FMCPR4D2=0.0_dp
+            DLWDB=0.0_dp
          ENDIF
          CALL GETTREENESS(ICLS,ITREE,FMCPR4D2,I_V)
       END function fmcpr4d2
@@ -1756,7 +1756,7 @@ module mcpathsismc
             RHOIJ(0,0) = hel
             RHOII(1)=BETA
          ENDIF
-         PEXCIT(1)=1.D0
+         PEXCIT(1)=1.0_dp
          !LOC(NMEMNI) is a pointer to NMEM
          PVERTMEMS(0)%p=>NMEMNI
          I_VNEXT=1
@@ -1780,20 +1780,20 @@ module mcpathsismc
 !C.. symmetry.  We don't worry about weighting this at the moment
 !C.. We pick which node we'regoing to excite from
             IF(I_VNEXT.GT.1) THEN
-                IF(G_VMC_PI.eq.-1.D0) THEN
+                IF(G_VMC_PI.eq.-1.0_dp) THEN
                     
                     DO I=1,I_VNEXT
-                        PEXCIT(I)=1.D0/(I_VNEXT+0.D0)
+                        PEXCIT(I)=1.0_dp/(I_VNEXT+0.0_dp)
                     ENDDO
                 ELSE
                     DO I=2,I_VNEXT
-                        PEXCIT(I)=(1.D0-G_VMC_PI)/(I_VNEXT-1.D0)
+                        PEXCIT(I)=(1.0_dp-G_VMC_PI)/(I_VNEXT-1.0_dp)
                     ENDDO
                     PEXCIT(1)=G_VMC_PI
                 ENDIF
             ENDIF
 !C.. Just make really sure the last one catches everytihng
-            PEXCIT(I_VNEXT)=2.D0
+            PEXCIT(I_VNEXT)=2.0_dp
             R=RAN2(ISEED)
             NEXNODE=0
             DO WHILE(R.GE.0)
@@ -1875,19 +1875,19 @@ module mcpathsismc
                      XIJ(I_VNEXT,I)=pGen2
       
 ! We supercede the old unbiased random choice with a new one.
-!                     XIJ(I_VNEXT,I)=1.D0/IC
+!                     XIJ(I_VNEXT,I)=1.0_dp/IC
 !                     IF(ISUHFDET(IPATH(1,I),NEL,NBASISMAX)) THEN
 !                        IF(ICE.EQ.2) THEN
-!                           XIJ(I,I_VNEXT)=1.D0/XIJ(I,I)
+!                           XIJ(I,I_VNEXT)=1.0_dp/XIJ(I,I)
 !                        ELSE
-!                           XIJ(I,I_VNEXT)=0.D0
+!                           XIJ(I,I_VNEXT)=0.0_dp
 !                        ENDIF
 !                     ELSE
-!                        XIJ(I,I_VNEXT)=1.D0/XIJ(I,I)
+!                        XIJ(I,I_VNEXT)=1.0_dp/XIJ(I,I)
 !                     ENDIF   
                   ELSE
-                     XIJ(I_VNEXT,I)=0.D0
-                     XIJ(I,I_VNEXT)=0.D0
+                     XIJ(I_VNEXT,I)=0.0_dp
+                     XIJ(I,I_VNEXT)=0.0_dp
                   ENDIF
                   IF(I_HMAX.EQ.-19) THEN
 !  using H-elements in the rho matrix
@@ -1906,8 +1906,8 @@ module mcpathsismc
                      RHOIJ(I_VNEXT,I)=RH
                      RHOIJ(I,I_VNEXT)=RH
                   ELSE
-                     RHOIJ(I,I_VNEXT)=0.D0
-                     RHOIJ(I_VNEXT,I)=0.D0
+                     RHOIJ(I,I_VNEXT)=0.0_dp
+                     RHOIJ(I_VNEXT,I)=0.0_dp
                   ENDIF
                ENDDO
                I_VNEXT=I_VNEXT+1
@@ -1917,7 +1917,7 @@ module mcpathsismc
 !C.. give up trying to find something to attach, and go home
                WRITE(6,*) "WARNING: Unable to find attachee to vertex"
                call write_det (6, IPATH(1,NEXNODE), .true.)
-               RHOII(1)=0.D0
+               RHOII(1)=0.0_dp
                RETURN
             ENDIF
          ENDDO
@@ -1935,7 +1935,7 @@ module mcpathsismc
          INTEGER ICLASS,ITREE,I_V,N,ICL
          real(dp) WEIGHT
          ITREE=0
-         IF(WEIGHT.EQ.0.D0) RETURN
+         IF(WEIGHT.EQ.0.0_dp) RETURN
          N=0
          ICL=ICLASS
          DO WHILE (ICL.NE.0)

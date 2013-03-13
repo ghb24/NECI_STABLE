@@ -1,6 +1,6 @@
 #include "macros.h"
 module errors
-    use constants, only: dp, int64,lenof_sign
+    use constants, only: dp, int64,lenof_sign,sizeof_int
     use Parallel_neci, only: iProcIndex,Root
     use util_mod, only: get_free_unit
     use CalcData, only: SftDamp
@@ -554,7 +554,7 @@ module errors
                     if(iters.gt.iShiftVary) then
                         tRefToZero = .true.
                         validdata=0
-                        iShiftVary = Iters + 1
+                        iShiftVary = int(Iters,sizeof_int) + 1
                     endif
                 else
                     if(iters.gt.iShiftVary) then
@@ -562,7 +562,7 @@ module errors
                             !Denominator gone to zero - wipe the stats
                             tRefToZero = .true.
                             validdata=0
-                            iShiftVary = Iters + 1
+                            iShiftVary = int(Iters,sizeof_int) + 1
                         else
                             validdata=validdata+1
                         endif
@@ -591,7 +591,7 @@ module errors
         write(6,"(A,I12)") "Number of data points found in file: ",datapoints
         write(6,"(A,I12)") "Number of useable data points: ",validdata
 
-        if(validdata.le.0) then
+        if(validdata.le.1) then
             write(6,"(A)") "No valid datapoints found in file. Exiting error analysis."
             tFailRead = .true.
             return
