@@ -17,11 +17,12 @@ module semi_stochastic
     use Determinants, only: get_helement
     use enumerate_excitations
     use FciMCData, only: HFDet, ilutHF, iHFProc, Hii, CurrentDets, CurrentH, &
-                         deterministic_proc_sizes, deterministic_proc_indices, &
+                         determ_proc_sizes, determ_proc_indices, &
                          full_determ_vector, partial_determ_vector, core_hamiltonian, &
                          determ_space_size, TotWalkers, TotWalkersOld, &
                          indices_of_determ_states, ProjEDet, SpawnedParts, SparseHamilTags, &
-                         HDiagTag, CoreTag, FDetermTag, PDetermTag
+                         HDiagTag, CoreTag, FDetermTag, PDetermTag, &
+                         trial_space, trial_space_size
     use gndts_mod, only: gndts
     use hash , only: DetermineDetNode
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
@@ -38,7 +39,8 @@ module semi_stochastic
                           determ_space_cutoff_num, tDetermAmplitudeCutoff, &
                           num_trial_generation_loops, trial_space_cutoff_amp, &
                           trial_space_cutoff_num, tTrialAmplitudeCutoff, OccDetermCASOrbs, &
-                          VirtDetermCASOrbs, OccTrialCasOrbs, VirtTrialCasOrbs
+                          VirtDetermCASOrbs, OccTrialCasOrbs, VirtTrialCasOrbs, &
+                          tLimitDetermSpace, tLimitTrialSpace, max_determ_size, max_trial_size
 
     implicit none
 
@@ -59,19 +61,20 @@ contains
 
         integer :: i, j, IC, ierr, comp
         integer :: nI(nel)
+        integer :: space_size
         character (len=*), parameter :: this_routine = "init_semi_stochastic"
 
         write(6,'()')
         write(6,'(a56)') "============ Semi-stochastic initialisation ============"
         call neci_flush(6)
 
-        allocate(deterministic_proc_sizes(0:nProcessors-1))
-        allocate(deterministic_proc_indices(0:nProcessors-1))
-        deterministic_proc_sizes = 0
-        deterministic_proc_indices = 0
+        allocate(determ_proc_sizes(0:nProcessors-1))
+        allocate(determ_proc_indices(0:nProcessors-1))
+        determ_proc_sizes = 0
+        determ_proc_indices = 0
 
         ! Count the HF state and add it to SpawnedParts.
-        deterministic_proc_sizes(iHFProc) = 1
+        determ_proc_sizes(iHFProc) = 1
         if (.not. tReadPops) then
             SpawnedParts(:,1) = CurrentDets(:,1)
         else
@@ -100,7 +103,7 @@ contains
                 call set_flag(CurrentDets(:, i), flag_is_initiator(1))
                 call set_flag(CurrentDets(:, i), flag_is_initiator(2))
             end do
-            call MPIAllGather(int(TotWalkers, MPIArg), deterministic_proc_sizes, ierr)
+            call MPIAllGather(int(TotWalkers, MPIArg), determ_proc_sizes, ierr)
         else if (tDeterminantCore) then
             if (tDoublesCore) then
                 call generate_sing_doub_determinants(called_from_semistoch)
@@ -121,32 +124,40 @@ contains
             end if
         end if
 
+        if (tLimitDetermSpace) then
+            tSortDetermToTop = .false.
+            space_size = determ_proc_sizes(iProcIndex)
+            call remove_high_energy_states(SpawnedParts(:, 1:space_size), space_size, &
+                                           max_determ_size, .true.)
+            call MPIAllGather(int(space_size, MPIArg), determ_proc_sizes, ierr)
+        end if
+
         ! We now know the size of the deterministic space on each processor, so now find
         ! the total size of the space and also allocate vectors to store psip amplitudes
         ! and the deterministic Hamiltonian.
-        determ_space_size = sum(deterministic_proc_sizes)
+        determ_space_size = sum(determ_proc_sizes)
         allocate(full_determ_vector(determ_space_size), stat=ierr)
         call LogMemAlloc('full_determ_vector', int(determ_space_size,sizeof_int), 8, this_routine, &
                          FDetermTag, ierr)
-        allocate(partial_determ_vector(deterministic_proc_sizes(iProcIndex)), stat=ierr)
-        call LogMemAlloc('partial_determ_vector', int(deterministic_proc_sizes(iProcIndex), &
+        allocate(partial_determ_vector(determ_proc_sizes(iProcIndex)), stat=ierr)
+        call LogMemAlloc('partial_determ_vector', int(determ_proc_sizes(iProcIndex), &
                          sizeof_int), 8, this_routine, PDetermTag, ierr)
-        allocate(core_hamiltonian(deterministic_proc_sizes(iProcIndex), determ_space_size), stat=ierr)
+        allocate(core_hamiltonian(determ_proc_sizes(iProcIndex), determ_space_size), stat=ierr)
         call LogMemAlloc('core_hamiltonian', int(determ_space_size*&
-                         &deterministic_proc_sizes(iProcIndex),sizeof_int), 8, this_routine, CoreTag, ierr)
+                         &determ_proc_sizes(iProcIndex),sizeof_int), 8, this_routine, CoreTag, ierr)
         full_determ_vector = 0.0_dp
         partial_determ_vector = 0.0_dp
 
         ! Write space sizes to screen.
         write(6,'(a34,1X,i8)') "Total size of deterministic space:", determ_space_size
         write(6,'(a46,1X,i8)') "Size of deterministic space on this processor:", &
-                    deterministic_proc_sizes(iProcIndex)
+                    determ_proc_sizes(iProcIndex)
         call neci_flush(6)
 
         ! Also allocate the vector to store the positions of the deterministic states in
         ! CurrentDets.
-        allocate(indices_of_determ_states(deterministic_proc_sizes(iProcIndex)), stat=ierr)
-        call LogMemAlloc('indices_of_determ_states', int(deterministic_proc_sizes(iProcIndex), &
+        allocate(indices_of_determ_states(determ_proc_sizes(iProcIndex)), stat=ierr)
+        call LogMemAlloc('indices_of_determ_states', int(determ_proc_sizes(iProcIndex), &
                          sizeof_int), bytes_int, this_routine, FDetermTag, ierr)
 
         ! Calculate the indices in the full vector at which the various processors take
@@ -154,20 +165,20 @@ contains
         ! in this vector will be 0, *not* 1 - this is required for mpiallgatherv later).
         do i = 0, nProcessors-1
             if (i == 0) then
-                deterministic_proc_indices(i) = 0
+                determ_proc_indices(i) = 0
             else
-                deterministic_proc_indices(i) = deterministic_proc_indices(i-1) + &
-                                                  deterministic_proc_sizes(i-1)
+                determ_proc_indices(i) = determ_proc_indices(i-1) + &
+                                                  determ_proc_sizes(i-1)
             end if
         end do
 
         ! Sort the list of basis states so that it is correctly ordered in the predefined
         ! order which is always kept throughout the simulation.
-        call sort(SpawnedParts(:,1:deterministic_proc_sizes(iProcIndex)), ilut_lt, ilut_gt)
+        call sort(SpawnedParts(:,1:determ_proc_sizes(iProcIndex)), ilut_lt, ilut_gt)
 
         ! Do a check that no states are in the deterministic space twice. The list is sorted
         ! already so simply check states next to each other in the list:
-        do i = 2, deterministic_proc_sizes(iProcIndex)
+        do i = 2, determ_proc_sizes(iProcIndex)
             comp = DetBitLT(SpawnedParts(:, i-1), SpawnedParts(:, i), NIfD, .false.)
             if (comp == 0) then
                 call decode_bit_det(nI, SpawnedParts(:,i))
@@ -188,11 +199,11 @@ contains
         ! FCIQMC spawning to start. If reading from a popsfile then CurrenDets will have been
         ! initialised already.
         if (.not. tReadPops) then
-            CurrentDets(:,1:deterministic_proc_sizes(iProcIndex)) = &
-                SpawnedParts(:,1:deterministic_proc_sizes(iProcIndex))
+            CurrentDets(:,1:determ_proc_sizes(iProcIndex)) = &
+                SpawnedParts(:,1:determ_proc_sizes(iProcIndex))
             SpawnedParts = 0
-            TotWalkers = int(deterministic_proc_sizes(iProcIndex), int64)
-            TotWalkersOld = int(deterministic_proc_sizes(iProcIndex), int64)
+            TotWalkers = int(determ_proc_sizes(iProcIndex), int64)
+            TotWalkersOld = int(determ_proc_sizes(iProcIndex), int64)
         else
             SpawnedParts = 0
         end if
@@ -213,8 +224,8 @@ contains
 
         ! temp_store is storage space for bitstrings so that the Hamiltonian matrix
         ! elements can be calculated.
-        allocate(temp_store(0:NIfTot, maxval(deterministic_proc_sizes)), stat=ierr)
-        call LogMemAlloc('temp_store', maxval(deterministic_proc_sizes)*(NIfTot+1), 8, &
+        allocate(temp_store(0:NIfTot, maxval(determ_proc_sizes)), stat=ierr)
+        call LogMemAlloc('temp_store', maxval(determ_proc_sizes)*(NIfTot+1), 8, &
                          this_routine, TempStoreTag, ierr)
 
         ! Calcuation of the Hamiltonian matrix elements to be stored. Loop over each
@@ -224,20 +235,20 @@ contains
 
             ! If we are broadcasting from this processor next, transfer the bitstrings
             ! to the array temp_store.
-            if (iproc == iProcIndex) temp_store(:,1:deterministic_proc_sizes(iproc)) = &
-                                      SpawnedParts(:,1:deterministic_proc_sizes(iproc))
+            if (iproc == iProcIndex) temp_store(:,1:determ_proc_sizes(iproc)) = &
+                                      SpawnedParts(:,1:determ_proc_sizes(iproc))
 
             ! Perform the broadcasting to other all other processors.
             call MPIBCast(temp_store, size(temp_store), iproc)
 
             ! The index of the column before the first column of the block of the
             ! Hamiltonian currently being calculated.
-            col_index = deterministic_proc_indices(iproc)
+            col_index = determ_proc_indices(iproc)
 
             ! Loop over all the elements in the block of the Hamiltonian corresponding
             ! to these two prcoessors.
-            do i = 1, deterministic_proc_sizes(iProcIndex)
-                do j = 1, deterministic_proc_sizes(iproc)
+            do i = 1, determ_proc_sizes(iProcIndex)
+                do j = 1, determ_proc_sizes(iproc)
 
                     ! Get nI form of the basis functions.
                     call decode_bit_det(nI, SpawnedParts(:, i))
@@ -481,11 +492,11 @@ contains
         integer(n_int) :: ilut(0:NIfTot)
         integer :: nI(nel)
         integer :: counter, i, j, k, ierr
-        integer :: old_num_states, new_num_states, comp
+        integer :: old_num_states, new_num_states, max_space_size, comp
         integer :: num_generation_loops, array_size
         integer, allocatable, dimension(:) :: space_cutoff_num
         real(dp), allocatable, dimension(:) :: space_cutoff_amp
-        logical :: tAmplitudeCutoff
+        logical :: tAmplitudeCutoff, tLimitSpace
         integer(TagIntType) :: IlutTag, TempTag
         character (len=*), parameter :: this_routine = "generate_optimised_core"
 
@@ -494,6 +505,8 @@ contains
         if (called_from == called_from_semistoch) then
             num_generation_loops = num_det_generation_loops
             tAmplitudeCutoff = tDetermAmplitudeCutoff
+            max_space_size = max_determ_size
+            tLimitSpace = tLimitDetermSpace
             if (tAmplitudeCutoff) then
                 array_size = size(determ_space_cutoff_amp,1)
                 allocate(space_cutoff_amp(array_size))
@@ -507,6 +520,8 @@ contains
         elseif (called_from == called_from_trial) then
             num_generation_loops = num_trial_generation_loops
             tAmplitudeCutoff = tTrialAmplitudeCutoff
+            max_space_size = max_trial_size
+            tLimitSpace = tLimitTrialSpace
             if (tAmplitudeCutoff) then
                 array_size = size(trial_space_cutoff_amp,1)
                 allocate(space_cutoff_amp(array_size))
@@ -563,7 +578,13 @@ contains
 
             call remove_repeated_states(ilut_store(:, 1:new_num_states), new_num_states)
 
-            write(6,'(i8,1X,a41)') new_num_states, "states found. Constructing Hamiltonian..."
+            write(6,'(i8,1X,a13)') new_num_states, "states found."
+            call neci_flush(6)
+
+            if (tLimitSpace) call remove_high_energy_states(ilut_store(:, 1:new_num_states), &
+                                                            new_num_states, max_space_size, .false.)
+
+            write(6,'(a27)') "Constructing Hamiltonian..."
             call neci_flush(6)
 
             call calculate_sparse_hamiltonian(new_num_states, ilut_store(:,1:new_num_states))
@@ -821,6 +842,8 @@ contains
         type(excit_store), target :: gen_store
         integer(n_int) :: ilut(0:NIfTot)
         integer :: nI(nel)
+        integer :: space_size
+        integer :: i, ierr
 
         ! This condition tells the enumerating subroutines to initialise the loop.
         ilut(0) = -1
@@ -851,6 +874,11 @@ contains
 
             if (ilut(0) /= -1) call add_basis_state_to_list(ilut, called_from)
         end do
+
+        if (called_from == called_from_trial) then
+            if (tLimitTrialSpace) call remove_high_energy_states(trial_space(:, 1:trial_space_size), &
+                                                             trial_space_size, max_trial_size, .false.)
+        end if
 
     end subroutine generate_sing_doub_determinants
 
@@ -1144,8 +1172,6 @@ contains
         !     called from, and hence which space this state should be added to.
         ! In (optional) : nI_in - A list of the occupied orbitals in the determinant.
 
-        use FciMCData, only: trial_space, trial_space_size
-
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: called_from
         integer, optional :: nI_in(nel)
@@ -1181,11 +1207,11 @@ contains
             proc = DetermineDetNode(nI,0)
 
             ! Increase the size of the deterministic space on the correct processor.
-            deterministic_proc_sizes(proc) = deterministic_proc_sizes(proc) + 1
+            determ_proc_sizes(proc) = determ_proc_sizes(proc) + 1
 
             ! If this determinant belongs to this processor, add it to the main list.
             if (proc == iProcIndex) call encode_bit_rep(SpawnedParts(0:NIfTot, &
-                deterministic_proc_sizes(iProcIndex)), ilut(0:nIfDBO), sgn, flags)
+                determ_proc_sizes(iProcIndex)), ilut(0:nIfDBO), sgn, flags)
 
         else if (called_from == called_from_trial) then
 
@@ -1274,29 +1300,29 @@ contains
 
         integer :: i, info
 
-        call MPIAllGatherV(partial_determ_vector, full_determ_vector, deterministic_proc_sizes, &
-                            deterministic_proc_indices)
+        call MPIAllGatherV(partial_determ_vector, full_determ_vector, determ_proc_sizes, &
+                            determ_proc_indices)
 
-        if (deterministic_proc_sizes(iProcIndex) >= 1) then
+        if (determ_proc_sizes(iProcIndex) >= 1) then
 
             ! This function performs y := alpha*A*x + beta*y
             ! N specifies not to use the transpose of A.
-            ! deterministic_proc_sizes(iProcIndex) is the number of rows in A.
+            ! determ_proc_sizes(iProcIndex) is the number of rows in A.
             ! determ_space_size is the number of columns of A.
             ! alpha = -1.0_dp.
             ! A = core_hamiltonian.
-            ! deterministic_proc_sizes(iProcIndex) is the first dimension of A.
+            ! determ_proc_sizes(iProcIndex) is the first dimension of A.
             ! input x = full_determ_vector.
             ! 1 is the increment of the elements of x.
             ! beta = 0.0_dp.
             ! output y = partial_determ_vector.
             ! 1 is the incremenet of the elements of y.
             call dgemv('N', &
-                       deterministic_proc_sizes(iProcIndex), &
+                       determ_proc_sizes(iProcIndex), &
                        determ_space_size, &
                        -1.0_dp, &
                        core_hamiltonian, &
-                       deterministic_proc_sizes(iProcIndex), &
+                       determ_proc_sizes(iProcIndex), &
                        full_determ_vector, &
                        1, &
                        0.0_dp, &
@@ -1306,8 +1332,8 @@ contains
             ! Now add shift*full_determ_vector, to account for the shift, not stored in
             ! core_hamiltonian.
             partial_determ_vector = partial_determ_vector + &
-               DiagSft * full_determ_vector(deterministic_proc_indices(iProcIndex)+1:&
-                 deterministic_proc_indices(iProcIndex)+deterministic_proc_sizes(iProcIndex))
+               DiagSft * full_determ_vector(determ_proc_indices(iProcIndex)+1:&
+                 determ_proc_indices(iProcIndex)+determ_proc_sizes(iProcIndex))
 
             ! Now multiply the vector by tau to get the final projected vector.
             partial_determ_vector = partial_determ_vector * tau

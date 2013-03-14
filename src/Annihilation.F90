@@ -832,7 +832,7 @@ MODULE AnnihilationMod
         logical :: tSuccess
 
         ! First, copy across the weights from partial_determ_vector:
-        do i = 1, deterministic_proc_sizes(iProcIndex)
+        do i = 1, determ_proc_sizes(iProcIndex)
             call extract_sign(CurrentDets(:, indices_of_determ_states(i)), CurrentSign)
             SpawnedSign = partial_determ_vector(i)
             call encode_sign(CurrentDets(:, indices_of_determ_states(i)), SpawnedSign + CurrentSign)
@@ -852,7 +852,7 @@ MODULE AnnihilationMod
         if (tSortDetermToTop) then
             ! We only need to search the deterministic part of CurrentDets.
             MinInd = 1
-            MaxInd = deterministic_proc_sizes(iProcIndex)
+            MaxInd = determ_proc_sizes(iProcIndex)
             do i = 1, index_of_first_non_determ-1
                 ! Search the CurrentDets list for this state.
                 call BinSearchParts(SpawnedParts(:, i), MinInd, MaxInd, PartInd, tSuccess)
@@ -941,7 +941,7 @@ MODULE AnnihilationMod
         ! true, then the deterministic states have been taken care of. So, we only need to perform the
         ! binary search over the non-deterministic states, so set MinInd to ignore deterministic states.
         if (tSortDetermToTop) then
-            MinInd = deterministic_proc_sizes(iProcIndex) + 1
+            MinInd = determ_proc_sizes(iProcIndex) + 1
         else
             MinInd = 1
         end if

@@ -9,10 +9,13 @@ module enumerate_excitations
 
     use bit_reps, only: NIfTot
     use constants
+    use FciMCData, only: SpinInvBRR
+    use Parallel_neci, only: MPISumAll
+    use sort_mod, only: sort
     use SymData, only: nSymLabels
     use SymExcitDataMod
     use sym_general_mod
-    use SystemData, only: nel, G1, tFixLz
+    use SystemData, only: nel, nBasis, G1, tFixLz, Arr, Brr
 
     implicit none
 
@@ -581,5 +584,98 @@ contains
         end do
 
     end subroutine find_next_summation_pair
+
+    subroutine remove_high_energy_states(ilut_list, num_states, target_num_states, tParallel)
+
+        integer, intent(inout) :: num_states
+        integer(n_int), intent(inout) :: ilut_list(0:NIfTot, 1:num_states)
+        integer, intent(in) :: target_num_states
+        logical, intent(in) :: tParallel
+        integer, allocatable, dimension(:) :: orbitals_rmvd
+        integer :: i, j, orb, num_orbs_rmvd
+        integer :: bit, elem
+        integer :: states_rmvd_this_proc, counter
+        integer(MPIArg) :: tot_num_states, states_rmvd_all_procs
+        logical :: occupied
+
+        states_rmvd_this_proc = 0
+
+        if (tParallel) then
+            call MPISumAll(int(num_states, MPIArg), tot_num_states)
+        else
+            tot_num_states = num_states
+        end if
+
+        if (tot_num_states <= target_num_states) return
+
+        write(6,'(a32)') "Removing high energy orbitals..."
+
+        ! Loop through all orbitals, from highest energy to lowest.
+        do i = nBasis, 1, -1
+
+            num_orbs_rmvd = nBasis-i+1
+
+            orb = BRR(i)
+
+            bit = mod(orb-1, bits_n_int)
+            elem = (orb-1-bit)/bits_n_int
+
+            ! Loop through all states and remove those states with orbital orb&
+            ! occupied.
+            do j = 1, num_states
+                occupied = btest(ilut_list(elem, j), bit)
+                if (occupied) then
+                    ilut_list(:, j) = 0
+                    states_rmvd_this_proc = states_rmvd_this_proc + 1
+                end if
+            end do
+
+            if (tParallel) then
+                call MPISumAll(int(states_rmvd_this_proc, MPIArg), states_rmvd_all_procs)
+            else
+                states_rmvd_all_procs = states_rmvd_this_proc
+            end if
+
+            ! If there are degenerate orbitals, then cycle to remove the
+            ! degenrate orbitals too, before giving the program chance to quit.
+            if (i > 1) then
+                ! If the orbitals energies are the same:
+                if ( Arr(i, 1) == Arr((i-1), 1) ) cycle
+            end if
+
+            if (tot_num_states-states_rmvd_all_procs <= target_num_states) exit
+
+        end do
+
+        ! Loop through the list and shuffle states down to fill in the gaps
+        ! created above.
+        counter = 0
+        do i = 1, num_states
+            ! If the state wasn't set to 0:
+            if (.not. all(ilut_list(:,i) == 0)) then
+                counter = counter + 1
+                ilut_list(:, counter) = ilut_list(:, i)
+            end if
+        end do
+        if (counter /= num_states-states_rmvd_this_proc) &
+            call stop_all("remove_high_energy_states", &
+                          "Wrong number of states found.")
+        num_states = counter
+
+        ! Finally, output information:
+        write(6,'(a36)',advance='no') "The following orbitals were removed:"
+        allocate(orbitals_rmvd(num_orbs_rmvd))
+        orbitals_rmvd = BRR(nBasis-num_orbs_rmvd+1:nBasis)
+        call sort(orbitals_rmvd)
+        do i = 1, num_orbs_rmvd
+            write(6,'(i5)',advance='no') orbitals_rmvd(i)
+            if (i == num_orbs_rmvd) write(6,'()',advance='yes')
+        end do
+        deallocate(orbitals_rmvd)
+        write(6,'(i6,1x,a29)') states_rmvd_all_procs, "states were removed in total."
+        write(6,'(i6,1x,a17)') tot_num_states-states_rmvd_all_procs, "states were kept."
+        call neci_flush(6)
+
+    end subroutine remove_high_energy_states
 
 end module enumerate_excitations

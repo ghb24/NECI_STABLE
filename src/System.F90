@@ -88,6 +88,10 @@ MODULE System
       tCASCore = .false.
       tOptimisedCore = .false.
       num_det_generation_loops = 1
+      tLimitDetermSpace = .false.
+      tLimitTrialSpace = .false.
+      max_determ_size = 0
+      max_trial_size = 0
       tDetermAmplitudeCutoff = .false.
       tTrialWavefunction = .false.
       tDoublesTrial = .false.
@@ -359,6 +363,12 @@ system: do
             tCSFCore = .true.
             tCSF = .true.
             LMS = STOT
+        case("MAX-CORE-SIZE")
+            tLimitDetermSpace = .true.
+            call geti(max_determ_size)
+        case("MAX-TRIAL-SIZE")
+            tLimitTrialSpace = .true.
+            call geti(max_trial_size)
         case("DOUBLES-CORE")
             tSortDetermToTop = .true.
             tDoublesCore = .true.

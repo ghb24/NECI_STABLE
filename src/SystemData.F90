@@ -99,6 +99,10 @@ logical :: tDetermAmplitudeCutoff
 ! When using the optimised core option for semi-stochastic simulations, this option specifies how many iterations of
 ! the generation procedure should be performed.
 integer :: num_det_generation_loops
+! If this is true then set a limit on the maximum deterministic space size.
+logical :: tLimitDetermSpace
+! This is maximum number of elements in the deterministic space, if tLimitDetermSpace is true.
+integer :: max_determ_size
 
 ! Options relating to the trial wavefunction.
 logical :: tTrialWavefunction ! Use a trial wavefunction-based energy estimator.
@@ -117,6 +121,10 @@ integer :: VirtTrialCASOrbs
 logical :: tTrialAmplitudeCutoff
 ! As for num_determ_generation_loops above, but here for the trial wavefunction generation.
 integer :: num_trial_generation_loops
+! If this is true then set a limit on the maximum trial space size.
+logical :: tLimitTrialSpace
+! This is maximum number of elements in the trial space, if tLimitDetermSpace is true.
+integer :: max_trial_size
 
 ! Calculate size of FCI determinant space using MC
 logical :: tMCSizeSpace,tMCSizeTruncSpace

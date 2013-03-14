@@ -48,6 +48,9 @@ contains
         call encode_det(trial_space(:,1), ilutHF)
         trial_space_size = 1
 
+        write(6,'(a29)') "Generating the trial space..."
+        call neci_flush(6)
+
         ! Generate the trial space and place the corresponding states in trial_space.
         if (tDoublesTrial) then
             call generate_sing_doub_determinants(called_from_trial)
@@ -58,6 +61,10 @@ contains
         end if
 
         call sort(trial_space(0:NIfTot, 1:trial_space_size), ilut_lt, ilut_gt)
+
+        if (tLimitTrialSpace) call remove_high_energy_states&
+                                       (trial_space(:, 1:trial_space_size), &
+                                        trial_space_size, max_trial_size, .false.)
 
         allocate(trial_wavefunction(trial_space_size), stat=ierr)
         call LogMemAlloc('trial_wavefunction', trial_space_size, 8, this_routine, &
@@ -201,7 +208,7 @@ contains
         write(6,'(a30,1X,i8)') "Total size of connected space:", tot_con_space_size
         write(6,'(a42,1X,i8)') "Size of connected space on this processor:", con_space_size
         write(6,'(a37,1X,f13.7)') "Energy eigenvalue of the trial space:", trial_energy
-        write(6,'(a42)') "Trial wavefunction initialisation complete"
+        write(6,'(a43)') "Trial wavefunction initialisation complete."
         call neci_flush(6)
 
         ! Deallocate remaining arrays.
