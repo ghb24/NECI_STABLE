@@ -168,9 +168,16 @@ contains
             call deallocate_sparse_hamil()
             deallocate(hamil_diag, stat=ierr)
             call LogMemDealloc(this_routine, HDiagTag, ierr)
+        else
+            if (allocated(davidson_eigenvector)) then
+                deallocate(davidson_eigenvector, stat=ierr)
+                call LogMemDealloc(this_routine, DavidsonTag, ierr)
+            end if
+            allocate(davidson_eigenvector(trial_space_size), stat=ierr)
+            call LogMemAlloc("davidson_eigenvector", trial_space_size, 8, this_routine, &
+                             DavidsonTag, ierr)
         end if
 
-        call MPIBarrier(ierr)
         call MPIBCast(trial_energy, 1, root)
         call MPIBCast(trial_wavefunction, size(trial_wavefunction), root)
 
